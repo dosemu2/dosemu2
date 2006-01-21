@@ -61,6 +61,7 @@
 #include "utilities.h"
 #include "lredir.h"
 #include "builtins.h"
+#include "disks.h"
 
 #define printf	com_printf
 #define	intr	com_intr
@@ -313,10 +314,8 @@ ShowMyRedirections(void)
     redirIndex = 0;
     driveCount = 0;
 
-    ccode = GetRedirection(redirIndex, deviceStr, resourceStr,
-                           &deviceType, &deviceParam);
-
-    while (ccode == CC_SUCCESS) {
+    while ((ccode = GetRedirection(redirIndex, deviceStr, resourceStr,
+                           &deviceType, &deviceParam)) == CC_SUCCESS) {
       /* only print disk redirections here */
       if (deviceType == REDIR_DISK_TYPE) {
         if (driveCount == 0) {
@@ -341,8 +340,6 @@ ShowMyRedirections(void)
       }
 
       redirIndex++;
-      ccode = GetRedirection(redirIndex, deviceStr, resourceStr,
-                             &deviceType, &deviceParam);
     }
 
     if (driveCount == 0) {
@@ -365,6 +362,50 @@ DeleteDriveRedirection(char *deviceStr)
     else {
       printf("Redirection for drive %s was deleted.\n", deviceStr);
     }
+}
+
+static int FindRedirectionByDevice(char *deviceStr, char *resourceStr)
+{
+    uint16 redirIndex = 0, deviceParam, ccode;
+    uint8 deviceType;
+    char dStr[MAX_DEVICE_STRING_LENGTH];
+    char dStrSrc[MAX_DEVICE_STRING_LENGTH];
+
+    snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
+    strupr(dStrSrc);
+    while ((ccode = GetRedirection(redirIndex, dStr, resourceStr,
+                           &deviceType, &deviceParam)) == CC_SUCCESS) {
+      if (strcmp(dStrSrc, dStr) == 0)
+        break;
+      redirIndex++;
+    }
+
+    return ccode;
+}
+
+static int FindFATRedirectionByDevice(char *deviceStr, char *resourceStr)
+{
+    struct DINFO *di;
+    char *dir;
+    if (!(di = (struct DINFO *)lowmem_alloc(sizeof(struct DINFO))))
+	return 0;
+    LWORD(eax) = 0x6900;
+    LWORD(ebx) = toupper(deviceStr[0]) - 'A' + 1;
+    REG(ds) = FP_SEG32(di);
+    LWORD(edx) = FP_OFF32(di);
+    call_msdos();
+    lowmem_free((void *)di, sizeof(struct DINFO));
+    if (REG(eflags) & CF) {
+	printf("error retrieving serial, %#x\n", LWORD(eax));
+	return -1;
+    }
+    if (!(dir = get_fat_dir_by_serial(di->serial))) {
+	printf("error identifying FAT volume\n");
+	return -1;
+    }
+    strcpy(resourceStr, "LINUX\\FS");
+    strcat(resourceStr, dir);
+    return CC_SUCCESS;
 }
 
 /********************************************
@@ -426,6 +467,10 @@ int lredir_main(int argc, char **argv)
       printf("  If R is specified, the drive will be read-only\n");
       printf("  If C is specified, (read-only) CDROM n is used (n=1 by default)\n");
       printf("  ${home} represents user's home directory\n\n");
+      printf("LREDIR X: Y:\n");
+      printf("  Redirect drive X: to where the drive Y: is redirected.\n");
+      printf("  If F is specified, the path for Y: is taken from its emulated "
+    	     "FAT volume.\n\n");
       printf("LREDIR DEL drive:\n");
       printf("  delete a drive redirection\n\n");
       printf("LREDIR\n");
@@ -443,7 +488,21 @@ int lredir_main(int argc, char **argv)
     /* assume the command is to redirect a drive */
     /* read the drive letter and resource string */
     strcpy(deviceStr, argv[1]);
-    strcpy(resourceStr, argv[2]);
+    if (argv[2][1] == ':') {
+      if (argc > 3 && toupper(argv[3][0]) == 'F') {
+        if ((ccode = FindFATRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS) {
+          printf("Error: unable to find FAT redirection for drive %s\n", argv[2]);
+	  goto MainExit;
+	}
+      } else {
+        if ((ccode = FindRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS) {
+          printf("Error: unable to find redirection for drive %s\n", argv[2]);
+	  goto MainExit;
+	}
+      }
+    } else {
+      strcpy(resourceStr, argv[2]);
+    }
     deviceParam = DEFAULT_REDIR_PARAM;
 
     if (argc > 3) {
