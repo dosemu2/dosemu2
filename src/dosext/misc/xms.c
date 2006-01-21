@@ -329,6 +329,11 @@ void xms_helper(void)
 {
   int i;
 
+  if (!config.ext_mem)
+    return;
+
+  LWORD(eax) = 0;	/* report success */
+
   if (config.xms_size)
     return;
 

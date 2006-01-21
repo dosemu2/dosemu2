@@ -187,17 +187,23 @@ HookHimem:
 	cmpb	$0x80, %al
 	je	1f
 	/* no XMS driver - try to install internal driver */
-	movb	$9, %ah
-	movw	$NoHimemMsg, %dx
-	pushw	$0xf000
+	pushw	$BIOSSEG
 	popw	%es
         /* version < 1.3.3.1? */
 	cmpl	$0x01030301, %es:(0xffe8)
 	jb	0f
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	int	$DOS_HELPER_INT
+	orb	%al, %al
+	jnz	0f
+	movb	$9, %ah
 	movw	$XMSMsg, %dx
+	int	$0x21
+	jmp	1f
+
 0:      
+	movb	$9, %ah
+	movw	$NoHimemMsg, %dx
 	int	$0x21
 	jmp	9f
 1:
