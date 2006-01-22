@@ -1982,8 +1982,15 @@ static void stop_disk(int token)
       struct stat file_status;        /* date for checking that file */
 
       c_printf("device: %s ", dptr->dev_name);
-      if (stat(dptr->dev_name,&file_status) != 0) /* Does this file exist? */
-	 yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
+      if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
+	 install_dos(0);
+	 if (config.install && config.install[0]) {
+	    dptr->dev_name = config.install;
+	    config.install = NULL;
+	    dptr->type = DIR_TYPE;
+         } else
+	    yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
+      }
     }
 
   if (dptr->type == NODISK)    /* Is it one of bootdisk, floppy, harddisk ? */

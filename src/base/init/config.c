@@ -4,6 +4,8 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -14,7 +16,6 @@
 #include <errno.h>
 #include <sys/utsname.h>
 
-#include "config.h"
 #include "emu.h"
 #include "timers.h"
 #include "video.h"
@@ -59,7 +60,7 @@
  * they are eaten by secure_option_preparse().
  */
 static const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:kL:M:mNOo:P:Sstu:Vv:wXx:U:"
+       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:Sstu:Vv:wXx:U:"
        "gK"/*NOPs kept for compat (not documented in usage())*/;
 
 
@@ -842,6 +843,12 @@ config_init(int argc, char **argv)
 	case 'I':
 	    commandline_statements = optarg;
 	    break;
+	case 'i':
+	    if (optarg)
+		config.install = optarg;
+	    else
+		config.install = "";
+	    break;
 	case 'd':
 	    if (config.detach)
 		break;
@@ -953,6 +960,7 @@ config_init(int argc, char **argv)
 	case 'h':
 	case 'H':
 	case 'I':
+	case 'i':
 	case 'd':
 	case 'o':
 	case 'O':
@@ -1141,6 +1149,7 @@ usage(char *basename)
 	"    -n bypass the system configuration file (^^)\n"
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"
+	"    -i[bootdir] (re-)install a DOS from bootdir or interactively\n"
 	"    -h dump configuration to stderr and exit (sets -D+c)\n"
 	"       0=no parser debug, 1=loop debug, 2=+if_else debug\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"

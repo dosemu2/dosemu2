@@ -19,7 +19,7 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 ]
 [
 .B \-install
-.I bootdir
+.I [ bootdir ]
 ]
 [
 .B args

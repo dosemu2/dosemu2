@@ -72,6 +72,10 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .I config-options
 ]
 [
+.B \-i
+.I \h'-1'[bootdir]
+]
+[
 .B \-U
 .I inpipe[:outpipe]
 ]
@@ -227,6 +231,16 @@ will do the job. Note however, that you have to quote the parameter behind
 because it is expected to be
 .I one
 argument.
+.TP
+.I -i[bootdir]
+launched as part of a systemwide installation, this option (re-)installs
+a DOS that is used in DOSEMU (this can be the DOSEMU distributed
+FreeDOS  or any proprietary DOS, which is bootable via fatfs).
+.I bootdir
+is the base name of a directory. The symbolic link ~/.dosemu/drives/c
+will be changed to point to this directory.
+Re-installing is only rarely necessary, since in practise the symbolic
+link(s) will automatically point to updated files.
 .TP
 .I -D
 specify which Debugging messages to allow/suppress

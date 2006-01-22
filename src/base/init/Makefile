@@ -19,7 +19,7 @@ CPPFLAGS+=-I$(srcdir)
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = config.c dosemu_c.c global_c.c memcheck.c init.c dev_list.c
+CFILES = config.c dosemu_c.c global_c.c memcheck.c init.c dev_list.c install.c
 LFILES = lexer.l
 YFILES = parser.y
 HFILES = parsglob.h

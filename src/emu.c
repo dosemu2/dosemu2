@@ -269,6 +269,10 @@ void do_liability_disclaimer_prompt(int dosboot)
    fprintf(f, "%s%s\n", text, buf);
    fclose(f);
    free(disclaimer_file_name);
+
+   if (!config.install)
+     /* impossible installation path, signals first start */
+     config.install = "/dev/null";
 }
 
 

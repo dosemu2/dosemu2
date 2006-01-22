@@ -24,10 +24,10 @@ edit = sed \
 
 install: all
 	$(INSTALL) -d $(DESTDIR)$(mandir)/man1
-	$(INSTALL) -m 0644 $(srcdir)/*.1 $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -m 0644 *.1 $(DESTDIR)$(mandir)/man1
 	for i in $(LANGUAGES); do \
 	    $(INSTALL) -d $(DESTDIR)$(mandir)/$$i/man1; \
-	    $(INSTALL) -m 0644 $(srcdir)/$$i/*.1 $(DESTDIR)$(mandir)/$$i/man1; \
+	    $(INSTALL) -m 0644 $$i/*.1 $(DESTDIR)$(mandir)/$$i/man1; \
 	done
 
 clean realclean:

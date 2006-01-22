@@ -19,7 +19,7 @@ USAGE:
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO INSTALL INPUT
+unset DUMBTERM STRING_I LREDIRHOME QUIET USE_SUDO INSTALL INPUT
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
@@ -35,9 +35,9 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -install)
-      INSTALL=1
+      INSTALL="-i"
       if [ -n "$2" -a "${2:0:1}" != "-" ]; then
-        PROPRIETARY=$2
+        INSTALL="-i $2"
         shift
       fi
       shift
@@ -73,8 +73,6 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
-#echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
-
 w4l_check () {
   if grep mki_install_hook /proc/ksyms >/dev/null 2>/dev/null; then
     echo "
@@ -96,13 +94,8 @@ if [ -f $BPATH_FILE ]; then
   be stored in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
   and the boot.log file is in $HOME/.dosemu.
       "
-  BOOTDIR=$BOOT_DIR_PATH/freedos
   rm -f $BPATH_FILE
-  install_dos
-else
-  # This either is the first time this user calls 'dosemu'
-  # or the user cd'ed here and we forced a 'take over'
-  install_dos
+  test -z "$INSTALL" && INSTALL="-i"
 fi
 
 get_binary
@@ -169,15 +162,6 @@ if [ -n "$XFLAG" -o -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
 "
   fi
   w4l_check
-  if [ -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-xdosemu ]; then
-    echo "
-   DOSEMU will run in its own X window.
-   To terminate it you have three choices:
-   - type <Ctrl>-C _here_ (not in the dosemu window)
-   - type <Ctrl><Alt><PgDn> in the dosemu window
-   - execute 'exitemu' at the DOS prompt"
-    touch ~/.dosemu/stamp-xdosemu
-  fi
 else
   if [ -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
     echo "
@@ -242,7 +226,7 @@ fi
 
 eval "set -- $SUFFIX"
 if [ -n "$STRING_I" ] ; then
-  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG "-I $STRING_I" "$@"
+  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF "$INSTALL" $XFLAG "-I $STRING_I" "$@"
 else
-  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG "$@"
+  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF "$INSTALL" $XFLAG "$@"
 fi

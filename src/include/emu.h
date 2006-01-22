@@ -238,6 +238,7 @@ typedef struct vesamode_type_struct {
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        char *emuini;           /* map system.ini to  system.EMU */
+       char *install;          /* directory to point ~/.dosemu/drives/c to */
 
        u_short speaker;		/* 0 off, 1 native, 2 emulated */
        u_short fdisks, hdisks;
@@ -464,6 +465,7 @@ EXTERN void cdrom_helper(unsigned char *, unsigned char *);
 EXTERN int mscdex(void);
 EXTERN void boot(void);
 EXTERN void do_liability_disclaimer_prompt(int stage);
+EXTERN void install_dos(int post_boot);
 EXTERN int pkt_int(void);
 EXTERN int ipx_int7a(void);
 EXTERN void read_next_scancode_from_queue (void);
