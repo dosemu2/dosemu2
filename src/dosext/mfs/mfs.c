@@ -493,6 +493,8 @@ select_drive(state_t *state)
           a non-zero value in the second four bits of the entry.
 	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
 	*/
+    if (dd == 0 && (sft_device_info(sft) & 0x8000))
+      dd = MAX_DRIVE - 1;
     if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
       found = 1;
     }
@@ -501,7 +503,13 @@ select_drive(state_t *state)
   if (!found && check_sda_ffn) {
     char *fn1 = sda_filename1(sda);
 
-    dd = toupper(fn1[0]) - 'A';
+    if (strncasecmp(fn1, "\\\\LINUX\\FS", 10) == 0) {
+      found = 1;
+      dd = MAX_DRIVE - 1;
+    }
+
+    if (!found)
+      dd = toupper(fn1[0]) - 'A';
     if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
       /* removed ':' check so DRDOS would be happy,
 	     there is a slight worry about possible device name
@@ -671,6 +679,8 @@ init_all_drives(void)
       drives[dd].root_len = 0;
       drives[dd].read_only = FALSE;
     }
+    /* special processing for UNC "drive" */
+    drives[MAX_DRIVE - 1].root = "";
     process_mask = umask(0);
     umask(process_mask);
   }
@@ -1692,6 +1702,10 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
   if (path[1]==':')
     path += cds_rootlen(drive_cds(drive));
   
+  /* strip \\linux\fs if present */
+  if (strncasecmp(path, "\\\\LINUX\\FS", 10) == 0)
+    path += 10;
+
   Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
           drives[drive].root_len));
   
@@ -3581,7 +3595,7 @@ dos_fs_redirect(state_t *state)
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = drive + (0x8040);
+    sft_device_info(sft) = (drive & 0x1f) + (0x8040);
     time_to_dos(st.st_mtime,
 		&sft_date(sft), &sft_time(sft));
     sft_size(sft) = st.st_size;
@@ -3696,7 +3710,7 @@ dos_fs_redirect(state_t *state)
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = drive + (0x8040);
+    sft_device_info(sft) = (drive & 0x1f) + (0x8040);
     time_to_dos(st.st_mtime, &sft_date(sft),
 		&sft_time(sft));
 

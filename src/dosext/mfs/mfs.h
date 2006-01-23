@@ -28,7 +28,7 @@ typedef unsigned char boolean_t;
 #endif
 
 #ifndef MAX_DRIVE
-#define MAX_DRIVE 26
+#define MAX_DRIVE 33
 #endif
 
 #define USE_DF_AND_AFS_STUFF
