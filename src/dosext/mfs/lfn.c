@@ -239,7 +239,6 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	if (src0 == '\0')
 		return -FILE_NOT_FOUND;
 
-#if 0 /* UNC paths to be done later */
 	if (src0 == '\\' && src[1] == '\\') {
 		const char *unc_src = src;
 		/* Flag UNC paths and short circuit processing.	 Set current LDT   */
@@ -257,7 +256,6 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		/* referenced for network with empty current_ldt.	    */
 		return 0;
 	}
-#endif
   
 	/* Do we have a drive?						*/
 	if (src[1] == ':')
@@ -512,6 +510,12 @@ static int build_truename(char *dest, const char *src, int mode)
 	if (dd < 0) {
 		lfn_error(-dd);
 		return -1;
+	}
+
+	if (src[0] == '\\' && src[1] == '\\') {
+		if (strncasecmp(src, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) != 0)
+			return  -2;
+		return MAX_DRIVE - 1;
 	}
 
 	if (dd > MAX_DRIVE || !drives[dd].root)

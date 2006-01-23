@@ -473,7 +473,12 @@ select_drive(state_t *state)
     found = 1;
 
   if (!found && check_cds) {
-    dd = cds_drive(sda_cds);
+    char *fn1 = sda_filename1(sda);
+    if (fn != SET_CURRENT_DIRECTORY &&
+	strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
+      dd = MAX_DRIVE - 1;
+    else
+      dd = cds_drive(sda_cds);
     if (dd >= 0 && drives[dd].root)
       found = 1;
   }
@@ -503,7 +508,7 @@ select_drive(state_t *state)
   if (!found && check_sda_ffn) {
     char *fn1 = sda_filename1(sda);
 
-    if (strncasecmp(fn1, "\\\\LINUX\\FS", 10) == 0) {
+    if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
       found = 1;
       dd = MAX_DRIVE - 1;
     }
@@ -521,7 +526,9 @@ select_drive(state_t *state)
   if (!found && check_dssi_fn) {
     char *name = (char *) Addr(state, ds, esi);
     Debug0((dbg_fd, "FNX=%.15s\n", name));
-    if (name[1] == ':') {
+    if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
+      dd = MAX_DRIVE - 1;
+    } else if (name[1] == ':') {
       dd = toupper(name[0]) - 'A';
     } else {
       dd = sda_cur_drive(sda);
@@ -696,11 +703,11 @@ init_all_drives(void)
   *
   */
 static void
-get_unix_path(char *new_path, char *path)
+get_unix_path(char *new_path, const char *path)
 {
   char str[PATH_MAX];
   char var[256];
-  char *orig_path = path;
+  const char *orig_path = path;
   char *val;
   char *tmp_str;
   int i;
@@ -1650,6 +1657,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
             int lowercase)
 {
   char ch;
+  int inenv = 0;
 
   mbstate_t unix_state;
   memset(&unix_state, 0, sizeof unix_state);
@@ -1660,8 +1668,10 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
       ch = EOS;
     switch (ch) {
     case BACKSLASH:
-      if (!(PreserveEnvVar &&    /* Check for environment variable */
-            path[0] == '$' && path[1] == '{'))
+      /* Check for environment variable */
+      if (PreserveEnvVar && path[0] == '$' && path[1] == '{')
+	inenv = 1;
+      else
 	ch = SLASH;
       /* fall through */
     case EOS:  
@@ -1671,13 +1681,16 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
       if (lowercase) while(ufs_offset > 0 && ufs[ufs_offset - 1] == ' ')
         ufs_offset--;
       break;
+    case '}':
+      inenv = 0;
+      break;
     default:
       break;
     }
     if (ch != EOS) {
       size_t result;
       wchar_t symbol = dos_to_unicode_table[(unsigned char)ch];
-      if (lowercase)
+      if (lowercase && !inenv)
         symbol = towlower(symbol);
       result = wcrtomb(&ufs[ufs_offset], symbol, &unix_state);
       if (result == -1)
@@ -1703,8 +1716,16 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
     path += cds_rootlen(drive_cds(drive));
   
   /* strip \\linux\fs if present */
-  if (strncasecmp(path, "\\\\LINUX\\FS", 10) == 0)
-    path += 10;
+  if (strncasecmp(path, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
+    size_t len;
+
+    path_to_ufs(ufs, 0, &path[strlen(LINUX_RESOURCE)], 1, lowercase);
+    get_unix_path(ufs, ufs);
+    len = strlen(ufs);
+    if (len > 1 && ufs[len - 1] == SLASH)
+      ufs[len - 1] = EOS;
+    return TRUE;
+  }
 
   Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
           drives[drive].root_len));
