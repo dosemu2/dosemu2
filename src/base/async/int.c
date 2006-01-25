@@ -147,8 +147,8 @@ static void process_master_boot_record(void)
      unsigned char end_head;
      unsigned char end_sector;
      unsigned char end_track;
-     unsigned long num_sect_preceding;
-     unsigned long num_sectors;
+     unsigned int num_sect_preceding;
+     unsigned int num_sectors;
    } __attribute__((packed));
    struct mbr {
      char code[0x1be];
@@ -186,7 +186,7 @@ static void process_master_boot_record(void)
    }
    LWORD(edi)= 0x7dfe;
    LWORD(eip) = 0x7c00;
-   LWORD(ebp) = LWORD(esi) = (unsigned)&mbr->partition[i];
+   LWORD(ebp) = LWORD(esi) = 0x600 + offsetof(struct mbr, partition[i]);
 }
 
 static int inte6(void)
@@ -268,7 +268,7 @@ int dos_helper(void)
       set_vc_screen_page();
       warn("WARNING: jumping to 0[c/e]000:0003\n");
 
-      ssp = (unsigned char *) (REG(ss) << 4);
+      ssp = SEG2LINEAR(REG(ss));
       sp = (unsigned long) LWORD(esp);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
@@ -403,7 +403,7 @@ int dos_helper(void)
     unsigned char *ssp;
     unsigned long sp;
 
-    ssp = (unsigned char *) (REG(ss) << 4);
+    ssp = SEG2LINEAR(REG(ss));
     sp = (unsigned long) LWORD(esp);
 
     LWORD(eax) = popw(ssp, sp);
@@ -514,7 +514,7 @@ int dos_helper(void)
     }
 
     case DOS_HELPER_GETCWD:
-        LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(ecx)));
+        LWORD(eax) = (short)((uintptr_t)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(ecx)));
         break;
 
     case DOS_HELPER_GETPID:
@@ -1234,7 +1234,7 @@ static int msdos(void)
 
 #if 1
   if(HI(ax) == 0x3d) {
-    char *p = (char *) (((REG(ds)) << 4) + LWORD(edx));
+    char *p = MK_FP32(REG(ds), LWORD(edx));
     int i;
 
     ds_printf("INT21: open file \"");
@@ -1401,7 +1401,7 @@ void real_run_int(int i)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(_SS<<4);
+  ssp = SEG2LINEAR(_SS);
   sp = (unsigned long) _SP;
 
   pushw(ssp, sp, read_FLAGS());
@@ -2098,7 +2098,7 @@ void fake_int(int cs, int ip)
   unsigned long sp;
 
   g_printf("fake_int: CS:IP %04x:%04x\n", cs, ip);
-  ssp = (unsigned char *)(LWORD(ss)<<4);
+  ssp = SEG2LINEAR(LWORD(ss));
   sp = (unsigned long) LWORD(esp);
 
   pushw(ssp, sp, vflags);
@@ -2123,7 +2123,7 @@ void fake_call(int cs, int ip)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(LWORD(ss)<<4);
+  ssp = SEG2LINEAR(LWORD(ss));
   sp = (unsigned long) LWORD(esp);
 
   g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
@@ -2144,7 +2144,7 @@ void fake_pusha(void)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(LWORD(ss)<<4);
+  ssp = SEG2LINEAR(LWORD(ss));
   sp = (unsigned long) LWORD(esp);
 
   pushw(ssp, sp, LWORD(eax));
@@ -2166,7 +2166,7 @@ void fake_retf(unsigned pop_count)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *) (REG(ss) << 4);
+  ssp = SEG2LINEAR(REG(ss));
   sp = (unsigned long) LWORD(esp);
 
   _IP = popw(ssp, sp);
@@ -2179,7 +2179,7 @@ static void fake_iret(void)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *) (REG(ss) << 4);
+  ssp = SEG2LINEAR(REG(ss));
   sp = (unsigned long) LWORD(esp);
 
   _SP += 6;
