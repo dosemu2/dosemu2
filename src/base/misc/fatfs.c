@@ -282,7 +282,7 @@ int read_sec(fatfs_t *f, unsigned pos)
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_fat(fatfs_t *f, unsigned pos)
 {
-  unsigned epfs, u, u0, u1 = 0, i = 0, nbit = 0, lnb = 0, boffs, bioffs;
+  unsigned epfs, u, u0, u1 = 0, i = 0, nbit = 0, lnb = 0, boffs, bioffs, wb;
 
   fatfs_deb("dir %s, reading fat sector %d\n", f->dir, pos);
 
@@ -295,8 +295,8 @@ int read_fat(fatfs_t *f, unsigned pos)
     epfs = f->bytes_per_sect / 2;
     boffs = 0;
   }
-  u0 = (pos * epfs + ((pos * boffs) >> 3)) * f->cluster_secs;
-  bioffs = (pos * boffs) & 7;
+  u0 = pos * epfs + ((pos * boffs) / 12);
+  bioffs = (pos * boffs) % 12;
   if(f->got_all_objs && u0 >= f->first_free_cluster)
     return 0;
 
@@ -316,10 +316,12 @@ int read_fat(fatfs_t *f, unsigned pos)
       bioffs = 0;
     }
     f->sec[i] |= (u1 << nbit) & 0xff;
-    i++;
-    u1 >>= 8 - nbit;
-    lnb -= 8 - nbit;
-    nbit = 0;
+    wb = min(8 - nbit, lnb);
+    u1 >>= wb;
+    lnb -= wb;
+    nbit += wb;
+    i += nbit >> 3;
+    nbit &= 7;
     if (i >= SECTOR_SIZE) break;
     if (!lnb) continue;
     f->sec[i] |= u1;
