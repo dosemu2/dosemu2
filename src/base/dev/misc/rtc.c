@@ -30,13 +30,15 @@ long   usr_delta_ticks = 0;
 unsigned long   last_ticks = 0;
 
 
-int cmos_date(int reg)
+Bit8u rtc_read(Bit8u reg)
 {
   unsigned char tmp;
 
   switch (reg) {
   case CMOS_SEC:
+  case CMOS_SECALRM:
   case CMOS_MIN:
+  case CMOS_MINALRM:
   case CMOS_DOW:
   case CMOS_DOM:
   case CMOS_MONTH:
@@ -47,6 +49,7 @@ int cmos_date(int reg)
     return BCD(GET_CMOS(reg));
 
   case CMOS_HOUR:		/* RTC hour...bit 1 of 0xb set=24 hour mode, clear 12 hour */
+  case CMOS_HOURALRM:
     tmp = GET_CMOS(reg);	/* stored internally as bin, not BCD */
     if (!(GET_CMOS(CMOS_STATUSB) & 2)) {	/* 12-hour mode */
       if (tmp == 0)
@@ -56,52 +59,69 @@ int cmos_date(int reg)
     }
     return BCD(tmp);
 
-  default:
-    h_printf("CMOS: cmos_time() register 0x%02x defaulted to 0\n", reg);
-    return 0;
+  case CMOS_STATUSC:
+    /* For now just clear, but have to check for the pending IRQs here! */
+    SET_CMOS(CMOS_STATUSC, 0);
+    break;
   }
 
+  return GET_CMOS(reg);
 }
-/* @@@ MOVE_END @@@ 32768 */
 
-
-static int rtc_int8(int ilevel)	/* int70 */
+void rtc_write(Bit8u reg, Bit8u byte)
 {
-  r_printf("RTC: interrupt\n");
-  /* XXX - FIXTHIS! where this supposed to be? */
-  LOCK_CMOS;
-  SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC)&~0x80);
-  UNLOCK_CMOS;
-  return 1;
-}
+  switch (reg) {
+    case CMOS_SEC:
+    case CMOS_MIN:
+    case CMOS_HOUR:
+    case CMOS_SECALRM:
+    case CMOS_MINALRM:
+    case CMOS_HOURALRM:
+      SET_CMOS(cmos.address, BIN(byte));
+      break;
 
+    /* b7=r/o and unused
+     * b4-6=always 010 (AT standard 32.768kHz)
+     * b0-3=rate [65536/2^v], default 6, min 3, 0=disable
+     */
+    case CMOS_STATUSA:
+      if ((byte&0x70)!=0x20) dbug_printf("RTC: clkin set\n");
+      SET_CMOS(cmos.address, byte & 0x7f);
+      break;
+
+    case CMOS_STATUSC:
+    case CMOS_STATUSD:
+      h_printf("RTC: attempt to write %hhx to %hhx\n", byte, cmos.address);
+      break;
+
+    default:
+      SET_CMOS(cmos.address, byte);
+  }
+}
 
 static void rtc_alarm_check (void)
 {
   static u_char last_sec = 0xff; /* any invalid value to begin with */
-  u_char a,h0,m0,s0,h,m,s;
+  u_char h0,m0,s0,h,m,s;
 
-  a = GET_CMOS(CMOS_STATUSB); if (a&0x80) return;
-  r_printf("RTC: alarm check e=%#x\n",a);
   s0=GET_CMOS(CMOS_SEC);
   m0=GET_CMOS(CMOS_MIN);
   h0=GET_CMOS(CMOS_HOUR);
 
-  if (a&0x10) goto do_alrm;
-
-  if (a&0x20) {
-    /* this is a test for equality - we can't just call a lib time
-     * function because a second could be skipped */
-    h = GET_CMOS(CMOS_HOURALRM);
-    if (h==0xff || h0==h) {
-      m = GET_CMOS(CMOS_MINALRM);
-      if (m==0xff || m0==m) {
-        s = GET_CMOS(CMOS_SECALRM);
-        if (s==0xff || (s0==s && s0!=last_sec)) {
-	  last_sec = s0;
-	  r_printf("RTC: got alarm at %02d:%02d:%02d\n",h,m,s);
-do_alrm:
-	  SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC)|0x80);
+  /* this is a test for equality - we can't just call a lib time
+   * function because a second could be skipped */
+  h = GET_CMOS(CMOS_HOURALRM);
+  if (h>=0xc0 || h0==h) {      /* Eric: all c0-ff are don't care */
+    m = GET_CMOS(CMOS_MINALRM);
+    if (m>=0xc0 || m0==m) {
+      s = GET_CMOS(CMOS_SECALRM);
+      if (s>=0xc0 || (s0==s && s0!=last_sec)) {
+        last_sec = s0;
+        h_printf("RTC: got alarm at %02d:%02d:%02d\n",h,m,s);
+        SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x20);
+        if ((GET_CMOS(CMOS_STATUSB) & 0x20) && !(GET_CMOS(CMOS_STATUSC) & 0x80)) {
+	  SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x80);
+          h_printf("RTC: alarm IRQ\n");
 	  pic_request(PIC_IRQ8);
         }
       }
@@ -115,7 +135,14 @@ void rtc_update (void)	/* called every 1s from SIGALRM */
   u_char h0,m0,s0,D0,M0,Y0,C0,days;
   static const u_char dpm[13] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
-  LOCK_CMOS;
+  if (GET_CMOS(CMOS_STATUSA) & 0x80)
+    error("RTC: A/UIP set on update\n");
+
+  if (GET_CMOS(CMOS_STATUSB) & 0x80) {
+    h_printf("RTC updates inhibited\n");
+    return;
+  }
+
   SET_CMOS(CMOS_STATUSA, GET_CMOS(CMOS_STATUSA)|0x80);
   s0=GET_CMOS(CMOS_SEC);
   m0=GET_CMOS(CMOS_MIN);
@@ -164,14 +191,20 @@ void rtc_update (void)	/* called every 1s from SIGALRM */
   }
   SET_CMOS(CMOS_SEC, s0);
 
-  r_printf("RTC: cmos update %02d:%02d:%02d\n",h0,m0,s0);
+  h_printf("RTC: cmos update %02d:%02d:%02d, B=%#x\n",h0,m0,s0,GET_CMOS(CMOS_STATUSB));
 
   rtc_alarm_check();
 
-  SET_CMOS(CMOS_STATUSA, GET_CMOS(CMOS_STATUSA)&~0x80);
-  UNLOCK_CMOS;
-}
+  /* per-second IRQ */
+  SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x10);
+  if ((GET_CMOS(CMOS_STATUSB) & 0x10) && !(GET_CMOS(CMOS_STATUSC) & 0x80)) {
+    SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x80);
+    h_printf("RTC: update IRQ\n");
+    pic_request(PIC_IRQ8);
+  }
 
+  SET_CMOS(CMOS_STATUSA, GET_CMOS(CMOS_STATUSA)&~0x80);
+}
 
 /*
  * Initialise the RTC. Key work is now in get_linux_ticks() where we initialise
@@ -182,13 +215,9 @@ void rtc_init (void)
   usr_delta_ticks = 0;
   last_ticks = sys_base_ticks = get_linux_ticks(1, NULL);
 
-  LOCK_CMOS;
   SET_CMOS(CMOS_HOURALRM, 0);
   SET_CMOS(CMOS_MINALRM,  0);
   SET_CMOS(CMOS_SECALRM,  0);
-  UNLOCK_CMOS;
-
-  pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
 }
 
 
@@ -340,7 +369,6 @@ unsigned long get_linux_ticks(int set_cmos, int *day_rollover)
 	{
 		/* Initialise the date settings of the RTC (CMOS clock) */
 		int cent;
-		LOCK_CMOS;
 		SET_CMOS(CMOS_HOUR, tm->tm_hour);
 		SET_CMOS(CMOS_MIN, tm->tm_min);
 		SET_CMOS(CMOS_SEC, tm->tm_sec);
@@ -353,7 +381,6 @@ unsigned long get_linux_ticks(int set_cmos, int *day_rollover)
 		SET_CMOS(CMOS_YEAR, year - 100*cent);	/* mod 100 */
 		SET_CMOS(CMOS_CENTURY, cent);
 		/* Really - we don't want to consider daylight saving in the RTC! */
-		UNLOCK_CMOS;
 	}
 
 	return (unsigned long)tt;

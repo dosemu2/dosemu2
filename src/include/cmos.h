@@ -52,7 +52,8 @@
 
 void cmos_write(ioport_t, Bit8u), cmos_init(void), cmos_reset(void);
 Bit8u cmos_read(ioport_t);
-int cmos_date(int);
+Bit8u rtc_read(Bit8u reg);
+void rtc_write(Bit8u reg, Bit8u val);
 
 struct CMOS {
   Bit8u subst[64];
@@ -79,8 +80,5 @@ static __inline__ Bit8u BIN(Bit8u bcdval)
   if (((l=(bcdval&0x0f))>9)||((h=(bcdval&0xf0))>0x90)) return 0xff;
   return ((h>>1)+(h>>3)+l);	/* h*10/16+l */
 }
-
-#define LOCK_CMOS
-#define UNLOCK_CMOS
 
 #endif

@@ -1023,11 +1023,9 @@ SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
     {
       get_linux_ticks(1, NULL); /* Except BIOS view time, force RTC to LINUX time. */
     }
-    LOCK_CMOS;
-    HI(cx) = BCD(GET_CMOS(CMOS_HOUR));
-    LO(cx) = BCD(GET_CMOS(CMOS_MIN));
-    HI(dx) = BCD(GET_CMOS(CMOS_SEC));
-    UNLOCK_CMOS;
+    HI(cx) = rtc_read(CMOS_HOUR);
+    LO(cx) = rtc_read(CMOS_MIN);
+    HI(dx) = rtc_read(CMOS_SEC);
     LO(dx) = 0;      /* No daylight saving - yuch */
     g_printf("INT1A: RTC time %02x:%02x:%02x\n",HI(cx),LO(cx),HI(dx));
     NOCARRY;
@@ -1053,11 +1051,9 @@ Note:	this function is also supported by the Sperry PC, which predates the
     }
     else
     {
-    LOCK_CMOS;
-    SET_CMOS(CMOS_HOUR, BIN(HI(cx)));
-    SET_CMOS(CMOS_MIN,  BIN(LO(cx)));
-    SET_CMOS(CMOS_SEC,  BIN(HI(dx)));
-    UNLOCK_CMOS;
+    rtc_write(CMOS_HOUR, HI(cx));
+    rtc_write(CMOS_MIN,  LO(cx));
+    rtc_write(CMOS_SEC,  HI(dx));
     g_printf("INT1A: RTC set time %02x:%02x:%02x\n",HI(cx),LO(cx),HI(dx));
     }
     NOCARRY;
@@ -1080,12 +1076,10 @@ SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
     {
       get_linux_ticks(1, NULL);
     }
-    LOCK_CMOS;
-    HI(cx) = BCD(GET_CMOS(CMOS_CENTURY));
-    LO(cx) = BCD(GET_CMOS(CMOS_YEAR));
-    HI(dx) = BCD(GET_CMOS(CMOS_MONTH));
-    LO(dx) = BCD(GET_CMOS(CMOS_DOM));
-    UNLOCK_CMOS;
+    HI(cx) = rtc_read(CMOS_CENTURY);
+    LO(cx) = rtc_read(CMOS_YEAR);
+    HI(dx) = rtc_read(CMOS_MONTH);
+    LO(dx) = rtc_read(CMOS_DOM);
     /* REG(eflags) &= ~CF; */
     g_printf("INT1A: RTC date %04x%02x%02x (DOS format)\n", LWORD(ecx), HI(dx), LO(dx));
     NOCARRY;
@@ -1108,12 +1102,10 @@ Return: nothing
     }
     else
     {
-      LOCK_CMOS;
-      SET_CMOS(CMOS_CENTURY, BIN(HI(cx)));
-      SET_CMOS(CMOS_YEAR,    BIN(LO(cx)));
-      SET_CMOS(CMOS_MONTH,   BIN(HI(dx)));
-      SET_CMOS(CMOS_DOM,     BIN(LO(dx)));
-      UNLOCK_CMOS;
+      rtc_write(CMOS_CENTURY, HI(cx));
+      rtc_write(CMOS_YEAR,    LO(cx));
+      rtc_write(CMOS_MONTH,   HI(dx));
+      rtc_write(CMOS_DOM,     LO(dx));
       g_printf("INT1A: RTC set date %04x/%02x/%02x\n", LWORD(ecx), HI(dx), LO(dx));
     }
     NOCARRY;
@@ -1128,42 +1120,25 @@ Return: nothing
    */
   case 6:			/* set alarm */
     {
-      int stb;
       unsigned char h,m,s;
 
-      LOCK_CMOS;
-      stb=GET_CMOS(CMOS_STATUSB);
-      if (stb&0x20) {
+      if (rtc_read(CMOS_STATUSB) & 0x20) {
         CARRY;
       } else {
-	/* bit 2 of register 0xb set=binary mode, clear=BCD mode */
-	if (stb & 4) {
-          SET_CMOS(CMOS_HOURALRM, (h=_CH));
-          SET_CMOS(CMOS_MINALRM, (m=_CL));
-          SET_CMOS(CMOS_SECALRM, (s=_DH));
-	}
-	else {
-          SET_CMOS(CMOS_HOURALRM, (h=BIN(_CH)));
-          SET_CMOS(CMOS_MINALRM, (m=BIN(_CL)));
-          SET_CMOS(CMOS_SECALRM, (s=BIN(_DH)));
-	}
+        rtc_write(CMOS_HOURALRM, (h=_CH));
+        rtc_write(CMOS_MINALRM, (m=_CL));
+        rtc_write(CMOS_SECALRM, (s=_DH));
         r_printf("RTC: set alarm to %02d:%02d:%02d\n",h,m,s);  /* BIN! */
         /* This has been VERIFIED on an AMI BIOS -- AV */
-        SET_CMOS(CMOS_STATUSB, stb|0x20);
+        rtc_write(CMOS_STATUSB, rtc_read(CMOS_STATUSB) | 0x20);
         NOCARRY;
       }
-      UNLOCK_CMOS;
       break;
     }
 
   case 7:			/* clear alarm but NOT PIC mask */
     /* This has been VERIFIED on an AMI BIOS -- AV */
-    LOCK_CMOS;
-    SET_CMOS(CMOS_STATUSB, GET_CMOS(CMOS_STATUSB)&~0x20);
-    UNLOCK_CMOS;
-#ifdef NEW_PIC
-    pic_untrigger(PIC_IRQ8);
-#endif
+    rtc_write(CMOS_STATUSB, rtc_read(CMOS_STATUSB) & ~0x20);
     break;
  
   case 0xb1:			/* Intel PCI BIOS v 2.0c */

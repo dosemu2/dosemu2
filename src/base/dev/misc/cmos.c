@@ -43,111 +43,51 @@ cmos_chksum(void)
   return sum;
 }
 
-Bit8u
-cmos_read(ioport_t port)
+Bit8u cmos_read(ioport_t port)
 {
   unsigned char holder = 0;
 
-  LOCK_CMOS;
+  if (port != 0x71)
+    return 0xff;
+
   switch (cmos.address) {
-  case CMOS_SEC:
-  case CMOS_MIN:
-  case CMOS_HOUR:
-  case CMOS_DOW:		/* day of week */
-  case CMOS_DOM:		/* day of month */
-  case CMOS_MONTH:
-  case CMOS_YEAR:
-  case CMOS_CENTURY:
-    holder = cmos_date(cmos.address); goto quit;
+    case 0 ... 0x0d:
+      holder = rtc_read(cmos.address);
+      break;
 
-  case CMOS_CHKSUML:
-    holder = cmos_chksum() & 0xff; goto quit;
+    case CMOS_CHKSUML:
+      holder = cmos_chksum() & 0xff;
+      break;
 
-  case CMOS_CHKSUMM:
-    holder = cmos_chksum() >> 8; goto quit;
+    case CMOS_CHKSUMM:
+      holder = cmos_chksum() >> 8;
+      break;
+
+    default:
+      holder = GET_CMOS(cmos.address);
+      if (!cmos.flag[cmos.address])
+        h_printf("CMOS: unknown CMOS read 0x%x\n", cmos.address);
   }
 
-  /* date functions return, so hereafter all values should be those set
-   * either at boot time or changed by DOS programs...
-   */
-
-  if (cmos.flag[cmos.address]) {/* this reg has been written to */
-    holder = GET_CMOS(cmos.address);
-    h_printf("CMOS: read cmos_subst = 0x%02x\n", holder);
-  }
-#ifdef DANGEROUS_CMOS
-  else if (!set_ioperm(0x70, 2, 1)) {
-    h_printf("CMOS: really reading 0x%x!\n", cmos.address);
-    port_real_outb(0x70, (cmos.address & ~0xc0));
-    holder = port_real_inb(0x71);
-    set_ioperm(0x70, 2, 0);
-  }
-#endif
-  else {
-    h_printf("CMOS: unknown CMOS read 0x%x\n", cmos.address);
-    holder = GET_CMOS(cmos.address);
-  }
-
-#if defined(NEW_PIC)
-  if (cmos.address==CMOS_STATUSB)		/* safety code */
-    if ((holder&0x70)==0) pic_untrigger(PIC_IRQ8);
-#endif
-
-quit:
-  UNLOCK_CMOS;
   h_printf("CMOS: read addr 0x%02x = 0x%02x\n", cmos.address, holder);
   return holder;
 }
 
-void
-cmos_write(ioport_t port, Bit8u byte)
+void cmos_write(ioport_t port, Bit8u byte)
 {
-  LOCK_CMOS;
   if (port == 0x70)
     cmos.address = byte & ~0xc0;/* get true address */
   else {
-    if ((cmos.address != 0xc) && (cmos.address != 0xd)) {
-      h_printf("CMOS: set address 0x%02x to 0x%02x\n", cmos.address, byte);
-      switch (cmos.address) {
-	case CMOS_SEC:
-	case CMOS_MIN:
-	case CMOS_HOUR:
-	case CMOS_SECALRM:
-	case CMOS_MINALRM:
-	case CMOS_HOURALRM:
-	  byte = BIN(byte);
-	  break;
-	/* b7=r/o and unused
-	 * b4-6=always 010 (AT standard 32.768kHz)
-	 * b0-3=rate [65536/2^v], default 6, min 3, 0=disable
-	 */
-	case CMOS_STATUSA:
-	  if ((byte&0x70)!=0x20) dbug_printf("RTC: error clkin set\n");
-	  byte &= 0x0f;
-	  if ((byte>0)&&(byte<3)) byte=3;
-	  byte |= 0x20;
-	  break;
-	/* b7=set update cycle, 1=disable
-	 * b6=enable periodical int
-	 * b5=enable alarm int
-	 * b4=enable update int
-	 * b3=square wave out
-	 * ========= source: Motorola data sheets for MC146818
-	 * b2=data mode, 0=BCD(default) 1=bin
-	 * b1=time mode, 0=12h 1=24h(default)
-	 * b0=DST,       0=disabled(default), 1=enabled
-	 *    NOTE: DST happens on last Sunday in April/October (obsolete)
-	 */
-	case CMOS_STATUSB:
-	  byte = byte&0xf7; /* why someone should want to enable DST??? */
-	  break;
-      }
-      SET_CMOS(cmos.address, byte);
+    h_printf("CMOS: set address 0x%02x to 0x%02x\n", cmos.address, byte);
+    switch (cmos.address) {
+      case 0 ... 0x0d:
+        rtc_write(cmos.address, byte);
+	break;
+
+      default:
+        SET_CMOS(cmos.address, byte);
     }
-    else
-      h_printf("CMOS: write to ref 0x%x blocked\n", cmos.address);
   }
-  UNLOCK_CMOS;
 }
 
 void cmos_init(void)
@@ -169,9 +109,10 @@ void cmos_init(void)
   io_device.fd           = -1;
   port_register_handler(io_device, 0);
 
-  LOCK_CMOS;
   for (i = 0; i < 64; i++)
     cmos.subst[i] = cmos.flag[i] = 0;
+
+  rtc_init();
 
   /* CMOS floppies...is this correct? */
   SET_CMOS(CMOS_DISKTYPE, 
@@ -223,9 +164,6 @@ void cmos_init(void)
 
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
-
-  rtc_init();
-  UNLOCK_CMOS;
 
   g_printf("CMOS initialized\n");
 }
