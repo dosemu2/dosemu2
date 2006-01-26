@@ -8,7 +8,7 @@
 #define __EMS_H
 
 /* increase this when ems.S is changed */
-#define DOSEMU_EMS_DRIVER_VERSION 2
+#define DOSEMU_EMS_DRIVER_VERSION 3
 
 #define	MAX_HANDLES	255	/* must fit in a byte */
 #define EMS_FRAME_SIZE (EMM_MAX_PHYS * EMM_PAGE_SIZE)

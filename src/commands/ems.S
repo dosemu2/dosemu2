@@ -195,7 +195,7 @@ HookHimem:
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	int	$DOS_HELPER_INT
 	orb	%al, %al
-	jnz	0f
+	jnz	28f
 	movb	$9, %ah
 	movw	$XMSMsg, %dx
 	int	$0x21
@@ -204,6 +204,11 @@ HookHimem:
 0:      
 	movb	$9, %ah
 	movw	$NoHimemMsg, %dx
+	int	$0x21
+	jmp	9f
+28:      
+	movb	$9, %ah
+	movw	$NoXMSMsg, %dx
 	int	$0x21
 	jmp	9f
 1:
@@ -256,8 +261,6 @@ Init:
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
 	int	$LinuxEMS
-	cmpb	$DOS_HELPER_EMS_HELPER, %al
-	jz	1f
 	orb	%al, %al
 	jz	1f
 	movb	$1, NoEMS
@@ -317,6 +320,9 @@ NoHimemMsg:
 	.ascii  "XMS and UMB services will not be available.\r\n"
 	.ascii	"Please adjust your config.sys.\r\n"
 	.byte	eom
+NoXMSMsg:
+	.ascii	"Note: XMS disabled in the config."
+	.byte	cr,lf,eom
 XMSMsg:
 	.ascii	"dosemu XMS 3.0 driver installed."
 	.byte	cr,lf,eom
