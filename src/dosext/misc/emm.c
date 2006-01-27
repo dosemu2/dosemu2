@@ -173,8 +173,7 @@ static int handle_total, emm_allocated;
 static struct emm_record {
   int handle;
   int logical_page;
-} 
-emm_map[EMM_MAX_PHYS];
+} emm_map[EMM_MAX_PHYS];
 
 static struct handle_record {
   u_char active;
@@ -184,9 +183,7 @@ static struct handle_record {
   char name[9];
   int saved_mappings_handle[EMM_MAX_PHYS];
   int saved_mappings_logical[EMM_MAX_PHYS];
-}
-
-handle_info[MAX_HANDLES];
+} handle_info[MAX_HANDLES];
 
 #define OS_HANDLE	0
 #define OS_PORT		(256*1024)
@@ -287,51 +284,6 @@ ems_helper(void) {
   rhptr = SEG_ADR((u_char *), es, di);
   E_printf("EMS RHDR: len %d, command %d\n", *rhptr, *(u_short *) (rhptr + 2));
   LWORD(eax) = 0;	/* report success */
-}
-
-void
-ems_reset(void)
-{
-  int sh_base;
-  int j;
-
-  if (!config.ems_size && !config.pm_dos_api)
-    return;
-
-  emm_allocated = 0;
-  for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
-    emm_map[sh_base].handle = NULL_HANDLE;
-  }
-
-  for (sh_base = 0; sh_base < MAX_HANDLES; sh_base++) {
-    handle_info[sh_base].numpages = 0;
-    handle_info[sh_base].active = 0;
-  }
-
-  /* should set up OS handle here */
-  handle_info[OS_HANDLE].numpages = 0;
-  handle_info[OS_HANDLE].object = 0;
-  handle_info[OS_HANDLE].objsize = 0;
-  handle_info[OS_HANDLE].active = 1;
-  for (j = 0; j < EMM_MAX_PHYS; j++) {
-    handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
-  }
-
-  handle_total = 1;
-  SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM  ");
-}
-
-void
-ems_init(void)
-{
-  if (!config.ems_size && !config.pm_dos_api)
-    return;
-
-  open_mapping(MAPPING_EMS);
-  E_printf("EMS: initializing memory\n");
-
-  memcheck_addtype('E', "EMS page frame");
-  memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
 }
 
 static mach_port_t
@@ -1857,4 +1809,59 @@ ems_fn(state)
     }
   }
   return (UNCHANGED);
+}
+
+static void ems_reset2(void)
+{
+  int sh_base;
+  int j;
+
+  if (!config.ems_size && !config.pm_dos_api)
+    return;
+
+  emm_allocated = 0;
+  for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
+    emm_map[sh_base].handle = NULL_HANDLE;
+  }
+
+  for (sh_base = 0; sh_base < MAX_HANDLES; sh_base++) {
+    handle_info[sh_base].numpages = 0;
+    handle_info[sh_base].active = 0;
+  }
+
+  /* should set up OS handle here */
+  handle_info[OS_HANDLE].numpages = 0;
+  handle_info[OS_HANDLE].object = 0;
+  handle_info[OS_HANDLE].objsize = 0;
+  handle_info[OS_HANDLE].active = 1;
+  for (j = 0; j < EMM_MAX_PHYS; j++) {
+    handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
+  }
+
+  handle_total = 1;
+  SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM  ");
+}
+
+void ems_reset(void)
+{
+  int sh_base;
+  for (sh_base = 1; sh_base < MAX_HANDLES; sh_base++) {
+    if (handle_info[sh_base].active)
+      deallocate_handle(sh_base);
+  }
+  ems_reset2();
+}
+
+void ems_init(void)
+{
+  if (!config.ems_size && !config.pm_dos_api)
+    return;
+
+  open_mapping(MAPPING_EMS);
+  E_printf("EMS: initializing memory\n");
+
+  memcheck_addtype('E', "EMS page frame");
+  memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
+
+  ems_reset2();
 }
