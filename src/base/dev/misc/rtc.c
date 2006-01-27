@@ -32,7 +32,7 @@ unsigned long   last_ticks = 0;
 
 Bit8u rtc_read(Bit8u reg)
 {
-  unsigned char tmp;
+  Bit8u ret = GET_CMOS(reg);
 
   switch (reg) {
   case CMOS_SEC:
@@ -46,18 +46,19 @@ Bit8u rtc_read(Bit8u reg)
   case CMOS_CENTURY:
     /* Note - the inline function BCD() in cmos.h will check bit 2 of
      * status reg B for proper output format */
-    return BCD(GET_CMOS(reg));
+    ret = BCD(ret);
+    break;
 
   case CMOS_HOUR:		/* RTC hour...bit 1 of 0xb set=24 hour mode, clear 12 hour */
   case CMOS_HOURALRM:
-    tmp = GET_CMOS(reg);	/* stored internally as bin, not BCD */
     if (!(GET_CMOS(CMOS_STATUSB) & 2)) {	/* 12-hour mode */
-      if (tmp == 0)
-	return BCD(12);
-      else if (tmp > 12)
-	return BCD(tmp-12);
+      if (ret == 0)
+	ret = 12;
+      else if (ret > 12)
+	ret -= 12;
     }
-    return BCD(tmp);
+    ret = BCD(ret);
+    break;
 
   case CMOS_STATUSC:
     /* For now just clear, but have to check for the pending IRQs here! */
@@ -65,7 +66,7 @@ Bit8u rtc_read(Bit8u reg)
     break;
   }
 
-  return GET_CMOS(reg);
+  return ret;
 }
 
 void rtc_write(Bit8u reg, Bit8u byte)
