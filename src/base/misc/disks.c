@@ -416,6 +416,7 @@ void dir_auto(struct disk *dp)
 	break;
     }
     dp->start = 0;
+    dp->rdonly = 1;	// should be for HDD too, but...
   } else {
   /*
    * We emulate an entire disk with 1 partition starting at t/h/s 0/1/1.
@@ -533,7 +534,7 @@ partition_setup(struct disk *dp)
 
   part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
   if (part_fd == -1) {
-    if (dp->removeable) return;
+    if (dp->floppy) return;
     PNUM = 1;
     set_part_ent(dp, tmp_mbr);
     tmp_mbr[0x1fe] = 0x55;
@@ -1230,7 +1231,7 @@ int int13(void)
     if (dp->rdonly) {
       W_printf("write protect!\n");
       show_regs(__FILE__, __LINE__);
-      if (dp->removeable)
+      if (dp->floppy)
 	HI(ax) = DERR_WP;
       else
 	HI(ax) = DERR_WRITEFLT;
@@ -1415,7 +1416,7 @@ int int13(void)
   case 0x15:			/* Get type */
     d_printf("disk gettype %#x\n", disk);
     if (dp != NULL && disk >= 0x80) {
-      if (dp->removeable) {
+      if (dp->floppy) {
 	HI(ax) = 1;		/* floppy disk, change detect (1=no, 2=yes) */
 	d_printf("disk gettype: floppy\n");
 	LWORD(edx) = 0;
@@ -1578,7 +1579,7 @@ int int13(void)
     if (dp->rdonly) {
       d_printf("DISK is write protected!\n");
       show_regs(__FILE__, __LINE__);
-      if (dp->removeable)
+      if (dp->floppy)
 	HI(ax) = DERR_WP;
       else
 	HI(ax) = DERR_WRITEFLT;
@@ -1644,7 +1645,7 @@ int int13(void)
     }
 
     params->flags = IMEXT_INFOFLAG_CHSVALID;
-    if (dp->removeable)
+    if (dp->floppy)
       params->flags |= IMEXT_INFOFLAG_REMOVABLE;
     params->tracks = dp->tracks;
     params->heads = dp->heads;
