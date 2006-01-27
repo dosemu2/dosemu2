@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef __MSDOS_H__
+#define __MSDOS_H__
+
 #define MSDOS_MAX_MEM_ALLOCS 1024
 
 struct msdos_struct {
@@ -58,3 +61,7 @@ extern void msdos_post_pm(struct sigcontext_struct *scp);
 
 #define DTA_Para_ADD 0
 #define DTA_Para_SIZE 8
+#define EXEC_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
+#define EXEC_Para_SIZE 30
+
+#endif

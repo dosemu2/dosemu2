@@ -553,7 +553,8 @@ void dpmi_get_entry_point(void)
     /* private data */
     LWORD(esi) = DPMI_private_paragraphs + RM_CB_Para_SIZE + msdos_get_lowmem_size();
 
-    D_printf("DPMI entry returned\n");
+    D_printf("DPMI entry returned, needs %#x lowmem paragraphs (%i)\n",
+	    LWORD(esi), LWORD(esi) << 4);
 }
 
 int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,

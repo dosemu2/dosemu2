@@ -32,6 +32,7 @@
 #include "vgaemu.h"
 
 #define TRANS_BUFFER_SEG EMM_SEGMENT
+#define EXEC_SEG (MSDOS_CLIENT.lowmem_seg + EXEC_Para_ADD)
 
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(MSDOS_CLIENT.user_dta_sel) + MSDOS_CLIENT.user_dta_off)
 #define DTA_under_1MB (void*)((MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD) << 4)
@@ -64,7 +65,7 @@ void msdos_done(void)
 
 int msdos_get_lowmem_size(void)
 {
-    return DTA_Para_SIZE;
+    return DTA_Para_SIZE + EXEC_Para_SIZE;
 }
 
 static void *msdos_malloc(unsigned long size)
@@ -857,12 +858,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 void msdos_pre_exec(struct sigcontext_struct *scp)
 {
     /* we must copy all data from higher 1MB to lower 1MB */
-    unsigned short segment = TRANS_BUFFER_SEG;
+    unsigned short segment = EXEC_SEG;
     char *p;
     unsigned short sel,off;
 
     /* must copy command line */
-    prepare_ems_frame();
     REG(ds) = segment;
     REG(edx) = 0;
     p = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
@@ -908,6 +908,12 @@ void msdos_pre_exec(struct sigcontext_struct *scp)
     if (MSDOS_CLIENT.current_env_sel)
 	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c),
 	    GetSegmentBaseAddress(MSDOS_CLIENT.current_env_sel) >> 4);
+
+    if (segment != EXEC_SEG + EXEC_Para_SIZE)
+	error("DPMI: exec: seg=%#x (%#x), size=%#x\n",
+		segment, segment - EXEC_SEG, EXEC_Para_SIZE);
+    if (MSDOS_CLIENT.ems_frame_mapped)
+	error("DPMI: exec: EMS frame should not be mapped here\n");
 }
 
 void msdos_post_exec(struct sigcontext_struct *scp)
@@ -922,8 +928,6 @@ void msdos_post_exec(struct sigcontext_struct *scp)
     if (MSDOS_CLIENT.current_env_sel)
 	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c),
 	    MSDOS_CLIENT.current_env_sel);
-
-    restore_ems_frame();
 }
 
 /*
