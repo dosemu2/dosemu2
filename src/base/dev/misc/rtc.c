@@ -77,7 +77,12 @@ void rtc_write(Bit8u reg, Bit8u byte)
     case CMOS_SECALRM:
     case CMOS_MINALRM:
     case CMOS_HOURALRM:
-      SET_CMOS(cmos.address, BIN(byte));
+    case CMOS_DOW:
+    case CMOS_DOM:
+    case CMOS_MONTH:
+    case CMOS_YEAR:
+    case CMOS_CENTURY:
+      SET_CMOS(reg, BIN(byte));
       break;
 
     /* b7=r/o and unused
@@ -86,16 +91,16 @@ void rtc_write(Bit8u reg, Bit8u byte)
      */
     case CMOS_STATUSA:
       if ((byte&0x70)!=0x20) dbug_printf("RTC: clkin set\n");
-      SET_CMOS(cmos.address, byte & 0x7f);
+      SET_CMOS(reg, byte & 0x7f);
       break;
 
     case CMOS_STATUSC:
     case CMOS_STATUSD:
-      h_printf("RTC: attempt to write %hhx to %hhx\n", byte, cmos.address);
+      h_printf("RTC: attempt to write %hhx to %hhx\n", byte, reg);
       break;
 
     default:
-      SET_CMOS(cmos.address, byte);
+      SET_CMOS(reg, byte);
   }
 }
 
