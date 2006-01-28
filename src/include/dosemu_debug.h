@@ -75,7 +75,7 @@ EXTERN struct debug_class debug[DEBUG_CLASSES];
 int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
 int vlog_printf(int, const char *,va_list);
 
-void p_dos_str(char *,...) FORMAT(printf, 1, 2);
+int p_dos_str(const char *,...) FORMAT(printf, 1, 2);
 
 #if 0  /* set this to 1, if you want dosemu to honor the -D flags */
  #define NO_DEBUGPRINT_AT_ALL

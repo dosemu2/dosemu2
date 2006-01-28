@@ -28,12 +28,16 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.16  2006/01/28 09:45:34  bartoldeman
+ *	Move disclaimer and install prompts from dos_post_boot to banner code,
+ *	using BIOS calls.
+ *
  *	Revision 1.15  2005/12/31 06:23:11  bartoldeman
  *	Mostly from Clarence: unix.com patches in dosemu-exec-friendly.diff,
  *	so that "dosemu keen1.exe" works again.
  *	But do not use heuristics that split options from commands, by making
  *	quotes of filenames that contain spaces compulsory.
- *
+ *	
  *	Revision 1.14  2005/12/18 07:58:44  bartoldeman
  *	Put some basic checks into dos_read/dos_write, and memmove_dos2dos to
  *	avoid touching the protected video memory.
@@ -134,6 +138,7 @@
 #include "utilities.h"
 #include "dos2linux.h" 
 #include "vgaemu.h"
+#include "keyb_server.h"
 
 #ifndef max
 #define max(a,b)       ((a)>(b)? (a):(b))
@@ -767,5 +772,43 @@ int com_dosreadcon(char *buf32, u_short size)
 			break;
 		buf32[rd++] = LO(ax);
 	}
+	return rd;
+}
+
+int com_biosgetch(void)
+{
+	do {
+		HI(ax) = 1;
+		do_intr_call_back(0x16);
+		handle_signals();
+		keyb_server_run();
+	} while (LWORD(eflags) & ZF);
+	HI(ax) = 0;
+	do_intr_call_back(0x16);
+	return LO(ax);
+}
+
+int com_biosread(char *buf32, u_short size)
+{
+	u_short rd = 0;
+	int ch;
+
+	if (!size) return 0;
+	while (rd < size) {
+		ch = com_biosgetch();
+		if (ch == '\b') {
+			if (rd > 0) {
+				p_dos_str("\b \b");
+				rd--;
+			}
+			continue;
+		}
+		if (ch != '\r')
+			buf32[rd++] = ch;
+		if (iscntrl(ch))
+			break;
+		p_dos_str("%c", LO(ax));
+	}
+	p_dos_str("\n");
 	return rd;
 }

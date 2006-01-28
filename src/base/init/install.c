@@ -11,44 +11,53 @@
 #include <sys/stat.h>
 
 #include "emu.h"
-#include "redirect.h"
+#include "disks.h"
 #include "utilities.h"
 #include "dos2linux.h"
 
-static void create_symlink(const char *path, int post_boot)
+static int terminal_read(char *buf32, u_short size)
+{
+	char x[size+1];
+	fgets(x, size+1, stdin);
+	size = strlen(buf32);
+	if (size && x[size - 1] == '\n') {
+		size--;
+		x[size] = '\0';
+	}
+	if (size)
+		memcpy(buf32, x, size);
+	return size;
+}
+
+static int (*printf_)(const char *, ...) FORMAT(printf, 1, 2) = printf;
+static int (*read_string)(char *, u_short) = terminal_read;
+static int symlink_created;
+
+static void create_symlink(const char *path)
 {
 	char *drives_c = assemble_path(LOCALDIR, "drives/c", 0);
 	char *slashpos = drives_c + strlen(drives_c) - 2;
-	char *lredir_path;
 	static char symlink_txt[] =
 		"Creating symbolic link for bootdirectory as %s\n";
 
-	if (post_boot)
-		com_printf(symlink_txt, drives_c);
-	else
-		printf(symlink_txt, drives_c);
+	printf_(symlink_txt, drives_c);
 	*slashpos = '\0';
 	mkdir(drives_c, 0777);
 	*slashpos = '/';
 	unlink(drives_c);
 	symlink(path, drives_c);
+	free(hdisktab[0].dev_name);
 	/* point C: to $HOME/.dosemu/drives/c */
-	asprintf(&lredir_path, "\\\\LINUX\\FS%s", drives_c);
-	free(drives_c);
-	if (post_boot) {
-		CancelDiskRedirection(2);
-		RedirectDisk(2, lredir_path, 0);
-	}
-	free(lredir_path);
+	hdisktab[0].dev_name = drives_c;
+	hdisktab[0].type = DIR_TYPE;
+	symlink_created = 1;
 }
 
 static char *dosreadline(void)
 {
-	char *cr, *line = malloc(128);
-
-	com_dosread(0, line, 128);
-	cr = strchr(line, '\r');
-	if (cr) *cr = '\0';
+	char *line = malloc(129);
+	int size = read_string(line, 128);
+	line[size] = '\0';
 	return line;
 }
 
@@ -62,12 +71,12 @@ static void install_dosemu_freedos (int choice)
 	 * to the users $HOME.
 	 */
 	if (choice == 3) {
-		com_printf("Please enter the name of the directory for your private "
+		printf_("Please enter the name of the directory for your private "
 			   "DOSEMU-FreeDOS files\n");
 		boot_dir_path = dosreadline();
 		if (boot_dir_path[0] == '/') {
 			char *boot_dir_path2;
-			com_printf("You gave an absolute path, "
+			printf_("You gave an absolute path, "
 				   "type ENTER to confirm or another path\n");
 			boot_dir_path2 = dosreadline();
 			if (boot_dir_path2[0] == '\0')
@@ -82,13 +91,13 @@ static void install_dosemu_freedos (int choice)
 			free(boot_dir_path);
 			boot_dir_path = tmp;
 		}
-		com_printf("Installing to %s ...\n", boot_dir_path);
+		printf_("Installing to %s ...\n", boot_dir_path);
 	}
 	else
 		boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
 	asprintf(&system_str, "mkdir -p %s", boot_dir_path);
 	if (system(system_str)) {
-		com_printf("  unable to create $BOOT_DIR_PATH, giving up\n");
+		printf_("  unable to create $BOOT_DIR_PATH, giving up\n");
 		free(system_str);
 		free(boot_dir_path);
 		return;
@@ -99,7 +108,7 @@ static void install_dosemu_freedos (int choice)
 		 boot_dir_path);
 	system(system_str);
 	free(system_str);
-	create_symlink(boot_dir_path, 1);
+	create_symlink(boot_dir_path);
 	asprintf(&system_str,
 		 "tar xzf "DOSEMULIB_DEFAULT"/dosemu-freedos-bin.tgz -C \"%s\"",
 		 boot_dir_path);
@@ -116,84 +125,85 @@ static char proprietary_notice[] =
 DOSEMULIB_DEFAULT"/commands\n"
 "in order to make the DOSEMU support commands available within %s.\n";
 
-static void install_proprietary(char *proprietary)
+static void install_proprietary(char *proprietary, int warning)
 {
-	char x[2];
-	create_symlink(proprietary, 1);
-	com_printf(proprietary_notice, proprietary, proprietary);
-	com_printf("Type ENTER to confirm, and reboot DOSEMU\n");
-	com_dosread(0, x, 2);
+	char x;
+	create_symlink(proprietary);
+	if (!warning)
+		return;
+	printf_(proprietary_notice, proprietary, proprietary);
+	printf_("\nPress ENTER to confirm, and boot DOSEMU, "
+		"or [Ctrl-C] to abort\n");
+	x = '\r';
+	read_string(&x, 1);
+	if (x == 3)
+		leavedos(1);
 	free(proprietary);
-	dos_ctrl_alt_del();
 }
 
-static void install_dos_from_terminal(void)
+static void install_no_dosemu_freedos(const char *path)
 {
+	char *p;
 	int specified = 1;
-	if (config.install[0] == 0 || !strcmp(config.install, "/dev/null")) {
-		size_t n;
-		char *nl;
+	if (path[0] == '\0') {
 		specified = 0;
-		printf(
+		printf_(
 "\nDOSEMU-FreeDOS is not available to boot DOSEMU.\n"
 "Please enter the name of a Linux directory which contains a bootable DOS, or\n"
 "press [Ctrl-C] to abort for manual installation of FreeDOS or another DOS, or\n"
 "press [ENTER] to quit if you suspect an error after manual installation.\n\n"
 );
-		config.install = NULL;
-		getline(&config.install, &n, stdin);
-		if (!config.install || n == 0)
+		p = dosreadline();
+		if (path[0] == '\0')
 			return;
-		nl = strchr(config.install, '\n');
-		if (nl) *nl = '\0';
-		if (config.install[0] == '\0')
-			return;
-	}
-	create_symlink(config.install, 0);
-	printf(proprietary_notice, config.install, config.install);
-	if (!specified) {
-		printf("\nPress ENTER to confirm, and boot DOSEMU, "
-		       "or [Ctrl-C] to abort\n");
-		getchar();
-	}
+		if (path[0] == 3)
+			leavedos(1);
+	} else
+		p = strdup(path);
+	install_proprietary(p, !specified);
 }
 
-void install_dos(int post_boot)
+static void install_dos_(void)
 {
-	char x[3];
+	char x;
 	int choice;
+	int first_time = 0;
 
-	do_liability_disclaimer_prompt(post_boot);
-	if (!config.install)
-		return;
-	if (!post_boot) {
-		install_dos_from_terminal();
-		return;
-	}
-	if (strcmp(config.install, "/dev/null") == 0) {
-		/* first time menu, check if we booted from FreeDOS */
-		char *resource;
-		int ro_flag;
-		if (config.hdiskboot != 1 ||
-		    GetRedirectionRoot(2, &resource, &ro_flag))
-			return;
-		if (ro_flag ||
-		    strcmp(resource,
-			   ALTERNATE_ETC"/drives/c/") != 0 ||
-		    !exists_file(ALTERNATE_ETC"/drives/c/kernel.sys"))
+	if (!config.install) {
+		char *disclaimer_file_name =
+		  assemble_path(LOCALDIR, "disclaimer", 0);
+		first_time = !exists_file(disclaimer_file_name);
+		free(disclaimer_file_name);
+		if (!first_time)
 			return;
 		/* OK, first boot! */
-		config.install = "";
 	}
-	if (strcmp(config.install, DOSEMULIB_DEFAULT"/freedos") == 0) {
-		install_dosemu_freedos(3);
+	if (config.hdiskboot != 1) {
+		/* user wants to boot from a different drive! */
+		if (first_time)
+			return;
+		printf_("You can only use -install or -i if you boot from C:.\n");
+		printf_("Press [ENTER] to continue.\n");
+		read_string(&x, 1);
 		return;
 	}
-	if (config.install[0] != '\0') {
-		install_proprietary(strdup(config.install));
+	if (!exists_file(DOSEMULIB_DEFAULT"/freedos/kernel.sys")) {
+		/* no FreeDOS available: simple menu */
+		if (config.install)
+			install_no_dosemu_freedos(config.install);
 		return;
 	}
-	com_printf(
+	if (config.install) {
+		if (strcmp(config.install, DOSEMULIB_DEFAULT"/freedos") == 0) {
+			install_dosemu_freedos(3);
+			return;
+		}
+		if (config.install[0] != '\0') {
+			install_proprietary(strdup(config.install), 0);
+			return;
+		}
+	}
+	printf_(
 "\nPlease choose one of the following options:\n"
 "1. Use a writable FreeDOS C: drive in ~/.dosemu/drive_c (recommended).\n"
 "2. Use a read-only FreeDOS C: drive in "DOSEMULIB_DEFAULT"/freedos.\n"
@@ -201,17 +211,35 @@ void install_dos(int post_boot)
 "4. Use a different DOS than the provided DOSEMU-FreeDOS.\n"
 "5. Exit this menu (completely manual setup).\n"
 "[ENTER = the default option 1]\n");
-	com_dosread(0, x, 3);
-	choice = x[0] - '0';
-	if (choice == 2 || choice == 5) {
+	x = '5';
+	read_string(&x, 1);
+	choice = x - '0';
+	if (choice == 5) {
 		/* nothing to be done */
 		return;
 	}
+	if (choice == 2) {
+		install_proprietary(strdup(DOSEMULIB_DEFAULT"/freedos"), 0);
+		return;
+	}
 	if (choice == 4) {
-		com_printf(
+		printf_(
 "Please enter the name of a directory which contains a bootable DOS\n");
-		install_proprietary(dosreadline());
+		install_proprietary(dosreadline(), 1);
 		return;
 	}
 	install_dosemu_freedos(choice);
+}
+
+void install_dos(int post_boot)
+{
+	if (post_boot) {
+		printf_ = p_dos_str;
+		read_string = com_biosread;
+	}
+	symlink_created = 0;
+	install_dos_();
+	do_liability_disclaimer_prompt(post_boot);
+	if(post_boot && symlink_created)
+		disk_reset();
 }

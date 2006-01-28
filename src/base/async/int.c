@@ -282,6 +282,8 @@ int dos_helper(void)
     }
 
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
+    if (!config.console_video)
+      install_dos(1);
     if (!config.dosbanner)
       break;
     p_dos_str("\n\nLinux DOS emulator " VERSTR " $" "Date: " VERDATE "$\n");
@@ -1732,7 +1734,6 @@ static void dos_post_boot(void)
     first = 0;
     mouse_post_boot();
     int21_post_boot();
-    install_dos(1);
   }
 }
 

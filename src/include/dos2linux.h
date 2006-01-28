@@ -278,5 +278,7 @@ void call_msdos(void);
 int com_doswrite(int dosfilefd, char *buf32, u_short size);
 int com_dosread(int dosfilefd, char *buf32, u_short size);
 int com_dosreadcon(char *buf32, u_short size);
+int com_biosgetch(void);
+int com_biosread(char *buf32, u_short size);
 
 #endif /* DOS2LINUX_H */

@@ -246,9 +246,8 @@ void do_liability_disclaimer_prompt(int dosboot)
   }
 
   if (dosboot) {
-    /* called from dos_post_boot */
-    com_printf(text);
-    com_dosread(0, buf, sizeof(buf));
+    p_dos_str(text);
+    com_biosread(buf, sizeof(buf));
   } else {
     fputs(text, stdout);
     fgets(buf, sizeof(buf), stdin);
@@ -269,10 +268,6 @@ void do_liability_disclaimer_prompt(int dosboot)
    fprintf(f, "%s%s\n", text, buf);
    fclose(f);
    free(disclaimer_file_name);
-
-   if (!config.install)
-     /* impossible installation path, signals first start */
-     config.install = "/dev/null";
 }
 
 
@@ -389,13 +384,11 @@ emulate(int argc, char **argv)
      * Do the 'liability disclaimer' stuff we need to avoid problems
      * with laws in some countries.
      *
-     * show it at the beginning only for console root video, or if
-     * we don't use FATFS (can't be sure of dos_post_boot then)
-     * else dos_post_boot in int.c does it.
+     * show it at the beginning only for console root video,
+     * else the banner code in int.c does it.
      */
-    if (hdisktab[0].type != DIR_TYPE || config.hdiskboot != 1 ||
-	config.console_video)
-	do_liability_disclaimer_prompt(0);
+    if (config.console_video)
+	install_dos(0);
 
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/

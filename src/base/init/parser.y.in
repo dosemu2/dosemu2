@@ -1983,12 +1983,13 @@ static void stop_disk(int token)
 
       c_printf("device: %s ", dptr->dev_name);
       if (stat(dptr->dev_name,&file_status) != 0) { /* Does this file exist? */
-	 install_dos(0);
-	 if (config.install && config.install[0]) {
-	    dptr->dev_name = config.install;
-	    config.install = NULL;
+	 if (config.install ||
+	     strcmp(dptr->dev_name, DOSEMUHDIMAGE_DEFAULT"/drives/*") == 0) {
+	    /* default setting: display a menu */
 	    dptr->type = DIR_TYPE;
-         } else
+	    if (!config.install)
+	       config.install = "";
+	 } else
 	    yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
       }
     }

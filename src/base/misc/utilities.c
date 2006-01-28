@@ -294,8 +294,8 @@ void error(const char *fmt, ...)
 
 
 /* write string to dos? */
-void
-p_dos_str(char *fmt,...) {
+int
+p_dos_str(const char *fmt,...) {
   va_list args;
   static char buf[1025];
   char *s;
@@ -310,6 +310,7 @@ p_dos_str(char *fmt,...) {
   g_printf("CONSOLE MSG: '%s'\n",buf);
   while (*s) 
 	char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  return i;
 }
         
 /* some stuff to handle reading of /proc */
