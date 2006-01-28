@@ -19,7 +19,7 @@ static int terminal_read(char *buf32, u_short size)
 {
 	char x[size+2];
 	fgets(x, size+2, stdin);
-	size = strlen(buf32);
+	size = strlen(x);
 	if (size && x[size - 1] == '\n') {
 		size--;
 		x[size] = '\0';
