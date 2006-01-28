@@ -53,7 +53,7 @@ with the help of others. Have a look at the dosemu-howto how to do so.
 Programs that don't work under the MSDOS Emulator and probably won't
 ever work, because of fundamental problems. Some of these fundamental
 problems result in these programs not being runnable on
-Win3.x/Win95/WinNT in a Dosbox and under OS/2 either. These programs
+Win3.x/Win95/WinNT and under OS/2 DOS box either. These programs
 are characterized by using any of these features:
 </para>
 
@@ -223,7 +223,7 @@ section 4: "Use Of ESP In 16-Bit Code With 32-Bit Interrupt Handlers",
 which reads as follows:
 </para>
 <para>
-" ISSUE: When a 32-bit IRET is used to return to another privilege level,
+"ISSUE: When a 32-bit IRET is used to return to another privilege level,
 and the old level uses a 4G stack (D/B bit in the segment register = 1),
 while the new level uses a 64k stack (D/B bit = 0), then only the 
 lower word of ESP is updated. The upper word remains unchanged. This is 
@@ -231,7 +231,7 @@ fine for pure 16-bit code, as well as pure 32-bit code. However, when
  32-bit interrupt handlers are present, 16-bit code should avoid any
 dependence on the upper word of ESP. No changes are necessary in existing
 16-bit code, since the only way to access ESP in USE16 segments is 
-through the 32-bit address size prefix. "
+through the 32-bit address size prefix."
 </para>
 <para>
 The corruption happens when the Linux kernel returns control to the dosemu
@@ -319,12 +319,6 @@ Mortal Kombat 1 and 2 are not producing any sound for unknown reasons.
 <listitem>
 <para>
 X-COM Apocalypse (DEMO version) locks up at startup if configured with sound.
-</para>
-</listitem>
-
-<listitem>
-<para>
-RTC periodic interrupts are not implemented yet.
 </para>
 </listitem>
 </itemizedlist>
