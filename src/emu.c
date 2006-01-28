@@ -246,8 +246,11 @@ void do_liability_disclaimer_prompt(int dosboot)
   }
 
   if (dosboot) {
+    int size;
     p_dos_str(text);
-    com_biosread(buf, sizeof(buf));
+    size = com_biosread(buf, sizeof(buf)-2);
+    buf[size] = '\n';
+    buf[size+1] = '\0';
   } else {
     fputs(text, stdout);
     fgets(buf, sizeof(buf), stdin);

@@ -17,8 +17,8 @@
 
 static int terminal_read(char *buf32, u_short size)
 {
-	char x[size+1];
-	fgets(x, size+1, stdin);
+	char x[size+2];
+	fgets(x, size+2, stdin);
 	size = strlen(buf32);
 	if (size && x[size - 1] == '\n') {
 		size--;
