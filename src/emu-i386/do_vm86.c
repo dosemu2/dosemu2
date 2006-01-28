@@ -460,6 +460,7 @@ void loopstep_run_vm86(void)
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
 #endif
 	keyb_server_run();
+	rtc_run();
 	pic_run();		/* trigger any hardware interrupts requested */
 }
 

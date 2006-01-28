@@ -54,6 +54,7 @@ void cmos_write(ioport_t, Bit8u), cmos_init(void), cmos_reset(void);
 Bit8u cmos_read(ioport_t);
 Bit8u rtc_read(Bit8u reg);
 void rtc_write(Bit8u reg, Bit8u val);
+void rtc_run(void);
 
 struct CMOS {
   Bit8u subst[64];

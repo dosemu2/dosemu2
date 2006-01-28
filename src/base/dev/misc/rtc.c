@@ -28,7 +28,49 @@
 long   sys_base_ticks = 0;
 long   usr_delta_ticks = 0;
 unsigned long   last_ticks = 0;
+static unsigned long long q_ticks_m = 0;
 
+
+static int rtc_get_rate(Bit8u div)
+{
+  if (!div)
+    return 0;
+  if (div < 3)
+    div += 7;
+  return (65536 >> div);
+}
+
+void rtc_run(void)
+{
+  static hitimer_t last_time = -1;
+  int rate;
+  hitimer_t ticks_m, cur_time = GETusTIME(0);
+  if (last_time == -1 || last_time > cur_time) {
+    last_time = cur_time;
+    return;
+  }
+  rate = rtc_get_rate(GET_CMOS(CMOS_STATUSA) & 0x0f);
+  ticks_m = (cur_time - last_time) * rate;
+  q_ticks_m += ticks_m;
+  last_time = cur_time;
+  if (debug_level('h') > 8)
+    h_printf("RTC: A=%hhx B=%hhx C=%hhx rate=%i queued=%lli added=%lli\n",
+	GET_CMOS(CMOS_STATUSA), GET_CMOS(CMOS_STATUSB), GET_CMOS(CMOS_STATUSC),
+	rate, q_ticks_m, ticks_m);
+  if (q_ticks_m >= 1e6) {
+    Bit8u old_c = GET_CMOS(CMOS_STATUSC);
+    SET_CMOS(CMOS_STATUSC, old_c | 0x40);
+    if ((GET_CMOS(CMOS_STATUSB) & 0x40) && !(GET_CMOS(CMOS_STATUSC) & 0x80)) {
+      SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x80);
+      if (debug_level('h') > 7)
+        h_printf("RTC: periodic IRQ, queued=%lli, added=%lli\n",
+	    q_ticks_m, ticks_m);
+      pic_request(PIC_IRQ8);
+    }
+    if (!(old_c & 0x40))
+      q_ticks_m -= 1e6;
+  }
+}
 
 Bit8u rtc_read(Bit8u reg)
 {
@@ -61,8 +103,10 @@ Bit8u rtc_read(Bit8u reg)
     break;
 
   case CMOS_STATUSC:
-    /* For now just clear, but have to check for the pending IRQs here! */
+    if (debug_level('h') > 8)
+      h_printf("RTC: Read C=%hhx\n", ret);
     SET_CMOS(CMOS_STATUSC, 0);
+    rtc_run();
     break;
   }
 
@@ -91,8 +135,13 @@ void rtc_write(Bit8u reg, Bit8u byte)
      * b0-3=rate [65536/2^v], default 6, min 3, 0=disable
      */
     case CMOS_STATUSA:
-      if ((byte&0x70)!=0x20) dbug_printf("RTC: clkin set\n");
+      h_printf("RTC: Write %hhx to A\n", byte);
       SET_CMOS(reg, byte & 0x7f);
+      break;
+
+    case CMOS_STATUSB:
+      h_printf("RTC: Write %hhx to B\n", byte);
+      SET_CMOS(reg, byte);
       break;
 
     case CMOS_STATUSC:
@@ -103,6 +152,7 @@ void rtc_write(Bit8u reg, Bit8u byte)
     default:
       SET_CMOS(reg, byte);
   }
+  q_ticks_m = 0;
 }
 
 static void rtc_alarm_check (void)
