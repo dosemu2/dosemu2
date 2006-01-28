@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
@@ -78,19 +78,7 @@ static interrupt_function_t *interrupt_function[0x100][2];
 static char *dos_io_buffer;
 static int dos_io_buffer_size = 0;
 
-/*
-   This flag will be set when doing video routines so that special
-   access can be given
-*/
-#if 0
-static u_char         in_video = 0;
-#endif
 static u_char         save_hi_ints[128];
-
-static int            card_init = 0;
-static unsigned long  precard_eip, precard_cs;
-
-static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 
 /* set if some directories are mounted during startup */
 int redir_state = 0;
@@ -106,20 +94,15 @@ static void change_window_title(char *title)
 } 
 
 static void kill_time(long usecs) {
-   hitimer_t t_start, t_dif;
-   scr_tv.tv_sec = 0L;
-   scr_tv.tv_usec = usecs;
+   hitimer_t t_start;
 
    t_start = GETusTIME(0);
-   while ((int) select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv) < (int) 1)
-     {
-       t_dif = GETusTIME(0)-t_start;
-
-        if ((t_dif >= usecs) || (errno != EINTR))
-          return ;
-        scr_tv.tv_sec = 0L;
-        scr_tv.tv_usec = usecs - (long)t_dif;
-     }
+   while (GETusTIME(0) - t_start < usecs) {
+	sigset_t mask;
+	sigemptyset(&mask);
+	sigsuspend(&mask);
+	do_periodic_stuff();
+   }
 }
 
 static void process_master_boot_record(void)
@@ -272,13 +255,10 @@ int dos_helper(void)
       sp = (unsigned long) LWORD(esp);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
-      precard_eip = LWORD(eip);
-      precard_cs = LWORD(cs);
       LWORD(esp) -= 4;
       LWORD(cs) = config.vbios_seg;
       LWORD(eip) = 3;
       show_regs(__FILE__, __LINE__);
-      card_init = 1;
     }
 
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
@@ -311,25 +291,6 @@ int dos_helper(void)
   case DOS_HELPER_VIDEO_INIT:
     v_printf("Starting Video initialization\n");
     /* DANG_BEGIN_REMARK
-     * Some video BIOSes need access to the PIT timer 2, and some
-     * (e.g. Matrox) directly read the timer output on port 0x61.
-     * If we don't allow video port access, this will be totally
-     * emulated; else, we give temporary access to the needed ports
-     * (timer at 0x42, timer config at 0x43 and timer out/speaker at 0x61),
-     * provided they were not previously enabled by SPKR_NATIVE - AV
-     * DANG_END_REMARK
-     */
-#if 0
-    if (config.vga) {
-      if (config.speaker != SPKR_NATIVE) {
-	v_printf("Giving temporary access to PIT#2\n");
-	set_ioperm(0x42, 2, 1);		/* port 0x43 too! */
-	set_ioperm(0x61, 1, 1);
-      }
-      in_video = 1;
-    }
-#endif
-    /* DANG_BEGIN_REMARK
      * Many video BIOSes use hi interrupt vector locations as
      * scratchpad area - this is because they come before DOS and feel
      * safe to do it. But we are initializing vectors before video, so
@@ -345,17 +306,6 @@ int dos_helper(void)
 
   case DOS_HELPER_VIDEO_INIT_DONE:
     v_printf("Finished with Video initialization\n");
-#if 0
-    if (config.vga) {
-      if (config.speaker != SPKR_NATIVE) {
-        v_printf("Removing temporary access to PIT#2\n");
-        set_ioperm(0x42, 2, 0);
-        set_ioperm(0x61, 1, 0);
-      }
-      in_video = 0;
-    }
-#endif
-    v_printf("Restore hi vector area\n");
     MEMCPY_2DOS(0x380,save_hi_ints,128);
     config.emuretrace <<= 1;
     emu_video_retrace_on();
