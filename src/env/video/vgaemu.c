@@ -2813,6 +2813,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       } else if (old_color_bits != vga.color_bits) {
 	vgaemu_adj_cfg(CFG_CRTC_WIDTH, 0);
       }
+      vga.mem.wrap = (vga.mode_type == CGA || vga.mode_class == TEXT ?
+		      32 : 64) * 1024;
       vga.reconfig.re_init = 1;
       break;
     }
