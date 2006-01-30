@@ -403,7 +403,7 @@ notakejmp:
 unsigned char *Interp86(unsigned char *PC, int mod0)
 {
 	unsigned char opc;
-	unsigned long temp;
+	unsigned int temp;
 	register int mode;
 #ifndef HOST_ARCH_SIM
 	TNode *G;
@@ -685,14 +685,14 @@ intop3b:		{ int op = ArOpsM[D_MO(opc)];
 				(vm86s.regs.eflags&VIP));  // this one FYI
 			    PUSH(mode, &temp);
 			    if (debug_level('e')>1)
-				e_printf("Pushed flags %08lx fl=%08lx vf=%08lx\n",
+				e_printf("Pushed flags %08x fl=%08x vf=%08x\n",
 		    			temp,EFLAGS,eVEFLAGS);
 checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				    (eVEFLAGS & EFLAGS_IFK)) {
 				int mask = VIF | eTSSMASK;
 				EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 				if (debug_level('e')>1)
-				    e_printf("Return for PIC fl=%08lx vf=%08lx\n",
+				    e_printf("Return for PIC fl=%08x vf=%08x\n",
 		    			EFLAGS,eVEFLAGS);
 				TheCPU.err=EXCP_PICSIGNAL;
 				return PC+1;
@@ -1414,7 +1414,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			dr = (signed short)FetchW(PC+1);
 			POP(mode, &TheCPU.eip);
 			if (debug_level('e')>2)
-				e_printf("RET: ret=%08lx inc_sp=%d\n",TheCPU.eip,dr);
+				e_printf("RET: ret=%08x inc_sp=%d\n",TheCPU.eip,dr);
 			temp = rESP + dr;
 			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			PC = (unsigned char *)(LONG_CS + TheCPU.eip); }
@@ -1422,7 +1422,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*c3*/	case RET:
 			CODE_FLUSH();
 			POP(mode, &TheCPU.eip);
-			if (debug_level('e')>2) e_printf("RET: ret=%08lx\n",TheCPU.eip);
+			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",TheCPU.eip);
 			PC = (unsigned char *)(LONG_CS + TheCPU.eip);
 			break;
 /*c6*/	case MOVbirm:
@@ -1473,7 +1473,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			TheCPU.eip=0; POP(mode, &TheCPU.eip);
 			POP_ONLY(mode);
 			if (debug_level('e')>2)
-				e_printf("RET_%ld: ret=%08lx\n",dr,TheCPU.eip);
+				e_printf("RET_%ld: ret=%08x\n",dr,TheCPU.eip);
 			PC = (unsigned char *)(LONG_CS + TheCPU.eip);
 			temp = rESP + dr;
 			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
@@ -1511,11 +1511,11 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			PC = (unsigned char *)(LONG_CS + TheCPU.eip);
 			if (opc==RETl) {
 			    if (debug_level('e')>1)
-				e_printf("RET_FAR: ret=%04lx:%08lx\n",sv,TheCPU.eip);
+				e_printf("RET_FAR: ret=%04lx:%08x\n",sv,TheCPU.eip);
 			    break;	/* un-fall */
 			}
 			if (debug_level('e')>1) {
-				e_printf("IRET: ret=%04lx:%08lx\n",sv,TheCPU.eip);
+				e_printf("IRET: ret=%04lx:%08x\n",sv,TheCPU.eip);
 			}
 			temp=0; POP(m, &temp);
 			if (REALMODE())
@@ -1534,7 +1534,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,get_vFLAGS(EFLAGS));
+				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_vFLAGS(EFLAGS));
 			}
 #ifdef HOST_ARCH_SIM
 			RFL.valid = V_INVALID;
@@ -1547,7 +1547,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			if (V86MODE()) {
 stack_return_from_vm86:
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08lx fl=%08lx vf=%08lx\n",
+				e_printf("Popped flags %08x fl=%08x vf=%08x\n",
 					temp,EFLAGS,eVEFLAGS);
 			    if (IOPL==3) {	/* Intel manual */
 				if (mode & DATA16)
@@ -1569,7 +1569,7 @@ stack_return_from_vm86:
 					int mask = VIF | eTSSMASK;
 					EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 					if (debug_level('e')>1)
-					    e_printf("Return for STI fl=%08lx vf=%08lx\n",
+					    e_printf("Return for STI fl=%08x vf=%08x\n",
 			    			EFLAGS,eVEFLAGS);
 					TheCPU.err=EXCP_STISIGNAL;
 					return PC + (opc==POPF);
@@ -1580,7 +1580,7 @@ stack_return_from_vm86:
 				    int mask = VIF | eTSSMASK;
 				    EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 				    if (debug_level('e')>1)
-					e_printf("Return for PIC fl=%08lx vf=%08lx\n",
+					e_printf("Return for PIC fl=%08x vf=%08x\n",
 		    			    EFLAGS,eVEFLAGS);
 				    TheCPU.err=EXCP_PICSIGNAL;
 				    return PC + (opc==POPF);
@@ -1604,7 +1604,7 @@ stack_return_from_vm86:
 				}
 			    }
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,_EFLAGS);
+				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
 #ifdef HOST_ARCH_SIM
 			RFL.valid = V_INVALID;
@@ -1826,7 +1826,7 @@ repag0:
 				    int mask = VIF | eTSSMASK;
 				    EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 				    if (debug_level('e')>1)
-					e_printf("Return for STI fl=%08lx vf=%08lx\n",
+					e_printf("Return for STI fl=%08x vf=%08x\n",
 			    		    EFLAGS,eVEFLAGS);
 				    TheCPU.err=EXCP_STISIGNAL;
 				    return PC+1;
@@ -1880,7 +1880,7 @@ repag0:
 				Gen(O_DEC, mode); break;
 			case Ofs_SP:	/*4*/	 // JMP near indirect
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
-					long dp;
+					int dp;
 					CODE_FLUSH();
 					PC += ModRMSim(PC, mode|NOFLDR);
 					TheCPU.eip = (long)PC - LONG_CS;
@@ -1888,7 +1888,7 @@ repag0:
 					if (REG1==Ofs_DX) { 
 						PUSH(mode, &TheCPU.eip);
 						if (debug_level('e')>2)
-							e_printf("CALL indirect: ret=%08lx\n\tcalling: %08lx\n",
+							e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 								TheCPU.eip,dp);
 					}
 					PC = (unsigned char *)(LONG_CS + dp);

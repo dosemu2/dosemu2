@@ -152,7 +152,8 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 	}
 	else if ((((csp[1] & 0xfc)==0x20)||(csp[1]==0x24)||(csp[1]==0x26)) &&
 		((csp[2] & 0xc0) == 0xc0)) {
-		unsigned long *cdt, *srg;
+		unsigned int *cdt;
+		unsigned long *srg;
 		int idx;
 		boolean rnotw;
 

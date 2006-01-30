@@ -38,14 +38,14 @@
 #include "emu-ldt.h"
 
 typedef struct {
-	unsigned long BoundL,BoundH;
+	unsigned int BoundL,BoundH;
 	unsigned short Oldsel, Attrib __attribute__ ((packed));
 } SDTR;
 
 typedef struct {
-	unsigned long Base;
-	unsigned long Limit;
-	unsigned long Attrib;
+	unsigned int Base;
+	unsigned int Limit;
+	unsigned int Attrib;
 } DTR;
 
 /*

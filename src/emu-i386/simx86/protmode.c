@@ -199,7 +199,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 
 	if (big) *big = lbig;
 	if (debug_level('e')>2) {
-		e_printf("PMSEL %#04lx bounds=%08lx:%08lx flg=%04x big=%d\n",
+		e_printf("PMSEL %#04lx bounds=%08x:%08x flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
 	return 0;

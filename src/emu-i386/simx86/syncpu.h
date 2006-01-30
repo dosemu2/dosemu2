@@ -45,8 +45,8 @@ typedef struct {
 #define FIELD0		rzero	/* field of SynCPU at offset 00 */
 /* ------------------------------------------------ */
 /*80	... */
-/*84*/  unsigned long cr2smc;
-/*88*/	unsigned long cr[5];
+/*84*/  unsigned int cr2smc;
+/*88*/	unsigned int cr[5];
 /*9c*/	unsigned int  mode;
 /*a0*/	SDTR gs_cache;
 /*ac*/	SDTR fs_cache;
@@ -58,42 +58,42 @@ typedef struct {
 /*e8*/	double   *fpregs;
 /*ec*/	unsigned short fpuc, fpus;
 /*f0*/	unsigned short fpstt, fptag;
-/*f4*/	unsigned long _fni[3];
+/*f4*/	unsigned int _fni[3];
 /* ------------------------------------------------ */
-/*00*/	unsigned long rzero;
+/*00*/	unsigned int rzero;
 /*04*/	unsigned short gs, __gsh;
 /*08*/	unsigned short fs, __fsh;
 /*0c*/	unsigned short es, __esh;
 /*10*/	unsigned short ds, __dsh;
-/*14*/	unsigned long edi;
-/*18*/	unsigned long esi;
-/*1c*/	unsigned long ebp;
-/*20*/	unsigned long esp;
-/*24*/	unsigned long ebx;
-/*28*/	unsigned long edx;
-/*2c*/	unsigned long ecx;
-/*30*/	unsigned long eax;
-/*34*/	unsigned long trapno;
-/*38*/	unsigned long scp_err;
-/*3c*/	unsigned long eip;
+/*14*/	unsigned int edi;
+/*18*/	unsigned int esi;
+/*1c*/	unsigned int ebp;
+/*20*/	unsigned int esp;
+/*24*/	unsigned int ebx;
+/*28*/	unsigned int edx;
+/*2c*/	unsigned int ecx;
+/*30*/	unsigned int eax;
+/*34*/	unsigned int trapno;
+/*38*/	unsigned int scp_err;
+/*3c*/	unsigned int eip;
 /*40*/	unsigned short cs, __csh;
-/*44*/	unsigned long eflags;
-/*48*/	unsigned long esp_at_signal;
+/*44*/	unsigned int eflags;
+/*48*/	unsigned int esp_at_signal;
 /*4c*/	unsigned short ss, __ssh;
 /*50*/	struct _fpstate *fpstate;
-/*54*/	unsigned long oldmask;
-/*58*/	unsigned long cr2;
+/*54*/	unsigned int oldmask;
+/*58*/	unsigned int cr2;
 /* ------------------------------------------------ */
-/*5c*/	unsigned long sreg1;
-/*60*/  unsigned long dreg1;
-/*64*/	unsigned long xreg1;
+/*5c*/	unsigned int sreg1;
+/*60*/  unsigned int dreg1;
+/*64*/	unsigned int xreg1;
 /*68*/	unsigned short sigalrm_pending, sigprof_pending;
-/*6c*/	unsigned long veflags;
-/*70*/		 long err;
+/*6c*/	unsigned int veflags;
+/*70*/		 int err;
 /*74*/	unsigned long long EMUtime;
-/*7c*/	unsigned long StackMask;
+/*7c*/	unsigned int StackMask;
 /* ------------------------------------------------ */
-/*80*/	unsigned long tr[2];
+/*80*/	unsigned int tr[2];
 /*
  * DR0-3 = linear address of breakpoint 0-3
  * DR4=5 = reserved
@@ -112,7 +112,7 @@ typedef struct {
  *	b24-27= LLRW bp#2
  *	b28-31= LLRW bp#3
  */
-	unsigned long dr[8];
+	unsigned int dr[8];
 	unsigned long mem_ref;
 /* CPU register: base(32) limit(16) */
 	DTR  GDTR;
@@ -138,7 +138,7 @@ extern SynCPU TheCPU;
 
 #define CPUBYTE(o)	*((unsigned char *)CPUOFFS(o))
 #define CPUWORD(o)	*((unsigned short *)CPUOFFS(o))
-#define CPULONG(o)	*((unsigned long *)CPUOFFS(o))
+#define CPULONG(o)	*((unsigned int *)CPUOFFS(o))
 
 #define rEAX		TheCPU.eax
 #define Ofs_EAX		(char)(offsetof(SynCPU,eax)-SCBASE)
