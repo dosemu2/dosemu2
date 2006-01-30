@@ -421,7 +421,7 @@ set_process_control (void)
   sigaddset(&set, SIG_ACQUIRE);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 
-  if (ioctl (console_fd, VT_SETMODE, (int) &vt_mode))
+  if (ioctl (console_fd, VT_SETMODE, &vt_mode))
     v_printf ("initial VT_SETMODE failed!\n");
   v_printf ("VID: Set process control\n");
 }
@@ -432,7 +432,7 @@ clear_process_control (void)
   struct vt_mode vt_mode;
 
   vt_mode.mode = VT_AUTO;
-  ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
+  ioctl (console_fd, VT_SETMODE, &vt_mode);
   setsig (SIG_RELEASE, SIG_IGN);
   setsig (SIG_ACQUIRE, SIG_IGN);
 }

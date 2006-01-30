@@ -62,7 +62,7 @@ static t_shiftstate get_kbd_flags(void)
   /* note: this reads the keyboard flags, not the LED state (which would
    * be KDGETLED).
    */
-  ioctl(kbd_fd, KDGKBLED, (int) &led_state);
+  ioctl(kbd_fd, KDGKBLED, &led_state);
 
   if (led_state & (1 << LED_SCRLOCK))  s|=MODIFIER_SCR;
   if (led_state & (1 << LED_NUMLOCK))  s|=MODIFIER_NUM;
