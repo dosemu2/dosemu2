@@ -324,8 +324,8 @@ static void map_video_ram(void)
   if (!config.vga) {
     if ((long) graph_mem < 0) {
       if (!can_do_root_stuff && mem_fd == -1) return;
-      error("mmap error in get_video_ram (text): %x, errno %d\n",
-	    (Bit32u)graph_mem, errno);
+      error("mmap error in get_video_ram (text): %p, errno %d\n",
+	    graph_mem, errno);
       return;
     } else
       v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,

@@ -3870,9 +3870,9 @@ dos_fs_redirect(state_t *state)
       hlist = hlists.stack[hlist_index].hlist;
     }
 
-    Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%d\n",
+    Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
 	    (char *) sdb_template_name(sdb),
-	    (char *) sdb_template_ext(sdb), (int)hlist));
+	    (char *) sdb_template_ext(sdb), hlist));
     return find_again(0, drive, fpath, hlist, state, sdb);
   case CLOSE_ALL:		/* 0x1d */
     Debug0((dbg_fd, "Close All\n"));

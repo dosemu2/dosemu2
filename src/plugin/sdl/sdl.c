@@ -467,7 +467,7 @@ static int SDL_change_config(unsigned item, void *buf)
 {
   int err = 0;
 
-  v_printf("SDL: SDL_change_config: item = %d, buffer = 0x%x\n", item, (unsigned) buf);
+  v_printf("SDL: SDL_change_config: item = %d, buffer = %p\n", item, buf);
 
   switch(item) {
 

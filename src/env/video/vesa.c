@@ -228,8 +228,8 @@ void vbe_init(vgaemu_display_type *vedt)
   }
 
   v_printf(
-    "VBE: vbe_init: %d pages for VGA BIOS, vga.mem.base = 0x%x\n",
-    vgaemu_bios.pages, (unsigned) vga.mem.base
+    "VBE: vbe_init: %d pages for VGA BIOS, vga.mem.base = %p\n",
+    vgaemu_bios.pages, vga.mem.base
   );
 
   if(!vedt)

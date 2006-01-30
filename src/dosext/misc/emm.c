@@ -388,7 +388,7 @@ deallocate_handle(int handle)
 
 static void _do_map_page(caddr_t dst, caddr_t src, int size)
 {
-  E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)src, (int)dst);
+  E_printf("EMS: mmap()ing from %p to %p\n", src, dst);
   
   if ((caddr_t)dst != mmap_mapping(MAPPING_EMS|MAPPING_ALIAS, dst, size,
 			      PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -400,7 +400,7 @@ static void _do_map_page(caddr_t dst, caddr_t src, int size)
 
 static void _do_unmap_page(caddr_t base, int size)
 {
-  E_printf("EMS: unmmap()ing from 0x%x\n", (int)base);
+  E_printf("EMS: unmmap()ing from %p\n", base);
 
   munmap_mapping(MAPPING_EMS, base, size);
   /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
@@ -1083,7 +1083,7 @@ move_memory_region(state_t * state)
       return (0x93);
     }
   }
-  E_printf("EMS: Move Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
+  E_printf("EMS: Move Memory Region from %p -> %p\n", source, dest);
   memmove_dos2dos(dest, source, mem_move->size);
 
   if (source < dest) {
@@ -1140,7 +1140,7 @@ exchange_memory_region(state_t * state)
   else if (dest + mem_move->size >= source)
     return (EMM_MOVE_OVLAPI);
 
-  E_printf("EMS: Exchange Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
+  E_printf("EMS: Exchange Memory Region from %p -> %p\n", source, dest);
   tmp = malloc(mem_move->size);
   memmove(tmp, source, mem_move->size);
   memmove(source, dest, mem_move->size);

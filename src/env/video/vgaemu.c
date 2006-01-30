@@ -1624,8 +1624,8 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 #endif
 
   vga_msg(
-    "vga_emu_init: memory: %u kbyte at 0x%x (lfb at 0x%x); %ssupport for mono modes\n",
-    vga.mem.size >> 10, (unsigned) vga.mem.base,
+    "vga_emu_init: memory: %u kbyte at %p (lfb at %#x); %ssupport for mono modes\n",
+    vga.mem.size >> 10, vga.mem.base,
     vga.mem.lfb_base_page << 12,
     vga.config.mono_support ? "" : "no "
   );

@@ -528,8 +528,8 @@ void serial_reset(void)
       WRITE_WORD(0x400 + (com[num].real_comport-1)*2, com[num].base_port);
 
       /* Debugging to determine whether memory location was written properly */
-      s_printf("SER%d: BIOS memory location 0x%x has value of 0x%x\n", num,
-	       (int)((u_short *) (0x400) + (com[num].real_comport-1)) 
+      s_printf("SER%d: BIOS memory location %p has value of %#x\n", num,
+	       ((u_short *) (0x400) + (com[num].real_comport-1)) 
 	       ,READ_WORD(0x400 + 2*(com[num].real_comport-1)));
     }
   }

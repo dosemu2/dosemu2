@@ -581,8 +581,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(edx) = 0;
 		src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
 		dst = SEG_ADR((char *), ds, dx);
-		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %#x\n", (int)dst); 
-		D_printf("%#x: '%s'\n", (int)src, src);
+		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
+		D_printf("%p: '%s'\n", src, src);
                 snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
 	    return 0;
@@ -681,8 +681,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(esi) = 0;
 		src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);
 		dst = SEG_ADR((char *), ds, si);
-		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %#x\n", (int)dst); 
-		D_printf("%#x: '%s'\n", (int)src, src);
+		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst); 
+		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
 	    return 0;
@@ -835,8 +835,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	src = (char *)GetSegmentBaseAddress(_ds);
 	dst = (char *)(REG(ds)<<4);
 	len = GetSegmentLimit(_ds) + 1;
-	D_printf("MSDOS: whole segment of DS at %#x copy to DOS at %#x for %#x\n",
-		(int)src, (int)dst, len);
+	D_printf("MSDOS: whole segment of DS at %p copy to DOS at %p for %#x\n",
+		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     }
 
@@ -848,8 +848,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	src = (char *)GetSegmentBaseAddress(_es);
 	dst = (char *)(REG(es)<<4);
 	len = GetSegmentLimit(_es) + 1;
-	D_printf("MSDOS: whole segment of ES at %#x copy to DOS at %#x for %#x\n",
-		(int)src, (int)dst, len);
+	D_printf("MSDOS: whole segment of ES at %p copy to DOS at %p for %#x\n",
+		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     }
     return 0;
@@ -966,8 +966,8 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	src = (char *)(my_ds<<4);
 	dst = (char *)GetSegmentBaseAddress(_ds);
 	len = GetSegmentLimit(_ds) + 1;
-	D_printf("MSDOS: DS seg at %#x copy back at %#x for %#x\n",
-		(int)src, (int)dst, len);
+	D_printf("MSDOS: DS seg at %p copy back at %p for %#x\n",
+		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     } 
 
@@ -979,8 +979,8 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	src = (char *)(my_es<<4);
 	dst = (char *)GetSegmentBaseAddress(_es);
 	len = GetSegmentLimit(_es) + 1;
-	D_printf("MSDOS: ES seg at %#x copy back at %#x for %#x\n",
-		(int)src, (int)dst, len);
+	D_printf("MSDOS: ES seg at %p copy back at %p for %#x\n",
+		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     } 
 

@@ -494,8 +494,8 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 // ------ temp ------- debug ------------------------
 		if ((PC==NULL)||(*((long *)PC)==0)) {
 			set_debug_level('e',9);
-			dbug_printf("\n%s\nFetch %08lx at %08lx mode %x\n",
-				e_print_regs(),*((long *)PC),(long)PC,mode);
+			dbug_printf("\n%s\nFetch %08lx at %p mode %x\n",
+				e_print_regs(),*((long *)PC),PC,mode);
 			TheCPU.err = -99; return PC;
 		}
 // ------ temp ------- debug ------------------------

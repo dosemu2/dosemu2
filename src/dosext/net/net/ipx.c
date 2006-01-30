@@ -203,7 +203,7 @@ static void dumpBytes(u_char * memptr, int count)
   }
   for (i = 0; i < count; i++) {
     if (linecounter == 0) {
-      n_printf("%x: ", (int)memptr);
+      n_printf("%p: ", memptr);
     }
     n_printf("%02x ", *memptr++);
     if (linecounter == 7) {
