@@ -1344,7 +1344,10 @@ void real_run_int(int i)
    *       some of our own software (...we all are human beings)
    *       For vm86() 'VIF' is the candidate to reset in order to do CLI !
    */
-  clear_TF();
+  if (vm86s.vm86plus.vm86dbg_TFpendig)
+    set_TF();
+  else
+    clear_TF();
   clear_NT();
   clear_IF();
 }
@@ -1971,6 +1974,9 @@ static void do_int_from_hlt(Bit32u i)
 	run_caller_func(i, NO_REVECT);
 	if (debug_level('#') > 2)
 		debug_int("RET", i);
+#ifdef USE_MHPDBG
+	  mhp_debug(DBG_INTx + (i << 8), 0, 0);
+#endif
 }
 
 void do_int(int i)
