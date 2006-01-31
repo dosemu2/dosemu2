@@ -28,7 +28,7 @@ unsigned char *ext_mem_base = NULL;
 
 void HMA_MAP(int HMA)
 {
-  caddr_t ipc_return;
+  void *ipc_return;
   /* Note: MAPPING_HMA is magic, dont be confused by src==dst==HMAAREA here */
   u_char *src = HMA ? HMAAREA : 0;
   x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
@@ -41,7 +41,7 @@ void HMA_MAP(int HMA)
 
   ipc_return = mmap_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, src);
-  if ((int)ipc_return == -1) {
+  if (ipc_return == MAP_FAILED) {
     x_printf("HMA: Mapping HMA to HMAAREA %p unsuccessful: %s\n",
 	       HMAAREA, strerror(errno));
     leavedos(47);

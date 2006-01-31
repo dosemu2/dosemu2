@@ -1271,7 +1271,7 @@ int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
 
 static int vga_emu_map(unsigned mapping, unsigned first_page)
 {
-  int i;
+  void *i;
   unsigned u;
   vga_mapping_type *vmt;
   int prot;
@@ -1300,11 +1300,11 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       prot = VGA_EMU_RW_PROT;
   }
 
-  i = (int) mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
+  i = mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
     (caddr_t) (vmt->base_page << 12), vmt->pages << 12,
     prot, vga.mem.base + (first_page << 12));
 
-  if(i == -1) {
+  if(i == MAP_FAILED) {
     prot = 0xfe;
     switch(errno) {
       case EINVAL: prot = 0xfd; break;
@@ -1317,7 +1317,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
     vgaemu_update_prot_cache(vmt->base_page + u, prot);
   }
 
-  if(i == -1) return 3;
+  if(i == MAP_FAILED) return 3;
 
   vmt->first_page = first_page;
 
@@ -1337,7 +1337,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
 static int vgaemu_unmap(unsigned page)
 {
-  int i;
+  void *i;
 
   if(
     page < 0xa0 ||
@@ -1347,12 +1347,12 @@ static int vgaemu_unmap(unsigned page)
 
   *((volatile char *)(vga.mem.scratch_page << 12));
 
-  i = (int) mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
+  i = mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
     (caddr_t) (page << 12), 1 << 12,
     VGA_EMU_RW_PROT, (void *) (vga.mem.scratch_page  << 12)
   );
 
-  if(i == -1) return 3;
+  if(i == MAP_FAILED) return 3;
 
   return vga_emu_protect_page(page, RO);
 }
@@ -1363,20 +1363,21 @@ static int vgaemu_unmap(unsigned page)
  */
 void vgaemu_reset_mapping()
 {
-  int i, prot, page;
+  void *i;
+  int prot, page;
 
   if (!Video->update_screen) return;
   memset((void *) (vga.mem.scratch_page << 12), 0xff, 1 << 12);
 
   prot = VGA_EMU_RW_PROT;
   for(page = 0xa0; page < 0xc0; page++) {
-    i = (int) mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
+    i = mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
       (void *) (page << 12), 1 << 12,
       prot, (void *) (vga.mem.scratch_page << 12)
     );
   }
 
-  if(i == -1) {
+  if(i == MAP_FAILED) {
     prot = 0xfe;
     switch(errno) {
       case EINVAL: prot = 0xfd; break;

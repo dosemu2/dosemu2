@@ -33,19 +33,19 @@ static int tmpfile_fd = -1;
 
 static void *alias_map(void *target, int mapsize, int protect, void *source)
 {
-  int fixed = (int)target == -1 ? 0 : MAP_FIXED;
-  int offs = (int)source - (int)mpool;
+  int fixed = target == (void *)-1 ? 0 : MAP_FIXED;
+  off_t offs = (char *)source - mpool;
   void *addr;
 
   if (offs < 0 || (offs+mapsize >= (mpool_numpages*PAGE_SIZE))) {
     Q_printf("MAPPING: alias_map to address outside of temp file\n");
     errno = EINVAL;
-    return (void *) -1;
+    return MAP_FAILED;
   }
   if (!fixed) target = 0;
   addr =  mmap(target, mapsize, protect, MAP_SHARED | fixed, tmpfile_fd, offs);
 #if 1
-  Q_printf("MAPPING: alias_map, fileoffs %x to %p size %x, result %p\n",
+  Q_printf("MAPPING: alias_map, fileoffs %lx to %p size %x, result %p\n",
 			offs, target, mapsize, addr);
 #endif
   return addr;

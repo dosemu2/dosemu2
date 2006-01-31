@@ -160,7 +160,7 @@ int GetDebugFlagsHelper(char *debugStr, int print)
 	struct debug_class *class;
 	
 	if (print) dbug_printf("GetDebugFlagsHelper\n");
-	if (print) dbug_printf("debugStr at %x\n", (int)debugStr);
+	if (print) dbug_printf("debugStr at %p\n", debugStr);
 	i = 0;
 	
 	for(class = debug; class <= &debug[DEBUG_CLASSES-1]; class++) {

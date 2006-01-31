@@ -218,7 +218,7 @@ static Boolean matroxProbe(void)
 
   MGAMMIOBase = MapVidMem(pciconf[4]&~0xfff, 0x4000);
   v_printf("MGA: mmap() %#lx at %p\n", pciconf[4], MGAMMIOBase);
-  if ((int)MGAMMIOBase <= 0) return(FALSE);
+  if (MGAMMIOBase == MAP_FAILED) return(FALSE);
   for (i=0; i<64; i+=4) {
     v_printf("PCI: %08lx %08lx %08lx %08lx\n", pciconf[i], pciconf[i+1],
 	 pciconf[i+2], pciconf[i+3]);

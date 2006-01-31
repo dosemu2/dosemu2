@@ -311,7 +311,7 @@ static inline mach_port_t realloc_memory_object(mach_port_t object, size_t oldsi
 {
   void *addr = (mach_port_t)realloc_mapping(MAPPING_EMS, (void *)object,
   	oldsize, bytes);
-  if ((int)addr == -1) return 0;
+  if (addr == MAP_FAILED) return 0;
   return (mach_port_t)addr;
 }
 
