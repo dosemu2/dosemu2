@@ -19,7 +19,7 @@ USAGE:
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM STRING_I LREDIRHOME QUIET USE_SUDO INSTALL INPUT
+unset DUMBTERM STRING_I LREDIRHOME QUIET USE_SUDO INSTALL INPUT OPTS
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
@@ -225,8 +225,15 @@ if [ -n "$USE_SUDO" ] ; then
 fi
 
 eval "set -- $SUFFIX"
-if [ -n "$STRING_I" ] ; then
-  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF "$INSTALL" $XFLAG "-I $STRING_I" "$@"
+COMMAND="$SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG"
+if [ -n "$INSTALL" ] ; then
+  if [ -n "$STRING_I" ] ; then
+    exec -a "$0" $COMMAND "$INSTALL" "-I $STRING_I" "$@"
+  else
+    exec -a "$0" $COMMAND "$INSTALL" "$@"
+  fi
+elif [ -n "$STRING_I" ] ; then
+  exec -a "$0" $COMMAND "-I $STRING_I" "$@"
 else
-  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF "$INSTALL" $XFLAG "$@"
+  exec -a "$0" $COMMAND "$@"
 fi
