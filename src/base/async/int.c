@@ -2000,7 +2000,7 @@ void do_int(int i)
  	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
  	   which sometimes can crash the whole system, not only dosemu... */
  	if (SEGOFF2LINEAR(_CS, _IP) < 1024) {
- 		dbug_printf("OUCH! attempt to execute interrupt table - quickly dying\n");
+ 		error("OUCH! attempt to execute interrupt table - quickly dying\n");
  		leavedos(57);
  	}
 #endif
