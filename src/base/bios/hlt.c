@@ -32,6 +32,7 @@
 static struct {
   emu_hlt_func  func;
   const char   *name;
+  Bit16u	start_addr;
 } hlt_handler[MAX_HLT_HANDLERS];
 
 static Bit8u         hlt_handler_id[BIOS_HLT_BLK_SIZE];       
@@ -98,7 +99,7 @@ void hlt_handle(void)
     h_printf("HLT: fcn 0x%04lx called in HLT block, handler: %s\n", offs,
 	     hlt_handler[hlt_handler_id[offs]].name);
 #endif
-    hlt_handler[hlt_handler_id[offs]].func(offs);
+    hlt_handler[hlt_handler_id[offs]].func(offs - hlt_handler[hlt_handler_id[offs]].start_addr);
   }
   else if (lina == (Bit8u *) CBACK_ADD) {
     /* we are back from a callback routine */
@@ -161,6 +162,7 @@ int hlt_register_handler(emu_hlt_t handler)
 
     hlt_handler[handle].name = handler.name;
     hlt_handler[handle].func = handler.func;
+    hlt_handler[handle].start_addr = handler.start_addr;
     }
 
   /* change table to reflect new handler id for that address */
