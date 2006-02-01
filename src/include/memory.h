@@ -118,6 +118,13 @@
 #define INT70_OFF	0x63f0
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
 
+#define INT1E_SEG	ROMBIOSSEG
+#define INT1E_OFF	0x6fc7
+#define INT41_SEG	ROMBIOSSEG
+#define INT41_OFF	0x6401
+#define INT46_SEG	ROMBIOSSEG
+#define INT46_OFF	0x6420
+
 /* int10 watcher for mouse support */
 /* This was in BIOSSEG (a) so we could write old_int10,
  * when it made a difference...

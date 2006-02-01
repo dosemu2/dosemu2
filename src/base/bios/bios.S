@@ -634,7 +634,37 @@ CISH(INT70_dummy_end):
 
 
 /* COMPAS FE3FE		jmp to INT13 HD */
+	.org	((INT41_SEG - BIOSSEG) << 4) + INT41_OFF
 /* COMPAS FE401-FE6F0	HD parameter table */
+	.word	50	/* cyl */
+	.byte	255	/* heads */
+	.word	0	/* rw_cyl */
+	.word	0	/* precomp_cyl */
+	.byte	0	/* max_ecc */
+	.byte	0	/* contr */
+	.byte	10	/* std_timeout */
+	.byte	10	/* fmt_timeout */
+	.byte	10	/* chk_timeout */
+	.word	0	/* lnd_zone */
+	.byte	63	/* spt */
+	.byte	0xff	/* reserved */
+
+/* COMPAS FE3FE		jmp to INT13 HD */
+	.org	((INT46_SEG - BIOSSEG) << 4) + INT46_OFF
+/* COMPAS FE401-FE6F0	HD parameter table */
+	.word	50	/* cyl */
+	.byte	255	/* heads */
+	.word	0	/* rw_cyl */
+	.word	0	/* precomp_cyl */
+	.byte	0	/* max_ecc */
+	.byte	0	/* contr */
+	.byte	10	/* std_timeout */
+	.byte	10	/* fmt_timeout */
+	.byte	10	/* chk_timeout */
+	.word	0	/* lnd_zone */
+	.byte	63	/* spt */
+	.byte	0xff	/* reserved */
+
 /* COMPAS FE6F1		reserved */
 /* COMPAS FE6F2		jmp to INT19 */
 /* ----------------------------------------------------------------- */   
@@ -825,9 +855,9 @@ CISH(INT09_dummy_end):
 /* COMPAS FEF57		jmp to INT0E */
 /* COMPAS FEF5A-FEFC6	reserved */
 /* ----------------------------------------------------------------- */
-	.org	0xefc7
+	.org	((INT1E_SEG - BIOSSEG) << 4) + INT1E_OFF
 /* COMPAS FEFC7		FDD param table */
-/* no one uses it, but it's there for compatibility */
+/* Win98/DOS uses it via int0x1e vector */
 	.byte	0xaf	/* b7-4=step rate b3-0=head unload time */
 	.byte	0x02	/* b7=1=head load time b0=0 */
 	.byte	0x25	/* motor off delay in clock ticks */
