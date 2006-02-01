@@ -111,6 +111,22 @@ dpmi_pm_block * lookup_pm_block(dpmi_pm_block_root *root, unsigned long h)
     return 0;
 }
 
+static int commit(void *ptr, size_t size)
+{
+  if (mprotect_mapping(MAPPING_DPMI, ptr, size,
+	PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
+    return 0;
+  return 1;
+}
+
+static int uncommit(void *ptr, size_t size)
+{
+  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
+	ptr, size, PROT_NONE, 0) == MAP_FAILED)
+    return 0;
+  return 1;
+}
+
 void dpmi_alloc_pool(void)
 {
     int num_pages, mpool_numpages;
@@ -127,13 +143,13 @@ void dpmi_alloc_pool(void)
     }
 
     mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)config.dpmi_base,
-        memsize, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
+        memsize, PROT_NONE, 0);
     if (mpool_ptr == MAP_FAILED) {
       error("MAPPING: cannot create mem pool for DPMI, %s\n",strerror(errno));
       leavedos(2);
     }
     D_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
-    sminit(&mem_pool, mpool_ptr, memsize);
+    sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
     dpmi_total_memory = num_pages << PAGE_SHIFT;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory); 
@@ -151,16 +167,15 @@ void dpmi_free_pool(void)
 
 static int SetAttribsForPage(char *ptr, us attr, us old_attr)
 {
-    int prot, com = attr & 7, old_com = old_attr & 7;
+    int prot, change = 0, com = attr & 7, old_com = old_attr & 7;
 
     switch (com) {
       case 0:
         D_printf("UnCom");
         if (old_com == 1) {
           D_printf("[!]");
-          mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, ptr, PAGE_SIZE,
-            PROT_NONE, 0);
           dpmi_free_memory += PAGE_SIZE;
+          change = 1;
         }
         D_printf(" ");
         break;
@@ -173,6 +188,7 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
             return 0;
           }
           dpmi_free_memory -= PAGE_SIZE;
+          change = 1;
         }
         D_printf(" ");
 	break;
@@ -191,6 +207,7 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
       D_printf("RW(X)");
       if (!(old_attr & 8)) {
         D_printf("[!]");
+        change = 1;
       }
       D_printf(" ");
       prot |= PROT_WRITE;
@@ -198,6 +215,7 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
       D_printf("R/O(X)");
       if (old_attr & 8) {
         D_printf("[!]");
+        change = 1;
       }
       D_printf(" ");
     }
@@ -206,10 +224,18 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
 
     D_printf("Addr=%p\n", ptr);
 
-    if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE,
-        com ? prot : PROT_NONE) == -1) {
-      D_printf("mprotect() failed: %s\n", strerror(errno));
-      return 0;
+    if (change) {
+      if (com) {
+        if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE, prot) == -1) {
+          D_printf("mprotect() failed: %s\n", strerror(errno));
+          return 0;
+        }
+      } else {
+	if (!uncommit(ptr, PAGE_SIZE)) {
+          D_printf("mmap() failed: %s\n", strerror(errno));
+          return 0;
+        }
+      }
     }
 
     return 1;
@@ -238,8 +264,7 @@ static void restore_page_protection(dpmi_pm_block *block)
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
     if ((block->attrs[i] & 7) == 0)
-      mprotect_mapping(MAPPING_DPMI, block->base + (i << PAGE_SHIFT),
-        PAGE_SIZE, PROT_NONE);
+      uncommit(block->base + (i << PAGE_SHIFT), PAGE_SIZE);
   }
 }
 	 
@@ -317,8 +342,6 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned long handle)
     if (block->linear) {
 	munmap_mapping(MAPPING_DPMI, block->base, block->size);
     } else {
-	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
-	    PROT_READ | PROT_WRITE | PROT_EXEC);
 	smfree(&mem_pool, block->base);
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
@@ -375,17 +398,16 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
 	return NULL;
     }
 
-    if (block->size > newsize) {
-      /* make sure free space in the pool have the RWX protection */
-      mprotect_mapping(MAPPING_DPMI, block->base + newsize,
-        block->size - newsize, PROT_READ | PROT_WRITE | PROT_EXEC);
-    }
+    /* realloc needs full access to the old block */
+    mprotect_mapping(MAPPING_DPMI, block->base, block->size,
+        PROT_READ | PROT_WRITE | PROT_EXEC);
     if (!(ptr = smrealloc(&mem_pool, block->base, newsize)))
 	return NULL;
 
     finish_realloc(block, newsize, 1);
     block->base = ptr;
     block->size = newsize;
+    restore_page_protection(block);
     return block;
 }
 
@@ -421,7 +443,6 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     */
     mprotect_mapping(MAPPING_DPMI, block->base, block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
-    /* Now we are safe - region merged. mremap() can be attempted now. */
     ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize,
       MREMAP_MAYMOVE, (void*)-1);
     if (ptr == MAP_FAILED) {
