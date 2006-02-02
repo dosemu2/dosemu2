@@ -158,7 +158,7 @@ boot(void)
     disk_close();
     disk_open(dp);
 
-    buffer = (char *) 0x7c00;
+    buffer = LOWMEM(0x7c00);
 
     if (dp->boot_name) {/* Boot from the specified file */
         int bfd;
