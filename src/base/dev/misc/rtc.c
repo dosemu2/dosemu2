@@ -106,6 +106,7 @@ Bit8u rtc_read(Bit8u reg)
     if (debug_level('h') > 8)
       h_printf("RTC: Read C=%hhx\n", ret);
     SET_CMOS(CMOS_STATUSC, 0);
+    pic_untrigger(PIC_IRQ8);
     rtc_run();
     break;
   }
