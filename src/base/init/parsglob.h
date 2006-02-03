@@ -18,34 +18,37 @@ enum argument_type {
 };
 
 typedef struct {
-	char placeholder[4];
+	union {
+		int i_value;
+		char *s_value;
+		float r_value;
+	} u;
 	short token;
 	char placeholder_;
 	char type;
-} __attribute__((packed)) ExprType;
+} ExprType;
 
-#define EXPRTYPE(x) ((*(ExprType *)&(x)).type)
-#define EXPRTOKEN(x) ((*(ExprType *)&(x)).token)
+#define ALL(x) (*(YYSTYPE *)&(x))
+
+#define EXPRTYPE(x) (ALL(x).t_value.type)
+#define EXPRTOKEN(x) (ALL(x).t_value.token)
 
 #define TYPINT(x) EXPRTYPE(x) = TYPE_INTEGER
 #define TYPBOOL(x) EXPRTYPE(x) = TYPE_BOOLEAN
 #define TYPREAL(x) EXPRTYPE(x) = TYPE_REAL
 #define TYPSTR(x) EXPRTYPE(x) = TYPE_STRING
 
-#define TOF(x) ( (EXPRTYPE(x) == TYPE_REAL) ? *((float *)&(x)) : *((int *)&(x)) )
+#define VAL_I(x) ( ALL(x).i_value )
+#define VAL_B(x) ( ALL(x).i_value )
+#define VAL_R(x) ( ALL(x).r_value )
+#define VAL_S(x) ( ALL(x).s_value )
 
-#define ALL(x) ((*(YYSTYPE *)&(x)).all_value)
+#define TOF(x) ( (EXPRTYPE(x) == TYPE_REAL) ? VAL_R(x) : VAL_I(x) )
 
-#define VAL_I(x) ( (*(YYSTYPE *)&(x)).i_value )
-#define VAL_B(x) ( (*(YYSTYPE *)&(x)).i_value )
-#define VAL_R(x) ( (*(YYSTYPE *)&(x)).r_value )
-#define VAL_S(x) ( (*(YYSTYPE *)&(x)).s_value )
-
-
-#define I_VAL(x) ( *( TYPINT(x), &((*(YYSTYPE *)&(x)).i_value )))
-#define B_VAL(x) ( *( TYPBOOL(x), &((*(YYSTYPE *)&(x)).i_value )))
-#define R_VAL(x) ( *( TYPREAL(x), &((*(YYSTYPE *)&(x)).r_value )))
-#define S_VAL(x) ( *( TYPSTR(x), &((*(YYSTYPE *)&(x)).s_value )))
+#define I_VAL(x) ( *( TYPINT(x), &VAL_I(x) ) )
+#define B_VAL(x) ( *( TYPBOOL(x), &VAL_B(x) ) )
+#define R_VAL(x) ( *( TYPREAL(x), &VAL_R(x) ) )
+#define S_VAL(x) ( *( TYPSTR(x), &VAL_S(x) ) )
 #define V_VAL(x,y,z) \
 do { if (EXPRTYPE(y) == TYPE_REAL) R_VAL(x) = (z); else \
       if (EXPRTYPE(y) == TYPE_BOOLEAN) B_VAL(x) = (z); else I_VAL(x) = (z); } \

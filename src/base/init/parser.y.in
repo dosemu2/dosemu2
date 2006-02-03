@@ -184,7 +184,6 @@ static int is_in_allowed_classes(int mask);
 	int i_value;
 	char *s_value;
 	float r_value;
-	long long all_value;
 	ExprType t_value;
 };
 
@@ -822,25 +821,25 @@ expression:
 		}
 		| STRPBRK '(' string_expr ',' string_expr ')' {
 			char *s = strpbrk($3,$5);
-			if (s) I_VAL($$) = (int)s - (int)$3;
+			if (s) I_VAL($$) = s - $3;
 			else I_VAL($$) = -1;
 			free($3); free($5);
 		}
 		| STRCHR '(' string_expr ',' string_expr ')' {
 			char *s = strchr($3,$5[0]);
-			if (s) I_VAL($$) = (int)s - (int)$3;
+			if (s) I_VAL($$) = s - $3;
 			else I_VAL($$) = -1;
 			free($3); free($5);
 		}
 		| STRRCHR '(' string_expr ',' string_expr ')' {
 			char *s = strrchr($3,$5[0]);
-			if (s) I_VAL($$) = (int)s - (int)$3;
+			if (s) I_VAL($$) = s - $3;
 			else I_VAL($$) = -1;
 			free($3); free($5);
 		}
 		| STRSTR '(' string_expr ',' string_expr ')' {
 			char *s = strstr($3,$5);
-			if (s) I_VAL($$) = (int)s - (int)$3;
+			if (s) I_VAL($$) = s - $3;
 			else I_VAL($$) = -1;
 			free($3); free($5);
 		}
