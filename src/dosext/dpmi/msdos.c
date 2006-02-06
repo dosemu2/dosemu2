@@ -486,7 +486,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x17:		/* rename using FCB */
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
-	    REG(edx)=0;
+	    REG(edx) = 0;
 	    MEMCPY_DOS2DOS(SEG_ADR((void *), ds, dx),
 			(void *)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
 			0x50);
@@ -620,7 +620,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		MEMCPY_DOS2DOS(SEG_ADR((void *), ds, si),
 			    (void *)GetSegmentBaseAddress(_ds) + D_16_32(_esi),
 			    0x30);
-		seg += 30;
+		seg += 3;
 
 		REG(es) = seg;
 		REG(ebp) = 0;
@@ -647,16 +647,19 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 0;
 	case 0x5f:		/* redirection */
 	    switch (_LO(ax)) {
+	    unsigned short seg;
 	    case 0: case 1:
 		return 0;
 	    case 2 ... 6:
 		prepare_ems_frame();
-		REG(ds) = TRANS_BUFFER_SEG;
+		seg = TRANS_BUFFER_SEG;
+		REG(ds) = seg;
 		REG(esi) = 0;
 		MEMCPY_DOS2DOS(SEG_ADR((void *), ds, si),
 			(void *)GetSegmentBaseAddress(_ds) + D_16_32(_esi),
 			0x100);
-		REG(es) = TRANS_BUFFER_SEG + 0x10;
+		seg += 0x10;
+		REG(es) = seg;
 		REG(edi) = 0;
 		MEMCPY_DOS2DOS(SEG_ADR((void *), es, di),
 			(void *)GetSegmentBaseAddress(_es) + D_16_32(_edi),
@@ -664,15 +667,19 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		return 0;
 	    }
 	case 0x60:		/* Get Fully Qualified File Name */
-	    prepare_ems_frame();
-	    REG(ds) = TRANS_BUFFER_SEG;
-	    REG(esi) = 0;
-	    MEMCPY_DOS2DOS(SEG_ADR((void *), ds, si),
+	    {
+		unsigned short seg = TRANS_BUFFER_SEG;
+		prepare_ems_frame();
+		REG(ds) = seg;
+		REG(esi) = 0;
+		MEMCPY_DOS2DOS(SEG_ADR((void *), ds, si),
 		    (void *)GetSegmentBaseAddress(_ds) + D_16_32(_esi),
 		    0x100);
-	    REG(es) = TRANS_BUFFER_SEG + 0x10;
-	    REG(edi) = 0;
-	    return 0;
+		seg += 0x10;
+		REG(es) = seg;
+		REG(edi) = 0;
+		return 0;
+	    }
 	case 0x6c:		/*  Extended Open/Create */
 	    {
 		char *src, *dst;
@@ -727,6 +734,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
         case 0x3B: /* change dir */
         case 0x41: /* delete file */
         case 0x43: /* get file attributes */
+	    prepare_ems_frame();
             REG(ds) = TRANS_BUFFER_SEG;
             REG(edx) = 0;
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
@@ -734,6 +742,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
         case 0x4E: /* find first file */
+	    prepare_ems_frame();
             REG(ds) = TRANS_BUFFER_SEG;
             REG(edx) = 0;
             REG(es) = TRANS_BUFFER_SEG;
@@ -743,6 +752,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
         case 0x4F: /* find next file */
+	    prepare_ems_frame();
             REG(es) = TRANS_BUFFER_SEG;
             REG(edi) = 0;
             src = (char *)GetSegmentBaseAddress(_es) + D_16_32(_edi);
@@ -750,10 +760,12 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             MEMCPY_DOS2DOS(dst, src, 0x13e);
             return 0;
         case 0x47: /* get cur dir */
+	    prepare_ems_frame();
             REG(ds) = TRANS_BUFFER_SEG;
             REG(esi) = 0;
             return 0;
 	case 0x60: /* canonicalize filename */
+	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(esi) = 0;
 	    REG(es) = TRANS_BUFFER_SEG;
@@ -763,6 +775,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    return 0;
         case 0x6c: /* extended open/create */
+	    prepare_ems_frame();
             REG(ds) = TRANS_BUFFER_SEG;
             REG(esi) = 0;
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);
@@ -770,6 +783,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
         case 0xA0: /* get volume info */
+	    prepare_ems_frame();
             REG(ds) = TRANS_BUFFER_SEG;
             REG(edx) = 0;
             REG(es) = TRANS_BUFFER_SEG;
