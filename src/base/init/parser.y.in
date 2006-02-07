@@ -73,8 +73,6 @@
 #include "pktdrvr.h"
 #include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
 
-#include "parsglob.h"
-
 #define USERVAR_PREF	"dosemu_"
 static int user_scope_level;
 
@@ -172,6 +170,12 @@ static int parse_timemode(const char *);
 
 static int is_in_allowed_classes(int mask);
 
+#define TOF(x) ( x.type == TYPE_REAL ? x.value.r : x.value.i )
+#define V_VAL(x,y,z) \
+do { x.type = y.type; if (x.type == TYPE_REAL) x.value.r = (z); \
+      else x.value.i = (z); } \
+while (0)
+
 	/* variables in lexer.l */
 
 %}
@@ -184,7 +188,18 @@ static int is_in_allowed_classes(int mask);
 	int i_value;
 	char *s_value;
 	float r_value;
-	ExprType t_value;
+	struct {
+		enum {
+			TYPE_NONE,
+			TYPE_INTEGER,
+			TYPE_BOOLEAN,
+			TYPE_REAL
+		} type;
+		union {
+			int i;
+			float r;
+		} value;
+	} t_value;
 };
 
 %{
@@ -200,19 +215,21 @@ static int is_in_allowed_classes(int mask);
 %token EXPRTEST
 %token INTCAST REALCAST
 %left AND_OP OR_OP XOR_OP SHR_OP SHL_OP
-%left NOT_OP /* logical NOT */
+%right NOT_OP /* logical NOT */
 %left EQ_OP GE_OP LE_OP '=' '<' '>' NEQ_OP
 %left STR_EQ_OP STR_NEQ_OP
 %left L_AND_OP L_OR_OP
 %left '+' '-'
 %left '*' '/'
-%left UMINUS UPLUS BIT_NOT_OP
+%right UMINUS UPLUS BIT_NOT_OP
 
 %token	STRLEN STRTOL STRNCMP STRCAT STRPBRK STRSPLIT STRCHR STRRCHR STRSTR
 %token	STRDEL STRSPN STRCSPN SHELL
 %token	DEFINED
-%type	<i_value> expression
-%type	<s_value> string_expr variable_content strarglist strarglist_item
+%type	<i_value> expression int_expr bool_expr
+%type	<r_value> real_expression real_expr
+%type	<t_value> typed_expr
+%type	<s_value> string_unquoted string_expr variable_content strarglist strarglist_item
 
 	/* flow control */
 %token DEFINE UNDEF IFSTATEMENT WHILESTATEMENT FOREACHSTATEMENT
@@ -222,7 +239,7 @@ static int is_in_allowed_classes(int mask);
 %token CHECKUSERVAR
 
 	/* main options */
-%token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
+%token DOSBANNER FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token NETDEV VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC
@@ -271,7 +288,7 @@ static int is_in_allowed_classes(int mask);
 %token TRACE CLEAR
 
 	/* printer */
-%token COMMAND TIMEOUT OPTIONS L_FILE
+%token COMMAND TIMEOUT L_FILE
 	/* disk */
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH ATAPI READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
@@ -315,8 +332,8 @@ optdelim	: ';'
 		;
 
 line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
-		| DEFINE STRING		{ IFCLASS(CL_VAR){ define_config_variable($2);} free($2); }
-		| UNDEF STRING		{ IFCLASS(CL_VAR){ undefine_config_variable($2);} free($2); }
+		| DEFINE string_unquoted{ IFCLASS(CL_VAR){ define_config_variable($2);} free($2); }
+		| UNDEF string_unquoted	{ IFCLASS(CL_VAR){ undefine_config_variable($2);} free($2); }
 		| IFSTATEMENT '(' expression ')' {
 			/* NOTE:
 			 * We _need_ absolutely to return to state stack 0
@@ -373,11 +390,11 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    free($1); free($3);
 		}
 		| CHECKUSERVAR check_user_var_list
-		| EXPRTEST expression {
-		    if (EXPRTYPE($2) == TYPE_REAL)
-			c_printf("CONF TESTING: exprtest real %f %08x\n", VAL_R($2), $2);
+		| EXPRTEST typed_expr {
+		    if ($2.type == TYPE_REAL)
+			c_printf("CONF TESTING: exprtest real %f\n", $2.value.r);
 		    else
-			c_printf("CONF TESTING: exprtest int %d %08x\n", VAL_I($2), $2);
+			c_printf("CONF TESTING: exprtest int %d\n", $2.value.i);
 		}
 		/* abandoning 'single' abort due to shift/reduce conflicts
 		   Just use ' abort "" '
@@ -462,13 +479,13 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 				config.cpuemu, vm86s.cpu_type);
 #endif
 			}
-		| CPUSPEED expression
+		| CPUSPEED real_expression
 			{ 
 #if 0 /* no longer used, but left in for dosemu.conf compatibility */
 			if (config.realcpu >= CPU_586) {
-			  config.cpu_spd = ((double)LLF_US)/TOF($2);
-			  config.cpu_tick_spd = ((double)LLF_TICKS)/TOF($2);
-			  c_printf("CONF: CPU speed = %g\n", ((double)TOF($2)));
+			  config.cpu_spd = ((double)LLF_US)/$2;
+			  config.cpu_tick_spd = ((double)LLF_TICKS)/$2;
+			  c_printf("CONF: CPU speed = %g\n", ((double)$2));
 			}
 #endif
 			}
@@ -745,133 +762,150 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| error
 		;
 
-	/* expressions */
-expression:
-		  INTEGER {TYPINT($$);}
-		| REAL {TYPREAL($$);}
-		| expression '+' expression
+expression:	typed_expr { $$ = TOF($1); }
+		;
+
+real_expression:typed_expr { $$ = TOF($1); }
+		;
+
+	/* run-time typed expressions */
+
+typed_expr:	  int_expr {$$.type = TYPE_INTEGER; $$.value.i=$1;}
+		| bool_expr {$$.type = TYPE_BOOLEAN; $$.value.i=$1;}
+		| real_expr {$$.type = TYPE_REAL; $$.value.r=$1;}
+		| typed_expr '+' typed_expr
 			{V_VAL($$,$1,TOF($1) + TOF($3)); }
-		| expression '-' expression
+		| typed_expr '-' typed_expr
 			{V_VAL($$,$1,TOF($1) - TOF($3)); }
-		| expression '*' expression
+		| typed_expr '*' typed_expr
 			{V_VAL($$,$1,TOF($1) * TOF($3)); }
-		| expression '/' expression {
-			if ($3)	V_VAL($$,$1,TOF($1) / TOF($3));
+		| typed_expr '/' typed_expr {
+			if (TOF($3))	V_VAL($$,$1,TOF($1) / TOF($3));
 			else V_VAL($$,$1,TOF($3));
 		}
-		| '-' expression %prec UMINUS 
-			{I_VAL($$) = -TOF($2); }
-		| '+' expression %prec UPLUS
+		| '-' typed_expr %prec UMINUS 
+			{V_VAL($$,$2,-TOF($2)); }
+		| '+' typed_expr %prec UPLUS
 			{V_VAL($$,$2,TOF($2)); }
-		| expression AND_OP expression
-			{I_VAL($$) = VAL_I($1) & VAL_I($3); }
-		| expression OR_OP expression
-			{I_VAL($$) = VAL_I($1) | VAL_I($3); }
-		| expression XOR_OP expression
-			{I_VAL($$) = VAL_I($1) ^ VAL_I($3); }
-		| BIT_NOT_OP expression %prec BIT_NOT_OP
-			{I_VAL($$) = VAL_I($2) ^ (-1); }
-		| expression SHR_OP expression
-			{ unsigned int shift = (1 << VAL_I($3));
-			if (!shift) ALL($$) = ALL($1);
+		| typed_expr SHR_OP typed_expr
+			{ unsigned int shift = (1 << (int)TOF($3));
+			if (!shift) $$ = $1;
 			else V_VAL($$, $1, TOF($1) / shift);}
-		| expression SHL_OP expression
-			{ unsigned int shift = (1 << VAL_I($3));
-			if (!shift) ALL($$) = ALL($1);
+		| typed_expr SHL_OP typed_expr
+			{ unsigned int shift = (1 << (int)TOF($3));
+			if (!shift) $$ = $1;
 			else V_VAL($$, $1, TOF($1) * shift);}
-		| expression EQ_OP expression
-			{B_VAL($$) = TOF($1) == TOF($3); }
-		| expression NEQ_OP expression
-			{B_VAL($$) = TOF($1) != TOF($3); }
-		| expression GE_OP expression
-			{B_VAL($$) = TOF($1) >= TOF($3); }
-		| expression LE_OP expression
-			{B_VAL($$) = TOF($1) <= TOF($3); }
-		| expression '<' expression
-			{B_VAL($$) = TOF($1) < TOF($3); }
-		| expression '>' expression
-			{B_VAL($$) = TOF($1) > TOF($3); }
-		| expression L_AND_OP expression
-			{B_VAL($$) = TOF($1) && TOF($3); }
-		| expression L_OR_OP expression
-			{B_VAL($$) = TOF($1) || TOF($3); }
-		| string_expr STR_EQ_OP string_expr
-			{B_VAL($$) = strcmp($1,$3) == 0; free($1); free($3); }
-		| string_expr STR_NEQ_OP string_expr
-			{B_VAL($$) = strcmp($1,$3) != 0; free($1); free($3); }
-		| NOT_OP expression {B_VAL($$) = (TOF($2) ? 0:1); }
-		| L_YES		{B_VAL($$) = -2; }
-		| L_NO		{B_VAL($$) = 0; }
-		| L_ON		{B_VAL($$) = -2; }
-		| L_OFF		{B_VAL($$) = 0; }
-		| L_AUTO	{I_VAL($$) = -1; }
-		| INTCAST '(' expression ')' {I_VAL($$) = TOF($3);}
-		| REALCAST '(' expression ')' {R_VAL($$) = TOF($3);}
+		| variable_content {
+			char *s;
+			$$.type = TYPE_INTEGER;
+			$$.value.i = strtol($1,&s,0);
+			switch (*s) {
+				case '.':  case 'e':  case 'E':
+				/* we assume a real number */
+				$$.type = TYPE_REAL;
+				$$.value.r = strtod($1,0);
+			}
+			free($1);
+		}
+		| '(' typed_expr ')' {$$ = $2;}
+		;
+
+int_expr:	  INTEGER
+		| typed_expr AND_OP typed_expr
+			{$$ = (int)TOF($1) & (int)TOF($3); }
+		| typed_expr OR_OP typed_expr
+			{$$ = (int)TOF($1) | (int)TOF($3); }
+		| typed_expr XOR_OP typed_expr
+			{$$ = (int)TOF($1) ^ (int)TOF($3); }
+		| BIT_NOT_OP typed_expr %prec BIT_NOT_OP
+			{$$ = (int)TOF($2) ^ (-1); }
+		| L_AUTO	{$$ = -1; }
+		| INTCAST '(' typed_expr ')' {$$ = TOF($3);}
 		| STRTOL '(' string_expr ')' {
-			I_VAL($$) = strtol($3,0,0);
+			$$ = strtol($3,0,0);
 			free($3);
 		}
 		| STRLEN '(' string_expr ')' {
-			I_VAL($$) = strlen($3);
+			$$ = strlen($3);
 			free($3);
 		}
 		| STRNCMP '(' string_expr ',' string_expr ',' expression ')' {
-			I_VAL($$) = strncmp($3,$5,$7);
+			$$ = strncmp($3,$5,$7);
 			free($3); free($5);
 		}
 		| STRPBRK '(' string_expr ',' string_expr ')' {
 			char *s = strpbrk($3,$5);
-			if (s) I_VAL($$) = s - $3;
-			else I_VAL($$) = -1;
+			if (s) $$ = s - $3;
+			else $$ = -1;
 			free($3); free($5);
 		}
 		| STRCHR '(' string_expr ',' string_expr ')' {
 			char *s = strchr($3,$5[0]);
-			if (s) I_VAL($$) = s - $3;
-			else I_VAL($$) = -1;
+			if (s) $$ = s - $3;
+			else $$ = -1;
 			free($3); free($5);
 		}
 		| STRRCHR '(' string_expr ',' string_expr ')' {
 			char *s = strrchr($3,$5[0]);
-			if (s) I_VAL($$) = s - $3;
-			else I_VAL($$) = -1;
+			if (s) $$ = s - $3;
+			else $$ = -1;
 			free($3); free($5);
 		}
 		| STRSTR '(' string_expr ',' string_expr ')' {
 			char *s = strstr($3,$5);
-			if (s) I_VAL($$) = s - $3;
-			else I_VAL($$) = -1;
+			if (s) $$ = s - $3;
+			else $$ = -1;
 			free($3); free($5);
 		}
 		| STRSPN '(' string_expr ',' string_expr ')' {
-			I_VAL($$) = strspn($3,$5);
+			$$ = strspn($3,$5);
 			free($3); free($5);
 		}
 		| STRCSPN '(' string_expr ',' string_expr ')' {
-			I_VAL($$) = strcspn($3,$5);
+			$$ = strcspn($3,$5);
 			free($3); free($5);
 		}
-		| DEFINED '(' STRING ')' {
-			B_VAL($$) = get_config_variable($3) !=0;
-			free($3);
-		}
-		| variable_content {
-			char *s;
-			I_VAL($$) = strtol($1,&s,0);
-			switch (*s) {
-				case '.':  case 'e':  case 'E':
-				/* we assume a real number */
-				R_VAL($$) = strtod($1,0);
-			}
-			free($1);
-		}
-		| '(' expression ')' {ALL($$) = ALL($2);}
 		| STRING {
-			if ( $1[0] && !$1[1] && (EXPRTYPE($1) == TYPE_STRING1) )
-				I_VAL($$) = $1[0];
+			if ( $1[0] == '\'' && $1[1] && $1[2] == '\'' && !$1[3] )
+				$$ = $1[1];
 			else	yyerror("unrecognized expression '%s'", $1);
 			free($1);
 		}
+		;
+
+bool_expr:	  typed_expr EQ_OP typed_expr
+			{$$ = TOF($1) == TOF($3); }
+		| typed_expr NEQ_OP typed_expr
+			{$$ = TOF($1) != TOF($3); }
+		| typed_expr GE_OP typed_expr
+			{$$ = TOF($1) >= TOF($3); }
+		| typed_expr LE_OP typed_expr
+			{$$ = TOF($1) <= TOF($3); }
+		| typed_expr '<' typed_expr
+			{$$ = TOF($1) < TOF($3); }
+		| typed_expr '>' typed_expr
+			{$$ = TOF($1) > TOF($3); }
+		| typed_expr L_AND_OP typed_expr
+			{$$ = TOF($1) && TOF($3); }
+		| typed_expr L_OR_OP typed_expr
+			{$$ = TOF($1) || TOF($3); }
+		| string_expr STR_EQ_OP string_expr
+			{$$ = strcmp($1,$3) == 0; free($1); free($3); }
+		| string_expr STR_NEQ_OP string_expr
+			{$$ = strcmp($1,$3) != 0; free($1); free($3); }
+		| NOT_OP typed_expr {$$ = (TOF($2) ? 0:1); }
+		| L_YES		{$$ = -2; }
+		| L_NO		{$$ = 0; }
+		| L_ON		{$$ = -2; }
+		| L_OFF		{$$ = 0; }
+		| DEFINED '(' string_unquoted ')' {
+			$$ = get_config_variable($3) !=0;
+			free($3);
+		}
+		;
+
+real_expr:	  REAL
+		| REALCAST '(' typed_expr ')' {$$ = TOF($3);}
 		;
 
 variable_content:
@@ -887,29 +921,39 @@ variable_content:
 			}
 			else
 				s = "0";
-			S_VAL($$) = strdup(s);
+			$$ = strdup(s);
 			free($1);
 		}
 		;
 
-string_expr:	STRING {S_VAL($$) = $1;}
-		| STRCAT '(' strarglist ')' { S_VAL($$) = $3; }
+string_unquoted:STRING {
+			$$ = $1;
+			if ($$[0] == '\'' || $$[0] == '\"') {
+				size_t len = strlen($1) - 2;
+				memmove($$, $$+1, len);
+				$$[len] = '\0';
+			}
+		}
+		;
+
+string_expr:	string_unquoted
+		| STRCAT '(' strarglist ')' {$$ = $3; }
 		| STRSPLIT '(' string_expr ',' expression ',' expression ')' {
-			int i = (int)TOF($5);
-			int len = (int)TOF($7);
+			int i = $5;
+			int len = $7;
 			int slen = strlen($3);
 			if ((i >=0) && (i < slen) && (len > 0)) {
 				if ((i+len) > slen) len = slen - i;
 				$3[i+len] = 0;
-				S_VAL($$) = strdup($3 + i);
+				$$ = strdup($3 + i);
 			}
 			else
-				S_VAL($$) = strdup("");
+				$$ = strdup("");
 			free($3);
 		}
 		| STRDEL '(' string_expr ',' expression ',' expression ')' {
-			int i = (int)TOF($5);
-			int len = (int)TOF($7);
+			int i = $5;
+			int len = $7;
 			int slen = strlen($3);
 			char *s = strdup($3);
 			if ((i >=0) && (i < slen) && (len > 0)) {
@@ -917,13 +961,13 @@ string_expr:	STRING {S_VAL($$) = $1;}
 				else memmove(s+i, s+i+len, slen-i-len+1);
 			}
 			free($3);
-			S_VAL($$) = s;
+			$$ = s;
 		}
 		| SHELL '(' strarglist ')' {
-			S_VAL($$) = run_shell($3);
+			$$ = run_shell($3);
 			free($3);
 		}
-		| variable_content {ALL($$) = ALL($1);}
+		| variable_content {$$ = $1;}
 		;
 
 strarglist:	strarglist_item
@@ -931,19 +975,17 @@ strarglist:	strarglist_item
 			char *s = malloc(strlen($1)+strlen($3)+1);
 			strcpy(s, $1);
 			strcat(s, $3);
-			S_VAL($$) = s;
+			$$ = s;
 			free($1); free($3);
 		}
 		;
 
 strarglist_item: string_expr
-		| '(' expression ')' {
-			char buf[128];
-			if (EXPRTYPE($2) == TYPE_REAL)
-				sprintf(buf, "%g", VAL_R($2));
+		| '(' typed_expr ')' {
+			if ($2.type == TYPE_REAL)
+				asprintf(&$$, "%g", $2.value.r);
 			else
-				sprintf(buf, "%d", VAL_I($2));
-			S_VAL($$) = strdup(buf);
+				asprintf(&$$, "%d", $2.value.i);
 		}
 		;
 
@@ -1282,7 +1324,7 @@ keyboard_modvals: keyboard_modval
 
 keyboard_modval : INTEGER { keyb_mod(0, $1, 0); }
 		| '(' expression ')' { keyb_mod(0, $2, 0); }
-		| STRING {
+		| string_unquoted {
 			char *p = $1;
 			while (*p) keyb_mod(0, *p++, 0);
 			free($1);

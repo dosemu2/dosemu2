@@ -45,7 +45,6 @@
 #include "timers.h"
 #include "keymaps.h"
 
-#include "parsglob.h"
 #include "parser.h"
 #include "dosemu_config.h"
 #include "lexer.h"
@@ -695,19 +694,16 @@ timemode		RETURN(TIMEMODE);
 			for(s = strchr(yytext, '\n'); s != NULL; s = strchr(s+1,'\n'))
 			      line_count++;
 
-			MAY_BE { yytext[strlen(yytext)-1] = '\0';
-			  yylval->s_value = strdup(&yytext[1]);
-			  EXPRTYPE(yylval->s_value) = TYPE_STRING1;
+			MAY_BE {
+			  yylval->s_value = strdup(yytext);
 			  return(STRING); }
 			}
 
 {STRQUOTELESS}		MAY_BEFORME {
 			  yylval->s_value = strdup(yytext);
-			  EXPRTYPE(yylval->s_value) = TYPE_STRQUOTELESS;
 			  return(STRING); }
 ${IDENT}		MAY_BE {
 				yylval->s_value = strdup(&yytext[1]);
-				EXPRTYPE(yylval->s_value) = TYPE_STRQUOTELESS;
 				return(VARIABLE);
 			}
 $${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
@@ -720,9 +716,8 @@ $${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
 			for(s = strchr(yytext, '\n'); s != NULL; s = strchr(s+1,'\n'))
 			      line_count++;
 
-			MAY_BEINCLUDE ( { yytext[strlen(yytext)-1] = '\0';
-			  yylval->s_value = strdup(&yytext[1]);
-			  EXPRTYPE(yylval->s_value) = TYPE_STRING;
+			MAY_BEINCLUDE ( {
+			  yylval->s_value = strdup(yytext);
 			  return(STRING); } )
 			}
 
