@@ -2448,12 +2448,13 @@ parse_dosemu_users(void)
    
   uid = get_orig_uid();
 
+  errno = 0; /* man says this is necessary?! */
   pwd = getpwuid(uid);
 
   /* Sanity Check, Shouldn't be anyone logged in without a userid */
-  if (pwd  == (struct passwd *)0) 
+  if (!pwd) 
      {
-       fprintf(stderr, "Illegal User!!!\n");
+       error("Illegal User: uid=%i, error=%s\n", uid, strerror(errno));
        sprintf(buf, "Illegal DOSEMU user: uid=%i", uid);
        write_to_syslog(buf);
        exit(1);
