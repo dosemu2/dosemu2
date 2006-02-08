@@ -474,6 +474,7 @@ EXTERN void disallocate_vt (void);
 EXTERN void restore_vt (unsigned short vt);
 EXTERN void HMA_init(void);
 EXTERN void HMA_MAP(int HMA);
+EXTERN void hardware_run(void);
 
 extern char *Path_cdrom[];
 

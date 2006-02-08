@@ -4073,13 +4073,13 @@ void dpmi_fault(struct sigcontext_struct *scp)
       return;
   }
 
+  hardware_run();
+
   if (in_dpmi_dos_int || (_eflags & VIP) || pic_pending() || return_requested) {
     return_requested = 0;
     Return_to_dosemu_code(scp, 0, ORIG_CTXP);
     return;
   }
-
-  dma_run();  // DMA really needs a frequent polls
 
   if (debug_level('M') >= 8)
     D_printf("DPMI: Return to client at %04x:%08lx, Stack 0x%x:0x%08lx, flags=%#lx\n",

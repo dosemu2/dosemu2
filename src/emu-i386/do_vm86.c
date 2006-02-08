@@ -71,12 +71,6 @@
 /* Needed for DIAMOND define */
 #include "vc.h"
 
-#ifdef USE_SBEMU
-#include "sound.h"
-#endif
-
-#include "dma.h"
-
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
 /*
@@ -442,7 +436,6 @@ freeze_idle:
     goto freeze_idle;
   }
 }
-/* @@@ MOVE_END @@@ 49152 */
 
 /*
  * DANG_BEGIN_FUNCTION loopstep_run_vm86
@@ -455,12 +448,7 @@ freeze_idle:
 void loopstep_run_vm86(void)
 {
 	run_vm86();
-	dma_run ();
-#ifdef USE_SBEMU
-	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
-#endif
-	keyb_server_run();
-	rtc_run();
+	hardware_run();
 	pic_run();		/* trigger any hardware interrupts requested */
 }
 

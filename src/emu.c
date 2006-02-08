@@ -119,7 +119,9 @@ __asm__("___START___: jmp _emulate\n");
 #include "dosemu_config.h"
 #include "userhook.h"
 #include "pktdrvr.h"
-
+#include "dma.h"
+#include "sound.h"
+#include "keyb_server.h"
 #include "keyb_clients.h"
 
 #ifdef USE_SBEMU
@@ -598,3 +600,14 @@ void activate(int con_num)
     ioctl(kbd_fd, VT_ACTIVATE, con_num);
 }
 #endif
+
+void hardware_run(void)
+{
+	dma_run ();
+#ifdef USE_SBEMU
+	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
+#endif
+	keyb_server_run();
+	rtc_run();
+}
+
