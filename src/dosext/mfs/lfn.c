@@ -538,8 +538,6 @@ static int build_posix_path(char *dest, const char *src, int allowwildcards)
 		return dd;
 
 	build_ufs_path(dest, filename, dd);
-	dest = strchr(dest, '\r');
-	if (dest) *dest = '\0';
 	return dd;
 }
 
@@ -787,7 +785,7 @@ static int mfs_lfn_(void)
 	char fpath[PATH_MAX];
 	char fpath2[PATH_MAX];
 	
-	int drive, dirhandle = 0;
+	int drive, dirhandle = 0, rc;
 	char *dest = (char *)SEGOFF2LINEAR(_ES, _DI);
 	char *src = (char *)SEGOFF2LINEAR(_DS, _DX);
 	struct stat st;
@@ -803,30 +801,14 @@ static int mfs_lfn_(void)
 	case 0x0D: /* reset drive, nothing to do */
 		break;
 	case 0x39: /* mkdir */
-		d_printf("LFN: mkdir %s\n", src);
-		drive = build_posix_path(fpath, src, 0);
-		if (drive < 0)
-			return drive + 2;
-		if (is_dos_device(fpath))
-			return lfn_error(PATH_NOT_FOUND);
-		slash = strrchr(fpath, '/');
-		strcpy(fpath2, slash);
-		*slash = '\0';
-		if (!find_file(fpath, &st, drive))
-			return lfn_error(PATH_NOT_FOUND);
-		strcat(fpath, fpath2);
-		if (find_file(fpath, &st, drive) || (mkdir(fpath, 0755) != 0))
-			return lfn_error(ACCESS_DENIED);
-		break;
 	case 0x3a: /* rmdir */
-		drive = build_posix_path(fpath, src, 0);
+		d_printf("LFN: %sdir %s\n", _AL == 0x39 ? "mk" : "rm", src);
+		drive = build_truename(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
-		if (!find_file(fpath, &st, drive))
-			return lfn_error(PATH_NOT_FOUND);
-		d_printf("LFN: rmdir %s\n", fpath);
-		if (rmdir(fpath) != 0)
-			return lfn_error(ACCESS_DENIED);
+		rc = (_AL == 0x39 ? dos_mkdir : dos_rmdir)(fpath, drive, 1);
+		if (rc)
+			return lfn_error(rc);
 		break;
 	case 0x3b: /* chdir */
 		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
@@ -845,6 +827,10 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, _SI);
 		if (drive < 0)
 			return drive + 2;
+		if (drives[drive].read_only)
+			return lfn_error(ACCESS_DENIED);
+		if (is_dos_device(fpath))
+			return lfn_error(FILE_NOT_FOUND);
 		if (_SI == 1)
 			return wildcard_delete(fpath, drive);
 		if (!find_file(fpath, &st, drive))
@@ -858,6 +844,8 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
+		if (drives[drive].read_only && (_BL < 8) && (_BL & 1))
+			return lfn_error(ACCESS_DENIED);
 		if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			return lfn_error(FILE_NOT_FOUND);
@@ -1011,30 +999,22 @@ static int mfs_lfn_(void)
 	}
 	case 0x56: /* rename file */
 	{
+		int drive2, rc;
 		d_printf("LFN: rename to %s\n", dest);
-		drive = build_posix_path(fpath2, dest, 0);
+		drive = build_truename(fpath2, dest, 0);
 		if (drive < 0)
 			return drive + 2;
-		slash = strrchr(fpath2, '/');
-		strcpy(fpath, slash);
-		*slash = '\0';
-		if (!find_file(fpath2, &st, drive))
-			return lfn_error(PATH_NOT_FOUND);
-		strcat(fpath2, fpath);
-		if (is_dos_device(fpath2))
-			return lfn_error(FILE_NOT_FOUND);
 		d_printf("LFN: rename from %s\n", src);
-		drive = build_posix_path(fpath, src, 0);
-		if (drive < 0)
-			return drive + 2;
-		if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
-			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
-			return lfn_error(FILE_NOT_FOUND);
-		}
-		if (rename(fpath, fpath2) != 0)
-			return lfn_error(FILE_NOT_FOUND);
+		drive2 = build_truename(fpath, src, 0);
+		if (drive2 < 0)
+			return drive2 + 2;
+		if (drive != drive2)
+			return lfn_error(NOT_SAME_DEV);
+		rc = dos_rename(fpath, fpath2, drive, 1);
+		if (rc)
+			return lfn_error(rc);
 		break;
-	}	
+	}
 	case 0x60: /* truename */
 	{
 		int i;
@@ -1058,10 +1038,7 @@ static int mfs_lfn_(void)
 		d_printf("LFN: %s %s\n", fpath, drives[drive].root);
 
 		if (_CL == 1 || _CL == 2) {
-			char *crpos;
 			build_ufs_path(fpath, filename, drive);
-			crpos = strchr(fpath, '\r');
-			if (crpos) *crpos = '\0';
 			find_file(fpath, &st, drive);
 			make_unmake_dos_mangled_path(dest, fpath, drive, 2 - _CL);
 		} else {
@@ -1083,13 +1060,16 @@ static int mfs_lfn_(void)
 			slash = strrchr(fpath, '/');
 			strcpy(fpath2, slash);
 			*slash = '\0';
-			if (!find_file(fpath, &st, drive))
+			if (slash != fpath && !find_file(fpath, &st, drive))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
 			if (!find_file(fpath, &st, drive) && (_DX & 0x10)) {
-				int fd = open(fpath, (O_RDWR | O_CREAT),
-					      get_unix_attr(0664, _CL |
-							    ARCHIVE_NEEDED));
+				int fd;
+				if (drives[drive].read_only)
+					return lfn_error(ACCESS_DENIED);
+				fd = open(fpath, (O_RDWR | O_CREAT),
+					  get_unix_attr(0664, _CL |
+							ARCHIVE_NEEDED));
 				if (fd < 0) {
 					d_printf("LFN: creat problem: %o %s %s\n",
 						 get_unix_attr(0644, _CX),

@@ -2876,6 +2876,8 @@ static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal)
 
   slash = strrchr(fpath, '/');
   if (slash) *slash = '\0';
+  if (slash == fpath)
+    fpath = "/";
   if (access(fpath, W_OK) != 0)
     return FALSE;
   if (slash) *slash = '/';
@@ -3006,6 +3008,83 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
   free(label);
 }
 
+int dos_rmdir(const char *filename1, int drive, int lfn)
+{
+  struct stat st;
+  char fpath[PATH_MAX];
+
+  Debug0((dbg_fd, "Remove Directory %s\n", filename1));
+  if (drives[drive].read_only)
+    return ACCESS_DENIED;
+  build_ufs_path_(fpath, filename1, drive, !lfn);
+  if (find_file(fpath, &st, drive) && !is_dos_device(fpath)) {
+    if (rmdir(fpath) != 0) {
+      Debug0((dbg_fd, "failed to remove directory %s\n", fpath));
+      return ACCESS_DENIED;
+    }
+  }
+  else {
+    Debug0((dbg_fd, "couldn't find directory %s\n", fpath));
+    return PATH_NOT_FOUND;
+  }
+  return 0;
+}
+
+int dos_mkdir(const char *filename1, int drive, int lfn)
+{
+  struct stat st;
+  char fpath[PATH_MAX];
+
+  Debug0((dbg_fd, "Make Directory %s\n", filename1));
+  if (drives[drive].read_only || (!lfn && is_long_path(filename1)))
+    return ACCESS_DENIED;
+  build_ufs_path_(fpath, filename1, drive, !lfn);
+  if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+    Debug0((dbg_fd, "make failed already dir or file '%s'\n",
+	    fpath));
+    return ACCESS_DENIED;
+  }
+  if (mkdir(fpath, 0775) != 0) {
+    find_dir(fpath, drive);
+    Debug0((dbg_fd, "trying '%s'\n", fpath));
+    if (mkdir(fpath, 0755) != 0) {
+      Debug0((dbg_fd, "make directory failed '%s'\n",
+	      fpath));
+      return PATH_NOT_FOUND;
+    }
+  }
+  return 0;
+}
+
+int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
+{
+  struct stat st;
+  char fpath[PATH_MAX];
+  char buf[PATH_MAX];
+
+  Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
+  if (drives[drive].read_only)
+    return ACCESS_DENIED;
+  build_ufs_path_(fpath, filename2, drive, !lfn);
+  if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+    Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
+    return ACCESS_DENIED;
+  }
+  find_dir(fpath, drive);
+
+  build_ufs_path_(buf, filename1, drive, !lfn);
+  if (!find_file(buf, &st, drive) || is_dos_device(buf)) {
+    Debug0((dbg_fd, "Rename '%s' error.\n", buf));
+    return PATH_NOT_FOUND;
+  }
+
+  if (rename(buf, fpath) != 0)
+    return PATH_NOT_FOUND;
+
+  Debug0((dbg_fd, "Rename file %s to %s\n", buf, fpath));
+  return 0;
+}
+
 static int
 dos_fs_redirect(state_t *state)
 {
@@ -3029,7 +3108,6 @@ dos_fs_redirect(state_t *state)
   char fname[8];
   char fext[3];
   char fpath[PATH_MAX];
-  char buf[PATH_MAX];
   struct stat st;
   boolean_t long_path;
   struct dir_list *hlist;
@@ -3079,49 +3157,13 @@ dos_fs_redirect(state_t *state)
     return (TRUE);
   case REMOVE_DIRECTORY:	/* 0x01 */
   case REMOVE_DIRECTORY_2:	/* 0x02 */
-    Debug0((dbg_fd, "Remove Directory %s\n", filename1));
-    if (drives[drive].read_only) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
-
-    build_ufs_path(fpath, filename1, drive);
-    if (find_file(fpath, &st, drive) && !is_dos_device(fpath)) {
-      if (rmdir(fpath) != 0) {
-	Debug0((dbg_fd, "failed to remove directory %s\n", fpath));
-	SETWORD(&(state->eax), ACCESS_DENIED);
-	return (FALSE);
-      }
-    }
-    else {
-      Debug0((dbg_fd, "couldn't find directory %s\n", fpath));
-      SETWORD(&(state->eax), PATH_NOT_FOUND);
-      return (FALSE);
-    }
-    return (TRUE);
   case MAKE_DIRECTORY:		/* 0x03 */
   case MAKE_DIRECTORY_2:	/* 0x04 */
-    Debug0((dbg_fd, "Make Directory %s\n", filename1));
-    if (drives[drive].read_only || is_long_path(filename1)) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
+    ret = (LOW(state->eax) >= MAKE_DIRECTORY ? dos_mkdir : dos_rmdir)
+      (filename1, drive, 0);
+    if (ret) {
+      SETWORD(&(state->eax), ret);
       return (FALSE);
-    }
-    build_ufs_path(fpath, filename1, drive);
-    if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
-      Debug0((dbg_fd, "make failed already dir or file '%s'\n",
-	      fpath));
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
-    if (mkdir(fpath, 0775) != 0) {
-      find_dir(fpath, drive);
-      Debug0((dbg_fd, "trying '%s'\n", fpath));
-      if (mkdir(fpath, 0755) != 0) {
-	Debug0((dbg_fd, "make directory failed '%s'\n",
-		fpath));
-	SETWORD(&(state->eax), PATH_NOT_FOUND);
-	return (FALSE);
-      }
     }
     return (TRUE);
   case SET_CURRENT_DIRECTORY:	/* 0x05 */
@@ -3398,35 +3440,12 @@ dos_fs_redirect(state_t *state)
     state->edi = MASK16(st.st_size);
     return (TRUE);
   case RENAME_FILE:		/* 0x11 */
-    Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
-    if (drives[drive].read_only) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
+    ret = dos_rename(filename1, filename2, drive, 0);
+    if (ret) {
+      SETWORD(&(state->eax), ret);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename2, drive);
-    if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
-        Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
-        SETWORD(&state->eax, ACCESS_DENIED);
-        return (FALSE);
-    }
-    find_dir(fpath, drive);
-
-    build_ufs_path(buf, filename1, drive);
-    if (!find_file(buf, &st, drive) || is_dos_device(buf)) {
-      Debug0((dbg_fd, "Rename '%s' error.\n", buf));
-      SETWORD(&(state->eax), PATH_NOT_FOUND);
-      return (FALSE);
-    }
-      
-    if (rename(buf, fpath) != 0) {
-      SETWORD(&(state->eax), PATH_NOT_FOUND);
-      return (FALSE);
-    }
-    else {
-      Debug0((dbg_fd, "Rename file %s to %s\n",
-              buf, fpath));
-      return (TRUE);
-    }
+    return (TRUE);    
   case DELETE_FILE:		/* 0x13 */
     {
       struct dir_list *dir_list = NULL;
