@@ -475,13 +475,9 @@ void do_call_back(Bit32u codefarptr)
 		error("do_call_back() cannot call protected mode code\n");
 		leavedos(25);
 	}
-	if (fault_cnt) {
+	if (fault_cnt && !in_leavedos) {
 		error("do_call_back() executed within the signal context!\n");
-		/* happens if leavedos() called within a signal context too,
-		 * so dont recurse. */
-#if 0
 		leavedos(25);
-#endif
 	}
 	if (callback_level) {
 		g_printf("do_call_back() re-entered! level=%i\n", callback_level);
@@ -503,7 +499,7 @@ void do_call_back(Bit32u codefarptr)
 	old_frozen = dosemu_frozen;
 	unfreeze_dosemu();
         while (callback_level > level) {
-		if (fatalerr) leavedos(99);
+		if (fatalerr && !in_leavedos) leavedos(99);
 	/*
 	 * BIG WARNING: We should NOT use things like loopstep_run_vm86() here!
 	 * Only the plain run_vm86() is safe (also DPMI-safe).

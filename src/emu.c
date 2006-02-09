@@ -446,25 +446,20 @@ dos_ctrl_alt_del(void)
     cpu_reset();
 }
 
-int leavedos_recurse_check = 0;
-
 /* "graceful" shutdown */
 void
 leavedos(int sig)
 {
     struct itimerval itv;
 
-    /* need this to allow do_call_back() to do its work */
-    fatalerr = 0;
-   
-    if (leavedos_recurse_check)
+    if (in_leavedos)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
        gdb_debug();
        flush_log();
        longjmp(NotJEnv, sig);
       }
-    leavedos_recurse_check = 1;
+    in_leavedos++;
     dbug_printf("leavedos(%d|0x%x) called - shutting down\n", sig, sig);
 #if 1 /* BUG CATCHER */
     if (in_vm86) {

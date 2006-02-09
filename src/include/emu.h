@@ -427,6 +427,7 @@ EXTERN struct config_info config;
  * DANG_END_REMARK
  */
 EXTERN int fatalerr INIT(0);
+EXTERN int in_leavedos;
 
 /*
  * DANG_BEGIN_REMARK
