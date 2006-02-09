@@ -90,8 +90,6 @@ static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *);
 static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsigned blks, unsigned seg, unsigned ofs);
 
-static char *bootfile = 0;
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
@@ -185,9 +183,7 @@ void fatfs_init(struct disk *dp)
   f->obj[0].name = f->dir;
   f->obj[0].is.dir = 1;
   f0 = hdisktab[0].fatfs;
-  if(!(hdisktab[0].type == DIR_TYPE && f0 && f0->sys_type == 0x20))
-    /* check for FreeDOS on C:; if it is, no need to scan */
-    scan_dir(f, 0);	/* set # of root entries accordingly ??? */
+  scan_dir(f, 0);	/* set # of root entries accordingly ??? */
   if(f->boot_sec == NULL) {
     build_boot_blk(f);
   }
@@ -490,8 +486,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
   struct dirent* dent;
   struct stat sb;
   char *s, *name, *buf, *buf_ptr;
-  unsigned u, scans = 1;
-  int i, j, fd, size;
+  unsigned u;
+  int i, fd, size, sfs = 0;
   char *sf[3] = { NULL, NULL, NULL };
 
   // just checking...
@@ -503,13 +499,6 @@ void scan_dir(fatfs_t *f, unsigned oi)
   fatfs_deb2("scan_dir: reading \"%s\"\n", o->name);
 
   o->is.scanned = 1;
-
-  name = full_name(f, oi, "");
-
-  if(!name) {
-    fatfs_msg("file name too complex: object %u\n", oi);
-    return;
-  }
 
   if(oi) {
     for(i = 0; i < 2; i++) {
@@ -530,13 +519,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
   }
   else {
     /* look for "boot.blk" and read it */
-    dir = opendir(name);
-    if(dir != NULL) {
-      while((dent = readdir(dir))) {
-        if(!strcasecmp(dent->d_name, "boot.blk")) {
-          if((s = full_name(f, oi, dent->d_name))) {
-            if(!stat(s, &sb)) {
-              if(S_ISREG(sb.st_mode) && sb.st_size == 0x200) {
+    s = full_name(f, oi, "boot.blk");
+    if (s && access(s, R_OK) == 0 && !stat(s, &sb) &&
+	S_ISREG(sb.st_mode) && sb.st_size == 0x200) {
                 if((fd = open(s, O_RDONLY)) != -1) {
                   if((f->boot_sec = malloc(0x200)) && read(fd, f->boot_sec, 0x200) != 0x200) {
                     free(f->boot_sec);
@@ -545,26 +530,17 @@ void scan_dir(fatfs_t *f, unsigned oi)
                   close(fd);
 	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
                 }
-              }
-            }
-          }
-        }
-      }
-      closedir(dir);
     }
 
     /* look for "IO.SYS" & "MSDOS.SYS" */
-    dir = opendir(full_name(f, oi, ""));
-    if(dir != NULL) {
-      while((dent = readdir(dir))) {
-        if(!strcasecmp(dent->d_name, "io.sys") &&
-	  (stat(s = full_name(f, oi, dent->d_name), &sb) == 0) &&
-	  sb.st_size > 0)
+    s = full_name(f, oi, "io.sys");
+    if (s && access(s, R_OK) == 0 && stat(s, &sb) == 0 &&
+	S_ISREG(sb.st_mode) && sb.st_size > 0)
 	    f->sys_type |= 1;
-        if(!strcasecmp(dent->d_name, "msdos.sys")) f->sys_type |= 2;
-        if(!strcasecmp(dent->d_name, "ibmbio.com") &&
-	  (stat(s = full_name(f, oi, dent->d_name), &sb) == 0) &&
-	  sb.st_size > 0) {
+    if (access(full_name(f, oi, "msdos.sys"), R_OK) == 0) f->sys_type |= 2;
+    s = full_name(f, oi, "ibmbio.com");
+    if (s && access(s, R_OK) == 0 && stat(s, &sb) == 0 &&
+	S_ISREG(sb.st_mode) && sb.st_size > 0) {
 	  f->sys_type |= 4;
           if(S_ISREG(sb.st_mode)) {
                 if((fd = open(s, O_RDONLY)) != -1) {
@@ -583,76 +559,67 @@ void scan_dir(fatfs_t *f, unsigned oi)
                   close(fd);
                 }
           }
-	}
-        if(!strcasecmp(dent->d_name, "ibmdos.com")) f->sys_type |= 8;
-        if(!strcasecmp(dent->d_name, "ipl.sys")) f->sys_type |= 0x10;
-        if(!strcasecmp(dent->d_name, "kernel.sys")) f->sys_type |= 0x20;
-      }
-      closedir(dir);
     }
+    if (access(full_name(f, oi, "ibmdos.com"), R_OK) == 0) f->sys_type |= 8;
+    if (access(full_name(f, oi, "ipl.sys"), R_OK) == 0) f->sys_type |= 0x10;
+    if (access(full_name(f, oi, "kernel.sys"), R_OK) == 0) f->sys_type |= 0x20;
 
     if((f->sys_type & 3) == 3) {
       f->sys_type = 3;			/* MS-DOS */
       sf[0] = "io.sys";
       sf[1] = "msdos.sys";
-      scans = 3;
+      sfs = 2;
     }
-    if(f->sys_type & 0x40) {
+    if((f->sys_type & 0x4c) == 0x4c) {
       f->sys_type = 0x40;		/* PC-DOS */
       sf[0] = "ibmbio.com";
       sf[1] = "ibmdos.com";
-      scans = 3;
+      sfs = 2;
     }
     if((f->sys_type & 0x0c) == 0x0c) {
       f->sys_type = 0x0c;	/* DR-DOS */
       sf[0] = "ibmbio.com";
       sf[1] = "ibmdos.com";
-      scans = 3;
+      sfs = 2;
     }
     if((f->sys_type & 0x30) == 0x10) {
       f->sys_type = 0x10;	/* FreeDOS, orig. Patv kernel */
       sf[0] = "ipl.sys";
-      scans = 2;
+      sfs = 1;
     }
 
     if((f->sys_type & 0x30) == 0x20) {
       f->sys_type = 0x20;	/* FreeDOS, FD maintained kernel */
-      name = full_name(f, oi, "");
       sf[0] = "kernel.sys";
-      /* it's not necessary to scan for FreeDOS as redirection happens
-	 so early that files are never read via int13 */
-      scans = 0;
-      bootfile = malloc(strlen(name) + strlen(sf[0]) + 1);
-      sprintf(bootfile, "%s%s", name, sf[0]);
+      sfs = 1;
     }
 
+    for (i = 0; i < sfs; i++)
+      add_object(f, oi, sf[i]);
     fatfs_msg("system type is 0x%x\n", f->sys_type);
   }
 
-  fatfs_deb2("going to scan directory %u times\n", scans);
-
-  for(i = 0; i < scans; i++) {
-    dir = opendir(name = full_name(f, oi, ""));
-
-    if(dir == NULL) {
-      fatfs_msg("cannot read directory \"%s\"\n", name);
+  name = full_name(f, oi, "");
+  if(!name) {
+    fatfs_msg("file name too complex: object %u\n", oi);
+    return;
+  }
+  dir = opendir(name);
+  if(dir == NULL) {
+    fatfs_msg("cannot read directory \"%s\"\n", name);
+  } else {
+    while((dent = readdir(dir))) {
+      for(i = 0; i < sfs; i++)
+        if(!strcasecmp(dent->d_name, sf[i]))
+	  break;
+      if(i == sfs)
+        add_object(f, oi, dent->d_name);
     }
-    else {
-      while((dent = readdir(dir))) {
-        if(i == scans - 1) {
-          for(j = 0; j < i; j++) if(!strcasecmp(dent->d_name, sf[j])) break;
-          if(i == j) add_object(f, oi, dent->d_name);
-        }
-        else {
-          if(!strcasecmp(dent->d_name, sf[i])) add_object(f, oi, dent->d_name);
-        }
-        o = f->obj + oi;
-      }
 
-      closedir(dir);
-    }
+    closedir(dir);
   }
 
+  o = f->obj + oi;
   if(oi == 0) {
     if(*f->label != ' ') {
       if((u = new_obj(f))) {	/* volume label */
@@ -1114,9 +1081,11 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
 void fdkernel_boot_mimic(void)
 {
   int f, size;
+  char *bootfile;
   unsigned int loadaddress = 0x600;
+  fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
 
-  if (!bootfile) {
+  if (!fs || !(bootfile = full_name(fs, 0, fs->obj[1].name))) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
   }
@@ -1130,7 +1099,7 @@ void fdkernel_boot_mimic(void)
   close(f);
   LWORD(cs) = LWORD(ds) = LWORD(es) = loadaddress >> 4;
   LWORD(eip) = 0;
-  LWORD(ebx) = config.bootdisk ? 0 : 0x80;	/* boot drive */
+  LWORD(ebx) = fs->drive_num;	/* boot drive */
   LWORD(ss) = 0x1FE0;
   LWORD(esp) = 0x7c00;	/* temp stack */
 }
@@ -1288,7 +1257,7 @@ void build_boot_blk(fatfs_t *f)
 			   and above fdkernel_boot_mimic() function */
       b[0x40] = 0xb8;	/* mov ax,0fdh */
       b[0x41] = DOS_HELPER_BOOTSECT;
-      b[0x42] = 0x00;
+      b[0x42] = f->drive_num;
       b[0x43] = 0xcd;	/* int 0e6h */
       b[0x44] = 0xe6;
 

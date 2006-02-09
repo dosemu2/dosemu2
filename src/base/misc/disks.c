@@ -1699,18 +1699,38 @@ floppy_tick(void)
   }
 }
 
-char *get_fat_dir_by_serial(unsigned long serial)
+fatfs_t *get_fat_fs_by_serial(unsigned long serial)
 {
   struct disk *dp;
   if (bootdisk.type == DIR_TYPE && bootdisk.fatfs && bootdisk.serial == serial)
-    return bootdisk.fatfs->dir;
+    return bootdisk.fatfs;
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
-      return dp->fatfs->dir;
+      return dp->fatfs;
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
     if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
-      return dp->fatfs->dir;
+      return dp->fatfs;
   }
+  return NULL;
+}
+
+fatfs_t *get_fat_fs_by_drive(unsigned char drv_num)
+{
+  struct disk *dp = NULL;
+  int num = drv_num & 0x7f;
+  if (!drv_num && config.bootdisk)
+    dp = &bootdisk;
+  else if (drv_num & 0x80) {
+    if (num >= HDISKS)
+      return NULL;
+    dp = &hdisktab[num];
+  } else {
+    if (num >= FDISKS)
+      return NULL;
+    dp = &disktab[num];
+  }
+  if (dp->type == DIR_TYPE)
+    return dp->fatfs;
   return NULL;
 }

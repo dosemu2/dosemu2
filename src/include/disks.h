@@ -178,7 +178,8 @@ void fdkernel_boot_mimic(void);
 void fatfs_init(struct disk *);
 void fatfs_done(struct disk *);
 
-char *get_fat_dir_by_serial(unsigned long serial);
+fatfs_t *get_fat_fs_by_serial(unsigned long serial);
+fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 
 #define floppy_setup	d_nullf
 

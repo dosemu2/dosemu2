@@ -387,6 +387,7 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *resourceStr)
 {
     struct DINFO *di;
     char *dir;
+    fatfs_t *f;
     unsigned long serial;
     if (!(di = (struct DINFO *)lowmem_alloc(sizeof(struct DINFO))))
 	return 0;
@@ -402,7 +403,8 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *resourceStr)
     }
     serial = READ_DWORD(&di->serial);
     lowmem_free((void *)di, sizeof(struct DINFO));
-    if (!(dir = get_fat_dir_by_serial(serial))) {
+    f = get_fat_fs_by_serial(serial);
+    if (!f || !(dir = f->dir)) {
 	printf("error identifying FAT volume\n");
 	return -1;
     }
@@ -492,13 +494,9 @@ int lredir_main(int argc, char **argv)
     /* read the drive letter and resource string */
     strcpy(deviceStr, argv[1]);
     if (argv[2][1] == ':') {
-      if (argc > 3 && toupper(argv[3][0]) == 'F') {
+      if ((argc > 3 && toupper(argv[3][0]) == 'F') ||
+    	((ccode = FindRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS)) {
         if ((ccode = FindFATRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS) {
-          printf("Error: unable to find FAT redirection for drive %s\n", argv[2]);
-	  goto MainExit;
-	}
-      } else {
-        if ((ccode = FindRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS) {
           printf("Error: unable to find redirection for drive %s\n", argv[2]);
 	  goto MainExit;
 	}
