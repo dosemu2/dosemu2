@@ -62,16 +62,68 @@ int booton_main(int argc, char **argv)
 
 int dpmi_main(int argc, char **argv)
 {
-	if (argc != 2 || strcmp(argv[1], "-x")) {
-		com_printf("Enabled DPMI NULL page protection for DJGPP "
-			   "programs.\n");
-		com_printf("Use \"DPMI -x\" to disable.");
-		config.no_null_checks = 0;
+	if (argc == 1) {
+		com_printf("dosemu DPMI control program.\n\n");
+		com_printf("Usage: dpmi <switch> <value>\n\n");
+		com_printf("The following table lists the available parameters, "
+			"their current values\nand switches that can be used to "
+			"modify the particular parameter.\n\n");
+		com_printf("+--------------------------+-----------+----+---------------------------------+\n");
+		com_printf("| Parameter                |   Value   | Sw | Description                     |\n");
+		com_printf("+--------------------------+-----------+----+---------------------------------+\n");
+		com_printf("|$_dpmi                    |%#6x%s| -m | DPMI memory size in Kbytes      |\n",
+			    config.dpmi, config.dpmi ? "     " : "(off)");
+		com_printf("|$_dpmi_base               |0x%08lx | -b | Address of the DPMI memory pool |\n", config.dpmi_base);
+		com_printf("|$_pm_dos_api              |    %s    | -p | Protected mode DOS API support  |\n",
+			    config.pm_dos_api ? "on " : "off");
+		com_printf("|$_ignore_djgpp_null_derefs|    %s    | -n | Disable DJGPP NULL-deref protec.|\n",
+			    config.no_null_checks ? "on " : "off");
+		com_printf("|$_cli_timeout             |%i %s   | -t | See EMUfailure.txt, sect. 1.6.1 |\n",
+			    config.cli_timeout, config.cli_timeout ? "     " : "(off)");
+		com_printf("+--------------------------+-----------+----+---------------------------------+\n\n");
 	} else {
-		com_printf("Disabled DPMI NULL page protection for DJGPP "
-			   "programs.\n");
-		com_printf("Use \"DPMI\" to enable.");
-		config.no_null_checks = 1;
+		int c = 0;
+		optind = 0;
+		while (c != -1) {
+		    c = getopt(argc, argv, "m:b:p:n:t:");
+		    switch (c) {
+			case 'm':
+			    if (optarg) {
+				config.dpmi = strtoll(optarg, NULL, 0);
+			    }
+			    break;
+			case 'b':
+			    if (optarg) {
+				config.dpmi_base = strtoll(optarg, NULL, 0);
+			    }
+			    break;
+			case 'p':
+			    if (optarg) {
+				if (strcasecmp(optarg, "on") == 0)
+				    config.pm_dos_api = 1;
+				else if (strcasecmp(optarg, "off") == 0)
+				    config.pm_dos_api = 0;
+				else
+				    com_printf("invalid value: %s\n", optarg);
+			    }
+			    break;
+			case 'n':
+			    if (optarg) {
+				if (strcasecmp(optarg, "on") == 0)
+				    config.no_null_checks = 1;
+				else if (strcasecmp(optarg, "off") == 0)
+				    config.no_null_checks = 0;
+				else
+				    com_printf("invalid value: %s\n", optarg);
+			    }
+			    break;
+			case 't':
+			    if (optarg) {
+				config.cli_timeout = strtoll(optarg, NULL, 0);
+			    }
+			    break;
+		    }
+		}
 	}
 	return 0;
 }
@@ -193,7 +245,7 @@ int vgaon_main(int argc, char **argv)
 
 static int generic_main(int argc, char **argv)
 {
-	com_printf("generic.com should not be invoked directly.\n", argv[0]);
+	com_printf("generic.com should not be invoked directly.\n");
 	return 0;
 }
 
