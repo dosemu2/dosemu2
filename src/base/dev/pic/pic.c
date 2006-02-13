@@ -798,12 +798,7 @@ int pic_request(int inum)
 static char buf[81];
   int ret=PIC_REQ_NOP;
 
-#if 1		/* use this result mouse slowdown in winos2 */
-  if (((pic_irr|pic_isr)&(1<<inum)) || (pic_icount>pic_icount_od))
-#else          /* this makes mouse work under winos2, but sometimes */
-	       /* results in internal stack overflow  */
-  if(pic_isr&(1<<inum) || pic_irr&(1<<inum))
-#endif
+  if ((pic_irr|pic_isr)&(1<<inum))
     {
     if (pic_pirr&(1<<inum)){
      ret=PIC_REQ_LOST;
