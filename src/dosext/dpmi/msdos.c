@@ -31,6 +31,11 @@
 #include "msdos.h"
 #include "vgaemu.h"
 
+#define SUPPORT_DOSEMU_HELPERS 1
+#if SUPPORT_DOSEMU_HELPERS
+#include "doshelpers.h"
+#endif
+
 #define TRANS_BUFFER_SEG EMM_SEGMENT
 #define EXEC_SEG (MSDOS_CLIENT.lowmem_seg + EXEC_Para_ADD)
 
@@ -213,6 +218,14 @@ static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
 		    return 1;
 	    }
 	    break;
+#if SUPPORT_DOSEMU_HELPERS
+	case 0xe6:			/* dosemu helpers */
+	    switch (_LO(ax)) {
+		case DOS_HELPER_PRINT_STRING:		/* print string to dosemu log */
+		    return 1;
+	    }
+	    break;
+#endif
     }
 
     return 0;

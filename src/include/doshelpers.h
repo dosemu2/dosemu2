@@ -55,7 +55,7 @@
 #define DOS_HELPER_GET_DEBUG_STRING 0x10
 #define DOS_HELPER_SET_DEBUG_STRING 0x11
 #define DOS_HELPER_SET_HOGTHRESHOLD 0x12
-#define DOS_HELPER_PRINT_STRING     0x13 /* DS, DX point to a NULL terminated string */
+#define DOS_HELPER_PRINT_STRING     0x13 /* ES:DX point to a NULL terminated string */
 
 
 #define DOS_HELPER_MFS_HELPER       0x20
