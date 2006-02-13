@@ -3761,12 +3761,12 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _eip = *((unsigned long *) ssp), ssp += 2;
 	    _cs = *ssp++;
 	    ssp++;
-	    set_EFLAGS(_eflags, *((unsigned long *) ssp)), ssp += 2;
+	    _eflags = eflags_VIF(*((unsigned long *) ssp)), ssp += 2;
 	    _esp += 12;
 	  } else {
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
-	    set_EFLAGS(_eflags, *ssp++);
+	    _eflags = eflags_VIF(*ssp++);
 	    _LWORD(esp) += 6;
 	  }
 	  do_dpmi_int(scp, intr);
