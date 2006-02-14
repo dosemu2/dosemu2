@@ -868,14 +868,14 @@ disk_init(void)
         bootdisk.fdesc = open64(bootdisk.dev_name, O_RDONLY, 0);
         if (bootdisk.fdesc < 0) {
           error("can't open bootdisk %s for read nor write: %s\n", bootdisk.dev_name, strerror(errno));
-          leavedos(23);
+          config.exitearly = 1;
         } else {
           bootdisk.rdonly = 1;
           d_printf("(disk) can't open bootdisk %s for read/write. Readonly did work though\n", bootdisk.dev_name);
         }
       } else {
         error("can't open bootdisk %s: %s\n", bootdisk.dev_name, strerror(errno));
-        leavedos(23);
+        config.exitearly = 1;
       }
     }
     else bootdisk.rdonly = bootdisk.wantrdonly;
@@ -900,7 +900,7 @@ disk_init(void)
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("can't stat %s\n", dp->dev_name);
-      leavedos(24);
+      config.exitearly = 1;
     }
     if (S_ISBLK(stbuf.st_mode))
       d_printf("ISBLK ");
@@ -924,7 +924,7 @@ disk_init(void)
         dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
-          leavedos(25);
+          config.exitearly = 1;
         } else {
           dp->rdonly = 1;
           d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
@@ -932,7 +932,7 @@ disk_init(void)
       } else {
         error("can't open %s: %s\n", dp->dev_name, strerror(errno));
         /* 'leavedos' here hangs the machine */
-        leavedos(25);
+        config.exitearly = 1;
       }
     }
     else dp->rdonly = dp->wantrdonly;
@@ -987,14 +987,14 @@ disk_init(void)
         dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
-          leavedos(26);
+          config.exitearly = 1;
         } else {
           dp->rdonly = 1;
           d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
         }
       } else {
         error("can't open %s: #%d - %s\n", dp->dev_name, errno, strerror(errno));
-        leavedos(26);
+        config.exitearly = 1;
       }
     }
     else dp->rdonly = dp->wantrdonly;
@@ -1020,7 +1020,7 @@ disk_init(void)
 #ifdef SILLY_GET_GEOMETRY
     if (RPT_SYSCALL(read(dp->fdesc, buf, 512)) != 512) {
       error("can't read disk info of %s\n", dp->dev_name);
-      leavedos(27);
+      config.exitearly = 1;
     }
 
     dp->sectors = *(us *) & buf[0x18];	/* sectors per track */
