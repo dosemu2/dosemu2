@@ -984,7 +984,7 @@ int pic_pending(void)
 
 int pic_irq_active(int num)
 {
-    return (((pic_irr & ~pic_imr) | pic_isr) & (1 << num));
+    return test_bit(num, &pic_isr);
 }
 
 int pic_irq_masked(int num)
