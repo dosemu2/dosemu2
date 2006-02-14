@@ -141,7 +141,8 @@ void fatfs_init(struct disk *dp)
   f->heads = dp->heads;
   f->reserved_secs = 1;
   f->hidden_secs = dp->start;
-  f->total_secs = dp->part_info.num_secs + dp->sectors;
+  f->total_secs = dp->floppy ? dp->tracks * dp->heads * dp->sectors :
+      dp->part_info.num_secs;
   f->fats = 2;
   for(u = 1; u <= 64; u <<= 1) {
     if(u * 0xfff0u > f->total_secs) break;
