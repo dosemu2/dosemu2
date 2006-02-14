@@ -727,6 +727,15 @@ CISH(INT16_dummy_end):
 
 /* get the RAW scancode (used only for int15,4f) */
 	inb	$0x60,%al
+
+/* check for Ctrl-Alt-Del */
+	cmpb	$0x53, %al
+	jne	1f
+	movb	KEYSHIFT_FLAGS, %bl
+	andb	$0x0c, %bl
+	cmpb	$0x0c, %bl
+	je	kbd_do_CAD
+1:
 	
 /*ERIC	* src/base/bios/bios.S (INT09_dummy_start): 
 	removed spurious 'mov al,ah' between in al,0x60 and mov ah,$0x4f
@@ -788,14 +797,7 @@ check_special:
 	je	kbd_do_sysrq_break
         call    store_key
 kbd_done:
-	inb	$0x61,%al		/* KBD IRQ ACK code from the */
-	movb	%al,%ah			/* Lukach & Sibiriakov book */
-	orb	$0x80,%al
-	outb	%al,$0x61
-	xchgb	%al,%ah
-	outb	%al,$0x61
-	movb   	$0x20,%al
-	outb    %al,$0x20		/* tell pic we're done 		*/
+	call	kbd_EOI
 	popw	%ds
 	popw	%bx
 	popw	%ax			/* restore registers		*/
@@ -843,6 +845,22 @@ kbd_do_sysrq_break:			/* ALT-SYSRQ released		*/
 	movw	$0x8501,%ax
 	int	$0x15
 	jmp	kbd_done
+
+kbd_do_CAD:
+	call	kbd_EOI
+	movw	$0x1234, 0x72
+	ljmp	$0xffff, $0
+
+kbd_EOI:
+	inb	$0x61,%al		/* KBD IRQ ACK code from the */
+	movb	%al,%ah			/* Lukach & Sibiriakov book */
+	orb	$0x80,%al
+	outb	%al,$0x61
+	xchgb	%al,%ah
+	outb	%al,$0x61
+	movb   	$0x20,%al
+	outb    %al,$0x20		/* tell pic we're done 		*/
+	ret
 
 #if 0
 	.globl  CISH(INT09_dummy_end)
