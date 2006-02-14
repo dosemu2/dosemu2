@@ -425,7 +425,7 @@ emulate(int argc, char **argv)
     mmap_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024,
 		 PROT_READ | PROT_WRITE | PROT_EXEC, (void *)0);
 
-    while (!fatalerr) {
+    while (!fatalerr && !config.exitearly) {
 	loopstep_run_vm86();
     }
 
