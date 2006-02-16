@@ -489,7 +489,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
   char *s, *name, *buf, *buf_ptr;
   unsigned u;
   int i, fd, size, sfs = 0;
-  char *sf[3] = { NULL, NULL, NULL };
+  char *sf[] = { NULL, NULL, NULL, NULL, NULL };
 
   // just checking...
   if(!o->is.dir || o->size || !o->name || o->is.scanned) {
@@ -594,6 +594,15 @@ void scan_dir(fatfs_t *f, unsigned oi)
       sf[0] = "kernel.sys";
       sfs = 1;
     }
+
+#define TRY_ADD(x) \
+    sf[sfs] = x; \
+    if (access(full_name(f, oi, sf[sfs]), R_OK) == 0) \
+      sfs++
+
+    TRY_ADD("command.com");
+    TRY_ADD("config.sys");
+    TRY_ADD("autoexec.bat");
 
     for (i = 0; i < sfs; i++)
       add_object(f, oi, sf[i]);
