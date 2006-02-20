@@ -135,14 +135,14 @@ int emumouse_main(int argc, char *argv[])
 	  printf("  2 button mouse mode (Microsoft)\n");
 	else
 	  printf("  3 button mouse mode (e.g. Mousesystems, PS2)\n");
-	printf  ("  Horizontal Speed (X) - %d\n", LOW(regs.ecx));
-	printf  ("  Vertical Speed   (Y) - %d\n", HIGH(regs.ecx));
+	printf  ("  Horizontal Speed (X) - %ld\n", LOW(regs.ecx));
+	printf  ("  Vertical Speed   (Y) - %ld\n", HIGH(regs.ecx));
 	printf  ("  Speed Setting        - %s\n\n", LOW(regs.edx) ? "fixed" : "variable");
 	SETWORD(&regs.ebx, 0x0007);
 	mouse_helper(&regs);
 	if (WORD(regs.eax) == 0) {
-	  printf  ("  Minimum Internal Horizontal Resolution - %d\n", WORD(regs.ecx));
-          printf  ("  Minimum Internal Vertical Resolution   - %d\n", WORD(regs.edx));
+	  printf  ("  Minimum Internal Horizontal Resolution - %ld\n", WORD(regs.ecx));
+          printf  ("  Minimum Internal Vertical Resolution   - %ld\n", WORD(regs.edx));
 	}
 	break;
 
