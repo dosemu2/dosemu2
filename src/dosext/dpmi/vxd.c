@@ -167,7 +167,7 @@ static WORD VXD_WinVersion(void)
 /***********************************************************************
  *           VXD_VMM (WPROCS.401)
  */
-void WINAPI VXD_VMM ( CONTEXT86 *scp )
+static void WINAPI VXD_VMM ( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -194,7 +194,7 @@ void WINAPI VXD_VMM ( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_PageFile (WPROCS.433)
  */
-void WINAPI VXD_PageFile( CONTEXT86 *scp )
+static void WINAPI VXD_PageFile( CONTEXT86 *scp )
 {
     unsigned	service = AX_reg(scp);
 
@@ -240,7 +240,7 @@ void WINAPI VXD_PageFile( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_Reboot (WPROCS.409)
  */
-void WINAPI VXD_Reboot ( CONTEXT86 *scp )
+static void WINAPI VXD_Reboot ( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -261,7 +261,7 @@ void WINAPI VXD_Reboot ( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_VDD (WPROCS.410)
  */
-void WINAPI VXD_VDD ( CONTEXT86 *scp )
+static void WINAPI VXD_VDD ( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -282,7 +282,7 @@ void WINAPI VXD_VDD ( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_VMD (WPROCS.412)
  */
-void WINAPI VXD_VMD ( CONTEXT86 *scp )
+static void WINAPI VXD_VMD ( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -303,7 +303,7 @@ void WINAPI VXD_VMD ( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_VXDLoader (WPROCS.439)
  */
-void WINAPI VXD_VXDLoader( CONTEXT86 *scp )
+static void WINAPI VXD_VXDLoader( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -342,7 +342,7 @@ void WINAPI VXD_VXDLoader( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_Shell (WPROCS.423)
  */
-void WINAPI VXD_Shell( CONTEXT86 *scp )
+static void WINAPI VXD_Shell( CONTEXT86 *scp )
 {
     unsigned	service = DX_reg(scp);
 
@@ -435,7 +435,7 @@ void WINAPI VXD_Shell( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_Comm (WPROCS.414)
  */
-void WINAPI VXD_Comm( CONTEXT86 *scp )
+static void WINAPI VXD_Comm( CONTEXT86 *scp )
 {
     unsigned	service = AX_reg(scp);
 
@@ -460,7 +460,7 @@ void WINAPI VXD_Comm( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_Timer (WPROCS.405)
  */
-void WINAPI VXD_Timer( CONTEXT86 *scp )
+static void WINAPI VXD_Timer( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -493,7 +493,7 @@ void WINAPI VXD_Timer( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_TimerAPI (WPROCS.1490)
  */
-void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
+static void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
 {
     static WORD System_Time_Selector;
     DWORD cur_time;
@@ -536,7 +536,7 @@ void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_ConfigMG (WPROCS.451)
  */
-void WINAPI VXD_ConfigMG ( CONTEXT86 *scp )
+static void WINAPI VXD_ConfigMG ( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -557,7 +557,7 @@ void WINAPI VXD_ConfigMG ( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_Enable (WPROCS.455)
  */
-void WINAPI VXD_Enable ( CONTEXT86 *scp )
+static void WINAPI VXD_Enable ( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -578,7 +578,7 @@ void WINAPI VXD_Enable ( CONTEXT86 *scp )
 /***********************************************************************
  *           VXD_APM (WPROCS.438)
  */
-void WINAPI VXD_APM ( CONTEXT86 *scp )
+static void WINAPI VXD_APM ( CONTEXT86 *scp )
 {
     unsigned service = AX_reg(scp);
 
@@ -649,7 +649,7 @@ void WINAPI VXD_APM ( CONTEXT86 *scp )
  *
  */
 #if 0
-void WINAPI VXD_Win32s( CONTEXT86 *scp )
+static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 {
     switch (AX_reg(scp))
     {
@@ -1768,3 +1768,59 @@ void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
 }
 #endif
+
+void vxd_call(struct sigcontext *scp)
+{
+    if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VMM)) {
+      D_printf("DPMI: VMM VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_VMM(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_PageFile)) {
+      D_printf("DPMI: PageFile VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_PageFile(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_Reboot)) {
+      D_printf("DPMI: Reboot VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_Reboot(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VDD)) {
+      D_printf("DPMI: VDD VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_VDD(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VMD)) {
+      D_printf("DPMI: VMD VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_VMD(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VXDLDR)) {
+      D_printf("DPMI: VXDLDR VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_VXDLoader(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_SHELL)) {
+      D_printf("DPMI: SHELL VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_Shell(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VCD)) {
+      D_printf("DPMI: VCD VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_Comm(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VTD)) {
+      D_printf("DPMI: VTD VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_Timer(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_CONFIGMG)) {
+      D_printf("DPMI: CONFIGMG VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_ConfigMG(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_ENABLE)) {
+      D_printf("DPMI: ENABLE VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_Enable(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_APM)) {
+      D_printf("DPMI: APM VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_APM(scp);
+
+    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VTDAPI)) {
+      D_printf("DPMI: VTDAPI VxD called, ax=%#x\n", _LWORD(eax));
+      VXD_TimerAPI(scp);
+    }
+}

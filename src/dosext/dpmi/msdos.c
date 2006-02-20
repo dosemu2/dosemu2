@@ -219,7 +219,7 @@ static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
 	    }
 	    break;
 #if SUPPORT_DOSEMU_HELPERS
-	case 0xe6:			/* dosemu helpers */
+	case DOS_HELPER_INT:			/* dosemu helpers */
 	    switch (_LO(ax)) {
 		case DOS_HELPER_PRINT_STRING:		/* print string to dosemu log */
 		    return 1;

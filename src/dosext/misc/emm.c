@@ -401,8 +401,7 @@ static void _do_map_page(caddr_t dst, caddr_t src, int size)
 static void _do_unmap_page(caddr_t base, int size)
 {
   E_printf("EMS: unmmap()ing from %p\n", base);
-
-  munmap_mapping(MAPPING_EMS, base, size);
+  /* don't unmap, just overmap with the LOWMEM page */
   /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
   mmap_mapping(MAPPING_LOWMEM, base, size,
 	PROT_READ | PROT_WRITE | PROT_EXEC, base);

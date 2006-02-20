@@ -174,6 +174,7 @@ void            DPMI_return_from_int_24(void);
 void            DPMI_exception(void);
 void            DPMI_interrupt(void);
 
+void            DPMI_VXD_start(void);
 void            DPMI_VXD_VMM(void);
 void            DPMI_VXD_PageFile(void);
 void            DPMI_VXD_Reboot(void);
@@ -187,6 +188,7 @@ void            DPMI_VXD_CONFIGMG(void);
 void            DPMI_VXD_ENABLE(void);
 void            DPMI_VXD_APM(void);
 void            DPMI_VXD_VTDAPI(void);
+void            DPMI_VXD_end(void);
 
 void            MSDOS_rm_start(void);
 void            MSDOS_mouse_callback(void);

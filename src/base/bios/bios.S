@@ -150,6 +150,8 @@ CISH(DPMI_interrupt):
 CISH(DPMI_return_from_ext_exception):
 	hlt
 /* ======================= Addr = F800:4A3A (FCA3A) */
+	.globl	CISH(DPMI_VXD_start)
+CISH(DPMI_VXD_start):
 	.globl	CISH(DPMI_VXD_VMM)
 CISH(DPMI_VXD_VMM):
 	hlt
@@ -215,6 +217,9 @@ CISH(DPMI_VXD_VTDAPI):
 	hlt
 	lret
 /* ======================= Addr = F800:4A54 (FCA54) */
+	.globl	CISH(DPMI_VXD_end)
+CISH(DPMI_VXD_end):
+
 CISH(DPMI_reserved2):
 	hlt
 	lret
