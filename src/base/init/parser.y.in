@@ -2442,6 +2442,13 @@ parse_dosemu_users(void)
   }
   if (fp) fclose(fp);
 
+  if (!can_do_root_stuff || under_root_login) {
+     /* simply ignore -- we're not suid-root */
+     lax_user_checking();
+     after_secure_check = 1;
+     return;
+  }
+
   /* We want to test if the _user_ is allowed to do certain privileged    */
   /* things, o check if the username connected to the get_orig_uid() is   */
   /* in the DOSEMU_USERS_FILE file (usually /etc/dosemu.users).           */
@@ -2459,13 +2466,6 @@ parse_dosemu_users(void)
        write_to_syslog(buf);
        exit(1);
      }
-
-  if (!can_do_root_stuff || under_root_login) {
-     /* simply ignore -- we're not suid-root */
-     lax_user_checking();
-     after_secure_check = 1;
-     return;
-  }
 
   /* preset DOSEMU_*USER env, such that a user can't fake it */
   setenv("DOSEMU_USER", "unknown", 1);
