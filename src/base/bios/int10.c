@@ -502,12 +502,10 @@ boolean set_video_mode(int mode) {
   if(mode == 7) {
     WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
     port = 0x3b4;
-    set_cursor_shape(0x0b0d);
   } else {
     WRITE_BYTE(BIOS_CONFIGURATION, 
 	       (READ_BYTE(BIOS_CONFIGURATION) & ~0x30) | 0x20);
     port = 0x3d4;
-    set_cursor_shape(0x0607);
   }
   WRITE_WORD(BIOS_VIDEO_PORT, port);
 
@@ -529,6 +527,7 @@ boolean set_video_mode(int mode) {
       return 0;
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
     WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    set_cursor_shape(mode == 7 ? 0x0b0d : 0x0607);
     WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
     WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
     Video->setmode(type,co,li);
@@ -624,6 +623,7 @@ boolean set_video_mode(int mode) {
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
     WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   }
+  set_cursor_shape(mode == 7 ? 0x0b0d : 0x0607);
 
   switch(vga_font_height) {
     case 14:
