@@ -120,7 +120,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "userhook.h"
 #include "pktdrvr.h"
 #include "dma.h"
-#include "sound.h"
 #include "keyb_server.h"
 #include "keyb_clients.h"
 

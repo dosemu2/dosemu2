@@ -62,7 +62,6 @@
 #include "int.h"
 #include "port.h"
 #include "utilities.h"
-#include "dma.h"
 #include "userhook.h"
 #include "mapping.h"
 #include "vgaemu.h"
