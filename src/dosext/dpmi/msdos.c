@@ -30,6 +30,7 @@
 #include "dpmi.h"
 #include "msdos.h"
 #include "vgaemu.h"
+#include "utilities.h"
 
 #define SUPPORT_DOSEMU_HELPERS 1
 #if SUPPORT_DOSEMU_HELPERS
@@ -861,7 +862,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	REG(ds) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_ds);
 	dst = (char *)(REG(ds)<<4);
-	len = GetSegmentLimit(_ds) + 1;
+	len = min((int)(GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf("MSDOS: whole segment of DS at %p copy to DOS at %p for %#x\n",
 		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -874,7 +875,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	REG(es) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_es);
 	dst = (char *)(REG(es)<<4);
-	len = GetSegmentLimit(_es) + 1;
+	len = min((int)(GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf("MSDOS: whole segment of ES at %p copy to DOS at %p for %#x\n",
 		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -992,7 +993,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	my_ds = TRANS_BUFFER_SEG;
 	src = (char *)(my_ds<<4);
 	dst = (char *)GetSegmentBaseAddress(_ds);
-	len = GetSegmentLimit(_ds) + 1;
+	len = min((int)(GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf("MSDOS: DS seg at %p copy back at %p for %#x\n",
 		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -1005,7 +1006,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	my_es = TRANS_BUFFER_SEG;
 	src = (char *)(my_es<<4);
 	dst = (char *)GetSegmentBaseAddress(_es);
-	len = GetSegmentLimit(_es) + 1;
+	len = min((int)(GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf("MSDOS: ES seg at %p copy back at %p for %#x\n",
 		src, dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
