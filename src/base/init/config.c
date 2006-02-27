@@ -19,6 +19,7 @@
 #include "emu.h"
 #include "timers.h"
 #include "video.h"
+#include "vc.h"
 #include "mouse.h"
 #include "serial.h"
 #include "keymaps.h"
@@ -31,6 +32,7 @@
 #include "disks.h"
 #include "userhook.h"
 #include "pktdrvr.h"
+#include "speaker.h"
 
 #include "dos2linux.h"
 #include "utilities.h"
@@ -174,8 +176,8 @@ void dump_config_status(void *printfunc)
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
         config.vbios_copy, config.vbios_seg, config.vbios_size);
-    (*print)("console %d\nconsole_keyb %d\nconsole_video %d\n",
-        config.console, config.console_keyb, config.console_video);
+    (*print)("console_keyb %d\nconsole_video %d\n",
+        config.console_keyb, config.console_video);
     (*print)("kbd_tty %d\nexitearly %d\n",
         config.kbd_tty, config.exitearly);
     (*print)("fdisks %d\nhdisks %d\nbootdisk %d\n",
@@ -346,7 +348,7 @@ static void our_envs_init(char *usedoptions)
         buf[j] = 0;
         setenv("DOSEMU_OPTIONS", buf, 1);
         strcpy(buf, "0");
-        if (!usedoptions['X'] && is_console(0)) strcpy(buf, "1");
+        if (!usedoptions['X'] && on_console()) strcpy(buf, "1");
         setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
         return;
     }
@@ -586,7 +588,7 @@ static void config_post_process(const char *usedoptions)
     }
     /* console scrub */
     if (config.X || usedoptions['X']) {
-	config.console_video = config.vga = 0;
+	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 
 	if (!Video) {
@@ -599,16 +601,30 @@ static void config_post_process(const char *usedoptions)
 #endif
 	}
     }
-    else {
+    if (on_console()) {
 	if (!can_do_root_stuff && config.console_video) {
 	    /* force use of Slang-terminal on console too */
-	    config.console_video = config.vga = 0;
-	    config.mapped_bios = 0;
+	    config.console_video = 0;
 	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
 	}
 	if (config.console_keyb == -1)
 	    config.console_keyb = can_do_root_stuff;
+	if (config.speaker == SPKR_EMULATED) {
+	    register_speaker((void *)console_fd,
+			     console_speaker_on, console_speaker_off);
+	}
+    } else {
+	config.console_video = config.console_keyb = 0;
+	if (config.speaker == SPKR_NATIVE) {
+	    config.speaker = SPKR_EMULATED;
+	}
     }
+    if (!config.console_video)
+	config.vga = config.mapped_bios = 0;
+    if (config.vga)
+	config.mapped_bios = config.console_video = 1;
+    else
+	config.vbios_post = 0;
     if ((config.vga || config.X) && config.mem_size > 640) {
 	error("$_dosmem = (%d) not allowed for X and VGA console graphics, "
               "restricting to 640K\n", config.mem_size);
@@ -988,15 +1004,14 @@ config_init(int argc, char **argv)
 	    break;
 	case 'c':
 	    config.console_video = 1;
-	    config.mapped_bios = config.vga = 0;
+	    config.vga = 0;
 	    break;
 	case 'k':
 	    config.console_keyb = 1;
 	    break;
 	case 't':
 	    /* terminal mode */
-	    config.X = config.console_keyb = config.console_video =
-	      config.mapped_bios = config.vga = 0;
+	    config.X = config.console_keyb = config.console_video = 0;
 	    break;
 	case 'X':
 	    /* check usedoptions later */
@@ -1030,8 +1045,6 @@ config_init(int argc, char **argv)
 	case 'V':
 	    g_printf("Configuring as VGA video card & mapped ROM\n");
 	    config.vga = 1;
-	    config.mapped_bios = 1;
-	    config.console_video = 1;
 	    if (config.mem_size > 640)
 		config.mem_size = 640;
 	    break;

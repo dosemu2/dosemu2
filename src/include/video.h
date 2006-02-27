@@ -195,8 +195,6 @@ enum {
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
 
-EXTERN void scr_state_init(void);
-
 extern void clear_console_video(void);
 extern int console_size(void);
 extern int load_file(char *name, int foffset, char *mstart, int msize);

@@ -183,7 +183,7 @@ static int video_init(void)
   return 0;
 }
 
-void
+static void
 scr_state_init(void) {
   switch (config.cardtype) {
   case CARD_MDA:
@@ -381,28 +381,8 @@ gettermcap(int i, int *co, int *li)
 
 void
 video_config_init(void) {
-  if (!config.console) {
-     /* NOTE: BIG FAT WARNING !!!
-      *       without this you will reproduceable KILL LINUX
-      *       (seen with Linux-2.0.28)            ^^^^^^^^^^
-      *       This happens in xterm, not console and not xdos.
-      *       I was unable to trace it down, because directly at
-      *       startup you get a black screen and no logs are left
-      *       once you repaired your files system :(
-      *       Though this is a userspace bug, it should not
-      *       kill the kernel IMHO. -- Hans
-      */
-     v_printf("VID: not running on console - resetting to terminal mode\n");
-     config.console_video=0;
-     scr_state.console_no = 0;
-     config.console_keyb = 0;
-     config.console_video = 0;
-     config.mapped_bios = 0;
-     config.vga = 0;
-     config.console = 0;
-     if (config.speaker == SPKR_NATIVE)
-       config.speaker = SPKR_EMULATED;
-  }
+  scr_state_init();
+   
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
 
   video_init();

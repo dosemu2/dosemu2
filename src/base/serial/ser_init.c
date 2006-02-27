@@ -57,6 +57,7 @@
 #include "ser_defs.h"
 #include "utilities.h"	/* due to getpwnam */
 #include "iodev.h"
+#include "vc.h"
 
 int no_local_video = 0;
 
@@ -214,7 +215,7 @@ int ser_open(int num)
 {
   s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
   
-  if (com[num].mouse && !config.console) {
+  if (com[num].mouse && !on_console()) {
     s_printf("SER%d: Not touching mouse outside of the console!\n",num);
     return(-1);
   }
@@ -563,7 +564,7 @@ void serial_init(void)
      * to the fact the mouse is in use by Xwindows (internal driver is used)
      * Direct access to the mouse by dosemu is useful mainly at the console.
      */
-    if (com[i].mouse && !config.console)
+    if (com[i].mouse && !on_console())
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
 #ifdef USE_GPM    
     else if (com[i].mouse && strcmp(Mouse->name, "gpm") == 0)
@@ -586,7 +587,7 @@ void serial_close(void)
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].fd < 0)
       continue;
-    if (com[i].mouse && !config.console)
+    if (com[i].mouse && !on_console())
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
 #ifdef USE_GPM    
     else if (com[i].mouse && strcmp(Mouse->name, "gpm") == 0)
@@ -608,7 +609,7 @@ void serial_close(void)
 void child_close_mouse(void)
 {
   u_char i, rtrn;
-  if (config.console) {
+  if (on_console()) {
     s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
@@ -634,7 +635,7 @@ void child_close_mouse(void)
 void child_open_mouse(void)
 {
   u_char i;
-  if (config.console) {
+  if (on_console()) {
     s_printf("MOUSE: OPEN function starting.\n");
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",

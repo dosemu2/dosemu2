@@ -16,6 +16,7 @@
 #include "mouse.h"
 #include "utilities.h"
 #include "init.h"
+#include "vc.h"
 
 /* there exist several binary incompatible Gpm_Event structures,
    depending on the GPM version and distribution. 
@@ -88,7 +89,7 @@ static int gpm_init(void)
 	mouse_t *mice = &config.mouse;
 	Gpm_Connect conn;
 
-	if (config.vga || !mice->intdrv || !is_console( 0 ))
+	if (config.vga || !mice->intdrv || !on_console())
 		return FALSE;
 	
 	conn.eventMask	 = ~0;

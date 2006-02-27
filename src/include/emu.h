@@ -165,7 +165,6 @@ typedef struct vesamode_type_struct {
 #endif
        int CPUSpeedInMhz;
        /* for video */
-       boolean console;
        boolean console_video;
        boolean vga;
        boolean X;

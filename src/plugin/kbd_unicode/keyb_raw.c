@@ -209,7 +209,7 @@ static void raw_keyboard_close(void)
 static int raw_keyboard_probe(void)
 {
 	int result = FALSE;
-	if (config.console_keyb && config.console) {
+	if (config.console_keyb) {
 		result = TRUE;
 	}
 	return result;

@@ -88,30 +88,36 @@ forbid_switch (void)
 }
 
 /* check whether we are running on the console; initialise
- * config.console, console_fd and scr_state.console_no
+ * console_fd and scr_state.console_no
  */
-void check_console(void) {
+int on_console(void) {
 
 
 #ifdef __linux__
     struct stat chkbuf;
     int major, minor;
 
-    config.console=0;
-    console_fd = STDIN_FILENO;
+    if (console_fd == -2 || config.X)
+	return 0;
 
-    fstat(console_fd, &chkbuf);
+    console_fd = -2;
+
+    if (fstat(STDIN_FILENO, &chkbuf) != 0)
+	return 0;
+
     major = chkbuf.st_rdev >> 8;
     minor = chkbuf.st_rdev & 0xff;
 
     c_printf("major = %d minor = %d\n",
 	    major, minor);
     /* console major num is 4, minor 64 is the first serial line */
-    if ((major == 4) && (minor < 64)) {
+    if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64)) {
        scr_state.console_no = minor;
-       config.console=1;
+       console_fd = STDIN_FILENO;
+       return 1;
     }
 #endif
+    return 0;
 }
 
 void

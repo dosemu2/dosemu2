@@ -23,7 +23,6 @@ void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
 	 cmdprintf_func *printf);
 void sigalarm_onoff(int on);
 void sigalarm_block(int block);
-int is_console(int fd);
 
 char *strprintable(char *s);
 char *chrprintable(char c);

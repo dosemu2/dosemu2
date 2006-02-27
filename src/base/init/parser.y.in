@@ -61,6 +61,7 @@
 #define allow_io	port_allow_io
 #include "lpt.h"
 #include "video.h"
+#include "vc.h"
 #include "mouse.h"
 #include "serial.h"
 #include "timers.h"
@@ -1770,11 +1771,6 @@ static void stop_video(void)
   if ((config.cardtype != CARD_VGA) || !config.console_video) {
     config.vga = 0;
   }
-
-  if (config.vga) {
-    config.mapped_bios = 1;
-    config.console_video = 1;
-  }
 }
 
 	/* vesa modes */
@@ -2523,7 +2519,7 @@ parse_dosemu_users(void)
   if(userok==0) {
     define_config_variable("restricted");
   }
-  if (get_config_variable("nosuidroot") || (get_config_variable("restricted") && !is_console(0))) {
+  if (get_config_variable("nosuidroot") || (get_config_variable("restricted") && !on_console())) {
     fprintf(stderr, "Dropping root privileges: guest or a restricted user not on console.\n");
     priv_drop();
     lax_user_checking();

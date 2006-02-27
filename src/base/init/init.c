@@ -41,7 +41,6 @@
 #include "iodev.h"
 #include "priv.h"
 #include "doshelpers.h"
-#include "speaker.h"
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
@@ -237,18 +236,6 @@ void memory_init(void)
  */
 void device_init(void)
 {
-  /* check whether we are running on the console */
-  check_console();
-
-  scr_state_init();
-   
-  if (!config.vga)
-    config.vbios_post = 0;
-
-  if (config.console && (config.speaker == SPKR_EMULATED)) {
-    register_speaker((void *)console_fd,
-		     console_speaker_on, console_speaker_off);
-  }
   pit_init();		/* for native speaker */
   video_config_init();	/* privileged part of video init */
   keyb_priv_init();

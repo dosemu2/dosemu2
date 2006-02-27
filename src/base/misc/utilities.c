@@ -20,8 +20,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/vt.h>
-#include <sys/ioctl.h>
 #include <errno.h>
 #include <assert.h>
 #include <dlfcn.h>
@@ -654,20 +652,6 @@ void sigalarm_block(int block)
     sigaddset(&blockset, SIGALRM);
     sigprocmask(SIG_UNBLOCK, &blockset, NULL);
   }
-}
-
-int is_console(int fd)
-{
-  /* normally the below ioctl will return the next available not opened VT.
-   * The fd maybe _any_ valid fd of an opened VT.
-   * Hence, if the below ioctl fails, we assume the fd is not the one
-   * of an VT. ... simple;-)
-   */
-  int nextvt;
-  struct vt_mode vtm;
-  if( ioctl( fd, VT_OPENQRY, &nextvt ) ) return 0;
-  if( ioctl( fd, VT_GETMODE, &vtm ) ) return 0;
-  return 1;
 }
 
 /* dynamic readlink, adapted from "info libc" */

@@ -25,6 +25,7 @@
 #include "emu.h"
 #include "init.h"
 #include "video.h"
+#include "vc.h"
 #include "keyb_clients.h"
 #include "utilities.h"
 
@@ -91,7 +92,7 @@ CONSTRUCTOR(static void init(void))
 	register_keyboard_client(&Keyboard_raw);
 	register_keyboard_client(&Keyboard_slang);
 #ifdef USE_GPM
-	if (!config.vga && config.mouse.intdrv && is_console( 0 ))
+	if (!config.vga && config.mouse.intdrv && on_console())
 		load_plugin("gpm");
 #endif
 	register_mouse_client(&Mouse_xterm);

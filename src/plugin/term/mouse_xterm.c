@@ -15,6 +15,7 @@
 #include "mouse.h"
 #include "utilities.h"
 #include "vgaemu.h"
+#include "vc.h"
 
 /* XTERM MOUSE suport by M.Laak */
 void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
@@ -72,7 +73,7 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 
 static int has_xterm_mouse_support(void)
 {
-	if (config.vga || is_console(0))
+	if (config.vga || on_console())
 		return 0;
 
 	term_init();
