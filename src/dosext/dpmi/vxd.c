@@ -23,51 +23,18 @@
 #include "bios.h"
 #include "timers.h"
 #include "vxd.h"
+#include "windefs.h"
 #include <Asm/ldt.h>
 
 #include <fcntl.h>
 #include <memory.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#define VXD_BARF(context,name) \
-    D_printf( "vxd %s: unknown/not implemented parameters:\n" \
-                     "AX %04x, BX %04x, CX %04x, DX %04x, " \
-                     "SI %04x, DI %04x, DS %04x, ES %04x\n", \
-             (name), LO_WORD(context->eax), LO_WORD(context->ebx), \
-             LO_WORD(context->ecx), LO_WORD(context->edx), LO_WORD(context->esi), \
-             LO_WORD(context->edi), (WORD)context->ds, (WORD)context->es )
-
-#undef BYTE
-#define BYTE u_char
-#undef WORD
-#define WORD u_short
-#undef DWORD
-#define DWORD u_long
-#undef LONG
-#define LONG u_long
-#define HANDLE16 u_short
-#define MAKEWORD(low,high)     ((WORD)(((BYTE)(low)) | ((WORD)((BYTE)(high))) << 8))
-#define MAKELONG(low,high)     ((LONG)(((WORD)(low)) | (((DWORD)((WORD)(high))) << 16)))
-#define UINT16 u_short
-#define WINAPI
-#define TRACE D_printf
-#define FIXME D_printf
-
-#define SET_AX(dummy, val) (_LWORD(eax) = val)
-#define SET_DX(dummy, val) (_LWORD(edx) = val)
-#define SET_DI(dummy, val) (_LWORD(edi) = val)
-#define SET_AL(dummy, val) (_LO(ax) = val)
-#define RESET_CFLAG(dummy) (_eflags &= ~CF)
-#define SET_CFLAG(dummy) (_eflags |= CF)
-#define AX_reg(dummy) _LWORD(eax)
-#define DX_reg(dummy) _LWORD(edx)
-
-#define CONTEXT86 struct sigcontext
-
-#define GetTickCount() GETtickTIME(0)
+static UINT W32S_offset = 0;
 
 void get_VXD_entry( struct sigcontext *scp )
 {
@@ -596,6 +563,84 @@ static void WINAPI VXD_APM ( CONTEXT86 *scp )
     }
 }
 
+
+static LPVOID WINAPI MapSL( SEGPTR segptr )
+{
+    return (LPVOID)SEL_ADR(SELECTOROF(segptr), OFFSETOF(segptr));
+}
+
+static PIMAGE_NT_HEADERS WINAPI RtlImageNtHeader(HMODULE mod)
+{
+    return NULL;
+}
+static LPVOID WINAPI VirtualAlloc(LPVOID a,SIZE_T b,DWORD c,DWORD d)
+{
+    return NULL;
+}
+static BOOL WINAPI VirtualFree(LPVOID a,SIZE_T b,DWORD c)
+{
+    return 0;
+}
+static BOOL WINAPI VirtualProtect(LPVOID a,SIZE_T b,DWORD c,LPDWORD d)
+{
+    return 0;
+}
+static SIZE_T WINAPI VirtualQuery(LPCVOID a,PMEMORY_BASIC_INFORMATION b,SIZE_T c)
+{
+    return 0;
+}
+static HANDLE WINAPI DosFileHandleToWin32Handle(HFILE f)
+{
+    return 0;
+}
+static UINT WINAPI GlobalGetAtomNameA(ATOM a,LPSTR b,INT c)
+{
+    return 0;
+}
+static HANDLE WINAPI CreateFileMappingA(HANDLE a,LPSECURITY_ATTRIBUTES b,
+	DWORD c,DWORD d,DWORD e,LPCSTR f)
+{
+    return 0;
+}
+static HANDLE WINAPI OpenFileMappingA(DWORD a,BOOL b,LPCSTR c)
+{
+    return 0;
+}
+static BOOL WINAPI CloseHandle(HANDLE h)
+{
+    return 0;
+}
+static BOOL WINAPI DuplicateHandle(HANDLE a,HANDLE b,HANDLE c,HANDLE* d,
+	DWORD e,BOOL f,DWORD g)
+{
+    return 0;
+}
+static HANDLE WINAPI GetCurrentProcess(void)
+{
+    return 0;
+}
+static LPVOID WINAPI MapViewOfFileEx(HANDLE a,DWORD b,DWORD c,DWORD d,
+	SIZE_T e,LPVOID f)
+{
+    return NULL;
+}
+static BOOL WINAPI UnmapViewOfFile(LPVOID a)
+{
+    return 0;
+}
+static BOOL WINAPI FlushViewOfFile(LPCVOID a,SIZE_T b)
+{
+    return 0;
+}
+static BOOL WINAPI VirtualLock(LPVOID a,SIZE_T b)
+{
+    return 0;
+}
+static BOOL WINAPI VirtualUnlock(LPVOID a,SIZE_T b)
+{
+    return 0;
+}
+
 /***********************************************************************
  *           VXD_Win32s (WPROCS.445)
  *
@@ -648,7 +693,10 @@ static void WINAPI VXD_APM ( CONTEXT86 *scp )
  * service of the Win32s VxD. (Note that the offset is never reset.)
  *
  */
-#if 0
+#if 1
+#if 1
+__attribute__((unused))
+#endif
 static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 {
     switch (AX_reg(scp))
@@ -679,6 +727,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         scp->edx = 0;
         scp->edi = 0;
 
+#if 0
         /*
          * If this is the first time we are called for this process,
          * hack the memory image of WIN32S16 so that it doesn't try
@@ -755,6 +804,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
                 }
             }
         }
+#endif
 
         /*
          * Mark process as Win32s, so that subsequent DPMI calls
@@ -1197,7 +1247,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         HANDLE *retv  = (HANDLE *)W32S_APP2WINE(stack[0]);
         DWORD  flags1   = stack[1];
         DWORD  atom     = stack[2];
-        LARGE_INTEGER *size = (LARGE_INTEGER *)W32S_APP2WINE(stack[3]);
+        LONGLONG *size = (LONGLONG *)W32S_APP2WINE(stack[3]);
         DWORD  protect  = stack[4];
         DWORD  flags2   = stack[5];
         HANDLE hFile    = DosFileHandleToWin32Handle(stack[6]);
@@ -1215,8 +1265,8 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
             TRACE("NtCreateSection: name=%s\n", atom? name : NULL);
 
             result = CreateFileMappingA(hFile, NULL, protect,
-                                          size? size->u.HighPart : 0,
-                                          size? size->u.LowPart  : 0,
+                                          size? (*size >> 32) : 0,
+                                          size? (uint32_t)*size  : 0,
                                           atom? name : NULL);
         }
 
@@ -1350,7 +1400,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         DWORD *  BaseAddress    = (DWORD *)W32S_APP2WINE(stack[2]);
         DWORD    ZeroBits       = stack[3];
         DWORD    CommitSize     = stack[4];
-        LARGE_INTEGER *SectionOffset = (LARGE_INTEGER *)W32S_APP2WINE(stack[5]);
+        LONGLONG *SectionOffset = (LONGLONG *)W32S_APP2WINE(stack[5]);
         DWORD *  ViewSize       = (DWORD *)W32S_APP2WINE(stack[6]);
         DWORD    InheritDisposition = stack[7];
         DWORD    AllocationType = stack[8];
@@ -1378,12 +1428,12 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
                    InheritDisposition, AllocationType, Protect);
         TRACE("NtMapViewOfSection: "
                    "base=%lx, offset=%lx, size=%lx, access=%lx\n",
-                   (DWORD)address, SectionOffset? SectionOffset->u.LowPart : 0,
+                   (DWORD)address, SectionOffset? (long)*SectionOffset : 0,
                    ViewSize? *ViewSize : 0, access);
 
         result = (DWORD)MapViewOfFileEx(SectionHandle, access,
-                            SectionOffset? SectionOffset->u.HighPart : 0,
-                            SectionOffset? SectionOffset->u.LowPart  : 0,
+                            SectionOffset? (*SectionOffset >> 32) : 0,
+                            SectionOffset? (uint32_t)*SectionOffset : 0,
                             ViewSize? *ViewSize : 0, address);
 
         TRACE("NtMapViewOfSection: result=%lx\n", result);
