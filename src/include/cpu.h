@@ -44,56 +44,69 @@
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif
 
+union dword {
+  unsigned long l;
+  Bit32u d;
+  struct { Bit16u l, h; } w;
+  struct { Bit8u l, h, b2, b3; } b;
+};
 
-#define _AL      (*(Bit8u *)&vm86s.regs.eax)
-#define _BL      (*(Bit8u *)&vm86s.regs.ebx)
-#define _CL      (*(Bit8u *)&vm86s.regs.ecx)
-#define _DL      (*(Bit8u *)&vm86s.regs.edx)
-#define _AH      (*(((Bit8u *)&vm86s.regs.eax)+1))
-#define _BH      (*(((Bit8u *)&vm86s.regs.ebx)+1))
-#define _CH      (*(((Bit8u *)&vm86s.regs.ecx)+1))
-#define _DH      (*(((Bit8u *)&vm86s.regs.edx)+1))
-#define _AX      (*(Bit16u *)&vm86s.regs.eax)
-#define _BX      (*(Bit16u *)&vm86s.regs.ebx)
-#define _CX      (*(Bit16u *)&vm86s.regs.ecx)
-#define _DX      (*(Bit16u *)&vm86s.regs.edx)
-#define _SI      (*(Bit16u *)&vm86s.regs.esi)
-#define _DI      (*(Bit16u *)&vm86s.regs.edi)
-#define _BP      (*(Bit16u *)&vm86s.regs.ebp)
-#define _SP      (*(Bit16u *)&vm86s.regs.esp)
-#define _IP      (*(Bit16u *)&vm86s.regs.eip)
-#define _EAX     (*(Bit32u *)&vm86s.regs.eax)
-#define _EBX     (*(Bit32u *)&vm86s.regs.ebx)
-#define _ECX     (*(Bit32u *)&vm86s.regs.ecx)
-#define _EDX     (*(Bit32u *)&vm86s.regs.edx)
-#define _ESI     (*(Bit32u *)&vm86s.regs.esi)
-#define _EDI     (*(Bit32u *)&vm86s.regs.edi)
-#define _EBP     (*(Bit32u *)&vm86s.regs.ebp)
-#define _ESP     (*(Bit32u *)&vm86s.regs.esp)
-#define _EIP     (*(Bit32u *)&vm86s.regs.eip)
-#define _CS      (*(Bit16u *)&vm86s.regs.cs)
-#define _DS      (*(Bit16u *)&vm86s.regs.ds)
-#define _SS      (*(Bit16u *)&vm86s.regs.ss)
-#define _ES      (*(Bit16u *)&vm86s.regs.es)
-#define _FS      (*(Bit16u *)&vm86s.regs.fs)
-#define _GS      (*(Bit16u *)&vm86s.regs.gs)
-#define _EFLAGS  (*(Bit32u *)&vm86s.regs.eflags)
-#define _FLAGS   (*(Bit16u *)&vm86s.regs.eflags)
+#define DWORD(wrd)	(((union dword *)&(wrd))->d)
 
+#define LO_WORD(wrd)	(((union dword *)&(wrd))->w.l)
+#define HI_WORD(wrd)    (((union dword *)&(wrd))->w.h)
+
+#define LO_BYTE(wrd)	(((union dword *)&(wrd))->b.l)
+#define HI_BYTE(wrd)    (((union dword *)&(wrd))->b.h)
+
+#define _AL      LO_BYTE(vm86s.regs.eax)
+#define _BL      LO_BYTE(vm86s.regs.ebx)
+#define _CL      LO_BYTE(vm86s.regs.ecx)
+#define _DL      LO_BYTE(vm86s.regs.edx)
+#define _AH      HI_BYTE(vm86s.regs.eax)
+#define _BH      HI_BYTE(vm86s.regs.ebx)
+#define _CH      HI_BYTE(vm86s.regs.ecx)
+#define _DH      HI_BYTE(vm86s.regs.edx)
+#define _AX      LO_WORD(vm86s.regs.eax)
+#define _BX      LO_WORD(vm86s.regs.ebx)
+#define _CX      LO_WORD(vm86s.regs.ecx)
+#define _DX      LO_WORD(vm86s.regs.edx)
+#define _SI      LO_WORD(vm86s.regs.esi)
+#define _DI      LO_WORD(vm86s.regs.edi)
+#define _BP      LO_WORD(vm86s.regs.ebp)
+#define _SP      LO_WORD(vm86s.regs.esp)
+#define _IP      LO_WORD(vm86s.regs.eip)
+#define _EAX     DWORD(vm86s.regs.eax)
+#define _EBX     DWORD(vm86s.regs.ebx)
+#define _ECX     DWORD(vm86s.regs.ecx)
+#define _EDX     DWORD(vm86s.regs.edx)
+#define _ESI     DWORD(vm86s.regs.esi)
+#define _EDI     DWORD(vm86s.regs.edi)
+#define _EBP     DWORD(vm86s.regs.ebp)
+#define _ESP     DWORD(vm86s.regs.esp)
+#define _EIP     DWORD(vm86s.regs.eip)
+#define _CS      (vm86s.regs.cs)
+#define _DS      (vm86s.regs.ds)
+#define _SS      (vm86s.regs.ss)
+#define _ES      (vm86s.regs.es)
+#define _FS      (vm86s.regs.fs)
+#define _GS      (vm86s.regs.gs)
+#define _EFLAGS  DWORD(vm86s.regs.eflags)
+#define _FLAGS   LO_WORD(vm86s.regs.eflags)
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
-#define LO(reg)  (*(unsigned char *)&REG(e##reg))
-#define HI(reg)  (*((unsigned char *)&REG(e##reg) + 1))
+#define LO(reg)  LO_BYTE(REG(e##reg))
+#define HI(reg)  HI_BYTE(REG(e##reg))
 
-#define _LO(reg) (*(unsigned char *)&(scp->e##reg))
-#define _HI(reg) (*((unsigned char *)&(scp->e##reg) + 1))
+#define _LO(reg) LO_BYTE(scp->e##reg)
+#define _HI(reg) HI_BYTE(scp->e##reg)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
-#define LWORD(reg)	(*((unsigned short *)&REG(reg)))
-#define HWORD(reg)	(*((unsigned short *)&REG(reg) + 1))
+#define LWORD(reg)	LO_WORD(REG(reg))
+#define HWORD(reg)	HI_WORD(REG(reg))
 
-#define _LWORD(reg)	(*((unsigned short *)&(scp->reg)))
-#define _HWORD(reg)	(*((unsigned short *)&(scp->reg) + 1))
+#define _LWORD(reg)	LO_WORD(scp->reg)
+#define _HWORD(reg)	HI_WORD(scp->reg)
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
@@ -125,9 +138,6 @@ typedef struct {
 #define WRITE_FLAGSE(val)    REG(eflags) = (val)
 #define READ_FLAGS()        LWORD(eflags)
 #define READ_FLAGSE()        REG(eflags)
-
-#define LO_WORD(wrd)	(*((unsigned short *)&(wrd)))
-#define HI_WORD(wrd)	(*((unsigned short *)&(wrd) + 1))
 
  /*
   * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
@@ -223,7 +233,7 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 
   /* Flag setting and clearing, and testing */
         /* interrupt flag */
-#define set_IF() (_EFLAGS |= VIF, is_cli = 0)
+#define set_IF() (_EFLAGS |= VIF, clear_VIP(), is_cli = 0)
 #define clear_IF() (_EFLAGS &= ~VIF)
 #define isset_IF() ((_EFLAGS & VIF) != 0)
        /* carry flag */
