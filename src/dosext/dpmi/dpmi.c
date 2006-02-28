@@ -4027,7 +4027,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
   hardware_run();
 
-  if (in_dpmi_dos_int || (_eflags & VIP) || pic_pending() || return_requested) {
+  if (in_dpmi_dos_int || (isset_IF() && pic_pending()) || return_requested) {
     return_requested = 0;
     Return_to_dosemu_code(scp, 0, ORIG_CTXP);
     return;

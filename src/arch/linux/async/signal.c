@@ -420,10 +420,7 @@ static void handle_signals_force(int force_reentry) {
       }
   }
 
-  if (!signal_pending) {
-    clear_VIP();
-  } else {
-    set_VIP();
+  if (signal_pending) {
     dpmi_return_request();
   }
 

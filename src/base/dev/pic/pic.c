@@ -644,8 +644,10 @@ void run_irqs(void)
        while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
                int local_pic_ilevel, old_ilevel, ret;
 
-	       if (!isset_IF())
+	       if (!isset_IF()) {
+		       set_VIP();
 	    	       return;                      /* exit if ints are disabled */
+	       }
 
                local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
 	       old_ilevel = find_bit(pic_isr);
@@ -1097,7 +1099,7 @@ void pic_cli(void)
 
 int CAN_SLEEP(void)
 {
-  return (!(pic_icount || pic_isr || (REG(eflags) & VIP) ||
+  return (!(pic_icount || pic_isr || (REG(eflags) & VIP) || signal_pending ||
     (pic_sys_time > pic_dos_time)));
 }
 
