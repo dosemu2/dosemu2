@@ -47,7 +47,7 @@ static int umb_find_unused(void);
 static void xms_control(void);
 
 /*
-static char RCSxms[] = "$Header$";
+static char RCSxms[] = "$Id$";
 */
 
 #define	 XMS_GET_VERSION		0x00

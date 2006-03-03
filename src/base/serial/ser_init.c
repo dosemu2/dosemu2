@@ -551,7 +551,7 @@ void serial_reset(void)
 void serial_init(void)
 {
   int i;
-  warn("SERIAL $Header$\n");
+  warn("SERIAL $Id$\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Do UART init here - Need to set up registers and init the lines. */
