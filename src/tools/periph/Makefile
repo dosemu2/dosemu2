@@ -23,6 +23,8 @@ CPPFLAGS += -I.
 
 all: $(OBJ)
 
+mkfatimage16.o mkfatimage.o: %.o: bootsect.h
+
 $(BINPATH)/bin/mkfatimage: mkfatimage.o
 	$(LD) $< -o $@
 
