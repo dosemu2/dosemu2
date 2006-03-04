@@ -797,7 +797,7 @@ int rng_get(struct rng_s *rng, void *buf)
 int rng_peek(struct rng_s *rng, int idx, void *buf)
 {
   int obj_pos;
-  if (rng->objcnt < idx)
+  if (rng->objcnt <= idx)
     return 0;
   obj_pos = (rng->tail + idx * rng->objsize) % (rng->objnum * rng->objsize);
   assert(buf);
@@ -832,7 +832,7 @@ int rng_put_const(struct rng_s *rng, int value)
 int rng_poke(struct rng_s *rng, int idx, void *buf)
 {
   int obj_pos;
-  if (rng->objcnt < idx)
+  if (rng->objcnt <= idx)
     return 0;
   obj_pos = (rng->tail + idx * rng->objsize) % (rng->objnum * rng->objsize);
   memcpy(rng->buffer + obj_pos, buf, rng->objsize);
