@@ -398,6 +398,8 @@ int update_screen(vga_emu_update_type *veut, int is_mapped)
 
   if(vga.reconfig.re_init) {
     vga.reconfig.re_init = 0;
+    dirty_all_video_pages();
+    dirty_all_vga_colors();
     Video->setmode(-1, 0, 0);
   }
 
