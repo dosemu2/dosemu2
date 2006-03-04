@@ -106,7 +106,7 @@ typedef unsigned char uchar;
 #define MAX_REGS 100
 #define TEXT       0
 
-extern void check_console(void);
+extern int on_console(void);
 extern void vt_activate(int con_num);
 extern int wait_vc_active (void);
 extern int vc_active(void);

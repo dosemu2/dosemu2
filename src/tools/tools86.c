@@ -136,7 +136,7 @@ struct bsd_header {            /* a.out header */
 #endif
 
 #ifdef __linux__
-int header_ld86out_to_gnuasout(struct bsd_header *bsd, struct gnu_header *gnu)
+static int header_ld86out_to_gnuasout(struct bsd_header *bsd, struct gnu_header *gnu)
 {
   if (  ((long *)bsd)[0] != 0x10000301 ) return -1;
   if (  ((long *)bsd)[1] != 0x20 ) return -1;
@@ -156,7 +156,7 @@ struct sym_entry {
 };
 #endif
 
-int change_aout(char *objfile, int update_symtable)
+static int change_aout(char *objfile, int update_symtable)
 {
   FILE * f;
 #ifdef __linux__
@@ -220,13 +220,15 @@ static int preprocess(FILE *f, FILE *fo)
   int c;
   
 
-  inline void _skipwhite() {
+  auto inline void _skipwhite(void);
+  inline void _skipwhite(void) {
     while ((c=fgetc(f)) != EOF) {
       if (!isspace(c)) break;
     }
     ungetc(c,f);
   }
   
+  auto inline int was(char *s);
   inline int was(char *s) {
     int i=buf_i, n=buf_n;
     while (*s) {
@@ -238,6 +240,7 @@ static int preprocess(FILE *f, FILE *fo)
     return 1;
   }
 
+  auto inline void _fputc(char c);
   inline void _fputc(char c) {
     fputc(c,fo);
     if (copy) {
@@ -249,6 +252,7 @@ static int preprocess(FILE *f, FILE *fo)
     }
   }
   
+  auto inline void _put(char c);
   inline void _put(char c) {
     if (buf_n >= SIZE_BBUF) _fputc(b[buf_i]);
     else buf_n++;
@@ -256,7 +260,8 @@ static int preprocess(FILE *f, FILE *fo)
     INC_BBUF(buf_i,1);
   }
   
-  inline void _flush() {
+  auto inline void _flush(void);
+  inline void _flush(void) {
     INC_BBUF(buf_i,-buf_n);
     while (buf_n-- > 0) {
       _fputc(b[buf_i]);
@@ -266,12 +271,14 @@ static int preprocess(FILE *f, FILE *fo)
     buf_n = 0;
   }
   
+  auto inline void _unget(int count);
   inline void _unget(int count) {
     if (count > buf_n) count = buf_n;
     INC_BBUF(buf_i,-count);
     buf_n -= count;
   }
   
+  auto inline int _nextnum(void);
   inline int _nextnum() {
     char auxb[40];
     int i=0, ii=0;
@@ -320,8 +327,6 @@ static int preprocess(FILE *f, FILE *fo)
       }
       case 'T': {
         if ((!copy) && was("PER.")) {
-          char auxb[40];
-          int i=0;
           _unget(4);
           copy_count = _nextnum()-1;
           _flush();
@@ -358,7 +363,7 @@ static int preprocess(FILE *f, FILE *fo)
 }
 
 
-static int usage()
+static int usage(void)
 {
   fprintf(stderr,
     "USAGE:\n\n"
