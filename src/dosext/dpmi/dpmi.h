@@ -130,7 +130,6 @@ struct DPMIclient_struct {
   int RSP_state, RSP_installed;
   unsigned short psp;
 };
-#define ENV_SEL (READ_WORD(SEGOFF2LINEAR(DPMI_CLIENT.psp, 0x2c)))
 
 struct RSPcall_s {
   unsigned char data16[8];

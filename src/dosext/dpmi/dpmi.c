@@ -2504,10 +2504,6 @@ void dpmi_cleanup(void)
   if (!in_dpmi_dos_int)
     dosemu_error("Quitting DPMI while !in_dpmi_dos_int\n");
   msdos_done();
-  /* Restore environment, must before FreeDescriptor */
-  if (ENV_SEL)
-      WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.psp, 0x2c),
-             (unsigned long)(GetSegmentBaseAddress(ENV_SEL)) >> 4);
   FreeAllDescriptors();
   free(DPMI_CLIENT.pm_stack);
   if (!DPMI_CLIENT.RSP_installed) {
@@ -2854,7 +2850,7 @@ err:
 void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
-  unsigned short CS, DS, ES, SS, psp, envp, envpd, my_cs;
+  unsigned short CS, DS, ES, SS, psp, my_cs;
   unsigned char *ssp;
   unsigned long sp;
   unsigned int my_ip, my_sp, i;
@@ -2990,21 +2986,6 @@ void dpmi_init(void)
   if (SetSelector(ES, (unsigned long) (psp << 4), 0x00ff, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
-  /* convert environment pointer to a descriptor*/
-  envp = READ_WORD((psp<<4)+0x2c);
-  if (envp) {
-	if(!(envpd = AllocateDescriptors(1))) goto err;
-#if 0
-	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x03ff,
-#else
-	/* windows is accessing envp:0x0400 */
-	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x0ffff,
-#endif
-		DPMI_CLIENT.is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-	WRITE_WORD((psp<<4)+0x2c, envpd);
-	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
-		envp,envpd);
-  }
   DPMI_CLIENT.psp = psp;
 
   if (debug_level('M')) {

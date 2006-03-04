@@ -33,7 +33,6 @@ struct msdos_struct {
   unsigned long user_dta_off;
   unsigned short user_psp_sel;
   unsigned short current_psp;
-  unsigned short current_env_sel;
   unsigned short lowmem_seg;
   char ems_map_buffer[PAGE_MAP_SIZE];
   int ems_frame_mapped;

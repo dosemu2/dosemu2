@@ -47,24 +47,34 @@
 
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
-#define CURRENT_ENV_SEL (READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c)))
+#define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c)))
+#define WRITE_ENV_SEL(sel) (WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c), sel))
 
 static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
+    unsigned short envp;
     msdos_client_num++;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
     MSDOS_CLIENT.current_psp = psp;
-    MSDOS_CLIENT.current_env_sel = READ_WORD(SEGOFF2LINEAR(psp, 0x2c));
+    /* convert environment pointer to a descriptor */
+    envp = READ_WORD((psp<<4)+0x2c);
+    if (envp) {
+	WRITE_ENV_SEL(ConvertSegmentToDescriptor(envp));
+	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
+		envp, CURRENT_ENV_SEL);
+    }
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
 void msdos_done(void)
 {
+  if (CURRENT_ENV_SEL)
+      WRITE_ENV_SEL(GetSegmentBaseAddress(CURRENT_ENV_SEL) >> 4);
     msdos_client_num--;
     D_printf("MSDOS: done, %i\n", msdos_client_num);
 }
@@ -535,8 +545,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return MSDOS_ALT_RET | MSDOS_NEED_FORK;
 
 	case 0x50:		/* set PSP */
-	  {
-	    unsigned short envp;
 	    if ( !in_dos_space(_LWORD(ebx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(ebx);
 		LWORD(ebx) = MSDOS_CLIENT.current_psp;
@@ -550,16 +558,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
 	    MSDOS_CLIENT.current_psp = LWORD(ebx);
-	    envp = *(unsigned short *)(((char *)(LWORD(ebx)<<4)) + 0x2c);
-	    if (envp && !in_dos_space(envp, 0)) {
-		/* DANG_FIXTHIS: Please implement the ENV translation! */
-		error("FIXME: ENV translation is not implemented\n");
-		MSDOS_CLIENT.current_env_sel = 0;
-	    } else {
-		MSDOS_CLIENT.current_env_sel = envp;
-	    }
-	  }
-	  return 0;
+	    return 0;
 
 	case 0x26:		/* create PSP */
 	    prepare_ems_frame();
@@ -933,9 +932,8 @@ void msdos_pre_exec(struct sigcontext_struct *scp)
     segment += 3;
 
     /* then the enviroment seg */
-    if (MSDOS_CLIENT.current_env_sel)
-	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c),
-	    GetSegmentBaseAddress(MSDOS_CLIENT.current_env_sel) >> 4);
+    if (CURRENT_ENV_SEL)
+	WRITE_ENV_SEL(GetSegmentBaseAddress(CURRENT_ENV_SEL) >> 4);
 
     if (segment != EXEC_SEG + EXEC_Para_SIZE)
 	error("DPMI: exec: seg=%#x (%#x), size=%#x\n",
@@ -953,9 +951,8 @@ void msdos_post_exec(struct sigcontext_struct *scp)
         _edx = REG(edx);
      }
 
-    if (MSDOS_CLIENT.current_env_sel)
-	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c),
-	    MSDOS_CLIENT.current_env_sel);
+    if (CURRENT_ENV_SEL)
+	WRITE_ENV_SEL(ConvertSegmentToDescriptor(CURRENT_ENV_SEL));
 }
 
 /*
@@ -1107,17 +1104,12 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    break;
 	    
 	case 0x55:		/* create & set PSP */
-	  {
-	    unsigned short envp;
 	    PRESERVE1(edx);
-	    envp = READ_WORD(SEGOFF2LINEAR(LWORD(edx), 0x2c));
-	    MSDOS_CLIENT.current_env_sel = ConvertSegmentToDescriptor(envp);
-	    if ( !in_dos_space(_LWORD(edx), 0)) {
+	    if (!in_dos_space(_LWORD(edx), 0)) {
 		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_LWORD(edx)),
 		    SEG2LINEAR(LWORD(edx)), 0x100);
 	    }
-	  }
-	  break;
+	    break;
 
 	case 0x26:		/* create PSP */
 	    PRESERVE1(edx);
@@ -1160,17 +1152,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	case 0x51:		/* get PSP */
 	case 0x62:
 	    {/* convert environment pointer to a descriptor*/
-		unsigned short 
-#if 0
-		envp,
-#endif
-		psp;
-		psp = LWORD(ebx);
-#if 0
-		envp = *(unsigned short *)(((char *)(psp<<4))+0x2c);
-		envp = ConvertSegmentToDescriptor(envp);
-		*(unsigned short *)(((char *)(psp<<4))+0x2c) = envp;
-#endif
+		unsigned short psp = LWORD(ebx);
 		if (psp == MSDOS_CLIENT.current_psp && MSDOS_CLIENT.user_psp_sel) {
 		    SET_REG(ebx, MSDOS_CLIENT.user_psp_sel);
 		} else {
