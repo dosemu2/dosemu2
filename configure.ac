@@ -218,7 +218,7 @@ fi
 dnl Check whether we have gpm and whether to use it
 
 AC_ARG_WITH(gpm,
-	[  --without-gpm           don't use gpm if available])
+	[  --without-gpm           don't use gpm])
 if test "$with_gpm" != "no"; then
   AC_CHECK_LIB(gpm, Gpm_Open, with_gpm="yes", with_gpm="no")
 fi
