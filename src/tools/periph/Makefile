@@ -11,8 +11,10 @@ include $(top_builddir)/Makefile.conf
 D=$(REALTOPDIR)/etc
 IDEST=/var/lib
 
-SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
+CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
+SFILES=bootsect.S
+SRC=$(CFILES) $(SFILES)
 OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck 
 OBJ=$(OBJ1) bootsect $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
 SCRIPT=getrom
@@ -21,14 +23,14 @@ CPPFLAGS += -I.
 
 all: $(OBJ)
 
-$(BINPATH)/bin/mkfatimage: mkfatimage
-	cp -p $< $@
+$(BINPATH)/bin/mkfatimage: mkfatimage.o
+	$(LD) $< -o $@
 
-$(BINPATH)/bin/mkfatimage16: mkfatimage16
-	cp -p $< $@
+$(BINPATH)/bin/mkfatimage16: mkfatimage16.o
+	$(LD) $< -o $@
 
-$(OBJ1) mkfatimage mkfatimage16: %: %.c bootsect.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+$(OBJ1): %: %.o
+	$(LD) $< -o $@
 
 bootsect.h:	bootsect.S
 	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,--oformat,binary -nostdlib -s -o $@.tmp $< > $(<F).out
@@ -51,19 +53,15 @@ install:
 	install -m 0755 -s mkhdimage putrom scsicheck dosctrl vbioscheck $(IDEST)/dosemu
 	install -m 0755 $(SCRIPT) $(IDEST)/dosemu
 
-checkin:
-	-ci -l keyboard.c.diff $(SRC) $(SCRIPT) Makefile
-
-checkout:
-	-co -M -l keyboard.c.diff $(SRC) $(SCRIPT) Makefile
-
-clean:
+clean::
 	rm -f $(OBJ) *.o mkfatimage mkfatimage16
 	rm -f *.out bootsect.h
 
-realclean: clean
+realclean:: clean
 
-dist: $(SRC) $(SCRIPT)
+dist:: $(SRC) $(SCRIPT)
 	install -d $(DISTPATH)/periph
 	install -m 0644 Makefile keyboard.c.diff $(SRC) $(DISTPATH)/periph
 	install -m 0755 $(SCRIPT) $(DISTPATH)/periph
+
+include $(REALTOPDIR)/src/Makefile.common

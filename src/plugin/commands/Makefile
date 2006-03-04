@@ -15,7 +15,7 @@ SFILES=generic.S
 ALL=$(CFILES) $(SFILES)
 
 OBJS=$(CFILES:.c=.o)
-DEPENDS=$(CFILES:.c=.d)
+DEPENDS=$(CFILES:.c=.d) $(SFILES:.S=.d)
 
 D:=$(BINPATH)/commands
 
@@ -54,9 +54,12 @@ $(STUBSYMLINK): $(D)/generic.com
 $(STUBFULL): $(D)/generic.com ./mkcomstub
 	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
 
-$(D)/%.com:	%.S detect.h
-	$(CC) ${INCDIR} -traditional -Wa,-a -Wl,-Ttext,0x100,-e,_start16,--oformat,binary \
-		-nostdlib -s -o $@ $< > $*.s.out
+%.o: %.S
+	$(CC) $(CPPFLAGS) -traditional -Wa,-a -c -o $@ $< > $*.s.out
+
+$(D)/%.com: %.o
+	$(LD) -Wl,-Ttext,0x100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+	chmod -x $@
 
 install: all
 

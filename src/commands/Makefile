@@ -18,6 +18,7 @@ COM1=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
 	$(D)/system.com
 COM2=$(D)/isemu.com $(D)/mgarrot.com $(D)/fossil.com
 SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys $(D)/aspi.sys
+OBJS=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))
 
 # --------------- begin 'tcc via dosemu' --------------------
 # The below are settings to compile the stuff in 'precompiled'
@@ -52,14 +53,15 @@ all: $(COM2) $(SYS)
 
 dosbin: $(COM1) $(COM2) $(SYS)
 
-$(D)/%.sys: %.S detect.h
-	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $*.sys $< > $*.s.out
-	mv $*.sys $@
+%.o: %.S
+	$(CC) $(CPPFLAGS) -traditional -Wa,-a -c -o $@ $< > $*.s.out
+
+$(D)/%.sys: %.o
+	$(LD) -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
 	chmod -x $@ 
 
-$(D)/%.com: %.S detect.h
-	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $*.com $< > $*.s.out
-	mv $*.com $@
+$(D)/%.com: %.o
+	$(LD) -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
 	chmod -x $@
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
@@ -93,13 +95,13 @@ $(PD)/xmode.exe: xmode.c detect.h
 precomp1:
 	$(CALLDOS) -I $(subst COMMAND,dir /w,$(DOSINVOKE_KEEP))
 
-clean:
+clean::
 	rm -f *.o *.tmp *.out *.s
 	rm -f $(COM) $(SYS) *.obj *.bak tcconfig.tc tcpick.tcp
 
-realclean: clean
+realclean:: clean
 
 
 install:
 
-
+include $(REALTOPDIR)/src/Makefile.common
