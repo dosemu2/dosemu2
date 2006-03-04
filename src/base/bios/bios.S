@@ -89,8 +89,8 @@ CISH(DPMI_dpmi_init):
 CISH(DPMI_return_from_dos):
 	hlt
 /* ======================= Addr = F800:480B (FC80B) */
-	.globl	CISH(DPMI_return_from_dos_exec)
-CISH(DPMI_return_from_dos_exec):
+	.globl	CISH(DPMI_reserved12)
+CISH(DPMI_reserved12):
 	hlt
 /* ======================= Addr = F800:480C (FC80C+intno) */
 	.globl	CISH(DPMI_return_from_dosint)

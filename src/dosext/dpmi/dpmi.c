@@ -711,7 +711,8 @@ int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
   D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) && Segments[i].used &&
+	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) &&
+	(Segments[i].used==in_dpmi) &&
 	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
       if (debug_level('M') >= 9 && limit != 0xffff)
@@ -738,7 +739,8 @@ int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned long lim
   D_printf("DPMI: convert seg %#x to *code* desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) && Segments[i].used &&
+	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) &&
+	(Segments[i].used==in_dpmi) &&
 	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
       D_printf("DPMI: found *code* descriptor at %#x\n", (i<<3) | 0x0007);
       if (debug_level('M') >= 9 && limit != 0xffff)
@@ -2633,16 +2635,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     restore_rm_regs();
     return;
   }
-  /* If the API Translator needs fork, do it */
-  if (msdos_ret & MSDOS_NEED_FORK) {
-    copy_context(&DPMI_CLIENT.stack_frame, scp, 1);
-    in_dpmi++;
-    DPMI_CLIENT = PREV_DPMI_CLIENT;
-    msdos_init(DPMI_CLIENT.is_32,
-      DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs,
-      DPMI_CLIENT.psp);
-    D_printf("DPMI: fork, in_dpmi=%i\n", in_dpmi);
-  }
+  save_pm_regs(scp);
   in_dpmi_dos_int = 1;
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
   /* If the API Translator didnt install the alt entry point, call interrupt */
@@ -2970,23 +2963,10 @@ void dpmi_init(void)
   if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
-  if (!(SS = AllocateDescriptors(1))) goto err;
-  if (SetSelector(SS, (unsigned long) (LWORD(ss) << 4), 0xffff, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-
-  if (LWORD(ss) == LWORD(ds))
-    DS=SS;
-  else {
-    if (!(DS = AllocateDescriptors(1))) goto err;
-    if (SetSelector(DS, (unsigned long) (LWORD(ds) << 4), 0xffff, DPMI_CLIENT.is_32,
-                    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-  }
-
-  if (!(ES = AllocateDescriptors(1))) goto err;
-  if (SetSelector(ES, (unsigned long) (psp << 4), 0x00ff, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-
-  DPMI_CLIENT.psp = psp;
+  if (!(SS = ConvertSegmentToDescriptor(LWORD(ss)))) goto err;
+  /* if ds==ss, the selectors will be equal too */
+  if (!(DS = ConvertSegmentToDescriptor(LWORD(ds)))) goto err;
+  if (!(ES = ConvertSegmentToDescriptor_lim(psp, 0xff))) goto err;
 
   if (debug_level('M')) {
     print_ldt();
@@ -4054,16 +4034,6 @@ void dpmi_realmode_hlt(unsigned char * lina)
  */
     pic_iret_dpmi();
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_exec))) {
-
-    D_printf("DPMI: Return from DOS exec\n");
-    msdos_done();
-    in_dpmi--;
-    msdos_post_exec(&DPMI_CLIENT.stack_frame);
-
-    restore_rm_regs();
-    in_dpmi_dos_int = 0;
-
   } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) &&
 	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256)) ) {
     int intr = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_return_from_dosint);
@@ -4071,9 +4041,9 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
 
-    if (config.pm_dos_api) {
+    restore_pm_regs(&DPMI_CLIENT.stack_frame);
+    if (config.pm_dos_api)
 	update_mask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr);
-    }
 
     rm_to_pm_regs(&DPMI_CLIENT.stack_frame, update_mask);
     restore_rm_regs();

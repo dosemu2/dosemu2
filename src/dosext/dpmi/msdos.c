@@ -538,11 +538,66 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(esi) = 0;
 	    return 0;
 	case 0x4b:		/* EXEC */
-	    D_printf("BCC: call dos exec.\n");
-	    REG(cs) = DPMI_SEG;
-	    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_exec);
-	    msdos_pre_exec(scp);
-	    return MSDOS_ALT_RET | MSDOS_NEED_FORK;
+	  {
+	    /* we must copy all data from higher 1MB to lower 1MB */
+	    unsigned short segment = EXEC_SEG;
+	    char *p;
+	    unsigned short sel,off;
+
+	    D_printf("BCC: call dos exec\n");
+	    /* must copy command line */
+	    REG(ds) = segment;
+	    REG(edx) = 0;
+	    p = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
+	    snprintf((char *)SEG2LINEAR(REG(ds)), MAX_DOS_PATH, "%s", p);
+	    segment += (MAX_DOS_PATH + 0x0f) >> 4;
+
+	    /* must copy parameter block */
+	    REG(es) = segment;
+	    REG(ebx) = 0;
+	    MEMCPY_DOS2DOS(SEG_ADR((void *), es, bx),
+	       (void *)GetSegmentBaseAddress(_es) + D_16_32(_ebx), 0x20);
+	    segment += 2;
+#if 0
+	    /* now the envrionment segment */
+	    sel = READ_WORD(SEG_ADR((unsigned short *), es, bx));
+	    WRITE_WORD(SEG_ADR((unsigned short *), es, bx), segment);
+	    MEMCPY_DOS2DOS((void *)SEG2LINEAR(segment),           /* 4K envr. */
+		(void *)GetSegmentBaseAddress(sel),
+		0x1000);
+	    segment += 0x100;
+#else
+	    WRITE_WORD(SEG_ADR((unsigned short *), es, bx), 0);
+#endif
+	    /* now the tail of the command line */
+    	    off = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2));
+	    sel = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4));
+	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4), segment);
+	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2), 0);
+	    MEMCPY_DOS2DOS((void *)SEG2LINEAR(segment),
+		(void *)GetSegmentBaseAddress(sel) + off,
+		0x80);
+	    segment += 8;
+
+	    /* set the FCB pointers to something reasonable */
+	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+6), 0);
+	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+8), segment);
+	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+0xA), 0);
+	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+0xC), segment);
+	    MEMSET_DOS(SEG2LINEAR(segment), 0, 0x30);
+	    segment += 3;
+
+	    /* then the enviroment seg */
+	    if (CURRENT_ENV_SEL)
+		WRITE_ENV_SEL(GetSegmentBaseAddress(CURRENT_ENV_SEL) >> 4);
+
+	    if (segment != EXEC_SEG + EXEC_Para_SIZE)
+		error("DPMI: exec: seg=%#x (%#x), size=%#x\n",
+			segment, segment - EXEC_SEG, EXEC_Para_SIZE);
+	    if (MSDOS_CLIENT.ems_frame_mapped)
+		error("DPMI: exec: EMS frame should not be mapped here\n");
+	  }
+	  return 0;
 
 	case 0x50:		/* set PSP */
 	    if ( !in_dos_space(_LWORD(ebx), 0)) {
@@ -882,79 +937,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     return 0;
 }
 
-void msdos_pre_exec(struct sigcontext_struct *scp)
-{
-    /* we must copy all data from higher 1MB to lower 1MB */
-    unsigned short segment = EXEC_SEG;
-    char *p;
-    unsigned short sel,off;
-
-    /* must copy command line */
-    REG(ds) = segment;
-    REG(edx) = 0;
-    p = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
-    snprintf((char *)SEG2LINEAR(REG(ds)), MAX_DOS_PATH, "%s", p);
-    segment += (MAX_DOS_PATH + 0x0f) >> 4;
-
-    /* must copy parameter block */
-    REG(es) = segment;
-    REG(ebx) = 0;
-    MEMCPY_DOS2DOS(SEG_ADR((void *), es, bx),
-       (void *)GetSegmentBaseAddress(_es) + D_16_32(_ebx), 0x20);
-    segment += 2;
-#if 0
-    /* now the envrionment segment */
-    sel = READ_WORD(SEG_ADR((unsigned short *), es, bx));
-    WRITE_WORD(SEG_ADR((unsigned short *), es, bx), segment);
-    MEMCPY_DOS2DOS((void *)SEG2LINEAR(segment),           /* 4K envr. */
-	(void *)GetSegmentBaseAddress(sel),
-	0x1000);
-    segment += 0x100;
-#else
-    WRITE_WORD(SEG_ADR((unsigned short *), es, bx), 0);
-#endif
-    /* now the tail of the command line */
-    off = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2));
-    sel = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4));
-    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4), segment);
-    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2), 0);
-    MEMCPY_DOS2DOS((void *)SEG2LINEAR(segment),
-	   (void *)GetSegmentBaseAddress(sel) + off,
-	   0x80);
-    segment += 8;
-
-    /* set the FCB pointers to something reasonable */
-    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+6), 0);
-    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+8), segment);
-    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+0xA), 0);
-    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+0xC), segment);
-    memset((void *)SEG2LINEAR(segment), 0, 0x30);
-    segment += 3;
-
-    /* then the enviroment seg */
-    if (CURRENT_ENV_SEL)
-	WRITE_ENV_SEL(GetSegmentBaseAddress(CURRENT_ENV_SEL) >> 4);
-
-    if (segment != EXEC_SEG + EXEC_Para_SIZE)
-	error("DPMI: exec: seg=%#x (%#x), size=%#x\n",
-		segment, segment - EXEC_SEG, EXEC_Para_SIZE);
-    if (MSDOS_CLIENT.ems_frame_mapped)
-	error("DPMI: exec: EMS frame should not be mapped here\n");
-}
-
-void msdos_post_exec(struct sigcontext_struct *scp)
-{
-    _eflags = 0x0202 | (0x0dd5 & REG(eflags));
-    _eax = REG(eax);
-    if (!(LWORD(eflags) & CF)) {
-        _ebx = REG(ebx);
-        _edx = REG(edx);
-     }
-
-    if (CURRENT_ENV_SEL)
-	WRITE_ENV_SEL(ConvertSegmentToDescriptor(CURRENT_ENV_SEL));
-}
-
 /*
  * DANG_BEGIN_FUNCTION msdos_post_extender
  *
@@ -1149,6 +1131,11 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    SET_REG(eax, ConvertSegmentToDescriptor(LWORD(eax)));
 	    break;
 #endif	    
+	case 0x4b:		/* EXEC */
+	    if (CURRENT_ENV_SEL)
+		WRITE_ENV_SEL(ConvertSegmentToDescriptor(CURRENT_ENV_SEL));
+	    D_printf("DPMI: Return from DOS exec\n");
+	    break;
 	case 0x51:		/* get PSP */
 	case 0x62:
 	    {/* convert environment pointer to a descriptor*/
