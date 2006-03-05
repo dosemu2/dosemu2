@@ -89,7 +89,6 @@ static hitimer_u ZeroTSCBase = { 0 };
 static hitimer_t C4Base = 0;
 static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
-static hitimer_t StopTSCBase = 0;
 int cpu_time_stop = 0;
 
 /*
@@ -134,6 +133,7 @@ static hitimer_t getC4time(void)
    update the TSC base */
 void update_cputime_TSCBase(void)
 {
+  if (cpu_time_stop) return;
   C4Base = getC4time();
   ZeroTSCBase.td = GETTSC();
 }
@@ -222,9 +222,6 @@ int stop_cputime (int quiet)
   if (!quiet) dbug_printf("STOP TIME\n");
   StopTimeBase = RAWcpuTIME();
   LastTimeRead = StopTimeBase - ZeroTimeBase.td;
-  if (ZeroTSCBase.td) {
-    StopTSCBase = GETTSC();
-  }
   cpu_time_stop = 1;
   return 0;
 }
@@ -234,11 +231,10 @@ int restart_cputime (int quiet)
 {
   if (!cpu_time_stop) return 1;
   if (!quiet) dbug_printf("RESTART TIME\n");
-  ZeroTimeBase.td += RAWcpuTIME() - StopTimeBase;
-  if (ZeroTSCBase.td) {
-    ZeroTSCBase.td += GETTSC() - StopTSCBase;
-  }
   cpu_time_stop = 0;
+  if (ZeroTSCBase.td)
+    update_cputime_TSCBase();
+  ZeroTimeBase.td += RAWcpuTIME() - StopTimeBase;
   return 0;
 }
 
