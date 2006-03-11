@@ -112,14 +112,20 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   w_x_res = x_res = vga.width;
   w_y_res = y_res = vga.height;
 
+  /* scale really small modes to ~320x240:
+     TODO: look at vga registers */
+  if(w_x_res <= 160 && w_x_res > 0)
+    w_x_res = (320 / w_x_res) * w_x_res;
+  if(w_y_res <= 120 && w_y_res > 0)
+    w_y_res = (240 / w_y_res) * w_y_res;
   /* 320x200-style modes */
-  if(vga.width <= 320 && vga.height <= 240) {
+  if(w_x_res <= 320 && w_y_res <= 240) {
     w_x_res *= config.X_mode13fact;
     w_y_res *= config.X_mode13fact;
-  } else if(vga.height <= 240) {
+  } else if(w_y_res <= 240) {
     /* 640x200-style modes */
     w_y_res *= 2;
-  } else if(vga.width <= 320) {
+  } else if(w_x_res <= 320) {
     /* 320x480-style modes */
     w_x_res *= 2;
   }
