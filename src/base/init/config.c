@@ -880,19 +880,6 @@ config_init(int argc, char **argv)
 	case 'o':
 	    config.debugout = strdup(optarg);
 	    break;
-	case '2': case '3': case '4': case '5': case '6':
-#if 1
-	    {
-		int cpu = cpu_override (c-'0');
-		if (cpu > 0) {
-			fprintf(stderr,"CPU set to %d86\n",cpu);
-			vm86s.cpu_type = cpu;
-		}
-		else
-			fprintf(stderr,"error in CPU user override\n");
-	    }
-#endif
-	    break;
 	case 't':
 	    /* terminal mode */
 	    usedoptions['X'] = 0;
@@ -984,7 +971,17 @@ config_init(int argc, char **argv)
 	case 'u':
 	case 'U':
 	case 's':
+	    break;
 	case '2': case '3': case '4': case '5': case '6':
+	    {
+		int cpu = cpu_override (c-'0');
+		if (cpu > 0) {
+			fprintf(stderr,"CPU set to %d86\n",cpu);
+			vm86s.cpu_type = cpu;
+		}
+		else
+			fprintf(stderr,"error in CPU user override\n");
+	    }
 	    break;
 	case 'g': /* obsolete "graphics" option */
 	    break;
