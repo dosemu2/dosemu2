@@ -7,8 +7,23 @@
 #ifndef DOSEMU_PCI_H
 #define DOSEMU_PCI_H
 
-#include <sys/pci.h>
+/* definitions from the Linux kernel's linux/pci.h */
+#define PCI_VENDOR_ID			0x00
+#define PCI_VENDOR_ID_INTEL		0x8086
+#define PCI_VENDOR_ID_COMPAQ		0x0e11
+#define PCI_BASE_ADDRESS_0		0x10
+#define PCI_BASE_ADDRESS_5		0x24
+#define PCI_BASE_ADDRESS_SPACE_IO	0x01
+#define PCI_BASE_ADDRESS_SPACE_MEMORY	0x00
+#define PCI_BASE_ADDRESS_MEM_MASK	(~0x0fUL)
+#define PCI_BASE_ADDRESS_IO_MASK	(~0x03UL)
+#define PCI_ROM_ADDRESS			0x30		
+#define PCI_ROM_ADDRESS_MASK		(~0x7ffUL)
+#define PCI_CLASS_DISPLAY_VGA		0x0300
+#define PCI_CLASS_BRIDGE_HOST		0x0600
+#define PCI_CLASS_DEVICE		0x0a
 
+/* other definitions */
 #define PCIBIOS_PCI_FUNCTION_ID 	0xb1
 #define PCIBIOS_PCI_BIOS_PRESENT 	0xb101
 #define PCIBIOS_FIND_PCI_DEVICE		0xb102
