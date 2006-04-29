@@ -175,38 +175,56 @@ static void construct_acs_table(void)
 {
 	struct char_set *charset;
 	struct char_set_state state;
-	int i, j;
-	char *cp437_acs = NULL;
 	char *smacs = SLtt_tgetstr ("as");
 	char *smpch = SLtt_tgetstr ("S2");
+	t_unicode uni;
 
-	if (smacs && smpch && strcmp(smacs, smpch) == 0)
-		cp437_acs = malloc(128*2);
-	j = 1;
-	charset = lookup_charset(cp437_acs ? "cp437" : "vt100");
-	for (i = 1; i < (cp437_acs ? 256 : 128); i++) {
-		t_unicode uni;
-		unsigned char c = i;
-		init_charset_state(&state, charset);
-		charset_to_unicode(&state, &uni, &c, 1);
-		if ((c < ' ') && ((CTRL_ALWAYS >> c) & 1))
-			uni = i;
-		if (uni >= 256) {
-			if (cp437_acs) {
-				cp437_acs[(j-1)*2] = j;
-				cp437_acs[(j-1)*2+1] = i;
-				acs_to_uni[j] = uni;
-			} else {
-				acs_to_uni[i] = uni;
+	if (smacs && smpch && strcmp(smacs, smpch) == 0) {
+		int i, j = 1;
+		char *cp437_acs = malloc(128*2);
+		charset = lookup_charset("cp437");
+		for (i = 1; i < 256; i++) {
+			unsigned char c = i;
+			if ((c >= ' ') || !((CTRL_ALWAYS >> c) & 1)) {
+				init_charset_state(&state, charset);
+				charset_to_unicode(&state, &uni, &c, 1);
+				if (uni >= 256) {
+					cp437_acs[(j-1)*2] = j;
+					cp437_acs[(j-1)*2+1] = c;
+					acs_to_uni[j] = uni;
+					j++;
+				}
+				cleanup_charset_state(&state);
 			}
-			j++;
 		}
-		cleanup_charset_state(&state);
-	}
-	if (cp437_acs) {
 		cp437_acs[(j-1)*2] = '\0';
-		SLtt_Graphics_Char_Pairs = cp437_acs;
+		SLtt_Graphics_Char_Pairs = strdup(cp437_acs);
+		free(cp437_acs);
+	} else if (SLtt_Graphics_Char_Pairs) {
+		char *p;
+		charset = lookup_charset("vt100");
+		for (p = SLtt_Graphics_Char_Pairs; *p; p += 2) {
+			init_charset_state(&state, charset);
+			charset_to_unicode(&state, &uni, p, 1);
+			if (uni >= 256) {
+				acs_to_uni[(unsigned char)p[0]] = uni;
+			}
+			cleanup_charset_state(&state);
+		}
 	}
+}
+
+/* check if c is an approximation of uni */
+static int uni_approx(struct char_set *charset, t_unicode uni, unsigned char c)
+{
+        struct char_set_state state;
+        t_unicode u;
+        size_t result;
+
+        init_charset_state(&state, charset);
+        result = charset_to_unicode(&state, &u, &c, 1);
+        cleanup_charset_state(&state);
+        return (result == 1 && u != uni);
 }
 
 static void set_char_set (void)
@@ -242,15 +260,18 @@ static void set_char_set (void)
 		if (result < 1 || result >= 4)
 			result = 1;
 		buff[3] = result;
-		if (result == 1 && uni >= 0x100) {
-			int j;
-			for (j = 1; j < 128; j++)
-				if (acs_to_uni[j] == uni)
-					buff[1] = j;
+		if (result == 1 && SLtt_Graphics_Char_Pairs && uni >= 0x100 &&
+		    uni_approx(term_charset, uni, buff[0])) {
+			char *p;
+			for (p = SLtt_Graphics_Char_Pairs; *p; p += 2)
+				if (acs_to_uni[(unsigned char)p[0]] == uni) {
+					buff[1] = p[0];
+					break;
+				}
 		}
 		memcpy(The_Charset + i, buff, 4);
-		v_printf("mapping: %x -> %04x -> %.*s (len=%d,acs=%d)\n", i, uni,
-			 result, buff, result, result == 1 && buff[1]);
+		v_printf("mapping: %x -> %04x -> %.*s (len=%d,acs=%x)\n", i, uni,
+			 result, buff, result, result == 1 && buff[1] ? buff[1] : 0);
 
 		/* If we have any non control charcters in 0x80 - 0x9f
 		 * set up  the slang code up so we can send them. 
@@ -621,7 +642,6 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
 {
    unsigned char buf[len + 1];
    unsigned char *bufp, *text_end;
-   unsigned char ch, ach, acs;
 
    text_end = text + len;
 
@@ -642,23 +662,22 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
    }
 #endif
 
-   acs = 0;
    while (text < text_end) {
       for (bufp = buf; text < text_end; bufp++, text++) {
-         ch = The_Charset[*text][0];
-	 ach = The_Charset[*text][1];
-	 if (acs) {
-	    if (ach == '\0') break;
-	    ch = ach;
-	 } else {
-	    if (ach != '\0') break;
-	 }
+	 if (The_Charset[*text][1] != '\0') break;
+         *bufp = The_Charset[*text][0];
+      }
+      SLsmg_write_nchars(buf, bufp - buf);
+      if (text >= text_end) break;
+      /* print ACS characters */
+      for (bufp = buf; text < text_end; bufp++, text++) {
+	 unsigned char ch = The_Charset[*text][1];
+	 if (ch == '\0') break;
          *bufp = ch;
       }
-      if (acs) SLsmg_set_char_set(1);
+      SLsmg_set_char_set(1);
       SLsmg_write_nchars(buf, bufp - buf);
-      if (acs) SLsmg_set_char_set(0);
-      acs = !acs;
+      SLsmg_set_char_set(0);
    }
 }
 
