@@ -372,11 +372,10 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
  */
 static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
-  static struct pmaddr_s dpmi_switch_jmp;
   register int ret;
 
-  dpmi_switch_jmp.offset = dpmi_context->eip;
-  dpmi_switch_jmp.selector = dpmi_context->cs;
+  WRITE_DWORD(DPMI_SWITCH_ADD, dpmi_context->eip);
+  WRITE_WORD(DPMI_SWITCH_ADD+4, dpmi_context->cs);
   dpmi_context->esp_at_signal = dpmi_context->esp;
 
   asm volatile (
@@ -412,7 +411,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
     : "=&a"(ret),
       "=m"(*_emu_stack_frame.fpstate)
     : "d"(dpmi_context),
-      "m"(dpmi_switch_jmp),
+      "m"(*(struct pmaddr_s *)DPMI_SWITCH_ADD),
       "m"(*dpmi_context->fpstate),
       "i"(&_emu_stack_frame.fpstate)
     : "memory"

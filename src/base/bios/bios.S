@@ -406,6 +406,13 @@ CISH(LFN_string):
 	    .byte 0
 	.ENDR
 
+/* ======================= Addr = F800:5100 (FD100) */
+	/* direct DPMI switch pointer. It's put here because this
+	   address can be reached via %cs when using an exec-shield
+	   kernel, unlike addresses in the normal data segment */
+.org	((DPMI_SEG - BIOSSEG) << 4) + DPMI_SWITCH_OFF
+	.long	0,0
+        
 /******************************************************************
  * BIOS CODE BLOCK						  *
  ******************************************************************/
