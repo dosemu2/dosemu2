@@ -451,6 +451,7 @@ static void X_redraw_text_screen(void);
 static int X_update_screen(void);
 static void set_gc_attr(Bit8u);
 static void X_draw_string(int, int, unsigned char *, int, Bit8u);
+static void X_draw_string16(int, int, unsigned char *, int, Bit8u);
 static void X_draw_line(int x, int y, int len);
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr);
 
@@ -1141,7 +1142,11 @@ static int X_change_config(unsigned item, void *buf)
           if(font != NULL) XFreeFont(display, font);
           font = xfont;
 	  use_bitmap_font = FALSE;
-	  Text_X.Draw_string = X_draw_string;
+	  if (font->min_byte1 || font->max_byte1) {
+	    Text_X.Draw_string = X_draw_string16;
+	    X_printf("X: Assuming unicode font\n");
+	  } else
+	    Text_X.Draw_string = X_draw_string;
           font_width  = font->max_bounds.width;
           font_height = font->max_bounds.ascent + font->max_bounds.descent;
           font_shift  = font->max_bounds.ascent;
@@ -2507,6 +2512,32 @@ static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr
     );
 }
 
+static void X_draw_string16(int x, int y, unsigned char *text, int len, Bit8u attr)
+{
+  XChar2b buff[len];
+  t_unicode uni;
+  struct char_set_state state;
+  size_t i, d;
+
+  set_gc_attr(attr);
+  init_charset_state(&state, trconfig.video_mem_charset);
+  d = font->max_char_or_byte2 - font->min_char_or_byte2 + 1;
+  for (i = 0; i < len; i++) {
+    if (charset_to_unicode(&state, &uni, &text[i], 1) != 1)
+      break;
+    buff[i].byte1 = uni / d + font->min_byte1;
+    buff[i].byte2 = uni % d + font->min_char_or_byte2;
+  }
+  cleanup_charset_state(&state);
+  XDrawImageString16(
+    display, mainwindow, gc,
+    shift_x + font_width * x,
+    shift_y + font_height * y + font_shift,
+    buff,
+    i
+    );
+}
+
 /*
  * Draw a text string for bitmap fonts.
  * The attribute is the VGA color/mono text attribute.
@@ -2563,7 +2594,11 @@ void load_text_font()
       vga_font = font->fid;
       X_printf("X: Using font \"%s\", size = %d x %d\n", p, font_width, font_height);
       use_bitmap_font = FALSE;
-      Text_X.Draw_string = X_draw_string;
+      if (font->min_byte1 || font->max_byte1) {
+	Text_X.Draw_string = X_draw_string16;
+	X_printf("X: Assuming unicode font\n");
+      } else
+	Text_X.Draw_string = X_draw_string;
       return;
     }
   }
