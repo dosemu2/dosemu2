@@ -370,24 +370,30 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
  * 21	unsigned long cr2;		84 -04  dirty
  * --------------------------------------------------------------
  */
+struct pmaddr_s *dpmi_switch_jmp;
+void (*direct_dpmi_transfer_p)(void);
 static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
   register int ret;
 
-  WRITE_DWORD(DPMI_SWITCH_ADD, dpmi_context->eip);
-  WRITE_WORD(DPMI_SWITCH_ADD+4, dpmi_context->cs);
+  dpmi_switch_jmp->offset = dpmi_context->eip;
+  dpmi_switch_jmp->selector = dpmi_context->cs;
   dpmi_context->esp_at_signal = dpmi_context->esp;
 
   asm volatile (
 "      fsave  %1\n"
 "      frstor %4\n"
 "      movl   %%esp,%%eax\n"
-"      movl   %5,%%esp\n"
+"      leal   %5,%%esp\n"
 "      push   %%ss\n"
 "      pushl  %%esp\n"			/* dummy, esp_at_signal */
 "      pushfl\n"
 "      push   %%cs\n"
+#ifdef __PIC__
+"      pushl  dpmi_switch_return@GOT(%%ebx)\n"
+#else
 "      pushl  $dpmi_switch_return\n"
+#endif
 "      pushl  $0\n"			/* dummy, err */
 "      pushl  $0\n"			/* dummy, trapno */
 "      pusha\n"
@@ -396,28 +402,37 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      push   %%es\n"
 "      push   %%fs\n"
 "      push   %%gs\n"
-    /* Now put ESP to new context and pop it up */
+    /* Now put ESP to new context and pop it up in direct_dpmi_transfer */
 "      movl   %2,%%esp\n"
-"      pop    %%gs\n"
-"      pop    %%fs\n"
-"      pop    %%es\n"
-"      pop    %%ds\n"
-"      popa\n"
-"      addl $4*4,%%esp\n"
-"      popfl\n"
-"      lss    (%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-"      ljmp   *%%cs:%3\n"
+"      jmp    *%3\n"
 "   dpmi_switch_return:\n"
     : "=&a"(ret),
       "=m"(*_emu_stack_frame.fpstate)
     : "d"(dpmi_context),
-      "m"(*(struct pmaddr_s *)DPMI_SWITCH_ADD),
+      "m"(direct_dpmi_transfer_p),
       "m"(*dpmi_context->fpstate),
-      "i"(&_emu_stack_frame.fpstate)
+      "m"(_emu_stack_frame.fpstate)
     : "memory"
   );
   return ret;
 }
+
+/* This assembly block is copied to a mmap'ed area and the ljmp adjusted */
+asm (
+"   __direct_dpmi_transfer:\n"
+"      pop    %gs\n"
+"      pop    %fs\n"
+"      pop    %es\n"
+"      pop    %ds\n"
+"      popa\n"
+"      addl $4*4,%esp\n"
+"      popfl\n"
+"      lss    (%esp),%esp\n"		/* this is: pop ss; pop esp */
+"      ljmp   *%cs:0\n"
+"   __dpmi_ljmp_pointer:");
+void direct_dpmi_transfer(void) asm ("__direct_dpmi_transfer");
+void dpmi_ljmp_pointer(void) asm ("__dpmi_ljmp_pointer");
+
 #endif
 
 /* ======================================================================== */
@@ -2802,6 +2817,38 @@ void dpmi_setup(void)
 {
     int i, type;
     unsigned long base_addr, limit, *lp;
+
+#if DIRECT_DPMI_CONTEXT_SWITCH
+    /* Allocate special buffer that is used for direct jumping to
+       DPMI code. In the future may also be used for the various hlts
+       and lrets that are presently in the BIOS (so dpmi_sel16/32 can
+       point to it). The first half is code, the next half data.
+       A modified ljmp pointer is used because it needs to be a constant
+       value and there is no way to obtain that at compile-time in general
+       circumstances including -fpie/-fpic (once dpmi_sel32 points to it
+       one can just get cs equal to dpmi_sel32 and do "ljmp *%cs:PAGE_SIZE"
+       though).
+       The data-part is marked RWX (for now) to make sure that exec-shield
+       doesn't put it beyond the cs limit.
+    */
+    unsigned char *dpmi_sel_buffer;
+    int dpmi_ljmp_off;
+
+    dpmi_sel_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
+      2*PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
+    if (dpmi_sel_buffer == MAP_FAILED) {
+      error("DPMI: can't allocate memory for dpmi_sel_buffer\n");
+      goto err;
+    }
+    dpmi_ljmp_off = (unsigned char *)dpmi_ljmp_pointer-
+      (unsigned char *)direct_dpmi_transfer;
+    memcpy(dpmi_sel_buffer, direct_dpmi_transfer, dpmi_ljmp_off);
+    dpmi_switch_jmp = (struct pmaddr_s *)(dpmi_sel_buffer + PAGE_SIZE);
+    memcpy(dpmi_sel_buffer + dpmi_ljmp_off - sizeof(&dpmi_switch_jmp),
+	   &dpmi_switch_jmp, sizeof(&dpmi_switch_jmp));
+    mprotect(dpmi_sel_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
+    direct_dpmi_transfer_p = (void(*)(void))dpmi_sel_buffer;
+#endif
 
     ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE, 0);
