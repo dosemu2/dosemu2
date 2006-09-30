@@ -107,6 +107,8 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
+static int Return_to_dosemu_code_requested = 0;
+static sigjmp_buf emu_env;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
@@ -327,47 +329,29 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
 /* --------------------------------------------------------------
- *-15	context->gs, __gsh	copied, then popped
- *-14	context->fs, __fsh
- *-13	context->es, __esh
- *-12	context->ds, __dsh
- *-11	context->edi
- *-10	context->esi
- *-09	context->ebp
- *-08	context->esp
- *-07	context->ebx
- *-06	context->edx
- *-05	context->ecx
- *-04	context->eax
- *-03	context->eflags	(cs,eip are written into dpmi_switch_jmp)
- *-02	context->esp
- *-01	context->ss
- * --------------------------------------------------------------
- * 00	unsigned short gs, __gsh;	00 -88 -> emu_stack_frame
- * 01	unsigned short fs, __fsh;	04 -84
- * 02	unsigned short es, __esh;	08 -80
- * 03	unsigned short ds, __dsh;	12 -76
- * 04	unsigned long edi;		16 -72 ---------\
- * 05	unsigned long esi;		20 -68		|
- * 06	unsigned long ebp;		24 -64		|
- *    esp contains &edi when pushed; we adjust it to point at eip below
- * 07	unsigned long esp;		28 -60		|
- * 08	unsigned long ebx;		32 -56		|
- * 09	unsigned long edx;		36 -52		|
- * 10	unsigned long ecx;		40 -48		|
- * 11	unsigned long eax;		44 -44		|(+40)
- *							|
- * 12	unsigned long trapno;		48 -40  zeroed  |
- * 13	unsigned long err;		52 -36  zeroed  |
- * 14	unsigned long eip;		56 -32  dpmi_switch_return
- * 15	unsigned short cs, __csh;	60 -28
- * 16	unsigned long eflags;		64 -24
+ * 00	unsigned short gs, __gsh;	00 -> dpmi_context
+ * 01	unsigned short fs, __fsh;	04
+ * 02	unsigned short es, __esh;	08
+ * 03	unsigned short ds, __dsh;	12
+ * 04	unsigned long edi;		16 popa sequence
+ * 05	unsigned long esi;		20
+ * 06	unsigned long ebp;		24
+ * 07	unsigned long esp;		28
+ * 08	unsigned long ebx;		32
+ * 09	unsigned long edx;		36
+ * 10	unsigned long ecx;		40
+ * 11	unsigned long eax;		44
+ * 12	unsigned long trapno;		48 dirty -- ignored
+ * 13	unsigned long err;		52 dirty -- ignored
+ * 14	unsigned long eip;		56 written into dpmi_switch_jmp
+ * 15	unsigned short cs, __csh;	60 cs written into dpmi_switch_jmp
+ * 16	unsigned long eflags;		64
  *
- * 17	unsigned long esp_at_signal;	68 -20  ==esp
- * 18	unsigned short ss, __ssh;	72 -16
- * 19	struct _fpstate * fpstate;	76 -12  dirty
- * 20	unsigned long oldmask;		80 -08  dirty
- * 21	unsigned long cr2;		84 -04  dirty
+ * 17	unsigned long esp_at_signal;	68 set to esp (for lss)
+ * 18	unsigned short ss, __ssh;	72
+ * 19	struct _fpstate * fpstate;	76 used by frstor
+ * 20	unsigned long oldmask;		80 dirty -- ignored
+ * 21	unsigned long cr2;		84 dirty -- ignored
  * --------------------------------------------------------------
  */
 struct pmaddr_s *dpmi_switch_jmp;
@@ -383,35 +367,14 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
   asm volatile (
 "      fsave  %1\n"
 "      frstor %4\n"
-"      movl   %%esp,%%eax\n"
-"      leal   %5,%%esp\n"
-"      push   %%ss\n"
-"      pushl  %%esp\n"			/* dummy, esp_at_signal */
-"      pushfl\n"
-"      push   %%cs\n"
-#ifdef __PIC__
-"      pushl  dpmi_switch_return@GOT(%%ebx)\n"
-#else
-"      pushl  $dpmi_switch_return\n"
-#endif
-"      pushl  $0\n"			/* dummy, err */
-"      pushl  $0\n"			/* dummy, trapno */
-"      pusha\n"
-"      movl   %%eax,12(%%esp)\n"	/* adjust esp */
-"      push   %%ds\n"
-"      push   %%es\n"
-"      push   %%fs\n"
-"      push   %%gs\n"
     /* Now put ESP to new context and pop it up in direct_dpmi_transfer */
 "      movl   %2,%%esp\n"
 "      jmp    *%3\n"
-"   dpmi_switch_return:\n"
     : "=&a"(ret),
       "=m"(*_emu_stack_frame.fpstate)
     : "d"(dpmi_context),
       "m"(direct_dpmi_transfer_p),
-      "m"(*dpmi_context->fpstate),
-      "m"(_emu_stack_frame.fpstate)
+      "m"(*dpmi_context->fpstate)
     : "memory"
   );
   return ret;
@@ -475,41 +438,38 @@ static int dpmi_control(void)
 /* STANDARD SWITCH example
  *
  * run_dpmi() -> dpmi_control (cs==UCODESEL)
- *			xor %eax,%eax
- *			hlt
- *		 -> dpmi_fault: save scp to emu_stack_frame
- *	[C>S>E]			move client frame to scp
- *				return -> jump to DPMI code
+ *			sigsetjmp returns with 0
+ *			raise(SIGSEGV)
+ *		 -> dpmi_fault: move client frame to scp
+ *	[C>S>E]			return -> jump to DPMI code
  *		========== into client code =================
  *		 -> dpmi_fault (cs==dpmi_sel())
  *				perform fault action (e.g. I/O) on scp
  *		========== into client code =================
  *		 -> dpmi_fault with return to dosemu code:
  *				save scp to client frame
- *	[E>S>C]			move emu_stack_frame to scp
- *				return
+ *	[E>S>C]			return with siglongjmp
  *	         dpmi_control <-
- *			return %eax
+ *			return from sigsetjmp with nonzero
  * run_dpmi() <-
  *
  * DIRECT SWITCH example
  *
- * run_dpmi() -> dpmi_control (cs==UCODESEL) -> direct_dpmi_switch
+ * run_dpmi() -> dpmi_control (cs==UCODESEL) -> sigsetjmp -> direct_dpmi_switch
  *				*** there's no scp ***
- *				create new emu_stack_frame ON STACK
- *				push client frame
- *				pop and jump to DPMI code (client cs:eip)
+ *				jump to intermediate 32-bit code
+ *				pop client frame and jump to DPMI code
+ *				(client cs:eip)
  *		========== into client code =================
  *		 -> dpmi_fault (cs==dpmi_sel())
  *				perform fault action (e.g. I/O) on scp
  *		========== into client code =================
  *		 -> dpmi_fault with return to dosemu code:
  *				save scp to client frame
- *	[E>S>C]			move emu_stack_frame to scp
- *				return
+ *	[E>S>C]			return with siglongjmp
  *			dpmi_switch_return <-
  *	         dpmi_control <-
- *			return %eax
+ *			return from sigsetjmp with nonzero
  * run_dpmi() <-
  *
  */
@@ -517,6 +477,11 @@ static int dpmi_control(void)
   register int ret;
 #if DIRECT_DPMI_CONTEXT_SWITCH
   struct sigcontext_struct *scp=&DPMI_CLIENT.stack_frame;
+#endif
+  ret = sigsetjmp(emu_env, 1);
+  if (ret != 0)
+    return ret == -1 ? 0 : ret;
+#if DIRECT_DPMI_CONTEXT_SWITCH
 #ifdef TRACE_DPMI
   if (debug_level('t')) _eflags |= TF;
 #endif
@@ -1176,6 +1141,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
     copy_context(dpmi_ctx, scp, 1);
   copy_context(scp, &_emu_stack_frame, 0);
   _eax = retcode;
+  Return_to_dosemu_code_requested = 1;
 #ifdef X86_EMULATOR
  }
  else {
@@ -1183,6 +1149,14 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
  }
 #endif
  D_printf("DPMI: return to dosemu code, %i\n", retcode);
+}
+
+void dpmi_check_longjmp_return(int retcode)
+{
+  if (Return_to_dosemu_code_requested) {
+    Return_to_dosemu_code_requested = 0;
+    siglongjmp(emu_env, retcode == 0 ? -1 : retcode);
+  }
 }
 
 void indirect_dpmi_switch(struct sigcontext_struct *scp)

@@ -388,6 +388,7 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
   fault_cnt--;
+  dpmi_check_longjmp_return(context.eax);
 }
 #endif /* __linux__ */
 
