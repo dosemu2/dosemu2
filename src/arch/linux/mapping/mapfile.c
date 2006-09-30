@@ -44,6 +44,11 @@ static void *alias_map(void *target, int mapsize, int protect, void *source)
   }
   if (!fixed) target = 0;
   addr =  mmap(target, mapsize, protect, MAP_SHARED | fixed, tmpfile_fd, offs);
+  if (addr == MAP_FAILED) {
+    addr =  mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,
+		 tmpfile_fd, offs);
+    mprotect(addr, mapsize, protect);
+  }
 #if 1
   Q_printf("MAPPING: alias_map, fileoffs %lx to %p size %x, result %p\n",
 			offs, target, mapsize, addr);
@@ -80,17 +85,26 @@ static int open_mapping_f(int cap)
 
     ftruncate(tmpfile_fd, 0);
     if (ftruncate(tmpfile_fd, mapsize) == -1) {
-      error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));
+      if (!cap)
+	error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));
       discardtempfile();
       if (!cap)return 0;
       leavedos(2);
     }
-    mpool = mmap(0, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC,
+    /* /dev/shm may be mounted noexec, and then mounting PROT_EXEC fails.
+       However mprotect may work around this (maybe not in future kernels)
+    */
+    mpool = mmap(0, mapsize, PROT_READ|PROT_WRITE,
     		MAP_SHARED, tmpfile_fd, 0);
-    if (mpool == MAP_FAILED) {
-      error("MAPPING: cannot map temp file pool, %s\n",strerror(errno));
+    if (mpool == MAP_FAILED ||
+	mprotect(mpool, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
+      char *err = strerror(errno);
+      char s[] = "MAPPING: cannot size temp file pool, %s\n";
       discardtempfile();
-      if (!cap)return 0;
+      if (!cap) {
+	Q_printf(s,err);
+	return 0;
+      }
       leavedos(2);
     }
     Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes at %p-%p\n",
@@ -179,7 +193,8 @@ static int open_mapping_pshm(int cap)
     }
     shm_unlink(name);
     free(name);
-    open_mapping_f(cap);
+    if (!open_mapping_f(cap))
+      return 0;
   }
   return 1;
 }
