@@ -7,7 +7,7 @@ AC_PREREQ(2.53)
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
 if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  exec $srcdir/default-configure "$@"
+  exec $srcdir/default-configure "`eval echo $ac_configure_args`"
 fi
 
 AC_CONFIG_HEADER(src/include/config.h)
