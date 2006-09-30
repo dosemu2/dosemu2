@@ -294,13 +294,13 @@ no			RETURN(L_NO);
 "ne"			RETURN(STR_NEQ_OP);
 
 	/* numbers */
-{DIGIT}+		MAY_BE {yylval->i_value = atoi(yytext);
+{DIGIT}+		MAY_BE {yylval->i_value = strtoul(yytext, 0, 10);
 				return(INTEGER); }
 
-0x{HEXDIGIT}+		MAY_BE {yylval->i_value = strtol(yytext, 0, 0);
+0x{HEXDIGIT}+		MAY_BE {yylval->i_value = strtoul(yytext, 0, 0);
 				return(INTEGER); }
 
-0b[01]+			MAY_BE {yylval->i_value = strtol(yytext+2, 0, 2);
+0b[01]+			MAY_BE {yylval->i_value = strtoul(yytext+2, 0, 2);
 				return(INTEGER); }
 
 {DIGIT}+\.{DIGIT}*([eE]\-?{DIGIT}+)? MAY_BE {yylval->r_value = atof(yytext);

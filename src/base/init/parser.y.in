@@ -799,7 +799,7 @@ typed_expr:	  int_expr {$$.type = TYPE_INTEGER; $$.value.i=$1;}
 		| variable_content {
 			char *s;
 			$$.type = TYPE_INTEGER;
-			$$.value.i = strtol($1,&s,0);
+			$$.value.i = strtoul($1,&s,0);
 			switch (*s) {
 				case '.':  case 'e':  case 'E':
 				/* we assume a real number */
