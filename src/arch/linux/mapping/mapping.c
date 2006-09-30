@@ -219,7 +219,8 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
 
   if (cap & MAPPING_SCRATCH) {
-    if (!fixed) target = 0;
+    fixed = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
+    if (!fixed && target == (void *)-1) target = NULL;
     addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
   } else {

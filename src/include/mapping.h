@@ -49,6 +49,7 @@
 #define MAPPING_MAYSHARE	0x200000
 #define MAPPING_SHM		0x400000
 #define MAPPING_COPYBACK	0x800000
+#define MAPPING_FIXED	       0x1000000
 
 typedef int open_mapping_type(int cap);
 int open_mapping (int cap);
