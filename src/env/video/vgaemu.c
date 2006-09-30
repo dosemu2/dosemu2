@@ -1513,7 +1513,8 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   vga_msg("vga_emu_init: scratch_page at 0x%08x\n", vga.mem.scratch_page << 12);
 
   if(config.X_lfb) {
-    lfb_base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size, 0);
+    lfb_base = mmap_mapping(MAPPING_VGAEMU | MAPPING_SCRATCH, (void *)-1,
+			    vga.mem.size, PROT_READ|PROT_WRITE|PROT_EXEC, 0);
     if(!lfb_base) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     }

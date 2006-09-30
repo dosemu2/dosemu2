@@ -74,7 +74,7 @@ static int open_mapping_f(int cap)
     /* first estimate the needed size of the mapfile */
     mapsize  = HMASIZE >> 10;	/* HMA */
  				/* VGAEMU */
-    mapsize += 2*(config.vgaemu_memsize ? config.vgaemu_memsize : 1024);
+    mapsize += config.vgaemu_memsize ? config.vgaemu_memsize : 1024;
     mapsize += config.ems_size;	/* EMS */
     mapsize += LOWMEM_SIZE >> 10; /* Low Mem */
     estsize = mapsize;
@@ -107,6 +107,8 @@ static int open_mapping_f(int cap)
       }
       leavedos(2);
     }
+    /* the memory pool itself can just be rw though */
+    mprotect(mpool, mapsize, PROT_READ|PROT_WRITE);
     Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes at %p-%p\n",
 		estsize, mapsize/1024, mpool, mpool+mapsize-1);
     sminit(&pgmpool, mpool, mapsize);
