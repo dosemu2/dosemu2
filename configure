@@ -1768,7 +1768,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
 if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  exec $srcdir/default-configure "`eval echo $ac_configure_args`"
+  eval "set -- $ac_configure_args"
+  exec $srcdir/default-configure "$@"
 fi
 
 ac_config_headers="$ac_config_headers src/include/config.h"
