@@ -20,6 +20,7 @@
 
 #include "emu.h"
 #include "dpmi.h"
+#include "dpmisel.h"
 #include "bios.h"
 #include "timers.h"
 #include "vxd.h"
@@ -42,69 +43,69 @@ void get_VXD_entry( struct sigcontext *scp )
 	case 0x01:
 	    D_printf("DPMI: VMM VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VMM);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_VMM);
 	    break;
 	case 0x05:
 	    D_printf("DPMI: VTD VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VTD);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_VTD);
 	    break;
 	case 0x09:
 	    D_printf("DPMI: Reboot VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_Reboot);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_Reboot);
 	    break;
 	case 0x0a:
 	    D_printf("DPMI: VDD VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VDD);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_VDD);
 	    break;
 	case 0x0c:
 	    D_printf("DPMI: VMD VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VMD);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_VMD);
 	    break;
 	case 0x0e:
 	    D_printf("DPMI: VCD VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VCD);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_VCD);
 	    break;
 	case 0x17:
 	    D_printf("DPMI: SHELL VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_SHELL);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_SHELL);
 	    break;
 	case 0x21:
 	    D_printf("DPMI: PageFile VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_PageFile);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_PageFile);
 	    break;
 	case 0x26:
 	    D_printf("DPMI: APM VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_APM);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_APM);
 	    break;
 #if 0
 	case 0x27:
 	    D_printf("DPMI: VXDLDR VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VXDLDR);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_VXDLDR);
 	    break;
 #endif
 	case 0x33:
 	    D_printf("DPMI: CONFIGMG VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_CONFIGMG);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_CONFIGMG);
 	    break;
 	case 0x37:
 	    D_printf("DPMI: ENABLE VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_ENABLE);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_ENABLE);
 	    break;
 	case 0x442:
 	    D_printf("DPMI: VTDAPI VxD entry point requested\n");
 	    _es = dpmi_sel();
-	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VTDAPI);
+	    _edi = DPMI_SEL_OFF(DPMI_VXD_VTDAPI);
 	    break;
 	default:
 	    D_printf("DPMI: ERROR: Unsupported VxD\n");
@@ -1821,55 +1822,55 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
 void vxd_call(struct sigcontext *scp)
 {
-    if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VMM)) {
+    if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VMM)) {
       D_printf("DPMI: VMM VxD called, ax=%#x\n", _LWORD(eax));
       VXD_VMM(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_PageFile)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_PageFile)) {
       D_printf("DPMI: PageFile VxD called, ax=%#x\n", _LWORD(eax));
       VXD_PageFile(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_Reboot)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_Reboot)) {
       D_printf("DPMI: Reboot VxD called, ax=%#x\n", _LWORD(eax));
       VXD_Reboot(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VDD)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VDD)) {
       D_printf("DPMI: VDD VxD called, ax=%#x\n", _LWORD(eax));
       VXD_VDD(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VMD)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VMD)) {
       D_printf("DPMI: VMD VxD called, ax=%#x\n", _LWORD(eax));
       VXD_VMD(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VXDLDR)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VXDLDR)) {
       D_printf("DPMI: VXDLDR VxD called, ax=%#x\n", _LWORD(eax));
       VXD_VXDLoader(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_SHELL)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_SHELL)) {
       D_printf("DPMI: SHELL VxD called, ax=%#x\n", _LWORD(eax));
       VXD_Shell(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VCD)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VCD)) {
       D_printf("DPMI: VCD VxD called, ax=%#x\n", _LWORD(eax));
       VXD_Comm(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VTD)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VTD)) {
       D_printf("DPMI: VTD VxD called, ax=%#x\n", _LWORD(eax));
       VXD_Timer(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_CONFIGMG)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_CONFIGMG)) {
       D_printf("DPMI: CONFIGMG VxD called, ax=%#x\n", _LWORD(eax));
       VXD_ConfigMG(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_ENABLE)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_ENABLE)) {
       D_printf("DPMI: ENABLE VxD called, ax=%#x\n", _LWORD(eax));
       VXD_Enable(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_APM)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_APM)) {
       D_printf("DPMI: APM VxD called, ax=%#x\n", _LWORD(eax));
       VXD_APM(scp);
 
-    } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VTDAPI)) {
+    } else if (_eip==1+DPMI_SEL_OFF(DPMI_VXD_VTDAPI)) {
       D_printf("DPMI: VTDAPI VxD called, ax=%#x\n", _LWORD(eax));
       VXD_TimerAPI(scp);
     }

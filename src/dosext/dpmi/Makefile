@@ -7,7 +7,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = dpmi.c memory.c msdos.c vxd.c emu-ldt.c
+CFILES = dpmi.c memory.c msdos.c vxd.c emu-ldt.c dpmisel.o
 
 all:  lib
 

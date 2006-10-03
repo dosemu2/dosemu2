@@ -28,6 +28,7 @@
 #include "bios.h"
 #include "emm.h"
 #include "dpmi.h"
+#include "dpmisel.h"
 #include "msdos.h"
 #include "vgaemu.h"
 #include "utilities.h"
@@ -1011,7 +1012,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    case 0x4310:
                 MSDOS_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
                 SET_REG(es, dpmi_sel());
-                SET_REG(ebx, DPMI_OFF + HLT_OFF(MSDOS_XMS_call));
+                SET_REG(ebx, DPMI_SEL_OFF(MSDOS_XMS_call));
 		break;
 	}
 	break;
@@ -1321,11 +1322,11 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
 	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
 	ssp -= 2, *((unsigned long *) ssp) =
-	     DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	     DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_esp -= 8;
     } else {
 	*--ssp = dpmi_sel(); 
-	*--ssp = DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_LWORD(esp) -= 4;
     }
 
@@ -1359,7 +1360,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
 	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
 	ssp -= 2, *((unsigned long *) ssp) =
-	     DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	     DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_esp -= 24;
     } else {
 	*--ssp = *--rm_ssp;
@@ -1371,7 +1372,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
 	*--ssp = *--rm_ssp;
 	D_printf("0x%x\n", *ssp);
 	*--ssp = dpmi_sel(); 
-	*--ssp = DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_LWORD(esp) -= 12;
     }
   }
@@ -1385,7 +1386,7 @@ void msdos_post_rm(struct sigcontext_struct *scp)
 
 int msdos_pre_pm(struct sigcontext_struct *scp)
 {
-  if (_eip==DPMI_OFF+1+HLT_OFF(MSDOS_XMS_call)) {
+  if (_eip==1+DPMI_SEL_OFF(MSDOS_XMS_call)) {
     D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 	MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
     pm_to_rm_regs(scp, ~0);

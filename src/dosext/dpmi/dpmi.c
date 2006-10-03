@@ -53,6 +53,7 @@
 #endif
 
 #include "dpmi.h"
+#include "dpmisel.h"
 #include "msdos.h"
 #include "vxd.h"
 #include "bios.h"
@@ -350,12 +351,12 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
  * 17	unsigned long esp_at_signal;	68 set to esp (for lss)
  * 18	unsigned short ss, __ssh;	72
  * 19	struct _fpstate * fpstate;	76 used by frstor
- * 20	unsigned long oldmask;		80 dirty -- ignored
+ * 20	unsigned long oldmask;		80 dirty, used for intermediate jmp
  * 21	unsigned long cr2;		84 dirty -- ignored
  * --------------------------------------------------------------
  */
-struct pmaddr_s *dpmi_switch_jmp;
-void (*direct_dpmi_transfer_p)(void);
+static struct pmaddr_s *dpmi_switch_jmp;
+static void (*direct_dpmi_transfer_p)(void);
 static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
   register int ret;
@@ -363,38 +364,29 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
   dpmi_switch_jmp->offset = dpmi_context->eip;
   dpmi_switch_jmp->selector = dpmi_context->cs;
   dpmi_context->esp_at_signal = dpmi_context->esp;
+  dpmi_context->oldmask = (unsigned long)direct_dpmi_transfer_p;
 
   asm volatile (
 "      fsave  %1\n"
-"      frstor %4\n"
-    /* Now put ESP to new context and pop it up in direct_dpmi_transfer */
+"      frstor %3\n"
+    /* Now put ESP to new context and pop it up */
 "      movl   %2,%%esp\n"
-"      jmp    *%3\n"
+"      pop    %%gs\n"
+"      pop    %%fs\n"
+"      pop    %%es\n"
+"      pop    %%ds\n"
+"      popa\n"
+"      addl $4*4,%%esp\n"
+"      popfl\n"
+"      jmp    *12(%%esp)\n"
     : "=&a"(ret),
       "=m"(*_emu_stack_frame.fpstate)
     : "d"(dpmi_context),
-      "m"(direct_dpmi_transfer_p),
       "m"(*dpmi_context->fpstate)
     : "memory"
   );
   return ret;
 }
-
-/* This assembly block is copied to a mmap'ed area and the ljmp adjusted */
-asm (
-"   __direct_dpmi_transfer:\n"
-"      pop    %gs\n"
-"      pop    %fs\n"
-"      pop    %es\n"
-"      pop    %ds\n"
-"      popa\n"
-"      addl $4*4,%esp\n"
-"      popfl\n"
-"      lss    (%esp),%esp\n"		/* this is: pop ss; pop esp */
-"      ljmp   *%cs:0\n"
-"   __dpmi_ljmp_pointer:");
-void direct_dpmi_transfer(void) asm ("__direct_dpmi_transfer");
-void dpmi_ljmp_pointer(void) asm ("__dpmi_ljmp_pointer");
 
 #endif
 
@@ -1336,7 +1328,7 @@ static void get_ext_API(struct sigcontext_struct *scp)
         if (config.pm_dos_api) {
 	  _LO(ax) = 0;
 	  _es = dpmi_sel();
-	  _edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
+	  _edi = DPMI_SEL_OFF(DPMI_API_extension);
 	}
       } else
       if (!strcmp("VIRTUAL SUPPORT", ptr)) {
@@ -1979,16 +1971,16 @@ err:
     break;
   case 0x0305:	/* Get State Save/Restore Adresses */
       _LWORD(ebx) = DPMI_SEG;
-      _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_save_restore);
+      _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_save_restore_rm);
       _LWORD(esi) = dpmi_sel();
-      _edi = DPMI_OFF + HLT_OFF(DPMI_save_restore);
+      _edi = DPMI_SEL_OFF(DPMI_save_restore_pm);
       _LWORD(eax) = 60;		/* size to hold all registers */
     break;
   case 0x0306:	/* Get Raw Mode Switch Adresses */
       _LWORD(ebx) = DPMI_SEG;
-      _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_raw_mode_switch);
+      _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_raw_mode_switch_rm);
       _LWORD(esi) = dpmi_sel();
-      _edi = DPMI_OFF + HLT_OFF(DPMI_raw_mode_switch);
+      _edi = DPMI_SEL_OFF(DPMI_raw_mode_switch_pm);
     break;
   case 0x0400:	/* Get Version */
     _LWORD(eax) = DPMI_VERSION << 8 | DPMI_DRIVER_VERSION;
@@ -2406,12 +2398,12 @@ void dpmi_realmode_callback(int rmcb_client, int num)
 	ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
 	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
+	ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
 	DPMI_CLIENT.stack_frame.esp -= 12;
     } else {
 	*--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
 	*--ssp = dpmi_sel(); 
-	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
+	*--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
 	LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 6;
     }
     DPMI_CLIENT.stack_frame.cs =
@@ -2469,12 +2461,12 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
     ssp -= 2, *((unsigned long *) ssp) = (unsigned long) in_dpmi_dos_int;
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_RSPcall);
+    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
     _esp -= 12;
   } else {
     *--ssp = (unsigned short) in_dpmi_dos_int;
     *--ssp = dpmi_sel(); 
-    *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_RSPcall);
+    *--ssp = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
     _LWORD(esp) -= 6;
   }
 
@@ -2681,7 +2673,7 @@ void run_pm_int(int i)
     ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
+    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_pm);
     DPMI_CLIENT.stack_frame.esp -= 36;
   } else {
     /* store the high word of ESP, because CPU corrupts it */
@@ -2693,7 +2685,7 @@ void run_pm_int(int i)
     *--ssp = (unsigned short) DPMI_CLIENT.stack_frame.eip;
     *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = dpmi_sel(); 
-    *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
+    *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 18;
   }
   DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
@@ -2732,13 +2724,13 @@ void run_pm_dos_int(int i)
 
   switch(i) {
     case 0x1c:
-      ret_eip = DPMI_OFF + HLT_OFF(DPMI_return_from_int_1c);
+      ret_eip = DPMI_SEL_OFF(DPMI_return_from_int_1c);
       break;
     case 0x23:
-      ret_eip = DPMI_OFF + HLT_OFF(DPMI_return_from_int_23);
+      ret_eip = DPMI_SEL_OFF(DPMI_return_from_int_23);
       break;
     case 0x24:
-      ret_eip = DPMI_OFF + HLT_OFF(DPMI_return_from_int_24);
+      ret_eip = DPMI_SEL_OFF(DPMI_return_from_int_24);
       DPMI_CLIENT.stack_frame.ebp = ConvertSegmentToDescriptor(LWORD(ebp));
       /* maybe copy the RM stack? */
       break;
@@ -2792,7 +2784,6 @@ void dpmi_setup(void)
     int i, type;
     unsigned long base_addr, limit, *lp;
 
-#if DIRECT_DPMI_CONTEXT_SWITCH
     /* Allocate special buffer that is used for direct jumping to
        DPMI code. In the future may also be used for the various hlts
        and lrets that are presently in the BIOS (so dpmi_sel16/32 can
@@ -2806,7 +2797,6 @@ void dpmi_setup(void)
        doesn't put it beyond the cs limit.
     */
     unsigned char *dpmi_sel_buffer;
-    int dpmi_ljmp_off;
 
     dpmi_sel_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
       2*PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
@@ -2814,15 +2804,17 @@ void dpmi_setup(void)
       error("DPMI: can't allocate memory for dpmi_sel_buffer\n");
       goto err;
     }
-    dpmi_ljmp_off = (unsigned char *)dpmi_ljmp_pointer-
-      (unsigned char *)direct_dpmi_transfer;
-    memcpy(dpmi_sel_buffer, direct_dpmi_transfer, dpmi_ljmp_off);
+    memcpy(dpmi_sel_buffer, DPMI_sel_code_start,
+	   (char *)DPMI_sel_code_end-(char *)DPMI_sel_code_start);
+#if DIRECT_DPMI_CONTEXT_SWITCH
     dpmi_switch_jmp = (struct pmaddr_s *)(dpmi_sel_buffer + PAGE_SIZE);
-    memcpy(dpmi_sel_buffer + dpmi_ljmp_off - sizeof(&dpmi_switch_jmp),
+    memcpy(dpmi_sel_buffer + DPMI_SEL_OFF(DPMI_direct_transfer_end) -
+	   sizeof(&dpmi_switch_jmp),
 	   &dpmi_switch_jmp, sizeof(&dpmi_switch_jmp));
-    mprotect(dpmi_sel_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
-    direct_dpmi_transfer_p = (void(*)(void))dpmi_sel_buffer;
+    direct_dpmi_transfer_p =
+      (void(*)(void))(dpmi_sel_buffer + DPMI_SEL_OFF(DPMI_direct_transfer));
 #endif
+    mprotect(dpmi_sel_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
 
     ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE, 0);
@@ -2849,9 +2841,11 @@ void dpmi_setup(void)
 
     if (!(dpmi_sel16 = AllocateDescriptors(1))) goto err;
     if (!(dpmi_sel32 = AllocateDescriptors(1))) goto err;
-    if (SetSelector(dpmi_sel16, (unsigned long) (DPMI_SEG << 4), 0xffff, 0,
+    if (SetSelector(dpmi_sel16, (unsigned long)dpmi_sel_buffer,
+		    2*PAGE_SIZE-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_sel32, (unsigned long) (DPMI_SEG << 4), 0xffff, 1,
+    if (SetSelector(dpmi_sel32, (unsigned long)dpmi_sel_buffer,
+		    2*PAGE_SIZE-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
     return;
 
@@ -2927,7 +2921,7 @@ void dpmi_init(void)
       DPMI_CLIENT.Interrupt_Table[i].offset = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
       DPMI_CLIENT.Interrupt_Table[i].selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
     } else {
-      DPMI_CLIENT.Interrupt_Table[i].offset = DPMI_OFF + HLT_OFF(DPMI_interrupt) + i;
+      DPMI_CLIENT.Interrupt_Table[i].offset = DPMI_SEL_OFF(DPMI_interrupt) + i;
       DPMI_CLIENT.Interrupt_Table[i].selector = dpmi_sel();
     }
   }
@@ -2936,7 +2930,7 @@ void dpmi_init(void)
       DPMI_CLIENT.Exception_Table[i].offset = PREV_DPMI_CLIENT.Exception_Table[i].offset;
       DPMI_CLIENT.Exception_Table[i].selector = PREV_DPMI_CLIENT.Exception_Table[i].selector;
     } else {
-      DPMI_CLIENT.Exception_Table[i].offset = DPMI_OFF + HLT_OFF(DPMI_exception) + i;
+      DPMI_CLIENT.Exception_Table[i].offset = DPMI_SEL_OFF(DPMI_exception) + i;
       DPMI_CLIENT.Exception_Table[i].selector = dpmi_sel();
     }
   }
@@ -3261,11 +3255,11 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   if (DPMI_CLIENT.is_32) {
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_ext_exception);
+    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   } else {
     ssp -= 2, *((unsigned long *) ssp) = 0;
     *--ssp = dpmi_sel(); 
-    *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_ext_exception);
+    *--ssp = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   }
   /* Standard exception stack frame - DPMI 0.9 */
   if (DPMI_CLIENT.is_32) {
@@ -3279,7 +3273,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     ssp -= 2, *((unsigned long *) ssp) = _err;
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_exception);
+    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_exception);
   } else {
     ssp -= 2, *((unsigned long *) ssp) = 0;
     ssp -= 2, *((unsigned long *) ssp) = 0;
@@ -3293,7 +3287,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     *--ssp = (unsigned short) _eip;
     *--ssp = (unsigned short) _err;
     *--ssp = dpmi_sel(); 
-    *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_exception);
+    *--ssp = DPMI_SEL_OFF(DPMI_return_from_exception);
   }
   ADD_16_32(_esp, -0x58);
 
@@ -3490,7 +3484,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
     case 0xf4:			/* hlt */
       _eip += 1;
       if (_cs == dpmi_sel()) {
-	if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_raw_mode_switch)) {
+	if (_eip==1+DPMI_SEL_OFF(DPMI_raw_mode_switch_pm)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
 	  REG(ds) = (long) _LWORD(eax);
 	  REG(es) = (long) _LWORD(ecx);
@@ -3504,7 +3498,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  REG(eax) = REG(ebx) = REG(ecx) = REG(edx) = REG(esi) = REG(edi) = 0;
 	  in_dpmi_dos_int = 1;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_save_restore)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
 	  unsigned long *buffer = (unsigned long *) SEL_ADR(_es, _edi);
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
@@ -3542,7 +3536,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    REG(gs) =  *buffer++;
           }/* _eip point to FAR RET */
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_API_extension)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
             _eax = DPMI_CLIENT.LDT_ALIAS;  /* simulate direct ldt access */
@@ -3553,7 +3547,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  } else
             _eflags |= CF;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  leave_lpms(scp);
           D_printf("DPMI: Return from protected mode interrupt handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
@@ -3582,10 +3576,10 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    pic_iret_dpmi();
 	  }
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_exception)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_ext_exception)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_ext_exception)) {
 	  leave_lpms(scp);
           error("DPMI: Return from client extended exception handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
@@ -3608,7 +3602,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  _gs = *ssp++;
 	  ssp++;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_rm_callback)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_callback)) {
 	  
 	  struct RealModeCallStructure *rmreg;
 
@@ -3638,7 +3632,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_1c)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_1c)) {
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from int1c, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
@@ -3647,7 +3641,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_23)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_23)) {
 	  struct sigcontext_struct old_ctx;
 	  unsigned long old_esp;
 	  unsigned short *ssp;
@@ -3685,7 +3679,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    }
 	  }
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_24)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_24)) {
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from int24 callback, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
@@ -3694,7 +3688,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_RSPcall)) {
+        } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
 	  leave_lpms(scp);
 	  if (DPMI_CLIENT.is_32) {
 	    in_dpmi_dos_int = ((int) *((unsigned long *) ssp)), ssp += 2;
@@ -3709,8 +3703,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    dpmi_cleanup();
 	  }
 
-	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
-	  int excp = _eip-1-DPMI_OFF-HLT_OFF(DPMI_exception);
+	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
+	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
 	  if (DPMI_CLIENT.is_32) {
 	    _eip = *((unsigned long *) ssp), ssp += 2;
@@ -3734,8 +3728,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #endif
 	  do_default_cpu_exception(scp, excp);
 
-	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_interrupt)) && (_eip<=DPMI_OFF+256+HLT_OFF(DPMI_interrupt))) {
-	  int intr = _eip-1-DPMI_OFF-HLT_OFF(DPMI_interrupt);
+	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_interrupt)) && (_eip<=256+DPMI_SEL_OFF(DPMI_interrupt))) {
+	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_interrupt);
 	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
 	  if (DPMI_CLIENT.is_32) {
 	    _eip = *((unsigned long *) ssp), ssp += 2;
@@ -3751,13 +3745,13 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  }
 	  do_dpmi_int(scp, intr);
 
-	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_VXD_start)) &&
-		(_eip<DPMI_OFF+1+HLT_OFF(DPMI_VXD_end))) {
+	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_VXD_start)) &&
+		(_eip<1+DPMI_SEL_OFF(DPMI_VXD_end))) {
 	  D_printf("DPMI: VxD call, ax=%#x\n", _LWORD(eax));
 	  vxd_call(scp);
 
-	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(MSDOS_rm_start)) &&
-		(_eip<DPMI_OFF+1+HLT_OFF(MSDOS_rm_end))) {
+	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_rrm_start)) &&
+		(_eip<1+DPMI_SEL_OFF(MSDOS_rrm_end))) {
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from MSDOS rm callback, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
@@ -3765,8 +3759,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
-	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(MSDOS_pm_start)) &&
-		(_eip<DPMI_OFF+1+HLT_OFF(MSDOS_pm_end))) {
+	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_spm_start)) &&
+		(_eip<1+DPMI_SEL_OFF(MSDOS_spm_end))) {
 	  D_printf("DPMI: Starting MSDOS pm callback\n");
 	  save_rm_regs();
 	  if (!msdos_pre_pm(scp)) {
@@ -4155,7 +4149,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
 done:
     restore_rm_regs();
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch))) {
+  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch_rm))) {
     if (!Segments[LWORD(esi) >> 3].used) {
       error("DPMI: PM switch to unused segment\n");
       leavedos(61);
@@ -4189,7 +4183,7 @@ done:
     DPMI_CLIENT.stack_frame.esi = 0;
     DPMI_CLIENT.stack_frame.edi = 0;
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_save_restore))) {
+  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_save_restore_rm))) {
     unsigned long *buffer = SEG_ADR((unsigned long *),es,di);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
@@ -4228,8 +4222,8 @@ done:
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
 
-  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rm_start))) &&
-	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rm_end)))) {
+  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_srm_start))) &&
+	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_srm_end)))) {
     REG(eip) += 1;            /* skip halt to point to FAR RET */
     D_printf("DPMI: Starting MSDOS rm callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
@@ -4244,8 +4238,8 @@ done:
     clear_IF();
     in_dpmi_dos_int = 0;
 
-  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_pm_start))) &&
-	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_pm_end)))) {
+  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rpm_start))) &&
+	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rpm_end)))) {
     D_printf("DPMI: Return from MSDOS pm callback\n");
     msdos_post_pm(&DPMI_CLIENT.stack_frame);
     restore_rm_regs();
