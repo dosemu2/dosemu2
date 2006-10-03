@@ -57,7 +57,7 @@ void rtc_run(void)
     h_printf("RTC: A=%hhx B=%hhx C=%hhx rate=%i queued=%lli added=%lli\n",
 	GET_CMOS(CMOS_STATUSA), GET_CMOS(CMOS_STATUSB), GET_CMOS(CMOS_STATUSC),
 	rate, q_ticks_m, ticks_m);
-  if (q_ticks_m >= 1e6) {
+  if (q_ticks_m >= 1000000) {
     Bit8u old_c = GET_CMOS(CMOS_STATUSC);
     SET_CMOS(CMOS_STATUSC, old_c | 0x40);
     if ((GET_CMOS(CMOS_STATUSB) & 0x40) && !(GET_CMOS(CMOS_STATUSC) & 0x80)) {
@@ -68,7 +68,7 @@ void rtc_run(void)
       pic_request(PIC_IRQ8);
     }
     if (!(old_c & 0x40))
-      q_ticks_m -= 1e6;
+      q_ticks_m -= 1000000;
   }
 }
 
