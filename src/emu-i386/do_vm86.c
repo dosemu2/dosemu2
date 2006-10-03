@@ -345,19 +345,16 @@ run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
-    asm volatile (
-      "fsave %0\n"
-      "frstor %1\n"
-      : "=m"(*_emu_stack_frame.fpstate)
-      : "m"(vm86_fpu_state)
-    );
+    loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
     retval = DO_VM86(&vm86s);
     in_vm86 = 0;
-    asm volatile (
-      "fsave %0\n"
-      : "=m"(vm86_fpu_state)
-    );
+    savefpstate(vm86_fpu_state);
+    /* there is no real need to save and restore the FPU state of the
+       emulator itself: savefpstate (fsave) also resets the current FPU
+       state which is good enough for calling FPU-using routines.
+    */
+
     /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
     restore_eflags_fs_gs();
 

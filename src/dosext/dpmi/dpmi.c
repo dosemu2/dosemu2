@@ -366,11 +366,11 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
   dpmi_context->esp_at_signal = dpmi_context->esp;
   dpmi_context->oldmask = (unsigned long)direct_dpmi_transfer_p;
 
+  loadfpstate(*dpmi_context->fpstate);
+
   asm volatile (
-"      fsave  %1\n"
-"      frstor %3\n"
     /* Now put ESP to new context and pop it up */
-"      movl   %2,%%esp\n"
+"      movl   %1,%%esp\n"
 "      pop    %%gs\n"
 "      pop    %%fs\n"
 "      pop    %%es\n"
@@ -379,10 +379,8 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      addl $4*4,%%esp\n"
 "      popfl\n"
 "      jmp    *12(%%esp)\n"
-    : "=&a"(ret),
-      "=m"(*_emu_stack_frame.fpstate)
-    : "d"(dpmi_context),
-      "m"(*dpmi_context->fpstate)
+    : "=&a"(ret)
+    : "d"(dpmi_context)
     : "memory"
   );
   return ret;
@@ -1131,7 +1129,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
 #endif
   if (dpmi_ctx)
     copy_context(dpmi_ctx, scp, 1);
-  copy_context(scp, &_emu_stack_frame, 0);
+  _cs = UCODESEL;
   _eax = retcode;
   Return_to_dosemu_code_requested = 1;
 #ifdef X86_EMULATOR
@@ -1153,10 +1151,9 @@ void dpmi_check_longjmp_return(int retcode)
 
 void indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
-    copy_context(&_emu_stack_frame, scp, 1);
     if (!DPMI_CLIENT.stack_frame.fpstate) {
 	/* Init FPU state here */
-	DPMI_CLIENT.fpu_state = *scp->fpstate;
+	DPMI_CLIENT.fpu_state = vm86_fpu_state;
 	DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
     }
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);

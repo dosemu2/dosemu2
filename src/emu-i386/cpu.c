@@ -98,7 +98,6 @@ unsigned long TRs[2] =
 };
 #endif
 
-static struct _fpstate emu_fpu_state;
 struct _fpstate vm86_fpu_state;
 struct sigcontext_struct _emu_stack_frame;
 
@@ -256,7 +255,6 @@ void cpu_setup(void)
 
   cpu_reset();
 
-  _emu_stack_frame.fpstate = &emu_fpu_state;
   /* initialize user data & code selector values (used by DPMI code) */
   /* And save %fs, %gs for NPTL */
   saveregister(cs, _emu_stack_frame.cs);
@@ -264,9 +262,8 @@ void cpu_setup(void)
   saveregister(fs, _emu_stack_frame.fs);
   saveregister(gs, _emu_stack_frame.gs);
   saveflags(_emu_stack_frame.eflags);
-  savefpstate(*_emu_stack_frame.fpstate);
+  savefpstate(vm86_fpu_state);
   saveregister(esp, stk_ptr);
-  vm86_fpu_state = *_emu_stack_frame.fpstate;
 
   fd = dup(dosemu_proc_self_maps_fd);
   if ((fp = fdopen(fd, "r"))) {
@@ -294,7 +291,6 @@ void restore_eflags_fs_gs(void)
   loadflags(_emu_stack_frame.eflags);
   loadregister(fs, _emu_stack_frame.fs);
   loadregister(gs, _emu_stack_frame.gs);
-  loadfpstate(*_emu_stack_frame.fpstate);
 }
 
 int
