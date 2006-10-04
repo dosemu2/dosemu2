@@ -208,15 +208,12 @@ sgleave:
     if (_cs==getsegment(cs)) {
       /* Fault in dosemu code */
       /* Now see if it is HLT */
-      unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
-      if (*csp == 0xf4) {
+      if (indirect_dpmi_switch(scp)) {
 	/* Well, must come from dpmi_control() */
-        _eip += 1;
         /* Note: when using DIRECT_DPMI_CONTEXT_SWITCH, we only come
          * here if we have set the trap-flags (TF)
          * ( needed for dosdebug only )
          */
-	indirect_dpmi_switch(scp);
 	return;
       }
       else { /* No, not HLT, too bad :( */

@@ -152,7 +152,7 @@ extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern char *ldt_buffer;
 
 void dpmi_get_entry_point(void);
-void indirect_dpmi_switch(struct sigcontext_struct *);
+int indirect_dpmi_switch(struct sigcontext_struct *);
 #ifdef __linux__
 void dpmi_fault(struct sigcontext_struct *);
 #endif
