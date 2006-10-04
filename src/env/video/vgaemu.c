@@ -972,7 +972,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   if(vga_page < vga.mem.pages) {
     vga.mem.dirty_map[vga_page] = 1;
 #ifdef X86_EMULATOR
-    if (config.cpuemu>1 && _cs == UCODESEL) {
+    if (config.cpuemu>1 && _cs == getsegment(cs)) {
 	error("VGAEmu: CPU emulation collision, should not be here\n");
 	leavedos(0x4945);
     }
@@ -987,7 +987,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * a bug. However for the video modes that do not require instremu, we
        * can allow that access. For the planar modes we cant and will fail :(
        */
-      if(pmode && _cs == UCODESEL) {
+      if(pmode && _cs == getsegment(cs)) {
 	error("BUG: dosemu touched the protected video memory!!!\n");
 	return False;
       }

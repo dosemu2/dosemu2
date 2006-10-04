@@ -144,7 +144,6 @@ typedef struct {
   * forever, we must restore the eflags.
   * Also restore %fs and %gs for compatibility with NPTL.
   */
-extern struct sigcontext_struct _emu_stack_frame;
 extern struct _fpstate vm86_fpu_state;
 void restore_eflags_fs_gs(void);
 
@@ -179,13 +178,29 @@ void restore_eflags_fs_gs(void);
 
 #define loadflags(value) asm volatile("pushl %0 ; popfl"::"g" (value): "cc" )
 
-#define saveflags(value) asm volatile("pushfl ; popl %0":"=g" (value): )
+#define getflags(value) \
+	({ \
+		Bit32u __value; \
+		asm volatile("pushfl ; popl %0":"=g" (__value)); \
+		__value; \
+	})
 
 #define loadregister(reg, value) \
 	asm volatile("mov %0, %%" #reg ::"rm" (value))
 
-#define saveregister(reg, value) \
-	asm volatile("mov %%" #reg ",%0":"=rm" (value))
+#define getregister(reg) \
+	({ \
+		Bit32u __value; \
+		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
+		__value; \
+	})
+
+#define getsegment(reg) \
+	({ \
+		Bit16u __value; \
+		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
+		__value; \
+	})
 
 #define loadfpstate(value) \
 	asm volatile("frstor  %0\n" :: "m"(value));

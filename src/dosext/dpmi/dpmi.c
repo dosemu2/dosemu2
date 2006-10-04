@@ -420,6 +420,10 @@ static int dpmi_control(void)
  *       the sigcontext technique, so we build a proper sigcontext structure
  *       even for 'hand made taskswitch'. (Hans Lermen, June 1996)
  *
+ *    -- the backswitch can be handled using sigsetjmp/siglongjmp: glibc
+ *       takes care of saving and restoring registers instead of
+ *       manual pushing + sigreturn() (Bart Oldeman, October 2006)
+ *
  * dpmi_control is called only from dpmi_run when in_dpmi_dos_int==0
  *
  * DANG_END_REMARK
@@ -427,7 +431,7 @@ static int dpmi_control(void)
 
 /* STANDARD SWITCH example
  *
- * run_dpmi() -> dpmi_control (cs==UCODESEL)
+ * run_dpmi() -> dpmi_control (_cs==getsegment(cs))
  *			sigsetjmp returns with 0
  *			raise(SIGSEGV)
  *		 -> dpmi_fault: move client frame to scp
@@ -445,7 +449,7 @@ static int dpmi_control(void)
  *
  * DIRECT SWITCH example
  *
- * run_dpmi() -> dpmi_control (cs==UCODESEL) -> sigsetjmp -> direct_dpmi_switch
+ * run_dpmi() -> dpmi_control (_cs==%cs) -> sigsetjmp -> direct_dpmi_switch
  *				*** there's no scp ***
  *				jump to intermediate 32-bit code
  *				pop client frame and jump to DPMI code
@@ -560,10 +564,10 @@ static int SystemSelector(unsigned short selector)
   if (
        (((selector) & 0xfffc) == (dpmi_sel16 & 0xfffc)) ||
        (((selector) & 0xfffc) == (dpmi_sel32 & 0xfffc)) ||
-       (((selector) & 0xfffc) == (UCODESEL & 0xfffc)) ||
-       (((selector) & 0xfffc) == (UDATASEL & 0xfffc)) ||
-       (((selector) & 0xfffc) == (_emu_stack_frame.fs & 0xfffc)) ||
-       (((selector) & 0xfffc) == (_emu_stack_frame.gs & 0xfffc)) ||
+       (((selector) & 0xfffc) == (getsegment(cs) & 0xfffc)) ||
+       (((selector) & 0xfffc) == (getsegment(ds) & 0xfffc)) ||
+       (((selector) & 0xfffc) == (getsegment(fs) & 0xfffc)) ||
+       (((selector) & 0xfffc) == (getsegment(gs) & 0xfffc)) ||
        (Segments[selector >> 3].used == 0xff)
      )
     return 1;
@@ -1119,7 +1123,7 @@ void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
 static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
     struct sigcontext_struct *dpmi_ctx)
 {
- if (_cs == UCODESEL) {
+ if (_cs == getsegment(cs)) {
    dosemu_error("Return to dosemu requested within dosemu context\n");
    return;
  }
@@ -1129,7 +1133,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
 #endif
   if (dpmi_ctx)
     copy_context(dpmi_ctx, scp, 1);
-  _cs = UCODESEL;
+  _cs = getsegment(cs);
   _eax = retcode;
   Return_to_dosemu_code_requested = 1;
 #ifdef X86_EMULATOR
@@ -3026,9 +3030,9 @@ err:
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
 #ifdef X86_EMULATOR
-  if (in_dpmi_emu || (_cs != UCODESEL)) {
+  if (in_dpmi_emu || (_cs != getsegment(cs))) {
 #else
-  if (_cs != UCODESEL){
+  if (_cs != getsegment(cs)) {
 #endif
 /* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
 /*

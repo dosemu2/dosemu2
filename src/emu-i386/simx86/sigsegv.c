@@ -388,7 +388,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
      reset permissions on code pages */
-  if (_cs == UCODESEL && ((debug_level('e')>1) || (_trapno!=0x0e))) {
+  if (_cs == getsegment(cs) && ((debug_level('e')>1) || (_trapno!=0x0e))) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02lx err=0x%08lx cr2=%08lx eip=%08lx\n",
 	  	 _trapno, _err, _cr2, _eip);
@@ -414,7 +414,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
-		if (_cs == UCODESEL) {
+		if (_cs == getsegment(cs)) {
 			unsigned pf = (unsigned)_cr2 >> 12;
 			if ((pf & 0xfffe0) == 0xa0) {
 				TrapVgaOn = 1;

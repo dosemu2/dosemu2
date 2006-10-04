@@ -35,13 +35,6 @@
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
-/* Aargh!! Is this the only way we have to know if a signal interrupted
- * us in DPMI server or client code? */
-#ifdef __linux__
-#define UCODESEL _emu_stack_frame.cs
-#define UDATASEL _emu_stack_frame.ds
-#endif
-
 #ifdef __linux__
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
 #define LDT_WRITE 0x11

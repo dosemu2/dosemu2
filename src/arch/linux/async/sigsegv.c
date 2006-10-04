@@ -60,7 +60,7 @@ int signal, struct sigcontext_struct *scp
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%lX\n",
       signal, _trapno);
-    if (!in_vm86 && _cs == UCODESEL) {
+    if (!in_vm86 && _cs == getsegment(cs)) {
       /* TODO - we can start gdb here */
       /* start_gdb() */
     } else {
@@ -186,7 +186,7 @@ sgleave:
   }
 #define VGA_ACCESS_HACK 1
 #if VGA_ACCESS_HACK
-  if(_trapno==0x0e && Video->update_screen && _cs==UCODESEL) {
+  if(_trapno==0x0e && Video->update_screen && _cs==getsegment(cs)) {
 /* Well, there are currently some dosemu functions that touches video memory
  * without checking the permissions. This is a VERY BIG BUG.
  * Must be fixed ASAP.
@@ -205,7 +205,7 @@ sgleave:
 
   if (in_dpmi) {
     /* At first let's find out where we came from */
-    if (_cs==UCODESEL) {
+    if (_cs==getsegment(cs)) {
       /* Fault in dosemu code */
       /* Now see if it is HLT */
       unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
@@ -227,7 +227,7 @@ sgleave:
 	/* Going to die from here */
 	goto bad;	/* well, this goto is unnecessary but I like gotos:) */
       }
-    } /*_cs==UCODESEL*/
+    } /*_cs==getsegment(cs)*/
     else {
     /* Not in dosemu code */
 
@@ -257,7 +257,7 @@ sgleave:
 
       /* dpmi_fault() will handle that */
       dpmi_fault(scp);
-      if (_cs==UCODESEL) {
+      if (_cs==getsegment(cs)) {
         /* context was switched to dosemu's, return ASAP */
         return;
       }
