@@ -479,7 +479,7 @@ static int dpmi_control(void)
     leavedos(36);
   }
   if (dpmi_mhp_TF) _eflags |= TF;
-  if (!(_eflags & TF) && scp->fpstate) {
+  if (!(_eflags & TF)) {
 	if (debug_level('M')>6) {
 	  D_printf("DPMI SWITCH to 0x%x:0x%08lx (0x%08lx), Stack 0x%x:0x%08lx (0x%08lx) flags=%#lx\n",
 	    _cs, _eip, (long)SEL_ADR(_cs,_eip), _ss, _esp, (long)SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
@@ -1151,11 +1151,6 @@ void dpmi_check_longjmp_return(int retcode)
 
 void indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
-    if (!DPMI_CLIENT.stack_frame.fpstate) {
-	/* Init FPU state here */
-	DPMI_CLIENT.fpu_state = vm86_fpu_state;
-	DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
-    }
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
 }
 
@@ -3006,6 +3001,8 @@ void dpmi_init(void)
   DPMI_CLIENT.stack_frame.es	= ES;
   DPMI_CLIENT.stack_frame.fs	= 0;
   DPMI_CLIENT.stack_frame.gs	= 0;
+  DPMI_CLIENT.fpu_state = vm86_fpu_state;
+  DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
   msdos_init(DPMI_CLIENT.is_32,
