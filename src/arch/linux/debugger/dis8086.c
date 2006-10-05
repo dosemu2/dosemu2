@@ -1295,7 +1295,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xa4:
-	  if (seg == "")
+	  if (seg[0] == '\0')
 	    d86_printf("movsb");
 	  else
 	    d86_printf("movsb es:[%s],%s[%s]", addr32 ? "edi" : "di",
@@ -1303,7 +1303,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xa5:
-	  if (seg == "")
+	  if (seg[0] == '\0')
 	    d86_printf("movs%c", data32 ? 'd' : 'w');
 	  else
 	    d86_printf("movs%c   es:[%s],%s[%s]", data32 ? 'd' : 'w',
@@ -1311,7 +1311,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xa6:
-	  if (seg == "")
+	  if (seg[0] == '\0')
 	    d86_printf("cmpsb");
 	  else
 	    d86_printf("cmpsb   es:[%s],%s[%s]", addr32 ? "edi" : "di",
@@ -1319,7 +1319,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xa7:
-	  if (seg =="")
+	  if (seg[0] == '\0')
 	    d86_printf("cmps%c", data32 ? 'd' : 'w');
 	  else
 	    d86_printf("cmps%c  es:[%s],%s[%s]", data32 ? 'd' : 'w',
@@ -1352,14 +1352,14 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xac:
-	  if (seg == "")
+	  if (seg[0] == '\0')
 	    d86_printf("lodsb");
 	  else
 	    d86_printf("lodsb   %s[%s]", seg, addr32 ? "esi" : "si");
 	  break;
 
 	case 0xad:
-	  if (seg == "")
+	  if (seg[0] == '\0')
 	    d86_printf("lods%c", data32 ? 'd' : 'w');
 	  else
 	    d86_printf("lods%c   %s[%s]", data32 ? 'd' : 'w', seg,

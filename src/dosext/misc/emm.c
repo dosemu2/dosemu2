@@ -1320,7 +1320,7 @@ alternate_map_register(state_t * state)
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Registers - Set to ES:0x%x, DI:0x%x\n", save_es, save_di));
         }
         else {
-          SETWORD(&(state->es), 0x0);
+          SETWORD(&(state->es), 0x0u);
           SETWORD(&(state->edi), 0x0);
           SETHIGH(&(state->eax), EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Registers - Not Active\n"));

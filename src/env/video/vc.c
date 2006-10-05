@@ -200,7 +200,7 @@ set_linux_video (void)
       v_printf ("Storing dosemu_regs, Releasing vt mode=%02x\n", *(u_char *) 0x449);
       dosemu_regs.video_mode = *(u_char *) 0x449;
       save_vga_state (&dosemu_regs);
-      if (linux_regs.mem != (u_char) NULL)
+      if (linux_regs.mem != NULL)
 	{
 	  v_printf ("Restoring linux_regs, Releasing vt\n");
 	  restore_vga_state (&linux_regs);
