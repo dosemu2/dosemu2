@@ -90,7 +90,6 @@ int IsDpmiEmu = 1;
  * which should be considered in time stretching */
 int e_sigpa_count;
 
-int emu_dpmi_retcode = 0;
 int in_vm86_emu = 0;
 int in_dpmi_emu = 0;
 
@@ -795,7 +794,6 @@ void enter_cpu_emu(void)
 	  leavedos(0);
 	}
 	config.cpuemu=2;	/* for saving CPU flags */
-	emu_dpmi_retcode = 0;
 	GDT = NULL; IDT = NULL;
 	/* use the cached LDT used by dpmi (w/o GDT) */
 	if (LDT==NULL) {
@@ -1216,17 +1214,16 @@ int e_dpmi(struct sigcontext_struct *scp)
     E_TIME_STRETCH;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
-	if (debug_level('e')>2) e_printf("DPMI retcode = %d\n",emu_dpmi_retcode);
-	if (emu_dpmi_retcode != 0) {
-	    retval=emu_dpmi_retcode; emu_dpmi_retcode = 0;
-	    if (retval == -1)
-		retval = 0;
+	if (debug_level('e')>2) e_printf("DPMI sigpending = %d\n",signal_pending);
+	if (signal_pending) {
+	    retval=0;
 	}
     }
     else if (xval==EXCP_GOBACK) {
         retval = 0;
     }
     else {
+	int emu_dpmi_retcode;
 	TotalTime += (GETTSC() - tt0);
 	emu_dpmi_retcode = dpmi_fault(scp);
 	tt0 = GETTSC();

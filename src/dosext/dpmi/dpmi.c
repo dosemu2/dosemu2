@@ -2995,11 +2995,7 @@ err:
 
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
-#ifdef X86_EMULATOR
-  if (in_dpmi_emu || (_cs != getsegment(cs))) {
-#else
   if (_cs != getsegment(cs)) {
-#endif
 /* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
 /*
    Because IF is not set by popf and because dosemu have to do some background
