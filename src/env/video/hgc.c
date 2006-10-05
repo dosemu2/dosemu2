@@ -28,8 +28,8 @@
 #include "mapping.h"
 #include "vgaemu.h"
 
-#define HGC_BASE0 ( (caddr_t) 0xb0000)
-#define HGC_BASE1 ( (caddr_t) 0xb8000)
+#define HGC_BASE0 0xb0000
+#define HGC_BASE1 0xb8000
 #define HGC_PLEN (32 * 1024)
 
 static void hgc_meminit(void);
@@ -65,12 +65,12 @@ static void hgc_meminit(void)
     hgc_ctrl = 0;
 
   /* map real HGC-mem (page 0) */
-  alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
+  alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, HGC_BASE0);
   maperr = (caddr_t) mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
-     HGC_BASE0,
+     (void *) HGC_BASE0,
      HGC_PLEN,
      PROT_READ | PROT_WRITE,
-     (void *) HGC_BASE0);
+     HGC_BASE0);
   if ( maperr == (caddr_t) -1 ){
     error("can't map HGC-mem: errno=%d, %s \n",
    errno, strerror(errno));
@@ -309,15 +309,15 @@ static void set_hgc_page(int page)
       if ( page == 0 ){
 
  /* unmap old visible pages */
- munmap_mapping(MAPPING_HGC, HGC_BASE1, HGC_PLEN);
+ munmap_mapping(MAPPING_HGC, (void *) HGC_BASE1, HGC_PLEN);
 
  /* map real HGC-mem to a place from where we can sync */
- alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
+ alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, HGC_BASE0);
  syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
       (void *)-1,
       HGC_PLEN,
       PROT_READ | PROT_WRITE,
-      (void *) HGC_BASE0);
+      HGC_BASE0);
 
  /* save old visible page (page 1) */
  memcpy( phgcp1, syncadr, HGC_PLEN );
@@ -329,12 +329,12 @@ static void set_hgc_page(int page)
  munmap_mapping(MAPPING_HGC, syncadr, HGC_PLEN );
 
  /* map real HGC-mem to page 0 */
- alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
+ alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, HGC_BASE0);
  Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
-      HGC_BASE0,
+      (void *) HGC_BASE0,
       HGC_PLEN,
       PROT_READ | PROT_WRITE,
-      (void *) HGC_BASE0);
+      HGC_BASE0);
 
    v_printf("MEM: soll %u ist %u\n",
      (unsigned int) HGC_BASE1,
@@ -349,15 +349,15 @@ static void set_hgc_page(int page)
    v_printf("HGC Map Page 1 allowed\n" );
 
    /* unmap old visible pages */
-   munmap_mapping(MAPPING_HGC, HGC_BASE0, HGC_PLEN);
+   munmap_mapping(MAPPING_HGC, (void *) HGC_BASE0, HGC_PLEN);
 
    /* map real HGC-mem to a place from where we can sync */
-   alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
+   alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, HGC_BASE0);
    syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
     (void *)-1,
     HGC_PLEN,
     PROT_READ | PROT_WRITE,
-    (void *) HGC_BASE0);
+    HGC_BASE0);
 
    /* save old visible page (page 0) */
    memcpy( phgcp0, syncadr, HGC_PLEN );
@@ -369,12 +369,12 @@ static void set_hgc_page(int page)
    munmap_mapping(MAPPING_HGC, syncadr, HGC_PLEN );
 
    /* map real HGC-mem to page 1 */
-   alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
+   alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, HGC_BASE0);
    Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
-        HGC_BASE1,
+        (void *) HGC_BASE1,
         HGC_PLEN,
         PROT_READ | PROT_WRITE,
-        (void *) HGC_BASE0);
+        HGC_BASE0);
    v_printf("MEM: soll %u ist %u\n",
      (unsigned int) HGC_BASE1,
      (unsigned int) Test);

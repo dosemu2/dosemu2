@@ -302,20 +302,20 @@ static void unmap_video_ram(int copyback)
     base = scr_state.virt_address;
   }
   if (copyback) cap |= MAPPING_COPYBACK;
-  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE, base) != MAP_FAILED)
+  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE, (off_t)base) != MAP_FAILED)
     scr_state.mapped = 0;
 }
 
 static void map_video_ram(void)
 { 
   char *graph_mem;
-  char *pbase = (char *) GRAPH_BASE;
-  char *vbase = pbase;
+  off_t pbase = GRAPH_BASE;
+  char *vbase = (char *)pbase;
   size_t ssize = GRAPH_SIZE;
   int cap = MAPPING_VC | MAPPING_KMEM;
 
   if (!config.vga) {
-    pbase = (char *)phys_text_base; /* physical page address    */
+    pbase = phys_text_base;         /* physical page address    */
     vbase = scr_state.virt_address; /* new virtual page address */
     ssize = console_size();
     /* this is used for page switching */

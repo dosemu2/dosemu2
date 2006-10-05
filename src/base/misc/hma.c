@@ -22,7 +22,7 @@
 #include "dos2linux.h"
 #include "cpu-emu.h"
 
-#define HMAAREA (u_char *)0x100000
+#define HMAAREA 0x100000
 
 unsigned char *ext_mem_base = NULL;
 
@@ -30,19 +30,19 @@ void HMA_MAP(int HMA)
 {
   void *ipc_return;
   /* Note: MAPPING_HMA is magic, dont be confused by src==dst==HMAAREA here */
-  u_char *src = HMA ? HMAAREA : 0;
+  off_t src = HMA ? HMAAREA : 0;
   x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
 
-  if (munmap_mapping(MAPPING_HMA, HMAAREA, HMASIZE) < 0) {
+  if (munmap_mapping(MAPPING_HMA, (void *)HMAAREA, HMASIZE) < 0) {
     x_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
     leavedos(48);
   }
-  x_printf("HMA: detached at %p\n", HMAAREA);
+  x_printf("HMA: detached at %#x\n", HMAAREA);
 
-  ipc_return = mmap_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
+  ipc_return = mmap_mapping(MAPPING_HMA, (void *)HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, src);
   if (ipc_return == MAP_FAILED) {
-    x_printf("HMA: Mapping HMA to HMAAREA %p unsuccessful: %s\n",
+    x_printf("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",
 	       HMAAREA, strerror(errno));
     leavedos(47);
   }

@@ -422,7 +422,7 @@ emulate(int argc, char **argv)
 
     /* remap conventional memory just before booting */
     mmap_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024,
-		 PROT_READ | PROT_WRITE | PROT_EXEC, (void *)0);
+		 PROT_READ | PROT_WRITE | PROT_EXEC, 0);
 
     while (!fatalerr && !config.exitearly) {
 	loopstep_run_vm86();

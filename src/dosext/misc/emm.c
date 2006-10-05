@@ -390,7 +390,7 @@ static void _do_map_page(caddr_t dst, caddr_t src, int size)
 {
   E_printf("EMS: mmap()ing from %p to %p\n", src, dst);
   
-  if ((caddr_t)dst != mmap_mapping(MAPPING_EMS|MAPPING_ALIAS, dst, size,
+  if ((caddr_t)dst != alias_mapping(MAPPING_EMS, dst, size,
 			      PROT_READ | PROT_WRITE | PROT_EXEC,
 			      (void *) src)) {
     E_printf("EMS: mmap() failed: %s\n",strerror(errno));
@@ -404,7 +404,7 @@ static void _do_unmap_page(caddr_t base, int size)
   /* don't unmap, just overmap with the LOWMEM page */
   /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
   mmap_mapping(MAPPING_LOWMEM, base, size,
-	PROT_READ | PROT_WRITE | PROT_EXEC, base);
+	PROT_READ | PROT_WRITE | PROT_EXEC, (off_t)base);
 }
 
 void emm_unmap_all()

@@ -503,7 +503,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
     mapped_base = block->base + offset;
 
     if (mmap_mapping(MAPPING_LOWMEM, mapped_base, cnt*PAGE_SIZE,
-       PROT_READ | PROT_WRITE | PROT_EXEC, (void *)low_addr) != mapped_base) {
+       PROT_READ | PROT_WRITE | PROT_EXEC, low_addr) != mapped_base) {
 
 	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
 	return -1;

@@ -31,7 +31,7 @@ static char *mpool = 0;
 
 static int tmpfile_fd = -1;
 
-static void *alias_map(void *target, int mapsize, int protect, void *source)
+static void *alias_mapping_file(int cap, void *target, size_t mapsize, int protect, void *source)
 {
   int fixed = target == (void *)-1 ? 0 : MAP_FIXED;
   off_t offs = (char *)source - mpool;
@@ -208,13 +208,13 @@ static void close_mapping_file(int cap)
   if (cap == MAPPING_ALL && tmpfile_fd != -1) discardtempfile();
 }
 
-static void *alloc_mapping_file(int cap, int mapsize)
+static void *alloc_mapping_file(int cap, size_t mapsize)
 {
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n", cap, mapsize);
   return smalloc(&pgmpool, mapsize);
 }
 
-static void free_mapping_file(int cap, void *addr, int mapsize)
+static void free_mapping_file(int cap, void *addr, size_t mapsize)
 /* NOTE: addr needs to be the same as what was supplied by alloc_mapping_file */
 {
   Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%x\n",
@@ -226,9 +226,9 @@ static void free_mapping_file(int cap, void *addr, int mapsize)
  * NOTE: DPMI relies on realloc_mapping() _not_ changing the address ('addr'),
  *       when shrinking the memory region.
  */
-static void *realloc_mapping_file(int cap, void *addr, int oldsize, int newsize)
+static void *realloc_mapping_file(int cap, void *addr, size_t oldsize, size_t newsize)
 {
-  Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%x, newsize=%x\n",
+  Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%zx, newsize=%zx\n",
 	cap, addr, oldsize, newsize);
   if (cap & (MAPPING_EMS | MAPPING_DPMI)) {
     int size = smget_area_size(&pgmpool, addr);
@@ -250,15 +250,12 @@ static void *realloc_mapping_file(int cap, void *addr, int oldsize, int newsize)
   return (void *)-1;
 }
 
-static void *mmap_mapping_file(int cap, void *target, int mapsize, int protect, void *source)
+static void *mmap_mapping_file(int cap, void *target, size_t mapsize, int protect, off_t source)
 {
-  if (cap & MAPPING_ALIAS) {
-    return alias_map(target, mapsize, protect, source);
-  }
   return (void *)-1;
 }
 
-static int munmap_mapping_file(int cap, void *addr, int mapsize)
+static int munmap_mapping_file(int cap, void *addr, size_t mapsize)
 {
   Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%x\n",
 	cap, addr, mapsize);
@@ -275,7 +272,8 @@ struct mappingdrivers mappingdriver_shm = {
   free_mapping_file,
   realloc_mapping_file,
   mmap_mapping_file,
-  munmap_mapping_file
+  munmap_mapping_file,
+  alias_mapping_file
 };
 #endif
 
@@ -288,5 +286,6 @@ struct mappingdrivers mappingdriver_file = {
   free_mapping_file,
   realloc_mapping_file,
   mmap_mapping_file,
-  munmap_mapping_file
+  munmap_mapping_file,
+  alias_mapping_file
 };
