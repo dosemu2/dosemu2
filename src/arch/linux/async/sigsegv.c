@@ -45,8 +45,7 @@ void print_exception_info(struct sigcontext_struct *scp);
  * DANG_END_FUNCTION
  */
 
-void 
-dosemu_fault1(
+int dosemu_fault1(
 #ifdef __linux__
 int signal, struct sigcontext_struct *scp
 #endif /* __linux__ */
@@ -72,7 +71,7 @@ int signal, struct sigcontext_struct *scp
 
 #ifdef X86_EMULATOR
   if (config.cpuemu > 1 && e_emu_fault(scp))
-    return;
+    return 0;
 #endif
 
   if (in_vm86) {
@@ -89,11 +88,12 @@ int signal, struct sigcontext_struct *scp
 	           t_printf("\n%s",e_scp_disasm(scp,0));
 		 }
 #endif
-		 return (void) do_int(_trapno);
+		 do_int(_trapno);
+		 return 0;
 
       case 0x10: /* coprocessor error */
 		 pic_request(PIC_IRQ13); /* this is the 386 way of signalling this */
-		 return;
+		 return 0;
 
       case 0x11: /* alignment check */
 		 /* we are now safe; nevertheless, fall into the default
@@ -121,11 +121,13 @@ int signal, struct sigcontext_struct *scp
 		  * actually we should check if int0x06 has been
 		  * hooked by the pgm and redirected to it */
 #if 1
-		 if (IS_REDIRECTED(0x06))
+		 if (IS_REDIRECTED(0x06)) {
 #else
-		 if (csp[0]==0x0f)
+		 if (csp[0]==0x0f) {
 #endif
-		    return (void) do_int(_trapno);
+		   do_int(_trapno);
+		   return 0;
+		 }
  		 /* Some db commands start with 2e (use cs segment) 
 		    and thus is accounted for here */
  		 if (csp[0] == 0x2e) {
@@ -136,7 +138,7 @@ int signal, struct sigcontext_struct *scp
  		 if (csp[0] == 0xf0) {
  		   dbug_printf("ERROR: LOCK prefix not permitted!\n");
  		   LWORD(eip)++;
- 		   return;
+ 		   return 0;
  		 }
 		 goto sgleave;
 		}
@@ -145,7 +147,7 @@ int signal, struct sigcontext_struct *scp
                 if(Video->update_screen)
                   {
                     if(VGA_EMU_FAULT(scp,code,0)==True)
-                      return;
+                      return 0;
                   }
                 /* fall into default case if not X */
 
@@ -199,7 +201,7 @@ sgleave:
  */
     v_printf("BUG: dosemu touched protected video mem, but trying to recover\n");
     if(VGA_EMU_FAULT(scp,code,1)==True)
-      return;
+      return 0;
   }
 #endif
 
@@ -214,7 +216,7 @@ sgleave:
          * here if we have set the trap-flags (TF)
          * ( needed for dosdebug only )
          */
-	return;
+	return 0;
       }
       else { /* No, not HLT, too bad :( */
 	error("Fault in dosemu code, in_dpmi=%i\n", in_dpmi);
@@ -228,11 +230,12 @@ sgleave:
     else {
     /* Not in dosemu code */
 
+    int retcode;
     if (_trapno == 0x10) {
       g_printf("coprocessor exception, calling IRQ13\n");
       pic_request(PIC_IRQ13);
-      dpmi_sigio(scp);
-      return;
+      dpmi_return(scp);
+      return -1;
     }
 
     /* If this is an exception 0x11, we have to ignore it. The reason is that
@@ -242,27 +245,28 @@ sgleave:
      if (_trapno == 0x11) {
        g_printf("Exception 0x11 occured, clearing AC\n");
        _eflags &= ~AC;
-       return;
+       return 0;
      }
 
       if(_trapno==0x0e && Video->update_screen) {
         if(VGA_EMU_FAULT(scp,code,1)==True) {
-	  dpmi_check_return(scp);
-          return;
+          return dpmi_check_return(scp);
 	}
       }
 
       /* dpmi_fault() will handle that */
-      dpmi_fault(scp);
-      if (_cs==getsegment(cs)) {
+      retcode = dpmi_fault(scp);
+      if (retcode) {
         /* context was switched to dosemu's, return ASAP */
-        return;
+        return retcode;
       }
 
-      if (CheckSelectors(scp, 0) == 0)
-        dpmi_sigio(scp);	/* someone to rename this to dpmi_return()? */
+      if (CheckSelectors(scp, 0) == 0) {
+        dpmi_return(scp);
+	return -1;
+      }
       /* now we are safe */
-      return;
+      return 0;
     }
   } /*in_dpmi*/
 
@@ -352,6 +356,7 @@ bad:
 #ifdef __linux__
 void dosemu_fault(int signal, struct sigcontext_struct context)
 {
+  int retcode;
   fault_cnt++;
   if (fault_cnt > 2) {
    /*
@@ -380,12 +385,13 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
     g_printf("Entering fault handler, signal=%i _trapno=0x%lX\n",
       signal, context.trapno);
 
-  dosemu_fault1 (signal, &context);
+  retcode = dosemu_fault1 (signal, &context);
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
   fault_cnt--;
-  dpmi_check_longjmp_return(context.eax);
+  if(retcode)
+    dpmi_longjmp_return(retcode);
 }
 #endif /* __linux__ */
 

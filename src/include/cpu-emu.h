@@ -98,7 +98,6 @@ void init_emu_cpu (void);
 /* called/used from dpmi.c */
 int e_dpmi(struct sigcontext_struct *scp);
 void e_dpmi_b0x(int op,struct sigcontext_struct *scp);
-extern int emu_dpmi_retcode;
 extern int in_dpmi_emu;
 
 /* called from sigsegv.c */

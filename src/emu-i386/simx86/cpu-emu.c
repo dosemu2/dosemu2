@@ -90,7 +90,7 @@ int IsDpmiEmu = 1;
  * which should be considered in time stretching */
 int e_sigpa_count;
 
-int emu_dpmi_retcode = -1;
+int emu_dpmi_retcode = 0;
 int in_vm86_emu = 0;
 int in_dpmi_emu = 0;
 
@@ -795,7 +795,7 @@ void enter_cpu_emu(void)
 	  leavedos(0);
 	}
 	config.cpuemu=2;	/* for saving CPU flags */
-	emu_dpmi_retcode = -1;
+	emu_dpmi_retcode = 0;
 	GDT = NULL; IDT = NULL;
 	/* use the cached LDT used by dpmi (w/o GDT) */
 	if (LDT==NULL) {
@@ -1217,8 +1217,10 @@ int e_dpmi(struct sigcontext_struct *scp)
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
 	if (debug_level('e')>2) e_printf("DPMI retcode = %d\n",emu_dpmi_retcode);
-	if (emu_dpmi_retcode >= 0) {
-	    retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
+	if (emu_dpmi_retcode != 0) {
+	    retval=emu_dpmi_retcode; emu_dpmi_retcode = 0;
+	    if (retval == -1)
+		retval = 0;
 	}
     }
     else if (xval==EXCP_GOBACK) {
@@ -1226,21 +1228,13 @@ int e_dpmi(struct sigcontext_struct *scp)
     }
     else {
 	TotalTime += (GETTSC() - tt0);
-	dpmi_fault(scp);
+	emu_dpmi_retcode = dpmi_fault(scp);
 	tt0 = GETTSC();
-	if (emu_dpmi_retcode >= 0) {
-		retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
+	if (emu_dpmi_retcode != 0) {
+	    retval=emu_dpmi_retcode; emu_dpmi_retcode = 0;
+	    if (retval == -1)
+		retval = 0;
 	}
-	else {
-	  switch (scp->trapno) {
-	    case 0x6c: case 0x6d: case 0x6e: case 0x6f:
-	    case 0xe4: case 0xe5: case 0xe6: case 0xe7:
-	    case 0xec: case 0xed: case 0xee: case 0xef:
-	    case 0xfa: case 0xfb: retval = -1; break;
-	    default: retval = 0; break;
-	  }
-	}
-	scp->trapno = 0;
     }
   }
   while (retval < 0);

@@ -662,10 +662,9 @@ void
 sigio(int sig, struct sigcontext_struct context)
 {
   restore_eflags_fs_gs();
+  SIGNAL_save(SIGIO_call);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
-  SIGNAL_save(SIGIO_call);
-  dpmi_check_longjmp_return(context.eax);
 }
 #endif
 
@@ -675,10 +674,9 @@ void
 sigalrm(int sig, struct sigcontext_struct context)
 {
   restore_eflags_fs_gs();
+  SIGNAL_save(SIGALRM_call);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
-  SIGNAL_save(SIGALRM_call);
-  dpmi_check_longjmp_return(context.eax);
 }
 
 #ifdef X86_EMULATOR
@@ -686,10 +684,9 @@ sigalrm(int sig, struct sigcontext_struct context)
 void
 e_sigalrm(struct sigcontext_struct *context)
 {
+  SIGNAL_save(SIGALRM_call);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(context);
-  SIGNAL_save(SIGALRM_call);
-  dpmi_check_longjmp_return(context->eax);
 }
 #endif
 #endif

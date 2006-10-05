@@ -108,7 +108,6 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static int Return_to_dosemu_code_requested = 0;
 static sigjmp_buf emu_env;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
@@ -478,7 +477,7 @@ static int dpmi_control(void)
     DPMI_indirect_transfer();
   }
   /* coming from siglongjmp here */
-  return ret == -1 ? 0 : ret;
+  return ret;
 }
 
 void dpmi_get_entry_point(void)
@@ -1100,37 +1099,26 @@ void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
   }
 }
 
-static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
+static void Return_to_dosemu_code(struct sigcontext_struct *scp,
     struct sigcontext_struct *dpmi_ctx)
 {
- if (_cs == getsegment(cs)) {
-   dosemu_error("Return to dosemu requested within dosemu context\n");
-   return;
- }
 #ifdef X86_EMULATOR
- if (config.cpuemu<4) {	/* 0=off 1=on-inactive 2=on-first time
-                           3=vm86 only, 4=all active */
+  if (config.cpuemu>=4) /* 0=off 1=on-inactive 2=on-first time
+			   3=vm86 only, 4=all active */
+    return;
 #endif
+  if (_cs == getsegment(cs)) {
+    dosemu_error("Return to dosemu requested within dosemu context\n");
+    return;
+  }
   if (dpmi_ctx)
     copy_context(dpmi_ctx, scp, 1);
-  _cs = getsegment(cs);
-  _eax = retcode;
-  Return_to_dosemu_code_requested = 1;
-#ifdef X86_EMULATOR
- }
- else {
-    emu_dpmi_retcode = retcode;
- }
-#endif
- D_printf("DPMI: return to dosemu code, %i\n", retcode);
 }
 
-void dpmi_check_longjmp_return(int retcode)
+void dpmi_longjmp_return(int retcode)
 {
-  if (Return_to_dosemu_code_requested) {
-    Return_to_dosemu_code_requested = 0;
-    siglongjmp(emu_env, retcode == 0 ? -1 : retcode);
-  }
+  D_printf("DPMI: return to dosemu code, %i\n", retcode);
+  siglongjmp(emu_env, retcode);
 }
 
 int indirect_dpmi_switch(struct sigcontext_struct *scp)
@@ -2752,7 +2740,7 @@ void run_dpmi(void)
 #endif
 	dpmi_control());
 #ifdef USE_MHPDBG
-    if (retcode && mhpdbg.active) {
+    if (retcode > 0 && mhpdbg.active) {
       if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
       else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
     }
@@ -3017,8 +3005,14 @@ void dpmi_sigio(struct sigcontext_struct *scp)
    Because IF is not set by popf and because dosemu have to do some background
    job (like DMA transfer) regardless whether IF is set or not.
 */
-    Return_to_dosemu_code(scp, 0, &DPMI_CLIENT.stack_frame);
+    dpmi_return(scp);
+    dpmi_longjmp_return(-1);
   }
+}
+
+void dpmi_return(struct sigcontext_struct *scp)
+{
+  Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame);
 }
 
 static void return_from_exception(struct sigcontext_struct *scp)
@@ -3293,7 +3287,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
  */
 
 #ifdef __linux__
-void dpmi_fault(struct sigcontext_struct *scp)
+int dpmi_fault(struct sigcontext_struct *scp)
 #endif
 {
 
@@ -3303,6 +3297,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
   us *ssp;
   unsigned char *csp, *lina;
+  int ret = 0;
   int esp_fixed = 0;
   /* Note: in_dpmi/current_client can change within that finction. */
   int orig_client = current_client;
@@ -3334,8 +3329,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3) {
-       Return_to_dosemu_code(scp, 3, ORIG_CTXP);
-       return;
+       Return_to_dosemu_code(scp, ORIG_CTXP);
+       return 3;
     }
     if (dpmi_mhp_TF && (_trapno == 1)) {
       _eflags &= ~TF;
@@ -3348,8 +3343,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      Return_to_dosemu_code(scp, 1, ORIG_CTXP);
-      return;
+      Return_to_dosemu_code(scp, ORIG_CTXP);
+      return 1;
     }
   }
 #endif
@@ -3393,8 +3388,16 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
 #ifdef X86_EMULATOR
     if (config.cpuemu>3) {
-	/* trick, because dpmi_fault must return void */
-	_trapno = *csp;
+	switch (*csp) {
+	case 0x6c: case 0x6d: case 0x6e: case 0x6f: /* insb/insw/outsb/outsw */
+	case 0xe4: case 0xe5: case 0xe6: case 0xe7: /* inb/inw/outb/outw imm */
+	case 0xec: case 0xed: case 0xee: case 0xef: /* inb/inw/outb/outw dx */
+	case 0xfa: case 0xfb: /* cli/sti */
+	    break;
+	default: /* int/hlt/0f/cpu_exception */
+	    ret = -1;
+	    break;	
+	}
 #ifdef CPUEMU_DIRECT_IO
        if (InCompiledCode && !Segments[_cs >> 3].is_32) {
 	    prefix66 ^= 1; prefix67 ^= 1; /* since we come from 32-bit code */
@@ -3411,10 +3414,10 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #ifdef USE_MHPDBG
       if (mhpdbg.active) {
         if (dpmi_mhp_intxxtab[*csp]) {
-          int ret=dpmi_mhp_intxx_check(scp, *csp);
+          ret=dpmi_mhp_intxx_check(scp, *csp);
           if (ret) {
-            Return_to_dosemu_code(scp, ret, ORIG_CTXP);
-            return;
+            Return_to_dosemu_code(scp, ORIG_CTXP);
+            return ret;
           }
         }
       }
@@ -3746,7 +3749,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
 	} else
-	  return;
+	  return ret;
       } else			/* in client\'s code, set back eip */
 	_eip -= 1;
       break;
@@ -3779,7 +3782,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
       /* break is not good here. The interrupts are not enabled
        * _immediately_ after sti, at least one insn must be executed
        * before. So we return right to client. */
-      return;
+      return ret;
 
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
@@ -3923,10 +3926,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
       if (msdos_fault(scp))
 	  break;
 #ifdef __linux__
-#ifdef X86_EMULATOR
-      /* the other side of the trick */
-      _trapno = 13;
-#endif
       do_cpu_exception(scp);
 #endif
 
@@ -3943,7 +3942,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	_HWORD(esp) = 0;
 	if (instr_emu(scp, 1, 1)) {
 	  error("Instruction emulated\n");
-	  return;
+	  return ret;
 	}
 	error("Instruction emulation failed!\n"
 	      "%s\n"
@@ -3957,13 +3956,13 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  Segments[_ss >> 3].is_big,
 	  Segments[_ss >> 3].not_present, Segments[_ss >> 3].useable
 	  );
-	return;
+	return ret;
 #endif
       }
     } else if (_trapno == 0x0e) {
       if (_cr2 >= (int)ldt_buffer && _cr2 < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
 	instr_emu(scp, 1, 10);
-	return;
+	return ret;
       }
     }
     do_cpu_exception(scp);
@@ -3972,21 +3971,22 @@ void dpmi_fault(struct sigcontext_struct *scp)
   if (dpmi_mhp_TF) {
       dpmi_mhp_TF=0;
       _eflags &= ~TF;
-      Return_to_dosemu_code(scp, 1, ORIG_CTXP);
-      return;
+      Return_to_dosemu_code(scp, ORIG_CTXP);
+      return 1;
   }
 
   hardware_run();
 
   if (in_dpmi_dos_int || (isset_IF() && pic_pending()) || return_requested) {
     return_requested = 0;
-    Return_to_dosemu_code(scp, 0, ORIG_CTXP);
-    return;
+    Return_to_dosemu_code(scp, ORIG_CTXP);
+    return -1;
   }
 
   if (debug_level('M') >= 8)
     D_printf("DPMI: Return to client at %04x:%08lx, Stack 0x%x:0x%08lx, flags=%#lx\n",
       _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
+  return ret;
 }
 
 
@@ -4427,10 +4427,13 @@ void dpmi_return_request(void)
   return_requested = 1;
 }
 
-void dpmi_check_return(struct sigcontext_struct *scp)
+int dpmi_check_return(struct sigcontext_struct *scp)
 {
-  if (return_requested)
-    dpmi_sigio(scp);
+  if (return_requested) {
+    dpmi_return(scp);
+    return -1;
+  }
+  return 0;
 }
 
 #undef DPMI_C
