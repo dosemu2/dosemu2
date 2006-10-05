@@ -87,7 +87,7 @@ $(BINPATH)/bin/dosemu: $(REALTOPDIR)/dist/dosemu.systemwide $(REALTOPDIR)/dist/d
 	    -e "s|SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE|SYSTEM_XFONTS_PATH=$(x11fontdir)|" \
 	    -e "s|SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE|SYSTEM_BIN_PATH=$(bindir)|" \
 		      $< > $(BINPATH)/bin/dosemu
-	tail +9 $(REALTOPDIR)/dist/dosemu >> $(BINPATH)/bin/dosemu
+	tail -n +9 $(REALTOPDIR)/dist/dosemu >> $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
 
 bin: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
