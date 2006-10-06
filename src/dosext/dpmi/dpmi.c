@@ -121,7 +121,7 @@ int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
-char *ldt_buffer;
+unsigned char *ldt_buffer;
 static unsigned short dpmi_sel16, dpmi_sel32;
 inline unsigned short dpmi_sel()
 { return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16; }

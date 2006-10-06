@@ -46,7 +46,7 @@ static void vesa_reinit(void)
 
   vbe_buffer = info_buffer = lowmem_heap_alloc(VBE_viSize+VBE_vmSize);
   vesa_r.eax = 0x4f00;
-  vesa_r.es = (unsigned int)vbe_buffer >> 4;
+  vesa_r.es = FP_SEG32(vbe_buffer);
   vesa_r.edi = 0;
   VBE_viVBESig = 0x32454256; /* "VBE2" */
 
@@ -88,7 +88,7 @@ static void vesa_reinit(void)
     vesa_read_write = VBE_vmWinAAttrib & 6;
     if (vesa_version >= 0x200 && (VBE_vmModeAttrib & 0x80) && config.pci_video) {
       vesa_linear_vbase = (size_t)get_hardware_ram(VBE_vmPhysBasePtr);
-      v_printf("VESA: physical base = %x, virtual base = %x\n",
+      v_printf("VESA: physical base = %x, virtual base = %zx\n",
 	       VBE_vmPhysBasePtr, vesa_linear_vbase);
     }
   } else {

@@ -155,7 +155,7 @@ static int video_init(void)
         error("could not malloc prev_screen\n");
         leavedos(99);
      }
-     v_printf("SCREEN saves at: %p of %d size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+     v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 /* 
  * DANG_BEGIN_REMARK
  * Here the sleeping lion will be awoken and eat much of CPU time !!!
@@ -231,7 +231,7 @@ scr_state_init(void) {
   scr_state.vt_requested = 0;
   scr_state.mapped = 0;
   scr_state.pageno = 0;
-  scr_state.virt_address = (void *)virt_text_base;
+  scr_state.virt_address = virt_text_base;
   /* Assume the screen is initially mapped. */
   scr_state.current = 1;
 }

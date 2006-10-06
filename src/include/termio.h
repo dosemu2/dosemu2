@@ -44,7 +44,7 @@ struct screen_stat {
   int lorigin;
 
   caddr_t virt_address;		/* current map address in DOS memory */
-  char *phys_address;		/* current map address in Linux memory */
+  off_t phys_address;		/* current map address in /dev/mem memory */
 
   int old_modecr, new_modecr;
 };

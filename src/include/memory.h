@@ -180,16 +180,16 @@
 /* Memory adresses for all common video adapters */
 
 #define MDA_PHYS_TEXT_BASE  0xB0000
-#define MDA_VIRT_TEXT_BASE  0xB0000
+#define MDA_VIRT_TEXT_BASE  ((void *)0xB0000)
 
 #define CGA_PHYS_TEXT_BASE  0xB8000
-#define CGA_VIRT_TEXT_BASE  0xB8000
+#define CGA_VIRT_TEXT_BASE  ((void *)0xB8000)
 
 #define EGA_PHYS_TEXT_BASE  0xB8000
-#define EGA_VIRT_TEXT_BASE  0xB8000
+#define EGA_VIRT_TEXT_BASE  ((void *)0xB8000)
 
 #define VGA_PHYS_TEXT_BASE  0xB8000
-#define VGA_VIRT_TEXT_BASE  0xB8000
+#define VGA_VIRT_TEXT_BASE  ((void *)0xB8000)
 
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */
@@ -259,7 +259,7 @@ extern char * const lowmem_base;
 #define UNIX_READ_DWORD(addr)		(*(Bit32u *) (addr))
 #define UNIX_WRITE_DWORD(addr, val)	(*(Bit32u *) (addr) = (val) )
 
-#define LOWMEM(addr) ((void *)((Bit32u)(addr) + lowmem_base))
+#define LOWMEM(addr) ((void *)((uintptr_t)(addr) + lowmem_base))
 
 #define LOWMEM_READ_BYTE(addr)		UNIX_READ_BYTE(LOWMEM(addr))
 #define LOWMEM_WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LOWMEM(addr), val)
@@ -272,12 +272,12 @@ extern char * const lowmem_base;
  * not in the EMS frame, hardware or video memory. We can _safely_
  * add lowmem_base to those. */
 #define IS_GENERIC_LOWMEM_ADDR(addr) \
-	 ((Bit32u)(addr) <= 0x9fffc || \
-	 ((Bit32u)(addr) >= 0xf4000 && (Bit32u)(addr) <= 0xffffc))
+	 ((uintptr_t)(addr) <= 0x9fffc || \
+	 ((uintptr_t)(addr) >= 0xf4000 && (uintptr_t)(addr) <= 0xffffc))
 
 #define LINEAR2UNIX(addr) \
 	(IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM(addr) : \
-	 dosaddr_to_unixaddr((void *)(addr)))
+	 dosaddr_to_unixaddr((void *)(uintptr_t)(addr)))
 
 #define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))
 #define WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LINEAR2UNIX(addr), val)

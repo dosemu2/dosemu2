@@ -33,6 +33,9 @@
  *
  */
 
+
+	.code32
+
 /*
  * We simply call our own BIOS via int 0x10, ax = 0x4fxx but use
  * subfunction codes (typically in BH or BL) of 0x40 instead of 0x00 to

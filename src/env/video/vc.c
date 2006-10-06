@@ -308,7 +308,7 @@ static void unmap_video_ram(int copyback)
 
 static void map_video_ram(void)
 { 
-  char *graph_mem;
+  void *graph_mem;
   off_t pbase = GRAPH_BASE;
   char *vbase = (char *)pbase;
   size_t ssize = GRAPH_SIZE;
@@ -328,31 +328,31 @@ static void map_video_ram(void)
 
   /* the code below is done by the video save/restore code for config.vga */
   if (!config.vga) {
-    if ((long) graph_mem < 0) {
+    if (graph_mem == MAP_FAILED) {
       if (!can_do_root_stuff && mem_fd == -1) return;
       error("mmap error in get_video_ram (text): %p, errno %d\n",
 	    graph_mem, errno);
       return;
     } else
-      v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
-		(void *) pbase, vbase);
+      v_printf ("CONSOLE VIDEO address: %p %#lx %p\n", graph_mem,
+		pbase, vbase);
   }
-  scr_state.phys_address = graph_mem;
+  scr_state.phys_address = pbase;
   scr_state.mapped = 1;
 }
 
 void init_get_video_ram(int waitflag)
 {
   size_t size = GRAPH_SIZE;
-  char *base = (char *) GRAPH_BASE;
+  off_t base = GRAPH_BASE;
   if (!config.vga) {
     size = console_size();
-    base = (char *)phys_text_base;
+    base = phys_text_base;
   }
   if (waitflag == WAIT)
     wait_for_active_vc();
   scr_state.pageno = 0;
-  scr_state.virt_address = (void *)virt_text_base;
+  scr_state.virt_address = virt_text_base;
   scr_state.phys_address = base;
   scr_state.mapped = 1;
   /* mapping is done later in map_hardware_ram */

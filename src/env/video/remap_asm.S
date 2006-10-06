@@ -27,6 +27,8 @@
  *
  */
 
+#ifdef __i386__
+
 #include "remap.h"
 
 		.globl pent_8to16_test
@@ -1114,3 +1116,4 @@ pent8p_all_90:
 
 		.align 2,0x90
 
+#endif

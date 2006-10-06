@@ -125,7 +125,7 @@ extern unsigned short *screen_adr(int page);
 /* Values are set from emu.c depending on video-config */
 
 
-EXTERN int virt_text_base INIT(0);
+EXTERN void *virt_text_base INIT(0);
 EXTERN int phys_text_base INIT(0);
 EXTERN int v_8514_base INIT(0);
 

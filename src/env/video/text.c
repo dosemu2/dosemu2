@@ -925,7 +925,7 @@ static void save_selection_data(void)
 
   save_selection(col1, row1, col2, row2);
   
-  v_printf("VGAEMU: Selection, %d,%d->%d,%d, size=%d\n", 
+  v_printf("VGAEMU: Selection, %d,%d->%d,%d, size=%zu\n", 
 	   col1, row1, col2, row2, strlen(sel_text));
 
   if (strlen(sel_text) == 0)

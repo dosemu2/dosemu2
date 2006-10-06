@@ -1095,7 +1095,7 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
     sub_func &= ~0x40;
     ofs = (_SI << 16) + _DI;
     base = dpmi_GetSegmentBaseAddress(_BP);
-    buffer = (unsigned char *) (base + ofs);
+    buffer = (unsigned char *)(uintptr_t) (base + ofs);
 #ifdef DEBUG_VBE
     v_printf(
       "VBE: [0x%02x.%u] vbe_palette_data: called via pm interface, es.sel = 0x%04x, es.base = 0x%08x, es.ofs = 0x%08x\n",

@@ -336,9 +336,7 @@ static void set_hgc_page(int page)
       PROT_READ | PROT_WRITE,
       HGC_BASE0);
 
-   v_printf("MEM: soll %u ist %u\n",
-     (unsigned int) HGC_BASE1,
-     (unsigned int) Test);
+   v_printf("MEM: soll %#x ist %p\n", HGC_BASE0, Test);
 
  hgc_Page = 0;
  hgc_Mode = hgc_Mode & 0x7f;
@@ -375,9 +373,7 @@ static void set_hgc_page(int page)
         HGC_PLEN,
         PROT_READ | PROT_WRITE,
         HGC_BASE0);
-   v_printf("MEM: soll %u ist %u\n",
-     (unsigned int) HGC_BASE1,
-     (unsigned int) Test);
+   v_printf("MEM: soll %#x ist %p\n", HGC_BASE1, Test);
 
 
    hgc_Page = 1;

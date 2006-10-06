@@ -29,8 +29,35 @@
 #ifdef __linux__
 #define _regs vm86s.regs
 #endif
+#ifdef __x86_64__
+/* x86_64 headers do not define sigcontext_struct anymore, so
+   we can just recycle the name to store i386 registers.
+   The native sigcontext isn't so useful because it does not
+   contain ds, es, and ss. The unused fields oldmask, esp_at_signal,
+   and various paddings are omitted. */
+
+struct sigcontext_struct {
+	unsigned short gs, fs, es, ds, cs, ss;
+	unsigned int edi;
+	unsigned int esi;
+	unsigned int ebp;
+	unsigned int esp;
+	unsigned int ebx;
+	unsigned int edx;
+	unsigned int ecx;
+	unsigned int eax;
+	unsigned int trapno;
+	unsigned int err;
+	unsigned int eip;
+	unsigned int eflags;
+	struct _fpstate * fpstate;
+	unsigned int cr2;
+};
+
+#else
 #ifndef sigcontext_struct
 #define sigcontext_struct sigcontext
+#endif
 #endif
 
 #include "extern.h"
@@ -109,12 +136,12 @@ union dword {
 #define _HWORD(reg)	HI_WORD(scp->reg)
 
 /* this is used like: SEG_ADR((char *), es, bx) */
-#define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
+#define SEG_ADR(type, seg, reg)  type((uintptr_t)((LWORD(seg) << 4) + LWORD(e##reg)))
 
 /* alternative SEG:OFF to linear conversion macro */
-#define SEGOFF2LINEAR(seg, off)  ((((Bit32u)(seg)) << 4) + (off))
+#define SEGOFF2LINEAR(seg, off)  ((((uintptr_t)(seg)) << 4) + (off))
 
-#define SEG2LINEAR(seg)	((void *)  ( ((unsigned int)(seg)) << 4)  )
+#define SEG2LINEAR(seg)	((void *)  ( ((uintptr_t)(seg)) << 4)  )
 
 typedef unsigned long FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 typedef struct {
@@ -126,8 +153,8 @@ typedef struct {
 #define FP_OFF16(far_ptr)	((int)far_ptr & 0xffff)
 #define FP_SEG16(far_ptr)	(((unsigned int)far_ptr >> 16) & 0xffff)
 #define MK_FP32(s,o)		((void *)SEGOFF2LINEAR(s,o))
-#define FP_OFF32(void_ptr)	((unsigned int)void_ptr & 15)
-#define FP_SEG32(void_ptr)	(((unsigned int)void_ptr >> 4) & 0xffff)
+#define FP_OFF32(void_ptr)	((uintptr_t)void_ptr & 15)
+#define FP_SEG32(void_ptr)	(((uintptr_t)void_ptr >> 4) & 0xffff)
 #define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))
 #define FARt_PTR(f_t_ptr) ((void*)SEGOFF2LINEAR((f_t_ptr).segment, (f_t_ptr).offset))
 #define MK_FARt(seg, off) ((far_t){(off), (seg)})
@@ -325,7 +352,7 @@ EXTERN struct vec_t *ivecs;
 
 #include "memory.h" /* for INT_OFF */
 #define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
-#define IS_IRET(i)		(*(unsigned char *)IVEC(i) == OP_IRET)
+#define IS_IRET(i)		(*(unsigned char *)(uintptr_t)IVEC(i) == OP_IRET)
 
 /*
 #define WORD(i) (unsigned short)(i)

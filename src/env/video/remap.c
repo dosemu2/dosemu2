@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <sys/mman.h>	/* mprotect() */
 
 #include "remap.h"
@@ -1415,7 +1416,7 @@ void code_append_ins(CodeObj *co, int len, void *nc)
     }
 
     text = mem + pagesize - 1;
-    text -= ((unsigned) text) & (pagesize - 1);
+    text -= ((uintptr_t) text) & (pagesize - 1);
     size -= text - mem;
 
     if(mprotect_mapping(MAPPING_VGAEMU, text, size, PROT_READ|PROT_WRITE|PROT_EXEC) < 0) {
