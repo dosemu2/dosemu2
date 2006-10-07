@@ -98,7 +98,7 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 
 /////////////////////////////////////////////////////////////////////////////
 
-#if defined(i386)||defined(__i386)||defined(__i386__)
+#if defined(i386)||defined(__i386)||defined(__i386__)||defined(__x86_64__)
 #ifdef USE_BOUND
 /* `Fetch` is for CODE reads, `Get`/`Put` is for DATA.
  *  WARNING - BOUND uses SIGNED limits!! */
@@ -113,7 +113,7 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 #define FetchL(a)	({ \
 	register long p = (long)(a)+3;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	*((unsigned long *)(a)); })
+	*((unsigned int *)(a)); })
 
 #define DataFetchWL_U(m,a)	({ \
 	register unsigned f = ((m)&DATA16? 1:3);\

@@ -157,12 +157,7 @@ FILE *aLog = NULL;
  * 20	unsigned short gs, __gsh;
  * --------------------------------------------------------------
  */
-struct sigcontext_struct e_scp = {
-	0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,
-	0,0,0,
-	0,0,0,0,0,0,0,0,0
-};
+struct sigcontext_struct e_scp; /* initialized to 0 */
 
 unsigned long io_bitmap[IO_BITMAP_SIZE+1];
 
@@ -253,7 +248,7 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
 	if (debug_level('e')>4) {
 		int i;
-		unsigned short *stk = (unsigned short *)(LONG_SS+TheCPU.esp);
+		unsigned short *stk = (unsigned short *)(uintptr_t)(LONG_SS+TheCPU.esp);
 		for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
 		   exprintw(*stk++,buf,i);
 		}
@@ -309,7 +304,7 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 		    stk = (unsigned short *)(GetSegmentBaseAddress(_ss)+_LWORD(esp));
 	    }
 	    else
-		stk = (unsigned short *)((_ss<<4)+_LWORD(esp));
+		stk = MK_FP32(_ss,_LWORD(esp));
 	    for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
 		exprintw(*stk++,buf,i);
 	    }
@@ -325,12 +320,13 @@ char *e_emu_disasm(unsigned char *org, int is32)
    int rc;
    int i;
    char *p, *p1;
-   unsigned char *code, *org2;
+   unsigned char *code;
+   unsigned int org2;
    unsigned int refseg;
    unsigned int ref;
 
    refseg = TheCPU.cs;
-   org2 = org-LONG_CS;
+   org2 = org-(unsigned char *)(uintptr_t)LONG_CS;
    code = org;
 
    rc = dis_8086((unsigned long)org, code, frmtbuf, is32, &refseg, &ref, 0, 1);
@@ -341,7 +337,7 @@ char *e_emu_disasm(unsigned char *org, int is32)
    }
    sprintf(p,"%20s", " ");
    p1 = buf + 28;
-   p = p1 + sprintf(p1, "%04x:%04x %s", TheCPU.cs, (int)org2, frmtbuf);
+   p = p1 + sprintf(p1, "%04x:%04x %s", TheCPU.cs, org2, frmtbuf);
 
    return buf;
 }
@@ -869,13 +865,13 @@ void leave_cpu_emu(void)
 		LDT = NULL; GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 #ifdef PROFILE
-		dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",TotalTime/config.CPUSpeedInMhz);
-		dbug_printf("Total codgen time %16lld us\n",GenTime/config.CPUSpeedInMhz);
-		dbug_printf("Total linker time %16lld us\n",LinkTime/config.CPUSpeedInMhz);
-		dbug_printf("Total exec   time %16lld us (incl.faults)\n",ExecTime/config.CPUSpeedInMhz);
-		dbug_printf("Total insert time %16lld us\n",AddTime/config.CPUSpeedInMhz);
-		dbug_printf("Total search time %16lld us\n",SearchTime/config.CPUSpeedInMhz);
-		dbug_printf("Total clean  time %16lld us\n",CleanupTime/config.CPUSpeedInMhz);
+		dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",(long long)TotalTime/config.CPUSpeedInMhz);
+		dbug_printf("Total codgen time %16lld us\n",(long long)GenTime/config.CPUSpeedInMhz);
+		dbug_printf("Total linker time %16lld us\n",(long long)LinkTime/config.CPUSpeedInMhz);
+		dbug_printf("Total exec   time %16lld us (incl.faults)\n",(long long)ExecTime/config.CPUSpeedInMhz);
+		dbug_printf("Total insert time %16lld us\n",(long long)AddTime/config.CPUSpeedInMhz);
+		dbug_printf("Total search time %16lld us\n",(long long)SearchTime/config.CPUSpeedInMhz);
+		dbug_printf("Total clean  time %16lld us\n",(long long)CleanupTime/config.CPUSpeedInMhz);
 		dbug_printf("Max tree nodes    %16d\n",MaxNodes);
 		dbug_printf("Max node size     %16d\n",MaxNodeSize);
 		dbug_printf("Max tree depth    %16d\n",MaxDepth);
@@ -939,7 +935,7 @@ static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
 		goto cannot_handle;
 	if (i==0x21 && e_revectored(_AH,&vm86s.int21_revectored))
 		goto cannot_handle;
-	intr_ptr = (unsigned long *) (i << 2);
+	intr_ptr = MK_FP32(0, i << 2);
 	segoffs = *intr_ptr;
 	if ((segoffs >> 16) == BIOSSEG)
 		goto cannot_handle;
@@ -971,7 +967,7 @@ static int handle_vm86_trap(long *error_code, int trapno)
 {
 	if ( (trapno==3) || (trapno==1) )
 		return (VM86_TRAP + (trapno << 8));
-	e_do_int(trapno, (unsigned char *) (_SS << 4), _SP);
+	e_do_int(trapno, SEG2LINEAR(_SS), _SP);
 	return -1;
 }
 
@@ -981,8 +977,8 @@ static int handle_vm86_fault(long *error_code)
 	unsigned char *csp, *ssp, op;
 	unsigned long ip, sp;
 
-	csp = (unsigned char *) (_CS << 4);
-	ssp = (unsigned char *) (_SS << 4);
+	csp = SEG2LINEAR(_CS);
+	ssp = SEG2LINEAR(_SS);
 	sp = _SP;
 	ip = _IP;
 	op = popb(csp, ip);

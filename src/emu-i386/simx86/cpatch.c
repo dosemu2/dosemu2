@@ -54,6 +54,8 @@ int s_mprotect(caddr_t addr)
 	return e_mprotect(addr,0);
 }
 
+#ifndef HOST_ARCH_SIM
+
 static int m_mprotect(caddr_t addr)
 {
 	if (debug_level('e')>3)
@@ -97,8 +99,6 @@ asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
 }
 
 /* ======================================================================= */
-
-#ifndef HOST_ARCH_SIM
 
 asmlinkage void stk_16(caddr_t addr, Bit16u value)
 {

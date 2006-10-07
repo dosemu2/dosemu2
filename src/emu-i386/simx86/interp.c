@@ -1417,13 +1417,13 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				e_printf("RET: ret=%08x inc_sp=%d\n",TheCPU.eip,dr);
 			temp = rESP + dr;
 			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
-			PC = (unsigned char *)(LONG_CS + TheCPU.eip); }
+			PC = (unsigned char *)(uintptr_t)(LONG_CS + TheCPU.eip); }
 			break;
 /*c3*/	case RET:
 			CODE_FLUSH();
 			POP(mode, &TheCPU.eip);
 			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",TheCPU.eip);
-			PC = (unsigned char *)(LONG_CS + TheCPU.eip);
+			PC = (unsigned char *)(uintptr_t)(LONG_CS + TheCPU.eip);
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(opc, PC, mode|MBYTE);
@@ -1474,7 +1474,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			POP_ONLY(mode);
 			if (debug_level('e')>2)
 				e_printf("RET_%ld: ret=%08x\n",dr,TheCPU.eip);
-			PC = (unsigned char *)(LONG_CS + TheCPU.eip);
+			PC = (unsigned char *)(uintptr_t)(LONG_CS + TheCPU.eip);
 			temp = rESP + dr;
 			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			}
@@ -1508,7 +1508,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			if (TheCPU.err) return P0;
 			TheCPU.eip=0; POP(m, &TheCPU.eip);
 			POP_ONLY(m);
-			PC = (unsigned char *)(LONG_CS + TheCPU.eip);
+			PC = (unsigned char *)(uintptr_t)(LONG_CS + TheCPU.eip);
 			if (opc==RETl) {
 			    if (debug_level('e')>1)
 				e_printf("RET_FAR: ret=%04lx:%08x\n",sv,TheCPU.eip);
@@ -1891,7 +1891,7 @@ repag0:
 							e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
 								TheCPU.eip,dp);
 					}
-					PC = (unsigned char *)(LONG_CS + dp);
+					PC = (unsigned char *)(uintptr_t)(LONG_CS + dp);
 				}
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
@@ -1926,7 +1926,7 @@ repag0:
 						e_printf("JMP_FAR indirect: %04x:%08lx\n",jcs,jip);
 					}
 					TheCPU.eip = jip;
-					PC = (unsigned char *)(LONG_CS + jip);
+					PC = (unsigned char *)(uintptr_t)(LONG_CS + jip);
 #ifdef SKIP_EMU_VBIOS
 					if ((jcs&0xf000)==config.vbios_seg) {
 					    /* return the new PC after the jump */
@@ -1952,9 +1952,9 @@ repag0:
 			a = rDX;
 			rd = (mode&ADDR16? rDI:rEDI);
 			if (test_ioperm(a))
-				((char *)LONG_ES)[rd] = port_real_inb(a);
+				((char *)(uintptr_t)LONG_ES)[rd] = port_real_inb(a);
 			else
-				((char *)LONG_ES)[rd] = port_inb(a);
+				((char *)(uintptr_t)LONG_ES)[rd] = port_inb(a);
 			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
@@ -2108,9 +2108,9 @@ repag0:
 			iop = test_ioperm(a);
 			do {
 			    if (iop)
-				port_real_outb(a,((char *)LONG_DS)[rs]);
+				port_real_outb(a,((char *)(uintptr_t)LONG_DS)[rs]);
 			    else
-				port_outb(a,((char *)LONG_DS)[rs]);
+				port_outb(a,((char *)(uintptr_t)LONG_DS)[rs]);
 			    if (EFLAGS & EFLAGS_DF) rs--; else rs++;
 			    PC++;
 			} while (Fetch(PC)==OUTSb);

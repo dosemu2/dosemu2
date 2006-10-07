@@ -264,7 +264,7 @@ void mprot_end(void)
 	while (M) {
 	    tMpMap *M2 = M;
 	    for (i=0; i<32; i++) if ((b=M->pagemap[i])) {
-		caddr_t addr = (caddr_t)((M->mega<<20) | (i<<15));
+		caddr_t addr = (caddr_t)(uintptr_t)((M->mega<<20) | (i<<15));
 		while (b) {
 		    if (b & 1) {
 			e_printf("MP_END %08lx = RWX\n",(long)addr);

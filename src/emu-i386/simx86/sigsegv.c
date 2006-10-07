@@ -51,11 +51,12 @@ int TryMemRef = 0;
 
 /* ======================================================================= */
 
-unsigned e_VgaRead(unsigned addr, int mode)
+unsigned e_VgaRead(unsigned a, int mode)
 {
   unsigned u;
+  unsigned char *addr = (unsigned char *)(uintptr_t)a;
   if (mode&MBYTE)
-    u = vga_read((unsigned char *)addr);
+    u = vga_read(addr);
   else {
     u = vga_read_word((unsigned short *)addr);
     if (!(mode&DATA16))
@@ -67,13 +68,14 @@ unsigned e_VgaRead(unsigned addr, int mode)
   return u;
 }
 
-void e_VgaWrite(unsigned addr, unsigned u, int mode)
+void e_VgaWrite(unsigned a, unsigned u, int mode)
 {
+  unsigned char *addr = (unsigned char *)(uintptr_t)a;
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: VGA write %08x at %08x mode %x\n",u,addr,mode);
 #endif
   if (mode&MBYTE) {
-    vga_write((unsigned char *)addr, u);
+    vga_write(addr, u);
     return;
   }
   vga_write_word((unsigned short *)addr, u);
@@ -93,7 +95,7 @@ static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	if (op&1) {		/* byte move */
 	    if (op&4) goto vga2vgab;
 	    while (rep--) {
-		e_VgaWrite(_edi,*((char *)_esi),MBYTE);
+		e_VgaWrite(_edi,*((char *)_rsi),MBYTE);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -102,7 +104,7 @@ static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	else if (w16&1) {	/* word move */
 	    if (op&4) goto vga2vgaw;
 	    while (rep--) {
-		e_VgaWrite(_edi,*((short *)_esi),DATA16);
+		e_VgaWrite(_edi,*((short *)_rsi),DATA16);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -112,7 +114,7 @@ static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	    dp *= 2;
 	    if (op&4) goto vga2vgal;
 	    while (rep--) {
-		e_VgaWrite(_edi,*((long *)_esi),DATA32);
+		e_VgaWrite(_edi,*((long *)_rsi),DATA32);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -130,7 +132,7 @@ vga2vgab:
 	        }
 	    }
 	    else while (rep--) {
-		*((char *)_edi) = e_VgaRead(_esi,MBYTE);
+		*((char *)_rdi) = e_VgaRead(_esi,MBYTE);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -145,7 +147,7 @@ vga2vgaw:
 	        }
 	    }
 	    else while (rep--) {
-		*((short *)_edi) = e_VgaRead(_esi,DATA16);
+		*((short *)_rdi) = e_VgaRead(_esi,DATA16);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -161,7 +163,7 @@ vga2vgal:
 	        }
 	    }
 	    else while (rep--) {
-		*((long *)_edi) = e_VgaRead(_esi,DATA32);
+		*((long *)_rdi) = e_VgaRead(_esi,DATA32);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -234,9 +236,9 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       return 1;
     }  
 
-/**/  e_printf("eVGAEmuFault: trying %08lx, a=%08x\n",*((long *)_eip),_edi);
+/**/  e_printf("eVGAEmuFault: trying %08lx, a=%08lx\n",*((long *)_rip),_rdi);
 
-    p = (unsigned char *)_eip;
+    p = (unsigned char *)_rip;
     if (*p==0x66) w16=1,p++; else w16=0;
 
     /* Decode the faulting instruction.
@@ -361,7 +363,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 
 unimp:
   error("eVGAEmuFault: unimplemented decode instr at %08x: %08lx\n",
-	_eip, *((long *)_eip));
+	_eip, *((long *)_rip));
   leavedos(0x5643);
 badrw:
   error("eVGAEmuFault: bad R/W CR2 bits at %08x: %08lx\n",
@@ -394,7 +396,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 	  	 _trapno, _err, _cr2, _eip);
     dbug_printf("==============================================================\n");
     if (debug_level('e')>1) {
-	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_eip),
+	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_rip),
 	    e_print_scp_regs(scp,(in_dpmi?3:2)));
 	dbug_printf("Emul CPU mode=%04x cr2=%08x\n%s\n",
 	    TheCPU.mode&0xffff,TheCPU.cr2,e_print_regs());
