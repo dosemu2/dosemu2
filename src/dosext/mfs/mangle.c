@@ -131,7 +131,7 @@ unsigned long is_dos_device(const char *fname)
     if (dev[0] == 0xff || dev[1] == 0xff)
       return 0;
     memcpy(&devfar, dev, 4);
-    dev = (char *)((((dev[3] << 8) | dev[2]) << 4) + ((dev[1] << 8) | dev[0]));
+    dev = MK_FP32((dev[3] << 8) | dev[2], (dev[1] << 8) | dev[0]);
   } while (1);
 }
 

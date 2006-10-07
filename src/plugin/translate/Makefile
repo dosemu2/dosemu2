@@ -21,15 +21,13 @@ CFILES = $(CHARSET_CFILES) translate.c \
 	keysym_approximations.c \
 	unicode_utils.c dosemu_charset.c translate_config.c
 
-EXTRA_CFILES = crunch_UnicodeData.c make_attributes.c 
-
-DEPENDS= $(CFILES:.c=.d) $(EXTRA_CFILES:.c=.d)
+DEPENDS= $(CFILES:.c=.d)
 OBJS   = $(CFILES:.c=.o)
 HFILES = 
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) $(EXTRA_CFILES)
+ALL = $(CFILES) $(HFILES)
 
 all: lib
 
@@ -38,11 +36,11 @@ clean::
 
 include $(REALTOPDIR)/src/Makefile.common
 
-crunch_UnicodeData: crunch_UnicodeData.o
-	$(CC) $(LDFLAGS) -o $@ $<
+crunch_UnicodeData: crunch_UnicodeData.c
+	$(CC) $(INCDIR) -o $@ $<
 
-make_attributes: make_attributes.o
-	$(CC) $(LDFLAGS) -o $@ $<
+make_attributes: make_attributes.c
+	$(CC) $(INCDIR) -o $@ $<
 
 keysym_attributes.c: UnicodeCrunchedAttributes make_attributes
 	./make_attributes < $< > $@

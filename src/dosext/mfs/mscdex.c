@@ -158,7 +158,7 @@ static int namecomp(const char *name1, size_t len1, const char *name2,
 {
 	if (len1 > 1 && name1[len1 - 1] == '.')
 		len1--;
-	C_printf("MSCDEX: %u %.*s\n", len1, (int)len1, name1);
+	C_printf("MSCDEX: %zu %.*s\n", len1, (int)len1, name1);
 	if (len1 == len2 && memcmp(name1, name2, len1) == 0) {
 		C_printf("MSCDEX: Get DirEntry : Found : %s\n", name1);
 		return 1;

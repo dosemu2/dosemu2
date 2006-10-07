@@ -58,7 +58,9 @@ RemapFuncDesc *remap_gen(void);
 
 RemapFuncDesc *(*remap_list_funcs[])(void) = {
   remap_gen,
+#ifdef __i386__
   remap_opt,
+#endif
 #ifdef REMAP_TEST
   remap_test,
 #endif

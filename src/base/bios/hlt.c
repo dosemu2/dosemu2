@@ -82,7 +82,7 @@ void hlt_init(void)
 void hlt_handle(void)
 {
   Bit8u  *lina = SEG_ADR((Bit8u *), cs, ip);
-  Bit32u  offs = (Bit32u)lina;
+  Bit32u  offs = (uintptr_t)lina;
   int rmcb_client, rmcb_num;
 
 #if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)

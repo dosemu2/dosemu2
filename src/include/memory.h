@@ -99,7 +99,7 @@
 #define EMS_OFF		0x0000
 #define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
 
-#define EMM_BASE_ADDRESS        (config.ems_frame << 4)
+#define EMM_BASE_ADDRESS        ((unsigned char *)SEG2LINEAR(config.ems_frame))
 #define EMM_SEGMENT             (config.ems_frame)
 
 #define INT16_SEG	ROMBIOSSEG
@@ -171,7 +171,7 @@
 #define BIOS_HLT_BLK       0xfc000
 #define BIOS_HLT_BLK_SIZE  0x00800
 
-#define VBIOS_START	(config.vbios_seg << 4 )
+#define VBIOS_START	((unsigned char *)SEG2LINEAR(config.vbios_seg))
 /*#define VBIOS_SIZE	(64*1024)*/
 #define VBIOS_SIZE	(config.vbios_size)
 #define GFX_CHARS	0xffa6e
@@ -232,8 +232,8 @@
 int  memcheck_addtype(unsigned char map_char, char *name);
 void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size);
 void memcheck_init(void);
-int  memcheck_isfree(int addr_start, int size);
-int  memcheck_findhole(int *start_addr, int min_size, int max_size);
+int  memcheck_isfree(size_t addr_start, size_t size);
+int  memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size);
 void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;

@@ -140,7 +140,8 @@ static int
 umb_setup(void)
 {
   int i;
-  int addr_start, size, umb;
+  size_t addr_start;
+  int size, umb;
 
   for (i = 0; i < UMBS; i++) {
     umbs[i].in_use = FALSE;
@@ -150,13 +151,13 @@ umb_setup(void)
 
   addr_start = 0x00000;     /* start address */
   while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
-    Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
+    Debug0((dbg_fd, "findhole - from 0x%5.5zX, %dKb\n", addr_start, size/1024));
     memcheck_reserve('U', addr_start, size);
 
     umb = umb_find_unused();
     umbs[umb].in_use = TRUE;
     umbs[umb].free = TRUE;
-    umbs[umb].addr = (vm_address_t) addr_start;
+    umbs[umb].addr = (vm_address_t)(uintptr_t) addr_start;
     umbs[umb].size = size;
   }
 
@@ -173,7 +174,7 @@ umb_setup(void)
 			     FALSE)),
 		"vm_allocate of umb block.");
 #else
-      Debug0((dbg_fd, "umb_setup: addr %p size 0x%04x\n",
+      Debug0((dbg_fd, "umb_setup: addr %p size 0x%04zx\n",
 	      (void *) addr, size));
 #endif
     }
@@ -198,7 +199,7 @@ static int
 umb_find(vm_address_t segbase)
 {
   int i;
-  vm_address_t addr = (vm_address_t) ((int) segbase * 16);
+  vm_address_t addr = SEG2LINEAR(segbase);
 
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use &&
@@ -287,7 +288,7 @@ static void umb_free_all(void)
 static int
 umb_free(int segbase)
 {
-  int umb = umb_find((vm_address_t)segbase);
+  int umb = umb_find((vm_address_t)(uintptr_t)segbase);
 
   if (umb != UMB_NULL) {
     umbs[umb].free = TRUE;
@@ -913,7 +914,7 @@ get_emm(unsigned int seg, unsigned int off)
   struct EMM e;
   unsigned char *p;
 
-  p = (char *) ((seg << 4) + off);
+  p = MK_FP32(seg, off);
 
 #if 0
   e.Length = *(unsigned long *) p;

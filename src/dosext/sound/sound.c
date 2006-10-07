@@ -1939,7 +1939,7 @@ void sb_get_version (void)
 void pause_dsp_dma(void)
 {
   const char *unit_str = SB_dsp.is_16bit ? "word" : "byte";
-  S_printf("SB: Pausing DMA transfer, %d %ss left\n", SB_dsp.units_left, unit_str);
+  S_printf("SB: Pausing DMA transfer, %zu %ss left\n", SB_dsp.units_left, unit_str);
   if (SB_driver.DMA_pause != NULL) {
     (*SB_driver.DMA_pause)();
   }
@@ -2006,7 +2006,7 @@ void start_dsp_dma(void)
 
   if (SB_dsp.units_left && !SB_dsp.pause_state &&
    !(SB_dsp.empty_state & DMA_CONTINUE) && (SB_dsp.dma_mode & SB_USES_DMA)) {
-      S_printf("SB: Waiting for DMA transfer cycle to finish, %d %ss left\n",
+      S_printf("SB: Waiting for DMA transfer cycle to finish, %zu %ss left\n",
         SB_dsp.units_left, unit_str);
       SB_dsp.empty_state |= START_DMA_AT_EMPTY;
       return;
@@ -2097,7 +2097,7 @@ void start_dsp_dma(void)
   if (!(SB_dsp.empty_state & DMA_CONTINUE))
     SB_dsp.units_left = SB_dsp.length;
   else
-    S_printf("SB: Resuming DMA transfer, %d %ss left\n", SB_dsp.units_left, unit_str);
+    S_printf("SB: Resuming DMA transfer, %zu %ss left\n", SB_dsp.units_left, unit_str);
   SB_dsp.empty_state &= ~DMA_CONTINUE;
   SB_dsp.dma_mode |= SB_USES_DMA;
   dma_pending = 0;
@@ -2185,7 +2185,7 @@ Bit8u buffer[SB_MAX_DMA_TRANSFERSIZE+1];
 static Bit8u missed_byte;
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: sb_dma_write: dosptr=%p size=%d\n", dosptr, size);
+    S_printf ("SB: sb_dma_write: dosptr=%p size=%zu\n", dosptr, size);
   }
 
   length = min(size, SB_dsp.units_left);
@@ -2248,7 +2248,7 @@ static Bit8u missed_byte;
   handle_dma_IO(amount_done);
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: Outputted %d bytes, %d bytes left\n",
+    S_printf ("SB: Outputted %d bytes, %zu bytes left\n",
 	amount_done, SB_dsp.units_left);
   }
 
@@ -2263,7 +2263,7 @@ Bit16u buffer[SB_MAX_DMA_TRANSFERSIZE+1];
 static Bit16u missed_word;
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: sb_dma16_write: dosptr=%p size=%d\n", dosptr, size);
+    S_printf ("SB: sb_dma16_write: dosptr=%p size=%zu\n", dosptr, size);
   }
 
   length = min(size/2, SB_dsp.units_left);
@@ -2327,7 +2327,7 @@ static Bit16u missed_word;
   handle_dma_IO(amount_done);
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: Outputted %d words, %d words left\n",
+    S_printf ("SB: Outputted %d words, %zu words left\n",
 	amount_done, SB_dsp.units_left);
   }
 
@@ -2340,7 +2340,7 @@ int amount_done, length;
 char fill;
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: sb_dma_read: size=%d\n", size);
+    S_printf ("SB: sb_dma_read: size=%zu\n", size);
   }
 
   length = min(size, SB_dsp.units_left);
@@ -2367,7 +2367,7 @@ char fill;
   handle_dma_IO(amount_done);
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: Inputted %d bytes, %d bytes left\n",
+    S_printf ("SB: Inputted %d bytes, %zu bytes left\n",
 	amount_done, SB_dsp.units_left);
   }
 
@@ -2380,7 +2380,7 @@ int amount_done, length;
 char fill[2];
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: sb_dma16_read: size=%d\n", size);
+    S_printf ("SB: sb_dma16_read: size=%zu\n", size);
   }
 
   length = min(size/2, SB_dsp.units_left);
@@ -2412,7 +2412,7 @@ char fill[2];
   handle_dma_IO(amount_done);
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: Inputted %d words, %d words left\n",
+    S_printf ("SB: Inputted %d words, %zu words left\n",
 	amount_done, SB_dsp.units_left);
   }
 

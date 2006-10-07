@@ -141,7 +141,7 @@ extern int cds_record_size;
 #define cds_DBP_pointer(cds)	(*(far_t *)&cds[cds_DBP_pointer_off])
 #define cds_cur_cluster(cds)	(*(u_short *)&cds[cds_cur_cluster_off])
 #define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
-#define drive_cds(dd) ((cds_t)(((int)cds_base)+(cds_record_size*(dd))))
+#define drive_cds(dd) ((cds_t)(((char *)cds_base)+(cds_record_size*(dd))))
 
 #define CDS_FLAG_REMOTE		0x8000
 #define CDS_FLAG_READY		0x4000
@@ -153,18 +153,18 @@ typedef u_char *sda_t;
 extern sda_t sda;
 extern int sda_cur_drive_off;
 
-#define	sda_current_dta(sda)	((char *)(FARPTR((far_t *)&sda[sda_current_dta_off])))
+#define	sda_current_dta(sda)	((char *)(uintptr_t)(FARPTR((far_t *)&sda[sda_current_dta_off])))
 #define	sda_error_code(sda)		(*(u_short *)&sda[4])
 #define sda_cur_psp(sda)		(*(u_short *)&sda[sda_cur_psp_off])
 #define sda_cur_drive(sda)		(*(u_char *)&sda[sda_cur_drive_off])
 #define sda_filename1(sda)		((char  *)&sda[sda_filename1_off])
 #define	sda_filename2(sda)		((char  *)&sda[sda_filename2_off])
 #define sda_sdb(sda)			((sdb_t    )&sda[sda_sdb_off])
-#define	sda_cds(sda)		((cds_t)(FARPTR((far_t *)&sda[sda_cds_off])))
+#define	sda_cds(sda)		((cds_t)(uintptr_t)(FARPTR((far_t *)&sda[sda_cds_off])))
 #define sda_search_attribute(sda)	(*(u_char *)&sda[sda_search_attribute_off])
 #define sda_open_mode(sda)		(*(u_char *)&sda[sda_open_mode_off])
 #define sda_rename_source(sda)		((sdb_t    )&sda[sda_rename_source_off])
-#define sda_user_stack(sda)		((char *)(FARPTR((far_t *)&sda[sda_user_stack_off])))
+#define sda_user_stack(sda)		((char *)(uintptr_t)(FARPTR((far_t *)&sda[sda_user_stack_off])))
 
 /*
  *  Data for extended open/create operations, DOS 4 or greater:
@@ -174,7 +174,7 @@ extern int sda_cur_drive_off;
 #define sda_ext_mode(sda)		(*(u_short *)&sda[sda_ext_mode_off])
 
 #define psp_parent_psp(psp)		(*(u_short *)&psp[0x16])
-#define psp_handles(psp)		((char *)(FARPTR((far_t *)&psp[0x34])))
+#define psp_handles(psp)		((char *)(uintptr_t)(FARPTR((far_t *)&psp[0x34])))
 
 #define lol_dpbfarptr(lol)		(*(far_t *)&lol[lol_dpbfarptr_off])
 #define lol_cdsfarptr(lol)		(*(far_t *)&lol[lol_cdsfarptr_off])

@@ -578,7 +578,7 @@ size_t unicode_to_charset(struct char_set_state *ostate, t_unicode symbol,
 		for(i = 0; (state.result != -1) && (i < state.result); i++) {
 			u_printf("%s%02x", ((i != 0)?",":""), outbuf[i]);
 		}
-		u_printf("...%d", state.result);
+		u_printf("...%zu", state.result);
 		if (state.result == -1) {
 			u_printf(":%d(%s)", errno, strerror(errno));
 		}
@@ -616,7 +616,7 @@ size_t charset_to_unicode(struct char_set_state *state,
 		for(i = 0; (result != -1) && (i < result); i++) {
 			u_printf("%s%02x", ((i != 0)?",":""), inbuf[i]);
 		}
-		u_printf(" -> symbol:%04x...%d",
+		u_printf(" -> symbol:%04x...%zu",
 			*symbol, result);
 		if (result == -1) {
 			u_printf(":%d(%s)", errno, strerror(errno));

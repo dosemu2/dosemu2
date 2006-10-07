@@ -907,7 +907,7 @@ static inline size_t dma_do_write(int controller, int channel, void *ptr,
 
 static void dma_process_demand_mode_write(int controller, int channel)
 {
-  Bit32u target_addr;
+  uintptr_t target_addr;
   int amount_done = 0;
   int ch;
   /*      int mask; */
@@ -953,7 +953,7 @@ static void dma_process_demand_mode_write(int controller, int channel)
 
 static void dma_process_single_mode_write(int controller, int channel)
 {
-  Bit32u target_addr;
+  uintptr_t target_addr;
   int amount_done = 0;
   int ch;
   /*      int mask; */
@@ -1002,7 +1002,7 @@ static void dma_process_single_mode_write(int controller, int channel)
 
 static void dma_process_block_mode_write(int controller, int channel)
 {
-  Bit32u target_addr;
+  uintptr_t target_addr;
   int amount_done = 0;
   int ch;
   /*      int mask; */
@@ -1068,7 +1068,7 @@ static void dma_process_cascade_mode_write(int controller, int channel)
 
 static void dma_process_demand_mode_read(int controller, int channel)
 {
-  Bit32u target_addr;
+  uintptr_t target_addr;
   int amount_done = 0;
   int ch;
   /*      int mask; */
@@ -1115,7 +1115,7 @@ static void dma_process_demand_mode_read(int controller, int channel)
 
 static void dma_process_single_mode_read(int controller, int channel)
 {
-  Bit32u target_addr;
+  uintptr_t target_addr;
   size_t amount_done = 0;
   int ch;
   /*      int mask; */
@@ -1165,7 +1165,7 @@ static void dma_process_single_mode_read(int controller, int channel)
 
 static void dma_process_block_mode_read(int controller, int channel)
 {
-  Bit32u target_addr;
+  uintptr_t target_addr;
   int amount_done = 0;
   int ch;
   /*      int mask; */

@@ -160,25 +160,25 @@ void map_video_bios(void)
 
   if (config.mapped_bios) {
     if (config.vbios_file) {
-      warn("WARN: loading VBIOS %s into mem at 0x%X (0x%X bytes)\n",
+      warn("WARN: loading VBIOS %s into mem at %p (%#X bytes)\n",
 	   config.vbios_file, VBIOS_START, VBIOS_SIZE);
       load_file(config.vbios_file, 0, (char *) VBIOS_START, VBIOS_SIZE);
     }
     else if (config.vbios_copy) {
-      warn("WARN: copying VBIOS from /dev/mem at 0x%X (0x%X bytes)\n",
+      warn("WARN: copying VBIOS from /dev/mem at %p (%#X bytes)\n",
 	   VBIOS_START, VBIOS_SIZE);
-      load_file("/dev/mem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
+      load_file("/dev/mem", (off_t)VBIOS_START, VBIOS_START, VBIOS_SIZE);
     }
     else {
       warn("WARN: copying VBIOS file from /dev/mem\n");
-      load_file("/dev/mem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
+      load_file("/dev/mem", (off_t)VBIOS_START, VBIOS_START, VBIOS_SIZE);
     }
 
     /* copy graphics characters from system BIOS */
     load_file("/dev/mem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
 
     memcheck_addtype('V', "Video BIOS");
-    memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
+    memcheck_reserve('V', (uintptr_t)VBIOS_START, VBIOS_SIZE);
     if (!config.vbios_post || config.chipset == VESA)
       load_file("/dev/mem", 0, (char *)int_bios_area, sizeof(int_bios_area));
   }

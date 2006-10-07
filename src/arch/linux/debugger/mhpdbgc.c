@@ -876,7 +876,7 @@ static void mhp_enter(int argc, char * argv[])
       return;
 
    if (!strcmp(argv[1],"-")) {
-     if ((int)zapaddr == -1) {
+     if (zapaddr == (void *)-1) {
         mhp_printf("Address invalid, no previous 'e' command with address\n");
         return;
      }
@@ -1402,7 +1402,7 @@ int mhp_bpchk(unsigned char * a1)
 int mhp_getcsip_value()
 {
   int  seg, off, limit;
-  if (IN_DPMI) return (int)mhp_getadr("cs:eip", &seg, &off, &limit);
+  if (IN_DPMI) return (int)(uintptr_t)mhp_getadr("cs:eip", &seg, &off, &limit);
   else return (LWORD(cs) << 4) + LWORD(eip);
 }
 

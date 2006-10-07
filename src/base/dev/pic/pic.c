@@ -908,7 +908,7 @@ pic_iret(void)
       else {
 	unsigned char * ssp;
 	unsigned long sp;
-	ssp = (unsigned char *)(LWORD(ss)<<4);
+	ssp = SEG2LINEAR(LWORD(ss));
 	sp = (unsigned long) LWORD(esp);
 	LWORD(eip) = popw(ssp, sp);
 	REG(cs) = popw(ssp, sp);

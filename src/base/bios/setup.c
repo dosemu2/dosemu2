@@ -90,12 +90,12 @@ static void bios_setup(void)
   for (i = 0; i < 256; i++) {
     if (config.vga && !config.vbios_post) {
       uint16_t seg, off;
-      uint32_t addr;
+      unsigned char *addr;
 
       seg = int_bios_area[i] >> 16;
       off = int_bios_area[i] & 0xffff;
       v_printf("int0x%x was 0x%04x:0x%04x\n", i, seg, off);
-      addr = SEGOFF2LINEAR(seg, off);
+      addr = MK_FP32(seg, off);
       if (addr >= VBIOS_START && addr < VBIOS_START + VBIOS_SIZE) {
 	g_printf("Setting int0x%x to 0x%04x:0x%04x\n", i, seg, off);
 	SETIVEC(i, seg, off);

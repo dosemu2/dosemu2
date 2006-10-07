@@ -480,7 +480,7 @@ static void ASPI_DebugPrintCmd16(SRB_ExecSCSICmd16 *prb)
   Bit8u *cdb;
   Bit8u *lpBuf;
 
-  lpBuf = (Bit8u *) FARPTR16_TO_LIN(prb->SRB_BufPointer);
+  lpBuf = (Bit8u *)(uintptr_t) FARPTR16_TO_LIN(prb->SRB_BufPointer);
   switch (prb->CDBByte[0]) {
   case CMD_INQUIRY:
     A_printf("ASPI: {\n");
@@ -557,7 +557,7 @@ static void ASPI_DebugPrintResult16(SRB_ExecSCSICmd16 *prb)
 {
   Bit8u *lpBuf;
 
-  lpBuf = (Bit8u *) FARPTR16_TO_LIN(prb->SRB_BufPointer);
+  lpBuf = (Bit8u *)(uintptr_t) FARPTR16_TO_LIN(prb->SRB_BufPointer);
 
   switch (prb->CDBByte[0]) {
   case CMD_INQUIRY:
@@ -596,7 +596,7 @@ static Bit16u ASPI_ExecScsiCmd16(SRB_ExecSCSICmd16 *prb, FARPTR16 segptr_prb)
   sg_reply_hdr = NULL;
 
   prb->SRB_Status = SS_PENDING;
-  lpBuf = (Bit8u *) FARPTR16_TO_LIN(prb->SRB_BufPointer);
+  lpBuf = (Bit8u *)(uintptr_t) FARPTR16_TO_LIN(prb->SRB_BufPointer);
 
   if (!prb->SRB_CDBLen) {
       prb->SRB_Status = SS_ERR;
@@ -834,7 +834,7 @@ static Bit16u GetASPISupportInfo16()
 
 static Bit16u SendASPICommand16(FARPTR16 segptr_srb)
 {
-  LPSRB16 lpSRB = (LPSRB16)segptr_srb;
+  LPSRB16 lpSRB = (LPSRB16)(uintptr_t)segptr_srb;
 
   switch (lpSRB->common.SRB_Cmd) {
   case SC_HA_INQUIRY:
@@ -879,7 +879,7 @@ void aspi_helper(int mode)
    srb = (SRB16 *) SEGOFF2LINEAR(arg_s, arg_o);
 
    srb->common.SRB_Status = 255;
-   ret = SendASPICommand16((FARPTR16) srb);
+   ret = SendASPICommand16((FARPTR16)(uintptr_t)srb);
    if ( srb->common.SRB_Status == 255 )
      srb->common.SRB_Status = ret; /* set status from return code */
 

@@ -38,7 +38,7 @@
 
 #define MHP_BUFFERSIZE 8192
 
-#define FOREVER ((((unsigned long)-1L) >> 1) / CLOCKS_PER_SEC)
+#define FOREVER ((((unsigned int)-1) >> 1) / CLOCKS_PER_SEC)
 #define KILL_TIMEOUT 2
 
 fd_set readfds;

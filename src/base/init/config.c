@@ -610,7 +610,7 @@ static void config_post_process(const char *usedoptions)
 	if (config.console_keyb == -1)
 	    config.console_keyb = can_do_root_stuff;
 	if (config.speaker == SPKR_EMULATED) {
-	    register_speaker((void *)console_fd,
+	    register_speaker((void *)(uintptr_t)console_fd,
 			     console_speaker_on, console_speaker_off);
 	}
     } else {
@@ -703,7 +703,7 @@ int register_config_scrub(config_scrub_t new_config_scrub)
 		}
 	}
 	if (result < 0) {
-		c_printf("register_config_scrub failed > %d config_scrub functions\n",
+		c_printf("register_config_scrub failed > %zu config_scrub functions\n",
 			sizeof(config_scrub_func)/sizeof(config_scrub_func[0]));
 	}
 	return result;

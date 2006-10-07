@@ -206,7 +206,7 @@ struct kernel_dirent {
 #define VFAT_IOCTL_READDIR_BOTH	 _IOR('r', 1, struct kernel_dirent [2])
 #define VFAT_IOCTL_READDIR_SHORT _IOR('r', 2, struct kernel_dirent [2])
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
-static int vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
+static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 #define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, uint32_t)
 #define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
 #endif
@@ -392,7 +392,7 @@ select_drive(state_t *state)
   int fn = LOW(state->eax);
 
   cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
+  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   Debug0((dbg_fd, "selecting drive fn=%x sda_cds=%p\n",
 	  fn, (void *) sda_cds));
@@ -1473,7 +1473,7 @@ calculate_drive_pointers(int dd)
     return (0);
 
   cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
+  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   cds = drive_cds(dd);
 
@@ -1568,8 +1568,8 @@ dos_fs_dev(state_t *state)
     {
       u_short *seg = (u_short *) (ptr - 2);
       u_short *ofs = (u_short *) (ptr - 4);
-      char *clineptr = (char *) Addr_8086(*seg, *ofs);
-      char *dirnameptr = (char *) Addr_8086(state->ds, state->esi);
+      char *clineptr = MK_FP32(*seg, *ofs);
+      char *dirnameptr = MK_FP32(state->ds, state->esi);
       char cline[256];
       char *t;
       int i = 0;
@@ -2068,7 +2068,7 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, char *fpath)
      */
     for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
       if (se->hlist == NULL) {
-        Debug0((dbg_fd, "hlist_push gap=%d\n", se - hlists.stack));
+        Debug0((dbg_fd, "hlist_push gap=%td\n", se - hlists.stack));
         se->duplicates = 0;
         se->psp = psp;
         goto exit;
@@ -2198,7 +2198,7 @@ static inline void hlist_watch_pop(unsigned psp)
   }
   if (se_del != NULL) {
     se = se_del;
-    Debug0((dbg_fd, "hlist_watch_pop: deleting ind=%d hlist=%p\n",
+    Debug0((dbg_fd, "hlist_watch_pop: deleting ind=%td hlist=%p\n",
 						se_del-hlists.stack,se->hlist));
     free_list(se, TRUE);
     se->seq = -1; /* done */
@@ -2213,7 +2213,7 @@ static inline void hlist_watch_pop(unsigned psp)
       se++;
       break;
     }
-    Debug0((dbg_fd, "hlist_watch_pop: shrinking stack_top=%d\n",
+    Debug0((dbg_fd, "hlist_watch_pop: shrinking stack_top=%td\n",
 						se - hlists.stack));
     hlists.watch = 0;	/* reset watch */
   }
@@ -2406,7 +2406,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   Debug0((dbg_fd, "RedirectDisk %c: to %s\n", dsk + 'A', resourceName));
 
   cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
+  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
   if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
@@ -2578,7 +2578,7 @@ CancelDiskRedirection(int dsk)
   Debug0((dbg_fd, "CancelDiskRedirection on %c:\n", dsk + 'A'));
 
   cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
+  cds_base = MK_FP32(cdsfarptr.segment, cdsfarptr.offset);
 
   /* see if drive is in range of valid drives */
   if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;

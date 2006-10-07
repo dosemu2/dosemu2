@@ -63,10 +63,11 @@ int memcheck_addtype(unsigned char map_char, char *name)
 
 void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
 {
-  int cntr, addr_end;
+  int cntr;
+  size_t addr_end;
   struct system_memory_map *entry;
 
-  c_printf("CONF: reserving %dKb at 0x%5.5X for '%c' (%s)\n", size/1024,
+  c_printf("CONF: reserving %zuKb at 0x%5.5zX for '%c' (%s)\n", size/1024,
 	   addr_start, map_char, mem_names[map_char]);
 
   round_addr(&addr_start);
@@ -124,9 +125,10 @@ void memcheck_init(void)
   memcheck_reserve('r', 0xF4000, 0xC000);               /* dosemu bios */
 }
 
-int memcheck_isfree(int addr_start, int size)
+int memcheck_isfree(size_t addr_start, size_t size)
 {
-  int cntr, addr_end;
+  int cntr;
+  size_t addr_end;
 
   round_addr(&addr_start);
   addr_end = addr_start + size;
@@ -139,7 +141,7 @@ int memcheck_isfree(int addr_start, int size)
   return TRUE;
 }
 
-int memcheck_findhole(int *start_addr, int min_size, int max_size)
+int memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size)
 {
   int cntr;
 
@@ -199,9 +201,9 @@ void memcheck_dump(void)
 void *dosaddr_to_unixaddr(void *addr)
 {
   unsigned char map_char;
-  if ((Bit32u)addr >= MEM_SIZE)
+  if ((uintptr_t)addr >= MEM_SIZE)
     return addr;
-  map_char = mem_map[(Bit32u)addr/GRAN_SIZE];
+  map_char = mem_map[(uintptr_t)addr/GRAN_SIZE];
   /* Not EMS, Hardware, or Video */
   if (map_char == 'E' || map_char == 'h' || map_char == 'v')
     return addr;	// FIXTHIS !

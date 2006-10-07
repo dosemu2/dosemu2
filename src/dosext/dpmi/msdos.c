@@ -42,7 +42,7 @@
 #define EXEC_SEG (MSDOS_CLIENT.lowmem_seg + EXEC_Para_ADD)
 
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(MSDOS_CLIENT.user_dta_sel) + MSDOS_CLIENT.user_dta_off)
-#define DTA_under_1MB (void*)((MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD) << 4)
+#define DTA_under_1MB SEG2LINEAR(MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD)
 
 #define MAX_DOS_PATH 260
 
@@ -472,7 +472,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		prepare_ems_frame();
 		REG(ds) = TRANS_BUFFER_SEG;
 		REG(edx) = 0;
-		d = (char *)(REG(ds)<<4);
+		d = SEG2LINEAR(REG(ds));
 		s = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
 		for(i=0; i<0xffff; i++, d++, s++) {
 		    *d = *s;
@@ -704,13 +704,13 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		prepare_ems_frame();
 		REG(ds) = seg;
 		REG(edx) = 0;
-		snprintf((char *)(REG(ds)<<4), MAX_DOS_PATH, "%s",
+		snprintf(SEG2LINEAR(REG(ds)), MAX_DOS_PATH, "%s",
 			     (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx));
 		seg += 0x20;
 
 		REG(es) = seg;
 		REG(edi) = 0;
-		snprintf((char *)(REG(es)<<4), MAX_DOS_PATH, "%s",
+		snprintf(SEG2LINEAR(REG(es)), MAX_DOS_PATH, "%s",
 			     (char *)GetSegmentBaseAddress(_es) + D_16_32(_edi));
 	    }
 	    return 0;
@@ -916,7 +916,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	prepare_ems_frame();
 	REG(ds) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_ds);
-	dst = (char *)(REG(ds)<<4);
+	dst = SEG2LINEAR(REG(ds));
 	len = min((int)(GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf("MSDOS: whole segment of DS at %p copy to DOS at %p for %#x\n",
 		src, dst, len);
@@ -929,7 +929,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	prepare_ems_frame();
 	REG(es) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_es);
-	dst = (char *)(REG(es)<<4);
+	dst = SEG2LINEAR(REG(es));
 	len = min((int)(GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf("MSDOS: whole segment of ES at %p copy to DOS at %p for %#x\n",
 		src, dst, len);
@@ -971,7 +971,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	char *src, *dst;
 	int len;
 	my_ds = TRANS_BUFFER_SEG;
-	src = (char *)(my_ds<<4);
+	src = SEG2LINEAR(my_ds);
 	dst = (char *)GetSegmentBaseAddress(_ds);
 	len = min((int)(GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf("MSDOS: DS seg at %p copy back at %p for %#x\n",
@@ -984,7 +984,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	char *src, *dst;
 	int len;
 	my_es = TRANS_BUFFER_SEG;
-	src = (char *)(my_es<<4);
+	src = SEG2LINEAR(my_es);
 	dst = (char *)GetSegmentBaseAddress(_es);
 	len = min((int)(GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf("MSDOS: ES seg at %p copy back at %p for %#x\n",
@@ -1039,7 +1039,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    PRESERVE2(esi, edi);
 	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_ds) + D_16_32(_esi),
 		/* Warning: SI altered, assume old value = 0, don't touch. */
-			    (void *)(REG(ds)<<4), 0x100);
+			    SEG2LINEAR(REG(ds)), 0x100);
 	    SET_REG(esi, _esi + LWORD(esi));
 	    MEMCPY_DOS2DOS((void *)(GetSegmentBaseAddress(_es) + D_16_32(_edi)),
 			    SEG_ADR((void *), es, di),  0x50);

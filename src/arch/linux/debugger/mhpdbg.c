@@ -351,7 +351,7 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
 		mhpdbgc.bpload++;
 		mhpdbgc.bpload_par=(struct mhpdbg_4bpar *)(((long)DBGload_parblock-(long)bios_f000)+(BIOSSEG << 4));
-		memcpy((char *)mhpdbgc.bpload_par, (char *)(LWORD(es)<<4)+LWORD(ebx), 14);
+		memcpy((char *)mhpdbgc.bpload_par, MK_FP32(LWORD(es),LWORD(ebx)), 14);
                 memcpy(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
                 memcpy(mhpdbgc.bpload_cmd, SEG_ADR((char *), ds, dx), 128);
 		LWORD(es)=BIOSSEG;
@@ -396,7 +396,7 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	  }
 	  if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
 		  int ok=0;
-		  int csip=mhp_getcsip_value() - 1;
+		  uintptr_t csip=mhp_getcsip_value() - 1;
 		  if (mhpdbgc.bpload_bp == csip ) {
 		    mhp_clearbp(mhpdbgc.bpload_bp);
 		    LWORD(eip)--;

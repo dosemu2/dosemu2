@@ -19,11 +19,11 @@
 
 void console_speaker_on(void *gp, unsigned ms, unsigned short period)
 {
-	ioctl((int)gp, KDMKTONE,
+	ioctl((int)(uintptr_t)gp, KDMKTONE,
 		(unsigned) ((ms & 0xffff) << 16) | (period & 0xffff));
 }
 
 void console_speaker_off(void *gp)
 {
-	ioctl((int)gp, KDMKTONE, 0);
+	ioctl((int)(uintptr_t)gp, KDMKTONE, 0);
 }

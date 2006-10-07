@@ -294,7 +294,7 @@ new_memory_object(size_t bytes)
     return NULL;
   addr = alloc_mapping(MAPPING_EMS, bytes, 0);
   if (!addr) return 0;
-  E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *) addr);
+  E_printf("EMS: allocating 0x%08zx bytes @ %p\n", bytes, (void *) addr);
   return (addr);		/* allocate on a PAGE boundary */
 }
 
@@ -1038,7 +1038,7 @@ move_memory_region(state_t * state)
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)
-    source = (caddr_t) ((int) mem_move->source_segment * 16 + mem_move->source_offset);
+    source = MK_FP32(mem_move->source_segment, mem_move->source_offset);
   else {
     if (!handle_info[mem_move->source_handle].active) {
       E_printf("EMS: Move memory region source handle not active\n");
@@ -1060,7 +1060,7 @@ move_memory_region(state_t * state)
     }
   }
   if (mem_move->dest_type == 0) {
-    dest = (caddr_t) ((mem_move->dest_segment) * 16 + mem_move->dest_offset);
+    dest = MK_FP32(mem_move->dest_segment, mem_move->dest_offset);
   }
   else {
     if (!handle_info[mem_move->dest_handle].active) {
@@ -1110,7 +1110,7 @@ exchange_memory_region(state_t * state)
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)
-    source = (caddr_t) (mem_move->source_segment * 16 + mem_move->source_offset);
+    source = MK_FP32(mem_move->source_segment, mem_move->source_offset);
   else {
     if (!handle_info[mem_move->source_handle].active) {
       E_printf("EMS: Xchng memory region source handle not active\n");
@@ -1121,7 +1121,7 @@ exchange_memory_region(state_t * state)
       mem_move->source_offset;
   }
   if (mem_move->dest_type == 0)
-    dest = (caddr_t) (mem_move->dest_segment * 16 + mem_move->dest_offset);
+    dest = MK_FP32(mem_move->dest_segment, mem_move->dest_offset);
   else {
     if (!handle_info[mem_move->dest_handle].active) {
       E_printf("EMS: Xchng memory region dest handle not active\n");
@@ -1312,7 +1312,7 @@ alternate_map_register(state_t * state)
         if (save_es){
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Registers\n"));
 
-	  emm_get_map_registers((char *)((save_es << 4 ) + save_di));
+	  emm_get_map_registers(MK_FP32(save_es, save_di));
 
           SETWORD(&(state->es),(u_short)save_es);
           SETWORD(&(state->edi),(u_short)save_di);
@@ -1328,7 +1328,7 @@ alternate_map_register(state_t * state)
        return;
       }
     case 2:
-      Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%x\n", PAGE_MAP_SIZE));
+      Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%zx\n", PAGE_MAP_SIZE));
       SETHIGH(&(state->eax), EMM_NO_ERR);
       SETWORD(&(state->edx), PAGE_MAP_SIZE);
       return;
@@ -1860,7 +1860,7 @@ void ems_init(void)
   E_printf("EMS: initializing memory\n");
 
   memcheck_addtype('E', "EMS page frame");
-  memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
+  memcheck_reserve('E', (uintptr_t)EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
 
   ems_reset2();
 }

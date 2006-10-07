@@ -249,7 +249,7 @@ mouse_helper(struct vm86_regs *regs)
       /* redetermine the video mode:
          the stack contains: mode, saved ax, saved bx */
       int video_mode = -1;
-      unsigned char *ssp = (unsigned char *)(regs->ss<<4);
+      unsigned char *ssp = SEG2LINEAR(regs->ss);
       unsigned long sp = WORD(regs->esp + 2);
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
@@ -787,7 +787,7 @@ mouse_restorestate(void)
   	mouse_cursor(-1);
   }
 
-  memcpy((void *)&mouse, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
+  memcpy((void *)&mouse, MK_FP32(LWORD(es),LWORD(edx)), sizeof(mouse));
 
   /* regenerate mouse graphics cursor from masks; they take less
   	space than the "compiled" version. */
@@ -817,7 +817,7 @@ mouse_storestate(void)
   }
   mouse.cursor_on = current_state;
 
-  memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), (void *)&mouse, sizeof(mouse));
+  memcpy(MK_FP32(LWORD(es),LWORD(edx)), (void *)&mouse, sizeof(mouse));
 
   /* now turn it back on */
   if (mouse.cursor_on >= 0) {
@@ -1224,7 +1224,7 @@ mouse_setyminmax(void)
 void 
 mouse_set_gcur(void)
 {
-  unsigned short *ptr = (unsigned short*) ((LWORD(es) << 4) + LWORD(edx));
+  unsigned short *ptr = MK_FP32(LWORD(es),LWORD(edx));
 
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
@@ -1617,7 +1617,7 @@ static void call_int15_mouse_event_handler(void)
     unsigned long sp;
     int dx, dy;
 
-    ssp = (unsigned char *)(LWORD(ss)<<4);
+    ssp = SEG2LINEAR(LWORD(ss));
     sp = (unsigned long) LWORD(esp);
 
     dx = mouse.mickeyx - mouse.old_mickeyx;
@@ -1692,7 +1692,7 @@ static void call_mouse_event_handler(void)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(LWORD(ss)<<4);
+  ssp = SEG2LINEAR(LWORD(ss));
   sp = (unsigned long) LWORD(esp);
 
   /* first pop bx and ax, which were changed to

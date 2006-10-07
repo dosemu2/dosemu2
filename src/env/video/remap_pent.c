@@ -7,6 +7,8 @@
 
 /* Pentium optimized remapping functions */
 
+#ifdef __i386__
+
 #include "config.h"
 #include <stdio.h>
 
@@ -1201,3 +1203,5 @@ void pent_8to32_all_init(RemapObject *ro)
 
   ro->remap_line = co->exec;
 }
+
+#endif

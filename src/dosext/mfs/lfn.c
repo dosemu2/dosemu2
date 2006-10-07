@@ -124,7 +124,7 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
 		if (src2 != NULL)
 			*src2++ = '\0';
 		dest++;
-		d_printf("LFN: src=%s len=%d\n", src, strlen(src));
+		d_printf("LFN: src=%s len=%zd\n", src, strlen(src));
 		if (!strcmp(src, "..") || !strcmp(src, ".")) {
 			strcpy(dest, src);
 		} else if (!vfat_search(dest, src, fpath, alias)) {
@@ -679,7 +679,7 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 
 static void call_dos_helper(int ah)
 {
-	unsigned char *ssp = (unsigned char *)(_SS<<4);
+	unsigned char *ssp = SEG2LINEAR(_SS);
 	unsigned long sp = (unsigned long) _SP;
 	_AH = ah;
 	pushw(ssp, sp, _CS);
@@ -813,7 +813,7 @@ static int mfs_lfn_(void)
 	case 0x3b: /* chdir */
 		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
-		d_printf("LFN: chdir %s %d\n", src, strlen(src));
+		d_printf("LFN: chdir %s %zd\n", src, strlen(src));
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;

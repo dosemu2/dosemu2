@@ -48,14 +48,14 @@ int blaster_main(int argc, char **argv) {
 
 		if (msetenv("BLASTER", blaster) == -1) {
 			com_printf("Environment too small for BLASTER! "
-			    "(needed %d bytes)\n", strlen(blaster));
+			    "(needed %zu bytes)\n", strlen(blaster));
 		}
 
 		snprintf(blaster, sizeof(blaster), "SYNTH:%d MAP:%c MODE:%d",
 		    config.mpu401_base ? 2 : 1, 'E', 0);
 
 		if (msetenv("MIDI", blaster) == -1) {
-			com_printf("Environment too small for MIDI! (needed %d bytes)\n", strlen(blaster));
+			com_printf("Environment too small for MIDI! (needed %zu bytes)\n", strlen(blaster));
 		}
 
 		com_printf("\n");
