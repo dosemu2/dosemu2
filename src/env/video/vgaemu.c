@@ -1345,11 +1345,11 @@ static int vgaemu_unmap(unsigned page)
     (!vga.config.mono_support && page >= 0xb0 && page < 0xb8)
   ) return 1;
 
-  *((volatile char *)(vga.mem.scratch_page << 12));
+  *((volatile char *)vga.mem.scratch_page);
 
   i = alias_mapping(MAPPING_VGAEMU,
     (caddr_t) (page << 12), 1 << 12,
-    VGA_EMU_RW_PROT, (void *) (vga.mem.scratch_page  << 12)
+    VGA_EMU_RW_PROT, vga.mem.scratch_page)
   );
 
   if(i == MAP_FAILED) return 3;
@@ -1367,13 +1367,13 @@ void vgaemu_reset_mapping()
   int prot, page;
 
   if (!Video->update_screen) return;
-  memset((void *)(uintptr_t) (vga.mem.scratch_page << 12), 0xff, 1 << 12);
+  memset(vga.mem.scratch_page, 0xff, 1 << 12);
 
   prot = VGA_EMU_RW_PROT;
   for(page = 0xa0; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       (void *)(uintptr_t) (page << 12), 1 << 12,
-      prot, (void *)(uintptr_t) (vga.mem.scratch_page << 12)
+      prot, vga.mem.scratch_page
     );
   }
 
@@ -1508,9 +1508,9 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     return 1;
   }
-  vga.mem.scratch_page = (uintptr_t) (vga.mem.base + vga.mem.size) >> 12;
-  memset((void *)(uintptr_t) (vga.mem.scratch_page << 12), 0xff, 1 << 12);
-  vga_msg("vga_emu_init: scratch_page at 0x%08x\n", vga.mem.scratch_page << 12);
+  vga.mem.scratch_page = vga.mem.base + vga.mem.size;
+  memset(vga.mem.scratch_page, 0xff, 1 << 12);
+  vga_msg("vga_emu_init: scratch_page at %p\n", vga.mem.scratch_page);
 
   if(config.X_lfb) {
     lfb_base = mmap_mapping(MAPPING_VGAEMU | MAPPING_SCRATCH, (void *)-1,
