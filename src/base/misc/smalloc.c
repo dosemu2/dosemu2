@@ -109,7 +109,7 @@ void *smalloc(struct mempool *mp, size_t size)
     return NULL;
   }
   if (!(mn = smfind_free_area(mp, size))) {
-    smerror("SMALLOC: Out Of Memory on alloc, requested=%i\n", size);
+    smerror("SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
 #if SM_COMMIT_SUPPORT
@@ -227,7 +227,7 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
         /* relocate */
         void *new_ptr = smalloc(mp, size);
         if (!new_ptr) {
-          smerror("SMALLOC: Out Of Memory on realloc, requested=%i\n", size);
+          smerror("SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
           return NULL;
         }
         memcpy(new_ptr, mn->mem_area, mn->size);

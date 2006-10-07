@@ -1092,7 +1092,7 @@ void fdkernel_boot_mimic(void)
 {
   int f, size;
   char *bootfile;
-  unsigned int loadaddress = 0x600;
+  void *loadaddress = (void *)0x600;
   fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
 
   if (!fs || !(bootfile = full_name(fs, 0, fs->obj[1].name))) {
@@ -1105,9 +1105,9 @@ void fdkernel_boot_mimic(void)
   }
   size = lseek(f, 0, SEEK_END);
   lseek(f, 0, SEEK_SET);
-  dos_read(f, (void *)loadaddress, size);
+  dos_read(f, loadaddress, size);
   close(f);
-  LWORD(cs) = LWORD(ds) = LWORD(es) = loadaddress >> 4;
+  LWORD(cs) = LWORD(ds) = LWORD(es) = FP_SEG32(loadaddress);
   LWORD(eip) = 0;
   LWORD(ebx) = fs->drive_num;	/* boot drive */
   LWORD(ss) = 0x1FE0;

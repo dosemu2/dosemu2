@@ -857,7 +857,7 @@ static int TraverseAndClean(void)
   NEXTNODE(G);
   if (G == &CollectTree.root) {
       hitimer_t bt1 = GETTSC();
-      if (debug_level('e')>2) e_printf("*\tRestart traversing n=%d %16Ld\n",ninodes,(bt1-bT));
+      if (debug_level('e')>2) e_printf("*\tRestart traversing n=%d %16lld\n",ninodes,(long long)(bt1-bT));
       bT = bt1;
       NEXTNODE(G);
   }

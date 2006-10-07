@@ -83,10 +83,10 @@ void e_VgaWrite(unsigned addr, unsigned u, int mode)
 
 static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 {
-  unsigned long rep = (op&2? _ecx : 1);
+  unsigned int rep = (op&2? _ecx : 1);
 
 #ifdef DEBUG_VGA
-  e_printf("eVGAEmuFault: Movs ESI=%08lx EDI=%08lx ECX=%08lx\n",_esi,_edi,rep);
+  e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",_esi,_edi,rep);
 #endif
   if (_err&2) {		/* writing from mem or VGA to VGA */
 	if ((_esi>=e_vga_base)&&(_esi<e_vga_end)) op |= 4;
@@ -234,7 +234,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       return 1;
     }  
 
-/**/  e_printf("eVGAEmuFault: trying %08lx, a=%08lx\n",*((long *)_eip),_edi);
+/**/  e_printf("eVGAEmuFault: trying %08lx, a=%08x\n",*((long *)_eip),_edi);
 
     p = (unsigned char *)_eip;
     if (*p==0x66) w16=1,p++; else w16=0;
@@ -355,17 +355,17 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 	default:
 /**/  		leavedos(0x5644);
     }
-/**/  e_printf("eVGAEmuFault: new eip=%08lx\n",(long)_eip);
+/**/  e_printf("eVGAEmuFault: new eip=%08x\n",_eip);
   }
   return 1;
 
 unimp:
-  error("eVGAEmuFault: unimplemented decode instr at %08lx: %08lx\n",
-	(long)_eip, *((long *)_eip));
+  error("eVGAEmuFault: unimplemented decode instr at %08x: %08lx\n",
+	_eip, *((long *)_eip));
   leavedos(0x5643);
 badrw:
-  error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
-	(long)_eip, _err);
+  error("eVGAEmuFault: bad R/W CR2 bits at %08x: %08lx\n",
+	_eip, _err);
   leavedos(0x5643);
 }
 
@@ -390,7 +390,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
      reset permissions on code pages */
   if (_cs == getsegment(cs) && ((debug_level('e')>1) || (_trapno!=0x0e))) {
     dbug_printf("==============================================================\n");
-    dbug_printf("CPU exception 0x%02lx err=0x%08lx cr2=%08lx eip=%08lx\n",
+    dbug_printf("CPU exception 0x%02lx err=0x%08lx cr2=%08lx eip=%08x\n",
 	  	 _trapno, _err, _cr2, _eip);
     dbug_printf("==============================================================\n");
     if (debug_level('e')>1) {

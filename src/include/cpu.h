@@ -29,35 +29,8 @@
 #ifdef __linux__
 #define _regs vm86s.regs
 #endif
-#ifdef __x86_64__
-/* x86_64 headers do not define sigcontext_struct anymore, so
-   we can just recycle the name to store i386 registers.
-   The native sigcontext isn't so useful because it does not
-   contain ds, es, and ss. The unused fields oldmask, esp_at_signal,
-   and various paddings are omitted. */
-
-struct sigcontext_struct {
-	unsigned short gs, fs, es, ds, cs, ss;
-	unsigned int edi;
-	unsigned int esi;
-	unsigned int ebp;
-	unsigned int esp;
-	unsigned int ebx;
-	unsigned int edx;
-	unsigned int ecx;
-	unsigned int eax;
-	unsigned int trapno;
-	unsigned int err;
-	unsigned int eip;
-	unsigned int eflags;
-	struct _fpstate * fpstate;
-	unsigned int cr2;
-};
-
-#else
 #ifndef sigcontext_struct
 #define sigcontext_struct sigcontext
-#endif
 #endif
 
 #include "extern.h"
@@ -78,7 +51,9 @@ union dword {
   struct { Bit8u l, h, b2, b3; } b;
 };
 
-#define DWORD(wrd)	(((union dword *)&(wrd))->d)
+#define DWORD_(wrd)	(((union dword *)&(wrd))->d)
+/* vxd.c redefines DWORD */
+#define DWORD(wrd)	DWORD_(wrd)
 
 #define LO_WORD(wrd)	(((union dword *)&(wrd))->w.l)
 #define HI_WORD(wrd)    (((union dword *)&(wrd))->w.h)
@@ -125,15 +100,15 @@ union dword {
 #define LO(reg)  LO_BYTE(REG(e##reg))
 #define HI(reg)  HI_BYTE(REG(e##reg))
 
-#define _LO(reg) LO_BYTE(scp->e##reg)
-#define _HI(reg) HI_BYTE(scp->e##reg)
+#define _LO(reg) LO_BYTE(_##e##reg)
+#define _HI(reg) HI_BYTE(_##e##reg)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
 #define LWORD(reg)	LO_WORD(REG(reg))
 #define HWORD(reg)	HI_WORD(REG(reg))
 
-#define _LWORD(reg)	LO_WORD(scp->reg)
-#define _HWORD(reg)	HI_WORD(scp->reg)
+#define _LWORD(reg)	LO_WORD(_##reg)
+#define _HWORD(reg)	HI_WORD(_##reg)
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((uintptr_t)((LWORD(seg) << 4) + LWORD(e##reg)))
@@ -203,12 +178,12 @@ void restore_eflags_fs_gs(void);
 		(__res1 << 8) | __res0; \
 	})
 
-#define loadflags(value) asm volatile("pushl %0 ; popfl"::"g" (value): "cc" )
+#define loadflags(value) asm volatile("push %0 ; popf"::"g" (value): "cc" )
 
 #define getflags(value) \
 	({ \
 		Bit32u __value; \
-		asm volatile("pushfl ; popl %0":"=g" (__value)); \
+		asm volatile("pushf ; pop %0":"=g" (__value)); \
 		__value; \
 	})
 
@@ -361,22 +336,48 @@ EXTERN struct vec_t *ivecs;
 #ifdef __linux__
 #define _gs     (scp->gs)
 #define _fs     (scp->fs)
+#ifdef __x86_64__
+#define _es     LO_WORD(scp->r8)
+#define _ds     HI_WORD(scp->r8)
+#define _rdi    (scp->rdi)
+#define _rsi    (scp->rsi)
+#define _rbp    (scp->rbp)
+#define _rsp    (scp->rsp)
+#define _rbx    (scp->rbx)
+#define _rdx    (scp->rdx)
+#define _rcx    (scp->rcx)
+#define _rax    (scp->rax)
+#define _rip    (scp->rip)
+#define _ss     LO_WORD(scp->r9)
+#else
 #define _es     (scp->es)
 #define _ds     (scp->ds)
-#define _edi    (scp->edi)
-#define _esi    (scp->esi)
-#define _ebp    (scp->ebp)
-#define _esp    (scp->esp)
-#define _ebx    (scp->ebx)
-#define _edx    (scp->edx)
-#define _ecx    (scp->ecx)
-#define _eax    (scp->eax)
+#define _rdi    (scp->edi)
+#define _rsi    (scp->esi)
+#define _rbp    (scp->ebp)
+#define _rsp    (scp->esp)
+#define _rbx    (scp->ebx)
+#define _rdx    (scp->edx)
+#define _rcx    (scp->ecx)
+#define _rax    (scp->eax)
+#define _rip    (scp->eip)
+#define _ss     (scp->ss)
+#endif
+#define _edi    DWORD_(_rdi)
+#define _esi    DWORD_(_rsi)
+#define _ebp    DWORD_(_rbp)
+#define _esp    DWORD_(_rsp)
+#define _ebx    DWORD_(_rbx)
+#define _edx    DWORD_(_rdx)
+#define _ecx    DWORD_(_rcx)
+#define _eax    DWORD_(_rax)
+#define _eip    DWORD_(_rip)
+#define _eax    DWORD_(_rax)
+#define _eip    DWORD_(_rip)
 #define _err	(scp->err)
 #define _trapno (scp->trapno)
-#define _eip    (scp->eip)
 #define _cs     (scp->cs)
 #define _eflags (scp->eflags)
-#define _ss     (scp->ss)
 #define _cr2	(scp->cr2)
 
 void dosemu_fault(int, struct sigcontext_struct);

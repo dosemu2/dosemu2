@@ -54,6 +54,10 @@ extern void e_priv_iopl(int);
 #define CPUEMU_DIRECT_IO
 #endif
 
+#ifdef __x86_64__
+#define HOST_ARCH_SIM
+#endif
+
 /* ----------------------------------------------------------------------- */
 
 /* Cpuemu status register - pack as much info as possible here, so to

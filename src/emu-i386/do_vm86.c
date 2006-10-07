@@ -126,7 +126,7 @@ void vm86_GP_fault(void)
    * DANG_END_REMARK
    */
 
-  #define __SEG_ADR(type, seg, reg)  type((seg << 4) + LWORD(e##reg))
+  #define __SEG_ADR(type, seg, reg)  type((uintptr_t)(seg << 4) + LWORD(e##reg))
   done=0;
   is_rep=0;
   prefix66=prefix67=0;
@@ -514,7 +514,7 @@ void do_call_back(Bit32u codefarptr)
 
 void do_intr_call_back(int intno)
 {
-	unsigned char * ssp = (unsigned char *)(LWORD(ss)<<4);
+	unsigned char * ssp = SEG2LINEAR(LWORD(ss));
 	unsigned long sp = (unsigned long) LWORD(esp);
 	pushw(ssp, sp, vflags);
 	LWORD(esp) = (LWORD(esp) - 2) & 0xffff;

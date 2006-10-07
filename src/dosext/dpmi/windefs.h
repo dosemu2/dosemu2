@@ -1,12 +1,12 @@
 /* assorted defines, mostly from wine, to get vxd.c to compile */
 
-#define VXD_BARF(context,name) \
+#define VXD_BARF(name) \
     D_printf( "vxd %s: unknown/not implemented parameters:\n" \
                      "AX %04x, BX %04x, CX %04x, DX %04x, " \
                      "SI %04x, DI %04x, DS %04x, ES %04x\n", \
-             (name), LO_WORD(context->eax), LO_WORD(context->ebx), \
-             LO_WORD(context->ecx), LO_WORD(context->edx), LO_WORD(context->esi), \
-             LO_WORD(context->edi), (WORD)context->ds, (WORD)context->es )
+             (name), LO_WORD(_eax), LO_WORD(_ebx), \
+             LO_WORD(_ecx), LO_WORD(_edx), LO_WORD(_esi), \
+             LO_WORD(_edi), (WORD)_ds, (WORD)_es )
 
 #define WARN D_printf
 #define ERR D_printf

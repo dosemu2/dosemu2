@@ -57,8 +57,8 @@ struct __dummy {
 static __inline__ int
 find_bit(unsigned long int word)
 {
-       int result = -1; /* value to return on error */
-       __asm__("bsfl %2,%0"
+       long result = -1; /* value to return on error */
+       __asm__("bsf %2,%0"
                :"=r" (result) /* output */
                :"0" (result), "r" (word)); /* input */
        return result;
@@ -78,10 +78,10 @@ pic0_to_emu(char flags)
     /* bit 2 (cascade int) is used to mask/unmask pic1 (Larry)          */
 
     long            result;
-    __asm__         __volatile__("movzbl %1,%0\n\t"
-				 "shll $13, %0\n\t"
+    __asm__         __volatile__("movzb %1,%0\n\t"
+				 "shl $13, %0\n\t"
 				 "sarw $7, %w0\n\t"
-				 "shrl $5, %0 " \
+				 "shr $5, %0 " \
 				 :"=r"(result):"q"(flags));
     return result;
 }
@@ -97,9 +97,9 @@ emu_to_pic0(long flags)
     /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
     /* where 76543210 are final 8 bits and x = don't care            */
 
-    __asm__         __volatile__("shll $6,%0\n\t"
+    __asm__         __volatile__("shl $6,%0\n\t"
 				 "shlw $7, %w0\n\t"
-				 "shrl $14, %0 " 
+				 "shr $14, %0 " 
 				 :"=r"(flags):"0"(flags));
     return flags;
 }

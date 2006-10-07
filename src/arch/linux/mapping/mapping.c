@@ -77,23 +77,25 @@ static int map_find_idx(struct mem_map_struct *map, int max,
 static int map_find(struct mem_map_struct *map, int max,
   unsigned char *addr, int size, int mapped)
 {
-  int i, dst, dst1;
-  int min = -1, idx = -1;
-  int max_addr = (int)addr + size;
+  int i;
+  unsigned char *dst, *dst1;
+  unsigned char *min = (void *)-1;
+  int idx = -1;
+  unsigned char *max_addr = addr + size;
   for (i = 0; i < max; i++) {
     if (!map[i].dst || !map[i].len || map[i].mapped != mapped)
       continue;
-    dst = (int)map[i].dst;
+    dst = map[i].dst;
     dst1 = dst + map[i].len;
-    if (dst >= (int)addr && dst < max_addr) {
-      if (min == -1 || dst < min) {
+    if (dst >= addr && dst < max_addr) {
+      if (min == (void *)-1 || dst < min) {
         min = dst;
         idx = i;
       }
     }
-    if (dst1 > (int)addr && dst < max_addr) {
-      if (min == -1 || dst1 < min) {
-        min = (int)addr;
+    if (dst1 > addr && dst < max_addr) {
+      if (min == (void *)-1 || dst1 < min) {
+        min = addr;
         idx = i;
       }
     }
@@ -162,7 +164,7 @@ void *alias_mapping(int cap, void *target, size_t mapsize, int protect, void *so
 
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source)
 {
-  int fixed = (int)target == -1 ? 0 : MAP_FIXED;
+  int fixed = target == (void *)-1 ? 0 : MAP_FIXED;
   void *addr;
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x, source=%#lx\n",
 	cap, target, mapsize, protect, source);
@@ -243,9 +245,9 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
   unsigned long flags, void *target)
 {
-  Q__printf("MAPPING: remap, cap=%s, source=%p, old_size=%x, new_size=%x, target=%p\n",
+  Q__printf("MAPPING: remap, cap=%s, source=%p, old_size=%zx, new_size=%zx, target=%p\n",
 	cap, source, old_size, new_size, target);
-  if ((int)target != -1) {
+  if (target != (void *)-1) {
     return extended_mremap(source, old_size, new_size, flags, target);
   }
   return mremap(source, old_size, new_size, flags);
@@ -253,7 +255,7 @@ void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
 
 int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect)
 {
-  Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%x, protect=%x\n",
+  Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
   return mprotect(addr, mapsize, protect);
 }
@@ -433,7 +435,7 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
 {
   if (!addr) {
     if (oldsize)  // no-no, realloc of the lowmem is not good too
-      dosemu_error("realloc_mapping() called with addr=NULL, oldsize=%#x\n", oldsize);
+      dosemu_error("realloc_mapping() called with addr=NULL, oldsize=%#zx\n", oldsize);
     Q_printf("MAPPING: realloc from NULL changed to malloc\n");
     return alloc_mapping(cap, newsize, -1);
   }
@@ -494,7 +496,7 @@ void map_hardware_ram(void)
       error("mmap error in map_hardware_ram %s\n", strerror (errno));
       return;
     }
-    g_printf("mapped hardware ram at 0x%08x .. 0x%08x at %p\n",
+    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %p\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
   }
 }
@@ -507,7 +509,7 @@ int register_hardware_ram(int type, size_t base, size_t size)
     dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return 0;
   }
-  c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
+  c_printf("Registering HWRAM, type=%c base=%#zx size=%#zx\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
   hw->vbase = (void *)base;

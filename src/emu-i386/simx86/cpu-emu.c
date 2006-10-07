@@ -437,7 +437,7 @@ void GCPrint(unsigned char *cp, unsigned char *cbase, int len)
 {
 	int i;
 	while (len) {
-		dbug_printf(">>> %08x:",cp-cbase);
+		dbug_printf(">>> %08tx:",cp-cbase);
 		for (i=0; (i<16) && len; i++,len--) dbug_printf(" %02x",*cp++);
 		dbug_printf("\n");
 	}
@@ -507,10 +507,7 @@ static void Reg2Cpu (int mode)
   /* get the protected mode flags. Note that RF and VM are cleared
    * by pushfd (but not by ints and traps). Equivalent to regs32->eflags
    * in vm86.c */
-  __asm__ __volatile__ (" \
-	pushfl\n \
-	popl	%0" \
-	: "=m"(flg) : : "memory");
+  flg = getflags();
   TheCPU.eflags |= (flg & notSAFE_MASK); // which VIP do we get here?
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
 
@@ -595,18 +592,18 @@ static void Cpu2Reg (void)
 static void Scp2CpuR (struct sigcontext_struct *scp)
 {
   if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
-	scp->eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
   __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
   TheCPU.err = 0;
 
   if (in_dpmi) {	// vm86 during dpmi active
 	e_printf("** Scp2Cpu VM in_dpmi\n");
   }
-  TheCPU.eflags = (scp->eflags&(eTSSMASK|0x10ed5)) | 0x20002;
-  trans_addr = ((scp->cs<<4) + scp->eip);
+  TheCPU.eflags = (_eflags&(eTSSMASK|0x10ed5)) | 0x20002;
+  trans_addr = ((_cs<<4) + _eip);
 
   if (debug_level('e')>1) e_printf("Scp2CpuR< scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
-	scp->eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
 
 /*
@@ -615,37 +612,37 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
 static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
-	scp->eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 
   /* setup stack context from cpu registers */
   __memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
 
-  scp->trapno = trapno;
+  _trapno = trapno;
   /* Error code format:
    * b31-b16 = 0 (undef)
    * b15-b0  = selector, where b2=LDT/GDT, b1=IDT, b0=EXT
    * (b0-b1 are currently unimplemented here)
    */
-  if (!TheCPU.err) scp->err = 0;		//???
+  if (!TheCPU.err) _err = 0;		//???
 
   if (in_dpmi) {
-    scp->cs = TheCPU.cs;
-    scp->eip = return_addr - LONG_CS;
+    _cs = TheCPU.cs;
+    _eip = return_addr - LONG_CS;
     /* push running flags - same as eflags, RF is cosmetic */
-    scp->eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
+    _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
   }
   else {
     unsigned long mask;
-    scp->cs  = return_addr >> 16;
-    scp->eip = return_addr & 0xffff;
+    _cs  = return_addr >> 16;
+    _eip = return_addr & 0xffff;
     /* rebuild running flags */
     mask = VIF | eTSSMASK;
     vm86s.regs.eflags = (vm86s.regs.eflags & VIP) | 
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-    scp->eflags = vm86s.regs.eflags & ~VM;
+    _eflags = vm86s.regs.eflags & ~VM;
   }
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08lx dpm=%08x fl=%08x vf=%08x\n",
-	scp->eflags,vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+	_eflags,vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
 
 
@@ -682,15 +679,15 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
 erseg:
   /* push scp flags, pop eflags - this clears RF,VM */
-  TheCPU.eflags = (scp->eflags & (eTSSMASK|0xed5)) | 2;
-  trans_addr = LONG_CS + scp->eip;
+  TheCPU.eflags = (_eflags & (eTSSMASK|0xed5)) | 2;
+  trans_addr = LONG_CS + _eip;
   if (debug_level('e')>1) {
-	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08lx -> %08x\n\tIP=%08x:%08lx\n%s\n",
+	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08lx -> %08x\n\tIP=%08x:%08x\n%s\n",
 			(TheCPU.err? " ERR":""),
-			scp->eflags, TheCPU.eflags, LONG_CS, scp->eip,
+			_eflags, TheCPU.eflags, LONG_CS, _eip,
 			e_print_regs());
 	else e_printf("Scp2CpuD%s: %08lx -> %08x\n",
-			(TheCPU.err? " ERR":""), scp->eflags, TheCPU.eflags);
+			(TheCPU.err? " ERR":""), _eflags, TheCPU.eflags);
   }
   return mode;
 }
@@ -1025,6 +1022,7 @@ int e_vm86(void)
 #endif
   long errcode;
 
+#ifdef __i386__
   /* skip emulation of video BIOS, as it is too much timing-dependent */
   if ((!IsV86Emu) || (config.cpuemu<2)
 #ifdef SKIP_EMU_VBIOS
@@ -1035,6 +1033,7 @@ int e_vm86(void)
 	InvalidateSegs();
 	return TRUE_VM86(&vm86s);
   }
+#endif
   if (iniflag==0) enter_cpu_emu();
 
   tt0 = GETTSC();

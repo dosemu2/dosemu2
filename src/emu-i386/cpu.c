@@ -100,7 +100,7 @@ unsigned long TRs[2] =
 
 struct _fpstate vm86_fpu_state;
 static struct {
-  unsigned int eflags;
+  unsigned long eflags;
   unsigned short fs, gs;
 } eflags_fs_gs;
 
@@ -155,7 +155,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 	else if ((((csp[1] & 0xfc)==0x20)||(csp[1]==0x24)||(csp[1]==0x26)) &&
 		((csp[2] & 0xc0) == 0xc0)) {
 		unsigned int *cdt;
-		unsigned long *srg;
+		unsigned int *srg;
 		int idx;
 		boolean rnotw;
 
@@ -174,26 +174,26 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		}
 
 		switch (csp[2]&7) {
-			case 0: srg = (scp ? &(scp->eax):(unsigned long *)&(REGS.eax));
+			case 0: srg = (scp ? &_eax:&_EAX);
 				break;
-			case 1: srg = (scp ? &(scp->ecx):(unsigned long *)&(REGS.ecx));
+			case 1: srg = (scp ? &_ecx:&_ECX);
 				break;
-			case 2: srg = (scp ? &(scp->edx):(unsigned long *)&(REGS.edx));
+			case 2: srg = (scp ? &_edx:&_EDX);
 				break;
-			case 3: srg = (scp ? &(scp->ebx):(unsigned long *)&(REGS.ebx));
+			case 3: srg = (scp ? &_ebx:&_EBX);
 				break;
-			case 6: srg = (scp ? &(scp->esi):(unsigned long *)&(REGS.esi));
+			case 6: srg = (scp ? &_esi:&_ESI);
 				break;
-			case 7: srg = (scp ? &(scp->edi):(unsigned long *)&(REGS.edi));
+			case 7: srg = (scp ? &_edi:&_EDI);
 				break;
 			default:	/* ESP(4),EBP(5) */
 				return 0;
 		}
 		if (rnotw) {
 		  *srg = cdt[idx];
-		  g_printf("CPU: read =%08lx\n",*srg);
+		  g_printf("CPU: read =%08x\n",*srg);
 		} else {
-		  g_printf("CPU: write=%08lx\n",*srg);
+		  g_printf("CPU: write=%08x\n",*srg);
 		  if (cdt==CRs) {
 		    /* special cases... they are too many, I hope this
 		     * will suffice for all */
@@ -206,7 +206,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 	}
 	if (increment_ip) {
 		if (scp)
-			scp->eip += increment_ip;
+			_eip += increment_ip;
 		else
 			LWORD(eip) += increment_ip;
 		return 1;
@@ -264,7 +264,11 @@ void cpu_setup(void)
   eflags_fs_gs.gs = getsegment(gs);
   eflags_fs_gs.eflags = getflags();
   savefpstate(vm86_fpu_state);
+#ifdef __x86_64__
+  stk_ptr = getregister(rsp);
+#else
   stk_ptr = getregister(esp);
+#endif
 
   fd = dup(dosemu_proc_self_maps_fd);
   if ((fp = fdopen(fd, "r"))) {

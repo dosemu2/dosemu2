@@ -29,9 +29,13 @@ int e_vm86(void);
     (x)->vm86plus.force_return_for_pic = 0; \
     vm86((struct vm86_struct *)(x)); })
  #ifdef X86_EMULATOR
-  #define _DO_VM86_(x) ( \
+  #ifdef __x86_64__
+   #define _DO_VM86_(x)	E_VM86(x)
+  #else
+   #define _DO_VM86_(x) ( \
     config.cpuemu? E_VM86(x) : _DO_VM86__(x) )
-  #define TRUE_VM86(x)	_DO_VM86__(x)
+   #define TRUE_VM86(x)	_DO_VM86__(x)
+  #endif
  #else
   #define _DO_VM86_(x)	_DO_VM86__(x)
  #endif

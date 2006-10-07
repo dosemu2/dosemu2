@@ -159,7 +159,7 @@ sgleave:
 	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
 	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
 		_err,
-	  	_eip, _esp, _eflags, _cs, _ds, _es, _ss);
+	  	_rip, _rsp, _eflags, _cs, _ds, _es, _ss);
 
 
 		 print_exception_info(scp);
@@ -287,7 +287,7 @@ bad:
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
 	  (in_dpmi ? "DPMI client" : "VM86()"),
 	  _trapno, _err, _cr2,
-	  _eip, _esp, _eflags, _cs, _ds, _es, _ss);
+	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss);
 
     gdb_debug();
 
@@ -303,9 +303,9 @@ bad:
 
     dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
 		"  VFLAGS(h): %08lx\n",
-		_eax, _ebx, _ecx, _edx, _eflags);
+		_rax, _rbx, _rcx, _rdx, _eflags);
     dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
-		_esi, _edi, _ebp);
+		_rsi, _rdi, _rbp);
     dbug_printf("CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x\n",
 		_cs, _ds, _es, _fs, _gs);
 
@@ -337,7 +337,7 @@ bad:
     int i;
 
     dbug_printf("OOPS : ");
-    csp = (unsigned char *) _eip - 10;
+    csp = (unsigned char *) _rip - 10;
     for (i = 0; i < 10; i++)
       dbug_printf("%02x ", *csp++);
     dbug_printf("-> ");
@@ -439,7 +439,7 @@ void print_exception_info(struct sigcontext_struct *scp)
     case 6:
       error("@Invalid opcode\n");
       error("@Opcodes: ");
-      csp = (unsigned char *) _eip - 10;
+      csp = (unsigned char *) _rip - 10;
       for (i = 0; i < 10; i++)
 	error("@%02x ", *csp++);
       error("@-> ");
@@ -560,24 +560,32 @@ void print_exception_info(struct sigcontext_struct *scp)
    case 0x10: {
       struct _fpstate *p = scp->fpstate;
       int i, n;
+      unsigned short sw;
       error ("@Coprocessor Error:\n");
+#ifdef __x86_64__
+      error ("@cwd=%04x swd=%04x ftw=%04x\n", p->cwd, p->swd, p->ftw);
+      error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_cs,p->rip,_ds,p->rdp);
+      sw = p->swd;
+#else
       error ("@cw=%04x sw=%04x tag=%04x\n",
 	*((unsigned short *)&(p->cw)),*((unsigned short *)&(p->sw)),
 	*((unsigned short *)&(p->tag)));
-      n = (p->sw >> 11) & 7;
       error ("@cs:eip=%04x:%08lx ds:data=%04x:%08lx\n",
 	*((unsigned short *)&(p->cssel)),p->ipoff,
 	*((unsigned short *)&(p->datasel)),p->dataoff);
-      if ((p->sw&0x80)==0) error("@No error summary bit,why?\n");
+      sw = p->sw;
+#endif
+      if ((sw&0x80)==0) error("@No error summary bit,why?\n");
       else {
-	if (p->sw&0x20) error("@Precision\n");
-	if (p->sw&0x10) error("@Underflow\n");
-	if (p->sw&0x08) error("@Overflow\n");
-	if (p->sw&0x04) error("@Divide by 0\n");
-	if (p->sw&0x02) error("@Denormalized\n");
-	if ((p->sw&0x41)==0x01) error("@Invalid op\n");
-	  else if ((p->sw&0x41)==0x41) error("@Stack fault\n");
+	if (sw&0x20) error("@Precision\n");
+	if (sw&0x10) error("@Underflow\n");
+	if (sw&0x08) error("@Overflow\n");
+	if (sw&0x04) error("@Divide by 0\n");
+	if (sw&0x02) error("@Denormalized\n");
+	if ((sw&0x41)==0x01) error("@Invalid op\n");
+	  else if ((sw&0x41)==0x41) error("@Stack fault\n");
       }
+      n = (sw >> 11) & 7;
       for (i=0; i<8; i++) {
 	unsigned long long *r = (unsigned long long *)&(p->_st[i].significand);
 	unsigned short *e = (unsigned short *)&(p->_st[i].exponent);

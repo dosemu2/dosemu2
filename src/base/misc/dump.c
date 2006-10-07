@@ -38,7 +38,7 @@ char *emu_disasm(int sga, unsigned int ip)
      refseg = REG(cs);
    }
    else {
-     cp = (unsigned char *)ip;
+     cp = (unsigned char *)(uintptr_t)ip;
      refseg = 0;	/* ??? */
    }
 
@@ -126,7 +126,7 @@ show_regs(char *file, int line)
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
-  if (((unsigned) sp < 0xa0000) && ((unsigned)sp >10)) {
+  if ((sp < (unsigned char *)0xa0000) && (sp > (unsigned char *)10)) {
 	  g_printf("STACK: ");
 	  sp -= 10;
 	  for (i = 0; i < 10; i++)
@@ -136,7 +136,7 @@ show_regs(char *file, int line)
 		  g_printf("%02x ", *sp++);
 	  g_printf("\n");
   }
-  if (((unsigned) cp < 0xa0000) && ((unsigned)cp>10)) {
+  if ((cp < (unsigned char *)0xa0000) && (cp>(unsigned char *)10)) {
 	  g_printf("OPS  : ");
 	  cp -= 10;
 	  for (i = 0; i < 10; i++)
@@ -175,20 +175,20 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
 {
     static char buf[4096];
     unsigned char *csp2, *ssp2;
-    sprintf(buf, "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
+    sprintf(buf, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08lx\n"
 	     "\ttrapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
 	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
-    sprintf(buf, "%sEAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n", buf,
+    sprintf(buf, "%sEAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n", buf,
 	     _eax, _ebx, _ecx, _edx);
-    sprintf(buf, "%sESI: %08lx  EDI: %08lx  EBP: %08lx\n", buf,
+    sprintf(buf, "%sESI: %08x  EDI: %08x  EBP: %08x\n", buf,
 	     _esi, _edi, _ebp);
     /* display the 10 bytes before and after CS:EIP.  the -> points
      * to the byte at address CS:EIP
      */
     if (!((_cs) & 0x0004)) {
       /* GTD */
-      csp2 = (unsigned char *) _eip - 10;
+      csp2 = (unsigned char *) _rip - 10;
     }
     else {
       /* LDT */
@@ -213,7 +213,7 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
       sprintf(buf, "%s\n", buf);
       if (!((_ss) & 0x0004)) {
         /* GDT */
-        ssp2 = (unsigned char *) _esp - 10;
+        ssp2 = (unsigned char *) _rsp - 10;
       }
       else {
         /* LDT */

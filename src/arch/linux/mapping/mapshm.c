@@ -130,7 +130,7 @@ static void close_mapping_shm(int cap)
 
 static void *alloc_mapping_shm(int cap, size_t mapsize)
 {
-  Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n", cap, mapsize);
+  Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
   return mmap(0, mapsize, PROT_READ | PROT_WRITE,
     MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 }
@@ -138,7 +138,7 @@ static void *alloc_mapping_shm(int cap, size_t mapsize)
 static void free_mapping_shm(int cap, void *addr, size_t mapsize)
 /* NOTE: addr needs to be the same as what was supplied by alloc_mapping_shm */
 {
-  Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%x\n",
+  Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%zx\n",
 	cap, addr, mapsize);
   munmap(addr, mapsize);
 }
@@ -146,7 +146,7 @@ static void free_mapping_shm(int cap, void *addr, size_t mapsize)
 static void *realloc_mapping_shm(int cap, void *addr, size_t oldsize, size_t newsize)
 {
   void *ret;
-  Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%x, newsize=%x\n",
+  Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%zx, newsize=%zx\n",
 	cap, addr, oldsize, newsize);
 
   if (newsize <= oldsize)
@@ -174,7 +174,7 @@ static void *mmap_mapping_shm(int cap, void *target, size_t mapsize, int protect
 
 static int munmap_mapping_shm(int cap, void *addr, size_t mapsize)
 {
-  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%x\n",
+  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%zx\n",
 	cap, addr, mapsize);
   return munmap(addr, mapsize);
 }

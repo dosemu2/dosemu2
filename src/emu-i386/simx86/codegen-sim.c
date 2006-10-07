@@ -2385,7 +2385,7 @@ void Gen(int op, int mode, ...)
 				DR1.d = CPULONG(o2);
 			}
 			__asm__ __volatile__ (
-			"call	*%%ecx"
+			"call	*%2"
 			: "=d"(flg)
 			: "a"(DR1.d),"c"(&seqa),"D"(AR1.d) : "memory" );
 			if (o1>0x1b) {		// set ZF
@@ -2408,7 +2408,7 @@ void Gen(int op, int mode, ...)
 				seqb[0] = 0x90;
 			}
 			__asm__ __volatile__ (
-			"call	*%%ecx"
+			"call	*%1"
 			: "=d"(flg) : "c"(&seqb),"D"(AR1.d) : "memory" );
 			SET_CF(flg&1);
 			break;

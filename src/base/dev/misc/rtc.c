@@ -56,7 +56,7 @@ void rtc_run(void)
   if (debug_level('h') > 8)
     h_printf("RTC: A=%hhx B=%hhx C=%hhx rate=%i queued=%lli added=%lli\n",
 	GET_CMOS(CMOS_STATUSA), GET_CMOS(CMOS_STATUSB), GET_CMOS(CMOS_STATUSC),
-	rate, q_ticks_m, ticks_m);
+	rate, (long long)q_ticks_m, (long long)ticks_m);
   if (q_ticks_m >= 1000000) {
     Bit8u old_c = GET_CMOS(CMOS_STATUSC);
     SET_CMOS(CMOS_STATUSC, old_c | 0x40);
@@ -64,7 +64,7 @@ void rtc_run(void)
       SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC) | 0x80);
       if (debug_level('h') > 7)
         h_printf("RTC: periodic IRQ, queued=%lli, added=%lli\n",
-	    q_ticks_m, ticks_m);
+	    (long long)q_ticks_m, (long long)ticks_m);
       pic_request(PIC_IRQ8);
     }
     if (!(old_c & 0x40))

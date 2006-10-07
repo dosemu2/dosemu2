@@ -147,10 +147,10 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
   pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
   d_printf("DISK: %s: Trying to read %ld sectors at T/S/H %ld/%ld/%ld",
 	   dp->dev_name,count,track,sector,head);
-#ifdef __linux__
+#if defined(__linux__) && defined(__i386__)
   d_printf("%+lld at pos %lld\n", dp->header, pos);
 #else
-  d_printf(" at pos %ld\n", pos);
+  d_printf("%+ld at pos %ld\n", dp->header, pos);
 #endif
 
   /* reads beginning before that actual disk/file */
@@ -255,7 +255,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
   pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
   d_printf("DISK: %s: Trying to write %ld sectors T/S/H %ld/%ld/%ld",
 	   dp->dev_name,count,track,sector,head);
-#ifdef __linux__
+#if defined(__linux__) && defined(__i386__)
   d_printf(" at pos %lld\n", pos);
 #else
   d_printf(" at pos %ld\n", pos);

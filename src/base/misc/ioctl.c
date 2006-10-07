@@ -72,6 +72,7 @@
 #define MAX_FD 1024
 void (*io_callback_func[MAX_FD])(void);
 
+#if defined(SIG)
 static inline int process_interrupt(SillyG_t *sg)
 {
   int irq, ret=0;
@@ -83,8 +84,6 @@ static inline int process_interrupt(SillyG_t *sg)
   return ret;
 }
 
-
-#if defined(SIG)
 static inline void irq_select(void)
 {
   if (SillyG) {

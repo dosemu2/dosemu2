@@ -50,7 +50,7 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
     mprotect(addr, mapsize, protect);
   }
 #if 1
-  Q_printf("MAPPING: alias_map, fileoffs %lx to %p size %x, result %p\n",
+  Q_printf("MAPPING: alias_map, fileoffs %lx to %p size %zx, result %p\n",
 			offs, target, mapsize, addr);
 #endif
   return addr;
@@ -210,14 +210,14 @@ static void close_mapping_file(int cap)
 
 static void *alloc_mapping_file(int cap, size_t mapsize)
 {
-  Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n", cap, mapsize);
+  Q__printf("MAPPING: alloc, cap=%s, mapsize=%zx\n", cap, mapsize);
   return smalloc(&pgmpool, mapsize);
 }
 
 static void free_mapping_file(int cap, void *addr, size_t mapsize)
 /* NOTE: addr needs to be the same as what was supplied by alloc_mapping_file */
 {
-  Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%x\n",
+  Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%zx\n",
 	cap, addr, mapsize);
   smfree(&pgmpool, addr);
 }
@@ -241,7 +241,7 @@ static void *realloc_mapping_file(int cap, void *addr, size_t oldsize, size_t ne
 		 */
     addr_ = smrealloc(&pgmpool, addr, newsize);
     if (!addr_) {
-      Q_printf("MAPPING: pgrealloc(0x%p,0x%x,) failed\n",
+      Q_printf("MAPPING: pgrealloc(0x%p,0x%zx,) failed\n",
 		addr, newsize);
       return (void *)-1;
     }
@@ -257,7 +257,7 @@ static void *mmap_mapping_file(int cap, void *target, size_t mapsize, int protec
 
 static int munmap_mapping_file(int cap, void *addr, size_t mapsize)
 {
-  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%x\n",
+  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%zx\n",
 	cap, addr, mapsize);
   return munmap(addr, mapsize);
 }

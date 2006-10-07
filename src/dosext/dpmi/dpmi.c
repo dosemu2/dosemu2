@@ -313,17 +313,12 @@ static void print_ldt(void)
 /* get esp from scp, otherwise get esp from dpmi_stack_frame         */
 static inline unsigned long client_esp(struct sigcontext_struct *scp)
 {
-    if (scp) {
-	if( Segments[_ss >> 3].is_32)
-	    return _esp;
-	else
-	    return (_esp)&0xffff;
-    } else {
-	if( Segments[DPMI_CLIENT.stack_frame.ss >> 3].is_32)
-	    return DPMI_CLIENT.stack_frame.esp;
-	else
-	    return DPMI_CLIENT.stack_frame.esp&0xffff;
-    }
+    if (scp == NULL)
+	scp = &DPMI_CLIENT.stack_frame;
+    if( Segments[_ss >> 3].is_32)
+	return _esp;
+    else
+	return (_esp)&0xffff;
 }
 
 
@@ -360,14 +355,16 @@ typedef void (*direct_dpmi_transfer_t)(struct sigcontext_struct *)
 static direct_dpmi_transfer_t direct_dpmi_transfer_p;
 
 static __attribute__ ((noreturn))
-  void direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
+  void direct_dpmi_switch(struct sigcontext_struct *scp)
 {
-  dpmi_switch_jmp->offset = dpmi_context->eip;
-  dpmi_switch_jmp->selector = dpmi_context->cs;
-  dpmi_context->esp_at_signal = dpmi_context->esp;
+  dpmi_switch_jmp->offset = _eip;
+  dpmi_switch_jmp->selector = _cs;
+#ifdef __i386__
+  scp->esp_at_signal = _esp;
+#endif
 
-  loadfpstate(*dpmi_context->fpstate);
-  direct_dpmi_transfer_p(dpmi_context);
+  loadfpstate(*scp->fpstate);
+  direct_dpmi_transfer_p(scp);
 }
 
 #endif
@@ -467,7 +464,7 @@ static int dpmi_control(void)
     if (dpmi_mhp_TF) _eflags |= TF;
     if (!(_eflags & TF)) {
 	if (debug_level('M')>6) {
-	  D_printf("DPMI SWITCH to 0x%x:0x%08lx (0x%08lx), Stack 0x%x:0x%08lx (0x%08lx) flags=%#lx\n",
+	  D_printf("DPMI SWITCH to 0x%x:0x%08x (0x%08lx), Stack 0x%x:0x%08x (0x%08lx) flags=%#lx\n",
 	    _cs, _eip, (long)SEL_ADR(_cs,_eip), _ss, _esp, (long)SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
 	}
 	direct_dpmi_switch(scp);
@@ -796,7 +793,7 @@ static inline int CheckDataSelector(struct sigcontext_struct *scp,
 
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
 {
-  D_printf("DPMI: cs=%#x, ss=%#x, ds=%#x, es=%#x, fs=%#x, gs=%#x ip=%#lx\n",
+  D_printf("DPMI: cs=%#x, ss=%#x, ds=%#x, es=%#x, fs=%#x, gs=%#x ip=%#x\n",
     _cs,_ss,_ds,_es,_fs,_gs,_eip);
 /* NONCONFORMING-CODE-SEGMENT:
    RPL of destination selector must be <= CPL ELSE #GP(selector);
@@ -815,7 +812,7 @@ int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
   }
   if (D_16_32(_eip) > GetSegmentLimit(_cs)) {
     if (in_dosemu) {
-      error("IP outside CS limit: ip=%#lx, cs=%#x, lim=%#x\n",
+      error("IP outside CS limit: ip=%#x, cs=%#x, lim=%#x\n",
         D_16_32(_eip), _cs, GetSegmentLimit(_cs));
       D_printf(DPMI_show_state(scp));
     }
@@ -1583,12 +1580,11 @@ static void do_int31(struct sigcontext_struct *scp)
 #endif
 
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
-#define APIx_16_32(s, x) (API_32(s) ? ((s)->x) : ((s)->x) & 0xffff)
 
   if (debug_level('M')) {
-    D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
+    D_printf("DPMI: int31, ax=%04x, ebx=%08x, ecx=%08x, edx=%08x\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
-    D_printf("        edi=%08lx, esi=%08lx, ebp=%08lx, esp=%08lx, eflags=%08lx\n",
+    D_printf("        edi=%08x, esi=%08x, ebp=%08x, esp=%08x, eflags=%08lx\n",
 	_edi,_esi,_ebp,_esp,eflags_VIF(_eflags));
     D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
 	_cs,_ds,_ss,_es,_fs,_gs);
@@ -1802,10 +1798,10 @@ err:
   case 0x0202:	/* Get Processor Exception Handler Vector */
     _LWORD(ecx) = DPMI_CLIENT.Exception_Table[_LO(bx)].selector;
     _edx = DPMI_CLIENT.Exception_Table[_LO(bx)].offset;
-    D_printf("DPMI: Getting Excp %#x = %#x:%#lx\n", _LO(bx),_LWORD(ecx),_edx);
+    D_printf("DPMI: Getting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     break;
   case 0x0203:	/* Set Processor Exception Handler Vector */
-    D_printf("DPMI: Setting Excp %#x = %#x:%#lx\n", _LO(bx),_LWORD(ecx),_edx);
+    D_printf("DPMI: Setting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
     DPMI_CLIENT.Exception_Table[_LO(bx)].selector = _LWORD(ecx);
     DPMI_CLIENT.Exception_Table[_LO(bx)].offset = API_16_32(_edx);
     break;
@@ -1813,7 +1809,7 @@ err:
       INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
       _LWORD(ecx) = desc.selector;
       _edx = desc.offset;
-      D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx), _LWORD(ecx), _edx);
+      D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx), _LWORD(ecx), _edx);
     }
     break;
   case 0x0205:	/* Set Protected Mode Interrupt vector */
@@ -1852,7 +1848,7 @@ err:
 	REG(ss) = rmreg->ss;
 	REG(esp) = (long) rmreg->sp;
       }
-      rm_ssp = (unsigned char *) (REG(ss) << 4);
+      rm_ssp = SEG2LINEAR(REG(ss));
       rm_sp = (unsigned long) LWORD(esp);
       for (i=0;i<(_LWORD(ecx)); i++)
 	pushw(rm_ssp, rm_sp, *(ssp+(_LWORD(ecx)) - 1 - i));
@@ -2058,7 +2054,7 @@ err:
 	  }
 	  _ebx = (unsigned long)block.base;
 	  _esi = block.handle;
-	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08lx at 0x%08lx (%s)\n",
+	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08x at 0x%08lx (%s)\n",
 		   _ecx, base_address, _edx ? "commited" : "uncommitted");
 	  D_printf("      malloc returns address %p\n", block.base);
 	  D_printf("                using handle 0x%08lx\n",block.handle);
@@ -2082,7 +2078,7 @@ err:
 	    break;
 	}
 
-	D_printf("DPMI: Resize linear mem to size %lx, flags %lx\n", newsize, _edx);
+	D_printf("DPMI: Resize linear mem to size %lx, flags %x\n", newsize, _edx);
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
 	old_block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle);
 	if(!old_block) {
@@ -2251,13 +2247,13 @@ err:
     break;
 
   case 0x0506:			/* Get Page Attributes */
-    D_printf("DPMI: Get Page Attributes for %li pages\n", _ecx);
+    D_printf("DPMI: Get Page Attributes for %i pages\n", _ecx);
     if (!DPMIGetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
       _eflags |= CF;
     break;
         
   case 0x0507:			/* Set Page Attributes */
-    D_printf("DPMI: Set Page Attributes for %li pages\n", _ecx);
+    D_printf("DPMI: Set Page Attributes for %i pages\n", _ecx);
     if (!DPMISetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
       _eflags |= CF;
     break;
@@ -2280,7 +2276,7 @@ err:
       addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
       size = (_LWORD(esi)) << 16 | (_LWORD(edi));
 
-      D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
+      D_printf("DPMI: Map Physical Memory, addr=%#08zx size=%#zx\n", addr, size);
 
       vbase = (size_t)get_hardware_ram(addr);
       if (vbase == 0) {
@@ -2289,7 +2285,7 @@ err:
       }
       _LWORD(ebx) = vbase >> 16;
       _LWORD(ecx) = vbase;
-      D_printf("DPMI: getting physical memory area at 0x%x, size 0x%x, "
+      D_printf("DPMI: getting physical memory area at 0x%zx, size 0x%zx, "
 		     "ret=%#x:%#x\n",
 	       addr, size, _LWORD(ebx), _LWORD(ecx));
     }
@@ -2297,7 +2293,7 @@ err:
   case 0x0801: {	/* free Physical Address Mapping */
       size_t vbase;
       vbase = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
-      D_printf("DPMI: Unmap Physical Memory, vbase=%#08x\n", vbase);
+      D_printf("DPMI: Unmap Physical Memory, vbase=%#08zx\n", vbase);
       /* since we have all the necessary physical memory regions
        * pre-mapped permanently, not much to do here. */
     }
@@ -2329,6 +2325,7 @@ void dpmi_realmode_callback(int rmcb_client, int num)
 {
     unsigned short *ssp;
     struct RealModeCallStructure *rmreg;
+    struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
 
     if (rmcb_client > current_client || num >= 0x10)
       return;
@@ -2360,34 +2357,29 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     /* WARNING - realmode flags can contain the dreadful NT flag which
      * will produce an exception 10 as soon as we return from the
      * callback! */
-    DPMI_CLIENT.stack_frame.eflags =  REG(eflags)&(~(AC|VM|TF|NT));
+    _eflags =  REG(eflags)&(~(AC|VM|TF|NT));
 
     if (DPMI_CLIENT.is_32) {
-	ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+	ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
 	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
 	ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
-	DPMI_CLIENT.stack_frame.esp -= 12;
+	_esp -= 12;
     } else {
-	*--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+	*--ssp = (unsigned short) get_vFLAGS(_eflags);
 	*--ssp = dpmi_sel(); 
 	*--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
-	LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 6;
+	LO_WORD(_esp) -= 6;
     }
-    DPMI_CLIENT.stack_frame.cs =
-	DPMIclient[rmcb_client].realModeCallBack[num].selector;
-    DPMI_CLIENT.stack_frame.eip =
-	DPMIclient[rmcb_client].realModeCallBack[num].offset;
+    _cs = DPMIclient[rmcb_client].realModeCallBack[num].selector;
+    _eip = DPMIclient[rmcb_client].realModeCallBack[num].offset;
     SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
 		(REG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
 		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
-    DPMI_CLIENT.stack_frame.ds =
-	DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector;
-    DPMI_CLIENT.stack_frame.esi = REG(esp);
-    DPMI_CLIENT.stack_frame.es =
-	DPMIclient[rmcb_client].realModeCallBack[num].rmreg_selector;
-    DPMI_CLIENT.stack_frame.edi=
-	DPMIclient[rmcb_client].realModeCallBack[num].rmreg_offset;
+    _ds = DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector;
+    _esi = REG(esp);
+    _es = DPMIclient[rmcb_client].realModeCallBack[num].rmreg_selector;
+    _edi = DPMIclient[rmcb_client].realModeCallBack[num].rmreg_offset;
 
     clear_IF();
     in_dpmi_dos_int = 0;
@@ -2607,6 +2599,7 @@ void run_pm_int(int i)
 {
   unsigned short *ssp, old_ss;
   unsigned long old_esp;
+  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
 
@@ -2624,8 +2617,8 @@ void run_pm_int(int i)
     return;
   }
 
-  old_ss = DPMI_CLIENT.stack_frame.ss;
-  old_esp = DPMI_CLIENT.stack_frame.esp;
+  old_ss = _ss;
+  old_esp = _esp;
   ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
@@ -2636,29 +2629,29 @@ void run_pm_int(int i)
     *--ssp = old_ss;
     ssp -= 2, *((unsigned long *) ssp) = old_esp;
     *--ssp = (us) 0;
-    *--ssp = DPMI_CLIENT.stack_frame.cs;
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_CLIENT.stack_frame.eip;
-    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+    *--ssp = _cs;
+    ssp -= 2, *((unsigned long *) ssp) = _eip;
+    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
     ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_pm);
-    DPMI_CLIENT.stack_frame.esp -= 36;
+    _esp -= 36;
   } else {
     /* store the high word of ESP, because CPU corrupts it */
     *--ssp = HI_WORD(old_esp);
     *--ssp = (unsigned short) in_dpmi_dos_int;
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
-    *--ssp = DPMI_CLIENT.stack_frame.cs; 
-    *--ssp = (unsigned short) DPMI_CLIENT.stack_frame.eip;
-    *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+    *--ssp = _cs; 
+    *--ssp = (unsigned short) _eip;
+    *--ssp = (unsigned short) get_vFLAGS(_eflags);
     *--ssp = dpmi_sel(); 
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 18;
+    LO_WORD(_esp) -= 18;
   }
-  DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
-  DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
-  DPMI_CLIENT.stack_frame.eflags &= ~(TF | NT | AC);
+  _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
+  _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
+  _eflags &= ~(TF | NT | AC);
   in_dpmi_dos_int = 0;
   clear_IF();
 #ifdef USE_MHPDBG
@@ -2677,6 +2670,7 @@ void run_pm_dos_int(int i)
 {
   unsigned short *ssp;
   unsigned long ret_eip;
+  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_dos_int(0x%02x) called\n",i);
 
@@ -2699,7 +2693,7 @@ void run_pm_dos_int(int i)
       break;
     case 0x24:
       ret_eip = DPMI_SEL_OFF(DPMI_return_from_int_24);
-      DPMI_CLIENT.stack_frame.ebp = ConvertSegmentToDescriptor(LWORD(ebp));
+      _ebp = ConvertSegmentToDescriptor(LWORD(ebp));
       /* maybe copy the RM stack? */
       break;
     default:
@@ -2709,20 +2703,20 @@ void run_pm_dos_int(int i)
 
   D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
   if (DPMI_CLIENT.is_32) {
-    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
     ssp -= 2, *((unsigned long *) ssp) = ret_eip;
-    DPMI_CLIENT.stack_frame.esp -= 12;
+    _esp -= 12;
   } else {
-    *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+    *--ssp = (unsigned short) get_vFLAGS(_eflags);
     *--ssp = dpmi_sel(); 
     *--ssp = ret_eip;
-    LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 6;
+    LO_WORD(_esp) -= 6;
   }
-  DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
-  DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
-  DPMI_CLIENT.stack_frame.eflags &= ~(TF | NT | AC);
+  _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
+  _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
+  _eflags &= ~(TF | NT | AC);
   in_dpmi_dos_int = 0;
   clear_IF();
 #ifdef USE_MHPDBG
@@ -2825,6 +2819,7 @@ void dpmi_init(void)
   unsigned int my_ip, my_sp, i;
   unsigned char *cp;
   int inherit_idt;
+  struct sigcontext_struct *scp;
 
   CARRY;
 
@@ -2897,7 +2892,7 @@ void dpmi_init(void)
     }
   }
 
-  ssp = (unsigned char *) (REG(ss) << 4);
+  ssp = SEG2LINEAR(REG(ss));
   sp = (unsigned long) LWORD(esp);
 
   psp = LWORD(ebx);
@@ -2907,7 +2902,7 @@ void dpmi_init(void)
   my_cs = popw(ssp, sp);
 
   if (debug_level('M')) {
-    cp = (unsigned char *) ((my_cs << 4) +  my_ip);
+    cp = MK_FP32(my_cs, my_ip);
 
     D_printf("Going protected with fingers crossed\n"
 		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04lx\n",
@@ -2963,16 +2958,17 @@ void dpmi_init(void)
   in_dpmi_dos_int = 0;
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
-  DPMI_CLIENT.stack_frame.eip	= my_ip;
-  DPMI_CLIENT.stack_frame.cs	= CS;
-  DPMI_CLIENT.stack_frame.esp	= my_sp;
-  DPMI_CLIENT.stack_frame.ss	= SS;
-  DPMI_CLIENT.stack_frame.ds	= DS;
-  DPMI_CLIENT.stack_frame.es	= ES;
-  DPMI_CLIENT.stack_frame.fs	= 0;
-  DPMI_CLIENT.stack_frame.gs	= 0;
+  scp   = &DPMI_CLIENT.stack_frame;
+  _eip	= my_ip;
+  _cs	= CS;
+  _esp	= my_sp;
+  _ss	= SS;
+  _ds	= DS;
+  _es	= ES;
+  _fs	= 0;
+  _gs	= 0;
   DPMI_CLIENT.fpu_state = vm86_fpu_state;
-  DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
+  scp->fpstate = &DPMI_CLIENT.fpu_state;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
   msdos_init(DPMI_CLIENT.is_32,
@@ -3045,7 +3041,7 @@ static void return_from_exception(struct sigcontext_struct *scp)
     _HWORD(esp) = *ssp++;
   }
   if (!_ss) {
-    D_printf("DPMI: ERROR: SS is zero, esp=0x%08lx, using old stack\n", _esp);
+    D_printf("DPMI: ERROR: SS is zero, esp=0x%08x, using old stack\n", _esp);
     _ss = saved_ss;
     _esp = saved_esp;
   }
@@ -3167,7 +3163,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
 
-  D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#lx, ss:esp=%x:%lx, cr2=%#lx, err=%#lx\n",
+  D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
 #if 0
   if (_trapno == 0xe) {
@@ -3259,7 +3255,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   _cs = DPMI_CLIENT.Exception_Table[_trapno].selector;
   _eip = DPMI_CLIENT.Exception_Table[_trapno].offset;
-  D_printf("DPMI: Exception Table jump to %04x:%08lx\n",_cs,_eip);
+  D_printf("DPMI: Exception Table jump to %04x:%08x\n",_cs,_eip);
   clear_IF();
   _eflags &= ~(TF | NT | AC);
 }
@@ -3310,7 +3306,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
    */
   if (_esp > stack_init_bot) {
     if (debug_level('M') >= 5)
-      D_printf("DPMI: ESP bug, esp=%#lx stack_bot=%#lx, cs32=%i ss32=%i\n",
+      D_printf("DPMI: ESP bug, esp=%#x stack_bot=%#lx, cs32=%i ss32=%i\n",
 	_esp, stack_init_bot, Segments[_cs >> 3].is_32, Segments[_ss >> 3].is_32);
     if (!Segments[_ss >> 3].is_32 || !Segments[_cs >> 3].is_32) {
       _HWORD(esp) = 0;
@@ -3445,7 +3441,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	_eflags &= ~(TF | NT | AC);
 	_cs = DPMI_CLIENT.Interrupt_Table[*csp].selector;
 	_eip = DPMI_CLIENT.Interrupt_Table[*csp].offset;
-	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08lx\n\t\tret=%#04x:%#08lx\n",
+	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08lx\n",
 		*csp, _LWORD(eax), _cs, _eip, cs2, eip2);
 	if ((*csp == 0x2f)&&((_LWORD(eax)==
 			      0xfb42)||(_LWORD(eax)==0xfb43)))
@@ -3617,7 +3613,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_23)) {
-	  struct sigcontext_struct old_ctx;
+	  struct sigcontext_struct old_ctx, *curscp;
 	  unsigned long old_esp;
 	  unsigned short *ssp;
 	  int esp_delta;
@@ -3627,7 +3623,10 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(&old_ctx);
-	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(old_ctx.esp) : D_16_32(DPMI_pm_stack_size);
+	  curscp = scp;
+	  scp = &old_ctx;
+	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(_esp) : D_16_32(DPMI_pm_stack_size);
+	  scp = curscp;
 	  esp_delta = old_esp - D_16_32(_esp);
 	  ssp = (us *) SEL_ADR(_ss, _esp);
 	  copy_context(scp, &old_ctx, -1);
@@ -3635,7 +3634,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	    unsigned char *rm_ssp;
 	    unsigned long sp;
 	    D_printf("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
-	    rm_ssp = (unsigned char *) (REG(ss) << 4);
+	    rm_ssp = SEG2LINEAR(REG(ss));
 	    sp = (unsigned long) LWORD(esp);
 	    esp_delta >>= DPMI_CLIENT.is_32;
 	    if (esp_delta == 2) {
@@ -3956,7 +3955,8 @@ int dpmi_fault(struct sigcontext_struct *scp)
 #endif
       }
     } else if (_trapno == 0x0e) {
-      if (_cr2 >= (int)ldt_buffer && _cr2 < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+      if ((unsigned char *)_cr2 >= ldt_buffer &&
+	  (unsigned char *)_cr2 < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
 	instr_emu(scp, 1, 10);
 	return ret;
       }
@@ -3980,7 +3980,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
   }
 
   if (debug_level('M') >= 8)
-    D_printf("DPMI: Return to client at %04x:%08lx, Stack 0x%x:0x%08lx, flags=%#lx\n",
+    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
       _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
   return ret;
 }
@@ -3988,11 +3988,13 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 void dpmi_realmode_hlt(unsigned char * lina)
 {
+  struct sigcontext_struct *scp;
   if (!in_dpmi) {
     D_printf("ERROR: DPMI call while not in dpmi!\n");
     LWORD(eip)++;
     return;
   }
+  scp = &DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI
   if ((debug_level('t')==0)||((int)lina!=0xfc80a))
 #endif
@@ -4022,7 +4024,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
   } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) &&
 	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256)) ) {
-    int intr = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_return_from_dosint);
+    int intr = lina - (unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint));
     int update_mask = ~0;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
@@ -4037,8 +4039,8 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode))) {
     struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
-      (GetSegmentBaseAddress(DPMI_CLIENT.stack_frame.es) +
-      APIx_16_32(&DPMI_CLIENT.stack_frame, edi));
+      (GetSegmentBaseAddress(_es) +
+      API_16_32(_edi));
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
@@ -4069,11 +4071,11 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
     in_dpmi_dos_int = 0;
 
-    begin_selector = LO_WORD(DPMI_CLIENT.stack_frame.edx);
+    begin_selector = LO_WORD(_edx);
 
-    DPMI_CLIENT.stack_frame.eflags &= ~CF;
+    _eflags &= ~CF;
     if(LWORD(eflags) & CF) {	/* error */
-	switch (LO_WORD(DPMI_CLIENT.stack_frame.eax)) {
+	switch (LO_WORD(_eax)) {
 	  case 0x100:
 	    ResizeDescriptorBlock(&DPMI_CLIENT.stack_frame,
 		begin_selector, 0);
@@ -4081,24 +4083,24 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
 	  case 0x102:
 	    if (!ResizeDescriptorBlock(&DPMI_CLIENT.stack_frame,
-		begin_selector, LO_WORD(DPMI_CLIENT.stack_frame.ebx) << 4))
+		begin_selector, LO_WORD(_ebx) << 4))
 		error("Unable to resize descriptor block\n");
 	}
-	if (LO_WORD(DPMI_CLIENT.stack_frame.eax) != 0x101)
-	    LO_WORD(DPMI_CLIENT.stack_frame.ebx) = LWORD(ebx); /* max para avail */
-	LO_WORD(DPMI_CLIENT.stack_frame.eax) = LWORD(eax); /* get error code */
-	DPMI_CLIENT.stack_frame.eflags |= CF;
+	if (LO_WORD(_eax) != 0x101)
+	    LO_WORD(_ebx) = LWORD(ebx); /* max para avail */
+	LO_WORD(_eax) = LWORD(eax); /* get error code */
+	_eflags |= CF;
 	goto done;
     }
 
     base = 0;
     length = 0;
-    switch (LO_WORD(DPMI_CLIENT.stack_frame.eax)) {
+    switch (LO_WORD(_eax)) {
       case 0x0100:	/* allocate block */
-	LO_WORD(DPMI_CLIENT.stack_frame.eax) = LWORD(eax);
+	LO_WORD(_eax) = LWORD(eax);
 	base = LWORD(eax) << 4;
 	length = GetSegmentLimit(begin_selector) + 1;
-	LO_WORD(DPMI_CLIENT.stack_frame.ebx) = length >> 4;
+	LO_WORD(_ebx) = length >> 4;
 	num_descs = (length ? (DPMI_CLIENT.is_32 ? 1 : (length/0x10000 +
 					((length%0x10000) ? 1 : 0))) : 0);
 	for (i = 0; i < num_descs; i++) {
@@ -4114,7 +4116,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
         if (ValidAndUsedSelector(begin_selector)) {
 	  length = GetSegmentLimit(begin_selector) + 1;
 	}
-	LO_WORD(DPMI_CLIENT.stack_frame.ebx) = length >> 4;
+	LO_WORD(_ebx) = length >> 4;
 	break;
     }
 
@@ -4132,65 +4134,65 @@ done:
 #endif
     in_dpmi_dos_int = 0;
     if (DPMI_CLIENT.is_32) {
-      DPMI_CLIENT.stack_frame.eip = REG(edi);
-      DPMI_CLIENT.stack_frame.esp = REG(ebx);
+      _eip = REG(edi);
+      _esp = REG(ebx);
     } else {
-      DPMI_CLIENT.stack_frame.eip = LWORD(edi);
-      DPMI_CLIENT.stack_frame.esp = LWORD(ebx);
+      _eip = LWORD(edi);
+      _esp = LWORD(ebx);
     }
-    DPMI_CLIENT.stack_frame.cs	 = LWORD(esi);
-    DPMI_CLIENT.stack_frame.ss	 = LWORD(edx);
-    DPMI_CLIENT.stack_frame.ds	 = LWORD(eax);
-    DPMI_CLIENT.stack_frame.es	 = LWORD(ecx);
-    DPMI_CLIENT.stack_frame.fs	 = 0;
-    DPMI_CLIENT.stack_frame.gs	 = 0;
-    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
-    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0cd5 & REG(eflags)) |
+    _cs	 = LWORD(esi);
+    _ss	 = LWORD(edx);
+    _ds	 = LWORD(eax);
+    _es	 = LWORD(ecx);
+    _fs	 = 0;
+    _gs	 = 0;
+    _ebp = REG(ebp);
+    _eflags = 0x0202 | (0x0cd5 & REG(eflags)) |
       dpmi_mhp_TF;
     /* zero out also the "undefined" registers? */
-    DPMI_CLIENT.stack_frame.eax = 0;
-    DPMI_CLIENT.stack_frame.ebx = 0;
-    DPMI_CLIENT.stack_frame.ecx = 0;
-    DPMI_CLIENT.stack_frame.edx = 0;
-    DPMI_CLIENT.stack_frame.esi = 0;
-    DPMI_CLIENT.stack_frame.edi = 0;
+    _eax = 0;
+    _ebx = 0;
+    _ecx = 0;
+    _edx = 0;
+    _esi = 0;
+    _edi = 0;
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_save_restore_rm))) {
     unsigned long *buffer = SEG_ADR((unsigned long *),es,di);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
-      *buffer++ = DPMI_CLIENT.stack_frame.eax;
-      *buffer++ = DPMI_CLIENT.stack_frame.ebx;
-      *buffer++ = DPMI_CLIENT.stack_frame.ecx;
-      *buffer++ = DPMI_CLIENT.stack_frame.edx;
-      *buffer++ = DPMI_CLIENT.stack_frame.esi;
-      *buffer++ = DPMI_CLIENT.stack_frame.edi;
-      *buffer++ = DPMI_CLIENT.stack_frame.esp;
-      *buffer++ = DPMI_CLIENT.stack_frame.ebp;
-      *buffer++ = DPMI_CLIENT.stack_frame.eip;
-      *buffer++ = DPMI_CLIENT.stack_frame.cs;
-      *buffer++ = DPMI_CLIENT.stack_frame.ds;
-      *buffer++ = DPMI_CLIENT.stack_frame.ss;
-      *buffer++ = DPMI_CLIENT.stack_frame.es;
-      *buffer++ = DPMI_CLIENT.stack_frame.fs;
-      *buffer++ = DPMI_CLIENT.stack_frame.gs;  
+      *buffer++ = _eax;
+      *buffer++ = _ebx;
+      *buffer++ = _ecx;
+      *buffer++ = _edx;
+      *buffer++ = _esi;
+      *buffer++ = _edi;
+      *buffer++ = _esp;
+      *buffer++ = _ebp;
+      *buffer++ = _eip;
+      *buffer++ = _cs;
+      *buffer++ = _ds;
+      *buffer++ = _ss;
+      *buffer++ = _es;
+      *buffer++ = _fs;
+      *buffer++ = _gs;  
     } else {
       D_printf("DPMI: restore protected mode registers\n");
-      DPMI_CLIENT.stack_frame.eax = *buffer++;
-      DPMI_CLIENT.stack_frame.ebx = *buffer++;
-      DPMI_CLIENT.stack_frame.ecx = *buffer++;
-      DPMI_CLIENT.stack_frame.edx = *buffer++;
-      DPMI_CLIENT.stack_frame.esi = *buffer++;
-      DPMI_CLIENT.stack_frame.edi = *buffer++;
-      DPMI_CLIENT.stack_frame.esp = *buffer++;
-      DPMI_CLIENT.stack_frame.ebp = *buffer++;
-      DPMI_CLIENT.stack_frame.eip = *buffer++;
-      DPMI_CLIENT.stack_frame.cs =  *buffer++;
-      DPMI_CLIENT.stack_frame.ds =  *buffer++;
-      DPMI_CLIENT.stack_frame.ss =  *buffer++;
-      DPMI_CLIENT.stack_frame.es =  *buffer++;
-      DPMI_CLIENT.stack_frame.fs =  *buffer++;
-      DPMI_CLIENT.stack_frame.gs =  *buffer++;
+      _eax = *buffer++;
+      _ebx = *buffer++;
+      _ecx = *buffer++;
+      _edx = *buffer++;
+      _esi = *buffer++;
+      _edi = *buffer++;
+      _esp = *buffer++;
+      _ebp = *buffer++;
+      _eip = *buffer++;
+      _cs =  *buffer++;
+      _ds =  *buffer++;
+      _ss =  *buffer++;
+      _es =  *buffer++;
+      _fs =  *buffer++;
+      _gs =  *buffer++;
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
 
@@ -4206,7 +4208,7 @@ done:
 	CARRY;
 	return;
     }
-    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
+    _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
     clear_IF();
     in_dpmi_dos_int = 0;
 
@@ -4239,19 +4241,24 @@ int dpmi_mhp_regs(void)
 
 void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off)
 {
-  *seg = DPMI_CLIENT.stack_frame.cs;
-  *off = DPMI_CLIENT.stack_frame.eip;
+  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+
+  *seg = _cs;
+  *off = _eip;
 }
 
 void dpmi_mhp_modify_eip(int delta)
 {
-  DPMI_CLIENT.stack_frame.eip +=delta;
+  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+  _eip +=delta;
 }
 
 void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
 {
-  *seg = DPMI_CLIENT.stack_frame.ss;
-  *off = DPMI_CLIENT.stack_frame.esp;
+  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+
+  *seg = _ss;
+  *off = _esp;
 }
 
 int dpmi_mhp_get_selector_size(int sel)

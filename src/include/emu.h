@@ -30,9 +30,11 @@
 #include "extern.h"
 
 #if 1 /* Set to 1 to use Silly Interrupt generator */
+#ifdef __i386__
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
+#endif
 #endif
 
 #define inline __inline__

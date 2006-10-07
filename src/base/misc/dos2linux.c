@@ -480,7 +480,7 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   static char title_appname [TITLE_APPNAME_MAXLEN] = {0};
   int err = 0;
 
-  g_printf("change_config: item = %d, buffer = 0x%x\n", item, (unsigned) buf);
+  g_printf("change_config: item = %d, buffer = %p\n", item, buf);
 
   switch(item) {
 

@@ -103,6 +103,11 @@
 #include <stdarg.h>
 #include <string.h>
 #include "emu86.h"
+
+#ifdef HOST_ARCH_SIM
+#include "codegen-sim.c"
+#else
+
 #include "codegen-x86.h"
 
 /* Buffer and pointers to store generated code */
@@ -3159,3 +3164,4 @@ _llab:	__asm__	__volatile__ (
 
 /////////////////////////////////////////////////////////////////////////////
 
+#endif

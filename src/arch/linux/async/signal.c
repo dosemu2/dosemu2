@@ -72,6 +72,17 @@ static int have_working_sigaltstack;
 #undef HAVE_SIGALTSTACK
 #endif
 
+#ifdef __x86_64__
+
+static int
+dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
+{
+  new->sa_flags |= SA_SIGINFO;
+  return sigaction(sig, new, old);
+}
+
+#else
+
 /* my glibc doesn't define this guy */
 #ifndef SA_RESTORER
 #define SA_RESTORER 0x04000000
@@ -96,10 +107,33 @@ struct kernel_sigaction {
   void (*sa_restorer)(void);
 };
 
+void restore (void) asm ("__restore");
+
 static int
 dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 {
   struct kernel_sigaction my_sa;
+
+  if ((new->sa_flags & SA_ONSTACK) && !have_working_sigaltstack)
+  {
+    new->sa_flags &= ~SA_ONSTACK;
+    /* Point to the top of the stack, minus 4
+       just in case, and make it aligned  */
+    new->sa_restorer =
+      (void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
+  } else {
+  /* Linuxthread's signal wrappers are incompatible with dosemu:
+     1. some old versions don't copy back the sigcontext_struct
+        on sigreturn
+     2. it may assume %gs points to something valid which it
+        does not if we return from DPMI or kernel 2.4.x vm86().
+     and it doesn't seem that the actions done by the wrapper
+        would affect dosemu: if only seems to affect sigwait()
+	and sem_post(), and we (most probably) don't use these */
+  /* So use the kernel sigaction */
+    new->sa_flags |= SA_RESTORER;
+    new->sa_restorer = restore;
+  }
 
   my_sa.kernel_sa_handler = new->sa_handler;
   my_sa.sa_mask = *((unsigned long *) &(new->sa_mask));
@@ -122,7 +156,8 @@ asm (
    "  popl %eax\n"
    "  movl $"XSTR(SYS_sigreturn)", %eax\n"
    "  int  $0x80");
-void restore (void) asm ("__restore");
+
+#endif
 
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
@@ -136,26 +171,6 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
   addset_signals_that_queue(&mask);
   sa.sa_mask = mask;
 
-  if ((sa.sa_flags & SA_ONSTACK) && !have_working_sigaltstack)
-  {
-    sa.sa_flags &= ~SA_ONSTACK;
-    /* Point to the top of the stack, minus 4
-       just in case, and make it aligned  */
-    sa.sa_restorer =
-      (void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
-  } else {
-  /* Linuxthread's signal wrappers are incompatible with dosemu:
-     1. some old versions don't copy back the sigcontext_struct
-        on sigreturn
-     2. it may assume %gs points to something valid which it
-        does not if we return from DPMI or kernel 2.4.x vm86().
-     and it doesn't seem that the actions done by the wrapper
-        would affect dosemu: if only seems to affect sigwait()
-	and sem_post(), and we (most probably) don't use these */
-  /* So use the kernel sigaction */
-    sa.sa_flags |= SA_RESTORER;
-    sa.sa_restorer = restore;
-  }
   dosemu_sigaction(sig, &sa, NULL);
 }
 

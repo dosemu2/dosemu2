@@ -355,7 +355,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    switch (_LO(ax)) {
 	      case 0x07:		/* set handler addr */
 		if ( _es && D_16_32(_ebx) ) {
-		  D_printf("MSDOS: PS2MOUSE: set handler addr 0x%x:0x%lx\n",
+		  D_printf("MSDOS: PS2MOUSE: set handler addr 0x%x:0x%x\n",
 		    _es, D_16_32(_ebx));
 		  MSDOS_CLIENT.PS2mouseCallBack.selector = _es;
 		  MSDOS_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx); 
@@ -1536,28 +1536,28 @@ int msdos_fault(struct sigcontext_struct *scp)
 	return 0;
 
     /* OKay, all the sanity checks passed. Now we go and fix the selector */
+    copy_context(scp, &new_sct, 0);
     switch (reg) {
     case es_INDEX:
-	new_sct.es = desc;
+	_es = desc;
 	break;
     case cs_INDEX:
-	new_sct.cs = desc;
+	_cs = desc;
 	break;
     case ss_INDEX:
-	new_sct.ss = desc;
+	_ss = desc;
 	break;
     case ds_INDEX:
-	new_sct.ds = desc;
+	_ds = desc;
 	break;
     case fs_INDEX:
-	new_sct.fs = desc;
+	_fs = desc;
 	break;
     case gs_INDEX:
-	new_sct.gs = desc;
+	_gs = desc;
 	break;
     }
 
-    /* lets hope we fixed the thing, apply the "fix" to context and return */
-    copy_context(scp, &new_sct, 0);
+    /* let's hope we fixed the thing, and return */
     return 1;
 }

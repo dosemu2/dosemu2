@@ -34,6 +34,11 @@
 
 #include <stddef.h>
 #include "emu86.h"
+
+#ifdef HOST_ARCH_SIM
+#include "fp87-sim.c"
+#else
+
 #include "codegen.h"
 #include <math.h>
 
@@ -753,3 +758,4 @@ fp_ok:
 	return 0;
 }
 
+#endif

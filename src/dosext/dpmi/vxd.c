@@ -155,7 +155,7 @@ static void WINAPI VXD_VMM ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "VMM" );
+        VXD_BARF( "VMM" );
     }
 }
 
@@ -181,7 +181,7 @@ static void WINAPI VXD_PageFile( CONTEXT86 *scp )
     case 0x01: /* get swap file info */
 	TRACE("VxD PageFile: returning swap file info\n");
 	SET_AX( scp, 0x00 ); /* paging disabled */
-	scp->ecx = 0;   /* maximum size of paging file */
+	_ecx = 0;   /* maximum size of paging file */
 	/* FIXME: do I touch DS:SI or DS:DI? */
 	RESET_CFLAG(scp);
 	break;
@@ -200,7 +200,7 @@ static void WINAPI VXD_PageFile( CONTEXT86 *scp )
     case 0x05: /* cancel?? INTERRUP.D */
     case 0x06: /* test I/O valid INTERRUP.D */
     default:
-	VXD_BARF( scp, "pagefile" );
+	VXD_BARF( "pagefile" );
 	break;
     }
 }
@@ -222,7 +222,7 @@ static void WINAPI VXD_Reboot ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "REBOOT" );
+        VXD_BARF( "REBOOT" );
     }
 }
 
@@ -243,7 +243,7 @@ static void WINAPI VXD_VDD ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "VDD" );
+        VXD_BARF( "VDD" );
     }
 }
 
@@ -264,7 +264,7 @@ static void WINAPI VXD_VMD ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "VMD" );
+        VXD_BARF( "VMD" );
     }
 }
 
@@ -288,19 +288,19 @@ static void WINAPI VXD_VXDLoader( CONTEXT86 *scp )
 
     case 0x0001: /* load device */
 	SET_AX( scp, 0x0000 );
-	scp->es = 0x0000;
+	_es = 0x0000;
 	SET_DI( scp, 0x0000 );
 	RESET_CFLAG(scp);
 	break;
 
     case 0x0002: /* unload device */
-	FIXME("unload device (%08lx)\n", scp->ebx);
+	FIXME("unload device (%08x)\n", _ebx);
 	SET_AX( scp, 0x0000 );
 	RESET_CFLAG(scp);
 	break;
 
     default:
-	VXD_BARF( scp, "VXDLDR" );
+	VXD_BARF( "VXDLDR" );
 	SET_AX( scp, 0x000B ); /* invalid function number */
 	SET_CFLAG(scp);
 	break;
@@ -321,7 +321,7 @@ static void WINAPI VXD_Shell( CONTEXT86 *scp )
     case 0x0000:
 	TRACE("returning version\n");
         SET_AX( scp, VXD_WinVersion() );
-	scp->ebx = 1; /* system VM Handle */
+	_ebx = 1; /* system VM Handle */
 	break;
 
     case 0x0001:
@@ -345,7 +345,7 @@ static void WINAPI VXD_Shell( CONTEXT86 *scp )
 	return response in eax
 	*/
     case 0x0005:
-	VXD_BARF( scp, "shell" );
+	VXD_BARF( "shell" );
 	break;
 
     case 0x0006: /* SHELL_Get_VM_State */
@@ -374,7 +374,7 @@ static void WINAPI VXD_Shell( CONTEXT86 *scp )
     case 0x0014:
     case 0x0015:
     case 0x0016:
-	VXD_BARF( scp, "SHELL" );
+	VXD_BARF( "SHELL" );
 	break;
 
     /* the new Win95 shell API */
@@ -384,17 +384,17 @@ static void WINAPI VXD_Shell( CONTEXT86 *scp )
 
     case 0x0104:   /* retrieve Hook_Properties list */
     case 0x0105:   /* call Hook_Properties callbacks */
-	VXD_BARF( scp, "SHELL" );
+	VXD_BARF( "SHELL" );
 	break;
 
     case 0x0106:   /* install timeout callback */
-	TRACE("VxD Shell: ignoring shell callback (%ld sec.)\n", scp->ebx);
+	TRACE("VxD Shell: ignoring shell callback (%d sec.)\n", _ebx);
 	SET_CFLAG(scp);
 	break;
 
     case 0x0107:   /* get version of any VxD */
     default:
-	VXD_BARF( scp, "SHELL" );
+	VXD_BARF( "SHELL" );
 	break;
     }
 }
@@ -421,7 +421,7 @@ static void WINAPI VXD_Comm( CONTEXT86 *scp )
     case 0x0002: /* get focus */
     case 0x0003: /* virtualise port */
     default:
-        VXD_BARF( scp, "comm" );
+        VXD_BARF( "comm" );
     }
 }
 
@@ -442,19 +442,19 @@ static void WINAPI VXD_Timer( CONTEXT86 *scp )
 	break;
 
     case 0x0100: /* clock tick time, in 840nsecs */
-	scp->eax = GetTickCount();
+	_eax = GetTickCount();
 
-	scp->edx = scp->eax >> 22;
-	scp->eax <<= 10; /* not very precise */
+	_edx = _eax >> 22;
+	_eax <<= 10; /* not very precise */
 	break;
 
     case 0x0101: /* current Windows time, msecs */
     case 0x0102: /* current VM time, msecs */
-	scp->eax = GETusTIME(0) / 1000;
+	_eax = GETusTIME(0) / 1000;
 	break;
 
     default:
-	VXD_BARF( scp, "VTD" );
+	VXD_BARF( "VTD" );
     }
 }
 
@@ -479,8 +479,8 @@ static void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
 
     case 0x0004: /* current VM time, msecs */
 	cur_time = GETusTIME(0) / 1000;
-	scp->edx = HI_WORD(cur_time);
-	scp->eax = LO_WORD(cur_time);
+	_edx = HI_WORD(cur_time);
+	_eax = LO_WORD(cur_time);
         RESET_CFLAG(scp);
 	break;
 
@@ -497,7 +497,7 @@ static void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "VTDAPI" );
+        VXD_BARF( "VTDAPI" );
     }
 }
 
@@ -518,7 +518,7 @@ static void WINAPI VXD_ConfigMG ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "CONFIGMG" );
+        VXD_BARF( "CONFIGMG" );
     }
 }
 
@@ -539,7 +539,7 @@ static void WINAPI VXD_Enable ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "ENABLE" );
+        VXD_BARF( "ENABLE" );
     }
 }
 
@@ -560,7 +560,7 @@ static void WINAPI VXD_APM ( CONTEXT86 *scp )
         break;
 
     default:
-        VXD_BARF( scp, "APM" );
+        VXD_BARF( "APM" );
     }
 }
 
@@ -722,11 +722,11 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         TRACE("GetVersion()\n");
 
-	scp->eax = VXD_WinVersion() | (200 << 16);
-        scp->ebx = 0;
-        scp->ecx = 0;
-        scp->edx = 0;
-        scp->edi = 0;
+	_eax = VXD_WinVersion() | (200 << 16);
+        _ebx = 0;
+        _ecx = 0;
+        _edx = 0;
+        _edi = 0;
 
 #if 0
         /*
@@ -832,13 +832,13 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: 0 if OK
          */
 
-        TRACE("[0001] EBX=%lx ECX=%lx EDX=%lx ESI=%lx EDI=%lx\n",
-                   scp->ebx, scp->ecx, scp->edx,
-                   scp->esi, scp->edi);
+        TRACE("[0001] EBX=%x ECX=%x EDX=%x ESI=%x EDI=%x\n",
+                   _ebx, _ecx, _edx,
+                   _esi, _edi);
 
         /* FIXME */
 
-        scp->eax = 0;
+        _eax = 0;
         break;
 
 
@@ -855,12 +855,12 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: Size of area changed
          */
 
-        TRACE("[0002] EBX=%lx ECX=%lx EDX=%lx\n",
-                   scp->ebx, scp->ecx, scp->edx);
+        TRACE("[0002] EBX=%x ECX=%x EDX=%x\n",
+                   _ebx, _ecx, _edx);
 
         /* FIXME */
 
-        scp->eax = scp->ecx;
+        _eax = _ecx;
         break;
 
 
@@ -873,11 +873,11 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          *               Bit 1: Read-Write if set, Read-Only if clear
          */
 
-        TRACE("[0003] EDX=%lx\n", scp->edx);
+        TRACE("[0003] EDX=%x\n", _edx);
 
         /* FIXME */
 
-        scp->eax = 6;
+        _eax = 6;
         break;
 
 
@@ -890,10 +890,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: 0 if OK
          */
 
-    if (!scp->edx || CX_reg(scp) == 0xFFFF)
+    if (!_edx || CX_reg(scp) == 0xFFFF)
     {
         TRACE("MapModule: Initialization call\n");
-        scp->eax = 0;
+        _eax = 0;
     }
     else
     {
@@ -920,8 +920,8 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          */
 
         struct Win32sModule *moduleTable =
-                            (struct Win32sModule *)W32S_APP2WINE(scp->edx);
-        struct Win32sModule *module = moduleTable + scp->ecx;
+                            (struct Win32sModule *)W32S_APP2WINE(_edx);
+        struct Win32sModule *module = moduleTable + _ecx;
 
         IMAGE_NT_HEADERS *nt_header = RtlImageNtHeader( (HMODULE)module->baseAddr );
         IMAGE_SECTION_HEADER *pe_seg = (IMAGE_SECTION_HEADER*)((char *)&nt_header->OptionalHeader +
@@ -1002,7 +1002,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
             }
         }
 
-        scp->eax = 0;
+        _eax = 0;
         RESET_CFLAG(scp);
     }
     break;
@@ -1015,11 +1015,11 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: 1 if OK
          */
 
-        TRACE("UnMapModule: %lx\n", (DWORD)W32S_APP2WINE(scp->edx));
+        TRACE("UnMapModule: %lx\n", (DWORD)W32S_APP2WINE(_edx));
 
         /* As we didn't map anything, there's nothing to unmap ... */
 
-        scp->eax = 1;
+        _eax = 1;
         break;
 
 
@@ -1038,7 +1038,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack  = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack  = (DWORD *)W32S_APP2WINE(_edx);
         DWORD *retv   = (DWORD *)W32S_APP2WINE(stack[0]);
         LPVOID base   = (LPVOID) W32S_APP2WINE(stack[1]);
         DWORD  size   = stack[2];
@@ -1065,10 +1065,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         if (W32S_WINE2APP(result))
             *retv            = W32S_WINE2APP(result),
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         else
             *retv            = 0,
-            scp->eax = STATUS_NO_MEMORY;  /* FIXME */
+            _eax = STATUS_NO_MEMORY;  /* FIXME */
     }
     break;
 
@@ -1087,7 +1087,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack  = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack  = (DWORD *)W32S_APP2WINE(_edx);
         DWORD *retv   = (DWORD *)W32S_APP2WINE(stack[0]);
         LPVOID base   = (LPVOID) W32S_APP2WINE(stack[1]);
         DWORD  size   = stack[2];
@@ -1101,10 +1101,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         if (result)
             *retv            = TRUE,
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         else
             *retv            = FALSE,
-            scp->eax = STATUS_NO_MEMORY;  /* FIXME */
+            _eax = STATUS_NO_MEMORY;  /* FIXME */
     }
     break;
 
@@ -1124,7 +1124,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack    = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack    = (DWORD *)W32S_APP2WINE(_edx);
         DWORD *retv     = (DWORD *)W32S_APP2WINE(stack[0]);
         LPVOID base     = (LPVOID) W32S_APP2WINE(stack[1]);
         DWORD  size     = stack[2];
@@ -1139,10 +1139,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         if (result)
             *retv            = TRUE,
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         else
             *retv            = FALSE,
-            scp->eax = STATUS_NO_MEMORY;  /* FIXME */
+            _eax = STATUS_NO_MEMORY;  /* FIXME */
     }
     break;
 
@@ -1161,7 +1161,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack  = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack  = (DWORD *)W32S_APP2WINE(_edx);
         DWORD *retv   = (DWORD *)W32S_APP2WINE(stack[0]);
         LPVOID base   = (LPVOID) W32S_APP2WINE(stack[1]);
         PMEMORY_BASIC_INFORMATION info =
@@ -1175,7 +1175,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         result = VirtualQuery(base, info, len);
 
         *retv            = result;
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
     }
     break;
 
@@ -1189,12 +1189,12 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
 
-        TRACE("[000a] ECX=%lx EDX=%lx\n",
-                   scp->ecx, scp->edx);
+        TRACE("[000a] ECX=%x EDX=%x\n",
+                   _ecx, _edx);
 
         /* FIXME */
 
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
         break;
 
 
@@ -1205,11 +1205,11 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
 
-        TRACE("[000b] ECX=%lx\n", scp->ecx);
+        TRACE("[000b] ECX=%x\n", _ecx);
 
         /* FIXME */
 
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
         break;
 
 
@@ -1220,11 +1220,11 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EDX: Previous Debug Flags
          */
 
-        FIXME("[000c] EDX=%lx\n", scp->edx);
+        FIXME("[000c] EDX=%x\n", _edx);
 
         /* FIXME */
 
-        scp->edx = 0;
+        _edx = 0;
         break;
 
 
@@ -1244,7 +1244,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack    = (DWORD *)   W32S_APP2WINE(scp->edx);
+        DWORD *stack    = (DWORD *)   W32S_APP2WINE(_edx);
         HANDLE *retv  = (HANDLE *)W32S_APP2WINE(stack[0]);
         DWORD  flags1   = stack[1];
         DWORD  atom     = stack[2];
@@ -1278,10 +1278,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         if (result != INVALID_HANDLE_VALUE)
             *retv            = result,
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         else
             *retv            = result,
-            scp->eax = STATUS_NO_MEMORY;   /* FIXME */
+            _eax = STATUS_NO_MEMORY;   /* FIXME */
     }
     break;
 
@@ -1297,7 +1297,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack    = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack    = (DWORD *)W32S_APP2WINE(_edx);
         HANDLE *retv  = (HANDLE *)W32S_APP2WINE(stack[0]);
         DWORD  protect  = stack[1];
         DWORD  atom     = stack[2];
@@ -1322,10 +1322,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         if (result != INVALID_HANDLE_VALUE)
             *retv            = result,
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         else
             *retv            = result,
-            scp->eax = STATUS_NO_MEMORY;   /* FIXME */
+            _eax = STATUS_NO_MEMORY;   /* FIXME */
     }
     break;
 
@@ -1340,7 +1340,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack    = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack    = (DWORD *)W32S_APP2WINE(_edx);
         HANDLE handle   = (HANDLE)stack[0];
         DWORD *id       = (DWORD *)W32S_APP2WINE(stack[1]);
 
@@ -1349,7 +1349,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         CloseHandle(handle);
         if (id) *id = 0; /* FIXME */
 
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
     }
     break;
 
@@ -1363,7 +1363,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack    = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack    = (DWORD *)W32S_APP2WINE(_edx);
         HANDLE handle   = (HANDLE)stack[0];
         HANDLE new_handle;
 
@@ -1372,7 +1372,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         DuplicateHandle( GetCurrentProcess(), handle,
                          GetCurrentProcess(), &new_handle,
                          0, FALSE, DUPLICATE_SAME_ACCESS );
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
     }
     break;
 
@@ -1395,7 +1395,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *  stack          = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *  stack          = (DWORD *)W32S_APP2WINE(_edx);
         HANDLE   SectionHandle  = (HANDLE)stack[0];
         DWORD    ProcessHandle  = stack[1]; /* ignored */
         DWORD *  BaseAddress    = (DWORD *)W32S_APP2WINE(stack[2]);
@@ -1442,10 +1442,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         if (W32S_WINE2APP(result))
         {
             if (BaseAddress) *BaseAddress = W32S_WINE2APP(result);
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         }
         else
-            scp->eax = STATUS_NO_MEMORY; /* FIXME */
+            _eax = STATUS_NO_MEMORY; /* FIXME */
     }
     break;
 
@@ -1460,7 +1460,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack          = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack          = (DWORD *)W32S_APP2WINE(_edx);
         DWORD  ProcessHandle  = stack[0]; /* ignored */
         LPBYTE BaseAddress    = (LPBYTE)W32S_APP2WINE(stack[1]);
 
@@ -1469,7 +1469,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         UnmapViewOfFile(BaseAddress);
 
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
     }
     break;
 
@@ -1486,7 +1486,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack          = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack          = (DWORD *)W32S_APP2WINE(_edx);
         DWORD  ProcessHandle  = stack[0]; /* ignored */
         DWORD *BaseAddress    = (DWORD *)W32S_APP2WINE(stack[1]);
         DWORD *ViewSize       = (DWORD *)W32S_APP2WINE(stack[2]);
@@ -1503,7 +1503,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         FlushViewOfFile(address, size);
 
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
     }
     break;
 
@@ -1519,8 +1519,8 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  None
          */
 
-        FIXME("[0014] ECX=%lx EDX=%lx\n",
-                   scp->ecx, scp->edx);
+        FIXME("[0014] ECX=%x EDX=%x\n",
+                   _ecx, _edx);
 
         /* FIXME */
         break;
@@ -1533,7 +1533,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  None
          */
 
-        TRACE("[0015] EDX=%lx\n", scp->edx);
+        TRACE("[0015] EDX=%x\n", _edx);
 
         /* We don't care, as we always have a coprocessor anyway */
         break;
@@ -1553,13 +1553,13 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          *     Output: None
          */
 
-        if (scp->ebx == 0)
-            scp->edx = 0x80;
+        if (_ebx == 0)
+            _edx = 0x80;
         else
         {
             PDB16 *psp = MapSL( MAKESEGPTR( BX_reg(scp), 0 ));
             psp->nbFiles = 32;
-            psp->fileHandlesPtr = MAKELONG(HIWORD(scp->ebx), 0x5c);
+            psp->fileHandlesPtr = MAKELONG(HIWORD(_ebx), 0x5c);
             memset((LPBYTE)psp + 0x5c, '\xFF', 32);
         }
         break;
@@ -1573,8 +1573,8 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  None
          */
 
-        FIXME("[0017] EBX=%lx CX=%x\n",
-                   scp->ebx, CX_reg(scp));
+        FIXME("[0017] EBX=%x CX=%x\n",
+                   _ebx, CX_reg(scp));
 
         /* FIXME */
         break;
@@ -1593,7 +1593,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack  = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack  = (DWORD *)W32S_APP2WINE(_edx);
         DWORD *retv   = (DWORD *)W32S_APP2WINE(stack[0]);
         LPVOID base   = (LPVOID) W32S_APP2WINE(stack[1]);
         DWORD  size   = stack[2];
@@ -1606,10 +1606,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         if (result)
             *retv            = TRUE,
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         else
             *retv            = FALSE,
-            scp->eax = STATUS_NO_MEMORY;  /* FIXME */
+            _eax = STATUS_NO_MEMORY;  /* FIXME */
     }
     break;
 
@@ -1627,7 +1627,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  EAX: NtStatus
          */
     {
-        DWORD *stack  = (DWORD *)W32S_APP2WINE(scp->edx);
+        DWORD *stack  = (DWORD *)W32S_APP2WINE(_edx);
         DWORD *retv   = (DWORD *)W32S_APP2WINE(stack[0]);
         LPVOID base   = (LPVOID) W32S_APP2WINE(stack[1]);
         DWORD  size   = stack[2];
@@ -1640,10 +1640,10 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
 
         if (result)
             *retv            = TRUE,
-            scp->eax = STATUS_SUCCESS;
+            _eax = STATUS_SUCCESS;
         else
             *retv            = FALSE,
-            scp->eax = STATUS_NO_MEMORY;  /* FIXME */
+            _eax = STATUS_NO_MEMORY;  /* FIXME */
     }
     break;
 
@@ -1667,8 +1667,8 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          *       FIXME: What about other OSes ?
          */
 
-        scp->ecx = W32S_WINE2APP(0x00000000);
-        scp->edx = W32S_WINE2APP(0xbfffffff);
+        _ecx = W32S_WINE2APP(0x00000000);
+        _edx = W32S_WINE2APP(0xbfffffff);
         break;
 
 
@@ -1691,7 +1691,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         };
 
         struct Win32sMemoryInfo *info =
-                       (struct Win32sMemoryInfo *)W32S_APP2WINE(scp->esi);
+                       (struct Win32sMemoryInfo *)W32S_APP2WINE(_esi);
 
         FIXME("KGlobalMemStat(%lx)\n", (DWORD)info);
 
@@ -1707,7 +1707,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  None
          */
 
-        TRACE("[001c] ECX=%lx\n", scp->ecx);
+        TRACE("[001c] ECX=%x\n", _ecx);
 
         /* FIXME */
         break;
@@ -1726,7 +1726,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          *          EDX: Flat base address of allocated region
          */
     {
-        DWORD *stack  = MapSL( MAKESEGPTR( LOWORD(scp->edx), HIWORD(scp->edx) ));
+        DWORD *stack  = MapSL( MAKESEGPTR( LOWORD(_edx), HIWORD(_edx) ));
         LPVOID base   = (LPVOID)W32S_APP2WINE(stack[0]);
         DWORD  size   = stack[1];
         DWORD  type   = stack[2];
@@ -1745,12 +1745,12 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         result = (DWORD)VirtualAlloc(base, size, type, prot);
 
         if (W32S_WINE2APP(result))
-            scp->edx = W32S_WINE2APP(result),
-            scp->eax = STATUS_SUCCESS;
+            _edx = W32S_WINE2APP(result),
+            _eax = STATUS_SUCCESS;
         else
-            scp->edx = 0,
-            scp->eax = STATUS_NO_MEMORY;  /* FIXME */
-	TRACE("VirtualAlloc16: returning base %lx\n", scp->edx);
+            _edx = 0,
+            _eax = STATUS_NO_MEMORY;  /* FIXME */
+	TRACE("VirtualAlloc16: returning base %x\n", _edx);
     }
     break;
 
@@ -1767,7 +1767,7 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          *          EDX: TRUE if success, FALSE if failure
          */
     {
-        DWORD *stack  = MapSL( MAKESEGPTR( LOWORD(scp->edx), HIWORD(scp->edx) ));
+        DWORD *stack  = MapSL( MAKESEGPTR( LOWORD(_edx), HIWORD(_edx) ));
         LPVOID base   = (LPVOID)W32S_APP2WINE(stack[0]);
         DWORD  size   = stack[1];
         DWORD  type   = stack[2];
@@ -1779,11 +1779,11 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         result = VirtualFree(base, size, type);
 
         if (result)
-            scp->edx = TRUE,
-            scp->eax = STATUS_SUCCESS;
+            _edx = TRUE,
+            _eax = STATUS_SUCCESS;
         else
-            scp->edx = FALSE,
-            scp->eax = STATUS_NO_MEMORY;  /* FIXME */
+            _edx = FALSE,
+            _eax = STATUS_NO_MEMORY;  /* FIXME */
     }
     break;
 
@@ -1798,8 +1798,8 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
          * Output:  NtStatus
          */
     {
-        DWORD *ptr = (DWORD *)W32S_APP2WINE(scp->ecx);
-        BOOL set = scp->edx;
+        DWORD *ptr = (DWORD *)W32S_APP2WINE(_ecx);
+        BOOL set = _edx;
 
         TRACE("FWorkingSetSize(%lx, %lx)\n", (DWORD)ptr, (DWORD)set);
 
@@ -1808,13 +1808,13 @@ static void WINAPI VXD_Win32s( CONTEXT86 *scp )
         else
             *ptr = 0x100;
 
-        scp->eax = STATUS_SUCCESS;
+        _eax = STATUS_SUCCESS;
     }
     break;
 
 
     default:
-	VXD_BARF( scp, "W32S" );
+	VXD_BARF( "W32S" );
     }
 
 }
