@@ -102,7 +102,13 @@ EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);
 
 static inline hitimer_t GETTSC(void) {
 	hitimer_t d;
+#ifdef __x86_64__
+	unsigned int lo, hi;
+	asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
+	d = lo | ((unsigned long)hi << 32);
+#else
 	__asm__ __volatile__ ("rdtsc" : "=A" (d));
+#endif
 	return d;
 }
 
