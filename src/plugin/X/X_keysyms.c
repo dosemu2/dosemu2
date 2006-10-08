@@ -334,7 +334,9 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 #if 0
 #define	XK_ISO_Lock					0xFE01
 #define	XK_ISO_Level2_Latch				0xFE02
-#define	XK_ISO_Level3_Shift				0xFE03
+#endif
+{ XK_ISO_Level3_Shift,					KEY_R_ALT },
+#if 0
 #define	XK_ISO_Level3_Latch				0xFE04
 #define	XK_ISO_Level3_Lock				0xFE05
 #define	XK_ISO_Group_Shift		KEY_MODE_SWITCH }0xFF7E	/* Alias for mode_switch */

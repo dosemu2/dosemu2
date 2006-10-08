@@ -491,7 +491,12 @@ static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 	xkey = *((KeySym *)str);
 	keynum = keysym_to_keynum(dosemu_keysym);
 	xcode = XKeysymToKeycode(display, xkey);
-	if (xcode && keynum != NUM_VOID) {
+	// Only allow detection of unshifted keys, to prevent things
+	// like mapping the key used for "Pilcrow Sign (0xB6)", which
+	// is (AltGr)-'r' for a german keyboard to 't', because the
+	// pilcrow sign is Ctrl-T in CP437/CP850
+	if (xcode && keynum != NUM_VOID &&
+	    (XKeycodeToKeysym(display,xcode,0) == xkey)) {
 		keycode_to_keynum[xcode] = keynum;
 	}
 }
