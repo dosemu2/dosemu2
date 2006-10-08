@@ -52,13 +52,13 @@ enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
 
 typedef struct pmaddr_s
 {
-    unsigned long	offset;
+    unsigned int	offset;
     unsigned short	selector;
 } INTDESC;
 
 typedef struct segment_descriptor_s
 {
-    unsigned long	base_addr;	/* Pointer to segment in flat memory */
+    unsigned int	base_addr;	/* Pointer to segment in flat memory */
     unsigned int	limit;		/* Limit of Segment */
     unsigned int	type:2;
     unsigned int	is_32:1;	/* one for is 32-bit Segment */
@@ -71,18 +71,18 @@ typedef struct segment_descriptor_s
 
 struct sel_desc_s {
   unsigned short selector;
-  unsigned long descriptor[2];
+  unsigned int descriptor[2];
 } __attribute__((packed));
 
 struct RealModeCallStructure {
-  unsigned long edi;
-  unsigned long esi;
-  unsigned long ebp;
-  unsigned long esp;
-  unsigned long ebx;
-  unsigned long edx;
-  unsigned long ecx;
-  unsigned long eax;
+  unsigned int edi;
+  unsigned int esi;
+  unsigned int ebp;
+  unsigned int esp;
+  unsigned int ebx;
+  unsigned int edx;
+  unsigned int ecx;
+  unsigned int eax;
   unsigned short flags;
   unsigned short es;
   unsigned short ds;
@@ -96,9 +96,9 @@ struct RealModeCallStructure {
 
 typedef struct {
     unsigned short selector;
-    unsigned long  offset;
+    unsigned int  offset;
     unsigned short rmreg_selector;
-    unsigned long  rmreg_offset;
+    unsigned int  rmreg_offset;
     struct RealModeCallStructure *rmreg;
     unsigned rm_ss_selector;
 } RealModeCallBack;
@@ -130,7 +130,7 @@ struct RSPcall_s {
   unsigned short reserved;
   unsigned char data32[8];
   unsigned char code32[8];
-  unsigned long eip;
+  unsigned int eip;
 };
 struct RSP_s {
   struct RSPcall_s call;
@@ -168,7 +168,7 @@ void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
 int dpmi_mhp_get_selector_size(int sel);
 int dpmi_mhp_getcsdefault(void);
 int dpmi_mhp_setTF(int on);
-void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp);
+void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp);
 int dpmi_mhp_getselbase(unsigned short selector);
 unsigned long dpmi_mhp_getreg(int regnum);
 void dpmi_mhp_setreg(int regnum, unsigned long val);
@@ -187,8 +187,8 @@ int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
 int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
 int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
-void GetFreeMemoryInformation(unsigned long *lp);
-int GetDescriptor(us selector, unsigned long *lp);
+void GetFreeMemoryInformation(unsigned int *lp);
+int GetDescriptor(us selector, unsigned int *lp);
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
 unsigned long GetSegmentLimit(unsigned short);

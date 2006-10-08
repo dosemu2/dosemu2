@@ -74,14 +74,14 @@ return (to);
 /////////////////////////////////////////////////////////////////////////////
 
 typedef union {
-	unsigned long d;
-	signed long ds;
+	unsigned int d;
+	signed int ds;
 	signed char *ps;
 	unsigned char *pu;
 	signed short *pws;
 	unsigned short *pwu;
-	signed long *pds;
-	unsigned long *pdu;
+	signed int *pds;
+	unsigned int *pdu;
 	float *pff;
 	double *pfd;
 	struct { unsigned short l,h; } w;
@@ -92,7 +92,7 @@ typedef union {
 
 typedef struct {
 	int valid, mode;
-	long S1,S2;
+	int S1,S2;
 	wkreg RES;
 } flgtmp;
 
@@ -163,11 +163,11 @@ static __inline__ int FastLog2(register int v)
 
 static __inline__ void PUSH(int m, void *w)
 {
-	unsigned long sp;
+	unsigned int sp;
 	caddr_t addr;
 	int v;
 	sp = (TheCPU.esp-BT24(BitDATA16, m)) & TheCPU.StackMask;
-	addr = (caddr_t)(LONG_SS + sp);
+	addr = (caddr_t)(uintptr_t)(LONG_SS + sp);
 	v = e_munprotect(addr, 0);
 	if (m&DATA16)
 		*((short *)addr) = *((short *)w);

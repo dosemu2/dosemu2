@@ -402,7 +402,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		unsigned long size = _LWORD(ebx) << 4;
 		void *addr = msdos_malloc(size);
 		if (!addr) {
-		    unsigned long meminfo[12];
+		    unsigned int meminfo[12];
 		    GetFreeMemoryInformation(meminfo);
 		    _eflags |= CF;
 		    _LWORD(ebx) = meminfo[0] >> 4;
@@ -432,7 +432,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		unsigned long new_size = _LWORD(ebx) << 4;
 		void *addr = msdos_realloc((void *)GetSegmentBaseAddress(_es), new_size);
 		if (!addr) {
-		    unsigned long meminfo[12];
+		    unsigned int meminfo[12];
 		    GetFreeMemoryInformation(meminfo);
 		    _eflags |= CF;
 		    _LWORD(ebx) = meminfo[0] >> 4;

@@ -69,7 +69,7 @@ struct DPB {
 
 struct DINFO {
 	unsigned short level;
-	unsigned long serial;
+	unsigned int serial;
 	unsigned char label[11];
 	unsigned char fs_type[8];
 } __attribute__((packed));
@@ -105,7 +105,7 @@ typedef u_char *sdb_t;
 #define	sdb_file_time(sdb)	(*(u_short *)&sdb[sdb_file_time_off])
 #define	sdb_file_date(sdb)	(*(u_short *)&sdb[sdb_file_date_off])
 #define sdb_file_st_cluster(sdb)(*(u_short *)&sdb[sdb_file_st_cluster_off])
-#define sdb_file_size(sdb)	(*(u_long  *)&sdb[sdb_file_size_off])
+#define sdb_file_size(sdb)	(*(u_int   *)&sdb[sdb_file_size_off])
 
 typedef u_char *sft_t;
 
@@ -113,12 +113,12 @@ typedef u_char *sft_t;
 #define sft_open_mode(sft)  	(*(u_short *)&sft[sft_open_mode_off])
 #define sft_attribute_byte(sft) (*(u_char  *)&sft[sft_attribute_byte_off])
 #define sft_device_info(sft)  	(*(u_short *)&sft[sft_device_info_off])
-#define	sft_dev_drive_ptr(sft)	(*(u_long  *)&sft[sft_dev_drive_ptr_off])
+#define	sft_dev_drive_ptr(sft)	(*(u_int   *)&sft[sft_dev_drive_ptr_off])
 #define	sft_start_cluster(sft)	(*(u_short *)&sft[sft_start_cluster_off])
 #define	sft_time(sft)		(*(u_short *)&sft[sft_time_off])
 #define	sft_date(sft)		(*(u_short *)&sft[sft_date_off])
-#define	sft_size(sft)		(*(u_long  *)&sft[sft_size_off])
-#define	sft_position(sft)	(*(u_long  *)&sft[sft_position_off])
+#define	sft_size(sft)		(*(u_int   *)&sft[sft_size_off])
+#define	sft_position(sft)	(*(u_int   *)&sft[sft_position_off])
 #define sft_rel_cluster(sft)	(*(u_short *)&sft[sft_rel_cluster_off])
 #define sft_abs_cluster(sft)	(*(u_short *)&sft[sft_abs_cluster_off])
 #define	sft_directory_sector(sft) (*(u_short *)&sft[sft_directory_sector_off])

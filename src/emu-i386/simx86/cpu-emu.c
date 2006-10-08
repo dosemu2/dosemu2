@@ -262,7 +262,7 @@ char *e_print_regs(void)
 #error MAX_SELECTORS needs to be 8192
 #endif
 
-#define GetSegmentBaseAddress(s)	(Segments[(s) >> 3].base_addr)
+#define GetSegmentBaseAddress(s)	((unsigned long)Segments[(s) >> 3].base_addr)
 #define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
 char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)

@@ -256,7 +256,7 @@ struct dir_ent {
   u_short mode;			/* unix st_mode value */
   u_short hidden;
   u_short long_path;            /* directory has long path */
-  long size;			/* size of file */
+  int size;			/* size of file */
   time_t time;			/* st_mtime */
   int attr;
 };

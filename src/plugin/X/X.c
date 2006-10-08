@@ -1093,7 +1093,7 @@ static int X_change_config(unsigned item, void *buf)
   XFontStruct *xfont;
   XGCValues gcv;
 
-  X_printf("X: X_change_config: item = %d, buffer = 0x%x\n", item, (unsigned) buf);
+  X_printf("X: X_change_config: item = %d, buffer = %p\n", item, buf);
 
   switch(item) {
 

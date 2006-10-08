@@ -270,8 +270,8 @@ static void set_char_set (void)
 				}
 		}
 		memcpy(The_Charset + i, buff, 4);
-		v_printf("mapping: %x -> %04x -> %.*s (len=%d,acs=%x)\n", i, uni,
-			 result, buff, result, result == 1 && buff[1] ? buff[1] : 0);
+		v_printf("mapping: %x -> %04x -> %.*s (len=%zu,acs=%x)\n", i, uni,
+			 (int)result, buff, result, result == 1 && buff[1] ? buff[1] : 0);
 
 		/* If we have any non control charcters in 0x80 - 0x9f
 		 * set up  the slang code up so we can send them. 

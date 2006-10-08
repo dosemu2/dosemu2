@@ -103,22 +103,22 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 /* `Fetch` is for CODE reads, `Get`/`Put` is for DATA.
  *  WARNING - BOUND uses SIGNED limits!! */
 #define Fetch(a)	({ \
-	register long p = (long)(a);\
+	register int p = (int)(a);\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	*((unsigned char *)p); })
 #define FetchW(a)	({ \
-	register long p = (long)(a)+1;\
+	register int p = (int)(a)+1;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	*((unsigned short *)(a)); })
 #define FetchL(a)	({ \
-	register long p = (long)(a)+3;\
+	register int p = (int)(a)+3;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	*((unsigned int *)(a)); })
 
 #define DataFetchWL_U(m,a)	({ \
 	register unsigned f = ((m)&DATA16? 1:3);\
-	register long p = (long)(a)+f;\
-	register long res;\
+	register int p = (int)(a)+f;\
+	register int res;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	__asm__ ("xorl	%0,%0\n\
 		shr	$2,%1\n\
@@ -129,14 +129,14 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 
 #define DataFetchWL_S(m,a)	({ \
 	register unsigned f = ((m)&DATA16? 1:3);\
-	register long p = (long)(a)+f;\
+	register int p = (int)(a)+f;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	(f&2? *((long *)(a)):*((short *)(a))); })
+	(f&2? *((int *)(a)):*((short *)(a))); })
 
 #define AddrFetchWL_U(m,a)	({ \
 	register unsigned f = ((m)&ADDR16? 1:3);\
-	register long p = (long)(a)+f;\
-	register long res;\
+	register int p = (int)(a)+f;\
+	register int res;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	__asm__ ("xorl	%0,%0\n\
 		shr	$2,%1\n\
@@ -147,37 +147,37 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 
 #define AddrFetchWL_S(m,a)	({ \
 	register unsigned f = ((m)&ADDR16? 1:3);\
-	register long p = (long)(a)+f;\
+	register int p = (int)(a)+f;\
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
-	(f&2? *((long *)(a)):*((short *)(a))); })
+	(f&2? *((int *)(a)):*((short *)(a))); })
 #else
 #define Fetch(a)	*((unsigned char *)(a))
 #define FetchW(a)	*((unsigned short *)(a))
-#define FetchL(a)	*((unsigned long *)(a))
+#define FetchL(a)	*((unsigned int *)(a))
 #define DataFetchWL_U(m,a) ((m)&DATA16? FetchW(a):FetchL(a))
-#define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(long)FetchL(a))
+#define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(int)FetchL(a))
 #define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))
-#define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(long)FetchL(a))
+#define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(int)FetchL(a))
 #endif
 #define GetDWord(a)	*((unsigned short *)(a))
-#define GetDLong(a)	*((unsigned long *)(a))
+#define GetDLong(a)	*((unsigned int *)(a))
 #define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
-#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(long)GetDLong(a))
+#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 #endif
 
 #if defined(ppc)||defined(__ppc)||defined(__ppc__)
 #define Fetch(a)	*((unsigned char *)(a))
-#define FetchW(a)	ppc_pswap2((long)(a))
-#define FetchL(a)	ppc_pswap4((long)(a))
+#define FetchW(a)	ppc_pswap2((int)(a))
+#define FetchL(a)	ppc_pswap4((int)(a))
 #define DataFetchWL_U(m,a) ((m)&DATA16? FetchW(a):FetchL(a))
-#define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(long)FetchL(a))
+#define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(int)FetchL(a))
 #define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))
-#define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(long)FetchL(a))
+#define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(int)FetchL(a))
 
-#define GetDWord(a)	ppc_pswap2((long)(a))
-#define GetDLong(a)	ppc_pswap4((long)(a))
+#define GetDWord(a)	ppc_pswap2((int)(a))
+#define GetDLong(a)	ppc_pswap4((int)(a))
 #define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
-#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(long)GetDLong(a))
+#define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 #endif
 
 #if 0

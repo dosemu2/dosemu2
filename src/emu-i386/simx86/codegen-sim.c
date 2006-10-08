@@ -572,7 +572,7 @@ void Gen(int op, int mode, ...)
 		else {
 			CPULONG(o) = DR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		}
 		break;
 
@@ -618,7 +618,7 @@ void Gen(int op, int mode, ...)
 		else {
 		    DR1.d = *AR1.pdu;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
 	case L_VGAWRITE:
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
@@ -638,7 +638,7 @@ void Gen(int op, int mode, ...)
 		else {
 		    *AR1.pdu = DR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
 
 	case O_ADD_R: {		// OSZAPC
@@ -666,7 +666,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = CPULONG(v.bs.bl);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(0);
 		}
 		break;
@@ -692,7 +692,7 @@ void Gen(int op, int mode, ...)
 		    if (!(mode & IMMED)) RFL.S2 = CPULONG(v);
 		    DR1.d = RFL.RES.d = RFL.S1 | RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -718,7 +718,7 @@ void Gen(int op, int mode, ...)
 		    if (!(mode & IMMED)) RFL.S2 = CPULONG(v);
 		    DR1.d = RFL.RES.d = RFL.S1 & RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -744,7 +744,7 @@ void Gen(int op, int mode, ...)
 		    if (!(mode & IMMED)) RFL.S2 = CPULONG(v);
 		    DR1.d = RFL.RES.d = RFL.S1 ^ RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -773,7 +773,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(CPULONG(v.bs.bl));
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -830,7 +830,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = (CPULONG(v.bs.bl) + cy);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(0);
 		}
 		break;
@@ -862,7 +862,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(CPULONG(v.bs.bl) + cy);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -991,7 +991,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(*AR1.pdu + cy);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -1019,7 +1019,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(*AR1.pdu);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -1826,7 +1826,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((short *)(AR2.d + SR1.d)) = DR1.w.l;
+			*((short *)(uintptr_t)(AR2.d + SR1.d)) = DR1.w.l;
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
@@ -1836,13 +1836,13 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = (tesp = CPULONG(Ofs_ESP)) - 4;
 			SR1.d &= stackm;
-			*((long *)(AR2.d + SR1.d)) = DR1.d;
+			*((long *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
 #if 0	/* keep high 16-bits of ESP in small-stack mode */
 			SR1.d |= (tesp & ~stackm);
 #endif
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 /* PUSH derived (sub-)sequences: */
@@ -1859,15 +1859,15 @@ void Gen(int op, int mode, ...)
 			DR1.w.l = (mode&MEMADR? *AR1.pwu : CPUWORD(o));
 			SR1.d -= 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((short *)(AR2.d + SR1.d)) = DR1.w.l;
+			*((short *)(uintptr_t)(AR2.d + SR1.d)) = DR1.w.l;
 		}
 		else {
 			DR1.d = (mode&MEMADR? *AR1.pdu : CPULONG(o));
 			SR1.d -= 4;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((long *)(AR2.d + SR1.d)) = DR1.d;
+			*((long *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
@@ -1885,11 +1885,11 @@ void Gen(int op, int mode, ...)
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {
 			SR1.d = (SR1.d - 2) & CPULONG(Ofs_STACKM);
-			*((short *)(AR2.d + SR1.d)) = ftmp & 0x7eff;
+			*((short *)(uintptr_t)(AR2.d + SR1.d)) = ftmp & 0x7eff;
 		}
 		else {
 			SR1.d = (SR1.d - 4) & CPULONG(Ofs_STACKM);
-			*((long *)(AR2.d + SR1.d)) = ftmp & 0x3c7eff;
+			*((long *)(uintptr_t)(AR2.d + SR1.d)) = ftmp & 0x3c7eff;
 		}
 		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
@@ -1903,7 +1903,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((short *)(AR2.d + SR1.d)) = DR1.w.l;
+			*((short *)(uintptr_t)(AR2.d + SR1.d)) = DR1.w.l;
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
@@ -1911,7 +1911,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 4;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((long *)(AR2.d + SR1.d)) = DR1.d;
+			*((long *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		} break;
@@ -1924,7 +1924,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 16;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			pw = (short *)(AR2.d + SR1.d);
+			pw = (short *)(uintptr_t)(AR2.d + SR1.d);
 			*pw++ = CPUWORD(Ofs_DI);
 			*pw++ = CPUWORD(Ofs_SI);
 			*pw++ = CPUWORD(Ofs_BP);
@@ -1940,7 +1940,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 32;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			pd = (long *)(AR2.d + SR1.d);
+			pd = (long *)(uintptr_t)(AR2.d + SR1.d);
 			__memcpy(pd, CPUOFFS(Ofs_EDI), 32);
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
@@ -1955,7 +1955,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			DR1.w.l = *((short *)(AR2.d + SR1.d));
+			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
 			if (!(mode & MEMADR)) CPUWORD(o) = DR1.w.l;
 			SR1.d += 2;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -1968,7 +1968,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			DR1.d = *((long *)(AR2.d + SR1.d));
+			DR1.d = *((long *)(uintptr_t)(AR2.d + SR1.d));
 			if (!(mode & MEMADR)) CPULONG(o) = DR1.d;
 			SR1.d += 4;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -1979,7 +1979,7 @@ void Gen(int op, int mode, ...)
 #endif
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 /* POP derived (sub-)sequences: */
@@ -1995,20 +1995,20 @@ void Gen(int op, int mode, ...)
 		GTRACE1("O_POP2",o);
 		if (mode & DATA16) {
 			SR1.d &= stackm;
-			DR1.w.l = *((short *)(AR2.d + SR1.d));
+			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
 			if (!(mode & MEMADR)) CPUWORD(o) = DR1.w.l;
 			SR1.d += 2;
 		}
 		else {
 			SR1.d &= stackm;
-			DR1.d = *((long *)(AR2.d + SR1.d));
+			DR1.d = *((long *)(uintptr_t)(AR2.d + SR1.d));
 			if (!(mode & MEMADR)) CPULONG(o) = DR1.d;
 			SR1.d += 4;
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
 		}
-		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
 
 	case O_POP3:
@@ -2025,7 +2025,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			pw = (short *)(AR2.d + SR1.d);
+			pw = (short *)(uintptr_t)(AR2.d + SR1.d);
 			CPUWORD(Ofs_DI) = *pw++;
 			CPUWORD(Ofs_SI) = *pw++;
 			CPUWORD(Ofs_BP) = *pw++;
@@ -2046,7 +2046,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			pd = (char *)(AR2.d + SR1.d);
+			pd = (char *)(uintptr_t)(AR2.d + SR1.d);
 			__memcpy(CPUOFFS(Ofs_EDI), pd, 32);
 			SR1.d += 32;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -2066,7 +2066,7 @@ void Gen(int op, int mode, ...)
 			SR1.d = CPUWORD(Ofs_BP);
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d &= stackm;
-			DR1.w.l = *((short *)(AR2.d + SR1.d));
+			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
 			CPUWORD(Ofs_BP) = DR1.w.l;
 			SR1.d += 2;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -2078,7 +2078,7 @@ void Gen(int op, int mode, ...)
 			SR1.d = CPULONG(Ofs_EBP);
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d &= stackm;
-			DR1.d = *((long *)(AR2.d + SR1.d));
+			DR1.d = *((long *)(uintptr_t)(AR2.d + SR1.d));
 			CPULONG(Ofs_EBP) = DR1.d;
 			SR1.d += 4;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -2527,11 +2527,11 @@ void Gen(int op, int mode, ...)
 #else
 	if (debug_level('e')>6) {
 #endif
-	    dbug_printf("(R) DR1=%08lx DR2=%08lx AR1=%08lx AR2=%08lx\n",
+	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
 		DR1.d,DR2.d,AR1.d,AR2.d);
-	    dbug_printf("(R) SR1=%08lx TR1=%08lx\n",
+	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
-	    dbug_printf("(R) RFL m=[%s] v=%d S1=%08lx S2=%08lx RES=%08lx\n",
+	    dbug_printf("(R) RFL m=[%s] v=%d S1=%08x S2=%08x RES=%08x\n",
 		showmode(RFL.mode),RFL.valid,RFL.S1,RFL.S2,RFL.RES.d);
 	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
@@ -2565,7 +2565,7 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 	if (debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 	    if (debug_level('e')>2) {
-		e_printf("== (%04d) == Closing sequence at %08lx\n",ln,(long)PC);
+		e_printf("== (%04d) == Closing sequence at %p\n",ln,PC);
 	    }
 	}
 	Move2Tree();
@@ -2580,11 +2580,11 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 #else
 	if (debug_level('e')>3) {
 #endif
-	    dbug_printf("(R) DR1=%08lx DR2=%08lx AR1=%08lx AR2=%08lx\n",
+	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
 		DR1.d,DR2.d,AR1.d,AR2.d);
-	    dbug_printf("(R) SR1=%08lx TR1=%08lx\n",
+	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
-	    dbug_printf("(R) RFL m=[%s] v=%d S1=%08lx S2=%08lx RES=%08lx\n\n",
+	    dbug_printf("(R) RFL m=[%s] v=%d S1=%08x S2=%08x RES=%08x\n\n",
 		showmode(RFL.mode),RFL.valid,RFL.S1,RFL.S2,RFL.RES.d);
 	}
 	if (signal_pending) {

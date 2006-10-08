@@ -239,11 +239,11 @@ static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
 	"reserved", "avail 32bit TSS", "reserved" ,"busy 32bit TSS",
 	"32bit call gate", "reserved", "32bit int gate", "32bit trap gate"
   };
-  unsigned long *lp;
-  unsigned long base_addr, limit;
+  unsigned int *lp;
+  unsigned int base_addr, limit;
   int type, i;
 
-  lp = (unsigned long *) buffer;
+  lp = (unsigned int *) buffer;
 
   for (i = 0; i < nsel; i++, lp++) {
     /* First 32 bits of descriptor */
@@ -257,7 +257,7 @@ static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
     type = (*lp >> 8) & 15;
     if ((base_addr > 0) || (limit > 0 ) || Segments[i].used) {
       if (*lp & 0x1000)  {
-	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d (desc %#x)\n",
+	D_printf("Entry 0x%04x: Base %08x, Limit %05x, Type %d (desc %#x)\n",
 	       i, base_addr, limit, (type&7), (i<<3)|(isldt?7:0));
 	D_printf("              ");
 	if (*lp & 0x100)
@@ -279,20 +279,20 @@ static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
 	else
 	  D_printf("byte limit, ");
 	D_printf("\n");
-	D_printf("              %08lx %08lx [%s]\n", *(lp), *(lp-1),
+	D_printf("              %08x %08x [%s]\n", *(lp), *(lp-1),
 		cdsdescs[type>>1]);
       }
       else {
-	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d (desc %#x)\n",
+	D_printf("Entry 0x%04x: Base %08x, Limit %05x, Type %d (desc %#x)\n",
 	       i, base_addr, limit, type, (i<<3)|(isldt?7:0));
-	D_printf("              SYSTEM: %08lx %08lx [%s]\n", *lp, *(lp-1),
+	D_printf("              SYSTEM: %08x %08x [%s]\n", *lp, *(lp-1),
 		sysdescs[type]);
       }
       if (isldt) {
-	unsigned long *lp2;
-	lp2 = (unsigned long *) &ldt_buffer[i*LDT_ENTRY_SIZE];
-	D_printf("       cache: %08lx %08lx\n", (unsigned long)*(lp2+1), (unsigned long)*(lp2)); 
-	D_printf("         seg: Base %08lx, Limit %05x, Type %d, Big %d\n",
+	unsigned int *lp2;
+	lp2 = (unsigned int *) &ldt_buffer[i*LDT_ENTRY_SIZE];
+	D_printf("       cache: %08x %08x\n", *(lp2+1), *lp2); 
+	D_printf("         seg: Base %08x, Limit %05x, Type %d, Big %d\n",
 	     Segments[i].base_addr, Segments[i].limit, Segments[i].type, Segments[i].is_big); 
       }
     }
@@ -979,7 +979,7 @@ static inline int do_LAR(us selector)
   return ret;
 }
 
-int GetDescriptor(us selector, unsigned long *lp)
+int GetDescriptor(us selector, unsigned int *lp)
 {
   int typebyte;
   unsigned char *type_ptr;
@@ -1010,14 +1010,14 @@ int GetDescriptor(us selector, unsigned long *lp)
   }
 #endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
-  D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
+  D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
   return 0;
 }
 
-static int SetDescriptor(unsigned short selector, unsigned long *lp)
+static int SetDescriptor(unsigned short selector, unsigned int *lp)
 {
-  unsigned long base_addr, limit;
-  D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
+  unsigned int base_addr, limit;
+  D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
   if (!ValidAndUsedSelector(selector) || SystemSelector(selector))
     return -1; /* invalid value 8021 */
   base_addr = (*lp >> 16) & 0x0000FFFF;
@@ -1052,7 +1052,7 @@ void direct_ldt_write(int offset, int length, char *buffer)
   memcpy(lp, &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
   memcpy(lp + ldt_offs, buffer, length);
   if (lp[5] & 0x10) {
-    SetDescriptor(selector, (unsigned long *)lp);
+    SetDescriptor(selector, (unsigned int *)lp);
   } else {
     D_printf("DPMI: Invalid descriptor, freeing\n");
     FreeDescriptor(selector);
@@ -1063,7 +1063,7 @@ void direct_ldt_write(int offset, int length, char *buffer)
   MPROT_LDT_ENTRY(ldt_entry);
 }
 
-void GetFreeMemoryInformation(unsigned long *lp)
+void GetFreeMemoryInformation(unsigned int *lp)
 {
   /*00h*/	*lp = dpmi_free_memory;
   /*04h*/	*++lp = dpmi_free_memory/DPMI_page_size;
@@ -1312,7 +1312,7 @@ static int ResizeDescriptorBlock(struct sigcontext_struct *scp,
  unsigned short begin_selector, unsigned long length)
 {
     unsigned short num_descs, old_num_descs;
-    unsigned long old_length, base;
+    unsigned int old_length, base;
     int i;
 
     if (!ValidAndUsedSelector(begin_selector)) return 0;
@@ -1663,11 +1663,11 @@ static void do_int31(struct sigcontext_struct *scp)
     break;
   case 0x000b:
     GetDescriptor(_LWORD(ebx),
-	(unsigned long *) (GetSegmentBaseAddress(_es) +	API_16_32(_edi)));
+	(unsigned int *) (GetSegmentBaseAddress(_es) + API_16_32(_edi)));
     break;
   case 0x000c:
     if (SetDescriptor(_LWORD(ebx),
-	  (unsigned long *) (GetSegmentBaseAddress(_es) + API_16_32(_edi)))) {
+	  (unsigned int *) (GetSegmentBaseAddress(_es) + API_16_32(_edi)))) {
       _LWORD(eax) = 0x8022;
       _eflags |= CF;
     }
@@ -1815,7 +1815,7 @@ err:
   case 0x0205:	/* Set Protected Mode Interrupt vector */
     DPMI_CLIENT.Interrupt_Table[_LO(bx)].selector = _LWORD(ecx);
     DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset = API_16_32(_edx);
-    D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx),
+    D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx),
       _LWORD(ecx), DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset);
     break;
   case 0x0300:	/* Simulate Real Mode Interrupt */
@@ -1917,7 +1917,7 @@ err:
        /* Install the realmode callback, 0xf4=hlt */
        WRITE_BYTE(SEGOFF2LINEAR(
          DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD, i), 0xf4);
-       D_printf("DPMI: Allocate realmode callback for %#04x:%#08lx use #%i callback address, %#4x:%#4x\n",
+       D_printf("DPMI: Allocate realmode callback for %#04x:%#08x use #%i callback address, %#4x:%#4x\n",
 		DPMI_CLIENT.realModeCallBack[i].selector,
 		DPMI_CLIENT.realModeCallBack[i].offset,i,
 		_LWORD(ecx), _LWORD(edx));
@@ -1973,7 +1973,7 @@ err:
     break;
 	  
   case 0x0500:
-    GetFreeMemoryInformation( (unsigned long *)
+    GetFreeMemoryInformation( (unsigned int *)
 	(GetSegmentBaseAddress(_es) + API_16_32(_edi)));
     break;
   case 0x0501:	/* Allocate Memory Block */
@@ -2406,10 +2406,10 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
 
   if (!terminating) {
     DPMI_CLIENT.RSP_cs[num] = AllocateDescriptors(1);
-    SetDescriptor(DPMI_CLIENT.RSP_cs[num], (unsigned long *)code);
+    SetDescriptor(DPMI_CLIENT.RSP_cs[num], (unsigned int *)code);
     if ((data[5] & 0x88) == 0x80) {
       DPMI_CLIENT.RSP_ds[num] = AllocateDescriptors(1);
-      SetDescriptor(DPMI_CLIENT.RSP_ds[num], (unsigned long *)data);
+      SetDescriptor(DPMI_CLIENT.RSP_ds[num], (unsigned int *)data);
     } else {
       DPMI_CLIENT.RSP_ds[num] = 0;
     }
@@ -2744,7 +2744,7 @@ void run_dpmi(void)
 void dpmi_setup(void)
 {
     int i, type;
-    unsigned long base_addr, limit, *lp;
+    unsigned int base_addr, limit, *lp;
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
     /* Allocate special buffer that is used for direct jumping to
@@ -2782,7 +2782,7 @@ void dpmi_setup(void)
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
     for (i = 0; i < MAX_SELECTORS; i++) {
-      lp = (unsigned long *)&ldt_buffer[i * LDT_ENTRY_SIZE];
+      lp = (unsigned int *)&ldt_buffer[i * LDT_ENTRY_SIZE];
       base_addr = (*lp >> 16) & 0x0000FFFF;
       limit = *lp & 0x0000FFFF;
       lp++;
@@ -2790,7 +2790,7 @@ void dpmi_setup(void)
       limit |= (*lp & 0x000F0000);
       type = (*lp >> 10) & 3;
       if (base_addr || limit || type) {
-        D_printf("LDT entry 0x%x used: b=0x%lx l=0x%lx t=%i\n",i,base_addr,limit,type);
+        D_printf("LDT entry 0x%x used: b=0x%x l=0x%x t=%i\n",i,base_addr,limit,type);
         Segments[i].used = 0xff;
       }
     }
@@ -4271,14 +4271,14 @@ int dpmi_mhp_getcsdefault(void)
   return dpmi_mhp_get_selector_size(DPMI_CLIENT.stack_frame.cs);
 }
 
-void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp)
+void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp)
 {
   GetDescriptor(selector, lp);
 }
 
 int dpmi_mhp_getselbase(unsigned short selector)
 {
-  unsigned long d[2];
+  unsigned int d[2];
   dpmi_mhp_GetDescriptor(selector, d);
   return (d[0] >> 16) | ((d[1] & 0xff) <<16) | (d[1] & 0xff000000);
 }

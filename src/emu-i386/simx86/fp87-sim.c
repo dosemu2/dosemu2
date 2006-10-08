@@ -306,7 +306,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*3f*/	case 0x3f:
 //	3F	DF xx111nnn	FISTP	qw
 		WFR0 = *ST0;
-		*((long long *)AR1.d) = (long long)WFR0;
+		*((long long *)(uintptr_t)AR1.d) = (long long)WFR0;
 		INCFSP;
 		break;
 
@@ -799,12 +799,9 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			for (i=0; i<8; i++) {
 			    double *sf = &TheCPU.fpregs[k];
 			    __asm__ __volatile__ (" \
-				movl	%0,%%eax\n \
-				movl	%1,%%edx\n \
-				fldt	(%%eax)\n \
-				fstpl	(%%edx)" \
-				: : "g"(q), "m"(sf) \
-				: "%eax","%edx","memory" );
+				fldt	%1\n \
+				fstpl	%0" \
+				: "=m"(*sf) : "m"(*q));
 			    k = (k+1)&7; q += 10;
 			}
 		    }

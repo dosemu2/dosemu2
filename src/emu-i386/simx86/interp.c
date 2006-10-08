@@ -492,10 +492,10 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 			}
 		}
 // ------ temp ------- debug ------------------------
-		if ((PC==NULL)||(*((long *)PC)==0)) {
+		if ((PC==NULL)||(*((int *)PC)==0)) {
 			set_debug_level('e',9);
-			dbug_printf("\n%s\nFetch %08lx at %p mode %x\n",
-				e_print_regs(),*((long *)PC),PC,mode);
+			dbug_printf("\n%s\nFetch %08x at %p mode %x\n",
+				e_print_regs(),*((int *)PC),PC,mode);
 			TheCPU.err = -99; return PC;
 		}
 // ------ temp ------- debug ------------------------
@@ -1992,8 +1992,8 @@ repag0:
 			if (a==0x3da) {		// video retrace bits
 			    /* bit 0 = DE  bit 3 = VR
 			     * display=0 hor.retr.=1 ver.retr.=9 */
-			    long c1 = *((long *)(PC+1));
-			    long c2 = *((long *)(PC+5));
+			    int c1 = *((int *)(PC+1));
+			    int c2 = *((int *)(PC+5));
 			    int tp = test_ioperm(a) & 1;
 			    dbug_printf("IN 3DA %08lx %08lx PP=%d\n",c1,c2,tp);
 			    if (c1==0xfb7408a8) {
@@ -2077,7 +2077,7 @@ repag0:
 				*((short *)p) = port_inw(rDX); dp=2;
 			}
 			else {
-				*((long *)p) = port_ind(rDX); dp=4;
+				*((int *)p) = port_ind(rDX); dp=4;
 			}
 			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
@@ -2396,14 +2396,14 @@ repag0:
 			case 0x23:   /* MOVrddd */ /* Privileged */
 			case 0x24:   /* MOVtdrd */ /* Privileged */
 			case 0x26: { /* MOVrdtd */ /* Privileged */
-				long *srg; int reg; unsigned char b,opd;
+				int *srg; int reg; unsigned char b,opd;
 				CODE_FLUSH();
 				if (REALMODE()) goto not_permitted;
 				b = Fetch(PC+2);
 				if (D_HO(b)!=3) goto illegal_op;
 				reg = D_MO(b); b = D_LO(b);
 				if ((b==4)||(b==5)) goto illegal_op;
-				srg = (long *)CPUOFFS(R1Tab_l[b]);
+				srg = (int *)CPUOFFS(R1Tab_l[b]);
 				opd = Fetch(PC+1)&2;
 		    		if (opc2&1) {
 				    if (opd) TheCPU.dr[reg] = *srg;

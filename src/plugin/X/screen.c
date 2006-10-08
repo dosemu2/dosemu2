@@ -218,7 +218,7 @@ void scr_request_selection(Display *dpy,Window W,int time,int x,int y)
       paste_text(selection_text,strlen(selection_text));
       return;
     }
-  X_printf("X: mouse display %d\n", (Bit32u)dpy);
+  X_printf("X: mouse display %p\n", dpy);
   
   if (XGetSelectionOwner(dpy,XA_PRIMARY) == None) 
     {

@@ -168,7 +168,7 @@ show_ints(int min, int max)
 #error MAX_SELECTORS needs to be 8192
 #endif
 
-#define GetSegmentBaseAddress(s)	(Segments[(s) >> 3].base_addr)
+#define GetSegmentBaseAddress(s)	((unsigned long)Segments[(s) >> 3].base_addr)
 #define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
 char *DPMI_show_state(struct sigcontext_struct *scp)

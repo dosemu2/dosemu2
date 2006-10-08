@@ -3255,7 +3255,7 @@ dos_fs_redirect(state_t *state)
       fd = open_files[sft_fd(sft)].fd;
       Debug0((dbg_fd, "Read file fd=%x, dta=%p, cnt=%d\n",
 	      fd, (void *) dta, cnt));
-      Debug0((dbg_fd, "Read file pos = %ld\n",
+      Debug0((dbg_fd, "Read file pos = %d\n",
 	      sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n",
 	      sft_handle_cnt(sft)));
@@ -3287,7 +3287,7 @@ dos_fs_redirect(state_t *state)
       sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
 /*      Debug0((dbg_fd, "File data %02x %02x %02x\n",
 	      dta[0], dta[1], dta[2])); */
-      Debug0((dbg_fd, "Read file pos after = %ld\n",
+      Debug0((dbg_fd, "Read file pos after = %d\n",
 	      sft_position(sft)));
       return (return_val);
     }
@@ -3343,7 +3343,7 @@ dos_fs_redirect(state_t *state)
 	Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
 	return (FALSE);
       }
-    Debug0((dbg_fd, "sft_position=%lu, Sft_size=%lu\n",
+    Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n",
 	    sft_position(sft), sft_size(sft)));
     SETWORD(&(state->ecx), ret);
     sft_position(sft) += ret;
@@ -3772,7 +3772,7 @@ dos_fs_redirect(state_t *state)
       leavedos(1);
     }
     Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
-    Debug0((dbg_fd, "size = 0x%lx\n", sft_size(sft)));
+    Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
 
     /* If FCB open requested, we need to call int2f 0x120c */
     if (FCBcall) {

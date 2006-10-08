@@ -118,12 +118,12 @@ union dword {
 
 #define SEG2LINEAR(seg)	((void *)  ( ((uintptr_t)(seg)) << 4)  )
 
-typedef unsigned long FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
+typedef unsigned int FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 typedef struct {
   u_short offset;
   u_short segment;
 } far_t;
-#define MK_FP16(s,o)	((((unsigned long)s) << 16) | (o & 0xffff))
+#define MK_FP16(s,o)	((((unsigned int)s) << 16) | (o & 0xffff))
 #define MK_FP			MK_FP16
 #define FP_OFF16(far_ptr)	((int)far_ptr & 0xffff)
 #define FP_SEG16(far_ptr)	(((unsigned int)far_ptr >> 16) & 0xffff)
@@ -182,7 +182,7 @@ void restore_eflags_fs_gs(void);
 
 #define getflags(value) \
 	({ \
-		Bit32u __value; \
+		unsigned long __value; \
 		asm volatile("pushf ; pop %0":"=g" (__value)); \
 		__value; \
 	})
@@ -192,7 +192,7 @@ void restore_eflags_fs_gs(void);
 
 #define getregister(reg) \
 	({ \
-		Bit32u __value; \
+		unsigned long __value; \
 		asm volatile("mov %%" #reg ",%0":"=rm" (__value)); \
 		__value; \
 	})
