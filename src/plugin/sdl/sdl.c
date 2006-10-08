@@ -22,6 +22,7 @@
 #include "video.h"
 #include "memory.h"
 #include "../../env/video/remap.h"
+#include "../X/screen.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
@@ -83,6 +84,17 @@ struct render_system Render_SDL =
 };
 
 static const SDL_VideoInfo *video_info;
+#ifdef X_SUPPORT
+#ifdef CONFIG_SELECTION
+#ifdef USE_DL_PLUGINS
+#define X_handle_selection pX_handle_selection
+static void (*X_handle_selection)(Display *display, Window mainwindow,
+				  XEvent *e);
+#endif
+#define CONFIG_SDL_SELECTION 1
+#endif
+#endif
+static int using_x11 = 0;
 static int remap_src_modes = 0;
 static SDL_Surface* surface = NULL;
 static int SDL_image_mode;
@@ -155,6 +167,28 @@ int SDL_init(void)
     leavedos(99);
   }
 
+#ifdef X_SUPPORT
+  {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
+#ifdef USE_DL_PLUGINS
+      void (*X_speaker_on)(void *, unsigned, unsigned short);
+      void (*X_speaker_off)(void *);
+      void *handle = load_plugin("X");
+      X_speaker_on = dlsym(handle, "X_speaker_on");
+      X_speaker_off = dlsym(handle, "X_speaker_off");
+#ifdef CONFIG_SDL_SELECTION
+      X_handle_selection = dlsym(handle, "X_handle_selection");
+#endif
+#endif
+      SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+      register_speaker(info.info.x11.display, X_speaker_on, X_speaker_off);
+      using_x11 = 1;
+    }
+  }
+#endif
+
   /* SDL_APPACTIVE event does not occur when an application window is first
    * created.
    * So we push that event into the queue */
@@ -175,20 +209,6 @@ int SDL_init(void)
   /* enable repeat here (in the keyboard code it's too early) */
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
-  {
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version);
-    if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
-#if defined(USE_DL_PLUGINS) || !defined(X_SUPPORT)
-      void (*X_speaker_on)(void *, unsigned, unsigned short);
-      void (*X_speaker_off)(void *);
-      void *handle = load_plugin("X");
-      X_speaker_on = dlsym(handle, "X_speaker_on");
-      X_speaker_off = dlsym(handle, "X_speaker_off");
-#endif
-      register_speaker(info.info.x11.display, X_speaker_on, X_speaker_off);
-    }
-  }
   return 0;
 }
 
@@ -503,6 +523,57 @@ static int SDL_change_config(unsigned item, void *buf)
   return err;
 }
 
+#if CONFIG_SDL_SELECTION
+/*
+ * Convert X coordinate to column, with bounds checking.
+ */
+static int x_to_col(int x)
+{
+  int col = vga.width*x/font_width/w_x_res;
+  if (col < 0)
+    col = 0;
+  else if (col >= vga.text_width)
+    col = vga.text_width-1;
+  return(col);
+}
+
+
+/*
+ * Convert Y coordinate to row, with bounds checking.
+ */
+static int y_to_row(int y)
+{
+  int row = vga.height*y/font_height/w_y_res;
+  if (row < 0)
+    row = 0;
+  else if (row >= vga.text_height)
+    row = vga.text_height-1;
+  return(row);
+}
+
+static void SDL_handle_selection(XEvent *e)
+{
+  SDL_SysWMinfo info;
+
+  switch(e->type) {
+  case SelectionClear:
+  case SelectionNotify: 
+  case SelectionRequest:
+  case ButtonRelease:
+    SDL_VERSION(&info.version);
+    if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
+      info.info.x11.lock_func();
+      X_handle_selection(info.info.x11.display, info.info.x11.window, e);
+      info.info.x11.unlock_func();
+    }
+    break;
+  default:
+    break;
+  }
+}
+
+#endif /* CONFIG_SDL_SELECTION */
+
 static void SDL_handle_events(void)
 {
    static int busy = 0;
@@ -555,14 +626,30 @@ static void SDL_handle_events(void)
 	   }
 	 }
        }
+#if CONFIG_SDL_SELECTION
+       clear_if_in_selection();
+#endif
        SDL_process_key(event.key);
        break;
      case SDL_KEYUP:
+#if CONFIG_SDL_SELECTION
+       clear_if_in_selection();
+#endif
        SDL_process_key(event.key);
        break;
      case SDL_MOUSEBUTTONDOWN:
        {
 	 int buttons = SDL_GetMouseState(NULL, NULL);
+#if CONFIG_SDL_SELECTION
+	 if (using_x11 && vga.mode_class == TEXT && !grab_active) {
+	   if (event.button.button == SDL_BUTTON_LEFT)
+	     start_selection(x_to_col(event.button.x),
+			     y_to_row(event.button.y));
+	   else if (event.button.button == SDL_BUTTON_RIGHT)
+	     start_extend_selection(x_to_col(event.button.x),
+				    y_to_row(event.button.y));
+	 }
+#endif /* CONFIG_SDL_SELECTION */
 	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
 	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
 	 break;
@@ -571,16 +658,41 @@ static void SDL_handle_events(void)
        {
 	 int buttons = SDL_GetMouseState(NULL, NULL);
 	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
+#if CONFIG_SDL_SELECTION
+	 if (using_x11 && vga.mode_class == TEXT) {
+	   XEvent e;
+	   e.type = ButtonRelease;
+	   e.xbutton.button = 0;
+	   if (event.button.button == SDL_BUTTON_LEFT)
+	     e.xbutton.button = Button1;
+	   else if (event.button.button == SDL_BUTTON_MIDDLE)
+	     e.xbutton.button = Button2;
+	   else if (event.button.button == SDL_BUTTON_RIGHT)
+	     e.xbutton.button = Button3;
+	   e.xbutton.time = CurrentTime;
+	   SDL_handle_selection(&e);
+	 }
+#endif /* CONFIG_SDL_SELECTION */
 	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
 	 break;
        }
 
      case SDL_MOUSEMOTION:
+#if CONFIG_SDL_SELECTION
+       if (using_x11)
+	 extend_selection(x_to_col(event.button.x), y_to_row(event.button.y));
+#endif /* CONFIG_SDL_SELECTION */
        SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
        break;
      case SDL_QUIT:
        leavedos(0);
        break;
+#if CONFIG_SDL_SELECTION
+     case SDL_SYSWMEVENT:
+       if (using_x11)
+	 SDL_handle_selection(&event.syswm.msg->event.xevent);
+       break;
+#endif /* CONFIG_SDL_SELECTION */
      default:
        v_printf("PAS ENCORE TRAITE\n");
        /* TODO */

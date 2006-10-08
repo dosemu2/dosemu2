@@ -344,21 +344,6 @@ static Atom proto_atom = None, delete_atom = None;
 static XFontStruct *font = NULL;
 static int font_width, font_height, font_shift, shift_x, shift_y;
 
-#if CONFIG_X_SELECTION
-static u_char *sel_text = NULL;
-static Time sel_time;
-enum {
-  TARGETS_ATOM,
-  TIMESTAMP_ATOM,
-  COMPOUND_TARGET,
-  UTF8_TARGET,
-  TEXT_TARGET,
-  STRING_TARGET,
-  NUM_TARGETS
-};
-static Atom targets[NUM_TARGETS];
-#endif
-
 static Boolean is_mapped = FALSE;
 
 static int cmap_colors = 0;		/* entries in colormaps: {text,graphics}_cmap */
@@ -476,7 +461,6 @@ static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range
 #if CONFIG_X_SELECTION
 static int x_to_col(int);
 static int y_to_row(int);
-static void send_selection(Time, Window, Atom, Atom);
 #endif
 
 void kdos_recv_msg(unsigned char *);
@@ -739,15 +723,6 @@ int X_init()
     XSetClassHint(display, mainwindow, &xch);
     XSetClassHint(display, fullscreenwindow, &xch);
   }
-#if CONFIG_X_SELECTION
-  /* Get atom for COMPOUND_TEXT/UTF8/TEXT type. */
-  targets[TARGETS_ATOM] = XInternAtom(display, "TARGETS", False);
-  targets[TIMESTAMP_ATOM] = XInternAtom(display, "TIMESTAMP", False);
-  targets[COMPOUND_TARGET] = XInternAtom(display, "COMPOUND_TEXT", False);
-  targets[UTF8_TARGET] = XInternAtom(display, "UTF8_STRING", False);
-  targets[TEXT_TARGET] = XInternAtom(display, "TEXT", False);
-  targets[STRING_TARGET] = XA_STRING;
-#endif
   /* Delete-Window-Message black magic copied from xloadimage. */
   proto_atom  = XInternAtom(display, "WM_PROTOCOLS", False);
   delete_atom = XInternAtom(display, "WM_DELETE_WINDOW", False);
@@ -1525,23 +1500,10 @@ static void X_handle_events(void)
 
     /* Selection-related events */
 #if CONFIG_X_SELECTION
-    /* The user made a selection in another window, so our selection
-     * data is no longer needed. 
-     */
 	case SelectionClear:
-	  clear_selection_data();
-	  break;
 	case SelectionNotify: 
-	  scr_paste_primary(display,e.xselection.requestor,
-			    e.xselection.property,True);
-	  X_printf("X: SelectionNotify event\n");
-	  break;
-/* Some other window wants to paste our data, so send it. */
 	case SelectionRequest:
-	  send_selection(e.xselectionrequest.time,
-			 e.xselectionrequest.requestor,
-			 e.xselectionrequest.target,
-			 e.xselectionrequest.property);
+	  X_handle_selection(display, mainwindow, &e);
 	  break;
 #endif /* CONFIG_X_SELECTION */
 		   
@@ -1628,31 +1590,8 @@ static void X_handle_events(void)
 	case ButtonRelease:
 	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
 #if CONFIG_X_SELECTION
-	  if (vga.mode_class == TEXT) switch (e.xbutton.button)
-	    {
-	    case Button1 :
-	    case Button3 : 
-	      sel_text = end_selection();
-	      sel_time = e.xbutton.time;
-	      if (sel_text == NULL)
-		break;
-	      XSetSelectionOwner(display, XA_PRIMARY, mainwindow, sel_time);
-	      if (XGetSelectionOwner(display, XA_PRIMARY) != mainwindow)
-		{
-		  X_printf("X: Couldn't get primary selection!\n");
-		  return;
-		}
-	      XChangeProperty(display, rootwindow, XA_CUT_BUFFER0, XA_STRING,
-			      8, PropModeReplace, sel_text, strlen(sel_text));
-
-	      break;
-	    case Button2 :
-	      X_printf("X: mouse Button2Release\n");
-	      scr_request_selection(display,mainwindow,e.xbutton.time,
-				    x_to_col(e.xbutton.x),
-				    y_to_row(e.xbutton.y));
-	      break;
-	    }
+	  if (vga.mode_class == TEXT) 
+	    X_handle_selection(display, mainwindow, &e);
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_buttons(e.xbutton.state&~(0x80<<e.xbutton.button));
 	  break;
@@ -2823,58 +2762,6 @@ int y_to_row(int y)
     row = vga.text_height-1;
   return(row);
 }
-
-/*
- * Send selection data to other window.
- */
-void send_selection(Time time, Window requestor, Atom target, Atom property)
-{
-	XEvent e;
-
-	e.xselection.type = SelectionNotify;
-	e.xselection.selection = XA_PRIMARY;
-	e.xselection.requestor = requestor;
-	e.xselection.time = time;
-	e.xselection.serial = 0;
-	e.xselection.send_event = True;
-	e.xselection.target = target;
-	e.xselection.property = property;
-
-	if (sel_text == NULL) {
-		X_printf("X: Window 0x%lx requested selection, but it's empty!\n",   
-			(unsigned long) requestor);
-		e.xselection.property = None;
-	}
-	else if (target == targets[TARGETS_ATOM]) {
-		X_printf("X: selection: TARGETS\n");
-		XChangeProperty(display, requestor, property, XA_ATOM, 32,
-			PropModeReplace, (char *)targets, NUM_TARGETS);
-	}
-	else if (target == targets[TIMESTAMP_ATOM]) {
-		X_printf("X: timestamp atom %lu\n", sel_time);
-		XChangeProperty(display, requestor, property, XA_INTEGER, 32,
-			PropModeReplace, (char *)&sel_time, 1);
-	}
-	else if (target == targets[STRING_TARGET] ||
-		 target == targets[COMPOUND_TARGET] ||
-		 target == targets[UTF8_TARGET] ||
-		 target == targets[TEXT_TARGET]) {
-		X_printf("X: selection: %s\n",sel_text);
-		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
-			sel_text, strlen(sel_text));
-		X_printf("X: Selection sent to window 0x%lx as %s\n", 
-			(unsigned long) requestor, XGetAtomName(display, target));
-	}
-	else
-	{
-		e.xselection.property = None;
-		X_printf("X: Window 0x%lx requested unknown selection format %ld %s\n",
-			(unsigned long) requestor, (unsigned long) target,
-			 XGetAtomName(display, target));
-	}
-	XSendEvent(display, requestor, False, 0, &e);
-}
-
 #endif /* CONFIG_X_SELECTION */
 
 
