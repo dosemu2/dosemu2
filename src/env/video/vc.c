@@ -78,9 +78,6 @@ static int  color_text;
 #define MAXMODES 34
 
 
-static void release_vt (int sig, struct sigcontext_struct context);
-static void acquire_vt (int sig, struct sigcontext_struct context);
-
 static inline void
 forbid_switch (void)
 {
@@ -150,8 +147,9 @@ SIGACQUIRE_call (void)
 int dos_has_vt = 1;
 
 static void
-acquire_vt (int sig, struct sigcontext_struct context)
+acquire_vt0 (struct sigcontext_struct *scp)
 {
+  savesegments(scp);
   restore_eflags_fs_gs();
 
   dos_has_vt = 1;
@@ -168,6 +166,7 @@ acquire_vt (int sig, struct sigcontext_struct context)
   allow_switch ();
   SIGNAL_save (SIGACQUIRE_call);
   scr_state.current = 1;
+  loadsegments(scp);
 }
 
 static void
@@ -281,7 +280,7 @@ static void wait_for_active_vc(void)
 }
 
 static inline void
-release_vt (int sig, struct sigcontext_struct context)
+release_vt0 (struct sigcontext_struct *scp)
 {
   restore_eflags_fs_gs();
 
@@ -289,6 +288,31 @@ release_vt (int sig, struct sigcontext_struct context)
 
   SIGNAL_save (SIGRELEASE_call);
 }
+
+#ifdef __x86_64__
+static void acquire_vt(int sig, siginfo_t *si, void *uc)
+{
+	acquire_vt0((struct sigcontext_struct *)
+		    &((ucontext_t *)uc)->uc_mcontext);
+}
+
+static void release_vt(int sig, siginfo_t *si, void *uc)
+{
+	release_vt0((struct sigcontext_struct *)
+		    &((ucontext_t *)uc)->uc_mcontext);
+}
+
+#else
+static void acquire_vt(int sig, siginfo_t *si, void *uc)
+{
+	acquire_vt0(&context);
+}
+
+static void release_vt(int sig, struct sigcontext_struct context)
+{
+	release_vt0(&context);
+}
+#endif
 
 
 static void unmap_video_ram(int copyback)

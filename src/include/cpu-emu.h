@@ -107,4 +107,7 @@ extern int in_dpmi_emu;
 /* called from sigsegv.c */
 int e_emu_fault(struct sigcontext_struct *scp);
 
+/* called from signal.c */
+int e_gen_sigalrm(struct sigcontext_struct *scp);
+
 #endif	/*DOSEMU_CPUEMU_H*/

@@ -44,8 +44,10 @@ typedef struct {
 /* offsets are 8-bit signed */
 #define FIELD0		rzero	/* field of SynCPU at offset 00 */
 /* ------------------------------------------------ */
-/*80	... */
-/*84*/  unsigned int cr2smc;
+/*80*/ double   *fpregs;
+#ifdef __i386__
+/*84*/ unsigned int padding;
+#endif
 /*88*/	unsigned int cr[5];
 /*9c*/	unsigned int  mode;
 /*a0*/	SDTR gs_cache;
@@ -55,7 +57,7 @@ typedef struct {
 /*d0*/	SDTR cs_cache;
 /*dc*/	SDTR ss_cache;
 /* ------------------------------------------------ */
-/*e8*/	double   *fpregs;
+/*e8*/  unsigned int cr2smc;
 /*ec*/	unsigned short fpuc, fpus;
 /*f0*/	unsigned short fpstt, fptag;
 /*f4*/	unsigned int _fni[3];
@@ -78,10 +80,16 @@ typedef struct {
 /*3c*/	unsigned int eip;
 /*40*/	unsigned short cs, __csh;
 /*44*/	unsigned int eflags;
+#ifdef __x86_64__
+/*48*/	unsigned int oldmask;
+/*4c*/	unsigned short ss, __ssh;
+/*50*/  struct _fpstate *fpstate;
+#else
 /*48*/	unsigned int esp_at_signal;
 /*4c*/	unsigned short ss, __ssh;
-/*50*/	struct _fpstate *fpstate;
+/*50*/  struct _fpstate *fpstate;
 /*54*/	unsigned int oldmask;
+#endif
 /*58*/	unsigned int cr2;
 /* ------------------------------------------------ */
 /*5c*/	unsigned int sreg1;
@@ -90,8 +98,8 @@ typedef struct {
 /*68*/	unsigned short sigalrm_pending, sigprof_pending;
 /*6c*/	unsigned int veflags;
 /*70*/		 int err;
-/*74*/	unsigned long long EMUtime;
-/*7c*/	unsigned int StackMask;
+/*74*/	unsigned int StackMask;
+/*78*/	unsigned long long EMUtime;
 /* ------------------------------------------------ */
 /*80*/	unsigned int tr[2];
 /*

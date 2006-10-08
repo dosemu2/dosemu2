@@ -268,16 +268,18 @@ int log_printf(int flg, const char *fmt, ...)
 void verror(const char *fmt, va_list args) 
 {
 	char fmtbuf[1025];
+	va_list orig_args;
+	va_copy(orig_args, args);
 
 	if (fmt[0] == '@') {
 		vlog_printf(10, fmt+1, args);
-		vfprintf(stderr, fmt+1, args);
+		vfprintf(stderr, fmt+1, orig_args);
 	}
 	else {
 		fmtbuf[sizeof(fmtbuf)-1] = 0;
 		snprintf(fmtbuf, sizeof(fmtbuf)-1, "ERROR: %s", fmt);
 		vlog_printf(10, fmtbuf, args);
-		vfprintf(stderr, fmtbuf, args);
+		vfprintf(stderr, fmtbuf, orig_args);
 	}
 	
 }

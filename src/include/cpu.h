@@ -47,7 +47,11 @@
 union dword {
   unsigned long l;
   Bit32u d;
+#ifdef __x86_64__
+  struct { Bit16u l, h, w2, w3; } w;
+#else
   struct { Bit16u l, h; } w;
+#endif
   struct { Bit8u l, h, b2, b3; } b;
 };
 
@@ -118,12 +122,12 @@ union dword {
 
 #define SEG2LINEAR(seg)	((void *)  ( ((uintptr_t)(seg)) << 4)  )
 
-typedef unsigned int FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
+typedef unsigned long FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 typedef struct {
   u_short offset;
   u_short segment;
 } far_t;
-#define MK_FP16(s,o)	((((unsigned int)s) << 16) | (o & 0xffff))
+#define MK_FP16(s,o)	((((unsigned long)s) << 16) | (o & 0xffff))
 #define MK_FP			MK_FP16
 #define FP_OFF16(far_ptr)	((int)far_ptr & 0xffff)
 #define FP_SEG16(far_ptr)	(((unsigned int)far_ptr >> 16) & 0xffff)
@@ -148,6 +152,13 @@ typedef struct {
   */
 extern struct _fpstate vm86_fpu_state;
 void restore_eflags_fs_gs(void);
+#ifdef __x86_64__
+void loadsegments(const struct sigcontext_struct *scp);
+void savesegments(struct sigcontext_struct *scp);
+#else
+#define loadsegments(scp)
+#define savesegments(scp)
+#endif
 
 /*
  * Boy are these ugly, but we need to do the correct 16-bit arithmetic.
@@ -337,8 +348,8 @@ EXTERN struct vec_t *ivecs;
 #define _gs     (scp->gs)
 #define _fs     (scp->fs)
 #ifdef __x86_64__
-#define _es     LO_WORD(scp->r8)
-#define _ds     HI_WORD(scp->r8)
+#define _es     HI_WORD(scp->trapno)
+#define _ds     (((union dword *)&(scp->trapno))->w.w2)
 #define _rdi    (scp->rdi)
 #define _rsi    (scp->rsi)
 #define _rbp    (scp->rbp)
@@ -348,7 +359,7 @@ EXTERN struct vec_t *ivecs;
 #define _rcx    (scp->rcx)
 #define _rax    (scp->rax)
 #define _rip    (scp->rip)
-#define _ss     LO_WORD(scp->r9)
+#define _ss     (((union dword *)&(scp->trapno))->w.w3)
 #else
 #define _es     (scp->es)
 #define _ds     (scp->ds)
@@ -375,12 +386,16 @@ EXTERN struct vec_t *ivecs;
 #define _eax    DWORD_(_rax)
 #define _eip    DWORD_(_rip)
 #define _err	(scp->err)
-#define _trapno (scp->trapno)
+#define _trapno LO_WORD(scp->trapno)
 #define _cs     (scp->cs)
 #define _eflags (scp->eflags)
 #define _cr2	(scp->cr2)
 
+#ifdef __x86_64__
+void dosemu_fault(int, siginfo_t *, void *);
+#else
 void dosemu_fault(int, struct sigcontext_struct);
+#endif
 int dosemu_fault1(int signal, struct sigcontext_struct *scp);
 #endif
 

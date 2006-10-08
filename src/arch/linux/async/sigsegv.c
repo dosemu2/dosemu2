@@ -353,8 +353,7 @@ bad:
   }
 }
 
-#ifdef __linux__
-void dosemu_fault(int signal, struct sigcontext_struct context)
+static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 {
   int retcode;
   fault_cnt++;
@@ -367,6 +366,7 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
     _exit(255);
   }
 
+  savesegments(scp);
   restore_eflags_fs_gs();
 
   if (kernel_version_code < 0x20600+14 && kernel_version_code >= 0x20500) {
@@ -382,17 +382,32 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
   }
 
   if (debug_level('g')>7)
-    g_printf("Entering fault handler, signal=%i _trapno=0x%lX\n",
-      signal, context.trapno);
+    g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
+      signal, _trapno);
 
-  retcode = dosemu_fault1 (signal, &context);
+  retcode = dosemu_fault1 (signal, scp);
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
   fault_cnt--;
   if(retcode)
     dpmi_longjmp_return(retcode);
+  loadsegments(scp);
 }
+
+#ifdef __linux__
+#ifdef __x86_64__
+void dosemu_fault(int signal, siginfo_t *si, void *uc)
+{
+  dosemu_fault0(signal, (struct sigcontext_struct *)
+		&((ucontext_t *)uc)->uc_mcontext);
+}
+#else
+void dosemu_fault(int signal, struct sigcontext_struct context)
+{
+  dosemu_fault0(signal, &context);
+}
+#endif
 #endif /* __linux__ */
 
 /*

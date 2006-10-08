@@ -176,7 +176,7 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
     static char buf[4096];
     unsigned char *csp2, *ssp2;
     sprintf(buf, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08lx\n"
-	     "\ttrapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+	     "\ttrapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
 	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
     sprintf(buf, "%sEAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n", buf,

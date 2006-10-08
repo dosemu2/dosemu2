@@ -387,11 +387,7 @@ EXTERN short pop_word(struct vm86_regs *);
 EXTERN void leavedos(int) NORETURN;
 EXTERN void add_to_io_select(int, u_char, void(*)(void));
 EXTERN void remove_from_io_select(int, u_char);
-EXTERN void sigquit(int);
 #ifdef __linux__
-EXTERN void sigalrm(int, struct sigcontext_struct);
-EXTERN void e_sigalrm(struct sigcontext_struct *context);
-EXTERN void sigio(int, struct sigcontext_struct);
 EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);
 #endif

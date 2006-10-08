@@ -459,7 +459,7 @@ char *showreg(signed char r)
 	i = (i+8) & 0x18; p = m1+i;	// for side effects in printf
 	if ((ix&0xff)==0xff) { *p=0; return p; }
 	ix = (ix>>2)&0x3f;
-	*((long *)p) = *((long *)(s4[ix]));
+	*((int *)p) = *((int *)(s4[ix]));
 	if ((r&3)==0) p[4]=0; else {
 		p[4]='+'; p[5]=(r&3)+'0'; p[6]=0;
 	}
@@ -611,8 +611,34 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 
   /* setup stack context from cpu registers */
-  __memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
+#ifdef __x86_64__
+  _eax = TheCPU.eax;
+  _ebx = TheCPU.ebx;
+  _ecx = TheCPU.ecx;
+  _edx = TheCPU.edx;
+  _esi = TheCPU.esi;
+  _edi = TheCPU.edi;
+  _ebp = TheCPU.ebp;
+  _esp = TheCPU.esp;
 
+  _eip = TheCPU.eip;
+  _eflags = TheCPU.eflags;
+
+  _cs = TheCPU.cs;
+  _fs = TheCPU.fs;
+  _gs = TheCPU.gs;
+
+  _ds = TheCPU.ds;
+  _es = TheCPU.es;
+  _ss = TheCPU.ss;
+
+  _err = TheCPU.scp_err;
+  scp->oldmask = TheCPU.oldmask;
+  _cr2 = TheCPU.cr2;
+  scp->fpstate = TheCPU.fpstate;
+#else
+  __memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
+#endif
   _trapno = trapno;
   /* Error code format:
    * b31-b16 = 0 (undef)
@@ -744,9 +770,10 @@ void init_emu_cpu (void)
  * asynchronous signals because without it any badly-behaved pgm
  * can stop us forever.
  */
-static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
+int e_gen_sigalrm(struct sigcontext_struct *scp)
 {
-	restore_eflags_fs_gs();
+	if(config.cpuemu < 2)
+	    return 1;
 
 	/* here we come from the kernel with cs==UCODESEL, as
 	 * the passed context is that of dosemu, NOT that of the
@@ -765,9 +792,10 @@ static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
 		sigEMUtime += sigEMUdelta;
 		/* we can't call sigalrm() because of the way the
 		 * context parameter is passed. */
-		e_sigalrm(&context);	/* -> signal_save */
+		return 1;	/* -> signal_save */
 	}
 	/* here we return back to dosemu */
+	return 0;
 }
 
 static void e_gen_sigprof(int sig, struct sigcontext_struct context)
@@ -810,7 +838,6 @@ void enter_cpu_emu(void)
 #endif
 	e_printf("EMU86: delta alrm=%d speed=%d\n",realdelta,config.CPUSpeedInMhz);
 	e_sigpa_count = 0;
-	newsetqsig(SIGALRM, e_gen_sigalrm);
 
 	itv.it_interval.tv_sec = 0;
 	itv.it_interval.tv_usec = realdelta;
@@ -842,9 +869,6 @@ void leave_cpu_emu(void)
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
-		e_printf("EMU86: switching SIGALRMs\n");
-		newsetqsig(SIGALRM, sigalrm);
-
 		itv.it_interval.tv_sec = 0;
 		itv.it_interval.tv_usec = 0;
 		itv.it_value.tv_sec = 0;
@@ -927,7 +951,7 @@ static void e_should_clean_tree(int i)
 
 static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
 {
-	unsigned long *intr_ptr, segoffs;
+	unsigned int *intr_ptr, segoffs;
 
 	if (_CS == BIOSSEG)
 		goto cannot_handle;
@@ -963,7 +987,7 @@ cannot_handle:
 }
 
 
-static int handle_vm86_trap(long *error_code, int trapno)
+static int handle_vm86_trap(int *error_code, int trapno)
 {
 	if ( (trapno==3) || (trapno==1) )
 		return (VM86_TRAP + (trapno << 8));
@@ -972,7 +996,7 @@ static int handle_vm86_trap(long *error_code, int trapno)
 }
 
 
-static int handle_vm86_fault(long *error_code)
+static int handle_vm86_fault(int *error_code)
 {
 	unsigned char *csp, *ssp, op;
 	unsigned long ip, sp;
@@ -1016,7 +1040,7 @@ int e_vm86(void)
 #ifdef SKIP_VM86_TRACE
   int demusav;
 #endif
-  long errcode;
+  int errcode;
 
 #ifdef __i386__
   /* skip emulation of video BIOS, as it is too much timing-dependent */
