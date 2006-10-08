@@ -303,7 +303,7 @@ static void release_vt(int sig, siginfo_t *si, void *uc)
 }
 
 #else
-static void acquire_vt(int sig, siginfo_t *si, void *uc)
+static void acquire_vt(int sig, struct sigcontext_struct context)
 {
 	acquire_vt0(&context);
 }
