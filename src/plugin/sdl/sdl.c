@@ -325,26 +325,36 @@ static void SDL_change_mode(int *x_res, int *y_res)
       modes=SDL_ListModes(NULL, SDL_FULLSCREEN);			 
     }
     if (modes != (SDL_Rect **) -1) {
-      for (i = 0; modes[i] && modes[i]->w >= vga.width; i++);
-      if (i > 0) i--;
-      while (modes[i]->h < vga.height && i > 0) i--;
-      if (modes[i]) {
+      unsigned mw = 0;
+      do {
+	unsigned mh = 0;
 	int factor;
+	mw++;
+	for (i = 0; modes[i] && modes[i]->w >= mw*vga.width; i++);
+	if (i > 0) i--;
+	do {
+	  mh++;
+	  while (modes[i]->h < mh*vga.height && i > 0) i--;
+	  if (modes[i]) {
+	    factor = modes[i]->h / vga.height;
+	    *y_res = vga.height * factor;
+	  }
+	} while (modes[i]->h - *y_res > *y_res/2);
+	/* while the border is too high */
 	factor = modes[i]->w / vga.width;
-	if (vga.height * factor > modes[i]->h) {
-	  factor = modes[i]->h / vga.height;
-	}
 	*x_res = vga.width * factor;
-	*y_res = vga.height * factor;
-	v_printf("SDL: using fullscreen mode: x=%d, y=%d\n",
-		 modes[i]->w, modes[i]->h);
-      }
+      } while (modes[i]->w - *x_res > *x_res/2);
+      /* while the border is too wide */
+      v_printf("SDL: using fullscreen mode: x=%d, y=%d\n",
+	       modes[i]->w, modes[i]->h);
     }
     flags |= SDL_FULLSCREEN;
   } else {
     flags |= SDL_RESIZABLE;
   }
   v_printf("SDL: using mode %d %d %d\n", *x_res, *y_res, SDL_csd.bits);
+  if (!using_x11) /* SDL may crash otherwise.. */
+    SDL_ShowCursor(SDL_ENABLE);
   surface =  SDL_SetVideoMode(*x_res, *y_res, SDL_csd.bits, flags);
   SDL_ShowCursor(SDL_DISABLE);
   remap_obj.dst_resize(&remap_obj, *x_res, *y_res, surface->pitch);
