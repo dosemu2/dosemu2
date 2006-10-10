@@ -26,6 +26,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+
+#ifndef __x86_64__
+#undef MAP_32BIT
+#define MAP_32BIT 0
+#endif
+
 #ifndef KERNEL_VERSION
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
@@ -230,6 +236,10 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
   if (cap & MAPPING_SCRATCH) {
     fixed = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
     if (!fixed && target == (void *)-1) target = NULL;
+#ifdef __x86_64__
+    if (fixed == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU)))
+      fixed = MAP_32BIT;
+#endif
     addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
   } else {
@@ -394,8 +404,8 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
       return MAP_FAILED;
     }
     open_kmem();
-    addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
-		(size_t)target);
+    addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
+		mem_fd,	(size_t)target);
     close_kmem();
     if (addr == MAP_FAILED)
       return addr;
