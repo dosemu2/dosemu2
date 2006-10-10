@@ -682,7 +682,34 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
   char big; int mode=0;
 
   /* copy registers from current dpmi client to our cpu */
+#ifdef __x86_64__
+  TheCPU.eax = _eax;
+  TheCPU.ebx = _ebx;
+  TheCPU.ecx = _ecx;
+  TheCPU.edx = _edx;
+  TheCPU.esi = _esi;
+  TheCPU.edi = _edi;
+  TheCPU.ebp = _ebp;
+  TheCPU.esp = _esp;
+
+  TheCPU.eip = _eip;
+  TheCPU.eflags = _eflags;
+
+  TheCPU.cs = _cs;
+  TheCPU.fs = _fs;
+  TheCPU.gs = _gs;
+
+  TheCPU.ds = _ds;
+  TheCPU.es = _es;
+  TheCPU.ss = _ss;
+
+  TheCPU.scp_err = _err;
+  TheCPU.oldmask = scp->oldmask;
+  TheCPU.cr2 = _cr2;
+  TheCPU.fpstate = scp->fpstate;
+#else
   __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
+#endif
 
   mode |= ADDR16;
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,TheCPU.cs);

@@ -75,7 +75,7 @@ static SDTR *ofsseg[] = {
 		NULL,   NULL,   NULL,   NULL,   NULL,   NULL,NULL,NULL,
 		&CS_DTR,NULL,   NULL,   &SS_DTR,NULL,   NULL,NULL,NULL };
 
-#define MKOFSNAM(o,b)   ((*((long *)(b))=*((long *)(ofsnam+(o)))), \
+#define MKOFSNAM(o,b)   ((*((int *)(b))=*((int *)(ofsnam+(o)))), \
                           ((b)[3]=0), (b))
 
 int SetSegReal(unsigned short sel, int ofs)

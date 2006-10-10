@@ -188,9 +188,9 @@
 
 /* x386 */
 #define GetSWord(w)	*((unsigned short *)(w))=*((unsigned short *)(LONG_SS+sp))
-#define GetSLong(l)	*((unsigned long *)(l))=*((unsigned long *)(LONG_SS+sp))
+#define GetSLong(l)	*((unsigned int *)(l))=*((unsigned int *)(LONG_SS+sp))
 #define PutSWord(w)	*((unsigned short *)(LONG_SS+sp))=*((unsigned short *)(w))
-#define PutSLong(l)	*((unsigned long *)(LONG_SS+sp))=*((unsigned long *)(l))
+#define PutSLong(l)	*((unsigned int *)(LONG_SS+sp))=*((unsigned int *)(l))
 
 static __inline__ void POP(int m, void *w)
 {
@@ -229,19 +229,19 @@ static __inline__ void POP_ONLY(int m)
 #define	G1(b,p)		*(p)++=(unsigned char)(b)
 #define	G2(w,p)		{*((unsigned short *)(p))=(w);(p)+=2;}
 #define	G2M(c,b,p)	{*((unsigned short *)(p))=((b)<<8)|(c);(p)+=2;}
-#define	G3(l,p)		{*((unsigned long *)(p))=(l);(p)+=3;}
-#define	G3M(c,b1,b2,p)	{*((unsigned long *)(p))=((b2)<<16)|((b1)<<8)|(c);(p)+=3;}
-#define	G4(l,p)		{*((unsigned long *)(p))=(l);(p)+=4;}
-#define	G4M(c,b1,b2,b3,p) {*((unsigned long *)(p))=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
+#define	G3(l,p)		{*((unsigned int *)(p))=(l);(p)+=3;}
+#define	G3M(c,b1,b2,p)	{*((unsigned int *)(p))=((b2)<<16)|((b1)<<8)|(c);(p)+=3;}
+#define	G4(l,p)		{*((unsigned int *)(p))=(l);(p)+=4;}
+#define	G4M(c,b1,b2,b3,p) {*((unsigned int *)(p))=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
 				(p)+=4;}
-#define	G5(l1,b2,p)	{*((unsigned long *)(p))=(l1),(p)[4]=(unsigned char)(b2);\
+#define	G5(l1,b2,p)	{*((unsigned int *)(p))=(l1),(p)[4]=(unsigned char)(b2);\
 				(p)+=5;}
-#define	G6(l1,w2,p)	{*((unsigned long *)(p))=(l1),\
+#define	G6(l1,w2,p)	{*((unsigned int *)(p))=(l1),\
 			 *((unsigned short *)((p)+4))=(w2);(p)+=6;}
-#define	G7(l1,l2,p)	{*((unsigned long *)(p))=(l1),\
-			 *((unsigned long *)((p)+4))=(l2);(p)+=7;}
-#define	G8(l1,l2,p)	{*((unsigned long *)(p))=(l1),\
-			 *((unsigned long *)((p)+4))=(l2);(p)+=8;}
+#define	G7(l1,l2,p)	{*((unsigned int *)(p))=(l1),\
+			 *((unsigned int *)((p)+4))=(l2);(p)+=7;}
+#define	G8(l1,l2,p)	{*((unsigned int *)(p))=(l1),\
+			 *((unsigned int *)((p)+4))=(l2);(p)+=8;}
 #define GNX(d,s,l)	{__memcpy((d),(s),(l));(d)+=(l);}
 
 /////////////////////////////////////////////////////////////////////////////

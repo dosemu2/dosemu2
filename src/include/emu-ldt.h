@@ -86,26 +86,26 @@ typedef struct gatedesc {
 typedef struct {
 	unsigned short prev_task;	/* 00 */
 	unsigned short dummy1;
-	unsigned long esp0;		/* 04 */
+	unsigned int esp0;		/* 04 */
 	unsigned short ss0;
 	unsigned short __ss0h;
-	unsigned long esp1;		/* 0c */
+	unsigned int esp1;		/* 0c */
 	unsigned short ss1;
 	unsigned short __ss1h;
-	unsigned long esp2;		/* 14 */
+	unsigned int esp2;		/* 14 */
 	unsigned short ss2;
 	unsigned short __ss2h;
-	unsigned long cr3;		/* 1c */
-	unsigned long eip;		/* 20 */
-	unsigned long eflags;		/* 24 */
-	unsigned long eax;		/* 28 */
-	unsigned long ecx;
-	unsigned long edx;		/* 30 */
-	unsigned long ebx;
-	unsigned long esp;		/* 38 */
-	unsigned long ebp;
-	unsigned long esi;		/* 40 */
-	unsigned long edi;
+	unsigned int cr3;		/* 1c */
+	unsigned int eip;		/* 20 */
+	unsigned int eflags;		/* 24 */
+	unsigned int eax;		/* 28 */
+	unsigned int ecx;
+	unsigned int edx;		/* 30 */
+	unsigned int ebx;
+	unsigned int esp;		/* 38 */
+	unsigned int ebp;
+	unsigned int esi;		/* 40 */
+	unsigned int edi;
 	unsigned short es, __esh;	/* 48 */
 	unsigned short cs, __csh;
 	unsigned short ss, __ssh;	/* 50 */

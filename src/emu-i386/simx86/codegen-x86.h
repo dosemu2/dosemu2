@@ -175,7 +175,7 @@ static __inline__ void PUSH(int m, void *w)
 
 // 'no-jump' version, tricky (depends on bit position)
 #define G2_4(mode, val, Cp) \
-	*((long *)(Cp))=(val); Cp+=BT24(BitDATA16, mode)
+	*((int *)(Cp))=(val); Cp+=BT24(BitDATA16, mode)
 
 
 /////////////////////////////////////////////////////////////////////////////
