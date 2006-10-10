@@ -145,7 +145,7 @@ extern int restart_cputime (int);
 #endif
 
 struct symbol_entry {
-   unsigned int  addr;
+   unsigned long addr;
    unsigned char type;
    unsigned char name[49];
 };

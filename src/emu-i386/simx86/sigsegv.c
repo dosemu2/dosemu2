@@ -392,8 +392,8 @@ int e_emu_fault(struct sigcontext_struct *scp)
      reset permissions on code pages */
   if (_cs == getsegment(cs) && ((debug_level('e')>1) || (_trapno!=0x0e))) {
     dbug_printf("==============================================================\n");
-    dbug_printf("CPU exception 0x%02x err=0x%08lx cr2=%08lx eip=%08x\n",
-	  	 _trapno, _err, _cr2, _eip);
+    dbug_printf("CPU exception 0x%02x err=0x%08lx cr2=%08lx eip=%08lx\n",
+	  	 _trapno, _err, _cr2, _rip);
     dbug_printf("==============================================================\n");
     if (debug_level('e')>1) {
 	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_rip),

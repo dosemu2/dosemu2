@@ -116,7 +116,7 @@ static char lastldt[32];
 
 static struct symbol_entry symbol_table[MAXSYM];
 static unsigned int last_symbol = 0;
-static unsigned int addrmax;
+static unsigned long addrmax;
 
 static struct symbl2_entry symbl2_table[MAXSYM];
 static unsigned int last_symbol2 = 0;
@@ -396,7 +396,7 @@ static void mhp_rmapfile(int argc, char *argv[])
       sscanf(bytebuf, "%lx %c %40s", &a1, &symbol_table[last_symbol].type,
               (char *)&symbol_table[last_symbol].name);
 #ifdef __ELF__
-     if (a1 < 0x08000000) continue;
+     if (a1 < 0x00000001) continue;
 #else
      if (a1 < 0x20000000)
         continue;
@@ -414,7 +414,7 @@ static void mhp_rmapfile(int argc, char *argv[])
     fclose(ifp);
   addrmax = symbol_table[last_symbol-1].addr;
   mhp_printf("%d symbol(s) processed\n", last_symbol);
-  mhp_printf("highest address %08x(%s)\n", addrmax, getname(addrmax));
+  mhp_printf("highest address %08lx(%s)\n", addrmax, getname(addrmax));
 }
 
 enum {
@@ -918,8 +918,8 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    unsigned long ul1;
    int selector = 0;
    int use_ldt = IN_DPMI;
-   unsigned long * lp;
-   unsigned long base_addr, limit;
+   unsigned int * lp;
+   unsigned int base_addr, limit;
 
    *lim = 0xFFFFFFFF;
 
@@ -995,7 +995,7 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
      return (void *)0;
    }
 
-   lp = (unsigned long *) buffer;
+   lp = (unsigned int *) buffer;
    lp += (seg1 & 0xFFF8) >> 2;
 
    base_addr = (*lp >> 16) & 0x0000FFFF;
@@ -1017,7 +1017,7 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    }
 
    *lim = limit - off1;
-   return (void *) (base_addr + off1);
+   return (void *)(uintptr_t)(base_addr + off1);
 }
 
 int mhp_setbp(unsigned long seekval)
@@ -1421,8 +1421,8 @@ void mhp_cmd(const char * cmd)
 static void mhp_print_ldt(int argc, char * argv[])
 {
   static char buffer[0x10000];
-  unsigned long *lp, *lp_=(unsigned long *)ldt_buffer;
-  unsigned long base_addr, limit;
+  unsigned int *lp, *lp_=(unsigned int *)ldt_buffer;
+  unsigned int base_addr, limit;
   int type, type2, i;
   unsigned int seg;
   int lines=0, cache_mismatch;
@@ -1459,7 +1459,7 @@ static void mhp_print_ldt(int argc, char * argv[])
     else lines = 16;
   }
 
-  lp = (unsigned long *) buffer;
+  lp = (unsigned int *) buffer;
   lp += (seg & 0xFFF8) >> 2;
   lp_ += (seg & 0xFFF8) >> 2;
   
@@ -1478,7 +1478,7 @@ static void mhp_print_ldt(int argc, char * argv[])
         if (type2 & 0x08)
            limit *= 4096;
         if (type & 0x10)
-           mhp_printf ("%04x: %08lx %08lx %s%d %d %c%c%c%c%c%s\n",
+           mhp_printf ("%04x: %08x %08x %s%d %d %c%c%c%c%c%s\n",
               i | 0x07,
               base_addr,
               limit,
@@ -1492,7 +1492,7 @@ static void mhp_print_ldt(int argc, char * argv[])
               (lp_[1] &Abit)?'a':' ',
               cache_mismatch ?" (cache mismatch)":"");
         else
-           mhp_printf ("%04x: %08lx %08lx System(%02x)%s\n",
+           mhp_printf ("%04x: %08x %08x System(%02x)%s\n",
               i, base_addr, limit, type,
               cache_mismatch ?" (cache mismatch)":"");
     }
