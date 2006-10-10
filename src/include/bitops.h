@@ -27,9 +27,11 @@
 /* function definitions */
 
 
-static int find_bit(unsigned long int word);
+static int find_bit(unsigned int word);
+static int find_bit_r(unsigned int word);
 static int set_bit(int nr, void * addr);
 static int clear_bit(int nr, void * addr);
+static int change_bit(int nr, void * addr);
 static int test_bit(int nr, void * addr);
 static int pic0_to_emu(char flags);
 
@@ -41,13 +43,7 @@ static int pic0_to_emu(char flags);
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
-/*
- * Some hacks to defeat gcc over-optimizations..
- */
-struct __dummy {
-    unsigned long   a[100];
-};
-#define ADDR (*(struct __dummy *) addr)
+#define ADDR (*(volatile long *) addr)
 
 /* JLS's stuff */
 /*
@@ -55,10 +51,24 @@ struct __dummy {
  * Returns -1 if no one exists.
  */
 static __inline__ int
-find_bit(unsigned long int word)
+find_bit(unsigned int word)
 {
-       long result = -1; /* value to return on error */
-       __asm__("bsf %2,%0"
+       int result = -1; /* value to return on error */
+       __asm__("bsfl %2,%0"
+               :"=r" (result) /* output */
+               :"0" (result), "r" (word)); /* input */
+       return result;
+}
+
+/*
+ * find_bit_r returns the bit number of the highest bit that's set
+ * Returns -1 if no one exists.
+ */
+static __inline__ int
+find_bit_r(unsigned int word)
+{
+       int result = -1; /* value to return on error */
+       __asm__("bsrl %2,%0"
                :"=r" (result) /* output */
                :"0" (result), "r" (word)); /* input */
        return result;
@@ -77,16 +87,16 @@ pic0_to_emu(char flags)
     /* where 76543210 are original 8 bits, x = don't care, and o = zero */
     /* bit 2 (cascade int) is used to mask/unmask pic1 (Larry)          */
 
-    long            result;
-    __asm__         __volatile__("movzb %1,%0\n\t"
-				 "shl $13, %0\n\t"
+    int             result;
+    __asm__         __volatile__("movzbl %1,%0\n\t"
+				 "shll $13, %0\n\t"
 				 "sarw $7, %w0\n\t"
-				 "shr $5, %0 " \
+				 "shrl $5, %0 " \
 				 :"=r"(result):"q"(flags));
     return result;
 }
-static __inline__ long
-emu_to_pic0(long flags)
+static __inline__ int
+emu_to_pic0(int flags)
 {
     /*
      * This function takes the pic0 bits from the overall pic bit field
@@ -97,9 +107,9 @@ emu_to_pic0(long flags)
     /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
     /* where 76543210 are final 8 bits and x = don't care            */
 
-    __asm__         __volatile__("shl $6,%0\n\t"
+    __asm__         __volatile__("shll $6,%0\n\t"
 				 "shlw $7, %w0\n\t"
-				 "shr $14, %0 " 
+				 "shrl $14, %0 " 
 				 :"=r"(flags):"0"(flags));
     return flags;
 }
@@ -108,6 +118,17 @@ emu_to_pic0(long flags)
  * Linus' stuff follows - except each __inline__ had an extern in front of
  * it
  */
+static __inline__ int
+change_bit(int nr, void *addr)
+{
+    int             oldbit;
+
+    __asm__         __volatile__("btcl %2,%1\n\tsbbl %0,%0"
+				 :"=r"(oldbit), "=m"(ADDR)
+				 :"r"(nr));
+    return oldbit;
+}
+
 static __inline__ int
 set_bit(int nr, void *addr)
 {

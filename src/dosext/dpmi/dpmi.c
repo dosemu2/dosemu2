@@ -3163,7 +3163,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
 
-  D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
+  D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
 #if 0
   if (_trapno == 0xe) {

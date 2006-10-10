@@ -1836,7 +1836,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = (tesp = CPULONG(Ofs_ESP)) - 4;
 			SR1.d &= stackm;
-			*((long *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
+			*((int *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
 #if 0	/* keep high 16-bits of ESP in small-stack mode */
 			SR1.d |= (tesp & ~stackm);
 #endif
@@ -1865,7 +1865,7 @@ void Gen(int op, int mode, ...)
 			DR1.d = (mode&MEMADR? *AR1.pdu : CPULONG(o));
 			SR1.d -= 4;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((long *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
+			*((int *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		} break;
@@ -1889,7 +1889,7 @@ void Gen(int op, int mode, ...)
 		}
 		else {
 			SR1.d = (SR1.d - 4) & CPULONG(Ofs_STACKM);
-			*((long *)(uintptr_t)(AR2.d + SR1.d)) = ftmp & 0x3c7eff;
+			*((int *)(uintptr_t)(AR2.d + SR1.d)) = ftmp & 0x3c7eff;
 		}
 		CPULONG(Ofs_ESP) = SR1.d;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
@@ -1911,7 +1911,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 4;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			*((long *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
+			*((int *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		} break;
@@ -1936,11 +1936,11 @@ void Gen(int op, int mode, ...)
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		else {
-			long *pd;
+			int *pd;
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 32;
 			SR1.d &= CPULONG(Ofs_STACKM);
-			pd = (long *)(uintptr_t)(AR2.d + SR1.d);
+			pd = (int *)(uintptr_t)(AR2.d + SR1.d);
 			__memcpy(pd, CPUOFFS(Ofs_EDI), 32);
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
@@ -1968,7 +1968,7 @@ void Gen(int op, int mode, ...)
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
-			DR1.d = *((long *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
 			if (!(mode & MEMADR)) CPULONG(o) = DR1.d;
 			SR1.d += 4;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -2001,7 +2001,7 @@ void Gen(int op, int mode, ...)
 		}
 		else {
 			SR1.d &= stackm;
-			DR1.d = *((long *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
 			if (!(mode & MEMADR)) CPULONG(o) = DR1.d;
 			SR1.d += 4;
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
@@ -2078,7 +2078,7 @@ void Gen(int op, int mode, ...)
 			SR1.d = CPULONG(Ofs_EBP);
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d &= stackm;
-			DR1.d = *((long *)(uintptr_t)(AR2.d + SR1.d));
+			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
 			CPULONG(Ofs_EBP) = DR1.d;
 			SR1.d += 4;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -2358,61 +2358,42 @@ void Gen(int op, int mode, ...)
 		}
 		break;
 	case O_BITOP: {
-		static char seqa[] = {
-			0x66,0x0f,0xa3,0x07,0x9c,0x5a,0xc3
-		};
-		static char seqb[] = {
-			0x66,0x0f,0xba,0x27,0x00,0x9c,0x5a,0xc3
-		};
 		unsigned char o1 = (unsigned char)va_arg(ap,int);
 		signed char o2 = Offs_From_Arg();
 		register int flg;
 		GTRACE3("O_BITOP",o2,0xff,o1);
-		switch (o1) {
-		case 0x03: /* BT */
-		case 0x0b: /* BTS */
-		case 0x13: /* BTR */
-		case 0x1b: /* BTC */
-		case 0x1c: /* BSF */
-		case 0x1d: /* BSR */
-			seqa[2] = 0xa0|o1;
-			if (mode & DATA16) {
-				seqa[0] = 0x66;
-				DR1.d = CPUWORD(o2);
+		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
+			DR1.d = (mode & DATA16) ? *AR1.pwu : *AR1.pdu;
+			DR1.d = o1 == 0x1c ? find_bit(DR1.d) : find_bit_r(DR1.d);
+			if (DR1.d == -1) {
+				flg = 0x40;
+			} else {
+				flg = 0;
+				if (mode & DATA16)
+					CPUWORD(o2) = DR1.d;
+				else
+					CPULONG(o2) = DR1.d;
 			}
-			else {
-				seqa[0] = 0x90;
-				DR1.d = CPULONG(o2);
-			}
-			__asm__ __volatile__ (
-			"call	*%2"
-			: "=d"(flg)
-			: "a"(DR1.d),"c"(&seqa),"D"(AR1.d) : "memory" );
-			if (o1>0x1b) {		// set ZF
-			    FlagSync_All();
-			    CPUBYTE(Ofs_FLAGS)=(CPUBYTE(Ofs_FLAGS)&0xbf)|(flg&0x40);
-			}
-			else
-			    SET_CF(flg&1);
-			break;
-		case 0x20: /* BT  imm8 */
-		case 0x28: /* BTS imm8 */
-		case 0x30: /* BTR imm8 */
-		case 0x38: /* BTC imm8 */
-			seqb[3] = 0x07|o1;
-			seqb[4] = o2;
-			if (mode & DATA16) {
-				seqb[0] = 0x66;
-			}
-			else {
-				seqb[0] = 0x90;
-			}
-			__asm__ __volatile__ (
-			"call	*%1"
-			: "=d"(flg) : "c"(&seqb),"D"(AR1.d) : "memory" );
-			SET_CF(flg&1);
+			// set ZF
+			FlagSync_All();
+			CPUBYTE(Ofs_FLAGS)=(CPUBYTE(Ofs_FLAGS)&0xbf)|flg;
 			break;
 		}
+		if(o1 >= 0x20)
+			DR1.d = o2 & 0x1f;
+		else if (mode & DATA16)
+			DR1.d = CPUWORD(o2);
+		else
+			DR1.d = CPULONG(o2);
+		switch (o1) {
+		case 0x03: case 0x20: flg = test_bit(DR1.d, AR1.pdu); break;
+		case 0x0b: case 0x28: flg = set_bit(DR1.d, AR1.pdu); break;
+		case 0x13: case 0x30: flg = clear_bit(DR1.d, AR1.pdu); break;
+		case 0x1b: case 0x38: flg = change_bit(DR1.d, AR1.pdu); break;
+		default: flg = 2;
+		}
+		if (flg != 2)
+			SET_CF(flg&1);
 		} break;
 	case O_SHFD: {
 		unsigned char l_r = (unsigned char)va_arg(ap,int)&8;
