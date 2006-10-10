@@ -7,12 +7,37 @@
 #include "emm.h"
 #include "macros86.h"
 
-	.code32
 	.section .text
 
 	.globl DPMI_direct_transfer
 DPMI_direct_transfer:
 	/* Now put ESP to new context and pop it up */
+#ifdef __x86_64__
+	.type DPMI_direct_transfer,@function
+	mov	%rdi,%rsp
+	add	$8*8,%rsp       /* skip r8-r15 */
+	pop	%rdi
+	pop	%rsi
+	pop	%rbp
+	pop	%rbx
+	pop	%rdx
+	pop	%rax
+	pop	%rcx
+	pop	%r8		/* becomes rsp */
+	pop	%r9		/* becomes cs:eip */
+	popf
+	add	$2*8,%rsp	/* skip csgsfs, err */
+	pop	%r10		/* high word of trapno contains ss */
+	shr	$48,%r10
+	push	%r9
+	xchg	%rsp,%r8
+	/* loading ss just before the ljmp switches off interrupts
+	   for one instruction, so SIGALRM won't destroy the DPMI %ss
+	   (thinking it interrupted emulator code) */
+	mov	%r10,%ss
+	ljmp	*0(%r8)		/* jmp to pushed pointer */
+	.code32
+#else
 	movl	4(%esp),%esp
 	pop	%gs
 	pop	%fs
@@ -25,6 +50,7 @@ DPMI_direct_transfer:
 	ljmp	*%cs:0
 	.globl DPMI_direct_transfer_end
 DPMI_direct_transfer_end:
+#endif
 
 	.globl DPMI_indirect_transfer
 	.type DPMI_indirect_transfer,@function

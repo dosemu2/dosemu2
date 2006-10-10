@@ -392,15 +392,21 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
   fault_cnt--;
   if(retcode)
     dpmi_longjmp_return(retcode);
-  loadsegments(scp);
 }
 
 #ifdef __linux__
 #ifdef __x86_64__
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
-  dosemu_fault0(signal, (struct sigcontext_struct *)
-		&((ucontext_t *)uc)->uc_mcontext);
+  struct sigcontext_struct *scp = (struct sigcontext_struct *)
+    &((ucontext_t *)uc)->uc_mcontext;
+  dosemu_fault0(signal, scp);
+  if (_cs != getsegment(cs)) {
+    /* we have to return to the main DOSEMU code: simply falling
+       out of the signal handler (calling sigreturn) destroys %ss. */
+    dpmi_return(scp);
+    dpmi_longjmp_return(-2);
+  }
 }
 #else
 void dosemu_fault(int signal, struct sigcontext_struct context)

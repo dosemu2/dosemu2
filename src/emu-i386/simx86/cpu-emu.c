@@ -870,8 +870,12 @@ void enter_cpu_emu(void)
 	itv.it_interval.tv_usec = realdelta;
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = realdelta;
+#ifdef __i386__
+	/* I am not sure what SIGPROF is really used for; in any case
+	   on x86-64 the current handler destroys %ss in DPMI code */
 	e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
 	setitimer(ITIMER_PROF, &itv, NULL);
+#endif
 	newsetsig(SIGPROF, e_gen_sigprof);
 
 #ifdef DEBUG_TREE

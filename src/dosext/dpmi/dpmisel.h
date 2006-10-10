@@ -6,7 +6,12 @@
 
 #define DPMI_SEL_OFF(x) (x-DPMI_sel_code_start)
 
+#ifdef __x86_64__
+extern void		DPMI_direct_transfer(struct sigcontext_struct *)
+			__attribute__ ((noreturn));
+#else
 extern unsigned char	DPMI_direct_transfer[];
+#endif
 extern unsigned char	DPMI_direct_transfer_end[];
 
 extern void		DPMI_indirect_transfer(void) __attribute__((noreturn));

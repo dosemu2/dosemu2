@@ -349,18 +349,25 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
  * 21	unsigned long cr2;		84 dirty -- ignored
  * --------------------------------------------------------------
  */
+#ifdef __i386__
 static struct pmaddr_s *dpmi_switch_jmp;
 typedef void (*direct_dpmi_transfer_t)(struct sigcontext_struct *)
   __attribute__ ((noreturn));
 static direct_dpmi_transfer_t direct_dpmi_transfer_p;
+#else
+#define direct_dpmi_transfer_p DPMI_direct_transfer
+#endif
 
 static __attribute__ ((noreturn))
   void direct_dpmi_switch(struct sigcontext_struct *scp)
 {
+#ifdef __i386__  
   dpmi_switch_jmp->offset = _eip;
   dpmi_switch_jmp->selector = _cs;
-#ifdef __i386__
   scp->esp_at_signal = _esp;
+#else
+  _rip = ((unsigned long)_cs << 32) | _eip;
+  loadsegments(scp);
 #endif
 
   loadfpstate(*scp->fpstate);
@@ -2727,12 +2734,15 @@ void run_pm_dos_int(int i)
 void run_dpmi(void)
 {
     int retcode;
-    retcode = (
+    do {
+      retcode = (
 #ifdef X86_EMULATOR
 	config.cpuemu>3?
 	e_dpmi(&DPMI_CLIENT.stack_frame) :
 #endif
 	dpmi_control());
+    } while (retcode == -2);
+    /* return-to-dpmi faults return with -2 for x86_64 */
 #ifdef USE_MHPDBG
     if (retcode > 0 && mhpdbg.active) {
       if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
@@ -2746,6 +2756,7 @@ void dpmi_setup(void)
     int i, type;
     unsigned int base_addr, limit, *lp;
 
+#ifdef __i386__
 #if DIRECT_DPMI_CONTEXT_SWITCH
     /* Allocate special buffer that is used for direct jumping to
        DPMI code. The first half is code, the next half data.
@@ -2770,6 +2781,7 @@ void dpmi_setup(void)
 	   &dpmi_switch_jmp, sizeof(&dpmi_switch_jmp));
     direct_dpmi_transfer_p = (direct_dpmi_transfer_t)dpmi_xfr_buffer;
     mprotect(dpmi_xfr_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
+#endif
 #endif
 
     ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,

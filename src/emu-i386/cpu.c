@@ -28,6 +28,10 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <errno.h>
+#ifdef __x86_64__
+#include <sys/mman.h>
+#include "Linux/mman.h"
+#endif
 
 #include "config.h"
 #include "dosemu_config.h"
@@ -241,6 +245,42 @@ void cpu_reset(void)
   REG(eflags) = 0;
 }
 
+#ifdef __x86_64__
+static void tls_setup(void)
+{
+  unsigned long fsbase, pagesize;
+  unsigned char *oldtls, *newtls;
+
+  /* This is a very ugly hack to alias map the TLS area to the first 4GB of
+     address space, and point fs to this area.
+     Otherwise any %fs change will invalidate the base */
+  /* FIXME: find out a better way than the page size to obtain the TLS size */
+
+#ifndef MREMAP_FIXED
+#define MREMAP_FIXED 1
+#endif
+#define ARCH_SET_FS 0x1002
+#define ARCH_GET_FS 0x1003
+
+  if (syscall(SYS_arch_prctl, ARCH_GET_FS, &fsbase) == 0
+      && fsbase > 0xffffffff) {
+    pagesize = sysconf(_SC_PAGESIZE);
+    oldtls = (unsigned char *)(fsbase & ~(pagesize - 1));
+    newtls = mmap(NULL, pagesize, PROT_READ|PROT_WRITE,
+		  MAP_ANONYMOUS|MAP_PRIVATE|MAP_32BIT, 0, 0);
+    memcpy(newtls, oldtls, pagesize);
+    mmap(oldtls, pagesize, PROT_READ|PROT_WRITE,
+	 MAP_ANONYMOUS|MAP_SHARED|MAP_FIXED, 0, 0);
+    memcpy(oldtls, newtls, pagesize);
+    syscall(SYS_mremap, oldtls, 0, pagesize, MREMAP_MAYMOVE|MREMAP_FIXED,
+	    newtls);
+    syscall(SYS_arch_prctl, ARCH_SET_FS, fsbase + newtls - oldtls);
+  }
+}
+#else
+#define tls_setup()
+#endif
+
 /* 
  * DANG_BEGIN_FUNCTION cpu_setup
  *
@@ -263,6 +303,7 @@ void cpu_setup(void)
 
   /* initialize user data & code selector values (used by DPMI code) */
   /* And save %fs, %gs for NPTL */
+  tls_setup();
   eflags_fs_gs.fs = getsegment(fs);
   eflags_fs_gs.gs = getsegment(gs);
   eflags_fs_gs.eflags = getflags();
