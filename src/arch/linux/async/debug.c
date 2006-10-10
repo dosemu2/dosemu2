@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <execinfo.h>
 
 static FILE *gdb_f = NULL;
 
@@ -38,10 +39,12 @@ static int start_gdb(pid_t dosemu_pid)
 static void do_debug(void)
 {
   char *cmd1 = "info registers\n";
-  char *cmd2 = "backtrace full\n";
+  char *cmd2 = "backtrace\n";
+  char *cmd3 = "backtrace full\n";
 
   gdb_command(cmd1);
   gdb_command(cmd2);
+  gdb_command(cmd3);
 }
 
 static void stop_gdb(void)
@@ -56,6 +59,27 @@ static void stop_gdb(void)
   pclose(gdb_f);
   putchar('\n');
   fflush(stdout);
+}
+
+/* Obtain a backtrace and print it to `stdout'.
+   (derived from 'info libc')
+ */
+static void print_trace (void)
+{
+  void *array[10];
+  size_t size;
+  char **strings;
+  size_t i;
+  
+  size = backtrace (array, 10);
+  strings = backtrace_symbols (array, size);
+  
+  printf ("Obtained %zd stack frames.\n", size);
+  
+  for (i = 0; i < size; i++)
+    printf ("%s\n", strings[i]);
+  
+  free (strings);
 }
 
 static void collect_info(pid_t pid)
@@ -80,6 +104,7 @@ static void collect_info(pid_t pid)
   asprintf(&tmp, cmd5, pid);
   system(tmp);
   free(tmp);
+  print_trace();
   fflush(stdout);
 }
 
