@@ -14,7 +14,7 @@
 #ifndef __ASSEMBLY__
 struct modify_ldt_ldt_s {
 	unsigned int  entry_number;
-	unsigned long base_addr;
+	unsigned int  base_addr;
 	unsigned int  limit;
 	unsigned int  seg_32bit:1;
 	unsigned int  contents:2;

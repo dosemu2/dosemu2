@@ -165,9 +165,9 @@ unsigned long SEL_ADR(unsigned short sel, unsigned long reg)
   } else {
     /* LDT */
     if (Segments[sel>>3].is_32)
-      return (unsigned long) (GetSegmentBaseAddress(sel) + reg );
+      return (unsigned int) (GetSegmentBaseAddress(sel) + reg );
     else
-      return (unsigned long) (GetSegmentBaseAddress(sel) + LO_WORD(reg));
+      return (unsigned int) (GetSegmentBaseAddress(sel) + LO_WORD(reg));
   }
 }
 
@@ -1120,7 +1120,7 @@ void dpmi_longjmp_return(int retcode)
 
 int indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
-    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _rip);
     if (*csp != 0xf4 || csp != (unsigned char *)DPMI_indirect_transfer)
 	return 0;
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
@@ -1440,11 +1440,11 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 	handle, offs, attrs, count);
 }
 
-static int get_dr(pid_t pid, int i, unsigned long *dri)
+static int get_dr(pid_t pid, int i, unsigned int *dri)
 {
   *dri = ptrace(PTRACE_PEEKUSER, pid,
 		(void *)offsetof(struct user, u_debugreg[i]), 0);
-  D_printf("DPMI: ptrace peek user dr%d=%lx\n", i, *dri);
+  D_printf("DPMI: ptrace peek user dr%d=%x\n", i, *dri);
   return *dri != -1 || errno == 0;
 }
 
@@ -1499,7 +1499,7 @@ static int dpmi_debug_breakpoint(int op, struct sigcontext_struct *scp)
   if (vpid == (pid_t)-1)
     return err;
   if (vpid == 0) {
-    unsigned long dr6, dr7;
+    unsigned int dr6, dr7;
     /* child ptraces parent */
     r = ptrace(PTRACE_ATTACH, pid, 0, 0);
     D_printf("DPMI: ptrace attach %d op=%d\n", r, op);
@@ -2360,10 +2360,10 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     _eflags =  REG(eflags)&(~(AC|VM|TF|NT));
 
     if (DPMI_CLIENT.is_32) {
-	ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+	ssp -= 2, *((unsigned int *) ssp) = get_vFLAGS(_eflags);
 	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
+	ssp -= 2, *((unsigned int *) ssp) = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
 	_esp -= 12;
     } else {
 	*--ssp = (unsigned short) get_vFLAGS(_eflags);
@@ -2418,10 +2418,10 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
   save_pm_regs(scp);
   ssp = enter_lpms(scp);
   if (DPMI_CLIENT.is_32) {
-    ssp -= 2, *((unsigned long *) ssp) = (unsigned long) in_dpmi_dos_int;
+    ssp -= 2, *((unsigned int *) ssp) = (unsigned long) in_dpmi_dos_int;
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
+    ssp -= 2, *((unsigned int *) ssp) = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
     _esp -= 12;
   } else {
     *--ssp = (unsigned short) in_dpmi_dos_int;
@@ -2623,18 +2623,18 @@ void run_pm_int(int i)
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
   if (DPMI_CLIENT.is_32) {
-    ssp -= 2, *((unsigned long *) ssp) = 0;	/* reserved */
-    ssp -= 2, *((unsigned long *) ssp) = (unsigned long) in_dpmi_dos_int;
+    ssp -= 2, *((unsigned int *) ssp) = 0;	/* reserved */
+    ssp -= 2, *((unsigned int *) ssp) = (unsigned long) in_dpmi_dos_int;
     *--ssp = (us) 0;
     *--ssp = old_ss;
-    ssp -= 2, *((unsigned long *) ssp) = old_esp;
+    ssp -= 2, *((unsigned int *) ssp) = old_esp;
     *--ssp = (us) 0;
     *--ssp = _cs;
-    ssp -= 2, *((unsigned long *) ssp) = _eip;
-    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+    ssp -= 2, *((unsigned int *) ssp) = _eip;
+    ssp -= 2, *((unsigned int *) ssp) = get_vFLAGS(_eflags);
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_pm);
+    ssp -= 2, *((unsigned int *) ssp) = DPMI_SEL_OFF(DPMI_return_from_pm);
     _esp -= 36;
   } else {
     /* store the high word of ESP, because CPU corrupts it */
@@ -2703,10 +2703,10 @@ void run_pm_dos_int(int i)
 
   D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
   if (DPMI_CLIENT.is_32) {
-    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+    ssp -= 2, *((unsigned int *) ssp) = get_vFLAGS(_eflags);
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = ret_eip;
+    ssp -= 2, *((unsigned int *) ssp) = ret_eip;
     _esp -= 12;
   } else {
     *--ssp = (unsigned short) get_vFLAGS(_eflags);
@@ -3021,11 +3021,11 @@ static void return_from_exception(struct sigcontext_struct *scp)
   if (DPMI_CLIENT.is_32) {
     /* poping error code */
     ssp += 2;
-    _eip = *((unsigned long *) ssp), ssp += 2;
+    _eip = *((unsigned int *) ssp), ssp += 2;
     _cs = *ssp++;
     ssp++;
-    set_EFLAGS(_eflags, *((unsigned long *) ssp)), ssp += 2;
-    _esp = *((unsigned long *) ssp), ssp += 2;
+    set_EFLAGS(_eflags, *((unsigned int *) ssp)), ssp += 2;
+    _esp = *((unsigned int *) ssp), ssp += 2;
     _ss = *ssp++;
     ssp++;
   } else {
@@ -3090,10 +3090,10 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
       return;
     }
     if (DPMI_CLIENT.is_32) {
-      ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+      ssp -= 2, *((unsigned int *) ssp) = get_vFLAGS(_eflags);
       *--ssp = (us) 0;
       *--ssp = _cs;
-      ssp -= 2, *((unsigned long *) ssp) = _eip;
+      ssp -= 2, *((unsigned int *) ssp) = _eip;
       _esp -= 12;
     } else {
       *--ssp = (unsigned short) get_vFLAGS(_eflags);
@@ -3196,8 +3196,8 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   ssp = enter_lpms(scp);
 
   /* Extended exception stack frame - DPMI 1.0 */
-  ssp -= 2, *((unsigned long *) ssp) = 0;	/* PTE */
-  ssp -= 2, *((unsigned long *) ssp) = _cr2;
+  ssp -= 2, *((unsigned int *) ssp) = 0;	/* PTE */
+  ssp -= 2, *((unsigned int *) ssp) = _cr2;
   *--ssp = (us) 0;
   *--ssp = _gs;
   *--ssp = (us) 0;
@@ -3208,18 +3208,18 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   *--ssp = _es;
   *--ssp = (us) 0;
   *--ssp = old_ss;
-  ssp -= 2, *((unsigned long *) ssp) = old_esp;
-  ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+  ssp -= 2, *((unsigned int *) ssp) = old_esp;
+  ssp -= 2, *((unsigned int *) ssp) = get_vFLAGS(_eflags);
   *--ssp = (us) 0;
   *--ssp = _cs;
-  ssp -= 2, *((unsigned long *) ssp) = _eip;
-  ssp -= 2, *((unsigned long *) ssp) = 0;
+  ssp -= 2, *((unsigned int *) ssp) = _eip;
+  ssp -= 2, *((unsigned int *) ssp) = 0;
   if (DPMI_CLIENT.is_32) {
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
+    ssp -= 2, *((unsigned int *) ssp) = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   } else {
-    ssp -= 2, *((unsigned long *) ssp) = 0;
+    ssp -= 2, *((unsigned int *) ssp) = 0;
     *--ssp = dpmi_sel(); 
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   }
@@ -3227,20 +3227,20 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   if (DPMI_CLIENT.is_32) {
     *--ssp = (us) 0;
     *--ssp = old_ss;
-    ssp -= 2, *((unsigned long *) ssp) = old_esp;
-    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+    ssp -= 2, *((unsigned int *) ssp) = old_esp;
+    ssp -= 2, *((unsigned int *) ssp) = get_vFLAGS(_eflags);
     *--ssp = (us) 0;
     *--ssp = _cs;
-    ssp -= 2, *((unsigned long *) ssp) = _eip;
-    ssp -= 2, *((unsigned long *) ssp) = _err;
+    ssp -= 2, *((unsigned int *) ssp) = _eip;
+    ssp -= 2, *((unsigned int *) ssp) = _err;
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
-    ssp -= 2, *((unsigned long *) ssp) = DPMI_SEL_OFF(DPMI_return_from_exception);
+    ssp -= 2, *((unsigned int *) ssp) = DPMI_SEL_OFF(DPMI_return_from_exception);
   } else {
-    ssp -= 2, *((unsigned long *) ssp) = 0;
-    ssp -= 2, *((unsigned long *) ssp) = 0;
-    ssp -= 2, *((unsigned long *) ssp) = 0;
-    ssp -= 2, *((unsigned long *) ssp) = 0;
+    ssp -= 2, *((unsigned int *) ssp) = 0;
+    ssp -= 2, *((unsigned int *) ssp) = 0;
+    ssp -= 2, *((unsigned int *) ssp) = 0;
+    ssp -= 2, *((unsigned int *) ssp) = 0;
 
     *--ssp = old_ss;
     *--ssp = (unsigned short) old_esp;
@@ -3424,10 +3424,10 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", csp[0]);
 	if (DPMI_CLIENT.is_32) {
-	  ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+	  ssp -= 2, *((unsigned int *) ssp) = get_vFLAGS(_eflags);
 	  *--ssp = (us) 0;
 	  *--ssp = _cs;
-	  ssp -= 2, *((unsigned long *) ssp) = _eip;
+	  ssp -= 2, *((unsigned int *) ssp) = _eip;
 	  _esp -= 12;
 	} else {
 	  *--ssp = get_vFLAGS(_eflags);
@@ -3470,7 +3470,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
-	  unsigned long *buffer = (unsigned long *) SEL_ADR(_es, _edi);
+	  unsigned int *buffer = (unsigned int *) SEL_ADR(_es, _edi);
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
 	    *buffer++ = REG(eax);
@@ -3523,13 +3523,13 @@ int dpmi_fault(struct sigcontext_struct *scp)
           D_printf("DPMI: Return from protected mode interrupt handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 	  if (DPMI_CLIENT.is_32) {
-	    _eip = *((unsigned long *) ssp), ssp += 2;
+	    _eip = *((unsigned int *) ssp), ssp += 2;
 	    _cs = *ssp++;
 	    ssp++;
-	    _esp = *((unsigned long *) ssp), ssp += 2;
+	    _esp = *((unsigned int *) ssp), ssp += 2;
 	    _ss = *ssp++;
 	    ssp++;
-	    in_dpmi_dos_int = ((int) *((unsigned long *) ssp)), ssp += 2;
+	    in_dpmi_dos_int = ((int) *((unsigned int *) ssp)), ssp += 2;
 	    ssp += 2;
 	  } else {
 	    _LWORD(eip) = *ssp++;
@@ -3557,11 +3557,11 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 	  /* poping error code */
 	  ssp += 2;
-	  _eip = *((unsigned long *) ssp), ssp += 2;
+	  _eip = *((unsigned int *) ssp), ssp += 2;
 	  _cs = *ssp++;
 	  ssp++;
-	  set_EFLAGS(_eflags, *((unsigned long *) ssp)), ssp += 2;
-	  _esp = *((unsigned long *) ssp), ssp += 2;
+	  set_EFLAGS(_eflags, *((unsigned int *) ssp)), ssp += 2;
+	  _esp = *((unsigned int *) ssp), ssp += 2;
 	  _ss = *ssp++;
 	  ssp++;
 	  _es = *ssp++;
@@ -3665,7 +3665,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
 	  leave_lpms(scp);
 	  if (DPMI_CLIENT.is_32) {
-	    in_dpmi_dos_int = ((int) *((unsigned long *) ssp)), ssp += 2;
+	    in_dpmi_dos_int = ((int) *((unsigned int *) ssp)), ssp += 2;
 	  } else {
 	    in_dpmi_dos_int = (int) *ssp++;
 	  }
@@ -3681,7 +3681,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
 	  if (DPMI_CLIENT.is_32) {
-	    _eip = *((unsigned long *) ssp), ssp += 2;
+	    _eip = *((unsigned int *) ssp), ssp += 2;
 	    _cs = *ssp++;
 	    ssp++;
 	    _esp += 8;
@@ -3706,10 +3706,10 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  int intr = _eip-1-DPMI_SEL_OFF(DPMI_interrupt);
 	  D_printf("DPMI: default protected mode interrupthandler 0x%02x called\n",intr);
 	  if (DPMI_CLIENT.is_32) {
-	    _eip = *((unsigned long *) ssp), ssp += 2;
+	    _eip = *((unsigned int *) ssp), ssp += 2;
 	    _cs = *ssp++;
 	    ssp++;
-	    _eflags = eflags_VIF(*((unsigned long *) ssp)), ssp += 2;
+	    _eflags = eflags_VIF(*((unsigned int *) ssp)), ssp += 2;
 	    _esp += 12;
 	  } else {
 	    _LWORD(eip) = *ssp++;
@@ -4158,7 +4158,7 @@ done:
     _edi = 0;
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_save_restore_rm))) {
-    unsigned long *buffer = SEG_ADR((unsigned long *),es,di);
+    unsigned int *buffer = SEG_ADR((unsigned int *),es,di);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
       *buffer++ = _eax;

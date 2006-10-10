@@ -626,11 +626,11 @@ static int int15(void)
     break;
 
   case 0x87: {
-    unsigned long *lp;
+    unsigned int *lp;
     unsigned long src_addr, dst_addr;
     unsigned long src_limit, dst_limit;
     unsigned int length;
-    lp = SEG_ADR((long*), es, si);
+    lp = SEG_ADR((int*), es, si);
     lp += 4;
     src_addr = (*lp >> 16) & 0x0000FFFF;
     src_limit = *lp & 0x0000FFFF;
