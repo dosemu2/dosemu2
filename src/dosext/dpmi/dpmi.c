@@ -108,7 +108,7 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static sigjmp_buf emu_env;
+static unsigned long *emu_stack_ptr;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
@@ -321,6 +321,39 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
 	return (_esp)&0xffff;
 }
 
+static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
+{
+  int ret;
+  long dx;
+  /* save registers that GCC does not allow to be clobbered
+     (in reality ebp is only necessary with frame pointers and ebx
+      with PIC) */
+  emu_stack_ptr = ((unsigned long *)0) - 1;
+  asm volatile (
+#ifdef __x86_64__
+"	push	%%rbp\n"
+"	push	%%rbx\n"
+"	movq	%%rsp,%2\n"
+#else
+"	pushl	%%ebp\n"
+"	pushl	%%ebx\n"
+"	movl	%%esp,%2\n"
+#endif
+"	call	*%3\n"
+    /* the signal return returns here */
+#ifdef __x86_64__
+"	pop	%%rbx\n"
+"	pop	%%rbp\n"
+#else
+"	popl	%%ebx\n"
+"	popl	%%ebp\n"
+#endif
+    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
+    : "r"(xfr), "1"(scp)
+    : "cx", "si", "di", "cc", "memory"
+  );
+  return ret;
+}
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
 /* --------------------------------------------------------------
@@ -351,15 +384,13 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
  */
 #ifdef __i386__
 static struct pmaddr_s *dpmi_switch_jmp;
-typedef void (*direct_dpmi_transfer_t)(struct sigcontext_struct *)
-  __attribute__ ((noreturn));
+typedef int (*direct_dpmi_transfer_t)(void);
 static direct_dpmi_transfer_t direct_dpmi_transfer_p;
 #else
 #define direct_dpmi_transfer_p DPMI_direct_transfer
 #endif
 
-static __attribute__ ((noreturn))
-  void direct_dpmi_switch(struct sigcontext_struct *scp)
+static int direct_dpmi_switch(struct sigcontext_struct *scp)
 {
 #ifdef __i386__  
   dpmi_switch_jmp->offset = _eip;
@@ -371,7 +402,7 @@ static __attribute__ ((noreturn))
 #endif
 
   loadfpstate(*scp->fpstate);
-  direct_dpmi_transfer_p(scp);
+  return dpmi_transfer(direct_dpmi_transfer_p, scp);
 }
 
 #endif
@@ -408,9 +439,9 @@ static int dpmi_control(void)
  *       the sigcontext technique, so we build a proper sigcontext structure
  *       even for 'hand made taskswitch'. (Hans Lermen, June 1996)
  *
- *    -- the backswitch can be handled using sigsetjmp/siglongjmp: glibc
- *       takes care of saving and restoring registers instead of
- *       manual pushing + sigreturn() (Bart Oldeman, October 2006)
+ *    -- the whole emu_stack_frame could be eliminated except for eip/rip
+ *	 and esp/rsp. For the most part GCC can worry about clobbered registers
+ *       (Bart Oldeman, October 2006)
  *
  * dpmi_control is called only from dpmi_run when in_dpmi_dos_int==0
  *
@@ -420,7 +451,9 @@ static int dpmi_control(void)
 /* STANDARD SWITCH example
  *
  * run_dpmi() -> dpmi_control (_cs==getsegment(cs))
- *			sigsetjmp returns with 0
+ *			-> dpmi_transfer, push registers,
+ *			   save esp/rsp in emu_stack_ptr
+ *			-> DPMI_indirect_transfer ->
  *			hlt
  *		 -> dpmi_fault: move client frame to scp
  *	[C>S>E]			return -> jump to DPMI code
@@ -430,16 +463,20 @@ static int dpmi_control(void)
  *		========== into client code =================
  *		 -> dpmi_fault with return to dosemu code:
  *				save scp to client frame
- *	[E>S>C]			return with siglongjmp
+ *	[E>S>C]			return from call to DPMI_indirect_transfer
+ *				using emu_stack_ptr
+ *				with segment registers and esp restored
+ *			pop registers in dpmi_transfer <-
  *	         dpmi_control <-
- *			return from sigsetjmp with nonzero
+ *			return %eax
  * run_dpmi() <-
  *
  * DIRECT SWITCH example
  *
- * run_dpmi() -> dpmi_control (_cs==%cs) -> sigsetjmp -> direct_dpmi_switch
- *				*** there's no scp ***
- *				jump to intermediate 32-bit code
+ * run_dpmi() -> dpmi_control (_cs==%cs) -> direct_dpmi_switch
+ *			-> dpmi_transfer, push registers
+ *			   save esp/rsp in emu_stack_ptr
+ *			-> DPMI_direct_transfer
  *				pop client frame and jump to DPMI code
  *				(client cs:eip)
  *		========== into client code =================
@@ -448,20 +485,18 @@ static int dpmi_control(void)
  *		========== into client code =================
  *		 -> dpmi_fault with return to dosemu code:
  *				save scp to client frame
- *	[E>S>C]			return with siglongjmp
- *			dpmi_switch_return <-
+ *	[E>S>C]			return from call to DPMI_direct_transfer
+ *				using emu_stack_ptr
+ *				with segment registers and esp restored
+ *			pop registers in dpmi_transfer <-
  *	         dpmi_control <-
- *			return from sigsetjmp with nonzero
+ *			return %eax
  * run_dpmi() <-
  *
  */
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
   struct sigcontext_struct *scp=&DPMI_CLIENT.stack_frame;
-#endif
-  int ret = sigsetjmp(emu_env, 1);
-  if (ret == 0) {
-#if DIRECT_DPMI_CONTEXT_SWITCH
 #ifdef TRACE_DPMI
     if (debug_level('t')) _eflags |= TF;
 #endif
@@ -474,14 +509,11 @@ static int dpmi_control(void)
 	  D_printf("DPMI SWITCH to 0x%x:0x%08x (0x%08lx), Stack 0x%x:0x%08x (0x%08lx) flags=%#lx\n",
 	    _cs, _eip, (long)SEL_ADR(_cs,_eip), _ss, _esp, (long)SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
 	}
-	direct_dpmi_switch(scp);
+	return direct_dpmi_switch(scp);
     }
 #endif
     /* Note: we can't set TF with our speedup code */
-    DPMI_indirect_transfer();
-  }
-  /* coming from siglongjmp here */
-  return ret;
+    return dpmi_transfer(DPMI_indirect_transfer, scp);
 }
 
 void dpmi_get_entry_point(void)
@@ -1117,12 +1149,16 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
   }
   if (dpmi_ctx)
     copy_context(dpmi_ctx, scp, 1);
-}
-
-void dpmi_longjmp_return(int retcode)
-{
-  D_printf("DPMI: return to dosemu code, %i\n", retcode);
-  siglongjmp(emu_env, retcode);
+  /* simulate the "ret" from "call *%3" in dpmi_transfer() */
+  _rip = emu_stack_ptr[-1];
+  _rsp = (unsigned long)emu_stack_ptr;
+  _cs = getsegment(cs);
+  _ds = getsegment(ds);
+  _es = getsegment(es);
+  _fs = getsegment(fs);
+  _gs = getsegment(gs);
+  _ss = getsegment(ss);
+  scp->fpstate = NULL;
 }
 
 int indirect_dpmi_switch(struct sigcontext_struct *scp)
@@ -3010,7 +3046,7 @@ void dpmi_sigio(struct sigcontext_struct *scp)
    job (like DMA transfer) regardless whether IF is set or not.
 */
     dpmi_return(scp);
-    dpmi_longjmp_return(-1);
+    _eax = -1;
   }
 }
 

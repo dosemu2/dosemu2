@@ -14,7 +14,7 @@ DPMI_direct_transfer:
 	/* Now put ESP to new context and pop it up */
 #ifdef __x86_64__
 	.type DPMI_direct_transfer,@function
-	mov	%rdi,%rsp
+	mov	%rdx,%rsp	/* rsp=scp */
 	add	$8*8,%rsp       /* skip r8-r15 */
 	pop	%rdi
 	pop	%rsi
@@ -38,7 +38,7 @@ DPMI_direct_transfer:
 	ljmp	*0(%r8)		/* jmp to pushed pointer */
 	.code32
 #else
-	movl	4(%esp),%esp
+	movl	%edx,%esp	/* esp=scp */
 	pop	%gs
 	pop	%fs
 	pop	%es
