@@ -351,6 +351,9 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
     : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
     : "r"(xfr), "1"(scp)
     : "cx", "si", "di", "cc", "memory"
+#ifdef __x86_64__
+       ,"r8", "r9"
+#endif
   );
   return ret;
 }

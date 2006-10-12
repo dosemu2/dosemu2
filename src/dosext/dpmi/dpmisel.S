@@ -26,16 +26,14 @@ DPMI_direct_transfer:
 	pop	%r8		/* becomes rsp */
 	pop	%r9		/* becomes cs:eip */
 	popf
-	add	$2*8,%rsp	/* skip csgsfs, err */
-	pop	%r10		/* high word of trapno contains ss */
-	shr	$48,%r10
-	push	%r9
+	pushf
+	push	%r9		/* push back cs:eip for ljmp */
 	xchg	%rsp,%r8
 	/* loading ss just before the ljmp switches off interrupts
 	   for one instruction, so SIGALRM won't destroy the DPMI %ss
 	   (thinking it interrupted emulator code) */
-	mov	%r10,%ss
-	ljmp	*0(%r8)		/* jmp to pushed pointer */
+	movw	4*8+6(%r8),%ss	/* high word of trapno contains ss */
+	ljmp	*0(%r8)		/* jmp to cs:eip */
 	.code32
 #else
 	movl	%edx,%esp	/* esp=scp */
