@@ -457,7 +457,7 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 
 
   com_printf ("About to Execute : %s\n", cmd);
-
+  config.quiet = 0;
   if (com_system (cmd, terminate)) {
     /* SYSTEM failed ... */
     com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
