@@ -782,8 +782,8 @@ static void mhp_disasm(int argc, char * argv[])
              mhp_printf ("%s:\n", getname2(seg,off));
        }
        refseg = seg;
-       rc = dis_8086(org+bytesdone, buf+bytesdone, frmtbuf, def_size,
-                  &refseg, &ref, (IN_DPMI ? dpmi_mhp_getselbase(refseg) : 0), 16);
+       rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
+                  (IN_DPMI ? dpmi_mhp_getselbase(refseg) : refseg * 16));
        for (i=0;i<rc;i++) {
            sprintf(&bytebuf[i*2], "%02X", *(buf+bytesdone+i) );
            bytebuf[(i*2)+2] = 0x00;

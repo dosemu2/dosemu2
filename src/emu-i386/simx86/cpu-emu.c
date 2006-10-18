@@ -329,7 +329,7 @@ char *e_emu_disasm(unsigned char *org, int is32)
    org2 = org-(unsigned char *)(uintptr_t)LONG_CS;
    code = org;
 
-   rc = dis_8086((unsigned long)org, code, frmtbuf, is32, &refseg, &ref, 0, 1);
+   rc = dis_8086(code, frmtbuf, is32, &ref, refseg * 16);
 
    p = buf + sprintf(buf,"%08lx: ",(long)org);
    for (i=0; i<rc && i<8; i++) {
@@ -371,8 +371,8 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
    if ((long)org==lasta) { insrep=1; return buf; } /* skip 'rep xxx' steps */
    lasta = (long)org; insrep = 0;
 
-   rc = dis_8086((unsigned long)org, org, frmtbuf, (pmode&&IsSegment32(scp->cs)? 3:0),
-   	&refseg, &ref, (pmode? (int)csp2 : 0), 1);
+   rc = dis_8086(org, frmtbuf, pmode&&IsSegment32(scp->cs),
+   	&ref, (pmode? (int)csp2 : refseg * 16));
 
    pb = buf;
    org2 = org;

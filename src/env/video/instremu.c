@@ -1006,7 +1006,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     unsigned char frmtbuf[256];
     refseg = x86->cs;
     dump_x86_regs(x86);
-    rc = dis_8086((unsigned long) cs+eip, cs+eip, frmtbuf, x86->_32bit ? 3 : 0, &x86->cs, &refseg, cs, 1);
+    rc = dis_8086(cs+eip, frmtbuf, x86->_32bit, &refseg, cs);
     instr_deb("vga_emu_fault: about to simulate %d: %s\n", count, frmtbuf);
   }
 #endif

@@ -42,7 +42,7 @@ char *emu_disasm(int sga, unsigned int ip)
      refseg = 0;	/* ??? */
    }
 
-   rc = dis_8086((unsigned long)cp, cp, frmtbuf, 0, &refseg, &ref, 0, 1);
+   rc = dis_8086(cp, frmtbuf, 0, &ref, refseg * 16);
 
    p = buf;
    for (i=0; i<rc && i<8; i++) {
