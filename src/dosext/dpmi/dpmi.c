@@ -35,6 +35,7 @@
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
+#include <sys/syscall.h>
 
 #include "emu.h"
 #include "memory.h"
@@ -321,6 +322,18 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
 	return (_esp)&0xffff;
 }
 
+#ifdef __x86_64__
+void dpmi_iret_setup(struct sigcontext_struct *scp)
+{
+  if (_cs != getsegment(cs)) {
+    loadregister(ds, _ds);
+    loadregister(es, _es);
+    loadregister(fs, _fs);
+    loadregister(gs, _gs);
+  }
+}
+#endif
+
 static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
 {
   int ret;
@@ -401,7 +414,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *scp)
   scp->esp_at_signal = _esp;
 #else
   _rip = ((unsigned long)_cs << 32) | _eip;
-  loadsegments(scp);
+  dpmi_iret_setup(scp);
 #endif
 
   loadfpstate(*scp->fpstate);
@@ -579,13 +592,21 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
 
 static int SystemSelector(unsigned short selector)
 {
+  unsigned short sel_no_rpl = selector & 0xfffc;
+  unsigned short cs_no_rpl = getsegment(cs) & 0xfffc;
   if (
-       (((selector) & 0xfffc) == (dpmi_sel16 & 0xfffc)) ||
-       (((selector) & 0xfffc) == (dpmi_sel32 & 0xfffc)) ||
-       (((selector) & 0xfffc) == (getsegment(cs) & 0xfffc)) ||
-       (((selector) & 0xfffc) == (getsegment(ds) & 0xfffc)) ||
-       (((selector) & 0xfffc) == (getsegment(fs) & 0xfffc)) ||
-       (((selector) & 0xfffc) == (getsegment(gs) & 0xfffc)) ||
+       (sel_no_rpl == (dpmi_sel16 & 0xfffc)) ||
+       (sel_no_rpl == (dpmi_sel32 & 0xfffc)) ||
+       (sel_no_rpl == cs_no_rpl) ||
+#ifdef __x86_64__
+       /* fixed GDT layout specified for SYSCALL */
+       (sel_no_rpl == cs_no_rpl - 8) ||
+       (sel_no_rpl == cs_no_rpl - 16) ||
+#else
+       (sel_no_rpl == (getsegment(ds) & 0xfffc)) ||
+#endif
+       (sel_no_rpl == (getsegment(fs) & 0xfffc)) ||
+       (sel_no_rpl == (getsegment(gs) & 0xfffc)) ||
        (Segments[selector >> 3].used == 0xff)
      )
     return 1;

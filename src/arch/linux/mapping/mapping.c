@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/syscall.h>
 
 #ifndef __x86_64__
 #undef MAP_32BIT

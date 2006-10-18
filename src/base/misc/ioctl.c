@@ -42,6 +42,7 @@
 #endif
 
 #include "emu.h"
+#include "vm86plus.h"
 
 #include "bios.h"
 #include "termio.h"

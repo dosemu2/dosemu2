@@ -834,7 +834,7 @@ static void floating_point(int e1)
 /*------------------------------------------------------------------------*/
 /* Main table driver                                                      */
 
-#define INSTRUCTION_SIZE (int)getbyte_mac - (int)startPtr
+#define INSTRUCTION_SIZE (getbyte_mac - startPtr)
 
 static void percent(char type, char subtype)
 {

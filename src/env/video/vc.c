@@ -66,6 +66,7 @@
 #include "mapping.h"
 #include "timers.h"
 #include "vgaemu.h"
+#include "dpmi.h"
 
 static void set_dos_video (void);
 
@@ -149,8 +150,7 @@ int dos_has_vt = 1;
 static void
 acquire_vt0 (struct sigcontext_struct *scp)
 {
-  savesegments(scp);
-  restore_eflags_fs_gs();
+  init_handler(scp);
 
   dos_has_vt = 1;
 
@@ -166,7 +166,7 @@ acquire_vt0 (struct sigcontext_struct *scp)
   allow_switch ();
   SIGNAL_save (SIGACQUIRE_call);
   scr_state.current = 1;
-  loadsegments(scp);
+  dpmi_iret_setup(scp);
 }
 
 static void
@@ -282,11 +282,12 @@ static void wait_for_active_vc(void)
 static inline void
 release_vt0 (struct sigcontext_struct *scp)
 {
-  restore_eflags_fs_gs();
+  init_handler(scp);
 
   dos_has_vt = 0;
 
   SIGNAL_save (SIGRELEASE_call);
+  dpmi_iret_setup(scp);
 }
 
 #ifdef __x86_64__

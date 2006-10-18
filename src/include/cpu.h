@@ -145,20 +145,7 @@ typedef struct {
 #define READ_FLAGS()        LWORD(eflags)
 #define READ_FLAGSE()        REG(eflags)
 
- /*
-  * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
-  * forever, we must restore the eflags.
-  * Also restore %fs and %gs for compatibility with NPTL.
-  */
 extern struct _fpstate vm86_fpu_state;
-void restore_eflags_fs_gs(void);
-#ifdef __x86_64__
-void loadsegments(const struct sigcontext_struct *scp);
-void savesegments(struct sigcontext_struct *scp);
-#else
-#define loadsegments(scp)
-#define savesegments(scp)
-#endif
 
 /*
  * Boy are these ugly, but we need to do the correct 16-bit arithmetic.

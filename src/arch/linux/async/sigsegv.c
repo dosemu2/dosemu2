@@ -366,8 +366,7 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     _exit(255);
   }
 
-  savesegments(scp);
-  restore_eflags_fs_gs();
+  init_handler(scp);
 
   if (kernel_version_code < 0x20600+14 && kernel_version_code >= 0x20500) {
     sigset_t set;

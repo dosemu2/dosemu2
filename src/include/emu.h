@@ -23,7 +23,6 @@
 #include "extern.h"
 #include "machcompat.h"
 #include "cpu.h"
-#include "vm86plus.h"
 #include "priv.h"
 #include "mouse.h"
 
@@ -407,6 +406,7 @@ extern void addset_signals_that_queue(sigset_t *x);
 extern void newsetqsig(int sig, void *handler);
 extern void setsig(int sig, void *handler);
 extern void newsetsig(int sig, void *handler);
+extern void init_handler(struct sigcontext_struct *scp);
 
 /* 
  * DANG_BEGIN_REMARK

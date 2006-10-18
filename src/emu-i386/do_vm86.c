@@ -37,6 +37,7 @@
 #endif
 
 #include "emu.h"
+#include "vm86plus.h"
 #include "bios.h"
 #include "mouse.h"
 #include "serial.h"
@@ -354,9 +355,6 @@ run_vm86(void)
        emulator itself: savefpstate (fsave) also resets the current FPU
        state which is good enough for calling FPU-using routines.
     */
-
-    /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
-    restore_eflags_fs_gs();
 
 #if 0
     /* This will protect us from Mr.Norton's bugs */

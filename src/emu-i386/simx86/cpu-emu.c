@@ -40,6 +40,7 @@
 #include <setjmp.h>
 #include <sys/time.h>
 #include "emu.h"
+#include "vm86plus.h"
 #include "timers.h"
 #include "pic.h"
 #include "cpu-emu.h"
@@ -1082,7 +1083,7 @@ int e_vm86(void)
    ) {
 	s_munprotect(0);
 	InvalidateSegs();
-	return TRUE_VM86(&vm86s);
+	return true_vm86(&vm86s);
   }
 #endif
   if (iniflag==0) enter_cpu_emu();

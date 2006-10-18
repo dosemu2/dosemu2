@@ -8,46 +8,57 @@
 #define _LINUX_VM86PLUS_H
 
 #ifdef __linux__
-#include "config.h"
+#include "emu.h"
 #include <Asm/vm86.h>
+#include <unistd.h>
 #include <sys/syscall.h>
 #endif /* __linux__ */
 
 #ifdef X86_EMULATOR
 int e_vm86(void);
 
-#define E_VM86(x) ({ \
-    (x)->vm86plus.force_return_for_pic = 0; \
-    e_vm86(); })
+static inline int emu_vm86(struct vm86plus_struct *x)
+{
+    x->vm86plus.force_return_for_pic = 0;
+    return e_vm86();
+}
 #endif
 
+#ifdef __i386__
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
 
-  #undef vm86
-  #define vm86(x) vm86_plus(VM86_ENTER, (int) /* struct vm86_struct* */(x))
-  #define _DO_VM86__(x) ({ \
-    (x)->vm86plus.force_return_for_pic = 0; \
-    vm86((struct vm86_struct *)(x)); })
- #ifdef X86_EMULATOR
-  #ifdef __x86_64__
-   #define _DO_VM86_(x)	E_VM86(x)
-  #else
-   #define _DO_VM86_(x) ( \
-    config.cpuemu? E_VM86(x) : _DO_VM86__(x) )
-   #define TRUE_VM86(x)	_DO_VM86__(x)
-  #endif
- #else
-  #define _DO_VM86_(x)	_DO_VM86__(x)
- #endif
-   #ifdef USE_MHPDBG
-    #if 1
-      #define DO_VM86(x) _DO_VM86_(x)
-    #else
-      /* ...hmm, this one seems not to work properly (Hans) */
-      #define DO_VM86(x) (WRITE_FLAGS((READ_FLAGS() & ~TF) | mhpdbg.flags), _DO_VM86_(x))
-    #endif
-  #else
-    #define DO_VM86(x) _DO_VM86_(x)
-  #endif
+static inline int true_vm86(struct vm86plus_struct *x)
+{
+    int ret;
+    unsigned short fs = getsegment(fs), gs = getsegment(gs);
+
+    x->vm86plus.force_return_for_pic = 0;
+    ret = vm86_plus(VM86_ENTER, x);
+    /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
+    loadregister(fs, fs);
+    loadregister(gs, gs);
+    return ret;
+}
+#endif
+
+static inline int do_vm86(struct vm86plus_struct *x)
+{
+#ifdef __i386__
+#ifdef X86_EMULATOR
+    if (config.cpuemu)
+	return emu_vm86(x);
+#endif
+    return true_vm86(x);
+#else
+    return emu_vm86(x);
+#endif
+}
+
+#if defined(USE_MHPDBG) && 0
+/* ...hmm, this one seems not to work properly (Hans) */
+  #define DO_VM86(x) (WRITE_FLAGS((READ_FLAGS() & ~TF) | mhpdbg.flags), do_vm86(x))
+#else
+  #define DO_VM86(x) do_vm86(x)
+#endif
 
 #endif

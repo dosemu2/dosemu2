@@ -93,6 +93,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "debug.h"
 
 #include "emu.h"
+#include "vm86plus.h"
 
 #include "bios.h"
 #include "termio.h"

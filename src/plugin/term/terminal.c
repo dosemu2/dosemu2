@@ -324,7 +324,7 @@ static int term_change_config(unsigned item, void *buf)
 
 static void sigwinch(int sig)
 {
-  restore_eflags_fs_gs();
+  init_handler(NULL);
   get_screen_size();
 }
 

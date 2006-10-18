@@ -15,8 +15,10 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/syscall.h>
 
 #include "emu.h"
+#include "vm86plus.h"
 #include "bios.h"
 #include "mouse.h"
 #include "video.h"
@@ -54,6 +56,11 @@ struct  SIGNAL_queue {
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 /* set if sigaltstack(2) is available */
 static int have_working_sigaltstack;
+
+static struct {
+  unsigned long eflags;
+  unsigned short fs, gs;
+} eflags_fs_gs;
 
  /* DANG_BEGIN_REMARK
   * We assume system call restarting... under linux 0.99pl8 and earlier,
@@ -223,12 +230,63 @@ void newsetsig(int sig, void *fun)
 	dosemu_sigaction_wrapper(sig, fun, flags);
 }
 
+/* init_handler puts the handler in a sane state that glibc
+   expects. That means restoring fs and gs for vm86 (necessary for
+   2.4 kernels) and fs, gs and eflags for DPMI. */
+void init_handler(struct sigcontext_struct *scp)
+{
+  /*
+   * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
+   * forever, we must restore the eflags.
+   */
+  loadflags(eflags_fs_gs.eflags);
+
+#ifdef __x86_64__
+  /* ds,es, and ss are ignored in 64-bit mode and not present or
+     saved in the sigcontext, so we need to do it ourselves
+     (using the 3 high words of the trapno field).
+     fs and gs are set to 0 in the sigcontext, so we also need
+     to save those ourselves */
+  if (scp) {
+    _ds = getsegment(ds);
+    _es = getsegment(es);
+    _ss = getsegment(ss);
+    _fs = getsegment(fs);
+    _gs = getsegment(gs);
+  }
+#endif
+
+  if (in_vm86) {
+#ifdef __i386__
+#ifdef X86_EMULATOR
+    if (!config.cpuemu)
+#endif
+      {
+	loadregister(fs, eflags_fs_gs.fs);
+	loadregister(gs, eflags_fs_gs.gs);
+      }
+#endif
+    return;
+  }
+
+  if (scp && _cs == getsegment(cs)) return;
+
+  /* else interrupting DPMI code with an LDT %cs*/
+
+  /* restore %fs and %gs for compatibility with NPTL.
+     check to avoid clobbering 64-bit base of fs/gs */
+  if (getsegment(fs) != eflags_fs_gs.fs)
+    loadregister(fs, eflags_fs_gs.fs);
+  if (getsegment(gs) != eflags_fs_gs.gs)
+    loadregister(gs, eflags_fs_gs.gs);
+}
+
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
 static void cleanup_child(void)
 {
   int status;
-  restore_eflags_fs_gs();
+  init_handler(NULL);
   if (portserver_pid &&
       waitpid(portserver_pid, &status, WNOHANG) > 0 &&
       WIFSIGNALED(status)) {
@@ -239,7 +297,7 @@ static void cleanup_child(void)
 
 static void leavedos_signal(int sig)
 {
-  restore_eflags_fs_gs();
+  init_handler(NULL);
   leavedos(sig);
 }
 
@@ -333,6 +391,12 @@ signal_init(void)
       have_working_sigaltstack = 1;
   }
 #endif
+
+  /* initialize user data & code selector values (used by DPMI code) */
+  /* And save %fs, %gs for NPTL */
+  eflags_fs_gs.fs = getsegment(fs);
+  eflags_fs_gs.gs = getsegment(gs);
+  eflags_fs_gs.eflags = getflags();
 
   /* init signal handlers - these are the defined signals:
    ---------------------------------------------
@@ -682,12 +746,11 @@ static void SIGIO_call(void){
 #ifdef __linux__
 static void sigio0(struct sigcontext_struct *scp)
 {
-  savesegments(scp);
-  restore_eflags_fs_gs();
+  init_handler(scp);
   SIGNAL_save(SIGIO_call);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
-  loadsegments(scp);
+  dpmi_iret_setup(scp);
 }
 
 #ifdef __x86_64__
@@ -707,14 +770,13 @@ static void sigio(int sig, struct sigcontext_struct context)
 #ifdef __linux__
 static void sigalrm0(struct sigcontext_struct *scp)
 {
-  savesegments(scp);
-  restore_eflags_fs_gs();
+  init_handler(scp);
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call);
     if (in_dpmi && !in_vm86)
       dpmi_sigio(scp);
   }
-  loadsegments(scp);
+  dpmi_iret_setup(scp);
 }
 
 #ifdef __x86_64__
@@ -734,7 +796,7 @@ static void sigalrm(int sig, struct sigcontext_struct context)
 
 static void sigquit(int sig)
 {
-  restore_eflags_fs_gs();
+  init_handler(NULL);
   in_vm86 = 0;
 
   error("sigquit called\n");

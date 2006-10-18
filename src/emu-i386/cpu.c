@@ -30,6 +30,7 @@
 #include <errno.h>
 #ifdef __x86_64__
 #include <sys/mman.h>
+#include <sys/syscall.h>
 #include "Linux/mman.h"
 #endif
 
@@ -103,13 +104,6 @@ unsigned long TRs[2] =
 #endif
 
 struct _fpstate vm86_fpu_state;
-static struct {
-  unsigned long eflags;
-  unsigned short fs, gs;
-#ifdef __x86_64__
-  unsigned short ds, es, ss;
-#endif
-} eflags_fs_gs;
 
 /* 
  * DANG_BEGIN_FUNCTION cpu_trap_0f
@@ -301,18 +295,10 @@ void cpu_setup(void)
 
   cpu_reset();
 
-  /* initialize user data & code selector values (used by DPMI code) */
-  /* And save %fs, %gs for NPTL */
   tls_setup();
-  eflags_fs_gs.fs = getsegment(fs);
-  eflags_fs_gs.gs = getsegment(gs);
-  eflags_fs_gs.eflags = getflags();
   savefpstate(vm86_fpu_state);
 #ifdef __x86_64__
   stk_ptr = getregister(rsp);
-  eflags_fs_gs.ds = getsegment(ds);
-  eflags_fs_gs.es = getsegment(es);
-  eflags_fs_gs.ss = getsegment(ss);
 #else
   stk_ptr = getregister(esp);
 #endif
@@ -337,43 +323,6 @@ void cpu_setup(void)
   }
 #endif
 }
-
-void restore_eflags_fs_gs(void)
-{
-  loadflags(eflags_fs_gs.eflags);
-  loadregister(fs, eflags_fs_gs.fs);
-  loadregister(gs, eflags_fs_gs.gs);
-#ifdef __x86_64__
-  loadregister(ds, eflags_fs_gs.ds);
-  loadregister(es, eflags_fs_gs.es);
-  loadregister(ss, eflags_fs_gs.ss);
-#endif
-}
-
-#ifdef __x86_64__
-/* ds,es, and ss are ignored in 64-bit mode and not present or
-   saved in the sigcontext, so we need to do it ourselves
-   (using the 3 high words of the trapno field).
-   fs and gs are set to 0 in the sigcontext, so we also need
-   to save those ourselves */
-void savesegments(struct sigcontext_struct *scp)
-{
-  _ds = getsegment(ds);
-  _es = getsegment(es);
-  _ss = getsegment(ss);
-  _fs = getsegment(fs);
-  _gs = getsegment(gs);
-}
-
-void loadsegments(const struct sigcontext_struct *scp)
-{
-  loadregister(ds, _ds);
-  loadregister(es, _es);
-  loadregister(ss, _ss);
-  loadregister(fs, _fs);
-  loadregister(gs, _gs);
-}
-#endif
 
 int
 do_soft_int(int intno)
