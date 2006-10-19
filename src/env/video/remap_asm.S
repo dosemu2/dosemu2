@@ -1116,8 +1116,8 @@ pent8p_all_90:
 
 		.align 2,0x90
 
-#ifdef __ELF__
-.section .note.GNU-stack,"",%progbits
 #endif
 
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
 #endif
