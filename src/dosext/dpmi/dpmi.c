@@ -2884,11 +2884,11 @@ void dpmi_setup(void)
 	  munmap(iret_frame, PAGE_SIZE);
 	}
       }
+    out:
       if (iret_frame != addr) {
 	error("Can't find DPMI iret page, leaving\n");
 	leavedos(0x24);
       }
-    out:
     }
 #endif
 
