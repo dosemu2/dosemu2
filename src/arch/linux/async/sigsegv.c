@@ -209,6 +209,7 @@ sgleave:
     /* At first let's find out where we came from */
     if (_cs==getsegment(cs)) {
       /* Fault in dosemu code */
+#ifdef __i386__
       /* Now see if it is HLT */
       if (indirect_dpmi_switch(scp)) {
 	/* Well, must come from dpmi_control() */
@@ -218,7 +219,8 @@ sgleave:
          */
 	return 0;
       }
-      else { /* No, not HLT, too bad :( */
+#endif
+      { /* No, not HLT, too bad :( */
 	error("Fault in dosemu code, in_dpmi=%i\n", in_dpmi);
         /* TODO - we can start gdb here */
         /* start_gdb() */
@@ -388,24 +390,18 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
-  fault_cnt--;
   if(retcode)
     _eax = retcode;
+  dpmi_iret_setup(scp);
+  fault_cnt--;
 }
 
 #ifdef __linux__
 #ifdef __x86_64__
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp = (struct sigcontext_struct *)
-    &((ucontext_t *)uc)->uc_mcontext;
-  dosemu_fault0(signal, scp);
-  if (_cs != getsegment(cs)) {
-    /* we have to return to the main DOSEMU code: simply falling
-       out of the signal handler (calling sigreturn) destroys %ss. */
-    dpmi_return(scp);
-    _eax = -2;
-  }
+  dosemu_fault0(signal, (struct sigcontext_struct *)
+		&((ucontext_t *)uc)->uc_mcontext);
 }
 #else
 void dosemu_fault(int signal, struct sigcontext_struct context)

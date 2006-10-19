@@ -8,12 +8,12 @@
 
 #ifdef __x86_64__
 extern int		DPMI_direct_transfer(void);
+extern void		DPMI_iret(void);
 #else
 extern unsigned char	DPMI_direct_transfer[];
+extern int		DPMI_indirect_transfer(void);
 #endif
 extern unsigned char	DPMI_direct_transfer_end[];
-
-extern int		DPMI_indirect_transfer(void);
 
 extern unsigned char	DPMI_sel_code_start[];
 

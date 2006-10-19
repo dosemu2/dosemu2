@@ -750,7 +750,6 @@ static void sigio0(struct sigcontext_struct *scp)
   SIGNAL_save(SIGIO_call);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
-  dpmi_iret_setup(scp);
 }
 
 #ifdef __x86_64__
@@ -776,7 +775,6 @@ static void sigalrm0(struct sigcontext_struct *scp)
     if (in_dpmi && !in_vm86)
       dpmi_sigio(scp);
   }
-  dpmi_iret_setup(scp);
 }
 
 #ifdef __x86_64__

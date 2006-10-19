@@ -23,17 +23,13 @@ DPMI_direct_transfer:
 	pop	%rdx
 	pop	%rax
 	pop	%rcx
-	pop	%r8		/* becomes rsp */
-	pop	%r9		/* becomes cs:eip */
-	popf
-	pushf
-	push	%r9		/* push back cs:eip for ljmp */
-	xchg	%rsp,%r8
-	/* loading ss just before the ljmp switches off interrupts
-	   for one instruction, so SIGALRM won't destroy the DPMI %ss
-	   (thinking it interrupted emulator code) */
-	movw	4*8+6(%r8),%ss	/* high word of trapno contains ss */
-	ljmp	*0(%r8)		/* jmp to cs:eip */
+	pop	%rsp		/* => iret_frame */
+
+	.globl DPMI_iret
+	.type DPMI_iret,@function
+DPMI_iret:	  
+	iretl
+
 	.code32
 #else
 	movl	%edx,%esp	/* esp=scp */
@@ -48,12 +44,12 @@ DPMI_direct_transfer:
 	ljmp	*%cs:0
 	.globl DPMI_direct_transfer_end
 DPMI_direct_transfer_end:
-#endif
 
 	.globl DPMI_indirect_transfer
 	.type DPMI_indirect_transfer,@function
 DPMI_indirect_transfer:
 	hlt
+#endif
 
 	.globl DPMI_sel_code_start
 DPMI_sel_code_start:

@@ -110,6 +110,9 @@ static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
 static unsigned long *emu_stack_ptr;
+#ifdef __x86_64__
+static unsigned int *iret_frame;
+#endif
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
@@ -325,12 +328,33 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
 #ifdef __x86_64__
 void dpmi_iret_setup(struct sigcontext_struct *scp)
 {
-  if (_cs != getsegment(cs)) {
-    loadregister(ds, _ds);
-    loadregister(es, _es);
-    loadregister(fs, _fs);
-    loadregister(gs, _gs);
-  }
+  if (_cs == getsegment(cs)) return;
+
+  loadregister(ds, _ds);
+  loadregister(es, _es);
+  loadregister(fs, _fs);
+  loadregister(gs, _gs);
+
+  /* set up a frame to get back to DPMI via iret. The kernel does not save
+     %ss, and the SYSCALL instruction in sigreturn() destroys it.
+
+     IRET pops off everything in 64-bit mode even if the privilege
+     does not change which is nice, but clobbers the high 48 bits
+     of rsp if the DPMI client uses a 16-bit stack which is not so
+     nice (see EMUfailure.txt). Setting %rsp to 0x100000000 so that
+     bits 16-31 are zero works around this problem, as DPMI code
+     can't see bits 32-63 anyway.
+ */
+
+  iret_frame[0] = _eip;
+  iret_frame[1] = _cs;
+  iret_frame[2] = _eflags;
+  iret_frame[3] = _esp;
+  iret_frame[4] = _ss;
+  _eflags &= ~TF;
+  _rip = (unsigned long)DPMI_iret;
+  _rsp = (unsigned long)iret_frame;
+  _cs = getsegment(cs); 
 }
 #endif
 
@@ -365,7 +389,7 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
     : "r"(xfr), "1"(scp)
     : "cx", "si", "di", "cc", "memory"
 #ifdef __x86_64__
-       ,"r8", "r9"
+       ,"r8"
 #endif
   );
   return ret;
@@ -413,7 +437,6 @@ static int direct_dpmi_switch(struct sigcontext_struct *scp)
   dpmi_switch_jmp->selector = _cs;
   scp->esp_at_signal = _esp;
 #else
-  _rip = ((unsigned long)_cs << 32) | _eip;
   dpmi_iret_setup(scp);
 #endif
 
@@ -520,7 +543,10 @@ static int dpmi_control(void)
       leavedos(36);
     }
     if (dpmi_mhp_TF) _eflags |= TF;
-    if (!(_eflags & TF)) {
+#ifdef __i386__
+    if (!(_eflags & TF))
+#endif
+    {
 	if (debug_level('M')>6) {
 	  D_printf("DPMI SWITCH to 0x%x:0x%08x (0x%08lx), Stack 0x%x:0x%08x (0x%08lx) flags=%#lx\n",
 	    _cs, _eip, (long)SEL_ADR(_cs,_eip), _ss, _esp, (long)SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
@@ -528,8 +554,10 @@ static int dpmi_control(void)
 	return direct_dpmi_switch(scp);
     }
 #endif
-    /* Note: we can't set TF with our speedup code */
+#ifdef __i386__
+    /* Note: for i386 we can't set TF with our speedup code */
     return dpmi_transfer(DPMI_indirect_transfer, scp);
+#endif
 }
 
 void dpmi_get_entry_point(void)
@@ -1185,6 +1213,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
   scp->fpstate = NULL;
 }
 
+#ifdef __i386__
 int indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
     unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _rip);
@@ -1193,6 +1222,7 @@ int indirect_dpmi_switch(struct sigcontext_struct *scp)
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
 }
+#endif
 
 static unsigned short *enter_lpms(struct sigcontext_struct *scp)
 {
@@ -2793,16 +2823,12 @@ void run_pm_dos_int(int i)
 
 void run_dpmi(void)
 {
-    int retcode;
-    do {
-      retcode = (
+    int retcode = (
 #ifdef X86_EMULATOR
 	config.cpuemu>3?
 	e_dpmi(&DPMI_CLIENT.stack_frame) :
 #endif
 	dpmi_control());
-    } while (retcode == -2);
-    /* return-to-dpmi faults return with -2 for x86_64 */
 #ifdef USE_MHPDBG
     if (retcode > 0 && mhpdbg.active) {
       if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
@@ -2842,6 +2868,28 @@ void dpmi_setup(void)
     direct_dpmi_transfer_p = (direct_dpmi_transfer_t)dpmi_xfr_buffer;
     mprotect(dpmi_xfr_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
 #endif
+#else
+    {
+      unsigned int i, j;
+      void *addr;
+      /* search for page with bits 16-31 clear within first 47 bits
+	 of address space */
+      for (i = 1; i < 0x8000; i++) {
+	for (j = 0; j < 0x10000; j += PAGE_SIZE) {
+	  addr = (void *)(i*0x100000000UL + j);
+	  iret_frame = mmap_mapping(MAPPING_SCRATCH, addr, PAGE_SIZE,
+				    PROT_READ | PROT_WRITE, 0);
+	  if (iret_frame == addr)
+	    goto out;
+	  munmap(iret_frame, PAGE_SIZE);
+	}
+      }
+      if (iret_frame != addr) {
+	error("Can't find DPMI iret page, leaving\n");
+	leavedos(0x24);
+      }
+    out:
+    }
 #endif
 
     ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
