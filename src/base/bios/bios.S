@@ -293,7 +293,7 @@ CISH(LFN_string):
 	/* call far 0xc000:3  or call far 0xe000:3 */
 	/* More general than just c000 or e000 ??? */	
 	pushw	%ds
-	lcall	INDIRECT_PTR(%cs:CISH(bios_f000_int10ptr))
+	lcall	INDIRECT_PTR(%cs:CISH(bios_f000_int10ptr)-bios_f000)
 	popw	%ds
 	sti
 	jmp	video_init_done
@@ -310,7 +310,7 @@ video_init_done:
 
 	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOSHELPER_INT
-	movb	%cs:CISH(bios_f000_bootdrive),%dl
+	movb	%cs:CISH(bios_f000_bootdrive)-bios_f000,%dl
 
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
 
@@ -409,7 +409,7 @@ ipx_handler:
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
 /* ======================= Addr = F800:6330 (FE330) */
 WINT10:
-	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
+	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)-bios_f000
 	je	L10
 	or	%ah,%ah
 	jz	L9	/* normal mode set */
@@ -448,7 +448,7 @@ L9a:
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
-	ljmp	INDIRECT_PTR(%cs:CISH(bios_f000_int10_old-0x8000))
+	ljmp	INDIRECT_PTR(%cs:CISH(bios_f000_int10_old-0x8000-bios_f000))
 
 #ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
@@ -832,7 +832,7 @@ CISH(PKTDRV_driver_name):
         pushw	%si
         movw    %cs, %si
         movw	%si, %ds
-        movw	$LFN_string, %si
+        movw	$LFN_string-bios_f000, %si
 	cmpb	$0x6c, %ah
         je	do_6c
         movw	%si, %dx
@@ -864,8 +864,8 @@ after_int21:
 	.globl	CISH(DBGload)
 CISH(DBGload):
 	cli	/* first we set up the users stack */
-	movw	%cs:DBGload_SSSP+2,%ss
-	movw	%cs:DBGload_SSSP,%sp
+	movw	%cs:DBGload_SSSP+2-bios_f000,%ss
+	movw	%cs:DBGload_SSSP-bios_f000,%sp
 	mov	$0x62,%ah	/* we must get the PSP of the loaded program */
 	int	$0x21
         movw	%bx,%es
@@ -878,7 +878,7 @@ CISH(DBGload):
 	movw    %ax,%di
 	movw    %ax,%bp
 	sti
-	ljmp	INDIRECT_PTR(%cs:CISH(DBGload_CSIP))
+	ljmp	INDIRECT_PTR(%cs:CISH(DBGload_CSIP)-bios_f000)
 				/* and give control to the program */
 
 	.globl  CISH(bios_f000_endpart1)
@@ -980,3 +980,7 @@ CISH(INT08_dummy_end):
 CISH(bios_f000_end):
 
 /*--------------------------------------------------------------------------*/
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif

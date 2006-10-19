@@ -89,3 +89,6 @@ vbpi_set_palette:
 
 vgaemu_bios_pm_interface_end:
 
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif

@@ -203,3 +203,7 @@ DPMI_VXD_end:
 
 	.globl DPMI_sel_code_end
 DPMI_sel_code_end:
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif

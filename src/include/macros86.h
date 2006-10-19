@@ -21,7 +21,7 @@
         popw %ds
         pushf
         pushw %cs
-        pushw $\rtnlabel
+        pushw $\rtnlabel-bios_f000
         pushw (4*\n)+2
         pushw (4*\n)
         lret
