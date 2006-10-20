@@ -34,6 +34,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include "bootsect.h"
+
 
 /* These can be changed -- at least in theory. In practise, it doesn't
  * seem to work very well (I don't know why). 
@@ -261,9 +263,6 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
   int n, m;
-  char boot_sect[] = {
-  #include "bootsect.h"
-  };
   int kbytes = -1;
   outfile = stdout;
 
@@ -423,7 +422,7 @@ int main(int argc, char *argv[])
     }
   } else {
     clear_buffer();
-    memcpy(buffer, boot_sect, sizeof(boot_sect));
+    memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
   }
   put_word(&buffer[11], BYTES_PER_SECTOR);
   buffer[13] = sectors_per_cluster;

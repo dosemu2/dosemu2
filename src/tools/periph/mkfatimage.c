@@ -33,6 +33,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+#include "bootsect.h"
 
 
 /* These can be changed -- at least in theory. In practise, it doesn't
@@ -220,9 +221,6 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
   int n, m;
-  char boot_sect[] = {
-  #include "bootsect.h"
-  };
   
   /* Parse command line. */
   if ((argc <= 1) && isatty(STDOUT_FILENO))
@@ -290,7 +288,7 @@ int main(int argc, char *argv[])
 
   /* Write partition boot sector. */
   clear_buffer();
-  memcpy(buffer, boot_sect, sizeof(boot_sect));
+  memcpy(buffer, boot_sect, boot_sect_end - boot_sect);
 
   put_word(&buffer[11], BYTES_PER_SECTOR);
   buffer[13] = SECTORS_PER_CLUSTER;

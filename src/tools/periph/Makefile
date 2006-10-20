@@ -16,33 +16,21 @@ CFILES=hdinfo.c mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
 SFILES=bootsect.S
 SRC=$(CFILES) $(SFILES)
 OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck 
-OBJ=$(OBJ1) bootsect $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
+OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
 SCRIPT=getrom
 
 CPPFLAGS += -I.
 
 all: $(OBJ)
 
-mkfatimage16.o mkfatimage.o: %.o: bootsect.h
+$(BINPATH)/bin/mkfatimage: mkfatimage.o bootsect.o
+	$(LD) $^ -o $@
 
-$(BINPATH)/bin/mkfatimage: mkfatimage.o
-	$(LD) $< -o $@
-
-$(BINPATH)/bin/mkfatimage16: mkfatimage16.o
-	$(LD) $< -o $@
+$(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o
+	$(LD) $^ -o $@
 
 $(OBJ1): %: %.o
 	$(LD) $< -o $@
-
-bootsect.h:	bootsect.S
-	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,--oformat,binary -nostdlib -s -o $@.tmp $< > $(<F).out
-	hexdump -v -e '"\n" 8/1 " 0x%02x,"' $@.tmp | sed -e 's/ 0x  ,//g' >$@.tmp2
-	echo "XXX" >>$@.tmp2
-	sed -e 's/,XXX//' <$@.tmp2 >$@
-	rm -f $@.tmp $@.tmp2
-
-bootsect: bootsect.S
-	$(LD) -traditional -nostdlib -Wl,-Ttext,0,-e,_start16,--oformat,binary -s -o $@ $< # -Wa,-a > bootsect.lst
 
 %.com: %.S
 	$(LD) -traditional -Wa,-a -Wl,-Ttext,100,--oformat,binary -nostdlib -s -o $@ $< > $<.out
@@ -57,7 +45,7 @@ install:
 
 clean::
 	rm -f $(OBJ) *.o mkfatimage mkfatimage16
-	rm -f *.out bootsect.h
+	rm -f *.out
 
 realclean:: clean
 
