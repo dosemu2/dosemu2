@@ -1119,11 +1119,6 @@ void fdkernel_boot_mimic(void)
  */
 void build_boot_blk(fatfs_t *f)
 {
-  /* boot block from "fatfs_boot.asm" */
-  static unsigned char boot_prog[] = {
-    #include "fatfs_boot.h"
-  };
-
   /*
    * Make sure this messages are not too long; they should not extend
    * beyond 0x7ded (incl. final '\0').
@@ -1150,12 +1145,12 @@ void build_boot_blk(fatfs_t *f)
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
   b[0x01] = 0x3e;
   b[0x02] = 0x90;
-  memcpy(b + 0x40, boot_prog, sizeof boot_prog);
-  strcpy(b + 0x40 + sizeof boot_prog, msg);
+  memcpy(b + 0x40, boot_prog, boot_prog_end - boot_prog);
+  strcpy(b + 0x40 + (boot_prog_end - boot_prog), msg);
   b[0x1fe] = 0x55;
   b[0x1ff] = 0xaa;
 
-  t_o = (0x40 + sizeof boot_prog + strlen(msg) + 1 + 3) & ~3;
+  t_o = (0x40 + boot_prog_end - boot_prog + strlen(msg) + 1 + 3) & ~3;
   d0 = b + t_o;
   d1 = d0 + 0x14;
 
@@ -1163,7 +1158,7 @@ void build_boot_blk(fatfs_t *f)
   b[0x3e] = t_o;
   b[0x3f] = t_o >> 8;
 
-  t_o = 0x7c00 + 0x40 + sizeof boot_prog - 5;
+  t_o = 0x7c00 + 0x40 + (boot_prog_end - boot_prog) - 5;
 
   /* 1st root directory sector */
   r_o = f->fats * f->fat_secs + f->reserved_secs + f->hidden_secs;
@@ -1275,8 +1270,8 @@ void build_boot_blk(fatfs_t *f)
       break;
 
     default:			/* no system */
-      strcpy(b + 0x40 + sizeof boot_prog, msg1);
-      t_o = (0x40 + sizeof boot_prog + strlen(msg1) + 1 + 3) & ~3;
+      strcpy(b + 0x40 + (boot_prog_end - boot_prog), msg1);
+      t_o = (0x40 + (boot_prog_end - boot_prog) + strlen(msg1) + 1 + 3) & ~3;
       d0 = b + t_o;
 
       t_o += 0x7c00;

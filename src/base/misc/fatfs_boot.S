@@ -11,11 +11,10 @@
 
 .code16	
 .text
-	.globl	_start16
-_start16:
-# added by ld to offsets: 0x7c40.
+	.globl	boot_prog
+boot_prog:
 
-boot_ofs        = main - 0x40 
+boot_ofs        = 0x7c00
 
 _io             = 0
 _ax             = 4
@@ -69,7 +68,7 @@ main_20:
 	movw	_bp(%bp),%bp
 	lret
 main_30:
-	mov	$text,%si
+	mov	$((text - main) + 0x7c40),%si
 write_msg:
 	lodsb
 	orb	%al,%al
@@ -89,3 +88,10 @@ write_msg_20:
 # 5 magic bytes (for IO.SYS compatibility) :-))
 	.byte	4, 3, 2, 1, 13
 text:
+
+	.globl	boot_prog_end
+boot_prog_end:
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif
