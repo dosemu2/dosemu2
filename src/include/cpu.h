@@ -202,11 +202,19 @@ extern struct _fpstate vm86_fpu_state;
 		__value; \
 	})
 
+#ifdef __x86_64__
+#define loadfpstate(value) \
+	asm volatile("rex64/fxrstor  %0\n" :: "m"(value));
+
+#define savefpstate(value) \
+	asm volatile("rex64/fxsave %0\n": "=m"(value));
+#else
 #define loadfpstate(value) \
 	asm volatile("frstor  %0\n" :: "m"(value));
 
 #define savefpstate(value) \
 	asm volatile("fsave %0\n": "=m"(value));
+#endif
 
 #ifdef __linux__
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
