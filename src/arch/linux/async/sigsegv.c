@@ -382,6 +382,20 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     sigprocmask(SIG_UNBLOCK, &set, NULL);
   }
 
+#ifdef __x86_64__
+  /* see comment in signal.c, fix_fs_gs_base() */
+  if (_trapno == 0xe && getsegment(cs) == _cs) {
+    unsigned char *rip = (unsigned char *)_rip;
+    /* page fault for fs: or gs: */
+    if (*rip == 0x64 || *rip == 0x65) {
+      if (check_fix_fs_gs_base(*rip)) {
+	fault_cnt--;
+	return;
+      }
+    }
+  }
+#endif
+
   if (debug_level('g')>7)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
       signal, _trapno);

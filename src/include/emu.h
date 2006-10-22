@@ -407,6 +407,9 @@ extern void newsetqsig(int sig, void *handler);
 extern void setsig(int sig, void *handler);
 extern void newsetsig(int sig, void *handler);
 extern void init_handler(struct sigcontext_struct *scp);
+#ifdef __x86_64__
+extern int check_fix_fs_gs_base(unsigned char prefix);
+#endif
 
 /* 
  * DANG_BEGIN_REMARK

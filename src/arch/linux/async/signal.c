@@ -60,6 +60,13 @@ static int have_working_sigaltstack;
 static struct {
   unsigned long eflags;
   unsigned short fs, gs;
+#ifdef __x86_64__
+  unsigned char *fsbase, *gsbase;
+#define ARCH_SET_GS 0x1001
+#define ARCH_SET_FS 0x1002
+#define ARCH_GET_FS 0x1003
+#define ARCH_GET_GS 0x1004
+#endif
 } eflags_fs_gs;
 
  /* DANG_BEGIN_REMARK
@@ -230,6 +237,87 @@ void newsetsig(int sig, void *fun)
 	dosemu_sigaction_wrapper(sig, fun, flags);
 }
 
+#ifdef __x86_64__
+static int dosemu_arch_prctl(int code, void *addr)
+{
+  return syscall(SYS_arch_prctl, code, addr);
+}
+
+/* Check if fs or gs point to the base without always needing a syscall
+   (12 vs. 800 CPU cycles last time I measured).
+   The DPMI client code may have changed fs/gs and then restored it to
+   0, and that way the long base is gone (its base is still equal to
+   the fs/gs base used by the DPMI client; 64bit code doesn't trap
+   NULL selector references).
+   There is a very small chance that the mov from %fs:0 page faults.
+   In that case we fix it up in dosemu_fault0->check_fix_fs_gs_base.
+ */
+
+#define getfs0(byte) asm volatile ("movb %%fs:0, %0" : "=r"(byte))
+#define getgs0(byte) asm volatile ("movb %%gs:0, %0" : "=r"(byte))
+
+#define fix_fs_gs_base(seg,SEG)						\
+  static void fix_##seg##base(void)					\
+  {									\
+    unsigned char segbyte, basebyte;					\
+									\
+    /* always fix fsbase/gsbase the DPMI client changed fs or gs */	\
+    if (getsegment(seg) == eflags_fs_gs.seg) {				\
+      volatile unsigned char *base = eflags_fs_gs.seg##base;		\
+									\
+      /* if the two locations have different bytes they must be different */ \
+      get##seg##0(segbyte);						\
+      basebyte = *base;							\
+      if (segbyte == basebyte) {					\
+									\
+	/* else we must modify one to make sure it's ok */		\
+	*base = basebyte + 1;						\
+	get##seg##0(segbyte);						\
+	*base = basebyte;						\
+	if (segbyte != basebyte)					\
+	  return;							\
+      }									\
+    }									\
+    dosemu_arch_prctl(ARCH_SET_##SEG, eflags_fs_gs.fsbase);		\
+    D_printf("DPMI: Set " #seg "base in signal handler\n");		\
+  }
+
+fix_fs_gs_base(fs,FS);
+fix_fs_gs_base(gs,GS);
+
+/* this function is called from dosemu_fault0 to check if
+   fsbase/gsbase need to be fixed up, if the above asm codes
+   cause a page fault.
+ */
+int check_fix_fs_gs_base(unsigned char prefix)
+{
+  unsigned char *addr, *base;
+  int getcode, setcode;
+
+  if (prefix == 0x65) { /* gs: */
+    getcode = ARCH_GET_GS;
+    setcode = ARCH_SET_GS;
+    base = eflags_fs_gs.gsbase;
+  } else {
+    getcode = ARCH_GET_FS;
+    setcode = ARCH_SET_FS;
+    base = eflags_fs_gs.fsbase;
+  }
+
+  if (dosemu_arch_prctl(getcode, &addr) != 0)
+    return 0;
+
+  /* already fine, not fixing it up, but then the dosemu fault is fatal */
+  if (addr == base)
+    return 0;
+
+  dosemu_arch_prctl(setcode, base);
+  D_printf("DPMI: Fixed up %csbase in fault handler\n", prefix + 2);
+  return 1;
+}
+
+#endif
+
 /* init_handler puts the handler in a sane state that glibc
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
@@ -262,8 +350,10 @@ void init_handler(struct sigcontext_struct *scp)
     if (!config.cpuemu)
 #endif
       {
-	loadregister(fs, eflags_fs_gs.fs);
-	loadregister(gs, eflags_fs_gs.gs);
+	if (getsegment(fs) != eflags_fs_gs.fs)
+	  loadregister(fs, eflags_fs_gs.fs);
+	if (getsegment(gs) != eflags_fs_gs.gs)
+	  loadregister(gs, eflags_fs_gs.gs);
       }
 #endif
     return;
@@ -271,12 +361,22 @@ void init_handler(struct sigcontext_struct *scp)
 
   if (scp && _cs == getsegment(cs)) return;
 
-  /* else interrupting DPMI code with an LDT %cs*/
+  /* else interrupting DPMI code with an LDT %cs */
 
-  /* restore %fs and %gs for compatibility with NPTL.
-     check to avoid clobbering 64-bit base of fs/gs */
+  /* restore %fs and %gs for compatibility with NPTL. */
+#ifdef __x86_64__
+  if (eflags_fs_gs.fsbase)
+    fix_fsbase();
+  else
+#endif
   if (getsegment(fs) != eflags_fs_gs.fs)
     loadregister(fs, eflags_fs_gs.fs);
+
+#ifdef __x86_64__
+  if (eflags_fs_gs.gsbase)
+    fix_gsbase();
+  else
+#endif
   if (getsegment(gs) != eflags_fs_gs.gs)
     loadregister(gs, eflags_fs_gs.gs);
 }
@@ -397,6 +497,17 @@ signal_init(void)
   eflags_fs_gs.fs = getsegment(fs);
   eflags_fs_gs.gs = getsegment(gs);
   eflags_fs_gs.eflags = getflags();
+#ifdef __x86_64__
+  /* get long fs and gs bases. If they are in the first 32 bits
+     normal 386-style fs/gs switching can happen so we can ignore
+     fsbase/gsbase */
+  dosemu_arch_prctl(ARCH_GET_FS, &eflags_fs_gs.fsbase);
+  if ((unsigned long)eflags_fs_gs.fsbase <= 0xffffffff)
+    eflags_fs_gs.fsbase = 0;
+  dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
+  if ((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff)
+    eflags_fs_gs.gsbase = 0;
+#endif
 
   /* init signal handlers - these are the defined signals:
    ---------------------------------------------
