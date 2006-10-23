@@ -38,6 +38,9 @@
 #include "codegen-sim.h"
 #include <math.h>
 
+int (*Fp87_op)(int exop, int reg);
+static int Fp87_op_sim(int exop, int reg);
+
 static double WFR0, WFR1;
 static unsigned short WFRS;
 
@@ -77,6 +80,13 @@ static void _test_(void)
 void init_emu_npu (void)
 {
 	int i;
+#ifdef HOST_ARCH_X86
+	if (!config.cpusim) {
+		init_emu_npu_x86();
+		return;
+	}
+#endif
+	Fp87_op = Fp87_op_sim;
 	TheCPU.fpregs = _fparea;
 	for (i=0; i<8; i++) TheCPU.fpregs[i] = 0.0;
 	TheCPU.fpus  = 0;
@@ -104,7 +114,7 @@ static inline void fssync(void)
 }
 
 
-int Fp87_op(int exop, int reg)
+static int Fp87_op_sim(int exop, int reg)
 {
 //	42	DA 11000nnn	FCMOVB	st(0),st(n)
 //	43	DB 11000nnn	FCMOVNB	st(0),st(n)

@@ -406,6 +406,8 @@ native			RETURN(NATIVE);
 cpuemu			RETURN(CPUEMU);
 vm86			RETURN(VM86);
 full			RETURN(FULL);
+vm86sim			RETURN(VM86SIM);
+fullsim			RETURN(FULLSIM);
 
 	/* disk keywords */
 hdimage			RETURN(HDIMAGE);

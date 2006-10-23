@@ -35,12 +35,12 @@
 #include <stddef.h>
 #include "emu86.h"
 
-#ifdef HOST_ARCH_SIM
-#include "fp87-sim.c"
-#else
+#ifdef HOST_ARCH_X86
 
 #include "codegen.h"
 #include <math.h>
+
+static int Fp87_op_x86(int exop, int reg);
 
 /*
  * Tags are not completely implemented, and also all the stuff is in
@@ -130,9 +130,11 @@ static char _fparea[320];
 
 double *FPRSTT;
 
-void init_emu_npu (void)
+void init_emu_npu_x86 (void)
 {
 	int i;
+	Fp87_op = Fp87_op_x86;
+
 	/* align 64-byte FP regs on a 256-byte boundary */
 	TheCPU.fpregs = (double *)(((long)_fparea+0x100)&~0xff);
 	e_printf("FPU: register area %08lx\n",(long)TheCPU.fpregs);
@@ -149,7 +151,7 @@ void init_emu_npu (void)
 	__asm__ __volatile__ ("fninit");
 }
 
-int Fp87_op(int exop, int reg)
+static int Fp87_op_x86(int exop, int reg)
 {
 	unsigned char rcod;
 	register unsigned char *Cp = CodePtr;

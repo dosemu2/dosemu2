@@ -680,6 +680,9 @@ void FreeGenCodeBuf(void *ptr);
 void CollectStat(void);
 //
 /////////////////////////////////////////////////////////////////////////////
+#ifdef HOST_ARCH_X86
+void init_emu_npu_x86(void);
+#endif
 void init_emu_npu(void);
 
 extern unsigned long e_vga_base, e_vga_end;

@@ -121,7 +121,7 @@ static inline void datacopy(TNode *nd, TNode *ns)
   __memcpy(d,s,l);
 }
 
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 
 static TNode *avltr_probe (const long key, int *found)
 {
@@ -522,13 +522,14 @@ void avltr_delete (const long key)
   }
 }
 
-#endif	// HOST_ARCH_SIM
+#endif	// HOST_ARCH_X86
 
 /////////////////////////////////////////////////////////////////////////////
 
 static void avltr_reinit(void)
 {
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
+ if (!CONFIG_CPUSIM) {
   int i;
   TNode *G;
 
@@ -548,6 +549,7 @@ static void avltr_reinit(void)
 
   if (InstrMeta==NULL) leavedos(993);
   memset(&InstrMeta, 0, sizeof(IMeta));
+ }
 #endif
   g_printf("avltr_reinit\n");
   CurrIMeta = -1;
@@ -559,12 +561,16 @@ static void avltr_reinit(void)
 
 void avltr_destroy(void)
 {
-#ifndef HOST_ARCH_SIM
-  avltr_tree *tree = &CollectTree;
+#ifdef HOST_ARCH_X86
+  avltr_tree *tree;
 #ifdef PROFILE
   hitimer_t t0;
 #endif
 
+  if (CONFIG_CPUSIM)
+    return;
+
+  tree = &CollectTree;
   e_printf("--------------------------------------------------------------\n");
   e_printf("Destroy AVLtree with %d nodes\n",ninodes);
   e_printf("--------------------------------------------------------------\n");
@@ -623,7 +629,7 @@ quit:
 
 /////////////////////////////////////////////////////////////////////////////
 
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 #ifdef DEBUG_LINKER
 
 void CheckLinks (void)
@@ -832,9 +838,9 @@ void DumpTree (FILE *fd)
 }
 
 #endif
-#endif	// HOST_ARCH_SIM
+#endif	// HOST_ARCH_X86
 
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 
 static int TraverseAndClean(void)
 {
@@ -898,8 +904,13 @@ static int TraverseAndClean(void)
  */
 TNode *Move2Tree(void)
 {
+  if (CONFIG_CPUSIM) {
+    CurrIMeta = -1;
+    return NULL;
+  }
+#ifdef HOST_ARCH_X86
+  {
   TNode *nG = NULL;
-#ifndef HOST_ARCH_SIM
   IMeta *I0;
 #ifdef PROFILE
   hitimer_t t0 = GETTSC();
@@ -1013,16 +1024,19 @@ TNode *Move2Tree(void)
 #ifdef PROFILE
   AddTime += (GETTSC() - t0);
 #endif
-#else	// HOST_ARCH_SIM
-  CurrIMeta = -1;
-#endif	// HOST_ARCH_SIM
   return nG;
+  }
+#endif	// HOST_ARCH_X86
 }
 
 
 TNode *FindTree(long key)
 {
-#ifndef HOST_ARCH_SIM
+  if (CONFIG_CPUSIM)
+    return NULL;
+
+#ifdef HOST_ARCH_X86
+ {
   TNode *I;
   static int tccount=0;
 #ifdef PROFILE
@@ -1103,8 +1117,9 @@ endsrch:
 #ifdef PROFILE
   NodesNotFound++;
 #endif
-#endif	// HOST_ARCH_SIM
   return NULL;
+ }
+#endif	// HOST_ARCH_X86
 }
 
 
@@ -1122,7 +1137,7 @@ endsrch:
  * same 4k page.
  *
  */
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 
 static void BreakNode(TNode *G, long eip, long addr)
 {
@@ -1159,7 +1174,9 @@ static void BreakNode(TNode *G, long eip, long addr)
 int FindCodeNode (long addr)
 {
   int found = 0;
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
+ if (!CONFIG_CPUSIM)
+ {
   register TNode *G = &CollectTree.root;
 #ifdef PROFILE
   hitimer_t t0;
@@ -1189,6 +1206,7 @@ quit:
 #ifdef PROFILE
   SearchTime += (GETTSC() - t0);
 #endif
+ }
 #endif
   return found;
 }
@@ -1197,7 +1215,8 @@ quit:
 int InvalidateSingleNode (long addr, long eip)
 {
   int nnh = 0;
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
+ if (!CONFIG_CPUSIM) {
   TNode *G = &CollectTree.root;
 #ifdef PROFILE
   hitimer_t t0;
@@ -1252,7 +1271,8 @@ quit:
 #ifdef PROFILE
   CleanupTime += (GETTSC() - t0);
 #endif
-#endif	// HOST_ARCH_SIM
+ }
+#endif	// HOST_ARCH_X86
   return nnh;
 }
 
@@ -1260,7 +1280,8 @@ quit:
 int InvalidateNodePage (long addr, int len, long eip, int *codehit)
 {
   int nnh = 0;
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
+ if (!CONFIG_CPUSIM) {
   register TNode *G = &CollectTree.root;
   long al, ah;
 #ifdef PROFILE
@@ -1319,7 +1340,8 @@ quit:
 #ifdef PROFILE
   CleanupTime += (GETTSC() - t0);
 #endif
-#endif	// HOST_ARCH_SIM
+ }
+#endif	// HOST_ARCH_X86
   return nnh;
 }
 
@@ -1341,7 +1363,12 @@ void e_invalidate(char *data, int cnt)
 
 static void CleanIMeta(void)
 {
-#ifndef HOST_ARCH_SIM
+	if (CONFIG_CPUSIM) {
+		CurrIMeta = -1;
+		return;
+	}
+#ifdef HOST_ARCH_X86
+	{
 #ifdef PROFILE
 	hitimer_t t0 = GETTSC();
 #endif
@@ -1351,9 +1378,8 @@ static void CleanIMeta(void)
 #ifdef PROFILE
 	CleanupTime += (GETTSC() - t0);
 #endif
-#else	// HOST_ARCH_SIM
-	CurrIMeta = -1;
-#endif	// HOST_ARCH_SIM
+	}
+#endif	// HOST_ARCH_X86
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1361,7 +1387,8 @@ static void CleanIMeta(void)
 
 int NewIMeta(unsigned char *npc, int mode, int *rc)
 {
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
+    if (!CONFIG_CPUSIM) {
 #ifdef PROFILE
 	hitimer_t t0 = GETTSC();
 #endif
@@ -1406,13 +1433,13 @@ quit:
 	AddTime += (GETTSC() - t0);
 #endif
 	return -1;
-#else	// HOST_ARCH_SIM
+    }
+#endif // HOST_ARCH_X86
 	if (CurrIMeta==0) {		// no open code sequences
 		if (debug_level('e')>2) e_printf("============ Opening sequence at %08lx\n",(long)npc);
 	}
 	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0;
 	return CurrIMeta;
-#endif	// HOST_ARCH_SIM
 }
 
 

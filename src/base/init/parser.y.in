@@ -255,7 +255,7 @@ while (0)
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
-%token CPUEMU VM86 FULL
+%token CPUEMU VM86 FULL VM86SIM FULLSIM
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
@@ -476,7 +476,14 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			{
 #ifdef X86_EMULATOR
 			config.cpuemu = $2;
-			c_printf("CONF: CPUEMU set to %d for %ld86\n",
+			if (config.cpuemu > 4) {
+				config.cpuemu -= 2;
+#ifdef HOST_ARCH_X86
+				config.cpusim = 1;
+#endif
+			}
+			c_printf("CONF: %s CPUEMU set to %d for %ld86\n",
+				CONFIG_CPUSIM ? "simulated" : "JIT",
 				config.cpuemu, vm86s.cpu_type);
 #endif
 			}
@@ -1673,6 +1680,8 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 cpuemu		: L_OFF		{ $$ = 0; }
 		| VM86		{ $$ = 3; }
 		| FULL		{ $$ = 4; }
+		| VM86SIM	{ $$ = 5; }
+		| FULLSIM	{ $$ = 6; }
 		| STRING        { yyerror("got '%s', expected 'off', 'vm86' or 'full'", $1);
 				  free($1); }
 		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }

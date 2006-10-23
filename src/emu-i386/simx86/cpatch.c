@@ -54,7 +54,7 @@ int s_mprotect(caddr_t addr)
 	return e_mprotect(addr,0);
 }
 
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 
 static int m_mprotect(caddr_t addr)
 {
@@ -70,7 +70,8 @@ static int m_munprotect(caddr_t addr, long eip)
 {
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
 		(long)addr,eip,*((long *)(eip-5)));
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM) {
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
 	    return e_check_munprotect(addr);
@@ -79,6 +80,7 @@ static int m_munprotect(caddr_t addr, long eip)
 	e_printf("CODE %08lx hit in DATA %08lx patch\n",(long)addr,eip);
 /*	if (UnCpatch((void *)(eip-5))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
+	}
 #endif
 	return e_check_munprotect(addr);
 }
@@ -90,9 +92,11 @@ asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
 	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
 		(long)addr,(long)addr+len,(flags&EFLAGS_DF?"back":"fwd"));
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM) {
 	InvalidateNodePage((long)addr,len,0,NULL);
 	e_resetpagemarks(addr,len);
+	}
 #endif
 	e_munprotect(addr,len);
 	return 0;
@@ -456,7 +460,7 @@ int UnCpatch(unsigned char *eip)
     return 0;
 }
 
-#endif	//HOST_ARCH_SIM
+#endif	//HOST_ARCH_X86
 
 /* ======================================================================= */
 

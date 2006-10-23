@@ -104,11 +104,12 @@
 #include <string.h>
 #include "emu86.h"
 
-#ifdef HOST_ARCH_SIM
-#include "codegen-sim.c"
-#else
-
+#ifdef HOST_ARCH_X86
 #include "codegen-x86.h"
+
+static void Gen_x86(int op, int mode, ...);
+static void AddrGen_x86(int op, int mode, ...);
+static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, int ln);
 
 /* Buffer and pointers to store generated code */
 unsigned char *CodePtr = NULL;
@@ -117,19 +118,11 @@ unsigned char *GenCodeBuf = NULL;
 unsigned char *BaseGenBuf = NULL;
 int GenBufSize = 0;
 
-unsigned long e_vga_base, e_vga_end;
-
-int TrapVgaOn = 0;
-int UseLinker = USE_LINKER;
-
 hitimer_u TimeStartExec, TimeEndExec;
 
 /////////////////////////////////////////////////////////////////////////////
 
 #define	Offs_From_Arg()		(char)(va_arg(ap,int))
-
-/* WARNING - these are signed char offsets, NOT pointers! */
-char OVERR_DS=Ofs_XDS, OVERR_SS=Ofs_XSS;
 
 /* This code is appended at the end of every instruction sequence. It
  * passes back the IP of the next instruction after the sequence.
@@ -172,8 +165,12 @@ static int goodmemref(long m)
 /////////////////////////////////////////////////////////////////////////////
 
 
-void InitGen(void)
+void InitGen_x86(void)
 {
+	Gen = Gen_x86;
+	AddrGen = AddrGen_x86;
+	CloseAndExec = CloseAndExec_x86;
+	UseLinker = USE_LINKER;
 	GenCodeBuf = BaseGenBuf = NULL;
 	GenBufSize = 0;
 	InitGenCodeBuf();
@@ -2157,7 +2154,7 @@ shrot0:
  * address generator unit
  * careful - do not use eax, and NEVER change any flag!
  */
-void AddrGen(int op, int mode, ...)
+static void AddrGen_x86(int op, int mode, ...)
 {
 	va_list	ap;
 	IMeta *I;
@@ -2253,7 +2250,7 @@ void AddrGen(int op, int mode, ...)
 }
 
 
-void Gen(int op, int mode, ...)
+static void Gen_x86(int op, int mode, ...)
 {
 	int rcod=0;
 	va_list	ap;
@@ -2909,7 +2906,7 @@ void NodeUnlinker(TNode *G)
  *
  */
 
-unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
+static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, int ln)
 {
 	static unsigned long flg, ecpu;
 	static long mem_ref;

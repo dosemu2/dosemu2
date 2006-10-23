@@ -432,10 +432,8 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		}
 	}
 
-#ifdef HOST_ARCH_SIM
-  }
-  return 0;
-#else
+#ifdef HOST_ARCH_X86
+    if (!CONFIG_CPUSIM) {
 
         /* bit 0 = 1	page protect
          * bit 1 = 1	writing
@@ -498,8 +496,11 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		/* now go back and perform the faulting op */
 		return 1;
 	}
+    }
+#endif
   }
-  else if (_trapno==0x00) {
+#ifdef HOST_ARCH_X86__
+  else if (!CONFIG_CPUSIM && _trapno==0x00) {
 	if (InCompiledCode) {
 		static char SpecialTailCode[] =	// flags are already back
 		    { 0x9c,0xb8,0,0,0,0,0x5a,0xc3,0xf4 };
@@ -509,7 +510,9 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		return 1;	// restore CPU and jump to our tail code
 	}
   }
-  return TryMemRef && _trapno != 0x0d;
+  return !CONFIG_CPUSIM && TryMemRef && _trapno != 0x0d;
+#else
+  return 0;
 #endif
 
 verybad:

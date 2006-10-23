@@ -163,6 +163,7 @@ typedef struct vesamode_type_struct {
 
 #ifdef X86_EMULATOR
        boolean cpuemu;
+       boolean cpusim;
 #endif
        int CPUSpeedInMhz;
        /* for video */

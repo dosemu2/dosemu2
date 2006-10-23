@@ -54,8 +54,11 @@ extern void e_priv_iopl(int);
 #define CPUEMU_DIRECT_IO
 #endif
 
-#ifdef __x86_64__
-#define HOST_ARCH_SIM
+#ifdef __i386__
+#define HOST_ARCH_X86
+#define CONFIG_CPUSIM config.cpusim
+#else
+#define CONFIG_CPUSIM 1
 #endif
 
 /* ----------------------------------------------------------------------- */

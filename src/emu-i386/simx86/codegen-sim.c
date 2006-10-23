@@ -67,6 +67,13 @@
 
 #undef	DEBUG_MORE
 
+void (*Gen)(int op, int mode, ...);
+void (*AddrGen)(int op, int mode, ...);
+unsigned char *(*CloseAndExec)(unsigned char *PC, TNode *G, int mode, int ln);
+static void Gen_sim(int op, int mode, ...);
+static void AddrGen_sim(int op, int mode, ...);
+static unsigned char *CloseAndExec_sim(unsigned char *PC, TNode *G, int mode, int ln);
+
 unsigned long e_vga_base, e_vga_end;
 
 int TrapVgaOn = 0;
@@ -285,6 +292,15 @@ void FlagSync_All (void)
 
 void InitGen(void)
 {
+#ifdef HOST_ARCH_X86
+	if (!config.cpusim) {
+		InitGen_x86();
+		return;
+	}
+#endif
+	Gen = Gen_sim;
+	AddrGen = AddrGen_sim;
+	CloseAndExec = CloseAndExec_sim;
 	RFL.S1 = RFL.S2 = RFL.RES.d = 0;
 	RFL.valid = V_INVALID;
 	InitTrees();
@@ -294,7 +310,7 @@ void InitGen(void)
  * address generator unit
  * careful - do not use eax, and NEVER change any flag!
  */
-void AddrGen(int op, int mode, ...)
+static void AddrGen_sim(int op, int mode, ...)
 {
 	va_list	ap;
 #ifdef PROFILE
@@ -438,7 +454,7 @@ void AddrGen(int op, int mode, ...)
 }
 
 
-void Gen(int op, int mode, ...)
+static void Gen_sim(int op, int mode, ...)
 {
 	int rcod=0;
 	va_list	ap;
@@ -2541,7 +2557,7 @@ void Gen(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
+static unsigned char *CloseAndExec_sim(unsigned char *PC, TNode *G, int mode, int ln)
 {
 	if (debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");

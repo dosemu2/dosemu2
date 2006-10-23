@@ -80,17 +80,11 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
  *	from P0, abort the current instruction and resume the parsing
  *	loop at P2.
  */
-#ifdef HOST_ARCH_SIM
-#define	CODE_FLUSH()	{ unsigned char *P2 = CloseAndExec(P0, NULL, mode, __LINE__);\
-			  if (TheCPU.err) return P2;\
-			} NewNode=0
-#else
-#define	CODE_FLUSH()	if (CurrIMeta>0) {\
+#define	CODE_FLUSH() 	if (CONFIG_CPUSIM || CurrIMeta>0) {\
 			  unsigned char *P2 = CloseAndExec(P0, NULL, mode, __LINE__);\
 			  if (TheCPU.err) return P2;\
-			  if (P2 != P0) { PC=P2; continue; }\
+			  if (!CONFIG_CPUSIM && P2 != P0) { PC=P2; continue; }\
 			} NewNode=0
-#endif
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
 
@@ -191,9 +185,9 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 	/* jump address for not taken branch, usually next instruction */
 	j_nt = d_nt + LONG_CS;
 
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-	if (!UseLinker)
+	if (!UseLinker || CONFIG_CPUSIM)
 #endif
 #endif
 	    goto jgnolink;
@@ -259,9 +253,10 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 		    dbug_printf("!Forever loop!\n");
 		    leavedos(0xebfe);
 		}
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 #ifdef NOJUMPS
-		if ((((long)P2 ^ j_t) & PAGE_MASK)==0) {	// same page
+		if (!CONFIG_CPUSIM &&
+		    (((long)P2 ^ j_t) & PAGE_MASK)==0) {	// same page
 		    e_printf("** JMP: ignored\n");
 		    TheCPU.mode |= SKIPOP;
 		    goto takejmp;
@@ -305,14 +300,10 @@ jgnolink:
 	/* evaluate cond at RUNTIME after exec'ing */
 	switch(cond) {
 	case 0x00:
-#ifdef HOST_ARCH_SIM
-		FlagSync_O();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = IS_OF_SET; break;
 	case 0x01:
-#ifdef HOST_ARCH_SIM
-		FlagSync_O();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = !IS_OF_SET; break;
 	case 0x02: taken = IS_CF_SET; break;
 	case 0x03: taken = !IS_CF_SET; break;
@@ -324,35 +315,23 @@ jgnolink:
 	case 0x09: taken = !IS_SF_SET; break;
 	case 0x0a:
 		e_printf("!!! JPset\n");
-#ifdef HOST_ARCH_SIM
-		FlagSync_AP();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_AP();
 		taken = IS_PF_SET; break;
 	case 0x0b:
 		e_printf("!!! JPclr\n");
-#ifdef HOST_ARCH_SIM
-		FlagSync_AP();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_AP();
 		taken = !IS_PF_SET; break;
 	case 0x0c:
-#ifdef HOST_ARCH_SIM
-		FlagSync_O();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = IS_SF_SET ^ IS_OF_SET; break;
 	case 0x0d:
-#ifdef HOST_ARCH_SIM
-		FlagSync_O();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = !(IS_SF_SET ^ IS_OF_SET); break;
 	case 0x0e:
-#ifdef HOST_ARCH_SIM
-		FlagSync_O();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = (IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET; break;
 	case 0x0f:
-#ifdef HOST_ARCH_SIM
-		FlagSync_O();
-#endif
+		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = !(IS_SF_SET ^ IS_OF_SET) && !IS_ZF_SET; break;
 	case 0x10: taken = 1; break;
 	case 0x11: {
@@ -385,7 +364,7 @@ jgnolink:
 		    return NULL;
 		}
 		if (debug_level('e')>2) e_printf("** Jump taken to %08lx\n",(long)j_t);
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 takejmp:
 #endif
 		TheCPU.eip = d_t;
@@ -405,7 +384,7 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 	unsigned char opc;
 	unsigned int temp;
 	register int mode;
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 	TNode *G;
 #endif
 
@@ -420,7 +399,8 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 		TheCPU.mode = mode = basemode;
 
 		if (!NewNode) {
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&!defined(HOST_ARCH_SIM)
+#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
+		    if (!CONFIG_CPUSIM) {
 			/* for a sequence to be found, it must begin with
 			 * an allowable opcode. Look into table.
 			 * NOTE - this while can loop forever and stop
@@ -448,6 +428,7 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 				/* if all fails, stop infinite loops here */
 				temp--;
 			}
+		    }
 #endif
 			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
 #ifdef PROFILE
@@ -673,10 +654,9 @@ intop3b:		{ int op = ArOpsM[D_MO(opc)];
 
 /*9c*/	case PUSHF: {
 			if (V86MODE() && (IOPL<3)) {
-#ifdef HOST_ARCH_SIM
-			    FlagSync_All();
-#else
-			    CODE_FLUSH();
+			    if (CONFIG_CPUSIM) FlagSync_All();
+#ifdef HOST_ARCH_X86
+			    else CODE_FLUSH();
 #endif
 			    /* virtual-8086 monitor */
 			    temp = EFLAGS & 0xdff;
@@ -1536,9 +1516,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_vFLAGS(EFLAGS));
 			}
-#ifdef HOST_ARCH_SIM
-			RFL.valid = V_INVALID;
-#endif
+			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			} break;
 
 /*9d*/	case POPF: {
@@ -1606,9 +1584,7 @@ stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
-#ifdef HOST_ARCH_SIM
-			RFL.valid = V_INVALID;
-#endif
+			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (opc==POPF) PC++; }
 			break;
 
@@ -2283,9 +2259,7 @@ repag0:
 				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
 				    if (tmp) EFLAGS |= EFLAGS_ZF;
-#ifdef HOST_ARCH_SIM
-				    RFL.valid = V_INVALID;
-#endif
+				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				    }
 				    break;
 				case 5: { /* VERW */
@@ -2298,9 +2272,7 @@ repag0:
 				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
 				    if (tmp) EFLAGS |= EFLAGS_ZF;
-#ifdef HOST_ARCH_SIM
-				    RFL.valid = V_INVALID;
-#endif
+				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				    }
 				    break;
 				case 6: /* JMP indirect to IA64 code */
@@ -2344,9 +2316,7 @@ repag0:
 				sv = GetDWord(TheCPU.mem_ref);
 				if (!e_larlsl(mode, sv)) {
 				    EFLAGS &= ~EFLAGS_ZF;
-#ifdef HOST_ARCH_SIM
-				    RFL.valid = V_INVALID;
-#endif
+				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				}
 				else {
 				    if (opc2==0x02) {	/* LAR */
@@ -2359,9 +2329,7 @@ repag0:
 					tmp = GetSelectorByteLimit(sv);
 				    }
 				    EFLAGS |= EFLAGS_ZF;
-#ifdef HOST_ARCH_SIM
-				    RFL.valid = V_INVALID;
-#endif
+				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				    SetCPU_WL(mode, REG1, tmp);
 				} }
 				break;
@@ -2740,8 +2708,8 @@ repag0:
 			int rc=0;
 			if (!(TheCPU.mode&SKIPOP))
 				(void)NewIMeta(P0, TheCPU.mode, &rc);
-#ifndef HOST_ARCH_SIM
-			if (rc < 0) {	// metadata table full
+#ifdef HOST_ARCH_X86
+			if (!CONFIG_CPUSIM && rc < 0) {	// metadata table full
 				if (debug_level('e')>2)
 					e_printf("============ Tab full:cannot close sequence\n");
 				leavedos(0x9000);
@@ -2778,7 +2746,7 @@ repag0:
 not_implemented:
 	dbug_printf("!!! Unimplemented %02x %02x %02x\n",opc,PC[1],PC[2]);
 	TheCPU.err = -2; return PC;
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_X86
 bad_return:
 	dbug_printf("!!! Bad code return\n");
 	TheCPU.err = -3; return PC;

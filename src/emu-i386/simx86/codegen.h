@@ -246,13 +246,16 @@ static __inline__ void POP_ONLY(int m)
 
 /////////////////////////////////////////////////////////////////////////////
 //
+#ifdef HOST_ARCH_X86
+void InitGen_x86(void);
+#endif
 void InitGen(void);
 int  NewIMeta(unsigned char *newa, int mode, int *rc);
-void Gen(int op, int mode, ...);
-void AddrGen(int op, int mode, ...);
-int  Fp87_op(int exop, int reg);
+extern void (*Gen)(int op, int mode, ...);
+extern void (*AddrGen)(int op, int mode, ...);
+extern int  (*Fp87_op)(int exop, int reg);
 void NodeUnlinker(TNode *G);
-unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln);
+extern unsigned char *(*CloseAndExec)(unsigned char *PC, TNode *G, int mode, int ln);
 void EndGen(void);
 //
 extern char InterOps[];

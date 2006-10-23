@@ -74,11 +74,7 @@ static int vm86only = 0;
 hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
 static unsigned long sigEMUdelta = 0;
-#ifdef HOST_ARCH_SIM
-int eTimeCorrect = 0;		// full backtime stretch
-#else
-int eTimeCorrect = 1;		// 1/2 backtime stretch
-#endif
+int eTimeCorrect;
 
 /* This needs to be merged someday with 'mode' */
 volatile int CEmuStat = 0;
@@ -748,6 +744,11 @@ erseg:
 
 void init_emu_cpu (void)
 {
+  eTimeCorrect = 0;		// full backtime stretch
+#ifdef HOST_ARCH_X86
+  if (!CONFIG_CPUSIM)
+    eTimeCorrect = 1;		// 1/2 backtime stretch
+#endif
   if (config.cpuemu == 3)
     vm86only = 1;
   memset(&TheCPU, 0, sizeof(SynCPU));
@@ -1103,9 +1104,9 @@ int e_vm86(void)
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
     Reg2Cpu(mode);
-#ifdef HOST_ARCH_SIM
-    RFL.valid = V_INVALID;
-#endif
+    if (CONFIG_CPUSIM) {
+      RFL.valid = V_INVALID;
+    }
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
     do {
       /* enter VM86 mode */
@@ -1125,9 +1126,8 @@ int e_vm86(void)
     }
     while (xval==0);
     /* ---- INNER LOOP -- exit for exception ---------------------- */
-#ifdef HOST_ARCH_SIM
-    FlagSync_All();
-#endif
+    if (CONFIG_CPUSIM)
+      FlagSync_All();
 
     Cpu2Reg();
     if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
@@ -1224,9 +1224,8 @@ int e_dpmi(struct sigcontext_struct *scp)
   do {
     TheCPU.err = 0;
     mode = Scp2CpuD (scp);
-#ifdef HOST_ARCH_SIM
-    RFL.valid = V_INVALID;
-#endif
+    if (CONFIG_CPUSIM)
+      RFL.valid = V_INVALID;
     if (TheCPU.err) {
         error("DPM86: segment error %d\n", TheCPU.err);
         leavedos(0);
@@ -1251,9 +1250,8 @@ int e_dpmi(struct sigcontext_struct *scp)
     }
     while (xval==0);
     /* ---- INNER LOOP -- exit for exception ---------------------- */
-#ifdef HOST_ARCH_SIM
-    FlagSync_All();
-#endif
+    if (CONFIG_CPUSIM)
+      FlagSync_All();
 
     if (debug_level('e')>1) e_printf("DPM86: EXCP %#x eflags=%08lx\n",
 	xval-1, REG(eflags));

@@ -4,8 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#ifdef HOST_ARCH_SIM
 #include "codegen-sim.h"
-#else
+#ifdef HOST_ARCH_X86
 #include "codegen-x86.h"
 #endif
