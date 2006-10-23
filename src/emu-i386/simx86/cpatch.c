@@ -55,6 +55,7 @@ int s_mprotect(caddr_t addr)
 }
 
 #ifdef HOST_ARCH_X86
+#ifdef __i386__
 
 static int m_mprotect(caddr_t addr)
 {
@@ -279,6 +280,8 @@ void stub_rep_stosl (void) asm ("stub_rep_stosl__" );
 
 #define JSRPATCH(p,N)	*p++=0xe8;*((long *)(p))=(long)((unsigned char *)N-((p)+4))
 
+#endif  //__i386__
+
 /*
  * enters here only from a fault
  */
@@ -293,6 +296,7 @@ int Cpatch(unsigned char *eip)
     if (*p==0x66) w16=1,p++; else w16=0;
     v = *((long *)p);
     
+#ifdef __i386__
     if (v==0x900e0489) {	// stack: never fail
 	// mov %%{e}ax,(%%esi,%%ecx,1)
 	// we have a sequence:	66 89 04 0e 90
@@ -388,6 +392,7 @@ int Cpatch(unsigned char *eip)
 	}
 	return 1;
     }
+#endif
     if (debug_level('e')>1) e_printf("### Patch unimplemented: %08lx\n",*((long *)p));
     return 0;
 }
@@ -395,12 +400,16 @@ int Cpatch(unsigned char *eip)
 
 int UnCpatch(unsigned char *eip)
 {
-    long subad;
-    register unsigned char *p = eip;
-
     if (*eip != 0xe8) return 1;
     e_printf("UnCpatch   at %08lx was %02x%02x%02x%02x%02x\n",(long)eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
+
+#ifdef __i386__
+    {
+    long subad;
+    register unsigned char *p;
+    p = eip;
+
     subad = *((long *)(eip+1)) + ((long)eip+5);
 
     if (subad == (long)&stub_wri_8) {
@@ -458,6 +467,10 @@ int UnCpatch(unsigned char *eip)
     e_printf("UnCpatched at %08lx  is %02x%02x%02x%02x%02x\n",(long)eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
     return 0;
+    }
+#else
+    return 1;
+#endif
 }
 
 #endif	//HOST_ARCH_X86

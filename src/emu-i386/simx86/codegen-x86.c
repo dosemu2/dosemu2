@@ -2003,7 +2003,7 @@ shrot0:
 		unsigned char cond = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
-		linkdesc *lt = (linkdesc *)IG->p3;
+		linkdesc *lt = (linkdesc *)(uintptr_t)IG->p3;
 		if (cond == 0x11) {	// call
 			register char *p, *q; int sz;
 			if (mode&DATA16) {
@@ -2034,7 +2034,7 @@ shrot0:
 		int jpc = IG->p1;
 		int dspt = IG->p2;
 		int dspnt = IG->p3;
-		linkdesc *lt = (linkdesc *)IG->p4;
+		linkdesc *lt = (linkdesc *)(uintptr_t)IG->p4;
 		int sz;
 		//	JCXZ:	8b 4b Ofs_ECX {66} e3 06
 		//	JCC:	7x 06
@@ -2091,7 +2091,7 @@ shrot0:
 		unsigned char cond = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
-		linkdesc *lt = (linkdesc *)IG->p3;
+		linkdesc *lt = (linkdesc *)(uintptr_t)IG->p3;
 		//	{66} dec Ofs_ECX(ebx)
 		//	LOOP:	jnz t
 		//	LOOPZ:  jz  nt; test 0x40,dl; jnz t
@@ -2571,7 +2571,7 @@ static void ProduceCode(unsigned char *PC)
 	    if (debug_level('e')>3) GCPrint(I->addr, BaseGenBuf, I->len);
 	}
 	if (debug_level('e')>1)
-	    e_printf("Size=%d guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
+	    e_printf("Size=%td guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos(0x535347);
 	if (PC < adr_lo) adr_lo = PC;
 	    else if (PC > adr_hi) adr_hi = PC;
@@ -3007,10 +3007,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	}
 	/* get the protected mode flags. Note that RF and VM are cleared
 	 * by pushfd (but not by ints and traps) */
-	__asm__ __volatile__ (" \
-		pushfl\n \
-		popl	%0" \
-		: "=m"(flg) : : "memory");
+	flg = getflags();
 
 	/* pass TF=0, IF=1 */
 	flg = (flg & ~0xfd5) | (EFLAGS & 0xcd5) | 0x200;
@@ -3027,6 +3024,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	 *     14	ebx
 	 *     18...	locals of CloseAndExec
 	 */
+#ifdef __i386__
 	__asm__ __volatile__ (
 "		pushl	%%ebx\n"
 "		pushl	%%edi\n"
@@ -3039,7 +3037,6 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 "		rdtsc\n"
 "		movl	%%eax,%0\n"	/* save time before execution   */
 "		movl	%%edx,%1\n"
-#if GCC_VERSION_CODE >= 2007
 "		.byte	0x68\n"		/* push immediate RA		*/
 "		.long	2f\n"
 "		pushl	%3\n"		/* push and get TheCPU flags    */
@@ -3049,15 +3046,6 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		: "m"(ecpu),"m"(flg),"c"(SeqStart),"m"(config.cpummx)
 		: "%eax","%edx","memory" );
 	__asm__	__volatile__ (
-#else
-"		pushl	%6\n"
-"		pushl	%3\n"		/* push and get TheCPU flags    */
-"		jmp	*%4"		/* call SeqStart                */
-		: "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th)
-		: "m"(ecpu),"m"(flg),"c"(SeqStart),"m"(config.cpummx),"i"(&&_llab)
-		: "%eax","%edx","memory" );
-_llab:	__asm__	__volatile__ (
-#endif
 "		movl	%%edx,%0\n"	/* save flags                   */
 "		movl	%%eax,%1\n"	/* save PC at block exit        */
 "		rdtsc\n"
@@ -3075,6 +3063,7 @@ _llab:	__asm__	__volatile__ (
 		  "=m"(TimeEndExec.t.tl),"=m"(TimeEndExec.t.th),"=m"(mem_ref)
 		:
 		: "%eax","%edx","memory" );
+#endif
 
 	InCompiledCode = 0;
 

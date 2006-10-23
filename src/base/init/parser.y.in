@@ -476,6 +476,9 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			{
 #ifdef X86_EMULATOR
 			config.cpuemu = $2;
+#ifdef __x86_64__
+			config.cpusim = 1;
+#endif
 			if (config.cpuemu > 4) {
 				config.cpuemu -= 2;
 #ifdef HOST_ARCH_X86

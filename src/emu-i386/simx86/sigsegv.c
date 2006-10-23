@@ -446,7 +446,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		goto verybad;
 	}
 	if ((_err&0x0f)==0x07) {
-		unsigned char *p = (unsigned char *)_eip;
+		unsigned char *p = (unsigned char *)_rip;
 		int codehit = 0;
 		register long v;
 		/* Got a fault in a write-protected memory page, that is,
@@ -488,7 +488,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		 * linked by Cpatch will do it */
 		/* ACH: we can set up a data patch for code
 		 * which has not yet been executed! */
-		if (Cpatch((void *)_eip)) return 1;
+		if (Cpatch((void *)_rip)) return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
 		InvalidateNodePage(_cr2, 0, _eip, &codehit);
