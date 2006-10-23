@@ -23,14 +23,16 @@ CPPFLAGS += -I.
 
 all: $(OBJ)
 
+LDFLAGS := $(subst -rdynamic,,$(LDFLAGS))
+
 $(BINPATH)/bin/mkfatimage: mkfatimage.o bootsect.o
-	$(LD) $^ -o $@
+	$(LD) $(LDFLAGS) $^ -o $@
 
 $(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o
-	$(LD) $^ -o $@
+	$(LD) $(LDFLAGS) $^ -o $@
 
 $(OBJ1): %: %.o
-	$(LD) $< -o $@
+	$(LD) $(LDFLAGS) $< -o $@
 
 %.com: %.S
 	$(LD) -traditional -Wa,-a -Wl,-Ttext,100,--oformat,binary -nostdlib -s -o $@ $< > $<.out

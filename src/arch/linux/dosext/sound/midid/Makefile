@@ -38,6 +38,8 @@ cleanall:	clean
 
 realclean:	cleanall
 
+LDFLAGS := $(subst -rdynamic,,$(LDFLAGS))
+
 $(BINPATH)/bin/midid:	$(OBJECTS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
 
