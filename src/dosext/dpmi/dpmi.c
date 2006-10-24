@@ -3590,7 +3590,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
-	  unsigned int *buffer = (unsigned int *) SEL_ADR(_es, _edi);
+	  unsigned int *buffer = LINEAR2UNIX(SEL_ADR(_es, _edi));
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
 	    *buffer++ = REG(eax);

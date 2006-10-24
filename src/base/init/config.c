@@ -493,8 +493,9 @@ static void read_cpu_info(void)
           cpuflags = get_proc_string_by_key("flags");
         }
 #ifdef X86_EMULATOR
-        if (cpuflags && strstr(cpuflags, "mmx")) {
-	  config.cpummx = 1;
+        if (cpuflags && (strstr(cpuflags, "mmxext") ||
+			 strstr(cpuflags, "sse"))) {
+	  config.cpuprefetcht0 = 1;
         }
 #endif
         if (cpuflags && strstr(cpuflags, "tsc")) {

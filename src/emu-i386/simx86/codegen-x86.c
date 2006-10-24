@@ -118,7 +118,7 @@ unsigned char *GenCodeBuf = NULL;
 unsigned char *BaseGenBuf = NULL;
 int GenBufSize = 0;
 
-hitimer_u TimeStartExec, TimeEndExec;
+hitimer_u TimeStartExec;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -2908,11 +2908,13 @@ void NodeUnlinker(TNode *G)
 
 static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, int ln)
 {
-	static unsigned long flg, ecpu;
-	static long mem_ref;
-	static unsigned char *ePC;
-	static unsigned short seqflg, fpuc, ofpuc;
+	unsigned long flg;
+	unsigned char *ecpu;
+	long mem_ref;
+	unsigned char *ePC;
+	unsigned short seqflg, fpuc, ofpuc;
 	unsigned char *SeqStart;
+	hitimer_u TimeEndExec;
 	int ifl;
 
 	if (mode & XECFND) {		// we found an existing node
@@ -2988,7 +2990,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	    if (debug_level('e')>2) e_printf("History: from %08lx to %08lx\n",LastXNode->key,G->key);
 	}
 
-	ecpu = (long)CPUOFFS(0);
+	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
 		if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 		e_printf("== (%d) == Executing code at %08lx flg=%04x\n",
@@ -3024,49 +3026,38 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	 *     14	ebx
 	 *     18...	locals of CloseAndExec
 	 */
+
+	if (config.cpuprefetcht0)
+	    __asm__ __volatile__ (
+"		prefetcht0 %0\n"
+		: : "m"(*ecpu), "rm"(flg), "m"(InCompiledCode) );
+
 #ifdef __i386__
 	__asm__ __volatile__ (
 "		pushl	%%ebx\n"
-"		pushl	%%edi\n"
-"		movl	%2,%%ebx\n"	/* address of TheCPU (+0x80 !)  */
-"		testb	$1,%5\n"
-"		je	1f\n"
-"		prefetcht0 (%%ebx)\n"
-"1:		pushl	%%esi\n"
 "		pushfl\n"
+"		pushl	$1f\n"
+"		pushl	%0\n"		/* push and get TheCPU flags    */
 "		rdtsc\n"
-"		movl	%%eax,%0\n"	/* save time before execution   */
-"		movl	%%edx,%1\n"
-"		.byte	0x68\n"		/* push immediate RA		*/
-"		.long	2f\n"
-"		pushl	%3\n"		/* push and get TheCPU flags    */
-"		jmp	*%4\n"		/* call SeqStart                */
-"2:		"
-		: "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th)
-		: "m"(ecpu),"m"(flg),"c"(SeqStart),"m"(config.cpummx)
-		: "%eax","%edx","memory" );
-	__asm__	__volatile__ (
-"		movl	%%edx,%0\n"	/* save flags                   */
+"		movl	%%eax,%2\n"	/* save time before execution   */
+"		movl	%%edx,%3\n"
+"		movl	%1,%%ebx\n"	/* address of TheCPU (+0x80 !)  */
+"		jmp	*%5\n"		/* call SeqStart                */
+"1:		movl	%%edx,%0\n"	/* save flags                   */
 "		movl	%%eax,%1\n"	/* save PC at block exit        */
 "		rdtsc\n"
-"		movl	%%edi,%6\n"	/* save last calculated address */
-"		subl	%2,%%eax\n"
-"		sbbl	%3,%%edx\n"
-"		movl	%%eax,%4\n"	/* save time after execution    */
-"		movl	%%edx,%5\n"
 "		popfl\n"
-"		popl	%%esi\n"	/* restore regs                 */
-"		popl	%%edi\n"
-"		popl	%%ebx"
-		: "=m"(flg),"=m"(ePC),
+"		popl	%%ebx"  	/* restore regs                 */
+		: "=S"(flg),"=c"(ePC),
 		  "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th),
-		  "=m"(TimeEndExec.t.tl),"=m"(TimeEndExec.t.th),"=m"(mem_ref)
-		:
-		: "%eax","%edx","memory" );
+		  "=&A"(TimeEndExec.td),"=D"(mem_ref)
+		: "1"(ecpu),"0"(flg),"5"(SeqStart)
+		: "memory" );
 #endif
 
 	InCompiledCode = 0;
 
+	TimeEndExec.td -= TimeStartExec.td;
 	EFLAGS = (flg &	0xcff) | ifl;
 	TheCPU.mem_ref = mem_ref;
 
