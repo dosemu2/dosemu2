@@ -382,9 +382,10 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     sigprocmask(SIG_UNBLOCK, &set, NULL);
   }
 
+#if defined(__x86_64__) || defined(X86_EMULATOR)
+  if (fault_cnt > 1 && _trapno == 0xe && getsegment(cs) == _cs) {
 #ifdef __x86_64__
-  /* see comment in signal.c, fix_fs_gs_base() */
-  if (_trapno == 0xe && getsegment(cs) == _cs) {
+    /* see comment in signal.c, fix_fs_gs_base() */
     unsigned char *rip = (unsigned char *)_rip;
     /* page fault for fs: or gs: */
     if (*rip == 0x64 || *rip == 0x65) {
@@ -393,6 +394,17 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 	return;
       }
     }
+#endif
+#ifdef X86_EMULATOR
+    /* it may be necessary to fix up a page fault in the DPMI fault handling
+       code for $_cpu_emu = "vm86". This really shouldn't happen but not all
+       cases have been fixed yet */
+    if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi && !in_dpmi_dos_int &&
+	e_emu_fault(scp)) {
+      fault_cnt--;
+      return;
+    }
+#endif
   }
 #endif
 

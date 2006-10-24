@@ -470,13 +470,17 @@ int e_emu_fault(struct sigcontext_struct *scp)
 #ifdef PROFILE
 		PageFaults++;
 #endif
-		if (debug_level('e')) {
+		if (debug_level('e') || (!InCompiledCode && _cs == getsegment(cs))) {
 		    v = *((long *)p);
 		    __asm__("bswap %0" : "=r" (v) : "0" (v));
 		    e_printf("Faulting ops: %08lx\n",v);
 
-		    if (!InCompiledCode)
-			e_printf("*\tFault out of code\n");
+		    if (!InCompiledCode) {
+			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
+				    " cr2=%lx, fault_cnt=%d\n",
+				    _cs == getsegment(cs) ? "DOSEMU " : "",
+				    _cs, _rip, _cr2, fault_cnt);
+		    }
 		    if (e_querymark((void *)_cr2)) {
 			e_printf("CODE node hit at %08lx\n",_cr2);
 		    }
@@ -488,7 +492,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		 * linked by Cpatch will do it */
 		/* ACH: we can set up a data patch for code
 		 * which has not yet been executed! */
-		if (Cpatch((void *)_rip)) return 1;
+		if (InCompiledCode && Cpatch((void *)_rip)) return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
 		InvalidateNodePage(_cr2, 0, _eip, &codehit);

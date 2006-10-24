@@ -3590,9 +3590,11 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
-	  unsigned int *buffer = LINEAR2UNIX(SEL_ADR(_es, _edi));
+	  unsigned int *buffer = (unsigned int *)(SEL_ADR(_es, _edi));
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
+	    e_invalidate((unsigned char *)buffer, (9+6)*sizeof(*buffer));
+	    buffer = LINEAR2UNIX(buffer);
 	    *buffer++ = REG(eax);
 	    *buffer++ = REG(ebx);
 	    *buffer++ = REG(ecx);
@@ -4165,6 +4167,8 @@ void dpmi_realmode_hlt(unsigned char * lina)
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
+    e_invalidate((unsigned char *)rmreg, sizeof(*rmreg));
+    rmreg = LINEAR2UNIX(rmreg);
     rmreg->edi = REG(edi);
     rmreg->esi = REG(esi);
     rmreg->ebp = REG(ebp);
@@ -4281,6 +4285,8 @@ done:
     unsigned int *buffer = SEG_ADR((unsigned int *),es,di);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
+      e_invalidate((unsigned char *)buffer, (9+6)*sizeof(*buffer));
+      buffer = LINEAR2UNIX(buffer);
       *buffer++ = _eax;
       *buffer++ = _ebx;
       *buffer++ = _ecx;
