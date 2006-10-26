@@ -1957,7 +1957,7 @@ static void Gen_sim(int op, int mode, ...)
 			SR1.d = CPULONG(Ofs_ESP) - 32;
 			SR1.d &= CPULONG(Ofs_STACKM);
 			pd = (int *)(uintptr_t)(AR2.d + SR1.d);
-			__memcpy(pd, CPUOFFS(Ofs_EDI), 32);
+			memcpy(pd, CPUOFFS(Ofs_EDI), 32);
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
 		} break;
@@ -2063,7 +2063,7 @@ static void Gen_sim(int op, int mode, ...)
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
 			pd = (char *)(uintptr_t)(AR2.d + SR1.d);
-			__memcpy(CPUOFFS(Ofs_EDI), pd, 32);
+			memcpy(CPUOFFS(Ofs_EDI), pd, 32);
 			SR1.d += 32;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;

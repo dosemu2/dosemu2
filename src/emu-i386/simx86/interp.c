@@ -33,6 +33,7 @@
  ***************************************************************************/
 
 #include <stddef.h>
+#include <string.h>
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "port.h"
@@ -116,11 +117,11 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 	segc = ofsseg[(ofs>>2)];
 //	if (segc==NULL) return EXCP06_ILLOP;
 
-	__memcpy(&tseg,segc,sizeof(SDTR));
+	memcpy(&tseg,segc,sizeof(SDTR));
 	e = SetSegProt(mode&ADDR16, ofs, &big, sv);
 	/* must NOT change segreg and LONG_xx if error! */
 	if (e) {
-		__memcpy(segc,&tseg,sizeof(SDTR));
+		memcpy(segc,&tseg,sizeof(SDTR));
 		return e;
 	}
 	CPUWORD(ofs) = sv;

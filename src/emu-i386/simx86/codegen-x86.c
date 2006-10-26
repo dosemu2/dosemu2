@@ -2941,7 +2941,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		 * it still lacks the tail code; add it here */
 		if (I0->clink.t_type==0) {
 		    /* copy tail instructions to the end of the code block */
-		    __memcpy(p, TailCode, TAILSIZE);
+		    memcpy(p, TailCode, TAILSIZE);
 		    p += TAILFIX;
 		    I0->clink.t_link = (long)p;
 		    *((long *)p) = (long)PC;

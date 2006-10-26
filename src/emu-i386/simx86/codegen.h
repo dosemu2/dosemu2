@@ -242,7 +242,7 @@ static __inline__ void POP_ONLY(int m)
 			 *((unsigned int *)((p)+4))=(l2);(p)+=7;}
 #define	G8(l1,l2,p)	{*((unsigned int *)(p))=(l1),\
 			 *((unsigned int *)((p)+4))=(l2);(p)+=8;}
-#define GNX(d,s,l)	{__memcpy((d),(s),(l));(d)+=(l);}
+#define GNX(d,s,l)	{memcpy((d),(s),(l));(d)+=(l);}
 
 /////////////////////////////////////////////////////////////////////////////
 //

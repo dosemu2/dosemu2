@@ -586,7 +586,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
 {
   if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
-  __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
+  memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
   TheCPU.err = 0;
 
   if (in_dpmi) {	// vm86 during dpmi active
@@ -634,7 +634,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
   _cr2 = TheCPU.cr2;
   scp->fpstate = TheCPU.fpstate;
 #else
-  __memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
+  memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
 #endif
   _trapno = trapno;
   /* Error code format:
@@ -705,7 +705,7 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
   TheCPU.cr2 = _cr2;
   TheCPU.fpstate = scp->fpstate;
 #else
-  __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
+  memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
 #endif
 
   mode |= ADDR16;

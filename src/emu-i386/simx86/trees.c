@@ -118,7 +118,7 @@ static inline void datacopy(TNode *nd, TNode *ns)
   char *s = (char *)&(ns->key);
   char *d = (char *)&(nd->key);
   int l = sizeof(TNode)-offsetof(TNode,key);
-  __memcpy(d,s,l);
+  memcpy(d,s,l);
 }
 
 #ifdef HOST_ARCH_X86
@@ -1157,7 +1157,7 @@ static void BreakNode(TNode *G, long eip, long addr)
     if (A->daddr >= ebase) {		// found following instr
 	p = G->addr + A->daddr;		// translated IP of following instr
 	if (enpc >= A->dnpc) {		// if it's a forward write
-	    __memcpy(p, TailCode, TAILSIZE);
+	    memcpy(p, TailCode, TAILSIZE);
 	    *((long *)(p+TAILFIX)) = G->key + A->dnpc;
 	    dbug_printf("============ Force node closing at %08lx(%08lx)\n",
 		(G->key+A->dnpc),(long)p);
