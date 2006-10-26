@@ -628,12 +628,9 @@ fpp002:
 			for (i=0; i<8; i++) {
 			    double *sf = &TheCPU.fpregs[k];
 			    __asm__ __volatile__ (" \
-				movl	%0,%%eax\n \
-				movl	%1,%%edx\n \
-				fldt	(%%eax)\n \
-				fstpl	(%%edx)" \
-				: : "g"(q), "g"(sf) \
-				: "%eax","%edx","memory" );
+				fldt	%1\n \
+				fstpl	%0" \
+				: "=m"(*sf) : "m"(*q));
 			    k = (k+1)&7; q += 10;
 			}
 		    }
@@ -732,12 +729,9 @@ fpp002:
 			for (i=0; i<8; i++) {
 			    double *sf = &TheCPU.fpregs[k];
 			    __asm__ __volatile__ (" \
-				movl	%0,%%eax\n \
-				movl	%1,%%edx\n \
-				fldl	(%%eax)\n \
-				fstpt	(%%edx)" \
-				: : "g"(sf), "g"(q) \
-				: "%eax","%edx","memory" );
+				fldl	%1\n \
+				fstpt	%0" \
+				: "=m"(*q) : "m"(*sf) : "memory");
 			    k = (k+1)&7; q += 10;
 			}
 			FPRSTT = TheCPU.fpregs;

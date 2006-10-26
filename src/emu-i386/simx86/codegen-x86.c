@@ -3032,8 +3032,10 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 "		prefetcht0 %0\n"
 		: : "m"(*ecpu), "rm"(flg), "m"(InCompiledCode) );
 
-#ifdef __i386__
 	__asm__ __volatile__ (
+#ifdef __x86_64__
+"		"
+#else
 "		pushl	%%ebx\n"
 "		pushfl\n"
 "		pushl	$1f\n"
@@ -3048,12 +3050,12 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 "		rdtsc\n"
 "		popfl\n"
 "		popl	%%ebx"  	/* restore regs                 */
+#endif
 		: "=S"(flg),"=c"(ePC),
 		  "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th),
 		  "=&A"(TimeEndExec.td),"=D"(mem_ref)
 		: "1"(ecpu),"0"(flg),"5"(SeqStart)
 		: "memory" );
-#endif
 
 	InCompiledCode = 0;
 
