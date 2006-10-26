@@ -234,14 +234,13 @@ static __inline__ void POP_ONLY(int m)
 #define	G4(l,p)		{*((unsigned int *)(p))=(l);(p)+=4;}
 #define	G4M(c,b1,b2,b3,p) {*((unsigned int *)(p))=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
 				(p)+=4;}
-#define	G5(l1,b2,p)	{*((unsigned int *)(p))=(l1),(p)[4]=(unsigned char)(b2);\
+#define	G5(l,p)		{*((unsigned int *)(p))=(unsigned int)(l),\
+			  (p)[4]=(unsigned char)((l)>>32);\
 				(p)+=5;}
-#define	G6(l1,w2,p)	{*((unsigned int *)(p))=(l1),\
-			 *((unsigned short *)((p)+4))=(w2);(p)+=6;}
-#define	G7(l1,l2,p)	{*((unsigned int *)(p))=(l1),\
-			 *((unsigned int *)((p)+4))=(l2);(p)+=7;}
-#define	G8(l1,l2,p)	{*((unsigned int *)(p))=(l1),\
-			 *((unsigned int *)((p)+4))=(l2);(p)+=8;}
+#define	G6(l,p)		{*((unsigned int *)(p))=(unsigned int)(l),\
+			 *((unsigned short *)((p)+4))=(unsigned short)((l)>>32);(p)+=6;}
+#define	G7(l,p)		{*((unsigned long long *)(p))=(l);(p)+=7;}
+#define	G8(l,p)		{*((unsigned long long *)(p))=(l);(p)+=8;}
 #define GNX(d,s,l)	{memcpy((d),(s),(l));(d)+=(l);}
 
 /////////////////////////////////////////////////////////////////////////////

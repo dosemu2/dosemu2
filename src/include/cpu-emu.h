@@ -77,7 +77,7 @@ extern int IsV86Emu;
 extern int IsDpmiEmu;
 
 extern volatile int CEmuStat;
-extern int InCompiledCode;
+extern volatile int InCompiledCode;
 
 void enter_cpu_emu(void);
 void leave_cpu_emu(void);

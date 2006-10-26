@@ -305,6 +305,17 @@ static void CodeGen(IMeta *I, int j)
 	case A_SR_SH4: {	// real mode make base addr from seg
 		// pushl %%ebx; pushb ofs
 		G3M(0x53,0x6a,IG->p0,Cp);
+#ifdef __x86_64__
+		// rdi=sel, rsi=ofs
+		// pop %%rsi; push %%rdi
+		G2M(0x5e,0x57,Cp);
+		// movzwl ofs(%%rbx),%%edi
+		G4M(0x0f,0xb7,0x7b,IG->p0,Cp);
+		// movq SetSegReal,%%rcx
+		G2M(0x48,0xb9,Cp); G8((long)&SetSegReal,Cp);
+		// call *%%rcx; pop %%rdi; pop %%rbx
+		G4M(0xff,0xd1,0x5f,0x5b,Cp);
+#else
 		// movzwl ofs(%%ebx),%%eax
 		G4M(0x0f,0xb7,0x43,IG->p0,Cp);
 		// movl SetSegReal,%%ecx
@@ -313,6 +324,7 @@ static void CodeGen(IMeta *I, int j)
 		G3M(0x50,0xff,0xd1,Cp);
 		// addl $8,%%esp; popl %%ebx
 		G4M(0x83,0xc4,0x08,0x5b,Cp);
+#endif
 		}
 		break;
 	case L_NOP:
@@ -423,16 +435,28 @@ static void CodeGen(IMeta *I, int j)
 		}
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
-		// movzwl (%%edi),%%eax
-		G3M(0x0f,0xb7,0x07,Cp);
 		// pushl %%ebx; pushb desc_ofs
 		G3M(0x53,0x6a,IG->p0,Cp);
+#ifdef __x86_64__
+		// rdi=sel, rsi=ofs
+		// pop %%rsi; push %%rdi
+		G2M(0x5e,0x57,Cp);
+		// movzwl (%%rdi),%%edi
+		G3M(0x0f,0xb7,0x3f,Cp);
+		// movq SetSegReal,%%rcx
+		G2M(0x48,0xb9,Cp); G8((long)&SetSegReal,Cp);
+		// call *%%rcx; pop %%rdi; pop %%rbx
+		G4M(0xff,0xd1,0x5f,0x5b,Cp);
+#else
+		// movzwl (%%edi),%%eax
+		G3M(0x0f,0xb7,0x07,Cp);
 		// movl SetSegReal,%%ecx
 		G1(0xb9,Cp); G4((long)&SetSegReal,Cp);
 		// pushl %%eax; call *%%ecx
 		G3M(0x50,0xff,0xd1,Cp);
 		// addl $8,%%esp; popl %%ebx
 		G4M(0x83,0xc4,0x08,0x5b,Cp);
+#endif
 		}
 		break;
 	case L_ZXAX:
@@ -655,12 +679,24 @@ arith1:
 			STD_WRITE_B;
 		}
 		else if (mode & DATA16) {
-			// inc{wl} (%%edi)
-			G3M(0x66,0x8b,0x07,Cp); G3M(0x66,0x40,PUSHF,Cp);
+			// inc{wl} (%%edi) (mov (%%edi),%%ax)
+			G3M(0x66,0x8b,0x07,Cp);
+			// inc %%ax; pushf
+#ifdef __x86_64__ // 0x40 is a REX byte, not inc
+			G4M(0x66,0xff,0xc0,PUSHF,Cp);
+#else
+			G3M(0x66,0x40,PUSHF,Cp);
+#endif
 			STD_WRITE_WL(DATA16);
 		}
 		else {
+#ifdef __x86_64__
+			// mov (%%rdi),%%eax, inc %%eax; pushf
+			G2M(0x8b,0x07,Cp); G3M(0xff,0xc0,PUSHF,Cp);
+#else
+			// mov (%%edi),%%eax, inc %%eax; pushf
 			G4M(0x8b,0x07,0x40,PUSHF,Cp);
+#endif
 			STD_WRITE_WL(0);
 		}
 		break;
@@ -673,12 +709,24 @@ arith1:
 			STD_WRITE_B;
 		}
 		else if (mode & DATA16) {
-			// dec{wl} (%%edi)
-			G3M(0x66,0x8b,0x07,Cp); G3M(0x66,0x48,PUSHF,Cp);
+			// dec{wl} (%%edi) (mov (%%edi),%%ax)
+			G3M(0x66,0x8b,0x07,Cp);
+			// dec %%ax; pushf
+#ifdef __x86_64__ // 0x48 is a REX byte, not dec
+			G4M(0x66,0xff,0xc8,PUSHF,Cp);
+#else
+			G3M(0x66,0x48,PUSHF,Cp);
+#endif
 			STD_WRITE_WL(DATA16);
 		}
 		else {
+#ifdef __x86_64__
+			// mov (%%rdi),%%eax, dec %%eax; pushf
+			G2M(0x8b,0x07,Cp); G3M(0xff,0xc8,PUSHF,Cp);
+#else
+			// mov (%%edi),%%eax, dec %%eax; pushf
 			G4M(0x8b,0x07,0x48,PUSHF,Cp);
+#endif
 			STD_WRITE_WL(0);
 		}
 		break;
@@ -1455,7 +1503,7 @@ shrot0:
 		//	do address calculation and last store data
 		q=Cp; GNX(Cp, p, sz);
 		if (mode & MEMADR)
-			*((long *)(q+0x0d)) = 0x90909090;
+			*((int *)(q+0x0d)) = 0x90909090;
 		else {
 			q[0x10] = IG->p0;
 		}
@@ -1511,7 +1559,7 @@ shrot0:
 		//	do address calculation and last store data
 		q=Cp; GNX(Cp, p, sz);
 		if (mode & MEMADR)
-			*((long *)(q+0x07)) = 0x90909090;
+			*((int *)(q+0x07)) = 0x90909090;
 		else {
 			q[0x0a] = IG->p0;
 		}
@@ -2620,7 +2668,7 @@ static void ProduceCode(unsigned char *PC)
  */
 static void _nodelinker2(TNode *LG, TNode *G)
 {
-	long *lp;
+	int *lp;
 	linkdesc *T = &G->clink;
 	backref *B;
 
@@ -2630,7 +2678,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 	    int ra;
 	    linkdesc *L = &LG->clink;
 	    if (L->t_type) {	// node ends with links
-		lp = (long *)L->t_link;		// check 'taken' branch
+		lp = (int *)L->t_link;		// check 'taken' branch
 		if (*lp==G->key) {		// points to current node?
 		    if (L->t_ref!=0) {
 			dbug_printf("Linker: t_ref at %08lx busy\n",LG->key);
@@ -2680,7 +2728,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    }
 		}
 		if (L->t_type>JMP_LINK) {	// if it has a 'not taken' link
-		    lp = (long *)L->nt_link;	// check 'not taken' branch
+		    lp = (int *)L->nt_link;	// check 'not taken' branch
 		    if (*lp==G->key) {		// points to current node?
 			if (L->nt_ref!=0) {
 			    dbug_printf("Linker: nt_ref at %08lx busy\n",LG->key);
@@ -2761,7 +2809,7 @@ static void NodeLinker(TNode *G)
 
 void NodeUnlinker(TNode *G)
 {
-	long *lp;
+	int *lp;
 	linkdesc *T = &G->clink;
 	backref *B = T->bkr.next;
 #ifdef PROFILE
@@ -2791,7 +2839,7 @@ void NodeUnlinker(TNode *G)
 			L->t_undo, G->key);
 		    leavedos(0x8110);
 		}
-		lp = (long *)L->t_link;
+		lp = (int *)L->t_link;
 		((char *)lp)[-1] = 0xb8;
 		*lp = L->t_undo;
 		L->t_ref = NULL; L->t_undo = 0;
@@ -2807,7 +2855,7 @@ void NodeUnlinker(TNode *G)
 			L->nt_undo, G->key);
 		    leavedos(0x8110);
 		}
-		lp = (long *)L->nt_link;
+		lp = (int *)L->nt_link;
 		((char *)lp)[-1] = 0xb8;
 		*lp = L->nt_undo;
 		L->nt_ref = NULL; L->nt_undo = 0;
@@ -2944,7 +2992,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		    memcpy(p, TailCode, TAILSIZE);
 		    p += TAILFIX;
 		    I0->clink.t_link = (long)p;
-		    *((long *)p) = (long)PC;
+		    *((int *)p) = (long)PC;
 		    CodePtr += TAILSIZE;
 		}
 
@@ -3019,43 +3067,47 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 
 	/* stack frame for compiled code:
 	 * esp+00	TheCPU flags
-	 *     04	return address
-	 *     08	dosemu flags
-	 *     0c	esi
-	 *     10	edi
-	 *     14	ebx
-	 *     18...	locals of CloseAndExec
+	 *     04/08	return address
+	 *     08/10	dosemu flags
+	 *     14/18	ebx
+	 *     18/20...	locals of CloseAndExec
 	 */
 
+#ifdef __x86_64__
+#define RE_REG(r) "%%r"#r
+#else
+#define RE_REG(r) "%%e"#r
 	if (config.cpuprefetcht0)
+#endif
 	    __asm__ __volatile__ (
 "		prefetcht0 %0\n"
-		: : "m"(*ecpu), "rm"(flg), "m"(InCompiledCode) );
+		: : "m"(*ecpu) );
 
 	__asm__ __volatile__ (
-#ifdef __x86_64__
-"		"
-#else
-"		pushl	%%ebx\n"
-"		pushfl\n"
-"		pushl	$1f\n"
-"		pushl	%0\n"		/* push and get TheCPU flags    */
+"		push   "RE_REG(bx)"\n"
+"		pushf\n"
+"		push	$1f\n"
+"		push	%0\n"		/* push and get TheCPU flags    */
 "		rdtsc\n"
 "		movl	%%eax,%2\n"	/* save time before execution   */
 "		movl	%%edx,%3\n"
-"		movl	%1,%%ebx\n"	/* address of TheCPU (+0x80 !)  */
-"		jmp	*%5\n"		/* call SeqStart                */
-"1:		movl	%%edx,%0\n"	/* save flags                   */
-"		movl	%%eax,%1\n"	/* save PC at block exit        */
+"		mov	%1,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
+"		jmp	*%6\n"		/* call SeqStart                */
+"1:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
+"		mov    "RE_REG(ax)",%1\n"/* save PC at block exit	*/
 "		rdtsc\n"
-"		popfl\n"
-"		popl	%%ebx"  	/* restore regs                 */
-#endif
+"		popf\n"
+"		pop    "RE_REG(bx) 	/* restore regs                 */
 		: "=S"(flg),"=c"(ePC),
 		  "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th),
-		  "=&A"(TimeEndExec.td),"=D"(mem_ref)
-		: "1"(ecpu),"0"(flg),"5"(SeqStart)
-		: "memory" );
+		  "=&a"(TimeEndExec.t.tl),"=&d"(TimeEndExec.t.th),
+		  "=D"(mem_ref)
+		: "1"(ecpu),"0"(flg),"6"(SeqStart)
+		: "memory"
+#ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
+		  ,"r8","r9","r10","r11"
+#endif
+		);
 
 	InCompiledCode = 0;
 

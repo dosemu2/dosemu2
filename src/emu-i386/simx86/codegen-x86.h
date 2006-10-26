@@ -65,7 +65,7 @@ extern int TrapVgaOn;
 /////////////////////////////////////////////////////////////////////////////
 
 #define STD_WRITE_B	G2(0x0788,Cp);G3(0x909090,Cp)
-#define STD_WRITE_WL(m)	G5((m)&DATA16?0x90078966:0x90900789,0x90,Cp)
+#define STD_WRITE_WL(m)	G5((m)&DATA16?0x9090078966ULL:0x9090900789ULL,Cp)
 
 #define GenAddECX(o)	if (((o) > -128) && ((o) < 128)) {\
 			G2(0xc183,Cp); G1((o),Cp); } else {\
@@ -140,7 +140,8 @@ static __inline__ void PUSH(int m, void *w)
 #define PopPushF(Cp)	if (((Cp)==BaseGenBuf)||((Cp)[-1]!=PUSHF)) \
 				G2(0x9c9d,(Cp))
 
-#define GetStackDF(Cp)	G8(0x24ba0ffc,0x01730a24,(Cp));G1(0xfd,(Cp))
+// cld; btl $0xa,(%esp); jnc 1f; std; 1f:
+#define GetStackDF(Cp)	G8(0x01730a2424ba0ffcULL,(Cp));G1(0xfd,(Cp))
 
 /////////////////////////////////////////////////////////////////////////////
 //

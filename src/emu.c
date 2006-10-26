@@ -210,6 +210,14 @@ vm86plus_init(void)
 #ifdef X86_EMULATOR
       warn("WARN: vm86plus service not available in your kernel\n");
       warn("WARN: using CPU emulation for vm86()\n");
+      if (config.cpuemu < 3) {
+	config.cpuemu = 3;
+#ifdef __x86_64__
+	/* use simulator for $_cpu_emu="off" until JIT gen is more
+	   stable and faster */
+	config.cpusim = 1;
+#endif
+      }
       if (config.cpuemu < 3) config.cpuemu = 3;
       return;
 #else

@@ -93,7 +93,7 @@ int in_dpmi_emu = 0;
 SynCPU	TheCPU;
 
 int Running = 0;
-int InCompiledCode = 0;
+volatile int InCompiledCode = 0;
 
 unsigned long trans_addr, return_addr;	// PC
 
