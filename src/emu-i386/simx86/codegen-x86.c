@@ -1077,7 +1077,7 @@ shrot0:
 		G1(0x9c,Cp);	// flags back on stack
 		break;
 
-	case O_OPAX: {	/* used by DAA..AAD */
+	case O_OPAX: {	/* used by DAA,DAS,AAA,AAS,AAM,AAD */
 			// movl Ofs_EAX(%%ebx),%%eax
 			G4M(0x9d,0x8b,0x43,Ofs_EAX,Cp);
 #ifdef __x86_64__ /* have to emulate all of them... */
@@ -1131,7 +1131,23 @@ shrot0:
 				break;
 			}
 			case AAM:
+				// mov $0,%ah; mov p2,%cl
+				G4M(0xb4,0x00,0xb1,IG->p2,Cp);
+				// div %cl; xchg %al,%ah
+				G4M(0xf6,0xf1,0x86,0xc4,Cp);
+				// movl %%eax,Ofs_EAX(%%ebx)
+				G4M(0x89,0x43,Ofs_EAX,0x9c,Cp);
+				break;
 			case AAD:
+				// mov %al,%cl; mov %ah,%al
+				G4M(0x88,0xc1,0x88,0xe0,Cp);
+				// mov p2,%ah; mul %ah
+				G4M(0xb4,IG->p2,0xf6,0xe4,Cp);
+				// add %cl,%al; mov $0,%ah
+				G4M(0x00,0xc8,0xb4,0x00,Cp);
+				// movl %%eax,Ofs_EAX(%%ebx)
+				G4M(0x89,0x43,Ofs_EAX,0x9c,Cp);
+				break;
 			default:
 				error("Unimplemented O_OPAX instruction\n");
 				leavedos(99);
