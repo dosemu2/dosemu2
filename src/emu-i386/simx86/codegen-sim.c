@@ -1756,18 +1756,23 @@ static void Gen_sim(int op, int mode, ...)
 		// get n bytes from parameter stack
 		unsigned char op = Offs_From_Arg();
 		switch (op) {
-			case DAA:
+			case DAA: {
+				char cy = 0;
+				unsigned char altmp = DR1.b.bl;
 				FlagSync_AP();
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl += 6;
-					RFL.S1 |= 8; RFL.S2 |= 8; // SET_AF
+					cy = (CPUBYTE(Ofs_FLAGS)&1) || (altmp > 0xf9);
+					RFL.S1 |= 8; RFL.S2 |= 8; // SET_AF (8+8 gives AF)
 				} else {
 					RFL.S1 &= 0xf7; RFL.S2 &= 0xf7; // CLR_AF
 				}
-				if ((DR1.b.bl > 0x9f) || (IS_CF_SET)) {
+				if ((altmp > 0x99) || (IS_CF_SET)) {
 					DR1.b.bl += 0x60;
-					SET_CF(1);
-				} /*else CLEAR_CF;*/
+					cy = 1;
+				}
+				SET_CF(cy);
+				}
 				break;
 			case DAS: {
 				char cy = 0;
@@ -1775,7 +1780,7 @@ static void Gen_sim(int op, int mode, ...)
 				FlagSync_AP();
 				if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 					DR1.b.bl -= 6;
-					cy = (CPUBYTE(Ofs_FLAGS)&1) || (DR1.b.bl < 6);
+					cy = (CPUBYTE(Ofs_FLAGS)&1) || (altmp < 6);
 					RFL.S1 |= 8; RFL.S2 |= 8; // SET_AF
 				} else {
 					RFL.S1 &= 0xf7; RFL.S2 &= 0xf7; // CLR_AF
