@@ -39,7 +39,6 @@ static void SDL_update_cursor(void);
 static int SDL_update_screen(void);
 static void SDL_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr);
 static void SDL_draw_cursor(int x, int y, Bit8u attr, int , int , Boolean);
-static void SDL_update(void);
 static void SDL_set_text_palette(DAC_entry);
 static void SDL_refresh_private_palette(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
@@ -68,7 +67,6 @@ struct video_system Video_SDL =
 
 struct text_system Text_SDL =
 {
-   SDL_update,
    SDL_draw_string, 
    SDL_draw_line, 
    SDL_draw_cursor,
@@ -114,11 +112,6 @@ static DAC_entry text_colors[16];
 
 static int force_grab = 0;
 int grab_active = 0;
-
-void SDL_update(void)
-{
-  /* do nothing for now -- but see comment in SDL_put_image */
-}
 
 int SDL_init(void)
 {

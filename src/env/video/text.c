@@ -180,8 +180,6 @@ static void redraw_cursor(void)
   if(vga.crtc.cursor_shape != NO_CURSOR)
     draw_cursor();
 
-  Text->Update();
-
   prev_cursor_location = vga.crtc.cursor_location - vga.display_start;
   prev_cursor_shape = vga.crtc.cursor_shape;
 }
@@ -639,7 +637,6 @@ chk_cursor:
 	    if (y == cursor_row)
 	      update_cursor();
 	  }
-	Text->Update();
 
 /*	X_printf("X: X_update_screen: %d lines updated\n",numdone);*/
 	

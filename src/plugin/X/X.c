@@ -485,11 +485,8 @@ struct video_system Video_X =
    X_handle_events
 };
 
-static void X_update(void);
-
 struct text_system Text_X =
 {
-   X_update,
    X_draw_string, 
    X_draw_line,
    X_draw_text_cursor,
@@ -501,11 +498,6 @@ struct render_system Render_X =
    refresh_private_palette,
    put_ximage,
 };
-
-void X_update(void)
-{
-   XFlush(display);
-}
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -2120,7 +2112,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   XSetForeground(display, gc, text_colors[0]);
   XFillRectangle(display, mainwindow, gc, 0, 0, x_fill, y_fill);
 
-  XSync(display, False); /* show NOW */
   if (font == NULL) {
     resize_text_mapper(ximage_mode);
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */

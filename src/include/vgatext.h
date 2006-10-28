@@ -13,8 +13,6 @@ extern int use_bitmap_font;
 
 struct text_system
 {
-   /* update the screen */
-   void (*Update)(void);
    /* function to draw a string in text mode using attribute attr */
    void (*Draw_string)(int x, int y , unsigned char *s, int len, Bit8u attr); 
    void (*Draw_line)(int x, int y , int len); 

@@ -709,12 +709,6 @@ static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u a
       term_write_nchars(text, len, attr);
 }
 
-static void term_update(void)
-{
-   /* could be SLsmg_refresh (); but it's spurious with the keymap
-      prompts */
-}
-
 void dos_slang_redraw (void)
 {
    if (Slsmg_is_not_initialized) return;
@@ -807,7 +801,6 @@ struct video_system Video_term = {
 
 struct text_system Text_term =
 {
-   term_update,
    term_draw_string, 
    NULL,
    term_draw_text_cursor,

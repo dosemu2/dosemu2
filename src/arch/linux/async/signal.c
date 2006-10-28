@@ -671,16 +671,8 @@ static void SIGALRM_call(void)
     first = 1;
   }
 
-  if (Video->handle_events)
-     Video->handle_events();
-
-  /* for the SLang terminal we'll delay the release of shift, ctrl, ...
-     keystrokes a bit */
-  /* although actually the event handler handles the keyboard in X, keyb_client_run
-   * still needs to be called in order to handle pasting.
-   */
-  if (!config.console_keyb)
-    keyb_client_run();
+  /* update mouse cursor before updating the screen */
+  mouse_curtick();
 
   /* If it is running in termcap mode, then update the screen.
    * First it sets a running flag, so as to avoid re-entrancy of 
@@ -741,7 +733,16 @@ static void SIGALRM_call(void)
     running--;
   }
   
-  mouse_curtick();
+  if (Video->handle_events)
+     Video->handle_events();
+
+  /* for the SLang terminal we'll delay the release of shift, ctrl, ...
+     keystrokes a bit */
+  /* although actually the event handler handles the keyboard in X, keyb_client_run
+   * still needs to be called in order to handle pasting.
+   */
+  if (!config.console_keyb)
+    keyb_client_run();
 
 #ifdef USE_SBEMU
   /* This is a macro */
