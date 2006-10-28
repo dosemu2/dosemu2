@@ -1078,14 +1078,71 @@ shrot0:
 		break;
 
 	case O_OPAX: {	/* used by DAA..AAD */
-			int n =	IG->p0;
 			// movl Ofs_EAX(%%ebx),%%eax
 			G4M(0x9d,0x8b,0x43,Ofs_EAX,Cp);
+#ifdef __x86_64__ /* have to emulate all of them... */
+			switch(IG->p1) {
+			case DAA:
+			case DAS: {
+				int op = (IG->p1 == DAS ? 0x28 : 0);
+				// pushf; mov %al,%cl; add/sub $0x66,%al
+				G1(0x9c,Cp); G4M(0x88,0xc1,op+0x04,0x66,Cp);
+				{
+				const static char pseq[] = {
+				// pushf; pop %rax; pop %rdx
+				0x9c,0x58,0x5a,
+				// or %dl,%al; and $0x11,%al // combine AF/CF
+				0x08,0xd0,0x24,0x11,
+				// mov %al,%dl; rol $4,%al
+				0x88,0xc2,0xc0,0xc0,0x04,
+				// imul $6,%eax // multiply 0 CF 0 0 0 AF by 6
+				0x6b,0xc0,0x06};
+				GNX(Cp, pseq, sizeof(pseq));
+				}
+				// add/sub %al,%cl; pushf // Combine flags from
+				G3M(op,0xc1,0x9c,Cp);
+				// or %dl,(%rsp) // add/sub with AF/CF
+				G3M(0x08,0x14,0x24,Cp);
+				// movb %%cl,Ofs_EAX(%%ebx)
+				G3M(0x88,0x4b,Ofs_EAX,Cp);
+				break;
+			}
+			case AAA:
+			case AAS: {
+				int op = (IG->p1 == AAS ? 0x28 : 0);
+				// pushf; mov %eax,%ecx; and 0xf,%al
+				G1(0x9c,Cp); G4M(0x89,0xc1,0x24,0x0f,Cp);
+				// add/sub $6,%al; pop %edx
+				G3M(op+0x04,0x06,0x5a,Cp);
+				{
+				const static char pseq[] = {
+				// or %dl,%al; and $0xee,%dl // ~(AF|CF)
+				0x08,0xd0,0x80,0xe2,0xee,
+				// and $0x10,%al; xchg %eax,%ecx; jz 1f
+				0x24,0x10,0x91,0x74,0x07};
+				GNX(Cp, pseq, sizeof(pseq));
+				}
+				// add/sub $0x106, %ax
+				G4M(0x66,op+0x05,0x06,0x01,Cp);
+				// or $0x11,%dl; (AF|CF) 1: and $0xf,%al
+				G3M(0x80,0xca,0x11,Cp); G2M(0x24,0x0f,Cp);
+				// push %rdx; movl %%eax,Ofs_EAX(%%ebx)
+				G4M(0x52,0x89,0x43,Ofs_EAX,Cp);
+				break;
+			}
+			case AAM:
+			case AAD:
+			default:
+				error("Unimplemented O_OPAX instruction\n");
+				leavedos(99);
+			}
+#else
 			// get n>0,n<3 bytes from parameter stack
 			G1(IG->p1,Cp);
-			if (n==2) { G1(IG->p2,Cp); }
+			if (IG->p0==2) { G1(IG->p2,Cp); }
 			// movl %%eax,Ofs_EAX(%%ebx)
 			G4M(0x89,0x43,Ofs_EAX,0x9c,Cp);
+#endif
 		}
 		break;
 
