@@ -20,8 +20,6 @@ struct text_system
    void (*Draw_line)(int x, int y , int len); 
    void (*Draw_cursor)(int x, int y, Bit8u attr, int first, int last, Boolean focus);
    void (*SetPalette) (DAC_entry color);
-   void (*Resize_text_screen)(void);
-
 };
 
 struct RemapObjectStruct;
@@ -39,7 +37,6 @@ int update_text_screen(void);
 void redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
-void set_textsize(int, int);
 
 #ifdef CONFIG_SELECTION
 /* for selections */

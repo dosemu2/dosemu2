@@ -873,6 +873,7 @@ int vbe_scan_length(unsigned sub_func, unsigned scan_len)
         }
         vga.scan_len = u0;
         vga.reconfig.display = 1;
+	vga.reconfig.re_init = 1;
         break;
 
       case 1:	/* get current config */
@@ -889,6 +890,7 @@ int vbe_scan_length(unsigned sub_func, unsigned scan_len)
         }
         vga.scan_len = u0;
         vga.reconfig.display = 1;
+	vga.reconfig.re_init = 1;
         break;
 
       case 3:	/* get maximum config */

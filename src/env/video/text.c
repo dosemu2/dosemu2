@@ -285,13 +285,7 @@ void redraw_text_screen()
   }
   x_msg("X_redraw_text_screen: all\n");
 
-  if(vga.reconfig.display || vga.reconfig.mem) {
-    if(vga.reconfig.display) {
-      vga.reconfig.display = 0;
-      Text->Resize_text_screen();
-    }
-    vga.reconfig.mem = 0;
-  }
+  vga.reconfig.mem = 0;
 
   if(vga.text_width > MAX_COLUMNS) {
     x_msg("X_redraw_text_screen: unable to handle %d colums\n", vga.text_width);
@@ -511,10 +505,6 @@ int update_text_screen(void)
 
   refresh_text_palette();
 
-  if(vga.reconfig.display) {
-    Text->Resize_text_screen();
-    vga.reconfig.display = 0;
-  }
   if(vga.reconfig.mem) {
     if (use_bitmap_font)
       remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
@@ -670,16 +660,6 @@ chk_cursor:
 	  }
       
   return 0;
-}
-
-/*
- * Set the text mode resolution.
- */
-void set_textsize(int width, int height)
-{
-  v_printf("set_textsize: size = %d x %d\n", width, height);
-  vga_emu_set_textsize(width, height);
-  Text->Resize_text_screen();
 }
 
 void text_lose_focus()

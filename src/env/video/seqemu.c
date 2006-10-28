@@ -160,6 +160,7 @@ static void seq_map_select(unsigned data)
   seq_msg("Setting font offsets to 0x%04x/0x%04x (0x%02x)\n",
           vga.seq.fontofs[0], vga.seq.fontofs[1], data);
   vga.reconfig.display = 1;
+  vga.reconfig.re_init = 1;
 }
 
 void Seq_init()

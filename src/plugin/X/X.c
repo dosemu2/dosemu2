@@ -494,7 +494,6 @@ struct text_system Text_X =
    X_draw_line,
    X_draw_text_cursor,
    X_set_text_palette,
-   X_resize_text_screen
 };
 
 struct render_system Render_X =

@@ -46,7 +46,6 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int *x_res, int *y_res);
 
 static void SDL_draw_line(int x, int y, int len) {}
-static void SDL_resize_text_screen(void);
 static void SDL_resize_image(unsigned width, unsigned height);
 static void SDL_handle_events(void);
 static int SDL_set_text_mode(int tw, int th, int w ,int h);
@@ -74,7 +73,6 @@ struct text_system Text_SDL =
    SDL_draw_line, 
    SDL_draw_cursor,
    SDL_set_text_palette,
-   SDL_resize_text_screen,
 };
 
 struct render_system Render_SDL =
@@ -217,15 +215,6 @@ void SDL_close(void)
   remapper_done();
   vga_emu_done();
   SDL_Quit();   
-}
-
-static void SDL_resize_text_screen(void)
-{
-  font_width = vga.char_width;
-  font_height = vga.char_height;
-  w_x_res = (vga.width <= 320) ? (2 * vga.width) : vga.width;
-  w_y_res = (vga.height <= 240) ? (2 * vga.height) : vga.height;
-  redraw_text_screen();
 }
 
 /* NOTE : Like X.c, the actual mode is taken via video_mode */

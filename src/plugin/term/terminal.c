@@ -791,10 +791,6 @@ static void term_set_text_palette(DAC_entry color)
 {
 }
 
-static void term_resize_text_screen(void)
-{
-}
-
 #define term_setmode NULL
 #define term_update_cursor NULL
 
@@ -816,5 +812,4 @@ struct text_system Text_term =
    NULL,
    term_draw_text_cursor,
    term_set_text_palette,
-   term_resize_text_screen
 };
