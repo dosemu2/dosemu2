@@ -438,7 +438,6 @@ static void set_gc_attr(Bit8u);
 static void X_draw_string(int, int, unsigned char *, int, Bit8u);
 static void X_draw_string16(int, int, unsigned char *, int, Bit8u);
 static void X_draw_line(int x, int y, int len);
-static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr);
 
 /* text mode init stuff (font/cursor) */
 static void load_text_font(void);
@@ -734,7 +733,8 @@ int X_init()
   if(have_true_color || have_shmap)
     Render_X.refresh_private_palette = NULL;
   register_render_system(&Render_X);
-  register_text_system(&Text_X);
+  if (!use_bitmap_font)
+    register_text_system(&Text_X);
 
   /* initialize VGA emulator */
   if(vga_emu_init(remap_src_modes, &X_csd)) {
@@ -1088,8 +1088,11 @@ static int X_change_config(unsigned item, void *buf)
       if(xfont == NULL) {
         if(font != NULL) XFreeFont(display, font);
         font = xfont;
+	if (!use_bitmap_font) {
+	  register_render_system(&Render_X);
+	  dirty_all_vga_colors();
+	}
         use_bitmap_font = TRUE;
-	Text_X.Draw_string = bitmap_draw_string;
         X_printf("X: X_change_config: font \"%s\" not found, "
                  "using builtin\n", (char *) buf);
         X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
@@ -1107,6 +1110,10 @@ static int X_change_config(unsigned item, void *buf)
         else {
           if(font != NULL) XFreeFont(display, font);
           font = xfont;
+	  if (use_bitmap_font) {
+	    register_text_system(&Text_X);
+	    dirty_all_vga_colors();
+	  }
 	  use_bitmap_font = FALSE;
 	  if (font->min_byte1 || font->max_byte1) {
 	    Text_X.Draw_string = X_draw_string16;
@@ -2409,7 +2416,13 @@ void X_redraw_text_screen()
 
 int X_update_screen()
 {
-  return update_screen(&veut, is_mapped);
+  if(vga.reconfig.re_init) {
+    vga.reconfig.re_init = 0;
+    dirty_all_video_pages();
+    dirty_all_vga_colors();
+    X_set_videomode(-1, 0, 0);
+  }
+  return is_mapped ? update_screen(&veut) : 0;
 }
 
 /* 
@@ -2468,19 +2481,6 @@ static void X_draw_string16(int x, int y, unsigned char *text, int len, Bit8u at
 }
 
 /*
- * Draw a text string for bitmap fonts.
- * The attribute is the VGA color/mono text attribute.
- */
-static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
-{
-  RectArea ra = convert_bitmap_string(x, y, text, len, attr);
-  /* put_ximage uses display, mainwindow, gc, ximage       */
-  X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
-  if (ra.width)
-    put_ximage(ra.x, ra.y, ra.width, ra.height);
-}
-
-/*
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
@@ -2488,10 +2488,10 @@ void X_draw_line(int x, int y, int len)
 {
   XDrawLine(
       display, mainwindow, gc,
-      (shift_x + font_width * x) * w_x_res / x_res,
-      (font_height * y + font_shift) * w_y_res / y_res,
-      (shift_x + font_width * (x + len) - 1) * w_x_res / x_res,
-      (shift_y + font_height * y + font_shift) * w_y_res / y_res
+      shift_x + font_width * x,
+      font_height * y + font_shift,
+      shift_x + font_width * (x + len) - 1,
+      shift_y + font_height * y + font_shift
     );
 }
 
@@ -2505,7 +2505,6 @@ void load_text_font()
   const char *p = config.X_font;
   font = NULL;
   use_bitmap_font = TRUE;
-  Text_X.Draw_string = bitmap_draw_string;
   if (p && strlen(p)) {
     font = XLoadQueryFont(display, p);
     if(font == NULL) {
@@ -2604,10 +2603,10 @@ void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean fo
   if(!focus) {
     XDrawRectangle(
       display, mainwindow, gc,
-      (shift_x + x * font_width) * w_x_res / x_res,
-      (shift_y + y * font_height) * w_y_res / y_res,
-      (font_width - 1) * w_x_res / x_res,
-      (font_height - 1) * w_y_res / y_res
+      shift_x + x * font_width,
+      shift_y + y * font_height,
+      font_width - 1,
+      font_height - 1
       );
   }
   else {
@@ -2617,10 +2616,10 @@ void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean fo
     if (cend == -1) cend = 0;
     XFillRectangle(
       display, mainwindow, gc,
-      (shift_x + x * font_width) * w_x_res / x_res,
-      (shift_y + y * font_height + cstart) * w_y_res / y_res,
-      font_width * w_x_res / x_res,
-      (cend - cstart + 1) * w_y_res / y_res
+      shift_x + x * font_width,
+      shift_y + y * font_height + cstart,
+      font_width,
+      cend - cstart + 1
     );
   }
 }

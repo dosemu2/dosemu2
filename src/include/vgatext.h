@@ -25,6 +25,7 @@ struct RectArea;
 
 int register_text_system(struct text_system *text_system);
 struct RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus);
+struct RectArea draw_bitmap_line(int x, int y, int len);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void update_cursor(void);

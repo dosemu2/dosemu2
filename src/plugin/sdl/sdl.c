@@ -37,14 +37,10 @@ static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
 static void SDL_update_cursor(void);
 static int SDL_update_screen(void);
-static void SDL_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr);
-static void SDL_draw_cursor(int x, int y, Bit8u attr, int , int , Boolean);
-static void SDL_set_text_palette(DAC_entry);
 static void SDL_refresh_private_palette(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int *x_res, int *y_res);
 
-static void SDL_draw_line(int x, int y, int len) {}
 static void SDL_resize_image(unsigned width, unsigned height);
 static void SDL_handle_events(void);
 static int SDL_set_text_mode(int tw, int th, int w ,int h);
@@ -63,14 +59,6 @@ struct video_system Video_SDL =
   SDL_update_cursor,
   SDL_change_config,
   SDL_handle_events
-};
-
-struct text_system Text_SDL =
-{
-   SDL_draw_string, 
-   SDL_draw_line, 
-   SDL_draw_cursor,
-   SDL_set_text_palette,
 };
 
 struct render_system Render_SDL =
@@ -108,7 +96,10 @@ static vga_emu_update_type veut;
 static ColorSpaceDesc SDL_csd;
 static SDL_Color vga_colors[256];
 
-static DAC_entry text_colors[16];
+static struct {
+  int num, max;
+  SDL_Rect *rects;
+} sdl_rects;
 
 static int force_grab = 0;
 int grab_active = 0;
@@ -151,7 +142,6 @@ int SDL_init(void)
   if(have_true_color)
     Render_SDL.refresh_private_palette = NULL;
   register_render_system(&Render_SDL);
-  register_text_system(&Text_SDL);
 
   if(vga_emu_init(remap_src_modes, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
@@ -247,20 +237,6 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
   return 1;
 }
 
-void SDL_set_text_palette(DAC_entry col)
-{
-  SDL_Color color[1];
-  int shift;
-  if (vga.dac.bits < 8)  shift = 8 - vga.dac.bits; 
-  else shift = 0;
-
-  color[0].r = col.r << shift;
-  color[0].g = col.g << shift;
-  color[0].b = col.b << shift;   
-  text_colors[col.index] = col;
-  SDL_SetColors(surface, color, col.index, 1);   
-}
-
 void SDL_resize_image(unsigned width, unsigned height)
 {
   v_printf("SDL: resize_image %d x %d\n", width, height);
@@ -344,28 +320,41 @@ static void SDL_change_mode(int *x_res, int *y_res)
   *remap_obj.dst_color_space = SDL_csd;
 }
 
-static void SDL_draw_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
+static void SDL_update(void)
 {
-  RectArea ra;
-
-  SDL_LockSurface(surface);
-  ra = draw_bitmap_cursor(x, y, attr, start, end, focus);
-  SDL_UnlockSurface(surface);
-  if (ra.width)
-    SDL_UpdateRect(surface, ra.x, ra.y, ra.width, ra.height);
+  SDL_UpdateRects(surface, sdl_rects.num, sdl_rects.rects);
+  sdl_rects.num = 0;
 }
 
-   
 void SDL_update_cursor(void)
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
-   else if (is_mapped) update_cursor();
+   else if (is_mapped) {
+     SDL_LockSurface(surface);
+     update_cursor();
+     SDL_UnlockSurface(surface);
+     SDL_update();
+   }
 }
 
 int SDL_update_screen(void)
 {
-  return update_screen(&veut, is_mapped);
+  if(vga.reconfig.re_init) {
+    vga.reconfig.re_init = 0;
+    dirty_all_video_pages();
+    dirty_all_vga_colors();
+    SDL_set_videomode(-1, 0, 0);
+  }
+  if (is_mapped) {
+    int ret;
+    SDL_LockSurface(surface);
+    ret = update_screen(&veut);
+    SDL_UnlockSurface(surface);
+    SDL_update();
+    return ret;
+  }
+  return 0;
 }
 
 static void SDL_refresh_private_palette(void)
@@ -402,29 +391,22 @@ static void SDL_refresh_private_palette(void)
   if (j) SDL_SetColors(surface, vga_colors, 0, cols);
 }
 
+/* this only pushes the rectangle on a stack; updating is done later */
 void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-  /* faster would be to push the rectangle and do the real work
-     using SDL_UpdateRects in SDL_Update */
-  SDL_UpdateRect(surface, x, y, width, height);
-}
+  SDL_Rect *rect;
 
-void SDL_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
-{
-  RectArea ra;
-   v_printf(
-    "SDL_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
-    len, x, y, (unsigned) attr
-	);
-  SDL_LockSurface(surface);
-  ra = convert_bitmap_string(x, y, text, len, attr);
-  SDL_UnlockSurface(surface);
-   v_printf(
-    "SDL_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
-    ra.width, ra.x, ra.y, ra.height
-	);
-  if (ra.width)
-    SDL_UpdateRect(surface, ra.x, ra.y, ra.width, ra.height);
+  if (sdl_rects.num >= sdl_rects.max) {
+    sdl_rects.rects = realloc(sdl_rects.rects, (sdl_rects.max + 10) *
+			      sizeof(*sdl_rects.rects));
+    sdl_rects.max += 10;
+  }
+  rect = &sdl_rects.rects[sdl_rects.num];
+  rect->x = x;
+  rect->y = y;
+  rect->w = width;
+  rect->h = height;
+  sdl_rects.num++;
 }
 
 static void toggle_grab(void)

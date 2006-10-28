@@ -43,7 +43,7 @@
 #include "render.h"
 #include "translate.h"
 
-struct text_system * Text = NULL;
+static struct text_system * Text = NULL;
 int use_bitmap_font = TRUE;
 Boolean have_focus = FALSE;
 
@@ -218,6 +218,28 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
 			      vga.char_width, vga.char_height);
 }
 
+/*
+ * Draw a horizontal line (for text modes)
+ * The attribute is the VGA color/mono text attribute.
+ */
+RectArea draw_bitmap_line(int x, int y, int linelen)
+{
+  Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start +
+				  y * vga.scan_len + x * 2);
+  int fg = ATTR_FG(XATTR(screen_adr));
+  int len = vga.scan_len / 2 * vga.char_width;
+  unsigned char *  deb;
+  int ul = vga.crtc.data[0x14] & 0x1f;
+
+  x = vga.char_width * x;
+  y = vga.char_height * y + ul;
+  linelen *= vga.char_width;
+
+  deb = remap_obj.src_image + len * y + x;
+  memset(deb, fg, linelen);
+  return remap_obj.remap_rect(&remap_obj, x, y, linelen, 1);
+}
+
 void reset_redraw_text_screen(void)
 {
   prev_cursor_shape = NO_CURSOR; redraw_cursor();
@@ -254,9 +276,6 @@ static void refresh_text_palette(void)
 
   for(k = 0; k < j; k++) {
     Text->SetPalette(col[k]);
-    if (use_bitmap_font)
-      remap_obj.palette_update(&remap_obj, col[k].index, vga.dac.bits,
-			       col[k].r, col[k].g, col[k].b);
   }
 
   if(j) redraw_text_screen();

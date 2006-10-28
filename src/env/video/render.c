@@ -18,9 +18,55 @@ RemapObject remap_obj;
 int remap_features;
 static struct render_system *Render;
 
+/*
+ * Draw a text string for bitmap fonts.
+ * The attribute is the VGA color/mono text attribute.
+ */
+static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+{
+  RectArea ra = convert_bitmap_string(x, y, text, len, attr);
+  /* put_ximage uses display, mainwindow, gc, ximage       */
+  X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
+  if (ra.width)
+    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+}
+
+static void bitmap_draw_line(int x, int y, int len)
+{
+  RectArea ra;
+
+  ra = draw_bitmap_line(x, y, len);
+  if (ra.width)
+    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+}
+
+static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
+{
+  RectArea ra;
+
+  ra = draw_bitmap_cursor(x, y, attr, start, end, focus);
+  if (ra.width)
+    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+}
+
+static void bitmap_set_text_palette(DAC_entry col)
+{
+  remap_obj.palette_update(&remap_obj, col.index, vga.dac.bits,
+			   col.r, col.g, col.b);
+}
+
+static struct text_system Text_bitmap =
+{
+  bitmap_draw_string,
+  bitmap_draw_line,
+  bitmap_draw_text_cursor,
+  bitmap_set_text_palette,
+};
+
 int register_render_system(struct render_system *render_system)
 {
   Render = render_system;
+  register_text_system(&Text_bitmap);
   return 1;
 }
 
@@ -395,22 +441,13 @@ static int update_graphics_screen(vga_emu_update_type *veut)
   return update_ret < 0 ? 2 : 1;
 }
 
-int update_screen(vga_emu_update_type *veut, int is_mapped)
+int update_screen(vga_emu_update_type *veut)
 {
   if(vga.config.video_off) {
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
     return 1;
   }
 
-  if(vga.reconfig.re_init) {
-    vga.reconfig.re_init = 0;
-    dirty_all_video_pages();
-    dirty_all_vga_colors();
-    Video->setmode(-1, 0, 0);
-  }
-
-  if(!is_mapped) return 0;       /* no need to do anything... */
   return vga.mode_class == TEXT ? update_text_screen() :
     update_graphics_screen(veut);
 }
-
