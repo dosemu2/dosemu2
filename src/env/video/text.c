@@ -242,7 +242,7 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
 
 void reset_redraw_text_screen(void)
 {
-  prev_cursor_shape = NO_CURSOR; redraw_cursor();
+  prev_cursor_shape = NO_CURSOR;
 
   /* Comment Eric: If prev_screen is too small, we must update */
   /* everything continuously anyway, sigh...                   */
