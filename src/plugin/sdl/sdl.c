@@ -22,7 +22,10 @@
 #include "video.h"
 #include "memory.h"
 #include "../../env/video/remap.h"
+#ifdef X_SUPPORT
 #include "../X/screen.h"
+#include "../X/X.h"
+#endif
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
@@ -68,17 +71,6 @@ struct render_system Render_SDL =
 };
 
 static const SDL_VideoInfo *video_info;
-#ifdef X_SUPPORT
-#ifdef CONFIG_SELECTION
-#ifdef USE_DL_PLUGINS
-#define X_handle_selection pX_handle_selection
-static void (*X_handle_selection)(Display *display, Window mainwindow,
-				  XEvent *e);
-#endif
-#define CONFIG_SDL_SELECTION 1
-#endif
-#endif
-static int using_x11 = 0;
 static int remap_src_modes = 0;
 static SDL_Surface* surface = NULL;
 static int SDL_image_mode;
@@ -86,7 +78,7 @@ static int SDL_image_mode;
 static Boolean is_mapped = FALSE;
 static int exposure = 0;
 
-static int font_width = 8, font_height = 16, font_shift = 1;
+static int font_width, font_height;
 
 static int w_x_res, w_y_res;			/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
@@ -103,6 +95,56 @@ static struct {
 
 static int force_grab = 0;
 int grab_active = 0;
+
+#ifdef X_SUPPORT
+#ifdef USE_DL_PLUGINS
+#define X_load_text_font pX_load_text_font
+static void (*X_load_text_font)(Display *display, Window window,
+				const char *p,  int *w, int *h);
+#endif
+
+#ifdef CONFIG_SELECTION
+#ifdef USE_DL_PLUGINS
+#define X_handle_selection pX_handle_selection
+static void (*X_handle_selection)(Display *display, Window mainwindow,
+				  XEvent *e);
+#endif
+#define CONFIG_SDL_SELECTION 1
+#endif /* CONFIG_SELECTION */
+
+static struct {
+  Display *display, *text_display;
+  Window window;
+  void (*lock_func)(void);
+  void (*unlock_func)(void);
+} x11;
+
+static void init_x11_support(void)
+{
+  SDL_SysWMinfo info;
+  SDL_VERSION(&info.version);
+  if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
+#ifdef USE_DL_PLUGINS
+    void (*X_speaker_on)(void *, unsigned, unsigned short);
+    void (*X_speaker_off)(void *);
+    void *handle = load_plugin("X");
+    X_speaker_on = dlsym(handle, "X_speaker_on");
+    X_speaker_off = dlsym(handle, "X_speaker_off");
+    X_load_text_font = dlsym(handle, "X_load_text_font");
+#ifdef CONFIG_SDL_SELECTION
+    X_handle_selection = dlsym(handle, "X_handle_selection");
+#endif
+#endif
+    SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+    x11.display = info.info.x11.display;
+    x11.window = info.info.x11.window;
+    x11.lock_func = info.info.x11.lock_func;
+    x11.unlock_func = info.info.x11.unlock_func;
+    register_speaker(x11.display, X_speaker_on, X_speaker_off);
+    SDL_change_config(CHG_FONT, config.X_font);
+  }
+}
+#endif /* X_SUPPORT */
 
 int SDL_init(void)
 {
@@ -148,28 +190,6 @@ int SDL_init(void)
     leavedos(99);
   }
 
-#ifdef X_SUPPORT
-  {
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version);
-    if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
-#ifdef USE_DL_PLUGINS
-      void (*X_speaker_on)(void *, unsigned, unsigned short);
-      void (*X_speaker_off)(void *);
-      void *handle = load_plugin("X");
-      X_speaker_on = dlsym(handle, "X_speaker_on");
-      X_speaker_off = dlsym(handle, "X_speaker_off");
-#ifdef CONFIG_SDL_SELECTION
-      X_handle_selection = dlsym(handle, "X_handle_selection");
-#endif
-#endif
-      SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
-      register_speaker(info.info.x11.display, X_speaker_on, X_speaker_off);
-      using_x11 = 1;
-    }
-  }
-#endif
-
   /* SDL_APPACTIVE event does not occur when an application window is first
    * created.
    * So we push that event into the queue */
@@ -197,7 +217,41 @@ void SDL_close(void)
 {
   remapper_done();
   vga_emu_done();
+#ifdef X_SUPPORT
+  if (x11.text_display)
+    XCloseDisplay(x11.text_display);
+#endif
   SDL_Quit();   
+}
+
+static void SDL_update(void)
+{
+  SDL_UpdateRects(surface, sdl_rects.num, sdl_rects.rects);
+  sdl_rects.num = 0;
+}
+
+/*
+ * Sync prev_screen & screen_adr.
+ */
+static void SDL_reset_redraw_text_screen(void)
+{
+  if(!is_mapped) return;
+  reset_redraw_text_screen();
+}
+
+static void SDL_redraw_text_screen(void)
+{
+  if (!is_mapped) return;
+#ifdef X_SUPPORT
+  if (x11.display && !use_bitmap_font) {
+    redraw_text_screen();
+    return;
+  }
+#endif
+  SDL_LockSurface(surface);
+  redraw_text_screen();
+  SDL_UnlockSurface(surface);
+  SDL_update();
 }
 
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
@@ -211,8 +265,6 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
 	       mode, text_width, text_height);
       return 0;
     }
-    font_width = vga.char_width;
-    font_height = vga.char_height;
   }
 
   v_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
@@ -222,14 +274,16 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
   );
 
 
-  if (surface != NULL) {
-    SDL_FreeSurface(surface);
-  }
-   
   if(vga.mode_class == TEXT) {
-    SDL_set_text_mode(vga.text_width, vga.text_height, vga.width, vga.height);
+    if (use_bitmap_font) {
+      SDL_set_text_mode(vga.text_width, vga.text_height, vga.width, vga.height);
+    } else {
+      SDL_set_text_mode(vga.text_width, vga.text_height,
+			vga.text_width * font_width,
+			vga.text_height * font_height);
+    }
     if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
-    if (is_mapped) reset_redraw_text_screen();
+    if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
     get_mode_parameters(&w_x_res, &w_y_res, SDL_image_mode, &veut);
     SDL_change_mode(&w_x_res, &w_y_res);
@@ -248,6 +302,8 @@ void SDL_resize_image(unsigned width, unsigned height)
 static void SDL_redraw_resize_image(unsigned width, unsigned height)
 {
   SDL_resize_image(width, height);
+  /* forget about those rectangles */
+  sdl_rects.num = 0;
   dirty_all_video_pages();
   if (vga.mode_class == TEXT)
     vga.reconfig.mem = 1;
@@ -256,13 +312,8 @@ static void SDL_redraw_resize_image(unsigned width, unsigned height)
 
 int SDL_set_text_mode(int tw, int th, int w ,int h)
 {
-  /* Try to find the best font */
-  /* We only have fonts by 8 x y pixels, so we just have to choose y */
-  font_width = vga.char_width;
-  font_shift = (w / tw ) - vga.char_width;
-  /* re adjust h */
-  h = vga.char_height * th;
-  resize_text_mapper(SDL_image_mode);
+  if (use_bitmap_font)
+    resize_text_mapper(SDL_image_mode);
   SDL_resize_image(w, h);
   SDL_set_mouse_text_cursor();
   /* that's all */ 
@@ -274,7 +325,10 @@ static void SDL_change_mode(int *x_res, int *y_res)
   Uint32 flags = SDL_HWPALETTE | SDL_HWSURFACE;
   saved_w_x_res = *x_res;
   saved_w_y_res = *y_res;
-  if (config.X_fullscreen) {
+  if (!use_bitmap_font && vga.mode_class == TEXT) {
+    if (config.X_fullscreen)
+      flags |= SDL_FULLSCREEN;
+  } else if (config.X_fullscreen) {
     SDL_Rect **modes;
     int i;
 
@@ -311,19 +365,17 @@ static void SDL_change_mode(int *x_res, int *y_res)
     flags |= SDL_RESIZABLE;
   }
   v_printf("SDL: using mode %d %d %d\n", *x_res, *y_res, SDL_csd.bits);
-  if (!using_x11) /* SDL may crash otherwise.. */
+#ifdef X_SUPPORT
+  if (!x11.display) /* SDL may crash otherwise.. */
+#endif
     SDL_ShowCursor(SDL_ENABLE);
   surface =  SDL_SetVideoMode(*x_res, *y_res, SDL_csd.bits, flags);
   SDL_ShowCursor(SDL_DISABLE);
-  remap_obj.dst_resize(&remap_obj, *x_res, *y_res, surface->pitch);
-  remap_obj.dst_image = surface->pixels;
-  *remap_obj.dst_color_space = SDL_csd;
-}
-
-static void SDL_update(void)
-{
-  SDL_UpdateRects(surface, sdl_rects.num, sdl_rects.rects);
-  sdl_rects.num = 0;
+  if (use_bitmap_font || vga.mode_class == GRAPH) {
+    remap_obj.dst_resize(&remap_obj, *x_res, *y_res, surface->pitch);
+    remap_obj.dst_image = surface->pixels;
+    *remap_obj.dst_color_space = SDL_csd;
+  }
 }
 
 void SDL_update_cursor(void)
@@ -331,6 +383,12 @@ void SDL_update_cursor(void)
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
    else if (is_mapped) {
+#ifdef X_SUPPORT
+     if (x11.text_display && !use_bitmap_font) {
+       update_cursor();
+       return;
+     }
+#endif
      SDL_LockSurface(surface);
      update_cursor();
      SDL_UnlockSurface(surface);
@@ -342,12 +400,17 @@ int SDL_update_screen(void)
 {
   if(vga.reconfig.re_init) {
     vga.reconfig.re_init = 0;
+    sdl_rects.num = 0;
     dirty_all_video_pages();
     dirty_all_vga_colors();
     SDL_set_videomode(-1, 0, 0);
   }
   if (is_mapped) {
     int ret;
+#ifdef X_SUPPORT
+    if (x11.text_display && !use_bitmap_font && vga.mode_class == TEXT)
+      return update_screen(&veut);
+#endif
     SDL_LockSurface(surface);
     ret = update_screen(&veut);
     SDL_UnlockSurface(surface);
@@ -484,6 +547,50 @@ static int SDL_change_config(unsigned item, void *buf)
       change_config (item, buf, grab_active, grab_active);
       break;
 
+#ifdef X_SUPPORT
+    case CHG_FONT: {
+      XWindowAttributes xwa;
+      if (!x11.display)
+	break;
+      if (*(char *)buf && !x11.text_display)
+	/* Open a separate connection to receive expose events without
+	   SDL eating  them. */
+	x11.text_display = XOpenDisplay(NULL);
+      X_load_text_font(x11.text_display, x11.window, buf,
+		       &font_width, &font_height);
+      if (use_bitmap_font) {
+	if (x11.text_display) {
+	  XSelectInput(x11.text_display, x11.window, 0);
+	  x11.lock_func();
+	  XGetWindowAttributes(x11.display, x11.window, &xwa);
+	  XSelectInput(x11.display, x11.window,
+		       xwa.your_event_mask | ExposureMask);
+	  x11.unlock_func();
+	}
+        register_render_system(&Render_SDL);
+        if(vga.mode_class == TEXT)
+	  SDL_set_text_mode(vga.text_width, vga.text_height,
+			    vga.width, vga.height);
+      } else {
+	XSelectInput(x11.text_display, x11.window, ExposureMask);
+	x11.lock_func();
+	XGetWindowAttributes(x11.display, x11.window, &xwa);
+	XSelectInput(x11.display, x11.window, 
+		     xwa.your_event_mask & ~ExposureMask);
+	x11.unlock_func();
+        if (w_x_res != vga.text_width * font_width ||
+            w_y_res != vga.text_height * font_height) {
+	  if(vga.mode_class == TEXT)
+	    SDL_set_text_mode(vga.text_width, vga.text_height,
+			      vga.text_width * font_width,
+			      vga.text_height * font_height);
+        }
+      }
+      if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
+      break;
+    }
+#endif
+
     case CHG_FULLSCREEN:
       v_printf("SDL: SDL_change_config: fullscreen %i\n", *((int *) buf));
       if (*((int *) buf) == !config.X_fullscreen)
@@ -498,47 +605,18 @@ static int SDL_change_config(unsigned item, void *buf)
 }
 
 #if CONFIG_SDL_SELECTION
-/*
- * Convert X coordinate to column, with bounds checking.
- */
-static int x_to_col(int x)
-{
-  int col = vga.width*x/font_width/w_x_res;
-  if (col < 0)
-    col = 0;
-  else if (col >= vga.text_width)
-    col = vga.text_width-1;
-  return(col);
-}
-
-
-/*
- * Convert Y coordinate to row, with bounds checking.
- */
-static int y_to_row(int y)
-{
-  int row = vga.height*y/font_height/w_y_res;
-  if (row < 0)
-    row = 0;
-  else if (row >= vga.text_height)
-    row = vga.text_height-1;
-  return(row);
-}
 
 static void SDL_handle_selection(XEvent *e)
 {
-  SDL_SysWMinfo info;
-
   switch(e->type) {
   case SelectionClear:
   case SelectionNotify: 
   case SelectionRequest:
   case ButtonRelease:
-    SDL_VERSION(&info.version);
-    if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
-      info.info.x11.lock_func();
-      X_handle_selection(info.info.x11.display, info.info.x11.window, e);
-      info.info.x11.unlock_func();
+    if (x11.display) {
+      x11.lock_func();
+      X_handle_selection(x11.display, x11.window, e);
+      x11.unlock_func();
     }
     break;
   default:
@@ -557,14 +635,21 @@ static void SDL_handle_events(void)
    busy = 1;
    while (SDL_PollEvent(&event)) {
      switch (event.type) {   
-     case SDL_ACTIVEEVENT:
+     case SDL_ACTIVEEVENT: {
+#ifdef X_SUPPORT
+       static int first = 1;
+       if (first == 1) {
+	 init_x11_support();
+	 first = 0;
+       }
+#endif
        if (event.active.state  == SDL_APPACTIVE) {
 	 if (event.active.gain == 1) {
 	   v_printf("Expose Event\n");
 	   is_mapped = TRUE;
 	   if (vga.mode_class == TEXT) {
 	     if (!exposure) {
-	       redraw_text_screen();
+	       SDL_redraw_text_screen();
 	       exposure = 1;
 	     }
 	   } else {
@@ -581,10 +666,17 @@ static void SDL_handle_events(void)
 	   v_printf("SDL: focus out\n");
 	   if (vga.mode_class == TEXT) text_lose_focus();
 	 }
+       } else {
+	 v_printf("SDL: other activeevent\n");
        }
        break;
+     }
      case SDL_VIDEORESIZE:
+       v_printf("SDL: videoresize event\n");
        SDL_redraw_resize_image(event.resize.w, event.resize.h);
+       break;
+     case SDL_VIDEOEXPOSE:
+       v_printf("SDL: videoexpose event\n");
        break;
      case SDL_KEYDOWN:
        {
@@ -615,13 +707,13 @@ static void SDL_handle_events(void)
        {
 	 int buttons = SDL_GetMouseState(NULL, NULL);
 #if CONFIG_SDL_SELECTION
-	 if (using_x11 && vga.mode_class == TEXT && !grab_active) {
+	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   if (event.button.button == SDL_BUTTON_LEFT)
-	     start_selection(x_to_col(event.button.x),
-			     y_to_row(event.button.y));
+	     start_selection(x_to_col(event.button.x, w_x_res),
+			     y_to_row(event.button.y, w_y_res));
 	   else if (event.button.button == SDL_BUTTON_RIGHT)
-	     start_extend_selection(x_to_col(event.button.x),
-				    y_to_row(event.button.y));
+	     start_extend_selection(x_to_col(event.button.x, w_x_res),
+				    y_to_row(event.button.y, w_y_res));
 	 }
 #endif /* CONFIG_SDL_SELECTION */
 	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
@@ -633,7 +725,7 @@ static void SDL_handle_events(void)
 	 int buttons = SDL_GetMouseState(NULL, NULL);
 	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
 #if CONFIG_SDL_SELECTION
-	 if (using_x11 && vga.mode_class == TEXT) {
+	 if (x11.display && vga.mode_class == TEXT) {
 	   XEvent e;
 	   e.type = ButtonRelease;
 	   e.xbutton.button = 0;
@@ -653,8 +745,9 @@ static void SDL_handle_events(void)
 
      case SDL_MOUSEMOTION:
 #if CONFIG_SDL_SELECTION
-       if (using_x11)
-	 extend_selection(x_to_col(event.button.x), y_to_row(event.button.y));
+       if (x11.display)
+	 extend_selection(x_to_col(event.button.x, w_x_res),
+			  y_to_row(event.button.y, w_y_res));
 #endif /* CONFIG_SDL_SELECTION */
        SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
        break;
@@ -663,7 +756,7 @@ static void SDL_handle_events(void)
        break;
 #if CONFIG_SDL_SELECTION
      case SDL_SYSWMEVENT:
-       if (using_x11)
+       if (x11.display)
 	 SDL_handle_selection(&event.syswm.msg->event.xevent);
        break;
 #endif /* CONFIG_SDL_SELECTION */
@@ -673,6 +766,24 @@ static void SDL_handle_events(void)
        break;
      }	
    }
+#ifdef X_SUPPORT
+   if (x11.text_display && !use_bitmap_font) {
+     /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
+     while (XPending(x11.text_display) > 0) {
+       XEvent e;
+       XNextEvent(x11.text_display, &e);
+       switch(e.type) {
+       case Expose:
+	 v_printf("SDL: X text_display expose event\n");
+	 SDL_redraw_text_screen();
+	 break;
+       default:
+	 v_printf("SDL: some other X event (ignored)\n");
+	 break;
+       }
+     }
+   }
+#endif
    busy = 0;
    do_mouse_irq();
 }

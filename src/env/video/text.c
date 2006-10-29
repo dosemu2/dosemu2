@@ -45,7 +45,7 @@
 
 static struct text_system * Text = NULL;
 int use_bitmap_font = TRUE;
-Boolean have_focus = FALSE;
+Boolean have_focus = TRUE;
 
 static unsigned prev_cursor_location = -1;
 static ushort prev_cursor_shape = NO_CURSOR;
@@ -939,6 +939,33 @@ char *end_selection()
   doing_selection = FALSE;
   save_selection_data();
   return sel_text;
+}
+
+/*
+ * Convert X coordinate to column, with bounds checking.
+ */
+int x_to_col(int x, int w_x_res)
+{
+  int col = x*vga.text_width/w_x_res;
+  if (col < 0)
+    col = 0;
+  else if (col >= vga.text_width)
+    col = vga.text_width-1;
+  return(col);
+}
+
+
+/*
+ * Convert Y coordinate to row, with bounds checking.
+ */
+int y_to_row(int y, int w_y_res)
+{
+  int row = y*vga.text_height/w_y_res;
+  if (row < 0)
+    row = 0;
+  else if (row >= vga.text_height)
+    row = vga.text_height-1;
+  return(row);
 }
 
 #endif /* CONFIG_SELECTION */

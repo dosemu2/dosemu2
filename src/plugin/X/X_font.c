@@ -241,8 +241,14 @@ void X_load_text_font(Display *dpy, Window w,
   font = xfont;
   use_bitmap_font = (font == NULL);
   dirty_all_vga_colors();
-  if (use_bitmap_font)
+  if (use_bitmap_font) {
+    X_printf("X: X_change_config: font \"%s\" not found, "
+	     "using builtin\n", p ? p : "");
+    X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
+    X_printf("X: EGA/VGA font size is %d x %d\n",
+	     vga.char_width, vga.char_height);
     return;
+  }
 
   gcv.font = font->fid;
   text_gc = XCreateGC(dpy, w, GCFont, &gcv);

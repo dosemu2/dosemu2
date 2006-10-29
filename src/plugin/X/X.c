@@ -456,11 +456,6 @@ static void toggle_mouse_grab(void);
 static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
 
-#if CONFIG_X_SELECTION
-static int x_to_col(int);
-static int y_to_row(int);
-#endif
-
 void kdos_recv_msg(unsigned char *);
 void kdos_send_msg(unsigned char *);
 void kdos_close_msg(void);
@@ -1082,11 +1077,6 @@ static int X_change_config(unsigned item, void *buf)
       X_load_text_font(display, drawwindow, buf, &font_width, &font_height);
       if (use_bitmap_font) {
         register_render_system(&Render_X);
-        X_printf("X: X_change_config: font \"%s\" not found, "
-                 "using builtin\n", (char *) buf);
-        X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
-        X_printf("X: EGA/VGA font size is %d x %d\n",
-              vga.char_width, vga.char_height);
         font_width = vga.char_width;
         font_height = vga.char_height;
         if(vga.mode_class == TEXT) X_resize_text_screen();
@@ -1557,9 +1547,11 @@ static void X_handle_events(void)
 #if CONFIG_X_SELECTION
 	if (vga.mode_class == TEXT && !grab_active) {
 	  if (e.xbutton.button == Button1)
-	    start_selection(x_to_col(e.xbutton.x), y_to_row(e.xbutton.y));
+	    start_selection(x_to_col(e.xbutton.x, w_x_res),
+			    y_to_row(e.xbutton.y, w_y_res));
 	  else if (e.xbutton.button == Button3)
-	    start_extend_selection(x_to_col(e.xbutton.x), y_to_row(e.xbutton.y));
+	    start_extend_selection(x_to_col(e.xbutton.x, w_x_res),
+				   y_to_row(e.xbutton.y, w_y_res));
 	}
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e.xmotion.x,e.xmotion.y); /*root@sjoerd*/
@@ -1577,7 +1569,8 @@ static void X_handle_events(void)
 	  
 	case MotionNotify:
 #if CONFIG_X_SELECTION
-	  extend_selection(x_to_col(e.xmotion.x), y_to_row(e.xmotion.y));
+	  extend_selection(x_to_col(e.xmotion.x, w_x_res),
+			   y_to_row(e.xmotion.y, w_y_res));
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e.xmotion.x, e.xmotion.y);
 	  break;
@@ -2504,36 +2497,6 @@ static struct mouse_client Mouse_X =  {
   NULL,		/* run */
   X_set_mouse_cursor /* set_cursor */
 };
-
-#if CONFIG_X_SELECTION
-
-/*
- * Convert X coordinate to column, with bounds checking.
- */
-int x_to_col(int x)
-{
-  int col = x_res*x/font_width/w_x_res;
-  if (col < 0)
-    col = 0;
-  else if (col >= vga.text_width)
-    col = vga.text_width-1;
-  return(col);
-}
-
-
-/*
- * Convert Y coordinate to row, with bounds checking.
- */
-int y_to_row(int y)
-{
-  int row = y_res*y/font_height/w_y_res;
-  if (row < 0)
-    row = 0;
-  else if (row >= vga.text_height)
-    row = vga.text_height-1;
-  return(row);
-}
-#endif /* CONFIG_X_SELECTION */
 
 
 /*

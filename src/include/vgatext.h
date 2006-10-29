@@ -45,4 +45,8 @@ void start_selection(int col, int row);
 void start_extend_selection(int col, int row);
 void clear_selection_data(void);
 void extend_selection(int col, int row);
+
+int x_to_col(int x, int w_x_res);
+int y_to_row(int y, int w_y_res);
+
 #endif
