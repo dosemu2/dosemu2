@@ -11,7 +11,7 @@ CFLAGS+=$(DL_CFLAGS)
 CFILES =
 ifdef X_SUPPORT
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_keysyms.c X_keymaps.c \
-	X_speaker.c
+	X_speaker.c X_font.c
 endif
 
 CPPFLAGS += $(X_CPPFLAGS) -I$(top_srcdir)/src/env/video

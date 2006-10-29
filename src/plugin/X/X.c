@@ -350,18 +350,14 @@ static int mouse_really_left_window = 1;
 #endif
 
 static GC gc;
-static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
-static XFontStruct *font = NULL;
-static int font_width, font_height, font_shift;
+static int font_width, font_height;
 
 static Boolean is_mapped = FALSE;
 
 static int cmap_colors = 0;		/* entries in colormaps: {text,graphics}_cmap */
 static Colormap text_cmap = 0, graphics_cmap = 0;
 static Boolean have_shmap = FALSE;
-static unsigned long text_colors[16];
-static int text_col_stats[16] = {0};
 
 static ColorSpaceDesc X_csd;
 static int have_true_color;
@@ -425,8 +421,6 @@ static int try_cube(unsigned long *, c_cube *);
 
 /* palette/color update stuff */
 static void refresh_private_palette(void);
-static void get_approx_color(XColor *, Colormap, int);
-static void X_set_text_palette(DAC_entry col);
 
 /* ximage/drawing related stuff */
 static void create_ximage(void);
@@ -445,18 +439,12 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res);
 static void X_reset_redraw_text_screen(void);
 static void X_redraw_text_screen(void);
 static int X_update_screen(void);
-static void set_gc_attr(Bit8u);
-static void X_draw_string(int, int, unsigned char *, int, Bit8u);
-static void X_draw_string16(int, int, unsigned char *, int, Bit8u);
-static void X_draw_line(int x, int y, int len);
 
 /* text mode init stuff (font/cursor) */
-static void load_text_font(void);
 static void load_cursor_shapes(void);
 static Cursor create_invisible_cursor(void);
 
 /* text mode cursor manipulation stuff */
-static void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus);
 static void X_update_cursor(void);
 
 #if CONFIG_X_MOUSE
@@ -493,14 +481,6 @@ struct video_system Video_X =
    X_update_cursor,
    X_change_config,
    X_handle_events
-};
-
-struct text_system Text_X =
-{
-   X_draw_string, 
-   X_draw_line,
-   X_draw_text_cursor,
-   X_set_text_palette,
 };
 
 struct render_system Render_X =
@@ -618,10 +598,13 @@ int X_init()
     leavedos(24);
   }
 
-  load_text_font();
-  if (font == NULL)
-    font_width = 9;
-
+  if (!vga.char_width) {
+    /* set to default init values */
+    font_width = vga.char_width = 9;
+    font_height = vga.char_height = 16;
+    vga.text_width = CO;
+    vga.text_height = LI;
+  }
   saved_w_x_res = w_x_res = x_res = CO * font_width;
   saved_w_y_res = w_y_res = y_res = LI * font_height;
 
@@ -642,17 +625,17 @@ int X_init()
       0, 0,			/* Position */
       w_x_res, w_y_res,		/* Size */
       0, 0,			/* Border width & color */
-      text_colors[0]		/* Background color */
+      0				/* Background color */
     );
     drawwindow = XCreateSimpleWindow(
       display, mainwindow,
       0, 0,			/* Position */
       w_x_res, w_y_res,		/* Size */
       0, 0,			/* Border width & color */
-      text_colors[0]		/* Background color */
+      0				/* Background color */
     );
     xwa.override_redirect = True;
-    xwa.background_pixel = text_colors[0];
+    xwa.background_pixel = 0;
     fullscreenwindow = XCreateWindow(
       display, rootwindow,
       0, 0,			/* Position */
@@ -691,12 +674,7 @@ int X_init()
 
   load_cursor_shapes();
 
-  if (font) {
-    gcv.font = vga_font;
-    gc = XCreateGC(display, drawwindow, GCFont, &gcv);
-  } else {
-    gc = XCreateGC(display, drawwindow, 0, &gcv);
-  }
+  gc = XCreateGC(display, drawwindow, 0, &gcv);
 
   attr.event_mask = StructureNotifyMask;
   XChangeWindowAttributes(display, fullscreenwindow, CWEventMask, &attr);
@@ -749,8 +727,10 @@ int X_init()
   if(have_true_color || have_shmap)
     Render_X.refresh_private_palette = NULL;
   register_render_system(&Render_X);
-  if (!use_bitmap_font)
-    register_text_system(&Text_X);
+  X_load_text_font(display, drawwindow, config.X_font,
+		   &font_width, &font_height);
+  if(!use_bitmap_font)
+    X_resize_text_screen();
 
   /* initialize VGA emulator */
   if(vga_emu_init(remap_src_modes, &X_csd)) {
@@ -804,7 +784,7 @@ void X_close()
   X_xf86vm_done();
 #endif
 
-  if (font) XUnloadFont(display, vga_font);
+  X_load_text_font(display, drawwindow, NULL, NULL, NULL);
   if(our_window) {
     XDestroyWindow(display, drawwindow);
     XDestroyWindow(display, normalwindow);
@@ -1073,8 +1053,6 @@ static void X_keymap_init()
 static int X_change_config(unsigned item, void *buf)
 {
   int err = 0;
-  XFontStruct *xfont;
-  XGCValues gcv;
 
   X_printf("X: X_change_config: item = %d, buffer = %p\n", item, buf);
 
@@ -1101,15 +1079,9 @@ static int X_change_config(unsigned item, void *buf)
       break;
 
     case CHG_FONT:
-      xfont = XLoadQueryFont(display, (char *) buf);
-      if(xfont == NULL) {
-        if(font != NULL) XFreeFont(display, font);
-        font = xfont;
-	if (!use_bitmap_font) {
-	  register_render_system(&Render_X);
-	  dirty_all_vga_colors();
-	}
-        use_bitmap_font = TRUE;
+      X_load_text_font(display, drawwindow, buf, &font_width, &font_height);
+      if (use_bitmap_font) {
+        register_render_system(&Render_X);
         X_printf("X: X_change_config: font \"%s\" not found, "
                  "using builtin\n", (char *) buf);
         X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
@@ -1118,34 +1090,9 @@ static int X_change_config(unsigned item, void *buf)
         font_width = vga.char_width;
         font_height = vga.char_height;
         if(vga.mode_class == TEXT) X_resize_text_screen();
-      }
-      else {
-        if(xfont->min_bounds.width != xfont->max_bounds.width) {
-          X_printf("X: X_change_config: font \"%s\" is not monospaced\n", (char *) buf);
-          XFreeFont(display, xfont);
-        }
-        else {
-          if(font != NULL) XFreeFont(display, font);
-          font = xfont;
-	  if (use_bitmap_font) {
-	    register_text_system(&Text_X);
-	    dirty_all_vga_colors();
-	  }
-	  use_bitmap_font = FALSE;
-	  if (font->min_byte1 || font->max_byte1) {
-	    Text_X.Draw_string = X_draw_string16;
-	    X_printf("X: Assuming unicode font\n");
-	  } else
-	    Text_X.Draw_string = X_draw_string;
-          font_width  = font->max_bounds.width;
-          font_height = font->max_bounds.ascent + font->max_bounds.descent;
-          font_shift  = font->max_bounds.ascent;
-          vga_font    = font->fid;
-          gcv.font = vga_font;
-          XChangeGC(display, gc, GCFont, &gcv);
-
-          X_printf("X: X_change_config: using font \"%s\", size = %d x %d\n", (char *) buf, font_width, font_height);
-
+      } else {
+        if (w_x_res != vga.text_width * font_width ||
+            w_y_res != vga.text_height * font_height) {
           if(vga.mode_class == TEXT) X_resize_text_screen();
         }
       }
@@ -1371,7 +1318,7 @@ static void toggle_fullscreen_mode(void)
     }
     X_vidmode(x_res, y_res, &resize_width, &resize_height);
     mainwindow = fullscreenwindow;
-    if (vga.mode_class == GRAPH || font == NULL) {
+    if (vga.mode_class == GRAPH || use_bitmap_font) {
       XResizeWindow(display, mainwindow, resize_width, resize_height);
       XResizeWindow(display, drawwindow, resize_width, resize_height);
     } else {
@@ -1399,14 +1346,14 @@ static void toggle_fullscreen_mode(void)
     force_grab = 0;
     mainwindow = normalwindow;
     X_vidmode(-1, -1, &resize_width, &resize_height);
-    if (vga.mode_class == GRAPH || font == NULL) {
+    if (vga.mode_class == GRAPH || use_bitmap_font) {
       XResizeWindow(display, mainwindow, resize_width, resize_height);
       XResizeWindow(display, drawwindow, resize_width, resize_height);
     }
     XMapWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
   }
-  if(vga.mode_class == TEXT && font) {
+  if(vga.mode_class == TEXT && !use_bitmap_font) {
     X_resize_text_screen();
   } else {	/* GRAPH or builtin font */
     resize_ximage(resize_width, resize_height);
@@ -1884,36 +1831,6 @@ int try_cube(unsigned long *p, c_cube *c)
 
 
 /*
- * Update the active X colormap for text modes DAC entry col.
- */
-void X_set_text_palette(DAC_entry col)
-{
-  int read_cmap = 1;
-  int i, shift = 16 - dac_bits;
-  XColor xc;
-
-  xc.flags = DoRed | DoGreen | DoBlue;
-  xc.pixel = text_colors[i = col.index];
-  xc.red   = col.r << shift;
-  xc.green = col.g << shift;
-  xc.blue  = col.b << shift;
-
-  if(text_col_stats[i]) XFreeColors(display, text_cmap, &xc.pixel, 1, 0);
-
-  if(!(text_col_stats[i] = XAllocColor(display, text_cmap, &xc))) {
-    get_approx_color(&xc, text_cmap, read_cmap);
-    read_cmap = 0;
-    X_printf("X: refresh_text_palette: %d (%d -> app. %d)\n", i, (int) text_colors[i], (int) xc.pixel);
-      
-  }
-  else {
-    X_printf("X: refresh_text_palette: %d (%d -> %d)\n", i, (int) text_colors[i], (int) xc.pixel);
-  }
-  text_colors[i] = xc.pixel;
-}
-
-
-/*
  * Update the private palette to match the current DAC entries.
  */
 void refresh_private_palette()
@@ -1960,35 +1877,6 @@ void refresh_private_palette()
   }
 
   if(graphics_cmap && i) XStoreColors(display, graphics_cmap, xcolor, i);
-}
-
-
-/*
- * Scans the colormap cmap for the color closest to xc and
- * returns it in xc. The color values used by cmap are queried
- * from the X server only if read_cmap is set.
- */
-void get_approx_color(XColor *xc, Colormap cmap, int read_cmap)
-{
-  int i, d0, ind;
-  unsigned d1, d2;
-  static XColor xcols[256];
-
-  if(read_cmap) {
-    for(i = 0; i < cmap_colors; i++) xcols[i].pixel = i;
-    XQueryColors(display, cmap, xcols, cmap_colors);
-  }
-
-  ind = -1; d2 = -1;
-  for(i = 0; i < cmap_colors; i++) {
-    /* Note: X color values are unsigned short, so using int for the sum (d1) should be ok. */
-    d0 = (int) xc->red - xcols[i].red; d1 = abs(d0);
-    d0 = (int) xc->green - xcols[i].green; d1 += abs(d0);
-    d0 = (int) xc->blue - xcols[i].blue; d1 += abs(d0);
-    if(d1 < d2) ind = i, d2 = d1;
-  }
-
-  if(ind >= 0) *xc = xcols[ind];
 }
 
 
@@ -2128,7 +2016,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
 
   sh.flags = PSize  | PMinSize | PMaxSize;
   if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
-  if (font == NULL) {
+  if (use_bitmap_font) {
     sh.flags |= PResizeInc;
     sh.max_width = 32767;
     sh.max_height = 32767;
@@ -2150,7 +2038,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
 
   XResizeWindow(display, mainwindow, x_fill, y_fill);
 
-  if(vga.mode_class == TEXT && font) {
+  if(vga.mode_class == TEXT && !use_bitmap_font) {
     x_fill = w_x_res;
     y_fill = w_y_res;
   }
@@ -2158,10 +2046,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   XResizeWindow(display, drawwindow, x_fill, y_fill);
   X_printf("Resizing our window to %dx%d image\n", x_fill, y_fill);
 
-  XSetForeground(display, gc, text_colors[0]);
-  XFillRectangle(display, drawwindow, gc, 0, 0, x_fill, y_fill);
-
-  if (font == NULL) {
+  if (use_bitmap_font) {
     resize_text_mapper(ximage_mode);
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
     *remap_obj.dst_color_space = X_csd;
@@ -2197,7 +2082,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
       v_printf("vga_emu_setmode(%d, %d, %d) failed\n",
                mode, text_width, text_height);
       return 0;
-    } else if (font == NULL) {
+    } else if (use_bitmap_font) {
       font_width = vga.char_width;
       font_height = vga.char_height;
     }
@@ -2224,7 +2109,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
    * We use it only in text modes; in graphics modes we are fast enough and
    * it would likely only slow down the whole thing. -- sw
    */
-  if(vga.mode_class == TEXT && font) {
+  if(vga.mode_class == TEXT && !use_bitmap_font) {
     xwa.backing_store = Always;
     xwa.backing_planes = -1;
     xwa.save_under = True;
@@ -2245,7 +2130,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
     dac_bits = vga.dac.bits;
 
-    if (font) {
+    if (!use_bitmap_font) {
       w_x_res = x_res = vga.text_width * font_width;
       w_y_res = y_res = vga.text_height * font_height;
     } else {
@@ -2263,7 +2148,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     if(mainwindow == fullscreenwindow) {
       X_vidmode(x_res, y_res, &w_x_res, &w_y_res);
     }
-    if (font) {
+    if (!use_bitmap_font) {
       w_x_res = saved_w_x_res;
       w_y_res = saved_w_y_res;
     }
@@ -2351,7 +2236,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
  */
 void X_resize_text_screen() 
 {
-  if (font) {
+  if (!use_bitmap_font) {
     w_x_res = x_res = vga.text_width * font_width;
     w_y_res = y_res = vga.text_height * font_height;
   } else {
@@ -2436,7 +2321,7 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
   my = min(mouse_y, nh - 1);
   shift_x = 0;
   shift_y = 0;
-  if(vga.mode_class == TEXT && font) {
+  if(vga.mode_class == TEXT && !use_bitmap_font) {
     shift_x = (nw - w_x_res)/2;
     shift_y = (nh - w_y_res)/2;
     XMoveWindow(display, drawwindow, shift_x, shift_y);
@@ -2472,119 +2357,6 @@ int X_update_screen()
     X_set_videomode(-1, 0, 0);
   }
   return is_mapped ? update_screen(&veut) : 0;
-}
-
-/* 
- * Change color values in our graphics context 'gc'.
- */
-void set_gc_attr(Bit8u attr)
-{
-  XGCValues gcv;
-
-  gcv.foreground = text_colors[ATTR_FG(attr)];
-  gcv.background = text_colors[ATTR_BG(attr)];
-  XChangeGC(display, gc, GCForeground | GCBackground, &gcv);
-}
-
-
-/*
- * Draw a non-bitmap text string.
- * The attribute is the VGA color/mono text attribute.
- */
-static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
-{
-  set_gc_attr(attr);
-  XDrawImageString(
-    display, drawwindow, gc,
-    font_width * x,
-    font_height * y + font_shift,
-    text,
-    len
-    );
-}
-
-static void X_draw_string16(int x, int y, unsigned char *text, int len, Bit8u attr)
-{
-  XChar2b buff[len];
-  t_unicode uni;
-  struct char_set_state state;
-  size_t i, d;
-
-  set_gc_attr(attr);
-  init_charset_state(&state, trconfig.video_mem_charset);
-  d = font->max_char_or_byte2 - font->min_char_or_byte2 + 1;
-  for (i = 0; i < len; i++) {
-    if (charset_to_unicode(&state, &uni, &text[i], 1) != 1)
-      break;
-    buff[i].byte1 = uni / d + font->min_byte1;
-    buff[i].byte2 = uni % d + font->min_char_or_byte2;
-  }
-  cleanup_charset_state(&state);
-  XDrawImageString16(
-    display, drawwindow, gc,
-    font_width * x,
-    font_height * y + font_shift,
-    buff,
-    i
-    );
-}
-
-/*
- * Draw a horizontal line (for text modes)
- * The attribute is the VGA color/mono text attribute.
- */
-void X_draw_line(int x, int y, int len)
-{
-  XDrawLine(
-      display, drawwindow, gc,
-      font_width * x,
-      font_height * y + font_shift,
-      font_width * (x + len) - 1,
-      font_height * y + font_shift
-    );
-}
-
-/*
- * Load the main text font. Try first the user specified font, then
- * vga, then 9x15 and finally fixed. If none of these exists and
- * is monospaced, give up (shouldn't happen).
- */
-void load_text_font()
-{
-  const char *p = config.X_font;
-  font = NULL;
-  use_bitmap_font = TRUE;
-  if (p && strlen(p)) {
-    font = XLoadQueryFont(display, p);
-    if(font == NULL) {
-      error("X: Unable to open font \"%s\", using builtin\n", p);
-    }
-    else if(font->min_bounds.width != font->max_bounds.width) {
-      error("X: Font \"%s\" isn't monospaced, using builtin\n", p);
-      XFreeFont(display, font);
-      font = NULL;
-    }
-    else {
-      font_width = font->max_bounds.width;
-      font_height = font->max_bounds.ascent + font->max_bounds.descent;
-      font_shift = font->max_bounds.ascent;
-      vga_font = font->fid;
-      X_printf("X: Using font \"%s\", size = %d x %d\n", p, font_width, font_height);
-      use_bitmap_font = FALSE;
-      if (font->min_byte1 || font->max_byte1) {
-	Text_X.Draw_string = X_draw_string16;
-	X_printf("X: Assuming unicode font\n");
-      } else
-	Text_X.Draw_string = X_draw_string;
-      return;
-    }
-  }
-  if ((vga.char_width < 8) || (vga.char_width > 9))
-    vga.char_width = 8;
-  font_width = vga.char_width;
-  if ((vga.char_height < 2) || (vga.char_height > 32))
-    vga.char_height = 16;
-  font_height = vga.char_height;
 }
 
 
@@ -2634,43 +2406,6 @@ Cursor create_invisible_cursor()
   cursor = XCreatePixmapCursor(display, mask, mask, (XColor *) map, (XColor *) map, 0, 0);
   XFreePixmap(display, mask);
   return cursor;
-}
-
-
-/*
- * Draw the cursor (nothing in graphics modes, normal if we have focus,
- * rectangle otherwise).
- */
-void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
-{
-  int cstart, cend;
-
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-
-  set_gc_attr(attr);
-  if(!focus) {
-    XDrawRectangle(
-      display, drawwindow, gc,
-      x * font_width,
-      y * font_height,
-      font_width - 1,
-      font_height - 1
-      );
-  }
-  else {
-    cstart = ((start + 1) * font_height) / vga.char_height - 1;
-    if (cstart == -1) cstart = 0;
-    cend = ((end + 1) * font_height) / vga.char_height - 1;
-    if (cend == -1) cend = 0;
-    XFillRectangle(
-      display, drawwindow, gc,
-      x * font_width,
-      y * font_height + cstart,
-      font_width,
-      cend - cstart + 1
-    );
-  }
 }
 
 

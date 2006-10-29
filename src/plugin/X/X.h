@@ -19,3 +19,6 @@ void X_init_videomode(void);
 void X_process_key(XKeyEvent *); 
 void X_process_keys(XKeymapEvent *);
 
+void load_text_font(void);
+void X_load_text_font(Display *dpy, Window, const char *p, int *w, int *h);
+
