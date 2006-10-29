@@ -36,7 +36,7 @@ while [ $# -gt 0 ] ; do
       ;;
     -install)
       INSTALL="-i"
-      if [ -n "$2" -a "${2:0:1}" != "-" ]; then
+      if [ -n "$2" -a -n "${2%%-*}" ]; then
         INSTALL="-i $2"
         shift
       fi
@@ -48,14 +48,14 @@ while [ $# -gt 0 ] ; do
       ;;
     -input)
       INPUT=1
-      if [ -n "$2" -a "${2:0:1}" != "-" ]; then
+      if [ -n "$2" -a -n "${2%%-*}" ]; then
         STRING_I="$STRING_I keystroke "'"'"$2"'"'
         shift
       fi
       shift
       ;;   
     -I)
-      if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
+      if [ -z "$2" -o -z "${2%%-*}" ]; then usage; fi
       STRING_I="$STRING_I $2"
       shift
       shift
