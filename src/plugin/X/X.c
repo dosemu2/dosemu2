@@ -722,7 +722,7 @@ int X_init()
   if(have_true_color || have_shmap)
     Render_X.refresh_private_palette = NULL;
   register_render_system(&Render_X);
-  X_load_text_font(display, drawwindow, config.X_font,
+  X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
   if(!use_bitmap_font)
     X_resize_text_screen();
@@ -779,7 +779,7 @@ void X_close()
   X_xf86vm_done();
 #endif
 
-  X_load_text_font(display, drawwindow, NULL, NULL, NULL);
+  X_load_text_font(display, 0, drawwindow, NULL, NULL, NULL);
   if(our_window) {
     XDestroyWindow(display, drawwindow);
     XDestroyWindow(display, normalwindow);
@@ -1074,7 +1074,8 @@ static int X_change_config(unsigned item, void *buf)
       break;
 
     case CHG_FONT:
-      X_load_text_font(display, drawwindow, buf, &font_width, &font_height);
+      X_load_text_font(display, 0, drawwindow, buf,
+		       &font_width, &font_height);
       if (use_bitmap_font) {
         register_render_system(&Render_X);
         font_width = vga.char_width;

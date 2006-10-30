@@ -22,6 +22,9 @@
 #include "video.h"
 #include "memory.h"
 #include "../../env/video/remap.h"
+#ifndef SDL_VIDEO_DRIVER_X11
+#undef X_SUPPORT
+#endif
 #ifdef X_SUPPORT
 #include "../X/screen.h"
 #include "../X/X.h"
@@ -99,8 +102,10 @@ int grab_active = 0;
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
 #define X_load_text_font pX_load_text_font
-static void (*X_load_text_font)(Display *display, Window window,
-				const char *p,  int *w, int *h);
+static void (*X_load_text_font)(Display *display, int private_dpy,
+				Window window, const char *p,  int *w, int *h);
+#define X_handle_text_expose pX_handle_text_expose
+static int (*X_handle_text_expose)(void);
 #endif
 
 #ifdef CONFIG_SELECTION
@@ -113,7 +118,7 @@ static void (*X_handle_selection)(Display *display, Window mainwindow,
 #endif /* CONFIG_SELECTION */
 
 static struct {
-  Display *display, *text_display;
+  Display *display;
   Window window;
   void (*lock_func)(void);
   void (*unlock_func)(void);
@@ -131,6 +136,7 @@ static void init_x11_support(void)
     X_speaker_on = dlsym(handle, "X_speaker_on");
     X_speaker_off = dlsym(handle, "X_speaker_off");
     X_load_text_font = dlsym(handle, "X_load_text_font");
+    X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
 #ifdef CONFIG_SDL_SELECTION
     X_handle_selection = dlsym(handle, "X_handle_selection");
 #endif
@@ -145,7 +151,7 @@ static void init_x11_support(void)
 
 static void init_x11_window_font(void)
 {
-  /* called as soon as the window is active (first event) */
+  /* called as soon as the window is active (first set video mode) */
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
@@ -231,8 +237,8 @@ void SDL_close(void)
   remapper_done();
   vga_emu_done();
 #ifdef X_SUPPORT
-  if (x11.text_display)
-    XCloseDisplay(x11.text_display);
+  if (x11.display && x11.window != None)
+    X_load_text_font(x11.display, 1, x11.window, NULL, NULL, NULL);
 #endif
   SDL_Quit();   
 }
@@ -389,6 +395,15 @@ static void SDL_change_mode(int *x_res, int *y_res)
     remap_obj.dst_image = surface->pixels;
     *remap_obj.dst_color_space = SDL_csd;
   }
+#ifdef X_SUPPORT
+  {
+    static int first = 1;
+    if (first == 1) {
+      first = 0;
+      init_x11_window_font();
+    }
+  }
+#endif
 }
 
 void SDL_update_cursor(void)
@@ -397,7 +412,7 @@ void SDL_update_cursor(void)
   if(vga.mode_class == GRAPH) return;
    else if (is_mapped) {
 #ifdef X_SUPPORT
-     if (x11.text_display && !use_bitmap_font) {
+     if (!use_bitmap_font) {
        update_cursor();
        return;
      }
@@ -421,7 +436,7 @@ int SDL_update_screen(void)
   if (is_mapped) {
     int ret;
 #ifdef X_SUPPORT
-    if (x11.text_display && !use_bitmap_font && vga.mode_class == TEXT)
+    if (!use_bitmap_font && vga.mode_class == TEXT)
       return update_screen(&veut);
 #endif
     SDL_LockSurface(surface);
@@ -562,35 +577,18 @@ static int SDL_change_config(unsigned item, void *buf)
 
 #ifdef X_SUPPORT
     case CHG_FONT: {
-      XWindowAttributes xwa;
-      if (!x11.display)
+      if (!x11.display || x11.window == None)
 	break;
-      if (*(char *)buf && !x11.text_display)
-	/* Open a separate connection to receive expose events without
-	   SDL eating  them. */
-	x11.text_display = XOpenDisplay(NULL);
-      X_load_text_font(x11.text_display, x11.window, buf,
+      x11.lock_func();
+      X_load_text_font(x11.display, 1, x11.window, buf,
 		       &font_width, &font_height);
+      x11.unlock_func();
       if (use_bitmap_font) {
-	if (x11.text_display) {
-	  XSelectInput(x11.text_display, x11.window, 0);
-	  x11.lock_func();
-	  XGetWindowAttributes(x11.display, x11.window, &xwa);
-	  XSelectInput(x11.display, x11.window,
-		       xwa.your_event_mask | ExposureMask);
-	  x11.unlock_func();
-	}
         register_render_system(&Render_SDL);
         if(vga.mode_class == TEXT)
 	  SDL_set_text_mode(vga.text_width, vga.text_height,
 			    vga.width, vga.height);
       } else {
-	XSelectInput(x11.text_display, x11.window, ExposureMask);
-	x11.lock_func();
-	XGetWindowAttributes(x11.display, x11.window, &xwa);
-	XSelectInput(x11.display, x11.window, 
-		     xwa.your_event_mask & ~ExposureMask);
-	x11.unlock_func();
         if (w_x_res != vga.text_width * font_width ||
             w_y_res != vga.text_height * font_height) {
 	  if(vga.mode_class == TEXT)
@@ -626,7 +624,7 @@ static void SDL_handle_selection(XEvent *e)
   case SelectionNotify: 
   case SelectionRequest:
   case ButtonRelease:
-    if (x11.display) {
+    if (x11.display && x11.window != None) {
       x11.lock_func();
       X_handle_selection(x11.display, x11.window, e);
       x11.unlock_func();
@@ -649,16 +647,9 @@ static void SDL_handle_events(void)
    while (SDL_PollEvent(&event)) {
      switch (event.type) {   
      case SDL_ACTIVEEVENT: {
-#ifdef X_SUPPORT
-       static int first = 1;
-       if (first == 1) {
-	 init_x11_window_font();
-	 first = 0;
-       }
-#endif
        if (event.active.state  == SDL_APPACTIVE) {
 	 if (event.active.gain == 1) {
-	   v_printf("Expose Event\n");
+	   v_printf("SDL: Expose Event\n");
 	   is_mapped = TRUE;
 	   if (vga.mode_class == TEXT) {
 	     if (!exposure) {
@@ -671,13 +662,19 @@ static void SDL_handle_events(void)
 	 } else {
 	   /* TODO */
 	 }			  
-       } else if (event.active.state == SDL_APPINPUTFOCUS || SDL_APPMOUSEFOCUS) {
+       } else if (event.active.state == SDL_APPINPUTFOCUS) {
 	 if (event.active.gain == 1) {
 	   v_printf("SDL: focus in\n");
 	   if (vga.mode_class == TEXT) text_gain_focus();
 	 } else {
 	   v_printf("SDL: focus out\n");
 	   if (vga.mode_class == TEXT) text_lose_focus();
+	 }
+       } else if (event.active.state == SDL_APPMOUSEFOCUS) {
+	 if (event.active.gain == 1) {
+	   v_printf("SDL: mouse focus in\n");
+	 } else {
+	   v_printf("SDL: mouse focus out\n");
 	 }
        } else {
 	 v_printf("SDL: other activeevent\n");
@@ -758,7 +755,7 @@ static void SDL_handle_events(void)
 
      case SDL_MOUSEMOTION:
 #if CONFIG_SDL_SELECTION
-       if (x11.display)
+       if (x11.display && x11.window != None)
 	 extend_selection(x_to_col(event.button.x, w_x_res),
 			  y_to_row(event.button.y, w_y_res));
 #endif /* CONFIG_SDL_SELECTION */
@@ -780,22 +777,9 @@ static void SDL_handle_events(void)
      }	
    }
 #ifdef X_SUPPORT
-   if (x11.text_display && !use_bitmap_font) {
+   if (!use_bitmap_font && X_handle_text_expose())
      /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
-     while (XPending(x11.text_display) > 0) {
-       XEvent e;
-       XNextEvent(x11.text_display, &e);
-       switch(e.type) {
-       case Expose:
-	 v_printf("SDL: X text_display expose event\n");
-	 SDL_redraw_text_screen();
-	 break;
-       default:
-	 v_printf("SDL: some other X event (ignored)\n");
-	 break;
-       }
-     }
-   }
+     SDL_redraw_text_screen();
 #endif
    busy = 0;
    do_mouse_irq();

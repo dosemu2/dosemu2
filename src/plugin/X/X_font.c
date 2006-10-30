@@ -8,6 +8,8 @@
    but they can't be scaled or their images changed by DOS software */
 
 #include <string.h>
+#include <X11/X.h>
+#include <X11/Xlib.h>
 
 #include "emu.h"
 #include "translate.h"
@@ -207,51 +209,70 @@ static struct text_system Text_X =
  * vga, then 9x15 and finally fixed. If none of these exists and
  * is monospaced, give up (shouldn't happen).
  */
-void X_load_text_font(Display *dpy, Window w,
+void X_load_text_font(Display *dpy, int private_dpy, Window w,
 		      const char *p, int *width, int *height)
 {
   XFontStruct *xfont;
   XGCValues gcv;
+  XWindowAttributes xwa;
   int depth;
 
   xfont = NULL;
+  if (!private_dpy)
+    text_display = dpy;
+
   if (p && *p) {
-    xfont = XLoadQueryFont(dpy, p);
+    /* Open a separate connection to receive expose events without
+       SDL eating them. */
+    if (private_dpy && text_display == NULL)
+      text_display = XOpenDisplay(NULL);
+    xfont = XLoadQueryFont(text_display, p);
     if (xfont == NULL) {
       error("X: Unable to open font \"%s\", using builtin\n", p);
     } else if (xfont->min_bounds.width != xfont->max_bounds.width) {
       error("X: Font \"%s\" isn't monospaced, using builtin\n", p);
-      XFreeFont(dpy, xfont);
+      XFreeFont(text_display, xfont);
       xfont = NULL;
     }
   }
 
   if(font != NULL) {
-    XFreeFont(dpy, font);
-    XFreeGC(dpy, text_gc);
+    XFreeFont(text_display, font);
+    XFreeGC(text_display, text_gc);
+    if (xfont == NULL && private_dpy) {
+      /* called from SDL:
+	 set expose events back from text_display to the main one */
+      XSelectInput(text_display, w, 0);
+      XGetWindowAttributes(dpy, w, &xwa);
+      XSelectInput(dpy, w, xwa.your_event_mask | ExposureMask);
+    }
   }
 
   font = xfont;
   use_bitmap_font = (font == NULL);
   dirty_all_vga_colors();
   if (use_bitmap_font) {
+    if (p == NULL) {
+      if (private_dpy && text_display)
+	XCloseDisplay(text_display);
+      return;
+    }
     X_printf("X: X_change_config: font \"%s\" not found, "
-	     "using builtin\n", p ? p : "");
+	     "using builtin\n", p);
     X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
     X_printf("X: EGA/VGA font size is %d x %d\n",
 	     vga.char_width, vga.char_height);
     return;
   }
 
-  depth = DefaultDepth(dpy, DefaultScreen(dpy));
+  depth = DefaultDepth(text_display, DefaultScreen(text_display));
   if(depth > 8) depth = 8;
   text_cmap_colors = 1 << depth;
-  text_cmap = DefaultColormap(dpy, DefaultScreen(dpy));
-  text_display = dpy;
+  text_cmap = DefaultColormap(text_display, DefaultScreen(text_display));
   text_window = w;
 
   gcv.font = font->fid;
-  text_gc = XCreateGC(dpy, w, GCFont, &gcv);
+  text_gc = XCreateGC(text_display, w, GCFont, &gcv);
   font_width = font->max_bounds.width;
   font_height = font->max_bounds.ascent + font->max_bounds.descent;
   font_shift = font->max_bounds.ascent;
@@ -266,4 +287,34 @@ void X_load_text_font(Display *dpy, Window w,
     *width = font_width;
   if (height)
     *height = font_height;
+
+  if (private_dpy) { /* called from SDL */
+    XSelectInput(text_display, w, ExposureMask);
+    XGetWindowAttributes(dpy, w, &xwa);
+    XSelectInput(dpy, w, xwa.your_event_mask & ~ExposureMask);
+  }
+}
+
+/*
+ *  handle expose events (called from SDL only)
+ */
+int X_handle_text_expose(void)
+{
+  int ret = 0;
+  if (!text_display)
+    return ret;
+  while (XPending(text_display) > 0) {
+    XEvent e;
+    XNextEvent(text_display, &e);
+    switch(e.type) {
+    case Expose:
+      X_printf("X: text_display expose event\n");
+      ret = 1;
+      break;
+    default:
+      v_printf("SDL: some other X event (ignored)\n");
+      break;
+    }
+  }
+  return ret;
 }
