@@ -214,13 +214,6 @@ void X_load_text_font(Display *dpy, Window w,
   XGCValues gcv;
   int depth;
 
-  depth = DefaultDepth(dpy, DefaultScreen(dpy));
-  if(depth > 8) depth = 8;
-  text_cmap_colors = 1 << depth;
-  text_cmap = DefaultColormap(dpy, DefaultScreen(dpy));
-  text_display = dpy;
-  text_window = w;
-
   xfont = NULL;
   if (p && *p) {
     xfont = XLoadQueryFont(dpy, p);
@@ -249,6 +242,13 @@ void X_load_text_font(Display *dpy, Window w,
 	     vga.char_width, vga.char_height);
     return;
   }
+
+  depth = DefaultDepth(dpy, DefaultScreen(dpy));
+  if(depth > 8) depth = 8;
+  text_cmap_colors = 1 << depth;
+  text_cmap = DefaultColormap(dpy, DefaultScreen(dpy));
+  text_display = dpy;
+  text_window = w;
 
   gcv.font = font->fid;
   text_gc = XCreateGC(dpy, w, GCFont, &gcv);
