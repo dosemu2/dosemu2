@@ -137,10 +137,19 @@ static void init_x11_support(void)
 #endif
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
     x11.display = info.info.x11.display;
-    x11.window = info.info.x11.window;
     x11.lock_func = info.info.x11.lock_func;
     x11.unlock_func = info.info.x11.unlock_func;
     register_speaker(x11.display, X_speaker_on, X_speaker_off);
+  }
+}
+
+static void init_x11_window_font(void)
+{
+  /* called as soon as the window is active (first event) */
+  SDL_SysWMinfo info;
+  SDL_VERSION(&info.version);
+  if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
+    x11.window = info.info.x11.window;
     SDL_change_config(CHG_FONT, config.X_font);
   }
 }
@@ -189,6 +198,10 @@ int SDL_init(void)
     error("SDL: SDL_init: VGAEmu init failed!\n");
     leavedos(99);
   }
+
+#ifdef X_SUPPORT
+  init_x11_support();
+#endif
 
   /* SDL_APPACTIVE event does not occur when an application window is first
    * created.
@@ -639,7 +652,7 @@ static void SDL_handle_events(void)
 #ifdef X_SUPPORT
        static int first = 1;
        if (first == 1) {
-	 init_x11_support();
+	 init_x11_window_font();
 	 first = 0;
        }
 #endif
