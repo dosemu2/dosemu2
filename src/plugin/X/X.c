@@ -707,7 +707,7 @@ int X_init()
   proto_atom  = XInternAtom(display, "WM_PROTOCOLS", False);
   delete_atom = XInternAtom(display, "WM_DELETE_WINDOW", False);
   if ((proto_atom != None) && (delete_atom != None)) {
-    XChangeProperty(display, drawwindow,
+    XChangeProperty(display, mainwindow,
       proto_atom, XA_ATOM, 32,
       PropModePrepend, (char *) &delete_atom, 1
     );
@@ -1749,7 +1749,6 @@ int MakePrivateColormap()
 ColorSpaceDesc MakeSharedColormap()
 {
   ColorSpaceDesc csd;
-  XColor xc;
   int i, j;
   static unsigned long pix[256];
   static c_cube c_cubes[] = {
@@ -1757,8 +1756,6 @@ ColorSpaceDesc MakeSharedColormap()
     { 5, 6, 5 }, { 4, 8, 4 }, { 5, 6, 4 }, { 5, 5, 4 },
     { 4, 5, 4 }, { 4, 5, 3 }, { 4, 4, 3 }, { 3, 4, 3 }
   };
-
-  xc.flags = DoRed | DoGreen | DoBlue;
 
   csd.bytes = 1;
   csd.pixel_lut = NULL;

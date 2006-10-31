@@ -245,6 +245,7 @@ void SDL_close(void)
 
 static void SDL_update(void)
 {
+  if (sdl_rects.num == 0) return;
   SDL_UpdateRects(surface, sdl_rects.num, sdl_rects.rects);
   sdl_rects.num = 0;
 }
