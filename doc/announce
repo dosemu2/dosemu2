@@ -96,8 +96,8 @@ When compiling DOSEMU yourself:
 
 COPYRIGHT
 ~~~~~~~~~
-DOSEMU is set under GPL version 2 (see file COPYING in the distribution).
-                        ~~~~~~~~~
+DOSEMU is set under GPL version 2 (see the files COPYING.DOSEMU and COPYING
+in the distribution).   ~~~~~~~~~
 The DOS, which is processed (booted) by DOSEMU, may have any other policy and is
 explicitly allowed to be proprietary.
 

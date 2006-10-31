@@ -1,8 +1,8 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
  *
- * for details see file COPYING in the DOSEMU distribution
+ * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/vga256/drivers/mga/mga.h,v 3.8.2.2 1997/05/25 05:06:50 dawes Exp $ */

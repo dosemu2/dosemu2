@@ -68,6 +68,8 @@ fi
 %{_datadir}/dosemu/keymap
 %{_datadir}/dosemu/Xfonts
 %dir %{_datadir}/doc/dosemu
+%doc %{_datadir}/doc/dosemu/COPYING
+%doc %{_datadir}/doc/dosemu/COPYING.DOSEMU
 %doc %{_datadir}/doc/dosemu/README.bindist
 %doc %{_datadir}/doc/dosemu/README.txt
 %doc %{_datadir}/doc/dosemu/README-tech.txt

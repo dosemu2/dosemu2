@@ -1,0 +1,119 @@
+
+             Copyright of DOSEMU, October 2006
+             =================================
+
+1.   Copyright (C) 1992, ..., 2006 the "DOSEMU-Development-Team"
+
+     This program is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License, version 2, as
+     published by the Free Software Foundation.
+
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+
+     You should have received a copy of the GNU General Public License along
+     with this program; if not, write to the Free Software Foundation, Inc.,
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+2.   All sources in the official distribution of DOSEMU have the copyright
+     of clause 1 unless explicitly stated otherwise.
+
+     The DOSEMU-Development-Team is legally represented by its
+     current co-ordinator:
+
+       1992          Matthias Lautner
+       1993          Robert Sanders <gt8134b@prism.gatech.edu>
+       1994 .. 1996  James MacLean <macleajb@ednet.ns.ca>
+       1997 .. 2001  Hans Lermen <lermen@fgan.de>
+       2001 .. now   Bart Oldeman <bart@dosemu.org> 
+
+     Every co-ordinator passes on the right to represent to his successor.
+
+3.   This copyright does not cover all parts of the DOSEMU code!
+     Parts of the code not covered by the GPL are marked explicitly
+     within the code, and the copyrights are also at the end of this
+     file. The rest of the code is covered by the GPL.
+
+4.   Some code, that was covered by GNU LIBRARY GENERAL PUBLIC LICENSE
+     (GLGPL) has been transformed to GPL as is allowed by the GLGPL
+     section 3. This code is marked with an appropriate text at the
+     beginning of each file involved.
+
+5.   The nature of DOSEMU requires the use of (ie "booting") a DOS, which 
+     may be proprietary. This could be interpreted as 'library linking'
+     the DOS functions to DOSEMU (this view comes from interpreting more
+     into the current version (2) of the GPL than is actually defined).
+
+     However, past discussions about the scope of 'library linking' with
+     GPL code and the possibility that future versions of the GPL may
+     define this issue in a more restrictive manner, made it necessary to
+     restrict the DOSEMU copyright explicitly to version 2 of the GPL.
+                                              ============        ===
+
+     We grant the right to use a proprietary DOS together with DOSEMU.
+
+6.   Redistributions of repackaged official DOSEMU source packages,
+     including the compression method, but not including the placement
+     of unchanged compressed DOSEMU packages within envelops (e.g.
+     *.rpm, *.deb, double compress), must be clearly marked as
+     modified and unofficial. 
+
+7.   This file, COPYING.DOSEMU, must be distributed together with
+     the DOSEMU distribution or any derivative work. This file and
+     the GPL in the file COPYING must not be separated. Clauses
+     2 to 7 must not be interpreted to restrict or modify clause 1,
+     but only clarify the copyright. All clauses in this file must
+     be kept intact when applicable.
+
+The copyrights referred to in clause 3 are from:
+
+--- The Mach DOS Emulator
+
+Copyright (c) 1991 Carnegie Mellon University
+All Rights Reserved.
+
+Permission to use, copy, modify and distribute this software and its
+documentation is hereby granted, provided that both the copyright
+notice and this permission notice appear in all copies of the
+software, derivative works or modified versions, and any portions
+thereof, and that both notices appear in supporting documentation.
+
+CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+
+Carnegie Mellon requests users of this software to return to
+
+ Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+ School of Computer Science
+ Carnegie Mellon University
+ Pittsburgh PA 15213-3890
+
+any improvements or extensions that they make and grant Carnegie Mellon
+the rights to redistribute these changes.
+
+--- XFree86 (mouse code)
+
+Copyright 1990,91 by Thomas Roell, Dinkelscherben, Germany.
+Copyright 1993 by David Dawes <dawes@physics.su.oz.au>
+
+Permission to use, copy, modify, distribute, and sell this software and its
+documentation for any purpose is hereby granted without fee, provided that
+the above copyright notice appear in all copies and that both that
+copyright notice and this permission notice appear in supporting
+documentation, and that the names of Thomas Roell and David Dawes not be
+used in advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.  Thomas Roell
+and David Dawes makes no representations about the suitability of this
+software for any purpose.  It is provided "as is" without express or
+implied warranty.
+
+THOMAS ROELL AND DAVID DAWES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS, IN NO EVENT SHALL THOMAS ROELL OR DAVID DAWES BE LIABLE FOR ANY
+SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
+RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.

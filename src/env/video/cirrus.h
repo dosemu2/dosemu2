@@ -1,8 +1,8 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
  *
- * for details see file COPYING in the DOSEMU distribution
+ * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /* $XConsortium: cir_driver.h,v 1.5 95/01/23 15:35:14 kaleb Exp $ */

@@ -1,9 +1,9 @@
 /* 
  * Author: Karsten Rucker (rucker@astro.uni-bonn.de) (original code)
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
  *
- * for details see file COPYING in the DOSEMU distribution
+ * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /* 

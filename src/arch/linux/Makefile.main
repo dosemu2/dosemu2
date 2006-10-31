@@ -1,7 +1,7 @@
 #
-# (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
-# for details see file COPYING in the DOSEMU distribution
+# for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
 # Makefile for Linux DOSEMU
 #
@@ -210,7 +210,7 @@ endif
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	$(INSTALL) -m 0644 $(REALTOPDIR)/{README.bindist,NEWS,THANKS} $(DESTDIR)$(docdir)
+	$(INSTALL) -m 0644 $(REALTOPDIR)/{README.bindist,NEWS,THANKS,COPYING,COPYING.DOSEMU} $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
 	   $(REALTOPDIR)/doc/announce $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{DANG,EMUfailure,NOVELL-HOWTO}.txt \

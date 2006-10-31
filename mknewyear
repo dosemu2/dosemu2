@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-$newyear = "2005";
+$newyear = "2006";
 $filelistname = "";
 
 $i = 0;
@@ -24,7 +24,7 @@ while ($ARGV[$i] ne "") {
 
 print "building file list ...\n";
 if ($filelistname eq "") {
-  @files = `grep -l '(C) Copyright 1992,' \`find -type f\``;
+  @files = `grep -l '(C) Copyright 1992,' \`find -type f -perm -u=w\``;
 }
 else {
   @files = `grep -l '(C) Copyright 1992,' \`cat $filelistname\``;
