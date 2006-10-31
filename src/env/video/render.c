@@ -51,8 +51,7 @@ static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end
 
 static void bitmap_set_text_palette(DAC_entry col)
 {
-  remap_obj.palette_update(&remap_obj, col.index, vga.dac.bits,
-			   col.r, col.g, col.b);
+  /* done by remapper */
 }
 
 static struct text_system Text_bitmap =
@@ -123,19 +122,28 @@ void remapper_done(void)
  * Update the displayed image to match the current DAC entries.
  * Will redraw the *entire* screen if at least one color has changed.
  */
-static void refresh_truecolor(void)
+static Boolean refresh_truecolor(DAC_entry *col, int num)
 {
-  DAC_entry col[256];
   Boolean colchanged = False;
-  int i, j;
+  int i;
 
-  j = changed_vga_colors(col);
-
-  for(i = 0; i < j; i++) {
+  for(i = 0; i < num; i++) {
     colchanged |=
     remap_obj.palette_update(&remap_obj, col[i].index, vga.dac.bits, col[i].r, col[i].g, col[i].b);
   }
-  if(colchanged) dirty_all_video_pages();
+  return colchanged;
+}
+
+/* returns True if the screen needs to be redrawn */
+Boolean refresh_palette(DAC_entry *col)
+{
+  int j = changed_vga_colors(col);
+
+  if(Render->refresh_private_palette) {
+    Render->refresh_private_palette(col, j);
+    return vga.mode_class == TEXT;
+  }
+  return refresh_truecolor(col, j);
 }
 
 /*
@@ -143,10 +151,10 @@ static void refresh_truecolor(void)
  */
 static void refresh_graphics_palette(void)
 {
-  if(Render->refresh_private_palette)
-    Render->refresh_private_palette();
-  else
-    refresh_truecolor();
+  DAC_entry col[256];
+
+  if (refresh_palette(col))
+    dirty_all_video_pages();
 }
 
 void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,

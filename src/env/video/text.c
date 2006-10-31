@@ -272,6 +272,12 @@ static void refresh_text_palette(void)
     return;
   }
 
+  if(use_bitmap_font) {
+    if(refresh_palette(col))
+      redraw_text_screen();
+    return;
+  }
+
   j = changed_vga_colors(col);
 
   for(k = 0; k < j; k++) {

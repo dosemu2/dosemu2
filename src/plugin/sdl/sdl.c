@@ -22,7 +22,7 @@
 #include "video.h"
 #include "memory.h"
 #include "../../env/video/remap.h"
-#ifndef SDL_VIDEO_DRIVER_X11
+#if SDL_VERSION_ATLEAST(1,2,10) && !defined(SDL_VIDEO_DRIVER_X11)
 #undef X_SUPPORT
 #endif
 #ifdef X_SUPPORT
@@ -43,7 +43,7 @@ static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
 static void SDL_update_cursor(void);
 static int SDL_update_screen(void);
-static void SDL_refresh_private_palette(void);
+static void SDL_refresh_private_palette(DAC_entry *col, int num);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int *x_res, int *y_res);
 
@@ -449,7 +449,7 @@ int SDL_update_screen(void)
   return 0;
 }
 
-static void SDL_refresh_private_palette(void)
+static void SDL_refresh_private_palette(DAC_entry *col, int num)
 {  
  /* SDL cannot change colors 1, 5, 7... in a single step, cause
   * the SetColors command can only change consecutive colors.
@@ -462,15 +462,13 @@ static void SDL_refresh_private_palette(void)
   * The 2nd solution is faster (5/10 times) than the first, and is implemented
   * here. The 3rd solution is perhaps better but i haven't really tried
   * to implement it */
-  DAC_entry col[256];
   int cols;
   RGBColor c;
-  int i, j, k;
+  int k;
   unsigned bits, shift;   
   cols = 1 << vga.pixel_size;   
   if(cols > 256) cols = 256;
-  j = changed_vga_colors(col);
-  for(i = k = 0; k < j; k++) {
+  for(k = 0; k < num; k++) {
     c.r = col[k].r; c.g = col[k].g; c.b = col[k].b;
     bits = vga.dac.bits;
     gamma_correct(&remap_obj, &c, &bits);
@@ -480,7 +478,7 @@ static void SDL_refresh_private_palette(void)
     vga_colors[col[k].index].g = c.g << shift;	  
     vga_colors[col[k].index].b = c.b << shift;	  
   }
-  if (j) SDL_SetColors(surface, vga_colors, 0, cols);
+  SDL_SetColors(surface, vga_colors, 0, cols);
 }
 
 /* this only pushes the rectangle on a stack; updating is done later */

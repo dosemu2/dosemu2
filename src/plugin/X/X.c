@@ -420,7 +420,7 @@ static ColorSpaceDesc MakeSharedColormap(void);
 static int try_cube(unsigned long *, c_cube *);
 
 /* palette/color update stuff */
-static void refresh_private_palette(void);
+static void refresh_private_palette(DAC_entry *col, int num);
 
 /* ximage/drawing related stuff */
 static void create_ximage(void);
@@ -1824,12 +1824,11 @@ int try_cube(unsigned long *p, c_cube *c)
 /*
  * Update the private palette to match the current DAC entries.
  */
-void refresh_private_palette()
+void refresh_private_palette(DAC_entry *col, int num)
 {
-  DAC_entry col[256];
   XColor xcolor[256];
   RGBColor c;
-  int i, j, k;
+  int i, k;
   unsigned bits, shift;
 
   /*
@@ -1838,9 +1837,7 @@ void refresh_private_palette()
    * --> So don't use private palettes with less than 256 colors.
    */
 
-  j = changed_vga_colors(col);
-
-  for(i = k = 0; k < j; k++) {
+  for(i = k = 0; k < num; k++) {
     if(col[k].index < cmap_colors) {
       c.r = col[k].r; c.g = col[k].g; c.b = col[k].b;
       bits = dac_bits;

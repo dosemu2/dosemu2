@@ -10,7 +10,7 @@
 struct render_system
 {
   /* set the private palette */
-  void (*refresh_private_palette)(void);
+  void (*refresh_private_palette)(DAC_entry *col, int num);
   void (*put_image)(int x, int y, unsigned width, unsigned height);
 };
 
@@ -25,3 +25,4 @@ void remapper_done(void);
 void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 			 vga_emu_update_type *veut);
 int update_screen(vga_emu_update_type *veut);
+Boolean refresh_palette(DAC_entry *col);
