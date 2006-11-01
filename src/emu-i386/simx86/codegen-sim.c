@@ -1751,6 +1751,9 @@ static void Gen_sim(int op, int mode, ...)
 		int n =	va_arg(ap,int);
 		GTRACE3("O_OPAX",0xff,0xff,n);
 		RFL.mode = mode;
+		/* sync AF *before* changing RFL.valid */
+		if (op != AAM && op != AAD)
+			FlagSync_AP();
 		RFL.valid = V_GEN;
 		DR1.d = CPULONG(Ofs_EAX);
 		// get n bytes from parameter stack
@@ -1759,7 +1762,6 @@ static void Gen_sim(int op, int mode, ...)
 			case DAA: {
 				char cy = 0;
 				unsigned char altmp = DR1.b.bl;
-				FlagSync_AP();
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl += 6;
 					cy = (CPUBYTE(Ofs_FLAGS)&1) || (altmp > 0xf9);
@@ -1777,7 +1779,6 @@ static void Gen_sim(int op, int mode, ...)
 			case DAS: {
 				char cy = 0;
 				unsigned char altmp = DR1.b.bl;
-				FlagSync_AP();
 				if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 					DR1.b.bl -= 6;
 					cy = (CPUBYTE(Ofs_FLAGS)&1) || (altmp < 6);
@@ -1794,7 +1795,6 @@ static void Gen_sim(int op, int mode, ...)
 				break;
 			case AAA: {
 				char icarry = (DR1.b.bl > 0xf9);
-				FlagSync_AP();
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl = (DR1.b.bl + 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh + 1 + icarry);
@@ -1808,7 +1808,6 @@ static void Gen_sim(int op, int mode, ...)
 				break;
 			case AAS: {
 				char icarry = (DR1.b.bl < 6);
-				FlagSync_AP();
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl = (DR1.b.bl - 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh - 1 - icarry);
@@ -2219,17 +2218,17 @@ static void Gen_sim(int op, int mode, ...)
 		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
-			RFL.RES.d = (RFL.S1=*AR1.pu) + (RFL.S2=-(DR1.b.bl));
+			RFL.RES.d = (RFL.S1=DR1.b.bl) + (RFL.S2=-(*AR1.pu));
 			AR1.pu += df;
 			z = (RFL.RES.b.bl==0);
 		    }
 		    else if (mode&DATA16) {
-			RFL.RES.d = (RFL.S1=*AR1.pwu) + (RFL.S2=-(DR1.w.l));
+			RFL.RES.d = (RFL.S1=DR1.w.l) + (RFL.S2=-(*AR1.pwu));
 			AR1.pwu += df;
 			z = (RFL.RES.w.l==0);
 		    }
 		    else {
-			RFL.RES.d = (RFL.S1=*AR1.pdu) + (RFL.S2=-(DR1.d));
+			RFL.RES.d = (RFL.S1=DR1.d) + (RFL.S2=-(*AR1.pdu));
 			AR1.pdu += df;
 			z = (RFL.RES.d==0);
 		    }
@@ -2251,17 +2250,17 @@ static void Gen_sim(int op, int mode, ...)
 		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
-			RFL.RES.d = (RFL.S1=*AR1.pu) + (RFL.S2=-(*AR2.pu));
+			RFL.RES.d = (RFL.S1=*AR2.pu) + (RFL.S2=-(*AR1.pu));
 			AR1.pu += df; AR2.pu += df;
 			z = (RFL.RES.b.bl==0);
 		    }
 		    else if (mode&DATA16) {
-			RFL.RES.d = (RFL.S1=*AR1.pwu) + (RFL.S2=-(*AR2.pwu));
+			RFL.RES.d = (RFL.S1=*AR2.pwu) + (RFL.S2=-(*AR1.pwu));
 			AR1.pwu += df; AR2.pwu += df;
 			z = (RFL.RES.w.l==0);
 		    }
 		    else {
-			RFL.RES.d = (RFL.S1=*AR1.pdu) + (RFL.S2=-(*AR2.pdu));
+			RFL.RES.d = (RFL.S1=*AR2.pdu) + (RFL.S2=-(*AR1.pdu));
 			AR1.pdu += df; AR2.pdu += df;
 			z = (RFL.RES.d==0);
 		    }
