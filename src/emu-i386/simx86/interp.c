@@ -188,7 +188,7 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 
 #ifdef HOST_ARCH_X86
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-	if (!UseLinker || CONFIG_CPUSIM)
+	if (!UseLinker || CONFIG_CPUSIM || (EFLAGS & TF))
 #endif
 #endif
 	    goto jgnolink;
@@ -392,6 +392,7 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 	NewNode = 0;
 	basemode = mod0;
 	TheCPU.err = 0;
+	CEmuStat &= ~CeS_TRAP;
 
 	while (Running) {
 		OVERR_DS = Ofs_XDS;
@@ -401,7 +402,7 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 
 		if (!NewNode) {
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
-		    if (!CONFIG_CPUSIM) {
+		    if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
 			/* for a sequence to be found, it must begin with
 			 * an allowable opcode. Look into table.
 			 * NOTE - this while can loop forever and stop
@@ -439,12 +440,10 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 					CEmuStat &= ~CeS_LOCK;
 				else {
 					if (CEmuStat & CeS_TRAP) {
-						if (TheCPU.err) {
-							if (TheCPU.err==EXCP01_SSTP)
-								CEmuStat &= ~CeS_TRAP;
-							return PC;
-						}
-						TheCPU.err = EXCP01_SSTP;
+						/* force exit for single step trap */
+						if (!TheCPU.err)
+							TheCPU.err = EXCP01_SSTP;
+						return PC;
 					}
 					//else if (CEmuStat & CeS_DRTRAP) {
 					//	if (e_debug_check(PC)) {
@@ -471,6 +470,10 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 						return PC;
 					}
 				}
+			}
+			CEmuStat &= ~CeS_TRAP;
+			if (EFLAGS & TF) {
+				CEmuStat |= CeS_TRAP;
 			}
 		}
 // ------ temp ------- debug ------------------------
@@ -822,6 +825,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*56*/	case PUSHsi:
 /*57*/	case PUSHdi:	opc = OpIsPush[opc];	// 1..12, 0x66=13
 #ifndef SINGLESTEP
+			if (!(EFLAGS & TF))
 			{ int m = mode;		// enter with prefix
 			Gen(O_PUSH1, m);
 			/* optimized multiple register push */
@@ -837,10 +841,9 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				m |= (basemode & DATA16);
 			    }
 			} while (opc);
-			Gen(O_PUSH3, m); }
-#else
-			Gen(O_PUSH, mode, R1Tab_l[opc]); PC++;
+			Gen(O_PUSH3, m); break; }
 #endif
+			Gen(O_PUSH, mode, R1Tab_l[opc]); PC++;
 			break;
 /*68*/	case PUSHwi:
 			Gen(O_PUSHI, mode, DataFetchWL_U(mode,(PC+1))); 
@@ -860,8 +863,9 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*5c*/	case POPsp:
 /*5d*/	case POPbp:
 /*5e*/	case POPsi:
-/*5f*/	case POPdi: {
+/*5f*/	case POPdi:
 #ifndef SINGLESTEP
+			if (!(EFLAGS & TF)) {
 			int m = mode;
 			Gen(O_POP1, m);
 			do {
@@ -869,11 +873,10 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				m = UNPREFIX(m);
 				PC++;
 			} while ((Fetch(PC)&0xf8)==0x58);
-			if (opc!=POPsp) Gen(O_POP3, m);
-#else
-			Gen(O_POP, mode, R1Tab_l[D_LO(opc)]); PC++;
+			if (opc!=POPsp) Gen(O_POP3, m); break; }
 #endif
-			} break;
+			Gen(O_POP, mode, R1Tab_l[D_LO(opc)]); PC++;
+			break;
 /*8f*/	case POPrm:
 			// pop data into temporary storage and adjust esp
 			Gen(O_POP, mode|MEMADR);
@@ -1100,7 +1103,8 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, mode);
 			if (CurrIMeta<0) Gen(L_NOP, mode); else TheCPU.mode|=SKIPOP;
 			PC++;
-			while (Fetch(PC)==NOP) PC++;
+			if (!(EFLAGS & TF))
+			    while (Fetch(PC)==NOP) PC++;
 			break;
 /*91*/	case XCHGcx:
 /*92*/	case XCHGdx:
@@ -1147,7 +1151,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(O_MOVS_SetA, m);
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
-			do {
+			if (!(EFLAGS & TF)) do {
 				Gen(O_MOVS_MovD, m);
 				m = UNPREFIX(m);
 				PC++;
@@ -1155,10 +1159,11 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			if (Fetch(PC) == MOVSb) {
 				Gen(O_MOVS_MovD, m|MBYTE);
 				PC++;
-			}
-#else
-			Gen(O_MOVS_MovD, m); PC++;
+			} else
 #endif
+			{
+				Gen(O_MOVS_MovD, m); PC++;
+			}
 			Gen(O_MOVS_SavA, m);
 			} break;
 /*a6*/	case CMPSb: {	int m = mode|(MBYTE|MOVSSRC|MOVSDST);
@@ -1181,14 +1186,15 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(O_MOVS_SetA, m);
 			Gen(L_REG, m, Ofs_EAX);
 #ifndef SINGLESTEP
-			do {
+			if (!(EFLAGS & TF)) do {
 				Gen(O_MOVS_StoD, m);
 				m = UNPREFIX(m);
 				PC++;
-			} while (Fetch(PC) == STOSw);
-#else
-			Gen(O_MOVS_StoD, m); PC++;
+			} while (Fetch(PC) == STOSw); else
 #endif
+			{
+				Gen(O_MOVS_StoD, m); PC++;
+			}
 			Gen(O_MOVS_SavA, m);
 			} break;
 /*ac*/	case LODSb: {	int m = mode|(MBYTE|MOVSSRC);
@@ -1197,7 +1203,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
-			if (Fetch(PC) == STOSb) {
+			if (!(EFLAGS & TF) && Fetch(PC) == STOSb) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
 				Gen(O_MOVS_StoD, m);
 				m |= MOVSDST;
@@ -1212,7 +1218,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
-			if (Fetch(PC) == STOSw) {
+			if (!(EFLAGS & TF) && Fetch(PC) == STOSw) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
 				Gen(O_MOVS_StoD, m);
 				m |= MOVSDST;
@@ -1536,8 +1542,10 @@ stack_return_from_vm86:
 			    }
 			    else {
 				/* virtual-8086 monitor */
-				/* if (vm86dbg_active && vm86dbg_TFpendig)
-				   <set TF on stack top> */
+				if (vm86s.vm86plus.vm86dbg_active &&
+				    vm86s.vm86plus.vm86dbg_TFpendig) {
+				    temp |= TF;
+				}
 				/* move TSSMASK from pop{e}flags to V{E}FLAGS */
 				eVEFLAGS = (eVEFLAGS & ~eTSSMASK) | (temp & eTSSMASK);
 				/* move 0xdd5 from pop{e}flags to regs->eflags */
@@ -2736,11 +2744,12 @@ repag0:
 		}
 
 		P0 = PC;
-#ifdef SINGLESTEP
+#ifndef SINGLESTEP
+		if (!(CEmuStat & CeS_TRAP)) continue;
+#endif
 		CloseAndExec(P0, NULL, mode, __LINE__);
 		e_printf("\n%s",e_print_regs());
 		NewNode = 0;
-#endif
 	}
 	return 0;
 

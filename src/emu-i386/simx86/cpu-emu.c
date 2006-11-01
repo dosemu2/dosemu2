@@ -1160,6 +1160,7 @@ int e_vm86(void)
 #endif
 	      }
 	      break;
+	    case EXCP01_SSTP:
 	    case EXCP03_INT3: {	/* to kernel vm86 */
 		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
 	      }
