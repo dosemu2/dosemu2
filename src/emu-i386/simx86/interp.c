@@ -1151,14 +1151,16 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(O_MOVS_SetA, m);
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
-			if (!(EFLAGS & TF)) do {
-				Gen(O_MOVS_MovD, m);
-				m = UNPREFIX(m);
-				PC++;
-			} while (Fetch(PC) == MOVSw);
-			if (Fetch(PC) == MOVSb) {
-				Gen(O_MOVS_MovD, m|MBYTE);
-				PC++;
+			if (!(EFLAGS & TF)) {
+				do {
+					Gen(O_MOVS_MovD, m);
+					m = UNPREFIX(m);
+					PC++;
+				} while (Fetch(PC) == MOVSw);
+				if (Fetch(PC) == MOVSb) {
+					Gen(O_MOVS_MovD, m|MBYTE);
+					PC++;
+				}
 			} else
 #endif
 			{
