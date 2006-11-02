@@ -57,6 +57,12 @@
  * x86 we use the real hardware to calculate them, and this speeds up
  * things a lot compared to a full interpreter. Flags will be a nightmare
  * for non-x86 host CPUs.
+ *
+ * This only applies to the condition code flags though, OF, SF, ZF, AF,
+ * PF and CF (0x8d5). All other flags are stored in EFLAGS=TheCPU.eflags,
+ * including DF. Normally the real DF is clear for compatibility with C
+ * code; it is only temporarily set during string instructions.
+ *
  * There is NO optimization for the produced code. It is a very pipeline-
  * unconscious code full of register dependencies and reloadings.
  * Clearly we hope that the 1st level cache of the host CPU works as
@@ -1263,117 +1269,31 @@ shrot0:
 		break;
 
 	case O_PUSH2F: {
-		static char pseq16[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -2(%%ecx),%%ecx
-			0x8d,0x49,0xfe,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// movl (%%esp),%%edx	(get flags on stack)
-			0x8b,0x14,0x24,
-			// movw Ofs_FLAGS(%%ebx),%%ax
-			0x66,0x8b,0x43,Ofs_EFLAGS,
-			// andw $0xcff,%%dx
-			0x66,0x81,0xe2,0xff,0x0c,
-			// andw	$0x7200,%%ax
-			0x66,0x25,0x00,0x72,
-			// orw %%dx,%%ax
-			0x66,0x09,0xd0,
-			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,0x90,
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		static char pseq16d[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -2(%%ecx),%%ecx
-			0x8d,0x49,0xfe,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// movl (%%esp),%%edx	(get flags on stack)
-			0x8b,0x14,0x24,
-			// rcr $10,%%edx	(IF->cy)
-			0xc1,0xda,0x0a,
-			// bt $9,dpmi_eflags
-/*12*/			0x0f,0xba,0x25,0,0,0,0,0x09,
-			// rcl $1,%%edx; clc	(clear TF)
-			0xd1,0xd2,0xf8,
-			// rcl $9,%%edx
-			0xc1,0xd2,0x09,
-			// movw Ofs_FLAGS(%%ebx),%%ax
-			0x66,0x8b,0x43,Ofs_EFLAGS,
-			// andw	$0x7000,%%ax
-			0x66,0x25,0x00,0x70,
-			// orw %%dx,%%ax
-			0x66,0x09,0xd0,
-			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,0x90,
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		static char pseq32[] = {
+		static char pseqpre[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
 			0x8b,0x4b,Ofs_ESP,
 			// leal -4(%%ecx),%%ecx
-			0x8d,0x49,0xfc,
+/*08*/			0x8d,0x49,0xfc,
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl (%%esp),%%edx	(get flags on stack)
 			0x8b,0x14,0x24,
-			// movl Ofs_EFLAGS(%%ebx),%%eax
+			// movl Ofs_FLAGS(%%ebx),%%eax
 			0x8b,0x43,Ofs_EFLAGS,
-			// andl $0xcff,%%edx
-			0x81,0xe2,0xff,0x0c,0x00,0x00,
-			// andl	$0x3c7200,%%eax
-			0x25,0x00,0x72,0x3c,0x00,
-			// orl %%edx,%%eax
-			0x09,0xd0,
-			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,0x90,0x90,
+			// andw EFLAGS_CC,%%dx	(0x8d5: OF/SF/ZF/AF/PF/CF)
+			0x66,0x81,0xe2,0xd5,0x08,
+			// andw	~EFLAGS_CC,%%ax
+			0x66,0x25,0x2a,0xf7,
+			// orw %%dx,%%ax
+			0x66,0x09,0xd0,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32d[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
-			// movl Ofs_ESP(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_ESP,
-			// leal -4(%%ecx),%%ecx
-			0x8d,0x49,0xfc,
-			// andl StackMask(%%ebx),%%ecx
-			0x23,0x4b,Ofs_STACKM,
-			// movl (%%esp),%%edx	(get flags on stack)
-			0x8b,0x14,0x24,
-			// rcr $10,%%edx	(IF->cy)
-			0xc1,0xda,0x0a,
-			// bt $9,dpmi_eflags
-/*12*/			0x0f,0xba,0x25,0,0,0,0,0x09,
-			// rcl $1,%%edx; clc	(clear TF)
-			0xd1,0xd2,0xf8,
-			// rcl $9,%%edx
-			0xc1,0xd2,0x09,
-			// movl Ofs_EFLAGS(%%ebx),%%eax
-			0x8b,0x43,Ofs_EFLAGS,
-			// andl	$0x3c7000,%%eax
-			0x25,0x00,0x70,0x3c,0x00,
-			// orl %%edx,%%eax
-			0x09,0xd0,
-			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,0x90,0x90,
-			// movl %%ecx,Ofs_ESP(%%ebx)
-			0x89,0x4b,Ofs_ESP
-		};
-		register char *p; int sz;
-		register char *q;
-		if (in_dpmi) {
+		char *q=Cp; GNX(Cp, pseqpre, sizeof(pseqpre));
+		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
+		if (in_dpmi && 0) {
 		    /* This solves the DOSX 'System test 8' error.
 		     * The virtualized IF is pushed instead of the
 		     * real one (which is always 1). This way, tests
@@ -1387,20 +1307,29 @@ shrot0:
 		     * case, POPF ignores this IF on stack.
 		     * Since PUSHF doesn't trap in PM, non-cpuemued
 		     * dosemu will always fail this particular test.
+		     *
+		     * Disabling this for now -- it doesn't seem to
+		     * work any better than the workaround for
+		     * non-cpuemued dosemu. -- Bart
 		     */
-		    static int dpmi_eflags;
-		    if (mode&DATA16) p=pseq16d,sz=sizeof(pseq16d);
-			else p=pseq32d,sz=sizeof(pseq32d);
-		    q=Cp; GNX(Cp, p, sz);
-		    dpmi_eflags = get_vFLAGS(TheCPU.eflags);
-		    *((int *)(q+0x15)) = (int)&dpmi_eflags;
+			// rcr $10,%%eax	(IF->cy)
+			G3M(0xc1,0xd8,0x0a,Cp);
+			// bt $19,(_EFLAGS-TheCPU)(%ebx) (test for VIF)
+			G3M(0x0f,0xba,0xa3,Cp);
+			/* relative ebx offset works on x86-64 too */
+			G4((char *)&_EFLAGS-CPUOFFS(0),Cp);
+			// (19 from bt); rcl $10,%%eax
+			G4M(0x13,0xc1,0xd0,0x0a,Cp);
 		}
-		else
-		{
-		    if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
-			else p=pseq32,sz=sizeof(pseq32);
-		    GNX(Cp, p, sz);
+		if (mode&DATA16) {
+			// movw %%ax,(%%esi,%%ecx,1)
+			G4M(0x66,0x89,0x04,0x0e,Cp);
+		} else {
+			// movl %%eax,(%%esi,%%ecx,1)
+			G4M(0x89,0x04,0x0e,NOP,Cp);
 		}
+		/* nop to make space for a code patch */
+		G1(NOP, Cp);
 		} break;
 
 	case O_PUSHI: {
@@ -1832,8 +1761,7 @@ shrot0:
 		break;
 
 	case O_MOVS_MovD:
-		/* for cpatch to work flags must be on stack at this point */
-		GetStackDF(Cp);
+		GetDF(Cp);
 		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
 		if (mode&MBYTE)	{ G1(MOVSb,Cp); G4(0x90909090,Cp); }
 		else {
@@ -1841,9 +1769,10 @@ shrot0:
 			G1(MOVSw,Cp); G4(0x90909090,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
+		G1(CLD,Cp);
 		break;
 	case O_MOVS_LodD:
-		GetStackDF(Cp);
+		GetDF(Cp);
 		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
 		if (mode&MBYTE)	{ G1(LODSb,Cp); }
 		else {
@@ -1851,10 +1780,10 @@ shrot0:
 			G1(LODSw,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
+		G1(CLD,Cp);
 		break;
 	case O_MOVS_StoD:
-		/* for cpatch to work flags must be on stack at this point */
-		GetStackDF(Cp);
+		GetDF(Cp);
 		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
 		if (mode&MBYTE)	{ G1(STOSb,Cp); G4(0x90909090,Cp); }
 		else {
@@ -1862,9 +1791,10 @@ shrot0:
 			G1(STOSw,Cp); G4(0x90909090,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
+		G1(CLD,Cp);
 		break;
 	case O_MOVS_ScaD:
-		PopPushF(Cp);	// get flags from stack (DF)
+		GetDF(Cp);
 		if (mode&MREP) { G1(REP,Cp); }
 			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
 		if (mode&MBYTE)	{ G1(SCASb,Cp); }
@@ -1872,11 +1802,11 @@ shrot0:
 			Gen66(mode,Cp);
 			G1(SCASw,Cp);
 		}
-		G2(0x9c5a,Cp);	// replace flags back on stack,edx=dummy
+		G3M(CLD,POPdx,PUSHF,Cp); // replace flags back on stack,edx=dummy
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_CmpD:
-		PopPushF(Cp);	// get flags from stack (DF)
+		GetDF(Cp);
 		if (mode&MREP) { G1(REP,Cp); }
 			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
 		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
@@ -1884,7 +1814,7 @@ shrot0:
 			Gen66(mode,Cp);
 			G1(CMPSw,Cp);
 		}
-		G2(0x9c5a,Cp);	// replace flags back on stack,edx=dummy
+		G3M(CLD,POPdx,PUSHF,Cp); // replace flags back on stack,edx=dummy
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 
@@ -1955,13 +1885,11 @@ shrot0:
 			G4M(0x80,0x24,0x24,0xfe,Cp); break;
 		case STC:	// orb $1,0(%%esp)
 			G4M(0x80,0x0c,0x24,0x01,Cp); break;
-		case CLD:	// andb $0xfb,1(%%esp)
-			G4M(0x80,0x64,0x24,0x01,Cp); G2M(0xfb,0xfc,Cp);
+		case CLD:
 			// andb $0xfb,EFLAGS+1(%%ebx)
 			G4M(0x80,0x63,Ofs_EFLAGS+1,0xfb,Cp);
 			break;
-		case STD:	// orb $4,1(%%esp)
-			G4M(0x80,0x4c,0x24,0x01,Cp); G2M(0x04,0xfd,Cp);
+		case STD:
 			// orb $4,EFLAGS+1(%%ebx)
 			G4M(0x80,0x4b,Ofs_EFLAGS+1,0x04,Cp);
 			break;
@@ -3036,7 +2964,6 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	unsigned short seqflg, fpuc, ofpuc;
 	unsigned char *SeqStart;
 	hitimer_u TimeEndExec;
-	int ifl;
 
 	if (mode & XECFND) {		// we found an existing node
 		PC = G->addr;
@@ -3120,7 +3047,6 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 #ifdef ASM_DUMP
 	fprintf(aLog,"%08lx: exec\n",G->key);
 #endif
-	ifl = EFLAGS & 0x3f7300;	// save	reserved bits
 	if (seqflg & F_FPOP) {
 		fpuc = (TheCPU.fpuc & 0x1f00) | 0xff;
 		__asm__ __volatile__ (" \
@@ -3132,8 +3058,9 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	 * by pushfd (but not by ints and traps) */
 	flg = getflags();
 
-	/* pass TF=0, IF=1 */
-	flg = (flg & ~0xfd5) | (EFLAGS & 0xcd5) | 0x200;
+	/* pass TF=0, IF=1, DF=0 */
+	flg = (flg & ~(EFLAGS_CC|EFLAGS_IF|EFLAGS_DF|EFLAGS_TF)) |
+	       (EFLAGS & EFLAGS_CC) | EFLAGS_IF;
 
 	/* This is for exception processing */
 	InCompiledCode = 1;
@@ -3185,7 +3112,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	InCompiledCode = 0;
 
 	TimeEndExec.td -= TimeStartExec.td;
-	EFLAGS = (flg &	0xcff) | ifl;
+	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 
 	/* was there at least one FP op in the sequence? */

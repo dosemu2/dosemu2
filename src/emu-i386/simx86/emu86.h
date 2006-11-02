@@ -490,7 +490,7 @@ extern hitimer_t GenTime, LinkTime;
 #define EFLAGS_ALL_16    LOWORD(EFLAGS_ALL)
 #define EFLAGS_REAL_16   LOWORD(EFLAGS_REAL_32)
 #define EFLAGS_V8086_16  LOWORD(EFLAGS_V8086_32)
-#define EFLAGS_CC        0x00000cd5
+#define EFLAGS_CC        0x000008d5
 
 #define EFLAGS_IOPL_SHIFT 12
 #define EFLAGS_IOPL_MASK  0x3000

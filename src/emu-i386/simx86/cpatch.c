@@ -71,8 +71,6 @@ static int m_munprotect(caddr_t addr, long eip)
 {
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
 		(long)addr,eip,*((long *)(eip-5)));
-#ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM) {
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
 	    return e_check_munprotect(addr);
@@ -81,24 +79,17 @@ static int m_munprotect(caddr_t addr, long eip)
 	e_printf("CODE %08lx hit in DATA %08lx patch\n",(long)addr,eip);
 /*	if (UnCpatch((void *)(eip-5))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
-	}
-#endif
 	return e_check_munprotect(addr);
 }
 
-asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
+asmlinkage int r_munprotect(caddr_t addr, long len)
 {
-	__asm__ ("cld");
-	if (flags & EFLAGS_DF) addr -= len;
+	if (EFLAGS & EFLAGS_DF) addr -= len;
 	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
-		(long)addr,(long)addr+len,(flags&EFLAGS_DF?"back":"fwd"));
-#ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM) {
+		(long)addr,(long)addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
 	InvalidateNodePage((long)addr,len,0,NULL);
 	e_resetpagemarks(addr,len);
-	}
-#endif
 	e_munprotect(addr,len);
 	return 0;
 }
@@ -124,7 +115,6 @@ asmlinkage void stk_32(caddr_t addr, Bit32u value)
 asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
 {
 	int ret;
-	__asm__ ("cld");
 	ret = m_munprotect(addr, eip);
 	WRITE_BYTE(addr, value);
 	if (ret & 1)
@@ -134,7 +124,6 @@ asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
 asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 {
 	int ret;
-	__asm__ ("cld");
 	ret = m_munprotect(addr, eip);
 	WRITE_WORD(addr, value);
 	if (ret & 1)
@@ -144,7 +133,6 @@ asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 {
 	int ret;
-	__asm__ ("cld");
 	ret = m_munprotect(addr, eip);
 	WRITE_DWORD(addr, value);
 	if (ret & 1)
@@ -154,88 +142,62 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 /*
  * stack on entry:
  *	esp+00	return address
- *	esp+04	eflags
  */
 
 #define STUB_STK(cfunc) \
-"		pushl	%ebp\n \
-		movl	%esp, %ebp \n \
-		leal	(%esi,%ecx,1),%edi\n \
+"		leal	(%esi,%ecx,1),%edi\n \
 		pushal\n \
 		pushl	%eax\n \
 		pushl	%edi\n \
 		call	"#cfunc"\n \
 		addl	$8,%esp\n \
 		popal\n \
-		popl	%ebp\n \
 		ret\n"
 
 
 #define STUB_WRI(cfunc) \
-"		pushl	%ebp\n" \
-"		movl	%esp, %ebp\n" \
-"		pushl	%ebx\n"		/* save regs */ \
-"		pushl	4(%ebp)\n"	/* return addr = patch point+5 */ \
+"		pushl	(%esp)\n"	/* return addr = patch point+5 */ \
 "		pushl	%eax\n"		/* value to write */ \
 "		pushl	%edi\n"		/* addr where to write */ \
 "		call	"#cfunc"\n" \
 "		addl	$12,%esp\n"	/* remove parameters */ \
-"		popl	%ebx\n"		/* restore regs */ \
-"		popl	%ebp\n" \
 "		ret\n"
 
 #define STUB_MOVS(cfunc,letter) \
-"		pushl	%ebp\n" \
-"		movl	%esp, %ebp\n" \
-"		pushl	%ebx\n"		/* save regs              */ \
-"		pushl	8(%ebp)\n"	/* push eflags from stack */ \
-"		popfl\n"		/* get eflags (DF)        */ \
-"		pushfl\n"		/* and push back          */ \
-"		pushl	4(%ebp)\n"	/* push return address    */ \
+"		pushl	(%esp)\n"	/* return addr = patch point+5 */ \
 "		lods"#letter"\n"	/* fetch value to write   */ \
 "		pushl	%eax\n"		/* value to write         */ \
 "		pushl	%edi\n"		/* push fault address     */ \
 "		scas"#letter"\n"	/* adjust edi depends:DF  */ \
+"		cld\n" \
 "		call	"#cfunc"\n" \
 "		addl	$12,%esp\n"	/* remove parameters      */ \
-"		popfl\n"		/* get eflags             */ \
-"		popl	%ebx\n"		/* restore regs           */ \
-"		popl	%ebp\n" \
 "		ret\n"
 
 #define STUB_STOS(cfunc,letter) \
-"		pushl	%ebp\n" \
-"		movl	%esp, %ebp\n" \
-"		pushl	%ebx\n"		/* save regs              */ \
-"		pushl	4(%ebp)\n"	/* push return address    */ \
+"		pushl	(%esp)\n"	/* return addr = patch point+5 */ \
 "		pushl	%eax\n"		/* value to write         */ \
 "		pushl	%edi\n"		/* push fault address     */ \
+"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
+"		cld\n" \
 "		call	"#cfunc"\n" \
 "		addl	$12,%esp\n"	/* remove parameters      */ \
-"		pushl	8(%ebp)\n"	/* push eflags from stack */ \
-"		popfl\n"		/* get eflags (DF)        */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		popl	%ebx\n"		/* restore regs           */ \
-"		popl	%ebp\n" \
 "		ret\n"
 
 #define STUB_REP(op,ecxshift) \
-"		pushl	%ebp\n" \
-"		movl	%esp, %ebp\n" \
 "		jecxz	1f\n"		/* zero move, nothing to do */ \
 "		pushal\n"		/* save regs */ \
-"		pushl	8(%ebp)\n"	/* push eflags from stack */ \
+"		pushfl\n"		/* push flags for DF */ \
 "		shll	$"#ecxshift",%ecx\n" \
-"		pushl	0x44(%ebx)\n"	/* eflags from TheCPU (Ofs_EFLAGS) */ \
 "		pushl	%ecx\n"		/* push count */ \
 "		pushl	%edi\n"		/* push base address */ \
+"		cld\n" \
 "		call	r_munprotect\n" \
-"		addl	$12,%esp\n"	/* remove parameters */ \
+"		addl	$8,%esp\n"	/* remove parameters */ \
 "		popfl\n"		/* real CPU flags back */ \
 "		popal\n"		/* restore regs */ \
 "		rep; "#op"\n"		/* perform op */ \
-"1:		popl	%ebp\n" \
-"		ret\n"
+"1:		ret\n"
 
 asm (
 		".text\n"

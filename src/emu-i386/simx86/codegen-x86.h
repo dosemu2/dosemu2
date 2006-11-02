@@ -140,8 +140,11 @@ static __inline__ void PUSH(int m, void *w)
 #define PopPushF(Cp)	if (((Cp)==BaseGenBuf)||((Cp)[-1]!=PUSHF)) \
 				G2(0x9c9d,(Cp))
 
-// cld; btl $0xa,(%esp); jnc 1f; std; 1f:
-#define GetStackDF(Cp)	G8(0x01730a2424ba0ffcULL,(Cp));G1(0xfd,(Cp))
+// cld; btl $0xa,EFLAGS(%ebx); jnc 1f; std; 1f:
+#define GetDF(Cp)		\
+  G4M(CLD,TwoByteESC,0xba,0x63,Cp);	\
+  G1(Ofs_EFLAGS,Cp);		\
+  G4M(0x0a,JNB_JAE,0x01,STD,Cp);
 
 /////////////////////////////////////////////////////////////////////////////
 //
