@@ -858,6 +858,12 @@ void enter_cpu_emu(void)
 		IOFF(0x10)=CPUEMU_WATCHER_OFF;
 #endif
 	TheCPU.unprotect_stub = stub_rep;
+	TheCPU.stub_wri_8 = stub_wri_8;
+	TheCPU.stub_wri_16 = stub_wri_16;
+	TheCPU.stub_wri_32 = stub_wri_32;
+	TheCPU.stub_stk_16 = stub_stk_16;
+	TheCPU.stub_stk_32 = stub_stk_32;
+
 	TheCPU.EMUtime = GETTSC();
 	sigEMUdelta = realdelta*config.CPUSpeedInMhz;
 	sigEMUtime = TheCPU.EMUtime + sigEMUdelta;

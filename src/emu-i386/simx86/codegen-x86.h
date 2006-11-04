@@ -64,8 +64,8 @@ extern int TrapVgaOn;
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define STD_WRITE_B	G2(0x0788,Cp);G3(0x909090,Cp)
-#define STD_WRITE_WL(m)	G5((m)&DATA16?0x9090078966ULL:0x9090900789ULL,Cp)
+#define STD_WRITE_B	G3M(0x88,0x07,0x90,Cp);
+#define STD_WRITE_WL(m)	G3((m)&DATA16?0x078966:0x900789,Cp)
 
 #define GenAddECX(o)	if (((o) > -128) && ((o) < 128)) {\
 			G2(0xc183,Cp); G1((o),Cp); } else {\

@@ -265,5 +265,10 @@ extern char OpIsPush[];
 int Cpatch(struct sigcontext_struct *scp);
 int UnCpatch(unsigned char *eip);
 void stub_rep(void) asm ("stub_rep__");
+void stub_stk_16(void) asm ("stub_stk_16__");
+void stub_stk_32(void) asm ("stub_stk_32__");
+void stub_wri_8 (void) asm ("stub_wri_8__" );
+void stub_wri_16(void) asm ("stub_wri_16__");
+void stub_wri_32(void) asm ("stub_wri_32__");
 
 #endif

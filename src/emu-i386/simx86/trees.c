@@ -1158,7 +1158,7 @@ static void BreakNode(TNode *G, long eip, long addr)
 	p = G->addr + A->daddr;		// translated IP of following instr
 	if (enpc >= A->dnpc) {		// if it's a forward write
 	    memcpy(p, TailCode, TAILSIZE);
-	    *((long *)(p+TAILFIX)) = G->key + A->dnpc;
+	    *((int *)(p+TAILFIX)) = G->key + A->dnpc;
 	    dbug_printf("============ Force node closing at %08lx(%08lx)\n",
 		(G->key+A->dnpc),(long)p);
 	}

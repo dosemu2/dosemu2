@@ -1182,7 +1182,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,0x90,
+			0x66,0x89,0x04,0x0e,
 			// do 16-bit PM apps exist which use a 32-bit stack seg?
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
@@ -1199,7 +1199,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,0x90,0x90,
+			0x89,0x04,0x0e,
 #if 0	/* keep high 16-bits of ESP in small-stack mode */
 			// movl StackMask(%%ebx),%%edx
 			0x8b,0x53,Ofs_STACKM,
@@ -1244,7 +1244,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,0x90
+			0x66,0x89,0x04,0x0e,
 		};
 		static char pseq32[] = {
 			// movl offs(%%ebx),%%eax
@@ -1254,7 +1254,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,0x90,0x90
+			0x89,0x04,0x0e,
 		};
 		register char *p, *q; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
@@ -1345,7 +1345,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,0x90,
+			0x66,0x89,0x04,0x0e,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
@@ -1361,7 +1361,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,0x90,0x90,
+			0x89,0x04,0x0e,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
@@ -2031,7 +2031,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movw %%ax,(%%esi,%%ecx,1)
-			0x66,0x89,0x04,0x0e,0x90,
+			0x66,0x89,0x04,0x0e,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
@@ -2047,7 +2047,7 @@ shrot0:
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl %%eax,(%%esi,%%ecx,1)
-			0x89,0x04,0x0e,0x90,0x90,
+			0x89,0x04,0x0e,
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};

@@ -53,22 +53,27 @@ typedef struct {
 /* ------------------------------------------------ */
 /*80*/  double   *fpregs;
 /*84*/  PADDING32BIT(1)
-/*88*/	unsigned int cr[5];
-/*9c*/	unsigned int  mode;
-/*a0*/	SDTR gs_cache;
-/*ac*/	SDTR fs_cache;
-/*b8*/	SDTR es_cache;
-/*c4*/	SDTR ds_cache;
-/*d0*/	SDTR cs_cache;
-/*dc*/	SDTR ss_cache;
+/*88*/	unsigned long long EMUtime;
+/*90*/	SDTR gs_cache;
+/*9c*/	SDTR fs_cache;
+/*a8*/	SDTR es_cache;
+/*b4*/	SDTR ds_cache;
+/*c0*/	SDTR cs_cache;
+/*cc*/	SDTR ss_cache;
 /* ------------------------------------------------ */
-/*e8*/  unsigned int cr2smc;
-/*ec*/	unsigned short fpuc, fpus;
-/*f0*/	unsigned short fpstt, fptag;
-/*f4*/	unsigned int _fni[3];
+/*d8*/  void (*stub_stk_16)(void);
+/*dc*/  PADDING32BIT(2)
+/*e0*/  void (*stub_stk_32)(void);
+/*e4*/  PADDING32BIT(3)
+/*e8*/  void (*stub_wri_8)(void);
+/*ec*/  PADDING32BIT(4)
+/*f0*/  void (*stub_wri_16)(void);
+/*f4*/  PADDING32BIT(5)
+/*f8*/  void (*stub_wri_32)(void);
+/*fc*/  PADDING32BIT(6)
 /* ------------------------------------------------ */
-/*00*/  void (*unprotect_stub)(void);
-/*04*/  PADDING32BIT(2)
+/*00*/  void (*unprotect_stub)(void); /* must be at 0 for call (%ebx) */
+/*04*/  PADDING32BIT(7)
 /*08*/	unsigned int rzero;
 /*0c*/	unsigned short gs, __gsh;
 /*10*/	unsigned short fs, __fsh;
@@ -90,18 +95,24 @@ typedef struct {
 /* ----end of i386 sigcontext 1:1 correspondence--- */
 /*50*/	unsigned short ss, __ssh;
 /*54*/	unsigned int cr2;
-/*58*/  unsigned int padding3;
 /* ------------------------------------------------ */
-/*5c*/	unsigned int sreg1;
-/*60*/  unsigned int dreg1;
-/*64*/	unsigned int xreg1;
-/*68*/	unsigned short sigalrm_pending, sigprof_pending;
-/*6c*/	unsigned int veflags;
+/*58*/	unsigned short fpuc, fpus;
+/*5c*/	unsigned short fpstt, fptag;
+/*60*/	unsigned int _fni[3];
+/* ------------------------------------------------ */
+/*6c*/	unsigned short sigalrm_pending, sigprof_pending;
 /*70*/		 int err;
 /*74*/	unsigned int StackMask;
-/*78*/	unsigned long long EMUtime;
+/*78*/	unsigned int  mode;
+/*7c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
-/*80*/	unsigned int tr[2];
+/*90*/	unsigned int tr[2];
+
+	unsigned int sreg1;
+	unsigned int dreg1;
+	unsigned int xreg1;
+	unsigned int veflags;
+
 /*
  * DR0-3 = linear address of breakpoint 0-3
  * DR4=5 = reserved
@@ -173,7 +184,6 @@ extern SynCPU TheCPU;
 #define Ofs_GS		(char)(offsetof(SynCPU,gs)-SCBASE)
 #define Ofs_EFLAGS	(char)(offsetof(SynCPU,eflags)-SCBASE)
 #define Ofs_ERR		(char)(offsetof(SynCPU,err)-SCBASE)
-#define Ofs_REG1	(char)(offsetof(SynCPU,sreg1)-SCBASE)
 #define Ofs_CR0		(char)(offsetof(SynCPU,cr[0])-SCBASE)
 #define Ofs_CR2		(char)(offsetof(SynCPU,cr2)-SCBASE)
 #define Ofs_STACKM	(char)(offsetof(SynCPU,StackMask)-SCBASE)
@@ -195,6 +205,12 @@ extern SynCPU TheCPU;
 #define Ofs_XCS		(char)(offsetof(SynCPU,cs_cache)-SCBASE)
 #define Ofs_XFS		(char)(offsetof(SynCPU,fs_cache)-SCBASE)
 #define Ofs_XGS		(char)(offsetof(SynCPU,gs_cache)-SCBASE)
+
+#define Ofs_stub_wri_8	(char)(offsetof(SynCPU,stub_wri_8)-SCBASE)
+#define Ofs_stub_wri_16	(char)(offsetof(SynCPU,stub_wri_16)-SCBASE)
+#define Ofs_stub_wri_32	(char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
+#define Ofs_stub_stk_16	(char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
+#define Ofs_stub_stk_32	(char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
 
 #define rAX		*((unsigned short *)&rEAX)
 #define Ofs_AX		(Ofs_EAX)

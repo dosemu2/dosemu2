@@ -59,7 +59,6 @@ int s_mprotect(caddr_t addr)
 }
 
 #ifdef HOST_ARCH_X86
-#ifdef __i386__
 
 static int m_mprotect(caddr_t addr)
 {
@@ -73,20 +72,18 @@ static int m_mprotect(caddr_t addr)
  */
 static int m_munprotect(caddr_t addr, long eip)
 {
-	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
-		(long)addr,eip,*((long *)(eip-5)));
+	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08x]\n",
+		(long)addr,eip,*((int *)(eip-3)));
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
 	    return e_check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
 	e_printf("CODE %08lx hit in DATA %08lx patch\n",(long)addr,eip);
-/*	if (UnCpatch((void *)(eip-5))) leavedos(0); */
+/*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
 	return e_check_munprotect(addr);
 }
-
-#endif
 
 asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 {
@@ -106,8 +103,6 @@ asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 }
 
 /* ======================================================================= */
-
-#ifdef __i386__
 
 asmlinkage void stk_16(caddr_t addr, Bit16u value)
 {
@@ -151,6 +146,8 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 	if (ret & 1)
 		m_mprotect(addr);
 }
+
+#ifdef __i386__
 
 /*
  * stack on entry:
@@ -198,7 +195,7 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 "		ret\n"
 
 asm (
-".globl stub_rep__\n"
+".text\n.globl stub_rep__\n"
 "stub_rep__:	jecxz	1f\n"		/* zero move, nothing to do */
 "		pushl	%eax\n"		/* save regs */
 "		pushl	%ecx\n"
@@ -217,11 +214,6 @@ asm (
 
 asm (
 		".text\n"
-"stub_stk_16__:"STUB_STK(stk_16)
-"stub_stk_32__:"STUB_STK(stk_32)
-"stub_wri_8__: "STUB_WRI(wri_8)
-"stub_wri_16__:"STUB_WRI(wri_16)
-"stub_wri_32__:"STUB_WRI(wri_32)
 "stub_movsb__: "STUB_MOVS(wri_8,b)
 "stub_movsw__: "STUB_MOVS(wri_16,w)
 "stub_movsl__: "STUB_MOVS(wri_32,l)
@@ -230,11 +222,6 @@ asm (
 "stub_stosl__: "STUB_STOS(wri_32,l)
 );
 
-void stub_stk_16(void) asm ("stub_stk_16__");
-void stub_stk_32(void) asm ("stub_stk_32__");
-void stub_wri_8 (void) asm ("stub_wri_8__" );
-void stub_wri_16(void) asm ("stub_wri_16__");
-void stub_wri_32(void) asm ("stub_wri_32__");
 void stub_movsb (void) asm ("stub_movsb__" );
 void stub_movsw (void) asm ("stub_movsw__" );
 void stub_movsl (void) asm ("stub_movsl__" );
@@ -244,13 +231,41 @@ void stub_stosl (void) asm ("stub_stosl__" );
 
 /* ======================================================================= */
 
-#define JSRPATCH(p,N)	*p++=0xe8;*((long *)(p))=(long)((unsigned char *)N-((p)+4))
+#define JSRPATCHOLD(p,N) \
+	*p++=0xe8;*((int *)(p))=(long)((unsigned char *)N-((p)+4))
 
 #else //__x86_64__
 
+#define STUB_STK(cfunc) \
+"		leal	(%rsi,%rcx,1),%edi\n" \
+"		pushq	%rax\n"		/* save regs */ \
+"		pushq	%rcx\n" \
+"		pushq	%rdx\n" \
+"		pushq	%rdi\n" \
+"		pushq	%rsi\n" \
+"		movl	%eax,%esi\n" \
+					/* pass base address in %rdi */ \
+"		call	"#cfunc"\n" \
+"		popq	%rsi\n"		/* restore regs */ \
+"		popq	%rdi\n" \
+"		popq	%rdx\n" \
+"		popq	%rcx\n" \
+"		popq	%rax\n"	\
+"		ret\n"
+
+
+#define STUB_WRI(cfunc) \
+"		movq	(%rsp),%rdx\n"	/* return addr = patch point+5 */ \
+"		pushq	%rdi\n"		/* save regs */ \
+"		movl	%eax,%esi\n"	/* value to write */ \
+					/* pass addr where to write in %rdi */\
+"		call	"#cfunc"\n" \
+"		popq	%rdi\n"		/* restore regs */ \
+"		ret\n"
+
 asm (
-".globl stub_rep__\n"
-"stub_rep__:	jecxz	1f\n"		/* zero move, nothing to do */
+".text\n.globl stub_rep__\n"
+"stub_rep__:	jrcxz	1f\n"		/* zero move, nothing to do */
 "		movq	(%rsp),%rdx\n"  /* pass return address */
 "		pushq	%rax\n"		/* save regs */
 "		pushq	%rcx\n"
@@ -271,6 +286,18 @@ asm (
 
 #endif
 
+asm (
+		".text\n"
+"stub_stk_16__:.globl stub_stk_16__\n"STUB_STK(stk_16)
+"stub_stk_32__:.globl stub_stk_32__\n"STUB_STK(stk_32)
+"stub_wri_8__: .globl stub_wri_8__\n "STUB_WRI(wri_8)
+"stub_wri_16__:.globl stub_wri_16__\n"STUB_WRI(wri_16)
+"stub_wri_32__:.globl stub_wri_32__\n"STUB_WRI(wri_32)
+);
+
+/* call N(%ebx) */
+#define JSRPATCH(p,N) *((short *)(p))=0x53ff;p[2]=N;
+
 /*
  * enters here only from a fault
  */
@@ -278,7 +305,7 @@ int Cpatch(struct sigcontext_struct *scp)
 {
     unsigned char *p;
     int w16;
-    unsigned long v;
+    unsigned int v;
     unsigned char *eip = (unsigned char *)_rip;
 
     p = eip;
@@ -291,105 +318,88 @@ int Cpatch(struct sigcontext_struct *scp)
     }
 
     if (*p==0x66) w16=1,p++; else w16=0;
-    v = *((long *)p);
-#ifdef __i386__
-    if (v==0x900e0489) {	// stack: never fail
+    v = *((int *)p) & 0xffffff;
+    if (v==0x0e0489) {		// stack: never fail
 	// mov %%{e}ax,(%%esi,%%ecx,1)
-	// we have a sequence:	66 89 04 0e 90
-	//		or	89 04 0e 90 90
+	// we have a sequence:	66 89 04 0e
+	//		or	89 04 0e
 	if (debug_level('e')>1) e_printf("### Stack patch at %08lx\n",(long)eip);
 	if (w16) {
-	    p--; JSRPATCH(p,&stub_stk_16);
+	    p--; JSRPATCH(p,Ofs_stub_stk_16); p[3] = 0x90;
 	}
 	else {
-	    JSRPATCH(p,&stub_stk_32);
+	    JSRPATCH(p,Ofs_stub_stk_32);
 	}
 	return 1;
     }
-    if (v==0x90900788) {	// movb %%al,(%%edi)
-	// we have a sequence:	88 07 90 90 90
+    if (v==0x900788) {		// movb %%al,(%%edi)
+	// we have a sequence:	88 07 90
 	if (debug_level('e')>1) e_printf("### Byte write patch at %08lx\n",(long)eip);
-	JSRPATCH(p,&stub_wri_8);
+	JSRPATCH(p,Ofs_stub_wri_8);
 	return 1;
     }
-    if (v==0x90900789) {	// mov %%{e}ax,(%%edi)
-	// we have a sequence:	89 07 90 90 90
-	//		or	66 89 07 90 90
+    if ((v&0xffff)==0x0789) {	// mov %%{e}ax,(%%edi)
+	// we have a sequence:	89 07 90
+	//		or	66 89 07
 	if (debug_level('e')>1) e_printf("### Word/Long write patch at %08lx\n",(long)eip);
 	if (w16) {
-	    p--; JSRPATCH(p,&stub_wri_16);
+	    p--; JSRPATCH(p,Ofs_stub_wri_16);
 	}
 	else {
-	    JSRPATCH(p,&stub_wri_32);
+	    JSRPATCH(p,Ofs_stub_wri_32);
 	}
 	return 1;
     }
+#ifdef __i386__
     if (v==0x909090a5) {	// movsw
 	if (debug_level('e')>1) e_printf("### movs{wl} patch at %08lx\n",(long)eip);
 	if (w16) {
-	    p--; JSRPATCH(p,&stub_movsw);
+	    p--; JSRPATCHOLD(p,&stub_movsw);
 	}
 	else {
-	    JSRPATCH(p,&stub_movsl);
+	    JSRPATCHOLD(p,&stub_movsl);
 	}
 	return 1;
     }
     if (v==0x909090a4) {	// movsb
 	if (debug_level('e')>1) e_printf("### movsb patch at %08lx\n",(long)eip);
-	    JSRPATCH(p,&stub_movsb);
+	    JSRPATCHOLD(p,&stub_movsb);
 	return 1;
     }
     if (v==0x909090ab) {	// stosw
 	if (debug_level('e')>1) e_printf("### stos{wl} patch at %08lx\n",(long)eip);
 	if (w16) {
-	    p--; JSRPATCH(p,&stub_stosw);
+	    p--; JSRPATCHOLD(p,&stub_stosw);
 	}
 	else {
-	    JSRPATCH(p,&stub_stosl);
+	    JSRPATCHOLD(p,&stub_stosl);
 	}
 	return 1;
     }
     if (v==0x909090aa) {	// stosb
 	if (debug_level('e')>1) e_printf("### stosb patch at %08lx\n",(long)eip);
-	JSRPATCH(p,&stub_stosb);
+	JSRPATCHOLD(p,&stub_stosb);
 	return 1;
     }
 #endif
-    if (debug_level('e')>1) e_printf("### Patch unimplemented: %08lx\n",*((long *)p));
+    if (debug_level('e')>1) e_printf("### Patch unimplemented: %08x\n",*((int *)p));
     return 0;
 }
 
 
 int UnCpatch(unsigned char *eip)
 {
+    register signed char *p;
+    p = eip;
+
     if (*eip != 0xe8 && *eip != 0xff) return 1;
     e_printf("UnCpatch   at %08lx was %02x%02x%02x%02x%02x\n",(long)eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
 #ifdef __i386__
-    {
-    long subad;
-    register unsigned char *p;
-    p = eip;
-
-    if (p[0] == 0xff) {
-	if (p[1] != 0x13) return 1;
-	p[0] = p[1] = 0x90;
-    }
-    else {
-
-    subad = *((long *)(eip+1)) + ((long)eip+5);
-
-    if (subad == (long)&stub_wri_8) {
-	*((long *)p) = 0x90900788; p[4] = 0x90;
-    }
-    else if (subad == (long)&stub_wri_16) {
-	*p++ = 0x66; *((long *)p) = 0x90900789;
-    }
-    else if (subad == (long)&stub_wri_32) {
-	*((long *)p) = 0x90900789; p[4] = 0x90;
-    }
-    else if (subad == (long)&stub_movsb) {
+    if (*eip == 0xe8) {
+    long subad = *((long *)(eip+1)) + ((long)eip+5);
+    if (subad == (long)&stub_movsb) {
 	*((long *)p) = 0x909090a4; p[4] = 0x90;
     }
     else if (subad == (long)&stub_movsw) {
@@ -407,21 +417,34 @@ int UnCpatch(unsigned char *eip)
     else if (subad == (long)&stub_stosl) {
 	*((long *)p) = 0x909090ab; p[4] = 0x90;
     }
-    else if (subad == (long)&stub_stk_16) {
-	*p++ = 0x66; *((long *)p) = 0x900e0489;
+    else return 1;
+    } else /* p[0] == 0xff */
+#endif
+    if (p[1] == 0x13) {
+	p[0] = p[1] = 0x90;
     }
-    else if (subad == (long)&stub_stk_32) {
-	*((long *)p) = 0x900e0489; p[4] = 0x90;
+    else if (p[1] == 0x53) {
+	if (p[2] == Ofs_stub_wri_8) {
+	    *((short *)p) = 0x0788; p[2] = 0x90;
+	}
+	else if (p[2] == Ofs_stub_wri_16) {
+	    *p++ = 0x66; *((short *)p) = 0x0789;
+	}
+	else if (p[2] == Ofs_stub_wri_32) {
+	    *((short *)p) = 0x0789; p[2] = 0x90;
+	}
+	else if (p[2] == Ofs_stub_stk_16) {
+	    *((int *)p) = 0x0e048966;
+	}
+	else if (p[2] == Ofs_stub_stk_32) {
+	    *((short *)p) = 0x0489; p[2] = 0x0e;
+	}
+	else return 1;
     }
     else return 1;
-    }
     e_printf("UnCpatched at %08lx  is %02x%02x%02x%02x%02x\n",(long)eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
     return 0;
-    }
-#else
-    return 1;
-#endif
 }
 
 #endif	//HOST_ARCH_X86
