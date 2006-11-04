@@ -39,15 +39,20 @@
 
 #include "host.h"
 #include "protmode.h"
+#include <limits.h>
+
+#if ULONG_MAX > 0xffffffffUL
+#define PADDING32BIT(n)
+#else
+#define PADDING32BIT(n) unsigned int padding##n;
+#endif
 
 typedef struct {
 /* offsets are 8-bit signed */
-#define FIELD0		rzero	/* field of SynCPU at offset 00 */
+#define FIELD0		unprotect_stub	/* field of SynCPU at offset 00 */
 /* ------------------------------------------------ */
-/*80*/ double   *fpregs;
-#ifdef __i386__
-/*84*/ unsigned int padding;
-#endif
+/*80*/  double   *fpregs;
+/*84*/  PADDING32BIT(1)
 /*88*/	unsigned int cr[5];
 /*9c*/	unsigned int  mode;
 /*a0*/	SDTR gs_cache;
@@ -62,35 +67,30 @@ typedef struct {
 /*f0*/	unsigned short fpstt, fptag;
 /*f4*/	unsigned int _fni[3];
 /* ------------------------------------------------ */
-/*00*/	unsigned int rzero;
-/*04*/	unsigned short gs, __gsh;
-/*08*/	unsigned short fs, __fsh;
-/*0c*/	unsigned short es, __esh;
-/*10*/	unsigned short ds, __dsh;
-/*14*/	unsigned int edi;
-/*18*/	unsigned int esi;
-/*1c*/	unsigned int ebp;
-/*20*/	unsigned int esp;
-/*24*/	unsigned int ebx;
-/*28*/	unsigned int edx;
-/*2c*/	unsigned int ecx;
-/*30*/	unsigned int eax;
-/*34*/	unsigned int trapno;
-/*38*/	unsigned int scp_err;
-/*3c*/	unsigned int eip;
-/*40*/	unsigned short cs, __csh;
-/*44*/	unsigned int eflags;
-#ifdef __x86_64__
-/*48*/	unsigned int oldmask;
-/*4c*/	unsigned short ss, __ssh;
-/*50*/  struct _fpstate *fpstate;
-#else
-/*48*/	unsigned int esp_at_signal;
-/*4c*/	unsigned short ss, __ssh;
-/*50*/  struct _fpstate *fpstate;
-/*54*/	unsigned int oldmask;
-#endif
-/*58*/	unsigned int cr2;
+/*00*/  void (*unprotect_stub)(void);
+/*04*/  PADDING32BIT(2)
+/*08*/	unsigned int rzero;
+/*0c*/	unsigned short gs, __gsh;
+/*10*/	unsigned short fs, __fsh;
+/*14*/	unsigned short es, __esh;
+/*18*/	unsigned short ds, __dsh;
+/*1c*/	unsigned int edi;
+/*20*/	unsigned int esi;
+/*24*/	unsigned int ebp;
+/*28*/	unsigned int esp;
+/*2c*/	unsigned int ebx;
+/*30*/	unsigned int edx;
+/*34*/	unsigned int ecx;
+/*38*/	unsigned int eax;
+/*3c*/	unsigned int trapno;
+/*40*/	unsigned int scp_err;
+/*44*/	unsigned int eip;
+/*48*/	unsigned short cs, __csh;
+/*4c*/	unsigned int eflags;
+/* ----end of i386 sigcontext 1:1 correspondence--- */
+/*50*/	unsigned short ss, __ssh;
+/*54*/	unsigned int cr2;
+/*58*/  unsigned int padding3;
 /* ------------------------------------------------ */
 /*5c*/	unsigned int sreg1;
 /*60*/  unsigned int dreg1;

@@ -262,7 +262,8 @@ extern int  GendBytesPerOp[];
 extern char RmIsReg[];
 extern char OpIsPush[];
 
-int Cpatch(unsigned char *eip);
+int Cpatch(struct sigcontext_struct *scp);
 int UnCpatch(unsigned char *eip);
+void stub_rep(void) asm ("stub_rep__");
 
 #endif

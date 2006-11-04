@@ -1762,12 +1762,13 @@ shrot0:
 
 	case O_MOVS_MovD:
 		GetDF(Cp);
-		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
-		if (mode&MBYTE)	{ G1(MOVSb,Cp); G4(0x90909090,Cp); }
+		if (mode&(MREP|MREPNE))	{ G3M(NOP,NOP,REP,Cp); }
+		if (mode&MBYTE)	{ G1(MOVSb,Cp); }
 		else {
 			Gen66(mode,Cp);
-			G1(MOVSw,Cp); G4(0x90909090,Cp);
+			G1(MOVSw,Cp);
 		}
+		if (!(mode&(MREP|MREPNE))) { G4(0x90909090,Cp); }
 		// ! Warning DI,SI wrap	in 16-bit mode
 		G1(CLD,Cp);
 		break;
@@ -1784,12 +1785,13 @@ shrot0:
 		break;
 	case O_MOVS_StoD:
 		GetDF(Cp);
-		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
-		if (mode&MBYTE)	{ G1(STOSb,Cp); G4(0x90909090,Cp); }
+		if (mode&(MREP|MREPNE))	{ G3M(NOP,NOP,REP,Cp); }
+		if (mode&MBYTE)	{ G1(STOSb,Cp); }
 		else {
 			Gen66(mode,Cp);
-			G1(STOSw,Cp); G4(0x90909090,Cp);
+			G1(STOSw,Cp);
 		}
+		if (!(mode&(MREP|MREPNE))) { G4(0x90909090,Cp); }
 		// ! Warning DI,SI wrap	in 16-bit mode
 		G1(CLD,Cp);
 		break;

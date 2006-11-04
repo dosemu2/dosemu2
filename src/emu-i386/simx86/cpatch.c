@@ -37,7 +37,11 @@
 #include "codegen-arch.h"
 
 #if GCC_VERSION_CODE >= 3003
+#ifdef __i386__
 #define asmlinkage static __attribute__((used)) __attribute__((cdecl))
+#else
+#define asmlinkage static __attribute__((used))
+#endif
 #else
 #define asmlinkage static __attribute__((unused))
 #endif
@@ -82,8 +86,15 @@ static int m_munprotect(caddr_t addr, long eip)
 	return e_check_munprotect(addr);
 }
 
-asmlinkage int r_munprotect(caddr_t addr, long len)
+#endif
+
+asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 {
+
+	if (*eip == 0x66)
+		len *= 2;
+	else if (*eip & 1)
+		len *= 4;
 	if (EFLAGS & EFLAGS_DF) addr -= len;
 	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
@@ -95,6 +106,8 @@ asmlinkage int r_munprotect(caddr_t addr, long len)
 }
 
 /* ======================================================================= */
+
+#ifdef __i386__
 
 asmlinkage void stk_16(caddr_t addr, Bit16u value)
 {
@@ -184,20 +197,23 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 "		addl	$12,%esp\n"	/* remove parameters      */ \
 "		ret\n"
 
-#define STUB_REP(op,ecxshift) \
-"		jecxz	1f\n"		/* zero move, nothing to do */ \
-"		pushal\n"		/* save regs */ \
-"		pushfl\n"		/* push flags for DF */ \
-"		shll	$"#ecxshift",%ecx\n" \
-"		pushl	%ecx\n"		/* push count */ \
-"		pushl	%edi\n"		/* push base address */ \
-"		cld\n" \
-"		call	r_munprotect\n" \
-"		addl	$8,%esp\n"	/* remove parameters */ \
-"		popfl\n"		/* real CPU flags back */ \
-"		popal\n"		/* restore regs */ \
-"		rep; "#op"\n"		/* perform op */ \
+asm (
+".globl stub_rep__\n"
+"stub_rep__:	jecxz	1f\n"		/* zero move, nothing to do */
+"		pushl	%eax\n"		/* save regs */
+"		pushl	%ecx\n"
+"		pushfl\n"		/* push flags for DF */
+"		pushl	12(%esp)\n"	/* push return address */
+"		pushl	%ecx\n"		/* push count */
+"		pushl	%edi\n"		/* push base address */
+"		cld\n"
+"		call	r_munprotect\n"
+"		addl	$12,%esp\n"	/* remove parameters */
+"		popfl\n"		/* real CPU flags back */
+"		popl	%ecx\n"		/* restore regs */
+"		popl	%eax\n"		
 "1:		ret\n"
+);
 
 asm (
 		".text\n"
@@ -212,12 +228,6 @@ asm (
 "stub_stosb__: "STUB_STOS(wri_8,b)
 "stub_stosw__: "STUB_STOS(wri_16,w)
 "stub_stosl__: "STUB_STOS(wri_32,l)
-"stub_rep_movsb__:"STUB_REP(movsb,0)
-"stub_rep_movsw__:"STUB_REP(movsw,1)
-"stub_rep_movsl__:"STUB_REP(movsl,2)
-"stub_rep_stosb__:"STUB_REP(stosb,0)
-"stub_rep_stosw__:"STUB_REP(stosw,1)
-"stub_rep_stosl__:"STUB_REP(stosl,2)
 );
 
 void stub_stk_16(void) asm ("stub_stk_16__");
@@ -231,33 +241,57 @@ void stub_movsl (void) asm ("stub_movsl__" );
 void stub_stosb (void) asm ("stub_stosb__" );
 void stub_stosw (void) asm ("stub_stosw__" );
 void stub_stosl (void) asm ("stub_stosl__" );
-void stub_rep_movsb (void) asm ("stub_rep_movsb__" );
-void stub_rep_movsw (void) asm ("stub_rep_movsw__" );
-void stub_rep_movsl (void) asm ("stub_rep_movsl__" );
-void stub_rep_stosb (void) asm ("stub_rep_stosb__" );
-void stub_rep_stosw (void) asm ("stub_rep_stosw__" );
-void stub_rep_stosl (void) asm ("stub_rep_stosl__" );
 
 /* ======================================================================= */
 
 #define JSRPATCH(p,N)	*p++=0xe8;*((long *)(p))=(long)((unsigned char *)N-((p)+4))
 
-#endif  //__i386__
+#else //__x86_64__
+
+asm (
+".globl stub_rep__\n"
+"stub_rep__:	jecxz	1f\n"		/* zero move, nothing to do */
+"		movq	(%rsp),%rdx\n"  /* pass return address */
+"		pushq	%rax\n"		/* save regs */
+"		pushq	%rcx\n"
+"		pushq	%rdi\n"
+"		pushq	%rsi\n"
+"		pushfq\n"		/* push flags for DF */
+"		movl	%ecx,%esi\n"	/* pass count */
+					/* pass base address in %rdi */
+"		cld\n"
+"		call	r_munprotect\n"
+"		popfq\n"		/* real CPU flags back */
+"		popq	%rsi\n"		/* restore regs */
+"		popq	%rdi\n"
+"		popq	%rcx\n"
+"		popq	%rax\n"		
+"1:		ret\n"
+);
+
+#endif
 
 /*
  * enters here only from a fault
  */
-int Cpatch(unsigned char *eip)
+int Cpatch(struct sigcontext_struct *scp)
 {
     unsigned char *p;
-    int w16, rep;
+    int w16;
     unsigned long v;
+    unsigned char *eip = (unsigned char *)_rip;
 
     p = eip;
-    if (*p==0xf3) rep=1,p++; else rep=0;
+    if (*p==0xf3 && p[-1] == 0x90 && p[-2] == 0x90) {	// rep movs, rep stos
+	if (debug_level('e')>1) e_printf("### REP movs/stos patch at %08lx\n",(long)eip);
+	p-=2;
+	G2M(0xff,0x13,p); /* call (%ebx) */
+	_rip -= 2; /* make sure call (%ebx) is performed the first time */
+	return 1;
+    }
+
     if (*p==0x66) w16=1,p++; else w16=0;
     v = *((long *)p);
-    
 #ifdef __i386__
     if (v==0x900e0489) {	// stack: never fail
 	// mov %%{e}ax,(%%esi,%%ecx,1)
@@ -291,67 +325,33 @@ int Cpatch(unsigned char *eip)
 	return 1;
     }
     if (v==0x909090a5) {	// movsw
-	if (rep) {
-	if (debug_level('e')>1) e_printf("### REP movs{wl} patch at %08lx\n",(long)eip);
-	    if (w16) {
-		p-=2; JSRPATCH(p,&stub_rep_movsw);
-	    }
-	    else {
-		p--; JSRPATCH(p,&stub_rep_movsl);
-	    }
+	if (debug_level('e')>1) e_printf("### movs{wl} patch at %08lx\n",(long)eip);
+	if (w16) {
+	    p--; JSRPATCH(p,&stub_movsw);
 	}
 	else {
-	if (debug_level('e')>1) e_printf("### movs{wl} patch at %08lx\n",(long)eip);
-	    if (w16) {
-		p--; JSRPATCH(p,&stub_movsw);
-	    }
-	    else {
-		JSRPATCH(p,&stub_movsl);
-	    }
+	    JSRPATCH(p,&stub_movsl);
 	}
 	return 1;
     }
     if (v==0x909090a4) {	// movsb
-	if (rep) {
-	if (debug_level('e')>1) e_printf("### REP movsb patch at %08lx\n",(long)eip);
-	    p--; JSRPATCH(p,&stub_rep_movsb);
-	}
-	else {
 	if (debug_level('e')>1) e_printf("### movsb patch at %08lx\n",(long)eip);
 	    JSRPATCH(p,&stub_movsb);
-	}
 	return 1;
     }
     if (v==0x909090ab) {	// stosw
-	if (rep) {
-	if (debug_level('e')>1) e_printf("### REP stos{wl} patch at %08lx\n",(long)eip);
-	    if (w16) {
-		p-=2; JSRPATCH(p,&stub_rep_stosw);
-	    }
-	    else {
-		p--; JSRPATCH(p,&stub_rep_stosl);
-	    }
+	if (debug_level('e')>1) e_printf("### stos{wl} patch at %08lx\n",(long)eip);
+	if (w16) {
+	    p--; JSRPATCH(p,&stub_stosw);
 	}
 	else {
-	if (debug_level('e')>1) e_printf("### stos{wl} patch at %08lx\n",(long)eip);
-	    if (w16) {
-		p--; JSRPATCH(p,&stub_stosw);
-	    }
-	    else {
-		JSRPATCH(p,&stub_stosl);
-	    }
+	    JSRPATCH(p,&stub_stosl);
 	}
 	return 1;
     }
     if (v==0x909090aa) {	// stosb
-	if (rep) {
-	if (debug_level('e')>1) e_printf("### REP stosb patch at %08lx\n",(long)eip);
-	    p--; JSRPATCH(p,&stub_rep_stosb);
-	}
-	else {
 	if (debug_level('e')>1) e_printf("### stosb patch at %08lx\n",(long)eip);
-	    JSRPATCH(p,&stub_stosb);
-	}
+	JSRPATCH(p,&stub_stosb);
 	return 1;
     }
 #endif
@@ -362,7 +362,7 @@ int Cpatch(unsigned char *eip)
 
 int UnCpatch(unsigned char *eip)
 {
-    if (*eip != 0xe8) return 1;
+    if (*eip != 0xe8 && *eip != 0xff) return 1;
     e_printf("UnCpatch   at %08lx was %02x%02x%02x%02x%02x\n",(long)eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
@@ -371,6 +371,12 @@ int UnCpatch(unsigned char *eip)
     long subad;
     register unsigned char *p;
     p = eip;
+
+    if (p[0] == 0xff) {
+	if (p[1] != 0x13) return 1;
+	p[0] = p[1] = 0x90;
+    }
+    else {
 
     subad = *((long *)(eip+1)) + ((long)eip+5);
 
@@ -401,24 +407,6 @@ int UnCpatch(unsigned char *eip)
     else if (subad == (long)&stub_stosl) {
 	*((long *)p) = 0x909090ab; p[4] = 0x90;
     }
-    else if (subad == (long)&stub_rep_movsb) {
-	*((long *)p) = 0x9090a4f3; p[4] = 0x90;
-    }
-    else if (subad == (long)&stub_rep_movsw) {
-	*p++ = 0x66; *((long *)p) = 0x9090a5f3;
-    }
-    else if (subad == (long)&stub_rep_movsl) {
-	*((long *)p) = 0x9090a5f3; p[4] = 0x90;
-    }
-    else if (subad == (long)&stub_rep_stosb) {
-	*((long *)p) = 0x9090aaf3; p[4] = 0x90;
-    }
-    else if (subad == (long)&stub_rep_stosw) {
-	*p++ = 0x66; *((long *)p) = 0x9090abf3;
-    }
-    else if (subad == (long)&stub_rep_stosl) {
-	*((long *)p) = 0x9090abf3; p[4] = 0x90;
-    }
     else if (subad == (long)&stub_stk_16) {
 	*p++ = 0x66; *((long *)p) = 0x900e0489;
     }
@@ -426,6 +414,7 @@ int UnCpatch(unsigned char *eip)
 	*((long *)p) = 0x900e0489; p[4] = 0x90;
     }
     else return 1;
+    }
     e_printf("UnCpatched at %08lx  is %02x%02x%02x%02x%02x\n",(long)eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
     return 0;

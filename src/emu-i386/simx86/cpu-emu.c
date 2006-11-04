@@ -579,6 +579,36 @@ static void Cpu2Reg (void)
 
 /* ======================================================================= */
 
+static void Scp2Cpu (struct sigcontext_struct *scp)
+{
+#ifdef __x86_64__
+  TheCPU.eax = _eax;
+  TheCPU.ebx = _ebx;
+  TheCPU.ecx = _ecx;
+  TheCPU.edx = _edx;
+  TheCPU.esi = _esi;
+  TheCPU.edi = _edi;
+  TheCPU.ebp = _ebp;
+  TheCPU.esp = _esp;
+
+  TheCPU.eip = _eip;
+  TheCPU.eflags = _eflags;
+
+  TheCPU.cs = _cs;
+  TheCPU.fs = _fs;
+  TheCPU.gs = _gs;
+
+  TheCPU.ds = _ds;
+  TheCPU.es = _es;
+
+  TheCPU.scp_err = _err;
+#else
+  memcpy(&TheCPU.gs,scp,offsetof(struct sigcontext_struct,esp_at_signal));
+#endif
+  TheCPU.ss = _ss;
+  TheCPU.cr2 = _cr2;
+}
+
 /*
  * Return back from fault handling to VM86
  */
@@ -586,7 +616,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
 {
   if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
-  memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
+  Scp2Cpu(scp);
   TheCPU.err = 0;
 
   if (in_dpmi) {	// vm86 during dpmi active
@@ -627,15 +657,13 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 
   _ds = TheCPU.ds;
   _es = TheCPU.es;
-  _ss = TheCPU.ss;
 
   _err = TheCPU.scp_err;
-  scp->oldmask = TheCPU.oldmask;
-  _cr2 = TheCPU.cr2;
-  scp->fpstate = TheCPU.fpstate;
 #else
-  memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
+  memcpy(scp,&TheCPU.gs,offsetof(struct sigcontext_struct,esp_at_signal));
 #endif
+  _ss = TheCPU.ss;
+  _cr2 = TheCPU.cr2;
   _trapno = trapno;
   /* Error code format:
    * b31-b16 = 0 (undef)
@@ -679,34 +707,7 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
   char big; int mode=0;
 
   /* copy registers from current dpmi client to our cpu */
-#ifdef __x86_64__
-  TheCPU.eax = _eax;
-  TheCPU.ebx = _ebx;
-  TheCPU.ecx = _ecx;
-  TheCPU.edx = _edx;
-  TheCPU.esi = _esi;
-  TheCPU.edi = _edi;
-  TheCPU.ebp = _ebp;
-  TheCPU.esp = _esp;
-
-  TheCPU.eip = _eip;
-  TheCPU.eflags = _eflags;
-
-  TheCPU.cs = _cs;
-  TheCPU.fs = _fs;
-  TheCPU.gs = _gs;
-
-  TheCPU.ds = _ds;
-  TheCPU.es = _es;
-  TheCPU.ss = _ss;
-
-  TheCPU.scp_err = _err;
-  TheCPU.oldmask = scp->oldmask;
-  TheCPU.cr2 = _cr2;
-  TheCPU.fpstate = scp->fpstate;
-#else
-  memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
-#endif
+  Scp2Cpu(scp);
 
   mode |= ADDR16;
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,TheCPU.cs);
@@ -856,7 +857,7 @@ void enter_cpu_emu(void)
 	if ((ISEG(0x10)==INT10_WATCHER_SEG)&&(IOFF(0x10)==INT10_WATCHER_OFF))
 		IOFF(0x10)=CPUEMU_WATCHER_OFF;
 #endif
-	e_printf("EMU86: switching SIGALRMs\n");
+	TheCPU.unprotect_stub = stub_rep;
 	TheCPU.EMUtime = GETTSC();
 	sigEMUdelta = realdelta*config.CPUSpeedInMhz;
 	sigEMUtime = TheCPU.EMUtime + sigEMUdelta;

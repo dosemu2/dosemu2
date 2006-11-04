@@ -492,7 +492,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		 * linked by Cpatch will do it */
 		/* ACH: we can set up a data patch for code
 		 * which has not yet been executed! */
-		if (InCompiledCode && Cpatch((void *)_rip)) return 1;
+		if (InCompiledCode && Cpatch(scp)) return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
 		InvalidateNodePage(_cr2, 0, _eip, &codehit);
