@@ -123,10 +123,12 @@ void *smalloc(struct mempool *mp, size_t size)
   return mn->mem_area;
 }
 
-static void smfree_common(struct mempool *mp, struct memnode *mn)
+void smfree(struct mempool *mp, void *ptr)
 {
-  struct memnode *pmn;
-  if (!mn) {
+  struct memnode *mn, *pmn;
+  if (!ptr)
+    return;
+  if (!(mn = find_mn(mp, ptr))) {
     smerror("SMALLOC: bad pointer passed to smfree()\n");
     return;
   }
@@ -152,13 +154,6 @@ static void smfree_common(struct mempool *mp, struct memnode *mn)
     mntruncate(pmn, pmn->size + mn->size);
     mn = pmn;
   }
-}
-
-void smfree(struct mempool *mp, void *ptr)
-{
-  if (!ptr)
-    return;
-  smfree_common(mp, find_mn(mp, ptr));
 }
 
 void *smrealloc(struct mempool *mp, void *ptr, size_t size)
@@ -324,37 +319,4 @@ int smget_area_size(struct mempool *mp, void *ptr)
 void smregister_error_notifier(void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
 {
   smerror = func;
-}
-
-/* these functions do the same as smalloc as smfree, except:
- * - a pointer to the memnode is stored in the allocated memory
- *   to bypass an expensive linear search in smfree (but this makes
- *   it impossible to use on DOS memory).
- * - smalloc_fast does not zero the memory
- * used by cpuemu
- */
-void *smalloc_fast(struct mempool *mp, size_t size)
-{
-  struct memnode *mn;
-  if (!size) {
-    smerror("SMALLOC: zero-sized allocation attempted\n");
-    return NULL;
-  }
-  size += sizeof(mn);
-  if (!(mn = smfind_free_area(mp, size))) {
-    smerror("SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
-    return NULL;
-  }
-  mn->used = 1;
-  mntruncate(mn, size);
-  assert(mn->size == size);
-  *(struct memnode **)mn->mem_area = mn;
-  return mn->mem_area + sizeof(mn);
-}
-
-void smfree_fast(struct mempool *mp, void *ptr)
-{
-  if (!ptr)
-    return;
-  smfree_common(mp, ((struct memnode **)ptr)[-1]);
 }

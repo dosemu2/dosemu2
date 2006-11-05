@@ -109,6 +109,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "emu86.h"
+#include "dlmalloc.h"
 
 #ifdef HOST_ARCH_X86
 #include "codegen-x86.h"
@@ -180,7 +181,6 @@ void InitGen_x86(void)
 	GenCodeBuf = NULL;
 	BaseGenBuf = NULL;
 	GenBufSize = 0;
-	InitGenCodeBuf();
 	InitTrees();
 }
 
@@ -2589,7 +2589,7 @@ static void ProduceCode(unsigned char *PC)
 	 *
 	 */
 	mall_req = GenBufSize + offsetof(CodeBuf,meta[nap]) + 32;// 32 for tail
-	GenCodeBuf = AllocGenCodeBuf(mall_req);
+	GenCodeBuf = dlmalloc(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
 	I0->addr = BaseGenBuf;
