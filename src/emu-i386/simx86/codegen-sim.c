@@ -2569,7 +2569,7 @@ static unsigned char *CloseAndExec_sim(unsigned char *PC, TNode *G, int mode, in
 		e_printf("== (%04d) == Closing sequence at %p\n",ln,PC);
 	    }
 	}
-	Move2Tree();
+	CurrIMeta = -1;
 
 	if (RFL.valid!=V_INVALID)
 	    CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS) & 0x3f) | FlagSync_NZ();

@@ -78,6 +78,8 @@ int TreeCleanups = 0;
 
 TNode *LastXNode = NULL;
 
+#ifdef HOST_ARCH_X86
+
 TNode *TNodePool;
 int NodeLimit = 100;
 
@@ -120,8 +122,6 @@ static inline void datacopy(TNode *nd, TNode *ns)
   int l = sizeof(TNode)-offsetof(TNode,key);
   memcpy(d,s,l);
 }
-
-#ifdef HOST_ARCH_X86
 
 static TNode *avltr_probe (const long key, int *found)
 {
@@ -560,16 +560,14 @@ static void avltr_reinit(void)
 }
 
 
+#ifdef HOST_ARCH_X86
+
 void avltr_destroy(void)
 {
-#ifdef HOST_ARCH_X86
   avltr_tree *tree;
 #ifdef PROFILE
   hitimer_t t0;
 #endif
-
-  if (CONFIG_CPUSIM)
-    return;
 
   tree = &CollectTree;
   e_printf("--------------------------------------------------------------\n");
@@ -624,13 +622,11 @@ quit:
   TreeCleanups++;
   CleanupTime += (GETTSC() - t0);
 #endif
-#endif
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 
-#ifdef HOST_ARCH_X86
 #ifdef DEBUG_LINKER
 
 void CheckLinks (void)
@@ -754,7 +750,7 @@ nquit:
   leavedos(0x9143);
 }
 
-#endif
+#endif // DEBUG_LINKER
 
 #ifdef DEBUG_TREE
 
@@ -838,10 +834,7 @@ void DumpTree (FILE *fd)
   }
 }
 
-#endif
-#endif	// HOST_ARCH_X86
-
-#ifdef HOST_ARCH_X86
+#endif // DEBUG_TREE
 
 static int TraverseAndClean(void)
 {
@@ -892,8 +885,6 @@ static int TraverseAndClean(void)
   return 1;
 }
 
-#endif
-
 /*
  * Add a node to the collector tree.
  * The code is linearly stored in the CodeBuf and its associated structures
@@ -905,12 +896,6 @@ static int TraverseAndClean(void)
  */
 TNode *Move2Tree(void)
 {
-  if (CONFIG_CPUSIM) {
-    CurrIMeta = -1;
-    return NULL;
-  }
-#ifdef HOST_ARCH_X86
-  {
   TNode *nG = NULL;
   IMeta *I0;
 #ifdef PROFILE
@@ -1034,18 +1019,11 @@ TNode *Move2Tree(void)
   AddTime += (GETTSC() - t0);
 #endif
   return nG;
-  }
-#endif	// HOST_ARCH_X86
 }
 
 
 TNode *FindTree(int key)
 {
-  if (CONFIG_CPUSIM)
-    return NULL;
-
-#ifdef HOST_ARCH_X86
- {
   TNode *I;
   static int tccount=0;
 #ifdef PROFILE
@@ -1127,8 +1105,6 @@ endsrch:
   NodesNotFound++;
 #endif
   return NULL;
- }
-#endif	// HOST_ARCH_X86
 }
 
 
@@ -1146,7 +1122,6 @@ endsrch:
  * same 4k page.
  *
  */
-#ifdef HOST_ARCH_X86
 
 static void BreakNode(TNode *G, long eip, long addr)
 {
@@ -1178,14 +1153,10 @@ static void BreakNode(TNode *G, long eip, long addr)
   e_printf("============ Node %08x break failed\n",G->key);
 }
 
-#endif
 
 int FindCodeNode (long addr)
 {
   int found = 0;
-#ifdef HOST_ARCH_X86
- if (!CONFIG_CPUSIM)
- {
   register TNode *G = &CollectTree.root;
 #ifdef PROFILE
   hitimer_t t0;
@@ -1215,8 +1186,6 @@ quit:
 #ifdef PROFILE
   SearchTime += (GETTSC() - t0);
 #endif
- }
-#endif
   return found;
 }
 
@@ -1224,8 +1193,6 @@ quit:
 int InvalidateSingleNode (long addr, long eip)
 {
   int nnh = 0;
-#ifdef HOST_ARCH_X86
- if (!CONFIG_CPUSIM) {
   TNode *G = &CollectTree.root;
 #ifdef PROFILE
   hitimer_t t0;
@@ -1280,8 +1247,6 @@ quit:
 #ifdef PROFILE
   CleanupTime += (GETTSC() - t0);
 #endif
- }
-#endif	// HOST_ARCH_X86
   return nnh;
 }
 
@@ -1289,8 +1254,6 @@ quit:
 int InvalidateNodePage (long addr, int len, long eip, int *codehit)
 {
   int nnh = 0;
-#ifdef HOST_ARCH_X86
- if (!CONFIG_CPUSIM) {
   register TNode *G = &CollectTree.root;
   long al, ah;
 #ifdef PROFILE
@@ -1349,10 +1312,11 @@ quit:
 #ifdef PROFILE
   CleanupTime += (GETTSC() - t0);
 #endif
- }
-#endif	// HOST_ARCH_X86
   return nnh;
 }
+
+
+#endif // HOST_ARCH_X86
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1362,7 +1326,10 @@ void e_invalidate(char *data, int cnt)
 	if (config.cpuemu <= 1)
 		return;
 	e_munprotect(data, cnt);
-	InvalidateNodePage((long)data, cnt, 0, NULL);
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM)
+        	InvalidateNodePage((long)data, cnt, 0, NULL);
+#endif
 	e_resetpagemarks(data, cnt);
 }
 
@@ -1370,26 +1337,21 @@ void e_invalidate(char *data, int cnt)
 /////////////////////////////////////////////////////////////////////////////
 
 
+#ifdef HOST_ARCH_X86
+
 static void CleanIMeta(void)
 {
-	if (CONFIG_CPUSIM) {
-		CurrIMeta = -1;
-		return;
-	}
-#ifdef HOST_ARCH_X86
-	{
 #ifdef PROFILE
 	hitimer_t t0 = GETTSC();
 #endif
 	if (InstrMeta==NULL) leavedos(993);
 	memset(&InstrMeta,0,sizeof(IMeta));
-	CurrIMeta = -1;
 #ifdef PROFILE
 	CleanupTime += (GETTSC() - t0);
 #endif
-	}
-#endif	// HOST_ARCH_X86
 }
+
+#endif	// HOST_ARCH_X86
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1526,19 +1488,27 @@ void CollectStat (void)
 void InitTrees(void)
 {
 	g_printf("InitTrees\n");
-	TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM)
+	    TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
+#endif
 
 	avltr_reinit();
 
-	if (debug_level('e')>1) {
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM && debug_level('e')>1) {
 	    e_printf("Root tree node at %08lx\n",(long)&CollectTree.root);
 	    e_printf("TNode pool at %08lx\n",(long)TNodePool);
 	}
+#endif
 	NodesParsed = NodesExecd = 0;
 	CleanFreq = 8;
 	cstx = xCS1 = 0;
 	CreationIndex = 0;
-	NodeLimit = (config.X? (NODES_IN_POOL/3):(NODES_IN_POOL/4));
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM)
+	    NodeLimit = (config.X? (NODES_IN_POOL/3):(NODES_IN_POOL/4));
+#endif
 #ifdef PROFILE
 	MaxDepth = MaxNodes = MaxNodeSize = 0;
 	TotalNodesParsed = TotalNodesExecd = PageFaults = 0;
@@ -1553,9 +1523,17 @@ void EndGen(void)
 	int i;
 	long csm = config.CPUSpeedInMhz*1000;
 #endif
-	CleanIMeta();
-	avltr_destroy();
-	free(TNodePool); TNodePool=NULL;
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM)
+	    CleanIMeta();
+#endif
+	CurrIMeta = -1;
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM) {
+	    avltr_destroy();
+	    free(TNodePool); TNodePool=NULL;
+	}
+#endif
 #ifdef SHOW_STAT
 	for (i=0; i<cstx; i++) {
 	    dbug_printf("%04d %16Ld %8d %8d(%3d) %8d %d\n",i,(xCST[i].a/csm),

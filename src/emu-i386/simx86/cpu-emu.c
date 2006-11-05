@@ -857,6 +857,7 @@ void enter_cpu_emu(void)
 	if ((ISEG(0x10)==INT10_WATCHER_SEG)&&(IOFF(0x10)==INT10_WATCHER_OFF))
 		IOFF(0x10)=CPUEMU_WATCHER_OFF;
 #endif
+#ifdef HOST_ARCH_X86
 	TheCPU.unprotect_stub = stub_rep;
 	TheCPU.stub_wri_8 = stub_wri_8;
 	TheCPU.stub_wri_16 = stub_wri_16;
@@ -869,6 +870,7 @@ void enter_cpu_emu(void)
 	TheCPU.stub_stosb = stub_stosb;
 	TheCPU.stub_stosw = stub_stosw;
 	TheCPU.stub_stosl = stub_stosl;
+#endif
 
 	TheCPU.EMUtime = GETTSC();
 	sigEMUdelta = realdelta*config.CPUSpeedInMhz;
@@ -990,9 +992,12 @@ static inline int e_revectored(int nr, struct revectored_struct * bitmap)
 
 static void e_should_clean_tree(int i)
 {
-	if ((i==0x21) && ((HI(ax)==0x4b)||(HI(ax)==0x4c))) {
+#ifdef HOST_ARCH_X86
+	if ((i==0x21) && ((HI(ax)==0x4b)||(HI(ax)==0x4c)) &&
+	    !CONFIG_CPUSIM) {
 	    FLUSH_TREE;
 	}
+#endif
 }
 
 static int e_do_int(int i, unsigned char * ssp, unsigned long sp)

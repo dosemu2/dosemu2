@@ -159,6 +159,7 @@ typedef struct avltr_tree
 #define PLUS +1
 #define MINUS -1
 
+#ifdef HOST_ARCH_X86
 extern avltr_tree CollectTree;
 
 void avltr_delete (const int key);
@@ -166,9 +167,14 @@ void avltr_delete (const int key);
 TNode *FindTree(int key);
 TNode *Move2Tree(void);
 //
+#endif
+
 void InitTrees(void);
+
+#ifdef HOST_ARCH_X86
 int  FindCodeNode(long addr);
 int  InvalidateSingleNode (long addr, long eip);
 int  InvalidateNodePage(long addr, int len, long eip, int *codehit);
+#endif
 
 #endif
