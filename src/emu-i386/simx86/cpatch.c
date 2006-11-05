@@ -166,7 +166,7 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 
 
 #define STUB_WRI(cfunc) \
-"		pushl	(%esp)\n"	/* return addr = patch point+5 */ \
+"		pushl	(%esp)\n"	/* return addr = patch point+3 */ \
 "		pushl	%eax\n"		/* value to write */ \
 "		pushl	%edi\n"		/* addr where to write */ \
 "		call	"#cfunc"\n" \
@@ -174,7 +174,7 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 "		ret\n"
 
 #define STUB_MOVS(cfunc,letter) \
-"		pushl	(%esp)\n"	/* return addr = patch point+5 */ \
+"		pushl	(%esp)\n"	/* return addr = patch point+6 */ \
 "		lods"#letter"\n"	/* fetch value to write   */ \
 "		pushl	%eax\n"		/* value to write         */ \
 "		pushl	%edi\n"		/* push fault address     */ \
@@ -185,7 +185,7 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 "		ret\n"
 
 #define STUB_STOS(cfunc,letter) \
-"		pushl	(%esp)\n"	/* return addr = patch point+5 */ \
+"		pushl	(%esp)\n"	/* return addr = patch point+6 */ \
 "		pushl	%eax\n"		/* value to write         */ \
 "		pushl	%edi\n"		/* push fault address     */ \
 "		scas"#letter"\n"	/* adjust edi depends:DF  */ \
@@ -212,27 +212,7 @@ asm (
 "1:		ret\n"
 );
 
-asm (
-		".text\n"
-"stub_movsb__: "STUB_MOVS(wri_8,b)
-"stub_movsw__: "STUB_MOVS(wri_16,w)
-"stub_movsl__: "STUB_MOVS(wri_32,l)
-"stub_stosb__: "STUB_STOS(wri_8,b)
-"stub_stosw__: "STUB_STOS(wri_16,w)
-"stub_stosl__: "STUB_STOS(wri_32,l)
-);
-
-void stub_movsb (void) asm ("stub_movsb__" );
-void stub_movsw (void) asm ("stub_movsw__" );
-void stub_movsl (void) asm ("stub_movsl__" );
-void stub_stosb (void) asm ("stub_stosb__" );
-void stub_stosw (void) asm ("stub_stosw__" );
-void stub_stosl (void) asm ("stub_stosl__" );
-
 /* ======================================================================= */
-
-#define JSRPATCHOLD(p,N) \
-	*p++=0xe8;*((int *)(p))=(long)((unsigned char *)N-((p)+4))
 
 #else //__x86_64__
 
@@ -255,12 +235,45 @@ void stub_stosl (void) asm ("stub_stosl__" );
 
 
 #define STUB_WRI(cfunc) \
-"		movq	(%rsp),%rdx\n"	/* return addr = patch point+5 */ \
+"		movq	(%rsp),%rdx\n"	/* return addr = patch point+3 */ \
 "		pushq	%rdi\n"		/* save regs */ \
 "		movl	%eax,%esi\n"	/* value to write */ \
 					/* pass addr where to write in %rdi */\
 "		call	"#cfunc"\n" \
 "		popq	%rdi\n"		/* restore regs */ \
+"		ret\n"
+
+#define STUB_MOVS(cfunc,letter) \
+"		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
+"		movl	%edi,%ecx\n"	/* save edi to pass */ \
+"		lods"#letter"\n"	/* fetch value to write   */ \
+"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
+"		pushq	%rdi\n"		/* save regs */ \
+"		pushq	%rsi\n" \
+"		pushq	%rax\n"		/* not needed, but stack alignment */ \
+"		movl	%eax,%esi\n"	/* value to write         */ \
+"		movl	%ecx,%edi\n"	/* pass fault address in %rdi */ \
+"		cld\n" \
+"		call	"#cfunc"\n" \
+"		popq	%rax\n"		/* restore regs */ \
+"		popq	%rsi\n" \
+"		popq	%rdi\n" \
+"		ret\n"
+
+#define STUB_STOS(cfunc,letter) \
+"		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
+"		movl	%edi,%ecx\n"	/* save edi to pass */ \
+"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
+"		pushq	%rdi\n"		/* save regs */ \
+"		pushq	%rsi\n" \
+"		pushq	%rax\n"		/* not needed, but stack alignment */ \
+"		movl	%eax,%esi\n"	/* value to write         */ \
+"		movl	%ecx,%edi\n"	/* pass fault address in %rdi */ \
+"		cld\n" \
+"		call	"#cfunc"\n" \
+"		popq	%rax\n"		/* restore regs */ \
+"		popq	%rsi\n" \
+"		popq	%rdi\n"	\
 "		ret\n"
 
 asm (
@@ -293,10 +306,17 @@ asm (
 "stub_wri_8__: .globl stub_wri_8__\n "STUB_WRI(wri_8)
 "stub_wri_16__:.globl stub_wri_16__\n"STUB_WRI(wri_16)
 "stub_wri_32__:.globl stub_wri_32__\n"STUB_WRI(wri_32)
+"stub_movsb__: .globl stub_movsb__\n "STUB_MOVS(wri_8,b)
+"stub_movsw__: .globl stub_movsw__\n "STUB_MOVS(wri_16,w)
+"stub_movsl__: .globl stub_movsl__\n "STUB_MOVS(wri_32,l)
+"stub_stosb__: .globl stub_stosb__\n "STUB_STOS(wri_8,b)
+"stub_stosw__: .globl stub_stosw__\n "STUB_STOS(wri_16,w)
+"stub_stosl__: .globl stub_stosl__\n "STUB_STOS(wri_32,l)
 );
 
 /* call N(%ebx) */
 #define JSRPATCH(p,N) *((short *)(p))=0x53ff;p[2]=N;
+#define JSRPATCHL(p,N) *((short *)(p))=0x93ff; *((int *)((p)+2))=N;
 
 /*
  * enters here only from a fault
@@ -350,38 +370,36 @@ int Cpatch(struct sigcontext_struct *scp)
 	}
 	return 1;
     }
-#ifdef __i386__
-    if (v==0x909090a5) {	// movsw
+    if (v==0x9090a5) {	// movsw
 	if (debug_level('e')>1) e_printf("### movs{wl} patch at %08lx\n",(long)eip);
 	if (w16) {
-	    p--; JSRPATCHOLD(p,&stub_movsw);
+	    p--; JSRPATCHL(p,Ofs_stub_movsw);
 	}
 	else {
-	    JSRPATCHOLD(p,&stub_movsl);
+	    JSRPATCHL(p,Ofs_stub_movsl);
 	}
 	return 1;
     }
-    if (v==0x909090a4) {	// movsb
+    if (v==0x9090a4) {	// movsb
 	if (debug_level('e')>1) e_printf("### movsb patch at %08lx\n",(long)eip);
-	    JSRPATCHOLD(p,&stub_movsb);
+	    JSRPATCHL(p,Ofs_stub_movsb);
 	return 1;
     }
-    if (v==0x909090ab) {	// stosw
+    if (v==0x9090ab) {	// stosw
 	if (debug_level('e')>1) e_printf("### stos{wl} patch at %08lx\n",(long)eip);
 	if (w16) {
-	    p--; JSRPATCHOLD(p,&stub_stosw);
+	    p--; JSRPATCHL(p,Ofs_stub_stosw);
 	}
 	else {
-	    JSRPATCHOLD(p,&stub_stosl);
+	    JSRPATCHL(p,Ofs_stub_stosl);
 	}
 	return 1;
     }
-    if (v==0x909090aa) {	// stosb
+    if (v==0x9090aa) {	// stosb
 	if (debug_level('e')>1) e_printf("### stosb patch at %08lx\n",(long)eip);
-	JSRPATCHOLD(p,&stub_stosb);
+	JSRPATCHL(p,Ofs_stub_stosb);
 	return 1;
     }
-#endif
     if (debug_level('e')>1) e_printf("### Patch unimplemented: %08x\n",*((int *)p));
     return 0;
 }
@@ -392,35 +410,34 @@ int UnCpatch(unsigned char *eip)
     register signed char *p;
     p = eip;
 
-    if (*eip != 0xe8 && *eip != 0xff) return 1;
+    if (*eip != 0xff) return 1;
     e_printf("UnCpatch   at %08lx was %02x%02x%02x%02x%02x\n",(long)eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
-#ifdef __i386__
-    if (*eip == 0xe8) {
-    long subad = *((long *)(eip+1)) + ((long)eip+5);
-    if (subad == (long)&stub_movsb) {
-	*((long *)p) = 0x909090a4; p[4] = 0x90;
+    if (eip[1] == 0x93) {
+	int *p2 = (int *)(p+2);
+	if (*p2 == Ofs_stub_movsb) {
+	     // movsb; nop; nop; nop; nop; cld
+	     *((short *)p) = 0x90a4; *p2 = 0xfc909090;
+	}
+	else if (*p2 == Ofs_stub_movsw) {
+	     *((short *)p) = 0xa566; *p2 = 0x90909090;
+	}
+	else if (*p2 == Ofs_stub_movsl) {
+	     *((short *)p) = 0x90a5; *p2 = 0xfc909090;
+	}
+	else if (*p2 == Ofs_stub_stosb) {
+	     *((short *)p) = 0x90aa; *p2 = 0xfc909090;
+	}
+	else if (*p2 == Ofs_stub_stosw) {
+	     *((short *)p) = 0xab66; *p2 = 0x90909090;
+	}
+	else if (*p2 == Ofs_stub_stosl) {
+	     *((short *)p) = 0x90ab; *p2 = 0xfc909090;
+	}
+	else return 1;
     }
-    else if (subad == (long)&stub_movsw) {
-	*p++ = 0x66; *((long *)p) = 0x909090a5;
-    }
-    else if (subad == (long)&stub_movsl) {
-	*((long *)p) = 0x909090a5; p[4] = 0x90;
-    }
-    else if (subad == (long)&stub_stosb) {
-	*((long *)p) = 0x909090aa; p[4] = 0x90;
-    }
-    else if (subad == (long)&stub_stosw) {
-	*p++ = 0x66; *((long *)p) = 0x909090ab;
-    }
-    else if (subad == (long)&stub_stosl) {
-	*((long *)p) = 0x909090ab; p[4] = 0x90;
-    }
-    else return 1;
-    } else /* p[0] == 0xff */
-#endif
-    if (p[1] == 0x13) {
+    else if (p[1] == 0x13) {
 	p[0] = p[1] = 0x90;
     }
     else if (p[1] == 0x53) {

@@ -143,6 +143,13 @@ typedef struct {
 /* CPU register: sel(16) base(32) limit(16) attr(8) */
 	unsigned short TR_SEL;
 	DTR  TR;
+
+	void (*stub_stosb)(void);
+	void (*stub_stosw)(void);
+	void (*stub_stosl)(void);
+	void (*stub_movsb)(void);
+	void (*stub_movsw)(void);
+	void (*stub_movsl)(void);
 } SynCPU;
 
 extern SynCPU TheCPU;
@@ -211,6 +218,12 @@ extern SynCPU TheCPU;
 #define Ofs_stub_wri_32	(char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
 #define Ofs_stub_stk_16	(char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
 #define Ofs_stub_stk_32	(char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
+#define Ofs_stub_movsb	(int)(offsetof(SynCPU,stub_movsb)-SCBASE)
+#define Ofs_stub_movsw	(int)(offsetof(SynCPU,stub_movsw)-SCBASE)
+#define Ofs_stub_movsl	(int)(offsetof(SynCPU,stub_movsl)-SCBASE)
+#define Ofs_stub_stosb	(int)(offsetof(SynCPU,stub_stosb)-SCBASE)
+#define Ofs_stub_stosw	(int)(offsetof(SynCPU,stub_stosw)-SCBASE)
+#define Ofs_stub_stosl	(int)(offsetof(SynCPU,stub_stosl)-SCBASE)
 
 #define rAX		*((unsigned short *)&rEAX)
 #define Ofs_AX		(Ofs_EAX)
