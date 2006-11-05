@@ -47,18 +47,27 @@
 // Tree node key definition.
 //
 
+struct avltr_node;
+
 typedef struct _bkref {
 	struct _bkref *next;
-	unsigned long *ref;
+	struct avltr_node **ref;
 	char branch;
 } backref;
 
 typedef struct _lnkdesc {
 	unsigned char t_type;
 	unsigned short nrefs;
-	unsigned long t_link,  t_undo;
-	unsigned long nt_link, nt_undo;
-	unsigned long *t_ref, *nt_ref;
+	union {
+		unsigned int *abs;
+		unsigned int rel;
+	} t_link;
+	union {
+		unsigned int *abs;
+		unsigned int rel;
+	} nt_link;
+	unsigned int t_undo, nt_undo;
+	struct avltr_node **t_ref, **nt_ref;
 	backref bkr;
 } linkdesc;
 
@@ -79,6 +88,13 @@ typedef struct _imeta {
 	IGen gen[NUMGENS];
 } IMeta;
 
+typedef struct _codebufhdr {
+	struct avltr_node *bkptr;
+	void *selfptr;
+	Addr2Pc meta[0]; /* there are nap of these */
+	/* behind these follows the code */
+} CodeBuf;
+
 extern IMeta InstrMeta[];
 extern int   CurrIMeta;
 extern int NodesExecd;
@@ -95,7 +111,7 @@ extern int EmuSignals;
 extern int NodesFound;
 extern int TreeCleanups;
 
-extern unsigned char *GenCodeBuf;
+extern CodeBuf *GenCodeBuf;
 extern int GenBufSize;
 extern unsigned char *CodePtr;
 
@@ -110,10 +126,11 @@ typedef struct avltr_node
     char pad;			/* Reserved for fully threaded trees. */
     signed char rtag;		/* Right thread tag. */
 /* -------------------------------------------------------------- */
-	long key;		/* signed! and don't move it from here! */
+	int key;		/* signed! and don't move it from here! */
 /* -------------------------------------------------------------- */
 	int alive;
-	unsigned char *mblock, *addr;
+	CodeBuf *mblock;
+	unsigned char *addr;
 	Addr2Pc *pmeta;
 	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
 	long nxkey, seqbase;
@@ -123,13 +140,11 @@ typedef struct avltr_node
 
 extern TNode *LastXNode;
 
-#define AHDRPTR(a)	*((TNode **)((a)->mblock))
-
 /* Used for traversing a right-threaded AVL tree. */
 typedef struct avltr_traverser
 {
     int init;				/* Initialized? */
-    const struct avltr_node *p;		/* Last node returned. */
+    struct avltr_node *p;		/* Last node returned. */
 } avltr_traverser;
 
 /* Structure which holds information about a threaded AVL tree. */
@@ -145,9 +160,9 @@ typedef struct avltr_tree
 
 extern avltr_tree CollectTree;
 
-void avltr_delete (const long key);
+void avltr_delete (const int key);
 //
-TNode *FindTree(long key);
+TNode *FindTree(int key);
 TNode *Move2Tree(void);
 //
 void InitTrees(void);

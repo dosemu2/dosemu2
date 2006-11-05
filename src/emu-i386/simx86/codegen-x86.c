@@ -120,7 +120,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 /* Buffer and pointers to store generated code */
 unsigned char *CodePtr = NULL;
 
-unsigned char *GenCodeBuf = NULL;
+CodeBuf *GenCodeBuf = NULL;
 unsigned char *BaseGenBuf = NULL;
 int GenBufSize = 0;
 
@@ -177,7 +177,8 @@ void InitGen_x86(void)
 	AddrGen = AddrGen_x86;
 	CloseAndExec = CloseAndExec_x86;
 	UseLinker = USE_LINKER;
-	GenCodeBuf = BaseGenBuf = NULL;
+	GenCodeBuf = NULL;
+	BaseGenBuf = NULL;
 	GenBufSize = 0;
 	InitGenCodeBuf();
 	InitTrees();
@@ -2071,11 +2072,11 @@ shrot0:
 		G1(0xb8,Cp);
 		lt->t_type = JMP_LINK;
 		/* {n}t_link = offset from codebuf start to immed value */
-		lt->t_link = Cp-BaseGenBuf;
-		lt->nt_link = 0;
+		lt->t_link.rel = Cp-BaseGenBuf;
+		lt->nt_link.abs = 0;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d:%08lx:%08lx\n",
-			dspt,dspnt,lt->t_type,lt->t_link,lt->nt_link);
+		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d:%08x:%08lx\n",
+			dspt,dspnt,lt->t_type,lt->t_link.rel,(long)lt->nt_link.abs);
 		}
 		break;
 
@@ -2121,7 +2122,7 @@ shrot0:
 		// not taken: continue with next instr
 		G1(0xb8,Cp);
 		/* {n}t_link = offset from codebuf start to immed value */
-		lt->nt_link = Cp-BaseGenBuf;
+		lt->nt_link.rel = Cp-BaseGenBuf;
 		G4(dspnt,Cp); G2(0xc35a,Cp);
 		if (IG->op==JB_LINK) {
 		    // check signal on TAKEN branch for back jumps
@@ -2131,10 +2132,10 @@ shrot0:
 	        }
 		// taken
 		G1(0xb8,Cp);
-		lt->t_link = Cp-BaseGenBuf;
+		lt->t_link.rel = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (debug_level('e')>2) e_printf("J_Link %08x:%08x lk=%d:%08lx:%08lx\n",
-			dspt,dspnt,lt->t_type,lt->t_link,lt->nt_link);
+		if (debug_level('e')>2) e_printf("J_Link %08x:%08x lk=%d:%08x:%08x\n",
+			dspt,dspnt,lt->t_type,lt->t_link.rel,lt->nt_link.rel);
 		}
 		break;
 
@@ -2182,14 +2183,14 @@ shrot0:
 		// not taken: continue with next instr
 		G1(0xb8,Cp);
 		/* {n}t_link = offset from codebuf start to immed value */
-		lt->nt_link = Cp-BaseGenBuf;
+		lt->nt_link.rel = Cp-BaseGenBuf;
 		G4(dspnt,Cp); G2(0xc35a,Cp);
 		// taken
 		G1(0xb8,Cp);
-		lt->t_link = Cp-BaseGenBuf;
+		lt->t_link.rel = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (debug_level('e')>2) e_printf("JLOOP_Link %08x:%08x lk=%d:%08lx:%08lx\n",
-			dspt,dspnt,lt->t_type,lt->t_link,lt->nt_link);
+		if (debug_level('e')>2) e_printf("JLOOP_Link %08x:%08x lk=%d:%08x:%08x\n",
+			dspt,dspnt,lt->t_type,lt->t_link.rel,lt->nt_link.rel);
 		}
 		break;
 
@@ -2216,7 +2217,8 @@ static void AddrGen_x86(int op, int mode, ...)
 
 	if (CurrIMeta<0) {
 		CurrIMeta=0; InstrMeta[0].ngen=0;
-		GenCodeBuf=BaseGenBuf=NULL; GenBufSize=0;
+		GenCodeBuf=NULL;
+		BaseGenBuf=NULL; GenBufSize=0;
 	}
 	I = &InstrMeta[CurrIMeta];
 	IG = &(I->gen[I->ngen]);
@@ -2313,7 +2315,8 @@ static void Gen_x86(int op, int mode, ...)
 
 	if (CurrIMeta<0) {
 		CurrIMeta=0; InstrMeta[0].ngen=0;
-		GenCodeBuf=BaseGenBuf=NULL; GenBufSize = 0;
+		GenCodeBuf=NULL;
+		BaseGenBuf=NULL; GenBufSize = 0;
 	}
 	I = &InstrMeta[CurrIMeta];
 	IG = &(I->gen[I->ngen]);
@@ -2569,7 +2572,7 @@ static void ProduceCode(unsigned char *PC)
 	if (CurrIMeta < 0) leavedos(0xbac3);
 
 	/* reserve space for auto-ptr and info structures */
-	nap = (I0->ncount+1)*sizeof(Addr2Pc);
+	nap = I0->ncount+1;
 
 	/* allocate the actual code buffer here; size is a worst-case
 	 * estimate based on measured bytes per opcode.
@@ -2577,18 +2580,18 @@ static void ProduceCode(unsigned char *PC)
 	 * Code buffer layout:
 	 *	0000	(GenCodeBuf) pointed from {TNode}.mblock
 	 *		contains a back pointer to the TNode
-	 *	0004	self-pointer (address of this location)
-	 *	0008	Addr2Pc table (nap) pointed from {TNode}.pmeta
-	 *	nap+8	actual code produced (BaseGenBuf)
+	 * 0008/0004	self-pointer (address of this location)
+	 * 0010/0008	Addr2Pc table (nap) pointed from {TNode}.pmeta
+	 *	nap+10/8 actual code produced (BaseGenBuf)
 	 *		plus tail code
 	 * Only the code part is filled here.
 	 * GenBufSize contain a first guess of the amount of space required
 	 *
 	 */
-	mall_req = GenBufSize + nap + 2*sizeof(void *) + 32; // 32 for tail
+	mall_req = GenBufSize + offsetof(CodeBuf,meta[nap]) + 32;// 32 for tail
 	GenCodeBuf = AllocGenCodeBuf(mall_req);
 	/* actual code buffer starts from here */
-	BaseGenBuf = CodePtr = GenCodeBuf + (2*sizeof(void *) + nap);
+	BaseGenBuf = CodePtr = (unsigned char *)&GenCodeBuf->meta[nap];
 	I0->addr = BaseGenBuf;
 	if (debug_level('e')>1)
 	    e_printf("CodeBuf=%p siz %d CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
@@ -2675,21 +2678,21 @@ static void _nodelinker2(TNode *LG, TNode *G)
 	linkdesc *T = &G->clink;
 	backref *B;
 
-	if (debug_level('e')>8) e_printf("nodelinker2: %08lx->%08lx\n",LG->key,G->key);
+	if (debug_level('e')>8) e_printf("nodelinker2: %08x->%08x\n",LG->key,G->key);
 
 	if (LG && (LG->alive>0)) {
 	    int ra;
 	    linkdesc *L = &LG->clink;
 	    if (L->t_type) {	// node ends with links
-		lp = (int *)L->t_link;		// check 'taken' branch
+		lp = L->t_link.abs;		// check 'taken' branch
 		if (*lp==G->key) {		// points to current node?
 		    if (L->t_ref!=0) {
-			dbug_printf("Linker: t_ref at %08lx busy\n",LG->key);
+			dbug_printf("Linker: t_ref at %08x busy\n",LG->key);
 			leavedos(0x8102);
 		    }
 		    L->t_undo = *lp;
 		    // b8 [npc] -> e9/eb reladr
-		    ra = (long)G->addr - L->t_link;
+		    ra = G->addr - (unsigned char *)L->t_link.abs;
 		    if ((ra > -127) && (ra < 128)) {
 			ra -= 1; ((char *)lp)[-1] = 0xeb;
 		    }
@@ -2697,49 +2700,49 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			ra -= 4; ((char *)lp)[-1] = 0xe9;
 		    }
 		    *lp = ra;
-		    L->t_ref = (unsigned long *)G->mblock;
-		    B = (backref *)calloc(1,sizeof(backref));
+		    L->t_ref = &G->mblock->bkptr;
+		    B = calloc(1,sizeof(backref));
 		    // head insertion
 		    B->next = T->bkr.next;
 		    T->bkr.next = B;
-		    B->ref = (unsigned long *)LG->mblock;
+		    B->ref = &LG->mblock->bkptr;
 		    B->branch = 'T';
 		    T->nrefs++;
 		    if (G==LG) {
 			G->flags |= F_SLFL;
 			if (debug_level('e')>1) {
-			    e_printf("Linker: node (%08lx:%08lx:%08lx) SELF link\n"
-				"\t\tjmp %08x, undo=%08lx, t_ref %d=%08lx->%08lx\n",
+			    e_printf("Linker: node (%08lx:%08x:%08lx) SELF link\n"
+				"\t\tjmp %08x, undo=%08x, t_ref %d=%08lx->%08lx\n",
 				(long)G,G->key,(long)G->addr,
-				ra, L->t_undo, T->nrefs, (long)L->t_ref, *((long *)L->t_ref));
+				ra, L->t_undo, T->nrefs, (long)L->t_ref, (long)*L->t_ref);
 			}
 		    }
 		    else if (debug_level('e')>1) {
-			e_printf("Linker: previous node (%08lx:%08lx:%08lx)\n"
-			    "\t\tlinked to (%08lx:%08lx:%08lx)\n"
-			    "\t\tjmp %08x, undo=%08lx, t_ref %d=%08lx->%08lx\n",
+			e_printf("Linker: previous node (%08lx:%08x:%08lx)\n"
+			    "\t\tlinked to (%08lx:%08x:%08lx)\n"
+			    "\t\tjmp %08x, undo=%08x, t_ref %d=%08lx->%08lx\n",
 			    (long)LG,LG->key,(long)LG->addr,
 			    (long)G,G->key,(long)G->addr,
-			    ra, L->t_undo, T->nrefs, (long)L->t_ref, *((long *)L->t_ref));
+			    ra, L->t_undo, T->nrefs, (long)L->t_ref, (long)*L->t_ref);
 		    }
 		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8108); }
 #endif
 			while (bk) { dbug_printf("bkref=%c%08lx->%08lx\n",bk->branch,
-			(long)bk->ref,*((long *)bk->ref)); bk=bk->next; }
+			(long)bk->ref,(long)*bk->ref); bk=bk->next; }
 		    }
 		}
 		if (L->t_type>JMP_LINK) {	// if it has a 'not taken' link
-		    lp = (int *)L->nt_link;	// check 'not taken' branch
+		    lp = L->nt_link.abs;	// check 'not taken' branch
 		    if (*lp==G->key) {		// points to current node?
 			if (L->nt_ref!=0) {
-			    dbug_printf("Linker: nt_ref at %08lx busy\n",LG->key);
+			    dbug_printf("Linker: nt_ref at %08x busy\n",LG->key);
 			    leavedos(0x8103);
 			}
 			L->nt_undo = *lp;
 			// b8 [npc] -> e9/eb reladr
-			ra = (long)G->addr - L->nt_link;
+			ra = G->addr - (unsigned char *)L->nt_link.abs;
 			if ((ra > -127) && (ra < 128)) {
 			    ra -= 1; ((char *)lp)[-1] = 0xeb;
 			}
@@ -2747,37 +2750,37 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			    ra -= 4; ((char *)lp)[-1] = 0xe9;
 			}
 			*lp = ra;
-			L->nt_ref = (unsigned long *)G->mblock;
-			B = (backref *)calloc(1,sizeof(backref));
+			L->nt_ref = &G->mblock->bkptr;
+			B = calloc(1,sizeof(backref));
 			// head insertion
 			B->next = T->bkr.next;
 			T->bkr.next = B;
-			B->ref = (unsigned long *)LG->mblock;
+			B->ref = &LG->mblock->bkptr;
 			B->branch = 'N';
 			T->nrefs++;
 			if (G==LG) {
 			    G->flags |= F_SLFL;
 			    if (debug_level('e')>1) {
-				e_printf("Linker: node (%08lx:%08lx:%08lx) SELF link\n"
-				"\t\tjmp %08x, undo=%08lx, nt_ref %d=%08lx->%08lx\n",
+				e_printf("Linker: node (%08lx:%08x:%08lx) SELF link\n"
+				"\t\tjmp %08x, undo=%08x, nt_ref %d=%08lx->%08lx\n",
 				(long)G,G->key,(long)G->addr,
-				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, *((long *)L->nt_ref));
+				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, (long)*L->nt_ref);
 			    }
 			}
 			else if (debug_level('e')>1) {
-			    e_printf("Linker: previous node (%08lx:%08lx:%08lx)\n"
-				"\t\tlinked to (%08lx:%08lx:%08lx)\n"
-				"\t\tjmp %08x, undo=%08lx, nt_ref %d=%08lx->%08lx\n",
+			    e_printf("Linker: previous node (%08lx:%08x:%08lx)\n"
+				"\t\tlinked to (%08lx:%08x:%08lx)\n"
+				"\t\tjmp %08x, undo=%08x, nt_ref %d=%08lx->%08lx\n",
 				(long)LG,LG->key,(long)LG->addr,
 				(long)G,G->key,(long)G->addr,
-				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, *((long *)L->nt_ref));
+				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, (long)*L->nt_ref);
 			}
 			if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8109); }
 #endif
 				while (bk) { dbug_printf("bkref=%c%08lx->%08lx\n",bk->branch,
-				(long)bk->ref,*((long *)bk->ref)); bk=bk->next; }
+				(long)bk->ref,(long)*bk->ref); bk=bk->next; }
 			}
 		    }
 		}
@@ -2833,39 +2836,39 @@ void NodeUnlinker(TNode *G)
 	while (B) {
 	    backref *b2 = B;
 	    if (B->branch=='T') {
-		TNode *H = (TNode *)*((long *)B->ref);
+		TNode *H = *B->ref;
 		linkdesc *L = &H->clink;
-		if (debug_level('e')>2) e_printf("Unlinking T ref from node %08lx(%08lx) to %08lx\n",
+		if (debug_level('e')>2) e_printf("Unlinking T ref from node %08lx(%08x) to %08x\n",
 			(long)H, L->t_undo, G->key);
 		if (L->t_undo != G->key) {
-		    dbug_printf("Unlinker: BK ref error u=%08lx k=%08lx\n",
+		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
 			L->t_undo, G->key);
 		    leavedos(0x8110);
 		}
-		lp = (int *)L->t_link;
+		lp = L->t_link.abs;
 		((char *)lp)[-1] = 0xb8;
 		*lp = L->t_undo;
 		L->t_ref = NULL; L->t_undo = 0;
 		T->nrefs--;
 	    }
 	    else if (B->branch=='N') {
-		TNode *H = (TNode *)*((long *)B->ref);
+		TNode *H = *B->ref;
 		linkdesc *L = &H->clink;
-		if (debug_level('e')>2) e_printf("Unlinking N ref from node %08lx(%08lx) to %08lx\n",
+		if (debug_level('e')>2) e_printf("Unlinking N ref from node %08lx(%08x) to %08x\n",
 			(long)H, L->nt_undo, G->key);
 		if (L->nt_undo != G->key) {
-		    dbug_printf("Unlinker: BK ref error u=%08lx k=%08lx\n",
+		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
 			L->nt_undo, G->key);
 		    leavedos(0x8110);
 		}
-		lp = (int *)L->nt_link;
+		lp = L->nt_link.abs;
 		((char *)lp)[-1] = 0xb8;
 		*lp = L->nt_undo;
 		L->nt_ref = NULL; L->nt_undo = 0;
 		T->nrefs--;
 	    }
 	    else {
-		e_printf("Invalid unlink [%c] ref %08lx from node ?(?) to %08lx\n",
+		e_printf("Invalid unlink [%c] ref %08lx from node ?(?) to %08x\n",
 			B->branch, (long)B->ref, G->key);
 		leavedos(0x8116);
 	    }
@@ -2884,13 +2887,13 @@ void NodeUnlinker(TNode *G)
 	if (debug_level('e')>8)
 	    e_printf("Unlinker: refs=T%08lx N%08lx\n",(long)T->t_ref,(long)T->nt_ref);
 	if (T->t_ref) {
-	    TNode *Gt = (TNode *)*((long *)T->t_ref);
+	    TNode *Gt = *T->t_ref;
 	    backref *Btq = &Gt->clink.bkr;
 	    backref *Bt  = Gt->clink.bkr.next;
-	    if (debug_level('e')>2) e_printf("Unlink fwd T ref to node %08lx(%08lx)\n",(long)Gt,
+	    if (debug_level('e')>2) e_printf("Unlink fwd T ref to node %08lx(%08x)\n",(long)Gt,
 		Gt->key);
 	    while (Bt) {
-		if (*Bt->ref==(long)G) {
+		if (*Bt->ref==G) {
 			Btq->next = Bt->next;
 			Gt->clink.nrefs--;
 			free(Bt);
@@ -2906,13 +2909,13 @@ void NodeUnlinker(TNode *G)
 	    T->t_ref = NULL;
 	}
 	if (T->nt_ref) {
-	    TNode *Gn = (TNode *)*((long *)T->nt_ref);
+	    TNode *Gn = *T->nt_ref;
 	    backref *Bnq = &Gn->clink.bkr;
 	    backref *Bn  = Gn->clink.bkr.next;
-	    if (debug_level('e')>2) e_printf("Unlink fwd N ref to node %08lx(%08lx)\n",(long)Gn,
+	    if (debug_level('e')>2) e_printf("Unlink fwd N ref to node %08lx(%08x)\n",(long)Gn,
 		Gn->key);
 	    while (Bn) {
-		if (*Bn->ref==(long)G) {
+		if (*Bn->ref==G) {
 			Bnq->next = Bn->next;
 			Gn->clink.nrefs--;
 			free(Bn);
@@ -2993,7 +2996,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		    /* copy tail instructions to the end of the code block */
 		    memcpy(p, TailCode, TAILSIZE);
 		    p += TAILFIX;
-		    I0->clink.t_link = (long)p;
+		    I0->clink.t_link.abs = (int *)p;
 		    *((int *)p) = (long)PC;
 		    CodePtr += TAILSIZE;
 		}
@@ -3037,7 +3040,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	if (LastXNode && (LastXNode->alive>0)) {
 	    LastXNode->nxnode = G;	// can be relocated in the tree!
 	    LastXNode->nxkey  = G->key;
-	    if (debug_level('e')>2) e_printf("History: from %08lx to %08lx\n",LastXNode->key,G->key);
+	    if (debug_level('e')>2) e_printf("History: from %08x to %08x\n",LastXNode->key,G->key);
 	}
 
 	ecpu = CPUOFFS(0);
@@ -3147,8 +3150,8 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		/* DANGEROUS - can crash dosemu! */
 		if ((debug_level('e')>4) && goodmemref(mem_ref)) {
 		    TryMemRef = 1;
-		    e_printf("*mem_ref [%08lx] = %08lx\n",mem_ref,
-			*((unsigned long *)mem_ref));
+		    e_printf("*mem_ref [%08lx] = %08x\n",mem_ref,
+			*((unsigned int *)mem_ref));
 		    TryMemRef = 0;
 		}
 	}
@@ -3186,7 +3189,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	if (G && (G->alive>0)) {
 	    if (UseLinker) NodeLinker(G);
 	    LastXNode = G;
-	    if (debug_level('e')>2) e_printf("New LastXNode=%08lx\n",G->key);
+	    if (debug_level('e')>2) e_printf("New LastXNode=%08x\n",G->key);
 	}
 	else
 #endif

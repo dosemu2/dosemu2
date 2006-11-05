@@ -289,7 +289,7 @@ static TNode *avltr_probe (const long key, int *found)
 }
 
   
-void avltr_delete (const long key)
+void avltr_delete (const int key)
 {
   avltr_tree *tree = &CollectTree;
   TNode *pa[AVL_MAX_HEIGHT];		/* Stack P: Nodes. */
@@ -320,7 +320,7 @@ void avltr_delete (const long key)
   }
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
   if (debug_level('e')>2)
-	e_printf("Found node to delete at %08lx(%08lx)\n",(long)p,p->key);
+	e_printf("Found node to delete at %08lx(%08x)\n",(long)p,p->key);
 #endif
   tree->count--;
   ninodes = tree->count;
@@ -381,8 +381,9 @@ void avltr_delete (const long key)
 	    datacopy(t, s);
 /**/	    if (t->addr==NULL) leavedos(0x8130);
 	    /* keep the node reference to itself */
-	    AHDRPTR(t) = t;
-	    s->addr = s->mblock = NULL;
+	    t->mblock->bkptr = t;
+	    s->addr = NULL;
+	    s->mblock = NULL;
 	    memset(&s->clink, 0, sizeof(linkdesc));
 	    s->key = 0;
 
@@ -649,32 +650,32 @@ void CheckLinks (void)
 	return;
     }
     if ((long)G->key<=0) {
-	e_printf("Invalid key %08lx\n",G->key);
+	e_printf("Invalid key %08x\n",G->key);
 	goto nquit;
     }
     if (G->alive <= 0) {
 	e_printf("Node %08lx invalidated\n",(long)G);
 	continue;
     }
-    if (debug_level('e')>5) e_printf("Node %08lx at %08lx selfr=%08lx\n",(long)G,G->key,
-    	*((long *)G->mblock));
-    if (*((long *)G->mblock) != (long)G) {
+    if (debug_level('e')>5) e_printf("Node %08lx at %08x selfr=%08lx\n",(long)G,G->key,
+    	(long)G->mblock->bkptr);
+    if (G->mblock->bkptr != G) {
 	e_printf("bad selfref\n"); goto nquit;
     }
     L = &G->clink;
     if (L->t_type) {
 	if (L->t_ref) {
-	    GL = (TNode *)*((long *)L->t_ref);
+	    GL = *L->t_ref;
 	    if (debug_level('e')>5)
-		e_printf("  T: ref=%08lx link=%08lx undo=%08lx\n",
-		    (long)GL,L->t_link,L->t_undo);
-	    p = ((unsigned char *)L->t_link) - 1;
+		e_printf("  T: ref=%08lx link=%08lx undo=%08x\n",
+		    (long)GL,(long)L->t_link.abs,L->t_undo);
+	    p = ((unsigned char *)L->t_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad t_link jmp\n"); goto nquit;
 	    }
 	    if (debug_level('e')>5)
-		e_printf("  T: links to %08lx at %08lx with jmp %08lx\n",(long)GL,GL->key,
-		*((long *)L->t_link));
+		e_printf("  T: links to %08lx at %08x with jmp %08x\n",(long)GL,GL->key,
+		*L->t_link.abs);
 	    if (L->t_undo != GL->key) {
 		e_printf("bad t_link undo\n"); goto nquit;
 	    }
@@ -686,7 +687,7 @@ void CheckLinks (void)
 	    }
 	    n = 0;
 	    while (B) {
-		if ((long)B->ref==(long)G->mblock) {
+		if (B->ref==&G->mblock->bkptr) {
 		    n++;
 		    if (debug_level('e')>5) e_printf("  T: backref %d from %08lx\n",n,(long)GL);
 		}
@@ -697,7 +698,7 @@ void CheckLinks (void)
 	    }
 	}
 	else {
-	    p = ((unsigned char *)L->t_link) - 1;
+	    p = ((unsigned char *)L->t_link.abs) - 1;
 	    if (*p!=0xb8) {
 		e_printf("bad t_link jmp\n"); goto nquit;
 	    }
@@ -706,17 +707,17 @@ void CheckLinks (void)
 	    }
 	}
 	if (L->nt_ref) {
-	    GL = (TNode *)*((long *)L->nt_ref);
+	    GL = *L->nt_ref;
 	    if (debug_level('e')>5)
-		e_printf("  N: ref=%08lx link=%08lx undo=%08lx\n",
-		    (long)GL,L->nt_link,L->nt_undo);
-	    p = ((unsigned char *)L->nt_link) - 1;
+		e_printf("  N: ref=%08lx link=%08lx undo=%08x\n",
+		    (long)GL,(long)L->nt_link.abs,L->nt_undo);
+	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad nt_link jmp\n"); goto nquit;
 	    }
 	    if (debug_level('e')>5)
-		e_printf("  N: links to %08lx at %08lx with jmp %08lx\n",(long)GL,GL->key,
-		*((long *)L->nt_link));
+		e_printf("  N: links to %08lx at %08x with jmp %08x\n",(long)GL,GL->key,
+		*L->nt_link.abs);
 	    if (L->nt_undo != GL->key) {
 		e_printf("bad nt_link undo\n"); goto nquit;
 	    }
@@ -728,7 +729,7 @@ void CheckLinks (void)
 	    }
 	    n = 0;
 	    while (B) {
-		if ((long)B->ref==(long)G->mblock) {
+		if (B->ref==&G->mblock->bkptr) {
 		    n++;
 		    if (debug_level('e')>5) e_printf("  N: backref %d from %08lx\n",n,(long)GL);
 		}
@@ -738,8 +739,8 @@ void CheckLinks (void)
 		e_printf("0 or >1 backrefs\n"); goto nquit;
 	    }
 	}
-	else if (L->nt_link) {
-	    p = ((unsigned char *)L->nt_link) - 1;
+	else if (L->nt_link.abs) {
+	    p = ((unsigned char *)L->nt_link.abs) - 1;
 	    if (*p!=0xb8) {
 		e_printf("bad nt_link jmp\n"); goto nquit;
 	    }
@@ -857,7 +858,7 @@ static int TraverseAndClean(void)
       bT = GETTSC();
   }
   else
-      G = (TNode *)Traverser.p;
+      G = Traverser.p;
 
   /* walk to next node */
   NEXTNODE(G);
@@ -871,17 +872,17 @@ static int TraverseAndClean(void)
   if ((G->addr != NULL) && (G->alive>0)) {
       G->alive -= AGENODE;
       if (G->alive <= 0) {
-	if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08lx decayed\n",G->key);
+	if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08x decayed\n",G->key);
 	NodeUnlinker(G);
       }
   }
   if ((G->addr == NULL) || (G->alive<=0)) {
-      if (debug_level('e')>2) e_printf("Delete node %08lx\n",G->key);
+      if (debug_level('e')>2) e_printf("Delete node %08x\n",G->key);
       avltr_delete(G->key);
   }
   else {
       if (debug_level('e')>3)
-	e_printf("TraverseAndClean: node at %08lx of %d life=%d\n",
+	e_printf("TraverseAndClean: node at %08x of %d life=%d\n",
 		G->key,ninodes,G->alive);
       Traverser.p = G;
   }
@@ -920,7 +921,8 @@ TNode *Move2Tree(void)
   IMeta *I;
   int i, apl=0;
   Addr2Pc *ap;
-  char *mallmb, *cp;
+  CodeBuf *mallmb;
+  void **cp;
 
   /* try to keep a limit to the number of nodes in the tree. 3000-4000
    * nodes are probably enough before performance starts to suffer */
@@ -979,26 +981,33 @@ TNode *Move2Tree(void)
    * The second longword is equal to its own address. Guess why.
    * After that come the offset table, then the code.
    */
-  nap = (nG->seqnum+1)*sizeof(Addr2Pc);
-  mallmb = nG->mblock = GenCodeBuf;
+  nap = nG->seqnum+1;
+  mallmb = GenCodeBuf;
+  nG->mblock = GenCodeBuf;
   GenCodeBuf = NULL; GenBufSize = 0;
-  AHDRPTR(nG) = nG;
-  cp = nG->mblock+sizeof(void *);
-  *((long *)cp) = (long)cp;
-  nG->pmeta = (Addr2Pc *)(mallmb+2*sizeof(void *));
+  nG->mblock->bkptr = nG;
+  cp = &nG->mblock->selfptr;
+  *cp = cp;
+  nG->pmeta = mallmb->meta;
   if (nG->pmeta==NULL) leavedos(0x504d45);
-  nG->addr = (char *)(mallmb+2*sizeof(void *)+nap);
+  nG->addr = (char *)&mallmb->meta[nap];
 
   /* setup structures for inter-node linking */
   nG->clink.t_type  = I0->clink.t_type;
-  nG->clink.t_link  = I0->clink.t_link  + (I0->clink.t_type? (long)nG->addr:0);
-  nG->clink.nt_link = I0->clink.nt_link + (I0->clink.t_type>JMP_LINK? (long)nG->addr:0);
+  if (I0->clink.t_type)
+    nG->clink.t_link.abs  = (int *)(nG->addr + I0->clink.t_link.rel);
+  else
+    nG->clink.t_link.abs  = I0->clink.t_link.abs;
+  if (I0->clink.t_type > JMP_LINK)
+    nG->clink.nt_link.abs = (int *)(nG->addr + I0->clink.nt_link.rel);
+  else
+    nG->clink.nt_link.abs = I0->clink.nt_link.abs;
   if ((debug_level('e')>3) && nG->clink.t_type)
-	dbug_printf("Link %d: %08lx:%08lx %08lx:%08lx\n",nG->clink.t_type,
-		nG->clink.t_link,
-		(nG->clink.t_type? *((long *)nG->clink.t_link):0),
-		nG->clink.nt_link,
-		(nG->clink.t_type>JMP_LINK? *((long *)nG->clink.nt_link):0));
+	dbug_printf("Link %d: %08lx:%08x %08lx:%08x\n",nG->clink.t_type,
+		(long)nG->clink.t_link.abs,
+		(nG->clink.t_type? *nG->clink.t_link.abs:0),
+		(long)nG->clink.nt_link.abs,
+		(nG->clink.t_type>JMP_LINK? *nG->clink.nt_link.abs:0));
 
   /* setup source/xlated instruction offsets */
   ap = nG->pmeta;
@@ -1030,7 +1039,7 @@ TNode *Move2Tree(void)
 }
 
 
-TNode *FindTree(long key)
+TNode *FindTree(int key)
 {
   if (CONFIG_CPUSIM)
     return NULL;
@@ -1059,7 +1068,7 @@ TNode *FindTree(long key)
 	}
 	if (H) {
 	    if (debug_level('e')>4) 
-		e_printf("History: LastXNode at %08lx to key=%08lx\n",
+		e_printf("History: LastXNode at %08x to key=%08x\n",
 			LastXNode->key, key);
 	    H->alive = NODELIFE(H);
 #ifdef PROFILE
@@ -1090,7 +1099,7 @@ TNode *FindTree(long key)
   }
 
   if (I && I->addr && (I->alive>0)) {
-	if (debug_level('e')>3) e_printf("Found key %08lx\n",key);
+	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
 #ifdef PROFILE
 	NodesFound++;
 #endif
@@ -1113,7 +1122,7 @@ endsrch:
 	tccount=0;
   }
 
-  if (debug_level('e')>4) e_printf("Not found key %08lx\n",key);
+  if (debug_level('e')>4) e_printf("Not found key %08x\n",key);
 #ifdef PROFILE
   NodesNotFound++;
 #endif
@@ -1147,7 +1156,7 @@ static void BreakNode(TNode *G, long eip, long addr)
   int i;
 
   if (eip==0) {
-	dbug_printf("Cannot break node %08lx, eip=%lx\n",G->key,eip);
+	dbug_printf("Cannot break node %08x, eip=%lx\n",G->key,eip);
 	leavedos(0x7691);
   }
 
@@ -1159,14 +1168,14 @@ static void BreakNode(TNode *G, long eip, long addr)
 	if (enpc >= A->dnpc) {		// if it's a forward write
 	    memcpy(p, TailCode, TAILSIZE);
 	    *((int *)(p+TAILFIX)) = G->key + A->dnpc;
-	    dbug_printf("============ Force node closing at %08lx(%08lx)\n",
+	    dbug_printf("============ Force node closing at %08x(%08lx)\n",
 		(G->key+A->dnpc),(long)p);
 	}
 	return;		// back writes only invalidate node, no split
     }
     A++;
   }
-  e_printf("============ Node %08lx break failed\n",G->key);
+  e_printf("============ Node %08x break failed\n",G->key);
 }
 
 #endif
@@ -1240,7 +1249,7 @@ int InvalidateSingleNode (long addr, long eip)
       }
       else break;
   }
-  if (debug_level('e')>1) e_printf("Invalidate from node %08lx\n",G->key);
+  if (debug_level('e')>1) e_printf("Invalidate from node %08x\n",G->key);
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
@@ -1252,7 +1261,7 @@ int InvalidateSingleNode (long addr, long eip)
 	    long ahE = (long)(G->addr + G->len);
 	    G->alive = 0; G->nxkey = -1;
 	    NodeUnlinker(G);
-	    e_printf("### Node hit %08lx->%08lx..%08lx\n",addr,G->key,ahG);
+	    e_printf("### Node hit %08lx->%08x..%08lx\n",addr,G->key,ahG);
 	    if (eip && ADDR_IN_RANGE(eip,(long)G->addr,ahE)) {
 		e_printf("### Node self hit %08lx->%08lx..%08lx\n",
 			eip,(long)G->addr,ahE);
@@ -1308,7 +1317,7 @@ int InvalidateNodePage (long addr, int len, long eip, int *codehit)
       }
       else break;
   }
-  if (debug_level('e')>1) e_printf("Invalidate from node %08lx on\n",G->key);
+  if (debug_level('e')>1) e_printf("Invalidate from node %08x on\n",G->key);
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
@@ -1317,13 +1326,13 @@ int InvalidateNodePage (long addr, int len, long eip, int *codehit)
       if (G->addr && (G->alive>0)) {
 	long ahG = G->seqbase + G->seqlen;
 	if (RANGE_IN_RANGE(G->seqbase,ahG,al,ah)) {
-	    e_printf("Invalidated node %08lx at %08lx\n",(long)G,G->key);
+	    e_printf("Invalidated node %08lx at %08x\n",(long)G,G->key);
 	    G->alive = 0; G->nxkey = -1;
 	    NodeUnlinker(G);
 	    NodesCleaned++;
 	    if (codehit && ADDR_IN_RANGE(addr,G->key,ahG)) {
 		long ahE = (long)(G->addr + G->len);
-		e_printf("### Also _cr2=%08lx hits code %08lx..%08lx\n",addr,G->key,ahG);
+		e_printf("### Also _cr2=%08lx hits code %08x..%08lx\n",addr,G->key,ahG);
 		*codehit = 1;
 		if (eip && ADDR_IN_RANGE(eip,(long)G->addr,ahE)) {
 		    e_printf("### Node self hit %08lx->%08lx..%08lx\n",
@@ -1517,7 +1526,7 @@ void CollectStat (void)
 void InitTrees(void)
 {
 	g_printf("InitTrees\n");
-	TNodePool = (TNode *)calloc(NODES_IN_POOL, sizeof(TNode));
+	TNodePool = calloc(NODES_IN_POOL, sizeof(TNode));
 
 	avltr_reinit();
 
