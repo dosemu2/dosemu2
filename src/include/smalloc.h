@@ -46,6 +46,8 @@ typedef struct mempool {
 
 extern void *smalloc(struct mempool *mp, size_t size);
 extern void smfree(struct mempool *mp, void *ptr);
+extern void *smalloc_fast(struct mempool *mp, size_t size);
+extern void smfree_fast(struct mempool *mp, void *ptr);
 extern void *smrealloc(struct mempool *mp, void *ptr, size_t size);
 extern int sminit(struct mempool *mp, void *start, size_t size);
 #if SM_COMMIT_SUPPORT

@@ -297,7 +297,7 @@ static void *codegenbuf;
 
 void InitGenCodeBuf (void)
 {
-	size_t size =  (HMASIZE+LOWMEM_SIZE+(config.dpmi>3)*config.dpmi) *
+	size_t size =  (HMASIZE+LOWMEM_SIZE+(config.cpuemu>3)*config.dpmi) *
 	  CODEGEN_MEM_MULTIPLIER;
 	codegenbuf = mmap_mapping(MAPPING_OTHER | MAPPING_SCRATCH, (void *)-1,
 			   size, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
@@ -306,10 +306,10 @@ void InitGenCodeBuf (void)
 
 void *AllocGenCodeBuf (size_t size)
 {
-	return smalloc(&mp, size);
+	return smalloc_fast(&mp, size);
 }
 
 void FreeGenCodeBuf (void *ptr)
 {
-	smfree(&mp, ptr);
+	smfree_fast(&mp, ptr);
 }
