@@ -74,6 +74,7 @@ typedef struct _lnkdesc {
 typedef struct _imgen {
 	int op, mode, ovds;
 	int p0,p1,p2,p3,p4;
+	linkdesc *lt;
 } IGen;
 
 typedef struct _ianpc {

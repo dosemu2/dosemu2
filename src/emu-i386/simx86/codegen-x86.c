@@ -2055,7 +2055,7 @@ shrot0:
 		unsigned char cond = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
-		linkdesc *lt = (linkdesc *)(uintptr_t)IG->p3;
+		linkdesc *lt = IG->lt;
 		if (cond == 0x11) {	// call
 			register char *p, *q; int sz;
 			if (mode&DATA16) {
@@ -2086,7 +2086,7 @@ shrot0:
 		int jpc = IG->p1;
 		int dspt = IG->p2;
 		int dspnt = IG->p3;
-		linkdesc *lt = (linkdesc *)(uintptr_t)IG->p4;
+		linkdesc *lt = IG->lt;
 		int sz;
 		//	JCXZ:	8b 4b Ofs_ECX {66} e3 06
 		//	JCC:	7x 06
@@ -2143,7 +2143,7 @@ shrot0:
 		unsigned char cond = IG->p0;
 		int dspt = IG->p1;
 		int dspnt = IG->p2;
-		linkdesc *lt = (linkdesc *)(uintptr_t)IG->p3;
+		linkdesc *lt = IG->lt;
 		//	{66} dec Ofs_ECX(ebx)
 		//	LOOP:	jnz t
 		//	LOOPZ:  jz  nt; test 0x40,dl; jnz t
@@ -2530,7 +2530,7 @@ static void Gen_x86(int op, int mode, ...)
 		IG->p0 = cond;
 		IG->p1 = va_arg(ap,int);	// dspt
 		IG->p2 = va_arg(ap,int);	// dspnt
-		IG->p3 = va_arg(ap,int);	// lt
+		IG->lt = va_arg(ap,linkdesc *);	// lt
 		}
 		break;
 
@@ -2541,7 +2541,7 @@ static void Gen_x86(int op, int mode, ...)
 		IG->p1 = va_arg(ap,int);	// jpc
 		IG->p2 = va_arg(ap,int);	// dspt
 		IG->p3 = va_arg(ap,int);	// dspnt
-		IG->p4 = va_arg(ap,int);	// lt
+		IG->lt = va_arg(ap,linkdesc *);	// lt
 		}
 		break;
 

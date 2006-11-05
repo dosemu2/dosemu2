@@ -221,13 +221,13 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 
 		/* backwards jump limited to 256 bytes */
 		if ((dsp > -256) && (dsp < 0)) {
-		    Gen(JB_LINK, mode, cond, P2, j_t, j_nt, (int)(&InstrMeta[0].clink));
+		    Gen(JB_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
 		    gim = 1;
 		}
 		else if (dsp) {
 		    /* forward jump or backward jump >=256 bytes */
 		    if ((dsp < 0) || (dsp > pskip)) {
-			Gen(JF_LINK, mode, cond, P2, j_t, j_nt, (int)(&InstrMeta[0].clink));
+			Gen(JF_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
 			gim = 1;
 		    }
 		    else if (dsp==pskip) {
@@ -265,7 +265,7 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 #endif
 #endif
 	case 0x11:
-		Gen(JMP_LINK, mode, cond, j_t, d_nt, (int)(&InstrMeta[0].clink));
+		Gen(JMP_LINK, mode, cond, j_t, d_nt, &InstrMeta[0].clink);
 		gim = 1;
 		tailjmp=1;
 		break;
@@ -278,7 +278,7 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 			goto notakejmp;
 		}
 		else {
-			Gen(JLOOP_LINK, mode, cond, j_t, j_nt, (int)(&InstrMeta[0].clink));
+			Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
 			gim = 1;
 			tailjmp=1;
 		}
