@@ -172,6 +172,7 @@ void dpmi_alloc_pool(void)
     dpmi_total_memory = num_pages << PAGE_SHIFT;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory); 
+    config.dpmi_base = (uintptr_t)mpool_ptr;
 }
 
 void dpmi_free_pool(void)
