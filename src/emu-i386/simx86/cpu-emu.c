@@ -187,7 +187,7 @@ void InvalidateSegs(void)
 static char ehextab[] = "0123456789abcdef";
 
 /* WARNING - do not convert spaces to tabs! */
-#define ERB_LLEN	0x35
+#define ERB_LLEN	0x39
 #define ERB_LEFTM	5
 #define ERB_L1		0x00
 #define ERB_L2		(ERB_L1+ERB_LLEN)
@@ -196,17 +196,21 @@ static char ehextab[] = "0123456789abcdef";
 #define ERB_L5		(ERB_L1+4*ERB_LLEN)
 #define ERB_L6		(ERB_L5+0x37)
 static char eregbuf[] =
-/*00*/	"\teax=00000000 ebx=00000000 ecx=00000000 edx=00000000\n"
-/*35*/	"\tesi=00000000 edi=00000000 ebp=00000000 esp=00000000\n"
-/*6a*/	"\t vf=00000000  cs=0000      ds=0000      es=0000    \n"
-/*9f*/	"\t fs=0000      gs=0000      ss=0000     flg=00000000\n"
-/*d4*/  "\tstk=0000 0000 0000 0000 0000 0000 0000 0000 0000 0000\n";
-/*10b*/
+/*00*/	"\teax=00000000 ebx=00000000 ecx=00000000 edx=00000000    \n"
+/*39*/	"\tesi=00000000 edi=00000000 ebp=00000000 esp=00000000    \n"
+/*72*/	"\t vf=00000000  cs=0000      ds=0000      es=0000        \n"
+/*ab*/	"\t fs=0000      gs=0000      ss=0000     flg=00000000    \n"
+/*e4*/  "\tstk=0000 0000 0000 0000 0000 0000 0000 0000 0000 0000\n";
+/*11b*/
 
 static inline void exprintl(unsigned long val,char *bf,unsigned int pos)
 {
 	char *p=bf+pos+7;
 	unsigned long v	= val;
+#ifdef __x86_64__
+	v &= 0xffffffffffff;
+	if (v > 0xffffffff) p += 4;
+#endif
 	while (v) { *p-- = ehextab[v&15]; v>>=4; }
 }
 
@@ -245,9 +249,14 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
 	if (debug_level('e')>4) {
 		int i;
-		unsigned short *stk = (unsigned short *)(uintptr_t)(LONG_SS+TheCPU.esp);
-		for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
-		   exprintw(*stk++,buf,i);
+		unsigned st = LONG_SS+TheCPU.esp;
+		if (st < 0x1100000 ||
+		    (st > config.dpmi_base &&
+		     st <= config.dpmi_base + config.dpmi * 1024)) {
+			unsigned short *stk = (unsigned short *)(uintptr_t)st;
+			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
+			   exprintw(*stk++,buf,i);
+			}
 		}
 	}
 	else
@@ -271,14 +280,14 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 	int i;
 
 	while (*q) *p++ = *q++; *p=0;
-	exprintl(_eax,buf,(ERB_L1+ERB_LEFTM));
-	exprintl(_ebx,buf,(ERB_L1+ERB_LEFTM)+13);
-	exprintl(_ecx,buf,(ERB_L1+ERB_LEFTM)+26);
-	exprintl(_edx,buf,(ERB_L1+ERB_LEFTM)+39);
-	exprintl(_esi,buf,(ERB_L2+ERB_LEFTM));
-	exprintl(_edi,buf,(ERB_L2+ERB_LEFTM)+13);
-	exprintl(_ebp,buf,(ERB_L2+ERB_LEFTM)+26);
-	exprintl(_esp,buf,(ERB_L2+ERB_LEFTM)+39);
+	exprintl(_rax,buf,(ERB_L1+ERB_LEFTM));
+	exprintl(_rbx,buf,(ERB_L1+ERB_LEFTM)+13);
+	exprintl(_rcx,buf,(ERB_L1+ERB_LEFTM)+26);
+	exprintl(_rdx,buf,(ERB_L1+ERB_LEFTM)+39);
+	exprintl(_rsi,buf,(ERB_L2+ERB_LEFTM));
+	exprintl(_rdi,buf,(ERB_L2+ERB_LEFTM)+13);
+	exprintl(_rbp,buf,(ERB_L2+ERB_LEFTM)+26);
+	exprintl(_rsp,buf,(ERB_L2+ERB_LEFTM)+39);
 	if (pmode & 1)
 		exprintl(get_vFLAGS(TheCPU.eflags),buf,(ERB_L3+ERB_LEFTM));
 	else

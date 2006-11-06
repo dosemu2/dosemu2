@@ -66,10 +66,10 @@ unsigned short prva[8] =
  * byte of FP0 is 0, of FP1 is 8, etc. and we can adjust the pointer
  * FPRSTT only by changing its lowest byte.
  */
-//	movl	FPRSTT,esi
-#define FTOS2ESI	{G2(0x358b,Cp);G4((long)&FPRSTT,Cp);}
-//	movl	FPRSTT,ecx
-#define FTOS2ECX	{G2(0x0d8b,Cp);G4((long)&FPRSTT,Cp);}
+//	movl	FPRSTT(ebx),esi
+#define FTOS2ESI	{G2(0xb38b,Cp);G4((char *)&FPRSTT-CPUOFFS(0),Cp);}
+//	movl	FPRSTT(ebx),ecx
+#define FTOS2ECX	{G2(0x8b8b,Cp);G4((char *)&FPRSTT-CPUOFFS(0),Cp);}
 //	ffree st(0)
 //	fincstp
 #define DISCARD		G4(0xf7d9c0dd,Cp)
@@ -100,30 +100,39 @@ unsigned short prva[8] =
 //	fstcw	FPUS(ebx)
 #define	SAVESW		{G3(0x7bdd9b,Cp);G1(Ofs_FPUS,Cp);}
 
+#if __x86_64__
+// leaq	&x(rbx),rcx
+#define GETADDR_IN_CX(x,Cp) G3M(0x48,0x8d,0x8b,Cp);G4((char *)&x-CPUOFFS(0),Cp);
+#else
+// movl	&x,ecx
+#define GETADDR_IN_CX(x,Cp) G1(0xb9,Cp);G4((long)&x,Cp);
+#endif
+
+
 //	movzbl	FPSTT(ebx),eax
 //	movl	&nxta,ecx
 //	movw	(ecx,eax,2),ax
 //	movb	al,FPSTT(ebx)
-//	movb	ah,FPRSTT
-#define INCFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&nxta,Cp);\
-		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
-		G4((long)&FPRSTT,Cp);}
+//	movb	ah,FPRSTT(ebx)
+#define INCFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);GETADDR_IN_CX(nxta,Cp);\
+		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0xa388,Cp);\
+		G4((char *)&FPRSTT-CPUOFFS(0),Cp);}
 //	movzbl	FPSTT(ebx),eax
 //	movl	&nxta2,ecx
 //	movw	(ecx,eax,2),ax
 //	movb	al,FPSTT(ebx)
-//	movb	ah,FPRSTT
-#define INCFSP2	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&nxta2,Cp);\
-		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
-		G4((long)&FPRSTT,Cp);}
+//	movb	ah,FPRSTT(ebx)
+#define INCFSP2	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);GETADDR_IN_CX(nxta2,Cp);\
+		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0xa388,Cp);\
+		G4((char *)&FPRSTT-CPUOFFS(0),Cp);}
 //	movzbl	FPSTT(ebx),eax
 //	movl	&prva,ecx
 //	movw	(ecx,eax,2),ax
 //	movb	al,FPSTT(ebx)
-//	movb	ah,FPRSTT
-#define DECFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&prva,Cp);\
-		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
-		G4((long)&FPRSTT,Cp);}
+//	movb	ah,FPRSTT(ebx)
+#define DECFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);GETADDR_IN_CX(prva,Cp);\
+		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0xa388,Cp);\
+		G4((char *)&FPRSTT-CPUOFFS(0),Cp);}
 
 /* required to align the 64-byte FP register block to a 256-byte boundary */
 static char _fparea[320];
