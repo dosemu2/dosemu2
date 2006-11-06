@@ -318,8 +318,8 @@ static void CodeGen(IMeta *I, int j)
 		G2M(0x5e,0x57,Cp);
 		// movzwl ofs(%%rbx),%%edi
 		G4M(0x0f,0xb7,0x7b,IG->p0,Cp);
-		// movq SetSegReal,%%rcx
-		G2M(0x48,0xb9,Cp); G8((long)&SetSegReal,Cp);
+		// lea SetSegReal(%%rbx),%%rcx
+		G3M(0x48,0x8d,0x8b,Cp); G4((char *)&SetSegReal-CPUOFFS(0),Cp);
 		// call *%%rcx; pop %%rdi; pop %%rbx
 		G4M(0xff,0xd1,0x5f,0x5b,Cp);
 #else
@@ -450,8 +450,8 @@ static void CodeGen(IMeta *I, int j)
 		G2M(0x5e,0x57,Cp);
 		// movzwl (%%rdi),%%edi
 		G3M(0x0f,0xb7,0x3f,Cp);
-		// movq SetSegReal,%%rcx
-		G2M(0x48,0xb9,Cp); G8((long)&SetSegReal,Cp);
+		// lea SetSegReal(%%rbx),%%rcx
+		G3M(0x48,0x8d,0x8b,Cp); G4((char *)&SetSegReal-CPUOFFS(0),Cp);
 		// call *%%rcx; pop %%rdi; pop %%rbx
 		G4M(0xff,0xd1,0x5f,0x5b,Cp);
 #else
@@ -475,21 +475,29 @@ static void CodeGen(IMeta *I, int j)
 	case L_VGAREAD:
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // cmpl e_vga_end,%%edi
-		    G2(0x3d3b,Cp); G4((long)&e_vga_end,Cp);
+		    // cmpl e_vga_end(%%ebx),%%edi
+		    G2(0xbb3b,Cp); G4((char *)&e_vga_end-CPUOFFS(0),Cp);
 		    // jge normal_read
-		    G2(0x177d,Cp);
-		    // cmpl e_vga_base,%%edi	    
-		    G2(0x3d3b,Cp); G4((long)&e_vga_base,Cp);
+		    G2(0x187d,Cp);
+		    // cmpl e_vga_base(%%ebx),%%edi	    
+		    G2(0xbb3b,Cp); G4((char *)&e_vga_base-CPUOFFS(0),Cp);
 		    // jl  normal_read
 		    // pushl mode
-	       	    G3(0x6a0f7c,Cp); G1(mode,Cp);
+	       	    G3(0x6a107c,Cp); G1(mode,Cp);
+#ifdef __x86_64__
+		    // pop %%rsi; push %%rdi
+		    G5(0x8b8d48575e,Cp);
+	    	    // lea e_VgaRead(%%rbx),%%rcx; call %%rcx; pop %%rdi
+		    G4((char *)e_VgaRead-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
+		    // must be the same amount of ins bytes as i386!!
+#else
 		    // pushl %%edi
 		    G2(0xb957,Cp);
 	    	    // call e_VgaRead
 		    G4((long)e_VgaRead,Cp); G2(0xd1ff,Cp);
-	    	    // add $8,%%esp
-		    G3(0x08c483,Cp);
+	    	    // add $8,%%esp; nop
+		    G4(0x9008c483,Cp);
+#endif
 	    	    // jmp (skip normal read)
 		    G2M(0xeb,((mode&(DATA16|MBYTE))==DATA16? 3:2),Cp);
 		}
@@ -505,22 +513,31 @@ static void CodeGen(IMeta *I, int j)
 	case L_VGAWRITE:
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // cmpl e_vga_end,%%edi
-		    G2(0x3d3b,Cp); G4((long)&e_vga_end,Cp);
+		    // cmpl e_vga_end(%%ebx),%%edi
+		    G2(0xbb3b,Cp); G4((char *)&e_vga_end-CPUOFFS(0),Cp);
 		    // jge normal_read
-		    G2(0x187d,Cp);
-		    // cmpl e_vga_base,%%edi	    
-		    G2(0x3d3b,Cp); G4((long)&e_vga_base,Cp);
+		    G2(0x1a7d,Cp);
+		    // cmpl e_vga_base(%%rbx),%%edi	    
+		    G2(0xbb3b,Cp); G4((char *)&e_vga_base-CPUOFFS(0),Cp);
 		    // jl  normal_read
 		    // pushl mode
-	       	    G3(0x6a107c,Cp); G1(mode,Cp);
+	       	    G3(0x6a127c,Cp); G1(mode,Cp);
+#ifdef __x86_64__
+		    // pop %%rdx; mov %%eax, %%esi; push %%rdi
+		    G4(0x57c6895a,Cp);
+	    	    // lea e_VgaWrite(%%ebx),%%ecx; call %%ecx; pop %%rdi
+		    G3(0x8b8d48,Cp);
+		    G4((char *)e_VgaWrite-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
+		    // must be the same amount of ins bytes as i386!!
+#else
 		    // pushl %%eax
 		    // pushl %%edi
 		    G3(0xb95750,Cp);
 	    	    // call e_VgaWrite
 		    G4((long)e_VgaWrite,Cp); G2(0xd1ff,Cp);
-	    	    // add $0c,%%esp
-		    G3(0x0cc483,Cp);
+	    	    // add $0c,%%esp; nop; nop
+		    G5(0x90900cc483,Cp);
+#endif
 	    	    // jmp (skip normal read)
 		    G2(0x05eb,Cp);
 		}
@@ -1967,18 +1984,18 @@ shrot0:
 		// movl	%%eax,%%ecx
 		// movl	%%edx,%%edi
 		G4(0xd789c189,Cp);
-		// subl	TimeStartExec.t.tl,%%eax
-		// sbbl	TimeStartExec.t.th,%%edx
-		G2(0x052b,Cp); G4((long)&TimeStartExec.t.tl,Cp);
-		G2(0x151b,Cp); G4((long)&TimeStartExec.t.th,Cp);
+		// subl	TimeStartExec.t.tl(%%ebx),%%eax
+		// sbbl	TimeStartExec.t.th(%%ebx),%%edx
+		G2(0x832b,Cp); G4((char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
+		G2(0x931b,Cp); G4((char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
 		// addl	TheCPU.EMUtime(%%ebx),%%eax
 		// adcl	TheCPU.EMUtime+4(%%ebx),%%edx
 		G3M(0x03,0x43,Ofs_ETIME,Cp);
 		G3M(0x13,0x53,Ofs_ETIME+4,Cp);
-		// movl	%%ecx,TimeStartExec.t.tl
-		// movl	%%edi,TimeStartExec.t.th
-		G2(0x0d89,Cp); G4((long)&TimeStartExec.t.tl,Cp);
-		G2(0x3d89,Cp); G4((long)&TimeStartExec.t.th,Cp);
+		// movl	%%ecx,TimeStartExec.t.tl(%%ebx)
+		// movl	%%edi,TimeStartExec.t.th(%%ebx)
+		G2(0x8b89,Cp); G4((char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
+		G2(0xbb89,Cp); G4((char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
 		// movl	%%eax,TheCPU.EMUtime(%%ebx)
 		// movl	%%edx,TheCPU.EMUtime+4(%%ebx)
 		G3M(0x89,0x43,Ofs_ETIME,Cp);
