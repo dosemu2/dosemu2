@@ -199,18 +199,24 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
      * area, we fall into another fault which likely terminates dosemu.
      */
 #ifdef X86_EMULATOR
-    if (!config.cpuemu || (_trapno!=0x0b && _trapno!=0x0c)) {
-#else
-    if (1) {
+    if (!config.cpuemu || (_trapno!=0x0b && _trapno!=0x0c))
 #endif
+    {
       int i;
       sprintf(buf, "%sOPS  : ", buf);
-      for (i = 0; i < 10; i++)
-        sprintf(buf, "%s%02x ", buf, *csp2++);
-      sprintf(buf, "%s-> ", buf);
-      for (i = 0; i < 10; i++)
-        sprintf(buf, "%s%02x ", buf, *csp2++);
-      sprintf(buf, "%s\n", buf);
+      if (!(_cs & 0x0004) ||
+	  (uintptr_t)csp2 < 0x110000 ||
+	  ((uintptr_t)csp2 > config.dpmi_base &&
+	   (uintptr_t)csp2 < config.dpmi_base + config.dpmi * 1024)) {
+	for (i = 0; i < 10; i++)
+	  sprintf(buf, "%s%02x ", buf, *csp2++);
+	sprintf(buf, "%s-> ", buf);
+	for (i = 0; i < 10; i++)
+	  sprintf(buf, "%s%02x ", buf, *csp2++);
+	sprintf(buf, "%s\n", buf);
+      } else {
+	sprintf(buf, "%sCS:EIP points to invalid memory\n", buf);
+      }
       if (!((_ss) & 0x0004)) {
         /* GDT */
         ssp2 = (unsigned char *) _rsp - 10;
@@ -223,12 +229,19 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
 	  ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10;
       }
       sprintf(buf, "%sSTACK: ", buf);
-      for (i = 0; i < 10; i++)
-        sprintf(buf, "%s%02x ", buf, *ssp2++);
-      sprintf(buf, "%s-> ", buf);
-      for (i = 0; i < 10; i++)
-        sprintf(buf, "%s%02x ", buf, *ssp2++);
-      sprintf(buf, "%s\n", buf);
+      if (!(_ss & 0x0004) ||
+	  (uintptr_t)ssp2 < 0x110000 ||
+	  ((uintptr_t)ssp2 > config.dpmi_base &&
+	   (uintptr_t)ssp2 < config.dpmi_base + config.dpmi * 1024)) {
+	for (i = 0; i < 10; i++)
+	  sprintf(buf, "%s%02x ", buf, *ssp2++);
+	sprintf(buf, "%s-> ", buf);
+	for (i = 0; i < 10; i++)
+	  sprintf(buf, "%s%02x ", buf, *ssp2++);
+	sprintf(buf, "%s\n", buf);
+      } else {
+	sprintf(buf, "%sSS:ESP points to invalid memory\n", buf);
+      }
     }
 
     return buf;

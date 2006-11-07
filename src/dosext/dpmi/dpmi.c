@@ -3745,6 +3745,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(&old_ctx);
+	  in_dpmi_dos_int = 1;
 	  curscp = scp;
 	  scp = &old_ctx;
 	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(_esp) : D_16_32(DPMI_pm_stack_size);
