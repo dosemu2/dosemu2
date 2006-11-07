@@ -698,63 +698,50 @@ arith1:
 	case O_INC:
 		G1(POPF,Cp);	// get flags from stack
 		if (mode & MBYTE) {
-			// incb (%%edi)
-			G4M(0x8a,0x07,0xfe,0xc0,Cp);
-	/* WARNING - Cpatch stubs expect flags on stack! */
-			G1(PUSHF,Cp);	// flags back on stack before writing
-			STD_WRITE_B;
+			// incb %%al
+			G2M(0xfe,0xc0,Cp);
 		}
 		else if (mode & DATA16) {
-			// inc{wl} (%%edi) (mov (%%edi),%%ax)
-			G3M(0x66,0x8b,0x07,Cp);
-			// inc %%ax; pushf
+			// inc %%ax
 #ifdef __x86_64__ // 0x40 is a REX byte, not inc
-			G4M(0x66,0xff,0xc0,PUSHF,Cp);
+			G3M(0x66,0xff,0xc0,Cp);
 #else
-			G3M(0x66,0x40,PUSHF,Cp);
+			G2M(0x66,0x40,Cp);
 #endif
-			STD_WRITE_WL(DATA16);
 		}
 		else {
+			// inc %%eax
 #ifdef __x86_64__
-			// mov (%%rdi),%%eax, inc %%eax; pushf
-			G2M(0x8b,0x07,Cp); G3M(0xff,0xc0,PUSHF,Cp);
+			G2M(0xff,0xc0,Cp);
 #else
-			// mov (%%edi),%%eax, inc %%eax; pushf
-			G4M(0x8b,0x07,0x40,PUSHF,Cp);
+			G1(0x40,Cp);
 #endif
-			STD_WRITE_WL(0);
 		}
+		G1(PUSHF,Cp);	// flags back on stack before writing
 		break;
 	case O_DEC:
 		G1(POPF,Cp);	// get flags from stack
 		if (mode & MBYTE) {
-			// decb (%%edi)
-			G4M(0x8a,0x07,0xfe,0xc8,Cp);
-			G1(PUSHF,Cp);	// flags back on stack
-			STD_WRITE_B;
+			// decb %%al
+			G2M(0xfe,0xc8,Cp);
 		}
 		else if (mode & DATA16) {
-			// dec{wl} (%%edi) (mov (%%edi),%%ax)
-			G3M(0x66,0x8b,0x07,Cp);
-			// dec %%ax; pushf
+			// dec %%ax
 #ifdef __x86_64__ // 0x48 is a REX byte, not dec
-			G4M(0x66,0xff,0xc8,PUSHF,Cp);
+			G3M(0x66,0xff,0xc8,Cp);
 #else
-			G3M(0x66,0x48,PUSHF,Cp);
+			G2M(0x66,0x48,Cp);
 #endif
-			STD_WRITE_WL(DATA16);
 		}
 		else {
+			// dec %%eax
 #ifdef __x86_64__
-			// mov (%%rdi),%%eax, dec %%eax; pushf
-			G2M(0x8b,0x07,Cp); G3M(0xff,0xc8,PUSHF,Cp);
+			G2M(0xff,0xc8,Cp);
 #else
-			// mov (%%edi),%%eax, dec %%eax; pushf
-			G4M(0x8b,0x07,0x48,PUSHF,Cp);
+			G1(0x48,Cp);
 #endif
-			STD_WRITE_WL(0);
 		}
+		G1(PUSHF,Cp);	// flags back on stack
 		break;
 	case O_XCHG: {
 		if (mode & MBYTE) {

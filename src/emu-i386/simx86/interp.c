@@ -1849,12 +1849,32 @@ repag0:
 				Gen(O_SETFL, mode, STD);
 			break;
 /*fe*/	case GRP2brm:	/* only INC and DEC are legal on bytes */
-			PC += ModRM(opc, PC, mode|MBYTE);	// EDI=mem
+			ModGetReg1(PC, mode);
 			switch(REG1) {
 			case Ofs_AL:	/*0*/
-				Gen(O_INC, mode|MBYTE); break;
+				if (PC[1] >= 0xc0) {
+					Gen(O_INC_R, mode|MBYTE,
+					    R1Tab_b[PC[1] & 7]);
+					PC += 2;
+					break;
+				}
+				PC += ModRM(opc, PC, mode|MBYTE); // EDI=mem
+				Gen(L_DI_R1, mode|MBYTE);
+				Gen(O_INC, mode|MBYTE);
+				Gen(S_DI, mode|MBYTE);
+				break;
 			case Ofs_CL:	/*1*/
-				Gen(O_DEC, mode|MBYTE); break;
+				if (PC[1] >= 0xc8) {
+					Gen(O_DEC_R, mode|MBYTE,
+					    R1Tab_b[PC[1] & 7]);
+					PC += 2;
+					break;
+				}
+				PC += ModRM(opc, PC, mode|MBYTE); // EDI=mem
+				Gen(L_DI_R1, mode|MBYTE);
+				Gen(O_DEC, mode|MBYTE);
+				Gen(S_DI, mode|MBYTE);
+				break;
 			default:
 				CODE_FLUSH();
 				goto illegal_op;
@@ -1864,11 +1884,19 @@ repag0:
 			ModGetReg1(PC, mode);
 			switch (REG1) {
 			case Ofs_AX:	/*0*/
+				/* it's not worth optimizing for registers
+				   here (single byte DEC/INC exist) */
 				PC += ModRM(opc, PC, mode);
-				Gen(O_INC, mode); break;
+				Gen(L_DI_R1, mode);
+				Gen(O_INC, mode);
+				Gen(S_DI, mode);
+				break;
 			case Ofs_CX:	/*1*/
 				PC += ModRM(opc, PC, mode);
-				Gen(O_DEC, mode); break;
+				Gen(L_DI_R1, mode);
+				Gen(O_DEC, mode);
+				Gen(S_DI, mode);
+				break;
 			case Ofs_SP:	/*4*/	 // JMP near indirect
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
 					int dp;

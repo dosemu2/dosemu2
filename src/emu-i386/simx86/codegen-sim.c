@@ -990,7 +990,7 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_SBB;
 		if (mode & IMMED) {GTRACE3("O_SBB_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SBB_FR",v.bs.bl,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
+		o = (mode & IMMED) ? Ofs_EAX : v.bs.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    // movzbl v.bs.bl->eax; add cy,eax; neg eax
@@ -1107,16 +1107,16 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_GEN;
 		RFL.S2 = 1;
 		if (mode & MBYTE) {
-			RFL.S1 = *AR1.ps;
-			*AR1.pu = RFL.RES.d = RFL.S1 + 1;
+			RFL.S1 = DR1.bs.bl;
+			DR1.b.bl = RFL.RES.d = RFL.S1 + 1;
 		}
 		else if (mode & DATA16) {
-			RFL.S1 = *AR1.pws;
-			*AR1.pwu = RFL.RES.d = RFL.S1 + 1;
+			RFL.S1 = DR1.ws.l;
+			DR1.w.l = RFL.RES.d = RFL.S1 + 1;
 		}
 		else {
-			RFL.S1 = *AR1.pdu;
-			*AR1.pdu = RFL.RES.d = RFL.S1 + 1;
+			RFL.S1 = DR1.d;
+			DR1.d = RFL.RES.d = RFL.S1 + 1;
 		}
 		break;
 	case O_DEC:		// OSZAP
@@ -1125,16 +1125,16 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_SUB;
 		RFL.S2 = -1;
 		if (mode & MBYTE) {
-			RFL.S1 = *AR1.ps;
-			*AR1.pu = RFL.RES.d = RFL.S1 - 1;
+			RFL.S1 = DR1.bs.bl;
+			DR1.b.bl = RFL.RES.d = RFL.S1 - 1;
 		}
 		else if (mode & DATA16) {
-			RFL.S1 = *AR1.pws;
-			*AR1.pwu = RFL.RES.d = RFL.S1 - 1;
+			RFL.S1 = DR1.ws.l;
+			DR1.w.l = RFL.RES.d = RFL.S1 - 1;
 		}
 		else {
-			RFL.S1 = *AR1.pdu;
-			*AR1.pdu = RFL.RES.d = RFL.S1 - 1;
+			RFL.S1 = DR1.d;
+			DR1.d = RFL.RES.d = RFL.S1 - 1;
 		}
 		break;
 	case O_XCHG: {
