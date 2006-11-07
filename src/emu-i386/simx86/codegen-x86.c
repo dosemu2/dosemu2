@@ -536,7 +536,7 @@ static void CodeGen(IMeta *I, int j)
 	    	    // call e_VgaWrite
 		    G4((long)e_VgaWrite,Cp); G2(0xd1ff,Cp);
 	    	    // add $0c,%%esp; nop; nop
-		    G5(0x90900cc483,Cp);
+		    G4(0x900cc483,Cp); G1(0x90,Cp);
 #endif
 	    	    // jmp (skip normal read)
 		    G2(0x05eb,Cp);
@@ -638,33 +638,35 @@ arith0:		{
 		}
 		G1(PUSHF,Cp);	// flags back on stack
 		break;
-	case O_SBB_M:
-		rcod = 0x1a; goto arith1;
-	case O_SUB_M:
-		rcod = 0x2a; goto arith1;
-	case O_CMP_M:
-		rcod = 0x3a;
+	case O_SBB_FR:
+		rcod = SBBbfrm; /* 0x18 */ goto arith1;
+	case O_SUB_FR:
+		rcod = SUBbfrm; /* 0x28 */ goto arith1;
+	case O_CMP_FR:
+		rcod = CMPbfrm; /* 0x38 */
 arith1:
 		G1(POPF,Cp);	// get flags from stack
 		if (mode & MBYTE) {
 			if (mode & IMMED) {
-				// OPb $immed,%%al
-				G1(rcod+2,Cp); G1(IG->p0,Cp);
+				// OPb $immed,Ofs_EAX(%%ebx)
+				G4M(0x80,0x43|rcod,Ofs_EAX,IG->p0,Cp);
 			}
 			else {
-				// OPb (%%edi),%%al
-				G2(0x0700|rcod,Cp);
+				// OPb %%al,offs(%%ebx)
+				G2(0x4300|rcod,Cp); G1(IG->p0,Cp);
 			}
 		}
 		else {
 			if (mode & IMMED) {
-				// OP{wl} $immed,%%{e}ax
+				// OP{wl} $immed,Ofs_EAX(%%ebx)
 				Gen66(mode,Cp);
-				G1(rcod+3,Cp); G2_4(mode,IG->p0,Cp);
+				G3M(0x81,0x43|rcod,Ofs_EAX,Cp);
+				G2_4(mode,IG->p0,Cp);
 			}
 			else {
-				// OP{wl} (%%edi),%%eax
-				Gen66(mode,Cp); G2(0x0701|rcod,Cp);
+				// OP{wl} %%eax,offs(%%ebx)
+				Gen66(mode,Cp);
+				G2(0x4301|rcod,Cp); G1(IG->p0,Cp);
 			}
 		}
 		G1(PUSHF,Cp);	// flags back on stack
@@ -2421,6 +2423,9 @@ static void Gen_x86(int op, int mode, ...)
 	case O_SUB_R:
 	case O_XOR_R:
 	case O_CMP_R:
+	case O_SBB_FR:
+	case O_SUB_FR:
+	case O_CMP_FR:
 	case O_INC_R:
 	case O_DEC_R:
 	case O_DIV:
@@ -2445,15 +2450,6 @@ static void Gen_x86(int op, int mode, ...)
 		o = Offs_From_Arg();
 		IG->p0 = rcod;
 		IG->p1 = o;
-		}
-		break;
-
-	case O_SBB_M:
-	case O_SUB_M:
-	case O_CMP_M:
-		if (mode & IMMED) {
-			int v = va_arg(ap,int);
-			IG->p0 = v;
 		}
 		break;
 

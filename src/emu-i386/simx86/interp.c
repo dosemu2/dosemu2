@@ -49,8 +49,8 @@ static int basemode = 0;
 
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
-static int ArOpsM[] =
-	{      -1,     -1,      -1, O_SBB_M,      -1, O_SUB_M,      -1, O_CMP_M };
+static int ArOpsFR[] =
+	{      -1,     -1,      -1, O_SBB_FR,     -1, O_SUB_FR,     -1, O_CMP_FR};
 static char R1Tab_b[8] =
 	{ Ofs_AL, Ofs_CL, Ofs_DL, Ofs_BL, Ofs_AH, Ofs_CH, Ofs_DH, Ofs_BH };
 static char R1Tab_l[14] =
@@ -534,12 +534,11 @@ intop28:		{ int m = mode | MBYTE;
 			}
 /*3a*/	case CMPbtrm:
 intop3a:		{ int m = mode | MBYTE;
-			int op = ArOpsM[D_MO(opc)];
+			int op = ArOpsFR[D_MO(opc)];
 			PC += ModRM(opc, PC, m);	// SI=reg DI=mem
-			Gen(L_REG, m, REG1);		// mov al,[ebx+reg]
-			Gen(op, m);			// op  al,[edi]
-			if (opc != CMPbtrm)
-				Gen(S_REG, m, REG1);	// mov [ebx+reg],al		reg=reg op mem
+			Gen(L_DI_R1, m);		// mov al,[edi]
+			Gen(op, m, REG1);		// op [ebx+reg], al
+			// reg=reg op mem
 			}
 			break; 
 /*29*/	case SUBwfrm:
@@ -586,12 +585,11 @@ intop29:		{ int op = (opc==TESTwrm? O_AND_R:ArOpsR[D_MO(opc)]);
 			    PC+=2; break;
 			}
 /*3b*/	case CMPwtrm:
-intop3b:		{ int op = ArOpsM[D_MO(opc)];
+intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC += ModRM(opc, PC, mode);	// SI=reg DI=mem
-			Gen(L_REG, mode, REG1);		// mov (e)ax,[ebx+reg]
-			Gen(op, mode);			// op  (e)ax,[edi]
-			if (opc != CMPwtrm)
-				Gen(S_REG, mode, REG1);	// mov [ebx+reg],(e)ax	reg=reg op mem
+			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			Gen(op, mode, REG1);		// op [ebx+reg], (e)ax
+			// reg=reg op mem
 			}
 			break; 
 /*a8*/	case TESTbi:
@@ -612,11 +610,9 @@ intop3b:		{ int op = ArOpsM[D_MO(opc)];
 /*2c*/	case SUBbi:
 /*3c*/	case CMPbi: {
 			int m = mode | MBYTE;
-			int op = ArOpsM[D_MO(opc)];
-			Gen(L_REG, m, Ofs_AL);			// mov al,[ebx+reg]
-			Gen(op, m|IMMED, Fetch(PC+1)); PC+=2;	// op al,#imm
-			if (opc != CMPbi)
-				Gen(S_REG, m, Ofs_AL);	// mov [ebx+reg],al
+			int op = ArOpsFR[D_MO(opc)];
+			// op [ebx+Ofs_EAX],#imm
+			Gen(op, m|IMMED, Fetch(PC+1)); PC+=2;
 			}
 			break; 
 /*a9*/	case TESTwi:
@@ -637,12 +633,10 @@ intop3b:		{ int op = ArOpsM[D_MO(opc)];
 /*2d*/	case SUBwi:
 /*3d*/	case CMPwi: {
 			int m = mode;
-			int op = ArOpsM[D_MO(opc)];
-			Gen(L_REG, m, Ofs_EAX);		// mov (e)ax,[ebx+reg]
-			Gen(op, m|IMMED, DataFetchWL_U(mode,PC+1));	// op (e)ax,#imm
+			int op = ArOpsFR[D_MO(opc)];
+			// op [ebx+Ofs_EAX],#imm
+			Gen(op, m|IMMED, DataFetchWL_U(mode,PC+1));
 			INC_WL_PC(mode,1);
-			if (opc != CMPwi)
-				Gen(S_REG, m, Ofs_EAX);	// mov [ebx+reg],(e)ax
 			}
 			break; 
 /*69*/	case IMULwrm:

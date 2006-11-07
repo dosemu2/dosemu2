@@ -78,9 +78,9 @@
 #define O_CMP_R		37
 #define O_INC_R		38
 #define O_DEC_R		39
-#define O_SBB_M		40
-#define O_SUB_M		41
-#define O_CMP_M		42
+#define O_SBB_FR	40
+#define O_SUB_FR	41
+#define O_CMP_FR	42
 #define O_CBWD		43
 #define O_XCHG		44
 #define O_XCHG_R	45
