@@ -968,7 +968,9 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			}
 			else {
 			    PC += ModRM(opc, PC, mode|MBYTE);	// EDI=mem
+			    Gen(L_DI_R1, mode|MBYTE);
 			    Gen(O_XCHG, mode|MBYTE, REG1);
+			    Gen(S_DI, mode|MBYTE);
 			}
 			break;
 /*87*/	case XCHGwrm:
@@ -977,7 +979,9 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			}
 			else {
 			    PC += ModRM(opc, PC, mode);		// EDI=mem
+			    Gen(L_DI_R1, mode);
 			    Gen(O_XCHG, mode, REG1);
+			    Gen(S_DI, mode);
 			}
 			break;
 /*88*/	case MOVbfrm:

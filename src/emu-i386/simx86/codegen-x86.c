@@ -758,33 +758,21 @@ arith1:
 		break;
 	case O_XCHG: {
 		if (mode & MBYTE) {
-			// movb offs(%%ebx),%%al
-			G3M(0x8a,0x43,IG->p0,Cp);
-			// movb (%%edi),%%dl; movb %%dl,offs(%%ebx)
-			G4M(0x8a,0x17,0x88,0x53,Cp); G1(IG->p0,Cp);
-			// movb %%al,(%%edi)
-			STD_WRITE_B;
+			// xchgb offs(%%ebx),%%al
+			G3M(0x86,0x43,IG->p0,Cp);
 		}
 		else {
-			// mov{wl} offs(%%ebx),%%{e}ax
-			Gen66(mode,Cp);	G3M(0x8b,0x43,IG->p0,Cp);
-			// mov{wl} (%%edi),%%{e}dx
-			Gen66(mode,Cp);	G2M(0x8b,0x17,Cp);
-			// mov{wl} %%{e}dx,offs(%%ebx)
-			Gen66(mode,Cp);	G3M(0x89,0x53,IG->p0,Cp);
-			// movl %%{e}ax,(%%edi)
-			STD_WRITE_WL(mode);
+			// xchg{wl} offs(%%ebx),%%{e}ax
+			Gen66(mode,Cp);	G3M(0x87,0x43,IG->p0,Cp);
 		} }
 		break;
 	case O_XCHG_R: {
 		// mov{wl} offs1(%%ebx),%%{e}ax
 		Gen66(mode,Cp);	G3M(0x8b,0x43,IG->p0,Cp);
-		// mov{wl} offs2(%%ebx),%%{e}dx
-		Gen66(mode,Cp); G3M(0x8b,0x53,IG->p1,Cp);
-		// mov{wl} %%{e}ax,offs2(%%ebx)
-		Gen66(mode,Cp);	G3M(0x89,0x43,IG->p1,Cp);
-		// mov{wl} %%{e}dx,offs1(%%ebx)
-		Gen66(mode,Cp);	G3M(0x89,0x53,IG->p0,Cp);
+		// xchg{wl} offs2(%%ebx),%%{e}ax
+		Gen66(mode,Cp); G3M(0x87,0x43,IG->p1,Cp);
+		// mov{wl} %%{e}ax,offs1(%%ebx)
+		Gen66(mode,Cp);	G3M(0x89,0x43,IG->p0,Cp);
 		}
 		break;
 	case O_MUL:

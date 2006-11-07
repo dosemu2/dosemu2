@@ -1141,22 +1141,19 @@ static void Gen_sim(int op, int mode, ...)
 		signed char o = Offs_From_Arg();
 		GTRACE1("O_XCHG",o);
 		if (mode & MBYTE) {
+			DR2.b.bl = DR1.b.bl;
 			DR1.b.bl = CPUBYTE(o);
-			DR2.b.bl = *AR1.pu;
 			CPUBYTE(o) = DR2.b.bl;
-			*AR1.pu = DR1.b.bl;
 		}
 		else if (mode & DATA16) {
+			DR2.w.l = DR1.w.l;
 			DR1.w.l = CPUWORD(o);
-			DR2.w.l = *AR1.pwu;
 			CPUWORD(o) = DR2.w.l;
-			*AR1.pwu = DR1.w.l;
 		}
 		else {
+			DR2.d = DR1.d;
 			DR1.d = CPULONG(o);
-			DR2.d = *AR1.pdu;
 			CPULONG(o) = DR2.d;
-			*AR1.pdu = DR1.d;
 		} }
 		break;
 	case O_XCHG_R: {
@@ -1165,21 +1162,18 @@ static void Gen_sim(int op, int mode, ...)
 		GTRACE2("O_XCHG_R",o1,o2);
 		if (mode & MBYTE) {
 			DR1.b.bl = CPUBYTE(o1);
-			DR2.b.bl = CPUBYTE(o2);
+			CPUBYTE(o1) = CPUBYTE(o2);
 			CPUBYTE(o2) = DR1.b.bl;
-			CPUBYTE(o1) = DR2.b.bl;
 		}
 		else if (mode & DATA16) {
 			DR1.w.l = CPUWORD(o1);
-			DR2.w.l = CPUWORD(o2);
+			CPUWORD(o1) = CPUWORD(o2);
 			CPUWORD(o2) = DR1.w.l;
-			CPUWORD(o1) = DR2.w.l;
 		}
 		else {
 			DR1.d = CPULONG(o1);
-			DR2.d = CPULONG(o2);
+			CPULONG(o1) = CPULONG(o2);
 			CPULONG(o2) = DR1.d;
-			CPULONG(o1) = DR2.d;
 		} }
 		break;
 
