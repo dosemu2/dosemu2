@@ -1076,13 +1076,13 @@ static void Gen_sim(int op, int mode, ...)
 	case O_NOT:		// no flags
 		GTRACE0("O_NOT");
 		if (mode & MBYTE) {
-			*AR1.pu = ~*AR1.pu;
+			DR1.b.bl = ~DR1.b.bl;
 		}
 		else if (mode & DATA16) {
-			*AR1.pwu = ~*AR1.pwu;
+			DR1.w.l = ~DR1.w.l;
 		}
 		else {
-			*AR1.pdu = ~*AR1.pdu;
+			DR1.d = ~DR1.d;
 		}
 		break;
 	case O_NEG:		// OSZAPC
@@ -1091,13 +1091,13 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_SUB;
 		RFL.S1 = 0;
 		if (mode & MBYTE) {
-			*AR1.pu = RFL.RES.d = -(RFL.S2=*AR1.pu);
+			DR1.b.bl = RFL.RES.d = -(RFL.S2=DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-			*AR1.pwu = RFL.RES.d = -(RFL.S2=*AR1.pwu);
+			DR1.w.l = RFL.RES.d = -(RFL.S2=DR1.w.l);
 		}
 		else {
-			*AR1.pdu = RFL.RES.d = -(RFL.S2=*AR1.pdu);
+			DR1.d = RFL.RES.d = -(RFL.S2=DR1.d);
 		}
 		SET_CF(RFL.S2!=0);
 		break;
@@ -1190,20 +1190,20 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) {
 		    DR1.w.l =
-			(unsigned int)CPUBYTE(Ofs_AL) * (unsigned int)*AR1.pu;
+			(unsigned int)CPUBYTE(Ofs_AL) * (unsigned int)DR1.b.bl;
 		    CPUWORD(Ofs_AX) = DR1.w.l;
 		    of = (DR1.b.bh != 0);
 		}
 		else if (mode&DATA16) {
 		    DR1.d =
-			(unsigned int)CPUWORD(Ofs_AX) * (unsigned int)*AR1.pwu;
+			(unsigned int)CPUWORD(Ofs_AX) * (unsigned int)DR1.w.l;
 		    CPUWORD(Ofs_AX) = DR1.w.l;
 		    CPUWORD(Ofs_DX) = DR1.w.h;
 		    of = (DR1.w.h != 0);
 		}
 		else {
 		    u_int64_u v;
-		    v.td = (u_int64_t)CPULONG(Ofs_EAX) * (u_int64_t)*AR1.pdu;
+		    v.td = (u_int64_t)CPULONG(Ofs_EAX) * (u_int64_t)DR1.d;
 		    CPULONG(Ofs_EAX) = v.t.tl;
 		    CPULONG(Ofs_EDX) = v.t.th;
 		    of = (v.t.th != 0);
@@ -1226,7 +1226,7 @@ static void Gen_sim(int op, int mode, ...)
 			int b = va_arg(ap, int);
 			signed char o = Offs_From_Arg();
 			GTRACE3("O_IMUL",o,0xff,b);
-			DR1.ds = (int)*AR1.pws * b;
+			DR1.ds = (int)DR1.ws.l * b;
 			CPUWORD(o) = DR1.w.l;
 			DR1.ds >>= 15;
 			of = ((DR1.ds!=0) && (DR1.ds!=0xffffffff));
@@ -1236,7 +1236,7 @@ static void Gen_sim(int op, int mode, ...)
 			signed char o = Offs_From_Arg();
 			int64_u v;
 			GTRACE3("O_IMUL",o,0xff,b);
-			v.td = *AR1.pds;
+			v.td = DR1.ds;
 			v.td *= b;
 			CPULONG(o) = v.t.tl;
 			v.td >>= 31;
@@ -1256,7 +1256,7 @@ static void Gen_sim(int op, int mode, ...)
 			int b = va_arg(ap, int);
 			signed char o = Offs_From_Arg();
 			GTRACE3("O_IMUL",o,0xff,b);
-		    	DR1.ds = (int)*AR1.pws * b;
+		    	DR1.ds = (int)DR1.ws.l * b;
 		    	CPUWORD(o) = DR1.w.l;
 			DR1.ds >>= 15;
 			of = ((DR1.ds!=0) && (DR1.ds!=0xffffffff));
@@ -1264,7 +1264,7 @@ static void Gen_sim(int op, int mode, ...)
 		    else if (mode&MEMADR) {
 			signed char o = Offs_From_Arg();
 			GTRACE1("O_IMUL",o);
-			DR1.ds = (int)CPUWORD(o) * (int)*AR1.pws;
+			DR1.ds = (int)CPUWORD(o) * (int)DR1.ws.l;
 			CPUWORD(o) = DR1.w.l;
 			DR1.ds >>= 15;
 			of = ((DR1.ds!=0) && (DR1.ds!=0xffffffff));
@@ -1272,7 +1272,7 @@ static void Gen_sim(int op, int mode, ...)
 		    else {
 		    	GTRACE0("O_IMUL");
 			DR1.ds =
-			    (int)CPUWORD(Ofs_AX) * (int)*AR1.pws;
+			    (int)CPUWORD(Ofs_AX) * (int)DR1.ws.l;
 			CPUWORD(Ofs_AX) = DR1.w.l;
 			CPUWORD(Ofs_DX) = DR1.w.h;
 			DR1.ds = (DR1.ds >> 15) & 3;	// bits 15,16(ext)
@@ -1285,7 +1285,7 @@ static void Gen_sim(int op, int mode, ...)
 			signed char o = Offs_From_Arg();
 			int64_u v;
 			GTRACE3("O_IMUL",o,0xff,b);
-			v.td = (int64_t)*AR1.pds;
+			v.td = (int64_t)DR1.ds;
 			v.td *= b;
 			CPULONG(o) = v.t.tl;
 			v.td >>= 31;
@@ -1296,7 +1296,7 @@ static void Gen_sim(int op, int mode, ...)
 			int64_u v;
 			int vd = CPULONG(o);
 			GTRACE1("O_IMUL",o);
-			v.td = (int64_t)*AR1.pds;
+			v.td = (int64_t)DR1.ds;
 			v.td *= (int64_t)vd;
 			CPULONG(o) = v.t.tl;
 			v.td >>= 31;
@@ -1306,7 +1306,7 @@ static void Gen_sim(int op, int mode, ...)
 			int64_u v;
 			int vd = CPULONG(Ofs_EAX);
 		    	GTRACE0("O_IMUL");
-			v.td = (int64_t)vd * (int64_t)*AR1.pds;
+			v.td = (int64_t)vd * (int64_t)DR1.ds;
 			CPULONG(Ofs_EAX) = v.t.tl;
 			CPULONG(Ofs_EDX) = v.t.th;
 			v.td >>= 31;			// b31->b0
@@ -1330,7 +1330,7 @@ static void Gen_sim(int op, int mode, ...)
 			RFL.RES.w.h = 0;
 			/* exception trap: save current PC */
 			CPULONG(Ofs_CR2) = va_arg(ap,int);
-			RFL.S1 = *AR1.pu;
+			RFL.S1 = DR1.b.bl;
 			if (RFL.S1==0)
 			    TheCPU.err = EXCP00_DIVZ;
 			else {
@@ -1344,7 +1344,7 @@ static void Gen_sim(int op, int mode, ...)
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
 				/* exception trap: save current PC */
 				CPULONG(Ofs_CR2) = va_arg(ap,int);
-				RFL.S1 = *AR1.pwu;
+				RFL.S1 = DR1.w.l;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
@@ -1359,7 +1359,7 @@ static void Gen_sim(int op, int mode, ...)
 				v.t.th = CPULONG(Ofs_EDX);
 				/* exception trap: save current PC */
 				CPULONG(Ofs_CR2) = va_arg(ap,int);
-				RFL.S1 = *AR1.pdu;
+				RFL.S1 = DR1.d;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
@@ -1378,7 +1378,7 @@ static void Gen_sim(int op, int mode, ...)
 			RFL.RES.d = (signed short)CPUWORD(Ofs_AX);
 			/* exception trap: save current PC */
 			CPULONG(Ofs_CR2) = va_arg(ap,int);
-			RFL.S1 = *AR1.ps;
+			RFL.S1 = DR1.bs.bl;
 			if (RFL.S1==0)
 			    TheCPU.err = EXCP00_DIVZ;
 	    		else {
@@ -1392,7 +1392,7 @@ static void Gen_sim(int op, int mode, ...)
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
 				/* exception trap: save current PC */
 				CPULONG(Ofs_CR2) = va_arg(ap,int);
-				RFL.S1 = *AR1.pws;
+				RFL.S1 = DR1.ws.l;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
@@ -1407,7 +1407,7 @@ static void Gen_sim(int op, int mode, ...)
 				v.t.th = CPULONG(Ofs_EDX);
 				/* exception trap: save current PC */
 				CPULONG(Ofs_CR2) = va_arg(ap,int);
-				RFL.S1 = *AR1.pdu;
+				RFL.S1 = DR1.d;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {

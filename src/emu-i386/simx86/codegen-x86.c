@@ -673,25 +673,25 @@ arith1:
 		break;
 	case O_NOT:
 		if (mode & MBYTE) {
-			// notb (%%edi)
-			G2M(0xf6,0x17,Cp);
+			// notb %%al
+			G2M(0xf6,0xd0,Cp);
 		}
 		else {
-			// NOT{wl} (%%edi)
+			// NOT{wl} %%(e)ax
 			Gen66(mode,Cp);
-			G2M(0xf7,0x17,Cp);
+			G2M(0xf7,0xd0,Cp);
 		}
 		break;
 	case O_NEG:
 		G1(POPF,Cp);	// get flags from stack
 		if (mode & MBYTE) {
-			// negb (%%edi)
-			G2M(0xf6,0x1f,Cp);
+			// negb %%al
+			G2M(0xf6,0xd8,Cp);
 		}
 		else {
 			// neg{wl} (%%edi)
 			Gen66(mode,Cp);
-			G2M(0xf7,0x1f,Cp);
+			G2M(0xf7,0xd8,Cp);
 		}
 		G1(PUSHF,Cp);	// flags back on stack
 		break;
@@ -790,28 +790,22 @@ arith1:
 	case O_MUL:
 		G1(POPF,Cp);	// get flags from stack
 		if (mode & MBYTE) {
-			// movb Ofs_AL(%%ebx),%%al
-			G3M(0x8a,0x43,Ofs_AL,Cp);
-			// mulb (%%edi),%%al
-			G2M(0xf6,0x27,Cp);
+			// mulb Ofs_AL(%%ebx),%%al
+			G3M(0xf6,0x63,Ofs_AL,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
 			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 		}
 		else if (mode&DATA16) {
-			// movw Ofs_AX(%%ebx),%%ax
-			G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
-			// mulw (%%edi),%%ax
-			G3M(OPERoverride,0xf7,0x27,Cp);
+			// mulw Ofs_AX(%%ebx),%%ax
+			G4M(OPERoverride,0xf7,0x63,Ofs_AX,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
 			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 			// movw %%dx,Ofs_DX(%%ebx)
 			G4M(OPERoverride,0x89,0x53,Ofs_DX,Cp);
 		}
 		else {
-			// movl Ofs_EAX(%%ebx),%%eax
-			G3M(0x8b,0x43,Ofs_EAX,Cp);
-			// mull (%%edi),%%eax
-			G2M(0xf7,0x27,Cp);
+			// mull Ofs_EAX(%%ebx),%%eax
+			G3M(0xf7,0x63,Ofs_EAX,Cp);
 			// movl %%eax,Ofs_EAX(%%ebx)
 			G3M(0x89,0x43,Ofs_EAX,Cp);
 			// movl %%edx,Ofs_EDX(%%ebx)
@@ -823,52 +817,41 @@ arith1:
 		G1(POPF,Cp);	// get flags from stack
 		if (mode & MBYTE) {
 			if ((mode&(IMMED|DATA16))==(IMMED|DATA16)) {
-              			// movw (%%edi),%%dx
-				G3M(OPERoverride,0x8b,0x17,Cp);
-				// imul $immed,%%dx,%%ax
-				G3M(OPERoverride,0x6b,0xc2,Cp); G1(IG->p0,Cp);
+				// imul $immed,%%ax,%%ax
+				G3M(OPERoverride,0x6b,0xc0,Cp); G1(IG->p0,Cp);
 				// movw %%ax,offs(%%ebx)
 				G4M(OPERoverride,0x89,0x43,IG->p1,Cp);
 			}
 			else if ((mode&(IMMED|DATA16))==IMMED) {
-              			// movl (%%edi),%%edx
-				G2M(0x8b,0x17,Cp);
-				// imul $immed,%%edx,%%eax
-				G2M(0x6b,0xc2,Cp); G1(IG->p0,Cp);
+				// imul $immed,%%eax,%%eax
+				G2M(0x6b,0xc0,Cp); G1(IG->p0,Cp);
 				// movl %%eax,offs(%%ebx)
 				G3M(0x89,0x43,IG->p1,Cp);
 			}
 			else {
-				// movb Ofs_AL(%%ebx),%%al
-				G3M(0x8a,0x43,Ofs_AL,Cp);
-				// imul (%%edi),%%al
-				G2M(0xf6,0x2f,Cp);
+				// imul Ofs_AL(%%ebx),%%al
+				G3M(0xf6,0x6b,Ofs_AL,Cp);
 				// movw %%ax,Ofs_AX(%%ebx)
 				G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 			}
 		}
 		else if (mode&DATA16) {
 			if (mode&IMMED) {
-              			// movw (%%edi),%%dx
-				G3M(OPERoverride,0x8b,0x17,Cp);
-				// imul $immed,%%dx,%%ax
-				G3M(OPERoverride,0x69,0xc2,Cp); G2(IG->p0,Cp);
+				// imul $immed,%%ax,%%ax
+				G3M(OPERoverride,0x69,0xc0,Cp); G2(IG->p0,Cp);
 				// movw %%ax,offs(%%ebx)
 				G4M(OPERoverride,0x89,0x43,IG->p1,Cp);
 			}
 			else if (mode&MEMADR) {
-				// movw offs(%%ebx),%%ax
-				G4M(OPERoverride,0x8b,0x43,IG->p0,Cp);
-				// imul (%%edi),%%ax
-				G4M(OPERoverride,0x0f,0xaf,0x07,Cp);
+				// imul offs(%%ebx),%%ax
+				G4M(OPERoverride,0x0f,0xaf,0x43,Cp);
+				G1(IG->p0,Cp);
 				// movw %%ax,offs(%%ebx)
 				G4M(OPERoverride,0x89,0x43,IG->p0,Cp);
 			}
 			else {
-				// movw Ofs_AX(%%ebx),%%ax
-				G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
-				// imul (%%edi),%%ax
-				G3M(OPERoverride,0xf7,0x2f,Cp);
+				// imul Ofs_AX(%%ebx),%%ax
+				G4M(OPERoverride,0xf7,0x6b,Ofs_AX,Cp);
 				// movw %%ax,Ofs_AX(%%ebx)
 				G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 				// movw %%dx,Ofs_DX(%%ebx)
@@ -877,26 +860,20 @@ arith1:
 		}
 		else {
 			if (mode&IMMED) {
-              			// movl (%%edi),%%edx
-				G2M(0x8b,0x17,Cp);
-				// imul $immed,%%edx,%%eax
-				G2M(0x69,0xc2,Cp); G4(IG->p0,Cp);
+				// imul $immed,%%eax,%%eax
+				G2M(0x69,0xc0,Cp); G4(IG->p0,Cp);
 				// movl %%eax,offs(%%ebx)
 				G3M(0x89,0x43,IG->p1,Cp);
 			}
 			else if (mode&MEMADR) {
-				// movl offs(%%ebx),%%eax
-				G3M(0x8b,0x43,IG->p0,Cp);
-				// imul (%%edi),%%eax
-				G3M(0x0f,0xaf,0x07,Cp);
+				// imul offs(%%ebx),%%eax
+				G4M(0x0f,0xaf,0x43,IG->p0,Cp);
 				// movl %%eax,offs(%%ebx)
 				G3M(0x89,0x43,IG->p0,Cp);
 			}
 			else {
-				// movl Ofs_EAX(%%ebx),%%eax
-				G3M(0x8b,0x43,Ofs_EAX,Cp);
-				// imul (%%edi),%%eax
-				G2M(0xf7,0x2f,Cp);
+				// imul Ofs_EAX(%%ebx),%%eax
+				G3M(0xf7,0x6b,Ofs_EAX,Cp);
 				// movl %%eax,Ofs_EAX(%%ebx)
 				G3M(0x89,0x43,Ofs_EAX,Cp);
 				// movl %%edx,Ofs_EDX(%%ebx)
@@ -908,14 +885,15 @@ arith1:
 
 	case O_DIV: {
 		G1(POPF,Cp);	// get flags from stack
+		G2(0xc189,Cp);  // movl %%eax,%%ecx
 		if (mode & MBYTE) {
 			// movw Ofs_AX(%%ebx),%%ax
 			G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2M(0xc7,0x43,Cp); G1(Ofs_CR2,Cp); G4(IG->p0,Cp);
-			// div (%%edi),%%al
-			G2M(0xf6,0x37,Cp);
+			// div %%cl,%%al
+			G2M(0xf6,0xf1,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
 			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 		}
@@ -927,8 +905,8 @@ arith1:
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(IG->p0,Cp);
-			// div (%%edi),%%ax
-			G3M(OPERoverride,0xf7,0x37,Cp);
+			// div %%cx,%%ax
+			G3M(OPERoverride,0xf7,0xf1,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
 			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 			// movw %%dx,Ofs_DX(%%ebx)
@@ -942,8 +920,8 @@ arith1:
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(IG->p0,Cp);
-			// div (%%edi),%%eax
-			G2M(0xf7,0x37,Cp);
+			// div %%ecx,%%eax
+			G2M(0xf7,0xf1,Cp);
 			// movl %%eax,Ofs_EAX(%%ebx)
 			G3M(0x89,0x43,Ofs_EAX,Cp);
 			// movl %%edx,Ofs_EDX(%%ebx)
@@ -954,14 +932,15 @@ arith1:
 		break;
 	case O_IDIV: {
 		G1(POPF,Cp);	// get flags from stack
+		G2(0xc189,Cp);  // movw %%eax,%%ecx
 		if (mode & MBYTE) {
 			// movw Ofs_AX(%%ebx),%%ax
 			G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(IG->p0,Cp);
-			// idiv (%%edi),%%al
-			G2M(0xf6,0x3f,Cp);
+			// idiv %%cl,%%al
+			G2M(0xf6,0xf9,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
 			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 		}
@@ -973,8 +952,8 @@ arith1:
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(IG->p0,Cp);
-			// idiv (%%edi),%%ax
-			G3M(OPERoverride,0xf7,0x3f,Cp);
+			// idiv %%cx,%%ax
+			G3M(OPERoverride,0xf7,0xf9,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
 			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 			// movw %%dx,Ofs_DX(%%ebx)
@@ -988,8 +967,8 @@ arith1:
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(IG->p0,Cp);
-			// idiv (%%edi),%%eax
-			G2M(0xf7,0x3f,Cp);
+			// idiv %%ecx,%%eax
+			G2M(0xf7,0xf9,Cp);
 			// movl %%eax,Ofs_EAX(%%ebx)
 			G3M(0x89,0x43,Ofs_EAX,Cp);
 			// movl %%edx,Ofs_EDX(%%ebx)

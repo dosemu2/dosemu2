@@ -641,11 +641,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break; 
 /*69*/	case IMULwrm:
 			PC += ModRM(opc, PC, mode);
+			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
 			Gen(O_IMUL,mode|IMMED,DataFetchWL_S(mode,PC),REG1);
 			INC_WL_PC(mode, 0);
 			break;
 /*6b*/	case IMULbrm:
 			PC += ModRM(opc, PC, mode);
+			Gen(L_DI_R1, mode|MBYTE);		// mov al,[edi]
 			Gen(O_IMUL,mode|MBYTE|IMMED,(signed char)Fetch(PC),REG1);
 			PC++;
 			break;
@@ -1708,18 +1710,20 @@ repag0:
 			break;
 /*f6*/	case GRP1brm: {
 			PC += ModRM(opc, PC, mode|MBYTE);	// EDI=mem
+			Gen(L_DI_R1, mode|MBYTE);		// mov al,[edi]
 			switch(REG1) {
 			case Ofs_AL:	/*0*/	/* TEST */
 			case Ofs_CL:	/*1*/	/* undocumented */
-				Gen(L_DI_R1, mode|MBYTE);		// mov al,[edi]
 				Gen(O_AND_R, mode|MBYTE|IMMED, Fetch(PC));	// op al,#imm
 				PC++;
 				break;
 			case Ofs_DL:	/*2*/	/* NOT */
-				Gen(O_NOT, mode|MBYTE);			// not [edi]
+				Gen(O_NOT, mode|MBYTE);			// not al
+				Gen(S_DI, mode|MBYTE);
 				break;
 			case Ofs_BL:	/*3*/	/* NEG */
-				Gen(O_NEG, mode|MBYTE);			// neg [edi]
+				Gen(O_NEG, mode|MBYTE);			// neg al
+				Gen(S_DI, mode|MBYTE);
 				break;
 			case Ofs_AH:	/*4*/	/* MUL AL */
 				Gen(O_MUL, mode|MBYTE);			// al*[edi]->AX unsigned
@@ -1737,18 +1741,20 @@ repag0:
 			break;
 /*f7*/	case GRP1wrm: {
 			PC += ModRM(opc, PC, mode);			// EDI=mem
+			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
 			switch(REG1) {
 			case Ofs_AX:	/*0*/	/* TEST */
 			case Ofs_CX:	/*1*/	/* undocumented */
-				Gen(L_DI_R1, mode);		// mov al,[edi]
 				Gen(O_AND_R, mode|IMMED, DataFetchWL_U(mode,PC));	// op al,#imm
 				INC_WL_PC(mode,0);
 				break;
 			case Ofs_DX:	/*2*/	/* NOT */
-				Gen(O_NOT, mode);			// not [edi]
+				Gen(O_NOT, mode);			// not (e)ax
+				Gen(S_DI, mode);
 				break;
 			case Ofs_BX:	/*3*/	/* NEG */
-				Gen(O_NEG, mode);			// neg [edi]
+				Gen(O_NEG, mode);			// neg (e)ax
+				Gen(S_DI, mode);
 				break;
 			case Ofs_SP:	/*4*/	/* MUL AX */
 				Gen(O_MUL, mode);			// (e)ax*[edi]->(E)DX:(E)AX unsigned
@@ -2577,6 +2583,7 @@ repag0:
 			/* case 0xae:	Code Extension 24(MMX) */
 			case 0xaf: /* IMULregrm */
 				PC++; PC += ModRM(opc, PC, mode);
+				Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
 				Gen(O_IMUL, mode|MEMADR, REG1);	// reg*[edi]->reg signed
 				break;
 			case 0xb0:
