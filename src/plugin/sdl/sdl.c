@@ -17,6 +17,7 @@
 #include <SDL_syswm.h>
 
 #include "emu.h"
+#include "timers.h"
 #include "init.h"
 #include "bios.h"
 #include "video.h"
@@ -665,9 +666,11 @@ static void SDL_handle_events(void)
 	 if (event.active.gain == 1) {
 	   v_printf("SDL: focus in\n");
 	   if (vga.mode_class == TEXT) text_gain_focus();
+	   if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
 	 } else {
 	   v_printf("SDL: focus out\n");
 	   if (vga.mode_class == TEXT) text_lose_focus();
+	   if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	 }
        } else if (event.active.state == SDL_APPMOUSEFOCUS) {
 	 if (event.active.gain == 1) {
