@@ -538,8 +538,8 @@ static void CodeGen(IMeta *I, int j)
 	    	    // add $0c,%%esp; nop; nop
 		    G4(0x900cc483,Cp); G1(0x90,Cp);
 #endif
-	    	    // jmp (skip normal read)
-		    G2(0x05eb,Cp);
+	    	    // jmp (skip normal write)
+		    G2(0x03eb,Cp);
 		}
 		if (mode&MBYTE) {
 		    STD_WRITE_B;
