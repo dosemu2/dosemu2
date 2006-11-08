@@ -492,10 +492,12 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		 * linked by Cpatch will do it */
 		/* ACH: we can set up a data patch for code
 		 * which has not yet been executed! */
-		if (InCompiledCode && Cpatch(scp)) return 1;
+		/* XXX doesn't seem to work very well with DPMI code */
+		if (InCompiledCode && _cr2 < 0x110000 && Cpatch(scp))
+		    return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
-		InvalidateNodePage(_cr2, 0, _eip, &codehit);
+		InvalidateNodePage(_cr2, 0, _rip, &codehit);
 		e_munprotect((void *)_cr2, 0);
 		/* now go back and perform the faulting op */
 		return 1;
