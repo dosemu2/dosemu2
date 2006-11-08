@@ -103,7 +103,7 @@ EXTERN volatile int in_vm86 INIT(0);
 EXTERN int scanseq;
 
 void dos_ctrl_alt_del(void);	/* disabled */
-extern jmp_buf NotJEnv;
+extern sigjmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
 EXTERN void loopstep_run_vm86(void);

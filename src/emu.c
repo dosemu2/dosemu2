@@ -131,7 +131,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "cpu-emu.h"
 #endif
 
-jmp_buf NotJEnv;
+sigjmp_buf NotJEnv;
 
 void 
 boot(void)
