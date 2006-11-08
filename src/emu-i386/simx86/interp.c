@@ -647,7 +647,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*6b*/	case IMULbrm:
 			PC += ModRM(opc, PC, mode);
-			Gen(L_DI_R1, mode|MBYTE);		// mov al,[edi]
+			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
 			Gen(O_IMUL,mode|MBYTE|IMMED,(signed char)Fetch(PC),REG1);
 			PC++;
 			break;

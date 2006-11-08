@@ -1239,7 +1239,7 @@ static void Gen_sim(int op, int mode, ...)
 		    else {
 		    	GTRACE0("O_IMUL");
 			DR1.ds =
-			    (int)CPUBYTE(Ofs_AL) * (int)*AR1.ps;
+			    (int)CPUBYTE(Ofs_AL) * (int)DR1.bs.bl;
 			CPUWORD(Ofs_AX) = DR1.w.l;
 			DR1.ds = (DR1.ds >> 7) & 3;	// bits 7,8(ext)
 			of = ((DR1.ds!=0) && (DR1.ds!=3));
