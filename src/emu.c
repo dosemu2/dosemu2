@@ -319,7 +319,7 @@ emulate(int argc, char **argv)
     memset(&config, 0, sizeof(config));
     cstack = &signalstack;
 
-    if ((e=setjmp(NotJEnv))) {
+    if ((e=sigsetjmp(NotJEnv, 1))) {
         flush_log();
     	fprintf(stderr,"EMERGENCY JUMP %x!!!\n",e);
     	/* there's no other way to stop a signal 11 from hanging dosemu
@@ -468,7 +468,7 @@ leavedos(int sig)
        error("leavedos called recursively, forgetting the graceful exit!\n");
        gdb_debug();
        flush_log();
-       longjmp(NotJEnv, sig);
+       siglongjmp(NotJEnv, sig);
       }
     in_leavedos++;
     dbug_printf("leavedos(%d|0x%x) called - shutting down\n", sig, sig);
