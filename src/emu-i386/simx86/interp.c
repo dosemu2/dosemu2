@@ -179,7 +179,7 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 	d_t  = ((long)P2 - LONG_CS) + dsp;
 	/* displacement for not taken branch */
 	d_nt = ((long)P2 - LONG_CS) + pskip;
-	if (mode&ADDR16) { d_t &= 0xffff; d_nt &= 0xffff; }
+	if (mode&DATA16) { d_t &= 0xffff; d_nt &= 0xffff; }
 
 	/* jump address for taken branch */
 	j_t  = d_t  + LONG_CS;
