@@ -101,9 +101,9 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 static int MAKESEG(int mode, int ofs, unsigned short sv)
 {
 	static SDTR *ofsseg[] = {
-		NULL,   &GS_DTR,&FS_DTR,&ES_DTR,&DS_DTR,NULL,NULL,NULL,
+		NULL,   NULL,   NULL,   &GS_DTR,&FS_DTR,&ES_DTR,&DS_DTR,NULL,
 		NULL,   NULL,   NULL,   NULL,   NULL,   NULL,NULL,NULL,
-		&CS_DTR,NULL,   NULL,   &SS_DTR,NULL,   NULL,NULL,NULL };
+		NULL,   NULL,   &CS_DTR,NULL,   &SS_DTR,NULL,NULL,NULL };
 	SDTR tseg, *segc;
 	int e;
 	char big;
