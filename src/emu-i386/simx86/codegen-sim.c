@@ -1223,26 +1223,25 @@ static void Gen_sim(int op, int mode, ...)
 			DR1.ds = (int)DR1.ws.l * b;
 			CPUWORD(o) = DR1.w.l;
 			DR1.ds >>= 15;
-			of = ((DR1.ds!=0) && (DR1.ds!=0xffffffff));
+			of = ((DR1.ds!=0) && (DR1.ds!=-1));
 		    }
 		    else if ((mode&(IMMED|DATA16))==IMMED) {
 			int b = va_arg(ap, int);
 			signed char o = Offs_From_Arg();
-			int64_u v;
+			int64_t v;
 			GTRACE3("O_IMUL",o,0xff,b);
-			v.td = DR1.ds;
-			v.td *= b;
-			CPULONG(o) = v.t.tl;
-			v.td >>= 31;
-			of = (v.t.tl != v.t.th);
+			v = (int64_t)DR1.ds * b;
+			CPULONG(o) = v & 0xffffffff;
+			v >>= 31;
+			of = ((v != 0) && (v != -1));
 		    }
 		    else {
 		    	GTRACE0("O_IMUL");
 			DR1.ds =
-			    (int)CPUBYTE(Ofs_AL) * (int)DR1.bs.bl;
+			    (int)(signed char)CPUBYTE(Ofs_AL) * (int)DR1.bs.bl;
 			CPUWORD(Ofs_AX) = DR1.w.l;
-			DR1.ds = (DR1.ds >> 7) & 3;	// bits 7,8(ext)
-			of = ((DR1.ds!=0) && (DR1.ds!=3));
+			DR1.ds >>= 7;	// AX sign extend of AL?
+			of = ((DR1.ds!=0) && (DR1.ds!=-1));
 		    }
 		}
 		else if (mode&DATA16) {
@@ -1252,60 +1251,48 @@ static void Gen_sim(int op, int mode, ...)
 			GTRACE3("O_IMUL",o,0xff,b);
 		    	DR1.ds = (int)DR1.ws.l * b;
 		    	CPUWORD(o) = DR1.w.l;
-			DR1.ds >>= 15;
-			of = ((DR1.ds!=0) && (DR1.ds!=0xffffffff));
 		    }
 		    else if (mode&MEMADR) {
 			signed char o = Offs_From_Arg();
 			GTRACE1("O_IMUL",o);
-			DR1.ds = (int)CPUWORD(o) * (int)DR1.ws.l;
+			DR1.ds = (int)(signed short)CPUWORD(o) * (int)DR1.ws.l;
 			CPUWORD(o) = DR1.w.l;
-			DR1.ds >>= 15;
-			of = ((DR1.ds!=0) && (DR1.ds!=0xffffffff));
 		    }
 		    else {
 		    	GTRACE0("O_IMUL");
 			DR1.ds =
-			    (int)CPUWORD(Ofs_AX) * (int)DR1.ws.l;
+			    (int)(signed short)CPUWORD(Ofs_AX) * (int)DR1.ws.l;
 			CPUWORD(Ofs_AX) = DR1.w.l;
 			CPUWORD(Ofs_DX) = DR1.w.h;
-			DR1.ds = (DR1.ds >> 15) & 3;	// bits 15,16(ext)
-			of = ((DR1.ds!=0) && (DR1.ds!=3));
 		    }
+		    DR1.ds >>= 15;	// DX:AX sign extend of AX?
+		    of = ((DR1.ds!=0) && (DR1.ds!=-1));
 		}
 		else {
+		    int64_t v;
 		    if (mode&IMMED) {
 			int b = va_arg(ap, int);
 			signed char o = Offs_From_Arg();
-			int64_u v;
 			GTRACE3("O_IMUL",o,0xff,b);
-			v.td = (int64_t)DR1.ds;
-			v.td *= b;
-			CPULONG(o) = v.t.tl;
-			v.td >>= 31;
-			of = (v.t.tl != v.t.th);
+			v = (int64_t)DR1.ds * b;
+			CPULONG(o) = v & 0xffffffff;
 		    }
 		    else if (mode&MEMADR) {
 			signed char o = Offs_From_Arg();
-			int64_u v;
 			int vd = CPULONG(o);
 			GTRACE1("O_IMUL",o);
-			v.td = (int64_t)DR1.ds;
-			v.td *= (int64_t)vd;
-			CPULONG(o) = v.t.tl;
-			v.td >>= 31;
-			of = (v.t.tl != v.t.th);
+			v = (int64_t)DR1.ds * (int64_t)vd;
+			CPULONG(o) = v & 0xffffffff;
 		    }
 		    else {
-			int64_u v;
 			int vd = CPULONG(Ofs_EAX);
 		    	GTRACE0("O_IMUL");
-			v.td = (int64_t)vd * (int64_t)DR1.ds;
-			CPULONG(Ofs_EAX) = v.t.tl;
-			CPULONG(Ofs_EDX) = v.t.th;
-			v.td >>= 31;			// b31->b0
-			of = ((v.t.tl ^ v.t.th) & 1);	// b31==b32?
+			v = (int64_t)vd * (int64_t)DR1.ds;
+			CPULONG(Ofs_EAX) = v & 0xffffffff;
+			CPULONG(Ofs_EDX) = (v >> 32) & 0xffffffff;
 		    }
+		    v >>= 31;		// EDX:EAX sign extend of EAX?
+		    of = ((v != 0) && (v != -1));
 		}
 		if (of) {
 		    SET_CF(1);
@@ -1357,8 +1344,8 @@ static void Gen_sim(int op, int mode, ...)
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    rem = v.td % RFL.S1;
-				    v.td /= RFL.S1;
+				    rem = v.td % (unsigned)RFL.S1;
+				    v.td /= (unsigned)RFL.S1;
 				    // if (v.t.th) excp(div_by_zero);
 				    CPULONG(Ofs_EAX) = RFL.RES.d = v.t.tl;
 				    CPULONG(Ofs_EDX) = rem;
@@ -1369,15 +1356,15 @@ static void Gen_sim(int op, int mode, ...)
 	case O_IDIV:		// no flags
 		GTRACE0("O_IDIV");
 		if (mode & MBYTE) {
-			RFL.RES.d = (signed short)CPUWORD(Ofs_AX);
+			RFL.RES.ds = (signed short)CPUWORD(Ofs_AX);
 			/* exception trap: save current PC */
 			CPULONG(Ofs_CR2) = va_arg(ap,int);
 			RFL.S1 = DR1.bs.bl;
 			if (RFL.S1==0)
 			    TheCPU.err = EXCP00_DIVZ;
 	    		else {
-			    CPUBYTE(Ofs_AL) = RFL.RES.d / RFL.S1;
-			    CPUBYTE(Ofs_AH) = RFL.RES.d % RFL.S1;
+			    CPUBYTE(Ofs_AL) = RFL.RES.ds / RFL.S1;
+			    CPUBYTE(Ofs_AH) = RFL.RES.ds % RFL.S1;
 			}
 		}
 		else {
@@ -1390,25 +1377,25 @@ static void Gen_sim(int op, int mode, ...)
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    CPUWORD(Ofs_AX) = RFL.RES.d / RFL.S1;
-				    CPUWORD(Ofs_DX) = RFL.RES.d % RFL.S1;
+				    CPUWORD(Ofs_AX) = RFL.RES.ds / RFL.S1;
+				    CPUWORD(Ofs_DX) = RFL.RES.ds % RFL.S1;
 		    		}
 			}
 			else {
-				int64_u v;
+				int64_t v;
 				long rem;
-				v.t.tl = CPULONG(Ofs_EAX);
-				v.t.th = CPULONG(Ofs_EDX);
+				v = CPULONG(Ofs_EAX) |
+				  ((int64_t)CPULONG(Ofs_EDX) << 32);
 				/* exception trap: save current PC */
 				CPULONG(Ofs_CR2) = va_arg(ap,int);
 				RFL.S1 = DR1.d;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    rem = v.td % RFL.S1;
-				    v.td /= RFL.S1;
-				    // if (((v.t.th+1)&(-2))!=0) excp(div_by_zero);
-				    CPULONG(Ofs_EAX) = RFL.RES.d = v.t.tl;
+				    rem = v % RFL.S1;
+				    v /= RFL.S1;
+				    // if ((((unsigned)(v>>32)+1)&(-2))!=0) excp(div_by_zero);
+				    CPULONG(Ofs_EAX) = RFL.RES.d = v & 0xffffffff;
 				    CPULONG(Ofs_EDX) = rem;
 		    		}
 			}
@@ -1777,6 +1764,7 @@ static void Gen_sim(int op, int mode, ...)
 					cy = 1;
 				}
 				SET_CF(cy);
+				RFL.RES.d = DR1.bs.bl; /* for flags */
 				}
 				break;
 			case DAS: {
@@ -1794,6 +1782,7 @@ static void Gen_sim(int op, int mode, ...)
 					cy = 1;
 				}
 				SET_CF(cy);
+				RFL.RES.d = DR1.bs.bl; /* for flags */
 				}
 				break;
 			case AAA: {
@@ -1826,17 +1815,17 @@ static void Gen_sim(int op, int mode, ...)
 				char tmp = DR1.b.bl;
 				int base = Offs_From_Arg();
 				DR1.b.bh = tmp / base;
-				RFL.RES.d = DR1.b.bl = tmp % base;
+				RFL.RES.d = DR1.bs.bl = tmp % base;
 				}
 				break;
 			case AAD: {
 				int base = Offs_From_Arg();
 				DR1.w.l = ((DR1.b.bh * base) + DR1.b.bl) & 0xff;
-				RFL.RES.d = DR1.b.bl; /* for flags */
+				RFL.RES.d = DR1.bs.bl; /* for flags */
 				}
 				break;
 		}
-		CPULONG(Ofs_EAX) = RFL.RES.d = DR1.d;
+		CPULONG(Ofs_EAX) = DR1.d;
 		}
 		break;
 

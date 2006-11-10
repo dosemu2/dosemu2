@@ -1424,7 +1424,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			INC_WL_PC(mode,0);
 			break;
 /*c8*/	case ENTER: {
-			unsigned long sp, bp, frm;
+			unsigned int sp, bp, frm;
 			int level, ds;
 			CODE_FLUSH();
 			level = Fetch(PC+3) & 0x1f;
@@ -1434,12 +1434,10 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			PUSH(mode, &rEBP);
 			frm = sp - LONG_SS;
 			if (level) {
-				sp -= (ds + ds*level);
-				while (level--) {
-					unsigned long tmp;
+				sp -= ds*level;
+				while (--level) {
 					bp -= ds;
-					tmp = bp - LONG_SS;
-					PUSH(mode, &tmp);
+					PUSH(mode, (void *)(uintptr_t)bp);
 				}
 				PUSH(mode, &frm);
 			}

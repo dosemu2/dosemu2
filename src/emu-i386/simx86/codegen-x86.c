@@ -1904,7 +1904,9 @@ shrot0:
 		case 0x1d: /* BSR */
 			// OP{wl} %%{e}ax,(%%edi)
 			Gen66(mode,Cp); G3M(0x0f,(n+0xa0),0x07,Cp);
-			// mov{wl} %%{e}ax,offs(%%ebx)
+			// jz 1f
+			G2M(0x74,(mode&DATA16)?0x04:0x03,Cp);
+			// mov{wl} %%{e}ax,offs(%%ebx) 1:
 			Gen66(mode,Cp); G3M(0x89,0x43,IG->p1,Cp);
 			break;
 		case 0x20: /* BT  imm8 */

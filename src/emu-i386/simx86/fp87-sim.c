@@ -411,7 +411,13 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	6A.1	DA 11101001	FUCOMPP
 		WFR0 = *ST0;
 		WFR1 = *STn(reg);
-		//G2M(0xda,0xe9,Cp);	// fucompp
+		TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+		if (WFR0 < WFR1)
+		    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+			else if (WFR0 == WFR1)
+			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+		    /* else if (WFR0 > WFR1)  do nothing */
+		    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
 		if (exop==0x6a) INCFSP;
 		if (exop>=0x6a) INCFSP;
 		break;
