@@ -156,7 +156,7 @@ fi
 dnl Check for static and then also use it for tests
 
 LDFLAGS="$LDFLAGS -Wl,-warn-common"
-LIBS="$LIBS -ldl"
+LIBS="$LIBS -ldl -lm"
 X_LIBS=""
 
 AC_ARG_ENABLE(linkstatic,

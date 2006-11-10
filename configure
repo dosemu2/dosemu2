@@ -7893,7 +7893,7 @@ fi
 
 
 LDFLAGS="$LDFLAGS -Wl,-warn-common"
-LIBS="$LIBS -ldl"
+LIBS="$LIBS -ldl -lm"
 X_LIBS=""
 
 # Check whether --enable-linkstatic was given.
