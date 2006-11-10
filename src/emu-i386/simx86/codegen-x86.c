@@ -1065,10 +1065,9 @@ shrot0:
 			case DAA:
 			case DAS: {
 				int op = (IG->p1 == DAS ? 0x28 : 0);
-				// pushf; mov %al,%cl; add/sub $0x66,%al
-				G1(0x9c,Cp); G4M(0x88,0xc1,op+0x04,0x66,Cp);
-				{
 				const static char pseq[] = {
+				// pushf; mov %al,%cl; add $0x66,%al
+				0x9c,0x88,0xc1,0x04,0x66,
 				// pushf; pop %rax; pop %rdx
 				0x9c,0x58,0x5a,
 				// or %dl,%al; and $0x11,%al // combine AF/CF
@@ -1077,8 +1076,8 @@ shrot0:
 				0x88,0xc2,0xc0,0xc0,0x04,
 				// imul $6,%eax // multiply 0 CF 0 0 0 AF by 6
 				0x6b,0xc0,0x06};
+
 				GNX(Cp, pseq, sizeof(pseq));
-				}
 				// add/sub %al,%cl; pushf // Combine flags from
 				G3M(op,0xc1,0x9c,Cp);
 				// or %dl,(%rsp) // add/sub with AF/CF
@@ -1090,18 +1089,17 @@ shrot0:
 			case AAA:
 			case AAS: {
 				int op = (IG->p1 == AAS ? 0x28 : 0);
-				// pushf; mov %eax,%ecx; and 0xf,%al
-				G1(0x9c,Cp); G4M(0x89,0xc1,0x24,0x0f,Cp);
-				// add/sub $6,%al; pop %edx
-				G3M(op+0x04,0x06,0x5a,Cp);
-				{
 				const static char pseq[] = {
+				// pushf; mov %eax,%ecx; and 0xf,%al
+				0x9c,0x89,0xc1,0x24,0x0f,
+				// add $6,%al; pop %edx
+				0x04,0x06,0x5a,
 				// or %dl,%al; and $0xee,%dl // ~(AF|CF)
 				0x08,0xd0,0x80,0xe2,0xee,
 				// and $0x10,%al; xchg %eax,%ecx; jz 1f
 				0x24,0x10,0x91,0x74,0x07};
 				GNX(Cp, pseq, sizeof(pseq));
-				}
+
 				// add/sub $0x106, %ax
 				G4M(0x66,op+0x05,0x06,0x01,Cp);
 				// or $0x11,%dl; (AF|CF) 1: and $0xf,%al
@@ -1115,6 +1113,8 @@ shrot0:
 				G4M(0xb4,0x00,0xb1,IG->p2,Cp);
 				// div %cl; xchg %al,%ah
 				G4M(0xf6,0xf1,0x86,0xc4,Cp);
+				// orb %al,%al (for flags)
+				G2M(0x08,0xc0,Cp);
 				// movl %%eax,Ofs_EAX(%%ebx)
 				G4M(0x89,0x43,Ofs_EAX,0x9c,Cp);
 				break;
