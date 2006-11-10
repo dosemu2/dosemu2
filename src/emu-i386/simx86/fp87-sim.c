@@ -291,12 +291,23 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			    break;
 		case 0x11:
 		case 0x19: *AR1.pff = (float)WFR0; break;
-		case 0x13:
-		case 0x1b: *AR1.pds = (long)WFR0; break;
 		case 0x15:
 		case 0x1d: *AR1.pfd = WFR0; break;
+		case 0x13:
+		case 0x1b:
 		case 0x17:
-		case 0x1f: *AR1.pws = (short)WFR0; break;
+		case 0x1f: {
+			double a;
+			switch (TheCPU.fpuc & 0xc00) {
+			case 0x000: a = rint(WFR0); break;
+			case 0x400: a = floor(WFR0); break;
+			case 0x800: a = ceil(WFR0); break;
+			default:    a = floor(WFR0); if (a<0) a++; break;
+			}
+			if (exop & 4) {
+			    *AR1.pws = a; break;
+			}
+			*AR1.pds = a; break; }
 		}
 		if (exop&8) INCFSP;
 		break;
@@ -752,10 +763,12 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 4:		/* FRNDINT */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
+			"fldcw  %3\n"
 			"fldl	%2\n"
 			"frndint\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS)
+			: "m"(WFR0), "m"(TheCPU.fpuc) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
