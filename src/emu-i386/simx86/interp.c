@@ -669,8 +669,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 		    			temp,EFLAGS,eVEFLAGS);
 checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				    (eVEFLAGS & EFLAGS_IFK)) {
-				int mask = VIF | eTSSMASK;
-				EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 				if (debug_level('e')>1)
 				    e_printf("Return for PIC fl=%08x vf=%08x\n",
 		    			EFLAGS,eVEFLAGS);
@@ -1514,7 +1512,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    /* if (EFLAGS&EFLAGS_NT) goto task_return */
 			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
 			    /* else stack_return */
-			    int amask = (CPL==0? EFLAGS_IOPL_MASK:0) | 2;
+			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | 2;
 			    if (mode & DATA16)
 				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
 			    else	/* should use eTSSMASK */
@@ -1553,8 +1551,6 @@ stack_return_from_vm86:
 				if (temp & EFLAGS_IF) {
 				    eVEFLAGS |= EFLAGS_VIF;
 		    		    if (vm86s.regs.eflags & VIP) {
-					int mask = VIF | eTSSMASK;
-					EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 					if (debug_level('e')>1)
 					    e_printf("Return for STI fl=%08x vf=%08x\n",
 			    			EFLAGS,eVEFLAGS);
@@ -1564,8 +1560,6 @@ stack_return_from_vm86:
 				}
 				if (vm86s.vm86plus.force_return_for_pic &&
 					(eVEFLAGS & EFLAGS_IFK)) {
-				    int mask = VIF | eTSSMASK;
-				    EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 				    if (debug_level('e')>1)
 					e_printf("Return for PIC fl=%08x vf=%08x\n",
 		    			    EFLAGS,eVEFLAGS);
@@ -1575,16 +1569,18 @@ stack_return_from_vm86:
 			    }
 			}
 			else {
-			    int amask = (CPL==0? EFLAGS_IOPL_MASK:0) |
-			    		(CPL<=IOPL? EFLAGS_IF:0) |
+			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
+			    		(CPL<=IOPL? 0:EFLAGS_IF) |
 			    		(EFLAGS_VM|EFLAGS_RF) | 2;
+			    printf("CPL=%d, IOPL=%d, amask=%x\n", CPL, IOPL,
+				   amask);
 			    if (mode & DATA16)
 				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
 			    else
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
 			    if (in_dpmi) {
-				if (EFLAGS_IF)
+				if (temp & EFLAGS_IF)
 				    set_IF();
 				else {
 				    clear_IF();
@@ -1812,8 +1808,6 @@ repag0:
 				if (debug_level('e')>2) e_printf("Virtual VM86 STI\n");
 				eVEFLAGS |= EFLAGS_VIF;
 				if (vm86s.regs.eflags & VIP) {
-				    int mask = VIF | eTSSMASK;
-				    EFLAGS = (EFLAGS & ~mask) | (eVEFLAGS & mask);
 				    if (debug_level('e')>1)
 					e_printf("Return for STI fl=%08x vf=%08x\n",
 			    		    EFLAGS,eVEFLAGS);

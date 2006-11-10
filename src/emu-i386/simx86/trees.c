@@ -1238,7 +1238,8 @@ int InvalidateSingleNode (long addr, long eip)
 	    }
 	    nnh++;
 	    NodesCleaned++;
-	    goto quit;
+	    /* continue searching, there may be more nodes because
+	       of jumps */
 	}
       }
       NEXTNODE(G);

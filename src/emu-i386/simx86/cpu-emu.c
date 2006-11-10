@@ -713,9 +713,10 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
  */
 static int Scp2CpuD (struct sigcontext_struct *scp)
 {
-  char big; int mode=0;
+  char big; int mode=0, amask, oldfl;
 
   /* copy registers from current dpmi client to our cpu */
+  oldfl = TheCPU.eflags & ~(EFLAGS_VM|EFLAGS_RF); /* to preserve IOPL */
   Scp2Cpu(scp);
 
   mode |= ADDR16;
@@ -735,7 +736,10 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
   TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
 erseg:
   /* push scp flags, pop eflags - this clears RF,VM */
-  TheCPU.eflags = (_eflags & (eTSSMASK|0xed5)) | 2;
+  amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | (CPL<=IOPL? 0:EFLAGS_IF) |
+    (EFLAGS_VM|EFLAGS_RF) | 2;
+  TheCPU.eflags = (oldfl & amask) | ((_eflags&(eTSSMASK|0xfd7))&~amask);
+
   trans_addr = LONG_CS + _eip;
   if (debug_level('e')>1) {
 	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08lx -> %08x\n\tIP=%08x:%08x\n%s\n",

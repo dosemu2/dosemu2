@@ -1267,7 +1267,7 @@ shrot0:
 		};
 		char *q=Cp; GNX(Cp, pseqpre, sizeof(pseqpre));
 		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
-		if (in_dpmi && 0) {
+		if (in_dpmi) {
 		    /* This solves the DOSX 'System test 8' error.
 		     * The virtualized IF is pushed instead of the
 		     * real one (which is always 1). This way, tests
@@ -1281,10 +1281,6 @@ shrot0:
 		     * case, POPF ignores this IF on stack.
 		     * Since PUSHF doesn't trap in PM, non-cpuemued
 		     * dosemu will always fail this particular test.
-		     *
-		     * Disabling this for now -- it doesn't seem to
-		     * work any better than the workaround for
-		     * non-cpuemued dosemu. -- Bart
 		     */
 			// rcr $10,%%eax	(IF->cy)
 			G3M(0xc1,0xd8,0x0a,Cp);
