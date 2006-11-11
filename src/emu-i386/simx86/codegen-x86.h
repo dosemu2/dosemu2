@@ -51,8 +51,6 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-extern unsigned e_VgaRead(unsigned offs, int mode);
-extern void e_VgaWrite(unsigned offs, unsigned u, int mode);
 extern int TrapVgaOn;
 
 #define GTRACE0(s)

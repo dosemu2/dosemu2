@@ -2435,8 +2435,8 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
 #endif
 
   count = cnt ? : COUNT + 1;
-  vga_base = (char *)(uintptr_t)(vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12);
-  vga_end =  vga_base + (vga.mem.map[VGAEMU_MAP_BANK_MODE].pages << 12);
+  vga_base = (char *)(uintptr_t)(vga.mem.bank_base);
+  vga_end =  vga_base + vga.mem.bank_len;
 
   x86.prefixes = 1;
   

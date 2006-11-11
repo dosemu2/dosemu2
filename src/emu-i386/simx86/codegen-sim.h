@@ -86,8 +86,6 @@ extern wkreg SR1;	// "ebp"
 extern wkreg TR1;	// "ecx"
 extern flgtmp RFL;
 
-extern unsigned e_VgaRead(unsigned offs, int mode);
-extern void e_VgaWrite(unsigned offs, unsigned u, int mode);
 extern int TrapVgaOn;
 
 #define GTRACE0(s)		if (debug_level('e')>2) e_printf("(G) %-12s [%s]\n",(s),showmode(mode))

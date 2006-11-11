@@ -83,7 +83,7 @@ void e_VgaWrite(unsigned a, unsigned u, int mode)
   vga_write_word((unsigned short *)addr+1, u>>16);
 }
 
-static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
+void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 {
   unsigned int rep = (op&2? _ecx : 1);
 
@@ -91,7 +91,7 @@ static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
   e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",_esi,_edi,rep);
 #endif
   if (_err&2) {		/* writing from mem or VGA to VGA */
-	if ((_esi>=e_vga_base)&&(_esi<e_vga_end)) op |= 4;
+	if ((unsigned)(_esi-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
 	if (op&1) {		/* byte move */
 	    if (op&4) goto vga2vgab;
 	    while (rep--) {
@@ -122,7 +122,7 @@ static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	}
   }
   else {		/* reading from VGA to mem or VGA */
-	if ((_edi>=e_vga_base)&&(_edi<e_vga_end)) op |= 4;
+	if ((unsigned)(_edi-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
 	if (op&1) {		/* byte move */
 	    if (op&4) {		/* vga2vga */
 vga2vgab:
@@ -177,9 +177,6 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 {
   int i, j;
   unsigned vga_page = 0, u=0;
-
-  e_vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
-  e_vga_end =  e_vga_base + (vga.mem.map[VGAEMU_MAP_BANK_MODE].pages << 12);
 
   for (i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
     j = page_fault - vga.mem.map[i].base_page;
@@ -355,7 +352,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		_eip = (long)(p+2); }
 		break;
 	default:
-/**/  		leavedos(0x5644);
+		goto unimp;
     }
 /**/  e_printf("eVGAEmuFault: new eip=%08x\n",_eip);
   }

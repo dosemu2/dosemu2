@@ -268,6 +268,8 @@ typedef struct {
   unsigned size;			/* size of memory in bytes */
   unsigned wrap;			/* wrapping point */
   unsigned pages;			/* dto in pages */
+  unsigned bank_base;			/* banked base in bytes */
+  unsigned bank_len;			/* banked length in bytes */
   unsigned lfb_base_page;		/* lfb base page, 0 -> no lfb support */
   void *scratch_page;			/* for unmapped areas */
   vga_mapping_type map[VGAEMU_MAX_MAPPINGS];	/* all the mappings */

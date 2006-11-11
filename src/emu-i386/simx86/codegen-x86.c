@@ -475,15 +475,15 @@ static void CodeGen(IMeta *I, int j)
 	case L_VGAREAD:
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // cmpl e_vga_end(%%ebx),%%edi
-		    G2(0xbb3b,Cp); G4((char *)&e_vga_end-CPUOFFS(0),Cp);
-		    // jge normal_read
-		    G2(0x187d,Cp);
-		    // cmpl e_vga_base(%%ebx),%%edi	    
-		    G2(0xbb3b,Cp); G4((char *)&e_vga_base-CPUOFFS(0),Cp);
-		    // jl  normal_read
+		    // movl %%edi,%%eax
+		    G2M(0x89,0xf8,Cp);
+		    // subl vga.bank_base(%%ebx),%%eax
+		    G2(0x832b,Cp); G4((char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
+		    // cmpl vga.bank_len(%%ebx),%%eax
+		    G2(0x833b,Cp); G4((char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
+		    // jnb normal_read
 		    // pushl mode
-	       	    G3(0x6a107c,Cp); G1(mode,Cp);
+	       	    G3(0x6a1073,Cp); G1(mode,Cp);
 #ifdef __x86_64__
 		    // pop %%rsi; push %%rdi
 		    G5(0x8b8d48575e,Cp);
@@ -513,15 +513,15 @@ static void CodeGen(IMeta *I, int j)
 	case L_VGAWRITE:
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // cmpl e_vga_end(%%ebx),%%edi
-		    G2(0xbb3b,Cp); G4((char *)&e_vga_end-CPUOFFS(0),Cp);
-		    // jge normal_read
-		    G2(0x1a7d,Cp);
-		    // cmpl e_vga_base(%%rbx),%%edi	    
-		    G2(0xbb3b,Cp); G4((char *)&e_vga_base-CPUOFFS(0),Cp);
-		    // jl  normal_read
+		    // movl %%edi,%%ecx
+		    G2M(0x89,0xf9,Cp);
+		    // subl vga.mem.bank_base(%%ebx),%%ecx
+		    G2(0x8b2b,Cp); G4((char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
+		    // cmpl vga.mem.bank_len(%%ebx),%%ecx
+		    G2(0x8b3b,Cp); G4((char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
+		    // jnb normal_write
 		    // pushl mode
-	       	    G3(0x6a127c,Cp); G1(mode,Cp);
+	       	    G3(0x6a1273,Cp); G1(mode,Cp);
 #ifdef __x86_64__
 		    // pop %%rdx; mov %%eax, %%esi; push %%rdi
 		    G4(0x57c6895a,Cp);

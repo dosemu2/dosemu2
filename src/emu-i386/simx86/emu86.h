@@ -685,6 +685,8 @@ void init_emu_npu_x86(void);
 #endif
 void init_emu_npu(void);
 
-extern unsigned long e_vga_base, e_vga_end;
+unsigned e_VgaRead(unsigned offs, int mode);
+void e_VgaWrite(unsigned offs, unsigned u, int mode);
+void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp);
 
 #endif // _EMU86_EMU86_H

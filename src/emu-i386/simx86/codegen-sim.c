@@ -63,6 +63,7 @@
 #include <string.h>
 #include "port.h"
 #include "emu86.h"
+#include "vgaemu.h"
 #include "codegen-sim.h"
 
 #undef	DEBUG_MORE
@@ -73,8 +74,6 @@ unsigned char *(*CloseAndExec)(unsigned char *PC, TNode *G, int mode, int ln);
 static void Gen_sim(int op, int mode, ...);
 static void AddrGen_sim(int op, int mode, ...);
 static unsigned char *CloseAndExec_sim(unsigned char *PC, TNode *G, int mode, int ln);
-
-unsigned long e_vga_base, e_vga_end;
 
 int TrapVgaOn = 0;
 int UseLinker = 0;
@@ -453,6 +452,11 @@ static void AddrGen_sim(int op, int mode, ...)
 #endif
 }
 
+static inline int vga_access(unsigned int m)
+{
+	return (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
+		(unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len);
+}
 
 static void Gen_sim(int op, int mode, ...)
 {
@@ -528,6 +532,10 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case S_DI_IMM: {
 		int v = va_arg(ap,int);
+		if (vga_access(AR1.d)) {
+			GTRACE0("S_DI_IMM_VGA");
+			e_VgaWrite(AR1.d, v, mode); break;
+		}
 		if (mode&MBYTE) {
 			GTRACE3("S_DI_IMM_B",0xff,0xff,v);
 			*AR1.pu = (char)v;
@@ -570,7 +578,16 @@ static void Gen_sim(int op, int mode, ...)
 		rcod = (va_arg(ap,int)&1)<<3;	// 0=z 8=s
 		o = Offs_From_Arg();
 		GTRACE3("L_MOVZS",o,0xff,rcod);
-		if (mode & MBYTX) {
+		if (vga_access(AR1.d)) {
+		    DR1.d = e_VgaRead(AR1.d, mode);
+		    if (rcod) {
+			if (mode & MBYTX)
+			    DR1.d = DR1.bs.bl;
+			else
+			    DR1.d = DR1.ws.l;
+		    }
+		}
+		else if (mode & MBYTX) {
 		    if (rcod)
 			DR1.d = *AR1.ps;
 		    else
@@ -617,12 +634,9 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 
 	case L_VGAREAD:
-		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
-			(OVERR_DS!=Ofs_XCS) && (OVERR_DS!=Ofs_XSS)) {
-		    if ((AR1.d >= e_vga_base) && (AR1.d < e_vga_end)) {
+		if (vga_access(AR1.d)) {
 			GTRACE0("L_VGAREAD");
 			DR1.d = e_VgaRead(AR1.d, mode); break;
-		    }
 		}
 		GTRACE0("L_DI");
 		if (mode & MBYTE) {
@@ -637,12 +651,9 @@ static void Gen_sim(int op, int mode, ...)
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
 	case L_VGAWRITE:
-		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
-			(OVERR_DS!=Ofs_XCS) && (OVERR_DS!=Ofs_XSS)) {
-		    if ((AR1.d >= e_vga_base) && (AR1.d < e_vga_end)) {
+		if (vga_access(AR1.d)) {
 			GTRACE0("L_VGAWRITE");
 			e_VgaWrite(AR1.d, DR1.d, mode); break;
-		    }
 		}
 		GTRACE0("S_DI");
 		if (mode&MBYTE) {
@@ -2131,10 +2142,32 @@ static void Gen_sim(int op, int mode, ...)
 
 	case O_MOVS_MovD: {
 		int df = CPUWORD(Ofs_FLAGS) & EFLAGS_DF;
-		register unsigned int i;
+		register unsigned int i, v;
 		i = TR1.d;
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
-		if (df) {
+		v = vga_access(AR2.d) | (vga_access(AR1.d) << 1);
+		if (v) {
+		    int op;
+		    struct sigcontext_struct s, *scp = &s;
+		    _err = v;
+		    _rdi = AR1.d;
+		    _rsi = AR2.d;
+		    _rcx = i;
+		    df = 1 - 2*df;
+		    op = 2 | (v == 3 ? 4 : 0);
+		    if (mode & MBYTE) {
+			op |= 1;
+		    } else {
+			df *= 2;
+			if ((mode & DATA32)) {
+			    df *= 2;
+			}
+		    }
+		    e_VgaMovs(scp, op, (mode & DATA16) ? 1 : 0, df);
+		    AR1.d = _edi;
+		    AR2.d = _esi;
+		}
+		else if (df) {
 		    if (mode&MBYTE) {
 			while (i--) *AR1.pu-- = *AR2.pu--;
 		    }
@@ -2168,7 +2201,17 @@ static void Gen_sim(int op, int mode, ...)
 		if (mode&(MREP|MREPNE))	{
 		    dbug_printf("odd: REP LODS %d\n",i);
 		}
-		if (mode&MBYTE) {
+		if (vga_access(AR2.d)) {
+		    while (i--) {
+			DR1.d = e_VgaRead(AR2.d, mode);
+			AR2.pu += df;
+			if (!(mode&MBYTE)) {
+			    AR2.pu += df;
+			    if (!(mode&DATA16)) AR2.pu += 2*df;
+			}
+		    }
+		}
+		else if (mode&MBYTE) {
 		    while (i--) { DR1.b.bl = *AR2.pu; AR2.pu += df; }
 		}
 		else if (mode&DATA16) {
@@ -2186,7 +2229,17 @@ static void Gen_sim(int op, int mode, ...)
 		register unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
-		if (mode&MBYTE) {
+		if (vga_access(AR1.d)) {
+		    while (i--) {
+			e_VgaWrite(AR1.d, DR1.d, mode);
+			AR1.pu += df;
+			if (!(mode&MBYTE)) {
+			    AR1.pu += df;
+			    if (!(mode&DATA16)) AR1.pu += 2*df;
+			}
+		    }
+		}
+		else if (mode&MBYTE) {
 		    while (i--) { *AR1.pu = DR1.b.bl; AR1.pu += df; }
 		}
 		else if (mode&DATA16) {
@@ -2584,6 +2637,7 @@ static unsigned char *CloseAndExec_sim(unsigned char *PC, TNode *G, int mode, in
 		CEmuStat|=CeS_SIGPEND;
 	}
 	TheCPU.sigalrm_pending = 0;
+	TheCPU.EMUtime = GETTSC();
 	return PC;
 }
 

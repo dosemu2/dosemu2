@@ -764,11 +764,9 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
 unsigned char vga_read(const unsigned char *addr)
 {
-  int vga_base;
   if (!vga.inst_emu)
     return READ_BYTE(addr);
-  vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
-  return Logical_VGA_read((uintptr_t)addr - vga_base);
+  return Logical_VGA_read((uintptr_t)addr - vga.mem.bank_base);
 }
 
 unsigned short vga_read_word(const unsigned short *addr)
@@ -781,13 +779,11 @@ unsigned short vga_read_word(const unsigned short *addr)
 
 void vga_write(unsigned char *addr, unsigned char val)
 {
-  int vga_base;
   if (!vga.inst_emu) {
     WRITE_BYTE(addr, val);
     return;
   }
-  vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
-  Logical_VGA_write((uintptr_t)addr - vga_base, val);
+  Logical_VGA_write((uintptr_t)addr - vga.mem.bank_base, val);
 }
 
 void vga_write_word(unsigned short *addr, unsigned short val)
@@ -2334,6 +2330,8 @@ int vgaemu_map_bank()
   }
 
   vga.mem.map[VGAEMU_MAP_BANK_MODE].pages = vga.mem.bank_pages;
+  vga.mem.bank_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
+  vga.mem.bank_len = vga.mem.map[VGAEMU_MAP_BANK_MODE].pages << 12;
 
   if(vga.mem.write_plane) {
     first = vga.mem.plane_pages * vga.mem.write_plane;
