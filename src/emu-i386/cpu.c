@@ -52,7 +52,7 @@
 /* Extra CPU registers. Note that GDTR,LDTR,IDTR are internal
  * to the cpuemu and are defined in emu-ldt.c:
  */
-unsigned long CRs[5] =
+unsigned int CRs[5] =
 {
 	0x00000013,	/* valid bits: 0xe005003f */
 	0x00000000,	/* invalid */
@@ -79,7 +79,7 @@ unsigned long CRs[5] =
  *	b24-27= LLRW bp#2
  *	b28-31= LLRW bp#3
  */
-unsigned long DRs[8] =
+unsigned int DRs[8] =
 {
 	0x00000000,
 	0x00000000,
@@ -91,7 +91,7 @@ unsigned long DRs[8] =
 	0x00000400
 };
 
-unsigned long TRs[2] =
+unsigned int TRs[2] =
 {
 	0x00000000,
 	0x00000000

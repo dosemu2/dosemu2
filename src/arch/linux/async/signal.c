@@ -42,9 +42,7 @@
 #include "sound.h"
 #endif
 
-#ifdef X86_EMULATOR
 #include "cpu-emu.h"
-#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50

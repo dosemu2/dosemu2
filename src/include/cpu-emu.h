@@ -111,6 +111,10 @@ extern int in_dpmi_emu;
 int e_emu_fault(struct sigcontext_struct *scp);
 
 /* called from signal.c */
+#ifdef X86_EMULATOR
 int e_gen_sigalrm(struct sigcontext_struct *scp);
+#else
+#define e_gen_sigalrm(x) 1
+#endif
 
 #endif	/*DOSEMU_CPUEMU_H*/

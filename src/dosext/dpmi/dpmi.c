@@ -69,9 +69,7 @@
 #include "vgaemu.h"
 
 #ifdef __linux__
-#ifdef X86_EMULATOR
 #include "cpu-emu.h"
-#endif
 #include "emu-ldt.h"
 #endif
 
