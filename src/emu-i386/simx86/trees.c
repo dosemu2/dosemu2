@@ -1213,7 +1213,7 @@ int InvalidateSingleNode (long addr, long eip)
         TNode *G2;
 	if (G->rtag == MINUS) break;
 	G2 = G->link[1];
-	if (G2->key > addr) break; else G = G2;
+	if (G2->key + G2->len > addr) break; else G = G2;
       }
       else break;
   }
@@ -1278,7 +1278,7 @@ int InvalidateNodePage (long addr, int len, long eip, int *codehit)
         TNode *G2;
 	if (G->rtag == MINUS) break;
 	G2 = G->link[1];
-	if (G2->key > ah) break; else G = G2;
+	if (G2->key + G2->len > ah) break; else G = G2;
       }
       else break;
   }
