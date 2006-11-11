@@ -1572,8 +1572,6 @@ stack_return_from_vm86:
 			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
 			    		(CPL<=IOPL? 0:EFLAGS_IF) |
 			    		(EFLAGS_VM|EFLAGS_RF) | 2;
-			    printf("CPL=%d, IOPL=%d, amask=%x\n", CPL, IOPL,
-				   amask);
 			    if (mode & DATA16)
 				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
 			    else

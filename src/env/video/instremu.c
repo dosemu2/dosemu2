@@ -109,11 +109,10 @@
 	" : #istype (op1), "=g" (eflags) : "0" (op1), #type (op2));
 
 #define OPandFLAGC(eflags, insn, op1, op2, istype, type) __asm__ __volatile__("\n\
-       rol     $8, %0\n\
-       sahf\n\
+       shr     $1, %0\n\
        "#insn" %4, %1\n\
        pushf; pop     %0\n \
-       " : "=a" (eflags), #istype (op1)  : "0" (eflags), "1" (op1), #type (op2));
+       " : "=g" (eflags), #istype (op1)  : "0" (eflags), "1" (op1), #type (op2));
 
 
 #if !defined True

@@ -333,7 +333,7 @@ EXTERN struct vec_t *ivecs;
 
 #include "memory.h" /* for INT_OFF */
 #define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
-#define IS_IRET(i)		(*(unsigned char *)(uintptr_t)IVEC(i) == OP_IRET)
+#define IS_IRET(i)		(READ_BYTE(IVEC(i)) == OP_IRET)
 
 /*
 #define WORD(i) (unsigned short)(i)
