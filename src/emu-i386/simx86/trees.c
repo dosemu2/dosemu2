@@ -1144,7 +1144,7 @@ static void BreakNode(TNode *G, long eip, long addr)
 	if (enpc >= A->dnpc) {		// if it's a forward write
 	    memcpy(p, TailCode, TAILSIZE);
 	    *((int *)(p+TAILFIX)) = G->key + A->dnpc;
-	    dbug_printf("============ Force node closing at %08x(%08lx)\n",
+	    e_printf("============ Force node closing at %08x(%08lx)\n",
 		(G->key+A->dnpc),(long)p);
 	}
 	return;		// back writes only invalidate node, no split
