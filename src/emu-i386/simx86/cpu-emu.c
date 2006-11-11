@@ -841,7 +841,7 @@ int e_gen_sigalrm(struct sigcontext_struct *scp)
 	return 0;
 }
 
-static void e_gen_sigprof(int sig, struct sigcontext_struct context)
+static void e_gen_sigprof(struct sigcontext_struct *scp)
 {
 	e_sigpa_count -= sigEMUdelta;
 	TheCPU.sigprof_pending += 1;
@@ -900,13 +900,9 @@ void enter_cpu_emu(void)
 	itv.it_interval.tv_usec = realdelta;
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = realdelta;
-#ifdef __i386__
-	/* I am not sure what SIGPROF is really used for; in any case
-	   on x86-64 the current handler destroys %ss in DPMI code */
 	e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
 	setitimer(ITIMER_PROF, &itv, NULL);
-#endif
-	newsetsig(SIGPROF, e_gen_sigprof);
+	registersig(SIGPROF, e_gen_sigprof);
 
 #ifdef DEBUG_TREE
 	tLog = fopen(DEBUG_TREE_FILE,"w");
@@ -936,7 +932,7 @@ void leave_cpu_emu(void)
 		itv.it_value.tv_usec = 0;
 		e_printf("TIME: disabling PROF timer\n");
 		setitimer(ITIMER_PROF, &itv, NULL);
-		setsig(SIGPROF, SIG_IGN);
+		registersig(SIGPROF, NULL);
 
 		EndGen();
 #ifdef DEBUG_TREE

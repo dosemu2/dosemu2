@@ -404,9 +404,7 @@ extern void handle_signals(void);
 extern void handle_signals_force_reentry(void);
 
 extern void addset_signals_that_queue(sigset_t *x);
-extern void newsetqsig(int sig, void *handler);
-extern void setsig(int sig, void *handler);
-extern void newsetsig(int sig, void *handler);
+extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));
 extern void init_handler(struct sigcontext_struct *scp);
 #ifdef __x86_64__
 extern int check_fix_fs_gs_base(unsigned char prefix);

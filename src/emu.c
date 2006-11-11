@@ -495,7 +495,7 @@ leavedos(int sig)
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     }
-    setsig(SIGALRM, SIG_DFL);
+    registersig(SIGALRM, NULL);
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"

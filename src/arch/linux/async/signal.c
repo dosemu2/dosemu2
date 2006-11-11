@@ -86,11 +86,14 @@ static struct {
 #undef HAVE_SIGALTSTACK
 #endif
 
-static void sigquit(int sig);
+static void (*sighandlers[NSIG])(struct sigcontext *);
+
+static void sigquit(struct sigcontext *);
+static void sigalrm(struct sigcontext *);
+static void sigio(struct sigcontext *);
 
 #ifdef __x86_64__
-static void sigalrm(int sig, siginfo_t *si, void *uc);
-static void sigio(int sig, siginfo_t *si, void *uc);
+static void sigasync(int sig, siginfo_t *si, void *uc);
 #else
 
 /* my glibc doesn't define this guy */
@@ -98,8 +101,7 @@ static void sigio(int sig, siginfo_t *si, void *uc);
 #define SA_RESTORER 0x04000000
 #endif
 
-static void sigalrm(int sig, struct sigcontext_struct context);
-static void sigio(int sig, struct sigcontext_struct context);
+static void sigasync(int sig, struct sigcontext_struct context);
 
 /*
  * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
@@ -215,21 +217,28 @@ void addset_signals_that_queue(sigset_t *x)
 {
        sigaddset(x, SIGIO);
        sigaddset(x, SIGALRM);
+       sigaddset(x, SIGPROF);
+       sigaddset(x, SIGWINCH);
        sigaddset(x, SIG_RELEASE);
        sigaddset(x, SIG_ACQUIRE);
 }
 
-void newsetqsig(int sig, void *fun)
+static void newsetqsig(int sig, void *fun)
 {
 	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_ONSTACK);
 }
 
-void setsig(int sig, void *fun)
+void registersig(int sig, void (*fun)(struct sigcontext *))
+{
+	sighandlers[sig] = fun;
+}
+
+static void setsig(int sig, void *fun)
 {
 	dosemu_sigaction_wrapper(sig, fun, SA_RESTART);
 }
 
-void newsetsig(int sig, void *fun)
+static void newsetsig(int sig, void *fun)
 {
 	int flags = SA_RESTART|SA_ONSTACK;
 	if (kernel_version_code >= 0x20600+14)
@@ -383,10 +392,10 @@ void init_handler(struct sigcontext_struct *scp)
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
-static void cleanup_child(void)
+static void cleanup_child(struct sigcontext_struct *scp)
 {
   int status;
-  init_handler(NULL);
+  init_handler(scp);
   if (portserver_pid &&
       waitpid(portserver_pid, &status, WNOHANG) > 0 &&
       WIFSIGNALED(status)) {
@@ -513,21 +522,21 @@ signal_init(void)
    ---------------------------------------------
    SIGHUP		 1	S	leavedos
    SIGINT		 2	S	leavedos
-   SIGQUIT		 3	S	sigquit
+   SIGQUIT		 3	N	sigquit
    SIGILL		 4	N	dosemu_fault
    SIGTRAP		 5	N	dosemu_fault
    SIGABRT		 6	S	leavedos
    SIGBUS		 7	N	dosemu_fault
    SIGFPE		 8	N	dosemu_fault
    SIGKILL		 9	na
-   SIGUSR1		10	NQ	(SIG_RELEASE)
+   SIGUSR1		10	NQ	(SIG_RELEASE)sigasync
    SIGSEGV		11	N	dosemu_fault
-   SIGUSR2		12	NQ	(SIG_ACQUIRE)
+   SIGUSR2		12	NQ	(SIG_ACQUIRE)sigasync
    SIGPIPE		13      S	SIG_IGN
-   SIGALRM		14	NQ	(SIG_TIME)sigalrm
+   SIGALRM		14	NQ	(SIG_TIME)sigasync
    SIGTERM		15	S	leavedos
    SIGSTKFLT		16
-   SIGCHLD		17	S       cleanup_child
+   SIGCHLD		17	N       cleanup_child
    SIGCONT		18
    SIGSTOP		19
    SIGTSTP		20
@@ -537,14 +546,15 @@ signal_init(void)
    SIGXCPU		24
    SIGXFSZ		25
    SIGVTALRM		26
-   SIGPROF		27	N
-   SIGWINCH		28	S	sigwinch
-   SIGIO		29	NQ	sigio
+   SIGPROF		27	NQ	(cpuemu,sigprof)sigasync
+   SIGWINCH		28	NQ	(sigwinch)sigasync
+   SIGIO		29	NQ	(sigio)sigasync
    SIGPWR		30
    SIGUNUSED		31	na
   ------------------------------------------------ */
   newsetsig(SIGILL, dosemu_fault);
-  newsetqsig(SIGALRM, sigalrm);
+  newsetqsig(SIGALRM, sigasync);
+  registersig(SIGALRM, sigalrm);
   newsetsig(SIGFPE, dosemu_fault);
   newsetsig(SIGTRAP, dosemu_fault);
 
@@ -559,7 +569,8 @@ signal_init(void)
        */
   setsig(SIGKILL, leavedos_signal);
 #endif
-  setsig(SIGQUIT, sigquit);
+  newsetsig(SIGQUIT, sigasync);
+  registersig(SIGQUIT, sigquit);
   setsig(SIGPIPE, SIG_IGN);
 
 #ifdef X86_EMULATOR
@@ -568,9 +579,15 @@ signal_init(void)
 /*
   setsig(SIGUNUSED, timint);
 */
-  newsetqsig(SIGIO, sigio);
+  newsetqsig(SIGIO, sigasync);
+  registersig(SIGIO, sigio);
+  newsetqsig(SIGUSR1, sigasync);
+  newsetqsig(SIGUSR2, sigasync);
+  newsetqsig(SIGPROF, sigasync);
+  newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
-  setsig(SIGCHLD, cleanup_child);
+  newsetsig(SIGCHLD, sigasync);
+  registersig(SIGCHLD, cleanup_child);
 
   /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
   sigemptyset(&set);
@@ -856,32 +873,15 @@ static void SIGIO_call(void){
 }
 
 #ifdef __linux__
-static void sigio0(struct sigcontext_struct *scp)
+static void sigio(struct sigcontext_struct *scp)
 {
-  init_handler(scp);
   SIGNAL_save(SIGIO_call);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
 }
-
-#ifdef __x86_64__
-static void sigio(int sig, siginfo_t *si, void *uc)
+ 
+static void sigalrm(struct sigcontext_struct *scp)
 {
-  sigio0((struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext);
-}
-#else
-static void sigio(int sig, struct sigcontext_struct context)
-{
-  sigio0(&context);
-}
-#endif
-#endif
-
-
-#ifdef __linux__
-static void sigalrm0(struct sigcontext_struct *scp)
-{
-  init_handler(scp);
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call);
     if (in_dpmi && !in_vm86)
@@ -889,24 +889,31 @@ static void sigalrm0(struct sigcontext_struct *scp)
   }
 }
 
-#ifdef __x86_64__
-static void sigalrm(int sig, siginfo_t *si, void *uc)
+static void sigasync0(int sig, struct sigcontext_struct *scp)
 {
-  sigalrm0((struct sigcontext_struct *)
+  init_handler(scp);
+  if (sighandlers[sig])
+	  sighandlers[sig](scp);
+  dpmi_iret_setup(scp);
+}
+
+#ifdef __x86_64__
+static void sigasync(int sig, siginfo_t *si, void *uc)
+{
+  sigasync0(sig, (struct sigcontext_struct *)
 	   &((ucontext_t *)uc)->uc_mcontext);
 }
 #else
-static void sigalrm(int sig, struct sigcontext_struct context)
+static void sigasync(int sig, struct sigcontext_struct context)
 {
-  sigalrm0(&context);
+  sigasync0(sig, &context);
 }
 #endif
 #endif
 
 
-static void sigquit(int sig)
+static void sigquit(struct sigcontext_struct *scp)
 {
-  init_handler(NULL);
   in_vm86 = 0;
 
   error("sigquit called\n");

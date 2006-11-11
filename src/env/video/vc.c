@@ -148,10 +148,8 @@ SIGACQUIRE_call (void)
 int dos_has_vt = 1;
 
 static void
-acquire_vt0 (struct sigcontext_struct *scp)
+acquire_vt (struct sigcontext_struct *scp)
 {
-  init_handler(scp);
-
   dos_has_vt = 1;
 
 #if NO_VC_NO_DEBUG
@@ -166,7 +164,6 @@ acquire_vt0 (struct sigcontext_struct *scp)
   allow_switch ();
   SIGNAL_save (SIGACQUIRE_call);
   scr_state.current = 1;
-  dpmi_iret_setup(scp);
 }
 
 static void
@@ -279,42 +276,12 @@ static void wait_for_active_vc(void)
   } while (errno == EINTR);
 }
 
-static inline void
-release_vt0 (struct sigcontext_struct *scp)
+static void release_vt (struct sigcontext_struct *scp)
 {
-  init_handler(scp);
-
   dos_has_vt = 0;
 
   SIGNAL_save (SIGRELEASE_call);
-  dpmi_iret_setup(scp);
 }
-
-#ifdef __x86_64__
-static void acquire_vt(int sig, siginfo_t *si, void *uc)
-{
-	acquire_vt0((struct sigcontext_struct *)
-		    &((ucontext_t *)uc)->uc_mcontext);
-}
-
-static void release_vt(int sig, siginfo_t *si, void *uc)
-{
-	release_vt0((struct sigcontext_struct *)
-		    &((ucontext_t *)uc)->uc_mcontext);
-}
-
-#else
-static void acquire_vt(int sig, struct sigcontext_struct context)
-{
-	acquire_vt0(&context);
-}
-
-static void release_vt(int sig, struct sigcontext_struct context)
-{
-	release_vt0(&context);
-}
-#endif
-
 
 static void unmap_video_ram(int copyback)
 {
@@ -444,8 +411,8 @@ set_process_control (void)
   scr_state.vt_requested = 0;	/* a switch has not been attempted yet */
   allow_switch ();
 
-  newsetqsig (SIG_RELEASE, release_vt);
-  newsetqsig (SIG_ACQUIRE, acquire_vt);
+  registersig (SIG_RELEASE, release_vt);
+  registersig (SIG_ACQUIRE, acquire_vt);
 
   sigemptyset(&set);
   sigaddset(&set, SIG_RELEASE);
@@ -464,8 +431,8 @@ clear_process_control (void)
 
   vt_mode.mode = VT_AUTO;
   ioctl (console_fd, VT_SETMODE, &vt_mode);
-  setsig (SIG_RELEASE, SIG_IGN);
-  setsig (SIG_ACQUIRE, SIG_IGN);
+  registersig (SIG_RELEASE, NULL);
+  registersig (SIG_ACQUIRE, NULL);
 }
 
 

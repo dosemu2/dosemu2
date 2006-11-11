@@ -322,9 +322,8 @@ static int term_change_config(unsigned item, void *buf)
    return 100;   
 }
 
-static void sigwinch(int sig)
+static void sigwinch(struct sigcontext_struct *scp)
 {
-  init_handler(NULL);
   get_screen_size();
 }
 
@@ -372,7 +371,7 @@ static int terminal_initialize(void)
    /* respond to resize events unless we're running on the Linux console
       with raw keyboard: then SIGWINCH = SIG_RELEASE ! */
    if (!config.console_keyb) {
-     setsig(SIGWINCH, sigwinch);
+     registersig(SIGWINCH, sigwinch);
    }
 
    /* initialize VGA emulator */
