@@ -563,7 +563,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
     }
     if (access(full_name(f, oi, "ibmdos.com"), R_OK) == 0) f->sys_type |= 8;
     if (access(full_name(f, oi, "ipl.sys"), R_OK) == 0) f->sys_type |= 0x10;
-    if (access(full_name(f, oi, "kernel.sys"), R_OK) == 0) f->sys_type |= 0x20;
+    if (access(full_name(f, oi, "kernel.sys"), R_OK) == 0 ||
+	access(DOSEMULIB_DEFAULT"/commands/fdos/kernel.sys", R_OK) == 0)
+      f->sys_type |= 0x20;
 
     if((f->sys_type & 3) == 3) {
       f->sys_type = 3;			/* MS-DOS */
@@ -737,8 +739,16 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
   }
 
   if(stat(s, &sb)) {
-    fatfs_deb("file not found: \"%s\"\n", s);
-    return;
+    int found = 0;
+    if (strcmp(name, "kernel.sys") == 0) {
+      s = DOSEMULIB_DEFAULT"/commands/fdos/kernel.sys";
+      if(stat(s, &sb) == 0)
+	found = 1;
+    }
+    if (!found) {
+      fatfs_deb("file not found: \"%s\"\n", s);
+      return;
+    }
   }
 
   if(!(S_ISDIR(sb.st_mode) || S_ISREG(sb.st_mode))) {
@@ -1100,8 +1110,11 @@ void fdkernel_boot_mimic(void)
     leavedos(99);
   }
   if ((f = open(bootfile, O_RDONLY)) == -1) {
-    error("cannot open DOS system file %s\n", bootfile);
-    leavedos(99);
+    bootfile = DOSEMULIB_DEFAULT"/commands/fdos/kernel.sys";
+    if ((f = open(bootfile, O_RDONLY)) == -1) {
+      error("cannot open DOS system file %s\n", bootfile);
+      leavedos(99);
+    }
   }
   size = lseek(f, 0, SEEK_END);
   lseek(f, 0, SEEK_SET);

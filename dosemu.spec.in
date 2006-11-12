@@ -63,8 +63,6 @@ fi
 %dir %{_datadir}/dosemu
 %{_datadir}/dosemu/commands
 %{_datadir}/dosemu/freedos
-%{_datadir}/dosemu/dosemu-bin.tgz
-%{_datadir}/dosemu/dosemu-freedos-bin.tgz
 %{_datadir}/dosemu/keymap
 %{_datadir}/dosemu/Xfonts
 %dir %{_datadir}/doc/dosemu

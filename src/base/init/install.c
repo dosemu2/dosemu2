@@ -33,23 +33,24 @@ static int (*printf_)(const char *, ...) FORMAT(printf, 1, 2) = printf;
 static int (*read_string)(char *, u_short) = terminal_read;
 static int symlink_created;
 
-static void create_symlink(const char *path)
+static void create_symlink(const char *path, int number)
 {
 	char *drives_c = assemble_path(LOCALDIR, "drives/c", 0);
 	char *slashpos = drives_c + strlen(drives_c) - 2;
 	static char symlink_txt[] =
-		"Creating symbolic link for bootdirectory as %s\n";
+		"Creating symbolic link for %s as %s\n";
 
-	printf_(symlink_txt, drives_c);
+	printf_(symlink_txt, path, drives_c);
 	*slashpos = '\0';
+	slashpos[1] += number; /* make it 'd' if 'c' */
 	mkdir(drives_c, 0777);
 	*slashpos = '/';
 	unlink(drives_c);
 	symlink(path, drives_c);
-	free(hdisktab[0].dev_name);
-	/* point C: to $HOME/.dosemu/drives/c */
-	hdisktab[0].dev_name = drives_c;
-	hdisktab[0].type = DIR_TYPE;
+	free(hdisktab[number].dev_name);
+	/* point C:/D: to $HOME/.dosemu/drives/c or d */
+	hdisktab[number].dev_name = drives_c;
+	hdisktab[number].type = DIR_TYPE;
 	symlink_created = 1;
 }
 
@@ -95,7 +96,7 @@ static void install_dosemu_freedos (int choice)
 	}
 	else
 		boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
-	asprintf(&system_str, "mkdir -p %s", boot_dir_path);
+	asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
 	if (system(system_str)) {
 		printf_("  unable to create $BOOT_DIR_PATH, giving up\n");
 		free(system_str);
@@ -104,16 +105,12 @@ static void install_dosemu_freedos (int choice)
 	}
 	free(system_str);
 	asprintf(&system_str,
-		 "tar xzf "DOSEMULIB_DEFAULT"/dosemu-bin.tgz -C \"%s\"",
+		 "cp -a "DOSEMULIB_DEFAULT"/commands/fdos/config.sys "
+		 DOSEMULIB_DEFAULT"/commands/fdos/autoexec.bat \"%s\"",
 		 boot_dir_path);
 	system(system_str);
 	free(system_str);
-	create_symlink(boot_dir_path);
-	asprintf(&system_str,
-		 "tar xzf "DOSEMULIB_DEFAULT"/dosemu-freedos-bin.tgz -C \"%s\"",
-		 boot_dir_path);
-	system(system_str);
-	free(system_str);
+	create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
 }
 
@@ -128,7 +125,7 @@ DOSEMULIB_DEFAULT"/commands\n"
 static void install_proprietary(char *proprietary, int warning)
 {
 	char x;
-	create_symlink(proprietary);
+	create_symlink(proprietary, 0);
 	if (!warning)
 		return;
 	printf_(proprietary_notice, proprietary, proprietary);
@@ -211,7 +208,7 @@ static void install_dos_(void)
 "4. Use a different DOS than the provided DOSEMU-FreeDOS.\n"
 "5. Exit this menu (completely manual setup).\n"
 "[ENTER = the default option 1]\n");
-	x = '5';
+	x = '1';
 	read_string(&x, 1);
 	choice = x - '0';
 	if (choice == 5) {
@@ -240,6 +237,13 @@ void install_dos(int post_boot)
 	symlink_created = 0;
 	install_dos_();
 	do_liability_disclaimer_prompt(post_boot);
-	if(post_boot && symlink_created)
-		disk_reset();
+	if(symlink_created) {
+		/* create symlink for D: too */
+		char *commands_path = 
+			assemble_path(DOSEMULIB_DEFAULT, "commands", 0);
+		create_symlink(commands_path, 1);
+		free(commands_path);
+		if(post_boot)
+			disk_reset();
+	}
 }
