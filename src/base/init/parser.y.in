@@ -289,7 +289,7 @@ while (0)
 %token TRACE CLEAR
 
 	/* printer */
-%token COMMAND TIMEOUT L_FILE
+%token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH ATAPI READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
@@ -1387,7 +1387,8 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2;
 printer_flags	: printer_flag
 		| printer_flags printer_flag
 		;
-printer_flag	: COMMAND string_expr	{ pptr->prtcmd = $2; }
+printer_flag	: LPT expression	{ c_printers = $2 - 1; }
+		| COMMAND string_expr	{ pptr->prtcmd = $2; }
 		| TIMEOUT expression	{ pptr->delay = $2; }
 		| L_FILE string_expr		{ pptr->dev = $2; }
 		| BASE expression		{ pptr->base_port = $2; }
@@ -1909,7 +1910,8 @@ static void stop_printer(void)
            c_printers, pptr->dev, pptr->prtcmd,
            pptr->delay, pptr->base_port);
   c_printers++;
-  config.num_lpt = c_printers;
+  if (c_printers > config.num_lpt)
+    config.num_lpt = c_printers;
 }
 
 	/* disk */

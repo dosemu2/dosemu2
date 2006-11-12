@@ -658,6 +658,7 @@ joystick		RETURN(JOYSTICK);
 
 	/* printer stuff */
 
+lpt			RETURN(LPT);
 command			RETURN(COMMAND);
 timeout			RETURN(TIMEOUT);
 file			RETURN(L_FILE);
