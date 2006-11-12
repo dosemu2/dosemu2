@@ -31,6 +31,7 @@ void fake_retf(unsigned pop_count);
 void setup_interrupts(void);
 void version_init(void);
 void int_vector_setup(void);
+void dos_post_boot_reset(void);
 
 #define REVECT		0
 #define NO_REVECT	1

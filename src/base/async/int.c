@@ -1680,11 +1680,17 @@ static int redir_it(void)
   return 0;
 }
 
+static int post_boot = 0;
+
+void dos_post_boot_reset(void)
+{
+  post_boot = 0;
+}
+
 static void dos_post_boot(void)
 {
-  static int first = 1;
-  if (first) {
-    first = 0;
+  if (!post_boot) {
+    post_boot = 1;
     mouse_post_boot();
     int21_post_boot();
   }

@@ -153,6 +153,7 @@ static void bios_setup(void)
     *ptr = config.hdiskboot ? 0x80 : 0;
   }
 
+  dos_post_boot_reset();
   bios_mem_setup();		/* setup values in BIOS area */
   iodev_reset();		/* reset all i/o devices          */
   ems_reset();
