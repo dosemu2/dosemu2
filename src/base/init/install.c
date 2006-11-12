@@ -32,6 +32,29 @@ static int terminal_read(char *buf32, u_short size)
 static int (*printf_)(const char *, ...) FORMAT(printf, 1, 2) = printf;
 static int (*read_string)(char *, u_short) = terminal_read;
 static int symlink_created;
+int unix_e_welcome;
+
+void show_welcome_screen(void)
+{
+	/* called from unix -e */
+	do_liability_disclaimer_prompt(1, 0);
+	p_dos_str(
+"Continue to confirm, or enter EXITEMU or press Ctrl-Alt-PgDn to exit DOSEMU.\n\n");	p_dos_str(
+	"Your DOS drives are set up as follows:\n"
+	" A: floppy drive (if it exists)\n"
+	" C: points to the Linux directory ~/.dosemu/drive_c\n"
+	" D: points to your Linux home directory\n"
+	" E: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
+	" Z: points to the read-only DOSEMU and FreeDOS commands directory\n"
+	"Use the LREDIR DOSEMU command to adjust these settings, or edit\n"
+        "/etc/dosemu/dosemu.conf, ~/.dosemurc, c:\\config.sys, or c:\\autoexec.bat,\n"
+	"or change the symbolic links in ~/.dosemu/drives.\n\n"
+	"To re-install a DOS, exit and then restart DOSEMU using dosemu -i.\n"
+	"Enter HELP for more information on DOS and DOSEMU commands.\n");
+	p_dos_str(
+"Keys: Ctrl-Alt-... F=fullscreen, K=grab keyboard, Home=grab mouse, Del=reboot\n"
+"      Ctrl-Alt-PgDn=exit; Ctrl-^: use special keys on terminals\n");
+}
 
 static void create_symlink(const char *path, int number)
 {
@@ -112,6 +135,7 @@ static void install_dosemu_freedos (int choice)
 	free(system_str);
 	create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
+	unix_e_welcome = 1;
 }
 
 static char proprietary_notice[] =
@@ -160,38 +184,39 @@ static void install_no_dosemu_freedos(const char *path)
 	install_proprietary(p, !specified);
 }
 
+static int first_boot_time(void)
+{
+	int first_time;
+	char *disclaimer_file_name =
+		assemble_path(LOCALDIR, "disclaimer", 0);
+	first_time = !exists_file(disclaimer_file_name);
+	free(disclaimer_file_name);
+	return first_time;
+}
+
 static void install_dos_(void)
 {
 	char x;
 	int choice;
-	int first_time = 0;
 
-	if (!config.install) {
-		char *disclaimer_file_name =
-		  assemble_path(LOCALDIR, "disclaimer", 0);
-		first_time = !exists_file(disclaimer_file_name);
-		free(disclaimer_file_name);
-		if (!first_time)
-			return;
-		/* OK, first boot! */
-	}
 	if (config.hdiskboot != 1) {
 		/* user wants to boot from a different drive! */
-		if (first_time)
+		if (!config.install)
 			return;
 		printf_("You can only use -install or -i if you boot from C:.\n");
 		printf_("Press [ENTER] to continue.\n");
 		read_string(&x, 1);
 		return;
 	}
-	if (!exists_file(DOSEMULIB_DEFAULT"/freedos/kernel.sys")) {
+	if (!exists_file(DOSEMULIB_DEFAULT"/commands/fdos/kernel.sys")) {
 		/* no FreeDOS available: simple menu */
 		if (config.install)
 			install_no_dosemu_freedos(config.install);
 		return;
 	}
 	if (config.install) {
-		if (strcmp(config.install, DOSEMULIB_DEFAULT"/freedos") == 0) {
+		if (strcmp(config.install, DOSEMULIB_DEFAULT"/freedos") == 0 ||
+		    strcmp(config.install, DOSEMULIB_DEFAULT"/commands/fdos") == 0) {
 			install_dosemu_freedos(3);
 			return;
 		}
@@ -230,13 +255,29 @@ static void install_dos_(void)
 
 void install_dos(int post_boot)
 {
+	int first_time;
+	first_time = first_boot_time();
+	if (!config.install && !first_time)
+		return;
 	if (post_boot) {
 		printf_ = p_dos_str;
 		read_string = com_biosread;
 	}
 	symlink_created = 0;
-	install_dos_();
-	do_liability_disclaimer_prompt(post_boot);
+	if (config.hdiskboot != 1 ||
+	    config.install ||
+	    !exists_file(DOSEMULIB_DEFAULT"/commands/fdos/kernel.sys")) {
+		if (first_time) {
+			do_liability_disclaimer_prompt(post_boot, 1);
+			if (!config.X)
+				printf_(
+"DOSEMU will run on _this_ terminal.\n"
+"To exit you need to execute \'exitemu\' from within DOS,\n"
+"because <Ctrl>-C and \'exit\' won\'t work!\n");
+		}
+		install_dos_();
+	} else 
+		install_dosemu_freedos(1);
 	if(symlink_created) {
 		/* create symlink for D: too */
 		char *commands_path = 

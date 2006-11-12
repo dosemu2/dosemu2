@@ -61,6 +61,10 @@ int unix_main(int argc, char **argv)
     case 'e':
     case 'E':
       /* EXECUTE dos program or command if program does not exist */
+      if (unix_e_welcome) {
+	show_welcome_screen();
+	unix_e_welcome = 0;
+      }
       return do_execute_dos (argc-2, argv+2, EXEC_CHOICE);
     case 'r':
     case 'R':

@@ -73,15 +73,6 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
-w4l_check () {
-  if grep mki_install_hook /proc/ksyms >/dev/null 2>/dev/null; then
-    echo "
-   Note: your kernel is patched for Win4Lin, this will most likely
-   crash DPMI applications within DOSEMU. ... be warned!
-"
-  fi
-}
-
 mkdir -p ~/.dosemu
 BPATH_FILE=~/.dosemu/bindist_path
 
@@ -151,6 +142,7 @@ if [ -n "$XFLAG" -o -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
         xset fp default
         xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null
      fi
+     xset fp rehash
   fi
   if [ "`xlsfonts -o -fn $FONT 2>/dev/null`" = "" ]; then
      echo "
@@ -161,32 +153,21 @@ if [ -n "$XFLAG" -o -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
    ... be warned
 "
   fi
-  w4l_check
 else
-  if [ -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
-    echo "
-   DOSEMU will run on _this_ terminal.
-   To exit you need to execute 'exitemu' from within DOS,
-   because <Ctrl>-C and 'exit' won't work!"
-  fi
   if test -z "$LINES" -o -z "$COLUMNS" ; then
     eval `stty size 2>/dev/null | (read L C; \
           echo LINES=${L:-24} COLUMNS=${C:-80})`
   fi
   test $LINES   -eq 0 && LINES=24
   test $COLUMNS -eq 0 && COLUMNS=80
-  if [ $LINES -lt 25 -a -z "$DUMBTERM" ]; then
+  if [ $LINES -lt 25 -a -z "$DUMBTERM" -a -z "$QUIET" ]; then
       echo "
    Note that DOS needs 25 lines. You might want to enlarge your
    window before continuing.
 "
-  fi
-  w4l_check
-  if [ $LINES -lt 25 -a -z "$DUMBTERM" -o -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
     echo
     echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel"
     read dummy
-    touch ~/.dosemu/stamp-dosemu
   fi
 fi
 

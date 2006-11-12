@@ -606,7 +606,7 @@ static void config_post_process(const char *usedoptions)
 	if (!can_do_root_stuff && config.console_video) {
 	    /* force use of Slang-terminal on console too */
 	    config.console_video = 0;
-	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
+	    dbug_printf("no console on low feature (non-suid root) DOSEMU\n");
 	}
 	if (config.console_keyb == -1)
 	    config.console_keyb = can_do_root_stuff;

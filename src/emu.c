@@ -232,20 +232,25 @@ module_init(void)
 }
 
 
-void do_liability_disclaimer_prompt(int dosboot)
+void do_liability_disclaimer_prompt(int dosboot, int prompt)
 {
   FILE *f;
   char buf[32];
   char *disclaimer_file_name;
   static char text[] =
-  "The Linux DOSEMU, Copyright (C) 2006 the 'DOSEMU-Development-Team'.\n"
+  "\nWelcome to DOSEMU "VERSTR", a DOS emulator"
+#ifdef __linux__
+    " for Linux"
+#endif
+  ".\nCopyright (C) 1992-2006 the 'DOSEMU-Development-Team'.\n"
   "This program is  distributed  in  the  hope that it will be useful,\n"
   "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
-  "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file\n"
-  "COPYING.DOSEMU for more details.  Use  this  program  at  your  own  risk!\n\n"
-  "By continuing execution of this program, you are stating that you have\n"
-  "read the above liability disclaimer and that you accept these conditions.\n"
-  "\nEnter 'yes' to confirm/continue: ";
+  "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the files\n"
+  "COPYING.DOSEMU and COPYING for more details.\n"
+  "Use  this  program  at  your  own  risk!\n\n";
+
+  static char text2[] =
+  "Press ENTER to confirm, and boot DOSEMU, or [Ctrl-C] to abort\n";
 
   disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer", 0);
   if (exists_file(disclaimer_file_name)) {
@@ -254,17 +259,24 @@ void do_liability_disclaimer_prompt(int dosboot)
   }
 
   if (dosboot) {
-    int size;
     p_dos_str(text);
-    size = com_biosread(buf, sizeof(buf)-2);
-    buf[size] = '\n';
-    buf[size+1] = '\0';
   } else {
     fputs(text, stdout);
-    fgets(buf, sizeof(buf), stdin);
   }
-  if (strncmp(buf, "yes", 3)) {
-    leavedos(1);
+
+  buf[0] = '\0';
+  if (prompt) {
+    int size = 0;
+    if (dosboot) {
+      p_dos_str(text2);
+      size = com_biosread(buf, sizeof(buf)-2);
+    } else {
+      fputs(text2, stdout);
+      fgets(buf, sizeof(buf), stdin);
+    }
+    if (buf[0] == 3) {
+      leavedos(1);
+    }
   }
 
   /*
@@ -395,10 +407,10 @@ emulate(int argc, char **argv)
      * Do the 'liability disclaimer' stuff we need to avoid problems
      * with laws in some countries.
      *
-     * show it at the beginning only for console root video,
+     * show it at the beginning only for terminals and direct console
      * else the banner code in int.c does it.
      */
-    if (config.console_video)
+    if (!config.X)
 	install_dos(0);
 
     HMA_init();			/* HMA can only be done now after mapping

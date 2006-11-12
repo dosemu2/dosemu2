@@ -251,6 +251,7 @@ extern lol_t lol;
 extern int lol_nuldev_off;
 
 extern int com_errno;
+extern int unix_e_welcome;
 
 extern int misc_e6_envvar (char *str);
 
@@ -263,6 +264,7 @@ extern void run_unix_command (char *buffer);
 extern int run_system_command(char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
+void show_welcome_screen(void);
 void memmove_dos2dos(void *dest, const void *src, size_t n);
 int dos_read(int fd, char *data, int cnt);
 int dos_write(int fd, char *data, int cnt);
