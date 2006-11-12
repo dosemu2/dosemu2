@@ -1,7 +1,7 @@
 @echo off
 rem autoexec.bat for DOSEMU + FreeDOS
-path z:\fdos\bin;z:\fdos\gnu;z:\
-set HELPPATH=z:\fdos\help
+path z:\bin;z:\gnu;z:\dosemu
+set HELPPATH=z:\help
 set TEMP=c:\tmp
 blaster
 prompt $P$G
@@ -11,7 +11,7 @@ lredir d: linux\fs%DOSDRIVE_D%
 :nodrived
 rem uncomment to load another bitmap font
 rem loadhi display con=(vga,437,2)
-rem mode con codepage prepare=((850) c:\cpi\ega.cpx)
+rem mode con codepage prepare=((850) z:\cpi\ega.cpx)
 rem mode con codepage select 850
 rem chcp 850
 lredir e: linux\fs/media/cdrom c

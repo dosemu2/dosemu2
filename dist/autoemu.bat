@@ -1,8 +1,8 @@
 @echo off
 rem generic autoexec.bat for DOSEMU + any DOS
 rem must be edited in most circumstances
-d:\lredir z: linux\fs\${DOSEMU_LIB_DIR}/commands ro
-path c:\dos;c:\windows\command;z:\
+d:\lredir z: linux\fs\${DOSEMU_LIB_DIR}/drive_z ro
+path c:\dos;c:\windows\command;z:\dosemu
 set TEMP=c:\tmp
 blaster
 prompt $P$G

@@ -149,32 +149,34 @@ install:
 	  ln -sf generic.com $(TMP)/dosemu/$$i; \
 	done
 	rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos
-	rm -rf $(DESTDIR)$(dosemudir)/*.tgz
-	cp -a $(TMP)/dosemu $(DESTDIR)$(dosemudir)/commands
-	rm -rf ../tmp
+	rm -rf $(DESTDIR)$(dosemudir)/drive_z $(DESTDIR)$(dosemudir)/*.tgz
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	cd $(REALTOPDIR); if [ -f $(fdtarball) ]; then \
-	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  rm -f $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
-	  $(INSTALL) dist/config.sys $(DESTDIR)$(dosemudir)/freedos/config.sys; \
-	  $(INSTALL) dist/autoexec.bat $(DESTDIR)$(dosemudir)/freedos/autoexec.bat; \
+	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 dist/config.sys $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 dist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 dist/config.emu $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 dist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z; \
 	  $(INSTALL) -d $(DESTDIR)$(sysconfdir)/drives; \
 	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/c ]; then \
-	    ln -s $(dosemudir)/freedos $(DESTDIR)$(sysconfdir)/drives/c; \
+	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/c; \
 	  fi; \
 	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/d ]; then \
-	    ln -s $(dosemudir)/commands $(DESTDIR)$(sysconfdir)/drives/d; \
+	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/d; \
 	  fi; \
-	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
-	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
-	  mv $(DESTDIR)$(dosemudir)/freedos \
-		$(DESTDIR)$(dosemudir)/commands/fdos; \
-	  # legacy symlinks; \
-	  ln -sf commands/fdos $(DESTDIR)$(dosemudir)/freedos; \
-	  ln -sf ../commands $(DESTDIR)$(dosemudir)/freedos/dosemu; \
+	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
+	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
+	  # legacy symlink; \
+	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
 	fi
+	mkdir -p -m 0755 $(DESTDIR)$(dosemudir)/drive_z
+	cp -a $(TMP)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	ln -sf drive_z/dosemu $(DESTDIR)$(dosemudir)/commands
+	rm -rf ../tmp
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.users.example $(DESTDIR)$(sysconfdir)/dosemu.users; \

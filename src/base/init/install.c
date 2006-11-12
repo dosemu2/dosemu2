@@ -128,8 +128,8 @@ static void install_dosemu_freedos (int choice)
 	}
 	free(system_str);
 	asprintf(&system_str,
-		 "cp -a "DOSEMULIB_DEFAULT"/commands/fdos/config.sys "
-		 DOSEMULIB_DEFAULT"/commands/fdos/autoexec.bat \"%s\"",
+		 "cp -a "DOSEMULIB_DEFAULT"/drive_z/config.sys "
+		 DOSEMULIB_DEFAULT"/drive_z/autoexec.bat \"%s\"",
 		 boot_dir_path);
 	system(system_str);
 	free(system_str);
@@ -208,7 +208,7 @@ static void install_dos_(void)
 		read_string(&x, 1);
 		return;
 	}
-	if (!exists_file(DOSEMULIB_DEFAULT"/commands/fdos/kernel.sys")) {
+	if (!exists_file(DOSEMULIB_DEFAULT"/drive_z/kernel.sys")) {
 		/* no FreeDOS available: simple menu */
 		if (config.install)
 			install_no_dosemu_freedos(config.install);
@@ -216,7 +216,7 @@ static void install_dos_(void)
 	}
 	if (config.install) {
 		if (strcmp(config.install, DOSEMULIB_DEFAULT"/freedos") == 0 ||
-		    strcmp(config.install, DOSEMULIB_DEFAULT"/commands/fdos") == 0) {
+		    strcmp(config.install, DOSEMULIB_DEFAULT"/drive_z") == 0) {
 			install_dosemu_freedos(3);
 			return;
 		}
@@ -266,7 +266,7 @@ void install_dos(int post_boot)
 	symlink_created = 0;
 	if (config.hdiskboot != 1 ||
 	    config.install ||
-	    !exists_file(DOSEMULIB_DEFAULT"/commands/fdos/kernel.sys")) {
+	    !exists_file(DOSEMULIB_DEFAULT"/drive_z/kernel.sys")) {
 		if (first_time) {
 			do_liability_disclaimer_prompt(post_boot, 1);
 			if (!config.X)
@@ -281,7 +281,7 @@ void install_dos(int post_boot)
 	if(symlink_created) {
 		/* create symlink for D: too */
 		char *commands_path = 
-			assemble_path(DOSEMULIB_DEFAULT, "commands", 0);
+			assemble_path(DOSEMULIB_DEFAULT, "drive_z", 0);
 		create_symlink(commands_path, 1);
 		free(commands_path);
 		if(post_boot)
