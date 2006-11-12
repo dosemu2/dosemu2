@@ -1310,6 +1310,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-target-bits=bits compile for 32 or 64 bits (default=auto)
   --with-docdir=dir       give the directory used to install documentation
                           (default: ${prefix}/share/doc/dosemu)
   --with-x11fontdir=dir   give the directory used to install the VGA X11 font
@@ -2938,14 +2939,16 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
-if test "$host_cpu" = "x86_64" -a -z "$CPPFLAGS"; then
-  # 64bit long mode dosemu is not yet
-  # but you can set CPPFLAGS="-m64" if you want to play with it
-  CPPFLAGS="-m32"
+
+# Check whether --with-target-bits was given.
+if test "${with_target_bits+set}" = set; then
+  withval=$with_target_bits; CPPFLAGS="$CPPFLAGS -m$with_target_bits"
   export CPPFLAGS
-  LDFLAGS="$LDFLAGS -m32"
+  LDFLAGS="$LDFLAGS -m$with_target_bits"
   export LDFLAGS
+
 fi
+
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'

@@ -7,7 +7,7 @@ fi
 CONF_FILE=`dirname $0`/compiletime-settings
 
 if [ "$1" != "" ]; then
-  if [ "${1#--}" = "$1" -a "${1/=/}" = "$1" ]; then
+  if [ "${1#--}" = "$1" -a "${1#*=}" = "$1" ]; then
     CONF_FILE=$1
     if [ "$CONF_FILE" = "-d" ]; then
       CONF_FILE=`dirname $0`/compiletime-settings.devel
@@ -82,6 +82,18 @@ while [ "$1" != "" ]; do
       ;;
     mandir|datadir|libdir|sysconfdir|bindir|prefix)
       STRING="$STRING --$1=`echo $2`"
+      ;;
+    target_bits)
+      if [ "$2" != "auto" ]; then
+	  if uname -m | grep 64 > /dev/null; then
+	      if [ "$2" = "32" ]; then
+		  STRING="$STRING --with-target-bits=32";
+	      fi
+	  elif [ "$2" = "64" ]; then
+	      # cross compilation on pure 32-bit machines
+	      STRING="$STRING --with-target-bits=64 --host=x86_64-pc-linux-gnu";
+	  fi
+      fi
       ;;
     target_cpu)
       if [ "$2" != "auto" ]; then STRING="$STRING --with-target-cpu=$2"; fi

@@ -80,10 +80,19 @@ compiletime-settings.devel -- you can use it by running
 (*not* ./configure -d) prior to running make.
 
 Notes about x86-64.
-On x86-64 DOSEMU (at least for the time being) only runs in 32-bit mode.
-The configure script sets the correct command line options but it
-(depending on the distribution) may not find the correct libraries.
-Try something like
+On x86-64 DOSEMU can runs in both 32-bit and 64-bit mode.
+The 64-bit version is generally easier to compile, but is not as
+well tested as the 32-bit version. Both versions fall back to
+CPU emulation for 16-bit real mode DOS programs, but run DPMI
+programs natively.
+
+The configure script causes compilation of the native 64-bit
+version by default. If you want a 32-bit version, then you need to
+set target_bits to 32 in compiletime-settings or use the
+--with-target-bits=32 configure option.
+
+Configure (depending on the distribution) may not find the correct
+libraries. Try something like
 --x-libraries=/usr/X11R6/lib
 as a configure option to explicitly give the location of the 32-bit
 X libraries.

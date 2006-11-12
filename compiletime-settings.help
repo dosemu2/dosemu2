@@ -112,6 +112,12 @@ plugin_translate "Use Unicode translation plugin" plugin_translate
 
 plugin_demo 	"Use demo plugin" plugin_demo
 
+target_bits	"Target bits" target_bits
+
+		Set to auto for native compilation, to 32 to force compilation
+		of 32-bit DOSEMU on an x86-64 system, and to 64 to force
+		64-bit compilation.
+
 target_cpu	"Target cpu" target_cpu
 
 prefix		"Prefix for DOSEMU system-wide directory structure" prefix

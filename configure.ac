@@ -18,14 +18,12 @@ AC_CANONICAL_TARGET([])
 dnl Checks for programs.
 OPT=$CFLAGS
 AC_PROG_CC
-if test "$host_cpu" = "x86_64" -a -z "$CPPFLAGS"; then
-  # 64bit long mode dosemu is not yet
-  # but you can set CPPFLAGS="-m64" if you want to play with it
-  CPPFLAGS="-m32"
+AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
+  CPPFLAGS="$CPPFLAGS -m$with_target_bits"
   export CPPFLAGS
-  LDFLAGS="$LDFLAGS -m32"
+  LDFLAGS="$LDFLAGS -m$with_target_bits"
   export LDFLAGS
-fi
+)
 AC_PROG_GCC_TRADITIONAL
 AC_PROG_AWK
 AC_PROG_INSTALL

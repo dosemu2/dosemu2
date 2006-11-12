@@ -19,6 +19,7 @@ config {
   plugin_translate on
   plugin_commands on
   plugin_demo off
+  target_bits auto
   target_cpu auto
   prefix /usr/local
   bindir ${prefix}/bin
