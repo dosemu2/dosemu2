@@ -2,7 +2,7 @@
  * Bitmap fonts for the VGA emulation; taken from
  * ftp://ftp.simtel.net/pub/simtelnet/msdos/screen/fntcol16.zip
  *
- * See copyleft_vgafonts.txt for the copyright notice.
+ * See COPYING.DOSEMU for the copyright notice.
  */
 
 unsigned char vga_rom_08[256 * 8] = {
