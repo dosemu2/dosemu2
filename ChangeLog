@@ -1,3 +1,1670 @@
+2006-11-12  Bart
+
+	* [r1699] COPYING.DOSEMU, src/env/video/vgafonts.c:
+	  Added VGA font and dlmalloc copyrights for completeness.
+
+	* [r1698] dist/autoemu.bat, dist/autoexec.bat, dist/config.emu,
+	  dist/config.sys, src/arch/linux/Makefile.main,
+	  src/base/init/install.c, src/base/misc/fatfs.c:
+	  The previous approach had circular symbolic links for directories
+	  which is bad as it confuses DOS programs. It seems clearer to
+	  create a drive_z directory with contents equal to the old freedos
+	  directory (even though there may not be a freedos present).
+
+	* [r1697] dist/dosemu, src/base/init/config.c,
+	  src/base/init/install.c, src/emu.c, src/include/dos2linux.h,
+	  src/include/emu.h, src/plugin/commands/unix.c:
+	  Create no-prompt initial boot for DOSEMU+FreeDOS with a welcome
+	  screen. The liability disclaimer just needs to be confirmed.
+	  Removed the win4lin check from the dosemu script and moved the
+	  terminal instructions to the main code.
+
+	* [r1696] dist/autoemu.bat, dist/autoexec.bat, dist/config.emu,
+	  dist/config.sys, dosemu.spec.in, src/arch/linux/Makefile.main,
+	  src/base/init/install.c, src/base/misc/fatfs.c:
+	  Remove the tarballs with symlinks. Instead, point d: to the
+	  systemwide FreeDOS directory during config.sys processing and use
+	  z: after that. Install config.sys et al from dosemu.
+
+	* [r1695] etc/dosemu.conf, etc/global.conf,
+	  src/base/dev/misc/lpt.c, src/base/init/lexer.l.in,
+	  src/base/init/parser.y.in:
+	  Use $_lpt1, $_lpt2, and $_lpt3 for printer configuration and
+	  disable the printer IRQ for now since it's not used. Fixes
+	  #1492201.
+
+	* [r1694] src/base/async/int.c, src/base/bios/setup.c,
+	  src/include/int.h:
+	  Fix missing LFN support after ctrl-alt-del (#1487899)
+
+	* [r1693] INSTALL, compiletime-settings,
+	  compiletime-settings.devel, compiletime-settings.help, configure,
+	  configure.ac, default-configure, src/emu.c,
+	  src/plugin/sdl/acinclude.m4, src/plugin/sdl/configure,
+	  src/plugin/sdl/configure.ac:
+	  Use JIT cpuemu by default on x86-64, and don't force -m32 any
+	  longer. Introduce target_bits compile time option to optionally
+	  set -m32 or -m64. Updated SDL configure script and added a link
+	  check for cross-compilation.
+
+2006-11-11  Bart
+
+	* [r1692] dist/dosemu:
+	  Use `id -ur` instead of $UID for dash compatibility.
+
+	* [r1691] src/arch/linux/async/signal.c, src/dosext/dpmi/dpmi.c,
+	  src/emu-i386/cpu.c, src/include/cpu-emu.h:
+	  Fix compilation with cpuemu off.
+
+	* [r1690] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-sim.h,
+	  src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/codegen-x86.h, src/emu-i386/simx86/emu86.h,
+	  src/emu-i386/simx86/sigsegv.c, src/env/video/instremu.c,
+	  src/env/video/vgaemu.c, src/include/vgaemu.h:
+	  Implemented better VGAEMU support for simulated cpuemu and
+	  eliminated the e_vga_base and e_vga_end variables.
+
+	* [r1689] src/arch/linux/async/signal.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu.c, src/env/video/vc.c,
+	  src/include/emu.h, src/plugin/term/terminal.c:
+	  Handle all async signals except those that call leavedos using
+	  sigasync() which calls the correct sighandler using a function
+	  pointer array. The real signal handlers are all set in
+	  signal.c:signal_init() now. Add SIGWINCH & SIGPROF to the queue
+	  block list because of their nature.
+
+	* [r1688] src/emu-i386/simx86/sigsegv.c,
+	  src/emu-i386/simx86/trees.c:
+	  Fixed some issues with self-modifying code.
+
+	* [r1687] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/tables.c, src/emu-i386/simx86/trees.c:
+	  Removed GenBufSize hack and adjusted the op size array.
+
+	* [r1686] src/emu-i386/simx86/interp.c, src/env/video/instremu.c,
+	  src/include/cpu.h:
+	  Avoid "lahf" (may not be available on x86-64) and use READ_BYTE
+	  for IS_IRET.
+
+2006-11-10  Bart
+
+	* [r1685] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/interp.c,
+	  src/emu-i386/simx86/trees.c:
+	  Fixed a bug in InvalidateSingleNode and DPMI TheCPU.eflags
+	  handling. Under normal circumstances IOPL should never be set
+	  there.
+
+	* [r1684] configure, configure.ac:
+	  Add -lm to LIBS as DOSEMU now uses a few math functions.
+
+	* [r1683] src/emu-i386/simx86/fp87-sim.c:
+	  Fixed rounding to integer in the FPU simulator.
+
+	* [r1682] src/emu-i386/simx86/codegen-x86.c:
+	  Fix das/aas/aam for x86-64.
+
+	* [r1681] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/fp87-sim.c, src/emu-i386/simx86/interp.c:
+	  Fixed ENTER/IDIV/DIV/IMUL/DAS and some FPU cases that failed with
+	  the QEMU i386 emulator test program.
+
+2006-11-09  Bart
+
+	* [r1680] src/emu-i386/simx86/interp.c:
+	  Correct ofsseg array for DPMI
+
+2006-11-08  Bart
+
+	* [r1679] src/emu.c, src/include/emu.h:
+	  Forgotten sigjmp_buf declarations from r1677.
+
+	* [r1678] src/plugin/sdl/sdl.c:
+	  Enable X background pause for SDL
+
+	* [r1677] src/base/misc/utilities.c, src/emu.c:
+	  Use sigsetjmp/siglongjmp because signal handlers may be involved
+	  in leavedos.
+
+	* [r1676] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/sigsegv.c:
+	  Fix BSF and BSR, and don't use code patches for DPMI code for
+	  cpuemu="full". Fixes Duke Nukem 3D in this mode.
+
+	* [r1675] src/emu-i386/simx86/interp.c:
+	  Use the operand size instead of the address size for jump
+	  destination masking. Fixes some issues with cpuemu in DPMI.
+
+	* [r1674] src/emu-i386/simx86/codegen-x86.c:
+	  Fix vgaemu in compiled code.
+
+	* [r1673] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/interp.c:
+	  Fixed IMUL regressions from r1670.
+
+2006-11-07  Bart
+
+	* [r1672] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/interp.c:
+	  Use load/op/store for inc&dec, and optimize inc/dec byte reg.
+
+	* [r1671] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/interp.c:
+	  Use load/op/store for xchg and actually use xchg in generated
+	  code as well.
+
+	* [r1670] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/interp.c:
+	  Use load/op/store for cpuemu (I)MUL, (I)DIV, NEG, and NOT.
+
+	* [r1669] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/codegen.h,
+	  src/emu-i386/simx86/interp.c:
+	  Use "op %al,reg" style instructions in cpuemu instead of "op
+	  (%edi),%al" to avoid certain VGA memory reads.
+
+	* [r1668] src/base/misc/dump.c, src/dosext/dpmi/dpmi.c:
+	  Fixed a DPMI ctrl-c problem (missed in_dpmi_dos_int), and avoid
+	  dumping unreachable memory in dump.c, which may double-fault.
+
+2006-11-06  Bart
+
+	* [r1667] src/dosext/dpmi/memory.c:
+	  Save actual dpmi base pointer in config.dpmi_base.
+
+	* [r1666] src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/fp87-x86.c:
+	  Changed fp87 absolute addresses to bx-relative so that the FPU
+	  works for x86-64 for JIT cpuemu, and improve x86-64 cpuemu fault
+	  handling.
+
+	* [r1665] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/trees.c:
+	  Fixed VGA read/write for x86-64. Misc adjustments to deal with
+	  64-bit pointers. Add forgotten #include.
+
+2006-11-05  Bart
+
+	* [r1664] src/base/misc/Makefile, src/base/misc/dlmalloc.c,
+	  src/base/misc/smalloc.c, src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/memory.c, src/emu-i386/simx86/trees.c,
+	  src/include/dlmalloc.h, src/include/smalloc.h:
+	  Use Doug Lea's malloc (forced to use mmap with PROT_EXEC) instead
+	  of smalloc for cpuemu. It is a lot faster.
+
+	* [r1663] src/base/misc/smalloc.c, src/emu-i386/simx86/memory.c,
+	  src/include/smalloc.h:
+	  Introduce smalloc_fast and smfree_fast: these clobber the
+	  allocated memory to improve the speed of smfree (eliminating a
+	  linear search). Used by cpuemu: shaves ~25% off DOS boot time.
+
+	* [r1662] src/base/misc/smalloc.c, src/include/smalloc.h:
+	  Changed smalloc to use a double-linked list for a little
+	  performance improvement.
+
+	* [r1661] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/trees.c,
+	  src/emu-i386/simx86/trees.h:
+	  Clean up HOST_ARCH_X86 use.
+
+	* [r1660] src/emu-i386/simx86/codegen.h,
+	  src/emu-i386/simx86/cpatch.c, src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/syncpu.h:
+	  Implemented stos/movs patches for x86-64.
+
+	* [r1659] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/interp.c, src/emu-i386/simx86/trees.h:
+	  Pass clink as a pointer instead of as a possibly truncated int.
+
+	* [r1658] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/trees.c, src/emu-i386/simx86/trees.h:
+	  Clean up pointer casts in cpuemu tree handling. Use int instead
+	  of long where possible/appropriate.
+
+2006-11-04  Bart
+
+	* [r1657] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/codegen-x86.h, src/emu-i386/simx86/codegen.h,
+	  src/emu-i386/simx86/cpatch.c, src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/syncpu.h, src/emu-i386/simx86/trees.c:
+	  Implemented stack/write code patches for x86-64 and fixed an
+	  associated bug in trees.c.
+
+	* [r1656] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/codegen.h, src/emu-i386/simx86/cpatch.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/protmode.c,
+	  src/emu-i386/simx86/sigsegv.c, src/emu-i386/simx86/syncpu.h:
+	  Reorganised the SynCPU structure and rep stos/movs code patches
+	  to use call (%ebx), and enable those on x86-64.
+
+2006-11-02  Bart
+
+	* [r1655] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/codegen-x86.h, src/emu-i386/simx86/cpatch.c,
+	  src/emu-i386/simx86/emu86.h:
+	  Cleaned up cpuemu eflags handling. DF is now always handled via
+	  TheCPU.eflags instead of the stack flag image, and always clear
+	  between instructions. Disabled the pushf VIF trick which doesn't
+	  seem to work as advertised.
+
+	* [r1654] src/emu-i386/simx86/interp.c:
+	  Correct cpuemu regression from rev #1652
+
+2006-11-01  Bart
+
+	* [r1653] src/emu-i386/simx86/codegen-sim.c:
+	  Correct flag handling in AAA, AAS, DAS, DAA, CMPS*, SCAS* in the
+	  cpuemu interpreter. Fixes problems with FD DEBUG's "a" command.
+
+	* [r1652] src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/interp.c:
+	  Fix single stepping in cpu-emu (including dosdebug).
+
+2006-10-31  Bart
+
+	* [r1651] src/env/video/render.c, src/env/video/text.c,
+	  src/include/render.h, src/plugin/X/X.c,
+	  src/plugin/sdl/mouse_SDL.c, src/plugin/sdl/sdl.c:
+	  Fix palette and mouse with SDL for fbdev/fullscreen/256 colors.
+
+	* [r1650] (almost all files changed)
+	  Update year to 2006. COPYING now contains the pure GPL, and
+	  COPYING.DOSEMU the other copyright details. Distribute the GPL
+	  and COPYING.DOSEMU with rpm's from dosemu.spec. Clarified the
+	  clause on redistribution of repackaged official packages.
+
+	* [r1649] src/plugin/X/X.c, src/plugin/sdl/sdl.c:
+	  Don't call SDL_UpdateRects with 0 rectangles: it may crash. Fix
+	  the close (x) window button in xdosemu.
+
+2006-10-30  Bart
+
+	* [r1648] src/env/video/text.c, src/plugin/X/X.c, src/plugin/X/X.h,
+	  src/plugin/X/X_font.c, src/plugin/sdl/sdl.c:
+	  Don't call X functions directly from SDL code, that won't work
+	  with SDL libraries that are not directly linked with X. Added
+	  more checks for x11.window availability. Fixed mouse/input focus
+	  cursor blinking situation.
+
+	* [r1647] src/plugin/sdl/sdl.c:
+	  Initialize most of the X support before creating the first window
+	  (except for window and font), where it was done previously.
+	  Avoids some issues with dynamic loading.
+
+	* [r1646] src/plugin/X/X_font.c:
+	  Fix crash in SDL if X_font = "" (thanks Reinhard).
+
+2006-10-29  Bart
+
+	* [r1645] src/env/video/text.c, src/include/vgatext.h,
+	  src/plugin/X/X.c, src/plugin/X/X_font.c, src/plugin/sdl/sdl.c:
+	  Add X font support to the SDL plugin. There's a bit of a trick
+	  involved (a second "Display") to receive all expose events. Did
+	  some associated cleanup.
+
+	* [r1644] src/plugin/X/Makefile, src/plugin/X/X.c,
+	  src/plugin/X/X.h, src/plugin/X/X_font.c:
+	  Moved X font handling into a seperate file with seperate static
+	  variables, so X fonts can be used by SDL later.
+
+	* [r1643] dist/dosemu:
+	  Replace bash-isms in dosemu script with sh constructs.
+
+	* [r1642] src/env/video/text.c, src/plugin/X/X.c:
+	  Introduce a new Window in the X code, drawwindow, that is a
+	  subwindow of either the fullscreen or the normal window, so can
+	  be reparented (technique borrowed from SDL). The main advantage
+	  is that the X server can take care of shift_x/shift_y for text
+	  modes. Also no need to copy gc's any more. Fix crash for a too
+	  eager update_cursor().
+
+2006-10-28  Bart
+
+	* [r1641] src/env/video/render.c, src/env/video/text.c,
+	  src/include/render.h, src/include/vgatext.h, src/plugin/X/X.c,
+	  src/plugin/sdl/sdl.c:
+	  Create a "bitmap" text system in render.c that is shared by X and
+	  SDL. Implemented line drawing (for mono underline) on the canvas.
+	  The text cursor and underlining now go through the remapper on X.
+	  Remove scaling from the previously used X calls (impossible with
+	  X fonts). Screen updates now lock the surface during the whole
+	  update for SDL; the SDL code pushes rectangles to be updated and
+	  sends them in one go. Mode changes need to be checked before
+	  locking the surface: moved the mode adjust calls out of the
+	  common update code.
+
+	* [r1640] src/arch/linux/async/signal.c, src/env/video/text.c,
+	  src/include/vgatext.h, src/plugin/X/X.c, src/plugin/sdl/sdl.c,
+	  src/plugin/term/terminal.c:
+	  Remove update function in text_system struct. The only user was X
+	  with XFlush but XFlush is not necessary if XPending is called
+	  often enough. Moved event handler call in signal.c after update
+	  calls to be sure of that. Similarly the mouse cursor update is
+	  best placed before other updates.
+
+	* [r1639] src/env/video/seqemu.c, src/env/video/text.c,
+	  src/env/video/vesa.c, src/include/vgatext.h, src/plugin/X/X.c,
+	  src/plugin/sdl/sdl.c, src/plugin/term/terminal.c:
+	  Remove X_resize_text_screen from text_system structure. Resizes
+	  are done on demand by update_screen(); set vga.reconfig.re_init
+	  to be sure of that in all cases.
+
+	* [r1638] src/emu-i386/simx86/codegen-sim.c:
+	  Correct DAA & DAS in simulator.
+
+	* [r1637] src/emu-i386/simx86/codegen-x86.c:
+	  Implement AAD and AAM replacements for x86-64.
+
+	* [r1636] src/emu-i386/simx86/codegen-x86.c:
+	  Implement JIT code for AAA,AAS,DAA, and DAS for x86-64 as they
+	  are not available in long mode. Fixes FreeDOS debug which uses
+	  DAA, in particular.
+
+2006-10-26  Bart
+
+	* [r1635] src/base/init/parser.y.in,
+	  src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/codegen-x86.h, src/emu-i386/simx86/codegen.h,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu.c, src/include/cpu-emu.h:
+	  Enable dynamic code generation for x86-64. Almost all generated
+	  code is the same as for i386, but it's still a bit unstable, and
+	  slower than simulation because of excessive page faulting: code
+	  patching isn't working yet. But FreeDOS boots. Only enabled for
+	  $_cpu_emu="vm86", not for the default "off" for now. Marked
+	  InCompiledCode as volatile to simplify asm constraints.
+
+	* [r1634] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-sim.h,
+	  src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/codegen-x86.h, src/emu-i386/simx86/codegen.h,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/interp.c,
+	  src/emu-i386/simx86/trees.c:
+	  cpuemu: replaced use of inline asm __memcpy by memcpy. GCC does a
+	  good job now and asm __memcpy isn't portable.
+
+	* [r1633] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/fp87-x86.c:
+	  cpuemu: fix asm compilation on x86-64.
+
+2006-10-24  Bart
+
+	* [r1632] src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/emu-i386/simx86/sigsegv.c, src/plugin/commands/builtins.h:
+	  Improve cpuemu fault handling and diagnostics; avoid a few more
+	  page faults in DOSEMU code.
+
+	* [r1631] src/base/init/config.c, src/dosext/dpmi/dpmi.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/include/emu.h:
+	  simx86: shortened asm code, check correct CPU feature flags for
+	  prefetcht0, and fix DPMI Jazz Jackrabbit crash with
+	  $_cpu_emu="vm86".
+
+2006-10-23  Bart
+
+	* [r1630] src/base/init/parser.y.in,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/cpatch.c,
+	  src/emu-i386/simx86/sigsegv.c, src/include/cpu-emu.h:
+	  Link in most of the JIT code for x86-64. Small crucial parts
+	  still disabled.
+
+	* [r1629] src/arch/linux/debugger/Makefile,
+	  src/arch/linux/dosext/sound/midid/Makefile,
+	  src/tools/periph/Makefile:
+	  Use LDFLAGS without -rdynamic to link misc binaries.
+
+	* [r1628] etc/dosemu.conf, src/base/init/lexer.l.in,
+	  src/base/init/parser.y.in, src/emu-i386/simx86/Makefile,
+	  src/emu-i386/simx86/codegen-arch.h,
+	  src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/codegen.h,
+	  src/emu-i386/simx86/cpatch.c, src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/emu86.h, src/emu-i386/simx86/fp87-sim.c,
+	  src/emu-i386/simx86/fp87-x86.c, src/emu-i386/simx86/interp.c,
+	  src/emu-i386/simx86/sigsegv.c, src/emu-i386/simx86/trees.c,
+	  src/include/cpu-emu.h, src/include/emu.h:
+	  Select JIT or simulated CPU emulation at runtime instead of at
+	  compiletime.
+
+2006-10-22  Bart
+
+	* [r1627] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/emu-i386/cpu.c,
+	  src/include/emu.h:
+	  Replaced tls_setup hack with something just a little cleaner. The
+	  64bit fs and gs bases are restored in signal handlers. To avoid
+	  an expensive syscall it is first checked if the bases really need
+	  to be set by comparing the memory fs/gs and the original base
+	  point to. There is a very small chance that that involves a page
+	  fault, which needs to be fixed up.
+
+	* [r1626] src/include/cpu.h:
+	  Fix FPU save/restore on x86-64.
+
+2006-10-20  Bart
+
+	* [r1625] src/base/misc/Makefile, src/base/misc/fatfs.c,
+	  src/base/misc/fatfs.h, src/base/misc/fatfs_boot.S:
+	  Simplify linking in fatfs_boot.S, similar to bootsect.S before.
+
+	* [r1624] src/tools/periph/Makefile, src/tools/periph/bootsect.S,
+	  src/tools/periph/bootsect.h, src/tools/periph/mkfatimage.c,
+	  src/tools/periph/mkfatimage16.c:
+	  Link compiled bootsect.S directly into mkfatimage* instead of
+	  using hex. Get rid of things that are overwritten in bootsect.S;
+	  I can't find anything left (C) Peter Norton.
+
+2006-10-19  Bart
+
+	* [r1623] src/base/bios/Makefile, src/env/video/remap_asm.S:
+	  Adjustments for older GCCs and 64-bit noexecstack.
+
+	* [r1622] src/base/bios/Makefile, src/base/bios/bios.S,
+	  src/dosext/dpmi/dpmisel.S, src/env/video/Makefile,
+	  src/env/video/remap_asm.S, src/env/video/vesabios.S,
+	  src/env/video/vesabios_pm.S, src/include/macros86.h:
+	  Added sections to assembly files to mark a non-executable stack.
+	  (suggestion from James Courtier-Dutton, linux-msdos). For bios.S
+	  and vesabios.S it was necessary to compile without intermediate
+	  linking, which adds a few "-bios_f000"'s but simplifies Makefiles
+	  considerably.
+
+	* [r1621] src/dosext/dpmi/dpmi.c:
+	  Fix C problem with wrongly placed label.
+
+	* [r1620] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmisel.S, src/dosext/dpmi/dpmisel.h:
+	  Use IRET to jump into DPMI client code on x86-64. It's nice
+	  because it pops up ss:esp even for same-privilege transfers from
+	  long mode. To avoid the infamous 16-bit stack ESP corruption
+	  issue the iret stack frame is allocated at 0x100000000 or a
+	  similar address with bits 16-31 zero.
+
+2006-10-18  Bart
+
+	* [r1619] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c,
+	  src/arch/linux/debugger/dis8086.c,
+	  src/arch/linux/mapping/mapping.c, src/base/misc/ioctl.c,
+	  src/dosext/dpmi/dpmi.c, src/dosext/dpmi/dpmi.h,
+	  src/emu-i386/cpu.c, src/emu-i386/do_vm86.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu.c, src/env/video/vc.c,
+	  src/include/cpu.h, src/include/emu.h, src/include/vm86plus.h,
+	  src/plugin/term/terminal.c:
+	  Cleaned up vm86plus.h. Created a new init_handler function in
+	  signal.c which takes care of flags, %fs, %gs etc. dis8086 64-bit
+	  compat. Create dpmi_iret_setup for exiting signal handlers to
+	  DPMI client code.
+
+	* [r1618] src/arch/linux/debugger/dis8086.c,
+	  src/arch/linux/debugger/mhpdbgc.c, src/base/misc/dump.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/env/video/instremu.c,
+	  src/include/dis8086.h:
+	  Replaced disassembler of unclearly licensed origin by one adapted
+	  from 2asm via MAME and DOSBox.
+
+2006-10-17  Bart
+
+	* [r1617] src/plugin/commands/unix.c:
+	  Fixed quiet switching for dosemu in dumb mode with a given
+	  command.
+
+2006-10-12  Bart
+
+	* [r1616] src/dosext/dpmi/dpmi.c, src/dosext/dpmi/dpmisel.S:
+	  Improve direct DPMI switch jmp for x86-64: don't use instructions
+	  that change flags after popf, eliminate use of r10, and tell gcc
+	  that r8 and r9 are clobbered.
+
+2006-10-11  Bart
+
+	* [r1615] src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/dosext/dpmi/dpmisel.S,
+	  src/dosext/dpmi/dpmisel.h:
+	  Removed sigsetjmp/longjmp usage for DPMI again. A tiny amount of
+	  assembly can do it more efficiently (saves the sigprocmask
+	  syscall that sigsetjmp makes).
+
+2006-10-10  Bart
+
+	* [r1614] src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmisel.S, src/dosext/dpmi/dpmisel.h,
+	  src/emu-i386/cpu.c, src/emu-i386/simx86/cpu-emu.c:
+	  Implemented native DPMI code execution for x86-64. Only tested
+	  with a simple Openwatcom "wcc hello.c" but that works. It needed
+	  a few workarounds involving %ss and in particular a nasty hack
+	  for %fs (used for TLS).
+
+	* [r1613] src/emu-i386/simx86/codegen-x86.h,
+	  src/emu-i386/simx86/codegen.h, src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/protmode.c, src/include/emu-ldt.h:
+	  Change lots of long * to int * in CPUEMU. Now basic DPMI works
+	  for $_cpu_emu="full" on x86-64.
+
+	* [r1612] src/arch/linux/async/debug.c:
+	  Add an extra backtrace without full (in case gdb with full
+	  fails), and a simple backtrace using glibc backtrace(), for
+	  suid-root.
+
+	* [r1611] src/base/async/int.c, src/dosext/dpmi/dpmi.c,
+	  src/include/Asm/ldt.h:
+	  Changed lots of longs to int in the DPMI and LDT code, and a few
+	  for int15(extmem). Now DPMI LDT entry allocation works for 64bit.
+
+	* [r1610] src/arch/linux/mapping/mapping.c:
+	  Map DPMI, LFB, and hardware RAM high memory into the first 2G of
+	  address space on x86-64 using MAP_32BIT.
+
+	* [r1609] src/arch/linux/debugger/mhpdbgc.c,
+	  src/emu-i386/simx86/sigsegv.c, src/include/mhpdbg.h:
+	  Fix dosdebug (ldt, symbol reading) and cpu exception printf for
+	  64-bit.
+
+	* [r1608] src/dosext/dpmi/dpmi.c,
+	  src/emu-i386/simx86/codegen-sim.c, src/include/bitops.h:
+	  Replaced simulated BITOP code by non-self-modifying code, adding
+	  the used change_bit and find_bit_r inline functions to bitops.h.
+	  Some more long->int conversions for 64bit compatibility.
+
+2006-10-08  Bart
+
+	* [r1607] src/include/cpu.h, src/include/timers.h:
+	  Fix rdtsc (fixes random slow-downs and hangs) and unix.com in
+	  64-bit. Getting more usable.
+
+	* [r1606] src/plugin/sdl/sdl.c:
+	  Tweak fullscreen mode selection (for 320x200 you now get 640x400
+	  instead of 640x350) in SDL, and work around a crash for fbdev
+	  etc.
+
+	* [r1605] src/plugin/X/X.c, src/plugin/X/screen.c,
+	  src/plugin/X/screen.h, src/plugin/sdl/sdl.c:
+	  Move X dependent part of copy/paste support into screen.c.
+	  Support copy/paste with SDL/X11.
+
+	* [r1604] src/plugin/X/X_keysyms.c, src/plugin/X/keyb_X_keycode.c:
+	  Fix Alt-Gr handling with Xorg 7.1 (Reinhard & Michael Karcher)
+
+	* [r1603] src/env/video/vc.c:
+	  Fix i386 compilation.
+
+	* [r1602] default-configure:
+	  Fix configure with environment variables.
+
+	* [r1601] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/base/misc/dump.c,
+	  src/base/misc/utilities.c, src/emu-i386/cpu.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/sigsegv.c,
+	  src/emu-i386/simx86/syncpu.h, src/env/video/vc.c,
+	  src/include/cpu-emu.h, src/include/cpu.h, src/include/emu.h:
+	  Implemented proper x86_64 signal handling. Have just one sigalrm
+	  handler. Fix error() to not mysteriously give different output on
+	  stderr compared to boot.log. Very basic stuff works now (freedos
+	  dir/exitemu).
+
+	* [r1600] src/base/misc/dump.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/dosext/dpmi/msdos.c,
+	  src/dosext/mfs/mfs.c, src/dosext/mfs/mfs.h,
+	  src/dosext/net/net/ipx.c, src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-sim.h, src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/fp87-sim.c, src/emu-i386/simx86/host.h,
+	  src/emu-i386/simx86/interp.c, src/include/cpu.h,
+	  src/include/dos2linux.h, src/plugin/X/X.c, src/plugin/X/screen.c,
+	  src/plugin/term/keyb_slang.c, src/plugin/term/terminal.c:
+	  More 64-bit compatibility, mostly changing "long" to "int".
+
+2006-10-07  Bart
+
+	* [r1599] src/env/video/vgaemu.c, src/include/vgaemu.h:
+	  Make vga.mem.scratch_page a void * to avoid having to shift all
+	  the time, and 'unsigned int' did not suffice for x86-64 any more.
+
+	* [r1598] src/arch/linux/debugger/dosdebug.c,
+	  src/arch/linux/debugger/mhpdbg.c,
+	  src/arch/linux/debugger/mhpdbgc.c, src/base/bios/hlt.c,
+	  src/base/bios/int10.c, src/base/bios/setup.c,
+	  src/base/dev/dma/dma.c, src/base/dev/pic/pic.c,
+	  src/base/init/config.c, src/base/init/init.c,
+	  src/base/init/memcheck.c, src/base/mouse/mouse.c,
+	  src/base/speaker/console_speaker.c, src/dosext/dpmi/msdos.c,
+	  src/dosext/drivers/aspi.c, src/dosext/mfs/lfn.c,
+	  src/dosext/mfs/mangle.c, src/dosext/mfs/mfs.c,
+	  src/dosext/mfs/mscdex.c, src/dosext/misc/emm.c,
+	  src/dosext/misc/xms.c, src/dosext/sound/sound.c, src/emu.c,
+	  src/env/video/remap.c, src/env/video/remap_pent.c,
+	  src/env/video/vga.c, src/include/dos2linux.h,
+	  src/include/memory.h, src/plugin/commands/blaster.c,
+	  src/plugin/translate/Makefile, src/plugin/translate/translate.c:
+	  Fix all x86-64 warnings in the main DOSEMU code. 64bit DOSEMU
+	  links now.
+
+	* [r1597] src/emu-i386/simx86/cpatch.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/host.h,
+	  src/emu-i386/simx86/interp.c, src/emu-i386/simx86/memory.c,
+	  src/emu-i386/simx86/sigsegv.c, src/include/emu-ldt.h:
+	  Fix x86-64 simx86 warnings.
+
+	* [r1596] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/arch/linux/mapping/mapfile.c,
+	  src/arch/linux/mapping/mapping.c,
+	  src/arch/linux/mapping/mapshm.c, src/base/dev/misc/rtc.c,
+	  src/base/misc/disks.c, src/base/misc/dos2linux.c,
+	  src/base/misc/dump.c, src/base/misc/fatfs.c,
+	  src/base/misc/ioctl.c, src/base/misc/smalloc.c,
+	  src/dosext/dpmi/dpmi.c, src/dosext/dpmi/msdos.c,
+	  src/dosext/dpmi/vxd.c, src/dosext/dpmi/windefs.h,
+	  src/emu-i386/cpu.c, src/emu-i386/do_vm86.c,
+	  src/emu-i386/simx86/Makefile, src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/fp87-x86.c, src/emu-i386/simx86/sigsegv.c,
+	  src/emu-i386/simx86/trees.c, src/include/bitops.h,
+	  src/include/cpu-emu.h, src/include/cpu.h, src/include/emu.h,
+	  src/include/vm86plus.h:
+	  Another batch of x86_64 changes. Using the native x86_64
+	  sigcontext after all, where _rip is EIP or RIP (from DOSEMU
+	  itself) and _eip is always 32-bit.
+
+2006-10-06  Bart
+
+	* [r1595] src/dosext/dpmi/dpmi.c, src/dosext/dpmi/dpmi.h,
+	  src/env/video/hgc.c, src/env/video/instremu.c,
+	  src/env/video/remap.c, src/env/video/remap_asm.S,
+	  src/env/video/text.c, src/env/video/vbe.c, src/env/video/vc.c,
+	  src/env/video/vesa.c, src/env/video/vesabios_pm.S,
+	  src/env/video/vgaemu.c, src/env/video/video.c, src/include/cpu.h,
+	  src/include/memory.h, src/include/termio.h, src/include/vgaemu.h,
+	  src/include/video.h:
+	  First batch of x86-64 compatibility changes, mostly relating to
+	  integer to pointer conversions. instremu is most affected.
+
+2006-10-05  Bart
+
+	* [r1594] src/arch/linux/Makefile.main:
+	  Correct "tail +9" command to "tail -n +9". Closes #1516259.
+
+	* [r1593] src/arch/linux/debugger/dis8086.c, src/dosext/misc/emm.c,
+	  src/env/video/vc.c:
+	  Fix gcc-4.2 warnings.
+
+	* [r1592] src/arch/linux/mapping/mapfile.c,
+	  src/arch/linux/mapping/mapping.c,
+	  src/arch/linux/mapping/mapshm.c, src/base/misc/hma.c,
+	  src/dosext/dpmi/memory.c, src/dosext/misc/emm.c, src/emu.c,
+	  src/env/video/dualmon.c, src/env/video/hgc.c,
+	  src/env/video/matrox.c, src/env/video/vc.c,
+	  src/env/video/vgaemu.c, src/include/mapping.h:
+	  Change mapping definitions to be more similar to the libc
+	  prototypes, to save on casting (particularly for x86-64, later).
+	  Handle alias maps via a separate alias_mapping() function because
+	  here are two pointers instead of pointer + offset.
+
+	* [r1591] src/include/memory.h:
+	  Fix gcc warning in cmos.c.
+
+	* [r1590] src/dosext/dpmi/dpmi.c, src/emu-i386/simx86/cpu-emu.c:
+	  Basic cpu-emu DPMI fixes. At least Jazz Jackrabbit starts now,
+	  but it's still not very stable.
+
+	* [r1589] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/emu-i386/simx86/cpu-emu.c,
+	  src/include/cpu-emu.h, src/include/cpu.h:
+	  Do not store the dpmi retcode in _eax any more, but return it
+	  using the normal C mechanism. There are also some basic cpuemu
+	  DPMI fixes.
+
+2006-10-04  Bart
+
+	* [r1588] src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/dosext/dpmi/dpmisel.S,
+	  src/dosext/dpmi/dpmisel.h:
+	  Clean up unused returns, marking functions "noreturn". Move some
+	  some more asm to dpmisel.S, and make dpmisel() as small as
+	  possible. Using dpmisel() as %cs for the intermediate jmp just
+	  confuses the selector checks so this isn't implemented after all.
+	  Avoid various casts.
+
+	* [r1587] src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/emu-i386/cpu.c,
+	  src/emu-i386/simx86/sigsegv.c, src/env/video/vgaemu.c,
+	  src/include/cpu.h:
+	  Remove _emu_stack_frame. Use a special static eflags_fs_gs struct
+	  to save and restore those, and handle the rest using the real CPU
+	  segment registers, using asm macros.
+
+	* [r1586] src/dosext/dpmi/dpmi.c:
+	  Eliminate one-time indirect DPMI switch to save FPU context. It's
+	  not necessary any more after inheriting it from vm86.
+
+2006-10-03  Bart
+
+	* [r1585] src/dosext/dpmi/dpmi.c, src/emu-i386/cpu.c,
+	  src/emu-i386/do_vm86.c:
+	  Do not save and restore the emulator FPU state (only VM86 and
+	  DPMI states): savefpstate (fsave) also resets the current FPU
+	  state which is good enough for calling FPU-using routines.
+
+	* [r1584] src/base/dev/misc/rtc.c:
+	  Replace 1e6 by 1000000: no need for floating point here.
+
+	* [r1583] src/base/bios/bios.S, src/dosext/dpmi/Makefile,
+	  src/dosext/dpmi/dpmi.c, src/dosext/dpmi/dpmisel.S,
+	  src/dosext/dpmi/dpmisel.h, src/dosext/dpmi/msdos.c,
+	  src/dosext/dpmi/vxd.c, src/include/bios.h:
+	  Move all protected mode HLTs and the intermediate direct DPMI jmp
+	  to a seperate memory area from the BIOS, and point dpmi_sel() to
+	  that.
+
+2006-10-01  Bart
+
+	* [r1582] configure, configure.ac:
+	  Better fix for configure (the previous one only worked with one
+	  option).
+
+2006-09-30  Bart
+
+	* [r1581] configure, src/include/config.h.in,
+	  src/plugin/kbd_unicode/configure,
+	  src/plugin/kbd_unicode/include/kbd_unicode_config.h.in,
+	  src/plugin/sdl/configure:
+	  Regenerate autoconf-generated files with autoconf 2.60a.
+
+	* [r1580] configure.ac:
+	  Fix argument issue with calling default-configure from configure.
+
+	* [r1579] src/base/init/lexer.l.in, src/base/init/parser.y.in:
+	  Use strtoul to parse dosemu.conf numbers so that hardware ram etc
+	  work with negative addresses.
+
+	* [r1578] etc/dosemu.conf, src/arch/linux/mapping/mapping.c,
+	  src/base/misc/utilities.c, src/dosext/dpmi/memory.c,
+	  src/include/mapping.h, src/include/utilities.h:
+	  Use non-zero mmap target addresses without MAP_FIXED. This avoids
+	  the need to parse /proc/self/maps. Make (auto) the new default
+	  for $_dpmi_base. Change dpmi_alloc_pool for $_dpmi_base=(auto) to
+	  reject negative addresses; it will then try an address 128MB past
+	  the current brk limit which is fairly close to the old default.
+
+	* [r1577] src/arch/linux/mapping/mapfile.c, src/env/video/vgaemu.c:
+	  Move VGAEMU LFB memory out of the shared memory pool (it can be
+	  anonymous). Now the memory pool can be mmap'ed rw instead of rwx
+	  (better protection with exec-shield); just the DOS-accessible
+	  memory is rwx.
+
+	* [r1576] src/arch/linux/mapping/mapfile.c:
+	  Implemented workaround for failed PROT_EXEC on noexec shm mounts.
+
+	* [r1575] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h:
+	  Use sigsetjmp() and siglongjmp() to enter and return from DPMI,
+	  instead of fiddling with CPU registers using assembly language,
+	  greatly simplifying direct_dpmi_switch(). It will also be
+	  portable to x86-64. The changes are as minimal as possible but
+	  more cleanups can certainly be done (most of the _emu_stack_frame
+	  can be eliminated for instance).
+
+2006-09-28  Bart
+
+	* [r1574] src/base/bios/bios.S, src/dosext/dpmi/dpmi.c,
+	  src/include/memory.h:
+	  Use a special mmap'ed area for direct dpmi switching. This avoids
+	  using the BIOS for data transfers and (wrt Stas' solution) has
+	  the advantage of working with -fpic/pie
+
+2006-04-29  Bart
+
+	* [r1573] src/plugin/term/terminal.c:
+	  Streamline terminal character write and ACS table construction
+	  routines. Don't use ACS characters when it's not necessary (the
+	  external charset already contains the required characters); this
+	  helps with $_external_charset="cp437" on xterm -k8 -font vga
+	  (Putty makes no difference). Only use ACS characters that are
+	  specified by the relevant terminfo entry.
+
+	* [r1572] src/plugin/X/X.c:
+	  Enable use of unicode fonts for $_X_font, such as uni-vga, but
+	  also misc-fixed*iso10646-1. The logic assumes DOS codepage
+	  encoding for fonts with 256 or less characters, and UCS-16
+	  otherwise.
+
+	* [r1571] src/base/bios/bios.S, src/dosext/dpmi/dpmi.c,
+	  src/include/memory.h:
+	  Apply %cs segment limit workaround for direct_dpmi_switch on
+	  exec-shield kernels. Fixes #1478658: Crash on every DPMI program
+	  under Linux 2.6.16.
+
+2006-04-11  Bart
+
+	* [r1570] src/include/pci.h:
+	  Avoid problems with <sys/pci.h> by just defining the PCI_
+	  constants ourselves.
+
+	* [r1569] src/base/init/config.c:
+	  Moved -2 -3 etc option parsing after config file parsing so they
+	  actually work.
+
+2006-03-11  Bart
+
+	* [r1568] src/env/video/render.c:
+	  Scale small modes towards ~640x400 (shows testcase for #1443448
+	  in the right proportions)
+
+2006-03-05  Bart
+
+	* [r1567] src/emu-i386/cputime.c:
+	  Fix TSC handling during DOSEMU freeze. Fixes #1441256 keyboard
+	  issue (current cvs)
+
+2006-03-04  Stas
+
+	* [r1566] src/base/bios/bios.S, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/dosext/dpmi/msdos.c,
+	  src/dosext/dpmi/msdos.h, src/include/bios.h:
+	  Preserve the PM regs unpon the realmode interrupts. That allows
+	  to merge the msdos_pre_exec() with msdos_pre_extender(), and
+	  msdos_post_exec() became completely unnecessary and removed. Also
+	  cleaned up the dpmi_init() and removed the "psp" field from the
+	  DPMI struct (msdos.c now handles PSP)
+
+2006-03-04  Bart
+
+	* [r1565] src/tools/periph/Makefile:
+	  Fix dependency for bootsect.h after make distclean.
+
+2006-03-04  Stas
+
+	* [r1564] src/dosext/dpmi/dpmi.c, src/dosext/dpmi/dpmi.h,
+	  src/dosext/dpmi/msdos.c, src/dosext/dpmi/msdos.h:
+	  Remove wrong env-mangling code (#1442375)
+
+2006-03-04  Bart
+
+	* [r1563] src/include/vc.h, src/tools/tools86.c:
+	  Fix GCC warnings.
+
+	* [r1562] src/commands/Makefile, src/plugin/commands/Makefile,
+	  src/tools/Makefile, src/tools/periph/Makefile:
+	  Use dependencies for commands and tools; using intermediate .o
+	  files was the easiest (and GCC-version-independent) way to do
+	  this. Fixes #1415598 (build deps for commands are missing).
+
+2006-03-04  Stas
+
+	* [r1561] src/base/misc/utilities.c:
+	  reapplying
+
+	* [r1560] configure.ac:
+	  reapplying
+
+2006-03-04  Bart
+
+	* [r1559] src/env/video/render.c:
+	  Dirty everything in vgaemu re-inits. Fixes #1407567 (vgaemu
+	  problem with stdemo).
+
+2006-03-03  Bart
+
+	* [r1558] (all directories)
+	  Set ignore properties on directories.
+
+	* [r1557] src/base/serial/ser_init.c, src/dosext/misc/xms.c:
+	  Replace $Header$ by $Id$ (svn only understands $Id$)
+
+	* [r1556] src/commands/cmdline.c, src/commands/detect.h,
+	  src/commands/dosdbg.c, src/commands/emulib.h,
+	  src/commands/emumouse.c, src/commands/lredir.c,
+	  src/commands/msetenv.c, src/commands/precompiled/autoexec.bat,
+	  src/commands/turboc.cfg, src/commands/unix.c,
+	  src/commands/xmode.c:
+	  Set svn:eol-style to CRLF for all DOS text files.
+
+2006-02-28  Bart
+
+	* [r1555] src/include/vm86plus.h:
+	  Don't set force_return_for_pic. I'll leave it in the macro like
+	  this for now, so if we really find a testcase we can re-enable
+	  it.
+
+	* [r1554] src/arch/linux/async/signal.c, src/base/dev/pic/pic.c,
+	  src/dosext/dpmi/dpmi.c:
+	  More correct handling of VIP; only have it set when VIF is not
+	  set, and and a hardware interrupt is requested. Optimize DPMI so
+	  that it does not return to dosemu code when interrupts are
+	  pending but VIF is not set.
+
+	* [r1553] src/include/cpu.h:
+	  Change pointer casts to use unions (to allow -O2 without
+	  -fno-strict-aliasing). This does not allow removal of
+	  -fno-strict-aliasing but is a step in that direction.
+
+2006-02-27  Stas
+
+	* [r1552] src/dosext/dpmi/vxd.c, src/dosext/dpmi/windefs.h:
+	  Compile in the win32s support. It is still not activated, but at
+	  least it is now clear what functions needs to be implemented (not
+	  too much).
+
+2006-02-27  Bart
+
+	* [r1551] src/base/init/config.c, src/base/init/init.c,
+	  src/base/init/parser.y.in, src/base/misc/utilities.c,
+	  src/base/serial/ser_init.c, src/env/video/vc.c,
+	  src/env/video/video.c, src/include/emu.h,
+	  src/include/utilities.h, src/include/video.h,
+	  src/plugin/gpm/mouse_gpm.c, src/plugin/kbd_unicode/keyb_raw.c,
+	  src/plugin/term/mouse_xterm.c, src/plugin/term/term_core.c:
+	  Replaced is_console(), check_console() and config.console by a
+	  single on_console() function. Moved console config scrubbing to
+	  config_post_process(). Made scr_state_init() static.
+
+2006-02-26  Stas
+
+	* [r1550] src/dosext/dpmi/msdos.c:
+	  Never copy >64K
+
+	* [r1549] src/dosext/dpmi/dpmi.c, src/emu.c:
+	  unused includes
+
+2006-02-24  Bart
+
+	* [r1548] src/base/bios/int10.c:
+	  set cursor shape after font height adjustments in int10/ah=0.
+	  Fixes #1418023 duke3d and cursor at wrong location
+
+	* [r1547] src/base/init/parser.y.in:
+	  Move getpwuid() check to only do this when DOSEMU is executed
+	  suid or sudo: there is no need to access /etc/passwd when running
+	  non-suid.
+
+2006-02-20  Stas
+
+	* [r1546] src/base/bios/bios.S, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/msdos.c, src/dosext/dpmi/vxd.c,
+	  src/dosext/dpmi/vxd.h, src/dosext/misc/emm.c, src/include/bios.h:
+	  Cosmetic stuff. Mostly moving the VXD code from dpmi.c to vxd.c.
+
+2006-02-20  Bart
+
+	* [r1545] src/plugin/commands/emumouse.c:
+	  Fix printf warnings.
+
+2006-02-16  Stas
+
+	* [r1544] src/base/misc/fatfs.c:
+	  Make sure to add command.com/config.sys/autoexec.bat to FAT image
+	  before the virtual floppy overflows.
+
+2006-02-14  Stas
+
+	* [r1543] src/emu.c:
+	  Regard config.exitearly better than before.
+
+	* [r1542] src/base/misc/fatfs.c:
+	  This makes PartitionMagic happy again.
+
+	* [r1541] src/base/misc/disks.c:
+	  Replaced a few early leavedos() with "exitearly" to avoid
+	  crashes.
+
+	* [r1540] src/base/bios/bios.S:
+	  Added Ctrl-Alt-Del handling into bios. Dosemu handling still
+	  overrides though, as it seem to work "better" for some reasons.
+
+	* [r1539] src/base/dev/pic/pic.c:
+	  This should fix the keyboard bug of #1430175
+
+2006-02-13  Stas
+
+	* [r1538] src/dosext/dpmi/dpmi.c:
+	  Fix corner case with VIF handling (#1430175)
+
+	* [r1537] src/base/dev/pic/pic.c:
+	  This hack is no longer necessary.
+
+	* [r1536] src/dosext/dpmi/msdos.c, src/include/doshelpers.h:
+	  Translation for dosemu PRINT_STRING helper.
+
+2006-02-11  Stas
+
+	* [r1535] src/include/dos2linux.h, src/plugin/commands/commands.c:
+	  Extended dpmi.com
+
+2006-02-09  Stas
+
+	* [r1534] src/base/misc/disks.c, src/base/misc/fatfs.c,
+	  src/include/disks.h, src/plugin/commands/lredir.c:
+	  - Made it possible to boot FreeDOS from virtual floppy
+	  - Scan boot dir only once for any DOS, instead of 2 times for FreeDOS
+	    and 5 for other DOSes. (not scanning for FreeDOS at all makes it
+	    impossible to boot from virtual floppy)
+	  - lredir now tries the FAT automatically when source redirection
+	    doesnt exist (for the recent redir-duplication feature)
+
+	* [r1533] src/emu-i386/do_vm86.c, src/emu.c, src/include/emu.h:
+	  Shut up do_call_back() a little. (part of #1422921)
+
+2006-02-08  Stas
+
+	* [r1532] src/dosext/dpmi/dpmi.c, src/emu-i386/do_vm86.c,
+	  src/emu.c, src/include/emu.h:
+	  Call the hardware stuff from the DPMI too. (part of #1422921)
+
+	* [r1531] src/base/init/parser.y.in:
+	  Print more info about "illegal user"
+
+2006-02-08  Bart
+
+	* [r1530] src/dosext/mfs/lfn.c, src/dosext/mfs/mfs.c,
+	  src/dosext/mfs/mfs.h:
+	  Merge common rmdir, mkdir, and rename MFS code between SFN and
+	  LFN. Fix problem with opening files in the root directory. Honour
+	  read only drives in the LFN code. Fixes #1426126 (LFN problem
+	  with current DosEmu)
+
+2006-02-07  Bart
+
+	* [r1529] src/base/init/lexer.l.in, src/base/init/parser.y.in,
+	  src/base/init/parsglob.h:
+	  Remove pointer casts and parsglob.h in the parser for better type
+	  safety. Use the Bison types typed_expr, int_expr, bool_expr,
+	  real_expr, and string_expr instead of the casts in V_VAL, I_VAL,
+	  B_VAL, R_VAL, and S_VAL. An integer "expression" now derives from
+	  a typed_expr (the union); its fp counterpart is a
+	  "real_expression". Remove unused TIMINT and OPTIONS tokens. Moved
+	  string quote removal from the lexer to the parser to be able to
+	  handle 'a' (and not "a" or a) cleanly as a character integer
+	  constant.
+
+2006-02-06  Stas
+
+	* [r1528] src/dosext/dpmi/msdos.c:
+	  Fix DPMI corrupting the EMS state. (#1415332)
+
+2006-02-03  Bart
+
+	* [r1527] src/base/init/parser.y.in, src/base/init/parsglob.h:
+	  Made the parser 64-bit clean.
+
+2006-02-02  Stas
+
+	* [r1526] src/base/dev/pic/pic.c, src/dosext/sound/sound.c,
+	  src/include/pic.h:
+	  Reenabled sound hack. Apparently it won't be replaced by the new
+	  code ever before 1.4.
+
+	* [r1525] src/emu.c:
+	  use LOWMEM()
+
+	* [r1524] src/base/dev/misc/rtc.c:
+	  pic_untrigger() on ACK.
+
+2006-02-01  Stas
+
+	* [r1523] src/base/misc/smalloc.c, src/dosext/dpmi/memory.c,
+	  src/include/smalloc.h:
+	  - Added uncommitted memory support to smalloc
+	  - Used that to make
+	    the free()'d DPMI memory uncommitted (FR#1417852)
+
+	* [r1522] src/base/bios/bios.S, src/base/bios/setup.c,
+	  src/include/memory.h:
+	  Fix intvectors 1e, 41, 46. This makes it possible to use win98dos
+	  (even with $_lfn_support=(on)), because this fix stops the memory
+	  corruptions which happen when win98dos *writes* to the disk
+	  tables.
+
+	* [r1521] src/base/async/int.c:
+	  This must be error().
+
+	* [r1520] src/base/bios/hlt.c:
+	  Take start_addr into account for hlt.
+
+2006-01-31  Bart
+
+	* [r1519] dist/dosemu:
+	  Fix dosemu script (#1420769)
+
+2006-01-31  Stas
+
+	* [r1518] src/base/async/int.c:
+	  Fixed "bpint" and "tf" of dosdebug.
+
+2006-01-31  Bart
+
+	* [r1517] src/arch/linux/mapping/mapfile.c,
+	  src/base/async/dyndeb.c, src/base/misc/hma.c,
+	  src/dosext/misc/emm.c, src/env/video/matrox.c,
+	  src/env/video/vgaemu.c:
+	  Remove various to-int-casts of (mostly mmap'ed) pointers. The one
+	  in matrox.c was a bug with flex-mmap.
+
+2006-01-30  Bart
+
+	* [r1516] src/dosext/misc/xms.c, src/env/video/vgaemu.c:
+	  Fix Bochs vgabios (and manual mode setting in general)
+	  interaction with vga.mem.wrap. Let XMS register all 6 relevant
+	  bytes within the hlt table (that aren't all hlt, but that does
+	  not matter). Fixes #1418856.
+
+	* [r1515] src/emu-i386/cpu.c, src/emu-i386/simx86/cpu-emu.c,
+	  src/emu-i386/simx86/interp.c, src/emu-i386/simx86/protmode.c,
+	  src/emu-i386/simx86/protmode.h, src/emu-i386/simx86/sigsegv.c,
+	  src/emu-i386/simx86/syncpu.h:
+	  Use "int" instead of "long" for most things referring to 32-bit
+	  entities in cpuemu (for 64 bit compatibility), and changed the
+	  related printf()s.
+
+	* [r1514] src/base/serial/ser_init.c, src/dosext/dpmi/msdos.c,
+	  src/dosext/mfs/mfs.c, src/dosext/misc/emm.c,
+	  src/dosext/net/net/ipx.c, src/emu-i386/simx86/interp.c,
+	  src/env/video/vc.c, src/env/video/vesa.c, src/env/video/vgaemu.c,
+	  src/plugin/sdl/sdl.c:
+	  Change %#x with casts to %p without casts in debug printf()s.
+
+	* [r1513] src/env/video/vc.c, src/plugin/kbd_unicode/keyb_raw.c:
+	  Remove ioctl casts that are unnecessary and wrong for 64=bit
+	  code.
+
+2006-01-28  Stas
+
+	* [r1512] src/doc/HOWTO/EMUfailure.sgml:
+	  Updated.
+
+	* [r1511] src/base/dev/misc/rtc.c, src/emu-i386/do_vm86.c,
+	  src/include/cmos.h:
+	  Implemented the RTC periodic IRQ generator (better later than
+	  never:) Closes FR#1406011. There are not too much of those
+	  urgently missing/missed parts now. dosemu now only lacks the
+	  proper LPT support, and well, the sound. The rest is there.
+
+2006-01-28  Bart
+
+	* [r1510] src/base/init/install.c:
+	  Fix wrong strlen() in terminal_read().
+
+	* [r1509] src/base/init/install.c, src/emu.c:
+	  Fix disclaimer file content and behaviour with console_video on.
+
+2006-01-28  Stas
+
+	* [r1508] src/dosext/dpmi/dpmi.c:
+	  "Linux DOSEMU" must die. ;-)
+
+	* [r1507] src/base/async/int.c:
+	  - Made kill_time() to use sigsuspend() instead of select()
+	  - Removed some #if0'd stuff
+	  - Removed precard_xxx and card_init since they seem to be unused
+
+2006-01-28  Bart
+
+	* [r1506] src/base/async/int.c, src/base/init/install.c,
+	  src/base/init/parser.y.in, src/base/misc/dos2linux.c,
+	  src/base/misc/utilities.c, src/emu.c, src/include/dos2linux.h,
+	  src/include/dosemu_debug.h:
+	  Move disclaimer and install prompts from dos_post_boot to banner
+	  code, using BIOS calls.
+
+2006-01-27  Stas
+
+	* [r1505] src/dosext/misc/emm.c:
+	  Release EMS memory upon soft-reboot, or it overflows.
+
+	* [r1504] src/base/misc/disks.c:
+	  Report virtual floppy as read-only.
+
+	* [r1503] src/dosext/dpmi/dpmi.c, src/dosext/dpmi/msdos.c,
+	  src/dosext/dpmi/msdos.h:
+	  Don't let the dpmi_exec code to touch the EMS page. (probably
+	  fixes #1415332)
+
+	* [r1502] src/base/dev/misc/rtc.c:
+	  Next bunch of the copy/paste fixes. :(
+
+	* [r1501] src/base/dev/misc/rtc.c:
+	  Nasty copy/paste bugs of the previous commit.
+
+2006-01-26  Stas
+
+	* [r1500] src/base/async/int.c, src/base/dev/misc/cmos.c,
+	  src/base/dev/misc/rtc.c, src/include/cmos.h:
+	  - Sorted and applied all the Eric Auer's RTC fixes, except those
+	    that look wrong.
+	  - Did some (rather heavy-handed) cleanups and
+	    reorganizations, along with the minor fixes here and there, in a
+	    preparation to the periodic IRQ generator.
+	  - Got rid of pic_seti()/rtc_int8() usage.
+
+	* [r1499] src/commands/ems.S, src/include/emm.h:
+	  - Use a separate message for ems.sys when the XMS is disabled. -
+	  Made ems.sys to respect the version again. Note that the ver
+	  checking was introduced because ems.sys had a severe bug which
+	  caused the obscure lock-ups for some programs. And besides, what
+	  was the reason behind *that* way of disabling the check? -
+	  Incremented ems.sys version
+
+2006-01-25  Bart
+
+	* [r1498] src/base/async/int.c:
+	  Correct si and bp in process_master_boot_record(). Make int.c
+	  64-bit clean.
+
+2006-01-25  Stas
+
+	* [r1497] src/base/misc/fatfs.c:
+	  Fix a few fat bugs in FAT12
+
+2006-01-23  Bart
+
+	* [r1496] src/dosext/mfs/lfn.c, src/dosext/mfs/mfs.c:
+	  Improve UNC support so that it works with environment variables,
+	  LFNs and "dir" (depending on the command.com that is used).
+
+	* [r1495] src/dosext/mfs/mfs.c, src/dosext/mfs/mfs.h:
+	  Added basic support for UNC pathnames in the style
+	  \\LINUX\FS\BIN\LS, using a permanent "drive 32".
+
+2006-01-22  Stas
+
+	* [r1494] src/plugin/commands/lredir.c:
+	  Convinced myself that &ptr->memb is not a dereference and
+	  therefore is safe to use with the DOS addresses.
+
+2006-01-22  Bart
+
+	* [r1493] dist/dosemu, dist/dosemu.bindist, dist/dosemu.systemwide,
+	  man/Makefile, man/dosemu.1.in, man/dosemu.bin.1.in,
+	  src/arch/linux/Makefile.main, src/base/async/int.c,
+	  src/base/init/Makefile, src/base/init/config.c,
+	  src/base/init/install.c, src/base/init/parser.y.in, src/emu.c,
+	  src/include/emu.h:
+	  Moved all the dosemu script questions to C. This allows asking in
+	  the DOSEMU window after booting if possible (so window managers
+	  don't need to specify "run in terminal" anymore), and avoiding
+	  question if not necessary (if the user already installed a DOS
+	  manually). Propagate dosemu -install option to dosemu.bin -i
+	  option. Remove X first start info, users probably know how to
+	  operate the "x" button on an X window.
+
+2006-01-21  Stas
+
+	* [r1492] src/plugin/commands/lredir.c:
+	  Carefull with the DOS memory accesses.
+
+	* [r1491] src/plugin/commands/lredir.c:
+	  Implemented an ability for lredir to replicate the redirection of
+	  an existing drives, even the not redirected ones.
+
+	* [r1490] etc/global.conf, src/base/misc/disks.c,
+	  src/base/misc/fatfs.c, src/base/misc/fatfs.h,
+	  src/base/misc/fatfs_boot.S, src/base/misc/ioctl.c,
+	  src/dosext/mfs/mfs.c, src/include/disks.h,
+	  src/include/dos2linux.h, src/include/fatfs.h:
+	  - Implemented FAT12 emulation.
+	  - Made $_vbootfloppy, $_floppy_a etc to accept the directories.
+	  - Made it possible to boot from a directory as from floppy
+	    ($_vbootfloppy)
+	  
+	  Fixes (the ones from the top of my head):
+	  - vol label must not contain slashes (NDD complains)
+	  - vol label must not contain lowercase letters
+	  - disabled the emusys hackery in fatfs: it was reverting the
+	    effect of the subst_file_ext() and didn't work.
+	  - made serial numbers unique for all drives
+	  - fix crash in some cases when the boot system is unavailable
+	    (fatfs_boot.S) And probably some more I cant recall...
+
+	* [r1489] src/commands/ems.S, src/dosext/misc/xms.c:
+	  Dont use internal XMS if it is disabled in the config.
+
+2006-01-19  Stas
+
+	* [r1488] src/base/misc/disks.c:
+	  (cosmetic) This used to hide real bugs from gcc.
+
+2006-01-19  Bart
+
+	* [r1487] dist/dosemu, dist/dosemu.bindist, dist/dosemu.systemwide:
+	  Use a clearer menu system for initial DOSEMU-FreeDOS
+	  installation. I hope to convert most of this to C, to be executed
+	  inside the DOSEMU window later.
+
+	* [r1486] src/base/async/int.c, src/emu.c, src/include/emu.h:
+	  Move liability disclaimer prompt to dos_post_boot in most
+	  circumstances: no console video and using a directory DOS boot.
+
+	* [r1485] dist/dosemu, dist/dosemu.bindist, dist/dosemu.systemwide,
+	  dist/mkbindist, src/arch/linux/Makefile.main:
+	  Split dosemu script into systemwide, non-systemwide, and common
+	  sections, so some processing is simplified and can be done at
+	  compiletime, not runtime.
+
+2006-01-18  Stas
+
+	* [r1484] src/base/misc/disks.c:
+	  Fix 2 NULL-deref bugs.
+
+2006-01-17  Bart
+
+	* [r1483] src/dosext/net/net/ipx.c:
+	  Use #define'd constant for IPX.
+
+	* [r1482] src/dosext/drivers/cdrom.c, src/dosext/net/net/ipx.c:
+	  Fix compiler warnings. The gcc-4.1 warning for ipx.c was a real
+	  bug too.
+
+2006-01-16  Bart
+
+	* [r1481] src/dosext/mfs/lfn.c, src/dosext/mfs/mfs.c:
+	  Store LFN volume label at offset 0x2c, and \0 at offset 0x130 for
+	  int21/ax=714e. Fixes spaces problem of #1400179
+
+	* [r1480] src/plugin/X/X.c:
+	  Re-init font_width & font_height upon X mode re-init. Fixes
+	  #1406522 xdosemu: cursor in text mode causes slight pollution.
+
+2006-01-14  Bart
+
+	* [r1479] src/dosext/mfs/lfn.c:
+	  Accept * as wildcard spec for LFN volume labels (#1400179)
+
+	* [r1478] src/env/video/crtcemu.c:
+	  Set blanking start in crtc registers for VESA modes. Fixes
+	  800x600 modes (etc), #1406001 Quake cannot change gfx resolution
+	  in X
+
+2006-01-14  Stas
+
+	* [r1477] src/doc/HOWTO/EMUfailure.sgml:
+	  Update EMUfailures.
+
+2006-01-14  Bart
+
+	* [r1476] src/plugin/gpm/Makefile:
+	  From Hans de Goede: #1405681 patch fixing x86_64 compilation.
+
+	* [r1475] src/base/bios/int10.c:
+	  Remember clear video memory bit correctly. Fixes #1405682 vgaemu
+	  problem with win98dos.
+
+	* [r1474] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/emu86.h, src/emu-i386/simx86/memory.c,
+	  src/emu-i386/simx86/trees.c:
+	  Use smalloc for the generated code buffer in simx86 on a
+	  PROT_EXEC mmap. Fixes #1404395.
+
+2006-01-13  Bart
+
+	* [r1473] src/arch/linux/mapping/mapping.c,
+	  src/emu-i386/simx86/memory.c:
+	  Remove accidentally unremoved alias code from mapping.c simx86:
+	  mark PROT_READ memory as PROT_EXEC as well (#1404395)
+
+2006-01-12  Stas
+
+	* [r1472] src/base/dev/pic/pic.c, src/dosext/dpmi/dpmi.c:
+	  cosmetic:
+	  - add sanity checks to pic_iret()
+	  - stop calling pic_iret() from dpmi.c
+	  - this was an optimization which looks unsafe now when all the
+	    HLT checks are removed.
+	  - Unhardcode the pic HLT address! The memory.h things should
+	    IMO never be hardcoded in different places.
+
+2006-01-12  Bart
+
+	* [r1471] src/env/video/miscemu.c:
+	  Replace horizontal retrace logic with the method used in DosBox.
+	  Solves issues with Commander Keen4 reported on linux-msdos.
+
+2006-01-07  Bart
+
+	* [r1470] src/dosext/misc/xms.c:
+	  Fix the new internal XMS driver's free/largest memory reporting.
+
+2006-01-06  Bart
+
+	* [r1469] src/base/misc/disks.c, src/dosext/mfs/mfs.c,
+	  src/include/redirect.h:
+	  Make sure that the redirection resetter only clears internal
+	  state and not DOS state. Merge some common code from
+	  Cancel*Redirection into a new function RemoveRedirection.
+
+	* [r1468] src/dosext/dpmi/dpmi.c:
+	  Revert if (Segments[_ss >> 3].is_32) { change which wasn't meant
+	  to be.
+
+2006-01-04  Bart
+
+	* [r1467] src/base/misc/disks.c, src/dosext/mfs/mscdex.c:
+	  Reset redirections on ctrl-alt-del. Remove a few too vocal debug
+	  printfs.
+
+	* [r1466] src/base/async/int.c, src/commands/cdrom.S,
+	  src/dosext/drivers/cdrom.c, src/dosext/mfs/Makefile,
+	  src/dosext/mfs/lfn.c, src/dosext/mfs/mfs.c, src/dosext/mfs/mfs.h,
+	  src/dosext/mfs/mscdex.c, src/include/emu.h,
+	  src/plugin/commands/lredir.c:
+	  Added support for int2f/ax=15xx (MSCDEX CDROM functions). Thanks
+	  to dosbox. These make it possible to use low-level access with
+	  lredir'ed CDROMs so that MSCDEX/SHSUCDX/DOSLFN are not necessary
+	  (see also FR:1389792 volume label support for cdroms and
+	  redirected drives), using a new 'C' lredir option. Also use
+	  dos_read() in cdrom.c instead of read() because it may go
+	  straight to DOS memory.
+
+2006-01-03  Bart
+
+	* [r1465] src/arch/linux/mapping/mapping.c, src/base/async/int.c,
+	  src/base/init/memcheck.c, src/base/misc/hma.c,
+	  src/env/video/vgaemu.c, src/include/memory.h:
+	  Implement int15/ax=e820 (necessary for fdxxms.sys), and some
+	  memcheck infrastructure to construct the memory map. Avoid
+	  putting nul characters in the debug log (use 'e' for emulated
+	  hardware RAM).
+
+2006-01-02  Bart
+
+	* [r1464] src/env/video/render.c, src/env/video/vgaemu.c:
+	  Take the blanking register into account for determining height
+	  and width. Force width/height changes to update the window as
+	  well. This fixes #1124658 Problems with TIM
+
+	* [r1463] src/env/video/render.c, src/env/video/vgaemu.c,
+	  src/include/vgaemu.h:
+	  Implement vgaemu wrapping around the video memory. This fixes the
+	  colour flicker problem in Commander Keen 4.
+
+	* [r1462] src/base/bios/int10.c:
+	  Fix offset to copy font data from in int10/ax=11*0
+	  (vga_RAM_to_RAM). Fixes #1394280 (X video problems with Cubic and
+	  Fast Tracker)
+
+	* [r1461] src/env/video/vgaemu.c:
+	  Adjust the width when the number of bpp's change. Fixes Fast
+	  Tracker 2 display completely (#1394280)
+
+	* [r1460] src/dosext/dpmi/dpmi.c:
+	  Search and replace DPMI_CLIENT.is_32 by Segments[_cs>>3].is_32 at
+	  the right places for GPF handling. There may be more of these
+	  necessary (or _ss>>3). Fixes part of bug #1394280 (Fast Tracker
+	  problem): the outw's became outd's
+
+	* [r1459] INSTALL, README, dist/dosemu, doc/README.txt,
+	  man/dosemu.1.in, man/dosemu.bin.1.in, src/doc/README/X,
+	  src/doc/README/batch:
+	  Documentation updates, in particular about batch operation and X.
+	  Don't let "dosemu -dumb" complain if less than 25 lines are
+	  present.
+
+2006-01-01  Stas
+
+	* [r1458] src/doc/README/Windows, src/doc/README/config:
+	  Minor doc fixes.
+
+2006-01-01  Bart
+
+	* [r1457] doc/README.txt, etc/dosemu.conf, src/doc/README/CDROM,
+	  src/doc/README/Windows, src/doc/README/config,
+	  src/doc/README/header:
+	  Misc README.txt and dosemu.conf documentation updates (also
+	  obsoletes (#1245910 Documentation for timemode)
+
+	* [r1456] etc/dosemu.conf, src/doc/README/mouse:
+	  Adapt and apply #1153944 improve mouse documentation.
+
+	* [r1455] Makefile.conf.in, configure, configure.ac, man/Makefile,
+	  man/dosemu.1.in, man/dosemu.bin.1.in, man/ru/dosemu.1.in,
+	  man/ru/dosemu.bin.1.in:
+	  Set version and date automatically in man pages.
+
+	* [r1454] src/dosext/mfs/mfs.c:
+	  Do not attempt open/ioctl for attributes for FIFOs etc, only for
+	  regular files and directories.
+
+2005-12-31  Bart
+
+	* [r1453] src/dosext/mfs/lfn.c:
+	  Do not clear carry if we do not support LFN for the drive. Fixes
+	  #1394114 "weird cd problem with dosemu-1.3.3"
+
+	* [r1452] src/commands/ems.S:
+	  Remove comment about himem.sys. It is a personal decision whether
+	  people like to use himem.sys, himem.exe, fdxms.sys, fdxxms.sys or
+	  the internal XMS driver, all of which have their advantages and
+	  disadvantages.
+
+2005-12-31  Stas
+
+	* [r1451] src/commands/ems.S, src/dosext/misc/xms.c,
+	  src/include/smalloc.h:
+	  - Make sure smpool is always initialized before using
+	    smfree/smdestroy on it.
+	  - Give the hint about the external XMS driver usage, if not
+	    making it a default.
+
+2005-12-31  Bart
+
+	* [r1450] src/base/init/config.c, src/base/misc/dos2linux.c,
+	  src/include/dos2linux.h, src/plugin/commands/unix.c:
+	  Mostly from Clarence: unix.com patches in
+	  dosemu-exec-friendly.diff, so that "dosemu keen1.exe" works
+	  again. But do not use heuristics that split options from
+	  commands, by making quotes of filenames that contain spaces
+	  compulsory.
+
+2005-12-30  Bart
+
+	* [r1449] src/env/video/remap.c:
+	  Map white to white for 15->32 and 16->32. Closes #1244513 color
+	  correction while converting 555,565 to 888 color.
+
+	* [r1448] VERSION, etc/dosemu.conf, etc/global.conf,
+	  src/base/async/int.c, src/base/misc/hma.c,
+	  src/base/misc/smalloc.c, src/commands/ems.S,
+	  src/dosext/misc/emm.c, src/dosext/misc/xms.c,
+	  src/include/doshelpers.h, src/include/hma.h,
+	  src/include/smalloc.h, src/include/xms.h:
+	  Let the internal XMS driver use int15 memory and smalloc. ems.sys
+	  can activate it if no other XMS driver is loaded. Merge old $_xms
+	  and $_ext_mem into a single $_xms option. Correct int15/88 and
+	  e801. ems.sys uses less resident memory if the XMS UMB handler is
+	  not hooked.
+
+2005-12-29  Bart
+
+	* [r1447] etc/dosemu.conf, etc/global.conf, src/base/init/config.c,
+	  src/base/init/parser.y.in:
+	  Introduce $_pci=(auto) to make the meaning of $_pci more clear.
+	  Initialize $_netdev in restricted suid mode. Report VESA in
+	  config.c.
+
+2005-12-28  Bart
+
+	* [r1446] src/base/dev/misc/pci.c:
+	  From: Michael and Reinhard Karcher. There was a problem with word
+	  and byte accesses to PCI configuration spaces.
+
+	* [r1445] src/base/async/pci_bios.c:
+	  From: Michael and Reinhard Karcher. Fix segfaults in the PCI BIOS
+	  because pciConfigType was a NULL pointer.
+
+	* [r1444] config.guess, config.sub, install-sh:
+	  Update autoconf helper scripts.
+
+2005-12-27  Bart
+
+	* [r1443] etc/dosemu.conf, etc/global.conf,
+	  src/base/init/parser.y.in:
+	  Allow "wholedisk" access config from dosemu.conf. Remove
+	  $_mounted_devices checks from global.conf (parser.y.in already
+	  checks). Closes FR #993179 Whole disk access.
+
+	* [r1442] src/base/init/lexer.l.in:
+	  Correct and report line counter in the lexer.
+
+2005-12-26  Bart
+
+	* [r1441] etc/dosemu.conf, etc/global.conf:
+	  Add $_cdrom CDROM configuration to dosemu.conf.
+
+	* [r1440] src/dosext/mfs/mfs.c:
+	  Initialise the "attr" field at two forgotten places.
+
+	* [r1439] src/dosext/mfs/lfn.c, src/dosext/mfs/mfs.c,
+	  src/dosext/mfs/mfs.h:
+	  Add support for FAT_IOCTL_GET/SET_ATTRIBUTES to directly
+	  manipulate attributes on FAT partitions. Consolidate utime/chmod
+	  calls from LFN/SFN to enforce calling dos_would_allow().
+
+2005-12-24  Bart
+
+	* [r1438] src/base/init/config.c:
+	  cpu_override() does not know about config.realcpu anymore. The
+	  checks are done later in config_post_process.
+
+	* [r1437] src/include/memory.h:
+	  The BIOS size was reduced but I had not adjusted memory.h. Fixed.
+	  Solves problem with ZIPKEY (reported by Ralph Alvy, linux-msdos)
+
+	* [r1436] src/emu-i386/cputime.c:
+	  Use sigsuspend() instead of usleep() in idle(). Fixes #1387967
+	  (dosemu 1.3.3: keyboard is "sticky" on some apps) without
+	  resorting to speed 0.
+
+2005-12-23  Bart
+
+	* [r1435] src/base/misc/priv.c:
+	  Initialize the group vector to the original user's one when using
+	  sudo.
+
+	* [r1434] src/base/init/config.c, src/base/misc/priv.c,
+	  src/base/misc/utilities.c, src/emu-i386/cpu.c,
+	  src/include/dosemu_config.h:
+	  Save a file descriptor to /proc/self/maps for Fedora kernels in
+	  suid mode; otherwise we lose access after dropping privileges.
+
+	* [r1433] src/env/video/vc.c:
+	  Fix dosemu -s -c: set_process_control must unblock
+	  SIG_ACQUIRE/SIG_RELEASE.
+
+2005-12-22  Bart
+
+	* [r1432] src/base/async/pci_bios.c, src/base/dev/misc/pci.c:
+	  Added some (untested) support for PCI configuration mechanism 2;
+	  fix GCC warnings.
+
+2005-12-22  Stas
+
+	* [r1431] src/dosext/dpmi/dpmi.c:
+	  Fix flags handling on prot-mode hardware interrupts (#915452)
+	  Also removed some no longer valid comments.
+
+	* [r1430] etc/dosemu.conf:
+	  Clarify comment.
+
 2005-12-22  Bart
 
 	* configure, configure.ac:

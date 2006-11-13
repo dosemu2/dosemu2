@@ -4,6 +4,72 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
+Version 1.3.4 (2006-11-xx)
+=============
+* For a first time boot with FreeDOS, DOSEMU now boots without any user
+  interaction, and presents a welcome screen. Drive Z: is now a read-only
+  drive with all the DOSEMU and FreeDOS support files.
+* Clarified the copyrights and replaced some code with unclear origins.
+  The disclaimer acceptance has been weakened.
+* Added native 64-bit support for x86-64, which, similarly to the 32-bit
+  version, uses CPU emulation for V86 mode, and runs DPMI code natively.
+  Most of the code is now 64-bit clean but a few cases may not work yet.
+* The CPUEMU simulator is now a runtime option, activated via
+  $_cpuemu="vm86sim", or $_cpuemu="fullsim". Improved correctness of
+  CPUEMU.
+* Added a $_cdrom option for runtime configuration of the CD-ROM device.
+* Added an internal *CDEX style CD-ROM driver, activated using LREDIR, for
+  use with CD-ROMs that are mounted in Linux. The default autoexec.bat
+  uses this to set drive E: to a CD-ROM.
+* Implemented support for Unicode fonts for $_X_font, so you can for
+  instance use the univga font or
+  $_X_font="-Misc-Fixed-Medium-R-SemiCondensed--13-120-75-75-C-60-ISO10646-1"
+* Use $_lpt1, $_lpt2, and $_lpt3 for printer configuration.
+* The SDL plugin now supports text copy and paste, and X fonts.
+* It is now possible to point $_vbootfloppy, $_floppy_a etc. to directories
+  and boot from them.
+* Improved real time clock support with a periodic IRQ generator.
+* Improved PCI emulation on the console, with $_pci=(auto).
+* Improved the internal XMS driver.
+* Various DPMI and VGAEMU fixes.
+* The dosemu script is compatible with the minimal shell dash.
+* DOSEMU's stack is no longer marked executable which may improve security.
+
+List of SourceForge tracker numbers with bugs that were closed:
+#915452  FR: Windows support
+#993179  FR: Whole disk access
+#1124658 Problems with TIM
+#1153944 improve mouse documentation
+#1244513 color correction while converting 555,565 to 888 color.
+#1245910 Documentation for timemode
+#1387967 dosemu 1.3.3: keyboard is "sticky" on some apps
+#1394114 weird cd problem with dosemu-1.3.3
+#1394280 X video problems with Cubic and Fast Tracker
+#1400179 SR: How to speed CD-ROM access?
+#1404395 dosemu CVS crashes on x86_64 kernelcmdline noexec=off fixes
+#1405681 patch fixing x86_64 compilation
+#1405682 vgaemu problem with win98dos
+#1406001 Quake cannot change gfx resolution in X
+#1406011 FR: RTC timer emulation
+#1406522 xdosemu: cursor in text mode causes slight pollution
+#1407567 vgaemu problem with stdemo
+#1415332 Problem with Dosemu's EMS.SYS
+#1415598 build deps for commands are missing
+#1417852 FR: DPMI memory handling
+#1418023 duke3d and cursor at wrong location
+#1418856 vgaemu/vgabios crashes
+#1420769 dosemu c:\games\keen.exe doesnt work
+#1422921 PIT timer emulation should be improved
+#1426126 LFN problem with current DosEmu
+#1430175 strange DPMI error
+#1441256 keyboard issue (current cvs)
+#1442375 small addition to MSDOS API translation
+#1443448 Only the top of the screen displayed
+#1478658 Crash on every DPMI program under Linux 2.6.16.
+#1487899 Ctrl-Alt-Del restarts DosEmu without LFN
+#1492201 No way to disable printer IRQ conflicting with SB
+#1516259 Makefile.main syntax error (subversion)
+
 Version 1.3.3 (2005-12-22)
 =============
 * "dosemu" starts xdosemu by default in X. Use "dosemu -t" to force terminal
