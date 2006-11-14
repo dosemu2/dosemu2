@@ -171,8 +171,10 @@ else
   fi
 fi
 
-DOSDRIVE_D="$HOME"
-export DOSDRIVE_D
+if [ -z "$DOSDRIVE_D" ]; then
+  DOSDRIVE_D="$HOME"
+  export DOSDRIVE_D
+fi
 
 if [ `id -ur` = 0 -a -f $HOME/.dosemurc ]; then
   # User is logged in as root. Need to check whether the config files
