@@ -1690,20 +1690,16 @@ shrot0:
 	case O_MOVS_SetA:
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
-			// movl OVERR_DS(%%ebx),%%esi
-			G2(0x738b,Cp); G1(IG->ovds,Cp);
-			// movzwl Ofs_SI(%%ebx),%%edx
-			G4M(0x0f,0xb7,0x53,Ofs_SI,Cp);
-			// leal (%%edx,%%esi,1),%%esi
-			G3(0x32348d,Cp);
+			// movzwl Ofs_SI(%%ebx),%%esi
+			G4M(0x0f,0xb7,0x73,Ofs_SI,Cp);
+			// addl OVERR_DS(%%ebx),%%esi
+			G3M(0x03,0x73,IG->ovds,Cp);
 		    }
 		    if (mode&MOVSDST) {
-			// movl Ofs_XES(%%ebx),%%edi
-			G3M(0x8b,0x7b,Ofs_XES,Cp);
-			// movzwl Ofs_DI(%%ebx),%%ecx
-			G4M(0x0f,0xb7,0x4b,Ofs_DI,Cp);
-			// leal (%%ecx,%%edi,1),%%edi
-			G3(0x393c8d,Cp);
+			// movzwl Ofs_DI(%%ebx),%%edi
+			G4M(0x0f,0xb7,0x7b,Ofs_DI,Cp);
+			// addl Ofs_XES(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_XES,Cp);
 		    }
 		    if (mode&(MREP|MREPNE)) {
 			// movzwl Ofs_CX(%%ebx),%%ecx
