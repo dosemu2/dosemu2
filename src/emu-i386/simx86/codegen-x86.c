@@ -213,125 +213,109 @@ static void CodeGen(IMeta *I, int j)
 		}
 		break;
 	case A_DI_0:			// base(32), imm
-	case A_DI_1: {			// base(32), {imm}, reg, {shift}
-		long idsp=IG->p1;
-		// movl offs(%%ebx),%%edi (seg reg offset or zero)
-		G3M(0x8b,0x7b,IG->p0,Cp);
-
-		if (mode&IMMED)	{
-			if (IG->op==A_DI_0) {
-				if (idsp) { GenLeaEDI(idsp); }
-				break;
-			}
+		// movl $imm,%%edi
+		G1(0xbf,Cp); G4(IG->p1,Cp);
+		if (!(mode & MLEA)) {
+			// addl offs(%%ebx),%%edi (seg reg offset)
+			G3M(0x03,0x7b,IG->p0,Cp);
 		}
+		break;
+	case A_DI_1: {			// base(32), {imm}, reg
+		int idsp=IG->p1;
+
 		if (mode & ADDR16) {
-			// movzwl offs(%%ebx),%%ecx
-			G4M(0x0f,0xb7,0x4b,IG->p2,Cp);
+			// movzwl offs(%%ebx),%%edi
+			G4M(0x0f,0xb7,0x7b,IG->p2,Cp);
 			if ((mode&IMMED) && (idsp!=0)) {
-				// addw $immed,%%cx
-				G3(0xc18166,Cp); G2(idsp,Cp);
+				// addw $immed,%%di
+				G3(0xc78166,Cp); G2(idsp,Cp);
 			}
 		}
 		else {
-			// movl offs(%%ebx),%%ecx
-			G3M(0x8b,0x4b,IG->p2,Cp);
+			// movl offs(%%ebx),%%edi
+			G3M(0x8b,0x7b,IG->p2,Cp);
 			if ((mode&IMMED) && (idsp!=0)) {
 				GenLeaEDI(idsp);
 			}
 		}
-		// leal (%%edi,%%ecx,1),%%edi
-		G3M(0x8d,0x3c,0x39,Cp);
-		}
+		if (!(mode & MLEA)) {
+			// addl offs(%%ebx),%%edi (seg reg offset)
+			G3M(0x03,0x7b,IG->p0,Cp);
+		} }
 		break;
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
-		long idsp=IG->p1;
-		// movl offs(%%ebx),%%edi (seg reg offset or zero)
-		G3M(0x8b,0x7b,IG->p0,Cp);
+		int idsp=IG->p1;
 
 		if (mode & ADDR16) {
-			// movzwl offs(%%ebx),%%ecx
-			G4M(0x0f,0xb7,0x4b,IG->p2,Cp);
-			// addw offs(%%ebx),%%cx
-			G4M(0x66,0x03,0x4b,IG->p3,Cp);
+			// movzwl offs(%%ebx),%%edi
+			G4M(0x0f,0xb7,0x7b,IG->p3,Cp);
+			// addw offs(%%ebx),%%di
+			G4M(0x66,0x03,0x7b,IG->p2,Cp);
 			if ((mode&IMMED) && (idsp!=0)) {
-				// addw $immed,%%cx
-				G3(0xc18166,Cp); G2(idsp,Cp);
+				// addw $immed,%%di
+				G3(0xc78166,Cp); G2(idsp,Cp);
 			}
-			// addl %%ecx,%%edi
-			G2(0xcf01,Cp);
 		}
 		else {
-			// addl offs(%%ebx),%%edi
-			G3M(0x03,0x7b,IG->p2,Cp);
-			// movl offs(%%ebx),%%ecx
-			G3M(0x8b,0x4b,IG->p3,Cp);
+			// movl offs(%%ebx),%%edi
+			G3M(0x8b,0x7b,IG->p3,Cp);
 			if (mode & RSHIFT) {
 			    unsigned char sh = IG->p4;
 			    if (sh) {
-				// shll $1,%%ecx
-				if (sh==1) { G2(0xe1d1,Cp); }
-				// shll $count,%%ecx
-				else { G2(0xe1c1,Cp); G1(sh,Cp); }
+				// shll $1,%%edi
+				if (sh==1) { G2(0xe7d1,Cp); }
+				// shll $count,%%edi
+				else { G2(0xe7c1,Cp); G1(sh,Cp); }
 			    }
 			}
+			// addl offs(%%ebx),%%edi
+			G3M(0x03,0x7b,IG->p2,Cp);
 			if ((mode&IMMED) && idsp) {
 			    GenLeaEDI(idsp);
 			}
-			// addl %%ecx,%%edi
-			G2(0xcf01,Cp);
+		}
+		if (!(mode & MLEA)) {
+			// addl offs(%%ebx),%%edi (seg reg offset)
+			G3M(0x03,0x7b,IG->p0,Cp);
 		} }
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
-		long idsp = IG->p0;
-		if (mode & MLEA) {
-			// movl $0,%%edi
-			G1(0xbf,Cp); G4(0,Cp);
-		}
-		else {
-			// movl offs(%%ebx),%%edi (seg reg offset)
-			G2M(0x8b,0x7b,Cp); G1(IG->ovds,Cp);
-		}
-		if (idsp) {
-			GenLeaEDI(idsp);
-		}
+		int idsp = IG->p0;
+
 		if (!(mode & IMMED)) {
 			unsigned char sh = IG->p2;
-			// movl offs(%%ebx),%%ecx
-			G3M(0x8b,0x4b,IG->p1,Cp);
+			// movl offs(%%ebx),%%edi
+			G3M(0x8b,0x7b,IG->p1,Cp);
 			// shll $count,%%ecx
 			if (sh)	{
-			    // shll $1,%%ecx
-			    if (sh==1) { G2(0xe1d1,Cp); }
-			    // shll $count,%%ecx
-			    else { G2(0xe1c1,Cp); G1(sh,Cp); }
+			    // shll $1,%%edi
+			    if (sh==1) { G2(0xe7d1,Cp); }
+			    // shll $count,%%edi
+			    else { G2(0xe7c1,Cp); G1(sh,Cp); }
 			}
-			// addl %%ecx,%%edi
-			G2(0xcf01,Cp);
+			if (idsp) {
+			    GenLeaEDI(idsp);
+			}
+		} else {
+			// movl $idsp,%%edi
+			G1(0xbf,Cp); G4(idsp,Cp);
+		}
+		if (!(mode & MLEA)) {
+			// addl offs(%%ebx),%%edi (seg reg offset)
+			G3M(0x03,0x7b,IG->ovds,Cp);
 		} }
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
-		// pushl %%ebx; pushb ofs
-		G3M(0x53,0x6a,IG->p0,Cp);
-#ifdef __x86_64__
-		// rdi=sel, rsi=ofs
-		// pop %%rsi; push %%rdi
-		G2M(0x5e,0x57,Cp);
-		// movzwl ofs(%%rbx),%%edi
-		G4M(0x0f,0xb7,0x7b,IG->p0,Cp);
-		// lea SetSegReal(%%rbx),%%rcx
-		G3M(0x48,0x8d,0x8b,Cp); G4((char *)&SetSegReal-CPUOFFS(0),Cp);
-		// call *%%rcx; pop %%rdi; pop %%rbx
-		G4M(0xff,0xd1,0x5f,0x5b,Cp);
-#else
 		// movzwl ofs(%%ebx),%%eax
 		G4M(0x0f,0xb7,0x43,IG->p0,Cp);
-		// movl SetSegReal,%%ecx
-		G1(0xb9,Cp); G4((long)&SetSegReal,Cp);
-		// pushl %%eax; call *%%ecx
-		G3M(0x50,0xff,0xd1,Cp);
-		// addl $8,%%esp; popl %%ebx
-		G4M(0x83,0xc4,0x08,0x5b,Cp);
-#endif
+		// shll $4,%%eax
+		G3M(0xc1,0xe0,0x04,Cp);
+		// movl %%eax,ofs(%%ebx)
+		G3M(0x89,0x43,IG->p1,Cp);
+		// addl $0xffff,%eax
+		G1(0x05,Cp); G4(0x0000ffff,Cp);
+		// movl %%eax,ofs(%%ebx)
+		G3M(0x89,0x43,IG->p1+4,Cp);
 		}
 		break;
 	case L_NOP:
@@ -442,28 +426,18 @@ static void CodeGen(IMeta *I, int j)
 		}
 		break;
 	case L_LXS2: {	/* real mode segment base from segment value */
-		// pushl %%ebx; pushb desc_ofs
-		G3M(0x53,0x6a,IG->p0,Cp);
-#ifdef __x86_64__
-		// rdi=sel, rsi=ofs
-		// pop %%rsi; push %%rdi
-		G2M(0x5e,0x57,Cp);
-		// movzwl (%%rdi),%%edi
-		G3M(0x0f,0xb7,0x3f,Cp);
-		// lea SetSegReal(%%rbx),%%rcx
-		G3M(0x48,0x8d,0x8b,Cp); G4((char *)&SetSegReal-CPUOFFS(0),Cp);
-		// call *%%rcx; pop %%rdi; pop %%rbx
-		G4M(0xff,0xd1,0x5f,0x5b,Cp);
-#else
 		// movzwl (%%edi),%%eax
 		G3M(0x0f,0xb7,0x07,Cp);
-		// movl SetSegReal,%%ecx
-		G1(0xb9,Cp); G4((long)&SetSegReal,Cp);
-		// pushl %%eax; call *%%ecx
-		G3M(0x50,0xff,0xd1,Cp);
-		// addl $8,%%esp; popl %%ebx
-		G4M(0x83,0xc4,0x08,0x5b,Cp);
-#endif
+		// movw %%ax,ofs(%%ebx)
+		G4M(0x66,0x89,0x43,IG->p0,Cp);
+		// shll $4,%%eax
+		G3M(0xc1,0xe0,0x04,Cp);
+		// movl %%eax,ofs(%%ebx)
+		G3M(0x89,0x43,IG->p1,Cp);
+		// addl $0xffff,%eax
+		G1(0x05,Cp); G4(0x0000ffff,Cp);
+		// movl %%eax,ofs(%%ebx)
+		G3M(0x89,0x43,IG->p1+4,Cp);
 		}
 		break;
 	case L_ZXAX:
@@ -2215,9 +2189,6 @@ static void AddrGen_x86(int op, int mode, ...)
 	case A_DI_1: {			// base(32), {imm}, reg, {shift}
 		signed char ofs = (char)va_arg(ap,int);
 		signed char o;
-		if (mode & MLEA) {		// discard base	reg
-			ofs = Ofs_RZERO;
-		}
 		IG->p0 = ofs;
 		IG->p1 = 0;
 		if (mode&IMMED)	{
@@ -2231,9 +2202,6 @@ static void AddrGen_x86(int op, int mode, ...)
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
 		signed char o1,o2;
 		signed char ofs = (char)va_arg(ap,int);
-		if (mode & MLEA) {		// discard base	reg
-			ofs = Ofs_RZERO;
-		}
 		IG->p0 = ofs;
 		IG->p1 = 0;
 		if (mode&IMMED)	{
@@ -2262,7 +2230,9 @@ static void AddrGen_x86(int op, int mode, ...)
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
 		signed char o1 = Offs_From_Arg();
+		signed char o2 = Offs_From_Arg();
 		IG->p0 = o1;
+		IG->p1 = o2;
 		}
 		break;
 	}
@@ -2339,7 +2309,6 @@ static void Gen_x86(int op, int mode, ...)
 	case S_REG:
 	case S_DI_R:
 	case L_LXS1:
-	case L_LXS2:	/* real mode segment base from segment value */
 	case O_XCHG:
 	case O_CLEAR:
 	case O_TEST:
@@ -2351,6 +2320,7 @@ static void Gen_x86(int op, int mode, ...)
 		break;
 
 	case L_REG2REG:
+	case L_LXS2:	/* real mode segment base from segment value */
 	case O_XCHG_R: {
 		signed char o1 = Offs_From_Arg();
 		signed char o2 = Offs_From_Arg();

@@ -70,10 +70,10 @@ static char ofsnam[] =	"??? ??? ??? GS: FS: ES: DS: ??? "
 			"??? ??? ??? ??? ??? ??? ??? ??? "
 			"??? ??? CS: ??? SS: ??? ??? ??? ";
 
-static SDTR *ofsseg[] = {
-		NULL,   NULL,   NULL,   &GS_DTR,&FS_DTR,&ES_DTR,&DS_DTR,NULL,
-		NULL,   NULL,   NULL,   NULL,   NULL,   NULL,NULL,NULL,
-		NULL,   NULL,   &CS_DTR,NULL,   &SS_DTR,NULL,NULL,NULL };
+signed char e_ofsseg[] = {
+	0,   0,       0, Ofs_XGS, Ofs_XFS, Ofs_XES, Ofs_XDS, 0,
+	0,   0,       0,       0,       0,       0,       0, 0,
+	0,   0, Ofs_XCS,       0, Ofs_XSS,       0,       0, 0 };
 
 #define MKOFSNAM(o,b)   ((*((int *)(b))=*((int *)(ofsnam+(o)))), \
                           ((b)[3]=0), (b))
@@ -83,18 +83,13 @@ int SetSegReal(unsigned short sel, int ofs)
 	static char buf[4];
 	SDTR *sd;
 
-	sd = ofsseg[(ofs>>2)];
+	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
 
 	CPUWORD(ofs) = sel;
-	if ((sd->Oldsel==sel)&&(sd->Attrib==2)) {
-	    e_printf("SetSeg REAL %s%04x cached\n",MKOFSNAM(ofs,buf),sel);
-	}
-	else {
-	    sd->BoundL = (sel<<4);
-	    sd->BoundH = sd->BoundL + 0xffff;
-	    sd->Oldsel = sel; sd->Attrib = 2;
-	    e_printf("SetSeg REAL %s%04x\n",MKOFSNAM(ofs,buf),sel);
-	}
+	sd->BoundL = (sel<<4);
+	sd->BoundH = sd->BoundL + 0xffff;
+	sd->Attrib = 2;
+	e_printf("SetSeg REAL %s%04x\n",MKOFSNAM(ofs,buf),sel);
 	return 0;
 }
 
@@ -107,7 +102,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	Descriptor *dt;
 	SDTR *sd;
 
-	sd = ofsseg[(ofs>>2)];
+	sd = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
 
 	if ((sd->Oldsel==sel)&&((sd->Attrib&3)==1)) {
 	    e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);

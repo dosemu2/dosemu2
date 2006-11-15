@@ -40,9 +40,9 @@
 
 static void modrm_sibd(unsigned char sib, int mode, unsigned char *base)
 {
-	long v = FetchL(base);
+	int v = FetchL(base);
 	if (debug_level('e')>5)
-		e_printf("ModRM sibd sib=%02x base=%08lx v=%08lx\n",sib,(long)base,v);
+		e_printf("ModRM sibd sib=%02x base=%08lx v=%08x\n",sib,(long)base,v);
 	switch(sib) {
 		/* 0x	DS: d32 + (index<<0) */
 		case 0x05:

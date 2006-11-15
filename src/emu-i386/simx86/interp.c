@@ -100,10 +100,6 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 
 static int MAKESEG(int mode, int ofs, unsigned short sv)
 {
-	static SDTR *ofsseg[] = {
-		NULL,   NULL,   NULL,   &GS_DTR,&FS_DTR,&ES_DTR,&DS_DTR,NULL,
-		NULL,   NULL,   NULL,   NULL,   NULL,   NULL,NULL,NULL,
-		NULL,   NULL,   &CS_DTR,NULL,   &SS_DTR,NULL,NULL,NULL };
 	SDTR tseg, *segc;
 	int e;
 	char big;
@@ -114,7 +110,7 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 		return SetSegReal(sv,ofs);
 	}
 
-	segc = ofsseg[(ofs>>2)];
+	segc = (SDTR *)CPUOFFS(e_ofsseg[(ofs>>2)]);
 //	if (segc==NULL) return EXCP06_ILLOP;
 
 	memcpy(&tseg,segc,sizeof(SDTR));
@@ -722,7 +718,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 
 /*07*/	case POPes:	if (REALADDR()) {
 			    Gen(O_POP, mode, Ofs_ES);
-			    AddrGen(A_SR_SH4, mode, Ofs_ES);
+			    AddrGen(A_SR_SH4, mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
 			    unsigned short sv = 0;
 			    CODE_FLUSH();
@@ -736,7 +732,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			break;
 /*17*/	case POPss:	if (REALADDR()) {
 			    Gen(O_POP, mode, Ofs_SS);
-			    AddrGen(A_SR_SH4, mode, Ofs_SS);
+			    AddrGen(A_SR_SH4, mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
 			    unsigned short sv = 0;
 			    CODE_FLUSH();
@@ -751,7 +747,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			break;
 /*1f*/	case POPds:	if (REALADDR()) {
 			    Gen(O_POP, mode, Ofs_DS);
-			    AddrGen(A_SR_SH4, mode, Ofs_DS);
+			    AddrGen(A_SR_SH4, mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
 			    unsigned short sv = 0;
 			    CODE_FLUSH();
@@ -1034,7 +1030,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, mode);
 			    Gen(L_LXS1, mode, REG1);
-			    Gen(L_LXS2, mode, Ofs_ES);
+			    Gen(L_LXS2, mode, Ofs_ES, Ofs_XES);
 			}
 			else {
 			    unsigned short sv = 0;
@@ -1054,7 +1050,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, mode);
 			    Gen(L_LXS1, mode, REG1);
-			    Gen(L_LXS2, mode, Ofs_DS);
+			    Gen(L_LXS2, mode, Ofs_DS, Ofs_XDS);
 			}
 			else {
 			    unsigned short sv = 0;
@@ -1075,7 +1071,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    PC += ModRM(opc, PC, mode|SEGREG);
 			    Gen(L_DI_R1, mode|DATA16);
 			    Gen(S_REG, mode|DATA16, REG1);
-			    AddrGen(A_SR_SH4, mode, REG1);
+			    AddrGen(A_SR_SH4, mode, REG1, e_ofsseg[REG1>>2]);
 			}
 			else {
 			    unsigned short sv = 0;
@@ -2503,7 +2499,7 @@ repag0:
 			case 0xa1: /* POPfs */
 				if (REALADDR()) {
 				    Gen(O_POP, mode, Ofs_FS);
-				    AddrGen(A_SR_SH4, mode, Ofs_FS);
+				    AddrGen(A_SR_SH4, mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
 				    unsigned short sv = 0;
 				    CODE_FLUSH();
@@ -2586,7 +2582,7 @@ repag0:
 			case 0xa9: /* POPgs */
 				if (REALADDR()) {
 				    Gen(O_POP, mode, Ofs_GS);
-				    AddrGen(A_SR_SH4, mode, Ofs_GS);
+				    AddrGen(A_SR_SH4, mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
 				    unsigned short sv = 0;
 				    CODE_FLUSH();
@@ -2617,7 +2613,7 @@ repag0:
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, mode);
 				    Gen(L_LXS1, mode, REG1);
-				    Gen(L_LXS2, mode, Ofs_SS);
+				    Gen(L_LXS2, mode, Ofs_SS, Ofs_XSS);
 				}
 				else {
 				    unsigned short sv = 0;
@@ -2638,7 +2634,7 @@ repag0:
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, mode);
 				    Gen(L_LXS1, mode, REG1);
-				    Gen(L_LXS2, mode, Ofs_FS);
+				    Gen(L_LXS2, mode, Ofs_FS, Ofs_XFS);
 				}
 				else {
 				    unsigned short sv = 0;
@@ -2658,7 +2654,7 @@ repag0:
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, mode);
 				    Gen(L_LXS1, mode, REG1);
-				    Gen(L_LXS2, mode, Ofs_GS);
+				    Gen(L_LXS2, mode, Ofs_GS, Ofs_XGS);
 				}
 				else {
 				    unsigned short sv = 0;
