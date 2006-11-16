@@ -250,12 +250,12 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		e_VgaWrite(_edi,_eax,MBYTE);
-		_eip = (long)(p+2); break;
+		_rip += (long)(p+2); break;
 	case 0x89:	// write word
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32));
-		_eip = (long)(p+2); break;
+		_rip = (long)(p+2); break;
 	case 0x8a:	// read byte
 		if (_err&2) goto badrw;
 		if (p[1]==0x07)
@@ -263,7 +263,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		else if (p[1]==0x17)
 		    *((unsigned char *)&_edx) = e_VgaRead(_edi,MBYTE);
 		else goto unimp;
-		_eip = (long)(p+2); break;
+		_rip = (long)(p+2); break;
 	case 0x8b:	// read word
 		if (_err&2) goto badrw;
 		if (p[1]!=0x07) goto unimp;
@@ -271,33 +271,33 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 			*((unsigned short *)&_eax) = e_VgaRead(_edi,DATA16);
 		else
 			_eax = e_VgaRead(_edi,DATA32);
-		_eip = (long)(p+2); break;
+		_rip = (long)(p+2); break;
 	case 0xa4: {	// MOVsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		e_VgaMovs(scp, 1, 0, d);
-		_eip = (long)(p+1); } break;
+		_rip = (long)(p+1); } break;
 	case 0xa5: {	// MOVsw
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		e_VgaMovs(scp, 0, w16, d*2);
-		_eip = (long)(p+1); } break;
+		_rip = (long)(p+1); } break;
 	case 0xaa: {	// STOsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if ((_err&2)==0) goto badrw;
 		e_VgaWrite(_edi,_eax,MBYTE);
 		_edi+=d;
-		_eip = (long)(p+1); } break;
+		_rip = (long)(p+1); } break;
 	case 0xab: {	// STOsw
 		int d = (_eflags & EFLAGS_DF? -4:4);
 		if ((_err&2)==0) goto badrw;
 		if (w16) d>>=1;
 		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32)); _edi+=d;
-		_eip = (long)(p+1); } break;
+		_rip = (long)(p+1); } break;
 	case 0xac: {	// LODsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;
 		*((char *)&_eax) = e_VgaRead(_esi,MBYTE);
 		_esi+=d;
-		_eip = (long)(p+1); } break;
+		_rip = (long)(p+1); } break;
 	case 0xad: {	// LODsw
 		int d = (_eflags & EFLAGS_DF? -4:4);
 		if (_err&2) goto badrw;
@@ -308,7 +308,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		else
 		    _eax = e_VgaRead(_esi,DATA32);
 		_esi+=d;
-		_eip = (long)(p+1); } break;
+		_rip = (long)(p+1); } break;
 	case 0xf3: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (p[1]==0x66) w16=1,p++;
@@ -349,22 +349,22 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		    e_VgaMovs(scp, 2, w16, d*2);
 		}
 		else goto unimp;
-		_eip = (long)(p+2); }
+		_rip = (long)(p+2); }
 		break;
 	default:
 		goto unimp;
     }
-/**/  e_printf("eVGAEmuFault: new eip=%08x\n",_eip);
+/**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
   }
   return 1;
 
 unimp:
-  error("eVGAEmuFault: unimplemented decode instr at %08x: %08lx\n",
-	_eip, *((long *)_rip));
+  error("eVGAEmuFault: unimplemented decode instr at %08lx: %08x\n",
+	_rip, *((int *)_rip));
   leavedos(0x5643);
 badrw:
-  error("eVGAEmuFault: bad R/W CR2 bits at %08x: %08lx\n",
-	_eip, _err);
+  error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
+	_rip, _err);
   leavedos(0x5643);
 }
 
@@ -455,7 +455,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		 * (this is a very weak assumption indeed)
 		 *
 		 * _cr2 keeps the address where the code tries to write
-		 * _eip keeps the address of the faulting instruction
+		 * _rip keeps the address of the faulting instruction
 		 *	(in the code buffer or in the tree)
 		 *
 		 * Possible instructions we'll find here are (see above):
@@ -502,15 +502,16 @@ int e_emu_fault(struct sigcontext_struct *scp)
     }
 #endif
   }
-#ifdef HOST_ARCH_X86__
+#ifdef HOST_ARCH_X86
   else if (!CONFIG_CPUSIM && _trapno==0x00) {
 	if (InCompiledCode) {
-		static char SpecialTailCode[] =	// flags are already back
-		    { 0x9c,0xb8,0,0,0,0,0x5a,0xc3,0xf4 };
 		TheCPU.err = EXCP00_DIVZ;
-		*((unsigned long *)(SpecialTailCode+2)) = TheCPU.cr2;
-		_eip = (long)SpecialTailCode;
-		return 1;	// restore CPU and jump to our tail code
+		/* save eip, eflags, and do a "ret" out of compiled code */
+		_eax = TheCPU.cr2;
+		_edx = _eflags;
+		_rip = *(long *)_rsp;
+		_rsp += sizeof(long);
+		return 1;
 	}
   }
   return !CONFIG_CPUSIM && TryMemRef && _trapno != 0x0d;
