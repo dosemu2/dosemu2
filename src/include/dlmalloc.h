@@ -1,3 +1,4 @@
+#include "config.h"
 /*
   This is a version (aka dlmalloc) of malloc/free/realloc written by
   Doug Lea and released to the public domain, as explained at

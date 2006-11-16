@@ -88,14 +88,6 @@ fi
 
 
 dnl Checks for library functions.
-AC_FUNC_ALLOCA
-AC_FUNC_MEMCMP
-AC_FUNC_MMAP
-AC_FUNC_UTIME_NULL
-AC_FUNC_VPRINTF
-dnl we currently don't use the following ...
-dnl ___AC_CHECK_FUNCS(getcwd gethostname gettimeofday mkdir mkfifo mktime rmdir select socket strdup strerror strstr strtol strtoul uname)
-dnl ... except
 AC_CHECK_FUNCS(gettimeofday)
 AC_CHECK_FUNCS(sigaltstack)
 AC_CHECK_LIB(rt, shm_open)
