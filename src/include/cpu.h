@@ -178,7 +178,7 @@ extern struct _fpstate vm86_fpu_state;
 
 #define loadflags(value) asm volatile("push %0 ; popf"::"g" (value): "cc" )
 
-#define getflags(value) \
+#define getflags() \
 	({ \
 		unsigned long __value; \
 		asm volatile("pushf ; pop %0":"=g" (__value)); \

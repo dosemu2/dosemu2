@@ -269,7 +269,7 @@ void verror(const char *fmt, va_list args)
 {
 	char fmtbuf[1025];
 	va_list orig_args;
-	va_copy(orig_args, args);
+	__va_copy(orig_args, args);
 
 	if (fmt[0] == '@') {
 		vlog_printf(10, fmt+1, args);

@@ -1750,16 +1750,16 @@ static void Gen_sim(int op, int mode, ...)
 
 	case O_OPAX: {	/* used by DAA..AAD */
 		int n =	va_arg(ap,int);
+		// get n bytes from parameter stack
+		unsigned char subop = Offs_From_Arg();
 		GTRACE3("O_OPAX",0xff,0xff,n);
 		RFL.mode = mode;
 		/* sync AF *before* changing RFL.valid */
-		if (op != AAM && op != AAD)
+		if (subop != AAM && subop != AAD)
 			FlagSync_AP();
 		RFL.valid = V_GEN;
 		DR1.d = CPULONG(Ofs_EAX);
-		// get n bytes from parameter stack
-		unsigned char op = Offs_From_Arg();
-		switch (op) {
+		switch (subop) {
 			case DAA: {
 				char cy = 0;
 				unsigned char altmp = DR1.b.bl;

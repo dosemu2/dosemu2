@@ -12,13 +12,13 @@
 #define ERR D_printf
 
 #undef BYTE
-#define BYTE u_char
+typedef unsigned char BYTE;
 #undef WORD
-#define WORD u_short
+typedef unsigned short WORD;
 #undef DWORD
-#define DWORD u_long
+typedef unsigned int DWORD;
 #undef LONG
-#define LONG u_long
+typedef unsigned int LONG;
 #define HANDLE16 u_short
 #define MAKEWORD(low,high)     ((WORD)(((BYTE)(low)) | ((WORD)((BYTE)(high))) << 8))
 #define MAKELONG(low,high)     ((LONG)(((WORD)(low)) | (((DWORD)((WORD)(high))) << 16)))
@@ -152,7 +152,7 @@
 typedef long BOOL;
 typedef int HFILE;
 typedef const CHAR *LPCSTR;
-typedef unsigned char   BYTE,       *PBYTE,    *LPBYTE;
+typedef unsigned char   *PBYTE,    *LPBYTE;
 typedef void *HMODULE;
 typedef void                                   *LPVOID;
 typedef void *HANDLE;
@@ -163,7 +163,7 @@ typedef LONG_PTR LRESULT;
 typedef LRESULT (CALLBACK *FARPROC16)(void);
 typedef unsigned long long ULONG_PTR, *PULONG_PTR;
 typedef ULONG_PTR SIZE_T, *PSIZE_T;
-typedef unsigned long   DWORD,      *PDWORD,   *LPDWORD;
+typedef unsigned int   *PDWORD,   *LPDWORD;
 typedef const void                             *LPCVOID;
 typedef WORD            ATOM;
 typedef CHAR *LPSTR;
@@ -290,8 +290,8 @@ typedef struct _IMAGE_NT_HEADERS {
   IMAGE_OPTIONAL_HEADER OptionalHeader;	/* 0x18 */
 } IMAGE_NT_HEADERS, *PIMAGE_NT_HEADERS;
 
-#define W32S_APP2WINE(addr) ((addr)? (DWORD)(addr) + W32S_offset : 0)
-#define W32S_WINE2APP(addr) ((addr)? (DWORD)(addr) - W32S_offset : 0)
+#define W32S_APP2WINE(addr) ((addr)? (uintptr_t)(addr) + W32S_offset : 0)
+#define W32S_WINE2APP(addr) ((addr)? (uintptr_t)(addr) - W32S_offset : 0)
 
 #define CONTEXT86 struct sigcontext
 

@@ -85,7 +85,7 @@ write_msg_20:
 	int	$0x10
 	jmp	write_msg
 
-# 5 magic bytes (for IO.SYS compatibility) :-))
+/*# 5 magic bytes (for IO.SYS compatibility) :-))*/
 	.byte	4, 3, 2, 1, 13
 text:
 

@@ -22,6 +22,14 @@
   					config file */
 #endif
 
+/* Flex defines these, but stdint.h is going to define them again */
+#undef INT8_MAX
+#undef INT16_MAX
+#undef INT32_MAX
+#undef UINT8_MAX
+#undef UINT16_MAX
+#undef UINT32_MAX
+
 #include <stdlib.h>
 #include <termios.h>
 #undef ECHO

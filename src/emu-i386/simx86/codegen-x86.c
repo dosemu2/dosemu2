@@ -3020,23 +3020,23 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	__asm__ __volatile__ (
 "		push   "RE_REG(bx)"\n"
 "		pushf\n"
-"		push	$1f\n"
-"		push	%0\n"		/* push and get TheCPU flags    */
+"		call	1f\n"
+"		jmp	2f\n"
+"1:		push	%0\n"		/* push and get TheCPU flags    */
 "		rdtsc\n"
-"		movl	%%eax,%2\n"	/* save time before execution   */
-"		movl	%%edx,%3\n"
+"		movl	%%eax,%3\n"	/* save time before execution   */
+"		movl	%%edx,%4\n"
 "		mov	%1,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
-"		jmp	*%6\n"		/* call SeqStart                */
-"1:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
+"		jmp	*%2\n"		/* call SeqStart                */
+"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
 "		mov    "RE_REG(ax)",%1\n"/* save PC at block exit	*/
 "		rdtsc\n"
 "		popf\n"
 "		pop    "RE_REG(bx) 	/* restore regs                 */
-		: "=S"(flg),"=c"(ePC),
+		: "=S"(flg),"=c"(ePC),"=D"(mem_ref),
 		  "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th),
-		  "=&a"(TimeEndExec.t.tl),"=&d"(TimeEndExec.t.th),
-		  "=D"(mem_ref)
-		: "1"(ecpu),"0"(flg),"6"(SeqStart)
+		  "=&a"(TimeEndExec.t.tl),"=&d"(TimeEndExec.t.th)
+		: "1"(ecpu),"0"(flg),"2"(SeqStart)
 		: "memory"
 #ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
 		  ,"r8","r9","r10","r11"

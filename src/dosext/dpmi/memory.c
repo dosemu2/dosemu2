@@ -130,12 +130,13 @@ static int uncommit(void *ptr, size_t size)
 void dpmi_alloc_pool(void)
 {
     int num_pages, mpool_numpages;
+    void *dpmi_base;
 
     /* Create DPMI pool */
     num_pages = config.dpmi >> 2;
     mpool_numpages = num_pages + 5;  /* 5 extra pages */
     memsize = mpool_numpages << PAGE_SHIFT;
-    void *dpmi_base = (void *)config.dpmi_base;
+    dpmi_base = (void *)config.dpmi_base;
 
     mpool_ptr = MAP_FAILED;
     if (config.dpmi_base == -1) {
