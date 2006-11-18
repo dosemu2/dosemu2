@@ -43,28 +43,33 @@ See section 3 for compiling on x86-64.
 - su -		(become root)
 - make install
 
-You can now start DOSEMU using "dosemu" or "xdosemu". By default, when you
-start it the first time it will ask you if you want to create a FreeDOS C: 
-drive in the directory ~/.dosemu/drive_c. This is accomplished by creating 
-symbolic links to files in the system-wide DOSEMU tree. You can replace 
-those symbolic links by real files if you wish to do so. The boot 
-directory location and other runtime configuration variables are stored 
-in the file ~/.dosemurc. This file overrides the dosemu.conf file which 
-is usually either in /etc or /etc/dosemu. By default, most error and debug 
-messages are logged to the file ~/.dosemu/boot.log.
+You can now start DOSEMU using "dosemu". By default, when you start it the
+first time it creates a private C: drive in the directory
+$HOME/.dosemu/drive_c. This directory initially only contains the
+config.sys and autoexec.bat files, and a tmp directory. All FreeDOS files
+and all DOSEMU support files (exitemu.com and so on) can be found on the
+shared read-only drive Z: (drive D: during config.sys processing).
 
-If you do not want to use the FreeDOS C: drive in $HOME/.dosemu/drive_c,
-then you can adjust dosemu.conf or ~/.dosemurc yourself and point 
-$_hdimage to the right boot directory or hdimage (which can be a symbolic
-link). Alternatively you can create symbolic links in ~/.dosemu/drives
+Runtime configuration variables can be stored in the file ~/.dosemurc.
+This file overrides the dosemu.conf file which is usually either in
+/etc/dosemu or in /etc. By default, most error and debug messages are
+logged to the file ~/.dosemu/boot.log.
+
+If you do not want to use FreeDOS, a simple way to use a different DOS is
+to copy or symbolically link the DOS system files (io.sys. msdos.sys,
+command.com, and so on, or equivalents) to $HOME/.dosemu/drive_c, and
+DOSEMU will automatically use them when you next boot it.
+
+If you do not want to use the $HOME/.dosemu/drive_c location, then you
+can adjust dosemu.conf or ~/.dosemurc yourself and point $_hdimage to the
+right boot directory or hdimage (which can be a symbolic link).
+Alternatively you can create or adjust symbolic links in ~/.dosemu/drives
 such as
 	~/.dosemu/drives/c ---> /dosc (ln -s /dosc ~/.dosemu/drives/c)
 and so on where /dosc is your mounted DOS partition or
 	~/.dosemu/drives/c ---> ~/msdos
-where you put a working DOS installation in ~/msdos (io.sys, msdos.sys,
-command.com and so on, or equivalents). This symbolic link is also
-created the first time you run [x]dosemu or if you run [x]dosemu -install.
-
+where you put a working DOS installation in ~/msdos. This symbolic link is
+also created the first time you run dosemu or if you run dosemu -install.
 
 --------------------------------------------------------------------------
 3.  Want to use a different configuration ?
@@ -79,7 +84,8 @@ compiletime-settings.devel -- you can use it by running
 	./default-configure -d
 (*not* ./configure -d) prior to running make.
 
-Notes about x86-64.
+Notes about x86-64
+==================
 On x86-64 DOSEMU can runs in both 32-bit and 64-bit mode.
 The 64-bit version is generally easier to compile, but is not as
 well tested as the 32-bit version. Both versions fall back to
@@ -91,8 +97,9 @@ version by default. If you want a 32-bit version, then you need to
 set target_bits to 32 in compiletime-settings or use the
 --with-target-bits=32 configure option.
 
-Configure (depending on the distribution) may not find the correct
-libraries. Try something like
+When compiling a 32-bit DOSEMU on a 64-bit system, the configure script
+(depending on the distribution) may not find the correct libraries.
+Try something like
 --x-libraries=/usr/X11R6/lib
 as a configure option to explicitly give the location of the 32-bit
 X libraries.
@@ -132,7 +139,7 @@ the appropriate action ...
   chapter 2
 
 - Either:
-	chmod u+s /path/to/dosemu.bin
+	chmod u+s /path/to/dosemu.bin, and use the "-s" switch.
   or (recommended for better protection):
 	* leave dosemu.bin non-suid-root
 	* install "sudo" if you haven't already done so
@@ -175,23 +182,19 @@ This section provides a little background and explanations, aimed
 at Linux distributors, people who set up large installations
 and anyone else who is interested.
 
-As of DOSEMU-1.0.2 DOSEMU is not longer installed suid-root by default.
-Running DOSEMU suid-root is not (and never was) recommended on net-connected
-machines, hence, whoever really wants to do it should fiddle with the problems
-himself.
+By default, every user has his or her own C drive 'somewhere' (default
+is $HOME/.dosemu/drive_c). Drive Z: (or D: during config.sys processing)
+points to a shared read/only drive with FreeDOS and DOSEMU support files.
+This way each user has full write access to the C: drive, which is what
+is normally expected in a DOSish environment.
 
-By default, every user has its own copy/instance of DOS 'somewhere' 
-(default is $HOME/.dosemu/drive_c), which consists of symbolic links 
-to shared DOS files or is completely private. This way each user has 
-full write access to the C: drive, which is what is normally expected 
-in a DOSish environment.
-
-The systemwide install, "make install" keeps the DOSEMU binaries, 
-the docs and the templates to generate the user's private
-DOSEMU instance on demand. Whenever a the script [x]dosemu (of such a
-systemwide install) is called by a user who has no private instance yet,
-the script does the install (essentially, it unpacks tarballs which
-consist of symbolic links and a few small files) before it launches DOS. 
+The systemwide install, "make install" keeps the DOSEMU binaries, the docs
+and the templates to generate the user's private DOSEMU instance on demand.
+Whenever DOSEMU is first called by a user who has no DOS installed yet,
+it will try to install FreeDOS (essentially, it copies the config.sys and
+autoexec.bat files, and creates a tmp directory on the provate C: drive),
+before it launches DOS. If it cannot find a FreeDOS, it will tell the user
+and ask for a different location to boot from.
 
 This systemwide installation can be created as follows:
 
@@ -211,8 +214,7 @@ where you can also pack the result into a RPM or what ever package format
 you like.
 
 If you upgrade an existing DOSEMU or dosemu-freedos tarball then this
-this change will have an immediate effect on all users,
-because the user's private instances will have symlinks to the
-commonly used DOS binaries.
+this change will have an immediate effect on all users, because the shared
+Z: drive points to the commonly used DOS binaries.
 
-			--Bart Oldeman, 2006/01/02
+			--Bart Oldeman, 2006/11/17

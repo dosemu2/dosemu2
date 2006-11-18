@@ -142,9 +142,11 @@ static char proprietary_notice[] =
 "The DOSEMU part of the proprietary installation has been done.\n\n"
 "Please make sure that you have a bootable DOS in '%s'.\n"
 "Read the documentation for details on what it must contain.\n"
-"You should also install a symbolic link to or make a copy of the files in\n"
-DOSEMULIB_DEFAULT"/commands\n"
-"in order to make the DOSEMU support commands available within %s.\n";
+"The DOSEMU support commands are available within\n"
+DOSEMULIB_DEFAULT"/drive_z on drive D:. You might want to use different\n"
+"config.sys and autoexec.bat files with your DOS. For example, you can try\n"
+"to copy D:\\config.emu and D:\\autoemu.bat to C:\\, adjust them, and use the\n"
+"the $_emusys option in ~/.dosemurc.\n";
 
 static void install_proprietary(char *proprietary, int warning)
 {
@@ -175,9 +177,9 @@ static void install_no_dosemu_freedos(const char *path)
 "press [ENTER] to quit if you suspect an error after manual installation.\n\n"
 );
 		p = dosreadline();
-		if (path[0] == '\0')
+		if (p[0] == '\0')
 			return;
-		if (path[0] == 3)
+		if (p[0] == 3)
 			leavedos(1);
 	} else
 		p = strdup(path);
