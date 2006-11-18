@@ -4,7 +4,7 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
-Version 1.3.4 (2006-11-xx)
+Version 1.3.4 (2006-11-18)
 =============
 * For a first time boot with FreeDOS, DOSEMU now boots without any user
   interaction, and presents a welcome screen. Drive Z: is now a read-only
@@ -33,6 +33,8 @@ Version 1.3.4 (2006-11-xx)
 * Improved the internal XMS driver.
 * Various DPMI and VGAEMU fixes.
 * The dosemu script is compatible with the minimal shell dash.
+* You can now directly see and manipulate DOS file attributes on Lredir'ed
+  Linux-mounted (V)FAT partitions, when using recent 2.6 kernels.
 * DOSEMU's stack is no longer marked executable which may improve security.
 
 List of SourceForge tracker numbers with bugs that were closed:

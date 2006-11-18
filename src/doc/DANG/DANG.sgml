@@ -10,7 +10,7 @@
 <FirstName> Alistair MacDonald, &lt;alistair@slitesys.demon.co.uk&gt; </FirstName>
 </AUTHOR
 >
-<PubDate> version dosemu-1.3.3 </PubDate>
+<PubDate> version dosemu-1.3.4 </PubDate>
 
 <Abstract>
 
@@ -321,7 +321,7 @@ These are the functions defined in base/init/config.c.
 <Para>
 Process user CPU override from the config file ('cpu xxx') or
 from the command line. Returns the selected CPU identifier or
--1 on error. 'config.realcpu' should have already been defined.
+-1 on error.
 </Para>
 
 </Sect3>
@@ -521,6 +521,12 @@ actually doing 0. We don't need a 'physical' taskswitch
 register (context) replacement. For back-switching, however, we need
 the sigcontext technique, so we build a proper sigcontext structure
 even for 'hand made taskswitch'. (Hans Lermen, June 1996)
+</Para>
+
+<Para>
+-- the whole emu_stack_frame could be eliminated except for eip/rip
+and esp/rsp. For the most part GCC can worry about clobbered registers
+(Bart Oldeman, October 2006)
 </Para>
 
 <Para>
@@ -2663,20 +2669,7 @@ does not need to return to DOSEMU if such an interrupt occurs.
 <Title>Remarks in base/async/int.c</Title>
 
 <Para>
-Some video BIOSes need access to the PIT timer 2, and some
-(e.g. Matrox) directly read the timer output on port 0x61.
-If we don't allow video port access, this will be totally
-emulated; else, we give temporary access to the needed ports
-(timer at 0x42, timer config at 0x43 and timer out/speaker at 0x61),
-provided they were not previously enabled by SPKR_NATIVE - AV
-</Para>
-
-<Para>
------
-</Para>
-
-<Para>
- Many video BIOSes use hi interrupt vector locations as
+Many video BIOSes use hi interrupt vector locations as
 scratchpad area - this is because they come before DOS and feel
 safe to do it. But we are initializing vectors before video, so
 this only causes trouble. I assume no video BIOS will ever:

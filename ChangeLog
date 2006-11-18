@@ -1,3 +1,62 @@
+2006-11-18  Bart
+
+	* [r1710] VERSION, NEWS, ChangeLog, src/doc/DANG/DANG.sgml,
+	  src/doc/README/CDROM, doc/DANG.txt, doc/README.cpuemu,
+	  doc/README.txt, doc/EMUfailure.txt:
+	  Added CDROM lredir documentation. Regenerate documentation.
+	  Release 1.3.4.
+
+	* [r1709] src/arch/linux/async/debug.c, src/base/init/lexer.l.in,
+	  src/base/misc/fatfs_boot.S, src/base/misc/utilities.c,
+	  src/dosext/dpmi/memory.c, src/dosext/dpmi/vxd.c,
+	  src/dosext/dpmi/windefs.h, src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/include/cpu.h:
+	  GCC-2.95 and x86-64 VXD compatibility changes.
+
+	* [r1708] INSTALL, src/base/init/install.c:
+	  Fixed -install for other DOSes than the supplied FreeDOS and
+	  adjust README.
+
+2006-11-16  Bart
+
+	* [r1707] src/emu-i386/simx86/sigsegv.c:
+	  Fixed some 64-bit rip usage, and the division by zero exception.
+
+	* [r1706] configure, configure.ac, src/include/config.h.in,
+	  src/include/dlmalloc.h:
+	  Fixed gcc warning in dlmalloc and removed some obsolete autoconf
+	  macros.
+
+2006-11-15  Bart
+
+	* [r1705] src/arch/linux/Makefile.main:
+	  Rearranged the messages after make install, so it is more clear
+	  that the FreeDOS tarball is missing.
+
+	* [r1704] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/interp.c, src/emu-i386/simx86/modrm-gen.c,
+	  src/emu-i386/simx86/protmode.c, src/emu-i386/simx86/protmode.h,
+	  src/emu-i386/simx86/tables.c:
+	  Segment handling and address calculation optimizations for
+	  cpuemu.
+
+2006-11-14  Bart
+
+	* [r1703] configure, configure.ac:
+	  Added configure checks for bdftopcf and mkfontdir.
+
+	* [r1702] dist/dosemu:
+	  Allow DOSDRIVE_D to be overridden.
+
+	* [r1701] src/emu-i386/simx86/codegen-x86.c,
+	  src/emu-i386/simx86/tables.c:
+	  Optimize the O_MOVS_SetA cpuemu op.
+
+2006-11-13  Bart
+
+	* [r1700] ChangeLog, NEWS:
+	  Updated NEWS and ChangeLog
+
 2006-11-12  Bart
 
 	* [r1699] COPYING.DOSEMU, src/env/video/vgafonts.c:
@@ -911,7 +970,7 @@
 	  Set ignore properties on directories.
 
 	* [r1557] src/base/serial/ser_init.c, src/dosext/misc/xms.c:
-	  Replace $Header$ by $Id$ (svn only understands $Id$)
+	  Replace $Header$ by $ Id: $ (svn only understands $ Id: $)
 
 	* [r1556] src/commands/cmdline.c, src/commands/detect.h,
 	  src/commands/dosdbg.c, src/commands/emulib.h,

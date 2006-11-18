@@ -55,16 +55,9 @@ Alistair MacDonald
 
    8. Using X
 
-        8.1. Latest Info
-        8.2. Older information
-        8.3. The appearance of Graphics modes (November 13, 1995)
-
-              8.3.1. vgaemu
-              8.3.2. vesa
-              8.3.3. X
-
-        8.4. The new VGAEmu/X code (July 11, 1997)
-        8.5. Planar (16 color and mode-X) modes and fonts. (May 2000)
+        8.1. Basic information
+        8.2. More detailed information, hints and tips
+        8.3. The VGA Emulator
 
    9. Running Windows under DOSEMU
 
@@ -81,7 +74,7 @@ Alistair MacDonald
    11. Mouse Garrot
    12. Running a DOS application directly from Unix shell
 
-        12.1. Using "unix -e" in autoexec.bat
+        12.1. Using unix -e in autoexec.bat
         12.2. Using the keystroke facility.
         12.3. Using an input file
         12.4. Running DOSEMU within a cron job
@@ -792,7 +785,7 @@ ge
       $_mouse = "ps2"
       $_mouse_dev = "/dev/mouse"
 
-   When using a PS/2 or USB mouse or when having more then 2 serial ports
+   When using a PS/2 or USB mouse or when having more than 2 serial ports
    you may of course assign _any_ free serialdevice to COM1, COM2. The
    order doesn't matter:
 
@@ -1280,8 +1273,9 @@ is,
 
    An easy way to access files on a CDROM is to mount it in Linux and use
    Lredir to refer to it. However, any low-level access, often used by
-   games is impossible that way. For that you need to load some drivers
-   in DOS. CDROM image files (ISOs) can be used in a similar fashion.
+   games is impossible that way, unless you use the C option. For that
+   you need to load some drivers in DOS. CDROM image files (ISOs) can be
+   used in a similar fashion.
 
    The driver consists of a server on the Linux side
    (src/dosext/drivers/cdrom.c, accessed via int 0xe6 handle 0x40) and a
@@ -1299,9 +1293,16 @@ is,
        Dosemu directly because of security reasons.
      * Load cdrom.sys within your config.sys file with e.g.:
 
-        devicehigh=c:\dosemu\cdrom.sys
+        devicehigh=d:\dosemu\cdrom.sys
 
-     * Start Microsoft cdrom extension as follows:
+     * Mount the CD-ROM in Linux (some distributions do this
+       automatically), and use
+
+        lredir e: linux\fs/media/cdrom c
+
+       to access the CD-ROM as drive E:. The "C" option specifies that
+       the low-level access provided via cdrom.sys is used. Or ... start
+       Microsoft cdrom extension as follows:
 
         mscdex /d:mscd0001 /l:driveletter
 
@@ -1310,8 +1311,14 @@ is,
         shsucdex /d:mscd0001 /l:driveletter
 
    To change the cd while Dosemu is running, use the DOS program
-   'eject.com'. It is not possible to change the disk, when the drive has
-   been opened by another process (e.g. mounted)!
+   'eject.com'. If is not possible to change the disk, when the drive has
+   been opened by another process (e.g. mounted), then you need to
+   unmount it first!
+
+   Lredir has the advantage of supporting long file names, and not using
+   any DOS memory, whereas MS/SHSUCDX are more low-level and perhaps more
+   compatible. You would need to use a DOS TSR driver such as DOSLFN to
+   use long file names with SHSUCDX.
 
    Remarks by zimmerma@rz.fht-esslingen.de:
 
@@ -1341,7 +1348,13 @@ is,
    The one and only parameter to the device driver is a digit between 1
    and 4, (if its missing then 1 is assumed) for the DOS devices
    MSCD0001, MSCD0002 ... MSCD0004 respectively. You then also need to
-   tell MSCDEX about these drivers such as
+   use lredir or tell MSCDEX about these drivers such as
+
+        lredir e: linux\fs/media/cdrom c
+        lredir f: linux\fs/media/cdrom2 c 2
+        lredir g: linux\fs/media/cdrom3 c 3
+
+   where you need to loop-mount the image file, or
 
         mscdex /d:mscd0001 /d:mscd0002 /l:driveletter
 
@@ -1362,60 +1375,77 @@ is,
 
 8. Using X
 
-   Please read all of this for a more complete X information ;-)
+   This chapter provides some hints and tips for using DOSEMU in X.
      _________________________________________________________________
 
-8.1. Latest Info
+8.1. Basic information
 
-   From Uwe Bonnes <bon@elektron.ikp.physik.th-darmstadt.de>:
+   If you start dosemu in X it brings up its own window, in which you can
+   also execute graphical programs such as games. To force text-only
+   execution of DOSEMU in an xterm or other terminal (konsole,
+   gnome-terminal, and so on), you need to run dosemu -t.
 
-   xdosemu (dosemu.bin -X) is now a lot more capable. In particular it
-   should now understand the keys from the keypad-area (the keys the most
-   right on a MF-Keyboard) and numlock and keyevents in the range of the
-   latin characters, even when you run xdosemu from a remote X-terminal.
-   It also is capable to handle PL4 color modes in addition to 256 color
-   modes, so bgidemo from Borland runs fine.
+   Use dosemu -w to start DOSEMU in fullscreen mode. When running DOSEMU,
+   you can flip between fullscreen and windowed mode by pressing
+   <Ctrl><Alt><F>. The graphics window is resizeable.
+
+   Some DOS applications want precise mouse control that is only possible
+   if the mouse cursor is trapped in the DOSEMU window. To enable this
+   you need to grab the mouse by pressing <Ctrl><Alt><Home>. Similarly,
+   you can grab the keyboard by pressing <Ctrl><Alt><K>, or
+   <Ctrl><Alt><Shift><K> if your window manager already grabs
+   <Ctrl><Alt><K>. After you grab the keyboard all key combinations
+   (including <Alt><Tab> and so on) are passed to DOSEMU. In fullscreen
+   mode the mouse and keyboard are both automatically grabbed.
+
+   Use <Ctrl><Alt><Pause> to pause and unpause the DOSEMU session, which
+   is useful if you want it to sit silently in the background when it is
+   eating too much CPU time. Press <Ctrl><Alt><PgDn> or click the close
+   button of the window to exit DOSEMU.
+
+   DOSEMU uses bitmapped internal fonts by default, so it can accurately
+   simulate a real VGA card text mode. It is also possible to use X
+   fonts. The advantages of these is that they may be easier on the eyes,
+   and are faster, in particular if you use DOSEMU remotely. Any native
+   DOS font setting utilities do not work, however. To set an X font use
+   the provided xmode.com utility, using
+       xmode -font vga
+
+   at the DOS prompt or
+       $_X_font = "vga"
+
+   in dosemu.conf. The provided fonts are vga, vga8x19, vga11x19,
+   vga10x24, vga12x30, vga-cp866, and vga10x20-cp866.
+
+   If the mouse is not grabbed, then you can copy and paste text if the
+   DOSEMU window is in text mode. This uses the standard X mechanism:
+   select by dragging the left mouse button, and paste by pressing the
+   middle mouse button.
      _________________________________________________________________
 
-8.2. Older information
+8.2. More detailed information, hints and tips
 
-   From Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de>
-
-   Some basic information about DOSEMU's X support. Sometimes it's even
-   sort of useable now.
-
-   What you should take care of:
+   What you might take care of:
 
      * If backspace and delete do not work, you can try 'xmodmap -e
        "keycode 22 = 0xff08"' to get use of your backspace key, and
      * 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete key.
-     * Make sure DOSEMU has X support compiled in. (X_SUPPORT = 1 in the
-       Makefile)
-     * you should have the vga font installed. See README.ncurses.
-     * start DOSEMU with `xdosemu' (or `dosemu.bin -X' when bypassing the
-       wrapper) from an X terminal window. Or make a link to 'dosemu.bin'
-       named 'xdos' - when called by that name, DOSEMU will automatically
-       assume -X. There is also a new debug flag 'X' for X-related
-       messages. To exit xdosemu, use 'exitemu' or select 'Close' aka
-       'Delete' (better not 'Destroy') from the 'Window' menu. It is also
-       save to use <Ctrl><Alt><PgDn> within the window to exit DOSEMU.
-       Use <Ctrl><Alt><Pause> to pause and unpause the DOSEMU session,
-       which is useful if you want it to sit silently in the background
-       when it is eating too much CPU time.
-     * there are some X-related configuration options for dosemu.conf.
-       See ./etc/dosemu.conf for details.
+     * Make sure DOSEMU has X support compiled in. The configure script
+       complains loudly if it does not find X development libraries.
+     * There are some X-related configuration options for dosemu.conf.
+       See the file itself for details.
      * Keyboard support of course depends on your X keyboard mappings
        (xmodmap). If certain keys don't work (like Pause, Backspace,...),
        it *might* be because you haven't defined them in your xmodmap, or
        defined to something other than DOSEMU expects.
      * using the provided icon (dosemu.xpm):
           + you need the xpm (pixmaps) package. If you're not sure, look
-            for a file like /lib/libXpm.so.*
+            for a file like /usr/X11R6/lib/libXpm.so.*
           + you also need a window manager which supports pixmaps. Fvwm
             is fine, but I can't tell you about others. Twm probaby won't
             do.
           + copy dosemu.xpm to where you usually keep your pixmap (not
-            bitmap!) files (perhaps /usr/include/X11/pixmaps)
+            bitmap!) files (perhaps /usr/share/pixmaps)
           + tell your window manager to use it. For fvwm, add the
             following line to your fvwmrc file:
 
@@ -1438,19 +1468,13 @@ is,
        think it's a real bug, please tell me.
      _________________________________________________________________
 
-8.3. The appearance of Graphics modes (November 13, 1995)
+8.3. The VGA Emulator
 
-   Erik Mouw <J.A.K.Mouw@et.tudelft.nl> & Arjan Filius
-   <I.A.Filius@et.tudelft.nl>
+   In X, a VGA card is emulated. The same happens if you use the SDL
+   library using dosemu -S. This emulation (vgaemu) enables X to run
+   graphics modes.
 
-   We've made some major changes in X.c that enables X to run graphics
-   modes. Unfortunately, this disables the cut-and-paste support, but we
-   think the graphics stuff is much more fun (after things have
-   established, we'll put the cut-and-paste stuff back). The graphics is
-   done through vgaemu, the VGA emulator. Status of the work:
-     _________________________________________________________________
-
-8.3.1. vgaemu
+   Some features:
 
      * Video memory. 1 Mb is allocated. It is mapped with mmap() in the
        VGA memory region of DOSEMU (0xa00000-0xbfffff) to support bank
@@ -1462,82 +1486,37 @@ is,
        implement, but it is terribly slow because a change in the pelmask
        requires a complete redraw of the screen. Fortunately, the pelmask
        changes aren't used often so nobody will notice ;-)
-     * The attribute controller is partially emulated. (Actually, only
-       reads and writes to the ports are emulated)
-     * The working modes are 0x13 (320x200x256) and some other 256 color
-       modes.
-     * To do (in no particular order): font support in graphics modes
-       (8x8, 8x16, 9x16, etc), text mode support, 16, 4 and 2 color
-       support, better bank switching, write the X code out of vgaemu to
-       get it more generic.
-     _________________________________________________________________
-
-8.3.2. vesa
-
-     * VESA set/get mode, get information and bankswitch functions work.
-     * All VESA 256 color (640x480, 800x600, 1024x768) modes work, but
-       due to bad bank switch code in vgaemu they won't display right.
-     * A VESA compatible video BIOS is mapped at 0xc00000. It's very
-       small, but in future it's a good place to store the BIOS fonts
-       (8x8, 8x16) in.
-     * To do: implement the other VESA functions.
-     _________________________________________________________________
-
-8.3.3. X
-
-     * Added own colormap support for the 256 color modes.
-     * Support for vgaemu.
-     * Some cleanups.
-     * To do: remove text support and let vgaemu do the text modes, put
-       back the cut-and-paste stuff, more cleanups.
-     * NOTE: we've developed on X servers with 8 bit pixel depths
-       (XF86_SVGA) so we don't know how our code behaves on other pixel
-       depths. We don't even know if it works.
-
-   As stated before, this code was written for Linux (tested with 1.2.13
-   and 1.3.39) and we don't know if it works under NetBSD. The mmap() of
-   /proc/self/mem and mprotect() magic in vgaemu are very (i386) Linux
-   specific.
-
-   Erik
-     _________________________________________________________________
-
-8.4. The new VGAEmu/X code (July 11, 1997)
-
-   Steffen Winterfeldt <wfeldt@suse.de>
-
-   I've been working on the X code and the VGA emulation over the last
-   few months. This is the outcome so far:
-
-     * graphics support in X now works on all X servers with color depth
-       >= 8
-     * the graphics window is resizeable
+     * The attribute controller is emulated.
+     * The emulator emulates a basic Trident TVGA8900C graphics card. All
+       standard VGA modes are emulated, most VGA hardware features
+       (mode-X, 320x240 and so on), some Trident extensions, and on top
+       of that many high-resolution VESA 2.0 modes, that were not present
+       in the original Trident card. Some (very few) programs, such as
+       Fast Tracker, play intimately with the VGA hardware and may not
+       work. As vgaemu improves these problems should disappear.
+     * Nearly full VESA 2.0 support.
+     * A VESA compatible video BIOS is mapped at 0xc00000. It is small
+       because it only contains some glue code and the BIOS fonts (8x8,
+       8x14, 8x16).
      * support for hi- and true-color modes (using Trident SVGA mode
        numbers and bank switching)
-     * some basic support for mode-X type graphics modes (non-chain4
-       modes as used by e.g. DOOM)
-     * some even more basic support for 16 color modes
-     * nearly full VESA 2.0 support
+     * Support for mode-X type graphics modes (non-chain4 modes as used
+       by e.g. DOOM)
      * gamma correction for graphics modes
      * video memory size is configurable via dosemu.conf
      * initial graphics window size is configurable
-
-   The current implementation supports 4 and 8 bit SVGA modes on all
-   types of X display. Hi-color modes are supported only on displays
-   matching the exact color depth (15 or 16); true color modes are
-   supported only on true color X displays, but always both 24 bit and 32
-   bit SVGA modes.
-
-   In addition, the current hi- and true color support does not allow
-   resizing of the graphics window and gamma correction is ignored.
+     * The current hi- (16bpp) and true (24/32bpp) color support does not
+       allow resizing of the graphics window and gamma correction is
+       ignored.
 
    As the typical graphics mode with 320x200x8 will be used often with
-   large scalings and modern graphics boards are pretty fast, I added
-   something to eat up your CPU time: you can turn on the bilinear
-   interpolation. It greatly improves the display quality (but is rather
-   slow as I haven't had time yet to implement an optimized version -
-   it's plain C for now). If the bilinear filter is too slow, you might
-   instead try the linear filter which interpolates only horizontally.
+   large scalings and modern graphics boards are pretty fast, Steffen
+   Winterfeldt added something to eat up your CPU time: you can turn on
+   the bilinear interpolation. It greatly improves the display quality
+   (but is rather slow as I haven't had time yet to implement an
+   optimized version - it's plain C for now). If the bilinear filter is
+   too slow, you might instead try the linear filter which interpolates
+   only horizontally.
 
    Note that (bi)linear filtering is not available on all VGA/X display
    combinations. The standard drawing routines are used instead in such
@@ -1545,15 +1524,7 @@ is,
 
    If a VGA mode is not supported on your current X display, the graphics
    screen will just remain black. Note that this does not mean that
-   xdosemu has crashed.
-
-   The VESA support is (or should be) nearly VBE 2.0 compatible. As a
-   reference I used several documents including the unofficial VBE 2.0
-   specs made available by SciTech Software. I checked this against some
-   actual implementations of the VBE 2.0 standard, including SciTech's
-   Display Doctor (formerly known as UniVBE). Unfortunately
-   implementations and specs disagree at some points. In such cases I
-   assumed the actual implementation to be correct.
+   DOSEMU has crashed.
 
    The only unsupported VBE function is VGA state save/restore. But this
    functionality is rarely used and its lack should not cause too much
@@ -1574,8 +1545,7 @@ is,
 
    Modes that are defined but cannot be supported due to lack of video
    memory or because they cannot be displayed on your X display, are
-   marked as unsupported in the VBE mode list (but are still in it). Note
-   that there is currently no support of 4 bit VESA modes.
+   marked as unsupported in the VBE mode list (but are still in it).
 
    The current interface between VGAEmu and X will try to update all
    invalid video pages at a time. This may, particularly in hi-res
@@ -1584,16 +1554,15 @@ is,
    running an extra update thread).
 
    If you really think that this is the cause of your problem, you might
-   try to play with veut.max_max_len in env/video/n_X.c, near line 2005.
-   This variable limits the amount of video memory that is updated during
-   one timer interrupt. This way you can dramatically reduce the load of
-   screen updates, but at the same rate reduce your display quality.
+   try to play with veut.max_max_len in env/video/render.c. This variable
+   limits the amount of video memory that is updated during one timer
+   interrupt. This way you can dramatically reduce the load of screen
+   updates, but at the same rate reduce your display quality.
 
-   Gamma correction works in both 4 and 8 bit modes. As the dosemu.conf
-   parser doesn't support float values, it must be specified as a
-   percentage value: gamma 100 = gamma 1.0. Higher values give brighter
+   Gamma correction works in both 4 and 8 bit modes. It must be specified
+   as a float value, e.g. $_X_gamma=(1.0). Higher values give brighter
    graphics, lower make them darker. Reasonable values are within a range
-   of 50 ... 200.
+   of 0.5 ... 2.0.
 
    You can specify the video memory size that the VGA emulator should use
    in dosemu.conf. The value will be rounded up to the nearest 256 kbyte
@@ -1605,30 +1574,20 @@ is,
    ways. Normally it will have the same size (in pixel) as the VGA
    graphics mode, except for mode 0x13 (320x200, 256 colors), which will
    be scaled by the value of mode13fact (defaults to 2). Alternatively,
-   you can directly specify a window size in dosemu.conf via winsize. You
-   can still resize the window later.
+   you can directly specify a window size in dosemu.conf via $_X_winsize.
+   You can still resize the window later.
 
-   The config option fixed_aspect allows you to fix the aspect ratio of
-   the graphics window while resizing it. Alternatively, aspect_43 ties
-   the aspect ratio to a value of 4:3. The idea behind this is that,
+   The config option $_X_fixed_aspect allows you to fix the aspect ratio
+   of the graphics window while resizing it. Alternatively, $_X_aspect_43
+   ties the aspect ratio to a value of 4:3. The idea behind this is that,
    whatever the actual resolution of a graphics mode is in DOS, it is
    displayed on a 4:3 monitor. This way you won't run into problems with
    modes such as 640x200 (or even 320x200) which would look somewhat
    distorted otherwise.
-     _________________________________________________________________
 
-8.5. Planar (16 color and mode-X) modes and fonts. (May 2000)
-
-   All standard vga modes work now. For planar modes, vgaemu has to
-   switch to part ial cpu emulation. This can be slow, but expect it to
-   improve over time. The mode-X applications work fine as well, since
-   the cpu emulation they need is exactly the same as for the planar 16
-   color modes. Applications that ask for a 320x240 or other non-standard
-   mode, for instance, have this request honoured by vgaemu and should
-   work fine as well.
-
-   Fonts are present in the VESA bios now. They should work fine in all
-   graphics modes.
+   For planar modes (for instance, most 16 colour modes, but also certain
+   256-colour modes: mode-X), vgaemu has to switch to partial cpu
+   emulation. This can be slow, but expect it to improve over time.
      _________________________________________________________________
 
 9. Running Windows under DOSEMU
@@ -1680,13 +1639,13 @@ is,
 9.3. VxD support
 
    By the time of writing this, DOSEMU does not have support for Windows
-   ring-0 device drivers (VxD). Fortunately, most of Windows 3.1 drivers
-   are ring-3 ones (.drv), so you can easily install the Sound Blaster
-   drivers, for instance. This is not the case with Windows 3.11. Its
-   network drivers are ring-0 ones, so the native Winsock does not work.
-   In order to get networking operational, you need to get the Trumpet
-   Winsock package. Refer to chapter "Using Windows and Winsock" for more
-   info on this.
+   ring-0 device drivers (.vxd, .386). Fortunately, most of Windows 3.1
+   drivers are ring-3 ones (.drv), so you can easily install the Sound
+   Blaster drivers, for instance. This is not the case with Windows 3.11.
+   Its network drivers are ring-0 ones, so the native Winsock does not
+   work. In order to get networking operational, you need to get the
+   Trumpet Winsock package. Refer to chapter "Using Windows and Winsock"
+   for more info on this.
      _________________________________________________________________
 
 9.4. DOS shell in Windows
@@ -1895,11 +1854,11 @@ is,
    commands in shell scripts, cron jobs, web services, and so on.
      _________________________________________________________________
 
-12.1. Using "unix -e" in autoexec.bat
+12.1. Using unix -e in autoexec.bat
 
-   The default autoexec.bat file has a statement "unix -e" at the end.
-   This command executes the DOS program or command that was specified on
-   the dosemu command line.
+   The default autoexec.bat file has a statement unix -e at the end. This
+   command executes the DOS program or command that was specified on the
+   dosemu command line.
 
    For example:
        dosemu "/home/clarence/games/commander keen/keen1.exe"
@@ -1930,7 +1889,7 @@ is,
    Make use of the -input command-line option, such as
        dosemu -input 'dir > C:\\garbage\rexitemu\r'
 
-   The '...' will be 'typed in' by dosemu exactly as if you had them
+   The '...' will be 'typed in' by DOSEMU exactly as if you had them
    typed at the keyboard. The advantage of this technique is, that all
    DOS applications will accept them, even interactive ones. A '\' is
    interpreted as in C and leads in ESC-codes. Here is a list of the
@@ -1967,16 +1926,16 @@ is,
 12.3. Using an input file
 
      * Make a file "FILE" containing all keystrokes you need to boot
-       dosemu and to start your dos-application, ... and don't forget to
+       DOSEMU and to start your dos-application, ... and don't forget to
        have CR (literal ^M) for 'ENTER'. FILE may look like this (as on
        my machine):
 
     2^Mdir > C:\garbage^Mexitemu^M
 
        which could choose point 2 of the boot menu, execute 'dir' with
-       output to 'garbage', and terminate dosemu, where the ^M stands for
+       output to 'garbage', and terminate DOSEMU, where the ^M stands for
        CR.
-     * and execute dosemu like this:
+     * and execute DOSEMU like this:
 
     dosemu -dumb < FILE
 
@@ -1988,7 +1947,7 @@ is,
        echo -e 'dir\rexitemu\r' | dosemu -dumb > FILE.out
 
    FILE.out then contains the output from the DOS application, but
-   (unlike the "unix -e" technique, merged with all startup messages.
+   (unlike the unix -e technique, merged with all startup messages.
 
    You may elaborate this technique by writing a script, which gets the
    dos-command to execute from the commandline and generate 'FILE' for
@@ -1997,7 +1956,7 @@ is,
 
 12.4. Running DOSEMU within a cron job
 
-   When you try to use one of the above to start dosemu out of a crontab,
+   When you try to use one of the above to start DOSEMU out of a crontab,
    then you have to asure, that the process has a proper environment set
    up ( especially the TERM and/or TERMCAP variable ).
 

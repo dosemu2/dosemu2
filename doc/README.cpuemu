@@ -114,12 +114,3 @@ itself, so they'll better stay undocumented.
 Happy emulating.
 
 Alberto Vignani	- Jun.11,2001
-
-Warning: the emulator will crash and burn on a cpu without a "prefetch"
-instruction, such as the K6 and the Pentium I and lower. To correct this
-you have to remove them from
-src/emu-i386/simx86/codegen-x86.c
-and
-src/emu-i386/simx86/codegen-arch.c
-
-Bart Oldeman - 2001/Nov/7

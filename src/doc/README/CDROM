@@ -12,8 +12,9 @@ written for Dosemu.
 <para>
 An easy way to access files on a CDROM is to mount it in Linux and use
 Lredir to refer to it. However, any low-level access, often used by
-games is impossible that way. For that you need to load some drivers
-in DOS. CDROM image files (ISOs) can be used in a similar fashion.
+games is impossible that way, unless you use the C option.
+For that you need to load some drivers in DOS. CDROM image files (ISOs)
+can be used in a similar fashion.
 </para>
 
 <para>
@@ -56,14 +57,25 @@ directly because of security reasons.
 <para>
 
 <screen>
-    devicehigh=c:\dosemu\cdrom.sys
+    devicehigh=d:\dosemu\cdrom.sys
 </screen>
 
 </para>
 </listitem>
 <listitem>
 <para>
-Start Microsoft cdrom extension as follows:
+Mount the CD-ROM in Linux (some distributions do this automatically), and
+use
+</para>
+
+<screen>
+    lredir e: linux\fs/media/cdrom c
+</screen>
+
+<para>
+to access the CD-ROM as drive E:. The "C" option specifies that the
+low-level access provided via cdrom.sys is used. Or ...
+start Microsoft cdrom extension as follows:
 </para>
 
 <para>
@@ -85,8 +97,15 @@ or
 
 <para>
 To change the cd while Dosemu is running, use the DOS program 'eject.com'.
-It is not possible to change the disk, when the drive has been opened by
-another process (e.g. mounted)!
+If is not possible to change the disk, when the drive has been opened by
+another process (e.g. mounted), then you need to unmount it first!
+</para>
+
+<para>
+Lredir has the advantage of supporting long file names, and not using
+any DOS memory, whereas MS/SHSUCDX are more low-level and perhaps more
+compatible. You would need to use a DOS TSR driver such as DOSLFN to
+use long file names with SHSUCDX.
 </para>
 
 <para>
@@ -132,12 +151,18 @@ and have multiple instancies of the DOS driver:
 The one and only parameter to the device driver is a digit between 1 and 4,
 (if its missing then 1 is assumed)
 for the DOS devices MSCD0001, MSCD0002 ... MSCD0004 respectively. You then
-also need to tell MSCDEX about these drivers such as
+also need to use lredir or tell MSCDEX about these drivers such as
 
-<screen>
-   
+<screen>   
+    lredir e: linux\fs/media/cdrom c
+    lredir f: linux\fs/media/cdrom2 c 2
+    lredir g: linux\fs/media/cdrom3 c 3
+</screen>
+where you need to loop-mount the image file, or
+<screen>   
     mscdex /d:mscd0001 /d:mscd0002 /l:driveletter
 </screen>
+
 
 In this case the /l: argument defines the driveletter of the first /d:,
 the others will get assigned successive driveletters.
