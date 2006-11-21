@@ -1242,7 +1242,7 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 	int x,y;
 
         if (action & 2)
-          X_show_mouse_cursor(action >> 1);
+          X_show_mouse_cursor(yes);
 
         /* Figure out what cursor we want to show for visible/invisible */
 	mouse_cursor_on = &X_standard_cursor;
