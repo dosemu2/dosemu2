@@ -7,6 +7,7 @@
 #include "config.h"
 
 #include <SDL.h>
+#include <langinfo.h>
 
 #include "emu.h"
 #include "keyb_clients.h"
@@ -109,6 +110,25 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	t_modifiers modifiers = map_SDL_modifiers(keysym.mod);
 
 	switch (keysym.sym) {
+	  case SDLK_UNKNOWN:
+		/* workaround for X11+SDL bug with AltGR (from QEMU) */
+		if (keysym.scancode == 113)
+			key = KEY_R_ALT;
+		break;
+
+	  case SDLK_SPACE ... SDLK_DELETE-1: /* ASCII range 32..126 */
+		key = keysym.sym;
+		break;
+
+	  case SDLK_WORLD_0 ... SDLK_WORLD_95:
+		/* workaround for older SDLs; harmless for newer;
+		   this just fixes the iso-8859-1 subset of utf-8; other
+		   characters are almost impossible with SDL < 1.2.10
+		 */
+		if (key < 0x100 && strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
+			key = keysym.sym;
+		break;
+
 	  case SDLK_CAPSLOCK:
 		key = KEY_CAPS;
 		break;
