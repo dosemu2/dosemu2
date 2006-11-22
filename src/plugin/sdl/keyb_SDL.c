@@ -8,6 +8,7 @@
 
 #include <SDL.h>
 #include <langinfo.h>
+#include <string.h>
 
 #include "emu.h"
 #include "keyb_clients.h"
@@ -45,7 +46,7 @@ static t_modifiers map_SDL_modifiers(SDLMod e_state)
         if (e_state & KMOD_LALT) {
                 modifiers |= MODIFIER_ALT;
         }
-        if (e_state & KMOD_RALT) {
+        if (e_state & (KMOD_RALT|KMOD_MODE)) {
                 modifiers |= MODIFIER_ALTGR;
         }
         if (e_state & KMOD_CAPS) {
@@ -54,10 +55,10 @@ static t_modifiers map_SDL_modifiers(SDLMod e_state)
         if (e_state & KMOD_NUM) {
                 modifiers |= MODIFIER_NUM;
         }
-        if (e_state & KMOD_MODE) {
+#if 0
+        if (e_state & X_mi.ScrollLockMask) {
                 modifiers |= MODIFIER_SCR;
         }
-#if 0
         if (e_state & X_mi.InsLockMask) {
                 modifiers |= MODIFIER_INS;
         }
@@ -79,7 +80,7 @@ static void SDL_sync_shiftstate(Boolean make, SDLKey kc, SDLMod e_state)
 	if (!!(shiftstate & MODIFIER_ALT) != !!(e_state & KMOD_LALT)) {
 		shiftstate ^= MODIFIER_ALT;
 	}
-	if (!!(shiftstate & MODIFIER_ALTGR) != !!(e_state & KMOD_RALT)) {
+	if (!!(shiftstate & MODIFIER_ALTGR) != !!(e_state & (KMOD_RALT|KMOD_MODE))) {
 		shiftstate ^= MODIFIER_ALTGR;
 	}
 
@@ -91,11 +92,11 @@ static void SDL_sync_shiftstate(Boolean make, SDLKey kc, SDLMod e_state)
 		&& (make || (kc != SDLK_NUMLOCK))) {
 		shiftstate ^= MODIFIER_NUM;
 	}
-	if (!!(shiftstate & MODIFIER_SCR) != !!(e_state & KMOD_MODE)
+#if 0
+	if (!!(shiftstate & MODIFIER_SCR) != !!(e_state & X_mi.ScrollLockMask)) {
 		&& (make || (kc != SDLK_SCROLLOCK))) {
 		shiftstate ^= MODIFIER_SCR;
 	}
-#if 0
 	if (!!(shiftstate & MODIFIER_INS) != !!(e_state & X_mi.InsLockMask)) {
 		shiftstate ^= MODIFIER_INS;
 	}
