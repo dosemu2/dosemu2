@@ -362,8 +362,7 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
   long dx;
   /* save registers that GCC does not allow to be clobbered
      (in reality ebp is only necessary with frame pointers and ebx
-      with PIC) */
-  emu_stack_ptr = ((unsigned long *)0) - 1;
+      with PIC; eflags is saved for TF) */
   asm volatile (
 #ifdef __x86_64__
 "	push	%%rbp\n"
@@ -374,6 +373,7 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
 "	pushl	%%ebx\n"
 "	movl	%%esp,%2\n"
 #endif
+"	pushf\n"
 "	call	*%3\n"
     /* the signal return returns here */
 #ifdef __x86_64__
@@ -1200,7 +1200,9 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
   if (dpmi_ctx)
     copy_context(dpmi_ctx, scp, 1);
   /* simulate the "ret" from "call *%3" in dpmi_transfer() */
-  _rip = emu_stack_ptr[-1];
+  _rip = emu_stack_ptr[-2];
+  /* Don't inherit TF from DPMI! */
+  _eflags = emu_stack_ptr[-1];
   _rsp = (unsigned long)emu_stack_ptr;
   _cs = getsegment(cs);
   _ds = getsegment(ds);
