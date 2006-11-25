@@ -27,7 +27,11 @@
 #include <unistd.h>
 
 #define seqbuf_dump timid_seqbuf_dump
+#define _seqbuf timid_seqbuf
+#define _seqbufptr timid_seqbufptr
+#define _seqbuflen timid_seqbuflen
 #include <sys/soundcard.h>
+SEQ_DEFINEBUF(128);
 
 #define BUF_LOW_SYNC	0.1
 #define BUF_HIGH_SYNC	0.15
@@ -41,9 +45,11 @@ static struct sockaddr_in ctrl_adr, data_adr;
 static long long start_time;
 static int timebase = 100, timer_started = 0;
 
-void timid_seqbuf_dump(void);
+#define SEQ_META 0x7f
+#define SEQ_END_OF_MIDI 0x2f
+#define SEQ_SYNC 0x02
 
-SEQ_USE_EXTBUF();
+void timid_seqbuf_dump(void);
 
 static void timid_init_timer(void)
 {
@@ -456,6 +462,13 @@ static void timid_flush(void)
   SEQ_DUMPBUF();
 }
 
+static void timid_pause(void)
+{
+  _CHN_COMMON(0, SEQ_EXTENDED, SEQ_END_OF_MIDI, 0, 0, 0);
+  SEQ_DUMPBUF();
+  fprintf(stderr, "\tPaused\n");
+}
+
 void timid_seqbuf_dump(void)
 {
   if (_seqbufptr)
@@ -465,9 +478,7 @@ void timid_seqbuf_dump(void)
 
 static bool timid_setmode(Emumode new_mode)
 {
-  if (new_mode == EMUMODE_GM)
-    return TRUE;
-  return FALSE;
+  return (new_mode == EMUMODE_GM);
 }
 
 void register_timid(Device * dev)
@@ -477,6 +488,8 @@ void register_timid(Device * dev)
 	dev->detect = timid_detect;
 	dev->init = timid_init;
 	dev->done = timid_done;
+	dev->pause = timid_pause;
+	dev->resume = NULL;
 	dev->setmode = timid_setmode;
 	dev->flush = timid_flush;
 	dev->noteon = timid_noteon;

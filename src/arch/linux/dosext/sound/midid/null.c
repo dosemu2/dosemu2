@@ -9,6 +9,7 @@
  ***********************************************************************/
 
 #include "device.h"
+#include <stdlib.h>
 
 static bool null_detect(void)
 {
@@ -45,6 +46,8 @@ void register_null(Device * dev)
 	dev->detect = null_detect;
 	dev->init = null_init;
 	dev->done = null_doall;
+	dev->pause = NULL;
+	dev->resume = NULL;
 	dev->flush = null_doall;
 	dev->noteon = null_doall3;
 	dev->noteoff = null_doall3;

@@ -7,23 +7,11 @@
 top_builddir=../../../../../..
 include $(top_builddir)/Makefile.conf
 
-######################################################################
-# No servicable parts below
-
-ifeq ($(CC),)
-CC=gcc
-endif
-ifeq ($(CFLAGS),)
-CFLAGS=-Wall -pipe -O -g
-endif
-ifeq ($(LDFLAGS),)
-LDFLAGS += -Wall
-endif
-
 CFILES = midid.c events.c io.c stats.c emulation.c device.c \
 oss.c midout.c timid.c null.c
 
-OBJECTS=$(CFILES:.c=.o)
+OBJECTS:=$(CFILES:.c=.o)
+DEPENDS:=$(OBJECTS:.o=.d)
 
 all:		$(BINPATH)/bin/midid
 
@@ -40,8 +28,13 @@ realclean:	cleanall
 
 LDFLAGS := $(subst -rdynamic,,$(LDFLAGS))
 
+%.o:	%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+
+%.d:	%.c
+	$(CPP) -c $(CPPFLAGS) $< > /dev/null
+
 $(BINPATH)/bin/midid:	$(OBJECTS)
 	$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
 
-events.o:	events.c events.h io.h stats.h
-
+-include $(DEPENDS)

@@ -16,7 +16,7 @@
 
 static struct timeval start_time;
 static int time_base, last_timer_ticks;
-static unsigned int track_num, track_bytes_written;
+static unsigned int track_num;
 static FILE *fp;
 static long track_size_pos;
 
@@ -101,9 +101,6 @@ static void midout_start_track(void)
   fprintf(fp, "%s", "MTrk");
   track_size_pos = ftell(fp);
   fprintf(fp, "%c%c%c%c", '\x7f', '\xff', '\xff', '\xff'); /* #chunks */
-
-/* Reset the number of bytes in the track (not including the header) */
-  track_bytes_written = 0;
 
 /* Set the tempo (converting to microseconds per quarter note) */
   quarter_note_us = (int) (60.0 * 1000000.0 / config.tempo);
@@ -292,6 +289,8 @@ void register_midout(Device * dev)
 	dev->detect = midout_detect;
 	dev->init = midout_init;
 	dev->done = midout_done;
+	dev->pause = NULL;
+	dev->resume = NULL;
 	dev->flush = midout_flush;
 	dev->noteon = midout_noteon;
 	dev->noteoff = midout_noteoff;

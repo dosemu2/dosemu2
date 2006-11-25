@@ -164,6 +164,40 @@ void device_stop_all(void)
     fprintf(stderr, "Stopped %i devices\n\n", num);
 }
 
+void device_pause_all(void)
+{
+  Device *dev = devices;
+  int num = 0;
+
+  while (dev) {
+    if (dev->ready && dev->pause) {
+      fprintf(stderr, "Pausing %s...\n", dev->name);
+      dev->pause();
+      num++;
+    }
+    dev = dev->next;
+  }
+  if (num)
+    fprintf(stderr, "Paused %i devices\n\n", num);
+}
+
+void device_resume_all(void)
+{
+  Device *dev = devices;
+  int num = 0;
+
+  while (dev) {
+    if (dev->ready && dev->resume) {
+      fprintf(stderr, "Resuming %s...\n", dev->name);
+      dev->resume();
+      num++;
+    }
+    dev = dev->next;
+  }
+  if (num)
+    fprintf(stderr, "Resumed %i devices\n\n", num);
+}
+
 Device *device_activate(int number)
 /* Select device number <number>; first one is 1.
    0 means first detected one */

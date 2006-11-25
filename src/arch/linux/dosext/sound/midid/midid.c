@@ -69,8 +69,6 @@ int statistics;			/* 1 for statistics */
 int initialised = 0;
 int fd;				/* file descriptor */
 
-SEQ_DEFINEBUF(1024);
-
 
 /***********************************************************************
   Options handling

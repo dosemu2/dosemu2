@@ -34,6 +34,8 @@ typedef struct Device {
 	bool (*detect) (void);	/* returns TRUE if detected */
 	bool (*init) (void);	/* returns TRUE if init was succesful */
 	void (*done) (void);
+	void (*pause) (void);
+	void (*resume) (void);
 	void (*flush) (void);   /* Flush all commands sent */
         bool (*setmode) (Emumode new_mode);
          /* Set (emulation) mode to new_mode; returns TRUE iff possible */
@@ -53,6 +55,8 @@ void device_register_all(void);
 void device_detect_all(void);
 int device_init_all(void);
 void device_stop_all(void);
+void device_pause_all(void);
+void device_resume_all(void);
 Device *dev_find_first_detected(void);
 Device *dev_find_first_active(void);
 void device_printall(void);
