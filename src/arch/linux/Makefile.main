@@ -148,11 +148,17 @@ install:
 	cd $(SYS); for i in `find * -type l`; do \
 	  ln -sf generic.com $(TMP)/dosemu/$$i; \
 	done
-	rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos
-	rm -rf $(DESTDIR)$(dosemudir)/drive_z $(DESTDIR)$(dosemudir)/*.tgz
+	rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
+	rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	cd $(REALTOPDIR); if [ -f $(fdtarball) ]; then \
-	  rm -f $(DESTDIR)$(dosemudir)/drive_z/tmp; \
+	  if [ -h $(DESTDIR)$(dosemudir)/freedos ]; then \
+	    rm -f $(DESTDIR)$(dosemudir)/freedos; \
+	  fi; \
+	  if [ -d $(DESTDIR)$(dosemudir)/drive_z ]; then \
+	    mv $(DESTDIR)$(dosemudir)/drive_z $(DESTDIR)$(dosemudir)/freedos; \
+	  fi; \
+	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
@@ -170,7 +176,6 @@ install:
 	  fi; \
 	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
-	  # legacy symlink; \
 	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
 	fi
 	mkdir -p -m 0755 $(DESTDIR)$(dosemudir)/drive_z
