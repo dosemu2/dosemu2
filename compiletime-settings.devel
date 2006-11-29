@@ -16,6 +16,7 @@ config {
   plugin_term on
   plugin_X on
   plugin_sdl on
+  plugin_midimisc on
   plugin_translate on
   plugin_commands on
   plugin_demo off

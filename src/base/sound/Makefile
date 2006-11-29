@@ -4,17 +4,11 @@
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
 
-top_builddir=../../../..
+top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = dma.c dmanew.c
-HFILES = 
-DEPENDS= dma.d dmanew.d
 
-ALL = $(CFILES) $(HFILES) README.dma
-
-OBJS = dma.o dmanew.o
-
+CFILES = midi.c sndpcm.c nullsnd.c
 
 all: lib
 

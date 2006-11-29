@@ -151,6 +151,15 @@ static void sb_detect(void);
 static void fm_reset(void);
 static void mpu401_reset(void);
 
+static void adlib_io_write  (ioport_t addr, Bit8u value); /* Stray */
+
+static void sb_io_write     (ioport_t addr, Bit8u value);
+static void fm_io_write     (ioport_t addr, Bit8u value);
+static void mpu401_io_write (ioport_t addr, Bit8u value);
+static unsigned char sb_io_read      (ioport_t addr);
+static unsigned char fm_io_read      (ioport_t addr);
+static unsigned char mpu401_io_read  (ioport_t addr);
+
 static void sb_dsp_write ( Bit8u value );
 
 void sb_do_sine (void);
@@ -272,7 +281,7 @@ uint8_t dsp_read_output(void)
  * DANG_END_FUNCTION
  */
 
-Bit8u sb_io_read(ioport_t port)
+static Bit8u sb_io_read(ioport_t port)
 {
   ioport_t addr;
   uint8_t value;
@@ -595,7 +604,7 @@ static Bit8u adlib_io_read(ioport_t port)
   return result;
 }
 
-Bit8u fm_io_read (ioport_t port)
+static Bit8u fm_io_read (ioport_t port)
 {
   /* extern struct adlib_info_t adlib_info; - For reference - AM */
   Bit8u retval;
@@ -696,7 +705,7 @@ static void mpu401_io_callback(void)
  * DANG_END_FUNCTION
  */
 
-void sb_io_write(ioport_t port, Bit8u value)
+static void sb_io_write(ioport_t port, Bit8u value)
 {
   ioport_t addr;
   
@@ -1722,7 +1731,7 @@ void *silence_data;
 		}
 }
 
-void adlib_io_write(ioport_t port, Bit8u value)
+static void adlib_io_write(ioport_t port, Bit8u value)
 {
     /* Base Port for Adlib is 0x388 */
     /* Base Port for Adv. Adlib is 0x38a */
@@ -1748,7 +1757,7 @@ void adlib_io_write(ioport_t port, Bit8u value)
     };
 }
 	
-void fm_io_write(ioport_t port, Bit8u value)
+static void fm_io_write(ioport_t port, Bit8u value)
 {
     switch (port) {
 	case ADLIB_REGISTER:
@@ -2497,6 +2506,10 @@ static void sb_check_complete (void)
 
 void sound_init(void)
 {
+  if (config.sound == 2) {
+    sound_new_init();
+    return;
+  }
   if (config.sound) {
     sb_init();
     fm_init();
@@ -2663,11 +2676,19 @@ static void mpu401_init(void)
 
 void sound_reset(void)
 {
-  if (config.sound) {
+  if (config.sound == 2)
+    sound_new_reset();
+  else if (config.sound) {
     sb_reset();
     fm_reset();
     mpu401_reset();
   }
+}
+
+void sound_done(void)
+{
+  if (config.sound == 2)
+    sound_new_done();
 }
 
 static void sb_reset (void)

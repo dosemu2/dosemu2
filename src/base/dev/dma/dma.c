@@ -512,7 +512,7 @@ static Bit16u length_transferred(int controller, int channel)
 }
 #endif
 
-Bit8u dma_io_read(ioport_t port)
+static Bit8u dma_io_read(ioport_t port)
 {
   Bit8u r;
 
@@ -704,7 +704,7 @@ inline void dma_write_mask(int dma_c, Bit8u value)
 
 
 
-void dma_io_write(ioport_t port, Bit8u value)
+static void dma_io_write(ioport_t port, Bit8u value)
 {
   Bit8u ch;
 
@@ -1393,6 +1393,11 @@ void dma_init(void)
   int i, j;
   emu_iodev_t io_device;
 
+  if (config.sound == 2) {
+    dma_new_init();
+    return;
+  }
+
   /* 8237 DMA controller */
   io_device.read_portb = dma_io_read;
   io_device.write_portb = dma_io_write;
@@ -1464,6 +1469,10 @@ void dma_init(void)
 void dma_reset(void)
 {
   int i, j;
+  if (config.sound == 2) {
+    dma_new_reset();
+    return;
+  }
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 4; j++) {
       set_value(&dma[i].address[j], 0);

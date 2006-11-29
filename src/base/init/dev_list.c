@@ -84,7 +84,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
 #endif
   { "disks",   disk_init,    disk_reset,    NULL },
 #ifdef USE_SBEMU
-  { "sound",   sound_init,   sound_reset,   NULL },
+  { "sound",   sound_init,   sound_reset,   sound_done },
 #endif
   { "joystick", joy_init,    joy_reset,     joy_term },
 #ifdef IPX

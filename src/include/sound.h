@@ -279,9 +279,11 @@ EXTERN uint8_t sb_is_running; /* Do we need a tick ? */
 #define DSP_OUTPUT_RUN 2 /* Indicates DSP sub-system in operation */
 
 extern void sb_controller(void);
+extern void run_new_sb(void);
 
 /* This is the correct way to run an SB timer tick */
-#define run_sb()  if (sb_is_running) sb_controller()
+#define run_sb()  \
+if (config.sound == 2) run_new_sb(); else if (sb_is_running) sb_controller()
 
 /*
  ***************************************************************************
@@ -302,16 +304,13 @@ EXTERN queue_t SB_queue;
  * The definitions needed for setting up the device structures.
  */
 
-extern void adlib_io_write  (ioport_t addr, Bit8u value); /* Stray */
-
-extern void sb_io_write     (ioport_t addr, Bit8u value);
-extern void fm_io_write     (ioport_t addr, Bit8u value);
-extern void mpu401_io_write (ioport_t addr, Bit8u value);
-extern unsigned char sb_io_read      (ioport_t addr);
-extern unsigned char fm_io_read      (ioport_t addr);
-extern unsigned char mpu401_io_read  (ioport_t addr);
 extern void sound_init      (void);
 extern void sound_reset     (void);
+extern void sound_done	    (void);
+
+extern void sound_new_init  (void);
+extern void sound_new_reset (void);
+extern void sound_new_done  (void);
 
 extern void SB_driver_reset (void);
 extern void FM_driver_reset (void);
