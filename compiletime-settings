@@ -10,6 +10,8 @@ config {
   aspi on
   svgalib off
   gpm on
+  alsa on
+  sndfile on
   dlplugins on
   plugin_kbd_unicode on
   plugin_extra_charsets on

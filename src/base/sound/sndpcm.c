@@ -118,8 +118,10 @@ int pcm_init(void)
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
 #endif
-#if 0
+#ifdef USE_ALSA
     load_plugin("alsa");
+#endif
+#ifdef USE_SNDFILE
     load_plugin("sndfile");
 #endif
 #endif

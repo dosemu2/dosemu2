@@ -226,6 +226,42 @@ else
   $srcdir/mkpluginhooks enable gpm no
 fi
 
+AC_ARG_WITH(alsa,
+	[  --without-alsa          don't use alsa even if available])
+if test "$with_alsa" != "no"; then
+  AC_CHECK_LIB(asound, snd_rawmidi_open, with_alsa="yes", with_alsa="no")
+fi
+if test "$with_alsa" != "no"; then
+  AC_MSG_NOTICE(Compiling with alsa support...)
+  AC_DEFINE(USE_ALSA)
+  USE_ALSA="USE_ALSA=1"
+  AC_SUBST(USE_ALSA)
+  ALSALIB="-lasound"
+  AC_SUBST(ALSALIB)
+  $srcdir/mkpluginhooks enable alsa yes
+else
+  AC_MSG_NOTICE(Compiling without alsa support...)
+  $srcdir/mkpluginhooks enable alsa no
+fi
+
+AC_ARG_WITH(sndfile,
+	[  --without-sndfile       don't use sndfile even if available])
+if test "$with_sndfile" != "no"; then
+  AC_CHECK_LIB(sndfile, sf_open, with_sndfile="yes", with_sndfile="no")
+fi
+if test "$with_sndfile" != "no"; then
+  AC_MSG_NOTICE(Compiling with sndfile support...)
+  AC_DEFINE(USE_SNDFILE)
+  USE_SNDFILE="USE_SNDFILE=1"
+  AC_SUBST(USE_SNDFILE)
+  SNDFLIB="-lsndfile"
+  AC_SUBST(SNDFLIB)
+  $srcdir/mkpluginhooks enable sndfile yes
+else
+  AC_MSG_NOTICE(Compiling without sndfile support...)
+  $srcdir/mkpluginhooks enable sndfile no
+fi
+
 dnl Check whether we have pthreads and whether to use it
 
 AC_ARG_WITH(pthreads)
@@ -802,6 +838,12 @@ AH_TEMPLATE([USE_SVGALIB],
 
 AH_TEMPLATE([USE_GPM],
 [ DEFINE this, if you want GPM support ])
+
+AH_TEMPLATE([USE_ALSA],
+[ DEFINE this, if you want alsa support ])
+
+AH_TEMPLATE([USE_SNDFILE],
+[ DEFINE this, if you want wav file output support ])
 
 AH_TEMPLATE([USE_PTHREADS],
 [ DEFINE this, if you want pthreads support ])
