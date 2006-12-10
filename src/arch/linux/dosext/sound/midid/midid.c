@@ -76,12 +76,12 @@ int fd;				/* file descriptor */
 
 Config config = { EMUMODE_GM, FALSE, 0, 0, 0, FALSE,
     "", "midid.mid", 120, 144, "localhost", 0,
-    "timidity", "-EFreverb=1 -EFchorus=1 -EFresamp=1 -EFvlpf=1 -EFns=1",
+    "timidity", "-EFreverb=0 -EFchorus=0 -EFresamp=1 -EFvlpf=0 -EFns=0",
     0, 0, 0, 0, 0 };
 
 static void usage(void)
 {
-#define NEW_TIMIDITY 0
+#define NEW_TIMIDITY 1
   printf("midid [parameters] [input file]\n\n"
 	 "-h,  --help         : help\n"
 	 "-l,  --list-devices : list devices\n"
@@ -90,7 +90,7 @@ static void usage(void)
 	 "-g,  --emulate-gm   : select GM mode (default)\n"
 	 "-r,  --resident     : be resident; don't stop on end of file\n"
 	 "                      (only when input file != stdin)\n"
-	 "-o#,  --timeout=#   : turn output off after # seconds.\n"
+	 "-o#,  --timeout=#   : turn output off after # seconds of inactivity.\n"
 	 "                      (default: 0 - no timeout)\n"
 	 "input file defaults to stdin\n\n"
 	 "Options for .MID file output device:\n"
@@ -116,7 +116,6 @@ static void usage(void)
 	 "-U, --timidity-uns            : tells timidity to produce the unsigned\n"
 	 "                                samples instead of the signed ones\n"
 	 "-F #, --timidity-freq=#       : set the sampling rate for timidity\n"
-	 "                                default: %i\n"
 	 "-C, --timidity-capture        : enables the capturing mode: the data produced\n"
 	 "                                by timidity gets captured by midid and\n"
 	 "                                forwarded to stdout.\n"
@@ -126,7 +125,7 @@ static void usage(void)
 	 config.midifile, config.tempo, config.ticks_per_quarter_note,
 	 config.timid_host, config.timid_port
 #if NEW_TIMIDITY
-	 , config.timid_args, config.timid_freq
+	 , config.timid_args
 #endif
 	 );
 }
@@ -333,21 +332,21 @@ int main(int argc, char **argv)
   while (1) {
     ch = getbyte_status();
     if (ch == MAGIC_EOF || ch == MAGIC_TIMEOUT) {
-      if (initialised) {
-	device_stop_all();
-	initialised = 0;
-      }
       last_status = MAGIC_INV;
       /* End of file? */
       if (ch == MAGIC_EOF && !config.resident) {
 	/* Not resident; quit */
 	break;
       }
+      if (initialised)
+        device_pause_all();
       do {
 	usleep(100000);
 	getbyte_next();
 	ch = getbyte();
-      } while (ch == MAGIC_EOF || ch == MAGIC_TIMEOUT);
+      } while (ch == MAGIC_TIMEOUT);
+      if (initialised && ch != MAGIC_EOF)
+        device_resume_all();
       continue;
     }
     /* Illegal for a status byte? */

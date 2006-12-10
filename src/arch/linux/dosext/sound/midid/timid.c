@@ -31,19 +31,11 @@
 #define _seqbufptr timid_seqbufptr
 #define _seqbuflen timid_seqbuflen
 #include <sys/soundcard.h>
-SEQ_DEFINEBUF(128);
-
-#define BUF_LOW_SYNC	0.1
-#define BUF_HIGH_SYNC	0.15
-
-#define TIME2TICK(t) ((long long)t.tv_sec * timebase + \
-    (((long long)t.tv_usec * timebase) / 1000000))
+#include "seqops.h"
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
 static struct sockaddr_in ctrl_adr, data_adr;
-static long long start_time;
-static int timebase = 100, timer_started = 0;
 
 #define SEQ_META 0x7f
 #define SEQ_END_OF_MIDI 0x2f
@@ -51,56 +43,10 @@ static int timebase = 100, timer_started = 0;
 
 void timid_seqbuf_dump(void);
 
-static void timid_init_timer(void)
-{
-  static const char *cmd = "TIMEBASE\n";
-  char buf[255];
-  int n;
-
-  write(ctrl_sock_out, cmd, strlen(cmd));
-  n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
-  buf[n] = 0;
-  sscanf(buf, "200 %i", &timebase);
-  fprintf(stderr, "\tTimer: timebase = %i HZ\n", timebase);
-}
-
-static void timid_start_timer(void)
-{
-  struct timeval time;
-  gettimeofday(&time, NULL);
-  start_time = TIME2TICK(time);
-  SEQ_START_TIMER();
-  SEQ_DUMPBUF();
-  timer_started = 1;
-}
-
-static void timid_stop_timer(void)
-{
-  SEQ_STOP_TIMER();
-  SEQ_DUMPBUF();
-  timer_started = 0;
-}
-
-static long timid_get_ticks(void)
-{
-  struct timeval time;
-  gettimeofday(&time, NULL);
-  return (TIME2TICK(time) - start_time);
-}
-
-static void timid_timestamp(void)
-{
-  if (!timer_started)
-    timid_start_timer();
-  SEQ_WAIT_TIME(timid_get_ticks());
-}
-
 static void timid_sync_timidity(void)
 {
   char buf[255];
   int n;
-#define SEQ_META 0x7f
-#define SEQ_SYNC 0x02
   _CHN_COMMON(0, SEQ_EXTENDED, SEQ_META, SEQ_SYNC, 0, 0);
   SEQ_DUMPBUF();
   n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
@@ -121,7 +67,7 @@ static void timid_io(int signum)
   while ((selret = select(data_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
     n = read(data_sock, buf, sizeof(buf));
     if (n > 0) {
-      fprintf(stderr, "Received %i data bytes\n", n);
+//      fprintf(stderr, "Received %i data bytes\n", n);
       write(STDOUT_FILENO, buf, n);
     } else {
       /* no EINTR in a sighandler */
@@ -171,11 +117,7 @@ static int timid_preinit(void)
     char *tmdty_args[T_MAX_ARGS];
     char *ptr;
     int i;
-    if (pipe(tmdty_pipe_in) == -1) {
-      perror("pipe()");
-      goto err_ds;
-    }
-    if (pipe(tmdty_pipe_out) == -1) {
+    if (pipe(tmdty_pipe_in) == -1 || pipe(tmdty_pipe_out) == -1) {
       perror("pipe()");
       goto err_ds;
     }
@@ -185,7 +127,9 @@ static int timid_preinit(void)
 	close(tmdty_pipe_out[1]);
 	dup2(tmdty_pipe_out[0], STDIN_FILENO);
 	dup2(tmdty_pipe_in[1], STDOUT_FILENO);
-#if 0
+	close(tmdty_pipe_out[0]);
+	close(tmdty_pipe_in[1]);
+#if 1
         /* redirect stderr to /dev/null */
         close(STDERR_FILENO);
         open("/dev/null", O_WRONLY);
@@ -239,30 +183,25 @@ err_ds:
   return FALSE;
 }
 
-static bool timid_detect(void)
+static bool timid_check_ready(char *buf, int size, int verb)
 {
-  char buf[255];
-  int n, status, selret = 0, ret = FALSE;
   fd_set rfds;
   struct timeval tv;
-
-  if (!timid_preinit())
-    return FALSE;
+  int selret, n;
 
   FD_ZERO(&rfds);
   FD_SET(ctrl_sock_in, &rfds);
   tv.tv_sec = 3;
   tv.tv_usec = 0;
   while ((selret = select(ctrl_sock_in + 1, &rfds, NULL, NULL, &tv)) > 0) {
-    n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
+    n = read(ctrl_sock_in, buf, size - 1);
     buf[n] = 0;
-    if (!n) {
+    if (!n)
       break;
-    }
-    if (strstr(buf, "220 TiMidity++")) {
-      ret = TRUE;
-      break;
-    }
+    if (verb)
+      fprintf(stderr, "\tInit: %s", buf);
+    if (strstr(buf, "220 TiMidity++"))
+      return TRUE;
     FD_ZERO(&rfds);
     FD_SET(ctrl_sock_in, &rfds);
     tv.tv_sec = 1;
@@ -270,6 +209,18 @@ static bool timid_detect(void)
   }
   if (selret < 0)
     perror("select()");
+  return FALSE;
+}
+
+static bool timid_detect(void)
+{
+  char buf[255];
+  int status, ret;
+
+  if (!timid_preinit())
+    return FALSE;
+
+  ret = timid_check_ready(buf, sizeof(buf), 0);
 
   close(data_sock);
   close(ctrl_sock_out);
@@ -277,55 +228,45 @@ static bool timid_detect(void)
     waitpid(tmdty_pid, &status, 0);
     tmdty_pid = -1;
   }
+
+  if (ret) {
+    const char *ver_str = "Server Version ";
+    char *ptr = strstr(buf, ver_str);
+    int vmin, vmid, vmaj, ver;
+    if (!ptr) {
+      ret = FALSE;
+    } else {
+      ptr += strlen(ver_str);
+      sscanf(ptr, "%d.%d.%d", &vmaj, &vmid, &vmin);
+      ver = vmaj * 10000 + vmid * 100 + vmin;
+      if (ver < 10002)
+	ret = FALSE;
+    }
+    if (!ret)
+      fprintf(stderr, "[ Note: TiMidity++ found but is too old, please update. ]\n");
+  }
   return ret;
 }
 
 static bool timid_init(void)
 {
-  static const char *cmd1 = "CLOSE\n";
-  static const char *cmd2 = "SETBUF %1.2f %1.2f\n";
-  static const char *cmd3 = "OPEN %s\n";
+  const char *cmd1 = "CLOSE\n";
+  const char *cmd3 = "OPEN %s\n";
   char buf[255];
   char * pbuf;
-  int n, i, data_port, ret = FALSE, selret = 0;
-  fd_set rfds;
-  struct timeval tv;
+  int n, i, data_port, ret;
 
   if (!timid_preinit())
     return FALSE;
 
-  FD_ZERO(&rfds);
-  FD_SET(ctrl_sock_in, &rfds);
-  tv.tv_sec = 3;
-  tv.tv_usec = 0;
-  while ((selret = select(ctrl_sock_in + 1, &rfds, NULL, NULL, &tv)) > 0) {
-    n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
-    buf[n] = 0;
-    if (n)
-      fprintf(stderr, "\tInit: %s", buf);
-    else {
-      fprintf(stderr, "\tInit failed!\n");
-      break;
-    }
-    if (strstr(buf, "220 TiMidity++")) {
-      ret = TRUE;
-      break;
-    }
-    FD_ZERO(&rfds);
-    FD_SET(ctrl_sock_in, &rfds);
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-  }
+  ret = timid_check_ready(buf, sizeof(buf), 1);
+  if (!ret)
+    fprintf(stderr, "\tInit failed!\n");
   fprintf(stderr, "\n");
-  if (selret < 0)
-    perror("select()");
   if (!ret)
     return FALSE;
 
   write(ctrl_sock_out, cmd1, strlen(cmd1));
-  read(ctrl_sock_in, buf, sizeof(buf) - 1);
-  sprintf(buf, cmd2, BUF_LOW_SYNC, BUF_HIGH_SYNC);
-  write(ctrl_sock_out, buf, strlen(buf));
   read(ctrl_sock_in, buf, sizeof(buf) - 1);
 
   i = 1;
@@ -370,19 +311,17 @@ static bool timid_init(void)
   n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   fprintf(stderr, "\tConnect: %s\n", buf);
-  timid_init_timer();
   return TRUE;
 }
 
 static void timid_done(void)
 {
-  static const char *cmd1 = "CLOSE\n";
-  static const char *cmd2 = "QUIT\n";
+  const char *cmd1 = "CLOSE\n";
+  const char *cmd2 = "QUIT\n";
   char buf[255];
   int n, status;
 
   timid_sync_timidity();
-  timid_stop_timer();
   write(ctrl_sock_out, cmd1, strlen(cmd1));
   n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
@@ -407,61 +346,6 @@ static void timid_done(void)
   }
 }
 
-static void timid_noteon(int chn, int note, int vol)
-{
-  timid_timestamp();
-  SEQ_START_NOTE(0, chn, note, vol);
-}
-
-static void timid_noteoff(int chn, int note, int vol)
-{
-  timid_timestamp();
-  SEQ_STOP_NOTE(0, chn, note, vol);
-}
-
-static void timid_control(int chn, int control, int value)
-{
-  timid_timestamp();
-  SEQ_CONTROL(0, chn, control, value);
-}
-
-static void timid_notepressure(int chn, int note, int pressure)
-{
-  timid_timestamp();
-  SEQ_KEY_PRESSURE(0, chn, note, pressure);
-}
-
-static void timid_channelpressure(int chn, int pressure)
-{
-  timid_timestamp();
-  SEQ_CHN_PRESSURE(0, chn, pressure);
-}
-
-static void timid_bender(int chn, int pitch)
-{
-  timid_timestamp();
-  SEQ_BENDER(0, chn, pitch);
-}
-
-static void timid_program(int chn, int pgm)
-{
-  timid_timestamp();
-  SEQ_PGM_CHANGE(0, chn, pgm);
-}
-
-static void timid_sysex(unsigned char *buf, int len)
-{
-  int i;
-  timid_timestamp();
-  for (i = 0; i < len; i += 6)
-    SEQ_SYSEX(0, buf + i, MIN(len - i, 6));
-}
-
-static void timid_flush(void)
-{
-  SEQ_DUMPBUF();
-}
-
 static void timid_pause(void)
 {
   _CHN_COMMON(0, SEQ_EXTENDED, SEQ_END_OF_MIDI, 0, 0, 0);
@@ -469,7 +353,7 @@ static void timid_pause(void)
   fprintf(stderr, "\tPaused\n");
 }
 
-void timid_seqbuf_dump(void)
+void seqbuf_dump(void)
 {
   if (_seqbufptr)
     send(data_sock, _seqbuf, _seqbufptr, 0);
@@ -491,13 +375,5 @@ void register_timid(Device * dev)
 	dev->pause = timid_pause;
 	dev->resume = NULL;
 	dev->setmode = timid_setmode;
-	dev->flush = timid_flush;
-	dev->noteon = timid_noteon;
-	dev->noteoff = timid_noteoff;
-	dev->control = timid_control;
-	dev->notepressure = timid_notepressure;
-	dev->channelpressure = timid_channelpressure;
-	dev->bender = timid_bender;
-	dev->program = timid_program;
-	dev->sysex = timid_sysex;
+	USE_SEQ_OPS(dev);
 }

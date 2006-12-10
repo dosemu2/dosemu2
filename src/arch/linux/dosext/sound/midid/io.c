@@ -8,9 +8,11 @@
 #include "midid.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <errno.h>
 
 /***********************************************************************
   Output
@@ -36,16 +38,32 @@ void getbyte_next(void)
         byte ch;
         bool is_eof;
 
-        FD_ZERO(&rfds);
-        FD_SET(fd, &rfds);
         tv.tv_sec = config.timeout;
         tv.tv_usec = 0;
-	if (select(fd + 1, &rfds, NULL, NULL, config.timeout ? &tv : NULL)) {
-		is_eof=(!read(fd, &ch, 1));
-		getbyte_buffer=ch;
-		if (is_eof) getbyte_buffer=MAGIC_EOF;
-	} else {
-		getbyte_buffer=MAGIC_TIMEOUT;
+again:
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+	switch (select(fd + 1, &rfds, NULL, NULL, config.timeout ? &tv : NULL)) {
+	    case -1:
+		if (tv.tv_sec + tv.tv_usec == 0) {
+		    getbyte_buffer = MAGIC_TIMEOUT;
+		    break;
+		}
+		if (errno == EINTR)
+		    goto again;
+		getbyte_buffer = MAGIC_EOF;
+		break;
+	    case 0:
+		if (errno == EINTR && tv.tv_sec + tv.tv_usec > 0)
+		    goto again;
+		getbyte_buffer = MAGIC_TIMEOUT;
+		break;
+	    default:
+		is_eof = (read(fd, &ch, 1) == 0);
+		getbyte_buffer = ch;
+		if (is_eof)
+		  getbyte_buffer = MAGIC_EOF;
+		break;
 	}
 	if (debugall) fprintf(stderr,"getbyte_next=0x%02x (%i)\n",
 			      getbyte_buffer,getbyte_buffer);
