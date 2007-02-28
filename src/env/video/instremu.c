@@ -112,7 +112,7 @@
        shr     $1, %0\n\
        "#insn" %4, %1\n\
        pushf; pop     %0\n \
-       " : "=g" (eflags), #istype (op1)  : "0" (eflags), "1" (op1), #type (op2));
+       " : "=r" (eflags), #istype (op1)  : "0" (eflags), "1" (op1), #type (op2));
 
 
 #if !defined True
