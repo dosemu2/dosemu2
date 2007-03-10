@@ -612,7 +612,8 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 	char name_8_3[PATH_MAX];
 	char name_lfn[PATH_MAX];
 	struct stat st;
-	char *dest, *fpath;
+	char *fpath;
+	unsigned int dest;
 
 	if (lfn_sfn_match(dir->pattern, de, name_lfn, name_8_3) != 0)
 		return 0;	
@@ -643,36 +644,41 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 		}
 	}
 
-	dest = (char *)SEGOFF2LINEAR(_ES, _DI);
-	memset(dest, 0, 0x20);
-	*dest = get_dos_attr(fpath,st.st_mode,is_hidden(de->d_long_name));
+	dest = SEGOFF2LINEAR(_ES, _DI);
+	MEMSET_DOS(dest, 0, 0x20);
+	WRITE_BYTE(dest, get_dos_attr(fpath,st.st_mode,is_hidden(de->d_long_name)));
 	free(fpath);
-	*((unsigned *)(dest + 0x20)) = st.st_size;
+	WRITE_DWORD(dest + 0x20, st.st_size);
 	if (_SI == 1) {
 		d_printf("LFN: using DOS date/time\n");
-		time_to_dos(st.st_mtime,
-			    (ushort *)(dest+0x16),
-			    (ushort *)(dest+0x14));
-		time_to_dos(st.st_ctime,
-			    (ushort *)(dest+0x6),
-			    (ushort *)(dest+0x4));
-		time_to_dos(st.st_atime,
-			    (ushort *)(dest+0xe),
-			    (ushort *)(dest+0xc));
+		u_short date, time;
+		time_to_dos(st.st_mtime, &date, &time);
+		WRITE_WORD(dest+0x16, date);
+		WRITE_WORD(dest+0x14, time);
+		time_to_dos(st.st_ctime, &date, &time);
+		WRITE_WORD(dest+0x6, date);
+		WRITE_WORD(dest+0x4, time);
+		time_to_dos(st.st_atime, &date, &time);
+		WRITE_WORD(dest+0xe, date);
+		WRITE_WORD(dest+0xc, time);
 	} else {
+		unsigned long long wtime;	  
 		d_printf("LFN: using WIN date/time\n");
-		*(unsigned long long *)(dest+0x14) =
-			unix_to_win_time(st.st_mtime);
-		*(unsigned long long *)(dest+0x4) =
-			unix_to_win_time(st.st_ctime);
-		*(unsigned long long *)(dest+0xc) =
-			unix_to_win_time(st.st_atime);
+		wtime = unix_to_win_time(st.st_mtime);
+		WRITE_DWORD(dest+0x14, wtime);
+		WRITE_DWORD(dest+0x18, wtime >> 32);
+		wtime = unix_to_win_time(st.st_ctime);
+		WRITE_DWORD(dest+0x4, wtime);
+		WRITE_DWORD(dest+0x8, wtime >> 32);
+		wtime = unix_to_win_time(st.st_atime);
+		WRITE_DWORD(dest+0xc, wtime);
+		WRITE_DWORD(dest+0x10, wtime >> 32);
 	}
-	strcpy(dest + 0x2c, name_lfn);
-	dest[0x130] = '\0';
+	MEMCPY_2DOS(dest + 0x2c, name_lfn, strlen(name_lfn)+1);
+	WRITE_BYTE(dest + 0x130, 0);
 	strupperDOS(name_8_3);
 	if (strcmp(name_8_3, name_lfn) != 0) {
-		strcpy(dest + 0x130, name_8_3);
+		MEMCPY_2DOS(dest + 0x130, name_8_3, strlen(name_8_3)+1);
 	}
 	return 1;
 }
@@ -786,7 +792,7 @@ static int mfs_lfn_(void)
 	char fpath2[PATH_MAX];
 	
 	int drive, dirhandle = 0, rc;
-	char *dest = (char *)SEGOFF2LINEAR(_ES, _DI);
+	unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
 	char *src = (char *)SEGOFF2LINEAR(_DS, _DX);
 	struct stat st;
 	struct utimbuf utimbuf;
@@ -811,7 +817,8 @@ static int mfs_lfn_(void)
 			return lfn_error(rc);
 		break;
 	case 0x3b: /* chdir */
-		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
+	{
+		char *d = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
 		d_printf("LFN: chdir %s %zd\n", src, strlen(src));
 		drive = build_posix_path(fpath, src, 0);
@@ -819,10 +826,11 @@ static int mfs_lfn_(void)
 			return drive + 2;
 		if (!find_file(fpath, &st, drive) || !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
-		make_unmake_dos_mangled_path(dest, fpath, drive, 1);
-		d_printf("LFN: New CWD will be %s\n", dest);
+		make_unmake_dos_mangled_path(d, fpath, drive, 1);
+		d_printf("LFN: New CWD will be %s\n", d);
 		call_dos_helper(0x3b);
 		break;
+	}
 	case 0x41: /* remove file */
 		drive = build_posix_path(fpath, src, _SI);
 		if (drive < 0)
@@ -902,15 +910,15 @@ static int mfs_lfn_(void)
 			return 0;
 			
 		cwd = cds_current_path(drive_cds(drive));
-		dest = (char *)SEGOFF2LINEAR(_DS, _SI);
+		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
 		find_file(fpath, &st, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		d_printf("LFN: %p %d %p %s\n", drive_cds(drive), drive, dest,
+		d_printf("LFN: %p %d %#x %s\n", drive_cds(drive), drive, dest,
 			 fpath+drives[drive].root_len);
 		make_unmake_dos_mangled_path(fpath2, fpath, drive, 0);
-		strcpy(dest, fpath2 + 3);
+		MEMCPY_2DOS(dest, fpath2 + 3, strlen(fpath2 + 3) + 1);
 		break;
 	case 0x4e: /* find first */
 	{
@@ -940,12 +948,14 @@ static int mfs_lfn_(void)
 		strupperDOS(dir->pattern);
 		if (((_CX & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
 		    (strcmp(slash, "*.*") == 0 || strcmp(slash, "*") ==  0)) {
-			dest = (char *)SEGOFF2LINEAR(_ES, _DI);
-			memset(dest, 0, 0x20);
-			*dest = VOLUME_LABEL;
-			get_volume_label(NULL, NULL, dest + 0x2c, drive);
-			dest[0x130] = '\0';
-			d_printf("LFN: get volume label: %s\n", dest + 0x2c);
+			char lfn[260];
+			dest = SEGOFF2LINEAR(_ES, _DI);
+			MEMSET_DOS(dest, 0, 0x20);
+			WRITE_BYTE(dest, VOLUME_LABEL);
+			get_volume_label(NULL, NULL, lfn, drive);
+			MEMCPY_2DOS(dest + 0x2c, lfn, strlen(lfn) + 1);
+			WRITE_BYTE(dest + 0x130, 0);
+			d_printf("LFN: get volume label: %s\n", lfn);
 			lfndirs[dirhandle] = dir;
 			dir->dir = NULL;
 			_AX = dirhandle;
@@ -1000,8 +1010,9 @@ static int mfs_lfn_(void)
 	case 0x56: /* rename file */
 	{
 		int drive2, rc;
-		d_printf("LFN: rename to %s\n", dest);
-		drive = build_truename(fpath2, dest, 0);
+		const char *d = (const char *)SEGOFF2LINEAR(_ES, _DI);
+		d_printf("LFN: rename to %s\n", d);
+		drive = build_truename(fpath2, d, 0);
 		if (drive < 0)
 			return drive + 2;
 		d_printf("LFN: rename from %s\n", src);
@@ -1031,7 +1042,7 @@ static int mfs_lfn_(void)
 				return lfn_error(FILE_NOT_FOUND);
 			}
 		}
-		drive = build_truename(_CL == 0 ? dest : filename, src, !_CL);
+		drive = build_truename(filename, src, !_CL);
 		if (drive < 0)
 			return drive + 2;
 
@@ -1040,22 +1051,24 @@ static int mfs_lfn_(void)
 		if (_CL == 1 || _CL == 2) {
 			build_ufs_path(fpath, filename, drive);
 			find_file(fpath, &st, drive);
-			make_unmake_dos_mangled_path(dest, fpath, drive, 2 - _CL);
+			make_unmake_dos_mangled_path(filename, fpath, drive, 2 - _CL);
 		} else {
-			strupperDOS(dest);
+			strupperDOS(filename);
 		}
-		d_printf("LFN: %s %s\n", dest, drives[drive].root);
+		d_printf("LFN: %s %s\n", filename, drives[drive].root);
+		MEMCPY_2DOS(dest, filename, strlen(filename) + 1);
 		break;
 	}
 	case 0x6c: /* create/open */
+	{
+		char *d = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
-		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		d_printf("LFN: open %s\n", src);
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
 		if (is_dos_device(fpath)) {
-			strcpy(dest, strrchr(fpath, '/') + 1);
+			strcpy(d, strrchr(fpath, '/') + 1);
 		} else {
 			slash = strrchr(fpath, '/');
 			strcpy(fpath2, slash);
@@ -1083,10 +1096,11 @@ static int mfs_lfn_(void)
 			} else {
 				_AL = 0;
 			}
-			make_unmake_dos_mangled_path(dest, fpath, drive, 1);
+			make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		}
 		call_dos_helper(0x6c);
 		break;
+	}
 	case 0xa0: /* get volume info */
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
@@ -1097,7 +1111,7 @@ static int mfs_lfn_(void)
 		_CX = 255;
 		_DX = 260;
 		if (size >= 4)
-			strcpy(dest, "MFS");
+			MEMCPY_2DOS(dest, "MFS", 4);
 		break;
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
@@ -1113,8 +1127,10 @@ static int mfs_lfn_(void)
 				&_DX, &_CX);
 			_BH = 0;
 		} else {
-			*(unsigned long long *)dest =
-				unix_to_win_time(time_to_unix(_DX, _CX));
+			unsigned long long wtime;
+			wtime = unix_to_win_time(time_to_unix(_DX, _CX));
+			WRITE_DWORD(dest, wtime);
+			WRITE_DWORD(dest + 4, wtime >> 32);
 		}
 		break;
 	case 0xa8: /* generate short filename */
@@ -1123,10 +1139,12 @@ static int mfs_lfn_(void)
 		StrnCpy(fpath, src, sizeof(fpath) - 1);
 		name_convert(fpath, MANGLE);
 		strupperDOS(fpath);
-		if (_DH == 0)
-			extract_filename(fpath, dest, dest + 8);
-		else
-			strcpy(dest, fpath);
+		if (_DH == 0) {
+			char d[8+3];
+			extract_filename(fpath, d, d + 8);
+			MEMCPY_2DOS(dest, fpath, 11);
+		} else
+			MEMCPY_2DOS(dest, fpath, strlen(fpath) + 1);
 		d_printf("LFN: name convert %s %s %x\n", src, fpath, _DH);
 		break;
 	}
