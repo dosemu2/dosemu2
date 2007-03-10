@@ -94,7 +94,7 @@ static int GetMyAddress( void )
     return(-1);
   }
 
-  *((unsigned long *)MyAddress) = ipxs2.sipx_network;
+  *((uint32_t *)MyAddress) = ipxs2.sipx_network;
   for (i = 0; i < 6; i++) {
     MyAddress[4+i] = ipxs2.sipx_node[i];
   }
@@ -910,9 +910,9 @@ int ipx_int7a(void)
     /* do nothing here because routing is handled by IPX */
     /* normally this would return an ImmediateAddress, but */
     /* the ECB ImmediateAddress is never used, so just return */
-    network = READ_DWORD(SEG_ADR((unsigned long *), es, si));
+    network = READ_DWORD(SEG_ADR((unsigned int *), es, si));
     n_printf("IPX: GetLocalTarget for network %08lx\n", network );
-    if( network==0 || network== *((unsigned long *)&MyAddress[0]) ) {
+    if( network==0 || network== *((uint32_t *)&MyAddress[0]) ) {
       n_printf("IPX: returning GLT success for local address\n");
       LO(ax) = RCODE_SUCCESS;
       LWORD(ecx) = 1;

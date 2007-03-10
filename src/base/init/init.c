@@ -56,7 +56,7 @@ static inline void dbug_dumpivec(void)
   for (i = 0; i < 256; i++) {
     int j;
 
-    dbug_printf("%02x %08lx", i, ((unsigned long *) 0)[i << 1]);
+    dbug_printf("%02x %08x", i, ((unsigned int *) 0)[i << 1]);
     for (j = 0; j < 8; j++)
       dbug_printf(" %02x", ((unsigned char *) (BIOSSEG * 16 + 16 * i))[j]);
     dbug_printf("\n");

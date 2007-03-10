@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -81,7 +82,7 @@ static void viewconf(void)
     close(fd);
     exit(1);
   }
-  if (*((long *)(&hdr.sig)) != DEXE_MAGIC) {
+  if (*((uint32_t *)(&hdr.sig)) != DEXE_MAGIC) {
     fprintf(stderr, "not a DEXE file\n");
     close(fd);
     exit(1);
@@ -128,7 +129,7 @@ static void changeflags(char *flags)
     exit(1);
   }
   close(fd);
-  if (*((long *)(&hdr.sig)) != DEXE_MAGIC) {
+  if (*((uint32_t *)(&hdr.sig)) != DEXE_MAGIC) {
     fprintf(stderr, "not a DEXE file\n");
     exit(1);
   }

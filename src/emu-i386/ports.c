@@ -101,8 +101,8 @@ static char *
 {
 	static char s[16] = "   [00000000]";
 
-	((long *) s)[1] = nyb2bin[(c >> 4) & 15];
-	((long *) s)[2] = nyb2bin[c & 15];
+	((uint32_t *) s)[1] = nyb2bin[(c >> 4) & 15];
+	((uint32_t *) s)[2] = nyb2bin[c & 15];
 
 	return s + 3;
 }

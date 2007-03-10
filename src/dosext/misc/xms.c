@@ -916,17 +916,6 @@ get_emm(unsigned int seg, unsigned int off)
 
   p = MK_FP32(seg, off);
 
-#if 0
-  e.Length = *(unsigned long *) p;
-  p += 4;
-  e.SourceHandle = *(unsigned short *) p;
-  p += 2;
-  e.SourceOffset = *(unsigned long *) p;
-  p += 4;
-  e.DestHandle = *(unsigned short *) p;
-  p += 2;
-  e.DestOffset = *(unsigned long *) p;
-#else
   e.Length = *(unsigned int *) p;
   p += 4;
   e.SourceHandle = *(unsigned short *) p;
@@ -936,7 +925,6 @@ get_emm(unsigned int seg, unsigned int off)
   e.DestHandle = *(unsigned short *) p;
   p += 2;
   e.DestOffset = *(unsigned int *) p;
-#endif
 
   return e;
 }

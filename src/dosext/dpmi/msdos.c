@@ -1276,7 +1276,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	/* the flags should be pushed to stack */
 	if (MSDOS_CLIENT.is_32) {
 	    _esp -= 4;
-	    *(unsigned long *)(GetSegmentBaseAddress(_ss) + _esp - 4) =
+	    *(uint32_t *)(GetSegmentBaseAddress(_ss) + _esp - 4) =
 	      REG(eflags);
 	} else {
 	    _esp -= 2;
@@ -1321,7 +1321,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
     if (MSDOS_CLIENT.is_32) {
 	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((unsigned long *) ssp) =
+	ssp -= 2, *((uint32_t *) ssp) =
 	     DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_esp -= 8;
     } else {
@@ -1359,7 +1359,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
 	D_printf("0x%x\n", *ssp);
 	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((unsigned long *) ssp) =
+	ssp -= 2, *((uint32_t *) ssp) =
 	     DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_esp -= 24;
     } else {

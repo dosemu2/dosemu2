@@ -352,16 +352,16 @@ image_auto(struct disk *dp)
   }
 
   if (strncmp(header, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
-		&& (*((long *)header) != DEXE_MAGIC) ) {
+		&& (*((uint32_t *)header) != DEXE_MAGIC) ) {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
     leavedos(20);
   }
 
-  dp->heads = *(long *) &header[7];
-  dp->sectors = *(long *) &header[11];
-  dp->tracks = *(long *) &header[15];
-  dp->header = *(long *) &header[19];
+  dp->heads = *(int *) &header[7];
+  dp->sectors = *(int *) &header[11];
+  dp->tracks = *(int *) &header[15];
+  dp->header = *(int *) &header[19];
 
   d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
 	   dp->dev_name, dp->heads, dp->sectors, dp->tracks,
@@ -660,8 +660,8 @@ static void set_part_ent(struct disk *dp, char *tmp_mbr)
     p[6] = SECT(end) | ((CYL(end) >> 2) & 0xC0);		/* end sect  */
     p[7] = CYL(end) & 0xFF;					/* end cyl   */
   }
-  *((long *)(p+8)) = dp->start;					/* pre sects */
-  *((long *)(p+12)) = length;					/* len sects */
+  *((uint32_t *)(p+8)) = dp->start;				/* pre sects */
+  *((uint32_t *)(p+12)) = length;				/* len sects */
 }
 
 void
@@ -750,7 +750,7 @@ disk_open(struct disk *dp)
 	      fl.sect = *((unsigned char *)&ATAPI_buf0[0x18]);
 	      fl.head = *((unsigned char *)&ATAPI_buf0[0x1a]);
 	      tns = *((unsigned short *)&ATAPI_buf0[0x13]);
-	      if (tns==0) tns = *((unsigned long *)&ATAPI_buf0[0x20]);
+	      if (tns==0) tns = *((uint32_t *)&ATAPI_buf0[0x20]);
 	      fl.track = tns/(fl.sect*fl.head);
 	}
 	else {	/* no disk available */
@@ -1032,7 +1032,7 @@ disk_init(void)
      */
     s = *(us *) & buf[19];
     if (!s) {
-      s = *(unsigned long *) &buf[32];
+      s = *(uint32_t *) &buf[32];
       d_printf("DISK: zero # secs, so DOS 4 # secs = %d\n", s);
     }
     s += *(us *) & buf[28];	/* + hidden sectors */
@@ -1047,7 +1047,7 @@ disk_init(void)
     memcpy(label, &buf[0x2b], 11);
     label[11] = 0;
     g_printf("VOLUME serial #: 0x%08x, LABEL: %s\n",
-	     *(unsigned long *) &buf[39], label);
+	     *(unsigned int *) &buf[39], label);
 
     if (s % (dp->sectors * dp->heads) != 0) {
       error("incorrect track number of %s\n", dp->dev_name);

@@ -139,8 +139,8 @@ int emu_modify_ldt(int func, void *ptr, unsigned long bytecount)
 	int ret = -ENOSYS;
 
 #if 1
-	{ long *lptr = (long *)ptr;
-	  D_printf("EMU86: modify_ldt %02x %ld [%08lx %08lx %08lx %08lx]\n",
+	{ int *lptr = (int *)ptr;
+	  D_printf("EMU86: modify_ldt %02x %ld [%08x %08x %08x %08x]\n",
 		func, bytecount, lptr[0], lptr[1], lptr[2], lptr[3] ); }
 #endif
 	switch (func) {

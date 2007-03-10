@@ -114,7 +114,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	    dp *= 2;
 	    if (op&4) goto vga2vgal;
 	    while (rep--) {
-		e_VgaWrite(_edi,*((long *)_rsi),DATA32);
+		e_VgaWrite(_edi,*((uint32_t *)_rsi),DATA32);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -163,7 +163,7 @@ vga2vgal:
 	        }
 	    }
 	    else while (rep--) {
-		*((long *)_rdi) = e_VgaRead(_esi,DATA32);
+		*((uint32_t *)_rdi) = e_VgaRead(_esi,DATA32);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -233,7 +233,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       return 1;
     }  
 
-/**/  e_printf("eVGAEmuFault: trying %08lx, a=%08lx\n",*((long *)_rip),_rdi);
+/**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
 
     p = (unsigned char *)_rip;
     if (*p==0x66) w16=1,p++; else w16=0;
@@ -445,7 +445,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 	if ((_err&0x0f)==0x07) {
 		unsigned char *p = (unsigned char *)_rip;
 		int codehit = 0;
-		register long v;
+		register int v;
 		/* Got a fault in a write-protected memory page, that is,
 		 * a page _containing_code_. 99% of the time we are
 		 * hitting data or stack in the same page, NOT code.
@@ -468,9 +468,9 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		PageFaults++;
 #endif
 		if (debug_level('e') || (!InCompiledCode && _cs == getsegment(cs))) {
-		    v = *((long *)p);
+		    v = *((int *)p);
 		    __asm__("bswap %0" : "=r" (v) : "0" (v));
-		    e_printf("Faulting ops: %08lx\n",v);
+		    e_printf("Faulting ops: %08x\n",v);
 
 		    if (!InCompiledCode) {
 			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"

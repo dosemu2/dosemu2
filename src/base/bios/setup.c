@@ -33,7 +33,7 @@ static void install_int_10_handler (void)
   
   if (config.vbios_seg == 0xe000 && config.vbios_post) {
     ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_int10ptr - (long)bios_f000));
-    *((long *)ptr) = 0xe0000003;
+    *((uint32_t *)ptr) = 0xe0000003;
     v_printf("VID: new int10 handler at %p\n",ptr);
   }
   else

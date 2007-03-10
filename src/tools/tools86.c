@@ -96,6 +96,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h> 
 #include <errno.h>
 #include <ctype.h>
@@ -138,8 +139,8 @@ struct bsd_header {            /* a.out header */
 #ifdef __linux__
 static int header_ld86out_to_gnuasout(struct bsd_header *bsd, struct gnu_header *gnu)
 {
-  if (  ((long *)bsd)[0] != 0x10000301 ) return -1;
-  if (  ((long *)bsd)[1] != 0x20 ) return -1;
+  if (  ((uint32_t *)bsd)[0] != 0x10000301 ) return -1;
+  if (  ((uint32_t *)bsd)[1] != 0x20 ) return -1;
   gnu->a_info   = 0x107;
   gnu->a_text   = bsd->a_text;
   gnu->a_data   = bsd->a_data;
