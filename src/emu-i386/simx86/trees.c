@@ -1291,19 +1291,26 @@ int InvalidateNodePage (long addr, int len, long eip, int *codehit)
       if (G->addr && (G->alive>0)) {
 	long ahG = G->seqbase + G->seqlen;
 	if (RANGE_IN_RANGE(G->seqbase,ahG,al,ah)) {
+	    long ahE = (long)(G->addr + G->len);
 	    e_printf("Invalidated node %08lx at %08x\n",(long)G,G->key);
 	    G->alive = 0; G->nxkey = -1;
 	    NodeUnlinker(G);
 	    NodesCleaned++;
 	    if (codehit && ADDR_IN_RANGE(addr,G->key,ahG)) {
-		long ahE = (long)(G->addr + G->len);
 		e_printf("### Also _cr2=%08lx hits code %08x..%08lx\n",addr,G->key,ahG);
 		*codehit = 1;
-		if (eip && ADDR_IN_RANGE(eip,(long)G->addr,ahE)) {
-		    e_printf("### Node self hit %08lx->%08lx..%08lx\n",
-			eip,(long)G->addr,ahE);
-		    BreakNode(G, eip, addr);
-		}
+	    }
+	    /* if the current eip is in *any* chunk of code that is deleted
+	        (not just the one written to)
+	       then we need to break the node immediately to go back to
+	       the interpreter; otherwise the remaining chunk (that does
+	       not officially exist anymore) that the SIGSEGV or patched
+	       call returns to may write to the current unprotected page.
+	    */
+	    if (eip && ADDR_IN_RANGE(eip,(long)G->addr,ahE)) {
+	        e_printf("### Node self hit %08lx->%08lx..%08lx\n",
+			 eip,(long)G->addr,ahE);
+		BreakNode(G, eip, addr);
 	    }
 	}
       }

@@ -96,7 +96,7 @@ asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
 		(long)addr,(long)addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
-	InvalidateNodePage((long)addr,len,0,NULL);
+	InvalidateNodePage((long)addr,len,(long)eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
 	return 0;
