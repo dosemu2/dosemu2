@@ -1147,7 +1147,7 @@ int e_vm86(void)
       if (xval < 0) {
         error("EMU86: error %d\n", -xval);
         in_vm86=0;
-        leavedos(0);
+        leavedos(1);
       }
       trans_addr = return_addr;
     }

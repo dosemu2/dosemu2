@@ -1600,7 +1600,7 @@ repag0:
 				case OUTSb:
 				case OUTSw:
 					CODE_FLUSH();
-					goto not_implemented;
+					goto not_permitted;
 				case LODSb:
 					repmod |= (MBYTE|MOVSSRC);
 					Gen(O_MOVS_SetA, repmod);
@@ -2775,7 +2775,7 @@ repag0:
 	return 0;
 
 not_implemented:
-	dbug_printf("!!! Unimplemented %02x %02x %02x\n",opc,PC[1],PC[2]);
+	dbug_printf("!!! Unimplemented %02x %02x %02x at %p\n",opc,PC[1],PC[2],PC);
 	TheCPU.err = -2; return PC;
 #ifdef HOST_ARCH_X86
 bad_return:
