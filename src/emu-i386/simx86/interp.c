@@ -833,7 +833,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			} while (opc);
 			Gen(O_PUSH3, m); break; }
 #endif
-			Gen(O_PUSH, mode, R1Tab_l[opc]); PC++;
+			Gen(O_PUSH, mode, R1Tab_l[opc-1]); PC++;
 			break;
 /*68*/	case PUSHwi:
 			Gen(O_PUSHI, mode, DataFetchWL_U(mode,(PC+1))); 
