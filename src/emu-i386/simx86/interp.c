@@ -577,7 +577,7 @@ intop29:		{ int op = (opc==TESTwrm? O_AND_R:ArOpsR[D_MO(opc)]);
 			    PC+=2; break;
 			} goto intop3b;
 /*1b*/	case SBBwtrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
-			    Gen(O_SBSELF, mode, R1Tab_b[Fetch(PC+1)&7]);
+			    Gen(O_SBSELF, mode, R1Tab_l[Fetch(PC+1)&7]);
 			    PC+=2; break;
 			}
 /*3b*/	case CMPwtrm:
