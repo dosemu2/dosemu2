@@ -186,7 +186,7 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 
 #define STUB_STOS(cfunc,letter) \
 "		pushl	%eax\n"		/* save eax (consecutive stosws) */ \
-"		pushl	(%esp)\n"	/* return addr = patch point+6 */ \
+"		pushl	4(%esp)\n"	/* return addr = patch point+6 */ \
 "		pushl	%eax\n"		/* value to write         */ \
 "		pushl	%edi\n"		/* push fault address     */ \
 "		scas"#letter"\n"	/* adjust edi depends:DF  */ \
