@@ -195,6 +195,7 @@ static void CodeGen(IMeta *I, int j)
 {
 	IGen *IG = &(I->gen[j]);
 	register unsigned char *Cp = CodePtr;
+	unsigned char * CpTemp;
 	int mode = IG->mode;
 	int rcod;
 #ifdef PROFILE
@@ -1736,6 +1737,12 @@ shrot0:
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_ScaD:
+		if(mode & (MREP|MREPNE))
+		{
+			G2M(JCXZ,00,Cp);
+			// Pointer to the jecxz distance byte
+			CpTemp = Cp-1;
+		}
 		GetDF(Cp);
 		if (mode&MREP) { G1(REP,Cp); }
 			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
@@ -1745,9 +1752,17 @@ shrot0:
 			G1(SCASw,Cp);
 		}
 		G3M(CLD,POPdx,PUSHF,Cp); // replace flags back on stack,edx=dummy
+		if(mode & (MREP|MREPNE))
+			*CpTemp = (Cp-(CpTemp+1));
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_CmpD:
+		if(mode & (MREP|MREPNE))
+		{
+			G2M(JCXZ,00,Cp);
+			// Pointer to the jecxz distance byte
+			CpTemp = Cp-1;
+		}
 		GetDF(Cp);
 		if (mode&MREP) { G1(REP,Cp); }
 			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
@@ -1757,6 +1772,8 @@ shrot0:
 			G1(CMPSw,Cp);
 		}
 		G3M(CLD,POPdx,PUSHF,Cp); // replace flags back on stack,edx=dummy
+		if(mode & (MREP|MREPNE))
+			*CpTemp = (Cp-(CpTemp+1));
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 

@@ -2256,11 +2256,12 @@ static void Gen_sim(int op, int mode, ...)
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		register unsigned int i;
 		char k, z;
+		i = TR1.d;
+		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
+		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
-		i = TR1.d;
-		GTRACE4("O_MOVS_ScaD",0xff,0xff,df,i);
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			RFL.RES.d = (RFL.S1=DR1.b.bl) + (RFL.S2=-(*AR1.pu));
@@ -2288,11 +2289,12 @@ static void Gen_sim(int op, int mode, ...)
 		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		register unsigned int i;
 		char k, z;
+		i = TR1.d;
+		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
+		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
-		i = TR1.d;
-		GTRACE4("O_MOVS_CmpD",0xff,0xff,df,i);
 		while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			RFL.RES.d = (RFL.S1=*AR2.pu) + (RFL.S2=-(*AR1.pu));
