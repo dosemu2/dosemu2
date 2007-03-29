@@ -209,14 +209,16 @@ fi
 
 eval "set -- $SUFFIX"
 COMMAND="$SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG"
+DOSEMU_INVOKED_NAME="$0"
+export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then
   if [ -n "$STRING_I" ] ; then
-    exec -a "$0" $COMMAND "$INSTALL" "-I $STRING_I" "$@"
+    exec $COMMAND "$INSTALL" "-I $STRING_I" "$@"
   else
-    exec -a "$0" $COMMAND "$INSTALL" "$@"
+    exec $COMMAND "$INSTALL" "$@"
   fi
 elif [ -n "$STRING_I" ] ; then
-  exec -a "$0" $COMMAND "-I $STRING_I" "$@"
+  exec $COMMAND "-I $STRING_I" "$@"
 else
-  exec -a "$0" $COMMAND "$@"
+  exec $COMMAND "$@"
 fi

@@ -772,7 +772,9 @@ config_init(int argc, char **argv)
     char           *dexe_name = 0;
     char usedoptions[256];
     int i;
-    
+
+    if (getenv("DOSEMU_INVOKED_NAME"))
+	argv[0] = getenv("DOSEMU_INVOKED_NAME");
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
 
