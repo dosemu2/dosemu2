@@ -1737,6 +1737,7 @@ shrot0:
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_ScaD:
+		CpTemp = NULL;
 		if(mode & (MREP|MREPNE))
 		{
 			G2M(JCXZ,00,Cp);
@@ -1757,6 +1758,7 @@ shrot0:
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_CmpD:
+		CpTemp = NULL;
 		if(mode & (MREP|MREPNE))
 		{
 			G2M(JCXZ,00,Cp);
