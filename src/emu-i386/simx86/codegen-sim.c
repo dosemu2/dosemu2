@@ -170,6 +170,29 @@ static inline int FlagSync_NZ (void)
 	return nf;
 }
 
+// Clear OF, leaving PF, AF, SF, ZF alone.
+static void ClearOF(void)
+{
+	// Working on lazy flags
+	if(RFL.valid!=V_INVALID)
+		RFL.mode = (RFL.mode & ~(IGNOVF | SETOVF)) | CLROVF;
+	// Working on real flags
+	else
+		CPUWORD(Ofs_FLAGS) = CPUWORD(Ofs_FLAGS) & ~0x800;
+}
+
+// Set OF, leaving PF, AF, SF, ZF alone.
+static void SetOF(void)
+{
+	// Working on lazy flags
+	if(RFL.valid!=V_INVALID)
+		RFL.mode = (RFL.mode & ~(IGNOVF | CLROVF)) | SETOVF;
+	// Working on real flags
+	else
+		CPUWORD(Ofs_FLAGS) = CPUWORD(Ofs_FLAGS) | 0x800;
+}
+
+#define SET_OF(ov) { if(ov) SetOF(); else ClearOF(); }
 
 static inline int FlagSync_O_ (void)
 {
@@ -1449,302 +1472,313 @@ static void Gen_sim(int op, int mode, ...)
 		CPUBYTE(Ofs_AL) = DR1.b.bl = *AR1.pu;
 		break;
 
-	case O_ROL: {		// O(if sh>1),C
+	case O_ROL: {		// O(if sh==1),C(if sh>0)
 		signed char o = Offs_From_Arg();
-		unsigned int sh, rbef, raft=0, cy=0;
+		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE1("O_ROL",o);
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
+		sh &= 31;
+		if(!sh)
+			break;	// Carry unmodified, Overflow undefined.
+
 		if (mode & MBYTE) {
 			sh &= 7;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pu;
-				raft = (rbef<<sh) | (rbef>>(8-sh));
-				*AR1.pu = RFL.RES.d = raft;
-				cy = raft & 1;
-			}
+			rbef = *AR1.pu;
+			raft = (rbef<<sh) | (rbef>>(8-sh));
+			*AR1.pu = raft;
+			cy = raft & 1;
+			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
 			sh &= 15;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
-				raft = (rbef<<sh) | (rbef>>(16-sh));
-				*AR1.pwu = RFL.RES.d = raft;
-				cy = raft & 1;
-			}
+			rbef = *AR1.pwu;
+			raft = (rbef<<sh) | (rbef>>(16-sh));
+			*AR1.pwu = raft;
+			cy = raft & 1;
+			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
-			sh &= 31;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
-				raft = (rbef<<sh) | (rbef>>(32-sh));
-				*AR1.pdu = RFL.RES.d = raft;
-				cy = raft & 1;
-			}
+			// sh != 0, else we "break"ed above.
+			// sh < 32, so 32-sh is in range 1..31, which is OK.
+			rbef = *AR1.pdu;
+			raft = (rbef<<sh) | (rbef>>(32-sh));
+			*AR1.pdu = raft;
+			cy = raft & 1;
+			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (sh) {
-			e_printf("Sync C flag = %d\n", cy);
-			SET_CF(cy);
-			if (sh>1) RFL.mode |= IGNOVF;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
-		}
+		e_printf("Sync C flag = %d\n", cy);
+		SET_CF(cy);
+		if (sh>1)
+			RFL.mode |= IGNOVF;
+		else
+			SET_OF(ov);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
-	case O_RCL: {		// O(if sh>1),C
+	case O_RCL: {		// O(if sh==1),C(if sh>0)
 		signed char o = Offs_From_Arg();
-		unsigned int sh, rbef, raft=0, cy;
+		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE1("O_RCL",o);
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
+		sh &= 31;
+		if(!sh)
+			break;
+			
 		if (mode & MBYTE) {
-			sh &= 7;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pu;
-				raft = (rbef<<sh) | (rbef>>(9-sh)) | (cy<<(sh-1));
-				*AR1.pu = RFL.RES.d = raft;
+			sh %= 9;
+			rbef = *AR1.pu;
+			raft = (rbef<<sh) | (rbef>>(9-sh)) | (cy<<(sh-1));
+			*AR1.pu = raft;
+			if (sh)
 				cy = (rbef>>(8-sh)) & 1;
-			}
+			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
-			sh &= 15;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
-				raft = (rbef<<sh) | (rbef>>(17-sh)) | (cy<<(sh-1));
-				*AR1.pwu = RFL.RES.d = raft;
+			sh %= 17;
+			rbef = *AR1.pwu;
+			raft = (rbef<<sh) | (rbef>>(17-sh)) | (cy<<(sh-1));
+			*AR1.pwu = raft;
+			if (sh) 
 				cy = (rbef>>(16-sh)) & 1;
-			}
+			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
-			sh &= 31;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
-				raft = (rbef<<sh) | (cy<<(sh-1));
-				if (sh>1) raft |= (rbef>>(33-sh));
-				*AR1.pdu = RFL.RES.d = raft;
+			rbef = *AR1.pdu;
+			raft = (rbef<<sh) | (cy<<(sh-1));
+			if (sh>1) raft |= (rbef>>(33-sh));
+			*AR1.pdu = raft;
+			if(sh)
 				cy = (rbef>>(32-sh)) & 1;
-			}
+			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (sh) {
-			e_printf("Sync C flag = %d\n", cy);
-			SET_CF(cy);
-			if (sh>1) RFL.mode |= IGNOVF;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
-		}
+		e_printf("Sync C flag = %d\n", cy);
+		SET_CF(cy);
+		if (sh>1)
+			RFL.mode |= IGNOVF;
+		else
+			SET_OF(ov);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
-	case O_SHL: {		// O(if sh>1),SZPC
+	case O_SHL: {		// O(if sh==1),SZPC(if sh>0)
 		signed char o = Offs_From_Arg();
 		unsigned int sh, rbef, raft=0, cy=0;
 		GTRACE3("O_SHL",0xff,0xff,o);
+		if (mode & IMMED) sh = o;
+		  else sh = CPUBYTE(Ofs_CL);
+		sh &= 31;	// happens on 286 and above, not on 8086
+		if(!sh)
+			// All flags unchanged (at least on PIII)
+			break;
+			
 		RFL.mode = mode;
 		RFL.valid = V_GEN;
+		if (mode & MBYTE) 
+			rbef = *AR1.pu;
+		else if (mode & DATA16)
+			rbef = *AR1.pwu;
+		else
+			rbef = *AR1.pdu;
+		
+		// To simulate overflow flag. Keep in mind it is only defined
+		// for sh==1. In that case, SHL r/m,1 behaves like ADD r/m,r/m.
+		// So flag state gets set up like that
+		RFL.S1 = RFL.S2 = rbef;
+		raft = (rbef << sh);
+		RFL.RES.d = raft;
+			
+		if (mode & MBYTE) {
+			cy = (raft & 0x100) != 0;
+			*AR1.pu = raft;
+		}
+		else if (mode & DATA16) {
+			cy = (raft & 0x10000) != 0;
+			*AR1.pwu = raft;
+		}
+		else {
+			cy = (rbef>>(32-sh)) & 1;
+			*AR1.pdu = raft;
+		}
+		RFL.RES.d = raft;
+		e_printf("Sync C flag = %d\n", cy);
+		SET_CF(cy);
+		if (sh>1) RFL.mode |= IGNOVF;
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
+		}
+		break;
+	case O_ROR: {		// O(if sh==1),C(if sh>0)
+		signed char o = Offs_From_Arg();
+		unsigned int sh, rbef, raft, cy, ov;
+		GTRACE1("O_ROL",o);
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
+		sh &= 31;
+		if(!sh)
+			break;	// Carry unmodified, Overflow undefined.
+
 		if (mode & MBYTE) {
 			sh &= 7;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pu;
-				cy = (rbef>>(8-sh)) & 1;
-				raft = (rbef<<sh);
-				*AR1.pu = RFL.RES.d = raft;
-			}
+			RFL.S1 = RFL.S2 = rbef = *AR1.pu;
+			raft = (rbef>>sh) | (rbef<<(8-sh));
+			*AR1.pu = RFL.RES.d = raft;
+			cy = (raft & 0x80) != 0;
+			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
 			sh &= 15;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
-				cy = (rbef>>(16-sh)) & 1;
-				raft = (rbef<<sh);
-				*AR1.pwu = RFL.RES.d = raft;
-			}
+			rbef = *AR1.pwu;
+			raft = (rbef>>sh) | (rbef<<(16-sh));
+			*AR1.pwu = raft;
+			cy = (raft & 0x8000) != 0;
+			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
-			sh &= 31;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
-				cy = (rbef>>(32-sh)) & 1;
-				raft = (rbef<<sh);
-				*AR1.pdu = RFL.RES.d = raft;
-			}
+			// sh != 0, else we "break"ed above.
+			// sh < 32, so 32-sh is in range 1..31, which is OK.
+			rbef = *AR1.pdu;
+			raft = (rbef>>sh) | (rbef<<(32-sh));
+			*AR1.pdu = raft;
+			cy = (raft & 0x80000000U) != 0;
+			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (sh) {
-			e_printf("Sync C flag = %d\n", cy);
-			SET_CF(cy);
-			if (sh>1) RFL.mode |= IGNOVF;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
-		}
-		}
-		break;
-	case O_ROR: {		// O(if sh>1),C
-		signed char o = Offs_From_Arg();
-		unsigned int sh, rbef, raft=0, cy=0;
-		GTRACE3("O_ROR",0xff,0xff,o);
-		if (mode & IMMED) sh = o;
-		  else sh = CPUBYTE(Ofs_CL);
-		if (mode & MBYTE) {
-			sh &= 7;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pu;
-				raft = (rbef>>sh) | (rbef<<(8-sh));
-				*AR1.pu = RFL.RES.d = raft;
-				cy = (raft>>7) & 1;
-			}
-		}
-		else if (mode & DATA16) {
-			sh &= 15;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
-				raft = (rbef>>sh) | (rbef<<(16-sh));
-				*AR1.pwu = RFL.RES.d = raft;
-				cy = (raft>>15) & 1;
-			}
-		}
-		else {
-			sh &= 31;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
-				raft = (rbef>>sh) | (rbef<<(32-sh));
-				*AR1.pdu = RFL.RES.d = raft;
-				cy = (raft>>31) & 1;
-			}
-		}
-		if (sh) {
-			e_printf("Sync C flag = %d\n", cy);
-			SET_CF(cy);
-			if (sh>1) RFL.mode |= IGNOVF;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
-		}
+		e_printf("Sync C flag = %d\n", cy);
+		SET_CF(cy);
+		if (sh>1)
+			RFL.mode |= IGNOVF;
+		else
+			SET_OF(ov);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
-	case O_RCR: {		// O(if sh>1),C
+	case O_RCR: {		// O(if sh==1),C(if sh>0)
 		signed char o = Offs_From_Arg();
-		unsigned int sh, rbef, raft=0, cy;
+		unsigned int sh, rbef, raft, cy, ov;
 		GTRACE3("O_RCR",0xff,0xff,o);
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
+		sh &= 31;
+		if(!sh)
+			break;	// Carry unmodified, Overflow undefined.
+
 		if (mode & MBYTE) {
-			sh &= 7;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pu;
-				raft = (rbef>>sh) | (rbef<<(9-sh)) | (cy<<(8-sh));
-				*AR1.pu = RFL.RES.d = raft;
+			sh %= 9;
+			RFL.S1 = RFL.S2 = rbef = *AR1.pu;
+			raft = (rbef>>sh) | (rbef<<(9-sh)) | (cy<<(8-sh));
+			*AR1.pu = RFL.RES.d = raft;
+			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
-			}
+			// else keep carry.
+			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
-			sh &= 15;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
-				raft = (rbef>>sh) | (rbef<<(17-sh)) | (cy<<(16-sh));
-				*AR1.pwu = RFL.RES.d = raft;
+			sh %= 17;
+			RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
+			raft = (rbef>>sh) | (rbef<<(17-sh)) | (cy<<(16-sh));
+			*AR1.pwu = RFL.RES.d = raft;
+			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
-			}
+			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
-			sh &= 31;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
-				raft = (rbef>>sh) | (cy<<(32-sh));
-				if (sh>1) raft |= (rbef<<(33-sh));
-				*AR1.pdu = RFL.RES.d = raft;
-				cy = (rbef>>(sh-1)) & 1;
-			}
+			RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
+			raft = (rbef>>sh) | (cy<<(32-sh));
+			if (sh>1) raft |= (rbef<<(33-sh));
+			*AR1.pdu = RFL.RES.d = raft;
+			cy = (rbef>>(sh-1)) & 1;
+			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		if (sh) {
-			e_printf("Sync C flag = %d\n", cy);
-			SET_CF(cy);
-			if (sh>1) RFL.mode |= IGNOVF;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
-		}
+		e_printf("Sync C flag = %d\n", cy);
+		SET_CF(cy);
+		if (sh>1)
+			RFL.mode |= IGNOVF;
+		else
+			SET_OF(ov);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
-	case O_SHR: {		// O(if sh>1),SZPC
+	case O_SHR: {		// O(if sh==1),SZPC(if sh>0)
 		signed char o = Offs_From_Arg();
-		unsigned int sh, rbef, raft=0, cy=0;
+		unsigned int sh, rbef, raft, cy=0;
 		GTRACE3("O_SHR",0xff,0xff,o);
-		RFL.mode = mode;
-		RFL.valid = V_GEN;
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
-		if (mode & MBYTE) {
-			sh &= 7;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pu;
-				cy = (rbef>>(sh-1)) & 1;
-				raft = (rbef>>sh);
-				*AR1.pu = RFL.RES.d = raft;
-			}
+		sh &= 31;
+		if (!sh)
+		{
+			ClearOF();
+			break;	// shift count 0, flags unchanged, except OVFL
 		}
-		else if (mode & DATA16) {
-			sh &= 15;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
-				cy = (rbef>>(sh-1)) & 1;
-				raft = (rbef>>sh);
-				*AR1.pwu = RFL.RES.d = raft;
-			}
-		}
-		else {
-			sh &= 31;
-			if (sh) {
-				RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
-				cy = (rbef>>(sh-1)) & 1;
-				raft = (rbef>>sh);
-				*AR1.pdu = RFL.RES.d = raft;
-			}
-		}
-		if (sh) {
-			e_printf("Sync C flag = %d\n", cy);
-			SET_CF(cy);
-			if (sh>1) RFL.mode |= IGNOVF;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
-		}
+		  
+		RFL.mode = mode;
+		RFL.valid = V_GEN;
+		if (mode & MBYTE) 
+			rbef = *AR1.pu;
+		else if (mode & DATA16)
+			rbef = *AR1.pwu;
+		else
+			rbef = *AR1.pdu;
+
+		RFL.S1 = RFL.S2 = rbef;
+		cy = (rbef >> (sh-1)) & 1;
+		raft = rbef >> sh;
+		RFL.RES.d = raft;
+		
+		if (mode & MBYTE)
+			*AR1.pu = raft;
+		else if (mode & DATA16) 
+			*AR1.pwu = raft;
+		else
+			*AR1.pdu = raft;
+
+		e_printf("Sync C flag = %d\n", cy);
+		SET_CF(cy);
+		if (sh>1) RFL.mode |= CLROVF;
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
-	case O_SAR: {		// O(if sh>1),SZPC
+	case O_SAR: {		// O(if sh==1),SZPC(if sh>0)
 		signed char o = Offs_From_Arg();
 		unsigned int sh, cy=0;
 		signed int rbef, raft=0;
-		GTRACE3("O_SAR",0xff,0xff,o);
-		RFL.mode = mode;
-		RFL.valid = V_GEN;
+		GTRACE3("O_SHR",0xff,0xff,o);
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
-		if (mode & MBYTE) {
-			sh &= 7;
-			if (sh) {
-				rbef = *AR1.ps;
-				cy = (rbef>>(sh-1)) & 1;
-				raft = (rbef>>sh);
-				*AR1.pu = RFL.S1 = RFL.S2 = RFL.RES.d = raft;
-			}
+		sh &= 31;
+		if (!sh)
+		{
+			ClearOF();
+			break;	// shift count 0, flags unchanged, except OVFL
 		}
-		else if (mode & DATA16) {
-			sh &= 15;
-			if (sh) {
-				rbef = *AR1.pws;
-				cy = (rbef>>(sh-1)) & 1;
-				raft = (rbef>>sh);
-				*AR1.pwu = RFL.S1 = RFL.S2 = RFL.RES.d = raft;
-			}
-		}
-		else {
-			sh &= 31;
-			if (sh) {
-				rbef = *AR1.pdu;
-				cy = (rbef>>(sh-1)) & 1;
-				raft = (rbef>>sh);
-				*AR1.pdu = RFL.S1 = RFL.S2 = RFL.RES.d = raft;
-			}
-		}
-		if (sh) {
-			e_printf("Sync C flag = %d\n", cy);
-			SET_CF(cy);
-			if (sh>1) RFL.mode |= IGNOVF;
-			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
-		}
+		  
+		RFL.mode = mode;
+		RFL.valid = V_GEN;
+		if (mode & MBYTE) 
+			rbef = *AR1.ps;
+		else if (mode & DATA16)
+			rbef = *AR1.pws;
+		else
+			rbef = *AR1.pds;
+
+		RFL.S1 = RFL.S2 = rbef;
+		cy = (rbef >> (sh-1)) & 1;
+		raft = rbef >> sh;
+		RFL.RES.d = raft;
+		
+		if (mode & MBYTE)
+			*AR1.ps = raft;
+		else if (mode & DATA16) 
+			*AR1.pws = raft;
+		else
+			*AR1.pds = raft;
+
+		e_printf("Sync C flag = %d\n", cy);
+		SET_CF(cy);
+		if (sh>1) RFL.mode |= CLROVF;
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
 
