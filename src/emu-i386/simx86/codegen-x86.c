@@ -2631,7 +2631,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 	    linkdesc *L = &LG->clink;
 	    if (L->t_type) {	// node ends with links
 		lp = L->t_link.abs;		// check 'taken' branch
-		if (*lp==G->key) {		// points to current node?
+		if (*lp==G->key && ((unsigned char*)lp)[-1] == 0xb8) {		// points to current node?
 		    if (L->t_ref!=0) {
 			dbug_printf("Linker: t_ref at %08x busy\n",LG->key);
 			leavedos(0x8102);
@@ -2681,7 +2681,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		}
 		if (L->t_type>JMP_LINK) {	// if it has a 'not taken' link
 		    lp = L->nt_link.abs;	// check 'not taken' branch
-		    if (*lp==G->key) {		// points to current node?
+		    if (*lp==G->key && ((unsigned char*)lp)[-1] == 0xb8) {		// points to current node?
 			if (L->nt_ref!=0) {
 			    dbug_printf("Linker: nt_ref at %08x busy\n",LG->key);
 			    leavedos(0x8103);
