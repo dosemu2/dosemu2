@@ -76,7 +76,7 @@ typedef struct _pciRec {
         unsigned long size;
         unsigned long rawsize;
     } region[7];
-    unsigned long header[16];
+    unsigned int header[16];
     struct _pciRec *next;
 } pciRec, *pciPtr;
 
@@ -89,7 +89,7 @@ struct pci_funcs {
 		  unsigned char fn, unsigned long num, unsigned long val,
 		  int len);
     int (*read_header) (unsigned char bus, unsigned char device,
-			unsigned char fn, unsigned long *buf);
+			unsigned char fn, unsigned int *buf);
     int (*check_device_present)(unsigned char bus, unsigned char device,
 				unsigned char fn);
 };

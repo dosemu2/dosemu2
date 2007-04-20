@@ -43,7 +43,7 @@ static int lastBus = 0;
 static unsigned short findDevice(unsigned short device,
 				 unsigned short vendor, int num);
 static unsigned short findClass(unsigned long class,  int num);
-static int interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,
+static int interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,
 			     int busidx, unsigned char dev,
 			     unsigned char func);
 
@@ -165,8 +165,8 @@ static int hostbridges = 0;
 int
 pcibios_init(void)
 {
-    unsigned long pcibuses[16];
-    unsigned long pciheader[16];
+    unsigned int pcibuses[16];
+    unsigned int pciheader[16];
     int busidx = 0;
     int idx = 0;
     int func = 0;
@@ -420,7 +420,7 @@ static int proc_bus_pci_devices_get_sizes(pciPtr pci)
 }
 
 static int
-interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
+interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,int busidx,
 		   unsigned char dev, unsigned char func)
 {
     static char *typestr[] = { "MEM", "IO", "ROM" };
@@ -498,7 +498,7 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
       }
     }
 
-    Z_printf("bus:%li dev:%i func:%i vend:0x%x dev:0x%x"
+    Z_printf("bus:%i dev:%i func:%i vend:0x%x dev:0x%x"
 	     " class:0x%lx bdf:0x%x\n",pcibuses[busidx],
 	     dev,func,pciTmp->vendor,pciTmp->device,
 	     pciTmp->class,pciTmp->bdf);

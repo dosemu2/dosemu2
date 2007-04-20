@@ -44,7 +44,7 @@ static struct MGAextreg {
 /*
  * Driver data structures.
  */
-static unsigned long pciconf[64];
+static unsigned int pciconf[64];
 
 static char MGAIdent[64] = "";
 static int MGAchipset;
@@ -217,10 +217,10 @@ static Boolean matroxProbe(void)
 	(unsigned char)fn, pciconf);
 
   MGAMMIOBase = MapVidMem(pciconf[4]&~0xfff, 0x4000);
-  v_printf("MGA: mmap() %#lx at %p\n", pciconf[4], MGAMMIOBase);
+  v_printf("MGA: mmap() %#x at %p\n", pciconf[4], MGAMMIOBase);
   if (MGAMMIOBase == MAP_FAILED) return(FALSE);
   for (i=0; i<64; i+=4) {
-    v_printf("PCI: %08lx %08lx %08lx %08lx\n", pciconf[i], pciconf[i+1],
+    v_printf("PCI: %08x %08x %08x %08x\n", pciconf[i], pciconf[i+1],
 	 pciconf[i+2], pciconf[i+3]);
   }
 

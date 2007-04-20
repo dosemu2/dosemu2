@@ -115,7 +115,7 @@ static int pci_no_open(unsigned char bus, unsigned char device,
 
 /* only called from pci bios init */
 static int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
-				 unsigned char fn, unsigned long *buf)
+				 unsigned char fn, unsigned int *buf)
 {
   int i;
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
@@ -207,7 +207,7 @@ static int pci_check_device_present_cfg1(unsigned char bus, unsigned char device
 
 /* only called from pci bios init */
 static int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
-				 unsigned char fn, unsigned long *buf)
+				 unsigned char fn, unsigned int *buf)
 {
   int i;
   
@@ -305,7 +305,7 @@ static int pci_open_proc(unsigned char bus, unsigned char device,
 
 /* only called from pci bios init */
 static int pci_read_header_proc (unsigned char bus, unsigned char device,
-	unsigned char fn, unsigned long *buf)
+	unsigned char fn, unsigned int *buf)
 {
   int fd = pci_open_proc(bus, device, fn);
   if (fd == -1)
