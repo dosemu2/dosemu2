@@ -1274,6 +1274,8 @@ static void do_slang_getkeys(void)
 			/* rough draft version don't stop here... */
 			result = charset_to_unicode(&keyb_state.translate_state,
 				&symbol, keyb_state.kbp, keyb_state.kbcount);
+			if (result != -1 && result > keyb_state.Keystr_Len)
+				keyb_state.Keystr_Len = result;
 			k_printf("KBD: got %08x, result=%zx\n", symbol, result);
 		}
 

@@ -47,7 +47,6 @@ static size_t utf8_to_unicode(
 		goto bad_string;
 	}
 	if (len >= bytes_desired) {
-		result = ch;
 		for(i = 1; i < bytes_desired; i++) {
 			ch = str[i];
 			if ((ch >= 0x80) && (ch <= 0xBF)) {
