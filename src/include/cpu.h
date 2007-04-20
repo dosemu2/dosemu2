@@ -207,13 +207,13 @@ extern struct _fpstate vm86_fpu_state;
 	asm volatile("rex64/fxrstor  %0\n" :: "m"(value));
 
 #define savefpstate(value) \
-	asm volatile("rex64/fxsave %0\n": "=m"(value));
+	asm volatile("rex64/fxsave %0; fninit\n": "=m"(value));
 #else
 #define loadfpstate(value) \
 	asm volatile("frstor  %0\n" :: "m"(value));
 
 #define savefpstate(value) \
-	asm volatile("fsave %0\n": "=m"(value));
+	asm volatile("fnsave %0; fwait\n": "=m"(value));
 #endif
 
 #ifdef __linux__

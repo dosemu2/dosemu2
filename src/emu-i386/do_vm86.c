@@ -352,7 +352,7 @@ run_vm86(void)
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
-       emulator itself: savefpstate (fsave) also resets the current FPU
+       emulator itself: savefpstate (fnsave) also resets the current FPU
        state which is good enough for calling FPU-using routines.
     */
 
