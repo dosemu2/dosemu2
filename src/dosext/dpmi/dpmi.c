@@ -2368,21 +2368,21 @@ err:
     break;
 
   case 0x0800: {	/* create Physical Address Mapping */
-      size_t addr, size, vbase;
+      unsigned addr, size, vbase;
 
       addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
       size = (_LWORD(esi)) << 16 | (_LWORD(edi));
 
-      D_printf("DPMI: Map Physical Memory, addr=%#08zx size=%#zx\n", addr, size);
+      D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
 
-      vbase = (size_t)get_hardware_ram(addr);
+      vbase = (unsigned)(size_t)get_hardware_ram(addr);
       if (vbase == 0) {
 	_eflags |= CF;
 	break;
       }
       _LWORD(ebx) = vbase >> 16;
       _LWORD(ecx) = vbase;
-      D_printf("DPMI: getting physical memory area at 0x%zx, size 0x%zx, "
+      D_printf("DPMI: getting physical memory area at 0x%x, size 0x%x, "
 		     "ret=%#x:%#x\n",
 	       addr, size, _LWORD(ebx), _LWORD(ecx));
     }
