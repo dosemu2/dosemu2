@@ -330,8 +330,18 @@ void dpmi_iret_setup(struct sigcontext_struct *scp)
 
   loadregister(ds, _ds);
   loadregister(es, _es);
-  loadregister(fs, _fs);
-  loadregister(gs, _gs);
+
+  /* only load fs/gs if necessary so that if they are 0, then the
+     64bit bases will not be destroyed.
+     Apparently loading a null selector gives a null segment base on
+     Intel64/EM64T, but leaves the 64bit (or other) base intact on AMD CPUs.
+     Of course, i386 null selector semantics (GPF on access via one)
+     take over once the DPMI client is entered.
+  */
+  if (_fs != getsegment(fs))
+    loadregister(fs, _fs);
+  if (_gs != getsegment(gs))
+    loadregister(gs, _gs);
 
   /* set up a frame to get back to DPMI via iret. The kernel does not save
      %ss, and the SYSCALL instruction in sigreturn() destroys it.
