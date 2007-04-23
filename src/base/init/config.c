@@ -498,6 +498,12 @@ static void read_cpu_info(void)
 	  config.cpuprefetcht0 = 1;
         }
 #endif
+#ifdef __i386__
+        if (cpuflags && (strstr(cpuflags, "fxsr")) &&
+	    sizeof(vm86_fpu_state) == (112+512) &&
+	    kernel_version_code >= 0x20401)
+          config.cpufxsr = 1;
+#endif
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */

@@ -204,16 +204,28 @@ extern struct _fpstate vm86_fpu_state;
 
 #ifdef __x86_64__
 #define loadfpstate(value) \
-	asm volatile("rex64/fxrstor  %0\n" :: "m"(value));
+	asm volatile("rex64/fxrstor  %0\n" :: "m"(value), "cdaSDb"(&value));
 
 #define savefpstate(value) \
-	asm volatile("rex64/fxsave %0; fninit\n": "=m"(value));
+	asm volatile("rex64/fxsave %0; fninit\n": "=m"(value) : "cdaSDb"(&value));
 #else
 #define loadfpstate(value) \
-	asm volatile("frstor  %0\n" :: "m"(value));
+	do { \
+		if (config.cpufxsr) \
+			asm volatile("fxrstor %0\n" :: \
+				    "m"(*((char *)&value+112)),"m"(value)); \
+		else \
+			asm volatile("frstor %0\n" :: "m"(value)); \
+	} while(0);
 
 #define savefpstate(value) \
-	asm volatile("fnsave %0; fwait\n": "=m"(value));
+	do { \
+		if (config.cpufxsr) \
+			asm volatile("fxsave %0; fninit\n" : \
+				    "=m"(*((char *)&value+112)),"=m"(value)); \
+		else \
+			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
+	} while(0);
 #endif
 
 #ifdef __linux__

@@ -98,7 +98,8 @@ unsigned int TRs[2] =
 };
 #endif
 
-struct _fpstate vm86_fpu_state;
+/* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
+struct _fpstate vm86_fpu_state __attribute__ ((aligned(16)));
 
 /* 
  * DANG_BEGIN_FUNCTION cpu_trap_0f

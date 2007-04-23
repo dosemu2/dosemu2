@@ -542,8 +542,8 @@ static int dpmi_control(void)
  *
  */
 
-#if DIRECT_DPMI_CONTEXT_SWITCH
   struct sigcontext_struct *scp=&DPMI_CLIENT.stack_frame;
+#if DIRECT_DPMI_CONTEXT_SWITCH
 #ifdef TRACE_DPMI
     if (debug_level('t')) _eflags |= TF;
 #endif
@@ -3098,6 +3098,14 @@ void dpmi_init(void)
   _fs	= 0;
   _gs	= 0;
   DPMI_CLIENT.fpu_state = vm86_fpu_state;
+#ifdef __i386__
+  /* make sure the whole FPU state is filled in
+     (load via fxrstor; save via fnsave) */
+  if (config.cpufxsr) {
+    loadfpstate(DPMI_CLIENT.fpu_state);
+    asm volatile("fnsave %0; fwait\n" : "=m"(DPMI_CLIENT.fpu_state));
+  }
+#endif
   scp->fpstate = &DPMI_CLIENT.fpu_state;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
