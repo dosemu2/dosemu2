@@ -9,6 +9,8 @@ DOSEMU installation instructions (from source)
     - x86 target CPU
     - bison (not just yacc) and flex
     - development libraries: X and S-Lang are strongly recommended.
+      For full-screen use with X.org 7 or newer you may also
+      need the libXxf86vm development libraries.
       GPM, SDL, and SVGALIB can be used when available.
 
 --------------------------------------------------------------------------
