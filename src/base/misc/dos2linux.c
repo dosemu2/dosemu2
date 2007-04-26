@@ -140,6 +140,12 @@
 #include "vgaemu.h"
 #include "keyb_server.h"
 
+#include "redirect.h"
+#include "../../dosext/mfs/lfn.h"
+#include "../../dosext/mfs/mfs.h"
+
+#define com_stderr      2
+
 #ifndef max
 #define max(a,b)       ((a)>(b)? (a):(b))
 #endif
@@ -265,6 +271,81 @@ static int fork_debug(void)
 }
 #define fork	fork_debug
 #endif
+
+
+static char *make_end_in_backslash (char *s)
+{
+  int len = strlen (s);
+  if (len && s [len - 1] != '/')
+    strcpy (s + len, "/");
+  return s;
+}
+
+
+/*
+ * Return the drive from which <linux_path_resolved> is accessible.
+ * If there is no such redirection, it returns the next available drive * -1.
+ * If there are no available drives (from >= 2 aka "C:"), it returns -26.
+ * If an error occurs, it returns -27.
+ *
+ * In addition, if a drive is available, <linux_path_resolved> is modified
+ * to have the drive's uncannonicalized linux root as its prefix.  This is
+ * necessary as make_unmake_dos_mangled_path() will not work with a resolved
+ * path if the drive was LREDIR'ed by the user to a unresolved path.
+ */
+int find_drive (char *linux_path_resolved)
+{
+  int free_drive = -26;
+  int drive;
+
+  j_printf ("find_drive (linux_path='%s')\n", linux_path_resolved);
+
+  for (drive = 0; drive < 26; drive++) {
+    char *drive_linux_root = NULL;
+    int drive_ro;
+    char drive_linux_root_resolved [PATH_MAX];
+
+    if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
+      if (!realpath (drive_linux_root, drive_linux_root_resolved)) {
+        com_fprintf (com_stderr,
+                     "ERROR: %s.  Cannot canonicalize drive root path.\n",
+                     strerror (errno));
+        return -27;
+      }
+
+      /* make sure drive root ends in / */
+      make_end_in_backslash (drive_linux_root_resolved);
+      
+      j_printf ("CMP: drive=%i drive_linux_root='%s' (resolved='%s')\n",
+                 drive, drive_linux_root, drive_linux_root_resolved);
+
+      /* TODO: handle case insensitive filesystems (e.g. VFAT)
+       *     - can we just strlwr() both paths before comparing them? */
+      if (strstr (linux_path_resolved, drive_linux_root_resolved) == linux_path_resolved) {
+        char old_linux_path_resolved [PATH_MAX];
+        
+        j_printf ("\tFound drive!\n");
+        strcpy (old_linux_path_resolved, linux_path_resolved);
+        snprintf (linux_path_resolved, PATH_MAX, "%s%s",
+                  drive_linux_root/*unresolved*/,
+                  old_linux_path_resolved + strlen (drive_linux_root_resolved));
+        j_printf ("\t\tModified root; linux path='%s'\n", linux_path_resolved);
+        
+        free (drive_linux_root);
+        return drive;
+      }
+      
+      free (drive_linux_root);
+    } else {
+      if (drive >= 2 && free_drive == -26) {
+        free_drive = -drive;
+      }
+    }
+  }
+
+  j_printf ("find_drive() returning free drive: %i\n", -free_drive);
+  return free_drive;
+}
 
 
 /*

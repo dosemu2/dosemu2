@@ -260,12 +260,16 @@ extern char *misc_e6_options (void);
 extern void misc_e6_store_command (char *str, int terminate);
 extern int misc_e6_need_terminate(void);
 
+extern int find_drive (char *linux_path_resolved);
+
 extern void run_unix_command (char *buffer);
 extern int run_system_command(char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 void show_welcome_screen(void);
 void memmove_dos2dos(void *dest, const void *src, size_t n);
+
+
 int dos_read(int fd, char *data, int cnt);
 int dos_write(int fd, char *data, int cnt);
 int com_vsprintf(char *str, char *format, va_list ap);
