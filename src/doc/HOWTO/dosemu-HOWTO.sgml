@@ -244,7 +244,7 @@ winemu mean WinOS/2 running in dosemu.
 Dosemu uses the same numbering scheme as the kernel. Uneven second
 numbers are for possible unstable developer releases, even second numbers
 are for releases considered stable. At the time of writing, <literal>1.2.0</literal>
-is the latest stable release, while <literal>1.3.0</literal> is the latest
+is the latest stable release, while <literal>1.3.4</literal> is the latest
 developer's release. So if you just want to use dosemu, get the latest 
 <emphasis>stable</emphasis> release. 
 </para>
@@ -255,8 +255,8 @@ developer's release. So if you just want to use dosemu, get the latest
 <title>What's the newest version of dosemu and where can I get it?</title>
 
 <para>
-The newest version of dosemu as of 2004/01/18 is
-<emphasis>dosemu-1.2.0</emphasis> and can be obtained at
+The newest stable version of dosemu as of 2007/04/01 is
+<emphasis>dosemu-1.2.2</emphasis> and can be obtained at
 
 <ulink url="http://www.dosemu.org/">http://www.dosemu.org/</ulink>.
  
@@ -1350,27 +1350,24 @@ screen.  43 line mode will resize the <literal>xterm</literal> window to use 43 
 </sect1>
 
 <sect1>
-<title>dosemu and MS-Windows 3.1</title>
+<title>dosemu and MS-Windows 3.x</title>
 
 <sect2>
-<title>Is it possible to run MS-Windows 3.1 under dosemu?</title>
+<title>Is it possible to run MS-Windows 3.x under dosemu?</title>
 
 <para>
-Yes, it is possible to boot WINOS2 (the modified version of Windows 3.1
-that OS/2 uses) under DOSEMU+MSDOS (not FreeDOS). 
-But with some restrictions, and YOU NEED BOTH LICENSES, for
-WINDOWS-3.1 as well OS/2! for more details see
-<filename>README.txt</filename>.
+Yes, versions up to and including Windows for Workgroups 3.11 are
+currently working, but only under DOSEMU+MSDOS (not FreeDOS).
 </para>
 
 </sect2>
 
 <sect2>
-<title>Can I run 32bit stuff with winemu</title>
+<title>Can I run 32bit stuff in Windows?</title>
 
 <para>
 Sorry, no you can't.
-Win32s is not supported yet, Win95 is neither.
+Win32s is not supported yet, Win9x is neither.
 </para>
 
 </sect2>
@@ -1412,17 +1409,12 @@ boards" driver.
 </listitem>
 <listitem>
 <para>
-Do the things described above to get and install OS2WIN31.
-</para>
-</listitem>
-<listitem>
-<para>
 Start xdosemu.
 </para>
 </listitem>
 <listitem>
 <para>
-In Dosemu, go to windows directory and start winemu or type system\os2k386.exe.
+In Dosemu, start windows.
 </para>
 </listitem>
 </orderedlist>
@@ -1433,45 +1425,13 @@ In Dosemu, go to windows directory and start winemu or type system\os2k386.exe.
 <title>Can I install windows from within dosemu?</title>
 
 <para>
-<emphasis>No</emphasis>, right now you can't.
-You need to install windows from Dos. You can copy the windows tree to
-somewhere on your Linux Filesystem and use lredir to mount it on the
-same place as it is in dos. Example:
+<emphasis>Yes</emphasis>, up to and including Windows For Workgroups 3.11.
 </para>
-
-<screen>
-You have windows in d:\windows
-You have d:\ mounted as /dosc in Linux
-You copy the windows tree to Linux, 
-e.g. <command>cp -a /dosd/windows /usr/share</command>
-Inside dosemu you redirect the copied tree like
-<command>lredir d: linux\fs\dosd</command>
-</screen>
-
-<para>
-Now dosemu can't mess around in you windows directory, but changes in the
-windows directory aren't seen by dosemu too. If you want to do the
-same with windows on drive c:&gt; look in this FAQ how to redirect c:.
-</para>
-
-<para>
-But you can use "setup" from inside the windows directory to install drivers
-and change some settings.
-(97/2/1497)
-</para>
-
-</sect2>
 
 <sect2>
-<title>Notes for the mouse under win31-in-xdosemu:</title>
+<title>Notes for the mouse under win3.x-in-xdosemu:</title>
 
 <orderedlist>
-<listitem>
-<para>
-Use the mouse driver "mouse.drv" from WinOS2
-</para>
-</listitem>
-
 <listitem>
 <para>
 In order to let the mouse properly work you need the following in your
@@ -1523,9 +1483,9 @@ Mark Rejhon <email>mdrejhon@magi.com</email> reported (95/4/8) that:
 </para>
 
 <para>
-With the recent DPMI improvements that has gone into 0.60, you can now
-run some 32-bit video games in dosemu.   If the game is compatible in
-an OS/2 DOS box, there are chances that it will work in dosemu.
+You can run many 32-bit video games in dosemu.   
+If the game is compatible in an OS/2 DOS box, there are chances 
+that it will work in dosemu.
 (Example 32-bit games include Descent, Dark Forces, Mortal Kombat 2, 
 Rise of The Triad, which have all successfully been tested in recent 
 dosemu releases).
@@ -1535,7 +1495,7 @@ dosemu releases).
 Before you attempt to run a video game on the console,
 you must have the keyboard configured in raw keyboard mode,
 and enabled VGA graphics modes, in
-<filename>dosemu.conf</filename> or run <command>dosemu -kV</command>.
+<filename>dosemu.conf</filename> or run <command>dosemu -s</command>.
 Moreover you must run DOSEMU as root, execute it via sudo or make
 <filename>dosemu.bin</filename> suid root.
 </para>
