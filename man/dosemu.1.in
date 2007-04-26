@@ -103,7 +103,9 @@ is the base name of a directory. The symbolic link ~/.dosemu/drives/c
 will be changed to point to this directory.
 Re-installing is only rarely necessary, since in practise the symbolic
 link(s) will automatically point to updated files.
-
+.TP
+.I --version
+print version of dosemu and list of available options.
 .SH AUTHOR
 .B DOSEMU
 (comprised of the files
