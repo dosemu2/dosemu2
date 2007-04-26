@@ -174,6 +174,9 @@
 #define CLROVF	0x00200000
 #define SETOVF	0x00400000
 #define IGNOVF	0x00800000
+// for HOST_ARCH_X86
+#define MREPCOND 0x01000000	// this is SCASx or CMPSx, REP can be terminated
+				// by flags
 
 // as seqflg takes mode>>16, these must go together in pairs
 // (bits 0-3 are accumulated in the sequence head node):
@@ -261,6 +264,9 @@ extern char InterOps[];
 extern int  GendBytesPerOp[];
 extern char RmIsReg[];
 extern char OpIsPush[];
+extern char OpSize[];
+
+#define OPSIZE(m) (OpSize[(m)&(DATA16|MBYTE)])
 
 int Cpatch(struct sigcontext_struct *scp);
 int UnCpatch(unsigned char *eip);

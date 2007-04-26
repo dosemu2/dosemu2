@@ -200,9 +200,10 @@ asm (
 ".text\n.globl stub_rep__\n"
 "stub_rep__:	jecxz	1f\n"		/* zero move, nothing to do */
 "		pushl	%eax\n"		/* save regs */
+"		pushl	%edx\n"		/* edx used in 16bit overrun emulation, save too */
 "		pushl	%ecx\n"
 "		pushfl\n"		/* push flags for DF */
-"		pushl	12(%esp)\n"	/* push return address */
+"		pushl	16(%esp)\n"	/* push return address */
 "		pushl	%ecx\n"		/* push count */
 "		pushl	%edi\n"		/* push base address */
 "		cld\n"
@@ -210,6 +211,7 @@ asm (
 "		addl	$12,%esp\n"	/* remove parameters */
 "		popfl\n"		/* real CPU flags back */
 "		popl	%ecx\n"		/* restore regs */
+"		popl	%edx\n"
 "		popl	%eax\n"		
 "1:		ret\n"
 );
@@ -281,11 +283,13 @@ asm (
 asm (
 ".text\n.globl stub_rep__\n"
 "stub_rep__:	jrcxz	1f\n"		/* zero move, nothing to do */
-"		movq	(%rsp),%rdx\n"  /* pass return address */
 "		pushq	%rax\n"		/* save regs */
+"		pushq	%rax\n"		/* save rax twice for 16-alignment */
 "		pushq	%rcx\n"
+"		pushq	%rdx\n"
 "		pushq	%rdi\n"
 "		pushq	%rsi\n"
+"		movq	48(%rsp),%rdx\n"  /* pass return address */
 "		pushfq\n"		/* push flags for DF */
 "		movl	%ecx,%esi\n"	/* pass count */
 					/* pass base address in %rdi */
@@ -294,8 +298,10 @@ asm (
 "		popfq\n"		/* real CPU flags back */
 "		popq	%rsi\n"		/* restore regs */
 "		popq	%rdi\n"
+"		popq	%rdx\n"
 "		popq	%rcx\n"
-"		popq	%rax\n"		
+"		popq	%rax\n"
+"		popq	%rax\n"
 "1:		ret\n"
 );
 

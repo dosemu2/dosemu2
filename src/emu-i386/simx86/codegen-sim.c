@@ -2153,13 +2153,14 @@ static void Gen_sim(int op, int mode, ...)
 		if (mode&ADDR16) {
 		    if (mode&MOVSSRC) {
 	    		AR2.d = CPULONG(OVERR_DS);
-			DR2.d = CPUWORD(Ofs_SI);
+			DR2.d = CPUWORD(Ofs_SI); /* for overflow calc */
 			AR2.d += DR2.d;
 		    }
 		    if (mode&MOVSDST) {
 	    		AR1.d = CPULONG(Ofs_XES);
-			TR1.d = CPUWORD(Ofs_DI);
-			AR1.d += TR1.d;
+			SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
+			AR1.d += SR1.d;
+			
 		    }
 		    TR1.d = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
 		}
@@ -2273,6 +2274,42 @@ static void Gen_sim(int op, int mode, ...)
 			}
 		    }
 		}
+		else if(mode & ADDR16 && df == 1 &&
+		        OPSIZE(mode)*i + SR1.d > 0x10000)
+		{
+			/* 16 bit address overflow detected */
+			if(AR1.d & (OPSIZE(mode)-1))
+			{
+				/* misaligned overflow generates trap. */
+				TheCPU.err=EXCP0D_GPF;
+				break;
+			}
+			unsigned int possible = (0x10000-SR1.d)/OPSIZE(mode);
+			unsigned int remaining = i - possible;
+			TR1.d = possible;
+			Gen_sim(O_MOVS_StoD,mode);
+			AR1.d -= 0x10000;
+			TR1.d = remaining;
+			Gen_sim(O_MOVS_StoD,mode);
+		}
+		else if(mode & ADDR16 && df == -1 && i &&
+		        OPSIZE(mode)*(i-1) > SR1.d)
+		{
+			/* 16 bit address overflow detected */
+			if(AR1.d & (OPSIZE(mode)-1))
+			{
+				/* misaligned overflow generates trap. */
+				TheCPU.err=EXCP0D_GPF;
+				break;
+			}
+			unsigned int possible = SR1.d/OPSIZE(mode) + 1;
+			unsigned int remaining = i - possible;
+			TR1.d = possible;
+			Gen_sim(O_MOVS_StoD,mode);
+			AR1.d += 0x10000;
+			TR1.d = remaining;
+			Gen_sim(O_MOVS_StoD,mode);
+		}
 		else if (mode&MBYTE) {
 		    while (i--) { *AR1.pu = DR1.b.bl; AR1.pu += df; }
 		}
@@ -2283,7 +2320,6 @@ static void Gen_sim(int op, int mode, ...)
 		    while (i--) { *AR1.pdu = DR1.d; AR1.pdu += df; }
 		}
 		if (mode&(MREP|MREPNE))	TR1.d = 0;
-		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC

@@ -193,6 +193,9 @@ void InitGen_x86(void)
 
 static void CodeGen(IMeta *I, int j)
 {
+	/* evil hack, keeping state from MOVS_SavA to MOVS_SetA in
+	   a static variable */
+	static unsigned char * rep_retry_ptr = (char*)0xdeadbeef;
 	IGen *IG = &(I->gen[j]);
 	register unsigned char *Cp = CodePtr;
 	unsigned char * CpTemp;
@@ -1664,21 +1667,131 @@ shrot0:
 
 	case O_MOVS_SetA:
 		if (mode&ADDR16) {
+		    /* The CX load has to be before the address reloads */
+		    if (mode&(MREP|MREPNE)) {
+			// movzwl Ofs_CX(%%ebx),%%ecx
+			G4M(0x0f,0xb7,0x4b,Ofs_CX,Cp);
+			rep_retry_ptr = Cp;
+		    }
 		    if (mode&MOVSSRC) {
 			// movzwl Ofs_SI(%%ebx),%%esi
 			G4M(0x0f,0xb7,0x73,Ofs_SI,Cp);
+		    	if(mode & (MREPNE|MREP))
+		    	{
+			    /* EAX: iterations possible until address overflow
+			            if DF is set. */
+			    // movl %%esi,%%eax
+			    G2M(MOVwfrm,0xF0,Cp);
+			    if(!(mode & MBYTE))
+			    {
+			    	if(mode & DATA16)
+			    	{
+				    // shrl $1,%%eax
+				    G2M(SHIFTw,0xE8,Cp);
+				}
+				else
+				{
+				    // shrl $2,%%eax
+				    G3M(SHIFTwi,0xE8,2,Cp);
+				}
+			    }
+			    // incl %%eax
+#ifdef __x86_64__ // 0x40 is a REX byte, not inc
+			    G2M(0xff,0xc0,Cp);
+#else
+			    G1(INCax,Cp);
+#endif
+			}
 			// addl OVERR_DS(%%ebx),%%esi
 			G3M(0x03,0x73,IG->ovds,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movzwl Ofs_DI(%%ebx),%%edi
 			G4M(0x0f,0xb7,0x7b,Ofs_DI,Cp);
+		    	if(mode & (MREPNE|MREP))
+		    	{
+			    /* EDX: iterations possible until address overflow
+			            if DF is set. */
+			    // movl %%edi,%%edx
+			    G2M(MOVwfrm,0xFA,Cp);
+			    if(!(mode & MBYTE))
+			    {
+			    	if(mode & DATA16)
+			    	{
+				    // shrl $1,%%edx
+				    G2M(SHIFTw,0xEA,Cp);
+				}
+				else
+				{
+				    // shrl $2,%%edx
+				    G3M(SHIFTwi,0xEA,2,Cp);
+				}
+			    }
+			    // incl %%edx
+#ifdef __x86_64__ // 0x42 is a REX byte, not inc
+			    G2M(0xff,0xc2,Cp);
+#else
+			    G1(INCdx,Cp);
+#endif
+			}
 			// addl Ofs_XES(%%ebx),%%edi
 			G3M(0x03,0x7b,Ofs_XES,Cp);
 		    }
 		    if (mode&(MREP|MREPNE)) {
-			// movzwl Ofs_CX(%%ebx),%%ecx
-			G4M(0x0f,0xb7,0x4b,Ofs_CX,Cp);
+			/* Address overflow detection */
+			// testl $4,Ofs_EFLAGS+1(%%ebx)
+			G4M(GRP1brm,0x43,Ofs_EFLAGS+1,0x4,Cp);
+			// jnz 0f (distance is 8 bytes per limit to adjust)
+			G2M(JNE_JNZ,(mode&(MOVSDST|MOVSSRC)) == (MOVSDST|MOVSSRC) ?
+			                0x10:0x08,Cp);
+			/* correct for cleared DF */
+			if(mode&MOVSSRC)
+			{
+			    // negl %%eax
+			    G2M(GRP1wrm,0xD8,Cp);
+			    // addl $(0x10000/opsize+1),%%eax
+			    G2M(IMMEDwrm,0xC0,Cp); G4(0x10000/OPSIZE(mode)+1,Cp);
+			}
+			if(mode&MOVSDST)
+			{
+			    // negl %%edx
+			    G2M(GRP1wrm,0xDA,Cp);
+			    // addl $(0x10000/opsize+1),%%edx
+			    G2M(IMMEDwrm,0xC2,Cp); G4(0x10000/OPSIZE(mode)+1,Cp);
+			}
+			// 0:
+			/* consolidate limits to edx */
+			switch(mode&(MOVSDST|MOVSSRC))
+			{
+			    case MOVSDST:
+				/* nothing to do, limit already in edx */
+				break;
+			    case MOVSSRC:
+			    	/* limit in eax, want it in edx */
+				// xchg %%eax,%%edx	
+			        G1(XCHGdx,Cp);
+			        break;
+			    case MOVSSRC | MOVSDST:
+				/* smaller limit to edx */
+				// cmp %%eax,%%edx
+				G2M(CMPwtrm,0xD0,Cp);
+				// jb 0f
+				G2M(JB_JNAE,0x01,Cp);
+				// xchg %%eax,%%edx
+				G1(XCHGdx,Cp);
+				break;
+			}
+			// cmp %%ecx,%%edx
+			G2M(CMPwfrm,0xCA,Cp);
+			// jbe 0f
+			G2M(JBE_JNA,0x02,Cp);
+			// mov %%ecx,%%edx
+			G2M(MOVwfrm,0xCA,Cp);
+			// 0: 
+			// xchg %%ecx,%%edx
+			G2M(XCHGwrm,0xCA,Cp);
+			// sub %%ecx, %%edx
+			G2M(SUBwfrm,0xCA,Cp);
 		    }
 		}
 		else {
@@ -1710,7 +1823,6 @@ shrot0:
 			G1(MOVSw,Cp);
 		}
 		if (!(mode&(MREP|MREPNE))) { G4(0x90909090,Cp); }
-		// ! Warning DI,SI wrap	in 16-bit mode
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_LodD:
@@ -1721,7 +1833,6 @@ shrot0:
 			Gen66(mode,Cp);
 			G1(LODSw,Cp);
 		}
-		// ! Warning DI,SI wrap	in 16-bit mode
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_StoD:
@@ -1733,7 +1844,6 @@ shrot0:
 			G1(STOSw,Cp);
 		}
 		if (!(mode&(MREP|MREPNE))) { G4(0x90909090,Cp); }
-		// ! Warning DI,SI wrap	in 16-bit mode
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_ScaD:
@@ -1752,10 +1862,9 @@ shrot0:
 			Gen66(mode,Cp);
 			G1(SCASw,Cp);
 		}
-		G3M(CLD,POPdx,PUSHF,Cp); // replace flags back on stack,edx=dummy
+		G3M(CLD,POPsi,PUSHF,Cp); // replace flags back on stack,esi=dummy
 		if(mode & (MREP|MREPNE))
 			*CpTemp = (Cp-(CpTemp+1));
-		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_CmpD:
 		CpTemp = NULL;
@@ -1773,17 +1882,32 @@ shrot0:
 			Gen66(mode,Cp);
 			G1(CMPSw,Cp);
 		}
-		G3M(CLD,POPdx,PUSHF,Cp); // replace flags back on stack,edx=dummy
+		G3M(CLD,POPax,PUSHF,Cp); // replace flags back on stack,eax=dummy
 		if(mode & (MREP|MREPNE))
 			*CpTemp = (Cp-(CpTemp+1));
-		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 
 	case O_MOVS_SavA:
 		if (mode&ADDR16) {
-		    if (mode&(MREP|MREPNE)) {
-			// movw %%cx,Ofs_CX(%%ebx)
-			G4M(0x66,0x89,0x4b,Ofs_CX,Cp);
+		    if(mode & MREPCOND)
+		    {
+			/* it is important to *NOT* destroy the flags here, so
+			   use lea instead of add. Flags are needed for termination
+			   detection */
+			// lea 0(%%edx,%%ecx),%%ecx	; add remaining to cx
+			G3M(0x8D,0x0C,0x11,Cp);
+			/* terminate immediately if rep was stopped by flags */
+			// j[n]z 0f
+			G2M((mode&MREP)?JE_JZ:JNE_JNZ,0x02,Cp);
+			// xor %%edx,%%edx	; clear remaining
+			G2M(XORwtrm,0xD2,Cp);
+			// 0:
+		    }
+		    else if(mode & (MREP|MREPNE))
+		    {
+			/* use shorter add instruction for nonconditional reps */
+			// add %%edx,%%ecx
+			G2M(ADDwtrm,0xCA,Cp);
 		    }
 		    if (mode&MOVSSRC) {
 			// esi = base1 + CPU_(e)SI +- n
@@ -1798,6 +1922,17 @@ shrot0:
 			G3M(0x2b,0x7b,Ofs_XES,Cp);
 			// movw %%di,Ofs_DI(%%ebx)
 			G4M(0x66,0x89,0x7b,Ofs_DI,Cp);
+		    }
+		    // continue after SI/DI overflow; store ecx
+		    if (mode&(MREP|MREPNE)) {
+			unsigned char * jmpbackbase;
+			// or %%edx,%%edx
+			G2M(ORwtrm,0xD2,Cp);
+			// jnz retry
+			jmpbackbase = Cp;
+			G2M(JNE_JNZ,(rep_retry_ptr-jmpbackbase-2)&0xFF,Cp);
+			// movw %%cx,Ofs_CX(%%ebx)
+			G4M(0x66,0x89,0x4b,Ofs_CX,Cp);
 		    }
 		}
 		else {

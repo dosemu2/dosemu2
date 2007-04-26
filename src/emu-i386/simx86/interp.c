@@ -1628,13 +1628,13 @@ repag0:
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSb:
-					repmod |= (MBYTE|MOVSSRC|MOVSDST);
+					repmod |= (MBYTE|MOVSSRC|MOVSDST|MREPCOND);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSw:
-					repmod |= (MOVSSRC|MOVSDST);
+					repmod |= (MOVSSRC|MOVSDST|MREPCOND);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
@@ -1654,14 +1654,14 @@ repag0:
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASb:
-					repmod |= (MBYTE|MOVSDST);
+					repmod |= (MBYTE|MOVSDST|MREPCOND);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod|MBYTE, Ofs_AL);
 					Gen(O_MOVS_ScaD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASw:
-					repmod |= MOVSDST;
+					repmod |= MOVSDST|MREPCOND;
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod, Ofs_EAX);
 					Gen(O_MOVS_ScaD, repmod);
