@@ -1413,28 +1413,35 @@ struct mfs_dir *dos_opendir(const char *name)
   dir = malloc(sizeof *dir);
   dir->fd = fd;
   dir->dir = d;
+  dir->nr = 0;
   return (dir);
 }
 
 struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 {
-  if (dir->dir) {
-    struct direct *de = (struct direct *) readdir(dir->dir);
-    if (de == NULL)
-      return NULL;
-    dir->de.d_name = dir->de.d_long_name = de->d_name;
-  } else {
-    static struct kernel_dirent de[2];
-    int ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)&de));
-    if (ret == -1 || de[0].d_reclen == 0)
-      return NULL;
-    dir->de.d_name = de[0].d_name;
-    dir->de.d_long_name = de[1].d_name;
-    if (dir->de.d_long_name[0] == '\0' ||
-	vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
+  if (dir->nr <= 1) {
+    dir->de.d_name = dir->de.d_long_name = dir->nr ? ".." : ".";
+  } else do {
+    if (dir->dir) {
+      struct direct *de = (struct direct *) readdir(dir->dir);
+      if (de == NULL)
+	return NULL;
+      dir->de.d_name = dir->de.d_long_name = de->d_name;
+    } else {
+      static struct kernel_dirent de[2];
+      int ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)&de));
+      if (ret == -1 || de[0].d_reclen == 0)
+	return NULL;
+      dir->de.d_name = de[0].d_name;
+      dir->de.d_long_name = de[1].d_name;
+      if (dir->de.d_long_name[0] == '\0' ||
+	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
         dir->de.d_long_name = dir->de.d_name;
+      }
     }
-  }
+  } while (strcmp(dir->de.d_name, ".") == 0 ||
+	   strcmp(dir->de.d_name, "..") == 0);
+  dir->nr++;
   return (&dir->de);
 }
 

@@ -283,6 +283,7 @@ struct mfs_dir
   DIR *dir;
   struct mfs_dirent de;
   int fd;
+  unsigned int nr;
 };
 
 #define FAR(x) (Addr_8086(x.segment, x.offset))
