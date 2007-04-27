@@ -1162,6 +1162,12 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 				/*        -> DS:SI                     */
 		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
 	    break;
+	case 0x63:		/* Get Lead Byte Table Address */
+	    /* _LO(ax)==0 is to test for 6300 on input, LO(ax)==0 for success*/
+	    if (_LO(ax) == 0 && LO(ax) == 0)
+	        SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
+	    break;
+
 	case 0x3f:
 	    unset_io_buffer();
 	    PRESERVE2(edx, ecx);
