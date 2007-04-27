@@ -449,6 +449,7 @@ int lredir_main(int argc, char **argv)
 {
     uint16 ccode;
     uint16 deviceParam;
+    int carg;
 #if 0
     unsigned long dversion;
 #endif
@@ -497,18 +498,18 @@ int lredir_main(int argc, char **argv)
 
     /* assume the command is to redirect a drive */
     /* read the drive letter and resource string */
-    if (argc == 3 && argv[2][1] == ':') {
+    carg = 3;
+    if (argc > 2 && argv[2][1] == ':') {
+      /* lredir c: d: */
       if ((argc > 3 && toupper(argv[3][0]) == 'F') ||
     	((ccode = FindRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS)) {
         if ((ccode = FindFATRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS) {
           printf("Error: unable to find redirection for drive %s\n", argv[2]);
 	  goto MainExit;
-	} else {
-          msetenv("DOSEMU_LASTREDIR", argv[2]);
-        }
+	}
       }
     } else {
-      if (argc == 2) {
+      if (argc > 1 && argv[1][1] != ':') {
         strcpy(resourceStr, argv[1]);
 	int nextDrive = find_drive(resourceStr);
 	if (nextDrive == -26) {
@@ -521,21 +522,22 @@ int lredir_main(int argc, char **argv)
         deviceStr[0] = -nextDrive + 'A';
 	deviceStr[1] = ':';
 	deviceStr[2] = '\0';
-      } else {
+	carg = 2;
+      } else if (argc > 2) {
         strcpy(deviceStr, argv[1]);
         strcpy(resourceStr, argv[2]);
       }
     }
     deviceParam = DEFAULT_REDIR_PARAM;
 
-    if (argc > 3) {
-      if (toupper(argv[3][0]) == 'R') {
+    if (argc > carg) {
+      if (toupper(argv[carg][0]) == 'R') {
         deviceParam = 1;
       }
-      if (toupper(argv[3][0]) == 'C') {
+      if (toupper(argv[carg][0]) == 'C') {
 	int cdrom = 1;
-	if (argc > 4 && argv[4][0] >= '1' && argv[4][0] <= '4')
-	  cdrom = argv[4][0] - '0';
+	if (argc > carg+1 && argv[carg+1][0] >= '1' && argv[carg+1][0] <= '4')
+	  cdrom = argv[carg+1][0] - '0';
         deviceParam = 1 + cdrom;
       }
     }
@@ -560,7 +562,8 @@ int lredir_main(int argc, char **argv)
              ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
       goto MainExit;
     }
-    msetenv("DOSEMU_LASTREDIR", deviceStr);
+    if ((argc <= 2 || argv[2][1] != ':') && argc >= 2 && argv[1][1] != ':')
+	msetenv("DOSEMU_LASTREDIR", deviceStr);
 
     printf("%s = %s", deviceStr, resourceStr);
     if (deviceParam > 1)

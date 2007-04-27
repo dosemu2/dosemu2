@@ -36,7 +36,7 @@ static char *envptr(int *size, int parent_p)
        mcb = (struct MCB *) (((long) (peek(parent_p,0x2c) - 1)) << 4);
     }
     *size = mcb->size * 16;
-    return ((char *) ((long) (FP_SEG32(mcb) + 1) << 4));
+    return ((char *) (lowmem_base + ((long) (FP_SEG32(mcb) + 1) << 4)));
 }
 
 
