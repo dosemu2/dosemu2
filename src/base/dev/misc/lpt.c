@@ -221,11 +221,11 @@ printer_init(void)
     lpt[i].remaining = -1;	/* mark not accessed yet */
     if (lpt[i].dev)
       lpt[i].fops = dev_pfops;
-    else
+    else if (lpt[i].prtcmd)
       lpt[i].fops = pipe_pfops;
     if (i >= config.num_lpt) lpt[i].base_port = 0;
 
-    if (lpt[i].base_port) {
+    if (lpt[i].base_port != 0 && lpt[i].fops.open) {
       io_device.start_addr = lpt[i].base_port;
       io_device.end_addr   = lpt[i].base_port + 2;
       port_register_handler(io_device, 0);
@@ -258,6 +258,8 @@ printer_tick(u_long secno)
 	lpt[i].remaining--;
 	if (!lpt[i].remaining)
 	  printer_close(i);
+	else if (lpt[i].file != NULL)
+	  fflush(lpt[i].file);
       }
     }
   }
