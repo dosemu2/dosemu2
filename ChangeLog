@@ -1,3 +1,233 @@
+2007-04-27  Bart
+
+	* [r1751] VERSION, NEWS, ChangeLog, doc/DOSEMU-HOWTO.txt,
+	  etc/dosemu.conf:
+	  Regenerate documentation. Release 1.3.5.
+
+	* [r1750] src/plugin/commands/lredir.c, src/plugin/commands/msetenv.c:
+	  Avoid CPUEMU problems with msetenv. Only set DOSEMU_LASTREDIR if no
+	  drive letter was given; improve lredir command line processing with C
+	  and R.
+
+	* [r1749] etc/dosemu.conf, src/base/dev/misc/lpt.c:
+	  Flush every second when printing. Fix $_lptx="" to not register any
+	  ports.
+
+	* [r1748] src/dosext/dpmi/msdos.c:
+	  Fix #1638135 (int 21h, ax=6300 not translated currently, japheth)
+
+	* [r1747] src/dosext/mfs/mfs.c, src/dosext/mfs/mfs.h:
+	  Always return . and .. as the first two entries for
+	  findfirst/findnext to be consistent with real DOS. On Linux they
+	  can be somewhere in the middle.
+
+2007-04-26  Bart
+
+	* [r1746] src/base/misc/dos2linux.c, src/include/dos2linux.h,
+	  src/plugin/commands/lredir.c, src/plugin/commands/unix.c:
+	  Apply #1691712 make lredir able to automatically choose next free
+	  drive II (Stuart Axon)
+
+	* [r1745] INSTALL:
+	  Made a note about libXxf86vm (#1644784)
+
+	* [r1744] man/dosemu.1.in:
+	  [ 1692149 ] Describe --version in man page (fix for 1245033) (Stuart
+	  Axon)
+
+	* [r1743] src/doc/HOWTO/dosemu-HOWTO.sgml:
+	  Some HOWTO updates by Stuart Axon (#1692299).
+
+	* [r1742] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/codegen.h,
+	  src/emu-i386/simx86/cpatch.c, src/emu-i386/simx86/interp.c,
+	  src/emu-i386/simx86/tables.c:
+	  Handle 16bit address overflow in cpuemu string instructions.
+	  (#1683078, slightly adjusted from Michael Karcher's patch)
+
+2007-04-23  Bart
+
+	* [r1741] src/base/init/config.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/emu-i386/cpu.c, src/include/cpu.h,
+	  src/include/emu.h:
+	  Use fxsave/fxrstor when available on i386 to deal with SSE fp.
+	  Make sure the fxsave buffer is paragraph aligned (fixes a bug with
+	  DJGPP gcc on x86_64).
+
+2007-04-22  Bart
+
+	* [r1740] src/dosext/dpmi/dpmi.c:
+	  Check fs/gs values before loading them on x86-64. Preserves 64 bit
+	  segment bases on Intel chips (but apparently makes no difference on
+	  AMD's).
+
+2007-04-20  Bart
+
+	* [r1739] src/dosext/dpmi/dpmi.c:
+	  Fix LFB w/console graphics for x86-64.
+
+	* [r1738] src/base/async/pci_bios.c, src/base/dev/misc/pci.c,
+	  src/env/video/matrox.c, src/include/pci.h:
+	  Fix PCI support on x86-64.
+
+	* [r1737] src/emu-i386/do_vm86.c, src/include/cpu.h:
+	  Use fnsave instead of fsave for saving the FPU state. Should fix
+	  #1436788.
+
+	* [r1736] src/plugin/term/keyb_slang.c,
+	  src/plugin/translate/charsets/utf8.c:
+	  Fix problems with utf-8 multibyte input in terminals (reported by
+	  Grigory Batalov, linux-msdos).
+
+2007-03-29  Bart
+
+	* [r1735] dist/dosemu, src/base/init/config.c:
+	  Avoid bash-ism "exec -a"; use an environment variable instead.
+
+	* [r1734] src/emu-i386/simx86/codegen-x86.c:
+	  Fix gcc warning.
+
+	* [r1733] src/emu-i386/simx86/codegen-sim.c:
+	  Fix shift/rotate instructions in simulator (Michael Karcher,
+	  #1687296)
+
+	* [r1732] src/emu-i386/simx86/codegen-x86.c:
+	  Fix spurious crashes with "linker: node busy" (Michael Karcher,
+	  #1687298)
+
+2007-03-24  Bart
+
+	* [r1731] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/codegen-x86.c, src/emu-i386/simx86/tables.c:
+	  Fix rep scas/cmps when eCX is 0 (#1683190, with Michael Karcher)
+
+2007-03-18  Bart
+
+	* [r1730] src/emu-i386/simx86/cpatch.c:
+	  Fix to SVN #1727 stosw fix (Michael Karcher, #1679675)
+
+2007-03-17  Bart
+
+	* [r1729] src/emu-i386/simx86/interp.c:
+	  Fix problem with push when single stepping in cpuemu (#1682620, M.
+	  Karcher)
+
+	* [r1728] src/emu-i386/simx86/interp.c:
+	  Fix cpuemu bug with sbb, affects GNUish ls and tasm (#1682575)
+
+2007-03-13  Bart
+
+	* [r1727] src/emu-i386/simx86/cpatch.c:
+	  Save eax in stosw stub (Michael Karcher, #1679675)
+
+2007-03-11  Bart
+
+	* [r1726] src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/interp.c:
+	  Use leavedos(1) for EMU86 failure to drop into dosdebug; improve
+	  diagnostics. For rep outs, use not_permitted and let the port code
+	  deal with it instead of quitting DOSEMU.
+
+	* [r1725] src/emu-i386/simx86/cpatch.c, src/emu-i386/simx86/trees.c:
+	  Break node if current eip is in a page to be unprotected; fixes bug
+	  #1678581
+
+2007-03-10  Bart
+
+	* [r1724] src/dosext/mfs/dosc.c, src/dosext/mfs/lfn.c:
+	  LFN: avoid writing to write-protected memory (thanks Michael Karcher)
+
+	* [r1723] src/base/bios/setup.c, src/base/init/init.c,
+	  src/base/misc/disks.c, src/dosext/dpmi/emu-ldt.c,
+	  src/dosext/dpmi/msdos.c, src/dosext/misc/xms.c,
+	  src/dosext/net/net/ipx.c, src/emu-i386/ports.c,
+	  src/emu-i386/simx86/fp87-x86.c, src/emu-i386/simx86/sigsegv.c,
+	  src/tools/periph/dexeconfig.c, src/tools/tools86.c:
+	  Replaced 'long *' by 'int *' or 'uint32_t *' for 64-bit
+	  compatibility.
+
+2007-02-28  Bart
+
+	* [r1722] src/env/video/instremu.c:
+	  Fix problem with constraints in inline assembler.
+
+2006-12-10  Bart
+
+	* [r1721] src/include/sound, src/include/sound/midi.h,
+	  src/include/sound/sndpcm.h, src/include/sound/sound.h,
+	  src/plugin/sdl/snd_o_SDL.c:
+	  Add forgotten files from Stas' new sound code.
+
+	* [r1720] src/arch/linux/dosext/sound/midid/io.c,
+	  src/arch/linux/dosext/sound/midid/midid.c,
+	  src/arch/linux/dosext/sound/midid/timid.c:
+	  Integrated most of the other midid changes by Stas.
+
+	* [r1719] Makefile.conf.in, compiletime-settings,
+	  compiletime-settings.devel, configure, configure.ac,
+	  default-configure, src/base/sound/sndpcm.c, src/include/config.h.in,
+	  src/plugin/alsa, src/plugin/alsa/Makefile,
+	  src/plugin/alsa/mid_o_alsa.c, src/plugin/sndfile,
+	  src/plugin/sndfile/Makefile, src/plugin/sndfile/snd_o_wav.c:
+	  Added ALSA and libsndfile plugins from Stas.
+
+2006-11-29  Bart
+
+	* [r1718] compiletime-settings, compiletime-settings.devel,
+	  etc/dosemu.conf, etc/global.conf, src/arch/linux/Makefile.main,
+	  src/base/dev/dma/Makefile, src/base/dev/dma/dma.c,
+	  src/base/dev/dma/dmanew.c, src/base/dev/sb16,
+	  src/base/dev/sb16/Makefile, src/base/dev/sb16/adlib.c,
+	  src/base/dev/sb16/adlib.h, src/base/dev/sb16/dspio.c,
+	  src/base/dev/sb16/dspio.h, src/base/dev/sb16/sb16.c,
+	  src/base/dev/sb16/sb16.h, src/base/dev/sb16/ymf262.c,
+	  src/base/dev/sb16/ymf262.h, src/base/init/dev_list.c,
+	  src/base/init/parser.y.in, src/base/sound, src/base/sound/Makefile,
+	  src/base/sound/midi.c, src/base/sound/nullsnd.c,
+	  src/base/sound/nullsnd.h, src/base/sound/sndpcm.c,
+	  src/dosext/sound/sound.c, src/include/dma.h, src/include/sound.h,
+	  src/plugin/midimisc, src/plugin/midimisc/Makefile,
+	  src/plugin/midimisc/mid_i_pipe.c, src/plugin/midimisc/mid_o_midid.c,
+	  src/plugin/midimisc/mid_o_oss.c, src/plugin/midimisc/mid_o_pipe.c,
+	  src/plugin/midimisc/mid_o_tmdty.c, src/plugin/sdl/Makefile:
+	  Integrate most of Stas' new sound code, for now run-time selectable
+	  using $_sound = (2).
+
+2006-11-25  Bart
+
+	* [r1717] src/dosext/dpmi/dpmi.c:
+	  Fix trap flag handling regression for DPMI (#1602643)
+
+	* [r1716] src/arch/linux/dosext/sound/midid/Makefile,
+	  src/arch/linux/dosext/sound/midid/device.c,
+	  src/arch/linux/dosext/sound/midid/device.h,
+	  src/arch/linux/dosext/sound/midid/midid.c,
+	  src/arch/linux/dosext/sound/midid/midout.c,
+	  src/arch/linux/dosext/sound/midid/null.c,
+	  src/arch/linux/dosext/sound/midid/oss.c,
+	  src/arch/linux/dosext/sound/midid/seqops.h,
+	  src/arch/linux/dosext/sound/midid/timid.c:
+	  Merged trivial changes and makefile improvements from Stas' new midid
+	  code.
+
+	* [r1715] src/arch/linux/Makefile.main:
+	  Do not erase all previous FreeDOS files when upgrading. Remove risky
+	  comment between semicolons.
+
+2006-11-22  Bart
+
+	* [r1714] src/plugin/sdl/keyb_SDL.c:
+	  Fix AltGr handling with SDL. It was confused with ScrollLock.
+
+	* [r1713] src/plugin/sdl/keyb_SDL.c:
+	  Try to use keysyms where possible in the SDL keyboard code.
+	  Implemented workaround for altgr and broken unicode support in older
+	  SDL versions.
+
+2006-11-21  Bart
+
+	* [r1712] src/plugin/X/X.c:
+	  Fix double mouse cursor problem with Arachne.
+
 2006-11-18  Bart
 
 	* [r1710] VERSION, NEWS, ChangeLog, src/doc/DANG/DANG.sgml,

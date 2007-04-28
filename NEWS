@@ -4,6 +4,37 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
+Version 1.3.5 (2007-04-27)
+=============
+* A new sound system is available, written by Stas Sergeev. It is for now
+  an optional run-time option, $_sound=(2).
+* Lredir can now automatically find a new drive (Ryan Underwood, Stuart Axon).
+* CPUEMU fixes (many by Michael Karcher). This also means that DOSEMU now runs
+  more stable on x86-64.
+* Other fixes, affecting printer handling, MMX/SSE FPU state preservation,
+  DPMI, Linux console graphics PCI handling on x86-64, the position of . and
+  .. in "dir", UTF-8 multibyte input in terminals, SDL key handling, a double
+  mouse cursor in Arachne in X, and "make install".
+
+List of SourceForge tracker numbers with bugs that were closed:
+#1245033 --version flag for dosemu.bin is not described
+#1436788 DOSEMU 1.3.3 Problem with floating point
+#1602643 Regression in DosEmu 1.3.4
+#1638135 int 21h, ax=6300 not translated currently
+#1644784 SR: Proposed Change to INSTALL file here
+#1678581 cpuemu JIT fails certain kinds of self-modifying code
+#1679675 P: cpuemu jit cpatch for stosw destroys EAX on 32 bit dosemu
+#1682575 P: cpuemu bug: sbb r16,rm16 acts on wrong register
+#1682620 P: cpuemu bug: single stepping push pushes wrong register
+#1683073 P: handle 16bit address overflow in string instructions.
+#1683190 P: Fix flags on rep cmps/scas with ECX=0
+#1687296 P: Shift/rotate instructions in simulator wrong
+#1687298 P: Fix spurious crashes with "linker: node busy"
+#1691712 P: make lredir able to automatically choose next free drive II
+#1692149 P: Describe --version in man page (fix for 1245033)
+#1692299 P: Update howto
+
+
 Version 1.3.4 (2006-11-18)
 =============
 * For a first time boot with FreeDOS, DOSEMU now boots without any user
