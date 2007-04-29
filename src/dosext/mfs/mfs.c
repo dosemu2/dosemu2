@@ -209,6 +209,9 @@ struct kernel_dirent {
 static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 #define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, uint32_t)
 #define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
+#ifndef MSDOS_SUPER_MAGIC
+#define MSDOS_SUPER_MAGIC     0x4d44
+#endif
 #endif
 
 /* these universal globals defined here (externed in dos.h) */
@@ -567,11 +570,17 @@ boolean_t is_hidden(char *fname)
   return(fname[0] == '.' && strcmp(fname,"..") && fname[1]);
 }
 
+static int file_on_fat(const char *name)
+{
+  struct statfs buf;
+  return statfs(name, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
+}
+
 int get_dos_attr(const char *fname,int mode,boolean_t hidden)
 {
   int attr = 0;
 
-  if (fname && (S_ISREG(mode) || S_ISDIR(mode))) {
+  if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
     int fd = open(fname, O_RDONLY);
     if (fd != -1) {
       int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
@@ -624,7 +633,7 @@ int set_dos_attr(char *fpath, int mode, int attr)
   int res, fd, newmode;
 
   fd = -1;
-  if (fpath && (S_ISREG(mode) || S_ISDIR(mode)))
+  if (fpath && file_on_fat(fpath) && (S_ISREG(mode) || S_ISDIR(mode)))
     fd = open(fpath, O_RDONLY);
   if (fd != -1) {
     res = set_fat_attr(fd, attr);
@@ -1393,22 +1402,29 @@ init_dos_offsets(int ver)
 struct mfs_dir *dos_opendir(const char *name)
 {
   struct mfs_dir *dir;
-  int fd;
-  DIR *d;
+  int fd = -1;
+  DIR *d = NULL;
   struct kernel_dirent de[2];
 
-  fd = open(name, O_RDONLY|O_DIRECTORY);
-  if (fd == -1)
-    return NULL;
-  if (ioctl(fd, vfat_ioctl, (long)&de) == -1) {
-    /* not a VFAT filesystem */
-    close(fd);
+  if (file_on_fat(name)) {
+    fd = open(name, O_RDONLY|O_DIRECTORY);
+    if (fd == -1)
+      return NULL;
+    de[0].d_name[1] = '.';
+    if (ioctl(fd, vfat_ioctl, (long)&de) != -1 &&
+	/* Bug in kernels <= 2.6.21.1 (ioctl32 on x86-64) */
+	de[0].d_name[1] == '\0') {
+      lseek(fd, 0, SEEK_SET);
+    } else {
+      close(fd);
+      fd = -1;
+    }
+  }
+  if (fd == -1) {
+    /* not a VFAT filesystem or other problems */
     d = opendir(name);
     if (d == NULL)
       return NULL;
-  } else {
-    d = NULL;
-    lseek(fd, 0, SEEK_SET);
   }
   dir = malloc(sizeof *dir);
   dir->fd = fd;
