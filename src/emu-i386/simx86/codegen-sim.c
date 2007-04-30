@@ -61,6 +61,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/mman.h>
 #include "port.h"
 #include "emu86.h"
 #include "vgaemu.h"
@@ -477,8 +478,27 @@ static void AddrGen_sim(int op, int mode, ...)
 
 static inline int vga_access(unsigned int m)
 {
-	return (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
+	return (vga.inst_emu &&
 		(unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len);
+}
+
+static inline int vga_read_access(unsigned int m)
+{
+	unsigned p;
+	if ((TheCPU.mode&RM_REG) || !TrapVgaOn)
+		return 0;
+	p = (m - 0xa0000) >> 12;
+	return (p < 0x20 && vga.mem.prot_map0[p] == 0);
+}
+
+static inline int vga_write_access(unsigned int m)
+{
+	unsigned p;
+	if ((TheCPU.mode&RM_REG) || !TrapVgaOn)
+		return 0;
+	p = (m - 0xa0000) >> 12;
+	return (p < 0x20 + vgaemu_bios.pages &&
+		vga.mem.prot_map0[p] != (PROT_READ|PROT_WRITE|PROT_EXEC));
 }
 
 static void Gen_sim(int op, int mode, ...)
@@ -555,8 +575,9 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case S_DI_IMM: {
 		int v = va_arg(ap,int);
-		if (vga_access(AR1.d)) {
+		if (vga_write_access(AR1.d)) {
 			GTRACE0("S_DI_IMM_VGA");
+			if (!vga_access(AR1.d)) break;
 			e_VgaWrite(AR1.d, v, mode); break;
 		}
 		if (mode&MBYTE) {
@@ -601,8 +622,11 @@ static void Gen_sim(int op, int mode, ...)
 		rcod = (va_arg(ap,int)&1)<<3;	// 0=z 8=s
 		o = Offs_From_Arg();
 		GTRACE3("L_MOVZS",o,0xff,rcod);
-		if (vga_access(AR1.d)) {
-		    DR1.d = e_VgaRead(AR1.d, mode);
+		if (vga_read_access(AR1.d)) {
+		    if (vga_access(AR1.d))
+			DR1.d = e_VgaRead(AR1.d, mode);
+		    else
+			DR1.d = 0xffffffff;
 		    if (rcod) {
 			if (mode & MBYTX)
 			    DR1.d = DR1.bs.bl;
@@ -657,9 +681,13 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 
 	case L_VGAREAD:
-		if (vga_access(AR1.d)) {
+		if (vga_read_access(AR1.d)) {
 			GTRACE0("L_VGAREAD");
-			DR1.d = e_VgaRead(AR1.d, mode); break;
+			if (vga_access(AR1.d))
+			    DR1.d = e_VgaRead(AR1.d, mode);
+			else
+			    DR1.d = 0xffffffff;
+			break;
 		}
 		GTRACE0("L_DI");
 		if (mode & MBYTE) {
@@ -674,8 +702,9 @@ static void Gen_sim(int op, int mode, ...)
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
 	case L_VGAWRITE:
-		if (vga_access(AR1.d)) {
+		if (vga_write_access(AR1.d)) {
 			GTRACE0("L_VGAWRITE");
+			if (!vga_access(AR1.d)) break;
 			e_VgaWrite(AR1.d, DR1.d, mode); break;
 		}
 		GTRACE0("S_DI");
@@ -2180,7 +2209,7 @@ static void Gen_sim(int op, int mode, ...)
 		register unsigned int i, v;
 		i = TR1.d;
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
-		v = vga_access(AR2.d) | (vga_access(AR1.d) << 1);
+		v = vga_read_access(AR2.d) | (vga_write_access(AR1.d) << 1);
 		if (v) {
 		    int op;
 		    struct sigcontext_struct s, *scp = &s;
@@ -2236,9 +2265,12 @@ static void Gen_sim(int op, int mode, ...)
 		if (mode&(MREP|MREPNE))	{
 		    dbug_printf("odd: REP LODS %d\n",i);
 		}
-		if (vga_access(AR2.d)) {
+		if (vga_read_access(AR2.d)) {
 		    while (i--) {
-			DR1.d = e_VgaRead(AR2.d, mode);
+			if (vga_access(AR2.d))
+			    DR1.d = e_VgaRead(AR2.d, mode);
+			else
+			    DR1.d = 0xffffffff;
 			AR2.pu += df;
 			if (!(mode&MBYTE)) {
 			    AR2.pu += df;
@@ -2264,9 +2296,10 @@ static void Gen_sim(int op, int mode, ...)
 		register unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
-		if (vga_access(AR1.d)) {
+		if (vga_write_access(AR1.d)) {
 		    while (i--) {
-			e_VgaWrite(AR1.d, DR1.d, mode);
+		        if (vga_access(AR1.d))
+			    e_VgaWrite(AR1.d, DR1.d, mode);
 			AR1.pu += df;
 			if (!(mode&MBYTE)) {
 			    AR1.pu += df;

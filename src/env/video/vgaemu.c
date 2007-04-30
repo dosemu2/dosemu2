@@ -1527,13 +1527,13 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   dirty_all_video_pages();		/* all need an update */
 
   if(
-    (vga.mem.prot_map0 = (unsigned char *) malloc(0xc0 - 0xa0)) == NULL ||
+    (vga.mem.prot_map0 = malloc(vgaemu_bios.pages + 0xc0 - 0xa0)) == NULL ||
     (vga.mem.prot_map1 = (unsigned char *) malloc(vga.mem.pages)) == NULL
   ) {
     vga_msg("vga_emu_init: not enough memory for protection map\n");
     return 1;
   }
-  memset(vga.mem.prot_map0, 0xff, 0x20);
+  memset(vga.mem.prot_map0, 0xff, vgaemu_bios.pages + 0x20);
   memset(vga.mem.prot_map1, 0xff, vga.mem.pages);
 
   /*

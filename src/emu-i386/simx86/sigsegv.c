@@ -172,6 +172,21 @@ vga2vgal:
   }
 }
 
+static int jitx86_instr_len(const unsigned char *rip)
+{
+  const unsigned char *p = rip;
+
+  if (*p==0xf3) p++; /* rep */
+  if (*p==0x66) p++; /* word */
+
+  /* moves */
+  if (*p >= 0x88 && *p <= 0x8b)
+    return p - rip + 2;
+  /* string moves */
+  if (*p >= 0xa4 && *p <= 0xad)
+    return p - rip + 1;
+  return 0;
+}
 
 static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 {
@@ -191,27 +206,33 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 
   if (i == VGAEMU_MAX_MAPPINGS) {
     if (page_fault >= 0xa0 && page_fault < 0xc0) {	/* unmapped VGA area */
-#if 0
-      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
-      LWORD(eip) += u;
+#ifdef HOST_ARCH_X86
+      if (!CONFIG_CPUSIM) {
+	u = jitx86_instr_len((unsigned char *)_rip);
+	_rip += u;
+	if ((_err & 2) == 0)
+	  _eax = 0xffffffff;
+      }
 #endif
-      if (in_dpmi || (u==0)) {
+      if (u==0) {
         e_printf("eVGAEmuFault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
-      }
 /**/	leavedos(0x5640);
+      }
       return 1;
     }
     else if (page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
-#if 0
-      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
-      LWORD(eip) += u;
+#ifdef HOST_ARCH_X86
+      if (!CONFIG_CPUSIM) {
+	u = jitx86_instr_len((unsigned char *)_rip);
+	_rip += u;
+      }
 #endif
-      if (in_dpmi || (u==0)) {
+      if (u==0 || (_err&2)==0) {
         e_printf("eVGAEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
-      }
 /**/	leavedos(0x5641);
+      }
       return 1;
     }
     else {
