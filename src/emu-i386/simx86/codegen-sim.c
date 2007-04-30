@@ -61,7 +61,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/mman.h>
 #include "port.h"
 #include "emu86.h"
 #include "vgaemu.h"
@@ -484,21 +483,21 @@ static inline int vga_access(unsigned int m)
 
 static inline int vga_read_access(unsigned int m)
 {
-	unsigned p;
-	if ((TheCPU.mode&RM_REG) || !TrapVgaOn)
-		return 0;
-	p = (m - 0xa0000) >> 12;
-	return (p < 0x20 && vga.mem.prot_map0[p] == 0);
+	/* unmapped VGA memory or using a planar mode */
+	return (!(TheCPU.mode&RM_REG) && TrapVgaOn &&
+		(unsigned)(m - 0xa0000) < 0x20000 &&
+		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
+		 vga.inst_emu));
 }
 
 static inline int vga_write_access(unsigned int m)
 {
-	unsigned p;
-	if ((TheCPU.mode&RM_REG) || !TrapVgaOn)
-		return 0;
-	p = (m - 0xa0000) >> 12;
-	return (p < 0x20 + vgaemu_bios.pages &&
-		vga.mem.prot_map0[p] != (PROT_READ|PROT_WRITE|PROT_EXEC));
+	/* unmapped VGA memory, VGA BIOS, or a planar mode */
+	return (!(TheCPU.mode&RM_REG) && TrapVgaOn &&
+		(unsigned)(m - 0xa0000) < 0x20000 + (vgaemu_bios.pages<<12) &&
+		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
+		 m >= 0xc0000 ||
+		 vga.inst_emu));
 }
 
 static void Gen_sim(int op, int mode, ...)
@@ -2217,7 +2216,7 @@ static void Gen_sim(int op, int mode, ...)
 		    _rdi = AR1.d;
 		    _rsi = AR2.d;
 		    _rcx = i;
-		    df = 1 - 2*df;
+		    df = 1 - 2*(df ? 1 : 0);
 		    op = 2 | (v == 3 ? 4 : 0);
 		    if (mode & MBYTE) {
 			op |= 1;
