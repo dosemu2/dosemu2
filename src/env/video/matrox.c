@@ -59,7 +59,7 @@ static void *MapVidMem (unsigned long addr, int size)
 {
   alloc_mapping(MAPPING_VIDEO | MAPPING_KMEM, size, addr);
   return (char *)mmap_mapping(MAPPING_VIDEO | MAPPING_KMEM,
-	(caddr_t)-1, size, PROT_READ|PROT_WRITE, addr);
+	(caddr_t)-1, size, PROT_READ|PROT_WRITE|PROT_EXEC, addr);
 }
 
 static int UnMapVidMem (void *base, int size)

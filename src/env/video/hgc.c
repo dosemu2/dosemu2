@@ -69,7 +69,7 @@ static void hgc_meminit(void)
   maperr = (caddr_t) mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
      (void *) HGC_BASE0,
      HGC_PLEN,
-     PROT_READ | PROT_WRITE,
+     PROT_READ | PROT_WRITE | PROT_EXEC,
      HGC_BASE0);
   if ( maperr == (caddr_t) -1 ){
     error("can't map HGC-mem: errno=%d, %s \n",
@@ -316,7 +316,7 @@ static void set_hgc_page(int page)
  syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
       (void *)-1,
       HGC_PLEN,
-      PROT_READ | PROT_WRITE,
+      PROT_READ | PROT_WRITE | PROT_EXEC,
       HGC_BASE0);
 
  /* save old visible page (page 1) */
@@ -333,7 +333,7 @@ static void set_hgc_page(int page)
  Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
       (void *) HGC_BASE0,
       HGC_PLEN,
-      PROT_READ | PROT_WRITE,
+      PROT_READ | PROT_WRITE | PROT_EXEC,
       HGC_BASE0);
 
    v_printf("MEM: soll %#x ist %p\n", HGC_BASE0, Test);
@@ -354,7 +354,7 @@ static void set_hgc_page(int page)
    syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
     (void *)-1,
     HGC_PLEN,
-    PROT_READ | PROT_WRITE,
+    PROT_READ | PROT_WRITE | PROT_EXEC,
     HGC_BASE0);
 
    /* save old visible page (page 0) */
@@ -371,7 +371,7 @@ static void set_hgc_page(int page)
    Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
         (void *) HGC_BASE1,
         HGC_PLEN,
-        PROT_READ | PROT_WRITE,
+        PROT_READ | PROT_WRITE | PROT_EXEC,
         HGC_BASE0);
    v_printf("MEM: soll %#x ist %p\n", HGC_BASE1, Test);
 

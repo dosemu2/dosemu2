@@ -294,7 +294,7 @@ static void unmap_video_ram(int copyback)
     base = scr_state.virt_address;
   }
   if (copyback) cap |= MAPPING_COPYBACK;
-  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE, (off_t)base) != MAP_FAILED)
+  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE | PROT_EXEC, (off_t)base) != MAP_FAILED)
     scr_state.mapped = 0;
 }
 
@@ -316,7 +316,7 @@ static void map_video_ram(void)
 
   g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
 
-  graph_mem = mmap_mapping(cap, vbase, ssize, PROT_READ | PROT_WRITE, pbase);
+  graph_mem = mmap_mapping(cap, vbase, ssize, PROT_READ | PROT_WRITE | PROT_EXEC, pbase);
 
   /* the code below is done by the video save/restore code for config.vga */
   if (!config.vga) {
