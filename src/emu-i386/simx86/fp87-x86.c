@@ -720,13 +720,13 @@ fpp002:
 #endif
 //
 		    if (reg&DATA16) {
-			unsigned short *p = (unsigned short *)TheCPU.mem_ref;
+			unsigned short *p = LINEAR2UNIX(TheCPU.mem_ref);
 			p[0] = TheCPU.fpuc; p[1] = TheCPU.fpus; p[2] = TheCPU.fptag;
 			/* IP,OP,opcode: n.i. */
 			p[3] = p[4] = p[5] = p[6] = 0; q = (char *)(p+7);
 		    }
 		    else {
-			uint32_t *p = (uint32_t *)TheCPU.mem_ref;
+			uint32_t *p = LINEAR2UNIX(TheCPU.mem_ref);
 			p[0] = TheCPU.fpuc; p[1] = TheCPU.fpus; p[2] = TheCPU.fptag;
 			/* IP,OP,opcode: n.i. */
 			p[3] = p[4] = p[5] = p[6] = 0; q = (char *)(p+7);
