@@ -337,6 +337,10 @@ if test "$have_x" = "yes" ; then
 fi
 
 if test "$have_x" = "yes" ; then
+
+    SLIBS=$LIBS
+    LIBS="$LIBS $X_LIBS"
+
     AC_MSG_NOTICE(Compiling with X support...)
     AC_DEFINE(X_SUPPORT) 
     X_SUPPORT="X_SUPPORT=1"
@@ -348,6 +352,9 @@ if test "$have_x" = "yes" ; then
               [  --disable-mitshm        do NOT use the MITSHM X extension])
 
     if test "$enable_mitshm" != "no" ; then
+      AC_CHECK_LIB(Xext, XShmPutImage, enable_mitshm="yes", enable_mitshm="no")
+    fi
+    if test "$enable_mitshm" != "no" ; then
       AC_CHECK_HEADER(X11/extensions/XShm.h,
          [AC_DEFINE(HAVE_MITSHM,1) X_LIBS="-lXext $X_LIBS"],
          AC_MSG_NOTICE(Compiling without the MITSHM X extension),
@@ -356,6 +363,9 @@ if test "$have_x" = "yes" ; then
 
     AC_ARG_ENABLE(vidmode,
               [  --disable-vidmode       do NOT use the XF86 vidmode extension])
+    if test "$enable_vidmode" != "no" ; then
+      AC_CHECK_LIB(Xxf86vm, XF86VidModeSwitchToMode, enable_vidmode="yes", enable_vidmode="no")
+    fi
     if test "$enable_vidmode" = "no"; then
                AC_MSG_NOTICE(Compiling without the XF86 video mode extension)
     else
@@ -364,6 +374,9 @@ if test "$have_x" = "yes" ; then
                  AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
                  [#include <X11/Xlib.h>])
     fi
+
+    LIBS=$SLIBS
+    unset SLIBS
 
     AC_CHECK_PROG([BDFTOPCF], [bdftopcf], ["yes"], ["no"])
     AC_CHECK_PROG([MKFONTDIR], [mkfontdir], ["yes"], ["no"])
