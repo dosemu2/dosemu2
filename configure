@@ -8530,6 +8530,7 @@ fi
 
 
     fi
+    LIBS="-lXext $LIBS"
 
     # Check whether --enable-vidmode was given.
 if test "${enable_vidmode+set}" = set; then

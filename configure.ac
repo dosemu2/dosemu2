@@ -360,6 +360,7 @@ if test "$have_x" = "yes" ; then
          AC_MSG_NOTICE(Compiling without the MITSHM X extension),
          [#include <X11/Xlib.h>])
     fi
+    LIBS="-lXext $LIBS"
 
     AC_ARG_ENABLE(vidmode,
               [  --disable-vidmode       do NOT use the XF86 vidmode extension])
