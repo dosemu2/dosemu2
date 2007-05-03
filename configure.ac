@@ -13,8 +13,6 @@ fi
 
 AC_CONFIG_HEADER(src/include/config.h)
 
-AC_CANONICAL_TARGET([])
-
 dnl Checks for programs.
 OPT=$CFLAGS
 AC_PROG_CC
@@ -535,8 +533,8 @@ fi
 
 dnl CPU emulator
  AC_ARG_ENABLE(cpuemu,
-               [  --enable-cpuemu         compile with optional x86 emulation code])
-  if test "$enable_cpuemu" = "yes"; then
+               [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
+  if test "$enable_cpuemu" != "no"; then
    AC_MSG_NOTICE(Compiling with optional 386 emulation code...);
    AC_DEFINE_UNQUOTED(X86_EMULATOR)
    X86_EMULATOR="X86_EMULATOR=1"
@@ -585,6 +583,7 @@ fi
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
+  target_cpu=""
 else
   AC_MSG_NOTICE(Compiling with specified target CPU...)
   target_cpu=$with_target_cpu
@@ -636,10 +635,9 @@ if test "$GCC" = "yes" ; then
   if test "$target_cpu" = "athlon" -a $GCC_VERSION_CODE -le 2095 ;  then
     target_cpu="i686"
   fi
-  if test "$target_cpu" = "x86_64"; then
-    target_cpu="k8"
-  fi
-  if test "$GCC_VERSION_CODE" -ge 3004 ; then
+  if test -z "$target_cpu" ; then
+     true
+  elif test "$GCC_VERSION_CODE" -ge 3004 ; then
      OPT="$OPT -mtune=$target_cpu"
   elif test "$GCC_VERSION_CODE" -ge 2095 ; then
      OPT="$OPT -mcpu=$target_cpu"
