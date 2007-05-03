@@ -18,7 +18,8 @@
 #config_script= builtin # (or e.g. /etc/dosemu/global.conf)
 #log_level= 0
 #carol is allowed to do do all weird things
+#(this is the default setting when using sudo)
 #carol c_all
 #joe is a restricted user and is only allowed to use console graphics
-#(this is the default setting)
+#(this is the default setting if dosemu.bin is suid-root)
 #joe restricted

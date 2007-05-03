@@ -440,7 +440,8 @@ void secure_option_preparse(int *argc, char **argv)
   opt = get_option("--Fusers", 1);
   if (opt && opt[0]) {
     if (runningsuid) {
-      fprintf(stderr, "Bypassing /etc/dosemu.users not allowed for suid-root\n");
+      fprintf(stderr, "Bypassing /etc/dosemu.users not allowed %s\n",
+	      using_sudo ? "with sudo" : "for suid-root");
       exit(0);
     }
     DOSEMU_USERS_FILE = opt;
@@ -449,7 +450,8 @@ void secure_option_preparse(int *argc, char **argv)
   opt = get_option("--Flibdir", 1);
   if (opt && opt[0]) {
     if (runningsuid) {
-      fprintf(stderr, "Bypassing systemwide configuration not allowed for suid-root\n");
+      fprintf(stderr, "Bypassing systemwide configuration not allowed %s\n",
+	      using_sudo ? "with sudo" : "for suid-root");
       exit(0);
     }
     dosemu_lib_dir_path = opt;
@@ -457,10 +459,6 @@ void secure_option_preparse(int *argc, char **argv)
 
   opt = get_option("--Fimagedir", 1);
   if (opt && opt[0]) {
-    if (runningsuid) {
-      fprintf(stderr, "Bypassing systemwide boot path not allowed for suid-root\n");
-      exit(0);
-    }
     dosemu_hdimage_dir_path = opt;
   }
 
@@ -911,7 +909,8 @@ config_init(int argc, char **argv)
     else if (under_root_login)
     	fprintf(stderr,"\nRunning as root in full feature mode\n");      
     else
-    	fprintf(stderr,"\nRunning privileged (sudo/suid) in full feature mode\n");      
+    	fprintf(stderr,"\nRunning privileged (%s) in full feature mode\n",
+		using_sudo ? "via sudo" : "suid-root");
 
     if (dbg_fd == 0) {
         if (config.debugout == NULL) {

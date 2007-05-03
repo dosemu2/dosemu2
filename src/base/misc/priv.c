@@ -241,6 +241,7 @@ void priv_init(void)
       uid = cur_uid = atoi(s);
       if (uid) {
         skip_priv_setting = under_root_login = 0;
+	using_sudo = 1;
 	s = getenv("SUDO_USER");
 	if (s) {
 	  initgroups(s, gid);

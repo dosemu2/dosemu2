@@ -20,6 +20,9 @@ EXTERN int can_do_root_stuff INIT(0);
  * unset, if dosemu was started from a 'user login'
  */
 EXTERN int under_root_login INIT(0);
+/* set, if dosemu was started as root via 'sudo'
+ */
+EXTERN int using_sudo INIT(0);
 /* gives the current i/o privilege level without needing to ask
    the kernel */
 EXTERN int current_iopl INIT(0);

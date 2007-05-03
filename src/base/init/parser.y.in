@@ -2501,7 +2501,7 @@ parse_dosemu_users(void)
                      can_have_privsetup = 1;
                    }
 		 }
-	         if (!have_vars)
+	         if (!have_vars && !using_sudo)
 		   define_config_variable("restricted");
 	       }
 	     }
@@ -2527,7 +2527,7 @@ parse_dosemu_users(void)
   }
 
   define_config_variable("c_all");
-  if(userok==0) {
+  if(userok==0 && !using_sudo) {
     define_config_variable("restricted");
   }
   if (get_config_variable("nosuidroot") || (get_config_variable("restricted") && !on_console())) {
