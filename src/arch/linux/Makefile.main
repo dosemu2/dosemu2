@@ -47,7 +47,7 @@ LIBSUBDIRS=env/video base base/async \
 # call all libraries the name of the directory
 LIBS_ := $(subst /,_,$(LIBSUBDIRS))
 
-DOCS= $(REALTOPDIR)/man
+DOCS= ../man
 
 ###################################################################
 
