@@ -134,7 +134,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 
-doslib: $(REQUIRED) dosemu
+doslib: $(REQUIRED) $(DOCS) dosemu
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""
