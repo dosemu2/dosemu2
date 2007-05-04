@@ -111,7 +111,7 @@ Alistair MacDonald
 2. Runtime Configuration Options
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on Jan 1, 2006, by Bart Oldeman.
+   on May 4, 2007, by Bart Oldeman.
 
    Most of DOSEMU configuration is done during runtime and per default it
    can use the system wide configuration file dosemu.conf (which is often
@@ -272,7 +272,7 @@ Alistair MacDonald
     # syshdimagedir (/var/lib/dosemu by default) assigned in this order
     # such as "hdimage_c directory_d hdimage_e"
     # Absolute pathnames are also allowed.
-      $_hdimage = "freedos"
+      $_hdimage = "drives/*"
       $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
                             # file name of the floppy image under DOSEMU_LIB_DI
 R
@@ -286,11 +286,11 @@ ge
    A hdimage is a file containing a virtual image of a DOS-FAT
    filesystem. Once you have booted it, you (or autoexec.bat) can use
    `lredir' to access any directory in your Linux tree as DOS drive (a -t
-   msdos mounted too). Look at chapter 5 (Using Lredir) and for more
-   details. If you want to create your own hdimage use "mkfatimage16"
-   (see the manual page). To make it bootable you can make it, say, drive
-   F:, and use "SYS F:" at the DOS prompt. The DOSEMU-HOWTO explains how
-   to manipulate it using mtools.
+   msdos mounted too). Look at chapter 5 (Using Lredir) for more details.
+   If you want to create your own hdimage use "mkfatimage16" (see the
+   manual page). To make it bootable you can make it, say, drive F:, and
+   use "SYS F:" at the DOS prompt. The DOSEMU-HOWTO explains how to
+   manipulate it using mtools.
 
    You can also specify a Linux directory containing all what you want to
    have under your DOS C:. Copy your IO.SYS, MSDOS.SYS or equivalent to
@@ -318,21 +318,21 @@ ge
       windows -> /dos/windows
 
    As a further enhancement of your drives setup you may even use the
-   following strategie: Given you have the following directory structure
-   under DOSEMU_LIB_DIR
-      DOSEMU_LIB_DIR/drives/C
-      DOSEMU_LIB_DIR/drives/D
-      DOSEMU_LIB_DIR/drives/E
+   following strategy: given you have the following directory structure
+   in one the directories where the $_hdimage setting applies (this is
+   done by default in ~/.dosemu and in /etc/dosemu)
+      drives/c
+      drives/d
 
-   and the C, D, E are symlinks to appropriate DOS useable directories,
-   then the following single statement
+   where c and d are symbolic links to appropriate DOS useable
+   directories, then the following single statement
          $_hdimage = "drives/*"
 
-   will assign all these directories to drive C:, D:, E: respectively.
+   will assign all these directories to drive C: and D: respectively.
    Note, however, that the order in which the directories under drives/*
    are assigned comes from the order given by /bin/ls. Hence the folling
-      DOSEMU_LIB_DIR/drives/x
-      DOSEMU_LIB_DIR/drives/a
+      drives/x
+      drives/a
 
    will assign C: to drives/a and D: to drives/x, keep that in mind.
 
@@ -417,7 +417,7 @@ ge
 
    If you have a PCI board you may allow DOSEMU to access the PCI
    configuration space by defining the below
-         $_pci = (on)    # or auto, or off
+         $_pci = (auto)    # or auto, or off
 
    NOTE: `$_pci' can not be overwritten by ~/.dosemurc. The "on" setting
    can be very dangerous because it gives DOSEMU complete write access;
@@ -511,6 +511,7 @@ ge
      * compute the character set index of unicode characters output to a
        terminal display screen.
      * compute the unicode values of characters pasted into dosemu.
+     * compute the unicode values of characters in file names.
 
    The default is to use "", which denotes the current locale, and is
    usually the right setting.
@@ -528,9 +529,11 @@ ge
 
    The internal character set is used to:
 
-     * compute the unicode value of characters of video memory
+     * compute the unicode value of characters of video memory, when
+       using DOSEMU in a terminal or using X with a unicode font.
      * compute the character set index of unicode characters returned by
        bios keyboard translation services.
+     * compute the unicode values of characters in file names.
      _________________________________________________________________
 
 2.1.5. Terminals
@@ -805,7 +808,9 @@ ge
     # Which means: use the default print queue for LPT1, "lpt2" queue for LPT2,
     # "lpt3" queue for LPT3. "-l" means raw printing mode (no preprocessing).
 
-    $_printer_commands = "lpr -l, lpr -l -P lpt2, lpr -l -P lpt3"
+    $_lpt1 = "lpr -l"
+    $_lpt2 = "lpr -l -P lpt2"
+    $_lpt3 = "lpr -l -P lpt3"
 
     $_printer_timeout = (20)# idle time in seconds before spooling out
      _________________________________________________________________
@@ -884,9 +889,11 @@ ium
    The following settings (together with the direct console video
    settings below make it possible for DOSEMU to access your real
    (non-emulated) computer hardware directly. Because Linux does not
-   permit this for ordinary users, DOSEMU needs to be run as root or
-   suid-root to be able to use these settings. They can NOT be
-   overwritten by the user configuration file ~/.dosemurc.
+   permit this for ordinary users, DOSEMU needs to be run as root, via
+   sudo or suid-root to be able to use these settings. They can NOT be
+   overwritten by the user configuration file ~/.dosemurc. You must also
+   run dosemu with the "-s" switch. This activates sudo when appropriate;
+   without it, even root will not get direct hardware access.
 
    Here you tell DOSEMU what to do when DOS wants let play the speaker:
          $_speaker = ""     # or "native" or "emulated"
@@ -903,7 +910,8 @@ ium
                     # or "range 0x1a0,(0x1a0+15)"
 
    If you have hardware, that is not supported under Linux but you have a
-   DOS driver for, it may be necessary to enable IRQ passing to DOS.
+   DOS driver for, it may be necessary to enable IRQ passing to DOS. Note
+   that IRQ passing does not work on x86-64.
       $_irqpassing = ""  # list of IRQ number (2-15) to pass to DOS such as
                          # "3 8 10"
      _________________________________________________________________
@@ -1014,17 +1022,18 @@ is,
    is (even temporary) connected to the internet or other machines, or
    that otherwise allows 'foreign' people login to your machine.
 
-     * Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
-       lowfeature mode without the -s bit set. If you want fullfeatures
-       for some of your users, just use the keyword `nosuidroot' in
-       /etc/dosemu.users to forbid some (or all) users execution of a
-       suid root running dosemu (they may use a non-suid root copy of the
-       binary though) or let them use DOSEMU though "sudo". DOSEMU now
-       drops it root privileges before booting; however there may still
-       be security problems in the initialization code, and by making
-       DOSEMU suid-root you can give users direct access to resources
-       they don't normally have access too, such as selected I/O ports,
-       hardware IRQs and hardware RAM.
+     * Don't set the "s" bit, as DOSEMU can run in lowfeature mode
+       without the "s" bit set. If you want fullfeatures for some of your
+       users, it is recommended to use "sudo". Alternatively you can just
+       use the keyword `nosuidroot' in /etc/dosemu.users to forbid some
+       (or all) users execution of a suid root running dosemu (they may
+       use a non-suid root copy of the binary though). DOSEMU now drops
+       its root privileges before booting; however there may still be
+       security problems in the initialization code, and by making DOSEMU
+       suid-root you can give users direct access to resources they don't
+       normally have access too, such as selected I/O ports, hardware
+       IRQs and hardware RAM. For any direct hardware access you must
+       always use the "-s" switch.
        If DOSEMU is invoked via "sudo" then it will automatically switch
        to the user who invoked "sudo". An example /etc/sudoers entry is
        this:
@@ -1207,9 +1216,9 @@ is,
        section on how to enable privileged operation if you really need
        to.
     2. If a user needs access to privileged resources other than console
-       graphics, then you need to explicitly allow the user to do so by
-       editing the file /etc/dosemu.users (or /etc/dosemu/dosemu.users).
-       The format is:
+       graphics, then you may need to explicitly allow the user to do so
+       by editing the file /etc/dosemu.users (or
+       /etc/dosemu/dosemu.users). The format is:
 
          loginname [ c_strict ] [ classes ...] [ other ]
 

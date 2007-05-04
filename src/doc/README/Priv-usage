@@ -1,4 +1,4 @@
-Catalog of usages of priveleges.
+Catalog of usages of privileges.
 
 mhpdbg.c in mhp_close() for:
 unlink(pipename_in) 

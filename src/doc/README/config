@@ -7,7 +7,7 @@ This section of the document by Hans,
 url="mailto:lermen@fgan.de"
 >&#60;lermen@fgan.de&#62;</ulink
 >. Last
-updated on Jan 1, 2006, by Bart Oldeman.
+updated on May 4, 2007, by Bart Oldeman.
 </para>
 
 <para>
@@ -283,7 +283,7 @@ setup:
 # syshdimagedir (/var/lib/dosemu by default) assigned in this order
 # such as "hdimage_c directory_d hdimage_e"
 # Absolute pathnames are also allowed.
-  $_hdimage = "freedos"
+  $_hdimage = "drives/*"
   $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
                         # file name of the floppy image under DOSEMU_LIB_DIR
                         # e.g. "floppyimage" disables $_hdimage
@@ -300,7 +300,7 @@ A hdimage is
 a file containing a virtual image of a DOS-FAT filesystem. Once you have
 booted it, you (or autoexec.bat) can use `lredir' to access any directory
 in your Linux tree as DOS drive (a -t msdos mounted too).
-Look at chapter 5 (Using Lredir) and for more details.
+Look at chapter 5 (Using Lredir) for more details.
 If you want to create your own hdimage use "mkfatimage16" (see the manual
 page). To make it bootable you can make it, say, drive F:, and use
 "SYS F:" at the DOS prompt. 
@@ -343,29 +343,30 @@ different. Here a small and not complete example bootdir setup:
 
 <para>
 As a further enhancement of your drives setup you may even use the following
-strategie: Given you have the following directory structure 
-under DOSEMU_LIB_DIR
+strategy: given you have the following directory structure in one the
+directories where the $_hdimage setting applies (this is done by default
+in ~/.dosemu and in /etc/dosemu)
 
 <screen>
-  DOSEMU_LIB_DIR/drives/C
-  DOSEMU_LIB_DIR/drives/D
-  DOSEMU_LIB_DIR/drives/E
+  drives/c
+  drives/d
 </screen>
 
-and the <emphasis>C</emphasis>, <emphasis>D</emphasis>, <emphasis>E</emphasis> are symlinks to appropriate DOS useable
-directories, then the following single statement
+where <emphasis>c</emphasis> and <emphasis>d</emphasis> are symbolic
+links to appropriate DOS useable directories, then the following single
+statement
 
 <screen>
   $_hdimage = "drives/*"
 </screen>
 
-will assign all these directories to drive C:, D:, E: respectively.
+will assign all these directories to drive C: and D: respectively.
 Note, however, that the <emphasis>order</emphasis> in which the directories under drives/*
 are assigned comes from the order given by /bin/ls. Hence the folling
 
 <screen>
-  DOSEMU_LIB_DIR/drives/x
-  DOSEMU_LIB_DIR/drives/a
+  drives/x
+  drives/a
 </screen>
 
 will assign C: to drives/a and D: to drives/x, keep that in mind.
@@ -524,7 +525,7 @@ If you have a PCI board you may allow DOSEMU to access the PCI
 configuration space by defining the below
 
 <screen>
-  $_pci = (on)    # or auto, or off
+  $_pci = (auto)    # or auto, or off
 </screen>
 
 </para>
@@ -673,6 +674,9 @@ The external character set is used to:
 <listitem> <para>
      compute the unicode values of characters pasted into dosemu.
 </para> </listitem>
+<listitem> <para>
+     compute the unicode values of characters in file names.
+</para> </listitem>
 </itemizedlist>
 The default is to use "", which denotes the current locale, and is usually
 the right setting.
@@ -700,11 +704,16 @@ where XXX is one of:
 The internal character set is used to:
 <itemizedlist>
 <listitem> <para>
-       compute the unicode value of characters of video memory 
+       compute the unicode value of characters of video memory,
+       when using DOSEMU in a terminal or using X with a unicode
+       font.
 </para> </listitem>
 <listitem> <para>
        compute the character set index of unicode characters 
        returned by bios keyboard translation services.
+</para> </listitem>
+<listitem> <para>
+     compute the unicode values of characters in file names.
 </para> </listitem>
 </itemizedlist>
 </para>
@@ -1132,7 +1141,9 @@ print job as `done' and to close it.
 # Which means: use the default print queue for LPT1, "lpt2" queue for LPT2,
 # "lpt3" queue for LPT3. "-l" means raw printing mode (no preprocessing).
 
-$_printer_commands = "lpr -l, lpr -l -P lpt2, lpr -l -P lpt3"
+$_lpt1 = "lpr -l"
+$_lpt2 = "lpr -l -P lpt2"
+$_lpt3 = "lpr -l -P lpt3"
 
 $_printer_timeout = (20)# idle time in seconds before spooling out
 </screen>
@@ -1272,9 +1283,12 @@ For more on this look at chapter 15 (Networking using DOSEMU).
 The following settings (together with the direct console video settings
 below make it possible for DOSEMU to access your real (non-emulated) 
 computer hardware directly. Because Linux does not permit this for
-ordinary users, DOSEMU needs to be run as root or suid-root to be able
-to use these settings. They can NOT be overwritten by the user
-configuration file ~/.dosemurc.
+ordinary users, DOSEMU needs to be run as root, via sudo or suid-root
+to be able to use these settings. They can NOT be overwritten by the
+user configuration file ~/.dosemurc.
+You must also run dosemu with the "-s" switch. This activates sudo
+when appropriate; without it, even root will not get direct hardware
+access.
 </para>
 
 <para>
@@ -1310,6 +1324,7 @@ DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.</emphasis>
 <para>
 If you have hardware, that is not supported under Linux but you have
 a DOS driver for, it may be necessary to enable IRQ passing to DOS.
+Note that IRQ passing does not work on x86-64.
 
 <screen>
   $_irqpassing = ""  # list of IRQ number (2-15) to pass to DOS such as

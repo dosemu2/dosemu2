@@ -3,7 +3,7 @@ The DOSEMU Alterer Novices Guide
 
 Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
-   version dosemu-1.3.4
+   version dosemu-1.4.0
 
    This Document is the DOSEMU Alterer Novices Guide. It is known as the
    DANG.

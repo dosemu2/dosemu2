@@ -197,6 +197,9 @@ user listed in /etc/dosemu.users to use dosemu, (s)he must know what (s)he is
 doing. Port access is inherently dangerous, as the system can easily be
 screwed up if something goes wrong: just think of the blank screen you get
 when dosemu crashes without restoring screen registers...
+As an extra precaution you have to use the "-s" dosemu command line
+switch so you won't access the hardware directly or use console graphics
+by accident.
 </para>
 
 </sect3>
@@ -205,8 +208,9 @@ when dosemu crashes without restoring screen registers...
 <title>The port server</title>
 <para>
 Starting with version 1.1.4.5 the exception mechanism uses a port server.
-If any slow ports from $_ports, any ports above 0x3ff (including some video
-cards and $_pci), or the native speaker are selected (timer 2 of port 
+If any slow ports from $_ports, any ports above 0x3ff (depending on the
+Linux kernel, including some video cards and $_pci), or the native speaker
+are selected (timer 2 of port 
 0x43 cannot be fast), DOSEMU will fork. The main DOSEMU will then drop 
 its root privileges and communicates
 via pipes with the (forked) privileged port server. The server then checks 

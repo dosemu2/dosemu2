@@ -2160,22 +2160,24 @@ isk }
    know what (s)he is doing. Port access is inherently dangerous, as the
    system can easily be screwed up if something goes wrong: just think of
    the blank screen you get when dosemu crashes without restoring screen
-   registers...
+   registers... As an extra precaution you have to use the "-s" dosemu
+   command line switch so you won't access the hardware directly or use
+   console graphics by accident.
      _________________________________________________________________
 
 3.2.3. The port server
 
    Starting with version 1.1.4.5 the exception mechanism uses a port
    server. If any slow ports from $_ports, any ports above 0x3ff
-   (including some video cards and $_pci), or the native speaker are
-   selected (timer 2 of port 0x43 cannot be fast), DOSEMU will fork. The
-   main DOSEMU will then drop its root privileges and communicates via
-   pipes with the (forked) privileged port server. The server then checks
-   if it is allowed to access the port and acts appropriately. This way
-   it is impossible for a DPMI program to manipulate any forbidden ports
-   (separate address spaces). Fortunately the overhead of pipes and
-   process switching seems to be negligible compared to the time it takes
-   to trap the port access.
+   (depending on the Linux kernel, including some video cards and $_pci),
+   or the native speaker are selected (timer 2 of port 0x43 cannot be
+   fast), DOSEMU will fork. The main DOSEMU will then drop its root
+   privileges and communicates via pipes with the (forked) privileged
+   port server. The server then checks if it is allowed to access the
+   port and acts appropriately. This way it is impossible for a DPMI
+   program to manipulate any forbidden ports (separate address spaces).
+   Fortunately the overhead of pipes and process switching seems to be
+   negligible compared to the time it takes to trap the port access.
 
    If the speaker is emulated and all ports are "fast", or if DOSEMU is
    non-suid-root and run by a normal user, then the above forking is
@@ -4445,6 +4447,12 @@ b */
      _________________________________________________________________
 
 20. Recovering the console after a crash
+
+   In general the easiest way to recover is to press Alt-SysRq-R (for
+   this you must have the "magic SysRq" key enabled in the Linux kernel,
+   check /proc/sys/kernel/sysrq !), and then switch to X using Alt-F7.
+   Switching back to a console using Ctrl-Alt-Fx generally gives you a
+   working text mode. If not, you could try 'vbetool', or read on.
 
    The below is a mail from Kevin Buhr <buhr@stat.wisc.edu> , that was
    posted on linux-msdos some time ago. Because it describes a way to

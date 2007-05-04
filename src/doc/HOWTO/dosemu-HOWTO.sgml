@@ -241,10 +241,10 @@ winemu mean WinOS/2 running in dosemu.
 <title>What version of Dosemu should I use?</title>
 
 <para>
-Dosemu uses the same numbering scheme as the kernel. Uneven second
+Dosemu uses the same numbering scheme as the kernel used. Uneven second
 numbers are for possible unstable developer releases, even second numbers
-are for releases considered stable. At the time of writing, <literal>1.2.0</literal>
-is the latest stable release, while <literal>1.3.4</literal> is the latest
+are for releases considered stable. At the time of writing, <literal>1.4.0</literal>
+is the latest stable release, while <literal>1.3.5</literal> is the latest
 developer's release. So if you just want to use dosemu, get the latest 
 <emphasis>stable</emphasis> release. 
 </para>
@@ -255,8 +255,8 @@ developer's release. So if you just want to use dosemu, get the latest
 <title>What's the newest version of dosemu and where can I get it?</title>
 
 <para>
-The newest stable version of dosemu as of 2007/04/01 is
-<emphasis>dosemu-1.2.2</emphasis> and can be obtained at
+The newest stable version of dosemu as of 2007/05/05 is
+<emphasis>dosemu-1.4.0</emphasis> and can be obtained at
 
 <ulink url="http://www.dosemu.org/">http://www.dosemu.org/</ulink>.
  
@@ -833,7 +833,8 @@ Usually it is a good idea to format the drive after it.
 
 <para>
 Read <filename>README.txt</filename>  and the port-section 
-in <filename>dosemu.conf</filename>.
+in <filename>dosemu.conf</filename>. Also, you must now you the -s
+dosemu command line switch.
 </para>
 
 </sect2>
@@ -1905,6 +1906,7 @@ Version    Date                Person
 0.98.6     March 21, 1999      Hans Lermen
 1.0.0      March 6, 2000       Hans Lermen
 1.2.0      January 18, 2004    Bart Oldeman
+1.4.0      May 5, 2007         Bart Oldeman
 </screen>
 
 </sect2>

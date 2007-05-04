@@ -26,7 +26,7 @@ operation if you really need to.
 <listitem>
 <para>
 If a user needs access to privileged resources other than console graphics,
-then you need to explicitly allow the user to do so by editing the file
+then you may need to explicitly allow the user to do so by editing the file
 /etc/dosemu.users (or /etc/dosemu/dosemu.users).
 The format is:
 </para>

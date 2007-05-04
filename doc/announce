@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 1.2.0,
+The DOSEMU team is proud to announce DOSEMU 1.4.0,
 the PC Emulator for x86 based Linux.
 
 WHAT IS DOSEMU?
@@ -12,15 +12,15 @@ many DOS applications. These are the capabilities of DOSEMU that are
 worth noting:
 
   - color text and full keyboard emulation (via hotkeys) even on a terminal
-  - built-in X-Windows support (includes IBM character set font)
+  - built-in X Window System support (includes IBM character set font)
     including fullscreen X (via Ctrl-Alt-F)
   - graphics capability at the console (for most compatible video cards)
     (requires suid-root or sudo)
   - graphics emulation in X for many color modes
     (X-server may be in true color mode)
   - DPMI support
-  - runs several 32-bit DPMI-compliant video games (including those based
-    on DOS/4GW) at the Linux console (suid-root) and on X (non-suid)
+  - runs most 16-bit and 32-bit DPMI-compliant video games (including those
+    based on DOS/4GW) at the Linux console and on X
   - integrated (command line) instruction level debugger, various break
     points, single stepping etc.
   - integrated EMS and XMS drivers
@@ -40,47 +40,133 @@ worth noting:
     'out-of-the-box' in a normal user's $HOME directory and runs without 
     any further configuration (no root rights needed)
 
-WHAT IS NEW against version 1.0.2.1?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+WHAT IS NEW against version 1.2.2?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 - Many bugs have been fixed.
-- Easier configuration and installation from source code.
-- Much improved DPMI support.
-- Unicode support: translates between many different codepages and 
-  character sets for keyboards, terminals and copy & paste in X.
-- Much improved sound support, including SoundBlaster 16 and
-  Midi emulation (but no OPL3 FM / Adlib yet).
-- Improved VGA emulation in X.
-- Fullscreen support in X using the Ctrl-Alt-F hotkey.
-- Console improvements: by avoiding POST more graphics cards can
-  be accessed directly in the "plainvga" mode. Raw keyboard support
-  now also works without special privileges.
-- Many improvements to the networking code (TUN/TAP).
-- Improved PIC (Programmable Interrupt Controller) emulation.
-- Joystick support.
-- xterm mouse support (including PUTTY).
-- DOSEMU shows the running DOS program in X and xterm title bars.
-- Better terminal support (more keys are recognized).
-- Improved I/O performance using asynchronous I/O.
-- Added large file support for file locking.
-- Security:
-  * DPMI in suid-root DOSEMU is no longer inherently insecure; DOSEMU
-    now drops its root priviliges after initializing; a forked off
-    "I/O port server" (if necessary) allows access to the specified
-    I/O ports where the main DOSEMU is not capable.
-  * DOSEMU can be run via sudo in the same way as suid-root (it will 
-    revert to the identity of the original user) -- therefore it is
-    no longer necessary to install two seperate DOSEMUs (one suid-root
-    and one non-suid-root copy) for security. One non-suid-root copy is
-    all you need if you use sudo.
-    As a side-effect dosemu.users is no longer necessary; without a 
-    dosemu.users file DOSEMU will only use its root privileges if it is 
-    run on the Linux console.
-  * Partition access, mouse access (console only) and serial access
-    are no longer automatically accomplished using root privileges
-    but must be regulated via permissions on the relevant /dev/xxx
-    devices.
-  * Note that, as before, root permissions are in general not
-    necessary if DOSEMU is run in a terminal or in X.
+- Added a native 64-bit port for x86-64, which, by default, uses CPU emulation
+  for V86 mode, and runs DPMI code natively.
+- For a first time boot with FreeDOS, DOSEMU now boots without any user
+  interaction, and presents a welcome screen. 
+- "dosemu" starts xdosemu by default in X. Use "dosemu -t" to force terminal
+  mode.
+- Everyone, including root, needs to use "dosemu -s" to be able to use direct
+  hardware access. The -s switch automatically uses direct VGA graphics and
+  raw keyboard mode on the Linux console.
+- You can reboot the DOSEMU virtual machine using Ctrl-Alt-Del
+- The utility unix.com can now execute Linux commands within DOSEMU
+  interactively.
+- Run-time plugins are used to allow binary distribution without depending
+  on all libraries.
+- The -dumb switch quietens DOSEMU until the command is executed if a command
+  is given. So "dosemu -dumb dir" gives a directory listing and nothing else.
+- VGA Emulator: bitmap fonts are much quicker.
+- Fixed new errors and warnings with GCC 4.x.
+- The dosemu script is compatible with the minimal shell dash.
+- An automatic backtrace using GDB (output in ~/.dosemu/boot.log)
+  is attempted when DOSEMU crashes.
+- DOSEMU's stack is no longer marked executable which may improve security.
+- Clarified the copyrights and replaced some code with unclear origins.
+  The disclaimer acceptance has been weakened.
+- CPUEMU
+  - The CPUEMU simulator is now a runtime option, activated via
+    $_cpuemu="vm86sim", or $_cpuemu="fullsim".
+  - CPUEMU is automatically invoked if the vm86 is not supported by the
+    Linux kernel. This includes x86-64 systems, kernel configurations
+    for embbeded use, and some virtualization systems.
+- DPMI
+  - Implemented DPMI uncommitted memory support.
+  - Support for the HX DOS Extender was added. It is now possible to run
+    some win32 console apps under dosemu, using that extender.
+  - The Blinker extender is now fully supported (all known versions).
+  - The PM API translator now uses the EMS page frame to save 64K
+    of conventional memory.
+  - Many DPMI and PM API translator fixes to support all commercial
+    Borland tools and other protected-mode programs, especially when
+    using Linux kernel 2.6.12 or newer.
+  - Most of the DPMI 1.0 API and functionality were added.
+  - Fixed IF flag virtualization for DPMI. This causes many DPMI applications
+    to work reliably without random crashes (such as Transport Tycoon, Screamer,
+    Vchess).
+  - Implemented LDT virtualization / direct LDT access for DPMI clients.
+  - Windows 3.1 now works natively, without any need for WINOS2 patches.
+  - Many other improvements to make Windows 3 in DOSEMU more stable and usable.
+  - Implemented debug breakpoints for DPMI.
+  - Customized SVGA drivers of Windows 3.11 can now be used instead
+    of the Trident drivers (refer to Section 9.2 of README.txt).
+- Memory management
+  - Improved the internal XMS driver.
+  - It is now possible to use an external XMS driver, such as himem.sys.
+  - Freed up 4K of UMB space.
+- File systems
+  - The default C: drive has changed from ~/dosemu/freedos to ~/.dosemu/drive_c
+    (similar to Wine). Drive Z: is now a read-only drive with all the DOSEMU
+    and FreeDOS support files.
+  - Added support for the Long File Name (int21/ah=71) interface on redirected
+    drives.
+  - The redirected drive filesystem code is much faster than before.
+  - You can now directly see and manipulate DOS file attributes on Lredir'ed
+    Linux-mounted (V)FAT partitions, when using recent 2.6 kernels.
+  - Lredir can now automatically find a new drive.
+- CDROM and floppies
+  - Added a $_cdrom option for runtime configuration of the CD-ROM device.
+  - Added an internal *CDEX style CD-ROM driver, activated using LREDIR, for
+    use with CD-ROMs that are mounted in Linux. The default autoexec.bat
+    uses this to set drive E: to a CD-ROM.
+  - It is now possible to point $_vbootfloppy, $_floppy_a etc. to directories
+    and boot from them.
+  - The floppy is much faster with 2.6 kernels.
+  - Added support for 2.88M floppies
+- Sound, mice, keyboards, printers, serial ports, I/O, and networking
+  - A new sound system is available. It is for now an optional run-time option,
+    $_sound=(2).
+  - Added some support for sound recording.
+  - Added the "INT 15h" PS/2 mouse interface.
+  - Much improved keyboard layout autodetection
+  - The printer code now uses line buffering so that you do not have to
+    wait $_printer_timeout seconds before printing starts.
+  - Use $_lpt1, $_lpt2, and $_lpt3 for printer configuration.
+  - TTY locking can be disabled by $_ttylocks=""
+  - The reliability and performance of the serial ports emulation are much
+    improved.
+  - I/O ports are "fast" by default.
+  - IPX and Packet Driver code was seriously reworked.
+- Timers
+  - Added $_time_mode="linux" option to force the DOS clock to sync with
+    the Linux time.
+  - Improved real time clock support with a periodic IRQ generator.
+- Terminals
+  - UTF-8 terminals are supported if you use SLang 2 or a UTF-8
+    patched SLang 1 library. The supplied SLang library subset is no
+    longer necessary and no longer provided.
+  - $_term_char_set no longer exists;
+    $_external_char_set now defaults to the current locale.
+  - Even on non UTF-8 terminals many line drawing characters can now
+    be used, and on the Linux console almost the full CP437 character set.
+  - Many ctrl, alt, shift combinations with function keys, arrow keys, etc,
+    can now be used in xterm and friends.
+  - VGA hardware is emulated in terminal mode as well as in X mode.
+- Linux console
+  - VESA driver added which should be compatible with most BIOSes. This
+    is the default.
+  - Linear frame buffers now work.
+  - Improved behaviour in conjunction with framebuffer consoles.
+  - Improved PCI emulation on the console, with $_pci=(auto).
+- X Window System
+  - Added extra X fonts.
+  - The X aspect ratio is no longer set to 4:3 by default, but an integer
+    multiple of the real resolution.
+  - A graphical mouse cursor now works under X with mouse grab enabled.
+  - Added keyboard grab, hardcoded to Ctrl-Alt-k for now.
+  - Add $_X_title_show_appname.
+  - Implemented support for Unicode fonts for $_X_font, so you can for
+    instance use the univga font or
+    $_X_font="-Misc-Fixed-Medium-R-SemiCondensed--13-120-75-75-C-60-ISO10646-1"
+  - 16 bpp graphics programs now run in X with 24/32 bpp.
+- SDL support
+  New: makes it possible to run DOSEMU on all supported SDL backends.
+  It is almost as capable as the X plugin, and provides a safer way
+  to get console graphics, using fbdev.
+- Removed mapself support, the old keyboard code, coopthreads, and comcom.
 
 REQUIREMENTS
 ~~~~~~~~~~~~
@@ -124,6 +210,6 @@ us. We can be reached at:
 http://www.dosemu.org
 
 
-- - - -	- - - -				January 2004,
+- - - -	- - - -				May 2007,
 					Bart Oldeman <bart@dosemu.org>
 					coordinator of "The DOSEMU Team"

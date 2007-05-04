@@ -22,17 +22,19 @@ otherwise allows 'foreign' people login to your machine.
 <listitem>
 
 <para>
- Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
-lowfeature mode without the -s bit set. If you want fullfeatures
-for some of your users, just use the keyword `nosuidroot' in
+Don't set the "s" bit, as DOSEMU can run in
+lowfeature mode without the "s" bit set. If you want fullfeatures
+for some of your users, it is recommended to use "sudo". Alternatively
+you can just use the keyword `nosuidroot' in
 /etc/dosemu.users to forbid some (or all) users execution of
 a suid root running dosemu (they may use a non-suid root copy of
-the binary though) or let them use DOSEMU though "sudo".
-DOSEMU now drops it root privileges before booting; however
+the binary though).
+DOSEMU now drops its root privileges before booting; however
 there may still be security problems in the initialization code,
 and by making DOSEMU suid-root you can give users direct access to
 resources they don't normally have access too, such as selected I/O
 ports, hardware IRQs and hardware RAM.
+For any direct hardware access you must always use the "-s" switch.
 </para>
 
 <para>
