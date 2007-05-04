@@ -63,6 +63,7 @@ fi
 %dir %{_datadir}/dosemu
 %{_datadir}/dosemu/commands
 %{_datadir}/dosemu/freedos
+%{_datadir}/dosemu/drive_z
 %{_datadir}/dosemu/keymap
 %{_datadir}/dosemu/Xfonts
 %dir %{_datadir}/doc/dosemu
@@ -84,5 +85,6 @@ fi
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 %dir %{_sysconfdir}/dosemu/drives
 %config(noreplace) %{_sysconfdir}/dosemu/drives/c
+%config(noreplace) %{_sysconfdir}/dosemu/drives/d
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.users
 %config(noreplace) %{_sysconfdir}/dosemu/global.conf
