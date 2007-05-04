@@ -127,7 +127,7 @@ if [ -n "$XFLAG" -o -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
          sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
   fi
 
-  if [ "$FONT" = "" -a -n $SYSTEM_CONF_PATH -a -f $SYSTEM_CONF_PATH/dosemu.conf ]; then
+  if [ "$FONT" = "" -a -n "$SYSTEM_CONF_PATH" -a -f $SYSTEM_CONF_PATH/dosemu.conf ]; then
      FONT=`grep '$_X_font' $SYSTEM_CONF_PATH/dosemu.conf | \
         sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
   fi

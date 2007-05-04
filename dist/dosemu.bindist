@@ -30,19 +30,21 @@ install_dos () {
 "
       exit 1
     fi
-    echo "
-  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
-"
-    mkdir -p $HOME/.dosemu/drives
-    rm -f $HOME/.dosemu/drives/c
-    ln -sf $BOOT_DIR_PATH/freedos $HOME/.dosemu/drives/c
+    mkdir -p $HOME/.dosemu/drive_c $HOME/.dosemu/drives
+    rm -f $HOME/.dosemu/drives/c $HOME/.dosemu/drives/d
+    ln -sf $HOME/.dosemu/drive_c $HOME/.dosemu/drives/c
+    ln -sf $BOOT_DIR_PATH/drive_z $HOME/.dosemu/drives/d
   fi
   unset INSTALL
 }
 
 get_binary() {
   install_dos
-  BOOT_DIR_PATH=`cd $HOME/.dosemu/drives && ls -l c | sed 's/.* -> //'`/..
+  BOOT_DIR_PATH=`cd $HOME/.dosemu/drives && ls -l d | sed 's/.* -> //'`/..
+  if [ ! -x $BOOT_DIR_PATH/bin/dosemu.bin ]; then
+    #older situation
+    BOOT_DIR_PATH=`cd $HOME/.dosemu/drives && ls -l c | sed 's/.* -> //'`/..
+  fi
   BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
 
   if [ -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
@@ -51,6 +53,7 @@ get_binary() {
     fi
     SYSTEM_XFONTS_PATH=$BOOT_DIR_PATH/Xfonts
   fi
+  SUFFIX="$SUFFIX --Flibdir $BOOT_DIR_PATH"
 }
 
 # ignore dosemu.conf by default for non-systemwide installations

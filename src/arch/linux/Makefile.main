@@ -74,7 +74,8 @@ default: version include/confpath.h doslib \
 ifdef X_SUPPORT
 	@for i in $(REALTOPDIR)/etc/*.bdf; do \
 	    bdftopcf $$i | gzip -c -9 > ../etc/`basename $$i .bdf`.pcf.gz; \
-	done;
+	done
+	@cd ../etc; mkfontdir -x bdf
 endif
 
 emu.o: emu.c
@@ -234,16 +235,17 @@ ifdef X_SUPPORT
 		for i in ../etc/*.pcf.gz; do \
 		    install -m 0644 $$i $(DESTDIR)$(x11fontdir); \
 		done; \
+		install -m 0644 ../etc/fonts.dir $(DESTDIR)$(x11fontdir); \
 		cd $(REALTOPDIR)/etc; \
 		if [ ! -f $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
 		  $(INSTALL) -m 0644 dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 		elif ! grep -q ^vga $(DESTDIR)$(x11fontdir)/fonts.alias; then \
 		  cat dosemu.alias >> $(DESTDIR)$(x11fontdir)/fonts.alias; \
+		  cd $(DESTDIR)$(x11fontdir); \
+		  mkfontdir; \
 		elif ! grep -q ^[^v][^g][^a] $(DESTDIR)$(x11fontdir)/fonts.alias; then \
 		  $(INSTALL) -m 0644 dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 		fi; \
-		cd $(DESTDIR)$(x11fontdir); \
-		mkfontdir; \
 	fi;
 endif
 	/bin/rm -rf ../tmp
@@ -332,6 +334,6 @@ $(REALCLEANDIRS):
 
 pristine:	realclean
 	-rm -rf lib
-	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont ../etc/*.pcf.gz
+	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont ../etc/*.pcf.gz ../etc/fonts.dir
 	-rm -rf ../testboot
 

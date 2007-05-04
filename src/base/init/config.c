@@ -449,11 +449,6 @@ void secure_option_preparse(int *argc, char **argv)
 
   opt = get_option("--Flibdir", 1);
   if (opt && opt[0]) {
-    if (runningsuid) {
-      fprintf(stderr, "Bypassing systemwide configuration not allowed %s\n",
-	      using_sudo ? "with sudo" : "for suid-root");
-      exit(0);
-    }
     dosemu_lib_dir_path = opt;
   }
 
@@ -1162,8 +1157,8 @@ usage(char *basename)
 	"    -F use File as global config-file\n"
 	"    -f use dosrcFile as user config-file\n"
 	"    --Fusers bypass /etc/dosemu.users (^^)\n"
-	"    --Flibdir bypass systemwide configuration (^^)\n"
-	"    --Fimagedir bypass systemwide boot path (^^)\n"
+	"    --Flibdir change keymap and FreeDOS location\n"
+	"    --Fimagedir bypass systemwide boot path\n"
 	"    -n bypass the system configuration file (^^)\n"
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"

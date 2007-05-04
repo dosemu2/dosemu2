@@ -2304,7 +2304,6 @@ static void lax_user_checking(void)
 {
   char *p;
   define_config_variable("c_all");
-  move_dosemu_lib_dir(dosemu_lib_dir_path);
   p = getenv("USER");
   if (!p) p = "guest";
   setenv("DOSEMU_USER", p, 1);
@@ -2388,6 +2387,7 @@ parse_dosemu_users(void)
    * which we need before proceeding
    */
   setenv("DOSEMU_LIB_DIR", dosemulib_default, 1);
+  move_dosemu_lib_dir(dosemu_lib_dir_path);
 
   fp = open_dosemu_users();
   if (fp) while (fgets(buf, PBUFLEN, fp) != NULL) {

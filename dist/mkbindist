@@ -24,7 +24,7 @@ BIN=../bin
 SYS=../commands
 COM=../commands
 
-BLIST="dosemu.bin dosdebug"
+BLIST="dosemu.bin dosdebug libplugin_*.so"
 SLIST="aspi.sys cdrom.sys ems.sys emufs.sys fossil.com mgarrot.com"
 
 if [ ! -x $BIN/dosemu.bin ]; then
@@ -63,20 +63,20 @@ fi
 mkdir -p $TMP
 cp -p ../README.bindist ../COPYING ../COPYING.DOSEMU $TMP
 cp -p dosemu.bindist $TMP/dosemu
-tail +9 dosemu >> $TMP/dosemu
+tail -n +9 dosemu >> $TMP/dosemu
 chmod 755 $TMP/dosemu
 ln -sf dosemu $TMP/xdosemu
+ln -sf freedos $TMP/drive_z
+ln -sf drive_z/dosemu $TMP/commands
 
 mkdir -p $TMP/bin
 mkdir -p $TMP/conf
 mkdir -p $TMP/Xfonts
 mkdir -p $TMP/freedos/dosemu
 
-bdftopcf ../etc/vga.bdf | gzip -c -9 > $TMP/Xfonts/vga.pcf.gz
-bdftopcf ../etc/vga11x19.bdf | gzip -c -9 > $TMP/Xfonts/vga11x19.pcf.gz
-bdftopcf ../etc/vga-cp866.bdf | gzip -c -9 > $TMP/Xfonts/vga-cp866.pcf.gz
-bdftopcf ../etc/vga10x20-cp866.bdf | gzip -c -9 > $TMP/Xfonts/vga10x20-cp866.pcf.gz
+cp -p ../etc/*.pcf.gz $TMP/Xfonts
 cp -p ../etc/dosemu.alias $TMP/Xfonts/fonts.alias
+cp -p ../etc/fonts.dir $TMP/Xfonts/fonts.dir
 
 cp -p ../etc/dosemu.conf $TMP/conf/dosemurc
 cp -p ../etc/global.conf $TMP/conf/global.conf
@@ -92,8 +92,11 @@ for i in $SLIST; do
   chmod 644 $TMP/freedos/dosemu/$i
 done
 
-cp -p $COM/{generic,comcom}.com $TMP/freedos/dosemu
-chmod 644 $TMP/freedos/dosemu/{generic,comcom}.com
+cp -p $COM/generic.com $TMP/freedos/dosemu
+cp -p config.emu $TMP/freedos
+cp -p autoemu.bat $TMP/freedos
+chmod 644 $TMP/freedos/dosemu/generic.com
+chmod 644 $TMP/freedos/config.emu $TMP/freedos/autoemu.bat 
 LINKLIST=`(cd $COM; for i in *.com; do if [ -L $i ]; then echo -n " $i";fi;done)`
 for i in $LINKLIST; do
   ln -sf generic.com $TMP/freedos/dosemu/$i

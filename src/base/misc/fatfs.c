@@ -563,9 +563,16 @@ void scan_dir(fatfs_t *f, unsigned oi)
     }
     if (access(full_name(f, oi, "ibmdos.com"), R_OK) == 0) f->sys_type |= 8;
     if (access(full_name(f, oi, "ipl.sys"), R_OK) == 0) f->sys_type |= 0x10;
-    if (access(full_name(f, oi, "kernel.sys"), R_OK) == 0 ||
-	access(DOSEMULIB_DEFAULT"/drive_z/kernel.sys", R_OK) == 0)
-      f->sys_type |= 0x20;
+    if (access(full_name(f, oi, "kernel.sys"), R_OK) == 0) f->sys_type |= 0x20;
+    else {
+      char *libdir = getenv("DOSEMU_LIB_DIR");
+      if (libdir) {
+	char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);
+	if (access(kernelsyspath, R_OK) == 0)
+	  f->sys_type |= 0x20;
+	free(kernelsyspath);
+      }
+    }
 
     if((f->sys_type & 3) == 3) {
       f->sys_type = 3;			/* MS-DOS */
@@ -738,21 +745,27 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
     return;
   }
 
+  fatfs_deb("trying to add \"%s\":\n", s);
   if(stat(s, &sb)) {
     int found = 0;
     if (strcmp(name, "kernel.sys") == 0) {
-      s = DOSEMULIB_DEFAULT"/drive_z/kernel.sys";
-      if(stat(s, &sb) == 0)
-	found = 1;
+      char *libdir = getenv("DOSEMU_LIB_DIR");
+      fatfs_deb("does not exist\n");
+      if (libdir) {
+	s = assemble_path(libdir, "drive_z/kernel.sys", 0);
+	fatfs_deb("trying to add \"%s\":\n", s);
+	found = (stat(s, &sb) == 0);
+	free(s);
+      }
     }
     if (!found) {
-      fatfs_deb("file not found: \"%s\"\n", s);
+      fatfs_deb("file not found\n");
       return;
     }
   }
 
   if(!(S_ISDIR(sb.st_mode) || S_ISREG(sb.st_mode))) {
-    fatfs_deb("entry ignored: \"%s\"\n", s);
+    fatfs_deb("entry ignored\n");
     return;
   }
 
@@ -786,7 +799,7 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
 
   memcpy(f->obj + u, &tmp_o, sizeof *f->obj);
 
-  fatfs_deb("added %s: \"%s\"\n", tmp_o.is.dir ? "directory" : "file", s);
+  fatfs_deb("added as a %s\n", tmp_o.is.dir ? "directory" : "file");
 }
 
 
@@ -1110,11 +1123,15 @@ void fdkernel_boot_mimic(void)
     leavedos(99);
   }
   if ((f = open(bootfile, O_RDONLY)) == -1) {
-    bootfile = DOSEMULIB_DEFAULT"/drive_z/kernel.sys";
-    if ((f = open(bootfile, O_RDONLY)) == -1) {
+    char *libdir = getenv("DOSEMU_LIB_DIR");
+    if (libdir)
+      bootfile = assemble_path(libdir, "drive_z/kernel.sys", 0);
+    if (!libdir || (f = open(bootfile, O_RDONLY)) == -1) {
       error("cannot open DOS system file %s\n", bootfile);
+      if (libdir) free(bootfile);
       leavedos(99);
     }
+    if (libdir) free(bootfile);
   }
   size = lseek(f, 0, SEEK_END);
   lseek(f, 0, SEEK_SET);
