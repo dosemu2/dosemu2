@@ -501,6 +501,7 @@ int lredir_main(int argc, char **argv)
     carg = 3;
     if (argc > 2 && argv[2][1] == ':') {
       /* lredir c: d: */
+      strcpy(deviceStr, argv[1]);
       if ((argc > 3 && toupper(argv[3][0]) == 'F') ||
     	((ccode = FindRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS)) {
         if ((ccode = FindFATRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS) {
