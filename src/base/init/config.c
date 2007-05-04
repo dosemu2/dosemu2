@@ -815,6 +815,8 @@ config_init(int argc, char **argv)
 	case 's':
 	    if (can_do_root_stuff)	
 		can_do_root_stuff_enabled = 1;
+	    else
+		error("The -s switch requires root privileges\n");
 	    break;
 	case 'h':
 	    config_check_only = atoi(optarg) + 1;

@@ -1188,7 +1188,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	unsigned int flags = 0;
 
         if (!can_do_root_stuff) {
-		error("Port I/O requires root privs\n");
+		warn("Direct port I/O in dosemu.conf requires root privs and -s\n");
                 return FALSE;
 	}
 
