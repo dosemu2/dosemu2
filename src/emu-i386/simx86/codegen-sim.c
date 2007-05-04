@@ -2309,6 +2309,7 @@ static void Gen_sim(int op, int mode, ...)
 		else if(mode & ADDR16 && df == 1 &&
 		        OPSIZE(mode)*i + SR1.d > 0x10000)
 		{
+			unsigned int possible, remaining;
 			/* 16 bit address overflow detected */
 			if(AR1.d & (OPSIZE(mode)-1))
 			{
@@ -2316,8 +2317,8 @@ static void Gen_sim(int op, int mode, ...)
 				TheCPU.err=EXCP0D_GPF;
 				break;
 			}
-			unsigned int possible = (0x10000-SR1.d)/OPSIZE(mode);
-			unsigned int remaining = i - possible;
+			possible = (0x10000-SR1.d)/OPSIZE(mode);
+			remaining = i - possible;
 			TR1.d = possible;
 			Gen_sim(O_MOVS_StoD,mode);
 			AR1.d -= 0x10000;
@@ -2327,6 +2328,7 @@ static void Gen_sim(int op, int mode, ...)
 		else if(mode & ADDR16 && df == -1 && i &&
 		        OPSIZE(mode)*(i-1) > SR1.d)
 		{
+			unsigned int possible, remaining;
 			/* 16 bit address overflow detected */
 			if(AR1.d & (OPSIZE(mode)-1))
 			{
@@ -2334,8 +2336,8 @@ static void Gen_sim(int op, int mode, ...)
 				TheCPU.err=EXCP0D_GPF;
 				break;
 			}
-			unsigned int possible = SR1.d/OPSIZE(mode) + 1;
-			unsigned int remaining = i - possible;
+			possible = SR1.d/OPSIZE(mode) + 1;
+			remaining = i - possible;
 			TR1.d = possible;
 			Gen_sim(O_MOVS_StoD,mode);
 			AR1.d += 0x10000;

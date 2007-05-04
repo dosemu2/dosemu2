@@ -511,8 +511,9 @@ int lredir_main(int argc, char **argv)
       }
     } else {
       if (argc > 1 && argv[1][1] != ':') {
+	int nextDrive;
         strcpy(resourceStr, argv[1]);
-	int nextDrive = find_drive(resourceStr);
+	nextDrive = find_drive(resourceStr);
 	if (nextDrive == -26) {
 		printf("Cannot redirect (maybe no drives available).");
 		return(0);

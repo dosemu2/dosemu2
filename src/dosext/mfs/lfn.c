@@ -650,8 +650,8 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 	free(fpath);
 	WRITE_DWORD(dest + 0x20, st.st_size);
 	if (_SI == 1) {
-		d_printf("LFN: using DOS date/time\n");
 		u_short date, time;
+		d_printf("LFN: using DOS date/time\n");
 		time_to_dos(st.st_mtime, &date, &time);
 		WRITE_WORD(dest+0x16, date);
 		WRITE_WORD(dest+0x14, time);
