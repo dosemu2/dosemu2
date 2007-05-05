@@ -1,5 +1,10 @@
 2007-05-05  Bart
 
+	* [r1776] NEWS, ChangeLog, dist/config.sys, dist/mkbindist
+	  Last minute fix for 1.4.0: fix #1713278 COMSPEC setting wrong.
+	  Use config.sys/autoexec.bat distributed from here in the bindist
+	  instead of the one in dosemu-freedos-*-bin*.
+
 	* [r1775] NEWS, ChangeLog:
 	  Release 1.4.0.
 

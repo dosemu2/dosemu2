@@ -34,6 +34,8 @@ install_dos () {
     rm -f $HOME/.dosemu/drives/c $HOME/.dosemu/drives/d
     ln -sf $HOME/.dosemu/drive_c $HOME/.dosemu/drives/c
     ln -sf $BOOT_DIR_PATH/drive_z $HOME/.dosemu/drives/d
+    cp -fp $BOOT_DIR_PATH/conf/autoexec.bat $BOOT_DIR_PATH/freedos/autoexec.bat
+    cp -fp $BOOT_DIR_PATH/conf/config.sys $BOOT_DIR_PATH/freedos/config.sys
   fi
   unset INSTALL
 }

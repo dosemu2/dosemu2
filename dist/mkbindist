@@ -95,8 +95,11 @@ done
 cp -p $COM/generic.com $TMP/freedos/dosemu
 cp -p config.emu $TMP/freedos
 cp -p autoemu.bat $TMP/freedos
+cp -p config.sys $TMP/conf
+cp -p autoexec.bat $TMP/conf
 chmod 644 $TMP/freedos/dosemu/generic.com
 chmod 644 $TMP/freedos/config.emu $TMP/freedos/autoemu.bat 
+chmod 644 $TMP/conf/config.sys $TMP/conf/autoexec.bat 
 LINKLIST=`(cd $COM; for i in *.com; do if [ -L $i ]; then echo -n " $i";fi;done)`
 for i in $LINKLIST; do
   ln -sf generic.com $TMP/freedos/dosemu/$i
