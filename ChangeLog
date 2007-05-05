@@ -1,3 +1,126 @@
+2007-05-05  Bart
+
+	* [r1775] NEWS, ChangeLog:
+	  Release 1.4.0.
+
+	* [r1774] INSTALL, README, README.bindist, doc/README.txt,
+	  doc/announce, src/base/init/install.c, src/doc/README/config,
+	  src/doc/README/header:
+	  More documentation updates; added a quick more basic introduction at
+	  the beginning of README.txt.
+
+2007-05-04  Bart
+
+	* [r1773] VERSION, doc/DANG.txt, doc/README-tech.txt, doc/README.txt,
+	  doc/announce, doc/dosemu-HOWTO.txt, etc/dosemu.conf,
+	  src/doc/DANG/DANG.sgml, src/doc/HOWTO/dosemu-HOWTO.sgml,
+	  src/doc/README/Priv-usage, src/doc/README/SECURITY,
+	  src/doc/README/config, src/doc/README/port-io,
+	  src/doc/README/recover, src/doc/README/runasuser:
+	  Documentation updates for 1.4.0.
+
+	* [r1772] src/dosext/mfs/lfn.c, src/emu-i386/simx86/codegen-sim.c,
+	  src/plugin/commands/lredir.c:
+	  gcc-2.95 compatibility fixes.
+
+	* [r1771] src/base/init/config.c, src/emu-i386/ports.c:
+	  Convert error about direct port i/o without root into a warning.
+	  Err about using "-s" without enough privileges.
+
+	* [r1770] src/arch/linux/Makefile.main:
+	  Fix man page out-of-tree building.
+
+	* [r1769]  (almost all files changed)
+	  Update copyright line to 2007.
+
+	* [r1768] dosemu.spec.in:
+	  Added missing new directory and symbolic link to dosemu.spec.
+
+	* [r1767] src/arch/linux/Makefile.main:
+	  Make man files at "make" instead of "make install" time.
+
+	* [r1766] dist/dosemu, dist/dosemu.bindist, dist/mkbindist,
+	  man/dosemu.bin.1.in, src/arch/linux/Makefile.main,
+	  src/base/init/config.c, src/base/init/install.c,
+	  src/base/init/parser.y.in, src/base/misc/fatfs.c:
+	  Allow --Flibdir for suid configurations, as it hasn't been used to
+	  locate global.conf for years. Document the allowance for
+	  --Flibdir/--Fimagedir. Repair bindist/mkbindist to work with the 
+	  new FreeDOS configuration. This means using --Flibdir and
+	  $DOSEMU_LIB_DIR instead of the hardcode DOSEMULIB_DEFAULT.
+	  Run mkfontdir at "make" instead of "make install" time when possible.
+
+	* [r1765] src/plugin/commands/lredir.c:
+	  Fix lredir c: d:
+
+2007-05-03  Bart
+
+	* [r1764] configure, configure.ac, src/plugin/sdl/Makefile:
+	  Fix forgotten make distclean file in SDL plugin; add -lXext for
+	  Xxf86vm checking on certain systems.
+
+	* [r1763] INSTALL, configure, configure.ac:
+	  Check for the existence of the Xxf86vm and Xext libraries, not just
+	  header files. Adjust INSTALL instructions.
+
+	* [r1762] config.guess, config.sub, configure, configure.ac:
+	  Don't use -mtune by default. It doesn't bear much relation to 'uname
+	  -m' anymore on anything newer than a Pentium Pro.
+
+	* [r1761] etc/dosemu.users.example, src/base/init/config.c,
+	  src/base/init/parser.y.in, src/base/misc/priv.c, src/include/priv.h:
+	  Register the difference between sudo and suid-root.
+	  Use c_all as the default for users who run dosemu via sudo so
+	  dosemu.users does not need to be edited for that case, leaving
+	  the default "restricted" (only console graphics at the console,
+	  no remote direct hardware access) setting for suid-root.
+
+2007-05-02  Bart
+
+	* [r1760] src/arch/linux/Makefile.main:
+	  Use -rm instead of rm to deal with non-existing directories.
+	  Use bdftopcf at make time instead of make install.
+	  Fixes problems reported at linux-msdos (perry hargrave).
+
+	* [r1759] src/base/init/parser.y.in:
+	  Repair $_sound=(on). You would only get the old sound driver via
+	  $_sound=(1).
+
+2007-05-01  Bart
+
+	* [r1758] src/env/video/dualmon.c, src/env/video/hgc.c,
+	  src/env/video/matrox.c, src/env/video/vc.c:
+	  Mark all mapped video memory PROT_EXEC, similar to the VGAEMU memory.
+	  Solves a few problems with console video on x86-64.
+
+	* [r1757] src/emu-i386/simx86/fp87-x86.c:
+	  Use aliased memory for emulation of FSTENV/FSAVE.
+
+	* [r1756] src/emu-i386/simx86/cpatch.c:
+	  There is a slight chance that the CPUEMU cpatch stubs hit VGA memory.
+	  For that case there is a simple instruction decoder but we must use
+	  explicit assembly instructions. Fixes another problem with Norton
+	  SysInfo.
+
+2007-04-30  Bart
+
+	* [r1755] src/emu-i386/simx86/codegen-sim.c:
+	  Fix regression in vgaemu handling from #1754.
+	  Fix problem with rep movs with df set backwards for simulated cpuemu
+	  with planar VGA modes.
+
+	* [r1754] src/emu-i386/simx86/codegen-sim.c,
+	  src/emu-i386/simx86/sigsegv.c, src/env/video/vgaemu.c:
+	  Fix problems with programs that try to access unmapped VGA memory or
+	  write to ROM in CPUEMU, such as Norton SysInfo.
+
+2007-04-29  Bart
+
+	* [r1753] src/dosext/mfs/mfs.c:
+	  Check for FAT filesystem before attempting to use the VFAT ioctls.
+	  Also check if the first entry is ".\0" to avoid an ioctl32 bug in
+	  kernels <= 2.6.21.1.
+
 2007-04-27  Bart
 
 	* [r1751] VERSION, NEWS, ChangeLog, doc/DOSEMU-HOWTO.txt,
