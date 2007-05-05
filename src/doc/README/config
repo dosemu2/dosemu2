@@ -262,6 +262,12 @@ for a number expression. For numbers you may have complete expressions
 
 <para>
 Hence a comma separated list of strings is concatenated.
+All these settings are also environment variables. You can override them
+by prefixing with dosemu_, e.g.
+<screen>
+dosemu__X_title="DOS was in the BOX" dosemu
+</screen>
+temporarily changes the X window title.
 </para>
 
 <sect3>

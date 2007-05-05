@@ -67,16 +67,17 @@ WHAT IS NEW against version 1.2.2?
 - DOSEMU's stack is no longer marked executable which may improve security.
 - Clarified the copyrights and replaced some code with unclear origins.
   The disclaimer acceptance has been weakened.
-- CPUEMU
-  - The CPUEMU simulator is now a runtime option, activated via
-    $_cpuemu="vm86sim", or $_cpuemu="fullsim".
-  - CPUEMU is automatically invoked if the vm86 is not supported by the
+- CPU emulation (SIMX86)
+  - The SIMX86 simulator is now a runtime option, activated via
+    $_cpuemu="vm86sim", or $_cpuemu="fullsim". Without the "sim"
+    JIT compilation (dynamic translation) is used.
+  - SIMX86 is automatically invoked if the vm86 is not supported by the
     Linux kernel. This includes x86-64 systems, kernel configurations
-    for embbeded use, and some virtualization systems.
+    for embedded use, and some virtualization systems.
 - DPMI
   - Implemented DPMI uncommitted memory support.
   - Support for the HX DOS Extender was added. It is now possible to run
-    some win32 console apps under dosemu, using that extender.
+    some win32 console applications under dosemu, using that extender.
   - The Blinker extender is now fully supported (all known versions).
   - The PM API translator now uses the EMS page frame to save 64K
     of conventional memory.
@@ -85,8 +86,8 @@ WHAT IS NEW against version 1.2.2?
     using Linux kernel 2.6.12 or newer.
   - Most of the DPMI 1.0 API and functionality were added.
   - Fixed IF flag virtualization for DPMI. This causes many DPMI applications
-    to work reliably without random crashes (such as Transport Tycoon, Screamer,
-    Vchess).
+    to work reliably without random crashes (such as Transport Tycoon,
+    Screamer, Vchess).
   - Implemented LDT virtualization / direct LDT access for DPMI clients.
   - Windows 3.1 now works natively, without any need for WINOS2 patches.
   - Many other improvements to make Windows 3 in DOSEMU more stable and usable.
@@ -103,7 +104,7 @@ WHAT IS NEW against version 1.2.2?
     and FreeDOS support files.
   - Added support for the Long File Name (int21/ah=71) interface on redirected
     drives.
-  - The redirected drive filesystem code is much faster than before.
+  - The redirected drive file system code is much faster than before.
   - You can now directly see and manipulate DOS file attributes on Lredir'ed
     Linux-mounted (V)FAT partitions, when using recent 2.6 kernels.
   - Lredir can now automatically find a new drive.
@@ -121,7 +122,7 @@ WHAT IS NEW against version 1.2.2?
     $_sound=(2).
   - Added some support for sound recording.
   - Added the "INT 15h" PS/2 mouse interface.
-  - Much improved keyboard layout autodetection
+  - Much improved keyboard layout auto-detection
   - The printer code now uses line buffering so that you do not have to
     wait $_printer_timeout seconds before printing starts.
   - Use $_lpt1, $_lpt2, and $_lpt3 for printer configuration.
@@ -149,22 +150,22 @@ WHAT IS NEW against version 1.2.2?
   - VESA driver added which should be compatible with most BIOSes. This
     is the default.
   - Linear frame buffers now work.
-  - Improved behaviour in conjunction with framebuffer consoles.
+  - Improved behaviour in conjunction with frame buffer consoles.
   - Improved PCI emulation on the console, with $_pci=(auto).
 - X Window System
   - Added extra X fonts.
   - The X aspect ratio is no longer set to 4:3 by default, but an integer
     multiple of the real resolution.
   - A graphical mouse cursor now works under X with mouse grab enabled.
-  - Added keyboard grab, hardcoded to Ctrl-Alt-k for now.
+  - Added keyboard grab, hard-coded to Ctrl-Alt-k for now.
   - Add $_X_title_show_appname.
   - Implemented support for Unicode fonts for $_X_font, so you can for
     instance use the univga font or
     $_X_font="-Misc-Fixed-Medium-R-SemiCondensed--13-120-75-75-C-60-ISO10646-1"
   - 16 bpp graphics programs now run in X with 24/32 bpp.
 - SDL support
-  New: makes it possible to run DOSEMU on all supported SDL backends.
-  It is almost as capable as the X plugin, and provides a safer way
+  New: makes it possible to run DOSEMU on all supported SDL back-ends.
+  It is almost as capable as the X plug-in, and provides a safer way
   to get console graphics, using fbdev.
 - Removed mapself support, the old keyboard code, coopthreads, and comcom.
 

@@ -48,25 +48,37 @@ RUN
 After you get the install right, you can execute DOSEMU with
 
   $ cd ~mydos/dosemu             # (your CWD _must_ be here)
-  $ ./xdosemu
-
-which will use X or execute
-
   $ ./dosemu
 
-which will just start within the current terminal or console.
+If you have never used DOSEMU before, DOSEMU will boot, and present
+you with a welcome screen and a command prompt.
 
-If you have never used DOSEMU before, you will get prompted (once) that you
-have read the liability disclaimer and after you agree, DOSEMU will boot
-FreeDos and give you a command prompt.
-
-If for some reason it does not start, look at boot.log for details.
+If for some reason it does not start, look at ~/.dosemu/boot.log for
+details.
 
 Remember, that you can't use <Ctrl>-C _within_ DOS to exit _from_ DOS.
-For this you need to execute 'exitemu' or, when using xdosemu,
+For this you need to execute 'exitemu' or, when using the 'DOS in a BOX'
 <Ctrl><Alt><PgDn>.
 
-Your Linux $HOME is available as DOS drive D:
+Your DOS drives are set up as follows:
+ A: floppy drive (if it exists)
+ C: points to the Linux directory ~/.dosemu/drive_c. It contains the
+    files config.sys, autoexec.bat and a directory for temporary files.
+    It is available for general DOS use.
+ D: points to your Linux home directory
+ E: points to your CD-ROM drive, if it is mounted at /media/cdrom
+ Z: points to the read-only DOSEMU and FreeDOS commands directory
+    It actually points to ~/mydos/dosemu/drive_z; it appears read-only
+    inside DOSEMU.
+
+Enter HELP for more information on DOS and DOSEMU commands.
+
+Other useful keys are:
+<Ctrl><Alt><F>    toggle fullscreen mode in X
+<Ctrl><Alt><K>    grab the keyboard in X
+<Ctrl><Alt><Home> grab the mouse in X
+<Ctrl><Alt><Del>  reboot
+<Ctrl><^>         use special keys on terminals (dosemu -t)
 
 For DOS applications which only read/write from/to STDIN/STDOUT,
 you may prefer to invoke DOSEMU such as
@@ -78,8 +90,7 @@ up in your xterm scroll buffer and (B) you can redirect it to a file such as
 
   $ ./dosemu -dumb dir > listing
 
-Note that DOSEMU command.com's commandline editor/history will also work
-here, however, editing is restricted to BACKSPACE'ing.
+Note that that editing is often restricted to BACKSPACE'ing.
 
 SOURCES
 -------

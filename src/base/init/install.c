@@ -147,7 +147,7 @@ static char proprietary_notice[] =
 "%s/drive_z on drive D:. You might want to use different\n"
 "config.sys and autoexec.bat files with your DOS. For example, you can try\n"
 "to copy D:\\config.emu and D:\\autoemu.bat to C:\\, adjust them, and use the\n"
-"the $_emusys option in ~/.dosemurc.\n";
+"$_emusys option in ~/.dosemurc.\n";
 
 static void install_proprietary(char *proprietary, int warning)
 {

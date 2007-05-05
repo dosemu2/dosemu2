@@ -40,12 +40,255 @@ created to deal with the lack of DOSEMU documentation.
 <title>Introduction</title>
 
 <para>
+You can start DOSEMU using
+
+<screen>
+ $ dosemu
+</screen>
+
+If you have never used DOSEMU before, and FreeDOS is present, then
+DOSEMU will boot, and present you with a welcome screen and a C:\&gt;
+command prompt.
+</para>
+
+<para>
+If for some reason it does not start, or DOSEMU crashes somewhere,
+look at ~/.dosemu/boot.log for details.
+</para>
+
+<para>
+Remember, that you can't use <keycap>&lt;Ctrl&gt;-C</keycap>
+<emphasis>within</emphasis> DOS to exit <emphasis>from</emphasis> DOS.
+For this you need to execute <command>exitemu</command>
+or, when using the 'DOS in a BOX' <keycap>&lt;Ctrl&gt;&lt;Alt&gt;&lt;PgDn&gt;
+</keycap>.
+</para>
+
+<para>
+Your DOS drives are set up as follows:
+<screen>
+ A: floppy drive (if it exists)
+ C: points to the Linux directory ~/.dosemu/drive_c. It contains the
+    files config.sys, autoexec.bat and a directory for temporary files.
+    It is available for general DOS use.
+ D: points to your Linux home directory
+ E: points to your CD-ROM drive, if it is mounted at /media/cdrom
+ Z: points to the read-only DOSEMU and FreeDOS commands directory
+    It actually points to ~/mydos/dosemu/drive_z; it appears read-only
+    inside DOSEMU.
+</screen>
+</para>
+
+<para>
+You can use the <command>LREDIR</command> DOSEMU command to adjust
+these settings, or edit
+/etc/dosemu/dosemu.conf, ~/.dosemurc, c:\config.sys, or c:\autoexec.bat,
+or change the symbolic links in ~/.dosemu/drives.
+</para>
+
+<para>
+Enter HELP for more information on DOS and DOSEMU commands.
+Note that FreeDOS COMMAND.COM <command>DIR</command> command shows long
+file names if you type <command>DIR/LFN</command>.
+</para>
+
+<para>
+Other useful keys are:
+<screen>
+&lt;Ctrl&gt;&lt;Alt&gt;&lt;F&gt;    toggle full-screen mode in X
+&lt;Ctrl&gt;&lt;Alt&gt;&lt;K&gt;    grab the keyboard in X
+&lt;Ctrl&gt;&lt;Alt&gt;&lt;Home&gt; grab the mouse in X
+&lt;Ctrl&gt;&lt;Alt&gt;&lt;Del&gt;  reboot
+&lt;Ctrl&gt;&lt;^&gt;         use special keys on terminals (dosemu -t)
+</screen>
+</para>
+
+<sect2>
+<title>DOSEMU modes of operation</title>
+
+<para>
+There exist various ways of starting DOSEMU, depending on the environment
+and certain command line options. By default, in X, it will start using
+a special 'DOS in a Box' which provides a usual PC setup, using a 80x25
+text mode. It also supports graphics. The box can be rescaled by dragging
+the window borders using the mouse.
+</para>
+
+<para>
+However, in certain situation you may want to use a different mode.
+</para>
+
+<sect3>
+<title>Terminal mode</title>
+
+<para>
+Terminal mode is automatically entered if you do not have X available, for
+instance when logging in remotely from a Windows system or at the Linux
+console. You can force it using:
+
+<screen>
+  $ dosemu -t
+</screen>
+
+In this mode the display of graphics is impossible, but you can use
+full-screen DOS text mode applications. It is advisable to give the
+terminal window a size of 80 by 25 characters, or use "stty cols 80 rows 25"
+on the Linux console, before starting it because many DOS applications
+are confused about other sizes.
+</para>
+
+<para>
+You can use the $_internal_char_set option in ~/.dosemurc or dosemu.conf
+to change the code page that DOSEMU thinks that DOS is using.
+</para>
+
+<para>
+Many terminals do not support various function key combinations. On the
+Linux console you can work around that by using the raw keyboard mode
+(-k flag, or $_rawkeyboard). <command>xterm</command>'s support many
+key combinations. In
+other cases you'll have to work around it using the special
+<keycap>Ctrl-^</keycap> shortcut
+(<keycap>Ctrl-6</keycap> on US keyboards). Press <keycap>Ctrl-^ h</keycap>
+for help.
+</para>
+
+</sect3>
+
+<sect3>
+<title>Dumb mode</title>
+
+<para>
+For DOS applications that only read from standard input and write to
+standard output, without any full-screen usage, you can use dumb
+mode. To use this you must invoke DOSEMU like
+
+<screen>
+  $ dosemu -dumb
+</screen>
+
+this has the advantage that (A) the output of the DOS application stacks
+up in your scroll buffer and (B) you can redirect it to a file such as
+
+<screen>
+  $ dosemu -dumb dir > listing
+</screen>
+
+Note that editing is often restricted to BACKSPACE'ing.
+</para>
+
+</sect3>
+<sect3>
+<title>SDL mode</title>
+
+<para>
+You can start dosemu with the "-S" option to use the SDL library. In
+X it will just look like a regular DOS in a Box but with a different
+shaped text mode mouse cursor. You can also use this mode on frame buffer
+consoles.
+</para>
+
+</sect3>
+
+<sect3>
+<title>Console graphics mode</title>
+
+<para>
+Console graphics mode is the hardest to setup and may potentially lock
+up your system, but if it works it gives you direct VGA hardware access
+which may be quicker and more accurate than the emulation used in X.
+</para>
+
+<para>
+You need root rights to use it. To enable it, it is recommended to use
+"sudo":
+
+<itemizedlist>
+<listitem><para>
+install <command>sudo</command> if you haven't already done so
+</para></listitem><listitem><para>
+use <command>visudo</command> as root to add entries such as
+<screen>
+    joeuser   hostname=(root) PASSWD: /usr/local/bin/dosemu.bin
+</screen>
+to your /etc/sudoers file, where "joeuser" is the user who is
+allowed to run privileged DOSEMU and "hostname" is the name of
+your current host (use "ALL" for any host).
+</para></listitem><listitem><para>
+if you change PASSWD to NOPASSWD then joeuser does not need to type
+the user's password (not root's password) when invoking DOSEMU
+(a little less secure, if somebody hacks into joeuser's account).
+</para></listitem><listitem><para>
+now invoke DOSEMU using <command>dosemu -s</command>
+</listitem></itemizedlist>
+</para>
+
+</sect3>
+</sect2>
+
+<sect2>
+<title>Running a DOS program directly from Linux.</title>
+
+<para>
+You can use something like
+<screen>
+       dosemu "/home/clarence/games/commander keen/keen1.exe"
+</screen>
+which will automatically cause the DOS in DOSEMU to
+<itemizedlist><listitem><para>
+     "cd" to the correct directory,
+</para></listitem><listitem><para>
+     execute the program automagically,
+</para></listitem><listitem><para>
+     and quit DOSEMU when finished.
+</para></listitem></itemizedlist>
+</para>
+</sect2>
+
+<sect2>
+<title>Using a different DOS</title>
+<para>
+It is possible to use a different DOS than the supplied FreeDOS in
+DOSEMU. A straightforward way is to just copy the relevant system
+files (io.sys, msdos.sys, etc.) to ~/.dosemu/drive_c, and then the
+next time you run dosemu it will automatically use them. You may
+need to edit config.sys and autoexec.bat though, if the DOS complains.
+</para>
+
+<para>
+Another way is to boot directly from a Linux mounted FAT partition,
+with Windows 9x or any DOS installed. You can change the C: drive
+to point to that by using <command>dosemu -i</command>.
+</para>
+
+<para>
+In that case the DOSEMU support commands are available on drive D: instead
+of drive Z:. You might want to use different config.sys and autoexec.bat
+files with your DOS. For example, you can try to copy D:\config.emu
+and D:\autoemu.bat to C:\, adjust them, and use the $_emusys option
+in ~/.dosemurc or dosemu.conf.
+</para>
+
+<para>
+Manual adjustment of the C: drive is also possible, by changing the
+~/.dosemu/drives/c symbolic link or by specifying it explicitly
+using the $_hdimage run-time option.
+</para>
+
+</sect2>
+
+<sect2>
+<title>About this document</title>
+<para>
+The rest of this document goes into more detail about all the different
+settings and possibilities.
 This documentation is derived from a number of smaller documents. This makes it
 easier for individuals to maintain the documentation relevant to their area of
 expertise. Previous attempts at documenting DOSEMU failed because the
 documentation on a large project like this quickly becomes too much for one
 person to handle.
 </para>
+</sect2>
 
 </sect1>
 
