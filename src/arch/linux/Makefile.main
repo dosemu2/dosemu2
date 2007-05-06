@@ -8,7 +8,6 @@
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 
-TMP = $(abs_top_builddir)/tmp
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
 
@@ -147,15 +146,7 @@ installnew: doslib
 	$(MAKE) install
 
 install:
-	rm -rf ../tmp
-	mkdir -p -m 0755 $(TMP)/dosemu
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
-	for i in `find $(SYS)/* -type f`; do \
-	  $(INSTALL) -m 0644 $$i $(TMP)/dosemu; \
-	done
-	cd $(SYS); for i in `find * -type l`; do \
-	  ln -sf generic.com $(TMP)/dosemu/$$i; \
-	done
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
@@ -186,10 +177,14 @@ install:
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
 	fi
-	mkdir -p -m 0755 $(DESTDIR)$(dosemudir)/drive_z
-	cp -a $(TMP)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	for i in `find $(SYS)/* -type f`; do \
+	  $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/drive_z/dosemu; \
+	done
+	cd $(SYS); for i in `find * -type l`; do \
+	  ln -sf generic.com $(DESTDIR)$(dosemudir)/drive_z/dosemu/$$i; \
+	done
 	ln -sf drive_z/dosemu $(DESTDIR)$(dosemudir)/commands
-	rm -rf ../tmp
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.users.example $(DESTDIR)$(sysconfdir)/dosemu.users; \
@@ -219,11 +214,15 @@ endif
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	$(INSTALL) -m 0644 $(REALTOPDIR)/{README.bindist,NEWS,THANKS,COPYING,COPYING.DOSEMU} $(DESTDIR)$(docdir)
-	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
-	   $(REALTOPDIR)/doc/announce $(DESTDIR)$(docdir)
-	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{DANG,EMUfailure,NOVELL-HOWTO}.txt \
-	   $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
+	for i in README.bindist NEWS THANKS COPYING COPYING.DOSEMU; do \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
+	done
+	for i in README README-tech dosemu-HOWTO sound-usage DANG EMUfailure \
+	         NOVELL-HOWTO; do \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/doc/$$i.txt $(DESTDIR)$(docdir); \
+	done
+	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/announce $(DESTDIR)$(docdir)
+	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 ifdef X_SUPPORT
 	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
@@ -248,7 +247,6 @@ ifdef X_SUPPORT
 		fi; \
 	fi;
 endif
-	/bin/rm -rf ../tmp
 	$(MAKE) -C ../man install
 	@if test $(sysconfdir) != /etc; then \
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \

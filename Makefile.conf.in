@@ -7,14 +7,13 @@
 #
 # This file is included by all Makefiles
 
-SHELL = /bin/bash
-
 DOSBIN = dosemu.bin
 
 prefix:=@prefix@
 bindir:=@bindir@
 sysconfdir:=@sysconfdir@
 libdir:=@libdir@
+datarootdir:=@datarootdir@
 datadir:=@datadir@
 mandir:=@mandir@
 docdir:=@docdir@
@@ -23,8 +22,9 @@ x11fontdir:=@x11fontdir@
 fdtarball:=@fdtarball@
 abs_top_srcdir:=@abs_top_srcdir@
 ifeq (0,${MAKELEVEL})
-    export abs_top_builddir:=$(shell cd $(top_builddir) && pwd -P)
-    SUBDIR := $(subst $(abs_top_builddir)/src/,,$(shell pwd -P))
+    SUBDIR := $(subst $(shell cd $(top_builddir) && pwd)/src/,,$(shell pwd))
+    # don't use built-in rules and variables for faster builds
+    MAKEFLAGS += -rR
 endif
 PACKAGE_VERSION:=@PACKAGE_VERSION@
 RELEASE_DATE:=@RELEASE_DATE@
@@ -37,11 +37,16 @@ ifeq ("$(wildcard $(top_builddir)/*.ac)","$(top_builddir)/configure.ac")
   srcdir:=.
 else
   top_srcdir:=$(abs_top_srcdir)
-  srcdir:=$(abs_top_srcdir)$(subst $(abs_top_builddir),,$(shell pwd -P))
+  ifeq ("$(top_builddir)",".")
+    srcdir:=$(abs_top_srcdir)
+  else
+    srcdir:=$(abs_top_srcdir)/src/$(SUBDIR)
+  endif
   INCDIR += -I${top_srcdir}/src/include 
 endif
 
 CFLAGS:=@CFLAGS@
+ASFLAGS:=
 CPPFLAGS:=@CPPFLAGS@ ${INCDIR}
 X_CPPFLAGS:=@X_CFLAGS@
 SLANGINC:=@SLANGINC@

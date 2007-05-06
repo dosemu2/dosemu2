@@ -12,6 +12,7 @@ all: default configure src/include/config.h.in
 
 srcdir=.
 top_builddir=.
+SUBDIR:=.
 -include Makefile.conf
 
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
@@ -22,22 +23,22 @@ default clean realclean install: config.status
 	@$(MAKE) -C src $@
 
 dosbin:
-	@$(MAKE) -C src/commands dosbin
+	@$(MAKE) SUBDIR:=commands -C src/commands dosbin
 
 docs:
-	@$(MAKE) -C src/doc all
+	@$(MAKE) SUBDIR:=doc -C src/doc all
 
 docsinstall:
-	@$(MAKE) -C src/doc install
+	@$(MAKE) SUBDIR:=doc -C src/doc install
 
 docsclean:
-	@$(MAKE) -C src/doc clean
+	@$(MAKE) SUBDIR:=doc -C src/doc clean
 
 midid:
-	@$(MAKE) -C src/arch/linux/dosext/sound/midid
+	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid
 
 mididclean:
-	@$(MAKE) -C src/arch/linux/dosext/sound/midid cleanall
+	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid cleanall
 
 dosemu_script:
 	@$(MAKE) -C src dosemu_script

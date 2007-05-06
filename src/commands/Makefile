@@ -41,7 +41,7 @@ OBJS=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))
 #
 #CALLDOS=dos -D-a 2>/dev/null
 CALLDOS=../../bin/$(DOSBIN) -D-a 2>/dev/null
-COMMANDDIR=$(shell pwd -P)
+COMMANDDIR=$(shell pwd)
 BOOTUP=\P2;2\rn
 GOTARGET=lredir k: linux\\fs$(COMMANDDIR)\rk:\r
 DOSINVOKE='video {none} keystroke "$(BOOTUP)$(GOTARGET)COMMAND\rexitemu\r"'
@@ -53,8 +53,7 @@ all: $(COM2) $(SYS)
 
 dosbin: $(COM1) $(COM2) $(SYS)
 
-%.o: %.S
-	$(CC) $(CPPFLAGS) -traditional -Wa,-a -c -o $@ $< > $*.s.out
+ASFLAGS += -traditional -Wa,-a > $*.s.out
 
 $(D)/%.sys: %.o
 	$(LD) -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
