@@ -482,9 +482,6 @@ else
   AC_MSG_NOTICE(Compiling without plug-ins...)
 fi
 
-dnl Setup to run plugin configure scripts
-AC_CONFIG_SUBDIRS(`touch ./plugin_configure; cat ./plugin_configure`)
-
 dnl Do compilation for GDB
  AC_ARG_ENABLE(debug,
                [  --enable-debug          compile with debug info])
@@ -910,6 +907,24 @@ EXTERN char *dosemu_map_file_name INIT(0);
 ])
 
 AC_OUTPUT
+
+dnl Run plugin configure scripts
+dnl AC_CONFIG_SUBDIRS requires literal which doesn't work too well
+dnl with our approach
+#AC_CONFIG_SUBDIRS(`touch ./plugin_configure; cat ./plugin_configure`)
+for i in `touch ./plugin_configure; cat ./plugin_configure`; do
+  popdir=`pwd`
+  if test -f ../configure.ac; then
+    abs_i=$i
+  else
+    abs_i=`cd $srcdir && pwd`/$i
+  fi
+  cd $i
+  echo "=== configuring in $i"
+  echo "Running $SHELL $abs_i/configure ..."
+  $SHELL $abs_i/configure
+  cd $popdir
+done
 
 dnl Print some warnings (if neccessary)
 
