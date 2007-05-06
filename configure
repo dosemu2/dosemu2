@@ -8869,7 +8869,8 @@ echo "$as_me: Including plugins: $PLUGINSUBDIRS..." >&6;};
             ln -sf ../../$j plugin/include/`basename $j`
           done
         else
-          for j in $srcdir/src/$i/*.h; do
+	  abssrcdir=`cd .. && cd $srcdir && pwd`
+          for j in $abssrcdir/src/$i/*.h; do
             ln -sf $j plugin/include/`basename $j`
           done
         fi
@@ -10457,10 +10458,11 @@ echo "$as_me: executing $ac_file commands" >&6;}
 
   case $ac_file$ac_mode in
     "Makefile":C)  if ! test -f configure.ac; then
-    mkdir -p `(cd $srcdir; find . -type d)`
-    for i in `(cd $srcdir; find . -name Makefile)`; do
-      echo  ln -sf $srcdir/$i $i
-      ln -sf $srcdir/$i $i
+    abssrcdir=`cd $srcdir && pwd`
+    mkdir -p `(cd $abssrcdir; find . -name .svn -prune -o -name CVS -prune -o -type d -print)`
+    for i in `(cd $abssrcdir; find . -name Makefile)`; do
+      echo  ln -sf $abssrcdir/$i $i
+      ln -sf $abssrcdir/$i $i
     done
   fi
  ;;

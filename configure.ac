@@ -467,7 +467,8 @@ if test -x $srcdir/mkpluginhooks; then
             ln -sf ../../$j plugin/include/`basename $j`
           done
         else
-          for j in $srcdir/src/$i/*.h; do
+	  abssrcdir=`cd .. && cd $srcdir && pwd`
+          for j in $abssrcdir/src/$i/*.h; do
             ln -sf $j plugin/include/`basename $j`
           done 
         fi
@@ -706,10 +707,11 @@ AC_CONFIG_FILES([Makefile.conf dosemu.spec])
 
 AC_CONFIG_COMMANDS([Makefile], 
 [ if ! test -f configure.ac; then 
-    mkdir -p `(cd $srcdir; find . -type d)`
-    for i in `(cd $srcdir; find . -name Makefile)`; do
-      echo  ln -sf $srcdir/$i $i
-      ln -sf $srcdir/$i $i
+    abssrcdir=`cd $srcdir && pwd`
+    mkdir -p `(cd $abssrcdir; find . -name .svn -prune -o -name CVS -prune -o -type d -print)`
+    for i in `(cd $abssrcdir; find . -name Makefile)`; do
+      echo  ln -sf $abssrcdir/$i $i
+      ln -sf $abssrcdir/$i $i
     done
   fi
 ])
