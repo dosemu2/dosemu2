@@ -1497,9 +1497,155 @@ int int10(void) /* with dualmon */
       break;
 
 
-    case 0x1c:		/* save/restore video state */
-      i10_msg("save/restore: NOT IMPLEMETED\n");
+    case 0x1c:	{	/* save/restore video state */
+      unsigned base = _BX;
+      if (LO(ax) > 2)
+	break;
+      switch(LO(ax)) {
+      case 0: {
+	unsigned size = 0;
+	i10_msg("save/restore: return state buffer size\n");
+	if (LO(cx) & 1) {
+	  /* video hardware */
+	  size += 0x46;
+	}
+	if (LO(cx) & 2) {
+	  /* BIOS */
+	  size += 96;
+	}
+	if (LO(cx) & 4) {
+	  /* DAC */
+	  size += 0x304;
+	}
+	LWORD(ebx) = (size + 63)/64;
+	break;
+      }
+      case 1:
+	if (LO(cx) & 1) {
+	  unsigned char buf[0x46];
+	  unsigned crtc, ind;
+
+	  /* select crtc base address */
+	  crtc = (inb(MISC_OUTPUT_R) & 1) ? 0x3d4 : 0x3b4;
+
+	  buf[0x0] = port_inb(SEQUENCER_INDEX);
+	  buf[0x1] = port_inb(crtc);
+	  buf[0x2] = port_inb(GFX_INDEX);
+	  /* feature control */
+	  buf[0x4] = port_inb(FEATURE_CONTROL_R);
+
+	  for (ind = 1; ind < 5; ind++) {
+	    port_outb(SEQUENCER_INDEX, ind);
+	    buf[0x4+ind] = port_inb(SEQUENCER_DATA);
+	  }
+	  port_outb(SEQUENCER_INDEX, 0);
+	  buf[0x9] = port_inb(SEQUENCER_DATA);
+
+	  for (ind = 0; ind < 25; ind++) {
+	    port_outb(crtc, ind);
+	    buf[0x0a+ind] = port_inb(crtc + 1);
+	  }
+
+	  /* reset flipflop ! */
+	  port_inb(crtc + 0x6);
+	  buf[0x3] = port_inb(ATTRIBUTE_INDEX);
+	  for (ind = 0; ind < 20; ind++) {
+	    port_inb(crtc + 0x6);
+	    port_outb(ATTRIBUTE_INDEX, ind);
+	    buf[0x23 + ind] = port_inb(ATTRIBUTE_DATA);
+	  }
+	  port_inb(crtc + 0x6);
+	  port_outb(ATTRIBUTE_INDEX, buf[0x3]);
+	  port_inb(crtc + 0x6);
+
+	  for (ind = 0; ind < 9; ind++) {
+	    port_outb(GFX_INDEX, ind);
+	    buf[0x37+ind] = port_inb(GFX_DATA);
+	  }
+
+	  buf[0x40] = crtc & 0xff;
+	  buf[0x41] = crtc >> 8;
+	  /* VGA latches */
+	  memcpy(&buf[0x42], vga.latch, 4);
+	  MEMCPY_2DOS(MK_FP32(_ES, base), buf, sizeof(buf));
+	  base += sizeof(buf);
+	}
+	if (LO(cx) & 2) {
+	  MEMCPY_DOS2DOS(MK_FP32(_ES, base), (char *)0x449, 96);
+	  base += 96;
+	}
+	if (LO(cx) & 4) {
+	  unsigned char buf[0x304];
+	  unsigned ind;
+	  buf[0] = port_inb(DAC_STATE);
+	  buf[1] = port_inb(DAC_WRITE_INDEX);
+	  buf[2] = port_inb(DAC_PEL_MASK);
+	  port_outb(DAC_READ_INDEX, 0x00);
+	  for(ind = 0; ind < 768; ind++)
+	    buf[0x3 + ind] = port_inb(DAC_DATA);
+	  buf[0x303] = port_inb(COLOR_SELECT);
+
+	  MEMCPY_2DOS(MK_FP32(_ES, base), buf, sizeof(buf));
+	}
+	break;
+      case 2:
+	if (LO(cx) & 1) {
+	  unsigned char buf[0x46];
+	  unsigned crtc, ind;
+	  MEMCPY_2UNIX(buf, MK_FP32(_ES, base), sizeof(buf));
+	  base += sizeof(buf);
+	  crtc = buf[0x40] | (buf[0x41] << 8);
+	  for (ind = 1; ind < 5; ind++)
+	    port_outw(SEQUENCER_INDEX, ind | (buf[0x04+ind] << 8));
+	  port_outw(SEQUENCER_INDEX, buf[0x09] << 8);
+	  /* disable write protection to index 0-7 */
+	  port_outw(crtc, 0x0011);
+	  for (ind = 0; ind < 25; ind++)
+	    port_outw(crtc, ind | (buf[0x0a+ind] << 8));
+	  /* select crtc base address */
+	  outb(MISC_OUTPUT_W, (inb(MISC_OUTPUT_R) & ~0x01) | (crtc == 0x3d4));
+	  /* reset flipflop ! */
+	  port_inb(crtc + 0x6);
+	  for (ind = 0; ind < 20; ind++) {
+	    port_outb(ATTRIBUTE_INDEX, ind);
+	    port_outb(ATTRIBUTE_INDEX, buf[0x23+ind]);
+	  }
+	  port_outb(ATTRIBUTE_INDEX, buf[0x3]);
+	  port_inb(crtc + 0x6);
+	  for (ind = 0; ind < 9; ind++)
+	    port_outw(GFX_INDEX, ind | (buf[0x37+ind] << 8));
+
+	  port_outb(SEQUENCER_INDEX, buf[0x0]);
+	  port_outb(crtc, buf[0x1]);
+	  port_outb(GFX_INDEX, buf[0x2]);
+	  /* feature control */
+	  port_outb(crtc + 0x6, buf[0x4]);
+	  /* VGA latches */
+	  memcpy(vga.latch, &buf[0x42], 4);
+	}
+	if (LO(cx) & 2) {
+	  MEMCPY_DOS2DOS((char *)0x449, MK_FP32(_ES, _BX), 96);
+	  base += 96;
+	}
+	if (LO(cx) & 4) {
+	  unsigned char buf[0x304];
+	  unsigned ind;
+	  MEMCPY_2UNIX(buf, MK_FP32(_ES, base), sizeof(buf));
+	  port_outb(DAC_PEL_MASK, buf[2]);
+	  port_outb(DAC_WRITE_INDEX, 0x00);
+	  for(ind = 0; ind < 768; ind++)
+	    port_outb(DAC_DATA, buf[0x3 + ind]);
+	  port_outb(COLOR_SELECT, buf[0x303]);
+	  if (buf[0] & 3)
+	    port_outb(DAC_READ_INDEX, buf[1]);
+	  else
+	    port_outb(DAC_WRITE_INDEX, buf[1]);
+	}
+	break;
+      }
+      LO(ax) = 0x1c;
       break;
+    }
 
 
     case 0x4f:		/* vesa interrupt */
