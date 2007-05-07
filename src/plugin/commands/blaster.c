@@ -20,19 +20,19 @@ int blaster_main(int argc, char **argv) {
 		char tmpbuf[30];
 		char blaster[255];
 
-		com_printf("Sound is enabled.\n");
+		com_printf("Sound on: ");
 
-		com_printf("SB DSP at 0x%x-0x%x, IRQ=%d, DMA8=%d", config.sb_base,
+		com_printf("SB at 0x%x-0x%x, IRQ=%d, DMA8=%d", config.sb_base,
 				config.sb_base+15, config.sb_irq, config.sb_dma);
 		if (config.sb_hdma) {
 			com_printf(", DMA16=%d", config.sb_hdma);
 		}
-		com_printf("\n");
 
 		if (config.mpu401_base) {
-			com_printf("MPU-401 interface at 0x%x-0x%x\n",
+			com_printf(". MPU-401 at 0x%x-0x%x",
 					config.mpu401_base, config.mpu401_base+1);
 		}
+		com_printf(".\n");
 
 		snprintf(blaster, sizeof(blaster), "A%x I%d D%d H%d", config.sb_base,
 				config.sb_irq, config.sb_dma,
@@ -57,8 +57,6 @@ int blaster_main(int argc, char **argv) {
 		if (msetenv("MIDI", blaster) == -1) {
 			com_printf("Environment too small for MIDI! (needed %zu bytes)\n", strlen(blaster));
 		}
-
-		com_printf("\n");
 	}
 	else {
 		com_printf("Sound not enabled in config!\n");

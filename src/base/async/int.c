@@ -266,17 +266,16 @@ int dos_helper(void)
       install_dos(1);
     if (!config.dosbanner)
       break;
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $" "Date: " VERDATE "$\n");
-    p_dos_str("Last configured at %s on %s\n", CONFIG_TIME, CONFIG_HOST);
-#if 1 
+    p_dos_str("\n\nDOSEMU " VERSTR ", released: " VERDATE ", configured: " CONFIG_TIME "\n");
+#if 0
+    if (config.dpmi)
+      p_dos_str("DPMI-Server Version 0.9 installed");
     p_dos_str("This is work in progress.\n");
+#endif
     p_dos_str("Please test against a recent version before reporting bugs and problems.\n");
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
-    p_dos_str("Submit Bug Reports, Patches & New Code to linux-msdos@vger.kernel.org or via\n");
-    p_dos_str("the SourceForge tracking system at http://www.sourceforge.net/projects/dosemu\n\n");
-#endif
-    if (config.dpmi)
-      p_dos_str("DPMI-Server Version 0.9 installed\n\n");
+    p_dos_str("Submit Bugs & Patches to linux-msdos@vger.kernel.org or via ");
+    p_dos_str("http://dosemu.org.\n");
     break;
 
    case DOS_HELPER_INSERT_INTO_KEYBUFFER:

@@ -7,6 +7,7 @@ blaster
 prompt $P$G
 unix -s DOSDRIVE_D
 if "%DOSDRIVE_D%" == "" goto nodrived
+lredir del d: > nul
 lredir d: linux\fs%DOSDRIVE_D%
 :nodrived
 rem uncomment to load another bitmap font
