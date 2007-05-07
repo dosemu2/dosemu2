@@ -249,8 +249,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 			addChar(src0);
 			unc_src++;
 		} while (src0);
-		((far_t *)&sda[sda_cds_off])->offset = 0xFFFF;
-		((far_t *)&sda[sda_cds_off])->segment = 0xFFFF;
+		WRITE_DWORD(&sda[sda_cds_off], 0xFFFFFFFF);
 		d_printf("Returning path: \"%s\"\n", dest);
 		/* Flag as network - drive bits are empty but shouldn't get */
 		/* referenced for network with empty current_ldt.	    */
@@ -290,8 +289,8 @@ static int truename(char *dest, const char *src, int allowwildcards)
 
 	d_printf("CDS entry: #%u @%p (%u) '%s'\n", result, cds,
 		   cds_rootlen(cds), cds_current_path(cds));
-	((far_t *)&sda[sda_cds_off])->offset = 
-		lol_cdsfarptr(lol).offset + result * cds_record_size;
+	WRITE_WORD(&sda[sda_cds_off],
+		   lol_cdsfarptr(lol).offset + result * cds_record_size);
  
 	dest[0] = (result & 0x1f) + 'A';
 	dest[1] = ':';
@@ -468,9 +467,9 @@ static int truename(char *dest, const char *src, int allowwildcards)
 					strcpy(dest + 2, dest + j);
 				}
 				result = (result & 0xffe0) | i;
-				((far_t *)&sda[sda_cds_off])->offset = 
-					lol_cdsfarptr(lol).offset +
-					(cdsp - cds_base);
+				WRITE_WORD(&sda[sda_cds_off],
+					   lol_cdsfarptr(lol).offset +
+					   (cdsp - cds_base));
 				d_printf("JOINed path: \"%s\"\n", dest);
 				return result;
 			}
@@ -495,7 +494,8 @@ static inline int build_ufs_path(char *ufs, const char *path, int drive)
 
 static int lfn_error(int errorcode)
 {
-	_AX = sda_error_code(sda) = errorcode;
+	_AX = errorcode;
+	WRITE_WORD(&sda_error_code(sda), errorcode);
 	CARRY;
 	return 1;
 }
