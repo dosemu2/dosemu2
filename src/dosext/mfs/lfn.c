@@ -1050,7 +1050,8 @@ static int mfs_lfn_(void)
 
 		if (_CL == 1 || _CL == 2) {
 			build_ufs_path(fpath, filename, drive);
-			find_file(fpath, &st, drive);
+			if (!find_file(fpath, &st, drive))
+				return lfn_error(FILE_NOT_FOUND);
 			make_unmake_dos_mangled_path(filename, fpath, drive, 2 - _CL);
 		} else {
 			strupperDOS(filename);
