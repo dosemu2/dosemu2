@@ -608,6 +608,12 @@ int get_unix_attr(int mode, int attr)
 #if 0
 #define S_IWRITEA (S_IWUSR | S_IWGRP | S_IWOTH)
 #endif
+  /* Do not make directories read-only as this has completely different
+     semantics in DOS (mostly ignore) than in Unix.
+     Also do not reflect the archive bit as clearing the x bit as that
+     can cause inaccessible directories */
+  if (S_ISDIR(mode) || (attr & DIRECTORY))
+    attr &= DIRECTORY;
   mode &= ~(S_IFDIR | S_IWRITE | S_IEXEC);
   if (attr & DIRECTORY)
     mode |= S_IFDIR;
