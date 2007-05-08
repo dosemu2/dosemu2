@@ -2519,6 +2519,7 @@ void setup_default_keytable()
   }
 
   idx = 1;
+#ifdef X_SUPPORT
   handle = load_plugin("X");
 #ifdef USE_DL_PLUGINS
   if (handle) {
@@ -2528,8 +2529,9 @@ void setup_default_keytable()
       idx = X11_DetectLayout();
     dlclose(handle);
   }
-#elif defined(X_SUPPORT)
+#else
   idx = X11_DetectLayout();
+#endif
 #endif
   if (idx && kt->name == NULL) {
     error("Unable to open console or check with X to evaluate the keyboard "
