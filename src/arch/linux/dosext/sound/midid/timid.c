@@ -26,6 +26,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+/* declare this here to avoid warnings from soundcard.h */
+static void timid_seqbuf_dump(void);
+
 #define seqbuf_dump timid_seqbuf_dump
 #define _seqbuf timid_seqbuf
 #define _seqbufptr timid_seqbufptr
@@ -40,8 +43,6 @@ static struct sockaddr_in ctrl_adr, data_adr;
 #define SEQ_META 0x7f
 #define SEQ_END_OF_MIDI 0x2f
 #define SEQ_SYNC 0x02
-
-void timid_seqbuf_dump(void);
 
 static void timid_sync_timidity(void)
 {
@@ -353,7 +354,7 @@ static void timid_pause(void)
   fprintf(stderr, "\tPaused\n");
 }
 
-void seqbuf_dump(void)
+static void timid_seqbuf_dump(void)
 {
   if (_seqbufptr)
     send(data_sock, _seqbuf, _seqbufptr, 0);

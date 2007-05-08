@@ -18,6 +18,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+/* declare this here to avoid warnings from soundcard.h */
+static void oss_seqbuf_dump(void);
+
 #define seqbuf_dump oss_seqbuf_dump
 #define _seqbuf oss_seqbuf
 #define _seqbufptr oss_seqbufptr
@@ -28,8 +31,6 @@
 #define SEQUENCER_DEV   "/dev/sequencer"  /* Used device */
 
 static int seqfd;  /* Sequencer file handle */
-
-void oss_seqbuf_dump(void);
 
 static bool oss_detect(void)
 {
@@ -52,7 +53,7 @@ static void oss_done(void)
   seqfd = -1;
 }
 
-void oss_seqbuf_dump(void)
+static void oss_seqbuf_dump(void)
 {
   if (_seqbufptr) {
     if (write(seqfd, _seqbuf, _seqbufptr) == -1) {

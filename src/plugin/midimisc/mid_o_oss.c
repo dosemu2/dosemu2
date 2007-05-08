@@ -29,14 +29,15 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+/* declare this here to avoid warnings from soundcard.h */
+static void seqbuf_dump(void);
 #include <sys/soundcard.h>
 SEQ_DEFINEBUF(128);
-void seqbuf_dump(void);
 
 static int seq_fd = -1;
 static const char *midooss_name = "MIDI Output: OSS sequencer";
 
-void seqbuf_dump(void)
+static void seqbuf_dump(void)
 {
     if (_seqbufptr) {
 	if (seq_fd != -1)
