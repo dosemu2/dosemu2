@@ -349,6 +349,21 @@ void init_handler(struct sigcontext_struct *scp)
     _fs = getsegment(fs);
     _gs = getsegment(gs);
   }
+
+  if (config.cpuemu > 3) {
+    _cs = getsegment(cs);
+  } else if (_cs == 0) {
+    if (config.dpmi) {
+      fprintf(stderr, "Cannot run DPMI code natively ");
+      if (kernel_version_code < 0x20600 + 15)
+	fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
+      else
+	fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
+      fprintf(stderr, "Set $_cpu_emu=\"full\" or \"fullsim\" to avoid this message.\n");
+    }
+    config.cpuemu = 4;
+    _cs = getsegment(cs);
+  }
 #endif
 
   if (in_vm86) {

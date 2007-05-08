@@ -325,6 +325,8 @@ emulate(int argc, char **argv)
     srand(time(NULL));
     memset(&config, 0, sizeof(config));
     cstack = &signalstack;
+    /* zero signal stack to check for %cs x86-64 kernel <= 2.6.14 problem */
+    memset(signalstack, 0, sizeof(signalstack));
 
     if ((e=sigsetjmp(NotJEnv, 1))) {
         flush_log();
