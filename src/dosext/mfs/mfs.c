@@ -2908,23 +2908,18 @@ static void open_device(unsigned long devptr, char *fname, sft_t sft)
   sft_position(sft) = 0;
 }
 
-/* In writable Linux directories it is possible to have uids not equal
+/* In any Linux directory it is possible to have uids not equal
    to your own one. In that case Linux denies any chmod or utime,
    but DOS really expects any attribute/time set to succeed. We'll fake it
-   with a warning */
+   with a warning, if the file is writable. */
 static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal)
 {
-  char *slash;
   if (errno != EPERM)
     return FALSE;
 
-  slash = strrchr(fpath, '/');
-  if (slash) *slash = '\0';
-  if (slash == fpath)
-    fpath = "/";
+  /* file not writable? */
   if (access(fpath, W_OK) != 0)
     return FALSE;
-  if (slash) *slash = '/';
 
   /* no need to warn if there was nothing to do */
   if (equal)
