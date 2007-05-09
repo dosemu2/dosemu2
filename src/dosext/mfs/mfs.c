@@ -173,6 +173,7 @@ TODO:
 #include <stdlib.h>
 #include <utime.h>
 #include <wchar.h>
+#include <sys/mman.h>
 
 #if !DOSEMU
 #include <mach/message.h>
@@ -1416,10 +1417,7 @@ struct mfs_dir *dos_opendir(const char *name)
     fd = open(name, O_RDONLY|O_DIRECTORY);
     if (fd == -1)
       return NULL;
-    de[0].d_name[1] = '.';
-    if (ioctl(fd, vfat_ioctl, (long)&de) != -1 &&
-	/* Bug in kernels <= 2.6.21.1 (ioctl32 on x86-64) */
-	de[0].d_name[1] == '\0') {
+    if (ioctl(fd, vfat_ioctl, (long)&de) != -1) {
       lseek(fd, 0, SEEK_SET);
     } else {
       close(fd);
@@ -1450,11 +1448,28 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 	return NULL;
       dir->de.d_name = dir->de.d_long_name = de->d_name;
     } else {
-      static struct kernel_dirent de[2];
-      int ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)&de));
+      static struct kernel_dirent *de;
+      int ret;
+
+      if (de == NULL) {
+	/* work around kernel 32-bit on x86-64 compat ioctl FAT bug in Linux
+	   <= 2.6.21.1: put a barrier so that the kernel can't flood our
+	   memory with random kernel stack garbage.
+	   Thanks to Wine for this idea.
+	*/
+	size_t pagesize = sysconf(_SC_PAGESIZE);
+	de = mmap(0, 2*pagesize, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	if (de == MAP_FAILED)
+	  return NULL;
+	if (mprotect(de, pagesize, PROT_READ|PROT_WRITE) == -1)
+	  return NULL;
+      }
+      ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)de));
       if (ret == -1 || de[0].d_reclen == 0)
 	return NULL;
+      de[0].d_name[min((size_t)de[0].d_reclen, sizeof(de[0].d_name)-1)] = '\0';
       dir->de.d_name = de[0].d_name;
+      de[1].d_name[min((size_t)de[1].d_reclen, sizeof(de[1].d_name)-1)] = '\0';
       dir->de.d_long_name = de[1].d_name;
       if (dir->de.d_long_name[0] == '\0' ||
 	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
