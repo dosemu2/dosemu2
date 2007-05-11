@@ -3428,30 +3428,26 @@ int dpmi_fault(struct sigcontext_struct *scp)
   us *ssp;
   unsigned char *csp, *lina;
   int ret = 0;
-  int esp_fixed = 0;
   /* Note: in_dpmi/current_client can change within that finction. */
   int orig_client = current_client;
 #define ORIG_CTXP (current_client >= orig_client ? \
   &DPMIclient[orig_client].stack_frame : NULL)
 
-#if 1
-  /* Because of a CPU bug (see EMUFailures.txt:1.7.2), ESP can run to a
-   * kernel space, i.e. >= stack_init_top. Here we try to avoid that (also
-   * not letting it to go into dosemu stack, so comparing against
-   * stack_init_bot).
-   * This seem to help the ancient MS linker to work and avoids dosemu
-   * trying to access the kernel space (and crash).
-   */
-  if (_esp > stack_init_bot) {
-    if (debug_level('M') >= 5)
-      D_printf("DPMI: ESP bug, esp=%#x stack_bot=%#lx, cs32=%i ss32=%i\n",
-	_esp, stack_init_bot, Segments[_cs >> 3].is_32, Segments[_ss >> 3].is_32);
-    if (!Segments[_ss >> 3].is_32 || !Segments[_cs >> 3].is_32) {
-      _HWORD(esp) = 0;
-      esp_fixed = 1;
-    }
+  /* 32-bit ESP in 16-bit code on a 32-bit stack outside the limit...
+     this is so wrong that it can only happen inherited through a CPU bug
+     (see EMUFailures.txt:1.6.2) or if someone did it on purpose.
+     Happens with an ancient MS linker. Maybe fault again; ESP won't be
+     corrupted anymore after an IRET because the stack is 32-bits now.
+     Note: we used to check for kernel space bits in the high part of ESP
+     but that method is unreliable for 32-bit DOSEMU on x86-64 kernels.
+  */
+  if (_esp > 0xffff && !Segments[_cs >> 3].is_32 && Segments[_ss >> 3].is_32 &&
+      _esp > GetSegmentLimit(_ss)) {
+    D_printf("DPMI: ESP bug, esp=%#x, ebp=%#x, limit=%#lx\n",
+	     _esp, _ebp, GetSegmentLimit(_ss));
+    _esp &= 0xffff;
+    return ret;
   }
-#endif
 
   csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
   ssp = (us *) SEL_ADR(_ss, _esp);
@@ -4069,10 +4065,64 @@ int dpmi_fault(struct sigcontext_struct *scp)
   } /* _trapno==13 */
   else {
     if (_trapno == 0x0c) {
-      if (!Segments[_ss >> 3].is_32 && esp_fixed) {
+      if (Segments[_cs >> 3].is_32 && !Segments[_ss >> 3].is_32 &&
+	  _esp > 0xffff) {
+	unsigned char *p = csp;
+	unsigned int *regs[8] = { &_eax, &_ecx, &_edx, &_ebx,
+				  &_esp, &_ebp, &_esi, &_edi };
+	unsigned int *reg;
+        D_printf("DPMI: Stack Fault, ESP corrupted due to a CPU bug, "
+		 "trying to recover.\n");
+	/* There are a few ways to recover:
+	 * If the instruction was a normal push or a pop we wouldn't be here!
+	 * Assume a modr/m instruction
+	 * First decode what is the likely register that caused mayhem,
+	   this is not 100% correct but works for known cases.
+	   - Native 64-bit on __x86_64__:
+	     simply zero out high parts of the offending register and ESP
+	     and try again: the iret trampoline avoids recorruption.
+	   - 32-bit DOSEMU:
+	     If ESP did not cause the stack fault, then zero the high part
+	     of the other register and try again,
+	     else try to return to DOSEMU and retry via direct_dpmi_switch
+	     if the trap flag is not set, so it won't recorrupt ESP,
+	     else we're lost :(
+	     but then this won't happen on i386 kernels >= 2.6.12 :)
+	*/
+	if (*p == 0x66) p++; /* operand size override */
+	if (*p == 0x36) p++; /* ss: override */
+	if (*p == 0x66) p++; /* operand size override */
+	if (*p == 0x0f) p++; /* instruction shift */
+	p++; /* skip instruction, modr/m byte follows */
+	if ((*p & 7) == 4) p++; /* sib byte */
+	D_printf("DPMI: stack fault was caused by register %d\n", *p & 7);
+	reg = regs[*p & 7];
+	_esp &= 0xffff;
+#ifdef __x86_64__
+	if (*reg > 0xffff) {
+	  *reg &= 0xffff;
+	  return ret;
+	}
+#else
+	if (reg != &_esp) {
+	  if (*reg > 0xffff) {
+	    *reg &= 0xffff;
+	    return ret;
+	  }
+	}
+#if DIRECT_DPMI_CONTEXT_SWITCH
+	else {
+	  if (!(_eflags & TF)) {
+	    D_printf("DPMI: retrying via direct switch.\n");
+	    dpmi_return_request();
+	    return ret;
+	  }
+	}
+#endif
+#endif
         error("Stack Fault, ESP corrupted due to a CPU bug.\n"
 	      "For more details on that problem and possible work-arounds,\n"
-	      "please read EMUfailure.txt, section 1.7.2.\n");
+	      "please read EMUfailure.txt, section 1.6.2.\n");
 #if 0
 	_HWORD(ebp) = 0;
 	_HWORD(esp) = 0;

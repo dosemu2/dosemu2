@@ -458,7 +458,12 @@ int e_emu_fault(struct sigcontext_struct *scp)
          * bit 2 = 1	user mode
          * bit 3 = 0	no reserved bit err
          */
-	if (_cr2 > stack_init_bot) {
+#ifdef __x86_64__
+	if (_cr2 > 0xffffffff)
+#else
+	if (_cr2 > getregister(esp))
+#endif
+	{
 		error("Accessing reserved memory at %08lx\n"
 		      "\tMaybe a null segment register\n",_cr2);
 		goto verybad;

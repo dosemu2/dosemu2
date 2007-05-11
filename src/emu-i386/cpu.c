@@ -247,34 +247,11 @@ void cpu_reset(void)
  */
 void cpu_setup(void)
 {
-  unsigned long int stk_ptr, stk_beg, stk_end;
-  FILE *fp;
-  int fd;
-
   int_vector_setup();
 
   cpu_reset();
 
   savefpstate(vm86_fpu_state);
-#ifdef __x86_64__
-  stk_ptr = getregister(rsp);
-#else
-  stk_ptr = getregister(esp);
-#endif
-
-  fd = dup(dosemu_proc_self_maps_fd);
-  if ((fp = fdopen(fd, "r"))) {
-    while(fscanf(fp, "%lx-%lx%*[^\n]", &stk_beg, &stk_end) == 2) {
-      if (stk_ptr >= stk_beg && stk_ptr < stk_end) {
-        stack_init_top = stk_end;
-        stack_init_bot = stk_beg;
-        c_printf("CPU: Stack bottom %#lx, top %#lx, esp=%#lx\n",
-	  stack_init_bot, stack_init_top, stk_ptr);
-	break;
-      }
-    }
-    fclose(fp);
-  }
 
 #ifdef X86_EMULATOR
   if (config.cpuemu) {

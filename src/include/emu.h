@@ -392,9 +392,6 @@ EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);
 #endif
 
-EXTERN unsigned long int stack_init_top INIT(0xffffffff);
-EXTERN unsigned long int stack_init_bot INIT(0xffffffff);
-
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
