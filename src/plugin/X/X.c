@@ -2531,10 +2531,12 @@ void kdos_close_msg()
 
 CONSTRUCTOR(static void init(void))
 {
+#ifdef USE_DL_PLUGINS
 	if (Video) return;
 
 	config.X = 1;	/* activate X mode if dosemu was */
 	Video = &Video_X;
+#endif
 	register_keyboard_client(&Keyboard_X);
 	register_mouse_client(&Mouse_X);
 }

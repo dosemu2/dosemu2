@@ -789,10 +789,12 @@ static void SDL_handle_events(void)
 
 CONSTRUCTOR(static void init(void))
 {
+#ifdef USE_DL_PLUGINS
    if (Video)
      return;
    config.X = 1;
    Video = &Video_SDL;
+#endif
    register_keyboard_client(&Keyboard_SDL);
    register_mouse_client(&Mouse_SDL);
 }

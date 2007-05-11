@@ -85,10 +85,12 @@ void term_close(void)
 
 CONSTRUCTOR(static void init(void))
 {
+#ifdef USE_DL_PLUGINS
 	if (!Video) {
 		Video = &Video_term;
 		v_printf("VID: Video set to Video_term\n");
 	}
+#endif
 	register_keyboard_client(&Keyboard_raw);
 	register_keyboard_client(&Keyboard_slang);
 #ifdef USE_GPM
