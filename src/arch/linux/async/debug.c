@@ -87,9 +87,7 @@ static void collect_info(pid_t pid)
   char *cmd0 = "ldd %s";
   char *cmd1 = "getconf GNU_LIBC_VERSION";
   char *cmd2 = "getconf GNU_LIBPTHREAD_VERSION";
-  char *cmd3 = "gcc -v";
-  char *cmd4 = "uname -a";
-  char *cmd5 = "cat /proc/%i/maps";
+  char *cmd3 = "cat /proc/%i/maps";
   char *tmp;
 
   printf("System info:\n");
@@ -99,9 +97,7 @@ static void collect_info(pid_t pid)
   free(tmp);
   system(cmd1);
   system(cmd2);
-  system(cmd3);
-  system(cmd4);
-  asprintf(&tmp, cmd5, pid);
+  asprintf(&tmp, cmd3, pid);
   system(tmp);
   free(tmp);
   print_trace();

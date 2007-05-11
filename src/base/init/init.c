@@ -307,5 +307,15 @@ void print_version(void)
   struct utsname unames;
     
   uname((struct utsname *)&unames);
-  warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
+  warn("DOSEMU-%s is coming up on %s version %s %s %s\n", VERSTR,
+       unames.sysname, unames.release, unames.version, unames.machine);
+  warn("Compiled with GCC version %d.%d", __GNUC__, __GNUC_MINOR__);
+#ifdef __GNUC_PATCHLEVEL__
+  warn(".%d",__GNUC_PATCHLEVEL__);
+#endif
+#ifdef i386
+  warn(" -m32\n");
+#else
+  warn(" -m64\n");
+#endif
 }
