@@ -91,9 +91,13 @@ while [ "$1" != "" ]; do
       ;;
     target_bits)
       if [ "$2" != "auto" ]; then
-	  if uname -m | grep 64 > /dev/null; then
-	      if [ "$2" = "32" ]; then
-		  STRING="$STRING --with-target-bits=32";
+	  if uname -m | grep -q 64; then
+	      otherbits=64
+	      if cpp -dM /dev/null | grep -q __x86_64__; then
+		  otherbits=32
+	      fi
+	      if [ "$2" = "$otherbits" ]; then
+		  STRING="$STRING --with-target-bits=$otherbits";
 	      fi
 	  elif [ "$2" = "64" ]; then
 	      # cross compilation on pure 32-bit machines
