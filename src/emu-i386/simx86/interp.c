@@ -472,14 +472,10 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 				CEmuStat |= CeS_TRAP;
 			}
 		}
-// ------ temp ------- debug ------------------------
 		if ((PC==NULL)||(*((int *)PC)==0)) {
-			set_debug_level('e',9);
-			dbug_printf("\n%s\nFetch %08x at %p mode %x\n",
+			e_printf("\n%s\nFetch %08x at %p mode %x\n",
 				e_print_regs(),*((int *)PC),PC,mode);
-			TheCPU.err = -99; return PC;
 		}
-// ------ temp ------- debug ------------------------
 		NewNode = 1;
 
 override:
