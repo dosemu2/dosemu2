@@ -67,6 +67,8 @@ typedef struct segment_descriptor_s
     unsigned int	not_present:1;		
     unsigned int	useable:1;		
     unsigned int	used;		/* Segment in use by client # */
+					/* or Linux/GLibc (0xfe) */
+					/* or DOSEMU (0xff) */
 } SEGDESC;
 
 struct sel_desc_s {
@@ -236,5 +238,14 @@ extern void copy_context(struct sigcontext_struct *d,
 extern inline unsigned short dpmi_sel(void);
 extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
 extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
+
+static inline int DPMIValidSelector(unsigned short selector)
+{
+  /* does this selector refer to the LDT? */
+#if MAX_SELECTORS < 8192
+  if (selector < (MAX_SELECTORS << 3)) return 0;
+#endif
+  return Segments[selector >> 3].used != 0xfe && (selector & 4);
+}
 
 #endif /* DPMI_H */

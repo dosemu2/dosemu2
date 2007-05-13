@@ -408,7 +408,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
      reset permissions on code pages */
-  if (_cs == getsegment(cs) && ((debug_level('e')>1) || (_trapno!=0x0e))) {
+  if (!DPMIValidSelector(_cs) && ((debug_level('e')>1) || (_trapno!=0x0e))) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02x err=0x%08lx cr2=%08lx eip=%08lx\n",
 	  	 _trapno, _err, _cr2, _rip);
@@ -434,7 +434,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
-		if (_cs == getsegment(cs)) {
+		if (!DPMIValidSelector(_cs)) {
 			unsigned pf = (unsigned)_cr2 >> 12;
 			if ((pf & 0xfffe0) == 0xa0) {
 				TrapVgaOn = 1;
@@ -493,7 +493,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 #ifdef PROFILE
 		PageFaults++;
 #endif
-		if (debug_level('e') || (!InCompiledCode && _cs == getsegment(cs))) {
+		if (debug_level('e') || (!InCompiledCode && !DPMIValidSelector(_cs))) {
 		    v = *((int *)p);
 		    __asm__("bswap %0" : "=r" (v) : "0" (v));
 		    e_printf("Faulting ops: %08x\n",v);
@@ -501,7 +501,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		    if (!InCompiledCode) {
 			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
 				    " cr2=%lx, fault_cnt=%d\n",
-				    _cs == getsegment(cs) ? "DOSEMU " : "",
+				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
 				    _cs, _rip, _cr2, fault_cnt);
 		    }
 		    if (e_querymark((void *)_cr2)) {

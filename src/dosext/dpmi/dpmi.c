@@ -140,7 +140,7 @@ static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 }
 
 #define CHECK_SELECTOR_ALLOC(x) \
-{ if (!ValidSelector(x) || SystemSelector(x)) { \
+{ if (SystemSelector(x)) { \
       _LWORD(eax) = 0x8022; \
       _eflags |= CF; \
       break; \
@@ -149,7 +149,6 @@ static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit);
-static inline int ValidSelector(unsigned short selector);
 
 #ifdef __linux__
 #define modify_ldt dosemu_modify_ldt
@@ -326,7 +325,7 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
 #ifdef __x86_64__
 void dpmi_iret_setup(struct sigcontext_struct *scp)
 {
-  if (_cs == getsegment(cs)) return;
+  if (!DPMIValidSelector(_cs)) return;
 
   loadregister(ds, _ds);
   loadregister(es, _es);
@@ -497,7 +496,7 @@ static int dpmi_control(void)
 
 /* STANDARD SWITCH example
  *
- * run_dpmi() -> dpmi_control (_cs==getsegment(cs))
+ * run_dpmi() -> dpmi_control (!DPMIValidSelector(_cs))
  *			-> dpmi_transfer, push registers,
  *			   save esp/rsp in emu_stack_ptr
  *			-> DPMI_indirect_transfer ->
@@ -601,7 +600,7 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
   int ldt_entry = selector >> 3;
-  if (!ValidSelector(selector)) {
+  if (!DPMIValidSelector(selector)) {
     D_printf("ERROR: Invalid selector passed to SetSelector(): %#x\n", selector);
     return -1;
   }
@@ -628,25 +627,8 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
 
 static int SystemSelector(unsigned short selector)
 {
-  unsigned short sel_no_rpl = selector & 0xfffc;
-  unsigned short cs_no_rpl = getsegment(cs) & 0xfffc;
-  if (
-       (sel_no_rpl == (dpmi_sel16 & 0xfffc)) ||
-       (sel_no_rpl == (dpmi_sel32 & 0xfffc)) ||
-       (sel_no_rpl == cs_no_rpl) ||
-#ifdef __x86_64__
-       /* fixed GDT layout specified for SYSCALL */
-       (sel_no_rpl == cs_no_rpl - 8) ||
-       (sel_no_rpl == cs_no_rpl - 16) ||
-#else
-       (sel_no_rpl == (getsegment(ds) & 0xfffc)) ||
-#endif
-       (sel_no_rpl == (getsegment(fs) & 0xfffc)) ||
-       (sel_no_rpl == (getsegment(gs) & 0xfffc)) ||
-       (Segments[selector >> 3].used == 0xff)
-     )
-    return 1;
-  return 0;
+  /* 0xff refers to dpmi_sel16 & dpmi_sel32 */
+  return !DPMIValidSelector(selector) || Segments[selector >> 3].used == 0xff;
 }
 
 static unsigned short AllocateDescriptorsAt(unsigned short selector,
@@ -812,19 +794,9 @@ static inline unsigned short GetNextSelectorIncrementValue(void)
   return 8;
 }
 
-static inline int ValidSelector(unsigned short selector)
-{
-  /* does this selector refer to the LDT? */
-#if MAX_SELECTORS < 8192
-  return selector < (MAX_SELECTORS << 3) && (selector & 4);
-#else
-  return selector & 4;
-#endif
-}
-
 int ValidAndUsedSelector(unsigned short selector)
 {
-  return ValidSelector(selector) && Segments[selector >> 3].used;
+  return DPMIValidSelector(selector) && Segments[selector >> 3].used;
 }
 
 static inline int check_verr(unsigned short selector)
@@ -1082,7 +1054,7 @@ int GetDescriptor(us selector, unsigned int *lp)
 {
   int typebyte;
   unsigned char *type_ptr;
-  if (!ValidSelector(selector) || SystemSelector(selector))
+  if (SystemSelector(selector))
     return -1; /* invalid value 8021 */
 #if 0    
   modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
@@ -1203,7 +1175,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
 			   3=vm86 only, 4=all active */
     return;
 #endif
-  if (_cs == getsegment(cs)) {
+  if (!DPMIValidSelector(_cs)) {
     dosemu_error("Return to dosemu requested within dosemu context\n");
     return;
   }
@@ -2921,7 +2893,7 @@ void dpmi_setup(void)
       type = (*lp >> 10) & 3;
       if (base_addr || limit || type) {
         D_printf("LDT entry 0x%x used: b=0x%x l=0x%x t=%i\n",i,base_addr,limit,type);
-        Segments[i].used = 0xff;
+        Segments[i].used = 0xfe;
       }
     }
 
@@ -3129,7 +3101,7 @@ err:
 
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
-  if (_cs != getsegment(cs)) {
+  if (DPMIValidSelector(_cs)) {
 /* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
 /*
    Because IF is not set by popf and because dosemu have to do some background

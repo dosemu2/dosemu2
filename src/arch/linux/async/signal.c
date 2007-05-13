@@ -350,10 +350,8 @@ void init_handler(struct sigcontext_struct *scp)
     _gs = getsegment(gs);
   }
 
-  if (config.cpuemu > 3) {
-    _cs = getsegment(cs);
-  } else if (_cs == 0) {
-    if (config.dpmi) {
+  if (scp && _cs == 0) {
+    if (config.dpmi && config.cpuemu < 4) {
       fprintf(stderr, "Cannot run DPMI code natively ");
       if (kernel_version_code < 0x20600 + 15)
 	fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
@@ -381,7 +379,7 @@ void init_handler(struct sigcontext_struct *scp)
     return;
   }
 
-  if (scp && _cs == getsegment(cs)) return;
+  if (scp && !DPMIValidSelector(_cs)) return;
 
   /* else interrupting DPMI code with an LDT %cs */
 
