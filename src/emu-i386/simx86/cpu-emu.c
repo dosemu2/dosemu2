@@ -71,7 +71,7 @@ hitimer_t TotalTime;
 static int iniflag = 0;
 static int vm86only = 0;
 
-hitimer_t sigEMUtime = 0;
+static hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
 static unsigned long sigEMUdelta = 0;
 int eTimeCorrect;
@@ -763,6 +763,9 @@ void init_emu_cpu (void)
   if (!CONFIG_CPUSIM)
     eTimeCorrect = 1;		// 1/2 backtime stretch
 #endif
+  if (!config.rdtsc)
+    eTimeCorrect = -1;		// if we can't trust the TSC for time keeping
+				// then don't use it to stretch either
   if (config.cpuemu == 3)
     vm86only = 1;
   memset(&TheCPU, 0, sizeof(SynCPU));
