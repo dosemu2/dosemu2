@@ -988,7 +988,7 @@ static inline unsigned long e_get_vflags(void)
 
 	if (eVEFLAGS & VIF_MASK)
 		flags |= IF_MASK;
-	return flags | (eVEFLAGS & eTSSMASK);
+	return flags | ((IOPL_MASK|eVEFLAGS) & eTSSMASK);
 }
 
 static inline int e_revectored(int nr, struct revectored_struct * bitmap)

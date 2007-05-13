@@ -653,7 +653,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    /* virtual-8086 monitor */
 			    temp = EFLAGS & 0xdff;
 			    if (eVEFLAGS & VIF) temp |= EFLAGS_IF;
-			    temp |= ((eVEFLAGS & (eTSSMASK|VIF)) |
+			    temp |= (((IOPL_MASK|eVEFLAGS) & (eTSSMASK|VIF)) |
 				(vm86s.regs.eflags&VIP));  // this one FYI
 			    PUSH(mode, &temp);
 			    if (debug_level('e')>1)
