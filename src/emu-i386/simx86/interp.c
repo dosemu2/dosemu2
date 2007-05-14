@@ -779,6 +779,40 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				e_printf("ADDRoverride: new mode %04x\n",mode);
 			PC++; goto override;
 
+/*f0*/	case LOCK: {	int i = 1; unsigned char op;
+			do {
+				op = Fetch(PC+i);
+				i++;
+			} while (op == SEGcs || op == SEGss || op == SEGds ||
+				 op == SEGes || op == SEGfs || op == SEGgs ||
+				 op == OPERoverride || op == ADDRoverride);
+			/* LOCK is allowed on BTS, BTR, BTC, XCHG, ADD...XOR (but not CMP),
+			   INC, DEC, NOT, NEG -- just ignore LOCK for now... */
+			if (op == 0x0f) {
+				op = Fetch(PC+i+1); /* BTS/BTR/BTC */
+			  	if (op == 0xab || op == 0xb3 || op == 0xbb) {
+					PC++; goto override;
+				}
+			} else if (op >= 0xf6 && op < 0xf8) { /*NOT/NEG*/
+				op = Fetch(PC+i+1);
+				if ((op & 0x30) == 0x10) {
+					PC++; goto override;
+				}
+			} else if (op >= 0xfe) { /*INC/DEC*/
+				op = Fetch(PC+i+1);
+				if ((op & 0x30) == 0x00) {
+					PC++; goto override;
+				}
+			}
+			else if ((op < 0x38 && (op & 0x8) < 6) || /*ADD..XOR*/
+			    (op >= 0x40 && op < 0x50) || /*INC/DEC*/
+			    (op >= 0x90 && op < 0x98) ||
+			    op == 0x86 || op == 0x87) { /*XCHG*/
+				PC++; goto override;
+			}
+			CODE_FLUSH();
+			goto illegal_op;
+			}
 /*40*/	case INCax:
 /*41*/	case INCcx:
 /*42*/	case INCdx:
