@@ -212,10 +212,11 @@ void vbe_init(vgaemu_display_type *vedt)
   if (config.vbios_file) {
     /* EXPERIMENTAL: load and boot the Bochs BIOS */
     int fd = open(config.vbios_file, O_RDONLY);
+    int bytes;
     if (fd != -1) {
-      read(fd, (void*)0xc0000, 32768);
+      bytes = read(fd, (void*)0xc0000, 65536);
       close(fd);
-      vgaemu_bios.pages = 8;
+      vgaemu_bios.pages = (bytes + PAGE_SIZE - 1) / PAGE_SIZE;
       config.vbios_post = 1;
     }
   }
