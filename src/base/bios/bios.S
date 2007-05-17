@@ -839,9 +839,9 @@ CISH(PKTDRV_driver_name):
         jmp     do_int21
 do_6c:
         cmpb    $1, %al        /* ax=6c01 means created by lfn.c */
+        movb    $0, %al        
         jnz     do_int21
-        movb    $0, %al        /* then transform to open (dl=1) */
-        movb    $1, %dl
+        movb    $1, %dl        /* then transform to open (dl=1) */
         int	$0x21
         movw    $2, %cx        /* flag creation */
         jmp     after_int21
