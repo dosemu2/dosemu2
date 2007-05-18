@@ -54,7 +54,6 @@
 #include <string.h>
 #include <dirent.h>
 #include <time.h>
-#include <ctype.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -422,12 +421,14 @@ int read_boot(fatfs_t *f)
 void make_label(fatfs_t *f)
 {
   int i, j;
-  char *s = f->dir;
+  char *s = f->dir, sdos[strlen(s) + 1];
 
   memset(f->label, ' ', 11);
   f->label[11] = 0;
 
   if(*s == '/') s++;
+  name_ufs_to_dos(sdos, s);
+  s = sdos;
   i = strlen(s);
 
   if(i > 11) {
@@ -447,7 +448,7 @@ void make_label(fatfs_t *f)
     memcpy(f->label, s, i);
     while ((s = strchr(f->label, '/')))
       *s = ' ';
-    strupr(f->label);
+    strupperDOS(f->label);
   }
 }
 
@@ -576,31 +577,31 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     if((f->sys_type & 3) == 3) {
       f->sys_type = 3;			/* MS-DOS */
-      sf[0] = "io.sys";
-      sf[1] = "msdos.sys";
+      sf[0] = "IO.SYS";
+      sf[1] = "MSDOS.SYS";
       sfs = 2;
     }
     if((f->sys_type & 0x4c) == 0x4c) {
       f->sys_type = 0x40;		/* PC-DOS */
-      sf[0] = "ibmbio.com";
-      sf[1] = "ibmdos.com";
+      sf[0] = "IBMBIO.COM";
+      sf[1] = "IBMDOS.COM";
       sfs = 2;
     }
     if((f->sys_type & 0x0c) == 0x0c) {
       f->sys_type = 0x0c;	/* DR-DOS */
-      sf[0] = "ibmbio.com";
-      sf[1] = "ibmdos.com";
+      sf[0] = "IBMBIO.COM";
+      sf[1] = "IBMDOS.COM";
       sfs = 2;
     }
     if((f->sys_type & 0x30) == 0x10) {
       f->sys_type = 0x10;	/* FreeDOS, orig. Patv kernel */
-      sf[0] = "ipl.sys";
+      sf[0] = "IPL.SYS";
       sfs = 1;
     }
 
     if((f->sys_type & 0x30) == 0x20) {
       f->sys_type = 0x20;	/* FreeDOS, FD maintained kernel */
-      sf[0] = "kernel.sys";
+      sf[0] = "KERNEL.SYS";
       sfs = 1;
     }
 
@@ -609,9 +610,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
     if (access(full_name(f, oi, sf[sfs]), R_OK) == 0) \
       sfs++
 
-    TRY_ADD("command.com");
-    TRY_ADD("config.sys");
-    TRY_ADD("autoexec.bat");
+    TRY_ADD("COMMAND.COM");
+    TRY_ADD("CONFIG.SYS");
+    TRY_ADD("AUTOEXEC.BAT");
 
     for (i = 0; i < sfs; i++)
       add_object(f, oi, sf[i]);
@@ -628,9 +629,10 @@ void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("cannot read directory \"%s\"\n", name);
   } else {
     while((dent = readdir(dir))) {
-      for(i = 0; i < sfs; i++)
-        if(!strcasecmp(dent->d_name, sf[i]))
+      for(i = 0; i < sfs; i++) {
+        if(strequalDOS(dent->d_name, sf[i]))
 	  break;
+      }
       if(i == sfs)
         add_object(f, oi, dent->d_name);
     }
@@ -676,7 +678,9 @@ char *full_name(fatfs_t *f, unsigned oi, char *name)
 
   j = strlen(name);
   if(j > MAX_FILE_NAME_LEN) return NULL;
-  strcpy(s + i, name);
+  do {
+    s[i + j] = tolowerDOS(name[j]);
+  } while (--j >= 0);
 
   /* directory name cached ? */
   if(oi == f->ffn_obj) {
@@ -748,7 +752,7 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
   fatfs_deb("trying to add \"%s\":\n", s);
   if(stat(s, &sb)) {
     int found = 0;
-    if (strcmp(name, "kernel.sys") == 0) {
+    if (strcmp(name, "KERNEL.SYS") == 0) {
       char *libdir = getenv("DOSEMU_LIB_DIR");
       fatfs_deb("does not exist\n");
       if (libdir) {
@@ -816,7 +820,7 @@ unsigned dos_time(time_t *tt)
 unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
 {
   static unsigned char dos_ent[0x20];
-  char *s;
+  char *s, sdos[strlen(o->name) + 1];
   unsigned u, start;
   int i, l;
 
@@ -847,6 +851,8 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
     o = f->obj + u;
   }
 
+  name_ufs_to_dos(sdos, s);
+  s = sdos;
   l = strlen(s);
 
   if(o->is.ro) dos_ent[0x0b] += 0x01;
@@ -880,14 +886,14 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   if(!strcmp(s, "..")) { *dos_ent = dos_ent[1] = '.'; return 0x20; }
 
   for(i = 0; i < l && i < 8 && s[i] != '.'; i++) {
-    dos_ent[i] = toupper(s[i]);
+    dos_ent[i] = toupperDOS(s[i]);
   }
 
   if(!s[i]) return 0x20;
   if(s[i] != '.') return 0;
 
   for(i++, s += i, l -= i, i = 0; i < l && i < 3; i++) {
-    dos_ent[8 + i] = toupper(s[i]);
+    dos_ent[8 + i] = toupperDOS(s[i]);
   }
   if(!s[i]) return 0x20;
 

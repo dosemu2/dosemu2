@@ -21,6 +21,7 @@
 #include "mfs.h"
 #include "mangle.h"
 #include "utilities.h"
+#include "dos2linux.h"
 
 #define CALC_PTR(PTR,OFFSET,RESULT_TYPE) ((RESULT_TYPE *)(PTR+OFFSET))
 

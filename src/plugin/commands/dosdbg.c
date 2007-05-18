@@ -46,7 +46,6 @@
 #include "dosdbg.h"
 
 #define printf  com_printf
-#define strcmpi strcasecmp
 #define FP_OFF(x) FP_OFF32(x)
 #define FP_SEG(x) FP_SEG32(x)
 
@@ -365,7 +364,7 @@ int dosdbg_main(int argc, char **argv)
          return (0);
     }
 
-    if (strcmpi(argv[1], "HELP") == 0 || argv[1][0] == '?') {
+    if (strequalDOS(argv[1], "HELP") || argv[1][0] == '?') {
          Usage();
          return (0);
     }

@@ -258,7 +258,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
   
 	/* Do we have a drive?						*/
 	if (src[1] == ':')
-		result = toupper(src0) - 'A';
+		result = toupperDOS(src0) - 'A';
 	else
 		result = sda_cur_drive(sda);
 
@@ -275,7 +275,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 	if (!drives[result].root) {
 		if (!(flags & CDSSUBST))
 			return result;
-		result = toupper(cds_current_path(cds)[0]) - 'A';
+		result = toupperDOS(cds_current_path(cds)[0]) - 'A';
 		if (result < 0 || result >= MAX_DRIVE || 
 		    result >= lol_last_drive(lol))
 			return -PATH_NOT_FOUND;
@@ -309,7 +309,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 				int j;
 				memcpy(dest + 3, src, 5);
 				for (j = 0; j < 5; j++)
-					dest[3+j] = toupper(dest[3+j]);
+					dest[3+j] = toupperDOS(dest[3+j]);
 				if (dest[3] == '/') dest[3] = '\\';
 				if (dest[7] == '/') dest[7] = '\\';
 			}
@@ -340,7 +340,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 			if (dest[1] == ':') { 
 				/* sanity check if this really 
 				   is a local drive still */
-				unsigned i = toupper(dest[0]) - 'A';
+				unsigned i = toupperDOS(dest[0]) - 'A';
 				
 				if (i < lol_last_drive(lol))
 					/* sanity check #2 */

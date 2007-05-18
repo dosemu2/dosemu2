@@ -109,9 +109,6 @@ unsigned long is_dos_device(const char *fname)
     for (i = 0; i < 8; i++)
     {
       char c1 = fname[i];
-      /* hopefully no device names with cyrillic characters exist ... */
-      if ((unsigned char)c1 >= 128) break;
-      if ((unsigned char)dev[0xa + i] >= 128) break;
       if (c1 == '.' || c1 == '\0')
       {
         /* check if remainder of device name consists of spaces or nulls */
@@ -123,7 +120,7 @@ unsigned long is_dos_device(const char *fname)
         }
         break;
       }
-      if (toupper(c1) != toupper(dev[0xa + i]))
+      if (toupperDOS(c1) != toupperDOS(dev[0xa + i]))
         break;
     }
     if (i == 8)
@@ -303,7 +300,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
     {
       strcpy(tmpname,mangled_stack[i]);
       mangle_name_83(tmpname, MangledMap);
-      if (strequal(tmpname,s))
+      if (strequalDOS(tmpname,s))
 	{
 	  strcpy(s,mangled_stack[i]);
 	  break;
@@ -313,7 +310,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
 	  strcpy(tmpname,mangled_stack[i]);
 	  strcat(tmpname,extension);
 	  mangle_name_83(tmpname, MangledMap);
-	  if (strequal(tmpname,s))
+	  if (strequalDOS(tmpname,s))
 	    {
 	      strcpy(s,mangled_stack[i]);
 	      strcat(s,extension);

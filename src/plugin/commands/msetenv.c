@@ -57,7 +57,7 @@ int com_msetenv(char *variable, char *value, int parent_p)
     l = strlen(variable);
     var = alloca(l+1);
     memcpy(var, variable, l+1);
-    strupr(var);
+    strupperDOS(var);
 
     /*
        Delete any existing variable with the name (var).

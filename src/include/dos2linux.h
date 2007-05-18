@@ -287,4 +287,14 @@ int com_dosreadcon(char *buf32, u_short size);
 int com_biosgetch(void);
 int com_biosread(char *buf32, u_short size);
 
+void init_all_DOS_tables(void);
+extern unsigned char upperDOS_table[0x100];
+extern unsigned char lowerDOS_table[0x100];
+extern unsigned short dos_to_unicode_table[0x100];
+#define toupperDOS(c) (upperDOS_table[(unsigned char)(c)])
+#define tolowerDOS(c) (lowerDOS_table[(unsigned char)(c)])
+void strupperDOS(char *s);
+int strequalDOS(const char *s1, const char *s2);
+int name_ufs_to_dos(char *dest, const char *src);
+
 #endif /* DOS2LINUX_H */

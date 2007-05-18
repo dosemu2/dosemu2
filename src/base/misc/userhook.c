@@ -32,6 +32,7 @@
 #include "userhook.h"
 #include "redirect.h"
 #include "keyboard.h"
+#include "dos2linux.h"
 
 static char *inpipename = 0;
 static char *outpipename = 0;
@@ -288,7 +289,7 @@ static void uhook_lredir(int argc, char **argv)
 
 	if ((argc == 3) && (!strcmp(argv[1], "del")) && (strchr(argv[2], ':'))) {
 		/* delete a redirection */
-		drive = tolower(argv[2][0]) - 'a';
+		drive = toupperDOS(argv[2][0]) - 'A';
 		if (drive < 2) {
 			uhook_printf("wrong drive, must be >= C:\n");
 			return;
@@ -302,7 +303,7 @@ static void uhook_lredir(int argc, char **argv)
 		char *rootdir=NULL;
 		int ro;
 
-		drive = tolower(argv[1][0]) - 'a';
+		drive = toupperDOS(argv[1][0]) - 'A';
 
 		if (drive < 2) {
                         uhook_printf("wrong drive, must be >= C:\n");
@@ -325,7 +326,7 @@ static void uhook_lredir(int argc, char **argv)
 		uhook_printf("wrong arguments\n");
 		return;
 	}
-	drive = tolower(argv[1][0]) - 'a';
+	drive = toupperDOS(argv[1][0]) - 'A';
 	if (drive < 2) {
 		uhook_printf("wrong drive, must be >= C:\n");
 		return;

@@ -8,6 +8,7 @@
 #include "emu.h"
 #include "mangle.h"
 #include "translate.h"
+#include "dos2linux.h"
 #include <wctype.h>
 #include <errno.h>
 
@@ -80,23 +81,41 @@ static void init_dos_to_unicode_table(void)
 
 /* uppercase table for DOS characters */
 unsigned char upperDOS_table[256];
-static void init_upperDOS_table(void)
+unsigned char lowerDOS_table[256];
+static void init_upperlowerDOS_table(void)
 {
   struct char_set_state dos_state;
-  t_unicode symbol;
+  t_unicode symbol, symbolc;
   int i, result;
 
-  for (i = 0; i < 256; i++) {
-    upperDOS_table[i] = i;
+  for (i = 0; i < 128; i++) {
+    /* force English ASCII handling for 0 -- 127 to avoid problems
+       with the Turkish dotless i */
+    upperDOS_table[i] = lowerDOS_table[i] = i;
+    if (i >= 'a' && i <= 'z')
+      upperDOS_table[i] = i - ('a' - 'A');
+    else if (i >= 'A' && i <= 'Z')
+      lowerDOS_table[i] = i + ('a' - 'A');
+  }
+  for (i = 128; i < 256; i++) {
+    upperDOS_table[i] = lowerDOS_table[i] = i;
     init_charset_state(&dos_state, trconfig.dos_charset);
     result = charset_to_unicode(&dos_state, &symbol, &upperDOS_table[i], 1);
+    cleanup_charset_state(&dos_state);
     if (result == 1) {
-      symbol = towupper(symbol);
-      result = unicode_to_charset(&dos_state, symbol, &upperDOS_table[i], 1);
+      symbolc = towupper(symbol);
+      init_charset_state(&dos_state, trconfig.dos_charset);
+      result = unicode_to_charset(&dos_state, symbolc, &upperDOS_table[i], 1);
+      cleanup_charset_state(&dos_state);
       if (result != 1)
 	upperDOS_table[i] = i;
+      symbolc = towlower(symbol);
+      init_charset_state(&dos_state, trconfig.dos_charset);
+      result = unicode_to_charset(&dos_state, symbolc, &lowerDOS_table[i], 1);
+      cleanup_charset_state(&dos_state);
+      if (result != 1)
+	lowerDOS_table[i] = i;
     }
-    cleanup_charset_state(&dos_state);
   }
 }
 
@@ -105,7 +124,7 @@ void init_all_DOS_tables(void)
   valid_initialise();
   init_unicode_to_dos_table();
   init_dos_to_unicode_table();
-  init_upperDOS_table();
+  init_upperlowerDOS_table();
 }
 
 BOOL is_valid_DOS_char(int c)
@@ -192,16 +211,6 @@ void array_promote(char *array,int elsize,int element)
   safe_memcpy(array + elsize,array,elsize*element);
   memcpy(array,p,elsize);
   free(p);
-}
-
-/*******************************************************************
-  compare 2 strings 
-********************************************************************/
-BOOL strequal(char *s1,char *s2)
-{
-  if (!s1 || !s2) return(False);
-
-  return(strcasecmp(s1,s2)==0);
 }
 
 

@@ -49,7 +49,6 @@
  ***********************************************/
 
 
-#include <ctype.h>    /* toupper */
 #include <stdio.h>    /* printf  */
 #include <stdlib.h>
 #include <string.h>
@@ -357,7 +356,7 @@ DeleteDriveRedirection(char *deviceStr)
     uint16 ccode;
 
     /* convert device string to upper case */
-    strupr(deviceStr);
+    strupperDOS(deviceStr);
     ccode = CancelRedirection(deviceStr);
     if (ccode) {
       printf("Error %x (%s)\ncanceling redirection on drive %s\n",
@@ -376,7 +375,7 @@ static int FindRedirectionByDevice(char *deviceStr, char *resourceStr)
     char dStrSrc[MAX_DEVICE_STRING_LENGTH];
 
     snprintf(dStrSrc, MAX_DEVICE_STRING_LENGTH, "%s", deviceStr);
-    strupr(dStrSrc);
+    strupperDOS(dStrSrc);
     while ((ccode = GetRedirection(redirIndex, dStr, resourceStr,
                            &deviceType, &deviceParam)) == CC_SUCCESS) {
       if (strcmp(dStrSrc, dStr) == 0)
@@ -396,7 +395,7 @@ static int FindFATRedirectionByDevice(char *deviceStr, char *resourceStr)
     if (!(di = (struct DINFO *)lowmem_alloc(sizeof(struct DINFO))))
 	return 0;
     LWORD(eax) = 0x6900;
-    LWORD(ebx) = toupper(deviceStr[0]) - 'A' + 1;
+    LWORD(ebx) = toupperDOS(deviceStr[0]) - 'A' + 1;
     REG(ds) = FP_SEG32(di);
     LWORD(edx) = FP_OFF32(di);
     call_msdos();
@@ -502,7 +501,7 @@ int lredir_main(int argc, char **argv)
     if (argc > 2 && argv[2][1] == ':') {
       /* lredir c: d: */
       strcpy(deviceStr, argv[1]);
-      if ((argc > 3 && toupper(argv[3][0]) == 'F') ||
+      if ((argc > 3 && toupperDOS(argv[3][0]) == 'F') ||
     	((ccode = FindRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS)) {
         if ((ccode = FindFATRedirectionByDevice(argv[2], resourceStr)) != CC_SUCCESS) {
           printf("Error: unable to find redirection for drive %s\n", argv[2]);
@@ -533,10 +532,10 @@ int lredir_main(int argc, char **argv)
     deviceParam = DEFAULT_REDIR_PARAM;
 
     if (argc > carg) {
-      if (toupper(argv[carg][0]) == 'R') {
+      if (toupperDOS(argv[carg][0]) == 'R') {
         deviceParam = 1;
       }
-      if (toupper(argv[carg][0]) == 'C') {
+      if (toupperDOS(argv[carg][0]) == 'C') {
 	int cdrom = 1;
 	if (argc > carg+1 && argv[carg+1][0] >= '1' && argv[carg+1][0] <= '4')
 	  cdrom = argv[carg+1][0] - '0';
@@ -545,8 +544,8 @@ int lredir_main(int argc, char **argv)
     }
 
     /* upper-case both strings */
-    strupr(deviceStr);
-    strupr(resourceStr);
+    strupperDOS(deviceStr);
+    strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
     ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,

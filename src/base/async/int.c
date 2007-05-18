@@ -18,6 +18,8 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "config.h"
 
@@ -1731,12 +1733,14 @@ static int int2f(void)
 #endif
 
     case 0xae00: {
-      char cmdname[TITLE_APPNAME_MAXLEN];
+      char cmdnameDOS[TITLE_APPNAME_MAXLEN];
+      char cmdnameUNIX[TITLE_APPNAME_MAXLEN*MB_CUR_MAX];
       char appname[TITLE_APPNAME_MAXLEN];
+      mbstate_t unix_state;
       struct lowstring *str = SEG_ADR((struct lowstring *), ds, si);
       u_short psp_seg;
       struct MCB *mcb;
-      int len;
+      int len, i;
       char *ptr, *tmp_ptr;
 
       dos_post_boot();
@@ -1754,19 +1758,29 @@ static int int2f(void)
       strncpy(title_hint, mcb->name, 8);
       title_hint[8] = 0;
       len = min(str->len, (unsigned char)(TITLE_APPNAME_MAXLEN - 1));
-      memcpy(cmdname, str->s, len);
-      cmdname[len] = 0;
-      ptr = cmdname + strspn(cmdname, " \t");
+      memcpy(cmdnameDOS, str->s, len);
+      cmdnameDOS[len] = 0;
+      ptr = cmdnameDOS + strspn(cmdnameDOS, " \t");
       if (!ptr[0])
 	return 0;
-      tmp_ptr = ptr;
-      while (*tmp_ptr) {	/* Check whether the name is valid */
-        if (iscntrl(*tmp_ptr++))
+      for (i = 0, tmp_ptr = ptr ; *tmp_ptr; tmp_ptr++) {
+	/* Check whether the name is valid,
+	   and make it lowercase Unix charset */
+	size_t result;
+	wchar_t symbol;
+	symbol = dos_to_unicode_table[(unsigned char)tolowerDOS(*tmp_ptr)];
+        if (iswcntrl(symbol))
           return 0;
+	result = wcrtomb(&cmdnameUNIX[i], symbol, &unix_state);
+	if (result == -1)
+	  cmdnameUNIX[i] = '?';
+	else
+	  i += result;
       }
+      cmdnameUNIX[i] = '\0';
       strcpy(title_current, title_hint);
       snprintf(appname, TITLE_APPNAME_MAXLEN, "%s ( %s )",
-        title_current, strlower(ptr));
+        title_current, cmdnameUNIX);
       change_window_title(appname);
       return 0;
     }

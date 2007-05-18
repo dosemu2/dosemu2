@@ -518,7 +518,7 @@ select_drive(state_t *state)
     }
 
     if (!found)
-      dd = toupper(fn1[0]) - 'A';
+      dd = toupperDOS(fn1[0]) - 'A';
     if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
       /* removed ':' check so DRDOS would be happy,
 	     there is a slight worry about possible device name
@@ -533,7 +533,7 @@ select_drive(state_t *state)
     if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
       dd = MAX_DRIVE - 1;
     } else if (name[1] == ':') {
-      dd = toupper(name[0]) - 'A';
+      dd = toupperDOS(name[0]) - 'A';
     } else {
       dd = sda_cur_drive(sda);
     }
@@ -696,7 +696,6 @@ init_all_drives(void)
   if (!drives_initialized) {
     Debug0((dbg_fd, "Inside initialization\n"));
     drives_initialized = TRUE;
-    init_all_DOS_tables();
     for (dd = 0; dd < MAX_DRIVE; dd++) {
       drives[dd].root = NULL;
       drives[dd].root_len = 0;
@@ -1631,7 +1630,7 @@ dos_fs_dev(state_t *state)
       opt = 0;
       if (t) {
 	char *p = strtok(NULL, " \n\r\t");
-	opt = (p && (toupper(p[0]) == 'R'));
+	opt = (p && (toupperDOS(p[0]) == 'R'));
       }
       if (!init_drive(drive_to_redirect, t, opt)) {
 	SETWORD(&(state->eax), 0);
@@ -1733,9 +1732,10 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
     }
     if (ch != EOS) {
       size_t result;
-      wchar_t symbol = dos_to_unicode_table[(unsigned char)ch];
+      wchar_t symbol;
       if (lowercase && !inenv)
-        symbol = towlower(symbol);
+	ch = tolowerDOS(ch);
+      symbol = dos_to_unicode_table[(unsigned char)ch];
       result = wcrtomb(&ufs[ufs_offset], symbol, &unix_state);
       if (result == -1)
         ufs[ufs_offset++] = '?';
@@ -2534,7 +2534,7 @@ RedirectDevice(state_t * state)
     SETWORD(&(state->eax), FUNC_NUM_IVALID);
     return (FALSE);
   }
-  drive = toupper(deviceName[0]) - 'A';
+  drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
   if (drive < 0 || drive > lol_last_drive(lol)) {
@@ -2654,7 +2654,7 @@ CancelRedirection(state_t * state)
     /* we only handle drive redirections, pass it through */
     return (REDIRECT);
   }
-  drive = toupper(deviceName[0]) - 'A';
+  drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
   if (drive < 0 || drive > lol_last_drive(lol)) {

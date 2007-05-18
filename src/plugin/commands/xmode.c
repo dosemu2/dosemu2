@@ -67,7 +67,7 @@ int xmode_main(int argc, char **argv)
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-showapp") && argc >= 2) {
-      if (!strcasecmp (argv [1], "off") || !strcasecmp (argv [1], "0"))
+      if (strequalDOS (argv [1], "OFF") || strequalDOS (argv [1], "0"))
 	l = 0;
       else
 	l = 1;
@@ -133,7 +133,7 @@ int xmode_main(int argc, char **argv)
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-bpause") && argc >= 2) {
-      if (!strcasecmp (argv [1], "off") || !strcasecmp (argv [1], "0"))
+      if (strequalDOS (argv [1], "OFF") || strequalDOS (argv [1], "0"))
 	l = 0;
       else
 	l = 1;
@@ -142,7 +142,7 @@ int xmode_main(int argc, char **argv)
       argc -= 2; argv += 2;
     }
     else if (!strcmp(*argv, "-fullscreen") && argc >= 2) {
-      if (!strcasecmp (argv [1], "off") || !strcasecmp (argv [1], "0"))
+      if (strequalDOS (argv [1], "OFF") || strequalDOS (argv [1], "0"))
 	l = 0;
       else
 	l = 1;

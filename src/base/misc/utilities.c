@@ -31,6 +31,7 @@
 #include "dpmi.h"
 #include "debug.h"
 #include "utilities.h"
+#include "dos2linux.h"
 #include "dosemu_config.h"
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
@@ -528,7 +529,7 @@ int argparse(char *s, char *argvx[], int maxarg)
 void subst_file_ext(char *ptr)
 {
 #define ext_fix(s) { char *r=(s); \
-		     while (*r) { *r=toupper(*r); r++; } }
+		     while (*r) { *r=toupperDOS(*r); r++; } }
     static int subst_sys=2;
 
     if (ptr == NULL) {
@@ -557,14 +558,14 @@ void subst_file_ext(char *ptr)
 	 */
 
 	/* skip the D for DCONFIG.SYS in DR-DOS */
-	if (toupper(ptr[0]) == 'D') ptr++;
+	if (toupperDOS(ptr[0]) == 'D') ptr++;
 #endif
         ext_fix(config.emusys);
         sprintf(config_name, "CONFIG.%-3s", config.emusys);
-        if (subst_sys == 1 && strcasecmp(ptr, config_name) &&
-            strcasecmp(ptr, "CONFIG.SYS")) {
+        if (subst_sys == 1 && !strequalDOS(ptr, config_name) &&
+            !strequalDOS(ptr, "CONFIG.SYS")) {
             subst_sys = 0;
-        } else if (!strcasecmp(ptr, "CONFIG.SYS")) {
+        } else if (strequalDOS(ptr, "CONFIG.SYS")) {
             strcpy(ptr, config_name);
 	    d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
 	    subst_sys = 1;
@@ -678,26 +679,6 @@ char *readlink_malloc (const char *filename)
   if (buffer != NULL)
     buffer[nchars] = '\0';
   return buffer;
-}
-
-char * strupr(char *s)
-{
-	char *p = s;
-	while (*p) {
-		*p = toupper(*p);
-		p++;
-	}
-	return s;
-}
-
-char * strlower(char *s)
-{
-	char *p = s;
-	while (*p) {
-		*p = tolower(*p);
-		p++;
-	}
-	return s;
 }
 
 void dosemu_error(char *fmt, ...)

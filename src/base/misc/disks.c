@@ -860,6 +860,7 @@ disk_init(void)
 #endif
 
   disks_initiated = 1;  /* disk_init has been called */
+  init_all_DOS_tables();
   if (config.bootdisk) {
     bootdisk.fdesc = open64(bootdisk.type == DIR_TYPE ? "/dev/null" : bootdisk.dev_name,
 			    bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);

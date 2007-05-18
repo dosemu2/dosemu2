@@ -99,9 +99,9 @@ int dpmi_main(int argc, char **argv)
 			    break;
 			case 'p':
 			    if (optarg) {
-				if (strcasecmp(optarg, "on") == 0)
+				if (strequalDOS(optarg, "ON"))
 				    config.pm_dos_api = 1;
-				else if (strcasecmp(optarg, "off") == 0)
+				else if (strequalDOS(optarg, "OFF"))
 				    config.pm_dos_api = 0;
 				else
 				    com_printf("invalid value: %s\n", optarg);
@@ -109,9 +109,9 @@ int dpmi_main(int argc, char **argv)
 			    break;
 			case 'n':
 			    if (optarg) {
-				if (strcasecmp(optarg, "on") == 0)
+				if (strequalDOS(optarg, "ON"))
 				    config.no_null_checks = 1;
-				else if (strcasecmp(optarg, "off") == 0)
+				else if (strequalDOS(optarg, "OFF"))
 				    config.no_null_checks = 0;
 				else
 				    com_printf("invalid value: %s\n", optarg);
@@ -257,33 +257,33 @@ void commands_plugin_init(void)
 	if (done) return;
 	done = 1;
 
-	register_com_program("generic", generic_main);
+	register_com_program("GENERIC", generic_main);
 
 	/* old xxx.S files */
-	register_com_program("bootoff", bootoff_main);
-	register_com_program("booton", booton_main);
-	register_com_program("dpmi", dpmi_main);
-	register_com_program("ecpuon", ecpuon_main);
-	register_com_program("ecpuoff", ecpuoff_main);
-	register_com_program("eject", eject_main);
-	register_com_program("exitemu", exitemu_main);
-	register_com_program("speed", speed_main);
-	register_com_program("system", system_main);
-	register_com_program("uchdir", uchdir_main);
-	register_com_program("ugetcwd", ugetcwd_main);
-	register_com_program("vgaoff", vgaoff_main);
-	register_com_program("vgaon", vgaon_main);
+	register_com_program("BOOTOFF", bootoff_main);
+	register_com_program("BOOTON", booton_main);
+	register_com_program("DPMI", dpmi_main);
+	register_com_program("ECPUON", ecpuon_main);
+	register_com_program("ECPUOFF", ecpuoff_main);
+	register_com_program("EJECT", eject_main);
+	register_com_program("EXITEMU", exitemu_main);
+	register_com_program("SPEED", speed_main);
+	register_com_program("SYSTEM", system_main);
+	register_com_program("UCHDIR", uchdir_main);
+	register_com_program("UGETCWD", ugetcwd_main);
+	register_com_program("VGAOFF", vgaoff_main);
+	register_com_program("VGAON", vgaon_main);
 
 
 	/* old xxx.c files */
-	register_com_program("lredir", lredir_main);
-	register_com_program("xmode", xmode_main);
-	register_com_program("emumouse", emumouse_main);
-	register_com_program("dosdbg", dosdbg_main);
-	register_com_program("unix", unix_main);
-	register_com_program("cmdline", cmdline_main);
+	register_com_program("LREDIR", lredir_main);
+	register_com_program("XMODE", xmode_main);
+	register_com_program("EMUMOUSE", emumouse_main);
+	register_com_program("DOSDBG", dosdbg_main);
+	register_com_program("UNIX", unix_main);
+	register_com_program("CMDLINE", cmdline_main);
 
-	register_com_program("blaster", blaster_main);
+	register_com_program("BLASTER", blaster_main);
 
 #if 0
 	fprintf(stderr, "PLUGIN: commands_plugin_init called\n");

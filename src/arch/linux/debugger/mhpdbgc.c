@@ -206,6 +206,16 @@ static const char help_page[]=
 static unsigned long mhp_axlist[AXLIST_SIZE];
 static int axlist_count=0;
 
+
+/* simple ASCII only toupper, this to avoid problems with the dotless i
+   and here we only need to match the register si with SI etc. */
+static unsigned char toupper_ascii(unsigned char c)
+{
+  if (c >= 'a' && c <= 'z')
+    return c - ('a' - 'A');
+  return c;
+}
+
 int mhp_getaxlist_value(int v, int mask)
 {
   int i;
@@ -439,7 +449,7 @@ static int decode_symreg(char *regn)
   s=rn; n=0; rn[4]=0;
   while (n<4)
   {
-	*s++=(isalpha(*regn)? toupper(*regn++): ' '); n++;
+	*s++=(isalpha(*regn)? toupper_ascii(*regn++): ' '); n++;
   }
   if (!(s = strstr(reg_syms, rn)))
 	return -1;
@@ -824,6 +834,7 @@ static int get_value(unsigned long *v, unsigned char *s, int base)
    int len = strlen(s);
    int t;
    char *tt;
+   char *wl = " WL";
 
    if (!len) return V_NONE;
    t = s[len-1];
@@ -834,10 +845,10 @@ static int get_value(unsigned long *v, unsigned char *s, int base)
        return V_STRING;
      }
    }
-   if ((tt = strchr(" wl", tolower(t))) !=0) {
+   if ((tt = strchr(wl, toupper_ascii(t))) !=0) {
      len--;
      s[len] = 0;
-     t = (int)(tt - " wl") << 1;
+     t = (int)(tt - wl) << 1;
    }
    else t = V_NONE;
    if (len >2) {
@@ -1249,7 +1260,7 @@ static void mhp_regs(int argc, char * argv[])
      }
      sscanf(argv[2], "%lx", &newval);
      i= strlen(argv[1]);
-     do  argv[1][i] = toupper(argv[1][i]); while (i--);
+     do  argv[1][i] = toupper_ascii(argv[1][i]); while (i--);
      mhp_setreg(argv[1], newval);
      if (newval == mhp_getreg(argv[1]))
         mhp_printf("reg %s changed to %04x\n", argv[1], mhp_getreg(argv[1]) );

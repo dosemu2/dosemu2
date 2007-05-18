@@ -52,7 +52,7 @@ char *com_getenv(char *keyword)
 
 	len = strlen(keyword);
 	memcpy(key, keyword, len+1);
-	strupr(key);
+	strupperDOS(key);
 	while (*env) {
 		if (!strncmp(key, env, len) && (env[len] == '=')) {
 			return env + len + 1;
@@ -385,11 +385,12 @@ int commands_plugin_inte6(void)
 	mcb = LOWMEM(SEG2LINEAR(COM_PSP_SEG - 1));
 
 	/* first parse commandline */
-	args[0] = strlower(strdup(com_getarg0()));
+	args[0] = strdup(com_getarg0());
+	strupperDOS(args[0]);
 	argc = com_argparse(&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
 	strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
 	builtin_name[sizeof(builtin_name) - 1] = 0;
-	strlower(builtin_name);
+	strupperDOS(builtin_name);
 
 	com = find_com_program(builtin_name);
 	if (com) {
