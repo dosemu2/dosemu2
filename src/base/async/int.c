@@ -1763,6 +1763,7 @@ static int int2f(void)
       ptr = cmdnameDOS + strspn(cmdnameDOS, " \t");
       if (!ptr[0])
 	return 0;
+      memset(&unix_state, 0, sizeof unix_state);
       for (i = 0, tmp_ptr = ptr ; *tmp_ptr; tmp_ptr++) {
 	/* Check whether the name is valid,
 	   and make it lowercase Unix charset */
