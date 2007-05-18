@@ -59,6 +59,10 @@ int paste_text(const char *text, int len)
 
 	init_charset_state(&state, paste_charset);
 	characters = character_count(&state, text, len);
+	if (characters == -1) {
+		k_printf("KBD: invalid paste\n");
+		return 0;
+	}
 	str = malloc(sizeof(t_unicode) * (characters +1));
 
 	charset_to_unicode_string(&state, str, &text, len);
