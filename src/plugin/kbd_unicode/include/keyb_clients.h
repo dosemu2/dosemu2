@@ -20,7 +20,7 @@ void keyb_client_close(void);
 void keyb_client_run(void);
 void keyb_client_set_leds(t_modifiers modifiers);
 
-int paste_text(const char *text, int len);
+int paste_text(const char *text, int len, char *charset);
 
 /* this should really go somewhere else ... */
 void handle_slang_keys(Boolean make, t_keysym key);

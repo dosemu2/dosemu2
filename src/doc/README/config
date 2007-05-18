@@ -677,12 +677,6 @@ The external character set is used to:
     compute the character set index of unicode characters output to
     a terminal display screen.
 </para> </listitem>
-<listitem> <para>
-     compute the unicode values of characters pasted into dosemu.
-</para> </listitem>
-<listitem> <para>
-     compute the unicode values of characters in file names.
-</para> </listitem>
 </itemizedlist>
 The default is to use "", which denotes the current locale, and is usually
 the right setting.

@@ -15,10 +15,8 @@ struct translate_config_t trconfig; /* Intialized to nulls */
 static void config_translate_scrub(void)
 {
     /* set the character sets used base upon config.term_charset */
-    if (!trconfig.paste_charset)
-	trconfig.paste_charset = lookup_charset("default");
     if (!trconfig.keyb_charset)
-	trconfig.keyb_charset = trconfig.paste_charset;
+	trconfig.keyb_charset = lookup_charset("default");
     if (!trconfig.video_mem_charset) 
       trconfig.video_mem_charset = lookup_charset("cp437");
     if (!trconfig.keyb_config_charset)
@@ -34,8 +32,6 @@ static void config_translate_scrub(void)
 	    trconfig.keyb_charset?trconfig.keyb_config_charset->names[0]:"<NULL>");
     v_printf("output_charset=%s\n", 
 	    trconfig.output_charset?trconfig.output_charset->names[0]:"<NULL>");
-    k_printf("paste_charset=%s\n", 
-	    trconfig.paste_charset?trconfig.paste_charset->names[0]:"<NULL>");
     k_printf("keyb_charset=%s\n", 
 	    trconfig.keyb_charset?trconfig.keyb_charset->names[0]:"<NULL>");
     d_printf("dos_charset=%s\n", 

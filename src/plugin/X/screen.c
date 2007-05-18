@@ -39,9 +39,12 @@ enum {
   NUM_TARGETS
 };
 
-static void get_selection_targets(Display *display, Atom *targets)
+static Atom targets[NUM_TARGETS];
+
+static void get_selection_targets(Display *display)
 {
   /* Get atom for COMPOUND_TEXT/UTF8/TEXT type. */
+  if (targets[TARGETS_ATOM] != None) return;
   targets[TARGETS_ATOM] = XInternAtom(display, "TARGETS", True);
   targets[TIMESTAMP_ATOM] = XInternAtom(display, "TIMESTAMP", True);
   targets[COMPOUND_TARGET] = XInternAtom(display, "COMPOUND_TEXT", True);
@@ -86,12 +89,8 @@ static char *get_selection_string(char *charset)
 static void send_selection(Display *display, Time time, Window requestor, Atom target, Atom property)
 {
 	XEvent e;
-	static int first = 1;
-	static Atom targets[NUM_TARGETS];
 
-	if (first) {
-		get_selection_targets(display, targets);
-	}
+	get_selection_targets(display);
 	e.xselection.type = SelectionNotify;
 	e.xselection.selection = XA_PRIMARY;
 	e.xselection.requestor = requestor;
@@ -159,30 +158,29 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 	XSendEvent(display, requestor, False, 0, &e);
 }
 
-static void scr_paste_primary(Display *dpy,Window window,int property,int Delete);
+static void scr_paste_primary(Display *dpy,Window window,int property,
+			      int Delete, Atom target, int time);
 
 /***************************************************************************
  *  Request the current primary selection
  ***************************************************************************/
 static void scr_request_selection(Display *dpy,Window W,int time)
 {
-  Atom sel_property;
-
   X_printf("X: mouse selection requested\n");
   X_printf("X: mouse display %p\n", dpy);
   
+  get_selection_targets(dpy);
   if (XGetSelectionOwner(dpy,XA_PRIMARY) == None) 
     {
       /*  No primary selection so use the cut buffer.
        */
       X_printf("X: mouse XGetSelectionOwner\n");
-      scr_paste_primary(dpy,DefaultRootWindow(dpy),XA_CUT_BUFFER0,False);
+      scr_paste_primary(dpy,DefaultRootWindow(dpy),XA_CUT_BUFFER0,False,XA_STRING,time);
       return;
     }
   X_printf("X: mouse XGetSelectionOwner done\n");
   X_printf("X: mouse Window %d\n", (Bit32u)W);
-  sel_property = XInternAtom(dpy,"VT_SELECTION",False);
-  XConvertSelection(dpy,XA_PRIMARY,XA_STRING,sel_property,W,time);
+  XConvertSelection(dpy,XA_PRIMARY,targets[TARGETS_ATOM],XA_PRIMARY,W,time);
   X_printf("X: mouse request done\n");
 
 }
@@ -190,35 +188,70 @@ static void scr_request_selection(Display *dpy,Window W,int time)
 /***************************************************************************
  *  Respond to a notification that a primary selection has been sent
  ****************************************************************************/
-static void scr_paste_primary(Display *dpy,Window window,int property,int Delete)
+static void scr_paste_primary(Display *dpy,Window window,int property,int Delete,
+			      Atom target, int time)
 {
   Atom actual_type;
   int actual_format;
   long nitems, bytes_after, nread;
-  unsigned char *data, *data2;
+  unsigned char *data;
+
+  static Atom tries[] = { UTF8_TARGET, COMPOUND_TARGET, STRING_TARGET };
+  char *charsets[] = { "utf8", "iso2022", "iso8859-1" };
 
   X_printf("X: mouse paste received\n" );
   if (property == None)
     return;
 
+  get_selection_targets(dpy);
   nread = 0;
   do 
     {
+      int i;
       if (XGetWindowProperty(dpy,window,property,nread/4,PROP_SIZE,Delete,
 			     AnyPropertyType,&actual_type,&actual_format,
 			     &nitems,&bytes_after,(unsigned char **)&data)
 	  != Success)
 	return;
-      if (actual_type != XA_STRING)
+
+      if (target == targets[TARGETS_ATOM]) {
+	/* respond to a TARGETS request by checking for UTF-8, then
+	   COMPOUND_TEXT (iso2022), and then STRING (iso8859-1) in turn */
+	unsigned long *supported_targets = (unsigned long *)data;
+	if (actual_type != XA_ATOM || actual_format != 32) {
+	  /* use string as a fallback */
+	  i = 2;
+	  target = XA_STRING;
+	} else for (i = 0; i < 3; i++) {
+	  int j;
+	  target = targets[tries[i]];
+	  if (target == None) continue;
+	  for (j = 0; j < nitems; j++)
+	    if (supported_targets[j] == target)
+	      break;
+	  if (j < nitems) break;
+	}
+	if (i < 3) {
+	  Atom sel_property = XInternAtom(dpy, "VT_SELECTION", False);
+	  XConvertSelection(dpy,XA_PRIMARY,target,sel_property,window,time);
+	}
+	XFree(data);
 	return;
+      }
+
+      for (i = 0; i < 3; i++)
+	if (actual_type == targets[tries[i]])
+	  break;
+      if (i == 3 || actual_type != target) {
+	XFree(data);
+	return;
+      }
       
-      data2 = data;
-
-      paste_text(data2,nitems);
-
+      X_printf("X: Pasting using character set %s\n", charsets[i]);
+      paste_text(data,nitems,charsets[i]);
 
       nread += nitems;
-      XFree(data2);
+      XFree(data);
     } while (bytes_after > 0);
 }
 
@@ -234,7 +267,8 @@ void X_handle_selection(Display *display, Window mainwindow, XEvent *e)
     break;
   case SelectionNotify: 
     scr_paste_primary(display,e->xselection.requestor,
-		      e->xselection.property,True);
+		      e->xselection.property,True,
+		      e->xselection.target,e->xselection.time);
     X_printf("X: SelectionNotify event\n");
     break;
     /* Some other window wants to paste our data, so send it. */

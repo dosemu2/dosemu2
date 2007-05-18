@@ -43,15 +43,12 @@ static int paste_unicode_text(const t_unicode *text, int len)
 
 /* paste a string of (almost) arbitrary length through the DOS keyboard,
  * without danger of overrunning the keyboard queue/buffer.
- * 'text' is expected to be in latin1 charset, with unix ('\n')
- * line end convention.
- *
- * 'text' is actually expected to be in trconfig.paste_charset
- * which defaults to iso8859-1 with unix ('\n') line end convetion.
+ * pasting in X causes either utf8, iso2022, or iso8859-1, all with
+ * unix ('\n') line end convention.
  */
-int paste_text(const char *text, int len) 
+int paste_text(const char *text, int len, char *charset) 
 {
-	struct char_set *paste_charset = trconfig.paste_charset;
+	struct char_set *paste_charset = lookup_charset(charset);
 	struct char_set_state state;
 	t_unicode *str;
 	int characters;
