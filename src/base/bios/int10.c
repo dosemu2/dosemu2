@@ -1437,7 +1437,7 @@ int int10(void) /* with dualmon */
         old_x = get_bios_cursor_x_position(page);
         old_y = get_bios_cursor_y_position(page);
 
-	set_cursor_pos(page, LO(dx), HI(dx))
+	set_cursor_pos(page, LO(dx), HI(dx));
 
         i10_deb(
           "write string: page %u, x.y %d.%d, attr 0x%02x, len %u, addr 0x%04x:0x%04x\n",
