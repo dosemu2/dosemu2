@@ -6,6 +6,7 @@
 
 /* definitions for updating text modes */
 
+#include "translate.h"
 #define CONFIG_SELECTION 1
 
 extern Boolean have_focus;
@@ -39,7 +40,7 @@ void text_lose_focus(void);
 
 #ifdef CONFIG_SELECTION
 /* for selections */
-char* end_selection(void);
+t_unicode* end_selection(void);
 void clear_if_in_selection(void);
 void start_selection(int col, int row);
 void start_extend_selection(int col, int row);

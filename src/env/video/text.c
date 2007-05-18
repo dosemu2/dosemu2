@@ -55,7 +55,7 @@ static int blink_count = 8;
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
 static unsigned short *sel_start = NULL, *sel_end = NULL;
-static u_char *sel_text = NULL;
+static t_unicode *sel_text = NULL;
 static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #endif
 
@@ -820,30 +820,28 @@ void start_extend_selection(int col, int row)
 static void save_selection(int col1, int row1, int col2, int row2)
 {
 	int row, col, line_start_col, line_end_col, co;
-	u_char *sel_text_dos, *sel_text_latin, *sel_text_ptr, *prev_sel_text_latin;
+	u_char *sel_text_dos, *sel_text_ptr;
+	t_unicode *sel_text_unicode, *prev_sel_text_unicode;
 	size_t sel_space, sel_text_bytes;
 	u_char *p;
 	Bit16u *screen_adr;
         
-	struct char_set_state paste_state;
 	struct char_set_state video_state; /* must not have any... */
 
-	struct char_set *paste_charset = trconfig.paste_charset;
 	struct char_set *video_charset = trconfig.video_mem_charset;
   
 	init_charset_state(&video_state, video_charset);
-	init_charset_state(&paste_state, paste_charset);
 	
 	co = vga.scan_len / 2;
 	screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
 	p = sel_text_dos = malloc(vga.text_width);
 	sel_space = (row2-row1+1)*(co+1)*MB_LEN_MAX+1;
-	sel_text_latin = sel_text = malloc(sel_space);
+	sel_text_unicode = sel_text = malloc(sel_space * sizeof(t_unicode));
   
 	/* Copy the text data. */
 	for (row = row1; (row <= row2); row++)
 	{
-		prev_sel_text_latin = sel_text_latin;
+		prev_sel_text_unicode = sel_text_unicode;
 		line_start_col = ((row == row1) ? col1 : 0);
 		line_end_col = ((row == row2) ? col2 : vga.text_width-1);
 		p = sel_text_ptr = sel_text_dos;
@@ -864,29 +862,23 @@ static void save_selection(int col1, int row1, int col2, int row2)
 			}
 			sel_text_bytes -= result;
 			sel_text_ptr += result;
-			result = unicode_to_charset(&paste_state, symbol,
-						    sel_text_latin, sel_space);
-			if (result == -1) {
-				warn("save_selection unfinished2\n");
-				break;
-			}
-			sel_text_latin += result;
-			sel_space -= result;
+			*sel_text_unicode++ = symbol;
 		}
 		/* Remove end-of-line spaces and add a newline. */
 		if (col == vga.text_width)
 		{ 
-			sel_text_latin--;
-			while ((*sel_text_latin == ' ') && (sel_text_latin > prev_sel_text_latin)) {
-				sel_text_latin--;
+			sel_text_unicode--;
+			while ((*sel_text_unicode == ' ') &&
+			       (sel_text_unicode > prev_sel_text_unicode)) {
+				sel_text_unicode--;
 				sel_space++;
 			}
-			sel_text_latin++;
+			sel_text_unicode++;
 			if (!sel_space) {
 				error("BUG: pasting OOM\n");
 				leavedos(91);
 			}
-			*sel_text_latin++ = '\n';
+			*sel_text_unicode++ = '\n';
 			sel_space--;
 		}
 	}
@@ -895,11 +887,10 @@ static void save_selection(int col1, int row1, int col2, int row2)
 		error("BUG: pasting OOM2\n");
 		leavedos(91);
 	}
-	*sel_text_latin = '\0';
+	*sel_text_unicode = '\0';
 	sel_space--;
   
 	cleanup_charset_state(&video_state);
-	cleanup_charset_state(&paste_state);
 }
 
 /*
@@ -927,18 +918,15 @@ static void save_selection_data(void)
 
   save_selection(col1, row1, col2, row2);
   
-  v_printf("VGAEMU: Selection, %d,%d->%d,%d, size=%zu\n", 
-	   col1, row1, col2, row2, strlen(sel_text));
-
-  if (strlen(sel_text) == 0)
-    return;
+  v_printf("VGAEMU: Selection, %d,%d->%d,%d\n", 
+	   col1, row1, col2, row2);
 }
 
 
 /*
  * End of selection (button released).
  */
-char *end_selection()
+t_unicode *end_selection()
 {
   if (!doing_selection)
     return NULL;

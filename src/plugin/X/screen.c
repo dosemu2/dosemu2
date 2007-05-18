@@ -15,6 +15,7 @@
  */
 
 #include <string.h>
+#include <limits.h>
 #include "screen.h"
 #include "emu.h"
 #include "keyb_clients.h"    /* for paste_text() */
@@ -26,7 +27,7 @@
 #define PROP_SIZE 1024  /* chunk size for retrieving the selection property */
 #define MARGIN 0 /*  perhaps needed 23.8.95 */
 
-static u_char *sel_text = NULL;
+static t_unicode *sel_text = NULL;
 static Time sel_time;
 enum {
   TARGETS_ATOM,
@@ -41,12 +42,42 @@ enum {
 static void get_selection_targets(Display *display, Atom *targets)
 {
   /* Get atom for COMPOUND_TEXT/UTF8/TEXT type. */
-  targets[TARGETS_ATOM] = XInternAtom(display, "TARGETS", False);
-  targets[TIMESTAMP_ATOM] = XInternAtom(display, "TIMESTAMP", False);
-  targets[COMPOUND_TARGET] = XInternAtom(display, "COMPOUND_TEXT", False);
-  targets[UTF8_TARGET] = XInternAtom(display, "UTF8_STRING", False);
-  targets[TEXT_TARGET] = XInternAtom(display, "TEXT", False);
+  targets[TARGETS_ATOM] = XInternAtom(display, "TARGETS", True);
+  targets[TIMESTAMP_ATOM] = XInternAtom(display, "TIMESTAMP", True);
+  targets[COMPOUND_TARGET] = XInternAtom(display, "COMPOUND_TEXT", True);
+  targets[UTF8_TARGET] = XInternAtom(display, "UTF8_STRING", True);
+  targets[TEXT_TARGET] = XInternAtom(display, "TEXT", True);
   targets[STRING_TARGET] = XA_STRING;
+}
+
+static char *get_selection_string(char *charset)
+{
+	struct char_set_state paste_state;
+	struct char_set *paste_charset;
+	t_unicode *u = sel_text;
+	char *s, *p;
+	size_t sel_space = 0;
+
+	while (sel_text[sel_space])
+		sel_space++;
+	paste_charset = lookup_charset(charset);
+	sel_space *= MB_LEN_MAX;
+	p = s = malloc(sel_space);
+	init_charset_state(&paste_state, paste_charset);
+
+	while (*u) {
+		size_t result = unicode_to_charset(&paste_state, *u++,
+						   p, sel_space);
+		if (result == -1) {
+			warn("save_selection unfinished2\n");
+			break;
+		}
+		p += result;
+		sel_space -= result;
+	}
+	*p = '\0';
+	cleanup_charset_state(&paste_state);
+	return s;
 }
 
 /*
@@ -70,7 +101,7 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 	e.xselection.target = target;
 	e.xselection.property = property;
 
-	if (sel_text == NULL) {
+	if (sel_text == NULL || target == None) {
 		X_printf("X: Window 0x%lx requested selection, but it's empty!\n",   
 			(unsigned long) requestor);
 		e.xselection.property = None;
@@ -89,11 +120,34 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 		 target == targets[COMPOUND_TARGET] ||
 		 target == targets[UTF8_TARGET] ||
 		 target == targets[TEXT_TARGET]) {
-		X_printf("X: selection: %s\n",sel_text);
+		/* from
+		http://www.pps.jussieu.fr/~jch/software/UTF8_STRING/UTF8_STRING.text */
+		char *send_text, *charset;
+		if (target == targets[UTF8_TARGET])
+			charset = "utf8";
+		else if (target == targets[STRING_TARGET])
+			charset = "iso8859-1";
+		else if (target == targets[COMPOUND_TARGET])
+			charset = "iso2022"; /* hope for the best */
+		else /* TEXT */ {
+			t_unicode *u = sel_text;
+			charset = "iso8859-1";
+			target = targets[STRING_TARGET];
+			while (*u && *u < 0x100) u++;
+			/* if any non-iso8859-1 characters are found,
+			   use COMPOUND_TARGET */
+			if (*u) {
+				charset = "iso2022";
+				target = targets[COMPOUND_TARGET];
+			}
+		}
+		send_text = get_selection_string(charset);
+		X_printf("X: selection: %s\n",send_text);
 		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
-			sel_text, strlen(sel_text));
+			send_text, strlen(send_text));
 		X_printf("X: Selection sent to window 0x%lx as %s\n", 
 			(unsigned long) requestor, XGetAtomName(display, target));
+		free(send_text);
 	}
 	else
 	{
@@ -195,7 +249,8 @@ void X_handle_selection(Display *display, Window mainwindow, XEvent *e)
     switch (e->xbutton.button)
       {
       case Button1 :
-      case Button3 : 
+      case Button3 : {
+	char *send_text;
 	sel_text = end_selection();
 	sel_time = e->xbutton.time;
 	if (sel_text == NULL)
@@ -207,9 +262,14 @@ void X_handle_selection(Display *display, Window mainwindow, XEvent *e)
 	    return;
 	  }
 
+	/* this stores the selection in the cut buffer, an obsolete
+	   way of copy/paste that only supports Latin-1 */
+	send_text = get_selection_string("iso8859-1");
 	XChangeProperty(display, DefaultRootWindow(display), XA_CUT_BUFFER0,
-		   XA_STRING, 8, PropModeReplace, sel_text, strlen(sel_text));
+		   XA_STRING, 8, PropModeReplace, send_text, strlen(send_text));
+	free(send_text);
 	break;
+      }
       case Button2 :
 	X_printf("X: mouse Button2Release\n");
 	scr_request_selection(display,mainwindow,e->xbutton.time);
