@@ -565,6 +565,7 @@ chipset			RETURN(CHIPSET);
 memsize			RETURN(MEMSIZE);
 fullrestore		RETURN(FULLREST);
 partialrestore		RETURN(PARTREST);
+vgaemubios_file		RETURN(VGAEMUBIOS_FILE);
 vbios_file		RETURN(VBIOS_FILE);
 vbios_copy		RETURN(VBIOS_COPY);
 vbios_mmap		RETURN(VBIOS_MMAP);

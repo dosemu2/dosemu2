@@ -229,6 +229,7 @@ typedef struct vesamode_type_struct {
        boolean rdtsc;
        boolean mapped_bios;	/* video BIOS */
        char *vbios_file;	/* loaded VBIOS file */
+       char *vgaemubios_file;	/* loaded VBIOS file */
        boolean vbios_copy;
        int vbios_seg;           /* VGA-BIOS-segment for mapping */
        int vbios_size;          /* size of VGA-BIOS (64K for vbios_seg=0xe000

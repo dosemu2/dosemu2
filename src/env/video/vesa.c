@@ -209,9 +209,9 @@ void vbe_init(vgaemu_display_type *vedt)
   dos_vga_bios[2] = (bios_ptr + ((1 << 9) - 1)) >> 9;
   vgaemu_bios.pages = (bios_ptr + ((1 << 12) - 1)) >> 12;
 
-  if (config.vbios_file) {
+  if (config.vgaemubios_file) {
     /* EXPERIMENTAL: load and boot the Bochs BIOS */
-    int fd = open(config.vbios_file, O_RDONLY);
+    int fd = open(config.vgaemubios_file, O_RDONLY);
     int bytes;
     if (fd != -1) {
       bytes = read(fd, (void*)0xc0000, 65536);

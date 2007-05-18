@@ -276,7 +276,8 @@ while (0)
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
-%token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
+%token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
+%token VBIOS_COPY VBIOS_MMAP DUALMON
 %token VBIOS_POST
 
 %token FORCE_VT_SWITCH PCI
@@ -1137,6 +1138,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| VBIOS_FILE string_expr	{ free(config.vbios_file); config.vbios_file = $2;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 0; }
+		| VGAEMUBIOS_FILE string_expr	{ free(config.vgaemubios_file); config.vgaemubios_file = $2; }
 		| VBIOS_COPY		{ free(config.vbios_file);
 					  config.vbios_file = NULL;
 					  config.mapped_bios = 1;
