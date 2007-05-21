@@ -468,6 +468,11 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		      "\tMaybe a null segment register\n",_cr2);
 		goto verybad;
 	}
+	if (DPMIValidSelector(_cs) &&
+	    (unsigned char *)_cr2 >= ldt_buffer &&
+	    (unsigned char *)_cr2 < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE)
+		/* LDT access emulation */
+		return 0;
 	if ((_err&0x0f)==0x07) {
 		unsigned char *p = (unsigned char *)_rip;
 		int codehit = 0;
@@ -493,6 +498,8 @@ int e_emu_fault(struct sigcontext_struct *scp)
 #ifdef PROFILE
 		PageFaults++;
 #endif
+		if (DPMIValidSelector(_cs))
+		    p = (unsigned char *) SEL_ADR(_cs, _rip);
 		if (debug_level('e') || (!InCompiledCode && !DPMIValidSelector(_cs))) {
 		    v = *((int *)p);
 		    __asm__("bswap %0" : "=r" (v) : "0" (v));
@@ -519,7 +526,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		    return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
-		InvalidateNodePage(_cr2, 0, _rip, &codehit);
+		InvalidateNodePage(_cr2, 0, (long)p, &codehit);
 		e_resetpagemarks((void *)_cr2, 1);
 		e_munprotect((void *)_cr2, 0);
 		/* now go back and perform the faulting op */
