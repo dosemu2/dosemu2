@@ -823,7 +823,7 @@ void vga_memcpy(void *dst, const void *src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMCPY_DOS2DOS(dst, src, len);
+    MEMMOVE_DOS2DOS(dst, src, len);
     return;
   }
   for (i = 0; i < len; i++)

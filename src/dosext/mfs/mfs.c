@@ -831,6 +831,7 @@ init_drive(int dd, char *path, int options)
       free(new_path);
       return (0);
     }
+    free(drives[dd].root);
     new_path[new_len - 1] = '/';
   }
 
@@ -1780,7 +1781,7 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
   i = 0;
   while (ufs[i]) {
     if (ufs[i] == '/' && ufs[i+1] == '/')
-      strcpy(&ufs[i], &ufs[i+1]);
+      memmove(&ufs[i], &ufs[i+1], strlen(&ufs[i]));
     else
       i++;
   }
