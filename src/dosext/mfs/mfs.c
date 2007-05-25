@@ -821,7 +821,7 @@ init_drive(int dd, char *path, int options)
     new_path[new_len - 1] = 0;
     drives[dd].root_len = 1;
     drives[dd].root = strdup("/");
-    if (!find_file(new_path, &st, dd)) {
+    if (!find_file(new_path, &st, dd, NULL)) {
       error("MFS: couldn't find root path %s\n", new_path);
       free(new_path);
       return (0);
@@ -1007,7 +1007,7 @@ static boolean_t exists(const char *name, const char *filename,
   char fullname[strlen(name) + 1 + NAME_MAX + 1];
   snprintf(fullname, sizeof(fullname), "%s/%s", name, filename);
   Debug0((dbg_fd, "exists() result = %s\n", fullname));
-  return find_file(fullname, st, drive);
+  return find_file(fullname, st, drive, NULL);
 }
 
 static void fill_entry(struct dir_ent *entry, const char *name, int drive)
@@ -1025,7 +1025,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
   buf[slen] = '/';
   strcpy(sptr, entry->d_name);
 
-  if (!find_file(buf, &sbuf, drive)) {
+  if (!find_file(buf, &sbuf, drive, NULL)) {
     Debug0((dbg_fd, "Can't findfile %s\n", buf));
     entry->mode = S_IFREG;
     entry->size = 0;
@@ -1087,7 +1087,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   char fname[8];
   char fext[3];
 
-  if(is_dos_device(name) || !find_file(name, &sbuf, drive))
+  if(is_dos_device(name) || !find_file(name, &sbuf, drive, NULL))
     return NULL;
 
   if ((cur_dir = dos_opendir(name)) == NULL) {
@@ -1884,7 +1884,7 @@ scan_dir(char *path, char *name, int drive)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-boolean_t find_file(char *fpath, struct stat * st, int drive)
+boolean_t find_file(char *fpath, struct stat * st, int drive, int *doserrno)
 {
   char *slash1, *slash2;
 
@@ -1939,6 +1939,7 @@ boolean_t find_file(char *fpath, struct stat * st, int drive)
       Debug0((dbg_fd, "find_file(): not a directory: %s\n", fpath));
       if (slash2)
 	*slash2 = '/';
+      if (*doserrno) *doserrno = PATH_NOT_FOUND;
       return (FALSE);
     }
     else {
@@ -1951,8 +1952,11 @@ boolean_t find_file(char *fpath, struct stat * st, int drive)
       if (!scan_dir(fpath, slash1 + 1, drive)) {
 	*slash1 = '/';
 	Debug0((dbg_fd, "find_file(): no match: %s\n", fpath));
-	if (slash2)
+	if (slash2) {
 	  strcat(slash1+1,remainder);
+	  if (*doserrno)
+	    *doserrno = PATH_NOT_FOUND;
+	}
 	return (FALSE);
       }
       else {
@@ -2886,7 +2890,7 @@ static void find_dir(char *fpath, int drive)
   bs_pos--;
   buf = strdup(bs_pos);
   *bs_pos = EOS;
-  find_file(fpath, &st, drive);
+  find_file(fpath, &st, drive, NULL);
   strcat(fpath, buf);
   free(buf);
 }
@@ -3057,7 +3061,7 @@ int dos_rmdir(const char *filename1, int drive, int lfn)
   if (drives[drive].read_only)
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename1, drive, !lfn);
-  if (find_file(fpath, &st, drive) && !is_dos_device(fpath)) {
+  if (find_file(fpath, &st, drive, NULL) && !is_dos_device(fpath)) {
     if (rmdir(fpath) != 0) {
       Debug0((dbg_fd, "failed to remove directory %s\n", fpath));
       return ACCESS_DENIED;
@@ -3079,7 +3083,7 @@ int dos_mkdir(const char *filename1, int drive, int lfn)
   if (drives[drive].read_only || (!lfn && is_long_path(filename1)))
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename1, drive, !lfn);
-  if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+  if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
     Debug0((dbg_fd, "make failed already dir or file '%s'\n",
 	    fpath));
     return ACCESS_DENIED;
@@ -3106,14 +3110,14 @@ int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
   if (drives[drive].read_only)
     return ACCESS_DENIED;
   build_ufs_path_(fpath, filename2, drive, !lfn);
-  if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+  if (find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
     Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
     return ACCESS_DENIED;
   }
   find_dir(fpath, drive);
 
   build_ufs_path_(buf, filename1, drive, !lfn);
-  if (!find_file(buf, &st, drive) || is_dos_device(buf)) {
+  if (!find_file(buf, &st, drive, NULL) || is_dos_device(buf)) {
     Debug0((dbg_fd, "Rename '%s' error.\n", buf));
     return PATH_NOT_FOUND;
   }
@@ -3152,6 +3156,7 @@ dos_fs_redirect(state_t *state)
   boolean_t long_path;
   struct dir_list *hlist;
   int hlist_index;
+  int doserrno = FILE_NOT_FOUND;
 #if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
@@ -3217,7 +3222,7 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "set directory to ufs path: %s\n", fpath));
 
     /* Try the given path */
-    if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+    if (!find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
       SETWORD(&(state->eax), PATH_NOT_FOUND);
       return (FALSE);
     }
@@ -3398,7 +3403,7 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Get Disk Space\n"));
       build_ufs_path(fpath, cds_current_path(drive_cds(drive)), drive);
 
-      if (find_file(fpath, &st, drive)) {
+      if (find_file(fpath, &st, drive, NULL)) {
 	if (get_disk_space(fpath, &free, &tot)) {
 	  /* return unit = 512-byte blocks @ 1 spc, std for floppy */
 	  int spc = 1;
@@ -3448,8 +3453,8 @@ dos_fs_redirect(state_t *state)
 
       build_ufs_path(fpath, filename1, drive);
       Debug0((dbg_fd, "Set attr: '%s' --> 0%o\n", fpath, att));
-      if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
-	SETWORD(&(state->eax), FILE_NOT_FOUND);
+      if (!find_file(fpath, &st, drive, &doserrno) || is_dos_device(fpath)) {
+	SETWORD(&(state->eax), doserrno);
 	return (FALSE);
       }
       if (set_dos_attr(fpath, st.st_mode, att) != 0) {
@@ -3463,9 +3468,9 @@ dos_fs_redirect(state_t *state)
   case GET_FILE_ATTRIBUTES:	/* 0x0f */
     Debug0((dbg_fd, "Get File Attributes %s\n", filename1));
     build_ufs_path(fpath, filename1, drive);
-    if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+    if (!find_file(fpath, &st, drive, &doserrno) || is_dos_device(fpath)) {
       Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
-      SETWORD(&(state->eax), FILE_NOT_FOUND);
+      SETWORD(&(state->eax), doserrno);
       return (FALSE);
     }
 
@@ -3513,8 +3518,8 @@ dos_fs_redirect(state_t *state)
 
       if (dir_list == NULL) {
 	build_ufs_path(fpath, filename1, drive);
-	if (!find_file(fpath, &st, drive)) {
-	  SETWORD(&(state->eax), FILE_NOT_FOUND);
+	if (!find_file(fpath, &st, drive, &doserrno)) {
+	  SETWORD(&(state->eax), doserrno);
 	  return (FALSE);
 	}
         if (access(fpath, W_OK) == -1) {
@@ -3540,7 +3545,7 @@ dos_fs_redirect(state_t *state)
       for(i = 0; i < dir_list->nr_entries; i++, de++) {
 	if ((de->mode & S_IFMT) == S_IFREG) {
 	  strcpy(fpath + cnt, de->d_name);
-	  if (find_file(fpath, &st, drive)) {
+	  if (find_file(fpath, &st, drive, NULL)) {
             if (access(fpath, W_OK) == -1) {
               errcode = EACCES;
             } else {
@@ -3614,9 +3619,9 @@ dos_fs_redirect(state_t *state)
     }
     build_ufs_path(fpath, filename1, drive);
     auspr(filename1, fname, fext);
-    if (!find_file(fpath, &st, drive)) {
+    if (!find_file(fpath, &st, drive, &doserrno)) {
       Debug0((dbg_fd, "open failed: '%s'\n", fpath));
-      SETWORD(&(state->eax), FILE_NOT_FOUND);
+      SETWORD(&(state->eax), doserrno);
       return (FALSE);
     }
     devptr = is_dos_device(fpath);
@@ -3729,7 +3734,7 @@ dos_fs_redirect(state_t *state)
     }
     build_ufs_path(fpath, filename1, drive);
     auspr(filename1, fname, fext);
-    if (find_file(fpath, &st, drive)) {
+    if (find_file(fpath, &st, drive, NULL)) {
       devptr = is_dos_device(fpath);
       if (devptr) {
         open_device (devptr, fname, sft);
@@ -3753,7 +3758,7 @@ dos_fs_redirect(state_t *state)
 	Debug0((dbg_fd, "can't open %s: %s (%d)\n",
 		fpath, strerror(errno), errno));
 #if 1
-	SETWORD(&(state->eax), FILE_NOT_FOUND);
+	SETWORD(&(state->eax), PATH_NOT_FOUND);
 #else
 	SETWORD(&(state->eax), ACCESS_DENIED);
 #endif
@@ -4103,13 +4108,13 @@ dos_fs_redirect(state_t *state)
 	      mode, action, attr));
       
       build_ufs_path(fpath, filename1, drive);
-      file_exists = find_file(fpath, &st, drive);
+      file_exists = find_file(fpath, &st, drive, &doserrno);
       if (file_exists && is_dos_device(fpath))
         goto do_open_existing;
 
       if (((action & 0x10) == 0) && !file_exists) {
 	/* Fail if file does not exist */
-	SETWORD(&(state->eax), FILE_NOT_FOUND);
+	SETWORD(&(state->eax), doserrno);
 	return (FALSE);
       }
 

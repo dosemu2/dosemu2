@@ -713,7 +713,7 @@ static int wildcard_delete(char *fpath, int drive)
 	if (slash == fpath)
 		strcpy(fpath, "/");
 	/* XXX check for device (special dir entry) */
-	if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+	if (!find_file(fpath, &st, drive, NULL) || is_dos_device(fpath)) {
 		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 		return lfn_error(PATH_NOT_FOUND);
 	}
@@ -791,7 +791,7 @@ static int mfs_lfn_(void)
 	char fpath[PATH_MAX];
 	char fpath2[PATH_MAX];
 	
-	int drive, dirhandle = 0, rc;
+	int drive, dirhandle = 0, rc, doserrno = FILE_NOT_FOUND;
 	unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
 	char *src = (char *)SEGOFF2LINEAR(_DS, _DX);
 	struct stat st;
@@ -824,7 +824,7 @@ static int mfs_lfn_(void)
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
 			return drive + 2;
-		if (!find_file(fpath, &st, drive) || !S_ISDIR(st.st_mode))
+		if (!find_file(fpath, &st, drive, NULL)|| !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(d, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", d);
@@ -841,8 +841,8 @@ static int mfs_lfn_(void)
 			return lfn_error(FILE_NOT_FOUND);
 		if (_SI == 1)
 			return wildcard_delete(fpath, drive);
-		if (!find_file(fpath, &st, drive))
-			return lfn_error(FILE_NOT_FOUND);
+		if (!find_file(fpath, &st, drive, &doserrno))
+			return lfn_error(doserrno);
 		d_printf("LFN: deleting %s\n", fpath);
 		if (unlink(fpath) != 0)
 			return lfn_error(FILE_NOT_FOUND);
@@ -854,9 +854,10 @@ static int mfs_lfn_(void)
 			return drive + 2;
 		if (drives[drive].read_only && (_BL < 8) && (_BL & 1))
 			return lfn_error(ACCESS_DENIED);
-		if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+		if (!find_file(fpath, &st, drive, &doserrno) ||
+		    is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
-			return lfn_error(FILE_NOT_FOUND);
+			return lfn_error(doserrno);
 		}
 		utimbuf.actime = st.st_atime;
 		utimbuf.modtime = st.st_mtime;
@@ -913,7 +914,7 @@ static int mfs_lfn_(void)
 		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
-		find_file(fpath, &st, drive);
+		find_file(fpath, &st, drive, NULL);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
 		d_printf("LFN: %p %d %#x %s\n", drive_cds(drive), drive, dest,
 			 fpath+drives[drive].root_len);
@@ -964,7 +965,8 @@ static int mfs_lfn_(void)
 		}
 
 		/* XXX check for device (special dir entry) */
-		if (!find_file(dir->dirbase, &st, drive) || is_dos_device(fpath)) {
+		if (!find_file(dir->dirbase, &st, drive, NULL) ||
+		    is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
@@ -1050,8 +1052,8 @@ static int mfs_lfn_(void)
 
 		if (_CL == 1 || _CL == 2) {
 			build_ufs_path(fpath, filename, drive);
-			if (!find_file(fpath, &st, drive))
-				return lfn_error(FILE_NOT_FOUND);
+			if (!find_file(fpath, &st, drive, &doserrno))
+				return lfn_error(doserrno);
 			make_unmake_dos_mangled_path(filename, fpath, drive, 2 - _CL);
 		} else {
 			strupperDOS(filename);
@@ -1074,10 +1076,12 @@ static int mfs_lfn_(void)
 			slash = strrchr(fpath, '/');
 			strcpy(fpath2, slash);
 			*slash = '\0';
-			if (slash != fpath && !find_file(fpath, &st, drive))
+			if (slash != fpath &&
+			    !find_file(fpath, &st, drive, NULL))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
-			if (!find_file(fpath, &st, drive) && (_DX & 0x10)) {
+			if (!find_file(fpath, &st, drive, NULL) &&
+			    (_DX & 0x10)) {
 				int fd;
 				if (drives[drive].read_only)
 					return lfn_error(ACCESS_DENIED);
