@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <setjmp.h>
 #include <string.h>
+#include <limits.h>
 #include "emu.h"
 #include "translate.h"
 #include "unicode_symbols.h"
@@ -664,7 +665,34 @@ void foreach_character_mapping(struct char_set *set,
 	set->ops->foreach(set, 0, callback_data, callback);
 }
 
+char *unicode_string_to_charset(const wchar_t *u, char *charset)
+{
+	struct char_set_state paste_state;
+	struct char_set *paste_charset;
+	char *s, *p;
+	size_t len = 0, result;
 
+	while (u[len])
+		len++;
+	paste_charset = lookup_charset(charset);
+	len *= MB_LEN_MAX;
+	len++;
+	p = s = malloc(len);
+	init_charset_state(&paste_state, paste_charset);
+
+	while (*u) {
+		result = unicode_to_charset(&paste_state, *u++, p, len);
+		if (result == -1) {
+			warn("unicode to string unfinished\n");
+			break;
+		}
+		p += result;
+		len -= result;
+	}
+	*p = '\0';
+	cleanup_charset_state(&paste_state);
+	return s;
+}
 
 CONSTRUCTOR(static void init(void))
 {

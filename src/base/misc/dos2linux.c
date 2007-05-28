@@ -569,6 +569,9 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
       {
 	/* high-level write (shows name of emulator + running app) */
 	char title [TITLE_EMUNAME_MAXLEN + TITLE_APPNAME_MAXLEN + 35] = {0};
+	wchar_t wtitle [sizeof(title)];
+	char *unixptr = NULL;
+	char *s;
          
 	/* app - DOS in a BOX */
 	/* name of running application (if any) */
@@ -581,8 +584,9 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 	    strcat (title, title_emuname);
 	} else if (strlen (config.X_title)) {
 	  if (strlen (title)) strcat (title, " - ");
+	  unixptr = title + strlen (title);
 	  /* foreign string, cannot trust its length to be <= TITLE_EMUNAME_MAXLEN */
-	  snprintf (title + strlen (title), TITLE_EMUNAME_MAXLEN, "%s ", config.X_title);  
+	  snprintf (unixptr, TITLE_EMUNAME_MAXLEN, "%s ", config.X_title);  
 	}
 
 	if (dosemu_frozen) {
@@ -607,7 +611,18 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 	}
 
 	/* now actually change the title of the Window */
-	Video->change_config (CHG_TITLE, title);
+	if (unixptr == NULL)
+	  unixptr = strchr(title, '\0');
+	for (s = title; s < unixptr; s++)
+	  wtitle[s - title] = dos_to_unicode_table[(unsigned char)*s];
+	wtitle[unixptr - title] = 0;
+	if (*unixptr) {
+	  if (mbstowcs(&wtitle[unixptr - title], unixptr, TITLE_EMUNAME_MAXLEN)
+	      == -1)
+	    wtitle[unixptr - title] = 0;
+	  wtitle[unixptr - title + TITLE_EMUNAME_MAXLEN] = 0;
+	}
+	Video->change_config (CHG_TITLE, wtitle);
       }
        break;
        

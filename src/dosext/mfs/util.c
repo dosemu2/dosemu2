@@ -172,10 +172,20 @@ BOOL strhasupperDOS(char *s)
   return(result != -1 && iswupper(symbol));
 }
 
-void strupperDOS(char *src)
+char *strupperDOS(char *src)
 {
+  char *s = src;
   for (; *src; src++)
     *src = toupperDOS(*src);
+  return s;
+}
+
+char *strlowerDOS(char *src)
+{
+  char *s = src;
+  for (; *src; src++)
+    *src = tolowerDOS(*src);
+  return s;
 }
 
 /* locale-independent routins      */

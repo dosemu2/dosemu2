@@ -180,7 +180,7 @@ int SDL_init(void)
   /* Collect some data */
   video_info = SDL_GetVideoInfo();
   if (video_info->wm_available)
-    SDL_WM_SetCaption(config.X_title, config.X_icon_name);
+    SDL_change_config(CHG_TITLE, NULL);
   else
     config.X_fullscreen = 1;
   if (config.X_fullscreen)
@@ -559,8 +559,24 @@ static int SDL_change_config(unsigned item, void *buf)
     case CHG_TITLE:
       /* low-level write */
       if (buf) {
-	v_printf("SDL: SDL_change_config: win_name = %s\n", (char *) buf);
-	SDL_WM_SetCaption(buf, config.X_icon_name);
+	char *sw, *si, *charset;
+	size_t iconlen = strlen(config.X_icon_name) + 1;
+	wchar_t iconw[iconlen];
+	const SDL_version *version = SDL_Linked_Version();
+
+	if (mbstowcs(iconw, config.X_icon_name, iconlen) == -1)
+	  iconlen = 1;
+	iconw[iconlen-1] = 0;
+	charset = "iso8859-1";
+	if (SDL_VERSIONNUM(version->major, version->minor, version->patch) >=
+	    SDL_VERSIONNUM(1,2,10))
+	  charset = "utf8";
+	sw = unicode_string_to_charset(buf, charset);
+	si = unicode_string_to_charset(iconw, charset);
+	v_printf("SDL: SDL_change_config: win_name = %s\n", sw);
+	SDL_WM_SetCaption(sw, si);
+	free(sw);
+	free(si);
 	break;
       }
       /* high-level write (shows name of emulator + running app) */

@@ -67,7 +67,6 @@ BOOL isupperDOS(int c);
 BOOL islowerDOS(int c);
 BOOL strhasupperDOS(char *s);
 BOOL strhaslowerDOS(char *s);
-void strlowerDOS(char *s);
 BOOL isalphaDOS(int c);
 BOOL isalnumDOS(int c);
 BOOL is_valid_DOS_char(int c);

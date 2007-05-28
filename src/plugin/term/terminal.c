@@ -72,6 +72,7 @@
 #include "dosemu_charset.h"
 #include "vgaemu.h"
 #include "vgatext.h"
+#include "dos2linux.h"
 
 struct text_system Text_term;
 
@@ -308,13 +309,30 @@ static int term_change_config(unsigned item, void *buf)
 
    switch (item) {
    case CHG_TITLE_APPNAME:
-      snprintf (title_appname, TITLE_APPNAME_MAXLEN, "%s", (char *) buf);
+   {
+      mbstate_t unix_state;
+      int i;
+      char *tmp_ptr;
+      char s[strlen(buf) + 1];
+
+      memset(&unix_state, 0, sizeof unix_state);
+      for (i = 0, tmp_ptr = buf ; *tmp_ptr; tmp_ptr++) {
+	t_unicode symbol;
+	symbol = dos_to_unicode_table[(unsigned char)*tmp_ptr];
+	/* apparently xterm does not like UTF-8 in the window title...
+	   force iso8859-1
+	 */
+	s[i++] = symbol > 0xff ? '?' : symbol;
+      }
+      s[i] = '\0';
+      snprintf (title_appname, TITLE_APPNAME_MAXLEN, "%s", s);
       if (config.xterm_title && strlen(config.xterm_title)) {
 	printf("\x1b]2;");
-	printf(config.xterm_title, (char *)buf);
+	printf(config.xterm_title, s);
 	printf("\7");
       }
       return 0;
+   }
    case GET_TITLE_APPNAME:
       snprintf (buf, TITLE_APPNAME_MAXLEN, "%s", title_appname);
       return 0;

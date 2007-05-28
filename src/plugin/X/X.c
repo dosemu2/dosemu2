@@ -539,6 +539,7 @@ int X_init()
   XGCValues gcv;
   XClassHint xch;
   XSetWindowAttributes attr;
+  XTextProperty prop;
   char *display_name; 
   char *s;
   int i, remap_src_modes;
@@ -687,8 +688,17 @@ int X_init()
 
   XChangeWindowAttributes(display, drawwindow, CWEventMask | CWCursor, &attr);
 
-  XStoreName(display, mainwindow, config.X_title);
-  XSetIconName(display, mainwindow, config.X_icon_name);
+  /* thanks to Wine */
+  if (XmbTextListToTextProperty( display, &config.X_title, 1, XStdICCTextStyle,
+				 &prop ) == Success) {
+    XSetWMName( display, mainwindow, &prop );
+    XFree( prop.value );
+  }
+  if (XmbTextListToTextProperty( display, &config.X_icon_name, 1,
+				 XStdICCTextStyle, &prop ) == Success) {
+    XSetWMIconName( display, mainwindow, &prop );
+    XFree( prop.value );
+  }
   xch.res_name  = "XDosEmu";
   xch.res_class = "XDosEmu";
 
@@ -1056,9 +1066,26 @@ static int X_change_config(unsigned item, void *buf)
     case CHG_TITLE:
       /* low-level write */
       if (buf) {
-	X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
+	Atom NetWMAtom, UTF8Atom;
+	XTextProperty prop;
+	/* try locale and UTF-8 */
+	char *s = unicode_string_to_charset(buf, "default");
 	/* always change the normal window's title - never the full-screen one */
-	XStoreName(display, normalwindow, buf);
+	/* thanks to Wine */
+	if (XmbTextListToTextProperty( display, &s, 1, XStdICCTextStyle,
+				       &prop ) == Success) {
+	  XSetWMName( display, normalwindow, &prop );
+	  XFree( prop.value );
+	}
+	free(s);
+        NetWMAtom = XInternAtom(display, "_NET_WM_NAME", False);
+        UTF8Atom = XInternAtom(display, "UTF8_STRING", False);
+	if (NetWMAtom != None && UTF8Atom != None) {
+	  s = unicode_string_to_charset(buf, "utf8");
+	  XChangeProperty( display, mainwindow, NetWMAtom, UTF8Atom, 8,
+			   PropModeReplace, s, strlen(s));
+	  free(s);
+	}
 	break;
       }
       /* high-level write (shows name of emulator + running app) */
