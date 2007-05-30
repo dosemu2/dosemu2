@@ -114,7 +114,7 @@ continue:
 	lret
 
 normal_exit:
-				# if we come here we have AL = exitcode
+				# and if we come here we have AL = exitcode
 	movb	$0x4c, %ah
 	int	$0x21		# exit
 
