@@ -782,7 +782,7 @@ int int10(void) /* with dualmon */
   if (debug_level('v') >= 3)
     {
       if (debug_level('v') >= 4)
-	i10_msg("near %04x:%08lx\n", READ_SEG_REG(cs), REG(eip));
+	i10_msg("near %04x:%08x\n", READ_SEG_REG(cs), REG(eip));
       if ( (LO(ax) >= ' ') && (LO(ax) < 0x7f) )
 	i10_msg("AH=%02x AL=%02x '%c'\n",
 		    HI(ax), LO(ax), LO(ax));

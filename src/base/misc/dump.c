@@ -82,8 +82,8 @@ show_regs(char *file, int line)
     sp = SEG_ADR((u_char *), ss, sp);
 
   g_printf("Program=%s, Line=%d\n", file, line);
-  g_printf("EIP: %04x:%08lx", LWORD(cs), REG(eip));
-  g_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
+  g_printf("EIP: %04x:%08x", LWORD(cs), REG(eip));
+  g_printf(" ESP: %04x:%08x", LWORD(ss), REG(esp));
 #if 1
   g_printf("  VFLAGS(b): ");
   for (i = (1 << 0x14); i > 0; i = (i >> 1)) {
@@ -95,9 +95,9 @@ show_regs(char *file, int line)
   for (i = (1 << 0x11); i > 0; i = (i >> 1))
     g_printf((vflags & i) ? "1" : "0");
 #endif
-  g_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx VFLAGS(h): %08lx",
+  g_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x VFLAGS(h): %08lx",
 	      REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
-  g_printf("\nESI: %08lx EDI: %08lx EBP: %08lx",
+  g_printf("\nESI: %08x EDI: %08x EBP: %08x",
 	      REG(esi), REG(edi), REG(ebp));
   g_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
 	      LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));

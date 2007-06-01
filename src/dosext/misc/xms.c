@@ -655,7 +655,7 @@ xms_query_freemem(int api)
   else {
     REG(eax) = largest;
     REG(edx) = subtotal;
-    x_printf("XMS query free memory(new): %ldK %ldK\n",
+    x_printf("XMS query free memory(new): %dK %dK\n",
 	     REG(eax), REG(edx));
   }
   /* the following line is NOT superfluous!! (see above) */

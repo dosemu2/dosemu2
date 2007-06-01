@@ -312,15 +312,13 @@ int dos_helper(void)
 
   case DOS_HELPER_GET_DEBUG_STRING:
     /* TRB - handle dynamic debug flags in dos_helper() */
-    LWORD(eax) = GetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) +
-					       (_regs.edi & 0xffff)), 1);
+    LWORD(eax) = GetDebugFlagsHelper(MK_FP32(_regs.es, _regs.edi & 0xffff), 1);
     g_printf("DBG: Get flags\n");
     break;
 
   case DOS_HELPER_SET_DEBUG_STRING:
     g_printf("DBG: Set flags\n");
-    LWORD(eax) = SetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) +
-					       (_regs.edi & 0xffff)));
+    LWORD(eax) = SetDebugFlagsHelper(MK_FP32(_regs.es, _regs.edi & 0xffff));
     g_printf("DBG: Flags set\n");
     break;
 
@@ -766,7 +764,7 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
     } else if (REG(eax) == 0xe820 && REG(edx) == 0x534d4150) {
 	REG(eax) = REG(edx);
 	if (REG(ebx) < system_memory_map_size) {
-	  REG(ecx) = max(REG(ecx), 20L);
+	  REG(ecx) = max(REG(ecx), 20);
 	  if (REG(ebx) + REG(ecx) >= system_memory_map_size)
 	    REG(ecx) = system_memory_map_size - REG(ebx);
 	  MEMCPY_2DOS(MK_FP32(_ES, _DI), (char *)system_memory_map + REG(ebx),

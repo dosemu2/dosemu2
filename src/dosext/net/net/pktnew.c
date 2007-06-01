@@ -236,7 +236,7 @@ pkt_int (void)
 
 #if 1
   if (debug_level('P') > 8) {
-    pd_printf("NPKT: AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08lx\n",
+    pd_printf("NPKT: AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
     pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),
@@ -289,7 +289,7 @@ pkt_int (void)
 	REG(edx) = pg.type;			/* type (dummy) */
 	REG(ds) = PKTDRV_SEG;			/* driver name */
 	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_driver_name);
-        pd_printf("Class returned = %ld, handle=%d, pg.classes[0]=%d \n", 
+        pd_printf("Class returned = %d, handle=%d, pg.classes[0]=%d \n", 
 		  REG(ecx)>>8, hdlp_handle, pg.classes[0] );
 	return 1;
 
@@ -509,7 +509,7 @@ pkt_int (void)
     /* fell through switch, indicate an error (DH set above) */
     CARRY;
 
-    pd_printf("PD ERR:  AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08lx\n",
+    pd_printf("PD ERR:  AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
     pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),

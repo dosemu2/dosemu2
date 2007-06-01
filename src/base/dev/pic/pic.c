@@ -722,7 +722,7 @@ static void do_irq(int ilevel)
   * PIC_SEG:PIC_OFF so we can catch it.
   */
       fake_call_to(PIC_SEG, PIC_OFF);
-      if(debug_level('r')>7) r_printf("PIC: setting iret trap at %04x:%04lx\n",
+      if(debug_level('r')>7) r_printf("PIC: setting iret trap at %04x:%04x\n",
         REG(cs), REG(eip));
      }
 

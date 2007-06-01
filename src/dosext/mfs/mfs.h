@@ -56,7 +56,7 @@ typedef unsigned char boolean_t;
 typedef struct vm86_regs state_t;
 #endif
 
-#define Addr_8086(x,y)	(( ((x) & 0xffff) << 4) + ((y) & 0xffff))
+#define Addr_8086(x,y)	((uintptr_t)(( ((x) & 0xffff) << 4) + ((y) & 0xffff)))
 #define Addr(s,x,y)	Addr_8086(((s)->x), ((s)->y))
 #define MASK8(x)	((x) & 0xff)
 #define MASK16(x)	((x) & 0xffff)

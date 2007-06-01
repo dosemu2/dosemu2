@@ -571,9 +571,6 @@ void dpmi_get_entry_point(void)
 {
     D_printf("Request for DPMI entry\n");
 
-    if (!config.dpmi)
-      return;
-
     REG(eax) = 0; /* no error */
 
     /* 32 bit programs are O.K. */
@@ -2824,6 +2821,7 @@ void dpmi_setup(void)
     int i, type;
     unsigned int base_addr, limit, *lp;
 
+    if (!config.dpmi) return;
 #ifdef __i386__
 #if DIRECT_DPMI_CONTEXT_SWITCH
     /* Allocate special buffer that is used for direct jumping to
@@ -3007,7 +3005,7 @@ void dpmi_init(void)
     cp = MK_FP32(my_cs, my_ip);
 
     D_printf("Going protected with fingers crossed\n"
-		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04lx\n",
+		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04x\n",
 		LO(ax), my_cs, LWORD(ss), LWORD(ds), psp, my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP

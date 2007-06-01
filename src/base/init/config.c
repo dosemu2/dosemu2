@@ -574,7 +574,7 @@ static void config_post_process(const char *usedoptions)
 	read_cpu_info();
     if (vm86s.cpu_type > config.realcpu) {
     	vm86s.cpu_type = config.realcpu;
-    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %ld86\n",vm86s.cpu_type);
+    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",vm86s.cpu_type);
     }
     if (config.rdtsc) {
 	if (config.smp) {
