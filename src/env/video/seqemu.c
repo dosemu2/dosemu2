@@ -199,7 +199,6 @@ void Seq_init()
 
   vga.seq.index = 0;
 
-  vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 1);
   vga.seq.map_mask = vga.seq.data[2] & 0xf;
 
   seq_msg("Seq_init done\n");

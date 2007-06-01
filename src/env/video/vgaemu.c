@@ -2304,6 +2304,16 @@ int vga_emu_setmode(int mode, int width, int height)
   GFX_init();
   Misc_init();
   Herc_init();
+
+  vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 1);
+  vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 1);
+  vgaemu_adj_cfg(CFG_CRTC_WIDTH, 1);
+  vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 1);
+  vgaemu_adj_cfg(CFG_CRTC_LINE_COMPARE, 1);
+#if 0
+  /* need to fix vgaemu before this is possible */
+  vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
+#endif
   
   vga_msg("vga_emu_setmode: mode initialized\n");
 

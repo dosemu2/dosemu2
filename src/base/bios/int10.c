@@ -511,6 +511,8 @@ boolean set_video_mode(int mode) {
   WRITE_WORD(BIOS_VIDEO_PORT, port);
 
   text_scanlines = get_text_scanlines();
+  if (mode > 0x13) /* VESA modes have their own scanlines */
+    text_scanlines = vmi->height;
   if (Video->update_screen == NULL) {
     int type=0;
     set_text_scanlines(400);
@@ -594,7 +596,7 @@ boolean set_video_mode(int mode) {
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x30);
 
   vga_font_height = vmi->char_height;
-  if (using_text_mode())
+  if (using_text_mode() && mode <= 0x13)
     vga_font_height = text_scanlines / li;
 
   if (li <= MAX_LINES) {

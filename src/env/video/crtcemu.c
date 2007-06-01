@@ -122,6 +122,10 @@ void CRTC_init()
 	(h & 0x100) >> (8 - 3);
       vga.crtc.data[0x9] &= ~0x20;
       vga.crtc.data[0x9] |= (h & 0x200) >> (9 - 5);
+      if (vga.mode_class == TEXT) {
+	vga.crtc.data[0x9] &= ~0x1f;
+	vga.crtc.data[0x9] |= (vga.char_height - 1) & 0x1f;
+      }
     }
     if (vga.scan_len < 2048 && vga.color_bits == 8) {
       vga.crtc.data[0x13] = vga.scan_len / 8;
@@ -134,15 +138,6 @@ void CRTC_init()
     }
   }
 
-  vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 1);
-  vgaemu_adj_cfg(CFG_CRTC_WIDTH, 1);
-  vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 1);
-  vgaemu_adj_cfg(CFG_CRTC_LINE_COMPARE, 1);
-#if 0
-  /* need to fix vgaemu before this is possible */
-  vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
-#endif
-  
   crtc_msg("CRTC_init done\n");
 }
 
