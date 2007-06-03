@@ -377,7 +377,6 @@ static int terminal_initialize(void)
    int rotate[8];
 
    v_printf("VID: terminal_initialize() called \n");
-   Slsmg_is_not_initialized = 0;
    
    /* This maps (r,g,b) --> (b,g,r) */
    rotate[0] = 0; rotate[1] = 4; 
@@ -415,7 +414,6 @@ static int terminal_initialize(void)
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    register_text_system(&Text_term);
-   vga_emu_setmode(video_mode, Columns, Rows);
 
 #if SLANG_VERSION < 20000
    SLtt_Use_Blink_For_ACS = 1;
@@ -434,16 +432,6 @@ static int terminal_initialize(void)
       term_write_nchars = term_write_nchars_8bit;
    }
 
-#if SLANG_VERSION < 10000
-   if (!SLsmg_init_smg ())
-#else
-   if (SLsmg_init_smg() == -1) 
-#endif
-     {
-       error ("Unable to initialze SMG routines.");
-       leavedos(32);
-     }
-   
    for (attr = 0; attr < 256; attr++)
      {
 	BW_Attribute_Map[attr] = Color_Attribute_Map[attr] = attr;
@@ -493,10 +481,6 @@ static int terminal_initialize(void)
    SLtt_set_color_object (7, 0);
    SLtt_set_mono (7, NULL, 0);
    
-   SLsmg_refresh ();
-   /* This goes after the refresh because it might try 
-    * resetting the character set.
-    */
    set_char_set ();
    return 0;
 }
@@ -600,6 +584,22 @@ static int slang_update (void)
 
    static int last_row, last_col, help_showing;
    static const char *last_prompt = NULL;
+
+   if (Slsmg_is_not_initialized)
+   {
+#if SLANG_VERSION < 10000
+     if (!SLsmg_init_smg ())
+#else
+     if (SLsmg_init_smg() == -1) 
+#endif
+       {
+	 error ("Unable to initialze SMG routines.");
+	 leavedos(32);
+       }
+     vga_emu_setmode(video_mode, Columns, Rows);
+     SLsmg_cls ();
+     Slsmg_is_not_initialized = 0;
+   }
 
    SLtt_Blink_Mode = (vga.attr.data[0x10] & 0x8) != 0;
 
@@ -802,8 +802,6 @@ void dos_slang_smart_set_mono (void)
 	   2 * SLtt_Screen_Rows * SLtt_Screen_Cols);
    
    set_char_set ();
-   
-   SLsmg_cls ();
 }
 
 static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last, Boolean focus)
