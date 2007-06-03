@@ -73,8 +73,8 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
-if [ -z "$QUIET" ]
-  SUFFIX="$SUFFIX -p"
+if [ -z "$QUIET" ]; then
+  SUFFIX="$SUFFIX \"-p\""
 fi
 
 mkdir -p ~/.dosemu
