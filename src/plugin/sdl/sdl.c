@@ -359,7 +359,8 @@ static void SDL_change_mode(int *x_res, int *y_res)
     }
     if (modes != (SDL_Rect **) -1) {
       unsigned mw = 0;
-      do {
+      i = 0;
+      if (modes[1]) do {
 	unsigned mh = 0;
 	int factor;
 	mw++;
