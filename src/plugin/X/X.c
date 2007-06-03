@@ -431,7 +431,7 @@ static void resize_ximage(unsigned, unsigned);
 /* video mode set/modify stuff */
 static int X_set_videomode(int, int, int);
 static void X_resize_text_screen(void);
-static void toggle_fullscreen_mode(void);
+static void toggle_fullscreen_mode(int);
 static void X_vidmode(int w, int h, int *new_width, int *new_height);
 static void lock_window_size(unsigned wx_res, unsigned wy_res);
 
@@ -550,7 +550,7 @@ int X_init()
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XKBOpenDisplay(display_name);
   if(display == NULL) {
-    if (display_name == NULL) {
+    if (display_name != NULL) {
       error("X: Can't open display \"%s\".\n"
     "Either the connection was refused and you do not have enough\n"
     "access rights to connect to your X server or there is\n"
@@ -560,7 +560,7 @@ int X_init()
     "(use xauth, xhost, or ssh -X).\n",
 	  display_name);
 
-      leavedos(1);
+      leavedos(99);
     }
     error(
      "You do not have the DISPLAY variable set, but want to run DOSEMU\n"
@@ -571,7 +571,7 @@ int X_init()
      "when running remotely ('host' being the machine where you are typing at)"
      "\n\nAfter this run xdosemu again.\n"
      );
-    leavedos(99);
+    leavedos(1);
   }
 
   /* collect some data about our X server; do it before anything else */
@@ -738,8 +738,13 @@ int X_init()
 
   /* don't map window if set */
   if(getenv("DOSEMU_HIDE_WINDOW") == NULL) {
-    XMapWindow(display, mainwindow);
-    XMapWindow(display, drawwindow);
+    if (config.X_fullscreen) {
+      toggle_fullscreen_mode(1);
+      have_focus = TRUE;
+    } else {
+      XMapWindow(display, mainwindow);
+      XMapWindow(display, drawwindow);
+    }
   }
 
   if(have_true_color || have_shmap)
@@ -764,9 +769,6 @@ int X_init()
   else {
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
-
-  if (config.X_fullscreen)
-    toggle_fullscreen_mode();
 
 #if CONFIG_X_SPEAKER
   register_speaker(display, X_speaker_on, X_speaker_off);
@@ -1150,7 +1152,7 @@ static int X_change_config(unsigned item, void *buf)
     case CHG_FULLSCREEN:
       X_printf("X: X_change_config: fullscreen %i\n", *((int *) buf));
       if (*((int *) buf) == (mainwindow == normalwindow))
-	toggle_fullscreen_mode();
+	toggle_fullscreen_mode(0);
       break;
 
     default:
@@ -1330,12 +1332,14 @@ static void X_wait_unmapped(Window win)
   } while ( (event.type != UnmapNotify) || (event.xunmap.event != win) );
 }
 
-static void toggle_fullscreen_mode(void)
+static void toggle_fullscreen_mode(int init)
 {
   unsigned resize_height, resize_width;
 
-  XUnmapWindow(display, mainwindow);
-  X_wait_unmapped(mainwindow);
+  if (!init) {
+    XUnmapWindow(display, mainwindow);
+    X_wait_unmapped(mainwindow);
+  }
   if (mainwindow == normalwindow) {
     int shift_x = 0, shift_y = 0;
 
@@ -1356,6 +1360,7 @@ static void toggle_fullscreen_mode(void)
       shift_x = (resize_width - w_x_res) / 2;
       shift_y = (resize_height - w_y_res) / 2;
     }
+    if (init) XMapWindow(display, drawwindow);
     XMapWindow(display, mainwindow);
     XRaiseWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, shift_x, shift_y);
@@ -1540,7 +1545,7 @@ static void X_handle_events(void)
               toggle_kbd_grab();
               break;
             } else if (keysym == XK_f) {
-              toggle_fullscreen_mode();
+              toggle_fullscreen_mode(0);
               break;
             }
           }
