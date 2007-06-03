@@ -90,9 +90,7 @@ ifdef X_SUPPORT
 endif
 
 $(BINPATH)/bin/dosemu: $(REALTOPDIR)/dist/dosemu.systemwide $(REALTOPDIR)/dist/dosemu
-	sed -e "s|SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE|SYSTEM_CONF_PATH=$(sysconfdir)|" \
-	    -e "s|SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE|SYSTEM_XFONTS_PATH=$(x11fontdir)|" \
-	    -e "s|SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE|SYSTEM_BIN_PATH=$(bindir)|" \
+	sed -e "s|SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE|SYSTEM_BIN_PATH=$(bindir)|" \
 		      $< > $(BINPATH)/bin/dosemu
 	tail -n +9 $(REALTOPDIR)/dist/dosemu >> $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
@@ -132,6 +130,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  LIB_DEFAULT  "$(libdir)"' >> $@
 	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
+	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
 	@echo ""

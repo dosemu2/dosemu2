@@ -5,8 +5,6 @@
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
 
-SYSTEM_CONF_PATH=""
-
 install_dos () {
   if [ -n "$INSTALL" -o \
     ! -e $HOME/.dosemu/drives/c -o \
@@ -53,7 +51,6 @@ get_binary() {
     if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
       (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
     fi
-    SYSTEM_XFONTS_PATH=$BOOT_DIR_PATH/Xfonts
   fi
   SUFFIX="$SUFFIX --Flibdir $BOOT_DIR_PATH"
 }

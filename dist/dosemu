@@ -73,6 +73,10 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
+if [ -z "$QUIET" ]
+  SUFFIX="$SUFFIX -p"
+fi
+
 mkdir -p ~/.dosemu
 BPATH_FILE=~/.dosemu/bindist_path
 
@@ -100,74 +104,6 @@ if [ "`basename $ARG0`" = "xdosemu" ]; then
 "
   else
     XFLAG=-X
-  fi
-fi
-
-if [ -n "$XFLAG" -o -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
-  if [ -z "$DISPLAY" ]; then
-    echo "
-  You do not have the DISPLAY variable set, but want to run DOSEMU
-  in its own X-window. Set the DISPLAY variable such as
-
-      DISPLAY=:0.0; export DISPLAY
-
-  if running X locally or
-
-      DISPLAY=host:0.0; export DISPLAY
-
-  when running remotely ('host' being the machine where you are typing at)
-
-  After this run xdosemu again.
-"
-    exit 1
-  fi
-  
-  if [ -f $HOME/.dosemurc ]; then
-    FONT=`grep '$_X_font' $HOME/.dosemurc | \
-         sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
-  fi
-
-  if [ "$FONT" = "" -a -n "$SYSTEM_CONF_PATH" -a -f $SYSTEM_CONF_PATH/dosemu.conf ]; then
-     FONT=`grep '$_X_font' $SYSTEM_CONF_PATH/dosemu.conf | \
-        sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
-  fi
-
-  if [ "$FONT" = "" ]; then
-     FONT="vga"
-  fi
-
-  if [ "`xlsfonts -o -fn $FONT 2>/dev/null`" = "" ]; then
-     if ! xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null; then
-	# messed up font path -- last resort
-        xset fp default
-        xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null
-     fi
-     xset fp rehash
-  fi
-  if [ "`xlsfonts -o -fn $FONT 2>/dev/null`" = "" ]; then
-     echo "
-   You do not have the DOSEMU $FONT font installed and are running
-   remote X. You need to install the $FONT font on your _local_ Xserver.
-   Look at the readme for details. For now we start with an fixed font,
-   which does not display all national characters correctly.
-   ... be warned
-"
-  fi
-else
-  if test -z "$LINES" -o -z "$COLUMNS" ; then
-    eval `stty size 2>/dev/null | (read L C; \
-          echo LINES=${L:-24} COLUMNS=${C:-80})`
-  fi
-  test $LINES   -eq 0 && LINES=24
-  test $COLUMNS -eq 0 && COLUMNS=80
-  if [ $LINES -lt 25 -a -z "$DUMBTERM" -a -z "$QUIET" ]; then
-      echo "
-   Note that DOS needs 25 lines. You might want to enlarge your
-   window before continuing.
-"
-    echo
-    echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel"
-    read dummy
   fi
 fi
 

@@ -550,14 +550,27 @@ int X_init()
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XKBOpenDisplay(display_name);
   if(display == NULL) {
-    error("X: Can't open display \"%s\".\n"
+    if (display_name == NULL) {
+      error("X: Can't open display \"%s\".\n"
     "Either the connection was refused and you do not have enough\n"
     "access rights to connect to your X server or there is\n"
     "something wrong with the contents of your DISPLAY variable.\n"
     "If the connection was refused then please consult your system\n"
     "administator or read the X documentation for a solution\n"
     "(use xauth, xhost, or ssh -X).\n",
-        display_name ? display_name : "");
+	  display_name);
+
+      leavedos(1);
+    }
+    error(
+     "You do not have the DISPLAY variable set, but want to run DOSEMU\n"
+     "in its own X-window. Set the DISPLAY variable such as\n\n"
+     "    DISPLAY=:0.0; export DISPLAY\n\n"
+     "if running X locally or\n\n"
+     "    DISPLAY=host:0.0; export DISPLAY\n\n"
+     "when running remotely ('host' being the machine where you are typing at)"
+     "\n\nAfter this run xdosemu again.\n"
+     );
     leavedos(99);
   }
 

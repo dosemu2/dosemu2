@@ -7,16 +7,22 @@
 /* X font handling. Generally X fonts are faster than bitmapped fonts
    but they can't be scaled or their images changed by DOS software */
 
+#include "emu.h"
+
+#include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 
-#include "emu.h"
 #include "translate.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "video.h"
 #include "X.h"
+#include "dosemu_config.h"
 
 static Display *text_display;
 static Window text_window;
@@ -204,6 +210,30 @@ static struct text_system Text_X =
    X_set_text_palette,
 };
 
+/* Runs xset to load X fonts */
+static int run_xset(const char *path)
+{
+  char *command;
+  int status;
+  struct stat buf;
+
+  stat(path, &buf);
+  if (!S_ISDIR(buf.st_mode))
+    return 0;
+  asprintf(&command, "xset +fp %s 2>/dev/null", path);
+  X_printf("X: running %s\n", command);
+  status = system(command);
+  if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    /* messed up font path -- last resort */
+    X_printf("X: running xset fp default\n");
+    system("xset fp default");
+    system(command);
+  }
+  free(command);
+  system("xset fp rehash");
+  return 1;
+}
+
 /*
  * Load the main text font. Try first the user specified font, then
  * vga, then 9x15 and finally fixed. If none of these exists and
@@ -228,7 +258,31 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
       text_display = XOpenDisplay(NULL);
     xfont = XLoadQueryFont(text_display, p);
     if (xfont == NULL) {
-      error("X: Unable to open font \"%s\", using builtin\n", p);
+      if (run_xset(SYSTEM_XFONTS_PATH))
+	xfont = XLoadQueryFont(text_display, p);
+    }
+    if (xfont == NULL) {
+      char *path = strdup(dosemu_proc_self_exe);
+      if (path) {
+	size_t len = strlen(path);
+	if (len > 15) {
+	  char *d = path + len - 15;
+	  if (strcmp(d, "/bin/dosemu.bin") == 0) {
+	    strcpy(d, "/Xfonts");
+	    if (run_xset(path))
+	      xfont = XLoadQueryFont(text_display, p);
+	  }
+	}
+	free(path);
+      }
+    }
+    if (xfont == NULL) {
+      fprintf(stderr,
+      "You do not have the %s %s font installed and are running\n"
+      "remote X. You need to install the %s font on your _local_ Xserver.\n"
+      "Look at the readme for details. For now we start with the bitmapped\n"
+      "built-in font instead, which may be slower.\n",
+      ((memcmp(p, "vga", 3) == 0) ? "DOSEMU" : ""), p, p);
     } else if (xfont->min_bounds.width != xfont->max_bounds.width) {
       error("X: Font \"%s\" isn't monospaced, using builtin\n", p);
       XFreeFont(text_display, xfont);

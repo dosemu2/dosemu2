@@ -5,7 +5,7 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
 .B dosemu.bin
 [
-.B \-234ABCcdKkmNnOSstVwX
+.B \-234ABCcdKkmNnOpSstVwX
 ]
 [
 .B \-h
@@ -270,6 +270,9 @@ use this file for output of Debugging messages
 .TP
 .I -P
 copy debugging output to FILE
+.TP
+.I -p
+stop for prompting if a non-fatal configuration problem is detected
 .TP
 .I -S
 run using SDL

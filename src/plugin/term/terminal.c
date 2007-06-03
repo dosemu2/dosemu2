@@ -132,6 +132,7 @@ static int DOSemu_Terminal_Scroll_Min = 0;
 static void get_screen_size (void)
 {
   struct winsize ws;		/* buffer for TIOCSWINSZ */
+  static int first = 1;
 
    SLtt_Screen_Rows = 0;
    SLtt_Screen_Cols = 0;
@@ -154,6 +155,17 @@ static void get_screen_size (void)
      }
    Rows = SLtt_Screen_Rows;
    Columns = SLtt_Screen_Cols;
+   if (Rows < 25) {
+     if (config.prompt && first) {
+       printf("Note that DOS needs 25 lines. You might want to enlarge your\n");
+       printf("window before continuing.\n\n");
+       printf("Now type ENTER to start DOSEMU or <Ctrl>C to cancel\n");
+       getchar();
+       first = 0;
+       get_screen_size();
+     }
+     Rows = 25;
+   }
    if (Rows < 25) Rows = 25;
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;

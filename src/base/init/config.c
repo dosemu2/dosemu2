@@ -62,7 +62,7 @@
  * they are eaten by secure_option_preparse().
  */
 static const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:Sstu:Vv:wXx:U:"
+       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSstu:Vv:wXx:U:"
        "gK"/*NOPs kept for compat (not documented in usage())*/;
 
 
@@ -1038,6 +1038,9 @@ config_init(int argc, char **argv)
 	case 'D':
 	    parse_debugflags(optarg, 1);
 	    break;
+	case 'p':
+	    config.prompt = 1;
+	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
 		open_terminal_pipe(optarg);
@@ -1175,6 +1178,7 @@ usage(char *basename)
 	"    -O write debug messages to stderr\n"
 	"    -o FILE put debug messages in file\n"
 	"    -P copy debugging output to FILE\n"
+	"    -p stop for prompting with a non-fatal configuration problem\n"
 	"    -s enable direct hardware access (full feature) (!%%)\n"
 	"    -t use terminal (S-Lang) mode\n"
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"

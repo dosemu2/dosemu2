@@ -6,8 +6,6 @@
 #
 
 # the below lines get patched, when a systemwide install is done
-SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
-SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE
 SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE
 
 get_binary() {
