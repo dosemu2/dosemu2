@@ -863,6 +863,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             return 0;
         case 0xA1: /* close find */
             return 0;
+        case 0xA6: /* get file info by handle */
+            prepare_ems_frame();
+            REG(ds) = TRANS_BUFFER_SEG;
+            REG(edx) = 0;
+            return 0;
         default: /* all other subfuntions currently not supported */
             _eflags |= CF;
             _eax = _eax & 0xFFFFFF00;
@@ -1270,6 +1275,13 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
             snprintf((void *)GetSegmentBaseAddress(_es) +
                      D_16_32(_edi), _LWORD(ecx), "%s",
                      SEG_ADR((char *), es, di));
+            break;
+        case 0xA6:
+            PRESERVE1(edx);
+            if (LWORD(eflags) & CF)
+                break;
+            MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_ds) +
+                           D_16_32(_edx), SEG_ADR((char *), ds, dx), 0x34);
             break;
         };
 
