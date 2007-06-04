@@ -329,6 +329,7 @@ int sft_directory_sector_off = 0x1d;
 int sft_directory_entry_off = 0x1f;
 int sft_name_off = 0x20;
 int sft_ext_off = 0x28;
+int sft_size = 0x38;
 
 int cds_record_size = 0x51;
 int cds_current_path_off = 0x0;
@@ -577,6 +578,12 @@ static int file_on_fat(const char *name)
   return statfs(name, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
 }
 
+static int fd_on_fat(int fd)
+{
+  struct statfs buf;
+  return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
+}
+
 int get_dos_attr(const char *fname,int mode,boolean_t hidden)
 {
   int attr = 0;
@@ -600,6 +607,16 @@ int get_dos_attr(const char *fname,int mode,boolean_t hidden)
   if (hidden)
     attr |= HIDDEN_FILE;
   return (attr);
+}
+
+int get_dos_attr_fd(int fd,int mode,boolean_t hidden)
+{
+  int attr;
+  if (fd_on_fat(fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
+      ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
+    return attr;
+
+  return get_dos_attr(NULL, mode, hidden);
 }
 
 int get_unix_attr(int mode, int attr)
@@ -1253,6 +1270,7 @@ init_dos_offsets(int ver)
       sft_directory_entry_off = 0x1f;
       sft_name_off = 0x20;
       sft_ext_off = 0x28;
+      sft_size = 0x38;
 
       cds_record_size = 0x51;
       cds_current_path_off = 0x0;
@@ -1311,6 +1329,7 @@ init_dos_offsets(int ver)
       sft_directory_entry_off = 0x1f;
       sft_name_off = 0x20;
       sft_ext_off = 0x28;
+      sft_size = 0x3b;
 
       /* done */ cds_record_size = 0x58;
       cds_current_path_off = 0x0;
@@ -1375,6 +1394,7 @@ init_dos_offsets(int ver)
       sft_directory_entry_off = 0x1f;
       sft_name_off = 0x20;
       sft_ext_off = 0x28;
+      sft_size = 0x3b;
 
       /* done */ cds_record_size = 0x58;
       cds_current_path_off = 0x0;
@@ -3052,6 +3072,14 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
   free(label);
 }
 
+/* return the Linux filename corresponding to the sft */
+char *sft_to_filename(const char *sft, int *fd)
+{
+  int cnt = READ_BYTE(&sft_fd(sft));
+  *fd = open_files[cnt].name ? open_files[cnt].fd : 0;
+  return open_files[cnt].name;
+}
+
 int dos_rmdir(const char *filename1, int drive, int lfn)
 {
   struct stat st;
@@ -3765,7 +3793,8 @@ dos_fs_redirect(state_t *state)
 	return (FALSE);
       }
     }
-    set_fat_attr(fd, attr);
+    if (file_on_fat(fpath))
+      set_fat_attr(fd, attr);
 
     if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
       Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n",

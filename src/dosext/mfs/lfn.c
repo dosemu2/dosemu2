@@ -53,6 +53,59 @@ static time_t win_to_unix_time(unsigned long long wt)
 	return (wt / 10000000) - (369 * 365 + 89)*24*60*60ULL;
 }
 
+/* returns: NULL: error (error code in fd; 0: SFT not owned by DOSEMU
+   otherwise it return the fd and the filename
+*/
+static char *handle_to_filename(int handle, int *fd)
+{
+	struct PSP *p = MK_FP32(READ_WORD(&sda_cur_psp(sda)), 0);
+	unsigned char *filetab;
+	unsigned int sp;
+	unsigned char *sft;
+	int dd, idx;
+
+	struct sfttbl {
+		FAR_PTR sftt_next;
+		unsigned short sftt_count;
+		unsigned char sftt_table[1];
+	} *spp;
+
+	/* Look up the handle via the PSP */
+	*fd = HANDLE_INVALID;
+	if (handle >= READ_WORD(&p->max_open_files))
+		return NULL;
+
+	filetab = rFAR_PTR(char *, READ_DWORD(&p->file_handles_ptr));
+	idx = READ_BYTE(filetab + handle);
+	if (idx == 0xff)
+		return NULL;
+
+	/* Get the SFT block that contains the SFT      */
+	sp = READ_DWORD(lol + 4);
+	while (sp != 0xffffffff) {
+		spp = rFAR_PTR(struct sfttbl *, sp);
+		if (idx < READ_WORD(&spp->sftt_count)) {
+			/* finally, point to the right entry            */
+			sft = &spp->sftt_table[idx * sft_size];
+			break;
+		}
+		idx -= READ_WORD(&spp->sftt_count);
+		sp = READ_DWORD(&spp->sftt_next);
+	}
+	if (sp == 0xffffffff)
+		return NULL;
+
+	/* do we "own" the drive? */
+	*fd = 0;
+	dd = READ_WORD(&sft_device_info(sft)) & 0x0d1f;
+	if (dd == 0 && (READ_WORD(&sft_device_info(sft)) & 0x8000))
+		dd = MAX_DRIVE - 1;
+	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
+		return NULL;
+
+	return sft_to_filename(sft, fd);
+}
+
 static int close_dirhandle(int handle)
 {
 	struct lfndir *dir;
@@ -803,6 +856,42 @@ static int mfs_lfn_(void)
 	
 	d_printf("LFN: doing LFN!, AX=%x DL=%x\n", _AX, _DL);
 	NOCARRY;
+
+	if (_AH == 0x57) {
+		char *filename;
+		int fd;
+
+		if (_AL < 4 || _AL > 7) return 0;
+		filename = handle_to_filename(_BX, &fd);
+		if (filename == NULL)
+			return fd ? lfn_error(fd) : 0;
+
+		if (fstat(fd, &st))
+			return lfn_error(HANDLE_INVALID);
+		d_printf("LFN: handle function for BX=%x, path=%s, fd=%d\n",
+			 _BX, filename, fd);
+
+		switch (_AL) {
+		case 0x04: /* get last access date and time */
+			time_to_dos(st.st_atime, &_DX, &_CX);
+			_CX = 0;
+			break;
+		case 0x05: /* set last access date */
+			utimbuf.modtime = st.st_mtime;
+			utimbuf.actime = time_to_unix(_DX, _CX);
+			if (dos_utime(filename, &utimbuf) != 0)
+				return lfn_error(ACCESS_DENIED);
+			break;
+		case 0x06: /* get creation date/time */
+			time_to_dos(st.st_ctime, &_DX, &_CX);
+			_SI = (st.st_ctime & 1) ? 100 : 0;
+			/* fall through */
+		case 0x07: /* set creation date/time, impossible in Linux */
+			return 1;
+		}
+		return 1;
+	}
+	/* else _AH == 0x71 */
 	switch (_AL) {
 	case 0x0D: /* reset drive, nothing to do */
 		break;
@@ -1121,9 +1210,42 @@ static int mfs_lfn_(void)
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
 		return close_dirhandle(_BX);
-	case 0xa6: /* get file info by handle */
+	case 0xa6: { /* get file info by handle */
+		int fd;
+		char *filename;
+		unsigned long long wtime;
+		unsigned int buffer = SEGOFF2LINEAR(_DS, _DX);
+
 		d_printf("LFN: get file info by handle %x\n", _BX);
+		filename = handle_to_filename(_BX, &fd);
+		if (filename == NULL)
+			return fd ? lfn_error(fd) : 0;
+
+		if (fstat(fd, &st))
+			return lfn_error(HANDLE_INVALID);
+		d_printf("LFN: handle function for BX=%x, path=%s, fd=%d\n",
+			 _BX, filename, fd);
+
+		WRITE_DWORD(buffer, get_dos_attr_fd(fd, st.st_mode,
+						    is_hidden(filename)));
+		wtime = unix_to_win_time(st.st_ctime);
+		WRITE_DWORD(buffer + 4, wtime);
+		WRITE_DWORD(buffer + 8, wtime >> 32);
+		wtime = unix_to_win_time(st.st_atime);
+		WRITE_DWORD(buffer + 0xc, wtime);
+		WRITE_DWORD(buffer + 0x10, wtime >> 32);
+		wtime = unix_to_win_time(st.st_mtime);
+		WRITE_DWORD(buffer + 0x14, wtime);
+		WRITE_DWORD(buffer + 0x18, wtime >> 32);
+		WRITE_DWORD(buffer + 0x1c, st.st_dev); /*volume serial number*/
+		WRITE_DWORD(buffer + 0x20, (unsigned long long)st.st_size >> 32);
+		WRITE_DWORD(buffer + 0x24, st.st_size);
+		WRITE_DWORD(buffer + 0x28, st.st_nlink);
+		/* fileid*/
+		WRITE_DWORD(buffer + 0x2c, (unsigned long long)st.st_ino >> 32);
+		WRITE_DWORD(buffer + 0x30, st.st_ino);
 		return 0;
+	}
 	case 0xa7: /* file time to DOS time and v.v. */
 		if (_BL == 0) {
 			src = (char *)SEGOFF2LINEAR(_DS, _SI);

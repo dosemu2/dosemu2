@@ -355,6 +355,7 @@ extern boolean_t find_file(char *fpath, struct stat *st, int drive,
 			   int *doserror);
 extern boolean_t is_hidden(char *fname);
 extern int get_dos_attr(const char *fname,int mode,boolean_t hidden);
+extern int get_dos_attr_fd(int fd,int mode,boolean_t hidden);
 extern int set_fat_attr(int fd,int attr);
 extern int set_dos_attr(char *fname,int mode,int attr);
 extern int dos_utime(char *fpath, struct utimbuf *ut);
@@ -369,6 +370,7 @@ extern void get_volume_label(char *fname, char *fext, char *lfn, int drive);
 extern int dos_rename(const char *filename1, const char *filename2, int drive, int lfn);
 extern int dos_mkdir(const char *filename, int drive, int lfn);
 extern int dos_rmdir(const char *filename, int drive, int lfn);
+extern char *sft_to_filename(const char *sft, int *fd);
 
 extern void register_cdrom(int drive, int device);
 extern void unregister_cdrom(int drive);

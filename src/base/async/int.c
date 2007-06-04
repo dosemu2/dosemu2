@@ -1143,7 +1143,7 @@ static void int21_post_boot(void)
 
 static int int21lfnhook(void)
 {
-  if (HI(ax) != 0x71 || !mfs_lfn())
+  if (!(HI(ax) == 0x71 || HI(ax) == 0x57) || !mfs_lfn())
     fake_int_to(int21seg, int21off);
   return 1;
 }

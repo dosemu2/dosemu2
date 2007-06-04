@@ -213,6 +213,7 @@ extern int sft_directory_sector_off;
 extern int sft_directory_entry_off;
 extern int sft_name_off;
 extern int sft_ext_off;
+extern int sft_size;
 
 extern int cds_record_size;
 extern int cds_current_path_off;
