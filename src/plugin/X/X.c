@@ -2173,6 +2173,15 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
       w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
       y_res = vga.height;
       w_y_res = (y_res <= 240) ? (2 * y_res) : y_res;
+
+      if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
+	w_x_res = config.X_winsize_x;
+	w_y_res = config.X_winsize_y;
+      }
+
+      if(config.X_aspect_43) {
+	w_y_res = (w_x_res * 3) >> 2;
+      }
     }
 
     saved_w_x_res = w_x_res;
