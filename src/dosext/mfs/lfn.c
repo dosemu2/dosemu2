@@ -75,7 +75,7 @@ static char *handle_to_filename(int handle, int *fd)
 	if (handle >= READ_WORD(&p->max_open_files))
 		return NULL;
 
-	filetab = rFAR_PTR(char *, READ_DWORD(&p->file_handles_ptr));
+	filetab = (char *)rFAR_PTR(uintptr_t, READ_DWORD(&p->file_handles_ptr));
 	idx = READ_BYTE(filetab + handle);
 	if (idx == 0xff)
 		return NULL;
@@ -83,7 +83,7 @@ static char *handle_to_filename(int handle, int *fd)
 	/* Get the SFT block that contains the SFT      */
 	sp = READ_DWORD(lol + 4);
 	while (sp != 0xffffffff) {
-		spp = rFAR_PTR(struct sfttbl *, sp);
+		spp = (struct sfttbl *)rFAR_PTR(uintptr_t, sp);
 		if (idx < READ_WORD(&spp->sftt_count)) {
 			/* finally, point to the right entry            */
 			sft = &spp->sftt_table[idx * sft_size];
