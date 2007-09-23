@@ -116,6 +116,9 @@ int printer_open(int prnum)
   if (lpt[prnum].file != NULL)
     return 0;
 
+  if (lpt[prnum].fops.open == NULL)
+    return -1;
+
   rc = lpt[prnum].fops.open(prnum);
   /* use line buffering so we don't need to have a long wait for output */
   setvbuf(lpt[prnum].file, NULL, _IOLBF, 0);

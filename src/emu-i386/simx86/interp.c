@@ -698,9 +698,22 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			e_printf("Undocumented op 0xd6\n");
 			rAL = (EFLAGS & EFLAGS_CF? 0xff:0x00);
 			PC++; break;
-/*62*/	case BOUND:
+/*62*/	case BOUND:    {
+	  		unsigned int lo, hi, r;
 			CODE_FLUSH();
-			goto not_implemented;
+			PC += ModRMSim(PC, mode);
+			r = GetCPU_WL(mode, REG1);
+			lo = DataGetWL_U(mode,TheCPU.mem_ref);
+			TheCPU.mem_ref += BT24(BitDATA16, mode);
+			hi = DataGetWL_U(mode,TheCPU.mem_ref);
+			if(r < lo || r > hi)
+			{
+				e_printf("Bound interrupt 05\n");
+				TheCPU.err=EXCP05_BOUND;
+				return PC;
+			}
+			break;
+		       }
 /*63*/	case ARPL:
 			CODE_FLUSH();
 			goto not_implemented;
