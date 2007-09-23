@@ -2018,8 +2018,10 @@ repag0:
 			    case 0x1a:	/*INPUT_STATUS_1*/
 				rAL = VGA_emulate_inb(a);
 				break;
-			    default: dbug_printf("not emulated EC %x\n",a);
-				leavedos(0);
+			    default:
+				e_printf("Bad read from port %x, returning FF\n",a);
+				rAL = 0xFF;
+				break;
 		  	  }
 	  		  PC++; break;
 			}
@@ -2174,8 +2176,9 @@ repag0:
 			    case 0x1a:  /*FEATURE_CONTROL_W*/
 				VGA_emulate_outb(a,rAL);
 				break;
-			    default: dbug_printf("not emulated EE %x\n",a);
-				leavedos(0);
+			    default:
+				e_printf("Ignoring write to port %x\n",a);
+				break;
 			  }
 	  		  PC++; break;
 			}
