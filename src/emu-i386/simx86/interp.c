@@ -163,12 +163,12 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 		dsp = pskip + (signed char)Fetch(P2+1);
 	}
 	else if ((btype&5)==4) {	// jmp (word/long)
-		pskip = 1 + BT24(BitADDR16,mode);
-		dsp = pskip + (int)AddrFetchWL_S(mode, P2+1);
+		pskip = 1 + BT24(BitDATA16,mode);
+		dsp = pskip + (int)DataFetchWL_S(mode, P2+1);
 	}
 	else {		// long branch (word/long)
-		pskip = 2 + BT24(BitADDR16,mode);
-		dsp = pskip + (int)AddrFetchWL_S(mode, P2+2);
+		pskip = 2 + BT24(BitDATA16,mode);
+		dsp = pskip + (int)DataFetchWL_S(mode, P2+2);
 	}
 
 	/* displacement for taken branch */
@@ -199,17 +199,17 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 		    int dsp2 = (signed char)Fetch(P1+1) + 2;
 	    	    if (dsp2 < 0) mode |= CKSIGN;
 		    d_nt = ((long)P1 - LONG_CS) + dsp2;
-		    if (mode&ADDR16) d_nt &= 0xffff;
+		    if (mode&DATA16) d_nt &= 0xffff;
 		    j_nt = d_nt + LONG_CS;
 	    	    e_printf("JMPs (%02x,%d) at %08lx after Jcc: t=%08lx nt=%08lx\n",
 			P1[0],dsp2,(long)P1,j_t,j_nt);
 		}
 		else if (Fetch(P1)==JMPd) {	/* e9 xxxx{xxxx} */
-		    int skp2 = BT24(BitADDR16,mode) + 1;
-		    int dsp2 = skp2 + (int)AddrFetchWL_S(mode, P1+1);
+		    int skp2 = BT24(BitDATA16,mode) + 1;
+		    int dsp2 = skp2 + (int)DataFetchWL_S(mode, P1+1);
 	    	    if (dsp2 < 0) mode |= CKSIGN;
 		    d_nt = ((long)P1 - LONG_CS) + dsp2;
-		    if (mode&ADDR16) d_nt &= 0xffff;
+		    if (mode&DATA16) d_nt &= 0xffff;
 		    j_nt = d_nt + LONG_CS;
 	    	    e_printf("JMPl (%02x,%d) at %08lx after Jcc: t=%08lx nt=%08lx\n",
 			P1[0],dsp2,(long)P1,j_t,j_nt);
@@ -1385,10 +1385,10 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			unsigned long oip,xcs,jip=0;
 			CODE_FLUSH();
 			/* get new cs:ip */
-			jip = AddrFetchWL_U(mode, PC+1);
-			INC_WL_PCA(mode,1);
-			jcs = AddrFetchWL_U(mode, PC);
-			INC_WL_PCA(mode,0);
+			jip = DataFetchWL_U(mode, PC+1);
+			INC_WL_PC(mode,1);
+			jcs = FetchW(PC);
+			PC+=2;
 			/* check if new cs is valid, save old for error */
 			ocs = TheCPU.cs;
 			xcs = LONG_CS;
