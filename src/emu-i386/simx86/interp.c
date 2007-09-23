@@ -699,13 +699,13 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			rAL = (EFLAGS & EFLAGS_CF? 0xff:0x00);
 			PC++; break;
 /*62*/	case BOUND:    {
-	  		unsigned int lo, hi, r;
+	  		signed int lo, hi, r;
 			CODE_FLUSH();
 			PC += ModRMSim(PC, mode);
 			r = GetCPU_WL(mode, REG1);
-			lo = DataGetWL_U(mode,TheCPU.mem_ref);
+			lo = DataGetWL_S(mode,TheCPU.mem_ref);
 			TheCPU.mem_ref += BT24(BitDATA16, mode);
-			hi = DataGetWL_U(mode,TheCPU.mem_ref);
+			hi = DataGetWL_S(mode,TheCPU.mem_ref);
 			if(r < lo || r > hi)
 			{
 				e_printf("Bound interrupt 05\n");
