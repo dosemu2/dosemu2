@@ -1497,9 +1497,15 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			return PC;
 /*ce*/	case INTO:
 			CODE_FLUSH();
-			e_printf("Overflow interrupt 04\n");
-			TheCPU.err=EXCP04_INTO;
-			return P0;
+			FlagSync_O();
+			PC++;
+			if(EFLAGS & EFLAGS_OF)
+			{
+				e_printf("Overflow interrupt 04\n");
+				TheCPU.err=EXCP04_INTO;
+				return PC;
+			}
+			break;
 /*cd*/	case INT:
 			CODE_FLUSH();
 #ifdef ASM_DUMP
