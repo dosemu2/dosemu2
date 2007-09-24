@@ -106,21 +106,10 @@ extern void FlagSync_All (void);
 /////////////////////////////////////////////////////////////////////////////
 
 // returns 1(16 bit), 0(32 bit)
-#define BTA(bpos, mode) ({ register int temp; \
-	__asm__ ("bt	%1,%2\n \
-		rcrl	$1,%0\n \
-		shrl	$31,%0" \
-		: "=&r"(temp) \
-		: "i"(bpos), "g"(mode) ); temp; })
+#define BTA(bpos, mode) (((mode) >> (bpos)) & 1)
 
 // returns 2(16 bit), 4(32 bit)	
-#define BT24(bpos, mode) ({ register int temp; \
-	__asm__ ("movb	$4,%b0\n \
-		bt	%1,%2\n \
-		sbbb	$0,%b0\n \
-		andl	$6,%0" \
-		: "=&q"(temp) \
-		: "i"(bpos), "g"(mode) ); temp; })
+#define BT24(bpos, mode) (4 - (((mode) << (1-(bpos))) & 2))
 
 static __inline__ int FastLog2(register int v)
 {
