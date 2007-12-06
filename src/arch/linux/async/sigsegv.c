@@ -607,15 +607,17 @@ void print_exception_info(struct sigcontext_struct *scp)
       break;
 
    case 0x10: {
-      struct _fpstate *p = scp->fpstate;
       int i, n;
       unsigned short sw;
-      error ("@Coprocessor Error:\n");
 #ifdef __x86_64__
+      fpregset_t p = ((mcontext_t *)scp)->fpregs;
+      error ("@Coprocessor Error:\n");
       error ("@cwd=%04x swd=%04x ftw=%04x\n", p->cwd, p->swd, p->ftw);
       error ("@cs:rip=%04x:%08lx ds:data=%04x:%08lx\n",	_cs,p->rip,_ds,p->rdp);
       sw = p->swd;
 #else
+      struct _fpstate *p = scp->fpstate;
+      error ("@Coprocessor Error:\n");
       error ("@cw=%04x sw=%04x tag=%04x\n",
 	*((unsigned short *)&(p->cw)),*((unsigned short *)&(p->sw)),
 	*((unsigned short *)&(p->tag)));
