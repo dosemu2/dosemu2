@@ -27,8 +27,7 @@
  * Author: Stas Sergeev.
  *
  * Some code is taken from an old sound.c by Joel N. Weber II,
- * Alistair MacDonald, Michael Karcher and all the other authors
- * of the bloat that made me so much of a headache...
+ * Alistair MacDonald, Michael Karcher and others - thanks.
  * Thanks to Vlad Romascanu and VDMSound project for the E2 code and some info.
  */
 

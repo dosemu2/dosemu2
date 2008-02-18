@@ -211,7 +211,7 @@ int dma_pulse_DRQ(int ch, Bit8u * buf)
     }
     if ((dma[DI(ch)].status & 0xf0) || dma[DI(ch)].request) {
 	error("DMA: channel %i already active! (m=%#x s=%#x r=%#x)\n",
-	      dma[DI(ch)].chans[CI(ch)].mode, dma[DI(ch)].status,
+	      ch, dma[DI(ch)].chans[CI(ch)].mode, dma[DI(ch)].status,
 	      dma[DI(ch)].request);
 	ret = DMA_NO_DACK;
     }
