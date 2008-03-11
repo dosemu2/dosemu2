@@ -271,7 +271,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		e_VgaWrite(_edi,_eax,MBYTE);
-		_rip += (long)(p+2); break;
+		_rip = (long)(p+2); break;
 	case 0x89:	// write word
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
