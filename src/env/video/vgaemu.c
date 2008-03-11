@@ -2286,7 +2286,8 @@ int vga_emu_setmode(int mode, int width, int height)
   vga.mem.wrap = vmi->buffer_len * 1024;
   // unmap ???
 
-  if(vga.color_bits >= 8 && (vga.mode & 0xffff) >= 0x100) {
+  /* In Super-VGA modes, do *not* wrap memory at 256k */
+  if(vga.color_bits >= 8 && (vga.mode & 0xffff) > 0x13) {
     vga.mem.wrap = vga.mem.size;
     if(vga.mem.lfb_base_page) {
       vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
