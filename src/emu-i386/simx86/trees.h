@@ -78,7 +78,8 @@ typedef struct _imgen {
 } IGen;
 
 typedef struct _ianpc {
-	unsigned short daddr, dnpc __attribute__ ((packed));
+	unsigned short daddr __attribute__ ((packed));
+	signed short dnpc __attribute__ ((packed));
 } Addr2Pc;
 
 typedef struct _imeta {
