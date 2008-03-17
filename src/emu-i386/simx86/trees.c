@@ -1221,7 +1221,7 @@ int InvalidateSingleNode (long addr, long eip)
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
-      if ((G == &CollectTree.root) || (G->key > addr)) break;
+      if ((G == &CollectTree.root) || (G->seqbase > addr)) break;
 
       if (G->addr && (G->alive>0)) {
 	long ahG = G->seqbase + G->seqlen;
