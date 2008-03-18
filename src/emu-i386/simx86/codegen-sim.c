@@ -2204,10 +2204,12 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_MOVS_MovD: {
-		int df = CPUWORD(Ofs_FLAGS) & EFLAGS_DF;
+		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		register unsigned int i, v;
 		i = TR1.d;
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
+		if(i == 0)
+		    break;
 		v = vga_read_access(AR2.d) | (vga_write_access(AR1.d) << 1);
 		if (v) {
 		    int op;
@@ -2216,7 +2218,6 @@ static void Gen_sim(int op, int mode, ...)
 		    _rdi = AR1.d;
 		    _rsi = AR2.d;
 		    _rcx = i;
-		    df = 1 - 2*(df ? 1 : 0);
 		    op = 2 | (v == 3 ? 4 : 0);
 		    if (mode & MBYTE) {
 			op |= 1;
@@ -2229,8 +2230,48 @@ static void Gen_sim(int op, int mode, ...)
 		    e_VgaMovs(scp, op, (mode & DATA16) ? 1 : 0, df);
 		    AR1.d = _edi;
 		    AR2.d = _esi;
+		    if (mode&(MREP|MREPNE))	TR1.d = 0;
+		    break;
 		}
-		else if (df) {
+		if(mode & ADDR16) {
+		    unsigned int minofs, bytesbefore;
+		    /* overflow check (DR2 is SI, SR1 is DI) */
+		    if (df == -1) {
+			minofs = min(SR1.d,DR2.d);
+			bytesbefore = (i-1)*OPSIZE(mode);
+		    } else {
+			minofs = 0x10000 - max(SR1.d,DR2.d);
+			bytesbefore = i*OPSIZE(mode);
+		    }
+		    if(bytesbefore > minofs) {
+		        unsigned int possible;
+			/* caught 16 bit address overflow: do it piecewise */
+
+			/* misaligned overflow generates trap. */
+			if(minofs & (OPSIZE(mode)-1)) {
+			    TheCPU.err=EXCP0D_GPF;
+			    break;
+			}
+
+			/* do maximal possible amount */
+			possible = minofs / (OPSIZE(mode));
+			if (df < 0)
+			    possible++;
+			TR1.d = possible;
+			Gen_sim(O_MOVS_MovD,mode);
+			/* emulate overflow */
+			if(SR1.d == minofs)
+			    AR1.d -= df*0x10000;
+			if(DR2.d == minofs)
+			    AR2.d -= df*0x10000;
+
+			/* do the rest */
+			TR1.d = i - possible;
+			Gen_sim(O_MOVS_MovD,mode);
+			break;
+		    }
+		}
+		if (df<0) {
 		    if (mode&MBYTE) {
 			while (i--) *AR1.pu-- = *AR2.pu--;
 		    }
@@ -2253,7 +2294,6 @@ static void Gen_sim(int op, int mode, ...)
 		    }
 		}
 		if (mode&(MREP|MREPNE))	TR1.d = 0;
-		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
 	case O_MOVS_LodD: {
@@ -2305,46 +2345,40 @@ static void Gen_sim(int op, int mode, ...)
 			    if (!(mode&DATA16)) AR1.pu += 2*df;
 			}
 		    }
+		    if (mode&(MREP|MREPNE))	TR1.d = 0;
+		    break;
 		}
-		else if(mode & ADDR16 && df == 1 &&
-		        OPSIZE(mode)*i + SR1.d > 0x10000)
-		{
-			unsigned int possible, remaining;
-			/* 16 bit address overflow detected */
+		if((mode & ADDR16) && i) {
+		    unsigned int minofs, bytesbefore;
+		    /* overflow check (SR1 is DI) */
+		    if (df == -1) {
+			minofs = SR1.d;
+			bytesbefore = (i-1)*OPSIZE(mode);
+		    } else {
+			minofs = 0x10000 - SR1.d;
+			bytesbefore = i*OPSIZE(mode);
+		    }
+		    if(bytesbefore > minofs) {
+		        unsigned int possible;
+			/* caught 16 bit address overflow: do it piecewise */
 			if(AR1.d & (OPSIZE(mode)-1))
 			{
 				/* misaligned overflow generates trap. */
 				TheCPU.err=EXCP0D_GPF;
 				break;
 			}
-			possible = (0x10000-SR1.d)/OPSIZE(mode);
-			remaining = i - possible;
+			possible = minofs / (OPSIZE(mode));
+			if (df < 0)
+			    possible++;
 			TR1.d = possible;
 			Gen_sim(O_MOVS_StoD,mode);
-			AR1.d -= 0x10000;
-			TR1.d = remaining;
+			AR1.d -= 0x10000*df;
+			TR1.d = i - possible;
 			Gen_sim(O_MOVS_StoD,mode);
+			break;
+		    }
 		}
-		else if(mode & ADDR16 && df == -1 && i &&
-		        OPSIZE(mode)*(i-1) > SR1.d)
-		{
-			unsigned int possible, remaining;
-			/* 16 bit address overflow detected */
-			if(AR1.d & (OPSIZE(mode)-1))
-			{
-				/* misaligned overflow generates trap. */
-				TheCPU.err=EXCP0D_GPF;
-				break;
-			}
-			possible = SR1.d/OPSIZE(mode) + 1;
-			remaining = i - possible;
-			TR1.d = possible;
-			Gen_sim(O_MOVS_StoD,mode);
-			AR1.d += 0x10000;
-			TR1.d = remaining;
-			Gen_sim(O_MOVS_StoD,mode);
-		}
-		else if (mode&MBYTE) {
+		if (mode&MBYTE) {
 		    while (i--) { *AR1.pu = DR1.b.bl; AR1.pu += df; }
 		}
 		else if (mode&DATA16) {
