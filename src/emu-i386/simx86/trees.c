@@ -1194,6 +1194,7 @@ quit:
 int InvalidateSingleNode (long addr, long eip)
 {
   int nnh = 0;
+  long ah;
   TNode *G = &CollectTree.root;
 #ifdef PROFILE
   hitimer_t t0;
@@ -1219,9 +1220,13 @@ int InvalidateSingleNode (long addr, long eip)
   }
   if (debug_level('e')>1) e_printf("Invalidate from node %08x\n",G->key);
 
+  /* we need to round to PAGE_SIZE for the loop termination test because of
+    backwards jumps and NOJUMPS */
+  ah = (addr & PAGE_MASK) + PAGE_SIZE;
+
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
-      if ((G == &CollectTree.root) || (G->seqbase > addr)) break;
+      if ((G == &CollectTree.root) || (G->key > ah)) break;
 
       if (G->addr && (G->alive>0)) {
 	long ahG = G->seqbase + G->seqlen;
