@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <slang.h>
+#include <langinfo.h>
 #include "emu.h"
 #include "timers.h"
 #include "keymaps.h"
@@ -1128,6 +1129,43 @@ static void do_slang_special_keys(unsigned long scan)
 	DOSemu_Keyboard_Keymap_Prompt = keymap_prompts[prompt_no];
 }
 
+
+static const char *exitstr;
+static const char exitstr1[] =
+  "Your locale (using the LANG, LC_CTYPE, or LC_ALL environment variable,\n"
+  "e.g., en_US) or $_external_char_set setting in ~/.dosemurc or dosemu.conf\n"
+  "does not match your terminal: one assumes UTF-8 and the other does not.\n"
+  "Non-ASCII characters (\"extended ASCII\") were not displayed correctly.\n\n";
+
+/* check for u6=\E[%i%d;%dR cursor position reply */
+static int is_cursor_position_reply(int i)
+{
+	int j;
+	char pos;
+	char *u6 = SLtt_tgetstr ("u6");
+
+	if (u6 == NULL || strcmp(u6, "\x1b[%i%d;%dR"))
+		return 0;
+	for (j = i+2; j < keyb_state.kbcount; j++)
+		if (keyb_state.kbp[j] == 'R')
+			break;
+	if (j == keyb_state.kbcount) return 0;
+	keyb_state.kbcount -= j + 1;
+	if (keyb_state.kbp[i+2] != 'R')
+		/* eat but do not report */
+		return 1;
+
+	pos = keyb_state.kbp[j-1];
+	if (strstr("utf8", trconfig.output_charset->names[0]) ||
+	    (strstr("default", trconfig.output_charset->names[0]) &&
+	     strcmp(nl_langinfo(CODESET), "UTF-8") == 0)) {
+		if (pos == '3' &&  !config.quiet)
+			exitstr = exitstr1;
+	} else if (pos == '2' && !config.quiet)
+		exitstr = exitstr1;
+	return 1;
+}
+
 /* checks for xterm and rxvt style modifiers in the escape sequence */
 static int get_modifiers(void)
 {
@@ -1147,6 +1185,9 @@ static int get_modifiers(void)
 	mod = keyb_state.kbp[i];
 	replacepos = i;
 	if (mod == ';') {
+		if (isdigit(keyb_state.kbp[i+1]) &&
+		    is_cursor_position_reply(i))
+			return -1;
 		/* ^[[1;2A is special: get rid of "1;2" */
 		if (i == 3 && keyb_state.kbp[2] == '1')
 			replacepos--;
@@ -1455,6 +1496,22 @@ static int slang_keyb_init(void)
 		setup_pc_scancode_mode();
 		Keyboard_slang.run = do_pc_scancode_getkeys;
 	} else {
+		/* Try to test for a UTF-8 terminal: this prints a character
+		 * followed by a requests for the cursor position.
+		 * The reply is handled asynchronously.
+		 */
+		struct termios buf;
+		char *u6 = SLtt_tgetstr ("u6");
+		char *u7 = SLtt_tgetstr ("u7");
+		char *ce = SLtt_tgetstr ("ce");
+		char *cr = SLtt_tgetstr ("cr");
+		if (u6 && u7 && ce && cr &&
+		    strcmp(u6, "\x1b[%i%d;%dR") == 0 &&
+		    strcmp(u7, "\x1b[6n") == 0 &&
+		    isatty(STDOUT_FILENO) &&
+		    tcgetattr(STDOUT_FILENO, &buf) == 0 &&
+		    (buf.c_cflag & CSIZE) == CS8)
+			printf("%s\xc2\xa1%s%s%s", cr, u7, cr, ce);
 		if (-1 == init_slang_keymaps()) {
 			error("Unable to initialize S-Lang keymaps.\n");
 			return FALSE;
@@ -1487,6 +1544,7 @@ static void slang_keyb_close(void)
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);
+	if (exitstr) printf("%s", exitstr);
 }
 
 /*

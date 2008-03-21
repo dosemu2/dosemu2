@@ -375,6 +375,7 @@ static int terminal_initialize(void)
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color;
    int rotate[8];
+   struct termios buf;
 
    v_printf("VID: terminal_initialize() called \n");
    
@@ -402,6 +403,16 @@ static int terminal_initialize(void)
    if (!config.console_keyb) {
      registersig(SIGWINCH, sigwinch);
    }
+
+   if (isatty(STDOUT_FILENO) && tcgetattr(STDOUT_FILENO, &buf) == 0 &&
+       (buf.c_cflag & CSIZE) == CS8 &&
+       !getenv("LANG") && !getenv("LC_CTYPE") && !getenv("LC_ALL") &&
+       strstr("default", trconfig.output_charset->names[0]) && !config.quiet)
+     printf(
+     "You did not specify a locale (using the LANG, LC_CTYPE, or LC_ALL\n"
+     "environment variable, e.g., en_US) or did not specify an explicit set for\n"
+     "$_external_char_set in ~/.dosemurc or dosemu.conf.\n"
+     "Non-ASCII characters (\"extended ASCII\") are not displayed correctly.\n");
 
    /* initialize VGA emulator */
    use_bitmap_font = FALSE;
