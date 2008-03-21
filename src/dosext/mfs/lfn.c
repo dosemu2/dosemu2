@@ -630,7 +630,7 @@ static int recur_match(const char *pattern, const char *string)
 	return !((*string == '\0') || (*string == '.' && string[1] == '\0'));
 }
 
-static int wild_match(char *pattern, char *string)
+static int wild_match(const char *pattern, char *string)
 {
 	char *dotpos;
 	int rc;
@@ -648,7 +648,7 @@ static int wild_match(char *pattern, char *string)
 	return rc;
 }
 
-static int lfn_sfn_match(char *pattern, struct mfs_dirent *de, char *lfn, char *sfn)
+static int lfn_sfn_match(const char *pattern, struct mfs_dirent *de, char *lfn, char *sfn)
 {
 	if (!name_ufs_to_dos(lfn, de->d_long_name)) {
 		name_convert(lfn, MANGLE);
@@ -660,7 +660,7 @@ static int lfn_sfn_match(char *pattern, struct mfs_dirent *de, char *lfn, char *
 		wild_match(pattern, sfn) != 0;
 }
 
-static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
+static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 {
 	char name_8_3[PATH_MAX];
 	char name_lfn[PATH_MAX];
@@ -1080,7 +1080,7 @@ static int mfs_lfn_(void)
 		if (dir == NULL)
 			return 0;
 		if (dir->dir == NULL)
-			lfn_error(NO_MORE_FILES);
+			return lfn_error(NO_MORE_FILES);
 		do {
 			de = dos_readdir(dir->dir);
 			if (de == NULL) {
