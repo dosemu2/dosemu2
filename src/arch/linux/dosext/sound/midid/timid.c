@@ -118,8 +118,12 @@ static int timid_preinit(void)
     char *tmdty_args[T_MAX_ARGS];
     char *ptr;
     int i;
-    if (pipe(tmdty_pipe_in) == -1 || pipe(tmdty_pipe_out) == -1) {
-      perror("pipe()");
+    /* the socketpair is used as a bidirectional pipe: older versions
+       (current as of 2008 :( ) of timidity write to stdin and we can
+        catch that to avoid waiting 3 seconds at select */
+    if (pipe(tmdty_pipe_in) == -1 ||
+      socketpair(AF_LOCAL, SOCK_STREAM, 0, tmdty_pipe_out) == -1) {
+      perror("pipe() or socketpair()");
       goto err_ds;
     }
     switch ((tmdty_pid = fork())) {
@@ -188,13 +192,17 @@ static bool timid_check_ready(char *buf, int size, int verb)
 {
   fd_set rfds;
   struct timeval tv;
-  int selret, n;
+  int selret, n, ctrl_sock_max;
 
   FD_ZERO(&rfds);
   FD_SET(ctrl_sock_in, &rfds);
+  FD_SET(ctrl_sock_out, &rfds);
+  ctrl_sock_max = (ctrl_sock_out > ctrl_sock_in) ? ctrl_sock_out : ctrl_sock_in;
   tv.tv_sec = 3;
   tv.tv_usec = 0;
-  while ((selret = select(ctrl_sock_in + 1, &rfds, NULL, NULL, &tv)) > 0) {
+  while ((selret = select(ctrl_sock_max + 1, &rfds, NULL, NULL, &tv)) > 0) {
+    if (!FD_ISSET(ctrl_sock_in, &rfds))
+      return FALSE;
     n = read(ctrl_sock_in, buf, size - 1);
     buf[n] = 0;
     if (!n)
