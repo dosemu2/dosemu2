@@ -604,7 +604,7 @@ static int slang_update (void)
      if (SLsmg_init_smg() == -1) 
 #endif
        {
-	 error ("Unable to initialze SMG routines.");
+	 error ("Unable to initialize SMG routines.");
 	 leavedos(32);
        }
      vga_emu_setmode(video_mode, Columns, Rows);
