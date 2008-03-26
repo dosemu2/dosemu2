@@ -49,6 +49,7 @@ pristine distclean mrproper:  docsclean mididclean
 	rm -f core `find . -name config.cache`
 	rm -f core `find . -name config.status`
 	rm -f core `find . -name config.log`
+	rm -f core `find . -name configure.lineno`
 	rm -f src/include/config.h
 	rm -f src/include/confpath.h
 	rm -f src/include/plugin_*.h
