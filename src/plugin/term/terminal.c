@@ -425,6 +425,7 @@ static int terminal_initialize(void)
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    register_text_system(&Text_term);
+   vga_emu_setmode(video_mode, Columns, Rows);
 
 #if SLANG_VERSION < 20000
    SLtt_Use_Blink_For_ACS = 1;

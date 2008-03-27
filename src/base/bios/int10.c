@@ -492,12 +492,8 @@ boolean set_video_mode(int mode) {
     /* set display start to 0 */
     crt_outw(0xc, 0);
     /* mode change clears screen unless bit7 of AL set */
-    if(clear_mem) {
-      /* video->update_screen may initialize too! XXX to be done more cleanly */
-      if(Video->update_screen)
-	Video->update_screen();
+    if(clear_mem)
       clear_screen();
-    }
     i10_msg("set_video_mode: no setmode handler!\n");
     return 0;
   }
