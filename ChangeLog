@@ -1,9 +1,446 @@
+2008-03-27  Bart
+
+	* [r1853] ChangeLog, NEWS:
+	  DOSEMU 1.4.0.1
+
+	* [r1852] configure, configure.ac, src/commands/Makefile,
+	  src/plugin/commands/Makefile:
+	  Fix 64-bit compilation on 32-bit systems and vice versa.
+
+	* [r1851] src/base/bios/hlt.c, src/dosext/mfs/mfs.c,
+	  src/plugin/kbd_unicode/keyb_raw.c:
+	  Fix more gcc warnings for 64-bit compilation.
+
+	* [r1850] src/base/bios/int10.c, src/plugin/term/terminal.c:
+	  Cleaner fix for terminal memory map race.
+
+2008-03-26  Bart
+
+	* [r1849] VERSION:
+	  DOSEMU 1.4.0.1
+
+	* [r1848] Makefile:
+	  Remove configure.lineno on distclean.
+
+	* [r1847] src/base/init/lexer.l.in:
+	  Avoid gcc-4.3 warning about unused input function in lexer.
+
+	* [r1846] src/base/bios/int10.c, src/plugin/term/terminal.c:
+	  Add a call to video->update_screen to int10/ah=0 modesets to make
+	  sure the terminal is initialized. Fixes a race (though it should be
+	  done more cleanly).
+
+2008-03-25  Bart
+
+	* [r1845] src/arch/linux/dosext/sound/midid/timid.c,
+	  src/plugin/midimisc/mid_o_tmdty.c:
+	  In timidity plugin and midid code: use socketpair as a bidirectional
+	  pipe: older versions (current as of 2008 :( ) of timidity write to
+	  stdin and we can catch that to avoid waiting 3 seconds at select at
+	  DOSEMU startup.
+
+2008-03-21  Bart
+
+	* [r1844] src/dosext/mfs/lfn.c:
+	  Add missing "return" for LFN findnext error. Fixes #1801411: Running
+	  File Wizard crashes DOSEMU 1.4.0.0.
+
+	* [r1843] src/plugin/term/keyb_slang.c, src/plugin/term/terminal.c:
+	  Added some diagnostics to check for UTF-8 terminal mismatches;
+	  "fixes" bug #1729556.
+
+2008-03-18  Bart
+
+	* [r1842] src/emu-i386/simx86/trees.c:
+	  Try to fix #1910153 again: we need to round to PAGE_SIZE for the loop
+	  termination test because of backwards jumps and NOJUMPS.
+
+	* [r1841] src/emu-i386/simx86/codegen-sim.c:
+	  SF-Patch #1683073: handle 16bit address overflow in string
+	  instructions. Fixes overflow in the simulator of cpu-emu. Adjusted
+	  from Michael Karcher's patch.
+
+2008-03-17  Bart
+
+	* [r1840] src/emu-i386/simx86/trees.c:
+	  Bail out of node-to-invalidate check loop for the sorted list once
+	  the base (instead of the PC-beginning of the block) is past the
+	  affected address. Really fixes #1910153: SkyRoads failure: JIT fails
+	  some self-modifying code (Michael Karcher).
+
+2008-03-16  Bart
+
+	* [r1839] src/emu-i386/simx86/trees.h:
+	  Fix #1910153 SkyRoads failure: JIT fails some self-modifying code.
+	  The dnpc field needs to be signed because it can be negative and is
+	  compared to negative "int"s in BreakNode.
+
+2008-03-11  Bart
+
+	* [r1838] src/emu-i386/simx86/sigsegv.c:
+	  Patch #1910535, Michael Karcher: fix for "e_vgaemu_fault corrupts
+	  eip/rip"
+
+	* [r1837] src/env/video/vgaemu.c:
+	  In Super-VGA modes, do *not* wrap memory at 256k. SF patch #1910415,
+	  Michael Karcher; fixes bug #1806787.
+
+2008-02-18  Stas
+
+	* [r1836] src/base/dev/dma/dmanew.c, src/base/dev/sb16/sb16.c:
+	  OK, the good-bye cannot be that rude any more. My apologies to the
+	  sound.c authors for that silly remark of mine and I hope you can do a
+	  good work on my code.
+
+2007-12-06  Bart
+
+	* [r1835] src/arch/linux/async/sigsegv.c:
+	  Use fpregset_t instead of _fpstate to avoid problems with Debian's
+	  glibc for x86_64.
+
+2007-09-24  Bart
+
+	* [r1834] src/emu-i386/simx86/codegen-sim.h,
+	  src/emu-i386/simx86/codegen-x86.h:
+	  Replace BT24 and BTA inline asm by C.
+
+2007-09-23  Bart
+
+	* [r1833] src/emu-i386/simx86/interp.c:
+	  Michael Karcher: #1800717 cpuemu: BOUND is signed. The current bound
+	  implementation does a signed compare instead of an unsigned one. This
+	  patch should fix it.
+
+	* [r1832] src/base/async/int.c, src/base/dev/misc/lpt.c,
+	  src/emu-i386/simx86/interp.c:
+	  Implement the bound instruction (albeit fully interpreted). Make sure
+	  that int 5 does not try printscreen if there is no printer.
+
+	* [r1831] src/emu-i386/simx86/interp.c:
+	  From Michael Karcher: #1763170 CPU emu: implement INTO correctly. The
+	  INTO instruction should generate the overflow execption only if the
+	  overflow flag is set, not on every invocation.
+
+	* [r1830] src/emu-i386/simx86/interp.c:
+	  From Michael Karcher: SF #1763169 CPU emu: handle prefixed jumps
+	  correctly: The distance in a (not 8-bit) jump instruction is encoded
+	  according to operand size, not address size. There is some wrong
+	  documentation in this regard, even the processor reference manual I
+	  usually use. The size of CX used in JCXZ is depending on the address
+	  size, as correctly implemented in dosemu.
+
+	* [r1829] src/emu-i386/simx86/interp.c:
+	  From Michael Karcher, #1763166 CPU emu: ignore access to unknown VGA
+	  ports Currently, dosemu crashes on read/write access to unhandled
+	  ports in the VGA range when cpuemu is enabled. While this is
+	  acceptable behaviour while developing, it is not helpful for the end
+	  user, who has a program probing for different SVGA cards by direct
+	  hardware access.
+
+2007-06-11  Bart
+
+	* [r1828] src/dosext/mfs/lfn.c, src/tools/Makefile:
+	  Fixed some warnings with 64-bit builds.
+
+2007-06-05  Bart
+
+	* [r1827] etc/global.conf, src/plugin/X/X.c:
+	  Fix $_X_winsize; also enable to use it, and X_aspect_43 with text
+	  modes with bitmapped fonts.
+
+2007-06-04  Bart
+
+	* [r1826] src/dosext/dpmi/msdos.c:
+	  Add DPMI API translation support for int21/ax=71a6.
+
+	* [r1825] src/base/async/int.c, src/dosext/mfs/lfn.c,
+	  src/dosext/mfs/mfs.c, src/dosext/mfs/mfs.h, src/include/dos2linux.h:
+	  Implement the LFN handle functions int21/ax=5704,5,6,7, and 71a6.
+	  Also avoid using the set attribute ioctl on non-FAT filesystems.
+
+2007-06-03  Bart
+
+	* [r1824] dist/dosemu:
+	  Correct dosemu script.
+
+	* [r1823] src/plugin/sdl/sdl.c:
+	  Fix SDL video mode chooser if only one mode is available.
+
+	* [r1822] src/plugin/X/X.c:
+	  Fix "dosemu -w" for X and error messages for $DISPLAY not set.
+
+	* [r1821] src/plugin/kbd_unicode/keymaps.c, src/plugin/term/terminal.c:
+	  Prompt if the keyboard layout can't be auto-detected. Initialize the
+	  SLang terminal screen draw routines as late as possible (the first
+	  time something needs to be drawn) so that other error messages can
+	  still be seen on the normal (non-SLang) terminal screen.
+
+	* [r1820] dist/dosemu, dist/dosemu.bindist, dist/dosemu.systemwide,
+	  man/dosemu.bin.1.in, src/arch/linux/Makefile.main,
+	  src/base/init/config.c, src/include/emu.h, src/plugin/X/X.c,
+	  src/plugin/X/X_font.c, src/plugin/term/terminal.c:
+	  Move xset functionality to obtain the X fonts and the terminal < 25
+	  lines warnings from dosemu to dosemu.bin.
+
+2007-06-01  Bart
+
+	* [r1819] src/base/async/int.c, src/base/bios/int10.c,
+	  src/base/dev/pic/pic.c, src/base/init/config.c,
+	  src/base/init/parser.y.in, src/base/misc/dump.c,
+	  src/dosext/dpmi/dpmi.c, src/dosext/mfs/mfs.c, src/dosext/mfs/mfs.h,
+	  src/dosext/misc/xms.c, src/dosext/net/net/pktnew.c,
+	  src/emu-i386/simx86/cpu-emu.c, src/include/Asm/vm86.h,
+	  src/include/machcompat.h:
+	  Change longs in vm86.h to ints to be consistent between x86-64 and
+	  i386.
+
+	* [r1818] src/base/bios/int10.c, src/env/video/crtcemu.c,
+	  src/env/video/seqemu.c, src/env/video/vgaemu.c:
+	  Fix VESA text modes (fixes SR#1728817).
+
+2007-05-30  Bart
+
+	* [r1817] src/plugin/commands/generic.S:
+	  Fix preprocessor confusion.
+
+2007-05-28  Bart
+
+	* [r1816] src/base/async/int.c, src/base/misc/dos2linux.c,
+	  src/dosext/mfs/mangle.h, src/dosext/mfs/util.c,
+	  src/include/dos2linux.h, src/plugin/X/X.c, src/plugin/sdl/sdl.c,
+	  src/plugin/term/terminal.c, src/plugin/translate/include/translate.h,
+	  src/plugin/translate/translate.c:
+	  Better fix for X window titles & UTF-8. The title is now passed to
+	  the plugin using a wchar_t string.
+
+2007-05-25  Bart
+
+	* [r1815] src/dosext/mfs/lfn.c, src/dosext/mfs/mfs.c,
+	  src/dosext/mfs/mfs.h:
+	  Let find_file report FILE_NOT_FOUND or PATH_NOT_FOUND in an extra
+	  parameter depending on whether the directory where the file to be
+	  searched would be in exists or not.
+
+2007-05-23  Bart
+
+	* [r1814] src/base/init/parser.y.in, src/dosext/mfs/mfs.c,
+	  src/env/video/vgaemu.c:
+	  Fix a memory leak and some other issues found by Valgrind.
+
+2007-05-21  Bart
+
+	* [r1813] src/emu-i386/simx86/sigsegv.c:
+	  CPUEMU: do not mix up LDT accesses with emulator page faults, and
+	  translate non-zero based DPMI addresses to the correct pointer.
+
+2007-05-18  Bart
+
+	* [r1812] etc/global.conf, src/base/init/lexer.l.in,
+	  src/base/init/parser.y.in, src/env/video/vesa.c, src/include/emu.h:
+	  Use vgaemubios_file internally to get the Bochs BIOS to avoid mixing
+	  up with using it with console graphics, and be able to run it in a
+	  non-root console.
+
+	* [r1811] src/doc/README/config, src/plugin/X/screen.c,
+	  src/plugin/kbd_unicode/include/keyb_clients.h,
+	  src/plugin/kbd_unicode/keyb_clients.c,
+	  src/plugin/translate/config/plugin_parser,
+	  src/plugin/translate/include/translate.h,
+	  src/plugin/translate/translate_config.c:
+	  Improve pasting in X into DOSEMU too, trying to ask for UTF-8, then
+	  iso2022, and then iso8859-1. This obsoletes the use of
+	  $_external_char_set for pasting.
+
+	* [r1810] src/base/async/int.c:
+	  Add forgotten init memset of mbstate_t unix_state to 0. Fixes crash
+	  on x86-64.
+
+	* [r1809] src/env/video/text.c, src/include/vgatext.h,
+	  src/plugin/X/screen.c:
+	  Improving pasting text from DOSEMU: follow guidelines about which
+	  character sets to use (in practise we must usually convert to UTF8
+	  nowadays).
+
+	* [r1808] src/plugin/kbd_unicode/keyb_clients.c:
+	  Check for -1 return from character_count (if an invalid multibyte
+	  character string is pasted for example), so DOSEMU won't crash.
+
+	* [r1807] src/base/bios/int10.c:
+	  Add missing semicolon in int10.c
+
+	* [r1806] src/arch/linux/debugger/mhpdbgc.c, src/base/async/int.c,
+	  src/base/misc/disks.c, src/base/misc/fatfs.c,
+	  src/base/misc/userhook.c, src/base/misc/utilities.c,
+	  src/dosext/mfs/lfn.c, src/dosext/mfs/mangle.c,
+	  src/dosext/mfs/mangle.h, src/dosext/mfs/mfs.c,
+	  src/dosext/mfs/mscdex.c, src/dosext/mfs/util.c,
+	  src/include/dos2linux.h, src/include/utilities.h,
+	  src/plugin/commands/builtins.c, src/plugin/commands/commands.c,
+	  src/plugin/commands/dosdbg.c, src/plugin/commands/lredir.c,
+	  src/plugin/commands/msetenv.c, src/plugin/commands/xmode.c:
+	  Force within-ASCII uppercasing for ASCII letters for toupperDOS and
+	  friends. Consistently use toupperDOS etc. functions instead of
+	  toupper etc. to avoid problems with the dotless i as used in Turkish
+	  and some other languages. In fatfs.c convert from the Linux to the
+	  DOS character set, and vice versa for the X title display.
+
+2007-05-17  Bart
+
+	* [r1805] src/base/bios/bios.S:
+	  Always covert ax=6cxx to 6c00 for the int21/ah=6c LFN->DOS converter.
+
+2007-05-16  Bart
+
+	* [r1804] src/env/video/vesa.c:
+	  Allow larger Bochs vgabios'es to be used than 32K.
+
+2007-05-14  Bart
+
+	* [r1803] src/emu-i386/simx86/interp.c:
+	  Implemented lock prefix (either ignored, or illegal op).
+
+2007-05-13  Bart
+
+	* [r1802] src/emu-i386/simx86/cpu-emu.c:
+	  SIMX86: Don't try to stretch time using RDTSC if $_rdtsc=(off)
+
+	* [r1801] src/emu-i386/simx86/cpu-emu.c, src/emu-i386/simx86/interp.c:
+	  Push IOPL_MASK on the stack for pushf and int. Fixes vm86 mode
+	  detection of DOS4GW when $_dpmi=(off).
+
+	* [r1800] src/arch/linux/async/signal.c:
+	  Revert DPMI-inability detection change from #1799.
+
+	* [r1799] src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/emu-i386/simx86/sigsegv.c,
+	  src/env/video/vgaemu.c:
+	  When handling signals, check for a valid DPMI selector, which means
+	  that it is an LDT selector and not reserved by glibc or similar, e.g.
+	  for pthreads. Else, and that includes the whole GDT, assume we
+	  interrupt DOSEMU code. SystemSelector() in DPMI now refers to
+	  anything not covered by the above, plus dpmi_sel16 & dpmi_sel32. This
+	  fixes crashes with Xen-DOM0 on x86-64 where cs is 0x33 on entry to
+	  signal handlers but set to 0xe033 after the first syscall.
+
+2007-05-11  Bart
+
+	* [r1798] src/emu-i386/simx86/interp.c:
+	  Remove (replace by an e_printf) debug code that aborts CPUEMU if 4 or
+	  more 0's in a row are executed. Some .com programs do this to skip
+	  over data (Reinhard Karcher).
+
+	* [r1797] dist/dosemu, src/emu.c:
+	  Moved DOSDRIVE_D environment manipulation from the dosemu script to
+	  dosemu.bin so it also works with sudo.
+
+	* [r1796] src/arch/linux/async/debug.c, src/arch/linux/async/sigsegv.c,
+	  src/base/init/init.c:
+	  Reorganize some debug reporting a bit. uname and the GCC version
+	  number are now always reported in boot.log. Added some bug report
+	  instructions.
+
+	* [r1795] src/plugin/X/X.c, src/plugin/sdl/sdl.c,
+	  src/plugin/term/term_core.c:
+	  Fix terminal init problem (no terminal input running xdosemu) if no
+	  dynamically linked plugins are used.
+
+	* [r1794] default-configure:
+	  Check the default bitness of gcc, instead of blindly relying on
+	  uname.
+
+	* [r1793] src/dosext/dpmi/dpmi.c, src/emu-i386/cpu.c,
+	  src/emu-i386/simx86/sigsegv.c, src/include/emu.h:
+	  Implement some workarounds for the CPU ESP bug. It is unlikely that
+	  it will be worked around in 64-bit kernels. Compare with segment
+	  limits instead of what is supposed to be kernel space (it isn't on
+	  x86-64). Fixes the ancient MS Linker and the Need For Speed demo on
+	  x86-64.
+
+2007-05-10  Bart
+
+	* [r1792] src/emu-i386/simx86/sigsegv.c:
+	  Do not patch code that has just tried to overwrite code instead of
+	  data. Fixes a crash with Larry.
+
+2007-05-09  Bart
+
+	* [r1791] src/dosext/mfs/mfs.c:
+	  As the read-only attribute is mostly ignored for directories in DOS,
+	  the dos_would_allow check for writable directories doesn't make much
+	  sense. Instead simply check if the file is writable.
+
+	* [r1790] src/dosext/mfs/mfs.c:
+	  It is possible to work around the x86-64 FAT compat-ioctl kernel bug.
+	  Thanks to Wine.
+
+2007-05-08  Bart
+
+	* [r1789] src/arch/linux/async/signal.c, src/emu.c:
+	  Force $_cpu_emu="full", and do not crash, if %cs is not saved for
+	  signal handlers on x86-64 (kernels < 2.6.15, #1713659).
+
+	* [r1788] src/arch/linux/dosext/sound/midid/oss.c,
+	  src/arch/linux/dosext/sound/midid/timid.c,
+	  src/plugin/midimisc/mid_o_oss.c:
+	  Declare *seqbuf_dump static before including soundcard.h. Hopefully
+	  that solves all warnings and errors with the variations out there.
+
+	* [r1787] src/plugin/kbd_unicode/keymaps.c:
+	  Do not attempt to load the X plugin if X isn't compiled.
+
+	* [r1786] src/dosext/mfs/lfn.c:
+	  int21/ax=7160/cl=1,2 must return an error if the file does not exist.
+	  Fixes problems with FreeCOM mkdir not preserving the LFN directory
+	  name.
+
+	* [r1785] src/dosext/mfs/mfs.c:
+	  Ignore attempts to translate the archive and read-only attributes to
+	  Unix permissions for directories. Fixes problem with pkunzip (Joe
+	  Ripley, linux-msdos).
+
+2007-05-07  Bart
+
+	* [r1784] dist/autoexec.bat, dist/config.sys, src/base/async/int.c,
+	  src/plugin/commands/blaster.c:
+	  Reduce lines of output in config.sys, autoexec.bat, blaster, and the
+	  banner, so everything fits on 25 lines.
+
+	* [r1783] src/dosext/mfs/lfn.c:
+	  Fix more illegal writes in the LFN code (crashed DJGPP gcc with
+	  cpuemu=vm86).
+
+2007-05-06  Bart
+
+	* [r1782] Makefile, Makefile.conf.in, src/Makefile.common,
+	  src/arch/linux/Makefile.main, src/commands/Makefile:
+	  Speed up 'make' a bit: - don't use bash anymore; remove bash-isms and
+	  eliminate pwd -P - don't use the intermediate tmp directory for make
+	  install anymore - use -rR make flags to ignore built-ins and made
+	  some built-ins explicit
+
+	* [r1781] configure, configure.ac, src/plugin/kbd_unicode/configure,
+	  src/plugin/sdl/configure:
+	  Execute sub-configures by hand to avoid autoconf warnings and
+	  possible future breakage.
+
+	* [r1780] Makefile.conf.in, configure, configure.ac, default-configure:
+	  Allow dash to be used as sh in out-of-tree builds.
+
+	* [r1779] Makefile.conf.in:
+	  Do not forget sndfile and alsa libraries when building without
+	  dynamically loaded plugins.
+
+	* [r1778] src/base/bios/int10.c:
+	  Implement INT10/AH=1c (save/restore video state)
+
 2007-05-05  Bart
 
-	* [r1776] NEWS, ChangeLog, dist/config.sys, dist/mkbindist
-	  Last minute fix for 1.4.0: fix #1713278 COMSPEC setting wrong.
-	  Use config.sys/autoexec.bat distributed from here in the bindist
-	  instead of the one in dosemu-freedos-*-bin*.
+	* [r1776] ChangeLog, NEWS, dist/config.sys, dist/dosemu.bindist,
+	  dist/mkbindist:
+	  Last minute fix for 1.4.0: fix #1713278 COMSPEC setting wrong. Use
+	  config.sys/autoexec.bat distributed from here in the bindist instead
+	  of the one in dosemu-freedos-*-bin*.
 
 	* [r1775] NEWS, ChangeLog:
 	  Release 1.4.0.

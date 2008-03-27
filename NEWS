@@ -4,6 +4,38 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
+Version 1.4.1 (2008-xx-xx)
+=============
+* Bug fixes, especially pertaining to the CPU emulator that is used in the
+  x86-64 port (also in combination with Xen), and for DPMI on x86-64.
+* Better LFN support.
+* Optionally prompt if the keyboard layout can't be auto-detected.
+* Some things previously done by the dosemu script are now done by the
+  dosemu.bin binary (X font locations, terminal warnings,
+  DOSDRIVE_D environment variable handling).
+* Handle UTF-8 in window titles.
+* Improved copy and paste of text to and from DOSEMU.
+* Avoid problems with the dotless i as used in Turkish and some other
+  languages.
+* Reduce lines of output in config.sys, autoexec.bat, blaster, and the
+  banner, so everything fits on 25 lines.
+
+List of SourceForge tracker numbers with bugs that were closed:
+
+#1683073 P: handle 16bit address overflow in string instructions (simulator)
+#1713659 Error Encountered on DOSEMU 1.4.0
+#1728817 SR: 132character screen ?
+#1729556 Added some diagnostics to check for UTF-8 terminal mismatches.
+#1763166 P: CPU emu: ignore access to unknown VGA ports.
+#1763169 P: CPU emu: handle prefixed jumps correctly.
+#1763170 P: CPU emu: implement INTO correctly.
+#1800717 P: cpuemu: BOUND is signed.
+#1801411 Running File Wizard crashes DOSEMU 1.4.0.0.
+#1910153 P: SkyRoads failure: JIT fails some self-modifying code
+#1910415 P: Fix Non-VESA SVGA video (partly fixes #1806787:
+	 Moraff's World high-res video bug(s))
+#1910535 P: fix for "e_vgaemu_fault corrupts eip/rip"
+
 Version 1.4.0 (2007-05-05)
 =============
 * Documentation updates.
