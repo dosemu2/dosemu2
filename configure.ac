@@ -921,8 +921,8 @@ for i in `touch ./plugin_configure; cat ./plugin_configure`; do
   fi
   cd $i
   echo "=== configuring in $i"
-  echo "Running $SHELL $abs_i/configure ..."
-  $SHELL $abs_i/configure
+  echo "Running $SHELL $abs_i/configure $ac_configure_args ..."
+  eval ${SHELL} $abs_i/configure $ac_configure_args
   cd $popdir
 done
 

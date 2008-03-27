@@ -58,7 +58,7 @@ $(STUBFULL): $(D)/generic.com ./mkcomstub
 	$(CC) $(CPPFLAGS) -traditional -Wa,-a -c -o $@ $< > $*.s.out
 
 $(D)/%.com: %.o
-	$(LD) -Wl,-Ttext,0x100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+	$(LD) $(LDFLAGS) -Wl,-Ttext,0x100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
 	chmod -x $@
 
 install: all

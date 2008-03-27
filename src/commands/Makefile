@@ -56,11 +56,11 @@ dosbin: $(COM1) $(COM2) $(SYS)
 ASFLAGS += -traditional -Wa,-a > $*.s.out
 
 $(D)/%.sys: %.o
-	$(LD) -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+	$(LD) $(LDFLAGS) -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
 	chmod -x $@ 
 
 $(D)/%.com: %.o
-	$(LD) -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+	$(LD) $(LDFLAGS) -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
 	chmod -x $@
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
