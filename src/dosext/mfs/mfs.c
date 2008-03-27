@@ -825,7 +825,7 @@ init_drive(int dd, char *path, int options)
     Debug0((dbg_fd,
 	    "Out of memory in path %s.\n",
 	    path));
-    return ((int) NULL);
+    return (0);
   }
   get_unix_path(new_path, path);
   new_len = strlen(new_path);

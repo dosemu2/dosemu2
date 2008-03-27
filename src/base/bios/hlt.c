@@ -115,7 +115,8 @@ void hlt_handle(void)
     dpmi_init();
   }
   else if ((lina >= (Bit8u *)DPMI_ADD) &&
-	   (lina < (Bit8u *)(DPMI_ADD + (Bit32u)DPMI_dummy_end-(Bit32u)DPMI_dummy_start))) {
+	   (lina < (Bit8u *)(DPMI_ADD + (Bit32u)(uintptr_t)DPMI_dummy_end-
+			     (Bit32u)(uintptr_t)DPMI_dummy_start))) {
 #if CONFIG_HLT_TRACE > 0
     h_printf("HLT: dpmi_realmode_hlt\n");
 #endif
