@@ -754,7 +754,7 @@ static void SDL_handle_events(void)
 	 int buttons = SDL_GetMouseState(NULL, NULL);
 	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
 #if CONFIG_SDL_SELECTION
-	 if (x11.display && vga.mode_class == TEXT) {
+	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   XEvent e;
 	   e.type = ButtonRelease;
 	   e.xbutton.button = 0;

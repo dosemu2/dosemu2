@@ -1607,7 +1607,7 @@ static void X_handle_events(void)
 	case ButtonRelease:
 	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
 #if CONFIG_X_SELECTION
-	  if (vga.mode_class == TEXT) 
+	  if (vga.mode_class == TEXT && !grab_active)
 	    X_handle_selection(display, drawwindow, &e);
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_buttons(e.xbutton.state&~(0x80<<e.xbutton.button));
