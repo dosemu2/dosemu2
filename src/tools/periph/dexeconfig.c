@@ -238,7 +238,7 @@ static void getconf(void)
     exit(1);
   }
   close(fd);
-  fc = open(cfile, O_WRONLY | O_CREAT | O_TRUNC);
+  fc = creat(cfile, S_IWUSR | S_IRUSR);
   if (fc < 0) {
     perror("cannot open config file");
     exit(1);
