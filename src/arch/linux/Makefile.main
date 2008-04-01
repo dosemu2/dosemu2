@@ -44,13 +44,11 @@ LIBSUBDIRS=env/video base base/async \
 
 
 # call all libraries the name of the directory
-LIBS_ := $(subst /,_,$(LIBSUBDIRS))
+LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(LIBSUBDIRS))}}
 
 DOCS= ../man
 
 ###################################################################
-
-LIBPATH=lib
 
 default: version include/confpath.h doslib \
 	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
@@ -79,9 +77,9 @@ endif
 
 emu.o: emu.c
 
-$(BINPATH)/bin/$(DOSBIN): emu.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
-	$(LD) $(LDFLAGS) -o $@ emu.o $(addprefix -L,$(LIBPATH)) \
-	   -Wl,--whole-archive $(addprefix -l, $(LIBS_)) -Wl,--no-whole-archive $(LIBS)
+$(BINPATH)/bin/$(DOSBIN): emu.o $(LIBS_)
+	$(LD) $(LDFLAGS) -o $@ emu.o \
+	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
