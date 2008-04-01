@@ -1510,8 +1510,13 @@ static int slang_keyb_init(void)
 		    strcmp(u7, "\x1b[6n") == 0 &&
 		    isatty(STDOUT_FILENO) &&
 		    tcgetattr(STDOUT_FILENO, &buf) == 0 &&
-		    (buf.c_cflag & CSIZE) == CS8)
-			printf("%s\xc2\xa1%s%s%s", cr, u7, cr, ce);
+		    (buf.c_cflag & CSIZE) == CS8) {
+			SLtt_write_string(cr);
+			SLtt_write_string("\xc2\xa1");
+			SLtt_write_string(u7);
+			SLtt_write_string(cr);
+			SLtt_write_string(ce);
+		}
 		if (-1 == init_slang_keymaps()) {
 			error("Unable to initialize S-Lang keymaps.\n");
 			return FALSE;

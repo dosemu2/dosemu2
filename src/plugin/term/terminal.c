@@ -338,10 +338,13 @@ static int term_change_config(unsigned item, void *buf)
       }
       s[i] = '\0';
       snprintf (title_appname, TITLE_APPNAME_MAXLEN, "%s", s);
-      if (config.xterm_title && strlen(config.xterm_title)) {
-	printf("\x1b]2;");
-	printf(config.xterm_title, s);
-	printf("\7");
+      if (config.xterm_title && config.xterm_title[0]) {
+	size_t len = strlen(config.xterm_title) + i + 1;
+	char p[len];
+	SLtt_write_string("\x1b]2;");
+	snprintf(p, len, config.xterm_title, s);
+	SLtt_write_string(p);
+	SLtt_write_string("\7");
       }
       return 0;
    }
