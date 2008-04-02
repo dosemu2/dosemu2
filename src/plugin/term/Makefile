@@ -24,10 +24,28 @@ endif
 
 include $(REALTOPDIR)/src/Makefile.common
 
+MAPS=
+ifdef USE_APBUILD
+CPPFLAGS+=-DUSE_RELAYTOOL
+MAPS+=partial.map
+SLANGLIB:=`relaytool --partial-map partial.map --relay slang \
+--multilink libslang.so.2 libslang-2.so.2 \
+libslang.so.1-UTF8 libslang-utf8.so.1 libslang.so.1 $(SLANGLIB)`
+
+partial.map: $(OBJS)
+	nm $(OBJS) | LC_ALL=C grep SL | LC_ALL=C sort | LC_ALL=C uniq | \
+	  LC_ALL=C sed -e 's/ *U \(SL[^_]*_[a-z0-9].*\)/F \1/' \
+	               -e 's/ *U \(SL[^_]*_[A-Z0-9].*\)/V \1/' > $@
+	echo 'F SLsmg_write_nwchars' >> $@
+endif
+
 ifdef USE_DL_PLUGINS
-$(BINPATH)/bin/libplugin_term.so: $(OBJS)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SLANGLIB)
+$(BINPATH)/bin/libplugin_term.so: $(OBJS) $(MAPS)
+	$(CC) $(LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
 	$(AR) crs $(LIB)
 endif
 
 install: all
+
+clean::
+	rm -f partial.map libslang*.stub.*

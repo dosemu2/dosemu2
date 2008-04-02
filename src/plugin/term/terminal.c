@@ -360,14 +360,21 @@ static void sigwinch(struct sigcontext_struct *scp)
   get_screen_size();
 }
 
-#if SLANG_VERSION < 20000
+#if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
 /* replacement function to deal with old slangs */
-static int SLutf8_enable(int mode)
+static int slutf8_enable(int mode)
 {
+#ifdef USE_RELAYTOOL
+  if (SLang_Version >= 20000)
+    return SLutf8_enable(mode);
+#endif
+
   if (mode != -1)
     return mode;
   return MB_CUR_MAX > 1;
 }
+#else
+#define slutf8_enable(mode) SLutf8_enable(mode)
 #endif
 
 /* The following initializes the terminal.  This should be called at the
@@ -430,8 +437,11 @@ static int terminal_initialize(void)
    register_text_system(&Text_term);
    vga_emu_setmode(video_mode, Columns, Rows);
 
-#if SLANG_VERSION < 20000
-   SLtt_Use_Blink_For_ACS = 1;
+#if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
+#ifdef USE_RELAYTOOL
+   if (SLang_Version < 20000)
+#endif
+     SLtt_Use_Blink_For_ACS = 1;
 #endif
    SLtt_Blink_Mode = 1;
 
@@ -440,7 +450,7 @@ static int terminal_initialize(void)
    if (is_color) Attribute_Map = Color_Attribute_Map;
    else Attribute_Map = BW_Attribute_Map;
 
-   if (!SLutf8_enable(
+   if (!slutf8_enable(
 	strstr("utf8", trconfig.output_charset->names[0]) ? 1 :
 	strstr("default", trconfig.output_charset->names[0]) ? -1 : 0)) {
       construct_acs_table();
@@ -689,7 +699,10 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
 
    text_end = text + len;
 
-#if SLANG_VERSION < 20000
+#if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
+#ifdef USE_RELAYTOOL
+   if(SLang_Version < 20000) {
+#endif
    /* switch off blinking for bright backgrounds */
    if ((attr & 0x80) && !(vga.attr.data[0x10] & 0x8)) {
       attr &= ~0x80;
@@ -704,6 +717,9 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
       SLsmg_refresh ();
       return;
    }
+#ifdef USE_RELAYTOOL
+   }
+#endif
 #endif
 
    while (text < text_end) {

@@ -118,14 +118,6 @@ AC_SUBST(fdtarball)
 CONFIG_HOST=`uname -s`
 if test "$CONFIG_HOST" = "Linux"; then
   CONFIG_HOST='linux'
-  if test ! -f /usr/include/linux/version.h ; then
-    echo ''
-    echo '*** error:'
-    echo '*** Your system has no complete /usr/include/linux,'
-    echo '*** (version.h missing) ... giving up'
-    echo ''
-    exit 1
-  fi
 fi
 AC_SUBST(CONFIG_HOST)
 
@@ -166,6 +158,14 @@ if test "$enable_dlplugins" != "no"; then
               LDFLAGS="${LDFLAGS} -rdynamic"
 else
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
+fi
+
+# set DOSEMU_APBUILD to use apgcc
+if test -n "$DOSEMU_APBUILD"; then
+  USE_APBUILD="USE_APBUILD=1"
+  AC_SUBST(USE_APBUILD)
+  CC=apgcc
+  CPP="apgcc -E"
 fi
 
 dnl Check whether we have svgalib and whether to use it
@@ -315,7 +315,7 @@ AC_CHECK_HEADER(slang.h,
     AC_MSG_NOTICE(Compiling with S-Lang support...)
     have_slang="yes"
     AC_DEFINE(USE_SLANG)
-    SLANGLIB="$SLANGLIB -lslang -lm",
+    SLANGLIB="$SLANGLIB -lslang",
     [AC_MSG_WARN([No S-Lang library found.])]
     $srcdir/mkpluginhooks enable term no
   ),

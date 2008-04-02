@@ -66,6 +66,12 @@ int term_init(void)
 {
 	if (term_initialized++)
 		return 0;
+#ifdef USE_RELAYTOOL
+	dbug_printf("Using S-Lang version %d, with %sUTF8 support \n",
+		SLang_Version,
+		SLang_Version >= 20000 || 
+		libslang_symbol_is_present("SLsmg_write_nwchars") ? "" : "no ");
+#endif
 	SLang_Exit_Error_Hook = sl_exit_error;
 	SLtt_get_terminfo ();
 	/* FIXME USE_OLD_SLANG_KBD */
