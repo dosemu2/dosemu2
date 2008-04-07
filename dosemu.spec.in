@@ -10,7 +10,7 @@ Source: %{name}-%{version}.tgz
 Source1: %{name}-freedos-bin.tgz
 License: GPL
 Group: System/Emulators
-Buildroot: %{_builddir}/%{name}-root
+Buildroot: %{_tmppath}/%{name}-root
 BuildPrereq: bison flex
 %description
 DOSEMU is a user-level program which uses certain special features
@@ -18,16 +18,20 @@ of the Linux kernel and the 80386 processor to run MS-DOS/FreeDOS/
 DR-DOS, DOS programs, and many DPMI applications in what we in the
 biz call a `DOS box'.
 %prep
-rm -rf $RPM_BUILD_ROOT
 %setup -q
+
 %build
-./configure --prefix=%{_prefix} --mandir=%{_mandir} --with-fdtarball=%{_sourcedir}/dosemu-freedos-bin.tgz
+./configure --prefix=%{_prefix} --mandir=%{_mandir} --libdir=%{_libdir} --with-fdtarball=%{_sourcedir}/dosemu-freedos-bin.tgz
 make
+
 %install
-mkdir -p $RPM_BUILD_ROOT%{_bindir}
-make DESTDIR=$RPM_BUILD_ROOT install
+%{__rm} -rf %{buildroot}
+mkdir -p %{buildroot}/%{_bindir}
+make DESTDIR=%{buildroot} install
+
 %clean
-rm -rf $RPM_BUILD_ROOT
+%{__rm} -rf %{buildroot}
+
 %pre
 if [ -f /etc/dosemu.users ]; then
   echo "Deprecating /etc/dosemu.users: moving to /etc/dosemu/dosemu.users"
@@ -39,6 +43,7 @@ if [ -f /etc/dosemu.conf ]; then
   echo "Please use /etc/dosemu/dosemu.conf instead."
   mv /etc/dosemu.conf /etc/dosemu/dosemu.conf
 fi
+
 %files
 %defattr(-,root,root)
 %{_bindir}/dosemu.bin
