@@ -280,16 +280,16 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 	case 0x8a:	// read byte
 		if (_err&2) goto badrw;
 		if (p[1]==0x07)
-		    *((unsigned char *)&_eax) = e_VgaRead(_edi,MBYTE);
+		    LO_BYTE(_eax) = e_VgaRead(_edi,MBYTE);
 		else if (p[1]==0x17)
-		    *((unsigned char *)&_edx) = e_VgaRead(_edi,MBYTE);
+		    LO_BYTE(_edx) = e_VgaRead(_edi,MBYTE);
 		else goto unimp;
 		_rip = (long)(p+2); break;
 	case 0x8b:	// read word
 		if (_err&2) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		if (w16)
-			*((unsigned short *)&_eax) = e_VgaRead(_edi,DATA16);
+			LO_WORD(_eax) = e_VgaRead(_edi,DATA16);
 		else
 			_eax = e_VgaRead(_edi,DATA32);
 		_rip = (long)(p+2); break;
@@ -316,7 +316,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 	case 0xac: {	// LODsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;
-		*((char *)&_eax) = e_VgaRead(_esi,MBYTE);
+		LO_BYTE(_eax) = e_VgaRead(_esi,MBYTE);
 		_esi+=d;
 		_rip = (long)(p+1); } break;
 	case 0xad: {	// LODsw
@@ -324,7 +324,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		if (_err&2) goto badrw;
 		if (w16) {
 		    d >>= 1;
-		    *((short *)&_eax) = e_VgaRead(_esi,DATA16);
+		    LO_WORD(_eax) = e_VgaRead(_esi,DATA16);
 		}
 		else
 		    _eax = e_VgaRead(_esi,DATA32);

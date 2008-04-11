@@ -426,7 +426,7 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
 
   if (cap & MAPPING_INIT_LOWRAM) {
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
-    *(void **)(&lowmem_base) = addr;
+    *(char **)(&lowmem_base) = addr;
     addr = alias_mapping(MAPPING_INIT_LOWRAM, 0,
 	    mapsize, PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
   }

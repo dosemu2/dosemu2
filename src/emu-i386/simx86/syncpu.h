@@ -225,38 +225,38 @@ extern SynCPU TheCPU;
 #define Ofs_stub_stosw	(int)(offsetof(SynCPU,stub_stosw)-SCBASE)
 #define Ofs_stub_stosl	(int)(offsetof(SynCPU,stub_stosl)-SCBASE)
 
-#define rAX		*((unsigned short *)&rEAX)
+#define rAX		LO_WORD(rEAX)
 #define Ofs_AX		(Ofs_EAX)
 #define Ofs_AXH		(Ofs_EAX+2)
-#define rAL		((unsigned char *)&rEAX)[0]
+#define rAL		LO_BYTE(rEAX)
 #define Ofs_AL		(Ofs_EAX)
-#define rAH		((unsigned char *)&rEAX)[1]
+#define rAH		HI_BYTE(rEAX)
 #define Ofs_AH		(Ofs_EAX+1)
-#define rCX		*((unsigned short *)&rECX)
+#define rCX		LO_WORD(rECX)
 #define Ofs_CX		(Ofs_ECX)
-#define rCL		((unsigned char *)&rECX)[0]
+#define rCL		LO_BYTE(rECX)
 #define Ofs_CL		(Ofs_ECX)
-#define rCH		((unsigned char *)&rECX)[1]
+#define rCH		HI_BYTE(rECX)
 #define Ofs_CH		(Ofs_ECX+1)
-#define rDX		*((unsigned short *)&rEDX)
+#define rDX		LO_WORD(rEDX)
 #define Ofs_DX		(Ofs_EDX)
-#define rDL		((unsigned char *)&rEDX)[0]
+#define rDL		LO_BYTE(rEDX)
 #define Ofs_DL		(Ofs_EDX)
-#define rDH		((unsigned char *)&rEDX)[1]
+#define rDH		HI_BYTE(rEDX)
 #define Ofs_DH		(Ofs_EDX+1)
-#define rBX		*((unsigned short *)&rEBX)
+#define rBX		LO_WORD(rEBX)
 #define Ofs_BX		(Ofs_EBX)
-#define rBL		((unsigned char *)&rEBX)[0]
+#define rBL		LO_BYTE(rEBX)
 #define Ofs_BL		(Ofs_EBX)
-#define rBH		((unsigned char *)&rEBX)[1]
+#define rBH		HI_BYTE(rEBX)
 #define Ofs_BH		(Ofs_EBX+1)
-#define rSP		*((unsigned short *)&rESP)
+#define rSP		LO_WORD(rESP)
 #define Ofs_SP		(Ofs_ESP)
-#define rBP		*((unsigned short *)&rEBP)
+#define rBP		LO_WORD(rEBP)
 #define Ofs_BP		(Ofs_EBP)
-#define rSI		*((unsigned short *)&rESI)
+#define rSI		LO_WORD(rESI)
 #define Ofs_SI		(Ofs_ESI)
-#define rDI		*((unsigned short *)&rEDI)
+#define rDI		LO_WORD(rEDI)
 #define Ofs_DI		(Ofs_EDI)
 #define Ofs_FLAGS	(Ofs_EFLAGS)
 #define Ofs_FLAGSL	(Ofs_EFLAGS)
@@ -268,7 +268,7 @@ extern SynCPU TheCPU;
 #define SIGFPEND	TheCPU.sigprof_pending
 #define MEMREF		TheCPU.mem_ref
 #define EFLAGS		TheCPU.eflags
-#define FLAGS		*((unsigned short *)&(TheCPU.eflags))
+#define FLAGS		LO_WORD(TheCPU.eflags)
 #define eVEFLAGS	TheCPU.veflags
 #define FPX		TheCPU.fpstt
 

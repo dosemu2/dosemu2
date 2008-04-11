@@ -619,11 +619,11 @@ void print_exception_info(struct sigcontext_struct *scp)
       struct _fpstate *p = scp->fpstate;
       error ("@Coprocessor Error:\n");
       error ("@cw=%04x sw=%04x tag=%04x\n",
-	*((unsigned short *)&(p->cw)),*((unsigned short *)&(p->sw)),
-	*((unsigned short *)&(p->tag)));
+	     ((unsigned short)(p->cw)),((unsigned short)(p->sw)),
+	((unsigned short)(p->tag)));
       error ("@cs:eip=%04x:%08lx ds:data=%04x:%08lx\n",
-	*((unsigned short *)&(p->cssel)),p->ipoff,
-	*((unsigned short *)&(p->datasel)),p->dataoff);
+	((unsigned short)(p->cssel)),p->ipoff,
+	((unsigned short)(p->datasel)),p->dataoff);
       sw = p->sw;
 #endif
       if ((sw&0x80)==0) error("@No error summary bit,why?\n");
