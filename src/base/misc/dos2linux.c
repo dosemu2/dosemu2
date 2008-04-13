@@ -114,6 +114,7 @@
 
 
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -127,7 +128,6 @@
 #include <ctype.h>
 #include <stdarg.h>
 
-#include "config.h"
 #include "emu.h"
 #include "cpu-emu.h"
 #include "int.h"
@@ -293,20 +293,22 @@ static char *make_end_in_backslash (char *s)
  * necessary as make_unmake_dos_mangled_path() will not work with a resolved
  * path if the drive was LREDIR'ed by the user to a unresolved path.
  */
-int find_drive (char *linux_path_resolved)
+int find_drive (char **plinux_path_resolved)
 {
   int free_drive = -26;
   int drive;
+  char *linux_path_resolved = *plinux_path_resolved;
 
   j_printf ("find_drive (linux_path='%s')\n", linux_path_resolved);
 
   for (drive = 0; drive < 26; drive++) {
     char *drive_linux_root = NULL;
     int drive_ro;
-    char drive_linux_root_resolved [PATH_MAX];
+    char *drive_linux_root_resolved;
 
     if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
-      if (!realpath (drive_linux_root, drive_linux_root_resolved)) {
+      drive_linux_root_resolved = canonicalize_file_name(drive_linux_root);
+      if (!drive_linux_root_resolved) {
         com_fprintf (com_stderr,
                      "ERROR: %s.  Cannot canonicalize drive root path.\n",
                      strerror (errno));
@@ -322,19 +324,19 @@ int find_drive (char *linux_path_resolved)
       /* TODO: handle case insensitive filesystems (e.g. VFAT)
        *     - can we just strlwr() both paths before comparing them? */
       if (strstr (linux_path_resolved, drive_linux_root_resolved) == linux_path_resolved) {
-        char old_linux_path_resolved [PATH_MAX];
-        
         j_printf ("\tFound drive!\n");
-        strcpy (old_linux_path_resolved, linux_path_resolved);
-        snprintf (linux_path_resolved, PATH_MAX, "%s%s",
+        asprintf (plinux_path_resolved, "%s%s",
                   drive_linux_root/*unresolved*/,
-                  old_linux_path_resolved + strlen (drive_linux_root_resolved));
-        j_printf ("\t\tModified root; linux path='%s'\n", linux_path_resolved);
+                  linux_path_resolved + strlen (drive_linux_root_resolved));
+        j_printf ("\t\tModified root; linux path='%s'\n", *plinux_path_resolved);
+	free (linux_path_resolved);
         
+	free (drive_linux_root_resolved);
         free (drive_linux_root);
         return drive;
       }
       
+      free (drive_linux_root_resolved);
       free (drive_linux_root);
     } else {
       if (drive >= 2 && free_drive == -26) {

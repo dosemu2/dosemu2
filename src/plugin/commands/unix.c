@@ -152,7 +152,7 @@ static int is_progname_char (unsigned char c)
 
 static int likely_linux_path (const char *linux_path)
 {
-  char linux_path_resolved [PATH_MAX];
+  char *linux_path_resolved;
   struct stat s;
   size_t len = strlen(linux_path);
 
@@ -172,10 +172,14 @@ static int likely_linux_path (const char *linux_path)
 	return 1;
       }
 
-      if (realpath (linux_path, linux_path_resolved) &&
-	  !stat (linux_path_resolved, &s) && S_ISREG (s.st_mode)) {
-	j_printf ("\tyes - existing file\n");
-	return 1;
+      linux_path_resolved = canonicalize_file_name(linux_path);
+      if (linux_path_resolved) {
+	if (!stat (linux_path_resolved, &s) && S_ISREG (s.st_mode)) {
+	  free(linux_path_resolved);
+	  j_printf ("\tyes - existing file\n");
+	  return 1;
+	}
+	free(linux_path_resolved);
       }
     }
   }
@@ -199,7 +203,7 @@ static int likely_linux_path (const char *linux_path)
  */
 static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
 {
-  char linux_path_resolved[PATH_MAX];
+  char *linux_path_resolved;
   char dos_path [MAX_PATH_LENGTH];
   int drive;
 
@@ -241,12 +245,13 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
      }
   }
 
-  if (!realpath (linux_path, linux_path_resolved)) {
+  linux_path_resolved = canonicalize_file_name(linux_path);
+  if (!linux_path_resolved) {
       com_fprintf (com_stderr, "ERROR: %s: %s\n", strerror(errno), linux_path);
       return (1);
   }
   
-  drive = find_drive (linux_path_resolved);
+  drive = find_drive (&linux_path_resolved);
   if (drive < 0) {
     drive = -drive;
     
@@ -256,6 +261,7 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
                      "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
       }
       
+      free(linux_path_resolved);
       return (1);
     }
 
@@ -269,6 +275,7 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
     if (RedirectDisk (drive, LINUX_RESOURCE "/", 0/*rw*/) != 0/*success*/) {
       com_fprintf (com_stderr,
                    "ERROR: Could not redirect %c: to /\n", drive + 'A');
+      free(linux_path_resolved);
       return (1);
     }
   }
@@ -283,6 +290,7 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
     if (com_dossetdrive (com_dosgetdrive ()) < 26)
       com_fprintf (com_stderr, "Try 'LASTDRIVE=Z' in CONFIG.SYS.\n");
 
+    free(linux_path_resolved);
     return (1);
   }
 
@@ -291,6 +299,7 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
                                 drive, 1/*alias*/);
   j_printf ("DOS path: '%s' (from linux '%s')\n",
             dos_path, linux_path_resolved);
+  free(linux_path_resolved);
 
   /* switch to the directory */
   if (strlen (dos_path) >= 3 && (b = strrchr (dos_path, '\\')) != NULL) {

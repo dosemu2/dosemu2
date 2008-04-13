@@ -42,6 +42,7 @@
  * DANG_END_MODULE
  */
 
+#include "emu.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -57,7 +58,6 @@
 
 #include <scsi/sg.h>
 
-#include "emu.h"
 #include "aspi.h"
 
 

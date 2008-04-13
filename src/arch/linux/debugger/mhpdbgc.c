@@ -37,6 +37,7 @@
  *   16Sep95 Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,7 +54,6 @@
 #include <regex.h>
 
 #include "bitops.h"
-#include "config.h"
 #include "emu.h"
 #include "cpu.h"
 #include "timers.h"

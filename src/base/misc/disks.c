@@ -14,6 +14,7 @@
 #define _LARGEFILE64_SOURCE 1
 #endif
 
+#include "emu.h"
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
@@ -30,7 +31,6 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#include "emu.h"
 #include "int.h"
 #include "port.h"
 #include "bios.h"

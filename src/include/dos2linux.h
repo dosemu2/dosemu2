@@ -261,7 +261,7 @@ extern char *misc_e6_options (void);
 extern void misc_e6_store_command (char *str, int terminate);
 extern int misc_e6_need_terminate(void);
 
-extern int find_drive (char *linux_path_resolved);
+extern int find_drive (char **linux_path_resolved);
 
 extern void run_unix_command (char *buffer);
 extern int run_system_command(char *buffer);
