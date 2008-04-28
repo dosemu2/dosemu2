@@ -28,12 +28,17 @@ install_dos () {
 "
       exit 1
     fi
-    mkdir -p $HOME/.dosemu/drive_c $HOME/.dosemu/drives
+    mkdir -p $HOME/.dosemu/drive_c/tmp $HOME/.dosemu/drives
     rm -f $HOME/.dosemu/drives/c $HOME/.dosemu/drives/d
     ln -sf $HOME/.dosemu/drive_c $HOME/.dosemu/drives/c
     ln -sf $BOOT_DIR_PATH/drive_z $HOME/.dosemu/drives/d
     cp -fp $BOOT_DIR_PATH/conf/autoexec.bat $BOOT_DIR_PATH/freedos/autoexec.bat
     cp -fp $BOOT_DIR_PATH/conf/config.sys $BOOT_DIR_PATH/freedos/config.sys
+    # the below two cp's are usually also done by dosemu.bin but are done here
+    # in case DOSEMU terminates leaving a disclaimer file behind, or
+    # if ~/.dosemu/disclaimer exists but ~/.dosemu/drives/c does not.
+    cp -fp $BOOT_DIR_PATH/conf/autoexec.bat $HOME/.dosemu/drive_c
+    cp -fp $BOOT_DIR_PATH/conf/config.sys $HOME/.dosemu/drive_c
   fi
   unset INSTALL
 }
