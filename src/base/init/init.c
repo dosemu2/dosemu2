@@ -262,8 +262,16 @@ void low_mem_init(void)
 
   if (result != NULL)
     {
+      int err = errno;
       perror ("LOWRAM mmap");
-      config.exitearly = 1;
+      if (err == EINVAL) {
+	fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
+		"You can most likely avoid this problem by running\n"
+		"sysctl -w vm.mmap_min_addr=0\n"
+		"as root, or by changing the vm.mmap_min_addr setting in\n"
+		"/etc/sysctl.conf to 0.\n");
+      }
+      leavedos(99);
     }
 }
 
