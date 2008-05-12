@@ -4012,7 +4012,7 @@ dos_fs_redirect(state_t *state)
 		int fd = open_files[sft_fd(sft)].fd;
 		int ret;
 		struct LOCKREC{
-			unsigned long offset,size;
+			uint32_t offset,size;
 		} *pt = (struct LOCKREC*) Addr (state,ds,edx);
 		struct flock larg;
 		unsigned long mask = 0xC0000000;
@@ -4023,7 +4023,7 @@ dos_fs_redirect(state_t *state)
                 }
 
 		Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
-			fd, is_lock, pt->offset, pt->size));
+			fd, is_lock, (long)pt->offset, (long)pt->size));
 
 		if (pt->size > 0 && pt->offset + (pt->size - 1) < pt->offset) {
 			Debug0((dbg_fd, "offset+size too large, lock failed.\n"));
