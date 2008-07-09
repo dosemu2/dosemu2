@@ -488,15 +488,32 @@ static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 	Display *display = p;
 	KeyCode xcode;
 	t_keynum keynum;
+	t_modifiers modifiers;
+	int map;
 	xkey = *((KeySym *)str);
-	keynum = keysym_to_keynum(dosemu_keysym);
+	keynum = keysym_to_keynum(dosemu_keysym, &modifiers);
 	xcode = XKeysymToKeycode(display, xkey);
-	// Only allow detection of unshifted keys, to prevent things
-	// like mapping the key used for "Pilcrow Sign (0xB6)", which
-	// is (AltGr)-'r' for a german keyboard to 't', because the
-	// pilcrow sign is Ctrl-T in CP437/CP850
-	if (xcode && keynum != NUM_VOID &&
-	    (XKeycodeToKeysym(display,xcode,0) == xkey)) {
+	// Use only plain and shifted keys for layout detection, and
+	// match shift state.
+	// This prevents things like mapping the key used for "Pilcrow
+	// Sign (0xB6)", which is (AltGr)-'r' for a german keyboard to
+	// 't', because the pilcrow sign is at position 20 (Ctrl-T) in
+	// CP437/CP850.
+	switch(modifiers)
+	{
+		case 0:
+			map = 0;
+			break;
+		case MODIFIER_SHIFT:
+			map = 1;
+			break;
+		default:
+			map = -1;
+			break;
+	}
+	if ((map != -1) &&
+	    (xcode && keynum != NUM_VOID) &&
+	    (XKeycodeToKeysym(display,xcode,map) == xkey) ) {
 		keycode_to_keynum[xcode] = keynum;
 	}
 }

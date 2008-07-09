@@ -2115,17 +2115,21 @@ int move_keynum(Boolean make, t_keynum keynum, t_keysym sym)
  *
  * Allows peeking into the keytables.
  * This returns the keynum a given keysym sits on.
+ * Unless modifiers is NULL, the modifiers needed to obtain the keysym
+ * is written to the target of modifiers.
  *
  * DANG_END_FUNCTION
  */
 
-t_keynum keysym_to_keynum(t_keysym key)
+t_keynum keysym_to_keynum(t_keysym key, t_modifiers * modifiers)
 {
 	struct press_state *sym_info;
 	t_keynum keynum = NUM_VOID;
 	if (key != KEY_VOID) {
 		sym_info = &input_keyboard_state.rules->charset.keys[key];
 		keynum = sym_info->key;
+		if (modifiers)
+			*modifiers = sym_info->shiftstate;
 	}
 	return keynum;
 }
