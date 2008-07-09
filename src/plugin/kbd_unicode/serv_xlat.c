@@ -481,7 +481,7 @@ static void init_translate_rule(t_keysym *rule,
 
 static void dump_translate_rules(struct scancode_translate_rules *rules)
 {
-	int i;
+	int i, j;
 #define LOOP(type)  \
 	do { \
 		k_printf(#type ":\n"); \
@@ -495,8 +495,8 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
 		} \
 	} while(0)
 
-	for(i = 0; i < NUM_RULES; i++) {
-		LOOP(rules->trans_rules.rule_arr[i].rule_map);
+	for(j = 0; j < NUM_RULES; j++) {
+		LOOP(rules->trans_rules.rule_arr[j].rule_map);
 	}
 }
 

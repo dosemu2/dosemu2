@@ -13,6 +13,7 @@
 #include <X11/keysym.h>
 
 #include "emu.h"
+#include "utilities.h"
 #include "keyboard.h"
 #include "keymaps.h"
 #include "translate.h"
@@ -137,7 +138,7 @@ int X11_DetectLayout (void)
           pkey = key;
         } else {
           /* print spaces instead of \0's */
-          for (i = 0; i < sizeof(ckey); i++) if (!ckey[i]) ckey[i] = ' ';
+          for (i = 0; i < ARRAY_SIZE(ckey); i++) if (!ckey[i]) ckey[i] = ' ';
           mismatch++;
           score -= syms;
         }
