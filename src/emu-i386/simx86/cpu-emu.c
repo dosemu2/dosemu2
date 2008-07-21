@@ -449,14 +449,14 @@ void GCPrint(unsigned char *cp, unsigned char *cbase, int len)
 char *showreg(signed char r)
 {
 	static const char *s4[] = {
-		"ZERO","  GS","  FS","  ES","  DS"," EDI"," ESI"," EBP",
-		" ESP"," EBX"," EDX"," ECX"," EAX","TPNO","SCPE"," EIP",
-		"  CS","EFLG","ESPS","  SS","FPSP","OLDM"," CR2"," SR1",
-		" DR1"," XR1"," SIG","VEFL"," ERR","TIML","TIMH","SMSK",
-		"  ni","CR2S","CR_0","CR_1","CR_2","CR_3","CR_4","MODE",
-		" XGS","GSc1","GSc2"," XFS","FSc1","FSc2"," XES","ESc1",
-		"ESc2"," XDS","DSc1","DSc2"," XCS","CSc1","CSc2"," XSS",
-		"SSc1","SSc2","FPRG","FPCS","FPST","FNI0","FNI1","FNI2"
+		"cUNP","xUNP","ZERO","  GS","  FS","  ES","  DS"," EDI",
+		" ESI"," EBP"," ESP"," EBX"," EDX"," ECX"," EAX","TPNO",
+		"SCPE"," EIP","  CS","EFLG","  SS"," CR2","FPCS","FPST",
+		"FNI0","FNI1","FNI2"," SIG"," ERR","SMSK","MODE"," CR0",
+		"FPRG","xFPR","TIML","TIMH"," GSl"," GSu"," GSo"," FSl",
+		" FSu"," FSo"," ESl"," ESu"," XES"," DSl"," DSu"," DSo",
+		" CSl"," CSu"," CSo"," SSl"," SSh"," SSo"," s16","xs16",
+		" s32","xs32","  w8"," xw8"," w16","xw16"," w32","xw32"
 	};
 	static char m1[32];
 	static int i = 0;
