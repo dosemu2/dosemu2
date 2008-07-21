@@ -1548,6 +1548,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				e_printf("IRET: ret=%04lx:%08x\n",sv,TheCPU.eip);
 			}
 			temp=0; POP(m, &temp);
+			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (REALMODE())
 			    FLAGS = temp;
 			else if (V86MODE()) {
@@ -1566,12 +1567,12 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_vFLAGS(EFLAGS));
 			}
-			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			} break;
 
 /*9d*/	case POPF: {
 			CODE_FLUSH();
 			temp=0; POP(mode, &temp);
+			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (V86MODE()) {
 stack_return_from_vm86:
 			    if (debug_level('e')>1)
@@ -1632,7 +1633,6 @@ stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
-			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 			if (opc==POPF) PC++; }
 			break;
 
