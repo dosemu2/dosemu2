@@ -148,7 +148,7 @@ void dump_config_status(void *printfunc)
       default:  s = "386"; break;
     }
     (*print)("%s\n", s);
-    (*print)("CPUclock %gMHz\ncpu_spd 0x%lx\ncpu_tick_spd 0x%lx\n",
+    (*print)("CPUclock %g MHz\ncpu_spd 0x%lx\ncpu_tick_spd 0x%lx\n",
 	(((double)LLF_US)/config.cpu_spd), config.cpu_spd, config.cpu_tick_spd);
 
     (*print)("pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
@@ -471,15 +471,21 @@ void secure_option_preparse(int *argc, char **argv)
 
 static void read_cpu_info(void)
 {
-    char *cpuflags;
-    int k = 386;
+    char *cpuflags, *cpu;
+    int k = 3;
 
     open_proc_scan("/proc/cpuinfo");
-    switch (get_proc_intvalue_by_key(
-          kernel_version_code > 0x20100+74 ? "cpu family" : "cpu" )) {
-      case 5: case 586:
-      case 6: case 686:
-      case 15:
+    cpu = get_proc_string_by_key("cpu family");
+    if (cpu) {
+      printf("%d\n",k);
+    } else { /* old kernels < 2.1.74 */
+      cpu = get_proc_string_by_key("cpu");
+      /* 386, 486, etc */
+      if (cpu) k = atoi(cpu) / 100;
+    }
+    if (k > 5) k = 5;
+    switch (k) {
+      case 5:
         config.realcpu = CPU_586;
         cpuflags = get_proc_string_by_key("features");
         if (!cpuflags) {
@@ -548,7 +554,9 @@ static void read_cpu_info(void)
           }
         }
         /* fall thru */
-      case 4: case 486: config.realcpu = CPU_486;
+      case 4: config.realcpu = CPU_486;
+        /* fall thru */
+      case 3:
       	break;
       default:
         error("Unknown CPU type!\n");
