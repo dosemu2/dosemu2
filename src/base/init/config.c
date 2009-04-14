@@ -477,7 +477,7 @@ static void read_cpu_info(void)
     open_proc_scan("/proc/cpuinfo");
     cpu = get_proc_string_by_key("cpu family");
     if (cpu) {
-      printf("%d\n",k);
+      k = atoi(cpu);
     } else { /* old kernels < 2.1.74 */
       cpu = get_proc_string_by_key("cpu");
       /* 386, 486, etc */
