@@ -53,6 +53,7 @@ fi
 %{_bindir}/midid
 %{_bindir}/dosdebug
 %{_bindir}/xdosemu
+%{_mandir}/man1/midid.1*
 %{_mandir}/man1/mkfatimage16.1*
 %{_mandir}/man1/dosdebug.1*
 %{_mandir}/man1/dosemu.1*
