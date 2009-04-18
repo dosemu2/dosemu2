@@ -129,7 +129,7 @@ static void install_dosemu_freedos (int choice)
 	}
 	free(system_str);
 	asprintf(&system_str,
-		 "cp -a %s/drive_z/config.sys "
+		 "cp -p %s/drive_z/config.sys "
 		 "%s/drive_z/autoexec.bat \"%s\"",
 		 dosemu_lib_dir, dosemu_lib_dir, boot_dir_path);
 	system(system_str);
