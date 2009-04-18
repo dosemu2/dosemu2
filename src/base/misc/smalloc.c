@@ -73,7 +73,7 @@ static struct memnode *find_mn(struct mempool *mp, unsigned char *ptr)
     smerror("SMALLOC: unused pool passed\n");
     return NULL;
   }
-  for (mn = &mp->mn; mn->next; mn = mn->next) {
+  for (mn = &mp->mn; mn; mn = mn->next) {
     if (mn->mem_area > ptr)
       return NULL;
     if (mn->mem_area == ptr) {
