@@ -1153,13 +1153,13 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_SUB;
 		RFL.S1 = 0;
 		if (mode & MBYTE) {
-			DR1.b.bl = RFL.RES.d = -(RFL.S2=DR1.b.bl);
+			DR1.b.bl = RFL.RES.d = RFL.S2 = -(DR1.b.bl);
 		}
 		else if (mode & DATA16) {
-			DR1.w.l = RFL.RES.d = -(RFL.S2=DR1.w.l);
+			DR1.w.l = RFL.RES.d = RFL.S2 = -(DR1.w.l);
 		}
 		else {
-			DR1.d = RFL.RES.d = -(RFL.S2=DR1.d);
+			DR1.d = RFL.RES.d = RFL.S2 = -(DR1.d);
 		}
 		SET_CF(RFL.S2!=0);
 		break;
