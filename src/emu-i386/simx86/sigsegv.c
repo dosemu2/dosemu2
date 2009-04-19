@@ -205,7 +205,8 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
   }
 
   if (i == VGAEMU_MAX_MAPPINGS) {
-    if (page_fault >= 0xa0 && page_fault < 0xc0) {	/* unmapped VGA area */
+    if ((unsigned)((page_fault << 12) - vga.mem.graph_base) < 
+	vga.mem.graph_size) {	/* unmapped VGA area */
 #ifdef HOST_ARCH_X86
       if (!CONFIG_CPUSIM) {
 	u = jitx86_instr_len((unsigned char *)_rip);
@@ -435,13 +436,15 @@ int e_emu_fault(struct sigcontext_struct *scp)
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
 		if (!DPMIValidSelector(_cs)) {
-			unsigned pf = (unsigned)_cr2 >> 12;
-			if ((pf & 0xfffe0) == 0xa0) {
+			unsigned pf = (unsigned)_cr2;
+			if ((unsigned)(pf - vga.mem.graph_base) < 
+			    vga.mem.graph_size) {
 				TrapVgaOn = 1;
 			}
 			/* VGAEMU may also access/protect the LFB */
-			if (e_vgaemu_fault(scp,pf) == 1) return 1;
-			if ((pf & 0xfffe0) == 0xa0) goto verybad;
+			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+			if ((unsigned)(pf - vga.mem.graph_base) < 
+			    vga.mem.graph_size) goto verybad;
 		} else {
 			if(VGA_EMU_FAULT(scp,code,1)==True) {
 				dpmi_check_return(scp);

@@ -920,7 +920,8 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   }
 
   if(i == VGAEMU_MAX_MAPPINGS) {
-    if(page_fault >= 0xa0 && page_fault < 0xc0) {	/* unmapped VGA area */
+    if ((unsigned)((page_fault << 12) - vga.mem.graph_base) < 
+	vga.mem.graph_size) {	/* unmapped VGA area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip));
         _eip += u;
@@ -1360,13 +1361,16 @@ static int vgaemu_unmap(unsigned page)
 void vgaemu_reset_mapping()
 {
   void *i;
-  int prot, page;
+  int prot, page, startpage;
 
   if (!Video->update_screen) return;
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
 
   prot = VGA_EMU_RW_PROT;
-  for(page = 0xa0; page < 0xc0; page++) {
+  startpage = config.mem_size > 640 ? (config.mem_size + 3) / 4: 0xa0;
+  vga.mem.graph_base = startpage << 12;
+  vga.mem.graph_size = 0xc0000 - vga.mem.graph_base;
+  for(page = startpage; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       (void *)(uintptr_t) (page << 12), 1 << 12,
       prot, vga.mem.scratch_page
@@ -1382,7 +1386,7 @@ void vgaemu_reset_mapping()
     }
   }
 
-  for(page = 0xa0; page < 0xc0; page++) {
+  for(page = startpage; page < 0xc0; page++) {
     vgaemu_update_prot_cache(page, prot);
   }
 }

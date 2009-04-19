@@ -485,7 +485,7 @@ static inline int vga_read_access(unsigned int m)
 {
 	/* unmapped VGA memory or using a planar mode */
 	return (!(TheCPU.mode&RM_REG) && TrapVgaOn &&
-		(unsigned)(m - 0xa0000) < 0x20000 &&
+		(unsigned)(m - vga.mem.graph_base) < vga.mem.graph_size &&
 		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
 		 vga.inst_emu));
 }
@@ -494,7 +494,8 @@ static inline int vga_write_access(unsigned int m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a planar mode */
 	return (!(TheCPU.mode&RM_REG) && TrapVgaOn &&
-		(unsigned)(m - 0xa0000) < 0x20000 + (vgaemu_bios.pages<<12) &&
+		(unsigned)(m - vga.mem.graph_base) < 
+		vga.mem.graph_size + (vgaemu_bios.pages<<12) &&
 		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
 		 m >= 0xc0000 ||
 		 vga.inst_emu));
