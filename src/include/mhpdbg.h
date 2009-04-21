@@ -108,6 +108,7 @@ struct segoff {
   unsigned short off,seg;
 };
 
+/* parameters for DOS 4Bh (EXEC) call */
 struct mhpdbg_4bpar
 {
   unsigned short env;
@@ -128,6 +129,7 @@ struct mhpdbgc
    int want_to_stop;
    enum dosdebug_event currcode;
    int trapcmd;
+   int trapip; /* ip that we were on when we started the "tracei" command */
    int bpload;
    int bpload_bp;
    int int21_count;

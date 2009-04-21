@@ -140,6 +140,7 @@ static const struct cmd_db cmdtab[] = {
    {"stop",          mhp_stop},
    {"mode",          mhp_mode},
    {"t",             mhp_trace},
+   {"ti",            mhp_trace},
    {"tc",            mhp_tracec},
    {"tf",            mhp_trace_force},
    {"r32",           mhp_regs32},
@@ -181,6 +182,7 @@ static const char help_page[]=
   "stop                   stop (if running)\n"
   "mode 0|1|+d|-d         set mode (0=SEG16, 1=LIN32) for u and d commands\n"
   "t                      single step (not fully debugged!!!)\n"
+  "ti                     single step until IP changes\n"
   "tc                     single step, loop forever until key pressed\n"
   "tf                     single step, force over IRET\n"
   "r32                    dump regs in 32 bit format\n"
@@ -569,7 +571,14 @@ static void mhp_trace(int argc, char * argv[])
         dpmi_mhp_setTF(1);
       }
       WRITE_FLAGS(READ_FLAGS() | TF);
-      mhpdbgc.trapcmd = 1;
+
+      if (!strcmp(argv[0], "ti")) {
+	mhpdbgc.trapcmd = 2;
+      } else {
+	mhpdbgc.trapcmd = 1;
+      }
+
+      mhpdbgc.trapip = mhp_getcsip_value();
    }
 }
 
