@@ -25,12 +25,15 @@
 #define VM86_TRAP 4	  /* (vm86 return) TRAP */
 #endif
 
-#define DBG_INIT 0
-#define DBG_INTx 1
-#define DBG_TRAP 2
-#define DBG_POLL 3
-#define DBG_GPF  4
-#define DBG_INTxDPMI 5
+// There is also an argument field shifted 8 bits left
+enum dosdebug_event {
+   DBG_INIT = 0,
+   DBG_INTx,
+   DBG_TRAP,
+   DBG_POLL,
+   DBG_GPF,
+   DBG_INTxDPMI,
+};
 
 EXTERN unsigned long dosdebug_flags INIT(0);
 #define DBGF_WAIT_ON_STARTUP		0x001
@@ -42,7 +45,7 @@ EXTERN unsigned long dosdebug_flags INIT(0);
 #define DBGF_IN_LEAVEDOS	   0x40000000
 
 
-unsigned int mhp_debug(unsigned int, unsigned int, unsigned int);
+unsigned int mhp_debug(enum dosdebug_event, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_input(void);
 void mhp_close(void);
@@ -122,7 +125,7 @@ struct mhpdbgc
 {
    int stopped;
    int want_to_stop;
-   int currcode;
+   enum dosdebug_event currcode;
    int trapcmd;
    int bpload;
    int bpload_bp;
