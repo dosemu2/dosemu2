@@ -353,9 +353,11 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 					  READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 0));
 
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
-		mhp_printf("\n\nbpload: %04x:%08x: intercepting EXEC:\n", LWORD(cs), REG(eip));
+		mhp_printf("\n\nbpload: intercepting EXEC:\n", LWORD(cs), REG(eip));
+		/*
 		mhp_cmd("r");
 		mhp_cmd("d ss:sp 30h");
+		*/
 
 		mhpdbgc.bpload++;
 		mhpdbgc.bpload_par=(struct mhpdbg_4bpar *)(((long)DBGload_parblock-(long)bios_f000)+(BIOSSEG << 4));
@@ -377,8 +379,10 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		WRITE_WORD(ssp + _SP + 6, 0);
 
 		mhp_printf("\n\nbpload: replacing EXEC with LOAD:\n");
+		/*
 		mhp_cmd("r");
 		mhp_cmd("d ss:sp 30h");
+		*/
 	      }
 	      else {
 		mhp_printf("\n\nbpload: ??? #1\n");
@@ -428,7 +432,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		  uintptr_t csip=mhp_getcsip_value() - 1;
 		  if (mhpdbgc.bpload_bp == csip ) {
 		    mhp_printf("\n\nbpload: INT3 caught\n");
-		    mhp_cmd("r");
+		    /* mhp_cmd("r"); */
 		    mhp_clearbp(mhpdbgc.bpload_bp);
 		    mhp_modify_eip(-1);
 		    if (mhpdbgc.bpload == 2) {
