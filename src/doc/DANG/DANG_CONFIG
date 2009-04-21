@@ -88,6 +88,10 @@ GROUP:		FileAccess doc/DANG/summary_FileAccess
 			dosext/mfs/mfs.c
 #GROUP:		Net doc/DANG/summary_Net dosext/net/net/ipx.c
 #GROUP:		Shared doc/DANG/summary_SHARED dosemu/shared.c
+GROUP:		Debugger doc/DANG/summary_DEBUGGER
+			arch/linux/debugger/dosdebug.c
+			arch/linux/debugger/mhpdbg.c
+			arch/linux/debugger/mhpdbgc.c
 
 # INTRODUCTION is the location of Introduction. There may be
 # more than one of these.
