@@ -397,10 +397,6 @@ sub build_config {
 
 sub protect_specials {
     local ($text) = @_;
-    local ($save);
-
-    $save = $*;
-    $* = 1;
 
     $text =~ s/&/&amp;/g;
     $text =~ s/\<\\/&etago;/g;
@@ -415,8 +411,6 @@ sub protect_specials {
     $text =~ s/\[/&lsqb;/g;
     $text =~ s/\]/&rsqb;/g;
 
-    $* = $save;
-
     return $text;
 }
 
@@ -426,10 +420,6 @@ sub protect_specials {
 
 sub un_protect_specials {
     local ($text) = @_;
-    local ($save);
-
-    $save = $*;
-    $* = 1;
 
     $text =~ s/&rsqb;/\]/g;
 
@@ -442,9 +432,6 @@ sub un_protect_specials {
     $text =~ s/&lt;/</g;
     $text =~ s/&etago;/\<\\/g;
     $text =~ s/&amp;/&/g;
-
-
-    $* = $save;
 
     return $text;
 }
@@ -792,27 +779,21 @@ sub abort_scan {
 
 sub strip_comments {
     local ($text) = @_;
-    local ($save);
-
-    $save = $*;
-    $* = 1;
 
 #             / */ \s* \n \s* /*              / \n  /g
-    $text =~ s#\*/\s*\n\s*/\*#\n#g;
-    $text =~ s#^\s*//##g;
+    $text =~ s#\*/\s*\n\s*/\*#\n#mg;
+    $text =~ s#^\s*//##mg;
 
-    $text =~ s#^\s*\*/\s*\n##g;
-    $text =~ s#^\s*/\*\s*\n##g;
-    $text =~ s#^\s*/\*\s*##g;
+    $text =~ s#^\s*\*/\s*\n##mg;
+    $text =~ s#^\s*/\*\s*\n##mg;
+    $text =~ s#^\s*/\*\s*##mg;
 #print "AAAAAAA $text BBBBBBB\n";
 
-    $text =~ s#^\s*\*##g;
+    $text =~ s#^\s*\*##mg;
     
-    $text =~ s#^\s*# #;
-    $text =~ s#^\n# \n#;
-#    $text =~ s#\s*\*//?$# #;
-
-    $* = $save;
+    $text =~ s#^\s*# #m;
+    $text =~ s#^\n# \n#m;
+#    $text =~ s#\s*\*//?$# #m;
 
     return &protect_specials ($text);
 }
@@ -939,9 +920,6 @@ sub handle_functions {
 
 	print OUTPUT "<p>These are the functions defined in $filename.</p>\n\n";
     
-	$save = $*;
-	$* = 1;
-	
 	while ($this = shift @nodes ) {
 	    @data = split (/\n/, shift (@functions));
 	    shift @data;	# Ignore the first line - the function name
@@ -1086,8 +1064,6 @@ sub handle_structures {
 
 	print OUTPUT "These are the structures and/or data defined in $filename.\n\n";
     
-	$save = $*;
-	$* = 1;
 	
 	while ($this = shift @nodes ) {
 	    print OUTPUT "<sect2><heading>$this</heading>\n\n\n<p>\n";

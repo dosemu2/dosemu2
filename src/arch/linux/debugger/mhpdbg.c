@@ -330,7 +330,7 @@ void mhp_exit_intercept(int errcode)
    mhp_intercept(buf, NULL);
 }
 
-unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2)
+unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned int parm2)
 {
   int rtncd = 0;
 #if 0
@@ -347,8 +347,18 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	     break;
 	  if (test_bit(DBG_ARG(mhpdbgc.currcode), vm86s.vm86plus.vm86dbg_intxxtab)) {
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
-	      mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip);
+
+	      /* mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip); */
+	      mhpdbgc.bpload_bp = (long) MK_FP32(READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 1),
+						 READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 0));
+
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
+		mhp_printf("\n\nbpload: intercepting EXEC:\n", LWORD(cs), REG(eip));
+		/*
+		mhp_cmd("r");
+		mhp_cmd("d ss:sp 30h");
+		*/
+
 		mhpdbgc.bpload++;
 		mhpdbgc.bpload_par=(struct mhpdbg_4bpar *)(((long)DBGload_parblock-(long)bios_f000)+(BIOSSEG << 4));
 		memcpy((char *)mhpdbgc.bpload_par, MK_FP32(LWORD(es),LWORD(ebx)), 14);
@@ -357,8 +367,27 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 		LWORD(es)=BIOSSEG;
 		LWORD(ebx)=(long)mhpdbgc.bpload_par - (BIOSSEG << 4);
 		LWORD(eax)=0x4b01; /* load, but don't execute */
+
+		/* need to move top 3 words on stack up so we can add a value for AX below them */
+
+		unsigned char *ssp = SEG2LINEAR(_SS);
+
+		memmove(ssp + _SP - 2, ssp + _SP, 6);
+		_SP -= 2;
+
+		/* give 0 for AX (should actually be info about FDs 0/1, I think? */
+		WRITE_WORD(ssp + _SP + 6, 0);
+
+		mhp_printf("\n\nbpload: replacing EXEC with LOAD:\n");
+		/*
+		mhp_cmd("r");
+		mhp_cmd("d ss:sp 30h");
+		*/
 	      }
 	      else {
+		mhp_printf("\n\nbpload: ??? #1\n");
+		mhp_cmd("r");
+
 	        mhpdbgc.bpload_bp=0;
 	        mhpdbgc.bpload=0;
 	      }
@@ -387,7 +416,11 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	  if (!mhpdbg.active)
 	     break;
 	  if (DBG_ARG(mhpdbgc.currcode) == 1) { /* single step */
-		  if (mhpdbgc.trapcmd) {
+                  switch (mhpdbgc.trapcmd) {
+		  case 2: /* ti command -- step until IP changes */
+			  if (mhpdbgc.trapip == mhp_getcsip_value())
+				  break;
+		  case 1:
 			  mhpdbgc.trapcmd = 0;
 			  rtncd = 1;
 			  mhpdbgc.stopped = 1;
@@ -398,13 +431,19 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 		  int ok=0;
 		  uintptr_t csip=mhp_getcsip_value() - 1;
 		  if (mhpdbgc.bpload_bp == csip ) {
+		    mhp_printf("\n\nbpload: INT3 caught\n");
+		    /* mhp_cmd("r"); */
 		    mhp_clearbp(mhpdbgc.bpload_bp);
-		    LWORD(eip)--;
+		    mhp_modify_eip(-1);
 		    if (mhpdbgc.bpload == 2) {
 #if 0
 		      mhpdbgc.bpload_bp=(mhpdbgc.bpload_par->csip.seg << 4)+mhpdbgc.bpload_par->csip.off;
 #endif
 		      mhpdbgc.bpload_bp=(long)PAR4b_addr(csip);
+		      if (!mhpdbgc.bpload_bp) {
+			mhp_printf("\n\nbpload: Error: loader did not fill in the entry point address!\n");
+			mhp_cmd("r");
+		      }
 		      mhp_setbp(mhpdbgc.bpload_bp);
 		      LWORD(cs)=BIOSSEG;
 		      LWORD(eip)=(long)DBGload-(long)bios_f000;

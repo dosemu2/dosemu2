@@ -72,7 +72,7 @@
 static void* mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
-static void mhp_dis   (int, char *[]);
+static void mhp_dump    (int, char *[]);
 static void mhp_disasm  (int, char *[]);
 static void mhp_go      (int, char *[]);
 static void mhp_stop    (int, char *[]);
@@ -134,12 +134,13 @@ static const struct cmd_db cmdtab[] = {
    {"r" ,            mhp_regs},
    {"e",             mhp_enter},
    {"ed",            mhp_enter},
-   {"d",             mhp_dis},
+   {"d",             mhp_dump},
    {"u",             mhp_disasm},
    {"g",             mhp_go},
    {"stop",          mhp_stop},
    {"mode",          mhp_mode},
    {"t",             mhp_trace},
+   {"ti",            mhp_trace},
    {"tc",            mhp_tracec},
    {"tf",            mhp_trace_force},
    {"r32",           mhp_regs32},
@@ -181,18 +182,20 @@ static const char help_page[]=
   "stop                   stop (if running)\n"
   "mode 0|1|+d|-d         set mode (0=SEG16, 1=LIN32) for u and d commands\n"
   "t                      single step (not fully debugged!!!)\n"
+  "ti                     single step until IP changes\n"
   "tc                     single step, loop forever until key pressed\n"
   "tf                     single step, force over IRET\n"
   "r32                    dump regs in 32 bit format\n"
   "bp addr                set int3 style breakpoint\n"
+  "bc n                   clear breakpoint #n (as listed by bl)\n"
   "bpint/bcint xx         set/clear breakpoint on INT xx\n"
   "bpintd/bcintd xx [ax]  set/clear breakpoint on DPMI INT xx [ax]\n"
   "bpload                 stop at start of next loaded DOS program\n"
   "bl                     list active breakpoints\n"
   "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
   "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
-  "rmapfile [file]        (re)read a dosemu.map ('nm' format) file\n"
   "                       code origin = 'org'.\n"
+  "rmapfile [file]        (re)read a dosemu.map ('nm' format) file\n"
   "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
   "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
   "dump ADDR SIZE FILE    dump a piece of memory to file\n"
@@ -568,7 +571,14 @@ static void mhp_trace(int argc, char * argv[])
         dpmi_mhp_setTF(1);
       }
       WRITE_FLAGS(READ_FLAGS() | TF);
-      mhpdbgc.trapcmd = 1;
+
+      if (!strcmp(argv[0], "ti")) {
+	mhpdbgc.trapcmd = 2;
+      } else {
+	mhpdbgc.trapcmd = 1;
+      }
+
+      mhpdbgc.trapip = mhp_getcsip_value();
    }
 }
 
@@ -600,7 +610,7 @@ static void mhp_trace_force(int argc, char * argv[])
    }
 }
 
-static void mhp_dis(int argc, char * argv[])
+static void mhp_dump(int argc, char * argv[])
 {
    unsigned int nbytes;
    unsigned long seekval;
@@ -1035,15 +1045,17 @@ int mhp_setbp(unsigned long seekval)
 {
    int i1;
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval) {
+      if (   mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval
+          && mhpdbgc.brktab[i1].is_valid) {
          mhp_printf( "Duplicate breakpoint, nothing done\n");
          return 0;
       }
    }
    for (i1=0; i1 < MAXBP; i1++) {
-      if (!mhpdbgc.brktab[i1].brkaddr) {
+      if (!mhpdbgc.brktab[i1].is_valid) {
          if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = (unsigned char *)seekval;
+	 mhpdbgc.brktab[i1].is_valid = 1;
          mhpdbgc.brktab[i1].is_dpmi = IN_DPMI;
          return 1;
       }
@@ -1056,9 +1068,11 @@ int mhp_clearbp(unsigned long seekval)
 {
    int i1;
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval) {
+      if (   mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval
+          && mhpdbgc.brktab[i1].is_valid) {
          if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = 0;
+         mhpdbgc.brktab[i1].is_valid = 0;
          return 1;
       }
    }
@@ -1096,7 +1110,7 @@ static void mhp_bl(int argc, char * argv[])
 
    mhp_printf( "Breakpoints:\n");
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr) {
+      if (mhpdbgc.brktab[i1].is_valid) {
          mhp_printf( "%d: %08lx\n", i1, mhpdbgc.brktab[i1].brkaddr);
       }
    }
@@ -1140,11 +1154,12 @@ static void mhp_bc(int argc, char * argv[])
      mhp_printf( "Invalid breakpoint number\n");
      return;
    }
-   if (!mhpdbgc.brktab[i1].brkaddr) {
+   if (!mhpdbgc.brktab[i1].is_valid) {
          mhp_printf( "No breakpoint %d, nothing done\n", i1);
          return;
    }
    mhpdbgc.brktab[i1].brkaddr = 0;
+   mhpdbgc.brktab[i1].is_valid = 0;
    return;
 }
 
@@ -1359,9 +1374,10 @@ void mhp_bpset(void)
    dpmimode=saved_dpmimode;
 
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr) {
+      if (mhpdbgc.brktab[i1].is_valid) {
          if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
            mhpdbgc.brktab[i1].brkaddr = 0;
+           mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
            continue;
          }
@@ -1377,9 +1393,10 @@ void mhp_bpclr(void)
    int i1;
 
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr) {
+      if (mhpdbgc.brktab[i1].is_valid) {
          if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
            mhpdbgc.brktab[i1].brkaddr = 0;
+           mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
            continue;
          }
