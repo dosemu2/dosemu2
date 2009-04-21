@@ -1035,15 +1035,17 @@ int mhp_setbp(unsigned long seekval)
 {
    int i1;
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval) {
+      if (   mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval
+          && mhpdbgc.brktab[i1].is_valid) {
          mhp_printf( "Duplicate breakpoint, nothing done\n");
          return 0;
       }
    }
    for (i1=0; i1 < MAXBP; i1++) {
-      if (!mhpdbgc.brktab[i1].brkaddr) {
+      if (!mhpdbgc.brktab[i1].is_valid) {
          if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = (unsigned char *)seekval;
+	 mhpdbgc.brktab[i1].is_valid = 1;
          mhpdbgc.brktab[i1].is_dpmi = IN_DPMI;
          return 1;
       }
@@ -1056,9 +1058,11 @@ int mhp_clearbp(unsigned long seekval)
 {
    int i1;
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval) {
+      if (   mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval
+          && mhpdbgc.brktab[i1].is_valid) {
          if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = 0;
+         mhpdbgc.brktab[i1].is_valid = 0;
          return 1;
       }
    }
@@ -1096,7 +1100,7 @@ static void mhp_bl(int argc, char * argv[])
 
    mhp_printf( "Breakpoints:\n");
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr) {
+      if (mhpdbgc.brktab[i1].is_valid) {
          mhp_printf( "%d: %08lx\n", i1, mhpdbgc.brktab[i1].brkaddr);
       }
    }
@@ -1140,11 +1144,12 @@ static void mhp_bc(int argc, char * argv[])
      mhp_printf( "Invalid breakpoint number\n");
      return;
    }
-   if (!mhpdbgc.brktab[i1].brkaddr) {
+   if (!mhpdbgc.brktab[i1].is_valid) {
          mhp_printf( "No breakpoint %d, nothing done\n", i1);
          return;
    }
    mhpdbgc.brktab[i1].brkaddr = 0;
+   mhpdbgc.brktab[i1].is_valid = 0;
    return;
 }
 
@@ -1359,9 +1364,10 @@ void mhp_bpset(void)
    dpmimode=saved_dpmimode;
 
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr) {
+      if (mhpdbgc.brktab[i1].is_valid) {
          if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
            mhpdbgc.brktab[i1].brkaddr = 0;
+           mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
            continue;
          }
@@ -1377,9 +1383,10 @@ void mhp_bpclr(void)
    int i1;
 
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr) {
+      if (mhpdbgc.brktab[i1].is_valid) {
          if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
            mhpdbgc.brktab[i1].brkaddr = 0;
+           mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
            continue;
          }

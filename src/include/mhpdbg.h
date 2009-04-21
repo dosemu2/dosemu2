@@ -101,6 +101,7 @@ struct brkentry {
    unsigned char * brkaddr;
    unsigned char opcode;
    char is_dpmi;
+   char is_valid;
 };
 
 struct segoff {
