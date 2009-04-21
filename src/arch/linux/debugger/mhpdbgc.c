@@ -72,7 +72,7 @@
 static void* mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
-static void mhp_dis   (int, char *[]);
+static void mhp_dump    (int, char *[]);
 static void mhp_disasm  (int, char *[]);
 static void mhp_go      (int, char *[]);
 static void mhp_stop    (int, char *[]);
@@ -134,7 +134,7 @@ static const struct cmd_db cmdtab[] = {
    {"r" ,            mhp_regs},
    {"e",             mhp_enter},
    {"ed",            mhp_enter},
-   {"d",             mhp_dis},
+   {"d",             mhp_dump},
    {"u",             mhp_disasm},
    {"g",             mhp_go},
    {"stop",          mhp_stop},
@@ -600,7 +600,7 @@ static void mhp_trace_force(int argc, char * argv[])
    }
 }
 
-static void mhp_dis(int argc, char * argv[])
+static void mhp_dump(int argc, char * argv[])
 {
    unsigned int nbytes;
    unsigned long seekval;
