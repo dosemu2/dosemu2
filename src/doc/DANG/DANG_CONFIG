@@ -88,8 +88,9 @@ GROUP:		FileAccess doc/DANG/summary_FileAccess
 			dosext/mfs/mfs.c
 #GROUP:		Net doc/DANG/summary_Net dosext/net/net/ipx.c
 #GROUP:		Shared doc/DANG/summary_SHARED dosemu/shared.c
-GROUP:		Debugger doc/DANG/summary_DEBUGGER
+GROUP:		Debugger doc/DANG/summary_Debugger
 			arch/linux/debugger/dosdebug.c
+			include/mhpdbg.h
 			arch/linux/debugger/mhpdbg.c
 			arch/linux/debugger/mhpdbgc.c
 
@@ -100,4 +101,8 @@ INTRODUCTION:	doc/DANG/DANG_intro
 # FINALLY is the location of a section to place at the end. There may be
 # more than one of these.
 FINALLY:	doc/DANG/DANG_outro
+
+# Local Variables:
+# ff-paths-for-file: ("../../")
+# End:
 
