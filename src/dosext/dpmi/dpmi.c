@@ -3403,7 +3403,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 #define ORIG_CTXP (current_client >= orig_client ? \
   &DPMIclient[orig_client].stack_frame : NULL)
 
-  /* 32-bit ESP in 16-bit code on a 32-bit stack outside the limit...
+  /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
      this is so wrong that it can only happen inherited through a CPU bug
      (see EMUFailures.txt:1.6.2) or if someone did it on purpose.
      Happens with an ancient MS linker. Maybe fault again; ESP won't be
@@ -3412,6 +3412,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
      but that method is unreliable for 32-bit DOSEMU on x86-64 kernels.
   */
   if (_esp > 0xffff && !Segments[_cs >> 3].is_32 && Segments[_ss >> 3].is_32 &&
+      Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
       _esp > GetSegmentLimit(_ss)) {
     D_printf("DPMI: ESP bug, esp=%#x, ebp=%#x, limit=%#lx\n",
 	     _esp, _ebp, GetSegmentLimit(_ss));
