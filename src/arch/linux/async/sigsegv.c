@@ -35,6 +35,23 @@
 void print_exception_info(struct sigcontext_struct *scp);
 
 
+/*
+ * All of the functions in this module need to be declared with
+ *   __attribute__((no_instrument_function))
+ * so that they can safely handle signals that occur in DPMI context when
+ * DOSEMU is built with the "-pg" gcc flag (which enables instrumentation for
+ * gprof profiling).
+ *
+ * The reason for this is that mcount(), implicitly called from functions
+ * instrumented with "-pg", requires access to thread-local state, and on x86,
+ * TLS is implemented using the GS to refer to a segment in which the
+ * thread-local variables are stored.
+ *
+ * However, in DPMI context, GS does not refer to this segment, and the kernel
+ * does not (cannot?) restore it to do so when it invokes a signal handler, so
+ * we must prevent mcount() from being called at all in this context.
+ */
+
 
 /*
  * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext_struct);
@@ -45,6 +62,7 @@ void print_exception_info(struct sigcontext_struct *scp);
  * DANG_END_FUNCTION
  */
 
+__attribute__((no_instrument_function))
 int dosemu_fault1(
 #ifdef __linux__
 int signal, struct sigcontext_struct *scp
@@ -362,6 +380,7 @@ bad:
   }
 }
 
+__attribute__((no_instrument_function))
 static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 {
   int retcode;
@@ -431,12 +450,14 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 
 #ifdef __linux__
 #ifdef __x86_64__
+__attribute__((no_instrument_function))
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
   dosemu_fault0(signal, (struct sigcontext_struct *)
 		&((ucontext_t *)uc)->uc_mcontext);
 }
 #else
+__attribute__((no_instrument_function))
 void dosemu_fault(int signal, struct sigcontext_struct context)
 {
   dosemu_fault0(signal, &context);
@@ -453,6 +474,7 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
  * DANG_END_FUNCTION
  *
  */
+__attribute__((no_instrument_function))
 void print_exception_info(struct sigcontext_struct *scp)
 {
   int i;
