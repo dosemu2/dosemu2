@@ -583,7 +583,14 @@ leavedos(int sig)
 
     flush_log();
 
-    _exit(sig);
+    /* The following was an _exit() call until Samuel Bronson changed it on
+     * 2009-06-21, in order to give GProf instrumentation (-pg gcc flag) a
+     * chance to write the profiling data to disk.
+     *
+     * This comment is here in case there was a *reason* for using _exit() and
+     * not exit().
+     */
+    exit(sig);
 }
 
 #if 0
