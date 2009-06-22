@@ -58,6 +58,10 @@ void keyb_close(void);
 #define MODIFIER_SCR	0x0040
 #define MODIFIER_INS	0x0080
 
+/* FIXME: Is this a good value for MODIFIER_VOID? */
+#define MODIFIER_VOID	U_VOID
+
+
 #define NUM_KEYSYMS 0x10000 /* really 0xFFFE */
 
 /* Keysyms: Constants to be passed to put_key(). 

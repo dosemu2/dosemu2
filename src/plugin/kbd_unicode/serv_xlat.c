@@ -2125,12 +2125,16 @@ t_keynum keysym_to_keynum(t_keysym key, t_modifiers * modifiers)
 {
 	struct press_state *sym_info;
 	t_keynum keynum = NUM_VOID;
+	t_modifiers mods = MODIFIER_VOID;
+
 	if (key != KEY_VOID) {
 		sym_info = &input_keyboard_state.rules->charset.keys[key];
 		keynum = sym_info->key;
-		if (modifiers)
-			*modifiers = sym_info->shiftstate;
+		mods = sym_info->shiftstate;
 	}
+	if (modifiers)
+		*modifiers = mods;
+
 	return keynum;
 }
 

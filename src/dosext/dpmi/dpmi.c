@@ -188,7 +188,12 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
 	      int limit_in_pages_flag, int seg_not_present, int useable)
 {
-  struct modify_ldt_ldt_s ldt_info;
+  /*
+   * We initialize this explicitly in order to pacify valgrind.
+   * Otherwise, there would be some uninitialized padding bits at the end.
+   */
+  struct modify_ldt_ldt_s ldt_info = {};
+
   int __retval;
   ldt_info.entry_number = entry;
   ldt_info.base_addr = base;
