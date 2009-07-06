@@ -2967,9 +2967,10 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
   struct dir_ent *de;
 
   attr = sdb_attribute(sdb);
-  is_root = (strlen(fpath) == drives[drive].root_len);
 
-  while (hlist != NULL && sdb_dir_entry(sdb) < hlist->nr_entries) {
+  if (hlist != NULL) {
+   is_root = (strlen(fpath) == drives[drive].root_len);
+   while (sdb_dir_entry(sdb) < hlist->nr_entries) {
 
     de = &hlist->de[sdb_dir_entry(sdb)];
 
@@ -3012,6 +3013,7 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
     if (sdb_dir_entry(sdb) >= hlist->nr_entries)
       hlist_pop(hlist_index, sda_cur_psp(sda));
     return (TRUE);
+   }
   }
 
   /* no matches or empty directory */
