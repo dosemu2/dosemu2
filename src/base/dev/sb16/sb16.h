@@ -83,6 +83,7 @@ struct sb_struct {
 #define DSP_OUT_FIFO_TRIGGER 32
 #define DSP_IN_FIFO_TRIGGER 32
 #define MIDI_FIFO_SIZE 32
+#define MPU401_IN_FIFO_TRIGGER 1
   struct rng_s midi_fifo_in;
   struct rng_s midi_fifo_out;
   void *dspio;

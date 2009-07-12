@@ -302,9 +302,9 @@ void dump_config_status(void *printfunc)
 	}
     }
 
-    (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_hdma %d\nsb_irq %d\n"
+    (*print)("\nSOUND:\nengine %d\nsb_base 0x%x\nsb_dma %d\nsb_hdma %d\nsb_irq %d\n"
 	"mpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\nsound_driver \"%s\"\n",
-        config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq,
+        config.sound, config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq,
 	config.mpu401_base, config.sb_dsp, config.sb_mixer, config.sound_driver);
     (*print)("\nSOUND_OSS:\noss_min_frags 0x%x\noss_max_frags 0x%x\n"
 	     "oss_stalled_frags 0x%x\noss_do_post %d\noss_min_extra_frags 0x%x\n"

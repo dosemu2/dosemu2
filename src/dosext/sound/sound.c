@@ -660,6 +660,8 @@ Bit8u mpu401_io_read(ioport_t port)
     S_printf("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
       r,Q_HOLDS(mpu401_info.data));
     sb_deactivate_irq(SB_IRQ_MIDI);
+    if (Q_HOLDS(mpu401_info.data))
+      sb_activate_irq(SB_IRQ_MIDI);
     break;
   case 1:
      /* Read status port */

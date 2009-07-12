@@ -323,6 +323,14 @@ static int sb_irq_active(int type)
     return (sb.mixer_regs[0x82] & type);
 }
 
+static void sb_request_irq(int type)
+{
+    if (type & SB_IRQ_DSP)
+	pic_request(pic_irq_list[sb_get_dsp_irq_num()]);
+    if (type & SB_IRQ_MPU401)
+	pic_request(pic_irq_list[CONFIG_MPU401_IRQ]);
+}
+
 static void sb_activate_irq(int type)
 {
     S_printf("SB: Activating irq type %d\n", type);
@@ -330,10 +338,7 @@ static void sb_activate_irq(int type)
 	S_printf("SB: Warning: Interrupt already active!\n");
 	return;
     }
-    if (type & SB_IRQ_DSP)
-	pic_request(pic_irq_list[sb_get_dsp_irq_num()]);
-    if (type & SB_IRQ_MPU401)
-	pic_request(pic_irq_list[CONFIG_MPU401_IRQ]);
+    sb_request_irq(type);
     sb.mixer_regs[0x82] |= type;
 }
 
@@ -349,6 +354,14 @@ static void sb_deactivate_irq(int type)
 	if (!(sb.mixer_regs[0x82] & SB_IRQ_MPU401))
 	    pic_untrigger(pic_irq_list[CONFIG_MPU401_IRQ]);
     }
+}
+
+static void sb_run_irq(int type)
+{
+    if (!sb_irq_active(type))
+	return;
+    S_printf("SB: Run irq type %d\n", type);
+    sb_request_irq(type);
 }
 
 void sb_handle_dma(void)
@@ -528,7 +541,7 @@ static void sb_dsp_soft_reset(unsigned char value)
 		/* for High-Speed mode reset means only exit High-Speed */
 		S_printf("SB: Reset called, exiting High-Speed DMA mode\n");
 		sb.dma_cmd = 0;
-	    } else if (sb_midi_input() && sb_midi_uart()) {
+	    } else if (sb_midi_uart()) {
 		S_printf("SB: Reset called, exiting UART midi mode\n");
 		sb.midi_cmd = 0;
 	    } else {
@@ -1134,7 +1147,7 @@ static void sb_io_write(ioport_t port, Bit8u value)
 
 	/* == DSP == */
     case 0x0C:			/* dsp write register */
-	if (sb_midi_input() && sb_midi_uart()) {
+	if (sb_midi_uart()) {
 	    sb_write_midi(value);
 	    break;
 	}
@@ -1200,8 +1213,11 @@ static Bit8u sb_io_read(ioport_t port)
 	rng_get(&sb.dsp_queue, &value);
 	S_printf("SB: Read 0x%x from SB DSP\n", value);
 	result = value;
-	if (sb_midi_input() && sb_midi_int())
-	    sb_deactivate_irq(SB_IRQ_MIDI);
+	if (sb_midi_int()) {
+	    if (!rng_count(&sb.dsp_queue))
+		sb_deactivate_irq(SB_IRQ_MIDI);
+	    sb_run_irq(SB_IRQ_MIDI);
+	}
 	break;
 
     case 0x0C:			/* DSP Write Buffer Status */
@@ -1284,6 +1300,7 @@ static Bit8u mpu401_io_read(ioport_t port)
 	     r, rng_count(&sb.midi_fifo_in));
 	if (!rng_count(&sb.midi_fifo_in))
 	    sb_deactivate_irq(SB_IRQ_MPU401);
+	sb_run_irq(SB_IRQ_MPU401);
 	break;
     case 1:
 	/* Read status port */
@@ -1357,8 +1374,10 @@ void sb_put_midi_data(unsigned char val)
 	    process_sb_midi_input();
 	if (sb_midi_int())
 	    sb_activate_irq(SB_IRQ_MIDI);
-    } else if (sb.mpu401_uart)
-	sb_activate_irq(SB_IRQ_MPU401);
+    } else if (sb.mpu401_uart) {
+	if (rng_count(&sb.midi_fifo_in) == MPU401_IN_FIFO_TRIGGER)
+	    sb_activate_irq(SB_IRQ_MPU401);
+    }
 }
 
 void run_new_sb(void)
@@ -1382,7 +1401,7 @@ static void mpu401_init(void)
     io_device.handler_name = "Midi Emulation";
     io_device.start_addr = config.mpu401_base;
     io_device.end_addr = config.mpu401_base + 0x001;
-    io_device.irq = EMU_NO_IRQ;
+    io_device.irq = CONFIG_MPU401_IRQ;
     io_device.fd = -1;
     if (port_register_handler(io_device, 0) != 0)
 	error("MPU-401: Cannot registering port handler\n");
