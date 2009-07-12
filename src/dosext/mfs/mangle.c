@@ -332,41 +332,66 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
 /* this is the magic char used for mangling */
 char magic_char = '~';
 
+static const char basechars[]="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-!@#$%";
+#define MANGLE_BASE       (sizeof(basechars)/sizeof(char)-1)
 
-/****************************************************************************
-determine whther is name could be a mangled name
-****************************************************************************/
-BOOL is_mangled(char *s)
+#define mangle(V) ((char)(basechars[(V) % MANGLE_BASE]))
+#define BASECHAR_MASK 0xf0
+#define isbasechar(C) ( (chartest[ ((C) & 0xff) ]) & BASECHAR_MASK )
+static unsigned char *chartest;
+
+static void init_chartest( void )
 {
-  char *m = strchr(s,magic_char);
-  if (!m) return(False);
+  const unsigned char *s;
 
-  /* we use two base 36 chars before the extension */
-  if (m[1] == '.' || m[1] == 0 ||
-      m[2] == '.' || m[2] == 0 ||
-      (m[3] != '.' && m[3] != 0))
-    return(is_mangled(m+1));
+  chartest = calloc(1, 256);
 
-  /* it could be */
-  return(True);
+  for( s = (const unsigned char *)basechars; *s; s++ ) {
+    chartest[*s] |= BASECHAR_MASK;
+  }
 }
 
-
-
-/****************************************************************************
-return a base 36 character. v must be from 0 to 35.
-****************************************************************************/
-static char base36(int v)
+/* ************************************************************************** **
+ * Return True if the name *could be* a mangled name.
+ *
+ *  Input:  s - A path name - in UNIX pathname format.
+ *
+ *  Output: True if the name matches the pattern described below in the
+ *          notes, else False.
+ *
+ *  Notes:  The input name is *not* tested for 8.3 compliance.  This must be
+ *          done separately.  This function returns true if the name contains
+ *          a magic character followed by excactly two characters from the
+ *          basechars list (above), which in turn are followed either by the
+ *          nul (end of string) byte or a dot (extension) or by a '/' (end of
+ *          a directory name).
+ *
+ * ************************************************************************** **
+ */
+BOOL is_mangled(const char *s)
 {
-  v = v % 36;
-  if (v < 10)
-    return('0'+v);
-  return('A' + (v-10));
+  char *magic;
+
+  if( chartest == NULL )
+    init_chartest();
+
+  magic = strchr(s,magic_char);
+  while( magic && magic[1] && magic[2] ) {         /* 3 chars, 1st is magic. */
+
+    if( ('.' == magic[3] || '/' == magic[3] || !(magic[3]))          /* Ends with '.' or nul or '/' ?  */
+	&& isbasechar( toupper(magic[1]) )           /* is 2nd char basechar?  */
+	&& isbasechar( toupper(magic[2]) ) )         /* is 3rd char basechar?  */
+      return( True );                           /* If all above, then true, */
+    magic = strchr( magic+1, magic_char );      /*    else seek next magic. */
+  }
+  return( False );
 }
 
-/****************************************************************************
-do the actual mangling to 8.3 format
-****************************************************************************/
+/*****************************************************************************
+ * do the actual mangling to 8.3 format
+ * the buffer must be able to hold 13 characters (including the null)
+ *****************************************************************************
+ */
 void mangle_name_83(char *s, char *MangledMap)
 {
   int csum = str_checksum(s);
@@ -424,9 +449,9 @@ void mangle_name_83(char *s, char *MangledMap)
     }
   base[baselen] = 0;
 
-  csum = csum % (36*36);
+  csum = csum % (MANGLE_BASE*MANGLE_BASE);
 
-    sprintf(s,"%s%c%c%c",base,magic_char,base36(csum/36),base36(csum%36));
+  sprintf(s,"%s%c%c%c",base,magic_char,mangle(csum/MANGLE_BASE),mangle(csum));
 
   if (*extension)
     {
