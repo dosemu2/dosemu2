@@ -147,7 +147,7 @@ void speaker_on(unsigned ms, unsigned short period)
 
 void speaker_off(void)
 {
-	if (speaker_is_on)
+	if (!speaker_is_on)
 		return;
 	i_printf("SPEAKER: sound OFF!\n");
 	if (!speaker.off) {
