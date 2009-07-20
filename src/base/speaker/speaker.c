@@ -88,6 +88,9 @@ struct speaker_info {
 	speaker_off_t off;
 };
 
+/* flag to avoid turning the speaker off if it is already off */
+static int speaker_is_on;
+
 /*
  * Generic speaker emulation
  * =============================================================================
@@ -135,6 +138,7 @@ void speaker_on(unsigned ms, unsigned short period)
 	if (config.speaker == SPKR_OFF)
 		return;
 	i_printf("SPEAKER: on, period=%d\n", period);
+	speaker_is_on = 1;
 	if (!speaker.on) {
 		speaker = dumb_speaker;
 	}
@@ -143,11 +147,14 @@ void speaker_on(unsigned ms, unsigned short period)
 
 void speaker_off(void)
 {
+	if (speaker_is_on)
+		return;
 	i_printf("SPEAKER: sound OFF!\n");
 	if (!speaker.off) {
 		speaker = dumb_speaker;
 	}
 	speaker.off(speaker.gp);
+	speaker_is_on = 0;
 }
 
 static int saved_port_val;
