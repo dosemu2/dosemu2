@@ -35,6 +35,7 @@
 #ifndef _EMU86_CODEGEN_H
 #define _EMU86_CODEGEN_H
 
+#include <string.h>
 #include "syncpu.h"
 #include "trees.h"
 #include "dpmi.h"
@@ -190,10 +191,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 /* x386 */
-#define GetSWord(w)	*((unsigned short *)(w))=*((unsigned short *)(LONG_SS+sp))
-#define GetSLong(l)	*((unsigned int *)(l))=*((unsigned int *)(LONG_SS+sp))
-#define PutSWord(w)	*((unsigned short *)(LONG_SS+sp))=*((unsigned short *)(w))
-#define PutSLong(l)	*((unsigned int *)(LONG_SS+sp))=*((unsigned int *)(l))
+#define GetSWord(w)	memcpy((w), (void *)(LONG_SS+sp), 2)
+#define GetSLong(l)	memcpy((l), (void *)(LONG_SS+sp), 4)
+#define PutSWord(w)	memcpy((void *)(LONG_SS+sp), (w), 2)
+#define PutSLong(l)	memcpy((void *)(LONG_SS+sp), (w), 4)
 
 static __inline__ void POP(int m, void *w)
 {
@@ -229,22 +230,19 @@ static __inline__ void POP_ONLY(int m)
 /////////////////////////////////////////////////////////////////////////////
 
 /* Code generation macros for x86 */
-#define	G1(b,p)		*(p)++=(unsigned char)(b)
-#define	G2(w,p)		{*((unsigned short *)(p))=(w);(p)+=2;}
-#define	G2M(c,b,p)	{*((unsigned short *)(p))=((b)<<8)|(c);(p)+=2;}
-#define	G3(l,p)		{*((unsigned int *)(p))=(l);(p)+=3;}
-#define	G3M(c,b1,b2,p)	{*((unsigned int *)(p))=((b2)<<16)|((b1)<<8)|(c);(p)+=3;}
-#define	G4(l,p)		{*((unsigned int *)(p))=(l);(p)+=4;}
-#define	G4M(c,b1,b2,b3,p) {*((unsigned int *)(p))=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
-				(p)+=4;}
-#define	G5(l,p)		{*((unsigned int *)(p))=(unsigned int)(l),\
-			  (p)[4]=(unsigned char)((l)>>32);\
-				(p)+=5;}
-#define	G6(l,p)		{*((unsigned int *)(p))=(unsigned int)(l),\
-			 *((unsigned short *)((p)+4))=(unsigned short)((l)>>32);(p)+=6;}
-#define	G7(l,p)		{*((unsigned long long *)(p))=(l);(p)+=7;}
-#define	G8(l,p)		{*((unsigned long long *)(p))=(l);(p)+=8;}
 #define GNX(d,s,l)	{memcpy((d),(s),(l));(d)+=(l);}
+#define	G1(b,p)		*(p)++=(unsigned char)(b)
+#define	G2(w,p)		{unsigned short _w = (w); GNX(p,&_w,2); }
+#define	G2M(c,b,p)	{unsigned short _wm = ((b)<<8)|(c);G2(_wm,p);}
+#define	G3(l,p)		{unsigned int _l=(l); memcpy((p), &_l, 4);(p)+=3;}
+#define	G3M(c,b1,b2,p)	{unsigned int _lm=((b2)<<16)|((b1)<<8)|(c);G3(_lm,p);}
+#define	G4(l,p)		{unsigned int _l=(l); GNX(p,&_l,4);}
+#define	G4M(c,b1,b2,b3,p) {unsigned int _l=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
+			   GNX(p,&_l,4);}
+#define	G5(l,p)		GNX(p,&(l),5)
+#define	G6(l,p)		GNX(p,&(l),6)
+#define	G7(l,p)		{memcpy((p), &(l), 8);(p)+=7;}
+#define	G8(l,p)		GNX(p,&(l),8)
 
 /////////////////////////////////////////////////////////////////////////////
 //
