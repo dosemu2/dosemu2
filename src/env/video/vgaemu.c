@@ -673,7 +673,8 @@ static unsigned char Logical_VGA_read(unsigned offset)
  
 static Bit32u rasterop(Bit32u value)
 {
-  Bit32u bitmask = BitMask, vga_latch = *((unsigned *)VGALatch);
+  Bit32u bitmask = BitMask, vga_latch;
+  memcpy(&vga_latch, VGALatch, 4);
 
   bitmask |= bitmask << 8;
   bitmask |= bitmask << 16; /* bitmask extended over 4 bytes */
@@ -706,7 +707,8 @@ static Bit32u Logical_VGA_CalcNewVal (unsigned char value)
                          (color2pixels[SetReset] & enable_set_reset));
 
     case 1: /* write mode 1 */
-      return *((unsigned *)VGALatch);
+      memcpy(&new_val, VGALatch, 4);
+      return new_val;
       break;
 
     case 2: /* write mode 2 */

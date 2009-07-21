@@ -136,14 +136,15 @@ static void set_cursor_pos(unsigned page, int x, int y)
 
 static inline void set_cursor_shape(ushort shape) {
    int cs,ce;
-   unsigned short cursor_shape;
+   cshape cursor_shape;
+   cursor_shape.w = shape;
 
-   WRITE_WORD(BIOS_CURSOR_SHAPE, shape);
+   WRITE_WORD(BIOS_CURSOR_SHAPE, cursor_shape.w);
 
-   cs=CURSOR_START(shape) & 0x1F;
-   ce=CURSOR_END(shape) & 0x1F;
+   cs=CURSOR_START(cursor_shape) & 0x1F;
+   ce=CURSOR_END(cursor_shape) & 0x1F;
 
-   if (shape & 0x6000 || cs>ce) {
+   if (cursor_shape.w & 0x6000 || cs>ce) {
       i10_deb("no cursor\n");
       crt_outw(0xa, NO_CURSOR);
       return;
@@ -160,7 +161,7 @@ static inline void set_cursor_shape(ushort shape) {
    i10_msg("mapped cursor: start %d, end %d\n", cs, ce);
    CURSOR_START(cursor_shape)=cs;
    CURSOR_END(cursor_shape)=ce;
-   crt_outw(0xa, cursor_shape);
+   crt_outw(0xa, cursor_shape.w);
 }
 
 /* This is a better scroll routine, mostly for aesthetic reasons. It was

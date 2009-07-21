@@ -81,7 +81,8 @@ static void hgc_meminit(void)
 
 static void mda_initialize(void)
 {
-  unsigned cursor_shape = 0x0b0c;
+  cshape cursor_shape;
+  cursor_shape.w = 0x0b0c;
 
   /* init 6845 Video-Controller */
   /* Values from c't 10/88 page 216 */
@@ -152,7 +153,8 @@ static void map_hgc_page( int fullmode )
 
 static void mda_reinitialize(void)
 {
-  unsigned cursor_shape = 0x0b0c;
+  cshape cursor_shape;
+  cursor_shape.w = 0x0b0c;
 
 #if 0
   /* init 6845 Video-Controller */

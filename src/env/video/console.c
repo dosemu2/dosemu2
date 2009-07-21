@@ -39,7 +39,7 @@ static void console_update_cursor(void)
   
   int xpos = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
   int ypos = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
-  int blinkflag = !(vga.crtc.cursor_shape & 0x6000);
+  int blinkflag = !(vga.crtc.cursor_shape.w & 0x6000);
 
   if ((vga.display_start / PAGE_SIZE) != scr_state.pageno) {
     /* page flipping, if possible */

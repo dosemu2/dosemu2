@@ -11,7 +11,12 @@
 #include "port.h"
 typedef unsigned char byte;
 
-typedef struct { byte end, start; } cshape;
+typedef union {
+  struct {
+    byte end, start;
+  } b;
+  unsigned short w;
+} cshape;
 
 extern void gettermcap(int,int *, int *);
 
@@ -40,8 +45,8 @@ void init_dualmon(void);
   #error "Currently USE_DUALMON can't be used together with VIDEO_CHECK_DIRTY"
 #endif
 
-#define CURSOR_START(c) (((cshape*)&c)->start)
-#define CURSOR_END(c)   (((cshape*)&c)->end)
+#define CURSOR_START(c) ((c).b.start)
+#define CURSOR_END(c)   ((c).b.end)
 #define NO_CURSOR 0x2000
 
 /* 

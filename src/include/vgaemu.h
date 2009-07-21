@@ -58,6 +58,7 @@
 #define __VGAEMU_H
 
 #include "config.h"
+#include "video.h"
 
 
 /* 
@@ -325,7 +326,7 @@ typedef struct {
 typedef struct {
   unsigned addr_mode;
   unsigned cursor_location;
-  unsigned short cursor_shape;
+  cshape cursor_shape;
   unsigned line_compare;
   unsigned char readonly;
   unsigned char index;
