@@ -90,7 +90,7 @@ int e_sigpa_count;
 int in_vm86_emu = 0;
 int in_dpmi_emu = 0;
 
-SynCPU	TheCPU;
+union SynCPU	TheCPU_union;
 
 int Running = 0;
 volatile int InCompiledCode = 0;

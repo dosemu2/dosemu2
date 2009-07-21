@@ -40,6 +40,7 @@
 #include "host.h"
 #include "protmode.h"
 #include <limits.h>
+#include <stddef.h>
 
 #if ULONG_MAX > 0xffffffffUL
 #define PADDING32BIT(n)
@@ -152,19 +153,23 @@ typedef struct {
 	void (*stub_movsl)(void);
 } SynCPU;
 
-extern SynCPU TheCPU;
+union SynCPU {
+	SynCPU s;
+	unsigned char b[sizeof(SynCPU)];
+	unsigned short w[sizeof(SynCPU)/2];
+	unsigned int d[sizeof(SynCPU)/4];
+};
 
-#ifndef offsetof
-  #define offsetof(stru,member) ( (unsigned long) (&((stru *)0)->member) )
-#endif
+extern union SynCPU TheCPU_union;
+#define TheCPU TheCPU_union.s
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
 
 #define CPUOFFS(o)	(((char *)&(TheCPU.FIELD0))+(o))
 
-#define CPUBYTE(o)	*((unsigned char *)CPUOFFS(o))
-#define CPUWORD(o)	*((unsigned short *)CPUOFFS(o))
-#define CPULONG(o)	*((unsigned int *)CPUOFFS(o))
+#define CPUBYTE(o)	TheCPU_union.b[SCBASE+o]
+#define CPUWORD(o)	TheCPU_union.w[(SCBASE+o)/2]
+#define CPULONG(o)	TheCPU_union.d[(SCBASE+o)/4]
 
 #define rEAX		TheCPU.eax
 #define Ofs_EAX		(char)(offsetof(SynCPU,eax)-SCBASE)
@@ -225,38 +230,38 @@ extern SynCPU TheCPU;
 #define Ofs_stub_stosw	(int)(offsetof(SynCPU,stub_stosw)-SCBASE)
 #define Ofs_stub_stosl	(int)(offsetof(SynCPU,stub_stosl)-SCBASE)
 
-#define rAX		LO_WORD(rEAX)
+#define rAX		CPUWORD(Ofs_AX)
 #define Ofs_AX		(Ofs_EAX)
 #define Ofs_AXH		(Ofs_EAX+2)
-#define rAL		LO_BYTE(rEAX)
+#define rAL		CPUBYTE(Ofs_AL)
 #define Ofs_AL		(Ofs_EAX)
-#define rAH		HI_BYTE(rEAX)
+#define rAH		CPUBYTE(Ofs_AH)
 #define Ofs_AH		(Ofs_EAX+1)
-#define rCX		LO_WORD(rECX)
+#define rCX		CPUWORD(Ofs_CX)
 #define Ofs_CX		(Ofs_ECX)
-#define rCL		LO_BYTE(rECX)
+#define rCL		CPUBYTE(Ofs_CL)
 #define Ofs_CL		(Ofs_ECX)
-#define rCH		HI_BYTE(rECX)
+#define rCH		CPUBYTE(Ofs_CH)
 #define Ofs_CH		(Ofs_ECX+1)
-#define rDX		LO_WORD(rEDX)
+#define rDX		CPUWORD(Ofs_DX)
 #define Ofs_DX		(Ofs_EDX)
-#define rDL		LO_BYTE(rEDX)
+#define rDL		CPUBYTE(Ofs_DL)
 #define Ofs_DL		(Ofs_EDX)
-#define rDH		HI_BYTE(rEDX)
+#define rDH		CPUBYTE(Ofs_DH)
 #define Ofs_DH		(Ofs_EDX+1)
-#define rBX		LO_WORD(rEBX)
+#define rBX		CPUWORD(Ofs_BX)
 #define Ofs_BX		(Ofs_EBX)
-#define rBL		LO_BYTE(rEBX)
+#define rBL		CPUBYTE(Ofs_BL)
 #define Ofs_BL		(Ofs_EBX)
-#define rBH		HI_BYTE(rEBX)
+#define rBH		CPUBYTE(Ofs_BH)
 #define Ofs_BH		(Ofs_EBX+1)
-#define rSP		LO_WORD(rESP)
+#define rSP		CPUWORD(Ofs_SP)
 #define Ofs_SP		(Ofs_ESP)
-#define rBP		LO_WORD(rEBP)
+#define rBP		CPUWORD(Ofs_BP)
 #define Ofs_BP		(Ofs_EBP)
-#define rSI		LO_WORD(rESI)
+#define rSI		CPUWORD(Ofs_SI)
 #define Ofs_SI		(Ofs_ESI)
-#define rDI		LO_WORD(rEDI)
+#define rDI	        CPUWORD(Ofs_DI)
 #define Ofs_DI		(Ofs_EDI)
 #define Ofs_FLAGS	(Ofs_EFLAGS)
 #define Ofs_FLAGSL	(Ofs_EFLAGS)
@@ -268,7 +273,7 @@ extern SynCPU TheCPU;
 #define SIGFPEND	TheCPU.sigprof_pending
 #define MEMREF		TheCPU.mem_ref
 #define EFLAGS		TheCPU.eflags
-#define FLAGS		LO_WORD(TheCPU.eflags)
+#define FLAGS		CPUWORD(Ofs_EFLAGS)
 #define eVEFLAGS	TheCPU.veflags
 #define FPX		TheCPU.fpstt
 
