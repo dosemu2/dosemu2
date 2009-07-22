@@ -239,10 +239,10 @@ static __inline__ void POP_ONLY(int m)
 #define	G4(l,p)		{unsigned int _l=(l); GNX(p,&_l,4);}
 #define	G4M(c,b1,b2,b3,p) {unsigned int _l=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
 			   GNX(p,&_l,4);}
-#define	G5(l,p)		GNX(p,&(l),5)
-#define	G6(l,p)		GNX(p,&(l),6)
-#define	G7(l,p)		{memcpy((p), &(l), 8);(p)+=7;}
-#define	G8(l,p)		GNX(p,&(l),8)
+#define	G5(l,p)		{unsigned long long _l=(l); GNX(p,&_l,5);}
+#define	G6(l,p)		{unsigned long long _l=(l); GNX(p,&_l,6);}
+#define	G7(l,p)		{unsigned long long _l=(l); memcpy((p), &_l, 8);(p)+=7;}
+#define	G8(l,p)		{unsigned long long _l=(l); GNX(p,&_l,8);}
 
 /////////////////////////////////////////////////////////////////////////////
 //
