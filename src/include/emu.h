@@ -49,9 +49,18 @@ extern SillyG_t *SillyG;
  * DANG_END_REMARK
 */ 
 
-EXTERN struct vm86plus_struct vm86s INIT ( {
-   {0},0,0,0,{{0}},{{0}}, {0}
+union vm86plus_union
+{
+  struct vm86plus_struct vm86ps;
+  unsigned char b[sizeof(struct vm86plus_struct)];
+  unsigned short w[sizeof(struct vm86plus_struct)/2];
+  unsigned int d[sizeof(struct vm86plus_struct)/4];
+};
+
+EXTERN union vm86plus_union vm86u INIT ( {{
+      {0},0,0,0,{{0}},{{0}}, {0}}
 } );
+#define vm86s (vm86u.vm86ps)
 
 EXTERN volatile sig_atomic_t signal_pending INIT(0);
 EXTERN volatile int fault_cnt INIT(0);
