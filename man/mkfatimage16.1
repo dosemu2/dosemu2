@@ -31,8 +31,8 @@ creates a hdimage file for
 that is pre-loaded with the files specified on the command line.
 The output is either written to
 .I stdout
-( hence do not forget to append " > hdimagefile", else you will see garbage
-on the screen ) or to the file specified by the
+(hence do not forget to append\ "\ >\ hdimagefile", else you will see
+garbage on the screen) or to the file specified by the
 .B \-f
 option. For the latter you may also use option
 .B \-p
@@ -61,11 +61,8 @@ of the partition. To later access the hdimage outside of
 .BR DOSEMU
 you should use
 .BR mtools
-( /etc/mtools.conf parameters
-.B partition=1
-and
-.B offset=128
-).
+(/etc/mtools.conf parameters
+.BR partition=1 " and " offset=128 ).
 
 
 
@@ -106,9 +103,8 @@ Pad the hdimage with zero up to the total size given by
 .I \-t
 or
 .I \-k
-( only in conjunction with
-.I \-f
-).
+(only in conjunction with
+.IR \-f ).
 
 
 
