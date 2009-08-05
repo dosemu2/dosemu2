@@ -136,7 +136,7 @@ boot from floppy disk A (does not need to be a real floppy disk, see below)
 boot from floppy disk B (does not need to be a real floppy disk, see below)
 .TP
 .I -C
-boot from hard disk C (does not need to be a real hard disk or even a 
+boot from hard disk C (does not need to be a real hard disk or even an 
 msdos filesystem, see below) 
 .TP
 .I -c
@@ -254,7 +254,7 @@ debug a DOS session from the very beginning you first start dosemu
 with -H1 and then start dosdebug.
 DOSEMU will then lock before jumping into the loaded bootsector waiting
 for dosdebug to connect. Once connected you are in `stopped' state
-and can set breakpoints or singlestep through the bootstrap code.
+and can set breakpoints or single-step through the bootstrap code.
 .TP
 .I -M
 set base memory to SIZE Kilobytes
@@ -321,7 +321,7 @@ A special control command (
 ) can be used to force
 .B DOSEMU
 returning handshake taggs via `outpipe' such that the frontend knows
-when the control command has started or finished and wether it was successful.
+when the control command has started or finished and whether it was successful.
 The format of this tagging is
 .TP
 		SYN: <commandname>
@@ -335,7 +335,7 @@ where
 is 0 for success.
 A tiny control terminal, which can serve as example, is the supplied
 .I dosctrl
-programm. It takes just the two pipes as arguments and you may then
+program. It takes just the two pipes as arguments and you may then
 enter control commands, which of them `help' is the most important one;-)
 Note that
 .I dosctrl
@@ -660,7 +660,7 @@ in
 .I dosemu.users
 the systemwide
 .I DOSEMU_LIB_DIR
-directory may be moved elsewere.
+directory may be moved elsewhere.
 For more information see
 .I @docdir@/README.txt
 .TP
