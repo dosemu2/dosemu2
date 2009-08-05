@@ -320,7 +320,7 @@ A special control command (
 .I ack on
 ) can be used to force
 .B DOSEMU
-returning handshake taggs via `outpipe' such that the frontend knows
+returning handshake tags via `outpipe' such that the frontend knows
 when the control command has started or finished and whether it was successful.
 The format of this tagging is
 .TP

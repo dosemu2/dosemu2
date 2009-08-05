@@ -34,10 +34,10 @@ The output is either written to
 ( hence do not forget to append " > hdimagefile", else you will see garbage
 on the screen ) or to the file specified by the
 .B \-f
-option. For the later you may also use option
+option. For the latter you may also use option
 .B \-p
 in order to force padding up to the given size. This padding will result
-in so-called holes on an ext2-FS, hence the actual diskusage will not be
+in so-called holes on an ext2-FS, hence the actual disk usage will not be
 greater.
 The file created by mkfatimage16 then can be used as a virtual drive, when defined in
 .I /etc/dosemu.conf.
@@ -54,7 +54,7 @@ option.
 All files given behind the options will be copied onto the
 hdimage. In addition a
 .BR DOSEMU
-suitable masterboot record (MBR) is established and via option
+suitable master boot record (MBR) is established and via option
 .B \-b
 you may specify a boot sector that gets inserted as first sector
 of the partition. To later access the hdimage outside of
