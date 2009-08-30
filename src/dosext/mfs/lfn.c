@@ -846,7 +846,7 @@ static int mfs_lfn_(void)
 	
 	int drive, dirhandle = 0, rc, doserrno = FILE_NOT_FOUND;
 	unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
-	char *src = (char *)SEGOFF2LINEAR(_DS, _DX);
+	char *src = MK_FP32(_DS, _DX);
 	struct stat st;
 	struct utimbuf utimbuf;
 	size_t size;
@@ -1101,7 +1101,7 @@ static int mfs_lfn_(void)
 	case 0x56: /* rename file */
 	{
 		int drive2, rc;
-		const char *d = (const char *)SEGOFF2LINEAR(_ES, _DI);
+		const char *d = MK_FP32(_ES, _DI);
 		d_printf("LFN: rename to %s\n", d);
 		drive = build_truename(fpath2, d, 0);
 		if (drive < 0)
@@ -1122,7 +1122,7 @@ static int mfs_lfn_(void)
 		int i;
 		char filename[PATH_MAX];
 	  
-		src = (char *)SEGOFF2LINEAR(_DS, _SI);
+		src = MK_FP32(_DS, _SI);
 		d_printf("LFN: truename %s, cl=%d\n", src, _CL);
 		i = 0;
 		if (src[0] && src[1] == ':') i = 2;
@@ -1154,7 +1154,7 @@ static int mfs_lfn_(void)
 	case 0x6c: /* create/open */
 	{
 		char *d = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
-		src = (char *)SEGOFF2LINEAR(_DS, _SI);
+		src = MK_FP32(_DS, _SI);
 		d_printf("LFN: open %s\n", src);
 		drive = build_posix_path(fpath, src, 0);
 		if (drive < 0)
@@ -1248,7 +1248,7 @@ static int mfs_lfn_(void)
 	}
 	case 0xa7: /* file time to DOS time and v.v. */
 		if (_BL == 0) {
-			src = (char *)SEGOFF2LINEAR(_DS, _SI);
+			src = MK_FP32(_DS, _SI);
 			time_to_dos(
 				win_to_unix_time(*(unsigned long long *)src),
 				&_DX, &_CX);
@@ -1262,7 +1262,7 @@ static int mfs_lfn_(void)
 		break;
 	case 0xa8: /* generate short filename */
 	{
-		src = (char *)SEGOFF2LINEAR(_DS, _SI);
+		src = MK_FP32(_DS, _SI);
 		StrnCpy(fpath, src, sizeof(fpath) - 1);
 		name_convert(fpath, MANGLE);
 		strupperDOS(fpath);

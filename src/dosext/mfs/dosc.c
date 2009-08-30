@@ -46,7 +46,7 @@ static int pass_to_int2f(Bit16u *ssp)
    * word 2	AX for INT2f
    * word 3	DOS far ptr to dosc_iregs
    */
-  const struct dosc_iregs *r = (void *)SEGOFF2LINEAR(ssp[4], ssp[3]);
+  const struct dosc_iregs *r = MK_FP32(ssp[4], ssp[3]);
   int ret;
 
   if (running_DosC && running_DosC <= 1937) {

@@ -119,7 +119,7 @@ union dword {
 #define SEG_ADR(type, seg, reg)  type((uintptr_t)((vm86s.regs.seg << 4) + (vm86s.regs.e##reg & 0xffff)))
 
 /* alternative SEG:OFF to linear conversion macro */
-#define SEGOFF2LINEAR(seg, off)  ((((uintptr_t)(seg)) << 4) + (off))
+#define SEGOFF2LINEAR(seg, off)  ((((unsigned)(seg)) << 4) + (off))
 
 #define SEG2LINEAR(seg)	((void *)  ( ((uintptr_t)(seg)) << 4)  )
 
@@ -132,11 +132,11 @@ typedef struct {
 #define MK_FP			MK_FP16
 #define FP_OFF16(far_ptr)	((int)far_ptr & 0xffff)
 #define FP_SEG16(far_ptr)	(((unsigned int)far_ptr >> 16) & 0xffff)
-#define MK_FP32(s,o)		((void *)SEGOFF2LINEAR(s,o))
+#define MK_FP32(s,o)		((void *)(uintptr_t)SEGOFF2LINEAR(s,o))
 #define FP_OFF32(void_ptr)	((uintptr_t)void_ptr & 15)
 #define FP_SEG32(void_ptr)	(((uintptr_t)void_ptr >> 4) & 0xffff)
 #define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))
-#define FARt_PTR(f_t_ptr) ((void*)SEGOFF2LINEAR((f_t_ptr).segment, (f_t_ptr).offset))
+#define FARt_PTR(f_t_ptr) (MK_FP32((f_t_ptr).segment, (f_t_ptr).offset))
 #define MK_FARt(seg, off) ((far_t){(off), (seg)})
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))

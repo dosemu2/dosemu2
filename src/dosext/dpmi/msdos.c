@@ -1360,7 +1360,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
     _cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
     _eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
 
-    rm_ssp = (unsigned short *)SEGOFF2LINEAR(LWORD(ss), LWORD(esp) + 4 + 8);
+    rm_ssp = MK_FP32(LWORD(ss), LWORD(esp) + 4 + 8);
 
     if (MSDOS_CLIENT.is_32) {
 	*--ssp = (us) 0;

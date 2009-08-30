@@ -876,7 +876,7 @@ void aspi_helper(int mode)
    arg_o = *spp;
    arg_s = *(spp+1);
    A_printf("    request at  %#x:%#x\n",arg_o,arg_s);
-   srb = (SRB16 *) SEGOFF2LINEAR(arg_s, arg_o);
+   srb = MK_FP32(arg_s, arg_o);
 
    srb->common.SRB_Status = 255;
    ret = SendASPICommand16((FARPTR16)(uintptr_t)srb);
