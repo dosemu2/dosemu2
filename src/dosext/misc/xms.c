@@ -196,7 +196,7 @@ umb_find_unused(void)
 }
 
 static int
-umb_find(vm_address_t segbase)
+umb_find(int segbase)
 {
   int i;
   vm_address_t addr = SEG2LINEAR(segbase);
@@ -288,7 +288,7 @@ static void umb_free_all(void)
 static int
 umb_free(int segbase)
 {
-  int umb = umb_find((vm_address_t)(uintptr_t)segbase);
+  int umb = umb_find(segbase);
 
   if (umb != UMB_NULL) {
     umbs[umb].free = TRUE;

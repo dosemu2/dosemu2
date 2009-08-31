@@ -57,6 +57,7 @@ static int kmem_mappings = 0;
 static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
  
 static int init_done = 0;
+unsigned char * const mem_base;
 char * const lowmem_base;
 #ifndef HAVE_MREMAP_FIXED
 int have_mremap_fixed = 1;

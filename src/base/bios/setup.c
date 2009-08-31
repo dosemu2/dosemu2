@@ -29,12 +29,12 @@
  */
 static void install_int_10_handler (void)
 {
-  unsigned char *ptr;
+  unsigned int ptr;
   
   if (config.vbios_seg == 0xe000 && config.vbios_post) {
-    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_int10ptr - (long)bios_f000));
-    *((uint32_t *)ptr) = 0xe0000003;
-    v_printf("VID: new int10 handler at %p\n",ptr);
+    ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10ptr - (long)bios_f000));
+    WRITE_DWORD(ptr, 0xe0000003);
+    v_printf("VID: new int10 handler at %#x\n",ptr);
   }
   else
     v_printf("VID: install_int_10_handler: do nothing\n");
@@ -90,12 +90,12 @@ static void bios_setup(void)
   for (i = 0; i < 256; i++) {
     if (config.vga && !config.vbios_post) {
       uint16_t seg, off;
-      unsigned char *addr;
+      unsigned int addr;
 
       seg = int_bios_area[i] >> 16;
       off = int_bios_area[i] & 0xffff;
       v_printf("int0x%x was 0x%04x:0x%04x\n", i, seg, off);
-      addr = MK_FP32(seg, off);
+      addr = SEGOFF2LINEAR(seg, off);
       if (addr >= VBIOS_START && addr < VBIOS_START + VBIOS_SIZE) {
 	g_printf("Setting int0x%x to 0x%04x:0x%04x\n", i, seg, off);
 	SETIVEC(i, seg, off);
@@ -147,10 +147,10 @@ static void bios_setup(void)
 
   {
     /* update boot drive in Banner-code */
-    u_char *ptr;
+    unsigned ptr;
 
-    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));
-    *ptr = config.hdiskboot ? 0x80 : 0;
+    ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_bootdrive - (long)bios_f000));
+    WRITE_BYTE(ptr, config.hdiskboot ? 0x80 : 0);
   }
 
   dos_post_boot_reset();

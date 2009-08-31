@@ -171,7 +171,7 @@
 #define BIOS_HLT_BLK       0xfc000
 #define BIOS_HLT_BLK_SIZE  0x00800
 
-#define VBIOS_START	((unsigned char *)SEG2LINEAR(config.vbios_seg))
+#define VBIOS_START	(SEGOFF2LINEAR(config.vbios_seg,0))
 /*#define VBIOS_SIZE	(64*1024)*/
 #define VBIOS_SIZE	(config.vbios_size)
 #define GFX_CHARS	0xffa6e
@@ -239,6 +239,13 @@ void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(void *addr);
+
+/* This is the global mem_base pointer: *all* memory is with respect
+   to this base. It is normally set to 0 but with mmap_min_addr
+   restrictions it can be non-zero. Non-zero values block vm86 but at least
+   give NULL pointer protection.
+*/
+extern unsigned char * const mem_base;
 
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.
    It does not have any holes or mapping for video RAM etc.

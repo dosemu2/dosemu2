@@ -463,9 +463,11 @@ int dos_helper(void)
     }
 
     case DOS_HELPER_GETCWD:
-        LWORD(eax) = (short)((uintptr_t)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(ecx)));
+    {
+        char *buf = getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(ecx));
+	LWORD(eax) = buf == NULL ? 0 : (SEGOFF2LINEAR(_ES, _DX) & 0xffff);
         break;
-
+    }
     case DOS_HELPER_GETPID:
 	LWORD(eax) = getpid();
 	LWORD(ebx) = getppid();
