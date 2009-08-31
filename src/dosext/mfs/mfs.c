@@ -1974,7 +1974,7 @@ boolean_t find_file(char *fpath, struct stat * st, int drive, int *doserrno)
 	Debug0((dbg_fd, "find_file(): no match: %s\n", fpath));
 	if (slash2) {
 	  strcat(slash1+1,remainder);
-	  if (*doserrno)
+	  if (doserrno)
 	    *doserrno = PATH_NOT_FOUND;
 	}
 	return (FALSE);
