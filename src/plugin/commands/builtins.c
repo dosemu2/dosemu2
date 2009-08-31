@@ -382,7 +382,7 @@ int commands_plugin_inte6(void)
 	}
 
 	psp = COM_PSP_ADDR;
-	mcb = LOWMEM(SEG2LINEAR(COM_PSP_SEG - 1));
+	mcb = LOWMEM(SEGOFF2LINEAR(COM_PSP_SEG - 1,0));
 
 	/* first parse commandline */
 	args[0] = strdup(com_getarg0());

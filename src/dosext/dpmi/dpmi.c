@@ -2388,12 +2388,12 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-int lookup_realmode_callback(char *lina, int *num)
+int lookup_realmode_callback(unsigned int lina, int *num)
 {
   int i;
-  char *base;
+  unsigned int base;
   for (i = 0; i < in_dpmi; i++) {
-    base = SEG2LINEAR(DPMIclient[i].private_data_segment+RM_CB_Para_ADD);
+    base = SEGOFF2LINEAR(DPMIclient[i].private_data_segment+RM_CB_Para_ADD,0);
     if ((lina >= base) && (lina < base + 0x10)) {
       *num = lina - base;
       return i;
@@ -4153,7 +4153,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 }
 
 
-void dpmi_realmode_hlt(unsigned char * lina)
+void dpmi_realmode_hlt(unsigned int lina)
 {
   struct sigcontext_struct *scp;
   if (!in_dpmi) {
@@ -4163,13 +4163,13 @@ void dpmi_realmode_hlt(unsigned char * lina)
   }
   scp = &DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI
-  if ((debug_level('t')==0)||((int)lina!=0xfc80a))
+  if ((debug_level('t')==0)||(lina!=0xfc80a))
 #endif
-  D_printf("DPMI: realmode hlt: %p\n", lina);
-  if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos))) {
+  D_printf("DPMI: realmode hlt: %#x\n", lina);
+  if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos)) {
 
 #ifdef TRACE_DPMI
-    if ((debug_level('t')==0)||((int)lina!=0xfc80a))
+    if ((debug_level('t')==0)||(lina!=0xfc80a))
 #endif
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();
@@ -4189,9 +4189,9 @@ void dpmi_realmode_hlt(unsigned char * lina)
  */
     pic_iret_dpmi();
 
-  } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) &&
-	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256)) ) {
-    int intr = lina - (unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint));
+  } else if ((lina>=DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)) &&
+	     (lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256) ) {
+    int intr = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_dosint));
     int update_mask = ~0;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
@@ -4204,7 +4204,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode))) {
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_realmode)) {
     struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
       (GetSegmentBaseAddress(_es) +
       API_16_32(_edi));
@@ -4230,7 +4230,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory))) {
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
     unsigned long length, base;
     unsigned short begin_selector, num_descs;
     int i;
@@ -4292,7 +4292,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
 done:
     restore_rm_regs();
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch_rm))) {
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch_rm)) {
     if (!Segments[LWORD(esi) >> 3].used) {
       error("DPMI: PM switch to unused segment\n");
       leavedos(61);
@@ -4326,7 +4326,7 @@ done:
     _esi = 0;
     _edi = 0;
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_save_restore_rm))) {
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_save_restore_rm)) {
     unsigned int *buffer = SEG_ADR((unsigned int *),es,di);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
@@ -4367,8 +4367,8 @@ done:
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
 
-  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_srm_start))) &&
-	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_srm_end)))) {
+  } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_srm_start)) &&
+	     (lina < DPMI_ADD + HLT_OFF(MSDOS_srm_end))) {
     REG(eip) += 1;            /* skip halt to point to FAR RET */
     D_printf("DPMI: Starting MSDOS rm callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
@@ -4383,15 +4383,15 @@ done:
     clear_IF();
     in_dpmi_dos_int = 0;
 
-  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rpm_start))) &&
-	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rpm_end)))) {
+  } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_rpm_start)) &&
+	     (lina < DPMI_ADD + HLT_OFF(MSDOS_rpm_end))) {
     D_printf("DPMI: Return from MSDOS pm callback\n");
     msdos_post_pm(&DPMI_CLIENT.stack_frame);
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
   } else {
-    D_printf("DPMI: unhandled HLT: lina=%p\n", lina);
+    D_printf("DPMI: unhandled HLT: lina=%#x\n", lina);
   }
 }
 

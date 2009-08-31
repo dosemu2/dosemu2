@@ -164,7 +164,7 @@ int indirect_dpmi_switch(struct sigcontext_struct *);
 #ifdef __linux__
 int dpmi_fault(struct sigcontext_struct *);
 #endif
-void dpmi_realmode_hlt(unsigned char *);
+void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void run_pm_dos_int(int);
 void fake_pm_int(void);
@@ -226,7 +226,7 @@ extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
 extern void dpmi_setup(void);
 extern void dpmi_cleanup(void);
-extern int lookup_realmode_callback(char *lina, int *num);
+extern int lookup_realmode_callback(unsigned int lina, int *num);
 extern void dpmi_realmode_callback(int rmcb_client, int num);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);

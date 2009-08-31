@@ -259,7 +259,7 @@ extern char * const lowmem_base;
 #define UNIX_READ_DWORD(addr)		(*(Bit32u *) (addr))
 #define UNIX_WRITE_DWORD(addr, val)	(*(Bit32u *) (addr) = (val) )
 
-#define LOWMEM(addr) ((void *)((uintptr_t)(addr) + lowmem_base))
+#define LOWMEM(addr) ((void *)(&lowmem_base[addr]))
 
 #define LOWMEM_READ_BYTE(addr)		UNIX_READ_BYTE(LOWMEM(addr))
 #define LOWMEM_WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LOWMEM(addr), val)
@@ -276,7 +276,7 @@ extern char * const lowmem_base;
 	 ((uintptr_t)(addr) >= 0xf4000 && (uintptr_t)(addr) <= 0xffffc))
 
 #define LINEAR2UNIX(addr) \
-	(IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM(addr) : \
+	(IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM((uintptr_t)(addr)) :	\
 	 dosaddr_to_unixaddr((void *)(uintptr_t)(addr)))
 
 #define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))

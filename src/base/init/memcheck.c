@@ -207,5 +207,5 @@ void *dosaddr_to_unixaddr(void *addr)
   /* Not EMS, Hardware, or Video */
   if (map_char == 'E' || map_char == 'h' || map_char == 'v')
     return addr;	// FIXTHIS !
-  return LOWMEM(addr);
+  return LOWMEM((uintptr_t)addr);
 }

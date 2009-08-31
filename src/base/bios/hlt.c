@@ -81,42 +81,41 @@ void hlt_init(void)
  */
 void hlt_handle(void)
 {
-  Bit8u  *lina = SEG_ADR((Bit8u *), cs, ip);
-  Bit32u  offs = (uintptr_t)lina;
+  Bit32u  lina = SEGOFF2LINEAR(_CS, _IP);
   int rmcb_client, rmcb_num;
 
 #if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
-  if ((config.cpuemu>1) && (lina == (Bit8u *) CPUEMUI10_ADD)) {
+  if ((config.cpuemu>1) && (lina == CPUEMUI10_ADD)) {
     e_printf("EMU86: HLT at int10 end\n");
     _IP += 1;	/* simply skip, so that we go back to emu mode */
   }
   else
 #endif
 
-  if ((offs >= BIOS_HLT_BLK) && (offs < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
-    offs -= BIOS_HLT_BLK;
+  if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
+    Bit32u offs = lina - BIOS_HLT_BLK;
 #if CONFIG_HLT_TRACE > 0
     h_printf("HLT: fcn 0x%04lx called in HLT block, handler: %s\n", offs,
 	     hlt_handler[hlt_handler_id[offs]].name);
 #endif
     hlt_handler[hlt_handler_id[offs]].func(offs - hlt_handler[hlt_handler_id[offs]].start_addr);
   }
-  else if (lina == (Bit8u *) CBACK_ADD) {
+  else if (lina == CBACK_ADD) {
     /* we are back from a callback routine */
     callback_return();
   }
-  else if (lina == (Bit8u *) Mouse_HLT_ADD) {
+  else if (lina == Mouse_HLT_ADD) {
     int33_post();
   }
-  else if (lina == (Bit8u *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
+  else if (lina == DPMI_ADD + HLT_OFF(DPMI_dpmi_init)) {
     /* The hlt instruction is 6 bytes in from DPMI_ADD */
     _IP += 1;	/* skip halt to point to FAR RET */
     CARRY;
     dpmi_init();
   }
-  else if ((lina >= (Bit8u *)DPMI_ADD) &&
-	   (lina < (Bit8u *)(DPMI_ADD + (Bit32u)(uintptr_t)DPMI_dummy_end-
-			     (Bit32u)(uintptr_t)DPMI_dummy_start))) {
+  else if ((lina >= DPMI_ADD) &&
+	   (lina < DPMI_ADD + (Bit32u)(uintptr_t)DPMI_dummy_end-
+			     (Bit32u)(uintptr_t)DPMI_dummy_start)) {
 #if CONFIG_HLT_TRACE > 0
     h_printf("HLT: dpmi_realmode_hlt\n");
 #endif
