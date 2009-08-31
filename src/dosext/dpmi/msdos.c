@@ -75,7 +75,7 @@ void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 void msdos_done(void)
 {
   if (CURRENT_ENV_SEL)
-      WRITE_ENV_SEL(GetSegmentBaseAddress(CURRENT_ENV_SEL) >> 4);
+      WRITE_ENV_SEL(GetSegmentBase(CURRENT_ENV_SEL) >> 4);
     msdos_client_num--;
     D_printf("MSDOS: done, %i\n", msdos_client_num);
 }
@@ -247,14 +247,14 @@ static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
 /* and para. aligned.                                                 */
 static int in_dos_space(unsigned short sel, unsigned long off)
 {
-    unsigned long base = GetSegmentBaseAddress(sel);
+    unsigned int base = GetSegmentBase(sel);
 
     if (base + off > 0x10ffef) {	/* ffff:ffff for DOS high */
-      D_printf("MSDOS: base address %#lx of sel %#x > DOS limit\n", base, sel);
+      D_printf("MSDOS: base address %#x of sel %#x > DOS limit\n", base, sel);
       return 0;
     } else
     if (base & 0xf) {
-      D_printf("MSDOS: base address %#lx of sel %#x not para. aligned.\n", base, sel);
+      D_printf("MSDOS: base address %#x of sel %#x not para. aligned.\n", base, sel);
       return 0;
     } else
       return 1;
@@ -286,15 +286,15 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
     psp_sig = READ_WORD(SEG2LINEAR(psp_seg_sel));
     if (psp_sig != 0x20CD) {
 	/* now try selector */
-	unsigned long addr;
-	D_printf("MSDOS: Trying PSP sel=%#x, V=%i, d=%i, l=%#lx\n",
+	unsigned int addr;
+	D_printf("MSDOS: Trying PSP sel=%#x, V=%i, d=%i, l=%#x\n",
 	    psp_seg_sel, ValidAndUsedSelector(psp_seg_sel),
 	    in_dos_space(psp_seg_sel, 0), GetSegmentLimit(psp_seg_sel));
 	if (ValidAndUsedSelector(psp_seg_sel) && in_dos_space(psp_seg_sel, 0) &&
 		GetSegmentLimit(psp_seg_sel) >= 0xff) {
-	    addr = GetSegmentBaseAddress(psp_seg_sel);
+	    addr = GetSegmentBase(psp_seg_sel);
 	    psp_sig = READ_WORD(addr);
-	    D_printf("MSDOS: Trying PSP sel=%#x, addr=%#lx\n", psp_seg_sel, addr);
+	    D_printf("MSDOS: Trying PSP sel=%#x, addr=%#x\n", psp_seg_sel, addr);
 	    if (!(addr & 0x0f) && psp_sig == 0x20CD) {
 		/* found selector */
 		parent_psp = addr >> 4;
@@ -491,7 +491,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(edx)=0;
                 MEMCPY_DOS2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
 	    } else {
-                REG(ds) = GetSegmentBaseAddress(_ds) >> 4;
+                REG(ds) = GetSegmentBase(_ds) >> 4;
                 MSDOS_CLIENT.user_dta_sel = 0;
             }
 	  }
@@ -590,7 +590,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 
 	    /* then the enviroment seg */
 	    if (CURRENT_ENV_SEL)
-		WRITE_ENV_SEL(GetSegmentBaseAddress(CURRENT_ENV_SEL) >> 4);
+		WRITE_ENV_SEL(GetSegmentBase(CURRENT_ENV_SEL) >> 4);
 
 	    if (segment != EXEC_SEG + EXEC_Para_SIZE)
 		error("DPMI: exec: seg=%#x (%#x), size=%#x\n",
@@ -610,7 +610,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    (char *)GetSegmentBaseAddress(_LWORD(ebx)),
 		    (void *)SEG2LINEAR(LWORD(ebx)));
 	    } else {
-		REG(ebx) = GetSegmentBaseAddress(_LWORD(ebx)) >> 4;
+		REG(ebx) = GetSegmentBase(_LWORD(ebx)) >> 4;
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
 	    MSDOS_CLIENT.current_psp = LWORD(ebx);
@@ -626,7 +626,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		MSDOS_CLIENT.user_psp_sel = _LWORD(edx);
 		LWORD(edx) = MSDOS_CLIENT.current_psp;
 	    } else {
-		REG(edx) = GetSegmentBaseAddress(_LWORD(edx)) >> 4;
+		REG(edx) = GetSegmentBase(_LWORD(edx)) >> 4;
 		MSDOS_CLIENT.current_psp = LWORD(edx);
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }

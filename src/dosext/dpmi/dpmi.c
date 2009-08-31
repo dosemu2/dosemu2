@@ -158,17 +158,20 @@ static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
 }
 #endif
 
-unsigned long SEL_ADR(unsigned short sel, unsigned long reg)
+void *SEL_ADR(unsigned short sel, unsigned int reg)
 {
   if (!(sel & 0x0004)) {
     /* GDT */
-    return (unsigned long) reg;
+    return (void *)(uintptr_t)reg;
   } else {
+    unsigned char *p;
     /* LDT */
     if (Segments[sel>>3].is_32)
-      return (unsigned int) (GetSegmentBaseAddress(sel) + reg );
+      p = GetSegmentBaseAddress(sel) + reg;
     else
-      return (unsigned int) (GetSegmentBaseAddress(sel) + LO_WORD(reg));
+      p = GetSegmentBaseAddress(sel) + LO_WORD(reg);
+    /* The address needs to wrap, also in 64-bit! */
+    return (void *)(uintptr_t)(unsigned)(uintptr_t)p;
   }
 }
 
@@ -560,8 +563,8 @@ static int dpmi_control(void)
 #endif
     {
 	if (debug_level('M')>6) {
-	  D_printf("DPMI SWITCH to 0x%x:0x%08x (0x%08lx), Stack 0x%x:0x%08x (0x%08lx) flags=%#lx\n",
-	    _cs, _eip, (long)SEL_ADR(_cs,_eip), _ss, _esp, (long)SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
+	  D_printf("DPMI SWITCH to 0x%x:0x%08x (%p), Stack 0x%x:0x%08x (%p) flags=%#lx\n",
+	    _cs, _eip, SEL_ADR(_cs,_eip), _ss, _esp, SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
 	}
 	return direct_dpmi_switch(scp);
     }
@@ -926,20 +929,27 @@ FI;
   return 1;
 }
 
-unsigned long GetSegmentBaseAddress(unsigned short selector)
+void *GetSegmentBaseAddress(unsigned short selector)
+{
+  if (!ValidAndUsedSelector(selector))
+    return 0;
+  return (void *)(uintptr_t)Segments[selector >> 3].base_addr;
+}
+
+/* needed in env/video/vesa.c */
+void *dpmi_GetSegmentBaseAddress(unsigned short selector)
+{
+  return GetSegmentBaseAddress(selector);
+}
+
+unsigned int GetSegmentBase(unsigned short selector)
 {
   if (!ValidAndUsedSelector(selector))
     return 0;
   return Segments[selector >> 3].base_addr;
 }
 
-/* needed in env/video/vesa.c */
-unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector)
-{
-  return GetSegmentBaseAddress(selector);
-}
-
-unsigned long GetSegmentLimit(unsigned short selector)
+unsigned int GetSegmentLimit(unsigned short selector)
 {
   int limit;
   if (!ValidAndUsedSelector(selector))
@@ -1397,7 +1407,7 @@ static int ResizeDescriptorBlock(struct sigcontext_struct *scp,
     int i;
 
     if (!ValidAndUsedSelector(begin_selector)) return 0;
-    base = GetSegmentBaseAddress(begin_selector);
+    base = GetSegmentBase(begin_selector);
     old_length = GetSegmentLimit(begin_selector) + 1;
     old_num_descs = (old_length ? (DPMI_CLIENT.is_32 ? 1 : (old_length/0x10000 +
 				((old_length%0x10000) ? 1 : 0))) : 0);
@@ -1705,7 +1715,7 @@ static void do_int31(struct sigcontext_struct *scp)
   case 0x0006:
     CHECK_SELECTOR(_LWORD(ebx));
     {
-      unsigned long baddress = GetSegmentBaseAddress(_LWORD(ebx));
+      unsigned int baddress = GetSegmentBase(_LWORD(ebx));
       _LWORD(edx) = (us)(baddress & 0xffff);
       _LWORD(ecx) = (us)(baddress >> 16);
     }
@@ -1800,7 +1810,7 @@ static void do_int31(struct sigcontext_struct *scp)
 	save_rm_regs();
 	REG(eflags) = eflags_VIF(_eflags);
 	REG(ebx) = _LWORD(ebx);
-	REG(es) = GetSegmentBaseAddress(_LWORD(edx)) >> 4;
+	REG(es) = GetSegmentBase(_LWORD(edx)) >> 4;
 
 	switch(_LWORD(eax)) {
 	  case 0x0100: {
@@ -3419,7 +3429,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
   if (_esp > 0xffff && !Segments[_cs >> 3].is_32 && Segments[_ss >> 3].is_32 &&
       Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
       _esp > GetSegmentLimit(_ss)) {
-    D_printf("DPMI: ESP bug, esp=%#x, ebp=%#x, limit=%#lx\n",
+    D_printf("DPMI: ESP bug, esp=%#x, ebp=%#x, limit=%#x\n",
 	     _esp, _ebp, GetSegmentLimit(_ss));
     _esp &= 0xffff;
     return ret;

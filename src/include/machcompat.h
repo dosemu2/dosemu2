@@ -425,7 +425,7 @@ typedef size_t vm_size_t;
 
 #endif /* __linux__ */
 
-#define Addr_8086(x,y)	((uintptr_t)(( ((x) & 0xffff) << 4) + ((y) & 0xffff)))
+#define Addr_8086(x,y)	MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)	Addr_8086(((s)->x), ((s)->y))
 
 #define Segment(x)	(((x) & 0xff000)>>4)

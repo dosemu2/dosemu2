@@ -116,7 +116,7 @@ void vbe_init(vgaemu_display_type *vedt)
 {
   int i;
   vga_mode_info *vmi = NULL;
-  unsigned char *dos_vga_bios = (unsigned char *) 0xc0000;
+  unsigned char *dos_vga_bios = MK_FP32(0xc000,0x0000);
   int bios_ptr = (char *) vgaemu_bios_end - (char *) vgaemu_bios_start;
 
   static struct {
@@ -1093,15 +1093,16 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
   DAC_entry dac;
 
   if(sub_func & 0x40) {		/* called via pm interface */
-    unsigned base, ofs;
+    unsigned char *base;
+    unsigned ofs;
 
     sub_func &= ~0x40;
     ofs = (_SI << 16) + _DI;
     base = dpmi_GetSegmentBaseAddress(_BP);
-    buffer = (unsigned char *)(uintptr_t) (base + ofs);
+    buffer = &base[ofs];
 #ifdef DEBUG_VBE
     v_printf(
-      "VBE: [0x%02x.%u] vbe_palette_data: called via pm interface, es.sel = 0x%04x, es.base = 0x%08x, es.ofs = 0x%08x\n",
+      "VBE: [0x%02x.%u] vbe_palette_data: called via pm interface, es.sel = 0x%04x, es.base = %p, es.ofs = 0x%08x\n",
       (unsigned) _AL, sub_func, (unsigned) _BP, base, ofs
     );
 #endif
