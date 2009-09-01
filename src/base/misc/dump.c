@@ -23,36 +23,27 @@
 #endif
 #include "dis8086.h"
 
-char *emu_disasm(int sga, unsigned int ip)
+char *emu_disasm(unsigned int ip)
 {
    static unsigned char buf[256];
    unsigned char frmtbuf[256];
    int rc, i;
-   unsigned char *cp;
+   unsigned int cp;
    unsigned char *p;
    unsigned int refseg;
    unsigned int ref;
 
-   if (sga) {
-     cp = SEG_ADR((unsigned char *), cs, ip);
-     refseg = REG(cs);
-   }
-   else {
-     cp = (unsigned char *)(uintptr_t)ip;
-     refseg = 0;	/* ??? */
-   }
+   cp = SEGOFF2LINEAR(_CS, _IP);
+   refseg = REG(cs);
 
    rc = dis_8086(cp, frmtbuf, 0, &ref, refseg * 16);
 
    p = buf;
    for (i=0; i<rc && i<8; i++) {
-           p += sprintf(p, "%02x", *(cp+i));
+           p += sprintf(p, "%02x", READ_BYTE(cp+i));
    }
    sprintf(p,"%20s", " ");
-   if (sga)
-     sprintf(buf+20, "%04x:%04x %s", REG(cs), LWORD(eip), frmtbuf);
-   else
-     sprintf(buf+20, "%08x %s", ip, frmtbuf);
+   sprintf(buf+20, "%04x:%04x %s", REG(cs), LWORD(eip), frmtbuf);
 
    return buf;
 }
@@ -144,7 +135,7 @@ show_regs(char *file, int line)
 	  g_printf("-> ");
 	  for (i = 0; i < 10; i++)
 		  g_printf("%02x ", *cp++);
-	  g_printf("\n\t%s\n", emu_disasm(1,0));
+	  g_printf("\n\t%s\n", emu_disasm(0));
   }
 }
 
@@ -205,7 +196,7 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
       int i;
       sprintf(buf, "%sOPS  : ", buf);
       if (!(_cs & 0x0004) ||
-	  (uintptr_t)csp2 < 0x110000 ||
+	  (csp2 >= &mem_base[0] && csp2 < &mem_base[0x110000]) ||
 	  ((uintptr_t)csp2 > config.dpmi_base &&
 	   (uintptr_t)csp2 < config.dpmi_base + config.dpmi * 1024)) {
 	for (i = 0; i < 10; i++)

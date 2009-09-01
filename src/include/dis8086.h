@@ -4,6 +4,6 @@
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-int  dis_8086(const unsigned char *, unsigned char *, int, unsigned int *, int);
+int  dis_8086(unsigned int, unsigned char *, int, unsigned int *, int);
 
 

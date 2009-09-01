@@ -66,10 +66,10 @@
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
-#define makeaddr(x,y) ((((unsigned long)x) << 4) + (unsigned long)y)
+#define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 /* prototypes */
-static void* mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
+static unsigned int mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dump    (int, char *[]);
@@ -613,25 +613,25 @@ static void mhp_trace_force(int argc, char * argv[])
 static void mhp_dump(int argc, char * argv[])
 {
    unsigned int nbytes;
-   unsigned long seekval;
+   unsigned int seekval;
    int i,i2;
-   unsigned char * buf = 0;
+   unsigned int buf = 0;
    unsigned int seg;
    unsigned int off;
    unsigned int limit;
    int data32=0;
 
    if (argc > 1) {
-      seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off, &limit);
+      seekval = mhp_getadr(argv[1], &seg, &off, &limit);
       strcpy(lastd, argv[1]);
    } else {
       if (!strlen(lastd)) {
          mhp_printf("No previous \'d\' command\n");
          return;
       }
-      seekval = (unsigned long)mhp_getadr(lastd, &seg, &off, &limit);
+      seekval = mhp_getadr(lastd, &seg, &off, &limit);
    }
-   buf = (unsigned char *) seekval;
+   buf = seekval;
 
    if (argc > 2)
       sscanf(argv[2], "%x", &nbytes);
@@ -654,14 +654,14 @@ static void mhp_dump(int argc, char * argv[])
             else mhp_printf("%s%04x:%04x ", IN_DPMI?"#":"" ,seg, off+i);
          }
          else
-            mhp_printf( "%08lX ", (unsigned long)seekval+i);
+            mhp_printf( "%08X ", seekval+i);
       }
-      mhp_printf( "%02X ", buf[i]);
+      mhp_printf( "%02X ", READ_BYTE(buf+i));
       if ((i&0x0f) == 0x0f) {
          mhp_printf( " ");
          for (i2=i-15;i2<=i;i2++){
-            if ((buf[i2]&0x7F) >= 0x20) {
-               mhp_printf( "%c", buf[i2]&0x7f);
+	    if ((READ_BYTE(buf+i2)&0x7F) >= 0x20) {
+	       mhp_printf( "%c", READ_BYTE(buf+i2)&0x7f);
             } else {
                mhp_printf( "%c", '.');
             }
@@ -677,15 +677,15 @@ static void mhp_dump(int argc, char * argv[])
          sprintf(lastd, "%x:%x", seg, off+i);
       }
    } else {
-      sprintf(lastd, "%lx", seekval + i);
+      sprintf(lastd, "%x", seekval + i);
    }
 }
 
 static void mhp_dump_to_file(int argc, char * argv[])
 {
    unsigned int nbytes;
-   unsigned long seekval;
-   unsigned char * buf = 0;
+   unsigned int seekval;
+   unsigned int buf = 0;
    unsigned int seg;
    unsigned int off;
    unsigned int limit=0;
@@ -696,9 +696,9 @@ static void mhp_dump_to_file(int argc, char * argv[])
       return;
    }
 
-   seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off, &limit);
+   seekval = mhp_getadr(argv[1], &seg, &off, &limit);
 
-   buf = (unsigned char *) seekval;
+   buf = seekval;
    sscanf(argv[2], "%x", &nbytes);
    if (nbytes == 0) {
       mhp_printf("invalid size\n");
@@ -711,7 +711,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
       mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
       return;
    }
-   if (write(fd, buf, nbytes) != nbytes) {
+   if (write(fd, LINEAR2UNIX(buf), nbytes) != nbytes) {
       mhp_printf("write error: %s\n", strerror(errno));
    }
    close(fd);
@@ -735,12 +735,12 @@ static void mhp_disasm(int argc, char * argv[])
 {
    int rc;
    unsigned int nbytes;
-   unsigned long org;
-   unsigned long seekval;
+   unsigned int org;
+   unsigned int seekval;
    int def_size;
    unsigned int bytesdone;
    int i;
-   unsigned char * buf = 0;
+   unsigned int buf = 0;
    unsigned char bytebuf[IBUFS];
    unsigned char frmtbuf[IBUFS];
    unsigned int seg;
@@ -751,14 +751,14 @@ static void mhp_disasm(int argc, char * argv[])
    int segmented = (linmode == 0);
 
    if (argc > 1) {
-      seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off, &limit);
+      seekval = mhp_getadr(argv[1], &seg, &off, &limit);
       strcpy(lastu, argv[1]);
    } else {
       if (!strlen(lastu)) {
          mhp_printf("No previous \'u\' command\n");
          return;
       }
-      seekval = (unsigned long)mhp_getadr(lastu, &seg, &off, &limit);
+      seekval = mhp_getadr(lastu, &seg, &off, &limit);
    }
 
    if (argc > 2) {
@@ -774,7 +774,7 @@ static void mhp_disasm(int argc, char * argv[])
       nbytes = 32;
 
 #if 0
-   mhp_printf( "seekval %08lX nbytes:%d\n", seekval, nbytes);
+   mhp_printf( "seekval %08X nbytes:%d\n", seekval, nbytes);
 #else
    mhp_printf( "\n");
 #endif
@@ -790,7 +790,7 @@ static void mhp_disasm(int argc, char * argv[])
      else def_size = 3;
    }
    rc=0;
-   buf = (unsigned char *) seekval;
+   buf = seekval;
    org = codeorg ? codeorg : seekval;
 
    for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
@@ -805,7 +805,7 @@ static void mhp_disasm(int argc, char * argv[])
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
                   (IN_DPMI ? dpmi_mhp_getselbase(refseg) : refseg * 16));
        for (i=0;i<rc;i++) {
-           sprintf(&bytebuf[i*2], "%02X", *(buf+bytesdone+i) );
+           sprintf(&bytebuf[i*2], "%02X", READ_BYTE(buf+bytesdone+i) );
            bytebuf[(i*2)+2] = 0x00;
        }
        if (segmented) {
@@ -831,7 +831,7 @@ static void mhp_disasm(int argc, char * argv[])
          sprintf(lastu, "%x:%x", seg, off+bytesdone);
       }
    } else {
-      sprintf(lastu, "%lx", seekval + bytesdone);
+      sprintf(lastu, "%x", seekval + bytesdone);
    }
 }
 
@@ -886,7 +886,7 @@ static int get_value(unsigned long *v, unsigned char *s, int base)
 static void mhp_enter(int argc, char * argv[])
 {
    int size;
-   static unsigned char * zapaddr = (char *)-1;
+   static unsigned int zapaddr = -1;
    unsigned int seg, off;
    unsigned long val;
    unsigned int limit;
@@ -897,13 +897,13 @@ static void mhp_enter(int argc, char * argv[])
       return;
 
    if (!strcmp(argv[1],"-")) {
-     if (zapaddr == (void *)-1) {
+     if (zapaddr == -1) {
         mhp_printf("Address invalid, no previous 'e' command with address\n");
         return;
      }
    }
-   else  zapaddr = (unsigned char*)mhp_getadr(argv[1], &seg, &off, &limit);
-   if ((a20 ?0x10fff0 : 0x100000) < (unsigned long)zapaddr) {
+   else  zapaddr = mhp_getadr(argv[1], &seg, &off, &limit);
+   if ((a20 ?0x10fff0 : 0x100000) < zapaddr) {
       mhp_printf("Address invalid\n");
       return;
    }
@@ -915,13 +915,13 @@ static void mhp_enter(int argc, char * argv[])
         case V_BYTE:
         case V_WORD:
         case V_DWORD: {
-          memcpy(zapaddr, &val, size);
+          MEMCPY_2DOS(zapaddr, &val, size);
           zapaddr += size;
           break;
         }
         case V_STRING: {
           size = strlen(arg+1);
-          memcpy(zapaddr, arg+1, size);
+          MEMCPY_2DOS(zapaddr, arg+1, size);
           zapaddr += size;
           break;
         }
@@ -930,7 +930,7 @@ static void mhp_enter(int argc, char * argv[])
    }
 }
 
-static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1, unsigned int *lim)
+static unsigned int mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1, unsigned int *lim)
 {
    static char buffer[0x10000];
    unsigned char * srchp;
@@ -959,7 +959,7 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
       else {
         *s1 = LWORD(cs);
         *o1 = LWORD(eip);
-        return (void*) makeaddr(LWORD(cs), LWORD(eip));
+        return makeaddr(LWORD(cs), LWORD(eip));
       }
    }
    if (selector != 2) {
@@ -972,23 +972,23 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
         else {
           *s1 = LWORD(ss);
           *o1 = LWORD(esp);
-          return (void*) makeaddr(LWORD(ss), LWORD(esp));
+          return makeaddr(LWORD(ss), LWORD(esp));
         }
      }
      if (selector != 2) {
        if ((ul1 = lookup(a1, s1, o1))) {
-          return (void*)ul1;
+          return ul1;
        }
        if ((ul1 = getaddr(a1))) {
           *s1 = 0;
           *o1 = 0;
-          return (void*)ul1;
+          return ul1;
        }
        if (!(srchp = (unsigned char *)strchr(a1, ':'))) {
           sscanf(a1, "%lx", &ul1);
           *s1 = 0;
           *o1 = 0;
-          return (void*)ul1;
+          return ul1;
        }
        if ( (seg1 = mhp_getreg(a1)) == -1) {
                *srchp = ' ';
@@ -1004,16 +1004,16 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    *o1 = off1;
 
    if (!selector)
-      return (void*)makeaddr(seg1,off1);
+      return makeaddr(seg1,off1);
 
    if (!(seg1 & 0x4)) {
      mhp_printf("GDT selectors not supported yet\n");
-     return (void *)0;
+     return 0;
    }
 
    if (get_ldt(buffer) < 0) {
      mhp_printf("error getting ldt\n");
-     return (void *)0;
+     return 0;
    }
 
    lp = (unsigned int *) buffer;
@@ -1029,23 +1029,23 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
 
    if ((limit == 0) && (base_addr == 0)) {
      mhp_printf("selector %x appears to be invalid\n", seg1);
-     return (void *)0;
+     return 0;
    }
 
    if (off1 >= limit) {
      mhp_printf("offset %x exceeds segment limit %x\n", off1, limit);
-     return (void *)0;
+     return 0;
    }
 
    *lim = limit - off1;
-   return (void *)(uintptr_t)(base_addr + off1);
+   return base_addr + off1;
 }
 
-int mhp_setbp(unsigned long seekval)
+int mhp_setbp(unsigned int seekval)
 {
    int i1;
    for (i1=0; i1 < MAXBP; i1++) {
-      if (   mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval
+      if (   mhpdbgc.brktab[i1].brkaddr == seekval
           && mhpdbgc.brktab[i1].is_valid) {
          mhp_printf( "Duplicate breakpoint, nothing done\n");
          return 0;
@@ -1054,7 +1054,7 @@ int mhp_setbp(unsigned long seekval)
    for (i1=0; i1 < MAXBP; i1++) {
       if (!mhpdbgc.brktab[i1].is_valid) {
          if (i1==trapped_bp) trapped_bp=-1;
-         mhpdbgc.brktab[i1].brkaddr = (unsigned char *)seekval;
+         mhpdbgc.brktab[i1].brkaddr = seekval;
 	 mhpdbgc.brktab[i1].is_valid = 1;
          mhpdbgc.brktab[i1].is_dpmi = IN_DPMI;
          return 1;
@@ -1064,11 +1064,11 @@ int mhp_setbp(unsigned long seekval)
    return 0;
 }
 
-int mhp_clearbp(unsigned long seekval)
+int mhp_clearbp(unsigned int seekval)
 {
    int i1;
    for (i1=0; i1 < MAXBP; i1++) {
-      if (   mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval
+      if (   mhpdbgc.brktab[i1].brkaddr == seekval
           && mhpdbgc.brktab[i1].is_valid) {
          if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = 0;
@@ -1090,7 +1090,7 @@ static int check_for_stopped(void)
 
 static void mhp_bp(int argc, char * argv[])
 {
-   unsigned long seekval;
+   unsigned int seekval;
    unsigned int seg;
    unsigned int off;
    unsigned int limit;
@@ -1100,7 +1100,7 @@ static void mhp_bp(int argc, char * argv[])
       mhp_printf("location argument required\n");
       return;
    }
-   seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off, &limit);
+   seekval = mhp_getadr(argv[1], &seg, &off, &limit);
    mhp_setbp(seekval);
 }
 
@@ -1381,8 +1381,8 @@ void mhp_bpset(void)
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
            continue;
          }
-         mhpdbgc.brktab[i1].opcode = *mhpdbgc.brktab[i1].brkaddr;
-         if (i1!=trapped_bp) *mhpdbgc.brktab[i1].brkaddr = 0xCC;
+         mhpdbgc.brktab[i1].opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
+         if (i1!=trapped_bp) WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
       }
    }
    return;
@@ -1400,11 +1400,11 @@ void mhp_bpclr(void)
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
            continue;
          }
-         if( (*mhpdbgc.brktab[i1].brkaddr) != 0xCC) {
+         if( READ_BYTE(mhpdbgc.brktab[i1].brkaddr) != 0xCC) {
             if (i1!=trapped_bp) mhpdbgc.brktab[i1].brkaddr = 0;
             continue;
          }
-         *mhpdbgc.brktab[i1].brkaddr = mhpdbgc.brktab[i1].opcode;
+         WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
       }
    }
    saved_dpmimode=dpmimode;
@@ -1412,7 +1412,7 @@ void mhp_bpclr(void)
 }
 
 
-int mhp_bpchk(unsigned char * a1)
+int mhp_bpchk(unsigned int a1)
 {
    int i1;
 

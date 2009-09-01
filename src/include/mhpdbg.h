@@ -92,13 +92,13 @@ EXTERN struct mhpdbg mhpdbg;
 void mhp_cmd(const char *);
 void mhp_bpset(void);
 void mhp_bpclr(void);
-int  mhp_bpchk(unsigned char *);
-int mhp_setbp(unsigned long seekval);
-int mhp_clearbp(unsigned long seekval);
+int  mhp_bpchk(unsigned int);
+int mhp_setbp(unsigned int seekval);
+int mhp_clearbp(unsigned int seekval);
 void mhp_regex(const char *fmt, va_list args);
 
 struct brkentry {
-   unsigned char * brkaddr;
+   unsigned int brkaddr;
    unsigned char opcode;
    char is_dpmi;
    char is_valid;

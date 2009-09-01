@@ -429,7 +429,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	  }
 	  if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
 		  int ok=0;
-		  uintptr_t csip=mhp_getcsip_value() - 1;
+		  unsigned int csip=mhp_getcsip_value() - 1;
 		  if (mhpdbgc.bpload_bp == csip ) {
 		    mhp_printf("\n\nbpload: INT3 caught\n");
 		    /* mhp_cmd("r"); */
@@ -455,7 +455,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    }
 		  }
 		  else {
-		    if ((ok=mhp_bpchk( (unsigned char *) csip))) {
+		    if ((ok=mhp_bpchk( csip))) {
 			  mhp_modify_eip(-1);
 		    }
 		    else {

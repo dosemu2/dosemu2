@@ -238,7 +238,7 @@ void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
-void *dosaddr_to_unixaddr(void *addr);
+void *dosaddr_to_unixaddr(uintptr_t addr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
    to this base. It is normally set to 0 but with mmap_min_addr
@@ -279,12 +279,15 @@ extern char * const lowmem_base;
  * not in the EMS frame, hardware or video memory. We can _safely_
  * add lowmem_base to those. */
 #define IS_GENERIC_LOWMEM_ADDR(addr) \
-	 ((uintptr_t)(addr) <= 0x9fffc || \
-	 ((uintptr_t)(addr) >= 0xf4000 && (uintptr_t)(addr) <= 0xffffc))
+	((addr) <= 0x9fffc || ((addr) >= 0xf4000 && (addr) <= 0xffffc))
 
-#define LINEAR2UNIX(addr) \
-	(IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM((uintptr_t)(addr)) :	\
-	 dosaddr_to_unixaddr((void *)(uintptr_t)(addr)))
+static inline void *linear2unix(uintptr_t addr)
+{
+	return IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM(addr) :
+	  dosaddr_to_unixaddr(addr);
+}
+
+#define LINEAR2UNIX(addr) linear2unix((uintptr_t)(addr))
 
 #define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))
 #define WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LINEAR2UNIX(addr), val)

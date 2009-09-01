@@ -408,7 +408,7 @@ int dosemu_fault1(int signal, struct sigcontext_struct *scp);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);
-char *emu_disasm(int sga, unsigned int ip);
+char *emu_disasm(unsigned int ip);
 
 int cpu_trap_0f (unsigned char *, struct sigcontext_struct *);
 

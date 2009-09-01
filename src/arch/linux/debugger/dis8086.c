@@ -84,13 +84,13 @@ Any comments/updates/bug reports to:
 #include "dis8086.h"
 #define INLINE static inline
 #undef REG
-#define mem_readb(x) *(unsigned char *)(x) //READ_BYTE(x)
+#define mem_readb(x) READ_BYTE(x)
 typedef unsigned Bitu;
 
 typedef Bit8u  UINT8;
 typedef Bit16u UINT16;
 typedef Bit32u UINT32;
-typedef const unsigned char *PhysPt;
+typedef unsigned int PhysPt;
 
 typedef Bit8s  INT8;
 typedef Bit16s INT16;
@@ -1121,7 +1121,7 @@ static Bitu DasmI386(char* buffer, PhysPt pc, Bitu cur_ip, bool bit32)
 	return getbyte_mac-pc;
 }
 
-int  dis_8086(register const unsigned char *code,
+int  dis_8086(unsigned int code,
 	      unsigned char *outbuf,
 	      int def_size,
 	      unsigned int * refof,

@@ -326,20 +326,20 @@ char *e_emu_disasm(unsigned char *org, int is32)
    int rc;
    int i;
    char *p, *p1;
-   unsigned char *code;
+   unsigned int code;
    unsigned int org2;
    unsigned int refseg;
    unsigned int ref;
 
    refseg = TheCPU.cs;
    org2 = org-(unsigned char *)(uintptr_t)LONG_CS;
-   code = org;
+   code = org - mem_base;
 
    rc = dis_8086(code, frmtbuf, is32, &ref, refseg * 16);
 
-   p = buf + sprintf(buf,"%08lx: ",(long)org);
+   p = buf + sprintf(buf,"%08x: ",code);
    for (i=0; i<rc && i<8; i++) {
-	p += sprintf(p, "%02x", code[i]);
+	p += sprintf(p, "%02x", READ_BYTE(code+i));
    }
    sprintf(p,"%20s", " ");
    p1 = buf + 28;

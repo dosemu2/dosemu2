@@ -198,14 +198,14 @@ void memcheck_dump(void)
   c_printf("CONF:  End dump\n");
 }
 
-void *dosaddr_to_unixaddr(void *addr)
+void *dosaddr_to_unixaddr(uintptr_t addr)
 {
   unsigned char map_char;
-  if ((uintptr_t)addr >= MEM_SIZE)
-    return addr;
-  map_char = mem_map[(uintptr_t)addr/GRAN_SIZE];
+  if (addr >= MEM_SIZE)
+    return (void *)addr;
+  map_char = mem_map[addr/GRAN_SIZE];
   /* Not EMS, Hardware, or Video */
   if (map_char == 'E' || map_char == 'h' || map_char == 'v')
-    return addr;	// FIXTHIS !
-  return LOWMEM((uintptr_t)addr);
+    return (void *)addr;	// FIXTHIS !
+  return LOWMEM(addr);
 }
