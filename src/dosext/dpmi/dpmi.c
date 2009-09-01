@@ -2070,7 +2070,7 @@ err:
   case 0x0501:	/* Allocate Memory Block */
     { 
       dpmi_pm_block block;
-      unsigned long mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
+      unsigned int mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
 
       block = DPMImalloc(mem_required);
       if (!block.size) {
@@ -2079,12 +2079,12 @@ err:
 	break;
       }
       D_printf("DPMI: malloc attempt for siz 0x%08x\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
-      D_printf("      malloc returns address %p\n", block.base);
-      D_printf("                using handle 0x%08lx\n",block.handle);
+      D_printf("      malloc returns address %#x\n", block.base);
+      D_printf("                using handle 0x%08x\n",block.handle);
       _LWORD(edi) = (block.handle)&0xffff;
       _LWORD(esi) = ((block.handle) >> 16) & 0xffff;
-      _LWORD(ecx) = (unsigned long)block.base & 0xffff;
-      _LWORD(ebx) = ((unsigned long)block.base >> 16) & 0xffff;
+      _LWORD(ecx) = block.base & 0xffff;
+      _LWORD(ebx) = (block.base >> 16) & 0xffff;
     }
     break;
   case 0x0502:	/* Free Memory Block */
@@ -2100,12 +2100,12 @@ err:
     break;
   case 0x0503:	/* Resize Memory Block */
     {
-	unsigned long newsize, handle;
+	unsigned newsize, handle;
 	dpmi_pm_block block;
 	handle = (_LWORD(esi))<<16 | (_LWORD(edi));
 	newsize = (_LWORD(ebx)<<16 | _LWORD(ecx));
 	D_printf("DPMI: Realloc to size %x\n", (_LWORD(ebx)<<16 | _LWORD(ecx)));
-	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
+	D_printf("DPMI: For Mem Blk. for handle   0x%08x\n", handle);
 
 	block = DPMIrealloc(handle, newsize);
 	if (!block.size) {
@@ -2113,15 +2113,15 @@ err:
 	    _eflags |= CF;
 	    break;
 	}
-	D_printf("DPMI: realloc attempt for siz 0x%08lx\n", newsize);
-	D_printf("      realloc returns address %p\n", block.base);
+	D_printf("DPMI: realloc attempt for siz 0x%08x\n", newsize);
+	D_printf("      realloc returns address %#x\n", block.base);
 	_LWORD(ecx) = (unsigned long)(block.base) & 0xffff;
 	_LWORD(ebx) = ((unsigned long)(block.base) >> 16) & 0xffff;
     }
     break;
   case 0x0504:			/* Allocate linear mem, 1.0 */
       {
-	  unsigned long base_address = _ebx;
+	  unsigned int base_address = _ebx;
 	  dpmi_pm_block block;
 	  unsigned long length = _ecx;
 	  if (!length) {
@@ -2143,12 +2143,12 @@ err:
 	      _eflags |= CF;
 	      break;
 	  }
-	  _ebx = (unsigned long)block.base;
+	  _ebx = block.base;
 	  _esi = block.handle;
-	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08x at 0x%08lx (%s)\n",
+	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08x at 0x%08x (%s)\n",
 		   _ecx, base_address, _edx ? "commited" : "uncommitted");
-	  D_printf("      malloc returns address %p\n", block.base);
-	  D_printf("                using handle 0x%08lx\n",block.handle);
+	  D_printf("      malloc returns address %#x\n", block.base);
+	  D_printf("                using handle 0x%08x\n",block.handle);
 	  break;
       }
   case 0x0505:			/* Resize memory block, 1.0 */
