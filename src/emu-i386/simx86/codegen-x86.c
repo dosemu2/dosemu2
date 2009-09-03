@@ -314,6 +314,8 @@ static void CodeGen(IMeta *I, int j)
 		G4M(0x0f,0xb7,0x43,IG->p0,Cp);
 		// shll $4,%%eax
 		G3M(0xc1,0xe0,0x04,Cp);
+		// addl Ofs_MEMBASE(%%ebx),%%eax
+		G3M(0x03,0x43,Ofs_MEMBASE,Cp);
 		// movl %%eax,ofs(%%ebx)
 		G3M(0x89,0x43,IG->p1,Cp);
 		// addl $0xffff,%eax
@@ -436,6 +438,8 @@ static void CodeGen(IMeta *I, int j)
 		G4M(0x66,0x89,0x43,IG->p0,Cp);
 		// shll $4,%%eax
 		G3M(0xc1,0xe0,0x04,Cp);
+		// addl Ofs_MEMBASE(%%ebx),%%eax
+		G3M(0x03,0x43,Ofs_MEMBASE,Cp);
 		// movl %%eax,ofs(%%ebx)
 		G3M(0x89,0x43,IG->p1,Cp);
 		// addl $0xffff,%eax
@@ -2761,7 +2765,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 	linkdesc *T = &G->clink;
 	backref *B;
 
-	if (debug_level('e')>8) e_printf("nodelinker2: %08x->%08x\n",LG->key,G->key);
+	if (debug_level('e')>8 && LG) e_printf("nodelinker2: %08x->%08x\n",LG->key,G->key);
 
 	if (LG && (LG->alive>0)) {
 	    int ra;

@@ -46,7 +46,6 @@
 #include "keyb_server.h"
 
 #include "mapping.h"
-#include "cpu-emu.h"
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -259,7 +258,10 @@ void low_mem_init(void)
 
   if (result != NULL)
     {
-    if (config.cpuemu < 3 || !CONFIG_CPUSIM) {
+#ifdef X86_EMULATOR
+    if (config.cpuemu < 3) 
+#endif
+    {
       int err = errno;
       perror ("LOWRAM mmap");
       if (err == EPERM) {
@@ -271,6 +273,7 @@ void low_mem_init(void)
       }
       leavedos(99);
     }
+#ifdef X86_EMULATOR
     if (errno == EPERM) {
       /* try 1MB+64K as base (may be higher if execshield is active) */
       /* the first mmap just reserves the memory */
@@ -292,6 +295,7 @@ void low_mem_init(void)
 	    "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n",
 	    result);
     *(unsigned char **)&mem_base = result;
+#endif
   }
 
   /* keep conventional memory unmapped as long as possible to protect
