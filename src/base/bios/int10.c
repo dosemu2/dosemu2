@@ -92,8 +92,8 @@ unsigned short *screen_adr(int page)
    * at 0x400. (Hans)
    */
   unsigned short *base = IS_SCREENMODE_MDA ?
-    (unsigned short *)MDA_PHYS_TEXT_BASE :
-    (unsigned short *)VGA_PHYS_TEXT_BASE;
+    (unsigned short *)MDA_VIRT_TEXT_BASE :
+    (unsigned short *)VGA_VIRT_TEXT_BASE;
   return base + page * READ_WORD(BIOS_VIDEO_MEMORY_USED) / 2;
 }
 

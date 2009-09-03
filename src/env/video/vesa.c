@@ -222,7 +222,7 @@ void vbe_init(vgaemu_display_type *vedt)
   }
 
   memcheck_addtype('V', "VGAEMU Video BIOS");
-  memcheck_reserve('V', (size_t)dos_vga_bios, vgaemu_bios.pages << 12);
+  memcheck_reserve('V', dos_vga_bios-mem_base, vgaemu_bios.pages << 12);
 
   if(!config.X_pm_interface) {
     v_printf("VBE: vbe_init: protected mode interface disabled\n");

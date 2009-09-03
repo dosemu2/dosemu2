@@ -1878,8 +1878,8 @@ err:
     }
     break;
   case 0x0200:	/* Get Real Mode Interrupt Vector */
-    _LWORD(ecx) = ((us *) 0)[(_LO(bx) << 1) + 1];
-    _LWORD(edx) = ((us *) 0)[_LO(bx) << 1];
+    _LWORD(ecx) = ISEG(_LO(bx));
+    _LWORD(edx) = IOFF(_LO(bx));
     D_printf("DPMI: Getting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
   case 0x0201:	/* Set Real Mode Interrupt Vector */

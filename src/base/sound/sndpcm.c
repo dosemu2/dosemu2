@@ -689,7 +689,8 @@ void pcm_done(void)
 	    pcm_flush(i);
     if (pcm.playing)
 	pcm_stop_output();
-    players.clocked.player.close();
+    if (players.clocked.player.close)
+	players.clocked.player.close();
     for (i = 0; i < players.num_unclocked; i++)
 	players.unclocked[i].player.close();
     for (i = 0; i < pcm.num_streams; i++)

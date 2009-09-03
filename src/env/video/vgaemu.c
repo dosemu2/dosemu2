@@ -870,7 +870,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   static char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
 #endif
 
-  page_fault = (lin_addr = (unsigned) scp->cr2) >> 12;
+  page_fault = (lin_addr = (unsigned char *) scp->cr2 - mem_base) >> 12;
   access_type = (scp->err >> 1) & 1;
 
 #if DEBUG_MAP >= 4
@@ -1065,7 +1065,7 @@ int vga_emu_protect_page(unsigned page, int prot)
     page, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
   );
 
-  i = mprotect_mapping(MAPPING_VGAEMU, (void *) (uintptr_t)(page << 12), 1 << 12, sys_prot);
+  i = mprotect_mapping(MAPPING_VGAEMU, LINEAR2UNIX(page << 12), 1 << 12, sys_prot);
 
   if(i == -1) {
     sys_prot = 0xfe;
@@ -1300,7 +1300,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
 
   i = alias_mapping(MAPPING_VGAEMU,
-    (void *)(uintptr_t) (vmt->base_page << 12), vmt->pages << 12,
+    LINEAR2UNIX(vmt->base_page << 12), vmt->pages << 12,
     prot, vga.mem.base + (first_page << 12));
 
   if(i == MAP_FAILED) {
@@ -1347,7 +1347,7 @@ static int vgaemu_unmap(unsigned page)
   *((volatile char *)vga.mem.scratch_page);
 
   i = alias_mapping(MAPPING_VGAEMU,
-    (caddr_t) (page << 12), 1 << 12,
+    LINEAR2UNIX(page << 12), 1 << 12,
     VGA_EMU_RW_PROT, vga.mem.scratch_page)
   );
 
@@ -1374,7 +1374,7 @@ void vgaemu_reset_mapping()
   vga.mem.graph_size = 0xc0000 - vga.mem.graph_base;
   for(page = startpage; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
-      (void *)(uintptr_t) (page << 12), 1 << 12,
+      LINEAR2UNIX(page << 12), 1 << 12,
       prot, vga.mem.scratch_page
     );
   }
@@ -1485,7 +1485,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
     vga_emu_setup_mode_table();
     if (Video->update_cursor) {
       vgaemu_register_ports();
-      memcpy((void *) GFX_CHARS, vga_rom_08, 128 * 8);
+      MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
       vbe_init(NULL);
       for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
     }
@@ -1593,7 +1593,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   /*
    * init the ROM-BIOS font (the VGA fonts are added in vbe_init())
    */
-  memcpy((void *) GFX_CHARS, vga_rom_08, 128 * 8);
+  MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
 
 #if 0
   /*

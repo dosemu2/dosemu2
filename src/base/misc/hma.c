@@ -33,13 +33,13 @@ void HMA_MAP(int HMA)
   off_t src = HMA ? HMAAREA : 0;
   x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
 
-  if (munmap_mapping(MAPPING_HMA, (void *)HMAAREA, HMASIZE) < 0) {
+  if (munmap_mapping(MAPPING_HMA, &mem_base[HMAAREA], HMASIZE) < 0) {
     x_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
     leavedos(48);
   }
   x_printf("HMA: detached at %#x\n", HMAAREA);
 
-  ipc_return = mmap_mapping(MAPPING_HMA, (void *)HMAAREA, HMASIZE,
+  ipc_return = mmap_mapping(MAPPING_HMA, &mem_base[HMAAREA], HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, src);
   if (ipc_return == MAP_FAILED) {
     x_printf("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",

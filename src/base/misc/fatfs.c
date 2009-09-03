@@ -1121,7 +1121,7 @@ void fdkernel_boot_mimic(void)
 {
   int f, size;
   char *bootfile;
-  void *loadaddress = (void *)0x600;
+  void *loadaddress = MK_FP32(0x60,0);
   fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
 
   if (!fs || !(bootfile = full_name(fs, 0, fs->obj[1].name))) {

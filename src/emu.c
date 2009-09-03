@@ -442,7 +442,7 @@ emulate(int argc, char **argv)
     timer_interrupt_init();	/* start sending int 8h int signals */
 
     /* remap conventional memory just before booting */
-    mmap_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024,
+    mmap_mapping(MAPPING_LOWMEM, mem_base, config.mem_size * 1024,
 		 PROT_READ | PROT_WRITE | PROT_EXEC, 0);
 
     /* check DOSDRIVE_D (used to be done in the script) */

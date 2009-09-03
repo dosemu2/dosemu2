@@ -195,16 +195,16 @@ void map_video_bios(void)
  */
 static inline void map_custom_bios(void)
 {
-  u_char *ptr;
+  unsigned int ptr;
   u_long n;
 
   n = (u_long)bios_f000_endpart1 - (u_long)bios_f000;
-  ptr = (u_char *) (BIOSSEG << 4);
-  memcpy(ptr, bios_f000, n);
+  ptr = SEGOFF2LINEAR(BIOSSEG, 0);
+  MEMCPY_2DOS(ptr, bios_f000, n);
 
   n = (u_long)bios_f000_end - (u_long)bios_f000_part2;
-  ptr = (u_char *) (BIOSSEG << 4) + ((u_long)bios_f000_part2 - (u_long)bios_f000);
-  memcpy(ptr, bios_f000_part2, n);
+  ptr = SEGOFF2LINEAR(BIOSSEG, ((u_long)bios_f000_part2 - (u_long)bios_f000));
+  MEMCPY_2DOS(ptr, bios_f000_part2, n);
   /* Initialize the lowmem heap that resides in a custom bios */
   lowmem_heap_init();
 }
@@ -264,7 +264,7 @@ void low_mem_init(void)
     {
       int err = errno;
       perror ("LOWRAM mmap");
-      if (err == EINVAL) {
+      if (err == EPERM) {
 	fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
 		"You can most likely avoid this problem by running\n"
 		"sysctl -w vm.mmap_min_addr=0\n"

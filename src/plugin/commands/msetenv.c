@@ -30,13 +30,13 @@ static char *envptr(int *size, int parent_p)
 
     parent_psp = (struct PSP *)SEG2LINEAR(parent_p);
     if (parent_psp->envir_frame == 0) {
-       mcb = (struct MCB *) (((long) (peek(parent_p-1,0x3) + parent_p)) << 4);
+       mcb = MK_FP32(peek(parent_p-1,0x3) + parent_p, 0);
     }
     else {
-       mcb = (struct MCB *) (((long) (peek(parent_p,0x2c) - 1)) << 4);
+       mcb = MK_FP32(peek(parent_p,0x2c) - 1, 0);
     }
     *size = mcb->size * 16;
-    return ((char *) (lowmem_base + ((long) (FP_SEG32(mcb) + 1) << 4)));
+    return LOWMEM(SEGOFF2LINEAR(FP_SEG32(mcb) + 1, 0));
 }
 
 

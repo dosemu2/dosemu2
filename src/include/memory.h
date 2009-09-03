@@ -180,16 +180,16 @@
 /* Memory adresses for all common video adapters */
 
 #define MDA_PHYS_TEXT_BASE  0xB0000
-#define MDA_VIRT_TEXT_BASE  ((void *)0xB0000)
+#define MDA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB0000))
 
 #define CGA_PHYS_TEXT_BASE  0xB8000
-#define CGA_VIRT_TEXT_BASE  ((void *)0xB8000)
+#define CGA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB8000))
 
 #define EGA_PHYS_TEXT_BASE  0xB8000
-#define EGA_VIRT_TEXT_BASE  ((void *)0xB8000)
+#define EGA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB8000))
 
 #define VGA_PHYS_TEXT_BASE  0xB8000
-#define VGA_VIRT_TEXT_BASE  ((void *)0xB8000)
+#define VGA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB8000))
 
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */
@@ -199,23 +199,6 @@
 #define GRAPH_SIZE 0x20000
 
 #define BIOS_DATA_SEG   (0x400)	/* for absolute adressing */
-#define BIOS_DATA_PTR(off) ((void *) (BIOS_DATA_SEG + off))
-
-/* Bios data area keybuffer */
-#if 0
-#define KBD_Start (*(unsigned short *)BIOS_DATA_PTR(0x80))
-#define KBD_End  (*(unsigned short *)BIOS_DATA_PTR(0x82))
-#define KBD_Head (*(unsigned short *)BIOS_DATA_PTR(0x1A))
-#define KBD_Tail (*(unsigned short *)BIOS_DATA_PTR(0x1C))
-#endif
-
-#define KBD_START BIOS_DATA_PTR(0x80)
-#define KBD_END   BIOS_DATA_PTR(0x82)
-#define KBD_HEAD  BIOS_DATA_PTR(0x1A)
-#define KBD_TAIL  BIOS_DATA_PTR(0x1C)
-
-#define KBDFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x17)
-#define KEYFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x96)
 
 /* Correct HMA size is 64*1024 - 16, but IPC seems not to like this
    hence I would consider that those 16 missed bytes get swapped back

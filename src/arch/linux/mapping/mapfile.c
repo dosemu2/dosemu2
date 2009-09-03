@@ -47,7 +47,8 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
   if (addr == MAP_FAILED) {
     addr =  mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,
 		 tmpfile_fd, offs);
-    mprotect(addr, mapsize, protect);
+    if (addr != MAP_FAILED)
+      mprotect(addr, mapsize, protect);
   }
 #if 1
   Q_printf("MAPPING: alias_map, fileoffs %lx to %p size %zx, result %p\n",
