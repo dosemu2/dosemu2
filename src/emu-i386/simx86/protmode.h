@@ -187,7 +187,7 @@ typedef struct {
 #define GetFlagAccessed(w)	({Descriptor *t=LDTorGDT(w); t[(w)>>3].type&1; })
 #define SetFlagAccessed(w)	({Descriptor *t=LDTorGDT(w); t[(w)>>3].type|=1; })
 
-#define GetSelectorAddress(w)	(unsigned char *)(REALADDR()? (w<<4):DTgetSelBase(w))
+#define GetSelectorAddress(w)	(REALADDR()? (w<<4):DTgetSelBase(w))
 #define	GetPhysicalAddress(w)	GetSelectorAddress(w)
 
 #define SetPhysicalAddress(w,l) {if (PROTMODE()) DTsetSelBase(w,(unsigned long)l);}

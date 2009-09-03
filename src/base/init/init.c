@@ -46,7 +46,7 @@
 #include "keyb_server.h"
 
 #include "mapping.h"
-
+#include "cpu-emu.h"
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -256,12 +256,10 @@ void low_mem_init(void)
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
   result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
-  /* keep conventional memory unmapped as long as possible to protect
-     NULL pointer dereferences */
-  munmap_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024);
 
   if (result != NULL)
     {
+    if (config.cpuemu < 3 || !CONFIG_CPUSIM) {
       int err = errno;
       perror ("LOWRAM mmap");
       if (err == EPERM) {
@@ -269,10 +267,36 @@ void low_mem_init(void)
 		"You can most likely avoid this problem by running\n"
 		"sysctl -w vm.mmap_min_addr=0\n"
 		"as root, or by changing the vm.mmap_min_addr setting in\n"
-		"/etc/sysctl.conf to 0.\n");
+		"/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
       }
       leavedos(99);
     }
+    if (errno == EPERM) {
+      /* try 1MB+64K as base (may be higher if execshield is active) */
+      /* the first mmap just reserves the memory */
+      result = mmap_mapping(MAPPING_LOWMEM, (void *)(LOWMEM_SIZE + HMASIZE),
+			    LOWMEM_SIZE + HMASIZE,
+			    PROT_READ | PROT_WRITE | PROT_EXEC, 0);
+      result = alias_mapping(MAPPING_INIT_LOWRAM, result,
+			     LOWMEM_SIZE + HMASIZE,
+			     PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
+    }
+    if (result == MAP_FAILED) {
+      perror ("LOWRAM mmap");
+      leavedos(99);
+    }
+    fprintf(stderr, "EXPERIMENTAL: using non-zero memory base address %p.\n"
+	    "You can use the better-tested zero based setup using\n"
+	    "sysctl -w vm.mmap_min_addr=0\n"
+	    "as root, or by changing the vm.mmap_min_addr setting in\n"
+	    "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n",
+	    result);
+    *(unsigned char **)&mem_base = result;
+  }
+
+  /* keep conventional memory unmapped as long as possible to protect
+     NULL pointer dereferences */
+  munmap_mapping(MAPPING_LOWMEM, result, config.mem_size * 1024);
 }
 
 /*

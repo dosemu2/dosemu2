@@ -145,7 +145,8 @@ void dpmi_alloc_pool(void)
 			       dpmi_base, memsize, PROT_EXEC, 0);
       /* some DPMI clients don't like negative memory pointers ... */
       if (mpool_ptr != MAP_FAILED &&
-	  (char *)mpool_ptr + memsize >= (char *)0x80000000) {
+	  (unsigned)((unsigned char *)mpool_ptr + memsize - mem_base) >=
+	  0x80000000) {
 	/* try 128MB after heap */
 	munmap_mapping(MAPPING_DPMI, dpmi_base, memsize);
 	dpmi_base = (char *)sbrk(0) + 0x08000000;

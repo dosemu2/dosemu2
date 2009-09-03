@@ -178,12 +178,24 @@ void *SEL_ADR(unsigned short sel, unsigned int reg)
 int get_ldt(void *buffer)
 {
 #ifdef __linux__
+  int i, ret;
+  struct descriptor *dp;
 #ifdef X86_EMULATOR
   if (config.cpuemu>3 && LDT)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   else
 #endif
-  return modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  ret = modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  if (ret != LDT_ENTRIES * LDT_ENTRY_SIZE)
+    return ret;
+  for (i = 0, dp = buffer; i < LDT_ENTRIES; i++, dp++) {
+    unsigned int base_addr = DT_BASE(dp);
+    if (base_addr || DT_LIMIT(dp)) {
+      base_addr -= (uintptr_t)mem_base;
+      MKBASE(dp, base_addr);
+    }
+  }
+  return ret;
 #endif
 }
 
@@ -212,7 +224,16 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   if (config.cpuemu<=3)
 #endif
   {
-    __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+    /* NOTE: the real LDT in kernel space uses the real addresses, but
+       the LDT we emulate, and DOS applications work with,
+       has all base addresses with respect to mem_base */
+    if (base || limit) {
+      ldt_info.base_addr += (uintptr_t)mem_base;
+      __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+      ldt_info.base_addr -= (uintptr_t)mem_base;
+    } else {
+      __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+    }
     if (__retval)
       return __retval;
   }
@@ -699,7 +720,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
     if ((limit = GetSegmentLimit(DPMI_CLIENT.LDT_ALIAS)) <
         (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSelector(DPMI_CLIENT.LDT_ALIAS, (unsigned long) ldt_buffer,
+      SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_buffer - mem_base,
         limit + (number_of_descriptors / (DPMI_page_size /
         LDT_ENTRY_SIZE) + 1) * DPMI_page_size,
         0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
@@ -933,7 +954,7 @@ void *GetSegmentBaseAddress(unsigned short selector)
 {
   if (!ValidAndUsedSelector(selector))
     return 0;
-  return (void *)(uintptr_t)Segments[selector >> 3].base_addr;
+  return &mem_base[Segments[selector >> 3].base_addr];
 }
 
 /* needed in env/video/vesa.c */
@@ -2912,10 +2933,10 @@ void dpmi_setup(void)
 
     if (!(dpmi_sel16 = AllocateDescriptors(1))) goto err;
     if (!(dpmi_sel32 = AllocateDescriptors(1))) goto err;
-    if (SetSelector(dpmi_sel16, (unsigned long)DPMI_sel_code_start,
+    if (SetSelector(dpmi_sel16, DPMI_sel_code_start - mem_base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_sel32, (unsigned long)DPMI_sel_code_start,
+    if (SetSelector(dpmi_sel32, DPMI_sel_code_start - mem_base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
     return;
@@ -2969,12 +2990,12 @@ void dpmi_init(void)
   }
 
   if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.LDT_ALIAS, (unsigned long) ldt_buffer,
+  if (SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_buffer - mem_base,
         LDT_INIT_LIMIT, 0,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
     
   if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, (unsigned long) DPMI_CLIENT.pm_stack,
+  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, (unsigned char *)DPMI_CLIENT.pm_stack - mem_base,
         DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
@@ -3320,7 +3341,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   /* Extended exception stack frame - DPMI 1.0 */
   ssp -= 2, *((unsigned int *) ssp) = 0;	/* PTE */
-  ssp -= 2, *((unsigned int *) ssp) = _cr2;
+  ssp -= 2, *((unsigned int *) ssp) = (unsigned char *)_cr2 - mem_base;
   *--ssp = (us) 0;
   *--ssp = _gs;
   *--ssp = (us) 0;

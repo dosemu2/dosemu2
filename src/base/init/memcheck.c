@@ -201,11 +201,16 @@ void memcheck_dump(void)
 void *dosaddr_to_unixaddr(uintptr_t addr)
 {
   unsigned char map_char;
-  if (addr >= MEM_SIZE)
+  if ((unsigned char *)addr >= mem_base &&
+      (unsigned char *)addr < mem_base + MEM_SIZE+HMASIZE)
+    addr -= (uintptr_t)mem_base;
+  else if (addr >= MEM_SIZE+HMASIZE)
     return (void *)addr;
+  if (addr >= MEM_SIZE)
+    return &mem_base[addr];
   map_char = mem_map[addr/GRAN_SIZE];
   /* Not EMS, Hardware, or Video */
   if (map_char == 'E' || map_char == 'h' || map_char == 'v')
-    return (void *)addr;	// FIXTHIS !
+    return &mem_base[addr];	// FIXTHIS !
   return LOWMEM(addr);
 }

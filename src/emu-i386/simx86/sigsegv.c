@@ -436,7 +436,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
 		if (!DPMIValidSelector(_cs)) {
-			unsigned pf = (unsigned)_cr2;
+			unsigned pf = (unsigned char *)_cr2 - mem_base;
 			if ((unsigned)(pf - vga.mem.graph_base) < 
 			    vga.mem.graph_size) {
 				TrapVgaOn = 1;

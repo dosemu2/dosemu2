@@ -104,11 +104,12 @@ typedef struct {
 /*6c*/	unsigned short sigalrm_pending, sigprof_pending;
 /*70*/		 int err;
 /*74*/	unsigned int StackMask;
-/*78*/	unsigned int  mode;
+/*78*/	unsigned int mem_base;
 /*7c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
 /*90*/	unsigned int tr[2];
 
+	unsigned int mode;
 	unsigned int sreg1;
 	unsigned int dreg1;
 	unsigned int xreg1;
@@ -203,6 +204,7 @@ extern union SynCPU TheCPU_union;
 #define Ofs_RZERO	(char)(offsetof(SynCPU,rzero)-SCBASE)
 #define Ofs_SIGAPEND	(char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
 #define Ofs_SIGFPEND	(char)(offsetof(SynCPU,sigprof_pending)-SCBASE)
+#define Ofs_MEMBASE	(char)(offsetof(SynCPU,mem_base)-SCBASE)
 
 #define Ofs_FPR		(char)(offsetof(SynCPU,fpregs)-SCBASE)
 #define Ofs_FPSTT	(char)(offsetof(SynCPU,fpstt)-SCBASE)
