@@ -393,14 +393,15 @@ emulate(int argc, char **argv)
       leavedos(0);
     }
 
+    mapping_init();		/* initialize mapping drivers */
+    low_mem_init();		/* initialize the lower 1Meg */
+
     if (can_do_root_stuff && !under_root_login) {
         g_printf("dropping root privileges\n");
 	open_kmem();
     }
     priv_drop();
     
-    mapping_init();		/* initialize mapping drivers */
-    low_mem_init();		/* initialize the lower 1Meg */
     map_hardware_ram();         /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
@@ -441,9 +442,9 @@ emulate(int argc, char **argv)
 #endif
     timer_interrupt_init();	/* start sending int 8h int signals */
 
-    /* remap conventional memory just before booting */
-    mmap_mapping(MAPPING_LOWMEM, mem_base, config.mem_size * 1024,
-		 PROT_READ | PROT_WRITE | PROT_EXEC, 0);
+    /* unprotect conventional memory just before booting */
+    mprotect_mapping(MAPPING_LOWMEM, mem_base, config.mem_size * 1024,
+		     PROT_READ | PROT_WRITE | PROT_EXEC);
 
     /* check DOSDRIVE_D (used to be done in the script) */
     if (getenv("HOME"))

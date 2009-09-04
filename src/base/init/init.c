@@ -298,9 +298,9 @@ void low_mem_init(void)
 #endif
   }
 
-  /* keep conventional memory unmapped as long as possible to protect
+  /* keep conventional memory protected as long as possible to protect
      NULL pointer dereferences */
-  munmap_mapping(MAPPING_LOWMEM, result, config.mem_size * 1024);
+  mprotect_mapping(MAPPING_LOWMEM, result, config.mem_size * 1024, PROT_NONE);
 }
 
 /*
