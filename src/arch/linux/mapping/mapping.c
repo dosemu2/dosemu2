@@ -517,7 +517,7 @@ void map_hardware_ram(void)
   }
 }
 
-int register_hardware_ram(int type, size_t base, size_t size)
+int register_hardware_ram(int type, unsigned int base, unsigned int size)
 {
   struct hardware_ram *hw;
 
@@ -525,21 +525,21 @@ int register_hardware_ram(int type, size_t base, size_t size)
     dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return 0;
   }
-  c_printf("Registering HWRAM, type=%c base=%#zx size=%#zx\n", type, base, size);
+  c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
-  hw->vbase = (void *)base;
+  hw->vbase = &mem_base[base];
   hw->size = size;
   hw->type = type;
   hw->next = hardware_ram;
   hardware_ram = hw;
-  if ((size_t)base >= LOWMEM_SIZE || type == 'h')
+  if (base >= LOWMEM_SIZE || type == 'h')
     memcheck_reserve(type, base, size);
   return 1;
 }
 
 /* given physical address addr, gives the corresponding vbase or NULL */
-void *get_hardware_ram(size_t addr)
+void *get_hardware_ram(unsigned addr)
 {
   struct hardware_ram *hw;
 

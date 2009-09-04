@@ -127,7 +127,7 @@ void vm86_GP_fault(void)
    * DANG_END_REMARK
    */
 
-  #define __SEG_ADR(type, seg, reg)  type((uintptr_t)(seg << 4) + LWORD(e##reg))
+  #define __SEG_ADR(type, seg, reg)  type(MK_FP32(seg, LWORD(e##reg)))
   done=0;
   is_rep=0;
   prefix66=prefix67=0;

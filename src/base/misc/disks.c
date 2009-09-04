@@ -1503,7 +1503,7 @@ int int13(void)
     sect = diskaddr->block_lo % dp->sectors;
     head = (diskaddr->block_lo / dp->sectors) % dp->heads;
     track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    buffer = (char *)(((unsigned long)diskaddr->buf_seg << 4)+diskaddr->buf_ofs);
+    buffer = MK_FP32(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
     d_printf("DISK read [h:%d,s:%d,t:%d](%d)\n", head, sect, track, number);
@@ -1556,7 +1556,7 @@ int int13(void)
     sect = diskaddr->block_lo % dp->sectors;
     head = (diskaddr->block_lo / dp->sectors) % dp->heads;
     track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    buffer = (char *)(((unsigned long)diskaddr->buf_seg << 4)+diskaddr->buf_ofs);
+    buffer = MK_FP32(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
 

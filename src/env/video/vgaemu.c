@@ -768,7 +768,7 @@ unsigned char vga_read(const unsigned char *addr)
 {
   if (!vga.inst_emu)
     return READ_BYTE(addr);
-  return Logical_VGA_read((uintptr_t)addr - vga.mem.bank_base);
+  return Logical_VGA_read(addr - mem_base - vga.mem.bank_base);
 }
 
 unsigned short vga_read_word(const unsigned short *addr)
@@ -785,7 +785,7 @@ void vga_write(unsigned char *addr, unsigned char val)
     WRITE_BYTE(addr, val);
     return;
   }
-  Logical_VGA_write((uintptr_t)addr - vga.mem.bank_base, val);
+  Logical_VGA_write(addr - mem_base - vga.mem.bank_base, val);
 }
 
 void vga_write_word(unsigned short *addr, unsigned short val)
@@ -1553,9 +1553,9 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   vga.mem.bank = vga.mem.bank_pages = 0;
 
   if(lfb_base != NULL) {
-    vga.mem.lfb_base_page = (uintptr_t) lfb_base >> 12;
+    vga.mem.lfb_base_page = (unsigned)(lfb_base-mem_base) >> 12;
     memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram('e', (size_t)lfb_base, vga.mem.size);
+    register_hardware_ram('e', lfb_base-mem_base, vga.mem.size);
   }
 
   vga_emu_setup_mode_table();
@@ -3018,14 +3018,14 @@ void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)
 
   if(vga.mode_type == CGA && c >= 0x80) {
     /* use special 8x8 gfx chars in modes 4, 5, 6 */
-    src = (READ_WORD(0x1f * 4 + 2) << 4) + READ_WORD(0x1f * 4);
+    src = IVEC(0x1f);
     src -= 0x80 * 8;
   }
   else {
-    src = (READ_WORD(0x43 * 4 + 2) << 4) + READ_WORD(0x43 * 4);
+    src = IVEC(0x43);
   }
   src += height * c;
-  font = (unsigned char *)(uintptr_t) src;
+  font = LINEAR2UNIX(src);
 
   ofs = vgaemu_xy2ofs(start_x, start_y);
   vga_msg("vgaemu_put_char: src 0x%x, ofs 0x%x, height %u\n", src, ofs, height);
