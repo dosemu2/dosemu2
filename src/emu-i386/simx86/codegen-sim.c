@@ -477,24 +477,27 @@ static void AddrGen_sim(int op, int mode, ...)
 
 static inline int vga_access(unsigned int m)
 {
-	return (vga.inst_emu &&
-		(unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len);
+	if (!vga.inst_emu) return 0;
+	return (unsigned)(m - TheCPU.mem_base - vga.mem.bank_base) <
+		vga.mem.bank_len;
 }
 
 static inline int vga_read_access(unsigned int m)
 {
 	/* unmapped VGA memory or using a planar mode */
-	return (!(TheCPU.mode&RM_REG) && TrapVgaOn &&
-		(unsigned)(m - vga.mem.graph_base) < vga.mem.graph_size &&
+	if ((TheCPU.mode&RM_REG) || !TrapVgaOn) return 0;
+	m -= TheCPU.mem_base;
+	return (unsigned)(m - vga.mem.graph_base) < vga.mem.graph_size &&
 		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
-		 vga.inst_emu));
+		 vga.inst_emu);
 }
 
 static inline int vga_write_access(unsigned int m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a planar mode */
-	return (!(TheCPU.mode&RM_REG) && TrapVgaOn &&
-		(unsigned)(m - vga.mem.graph_base) < 
+	if ((TheCPU.mode&RM_REG) || !TrapVgaOn) return 0;
+	m -= TheCPU.mem_base;	
+	return ((unsigned)(m - vga.mem.graph_base) < 
 		vga.mem.graph_size + (vgaemu_bios.pages<<12) &&
 		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
 		 m >= 0xc0000 ||
