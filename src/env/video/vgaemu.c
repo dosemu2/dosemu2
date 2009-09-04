@@ -1065,7 +1065,7 @@ int vga_emu_protect_page(unsigned page, int prot)
     page, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
   );
 
-  i = mprotect_mapping(MAPPING_VGAEMU, LINEAR2UNIX(page << 12), 1 << 12, sys_prot);
+  i = mprotect_mapping(MAPPING_VGAEMU, &mem_base[page << 12], 1 << 12, sys_prot);
 
   if(i == -1) {
     sys_prot = 0xfe;
@@ -1300,7 +1300,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
 
   i = alias_mapping(MAPPING_VGAEMU,
-    LINEAR2UNIX(vmt->base_page << 12), vmt->pages << 12,
+    &mem_base[vmt->base_page << 12], vmt->pages << 12,
     prot, vga.mem.base + (first_page << 12));
 
   if(i == MAP_FAILED) {
@@ -1347,7 +1347,7 @@ static int vgaemu_unmap(unsigned page)
   *((volatile char *)vga.mem.scratch_page);
 
   i = alias_mapping(MAPPING_VGAEMU,
-    LINEAR2UNIX(page << 12), 1 << 12,
+    &mem_base[page << 12], 1 << 12,
     VGA_EMU_RW_PROT, vga.mem.scratch_page)
   );
 
@@ -1374,7 +1374,7 @@ void vgaemu_reset_mapping()
   vga.mem.graph_size = 0xc0000 - vga.mem.graph_base;
   for(page = startpage; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
-      LINEAR2UNIX(page << 12), 1 << 12,
+      &mem_base[page << 12], 1 << 12,
       prot, vga.mem.scratch_page
     );
   }
@@ -3025,7 +3025,7 @@ void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)
     src = IVEC(0x43);
   }
   src += height * c;
-  font = LINEAR2UNIX(src);
+  font = &mem_base[src];
 
   ofs = vgaemu_xy2ofs(start_x, start_y);
   vga_msg("vgaemu_put_char: src 0x%x, ofs 0x%x, height %u\n", src, ofs, height);

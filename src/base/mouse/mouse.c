@@ -1939,8 +1939,7 @@ void mouse_post_boot(void)
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
   
   /* grab int10 back from video card for mouse */
-  ptr = (us*)((BIOSSEG << 4) +
-              ((long)bios_f000_int10_old - (long)bios_f000));
+  ptr = MK_FP32(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
   m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
   WRITE_WORD(ptr, IOFF(0x10));
   WRITE_WORD(ptr + 1, ISEG(0x10));
