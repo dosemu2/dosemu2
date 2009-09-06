@@ -1125,11 +1125,11 @@ int  dis_8086(unsigned int code,
 	      unsigned char *outbuf,
 	      int def_size,
 	      unsigned int * refof,
-	      int refsegbase)
+	      unsigned int refsegbase)
 {
 	int rc;
 	refoff = 0;
-	rc = DasmI386(outbuf, code, (uintptr_t)code - refsegbase, def_size);
+	rc = DasmI386(outbuf, code, code - refsegbase, def_size);
 	*refof = refsegbase + refoff;
 	return rc;
 }

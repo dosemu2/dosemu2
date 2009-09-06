@@ -379,6 +379,7 @@ notakejmp:
 unsigned char *Interp86(unsigned char *PC, int mod0)
 {
 	unsigned char opc;
+	unsigned short ocs = TheCPU.cs;
 	unsigned int temp;
 	register int mode;
 #ifdef HOST_ARCH_X86
@@ -1394,7 +1395,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 
 /*9a*/	case CALLl:
 /*ea*/	case JMPld: {
-			unsigned short jcs,ocs;
+			unsigned short jcs;
 			unsigned long oip,xcs,jip=0;
 			CODE_FLUSH();
 			/* get new cs:ip */
@@ -1950,7 +1951,7 @@ repag0:
 				break;
 			case Ofs_BX:	/*3*/	 // CALL long indirect restartable
 			case Ofs_BP: {	/*5*/	 // JMP long indirect restartable
-					unsigned short ocs,jcs;
+					unsigned short jcs;
 					unsigned long oip,xcs,jip=0;
 					CODE_FLUSH();
 					PC += ModRMSim(PC, mode|NOFLDR);
@@ -2809,7 +2810,8 @@ repag0:
 #else
 		if (debug_level('e')>2) {
 #endif
-		    char *ds = e_emu_disasm(P0,(~basemode&3));
+		    char *ds = e_emu_disasm(P0,(~basemode&3),ocs);
+		    ocs = TheCPU.cs;
 #ifdef ASM_DUMP
 		    fprintf(aLog,"%s\n",ds);
 #endif

@@ -91,6 +91,7 @@ int s_mprotect(caddr_t addr);
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);
+char *e_scp_disasm(struct sigcontext_struct *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_EMULATOR

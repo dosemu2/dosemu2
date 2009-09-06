@@ -319,7 +319,7 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 }
 
 
-char *e_emu_disasm(unsigned char *org, int is32)
+char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 {
    static char buf[512];
    static char frmtbuf[256];
@@ -328,14 +328,17 @@ char *e_emu_disasm(unsigned char *org, int is32)
    char *p, *p1;
    unsigned int code;
    unsigned int org2;
-   unsigned int refseg;
+   unsigned int segbase;
    unsigned int ref;
 
-   refseg = TheCPU.cs;
-   org2 = org-(unsigned char *)(uintptr_t)LONG_CS;
+   if (in_dpmi_emu)
+     segbase = GetSegmentBase(refseg);
+   else
+     segbase = refseg * 16;
    code = org - mem_base;
+   org2 = code - segbase;
 
-   rc = dis_8086(code, frmtbuf, is32, &ref, refseg * 16);
+   rc = dis_8086(code, frmtbuf, is32, &ref, segbase);
 
    p = buf + sprintf(buf,"%08x: ",code);
    for (i=0; i<rc && i<8; i++) {
@@ -343,7 +346,10 @@ char *e_emu_disasm(unsigned char *org, int is32)
    }
    sprintf(p,"%20s", " ");
    p1 = buf + 28;
-   p = p1 + sprintf(p1, "%04x:%04x %s", TheCPU.cs, org2, frmtbuf);
+   if (is32)
+     p = p1 + sprintf(p1, "%04x:%08x %s", refseg, org2, frmtbuf);
+   else
+     p = p1 + sprintf(p1, "%04x:%04x %s", refseg, org2, frmtbuf);
 
    return buf;
 }
@@ -354,44 +360,44 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
    static char insrep = 0;
    static unsigned char buf[1024];
    static unsigned char frmtbuf[256];
-   static unsigned long lasta = 0;
+   static unsigned int lasta = 0;
    int rc;
    int i;
-   unsigned char *p, *pb, *org, *org2, *csp2;
-   unsigned int seg;
+   unsigned char *p, *pb, *org2;
+   unsigned int org, csp2, seg;
    unsigned int refseg;
    unsigned int ref;
 
    *buf = 0;
-   seg = scp->cs;
+   seg = _cs;
    refseg = seg;
-   if (!((_cs) & 0x0004)) {
-      csp2 = org = (unsigned char *)scp->eip;
+   if (!(seg & 0x0004)) {
+      csp2 = org = (unsigned char *)_rip - mem_base; /* XXX bogus for x86_64 */
    }
    else {
-      csp2 = NULL;
+      csp2 = 0;
       if (scp->cs <= 0xffff)
-         csp2 = (unsigned char *)(GetSegmentBaseAddress(scp->cs));
-      org  = (unsigned char *)(csp2 + scp->eip);
+         csp2 = GetSegmentBase(seg);
+      org = csp2 + _eip;
    }
-   if ((long)org==lasta) { insrep=1; return buf; } /* skip 'rep xxx' steps */
-   lasta = (long)org; insrep = 0;
+   if (org==lasta) { insrep=1; return buf; } /* skip 'rep xxx' steps */
+   lasta = org; insrep = 0;
 
-   rc = dis_8086(org, frmtbuf, pmode&&IsSegment32(scp->cs),
-   	&ref, (pmode? (int)csp2 : refseg * 16));
+   rc = dis_8086(org, frmtbuf, pmode&&IsSegment32(seg),
+   	&ref, (pmode? csp2 : refseg * 16));
 
    pb = buf;
-   org2 = org;
+   org2 = &mem_base[org];
    while ((*org2&0xfc)==0x64) org2++;	/* skip most prefixes */
    if ((debug_level('t')>3)||(InterOps[*org2]&2))
 	pb += sprintf(pb,"%s",e_print_scp_regs(scp,pmode));
 
-   p = pb + sprintf(pb,"    %08lx: ",(long)org);
+   p = pb + sprintf(pb,"    %08x: ",org);
    for (i=0; i<rc && i<8; i++) {
-           p += sprintf(p, "%02x", *(org+i));
+           p += sprintf(p, "%02x", mem_base[org+i]);
    }
    sprintf(p,"%20s", " ");
-   sprintf(pb+28, "%04x:%04lx %s\n", scp->cs, scp->eip, frmtbuf);
+   sprintf(pb+28, "%04x:%04x %s\n", _cs, _eip, frmtbuf);
 
    return buf;
 }

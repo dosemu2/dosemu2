@@ -654,7 +654,7 @@ int ModRM(unsigned char opc, unsigned char *PC, int mode);
 int ModRMSim(unsigned char *PC, int mode);
 int ModGetReg1(unsigned char *PC, int mode);
 //
-char *e_emu_disasm(unsigned char *org, int is32);
+char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);
 char *e_print_regs(void);
 char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode);
 char *e_trace_fp(void);
