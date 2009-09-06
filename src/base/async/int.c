@@ -626,8 +626,8 @@ static int int15(void)
 
   case 0x87: {
     unsigned int *lp;
-    unsigned long src_addr, dst_addr;
-    unsigned long src_limit, dst_limit;
+    unsigned src_addr, dst_addr;
+    unsigned src_limit, dst_limit;
     unsigned int length;
     lp = SEG_ADR((int*), es, si);
     lp += 4;
@@ -645,7 +645,7 @@ static int int15(void)
 
     length = LWORD(ecx) << 1;
 
-    x_printf("int 15: block move: src=%#lx dst=%#lx len=%#x\n",
+    x_printf("int 15: block move: src=%#x dst=%#x len=%#x\n",
       src_addr, dst_addr, length);
 
     if (src_limit < length - 1 || dst_limit < length - 1 ||
@@ -659,7 +659,7 @@ static int int15(void)
       /* Have to enable a20 before moving */
       if (!a20)
         set_a20(1);
-      extmem_copy((void*)dst_addr, (void*)src_addr, length);
+      extmem_copy(dst_addr, src_addr, length);
       if (old_a20 != a20)
         set_a20(old_a20);
       LWORD(eax) = 0;

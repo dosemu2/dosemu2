@@ -673,9 +673,11 @@ void memmove_dos2dos(void *dest, const void *src, size_t n)
   /* XXX GW (Game Wizard Pro) does this.
      TODO: worry about overlaps; could be a little cleaner
      using the memcheck.c mechanism */
-  if (vga.inst_emu && (size_t)src >= 0xa0000 && (size_t)src < 0xc0000)
+  unsigned char *d = dest;
+  const unsigned char *s = src;
+  if (vga.inst_emu && s >= &mem_base[0xa0000] && s < &mem_base[0xc0000])
     memcpy_from_vga(dest, src, n);
-  else if (vga.inst_emu && (size_t)dest >= 0xa0000 && (size_t)dest < 0xc0000)
+  else if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000])
     memcpy_to_vga(dest, src, n);
   else
     MEMMOVE_DOS2DOS(dest, src, n);
@@ -685,7 +687,8 @@ int dos_read(int fd, char *data, int cnt)
 {
   int ret;
   /* GW also reads or writes directly from a file to protected video memory. */
-  if (vga.inst_emu && (size_t)data >= 0xa0000 && (size_t)data < 0xc0000) {
+  unsigned char *d = (unsigned char *)data;
+  if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000]) {
     char buf[cnt];
     ret = RPT_SYSCALL(read(fd, buf, cnt));
     if (ret >= 0)
@@ -702,7 +705,8 @@ int dos_write(int fd, char *data, int cnt)
 {
   int ret;
   char buf[cnt];
-  if (vga.inst_emu && (size_t)data >= 0xa0000 && (size_t)data < 0xc0000) {
+  unsigned char *d = (unsigned char *)data;
+  if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000]) {
     memcpy_from_vga(buf, data, cnt);
     data = buf;
   }

@@ -33,7 +33,7 @@ struct EMM {
 
 struct Handle {
   unsigned short int num;
-  char *addr;
+  unsigned char *addr;
   unsigned long size;
   int valid;
   int lockcount;

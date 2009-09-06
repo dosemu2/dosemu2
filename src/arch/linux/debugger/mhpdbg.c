@@ -349,8 +349,8 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 
 	      /* mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip); */
-	      mhpdbgc.bpload_bp = (long) MK_FP32(READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 1),
-						 READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 0));
+	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 1),
+						READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 0));
 
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
 		mhp_printf("\n\nbpload: intercepting EXEC:\n", LWORD(cs), REG(eip));
@@ -360,12 +360,12 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		*/
 
 		mhpdbgc.bpload++;
-		mhpdbgc.bpload_par=(struct mhpdbg_4bpar *)(((long)DBGload_parblock-(long)bios_f000)+(BIOSSEG << 4));
-		memcpy((char *)mhpdbgc.bpload_par, MK_FP32(LWORD(es),LWORD(ebx)), 14);
+		mhpdbgc.bpload_par=MK_FP32(BIOSSEG,(long)DBGload_parblock-(long)bios_f000);
+		memcpy(mhpdbgc.bpload_par, MK_FP32(LWORD(es),LWORD(ebx)), 14);
                 memcpy(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
                 memcpy(mhpdbgc.bpload_cmd, SEG_ADR((char *), ds, dx), 128);
 		LWORD(es)=BIOSSEG;
-		LWORD(ebx)=(long)mhpdbgc.bpload_par - (BIOSSEG << 4);
+		LWORD(ebx)=(void *)mhpdbgc.bpload_par - MK_FP32(BIOSSEG, 0);
 		LWORD(eax)=0x4b01; /* load, but don't execute */
 
 		/* need to move top 3 words on stack up so we can add a value for AX below them */
@@ -439,7 +439,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 #if 0
 		      mhpdbgc.bpload_bp=(mhpdbgc.bpload_par->csip.seg << 4)+mhpdbgc.bpload_par->csip.off;
 #endif
-		      mhpdbgc.bpload_bp=(long)PAR4b_addr(csip);
+		      mhpdbgc.bpload_bp=(unsigned char *)PAR4b_addr(csip) - mem_base;
 		      if (!mhpdbgc.bpload_bp) {
 			mhp_printf("\n\nbpload: Error: loader did not fill in the entry point address!\n");
 			mhp_cmd("r");

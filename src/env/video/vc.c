@@ -285,7 +285,7 @@ static void release_vt (struct sigcontext_struct *scp)
 
 static void unmap_video_ram(int copyback)
 {
-  char *base = (char *)GRAPH_BASE;
+  unsigned char *base = &mem_base[GRAPH_BASE];
   size_t size = GRAPH_SIZE;
   int cap = MAPPING_VC | MAPPING_LOWMEM;
 
@@ -302,7 +302,7 @@ static void map_video_ram(void)
 { 
   void *graph_mem;
   off_t pbase = GRAPH_BASE;
-  char *vbase = (char *)pbase;
+  unsigned char *vbase = &mem_base[pbase];
   size_t ssize = GRAPH_SIZE;
   int cap = MAPPING_VC | MAPPING_KMEM;
 

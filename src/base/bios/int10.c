@@ -683,9 +683,9 @@ static void return_state(Bit8u *statebuf) {
 	WRITE_WORD(statebuf + 2, 0xc000);
 
 	/* store bios 0:449-0:466 at ofs 0x04 */
-	MEMCPY_DOS2DOS(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
+	MEMCPY_DOS2DOS(statebuf + 0x04, 0x449, 0x466 - 0x449 + 1);
 	/* store bios 0:484-0:486 at ofs 0x22 */
-	MEMCPY_DOS2DOS(statebuf + 0x22, (char *)0x484, 0x486 - 0x484 + 1);
+	MEMCPY_DOS2DOS(statebuf + 0x22, 0x484, 0x486 - 0x484 + 1);
 	/* correct number of rows-1 to number of rows at offset 0x22 */
 	WRITE_BYTE(statebuf + 0x22, READ_BYTE(statebuf + 0x22) + 1);
 	get_dcc(&active_dcc, &alternate_dcc);
@@ -1570,11 +1570,11 @@ int int10(void) /* with dualmon */
 	  buf[0x41] = crtc >> 8;
 	  /* VGA latches */
 	  memcpy(&buf[0x42], vga.latch, 4);
-	  MEMCPY_2DOS(MK_FP32(_ES, base), buf, sizeof(buf));
+	  MEMCPY_2DOS(SEGOFF2LINEAR(_ES, base), buf, sizeof(buf));
 	  base += sizeof(buf);
 	}
 	if (LO(cx) & 2) {
-	  MEMCPY_DOS2DOS(MK_FP32(_ES, base), (char *)0x449, 96);
+	  MEMCPY_DOS2DOS(SEGOFF2LINEAR(_ES, base), 0x449, 96);
 	  base += 96;
 	}
 	if (LO(cx) & 4) {
@@ -1627,7 +1627,7 @@ int int10(void) /* with dualmon */
 	  memcpy(vga.latch, &buf[0x42], 4);
 	}
 	if (LO(cx) & 2) {
-	  MEMCPY_DOS2DOS((char *)0x449, MK_FP32(_ES, _BX), 96);
+	  MEMCPY_DOS2DOS(0x449, SEGOFF2LINEAR(_ES, _BX), 96);
 	  base += 96;
 	}
 	if (LO(cx) & 4) {

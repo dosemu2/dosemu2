@@ -22,7 +22,7 @@
 typedef Bit32u 		FARPTR16;
 typedef Bit32u		FARPROC16;
 #define FARPTR16_TO_LIN(a) \
-	((a&0xffff) + ((a >> 12)& 0x000ffff0))
+	&mem_base[((a&0xffff) + ((a >> 12)& 0x000ffff0))]
 
 #pragma pack(1)
 

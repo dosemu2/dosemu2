@@ -12,6 +12,6 @@
 EXTERN int a20;
 extern unsigned char *ext_mem_base;
 void set_a20(int);
-void extmem_copy(char *dst, char *src, unsigned long len);
+void extmem_copy(unsigned dst, unsigned src, unsigned len);
 
 #endif

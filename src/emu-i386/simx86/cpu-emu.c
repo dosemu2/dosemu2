@@ -342,7 +342,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 
    p = buf + sprintf(buf,"%08x: ",code);
    for (i=0; i<rc && i<8; i++) {
-	p += sprintf(p, "%02x", READ_BYTE(code+i));
+	p += sprintf(p, "%02x", READ_BYTE(&mem_base[code+i]));
    }
    sprintf(p,"%20s", " ");
    p1 = buf + 28;

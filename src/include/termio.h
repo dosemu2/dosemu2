@@ -43,7 +43,7 @@ struct screen_stat {
   int dorigin;			/* origin in DOS */
   int lorigin;
 
-  caddr_t virt_address;		/* current map address in DOS memory */
+  unsigned char *virt_address;	/* current map address in DOS memory */
   off_t phys_address;		/* current map address in /dev/mem memory */
 
   int old_modecr, new_modecr;

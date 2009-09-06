@@ -80,8 +80,8 @@ static void vesa_reinit(void)
 
   vesa_r.eax = 0x4f01;
   vesa_r.ecx = vesa_version >= 0x200 ? 0x81ff : 0x101;
-  vesa_r.es = (size_t)vbe_buffer >> 4;
-  vesa_r.edi = (size_t)vbe_buffer & 0xf;
+  vesa_r.es = (vbe_buffer - mem_base) >> 4;
+  vesa_r.edi = (vbe_buffer - mem_base) & 0xf;
   do_int10_callback(&vesa_r);
   if ((vesa_r.eax & 0xffff) == 0x4f) {
     vesa_granularity= VBE_vmWinGran;

@@ -752,15 +752,14 @@ xms_free_EMB(void)
 static unsigned char
 xms_move_EMB(void)
 {
-  char *src, *dest;
+  unsigned char *src, *dest;
   struct EMM e = get_emm(REG(ds), LWORD(esi));
 
   x_printf("XMS move extended memory block\n");
   show_emm(e);
 
   if (e.SourceHandle == 0) {
-    src = (char *) (((e.SourceOffset >> 16) << 4) + \
-		    (e.SourceOffset & 0xffff));
+    src = MK_FP32(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
   }
   else {
     if (handles[e.SourceHandle].valid == 0) {
@@ -775,8 +774,7 @@ xms_move_EMB(void)
   }
 
   if (e.DestHandle == 0) {
-    dest = (char *) (((e.DestOffset >> 16) << 4) + \
-		     (e.DestOffset & 0xffff));
+    dest = MK_FP32(e.DestOffset >> 16, e.DestOffset & 0xffff);
   }
   else {
     if (handles[e.DestHandle].valid == 0) {
@@ -794,7 +792,7 @@ xms_move_EMB(void)
   x_printf("XMS: block move from %p to %p len 0x%lx\n",
 	   (void *) src, (void *) dest, e.Length);
   memmove_dos2dos(dest, src, e.Length);
-  if ((size_t)dest < 0x110000)
+  if (dest >= mem_base && dest < &mem_base[0x110000])
     e_invalidate(dest, e.Length);
   x_printf("XMS: block move done\n");
 
@@ -825,7 +823,7 @@ xms_lock_EMB(int flag)
         return 0xaa;		/* Block is not locked */
       }
 
-    addr = handles[h].addr - (char *)ext_mem_base + LOWMEM_SIZE + HMASIZE;
+    addr = handles[h].addr - ext_mem_base + LOWMEM_SIZE + HMASIZE;
     LWORD(edx) = addr >> 16;
     LWORD(ebx) = addr & 0xffff;
     return 0;
