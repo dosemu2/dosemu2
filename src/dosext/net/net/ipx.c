@@ -885,7 +885,6 @@ int ipx_int7a(void)
 {
   u_short port;			/* port here means DOS IPX socket */
   u_short newPort;
-  unsigned short *timerticks;
   u_char *AddrPtr;
   far_t ECBPtr;
   unsigned long network;
@@ -975,8 +974,7 @@ int ipx_int7a(void)
   case IPX_GET_INTERVAL_MARKER:
     /* Note that timerticks is actually an unsigned long in BIOS */
     /* this works because of intel lo-hi architecture */
-    timerticks = BIOS_TICK_ADDR;
-    LWORD(eax) = *timerticks;
+    LWORD(eax) = READ_WORD(BIOS_TICK_ADDR);
     n_printf("IPX: get interval marker %d\n", LWORD(eax));
     /*			n_printf("IPX: doing extra relinquish control\n"); */
     IPXRelinquishControl();

@@ -284,7 +284,7 @@ static void store_vga_regs(char regs[])
 static void store_vga_mem(u_char * mem, int banks)
 {
   int cbank, plane, planar;
-  char *vmem = (char *)GRAPH_BASE;
+  unsigned vmem = GRAPH_BASE;
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
@@ -302,7 +302,7 @@ static void store_vga_mem(u_char * mem, int banks)
     port_out(0x00, 0x3cd);
   }
   planar = 1;
-  if (vmem != (char *)GRAPH_BASE) {
+  if (vmem != GRAPH_BASE) {
     planar = 0;
     vmem -= PLANE_SIZE;
   } else if (banks > 1) {
@@ -326,12 +326,12 @@ static void store_vga_mem(u_char * mem, int banks)
         /* Store planes */
 	port_out(0x04, GRA_I);
         port_out(plane, GRA_D);
-      } else if (vmem == (char *)GRAPH_BASE)
+      } else if (vmem == GRAPH_BASE)
 	set_bank_read(cbank * 4 + plane);
       else
 	vmem += PLANE_SIZE;
       MEMCPY_2UNIX(mem, vmem, PLANE_SIZE);
-      v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) vmem);
+      v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, READ_DWORD(vmem));
       mem += PLANE_SIZE;
     }
   }
@@ -345,14 +345,14 @@ static void store_vga_mem(u_char * mem, int banks)
 static void restore_vga_mem(u_char * mem, int banks)
 {
   int plane, cbank, planar;
-  char *vmem = (char *)GRAPH_BASE;
+  unsigned vmem = GRAPH_BASE;
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
   else if (config.chipset == ET4000)
     port_out(0x00, 0x3cd);
   planar = 1;
-  if (vmem != (char *)GRAPH_BASE) {
+  if (vmem != GRAPH_BASE) {
     planar = 0;
     vmem -= PLANE_SIZE;
   } else if (banks > 1) {
@@ -377,7 +377,7 @@ static void restore_vga_mem(u_char * mem, int banks)
         /* Store planes */
         port_out(0x02, SEQ_I);
         port_out(1 << plane, SEQ_D);
-      } else if (vmem == (char *)GRAPH_BASE)
+      } else if (vmem == GRAPH_BASE)
 	set_bank_write(cbank * 4 + plane);
       else
 	vmem += PLANE_SIZE;

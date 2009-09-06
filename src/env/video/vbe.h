@@ -8,6 +8,6 @@
 #define VESA_H
 
 extern void vesa_init(void);
-extern char *vesa_get_lfb(void);
+extern unsigned vesa_get_lfb(void);
 
 #endif

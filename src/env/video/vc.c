@@ -365,7 +365,7 @@ void get_video_ram (int waitflag)
   if (!scr_state.mapped && config.vga
       && READ_BYTE(BIOS_VIDEO_MODE) == 3) {
     if (dosemu_regs.mem)
-      memcpy (dosemu_regs.mem, (void *)virt_text_base, 32768);
+      memcpy (dosemu_regs.mem, virt_text_base, 32768);
     /* else error("ERROR: no dosemu_regs.mem!\n"); */
   }
 
@@ -375,7 +375,7 @@ void get_video_ram (int waitflag)
   page = vga.display_start / PAGE_SIZE;
   scr_state.pageno = page;
   if (!config.vga)
-    scr_state.virt_address = (void *)(virt_text_base + (page * PAGE_SIZE));
+    scr_state.virt_address = virt_text_base + (page * PAGE_SIZE);
   map_video_ram();
 }
 
@@ -386,7 +386,7 @@ void put_video_ram (void)
     unmap_video_ram(!config.vga);
     if (!scr_state.mapped && config.vga) {
       if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3)
-	memcpy ((void*)virt_text_base, dosemu_regs.mem, 32768);
+	memcpy (virt_text_base, dosemu_regs.mem, 32768);
     }
   }
   else

@@ -25,8 +25,8 @@ extern void pit_outp(ioport_t, Bit8u);
  */
 #define PARTIALS	5
 
-#define BIOS_TICK_ADDR		(void *)0x46c
-#define TICK_OVERFLOW_ADDR	(void *)0x470
+#define BIOS_TICK_ADDR		0x46c
+#define TICK_OVERFLOW_ADDR	0x470
 
 /* underlying clock rate in HZ */
 #define PIT_TICK_RATE		1193182

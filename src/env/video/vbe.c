@@ -194,7 +194,7 @@ void vesa_init(void)
   set_bank_write = vesa_setbank_write;  
 }
 
-char *vesa_get_lfb(void)
+unsigned vesa_get_lfb(void)
 {
   /*
    * The below trick doesn't seem to work on my Matrox G550 -
@@ -209,9 +209,9 @@ char *vesa_get_lfb(void)
     vesa_version >= 0x200 ? 0x81ff : 0x101;
   do_int10_callback(&vesa_r);
   if ((vesa_r.eax & 0xffff) != 0x4f)
-    return (char *)GRAPH_BASE;
+    return GRAPH_BASE;
 #endif
   if (vesa_linear_vbase)
-    return (char *)vesa_linear_vbase;
-  return (char *)GRAPH_BASE;
+    return vesa_linear_vbase;
+  return GRAPH_BASE;
 }
