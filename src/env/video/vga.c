@@ -215,7 +215,7 @@ void do_int10_callback(struct vm86_regs *regs)
   v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
   REG(eflags) = IOPL_MASK;
   /* we don't want the BIOS to call the mouse helper */
-  p = &bios_in_int10_callback - (long)bios_f000 + (BIOSSEG << 4);
+  p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
   *p = 1;
   pic_cli();
   do_intr_call_back(0x10);

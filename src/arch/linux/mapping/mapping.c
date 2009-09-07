@@ -503,8 +503,8 @@ void map_hardware_ram(void)
     if (!hw->type) /* virtual hardware ram, base==vbase */      
       continue;
     cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-    if (hw->base >= LOWMEM_SIZE)
-      hw->vbase = (void *)-1;
+    if (hw->base < LOWMEM_SIZE)
+      hw->vbase = &mem_base[hw->base];
     alloc_mapping(cap, hw->size, hw->base);
     hw->vbase = mmap_mapping(cap, hw->vbase, hw->size, PROT_READ | PROT_WRITE,
 			     hw->base);
@@ -528,7 +528,7 @@ int register_hardware_ram(int type, unsigned int base, unsigned int size)
   c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
-  hw->vbase = &mem_base[base];
+  hw->vbase = MAP_FAILED;
   hw->size = size;
   hw->type = type;
   hw->next = hardware_ram;

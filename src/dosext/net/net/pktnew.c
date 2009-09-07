@@ -103,7 +103,7 @@ struct pkt_globs
 } pg;
 
 /* creates a pointer into the BIOS from the asm exported labels */
-#define MK_PTR(ofs) ( (void *)((long)(ofs)-(long)bios_f000+(BIOSSEG << 4)) )
+#define MK_PTR(ofs) ( MK_FP32(BIOSSEG,(long)(ofs)-(long)bios_f000) )
 
 /* calculates offset of a label from the start of the packet driver */
 #define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_start)

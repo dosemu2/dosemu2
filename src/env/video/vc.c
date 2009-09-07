@@ -193,8 +193,8 @@ set_linux_video (void)
   /* After all that fun  rel perms and save/restore states */
   if (video_initialized)
     {
-      v_printf ("Storing dosemu_regs, Releasing vt mode=%02x\n", *(u_char *) 0x449);
-      dosemu_regs.video_mode = *(u_char *) 0x449;
+      v_printf ("Storing dosemu_regs, Releasing vt mode=%02x\n", READ_BYTE(0x449));
+      dosemu_regs.video_mode = READ_BYTE(0x449);
       save_vga_state (&dosemu_regs);
       if (linux_regs.mem != NULL)
 	{
@@ -294,7 +294,7 @@ static void unmap_video_ram(int copyback)
     base = scr_state.virt_address;
   }
   if (copyback) cap |= MAPPING_COPYBACK;
-  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE | PROT_EXEC, (off_t)base) != MAP_FAILED)
+  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE | PROT_EXEC, GRAPH_BASE) != MAP_FAILED)
     scr_state.mapped = 0;
 }
 

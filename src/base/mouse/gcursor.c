@@ -105,7 +105,7 @@ realize_cursor(short *scrmask,short *curmask,int org)
 }
 
 
-#define GRBASE ((unsigned char *)GRAPH_BASE + mouse_current_video.offset)
+#define GRBASE &mem_base[GRAPH_BASE + mouse_current_video.offset]
 
 static inline 
 unsigned char read_ega_reg(int port,int index)
