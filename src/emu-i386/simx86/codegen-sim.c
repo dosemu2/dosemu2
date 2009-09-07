@@ -277,8 +277,10 @@ static inline int FlagSync_AP_ (void)
 	// 0 0 1 -> AC  0 1 1 -> NA  1 0 1 -> NA  1 1 1 -> AC
 	if ((RFL.valid==V_SUB)||(RFL.valid==V_SBB))
 	    af = (RFL.S1 ^ -RFL.S2 ^ RFL.RES.d) & 0x10;
-	else
+	else if ((RFL.valid==V_ADC)||(RFL.valid==V_ADD))
 	    af = (RFL.S1 ^ RFL.S2 ^ RFL.RES.d) & 0x10;
+	else       
+	    af = CPUBYTE(Ofs_FLAGS)&0x10; // Intel says undefined.
 	// PF
 	pf = parity[RFL.RES.b.bl];
 	nf = af | pf;
@@ -728,7 +730,7 @@ static void Gen_sim(int op, int mode, ...)
 		register wkreg v;
 		v.d = va_arg(ap, int);
 		RFL.mode = mode;
-		RFL.valid = V_GEN;
+		RFL.valid = V_ADD;
 		if (mode & IMMED) {GTRACE3("O_ADD_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADD_R",v.bs.bl,0xff,v.d);}
 		if (mode & MBYTE) {
@@ -892,7 +894,7 @@ static void Gen_sim(int op, int mode, ...)
 		v.d = va_arg(ap, int);
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		RFL.mode = mode;
-		RFL.valid = (cy? V_ADC:V_GEN);
+		RFL.valid = (cy? V_ADC:V_ADD);
 		if (mode & IMMED) {GTRACE3("O_ADC_R",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADC_R",v.bs.bl,0xff,v.d);}
 		if (mode & MBYTE) {
@@ -1011,7 +1013,7 @@ static void Gen_sim(int op, int mode, ...)
 		signed char o = Offs_From_Arg();
 		GTRACE1("O_INC_R",o);
 		RFL.mode = mode;
-		RFL.valid = V_GEN;
+		RFL.valid = V_ADD;
 		RFL.S2 = 1;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
@@ -1171,7 +1173,7 @@ static void Gen_sim(int op, int mode, ...)
 	case O_INC:		// OSZAP
 		GTRACE0("O_INC");
 		RFL.mode = mode;
-		RFL.valid = V_GEN;
+		RFL.valid = V_ADD;
 		RFL.S2 = 1;
 		if (mode & MBYTE) {
 			RFL.S1 = DR1.bs.bl;

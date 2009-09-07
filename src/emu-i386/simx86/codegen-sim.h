@@ -73,10 +73,11 @@ typedef struct {
 } flgtmp;
 
 #define V_INVALID	0
-#define V_GEN		1	// general/add case
+#define V_GEN		1	// general case
 #define V_SUB		2
 #define V_SBB		3
 #define V_ADC		4
+#define V_ADD		5
 
 extern wkreg DR1;	// "eax"
 extern wkreg DR2;	// "edx"
