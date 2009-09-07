@@ -2620,7 +2620,10 @@ static void Gen_sim(int op, int mode, ...)
 			shc = CPUBYTE(Ofs_CL)&0x1f;
 			GTRACE3("O_SHFD",o,0xff,l_r);
 		}
+		shc &= 31;
 		if (shc==0) break;
+		RFL.mode = mode;
+		RFL.valid = V_GEN;
 		if (mode & DATA16) {
 			if (l_r==0) {	// left:  <<reg|mem<<
 				DR1.w.l = CPUWORD(o);
@@ -2645,7 +2648,7 @@ static void Gen_sim(int op, int mode, ...)
 				v.t.tl = CPULONG(o);
 				v.t.th = *AR1.pdu;
 				if (shc==1) RFL.S1=RFL.S2=v.t.th;
-				cy = (v.td >> (32-shc)) & 1;
+				cy = (v.td >> (64-shc)) & 1;
 				v.td <<= shc;
 				RFL.RES.d = *AR1.pdu = v.t.th;
 			}
@@ -2658,6 +2661,8 @@ static void Gen_sim(int op, int mode, ...)
 				RFL.RES.d = *AR1.pdu = v.t.tl;
 			}
 		}
+		SET_CF(cy);
+		if (shc>1) RFL.mode |= IGNOVF;
 		} break;
 
 	case O_RDTSC: {		// dont trust this one
