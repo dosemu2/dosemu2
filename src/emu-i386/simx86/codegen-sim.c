@@ -1826,82 +1826,91 @@ static void Gen_sim(int op, int mode, ...)
 		/* sync AF *before* changing RFL.valid */
 		if (subop != AAM && subop != AAD)
 			FlagSync_AP();
-		RFL.valid = V_GEN;
+		RFL.valid = V_ADD;
+		RFL.S1 = 0;
 		DR1.d = CPULONG(Ofs_EAX);
 		switch (subop) {
 			case DAA: {
-				char cy = 0;
+				char cyaf = 0;
 				unsigned char altmp = DR1.b.bl;
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl += 6;
-					cy = (CPUBYTE(Ofs_FLAGS)&1) || (altmp > 0xf9);
-					RFL.S1 |= 8; RFL.S2 |= 8; // SET_AF (8+8 gives AF)
-				} else {
-					RFL.S1 &= 0xf7; RFL.S2 &= 0xf7; // CLR_AF
+					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) || 
+					  (altmp > 0xf9)) | 0x10;
 				}
 				if ((altmp > 0x99) || (IS_CF_SET)) {
 					DR1.b.bl += 0x60;
-					cy = 1;
+					cyaf |= 1;
 				}
-				SET_CF(cy);
+				SET_CF(cyaf & 1);
 				RFL.RES.d = DR1.bs.bl; /* for flags */
+				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
+				/* RFL.S1=0 so
+				   (RFL.S1^RFL.S2^RFL.RES.d)&0x10 gives AF */
 				}
 				break;
 			case DAS: {
-				char cy = 0;
+				char cyaf = 0;
 				unsigned char altmp = DR1.b.bl;
 				if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 					DR1.b.bl -= 6;
-					cy = (CPUBYTE(Ofs_FLAGS)&1) || (altmp < 6);
-					RFL.S1 |= 8; RFL.S2 |= 8; // SET_AF
-				} else {
-					RFL.S1 &= 0xf7; RFL.S2 &= 0xf7; // CLR_AF
+					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) || 
+						(altmp < 6)) | 0x10;
 				}
 				if ((altmp > 0x99) || (IS_CF_SET)) {
 					DR1.b.bl -= 0x60;
-					cy = 1;
+					cyaf |= 1;
 				}
-				SET_CF(cy);
+				SET_CF(cyaf & 1);
 				RFL.RES.d = DR1.bs.bl; /* for flags */
+				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
 				}
 				break;
 			case AAA: {
+				char cyaf;
 				char icarry = (DR1.b.bl > 0xf9);
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl = (DR1.b.bl + 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh + 1 + icarry);
-					RFL.S1 |= 8; RFL.S2 |= 8; // SET_AF
-					SET_CF(1);
+					cyaf = 0x11;
 				} else {
-					RFL.S1 &= 0xf7; RFL.S2 &= 0xf7; // CLR_AF
-					SET_CF(0);
+					cyaf = 0;
 					DR1.b.bl &= 0x0f;
-				} }
+				}
+				SET_CF(cyaf & 1);
+				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
+				}
 				break;
 			case AAS: {
+				char cyaf;
 				char icarry = (DR1.b.bl < 6);
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl = (DR1.b.bl - 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh - 1 - icarry);
-					RFL.S1 |= 8; RFL.S2 |= 8; // SET_AF
-					SET_CF(1);
+					cyaf = 0x11;
 				} else {
-					RFL.S1 &= 0xf7; RFL.S2 &= 0xf7; // CLR_AF
-					SET_CF(0);
+					cyaf = 0;
 					DR1.b.bl &= 0x0f;
-				} }
+				}
+				SET_CF(cyaf & 1);
+				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
+				}
 				break;
 			case AAM: {
 				char tmp = DR1.b.bl;
 				int base = Offs_From_Arg();
 				DR1.b.bh = tmp / base;
 				RFL.RES.d = DR1.bs.bl = tmp % base;
+				/* clear AF (undefined: found experimentally) */
+				RFL.S2 = RFL.RES.d;
 				}
 				break;
 			case AAD: {
 				int base = Offs_From_Arg();
 				DR1.w.l = ((DR1.b.bh * base) + DR1.b.bl) & 0xff;
 				RFL.RES.d = DR1.bs.bl; /* for flags */
+				/* clear AF (undefined: found experimentally) */
+				RFL.S2 = RFL.RES.d;
 				}
 				break;
 		}
