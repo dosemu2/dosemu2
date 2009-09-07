@@ -272,12 +272,13 @@ static inline int FlagSync_AP_ (void)
 {
 	int af,pf,nf;
 	if (RFL.valid==V_INVALID) return (CPUBYTE(Ofs_FLAGS)&0x14);
-	// AF
+	// AF bit 4, S1, S2, RES:
+	// 0 0 0 -> NA  0 1 0 -> AC  1 0 0 -> AC  1 1 0 -> NA
+	// 0 0 1 -> AC  0 1 1 -> NA  1 0 1 -> NA  1 1 1 -> AC
 	if ((RFL.valid==V_SUB)||(RFL.valid==V_SBB))
-	    af = (((RFL.S1 & 0x0f) - ((-RFL.S2) & 0x0f)) & 0x10);
+	    af = (RFL.S1 ^ -RFL.S2 ^ RFL.RES.d) & 0x10;
 	else
-	    af = (((RFL.S1 & 0x0f) + (RFL.S2 & 0x0f)) & 0x10);
-	if ((RFL.valid==V_ADC) && ((RFL.RES.d&0x1f)==0)) af = 0x10;
+	    af = (RFL.S1 ^ RFL.S2 ^ RFL.RES.d) & 0x10;
 	// PF
 	pf = parity[RFL.RES.b.bl];
 	nf = af | pf;
@@ -896,21 +897,21 @@ static void Gen_sim(int op, int mode, ...)
 		    else {GTRACE3("O_ADC_R",v.bs.bl,0xff,v.d);}
 		if (mode & MBYTE) {
 		    RFL.S1 = DR1.b.bl;
-		    if (mode & IMMED) RFL.S2 = (v.b.bl + cy);
-			else RFL.S2 = (CPUBYTE(v.bs.bl) + cy);
-		    DR1.b.bl = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = v.b.bl;
+			else RFL.S2 = CPUBYTE(v.bs.bl);
+		    DR1.b.bl = RFL.RES.d = RFL.S1 + RFL.S2 + cy;
 		}
 		else if (mode & DATA16) {
 		    RFL.S1 = DR1.w.l;
-		    if (mode & IMMED) RFL.S2 = (v.w.l + cy);
-			else RFL.S2 = (CPUWORD(v.bs.bl) + cy);
-		    DR1.w.l = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = v.w.l;
+			else RFL.S2 = CPUWORD(v.bs.bl);
+		    DR1.w.l = RFL.RES.d = RFL.S1 + RFL.S2 + cy;
 		}
 		else {
 		    RFL.S1 = DR1.d;
-		    if (mode & IMMED) RFL.S2 = (v.d + cy);
-			else RFL.S2 = (CPULONG(v.bs.bl) + cy);
-		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = v.d;
+			else RFL.S2 = CPULONG(v.bs.bl);
+		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2 + cy;
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(0);
@@ -928,21 +929,21 @@ static void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 		    RFL.S1 = DR1.b.bl;
 		    // movzbl v.b.bl->eax; add cy,eax; neg eax
-		    if (mode & IMMED) RFL.S2 = -(v.b.bl + cy);
-			else RFL.S2 = -(CPUBYTE(v.bs.bl) + cy);
-		    DR1.b.bl = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = -v.b.bl;
+			else RFL.S2 = -CPUBYTE(v.bs.bl);
+		    DR1.b.bl = RFL.RES.d = RFL.S1 + RFL.S2 - cy;
 		}
 		else if (mode & DATA16) {
 		    RFL.S1 = DR1.w.l;
-		    if (mode & IMMED) RFL.S2 = -(v.w.l + cy);
-			else RFL.S2 = -(CPUWORD(v.bs.bl) + cy);
-		    DR1.w.l = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = -v.w.l;
+			else RFL.S2 = -CPUWORD(v.bs.bl);
+		    DR1.w.l = RFL.RES.d = RFL.S1 + RFL.S2 - cy;
 		}
 		else {
 		    RFL.S1 = DR1.d;
-		    if (mode & IMMED) RFL.S2 = -(v.d + cy);
-			else RFL.S2 = -(CPULONG(v.bs.bl) + cy);
-		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = -v.d;
+			else RFL.S2 = -CPULONG(v.bs.bl);
+		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2 - cy;
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(1);
@@ -1060,21 +1061,21 @@ static void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    // movzbl v.bs.bl->eax; add cy,eax; neg eax
-		    if (mode & IMMED) RFL.S2 = -(v.b.bl + cy);
-			else RFL.S2 = -(DR1.b.bl + cy);
-		    CPUBYTE(o) = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = -v.b.bl;
+			else RFL.S2 = -DR1.b.bl;
+		    CPUBYTE(o) = RFL.RES.d = RFL.S1 + RFL.S2 - cy;
 		}
 		else if (mode & DATA16) {
 		    RFL.S1 = CPUWORD(o);
-		    if (mode & IMMED) RFL.S2 = -(v.w.l + cy);
-			else RFL.S2 = -(DR1.w.l + cy);
-		    CPUWORD(o) = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = -v.w.l;
+			else RFL.S2 = -DR1.w.l;
+		    CPUWORD(o) = RFL.RES.d = RFL.S1 + RFL.S2 - cy;
 		}
 		else {
 		    RFL.S1 = CPULONG(o);
-		    if (mode & IMMED) RFL.S2 = -(v.d + cy);
-			else RFL.S2 = -(DR1.d + cy);
-		    CPULONG(o) = RFL.RES.d = RFL.S1 + RFL.S2;
+		    if (mode & IMMED) RFL.S2 = -v.d;
+			else RFL.S2 = -DR1.d;
+		    CPULONG(o) = RFL.RES.d = RFL.S1 + RFL.S2 - cy;
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(1);
