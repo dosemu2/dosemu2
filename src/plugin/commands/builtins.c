@@ -138,7 +138,7 @@ char * lowmem_alloc(int size)
 	if (size > 1024) {
 		/* well, the lowmem heap is limited, let's be polite! */
 		error("builtin %s requests too much of a heap: 0x%x\n",
-			builtin_name);
+		      builtin_name, size);
 	}
 	return ptr;
 }

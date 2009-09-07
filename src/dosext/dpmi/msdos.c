@@ -1412,7 +1412,7 @@ int msdos_pre_pm(struct sigcontext_struct *scp)
     REG(eip) = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
     fake_call_to(MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
   } else {
-    error("MSDOS: unknown pm call %p\n", _eip);
+    error("MSDOS: unknown pm call %#x\n", _eip);
     return 0;
   }
   return 1;

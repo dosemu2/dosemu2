@@ -551,7 +551,7 @@ static size_t pcm_data_get(void *data, size_t size,
     struct sample samp[MAX_STREAMS][2];
 
     if (size > SND_BUFFER_SIZE) {
-	error("PCM: size %i is too much\n", size);
+	error("PCM: size %zi is too much\n", size);
 	return 0;
     }
     now = GETusTIME(0);
@@ -630,7 +630,7 @@ static size_t pcm_data_get(void *data, size_t size,
 	pcm_stop_output();
 
     if (ret != size)
-	error("PCM: requested=%i prepared=%i\n", size, ret);
+	error("PCM: requested=%zi prepared=%i\n", size, ret);
     return ret;
 }
 

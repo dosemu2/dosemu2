@@ -98,7 +98,7 @@ EXTERN int shut_debug INIT(0);
 #define dbug_printf(f,a...)	ifprintf(10,f,##a)
 
 /* unconditional message into debug log and stderr */
-void error(const char *fmt, ...);
+void error(const char *fmt, ...) FORMAT(printf, 1, 2);
 void verror(const char *fmt, va_list args);
 
 #define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }

@@ -75,7 +75,7 @@ int signal, struct sigcontext_struct *scp
 #endif
 
   if (fault_cnt > 1) {
-    error("Fault handler re-entered! signal=%i _trapno=0x%lX\n",
+    error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
       signal, _trapno);
     if (!in_vm86 && !DPMIValidSelector(_cs)) {
       /* TODO - we can start gdb here */
@@ -182,7 +182,7 @@ sgleave:
 
 		 print_exception_info(scp);
 #else
-		 error("unexpected CPU exception 0x%02lx err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
+		 error("unexpected CPU exception 0x%02x err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
 	  	 _trapno, _err, _cr2);
 		{
 		  int auxg = debug_level('g');
@@ -302,7 +302,7 @@ bad:
   {
 #endif /* 0 */
     error("cpu exception in dosemu code outside of %s!\n"
-	  "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+	  "trapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
 	  (in_dpmi ? "DPMI client" : "VM86()"),
@@ -548,7 +548,7 @@ void print_exception_info(struct sigcontext_struct *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -570,7 +570,7 @@ void print_exception_info(struct sigcontext_struct *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -597,7 +597,7 @@ void print_exception_info(struct sigcontext_struct *scp)
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
+      error("@ selector: 0x%04lx\n", ((_err >> 3) & 0x1fff ));
 
       if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
@@ -643,7 +643,7 @@ void print_exception_info(struct sigcontext_struct *scp)
       error ("@cw=%04x sw=%04x tag=%04x\n",
 	     ((unsigned short)(p->cw)),((unsigned short)(p->sw)),
 	((unsigned short)(p->tag)));
-      error ("@cs:eip=%04x:%08lx ds:data=%04x:%08lx\n",
+      error ("@cs:eip=%04x:%08x ds:data=%04x:%08x\n",
 	((unsigned short)(p->cssel)),p->ipoff,
 	((unsigned short)(p->datasel)),p->dataoff);
       sw = p->sw;

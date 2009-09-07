@@ -2125,7 +2125,7 @@ static void handle_dma_IO(int size)
   dma_drop_DREQ(CURRENT_DMA_CHANNEL);
 
   if (size > SB_dsp.units_left) {
-    error("SB: DMA crossed transfer buffer! (size=%d left=%d)\n",
+    error("SB: DMA crossed transfer buffer! (size=%d left=%zd)\n",
 	size, SB_dsp.units_left);
     size = SB_dsp.units_left;
   }

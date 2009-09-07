@@ -194,11 +194,11 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
     {
       i = map_find_idx(kmem_map, kmem_mappings, source, 0);
       if (i == -1) {
-	error("KMEM mapping for %p was not allocated!\n", source);
+	error("KMEM mapping for %#lx was not allocated!\n", source);
 	return MAP_FAILED;
       }
       if (kmem_map[i].len != mapsize) {
-	error("KMEM mapping for %p allocated for size %#x, but %#x requested\n",
+	error("KMEM mapping for %#lx allocated for size %#x, but %#zx requested\n",
 	      source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
       }
@@ -402,12 +402,12 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
       leavedos(64);
     }
     if (map_find_idx(kmem_map, kmem_mappings, target, 0) != -1) {
-      error("KMEM mapping for %p allocated twice!\n", target);
+      error("KMEM mapping for %#lx allocated twice!\n", target);
       return MAP_FAILED;
     }
     open_kmem();
     addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT,
-		mem_fd,	(size_t)target);
+		mem_fd,	target);
     close_kmem();
     if (addr == MAP_FAILED)
       return addr;
