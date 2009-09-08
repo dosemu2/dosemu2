@@ -149,11 +149,7 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x05: WFR0 = *AR1.pfd; break;
 		case 0x07: WFR0 = *AR1.pws; break;
 		case 0x27: goto fp_notok;
-		case 0x2b: __asm__ __volatile__ (
-			"fldt	(%%eax)\n"
-			"fstpl	%0"
-			: "=m"(WFR0) : "a"(AR1.d) : "memory" );
-			break;
+		case 0x2b: WFR0 = *AR1.pfl; break;
 		case 0x2f: WFR0 = (double)*((long long *)AR1.ps); break;
 		}
 		ftest(WFR0);
@@ -286,8 +282,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
 				else if (WFR0 == WFR1)
 				    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
-			    /* else if (WFR0 > WFR1)  do nothing */
-			    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
+				else if (WFR0 > WFR1);  /* do nothing */
+			        else /* not comparable */ TheCPU.fpus |= 0x4500;
 			    break;
 		case 0x11:
 		case 0x19: *AR1.pff = (float)WFR0; break;
@@ -318,10 +314,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*3b*/	case 0x3b:
 //	3B	DB xx111nnn	FSTP	ext
 		WFR0 = *ST0;
-		__asm__ __volatile__ (
-			"fldl	%1\n"
-			"fstpt	(%%eax)"
-			: : "a"(AR1.d),"m"(WFR0) : "memory" );
+		*AR1.pfl = WFR0;
 		INCFSP;
 		break;
 /*3f*/	case 0x3f:
@@ -409,8 +402,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
 			else if (WFR0 == WFR1)
 			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
-		    /* else if (WFR0 > WFR1)  do nothing */
-		    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
+			else if (WFR0 > WFR1); /* do nothing */
+			else /* not comparable */ TheCPU.fpus |= 0x4500;
 		if (exop&8) INCFSP;
 		break;
 
@@ -427,8 +420,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
 			else if (WFR0 == WFR1)
 			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
-		    /* else if (WFR0 > WFR1)  do nothing */
-		    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
+			else if (WFR0 > WFR1); /* do nothing */
+			else /* not comparable */ TheCPU.fpus |= 0x4500;
 		if (exop==0x6a) INCFSP;
 		if (exop>=0x6a) INCFSP;
 		break;
@@ -447,8 +440,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
 				else if (WFR0 == WFR1)
 				    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
-			    /* else if (WFR0 > WFR1)  do nothing */
-			    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
+				else if (WFR0 > WFR1); /* do nothing */
+				else /* not comparable */ TheCPU.fpus |= 0x4500;
 			INCFSP2;
 		   }
 		   else goto fp_notok;
@@ -556,8 +549,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   	TheCPU.fpus &= (~0x4500);
 			if (WFR0 < 0.0) TheCPU.fpus |= 0x100;
 			  else if (WFR0 == 0.0) TheCPU.fpus |= 0x4000;
-			  /* else if (WFR0 > 0.0) do nothing;
-			     else if (not comparable) TheCPU.fpus |= 0x4500; */
+			  else if (WFR0 > 0.0) /* do nothing; */
+			  else /* not comparable */ TheCPU.fpus |= 0x4500;
 			break;
 		   case 5:		/* FXAM */
 			break;
@@ -826,11 +819,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			int i, k;
 			k = TheCPU.fpstt;
 			for (i=0; i<8; i++) {
-			    double *sf = &TheCPU.fpregs[k];
-			    __asm__ __volatile__ (" \
-				fldt	%1\n \
-				fstpl	%0" \
-				: "=m"(*sf) : "m"(*q));
+			    TheCPU.fpregs[k] = *(long double *)q;
 			    k = (k+1)&7; q += 10;
 			}
 		    }
@@ -901,21 +890,12 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		    }
 		    TheCPU.fpuc |= 0x3f;
 		    if (exop==0x35) {
-#if 0
 			int i, k;
 			k = TheCPU.fpstt;
 			for (i=0; i<8; i++) {
-			    double *sf = &TheCPU.fpregs[k];
-			    __asm__ __volatile__ (" \
-				movl	%0,%%eax\n \
-				movl	%1,%%edx\n \
-				fldl	(%%eax)\n \
-				fstpt	(%%edx)" \
-				: : "m"(sf), "g"(q) \
-				: "%eax","%edx","memory" );
+			    *(long double *)q = TheCPU.fpregs[k];
 			    k = (k+1)&7; q += 10;
 			}
-#endif
 			TheCPU.fpus  = 0;
 			TheCPU.fpstt = 0;
 			TheCPU.fpuc  = 0x37f;
