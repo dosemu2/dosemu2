@@ -301,7 +301,19 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			default:    a = floor(WFR0); if (a<0) a++; break;
 			}
 			if (exop & 4) {
+			    if (isnan(a) || isinf(a) ||
+				a<(double)-0x8000 ||
+				a>(double)0x7fff) {
+				TheCPU.fpus |= 1;
+				a = (double)-0x8000;
+			    }
 			    *AR1.pws = a; break;
+			}
+			if (isnan(a) || isinf(a) ||
+			    a < -(double)0x80000000 ||
+			    a >  (double)0x7fffffff) {
+			    TheCPU.fpus |= 1;
+			    a = -(double)0x80000000;
 			}
 			*AR1.pds = a; break; }
 		}
@@ -326,6 +338,12 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x400: a = floor(WFR0); break;
 		case 0x800: a = ceil(WFR0); break;
 		default:    a = floor(WFR0); if (a<0) a++; break;
+		}
+		if (isnan(a) || isinf(a) ||
+		    a < (double)(long long)0x8000000000000000ULL ||
+		    a > (double)(long long)0x7fffffffffffffffULL) {
+		    TheCPU.fpus |= 1;
+		    a = (double)(long long)0x8000000000000000ULL;
 		}
 		*((long long *)(uintptr_t)AR1.d) = (long long)a;
 		INCFSP;
@@ -890,7 +908,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			p[3] = p[4] = p[5] = p[6] = 0; q = (char *)(p+7);
 		    }
 		    else {
-			unsigned long *p = (unsigned long *)TheCPU.mem_ref;
+			unsigned int *p = (unsigned int *)TheCPU.mem_ref;
 			p[0] = TheCPU.fpuc; p[1] = TheCPU.fpus; p[2] = TheCPU.fptag;
 			/* IP,OP,opcode: n.i. */
 			p[3] = p[4] = p[5] = p[6] = 0; q = (char *)(p+7);
