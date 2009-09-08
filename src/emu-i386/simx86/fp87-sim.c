@@ -317,13 +317,20 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		*AR1.pfl = WFR0;
 		INCFSP;
 		break;
-/*3f*/	case 0x3f:
+/*3f*/	case 0x3f: {
 //	3F	DF xx111nnn	FISTP	qw
+		double a;	  
 		WFR0 = *ST0;
-		*((long long *)(uintptr_t)AR1.d) = (long long)WFR0;
+		switch (TheCPU.fpuc & 0xc00) {
+		case 0x000: a = rint(WFR0); break;
+		case 0x400: a = floor(WFR0); break;
+		case 0x800: a = ceil(WFR0); break;
+		default:    a = floor(WFR0); if (a<0) a++; break;
+		}
+		*((long long *)(uintptr_t)AR1.d) = (long long)a;
 		INCFSP;
+		}
 		break;
-
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
 		// movw	(edi),ax
@@ -549,7 +556,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   	TheCPU.fpus &= (~0x4500);
 			if (WFR0 < 0.0) TheCPU.fpus |= 0x100;
 			  else if (WFR0 == 0.0) TheCPU.fpus |= 0x4000;
-			  else if (WFR0 > 0.0) /* do nothing; */
+			  else if (WFR0 > 0.0); /* do nothing; */
 			  else /* not comparable */ TheCPU.fpus |= 0x4500;
 			break;
 		   case 5:		/* FXAM */
