@@ -890,6 +890,9 @@ static inline int CheckDataSelector(struct sigcontext_struct *scp,
 
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
 {
+#ifdef TRACE_DPMI
+  if (debug_level('t') == 0 || _trapno!=1)
+#endif
   D_printf("DPMI: cs=%#x, ss=%#x, ds=%#x, es=%#x, fs=%#x, gs=%#x ip=%#x\n",
     _cs,_ss,_ds,_es,_fs,_gs,_eip);
 /* NONCONFORMING-CODE-SEGMENT:
@@ -1113,7 +1116,7 @@ int GetDescriptor(us selector, unsigned int *lp)
           MPROT_LDT_ENTRY(selector >> 3);
   }
 #endif  
-  memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
+  MEMCPY_2DOS(lp, &ldt_buffer[selector & 0xfff8], 8);
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
   return 0;
 }
@@ -3209,6 +3212,14 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     us * ssp;
     ssp = (us *)SEL_ADR(_ss,_esp);
 
+#ifdef TRACE_DPMI
+    if (debug_level('t') && (trapno==1)) {
+      if (debug_level('t')>1)
+	dbug_printf("%s",e_scp_disasm(scp,1));
+      return;
+    }
+#endif
+
     D_printf("DPMI: do_default_cpu_exception 0x%02x at %#x:%#x ss:sp=%x:%x\n",
       trapno, (int)_cs, (int)_eip, (int)_ss, (int)_esp);
 
@@ -3262,13 +3273,6 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     case 0x04: /* overflow */
     case 0x05: /* bounds */
     case 0x07: /* device_not_available */
-#ifdef TRACE_DPMI
-	       if (debug_level('t') && (trapno==1)) {
-	         if (debug_level('t')>1)
-			dbug_printf("\n%s",e_scp_disasm(scp,1));
-		 return;
-	       }
-#endif
 	       save_rm_regs();
 	       REG(cs) = DPMI_SEG;
 	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -3308,6 +3312,13 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 #endif
 
   mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+
+#ifdef TRACE_DPMI
+  if (debug_level('t') && (_trapno == 1)) {
+    do_default_cpu_exception(scp, _trapno);
+    return;
+  }
+#endif
 
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
@@ -4196,13 +4207,13 @@ void dpmi_realmode_hlt(unsigned int lina)
   }
   scp = &DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI
-  if ((debug_level('t')==0)||(lina!=0xfc80a))
+  if ((debug_level('t')==0)||(lina!=DPMI_ADD + HLT_OFF(DPMI_return_from_dos)))
 #endif
   D_printf("DPMI: realmode hlt: %#x\n", lina);
   if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos)) {
 
 #ifdef TRACE_DPMI
-    if ((debug_level('t')==0)||(lina!=0xfc80a))
+    if ((debug_level('t')==0)||(lina!=DPMI_ADD + HLT_OFF(DPMI_return_from_dos)))
 #endif
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();

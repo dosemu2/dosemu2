@@ -409,7 +409,8 @@ int e_emu_fault(struct sigcontext_struct *scp)
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
      reset permissions on code pages */
-  if (!DPMIValidSelector(_cs) && ((debug_level('e')>1) || (_trapno!=0x0e))) {
+  if (!DPMIValidSelector(_cs) && ((debug_level('e')>1) || (_trapno!=0x0e)) &&
+      !(_trapno == 0xd && *(unsigned char *)_rip == 0xf4)) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02x err=0x%08lx cr2=%08lx eip=%08lx\n",
 	  	 _trapno, _err, _cr2, _rip);

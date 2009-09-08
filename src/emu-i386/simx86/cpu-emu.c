@@ -249,11 +249,12 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
 	if (debug_level('e')>4) {
 		int i;
-		unsigned st = LONG_SS+TheCPU.esp;
-		if (st < 0x1100000 ||
-		    (st > config.dpmi_base &&
-		     st <= config.dpmi_base + config.dpmi * 1024)) {
-			unsigned short *stk = (unsigned short *)(uintptr_t)st;
+		unsigned char *st = (unsigned char *)(uintptr_t)LONG_SS+TheCPU.esp;
+		if ((st >= mem_base && st < &mem_base[0x110000]) ||
+		    (st > (unsigned char *)config.dpmi_base &&
+		     st <= (unsigned char *)config.dpmi_base +
+		     config.dpmi * 1024)) {
+			unsigned short *stk = (unsigned short *)st;
 			for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
 			   exprintw(*stk++,buf,i);
 			}
@@ -392,12 +393,15 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
    if ((debug_level('t')>3)||(InterOps[*org2]&2))
 	pb += sprintf(pb,"%s",e_print_scp_regs(scp,pmode));
 
-   p = pb + sprintf(pb,"    %08x: ",org);
+   p = pb + sprintf(pb,"  %08x: ",org);
    for (i=0; i<rc && i<8; i++) {
            p += sprintf(p, "%02x", mem_base[org+i]);
    }
    sprintf(p,"%20s", " ");
-   sprintf(pb+28, "%04x:%04x %s\n", _cs, _eip, frmtbuf);
+   if (pmode&&IsSegment32(seg))
+     sprintf(pb + 30, "%04x:%08x %s\n", _cs, _eip, frmtbuf);
+   else
+     sprintf(pb + 30, "%04x:%04x %s\n", _cs, _eip, frmtbuf);
 
    return buf;
 }
