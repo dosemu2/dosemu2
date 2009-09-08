@@ -2601,11 +2601,17 @@ static void Gen_sim(int op, int mode, ...)
 			break;
 		}
 		if(o1 >= 0x20)
-			DR1.d = o2 & 0x1f;
+			DR1.d = o2 & ((mode & DATA16) ? 0x0f : 0x1f);
 		else if (mode & DATA16)
+		{
 			DR1.d = CPUWORD(o2);
-		else
+			if (mode & RM_REG)
+				DR1.d &= 0x0f;
+		} else {
 			DR1.d = CPULONG(o2);
+			if (mode & RM_REG)
+				DR1.d &= 0x1f;
+		}
 		switch (o1) {
 		case 0x03: case 0x20: flg = test_bit(DR1.d, AR1.pdu); break;
 		case 0x0b: case 0x28: flg = set_bit(DR1.d, AR1.pdu); break;

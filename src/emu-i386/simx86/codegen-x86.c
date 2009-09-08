@@ -2021,6 +2021,11 @@ shrot0:
 		case 0x1b: /* BTC */
 			// mov{wl} offs(%%ebx),%%{e}ax
 			Gen66(mode,Cp);	G3M(0x8b,0x43,IG->p1,Cp);
+			if (mode & RM_REG) {
+				// and{wl} 0x0f/0x1f,%%{e}ax
+				Gen66(mode,Cp);
+				G3M(0x83,0xe0,((mode&DATA16)?0x0f:0x1f),Cp)
+			}
 			// OP{wl} %%{e}ax,(%%edi)
 			Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0x07,Cp);
 			break;

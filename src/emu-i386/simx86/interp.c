@@ -2584,6 +2584,7 @@ repag0:
 			case 0xbc: /* BSF */
 			case 0xbd: /* BSR */
 				PC++; PC += ModRM(opc, PC, mode);
+				mode |= (TheCPU.mode & RM_REG);
 				Gen(O_BITOP, mode, (opc2-0xa0), REG1);
 				break;
 			case 0xba: { /* GRP8 - Code Extension 22 */
