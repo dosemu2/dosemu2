@@ -1647,7 +1647,7 @@ static void Gen_sim(int op, int mode, ...)
 	case O_ROR: {		// O(if sh==1),C(if sh>0)
 		signed char o = Offs_From_Arg();
 		unsigned int sh, rbef, raft, cy, ov;
-		GTRACE1("O_ROL",o);
+		GTRACE1("O_ROR",o);
 		if (mode & IMMED) sh = o;
 		  else sh = CPUBYTE(Ofs_CL);
 		sh &= 31;
@@ -2644,16 +2644,18 @@ static void Gen_sim(int op, int mode, ...)
 				DR1.w.l = CPUWORD(o);
 				DR1.w.h = *AR1.pwu;
 				if (shc==1) RFL.S1=RFL.S2=DR1.w.h;
-				cy = (DR1.d >> (32-shc)) & 1;
-				DR1.d <<= shc;
+				/* undocumented: works like rotate internally */
+				DR1.d = (DR1.d << shc) | (DR1.d >> (32-shc));
+				cy = DR1.d & 1;
 				RFL.RES.d = *AR1.pwu = DR1.w.h;
 			}
 			else {		// right: >>mem|reg>>
 				DR1.w.h = CPUWORD(o);
 				DR1.w.l = *AR1.pwu;
 				if (shc==1) RFL.S1=RFL.S2=DR1.w.l;
-				cy = (DR1.d >> (shc-1)) & 1;
-				DR1.d >>= shc;
+				/* undocumented: works like rotate internally */
+				DR1.d = (DR1.d >> shc) | (DR1.d << (32-shc));
+				cy = (DR1.d >> 31) & 1;
 				RFL.RES.d = *AR1.pwu = DR1.w.l;
 			}
 		}
