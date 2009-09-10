@@ -113,6 +113,16 @@ static inline void fssync(void)
 	TheCPU.fpus = (WFRS&0xc7df)|(TheCPU.fpstt<<11);
 }
 
+/* round double to integer depending on rounding mode */
+static inline void round_double(void)
+{
+	switch (TheCPU.fpuc & 0xc00) {
+	case 0x000: WFR0 = rint(WFR0); break;
+	case 0x400: WFR0 = floor(WFR0); break;
+	case 0x800: WFR0 = ceil(WFR0); break;
+	default:    WFR0 = floor(WFR0); if (WFR0<0) WFR0++; break;
+	}
+}
 
 static int Fp87_op_sim(int exop, int reg)
 {
@@ -293,29 +303,23 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x1b:
 		case 0x17:
 		case 0x1f: {
-			double a;
-			switch (TheCPU.fpuc & 0xc00) {
-			case 0x000: a = rint(WFR0); break;
-			case 0x400: a = floor(WFR0); break;
-			case 0x800: a = ceil(WFR0); break;
-			default:    a = floor(WFR0); if (a<0) a++; break;
-			}
+			round_double();
 			if (exop & 4) {
-			    if (isnan(a) || isinf(a) ||
-				a<(double)-0x8000 ||
-				a>(double)0x7fff) {
+			    if (isnan(WFR0) || isinf(WFR0) ||
+				WFR0 < (double)-0x8000 ||
+				WFR0 > (double)0x7fff) {
 				TheCPU.fpus |= 1;
-				a = (double)-0x8000;
+				WFR0 = (double)-0x8000;
 			    }
-			    *AR1.pws = a; break;
+			    *AR1.pws = WFR0; break;
 			}
-			if (isnan(a) || isinf(a) ||
-			    a < -(double)0x80000000 ||
-			    a >  (double)0x7fffffff) {
+			if (isnan(WFR0) || isinf(WFR0) ||
+			    WFR0 < -(double)0x80000000 ||
+			    WFR0 >  (double)0x7fffffff) {
 			    TheCPU.fpus |= 1;
-			    a = -(double)0x80000000;
+			    WFR0 = -(double)0x80000000;
 			}
-			*AR1.pds = a; break; }
+			*AR1.pds = WFR0; break; }
 		}
 		if (exop&8) INCFSP;
 		break;
@@ -331,21 +335,15 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		break;
 /*3f*/	case 0x3f: {
 //	3F	DF xx111nnn	FISTP	qw
-		double a;	  
 		WFR0 = *ST0;
-		switch (TheCPU.fpuc & 0xc00) {
-		case 0x000: a = rint(WFR0); break;
-		case 0x400: a = floor(WFR0); break;
-		case 0x800: a = ceil(WFR0); break;
-		default:    a = floor(WFR0); if (a<0) a++; break;
-		}
-		if (isnan(a) || isinf(a) ||
-		    a < (double)(long long)0x8000000000000000ULL ||
-		    a > (double)(long long)0x7fffffffffffffffULL) {
+		round_double();
+		if (isnan(WFR0) || isinf(WFR0) ||
+		    WFR0 < (double)(long long)0x8000000000000000ULL ||
+		    WFR0 > (double)(long long)0x7fffffffffffffffULL) {
 		    TheCPU.fpus |= 1;
-		    a = (double)(long long)0x8000000000000000ULL;
+		    WFR0 = (double)(long long)0x8000000000000000ULL;
 		}
-		*((long long *)(uintptr_t)AR1.d) = (long long)a;
+		*((long long *)(uintptr_t)AR1.d) = (long long)WFR0;
 		INCFSP;
 		}
 		break;
@@ -780,14 +778,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			break;
 		   case 4:		/* FRNDINT */
 	   		WFR0 = *ST0;
-			__asm__ __volatile__ (
-			"fldcw  %3\n"
-			"fldl	%2\n"
-			"frndint\n"
-			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS)
-			: "m"(WFR0), "m"(TheCPU.fpuc) : "memory" );
-			fssync();
+			round_double();
+			ftest(WFR0);
 			*ST0 = WFR0;
 			break;
 		   case 6:		/* FSIN */
