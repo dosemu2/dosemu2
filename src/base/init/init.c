@@ -264,7 +264,7 @@ void low_mem_init(void)
     {
       int err = errno;
       perror ("LOWRAM mmap");
-      if (err == EPERM) {
+      if (err == EPERM || err == EACCES) {
 	fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
 		"You can most likely avoid this problem by running\n"
 		"sysctl -w vm.mmap_min_addr=0\n"
@@ -274,10 +274,11 @@ void low_mem_init(void)
       leavedos(99);
     }
 #ifdef X86_EMULATOR
-    if (errno == EPERM) {
+    if (errno == EPERM || errno == EACCES) {
       /* try 1MB+64K as base (may be higher if execshield is active) */
       /* the first mmap just reserves the memory */
-      result = mmap_mapping(MAPPING_LOWMEM, (void *)(LOWMEM_SIZE + HMASIZE),
+      result = mmap_mapping(MAPPING_LOWMEM | MAPPING_SCRATCH,
+			    (void *)(LOWMEM_SIZE + HMASIZE),
 			    LOWMEM_SIZE + HMASIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC, 0);
       result = alias_mapping(MAPPING_INIT_LOWRAM, result,
