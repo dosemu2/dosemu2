@@ -46,7 +46,6 @@ typedef unsigned long long uint64_t;
 #include <errno.h>
 #include <sys/mman.h>
 
-//#define TEST_CMPXCHG8B 1
 //#define TEST_FBCD 1
 //#define TEST_PF 1
 
@@ -1222,7 +1221,6 @@ void test_xchg(void)
     TEST_CMPXCHG(cmpxchgw, "w", "+m", 0xfffefdfc);
     TEST_CMPXCHG(cmpxchgb, "b", "+m", 0xfffefdfc);
 
-#ifdef TEST_CMPXCHG8B
     {
         uint64_t op0, op1, op2;
         long eax, edx;
@@ -1246,7 +1244,6 @@ void test_xchg(void)
                    eax, edx, op1, eflags & CC_Z);
         }
     }
-#endif
 }
 
 #ifdef TEST_SEGS

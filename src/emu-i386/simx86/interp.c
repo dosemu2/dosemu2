@@ -815,9 +815,12 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			/* LOCK is allowed on BTS, BTR, BTC, XCHG, ADD...XOR (but not CMP),
 			   INC, DEC, NOT, NEG, XADD -- just ignore LOCK for now... */
 			if (op == 0x0f) {
-				op = Fetch(PC+i+1); /* BTS/BTR/BTC/XADD */
+				op = Fetch(PC+i+1); /* BTS/BTR/BTC/XADD/
+						       CMPXCHG* */
 			  	if (op == 0xab || op == 0xb3 || op == 0xbb ||
-				    op == 0xc0 || op == 0xc1) {
+				    op == 0xc0 || op == 0xc1 ||
+				    op == 0xb0 || op == 0xb1 ||
+				    (op == 0xc7 && D_MO(Fetch(PC+i+2)) == 1)) {
 					PC++; goto override;
 				}
 			} else if (op >= 0xf6 && op < 0xf8) { /*NOT/NEG*/
@@ -833,8 +836,8 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			}
 			else if ((op < 0x38 && (op & 0x8) < 6) || /*ADD..XOR*/
 			    (op >= 0x40 && op < 0x50) || /*INC/DEC*/
-			    (op >= 0x90 && op < 0x98) ||
-			    op == 0x86 || op == 0x87) { /*XCHG*/
+			    (op >= 0x91 && op < 0x98) ||
+			    op == 0x86 || op == 0x87) { /*XCHG, not NOP*/
 				PC++; goto override;
 			}
 			CODE_FLUSH();
@@ -2789,7 +2792,29 @@ repag0:
 				break; 
 
 			/* case 0xc2-0xc6:	MMX */
-			/* case 0xc7:	Code Extension 23 - 01=CMPXCHG8B mem */
+			case 0xc7: { /*	Code Extension 23 - 01=CMPXCHG8B mem */
+				uint64_t edxeax, m;
+				unsigned char opm;
+				CODE_FLUSH();
+				opm = D_MO(Fetch(PC+2));
+				if (opm != 1)
+					goto illegal_op;	/* UD2 */
+				PC++; PC += ModRMSim(PC, mode);
+				edxeax = ((uint64_t)rEDX << 32) | rEAX;
+				m = *(uint64_t*)TheCPU.mem_ref;
+				if (edxeax == m)
+				{
+					EFLAGS |= EFLAGS_ZF;
+					m = ((uint64_t)rECX << 32) | rEBX;
+				} else {
+					EFLAGS &= ~EFLAGS_ZF;
+					rEDX = m >> 32;
+					rEAX = m & 0xffffffff;
+				}
+				*(uint64_t*)TheCPU.mem_ref = m;
+				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
+				break;
+				}
 
 			case 0xc8: /* BSWAPeax */
 			case 0xc9: /* BSWAPecx */
