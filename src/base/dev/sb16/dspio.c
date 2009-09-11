@@ -288,7 +288,6 @@ static void dspio_process_dma(struct dspio_state *state)
 {
     int dma_cnt, fifo_cnt;
     unsigned long long time_dst;
-    double period;
     Bit16u buf;
 
     dma_cnt = fifo_cnt = 0;
@@ -298,7 +297,6 @@ static void dspio_process_dma(struct dspio_state *state)
 	state->dma.stereo = sb_dma_samp_stereo();
 	state->dma.rate = sb_get_dma_sampling_rate();
     }
-    period = pcm_samp_period(state->dma.rate, state->dma.stereo + 1);
 
     while (state->output_running && (state->output_time_cur <= time_dst ||
 				     fifo_cnt % (state->dma.stereo + 1))) {
@@ -321,7 +319,8 @@ static void dspio_process_dma(struct dspio_state *state)
 						     samp_signed),
 				      state->dma_strm);
 	    }
-	    state->output_time_cur += period;
+	    state->output_time_cur += pcm_samp_period(state->dma.rate,
+		    state->dma.stereo + 1);
 	    fifo_cnt++;
 	} else {
 	    if (!sb_dma_active()) {
@@ -359,7 +358,8 @@ static void dspio_process_dma(struct dspio_state *state)
 	    dspio_run_dma(&state->dma);
 	    dma_cnt++;
 	}
-	state->input_time_cur += period;
+	state->input_time_cur += pcm_samp_period(state->dma.rate,
+						 state->dma.stereo + 1);
 	fifo_cnt++;
     }
 
@@ -368,9 +368,9 @@ static void dspio_process_dma(struct dspio_state *state)
 	    dspio_fill_output(state);
 
     if (fifo_cnt || dma_cnt)
-	S_printf("SB: Processed %i FIFO, %i DMA, or=%i dr=%i time=%lli period=%f\n",
+	S_printf("SB: Processed %i FIFO, %i DMA, or=%i dr=%i time=%lli\n",
 	     fifo_cnt, dma_cnt, state->output_running, state->dma.running,
-	     time_dst, period);
+	     time_dst);
 }
 
 static void dspio_process_midi(void)
