@@ -897,6 +897,17 @@ CISH(bios_f000_endpart1):
 	.globl	CISH(bios_f000_part2)
 CISH(bios_f000_part2):
 
+/* ----------------------------------------------------------------- */ 
+	.org    ((INT75_SEG-BIOSSEG) << 4)+INT75_OFF
+/* ======================= Addr = F800:7E98 (FFE98) */
+	xorb %al, %al
+	outb %al, $0xf0
+	movb $0x20, %al
+	outb %al, $0xa0
+	outb %al, $0x20
+	int $2		/* Bochs does this; RBIL says: redirected to INT 02 */
+        iret		/* by the BIOS, for compatibility with the PC */
+
 /* ----------------------------------------------------------------- */   
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
 

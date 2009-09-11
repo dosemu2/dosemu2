@@ -235,6 +235,56 @@ void cpu_reset(void)
   REG(eflags) = 0;
 }
 
+#if 0
+static void fpu_init(void)
+{
+#ifdef __x86_64__
+  vm86_fpu_state.cwd = 0x037F;
+  vm86_fpu_state.swd = 0;
+  vm86_fpu_state.ftw = 0xFFFF;       // bochs
+#else
+  vm86_fpu_state.cw = 0x40;
+  vm86_fpu_state.sw = 0;
+  vm86_fpu_state.tag = 0xFFFF;       // bochs
+#endif
+}
+#endif
+
+static void fpu_reset(void)
+{
+#ifdef __x86_64__
+  vm86_fpu_state.cwd = 0x0040;
+  vm86_fpu_state.swd = 0;
+  vm86_fpu_state.ftw = 0x5555;       //bochs
+#else
+  vm86_fpu_state.cw = 0x40;
+  vm86_fpu_state.sw = 0;
+  vm86_fpu_state.tag = 0x5555;       // bochs
+#endif
+}
+
+static Bit8u fpu_io_read(ioport_t port)
+{
+  return 0xff;
+}
+
+static void fpu_io_write(ioport_t port, Bit8u val)
+{
+  switch (port) {
+  case 0xf0:
+    /* not sure about this */
+#ifdef __x86_64__
+    vm86_fpu_state.swd &= ~0x8000;
+#else
+    vm86_fpu_state.sw &= ~0x8000;
+#endif
+    break;
+  case 0xf1:
+    fpu_reset();
+    break;
+  }
+}
+
 /* 
  * DANG_BEGIN_FUNCTION cpu_setup
  *
@@ -247,11 +297,25 @@ void cpu_reset(void)
  */
 void cpu_setup(void)
 {
+  emu_iodev_t io_dev;
+  io_dev.read_portb = fpu_io_read;
+  io_dev.write_portb = fpu_io_write;
+  io_dev.read_portw = NULL;
+  io_dev.write_portw = NULL;
+  io_dev.read_portd = NULL;
+  io_dev.write_portd = NULL;
+  io_dev.irq = PIC_IRQ13;
+  io_dev.fd = -1;
+  io_dev.start_addr = 0xf0;
+  io_dev.end_addr = 0xff;
+  io_dev.handler_name = "Math Coprocessor";
+  port_register_handler(io_dev, 0);
+
   int_vector_setup();
 
   cpu_reset();
-
   savefpstate(vm86_fpu_state);
+  fpu_reset();
 
 #ifdef X86_EMULATOR
   if (config.cpuemu) {
