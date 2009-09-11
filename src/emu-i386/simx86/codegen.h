@@ -112,6 +112,7 @@
 #define O_CLEAR		70	// xor r,r
 #define O_TEST		71	// and r,r; or r,r
 #define O_SBSELF	72	// sbb r,r
+#define O_CMPXCHG	73
 
 #define O_PUSH		80
 #define O_PUSHI		81

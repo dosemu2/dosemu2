@@ -725,6 +725,22 @@ arith1:
 		}
 		G1(PUSHF,Cp);	// flags back on stack
 		break;
+	case O_CMPXCHG: {
+		G1(POPF,Cp);	// get flags from stack
+		if (mode & MBYTE) {
+			// movb offs1(%%ebx),%%dl
+			G3M(0x8a,0x53,IG->p0,Cp);
+			// cmpxchgb %%dl,offs(%%edi)
+			G3M(0x0f,0xb0,0x17,Cp);
+		}
+		else {
+			// mov{wl} offs1(%%ebx),%%{e}dx
+			Gen66(mode,Cp);	G3M(0x8b,0x53,IG->p0,Cp);
+			// cmpxchg{wl} %%{e}dx,offs(%%edi)
+			Gen66(mode,Cp);	G3M(0x0f,0xb1,0x17,Cp);
+		} }
+		G1(PUSHF,Cp);	// flags back on stack
+		break;
 	case O_XCHG: {
 		if (mode & MBYTE) {
 			// xchgb offs(%%ebx),%%al
@@ -2472,6 +2488,7 @@ static void Gen_x86(int op, int mode, ...)
 	case S_REG:
 	case S_DI_R:
 	case L_LXS1:
+	case O_CMPXCHG:
 	case O_XCHG:
 	case O_CLEAR:
 	case O_TEST:

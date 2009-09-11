@@ -1206,6 +1206,43 @@ static void Gen_sim(int op, int mode, ...)
 			DR1.d = RFL.RES.d = RFL.S1 - 1;
 		}
 		break;
+	case O_CMPXCHG: {		// OSZAPC
+		register wkreg v;
+		v.d = va_arg(ap, int);
+		RFL.mode = mode;
+		RFL.valid = V_SUB;
+		GTRACE3("O_CMPXCHG",v.bs.bl,0xff,v.d);
+		if (mode & MBYTE) {
+		    RFL.S1 = DR1.b.bl;
+		    RFL.S2 = -*AR1.pu;
+		}
+		else if (mode & DATA16) {
+		    RFL.S1 = DR1.w.l;
+		    RFL.S2 = -*AR1.pwu;
+		}
+		else {
+		    RFL.S1 = DR1.d;
+		    RFL.S2 = -*AR1.pdu;
+		}
+		RFL.RES.d = RFL.S1 + RFL.S2;
+		FlagSync_C(1);
+		if (RFL.RES.d == 0) {
+			if (mode & MBYTE)
+				*AR1.pu = CPUBYTE(v.bs.bl);
+			else if (mode & DATA16)
+				*AR1.pwu = CPUWORD(v.bs.bl);
+			else
+				*AR1.pdu = CPULONG(v.bs.bl);
+		} else {
+			if (mode & MBYTE)
+				DR1.b.bl = *AR1.pu;
+			else if (mode & DATA16)
+				DR1.w.l = *AR1.pwu;
+			else
+				DR1.d = *AR1.pdu;
+		}
+		}
+		break;
 	case O_XCHG: {
 		signed char o = Offs_From_Arg();
 		GTRACE1("O_XCHG",o);
