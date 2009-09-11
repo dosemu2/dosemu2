@@ -813,10 +813,11 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				 op == SEGes || op == SEGfs || op == SEGgs ||
 				 op == OPERoverride || op == ADDRoverride);
 			/* LOCK is allowed on BTS, BTR, BTC, XCHG, ADD...XOR (but not CMP),
-			   INC, DEC, NOT, NEG -- just ignore LOCK for now... */
+			   INC, DEC, NOT, NEG, XADD -- just ignore LOCK for now... */
 			if (op == 0x0f) {
-				op = Fetch(PC+i+1); /* BTS/BTR/BTC */
-			  	if (op == 0xab || op == 0xb3 || op == 0xbb) {
+				op = Fetch(PC+i+1); /* BTS/BTR/BTC/XADD */
+			  	if (op == 0xab || op == 0xb3 || op == 0xbb ||
+				    op == 0xc0 || op == 0xc1) {
 					PC++; goto override;
 				}
 			} else if (op >= 0xf6 && op < 0xf8) { /*NOT/NEG*/
@@ -2758,11 +2759,22 @@ repag0:
 			    CODE_FLUSH();
 			    goto illegal_op;	/* UD2 */
 			case 0xc0: /* XADDb */
+				PC++; PC += ModRM(opc, PC, mode | MBYTE);
+				Gen(L_DI_R1, mode | MBYTE);
+				Gen(O_XCHG, mode | MBYTE, REG1);
+				Gen(O_ADD_R, mode | MBYTE, REG1);
+				Gen(S_DI, mode | MBYTE);
+				break; 
 			case 0xc1: /* XADDw */
+				PC++; PC += ModRM(opc, PC, mode);
+				Gen(L_DI_R1, mode);
+				Gen(O_XCHG, mode, REG1);
+				Gen(O_ADD_R, mode, REG1);
+				Gen(S_DI, mode);
+				break; 
+
 			/* case 0xc2-0xc6:	MMX */
 			/* case 0xc7:	Code Extension 23 - 01=CMPXCHG8B mem */
-			    CODE_FLUSH();
-			    goto not_implemented;
 
 			case 0xc8: /* BSWAPeax */
 			case 0xc9: /* BSWAPecx */

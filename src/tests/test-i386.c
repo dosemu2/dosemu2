@@ -46,7 +46,7 @@ typedef unsigned long long uint64_t;
 #include <errno.h>
 #include <sys/mman.h>
 
-//#define TEST_XADD 1
+//#define TEST_CMPXCHGX 1
 //#define TEST_FBCD 1
 //#define TEST_PF 1
 
@@ -812,7 +812,7 @@ void fpu_clear_exceptions(void)
         long double fpregs[8];
     } float_env32;
 
-    asm volatile ("fnstenv %0\n" : : "m" (float_env32));
+    asm volatile ("fnstenv %0\n" : "=m" (float_env32) :);
     float_env32.fpus &= ~0x7f;
     asm volatile ("fldenv %0\n" : : "m" (float_env32));
 }
@@ -1173,7 +1173,6 @@ void test_xchg(void)
     TEST_XCHG(xchgw, "w", "+m");
     TEST_XCHG(xchgb, "b", "+m");
 
-#ifdef TEST_XADD
 #if defined(__x86_64__)
     TEST_XCHG(xaddq, "", "+q");
 #endif
@@ -1195,6 +1194,7 @@ void test_xchg(void)
     TEST_XCHG(xaddw, "w", "+m");
     TEST_XCHG(xaddb, "b", "+m");
 
+#ifdef TEST_CMPXCHGX
 #if defined(__x86_64__)
     TEST_CMPXCHG(cmpxchgq, "", "+q", 0xfbca7654);
 #endif
