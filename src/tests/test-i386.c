@@ -48,7 +48,6 @@ typedef unsigned long long uint64_t;
 
 //#define TEST_XADD 1
 //#define TEST_FBCD 1
-//#define TEST_ARP 1
 //#define TEST_PF 1
 
 #if !defined(__x86_64__)
@@ -1446,11 +1445,9 @@ void test_segs(void)
     TEST_LR("lslw", "w", 0xfff8, 0);
     TEST_LR("lsll", "", 0xfff8, 0);
 
-#ifdef TEST_ARP
     TEST_ARPL("arpl", "w", 0x12345678 | 3, 0x762123c | 1);
     TEST_ARPL("arpl", "w", 0x12345678 | 1, 0x762123c | 3);
     TEST_ARPL("arpl", "w", 0x12345678 | 1, 0x762123c | 1);
-#endif
 }
 
 /* 16 bit code test */

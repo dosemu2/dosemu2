@@ -715,10 +715,22 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			}
 			break;
 		       }
-/*63*/	case ARPL:
+/*63*/	case ARPL:     {
+			unsigned short dest, src;
 			CODE_FLUSH();
-			goto not_implemented;
-
+			PC += ModRMSim(PC, mode);
+			dest = GetDWord(TheCPU.mem_ref);
+			src = GetCPU_WL(mode, REG1);
+			if ((dest & 3) < (src & 3)) {
+				EFLAGS |= EFLAGS_ZF;
+				dest = (dest & ~3) | (src & 3);
+				*(short *)TheCPU.mem_ref = dest;
+			} else {
+				EFLAGS &= ~EFLAGS_ZF;
+			}
+			if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
+			break;
+		       }
 /*d7*/	case XLAT:
 			Gen(O_XLAT, mode); PC++; break;
 /*98*/	case CBW:
@@ -1511,7 +1523,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			return PC;
 /*ce*/	case INTO:
 			CODE_FLUSH();
-			FlagSync_O();
+			if (CONFIG_CPUSIM) FlagSync_O();
 			PC++;
 			if(EFLAGS & EFLAGS_OF)
 			{
