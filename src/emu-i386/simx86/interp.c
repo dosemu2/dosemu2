@@ -1077,7 +1077,6 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*8c*/	case MOVsrtrm:
 			PC += ModRM(opc, PC, mode|SEGREG);
 			Gen(L_REG, mode|DATA16, REG1);
-			if (REG1==Ofs_SS) CEmuStat |= CeS_LOCK;
 			//Gen(L_ZXAX, mode);
 			Gen(S_DI, mode|DATA16);
 			break; 
@@ -1655,10 +1654,17 @@ stack_return_from_vm86:
 
 /*f2*/	case REPNE:
 /*f3*/	case REP: /* also is REPE */ {
-			unsigned char repop; int repmod;
+			unsigned char repop; int repmod, realrepmod;
 			PC++;
 			repmod = mode | (opc==REPNE? MREPNE:MREP);
 repag0:
+			realrepmod = repmod;
+			if ((EFLAGS & TF) &&
+			    ((repmod & ADDR16) ? rCX : rECX) > 0) {
+				/* simulate rep below with TF set, because
+				   we must trap for every string ins */
+				repmod = repmod & ~(MREPNE|MREP);
+			}
 			repop = Fetch(PC);
 			switch (repop) {
 				case INSb:
@@ -1755,6 +1761,25 @@ repag0:
 					if (debug_level('e')>4)
 					    e_printf("ADDRoverride: new mode %04x\n",repmod);
 					PC++; goto repag0;
+			}
+			if ((EFLAGS & TF) && !(repmod & (MREP|MREPNE))) {
+				/* with TF set, we simulate REP and maybe back
+				   up IP */
+				CODE_FLUSH();
+				if (CONFIG_CPUSIM) FlagSync_All();
+				if (repmod & ADDR16) {
+					rCX--;
+					if (rCX == 0) break;
+				} else {
+					rECX--;
+					if (rECX == 0) break;
+				}
+				if ((repop != CMPSb && repop != CMPSw &&
+				     repop != SCASb && repop != SCASw) ||
+				    ((realrepmod&MREP?1:0)==(EFLAGS&ZF?1:0))) {
+					PC = P0;
+					break;
+				}
 			} }
 			break;
 /*f4*/	case HLT:

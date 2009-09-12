@@ -197,6 +197,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 		e_printf("PMSEL %#04lx bounds=%08x:%08x flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
+	TheCPU.scp_err = 0;
 	return 0;
 }
 

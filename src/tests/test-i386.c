@@ -2239,10 +2239,18 @@ void test_single_step(void)
                   "movl $4, %%ecx\n"
                   "rep cmpsb\n"
 
+#ifndef __DJGPP__ /* Note that in DOSEMU DPMI int80 does a Linux syscall in
+		     native mode (we can't stop that easily) but does the
+		     correct thing in cpuemu */
                   /* getpid() syscall: single step should skip one
                      instruction */
                   "movl $20, %%eax\n"
                   "int $0x80\n"
+#else
+		  /* DPMI: Get virtual interrupt state */
+                  "movl $0x902, %%eax\n"
+                  "int $0x31\n"
+#endif
                   "movl $0, %%eax\n"
 
                   /* when modifying SS, trace is not done on the next
@@ -3065,9 +3073,7 @@ int main(int argc, char **argv)
 #if !defined(__x86_64__)
     test_exceptions();
     test_self_modifying_code();
-#ifndef __DJGPP__ /* cpuemu bug */
     test_single_step();
-#endif
 #endif
     test_enter();
     test_conv();

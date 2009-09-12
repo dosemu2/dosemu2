@@ -1298,7 +1298,6 @@ int e_dpmi(struct sigcontext_struct *scp)
     if (debug_level('e')>1) e_printf("DPM86: EXCP %#x eflags=%08x\n",
 	xval-1, REG(eflags));
 
-    TheCPU.eflags &= ~TF;	/* is it right? */
     Cpu2Scp (scp, xval-1);
 
     retval = -1;
