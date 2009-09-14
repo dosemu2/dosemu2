@@ -644,8 +644,8 @@ void print_exception_info(struct sigcontext_struct *scp)
 	     ((unsigned short)(p->cw)),((unsigned short)(p->sw)),
 	((unsigned short)(p->tag)));
       error ("@cs:eip=%04x:%08x ds:data=%04x:%08x\n",
-	((unsigned short)(p->cssel)),p->ipoff,
-	((unsigned short)(p->datasel)),p->dataoff);
+	     ((unsigned short)(p->cssel)),(unsigned)p->ipoff,
+	     ((unsigned short)(p->datasel)),(unsigned)p->dataoff);
       sw = p->sw;
 #endif
       if ((sw&0x80)==0) error("@No error summary bit,why?\n");
@@ -666,6 +666,37 @@ void print_exception_info(struct sigcontext_struct *scp)
 	n = (n+1) & 7;
       }
       } break;
+
+#ifdef __SSE__
+   case 0x13: {
+      int i;
+      unsigned mxcsr;
+#ifdef __x86_64__
+      fpregset_t p = ((mcontext_t *)scp)->fpregs;
+      error ("@SIMD Floating-Point Exception:\n");
+      mxcsr = p->mxcsr;
+      error ("@mxcsr=%08x, mxcr_mask=%08x\n",mxcsr,(unsigned)(p->mxcr_mask));
+#else
+      struct _fpstate *p = scp->fpstate;
+      error ("@SIMD Floating-Point Exception:\n");
+      mxcsr = p->mxcsr;
+      error ("@mxcsr=%08x\n",mxcsr);
+#endif
+      if (mxcsr&0x40) error("@Denormals are zero\n");
+      if (mxcsr&0x20) error("@Precision\n");
+      if (mxcsr&0x10) error("@Underflow\n");
+      if (mxcsr&0x08) error("@Overflow\n");
+      if (mxcsr&0x04) error("@Divide by 0\n");
+      if (mxcsr&0x02) error("@Denormalized\n");
+      if (mxcsr&0x01) error("@Invalid op\n");
+      for (i=0; i<sizeof(p->_xmm)/sizeof(p->_xmm[0]); i++)
+      {
+	error ("@xmm[%d] = %08x:%08x:%08x:%08x\n",i,
+	      (unsigned)p->_xmm[i].element[0], (unsigned)p->_xmm[i].element[1],
+	      (unsigned)p->_xmm[i].element[2], (unsigned)p->_xmm[i].element[3]);
+      }
+    } break;
+#endif
 
     default:
       error("@Unknown exception\n");

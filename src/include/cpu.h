@@ -207,8 +207,10 @@ extern struct _fpstate vm86_fpu_state;
 #define loadfpstate(value) \
 	asm volatile("rex64/fxrstor  %0\n" :: "m"(value), "cdaSDb"(&value));
 
-#define savefpstate(value) \
-	asm volatile("rex64/fxsave %0; fninit\n": "=m"(value) : "cdaSDb"(&value));
+#define savefpstate(value) { \
+	unsigned mxcsr = 0x1f80; \
+	asm volatile("rex64/fxsave %0; fninit; ldmxcsr %1\n": \
+		     "=m"(value) : "m"(mxcsr), "cdaSDb"(&value)); }
 #else
 #define loadfpstate(value) \
 	do { \
@@ -221,10 +223,12 @@ extern struct _fpstate vm86_fpu_state;
 
 #define savefpstate(value) \
 	do { \
-		if (config.cpufxsr) \
-			asm volatile("fxsave %0; fninit\n" : \
-				    "=m"(*((char *)&value+112)),"=m"(value)); \
-		else \
+		if (config.cpufxsr) { \
+			unsigned mxcsr = 0x1f80; \
+			asm volatile("fxsave %0; fninit; ldmxcsr %2\n" : \
+				    "=m"(*((char *)&value+112)),"=m"(value) : \
+				    "m"(mxcsr)); \
+		} else \
 			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
 	} while(0);
 #endif
