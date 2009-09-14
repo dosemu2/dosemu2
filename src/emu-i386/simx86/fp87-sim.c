@@ -162,7 +162,6 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x2b: WFR0 = *AR1.pfl; break;
 		case 0x2f: WFR0 = (double)*((long long *)AR1.ps); break;
 		}
-		ftest(WFR0);
 		*ST0 = WFR0;
 		break;
 
