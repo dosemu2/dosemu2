@@ -234,7 +234,7 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 		    else {	// dsp>0 && dsp<pskip: jumps in the jmp itself
 			TheCPU.err = -103;
 			dbug_printf("### err 103 jmp=%x dsp=%d pskip=%d\n",cond,dsp,pskip);
-			return NULL;
+			return P2;
 		    }
 		}
 		else {	// dsp==0
@@ -291,8 +291,7 @@ jgnolink:
 	 * (almost) always different from P2.
 	 */
 	P1 = CloseAndExec(P2, NULL, mode, __LINE__); NewNode=0;
-	if (TheCPU.err) return NULL;
-	if (tailjmp) return P1;
+	if (TheCPU.err || tailjmp) return P1;
 
 	/* evaluate cond at RUNTIME after exec'ing */
 	switch(cond) {
@@ -358,7 +357,7 @@ jgnolink:
 			return (unsigned char *)j_nt;
 		    }
 		    TheCPU.err = -103;
-		    return NULL;
+		    return P2;
 		}
 		if (debug_level('e')>2) e_printf("** Jump taken to %08lx\n",(long)j_t);
 #ifdef HOST_ARCH_X86
@@ -711,7 +710,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			{
 				e_printf("Bound interrupt 05\n");
 				TheCPU.err=EXCP05_BOUND;
-				return PC;
+				return P0;
 			}
 			break;
 		       }
@@ -953,34 +952,34 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*7d*/	case JNL_JGE:
 /*7e*/	case JLE_JNG: 
 /*7f*/	case JNLE_JG:   {
-			  unsigned char *p2 = JumpGen(PC, mode, (opc-JO), 0);
-			  if (TheCPU.err) return PC; else if (p2) PC = p2;
+			  PC = JumpGen(PC, mode, (opc-JO), 0);
+			  if (TheCPU.err) return PC;
 			}
 			break;
 /*eb*/	case JMPsid:    {
-			  unsigned char *p2 = JumpGen(PC, mode, 0x10, 0);
-			  if (TheCPU.err) return PC; else if (p2) PC = p2;
+			  PC = JumpGen(PC, mode, 0x10, 0);
+			  if (TheCPU.err) return PC;
 			}
 			break;
 
 /*e0*/	case LOOPNZ_LOOPNE: {
-			  unsigned char *p2 = JumpGen(PC, mode, 0x25, 2);
-			  if (TheCPU.err) return PC; else if (p2) PC = p2;
+			  PC = JumpGen(PC, mode, 0x25, 2);
+			  if (TheCPU.err) return PC;
 			}
 			break;
 /*e1*/	case LOOPZ_LOOPE: {
-			  unsigned char *p2 = JumpGen(PC, mode, 0x24, 2);
-			  if (TheCPU.err) return PC; else if (p2) PC = p2;
+			  PC = JumpGen(PC, mode, 0x24, 2);
+			  if (TheCPU.err) return PC;
 			}
 			break;
 /*e2*/	case LOOP:	{
-			  unsigned char *p2 = JumpGen(PC, mode, 0x20, 2);
-			  if (TheCPU.err) return PC; else if (p2) PC = p2;
+			  PC = JumpGen(PC, mode, 0x20, 2);
+			  if (TheCPU.err) return PC;
 			}
 			break;
 /*e3*/	case JCXZ:	{
-			  unsigned char *p2 = JumpGen(PC, mode, 0x31, 2);
-			  if (TheCPU.err) return PC; else if (p2) PC = p2;
+			  PC = JumpGen(PC, mode, 0x31, 2);
+			  if (TheCPU.err) return PC;
 			}
 			break;
 
@@ -1398,13 +1397,13 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 		break;
 
 /*e9*/	case JMPd: {
-			unsigned char *p2 = JumpGen(PC, mode, 0x10, 4);
-			if (TheCPU.err) return PC; else if (p2) PC = p2;
+			PC = JumpGen(PC, mode, 0x10, 4);
+			if (TheCPU.err) return PC;
 		   }
 		   break;
 /*e8*/	case CALLd: {
-			unsigned char *p2 = JumpGen(PC, mode, 0x11, 4);
-			if (TheCPU.err) return PC; else if (p2) PC = p2;
+			PC = JumpGen(PC, mode, 0x11, 4);
+			if (TheCPU.err) return PC;
 		   }
 		   break;
 
@@ -1816,9 +1815,11 @@ repag0:
 				break;
 			case Ofs_DH:	/*6*/	/* DIV AL */
 				Gen(O_DIV, mode|MBYTE, P0);			// ah:al/[edi]->AH:AL unsigned
+				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			case Ofs_BH:	/*7*/	/* IDIV AL */
 				Gen(O_IDIV, mode|MBYTE, P0);		// ah:al/[edi]->AH:AL signed
+				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			} }
 			break;
@@ -1847,9 +1848,11 @@ repag0:
 				break;
 			case Ofs_SI:	/*6*/	/* DIV AX+DX */
 				Gen(O_DIV, mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
+				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			case Ofs_DI:	/*7*/	/* IDIV AX+DX */
 				Gen(O_IDIV, mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
+				if (CONFIG_CPUSIM && TheCPU.err) return P0;
 				break;
 			} }
 			break;
@@ -2562,8 +2565,8 @@ repag0:
 			case 0x8e: /* JLEimmdisp */
 			case 0x8f: /* JNLEimmdisp */
 				{
-				  unsigned char *p2 = JumpGen(PC, mode, (opc2-0x80), 1);
-				  if (TheCPU.err) return PC; else if (p2) PC = p2;
+				  PC = JumpGen(PC, mode, (opc2-0x80), 1);
+				  if (TheCPU.err) return PC;
 				}
 				break;
 ///

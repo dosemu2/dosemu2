@@ -1415,28 +1415,34 @@ static void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 			RFL.RES.w.l = CPUWORD(Ofs_AX);
 			RFL.RES.w.h = 0;
-			/* exception trap: save current PC */
-			CPULONG(Ofs_CR2) = va_arg(ap,int);
 			RFL.S1 = DR1.b.bl;
 			if (RFL.S1==0)
 			    TheCPU.err = EXCP00_DIVZ;
 			else {
-			    CPUBYTE(Ofs_AL) = RFL.RES.d / RFL.S1;
-			    CPUBYTE(Ofs_AH) = RFL.RES.d % RFL.S1;
+			    unsigned v = RFL.RES.d / RFL.S1;
+			    if (v > 0xff)
+				TheCPU.err = EXCP00_DIVZ;
+			    else {
+				CPUBYTE(Ofs_AL) = v;
+				CPUBYTE(Ofs_AH) = RFL.RES.d % RFL.S1;
+			    }
 			}
 		}
 		else {
 			if (mode&DATA16) {
 				RFL.RES.w.l = CPUWORD(Ofs_AX);
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
-				/* exception trap: save current PC */
-				CPULONG(Ofs_CR2) = va_arg(ap,int);
 				RFL.S1 = DR1.w.l;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    CPUWORD(Ofs_AX) = RFL.RES.d / RFL.S1;
-				    CPUWORD(Ofs_DX) = RFL.RES.d % RFL.S1;
+				    unsigned v = RFL.RES.d / RFL.S1;
+				    if (v > 0xffff)
+					TheCPU.err = EXCP00_DIVZ;
+				    else {
+					CPUWORD(Ofs_AX) = v;
+					CPUWORD(Ofs_DX) = RFL.RES.d % RFL.S1;
+				    }
 				}
 			}
 			else {
@@ -1444,17 +1450,18 @@ static void Gen_sim(int op, int mode, ...)
 				unsigned long rem;
 				v.t.tl = CPULONG(Ofs_EAX);
 				v.t.th = CPULONG(Ofs_EDX);
-				/* exception trap: save current PC */
-				CPULONG(Ofs_CR2) = va_arg(ap,int);
 				RFL.S1 = DR1.d;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
 				    rem = v.td % (unsigned)RFL.S1;
 				    v.td /= (unsigned)RFL.S1;
-				    // if (v.t.th) excp(div_by_zero);
-				    CPULONG(Ofs_EAX) = RFL.RES.d = v.t.tl;
-				    CPULONG(Ofs_EDX) = rem;
+				    if (v.t.th)
+					TheCPU.err = EXCP00_DIVZ;
+				    else {
+					CPULONG(Ofs_EAX) = RFL.RES.d = v.t.tl;
+					CPULONG(Ofs_EDX) = rem;
+				    }
 		    		}
 			}
 		}
@@ -1463,28 +1470,34 @@ static void Gen_sim(int op, int mode, ...)
 		GTRACE0("O_IDIV");
 		if (mode & MBYTE) {
 			RFL.RES.ds = (signed short)CPUWORD(Ofs_AX);
-			/* exception trap: save current PC */
-			CPULONG(Ofs_CR2) = va_arg(ap,int);
 			RFL.S1 = DR1.bs.bl;
 			if (RFL.S1==0)
 			    TheCPU.err = EXCP00_DIVZ;
 	    		else {
-			    CPUBYTE(Ofs_AL) = RFL.RES.ds / RFL.S1;
-			    CPUBYTE(Ofs_AH) = RFL.RES.ds % RFL.S1;
+			    int v = RFL.RES.ds / RFL.S1;
+			    if (v > 127 || v < -128)
+				TheCPU.err = EXCP00_DIVZ;
+			    else {
+				CPUBYTE(Ofs_AL) = v;
+				CPUBYTE(Ofs_AH) = RFL.RES.ds % RFL.S1;
+			    }
 			}
 		}
 		else {
 			if (mode&DATA16) {
 				RFL.RES.w.l = CPUWORD(Ofs_AX);
 				RFL.RES.w.h = CPUWORD(Ofs_DX);
-				/* exception trap: save current PC */
-				CPULONG(Ofs_CR2) = va_arg(ap,int);
 				RFL.S1 = DR1.ws.l;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
-				    CPUWORD(Ofs_AX) = RFL.RES.ds / RFL.S1;
-				    CPUWORD(Ofs_DX) = RFL.RES.ds % RFL.S1;
+				    int v = RFL.RES.ds / RFL.S1;
+				    if (v > 32767 || v < -32768)
+					TheCPU.err = EXCP00_DIVZ;
+				    else {
+					CPUWORD(Ofs_AX) = v;
+					CPUWORD(Ofs_DX) = RFL.RES.ds % RFL.S1;
+				    }
 		    		}
 			}
 			else {
@@ -1492,17 +1505,18 @@ static void Gen_sim(int op, int mode, ...)
 				long rem;
 				v = CPULONG(Ofs_EAX) |
 				  ((int64_t)CPULONG(Ofs_EDX) << 32);
-				/* exception trap: save current PC */
-				CPULONG(Ofs_CR2) = va_arg(ap,int);
 				RFL.S1 = DR1.d;
 				if (RFL.S1==0)
 				    TheCPU.err = EXCP00_DIVZ;
 		    		else {
 				    rem = v % RFL.S1;
 				    v /= RFL.S1;
-				    // if ((((unsigned)(v>>32)+1)&(-2))!=0) excp(div_by_zero);
-				    CPULONG(Ofs_EAX) = RFL.RES.d = v & 0xffffffff;
-				    CPULONG(Ofs_EDX) = rem;
+				    if (v > 0x7fffffffLL || v < -0x80000000LL)
+					TheCPU.err = EXCP00_DIVZ;
+				    else {
+					CPULONG(Ofs_EAX) = RFL.RES.d = v & 0xffffffff;
+					CPULONG(Ofs_EDX) = rem;
+				    }
 		    		}
 			}
 		}
