@@ -33,9 +33,11 @@
  ***************************************************************************/
 
 #include <stddef.h>
+#include "config.h"
 #include "emu86.h"
 #include "codegen.h"
 #include "codegen-sim.h"
+#include <stdlib.h>
 #include <math.h>
 
 int (*Fp87_op)(int exop, int reg);
@@ -145,7 +147,7 @@ static int Fp87_op_sim(int exop, int reg)
 //	05	DD xx000nnn	FLD	dr
 //	07	DF xx000nnn	FILD	w
 /*27*/	case 0x27:
-//	27	DF xx100nnn	FBLD		!! err - uses 80 bits
+//	27	DF xx100nnn	FBLD
 /*2b*/	case 0x2b:
 /*2f*/	case 0x2f:
 //	2B	DB xx101nnn	FLD	ext
@@ -156,7 +158,15 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x03: WFR0 = *AR1.pds; break;
 		case 0x05: WFR0 = *AR1.pfd; break;
 		case 0x07: WFR0 = *AR1.pws; break;
-		case 0x27: goto fp_notok;
+		case 0x27: {
+			unsigned char *p = AR1.pu;
+			long long b = 0;
+			int i;
+			for (i = 8; i >= 0; i--)
+				b = (b * 100) + (p[i] >> 4) * 10 + (p[i] & 0xf);
+			WFR0 = ((p[9] & 0x80) ? -1 : 1) * b;
+			break;
+		}
 		case 0x2b: WFR0 = *AR1.pfl; break;
 		case 0x2f: WFR0 = *((long long *)AR1.ps); break;
 		}
@@ -321,9 +331,25 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		if (exop&8) INCFSP;
 		break;
 
-/*37*/	case 0x37:
-//	37	DF xx110nnn	FBSTP		!! err - uses 80 bits
-		goto fp_notok;
+/*37*/	case 0x37: {
+//	37	DF xx110nnn	FBSTP
+		unsigned char *p = AR1.pu;
+		long long b;
+		int i;
+		WFR0 = *ST0;
+		round_double();
+		b = WFR0;
+		p[9] = b < 0 ? 0x80 : 0;
+		b = llabs(b);
+		for (i=0; i < 9; i++) {
+			p[i] = b % 10;
+			b /= 10;
+			p[i] |= (b % 10) << 4;
+			b /= 10;
+		}
+		INCFSP;
+		}
+		break;
 /*3b*/	case 0x3b:
 //	3B	DB xx111nnn	FSTP	ext
 		WFR0 = *ST0;

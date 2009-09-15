@@ -46,7 +46,6 @@ typedef unsigned long long uint64_t;
 #include <errno.h>
 #include <sys/mman.h>
 
-//#define TEST_FBCD 1
 //#define TEST_PF 1
 
 #if !defined(__x86_64__)
@@ -1049,10 +1048,8 @@ void test_floats(void)
     test_fcvt(1.0/0.0);
     test_fcvt(q_nan.d);
     test_fconst();
-#ifdef TEST_FBCD
     test_fbcd(1234567890123456.0);
     test_fbcd(-123451234567890.0);
-#endif
     test_fenv();
     if (TEST_CMOV) {
         test_fcmov();
