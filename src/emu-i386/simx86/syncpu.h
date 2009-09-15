@@ -52,7 +52,7 @@ typedef struct {
 /* offsets are 8-bit signed */
 #define FIELD0		unprotect_stub	/* field of SynCPU at offset 00 */
 /* ------------------------------------------------ */
-/*80*/  double   *fpregs;
+/*80*/  long double   *fpregs;
 /*84*/  PADDING32BIT(1)
 /*88*/	unsigned long long EMUtime;
 /*90*/	SDTR gs_cache;

@@ -41,24 +41,22 @@
 int (*Fp87_op)(int exop, int reg);
 static int Fp87_op_sim(int exop, int reg);
 
-static double WFR0, WFR1;
+static long double WFR0, WFR1;
 static unsigned short WFRS;
-
-#define FPSELEM		sizeof(double)
 
 #define S_next(r)	(((r)+1)&7)
 #define S_prev(r)	(((r)-1)&7)
 #define S_reg(r,n)	(((r)+(n))&7)
-#define ST0		((double *)&TheCPU.fpregs[TheCPU.fpstt])
-#define ST1		((double *)&TheCPU.fpregs[S_next(TheCPU.fpstt)])
-#define STn(n)		((double *)&TheCPU.fpregs[S_reg(TheCPU.fpstt,n)])
+#define ST0		(&TheCPU.fpregs[TheCPU.fpstt])
+#define ST1		(&TheCPU.fpregs[S_next(TheCPU.fpstt)])
+#define STn(n)		(&TheCPU.fpregs[S_reg(TheCPU.fpstt,n)])
 
 #define SYNCFSP		TheCPU.fpus=(TheCPU.fpus&0xc7ff)|(TheCPU.fpstt<<11)
 #define INCFSP		TheCPU.fpstt=S_next(TheCPU.fpstt),SYNCFSP
 #define INCFSP2		TheCPU.fpstt=S_reg(TheCPU.fpstt,2),SYNCFSP
 #define DECFSP		TheCPU.fpstt=S_prev(TheCPU.fpstt),SYNCFSP
 
-static double _fparea[8];
+static long double _fparea[8];
 
 /*
  * This function is only here for looking at the generated binary code
@@ -97,11 +95,11 @@ void init_emu_npu (void)
 	WFR0 = WFR1 = 0.0;
 }
 
-static void ftest(double d)
+static void ftest(long double d)
 {
 	register unsigned short fps;
 	__asm__ __volatile__ (
-	"fldl	%1\n"
+	"fldt	%1\n"
 	"fxam\n"
 	"fnstsw\n"
 	"fstp	%%st(0)" : "=a"(fps) : "m"(d) );
@@ -113,14 +111,14 @@ static inline void fssync(void)
 	TheCPU.fpus = (WFRS&0xc7df)|(TheCPU.fpstt<<11);
 }
 
-/* round double to integer depending on rounding mode */
+/* round long double to integer depending on rounding mode */
 static inline void round_double(void)
 {
 	switch (TheCPU.fpuc & 0xc00) {
-	case 0x000: WFR0 = rint(WFR0); break;
-	case 0x400: WFR0 = floor(WFR0); break;
-	case 0x800: WFR0 = ceil(WFR0); break;
-	default:    WFR0 = floor(WFR0); if (WFR0<0) WFR0++; break;
+	case 0x000: WFR0 = rintl(WFR0); break;
+	case 0x400: WFR0 = floorl(WFR0); break;
+	case 0x800: WFR0 = ceill(WFR0); break;
+	default:    WFR0 = floorl(WFR0); if (WFR0<0) WFR0++; break;
 	}
 }
 
@@ -160,7 +158,7 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x07: WFR0 = *AR1.pws; break;
 		case 0x27: goto fp_notok;
 		case 0x2b: WFR0 = *AR1.pfl; break;
-		case 0x2f: WFR0 = (double)*((long long *)AR1.ps); break;
+		case 0x2f: WFR0 = *((long long *)AR1.ps); break;
 		}
 		*ST0 = WFR0;
 		break;
@@ -227,18 +225,18 @@ static int Fp87_op_sim(int exop, int reg)
 		case 0x22: WFR0 -= *AR1.pds; break;
 		case 0x24: WFR0 -= *AR1.pfd; break;
 		case 0x26: WFR0 -= *AR1.pws; break;
-		case 0x28: WFR0 = (double)*AR1.pff - WFR0; break;
-		case 0x2a: WFR0 = (double)*AR1.pds - WFR0; break;
-		case 0x2c: WFR0 = *AR1.pfd - WFR0; break;
-		case 0x2e: WFR0 = (double)*AR1.pws - WFR0; break;
+		case 0x28: WFR0 = (long double)*AR1.pff - WFR0; break;
+		case 0x2a: WFR0 = (long double)*AR1.pds - WFR0; break;
+		case 0x2c: WFR0 = (long double)*AR1.pfd - WFR0; break;
+		case 0x2e: WFR0 = (long double)*AR1.pws - WFR0; break;
 		case 0x30: WFR0 /= *AR1.pff; break;
 		case 0x32: WFR0 /= *AR1.pds; break;
 		case 0x34: WFR0 /= *AR1.pfd; break;
 		case 0x36: WFR0 /= *AR1.pws; break;
-		case 0x38: WFR0 = (double)*AR1.pff / WFR0; break;
-		case 0x3a: WFR0 = (double)*AR1.pds / WFR0; break;
-		case 0x3c: WFR0 = *AR1.pfd / WFR0; break;
-		case 0x3e: WFR0 = (double)*AR1.pws / WFR0; break;
+		case 0x38: WFR0 = (long double)*AR1.pff / WFR0; break;
+		case 0x3a: WFR0 = (long double)*AR1.pds / WFR0; break;
+		case 0x3c: WFR0 = (long double)*AR1.pfd / WFR0; break;
+		case 0x3e: WFR0 = (long double)*AR1.pws / WFR0; break;
 		}
 		ftest(WFR0);
 		*ST0 = WFR0;
@@ -279,13 +277,13 @@ static int Fp87_op_sim(int exop, int reg)
 		WFR0 = *ST0;
 		switch(exop) {		// Fop (edi), no pop
 		case 0x10:
-		case 0x18: WFR1 = (double)*AR1.pff; goto fcom00;
+		case 0x18: WFR1 = (long double)*AR1.pff; goto fcom00;
 		case 0x12:
-		case 0x1a: WFR1 = (double)*AR1.pds; goto fcom00;
+		case 0x1a: WFR1 = (long double)*AR1.pds; goto fcom00;
 		case 0x14:
-		case 0x1c: WFR1 = *AR1.pfd; goto fcom00;
+		case 0x1c: WFR1 = (long double)*AR1.pfd; goto fcom00;
 		case 0x16:
-		case 0x1e: WFR1 = (double)*AR1.pws;
+		case 0x1e: WFR1 = (long double)*AR1.pws;
 fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			if (WFR0 < WFR1)
 			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
@@ -297,7 +295,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x11:
 		case 0x19: *AR1.pff = (float)WFR0; break;
 		case 0x15:
-		case 0x1d: *AR1.pfd = WFR0; break;
+		case 0x1d: *AR1.pfd = (double)WFR0; break;
 		case 0x13:
 		case 0x1b:
 		case 0x17:
@@ -305,18 +303,18 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			round_double();
 			if (exop & 4) {
 			    if (isnan(WFR0) || isinf(WFR0) ||
-				WFR0 < (double)-0x8000 ||
-				WFR0 > (double)0x7fff) {
+				WFR0 < (long double)-0x8000 ||
+				WFR0 > (long double)0x7fff) {
 				TheCPU.fpus |= 1;
-				WFR0 = (double)-0x8000;
+				WFR0 = (long double)-0x8000;
 			    }
 			    *AR1.pws = WFR0; break;
 			}
 			if (isnan(WFR0) || isinf(WFR0) ||
-			    WFR0 < -(double)0x80000000 ||
-			    WFR0 >  (double)0x7fffffff) {
+			    WFR0 < -(long double)0x80000000 ||
+			    WFR0 >  (long double)0x7fffffff) {
 			    TheCPU.fpus |= 1;
-			    WFR0 = -(double)0x80000000;
+			    WFR0 = -(long double)0x80000000;
 			}
 			*AR1.pds = WFR0; break; }
 		}
@@ -337,10 +335,10 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		WFR0 = *ST0;
 		round_double();
 		if (isnan(WFR0) || isinf(WFR0) ||
-		    WFR0 < (double)(long long)0x8000000000000000ULL ||
-		    WFR0 > (double)(long long)0x7fffffffffffffffULL) {
+		    WFR0 < (long double)(long long)0x8000000000000000ULL ||
+		    WFR0 > (long double)(long long)0x7fffffffffffffffULL) {
 		    TheCPU.fpus |= 1;
-		    WFR0 = (double)(long long)0x8000000000000000ULL;
+		    WFR0 = (long double)(long long)0x8000000000000000ULL;
 		}
 		*((long long *)(uintptr_t)AR1.d) = (long long)WFR0;
 		INCFSP;
@@ -541,10 +539,10 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 
 /*49*/	case 0x49:
 //*	49	D9 11001nnn	FXCH	st,st(n)
-		{ long long t;
-		  long long *p0 = (long long *)ST0;
-		  long long *pn = (long long *)STn(reg);
-		  t = *p0; *p0 = *pn; *pn = t;
+		{ long double t;
+		  memcpy(&t, ST0, sizeof t);
+		  memcpy(ST0, STn(reg), sizeof t);
+		  memcpy(STn(reg), &t, sizeof t);
 		}
 		break;
 
@@ -640,10 +638,10 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 0:		/* F2XM1 */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
+			"fldt	%2\n"
 			"f2xm1\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -651,11 +649,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
-			"fldl	%3\n"
+			"fldt	%2\n"
+			"fldt	%3\n"
 			"fyl2x\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
+			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			INCFSP;
 			fssync();
 			*ST0 = WFR0;
@@ -664,11 +662,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
-			"fldl	%3\n"
+			"fldt	%2\n"
+			"fldt	%3\n"
 			"fpatan\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
+			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			INCFSP;
 			fssync();
 			*ST0 = WFR0;
@@ -676,11 +674,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 2:		/* FPTAN */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
-			"fldl	%3\n"
+			"fldt	%3\n"
 			"fptan\n"
 			"fnstsw	%2\n"
-			"fstpl	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpt	%1\n"
+			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			*ST0 = WFR0; DECFSP;
 			fssync();
 			*ST0 = WFR1;
@@ -688,11 +686,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 4:		/* FXTRACT */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
-			"fldl	%3\n"
+			"fldt	%3\n"
 			"fxtract\n"
 			"fnstsw	%2\n"
-			"fstpl	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpt	%1\n"
+			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			*ST0 = WFR0; DECFSP;
 			fssync();
 			*ST0 = WFR1;
@@ -701,11 +699,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
-			"fldl	%3\n"
+			"fldt	%2\n"
+			"fldt	%3\n"
 			"fprem1\n"
 			"fnstsw	%1\n"
-			"fstpl	%0\n"
+			"fstpt	%0\n"
 			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
@@ -730,11 +728,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
-			"fldl	%3\n"
+			"fldt	%2\n"
+			"fldt	%3\n"
 			"fprem\n"
 			"fnstsw	%1\n"
-			"fstpl	%0\n"
+			"fstpt	%0\n"
 			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
@@ -743,11 +741,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
-			"fldl	%3\n"
+			"fldt	%2\n"
+			"fldt	%3\n"
 			"fscale\n"
 			"fnstsw	%1\n"
-			"fstpl	%0\n"
+			"fstpt	%0\n"
 			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
@@ -756,11 +754,11 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 	   		WFR0 = *ST0;
 			WFR1 = *ST1;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
-			"fldl	%3\n"
+			"fldt	%2\n"
+			"fldt	%3\n"
 			"fyl2xp1\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
+			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			INCFSP;
 			fssync();
 			*ST0 = WFR0;
@@ -768,10 +766,10 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 2:		/* FSQRT */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
+			"fldt	%2\n"
 			"fsqrt\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -784,31 +782,31 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 6:		/* FSIN */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
+			"fldt	%2\n"
 			"fsin\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
 		   case 7:		/* FCOS */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
-			"fldl	%2\n"
+			"fldt	%2\n"
 			"fcos\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
 		   case 3:		/* FSINCOS */
 	   		WFR0 = *ST0;
 			__asm__ __volatile__ (
-			"fldl	%3\n"
+			"fldt	%3\n"
 			"fsincos\n"
 			"fnstsw	%2\n"
-			"fstpl	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
+			"fstpt	%1\n"
+			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			*ST0 = WFR0; DECFSP;
 			fssync();
 			*ST0 = WFR1;

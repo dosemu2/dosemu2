@@ -413,12 +413,12 @@ char *e_trace_fp(void)
 	static char buf[512];
 	int i, ifpr;
 	char *p;
-	double *FPRSTT = &TheCPU.fpregs[TheCPU.fpstt];
+	long double *FPRSTT = &TheCPU.fpregs[TheCPU.fpstt];
 
 	ifpr = TheCPU.fpstt&7;
 	p = buf;
 	for (i=0; i<8; i++) {
-	  double *q = &TheCPU.fpregs[ifpr];
+	  long double *q = &TheCPU.fpregs[ifpr];
 	  char buf2[32];
 #ifdef FP_DISPHEX
 	  sprintf(buf2,"\t%016Lx", *((long long *)q));
@@ -429,7 +429,7 @@ char *e_trace_fp(void)
 	  switch ((TheCPU.fptag >> (ifpr<<1)) & 3) {
 	    case 0: case 1:
 #endif
-		p += sprintf(p,"\tFp%d\t%16.8f%s\n\t", ifpr, *q, buf2);
+		p += sprintf(p,"\tFp%d\t%16.8Lf%s\n\t", ifpr, *q, buf2);
 #ifdef FPU_TAGS
 		break;
 	    case 2: p += sprintf(p,"\tFp%d\tNaN/Inf%s\n\t", ifpr, buf2);
@@ -440,8 +440,8 @@ char *e_trace_fp(void)
 #endif
 	  ifpr = (ifpr+1) & 7;
 	}
-	p += sprintf(p,"\tst=%d(%08lx) sw=%04x cw=%04x tag=%04x\n",
-		TheCPU.fpstt, (long)FPRSTT, TheCPU.fpus, TheCPU.fpuc, TheCPU.fptag);
+	p += sprintf(p,"\tst=%d(%p) sw=%04x cw=%04x tag=%04x\n",
+		TheCPU.fpstt, FPRSTT, TheCPU.fpus, TheCPU.fpuc, TheCPU.fptag);
 	return buf;
 }
 
