@@ -53,10 +53,14 @@ static unsigned short WFRS;
 #define ST1		(&TheCPU.fpregs[S_next(TheCPU.fpstt)])
 #define STn(n)		(&TheCPU.fpregs[S_reg(TheCPU.fpstt,n)])
 
+/* Note: 0 / special values for tag word are only done for FSTENV and FSAVE */
+#define FREETAG(n)	TheCPU.fptag |= (3 << 2*S_reg(TheCPU.fpstt,n))
+#define UNFREETAG(n)	TheCPU.fptag &= ~(3 << 2*S_reg(TheCPU.fpstt,n))
 #define SYNCFSP		TheCPU.fpus=(TheCPU.fpus&0xc7ff)|(TheCPU.fpstt<<11)
 #define INCFSP		TheCPU.fpstt=S_next(TheCPU.fpstt),SYNCFSP
-#define INCFSP2		TheCPU.fpstt=S_reg(TheCPU.fpstt,2),SYNCFSP
+#define INCFSPP		FREETAG(0),TheCPU.fpstt=S_next(TheCPU.fpstt),SYNCFSP
 #define DECFSP		TheCPU.fpstt=S_prev(TheCPU.fpstt),SYNCFSP
+#define DECFSPP		TheCPU.fpstt=S_prev(TheCPU.fpstt),SYNCFSP,UNFREETAG(0)
 
 static long double _fparea[8];
 
@@ -152,7 +156,7 @@ static int Fp87_op_sim(int exop, int reg)
 /*2f*/	case 0x2f:
 //	2B	DB xx101nnn	FLD	ext
 //	2F	DF xx101nnn	FILD	qw
-		DECFSP;
+		DECFSPP;
 		switch(exop) {		// Fop (edi)
 		case 0x01: WFR0 = *AR1.pff; break;
 		case 0x03: WFR0 = *AR1.pds; break;
@@ -328,7 +332,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			}
 			*AR1.pds = WFR0; break; }
 		}
-		if (exop&8) INCFSP;
+		if (exop&8) INCFSPP;
 		break;
 
 /*37*/	case 0x37: {
@@ -347,14 +351,14 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			p[i] |= (b % 10) << 4;
 			b /= 10;
 		}
-		INCFSP;
+		INCFSPP;
 		}
 		break;
 /*3b*/	case 0x3b:
 //	3B	DB xx111nnn	FSTP	ext
 		WFR0 = *ST0;
 		*AR1.pfl = WFR0;
-		INCFSP;
+		INCFSPP;
 		break;
 /*3f*/	case 0x3f: {
 //	3F	DF xx111nnn	FISTP	qw
@@ -367,28 +371,16 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		    WFR0 = (long double)(long long)0x8000000000000000ULL;
 		}
 		*((long long *)(uintptr_t)AR1.d) = (long long)WFR0;
-		INCFSP;
+		INCFSPP;
 		}
 		break;
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
-		// movw	(edi),ax
-		DR1.w.l = *AR1.pwu;
-		// movl	eax,ecx
-		TR1.d = DR1.d;
-		// andb	0x1f,ah
-		DR1.b.bh &= 0x1f;
-		// movb 0xff,al
-		DR1.b.bl = 0xff;
-		// movw	ax,FPUC(ebx)
-		// fldcw FPUC(ebx)
-		CPUWORD(Ofs_FPUC) = DR1.w.l;
-		// movw	cx,FPUC(ebx)
-		CPUWORD(Ofs_FPUC) = TR1.w.l;
+		TheCPU.fpuc = *AR1.pwu | 0x40;
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
-		*AR1.pwu = DR1.w.l = CPUWORD(Ofs_FPUC);
+		*AR1.pwu = TheCPU.fpuc;
 		break;
 
 /*67*/	case 0x67: if (reg!=0) goto fp_notok;
@@ -450,7 +442,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
 			else if (WFR0 > WFR1); /* do nothing */
 			else /* not comparable */ TheCPU.fpus |= 0x4500;
-		if (exop&8) INCFSP;
+		if (exop&8) INCFSPP;
 		break;
 
 /*6a*/	case 0x6a: if (reg!=1) goto fp_notok;
@@ -468,8 +460,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
 			else if (WFR0 > WFR1); /* do nothing */
 			else /* not comparable */ TheCPU.fpus |= 0x4500;
-		if (exop==0x6a) INCFSP;
-		if (exop>=0x6a) INCFSP;
+		if (exop==0x6a) INCFSPP;
+		if (exop>=0x6a) INCFSPP;
 		break;
 
 //	73	DB 11000nnn	FCOMI	st(0),st(n)
@@ -488,7 +480,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 				    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
 				else if (WFR0 > WFR1); /* do nothing */
 				else /* not comparable */ TheCPU.fpus |= 0x4500;
-			INCFSP2;
+			INCFSPP;
+			INCFSPP;
 		   }
 		   else goto fp_notok;
 		   break;
@@ -510,7 +503,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x4e: WFR1 *= WFR0; break;
 		}
 		*STn(reg) = WFR1;
-		if (exop&2) INCFSP;
+		if (exop&2) INCFSPP;
 		ftest(WFR1);
 		break;
 
@@ -543,20 +536,22 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		case 0x7e: WFR1 /= WFR0; break;
 		}
 		*STn(reg) = WFR1;
-		if (exop&2) INCFSP;
+		if (exop&2) INCFSPP;
 		ftest(WFR1);
 		break;
 
 /*41*/	case 0x41:
 //*	41	D9 11000nnn	FLD	st(n)
 		WFR0 = *STn(reg);
-		DECFSP;
+		DECFSPP;
 		*ST0 = WFR0;
 		break;
 
-/*45*/	case 0x45: reg=0;
-/*51*/	case 0x51: if (reg==0) {
+/*45*/	case 0x45:
 //	45	DD 11000nnn	FFREE	st(n)		set tag(n) empty
+		FREETAG(reg);
+		break;
+/*51*/	case 0x51: if (reg==0) {
 //*	51.0	D9 11010000	FNOP
 			break;		// nop
 		   }
@@ -577,7 +572,8 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	55	DD 11010nnn	FST	st(n)
 //	5D	DD 11011nnn	FSTP	st(n)
 		*STn(reg) = *ST0;
-		if (exop==0x5d) INCFSP;
+		UNFREETAG(reg);
+		if (exop==0x5d) INCFSPP;
 		break;
 
 /*61*/	case 0x61:
@@ -636,7 +632,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //*	69.4	D9 11101100	FLDLG2
 //*	69.5	D9 11101101	FLDLN2
 //*	69.6	D9 11101110	FLDZ
-			DECFSP;
+			DECFSPP;
 			switch (reg) {
 			case 0: WFR0 = 1.0; break;
 			case 1: WFR0 = M_LN10/M_LN2; break;
@@ -680,7 +676,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fyl2x\n"
 			"fnstsw	%1\n"
 			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
-			INCFSP;
+			INCFSPP;
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -693,7 +689,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fpatan\n"
 			"fnstsw	%1\n"
 			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
-			INCFSP;
+			INCFSPP;
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -705,7 +701,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fnstsw	%2\n"
 			"fstpt	%1\n"
 			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
-			*ST0 = WFR0; DECFSP;
+			*ST0 = WFR0; DECFSPP;
 			fssync();
 			*ST0 = WFR1;
 			break;
@@ -717,7 +713,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fnstsw	%2\n"
 			"fstpt	%1\n"
 			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
-			*ST0 = WFR0; DECFSP;
+			*ST0 = WFR0; DECFSPP;
 			fssync();
 			*ST0 = WFR1;
 			break;
@@ -785,7 +781,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fyl2xp1\n"
 			"fnstsw	%1\n"
 			"fstpt	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
-			INCFSP;
+			INCFSPP;
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -833,7 +829,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fnstsw	%2\n"
 			"fstpt	%1\n"
 			"fstpt	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
-			*ST0 = WFR0; DECFSP;
+			*ST0 = WFR0; DECFSPP;
 			fssync();
 			*ST0 = WFR1;
 			break;
@@ -846,12 +842,13 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 //	25	DD xx100nnn	FRSTOR	94/108byte
 		    unsigned short *p = (unsigned short *)TheCPU.mem_ref;
 		    char *q;
+		    TheCPU.fpuc = p[0] | 0x40;
 		    if (reg&DATA16) {
-			TheCPU.fpuc = p[0]; TheCPU.fpus = p[1]; TheCPU.fptag = p[2];
+			TheCPU.fpus = p[1]; TheCPU.fptag = p[2];
 			q = (char *)(p+7);
 		    }
 		    else {
-			TheCPU.fpuc = p[0]; TheCPU.fpus = p[2]; TheCPU.fptag = p[4];
+			TheCPU.fpus = p[2]; TheCPU.fptag = p[4];
 			q = (char *)(p+14);
 		    }
 		    TheCPU.fpstt = (TheCPU.fpus>>11)&7;
@@ -912,10 +909,21 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 /*31*/	case 0x31:
 /*35*/	case 0x35: {
 		    char *q;
+		    int i, fptag, ntag;
 //*	31	D9 xx110nnn	FSTENV	14/28byte
 //	35	DD xx110nnn	FSAVE	94/108byte
 		    TheCPU.fpus = (TheCPU.fpus & ~0x3800) | (TheCPU.fpstt<<11);
 //
+		    fptag = TheCPU.fptag; ntag=0;
+		    for (i=7; i>=0; --i) {
+			long double d = TheCPU.fpregs[i];
+			ntag <<= 2;
+			if ((fptag & 0xc000) == 0xc000) ntag |= 3;
+			else if (isnan(d) || !isnormal(d) || isinf(d)) ntag |= 2;
+			else if (d == 0) ntag |= 1;
+			fptag <<= 2;
+		    }
+		    TheCPU.fptag = ntag;
 		    if (reg&DATA16) {
 			unsigned short *p = (unsigned short *)TheCPU.mem_ref;
 			p[0] = TheCPU.fpuc; p[1] = TheCPU.fpus; p[2] = TheCPU.fptag;
