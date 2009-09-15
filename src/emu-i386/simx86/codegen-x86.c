@@ -3075,7 +3075,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	unsigned char *ecpu;
 	long mem_ref;
 	unsigned char *ePC;
-	unsigned short seqflg, fpuc, ofpuc;
+	unsigned short seqflg;
 	unsigned char *SeqStart;
 	hitimer_u TimeEndExec;
 
@@ -3162,11 +3162,11 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	fprintf(aLog,"%08lx: exec\n",G->key);
 #endif
 	if (seqflg & F_FPOP) {
-		fpuc = (TheCPU.fpuc & 0x1f00) | 0xff;
-		__asm__ __volatile__ (" \
-			fstcw	%0\n \
-			fldcw	%1" \
-			: "=m"(ofpuc) : "m"(fpuc): "memory" );
+		/* mask exceptions in generated code */
+		unsigned short fpuc;
+		asm ("fstcw	%0" : "=m"(TheCPU.fpuc));
+		fpuc = TheCPU.fpuc | 0x3f;
+		asm ("fldcw	%0" :: "m"(fpuc));
 	}
 	/* get the protected mode flags. Note that RF and VM are cleared
 	 * by pushfd (but not by ints and traps) */
@@ -3231,14 +3231,13 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 
 	/* was there at least one FP op in the sequence? */
 	if (seqflg & F_FPOP) {
-		int exs = TheCPU.fpus & 0x7f;
-		__asm__ __volatile__ (" \
-			fnclex\n \
-			fldcw	%0" \
-			: : "m"(ofpuc): "memory" );
+		int exs;
+		__asm__ __volatile__ ("fstsw	%0" : "=m"(exs));
+		exs &= 0x7f;
 		if (exs) {
 			e_printf("FPU: error status %02x\n",exs);
 			if ((exs & ~TheCPU.fpuc) & 0x3f) {
+				__asm__ __volatile__ ("fnclex\n" ::: "memory");
 				e_printf("FPU exception\n");
 				/* TheCPU.err = EXCP10_COPR; */
 			}

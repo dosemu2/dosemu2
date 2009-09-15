@@ -2336,9 +2336,6 @@ repag0:
 			int sim = 0;
 			if ((b&0xc0)==0xc0) {
 				exop |= 0x40;
-				if (exop==0x63) {
-					CODE_FLUSH(); sim=1;
-				}
 				PC += 2;
 			}
 			else {
