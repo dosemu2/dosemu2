@@ -1539,7 +1539,19 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 #ifdef ASM_DUMP
 			fprintf(aLog,"%08lx:\t\tint %02x\n",(long)P0,Fetch(PC+1));
 #endif
-			if (Fetch(PC+1)==0x31) InvalidateSegs();
+			switch(Fetch(PC+1)) {
+			case 0x03:
+				TheCPU.err=EXCP03_INT3;
+				PC += 2;
+				return PC;
+			case 0x04:
+				TheCPU.err=EXCP04_INTO;
+				PC += 2;
+				return PC;
+			case 0x31:
+				InvalidateSegs();
+				break;
+			}
 			goto not_permitted;
 			break;
 
