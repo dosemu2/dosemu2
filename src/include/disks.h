@@ -58,7 +58,8 @@ struct disk {
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
   int dexeflags;		/* special flags for DEXE support */
   int sectors, heads, tracks;	/* geometry */
-  long start;			/* geometry */
+  unsigned long start;		/* geometry */
+  unsigned long long num_secs;	/* total sectors on disk */
   int default_cmos;		/* default CMOS floppy type */
   int drive_num;
   unsigned long serial;		/* serial number */

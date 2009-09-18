@@ -362,31 +362,97 @@ image_auto(struct disk *dp)
   dp->sectors = *(int *) &header[11];
   dp->tracks = *(int *) &header[15];
   dp->header = *(int *) &header[19];
+  dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
   d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
 	   dp->dev_name, dp->heads, dp->sectors, dp->tracks,
 	   (long) dp->header);
 }
 
+#define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
+			  (PART_INFO_LEN * (p-1)) + b)
+#define PART_INT(p,b)  *((unsigned int *)(tmp_mbr + PART_INFO_START + \
+			  (PART_INFO_LEN * (p-1)) + b))
 void
 hdisk_auto(struct disk *dp)
 {
 #ifdef __linux__
   struct hd_geometry geo;
+  unsigned long size;
+  unsigned char tmp_mbr[SECTOR_SIZE];
 
+  /* No point in trying HDIO_GETGEO_BIG, as that is already deprecated again by now */
   if (ioctl(dp->fdesc, HDIO_GETGEO, &geo) < 0) {
     error("can't get GEO of %s: %s\n", dp->dev_name,
 	  strerror(errno));
     leavedos(21);
   }
   else {
+    /* ignore cylinders from HDIO_GETGEO: they are truncated! */
     dp->sectors = geo.sectors;
     dp->heads = geo.heads;
-    dp->tracks = geo.cylinders;
     dp->start = geo.start;
-    d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
-	     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
   }
+  if (ioctl(dp->fdesc, BLKGETSIZE64, &dp->num_secs) == 0) {
+    unsigned int sector_size;
+    if (ioctl(dp->fdesc, BLKSSZGET, &sector_size) != 0) {
+      error("Hmm... BLKSSZGET failed (not fatal): %s\n", strerror(errno));
+      sector_size = SECTOR_SIZE;
+    }
+    dp->num_secs /= sector_size;
+  }
+  else
+  {
+    // BLKGETSIZE is always there
+    if (ioctl(dp->fdesc, BLKGETSIZE, &size) == 0)
+      dp->num_secs = size;
+    else {
+      perror("Error getting capacity using BLKGETSIZE and BLKGETSIZE64. This is fatal :-(\n");
+      leavedos(1);
+    }
+  }
+ 
+  if (dp->type == HDISK && read(dp->fdesc, tmp_mbr, SECTOR_SIZE) == SECTOR_SIZE
+      && tmp_mbr[SECTOR_SIZE - 2] == 0x55 && tmp_mbr[SECTOR_SIZE - 1] == 0xaa) {
+    /* see also fdisk.c in util-linux: HDIO_GETGEO is not reliable; we should
+       use the values in the partion table if possible */
+    int pnum;
+    unsigned int h = 0, s = 0, end_head, end_sec;
+    for (pnum = 1; pnum <= 4; pnum++) {
+      /* sys id should be nonzero */
+      if (PART_BYTE(pnum, 4) == 0) continue;
+      end_head = PART_BYTE(pnum, 5);
+      end_sec = PART_BYTE(pnum, 6) & ~0xc0;
+      unsigned end_cyl =
+	PART_BYTE(pnum, 7) | ((PART_BYTE(pnum, 6) << 2) & ~0xff);
+      if (h == 0) {
+	unsigned endseclba;
+	h = end_head + 1;
+	s = end_sec;
+	/* check if CHS matches LBA */
+	endseclba = PART_INT(pnum, 0x8) + PART_INT(pnum, 0xc);
+	if (end_cyl < 1023 && end_cyl*h*s + end_head*s + end_sec != endseclba) {
+	  /* if mismatch, try with s=63 (e.g., a 4GB USB key with 978/128/63) */
+	  unsigned h2 = endseclba / (end_cyl*63);
+	  if (end_cyl*h2*63 + end_head*63 + end_sec == endseclba) {
+	    h = h2;
+	    s = 63;
+	  }
+	}
+      } else if ((end_head != h || end_sec != s) && s != 63) {
+	h = 0;
+	break;
+      }
+    }
+    if (h > 1 && s > 0) {
+      dp->sectors = s;
+      dp->heads = h;
+    }
+  }
+
+  dp->tracks = dp->num_secs / (dp->heads * dp->sectors);
+  d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
+	   dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
 #endif
 }
 
@@ -428,6 +494,7 @@ void dir_auto(struct disk *dp)
     dp->start = dp->sectors;
   }
 
+  dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   d_printf(
     "DIR auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start
@@ -517,10 +584,6 @@ partition_setup(struct disk *dp)
   unsigned char tmp_mbr[SECTOR_SIZE];
   char *hd_name;
 
-#define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
-			  (PART_INFO_LEN * (p-1)) + b)
-#define PART_INT(p,b)  *((unsigned int *)(tmp_mbr + PART_INFO_START + \
-			  (PART_INFO_LEN * (p-1)) + b))
 #define PNUM dp->part_info.number
 
   /* PNUM is 1-based */
@@ -757,6 +820,7 @@ disk_open(struct disk *dp)
 	      dp->sectors = 0;
 	      dp->heads = 0;
 	      dp->tracks = 0;
+	      dp->num_secs = 0;
 	      return;
 	}
   }
@@ -773,6 +837,7 @@ disk_open(struct disk *dp)
       dp->sectors = 0;
       dp->heads = 0;
       dp->tracks = 0;
+      dp->num_secs = 0;
       return;
     }
     error("can't get floppy parameter of %s (%s)\n", dp->dev_name, strerror(errno));
@@ -784,6 +849,7 @@ disk_open(struct disk *dp)
   dp->sectors = fl.sect;
   dp->heads = fl.head;
   dp->tracks = fl.track;
+  dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   if (dp->default_cmos != ATAPI_FLOPPY)
     DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
 }
@@ -1038,6 +1104,7 @@ disk_init(void)
     }
     s += *(us *) & buf[28];	/* + hidden sectors */
 
+    dp->num_secs = s;
     dp->tracks = s / (dp->sectors * dp->heads);
 
     d_printf("DISK read_info disk %s; h=%d, s=%d, t=%d, #=%d, hid=%d\n",
@@ -1332,6 +1399,7 @@ int int13(void)
 	  dp->sectors = 15;
 	else
 	  dp->sectors = 18;
+	dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 	d_printf("auto type defaulted to CMOS %d, sectors: %d\n", LO(bx), dp->sectors);
 	break;
       default:
@@ -1651,8 +1719,8 @@ int int13(void)
     params->tracks = dp->tracks;
     params->heads = dp->heads;
     params->sectors = dp->sectors;
-    params->total_sectors_lo = dp->tracks*dp->heads*dp->sectors;
-    params->total_sectors_hi = 0;
+    params->total_sectors_lo = dp->num_secs & 0xffffffff;
+    params->total_sectors_hi = dp->num_secs >> 32;
     params->bytes_per_sector = SECTOR_SIZE;
     if (params->len >= 0x1e)
       params->edd_cfg_ofs = params->edd_cfg_seg = 0xffff;
