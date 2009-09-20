@@ -1211,12 +1211,16 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
 			   3=vm86 only, 4=all active */
     return;
 #endif
-  if (!DPMIValidSelector(_cs)) {
-    dosemu_error("Return to dosemu requested within dosemu context\n");
-    return;
-  }
-  if (dpmi_ctx)
+  if (dpmi_ctx) {
+    /* If dpmi_ctx is NULL we don't care about _cs. In fact DPMI apps
+       such as RBIL's viewintl use _cs:_eip=0:0 on the stack at int21/4c exit,
+       and then far jump to DPMI_SEL_OFF(DPMI_interrupt)+0x21 */
+    if (!DPMIValidSelector(_cs)) {
+      dosemu_error("Return to dosemu requested within dosemu context\n");
+      return;
+    }
     copy_context(dpmi_ctx, scp, 1);
+  }
   /* simulate the "ret" from "call *%3" in dpmi_transfer() */
   _rip = emu_stack_ptr[-2];
   /* Don't inherit TF from DPMI! */
