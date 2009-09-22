@@ -84,7 +84,14 @@ Any comments/updates/bug reports to:
 #include "dis8086.h"
 #define INLINE static inline
 #undef REG
-#define mem_readb(x) READ_BYTE(x)
+static int disasunix;
+static inline unsigned char mem_readb(unsigned int x)
+{
+  if (disasunix)
+    return UNIX_READ_BYTE((uintptr_t)x);
+  else
+    return READ_BYTE(x);
+}
 typedef unsigned Bitu;
 
 typedef Bit8u  UINT8;
@@ -1129,7 +1136,8 @@ int  dis_8086(unsigned int code,
 {
 	int rc;
 	refoff = 0;
-	rc = DasmI386(outbuf, code, code - refsegbase, def_size);
+	disasunix = def_size & 4;
+	rc = DasmI386(outbuf, code, code - refsegbase, def_size & ~4);
 	*refof = refsegbase + refoff;
 	return rc;
 }

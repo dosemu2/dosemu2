@@ -180,7 +180,8 @@ static const char help_page[]=
   "u ADDR SIZE            unassemble memory (no limit)\n"
   "g                      go (if stopped)\n"
   "stop                   stop (if running)\n"
-  "mode 0|1|+d|-d         set mode (0=SEG16, 1=LIN32) for u and d commands\n"
+  "mode 0|1|2|+d|-d       set mode (0=SEG16, 1=LIN32, 2=UNIX32)\n"
+  "                       for u and d commands\n"
   "t                      single step (not fully debugged!!!)\n"
   "ti                     single step until IP changes\n"
   "tc                     single step, loop forever until key pressed\n"
@@ -620,6 +621,8 @@ static void mhp_dump(int argc, char * argv[])
    unsigned int off;
    unsigned int limit;
    int data32=0;
+   int unixaddr;
+   unsigned char c;
 
    if (argc > 1) {
       seekval = mhp_getadr(argv[1], &seg, &off, &limit);
@@ -647,21 +650,33 @@ static void mhp_dump(int argc, char * argv[])
    mhp_printf( "\n");
 #endif
    if (IN_DPMI && seg) data32=dpmi_mhp_get_selector_size(seg);
+   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
    for (i=0; i<nbytes; i++) {
       if ((i&0x0f) == 0x00) {
-         if (seg|off) {
+         if (seg != 0 || limit != 0xFFFFFFFF) {
             if (data32) mhp_printf("%s%04x:%08x ", IN_DPMI?"#":"" ,seg, off+i);
             else mhp_printf("%s%04x:%04x ", IN_DPMI?"#":"" ,seg, off+i);
          }
-         else
+	 else if (unixaddr)
+            mhp_printf( "%#08x ", seekval+i);
+	 else
             mhp_printf( "%08X ", seekval+i);
       }
-      mhp_printf( "%02X ", READ_BYTE(buf+i));
+      if (unixaddr)
+	c = UNIX_READ_BYTE((uintptr_t)buf+i);
+      else
+	c = READ_BYTE(buf+i);
+      mhp_printf( "%02X ", c);
       if ((i&0x0f) == 0x0f) {
          mhp_printf( " ");
          for (i2=i-15;i2<=i;i2++){
-	    if ((READ_BYTE(buf+i2)&0x7F) >= 0x20) {
-	       mhp_printf( "%c", READ_BYTE(buf+i2)&0x7f);
+	    if (unix)
+	       c = UNIX_READ_BYTE((uintptr_t)buf+i2);
+	    else
+	       c = READ_BYTE(buf+i2);
+	    c &= 0x7F;
+	    if (c >= 0x20) {
+	       mhp_printf( "%c", c);
             } else {
                mhp_printf( "%c", '.');
             }
@@ -670,12 +685,14 @@ static void mhp_dump(int argc, char * argv[])
       }
    }
 
-   if (seg|off) {
+   if (seg != 0 || limit != 0xFFFFFFFF) {
       if ((lastd[0] == '#') || (IN_DPMI)) {
          sprintf(lastd, "#%x:%x", seg, off+i);
       } else {
          sprintf(lastd, "%x:%x", seg, off+i);
       }
+   } else if (unix) {
+      sprintf(lastd, "%#x", seekval + i);
    } else {
       sprintf(lastd, "%x", seekval + i);
    }
@@ -685,7 +702,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
 {
    unsigned int nbytes;
    unsigned int seekval;
-   unsigned int buf = 0;
+   const unsigned char *buf = 0;
    unsigned int seg;
    unsigned int off;
    unsigned int limit=0;
@@ -698,7 +715,10 @@ static void mhp_dump_to_file(int argc, char * argv[])
 
    seekval = mhp_getadr(argv[1], &seg, &off, &limit);
 
-   buf = seekval;
+   if (linmode == 2 && seg == 0 && limit == 0xFFFFFFFF)
+     buf = (const unsigned char *)(uintptr_t)seekval;
+   else
+     buf = LINEAR2UNIX(seekval);
    sscanf(argv[2], "%x", &nbytes);
    if (nbytes == 0) {
       mhp_printf("invalid size\n");
@@ -711,7 +731,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
       mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
       return;
    }
-   if (write(fd, LINEAR2UNIX(buf), nbytes) != nbytes) {
+   if (write(fd, buf, nbytes) != nbytes) {
       mhp_printf("write error: %s\n", strerror(errno));
    }
    close(fd);
@@ -722,11 +742,12 @@ static void mhp_mode(int argc, char * argv[])
    if (argc >=2) {
      if (argv[1][0] == '0') linmode = 0;
      if (argv[1][0] == '1') linmode = 1;
+     if (argv[1][0] == '2') linmode = 2;
      if (!strcmp(argv[1],"+d")) dpmimode=saved_dpmimode=1;
      if (!strcmp(argv[1],"-d")) dpmimode=saved_dpmimode=0;
    }
    mhp_printf ("current mode: %s, dpmi %s%s\n",
-     linmode?"lin32":"seg16", dpmimode?"enabled":"disabled",
+     linmode==2?"unix32":linmode?"lin32":"seg16", dpmimode?"enabled":"disabled",
      dpmimode!=saved_dpmimode ? (saved_dpmimode?"[default enabled]":"[default disabled]"):"");
    return;
 }
@@ -789,15 +810,20 @@ static void mhp_disasm(int argc, char * argv[])
         def_size = 0;
      else def_size = 3;
    }
+   if (linmode == 2) {
+     if (seg != 0 || limit != 0xFFFFFFFF)
+       seekval += (uintptr_t)mem_base;
+     def_size |= 4;
+   }
    rc=0;
    buf = seekval;
    org = codeorg ? codeorg : seekval;
 
    for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
-       if (!segmented) {
+       if (def_size&4) {
           if (getname(org+bytesdone))
              mhp_printf ("%s:\n", getname(org+bytesdone));
-       } else {
+       } else if (segmented) {
           if (getname2(seg,off+bytesdone))
              mhp_printf ("%s:\n", getname2(seg,off));
        }
@@ -805,7 +831,10 @@ static void mhp_disasm(int argc, char * argv[])
        rc = dis_8086(buf+bytesdone, frmtbuf, def_size, &ref,
                   (IN_DPMI ? dpmi_mhp_getselbase(refseg) : refseg * 16));
        for (i=0;i<rc;i++) {
-           sprintf(&bytebuf[i*2], "%02X", READ_BYTE(buf+bytesdone+i) );
+	   if(def_size&4)
+	     sprintf(&bytebuf[i*2], "%02X", UNIX_READ_BYTE((uintptr_t)buf+bytesdone+i) );
+	   else
+	     sprintf(&bytebuf[i*2], "%02X", READ_BYTE(buf+bytesdone+i) );
            bytebuf[(i*2)+2] = 0x00;
        }
        if (segmented) {
@@ -817,7 +846,10 @@ static void mhp_disasm(int argc, char * argv[])
           if ((ref) && (getname2u(ref)))
              mhp_printf ("(%s)", getname2u(ref));
        } else {
-          mhp_printf( "%08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
+	  if (def_size&4)
+	     mhp_printf( "%#08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
+	  else
+	     mhp_printf( "%08x: %-16s %s", org+bytesdone, bytebuf, frmtbuf);
           if ((ref) && (getname(ref)))
              mhp_printf ("(%s)", getname(ref));
        }
@@ -959,6 +991,7 @@ static unsigned int mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned i
       else {
         *s1 = LWORD(cs);
         *o1 = LWORD(eip);
+	*lim = 0xFFFF;
         return makeaddr(LWORD(cs), LWORD(eip));
       }
    }
@@ -972,6 +1005,7 @@ static unsigned int mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned i
         else {
           *s1 = LWORD(ss);
           *o1 = LWORD(esp);
+	  *lim = 0xFFFF;
           return makeaddr(LWORD(ss), LWORD(esp));
         }
      }
@@ -1003,8 +1037,10 @@ static unsigned int mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned i
    *s1 = seg1;
    *o1 = off1;
 
-   if (!selector)
+   if (!selector) {
+      *lim = 0xFFFF;
       return makeaddr(seg1,off1);
+   }
 
    if (!(seg1 & 0x4)) {
      mhp_printf("GDT selectors not supported yet\n");
@@ -1506,7 +1542,7 @@ static void mhp_print_ldt(int argc, char * argv[])
         if (type2 & 0x08)
            limit *= 4096;
         if (type & 0x10)
-           mhp_printf ("%04x: %08x %08x %s%d %d %c%c%c%c%c%s\n",
+           mhp_printf ("%04x: %08x %08x %s%d %d %c%c%c%c%c %p%s\n",
               i | 0x07,
               base_addr,
               limit,
@@ -1518,6 +1554,7 @@ static void mhp_print_ldt(int argc, char * argv[])
               (type & 2)?((type & 8)?'R':'W'):' ',
               (type & 1)?'A':' ',
               (lp_[1] &Abit)?'a':' ',
+	      &mem_base[base_addr],
               cache_mismatch ?" (cache mismatch)":"");
         else
            mhp_printf ("%04x: %08x %08x System(%02x)%s\n",
