@@ -680,7 +680,7 @@ void memmove_dos2dos(void *dest, const void *src, size_t n)
   else if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000])
     memcpy_to_vga(dest, src, n);
   else
-    MEMMOVE_DOS2DOS(dest, src, n);
+    MEMMOVE_DOSP2DOSP(dest, src, n);
 }
 
 int dos_read(int fd, char *data, int cnt)
@@ -695,7 +695,7 @@ int dos_read(int fd, char *data, int cnt)
       memcpy_to_vga(data, buf, ret);
   }
   else
-    ret = RPT_SYSCALL(read(fd, LINEAR2UNIX(data), cnt));
+    ret = RPT_SYSCALL(read(fd, lowmemp(data), cnt));
   if (ret > 0)
 	e_invalidate(data, ret);
   return (ret);

@@ -1860,7 +1860,7 @@ void ems_init(void)
   E_printf("EMS: initializing memory\n");
 
   memcheck_addtype('E', "EMS page frame");
-  memcheck_reserve('E', (uintptr_t)EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
+  memcheck_reserve('E', EMM_BASE_ADDRESS - mem_base, EMM_MAX_PHYS * EMM_PAGE_SIZE);
 
   ems_reset2();
 }

@@ -3077,7 +3077,7 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
 /* return the Linux filename corresponding to the sft */
 char *sft_to_filename(const char *sft, int *fd)
 {
-  int cnt = READ_BYTE(&sft_fd(sft));
+  int cnt = READ_BYTEP(&sft_fd(sft));
   *fd = open_files[cnt].name ? open_files[cnt].fd : 0;
   return open_files[cnt].name;
 }
@@ -3203,7 +3203,7 @@ dos_fs_redirect(state_t *state)
 
   my_cds = sda_cds(sda);
 
-  sft = LINEAR2UNIX(Addr(state, es, edi));
+  sft = lowmemp(Addr(state, es, edi));
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 

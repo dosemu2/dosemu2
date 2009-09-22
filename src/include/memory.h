@@ -225,7 +225,8 @@ void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
-void *dosaddr_to_unixaddr(uintptr_t addr);
+void *dosaddr_to_unixaddr(unsigned int addr);
+void *lowmemp(const void *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
    to this base. It is normally set to 0 but with mmap_min_addr
@@ -268,13 +269,11 @@ extern char * const lowmem_base;
 #define IS_GENERIC_LOWMEM_ADDR(addr) \
 	((addr) <= 0x9fffc || ((addr) >= 0xf4000 && (addr) <= 0xffffc))
 
-static inline void *linear2unix(uintptr_t addr)
+static inline void *LINEAR2UNIX(unsigned int addr)
 {
 	return IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM(addr) :
 	  dosaddr_to_unixaddr(addr);
 }
-
-#define LINEAR2UNIX(addr) linear2unix((uintptr_t)(addr))
 
 #define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))
 #define WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LINEAR2UNIX(addr), val)
@@ -300,6 +299,28 @@ static inline void *linear2unix(uintptr_t addr)
 
 #define MEMSET_DOS(dos_addr, val, n) \
         memset(LINEAR2UNIX(dos_addr), (val), (n))
+
+/* The "P" macros all take valid pointer addresses; the pointers are
+   aliased from mem_base to lowmem_base if possible.
+   The non-P macros take integers with respect to mem_base or lowmem_base.
+   Usually its easiest to deal with integers but some functions accept both
+   pointers into DOSEMU data and pointers into DOS space.
+ */
+#define READ_BYTEP(addr)	UNIX_READ_BYTE(lowmemp(addr))
+#define WRITE_BYTEP(addr, val)	UNIX_WRITE_BYTE(lowmemp(addr), val)
+#define READ_WORDP(addr)	UNIX_READ_WORD(lowmemp(addr))
+#define WRITE_WORDP(addr, val)	UNIX_WRITE_WORD(lowmemp(addr), val)
+#define READ_DWORDP(addr)	UNIX_READ_DWORD(lowmemp(addr))
+#define WRITE_DWORDP(addr, val)	UNIX_WRITE_DWORD(lowmemp(addr), val)
+
+#define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
+	memcpy((unix_addr), lowmemp(dos_addr), (n))
+
+#define MEMCPY_2DOSP(dos_addr, unix_addr, n) \
+	memcpy(lowmemp(dos_addr), (unix_addr), (n))
+
+#define MEMMOVE_DOSP2DOSP(dos_addr1, dos_addr2, n) \
+	memmove(lowmemp(dos_addr1), lowmemp(dos_addr2), (n))
 
 #endif
 

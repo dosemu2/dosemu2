@@ -242,7 +242,7 @@ int e_munprotect(caddr_t addr, size_t len)
    do not try to unprotect it */
 int e_check_munprotect(caddr_t addr)
 {
-	if (LINEAR2UNIX(addr) != addr)
+	if (lowmemp(addr) != addr)
 		return 0;
 	return e_munprotect(addr,0);
 }

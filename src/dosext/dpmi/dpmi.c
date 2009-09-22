@@ -1116,8 +1116,8 @@ int GetDescriptor(us selector, unsigned int *lp)
           MPROT_LDT_ENTRY(selector >> 3);
   }
 #endif  
-  MEMCPY_2DOS(lp, &ldt_buffer[selector & 0xfff8], 8);
-  D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
+  MEMCPY_2DOSP(lp, &ldt_buffer[selector & 0xfff8], 8);
+  D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n", selector>>3, selector, READ_DWORDP(lp+1), READ_DWORDP(lp));
   return 0;
 }
 
@@ -3630,7 +3630,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
 	    e_invalidate((unsigned char *)buffer, (9+6)*sizeof(*buffer));
-	    buffer = LINEAR2UNIX(buffer);
+	    buffer = lowmemp(buffer);
 	    *buffer++ = REG(eax);
 	    *buffer++ = REG(ebx);
 	    *buffer++ = REG(ecx);
@@ -4258,7 +4258,7 @@ void dpmi_realmode_hlt(unsigned int lina)
     show_regs(__FILE__, __LINE__);
 #endif
     e_invalidate((unsigned char *)rmreg, sizeof(*rmreg));
-    rmreg = LINEAR2UNIX(rmreg);
+    rmreg = lowmemp(rmreg);
     rmreg->edi = REG(edi);
     rmreg->esi = REG(esi);
     rmreg->ebp = REG(ebp);
@@ -4376,7 +4376,7 @@ done:
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
       e_invalidate((unsigned char *)buffer, (9+6)*sizeof(*buffer));
-      buffer = LINEAR2UNIX(buffer);
+      buffer = lowmemp(buffer);
       *buffer++ = _eax;
       *buffer++ = _ebx;
       *buffer++ = _ecx;

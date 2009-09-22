@@ -58,7 +58,7 @@ static time_t win_to_unix_time(unsigned long long wt)
 */
 static char *handle_to_filename(int handle, int *fd)
 {
-	struct PSP *p = MK_FP32(READ_WORD(&sda_cur_psp(sda)), 0);
+	struct PSP *p = MK_FP32(READ_WORDP(&sda_cur_psp(sda)), 0);
 	unsigned char *filetab;
 	unsigned int sp;
 	unsigned char *sft;
@@ -72,33 +72,33 @@ static char *handle_to_filename(int handle, int *fd)
 
 	/* Look up the handle via the PSP */
 	*fd = HANDLE_INVALID;
-	if (handle >= READ_WORD(&p->max_open_files))
+	if (handle >= READ_WORDP(&p->max_open_files))
 		return NULL;
 
-	filetab = (char *)rFAR_PTR(uintptr_t, READ_DWORD(&p->file_handles_ptr));
-	idx = READ_BYTE(filetab + handle);
+	filetab = (char *)rFAR_PTR(uintptr_t, READ_DWORDP(&p->file_handles_ptr));
+	idx = READ_BYTEP(filetab + handle);
 	if (idx == 0xff)
 		return NULL;
 
 	/* Get the SFT block that contains the SFT      */
-	sp = READ_DWORD(lol + 4);
+	sp = READ_DWORDP(lol + 4);
 	while (sp != 0xffffffff) {
 		spp = (struct sfttbl *)rFAR_PTR(uintptr_t, sp);
-		if (idx < READ_WORD(&spp->sftt_count)) {
+		if (idx < READ_WORDP(&spp->sftt_count)) {
 			/* finally, point to the right entry            */
 			sft = &spp->sftt_table[idx * sft_size];
 			break;
 		}
-		idx -= READ_WORD(&spp->sftt_count);
-		sp = READ_DWORD(&spp->sftt_next);
+		idx -= READ_WORDP(&spp->sftt_count);
+		sp = READ_DWORDP(&spp->sftt_next);
 	}
 	if (sp == 0xffffffff)
 		return NULL;
 
 	/* do we "own" the drive? */
 	*fd = 0;
-	dd = READ_WORD(&sft_device_info(sft)) & 0x0d1f;
-	if (dd == 0 && (READ_WORD(&sft_device_info(sft)) & 0x8000))
+	dd = READ_WORDP(&sft_device_info(sft)) & 0x0d1f;
+	if (dd == 0 && (READ_WORDP(&sft_device_info(sft)) & 0x8000))
 		dd = MAX_DRIVE - 1;
 	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
 		return NULL;
@@ -302,7 +302,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 			addChar(src0);
 			unc_src++;
 		} while (src0);
-		WRITE_DWORD(&sda[sda_cds_off], 0xFFFFFFFF);
+		WRITE_DWORDP(&sda[sda_cds_off], 0xFFFFFFFF);
 		d_printf("Returning path: \"%s\"\n", dest);
 		/* Flag as network - drive bits are empty but shouldn't get */
 		/* referenced for network with empty current_ldt.	    */
@@ -342,7 +342,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 
 	d_printf("CDS entry: #%u @%p (%u) '%s'\n", result, cds,
 		   cds_rootlen(cds), cds_current_path(cds));
-	WRITE_WORD(&sda[sda_cds_off],
+	WRITE_WORDP(&sda[sda_cds_off],
 		   lol_cdsfarptr(lol).offset + result * cds_record_size);
  
 	dest[0] = (result & 0x1f) + 'A';
@@ -520,7 +520,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 					strcpy(dest + 2, dest + j);
 				}
 				result = (result & 0xffe0) | i;
-				WRITE_WORD(&sda[sda_cds_off],
+				WRITE_WORDP(&sda[sda_cds_off],
 					   lol_cdsfarptr(lol).offset +
 					   (cdsp - cds_base));
 				d_printf("JOINed path: \"%s\"\n", dest);
@@ -548,7 +548,7 @@ static inline int build_ufs_path(char *ufs, const char *path, int drive)
 static int lfn_error(int errorcode)
 {
 	_AX = errorcode;
-	WRITE_WORD(&sda_error_code(sda), errorcode);
+	WRITE_WORDP(&sda_error_code(sda), errorcode);
 	CARRY;
 	return 1;
 }

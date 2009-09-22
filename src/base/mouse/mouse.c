@@ -1925,7 +1925,7 @@ dosemu_mouse_init(void)
 
 void mouse_post_boot(void)
 {
-  us *ptr;
+  unsigned int ptr;
         
   if (!mice->intdrv) return;
   
@@ -1937,11 +1937,11 @@ void mouse_post_boot(void)
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
   
   /* grab int10 back from video card for mouse */
-  ptr = MK_FP32(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
-  m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
+  ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
+  m_printf("ptr is at %x; ptr[0] = %x, ptr[1] = %x\n",ptr,READ_WORD(ptr),READ_WORD(ptr+2));
   WRITE_WORD(ptr, IOFF(0x10));
-  WRITE_WORD(ptr + 1, ISEG(0x10));
-  m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",ptr[0],ptr[1]);
+  WRITE_WORD(ptr + 2, ISEG(0x10));
+  m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",READ_WORD(ptr),READ_WORD(ptr+2));
   /* Otherwise this isn't safe */
   SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 }

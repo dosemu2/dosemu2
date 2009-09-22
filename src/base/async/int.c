@@ -75,7 +75,7 @@ static int int33(void);
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
 
-static char *dos_io_buffer;
+static unsigned int dos_io_buffer;
 static int dos_io_buffer_size = 0;
 
 static u_char         save_hi_ints[128];
@@ -474,7 +474,7 @@ int dos_helper(void)
     case DOS_HELPER_PUT_DATA: {
 	unsigned int offs = REG(edi);
 	unsigned int size = REG(ecx);
-	unsigned char *dos_ptr = SEG_ADR((unsigned char *), ds, dx);
+	unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
 	if (offs + size <= dos_io_buffer_size)
 	    MEMCPY_DOS2DOS(dos_io_buffer + offs, dos_ptr, size);
 	break;
@@ -483,7 +483,7 @@ int dos_helper(void)
     case DOS_HELPER_GET_DATA: {
 	unsigned int offs = REG(edi);
 	unsigned int size = REG(ecx);
-	unsigned char *dos_ptr = SEG_ADR((unsigned char *), ds, dx);
+	unsigned char dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
 	if (offs + size <= dos_io_buffer_size)
 	    MEMCPY_DOS2DOS(dos_ptr, dos_io_buffer + offs, size);
 	break;
@@ -767,7 +767,7 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 	  REG(ecx) = max(REG(ecx), 20);
 	  if (REG(ebx) + REG(ecx) >= system_memory_map_size)
 	    REG(ecx) = system_memory_map_size - REG(ebx);
-	  MEMCPY_2DOS(MK_FP32(_ES, _DI), (char *)system_memory_map + REG(ebx),
+	  MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), (char *)system_memory_map + REG(ebx),
 		      REG(ecx));
 	  REG(ebx) += REG(ecx);
 	} else
@@ -2253,7 +2253,7 @@ static void update_xtitle(void)
     return;
   force_update = !title_hint[0];
 
-  MEMCPY_2UNIX(cmdname, mcb->name, 8);
+  MEMCPY_P2UNIX(cmdname, mcb->name, 8);
   cmdname[8] = 0;
   cmd_ptr = tmp_ptr = cmdname + strspn(cmdname, " \t");
   while (*tmp_ptr) {	/* Check whether the name is valid */
@@ -2312,7 +2312,7 @@ void do_periodic_stuff(void)
 	update_xtitle();
 }
 
-void set_io_buffer(char *ptr, unsigned int size)
+void set_io_buffer(unsigned int ptr, unsigned int size)
 {
   dos_io_buffer = ptr;
   dos_io_buffer_size = size;

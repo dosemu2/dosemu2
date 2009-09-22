@@ -676,7 +676,7 @@ static void get_dcc(int *active_dcc, int *alternate_dcc)
 }
 
 /* INT 10 AH=1B - FUNCTIONALITY/STATE INFORMATION (PS,VGA/MCGA) */
-static void return_state(Bit8u *statebuf) {
+static void return_state(unsigned int statebuf) {
 	int active_dcc, alternate_dcc;
 
 	WRITE_WORD(statebuf, vgaemu_bios.functionality - 0xc0000);
@@ -1492,7 +1492,7 @@ int int10(void) /* with dualmon */
     case 0x1b:		/* functionality/state information */
       if(LWORD(ebx) == 0) {
         i10_deb("get functionality/state info\n");
-        return_state(SEG_ADR((Bit8u *), es, di));
+        return_state(SEGOFF2LINEAR(REG(es), LWORD(edi)));
         LO(ax) = 0x1b;
       } else {
         i10_msg("unknown functionality/state request: 0x%04x", LWORD(ebx));
@@ -1588,14 +1588,14 @@ int int10(void) /* with dualmon */
 	    buf[0x3 + ind] = port_inb(DAC_DATA);
 	  buf[0x303] = port_inb(COLOR_SELECT);
 
-	  MEMCPY_2DOS(MK_FP32(_ES, base), buf, sizeof(buf));
+	  MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), base), buf, sizeof(buf));
 	}
 	break;
       case 2:
 	if (LO(cx) & 1) {
 	  unsigned char buf[0x46];
 	  unsigned crtc, ind;
-	  MEMCPY_2UNIX(buf, MK_FP32(_ES, base), sizeof(buf));
+	  MEMCPY_2UNIX(buf, SEGOFF2LINEAR(REG(es), base), sizeof(buf));
 	  base += sizeof(buf);
 	  crtc = buf[0x40] | (buf[0x41] << 8);
 	  for (ind = 1; ind < 5; ind++)
@@ -1633,7 +1633,7 @@ int int10(void) /* with dualmon */
 	if (LO(cx) & 4) {
 	  unsigned char buf[0x304];
 	  unsigned ind;
-	  MEMCPY_2UNIX(buf, MK_FP32(_ES, base), sizeof(buf));
+	  MEMCPY_2UNIX(buf, SEGOFF2LINEAR(_ES, base), sizeof(buf));
 	  port_outb(DAC_PEL_MASK, buf[2]);
 	  port_outb(DAC_WRITE_INDEX, 0x00);
 	  for(ind = 0; ind < 768; ind++)

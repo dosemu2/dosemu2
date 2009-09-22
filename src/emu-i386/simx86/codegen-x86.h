@@ -109,9 +109,9 @@ static __inline__ void PUSH(int m, void *w)
 	addr = (caddr_t)(LONG_SS + sp);
 	v = e_check_munprotect(addr);
 	if (m&DATA16)
-		WRITE_WORD(addr, *(short *)w);
+		WRITE_WORDP(addr, *(short *)w);
 	else
-		WRITE_DWORD(addr, *(int *)w);
+		WRITE_DWORDP(addr, *(int *)w);
 	if (v) e_mprotect(addr, 0);
 #ifdef KEEP_ESP
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);

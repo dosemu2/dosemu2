@@ -349,8 +349,8 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 
 	      /* mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip); */
-	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 1),
-						READ_WORD(SEG_ADR((Bit16u *), ss, sp) + 0));
+	      mhpdbgc.bpload_bp = SEGOFF2LINEAR(READ_WORD(SEGOFF2LINEAR(REG(ss), LWORD(esp)) + 2),
+						READ_WORD(SEGOFF2LINEAR(REG(ss), LWORD(esp)) + 0));
 
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
 		mhp_printf("\n\nbpload: intercepting EXEC:\n", LWORD(cs), REG(eip));
@@ -370,9 +370,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 
 		/* need to move top 3 words on stack up so we can add a value for AX below them */
 
-		unsigned char *ssp = SEG2LINEAR(_SS);
+		unsigned int ssp = SEGOFF2LINEAR(_SS, 0);
 
-		memmove(ssp + _SP - 2, ssp + _SP, 6);
+		MEMMOVE_DOS2DOS(ssp + _SP - 2, ssp + _SP, 6);
 		_SP -= 2;
 
 		/* give 0 for AX (should actually be info about FDs 0/1, I think? */

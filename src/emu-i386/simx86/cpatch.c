@@ -107,7 +107,7 @@ asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 asmlinkage void stk_16(caddr_t addr, Bit16u value)
 {
 	int ret = s_munprotect(addr);
-	WRITE_WORD(addr, value);
+	WRITE_WORDP(addr, value);
 	if (ret & 1)
 		s_mprotect(addr);
 }
@@ -115,7 +115,7 @@ asmlinkage void stk_16(caddr_t addr, Bit16u value)
 asmlinkage void stk_32(caddr_t addr, Bit32u value)
 {
 	int ret = s_munprotect(addr);
-	WRITE_DWORD(addr, value);
+	WRITE_DWORDP(addr, value);
 	if (ret & 1)
 		s_mprotect(addr);
 }
@@ -125,7 +125,7 @@ asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
 	int ret;
 	Bit8u *p;
 	ret = m_munprotect(addr, eip);
-	p = LINEAR2UNIX(addr);
+	p = lowmemp(addr);
 	/* there is a slight chance that this stub hits VGA memory.
 	   For that case there is a simple instruction decoder but
 	   we must use mov %al,(%edi) (%rdi for x86_64) */
@@ -139,7 +139,7 @@ asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 	int ret;
 	Bit16u *p;
 	ret = m_munprotect(addr, eip);
-	p = LINEAR2UNIX(addr);
+	p = lowmemp(addr);
 	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
 		m_mprotect(addr);
@@ -150,7 +150,7 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 	int ret;
 	Bit32u *p;
 	ret = m_munprotect(addr, eip);
-	p = LINEAR2UNIX(addr);
+	p = lowmemp(addr);
 	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
 		m_mprotect(addr);

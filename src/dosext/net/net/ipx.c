@@ -909,7 +909,7 @@ int ipx_int7a(void)
     /* do nothing here because routing is handled by IPX */
     /* normally this would return an ImmediateAddress, but */
     /* the ECB ImmediateAddress is never used, so just return */
-    network = READ_DWORD(SEG_ADR((unsigned int *), es, si));
+    network = READ_DWORD(SEGOFF2LINEAR(REG(es), LWORD(esi)));
     n_printf("IPX: GetLocalTarget for network %08lx\n", network );
     if( network==0 || network== *((uint32_t *)&MyAddress[0]) ) {
       n_printf("IPX: returning GLT success for local address\n");

@@ -6,7 +6,7 @@
 #include "dos2linux.h"
 
 #define COM_PSP_SEG	(REG(es))
-#define COM_PSP_ADDR	((struct PSP *)LINEAR2UNIX(SEG2LINEAR(COM_PSP_SEG)))
+#define COM_PSP_ADDR	((struct PSP *)LINEAR2UNIX(SEGOFF2LINEAR(COM_PSP_SEG, 0)))
 
 typedef int com_program_type(int argc, char **argv);
 

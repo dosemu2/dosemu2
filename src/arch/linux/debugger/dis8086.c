@@ -84,7 +84,7 @@ Any comments/updates/bug reports to:
 #include "dis8086.h"
 #define INLINE static inline
 #undef REG
-#define mem_readb(x) READ_BYTE(&mem_base[x])
+#define mem_readb(x) READ_BYTE(x)
 typedef unsigned Bitu;
 
 typedef Bit8u  UINT8;
