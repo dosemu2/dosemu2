@@ -513,8 +513,8 @@ void do_call_back(Bit32u codefarptr)
 
 void do_intr_call_back(int intno)
 {
-	unsigned char * ssp = SEG2LINEAR(LWORD(ss));
-	unsigned long sp = (unsigned long) LWORD(esp);
+	unsigned int ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+	unsigned int sp = LWORD(esp);
 	pushw(ssp, sp, vflags);
 	LWORD(esp) = (LWORD(esp) - 2) & 0xffff;
 	clear_IF();

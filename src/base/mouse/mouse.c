@@ -249,8 +249,8 @@ mouse_helper(struct vm86_regs *regs)
       /* redetermine the video mode:
          the stack contains: mode, saved ax, saved bx */
       int video_mode = -1;
-      unsigned char *ssp = SEG2LINEAR(regs->ss);
-      unsigned long sp = WORD(regs->esp + 2);
+      unsigned int ssp = SEGOFF2LINEAR(regs->ss, 0);
+      unsigned int sp = WORD(regs->esp + 2);
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
@@ -1613,12 +1613,11 @@ mouse_delta(int event)
 static void call_int15_mouse_event_handler(void)
 {
     int status;
-    unsigned char *ssp;
-    unsigned long sp;
+    unsigned int ssp, sp;
     int dx, dy;
 
-    ssp = SEG2LINEAR(LWORD(ss));
-    sp = (unsigned long) LWORD(esp);
+    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+    sp = LWORD(esp);
 
     dx = mouse.mickeyx - mouse.old_mickeyx;
     /* PS/2 wants the y direction reversed */
@@ -1689,11 +1688,10 @@ static void call_int33_mouse_event_handler(void)
 /* this function is called from int74 via inte6 */
 static void call_mouse_event_handler(void)
 {
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
 
-  ssp = SEG2LINEAR(LWORD(ss));
-  sp = (unsigned long) LWORD(esp);
+  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  sp = LWORD(esp);
 
   /* first pop bx and ax, which were changed to
      call this function */

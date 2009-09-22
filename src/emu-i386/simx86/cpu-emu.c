@@ -1022,7 +1022,7 @@ static void e_should_clean_tree(int i)
 #endif
 }
 
-static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
+static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 {
 	unsigned int *intr_ptr, segoffs;
 
@@ -1064,18 +1064,18 @@ static int handle_vm86_trap(int *error_code, int trapno)
 {
 	if ( (trapno==3) || (trapno==1) )
 		return (VM86_TRAP + (trapno << 8));
-	e_do_int(trapno, SEG2LINEAR(_SS), _SP);
+	e_do_int(trapno, SEGOFF2LINEAR(_SS, 0), _SP);
 	return -1;
 }
 
 
 static int handle_vm86_fault(int *error_code)
 {
-	unsigned char *csp, *ssp, op;
-	unsigned long ip, sp;
+	unsigned int csp, ssp, ip, sp;
+	unsigned char op;
 
-	csp = SEG2LINEAR(_CS);
-	ssp = SEG2LINEAR(_SS);
+	csp = SEGOFF2LINEAR(_CS, 0);
+	ssp = SEGOFF2LINEAR(_SS, 0);
 	sp = _SP;
 	ip = _IP;
 	op = popb(csp, ip);

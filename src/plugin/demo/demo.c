@@ -61,15 +61,14 @@ void my_plugin_ioselect(void)
 		 *       on 'interrupt' level (saving all registers)
 		 */
 		static struct vm86_regs save_regs;
-		unsigned char * ssp;
-		unsigned long sp;
+		unsigned int ssp, sp;
 
 		nbytes = read(my_plugin_fd, bufptr, sizebuf);
 		fprintf(stderr, "PLUGIN: read %d bytes\n", nbytes);
 		if (nbytes <= 0) return;
 		save_regs = REGS;	/* save all registers */
-		ssp = (unsigned char *)(LWORD(ss)<<4);
-		sp = (unsigned long) LWORD(esp);
+		ssp = SEGOFF2LINEAR(REG(ss), 0);
+		sp = LWORD(esp);
 		pushw(ssp, sp, nbytes);	/* push nbyte as arg on stack */
 		LWORD(esp) -= 2;
 		LWORD(ds) = cback_ds;	/* set the DOSapp DS value */

@@ -738,8 +738,8 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 
 static void call_dos_helper(int ah)
 {
-	unsigned char *ssp = SEG2LINEAR(_SS);
-	unsigned long sp = (unsigned long) _SP;
+	unsigned int ssp = SEGOFF2LINEAR(_SS, 0);
+	unsigned int sp = _SP;
 	_AH = ah;
 	pushw(ssp, sp, _CS);
 	pushw(ssp, sp, _IP);

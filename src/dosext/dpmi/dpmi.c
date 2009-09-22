@@ -1945,8 +1945,7 @@ err:
       struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
         (GetSegmentBaseAddress(_es) + API_16_32(_edi));
       us *ssp;
-      unsigned char *rm_ssp;
-      unsigned long rm_sp;
+      unsigned int rm_ssp, rm_sp;
       int i;
 
       D_printf("DPMI: RealModeCallStructure at %p\n", rmreg);
@@ -1967,8 +1966,8 @@ err:
 	REG(ss) = rmreg->ss;
 	REG(esp) = (long) rmreg->sp;
       }
-      rm_ssp = SEG2LINEAR(REG(ss));
-      rm_sp = (unsigned long) LWORD(esp);
+      rm_ssp = SEGOFF2LINEAR(REG(ss), 0);
+      rm_sp = LWORD(esp);
       for (i=0;i<(_LWORD(ecx)); i++)
 	pushw(rm_ssp, rm_sp, *(ssp+(_LWORD(ecx)) - 1 - i));
       LWORD(esp) -= 2 * (_LWORD(ecx));
@@ -2959,8 +2958,7 @@ void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
   unsigned short CS, DS, ES, SS, psp, my_cs;
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
   unsigned int my_ip, my_sp, i;
   unsigned char *cp;
   int inherit_idt;
@@ -3037,8 +3035,8 @@ void dpmi_init(void)
     }
   }
 
-  ssp = SEG2LINEAR(REG(ss));
-  sp = (unsigned long) LWORD(esp);
+  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  sp = LWORD(esp);
 
   psp = LWORD(ebx);
   LWORD(ebx) = popw(ssp, sp);
@@ -3792,11 +3790,10 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  ssp = (us *) SEL_ADR(_ss, _esp);
 	  copy_context(scp, &old_ctx, -1);
 	  if (esp_delta) {
-	    unsigned char *rm_ssp;
-	    unsigned long sp;
+	    unsigned int rm_ssp, sp;
 	    D_printf("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
-	    rm_ssp = SEG2LINEAR(REG(ss));
-	    sp = (unsigned long) LWORD(esp);
+	    rm_ssp = SEGOFF2LINEAR(REG(ss), 0);
+	    sp = LWORD(esp);
 	    esp_delta >>= DPMI_CLIENT.is_32;
 	    if (esp_delta == 2) {
 	      pushw(rm_ssp, sp, *ssp);

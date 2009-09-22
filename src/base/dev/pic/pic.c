@@ -906,10 +906,9 @@ pic_iret(void)
 	cb_cs = cb_ip = 0;
       }
       else {
-	unsigned char * ssp;
-	unsigned long sp;
-	ssp = SEG2LINEAR(LWORD(ss));
-	sp = (unsigned long) LWORD(esp);
+	unsigned int ssp, sp;
+	ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+	sp = LWORD(esp);
 	LWORD(eip) = popw(ssp, sp);
 	REG(cs) = popw(ssp, sp);
 	LWORD(esp) = (LWORD(esp) + 4) & 0xffff;

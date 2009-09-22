@@ -238,8 +238,7 @@ int dos_helper(void)
       SETIVEC(0x10, BIOSSEG, INT_OFF(0x10));	/* restore our old vector */
       config.vga = 0;
     } else {
-      unsigned char *ssp;
-      unsigned long sp;
+      unsigned int ssp, sp;
 
       if (!config.mapped_bios) {
 	error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
@@ -251,8 +250,8 @@ int dos_helper(void)
       set_vc_screen_page();
       warn("WARNING: jumping to 0[c/e]000:0003\n");
 
-      ssp = SEG2LINEAR(REG(ss));
-      sp = (unsigned long) LWORD(esp);
+      ssp = SEGOFF2LINEAR(REG(ss), 0);
+      sp = LWORD(esp);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
       LWORD(esp) -= 4;
@@ -349,11 +348,10 @@ int dos_helper(void)
 
   case DOS_HELPER_EMS_BIOS:
   {
-    unsigned char *ssp;
-    unsigned long sp;
+    unsigned int ssp, sp;
 
-    ssp = SEG2LINEAR(REG(ss));
-    sp = (unsigned long) LWORD(esp);
+    ssp = SEGOFF2LINEAR(REG(ss), 0);
+    sp = LWORD(esp);
 
     LWORD(eax) = popw(ssp, sp);
     LWORD(esp) += 2;
@@ -1324,11 +1322,10 @@ static int int21(void)
 
 void real_run_int(int i)
 {
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
 
-  ssp = SEG2LINEAR(_SS);
-  sp = (unsigned long) _SP;
+  ssp = SEGOFF2LINEAR(_SS, 0);
+  sp = _SP;
 
   pushw(ssp, sp, read_FLAGS());
   pushw(ssp, sp, _CS);
@@ -2031,12 +2028,11 @@ void do_int(int i)
 
 void fake_int(int cs, int ip)
 {
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
 
   g_printf("fake_int: CS:IP %04x:%04x\n", cs, ip);
-  ssp = SEG2LINEAR(LWORD(ss));
-  sp = (unsigned long) LWORD(esp);
+  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  sp = LWORD(esp);
 
   pushw(ssp, sp, vflags);
   pushw(ssp, sp, cs);
@@ -2057,11 +2053,10 @@ void fake_int_to(int cs, int ip)
 
 void fake_call(int cs, int ip)
 {
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
 
-  ssp = SEG2LINEAR(LWORD(ss));
-  sp = (unsigned long) LWORD(esp);
+  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  sp = LWORD(esp);
 
   g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
   pushw(ssp, sp, cs);
@@ -2078,11 +2073,10 @@ void fake_call_to(int cs, int ip)
 
 void fake_pusha(void)
 {
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
 
-  ssp = SEG2LINEAR(LWORD(ss));
-  sp = (unsigned long) LWORD(esp);
+  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  sp = LWORD(esp);
 
   pushw(ssp, sp, LWORD(eax));
   pushw(ssp, sp, LWORD(ecx));
@@ -2100,11 +2094,10 @@ void fake_pusha(void)
 
 void fake_retf(unsigned pop_count)
 {
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
 
-  ssp = SEG2LINEAR(REG(ss));
-  sp = (unsigned long) LWORD(esp);
+  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  sp = LWORD(esp);
 
   _IP = popw(ssp, sp);
   _CS = popw(ssp, sp);
@@ -2113,11 +2106,10 @@ void fake_retf(unsigned pop_count)
 
 static void fake_iret(void)
 {
-  unsigned char *ssp;
-  unsigned long sp;
+  unsigned int ssp, sp;
 
-  ssp = SEG2LINEAR(REG(ss));
-  sp = (unsigned long) LWORD(esp);
+  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  sp = LWORD(esp);
 
   _SP += 6;
   _IP = popw(ssp, sp);

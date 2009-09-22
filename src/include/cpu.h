@@ -155,14 +155,14 @@ extern struct _fpstate vm86_fpu_state;
 #define pushw(base, ptr, val) \
 	do { \
 		ptr = (Bit16u)(ptr - 1); \
-		WRITE_BYTE((size_t)(base) + ptr, (val) >> 8); \
+		WRITE_BYTE((base) + ptr, (val) >> 8); \
 		ptr = (Bit16u)(ptr - 1); \
-		WRITE_BYTE((size_t)(base) + ptr, val); \
+		WRITE_BYTE((base) + ptr, val); \
 	} while(0)
 
 #define popb(base, ptr) \
 	({ \
-		Bit8u __res = READ_BYTE((size_t)(base) + ptr); \
+		Bit8u __res = READ_BYTE((base) + ptr); \
 		ptr = (Bit16u)(ptr + 1); \
 		__res; \
 	})
@@ -170,9 +170,9 @@ extern struct _fpstate vm86_fpu_state;
 #define popw(base, ptr) \
 	({ \
 		Bit8u __res0, __res1; \
-		__res0 = READ_BYTE((size_t)(base) + ptr); \
+		__res0 = READ_BYTE((base) + ptr); \
 		ptr = (Bit16u)(ptr + 1); \
-		__res1 = READ_BYTE((size_t)(base) + ptr); \
+		__res1 = READ_BYTE((base) + ptr); \
 		ptr = (Bit16u)(ptr + 1); \
 		(__res1 << 8) | __res0; \
 	})
