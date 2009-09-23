@@ -197,6 +197,47 @@
 #define PutSWord(w)	memcpy((void *)(LONG_SS+sp), (w), 2)
 #define PutSLong(l)	memcpy((void *)(LONG_SS+sp), (w), 4)
 
+// returns 1(16 bit), 0(32 bit)
+#define BTA(bpos, mode) (((mode) >> (bpos)) & 1)
+
+// returns 2(16 bit), 4(32 bit)	
+#define BT24(bpos, mode) (4 - (((mode) << (1-(bpos))) & 2))
+
+static __inline__ int FastLog2(register int v)
+{
+	register int temp;
+	__asm__ ("bsr	%1,%0\n \
+		jnz	1f\n \
+		xor	%0,%0\n \
+1: 		" \
+		: "=a"(temp) : "g"(v) );
+	return temp;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+static __inline__ void PUSH(int m, void *w)
+{
+	unsigned int sp;
+	caddr_t addr;
+	int v;
+	sp = (TheCPU.esp-BT24(BitDATA16, m)) & TheCPU.StackMask;
+	addr = (caddr_t)(uintptr_t)(LONG_SS + sp);
+	v = e_check_munprotect(addr);
+	if (m&DATA16)
+		WRITE_WORDP(addr, *(short *)w);
+	else
+		WRITE_DWORDP(addr, *(int *)w);
+	if (v) e_mprotect(addr, 0);
+#ifdef KEEP_ESP
+	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
+#else
+	TheCPU.esp = sp;
+#endif
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
 static __inline__ void POP(int m, void *w)
 {
 	unsigned long sp = TheCPU.esp & TheCPU.StackMask;
