@@ -871,7 +871,12 @@ void enter_cpu_emu(void)
 	  leavedos(0);
 	}
 	config.cpuemu=2;	/* for saving CPU flags */
-	GDT = NULL; IDT = NULL;
+	IDT = NULL;
+	if (GDT==NULL) {
+		/* The GDT is not really used (yet?) but some instructions
+		   like verr/verw refer to it, so just allocate a 0 GDT */
+		GDT = calloc(65536,1);
+	}
 	/* use the cached LDT used by dpmi (w/o GDT) */
 	if (LDT==NULL) {
 		LDT = (Descriptor *)ldt_buffer;
@@ -956,6 +961,7 @@ void leave_cpu_emu(void)
 #endif
 		mprot_end();
 
+		free(GDT);
 		LDT = NULL; GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 #ifdef PROFILE
