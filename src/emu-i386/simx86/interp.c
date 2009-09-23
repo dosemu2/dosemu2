@@ -2061,11 +2061,9 @@ repag0:
 			unsigned long rd;
 			CODE_FLUSH();
 			a = rDX;
+			if (!test_ioperm(a)) goto not_permitted;
 			rd = (mode&ADDR16? rDI:rEDI);
-			if (test_ioperm(a))
-				((char *)(uintptr_t)LONG_ES)[rd] = port_real_inb(a);
-			else
-				((char *)(uintptr_t)LONG_ES)[rd] = port_inb(a);
+			((char *)(uintptr_t)LONG_ES)[rd] = port_real_inb(a);
 			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
@@ -2073,7 +2071,8 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if (config.X && (a>=0x3c0) && (a<=0x3df)) {
+			if ((Video->update_cursor || Video->update_screen) &&
+			    (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
 			    // [012.456789a.c.ef....45....a.....]
 			    case 0x00:	/*ATTRIBUTE_INDEX*/
@@ -2158,15 +2157,12 @@ repag0:
 			    }
 			}
 #endif
-			if (test_ioperm(a)) {
+			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
-				Gen(O_INPDX, mode|MBYTE); NewNode=1;
+			Gen(O_INPDX, mode|MBYTE); NewNode=1;
 #else
-				rAL = port_real_inb(a);
+			rAL = port_real_inb(a);
 #endif
-			}
-			else
-				rAL = port_inb(a);
 			}
 			PC++; break;
 /*e4*/	case INb: {
@@ -2176,54 +2172,50 @@ repag0:
 			/* there's no reason to compile this, as most of
 			 * the ports under 0x100 are emulated by dosemu */
 			a = Fetch(PC+1);
-			if (test_ioperm(a)) rAL = port_real_inb(a);
-				else rAL = port_inb(a);
+			if (!test_ioperm(a)) goto not_permitted;
+			rAL = port_real_inb(a);
 			PC += 2; } break;
 /*6d*/	case INSw: {
 			unsigned long rd;
 			void *p;
 			int dp;
 			CODE_FLUSH();
+			if (!test_ioperm(rDX)) goto not_permitted;
 			rd = (mode&ADDR16? rDI:rEDI);
 			p = (void *)(LONG_ES+rd);
 			if (mode&DATA16) {
-				*((short *)p) = port_inw(rDX); dp=2;
+				*((short *)p) = port_real_inw(rDX); dp=2;
 			}
 			else {
-				*((int *)p) = port_ind(rDX); dp=4;
+				*((int *)p) = port_real_ind(rDX); dp=4;
 			}
 			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
 /*ed*/	case INvw: {
 			CODE_FLUSH();
-			if (config.X && (rDX>=0x3c0) && (rDX<=0x3de)) {
-			    dbug_printf("X: INW,IND %x in VGA space\n",rDX);
-			    leavedos(0);
-			}
-			if (mode&DATA16) rAX = port_inw(rDX);
-			else rEAX = port_ind(rDX);
+			if (!test_ioperm(rDX)) goto not_permitted;
+			if (mode&DATA16) rAX = port_real_inw(rDX);
+			else rEAX = port_real_ind(rDX);
 			} PC++; break;
 /*e5*/	case INw: {
 			unsigned short a;
 			CODE_FLUSH();
 			a = Fetch(PC+1);
-			if (mode&DATA16) rAX = port_inw(a); else rEAX = port_ind(a);
+			if (!test_ioperm(a)) goto not_permitted;
+			if (mode&DATA16) rAX = port_real_inw(a);
+			else rEAX = port_real_ind(a);
 			PC += 2; } break;
 
 /*6e*/	case OUTSb: {
 			unsigned short a;
 			unsigned long rs;
-			int iop;
 			CODE_FLUSH();
 			a = rDX;
+			if (!test_ioperm(a)) goto not_permitted;
 			rs = (mode&ADDR16? rSI:rESI);
-			iop = test_ioperm(a);
 			do {
-			    if (iop)
-				port_real_outb(a,((char *)(uintptr_t)LONG_DS)[rs]);
-			    else
-				port_outb(a,((char *)(uintptr_t)LONG_DS)[rs]);
+			    port_real_outb(a,((char *)(uintptr_t)LONG_DS)[rs]);
 			    if (EFLAGS & EFLAGS_DF) rs--; else rs++;
 			    PC++;
 			} while (Fetch(PC)==OUTSb);
@@ -2233,7 +2225,8 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if (config.X && (a>=0x3c0) && (a<=0x3df)) {
+			if ((Video->update_cursor || Video->update_screen) &&
+			    (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
 			    // [0.2.456789....e.....45...9a.....]
 			    case 0x00:	/*ATTRIBUTE_INDEX*/
@@ -2258,15 +2251,12 @@ repag0:
 			  }
 	  		  PC++; break;
 			}
-			if (test_ioperm(a)) {
+			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
-				Gen(O_OUTPDX, mode|MBYTE); NewNode=1;
+			Gen(O_OUTPDX, mode|MBYTE); NewNode=1;
 #else
-				port_real_outb(a,rAL);
+			port_real_outb(a,rAL);
 #endif
-			}
-			else
-				port_outb(a,rAL);
 			}
 			PC++; break;
 /*e6*/	case OUTb:  {
@@ -2276,18 +2266,18 @@ repag0:
 			if ((a&0xfc)==0x40) E_TIME_STRETCH;	// for PIT
 			/* there's no reason to compile this, as most of
 			 * the ports under 0x100 are emulated by dosemu */
-			if (test_ioperm(a)) port_real_outb(a,rAL);
-				else port_outb(a,rAL);
+			if (!test_ioperm(a)) goto not_permitted;
+			port_real_outb(a,rAL);
 			PC += 2; } break;
 /*6f*/	case OUTSw:
 			CODE_FLUSH();
-			goto not_implemented;
+			goto not_permitted;
 /*ef*/	case OUTvw: {
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if (config.X && (a>=0x3c0) && (a<=0x3de)) {
-			  if (mode&DATA16) {
+			if ((Video->update_cursor || Video->update_screen) &&
+			    (a>=0x3c0) && (a<=0x3de) && (mode & DATA16)) {
 			    switch(a&0x1f) {
 			      // [....456789..........45..........]
 			      case 0x04:	/*SEQUENCER_INDEX*/
@@ -2297,38 +2287,25 @@ repag0:
 			      case 0x14:	/*CRTC_INDEX*/
 				VGA_emulate_outw(a,rAX);
 				break;
-			      default: dbug_printf("not emulated EF %x\n",a);
-				leavedos(0);
+			      default: e_printf("not emulated EF %x\n",a);
 			    }
-			  }
-			  else {
-			    dbug_printf("X: OUTD %x in VGA space\n",a);
-			    leavedos(0);
-			  }
 	  		  PC++; break;
 			}
-			if (test_ioperm(a)) {
+			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
-			    Gen(O_OUTPDX, mode); NewNode=1;
+			Gen(O_OUTPDX, mode); NewNode=1;
 #else
-			    if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
+			if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
 #endif
 			}
-			else {
-			    if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
-			} }
 			PC++; break;
 
 /*e7*/	case OUTw:  {
 			unsigned short a;
 			CODE_FLUSH();
 			a = Fetch(PC+1);
-			if (test_ioperm(a)) {
-			    if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
-			}
-			else {
-			    if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
-			}
+			if (!test_ioperm(a)) goto not_permitted;
+			if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
 			PC += 2; } break;
 
 /*d8*/	case ESC0:
