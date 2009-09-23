@@ -129,11 +129,15 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	    }
 	}
 	else {
+	    return EXCP0D_GPF;
+#if 0
 	    dt = GDT;	/* GDT is not yet there */
-	    if ((dt == NULL) ||	((sel & 0xfff8) > TheCPU.GDTR.Limit)) {
+	    if ((dt == NULL) ||	((sel & 0xfff8) > TheCPU.GDTR.Limit))
+	    {
 		if (dt) e_printf("Invalid GDT selector %#lx\n", sel);
 		return EXCP0D_GPF;
 	    }
+#endif
 	}
 	/* should set CPL here if seg==CS ??? */
 	wFlags = GetSelectorFlags(sel);
@@ -312,7 +316,7 @@ int e_larlsl(int mode, unsigned short sel)
 	dt  = (sel & 4? LDT : GDT);
 	dtr = (sel & 4? &(TheCPU.LDTR) : &(TheCPU.GDTR));
 	/* check DT and limits */
-	if (dt==NULL || ((sel&0xfff8) > dtr->Limit)) {
+	if (dt==NULL || dt == GDT || ((sel&0xfff8) > dtr->Limit)) {
 		return 0;
 	}
 	/* check system segments if in GDT */

@@ -91,7 +91,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
   e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",_esi,_edi,rep);
 #endif
   if (_err&2) {		/* writing from mem or VGA to VGA */
-	if ((unsigned)(_esi-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
+	if ((unsigned)(_esi-TheCPU.mem_base-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
 	if (op&1) {		/* byte move */
 	    if (op&4) goto vga2vgab;
 	    while (rep--) {
@@ -122,7 +122,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	}
   }
   else {		/* reading from VGA to mem or VGA */
-	if ((unsigned)(_edi-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
+	if ((unsigned)(_edi-TheCPU.mem_base-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
 	if (op&1) {		/* byte move */
 	    if (op&4) {		/* vga2vga */
 vga2vgab:
