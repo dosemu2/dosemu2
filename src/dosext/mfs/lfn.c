@@ -59,7 +59,7 @@ static time_t win_to_unix_time(unsigned long long wt)
 static char *handle_to_filename(int handle, int *fd)
 {
 	struct PSP *p = MK_FP32(READ_WORDP(&sda_cur_psp(sda)), 0);
-	unsigned char *filetab;
+	unsigned int filetab;
 	unsigned int sp;
 	unsigned char *sft;
 	int dd, idx;
@@ -75,15 +75,15 @@ static char *handle_to_filename(int handle, int *fd)
 	if (handle >= READ_WORDP(&p->max_open_files))
 		return NULL;
 
-	filetab = (char *)rFAR_PTR(uintptr_t, READ_DWORDP(&p->file_handles_ptr));
-	idx = READ_BYTEP(filetab + handle);
+	filetab = rFAR_PTR(unsigned int, READ_DWORDP(&p->file_handles_ptr));
+	idx = READ_BYTE(filetab + handle);
 	if (idx == 0xff)
 		return NULL;
 
 	/* Get the SFT block that contains the SFT      */
 	sp = READ_DWORDP(lol + 4);
 	while (sp != 0xffffffff) {
-		spp = (struct sfttbl *)rFAR_PTR(uintptr_t, sp);
+		spp = LINEAR2UNIX(rFAR_PTR(unsigned int, sp));
 		if (idx < READ_WORDP(&spp->sftt_count)) {
 			/* finally, point to the right entry            */
 			sft = &spp->sftt_table[idx * sft_size];
