@@ -1061,7 +1061,7 @@ int int10(void) /* with dualmon */
       /* Palette register stuff. Only for the VGA emulator */
       {
          int i, count;
-         unsigned char *src;
+         unsigned int src;
          unsigned char index, m;
          DAC_entry rgb;
 
@@ -1075,9 +1075,9 @@ int int10(void) /* with dualmon */
              break;
 
            case 0x02:	/* Set Palette & Overscan Color */
-             src = SEG_ADR((unsigned char *), es, dx);
-             for(i = 0; i < 0x10; i++) Attr_set_entry(i, src[i]);
-             Attr_set_entry(0x11, src[i]);
+             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
+             for(i = 0; i < 0x10; i++) Attr_set_entry(i, READ_BYTE(src + i));
+             Attr_set_entry(0x11, READ_BYTE(src + i));
              break;
 
            case 0x03:	/* Toggle Intensity/Blinking Bit */
@@ -1095,9 +1095,9 @@ int int10(void) /* with dualmon */
              break;
 
            case 0x09:	/* Read Palette & Overscan Color */
-             src = SEG_ADR((unsigned char *), es, dx);
-             for(i = 0; i < 0x10; i++) src[i] = Attr_get_entry(i);
-             src[i] = Attr_get_entry(0x11);
+             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
+             for(i = 0; i < 0x10; i++) WRITE_BYTE(src + i, Attr_get_entry(i));
+             WRITE_BYTE(src + i, Attr_get_entry(0x11));
              break;
 
            case 0x10:	/* Set Individual DAC Register */
@@ -1107,9 +1107,10 @@ int int10(void) /* with dualmon */
            case 0x12:	/* Set Block of DAC Registers */
              index = LO(bx);
              count = LWORD(ecx);
-             src = SEG_ADR((unsigned char *), es, dx);
+             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
              for(i = 0; i < count; i++, index++)
-               DAC_set_entry(index, src[3*i], src[3*i + 1], src[3*i + 2]);
+               DAC_set_entry(index, READ_BYTE(src + 3*i),
+			    READ_BYTE(src + 3*i + 1), READ_BYTE(src + 3*i + 2));
              break;
 
            case 0x13:	/* Select Video DAC Color Page */
@@ -1138,11 +1139,13 @@ int int10(void) /* with dualmon */
            case 0x17:	/* Read Block of DAC Registers */
              index = LO(bx);
              count = LWORD(ecx);
-             src = SEG_ADR((unsigned char *), es, dx);
+             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
              for(i = 0; i < count; i++, index++) {
                rgb.index = index;
                DAC_get_entry(&rgb);
-               src[3*i] = rgb.r; src[3*i + 1] = rgb.g; src[3*i + 2] = rgb.b;
+	       WRITE_BYTE(src + 3*i, rgb.r);
+	       WRITE_BYTE(src + 3*i + 1, rgb.g);
+	       WRITE_BYTE(src + 3*i + 2, rgb.b);
              }
              break;
 
@@ -1434,7 +1437,7 @@ int int10(void) /* with dualmon */
         unsigned page = HI(bx);
         unsigned char attr = LO(bx);
         unsigned len = LWORD(ecx);
-        unsigned char *str = SEG_ADR((unsigned char *), es, bp);
+        unsigned int str = SEGOFF2LINEAR(REG(es), LWORD(ebp));
         unsigned old_x, old_y;
 
         old_x = get_bios_cursor_x_position(page);
@@ -1452,19 +1455,20 @@ int int10(void) /* with dualmon */
           unsigned u;
 
           for(u = 0; u < len; u++)
-            v_printf("%c", str[u] >= ' ' && str[u] < 0x7f ? str[u] : ' ');
+            v_printf("%c", READ_BYTE(str+u) >= ' ' &&
+		     READ_BYTE(str+u) < 0x7f ? READ_BYTE(str+u) : ' ');
           v_printf("\"\n");
         }
 #endif
 
         if(with_attr) {
           while(len--) {
-            tty_char_out(str[0], page, str[1]);
+            tty_char_out(READ_BYTE(str), page, READ_BYTE(str+1));
             str += 2;
           }
         }
         else {
-          while(len--) tty_char_out(*str++, page, attr);
+          while(len--) tty_char_out(READ_BYTE(str++), page, attr);
         }
 
         if(!(LO(ax) & 1)) {	/* no cursor update */
