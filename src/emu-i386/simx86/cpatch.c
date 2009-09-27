@@ -87,7 +87,8 @@ static int m_munprotect(caddr_t addr, long eip)
 
 asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 {
-
+	if (*eip == 0xf3) /* skip rep */
+		eip++;
 	if (*eip == 0x66)
 		len *= 2;
 	else if (*eip & 1)
