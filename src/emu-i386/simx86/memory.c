@@ -207,19 +207,33 @@ int e_mprotect(unsigned char *paddr, size_t len)
 	int e;
 	unsigned int abeg, aend;
 	unsigned int addr = paddr - mem_base;
+	unsigned int abeg1 = (unsigned)-1;
+	unsigned a;
+	int ret = 1;
+
 	abeg = addr & PAGE_MASK;
 	if (len==0) {
-	    if (e_querymprot(abeg)) return 1;
 	    aend = abeg + PAGE_SIZE;
 	}
 	else {
 	    aend = ((addr+len-1) & PAGE_MASK) + PAGE_SIZE;
-	    if (((aend-abeg)<=PAGE_SIZE) && e_querymprot(abeg)) return 1;
 	}
-	e = mprotect(&mem_base[abeg], aend-abeg, PROT_READ|PROT_EXEC);
-	if (e>=0) return AddMpMap(abeg, aend, 1);
-	e_printf("MPMAP: %s\n",strerror(errno));
-	return -1;
+	/* only protect ranges that were not already protected by e_mprotect */
+	for (a = abeg; a <= aend; a += PAGE_SIZE) {
+	    if (a < aend && !e_querymprot(a)) {
+		if (abeg1 == (unsigned)-1)
+		    abeg1 = a;
+	    } else if (abeg1 != (unsigned)-1) {
+		e = mprotect(&mem_base[abeg1], a-abeg1, PROT_READ|PROT_EXEC);
+		if (e<0) {
+		    e_printf("MPMAP: %s\n",strerror(errno));
+		    return -1;
+		}
+		ret = AddMpMap(abeg1, a, 1);
+		abeg1 = (unsigned)-1;
+	    }
+	}
+	return ret;
 }
 
 int e_munprotect(unsigned char *paddr, size_t len)
@@ -227,19 +241,34 @@ int e_munprotect(unsigned char *paddr, size_t len)
 	int e;
 	unsigned int abeg, aend;
 	unsigned int addr = paddr - mem_base;
+	unsigned int abeg1 = (unsigned)-1;
+	unsigned a;
+	int ret = 0;
+
 	abeg = addr & PAGE_MASK;
 	if (len==0) {
-	    if (!e_querymprot(abeg)) return 0;
 	    aend = abeg + PAGE_SIZE;
 	}
 	else {
 	    aend = ((addr+len-1) & PAGE_MASK) + PAGE_SIZE;
-	    if (((aend-abeg)<=PAGE_SIZE) && !e_querymprot(abeg)) return 0;
 	}
-	e = mprotect(&mem_base[abeg], aend-abeg, PROT_READ|PROT_WRITE|PROT_EXEC);
-	if (e>=0) return AddMpMap(abeg, aend, 0);
-	e_printf("MPUNMAP: %s\n",strerror(errno));
-	return -1;
+	/* only unprotect ranges that were protected by e_mprotect */
+	for (a = abeg; a <= aend; a += PAGE_SIZE) {
+	    if (a < aend && e_querymprot(a)) {
+		if (abeg1 == (unsigned)-1)
+		    abeg1 = a;
+	    } else if (abeg1 != (unsigned)-1) {
+		e = mprotect(&mem_base[abeg1], a-abeg1,
+			     PROT_READ|PROT_WRITE|PROT_EXEC);
+		if (e<0) {
+		    e_printf("MPUNMAP: %s\n",strerror(errno));
+		    return -1;
+		}
+		ret = AddMpMap(abeg1, a, 0);
+		abeg1 = (unsigned)-1;
+	    }
+	}
+	return ret;
 }
 
 /* check if the address is aliased to a non protected page, and if it is,
