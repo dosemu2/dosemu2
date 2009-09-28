@@ -914,13 +914,19 @@ void enter_cpu_emu(void)
 	e_printf("EMU86: delta alrm=%d speed=%d\n",realdelta,config.CPUSpeedInMhz);
 	e_sigpa_count = 0;
 
-	itv.it_interval.tv_sec = 0;
-	itv.it_interval.tv_usec = realdelta;
-	itv.it_value.tv_sec = 0;
-	itv.it_value.tv_usec = realdelta;
-	e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
-	setitimer(ITIMER_PROF, &itv, NULL);
-	registersig(SIGPROF, e_gen_sigprof);
+	/* Only set the timer (for internal debug purposes only)
+	   if ITIMER_PROF is not already set for gprof.
+	*/
+	getitimer(ITIMER_PROF, &itv);
+	if (itv.it_interval.tv_sec == 0 && itv.it_interval.tv_usec == 0 &&
+	    itv.it_interval.tv_sec == 0 && itv.it_interval.tv_usec == 0) {
+		itv.it_interval.tv_usec = realdelta;
+		itv.it_value.tv_usec = realdelta;
+		e_printf("TIME: using %d usec for updating PROF timer\n",
+			 realdelta);
+		setitimer(ITIMER_PROF, &itv, NULL);
+		registersig(SIGPROF, e_gen_sigprof);
+	}
 
 #ifdef DEBUG_TREE
 	tLog = fopen(DEBUG_TREE_FILE,"w");

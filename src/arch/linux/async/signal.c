@@ -328,6 +328,7 @@ int check_fix_fs_gs_base(unsigned char prefix)
 /* init_handler puts the handler in a sane state that glibc
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
+__attribute__((no_instrument_function))
 void init_handler(struct sigcontext_struct *scp)
 {
   /*
@@ -411,6 +412,7 @@ void init_handler(struct sigcontext_struct *scp)
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
+__attribute__((no_instrument_function))
 static void cleanup_child(struct sigcontext_struct *scp)
 {
   int status;
@@ -423,6 +425,7 @@ static void cleanup_child(struct sigcontext_struct *scp)
   }
 }
 
+__attribute__((no_instrument_function))
 static void leavedos_signal(int sig)
 {
   init_handler(NULL);
@@ -507,6 +510,7 @@ void
 signal_init(void)
 {
   sigset_t set;
+  struct sigaction oldact;
 
 #ifdef HAVE_SIGALTSTACK
   {
@@ -592,9 +596,6 @@ signal_init(void)
   registersig(SIGQUIT, sigquit);
   setsig(SIGPIPE, SIG_IGN);
 
-#ifdef X86_EMULATOR
-  setsig(SIGPROF, SIG_IGN);
-#endif
 /*
   setsig(SIGUNUSED, timint);
 */
@@ -602,7 +603,10 @@ signal_init(void)
   registersig(SIGIO, sigio);
   newsetqsig(SIGUSR1, sigasync);
   newsetqsig(SIGUSR2, sigasync);
-  newsetqsig(SIGPROF, sigasync);
+  sigaction(SIGPROF, NULL, &oldact);
+  /* don't set SIGPROF if already used via -pg */
+  if (oldact.sa_handler == SIG_DFL)
+    newsetqsig(SIGPROF, sigasync);
   newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
   newsetsig(SIGCHLD, sigasync);
@@ -908,6 +912,7 @@ static void sigalrm(struct sigcontext_struct *scp)
   }
 }
 
+__attribute__((no_instrument_function))
 static void sigasync0(int sig, struct sigcontext_struct *scp)
 {
   init_handler(scp);
@@ -917,12 +922,14 @@ static void sigasync0(int sig, struct sigcontext_struct *scp)
 }
 
 #ifdef __x86_64__
+__attribute__((no_instrument_function))
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   sigasync0(sig, (struct sigcontext_struct *)
 	   &((ucontext_t *)uc)->uc_mcontext);
 }
 #else
+__attribute__((no_instrument_function))
 static void sigasync(int sig, struct sigcontext_struct context)
 {
   sigasync0(sig, &context);
