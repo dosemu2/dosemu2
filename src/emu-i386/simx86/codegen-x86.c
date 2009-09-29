@@ -2671,7 +2671,8 @@ static void Gen_x86(int op, int mode, ...)
 static void ProduceCode(unsigned char *PC)
 {
 	int i,j,nap,mall_req;
-	unsigned char *adr_lo=0, *adr_hi=0, *cp1;
+	int adr_lo=0, adr_hi=0;
+	unsigned char *cp1;
 	IMeta *I0 = &InstrMeta[0];
 
 	if (debug_level('e')>1) {
@@ -2736,8 +2737,8 @@ static void ProduceCode(unsigned char *PC)
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos(0x535347);
-	if (PC < adr_lo) adr_lo = PC;
-	    else if (PC > adr_hi) adr_hi = PC;
+	if ((uintptr_t)PC < adr_lo) adr_lo = (uintptr_t)PC;
+	    else if ((uintptr_t)PC > adr_hi) adr_hi = (uintptr_t)PC;
 	InstrMeta[0].seqbase = adr_lo;
 	InstrMeta[0].seqlen  = adr_hi - adr_lo;
 
@@ -3131,8 +3132,8 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		/* mprotect the page here; a page fault will be triggered
 		 * if some other code tries to write over the page including
 		 * this node */
-		e_markpage((void *)G->seqbase, G->seqlen);
-		e_mprotect((void *)G->seqbase, G->seqlen);
+		e_markpage((void *)(uintptr_t)G->seqbase, G->seqlen);
+		e_mprotect((void *)(uintptr_t)G->seqbase, G->seqlen);
 		SeqStart = G->addr;
 	}
 	else {

@@ -70,16 +70,16 @@ static int m_mprotect(caddr_t addr)
 /*
  * Return address of the stub function is passed into eip
  */
-static int m_munprotect(caddr_t addr, long eip)
+static int m_munprotect(caddr_t addr, unsigned char *eip)
 {
-	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08x]\n",
+	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%p [%08x]\n",
 		(long)addr,eip,*((int *)(eip-3)));
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
 	    return e_check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
-	e_printf("CODE %08lx hit in DATA %08lx patch\n",(long)addr,eip);
+	e_printf("CODE %08lx hit in DATA %p patch\n",(long)addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
 	return e_check_munprotect(addr);
@@ -97,7 +97,7 @@ asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
 		(long)addr,(long)addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
-	InvalidateNodePage((long)addr,len,(long)eip,NULL);
+	InvalidateNodePage((long)addr,len,eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
 	return 0;
@@ -121,7 +121,7 @@ asmlinkage void stk_32(caddr_t addr, Bit32u value)
 		s_mprotect(addr);
 }
 
-asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
+asmlinkage void wri_8(caddr_t addr, Bit8u value, unsigned char *eip)
 {
 	int ret;
 	Bit8u *p;
@@ -135,7 +135,7 @@ asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
 		m_mprotect(addr);
 }
 
-asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
+asmlinkage void wri_16(caddr_t addr, Bit16u value, unsigned char *eip)
 {
 	int ret;
 	Bit16u *p;
@@ -146,7 +146,7 @@ asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 		m_mprotect(addr);
 }
 
-asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
+asmlinkage void wri_32(caddr_t addr, Bit32u value, unsigned char *eip)
 {
 	int ret;
 	Bit32u *p;

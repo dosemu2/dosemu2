@@ -284,7 +284,7 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 	}
 
 	if (gim)
-	    (void)NewIMeta(P2, mode, &rc);
+	    (void)NewIMeta((uintptr_t)P2, mode, &rc);
 
 jgnolink:
 	/* we just generated a jump, so the returned eip (P1) is
@@ -2869,7 +2869,7 @@ repag0:
 		if (NewNode) {
 			int rc=0;
 			if (!(TheCPU.mode&SKIPOP))
-				(void)NewIMeta(P0, TheCPU.mode, &rc);
+				(void)NewIMeta((uintptr_t)P0, TheCPU.mode, &rc);
 #ifdef HOST_ARCH_X86
 			if (!CONFIG_CPUSIM && rc < 0) {	// metadata table full
 				if (debug_level('e')>2)

@@ -83,7 +83,8 @@ typedef struct _ianpc {
 } Addr2Pc;
 
 typedef struct _imeta {
-	unsigned char *addr, *npc, *seqbase, *jtgt;
+	unsigned char *addr;
+	int seqbase, npc;
 	unsigned short ncount, len, flags, seqlen, totlen;
 	linkdesc clink;
 	int ngen;
@@ -135,7 +136,7 @@ typedef struct avltr_node
 	unsigned char *addr;
 	Addr2Pc *pmeta;
 	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
-	long nxkey, seqbase;
+	int nxkey, seqbase;
 	struct avltr_node *nxnode;
 	linkdesc clink;
 } TNode;
@@ -173,9 +174,9 @@ TNode *Move2Tree(void);
 void InitTrees(void);
 
 #ifdef HOST_ARCH_X86
-int  FindCodeNode(long addr);
-int  InvalidateSingleNode (long addr, long eip);
-int  InvalidateNodePage(long addr, int len, long eip, int *codehit);
+int  FindCodeNode(int addr);
+int  InvalidateSingleNode (int addr, unsigned char *eip);
+int  InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit);
 #endif
 
 #endif

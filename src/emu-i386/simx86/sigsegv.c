@@ -530,7 +530,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		    return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
-		InvalidateNodePage(_cr2, 0, (long)p, &codehit);
+		InvalidateNodePage(_cr2, 0, p, &codehit);
 		e_resetpagemarks((void *)_cr2, 1);
 		e_munprotect((void *)_cr2, 0);
 		/* now go back and perform the faulting op */
