@@ -147,11 +147,10 @@ int e_querymprotrange(unsigned int al, unsigned int ah)
 /////////////////////////////////////////////////////////////////////////////
 
 
-int e_markpage(unsigned char *paddr, size_t len)
+int e_markpage(unsigned int addr, size_t len)
 {
 	unsigned int abeg, aend;
 	tMpMap *M;
-	unsigned int addr = paddr - mem_base;
 
 	abeg = (addr >> CGRAN) & CGRMASK;
 	aend = (((addr+len) >> CGRAN) + 1) & CGRMASK;
@@ -166,11 +165,10 @@ nextmega:
 	return 1;
 }
 
-int e_querymark(unsigned char *paddr)
+int e_querymark(unsigned int addr)
 {
 	int idx;
 	tMpMap *M;
-	unsigned int addr = paddr - mem_base;
 
 	M = FindM(addr); if (M==NULL) return 0;
 	idx = (addr >> CGRAN) & CGRMASK;
@@ -189,10 +187,9 @@ static void e_resetonepagemarks(unsigned int addr)
 	for (i=0; i<8; i++) M->subpage[idx++] = 0;
 }
 
-void e_resetpagemarks(unsigned char *paddr, size_t len)
+void e_resetpagemarks(unsigned int addr, size_t len)
 {
 	int i, pages;
-	unsigned int addr = paddr - mem_base;
 	
 	pages = ((addr + len - 1) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT) + 1;
 	for (i = 0; i < pages; i++)
@@ -202,11 +199,10 @@ void e_resetpagemarks(unsigned char *paddr, size_t len)
 /////////////////////////////////////////////////////////////////////////////
 
 
-int e_mprotect(unsigned char *paddr, size_t len)
+int e_mprotect(unsigned int addr, size_t len)
 {
 	int e;
 	unsigned int abeg, aend;
-	unsigned int addr = paddr - mem_base;
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
 	int ret = 1;
@@ -236,11 +232,10 @@ int e_mprotect(unsigned char *paddr, size_t len)
 	return ret;
 }
 
-int e_munprotect(unsigned char *paddr, size_t len)
+int e_munprotect(unsigned int addr, size_t len)
 {
 	int e;
 	unsigned int abeg, aend;
-	unsigned int addr = paddr - mem_base;
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
 	int ret = 0;
@@ -273,9 +268,9 @@ int e_munprotect(unsigned char *paddr, size_t len)
 
 /* check if the address is aliased to a non protected page, and if it is,
    do not try to unprotect it */
-int e_check_munprotect(unsigned char *addr)
+int e_check_munprotect(unsigned int addr)
 {
-	if (lowmemp(addr) != addr)
+	if (LINEAR2UNIX(addr) != &mem_base[addr])
 		return 0;
 	return e_munprotect(addr,0);
 }

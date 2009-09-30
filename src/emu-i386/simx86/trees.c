@@ -1335,14 +1335,20 @@ quit:
 
 /////////////////////////////////////////////////////////////////////////////
 
-void e_invalidate(unsigned char *data, int cnt)
+void e_invalidate(unsigned char *pdata, int cnt)
 {
+	unsigned int data;
 	if (config.cpuemu <= 1)
 		return;
+#ifdef __x86_64__
+	if ((unsigned long)(pdata - mem_base) > 0xffffffff)
+		return;
+#endif
+	data = pdata - mem_base;
 	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)
-        	InvalidateNodePage((uintptr_t)data, cnt, 0, NULL);
+        	InvalidateNodePage((uintptr_t)pdata, cnt, 0, NULL);
 #endif
 	e_resetpagemarks(data, cnt);
 }

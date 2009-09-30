@@ -46,58 +46,61 @@
 #define asmlinkage static __attribute__((unused))
 #endif
 
-int s_munprotect(caddr_t addr)
+int s_munprotect(unsigned int addr)
 {
-	if (debug_level('e')>3) e_printf("\tS_MUNPROT %p\n",addr);
+	if (debug_level('e')>3) e_printf("\tS_MUNPROT %08x\n",addr);
 	return e_check_munprotect(addr);
 }
 
-int s_mprotect(caddr_t addr)
+int s_mprotect(unsigned int addr)
 {
-	if (debug_level('e')>3) e_printf("\tS_MPROT   %p\n",addr);
+	if (debug_level('e')>3) e_printf("\tS_MPROT   %08x\n",addr);
 	return e_mprotect(addr,0);
 }
 
 #ifdef HOST_ARCH_X86
 
-static int m_mprotect(caddr_t addr)
+static int m_mprotect(unsigned int addr)
 {
 	if (debug_level('e')>3)
-	    e_printf("\tM_MPROT   %p\n",addr);
+	    e_printf("\tM_MPROT   %08x\n",addr);
 	return e_mprotect(addr,0);
 }
 
 /*
  * Return address of the stub function is passed into eip
  */
-static int m_munprotect(caddr_t addr, unsigned char *eip)
+static int m_munprotect(unsigned int addr, unsigned char *eip)
 {
-	if (debug_level('e')>3) e_printf("\tM_MUNPROT %p:%p [%08x]\n",
+	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p [%08x]\n",
 		addr,eip,*((int *)(eip-3)));
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
 	    return e_check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
-	e_printf("CODE %p hit in DATA %p patch\n",addr,eip);
+	e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
-	InvalidateSingleNode((long)addr, eip);
+	InvalidateSingleNode(TheCPU.mem_base + addr, eip);
 	return e_check_munprotect(addr);
 }
 
-asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
+asmlinkage int r_munprotect(unsigned char *paddr, unsigned int len,
+			    unsigned char *eip)
 {
+	unsigned int addr;
 	if (*eip == 0xf3) /* skip rep */
 		eip++;
 	if (*eip == 0x66)
 		len *= 2;
 	else if (*eip & 1)
 		len *= 4;
+	addr = paddr - mem_base;
 	if (EFLAGS & EFLAGS_DF) addr -= len;
 	if (debug_level('e')>3)
-	    e_printf("\tR_MUNPROT %p:%p %s\n",
+	    e_printf("\tR_MUNPROT %08x:%08x %s\n",
 		addr,addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
-	InvalidateNodePage((long)addr,len,eip,NULL);
+	InvalidateNodePage(TheCPU.mem_base + addr,len,eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
 	return 0;
@@ -105,28 +108,31 @@ asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 
 /* ======================================================================= */
 
-asmlinkage void stk_16(caddr_t addr, Bit16u value)
+asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 {
+	unsigned int addr = paddr - mem_base;
 	int ret = s_munprotect(addr);
-	WRITE_WORDP(addr, value);
+	WRITE_WORD(addr, value);
 	if (ret & 1)
 		s_mprotect(addr);
 }
 
-asmlinkage void stk_32(caddr_t addr, Bit32u value)
+asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 {
+	unsigned int addr = paddr - mem_base;
 	int ret = s_munprotect(addr);
-	WRITE_DWORDP(addr, value);
+	WRITE_DWORD(addr, value);
 	if (ret & 1)
 		s_mprotect(addr);
 }
 
-asmlinkage void wri_8(caddr_t addr, Bit8u value, unsigned char *eip)
+asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
+	unsigned int addr = paddr - mem_base;
 	int ret;
 	Bit8u *p;
 	ret = m_munprotect(addr, eip);
-	p = lowmemp(addr);
+	p = LINEAR2UNIX(addr);
 	/* there is a slight chance that this stub hits VGA memory.
 	   For that case there is a simple instruction decoder but
 	   we must use mov %al,(%edi) (%rdi for x86_64) */
@@ -135,23 +141,25 @@ asmlinkage void wri_8(caddr_t addr, Bit8u value, unsigned char *eip)
 		m_mprotect(addr);
 }
 
-asmlinkage void wri_16(caddr_t addr, Bit16u value, unsigned char *eip)
+asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
+	unsigned int addr = paddr - mem_base;
 	int ret;
 	Bit16u *p;
 	ret = m_munprotect(addr, eip);
-	p = lowmemp(addr);
+	p = LINEAR2UNIX(addr);
 	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
 		m_mprotect(addr);
 }
 
-asmlinkage void wri_32(caddr_t addr, Bit32u value, unsigned char *eip)
+asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
+	unsigned int addr = paddr - mem_base;
 	int ret;
 	Bit32u *p;
 	ret = m_munprotect(addr, eip);
-	p = lowmemp(addr);
+	p = LINEAR2UNIX(addr);
 	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
 		m_mprotect(addr);

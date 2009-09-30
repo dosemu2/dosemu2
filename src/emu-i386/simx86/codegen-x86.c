@@ -3132,8 +3132,8 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		/* mprotect the page here; a page fault will be triggered
 		 * if some other code tries to write over the page including
 		 * this node */
-		e_markpage((void *)(uintptr_t)G->seqbase, G->seqlen);
-		e_mprotect((void *)(uintptr_t)G->seqbase, G->seqlen);
+		e_markpage(G->seqbase - TheCPU.mem_base, G->seqlen);
+		e_mprotect(G->seqbase - TheCPU.mem_base, G->seqlen);
 		SeqStart = G->addr;
 	}
 	else {

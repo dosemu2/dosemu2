@@ -85,9 +85,6 @@ void avltr_destroy(void);
 
 #define FLUSH_TREE	if (config.cpuemu>1) avltr_destroy()
 
-int s_munprotect(caddr_t addr);
-int s_mprotect(caddr_t addr);
-
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);

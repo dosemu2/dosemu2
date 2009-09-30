@@ -219,15 +219,15 @@ static __inline__ int FastLog2(register int v)
 static __inline__ void PUSH(int m, void *w)
 {
 	unsigned int sp;
-	caddr_t addr;
+	unsigned int addr;
 	int v;
 	sp = (TheCPU.esp-BT24(BitDATA16, m)) & TheCPU.StackMask;
-	addr = (caddr_t)(uintptr_t)(LONG_SS + sp);
+	addr = LONG_SS - TheCPU.mem_base + sp;
 	v = e_check_munprotect(addr);
 	if (m&DATA16)
-		WRITE_WORDP(addr, *(short *)w);
+		WRITE_WORD(addr, *(short *)w);
 	else
-		WRITE_DWORDP(addr, *(int *)w);
+		WRITE_DWORD(addr, *(int *)w);
 	if (v) e_mprotect(addr, 0);
 #ifdef KEEP_ESP
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);

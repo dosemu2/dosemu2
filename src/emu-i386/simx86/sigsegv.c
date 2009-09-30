@@ -478,6 +478,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		/* LDT access emulation */
 		return 0;
 	if ((_err&0x0f)==0x07) {
+		unsigned int icr2 = _cr2 - TheCPU.mem_base;
 		unsigned char *p = (unsigned char *)_rip;
 		int codehit = 0;
 		register int v;
@@ -515,24 +516,24 @@ int e_emu_fault(struct sigcontext_struct *scp)
 				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
 				    _cs, _rip, _cr2, fault_cnt);
 		    }
-		    if (e_querymark((void *)_cr2)) {
-			e_printf("CODE node hit at %08lx\n",_cr2);
+		    if (e_querymark(icr2)) {
+			e_printf("CODE node hit at %08x\n",icr2);
 		    }
 		    else if (InCompiledCode) {
-			e_printf("DATA node hit at %08lx\n",_cr2);
+			e_printf("DATA node hit at %08x\n",icr2);
 		    }
 		}
 		/* the page is not unprotected here, the code
 		 * linked by Cpatch will do it */
 		/* ACH: we can set up a data patch for code
 		 * which has not yet been executed! */
-		if (InCompiledCode && !e_querymark((void *)_cr2) && Cpatch(scp))
+		if (InCompiledCode && !e_querymark(icr2) && Cpatch(scp))
 		    return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
 		InvalidateNodePage(_cr2, 0, p, &codehit);
-		e_resetpagemarks((void *)_cr2, 1);
-		e_munprotect((void *)_cr2, 0);
+		e_resetpagemarks(icr2, 1);
+		e_munprotect(icr2, 0);
 		/* now go back and perform the faulting op */
 		return 1;
 	}
