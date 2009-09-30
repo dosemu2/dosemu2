@@ -880,7 +880,7 @@ void enter_cpu_emu(void)
 	/* use the cached LDT used by dpmi (w/o GDT) */
 	if (LDT==NULL) {
 		LDT = (Descriptor *)ldt_buffer;
-		e_printf("LDT allocated at %08lx\n",(long)LDT);
+		e_printf("LDT allocated at %p\n",LDT);
 		TheCPU.LDTR.Base = (long)LDT;
 		TheCPU.LDTR.Limit = 0xffff;
 	}
@@ -1267,8 +1267,7 @@ int e_dpmi(struct sigcontext_struct *scp)
   TheCPU.cr[0] |= 1;
 
   if (debug_level('e')>2) {
-	long swa = (long)(DTgetSelBase(_cs)+_eip);
-	D_printf("EMU86: DPMI enter at %08lx\n",swa);
+	D_printf("EMU86: DPMI enter at %08x\n",DTgetSelBase(_cs)+_eip);
   }
 //  if (lastEMUsig)
 //    e_printf("DPM86: last sig at %lld, curr=%lld, next=%lld\n",lastEMUsig>>16,

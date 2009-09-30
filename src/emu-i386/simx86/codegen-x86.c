@@ -2200,8 +2200,8 @@ shrot0:
 		lt->t_link.rel = Cp-BaseGenBuf;
 		lt->nt_link.abs = 0;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d:%08x:%08lx\n",
-			dspt,dspnt,lt->t_type,lt->t_link.rel,(long)lt->nt_link.abs);
+		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d:%08x:%p\n",
+			dspt,dspnt,lt->t_type,lt->t_link.rel,lt->nt_link.abs);
 		}
 		break;
 
@@ -2821,26 +2821,26 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    if (G==LG) {
 			G->flags |= F_SLFL;
 			if (debug_level('e')>1) {
-			    e_printf("Linker: node (%08lx:%08x:%08lx) SELF link\n"
-				"\t\tjmp %08x, undo=%08x, t_ref %d=%08lx->%08lx\n",
-				(long)G,G->key,(long)G->addr,
-				ra, L->t_undo, T->nrefs, (long)L->t_ref, (long)*L->t_ref);
+			    e_printf("Linker: node (%p:%08x:%p) SELF link\n"
+				"\t\tjmp %08x, undo=%08x, t_ref %d=%p->%p\n",
+				G,G->key,G->addr,
+				ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
 			}
 		    }
 		    else if (debug_level('e')>1) {
-			e_printf("Linker: previous node (%08lx:%08x:%08lx)\n"
-			    "\t\tlinked to (%08lx:%08x:%08lx)\n"
-			    "\t\tjmp %08x, undo=%08x, t_ref %d=%08lx->%08lx\n",
-			    (long)LG,LG->key,(long)LG->addr,
-			    (long)G,G->key,(long)G->addr,
-			    ra, L->t_undo, T->nrefs, (long)L->t_ref, (long)*L->t_ref);
+			e_printf("Linker: previous node (%p:%08x:%p)\n"
+			    "\t\tlinked to (%p:%08x:%p)\n"
+			    "\t\tjmp %08x, undo=%08x, t_ref %d=%p->%p\n",
+			    LG,LG->key,LG->addr,
+			    G,G->key,G->addr,
+			    ra, L->t_undo, T->nrefs, L->t_ref, *L->t_ref);
 		    }
 		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8108); }
 #endif
-			while (bk) { dbug_printf("bkref=%c%08lx->%08lx\n",bk->branch,
-			(long)bk->ref,(long)*bk->ref); bk=bk->next; }
+			while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
+			bk->ref,*bk->ref); bk=bk->next; }
 		    }
 		}
 		if (L->t_type>JMP_LINK) {	// if it has a 'not taken' link
@@ -2871,26 +2871,26 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			if (G==LG) {
 			    G->flags |= F_SLFL;
 			    if (debug_level('e')>1) {
-				e_printf("Linker: node (%08lx:%08x:%08lx) SELF link\n"
-				"\t\tjmp %08x, undo=%08x, nt_ref %d=%08lx->%08lx\n",
-				(long)G,G->key,(long)G->addr,
-				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, (long)*L->nt_ref);
+				e_printf("Linker: node (%p:%08x:%p) SELF link\n"
+				"\t\tjmp %08x, undo=%08x, nt_ref %d=%p->%p\n",
+				G,G->key,G->addr,
+				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
 			    }
 			}
 			else if (debug_level('e')>1) {
-			    e_printf("Linker: previous node (%08lx:%08x:%08lx)\n"
-				"\t\tlinked to (%08lx:%08x:%08lx)\n"
-				"\t\tjmp %08x, undo=%08x, nt_ref %d=%08lx->%08lx\n",
-				(long)LG,LG->key,(long)LG->addr,
-				(long)G,G->key,(long)G->addr,
-				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, (long)*L->nt_ref);
+			    e_printf("Linker: previous node (%p:%08x:%p)\n"
+				"\t\tlinked to (%p:%08x:%p)\n"
+				"\t\tjmp %08x, undo=%08x, nt_ref %d=%p->%p\n",
+				LG,LG->key,LG->addr,
+				G,G->key,G->addr,
+				ra, L->nt_undo, T->nrefs, L->nt_ref, *L->nt_ref);
 			}
 			if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8109); }
 #endif
-				while (bk) { dbug_printf("bkref=%c%08lx->%08lx\n",bk->branch,
-				(long)bk->ref,(long)*bk->ref); bk=bk->next; }
+				while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
+				bk->ref,*bk->ref); bk=bk->next; }
 			}
 		    }
 		}
@@ -2942,14 +2942,14 @@ void NodeUnlinker(TNode *G)
 	// unlink backward references (from other nodes to the current
 	// node)
 	if (debug_level('e')>8)
-	    e_printf("Unlinker: bkr.next=%08lx\n",(long)B);
+	    e_printf("Unlinker: bkr.next=%p\n",B);
 	while (B) {
 	    backref *b2 = B;
 	    if (B->branch=='T') {
 		TNode *H = *B->ref;
 		linkdesc *L = &H->clink;
-		if (debug_level('e')>2) e_printf("Unlinking T ref from node %08lx(%08x) to %08x\n",
-			(long)H, L->t_undo, G->key);
+		if (debug_level('e')>2) e_printf("Unlinking T ref from node %p(%08x) to %08x\n",
+			H, L->t_undo, G->key);
 		if (L->t_undo != G->key) {
 		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
 			L->t_undo, G->key);
@@ -2964,8 +2964,8 @@ void NodeUnlinker(TNode *G)
 	    else if (B->branch=='N') {
 		TNode *H = *B->ref;
 		linkdesc *L = &H->clink;
-		if (debug_level('e')>2) e_printf("Unlinking N ref from node %08lx(%08x) to %08x\n",
-			(long)H, L->nt_undo, G->key);
+		if (debug_level('e')>2) e_printf("Unlinking N ref from node %p(%08x) to %08x\n",
+			H, L->nt_undo, G->key);
 		if (L->nt_undo != G->key) {
 		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
 			L->nt_undo, G->key);
@@ -2978,8 +2978,8 @@ void NodeUnlinker(TNode *G)
 		T->nrefs--;
 	    }
 	    else {
-		e_printf("Invalid unlink [%c] ref %08lx from node ?(?) to %08x\n",
-			B->branch, (long)B->ref, G->key);
+		e_printf("Invalid unlink [%c] ref %p from node ?(?) to %08x\n",
+			B->branch, B->ref, G->key);
 		leavedos(0x8116);
 	    }
 	    B = B->next;
@@ -2995,12 +2995,12 @@ void NodeUnlinker(TNode *G)
 	// unlink forward references (from the current node to other
 	// nodes), which are backward refs for the other nodes
 	if (debug_level('e')>8)
-	    e_printf("Unlinker: refs=T%08lx N%08lx\n",(long)T->t_ref,(long)T->nt_ref);
+	    e_printf("Unlinker: refs=T%p N%p\n",T->t_ref,T->nt_ref);
 	if (T->t_ref) {
 	    TNode *Gt = *T->t_ref;
 	    backref *Btq = &Gt->clink.bkr;
 	    backref *Bt  = Gt->clink.bkr.next;
-	    if (debug_level('e')>2) e_printf("Unlink fwd T ref to node %08lx(%08x)\n",(long)Gt,
+	    if (debug_level('e')>2) e_printf("Unlink fwd T ref to node %p(%08x)\n",Gt,
 		Gt->key);
 	    while (Bt) {
 		if (*Bt->ref==G) {
@@ -3022,7 +3022,7 @@ void NodeUnlinker(TNode *G)
 	    TNode *Gn = *T->nt_ref;
 	    backref *Bnq = &Gn->clink.bkr;
 	    backref *Bn  = Gn->clink.bkr.next;
-	    if (debug_level('e')>2) e_printf("Unlink fwd N ref to node %08lx(%08x)\n",(long)Gn,
+	    if (debug_level('e')>2) e_printf("Unlink fwd N ref to node %p(%08x)\n",Gn,
 		Gn->key);
 	    while (Bn) {
 		if (*Bn->ref==G) {
@@ -3094,7 +3094,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		unsigned char *p;
 
 		if (debug_level('e')>2) {
-		    e_printf("== (%d) == Closing sequence at %08lx\n",ln,(long)PC);
+		    e_printf("== (%d) == Closing sequence at %p\n",ln,PC);
 		}
 
 		ProduceCode(PC);
@@ -3114,8 +3114,8 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		/* show jump+tail code */
  		if ((debug_level('e')>6) && (CurrIMeta>0)) {
 		    IMeta *GL = &InstrMeta[CurrIMeta-1];
-		    char *pl = GL->addr+GL->len;
-		    GCPrint(pl, BaseGenBuf, (long)CodePtr - (long)pl);
+		    unsigned char *pl = GL->addr+GL->len;
+		    GCPrint(pl, BaseGenBuf, CodePtr - pl);
 		}
 
 		I0->totlen = CodePtr - BaseGenBuf;
@@ -3156,11 +3156,11 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	ecpu = CPUOFFS(0);
 	if (debug_level('e')>1) {
 		if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
-		e_printf("== (%d) == Executing code at %08lx flg=%04x\n",
-			ln,(long)SeqStart,seqflg);
+		e_printf("== (%d) == Executing code at %p flg=%04x\n",
+			ln,SeqStart,seqflg);
 	}
 #ifdef ASM_DUMP
-	fprintf(aLog,"%08lx: exec\n",G->key);
+	fprintf(aLog,"%p: exec\n",G->key);
 #endif
 	if (seqflg & F_FPOP) {
 		/* mask exceptions in generated code */
@@ -3251,7 +3251,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	ExecTime += TimeEndExec.td;
 #endif
 	if (debug_level('e')>1) {
-		e_printf("** End code, PC=%08lx sig=%x\n",(long)ePC,
+		e_printf("** End code, PC=%p sig=%x\n",ePC,
 		    TheCPU.sigalrm_pending);
 		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
 		    e_printf("  %s\n", e_trace_fp());

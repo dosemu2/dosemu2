@@ -201,8 +201,8 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 		    d_nt = ((long)P1 - LONG_CS) + dsp2;
 		    if (mode&DATA16) d_nt &= 0xffff;
 		    j_nt = d_nt + LONG_CS;
-	    	    e_printf("JMPs (%02x,%d) at %08lx after Jcc: t=%08lx nt=%08lx\n",
-			P1[0],dsp2,(long)P1,j_t,j_nt);
+	    	    e_printf("JMPs (%02x,%d) at %p after Jcc: t=%08lx nt=%08lx\n",
+			P1[0],dsp2,P1,j_t,j_nt);
 		}
 		else if (Fetch(P1)==JMPd) {	/* e9 xxxx{xxxx} */
 		    int skp2 = BT24(BitDATA16,mode) + 1;
@@ -211,8 +211,8 @@ static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
 		    d_nt = ((long)P1 - LONG_CS) + dsp2;
 		    if (mode&DATA16) d_nt &= 0xffff;
 		    j_nt = d_nt + LONG_CS;
-	    	    e_printf("JMPl (%02x,%d) at %08lx after Jcc: t=%08lx nt=%08lx\n",
-			P1[0],dsp2,(long)P1,j_t,j_nt);
+	    	    e_printf("JMPl (%02x,%d) at %p after Jcc: t=%08lx nt=%08lx\n",
+			P1[0],dsp2,P1,j_t,j_nt);
 		}
 
 		/* backwards jump limited to 256 bytes */
@@ -359,7 +359,7 @@ jgnolink:
 		    TheCPU.err = -103;
 		    return P2;
 		}
-		if (debug_level('e')>2) e_printf("** Jump taken to %08lx\n",(long)j_t);
+		if (debug_level('e')>2) e_printf("** Jump taken to %08lx\n",j_t);
 #ifdef HOST_ARCH_X86
 takejmp:
 #endif
@@ -408,10 +408,10 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 			temp = 100;	/* safety count */
 			while (temp && ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree((long)PC)) != NULL) {
 				if (debug_level('e')>2)
-					e_printf("** Found compiled code at %08lx\n",(long)(PC));
+					e_printf("** Found compiled code at %p\n",PC);
 				if (CurrIMeta>0) {		// open code?
 					if (debug_level('e')>2)
-						e_printf("============ Closing open sequence at %08lx\n",(long)(PC));
+						e_printf("============ Closing open sequence at %p\n",PC);
 					PC = CloseAndExec(PC, NULL, mode, __LINE__);
 					if (TheCPU.err) return PC;
 				}
@@ -1537,7 +1537,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*cd*/	case INT:
 			CODE_FLUSH();
 #ifdef ASM_DUMP
-			fprintf(aLog,"%08lx:\t\tint %02x\n",(long)P0,Fetch(PC+1));
+			fprintf(aLog,"%p:\t\tint %02x\n",P0,Fetch(PC+1));
 #endif
 			switch(Fetch(PC+1)) {
 			case 0x03:

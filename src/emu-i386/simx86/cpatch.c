@@ -48,13 +48,13 @@
 
 int s_munprotect(caddr_t addr)
 {
-	if (debug_level('e')>3) e_printf("\tS_MUNPROT %08lx\n",(long)addr);
+	if (debug_level('e')>3) e_printf("\tS_MUNPROT %p\n",addr);
 	return e_check_munprotect(addr);
 }
 
 int s_mprotect(caddr_t addr)
 {
-	if (debug_level('e')>3) e_printf("\tS_MPROT   %08lx\n",(long)addr);
+	if (debug_level('e')>3) e_printf("\tS_MPROT   %p\n",addr);
 	return e_mprotect(addr,0);
 }
 
@@ -63,7 +63,7 @@ int s_mprotect(caddr_t addr)
 static int m_mprotect(caddr_t addr)
 {
 	if (debug_level('e')>3)
-	    e_printf("\tM_MPROT   %08lx\n",(long)addr);
+	    e_printf("\tM_MPROT   %p\n",addr);
 	return e_mprotect(addr,0);
 }
 
@@ -72,14 +72,14 @@ static int m_mprotect(caddr_t addr)
  */
 static int m_munprotect(caddr_t addr, unsigned char *eip)
 {
-	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%p [%08x]\n",
-		(long)addr,eip,*((int *)(eip-3)));
+	if (debug_level('e')>3) e_printf("\tM_MUNPROT %p:%p [%08x]\n",
+		addr,eip,*((int *)(eip-3)));
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
 	    return e_check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
-	e_printf("CODE %08lx hit in DATA %p patch\n",(long)addr,eip);
+	e_printf("CODE %p hit in DATA %p patch\n",addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
 	return e_check_munprotect(addr);
@@ -95,8 +95,8 @@ asmlinkage int r_munprotect(caddr_t addr, long len, unsigned char *eip)
 		len *= 4;
 	if (EFLAGS & EFLAGS_DF) addr -= len;
 	if (debug_level('e')>3)
-	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
-		(long)addr,(long)addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
+	    e_printf("\tR_MUNPROT %p:%p %s\n",
+		addr,addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
 	InvalidateNodePage((long)addr,len,eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
@@ -348,7 +348,7 @@ int Cpatch(struct sigcontext_struct *scp)
 
     p = eip;
     if (*p==0xf3 && p[-1] == 0x90 && p[-2] == 0x90) {	// rep movs, rep stos
-	if (debug_level('e')>1) e_printf("### REP movs/stos patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### REP movs/stos patch at %p\n",eip);
 	p-=2;
 	G2M(0xff,0x13,p); /* call (%ebx) */
 	_rip -= 2; /* make sure call (%ebx) is performed the first time */
@@ -361,7 +361,7 @@ int Cpatch(struct sigcontext_struct *scp)
 	// mov %%{e}ax,(%%esi,%%ecx,1)
 	// we have a sequence:	66 89 04 0e
 	//		or	89 04 0e
-	if (debug_level('e')>1) e_printf("### Stack patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### Stack patch at %p\n",eip);
 	if (w16) {
 	    p--; JSRPATCH(p,Ofs_stub_stk_16); p[3] = 0x90;
 	}
@@ -372,14 +372,14 @@ int Cpatch(struct sigcontext_struct *scp)
     }
     if (v==0x900788) {		// movb %%al,(%%edi)
 	// we have a sequence:	88 07 90
-	if (debug_level('e')>1) e_printf("### Byte write patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### Byte write patch at %p\n",eip);
 	JSRPATCH(p,Ofs_stub_wri_8);
 	return 1;
     }
     if ((v&0xffff)==0x0789) {	// mov %%{e}ax,(%%edi)
 	// we have a sequence:	89 07 90
 	//		or	66 89 07
-	if (debug_level('e')>1) e_printf("### Word/Long write patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### Word/Long write patch at %p\n",eip);
 	if (w16) {
 	    p--; JSRPATCH(p,Ofs_stub_wri_16);
 	}
@@ -389,7 +389,7 @@ int Cpatch(struct sigcontext_struct *scp)
 	return 1;
     }
     if (v==0x9090a5) {	// movsw
-	if (debug_level('e')>1) e_printf("### movs{wl} patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### movs{wl} patch at %p\n",eip);
 	if (w16) {
 	    p--; JSRPATCHL(p,Ofs_stub_movsw);
 	}
@@ -399,12 +399,12 @@ int Cpatch(struct sigcontext_struct *scp)
 	return 1;
     }
     if (v==0x9090a4) {	// movsb
-	if (debug_level('e')>1) e_printf("### movsb patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### movsb patch at %p\n",eip);
 	    JSRPATCHL(p,Ofs_stub_movsb);
 	return 1;
     }
     if (v==0x9090ab) {	// stosw
-	if (debug_level('e')>1) e_printf("### stos{wl} patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### stos{wl} patch at %p\n",eip);
 	if (w16) {
 	    p--; JSRPATCHL(p,Ofs_stub_stosw);
 	}
@@ -414,7 +414,7 @@ int Cpatch(struct sigcontext_struct *scp)
 	return 1;
     }
     if (v==0x9090aa) {	// stosb
-	if (debug_level('e')>1) e_printf("### stosb patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### stosb patch at %p\n",eip);
 	JSRPATCHL(p,Ofs_stub_stosb);
 	return 1;
     }
@@ -429,7 +429,7 @@ int UnCpatch(unsigned char *eip)
     p = eip;
 
     if (*eip != 0xff) return 1;
-    e_printf("UnCpatch   at %08lx was %02x%02x%02x%02x%02x\n",(long)eip,
+    e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
     if (eip[1] == 0x93) {
@@ -477,7 +477,7 @@ int UnCpatch(unsigned char *eip)
 	else return 1;
     }
     else return 1;
-    e_printf("UnCpatched at %08lx  is %02x%02x%02x%02x%02x\n",(long)eip,
+    e_printf("UnCpatched at %p  is %02x%02x%02x%02x%02x\n",eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
     return 0;
 }
