@@ -151,9 +151,9 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 	__asm__ ("boundl %0,%1" : : "r"(p),"m"(CS_DTR) : "memory" );\
 	(f&2? *((int *)(a)):*((short *)(a))); })
 #else
-#define Fetch(a)	*((unsigned char *)(a))
-#define FetchW(a)	*((unsigned short *)(a))
-#define FetchL(a)	*((unsigned int *)(a))
+#define Fetch(a)	mem_base[(a)]
+#define FetchW(a)	*((unsigned short *)&mem_base[(a)])
+#define FetchL(a)	*((unsigned int *)&mem_base[(a)])
 #define DataFetchWL_U(m,a) ((m)&DATA16? FetchW(a):FetchL(a))
 #define DataFetchWL_S(m,a) ((m)&DATA16? (short)FetchW(a):(int)FetchL(a))
 #define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))

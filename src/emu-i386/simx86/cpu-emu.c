@@ -95,7 +95,7 @@ union SynCPU	TheCPU_union;
 int Running = 0;
 volatile int InCompiledCode = 0;
 
-unsigned long trans_addr, return_addr;	// PC
+unsigned int trans_addr, return_addr;	// PC
 
 #ifdef DEBUG_TREE
 FILE *tLog = NULL;
@@ -249,7 +249,7 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
 	if (debug_level('e')>4) {
 		int i;
-		unsigned char *st = (unsigned char *)(uintptr_t)LONG_SS+TheCPU.esp;
+		unsigned char *st = &mem_base[LONG_SS+TheCPU.esp];
 		if ((st >= mem_base && st < &mem_base[0x110000]) ||
 		    (st > (unsigned char *)config.dpmi_base &&
 		     st <= (unsigned char *)config.dpmi_base +
@@ -1164,9 +1164,9 @@ int e_vm86(void)
     do {
       /* enter VM86 mode */
       in_vm86_emu = 1;
-      e_printf("INTERP: enter=%08lx\n",trans_addr);
-      return_addr = (long)Interp86((char *)trans_addr, mode);
-      e_printf("INTERP: exit=%08lx err=%d\n",return_addr,TheCPU.err-1);
+      e_printf("INTERP: enter=%08x\n",trans_addr);
+      return_addr = Interp86(trans_addr, mode);
+      e_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
       xval = TheCPU.err;
       in_vm86_emu = 0;
       /* 0 if ok, else exception code+1 or negative if dosemu err */
@@ -1289,9 +1289,9 @@ int e_dpmi(struct sigcontext_struct *scp)
     do {
       /* switch to DPMI process */
       in_dpmi_emu = 1;
-      e_printf("INTERP: enter=%08lx mode=%04x\n",trans_addr,mode);
-      return_addr = (long)Interp86((char *)trans_addr, mode);
-      e_printf("INTERP: exit=%08lx err=%d\n",return_addr,TheCPU.err-1);
+      e_printf("INTERP: enter=%08x mode=%04x\n",trans_addr,mode);
+      return_addr = Interp86(trans_addr, mode);
+      e_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
       xval = TheCPU.err;
       in_dpmi_emu = 0;
       /* 0 if ok, else exception code+1 or negative if dosemu err */
@@ -1404,38 +1404,38 @@ void e_dpmi_b0x(int op,struct sigcontext_struct *scp)
 }
 
 
-int e_debug_check(unsigned char *PC)
+int e_debug_check(unsigned int PC)
 {
     register unsigned long d7 = TheCPU.dr[7];
 
     if (d7&0x03) {
 	if (d7&0x30000) return 0;	/* only execute(00) bkp */
-	if ((long)PC==TheCPU.dr[0]) {
-	    e_printf("DBRK: DR0 hit at %p\n",PC);
+	if (PC==TheCPU.dr[0]) {
+	    e_printf("DBRK: DR0 hit at %08x\n",PC);
 	    TheCPU.dr[6] |= 1;
 	    return 1;
 	}
     }
     if (d7&0x0c) {
 	if (d7&0x300000) return 0;
-	if ((long)PC==TheCPU.dr[1]) {
-	    e_printf("DBRK: DR1 hit at %p\n",PC);
+	if (PC==TheCPU.dr[1]) {
+	    e_printf("DBRK: DR1 hit at %08x\n",PC);
 	    TheCPU.dr[6] |= 2;
 	    return 1;
 	}
     }
     if (d7&0x30) {
 	if (d7&0x3000000) return 0;
-	if ((long)PC==TheCPU.dr[2]) {
-	    e_printf("DBRK: DR2 hit at %p\n",PC);
+	if (PC==TheCPU.dr[2]) {
+	    e_printf("DBRK: DR2 hit at %08x\n",PC);
 	    TheCPU.dr[6] |= 4;
 	    return 1;
 	}
     }
     if (d7&0xc0) {
 	if (d7&0x30000000) return 0;
-	if ((long)PC==TheCPU.dr[3]) {
-	    e_printf("DBRK: DR3 hit at %p\n",PC);
+	if (PC==TheCPU.dr[3]) {
+	    e_printf("DBRK: DR3 hit at %08x\n",PC);
 	    TheCPU.dr[6] |= 8;
 	    return 1;
 	}

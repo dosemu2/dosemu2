@@ -648,11 +648,11 @@ extern int TryMemRef;
 extern int UseLinker;
 //
 unsigned char *do_hwint(int mode, int intno);
-unsigned char *Interp86(unsigned char *PC, int mode);
+unsigned int Interp86(unsigned int PC, int mode);
 //
-int ModRM(unsigned char opc, unsigned char *PC, int mode);
-int ModRMSim(unsigned char *PC, int mode);
-int ModGetReg1(unsigned char *PC, int mode);
+int ModRM(unsigned char opc, unsigned int PC, int mode);
+int ModRMSim(unsigned int PC, int mode);
+int ModGetReg1(unsigned int PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);
 char *e_print_regs(void);
@@ -661,7 +661,7 @@ char *e_trace_fp(void);
 void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
 char *showmode(unsigned int m);
-int e_debug_check(unsigned char *PC);
+int e_debug_check(unsigned int PC);
 int s_munprotect(unsigned int addr);
 int s_mprotect(unsigned int addr);
 int e_mprotect(unsigned int addr, size_t len);

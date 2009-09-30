@@ -81,7 +81,7 @@ static int m_munprotect(unsigned int addr, unsigned char *eip)
 	 * code was parsed. Ok, undo the patch and clear that code */
 	e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
-	InvalidateSingleNode(TheCPU.mem_base + addr, eip);
+	InvalidateSingleNode(addr, eip);
 	return e_check_munprotect(addr);
 }
 
@@ -100,7 +100,7 @@ asmlinkage int r_munprotect(unsigned char *paddr, unsigned int len,
 	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08x:%08x %s\n",
 		addr,addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
-	InvalidateNodePage(TheCPU.mem_base + addr,len,eip,NULL);
+	InvalidateNodePage(addr,len,eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
 	return 0;

@@ -116,7 +116,7 @@
 
 static void Gen_x86(int op, int mode, ...);
 static void AddrGen_x86(int op, int mode, ...);
-static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, int ln);
+static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln);
 
 /* Buffer and pointers to store generated code */
 unsigned char *CodePtr = NULL;
@@ -2668,10 +2668,10 @@ static void Gen_x86(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static void ProduceCode(unsigned char *PC)
+static void ProduceCode(unsigned int PC)
 {
 	int i,j,nap,mall_req;
-	int adr_lo=0, adr_hi=0;
+	unsigned int adr_lo=0, adr_hi=0;
 	unsigned char *cp1;
 	IMeta *I0 = &InstrMeta[0];
 
@@ -2737,8 +2737,8 @@ static void ProduceCode(unsigned char *PC)
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos(0x535347);
-	if ((uintptr_t)PC < adr_lo) adr_lo = (uintptr_t)PC;
-	    else if ((uintptr_t)PC > adr_hi) adr_hi = (uintptr_t)PC;
+	if (PC < adr_lo) adr_lo = PC;
+	    else if (PC > adr_hi) adr_hi = PC;
 	InstrMeta[0].seqbase = adr_lo;
 	InstrMeta[0].seqlen  = adr_hi - adr_lo;
 
@@ -3070,19 +3070,18 @@ void NodeUnlinker(TNode *G)
  *
  */
 
-static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, int ln)
+static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln)
 {
 	unsigned long flg;
 	unsigned char *ecpu;
 	long mem_ref;
-	unsigned char *ePC;
+	unsigned int ePC;
 	unsigned short seqflg;
 	unsigned char *SeqStart;
 	hitimer_u TimeEndExec;
 
 	if (mode & XECFND) {		// we found an existing node
-		PC = G->addr;
-		SeqStart = PC;
+		SeqStart = G->addr;
 		seqflg = mode >> 16;
 		NodesExecd++;
 #ifdef PROFILE
@@ -3094,7 +3093,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		unsigned char *p;
 
 		if (debug_level('e')>2) {
-		    e_printf("== (%d) == Closing sequence at %p\n",ln,PC);
+		    e_printf("== (%d) == Closing sequence at %08x\n",ln,PC);
 		}
 
 		ProduceCode(PC);
@@ -3107,7 +3106,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		    memcpy(p, TailCode, TAILSIZE);
 		    p += TAILFIX;
 		    I0->clink.t_link.abs = (int *)p;
-		    *((int *)p) = (long)PC;
+		    *((int *)p) = PC;
 		    CodePtr += TAILSIZE;
 		}
 
@@ -3132,12 +3131,12 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 		/* mprotect the page here; a page fault will be triggered
 		 * if some other code tries to write over the page including
 		 * this node */
-		e_markpage(G->seqbase - TheCPU.mem_base, G->seqlen);
-		e_mprotect(G->seqbase - TheCPU.mem_base, G->seqlen);
+		e_markpage(G->seqbase, G->seqlen);
+		e_mprotect(G->seqbase, G->seqlen);
 		SeqStart = G->addr;
 	}
 	else {
-/**/		e_printf("(X) Nothing to exec at %p\n",PC);
+/**/		e_printf("(X) Nothing to exec at %08x\n",PC);
 		return PC;
 	}
 
@@ -3203,14 +3202,14 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 "		pushf\n"
 "		call	1f\n"
 "		jmp	2f\n"
-"1:		push	%0\n"		/* push and get TheCPU flags    */
+"1:		push	%8\n"		/* push and get TheCPU flags    */
 "		rdtsc\n"
 "		movl	%%eax,%3\n"	/* save time before execution   */
 "		movl	%%edx,%4\n"
-"		mov	%1,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
-"		jmp	*%2\n"		/* call SeqStart                */
+"		mov	%7,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
+"		jmp	*%9\n"		/* call SeqStart                */
 "2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
-"		mov    "RE_REG(ax)",%1\n"/* save PC at block exit	*/
+"		movl	%%eax,%1\n"	/* save PC at block exit	*/
 "		rdtsc\n"
 "		popf\n"
 "		pop    "RE_REG(bx) 	/* restore regs                 */
@@ -3251,7 +3250,7 @@ static unsigned char *CloseAndExec_x86(unsigned char *PC, TNode *G, int mode, in
 	ExecTime += TimeEndExec.td;
 #endif
 	if (debug_level('e')>1) {
-		e_printf("** End code, PC=%p sig=%x\n",ePC,
+		e_printf("** End code, PC=%08x sig=%x\n",ePC,
 		    TheCPU.sigalrm_pending);
 		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
 		    e_printf("  %s\n", e_trace_fp());

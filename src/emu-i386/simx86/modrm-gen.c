@@ -38,11 +38,11 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-static void modrm_sibd(unsigned char sib, int mode, unsigned char *base)
+static void modrm_sibd(unsigned char sib, int mode, unsigned int base)
 {
 	int v = FetchL(base);
 	if (debug_level('e')>5)
-		e_printf("ModRM sibd sib=%02x base=%p v=%08x\n",sib,base,v);
+		e_printf("ModRM sibd sib=%02x base=%08x v=%08x\n",sib,base,v);
 	switch(sib) {
 		/* 0x	DS: d32 + (index<<0) */
 		case 0x05:
@@ -126,7 +126,7 @@ static char R1Tab_xseg[8] =
 static char R1Tab_l[8] =
 	{ Ofs_EAX, Ofs_ECX, Ofs_EDX, Ofs_EBX, Ofs_ESP, Ofs_EBP, Ofs_ESI, Ofs_EDI };
 
-int ModRM(unsigned char opc, unsigned char *PC, int mode)
+int ModRM(unsigned char opc, unsigned int PC, int mode)
 {
 	unsigned char mod,cab=Fetch(PC+1);
 	int l=2;
@@ -233,7 +233,7 @@ int ModRM(unsigned char opc, unsigned char *PC, int mode)
 }
 
 
-int ModGetReg1(unsigned char *PC, int mode)
+int ModGetReg1(unsigned int PC, int mode)
 {
 	unsigned char mod,cab=Fetch(PC+1);
 

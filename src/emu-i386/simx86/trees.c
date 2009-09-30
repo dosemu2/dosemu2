@@ -1348,7 +1348,7 @@ void e_invalidate(unsigned char *pdata, int cnt)
 	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)
-        	InvalidateNodePage((uintptr_t)pdata, cnt, 0, NULL);
+        	InvalidateNodePage(data, cnt, 0, NULL);
 #endif
 	e_resetpagemarks(data, cnt);
 }

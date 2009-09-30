@@ -70,10 +70,10 @@
 
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
-unsigned char *(*CloseAndExec)(unsigned char *PC, TNode *G, int mode, int ln);
+unsigned int (*CloseAndExec)(unsigned int PC, TNode *G, int mode, int ln);
 static void Gen_sim(int op, int mode, ...);
 static void AddrGen_sim(int op, int mode, ...);
-static unsigned char *CloseAndExec_sim(unsigned char *PC, TNode *G, int mode, int ln);
+static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln);
 
 int TrapVgaOn = 0;
 int UseLinker = 0;
@@ -2826,12 +2826,12 @@ static void Gen_sim(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static unsigned char *CloseAndExec_sim(unsigned char *PC, TNode *G, int mode, int ln)
+static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln)
 {
 	if (debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 	    if (debug_level('e')>2) {
-		e_printf("== (%04d) == Closing sequence at %p\n",ln,PC);
+		e_printf("== (%04d) == Closing sequence at %08x\n",ln,PC);
 	    }
 	}
 	CurrIMeta = -1;

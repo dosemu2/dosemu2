@@ -192,10 +192,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 /* x386 */
-#define GetSWord(w)	memcpy((w), (void *)(LONG_SS+sp), 2)
-#define GetSLong(l)	memcpy((l), (void *)(LONG_SS+sp), 4)
-#define PutSWord(w)	memcpy((void *)(LONG_SS+sp), (w), 2)
-#define PutSLong(l)	memcpy((void *)(LONG_SS+sp), (w), 4)
+#define GetSWord(w)	memcpy((w), &mem_base[LONG_SS+sp], 2)
+#define GetSLong(l)	memcpy((l), &mem_base[LONG_SS+sp], 4)
+#define PutSWord(w)	memcpy(&mem_base[LONG_SS+sp], (w), 2)
+#define PutSLong(l)	memcpy(&mem_base[LONG_SS+sp], (w), 4)
 
 // returns 1(16 bit), 0(32 bit)
 #define BTA(bpos, mode) (((mode) >> (bpos)) & 1)
@@ -222,7 +222,7 @@ static __inline__ void PUSH(int m, void *w)
 	unsigned int addr;
 	int v;
 	sp = (TheCPU.esp-BT24(BitDATA16, m)) & TheCPU.StackMask;
-	addr = LONG_SS - TheCPU.mem_base + sp;
+	addr = LONG_SS + sp;
 	v = e_check_munprotect(addr);
 	if (m&DATA16)
 		WRITE_WORD(addr, *(short *)w);
@@ -240,7 +240,7 @@ static __inline__ void PUSH(int m, void *w)
 
 static __inline__ void POP(int m, void *w)
 {
-	unsigned long sp = TheCPU.esp & TheCPU.StackMask;
+	unsigned int sp = TheCPU.esp & TheCPU.StackMask;
 	if (m&DATA16) {
 		GetSWord(w); sp+=2;
 	}
@@ -252,19 +252,19 @@ static __inline__ void POP(int m, void *w)
 
 static __inline__ void TOS_WORD(int m, void *w)		// for segments
 {
-	unsigned long sp = TheCPU.esp & TheCPU.StackMask;
+	unsigned int sp = TheCPU.esp & TheCPU.StackMask;
 	GetSWord(w);
 }
 
 static __inline__ void NOS_WORD(int m, void *w)		// for segments
 {
-	unsigned long sp = (TheCPU.esp+(m&DATA16? 2:4)) & TheCPU.StackMask;
+	unsigned int sp = (TheCPU.esp+(m&DATA16? 2:4)) & TheCPU.StackMask;
 	GetSWord(w);
 }
 
 static __inline__ void POP_ONLY(int m)
 {
-	unsigned long sp = TheCPU.esp + (m&DATA16? 2:4);
+	unsigned int sp = TheCPU.esp + (m&DATA16? 2:4);
 	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
 }
 
@@ -297,7 +297,7 @@ extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
 void NodeUnlinker(TNode *G);
-extern unsigned char *(*CloseAndExec)(unsigned char *PC, TNode *G, int mode, int ln);
+extern unsigned int (*CloseAndExec)(unsigned int PC, TNode *G, int mode, int ln);
 void EndGen(void);
 //
 extern char InterOps[];

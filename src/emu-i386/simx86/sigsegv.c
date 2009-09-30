@@ -512,9 +512,9 @@ int e_emu_fault(struct sigcontext_struct *scp)
 
 		    if (!InCompiledCode) {
 			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
-				    " cr2=%lx, fault_cnt=%d\n",
+				    " cr2=%x, fault_cnt=%d\n",
 				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
-				    _cs, _rip, _cr2, fault_cnt);
+				    _cs, _rip, icr2, fault_cnt);
 		    }
 		    if (e_querymark(icr2)) {
 			e_printf("CODE node hit at %08x\n",icr2);
@@ -531,7 +531,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		    return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
-		InvalidateNodePage(_cr2, 0, p, &codehit);
+		InvalidateNodePage(icr2, 0, p, &codehit);
 		e_resetpagemarks(icr2, 1);
 		e_munprotect(icr2, 0);
 		/* now go back and perform the faulting op */
