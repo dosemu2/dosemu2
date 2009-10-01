@@ -628,6 +628,40 @@ quit:
 
 /////////////////////////////////////////////////////////////////////////////
 
+/*
+ * Given addr with translated code (from e.g., a fault) find the
+ * corresponding original PC. This is slow but it's only used for
+ * DPMI exceptions.
+ */
+unsigned int FindPC(unsigned char *addr)
+{
+  TNode *G = &CollectTree.root;
+  unsigned char *ahE;
+  Addr2Pc *AP;
+  unsigned int i;
+
+  for (;;) {
+      /* walk to next node */
+      NEXTNODE(G);
+      if (G == &CollectTree.root) break;
+      if (!G->addr || !G->pmeta || G->alive<=0) continue;
+      ahE = G->addr + G->len;
+      if (!ADDR_IN_RANGE(addr,G->addr,ahE)) continue;
+      e_printf("### FindPC: Found node %p->%p..%p", addr,G->addr,ahE);
+      AP = G->pmeta;
+      for (i=0; i<G->seqnum; i++) {
+	  e_printf("     %08x:%p",(G->key+AP->dnpc),G->addr+AP->daddr);
+	  if (addr < G->addr+AP->daddr) break;
+	  AP++;
+      }
+      e_printf("\nFindPC: PC=%x\n", G->key+(AP-1)->dnpc);
+      return G->key+(AP-1)->dnpc;
+  }
+  return 0;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
 #ifdef DEBUG_LINKER
 
 void CheckLinks (void)

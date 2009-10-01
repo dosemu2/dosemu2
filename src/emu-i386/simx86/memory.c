@@ -43,6 +43,8 @@
 #include "dosemu_debug.h"
 #include "dlmalloc.h"
 #include "emu86.h"
+#include "codegen.h"
+#include "dpmi.h"
 
 #define CGRAN		4		/* 2^n */
 #define CGRMASK		(0xfffff>>CGRAN)
@@ -274,6 +276,83 @@ int e_check_munprotect(unsigned int addr)
 		return 0;
 	return e_munprotect(addr,0);
 }
+
+
+#ifdef HOST_ARCH_X86
+int e_handle_pagefault(struct sigcontext_struct *scp)
+{
+	int codehit;
+	register int v;
+	unsigned char *p;
+	unsigned int addr = _cr2 - TheCPU.mem_base;
+
+	/* _err:
+	 * bit 0 = 1	page protect
+	 * bit 1 = 1	writing
+	 * bit 2 = 1	user mode
+	 * bit 3 = 0	no reserved bit err
+	 */
+	if (!e_querymprot(addr) || (_err&0x0f) != 0x07) return 0;
+
+	/* Got a fault in a write-protected memory page, that is,
+	 * a page _containing_code_. 99% of the time we are
+	 * hitting data or stack in the same page, NOT code.
+	 *
+	 * We check using e_querymprot whether we protected the
+	 * page ourselves. Additionally an error code of 7 should
+	 * have been given.
+	 *
+	 * _cr2 keeps the address where the code tries to write
+	 * _rip keeps the address of the faulting instruction
+	 *	(in the code buffer or in the tree)
+	 *
+	 * Possible instructions we'll find here are (see sigsegv.v):
+	 *	8807	movb	%%al,(%%edi)
+	 *	(66)8907	mov{wl}	%%{e}ax,(%%edi)
+	 *	(f3)(66)a4,a5	movs
+	 *	(f3)(66)aa,ab	stos
+	 */
+#ifdef PROFILE
+	PageFaults++;
+#endif
+	if (DPMIValidSelector(_cs))
+		p = (unsigned char *) SEL_ADR(_cs, _rip);
+	else
+		p = (unsigned char *) _rip;
+	if (debug_level('e') || (!InCompiledCode && !DPMIValidSelector(_cs))) {
+		v = *((int *)p);
+		__asm__("bswap %0" : "=r" (v) : "0" (v));
+		e_printf("Faulting ops: %08x\n",v);
+
+		if (!InCompiledCode) {
+			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
+				    " cr2=%x, fault_cnt=%d\n",
+				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
+				    _cs, _rip, addr, fault_cnt);
+		}
+		if (e_querymark(addr)) {
+			e_printf("CODE node hit at %08x\n",addr);
+		}
+		else if (InCompiledCode) {
+			e_printf("DATA node hit at %08x\n",addr);
+		}
+	}
+	/* the page is not unprotected here, the code
+	 * linked by Cpatch will do it */
+	/* ACH: we can set up a data patch for code
+	 * which has not yet been executed! */
+	if (InCompiledCode && !e_querymark(addr) && Cpatch(scp))
+		return 1;
+	/* We HAVE to invalidate all the code in the page
+	 * if the page is going to be unprotected */
+	codehit = 0;
+	InvalidateNodePage(addr, 0, p, &codehit);
+	e_resetpagemarks(addr, 1);
+	e_munprotect(addr, 0);
+	/* now go back and perform the faulting op */
+	return 1;
+}
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 

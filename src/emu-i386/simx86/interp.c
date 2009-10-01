@@ -2901,10 +2901,10 @@ repag0:
 		    if (debug_level('e')>2) e_printf("  %s\n", ds);
 		}
 
-		P0 = PC;
 #ifndef SINGLESTEP
 		if (!(CEmuStat & CeS_TRAP)) continue;
 #endif
+		P0 = PC;
 		CloseAndExec(P0, NULL, mode, __LINE__);
 		e_printf("\n%s",e_print_regs());
 		NewNode = 0;

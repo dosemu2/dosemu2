@@ -89,6 +89,7 @@ int e_sigpa_count;
 
 int in_vm86_emu = 0;
 int in_dpmi_emu = 0;
+sigjmp_buf jmp_env;
 
 union SynCPU	TheCPU_union;
 
@@ -1286,7 +1287,13 @@ int e_dpmi(struct sigcontext_struct *scp)
     dt = (TheCPU.cs&4? LDT:GDT);
 
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
-    do {
+    if (CONFIG_CPUSIM && sigsetjmp(jmp_env, 1)) {
+      /* long jump to here from page fault */
+      xval = TheCPU.err;
+      return_addr = P0;
+      in_dpmi_emu = 0;
+    }
+    else do {
       /* switch to DPMI process */
       in_dpmi_emu = 1;
       e_printf("INTERP: enter=%08x mode=%04x\n",trans_addr,mode);

@@ -641,6 +641,9 @@ extern int eTimeCorrect;
 
 /////////////////////////////////////////////////////////////////////////////
 //
+extern unsigned int P0;
+extern sigjmp_buf jmp_env;
+extern int in_dpmi_emu;
 extern unsigned long eTSSMASK;
 extern int Running;		/* into interpreter loop */
 extern unsigned int mMaxMem;
@@ -671,6 +674,7 @@ int e_querymprotrange(unsigned int al, unsigned int ah);
 int e_markpage(unsigned int addr, size_t len);
 int e_querymark(unsigned int addr);
 void e_resetpagemarks(unsigned int addr, size_t len);
+int e_handle_pagefault(struct sigcontext_struct *scp);
 void mprot_init(void);
 void mprot_end(void);
 void InvalidateSegs(void);

@@ -46,8 +46,6 @@ typedef unsigned long long uint64_t;
 #include <errno.h>
 #include <sys/mman.h>
 
-//#define TEST_PF 1
-
 #if !defined(__x86_64__)
 #define TEST_VM86
 #define TEST_SEGS
@@ -2039,7 +2037,6 @@ void test_exceptions(void)
     }
 #endif
 
-#ifdef TEST_PF /* CPUEMU can't do this yet */
     /* test SEGV reporting */
     printf("PF exception:\n");
     if (setjmp(jmp_env) == 0) {
@@ -2065,7 +2062,6 @@ void test_exceptions(void)
         v1 = *(char *)0x1234;
 #endif
     }
-#endif
 
     /* test illegal instruction reporting */
     printf("UD2 exception:\n");

@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <setjmp.h>
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "trees.h"
@@ -406,6 +407,17 @@ badrw:
 /* this function is called from dosemu_fault */
 int e_emu_fault(struct sigcontext_struct *scp)
 {
+#ifdef __x86_64__
+  if (_trapno == 0x0e && _cr2 > 0xffffffff)
+#else
+  if (_trapno == 0x0e && _cr2 > getregister(esp))
+#endif
+  {
+    error("Accessing reserved memory at %08lx\n"
+	  "\tMaybe a null segment register\n",_cr2);
+    return 0;
+  }
+
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
      reset permissions on code pages */
@@ -423,16 +435,7 @@ int e_emu_fault(struct sigcontext_struct *scp)
     }
   }
 
-  /*
-   * We are probably asked to stop the execution and run some int
-   * set up by the program... so it's a bad idea to just return back.
-   * Implemented solution:
-   *	for every "sensitive" instruction we store the current PC in
-   *	some place, let's say TheCPU.cr2. As we get the exception, we
-   *	use this address to return back to the interpreter loop, skipping
-   *	the rest of the sequence, and possibly with an error code in
-   *	TheCPU.err.
-   */
+  if (_trapno!=0x0e && _trapno != 0x00) return 0;
 
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
@@ -444,8 +447,6 @@ int e_emu_fault(struct sigcontext_struct *scp)
 			}
 			/* VGAEMU may also access/protect the LFB */
 			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
-			if ((unsigned)(pf - vga.mem.graph_base) < 
-			    vga.mem.graph_size) goto verybad;
 		} else {
 			if(VGA_EMU_FAULT(scp,code,1)==True) {
 				dpmi_check_return(scp);
@@ -454,119 +455,60 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		}
 	}
 
-#ifdef HOST_ARCH_X86
-    if (!CONFIG_CPUSIM) {
-
-        /* bit 0 = 1	page protect
-         * bit 1 = 1	writing
-         * bit 2 = 1	user mode
-         * bit 3 = 0	no reserved bit err
-         */
-#ifdef __x86_64__
-	if (_cr2 > 0xffffffff)
-#else
-	if (_cr2 > getregister(esp))
-#endif
-	{
-		error("Accessing reserved memory at %08lx\n"
-		      "\tMaybe a null segment register\n",_cr2);
-		goto verybad;
-	}
-	if (DPMIValidSelector(_cs) &&
-	    (unsigned char *)_cr2 >= ldt_buffer &&
-	    (unsigned char *)_cr2 < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE)
-		/* LDT access emulation */
-		return 0;
-	if ((_err&0x0f)==0x07) {
-		unsigned int icr2 = _cr2 - TheCPU.mem_base;
-		unsigned char *p = (unsigned char *)_rip;
-		int codehit = 0;
-		register int v;
-		/* Got a fault in a write-protected memory page, that is,
-		 * a page _containing_code_. 99% of the time we are
-		 * hitting data or stack in the same page, NOT code.
-		 *
-		 * We assume that no other write protections exist and
-		 * that no other cause could return an error code of 7.
-		 * (this is a very weak assumption indeed)
-		 *
-		 * _cr2 keeps the address where the code tries to write
-		 * _rip keeps the address of the faulting instruction
-		 *	(in the code buffer or in the tree)
-		 *
-		 * Possible instructions we'll find here are (see above):
-		 *	8807	movb	%%al,(%%edi)
-		 *	(66)8907	mov{wl}	%%{e}ax,(%%edi)
-		 *	(f3)(66)a4,a5	movs
-		 *	(f3)(66)aa,ab	stos
+	if (CONFIG_CPUSIM && in_dpmi_emu) {
+		/* reflect DPMI page fault back to a DOSEMU crash or
+		   DPMI exception;
+		   vm86 faults will terminate DOSEMU via "return 0"
 		 */
-#ifdef PROFILE
-		PageFaults++;
-#endif
-		if (DPMIValidSelector(_cs))
-		    p = (unsigned char *) SEL_ADR(_cs, _rip);
-		if (debug_level('e') || (!InCompiledCode && !DPMIValidSelector(_cs))) {
-		    v = *((int *)p);
-		    __asm__("bswap %0" : "=r" (v) : "0" (v));
-		    e_printf("Faulting ops: %08x\n",v);
-
-		    if (!InCompiledCode) {
-			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
-				    " cr2=%x, fault_cnt=%d\n",
-				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
-				    _cs, _rip, icr2, fault_cnt);
-		    }
-		    if (e_querymark(icr2)) {
-			e_printf("CODE node hit at %08x\n",icr2);
-		    }
-		    else if (InCompiledCode) {
-			e_printf("DATA node hit at %08x\n",icr2);
-		    }
-		}
-		/* the page is not unprotected here, the code
-		 * linked by Cpatch will do it */
-		/* ACH: we can set up a data patch for code
-		 * which has not yet been executed! */
-		if (InCompiledCode && !e_querymark(icr2) && Cpatch(scp))
-		    return 1;
-		/* We HAVE to invalidate all the code in the page
-		 * if the page is going to be unprotected */
-		InvalidateNodePage(icr2, 0, p, &codehit);
-		e_resetpagemarks(icr2, 1);
-		e_munprotect(icr2, 0);
-		/* now go back and perform the faulting op */
-		return 1;
+		TheCPU.err = EXCP0E_PAGE;
+		TheCPU.scp_err = _err;
+		TheCPU.cr2 = _cr2;
+		fault_cnt--;
+		siglongjmp(jmp_env, 0);
 	}
-    }
+
+#ifdef HOST_ARCH_X86
+	if (!CONFIG_CPUSIM && e_handle_pagefault(scp))
+		return 1;
 #endif
   }
+
 #ifdef HOST_ARCH_X86
-  else if (!CONFIG_CPUSIM && _trapno==0x00) {
+  /*
+   * We are probably asked to stop the execution and run some int
+   * set up by the program... so it's a bad idea to just return back.
+   * Implemented solution:
+   *	for every "sensitive" instruction we store the current PC in
+   *	some place, let's say TheCPU.cr2. As we get the exception, we
+   *	use this address to return back to the interpreter loop, skipping
+   *	the rest of the sequence, and possibly with an error code in
+   *	TheCPU.err.
+   *    For page faults the current PC is recovered from the tree.
+   */
+  if (!CONFIG_CPUSIM) {
 	if (InCompiledCode) {
-		TheCPU.err = EXCP00_DIVZ;
+		TheCPU.scp_err = _err;
 		/* save eip, eflags, and do a "ret" out of compiled code */
-		_eax = TheCPU.cr2;
-		_edx = _eflags;
+		if (_trapno == 0x00) {
+			TheCPU.err = EXCP00_DIVZ;
+			_eax = TheCPU.cr2;
+			_edx = _eflags;
+		} else {
+			TheCPU.err = EXCP0E_PAGE;
+			_eax = FindPC((unsigned char *)_rip);
+			e_printf("FindPC: found %x\n",_eax);
+			_edx = *(long *)_rsp; // flags
+			_rsp += sizeof(long);
+		}
+		TheCPU.cr2 = _cr2;
 		_rip = *(long *)_rsp;
 		_rsp += sizeof(long);
 		return 1;
 	}
+	return TryMemRef;
   }
-  return !CONFIG_CPUSIM && TryMemRef && _trapno != 0x0d;
-#else
-  return 0;
 #endif
-
-verybad:
-  /*
-   * Too bad, we have to give up.
-   */
-  dbug_printf("Unhandled CPUEMU exception %02x\n", _trapno);
-  flush_log();
-  if (in_vm86) in_vm86=0;	/* otherwise leavedos() complains */
-  fatalerr = 5;
-  leavedos(fatalerr);		/* shouldn't return */
-  return 1;
+  return 0;
 }
 
 /* ======================================================================= */
