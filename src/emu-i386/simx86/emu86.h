@@ -643,7 +643,7 @@ extern int eTimeCorrect;
 //
 extern unsigned long eTSSMASK;
 extern int Running;		/* into interpreter loop */
-extern long mMaxMem;
+extern unsigned int mMaxMem;
 extern int TryMemRef;
 extern int UseLinker;
 //

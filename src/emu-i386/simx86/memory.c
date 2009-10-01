@@ -55,7 +55,7 @@ typedef struct _mpmap {
 } tMpMap;
 
 static tMpMap *MpH = NULL;
-long mMaxMem = 0;
+unsigned int mMaxMem = 0;
 
 static tMpMap *LastMp = NULL;
 
