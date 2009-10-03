@@ -481,11 +481,13 @@ unsigned int Interp86(unsigned int PC, int mod0)
 override:
 		switch ((opc=Fetch(PC))) {
 /*28*/	case SUBbfrm:
+/*2a*/	case SUBbtrm:
 /*30*/	case XORbfrm:
 /*32*/	case XORbtrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_CLEAR, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
 			    PC+=2; break;
-			} goto intop28;
+			}
+			if (opc & 2) goto intop3a; else goto intop28;
 /*08*/	case ORbfrm:
 /*0a*/	case ORbtrm:
 /*20*/	case ANDbfrm:
@@ -496,7 +498,9 @@ override:
 			    Gen(O_TEST, m, R1Tab_b[Fetch(PC+1)&7]);
 			    PC+=2; break;
 			}
-			if (opc != TESTbrm) goto intop28;
+			if (opc != TESTbrm) {
+			    if (opc & 2) goto intop3a; else goto intop28;
+			}
 			if (ModGetReg1(PC, m)==3) {
 			    PC+=2;
 			    Gen(L_REG, m, REG3);	// mov al,[ebx+reg]
@@ -508,64 +512,56 @@ override:
 			Gen(O_AND_R, m, REG1);		// op  al,[ebx+reg]
 			}
 			break;
-/*18*/	case SBBbfrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
+/*18*/	case SBBbfrm:	
+/*1a*/	case SBBbtrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_SBSELF, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
 			    PC+=2; break;
 			}
+			if (opc & 2) goto intop3a;
 /*00*/	case ADDbfrm:
-/*02*/	case ADDbtrm:
 /*10*/	case ADCbfrm:
-/*12*/	case ADCbtrm:
 /*38*/	case CMPbfrm:
 intop28:		{ int m = mode | MBYTE;
 			if (ModGetReg1(PC, m)==3) {
 			    int op = ArOpsFR[D_MO(opc)];
 			    PC += 2;
-			    if (opc & 2) {
-				Gen(L_REG, m, REG3);	// mov al,[ebx+rmreg]
-				Gen(op, m, REG1);	// op [ebx+reg],al	reg=reg op rmreg
-			    }
-			    else {
-				Gen(L_REG, m, REG1);	// mov al,[ebx+reg]
-				Gen(op, m, REG3);	// op [ebx+rmreg],al	rmreg=rmreg op reg
-			    }
+			    Gen(L_REG, m, REG1);	// mov al,[ebx+reg]
+			    Gen(op, m, REG3);		// op [ebx+rmreg],al	rmreg=rmreg op reg
 			}
 			else {
 			    int op = ArOpsR[D_MO(opc)];
-			    PC += ModRM(opc, PC, m);	// SI=reg DI=mem
+			    PC += ModRM(opc, PC, m);	// DI=mem
 			    Gen(L_DI_R1, m);		// mov al,[edi]
 			    Gen(op, m, REG1);		// op  al,[ebx+reg]
 			    if (opc!=CMPbfrm) {
-				if (opc & 2)
-					Gen(S_REG, m, REG1);	// mov [ebx+reg],al		reg=mem op reg
-				else
-					Gen(S_DI, m);		// mov [edi],al			mem=mem op reg
+				Gen(S_DI, m);		// mov [edi],al		mem=mem op reg
 			    }
 			} }
 			break; 
-/*2a*/	case SUBbtrm:	if (RmIsReg[Fetch(PC+1)]&2) {
-			    Gen(O_CLEAR, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
-			    PC+=2; break;
-			} goto intop3a;
-/*1a*/	case SBBbtrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
-			    Gen(O_SBSELF, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
-			    PC+=2; break;
-			}
+/*02*/	case ADDbtrm:
+/*12*/	case ADCbtrm:
 /*3a*/	case CMPbtrm:
 intop3a:		{ int m = mode | MBYTE;
 			int op = ArOpsFR[D_MO(opc)];
-			PC += ModRM(opc, PC, m);	// SI=reg DI=mem
-			Gen(L_DI_R1, m);		// mov al,[edi]
-			Gen(op, m, REG1);		// op [ebx+reg], al
-			// reg=reg op mem
+			if (ModGetReg1(PC, m)==3) {	// reg=reg op rmreg
+			    PC += 2;
+			    Gen(L_REG, m, REG3);	// mov al,[ebx+rmreg]
 			}
-			break; 
+			else {				// reg=reg op mem
+			    PC += ModRM(opc, PC, m);	// DI=mem
+			    Gen(L_DI_R1, m);		// mov al,[edi]
+			}
+			Gen(op, m, REG1);		// op [ebx+reg], al
+			}
+			break;
 /*29*/	case SUBwfrm:
+/*2b*/	case SUBwtrm:
 /*31*/	case XORwfrm:
 /*33*/	case XORwtrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_CLEAR, mode, R1Tab_l[Fetch(PC+1)&7]);
 			    PC+=2; break;
-			} goto intop29;
+			}
+			if (opc & 2) goto intop3b; else goto intop29;
 /*09*/	case ORwfrm:
 /*0b*/	case ORwtrm:
 /*21*/	case ANDwfrm:
@@ -574,7 +570,9 @@ intop3a:		{ int m = mode | MBYTE;
 			    Gen(O_TEST, mode, R1Tab_l[Fetch(PC+1)&7]);
 			    PC+=2; break;
 			}
-			if (opc != TESTwrm) goto intop29;
+			if (opc != TESTwrm) {
+			    if (opc & 2) goto intop3b; else goto intop29;
+			}
 			if (ModGetReg1(PC, mode)==3) {
 			    PC+=2;
 			    Gen(L_REG, mode, REG3);	// mov (e)ax,[ebx+reg]
@@ -585,72 +583,59 @@ intop3a:		{ int m = mode | MBYTE;
 			}
 			Gen(O_AND_R, mode, REG1);	// op  (e)ax,[ebx+reg]
 			break;
-/*19*/	case SBBwfrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
-			    Gen(O_SBSELF, mode, R1Tab_l[Fetch(PC+1)&7]);
-			    PC+=2; break;
-			}
-/*01*/	case ADDwfrm:
-/*03*/	case ADDwtrm:
-/*11*/	case ADCwfrm:
-/*13*/	case ADCwtrm:
-/*39*/	case CMPwfrm:
-intop29:		if (ModGetReg1(PC, mode)==3) {
-			    int op = ArOpsFR[D_MO(opc)];
-			    PC += 2;
-			    if (opc & 2) {
-				Gen(L_REG, mode, REG3);	// mov (e)ax,[ebx+rmreg]
-				Gen(op, mode, REG1);	// op [ebx+reg],(e)ax	reg=reg op rmreg
-			    }
-			    else {
-				Gen(L_REG, mode, REG1);	// mov (e)ax,[ebx+reg]
-				Gen(op, mode, REG3);	// op [ebx+rmreg],(e)ax	rmreg=rmreg op reg
-			    }
-			}
-			else {
-			    int op = ArOpsR[D_MO(opc)];
-			    PC += ModRM(opc, PC, mode);	// SI=reg DI=mem
-			    Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
-			    Gen(op, mode, REG1);		// op  (e)ax,[ebx+reg]
-			    if (opc!=CMPwfrm) {
-				if (opc & 2)
-					Gen(S_REG, mode, REG1);	// mov [ebx+reg],(e)ax	reg=mem op reg
-				else
-					Gen(S_DI, mode);	// mov [edi],(e)ax	mem=mem op reg
-			    }
-			}
-			break; 
-/*2b*/	case SUBwtrm:	if (RmIsReg[Fetch(PC+1)]&2) {
-			    Gen(O_CLEAR, mode, R1Tab_l[Fetch(PC+1)&7]);
-			    PC+=2; break;
-			} goto intop3b;
+/*19*/	case SBBwfrm:
 /*1b*/	case SBBwtrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_SBSELF, mode, R1Tab_l[Fetch(PC+1)&7]);
 			    PC+=2; break;
 			}
-/*3b*/	case CMPwtrm:
-intop3b:		{ int op = ArOpsFR[D_MO(opc)];
-			PC += ModRM(opc, PC, mode);	// SI=reg DI=mem
-			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
-			Gen(op, mode, REG1);		// op [ebx+reg], (e)ax
-			// reg=reg op mem
+			if (opc & 2) goto intop3b;
+/*01*/	case ADDwfrm:
+/*11*/	case ADCwfrm:
+/*39*/	case CMPwfrm:
+intop29:		if (ModGetReg1(PC, mode)==3) {
+			    int op = ArOpsFR[D_MO(opc)];
+			    PC += 2;
+			    Gen(L_REG, mode, REG1);	// mov (e)ax,[ebx+reg]
+			    Gen(op, mode, REG3);	// op [ebx+rmreg],(e)ax	rmreg=rmreg op reg
+			}
+			else {
+			    int op = ArOpsR[D_MO(opc)];
+			    PC += ModRM(opc, PC, mode);	// DI=mem
+			    Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			    Gen(op, mode, REG1);	// op  (e)ax,[ebx+reg]
+			    if (opc!=CMPwfrm) {
+				Gen(S_DI, mode);	// mov [edi],(e)ax	mem=mem op reg
+			    }
 			}
 			break; 
-/*a8*/	case TESTbi:
+/*03*/	case ADDwtrm:
+/*13*/	case ADCwtrm:
+/*3b*/	case CMPwtrm:
+intop3b:		{ int op = ArOpsFR[D_MO(opc)];
+			if (ModGetReg1(PC, mode)==3) {
+			    PC += 2;
+			    Gen(L_REG, mode, REG3);	// mov (e)ax,[ebx+rmreg]
+			}
+			else {
+			    PC += ModRM(opc, PC, mode);	// DI=mem
+			    Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			}
+			Gen(op, mode, REG1);		// op [ebx+reg], (e)ax
+			}
+			break; 
+/*a8*/	case TESTbi: {
+			int m = mode | MBYTE;
+			Gen(L_IMM_R1, m, Fetch(PC+1)); PC+=2;	// mov al,#imm
+			Gen(O_AND_R, m, Ofs_AL);		// op al,[ebx+reg]
+		        }
+			break; 
 /*04*/	case ADDbia:
 /*0c*/	case ORbi:
 /*14*/	case ADCbi:
 /*24*/	case ANDbi:
-/*34*/	case XORbi: {
-			int m = mode | MBYTE;
-			int op = (opc==TESTbi? O_AND_R:ArOpsR[D_MO(opc)]);
-			Gen(L_IMM_R1, m, Fetch(PC+1)); PC+=2;	// mov al,#imm
-			Gen(op, m, Ofs_AL);			// op al,[ebx+reg]
-			if (opc != TESTbi)
-				Gen(S_REG, m, Ofs_AL);	// mov [ebx+reg],al
-			}
-			break; 
 /*1c*/	case SBBbi:
 /*2c*/	case SUBbi:
+/*34*/	case XORbi:
 /*3c*/	case CMPbi: {
 			int m = mode | MBYTE;
 			int op = ArOpsFR[D_MO(opc)];
@@ -659,21 +644,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			break; 
 /*a9*/	case TESTwi:
+			Gen(L_IMM_R1, mode|IMMED, DataFetchWL_U(mode,PC+1));
+			INC_WL_PC(mode,1);
+			Gen(O_AND_R, mode, Ofs_EAX);
+			break; 
 /*05*/	case ADDwia:
 /*0d*/	case ORwi:
 /*15*/	case ADCwi:
-/*25*/	case ANDwi:
-/*35*/	case XORwi: {
-			int op = (opc==TESTwi? O_AND_R:ArOpsR[D_MO(opc)]);
-			Gen(L_IMM_R1, mode|IMMED, DataFetchWL_U(mode,PC+1));
-			INC_WL_PC(mode,1);
-			Gen(op, mode, Ofs_EAX);
-			if (opc != TESTwi)
-				Gen(S_REG, mode, Ofs_EAX);
-			}
-			break; 
 /*1d*/	case SBBwi:
+/*25*/	case ANDwi:
 /*2d*/	case SUBwi:
+/*35*/	case XORwi:
 /*3d*/	case CMPwi: {
 			int m = mode;
 			int op = ArOpsFR[D_MO(opc)];
