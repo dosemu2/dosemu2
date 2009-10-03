@@ -114,6 +114,12 @@
 #define O_SBSELF	72	// sbb r,r
 #define O_CMPXCHG	73
 
+#define O_ADD_FR	75
+#define O_OR_FR		76
+#define O_ADC_FR	77
+#define O_AND_FR	78
+#define O_XOR_FR	79
+
 #define O_PUSH		80
 #define O_PUSHI		81
 #define O_POP		82

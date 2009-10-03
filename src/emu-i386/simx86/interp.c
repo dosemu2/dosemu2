@@ -50,7 +50,7 @@ static int basemode = 0;
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
 static int ArOpsFR[] =
-	{      -1,     -1,      -1, O_SBB_FR,     -1, O_SUB_FR,     -1, O_CMP_FR};
+	{ O_ADD_FR, O_OR_FR, O_ADC_FR, O_SBB_FR, O_AND_FR, O_SUB_FR, O_XOR_FR, O_CMP_FR};
 static char R1Tab_b[8] =
 	{ Ofs_AL, Ofs_CL, Ofs_DL, Ofs_BL, Ofs_AH, Ofs_CH, Ofs_DH, Ofs_BH };
 static char R1Tab_l[14] =
@@ -490,10 +490,24 @@ override:
 /*0a*/	case ORbtrm:
 /*20*/	case ANDbfrm:
 /*22*/	case ANDbtrm:
-/*84*/	case TESTbrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
-			    Gen(O_TEST, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
+/*84*/	case TESTbrm:
+		        { int m = mode | MBYTE;
+			if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
+			    Gen(O_TEST, m, R1Tab_b[Fetch(PC+1)&7]);
 			    PC+=2; break;
-			} goto intop28;
+			}
+			if (opc != TESTbrm) goto intop28;
+			if (ModGetReg1(PC, m)==3) {
+			    PC+=2;
+			    Gen(L_REG, m, REG3);	// mov al,[ebx+reg]
+			}
+			else {
+			    PC += ModRM(opc, PC, m);	// DI=mem
+			    Gen(L_DI_R1, m);		// mov al,[edi]
+			}
+			Gen(O_AND_R, m, REG1);		// op  al,[ebx+reg]
+			}
+			break;
 /*18*/	case SBBbfrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_SBSELF, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
 			    PC+=2; break;
@@ -504,17 +518,30 @@ override:
 /*12*/	case ADCbtrm:
 /*38*/	case CMPbfrm:
 intop28:		{ int m = mode | MBYTE;
-			int op = (opc==TESTbrm? O_AND_R:ArOpsR[D_MO(opc)]);
-			PC += ModRM(opc, PC, m);	// SI=reg DI=mem
+			if (ModGetReg1(PC, m)==3) {
+			    int op = ArOpsFR[D_MO(opc)];
+			    PC += 2;
+			    if (opc & 2) {
+				Gen(L_REG, m, REG3);	// mov al,[ebx+rmreg]
+				Gen(op, m, REG1);	// op [ebx+reg],al	reg=reg op rmreg
+			    }
+			    else {
+				Gen(L_REG, m, REG1);	// mov al,[ebx+reg]
+				Gen(op, m, REG3);	// op [ebx+rmreg],al	rmreg=rmreg op reg
+			    }
+			}
+			else {
+			    int op = ArOpsR[D_MO(opc)];
+			    PC += ModRM(opc, PC, m);	// SI=reg DI=mem
 			    Gen(L_DI_R1, m);		// mov al,[edi]
 			    Gen(op, m, REG1);		// op  al,[ebx+reg]
-			    if ((opc!=CMPbfrm)&&(opc!=TESTbrm)) {
+			    if (opc!=CMPbfrm) {
 				if (opc & 2)
 					Gen(S_REG, m, REG1);	// mov [ebx+reg],al		reg=mem op reg
 				else
 					Gen(S_DI, m);		// mov [edi],al			mem=mem op reg
 			    }
-			}
+			} }
 			break; 
 /*2a*/	case SUBbtrm:	if (RmIsReg[Fetch(PC+1)]&2) {
 			    Gen(O_CLEAR, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
@@ -546,7 +573,18 @@ intop3a:		{ int m = mode | MBYTE;
 /*85*/	case TESTwrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_TEST, mode, R1Tab_l[Fetch(PC+1)&7]);
 			    PC+=2; break;
-			} goto intop29;
+			}
+			if (opc != TESTwrm) goto intop29;
+			if (ModGetReg1(PC, mode)==3) {
+			    PC+=2;
+			    Gen(L_REG, mode, REG3);	// mov (e)ax,[ebx+reg]
+			}
+			else {
+			    PC += ModRM(opc, PC, mode);	// DI=mem
+			    Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			}
+			Gen(O_AND_R, mode, REG1);	// op  (e)ax,[ebx+reg]
+			break;
 /*19*/	case SBBwfrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_SBSELF, mode, R1Tab_l[Fetch(PC+1)&7]);
 			    PC+=2; break;
@@ -556,11 +594,24 @@ intop3a:		{ int m = mode | MBYTE;
 /*11*/	case ADCwfrm:
 /*13*/	case ADCwtrm:
 /*39*/	case CMPwfrm:
-intop29:		{ int op = (opc==TESTwrm? O_AND_R:ArOpsR[D_MO(opc)]);
-			PC += ModRM(opc, PC, mode);	// SI=reg DI=mem
+intop29:		if (ModGetReg1(PC, mode)==3) {
+			    int op = ArOpsFR[D_MO(opc)];
+			    PC += 2;
+			    if (opc & 2) {
+				Gen(L_REG, mode, REG3);	// mov (e)ax,[ebx+rmreg]
+				Gen(op, mode, REG1);	// op [ebx+reg],(e)ax	reg=reg op rmreg
+			    }
+			    else {
+				Gen(L_REG, mode, REG1);	// mov (e)ax,[ebx+reg]
+				Gen(op, mode, REG3);	// op [ebx+rmreg],(e)ax	rmreg=rmreg op reg
+			    }
+			}
+			else {
+			    int op = ArOpsR[D_MO(opc)];
+			    PC += ModRM(opc, PC, mode);	// SI=reg DI=mem
 			    Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
 			    Gen(op, mode, REG1);		// op  (e)ax,[ebx+reg]
-			    if ((opc!=CMPwfrm)&&(opc!=TESTwrm)) {
+			    if (opc!=CMPwfrm) {
 				if (opc & 2)
 					Gen(S_REG, mode, REG1);	// mov [ebx+reg],(e)ax	reg=mem op reg
 				else

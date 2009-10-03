@@ -1049,6 +1049,101 @@ static void Gen_sim(int op, int mode, ...)
 		}
 		}
 		break;
+	case O_ADD_FR: {	// OSZAPC
+		register wkreg v;
+		signed char o;
+		v.d = va_arg(ap, int);
+		RFL.mode = mode;
+		RFL.valid = V_ADD;
+		if (mode & IMMED) {GTRACE3("O_ADD_FR",0xff,0xff,v.d);}
+		    else {GTRACE3("O_ADD_FR",v.bs.bl,0xff,v.d);}
+		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
+		if (mode & MBYTE) {
+		    RFL.S1 = CPUBYTE(o);
+		    if (mode & IMMED) RFL.S2 = v.b.bl;
+			else RFL.S2 = DR1.b.bl;
+		    CPUBYTE(o) = RFL.RES.d = RFL.S1 + RFL.S2;
+		}
+		else if (mode & DATA16) {
+		    RFL.S1 = CPUWORD(o);
+		    if (mode & IMMED) RFL.S2 = v.w.l;
+			else RFL.S2 = DR1.w.l;
+		    CPUWORD(o) = RFL.RES.d = RFL.S1 + RFL.S2;
+		}
+		else {
+		    RFL.S1 = CPULONG(o);
+		    if (mode & IMMED) RFL.S2 = v.d;
+			else RFL.S2 = DR1.d;
+		    CPULONG(o) = RFL.RES.d = RFL.S1 + RFL.S2;
+		}
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		FlagSync_C(0);
+		}
+		break;
+	case O_OR_FR: {		// O=0 SZP C=0
+		register wkreg v;
+		signed char o;
+		v.d = va_arg(ap, int);
+		RFL.mode = mode | CLROVF;
+		RFL.valid = V_GEN;
+		if (mode & IMMED) {GTRACE3("O_OR_FR",0xff,0xff,v.d);}
+		    else {GTRACE3("O_OR_FR",v.d,0xff,v.d);}
+		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
+		if (mode & MBYTE) {
+		    RFL.S1 = CPUBYTE(o);
+		    if (mode & IMMED) RFL.S2 = v.b.bl;
+			else RFL.S2 = DR1.b.bl;
+		    CPUBYTE(o) = RFL.RES.d = RFL.S1 | RFL.S2;
+		}
+		else if (mode & DATA16) {
+		    RFL.S1 = CPUWORD(o);
+		    if (mode & IMMED) RFL.S2 = v.w.l;
+			else RFL.S2 = DR1.w.l;
+		    CPUWORD(o) = RFL.RES.d = RFL.S1 | RFL.S2;
+		}
+		else {
+		    RFL.S1 = CPULONG(o);
+		    if (mode & IMMED) RFL.S2 = v.d;
+			else RFL.S2 = DR1.d;
+		    CPULONG(o) = RFL.RES.d = RFL.S1 | RFL.S2;
+		}
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		SET_CF(0);
+		}
+		break;
+	case O_ADC_FR: {	// OSZAPC
+		register wkreg v;
+		signed char o;
+		int cy;
+		v.d = va_arg(ap, int);
+		cy = CPUBYTE(Ofs_FLAGS) & 1;
+		RFL.mode = mode;
+		RFL.valid = (cy? V_ADC:V_ADD);
+		if (mode & IMMED) {GTRACE3("O_ADC_FR",0xff,0xff,v.d);}
+		    else {GTRACE3("O_ADC_FR",v.bs.bl,0xff,v.d);}
+		o = (mode & IMMED) ? Ofs_EAX : v.bs.bl;
+		if (mode & MBYTE) {
+		    RFL.S1 = CPUBYTE(o);
+		    if (mode & IMMED) RFL.S2 = v.b.bl;
+			else RFL.S2 = DR1.b.bl;
+		    CPUBYTE(o) = RFL.RES.d = RFL.S1 + RFL.S2 + cy;
+		}
+		else if (mode & DATA16) {
+		    RFL.S1 = CPUWORD(o);
+		    if (mode & IMMED) RFL.S2 = v.w.l;
+			else RFL.S2 = DR1.w.l;
+		    CPUWORD(o) = RFL.RES.d = RFL.S1 + RFL.S2 + cy;
+		}
+		else {
+		    RFL.S1 = CPULONG(o);
+		    if (mode & IMMED) RFL.S2 = v.d;
+			else RFL.S2 = DR1.d;
+		    CPULONG(o) = RFL.RES.d = RFL.S1 + RFL.S2 + cy;
+		}
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		FlagSync_C(0);
+		}
+		break;
 	case O_SBB_FR: {	// OSZAPC
 		register wkreg v;
 		signed char o;
@@ -1083,6 +1178,37 @@ static void Gen_sim(int op, int mode, ...)
 		FlagSync_C(1);
 		}
 		break;
+	case O_AND_FR: {		// O=0 SZP C=0
+		register wkreg v;
+		signed char o;
+		v.d = va_arg(ap, int);
+		RFL.mode = mode | CLROVF;
+		RFL.valid = V_GEN;
+		if (mode & IMMED) {GTRACE3("O_AND_FR",0xff,0xff,v.d);}
+		    else {GTRACE3("O_AND_FR",v.d,0xff,v.d);}
+		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
+		if (mode & MBYTE) {
+		    RFL.S1 = CPUBYTE(o);
+		    if (mode & IMMED) RFL.S2 = v.b.bl;
+			else RFL.S2 = DR1.b.bl;
+		    CPUBYTE(o) = RFL.RES.d = RFL.S1 & RFL.S2;
+		}
+		else if (mode & DATA16) {
+		    RFL.S1 = CPUWORD(o);
+		    if (mode & IMMED) RFL.S2 = v.w.l;
+			else RFL.S2 = DR1.w.l;
+		    CPUWORD(o) = RFL.RES.d = RFL.S1 & RFL.S2;
+		}
+		else {
+		    RFL.S1 = CPULONG(o);
+		    if (mode & IMMED) RFL.S2 = v.d;
+			else RFL.S2 = DR1.d;
+		    CPULONG(o) = RFL.RES.d = RFL.S1 & RFL.S2;
+		}
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		SET_CF(0);
+		}
+		break;
 	case O_SUB_FR: {	// OSZAPC
 		register wkreg v;
 		signed char o;
@@ -1112,6 +1238,37 @@ static void Gen_sim(int op, int mode, ...)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		FlagSync_C(1);
+		}
+		break;
+	case O_XOR_FR: {		// O=0 SZP C=0
+		register wkreg v;
+		signed char o;
+		v.d = va_arg(ap, int);
+		RFL.mode = mode | CLROVF;
+		RFL.valid = V_GEN;
+		if (mode & IMMED) {GTRACE3("O_XOR_FR",0xff,0xff,v.d);}
+		    else {GTRACE3("O_XOR_FR",v.d,0xff,v.d);}
+		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
+		if (mode & MBYTE) {
+		    RFL.S1 = CPUBYTE(o);
+		    if (mode & IMMED) RFL.S2 = v.b.bl;
+			else RFL.S2 = DR1.b.bl;
+		    CPUBYTE(o) = RFL.RES.d = RFL.S1 ^ RFL.S2;
+		}
+		else if (mode & DATA16) {
+		    RFL.S1 = CPUWORD(o);
+		    if (mode & IMMED) RFL.S2 = v.w.l;
+			else RFL.S2 = DR1.w.l;
+		    CPUWORD(o) = RFL.RES.d = RFL.S1 ^ RFL.S2;
+		}
+		else {
+		    RFL.S1 = CPULONG(o);
+		    if (mode & IMMED) RFL.S2 = v.d;
+			else RFL.S2 = DR1.d;
+		    CPULONG(o) = RFL.RES.d = RFL.S1 ^ RFL.S2;
+		}
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
+		SET_CF(0);
 		}
 		break;
 	case O_CMP_FR: {	// OSZAPC

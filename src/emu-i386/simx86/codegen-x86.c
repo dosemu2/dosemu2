@@ -625,10 +625,20 @@ arith0:		{
 		}
 		G1(PUSHF,Cp);	// flags back on stack
 		break;
+	case O_ADD_FR:
+		rcod = ADDbfrm; /* 0x00 */ goto arith1;
+	case O_OR_FR:
+		rcod = ORbfrm;  /* 0x08 */ goto arith1;
+	case O_ADC_FR:
+		rcod = ADCbfrm; /* 0x10 */ goto arith1;
 	case O_SBB_FR:
 		rcod = SBBbfrm; /* 0x18 */ goto arith1;
+	case O_AND_FR:
+		rcod = ANDbfrm; /* 0x20 */ goto arith1;
 	case O_SUB_FR:
 		rcod = SUBbfrm; /* 0x28 */ goto arith1;
+	case O_XOR_FR:
+		rcod = XORbfrm; /* 0x30 */ goto arith1;
 	case O_CMP_FR:
 		rcod = CMPbfrm; /* 0x38 */
 arith1:
@@ -2524,8 +2534,13 @@ static void Gen_x86(int op, int mode, ...)
 	case O_SUB_R:
 	case O_XOR_R:
 	case O_CMP_R:
+	case O_ADD_FR:				// reg = reg op	acc
+	case O_OR_FR:
+	case O_ADC_FR:
 	case O_SBB_FR:
+	case O_AND_FR:
 	case O_SUB_FR:
+	case O_XOR_FR:
 	case O_CMP_FR:
 	case O_INC_R:
 	case O_DEC_R:
