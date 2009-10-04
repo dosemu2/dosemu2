@@ -1033,30 +1033,30 @@ arith1:
 shrot0:
 		G1(0x9d,Cp);	// get flags from stack
 		if (mode & MBYTE) {
-			// op [edi],1:	d0 07+r
-			// op [edi],n:	c0 07+r	n
-			// op [edi],cl:	d2 07+r
+			// op al,1:	d0 c0+r
+			// op al,n:	c0 c0+r	n
+			// op al,cl:	d2 c0+r
 			if (mode & IMMED) {
 				unsigned char sh = IG->p0;
 				G1(sh==1? 0xd0:0xc0,Cp);
-				G1(0x07	| rcod,Cp);
+				G1(0xc0	| rcod,Cp);
 				if (sh!=1) G1(sh,Cp);
 			}
 			else {
 				// movb Ofs_CL(%%ebx),%%cl
 				G3M(0x8a,0x4b,Ofs_CL,Cp);
-				// OPb %%cl,(%%edi)
-				G1(0xd2,Cp); G1(0x07 | rcod,Cp);
+				// OPb %%cl,%%al
+				G1(0xd2,Cp); G1(0xc0 | rcod,Cp);
 			}
 		}
 		else {
-			// op [edi],1:	(66) d1	07+r
-			// op [edi],n:	(66) c1	07+r n
-			// op [edi],cl:	(66) d3	07+r
+			// op (e)ax,1:	(66) d1	c0+r
+			// op (e)ax,n:	(66) c1	c0+r n
+			// op (e)ax,cl:	(66) d3	c0+r
 			if (mode & IMMED) {
 				unsigned char sh = IG->p0;
 				Gen66(mode,Cp);	G1(sh==1? 0xd1:0xc1,Cp);
-				G1(0x07	| rcod,Cp);
+				G1(0xc0	| rcod,Cp);
 				if (sh!=1) G1(sh,Cp);
 			}
 			else {
@@ -1064,7 +1064,7 @@ shrot0:
 				G3M(0x8a,0x4b,Ofs_CL,Cp);
 				// OP{wl} %%cl,(%%edi)
 				Gen66(mode,Cp);
-				G1(0xd3,Cp); G1(0x07 | rcod,Cp);
+				G1(0xd3,Cp); G1(0xc0 | rcod,Cp);
 			}
 		}
 		G1(0x9c,Cp);	// flags back on stack

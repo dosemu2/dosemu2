@@ -1727,26 +1727,26 @@ static void Gen_sim(int op, int mode, ...)
 
 		if (mode & MBYTE) {
 			sh &= 7;
-			rbef = *AR1.pu;
+			rbef = DR1.b.bl;
 			raft = (rbef<<sh) | (rbef>>(8-sh));
-			*AR1.pu = raft;
+			DR1.b.bl = raft;
 			cy = raft & 1;
 			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
 			sh &= 15;
-			rbef = *AR1.pwu;
+			rbef = DR1.w.l;
 			raft = (rbef<<sh) | (rbef>>(16-sh));
-			*AR1.pwu = raft;
+			DR1.w.l = raft;
 			cy = raft & 1;
 			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
 			// sh != 0, else we "break"ed above.
 			// sh < 32, so 32-sh is in range 1..31, which is OK.
-			rbef = *AR1.pdu;
+			rbef = DR1.d;
 			raft = (rbef<<sh) | (rbef>>(32-sh));
-			*AR1.pdu = raft;
+			DR1.d = raft;
 			cy = raft & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
@@ -1772,27 +1772,27 @@ static void Gen_sim(int op, int mode, ...)
 			
 		if (mode & MBYTE) {
 			sh %= 9;
-			rbef = *AR1.pu;
+			rbef = DR1.b.bl;
 			raft = (rbef<<sh) | (rbef>>(9-sh)) | (cy<<(sh-1));
-			*AR1.pu = raft;
+			DR1.b.bl = raft;
 			if (sh)
 				cy = (rbef>>(8-sh)) & 1;
 			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
 			sh %= 17;
-			rbef = *AR1.pwu;
+			rbef = DR1.w.l;
 			raft = (rbef<<sh) | (rbef>>(17-sh)) | (cy<<(sh-1));
-			*AR1.pwu = raft;
+			DR1.w.l = raft;
 			if (sh) 
 				cy = (rbef>>(16-sh)) & 1;
 			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
-			rbef = *AR1.pdu;
+			rbef = DR1.d;
 			raft = (rbef<<sh) | (cy<<(sh-1));
 			if (sh>1) raft |= (rbef>>(33-sh));
-			*AR1.pdu = raft;
+			DR1.d = raft;
 			if(sh)
 				cy = (rbef>>(32-sh)) & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
@@ -1820,11 +1820,11 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) 
-			rbef = *AR1.pu;
+			rbef = DR1.b.bl;
 		else if (mode & DATA16)
-			rbef = *AR1.pwu;
+			rbef = DR1.w.l;
 		else
-			rbef = *AR1.pdu;
+			rbef = DR1.d;
 		
 		// To simulate overflow flag. Keep in mind it is only defined
 		// for sh==1. In that case, SHL r/m,1 behaves like ADD r/m,r/m.
@@ -1835,15 +1835,15 @@ static void Gen_sim(int op, int mode, ...)
 			
 		if (mode & MBYTE) {
 			cy = (raft & 0x100) != 0;
-			*AR1.pu = raft;
+			DR1.b.bl = raft;
 		}
 		else if (mode & DATA16) {
 			cy = (raft & 0x10000) != 0;
-			*AR1.pwu = raft;
+			DR1.w.l = raft;
 		}
 		else {
 			cy = (rbef>>(32-sh)) & 1;
-			*AR1.pdu = raft;
+			DR1.d = raft;
 		}
 		RFL.RES.d = raft;
 		e_printf("Sync C flag = %d\n", cy);
@@ -1864,26 +1864,26 @@ static void Gen_sim(int op, int mode, ...)
 
 		if (mode & MBYTE) {
 			sh &= 7;
-			RFL.S1 = RFL.S2 = rbef = *AR1.pu;
+			RFL.S1 = RFL.S2 = rbef = DR1.b.bl;
 			raft = (rbef>>sh) | (rbef<<(8-sh));
-			*AR1.pu = RFL.RES.d = raft;
+			DR1.b.bl = RFL.RES.d = raft;
 			cy = (raft & 0x80) != 0;
 			ov = (rbef & 0x80) != (raft & 0x80);
 		}
 		else if (mode & DATA16) {
 			sh &= 15;
-			rbef = *AR1.pwu;
+			rbef = DR1.w.l;
 			raft = (rbef>>sh) | (rbef<<(16-sh));
-			*AR1.pwu = raft;
+			DR1.w.l = raft;
 			cy = (raft & 0x8000) != 0;
 			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
 			// sh != 0, else we "break"ed above.
 			// sh < 32, so 32-sh is in range 1..31, which is OK.
-			rbef = *AR1.pdu;
+			rbef = DR1.d;
 			raft = (rbef>>sh) | (rbef<<(32-sh));
-			*AR1.pdu = raft;
+			DR1.d = raft;
 			cy = (raft & 0x80000000U) != 0;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
@@ -1909,9 +1909,9 @@ static void Gen_sim(int op, int mode, ...)
 
 		if (mode & MBYTE) {
 			sh %= 9;
-			RFL.S1 = RFL.S2 = rbef = *AR1.pu;
+			RFL.S1 = RFL.S2 = rbef = DR1.b.bl;
 			raft = (rbef>>sh) | (rbef<<(9-sh)) | (cy<<(8-sh));
-			*AR1.pu = RFL.RES.d = raft;
+			DR1.b.bl = RFL.RES.d = raft;
 			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
 			// else keep carry.
@@ -1919,18 +1919,18 @@ static void Gen_sim(int op, int mode, ...)
 		}
 		else if (mode & DATA16) {
 			sh %= 17;
-			RFL.S1 = RFL.S2 = rbef = *AR1.pwu;
+			RFL.S1 = RFL.S2 = rbef = DR1.w.l;
 			raft = (rbef>>sh) | (rbef<<(17-sh)) | (cy<<(16-sh));
-			*AR1.pwu = RFL.RES.d = raft;
+			DR1.w.l = RFL.RES.d = raft;
 			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
 			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
 		else {
-			RFL.S1 = RFL.S2 = rbef = *AR1.pdu;
+			RFL.S1 = RFL.S2 = rbef = DR1.d;
 			raft = (rbef>>sh) | (cy<<(32-sh));
 			if (sh>1) raft |= (rbef<<(33-sh));
-			*AR1.pdu = RFL.RES.d = raft;
+			DR1.d = RFL.RES.d = raft;
 			cy = (rbef>>(sh-1)) & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
@@ -1959,11 +1959,11 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) 
-			rbef = *AR1.pu;
+			rbef = DR1.b.bl;
 		else if (mode & DATA16)
-			rbef = *AR1.pwu;
+			rbef = DR1.w.l;
 		else
-			rbef = *AR1.pdu;
+			rbef = DR1.d;
 
 		RFL.S1 = RFL.S2 = rbef;
 		cy = (rbef >> (sh-1)) & 1;
@@ -1971,11 +1971,11 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.RES.d = raft;
 		
 		if (mode & MBYTE)
-			*AR1.pu = raft;
+			DR1.b.bl = raft;
 		else if (mode & DATA16) 
-			*AR1.pwu = raft;
+			DR1.w.l = raft;
 		else
-			*AR1.pdu = raft;
+			DR1.d = raft;
 
 		e_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
@@ -2000,11 +2000,11 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_GEN;
 		if (mode & MBYTE) 
-			rbef = *AR1.ps;
+			rbef = DR1.bs.bl;
 		else if (mode & DATA16)
-			rbef = *AR1.pws;
+			rbef = DR1.ws.l;
 		else
-			rbef = *AR1.pds;
+			rbef = DR1.ds;
 
 		RFL.S1 = RFL.S2 = rbef;
 		cy = (rbef >> (sh-1)) & 1;
@@ -2012,11 +2012,11 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.RES.d = raft;
 		
 		if (mode & MBYTE)
-			*AR1.ps = raft;
+			DR1.bs.bl = raft;
 		else if (mode & DATA16) 
-			*AR1.pws = raft;
+			DR1.ws.l = raft;
 		else
-			*AR1.pds = raft;
+			DR1.ds = raft;
 
 		e_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
