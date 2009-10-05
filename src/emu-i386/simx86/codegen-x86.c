@@ -411,20 +411,37 @@ static void CodeGen(IMeta *I, int j)
 			Gen66(mode,Cp);	G1(0xb8,Cp); G2_4(mode,IG->p0,Cp);
 		} }
 		break;
-	case L_MOVZS: {
+	case L_MOVZS:
 		if (mode & MBYTX) {
-			// mov{sz}bw (%%edi),%%ax
-			Gen66(mode,Cp);
-			G3M(0x0f,(0xb6|IG->p0),0x07,Cp);
+			if (!(mode & DATA16)) {
+				// mov{sz}bw %%al,%%eax
+				G3M(0x0f,(0xb6|IG->p0),0xc0,Cp);
+			}
+			else if (IG->p0) {
+				// movsbw %%al,%%ax = cbw
+				G2M(0x66,0x98,Cp);
+			}
+			else {
+				// movzbw %%al,%%ax = movb $0, %%ah
+				G2M(0xb4,0x00,Cp);
+			}
 		}
 		else {
-			// mov{sz}wl (%%edi),%%eax
-			Gen66(mode,Cp);
-			G3M(0x0f,(0xb7|IG->p0),0x07,Cp);
+			if (mode & DATA16) {
+				// mov{sz}ww %%ax,%%ax
+				G4M(0x66,0x0f,(0xb7|IG->p0),0xc0,Cp);
+			}
+			else if (IG->p0) {
+				// movswl %%ax,%%eax = cwde
+				G1(0x98,Cp);
+			}
+			else {
+				// movzwl %%ax,%%eax
+				G3M(0x0f,0xb7,0xc0,Cp);
+			}
 		}
 		// mov{wl} %%{e}ax,offs(%%ebx)
 		Gen66(mode,Cp); G3M(0x89,0x43,IG->p1,Cp);
-		}
 		break;
 
 	case L_LXS1: {

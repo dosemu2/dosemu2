@@ -625,32 +625,20 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case L_MOVZS: {
 		signed char o;
-		rcod = (va_arg(ap,int)&1)<<3;	// 0=z 8=s
+		rcod = va_arg(ap,int)&1;	// 0=z 1=s
 		o = Offs_From_Arg();
 		GTRACE3("L_MOVZS",o,0xff,rcod);
-		if (vga_read_access(AR1.d)) {
-		    if (vga_access(AR1.d))
-			DR1.d = e_VgaRead(AR1.d, mode);
-		    else
-			DR1.d = 0xffffffff;
-		    if (rcod) {
-			if (mode & MBYTX)
-			    DR1.d = DR1.bs.bl;
-			else
-			    DR1.d = DR1.ws.l;
-		    }
-		}
-		else if (mode & MBYTX) {
+		if (mode & MBYTX) {
 		    if (rcod)
-			DR1.d = *AR1.ps;
+			DR1.d = DR1.bs.bl;
 		    else
-			DR1.d = *AR1.pu;
+			DR1.d = DR1.b.bl;
 		}
 		else {
 		    if (rcod)
-			DR1.d = *AR1.pws;
+			DR1.d = DR1.ws.l;
 		    else
-			DR1.d = *AR1.pwu;
+			DR1.d = DR1.w.l;
 		}
 		if (mode & DATA16) {
 			CPUWORD(o) = DR1.w.l;

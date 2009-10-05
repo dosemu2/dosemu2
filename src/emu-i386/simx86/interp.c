@@ -2868,18 +2868,34 @@ repag0:
 				break;
 			case 0xb6: /* MOVZXb */
 				PC++; PC += ModRM(opc, PC, mode|MBYTX);
+				if (TheCPU.mode & RM_REG)
+					Gen(L_REG, mode|MBYTE, REG3);
+				else
+					Gen(L_DI_R1, mode|MBYTE);
 				Gen(L_MOVZS, mode|MBYTX, 0, REG1);
 				break;
 			case 0xb7: /* MOVZXw */
 				PC++; PC += ModRM(opc, PC, mode);
+				if (TheCPU.mode & RM_REG)
+					Gen(L_REG, mode, REG3);
+				else
+					Gen(L_DI_R1, mode);
 				Gen(L_MOVZS, mode, 0, REG1);
 				break;
 			case 0xbe: /* MOVSXb */
 				PC++; PC += ModRM(opc, PC, mode|MBYTX);
+				if (TheCPU.mode & RM_REG)
+					Gen(L_REG, mode|MBYTE, REG3);
+				else
+					Gen(L_DI_R1, mode|MBYTE);
 				Gen(L_MOVZS, mode|MBYTX, 1, REG1);
 				break;
 			case 0xbf: /* MOVSXw */
 				PC++; PC += ModRM(opc, PC, mode);
+				if (TheCPU.mode & RM_REG)
+					Gen(L_REG, mode, REG3);
+				else
+					Gen(L_DI_R1, mode);
 				Gen(L_MOVZS, mode, 1, REG1);
 				break;
 ///
