@@ -226,9 +226,18 @@ int ModRM(unsigned char opc, unsigned int PC, int mode)
 				REG3 = R1Tab_w[cab&7];
 			else
 				REG3 = R1Tab_l[cab&7];
-			AddrGen(LEA_DI_R, 0, REG3);
-			break;
+			if (mode & MLOAD)
+				Gen(L_REG, mode, REG3);	// mov al,[ebx+reg]
+			else if (mode & MSTORE)
+				Gen(S_REG, mode, REG3);	// mov [ebx+reg],al
+			else
+				AddrGen(LEA_DI_R, 0, REG3);
+			return l;
 	}
+	if (mode & MLOAD)
+		Gen(L_DI_R1, mode);		// mov al,[edi]
+	else if (mode & MSTORE)
+		Gen(S_DI, mode);		// mov [edi],al
 	return l;
 }
 

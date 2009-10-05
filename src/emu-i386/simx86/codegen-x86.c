@@ -345,7 +345,7 @@ static void CodeGen(IMeta *I, int j)
 		break;
 
 	case L_REG: {
-		if (mode&MBYTE)	{
+		if (mode&(MBYTE|MBYTX))	{
 			// movb offs(%%ebx),%%al
 			G3M(0x8a,0x43,IG->p0,Cp);
 		}
@@ -505,7 +505,7 @@ static void CodeGen(IMeta *I, int j)
 	    	    // jmp (skip normal read)
 		    G2M(0xeb,((mode&(DATA16|MBYTE))==DATA16? 3:2),Cp);
 		}
-		if (mode&MBYTE) {
+		if (mode&(MBYTE|MBYTX)) {
 		    G2(0x078a,Cp);
 		}
 		else {
@@ -2055,8 +2055,8 @@ shrot0:
 	case O_SETCC: {
 		unsigned char n = IG->p0;
 		PopPushF(Cp);	// get flags from stack
-		// setcc (%%edi)
-		G3M(0x0f,(0x90|(n&15)),0x07,Cp);
+		// setcc %%al
+		G3M(0x0f,(0x90|(n&15)),0xc0,Cp);
 		}
 		break;
 	case O_BITOP: {

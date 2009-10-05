@@ -501,11 +501,7 @@ override:
 			if (opc != TESTbrm) {
 			    if (opc & 2) goto intop3a; else goto intop28;
 			}
-			PC += ModRM(opc, PC, m);	// DI=mem
-			if (TheCPU.mode & RM_REG)
-			    Gen(L_REG, m, REG3);	// mov al,[ebx+reg]
-			else
-			    Gen(L_DI_R1, m);		// mov al,[edi]
+			PC += ModRM(opc, PC, m|MLOAD);	// al=[rm]
 			Gen(O_AND_R, m, REG1);		// op  al,[ebx+reg]
 			}
 			break;
@@ -539,11 +535,7 @@ intop28:		{ int m = mode | MBYTE;
 /*3a*/	case CMPbtrm:
 intop3a:		{ int m = mode | MBYTE;
 			int op = ArOpsFR[D_MO(opc)];
-			PC += ModRM(opc, PC, m);	// DI=mem
-			if (TheCPU.mode & RM_REG)	// reg=reg op rmreg
-			    Gen(L_REG, m, REG3);	// mov al,[ebx+rmreg]
-			else				// reg=reg op mem
-			    Gen(L_DI_R1, m);		// mov al,[edi]
+			PC += ModRM(opc, PC, m|MLOAD);	// al=[rm]
 			Gen(op, m, REG1);		// op [ebx+reg], al
 			}
 			break;
@@ -566,11 +558,7 @@ intop3a:		{ int m = mode | MBYTE;
 			if (opc != TESTwrm) {
 			    if (opc & 2) goto intop3b; else goto intop29;
 			}
-			PC += ModRM(opc, PC, mode);	// DI=mem
-			if (TheCPU.mode & RM_REG)
-			    Gen(L_REG, mode, REG3);	// mov (e)ax,[ebx+reg]
-			else
-			    Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
 			Gen(O_AND_R, mode, REG1);	// op  (e)ax,[ebx+reg]
 			break;
 /*19*/	case SBBwfrm:
@@ -601,11 +589,7 @@ intop29:		PC += ModRM(opc, PC, mode);	// DI=mem
 /*13*/	case ADCwtrm:
 /*3b*/	case CMPwtrm:
 intop3b:		{ int op = ArOpsFR[D_MO(opc)];
-			PC += ModRM(opc, PC, mode);	// DI=mem
-			if (TheCPU.mode & RM_REG)
-			    Gen(L_REG, mode, REG3);	// mov (e)ax,[ebx+rmreg]
-			else
-			    Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
 			Gen(op, mode, REG1);		// op [ebx+reg], (e)ax
 			}
 			break; 
@@ -650,14 +634,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			break; 
 /*69*/	case IMULwrm:
-			PC += ModRM(opc, PC, mode);
-			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			PC += ModRM(opc, PC, mode|MLOAD); // mov (e)ax,[rm]
 			Gen(O_IMUL,mode|IMMED,DataFetchWL_S(mode,PC),REG1);
 			INC_WL_PC(mode, 0);
 			break;
 /*6b*/	case IMULbrm:
-			PC += ModRM(opc, PC, mode);
-			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			PC += ModRM(opc, PC, mode|MLOAD); // mov (e)ax,[rm]
 			Gen(O_IMUL,mode|MBYTE|IMMED,(signed char)Fetch(PC),REG1);
 			PC++;
 			break;
@@ -949,9 +931,8 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(O_POP, mode|MEMADR);
 			// now calculate address. This way when using %esp
 			//	as index we use the value AFTER the pop
-			PC += ModRM(opc, PC, mode);
 			// store data
-			Gen(S_DI, mode);
+			PC += ModRM(opc, PC, mode|MSTORE);
 			break;
 
 /*70*/	case JO:
@@ -1005,11 +986,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*80*/	case IMMEDbrm: {
 			int m = mode | MBYTE;
 			int op = ArOpsR[D_MO(Fetch(PC+1))];
-			PC += ModRM(opc, PC, m);	// DI=mem
-			if (TheCPU.mode & RM_REG)
-				Gen(L_REG, m, REG3);
-			else
-				Gen(L_DI_R1, m);		// mov al,[edi]
+			PC += ModRM(opc, PC, m|MLOAD);	// al=[rm]
 			Gen(op, m|IMMED, Fetch(PC));	// op al,#imm
 			if (op!=O_CMP_R) {
 				if (TheCPU.mode & RM_REG)
@@ -1021,11 +998,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			break;
 /*81*/	case IMMEDwrm: {
 			int op = ArOpsR[D_MO(Fetch(PC+1))];
-			PC += ModRM(opc, PC, mode);	// DI=mem
-			if (TheCPU.mode & RM_REG)
-				Gen(L_REG, mode, REG3);
-			else
-				Gen(L_DI_R1, mode);		// mov ax,[edi]
+			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
 			Gen(op, mode|IMMED, DataFetchWL_U(mode,PC)); // op ax,#imm
 			if (op!=O_CMP_R) {
 				if (TheCPU.mode & RM_REG)
@@ -1039,11 +1012,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*83*/	case IMMEDisrm: {
 			int op = ArOpsR[D_MO(Fetch(PC+1))];
 			long v;
-			PC += ModRM(opc, PC, mode);	// DI=mem
-			if (TheCPU.mode & RM_REG)
-				Gen(L_REG, mode, REG3);
-			else
-				Gen(L_DI_R1, mode);		// mov ax,[edi]
+			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
 			v = (signed char)Fetch(PC);
 			Gen(op, mode|IMMED, v);		// op ax,#imm
 			if (op != O_CMP_R) {
@@ -1059,14 +1028,12 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    Gen(L_NOP, mode); PC+=2;
 			}
 			else {
-			    PC += ModRM(opc, PC, mode|MBYTE);	// EDI=mem
+			    PC += ModRM(opc, PC, mode|MBYTE|MLOAD);// al=[rm]
 			    if (TheCPU.mode & RM_REG) {
-				Gen(L_REG, mode|MBYTE, REG3);
 				Gen(O_XCHG, mode|MBYTE, REG1);
 				Gen(S_REG, mode|MBYTE, REG3);
 			    }
 			    else {
-				Gen(L_DI_R1, mode|MBYTE);
 				Gen(O_XCHG, mode|MBYTE, REG1);
 				Gen(S_DI, mode|MBYTE);
 			    }
@@ -1077,14 +1044,12 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    Gen(L_NOP, mode); PC+=2;
 			}
 			else {
-			    PC += ModRM(opc, PC, mode);		// EDI=mem
+			    PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
 			    if (TheCPU.mode & RM_REG) {
-				Gen(L_REG, mode, REG3);
 				Gen(O_XCHG, mode, REG1);
 				Gen(S_REG, mode, REG3);
 			    }
 			    else {
-				Gen(L_DI_R1, mode);
 				Gen(O_XCHG, mode, REG1);
 				Gen(S_DI, mode);
 			    }
@@ -1094,26 +1059,23 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			if (ModGetReg1(PC, MBYTE)==3) {
 			    Gen(L_REG2REG, MBYTE, REG1, REG3); PC+=2;
 			} else {
-			    PC += ModRM(opc, PC, mode|MBYTE);	// mem=reg
 			    Gen(L_REG, mode|MBYTE, REG1);
-			    Gen(S_DI, mode|MBYTE);
+			    PC += ModRM(opc, PC, mode|MBYTE|MSTORE); // [rm]=al
 			}
 			break; 
 /*89*/	case MOVwfrm:
 			if (ModGetReg1(PC, mode)==3) {
 			    Gen(L_REG2REG, mode, REG1, REG3); PC+=2;
 			} else {
-			    PC += ModRM(opc, PC, mode);
 			    Gen(L_REG, mode, REG1);
-			    Gen(S_DI, mode);
+			    PC += ModRM(opc, PC, mode|MSTORE); // [rm]=(e)ax
 			}
 			break; 
 /*8a*/	case MOVbtrm:
 			if (ModGetReg1(PC, MBYTE)==3) {
 			    Gen(L_REG2REG, MBYTE, REG3, REG1); PC+=2;
 			} else {
-			    PC += ModRM(opc, PC, mode|MBYTE);	// reg=mem
-			    Gen(L_DI_R1, mode|MBYTE);
+			    PC += ModRM(opc, PC, mode|MBYTE|MLOAD); // al=[rm]
 			    Gen(S_REG, mode|MBYTE, REG1);
 			}
 			break; 
@@ -1121,8 +1083,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			if (ModGetReg1(PC, mode)==3) {
 			    Gen(L_REG2REG, mode, REG3, REG1); PC+=2;
 			} else {
-			    PC += ModRM(opc, PC, mode);
-			    Gen(L_DI_R1, mode);
+			    PC += ModRM(opc, PC, mode|MLOAD); // (e)ax=[rm]
 			    Gen(S_REG, mode, REG1);
 			}
 			break; 
@@ -1182,11 +1143,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			break;
 /*8e*/	case MOVsrfrm:
 			if (REALADDR()) {
-			    PC += ModRM(opc, PC, mode|SEGREG);
-			    if (TheCPU.mode & RM_REG)
-				Gen(L_REG, mode|DATA16, REG3);
-			    else
-				Gen(L_DI_R1, mode|DATA16);
+			    PC += ModRM(opc, PC, mode|SEGREG|DATA16|MLOAD);
 			    Gen(S_REG, mode|DATA16, REG1);
 			    AddrGen(A_SR_SH4, mode, REG1, e_ofsseg[REG1>>2]);
 			}
@@ -1379,11 +1336,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*c0*/	case SHIFTbi: {
 			int m = mode | MBYTE;
 			unsigned char count = 0;
-			PC += ModRM(opc, PC, m);
-			if (TheCPU.mode & RM_REG)
-				Gen(L_REG, m, REG3);
-			else
-				Gen(L_DI_R1, m);
+			PC += ModRM(opc, PC, m|MLOAD);
 			if (opc==SHIFTb) { m |= IMMED; count = 1; }
 			else if (opc==SHIFTbi) {
 				m |= IMMED; count = Fetch(PC)&0x1f; PC++;
@@ -1427,11 +1380,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*c1*/	case SHIFTwi: {
 			int m = mode;
 			unsigned char count = 0;
-			PC += ModRM(opc, PC, m);
-			if (TheCPU.mode & RM_REG)
-				Gen(L_REG, m, REG3);
-			else
-				Gen(L_DI_R1, m);
+			PC += ModRM(opc, PC, m|MLOAD);
 			if (opc==SHIFTw) { m |= IMMED; count = 1; }
 			else if (opc==SHIFTwi) {
 				m |= IMMED; count = Fetch(PC)&0x1f; PC++;
@@ -1880,11 +1829,7 @@ repag0:
 				Gen(O_SETFL, mode, CMC);
 			break;
 /*f6*/	case GRP1brm: {
-			PC += ModRM(opc, PC, mode|MBYTE);	// EDI=mem
-			if (TheCPU.mode & RM_REG)
-				Gen(L_REG, mode|MBYTE, REG3);
-			else
-				Gen(L_DI_R1, mode|MBYTE);		// mov al,[edi]
+			PC += ModRM(opc, PC, mode|MBYTE|MLOAD);	// al=[rm]
 			switch(REG1) {
 			case Ofs_AL:	/*0*/	/* TEST */
 			case Ofs_CL:	/*1*/	/* undocumented */
@@ -1922,11 +1867,7 @@ repag0:
 			} }
 			break;
 /*f7*/	case GRP1wrm: {
-			PC += ModRM(opc, PC, mode);	// EDI=mem
-			if (TheCPU.mode & RM_REG)
-				Gen(L_REG, mode, REG3);
-			else
-				Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
 			switch(REG1) {
 			case Ofs_AX:	/*0*/	/* TEST */
 			case Ofs_CX:	/*1*/	/* undocumented */
@@ -2045,8 +1986,7 @@ repag0:
 					PC += 2;
 					break;
 				}
-				PC += ModRM(opc, PC, mode|MBYTE); // EDI=mem
-				Gen(L_DI_R1, mode|MBYTE);
+				PC += ModRM(opc, PC, mode|MBYTE|MLOAD);//al=[rm]
 				Gen(O_INC, mode|MBYTE);
 				Gen(S_DI, mode|MBYTE);
 				break;
@@ -2057,8 +1997,7 @@ repag0:
 					PC += 2;
 					break;
 				}
-				PC += ModRM(opc, PC, mode|MBYTE); // EDI=mem
-				Gen(L_DI_R1, mode|MBYTE);
+				PC += ModRM(opc, PC, mode|MBYTE|MLOAD);//al=[rm]
 				Gen(O_DEC, mode|MBYTE);
 				Gen(S_DI, mode|MBYTE);
 				break;
@@ -2072,15 +2011,27 @@ repag0:
 			switch (REG1) {
 			case Ofs_AX:	/*0*/
 				/* it's not worth optimizing for registers
-				   here (single byte DEC/INC exist) */
-				PC += ModRM(opc, PC, mode);
-				Gen(L_DI_R1, mode);
+				   here (single byte DEC/INC exist), but do
+				   it for consistency anyway.
+				*/
+				if (Fetch(PC+1) >= 0xc0) {
+					Gen(O_INC_R, mode,
+					    R1Tab_l[Fetch(PC+1) & 7]);
+					PC += 2;
+					break;
+				}
+				PC += ModRM(opc, PC, mode|MLOAD);
 				Gen(O_INC, mode);
 				Gen(S_DI, mode);
 				break;
 			case Ofs_CX:	/*1*/
-				PC += ModRM(opc, PC, mode);
-				Gen(L_DI_R1, mode);
+				if (Fetch(PC+1) >= 0xc0) {
+					Gen(O_DEC_R, mode,
+					    R1Tab_l[Fetch(PC+1) & 7]);
+					PC += 2;
+					break;
+				}
+				PC += ModRM(opc, PC, mode|MLOAD);
 				Gen(O_DEC, mode);
 				Gen(S_DI, mode);
 				break;
@@ -2503,9 +2454,8 @@ repag0:
 				    /* Load Interrupt Descriptor Table Register */
 				case 4: /* SMSW, 80286 compatibility */
 				    /* Store Machine Status Word */
-				    PC++; PC += ModRM(opc, PC, mode);
 				    Gen(L_CR0, mode);
-				    Gen(S_DI, mode|DATA16);
+				    PC++; PC += ModRM(opc, PC, mode|DATA16|MSTORE);
 				    break;
 				case 5: /* Illegal */
 				case 6: /* LMSW, 80286 compatibility, Privileged */
@@ -2669,8 +2619,8 @@ repag0:
 			case 0x9d: /* SETNLbrm */
 			case 0x9e: /* SETLEbrm */
 			case 0x9f: /* SETNLEbrm */
-				PC++; PC += ModRM(opc, PC, mode|MBYTE);
 				Gen(O_SETCC, mode, (opc2&0x0f));
+				PC++; PC += ModRM(opc, PC, mode|MBYTE|MSTORE);
 				break;
 ///
 			case 0xa0: /* PUSHfs */
@@ -2781,8 +2731,7 @@ repag0:
 			    goto illegal_op;
 			/* case 0xae:	Code Extension 24(MMX) */
 			case 0xaf: /* IMULregrm */
-				PC++; PC += ModRM(opc, PC, mode);
-				Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+				PC++; PC += ModRM(opc, PC, mode|MLOAD);
 				Gen(O_IMUL, mode|MEMADR, REG1);	// reg*[edi]->reg signed
 				break;
 			case 0xb0: {		/* CMPXCHGb */
@@ -2867,35 +2816,19 @@ repag0:
 				}
 				break;
 			case 0xb6: /* MOVZXb */
-				PC++; PC += ModRM(opc, PC, mode|MBYTX);
-				if (TheCPU.mode & RM_REG)
-					Gen(L_REG, mode|MBYTE, REG3);
-				else
-					Gen(L_DI_R1, mode|MBYTE);
+				PC++; PC += ModRM(opc, PC, mode|MBYTX|MLOAD);
 				Gen(L_MOVZS, mode|MBYTX, 0, REG1);
 				break;
 			case 0xb7: /* MOVZXw */
-				PC++; PC += ModRM(opc, PC, mode);
-				if (TheCPU.mode & RM_REG)
-					Gen(L_REG, mode, REG3);
-				else
-					Gen(L_DI_R1, mode);
+				PC++; PC += ModRM(opc, PC, mode|DATA16|MLOAD);
 				Gen(L_MOVZS, mode, 0, REG1);
 				break;
 			case 0xbe: /* MOVSXb */
-				PC++; PC += ModRM(opc, PC, mode|MBYTX);
-				if (TheCPU.mode & RM_REG)
-					Gen(L_REG, mode|MBYTE, REG3);
-				else
-					Gen(L_DI_R1, mode|MBYTE);
+				PC++; PC += ModRM(opc, PC, mode|MBYTX|MLOAD);
 				Gen(L_MOVZS, mode|MBYTX, 1, REG1);
 				break;
 			case 0xbf: /* MOVSXw */
-				PC++; PC += ModRM(opc, PC, mode);
-				if (TheCPU.mode & RM_REG)
-					Gen(L_REG, mode, REG3);
-				else
-					Gen(L_DI_R1, mode);
+				PC++; PC += ModRM(opc, PC, mode|DATA16|MLOAD);
 				Gen(L_MOVZS, mode, 1, REG1);
 				break;
 ///

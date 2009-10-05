@@ -175,6 +175,8 @@
 #define MBYTX	0x00002000
 #define MOVSSRC	0x00004000
 #define MOVSDST	0x00008000
+#define MLOAD	0x00010000
+#define MSTORE	0x00020000
 
 #define CKSIGN	0x00100000	// check signal: for jumps
 #define SKIPOP	0x00200000

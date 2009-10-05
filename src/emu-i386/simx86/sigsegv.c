@@ -56,7 +56,7 @@ unsigned e_VgaRead(unsigned a, int mode)
 {
   unsigned u;
   unsigned char *addr = (unsigned char *)(uintptr_t)a;
-  if (mode&MBYTE)
+  if (mode&(MBYTE|MBYTX))
     u = vga_read(addr);
   else {
     u = vga_read_word((unsigned short *)addr);

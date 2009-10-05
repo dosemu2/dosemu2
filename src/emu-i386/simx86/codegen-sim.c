@@ -536,7 +536,7 @@ static void Gen_sim(int op, int mode, ...)
 
 	case L_REG: {
 		signed char o = Offs_From_Arg();
-		if (mode&MBYTE)	{
+		if (mode&(MBYTE|MBYTX))	{
 			GTRACE1("L_REG_BYTE",o);
 			DR1.b.bl = CPUBYTE(o);
 		}
@@ -684,7 +684,7 @@ static void Gen_sim(int op, int mode, ...)
 			break;
 		}
 		GTRACE0("L_DI");
-		if (mode & MBYTE) {
+		if (mode & (MBYTE|MBYTX)) {
 		    DR1.b.bl = *AR1.pu;
 		}
 		else if (mode & DATA16) {
@@ -2751,26 +2751,26 @@ static void Gen_sim(int op, int mode, ...)
 		GTRACE3("O_SETCC",0xff,0xff,o1);
 		FlagSync_All();
 		switch(o1) {
-			case 0x00: *AR1.pu = IS_OF_SET; break;
-			case 0x01: *AR1.pu = !IS_OF_SET; break;
-			case 0x02: *AR1.pu = IS_CF_SET; break;
-			case 0x03: *AR1.pu = !IS_CF_SET; break;
-			case 0x04: *AR1.pu = IS_ZF_SET; break;
-			case 0x05: *AR1.pu = !IS_ZF_SET; break;
-			case 0x06: *AR1.pu = IS_CF_SET || IS_ZF_SET; break;
-			case 0x07: *AR1.pu = !IS_CF_SET && !IS_ZF_SET; break;
-			case 0x08: *AR1.pu = IS_SF_SET; break;
-			case 0x09: *AR1.pu = !IS_SF_SET; break;
+			case 0x00: DR1.b.bl = IS_OF_SET; break;
+			case 0x01: DR1.b.bl = !IS_OF_SET; break;
+			case 0x02: DR1.b.bl = IS_CF_SET; break;
+			case 0x03: DR1.b.bl = !IS_CF_SET; break;
+			case 0x04: DR1.b.bl = IS_ZF_SET; break;
+			case 0x05: DR1.b.bl = !IS_ZF_SET; break;
+			case 0x06: DR1.b.bl = IS_CF_SET || IS_ZF_SET; break;
+			case 0x07: DR1.b.bl = !IS_CF_SET && !IS_ZF_SET; break;
+			case 0x08: DR1.b.bl = IS_SF_SET; break;
+			case 0x09: DR1.b.bl = !IS_SF_SET; break;
 			case 0x0a:
 				e_printf("!!! SETp\n");
-				*AR1.pu = IS_PF_SET; break;
+				DR1.b.bl = IS_PF_SET; break;
 			case 0x0b:
 				e_printf("!!! SETnp\n");
-				*AR1.pu = !IS_PF_SET; break;
-			case 0x0c: *AR1.pu = IS_SF_SET ^ IS_OF_SET; break;
-			case 0x0d: *AR1.pu = !(IS_SF_SET ^ IS_OF_SET); break;
-			case 0x0e: *AR1.pu = (IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET; break;
-			case 0x0f: *AR1.pu = !(IS_SF_SET ^ IS_OF_SET) && !IS_ZF_SET; break;
+				DR1.b.bl = !IS_PF_SET; break;
+			case 0x0c: DR1.b.bl = IS_SF_SET ^ IS_OF_SET; break;
+			case 0x0d: DR1.b.bl = !(IS_SF_SET ^ IS_OF_SET); break;
+			case 0x0e: DR1.b.bl = (IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET; break;
+			case 0x0f: DR1.b.bl = !(IS_SF_SET ^ IS_OF_SET) && !IS_ZF_SET; break;
 		}
 		}
 		break;
