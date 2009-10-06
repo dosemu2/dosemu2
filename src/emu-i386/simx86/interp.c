@@ -1097,11 +1097,19 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    Gen(S_DI, mode|DATA16);
 			break; 
 /*8d*/	case LEA:
+			if (Fetch(PC+1) >= 0xc0) {
+			    CODE_FLUSH();
+			    goto not_permitted;
+			}
 			PC += ModRM(opc, PC, mode|MLEA);
 			Gen(S_DI_R, mode, REG1);
 			break; 
 
 /*c4*/	case LES:
+			if (Fetch(PC+1) >= 0xc0) {
+			    CODE_FLUSH();
+			    goto not_permitted;
+			}
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, mode);
 			    Gen(L_LXS1, mode, REG1);
@@ -1122,6 +1130,10 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			}
 			break;
 /*c5*/	case LDS:
+			if (Fetch(PC+1) >= 0xc0) {
+			    CODE_FLUSH();
+			    goto not_permitted;
+			}
 			if (REALADDR()) {
 			    PC += ModRM(opc, PC, mode);
 			    Gen(L_LXS1, mode, REG1);
@@ -1494,11 +1506,17 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(opc, PC, mode|MBYTE);
-			Gen(S_DI_IMM, mode|MBYTE, Fetch(PC));
+			if (TheCPU.mode & RM_REG)
+			    Gen(L_IMM, mode|MBYTE, REG3, Fetch(PC));
+			else
+			    Gen(S_DI_IMM, mode|MBYTE, Fetch(PC));
 			PC++; break;
 /*c7*/	case MOVwirm:
 			PC += ModRM(opc, PC, mode);
-			Gen(S_DI_IMM, mode, DataFetchWL_U(mode,PC));
+			if (TheCPU.mode & RM_REG)
+			    Gen(L_IMM, mode, REG3, DataFetchWL_U(mode,PC));
+			else
+			    Gen(S_DI_IMM, mode, DataFetchWL_U(mode,PC));
 			INC_WL_PC(mode,0);
 			break;
 /*c8*/	case ENTER: {
@@ -2025,7 +2043,7 @@ repag0:
 				Gen(S_DI, mode);
 				break;
 			case Ofs_CX:	/*1*/
-				if (Fetch(PC+1) >= 0xc0) {
+				if (Fetch(PC+1) >= 0xc8) {
 					Gen(O_DEC_R, mode,
 					    R1Tab_l[Fetch(PC+1) & 7]);
 					PC += 2;
@@ -2755,6 +2773,10 @@ repag0:
 				break;
 ///
 			case 0xb2: /* LSS */
+				if (Fetch(PC+2) >= 0xc0) {
+				    CODE_FLUSH();
+				    goto not_permitted;
+				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, mode);
 				    Gen(L_LXS1, mode, REG1);
@@ -2776,6 +2798,10 @@ repag0:
 				}
 				break;
 			case 0xb4: /* LFS */
+				if (Fetch(PC+2) >= 0xc0) {
+				    CODE_FLUSH();
+				    goto not_permitted;
+				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, mode);
 				    Gen(L_LXS1, mode, REG1);
@@ -2796,6 +2822,10 @@ repag0:
 				}
 				break;
 			case 0xb5: /* LGS */
+				if (Fetch(PC+2) >= 0xc0) {
+				    CODE_FLUSH();
+				    goto not_permitted;
+				}
 				if (REALADDR()) {
 				    PC++; PC += ModRM(opc, PC, mode);
 				    Gen(L_LXS1, mode, REG1);
