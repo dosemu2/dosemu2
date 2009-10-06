@@ -738,7 +738,8 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(O_CBWD, mode); PC++; break;
 
 /*07*/	case POPes:	if (REALADDR()) {
-			    Gen(O_POP, mode, Ofs_ES);
+			    Gen(O_POP, mode);
+			    Gen(S_REG, mode, Ofs_ES);
 			    AddrGen(A_SR_SH4, mode, Ofs_ES, Ofs_XES);
 			} else { /* restartable */
 			    unsigned short sv = 0;
@@ -752,7 +753,8 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			PC++;
 			break;
 /*17*/	case POPss:	if (REALADDR()) {
-			    Gen(O_POP, mode, Ofs_SS);
+			    Gen(O_POP, mode);
+			    Gen(S_REG, mode, Ofs_SS);
 			    AddrGen(A_SR_SH4, mode, Ofs_SS, Ofs_XSS);
 			} else { /* restartable */
 			    unsigned short sv = 0;
@@ -767,7 +769,8 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			PC++;
 			break;
 /*1f*/	case POPds:	if (REALADDR()) {
-			    Gen(O_POP, mode, Ofs_DS);
+			    Gen(O_POP, mode);
+			    Gen(S_REG, mode, Ofs_DS);
 			    AddrGen(A_SR_SH4, mode, Ofs_DS, Ofs_XDS);
 			} else { /* restartable */
 			    unsigned short sv = 0;
@@ -892,7 +895,8 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			} while (opc);
 			Gen(O_PUSH3, m); break; }
 #endif
-			Gen(O_PUSH, mode, R1Tab_l[opc-1]); PC++;
+			Gen(L_REG, mode, R1Tab_l[opc-1]);
+			Gen(O_PUSH, mode); PC++;
 			break;
 /*68*/	case PUSHwi:
 			Gen(O_PUSHI, mode, DataFetchWL_U(mode,(PC+1))); 
@@ -924,11 +928,12 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			} while ((Fetch(PC)&0xf8)==0x58);
 			if (opc!=POPsp) Gen(O_POP3, m); break; }
 #endif
-			Gen(O_POP, mode, R1Tab_l[D_LO(opc)]); PC++;
+			Gen(O_POP, mode);
+			Gen(S_REG, mode, R1Tab_l[D_LO(opc)]); PC++;
 			break;
 /*8f*/	case POPrm:
 			// pop data into temporary storage and adjust esp
-			Gen(O_POP, mode|MEMADR);
+			Gen(O_POP, mode);
 			// now calculate address. This way when using %esp
 			//	as index we use the value AFTER the pop
 			// store data
@@ -2113,8 +2118,8 @@ repag0:
 				}
 				break;
 			case Ofs_SI:	/*6*/	 // PUSH
-				PC += ModRM(opc, PC, mode);
-				Gen(O_PUSH, mode|MEMADR); break;	// push [mem]
+				PC += ModRM(opc, PC, mode|MLOAD);
+				Gen(O_PUSH, mode); break;	// push [rm]
 				break;
 			default:
 				CODE_FLUSH();
@@ -2642,11 +2647,13 @@ repag0:
 				break;
 ///
 			case 0xa0: /* PUSHfs */
-				Gen(O_PUSH, mode, Ofs_FS); PC+=2;
+				Gen(L_REG, mode, Ofs_FS);
+				Gen(O_PUSH, mode); PC+=2;
 				break;
 			case 0xa1: /* POPfs */
 				if (REALADDR()) {
-				    Gen(O_POP, mode, Ofs_FS);
+				    Gen(O_POP, mode);
+				    Gen(S_REG, mode, Ofs_FS);
 				    AddrGen(A_SR_SH4, mode, Ofs_FS, Ofs_XFS);
 				} else { /* restartable */
 				    unsigned short sv = 0;
@@ -2726,11 +2733,13 @@ repag0:
 			    goto not_implemented;
 ///
 			case 0xa8: /* PUSHgs */
-				Gen(O_PUSH, mode, Ofs_GS); PC+=2;
+				Gen(L_REG, mode, Ofs_GS);
+				Gen(O_PUSH, mode); PC+=2;
 				break;
 			case 0xa9: /* POPgs */
 				if (REALADDR()) {
-				    Gen(O_POP, mode, Ofs_GS);
+				    Gen(O_POP, mode);
+				    Gen(S_REG, mode, Ofs_GS);
 				    AddrGen(A_SR_SH4, mode, Ofs_GS, Ofs_XGS);
 				} else { /* restartable */
 				    unsigned short sv = 0;

@@ -1174,8 +1174,6 @@ shrot0:
 
 	case O_PUSH: {
 		static char pseq16[] = {
-			// movw (%%edi),%%ax
-			0x66,0x8b,0x07,0x90,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1192,8 +1190,6 @@ shrot0:
 			0x89,0x4b,Ofs_ESP
 		};
 		static char pseq32[] = {
-			// movl (%%edi),%%eax
-			0x90,0x8b,0x07,0x90,
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1217,15 +1213,10 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p, *q; int sz;
+		register char *p; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
-		q=Cp; GNX(Cp, p, sz);
-		if (!(mode&MEMADR)) {
-			// mov{wl} offs(%%ebx),%%{e}ax
-			q[2] = 0x43;
-			q[3] = IG->p0;
-		}
+		GNX(Cp, p, sz);
 		} break;
 
 /* PUSH derived (sub-)sequences: */
@@ -1456,8 +1447,6 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// movw (%%esi,%%ecx,1),%%ax
 			0x66,0x8b,0x04,0x0e,
-			// movw %%ax,offs(%%ebx)
-/*0d*/			0x66,0x89,0x43,0x00,
 			// leal 2(%%ecx),%%ecx
 			0x8d,0x49,0x02,
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -1476,8 +1465,6 @@ shrot0:
 			0x23,0x4b,Ofs_STACKM,
 			// movl (%%esi,%%ecx,1),%%eax
 			0x90,0x8b,0x04,0x0e,
-			// movl %%eax,offs(%%ebx)
-/*0d*/			0x90,0x89,0x43,0x00,
 			// leal 4(%%ecx),%%ecx
 			0x8d,0x49,0x04,
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
@@ -1497,18 +1484,13 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p, *q; int sz;
+		register char *p; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
 		//	first pop, then adjust stack, then
 		//	do address calculation and last store data
-		q=Cp; GNX(Cp, p, sz);
-		if (mode & MEMADR)
-			*((int *)(q+0x0d)) = 0x90909090;
-		else {
-			q[0x10] = IG->p0;
-		}
+		GNX(Cp, p, sz);
 		} break;
 
 /* POP derived (sub-)sequences: */
@@ -1560,11 +1542,7 @@ shrot0:
 		//	first pop, then adjust stack, then
 		//	do address calculation and last store data
 		q=Cp; GNX(Cp, p, sz);
-		if (mode & MEMADR)
-			*((int *)(q+0x07)) = 0x90909090;
-		else {
-			q[0x0a] = IG->p0;
-		}
+		q[0x0a] = IG->p0;
 		} break;
 
 	case O_POP3:
@@ -2496,10 +2474,12 @@ static void Gen_x86(int op, int mode, ...)
 	case O_MUL:
 	case O_CBWD:
 	case O_XLAT:
+	case O_PUSH:
 	case O_PUSH1:
 	case O_PUSH2F:
 	case O_PUSH3:
 	case O_PUSHA:
+	case O_POP:
 	case O_POP1:
 	case O_POP3:
 	case O_POPA:
@@ -2623,13 +2603,10 @@ static void Gen_x86(int op, int mode, ...)
 		}
 		break;
 
-	case O_PUSH:
 	case O_PUSH2:
-	case O_POP:
-	case O_POP2:
-		if (!(mode&MEMADR)) {
-			signed char o = Offs_From_Arg();
-			IG->p0 = o;
+	case O_POP2: {
+		signed char o = Offs_From_Arg();
+		IG->p0 = o;
 		}
 		break;
 

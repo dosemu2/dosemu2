@@ -2115,11 +2115,8 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 
 	case O_PUSH: {
-		signed char o = Offs_From_Arg();
-		if (mode&MEMADR) {GTRACE0("O_PUSH");}
-		    else  {GTRACE1("O_PUSH",o);}
+		GTRACE0("O_PUSH");
 		if (mode & DATA16) {
-			DR1.w.l = (mode&MEMADR? *AR1.pwu : CPUWORD(o));
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP) - 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
@@ -2129,7 +2126,6 @@ static void Gen_sim(int op, int mode, ...)
 		else {
 			long stackm = CPULONG(Ofs_STACKM);
 			long tesp;
-			DR1.d = (mode&MEMADR? *AR1.pdu : CPULONG(o));
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = (tesp = CPULONG(Ofs_ESP)) - 4;
 			SR1.d &= stackm;
@@ -2153,13 +2149,13 @@ static void Gen_sim(int op, int mode, ...)
 		signed char o = Offs_From_Arg();
 		GTRACE1("O_PUSH2",o);
 		if (mode & DATA16) {
-			DR1.w.l = (mode&MEMADR? *AR1.pwu : CPUWORD(o));
+			DR1.w.l = CPUWORD(o);
 			SR1.d -= 2;
 			SR1.d &= CPULONG(Ofs_STACKM);
 			*((short *)(uintptr_t)(AR2.d + SR1.d)) = DR1.w.l;
 		}
 		else {
-			DR1.d = (mode&MEMADR? *AR1.pdu : CPULONG(o));
+			DR1.d = CPULONG(o);
 			SR1.d -= 4;
 			SR1.d &= CPULONG(Ofs_STACKM);
 			*((int *)(uintptr_t)(AR2.d + SR1.d)) = DR1.d;
@@ -2246,14 +2242,12 @@ static void Gen_sim(int op, int mode, ...)
 	case O_POP: {
 		signed char o = Offs_From_Arg();
 		long stackm = CPULONG(Ofs_STACKM);
-		if (mode&MEMADR) {GTRACE0("O_POP");}
-		    else  {GTRACE1("O_POP",o);}
+		GTRACE1("O_POP",o);
 		if (mode & DATA16) {
 			AR2.d = CPULONG(Ofs_XSS);
 			SR1.d = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
 			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
-			if (!(mode & MEMADR)) CPUWORD(o) = DR1.w.l;
 			SR1.d += 2;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
@@ -2266,7 +2260,6 @@ static void Gen_sim(int op, int mode, ...)
 			SR1.d = tesp = CPULONG(Ofs_ESP);
 			SR1.d &= stackm;
 			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
-			if (!(mode & MEMADR)) CPULONG(o) = DR1.d;
 			SR1.d += 4;
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			SR1.d &= stackm;
@@ -2293,13 +2286,13 @@ static void Gen_sim(int op, int mode, ...)
 		if (mode & DATA16) {
 			SR1.d &= stackm;
 			DR1.w.l = *((short *)(uintptr_t)(AR2.d + SR1.d));
-			if (!(mode & MEMADR)) CPUWORD(o) = DR1.w.l;
+			CPUWORD(o) = DR1.w.l;
 			SR1.d += 2;
 		}
 		else {
 			SR1.d &= stackm;
 			DR1.d = *((int *)(uintptr_t)(AR2.d + SR1.d));
-			if (!(mode & MEMADR)) CPULONG(o) = DR1.d;
+			CPULONG(o) = DR1.d;
 			SR1.d += 4;
 #ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
 			SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
