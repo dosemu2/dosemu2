@@ -1175,13 +1175,11 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
   for (i=0; i<G->seqnum; i++) {
     if (A->daddr >= ebase) {		// found following instr
 	p = G->addr + A->daddr;		// translated IP of following instr
-	if (enpc >= A->dnpc) {		// if it's a forward write
-	    memcpy(p, TailCode, TAILSIZE);
-	    *((int *)(p+TAILFIX)) = G->key + A->dnpc;
-	    e_printf("============ Force node closing at %08x(%p)\n",
-		(G->key+A->dnpc),p);
-	}
-	return;		// back writes only invalidate node, no split
+	memcpy(p, TailCode, TAILSIZE);
+	*((int *)(p+TAILFIX)) = G->key + A->dnpc;
+	e_printf("============ Force node closing at %08x(%p)\n",
+		 (G->key+A->dnpc),p);
+	return;
     }
     A++;
   }
