@@ -2683,9 +2683,19 @@ repag0:
 			case 0xab: /* BTS */
 			case 0xb3: /* BTR */
 			case 0xbb: /* BTC */
+				PC++; PC += ModRM(opc, PC, mode);
+				if (TheCPU.mode & RM_REG) {
+				    Gen(L_REG, mode, REG3);
+				}
+				mode |= (TheCPU.mode & RM_REG);
+				Gen(O_BITOP, mode, (opc2-0xa0), REG1);
+				if (opc2 != 0xa3 && (TheCPU.mode & RM_REG)) {
+				    Gen(S_REG, mode, REG3);
+				} 
+				break;
 			case 0xbc: /* BSF */
 			case 0xbd: /* BSR */
-				PC++; PC += ModRM(opc, PC, mode);
+				PC++; PC += ModRM(opc, PC, mode|MLOAD);
 				mode |= (TheCPU.mode & RM_REG);
 				Gen(O_BITOP, mode, (opc2-0xa0), REG1);
 				break;
@@ -2698,12 +2708,20 @@ repag0:
 				case 0x18: /* Illegal */
 				    CODE_FLUSH();
 				    goto illegal_op;
-				case 0x20: /* BT */
-				case 0x28: /* BTS */
-				case 0x30: /* BTR */
-				case 0x38: /* BTC */
-					PC++; PC += ModRM(opc, PC, mode);
+				case 0x20: /* BT imm8 */
+				case 0x28: /* BTS imm8 */
+				case 0x30: /* BTR imm8 */
+				case 0x38: /* BTC imm8 */
+					PC++; PC += ModRM(opc, PC, mode|MLOAD);
 					Gen(O_BITOP, mode, opm, Fetch(PC));
+					if (opm != 0x20) {
+					    if (TheCPU.mode & RM_REG) {
+						Gen(S_REG, mode, REG3);
+					    }
+					    else {
+						Gen(S_DI, mode);
+					    }
+					}
 					PC++;
 					break;
 				} }

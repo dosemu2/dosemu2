@@ -2773,7 +2773,7 @@ static void Gen_sim(int op, int mode, ...)
 		register int flg;
 		GTRACE3("O_BITOP",o2,0xff,o1);
 		if (o1 == 0x1c || o1 == 0x1d) { /* bsf/bsr */
-			DR1.d = (mode & DATA16) ? *AR1.pwu : *AR1.pdu;
+			if (mode & DATA16) DR1.d = DR1.w.l;
 			DR1.d = o1 == 0x1c ? find_bit(DR1.d) : find_bit_r(DR1.d);
 			if (DR1.d == -1) {
 				flg = 0x40;
@@ -2790,23 +2790,33 @@ static void Gen_sim(int op, int mode, ...)
 			break;
 		}
 		if(o1 >= 0x20)
-			DR1.d = o2 & ((mode & DATA16) ? 0x0f : 0x1f);
+			DR2.d = o2 & ((mode & DATA16) ? 0x0f : 0x1f);
 		else if (mode & DATA16)
 		{
-			DR1.d = CPUWORD(o2);
+			DR2.d = CPUWORD(o2);
 			if (mode & RM_REG)
-				DR1.d &= 0x0f;
+				DR2.d &= 0x0f;
 		} else {
-			DR1.d = CPULONG(o2);
+			DR2.d = CPULONG(o2);
 			if (mode & RM_REG)
-				DR1.d &= 0x1f;
+				DR2.d &= 0x1f;
 		}
-		switch (o1) {
-		case 0x03: case 0x20: flg = test_bit(DR1.d, AR1.pdu); break;
-		case 0x0b: case 0x28: flg = set_bit(DR1.d, AR1.pdu); break;
-		case 0x13: case 0x30: flg = clear_bit(DR1.d, AR1.pdu); break;
-		case 0x1b: case 0x38: flg = change_bit(DR1.d, AR1.pdu); break;
-		default: flg = 2;
+		if (mode & RM_REG) {
+		    switch (o1) {
+		    case 0x03: case 0x20: flg = test_bit(DR2.d, &DR1.d); break;
+		    case 0x0b: case 0x28: flg = set_bit(DR2.d, &DR1.d); break;
+		    case 0x13: case 0x30: flg = clear_bit(DR2.d, &DR1.d); break;
+		    case 0x1b: case 0x38: flg = change_bit(DR2.d, &DR1.d); break;
+		    default: flg = 2;
+		    }
+		} else {
+		    switch (o1) {
+		    case 0x03: case 0x20: flg = test_bit(DR2.d, AR1.pdu); break;
+		    case 0x0b: case 0x28: flg = set_bit(DR2.d, AR1.pdu); break;
+		    case 0x13: case 0x30: flg = clear_bit(DR2.d, AR1.pdu); break;
+		    case 0x1b: case 0x38: flg = change_bit(DR2.d, AR1.pdu); break;
+		    default: flg = 2;
+		    }
 		}
 		if (flg != 2)
 			SET_CF(flg&1);

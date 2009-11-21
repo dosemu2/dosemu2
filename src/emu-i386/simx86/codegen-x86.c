@@ -2045,31 +2045,32 @@ shrot0:
 		case 0x0b: /* BTS */
 		case 0x13: /* BTR */
 		case 0x1b: /* BTC */
-			// mov{wl} offs(%%ebx),%%{e}ax
-			Gen66(mode,Cp);	G3M(0x8b,0x43,IG->p1,Cp);
+			// mov{wl} offs(%%ebx),%%{e}dx
+			Gen66(mode,Cp);	G3M(0x8b,0x53,IG->p1,Cp);
 			if (mode & RM_REG) {
-				// and{wl} 0x0f/0x1f,%%{e}ax
-				Gen66(mode,Cp);
-				G3M(0x83,0xe0,((mode&DATA16)?0x0f:0x1f),Cp)
+				// OP{wl} %%{e}dx,%%{e}ax
+				Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0xd0,Cp);
 			}
-			// OP{wl} %%{e}ax,(%%edi)
-			Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0x07,Cp);
+			else {
+				// OP{wl} %%{e}dx,(%%edi)
+				Gen66(mode,Cp);	G3M(0x0f,(n+0xa0),0x17,Cp);
+			}
 			break;
 		case 0x1c: /* BSF */
 		case 0x1d: /* BSR */
-			// OP{wl} %%{e}ax,(%%edi)
-			Gen66(mode,Cp); G3M(0x0f,(n+0xa0),0x07,Cp);
+			// OP{wl} %%{e}ax,%%{e}dx
+			Gen66(mode,Cp); G3M(0x0f,(n+0xa0),0xd0,Cp);
 			// jz 1f
 			G2M(0x74,(mode&DATA16)?0x04:0x03,Cp);
-			// mov{wl} %%{e}ax,offs(%%ebx) 1:
-			Gen66(mode,Cp); G3M(0x89,0x43,IG->p1,Cp);
+			// mov{wl} %%{e}dx,offs(%%ebx) 1:
+			Gen66(mode,Cp); G3M(0x89,0x53,IG->p1,Cp);
 			break;
 		case 0x20: /* BT  imm8 */
 		case 0x28: /* BTS imm8 */
 		case 0x30: /* BTR imm8 */
 		case 0x38: /* BTC imm8 */
-			// OP{wl} $immed,(%%edi)
-			Gen66(mode,Cp);	G4M(0x0f,0xba,(n|0x07),IG->p1,Cp);
+			// OP{wl} $immed,%%{e}ax
+			Gen66(mode,Cp);	G4M(0x0f,0xba,(n|0xc0),IG->p1,Cp);
 			break;
 		}
 		G1(0x9c,Cp);	// flags back on stack
