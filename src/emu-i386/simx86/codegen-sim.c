@@ -2830,41 +2830,40 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_GEN;
 		if (mode & DATA16) {
 			if (l_r==0) {	// left:  <<reg|mem<<
+				DR1.w.h = DR1.w.l;
 				DR1.w.l = CPUWORD(o);
-				DR1.w.h = *AR1.pwu;
 				if (shc==1) RFL.S1=RFL.S2=DR1.w.h;
 				/* undocumented: works like rotate internally */
 				DR1.d = (DR1.d << shc) | (DR1.d >> (32-shc));
 				cy = DR1.d & 1;
-				RFL.RES.d = *AR1.pwu = DR1.w.h;
+				RFL.RES.d = DR1.w.l = DR1.w.h;
 			}
 			else {		// right: >>mem|reg>>
 				DR1.w.h = CPUWORD(o);
-				DR1.w.l = *AR1.pwu;
 				if (shc==1) RFL.S1=RFL.S2=DR1.w.l;
 				/* undocumented: works like rotate internally */
 				DR1.d = (DR1.d >> shc) | (DR1.d << (32-shc));
 				cy = (DR1.d >> 31) & 1;
-				RFL.RES.d = *AR1.pwu = DR1.w.l;
+				RFL.RES.d = DR1.w.l;
 			}
 		}
 		else {
 			u_int64_u v;
 			if (l_r==0) {	// left:  <<reg|mem<<
 				v.t.tl = CPULONG(o);
-				v.t.th = *AR1.pdu;
+				v.t.th = DR1.d;
 				if (shc==1) RFL.S1=RFL.S2=v.t.th;
 				cy = (v.td >> (64-shc)) & 1;
 				v.td <<= shc;
-				RFL.RES.d = *AR1.pdu = v.t.th;
+				RFL.RES.d = DR1.d = v.t.th;
 			}
 			else {		// right: >>mem|reg>>
 				v.t.th = CPULONG(o);
-				v.t.tl = *AR1.pdu;
+				v.t.tl = DR1.d;
 				if (shc==1) RFL.S1=RFL.S2=v.t.tl;
 				cy = (v.td >> (shc-1)) & 1;
 				v.td >>= shc;
-				RFL.RES.d = *AR1.pdu = v.t.tl;
+				RFL.RES.d = DR1.d = v.t.tl;
 			}
 		}
 		SET_CF(cy);

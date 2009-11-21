@@ -2717,7 +2717,7 @@ repag0:
 			    /* Double Precision Shift Left by IMMED */
 			case 0xad: /* SHRDcl */
 			    /* Double Precision Shift Left by CL */
-				PC++; PC += ModRM(opc, PC, mode);
+				PC++; PC += ModRM(opc, PC, mode|MLOAD);
 				if (opc2&1) {
 					Gen(O_SHFD, mode, (opc2&8), REG1);
 				}
@@ -2725,6 +2725,10 @@ repag0:
 					Gen(O_SHFD, mode|IMMED, (opc2&8), REG1, Fetch(PC));
 					PC++;
 				}
+				if (TheCPU.mode & RM_REG)
+					Gen(S_REG, mode, REG3);
+				else
+					Gen(S_DI, mode);
 				break;
 
 			case 0xa6: /* CMPXCHGb (486 STEP A only) */

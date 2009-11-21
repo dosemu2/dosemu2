@@ -2078,20 +2078,18 @@ shrot0:
 	case O_SHFD: {
 		unsigned char l_r = IG->p0;
 		G1(0x9d,Cp);	// get flags from stack
+		// mov{wl} offs(%%ebx),%%{e}dx
+		Gen66(mode,Cp);	G3M(0x8b,0x53,IG->p1,Cp);
 		if (mode & IMMED) {
 			unsigned char shc = IG->p2;
-			// mov{wl} offs(%%ebx),%%{e}ax
-			Gen66(mode,Cp);	G3M(0x8b,0x43,IG->p1,Cp);
-			// sh{lr}d $immed,%%{e}ax,(%%edi)
-			Gen66(mode,Cp);	G4M(0x0f,(0xa4|l_r),0x07,shc,Cp);
+			// sh{lr}d $immed,%%{e}dx,%%{e}ax
+			Gen66(mode,Cp);	G4M(0x0f,(0xa4|l_r),0xd0,shc,Cp);
 		}
 		else {
-			// mov{wl} offs(%%ebx),%%{e}ax
-			Gen66(mode,Cp);	G3M(0x8b,0x43,IG->p1,Cp);
 			// movl Ofs_ECX(%%ebx),%%ecx
 			G3M(0x8b,0x4b,Ofs_ECX,Cp);
-			// sh{lr}d %%cl,%%{e}ax,(%%edi)
-			Gen66(mode,Cp);	G3M(0x0f,(0xa5|l_r),0x07,Cp);
+			// sh{lr}d %%cl,%%{e}dx,%%{e}ax
+			Gen66(mode,Cp);	G3M(0x0f,(0xa5|l_r),0xd0,Cp);
 		}
 		G1(0x9c,Cp);	// flags back on stack
 		} break;
