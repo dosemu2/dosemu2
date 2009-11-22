@@ -1161,9 +1161,9 @@ endsrch:
 static void BreakNode(TNode *G, unsigned char *eip, int addr)
 {
   Addr2Pc *A = G->pmeta;
-  int ebase, enpc;
+  int ebase, enpc, dnpc;
   unsigned char *p;
-  int i;
+  int i, j;
 
   if (eip==0) {
 	dbug_printf("Cannot break node %08x, eip=%p\n",G->key,eip);
@@ -1175,11 +1175,19 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
   for (i=0; i<G->seqnum; i++) {
     if (A->daddr >= ebase) {		// found following instr
 	p = G->addr + A->daddr;		// translated IP of following instr
-	memcpy(p, TailCode, TAILSIZE);
-	*((int *)(p+TAILFIX)) = G->key + A->dnpc;
-	e_printf("============ Force node closing at %08x(%p)\n",
-		 (G->key+A->dnpc),p);
-	return;
+	dnpc = A->dnpc;
+	// check remaining instructions for forwards write because of jumps
+	for (j=i; i<G->seqnum; i++) {
+	    if (enpc >= A->dnpc) {		// if it's a forward write
+		memcpy(p, TailCode, TAILSIZE);
+		*((int *)(p+TAILFIX)) = G->key + dnpc;
+		e_printf("============ Force node closing at %08x(%p)\n",
+			 (G->key+dnpc),p);
+		return;
+	    }
+	    A++;
+	}
+	return;		// back writes only invalidate node, no split
     }
     A++;
   }
