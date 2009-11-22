@@ -159,8 +159,8 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 #define AddrFetchWL_U(m,a) ((m)&ADDR16? FetchW(a):FetchL(a))
 #define AddrFetchWL_S(m,a) ((m)&ADDR16? (short)FetchW(a):(int)FetchL(a))
 #endif
-#define GetDWord(a)	*((unsigned short *)(a))
-#define GetDLong(a)	*((unsigned int *)(a))
+#define GetDWord(a)	*((unsigned short *)&mem_base[(a)])
+#define GetDLong(a)	*((unsigned int *)&mem_base[(a)])
 #define DataGetWL_U(m,a) ((m)&DATA16? GetDWord(a):GetDLong(a))
 #define DataGetWL_S(m,a) ((m)&DATA16? (short)GetDWord(a):(int)GetDLong(a))
 #endif

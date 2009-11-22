@@ -134,7 +134,7 @@ typedef struct {
  *	b28-31= LLRW bp#3
  */
 	unsigned int dr[8];
-	unsigned long mem_ref;
+	unsigned int mem_ref;
 /* CPU register: base(32) limit(16) */
 	DTR  GDTR;
 /* CPU register: base(32) limit(16) */

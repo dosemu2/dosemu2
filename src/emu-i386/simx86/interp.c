@@ -733,7 +733,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				if (TheCPU.mode & RM_REG) {
 					CPUWORD(REG3) = dest;
 				} else {
-					*(short *)TheCPU.mem_ref = dest;
+					WRITE_WORD(TheCPU.mem_ref, dest);
 				}
 			} else {
 				EFLAGS &= ~EFLAGS_ZF;
@@ -2962,7 +2962,7 @@ repag0:
 					goto illegal_op;
 				PC++; PC += ModRMSim(PC, mode);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
-				m = *(uint64_t*)TheCPU.mem_ref;
+				m = *(uint64_t*)&mem_base[TheCPU.mem_ref];
 				if (edxeax == m)
 				{
 					EFLAGS |= EFLAGS_ZF;
@@ -2972,7 +2972,7 @@ repag0:
 					rEDX = m >> 32;
 					rEAX = m & 0xffffffff;
 				}
-				*(uint64_t*)TheCPU.mem_ref = m;
+				*(uint64_t*)&mem_base[TheCPU.mem_ref] = m;
 				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}

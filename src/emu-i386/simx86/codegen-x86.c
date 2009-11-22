@@ -162,15 +162,10 @@ static void _test_(void)
 /////////////////////////////////////////////////////////////////////////////
 
 /* empirical!! */
-static int goodmemref(unsigned char *p)
+static int goodmemref(unsigned int m)
 {
-	unsigned int m;
-#ifdef __x86_64__
-	if (p >= &mem_base[0xffffffff]) return 0;
-#endif
-	m = p - mem_base;
 	if (m < 0x110000) return 1;
-	if (p >= (unsigned char *)config.dpmi_base && m <= mMaxMem) return 1;
+	if (m >= config.dpmi_base - TheCPU.mem_base && m <= mMaxMem) return 1;
 	return 0;
 }
 
@@ -3097,7 +3092,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 {
 	unsigned long flg;
 	unsigned char *ecpu;
-	unsigned char *mem_ref;
+	unsigned int mem_ref;
 	unsigned int ePC;
 	unsigned short seqflg;
 	unsigned char *SeqStart;
@@ -3250,7 +3245,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 
 	TimeEndExec.td -= TimeStartExec.td;
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
-	TheCPU.mem_ref = (unsigned long)mem_ref;
+	TheCPU.mem_ref = mem_ref;
 
 	/* was there at least one FP op in the sequence? */
 	if (seqflg & F_FPOP) {
@@ -3281,8 +3276,8 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 		/* DANGEROUS - can crash dosemu! */
 		if ((debug_level('e')>4) && goodmemref(mem_ref)) {
 		    TryMemRef = 1;
-		    e_printf("*mem_ref [%p] = %08x\n",mem_ref,
-			*((unsigned int *)mem_ref));
+		    e_printf("*mem_ref [%#08x] = %08x\n",mem_ref,
+			     READ_DWORD(mem_ref));
 		    TryMemRef = 0;
 		}
 	}

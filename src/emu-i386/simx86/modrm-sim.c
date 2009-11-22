@@ -152,8 +152,8 @@ int ModRMSim(unsigned int PC, int mode)
 			REG1 = (mode&ADDR16? R1Tab_w[mod]:R1Tab_l[mod]);
 	}
 	mod = D_HO(cab);
-	rods = (mode&MLEA? 0 : ((DTR *)CPUOFFS(OVERR_DS))->Base);
-	ross = (mode&MLEA? 0 : ((DTR *)CPUOFFS(OVERR_SS))->Base);
+	rods = (mode&MLEA? 0 : ((DTR *)CPUOFFS(OVERR_DS))->Base) - TheCPU.mem_base;
+	ross = (mode&MLEA? 0 : ((DTR *)CPUOFFS(OVERR_SS))->Base) - TheCPU.mem_base;
 	switch (mod) {
 	    case 0:
 			if (mode & ADDR16) switch (D_LO(cab)) {
