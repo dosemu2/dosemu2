@@ -230,8 +230,6 @@ int ModRM(unsigned char opc, unsigned int PC, int mode)
 				Gen(L_REG, mode, REG3);	// mov al,[ebx+reg]
 			else if (mode & MSTORE)
 				Gen(S_REG, mode, REG3);	// mov [ebx+reg],al
-			else
-				AddrGen(LEA_DI_R, 0, REG3);
 			return l;
 	}
 	if (mode & MLOAD)

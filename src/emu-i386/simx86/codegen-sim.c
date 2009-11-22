@@ -1352,39 +1352,49 @@ static void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_CMPXCHG: {		// OSZAPC
-		register wkreg v;
-		v.d = va_arg(ap, int);
+		signed char o1 = va_arg(ap, int);
+		signed char o2 = va_arg(ap, int);
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
-		GTRACE3("O_CMPXCHG",v.bs.bl,0xff,v.d);
+		GTRACE2("O_CMPXCHG",o1,o2);
 		if (mode & MBYTE) {
 		    RFL.S1 = DR1.b.bl;
-		    RFL.S2 = -*AR1.pu;
+		    RFL.S2 = (mode & RM_REG) ? -CPUBYTE(o2) : -*AR1.pu;
 		}
 		else if (mode & DATA16) {
 		    RFL.S1 = DR1.w.l;
-		    RFL.S2 = -*AR1.pwu;
+		    RFL.S2 = (mode & RM_REG) ? -CPUWORD(o2) : -*AR1.pwu;
 		}
 		else {
 		    RFL.S1 = DR1.d;
-		    RFL.S2 = -*AR1.pdu;
+		    RFL.S2 = (mode & RM_REG) ? -CPULONG(o2) : -*AR1.pdu;
 		}
 		RFL.RES.d = RFL.S1 + RFL.S2;
 		FlagSync_C(1);
 		if (RFL.RES.d == 0) {
-			if (mode & MBYTE)
-				*AR1.pu = CPUBYTE(v.bs.bl);
-			else if (mode & DATA16)
-				*AR1.pwu = CPUWORD(v.bs.bl);
-			else
-				*AR1.pdu = CPULONG(v.bs.bl);
+			if (mode & RM_REG) {
+				if (mode & MBYTE)
+					CPUBYTE(o2) = CPUBYTE(o1);
+				else if (mode & DATA16)
+					CPUWORD(o2) = CPUWORD(o1);
+				else
+					CPULONG(o2) = CPULONG(o1);
+			}
+			else {
+				if (mode & MBYTE)
+					*AR1.pu = CPUBYTE(o1);
+				else if (mode & DATA16)
+					*AR1.pwu = CPUWORD(o1);
+				else
+					*AR1.pdu = CPULONG(o1);
+			}
 		} else {
 			if (mode & MBYTE)
-				DR1.b.bl = *AR1.pu;
+				DR1.b.bl = -RFL.S2;
 			else if (mode & DATA16)
-				DR1.w.l = *AR1.pwu;
+				DR1.w.l = -RFL.S2;
 			else
-				DR1.d = *AR1.pdu;
+				DR1.d = -RFL.S2;
 		}
 		}
 		break;
