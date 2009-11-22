@@ -701,6 +701,9 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*62*/	case BOUND:    {
 	  		signed int lo, hi, r;
 			CODE_FLUSH();
+			if (Fetch(PC+1) >= 0xc0) {
+			    goto not_permitted;
+			}
 			PC += ModRMSim(PC, mode);
 			r = GetCPU_WL(mode, REG1);
 			lo = DataGetWL_S(mode,TheCPU.mem_ref);
@@ -718,12 +721,20 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			unsigned short dest, src;
 			CODE_FLUSH();
 			PC += ModRMSim(PC, mode);
-			dest = GetDWord(TheCPU.mem_ref);
+			if (TheCPU.mode & RM_REG) {
+				dest = CPUWORD(REG3);
+			} else {
+				dest = GetDWord(TheCPU.mem_ref);
+			}
 			src = GetCPU_WL(mode, REG1);
 			if ((dest & 3) < (src & 3)) {
 				EFLAGS |= EFLAGS_ZF;
 				dest = (dest & ~3) | (src & 3);
-				*(short *)TheCPU.mem_ref = dest;
+				if (TheCPU.mode & RM_REG) {
+					CPUWORD(REG3) = dest;
+				} else {
+					*(short *)TheCPU.mem_ref = dest;
+				}
 			} else {
 				EFLAGS &= ~EFLAGS_ZF;
 			}
@@ -1168,7 +1179,11 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    unsigned short sv = 0;
 			    CODE_FLUSH();
 			    PC += ModRMSim(PC, mode|SEGREG);
-			    sv = GetDWord(TheCPU.mem_ref);
+			    if (TheCPU.mode & RM_REG) {
+				sv = CPUWORD(REG3);
+			    } else {
+				sv = GetDWord(TheCPU.mem_ref);
+			    }
 			    TheCPU.err = MAKESEG(mode, REG1, sv);
 			    if (TheCPU.err) return P0;
 			    switch (REG1) {
@@ -2064,7 +2079,11 @@ repag0:
 					CODE_FLUSH();
 					PC += ModRMSim(PC, mode|NOFLDR);
 					TheCPU.eip = PC - LONG_CS;
-					dp = DataGetWL_U(mode, TheCPU.mem_ref);
+					if (TheCPU.mode & RM_REG) {
+						dp = GetCPU_WL(mode, REG3);
+					} else {
+						dp = DataGetWL_U(mode, TheCPU.mem_ref);
+					}
 					if (REG1==Ofs_DX) { 
 						PUSH(mode, &TheCPU.eip);
 						if (debug_level('e')>2)
@@ -2079,6 +2098,9 @@ repag0:
 					unsigned short jcs;
 					unsigned long oip,xcs,jip=0;
 					CODE_FLUSH();
+					if (Fetch(PC+1) >= 0xc0) {
+						goto illegal_op;
+					}
 					PC += ModRMSim(PC, mode|NOFLDR);
 					TheCPU.eip = PC - LONG_CS;
 					/* get new cs:ip */
@@ -2437,7 +2459,11 @@ repag0:
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, mode) + 1;
-				    sv = GetDWord(TheCPU.mem_ref);
+				    if (TheCPU.mode & RM_REG) {
+					sv = CPUWORD(REG3);
+				    } else {
+					sv = GetDWord(TheCPU.mem_ref);
+				    }
 				    tmp = hsw_verr(sv);
 				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
@@ -2450,7 +2476,11 @@ repag0:
 				    CODE_FLUSH();
 				    if (REALMODE()) goto illegal_op;
 				    PC += ModRMSim(PC+1, mode) + 1;
-				    sv = GetDWord(TheCPU.mem_ref);
+				    if (TheCPU.mode & RM_REG) {
+					sv = CPUWORD(REG3);
+				    } else {
+					sv = GetDWord(TheCPU.mem_ref);
+				    }
 				    tmp = hsw_verw(sv);
 				    if (tmp < 0) goto illegal_op;
 				    EFLAGS &= ~EFLAGS_ZF;
@@ -2495,7 +2525,11 @@ repag0:
 				CODE_FLUSH();
 				if (REALMODE()) goto illegal_op;
 				PC += ModRMSim(PC+1, mode) + 1;
-				sv = GetDWord(TheCPU.mem_ref);
+				if (TheCPU.mode & RM_REG) {
+				    sv = CPUWORD(REG3);
+				} else {
+				    sv = GetDWord(TheCPU.mem_ref);
+				}
 				if (!e_larlsl(mode, sv)) {
 				    EFLAGS &= ~EFLAGS_ZF;
 				    if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
@@ -2921,11 +2955,11 @@ repag0:
 			/* case 0xc2-0xc6:	MMX */
 			case 0xc7: { /*	Code Extension 23 - 01=CMPXCHG8B mem */
 				uint64_t edxeax, m;
-				unsigned char opm;
+				unsigned char modrm;
 				CODE_FLUSH();
-				opm = D_MO(Fetch(PC+2));
-				if (opm != 1)
-					goto illegal_op;	/* UD2 */
+				modrm = Fetch(PC+2);
+				if (D_MO(modrm) != 1 || D_HO(modrm) == 3)
+					goto illegal_op;
 				PC++; PC += ModRMSim(PC, mode);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
 				m = *(uint64_t*)TheCPU.mem_ref;

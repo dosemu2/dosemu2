@@ -230,12 +230,13 @@ int ModRMSim(unsigned int PC, int mode)
 		}
 	    break;
 	    case 3:
+			TheCPU.mode |= RM_REG;
 			if (mode & (MBYTE|MBYTX))
-				MEMREF = (unsigned long)CPUOFFS(R1Tab_b[cab&7]);
+				REG3 = R1Tab_b[cab&7];
 			else if (mode & ADDR16)
-				MEMREF = (unsigned long)CPUOFFS(R1Tab_w[cab&7]);
+				REG3 = R1Tab_w[cab&7];
 			else
-				MEMREF = (unsigned long)CPUOFFS(R1Tab_l[cab&7]);
+				REG3 = R1Tab_l[cab&7];
 			break;
 	}
 	return l;
