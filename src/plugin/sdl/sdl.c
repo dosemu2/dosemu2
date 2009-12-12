@@ -269,6 +269,7 @@ static void SDL_redraw_text_screen(void)
     return;
   }
 #endif
+  if (surface==NULL) return;
   SDL_LockSurface(surface);
   redraw_text_screen();
   SDL_UnlockSurface(surface);
@@ -420,6 +421,7 @@ void SDL_update_cursor(void)
        return;
      }
 #endif
+     if (surface==NULL) return;
      SDL_LockSurface(surface);
      update_cursor();
      SDL_UnlockSurface(surface);
@@ -442,6 +444,7 @@ int SDL_update_screen(void)
     if (!use_bitmap_font && vga.mode_class == TEXT)
       return update_screen(&veut);
 #endif
+    if (surface==NULL) return 1;
     SDL_LockSurface(surface);
     ret = update_screen(&veut);
     SDL_UnlockSurface(surface);
