@@ -1031,7 +1031,7 @@ load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
 static int
 move_memory_region(state_t * state)
 {
-  struct mem_move_struct *mem_move=NULL;
+  struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   caddr_t dest, source, mem;
 
   mem = (caddr_t)((u_char *) Addr(state, ds, esi));
