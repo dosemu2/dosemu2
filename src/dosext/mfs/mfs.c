@@ -196,6 +196,10 @@ TODO:
 #include "cpu-emu.h"
 #endif
 
+#ifdef _LARGEFILE64_SOURCE
+#define stat stat64
+#endif
+
 #ifdef __linux__
 /* we need to use the kernel dirent structure for the VFAT ioctls */
 struct kernel_dirent {
