@@ -224,10 +224,12 @@ extern struct _fpstate vm86_fpu_state;
 #define savefpstate(value) \
 	do { \
 		if (config.cpufxsr) { \
-			unsigned mxcsr = 0x1f80; \
-			asm volatile("fxsave %0; fninit; ldmxcsr %2\n" : \
-				    "=m"(*((char *)&value+112)),"=m"(value) : \
-				    "m"(mxcsr)); \
+			asm volatile("fxsave %0; fninit\n" : \
+				     "=m"(*((char *)&value+112)),"=m"(value)); \
+			if (config.cpusse) { \
+				unsigned mxcsr = 0x1f80; \
+				asm volatile("ldmxcsr %0\n" :: "m"(mxcsr)); \
+			} \
 		} else \
 			asm volatile("fnsave %0; fwait\n" : "=m"(value)); \
 	} while(0);

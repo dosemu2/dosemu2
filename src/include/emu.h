@@ -228,7 +228,7 @@ typedef struct vesamode_type_struct {
        boolean quiet;
        boolean prompt;
        int     realcpu;
-       boolean mathco, smp, cpuprefetcht0, cpufxsr;
+       boolean mathco, smp, cpuprefetcht0, cpufxsr, cpusse;
        boolean ipxsup;
        long    ipx_net;
        int     vnet;
