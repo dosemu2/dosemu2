@@ -58,12 +58,12 @@ static void set_part_ent(struct disk *dp, char *tmp_mbr);
 
 #if 1
 #  ifdef USE_FSYNC
-#     define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) fsync(dp->fdesc);
+#     define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) fsync(dp->fdesc);
 #  else
-#     define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) disk_close();
+#     define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) disk_close();
 #  endif
 #else
-#define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) \
+#define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) \
   ioctl(dp->fdesc, FDFLUSH, 0)
 #endif
 
