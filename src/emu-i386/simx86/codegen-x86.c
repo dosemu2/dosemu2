@@ -1019,18 +1019,16 @@ arith1:
 	case O_XLAT:
 		// movl OVERR_DS(%%ebx),%%edi
 		G2(0x7b8b,Cp); G1(IG->ovds,Cp);
-		if (mode & DATA16) {
-			// movzwl Ofs_BX(%%ebx),%%ecx
-			G4M(0x0f,0xb7,0x4b,Ofs_BX,Cp);
-		}
-		else {
-			// movl Ofs_EBX(%%ebx),%%ecx
-			G3M(0x8b,0x4b,Ofs_EBX,Cp);
-		}
-		// leal (%%ecx,%%edi,1),%%edi
-		G3(0x393c8d,Cp);
 		// movzbl Ofs_AL(%%ebx),%%ecx
 		G4M(0x0f,0xb6,0x4b,Ofs_AL,Cp);
+		// movl Ofs_EBX(%%ebx),%%eax
+		G3M(0x8b,0x43,Ofs_EBX,Cp);
+		// leal (%%ecx,%%eax,1),%%ecx
+		G3(0x010c8d,Cp);
+		if (mode & ADDR16) {
+			// movzwl %%cx,%%ecx
+			G3(0xC9B70F,Cp);
+		}
 		// leal (%%ecx,%%edi,1),%%edi
 		G4(0x8a393c8d,Cp);
 		// movb (%%edi),%%al

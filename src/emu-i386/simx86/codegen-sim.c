@@ -1701,14 +1701,10 @@ static void Gen_sim(int op, int mode, ...)
 	case O_XLAT:
 		GTRACE0("XLAT");
 		AR1.d = CPULONG(OVERR_DS);
-		if (mode & DATA16) {
-			TR1.d = CPUWORD(Ofs_BX);
+		TR1.d = CPULONG(Ofs_EBX) + CPUBYTE(Ofs_AL);
+		if (mode & ADDR16) {
+			TR1.d &= 0xFFFF;
 		}
-		else {
-			TR1.d = CPULONG(Ofs_EBX);
-		}
-		AR1.d += TR1.d;
-		TR1.d = CPUBYTE(Ofs_AL);
 		AR1.d += TR1.d;
 		CPUBYTE(Ofs_AL) = DR1.b.bl = *AR1.pu;
 		break;
