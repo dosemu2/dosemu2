@@ -670,7 +670,7 @@ static void mhp_dump(int argc, char * argv[])
       if ((i&0x0f) == 0x0f) {
          mhp_printf( " ");
          for (i2=i-15;i2<=i;i2++){
-	    if (unix)
+	    if (unixaddr)
 	       c = UNIX_READ_BYTE((uintptr_t)buf+i2);
 	    else
 	       c = READ_BYTE(buf+i2);
