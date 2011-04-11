@@ -1115,7 +1115,6 @@ void tell_lexer_loop(int cfile, int value)
 
 static int dump_input(int rulenum)
 {
-	static int lastrule=0;
 	static int lastchar = '\n';
 	int savebufwptr_ = savebufwptr;
 	int skip_action = 1;
@@ -1145,7 +1144,6 @@ static int dump_input(int rulenum)
 		lastchar = '\n';
 		line_count++;
 	}
-	lastrule = rulenum;
 	switch (rulenum) {
 		case NEWLINE__RULE_NUM: {
 			line_count++;

@@ -1053,10 +1053,9 @@ static void dma_process_block_mode_write(int controller, int channel)
  */
 static void dma_process_cascade_mode_write(int controller, int channel)
 {
-  int ch;
   /*      int mask; */
 
-  ch = get_ch(controller, channel);
+  get_ch(controller, channel);
   /*      mask = get_mask (ch); */
 
   h_printf("DMA: Attempt to use unsupported CASCADE mode\n");
@@ -1216,10 +1215,9 @@ static void dma_process_block_mode_read(int controller, int channel)
  */
 static void dma_process_cascade_mode_read(int controller, int channel)
 {
-  int ch;
   /*      int mask; */
 
-  ch = get_ch(controller, channel);
+  get_ch(controller, channel);
   /*      mask = get_mask (ch); */
 
   h_printf("DMA: Attempt to use unsupported CASCADE mode\n");
@@ -1233,10 +1231,9 @@ static void dma_process_cascade_mode_read(int controller, int channel)
  */
 static void dma_process_verify_mode(int controller, int channel)
 {
-  int ch;
   /*      int mask; */
 
-  ch = get_ch(controller, channel);
+  get_ch(controller, channel);
   /*      mask = get_mask (ch); */
 
   h_printf
@@ -1253,10 +1250,9 @@ static void dma_process_verify_mode(int controller, int channel)
  */
 static void dma_process_invalid_mode(int controller, int channel)
 {
-  int ch;
   /*      int mask; */
 
-  ch = get_ch(controller, channel);
+  get_ch(controller, channel);
   /*      mask = get_mask (ch); */
 
   h_printf

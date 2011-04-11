@@ -466,11 +466,10 @@ static void init_translate_rule(t_keysym *rule,
 		 */
 		if ((ch >= 0xef00) && (ch <= 0xefff)) {
 			unsigned char buff[1];
-			size_t result;
 			struct char_set_state keyb_state;
 			init_charset_state(&keyb_state, keyb_charset);
 			buff[0] = ch & 0xFF;
-			result = charset_to_unicode(&keyb_state, &ch, buff, 1);
+			charset_to_unicode(&keyb_state, &ch, buff, 1);
 			cleanup_charset_state(&keyb_state);
 			if (ch == KEY_VOID)
 				continue;
@@ -747,11 +746,10 @@ static void init_charset_keys(struct character_translate_rules *charset,
 	/* first initialize the charset_keys to nothing */
 	for (i = 0; i < NUM_KEYSYMS; i++) {
 		unsigned char buff[1];
-		size_t result;
 		struct char_set_state keyb_state;
 		init_charset_state(&keyb_state, keyb_charset);
 		/* FIXME: handle smaller tables ?*/
-		result = unicode_to_charset(&keyb_state, i, buff, 1);
+		unicode_to_charset(&keyb_state, i, buff, 1);
 		charset->keys[i].key = NUM_VOID;
 		charset->keys[i].shiftstate = 0;
 		charset->keys[i].deadsym = KEY_VOID;

@@ -268,10 +268,9 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 	if (!USING_XKB) {
 		#define MAXCHARS 3
 		unsigned char chars[MAXCHARS];
-		int count;
 		static XComposeStatus compose_status = {NULL, 0};
 
-		count = XLookupString(e, chars, MAXCHARS, &xkey, &compose_status);
+		XLookupString(e, chars, MAXCHARS, &xkey, &compose_status);
 		/* Guess all modifiers were not used in generating the symbol.
 		 * If the dos keyboard layout and the X keyboard layout are
 		 * the same this has no ill effects.  If the layouts are

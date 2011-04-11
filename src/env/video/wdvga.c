@@ -32,11 +32,9 @@ void wd_set_old_regs(void)
 
 void wd_set_new_regs(void)
 {
-  u_char dummy;
-
   port_real_outb(SEQ_I, 0x0b);
   port_real_outb(SEQ_D, 0x00);
-  dummy = port_real_inb(SEQ_D);
+  port_real_inb(SEQ_D);
   return;
 }
 

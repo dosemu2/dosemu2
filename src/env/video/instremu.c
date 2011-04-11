@@ -244,7 +244,10 @@ static void dump_x86_regs(x86_regs *x86)
 unsigned instr_len(unsigned char *p)
 {
   unsigned u;
-  unsigned char *p0 = p, *p1 = p;
+  unsigned char *p0 = p;
+#if DEBUG_INSTR >= 1
+  unsigned char *p1 = p;
+#endif
 
   seg = osp = asp = lock = rep = 0;
 
@@ -276,7 +279,9 @@ unsigned instr_len(unsigned char *p)
   }
   p--;
 
+#if DEBUG_INSTR >= 1
   p1 = p;
+#endif
 
   if(p - p0 >= 16) return 0;
 

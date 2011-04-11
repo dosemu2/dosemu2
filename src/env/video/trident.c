@@ -30,11 +30,9 @@ void trident_set_old_regs(void)
 
 void trident_set_new_regs(void)
 {
-  u_char dummy;
-
   port_out(0x0b, SEQ_I);
   port_out(0x00, SEQ_D);
-  dummy = port_in(SEQ_D);
+  port_in(SEQ_D);
   return;
 }
 

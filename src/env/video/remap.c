@@ -1173,7 +1173,6 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
-  int pixel_size = 1;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
   if(ro->remap_func == NULL) return ra;
@@ -1214,16 +1213,6 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   if(i1 >= ro->src_height || i1 > j1) return ra;
   if(j2 >= ro->src_width) j1++, j2 = 0;
   if(j1 >= ro->src_height) j1 = ro->src_height, j2 = 0;
-
-  switch(ro->dst_mode) {
-    case MODE_TRUE_15:
-    case MODE_TRUE_16: pixel_size = 2; break;
-    case MODE_TRUE_24: pixel_size = 3; break;
-    case MODE_TRUE_32: pixel_size = 4; break;
-    case MODE_TRUE_8:
-    case MODE_PSEUDO_8:
-    default: pixel_size = 1;
-  }
 
   if(
     (ro->remap_func_flags & RFF_REMAP_RECT) ||
@@ -2072,7 +2061,7 @@ void gen_8to32_bilin(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0, *src1;
+  unsigned char *src, *src0;
   unsigned *dst;
   unsigned *lut = ro->true_color_lut;
 
@@ -2082,7 +2071,6 @@ void gen_8to32_bilin(RemapObject *ro)
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    src1 = src + s_scan_len;
 
     switch(*(bre_y + d_y - 1 + ro->dst_height)) {
       case 0:
@@ -2169,7 +2157,7 @@ void gen_8to16_bilin(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0, *src1;
+  unsigned char *src, *src0;
   unsigned short *dst;
   unsigned *lut = ro->true_color_lut;
 
@@ -2179,7 +2167,6 @@ void gen_8to16_bilin(RemapObject *ro)
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    src1 = src + s_scan_len;
 
     switch(*(bre_y + d_y - 1 + ro->dst_height)) {
       case 0:

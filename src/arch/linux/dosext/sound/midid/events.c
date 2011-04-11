@@ -158,12 +158,12 @@ void do_quarter_frame(void)
 
 void do_song_position(void)
 {
-	int beat, clocks;
+	int beat;
 	beat = getbyte_data();
 	if (beat<0) return;
 	getbyte_next();
 	if (getbyte_data()<0) return;
-	clocks = getbyte_data() << 7;
+	getbyte_data();
 	getbyte_next();
 	if (warning)
 		fprintf(stderr,"Warning: Song Position message is not implemented\n");

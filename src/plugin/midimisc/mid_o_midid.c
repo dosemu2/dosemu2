@@ -20,6 +20,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#if 0 /* NOT USED YET */
+
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
@@ -188,3 +190,5 @@ CONSTRUCTOR(static int midomidid_register(void))
     return 0;
 #endif
 }
+
+#endif

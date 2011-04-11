@@ -3179,7 +3179,6 @@ dos_fs_redirect(state_t *state)
   int fd, drive;
   int cnt;
   int ret = REDIRECT;
-  cds_t my_cds;
   sft_t sft;
   sdb_t sdb;
   char *bs_pos;
@@ -3204,8 +3203,6 @@ dos_fs_redirect(state_t *state)
  
   if (!mach_fs_enabled)
     return (REDIRECT);
-
-  my_cds = sda_cds(sda);
 
   sft = lowmemp(Addr(state, es, edi));
 

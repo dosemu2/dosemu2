@@ -2346,7 +2346,6 @@ parse_dosemu_users(void)
   char buf[PBUFLEN];
   int userok = 0;
   char *ustr;
-  int log_syslog=0;
   int uid;
   int have_vars=0;
 
@@ -2432,7 +2431,6 @@ parse_dosemu_users(void)
           if (ll < 0) ll = 0;
           if (ll > 2) ll = 2;
         }
-        log_syslog = ll;
       }
       else if (!strcmp(ustr, "config_script")) {
         ustr=strtok(0, " \t\n=,;:");

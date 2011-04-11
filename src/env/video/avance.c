@@ -110,13 +110,13 @@ static int cwg(void)
 
 static int ali_test(void)
 {
-    int tmp, ov;
+    int ov;
 
     CRT_I = (port_in(MIS_R) & 0x01) ? CRT_IC : CRT_IM;
 
     ali_unlock();
 
-    tmp = port_in(CRT_I);
+    port_in(CRT_I);
     ov = GETB(CRT_I, 0x1a);
     port_out(ov & 0xef, CRT_D);
     if (cwg()) {

@@ -346,8 +346,8 @@ static int init_sg_device_list(void) {
 
 static int search_for_sg(int hostId, int channel, int target, int lun)
 {
-  int i, sgminor;
-  for (i=0, sgminor=-1; i <num_sg_devices; i++) {
+  int i;
+  for (i=0; i <num_sg_devices; i++) {
     if (   (hostId == sg_devices[i].hostId)
         && (channel == sg_devices[i].channel)
         && (target == sg_devices[i].target)
@@ -475,7 +475,6 @@ static int ASPI_OpenDevice16(SRB_ExecSCSICmd16 *prb)
 
 static void ASPI_DebugPrintCmd16(SRB_ExecSCSICmd16 *prb)
 {
-  Bit8u	cmd;
   int	i;
   Bit8u *cdb;
   Bit8u *lpBuf;
@@ -529,7 +528,6 @@ static void ASPI_DebugPrintCmd16(SRB_ExecSCSICmd16 *prb)
   A_printf("ASPI: POST Proc: %x\n", (Bit32u) prb->SRB_PostProc);
   cdb = &prb->CDBByte[0];
   A_printf("ASPI: CDB buffer[");
-  cmd = prb->CDBByte[0];
   for (i = 0; i < prb->SRB_CDBLen; i++) {
     if (i != 0)
       A_printf(",");

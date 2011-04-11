@@ -96,7 +96,7 @@ static int ReadVTOC(int drive, Bit16u volume, unsigned char *buf)
 	if (memcmp("CD001", id, 5) != 0)
 		return MSCDEX_ERROR_BAD_FORMAT;
 	type = READ_BYTEP(buf);
-	return 0;
+	return (type == 1) ? 1 : (type == 0xFF) ? 0xFF : 0;
 }
 
 int get_volume_label_cdrom(int drive, char *buf)

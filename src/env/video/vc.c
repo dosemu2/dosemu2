@@ -335,10 +335,8 @@ static void map_video_ram(void)
 
 void init_get_video_ram(int waitflag)
 {
-  size_t size = GRAPH_SIZE;
   off_t base = GRAPH_BASE;
   if (!config.vga) {
-    size = console_size();
     base = phys_text_base;
   }
   if (waitflag == WAIT)

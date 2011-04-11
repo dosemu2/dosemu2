@@ -2469,7 +2469,9 @@ void setup_default_keytable()
 	  ctrl_alt_map[NUM_KEY_NUMS];
   struct keytable_entry *kt, *altkt;
   int i, idx;
+#if defined(X_SUPPORT) && defined(USE_DL_PLUGINS)
   void *handle;
+#endif
 
   idx = sizeof keytable_list / sizeof *keytable_list - 3;
 
@@ -2520,8 +2522,8 @@ void setup_default_keytable()
 
   idx = 1;
 #ifdef X_SUPPORT
-  handle = load_plugin("X");
 #ifdef USE_DL_PLUGINS
+  handle = load_plugin("X");
   if (handle) {
     int (*X11_DetectLayout)(void) = 
       (int(*)(void))dlsym(handle, "X11_DetectLayout");

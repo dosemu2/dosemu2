@@ -1257,7 +1257,6 @@ int e_dpmi(struct sigcontext_struct *scp)
 {
   hitimer_t tt0;
   int xval,retval,mode;
-  Descriptor *dt;
 
   if (iniflag==0) enter_cpu_emu();
 
@@ -1284,7 +1283,6 @@ int e_dpmi(struct sigcontext_struct *scp)
         error("DPM86: segment error %d\n", TheCPU.err);
         leavedos(0);
     }
-    dt = (TheCPU.cs&4? LDT:GDT);
 
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
     if (CONFIG_CPUSIM && sigsetjmp(jmp_env, 1)) {

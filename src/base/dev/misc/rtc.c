@@ -369,8 +369,6 @@ unsigned long get_linux_ticks(int set_cmos, int *day_rollover)
 
 	long ds70, isec;
 	long long tt;	/* Needs > 32 bits for intermediate product! */
-	static long long last_lint = 0;
-	static struct timeval prev_tv;
 	long long lint;
 	struct timeval tv;
 	int year;
@@ -381,9 +379,6 @@ unsigned long get_linux_ticks(int set_cmos, int *day_rollover)
 	lint = ((long long)(unsigned long)tv.tv_sec) * 1000;
 	lint += tv.tv_usec / 1000;
 				
-	last_lint = lint;
-	prev_tv = tv;
-
 	tm = localtime(&tv.tv_sec);
 	if(tm == NULL) return -1;
 

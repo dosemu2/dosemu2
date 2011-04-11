@@ -117,7 +117,7 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 			key = KEY_R_ALT;
 		break;
 
-	  case SDLK_SPACE ... SDLK_DELETE-1: /* ASCII range 32..126 */
+	  case SDLK_SPACE ... SDLK_z: /* ASCII range 32..122 */
 		key = keysym.sym;
 		break;
 

@@ -736,7 +736,6 @@ static void special_port_outb(ioport_t port, Bit8u byte)
         }
 	/* Port writes for enable/disable blinking character mode */
 	if (port == 0x03c0) {
-		static int last_byte = -1;
 		static int last_index = -1;
 		static int flip_flop = 1;
 
@@ -769,7 +768,6 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		if (flip_flop) {
 		/* JES This was last_index = 0x10..... WRONG? */
 			vga.attr.data[last_index] = byte;
-			last_byte = byte;
 		}
 		else {
 			last_index = byte;

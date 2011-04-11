@@ -92,7 +92,7 @@ static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsign
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
-  fatfs_t *f0, *f;
+  fatfs_t *f;
   unsigned u;
 
   if(dp->fatfs) fatfs_done(dp);
@@ -182,7 +182,6 @@ void fatfs_init(struct disk *dp)
 
   f->obj[0].name = f->dir;
   f->obj[0].is.dir = 1;
-  f0 = hdisktab[0].fatfs;
   scan_dir(f, 0);	/* set # of root entries accordingly ??? */
   if(f->boot_sec == NULL) {
     build_boot_blk(f);

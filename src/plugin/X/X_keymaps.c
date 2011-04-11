@@ -23,7 +23,6 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 {
 	struct char_set *keyb_charset;
 	unsigned char buff[1];
-	size_t result;
 	struct char_set_state keyb_state;
 
 	/* 0xef00 - 0xefff is a pass through range to the current
@@ -35,7 +34,7 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 	keyb_charset = trconfig.keyb_config_charset;
 	init_charset_state(&keyb_state, keyb_charset);
 	buff[0] = ch & 0xFF;
-	result = charset_to_unicode(&keyb_state, &ch, buff, 1);
+	charset_to_unicode(&keyb_state, &ch, buff, 1);
 	cleanup_charset_state(&keyb_state);
 	return ch;
 }

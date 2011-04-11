@@ -115,7 +115,6 @@ static int tty_lock(char *path, int mode)
                   strlen(path) + 1];
   struct passwd *pw;
   pid_t ime;
-  int cwrote;
   char *slash;
 
   if (path == NULL) return(0);        /* standard input */
@@ -144,7 +143,7 @@ static int tty_lock(char *path, int mode)
 
       ime = getpid();
       if(config.tty_lockbinary)
-	cwrote = write (fileno(fd), &ime, sizeof(ime));
+	write (fileno(fd), &ime, sizeof(ime));
       else
 	fprintf(fd, "%10d\n", (int)ime);
 
@@ -172,7 +171,7 @@ static int tty_lock(char *path, int mode)
     ime = getpid();
      
     if(config.tty_lockbinary)
-      cwrote = write (fileno(fd), &ime, sizeof(ime));
+      write (fileno(fd), &ime, sizeof(ime));
     else
       fprintf(fd, "%10d\n", (int)ime);
 

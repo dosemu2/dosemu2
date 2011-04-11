@@ -27,6 +27,8 @@
  * Author: Stas Sergeev.
  */
 
+#if 0 /* NOT USED YET */
+
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
@@ -74,3 +76,5 @@ CONSTRUCTOR(static int wavsnd_init(void))
     return 0;
 #endif
 }
+
+#endif

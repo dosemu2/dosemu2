@@ -864,14 +864,14 @@ void vga_memcpy(void *dst, const void *src, size_t len)
 int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
 {
   int i, j;
-  unsigned page_fault, vga_page = 0, u, access_type, lin_addr;
+  unsigned page_fault, vga_page = 0, u, lin_addr;
 #if DEBUG_MAP >= 1
   unsigned char *cs_ip = SEG_ADR((unsigned char *), cs, ip);
   static char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
+  unsigned access_type = (scp->err >> 1) & 1;
 #endif
 
   page_fault = (lin_addr = (unsigned char *) scp->cr2 - mem_base) >> 12;
-  access_type = (scp->err >> 1) & 1;
 
 #if DEBUG_MAP >= 4
   if(my_fault && lin_addr == 0xa0077) {
@@ -1372,6 +1372,7 @@ void vgaemu_reset_mapping()
   startpage = config.mem_size > 640 ? (config.mem_size + 3) / 4: 0xa0;
   vga.mem.graph_base = startpage << 12;
   vga.mem.graph_size = 0xc0000 - vga.mem.graph_base;
+  i = NULL;
   for(page = startpage; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       &mem_base[page << 12], 1 << 12,

@@ -293,12 +293,12 @@ static void store_vga_mem(u_char * mem, int banks)
  * The following is from the X files
  * we need this here , cause we MUST disable the ROM SYNC feature
 */
-    u_char temp1, temp2;
+    u_char temp1;
 
     port_out(0x34, CRT_I);
     temp1 = port_in(CRT_D);
     port_out(temp1 & 0x0F, CRT_D);
-    temp2 = port_in(0x3cd);
+    port_in(0x3cd);
     port_out(0x00, 0x3cd);
   }
   planar = 1;

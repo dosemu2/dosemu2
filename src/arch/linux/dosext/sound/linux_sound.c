@@ -539,9 +539,8 @@ int linux_sb_get_free_fragments(int *total, int *free, int *bytes)
 int linux_sb_dma_get_free_space(void)
 {
   int free_fragments = 0, total_fragments = 0, bytes = 0;
-  int result = DMA_HANDLER_OK;
 
-  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments, &bytes);
+  linux_sb_get_free_fragments(&total_fragments, &free_fragments, &bytes);
 
   return bytes;
 

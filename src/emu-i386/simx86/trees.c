@@ -1177,7 +1177,7 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
 	p = G->addr + A->daddr;		// translated IP of following instr
 	dnpc = A->dnpc;
 	// check remaining instructions for forwards write because of jumps
-	for (j=i; i<G->seqnum; i++) {
+	for (j=i; j<G->seqnum; j++) {
 	    if (enpc >= A->dnpc) {		// if it's a forward write
 		memcpy(p, TailCode, TAILSIZE);
 		*((int *)(p+TAILFIX)) = G->key + dnpc;
