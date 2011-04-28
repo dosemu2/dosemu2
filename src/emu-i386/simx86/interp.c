@@ -269,8 +269,8 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		if (dsp == 0) {
 		    	// ndiags: shorten delay loops (e2 fe)
 			e_printf("### loop %x 0xfe\n",cond);
-			TheCPU.mode |= SKIPOP;
-			if (mode&ADDR16) rCX=0; else rECX=0;
+			Gen(L_IMM, ((mode&ADDR16) ? (mode|DATA16) : mode),
+			    Ofs_ECX, 0);
 			goto notakejmp;
 		}
 		else {
