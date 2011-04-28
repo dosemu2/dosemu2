@@ -742,7 +742,10 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			break;
 		       }
 /*d7*/	case XLAT:
-			Gen(O_XLAT, mode); PC++; break;
+			Gen(O_XLAT, mode);
+			Gen(L_DI_R1, mode|MBYTE);
+			Gen(S_REG, mode|MBYTE, Ofs_AL);
+			PC++; break;
 /*98*/	case CBW:
 			Gen(O_CBWD, mode|MBYTE); PC++; break;
 /*99*/	case CWD:

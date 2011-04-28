@@ -1706,7 +1706,6 @@ static void Gen_sim(int op, int mode, ...)
 			TR1.d &= 0xFFFF;
 		}
 		AR1.d += TR1.d;
-		CPUBYTE(Ofs_AL) = DR1.b.bl = *AR1.pu;
 		break;
 
 	case O_ROL: {		// O(if sh==1),C(if sh>0)

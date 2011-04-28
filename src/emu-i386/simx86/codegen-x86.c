@@ -1030,10 +1030,7 @@ arith1:
 			G3(0xC9B70F,Cp);
 		}
 		// leal (%%ecx,%%edi,1),%%edi
-		G4(0x8a393c8d,Cp);
-		// movb (%%edi),%%al
-		// movb %%al,Ofs_AL(%%ebx)
-		G4M(0x07,0x88,0x43,Ofs_AL,Cp);
+		G3M(0x8d,0x3c,0x39,Cp);
 		break;
 
 	case O_ROL:
