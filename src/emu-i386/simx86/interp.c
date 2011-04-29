@@ -831,21 +831,21 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			/* LOCK is allowed on BTS, BTR, BTC, XCHG, ADD...XOR (but not CMP),
 			   INC, DEC, NOT, NEG, XADD -- just ignore LOCK for now... */
 			if (op == 0x0f) {
-				op = Fetch(PC+i+1); /* BTS/BTR/BTC/XADD/
+				op = Fetch(PC+i);   /* BTS/BTR/BTC/XADD/
 						       CMPXCHG* */
 			  	if (op == 0xab || op == 0xb3 || op == 0xbb ||
 				    op == 0xc0 || op == 0xc1 ||
 				    op == 0xb0 || op == 0xb1 ||
-				    (op == 0xc7 && D_MO(Fetch(PC+i+2)) == 1)) {
+				    (op == 0xc7 && D_MO(Fetch(PC+i+1)) == 1)) {
 					PC++; goto override;
 				}
 			} else if (op >= 0xf6 && op < 0xf8) { /*NOT/NEG*/
-				op = Fetch(PC+i+1);
+				op = Fetch(PC+i);
 				if ((op & 0x30) == 0x10) {
 					PC++; goto override;
 				}
 			} else if (op >= 0xfe) { /*INC/DEC*/
-				op = Fetch(PC+i+1);
+				op = Fetch(PC+i);
 				if ((op & 0x30) == 0x00) {
 					PC++; goto override;
 				}
