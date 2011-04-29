@@ -198,6 +198,7 @@ TODO:
 
 #ifdef _LARGEFILE64_SOURCE
 #define stat stat64
+#define fstat fstat64
 #endif
 
 #ifdef __linux__
@@ -3828,6 +3829,7 @@ dos_fs_redirect(state_t *state)
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
     sft_device_info(sft) = (drive & 0x1f) + (0x8040);
+    fstat(fd, &st);
     time_to_dos(st.st_mtime, &sft_date(sft),
 		&sft_time(sft));
 
