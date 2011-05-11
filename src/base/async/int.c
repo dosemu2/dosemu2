@@ -483,7 +483,7 @@ int dos_helper(void)
     case DOS_HELPER_GET_DATA: {
 	unsigned int offs = REG(edi);
 	unsigned int size = REG(ecx);
-	unsigned char dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
+	unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
 	if (offs + size <= dos_io_buffer_size)
 	    MEMCPY_DOS2DOS(dos_ptr, dos_io_buffer + offs, size);
 	break;
