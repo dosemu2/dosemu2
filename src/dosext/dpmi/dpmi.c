@@ -1221,6 +1221,8 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
     }
     copy_context(dpmi_ctx, scp, 1);
   }
+  /* preset return code to 0 */
+  _eax = 0;
   /* simulate the "ret" from "call *%3" in dpmi_transfer() */
   _rip = emu_stack_ptr[-2];
   /* Don't inherit TF from DPMI! */
