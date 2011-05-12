@@ -41,6 +41,7 @@
 #include "iodev.h"
 #include "priv.h"
 #include "doshelpers.h"
+#include "cpu-emu.h"
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
@@ -263,6 +264,7 @@ void low_mem_init(void)
 #endif
     {
       int err = errno;
+#ifndef X86_EMULATOR
       perror ("LOWRAM mmap");
       if (err == EPERM || err == EACCES) {
 	fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
@@ -272,6 +274,19 @@ void low_mem_init(void)
 		"/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
       }
       leavedos(99);
+#else
+      if (err != EPERM && err != EACCES) {
+	perror ("LOWRAM mmap");
+        leavedos(99);
+      }
+      /* switch on vm86-only JIT CPU emulation to with non-zero base */
+      config.cpuemu = 3;
+      init_emu_cpu();
+      c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", vm86s.cpu_type);
+      fprintf(stderr, "Using CPU emulation because vm.mmap_min_addr > 0.\n");
+      if(dbg_fd)
+        fprintf(stderr, "For more information, see %s.\n", config.debugout);
+#endif
     }
 #ifdef X86_EMULATOR
     if (errno == EPERM || errno == EACCES) {
@@ -289,11 +304,11 @@ void low_mem_init(void)
       perror ("LOWRAM mmap");
       leavedos(99);
     }
-    fprintf(stderr, "EXPERIMENTAL: using non-zero memory base address %p.\n"
-	    "You can use the better-tested zero based setup using\n"
-	    "sysctl -w vm.mmap_min_addr=0\n"
-	    "as root, or by changing the vm.mmap_min_addr setting in\n"
-	    "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n",
+    warn("WARN: using non-zero memory base address %p.\n"
+	 "WARN: You can use the better-tested zero based setup using\n"
+	 "WARN: sysctl -w vm.mmap_min_addr=0\n"
+	 "WARN: as root, or by changing the vm.mmap_min_addr setting in\n"
+	 "WARN: /etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n",
 	    result);
     *(unsigned char **)&mem_base = result;
 #endif
