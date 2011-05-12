@@ -936,8 +936,6 @@ config_init(int argc, char **argv)
                 fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
                 exit(1);
             }
-            free(config.debugout);
-            config.debugout = NULL;
         }
     }
 
