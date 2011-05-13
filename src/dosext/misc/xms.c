@@ -93,38 +93,14 @@ static int FindFreeHandle(int);
    UMB's tops and people tend to allocate it in large chunks.  UMBS is
    currently 512 (as opposed to UMB_SIZE/16 or 16K entries) which is
    probably still insanely high.  Ah linear table searching... -- scottb */
-#define UMB_BASE (caddr_t)0xc0000
+#define UMB_BASE 0xc0000
 #define UMB_SIZE 0x40000
 #define UMBS 512
 #define UMB_PAGE 4096
 #define UMB_NULL -1
 
-#if 0
-/* EMS page frame 0xd0000-0xdffff.  DOSEMU uses 0xe0000-0xeffff */
-#define IN_EMM_SPACE(addr) (config.ems_size && (int)(addr) >= 0xd0000 \
-			    && (int)(addr) <= 0xdffff)
-#else
-/*  EMS page frame now is configurable via /etc/dosemu.conf */
-#define SPACE_64K   0x10000
-#define IN_EMM_SPACE(addr) ((config.ems_size || config.pm_dos_api) \
-			    && (int)(addr) >= EMM_BASE_ADDRESS \
-                            && (int)(addr) < (EMM_BASE_ADDRESS+SPACE_64K))
-
-#define IN_HARDWARE_PAGES(addr) ( config.must_spare_hardware_ram\
-                                  && ((int)addr >= HARDWARE_RAM_START) \
-                                  && ((int)addr < HARDWARE_RAM_STOP) \
-                                  && ( config.hardware_pages[((int)addr-HARDWARE_RAM_START) >> 12] ) )
-#endif
-
-/* XXX - I have assumed 32k of BIOS... */
-#define IN_BIOS_SPACE(addr) ((int)(addr) >= VBIOS_START && \
-      (int)(addr) < (VBIOS_START + VBIOS_SIZE) && config.mapped_bios)
-
-#define IN_EMU_SPACE(addr) (((int)(addr) >= (BIOSSEG*16) && (int)(addr) <= \
-			    (BIOSSEG*16 + 0xffff)) || IN_BIOS_SPACE(addr))
-
 static struct umb_record {
-  vm_address_t addr;
+  unsigned int addr;
   vm_size_t size;
   boolean_t in_use;
   boolean_t free;
@@ -157,25 +133,25 @@ umb_setup(void)
     umb = umb_find_unused();
     umbs[umb].in_use = TRUE;
     umbs[umb].free = TRUE;
-    umbs[umb].addr = (vm_address_t)(uintptr_t) addr_start;
+    umbs[umb].addr = addr_start;
     umbs[umb].size = size;
   }
 
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use && umbs[i].free) {
-      vm_address_t addr = umbs[i].addr;
+      unsigned int addr = umbs[i].addr;
       vm_size_t size = umbs[i].size;
 #if 0
       MACH_CALL((vm_deallocate(mach_task_self(),
-			       (vm_address_t) addr,
+			       addr,
 			       (vm_size_t) size)), "vm_deallocate");
       MACH_CALL((vm_allocate(mach_task_self(), &addr,
 			     (vm_size_t) size,
 			     FALSE)),
 		"vm_allocate of umb block.");
 #else
-      Debug0((dbg_fd, "umb_setup: addr %p size 0x%04zx\n",
-	      (void *) addr, size));
+      Debug0((dbg_fd, "umb_setup: addr %x size 0x%04zx\n",
+	      addr, size));
 #endif
     }
   }
@@ -199,7 +175,7 @@ static int
 umb_find(int segbase)
 {
   int i;
-  vm_address_t addr = SEG2LINEAR(segbase);
+  unsigned int addr = SEGOFF2LINEAR(segbase, 0);
 
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use &&
@@ -211,7 +187,7 @@ umb_find(int segbase)
   return (UMB_NULL);
 }
 
-static vm_address_t
+static unsigned int
 umb_allocate(int size)
 {
   int i;
@@ -242,12 +218,12 @@ umb_allocate(int size)
 	}
     }
   }
-  return ((vm_address_t) 0);
+  return 0;
 }
 
 static void umb_cleanup(int umb)
 {
-  vm_address_t umb_top = umbs[umb].addr + umbs[umb].size;
+  unsigned int umb_top = umbs[umb].addr + umbs[umb].size;
   int i, updated;
 
   do {
@@ -390,10 +366,10 @@ static void xms_control(void)
   case XMS_ALLOCATE_UMB:
     {
       int size = LWORD(edx) << 4;
-      vm_address_t addr = umb_allocate(size);
+      unsigned int addr = umb_allocate(size);
       is_umb_fn = 1;
       Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
-      if (addr == (vm_address_t) 0) {
+      if (addr == 0) {
         int avail=umb_query();
 
 	Debug0((dbg_fd, "Allocate UMB Failure\n"));
@@ -715,7 +691,7 @@ xms_allocate_EMB(int api)
     handles[h].lockcount = 0;
     handle_count++;
 
-    x_printf("XMS: allocated EMB %lu at %p\n", h, (void *) handles[h].addr);
+    x_printf("XMS: allocated EMB %lu at %p\n", h, handles[h].addr);
 
     if (api == OLDXMS)
       LWORD(edx) = h;		/* handle # */
@@ -790,7 +766,7 @@ xms_move_EMB(void)
   }
 
   x_printf("XMS: block move from %p to %p len 0x%lx\n",
-	   (void *) src, (void *) dest, e.Length);
+	   src, dest, e.Length);
   memmove_dos2dos(dest, src, e.Length);
   if (dest >= mem_base && dest < &mem_base[0x110000])
     e_invalidate(dest, e.Length);
