@@ -178,7 +178,7 @@ static struct emm_record {
 static struct handle_record {
   u_char active;
   int numpages;
-  mach_port_t object;
+  void *object;
   size_t objsize;
   char name[9];
   int saved_mappings_handle[EMM_MAX_PHYS];
@@ -286,40 +286,39 @@ ems_helper(void) {
   LWORD(eax) = 0;	/* report success */
 }
 
-static mach_port_t
+static void *
 new_memory_object(size_t bytes)
 {
-  mach_port_t addr;
+  void *addr;
   if (!bytes)
     return NULL;
   addr = alloc_mapping(MAPPING_EMS, bytes, 0);
   if (!addr) return 0;
-  E_printf("EMS: allocating 0x%08zx bytes @ %p\n", bytes, (void *) addr);
+  E_printf("EMS: allocating 0x%08zx bytes @ %p\n", bytes, addr);
   return (addr);		/* allocate on a PAGE boundary */
 }
 
 static inline void
-destroy_memory_object(mach_port_t object, int length)
+destroy_memory_object(unsigned char *object, int length)
 {
   if (!object)
     return;
-  E_printf("EMS: destroyed EMS object @ %p\n", (void *) object);
+  E_printf("EMS: destroyed EMS object @ %p\n", object);
   free_mapping(MAPPING_EMS, object, length);
 }
 
-static inline mach_port_t realloc_memory_object(mach_port_t object, size_t oldsize, size_t bytes)
+static inline void *realloc_memory_object(void *object, size_t oldsize, size_t bytes)
 {
-  void *addr = (mach_port_t)realloc_mapping(MAPPING_EMS, (void *)object,
-  	oldsize, bytes);
+  void *addr = realloc_mapping(MAPPING_EMS, object, oldsize, bytes);
   if (addr == MAP_FAILED) return 0;
-  return (mach_port_t)addr;
+  return addr;
 }
 
 static int
 allocate_handle(int pages_needed)
 {
   int i, j;
-  mach_port_t obj;
+  void *obj;
 
   if (handle_total >= MAX_HANDLES) {
     emm_error = EMM_OUT_OF_HAN;
@@ -364,7 +363,7 @@ static boolean_t
 deallocate_handle(int handle)
 {
   int numpages, i;
-  mach_port_t object;
+  void *object;
 
   if ((handle < 0) || (handle >= MAX_HANDLES))
     return (FALSE);
@@ -379,46 +378,47 @@ deallocate_handle(int handle)
   destroy_memory_object(object,numpages*EMM_PAGE_SIZE);
   handle_info[handle].numpages = 0;
   handle_info[handle].active = 0;
-  handle_info[handle].object = MACH_PORT_NULL;
+  handle_info[handle].object = NULL;
   CLEAR_HANDLE_NAME(handle_info[i].name);
   handle_total--;
   emm_allocated -= numpages;
   return (TRUE);
 }
 
-static void _do_map_page(caddr_t dst, caddr_t src, int size)
+static void _do_map_page(unsigned int dst, caddr_t src, int size)
 {
-  E_printf("EMS: mmap()ing from %p to %p\n", src, dst);
+  E_printf("EMS: mmap()ing from %p to %#x\n", src, dst);
   
-  if ((caddr_t)dst != alias_mapping(MAPPING_EMS, dst, size,
+  if (&mem_base[dst] != alias_mapping(MAPPING_EMS, &mem_base[dst], size,
 			      PROT_READ | PROT_WRITE | PROT_EXEC,
-			      (void *) src)) {
+			      src)) {
     E_printf("EMS: mmap() failed: %s\n",strerror(errno));
     leavedos(2);
   }
 }
 
-static void _do_unmap_page(caddr_t base, int size)
+static void _do_unmap_page(unsigned int base, int size)
 {
-  E_printf("EMS: unmmap()ing from %p\n", base);
+  E_printf("EMS: unmmap()ing from %#x\n", base);
   /* don't unmap, just overmap with the LOWMEM page */
   /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
-  mmap_mapping(MAPPING_LOWMEM, base, size,
-	PROT_READ | PROT_WRITE | PROT_EXEC, (unsigned char *)base - mem_base);
+  mmap_mapping(MAPPING_LOWMEM, &mem_base[base], size,
+	PROT_READ | PROT_WRITE | PROT_EXEC, base);
 }
 
 void emm_unmap_all()
 {
   if (!config.ems_size)
     return;
-  _do_unmap_page((caddr_t) EMM_BASE_ADDRESS, EMS_FRAME_SIZE);
+  _do_unmap_page(EMM_BASE_ADDRESS, EMS_FRAME_SIZE);
 }
 
 static boolean_t
 __map_page(int physical_page)
 {
   int handle;
-  caddr_t logical, base;
+  caddr_t logical;
+  unsigned int base;
 
   if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS))
     return (FALSE);
@@ -429,8 +429,8 @@ __map_page(int physical_page)
   E_printf("EMS: map()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
 
-  base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
-  logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
+  base = EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  logical = handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
   _do_map_page(base, logical, EMM_PAGE_SIZE);
   return (TRUE);
@@ -440,7 +440,7 @@ static boolean_t
 __unmap_page(int physical_page)
 {
   int handle;
-  caddr_t base;
+  unsigned int base;
 
   if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS))
     return (FALSE);
@@ -451,7 +451,7 @@ __unmap_page(int physical_page)
   E_printf("EMS: unmap()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
 
-  base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  base = EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
 
   _do_unmap_page(base, EMM_PAGE_SIZE);
   	
@@ -482,7 +482,8 @@ reunmap_page(int physical_page)
 static boolean_t
 map_page(int handle, int physical_page, int logical_page)
 { 
-  caddr_t base, logical;
+  unsigned int base;
+  caddr_t logical;
 
   E_printf("EMS: map_page(handle=%d, phy_page=%d, log_page=%d), prev handle=%d\n", 
            handle, physical_page, logical_page, emm_map[physical_page].handle);
@@ -502,8 +503,8 @@ map_page(int handle, int physical_page, int logical_page)
   if (emm_map[physical_page].handle != NULL_HANDLE)
     unmap_page(physical_page);
 
-  base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
-  logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
+  base = EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  logical = handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
    
   _do_map_page(base, logical, EMM_PAGE_SIZE);
 
@@ -646,7 +647,7 @@ map_unmap_multiple(state_t * state)
 
       Kdebug0((dbg_fd, "...using mult_logphys method, "
 	       "handle %d, map_len %d, array @ %p\n",
-	       handle, map_len, (void *) array));
+	       handle, map_len, array));
 
       for (i = 0; i < map_len; i++) {
 	log = *(u_short *) array++;
@@ -666,7 +667,7 @@ map_unmap_multiple(state_t * state)
 
       Kdebug0((dbg_fd, "...using mult_logseg method, "
 	       "handle %d, map_len %d, array @ %p\n",
-	       handle, map_len, (void *) array));
+	       handle, map_len, array));
 
       for (i = 0; i < map_len; i++) {
 	log = *(u_short *) array;
@@ -708,7 +709,7 @@ reallocate_pages(state_t * state)
   int diff;
   int handle = WORD(state->edx);
   int newcount = WORD(state->ebx);
-  mach_port_t obj;
+  void *obj;
 
   if ((handle < 0) || (handle > MAX_HANDLES)) {
     SETHIGH(&(state->eax), EMM_INV_HAN);
@@ -1034,7 +1035,7 @@ move_memory_region(state_t * state)
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   caddr_t dest, source, mem;
 
-  mem = (caddr_t)((u_char *) Addr(state, ds, esi));
+  mem = ((u_char *) Addr(state, ds, esi));
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)
@@ -1049,11 +1050,11 @@ move_memory_region(state_t * state)
 	       mem_move->source_segment, handle_info[mem_move->source_handle].numpages);
       return (0x8a);
     }
-    source = (caddr_t) handle_info[mem_move->source_handle].object +
-      (int) mem_move->source_segment * EMM_PAGE_SIZE +
+    source = handle_info[mem_move->source_handle].object +
+      mem_move->source_segment * EMM_PAGE_SIZE +
       mem_move->source_offset;
-    mem = (caddr_t) handle_info[mem_move->source_handle].object +
-      (int) handle_info[mem_move->source_handle].numpages * EMM_PAGE_SIZE;
+    mem = handle_info[mem_move->source_handle].object +
+      handle_info[mem_move->source_handle].numpages * EMM_PAGE_SIZE;
     if ((source + mem_move->size - 1) > mem) {
       E_printf("EMS: Source move of %p is outside handle allocation max of %p, size=%x\n", source, mem, mem_move->size);
       return (0x93);
@@ -1072,11 +1073,11 @@ move_memory_region(state_t * state)
        mem_move->dest_segment, handle_info[mem_move->dest_handle].numpages);
       return (0x8a);
     }
-    dest = (caddr_t) handle_info[mem_move->dest_handle].object +
-      (int) mem_move->dest_segment * EMM_PAGE_SIZE +
+    dest = handle_info[mem_move->dest_handle].object +
+      mem_move->dest_segment * EMM_PAGE_SIZE +
       mem_move->dest_offset;
     mem = handle_info[mem_move->dest_handle].object +
-      (int) handle_info[mem_move->dest_handle].numpages * EMM_PAGE_SIZE;
+      handle_info[mem_move->dest_handle].numpages * EMM_PAGE_SIZE;
     if ((dest + mem_move->size) > mem) {
       E_printf("EMS: Dest move of %p is outside handle allocation of %p, size=%x\n", dest, mem, mem_move->size);
       return (0x93);
@@ -1106,7 +1107,7 @@ exchange_memory_region(state_t * state)
   struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem, tmp;
 
-  mem = (caddr_t)((u_char *) Addr(state, ds, esi));
+  mem = ((u_char *) Addr(state, ds, esi));
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)
@@ -1116,8 +1117,8 @@ exchange_memory_region(state_t * state)
       E_printf("EMS: Xchng memory region source handle not active\n");
       return (0x83);
     }
-    source = (caddr_t) handle_info[mem_move->source_handle].object +
-      (int) mem_move->source_segment * EMM_PAGE_SIZE +
+    source = handle_info[mem_move->source_handle].object +
+      mem_move->source_segment * EMM_PAGE_SIZE +
       mem_move->source_offset;
   }
   if (mem_move->dest_type == 0)
@@ -1127,8 +1128,8 @@ exchange_memory_region(state_t * state)
       E_printf("EMS: Xchng memory region dest handle not active\n");
       return (0x83);
     }
-    dest = (caddr_t) handle_info[mem_move->dest_handle].object +
-      (int) mem_move->dest_segment * EMM_PAGE_SIZE +
+    dest = handle_info[mem_move->dest_handle].object +
+      mem_move->dest_segment * EMM_PAGE_SIZE +
       mem_move->dest_offset;
   }
 
@@ -1157,7 +1158,7 @@ get_mpa_array(state_t * state)
       u_short *ptr = (u_short *) Addr(state, es, edi);
       int i;
 
-      Kdebug0((dbg_fd, "GET_MPA addr %p called\n", (void *) ptr));
+      Kdebug0((dbg_fd, "GET_MPA addr %p called\n", ptr));
 
       for (i = 0; i < EMM_MAX_PHYS; i++) {
 	*ptr = PHYS_PAGE_SEGADDR(i);
@@ -1653,7 +1654,7 @@ ems_fn(state)
       u_short *ptr = (u_short *) Addr(state, es, edi);
 
       Kdebug1((dbg_fd, "bios_emm: Get Pages For all to %p\n",
-	       (void *) ptr));
+	       ptr));
 
       for (i = 0; i < MAX_HANDLES; i++) {
 	if ((i == 0) || (handle_info[i].numpages > 0)) {
@@ -1860,7 +1861,7 @@ void ems_init(void)
   E_printf("EMS: initializing memory\n");
 
   memcheck_addtype('E', "EMS page frame");
-  memcheck_reserve('E', EMM_BASE_ADDRESS - mem_base, EMM_MAX_PHYS * EMM_PAGE_SIZE);
+  memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
 
   ems_reset2();
 }
