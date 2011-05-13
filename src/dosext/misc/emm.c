@@ -404,7 +404,7 @@ static void _do_unmap_page(caddr_t base, int size)
   /* don't unmap, just overmap with the LOWMEM page */
   /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
   mmap_mapping(MAPPING_LOWMEM, base, size,
-	PROT_READ | PROT_WRITE | PROT_EXEC, (off_t)base);
+	PROT_READ | PROT_WRITE | PROT_EXEC, (unsigned char *)base - mem_base);
 }
 
 void emm_unmap_all()
