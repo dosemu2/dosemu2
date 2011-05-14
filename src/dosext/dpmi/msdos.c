@@ -1322,7 +1322,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 
 int msdos_pre_rm(struct sigcontext_struct *scp)
 {
-  unsigned int lina = SEGOFF2LINEAR(_CS, _IP);
+  unsigned int lina = SEGOFF2LINEAR(_CS, _IP) - 1;
   unsigned short *ssp = (us *) (GetSegmentBaseAddress(_ss) + D_16_32(_esp));
 
   if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback)) {
