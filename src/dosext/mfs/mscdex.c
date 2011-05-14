@@ -75,7 +75,7 @@ static int ReadSectors(int drive, Bit32u sector, Bit16u num, unsigned char *buf)
 	Bit8u driver = GetDriver(drive);
 	if (driver >= 4)
 		return MSCDEX_ERROR_UNKNOWN_DRIVE;
-	*CALC_PTR(req_buf, MSCD_READ_STARTSECTOR, u_long) = sector;
+	*CALC_PTR(req_buf, MSCD_READ_STARTSECTOR, u_int) = sector;
 	*CALC_PTR(req_buf, MSCD_READ_ADRESSING, u_char) = 0;
 	*CALC_PTR(req_buf, MSCD_READ_NUMSECTORS, u_short) = num;
 	_AH = 2 | (driver << 6);
