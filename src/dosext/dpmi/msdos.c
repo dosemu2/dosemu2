@@ -1322,10 +1322,10 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 
 int msdos_pre_rm(struct sigcontext_struct *scp)
 {
-  unsigned char *lina = SEG_ADR((unsigned char *), cs, ip) - 1;
+  unsigned int lina = SEGOFF2LINEAR(_CS, _IP);
   unsigned short *ssp = (us *) (GetSegmentBaseAddress(_ss) + D_16_32(_esp));
 
-  if (lina == (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_mouse_callback))) {
+  if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback)) {
     if (!ValidAndUsedSelector(MSDOS_CLIENT.mouseCallBack.selector)) {
       D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
       return 0;
@@ -1348,8 +1348,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
 	_LWORD(esp) -= 4;
     }
 
-  } else if (lina ==(unsigned char *)(DPMI_ADD +
-				      HLT_OFF(MSDOS_PS2_mouse_callback))) {
+  } else if (lina == DPMI_ADD + HLT_OFF(MSDOS_PS2_mouse_callback)) {
     unsigned short *rm_ssp;
     if (!ValidAndUsedSelector(MSDOS_CLIENT.PS2mouseCallBack.selector)) {
       D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
