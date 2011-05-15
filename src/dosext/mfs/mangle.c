@@ -66,11 +66,11 @@ static int str_checksum(char *s)
 check if a name is a special msdos reserved name:
 the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
-unsigned long is_dos_device(const char *fname)
+unsigned int is_dos_device(const char *fname)
 {
   char *p;
   unsigned char *dev;
-  unsigned long devfar;
+  unsigned int devfar;
   int i;
 
   /*
@@ -103,7 +103,7 @@ unsigned long is_dos_device(const char *fname)
 
   /* walk the chain of DOS devices; see also FreeDOS kernel code */
   dev = &lol[lol_nuldev_off];
-  devfar = (((unsigned long)dev - 0x26) << 12) | 0x26;
+  devfar = MK_FP16(FP_SEG32(dev - 0x26), 0x26);
   do
   {
     for (i = 0; i < 8; i++)

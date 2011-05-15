@@ -946,7 +946,7 @@ static void sigquit(struct sigcontext_struct *scp)
   show_ints(0, 0x33);
   show_regs(__FILE__, __LINE__);
 
-  *(unsigned char *)BIOS_KEYBOARD_FLAGS = 0x80;	/* ctrl-break flag */
+  WRITE_BYTE(BIOS_KEYBOARD_FLAGS, 0x80);	/* ctrl-break flag */
 
   do_soft_int(0x1b);
 }

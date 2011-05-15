@@ -130,8 +130,8 @@ typedef struct {
 } far_t;
 #define MK_FP16(s,o)		((((unsigned int)s) << 16) | (o & 0xffff))
 #define MK_FP			MK_FP16
-#define FP_OFF16(far_ptr)	((int)far_ptr & 0xffff)
-#define FP_SEG16(far_ptr)	(((unsigned int)far_ptr >> 16) & 0xffff)
+#define FP_OFF16(far_ptr)	((far_ptr) & 0xffff)
+#define FP_SEG16(far_ptr)	(((far_ptr) >> 16) & 0xffff)
 #define MK_FP32(s,o)		((void *)&mem_base[SEGOFF2LINEAR(s,o)])
 #define FP_OFF32(void_ptr)	((((unsigned char *)void_ptr)-mem_base) & 15)
 #define FP_SEG32(void_ptr)	(((((unsigned char *)void_ptr)-mem_base) >> 4) & 0xffff)

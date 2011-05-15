@@ -2920,10 +2920,9 @@ static void find_dir(char *fpath, int drive)
   free(buf);
 }
 
-static void open_device(unsigned long devptr, char *fname, sft_t sft)
+static void open_device(unsigned int devptr, char *fname, sft_t sft)
 {
-  unsigned char *dev =
-    (unsigned char *)(((devptr & 0xffff0000) >> 12) + (devptr & 0xffff));
+  unsigned char *dev = MK_FP32(FP_SEG16(devptr), FP_OFF16(devptr));
   memcpy(sft_name(sft), fname, 8);
   memset(sft_ext(sft), ' ', 3);
   sft_dev_drive_ptr(sft) = devptr;
@@ -3171,7 +3170,7 @@ dos_fs_redirect(state_t *state)
   char *filename2;
   char *dta;
   long s_pos=0;
-  unsigned long devptr;
+  unsigned int devptr;
   u_char attr;
   u_char subfunc;
   u_short dos_mode, unix_mode;
@@ -3267,7 +3266,7 @@ dos_fs_redirect(state_t *state)
     {
       size_t len = strlen(filename1);
       if (len > 3 && filename1[len-1] == '\\') {
-        filename1[len-1] = '\0';
+        WRITE_BYTEP(&filename1[len-1], '\0');
       }
     }
     Debug0((dbg_fd, "New CWD is %s\n", filename1));
