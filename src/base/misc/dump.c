@@ -55,22 +55,21 @@ void
 show_regs(char *file, int line)
 {
   int i;
-  unsigned char *sp;
-  unsigned char *cp;
+  unsigned int sp, cp;
 
   if (debug_level('g') == 0)
     return;
 
-  cp = SEG_ADR((unsigned char *), cs, ip);
+  cp = SEGOFF2LINEAR(_CS, _IP);
   if (!cp) {
     g_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",REG(cs),LWORD(eip));
     return;
   }
 
   if (!LWORD(esp))
-    sp = (SEG_ADR((u_char *), ss, sp)) + 0x8000;
+    sp = SEGOFF2LINEAR(_SS, _SP) + 0x8000;
   else
-    sp = SEG_ADR((u_char *), ss, sp);
+    sp = SEGOFF2LINEAR(_SS, _SP);
 
   g_printf("Program=%s, Line=%d\n", file, line);
   g_printf("EIP: %04x:%08x", LWORD(cs), REG(eip));
@@ -117,24 +116,24 @@ show_regs(char *file, int line)
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
-  if ((sp < (unsigned char *)0xa0000) && (sp > (unsigned char *)10)) {
+  if (sp < 0xa0000 && sp > 10) {
 	  g_printf("STACK: ");
 	  sp -= 10;
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", *sp++);
+		  g_printf("%02x ", READ_BYTE(sp++));
 	  g_printf("-> ");
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", *sp++);
+		  g_printf("%02x ", READ_BYTE(sp++));
 	  g_printf("\n");
   }
-  if ((cp < (unsigned char *)0xa0000) && (cp>(unsigned char *)10)) {
+  if (cp < 0xa0000 && cp>10) {
 	  g_printf("OPS  : ");
 	  cp -= 10;
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", *cp++);
+		  g_printf("%02x ", READ_BYTE(cp++));
 	  g_printf("-> ");
 	  for (i = 0; i < 10; i++)
-		  g_printf("%02x ", *cp++);
+		  g_printf("%02x ", READ_BYTE(cp++));
 	  g_printf("\n\t%s\n", emu_disasm(0));
   }
 }
@@ -159,7 +158,6 @@ show_ints(int min, int max)
 #error MAX_SELECTORS needs to be 8192
 #endif
 
-#define GetSegmentBaseAddress(s)	((unsigned long)Segments[(s) >> 3].base_addr)
 #define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
 char *DPMI_show_state(struct sigcontext_struct *scp)
@@ -183,7 +181,7 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
     }
     else {
       /* LDT */
-      csp2 = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip) - 10;
+      csp2 = (GetSegmentBaseAddress(_cs) + _eip) - 10;
     }
     /* We have a problem here, if we get a page fault or any kind of
      * 'not present' error and then we try accessing the code/stack
@@ -215,13 +213,13 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
       else {
         /* LDT */
         if (Segments[_ss>>3].is_32)
-	  ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _esp ) - 10;
+	  ssp2 = (GetSegmentBaseAddress(_ss) + _esp ) - 10;
         else
-	  ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10;
+	  ssp2 = (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10;
       }
       sprintf(buf, "%sSTACK: ", buf);
       if (!(_ss & 0x0004) ||
-	  (uintptr_t)ssp2 < 0x110000 ||
+	  (ssp2 >= &mem_base[0] && ssp2 < &mem_base[0x110000]) ||
 	  ((uintptr_t)ssp2 > config.dpmi_base &&
 	   (uintptr_t)ssp2 < config.dpmi_base + config.dpmi * 1024)) {
 	for (i = 0; i < 10; i++)
