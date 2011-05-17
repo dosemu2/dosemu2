@@ -3060,7 +3060,7 @@ repag0:
 not_implemented:
 	dbug_printf("!!! Unimplemented %02x %02x %02x at %08x\n",opc,
 		    Fetch(PC+1),Fetch(PC+2),PC);
-	TheCPU.err = -2; return PC;
+	TheCPU.err = -2; return P0;
 #ifdef HOST_ARCH_X86
 bad_return:
 	dbug_printf("!!! Bad code return\n");
@@ -3068,13 +3068,13 @@ bad_return:
 #endif
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
-	TheCPU.err = EXCP0D_GPF; return PC;
+	TheCPU.err = EXCP0D_GPF; return P0;
 //div_by_zero:
 //	dbug_printf("!!! Div by 0 %02x\n",opc);
-//	TheCPU.err = -6; return PC;
+//	TheCPU.err = -6; return P0;
 illegal_op:
 	dbug_printf("!!! Illegal op %02x %02x %02x\n",opc,
 		    Fetch(PC+1),Fetch(PC+2));
-	TheCPU.err = EXCP06_ILLOP; return PC;
+	TheCPU.err = EXCP06_ILLOP; return P0;
 }
 
