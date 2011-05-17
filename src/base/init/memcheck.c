@@ -116,6 +116,7 @@ void memcheck_type_init(void)
   memcheck_addtype('d', "Base DOS memory (first 640K)");
   memcheck_addtype('r', "Dosemu reserved area");
   memcheck_addtype('h', "Direct-mapped hardware page frame");
+  memcheck_addtype('v', "Video memory");
 }
 
 void memcheck_init(void)

@@ -28,8 +28,8 @@
 
 static int vesa_regs_size, vesa_granularity, vesa_read_write;
 static char *vesa_oemstring = NULL;
-static size_t vesa_linear_vbase;
-static unsigned long vesa_int10, vesa_oemid;
+static unsigned vesa_linear_vbase;
+static unsigned vesa_int10, vesa_oemid;
 static unsigned vesa_version;
 static struct vm86_regs vesa_r;
 
@@ -87,8 +87,10 @@ static void vesa_reinit(void)
     vesa_granularity= VBE_vmWinGran;
     vesa_read_write = VBE_vmWinAAttrib & 6;
     if (vesa_version >= 0x200 && (VBE_vmModeAttrib & 0x80) && config.pci_video) {
-      vesa_linear_vbase = (size_t)get_hardware_ram(VBE_vmPhysBasePtr);
-      v_printf("VESA: physical base = %x, virtual base = %zx\n",
+      unsigned char *p = get_hardware_ram(VBE_vmPhysBasePtr);
+      if (p)
+        vesa_linear_vbase = p - mem_base;
+      v_printf("VESA: physical base = %x, virtual base = %x\n",
 	       VBE_vmPhysBasePtr, vesa_linear_vbase);
     }
   } else {

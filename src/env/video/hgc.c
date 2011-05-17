@@ -395,7 +395,7 @@ static int hgc_init(void)
   {
 #include "memory.h"
     int i;
-    unsigned short blank = ' ' | (7 << 8), *p = (unsigned short *)MDA_PHYS_TEXT_BASE;
+    unsigned short blank = ' ' | (7 << 8), *p = (unsigned short *)MDA_VIRT_TEXT_BASE;
     for ( i = 0; i < 2000; i++ )
       *p++ = blank;
   }

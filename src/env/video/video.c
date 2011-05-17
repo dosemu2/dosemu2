@@ -275,8 +275,6 @@ reserve_video_memory(void)
 {
   int graph_base = GRAPH_BASE, graph_size = GRAPH_SIZE;
 
-  memcheck_addtype('v', "Video memory");
-
 /* 
  * DANG_BEGIN_REMARK
  * reserve_video_memory()
@@ -381,8 +379,6 @@ gettermcap(int i, int *co, int *li)
 
 void
 video_config_init(void) {
-  scr_state_init();
-   
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
 
   video_init();
@@ -392,5 +388,6 @@ video_config_init(void) {
 
 void video_post_init(void)
 {
+  scr_state_init();
   if (Video && Video->init) Video->init();
 }
