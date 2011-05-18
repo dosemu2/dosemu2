@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
@@ -32,6 +33,7 @@
 #include "mapping.h"
 #include "vga.h"
 #include "utilities.h"
+#include "pci.h"
 
 struct video_system *Video = NULL;
 
@@ -88,6 +90,70 @@ static int no_real_terminal(void)
   return 0;
 }
 
+/* check whether KMS is used.
+ * in that case graphics=(1)/console=(1) cannot work.
+ * code adapted from libdrm (drmCheckModesettingSupported)
+ */
+static int using_kms(void)
+{
+#ifdef __linux__
+    char pci_dev_dir[1024];
+    int bus, dev, func;
+    DIR *sysdir;
+    struct dirent *dent;
+    int found = 0;
+    pciRec *pcirec;
+
+    if (!pcibios_init()) return 0;
+    pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
+    if (!pcirec) return 0;
+
+    bus = pcirec->bdf >> 8;
+    dev = (pcirec->bdf & 0xff) >> 3;
+    func = pcirec->bdf & 0x7;
+
+    sprintf(pci_dev_dir, "/sys/bus/pci/devices/0000:%02x:%02x.%d/drm",
+            bus, dev, func);
+
+    sysdir = opendir(pci_dev_dir);
+    if (sysdir) {
+        dent = readdir(sysdir);
+        while (dent) {
+            if (!strncmp(dent->d_name, "controlD", 8)) {
+                found = 1;
+                break;
+            }
+            dent = readdir(sysdir);
+        }
+        closedir(sysdir);
+        if (found)
+            return 1;
+    }
+
+    sprintf(pci_dev_dir, "/sys/bus/pci/devices/0000:%02x:%02x.%d/",
+            bus, dev, func);
+
+    sysdir = opendir(pci_dev_dir);
+    if (!sysdir)
+        return 0;
+
+    dent = readdir(sysdir);
+    while (dent) {
+        if (!strncmp(dent->d_name, "drm:controlD", 12)) {
+            found = 1;
+            break;
+        }
+        dent = readdir(sysdir);
+    }
+
+    closedir(sysdir);
+    if (found)
+        return 1;
+
+#endif
+    return 0;
+}
+
 /* 
  * DANG_BEGIN_FUNCTION video_init
  *
@@ -99,6 +165,12 @@ static int no_real_terminal(void)
  */
 static int video_init(void)
 {
+  if ((config.vga || config.console_video) && using_kms())
+  {
+    config.vga = config.console_video = 0;
+    warn("KMS detected: using terminal mode. Use -S for SDL mode with graphics.\n");
+  }
+
   /* figure out which video front end we are to use */
   if (no_real_terminal() || config.cardtype == CARD_NONE) {
      v_printf("VID: Video set to Video_none\n");

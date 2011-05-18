@@ -299,6 +299,8 @@ static int pci_open_proc(unsigned char bus, unsigned char device,
   Z_printf("PCI: opening %s\n", proc_pci_name_buf);
   enter_priv_on();
   fd = open(proc_pci_name_buf, O_RDWR);
+  if (fd == -1)
+    fd = open(proc_pci_name_buf, O_RDONLY);
   leave_priv_setting();
   return fd;
 }

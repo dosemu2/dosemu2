@@ -174,6 +174,10 @@ pcibios_init(void)
     int cardnum_lo = 0;
     int cardnum_hi = MAX_DEV_PER_VENDOR_CFG1;
     int func_hi = 8;
+    static int ret = -1;
+
+    if (ret != -1) return ret;
+    ret = 0;
 
     pcibuses[0] = 0;
 
@@ -213,6 +217,7 @@ pcibios_init(void)
     } while (++busidx <= numbus);
 
     lastBus = numbus;
+    ret = 1;
     return 1;
 }
 
