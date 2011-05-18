@@ -90,6 +90,8 @@ static int no_real_terminal(void)
   return 0;
 }
 
+/* According to Reinhard Karcher console graphics may actually work with KMS! */
+#ifdef CHECK_KMS
 /* check whether KMS is used.
  * in that case graphics=(1)/console=(1) cannot work.
  * code adapted from libdrm (drmCheckModesettingSupported)
@@ -153,6 +155,7 @@ static int using_kms(void)
 #endif
     return 0;
 }
+#endif
 
 /* 
  * DANG_BEGIN_FUNCTION video_init
@@ -165,11 +168,13 @@ static int using_kms(void)
  */
 static int video_init(void)
 {
+#ifdef CHECK_KMS
   if ((config.vga || config.console_video) && using_kms())
   {
     config.vga = config.console_video = 0;
     warn("KMS detected: using terminal mode. Use -S for SDL mode with graphics.\n");
   }
+#endif
 
   /* figure out which video front end we are to use */
   if (no_real_terminal() || config.cardtype == CARD_NONE) {
