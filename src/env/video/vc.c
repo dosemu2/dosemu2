@@ -393,12 +393,23 @@ void put_video_ram (void)
   v_printf ("put_video_ram completed\n");
 }
 
+static void tempsigvt(int sig)
+{
+  /* temporary signal handler between set_process_control and final setting
+     of signals in signal_init() */
+  if (sig == SIG_RELEASE)
+    release_vt(NULL);
+  else
+    acquire_vt(NULL);
+}
+
 /* this puts the VC under process control */
 void
 set_process_control (void)
 {
   struct vt_mode vt_mode;
   sigset_t set;
+  struct sigaction sa;
 
   vt_mode.mode = VT_PROCESS;
   vt_mode.waitv = 0;
@@ -415,6 +426,14 @@ set_process_control (void)
   sigemptyset(&set);
   sigaddset(&set, SIG_RELEASE);
   sigaddset(&set, SIG_ACQUIRE);
+
+  /* set signal handlers here already in case consoles are switched
+     very quickly */
+  sa.sa_flags = SA_RESTART;
+  sa.sa_mask = set;
+  sa.sa_handler = tempsigvt;
+  sigaction(SIG_RELEASE, &sa, NULL);
+  sigaction(SIG_ACQUIRE, &sa, NULL);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 
   if (ioctl (console_fd, VT_SETMODE, &vt_mode))

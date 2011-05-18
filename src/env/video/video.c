@@ -357,6 +357,7 @@ gettermcap(int i, int *co, int *li)
 {
   struct winsize ws;		/* buffer for TIOCSWINSZ */
 
+  *li = *co = 0;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) {
     *li = ws.ws_row;
     *co = ws.ws_col;
