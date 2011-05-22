@@ -118,12 +118,12 @@ static void foreach_terminal(struct char_set *set, int offset,
 }
 
 struct char_set_operations terminal_charset_ops = {
-	unicode_to_charset: &unicode_to_terminal,
-	charset_to_unicode: &terminal_to_unicode,
-	init:               &init_terminal_charset_state,
-	cleanup:            &cleanup_terminal_charset_state,
-	copy:               &copy_terminal_charset_state,
-	foreach:            &foreach_terminal,
+	.unicode_to_charset= &unicode_to_terminal,
+	.charset_to_unicode= &terminal_to_unicode,
+	.init=               &init_terminal_charset_state,
+	.cleanup=            &cleanup_terminal_charset_state,
+	.copy=               &copy_terminal_charset_state,
+	.foreach=            &foreach_terminal,
 };
 
 /* 

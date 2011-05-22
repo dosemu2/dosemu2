@@ -130,12 +130,12 @@ void vbe_init(vgaemu_display_type *vedt)
     char save_function_flags;
     char reserved3;
   } vgaemu_bios_functionality_table = 
-  { modes:		 {0xff,0xe0,0x0f}, /* Modes 0-7, 0dh-0fh, 10h-13h supported */
-    scanlines:		 7,		   /* scanlines 200,350,400 supported */	
-    character_blocks:	 2,		   /* This all corresponds to a real BIOS */		
-    max_active_blocks:	 8,		   /* See Ralf Brown's interrupt list */
-    support_flags:	 0xeff,		   /* INT 10h, AH=1b for documentation */
-    save_function_flags:0x3f 
+  { .modes =		 {0xff,0xe0,0x0f}, /* Modes 0-7, 0dh-0fh, 10h-13h supported */
+    .scanlines =	 7,		   /* scanlines 200,350,400 supported */	
+    .character_blocks =  2,		   /* This all corresponds to a real BIOS */		
+    .max_active_blocks = 8,		   /* See Ralf Brown's interrupt list */
+    .support_flags =	 0xeff,		   /* INT 10h, AH=1b for documentation */
+    .save_function_flags=0x3f 
   };
 
   memset(dos_vga_bios, 0, VBE_BIOS_MAXPAGES << 12);	/* one page */

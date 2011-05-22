@@ -77,12 +77,12 @@ static void foreach_charset_default(struct char_set *set,
 }
 
 struct char_set_operations dummy_charset_ops = {
-	unicode_to_charset: &unicode_to_charset_default,
-	charset_to_unicode: &charset_to_unicode_default,
-	init:               &init_charset_state_dummy,
-	cleanup:            &cleanup_charset_state_dummy,
-        copy:               &copy_charset_default,
-	foreach:            &foreach_charset_default,
+	.unicode_to_charset= &unicode_to_charset_default,
+	.charset_to_unicode= &charset_to_unicode_default,
+	.init=               &init_charset_state_dummy,
+	.cleanup=            &cleanup_charset_state_dummy,
+        .copy=               &copy_charset_default,
+	.foreach=            &foreach_charset_default,
 };
 /*
  * Default Primitive Charset operations
@@ -199,12 +199,12 @@ static void foreach_primitive(struct char_set *piece,
 
 struct char_set_operations primitive_charset_ops =
 {
-	unicode_to_charset: &unicode_to_charset_primitive,
-	charset_to_unicode: &charset_to_unicode_primitive,
-	init:               &init_charset_state_dummy,
-	cleanup:            &cleanup_charset_state_dummy,
-	copy:               &copy_charset_default,
-	foreach:            &foreach_primitive,
+	.unicode_to_charset= &unicode_to_charset_primitive,
+	.charset_to_unicode= &charset_to_unicode_primitive,
+	.init=               &init_charset_state_dummy,
+	.cleanup=            &cleanup_charset_state_dummy,
+	.copy=               &copy_charset_default,
+	.foreach=            &foreach_primitive,
 };
 
 /* 
@@ -322,12 +322,12 @@ static void foreach_compound_charset(struct char_set *set,
 
 
 struct char_set_operations compound_charset_ops = {
-	unicode_to_charset: &unicode_to_compound_charset,
-	charset_to_unicode: &compound_charset_to_unicode,
-	init:               &init_charset_state_dummy,
-	cleanup:            &cleanup_charset_state_dummy,
-	copy:               &copy_charset_default,
-	foreach:            &foreach_compound_charset,
+	.unicode_to_charset= &unicode_to_compound_charset,
+	.charset_to_unicode= &compound_charset_to_unicode,
+	.init=               &init_charset_state_dummy,
+	.cleanup=            &cleanup_charset_state_dummy,
+	.copy=               &copy_charset_default,
+	.foreach=            &foreach_compound_charset,
 };
 
 /*
