@@ -283,7 +283,7 @@ void printer_config(int prnum, struct printer *pptr)
   }
 }
 
-void printer_print_config(int prnum, void (*print)(char *, ...))
+void printer_print_config(int prnum, void (*print)(const char *, ...))
 {
   struct printer *pptr = &lpt[prnum];
   (*print)("LPT%d command \"%s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",

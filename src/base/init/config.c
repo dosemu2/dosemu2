@@ -105,7 +105,7 @@ int cpu_override (int cpu)
     return -1;
 }
 
-static void dump_printf(char *fmt, ...)
+static void dump_printf(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -113,7 +113,7 @@ static void dump_printf(char *fmt, ...)
     va_end(args);
 }
 
-static void log_dump_printf(char *fmt, ...)
+static void log_dump_printf(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -121,10 +121,10 @@ static void log_dump_printf(char *fmt, ...)
     va_end(args);
 }
 
-void dump_config_status(void *printfunc)
+void dump_config_status(void (*printfunc)(const char *, ...))
 {
     char *s;
-    void (*print)(char *, ...) = (printfunc ? printfunc : dump_printf);
+    void (*print)(const char *, ...) = (printfunc ? printfunc : dump_printf);
 
     if (!printfunc) {
       (*print)("\n-------------------------------------------------------------\n");

@@ -555,7 +555,7 @@ void *get_hardware_ram(unsigned addr)
   return NULL;
 }
 
-void list_hardware_ram(void (*print)(char *, ...))
+void list_hardware_ram(void (*print)(const char *, ...))
 {
   struct hardware_ram *hw;
 
