@@ -489,7 +489,7 @@ static void CodeGen(IMeta *I, int j)
 		    // pop %%rsi; push %%rdi
 		    G5(0x8b8d48575e,Cp);
 	    	    // lea e_VgaRead(%%rbx),%%rcx; call %%rcx; pop %%rdi
-		    G4((char *)e_VgaRead-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
+		    G4((unsigned char *)e_VgaRead-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
 		    // must be the same amount of ins bytes as i386!!
 #else
 		    // pushl %%edi
@@ -530,7 +530,7 @@ static void CodeGen(IMeta *I, int j)
 		    G4(0x57c6895a,Cp);
 	    	    // lea e_VgaWrite(%%ebx),%%ecx; call %%ecx; pop %%rdi
 		    G3(0x8b8d48,Cp);
-		    G4((char *)e_VgaWrite-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
+		    G4((unsigned char *)e_VgaWrite-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
 		    // must be the same amount of ins bytes as i386!!
 #else
 		    // pushl %%eax
