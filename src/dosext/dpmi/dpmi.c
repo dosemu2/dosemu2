@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
+extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include <sys/user.h>
 #include <sys/syscall.h>
 
