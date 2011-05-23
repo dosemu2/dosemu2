@@ -627,7 +627,7 @@ static int int15(void)
     unsigned src_addr, dst_addr;
     unsigned src_limit, dst_limit;
     unsigned int length;
-    lp = SEG_ADR((int*), es, si);
+    lp = SEG_ADR((unsigned int*), es, si);
     lp += 4;
     src_addr = (*lp >> 16) & 0x0000FFFF;
     src_limit = *lp & 0x0000FFFF;

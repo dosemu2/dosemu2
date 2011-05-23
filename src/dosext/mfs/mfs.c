@@ -697,7 +697,7 @@ int dos_utime(char *fpath, struct utimbuf *ut)
 }
 
 static int
-get_disk_space(char *cwd, int *free, int *total)
+get_disk_space(char *cwd, unsigned int *free, unsigned int *total)
 {
   struct statfs fsbuf;
 
@@ -2391,11 +2391,11 @@ GetRedirection(state_t *state, u_short index)
       if (index == 0) {
 	/* return information for this drive */
 	Debug0((dbg_fd, "redirection root =%s\n", drives[dd].root));
-	deviceName = (u_char *) Addr(state, ds, esi);
+	deviceName = Addr(state, ds, esi);
 	deviceName[0] = 'A' + dd;
 	deviceName[1] = ':';
 	deviceName[2] = EOS;
-	resourceName = (u_char *) Addr(state, es, edi);
+	resourceName = Addr(state, es, edi);
 	strcpy(resourceName, LINUX_RESOURCE);
 	strcat(resourceName, drives[dd].root);
 	path_to_dos(resourceName);
@@ -2548,8 +2548,8 @@ RedirectDevice(state_t * state)
   cds_t cds;
 
   /* first, see if this is our resource to be redirected */
-  resourceName = (u_char *) Addr(state, es, edi);
-  deviceName = (u_char *) Addr(state, ds, esi);
+  resourceName = Addr(state, es, edi);
+  deviceName = Addr(state, ds, esi);
   path[0] = 0;
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
@@ -2677,7 +2677,7 @@ CancelRedirection(state_t * state)
   int drive;
 
   /* first, see if this is one of our current redirections */
-  deviceName = (u_char *) Addr(state, ds, esi);
+  deviceName = Addr(state, ds, esi);
 
   Debug0((dbg_fd, "CancelRedirection on %s\n", deviceName));
   if (deviceName[1] != ':') {
@@ -3079,7 +3079,7 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
 }
 
 /* return the Linux filename corresponding to the sft */
-char *sft_to_filename(const char *sft, int *fd)
+char *sft_to_filename(const unsigned char *sft, int *fd)
 {
   int cnt = READ_BYTEP(&sft_fd(sft));
   *fd = open_files[cnt].name ? open_files[cnt].fd : 0;
@@ -3168,7 +3168,7 @@ dos_fs_redirect(state_t *state)
 {
   char *filename1;
   char *filename2;
-  char *dta;
+  unsigned char *dta;
   long s_pos=0;
   unsigned int devptr;
   u_char attr;
@@ -3893,8 +3893,8 @@ dos_fs_redirect(state_t *state)
     sdb_p_cluster(sdb) = 0xffff;  /* correct value later */
 
     Debug0((dbg_fd, "Find first %8.8s.%3.3s\n",
-	    (char *) sdb_template_name(sdb),
-	    (char *) sdb_template_ext(sdb)));
+	    sdb_template_name(sdb),
+	    sdb_template_ext(sdb)));
 
 
     if (((attr & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&

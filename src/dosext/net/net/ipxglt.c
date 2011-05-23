@@ -129,7 +129,8 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	int opt;
 	static RipPacket_t RipRequest;
 	static RipPacket_t RipResponse;
-        int size, sz;
+        int size;
+	socklen_t sz;
         struct timeval timeout;
         int retries;
         fd_set  fds;

@@ -166,7 +166,7 @@ extern union SynCPU TheCPU_union;
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
 
-#define CPUOFFS(o)	(((char *)&(TheCPU.FIELD0))+(o))
+#define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+(o))
 
 #define CPUBYTE(o)	TheCPU_union.b[SCBASE+o]
 #define CPUWORD(o)	TheCPU_union.w[(SCBASE+o)/2]

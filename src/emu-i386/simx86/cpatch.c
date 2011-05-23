@@ -433,7 +433,7 @@ int Cpatch(struct sigcontext_struct *scp)
 
 int UnCpatch(unsigned char *eip)
 {
-    register signed char *p;
+    register unsigned char *p;
     p = eip;
 
     if (*eip != 0xff) return 1;

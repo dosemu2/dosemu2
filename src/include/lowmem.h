@@ -9,6 +9,6 @@
 
 int lowmem_heap_init(void);
 void *lowmem_heap_alloc(int size);
-void lowmem_heap_free(char *p);
+void lowmem_heap_free(void *p);
 
 #endif

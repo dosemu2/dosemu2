@@ -732,7 +732,7 @@ int X_init()
   if ((proto_atom != None) && (delete_atom != None)) {
     XChangeProperty(display, mainwindow,
       proto_atom, XA_ATOM, 32,
-      PropModePrepend, (char *) &delete_atom, 1
+      PropModePrepend, (unsigned char *) &delete_atom, 1
     );
   }
 
@@ -1098,7 +1098,7 @@ static int X_change_config(unsigned item, void *buf)
 	if (NetWMAtom != None && UTF8Atom != None) {
 	  s = unicode_string_to_charset(buf, "utf8");
 	  XChangeProperty( display, mainwindow, NetWMAtom, UTF8Atom, 8,
-			   PropModeReplace, s, strlen(s));
+			   PropModeReplace, (unsigned char *)s, strlen(s));
 	  free(s);
 	}
 	break;
@@ -2031,7 +2031,7 @@ void resize_ximage(unsigned width, unsigned height)
   w_y_res = height;
   create_ximage();
   remap_obj.dst_resize(&remap_obj, width, height, ximage->bytes_per_line);
-  remap_obj.dst_image = ximage->data;
+  remap_obj.dst_image = (unsigned char *)ximage->data;
 }
 
 /*
@@ -2215,7 +2215,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
     create_ximage();
 
-    remap_obj.dst_image = ximage->data;
+    remap_obj.dst_image = (unsigned char *)ximage->data;
     *remap_obj.dst_color_space = X_csd;
     remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
 

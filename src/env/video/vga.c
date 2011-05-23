@@ -237,7 +237,7 @@ static void do_int10_setmode(int mode)
 #endif
 
 /* Store current EGA/VGA regs */
-static void store_vga_regs(char regs[])
+static void store_vga_regs(u_char regs[])
 {
   int i;
 
@@ -390,7 +390,7 @@ static void restore_vga_mem(u_char * mem, int banks)
 }
 
 /* Restore EGA/VGA regs */
-static void restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[])
+static void restore_vga_regs(u_char regs[], u_char xregs[], u_short xregs16[])
 {
   restore_ext_regs(xregs, xregs16);
   set_regs(regs, 0);

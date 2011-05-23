@@ -108,12 +108,12 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 	else if (target == targets[TARGETS_ATOM]) {
 		X_printf("X: selection: TARGETS\n");
 		XChangeProperty(display, requestor, property, XA_ATOM, 32,
-			PropModeReplace, (char *)targets, NUM_TARGETS);
+			PropModeReplace, (unsigned char *)targets, NUM_TARGETS);
 	}
 	else if (target == targets[TIMESTAMP_ATOM]) {
 		X_printf("X: timestamp atom %lu\n", sel_time);
 		XChangeProperty(display, requestor, property, XA_INTEGER, 32,
-			PropModeReplace, (char *)&sel_time, 1);
+			PropModeReplace, (unsigned char *)&sel_time, 1);
 	}
 	else if (target == targets[STRING_TARGET] ||
 		 target == targets[COMPOUND_TARGET] ||
@@ -143,7 +143,7 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 		send_text = get_selection_string(charset);
 		X_printf("X: selection: %s\n",send_text);
 		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
-			send_text, strlen(send_text));
+			(unsigned char *)send_text, strlen(send_text));
 		X_printf("X: Selection sent to window 0x%lx as %s\n", 
 			(unsigned long) requestor, XGetAtomName(display, target));
 		free(send_text);
@@ -193,7 +193,8 @@ static void scr_paste_primary(Display *dpy,Window window,int property,int Delete
 {
   Atom actual_type;
   int actual_format;
-  long nitems, bytes_after, nread;
+  unsigned long nitems, bytes_after;
+  long nread;
   unsigned char *data;
 
   static Atom tries[] = { UTF8_TARGET, COMPOUND_TARGET, STRING_TARGET };
@@ -300,7 +301,8 @@ void X_handle_selection(Display *display, Window mainwindow, XEvent *e)
 	   way of copy/paste that only supports Latin-1 */
 	send_text = get_selection_string("iso8859-1");
 	XChangeProperty(display, DefaultRootWindow(display), XA_CUT_BUFFER0,
-		   XA_STRING, 8, PropModeReplace, send_text, strlen(send_text));
+		   XA_STRING, 8, PropModeReplace, (unsigned char *)send_text,
+	           strlen(send_text));
 	free(send_text);
 	break;
       }

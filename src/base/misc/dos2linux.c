@@ -683,11 +683,11 @@ void memmove_dos2dos(void *dest, const void *src, size_t n)
     MEMMOVE_DOSP2DOSP(dest, src, n);
 }
 
-int dos_read(int fd, char *data, int cnt)
+int dos_read(int fd, void *data, int cnt)
 {
   int ret;
   /* GW also reads or writes directly from a file to protected video memory. */
-  unsigned char *d = (unsigned char *)data;
+  unsigned char *d = data;
   if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000]) {
     char buf[cnt];
     ret = RPT_SYSCALL(read(fd, buf, cnt));
@@ -701,17 +701,17 @@ int dos_read(int fd, char *data, int cnt)
   return (ret);
 }
 
-int dos_write(int fd, char *data, int cnt)
+int dos_write(int fd, const void *data, int cnt)
 {
   int ret;
-  char buf[cnt];
-  unsigned char *d = (unsigned char *)data;
+  const unsigned char *d = data;
+  unsigned char buf[cnt];
   if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000]) {
-    memcpy_from_vga(buf, data, cnt);
-    data = buf;
+    memcpy_from_vga(buf, d, cnt);
+    d = buf;
   }
-  ret = RPT_SYSCALL(write(fd, data, cnt));
-  g_printf("Wrote %10.10s\n", data);
+  ret = RPT_SYSCALL(write(fd, d, cnt));
+  g_printf("Wrote %10.10s\n", d);
   return (ret);
 }
 

@@ -38,7 +38,7 @@ void * lowmem_heap_alloc(int size)
 	return ptr;
 }
 
-void lowmem_heap_free(char *p)
+void lowmem_heap_free(void *p)
 {
 	return smfree(&mp, p);
 }

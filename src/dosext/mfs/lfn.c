@@ -982,7 +982,7 @@ static int mfs_lfn_(void)
 			break;
 		case 6: /* get last access date */
 		{
-			short scratch;
+			unsigned short scratch;
 			time_to_dos(st.st_atime, &_DI, &scratch);
 			break;
 		}

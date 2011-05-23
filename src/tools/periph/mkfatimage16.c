@@ -476,7 +476,8 @@ int main(int argc, char *argv[])
   if (strlen(volume_label) > 0) 
   {
     unsigned char *p = &root_directory[m*32];
-    sprintf(p, "%-11s", volume_label);
+    memcpy(p, volume_label, n);
+    memset(p+n, ' ', 11-n);
     p[11] = 0x08;
     m++;
   }

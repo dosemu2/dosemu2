@@ -36,7 +36,7 @@ static const char *midipipe_name = "MIDI Input: named pipe";
 
 static void midipipe_io(void)
 {
-    char buf[1024];
+    unsigned char buf[1024];
     int n, selret;
     fd_set rfds;
     struct timeval tv;

@@ -390,7 +390,7 @@ void blink_cursor()
  */
 void resize_text_mapper(int image_mode)
 {
-  static char *text_canvas = NULL;
+  static unsigned char *text_canvas = NULL;
 
   /* need a remap obj for the font system even in text mode! */
   x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");

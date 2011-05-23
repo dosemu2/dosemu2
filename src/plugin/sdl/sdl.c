@@ -77,7 +77,7 @@ struct render_system Render_SDL =
 static const SDL_VideoInfo *video_info;
 static int remap_src_modes = 0;
 static SDL_Surface* surface = NULL;
-static int SDL_image_mode;
+static unsigned int SDL_image_mode;
 
 static Boolean is_mapped = FALSE;
 static int exposure = 0;

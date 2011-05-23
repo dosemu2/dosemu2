@@ -108,7 +108,7 @@ struct pkt_globs
 /* calculates offset of a label from the start of the packet driver */
 #define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_start)
 
-char pkt_buf[PKT_BUF_SIZE];
+unsigned char pkt_buf[PKT_BUF_SIZE];
 
 short p_helper_size;
 long p_helper_receiver;

@@ -102,7 +102,7 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 {
 	SDTR tseg, *segc;
 	int e;
-	char big;
+	unsigned char big;
 
 //	if ((ofs<0)||(ofs>=0x60)) return EXCP06_ILLOP;
 

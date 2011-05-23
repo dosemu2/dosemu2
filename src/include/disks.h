@@ -46,7 +46,7 @@ struct partition {
   int end_head, end_sec, end_cyl;
   long pre_secs;		/* sectors preceding partition */
   long num_secs;		/* sectors in partition */
-  char *mbr;			/* fake Master Boot Record */
+  unsigned char *mbr;		/* fake Master Boot Record */
   int mbr_size;			/* usu. 1 sector */
 };
 
@@ -156,8 +156,8 @@ EXTERN int use_bootdisk INIT(0);
   (((h * dp->tracks + t) * dp->sectors + s) * SECTOR_SIZE)
 #endif
 
-int read_sectors(struct disk *, char *, long, long, long, long);
-int write_sectors(struct disk *, char *, long, long, long, long);
+int read_sectors(struct disk *, unsigned char *, long, long, long, long);
+int write_sectors(struct disk *, unsigned char *, long, long, long, long);
 
 void d_nullf(struct disk *);
 

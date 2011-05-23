@@ -202,7 +202,7 @@ enum {
 
 extern void clear_console_video(void);
 extern int console_size(void);
-extern int load_file(char *name, int foffset, char *mstart, int msize);
+extern int load_file(char *name, int foffset, unsigned char *mstart, int msize);
 
 
 /* moved here from s3.c --AV  */

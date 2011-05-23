@@ -180,7 +180,7 @@ void map_video_bios(void)
     memcheck_addtype('V', "Video BIOS");
     memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
     if (!config.vbios_post || config.chipset == VESA)
-      load_file("/dev/mem", 0, (char *)int_bios_area, sizeof(int_bios_area));
+      load_file("/dev/mem", 0, (unsigned char *)int_bios_area, sizeof(int_bios_area));
   }
 }
 
@@ -251,7 +251,7 @@ void device_init(void)
  */
 void low_mem_init(void)
 {
-  char *result;
+  unsigned char *result;
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");

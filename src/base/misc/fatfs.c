@@ -1167,6 +1167,7 @@ void build_boot_blk(fatfs_t *f)
   char *msg, *msg1;
 
   int i;
+  size_t msgsize;
   unsigned r_o, d_o, t_o;
   unsigned char *b;
   unsigned char *d0, *d1;
@@ -1181,11 +1182,12 @@ void build_boot_blk(fatfs_t *f)
   b[0x01] = 0x3e;
   b[0x02] = 0x90;
   memcpy(b + 0x40, boot_prog, boot_prog_end - boot_prog);
-  strcpy(b + 0x40 + (boot_prog_end - boot_prog), msg);
+  msgsize = strlen(msg) + 1;
+  memcpy(b + 0x40 + (boot_prog_end - boot_prog), msg, msgsize);
   b[0x1fe] = 0x55;
   b[0x1ff] = 0xaa;
 
-  t_o = (0x40 + boot_prog_end - boot_prog + strlen(msg) + 1 + 3) & ~3;
+  t_o = (0x40 + boot_prog_end - boot_prog + msgsize + 3) & ~3;
   d0 = b + t_o;
   d1 = d0 + 0x14;
 
@@ -1305,8 +1307,9 @@ void build_boot_blk(fatfs_t *f)
       break;
 
     default:			/* no system */
-      strcpy(b + 0x40 + (boot_prog_end - boot_prog), msg1);
-      t_o = (0x40 + (boot_prog_end - boot_prog) + strlen(msg1) + 1 + 3) & ~3;
+      msgsize = strlen(msg1) + 1;
+      memcpy(b + 0x40 + (boot_prog_end - boot_prog), msg1, msgsize);
+      t_o = (0x40 + (boot_prog_end - boot_prog) + msgsize + 3) & ~3;
       d0 = b + t_o;
 
       t_o += 0x7c00;

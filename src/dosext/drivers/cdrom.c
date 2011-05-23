@@ -326,8 +326,8 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                        }
                 }
 
-                if (req_buf == NULL) req_buf = SEG_ADR((char *), es, di);
-                if (transfer_buf == NULL) transfer_buf = SEG_ADR((char *), ds, si);
+                if (req_buf == NULL) req_buf = SEG_ADR((unsigned char *), es, di);
+                if (transfer_buf == NULL) transfer_buf = SEG_ADR((unsigned char *), ds, si);
 
                 if (*CALC_PTR(req_buf,MSCD_READ_ADRESSING,u_char) == 1) {
                   cdrom_msf.cdmsf_min0   = *CALC_PTR(req_buf,MSCD_READ_STARTSECTOR+2,u_char);
@@ -375,14 +375,14 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
 		}
                 break;
      case 0x03: /* seek */
-                req_buf = SEG_ADR((char *), es, di);
+                req_buf = SEG_ADR((unsigned char *), es, di);
                 if ((off_t)-1 == lseek (cdrom_fd, *CALC_PTR(req_buf,MSCD_SEEK_STARTSECTOR,u_long)*CD_FRAMESIZE, SEEK_SET)) {
 		    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 		    LO(ax) = 1;
 		}
                 break;
      case 0x04: /* play */
-                req_buf = SEG_ADR((char *), es, di);
+                req_buf = SEG_ADR((unsigned char *), es, di);
                 if (*CALC_PTR(req_buf,MSCD_PLAY_ADRESSING,u_char) == 1) {
                   cdrom_msf.cdmsf_min0   = *CALC_PTR(req_buf,MSCD_PLAY_STARTSECTOR+2,u_char);
                   cdrom_msf.cdmsf_sec0   = *CALC_PTR(req_buf,MSCD_PLAY_STARTSECTOR+1,u_char);
@@ -459,7 +459,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                 if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
                   HI(ax) = 1;
 
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
                 if (*CALC_PTR(req_buf,MSCD_LOCH_ADRESSING,u_char) == 0) {
                   *CALC_PTR(req_buf,MSCD_LOCH_LOCATION,u_long)
                      = cdrom_subchnl.cdsc_absaddr.msf.minute*60*75
@@ -561,7 +561,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                 if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
                   HI(ax) = 1;
 
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
                 cdrom_volctrl.channel0 = *CALC_PTR(req_buf, MSCD_CTRL_VOLUME0, u_char);
                 cdrom_volctrl.channel1 = *CALC_PTR(req_buf, MSCD_CTRL_VOLUME1, u_char);
                 cdrom_volctrl.channel2 = *CALC_PTR(req_buf, MSCD_CTRL_VOLUME2, u_char);
@@ -587,7 +587,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                   }
                 }
 
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
                 *CALC_PTR(req_buf,MSCD_DISKINFO_LTN,u_char) = cdrom_tochdr.cdth_trk0;
                 *CALC_PTR(req_buf,MSCD_DISKINFO_HTN,u_char) = cdrom_tochdr.cdth_trk1;
                 cdrom_tocentry.cdte_track = CDROM_LEADOUT;
@@ -605,7 +605,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
 #endif
                 break;
      case 0x11: /* track info */
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
                 cdrom_tocentry.cdte_track = *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKNUM,u_char);
                 cdrom_tocentry.cdte_format = CDROM_MSF;
 		C_printf("CDROM: track info, track %d\n", cdrom_tocentry.cdte_track);
@@ -642,7 +642,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                     break;
                   }
                 }
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
 #ifdef __linux__
                 *CALC_PTR(req_buf,MSCD_GETVOLUMESIZE_SIZE,int) = cdrom_tocentry.cdte_addr.msf.minute*60*75
                                                                     +cdrom_tocentry.cdte_addr.msf.second*60
@@ -663,7 +663,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                 if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
                   HI(ax) = 1;
 
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
                 *CALC_PTR(req_buf,MSCD_QCHAN_CTRL,u_char) = (cdrom_subchnl.cdsc_adr << 4) + (cdrom_subchnl.cdsc_ctrl);
                 *CALC_PTR(req_buf,MSCD_QCHAN_TNO,u_char)  = cdrom_subchnl.cdsc_trk;
                 *CALC_PTR(req_buf,MSCD_QCHAN_IND,u_char)  = cdrom_subchnl.cdsc_ind;
@@ -690,7 +690,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                 if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
                   HI(ax) = 1;
 
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
                 *CALC_PTR(req_buf,MSCD_AUDSTAT_PAUSED,u_short)= audio_status.paused_bit;
                 *CALC_PTR(req_buf,MSCD_AUDSTAT_START ,u_long) = audio_status.last_StartSector;
                 *CALC_PTR(req_buf,MSCD_AUDSTAT_END   ,u_long) = audio_status.last_EndSector;
@@ -708,7 +708,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
                 if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
                   HI(ax) = 1;
 
-                req_buf = SEG_ADR((char *), ds, si);
+                req_buf = SEG_ADR((unsigned char *), ds, si);
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME0,u_char) = audio_status.volume0;
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME1,u_char) = audio_status.volume1;
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME2,u_char) = audio_status.volume2;

@@ -1033,9 +1033,9 @@ static int
 move_memory_region(state_t * state)
 {
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
-  caddr_t dest, source, mem;
+  unsigned char *dest, *source, *mem;
 
-  mem = ((u_char *) Addr(state, ds, esi));
+  mem = Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)
@@ -1105,9 +1105,9 @@ static int
 exchange_memory_region(state_t * state)
 {
   struct mem_move_struct *mem_move=NULL;
-  caddr_t dest, source, mem, tmp;
+  unsigned char *dest, *source, *mem, *tmp;
 
-  mem = ((u_char *) Addr(state, ds, esi));
+  mem = Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)

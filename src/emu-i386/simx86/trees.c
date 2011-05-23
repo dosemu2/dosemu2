@@ -1010,16 +1010,16 @@ TNode *Move2Tree(void)
   *cp = cp;
   nG->pmeta = mallmb->meta;
   if (nG->pmeta==NULL) leavedos(0x504d45);
-  nG->addr = (char *)&mallmb->meta[nap];
+  nG->addr = (unsigned char *)&mallmb->meta[nap];
 
   /* setup structures for inter-node linking */
   nG->clink.t_type  = I0->clink.t_type;
   if (I0->clink.t_type)
-    nG->clink.t_link.abs  = (int *)(nG->addr + I0->clink.t_link.rel);
+    nG->clink.t_link.abs  = (unsigned int *)(nG->addr + I0->clink.t_link.rel);
   else
     nG->clink.t_link.abs  = I0->clink.t_link.abs;
   if (I0->clink.t_type > JMP_LINK)
-    nG->clink.nt_link.abs = (int *)(nG->addr + I0->clink.nt_link.rel);
+    nG->clink.nt_link.abs = (unsigned int *)(nG->addr + I0->clink.nt_link.rel);
   else
     nG->clink.nt_link.abs = I0->clink.nt_link.abs;
   if ((debug_level('e')>3) && nG->clink.t_type)

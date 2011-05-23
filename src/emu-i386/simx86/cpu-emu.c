@@ -724,7 +724,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
  */
 static int Scp2CpuD (struct sigcontext_struct *scp)
 {
-  char big; int mode=0, amask, oldfl;
+  unsigned char big; int mode=0, amask, oldfl;
 
   /* copy registers from current dpmi client to our cpu */
   oldfl = TheCPU.eflags & ~(EFLAGS_VM|EFLAGS_RF); /* to preserve IOPL */

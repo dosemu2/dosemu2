@@ -96,14 +96,14 @@ void midi_stop(void)
       in[i].plugin.stop();
 }
 
-void midi_put_data(char *buf, size_t size)
+void midi_put_data(unsigned char *buf, size_t size)
 {
   rng_add(&midi_in, size, buf);
 
   run_new_sb();
 }
 
-int midi_get_data_byte(char *buf)
+int midi_get_data_byte(unsigned char *buf)
 {
   if (!rng_count(&midi_in))
     return 0;

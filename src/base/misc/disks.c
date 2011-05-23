@@ -52,7 +52,7 @@ static int disks_initiated = 0;
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
 
-static void set_part_ent(struct disk *dp, char *tmp_mbr);
+static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
 
 #define USE_FSYNC 1
 
@@ -136,7 +136,7 @@ static void dump_disk_blks(unsigned char *tb, int count, int ssiz)
  */
 
 int
-read_sectors(struct disk *dp, char *buffer, long head, long sector,
+read_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
 	     long track, long count)
 {
   off64_t  pos;
@@ -235,7 +235,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
 }
 
 int
-write_sectors(struct disk *dp, char *buffer, long head, long sector,
+write_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
 	      long track, long count)
 {
   off64_t  pos;
@@ -677,11 +677,11 @@ partition_setup(struct disk *dp)
  *       put in the dp->part_info.number'th entry in the part table.
  */
 
-static void set_part_ent(struct disk *dp, char *tmp_mbr)
+static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
 {
   long	length;		/* partition length in sectors		*/
   long	end;		/* last sector number offset		*/
-  char	*p;		/* ptr to part table entry to create	*/
+  unsigned char	*p;	/* ptr to part table entry to create	*/
 
 #ifdef __linux__
   if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
@@ -1171,7 +1171,7 @@ int int13(void)
   unsigned int disk, head, sect, track, number;
   int res;
   off64_t  pos;
-  char *buffer;
+  unsigned char *buffer;
   struct disk *dp;
   int checkdp_val;
 
@@ -1226,7 +1226,7 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEG_ADR((char *), es, bx);
+    buffer = SEG_ADR((unsigned char *), es, bx);
     number = LO(ax);
     d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
 	     disk, head, sect, track, number, REG(es), LWORD(ebx));
@@ -1282,7 +1282,7 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEG_ADR((char *), es, bx);
+    buffer = SEG_ADR((unsigned char *), es, bx);
     number = LO(ax);
     W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%p\n",
 	     head, sect, track, number, (void *) buffer);

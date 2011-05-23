@@ -150,7 +150,7 @@ CloseNetworkLink(int sock)
  */
 
 int 
-GetDeviceHardwareAddress(char *device, char *addr)
+GetDeviceHardwareAddress(char *device, unsigned char *addr)
 {  
 	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP) {
 		/* This routine is totally local; doesn't make 

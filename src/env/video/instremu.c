@@ -1873,12 +1873,12 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip += inst_len + 3; break;
 
   case 0xc2:		/* ret imm16*/
-    pop(&i, x86);
+    pop(&und, x86);
     if (x86->_32bit)
       x86->esp += R_WORD(cs[eip + 1]);
     else
       SP += R_WORD(cs[eip + 1]);
-    eip = i;
+    eip = und;
     break;
 
   case 0xc3:		/* ret */
@@ -1933,13 +1933,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
-      pop(&i, x86);
+      pop(&und, x86);
       pop(&x86->cs, x86);
       REG(cs)  = x86->cs;
       x86->cs_base = SEG2LINEAR(x86->cs);
       SP += R_WORD(cs[eip + 1]);
       cs = (unsigned char *)x86->cs_base;
-      eip = i;
+      eip = und;
     }
     break;
 

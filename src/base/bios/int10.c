@@ -708,7 +708,7 @@ static void return_state(unsigned int statebuf) {
 static void vga_RAM_to_RAM(unsigned height, unsigned char chr, unsigned count,
                            unsigned seg, unsigned ofs, int bank)
 {
-  char *dst;
+  unsigned char *dst;
   unsigned i;
   unsigned long src;
   unsigned bankofs;

@@ -195,7 +195,7 @@ static void CodeGen(IMeta *I, int j)
 {
 	/* evil hack, keeping state from MOVS_SavA to MOVS_SetA in
 	   a static variable */
-	static unsigned char * rep_retry_ptr = (char*)0xdeadbeef;
+	static unsigned char * rep_retry_ptr = (unsigned char*)0xdeadbeef;
 	IGen *IG = &(I->gen[j]);
 	register unsigned char *Cp = CodePtr;
 	unsigned char * CpTemp;
@@ -477,9 +477,11 @@ static void CodeGen(IMeta *I, int j)
 		    // movl %%edi,%%eax
 		    G2M(0x89,0xf8,Cp);
 		    // subl vga.bank_base(%%ebx),%%eax
-		    G2(0x832b,Cp); G4((char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
+		    G2(0x832b,Cp);
+		    G4((unsigned char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
 		    // cmpl vga.bank_len(%%ebx),%%eax
-		    G2(0x833b,Cp); G4((char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
+		    G2(0x833b,Cp);
+		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
 		    // jnb normal_read
 		    // pushl mode
 	       	    G3(0x6a1073,Cp); G1(mode,Cp);
@@ -515,9 +517,11 @@ static void CodeGen(IMeta *I, int j)
 		    // movl %%edi,%%ecx
 		    G2M(0x89,0xf9,Cp);
 		    // subl vga.mem.bank_base(%%ebx),%%ecx
-		    G2(0x8b2b,Cp); G4((char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
+		    G2(0x8b2b,Cp);
+		    G4((unsigned char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
 		    // cmpl vga.mem.bank_len(%%ebx),%%ecx
-		    G2(0x8b3b,Cp); G4((char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
+		    G2(0x8b3b,Cp);
+		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
 		    // jnb normal_write
 		    // pushl mode
 	       	    G3(0x6a1273,Cp); G1(mode,Cp);
@@ -1231,7 +1235,7 @@ shrot0:
 		} break;
 
 	case O_PUSH2: {		/* register push only */
-		static char pseq16[] = {
+		static unsigned char pseq16[] = {
 			// movl offs(%%ebx),%%eax
 /*00*/			0x8b,0x43,0x00,
 			// leal -2(%%ecx),%%ecx
@@ -1241,7 +1245,7 @@ shrot0:
 			// movw %%ax,(%%esi,%%ecx,1)
 			0x66,0x89,0x04,0x0e,
 		};
-		static char pseq32[] = {
+		static unsigned char pseq32[] = {
 			// movl offs(%%ebx),%%eax
 /*00*/			0x8b,0x43,0x00,
 			// leal -4(%%ecx),%%ecx
@@ -1251,7 +1255,7 @@ shrot0:
 			// movl %%eax,(%%esi,%%ecx,1)
 			0x89,0x04,0x0e,
 		};
-		register char *p, *q; int sz;
+		register unsigned char *p, *q; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		q=Cp; GNX(Cp, p, sz);
@@ -1264,7 +1268,7 @@ shrot0:
 		break;
 
 	case O_PUSH2F: {
-		static char pseqpre[] = {
+		static unsigned char pseqpre[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1286,7 +1290,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		char *q=Cp; GNX(Cp, pseqpre, sizeof(pseqpre));
+		unsigned char *q=Cp; GNX(Cp, pseqpre, sizeof(pseqpre));
 		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
 		if (in_dpmi) {
 		    /* This solves the DOSX 'System test 8' error.
@@ -1308,7 +1312,7 @@ shrot0:
 			// bt $19,(_EFLAGS-TheCPU)(%ebx) (test for VIF)
 			G3M(0x0f,0xba,0xa3,Cp);
 			/* relative ebx offset works on x86-64 too */
-			G4((char *)&_EFLAGS-CPUOFFS(0),Cp);
+			G4((unsigned char *)&_EFLAGS-CPUOFFS(0),Cp);
 			// (19 from bt); rcl $10,%%eax
 			G4M(0x13,0xc1,0xd0,0x0a,Cp);
 		}
@@ -1324,7 +1328,7 @@ shrot0:
 		} break;
 
 	case O_PUSHI: {
-		static char pseq16[] = {
+		static unsigned char pseq16[] = {
 			// movw $immed,%%ax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1340,7 +1344,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32[] = {
+		static unsigned char pseq32[] = {
 			// movl $immed,%%eax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -1356,7 +1360,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p, *q; int sz;
+		register unsigned char *p, *q; int sz;
 		if (mode&DATA16) {
 			p = pseq16,sz=sizeof(pseq16);
 		}
@@ -1505,7 +1509,7 @@ shrot0:
 		} break;
 
 	case O_POP2: {
-		static char pseq16[] = {
+		static unsigned char pseq16[] = {
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movw (%%esi,%%ecx,1),%%ax
@@ -1515,7 +1519,7 @@ shrot0:
 			// leal 2(%%ecx),%%ecx
 			0x8d,0x49,0x02
 		};
-		static char pseq32[] = {
+		static unsigned char pseq32[] = {
 			// andl StackMask(%%ebx),%%ecx
 			0x23,0x4b,Ofs_STACKM,
 			// movl (%%esi,%%ecx,1),%%eax
@@ -1535,7 +1539,7 @@ shrot0:
 			0x09,0xd1,
 #endif
 		};
-		register char *p, *q; int sz;
+		register unsigned char *p, *q; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
@@ -1551,7 +1555,7 @@ shrot0:
 		break;
 
 	case O_POPA: {
-		static char pseq16[] = {	// wrong if SP wraps!
+		static unsigned char pseq16[] = {	// wrong if SP wraps!
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1591,7 +1595,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32[] = {
+		static unsigned char pseq32[] = {
 			// movl Ofs_XSS(%%ebx),%%esi
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ecx
@@ -1627,7 +1631,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		register char *p; int sz;
+		register unsigned char *p; int sz;
 		if (mode&DATA16) {
 			p = pseq16,sz=sizeof(pseq16);
 		}
@@ -2103,16 +2107,20 @@ shrot0:
 		G4(0xd789c189,Cp);
 		// subl	TimeStartExec.t.tl(%%ebx),%%eax
 		// sbbl	TimeStartExec.t.th(%%ebx),%%edx
-		G2(0x832b,Cp); G4((char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
-		G2(0x931b,Cp); G4((char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
+		G2(0x832b,Cp);
+		G4((unsigned char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
+		G2(0x931b,Cp);
+		G4((unsigned char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
 		// addl	TheCPU.EMUtime(%%ebx),%%eax
 		// adcl	TheCPU.EMUtime+4(%%ebx),%%edx
 		G3M(0x03,0x43,Ofs_ETIME,Cp);
 		G3M(0x13,0x53,Ofs_ETIME+4,Cp);
 		// movl	%%ecx,TimeStartExec.t.tl(%%ebx)
 		// movl	%%edi,TimeStartExec.t.th(%%ebx)
-		G2(0x8b89,Cp); G4((char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
-		G2(0xbb89,Cp); G4((char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
+		G2(0x8b89,Cp);
+		G4((unsigned char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
+		G2(0xbb89,Cp);
+		G4((unsigned char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
 		// movl	%%eax,TheCPU.EMUtime(%%ebx)
 		// movl	%%edx,TheCPU.EMUtime+4(%%ebx)
 		G3M(0x89,0x43,Ofs_ETIME,Cp);
@@ -2154,7 +2162,7 @@ shrot0:
 		break;
 
 	case JMP_LINK: {	// cond, dspt, retaddr, link
-		static char pseq16[] = {
+		static unsigned char pseq16[] = {
 			// movw $RA,%%ax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -2170,7 +2178,7 @@ shrot0:
 			// movl %%ecx,Ofs_ESP(%%ebx)
 			0x89,0x4b,Ofs_ESP
 		};
-		static char pseq32[] = {
+		static unsigned char pseq32[] = {
 			// movl $RA,%%eax
 /*00*/			0xb8,0,0,0,0,
 			// movl Ofs_XSS(%%ebx),%%esi
@@ -2191,7 +2199,7 @@ shrot0:
 		int dspnt = IG->p2;
 		linkdesc *lt = IG->lt;
 		if (cond == 0x11) {	// call
-			register char *p, *q; int sz;
+			register unsigned char *p, *q; int sz;
 			if (mode&DATA16) {
 				p=pseq16,sz=sizeof(pseq16);
 			}
@@ -2797,7 +2805,7 @@ static void ProduceCode(unsigned int PC)
  */
 static void _nodelinker2(TNode *LG, TNode *G)
 {
-	int *lp;
+	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B;
 
@@ -2938,7 +2946,7 @@ static void NodeLinker(TNode *G)
 
 void NodeUnlinker(TNode *G)
 {
-	int *lp;
+	unsigned int *lp;
 	linkdesc *T = &G->clink;
 	backref *B = T->bkr.next;
 #ifdef PROFILE
@@ -3118,8 +3126,8 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 		    /* copy tail instructions to the end of the code block */
 		    memcpy(p, TailCode, TAILSIZE);
 		    p += TAILFIX;
-		    I0->clink.t_link.abs = (int *)p;
-		    *((int *)p) = PC;
+		    I0->clink.t_link.abs = (unsigned int *)p;
+		    *((unsigned int *)p) = PC;
 		    CodePtr += TAILSIZE;
 		}
 

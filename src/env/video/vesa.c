@@ -380,17 +380,17 @@ static int vbe_info(unsigned char *vbei)
     i = VBE_OEMData;
     VBE_viOEMSoftRev = VBE_OEMSoftRev;
 
-    strcpy(vbei + i, VBE_OEMVendorName);
+    MEMCPY_2DOSP(vbei + i, VBE_OEMVendorName, sizeof(VBE_OEMVendorName));
     VBE_viOEMVendorName = VBE_SEG_OFS(_ES, _DI + i);
-    i += strlen(VBE_OEMVendorName) + 1;
+    i += sizeof(VBE_OEMVendorName);
 
-    strcpy(vbei + i, VBE_OEMProdName);
+    MEMCPY_2DOSP(vbei + i, VBE_OEMProdName, sizeof(VBE_OEMProdName));
     VBE_viOEMProdName = VBE_SEG_OFS(_ES, _DI + i);
-    i += strlen(VBE_OEMProdName) + 1;
+    i += sizeof(VBE_OEMProdName);
 
-    strcpy(vbei + i, VBE_OEMProductRev);
+    MEMCPY_2DOSP(vbei + i, VBE_OEMProductRev, sizeof(VBE_OEMProductRev));
     VBE_viOEMProductRev = VBE_SEG_OFS(_ES, _DI + i);
-    i += strlen(VBE_OEMProductRev) + 1;
+    i += sizeof(VBE_OEMProductRev);
   }
 
 #ifdef DEBUG_VBE

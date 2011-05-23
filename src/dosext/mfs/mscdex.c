@@ -154,8 +154,8 @@ static int fill_buffer(int copyFlag, Bit32u buffer, unsigned char *readBuf,
 	return 1;		/* ISO 9660 */
 }
 
-static int namecomp(const char *name1, size_t len1, const char *name2,
-		    size_t len2)
+static int namecomp(const unsigned char *name1, size_t len1,
+		    const char *name2, size_t len2)
 {
 	if (len1 > 1 && name1[len1 - 1] == '.')
 		len1--;
@@ -167,7 +167,7 @@ static int namecomp(const char *name1, size_t len1, const char *name2,
 	return 0;
 }
 
-static int GetDirectoryEntry(int drive, int copyFlag, char *pathname,
+static int GetDirectoryEntry(int drive, int copyFlag, unsigned char *pathname,
 			     Bit32u buffer)
 {
 	char searchName[256];
@@ -220,7 +220,7 @@ static int GetDirectoryEntry(int drive, int copyFlag, char *pathname,
 			index = 0;
 
 			do {
-				char *entryName, *longername;
+				unsigned char *entryName, *longername;
 				unsigned nameLength;
 
 				entryLength = defBuffer[index];
@@ -301,7 +301,7 @@ int mscdex(void)
 	case 0x03:		/* abstract file name */
 	case 0x04:		/* documentation file name */
 		{
-			char readbuf[CD_FRAMESIZE];
+			unsigned char readbuf[CD_FRAMESIZE];
 			if (ReadVTOC(_CX, 0x00, readbuf) == 0) {
 				MEMCPY_2DOSP(buf, readbuf + 702 + (_AL - 2) * 37,
 					    37);

@@ -136,7 +136,7 @@ sigjmp_buf NotJEnv;
 void 
 boot(void)
 {
-    char           *buffer;
+    unsigned char  *buffer;
     struct disk    *dp = NULL;
 
     switch (config.hdiskboot) {

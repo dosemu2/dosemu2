@@ -1465,7 +1465,7 @@ int mhp_bpchk(unsigned int a1)
 
 int mhp_getcsip_value()
 {
-  int  seg, off, limit;
+  unsigned int  seg, off, limit;
   if (IN_DPMI) return mhp_getadr("cs:eip", &seg, &off, &limit);
   else return (LWORD(cs) << 4) + LWORD(eip);
 }

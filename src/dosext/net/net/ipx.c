@@ -59,7 +59,7 @@ static int GetMyAddress( void )
   int sock;
   struct sockaddr_ipx ipxs;
   struct sockaddr_ipx ipxs2;
-  int len;
+  socklen_t len;
   int i;
   
   sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
@@ -297,7 +297,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
   int sock;			/* sock here means Linux socket handle */
   int opt;
   struct sockaddr_ipx ipxs;
-  int len;
+  socklen_t len;
   struct sockaddr_ipx ipxs2;
 
   /* DANG_FIXTHIS - do something with longevity flag */
@@ -408,7 +408,7 @@ static u_char IPXCloseSocket(u_short port)
   return (RCODE_SUCCESS);
 }
 
-static int GatherFragmentData(char *buffer, ECB_t * ECB)
+static int GatherFragmentData(u_char *buffer, ECB_t * ECB)
 {
   int i;
   int nextFragLen, totalDataCount;
@@ -694,7 +694,7 @@ static void ipx_fdset(fd_set * set)
   }
 }
 
-static int ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
+static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
                                struct sockaddr_ipx *sipx)
 {
   int i;
@@ -760,9 +760,10 @@ static int ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
 static int IPXReceivePacket(ipx_socket_t * s)
 {
   struct sockaddr_ipx ipxs;
-  char buffer[MAX_PACKET_DATA];
+  unsigned char buffer[MAX_PACKET_DATA];
   far_t ECBPtr;
-  int size, sz;
+  int size;
+  socklen_t sz;
 
   sz = sizeof(ipxs);
   size = recvfrom(s->fd, buffer, sizeof(buffer), 0,

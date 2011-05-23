@@ -503,7 +503,7 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
      * address space allocated via DPMImalloc(). We use it only for
      * DPMI function 0x0509 (Map conventional memory, DPMI version 1.0)
      */
-    char *mapped_base;
+    unsigned char *mapped_base;
     dpmi_pm_block *block;
 
     if ((block = lookup_pm_block(root, handle)) == NULL)

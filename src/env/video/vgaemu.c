@@ -2893,7 +2893,7 @@ unsigned vgaemu_xy2ofs(unsigned x, unsigned y)
 
 void vgaemu_move_vga_mem(unsigned dst, unsigned src, unsigned len)
 {
-  char *dp, *sp;
+  unsigned char *dp, *sp;
 
   if(len == 0) return;
 

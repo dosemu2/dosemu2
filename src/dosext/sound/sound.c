@@ -675,7 +675,7 @@ Bit8u mpu401_io_read(ioport_t port)
 
 static void mpu401_io_callback(void)
 {
-  char buf[QUEUE_SIZE];
+  unsigned char buf[QUEUE_SIZE];
   int n;
   n = mpu401_info.data_read(buf, QUEUE_SIZE);
   if (n <= 0)
