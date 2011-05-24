@@ -69,7 +69,7 @@
 #define makeaddr(x,y) ((((unsigned int)x) << 4) + (unsigned int)y)
 
 /* prototypes */
-static unsigned int mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
+static unsigned int mhp_getadr(char *, unsigned int *, unsigned int *, unsigned int *);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dump    (int, char *[]);
@@ -101,7 +101,7 @@ static void mhp_bplog   (int, char *[]);
 static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
 
-static unsigned int lookup(unsigned char *, unsigned int *, unsigned int *);
+static unsigned int lookup(char *, unsigned int *, unsigned int *);
 
 /* static data */
 static unsigned int linmode = 0;
@@ -252,7 +252,7 @@ static int mhp_addaxlist_value(int v)
   return 0;
 }
 
-static unsigned char * getname(unsigned int addr)
+static char * getname(unsigned int addr)
 {
    int i;
    if ((addr < 0x100000) || (addr > addrmax))
@@ -264,7 +264,7 @@ static unsigned char * getname(unsigned int addr)
    return(NULL);
 }
 
-static unsigned char * getname2(unsigned int seg, unsigned int off)
+static char * getname2(unsigned int seg, unsigned int off)
 {
    int i;
    for (i=0; i < last_symbol2; i++) {
@@ -275,7 +275,7 @@ static unsigned char * getname2(unsigned int seg, unsigned int off)
    return(NULL);
 }
 
-static unsigned char * getname2u(unsigned int addr)
+static char * getname2u(unsigned int addr)
 {
    int i;
    for (i=0; i < last_symbol2; i++) {
@@ -285,7 +285,7 @@ static unsigned char * getname2u(unsigned int addr)
    return(NULL);
 }
 
-static unsigned int    getaddr(unsigned char * n1)
+static unsigned int    getaddr(const char * n1)
 {
    int i;
    if (strlen(n1) == 0)
@@ -297,7 +297,7 @@ static unsigned int    getaddr(unsigned char * n1)
    return 0;
 }
 
-static unsigned int lookup(unsigned char * n1, unsigned int *s1, unsigned int * o1)
+static unsigned int lookup(char * n1, unsigned int *s1, unsigned int * o1)
 {
    int i;
    if (!strlen(n1))
@@ -315,7 +315,7 @@ static unsigned int lookup(unsigned char * n1, unsigned int *s1, unsigned int * 
 static void mhp_rusermap(int argc, char *argv[])
 {
   FILE * ifp;
-  unsigned char bytebuf[IBUFS];
+  char bytebuf[IBUFS];
   unsigned long org;
   unsigned int  seg;
   unsigned int  off;
@@ -376,7 +376,7 @@ static void mhp_rusermap(int argc, char *argv[])
 static void mhp_rmapfile(int argc, char *argv[])
 {
   FILE * ifp = NULL;
-  unsigned char bytebuf[IBUFS];
+  char bytebuf[IBUFS];
   unsigned long a1;
   char *map_fname = DOSEMU_MAP_PATH;
 
@@ -402,7 +402,7 @@ static void mhp_rmapfile(int argc, char *argv[])
   while (last_symbol < MAXSYM) {
      if(!fgets(bytebuf, sizeof (bytebuf), ifp))
         break;
-     if (!strlen(bytebuf) || !isxdigit(*bytebuf))
+     if (!strlen(bytebuf) || !isxdigit((unsigned char)*bytebuf))
         continue;
       /* recent versions of nm put out the address in long long
        * format, with 16 digits: we can't rely on absolute offsets.
@@ -461,7 +461,7 @@ static int decode_symreg(char *regn)
   return last_decode_symreg;
 }
 
-static unsigned long mhp_getreg(unsigned char * regn)
+static unsigned long mhp_getreg(char * regn)
 {
   if (IN_DPMI) return dpmi_mhp_getreg(decode_symreg(regn));
   else switch (decode_symreg(regn)) {
@@ -495,7 +495,7 @@ static unsigned long mhp_getreg(unsigned char * regn)
 }
 
 
-static void mhp_setreg(unsigned char * regn, unsigned long val)
+static void mhp_setreg(char * regn, unsigned long val)
 {
   if (IN_DPMI) {
     dpmi_mhp_setreg(decode_symreg(regn),val);
@@ -762,8 +762,8 @@ static void mhp_disasm(int argc, char * argv[])
    unsigned int bytesdone;
    int i;
    unsigned int buf = 0;
-   unsigned char bytebuf[IBUFS];
-   unsigned char frmtbuf[IBUFS];
+   char bytebuf[IBUFS];
+   char frmtbuf[IBUFS];
    unsigned int seg;
    unsigned int off;
    unsigned int refseg;
@@ -871,7 +871,7 @@ enum {
   V_NONE=0, V_BYTE=1, V_WORD=2, V_DWORD=4, V_STRING=8
 };
 
-static int get_value(unsigned long *v, unsigned char *s, int base)
+static int get_value(unsigned long *v, char *s, int base)
 {
    int len = strlen(s);
    int t;
@@ -879,7 +879,7 @@ static int get_value(unsigned long *v, unsigned char *s, int base)
    char *wl = " WL";
 
    if (!len) return V_NONE;
-   t = s[len-1];
+   t = (unsigned char)s[len-1];
    if (len >2) {
      /* check for string value */
      if (t == '"' && s[0] == '"') {
@@ -922,7 +922,7 @@ static void mhp_enter(int argc, char * argv[])
    unsigned int seg, off;
    unsigned long val;
    unsigned int limit;
-   unsigned char *arg;
+   char *arg;
    int base = 16;
 
    if (argc < 3)
@@ -962,10 +962,10 @@ static void mhp_enter(int argc, char * argv[])
    }
 }
 
-static unsigned int mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1, unsigned int *lim)
+static unsigned int mhp_getadr(char * a1, unsigned int * s1, unsigned int *o1, unsigned int *lim)
 {
    static char buffer[0x10000];
-   unsigned char * srchp;
+   char * srchp;
    unsigned int seg1;
    unsigned int off1;
    unsigned long ul1;
@@ -1018,7 +1018,7 @@ static unsigned int mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned i
           *o1 = 0;
           return ul1;
        }
-       if (!(srchp = (unsigned char *)strchr(a1, ':'))) {
+       if (!(srchp = strchr(a1, ':'))) {
           sscanf(a1, "%lx", &ul1);
           *s1 = 0;
           *o1 = 0;

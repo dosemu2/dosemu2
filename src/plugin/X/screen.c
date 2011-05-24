@@ -70,7 +70,7 @@ static char *get_selection_string(char *charset)
 
 	while (*u) {
 		size_t result = unicode_to_charset(&paste_state, *u++,
-						   p, sel_space);
+						   (unsigned char *)p, sel_space);
 		if (result == -1) {
 			warn("save_selection unfinished2\n");
 			break;
@@ -249,7 +249,7 @@ static void scr_paste_primary(Display *dpy,Window window,int property,int Delete
       }
       
       X_printf("X: Pasting using character set %s\n", charsets[i]);
-      paste_text(data,nitems,charsets[i]);
+      paste_text((char *)data,nitems,charsets[i]);
 
       nread += nitems;
       XFree(data);

@@ -926,7 +926,7 @@ handle_dir(state_t * state)
   case SEARCH_NAMED:{
 	int handle;
 	char xxx[9]; 
-	u_char *array = (u_char *) Addr(state, ds, esi);
+	char *array = Addr(state, ds, esi);
 	strncpy(xxx,array,8); xxx[8]=0;
 	Kdebug0((dbg_fd, "SEARCH_NAMED '%s' function called\n",xxx));
 
@@ -934,7 +934,7 @@ handle_dir(state_t * state)
 	  if (!HANDLE_ALLOCATED(handle))
 	    continue;
 	  if (!strncmp(handle_info[handle].name, array, 8)) {
-	    Kdebug0((dbg_fd, "name match %s!\n", (char *) array));
+	    Kdebug0((dbg_fd, "name match %s!\n", array));
 	    SETHIGH(&(state->eax), EMM_NO_ERR);
 	    SETWORD(&(state->edx), handle);
 	    return;

@@ -153,14 +153,14 @@ extern int restart_cputime (int);
 struct symbol_entry {
    unsigned long addr;
    unsigned char type;
-   unsigned char name[49];
+   char name[49];
 };
 
 struct symbl2_entry {
    unsigned short seg;
    unsigned short off;
    unsigned char type;
-   unsigned char name[49];
+   char name[49];
 };
 
 extern int traceloop;

@@ -681,7 +681,7 @@ char *unicode_string_to_charset(const wchar_t *u, char *charset)
 	init_charset_state(&paste_state, paste_charset);
 
 	while (*u) {
-		result = unicode_to_charset(&paste_state, *u++, p, len);
+		result = unicode_to_charset(&paste_state, *u++, (unsigned char *)p, len);
 		if (result == -1) {
 			warn("unicode to string unfinished\n");
 			break;

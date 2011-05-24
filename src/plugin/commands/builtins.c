@@ -387,7 +387,7 @@ int commands_plugin_inte6(void)
 	/* first parse commandline */
 	args[0] = strdup(com_getarg0());
 	strupperDOS(args[0]);
-	argc = com_argparse(&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
+	argc = com_argparse((char *)&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
 	strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
 	builtin_name[sizeof(builtin_name) - 1] = 0;
 	strupperDOS(builtin_name);

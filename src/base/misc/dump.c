@@ -25,11 +25,11 @@
 
 char *emu_disasm(unsigned int ip)
 {
-   static unsigned char buf[256];
-   unsigned char frmtbuf[256];
+   static char buf[256];
+   char frmtbuf[256];
    int rc, i;
    unsigned int cp;
-   unsigned char *p;
+   char *p;
    unsigned int refseg;
    unsigned int ref;
 

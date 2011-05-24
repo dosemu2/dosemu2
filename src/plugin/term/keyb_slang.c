@@ -105,7 +105,7 @@ static struct keyboard_state
  */
 
 typedef struct {
-  unsigned char keystr[10];
+  char keystr[10];
   unsigned long scan_code;
 }
 Keymap_Scan_Type;
@@ -513,10 +513,10 @@ static int define_getkey_callback(void)
 /* Note: Later definitions with the same or a conflicting key sequence fail,
  *  and give an error message, but now don't stop the emulator.
  */
-static int define_key(const unsigned char *key, unsigned long scan,
+static int define_key(const char *key, unsigned long scan,
 		      SLKeyMap_List_Type * m)
 {
-	unsigned char buf[SLANG_MAX_KEYMAP_KEY_SEQ +1], k1;
+	char buf[SLANG_MAX_KEYMAP_KEY_SEQ +1], k1;
 	unsigned char buf2[SLANG_MAX_KEYMAP_KEY_SEQ +1];
 	int ret;
 	const unsigned char *key_str;
@@ -545,7 +545,7 @@ static int define_key(const unsigned char *key, unsigned long scan,
 	}
 
 	/* Get the translated keystring, and save a copy */
-	key_str = SLang_process_keystring((char *)key);
+	key_str = (unsigned char *)SLang_process_keystring((char *)key);
 	memcpy(buf2, key_str, key_str[0]);
 	key_str = buf2;
 
@@ -581,7 +581,7 @@ static int define_key(const unsigned char *key, unsigned long scan,
 		return 0;
 	}
 
-	ret = SLkm_define_key((unsigned char *)key, (VOID *) scan, m);
+	ret = SLkm_define_key((char *)key, (VOID *) scan, m);
 	if (ret == -2) {  /* Conflicting key error, ignore it */
 		k_printf("KBD: Conflicting key: \n\n");
 		slang_set_error(0);
@@ -609,7 +609,7 @@ static void define_remaining_characters(SLKeyMap_List_Type *m)
 	int i;
 
 	for(i = ' '; i < 256; i++) {
-		unsigned char str[2];
+		char str[2];
 		if (keyb_state.Esc_Char != '@' &&
 		    keyb_state.Esc_Char == '@' + i)
 		  continue;
@@ -625,7 +625,7 @@ static void define_remaining_characters(SLKeyMap_List_Type *m)
 static int init_slang_keymaps(void)
 {
 	SLKeyMap_List_Type *m;
-	unsigned char buf[5];
+	char buf[5];
 	unsigned long esc_scan;
 	char * term;
 	char * kf21;
@@ -1374,7 +1374,7 @@ static void do_slang_getkeys(void)
 		
 		k_printf("KBD: scan=%08lx Shift_Flags=%08lx str[0]=%d str='%s' len=%d\n",
                        scan,keyb_state.Shift_Flags,key ? key->str[0] : 27,
-                       key ? strprintable(key->str+1): "ESC", keyb_state.Keystr_Len);
+                       key ? strprintable((char *)key->str+1): "ESC", keyb_state.Keystr_Len);
 		if (!(scan&0x80000000)) {
 			slang_send_scancode(keyb_state.Shift_Flags | scan, symbol);
 			do_slang_special_keys(0);

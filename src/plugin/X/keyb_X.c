@@ -267,7 +267,7 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 
 	if (!USING_XKB) {
 		#define MAXCHARS 3
-		unsigned char chars[MAXCHARS];
+		char chars[MAXCHARS];
 		static XComposeStatus compose_status = {NULL, 0};
 
 		XLookupString(e, chars, MAXCHARS, &xkey, &compose_status);
@@ -289,7 +289,7 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 	}
 #endif
 	charset_to_unicode(&X_charset, &result->key, 
-		(const char *)&xkey, sizeof(xkey));
+		(const unsigned char *)&xkey, sizeof(xkey));
 	result->make = (e->type == KeyPress);
 	result->modifiers = map_X_modifiers(modifiers);
 	X_printf("X: key_event: %02x %08x %8s sym: %04x -> %04x %08x\n",

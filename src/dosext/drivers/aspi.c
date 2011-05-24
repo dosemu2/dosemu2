@@ -797,8 +797,8 @@ static Bit16u ASPI_Inquiry(SRB_GDEVBlock16 *prb, FARPTR16 segptr_prb)
 
   p->HA_Count = 1;
   p->HA_SCSI_ID = 7;
-  strncpy(p->HA_ManagerId, "DOSEMU ASPI     ",16);
-  strncpy(p->HA_Identifier,"DUMMY SCSI ADAPT",16);
+  memcpy(p->HA_ManagerId, "DOSEMU ASPI     ",16);
+  memcpy(p->HA_Identifier,"DUMMY SCSI ADAPT",16);
   memset(p->HA_Unique,0,16);
     
 #if 0 /* this is wrong here, the srb is _no_ SRB_ExecSCSICmd16 */

@@ -1938,7 +1938,7 @@ static void for_each_keysym_mapping(struct char_set *set,
 	for(i = 0; i < keysym_map_size; i++) {
 		callback(callback_data, 
 			keysym_map[i].dosemu_key,
-			(const char *)&keysym_map[i].xkey, 
+			(const unsigned char *)&keysym_map[i].xkey, 
 			sizeof(keysym_map[i].xkey));
 	}
 }

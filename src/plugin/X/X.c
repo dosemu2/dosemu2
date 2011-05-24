@@ -456,8 +456,8 @@ static void toggle_mouse_grab(void);
 static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
 
-void kdos_recv_msg(unsigned char *);
-void kdos_send_msg(unsigned char *);
+void kdos_recv_msg(char *);
+void kdos_send_msg(char *);
 void kdos_close_msg(void);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1007,11 +1007,11 @@ void X_dga_done()
 #ifdef HAVE_XVIDMODE
 static void X_xf86vm_init(void)
 {
-  unsigned int eventB, errorB, ver, rev;
+  int eventB, errorB, ver, rev;
   if (XF86VidModeQueryExtension(display, &eventB, &errorB))
   {
     XF86VidModeQueryVersion(display, &ver, &rev);
-    X_printf("X: VidMode Extension version %u.%u\n", ver, rev);
+    X_printf("X: VidMode Extension version %d.%d\n", ver, rev);
     XF86VidModeGetAllModeLines(display, 0, &modecount, &vidmode_modes);
     xf86vm_ok = 1;
   }
@@ -1334,7 +1334,7 @@ static void X_wait_unmapped(Window win)
 
 static void toggle_fullscreen_mode(int init)
 {
-  unsigned resize_height, resize_width;
+  int resize_height, resize_width;
 
   if (!init) {
     XUnmapWindow(display, mainwindow);
@@ -2555,12 +2555,12 @@ static struct mouse_client Mouse_X =  {
 
 #define KDOS_CLOSE_MSG	1
 
-void kdos_recv_msg(unsigned char *buf)
+void kdos_recv_msg(char *buf)
 {
   fprintf(stderr, "got Msg %d\n", buf[0]);
 }
 
-void kdos_send_msg(unsigned char *buf)
+void kdos_send_msg(char *buf)
 {
   XEvent e;
 
@@ -2579,7 +2579,7 @@ void kdos_send_msg(unsigned char *buf)
 
 void kdos_close_msg()
 {
-  unsigned char m[20] = { KDOS_CLOSE_MSG, };
+  char m[20] = { KDOS_CLOSE_MSG, };
   kdos_send_msg(m);
 }
 

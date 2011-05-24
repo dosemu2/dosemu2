@@ -58,7 +58,7 @@ static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr
     text_display, text_window, text_gc,
     font_width * x,
     font_height * y + font_shift,
-    text,
+    (char *)text,
     len
     );
 }

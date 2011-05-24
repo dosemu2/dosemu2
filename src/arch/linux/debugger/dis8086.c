@@ -1129,7 +1129,7 @@ static Bitu DasmI386(char* buffer, PhysPt pc, Bitu cur_ip, bool bit32)
 }
 
 int  dis_8086(unsigned int code,
-	      unsigned char *outbuf,
+	      char *outbuf,
 	      int def_size,
 	      unsigned int * refof,
 	      unsigned int refsegbase)

@@ -183,11 +183,11 @@ int type_in_pre_strokes(void)
 
 
 
-void append_pre_strokes(unsigned char *s)
+void append_pre_strokes(char *s)
 {
   if (config.pre_stroke) {
     int l1,l2;
-    unsigned char *n;
+    char *n;
 
     l1 = strlen(config.pre_stroke);
     l2 = strlen(s);

@@ -109,7 +109,7 @@ static void foreach_terminal(struct char_set *set, int offset,
 	state.callback_data = callback_data;
 	state.callback = callback;
 	for(i = 0; i <= 0x20; i++) {
-		char buff[1];
+		unsigned char buff[1];
 		buff[0] = i;
 		state.callback(state.callback_data, i, buff, 1);
 	}

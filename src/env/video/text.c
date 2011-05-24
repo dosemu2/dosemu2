@@ -100,7 +100,7 @@ int register_text_system(struct text_system *text_system)
  * Draw a text string.
  * The attribute is the VGA color/mono text attribute.
  */
-static void draw_string(int x, int y, char *text, int len, Bit8u attr)
+static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
   x_deb2(
     "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",

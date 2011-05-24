@@ -90,9 +90,10 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 
 static void dump_disk_blks(unsigned char *tb, int count, int ssiz)
 {
-  static unsigned char buf[80], cbuf[20];
+  static char buf[80], cbuf[20];
   int a,i,j;
-  unsigned char *p,*q;
+  char *p;
+  unsigned char *q;
 
   q=tb; a=0;
   while (count--) {

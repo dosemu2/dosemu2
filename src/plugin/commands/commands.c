@@ -207,7 +207,7 @@ int uchdir_main(int argc, char **argv)
 		com_printf("Run chdir newpath\n");
 		return 1;
 	}
-	strncpy(c, psp->cmdline, psp->cmdline_len);
+	memcpy(c, psp->cmdline, psp->cmdline_len);
 	c[psp->cmdline_len] = 0;
 	chdir(skip_white_and_delim(c, ' '));
 	return 0;

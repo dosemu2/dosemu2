@@ -142,9 +142,9 @@ BOOL is_valid_DOS_char(int c)
 /* upname is always already uppercased          */
 BOOL strequalDOS(const char *name, const char *upname)
 {
-  const unsigned char *n, *un;
+  const char *n, *un;
   for (n = name, un = upname; *n || *un; n++, un++)
-    if (toupperDOS(*n) != *un)
+    if (toupperDOS((unsigned char)*n) != (unsigned char)*un)
       return FALSE;
   return TRUE;
 }
@@ -160,7 +160,7 @@ BOOL strhasupperDOS(char *s)
   init_charset_state(&dos_state, trconfig.dos_charset);
 
   while (*s) {
-    result = charset_to_unicode(&dos_state, &symbol, s, len);
+    result = charset_to_unicode(&dos_state, &symbol, (unsigned char *)s, len);
     if (result == -1)
       break;
     if (iswupper(symbol))

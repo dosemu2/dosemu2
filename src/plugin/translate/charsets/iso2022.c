@@ -103,7 +103,7 @@ do { \
 	set_gn:
 		NEXT_CHAR();
 	set_gn_this_char:
-		iso2022_piece = lookup_charset_piece(&ch, 1, chars_count, bytes_per_char);
+		iso2022_piece = lookup_charset_piece((char *)&ch, 1, chars_count, bytes_per_char);
 		if (iso2022_piece) {
 			state->g[gn] = iso2022_piece;
 		} 
@@ -282,7 +282,7 @@ static size_t unicode_to_iso2022(struct char_set_state *ch_state,
 
 	/* If found, output a translation */
 	if (state.piece)  {
-		const unsigned char *final_chars = state.piece->final_chars;
+		const char *final_chars = state.piece->final_chars;
 		int offset = 0x20;
 		int out_index = 0;
 		unsigned char destination;

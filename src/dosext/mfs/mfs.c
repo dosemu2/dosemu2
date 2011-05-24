@@ -2067,7 +2067,7 @@ struct stack_entry
   unsigned psp;
   int seq;
   int duplicates;
-  unsigned char *fpath;      
+  char *fpath;      
 };
 
 #define HLIST_WATCH_CNT 64	/* if more than HWC hlist positions then ... */
@@ -3968,8 +3968,8 @@ dos_fs_redirect(state_t *state)
     }
 
     Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
-	    (char *) sdb_template_name(sdb),
-	    (char *) sdb_template_ext(sdb), hlist));
+	    sdb_template_name(sdb),
+	    sdb_template_ext(sdb), hlist));
     return find_again(0, drive, fpath, hlist, state, sdb);
   case CLOSE_ALL:		/* 0x1d */
     Debug0((dbg_fd, "Close All\n"));

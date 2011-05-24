@@ -56,8 +56,8 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 int X11_DetectLayout (void)
 {
   Display *display;
-  unsigned match, mismatch, seq, i, syms, startsym, alternate;
-  int score, keyc, key, pkey, ok = 0;
+  unsigned match, mismatch, seq, i, startsym, alternate;
+  int syms, score, keyc, key, pkey, ok = 0;
   KeySym keysym;
   unsigned max_seq[3] = {0, 0};
   int max_score[3] = {INT_MIN, INT_MIN};
@@ -96,7 +96,7 @@ int X11_DetectLayout (void)
       for (i = startsym; i < syms; i++) {
         keysym = XKeycodeToKeysym (display, keyc, i);
 	charset_to_unicode(&X_charset, &ckey[i - startsym],
-                (const char *)&keysym, sizeof(keysym));
+                (const unsigned char *)&keysym, sizeof(keysym));
       }
       for (i = 0; i < startsym; i++)
 	ckey[syms - startsym + i] = U_VOID;

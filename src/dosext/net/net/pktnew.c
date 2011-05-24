@@ -294,7 +294,7 @@ pkt_int (void)
 	return 1;
 
     case F_ACCESS_TYPE:
-	if (strchr(pg.classes,LO(ax)) == NULL) { /* check if_class */
+	if (memchr(pg.classes,LO(ax),sizeof(pg.classes)) == NULL) { /* check if_class */
 	    HI(dx) = E_NO_CLASS;
 	    break;
 	}

@@ -30,7 +30,7 @@ static size_t unicode_to_multibyte(struct char_set_state *state,
 		errno = E2BIG;
 		return -1;
 	}
-	result = wcrtomb(outbuf, symbol, &state->u.mb_state);
+	result = wcrtomb((char *)outbuf, symbol, &state->u.mb_state);
 	return result;
 }
 
@@ -42,7 +42,7 @@ static size_t multibyte_to_unicode(struct char_set_state *state,
 	size_t result;
 	
 	*symbol = U_VOID;
-	result = mbrtowc(&wide_symbol, inbuf, in_bytes_left, 
+	result = mbrtowc(&wide_symbol, (const char *)inbuf, in_bytes_left, 
 		&state->u.mb_state);
 	if (result == -2) {
 		errno = EINVAL;

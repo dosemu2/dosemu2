@@ -145,7 +145,7 @@ static void dump_keytable_part(FILE *f, t_keysym *map, int size)
 {
   int i, in_string=0;
   t_keysym c;
-  unsigned char *cc, comma=' ', buf[16];
+  char *cc, comma=' ', buf[16];
 
   /* Note: This code assumes every font is a superset of ascii */
   if (!map) {

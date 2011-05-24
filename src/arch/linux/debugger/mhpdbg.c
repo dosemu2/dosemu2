@@ -217,8 +217,8 @@ static void mhp_poll_loop(void)
        */
       if (mhpdbg.nbytes <= 0) {
          if (traceloop && mhpdbgc.stopped) {
-           strcpy(mhpdbg.recvbuf,loopbuf);
            mhpdbg.nbytes=strlen(loopbuf);
+           memcpy(mhpdbg.recvbuf,loopbuf,mhpdbg.nbytes+1);
          }
          else {
           if (mhpdbgc.stopped) {
@@ -243,7 +243,7 @@ static void mhp_poll_loop(void)
          return;
       }
       mhpdbg.recvbuf[mhpdbg.nbytes] = 0x00;
-      ptr = mhpdbg.recvbuf;
+      ptr = (char *)mhpdbg.recvbuf;
       while (ptr && *ptr) {
 	ptr1 = strsep(&ptr, "\r\n");
 	if (!ptr1)

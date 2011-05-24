@@ -40,7 +40,8 @@ static struct vm86_regs vesa_r;
    changes at runtime (e.g. univbe). Also called at startup */
 static void vesa_reinit(void)
 {
-  unsigned char *vbe_buffer, *info_buffer, *s;
+  unsigned char *vbe_buffer, *info_buffer;
+  char *s;
 
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
 

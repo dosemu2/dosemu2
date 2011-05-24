@@ -218,7 +218,7 @@ static void construct_acs_table(void)
 		charset = lookup_charset("vt100");
 		for (p = SLtt_Graphics_Char_Pairs; *p; p += 2) {
 			init_charset_state(&state, charset);
-			charset_to_unicode(&state, &uni, p, 1);
+			charset_to_unicode(&state, &uni, (unsigned char *)p, 1);
 			if (uni >= 256) {
 				acs_to_uni[(unsigned char)p[0]] = uni;
 			}
@@ -694,8 +694,9 @@ static int slang_update (void)
 
 static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
 {
-   unsigned char buf[len + 1];
-   unsigned char *bufp, *text_end;
+   char buf[len + 1];
+   char *bufp;
+   unsigned char *text_end;
 
    text_end = text + len;
 
@@ -743,8 +744,9 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
 
 static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr)
 {
-   unsigned char buf[(len + 1) * 3];
-   unsigned char *bufp, *text_end = text + len;
+   char buf[(len + 1) * 3];
+   char *bufp;
+   unsigned char *text_end = text + len;
 
    for (bufp = buf; text < text_end; bufp += bufp[3], text++)
       memcpy(bufp, The_Charset + *text, 4);
@@ -762,7 +764,7 @@ static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u a
 
    /* take care of invisible character */
    if (this_obj < 0) {
-      unsigned char buf[len];
+      char buf[len];
       memset(buf, ' ', len);
       SLsmg_write_nchars(buf, len);
    } else

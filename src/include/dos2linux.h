@@ -94,8 +94,8 @@ struct lowstring {
 typedef u_char *sdb_t;
 
 #define sdb_drive_letter(sdb)	(*(u_char  *)&sdb[sdb_drive_letter_off])
-#define sdb_template_name(sdb)	((u_char   *)&sdb[sdb_template_name_off])
-#define sdb_template_ext(sdb)	((u_char   *)&sdb[sdb_template_ext_off])
+#define sdb_template_name(sdb)	((char     *)&sdb[sdb_template_name_off])
+#define sdb_template_ext(sdb)	((char     *)&sdb[sdb_template_ext_off])
 #define	sdb_attribute(sdb)	(*(u_char  *)&sdb[sdb_attribute_off])
 #define sdb_dir_entry(sdb)	(*(u_short *)&sdb[sdb_dir_entry_off])
 #define sdb_p_cluster(sdb)	(*(u_short *)&sdb[sdb_p_cluster_off])
