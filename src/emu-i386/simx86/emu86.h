@@ -641,7 +641,7 @@ extern int eTimeCorrect;
 
 /////////////////////////////////////////////////////////////////////////////
 //
-extern unsigned int P0;
+extern unsigned int P0, return_addr;
 extern sigjmp_buf jmp_env;
 extern int in_dpmi_emu;
 extern unsigned long eTSSMASK;
@@ -664,6 +664,7 @@ char *e_trace_fp(void);
 void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
 char *showmode(unsigned int m);
+void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
 int s_munprotect(unsigned int addr);
 int s_mprotect(unsigned int addr);

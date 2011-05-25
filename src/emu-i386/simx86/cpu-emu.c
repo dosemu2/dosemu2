@@ -563,7 +563,7 @@ static void Reg2Cpu (int mode)
 /*
  * Exit emulator in VM86 mode and return to dosemu (return_to_32bit)
  */
-static void Cpu2Reg (void)
+void Cpu2Reg (void)
 {
   int mask;
   if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08x dpm=%08x emu=%08x evf=%08x\n",

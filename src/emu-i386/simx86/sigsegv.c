@@ -455,7 +455,8 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		}
 	}
 
-	if (CONFIG_CPUSIM && in_dpmi_emu) {
+	if (CONFIG_CPUSIM) {
+	    if (in_dpmi_emu) {
 		/* reflect DPMI page fault back to a DOSEMU crash or
 		   DPMI exception;
 		   vm86 faults will terminate DOSEMU via "return 0"
@@ -465,6 +466,9 @@ int e_emu_fault(struct sigcontext_struct *scp)
 		TheCPU.cr2 = _cr2;
 		fault_cnt--;
 		siglongjmp(jmp_env, 0);
+	    }
+	    return_addr = P0;
+	    Cpu2Reg();
 	}
 
 #ifdef HOST_ARCH_X86
