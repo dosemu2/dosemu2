@@ -521,7 +521,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| PCI bool 
 		    { 
 		      config.pci_video = ($2!=0);
-		      IFCLASS(CL_PCI);
+		      IFCLASS(CL_PCI) {}
 		      config.pci = (abs($2)==2); 
 		    }
 		| BOOTA
@@ -751,7 +751,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| DEXE '{' dexeflags '}'
 		| HARDWARE_RAM
-                    { IFCLASS(CL_HARDRAM);
+                    { IFCLASS(CL_HARDRAM) {}
 		    if (priv_lvl)
 		      yyerror("Can not change hardware ram access settings in user config file");
 		    }
@@ -1991,7 +1991,7 @@ static void start_vnet(char *mode) {
     config.vnet = VNET_TYPE_TAP;
     return;
   }
-  IFCLASS(CL_NET);
+  IFCLASS(CL_NET) {}
   if (strlen(mode) == 0 || strcmp(mode, "direct") == 0)
     config.vnet = VNET_TYPE_ETH;
   else if (strcmp(mode, "dosnet") == 0)
@@ -2272,7 +2272,7 @@ static void close_file(FILE * file)
 static void write_to_syslog(char *message)
 {
   openlog("dosemu", LOG_PID, LOG_USER | LOG_NOTICE);
-  syslog(LOG_PID | LOG_USER | LOG_NOTICE, message);
+  syslog(LOG_PID | LOG_USER | LOG_NOTICE, "%s", message);
   closelog();
 }
 

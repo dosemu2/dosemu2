@@ -120,7 +120,7 @@ static dma_t dma[2];		/* DMA controllers */
 #define DMA2  1
 
 inline void dma_toggle_ff(int dma_c);
-inline void dma_write_mask(int dma_c, Bit8u value);
+static inline void dma_write_mask(int dma_c, Bit8u value);
 inline void dma_write_count(int dma_c, int channel, Bit8u value);
 inline void dma_write_addr(int dma_c, int channel, Bit8u value);
 inline Bit8u dma_read_count(int dma_c, int channel);
@@ -652,7 +652,7 @@ inline void dma_write_count(int dma_c, int channel, Bit8u value)
   dma_toggle_ff(dma_c);
 }
 
-inline int dma_get_block_size(int channel)
+int dma_get_block_size(int channel)
 {
   int controller, ch;
 
@@ -680,7 +680,7 @@ inline int dma_get_transfer_size(int channel)
   return dma[controller].i[ch].set_size;
 }
 
-inline void dma_write_mask(int dma_c, Bit8u value)
+static inline void dma_write_mask(int dma_c, Bit8u value)
 {
   if (value & DMA_SELECT_BIT) {
     dma[dma_c].current_channel = (int) value & 3;

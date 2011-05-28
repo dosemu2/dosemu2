@@ -139,7 +139,7 @@ void init_port_traceing(void)
 
 #define TT_printf(p,f,v,m) ({ \
   if (debug_level('T')) { \
-    log_printf(1, "%hx %c %x\n", p, f, v & m); \
+    log_printf(1, "%hx %c %x\n", (unsigned short)p, f, v & m); \
   } \
 })
 
@@ -543,7 +543,7 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	if (debug_level('T')) {
 		dest = base;
 		while (count_--) {
-			LOG_PORT_READ(port, *dest);
+			(void)LOG_PORT_READ(port, *dest);
 			dest += incr;
 		}
 	}
@@ -613,7 +613,7 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	if (debug_level('T')) {
 		dest = base;
 		while (count_--) {
-			LOG_PORT_READ_W(port, *dest);
+			(void)LOG_PORT_READ_W(port, *dest);
 			dest += incr;
 		}
 	}
@@ -667,7 +667,7 @@ int port_rep_ind(ioport_t port, Bit32u *base, int df, Bit32u count)
 	if (count==0) return 0;
 	while (count--) {
 	  *dest = port_ind(port);
-	  LOG_PORT_READ_D(port, *dest);
+	  (void)LOG_PORT_READ_D(port, *dest);
 	  dest += incr;
 	}
 	return (Bit8u *)dest-(Bit8u *)base;

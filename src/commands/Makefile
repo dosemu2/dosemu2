@@ -53,7 +53,7 @@ all: $(COM2) $(SYS)
 
 dosbin: $(COM1) $(COM2) $(SYS)
 
-ASFLAGS += -traditional -Wa,-a > $*.s.out
+ASFLAGS += -Wa,-a > $*.s.out
 
 $(D)/%.sys: %.o
 	$(LD) $(LDFLAGS) -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<

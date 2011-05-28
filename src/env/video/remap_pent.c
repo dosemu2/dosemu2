@@ -7,7 +7,7 @@
 
 /* Pentium optimized remapping functions */
 
-#ifdef __i386__
+#if defined(__i386__) && !defined(__clang__)
 
 #include "config.h"
 #include <stdio.h>

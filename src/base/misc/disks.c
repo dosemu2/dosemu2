@@ -621,7 +621,7 @@ partition_setup(struct disk *dp)
     tmp_mbr[0x1fe] = 0x55;
     tmp_mbr[0x1ff] = 0xaa;
   } else {
-    RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
+    (void)RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
     close(part_fd);
     d_printf("Using MBR from %s for PARTITION %s (part#=%d).\n",
              hd_name, dp->dev_name, PNUM);
@@ -869,7 +869,7 @@ disk_open(struct disk *dp)
   dp->tracks = fl.track;
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
   if (dp->default_cmos != ATAPI_FLOPPY)
-    DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
+    (void)DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
 }
 #endif
 

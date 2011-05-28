@@ -874,7 +874,7 @@ static inline int CheckDataSelector(struct sigcontext_struct *scp,
       error("%cS selector invalid: 0x%04X, type=%x np=%i\n",
         letter, selector, Segments[selector >> 3].type, 
 	    Segments[selector >> 3].not_present);
-      D_printf(DPMI_show_state(scp));
+      D_printf("%s", DPMI_show_state(scp));
 #if 1
       /* Some buggy programs load the arbitrary LDT or even GDT
        * selectors after doing "verr" on them. We have to do the same. :( */
@@ -907,7 +907,7 @@ int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
     if (in_dosemu) {
       error("CS selector invalid: 0x%04X, type=%x np=%i\n",
         _cs, Segments[_cs >> 3].type, Segments[_cs >> 3].not_present);
-      D_printf(DPMI_show_state(scp));
+      D_printf("%s", DPMI_show_state(scp));
     }
     return 0;
   }
@@ -915,7 +915,7 @@ int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
     if (in_dosemu) {
       error("IP outside CS limit: ip=%#x, cs=%#x, lim=%#x\n",
         D_16_32(_eip), _cs, GetSegmentLimit(_cs));
-      D_printf(DPMI_show_state(scp));
+      D_printf("%s", DPMI_show_state(scp));
     }
     return 0;
   }
@@ -942,7 +942,7 @@ FI;
     if (in_dosemu) {
       error("SS selector invalid: 0x%04X, type=%x np=%i\n",
         _ss, Segments[_ss >> 3].type, Segments[_ss >> 3].not_present);
-      D_printf(DPMI_show_state(scp));
+      D_printf("%s", DPMI_show_state(scp));
     }
     return 0;
   }
@@ -3345,7 +3345,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       || debug_level('e')
 #endif
      )
-    { D_printf(DPMI_show_state(scp)); }
+    { D_printf("%s", DPMI_show_state(scp)); }
 #ifdef SHOWREGS
   print_ldt();
 #endif

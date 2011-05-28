@@ -337,8 +337,8 @@ load_file(char *name, int foffset, unsigned char *mstart, int msize)
   else
     fd = open(name, O_RDONLY);
 
-  DOS_SYSCALL(lseek(fd, foffset, SEEK_SET));
-  RPT_SYSCALL(read(fd, mstart, msize));
+  (void)DOS_SYSCALL(lseek(fd, foffset, SEEK_SET));
+  (void)RPT_SYSCALL(read(fd, mstart, msize));
 
   if (strcmp(name, "/dev/mem") == 0)
     close_kmem();

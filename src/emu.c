@@ -259,7 +259,7 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
   }
 
   if (dosboot) {
-    p_dos_str(text);
+    p_dos_str("%s", text);
   } else {
     fputs(text, stdout);
   }
@@ -267,7 +267,7 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
   buf[0] = '\0';
   if (prompt) {
     if (dosboot) {
-      p_dos_str(text2);
+      p_dos_str("%s", text2);
       com_biosread(buf, sizeof(buf)-2);
     } else {
       fputs(text2, stdout);

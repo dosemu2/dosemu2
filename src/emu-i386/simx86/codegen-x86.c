@@ -3237,7 +3237,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 		: "=S"(flg),"=c"(ePC),"=D"(mem_ref),
 		  "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th),
 		  "=&a"(TimeEndExec.t.tl),"=&d"(TimeEndExec.t.th)
-		: "1"(ecpu),"0"(flg),"2"(SeqStart)
+		: "c"(ecpu),"0"(flg),"2"(SeqStart)
 		: "memory"
 #ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
 		  ,"r8","r9","r10","r11"

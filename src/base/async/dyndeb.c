@@ -71,20 +71,6 @@ int set_debug_level(int letter, int level)
 	return 0;
 }
 
-int debug_level(int letter)
-{
-	struct debug_class *class;
-	if (letter >= DEBUG_CLASSES) {
-		return -1;
-	}
-	class = &debug[letter];
-	if (!class->letter) {
-		return -1;
-	}
-	return class->level;
-}
-
-
 /*
  * DANG_BEGIN_FUNCTION parse_debugflags
  * 

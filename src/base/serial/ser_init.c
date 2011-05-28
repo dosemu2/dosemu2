@@ -267,7 +267,7 @@ int ser_open(int num)
       com[num].dev);
     goto fail_close;
   }
-  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
+  (void)RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
   add_to_io_select(com[num].fd, 1, async_serial_run);
   return com[num].fd;
 
@@ -375,8 +375,8 @@ static int ser_close(int num)
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down. 
    */
-  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-  RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
+  (void)RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
+  (void)RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
   i = RPT_SYSCALL(close(com[num].fd));
   com[num].fd = -1;
   
@@ -594,7 +594,7 @@ void serial_close(void)
                "only using GPM\n",i);
 #endif
     else {
-      RPT_SYSCALL(tcsetattr(com[i].fd, TCSADRAIN, &com[i].oldset));
+      (void)RPT_SYSCALL(tcsetattr(com[i].fd, TCSADRAIN, &com[i].oldset));
       ser_close(i);
     }
   }

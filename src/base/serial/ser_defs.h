@@ -305,7 +305,7 @@ int pic_serial_run(int);
 void fossil_int14(int);
 void ser_termios(int num);
 void modstat_engine(int num);
-inline int msr_compute_delta_bits(int oldmsr, int newmsr);
+int msr_compute_delta_bits(int oldmsr, int newmsr);
 int ser_open(int num);
 void ser_set_params(int num);
 void receive_engine(int num);

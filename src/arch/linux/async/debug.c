@@ -12,9 +12,9 @@ static FILE *gdb_f = NULL;
 
 static void gdb_command(char *cmd)
 {
-  printf(cmd);
+  printf("%s", cmd);
   fflush(stdout);
-  fprintf(gdb_f, cmd);
+  fprintf(gdb_f, "%s", cmd);
   fflush(gdb_f);
 }
 
@@ -25,7 +25,7 @@ static int start_gdb(pid_t dosemu_pid)
   printf("Debug info:\n");
   fflush(stdout);
   asprintf(&buf, "gdb %s", dosemu_proc_self_exe);
-  printf(buf);
+  printf("%s", buf);
   putchar('\n');
   fflush(stdout);
   if (!(gdb_f = popen(buf, "w")))

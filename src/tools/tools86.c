@@ -219,6 +219,7 @@ static inline int _skipwhite(FILE *f) {
     if (!isspace(c)) break;
   }
   ungetc(c,f);
+  return c;
 }
   
 static inline int was(char *s, char *b, int buf_i, int buf_n) {

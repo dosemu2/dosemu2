@@ -549,7 +549,7 @@ static int get_rx(int num)
  * trailing edge bit (the RI trailing edge bit is set on only when RI
  * goes from on to off).  [oldmsr = old value, newmsr = new value]
  */
-inline int msr_compute_delta_bits(int oldmsr, int newmsr)
+int msr_compute_delta_bits(int oldmsr, int newmsr)
 {
   int delta;
   

@@ -70,7 +70,7 @@ static void DOSEMUSetupMouse(void)
       if (mice->type == MOUSE_MOUSEMAN)
         {
           DOSEMUSetMouseSpeed(1200, 1200, mice->flags);
-          RPT_SYSCALL(write(mice->fd, "*X", 2));
+          (void)RPT_SYSCALL(write(mice->fd, "*X", 2));
           DOSEMUSetMouseSpeed(1200, mice->baudRate, mice->flags);
         }
       else if (mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2 &&
@@ -90,7 +90,7 @@ static void DOSEMUSetupMouse(void)
 	      /* Switch the mouse into MM series mode; actually, chances
 	      	are, if you have an older logitech mouse (like I do), you
 	      	were already *in* MM series mode. */
-	      RPT_SYSCALL(write(mice->fd, "S", 1));
+	      (void)RPT_SYSCALL(write(mice->fd, "S", 1));
 
 	      /* Need to use flags for MM series, not Logitech (bugfix) */
 	      DOSEMUSetMouseSpeed(mice->baudRate, mice->baudRate,
@@ -101,17 +101,17 @@ static void DOSEMUSetupMouse(void)
 	  {
 	    char speedcmd;
 
-	    RPT_SYSCALL(write(mice->fd, "z8", 2));	/* Set Parity = "NONE" */
+	    (void)RPT_SYSCALL(write(mice->fd, "z8", 2));	/* Set Parity = "NONE" */
 	    usleep(50000);
-	    RPT_SYSCALL(write(mice->fd, "zb", 2));	/* Set Format = "Binary" */
+	    (void)RPT_SYSCALL(write(mice->fd, "zb", 2));	/* Set Format = "Binary" */
 	    usleep(50000);
-	    RPT_SYSCALL(write(mice->fd, "@", 1));	/* Set Report Mode = "Stream" */
+	    (void)RPT_SYSCALL(write(mice->fd, "@", 1));	/* Set Report Mode = "Stream" */
 	    usleep(50000);
-	    RPT_SYSCALL(write(mice->fd, "R", 1));	/* Set Output Rate = "45 rps" */
+	    (void)RPT_SYSCALL(write(mice->fd, "R", 1));	/* Set Output Rate = "45 rps" */
 	    usleep(50000);
-	    RPT_SYSCALL(write(mice->fd, "I\x20", 2));	/* Set Incrememtal Mode "20" */
+	    (void)RPT_SYSCALL(write(mice->fd, "I\x20", 2));	/* Set Incrememtal Mode "20" */
 	    usleep(50000);
-	    RPT_SYSCALL(write(mice->fd, "E", 1));	/* Set Data Type = "Relative */
+	    (void)RPT_SYSCALL(write(mice->fd, "E", 1));	/* Set Data Type = "Relative */
 	    usleep(50000);
 
 	    /* These sample rates translate to 'lines per inch' on the Hitachi
@@ -122,22 +122,22 @@ static void DOSEMUSetupMouse(void)
 	    else if (mice->sampleRate <=  500) speedcmd = 'h';
 	    else if (mice->sampleRate <= 1000) speedcmd = 'j';
 	    else                               speedcmd = 'd';
-	    RPT_SYSCALL(write(mice->fd, &speedcmd, 1));
+	    (void)RPT_SYSCALL(write(mice->fd, &speedcmd, 1));
 	    usleep(50000);
 
-	    RPT_SYSCALL(write(mice->fd, "\021", 1));	/* Resume DATA output */
+	    (void)RPT_SYSCALL(write(mice->fd, "\021", 1));	/* Resume DATA output */
 	  }
 	  else
 	  {
 	    m_printf("MOUSE: set sample rate to %d\n",mice->sampleRate);
-	    if      (mice->sampleRate <=   0)  { RPT_SYSCALL(write(mice->fd, "O", 1));}
-	    else if (mice->sampleRate <=  15)  { RPT_SYSCALL(write(mice->fd, "J", 1));}
-	    else if (mice->sampleRate <=  27)  { RPT_SYSCALL(write(mice->fd, "K", 1));}
-	    else if (mice->sampleRate <=  42)  { RPT_SYSCALL(write(mice->fd, "L", 1));}
-	    else if (mice->sampleRate <=  60)  { RPT_SYSCALL(write(mice->fd, "R", 1));}
-	    else if (mice->sampleRate <=  85)  { RPT_SYSCALL(write(mice->fd, "M", 1));}
-	    else if (mice->sampleRate <= 125)  { RPT_SYSCALL(write(mice->fd, "Q", 1));}
-	    else                               { RPT_SYSCALL(write(mice->fd, "N", 1));}
+	    if      (mice->sampleRate <=   0)  { (void)RPT_SYSCALL(write(mice->fd, "O", 1));}
+	    else if (mice->sampleRate <=  15)  { (void)RPT_SYSCALL(write(mice->fd, "J", 1));}
+	    else if (mice->sampleRate <=  27)  { (void)RPT_SYSCALL(write(mice->fd, "K", 1));}
+	    else if (mice->sampleRate <=  42)  { (void)RPT_SYSCALL(write(mice->fd, "L", 1));}
+	    else if (mice->sampleRate <=  60)  { (void)RPT_SYSCALL(write(mice->fd, "R", 1));}
+	    else if (mice->sampleRate <=  85)  { (void)RPT_SYSCALL(write(mice->fd, "M", 1));}
+	    else if (mice->sampleRate <= 125)  { (void)RPT_SYSCALL(write(mice->fd, "Q", 1));}
+	    else                               { (void)RPT_SYSCALL(write(mice->fd, "N", 1));}
 	  }
         }
 
@@ -492,7 +492,7 @@ static void parent_close_mouse (void)
      {
 	if (mice->fd > 0) {
    	   remove_from_io_select(mice->fd, 1);
-           DOS_SYSCALL(close (mice->fd));
+           (void)DOS_SYSCALL(close (mice->fd));
 	}
     }
   else

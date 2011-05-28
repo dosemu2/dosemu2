@@ -926,7 +926,7 @@ pic_iret(void)
  *
  * DANG_END_FUNCTION
  */
-inline void pic_watch(hitimer_u *s_time)
+void pic_watch(hitimer_u *s_time)
 {
 hitimer_t t_time;
 unsigned long pic_newirr;

@@ -179,8 +179,7 @@ extern int register_debug_class(
 extern int unregister_debug_class(int letter);
 extern void print_debug_usage(FILE *stream);
 extern int set_debug_level(int letter, int level);
-extern inline int debug_level(int letter);
-extern inline int debug_level(int letter)
+static inline int debug_level(int letter)
 {
 	if (letter >= DEBUG_CLASSES) {
 		return -1;
