@@ -7,7 +7,7 @@
 /* X font handling. Generally X fonts are faster than bitmapped fonts
    but they can't be scaled or their images changed by DOS software */
 
-#include "emu.h"
+#include "config.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -17,6 +17,7 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 
+#include "emu.h"
 #include "translate.h"
 #include "vgaemu.h"
 #include "vgatext.h"

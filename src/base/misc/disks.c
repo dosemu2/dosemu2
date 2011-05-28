@@ -436,11 +436,12 @@ hdisk_auto(struct disk *dp)
     int pnum;
     unsigned int h = 0, s = 0, end_head, end_sec;
     for (pnum = 1; pnum <= 4; pnum++) {
+      unsigned end_cyl;
       /* sys id should be nonzero */
       if (PART_BYTE(pnum, 4) == 0) continue;
       end_head = PART_BYTE(pnum, 5);
       end_sec = PART_BYTE(pnum, 6) & ~0xc0;
-      unsigned end_cyl =
+      end_cyl =
 	PART_BYTE(pnum, 7) | ((PART_BYTE(pnum, 6) << 2) & ~0xff);
       if (h == 0) {
 	unsigned endseclba;

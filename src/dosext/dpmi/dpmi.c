@@ -2879,6 +2879,7 @@ void dpmi_setup(void)
        The data-part is marked RWX (for now) to make sure that exec-shield
        doesn't put it beyond the cs limit.
     */
+    {
     unsigned char *dpmi_xfr_buffer;
     dpmi_xfr_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
       2*PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
@@ -2894,6 +2895,7 @@ void dpmi_setup(void)
 	   &dpmi_switch_jmp, sizeof(&dpmi_switch_jmp));
     direct_dpmi_transfer_p = (direct_dpmi_transfer_t)dpmi_xfr_buffer;
     mprotect(dpmi_xfr_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
+    }
 #endif
 #else
     {

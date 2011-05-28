@@ -1255,7 +1255,7 @@ int e_vm86(void)
 
 int e_dpmi(struct sigcontext_struct *scp)
 {
-  hitimer_t tt0;
+  volatile hitimer_t tt0;
   int xval,retval,mode;
 
   if (iniflag==0) enter_cpu_emu();

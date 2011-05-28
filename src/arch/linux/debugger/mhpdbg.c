@@ -353,6 +353,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 						READ_WORD(SEGOFF2LINEAR(REG(ss), LWORD(esp)) + 0));
 
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
+		unsigned int ssp;
 		mhp_printf("\n\nbpload: intercepting EXEC:\n", LWORD(cs), REG(eip));
 		/*
 		mhp_cmd("r");
@@ -370,7 +371,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 
 		/* need to move top 3 words on stack up so we can add a value for AX below them */
 
-		unsigned int ssp = SEGOFF2LINEAR(_SS, 0);
+		ssp = SEGOFF2LINEAR(_SS, 0);
 
 		MEMMOVE_DOS2DOS(ssp + _SP - 2, ssp + _SP, 6);
 		_SP -= 2;

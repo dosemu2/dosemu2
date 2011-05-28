@@ -467,19 +467,19 @@ int UnCpatch(unsigned char *eip)
 	p[0] = p[1] = 0x90;
     }
     else if (p[1] == 0x53) {
-	if (p[2] == Ofs_stub_wri_8) {
+	if ((char)p[2] == Ofs_stub_wri_8) {
 	    *((short *)p) = 0x0788; p[2] = 0x90;
 	}
-	else if (p[2] == Ofs_stub_wri_16) {
+	else if ((char)p[2] == Ofs_stub_wri_16) {
 	    *p++ = 0x66; *((short *)p) = 0x0789;
 	}
-	else if (p[2] == Ofs_stub_wri_32) {
+	else if ((char)p[2] == Ofs_stub_wri_32) {
 	    *((short *)p) = 0x0789; p[2] = 0x90;
 	}
-	else if (p[2] == Ofs_stub_stk_16) {
+	else if ((char)p[2] == Ofs_stub_stk_16) {
 	    *((int *)p) = 0x0e048966;
 	}
-	else if (p[2] == Ofs_stub_stk_32) {
+	else if ((char)p[2] == Ofs_stub_stk_32) {
 	    *((short *)p) = 0x0489; p[2] = 0x0e;
 	}
 	else return 1;

@@ -23,6 +23,9 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/midi.h"
+#if GCC_VERSION_CODE < 3001
+#define deprecated
+#endif
 #include <alsa/asoundlib.h>
 
 
