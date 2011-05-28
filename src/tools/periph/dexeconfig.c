@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -55,21 +56,22 @@ static char buf[DEXE_CONFBUF_SIZE];
 struct image_header {
   char sig[7];			/* always set to "DOSEMU", null-terminated
 				   or to "\x0eDEXE" */
-  long heads;
-  long sectors;
-  long cylinders;
-  long header_end;	/* distance from beginning of disk to end of header
+  int heads;
+  int sectors;
+  int cylinders;
+  int header_end;	/* distance from beginning of disk to end of header
 			 * i.e. this is the starting byte of the real disk
 			 */
   char dummy[1];	/* someone did define the header unaligned,
   			 * we correct that atleast for the future
   			 */
-  long dexeflags;
+  int dexeflags;
 } __attribute__((packed)) ;
 
 static void viewconf(void)
 {
   int fd, size;
+  uint32_t sig;
   struct image_header hdr;
 
   fd = open(dexefile, O_RDONLY);
@@ -82,18 +84,19 @@ static void viewconf(void)
     close(fd);
     exit(1);
   }
-  if (*((uint32_t *)(&hdr.sig)) != DEXE_MAGIC) {
+  memcpy(&sig, &hdr.sig, 4);
+  if (sig != DEXE_MAGIC) {
     fprintf(stderr, "not a DEXE file\n");
     close(fd);
     exit(1);
   }
   printf(
 	"\nConfiguration of DEXE file %s:\n\n"
-	"   headersize:% 8ld bytes\n"
-	"   heads:     % 8ld\n"
-	"   sectors:   % 8ld\n"
-	"   cylinders: % 8ld\n"
-	"   total:     % 8ld Kbyte\n"
+	"   headersize:% 8d bytes\n"
+	"   heads:     % 8d\n"
+	"   sectors:   % 8d\n"
+	"   cylinders: % 8d\n"
+	"   total:     % 8d Kbyte\n"
 	"   dexeflags: %8s\n",
 	dexefile, hdr.header_end,
 	hdr.heads, hdr.sectors, hdr.cylinders,
@@ -117,6 +120,7 @@ static void changeflags(char *flags)
 {
   int fd;
   struct image_header hdr;
+  uint32_t sig;
 
   fd = open(dexefile, O_RDONLY);
   if (fd < 0) {
@@ -129,7 +133,8 @@ static void changeflags(char *flags)
     exit(1);
   }
   close(fd);
-  if (*((uint32_t *)(&hdr.sig)) != DEXE_MAGIC) {
+  memcpy(&sig, &hdr.sig, 4);
+  if (sig != DEXE_MAGIC) {
     fprintf(stderr, "not a DEXE file\n");
     exit(1);
   }
