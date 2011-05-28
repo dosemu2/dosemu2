@@ -46,15 +46,16 @@ static int AddRoute( unsigned long targetNet, unsigned network,
                      unsigned char node[] )
 {
 	struct rtentry rt;
-	struct sockaddr_ipx	*st = (struct sockaddr_ipx *)&rt.rt_dst;
-	struct sockaddr_ipx	*sr = (struct sockaddr_ipx *)&rt.rt_gateway;
+	struct sockaddr_ipx st, sr;
 	int sock;
 
 	rt.rt_flags = RTF_GATEWAY;
-	st->sipx_network = targetNet;
-        sr->sipx_network = network;
-	memcpy(sr->sipx_node, node, IPX_NODE_LEN);
-	sr->sipx_family = st->sipx_family = AF_IPX;
+	st.sipx_network = targetNet;
+        sr.sipx_network = network;
+	memcpy(sr.sipx_node, node, IPX_NODE_LEN);
+	sr.sipx_family = st.sipx_family = AF_IPX;
+	memcpy(&rt.rt_dst, &st, sizeof(st));
+	memcpy(&rt.rt_gateway, &sr, sizeof(sr));
 
 	sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
 	if(sock==-1) {

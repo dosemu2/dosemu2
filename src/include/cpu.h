@@ -44,6 +44,12 @@
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif
 
+#if GCC_VERSION_CODE >= 3003
+#define MAY_ALIAS __attribute__((may_alias))
+#else
+#define MAY_ALIAS
+#endif
+
 union dword {
   unsigned long l;
   Bit32u d;
@@ -53,7 +59,7 @@ union dword {
   struct { Bit16u l, h; } w;
 #endif
   struct { Bit8u l, h, b2, b3; } b;
-};
+} MAY_ALIAS ;
 
 #define DWORD_(wrd)	(((union dword *)&(wrd))->d)
 /* vxd.c redefines DWORD */

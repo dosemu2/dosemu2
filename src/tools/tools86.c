@@ -139,8 +139,9 @@ struct bsd_header {            /* a.out header */
 #ifdef __linux__
 static int header_ld86out_to_gnuasout(struct bsd_header *bsd, struct gnu_header *gnu)
 {
-  if (  ((uint32_t *)bsd)[0] != 0x10000301 ) return -1;
-  if (  ((uint32_t *)bsd)[1] != 0x20 ) return -1;
+  if (bsd->a_magic[0] != 0x01 || bsd->a_magic[1] != 0x03 ||
+      bsd->a_flags != 0x00 || bsd->a_cpu != 0x10) return -1;
+  if (bsd->a_hdrlen != 0x20 || bsd->a_unused || bsd->a_version) return -1;
   gnu->a_info   = 0x107;
   gnu->a_text   = bsd->a_text;
   gnu->a_data   = bsd->a_data;
