@@ -75,8 +75,7 @@ signed char e_ofsseg[] = {
 	0,   0,       0,       0,       0,       0,       0, 0,
 	0,   0, Ofs_XCS,       0, Ofs_XSS,       0,       0, 0 };
 
-#define MKOFSNAM(o,b)   ((*((int *)(b))=*((int *)(ofsnam+(o)))), \
-                          ((b)[3]=0), (b))
+#define MKOFSNAM(o,b)   (memcpy((b), (ofsnam+(o)), 3), ((b)[3]=0), (b))
 
 int SetSegReal(unsigned short sel, int ofs)
 {

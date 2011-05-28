@@ -320,7 +320,22 @@ write_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
 void
 image_auto(struct disk *dp)
 {
-  char header[HEADER_SIZE];
+  uint32_t magic;
+  struct image_header {
+    char sig[7];		/* always set to "DOSEMU", null-terminated
+				   or to "\x0eDEXE" */
+    int heads;
+    int sectors;
+    int cylinders;
+    int header_end;	/* distance from beginning of disk to end of header
+			 * i.e. this is the starting byte of the real disk
+			 */
+    char dummy[1];	/* someone did define the header unaligned,
+  			 * we correct that atleast for the future
+  			 */
+    int dexeflags;
+    unsigned char pad2[HEADER_SIZE-28];
+  } __attribute__((packed)) header;
 
   d_printf("IMAGE auto-sensing\n");
 
@@ -347,22 +362,23 @@ image_auto(struct disk *dp)
   }
 
   lseek64(dp->fdesc, 0, SEEK_SET);
-  if (RPT_SYSCALL(read(dp->fdesc, header, HEADER_SIZE)) != HEADER_SIZE) {
+  if (RPT_SYSCALL(read(dp->fdesc, &header, HEADER_SIZE)) != HEADER_SIZE) {
     error("could not read full header in image_init\n");
     leavedos(19);
   }
 
-  if (strncmp(header, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
-		&& (*((uint32_t *)header) != DEXE_MAGIC) ) {
+  memcpy(&magic, header.sig, 4);
+  if (strncmp(header.sig, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
+		&& (magic != DEXE_MAGIC) ) {
     error("IMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
     leavedos(20);
   }
 
-  dp->heads = *(int *) &header[7];
-  dp->sectors = *(int *) &header[11];
-  dp->tracks = *(int *) &header[15];
-  dp->header = *(int *) &header[19];
+  dp->heads = header.heads;
+  dp->sectors = header.sectors;
+  dp->tracks = header.cylinders;
+  dp->header = header.header_end;
   dp->num_secs = (unsigned long long)dp->tracks * dp->heads * dp->sectors;
 
   d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",

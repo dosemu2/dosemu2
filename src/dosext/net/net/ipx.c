@@ -94,7 +94,7 @@ static int GetMyAddress( void )
     return(-1);
   }
 
-  *((uint32_t *)MyAddress) = ipxs2.sipx_network;
+  memcpy(MyAddress, &ipxs2.sipx_network, 4);
   for (i = 0; i < 6; i++) {
     MyAddress[4+i] = ipxs2.sipx_node[i];
   }
@@ -338,7 +338,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
     return (RCODE_SOCKET_TABLE_FULL);
   }
   ipxs.sipx_family = AF_IPX;
-  ipxs.sipx_network = *((unsigned int *)&MyAddress[0]);
+  memcpy(&ipxs.sipx_network, MyAddress, 4);
 /*  ipxs.sipx_network = htonl(MyNetwork); */
   memset(ipxs.sipx_node, 0, 6);	/* Please fill in my node name */
   ipxs.sipx_port = port;
@@ -496,14 +496,14 @@ static u_char IPXSendPacket(far_t ECBPtr)
   IPXHeader->Checksum = 0xffff;
   IPXHeader->Length = htons(dataLen + 30);	/* in network order */
   memcpy(&IPXHeader->Source, MyAddress, 10);
-  *((u_short *) &IPXHeader->Source.Socket) = ECBp->ECBSocket;
+  memcpy(&IPXHeader->Source.Socket, &ECBp->ECBSocket, 2);
   printIPXHeader(IPXHeader);
   ipxs.sipx_family = AF_IPX;
   /* get destination address from IPX packet header */
   memcpy(&ipxs.sipx_network, IPXHeader->Destination.Network, 4);
   /* if destination address is 0, then send to my net */
   if (ipxs.sipx_network == 0) {
-    ipxs.sipx_network = *((unsigned int *)&MyAddress[0]);
+    memcpy(&ipxs.sipx_network, MyAddress, 4);
 /*  ipxs.sipx_network = htonl(MyNetwork); */
   }
   memcpy(&ipxs.sipx_node, IPXHeader->Destination.Node, 6);
@@ -732,10 +732,10 @@ static int ScatterFragmentData(int size, unsigned char *buffer, ECB_t * ECB,
       IPXHeader->TransportControl = 1;
       IPXHeader->PacketType = 0;
       memcpy((u_char *) & IPXHeader->Destination, MyAddress, 10);
-      *((u_short *) &IPXHeader->Destination.Socket) = ECB->ECBSocket;
+      memcpy(&IPXHeader->Destination.Socket, &ECB->ECBSocket, 2);
       memcpy(IPXHeader->Source.Network, (char *) &sipx->sipx_network, 4);
       memcpy(IPXHeader->Source.Node, sipx->sipx_node, 6);
-      *((u_short *) &IPXHeader->Source.Socket) = sipx->sipx_port;
+      memcpy(IPXHeader->Source.Socket, &sipx->sipx_port, 2);
       /* DANG_FIXTHIS - kludge for bug in linux IPX stack */
       /* IPX stack returns data count including IPX header */
       /*			dataLeftCount -= 30; */
@@ -912,7 +912,7 @@ int ipx_int7a(void)
     /* the ECB ImmediateAddress is never used, so just return */
     network = READ_DWORD(SEGOFF2LINEAR(REG(es), LWORD(esi)));
     n_printf("IPX: GetLocalTarget for network %08lx\n", network );
-    if( network==0 || network== *((uint32_t *)&MyAddress[0]) ) {
+    if( network==0 || memcmp(&network, MyAddress, 4) == 0 ) {
       n_printf("IPX: returning GLT success for local address\n");
       LO(ax) = RCODE_SUCCESS;
       LWORD(ecx) = 1;
