@@ -406,38 +406,37 @@ static int option_delete(int option, int *argc, char **argv)
  * Please keep "getopt_string", secure_option_preparse(), config_init(),
  * usage() and the manpage in sync!
  */
+static char * get_option(char *key, int with_arg, int *argc, char **argv)
+{
+  char *p;
+  char *basename;
+  int o = find_option(key, *argc, argv);
+  if (!o) return 0;
+  o = option_delete(o, argc, argv);
+  if (!with_arg) return "";
+  if (!with_arg || o >= *argc) return "";
+  if (argv[o][0] == '-') {
+    basename = strrchr(argv[0], '/');   /* parse the program name */
+    basename = basename ? basename + 1 : argv[0];
+    usage(basename);
+    exit(0);
+  }
+  p = strdup(argv[o]);
+  option_delete(o, argc, argv);
+  return p;
+}
+
 void secure_option_preparse(int *argc, char **argv)
 {
   char *opt;
   int runningsuid = can_do_root_stuff && !under_root_login;
-
-  auto char * get_option(char *key, int with_arg);
-  char * get_option(char *key, int with_arg)
-  {
-    char *p;
-    char *basename;
-    int o = find_option(key, *argc, argv);
-    if (!o) return 0;
-    o = option_delete(o, argc, argv);
-    if (!with_arg) return "";
-    if (!with_arg || o >= *argc) return "";
-    if (argv[o][0] == '-') {
-      basename = strrchr(argv[0], '/');   /* parse the program name */
-      basename = basename ? basename + 1 : argv[0];
-      usage(basename);
-      exit(0);
-    }
-    p = strdup(argv[o]);
-    option_delete(o, argc, argv);
-    return p;
-  }
 
   if (runningsuid) unsetenv("DOSEMU_LAX_CHECKING");
   else setenv("DOSEMU_LAX_CHECKING", "on", 1);
 
   if (*argc <=1 ) return;
  
-  opt = get_option("--Fusers", 1);
+  opt = get_option("--Fusers", 1, argc, argv);
   if (opt && opt[0]) {
     if (runningsuid) {
       fprintf(stderr, "Bypassing /etc/dosemu.users not allowed %s\n",
@@ -447,18 +446,18 @@ void secure_option_preparse(int *argc, char **argv)
     DOSEMU_USERS_FILE = opt;
   }
 
-  opt = get_option("--Flibdir", 1);
+  opt = get_option("--Flibdir", 1, argc, argv);
   if (opt && opt[0]) {
     dosemu_lib_dir_path = opt;
   }
 
-  opt = get_option("--Fimagedir", 1);
+  opt = get_option("--Fimagedir", 1, argc, argv);
   if (opt && opt[0]) {
     dosemu_hdimage_dir_path = opt;
   }
 
   /* "-Xn" is enough to throw this parser off :( */
-  opt = get_option("-n", 0);
+  opt = get_option("-n", 0, argc, argv);
   if (opt) {
     if (runningsuid) {
       fprintf(stderr, "The -n option to bypass the system configuration files "

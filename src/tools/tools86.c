@@ -208,159 +208,157 @@ static int change_aout(char *objfile, int update_symtable)
   return 0;
 }
 
+#define SIZE_BBUF 8
+#define MASK_BBUF (SIZE_BBUF-1)
+#define INC_BBUF(i,step) (i = (i+(step)) & MASK_BBUF)
+#define COPY_BUF_SIZE 0x4000
+
+static inline int _skipwhite(FILE *f) {
+  int c;
+  while ((c=fgetc(f)) != EOF) {
+    if (!isspace(c)) break;
+  }
+  ungetc(c,f);
+}
+  
+static inline int was(char *s, char *b, int buf_i, int buf_n) {
+  int i=buf_i, n=buf_n;
+  while (*s) {
+    INC_BBUF(i,-1);
+    if ((--n) < 0) return 0;
+    if (*s != b[i]) return 0;
+    s++;
+  }
+  return 1;
+}
+
+static inline void _fputc(int c, FILE *fo, char *cb, int copy, int *cbuf_i) {
+  fputc(c,fo);
+  if (copy) {
+    cb[(*cbuf_i)++] = c;
+    if (*cbuf_i >= COPY_BUF_SIZE) {
+      fprintf(stderr, "copy buffer overflow\n");
+      exit(1);
+    }
+  }
+}
+  
+static inline void _put(int c, FILE *fo, char *cb, int copy, int *cbuf_i,
+			char *b, int *buf_i, int *buf_n) {
+  if (*buf_n >= SIZE_BBUF) _fputc(b[*buf_i], fo, cb, copy, cbuf_i);
+  else (*buf_n)++;
+  b[*buf_i]=c;
+  INC_BBUF(*buf_i,1);
+}
+  
+static inline void _flush(FILE *fo, char *cb, int copy, int *cbuf_i,
+			  char *b, int *buf_i, int *buf_n) {
+  INC_BBUF(*buf_i,-*buf_n);
+  while ((*buf_n)-- > 0) {
+    _fputc(b[*buf_i], fo, cb, copy, cbuf_i);
+    INC_BBUF(*buf_i,1);
+  }
+  *buf_i = 0;
+  *buf_n = 0;
+}
+  
+static inline void _unget(int count, int *buf_i, int *buf_n) {
+  if (count > *buf_n) count = *buf_n;
+  INC_BBUF(*buf_i,-count);
+  *buf_n -= count;
+}
+  
+static inline int _nextnum(int *pc, FILE *f) {
+  int c=*pc;
+  char auxb[40];
+  int i=0, ii=0;
+  c = _skipwhite(f);
+  while ((c=fgetc(f)) !=EOF) {
+    if ( c=='(' ) {
+      ii +=_nextnum(&c, f);
+    }
+    else {
+      if (isspace(c)) {
+	c = _skipwhite(f); 
+	if (c==')') fgetc(f);
+	break;
+      }
+      if (c==')') break;
+      if (i && (c=='+' || c=='-')) {
+	ungetc(c,f);
+	break;
+      }
+      if (ispunct(c) && (!(c=='+' || c=='-'))) {
+	ungetc(c,f);
+	*pc = c;
+	return ii;
+      }
+      auxb[i++]=c;
+    }
+  }
+  if (c=='+' || c=='-') ii +=_nextnum(&c, f);
+  errno = 0;
+  if (i) {
+    auxb[i]=0;
+    i=strtol(auxb,0,0);
+  }
+  if (errno) i=0;
+  *pc = c;
+  return i+ii;
+}
 
 static int preprocess(FILE *f, FILE *fo)
 {
-  #define SIZE_BBUF 8
-  #define MASK_BBUF (SIZE_BBUF-1)
-  #define INC_BBUF(i,step) (i = (i+(step)) & MASK_BBUF)
-  #define COPY_BUF_SIZE 0x4000
-  
   char b[MASK_BBUF+1];
   char cb[COPY_BUF_SIZE];
   int buf_i=0, buf_n=0, copy=0, cbuf_i=0, copy_count=0;
   int c;
   
-
-  auto inline void _skipwhite(void);
-  inline void _skipwhite(void) {
-    while ((c=fgetc(f)) != EOF) {
-      if (!isspace(c)) break;
-    }
-    ungetc(c,f);
-  }
-  
-  auto inline int was(char *s);
-  inline int was(char *s) {
-    int i=buf_i, n=buf_n;
-    while (*s) {
-      INC_BBUF(i,-1);
-      if ((--n) < 0) return 0;
-      if (*s != b[i]) return 0;
-      s++;
-    }
-    return 1;
-  }
-
-  auto inline void _fputc(char c);
-  inline void _fputc(char c) {
-    fputc(c,fo);
-    if (copy) {
-      cb[cbuf_i++] = c;
-      if (cbuf_i >= COPY_BUF_SIZE) {
-        fprintf(stderr, "copy buffer overflow\n");
-        exit(1);
-      }
-    }
-  }
-  
-  auto inline void _put(char c);
-  inline void _put(char c) {
-    if (buf_n >= SIZE_BBUF) _fputc(b[buf_i]);
-    else buf_n++;
-    b[buf_i]=c;
-    INC_BBUF(buf_i,1);
-  }
-  
-  auto inline void _flush(void);
-  inline void _flush(void) {
-    INC_BBUF(buf_i,-buf_n);
-    while (buf_n-- > 0) {
-      _fputc(b[buf_i]);
-      INC_BBUF(buf_i,1);
-    }
-    buf_i = 0;
-    buf_n = 0;
-  }
-  
-  auto inline void _unget(int count);
-  inline void _unget(int count) {
-    if (count > buf_n) count = buf_n;
-    INC_BBUF(buf_i,-count);
-    buf_n -= count;
-  }
-  
-  auto inline int _nextnum(void);
-  inline int _nextnum() {
-    char auxb[40];
-    int i=0, ii=0;
-    _skipwhite();
-    while ((c=fgetc(f)) !=EOF) {
-      if ( c=='(' ) {
-        ii +=_nextnum();
-      }
-      else {
-        if (isspace(c)) {
-          _skipwhite(); 
-          if (c==')') fgetc(f);
-          break;
-        }
-        if (c==')') break;
-        if (i && (c=='+' || c=='-')) {
-          ungetc(c,f);
-          break;
-        }
-        if (ispunct(c) && (!(c=='+' || c=='-'))) {
-          ungetc(c,f);
-          return ii;
-        }
-        auxb[i++]=c;
-      }
-    }
-    if (c=='+' || c=='-') ii +=_nextnum();
-    errno = 0;
-    if (i) {
-      auxb[i]=0;
-      i=strtol(auxb,0,0);
-    }
-    if (errno) i=0;
-    return i+ii;
-  }
-
   while ((c=fgetc(f)) != EOF) {
     switch (c) {
       case '!': {
-        if (was("!!")) {
-          _unget(2);
-          _put('\n');
+        if (was("!!", b, buf_i, buf_n)) {
+          _unget(2, &buf_i, &buf_n);
+          _put('\n', fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
         }
-        else _put(c);
+        else _put(c, fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
         break;
       }
       case 'T': {
-        if ((!copy) && was("PER.")) {
-          _unget(4);
-          copy_count = _nextnum()-1;
-          _flush();
+        if ((!copy) && was("PER.", b, buf_i, buf_n)) {
+          _unget(4, &buf_i, &buf_n);
+          copy_count = _nextnum(&c, f)-1;
+	  _flush(fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
           cbuf_i=0;
           copy=1;
         }
-        else _put(c);
+        else _put(c, fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
         break;
       }
       case 'R': {
-        if (copy && was("DNE.")) {
+        if (copy && was("DNE.", b, buf_i, buf_n)) {
           int i,j;
-          _unget(4);
-          _flush();
+          _unget(4, &buf_i, &buf_n);
+          _flush(fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
           copy=0;
           if (copy_count <=0) {
             fprintf(stderr, "tools86: illegal repeat count after .REPT\n");
             exit(1);
           }
           for (j=0; j<copy_count; j++) {
-            for (i=0; i<cbuf_i; i++) _put(cb[i]);
+            for (i=0; i<cbuf_i; i++)
+	      _put(cb[i], fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
           }
         }
-        else _put(c);
+        else _put(c, fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
         break;
       }
       default: {
-        _put(c);
+        _put(c, fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
       }
     }
   }
-  _flush();
+  _flush(fo, cb, copy, &cbuf_i, b, &buf_i, &buf_n);
   return 0;
 }
 
