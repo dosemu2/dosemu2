@@ -214,7 +214,7 @@ void vbe_init(vgaemu_display_type *vedt)
     int fd = open(config.vgaemubios_file, O_RDONLY);
     int bytes;
     if (fd != -1) {
-      bytes = read(fd, (void*)0xc0000, 65536);
+      bytes = read(fd, LINEAR2UNIX(0xc0000), 65536);
       close(fd);
       vgaemu_bios.pages = (bytes + PAGE_SIZE - 1) / PAGE_SIZE;
       config.vbios_post = 1;
