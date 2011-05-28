@@ -119,23 +119,23 @@ static dma_t dma[2];		/* DMA controllers */
 #define DMA1  0
 #define DMA2  1
 
-inline void dma_toggle_ff(int dma_c);
+static inline void dma_toggle_ff(int dma_c);
 static inline void dma_write_mask(int dma_c, Bit8u value);
-inline void dma_write_count(int dma_c, int channel, Bit8u value);
-inline void dma_write_addr(int dma_c, int channel, Bit8u value);
-inline Bit8u dma_read_count(int dma_c, int channel);
-inline Bit8u dma_read_addr(int dma_c, int channel);
-inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c);
+static inline void dma_write_count(int dma_c, int channel, Bit8u value);
+static inline void dma_write_addr(int dma_c, int channel, Bit8u value);
+static inline Bit8u dma_read_count(int dma_c, int channel);
+static inline Bit8u dma_read_addr(int dma_c, int channel);
+static inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c);
 
-inline Bit32s get_value(multi_t data);
-inline void add_value(multi_t * data, Bit16u value);
-inline void sub_value(multi_t * data, Bit16u value);
-inline void set_value(multi_t * data, Bit16u value);
-inline int has_underflow(multi_t data);
+static inline Bit32s get_value(multi_t data);
+static inline void add_value(multi_t * data, Bit16u value);
+static inline void sub_value(multi_t * data, Bit16u value);
+static inline void set_value(multi_t * data, Bit16u value);
+static inline int has_underflow(multi_t data);
 static inline void dma_handle_TC(int controller, int channel);
 
-inline int get_ch(int controller, int channel);
-inline int get_mask(int ch);
+static inline int get_ch(int controller, int channel);
+static inline int get_mask(int ch);
 
 static inline void activate_channel(int controller, int channel);
 static inline void deactivate_channel(int controller, int channel);
@@ -300,13 +300,13 @@ int dma_test_eop(int channel)
  * This removes any Endian-ness assumptions
  */
 
-inline Bit32s get_value(multi_t data)
+static inline Bit32s get_value(multi_t data)
 {
   Bit16u tmp = ((Bit16u) data.bits.msb << 8) | data.bits.lsb;
   return (data.bits.underflow ? -~tmp - 1 : tmp);
 }
 
-inline void add_value(multi_t * data, Bit16u value)
+static inline void add_value(multi_t * data, Bit16u value)
 {
   Bit16u tmp;
 
@@ -335,7 +335,7 @@ inline void add_value(multi_t * data, Bit16u value)
 #endif				/* EXCESSIVE_DEBUG */
 }
 
-inline void sub_value(multi_t * data, Bit16u value)
+static inline void sub_value(multi_t * data, Bit16u value)
 {
   Bit16u tmp;
 
@@ -364,14 +364,14 @@ inline void sub_value(multi_t * data, Bit16u value)
 #endif				/* EXCESSIVE_DEBUG */
 }
 
-inline void set_value(multi_t * data, Bit16u value)
+static inline void set_value(multi_t * data, Bit16u value)
 {
   data->bits.msb = (Bit8u) (value >> 8);
   data->bits.lsb = (Bit8u) value & 0xFF;
   data->bits.underflow = 0;
 }
 
-inline int has_underflow(multi_t data)
+static inline int has_underflow(multi_t data)
 {
   return data.bits.underflow;
 }
@@ -421,7 +421,7 @@ static inline void deactivate_channel(int controller, int channel)
 #endif				/* EXCESSIVE_DEBUG */
 }
 
-inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
+static inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
 {
   /* Ben Davis modified this so it really actually DOES work. :)
    * Tested with SB16 emulation.
@@ -448,13 +448,13 @@ inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
   return (((Bit32u) page & 0xF) << 16) | offset;
 }
 
-inline void dma_toggle_ff(int dma_c)
+static inline void dma_toggle_ff(int dma_c)
 {
   dma[dma_c].ff = !dma[dma_c].ff;
 }
 
 
-inline Bit8u dma_read_addr(int dma_c, int channel)
+static inline Bit8u dma_read_addr(int dma_c, int channel)
 {
   Bit8u r;
 
@@ -467,7 +467,7 @@ inline Bit8u dma_read_addr(int dma_c, int channel)
   return r;
 }
 
-inline Bit8u dma_read_count(int dma_c, int channel)
+static inline Bit8u dma_read_count(int dma_c, int channel)
 {
   Bit8u r;
 
@@ -622,7 +622,7 @@ static Bit8u dma_io_read(ioport_t port)
 }
 
 
-inline void dma_write_addr(int dma_c, int channel, Bit8u value)
+static inline void dma_write_addr(int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].address[channel].data[dma[dma_c].ff] = value;
   dma[dma_c].i[channel].address.data[dma[dma_c].ff] = value;	/* autoinit */
@@ -635,7 +635,7 @@ inline void dma_write_addr(int dma_c, int channel, Bit8u value)
   dma_toggle_ff(dma_c);
 }
 
-inline void dma_write_count(int dma_c, int channel, Bit8u value)
+static inline void dma_write_count(int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].length[channel].data[dma[dma_c].ff] = value;
   dma[dma_c].i[channel].length.data[dma[dma_c].ff] = value;	/* autoinit */
@@ -670,7 +670,7 @@ int dma_units_left(int channel) /* units are bytes or words */
   return get_value(dma[controller].length[ch]) + 1;
 }
 
-inline int dma_get_transfer_size(int channel)
+int dma_get_transfer_size(int channel)
 {
   int controller, ch;
 
@@ -855,12 +855,12 @@ void dma_install_handler(int ch, size_t(*read_handler)(void *, size_t),
   dma[dma_c].i[channel].EOP_handler = EOP_handler;
 }
 
-inline int get_ch(int controller, int channel)
+static inline int get_ch(int controller, int channel)
 {
   return (controller << 2) + channel;
 }
 
-inline int get_mask(int ch)
+static inline int get_mask(int ch)
 {
   return (1 << ch);
 }
