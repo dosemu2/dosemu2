@@ -59,10 +59,6 @@ CC:=@CC@
 CPP:=@CPP@
 LD:=@CC@
 
-ifneq "@ASM_PEDANTIC@" ""
-ASM_PEDANTIC:=@ASM_PEDANTIC@
-endif
-
 YACC:=@YACC@
 # NOTE: we really need bison, yacc won't work any more
 #YACC=bison -y
