@@ -105,7 +105,7 @@ Dispatch:
 	.word	Dummy		# write with verify
 	.word	Dummy		# output status
 	.word	Dummy		# flush output
-	.word	Dummy		# IOCTL output (??)
+	.word	Dummy		# IOCTL output (?)
 /* if DOS 3.0 or newer... */
 	.word	Dummy		# open device
 	.word	Dummy		# close device

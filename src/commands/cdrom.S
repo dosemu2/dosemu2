@@ -619,7 +619,7 @@ StartParse:
 	jb	NextChar		#if not get next character
 	cmpb	$'4',(%si)		#highest allowed value is '4'
 	ja	NextChar		#if higher get next character
-					#if lower all OK
+#					#if lower all OK
 	movb	(%si),%al
 	movb	%al,%cs:Index		#modify the device name ('1'...'4')
 	subb 	$0x31,%al		#calculate the index 0..3

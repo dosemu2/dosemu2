@@ -172,7 +172,7 @@ worknext:
         lodsb                           #load next char
         cmpb    $13,%al                 #EOL ?
         je      workdone
-        cmpb    $24,%al                 #"!" (Read AnyKey ??)
+        cmpb    $24,%al                 #"!" (Read AnyKey ?)
         jne     worknext
         movw    $1,%cs:WaitKey
         jmp     worknext

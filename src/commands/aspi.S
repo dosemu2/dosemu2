@@ -44,7 +44,7 @@ Dispatch:
 	.word	Dummy		# write with verify
 	.word	Dummy		# output status
 	.word	Dummy		# flush output
-	.word	Dummy		# IOCTL output (??)
+	.word	Dummy		# IOCTL output (?)
 	.word	Dummy		# open device
 	.word	Dummy		# close device
 	.word	Dummy		# removeable media check
