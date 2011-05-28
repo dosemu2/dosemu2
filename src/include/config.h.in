@@ -25,6 +25,7 @@
 
 #define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 #define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
+#define GCC_VERSION_CODE (__GNUC__ * 1000 + __GNUC_MINOR__)
 
 #ifdef __ASM__
 /* trick to comment out prototypes */
@@ -81,9 +82,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 #endif /* not __ASM__ */
 
 
-/* Set if pedantic ASM is needed */
-#undef ASM_PEDANTIC
-
 /* Define this for ASPI (generic SCSI) support */
 #undef ASPI_SUPPORT
 
@@ -101,9 +99,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 
 /* Define the stepping of gas code16 functionality */
 #undef GASCODE16
-
-/* Set to GCC version code */
-#undef GCC_VERSION_CODE
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */

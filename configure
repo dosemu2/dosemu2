@@ -602,7 +602,6 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
-ASM_PEDANTIC
 X86_EMULATOR
 INCDIR
 PLUGINSUBDIRS
@@ -6757,13 +6756,7 @@ $as_echo_n "checking for the version of gcc...... " >&6; }
   GCC_VERSION_CODE=$((($major * 1000) + $minor))
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $GCC_VERSION_CODE" >&5
 $as_echo "$GCC_VERSION_CODE" >&6; }
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking need for pedantic asm constraints..." >&5
-$as_echo_n "checking need for pedantic asm constraints...... " >&6; }
   if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-     $as_echo "#define ASM_PEDANTIC 1" >>confdefs.h
-
      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for egcs..." >&5
 $as_echo_n "checking for egcs...... " >&6; }
      if gcc -v 2>&1|grep 'egcs-' >/dev/null; then
@@ -6787,9 +6780,6 @@ $as_echo "yes, using -fno-strict-aliasing to work around bugs" >&6; }
        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
      fi
-  else
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
   fi
 
 
@@ -6843,11 +6833,6 @@ $as_echo "yes, version code $GLIBC_VERSION_CODE" >&6; }
     fi
   fi
 fi
-cat >>confdefs.h <<_ACEOF
-#define GCC_VERSION_CODE $GCC_VERSION_CODE
-_ACEOF
-
-
 $as_echo "#define _GNU_SOURCE 1" >>confdefs.h
 
 
@@ -6863,10 +6848,6 @@ ac_config_files="$ac_config_files Makefile.conf dosemu.spec"
 
 
 ac_config_commands="$ac_config_commands Makefile"
-
-
-
-
 
 
 

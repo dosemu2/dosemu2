@@ -608,10 +608,7 @@ if test "$GCC" = "yes" ; then
   major=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC__/{print $3}'`
   GCC_VERSION_CODE=$((($major * 1000) + $minor))
   AC_MSG_RESULT($GCC_VERSION_CODE)
-  AC_MSG_CHECKING(need for pedantic asm constraints...)
   if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
-     AC_MSG_RESULT(yes)
-     AC_DEFINE(ASM_PEDANTIC)
      AC_MSG_CHECKING(for egcs...)
      if gcc -v 2>&1|grep 'egcs-' >/dev/null; then
        AC_MSG_RESULT([yes, using -fno-gcse to work around bugs])
@@ -629,8 +626,6 @@ if test "$GCC" = "yes" ; then
      else
        AC_MSG_RESULT(no)
      fi
-  else
-     AC_MSG_RESULT(no)
   fi
 
 
@@ -682,8 +677,6 @@ if test "$GCC" = "yes" ; then
     fi
   fi
 fi
-AC_DEFINE_UNQUOTED(GCC_VERSION_CODE,$GCC_VERSION_CODE)
-AC_SUBST(ASM_PEDANTIC)
 AC_DEFINE(_GNU_SOURCE)
 
 CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
@@ -734,6 +727,7 @@ AH_TOP([
 
 #define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 #define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
+#define GCC_VERSION_CODE (__GNUC__ * 1000 + __GNUC_MINOR__)
 
 #ifdef __ASM__
 /* trick to comment out prototypes */
@@ -884,12 +878,6 @@ AH_TEMPLATE([_GNU_SOURCE],
 
 AH_TEMPLATE([USING_NET],
 [ Define if compiling with network support ])
-
-AH_TEMPLATE([GCC_VERSION_CODE],
-[ Set to GCC version code ])
-
-AH_TEMPLATE([ASM_PEDANTIC],
-[ Set if pedantic ASM is needed ])
 
 AH_BOTTOM([
 #ifndef __ASM__
