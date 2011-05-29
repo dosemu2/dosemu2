@@ -45,7 +45,7 @@
 #endif
 
 struct mem_map_struct {
-  void *src;
+  off_t src;
   void *base;
   void *dst;
   int len;
@@ -71,12 +71,11 @@ static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_file, /* and then a temp file */
 };
 
-static int map_find_idx(struct mem_map_struct *map, int max,
-  off_t addr, int d)
+static int map_find_idx(struct mem_map_struct *map, int max, off_t addr)
 {
   int i;
   for (i = 0; i < max; i++) {
-    if ((d ? map[i].dst : map[i].src) == (void *)addr)
+    if (map[i].src == addr)
       return i;
   }
   return -1;
@@ -174,8 +173,8 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 {
   int fixed = target == (void *)-1 ? 0 : MAP_FIXED;
   void *addr;
-  Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x, source=%#lx\n",
-	cap, target, mapsize, protect, source);
+  Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x, source=%#llx\n",
+	cap, target, mapsize, protect, (long long)source);
   if (cap & MAPPING_KMEM) {
     int i;
 #ifndef HAVE_MREMAP_FIXED
@@ -192,14 +191,14 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
     } else
 #endif
     {
-      i = map_find_idx(kmem_map, kmem_mappings, source, 0);
+      i = map_find_idx(kmem_map, kmem_mappings, source);
       if (i == -1) {
-	error("KMEM mapping for %#lx was not allocated!\n", source);
+	error("KMEM mapping for %#llx was not allocated!\n", (long long)source);
 	return MAP_FAILED;
       }
       if (kmem_map[i].len != mapsize) {
-	error("KMEM mapping for %#lx allocated for size %#x, but %#zx requested\n",
-	      source, kmem_map[i].len, mapsize);
+	error("KMEM mapping for %#llx allocated for size %#x, but %#zx requested\n",
+	      (long long)source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
       }
       if (target != (void*)-1) {
@@ -391,7 +390,7 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
 {
   void *addr;
 
-  Q__printf("MAPPING: alloc, cap=%s, source=%#lx\n", cap, target);
+  Q__printf("MAPPING: alloc, cap=%s, source=%#llx\n", cap, (long long)target);
   if (cap & MAPPING_KMEM) {
 #ifndef HAVE_MREMAP_FIXED
     if (!have_mremap_fixed)
@@ -401,8 +400,8 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
       error("KMEM mapping without target\n");
       leavedos(64);
     }
-    if (map_find_idx(kmem_map, kmem_mappings, target, 0) != -1) {
-      error("KMEM mapping for %#lx allocated twice!\n", target);
+    if (map_find_idx(kmem_map, kmem_mappings, target) != -1) {
+      error("KMEM mapping for %#llx allocated twice!\n", (long long)target);
       return MAP_FAILED;
     }
     open_kmem();
@@ -412,7 +411,7 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
     if (addr == MAP_FAILED)
       return addr;
     
-    kmem_map[kmem_mappings].src = (void *)target; /* target is actually source */
+    kmem_map[kmem_mappings].src = target; /* target is actually source */
     kmem_map[kmem_mappings].base = addr;
     kmem_map[kmem_mappings].dst = NULL;
     kmem_map[kmem_mappings].len = mapsize;

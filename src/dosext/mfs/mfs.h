@@ -349,13 +349,8 @@ extern struct drive_info drives[MAX_DRIVE];
 
 extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
-#ifdef _LARGEFILE64_SOURCE
-extern boolean_t find_file(char *fpath, struct stat64 *st, int drive,
-			   int *doserror);
-#else
 extern boolean_t find_file(char *fpath, struct stat *st, int drive,
 			   int *doserror);
-#endif
 extern boolean_t is_hidden(char *fname);
 extern int get_dos_attr(const char *fname,int mode,boolean_t hidden);
 extern int get_dos_attr_fd(int fd,int mode,boolean_t hidden);

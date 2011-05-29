@@ -74,10 +74,6 @@
 #include "pktdrvr.h"
 #include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
 
-#ifdef _LARGEFILE64_SOURCE
-#define stat stat64
-#endif
-
 #define USERVAR_PREF	"dosemu_"
 static int user_scope_level;
 

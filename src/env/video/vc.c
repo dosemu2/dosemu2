@@ -326,8 +326,8 @@ static void map_video_ram(void)
 	    graph_mem, errno);
       return;
     } else
-      v_printf ("CONSOLE VIDEO address: %p %#lx %p\n", graph_mem,
-		pbase, vbase);
+      v_printf ("CONSOLE VIDEO address: %p %#llx %p\n", graph_mem,
+		(long long)pbase, vbase);
   }
   scr_state.phys_address = pbase;
   scr_state.mapped = 1;

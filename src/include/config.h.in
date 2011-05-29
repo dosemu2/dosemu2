@@ -266,8 +266,14 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define this for DEBUG info */
 #undef _DEBUG
 
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
 /* Define this if the GNU_SOURCE macro is necessary */
 #undef _GNU_SOURCE
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES
 
 /* Define if the compiler doesn't have __FILE__ macro. Most compilers have
    this one, but just to be sure... */

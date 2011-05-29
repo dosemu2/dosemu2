@@ -48,6 +48,7 @@ fi
 dnl Checks for libraries.
 
 dnl Checks for header files.
+AC_SYS_LARGEFILE
 AC_HEADER_DIRENT
 AC_HEADER_MAJOR
 AC_HEADER_STDC

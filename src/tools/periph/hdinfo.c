@@ -24,7 +24,7 @@
  *
  */
 
-#define _FILE_OFFSET_BITS 64
+#include "config.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -36,8 +36,6 @@
 #ifdef __linux__
   #include "Linux/genhd.h"
 #endif
-
-#include "config.h"
 
 #define SECTOR_SIZE	512
 #define EXT_MAGIC	5	/* sys_ind for an extended partition */

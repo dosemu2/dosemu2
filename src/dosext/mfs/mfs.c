@@ -196,11 +196,6 @@ TODO:
 #include "cpu-emu.h"
 #endif
 
-#ifdef _LARGEFILE64_SOURCE
-#define stat stat64
-#define fstat fstat64
-#endif
-
 #ifdef __linux__
 /* we need to use the kernel dirent structure for the VFAT ioctls */
 struct kernel_dirent {
@@ -4078,8 +4073,8 @@ dos_fs_redirect(state_t *state)
 		if (ret == -1 && errno == EINVAL)
 #endif
 			ret = lock_file_region (fd,F_SETLK,&larg,larg.l_start,larg.l_len);
-		Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%lx, len=%lx\n",
-			fd, ret, larg.l_type, larg.l_whence, larg.l_start,larg.l_len));
+		Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%llx, len=%llx\n",
+			fd, ret, larg.l_type, larg.l_whence, (long long)larg.l_start,(long long)larg.l_len));
 		if (ret != -1) return TRUE; /* no error */
 		ret = (errno == EAGAIN) ? FILE_LOCK_VIOLATION :
 		      (errno == ENOLCK) ? SHARING_BUF_EXCEEDED :

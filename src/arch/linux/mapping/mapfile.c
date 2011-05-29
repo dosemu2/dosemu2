@@ -51,8 +51,8 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
       mprotect(addr, mapsize, protect);
   }
 #if 1
-  Q_printf("MAPPING: alias_map, fileoffs %lx to %p size %zx, result %p\n",
-			offs, target, mapsize, addr);
+  Q_printf("MAPPING: alias_map, fileoffs %llx to %p size %zx, result %p\n",
+			(long long)offs, target, mapsize, addr);
 #endif
   return addr;
 }

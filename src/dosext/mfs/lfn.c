@@ -26,11 +26,6 @@
 #include "bios.h"
 #include "lfn.h"
 
-#ifdef _LARGEFILE64_SOURCE
-#define stat stat64
-#define fstat fstat64
-#endif
-
 #define EOS '\0'
 #define BACKSLASH '\\'
 #define SLASH '/'
