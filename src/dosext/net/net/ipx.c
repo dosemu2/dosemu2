@@ -14,6 +14,8 @@
  *		IPX from DOSEmu (bios.S ESRFarCall). stsp
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -79,7 +81,7 @@ static int GetMyAddress( void )
   ipxs.sipx_port=htons(DEF_PORT);
   
   /* bind this socket to network */  
-  if(bind(sock,(struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
+  if(bind(sock,&ipxs,sizeof(ipxs))==-1)
   {
     n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
       config.ipx_net, strerror(errno));
@@ -88,7 +90,7 @@ static int GetMyAddress( void )
   }
   
   len = sizeof(ipxs2);
-  if (getsockname(sock,(struct sockaddr *)&ipxs2,&len) < 0) {
+  if (getsockname(sock,&ipxs2,&len) < 0) {
     n_printf("IPX: could not get socket name in GetMyAddress: %s\n", strerror(errno));
     close( sock );
     return(-1);
@@ -344,7 +346,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
   ipxs.sipx_port = port;
 
   /* now bind to this port */
-  if (bind(sock, (struct sockaddr *) &ipxs, sizeof(ipxs)) == -1) {
+  if (bind(sock, &ipxs, sizeof(ipxs)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
     close( sock );
@@ -353,7 +355,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
   
   if( port==0 ) {
     len = sizeof(ipxs2);
-    if (getsockname(sock,(struct sockaddr *)&ipxs2,&len) < 0) {
+    if (getsockname(sock,&ipxs2,&len) < 0) {
       /* I can't think of anything else to return */
       n_printf("IPX: could not get socket name in IPXOpenSocket: %s\n", strerror(errno));
       close( sock );
@@ -518,7 +520,7 @@ static u_char IPXSendPacket(far_t ECBPtr)
     return RCODE_SOCKET_NOT_OPEN;
   }
   if (sendto(mysock->fd, (void *) &data, dataLen, 0,
-	     (struct sockaddr *) &ipxs, sizeof(ipxs)) == -1) {
+	     &ipxs, sizeof(ipxs)) == -1) {
     n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECBp->InUseFlag = IU_ECB_FREE;
     ECBp->CompletionCode = CC_HARDWARE_ERROR;
@@ -766,8 +768,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   socklen_t sz;
 
   sz = sizeof(ipxs);
-  size = recvfrom(s->fd, buffer, sizeof(buffer), 0,
-		  (struct sockaddr *) &ipxs, &sz);
+  size = recvfrom(s->fd, buffer, sizeof(buffer), 0, &ipxs, &sz);
   n_printf("IPX: received %d bytes of data\n", size);
   if (size > 0 && s->listenCount) {
     ECBPtr = s->listenList;

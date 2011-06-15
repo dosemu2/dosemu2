@@ -14,6 +14,8 @@
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
+#include "config.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -99,7 +101,7 @@ int OpenNetworkLink(char *name, unsigned short netid)
 	addr.sll_family = AF_PACKET;
 	addr.sll_protocol = proto;
 	addr.sll_ifindex = req.ifr_ifindex;
-	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+	if (bind(s, (void *)&addr, sizeof(addr)) < 0) {
 		pd_printf("OpenNetwork: could not bind socket: %s\n",
 			strerror(errno));
 		close(s);

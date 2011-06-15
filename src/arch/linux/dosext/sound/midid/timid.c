@@ -102,7 +102,7 @@ static int timid_preinit(void)
     ctrl_adr.sin_family = AF_INET;
     ctrl_adr.sin_port = htons(config.timid_port);
 
-    if (connect(ctrl_sock, (struct sockaddr *)&ctrl_adr, sizeof(ctrl_adr)) != 0) {
+    if (connect(ctrl_sock, &ctrl_adr, sizeof(ctrl_adr)) != 0) {
       close(ctrl_sock);
       goto err_ds;
     }
@@ -306,7 +306,7 @@ static bool timid_init(void)
   i = 1;
   setsockopt(data_sock, SOL_TCP, TCP_NODELAY, &i, sizeof(i));
   data_adr.sin_port = htons(data_port);
-  if (connect(data_sock, (struct sockaddr *)&data_adr, sizeof(data_adr)) != 0) {
+  if (connect(data_sock, &data_adr, sizeof(data_adr)) != 0) {
     error("Can't open data connection!\n");
     close(data_sock);
     close(ctrl_sock_out);
