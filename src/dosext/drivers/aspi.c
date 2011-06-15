@@ -135,6 +135,7 @@ struct scsi_device_info {
 };
 
 struct CDB_inquiry {
+  struct sg_header sg_hd;
   char cmd;
   unsigned char EVPD:1;
   unsigned char byte1res:4;
@@ -147,6 +148,7 @@ struct CDB_inquiry {
 } __attribute__ ((packed));
 
 struct standard_inquiry_data {
+  struct sg_header sg_hd;
   unsigned char peripheral_device_type:5; /* 00 */
   unsigned char peripheral_qualifier:3;
 
@@ -214,37 +216,33 @@ static int query_device_type(char *devname)
   int fd;
   int in_len, out_len, status, ret;
   struct CDB_inquiry *cdb;
-  struct sg_header *sg_hd;
-  struct sg_header *sg_reply_hdr;
   int sg_off = sizeof(struct sg_header);
   struct standard_inquiry_data *si;
   
   fd = open(devname, O_RDWR);
   if (fd < 0) return -1;
 
-  in_len = sg_off + sizeof(struct CDB_inquiry);
-  sg_hd = (struct sg_header *) malloc(in_len);
-  memset(sg_hd, 0, in_len);
-  cdb = (struct CDB_inquiry *)(sg_hd + 1);
+  in_len = sizeof(struct CDB_inquiry);
+  cdb = malloc(in_len);
+  memset(cdb, 0, in_len);
   cdb->cmd = CMD_INQUIRY /*0x12*/;
-  cdb->alloclen = sizeof(struct standard_inquiry_data);
+  cdb->alloclen = sizeof(struct standard_inquiry_data) - sizeof(struct sg_header);
 
   out_len = sg_off + cdb->alloclen;
-  sg_reply_hdr = (struct sg_header *) malloc(out_len);
-  memset(sg_reply_hdr, 0, SCSI_OFF);
-  sg_hd->reply_len = out_len;
+  si = malloc(out_len);
+  memset(si, 0, SCSI_OFF);
+  cdb->sg_hd.reply_len = out_len;
 
-  status = write(fd, sg_hd, in_len);
+  status = write(fd, cdb, in_len);
   if (status < 0 || status != in_len) return -1;
 
   do {
-    status = read(fd, sg_reply_hdr, out_len);
+    status = read(fd, si, out_len);
   } while (status == -1 && errno == EINTR);
 
-  si = (struct standard_inquiry_data *)(sg_reply_hdr+1);
   ret = si->peripheral_device_type;
-  free(sg_hd);
-  free(sg_reply_hdr);
+  free(cdb);
+  free(si);
   close(fd);
   return ret;
 }
@@ -417,15 +415,14 @@ char *aspi_add_device(char *name, char *devtype, int target)
 
 /* -------------------------------------------------------- */
 
-
-
-static int ASPI_OpenDevice16(SRB_ExecSCSICmd16 *prb)
+static int ASPI_OpenDevice16(SRB16 *p)
 {
     int	fd;
     int i, sgminor;
     int tout = 5 * 60 * sysconf(_SC_CLK_TCK);
     static char	devname[50];
     int hostId, target, lun;
+    SRB_ExecSCSICmd16 *prb = &p->cmd;
 
     if (!num_configured_devices) return -1;
 
@@ -567,7 +564,7 @@ static void ASPI_DebugPrintResult16(SRB_ExecSCSICmd16 *prb)
   }
 }
 
-static Bit16u ASPI_ExecScsiCmd16(SRB_ExecSCSICmd16 *prb, FARPTR16 segptr_prb)
+static Bit16u ASPI_ExecScsiCmd16(SRB16 *p, FARPTR16 segptr_prb)
 {
   struct sg_header *sg_hd=0, *sg_reply_hdr=0;
   int	status;
@@ -575,6 +572,7 @@ static Bit16u ASPI_ExecScsiCmd16(SRB_ExecSCSICmd16 *prb, FARPTR16 segptr_prb)
   int	in_len, out_len;
   int	error_code = 0;
   int	fd;
+  SRB_ExecSCSICmd16 *prb = &p->cmd;
 #define D_UNDF 0
 #define D_T_H  1
 #define D_H_T  2
@@ -584,7 +582,7 @@ static Bit16u ASPI_ExecScsiCmd16(SRB_ExecSCSICmd16 *prb, FARPTR16 segptr_prb)
 
   ASPI_DebugPrintCmd16(prb);
 
-  fd = ASPI_OpenDevice16(prb);
+  fd = ASPI_OpenDevice16(p);
   if (fd == -1) {
       prb->SRB_Status = SS_ERR;
       return SS_ERR;
@@ -746,14 +744,15 @@ error_exit:
   return prb->SRB_Status;
 }
 
-static Bit16u ASPI_GetDeviceType(SRB_GDEVBlock16 *prb, FARPTR16 segptr_prb)
+static Bit16u ASPI_GetDeviceType(SRB16 *p, FARPTR16 segptr_prb)
 {
   int	fd,Type;
+  SRB_GDEVBlock16 *prb = &p->devtype;
 
   A_printf("ASPI: Host Adapter: %d, Flags: %d, Target: %d, Lun: %d\n",
       prb->SRB_HaId, prb->SRB_Flags,  prb->SRB_Target, prb->SRB_Lun);
 
-  fd = ASPI_OpenDevice16((SRB_ExecSCSICmd16 *)prb);
+  fd = ASPI_OpenDevice16(p);
   if (fd == -1) {
       prb->SRB_Status = SS_ERR;
        A_printf("ASPI: device not available\n");
@@ -767,10 +766,8 @@ static Bit16u ASPI_GetDeviceType(SRB_GDEVBlock16 *prb, FARPTR16 segptr_prb)
   return SS_COMP;
 }
 
-static Bit16u ASPI_Inquiry(SRB_GDEVBlock16 *prb, FARPTR16 segptr_prb)
+static Bit16u ASPI_Inquiry(SRB_HaInquiry16 *p, FARPTR16 segptr_prb)
 {
-  SRB_HaInquiry16 *p = (SRB_HaInquiry16 *)prb;
-
 #if 0 /* We currently behave as an _old_ ASPI interface
        * and need not to flag (inverse 0xAA55) to indicate
        * we are a new style ASPI driver.
@@ -837,15 +834,15 @@ static Bit16u SendASPICommand16(FARPTR16 segptr_srb)
   switch (lpSRB->common.SRB_Cmd) {
   case SC_HA_INQUIRY:
     A_printf("ASPI: ASPI CMD: HA_INQUIRY\n");
-    return ASPI_Inquiry((SRB_GDEVBlock16 *)&lpSRB->cmd, segptr_srb);
+    return ASPI_Inquiry(&lpSRB->inquiry, segptr_srb);
     break;
   case SC_GET_DEV_TYPE:
     A_printf("ASPI: ASPI CMD: GET_DEV_TYPE\n");
-    return ASPI_GetDeviceType((SRB_GDEVBlock16 *)&lpSRB->cmd, segptr_srb);
+    return ASPI_GetDeviceType(lpSRB, segptr_srb);
     break;
   case SC_EXEC_SCSI_CMD:
     A_printf("ASPI: ASPI CMD: EXEC_SCSI\n");
-    return ASPI_ExecScsiCmd16(&lpSRB->cmd, segptr_srb);
+    return ASPI_ExecScsiCmd16(lpSRB, segptr_srb);
     break;
   case SC_RESET_DEV:
     A_printf("ASPI: Not implemented SC_RESET_DEV\n");
