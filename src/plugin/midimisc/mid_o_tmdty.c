@@ -298,7 +298,7 @@ static int midotmdty_init(void)
     i = 1;
     setsockopt(data_sock, SOL_TCP, TCP_NODELAY, &i, sizeof(i));
     data_adr.sin_port = htons(data_port);
-    if (connect(data_sock, (struct sockaddr *) &data_adr, sizeof(data_adr))
+    if (connect(data_sock, &data_adr, sizeof(data_adr))
 	!= 0) {
 	error("Can't open data connection!\n");
 	close(data_sock);

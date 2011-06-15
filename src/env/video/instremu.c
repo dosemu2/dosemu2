@@ -772,8 +772,8 @@ static inline void pop(unsigned *val, x86_regs *x86)
    for address and register decoding */
 
 #define reg8(reg, x86) (((unsigned char *)(x86))+((reg)&0x3)*4+(((reg)>>2)&1))
-#define reg(reg, x86) (((unsigned *)(x86))+((reg)&0x7))
-#define sreg(reg, x86) (((unsigned *)(&((x86)->es)))+((reg)&0x7))
+#define reg(reg, x86) ((&(x86)->eax)+((reg)&0x7))
+#define sreg(reg, x86) ((&((x86)->es))+((reg)&0x7))
 #define sreg_idx(reg) (es_INDEX+((reg)&0x7))
 
 unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len)
@@ -1420,7 +1420,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     EFLAGS &= ~(OF|ZF|SF|PF|AF);
     dstreg = reg(cs[eip], x86);
     if (x86->operand_size == 2) {
-      OPandFLAG0(unl, incw, *((unsigned short *)dstreg), =r);
+      OPandFLAG0(unl, incw, R_WORD(*dstreg), =r);
     } else {
       OPandFLAG0(unl, incl, *dstreg, =r);
     }
@@ -1438,7 +1438,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     EFLAGS &= ~(OF|ZF|SF|PF|AF);
     dstreg = reg(cs[eip], x86);
     if (x86->operand_size == 2) {
-      OPandFLAG0(unl, decw, *((unsigned short *)dstreg), =r);
+      OPandFLAG0(unl, decw, R_WORD(*dstreg), =r);
     } else {
       OPandFLAG0(unl, decl, *dstreg, =r);
     }

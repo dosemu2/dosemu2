@@ -214,7 +214,7 @@ typedef struct _IMAGE_BASE_RELOCATION
 {
 	DWORD	VirtualAddress;
 	DWORD	SizeOfBlock;
-	/* WORD	TypeOffset[1]; */
+	WORD	TypeOffset[0];
 } IMAGE_BASE_RELOCATION,*PIMAGE_BASE_RELOCATION;
 typedef struct _IMAGE_SECTION_HEADER {
   BYTE  Name[IMAGE_SIZEOF_SHORT_NAME];

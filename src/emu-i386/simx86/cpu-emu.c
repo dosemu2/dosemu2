@@ -422,7 +422,9 @@ char *e_trace_fp(void)
 	  long double *q = &TheCPU.fpregs[ifpr];
 	  char buf2[32];
 #ifdef FP_DISPHEX
-	  sprintf(buf2,"\t%016llx", *((long long *)q));
+	  long long x;
+	  memcpy(&x, q, sizeof(x));
+	  sprintf(buf2,"\t%016llx", x);
 #else
 	  *buf2=0;
 #endif

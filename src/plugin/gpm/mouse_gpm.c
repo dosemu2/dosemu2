@@ -53,7 +53,7 @@ static void gpm_getevent(void)
 	FD_SET(config.mouse.fd, &mfds);
 	if (select(config.mouse.fd + 1, &mfds, NULL, NULL, NULL) <= 0)
 		return;
-	Gpm_GetEvent((Gpm_Event*)&ev);
+	Gpm_GetEvent((void*)&ev);
 	type = GPM_BARE_EVENTS(ev.tail.gpm_w1.type);
 	if( variety == 1 && type != GPM_DRAG && type != GPM_DOWN &&
 	    type != GPM_UP && type != GPM_MOVE )

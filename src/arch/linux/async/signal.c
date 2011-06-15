@@ -128,7 +128,7 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   struct kernel_sigaction my_sa;
 
   my_sa.kernel_sa_handler = new->sa_handler;
-  my_sa.sa_mask = *((unsigned long *) &(new->sa_mask));
+  memcpy(&my_sa.sa_mask, &new->sa_mask, sizeof(my_sa.sa_mask));
   my_sa.sa_flags = new->sa_flags;
   my_sa.sa_restorer = new->sa_restorer;
 
