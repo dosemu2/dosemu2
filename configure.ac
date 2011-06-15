@@ -611,7 +611,7 @@ if test "$GCC" = "yes" ; then
   AC_MSG_RESULT($GCC_VERSION_CODE)
   if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
      AC_MSG_CHECKING(for egcs...)
-     if gcc -v 2>&1|grep 'egcs-' >/dev/null; then
+     if "$CC" -v 2>&1|grep 'egcs-' >/dev/null; then
        AC_MSG_RESULT([yes, using -fno-gcse to work around bugs])
        OPT="$OPT -fno-gcse"
      else
@@ -678,10 +678,28 @@ if test "$GCC" = "yes" ; then
     fi
   fi
 fi
+
+AC_MSG_CHECKING(for clang...)
+if test -z "$ASFLAGS"; then
+  ASFLAGS=-Wa,-a
+fi
+if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
+  if "$CC" -no-integrated-as -E - < /dev/null 2>&1|grep 'clang' >/dev/null; then
+    AC_MSG_RESULT([yes])
+  else
+    ASFLAGS="$ASFLAGS -no-integrated-as"
+    AC_MSG_RESULT([yes, using -no-integrated-as for assembly language files.])
+  fi
+else
+  CCAS="$CC"
+  AC_MSG_RESULT([no])
+fi
+
 AC_DEFINE(_GNU_SOURCE)
 
 CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
 CPPFLAGS="${CPPFLAGS} -MMD"
+AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(X_LIBS)

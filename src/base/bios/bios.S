@@ -8,9 +8,6 @@
 /**                                                                     **/
 /** This is the virtual PC's Bios (F000:0 .. F000:FFFF)                 **/
 /**                                                                     **/
-/** We must compile this with gcc/as/ld as follows:	                **/
-/**       gcc -nostdlib -Wl,-Ttext,0,-e,0 -traditional bios.S -o bios.o **/
-/**       strip -N _edata -N __bss_start -N _end bios.o                 **/
 /** modified from as86 to gas by Bart Oldeman Jan 2001			**/
 /**                                                                     **/
 /*************************************************************************/

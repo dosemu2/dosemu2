@@ -7,9 +7,6 @@
 #ifndef __MACROS86_H_
 #define __MACROS86_H_
 
-/* NOTE: this is run through GCC with -traditional
- *       so, keep the hash (#) at column 1 !!!
- */
 #ifndef __ASM__
 #  define __ASM__
 #endif

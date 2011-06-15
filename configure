@@ -602,6 +602,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+ASFLAGS
 X86_EMULATOR
 INCDIR
 PLUGINSUBDIRS
@@ -6959,7 +6960,7 @@ $as_echo "$GCC_VERSION_CODE" >&6; }
   if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for egcs..." >&5
 $as_echo_n "checking for egcs...... " >&6; }
-     if gcc -v 2>&1|grep 'egcs-' >/dev/null; then
+     if "$CC" -v 2>&1|grep 'egcs-' >/dev/null; then
        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, using -fno-gcse to work around bugs" >&5
 $as_echo "yes, using -fno-gcse to work around bugs" >&6; }
        OPT="$OPT -fno-gcse"
@@ -7033,11 +7034,33 @@ $as_echo "yes, version code $GLIBC_VERSION_CODE" >&6; }
     fi
   fi
 fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for clang..." >&5
+$as_echo_n "checking for clang...... " >&6; }
+if test -z "$ASFLAGS"; then
+  ASFLAGS=-Wa,-a
+fi
+if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
+  if "$CC" -no-integrated-as -E - < /dev/null 2>&1|grep 'clang' >/dev/null; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  else
+    ASFLAGS="$ASFLAGS -no-integrated-as"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, using -no-integrated-as for assembly language files." >&5
+$as_echo "yes, using -no-integrated-as for assembly language files." >&6; }
+  fi
+else
+  CCAS="$CC"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
 $as_echo "#define _GNU_SOURCE 1" >>confdefs.h
 
 
 CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
 CPPFLAGS="${CPPFLAGS} -MMD"
+
 
 
 

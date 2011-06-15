@@ -34,9 +34,6 @@ $(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o
 $(OBJ1): %: %.o
 	$(LD) $(LDFLAGS) $< -o $@
 
-%.com: %.S
-	$(LD) -traditional -Wa,-a -Wl,-Ttext,100,--oformat,binary -nostdlib -s -o $@ $< > $<.out
-
 ../../../etc/hdimage.dist: mkfatimage
 	./mkfatimage -l DOSEMU $(REALTOPDIR)/$(THISVERSION)/commands/* >$@
 

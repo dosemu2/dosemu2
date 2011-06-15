@@ -11,9 +11,6 @@ CFILES=int10.c int16.c int17.c hlt.c setup.c bios.o
 
 all: lib
 
-bios.o: bios.S
-	$(CC) $(CPPFLAGS) -c -Wa,-a $< > $*.s.out
-
 include $(REALTOPDIR)/src/Makefile.common
 
 clean::
