@@ -331,14 +331,10 @@ ShowMyRedirections(void)
         if (deviceParam & 0x80) {
 	  if ((deviceParam & 0x7f) > 1)
 	    printf("CDROM:%d ", (deviceParam & 0x7f) - 1);
-          switch ((deviceParam & 0x7f) != 0) {
-            case READ_ONLY_DRIVE_ATTRIBUTE:
-              printf("attrib = READ ONLY\n");
-              break;
-            default:
-              printf("attrib = READ/WRITE\n");
-              break;
-          }
+          if (((deviceParam & 0x7f) != 0) == READ_ONLY_DRIVE_ATTRIBUTE)
+	    printf("attrib = READ ONLY\n");
+	  else
+	    printf("attrib = READ/WRITE\n");
         }
       }
 
@@ -572,14 +568,10 @@ int lredir_main(int argc, char **argv)
     if (deviceParam > 1)
       printf(" CDROM:%d", deviceParam - 1);
     printf(" attrib = ");
-    switch (deviceParam != 0) {
-      case READ_ONLY_DRIVE_ATTRIBUTE:
-        printf("READ ONLY\n");
-        break;
-      default:
-        printf("READ/WRITE\n");
-        break;
-    }
+    if ((deviceParam != 0) == READ_ONLY_DRIVE_ATTRIBUTE)
+      printf("READ ONLY\n");
+    else
+      printf("READ/WRITE\n");
 
 MainExit:
     return (ccode);

@@ -216,8 +216,7 @@ static void is_display_charset_callback(void *callback_data,
 	t_unicode symbol, const unsigned char *bytes, size_t byte_len)
 {
 	struct is_display_charset_state *state = callback_data;
-	if (((symbol >= 0x00) && (symbol < 0x1F)) || 
-		((symbol >= 0x80) && (symbol <= 0x9F))) {
+	if (symbol < 0x1F || (symbol >= 0x80 && symbol <= 0x9F)) {
 		state->control = 1;
 	}
 	if (byte_len != 1) {

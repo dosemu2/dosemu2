@@ -662,7 +662,7 @@ void print_exception_info(struct sigcontext_struct *scp)
       for (i=0; i<8; i++) {
 	unsigned long long *r = (unsigned long long *)&(p->_st[i].significand);
 	unsigned short *e = (unsigned short *)&(p->_st[i].exponent);
-	error ("@fpr[%d] = %04x:%016Lx\n",n,*e,*r);
+	error ("@fpr[%d] = %04x:%016llx\n",n,*e,*r);
 	n = (n+1) & 7;
       }
       } break;
