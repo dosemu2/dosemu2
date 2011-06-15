@@ -1323,7 +1323,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 int msdos_pre_rm(struct sigcontext_struct *scp)
 {
   unsigned int lina = SEGOFF2LINEAR(_CS, _IP) - 1;
-  unsigned short *ssp = (us *) (GetSegmentBaseAddress(_ss) + D_16_32(_esp));
+  void *sp = GetSegmentBaseAddress(_ss) + D_16_32(_esp);
 
   if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback)) {
     if (!ValidAndUsedSelector(MSDOS_CLIENT.mouseCallBack.selector)) {
@@ -1337,12 +1337,12 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
     _eip = MSDOS_CLIENT.mouseCallBack.offset;
 
     if (MSDOS_CLIENT.is_32) {
-	*--ssp = (us) 0;
+	unsigned int *ssp = sp;
 	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((uint32_t *) ssp) =
-	     DPMI_SEL_OFF(MSDOS_return_from_pm);
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_esp -= 8;
     } else {
+	unsigned short *ssp = sp;
 	*--ssp = dpmi_sel(); 
 	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_LWORD(esp) -= 4;
@@ -1362,24 +1362,20 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
     rm_ssp = MK_FP32(LWORD(ss), LWORD(esp) + 4 + 8);
 
     if (MSDOS_CLIENT.is_32) {
-	*--ssp = (us) 0;
+	unsigned int *ssp = sp;
 	*--ssp = *--rm_ssp;
 	D_printf("data: 0x%x ", *ssp);
-	*--ssp = (us) 0;
 	*--ssp = *--rm_ssp;
 	D_printf("0x%x ", *ssp);
-	*--ssp = (us) 0;
 	*--ssp = *--rm_ssp;
 	D_printf("0x%x ", *ssp);
-	*--ssp = (us) 0;
 	*--ssp = *--rm_ssp;
 	D_printf("0x%x\n", *ssp);
-	*--ssp = (us) 0;
 	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((uint32_t *) ssp) =
-	     DPMI_SEL_OFF(MSDOS_return_from_pm);
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
 	_esp -= 24;
     } else {
+	unsigned short *ssp = sp;
 	*--ssp = *--rm_ssp;
 	D_printf("data: 0x%x ", *ssp);
 	*--ssp = *--rm_ssp;
