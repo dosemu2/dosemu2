@@ -336,7 +336,11 @@ void version_init(void) {
   strcpy(version,unames.release);
   running_kversion = atoi(strtok(version,".")) *1000000;
   running_kversion += atoi(strtok(NULL,".")) *1000;
-  running_kversion += atoi(strtok(NULL,"."));
+  {
+    char *c = strtok(NULL, ".");
+    if (c)
+      running_kversion +=atoi(c);
+  }
 #endif
   
 
