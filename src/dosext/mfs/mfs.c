@@ -1959,7 +1959,7 @@ boolean_t find_file(char *fpath, struct stat * st, int drive, int *doserrno)
       Debug0((dbg_fd, "find_file(): not a directory: %s\n", fpath));
       if (slash2)
 	*slash2 = '/';
-      if (*doserrno) *doserrno = PATH_NOT_FOUND;
+      if (doserrno) *doserrno = PATH_NOT_FOUND;
       return (FALSE);
     }
     else {
