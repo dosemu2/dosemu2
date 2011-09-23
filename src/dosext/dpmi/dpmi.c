@@ -2572,7 +2572,8 @@ void dpmi_cleanup(void)
     dosemu_error("Quitting DPMI while !in_dpmi_dos_int\n");
   msdos_done();
   FreeAllDescriptors();
-  free(DPMI_CLIENT.pm_stack);
+  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack, 
+    PAGE_ALIGN(DPMI_pm_stack_size));
   if (!DPMI_CLIENT.RSP_installed) {
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
@@ -2998,7 +2999,8 @@ void dpmi_init(void)
 
   DPMI_CLIENT.private_data_segment = REG(es);
 
-  DPMI_CLIENT.pm_stack = malloc(DPMI_pm_stack_size);
+  DPMI_CLIENT.pm_stack = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
+    PAGE_ALIGN(DPMI_pm_stack_size), PROT_READ | PROT_WRITE, 0);
   if (DPMI_CLIENT.pm_stack == NULL) {
     error("DPMI: can't allocate memory for locked protected mode stack\n");
     leavedos(2);
