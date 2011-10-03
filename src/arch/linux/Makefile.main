@@ -78,7 +78,7 @@ endif
 emu.o: emu.c
 
 $(BINPATH)/bin/$(DOSBIN): emu.o $(LIBS_)
-	$(LD) $(LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ emu.o \
+	$(LD) $(ALL_LDFLAGS) $(DOSBIN_LDFLAGS) -o $@ emu.o \
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map

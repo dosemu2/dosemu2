@@ -55,7 +55,7 @@ $(STUBFULL): $(D)/generic.com ./mkcomstub
 	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
 
 $(D)/%.com: %.o
-	$(LD) $(LDFLAGS) -Wl,-Ttext,0x100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+	$(LD) $(ALL_LDFLAGS) -Wl,-Ttext,0x100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
 	chmod -x $@
 
 install: all

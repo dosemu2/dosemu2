@@ -7,8 +7,8 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFLAGS+=$(DL_CFLAGS)
-CPPFLAGS+=$(SLANGINC)
+ALL_CFLAGS+=$(DL_CFLAGS)
+ALL_CPPFLAGS+=$(SLANGINC)
 CFILES=term_core.c terminal.c keyb_slang.c mouse_xterm.c
 
 SFILES=
@@ -26,7 +26,7 @@ include $(REALTOPDIR)/src/Makefile.common
 
 MAPS=
 ifdef USE_APBUILD
-CPPFLAGS+=-DUSE_RELAYTOOL
+ALL_CPPFLAGS+=-DUSE_RELAYTOOL
 MAPS+=partial.map
 SLANGLIB:=`relaytool --partial-map partial.map --relay slang \
 --multilink libslang.so.2 libslang-2.so.2 \
@@ -41,7 +41,7 @@ endif
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_term.so: $(OBJS) $(MAPS)
-	$(CC) $(LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
+	$(CC) $(ALL_LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
 	$(AR) crs $(LIB)
 endif
 

@@ -8,8 +8,8 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
-CFLAGS+=$(DL_CFLAGS)
-CPPFLAGS+=$(SDL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS)
+ALL_CPPFLAGS+=$(SDL_CFLAGS)
 CFILES=
 ifdef SDL_SUPPORT
 CFILES=sdl.c keyb_SDL.c mouse_SDL.c snd_o_SDL.c
@@ -32,7 +32,7 @@ include $(REALTOPDIR)/src/Makefile.common
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
+	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 	$(AR) crs $(LIB)
 endif
 

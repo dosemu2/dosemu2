@@ -26,8 +26,6 @@ ALL = $(CFILES) $(HFILES) dosnet.README
 
 OBJS = dosnet.o
 
-CFLAGS += $(KERNEL2)
-
 all: $(OBJS)
 
 dosnet.o:  dosnet.c
@@ -55,7 +53,7 @@ dist: $(ALL) Makefile
 	install -m 0644 $(ALL) Makefile $(DISTPATH)/v-net
 
 depend dep: $(CFILES) $(HFILES)
-	$(CPP) -MM $(CFLAGS) $(CFILES) $(INCDIR) > .depend
+	$(CPP) -MM $(ALL_CPPFLAGS) $(CFILES) $(INCDIR) > .depend
 
 dummy:
 

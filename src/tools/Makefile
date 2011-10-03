@@ -20,7 +20,7 @@ all: tools86
 include $(REALTOPDIR)/src/Makefile.common
 
 tools86: tools86.o
-	$(LD) $(LDFLAGS) $< -o tools86
+	$(LD) $(ALL_LDFLAGS) $< -o tools86
 
 
 install: all

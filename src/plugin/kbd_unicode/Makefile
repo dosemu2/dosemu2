@@ -24,8 +24,6 @@ DEPENDS= $(CFILES:.c=.d)
 OBJS   = $(CFILES:.c=.o)
 HFILES = 
 
-CFLAGS+= $(USE_SLANG)
-
 # Insert all source- and header-files here.
 
 ALL = $(CFILES) $(HFILES)

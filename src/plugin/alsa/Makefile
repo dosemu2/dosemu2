@@ -7,7 +7,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFLAGS+=$(DL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS)
 ifdef USE_ALSA
 CFILES=mid_o_alsa.c
 ifdef USE_DL_PLUGINS
@@ -19,6 +19,6 @@ include $(REALTOPDIR)/src/Makefile.common
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_alsa.so: $(OBJS)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(ALSALIB)
+	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(ALSALIB)
 	$(AR) crs $(LIB)
 endif

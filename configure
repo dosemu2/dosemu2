@@ -602,6 +602,9 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+DOSEMU_LDFLAGS
+DOSEMU_CPPFLAGS
+DOSEMU_CFLAGS
 ASFLAGS
 X86_EMULATOR
 INCDIR
@@ -2309,7 +2312,7 @@ fi
 ac_config_headers="$ac_config_headers src/include/config.h"
 
 
-OPT=$CFLAGS
+: ${CFLAGS=""}
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -5115,7 +5118,7 @@ if ! printf '%b\n' '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
 fi
 
 
-LDFLAGS="$LDFLAGS -Wl,-warn-common"
+DOSEMU_LDFLAGS="-Wl,-warn-common"
 LIBS="$LIBS -ldl -lm"
 X_LIBS=""
 
@@ -5556,6 +5559,7 @@ else
     SLANGLIB="-L${with_slangdir}/lib"
   fi
 fi
+save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $SLANGINC"
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SLANGINC $SLANGLIB" >&5
 $as_echo "$SLANGINC $SLANGLIB" >&6; }
@@ -5620,6 +5624,7 @@ $as_echo "$as_me: WARNING: No S-Lang header file found." >&2;}
 fi
 
 
+CPPFLAGS="$save_CPPFLAGS"
 
 
 
@@ -6851,18 +6856,17 @@ $as_echo "$as_me: Compiling with SB Emulation..." >&6;}
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 
 
-CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
-if test -z "$OPT"; then
+DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
+if test -z "$CFLAGS"; then
   if test "$enable_debug" = "yes"; then
-    CFLAGS="$CFLAGS -g"
+    CFLAGS="$CFLAGS -g -O"
     $as_echo "#define _DEBUG 1" >>confdefs.h
 
-    OPT="-O"
   else
-    OPT="-O2" # BIG NOTE: do _not_ use -O3,
+              # BIG NOTE: do _not_ use -O3,
               # because in forces _inline_ at places where we don't want it !
               # If we want _inline_, well then we 'code' it.
-    OPT="$OPT -fomit-frame-pointer"  # never omit the frame pointer when debugging!
+    CFLAGS="-O2 -fomit-frame-pointer"  # never omit the frame pointer when debugging!
   fi
 fi
 if test "$enable_debug" = "yes"; then
@@ -6951,6 +6955,7 @@ $as_echo "$as_me: Compiling with specified target CPU..." >&6;}
 fi
 
 
+OPT=""
 if test "$GCC" = "yes" ; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for the version of gcc..." >&5
 $as_echo_n "checking for the version of gcc...... " >&6; }
@@ -6977,7 +6982,7 @@ $as_echo_n "checking for gcc-2.95 or newer ...... " >&6; }
 $as_echo "yes, using -fno-strict-aliasing to work around bugs" >&6; }
        OPT="$OPT -fno-strict-aliasing"
        if test "$(( $GCC_VERSION_CODE >= 3000 ))" = "1"; then
-         CPPFLAGS="$CPPFLAGS -MP"
+         DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -MP"
        fi
      else
        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -7060,8 +7065,11 @@ fi
 $as_echo "#define _GNU_SOURCE 1" >>confdefs.h
 
 
-CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
-CPPFLAGS="${CPPFLAGS} -MMD"
+DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
+DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD"
+
+
+
 
 
 

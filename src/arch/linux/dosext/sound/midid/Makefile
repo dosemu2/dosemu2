@@ -27,12 +27,12 @@ cleanall:	clean
 realclean:	cleanall
 
 %.o:	%.c
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
 %.d:	%.c
-	$(CPP) -c $(CPPFLAGS) $< > /dev/null
+	$(CPP) -c $(ALL_CPPFLAGS) $< > /dev/null
 
 $(BINPATH)/bin/midid:	$(OBJECTS)
-	$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
+	$(CC) -o $@ $(OBJECTS) $(ALL_LDFLAGS)
 
 -include $(DEPENDS)

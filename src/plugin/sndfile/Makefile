@@ -7,7 +7,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFLAGS+=$(DL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS)
 ifdef USE_SNDFILE
 CFILES=snd_o_wav.c
 ifdef USE_DL_PLUGINS
@@ -19,6 +19,6 @@ include $(REALTOPDIR)/src/Makefile.common
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_sndfile.so: $(OBJS)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SNDFLIB)
+	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SNDFLIB)
 	$(AR) crs $(LIB)
 endif

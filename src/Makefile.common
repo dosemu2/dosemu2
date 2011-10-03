@@ -43,16 +43,16 @@ dist:: $(ALL) Makefile
 	cp -a $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
 
 %.o:	%.c
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
 %.o:	%.S
-	$(CC) -c $(CPPFLAGS) $(ASFLAGS) -o $@ $< > $*.s.out
+	$(CC) -c $(ALL_CPPFLAGS) $(ASFLAGS) -o $@ $< > $*.s.out
 
 %.d:	%.c
-	$(CPP) -c $(CPPFLAGS) $< > /dev/null
+	$(CPP) -c $(ALL_CPPFLAGS) $< > /dev/null
 
 %.d:	%.S
-	$(CPP) -c $(CPPFLAGS) $< > /dev/null
+	$(CPP) -c $(ALL_CPPFLAGS) $< > /dev/null
 
 ifndef CLEANING
 ifneq "$(wildcard *.d)" ""

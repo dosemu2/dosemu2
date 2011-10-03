@@ -16,7 +16,7 @@ include $(top_builddir)/Makefile.conf
 # The following variables may go into the Makfile in the parent-directory
 
 DEFINES=-DCLEARDTR_SUPPORT
-CFLAGS+=$(DEFINES)
+ALL_CPPFLAGS+=$(DEFINES)
 
 # Insert all source- and header-files here.
 

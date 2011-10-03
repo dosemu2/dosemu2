@@ -14,7 +14,7 @@ fi
 AC_CONFIG_HEADER(src/include/config.h)
 
 dnl Checks for programs.
-OPT=$CFLAGS
+: ${CFLAGS=""}
 AC_PROG_CC
 AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
   CPPFLAGS="$CPPFLAGS -m$with_target_bits"
@@ -136,7 +136,7 @@ fi
 
 dnl Check for static and then also use it for tests
 
-LDFLAGS="$LDFLAGS -Wl,-warn-common"
+DOSEMU_LDFLAGS="-Wl,-warn-common"
 LIBS="$LIBS -ldl -lm"
 X_LIBS=""
 
@@ -309,6 +309,7 @@ else
   fi
 fi
 dnl --- now that we've found it, check the link
+save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $SLANGINC"
 AC_MSG_RESULT($SLANGINC $SLANGLIB)
 have_slang="no"
@@ -324,6 +325,7 @@ AC_CHECK_HEADER(slang.h,
   [AC_MSG_WARN([No S-Lang header file found.])]
   $srcdir/mkpluginhooks enable term no
 )
+CPPFLAGS="$save_CPPFLAGS"
 AC_SUBST(SLANGINC)
 AC_SUBST(SLANGLIB)
 
@@ -528,17 +530,16 @@ dnl Now CFLAGS and INCLUDES
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
-CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
-if test -z "$OPT"; then
+DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
+if test -z "$CFLAGS"; then
   if test "$enable_debug" = "yes"; then
-    CFLAGS="$CFLAGS -g"
+    CFLAGS="$CFLAGS -g -O"
     AC_DEFINE(_DEBUG)
-    OPT="-O"
   else
-    OPT="-O2" # BIG NOTE: do _not_ use -O3,
+              # BIG NOTE: do _not_ use -O3,
               # because in forces _inline_ at places where we don't want it !
               # If we want _inline_, well then we 'code' it.
-    OPT="$OPT -fomit-frame-pointer"  # never omit the frame pointer when debugging!
+    CFLAGS="-O2 -fomit-frame-pointer"  # never omit the frame pointer when debugging!
   fi
 fi
 if test "$enable_debug" = "yes"; then
@@ -604,6 +605,7 @@ else
 fi
 
 
+OPT=""
 if test "$GCC" = "yes" ; then
   AC_MSG_CHECKING(for the version of gcc...)
   minor=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC_MINOR__/{print $3}'`
@@ -623,7 +625,7 @@ if test "$GCC" = "yes" ; then
        AC_MSG_RESULT([yes, using -fno-strict-aliasing to work around bugs])
        OPT="$OPT -fno-strict-aliasing"
        if test "$(( $GCC_VERSION_CODE >= 3000 ))" = "1"; then
-         CPPFLAGS="$CPPFLAGS -MP"
+         DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -MP"
        fi
      else
        AC_MSG_RESULT(no)
@@ -698,10 +700,13 @@ fi
 
 AC_DEFINE(_GNU_SOURCE)
 
-CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
-CPPFLAGS="${CPPFLAGS} -MMD"
+DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
+DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD"
 AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
+AC_SUBST(DOSEMU_CFLAGS)
+AC_SUBST(DOSEMU_CPPFLAGS)
+AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(X_LIBS)
 AC_SUBST(X_CFLAGS)

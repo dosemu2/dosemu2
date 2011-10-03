@@ -19,18 +19,18 @@ OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck
 OBJ=$(OBJ1) $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
 SCRIPT=getrom
 
-CPPFLAGS += -I.
+ALL_CPPFLAGS += -I.
 
 all: $(OBJ)
 
 $(BINPATH)/bin/mkfatimage: mkfatimage.o bootsect.o
-	$(LD) $(LDFLAGS) $^ -o $@
+	$(LD) $(ALL_LDFLAGS) $^ -o $@
 
 $(BINPATH)/bin/mkfatimage16: mkfatimage16.o bootsect.o
-	$(LD) $(LDFLAGS) $^ -o $@
+	$(LD) $(ALL_LDFLAGS) $^ -o $@
 
 $(OBJ1): %: %.o
-	$(LD) $(LDFLAGS) $< -o $@
+	$(LD) $(ALL_LDFLAGS) $< -o $@
 
 ../../../etc/hdimage.dist: mkfatimage
 	./mkfatimage -l DOSEMU $(REALTOPDIR)/$(THISVERSION)/commands/* >$@
