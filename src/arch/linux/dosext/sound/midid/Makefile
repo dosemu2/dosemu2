@@ -26,8 +26,6 @@ cleanall:	clean
 
 realclean:	cleanall
 
-LDFLAGS := $(subst -rdynamic,,$(LDFLAGS))
-
 %.o:	%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 

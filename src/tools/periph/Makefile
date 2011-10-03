@@ -23,8 +23,6 @@ CPPFLAGS += -I.
 
 all: $(OBJ)
 
-LDFLAGS := $(subst -rdynamic,,$(LDFLAGS))
-
 $(BINPATH)/bin/mkfatimage: mkfatimage.o bootsect.o
 	$(LD) $(LDFLAGS) $^ -o $@
 

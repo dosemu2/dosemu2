@@ -25,8 +25,6 @@ OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
 
 all: lib $(BINPATH)/bin/dosdebug
 
-LDFLAGS := $(subst -rdynamic,,$(LDFLAGS))
-
 $(BINPATH)/bin/dosdebug: dosdebug.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(CPPFLAGS) $< -o $@
 

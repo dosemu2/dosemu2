@@ -636,6 +636,7 @@ GPMLIB
 USE_GPM
 USE_SVGALIB
 USE_APBUILD
+DOSBIN_LDFLAGS
 USE_DL_PLUGINS
 CONFIG_HOST
 fdtarball
@@ -5144,7 +5145,8 @@ $as_echo "$as_me: Using dynamically loaded plugins..." >&6;}
 
               USE_DL_PLUGINS="USE_DL_PLUGINS=1"
 
-              LDFLAGS="${LDFLAGS} -rdynamic"
+              DOSBIN_LDFLAGS="-rdynamic"
+
 else
               { $as_echo "$as_me:${as_lineno-$LINENO}: Not using dynamically loaded plugins..." >&5
 $as_echo "$as_me: Not using dynamically loaded plugins..." >&6;}

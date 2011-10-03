@@ -156,7 +156,8 @@ if test "$enable_dlplugins" != "no"; then
               AC_DEFINE(USE_DL_PLUGINS)
               USE_DL_PLUGINS="USE_DL_PLUGINS=1"
               AC_SUBST(USE_DL_PLUGINS)
-              LDFLAGS="${LDFLAGS} -rdynamic"
+              DOSBIN_LDFLAGS="-rdynamic"
+              AC_SUBST(DOSBIN_LDFLAGS)
 else
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi
