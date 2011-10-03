@@ -466,7 +466,9 @@ int register_charset(struct char_set *set)
 			while (list->next) {
 				list = list->next;
 			}
-			list->next = set;
+			if (list != set) {
+				list->next = set;
+			}
 		}
 		initialize_charset(set);
 	}
