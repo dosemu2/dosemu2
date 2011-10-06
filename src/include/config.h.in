@@ -100,10 +100,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define the stepping of gas code16 functionality */
 #undef GASCODE16
 
-/* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
-   */
-#undef HAVE_DIRENT_H
-
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
@@ -125,9 +121,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define this if you want to use MITSHM */
 #undef HAVE_MITSHM
 
-/* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
-#undef HAVE_NDIR_H
-
 /* Define to 1 if you have the `shm_open' function. */
 #undef HAVE_SHM_OPEN
 
@@ -148,14 +141,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 
 /* Define to 1 if `st_rdev' is a member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_RDEV
-
-/* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
-   */
-#undef HAVE_SYS_DIR_H
-
-/* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
-   */
-#undef HAVE_SYS_NDIR_H
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
@@ -198,17 +183,11 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define the Dosemu patchlevel */
 #undef PATCHLEVEL
 
-/* Define as the return type of signal handlers (`int' or `void'). */
-#undef RETSIGTYPE
-
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
 /* Define the Dosemu sublevel */
 #undef SUBLEVEL
-
-/* Define to 1 if your <sys/time.h> declares `struct tm'. */
-#undef TM_IN_SYS_TIME
 
 /* DEFINE this, if you want alsa support */
 #undef USE_ALSA
@@ -287,9 +266,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define if the compiler doesn't have __LINE__ macro. Most compilers have
    this one, but just to be sure... */
 #undef __LINE__
-
-/* Define to empty if `const' does not conform to ANSI C. */
-#undef const
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef gid_t

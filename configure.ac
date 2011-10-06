@@ -22,7 +22,6 @@ AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (d
   LDFLAGS="$LDFLAGS -m$with_target_bits"
   export LDFLAGS
 )
-AC_PROG_GCC_TRADITIONAL
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LEX
@@ -49,36 +48,31 @@ dnl Checks for libraries.
 
 dnl Checks for header files.
 AC_SYS_LARGEFILE
-AC_HEADER_DIRENT
 AC_HEADER_MAJOR
-AC_HEADER_STDC
 
 dnl Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
 AC_C_INLINE
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
-AC_TYPE_SIGNAL
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
 AC_CHECK_MEMBERS([struct stat.st_rdev])
-AC_STRUCT_TM
 
-AC_CACHE_CHECK(if C compiler has \"__FILE__\" macro,
+AC_CACHE_CHECK([if C compiler has "__FILE__" macro],
 ac_cv_c_has_file_macro,
 [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __FILE__);]])],[ac_cv_c_has_file_macro=yes],[ac_cv_c_has_file_macro=no]) ] )
 if test "$ac_cv_c_has_file_macro" = "no" ; then
   AC_DEFINE(__FILE__, "")
 fi
 
-AC_CACHE_CHECK(if C compiler has \"__LINE__\" macro,
+AC_CACHE_CHECK([if C compiler has "__LINE__" macro],
 ac_cv_c_has_line_macro,
 [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __LINE__);]])],[ac_cv_c_has_line_macro=yes],[ac_cv_c_has_line_macro=no]) ] )
 if test "$ac_cv_c_has_line_macro" = "no" ; then
   AC_DEFINE(__LINE__, "")
 fi
 
-AC_CACHE_CHECK(if C compiler has \"__FUNCTION__\" macro,
+AC_CACHE_CHECK([if C compiler has "__FUNCTION__" macro],
 ac_cv_c_has_function_macro,
 [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __FUNCTION__);]])],[ac_cv_c_has_function_macro=yes],[ac_cv_c_has_function_macro=no]) ] )
 if test "$ac_cv_c_has_function_macro" = "no" ; then
@@ -534,7 +528,6 @@ DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs
 if test -z "$CFLAGS"; then
   if test "$enable_debug" = "yes"; then
     CFLAGS="$CFLAGS -g -O"
-    AC_DEFINE(_DEBUG)
   else
               # BIG NOTE: do _not_ use -O3,
               # because in forces _inline_ at places where we don't want it !
