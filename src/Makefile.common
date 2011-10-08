@@ -7,17 +7,12 @@
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-ifdef CFILES
 OBJS:=$(CFILES:.c=.o)
-else
-OBJS:=$($(notdir $(wildcard $(srcdir)/*.c)):.c=.o)
-endif
 endif
 
 ifndef DEPENDS
 DEPENDS:=$(OBJS:.o=.d)
 endif
-
 
 LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
 
