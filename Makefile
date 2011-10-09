@@ -58,7 +58,7 @@ pristine distclean mrproper:  docsclean mididclean
 	rm -f core `find . -name '*.d'`
 	rm -f core `find . -name '*[\.]orig'`
 	rm -f core `find . -name '*[\.]rej'`
-	rm -f core gen*.log `find . -size 0`
+	rm -f core gen*.log
 	(cd setup/demudialog; make clean)
 	(cd setup/parser; make clean)
 	rm -rf ./dist/tmp
