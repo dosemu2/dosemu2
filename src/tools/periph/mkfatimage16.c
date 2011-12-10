@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
   write_buffer();
   
   /* Write FATs. */
-  memset(fat, 0, sizeof(fat));
+  memset(fat, 0, sizeof(sectors_per_fat*BYTES_PER_SECTOR));
   put_fat(0, 0xfff8);
   put_fat(1, 0xffff);
   for (n = 0; (n < input_file_count); n++) 

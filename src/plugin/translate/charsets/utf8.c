@@ -78,35 +78,35 @@ static size_t unicode_to_utf8(struct char_set_state *state,
 {
 	int length = 0;
 	char data[6];
-	/* Never output resevered values */
+	/* Never output reserved values */
 	if (((value >= 0xD800) && (value <= 0xDFFF)) ||
 	    ((value >= 0xFFFE) && (value <= 0xFFFF)) ||
 	    (value > 0x7FFFFFFF)) {
 		goto bad_data;
 	}
-	else if ((value >= 0x0000) && (value <= 0x007F)) {
+	else if (value <= 0x007F) {
 		length = 1;
 		data[0] = value;
 	}
-	else if ((value >= 0x0080) && (value <= 0x07FF)) {
+	else if (value <= 0x07FF) {
 		length = 2;
 		data[0] = 0xC0 + (value >> 6);
 		data[1] = 0x80 + ((value >> 0) & 0x3F);
 	}
-	else if ((value >= 0x0800) && (value <= 0xFFFF)) {
+	else if (value <= 0xFFFF) {
 		length = 3;
 		data[0] = 0xE0 + (value >> 12);
 		data[1] = 0x80 + ((value >> 6) & 0x3F);
 		data[2] = 0x80 + ((value >> 0) & 0x3F);
 	}
-	else if ((value >= 0x10000) && (value <= 0x1FFFFF)) {
+	else if (value <= 0x1FFFFF) {
 		length = 4;
 		data[0] = 0xF0 + (value >> 18);
 		data[1] = 0x80 + ((value >> 12) & 0x3F);
 		data[2] = 0x80 + ((value >> 6) & 0x3F);
 		data[3] = 0x80 + ((value >> 0) & 0x3F);
 	}
-	else if ((value >= 0x200000) && (value <= 0x03FFFFFF)) {
+	else if (value <= 0x03FFFFFF) {
 		length = 5;
 		data[0] = 0xF8 + (value >> 24);
 		data[1] = 0x80 + ((value >> 18) & 0x3F);
@@ -114,7 +114,7 @@ static size_t unicode_to_utf8(struct char_set_state *state,
 		data[3] = 0x80 + ((value >> 6) & 0x3F);
 		data[4] = 0x80 + ((value >> 0) & 0x3F);
 	}
-	else if ((value >= 0x04000000) && (value <= 0x7FFFFFFF)) {
+	else if (value <= 0x7FFFFFFF) {
 		length = 6;
 		data[0] = 0xFC + (value >> 30);
 		data[1] = 0x80 + ((value >> 24) & 0x3F);

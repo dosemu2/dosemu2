@@ -56,7 +56,7 @@ static struct scsi_device_info *scan_scsi_proc_info(void) {
   FILE *f;
   char buf[1024];
   char *p, *s;
-  static char* attached = "Attached devices:";
+  static char attached[] = "Attached devices:";
 
   f = fopen(scsiprocfile, "r");
   if (!f) return 0;

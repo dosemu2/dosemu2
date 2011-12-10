@@ -278,7 +278,7 @@ static int init_sg_device_list(void) {
   FILE *f;
   char buf[1024];
   char *p, *s;
-  static char* attached = "Attached devices:";
+  static char attached[] = "Attached devices:";
 
   if (sg_devices) return 1;
 

@@ -1666,9 +1666,11 @@ static int dpmi_debug_breakpoint(int op, struct sigcontext_struct *scp)
 	  err = (dr6 >> _LWORD(ebx)) & 1;
         break;
       case 3:   /* reset */
-        dr6 &= ~(1 << _LWORD(ebx));
-	if (set_dr(pid, 6, dr6))
-	  err = 0;
+	if(get_dr(pid, 6, &dr6)) {
+          dr6 &= ~(1 << _LWORD(ebx));
+          if (set_dr(pid, 6, dr6))
+	    err = 0;
+	}
         break;
     }
     ptrace(PTRACE_DETACH, pid, 0, 0);
@@ -2895,8 +2897,8 @@ void dpmi_setup(void)
 	   DPMI_direct_transfer_end-DPMI_direct_transfer);
     dpmi_switch_jmp = (struct pmaddr_s *)(dpmi_xfr_buffer + PAGE_SIZE);
     memcpy(dpmi_xfr_buffer + (DPMI_direct_transfer_end - DPMI_direct_transfer)
-	   - sizeof(&dpmi_switch_jmp),
-	   &dpmi_switch_jmp, sizeof(&dpmi_switch_jmp));
+	   - sizeof(dpmi_switch_jmp),
+	   &dpmi_switch_jmp, sizeof(dpmi_switch_jmp));
     direct_dpmi_transfer_p = (direct_dpmi_transfer_t)dpmi_xfr_buffer;
     mprotect(dpmi_xfr_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
     }
