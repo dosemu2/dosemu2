@@ -23,7 +23,7 @@ static size_t utf8_to_unicode(
 		bytes_desired = 1;
 		result = ch;
 	}
-	else if ((ch >= 0xC0) && (ch <= 0xDF)) {
+	else if ((ch >= 0xC2) && (ch <= 0xDF)) {
 		bytes_desired = 2;
 		result = ch - 0xC0;
 	}
@@ -31,18 +31,10 @@ static size_t utf8_to_unicode(
 		bytes_desired = 3;
 		result = ch - 0xE0;
 	}
-	else if ((ch >= 0xF0) && (ch <= 0xF7)) {
+	else if ((ch >= 0xF0) && (ch <= 0xF4)) {
 		bytes_desired = 4;
 		result = ch - 0xF0;
 	}
-	else if ((ch >= 0xF8) && (ch <= 0xFB)) {
-		bytes_desired = 5;
-		result = ch - 0xF8;
-	}
-	else if ((ch >= 0xFC) && (ch <= 0xFD)) {
-		bytes_desired = 6;
-		result = ch - 0xFC;
-	} 
 	else {
 		goto bad_string;
 	}
@@ -56,6 +48,16 @@ static size_t utf8_to_unicode(
 				goto bad_string;
 			}
 		}
+		if ((bytes_desired == 3 &&
+		     (result < 0x800 ||
+		      (result >= 0xD800 && result <= 0xDFFF) ||
+		      (result >= 0xFDD0 && result <= 0xFDEF) ||
+		      (result == 0xFFFE || result == 0xFFFF))) ||
+		    (bytes_desired == 4 &&
+		     (result < 0x10000 || result > 0x10FFFF ||
+		      (result & 0x10000) == 0xFFFE ||
+		      (result & 0x10000) == 0xFFFF)))
+			goto bad_string;
 	} else {
 		goto bad_length;
 	}
@@ -77,11 +79,12 @@ static size_t unicode_to_utf8(struct char_set_state *state,
 	unsigned char *out_str, size_t out_len)
 {
 	int length = 0;
-	char data[6];
+	char data[4];
 	/* Never output reserved values */
 	if (((value >= 0xD800) && (value <= 0xDFFF)) ||
-	    ((value >= 0xFFFE) && (value <= 0xFFFF)) ||
-	    (value > 0x7FFFFFFF)) {
+	    (value > 0x10FFFF) ||
+	    ((value & 0x10000) == 0xFFFE || (value & 0x10000) == 0xFFFF) ||
+	    ((value >= 0xFDD0) && (value <= 0xFDEF))) {
 		goto bad_data;
 	}
 	else if (value <= 0x007F) {
@@ -99,30 +102,13 @@ static size_t unicode_to_utf8(struct char_set_state *state,
 		data[1] = 0x80 + ((value >> 6) & 0x3F);
 		data[2] = 0x80 + ((value >> 0) & 0x3F);
 	}
-	else if (value <= 0x1FFFFF) {
+	else {
 		length = 4;
 		data[0] = 0xF0 + (value >> 18);
 		data[1] = 0x80 + ((value >> 12) & 0x3F);
 		data[2] = 0x80 + ((value >> 6) & 0x3F);
 		data[3] = 0x80 + ((value >> 0) & 0x3F);
 	}
-	else if (value <= 0x03FFFFFF) {
-		length = 5;
-		data[0] = 0xF8 + (value >> 24);
-		data[1] = 0x80 + ((value >> 18) & 0x3F);
-		data[2] = 0x80 + ((value >> 12) & 0x3F);
-		data[3] = 0x80 + ((value >> 6) & 0x3F);
-		data[4] = 0x80 + ((value >> 0) & 0x3F);
-	}
-	else if (value <= 0x7FFFFFFF) {
-		length = 6;
-		data[0] = 0xFC + (value >> 30);
-		data[1] = 0x80 + ((value >> 24) & 0x3F);
-		data[2] = 0x80 + ((value >> 18) & 0x3F);
-		data[3] = 0x80 + ((value >> 12) & 0x3F);
-		data[4] = 0x80 + ((value >> 6) & 0x3F);
-		data[5] = 0x80 + ((value >> 0) & 0x3F);
-	} 
 	if (out_len < length) {
 		goto too_little_space;
 	}
