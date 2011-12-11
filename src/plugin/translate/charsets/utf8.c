@@ -55,8 +55,8 @@ static size_t utf8_to_unicode(
 		      (result == 0xFFFE || result == 0xFFFF))) ||
 		    (bytes_desired == 4 &&
 		     (result < 0x10000 || result > 0x10FFFF ||
-		      (result & 0x10000) == 0xFFFE ||
-		      (result & 0x10000) == 0xFFFF)))
+		      (result & 0xFFFF) == 0xFFFE ||
+		      (result & 0xFFFF) == 0xFFFF)))
 			goto bad_string;
 	} else {
 		goto bad_length;
@@ -83,7 +83,7 @@ static size_t unicode_to_utf8(struct char_set_state *state,
 	/* Never output reserved values */
 	if (((value >= 0xD800) && (value <= 0xDFFF)) ||
 	    (value > 0x10FFFF) ||
-	    ((value & 0x10000) == 0xFFFE || (value & 0x10000) == 0xFFFF) ||
+	    ((value & 0xFFFF) == 0xFFFE || (value & 0xFFFF) == 0xFFFF) ||
 	    ((value >= 0xFDD0) && (value <= 0xFDEF))) {
 		goto bad_data;
 	}
