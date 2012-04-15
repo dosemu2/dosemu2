@@ -134,13 +134,6 @@ static inline boolean_t unmap_page(int);
 #define GET_ARRAY		0
 #define GET_RAW_PAGECOUNT	1
 
-#if 0
-#define	EMM_BASE_ADDRESS 0xd0000
-#define	EMM_SEGMENT 	 0xd000
-#else
-/* now defined in emu.h */
-#endif
-
 /* Support EMM version 3.2 */
 #define EMM_VERS	0x40	/* was 0x32 */
 
@@ -186,9 +179,6 @@ static struct handle_record {
 } handle_info[MAX_HANDLES];
 
 #define OS_HANDLE	0
-#define OS_PORT		(256*1024)
-#define OS_SIZE		(640*1024 - OS_PORT)
-#define OS_PAGES	(OS_SIZE / (16*1024))
 
 /* For OS use of EMM */
 static u_char  os_inuse=0;
@@ -315,7 +305,7 @@ static inline void *realloc_memory_object(void *object, size_t oldsize, size_t b
 }
 
 static int
-allocate_handle(int pages_needed)
+emm_allocate_handle(int pages_needed)
 {
   int i, j;
   void *obj;
@@ -360,7 +350,7 @@ allocate_handle(int pages_needed)
 }
 
 static boolean_t
-deallocate_handle(int handle)
+emm_deallocate_handle(int handle)
 {
   int numpages, i;
   void *object;
@@ -410,7 +400,7 @@ void emm_unmap_all()
 {
   if (!config.ems_size)
     return;
-  _do_unmap_page(EMM_BASE_ADDRESS, EMS_FRAME_SIZE);
+  _do_unmap_page(PHYS_PAGE_ADDR(0), EMS_FRAME_SIZE);
 }
 
 static boolean_t
@@ -429,7 +419,7 @@ __map_page(int physical_page)
   E_printf("EMS: map()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
 
-  base = EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
   _do_map_page(base, logical, EMM_PAGE_SIZE);
@@ -451,7 +441,7 @@ __unmap_page(int physical_page)
   E_printf("EMS: unmap()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
 
-  base = EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  base = PHYS_PAGE_ADDR(physical_page);
 
   _do_unmap_page(base, EMM_PAGE_SIZE);
   	
@@ -481,7 +471,7 @@ reunmap_page(int physical_page)
 
 static boolean_t
 map_page(int handle, int physical_page, int logical_page)
-{ 
+{
   unsigned int base;
   caddr_t logical;
 
@@ -496,16 +486,12 @@ map_page(int handle, int physical_page, int logical_page)
   if (handle_info[handle].numpages <= logical_page)
     return (FALSE);
 
-#ifdef SYNC_ALOT
-  sync();
-#endif
-
   if (emm_map[physical_page].handle != NULL_HANDLE)
     unmap_page(physical_page);
 
-  base = EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
-   
+
   _do_map_page(base, logical, EMM_PAGE_SIZE);
 
   emm_map[physical_page].handle = handle;
@@ -529,7 +515,7 @@ handle_pages(int handle)
 }
 
 static int
-save_handle_state(int handle)
+emm_save_handle_state(int handle)
 {
   int i;
 
@@ -548,7 +534,7 @@ save_handle_state(int handle)
 }
 
 static int
-restore_handle_state(int handle)
+emm_restore_handle_state(int handle)
 {
   int i;
 
@@ -791,7 +777,7 @@ reallocate_pages(state_t * state)
       }
     }
   }
-  
+
   Kdebug0((dbg_fd, "reallocate_pages handle %d num %d called object=%p\n",
 	   handle, newcount, obj));
 
@@ -1195,16 +1181,11 @@ get_ems_hardinfo(state_t * state)
       case GET_ARRAY:{
         u_short *ptr = (u_short *) Addr(state, es, edi);
 
-        *ptr = (16 * 1024) / 16;
-        ptr++;			/* raw page size in paragraphs, 4K */
-        *ptr = 0;
-        ptr++;			/* # of alternate register sets */
-        *ptr = PAGE_MAP_SIZE;
-        ptr++;			/* size of context save area */
-        *ptr = 0;
-        ptr++;			/* no DMA channels */
-        *ptr = 0;
-        ptr++;			/* DMA channel operation */
+        *ptr++ = (16 * 1024) / 16;	/* raw page size in paragraphs, 4K */
+        *ptr++ = 0;			/* # of alternate register sets */
+        *ptr++ = PAGE_MAP_SIZE;		/* size of context save area */
+        *ptr++ = 0;			/* no DMA channels */
+        *ptr++ = 0;			/* DMA channel operation */
 
         Kdebug1((dbg_fd, "bios_emm: Get Hardware Info\n"));
         SETHIGH(&(state->eax), EMM_NO_ERR);
@@ -1232,7 +1213,7 @@ get_ems_hardinfo(state_t * state)
     Kdebug1((dbg_fd, "bios_emm: Get Hardware Info/Raw Pages - Denied\n"));
     SETHIGH(&(state->eax), 0xa4);
     return(TRUE);
-  }	
+  }
 }
 
 static int
@@ -1244,7 +1225,7 @@ allocate_std_pages(state_t * state)
   Kdebug1((dbg_fd, "bios_emm: Get Handle and Standard Allocate pages = 0x%x\n",
 	   pages_needed));
 
-  if ((handle = allocate_handle(pages_needed)) == EMM_ERROR) {
+  if ((handle = emm_allocate_handle(pages_needed)) == EMM_ERROR) {
     SETHIGH(&(state->eax), emm_error);
     return (UNCHANGED);
   }
@@ -1409,7 +1390,7 @@ alternate_map_register(state_t * state)
   }
   return;
 }
-     
+
 static void
 os_set_function(state_t * state)
 {
@@ -1526,7 +1507,7 @@ ems_fn(state)
 	return (UNCHANGED);
       }
 
-      if ((handle = allocate_handle(pages_needed)) == EMM_ERROR) {
+      if ((handle = emm_allocate_handle(pages_needed)) == EMM_ERROR) {
 	SETHIGH(&(state->eax), emm_error);
 	return (UNCHANGED);
       }
@@ -1562,7 +1543,7 @@ ems_fn(state)
 	return (UNCHANGED);
       }
 
-      deallocate_handle(handle);
+      emm_deallocate_handle(handle);
       SETHIGH(&(state->eax), EMM_NO_ERR);
       break;
     }
@@ -1588,7 +1569,7 @@ ems_fn(state)
 	return (UNCHANGED);
       }
 
-      save_handle_state(handle);
+      emm_save_handle_state(handle);
       SETHIGH(&(state->eax), EMM_NO_ERR);
       break;
     }
@@ -1607,7 +1588,7 @@ ems_fn(state)
 	return (UNCHANGED);
       }
 
-      restore_handle_state(handle);
+      emm_restore_handle_state(handle);
       SETHIGH(&(state->eax), EMM_NO_ERR);
       break;
     }
@@ -1785,12 +1766,12 @@ ems_fn(state)
     break;
 
   case ALTERNATE_MAP_REGISTER: /* 0x5B */
-      alternate_map_register(state); 
-    break;     
+      alternate_map_register(state);
+    break;
 
   case OS_SET_FUNCTION: /* 0x5D */
       os_set_function(state); 
-    break;     
+    break;
 
 /* This seems to be used by DV.
 	    case 0xde:
@@ -1847,7 +1828,7 @@ void ems_reset(void)
   int sh_base;
   for (sh_base = 1; sh_base < MAX_HANDLES; sh_base++) {
     if (handle_info[sh_base].active)
-      deallocate_handle(sh_base);
+      emm_deallocate_handle(sh_base);
   }
   ems_reset2();
 }
@@ -1861,7 +1842,7 @@ void ems_init(void)
   E_printf("EMS: initializing memory\n");
 
   memcheck_addtype('E', "EMS page frame");
-  memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
+  memcheck_reserve('E', PHYS_PAGE_ADDR(0), EMM_MAX_PHYS * EMM_PAGE_SIZE);
 
   ems_reset2();
 }

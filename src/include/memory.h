@@ -99,7 +99,6 @@
 #define EMS_OFF		0x0000
 #define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
 
-#define EMM_BASE_ADDRESS        (SEGOFF2LINEAR(config.ems_frame, 0))
 #define EMM_SEGMENT             (config.ems_frame)
 
 #define INT16_SEG	ROMBIOSSEG
