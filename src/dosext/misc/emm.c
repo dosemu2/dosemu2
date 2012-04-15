@@ -161,21 +161,23 @@ static u_char emm_error;
 
 #define EMM_TOTAL	MAX_EMM
 
-static int handle_total, emm_allocated;
+static int handle_total, emm_allocated, phys_pages, saved_phys_pages;
+static u_short cnv_start_seg;
+static u_short cnv_pages_start;
 
 static struct emm_record {
-  int handle;
-  int logical_page;
+  u_short handle;
+  u_short logical_page;
+  u_short phys_seg;
 } emm_map[EMM_MAX_PHYS];
 
 static struct handle_record {
   u_char active;
   int numpages;
   void *object;
-  size_t objsize;
   char name[9];
-  int saved_mappings_handle[EMM_MAX_PHYS];
-  int saved_mappings_logical[EMM_MAX_PHYS];
+  u_short saved_mappings_handle[EMM_MAX_SAVED_PHYS];
+  u_short saved_mappings_logical[EMM_MAX_SAVED_PHYS];
 } handle_info[MAX_HANDLES];
 
 #define OS_HANDLE	0
@@ -218,7 +220,7 @@ static u_short os_allow=1;
      (unsigned)WORD(state->eax))); }
 
 #define PHYS_PAGE_SEGADDR(i) \
-  (EMM_SEGMENT + (0x400 * (i)))
+  (emm_map[i].phys_seg)
 
 #define PHYS_PAGE_ADDR(i) \
   (PHYS_PAGE_SEGADDR(i) << 4)
@@ -338,7 +340,7 @@ emm_allocate_handle(int pages_needed)
       CLEAR_HANDLE_NAME(handle_info[i].name);
       handle_total++;
       emm_allocated += pages_needed;
-      for (j = 0; j < EMM_MAX_PHYS; j++) {
+      for (j = 0; j < saved_phys_pages; j++) {
 	handle_info[i].saved_mappings_logical[j] = NULL_PAGE;
       }
       handle_info[i].active = 1;
@@ -357,7 +359,7 @@ emm_deallocate_handle(int handle)
 
   if ((handle < 0) || (handle >= MAX_HANDLES))
     return (FALSE);
-  for (i = 0; i < EMM_MAX_PHYS; i++) {
+  for (i = 0; i < phys_pages; i++) {
     if (emm_map[i].handle == handle) {
       unmap_page(i);
       emm_map[i].handle = NULL_HANDLE;
@@ -410,7 +412,7 @@ __map_page(int physical_page)
   caddr_t logical;
   unsigned int base;
 
-  if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS))
+  if ((physical_page < 0) || (physical_page >= phys_pages))
     return (FALSE);
   handle=emm_map[physical_page].handle;
   if (handle == NULL_HANDLE)
@@ -432,7 +434,7 @@ __unmap_page(int physical_page)
   int handle;
   unsigned int base;
 
-  if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS))
+  if ((physical_page < 0) || (physical_page >= phys_pages))
     return (FALSE);
   handle=emm_map[physical_page].handle;
   if (handle == NULL_HANDLE)
@@ -478,7 +480,7 @@ map_page(int handle, int physical_page, int logical_page)
   E_printf("EMS: map_page(handle=%d, phy_page=%d, log_page=%d), prev handle=%d\n", 
            handle, physical_page, logical_page, emm_map[physical_page].handle);
 
-  if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS))
+  if ((physical_page < 0) || (physical_page >= phys_pages))
     return (FALSE);
 
   if (handle == NULL_HANDLE) 
@@ -519,7 +521,7 @@ emm_save_handle_state(int handle)
 {
   int i;
 
-  for (i = 0; i < EMM_MAX_PHYS; i++) {
+  for (i = 0; i < saved_phys_pages; i++) {
     if (emm_map[i].handle != NULL_HANDLE) {
       handle_info[handle].saved_mappings_logical[i] =
 	emm_map[i].logical_page;
@@ -538,7 +540,7 @@ emm_restore_handle_state(int handle)
 {
   int i;
 
-  for (i = 0; i < EMM_MAX_PHYS; i++) {
+  for (i = 0; i < saved_phys_pages; i++) {
     int saved_mapping;
     int saved_mapping_handle;
 
@@ -570,7 +572,7 @@ do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
     return (UNCHANGED);
   }
 
-  if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS)) {
+  if ((physical_page < 0) || (physical_page >= phys_pages)) {
     SETHIGH(&(state->eax), EMM_ILL_PHYS);
     E_printf("Invalid Physical Page physical_page=%x\n",
 	     physical_page);
@@ -599,13 +601,15 @@ do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
 static inline int
 SEG_TO_PHYS(int segaddr)
 {
+  int i;
   E_printf("SEG_TO_PHYS: segment: %x\n", segaddr);
 
-  segaddr-=EMM_SEGMENT;
-  if ((segaddr<0) || (segaddr >= EMM_MAX_PHYS*EMM_PAGE_SIZE/16) || ((segaddr & 0x3ff) != 0))
-     return -1;
-  else
-     return (segaddr)/(EMM_PAGE_SIZE/16);
+  for (i = 0; i < phys_pages; i++) {
+    if (segaddr >= emm_map[i].phys_seg && segaddr < emm_map[i].phys_seg +
+	EMM_PAGE_SIZE/16)
+      return i;
+  }
+  return -1;
 }
 
 /* EMS 4.0 functions start here */
@@ -724,7 +728,7 @@ reallocate_pages(state_t * state)
 
   /* Make sure extended pages have correct data */
 
-  for (i = 0; i < EMM_MAX_PHYS; i++)
+  for (i = 0; i < phys_pages; i++)
      if (emm_map[i].handle == handle)
         reunmap_page(i);
 
@@ -783,7 +787,7 @@ reallocate_pages(state_t * state)
 
   /* remove pages no longer in range, remap others */
 
-  for (i = 0; i < EMM_MAX_PHYS; i++) {
+  for (i = 0; i < phys_pages; i++) {
     if (emm_map[i].handle == handle) {
        /*
         * NOTE: In case of the above critical case (newcount==0)
@@ -1146,7 +1150,7 @@ get_mpa_array(state_t * state)
 
       Kdebug0((dbg_fd, "GET_MPA addr %p called\n", ptr));
 
-      for (i = 0; i < EMM_MAX_PHYS; i++) {
+      for (i = 0; i < phys_pages; i++) {
 	*ptr = PHYS_PAGE_SEGADDR(i);
 	ptr++;
 	*ptr = i;
@@ -1156,14 +1160,14 @@ get_mpa_array(state_t * state)
       }
 
       SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->ecx), EMM_MAX_PHYS);
+      SETWORD(&(state->ecx), phys_pages);
       return (TRUE);
     }
 
   case GET_MPA_ENTRY_COUNT:
     Kdebug0((dbg_fd, "GET_MPA_ENTRY_COUNT called\n"));
     SETHIGH(&(state->eax), EMM_NO_ERR);
-    SETWORD(&(state->ecx), EMM_MAX_PHYS);
+    SETWORD(&(state->ecx), phys_pages);
     return (TRUE);
 
   default:
@@ -1181,9 +1185,9 @@ get_ems_hardinfo(state_t * state)
       case GET_ARRAY:{
         u_short *ptr = (u_short *) Addr(state, es, edi);
 
-        *ptr++ = (16 * 1024) / 16;	/* raw page size in paragraphs, 4K */
+        *ptr++ = (16 * 1024) / 16;	/* raw page size in paragraphs, (16Bytes), 16K */
         *ptr++ = 0;			/* # of alternate register sets */
-        *ptr++ = PAGE_MAP_SIZE;		/* size of context save area */
+        *ptr++ = PAGE_MAP_SIZE(phys_pages);	/* size of context save area */
         *ptr++ = 0;			/* no DMA channels */
         *ptr++ = 0;			/* DMA channel operation */
 
@@ -1244,10 +1248,10 @@ void emm_get_map_registers(char *ptr)
   if (!config.ems_size)
     return;
 
-  for (i = 0; i < EMM_MAX_PHYS; i++) {
+  for (i = 0; i < phys_pages; i++) {
     buf[i * 2] = emm_map[i].handle;
     buf[i * 2 + 1] = emm_map[i].logical_page;
-    Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
+    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
 	     i, emm_map[i].handle,
 	     emm_map[i].logical_page));
   }
@@ -1262,7 +1266,7 @@ void emm_set_map_registers(char *ptr)
   if (!config.ems_size)
     return;
 
-  for (i = 0; i < EMM_MAX_PHYS; i++) {
+  for (i = 0; i < phys_pages; i++) {
     handle = buf[i * 2];
     if (handle == OS_HANDLE)
       E_printf("EMS: trying to use OS handle in ALT_SET_REGISTERS\n");
@@ -1273,7 +1277,7 @@ void emm_set_map_registers(char *ptr)
     else
       unmap_page(i);
 
-    Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
+    Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
 	    i, handle, logical_page));
   }
 }
@@ -1310,9 +1314,10 @@ alternate_map_register(state_t * state)
        return;
       }
     case 2:
-      Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%zx\n", PAGE_MAP_SIZE));
+      Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%zx\n",
+	       PAGE_MAP_SIZE(phys_pages)));
       SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->edx), PAGE_MAP_SIZE);
+      SETWORD(&(state->edx), PAGE_MAP_SIZE(phys_pages));
       return;
     case 3:			/* Allocate Alternate Register */
       SETHIGH(&(state->eax), EMM_NO_ERR);
@@ -1688,7 +1693,7 @@ ems_fn(state)
 	  Kdebug1((dbg_fd, "bios_emm: Get size for page map\n"));
 
 	  SETHIGH(&(state->eax), EMM_NO_ERR);
-	  SETLOW(&(state->eax), PAGE_MAP_SIZE);
+	  SETLOW(&(state->eax), PAGE_MAP_SIZE(phys_pages));
 	  return (UNCHANGED);
 	}
       default:{
@@ -1813,9 +1818,8 @@ static void ems_reset2(void)
   /* should set up OS handle here */
   handle_info[OS_HANDLE].numpages = 0;
   handle_info[OS_HANDLE].object = 0;
-  handle_info[OS_HANDLE].objsize = 0;
   handle_info[OS_HANDLE].active = 1;
-  for (j = 0; j < EMM_MAX_PHYS; j++) {
+  for (j = 0; j < saved_phys_pages; j++) {
     handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
   }
 
@@ -1835,14 +1839,46 @@ void ems_reset(void)
 
 void ems_init(void)
 {
+  int i, j;
   if (!config.ems_size && !config.pm_dos_api)
     return;
+
+  if (config.ems_uma_pages > EMM_UMA_MAX_PHYS) {
+    error("config.ems_uma_pages is too large\n");
+    config.exitearly = 1;
+    return;
+  }
+  if (config.ems_uma_pages < 4 && config.pm_dos_api) {
+    error("config.ems_uma_pages is too small, DPMI must be disabled\n");
+    config.exitearly = 1;
+    return;
+  }
+  if (config.ems_cnv_pages > EMM_CNV_MAX_PHYS) {
+    error("config.ems_cnv_pages is too large\n");
+    config.exitearly = 1;
+    return;
+  }
 
   open_mapping(MAPPING_EMS);
   E_printf("EMS: initializing memory\n");
 
   memcheck_addtype('E', "EMS page frame");
-  memcheck_reserve('E', PHYS_PAGE_ADDR(0), EMM_MAX_PHYS * EMM_PAGE_SIZE);
+  /* set up standard EMS frame in UMA */
+  for (i = 0; i < config.ems_uma_pages; i++) {
+    emm_map[i].phys_seg = EMM_SEGMENT + 0x400 * i;
+    memcheck_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+  }
+  saved_phys_pages = (i < EMM_MAX_SAVED_PHYS ? i : EMM_MAX_SAVED_PHYS);
+  /* now in conventional mem */
+  cnv_start_seg = 0xa000 - 0x400 * config.ems_cnv_pages;
+  cnv_pages_start = i;
+  E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
+       config.ems_cnv_pages, cnv_start_seg);
+  for (j = 0; j < config.ems_cnv_pages; j++, i++) {
+    emm_map[i].phys_seg = cnv_start_seg + 0x400 * j;
+  }
+  phys_pages = i;
+  E_printf("EMS: initialized %i pages\n", phys_pages);
 
   ems_reset2();
 }

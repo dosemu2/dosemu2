@@ -34,7 +34,7 @@ struct msdos_struct {
   unsigned short user_psp_sel;
   unsigned short current_psp;
   unsigned short lowmem_seg;
-  char ems_map_buffer[PAGE_MAP_SIZE];
+  char ems_map_buffer[PAGE_MAP_SIZE(EMM_UMA_STD_PHYS)];
   int ems_frame_mapped;
   dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
 };

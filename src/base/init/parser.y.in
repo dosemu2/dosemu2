@@ -246,7 +246,8 @@ while (0)
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC
 %token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS 
 %token PORTS DISK DOSMEM EXT_MEM
-%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
+%token L_EMS L_UMB EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
+%token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUINI L_X
@@ -1601,6 +1602,14 @@ ems_flag	: INTEGER
 #endif
 	             config.ems_frame = $2 & 0xfc00;
 		     c_printf("CONF: EMS-frame = 0x%04x\n", config.ems_frame);
+		   }
+		| EMS_UMA_PAGES expression
+		   {
+		     config.ems_uma_pages = $2;
+		   }
+		| EMS_CONV_PAGES expression
+		   {
+		     config.ems_cnv_pages = $2;
 		   }
 		| STRING
 		    { yyerror("unrecognized ems command '%s'", $1);

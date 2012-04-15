@@ -268,6 +268,7 @@ typedef struct vesamode_type_struct {
 
        int mem_size, ext_mem, xms_size, ems_size, max_umb;
        unsigned int ems_frame;
+       int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
        unsigned long dpmi_base;
 

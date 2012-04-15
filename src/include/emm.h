@@ -18,10 +18,14 @@
 #define PAGE_SIZE	4096
 #endif
 #define	EMM_PAGE_SIZE	(16*1024)
-#define EMM_MAX_PHYS	4
-#define NULL_HANDLE	-1
+#define EMM_UMA_MAX_PHYS 12
+#define EMM_UMA_STD_PHYS 4
+#define EMM_CNV_MAX_PHYS 24
+#define EMM_MAX_PHYS	 (EMM_UMA_MAX_PHYS + EMM_CNV_MAX_PHYS)
+#define EMM_MAX_SAVED_PHYS EMM_UMA_STD_PHYS
+#define NULL_HANDLE	0xffff
 #define	NULL_PAGE	0xffff
-#define PAGE_MAP_SIZE		(sizeof(u_short) * 2 * EMM_MAX_PHYS)
+#define PAGE_MAP_SIZE(np)	(sizeof(u_short) * 2 * (np))
 
 #ifndef __ASSEMBLER__
 void emm_get_map_registers(char *ptr);

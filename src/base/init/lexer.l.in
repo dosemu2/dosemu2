@@ -403,6 +403,8 @@ use_sigio		RETURN(USE_SIGIO);
 	/* ems values */
 ems_size		RETURN(EMS_SIZE);
 ems_frame		RETURN(EMS_FRAME);
+ems_uma_pages		RETURN(EMS_UMA_PAGES);
+ems_conv_pages		RETURN(EMS_CONV_PAGES);
 
 	/* speaker values */
 
