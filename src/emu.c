@@ -453,8 +453,10 @@ emulate(int argc, char **argv)
 	loopstep_run_vm86();
     }
 
-    sync();
-    fprintf(stderr, "Not a good day to die!!!!!\n");
+    if (fatalerr) {
+      sync();
+      fprintf(stderr, "Not a good day to die!!!!!\n");
+    }
     leavedos(99);
     return 0;  /* just to make gcc happy */
 }
