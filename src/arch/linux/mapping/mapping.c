@@ -183,6 +183,15 @@ void *alias_mapping(int cap, void *target, size_t mapsize, int protect, void *so
     }
     return addr;
   }
+  if (cap & MAPPING_COPYBACK) {
+    if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
+      memcpy(source, target, mapsize);
+    } else {
+      error("COPYBACK is not supported for mapping type %#x\n", cap);
+      return MAP_FAILED;
+    }
+  }
+  kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
   return mappingdriver.alias(cap, target, mapsize, protect, source);
 }
 
@@ -241,12 +250,8 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 #endif
 
   if (cap & MAPPING_COPYBACK) {
-    if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-      memcpy(lowmem_base + (size_t)source, target, mapsize);
-    } else {
-      error("COPYBACK is not supported for mapping type %#x\n", cap);
-      return MAP_FAILED;
-    }
+    error("COPYBACK is not supported for mapping type %#x\n", cap);
+    return MAP_FAILED;
   }
 
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
@@ -261,10 +266,7 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
     addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
   } else {
-    if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-      addr = mappingdriver.alias(cap, target, mapsize, protect, lowmem_base + source);
-    } else
-      addr = mappingdriver.mmap(cap, target, mapsize, protect, source);
+    addr = mappingdriver.mmap(cap, target, mapsize, protect, source);
   }
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   return addr;

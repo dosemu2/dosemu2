@@ -294,7 +294,7 @@ static void unmap_video_ram(int copyback)
     base = scr_state.virt_address;
   }
   if (copyback) cap |= MAPPING_COPYBACK;
-  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE | PROT_EXEC, GRAPH_BASE) != MAP_FAILED)
+  if (alias_mapping(cap, base, size, PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(GRAPH_BASE)) != MAP_FAILED)
     scr_state.mapped = 0;
 }
 

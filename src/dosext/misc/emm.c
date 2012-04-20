@@ -393,9 +393,8 @@ static void _do_unmap_page(unsigned int base, int size)
 {
   E_printf("EMS: unmmap()ing from %#x\n", base);
   /* don't unmap, just overmap with the LOWMEM page */
-  /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
-  mmap_mapping(MAPPING_LOWMEM, &mem_base[base], size,
-	PROT_READ | PROT_WRITE | PROT_EXEC, base);
+  alias_mapping(MAPPING_LOWMEM, &mem_base[base], size,
+	PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(base));
 }
 
 void emm_unmap_all()
