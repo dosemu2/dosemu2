@@ -26,6 +26,11 @@ static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protec
    * pages. We need however to take care not to map
    * past the end of the shm area
    */
+  if (!(cap & MAPPING_FIXED)) {
+    /* target is a hint: can't use MREMAP_MAYMOVE directly */
+    target = mmap(target, mapsize, protect, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (target == MAP_FAILED) return MAP_FAILED;
+  }
   target = extended_mremap(source, 0, mapsize,
 		MREMAP_MAYMOVE | MREMAP_FIXED, target);
   if (target == MAP_FAILED) return MAP_FAILED;

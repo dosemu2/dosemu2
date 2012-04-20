@@ -166,6 +166,23 @@ void *alias_mapping(int cap, void *target, size_t mapsize, int protect, void *so
 {
   Q__printf("MAPPING: alias, cap=%s, target=%p, size=%zx, protect=%x, source=%p\n",
 	cap, target, mapsize, protect, source);
+  cap |= MAPPING_FIXED;
+  if (cap & MAPPING_INIT_LOWRAM) {
+    void *addr;
+    PRIV_SAVE_AREA
+    /* we may need root to mmap address 0 */
+    enter_priv_on();
+    addr = mappingdriver.alias(cap, NULL, mapsize, protect, source);
+    leave_priv_setting();
+    if (addr == MAP_FAILED && (errno == EPERM || errno == EACCES)) {
+      /* try 1MB+64K as base (may be higher if execshield is active) */
+      addr = mappingdriver.alias(cap & ~MAPPING_FIXED,
+				 (void *)(LOWMEM_SIZE + HMASIZE), mapsize,
+				 protect, source);
+      *(unsigned char **)&mem_base = addr;
+    }
+    return addr;
+  }
   return mappingdriver.alias(cap, target, mapsize, protect, source);
 }
 
@@ -425,14 +442,8 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
-    PRIV_SAVE_AREA
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
     *(char **)(&lowmem_base) = addr;
-    /* we may need root to mmap address 0 */
-    enter_priv_on();
-    addr = alias_mapping(MAPPING_INIT_LOWRAM, 0,
-	    mapsize, PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
-    leave_priv_setting();
   }
   return addr;
 }

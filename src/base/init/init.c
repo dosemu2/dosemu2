@@ -256,29 +256,27 @@ void low_mem_init(void)
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
   result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
+  result = alias_mapping(MAPPING_INIT_LOWRAM, NULL, LOWMEM_SIZE + HMASIZE,
+			 PROT_READ | PROT_WRITE | PROT_EXEC, result);
+
+  if (result == MAP_FAILED) {
+    perror ("LOWRAM mmap");
+    leavedos(99);
+  }
 
   if (result != NULL)
-    {
-#ifdef X86_EMULATOR
-    if (config.cpuemu < 3) 
-#endif
-    {
-      int err = errno;
+  {
 #ifndef X86_EMULATOR
-      perror ("LOWRAM mmap");
-      if (err == EPERM || err == EACCES) {
-	fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
-		"You can most likely avoid this problem by running\n"
-		"sysctl -w vm.mmap_min_addr=0\n"
-		"as root, or by changing the vm.mmap_min_addr setting in\n"
-		"/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
-      }
-      leavedos(99);
+    perror ("LOWRAM mmap");
+    fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
+	      "You can most likely avoid this problem by running\n"
+	      "sysctl -w vm.mmap_min_addr=0\n"
+	      "as root, or by changing the vm.mmap_min_addr setting in\n"
+	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
+    leavedos(99);
 #else
-      if (err != EPERM && err != EACCES) {
-	perror ("LOWRAM mmap");
-        leavedos(99);
-      }
+    if (config.cpuemu < 3) 
+    {
       /* switch on vm86-only JIT CPU emulation to with non-zero base */
       config.cpuemu = 3;
       init_emu_cpu();
@@ -286,23 +284,6 @@ void low_mem_init(void)
       fprintf(stderr, "Using CPU emulation because vm.mmap_min_addr > 0.\n");
       if(dbg_fd)
         fprintf(stderr, "For more information, see %s.\n", config.debugout);
-#endif
-    }
-#ifdef X86_EMULATOR
-    if (errno == EPERM || errno == EACCES) {
-      /* try 1MB+64K as base (may be higher if execshield is active) */
-      /* the first mmap just reserves the memory */
-      result = mmap_mapping(MAPPING_LOWMEM | MAPPING_SCRATCH,
-			    (void *)(LOWMEM_SIZE + HMASIZE),
-			    LOWMEM_SIZE + HMASIZE,
-			    PROT_READ | PROT_WRITE | PROT_EXEC, 0);
-      result = alias_mapping(MAPPING_INIT_LOWRAM, result,
-			     LOWMEM_SIZE + HMASIZE,
-			     PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
-    }
-    if (result == MAP_FAILED) {
-      perror ("LOWRAM mmap");
-      leavedos(99);
     }
     warn("WARN: using non-zero memory base address %p.\n"
 	 "WARN: You can use the better-tested zero based setup using\n"
@@ -310,7 +291,6 @@ void low_mem_init(void)
 	 "WARN: as root, or by changing the vm.mmap_min_addr setting in\n"
 	 "WARN: /etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n",
 	    result);
-    *(unsigned char **)&mem_base = result;
 #endif
   }
 
