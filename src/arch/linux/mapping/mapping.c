@@ -162,10 +162,11 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 	return (void *)syscall(SYS_mremap, addr, old_len, new_len, flags, new_addr);
 }
 
-void *alias_mapping(int cap, void *target, size_t mapsize, int protect, void *source)
+void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
 {
-  Q__printf("MAPPING: alias, cap=%s, target=%p, size=%zx, protect=%x, source=%p\n",
-	cap, target, mapsize, protect, source);
+  void *target;
+  Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
+	cap, targ, mapsize, protect, source);
   cap |= MAPPING_FIXED;
   if (cap & MAPPING_INIT_LOWRAM) {
     void *addr;
@@ -183,6 +184,7 @@ void *alias_mapping(int cap, void *target, size_t mapsize, int protect, void *so
     }
     return addr;
   }
+  target = &mem_base[targ];
   if (cap & MAPPING_COPYBACK) {
     if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
       memcpy(source, target, mapsize);

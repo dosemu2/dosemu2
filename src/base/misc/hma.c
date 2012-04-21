@@ -39,7 +39,7 @@ void HMA_MAP(int HMA)
   }
   x_printf("HMA: detached at %#x\n", HMAAREA);
 
-  ipc_return = alias_mapping(MAPPING_HMA, &mem_base[HMAAREA], HMASIZE,
+  ipc_return = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(src));
   if (ipc_return == MAP_FAILED) {
     x_printf("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",

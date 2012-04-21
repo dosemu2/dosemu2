@@ -183,16 +183,16 @@
 /* Memory adresses for all common video adapters */
 
 #define MDA_PHYS_TEXT_BASE  0xB0000
-#define MDA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB0000))
+#define MDA_VIRT_TEXT_BASE  0xB0000
 
 #define CGA_PHYS_TEXT_BASE  0xB8000
-#define CGA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB8000))
+#define CGA_VIRT_TEXT_BASE  0xB8000
 
 #define EGA_PHYS_TEXT_BASE  0xB8000
-#define EGA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB8000))
+#define EGA_VIRT_TEXT_BASE  0xB8000
 
 #define VGA_PHYS_TEXT_BASE  0xB8000
-#define VGA_VIRT_TEXT_BASE  (LINEAR2UNIX(0xB8000))
+#define VGA_VIRT_TEXT_BASE  0xB8000
 
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */

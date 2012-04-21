@@ -256,7 +256,7 @@ void low_mem_init(void)
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
   result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
-  result = alias_mapping(MAPPING_INIT_LOWRAM, NULL, LOWMEM_SIZE + HMASIZE,
+  result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, result);
 
   if (result == MAP_FAILED) {

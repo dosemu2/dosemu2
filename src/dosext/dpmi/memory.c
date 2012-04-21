@@ -503,15 +503,13 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
      * address space allocated via DPMImalloc(). We use it only for
      * DPMI function 0x0509 (Map conventional memory, DPMI version 1.0)
      */
-    unsigned char *mapped_base;
     dpmi_pm_block *block;
 
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -2;
-    mapped_base = &mem_base[block->base + offset];
 
-    if (alias_mapping(MAPPING_LOWMEM, mapped_base, cnt*PAGE_SIZE,
-       PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(low_addr)) != mapped_base) {
+    if (alias_mapping(MAPPING_LOWMEM, block->base + offset, cnt*PAGE_SIZE,
+       PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(low_addr)) == MAP_FAILED) {
 
 	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
 	return -1;

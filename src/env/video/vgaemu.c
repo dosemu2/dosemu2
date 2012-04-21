@@ -1300,7 +1300,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
 
   i = alias_mapping(MAPPING_VGAEMU,
-    &mem_base[vmt->base_page << 12], vmt->pages << 12,
+    vmt->base_page << 12, vmt->pages << 12,
     prot, vga.mem.base + (first_page << 12));
 
   if(i == MAP_FAILED) {
@@ -1347,7 +1347,7 @@ static int vgaemu_unmap(unsigned page)
   *((volatile char *)vga.mem.scratch_page);
 
   i = alias_mapping(MAPPING_VGAEMU,
-    &mem_base[page << 12], 1 << 12,
+    page << 12, 1 << 12,
     VGA_EMU_RW_PROT, vga.mem.scratch_page)
   );
 
@@ -1375,7 +1375,7 @@ void vgaemu_reset_mapping()
   i = NULL;
   for(page = startpage; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
-      &mem_base[page << 12], 1 << 12,
+      page << 12, 1 << 12,
       prot, vga.mem.scratch_page
     );
   }

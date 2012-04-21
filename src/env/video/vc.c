@@ -285,7 +285,7 @@ static void release_vt (struct sigcontext_struct *scp)
 
 static void unmap_video_ram(int copyback)
 {
-  unsigned char *base = &mem_base[GRAPH_BASE];
+  unsigned base = GRAPH_BASE;
   size_t size = GRAPH_SIZE;
   int cap = MAPPING_VC | MAPPING_LOWMEM;
 
@@ -302,7 +302,7 @@ static void map_video_ram(void)
 { 
   void *graph_mem;
   off_t pbase = GRAPH_BASE;
-  unsigned char *vbase = &mem_base[pbase];
+  unsigned int vbase = pbase;
   size_t ssize = GRAPH_SIZE;
   int cap = MAPPING_VC | MAPPING_KMEM;
 
@@ -316,7 +316,7 @@ static void map_video_ram(void)
 
   g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
 
-  graph_mem = mmap_mapping(cap, vbase, ssize, PROT_READ | PROT_WRITE | PROT_EXEC, pbase);
+  graph_mem = mmap_mapping(cap, &mem_base[vbase], ssize, PROT_READ | PROT_WRITE | PROT_EXEC, pbase);
 
   /* the code below is done by the video save/restore code for config.vga */
   if (!config.vga) {
@@ -326,7 +326,7 @@ static void map_video_ram(void)
 	    graph_mem, errno);
       return;
     } else
-      v_printf ("CONSOLE VIDEO address: %p %#llx %p\n", graph_mem,
+      v_printf ("CONSOLE VIDEO address: %p %#llx %#x\n", graph_mem,
 		(long long)pbase, vbase);
   }
   scr_state.phys_address = pbase;
@@ -363,7 +363,7 @@ void get_video_ram (int waitflag)
   if (!scr_state.mapped && config.vga
       && READ_BYTE(BIOS_VIDEO_MODE) == 3) {
     if (dosemu_regs.mem)
-      memcpy (dosemu_regs.mem, virt_text_base, 32768);
+      MEMCPY_2UNIX (dosemu_regs.mem, virt_text_base, 32768);
     /* else error("ERROR: no dosemu_regs.mem!\n"); */
   }
 
@@ -384,7 +384,7 @@ void put_video_ram (void)
     unmap_video_ram(!config.vga);
     if (!scr_state.mapped && config.vga) {
       if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3)
-	memcpy (virt_text_base, dosemu_regs.mem, 32768);
+	MEMCPY_2DOS (virt_text_base, dosemu_regs.mem, 32768);
     }
   }
   else

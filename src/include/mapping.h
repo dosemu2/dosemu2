@@ -69,7 +69,7 @@ typedef void *mmap_mapping_type(int cap, void *target, size_t mapsize, int prote
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
-void *alias_mapping(int cap, void *target, size_t mapsize, int protect, void *source);
+void *alias_mapping(int cap, unsigned int target, size_t mapsize, int protect, void *source);
 
 void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
   unsigned long flags, void *target);
