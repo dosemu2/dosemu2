@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -6,11 +6,11 @@
  */
 
 /* DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * ser_init.c: Serial ports initialization for DOSEMU
  * Please read the README.serial file in this directory for more info!
- * 
+ *
  * Lock file stuff was derived from Taylor UUCP with these copyrights:
  * Copyright (C) 1991, 1992 Ian Lance Taylor
  * Uri Blumenthal <uri@watson.ibm.com> (C) 1994
@@ -449,7 +449,7 @@ static void do_ser_init(int num)
 
   if (com[num].interrupt <= 0) {		/* Is interrupt undefined? */
     /* Define it depending on using standard irqs */
-    com[num].interrupt = default_com[com[num].real_comport-1].interrupt;
+    com[num].interrupt = pic_irq_list[default_com[com[num].real_comport-1].interrupt];
   }
   
   if (com[num].base_port <= 0) {		/* Is base port undefined? */
@@ -471,16 +471,15 @@ static void do_ser_init(int num)
    * DANG_FIXTHIS This needs more work before it is implemented into /etc/dosemu.conf as an 'rtscts' option.
    */
   com[num].system_rtscts = 0;
- 
+
   /* convert irq number to pic_ilevel number and set up interrupt
-   * if irq is invalid, no interrupt will be assigned 
+   * if irq is invalid, no interrupt will be assigned
    */
-  if(com[num].interrupt < 16) {
-    com[num].interrupt = pic_irq_list[com[num].interrupt];
+  if(!irq_source_num[com[num].interrupt]) {
     s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
     pic_seti(com[num].interrupt, pic_serial_run, 0, NULL);
   }
-  irq_source_num[com[num].interrupt] = num;	/* map interrupt to port */
+  irq_source_num[com[num].interrupt]++;
 
   /*** The following is where the real initialization begins ***/
 
@@ -493,7 +492,8 @@ static void do_ser_init(int num)
   io_device.write_portd = NULL;
   io_device.start_addr  = com[num].base_port;
   io_device.end_addr    = com[num].base_port+7;
-  io_device.irq         = com[num].interrupt;
+  io_device.irq         = (irq_source_num[com[num].interrupt] == 1 ?
+                           com[num].interrupt : EMU_NO_IRQ);
   io_device.fd		= -1;
   io_device.handler_name = default_com[num].handler_name;
   port_register_handler(io_device, 0);

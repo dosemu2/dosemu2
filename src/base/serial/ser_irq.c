@@ -474,26 +474,27 @@ void serial_int_engine(int num, int int_requested)
  */
 int pic_serial_run(int ilevel)
 {
-  int num;
+  int i, ret = 0;
 
-  num = irq_source_num[ilevel];
+  for (i = 0; i < MAX_SER; i++) {
+    if (com[i].interrupt != ilevel)
+      continue;
+    /* Update the queued Modem Status and Line Status values. */
+    check_and_update_uart_status(i);
+    if (INT_REQUEST(i))
+      ret++;
+  }
 
-  /* Update the queued Modem Status and Line Status values. */
-  check_and_update_uart_status(num);
+  if(s2_printf) s_printf("SER: ---BEGIN INTERRUPT---\n");
 
-  if(s2_printf) s_printf("SER%d: ---BEGIN INTERRUPT--- int_condition = %02x\n", num,
-             com[num].int_condition);
-
-  if (INT_REQUEST(num))
-    return 1;	/* run IRQ */
-  else {				/* What?  We can't be this far! */
-    s_printf("SER%d: Interrupt Error: cancelled serial interrupt!\n",num);
+  if (!ret) {
+    s_printf("SER: Interrupt Error: cancelled serial interrupt!\n");
     /* No interrupt flagged?  Then the interrupt was cancelled sometime
      * after the interrupt was flagged, but before pic_serial_run executed.
      * DANG_FIXTHIS how do we cancel a PIC interrupt, when we have come this far?
      */
   }
-  return 0;
+  return ret;
 }
 
 
