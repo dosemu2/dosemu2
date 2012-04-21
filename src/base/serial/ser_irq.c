@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -6,11 +6,11 @@
  */
 
 /* DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * ser_irq.c: Serial interrupt services for DOSEMU
  * Please read the README.serial file in this directory for more info!
- * 
+ *
  * Copyright (C) 1995 by Mark Rejhon
  *
  * The code in this module is free software; you can redistribute it
@@ -333,6 +333,7 @@ static inline void flag_IIR_noint(int num)
  */
 static inline int check_and_update_uart_status(int num)
 {
+  int tmp;
   /* Check and update queued Line Status condition */
   if (com[num].LSRqueued & UART_LSR_ERR) {
     com[num].LSR |= (com[num].LSRqueued & UART_LSR_ERR);
@@ -341,7 +342,7 @@ static inline int check_and_update_uart_status(int num)
   }
   else if (! (com[num].LSR & UART_LSR_ERR)) {
     com[num].int_condition &= ~LS_INTR;
-  }  
+  }
 
   /* Check and updated queued Receive condition. */
   /* Safety check, avoid receive interrupt while DLAB is set high */
@@ -354,7 +355,7 @@ static inline int check_and_update_uart_status(int num)
   else if ( !(com[num].LSR & UART_LSR_DR)) {
     com[num].int_condition &= ~RX_INTR;
   }
-  
+
   /* Check and update queued Transmit condition */
   /* Safety check, avoid transmit interrupt while DLAB is set high */
   if ((com[num].LSRqueued & UART_LSR_THRE) && !com[num].DLAB) {
@@ -365,62 +366,38 @@ static inline int check_and_update_uart_status(int num)
   else if ( !(com[num].LSR & UART_LSR_THRE)) {
     com[num].int_condition &= ~TX_INTR;
   }
-  
+
   /* Check and update queued Modem Status condition */
   if (com[num].MSRqueued & UART_MSR_DELTA) {
     com[num].MSR = (com[num].MSR & UART_MSR_DELTA) | com[num].MSRqueued;
     com[num].MSRqueued &= ~(UART_MSR_DELTA);
     com[num].int_condition |= MS_INTR;
-  } 
+  }
   else if ( !(com[num].MSR & UART_MSR_DELTA)) {
     com[num].int_condition &= ~MS_INTR;
   }
-  return 1;
-}
 
+  /* Make sure requested interrupt is still enabled, then run it.
+   * These checks are in priority order.
+   *
+   * The UART MSR and LSR status is queued until interrupt time whenever
+   * possible, to minimize the chance of 'cancelling' an interrupt
+   * condition is requested via pic_request, but before the interrupt
+   * actually runs.
+   *
+   * However, there is enough latency between pic_request() and
+   * the execution of the actual interrupt code, such that there are
+   * still cases where the UART emulation can be tricked to pic_request()
+   * an interrupt, and then the interrupt condition is satisfied *before*
+   * the interrupt code even executes!
+   */
 
-/* DANG_BEGIN_FUNCTION serial_int_engine
- * 
- * This function is the serial interrupts scheduler.  Its purpose is to
- * update interrupt status and/or invoke a requested serial interrupt.
- * If interrupts are not enabled, the Interrupt Identification Register 
- * is still updated and the function returns.  See pic_serial_run() below
- * it is executed right at the instant the interrupt is actually invoked.
- *
- * Since it is not possible to run the interrupt on the spot, it triggers
- * the interrupt via the pic_request() function (which is in pic.c)
- * and sets a flag that an interrupt is going to be occur soon.
- *
- * Please read pic_serial_run() for more information about interrupts.
- * [num = port, int_requested = the requested serial interrupt]
- * 
- * DANG_END_FUNCTION
- */
-void serial_int_engine(int num, int int_requested)
-{
-  u_char tmp;
-  
-  /* Safety code to avoid receive and transmit while DLAB is set high */
-  if (com[num].DLAB) int_requested &= ~(RX_INTR | TX_INTR);
-
-  if (com[num].tx_trigger) {
-    com[num].tx_timer = 0;
-    transmit_engine(num);
-  }
-  
-  check_and_update_uart_status(num);
-
-  /* reset the served requests */
-  com[num].int_request &= (com[num].int_condition & com[num].IER);
-   
   /* Update the IIR status immediately */
-  tmp = (com[num].int_condition & com[num].IER);
+  tmp = INT_REQUEST(num);
 
-  if(s3_printf) s_printf("SER%d: tmp=%d int_cond=%d int_req=%d int=%d fifo=%i\n",
-    num, tmp, com[num].int_condition, com[num].int_request, int_requested,
+  if(s3_printf) s_printf("SER%d: tmp=%d int_cond=%d int_req=%d fifo=%i\n",
+    num, tmp, com[num].int_condition, INT_REQUEST(num),
     com[num].fifo_enable);
-  if (int_requested && !(int_requested & com[num].int_condition))
-    s_printf("SER%d: Warning: int_condition is not set for the requested interrupt!\n", num);
 
   if (!tmp)
     flag_IIR_noint(num);		/* No interrupt */
@@ -433,110 +410,84 @@ void serial_int_engine(int num, int int_requested)
   else if (tmp & MS_INTR)
     flag_IIR_modstat(num);		/* Modem Status */
 
-  if (com[num].int_request) {
-    if(int_requested) s_printf("SER%d: Interrupt for another event (%d) is already requested\n",
-	num, com[num].int_request);
-    return;
+  return 1;
+}
+
+
+/* DANG_BEGIN_FUNCTION serial_int_engine
+ *
+ * This function is the serial interrupts scheduler.  Its purpose is to
+ * update interrupt status and/or invoke a requested serial interrupt.
+ * If interrupts are not enabled, the Interrupt Identification Register
+ * is still updated and the function returns.  See pic_serial_run() below
+ * it is executed right at the instant the interrupt is actually invoked.
+ *
+ * Since it is not possible to run the interrupt on the spot, it triggers
+ * the interrupt via the pic_request() function (which is in pic.c)
+ * and sets a flag that an interrupt is going to be occur soon.
+ *
+ * Please read pic_serial_run() for more information about interrupts.
+ * [num = port, int_requested = the requested serial interrupt]
+ *
+ * DANG_END_FUNCTION
+ */
+void serial_int_engine(int num, int int_requested)
+{
+  /* Safety code to avoid receive and transmit while DLAB is set high */
+  if (com[num].DLAB) int_requested &= ~(RX_INTR | TX_INTR);
+
+  if (com[num].tx_trigger) {
+    com[num].tx_timer = 0;
+    transmit_engine(num);
   }
 
-  if (!int_requested) {
-    if (!tmp) {
-      /* just an IIR update */
-      return;
-    }
-    else {
-      if(s3_printf) s_printf("SER%d: Requesting serial interrupt upon IIR update\n",
-        num);
-      int_requested = tmp;
-    }
-  }
+  check_and_update_uart_status(num);
 
-  /* At this point, we don't much care which function is requested; that  
+  /* At this point, we don't much care which function is requested; that
    * is taken care of in the serial_int_engine.  However, if interrupts are
    * disabled, then the Interrupt Identification Register must be set.
    */
 
   /* See if a requested interrupt is enabled */
-  if (com[num].int_enab && com[num].interrupt && (int_requested & com[num].IER)) {
-    
+  if (com[num].int_enab && com[num].interrupt && (com[num].int_condition & com[num].IER)) {
       if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
                  num, com[num].interrupt, int_requested);
       pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
   }
   else
     if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n", 
-        num, com[num].interrupt, int_requested, com[num].int_enab, com[num].IER);
-}  
+        num, com[num].interrupt, com[num].int_condition, com[num].int_enab, com[num].IER);
+}
 
 
-/* DANG_BEGIN_FUNCTION pic_serial_run 
+/* DANG_BEGIN_FUNCTION pic_serial_run
  *
  * This function is called by the priority iunterrupt controller when a
  * serial interrupt occurs.  It executes the highest priority serial
  * interrupt for that port. (Priority order is: RLSI, RDI, THRI, MSI)
  *
  * Because it is theoretically possible for things to change between the
- * interrupt trigger and the actual interrupt, some checks must be 
+ * interrupt trigger and the actual interrupt, some checks must be
  * repeated.
  *
  * DANG_END_FUNCTION
  */
 int pic_serial_run(int ilevel)
 {
-/*  static u_char*/ int tmp;
-/*  static u_char*/ int num;
+  int num;
 
   num = irq_source_num[ilevel];
 
   /* Update the queued Modem Status and Line Status values. */
   check_and_update_uart_status(num);
 
-  /* Make sure requested interrupt is still enabled, then run it. 
-   * These checks are in priority order.
-   *
-   * The UART MSR and LSR status is queued until interrupt time whenever 
-   * possible, to minimize the chance of 'cancelling' an interrupt 
-   * condition is requested via pic_request, but before the interrupt 
-   * actually runs.
-   *
-   * However, there is enough latency between pic_request() and
-   * the execution of the actual interrupt code, such that there are 
-   * still cases where the UART emulation can be tricked to pic_request()
-   * an interrupt, and then the interrupt condition is satisfied *before*
-   * the interrupt code even executes!
-   */
-   
-  tmp = com[num].int_condition & com[num].IER;
-  
   if(s2_printf) s_printf("SER%d: ---BEGIN INTERRUPT--- int_condition = %02x\n", num,
              com[num].int_condition);
 
-  /* Execute any pre-interrupt code that may be necessary */
-  if (!tmp) {
-    flag_IIR_noint(num);		/* No interrupt */
-    com[num].int_request = 0;
-  }
-  else if (tmp & LS_INTR) {
-    flag_IIR_linestat(num);		/* Line Status */
-    com[num].int_request = LS_INTR;
-  }
-  else if (tmp & RX_INTR) {
-    flag_IIR_receive(num);		/* Receive */
-    com[num].int_request = RX_INTR;
-  }
-  else if (tmp & TX_INTR) {
-    flag_IIR_transmit(num);		/* Transmit */
-    com[num].int_request = TX_INTR;
-  }
-  else if (tmp & MS_INTR) {
-    flag_IIR_modstat(num);		/* Modem Status */
-    com[num].int_request = MS_INTR;
-  }
-
-  if (com[num].int_request)
+  if (INT_REQUEST(num))
     return 1;	/* run IRQ */
   else {				/* What?  We can't be this far! */
-    s_printf("SER%d: Interrupt Error: cancelled serial interrupt!\n",num);  
+    s_printf("SER%d: Interrupt Error: cancelled serial interrupt!\n",num);
     /* No interrupt flagged?  Then the interrupt was cancelled sometime
      * after the interrupt was flagged, but before pic_serial_run executed.
      * DANG_FIXTHIS how do we cancel a PIC interrupt, when we have come this far?

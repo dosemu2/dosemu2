@@ -78,7 +78,6 @@ typedef struct {
   u_char tx_trigger;		/* Flag whether Xmit int should be triggered */
   u_char tx_overflow;		/* Full outgoing buffer flag. */
   				/*   MISCELLANEOUS  */
-  u_char int_request;		/* Interrupt Request flags - TX/RX/MS/LS */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
   u_char int_enab;		/* Interrupt Enabled flag (OUT2 of MCR) */
   u_char fifo_enable;		/* FIFO enabled flag */
@@ -122,6 +121,7 @@ EXTERN serial_t com[MAX_SER];
 
 #define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
 #define TX_BUF_BYTES(num) (com[num].tx_buf_end - com[num].tx_buf_start)
+#define INT_REQUEST(num)  (com[num].int_condition & com[num].IER)
 
 extern int int14(void);
 extern void serial_run(void);
