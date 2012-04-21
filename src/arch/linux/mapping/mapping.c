@@ -164,27 +164,12 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 
 void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
 {
-  void *target;
+  void *target = &mem_base[targ], *addr;
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
-  cap |= MAPPING_FIXED;
-  if (cap & MAPPING_INIT_LOWRAM) {
-    void *addr;
-    PRIV_SAVE_AREA
-    /* we may need root to mmap address 0 */
-    enter_priv_on();
-    addr = mappingdriver.alias(cap, NULL, mapsize, protect, source);
-    leave_priv_setting();
-    if (addr == MAP_FAILED && (errno == EPERM || errno == EACCES)) {
-      /* try 1MB+64K as base (may be higher if execshield is active) */
-      addr = mappingdriver.alias(cap & ~MAPPING_FIXED,
-				 (void *)(LOWMEM_SIZE + HMASIZE), mapsize,
-				 protect, source);
-      *(unsigned char **)&mem_base = addr;
-    }
-    return addr;
-  }
-  target = &mem_base[targ];
+  /* for non-zero INIT_LOWRAM the target is a hint */
+  if (!((cap & MAPPING_INIT_LOWRAM) && target))
+    cap |= MAPPING_FIXED;
   if (cap & MAPPING_COPYBACK) {
     if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
       memcpy(source, target, mapsize);
@@ -194,7 +179,11 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
     }
   }
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
-  return mappingdriver.alias(cap, target, mapsize, protect, source);
+  addr = mappingdriver.alias(cap, target, mapsize, protect, source);
+  if (cap & MAPPING_INIT_LOWRAM) {
+    *(unsigned char **)&mem_base = addr;
+  }
+  return addr;
 }
 
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source)

@@ -251,21 +251,20 @@ void device_init(void)
  */
 void low_mem_init(void)
 {
-  unsigned char *result;
+  void *lowmem, *result;
+  PRIV_SAVE_AREA
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
-  result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
+  lowmem = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
+
+  /* we may need root to mmap address 0 */
+  enter_priv_on();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
-			 PROT_READ | PROT_WRITE | PROT_EXEC, result);
+			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
+  leave_priv_setting();
 
-  if (result == MAP_FAILED) {
-    perror ("LOWRAM mmap");
-    leavedos(99);
-  }
-
-  if (result != NULL)
-  {
+  if (result == MAP_FAILED && (errno == EPERM || errno == EACCES)) {
 #ifndef X86_EMULATOR
     perror ("LOWRAM mmap");
     fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
@@ -285,14 +284,28 @@ void low_mem_init(void)
       if(dbg_fd)
         fprintf(stderr, "For more information, see %s.\n", config.debugout);
     }
+    /* try 1MB+64K as base (may be higher if execshield is active) */
+    result = alias_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE,
+			   LOWMEM_SIZE + HMASIZE,
+			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
+#endif
+  }
+
+  if (result == MAP_FAILED) {
+    perror ("LOWRAM mmap");
+    leavedos(99);
+  }
+
+#ifdef X86_EMULATOR
+  if (result) {
     warn("WARN: using non-zero memory base address %p.\n"
 	 "WARN: You can use the better-tested zero based setup using\n"
 	 "WARN: sysctl -w vm.mmap_min_addr=0\n"
 	 "WARN: as root, or by changing the vm.mmap_min_addr setting in\n"
 	 "WARN: /etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n",
 	    result);
-#endif
   }
+#endif
 
   /* keep conventional memory protected as long as possible to protect
      NULL pointer dereferences */
