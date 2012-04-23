@@ -4,6 +4,8 @@
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
+#include "config.h"
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -238,6 +240,12 @@ void priv_init(void)
     if (s) {
       uid = cur_uid = atoi(s);
       if (uid) {
+	pid_t ppid;
+	char *path;
+	FILE *fp;
+	size_t n;
+	char *line;
+
         skip_priv_setting = under_root_login = 0;
 	using_sudo = 1;
 	s = getenv("SUDO_USER");
@@ -246,6 +254,23 @@ void priv_init(void)
 	  setenv("USER", s, 1);
 	}
         setreuid(uid, euid);
+
+	/* retrieve $HOME from sudo's (the parent process') environment */
+	ppid = getppid();
+	if (asprintf(&path, "/proc/%d/environ", ppid) != -1) {
+	  printf("%s\n", path);
+	  if ((fp = fopen(path, "r"))) {
+	    line = NULL;
+	    while(getdelim(&line, &n, '\0', fp) != -1) {
+	      if(n>5 && memcmp(line, "HOME=", 5) == 0) {
+		setenv("HOME", line+5, 1);
+	      }
+	    }
+	    free(line);
+	    fclose(fp);
+	  }
+	  free(path);
+	}
       }
     }
   }
