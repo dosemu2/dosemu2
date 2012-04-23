@@ -46,7 +46,7 @@
 #define MAPPING_SCRATCH		0x040000
 #define MAPPING_SINGLE		0x080000
 #define MAPPING_MAYSHARE	0x100000
-#define MAPPING_SHM		0x200000
+/*#define MAPPING_SHM		0x200000*/ // available for re-use
 #define MAPPING_COPYBACK	0x400000
 #define MAPPING_FIXED		0x800000
 
@@ -65,7 +65,6 @@ void free_mapping (int cap, void *addr, size_t mapsize);
 typedef void *realloc_mapping_type(int cap, void *addr, size_t oldsize, size_t newsize);
 void *realloc_mapping (int cap, void *addr, size_t oldsize, size_t newsize);
 
-typedef void *mmap_mapping_type(int cap, void *target, size_t mapsize, int protect, off_t source);
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source);
 
 typedef void *alias_mapping_type(int cap, void *target, size_t mapsize, int protect, void *source);
@@ -90,7 +89,6 @@ struct mappingdrivers {
   alloc_mapping_type *alloc;
   free_mapping_type *free;
   realloc_mapping_type *realloc;
-  mmap_mapping_type *mmap;
   munmap_mapping_type *munmap;
   alias_mapping_type *alias;
 };

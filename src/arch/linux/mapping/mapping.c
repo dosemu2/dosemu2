@@ -257,7 +257,9 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
     addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
   } else {
-    addr = mappingdriver.mmap(cap, target, mapsize, protect, source);
+    dosemu_error("Wrong mapping type %#x\n", cap);
+    config.exitearly = 1;
+    return MAP_FAILED;
   }
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   return addr;
@@ -381,7 +383,6 @@ char *decode_mapping_cap(int cap)
   if (cap & MAPPING_SCRATCH) p += sprintf(p, " SCRATCH");
   if (cap & MAPPING_SINGLE) p += sprintf(p, " SINGLE");
   if (cap & MAPPING_MAYSHARE) p += sprintf(p, " MAYSHARE");
-  if (cap & MAPPING_SHM) p += sprintf(p, " SHM");
   if (cap & MAPPING_COPYBACK) p += sprintf(p, " COPYBACK");
   return dbuf;
 }

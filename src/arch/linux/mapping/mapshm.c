@@ -167,16 +167,6 @@ static void *realloc_mapping_shm(int cap, void *addr, size_t oldsize, size_t new
   return ret;
 }
 
-static void *mmap_mapping_shm(int cap, void *target, size_t mapsize, int protect, off_t source)
-{
-  if (cap & MAPPING_SHM) {
-    if (source)
-      return MAP_FAILED;
-    return mmap(target, mapsize, protect, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  }
-  return MAP_FAILED;
-}
-
 static int munmap_mapping_shm(int cap, void *addr, size_t mapsize)
 {
   Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%zx\n",
@@ -192,7 +182,6 @@ struct mappingdrivers mappingdriver_ashm = {
   alloc_mapping_shm,
   free_mapping_shm,
   realloc_mapping_shm,
-  mmap_mapping_shm,
   munmap_mapping_shm,
   alias_mapping_shm,
 };
