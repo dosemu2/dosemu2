@@ -262,8 +262,8 @@ void ser_termios(int num)
 {
   speed_t baud;
   long int rounddiv;
-  struct serial_struct ser_info;
-  
+//  struct serial_struct ser_info;
+
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
   #define DIVISOR ((com[num].dlm << 8) | com[num].dll)
 
@@ -272,10 +272,12 @@ void ser_termios(int num)
     if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",num,strerror(errno));
     return;
   }
+#if 0
+/* this seems to cause slowdown */
   ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
   ser_info.flags |= ASYNC_LOW_LATENCY;
   ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
-
+#endif
   s_printf("SER%d: LCR = 0x%x, ",num,com[num].LCR);
 
   /* Set the word size */
