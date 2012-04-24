@@ -24,17 +24,17 @@
 #define NEWXMS          2
 
 struct EMM {
-   unsigned long Length;
+   unsigned int Length;
    unsigned short SourceHandle;
-   unsigned long SourceOffset __attribute__((packed));
+   unsigned int SourceOffset __attribute__((packed));
    unsigned short DestHandle __attribute__((packed));
-   unsigned long DestOffset __attribute__((packed));
+   unsigned int DestOffset __attribute__((packed));
 } ;
 
 struct Handle {
   unsigned short int num;
   unsigned char *addr;
-  unsigned long size;
+  unsigned int size;
   int valid;
   int lockcount;
 };

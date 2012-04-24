@@ -379,7 +379,7 @@ static void xms_control(void)
       else {
 	Debug0((dbg_fd, "Allocate UMB Success\n"));
 	LWORD(eax) = 1;
-	LWORD(ebx) = (unsigned long)addr >> 4;
+	LWORD(ebx) = addr >> 4;
 	LWORD(edx) = size >> 4;
       }
       Debug0((dbg_fd, "umb_allocated: %#x0:%#x0\n",
@@ -583,7 +583,7 @@ ValidHandle(unsigned short h)
 static unsigned char
 xms_query_freemem(int api)
 {
-  unsigned long totalBytes = 0, subtotal, largest;
+  unsigned totalBytes = 0, subtotal, largest;
   int h;
 
   /* the new XMS api should actually work with the function as it
@@ -642,15 +642,15 @@ xms_query_freemem(int api)
 static unsigned char
 xms_allocate_EMB(int api)
 {
-  unsigned long totalBytes, subtotal;
-  unsigned long h;
-  unsigned long kbsize;
+  unsigned int totalBytes, subtotal;
+  unsigned int h;
+  unsigned int kbsize;
 
   if (api == OLDXMS)
     kbsize = LWORD(edx);
   else
     kbsize = REG(edx);
-  x_printf("XMS alloc EMB(%s) size %ld KB\n", (api==OLDXMS)?"old":"new",kbsize);
+  x_printf("XMS alloc EMB(%s) size %d KB\n", (api==OLDXMS)?"old":"new",kbsize);
 
   totalBytes = 0;
   for (h = FIRST_HANDLE; h <= NUM_HANDLES; h++) {
@@ -662,7 +662,7 @@ xms_allocate_EMB(int api)
   /* total free is max allowable XMS - the number of K already allocated */
   if(kbsize > subtotal)
   {
-    x_printf("XMS: out of memory (only %ldK available)\n",subtotal);
+    x_printf("XMS: out of memory (only %dK available)\n",subtotal);
     return 0xa0; /* Out of memory */
   }
   
@@ -675,7 +675,7 @@ xms_allocate_EMB(int api)
     handles[h].valid = 1;
     handles[h].size = kbsize*1024;
 
-    x_printf("XMS: EMB size %ld bytes\n", handles[h].size);
+    x_printf("XMS: EMB size %d bytes\n", handles[h].size);
 
     /* I could just rely on the behavior of malloc(0) here, but
        * I'd rather not.  I'm going to interpret the XMS 3.0 spec
@@ -691,7 +691,7 @@ xms_allocate_EMB(int api)
     handles[h].lockcount = 0;
     handle_count++;
 
-    x_printf("XMS: allocated EMB %lu at %p\n", h, handles[h].addr);
+    x_printf("XMS: allocated EMB %u at %p\n", h, handles[h].addr);
 
     if (api == OLDXMS)
       LWORD(edx) = h;		/* handle # */
@@ -715,7 +715,7 @@ xms_free_EMB(void)
     if (handles[h].addr)
       smfree(&mp, handles[h].addr);
     else
-      x_printf("XMS WARNING: freeing handle w/no address, size 0x%08lx\n",
+      x_printf("XMS WARNING: freeing handle w/no address, size 0x%08x\n",
 	       handles[h].size);
     handles[h].valid = 0;
     handle_count--;
@@ -765,7 +765,7 @@ xms_move_EMB(void)
     }
   }
 
-  x_printf("XMS: block move from %p to %p len 0x%lx\n",
+  x_printf("XMS: block move from %p to %p len 0x%x\n",
 	   src, dest, e.Length);
   memmove_dos2dos(dest, src, e.Length);
   if (dest >= mem_base && dest < &mem_base[0x110000])
@@ -865,8 +865,8 @@ xms_realloc_EMB(int api)
   else
     handles[h].size = REG(ebx) * 1024;
 
-  x_printf((api == OLDXMS) ? "XMS realloc EMB(old) %d to size 0x%04lx\n" :
-	   "XMS realloc EMB(new) %d to size 0x%08lx\n",
+  x_printf((api == OLDXMS) ? "XMS realloc EMB(old) %d to size 0x%04x\n" :
+	   "XMS realloc EMB(new) %d to size 0x%08x\n",
 	   h, handles[h].size);
 
   handles[h].addr = smalloc(&mp, handles[h].size);
@@ -908,7 +908,7 @@ show_emm(struct EMM e)
 {
   x_printf("XMS show_emm:\n");
 
-  x_printf("L: 0x%08lx SH: 0x%04x  SO: 0x%08lx DH: 0x%04x  DO: 0x%08lx\n",
+  x_printf("L: 0x%08x SH: 0x%04x  SO: 0x%08x DH: 0x%04x  DO: 0x%08x\n",
 	   e.Length, e.SourceHandle, e.SourceOffset,
 	   e.DestHandle, e.DestOffset);
 }
