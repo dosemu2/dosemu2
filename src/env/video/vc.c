@@ -69,6 +69,9 @@
 #include "dpmi.h"
 
 static void set_dos_video (void);
+static void get_video_ram (int waitflag);
+static void put_video_ram (void);
+static int release_perm (void);
 
 static void SIGRELEASE_call (void);
 static void SIGACQUIRE_call (void);
@@ -183,8 +186,7 @@ set_dos_video (void)
 
 }
 
-void
-set_linux_video (void)
+static void set_linux_video (void)
 {
   if (!config.vga)
     return;
@@ -246,8 +248,7 @@ SIGRELEASE_call (void)
   }
 }
 
-int
-wait_vc_active (void)
+static int wait_vc_active (void)
 {
   if (ioctl (console_fd, VT_WAITACTIVE, scr_state.console_no) < 0)
     {
@@ -352,7 +353,7 @@ void init_get_video_ram(int waitflag)
  * remembers where the video mem *was* mapped, unmaps from that, and then
  * remaps it to where the text page number says it should be
  */
-void get_video_ram (int waitflag)
+static void get_video_ram (int waitflag)
 {
   int page;
 
@@ -377,7 +378,7 @@ void get_video_ram (int waitflag)
   map_video_ram();
 }
 
-void put_video_ram (void)
+static void put_video_ram (void)
 {
   if (scr_state.mapped) {
     v_printf ("put_video_ram called\n");
@@ -441,7 +442,7 @@ set_process_control (void)
   v_printf ("VID: Set process control\n");
 }
 
-void
+static void
 clear_process_control (void)
 {
   struct vt_mode vt_mode;
@@ -452,6 +453,20 @@ clear_process_control (void)
   registersig (SIG_ACQUIRE, NULL);
 }
 
+
+void clear_console_video(void)
+{
+  v_printf("VID: video_close():clear console video\n");
+  if (scr_state.current) {
+    set_linux_video();
+    release_perm();
+    put_video_ram();		/* unmap the screen */
+  }
+
+  k_printf("KBD: Release mouse control\n");
+  ioctl(console_fd, KDSETMODE, KD_TEXT);
+  clear_process_control();
+}
 
 /* why count ??? */
 /* Because you do not want to open it more than once! */
@@ -603,8 +618,7 @@ get_perm (void)
 }
 
 /* Stop io to card */
-int
-release_perm (void)
+static int release_perm (void)
 {
   if (permissions > 0)
     {

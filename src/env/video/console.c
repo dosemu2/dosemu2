@@ -141,20 +141,6 @@ static int console_post_init(void)
   return 0;
 }
 
-void clear_console_video(void)
-{
-  v_printf("VID: video_close():clear console video\n");
-  if (scr_state.current) {
-    set_linux_video();
-    release_perm();
-    put_video_ram();		/* unmap the screen */
-  }
-
-  k_printf("KBD: Release mouse control\n");
-  ioctl(console_fd, KDSETMODE, KD_TEXT);
-  clear_process_control();
-}
-
 static int consolesize;
 
 int console_size(void)

@@ -108,23 +108,14 @@ typedef unsigned char uchar;
 
 extern int on_console(void);
 extern void vt_activate(int con_num);
-extern int wait_vc_active (void);
 extern int vc_active(void);
 extern __inline__ void allow_switch(void);
-extern void dump_video_linux(void);
 extern void set_vc_screen_page(void);
-extern void get_video_ram(int);
 extern void init_get_video_ram(int);
-extern void set_linux_video(void);
-extern void put_video_ram(void);
-extern void clear_process_control(void);
 extern void set_process_control(void);
 
 extern int get_perm(void);
-extern int release_perm(void);
 extern int set_regs(unsigned char regs[], int seq_gfx_only);
-extern void open_vga_mem(void);
-extern void close_vga_mem(void);
 
 #define MAX_S_REGS	71
 #define MAX_X_REGS	65536 /* some svgalib drivers and VESA require a lot */
