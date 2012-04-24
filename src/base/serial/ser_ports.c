@@ -74,24 +74,6 @@ static inline void tx_buffer_dump(int num)
 }
 
 
-/* This function updates the flow control status depending on buffer condition */
-static inline void flow_control_update(int num)
-{
-  int control;
-  if (RX_BUF_BYTES(num) == 0) {			/* buffer empty? */
-    control = TIOCM_RTS;
-    ioctl(com[num].fd, TIOCMBIS, &control);		/* Raise RTS */
-  }
-  else {						/* Buffer has chars */
-    control = TIOCM_RTS;
-    ioctl(com[num].fd, TIOCMBIC, &control);		/* Lower RTS */
-#if 0
-    com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
-#endif
-  }
-}
-
-
 /* This function slides the contents of the receive buffer to the 
  * bottom of the buffer.  A sliding buffer is used instead of
  * a circular buffer because this way, a single read() can easily
@@ -138,9 +120,6 @@ void uart_fill(int num)
   
   /* Return if in loopback mode */
   if (com[num].MCR & UART_MCR_LOOP) return;
-
-  /* If DOSEMU is given direct rts/cts control then update rts/cts status. */
-  if (com[num].system_rtscts) flow_control_update(num);
 
   /* Is it time to do another read() of the serial device yet? 
    * The rx_timer is used to prevent system load caused by empty read()'s 
@@ -803,23 +782,16 @@ static void
 put_lcr(int num, int val)
 {
   int changed = com[num].LCR ^ val;    /* bitmask of changed bits */
-  
+
   com[num].LCR = val;                  /* Set new LCR value */
-  
+
   if (val & UART_LCR_DLAB) {		/* Is Baudrate Divisor Latch set? */
     s_printf("SER%d: LCR = 0x%x, DLAB high.\n", num, val);
     com[num].DLAB = 1;			/* Baudrate Divisor Latch flag */
-    com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_NO_INT;
-    /* IIR is cleared here for safety reasons because if a receive/transmit
-     * interrupt is currently pending, DOSEMU will crash because it will
-     * access the baudrate divisor LSB value instead of the RBR/THR 
-     * registers...
-     */
   }
   else {
     s_printf("SER%d: LCR = 0x%x, DLAB low.\n", num, val);
     com[num].DLAB = 0;			/* Baudrate Divisor Latch flag */
-    ser_termios(num);			/* Sets new line settings */
   }
 
   if (changed & UART_LCR_SBC) {
@@ -832,6 +804,13 @@ put_lcr(int num, int val)
       s_printf("SER%d: Clearing BREAK state.\n", num);
       ioctl(com[num].fd, TIOCCBRK);
     }
+  }
+
+  /* obviously the writes to LCR (except BREAK state) would
+   * invalidate the rx fifo. We clear tx too. */
+  if (changed & ~UART_LCR_SBC) {
+    uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
+    ser_termios(num);			/* Sets new line settings */
   }
 }
 
