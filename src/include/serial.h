@@ -51,6 +51,17 @@ extern int no_local_video; /* used by virtual port code */
 EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 EXTERN u_char com_port_used[MAX_SER + 1];	/* Used for auto-assign comport config */
 
+struct iir {
+  u_char val:6;
+  union {
+    struct {
+      const u_char enable:1;
+      const u_char enable2:1;
+    } fifo;
+    u_char fifo_enable:2;
+  };
+};
+
 typedef struct {
   				/*   MAIN VARIABLES  */
   char *dev;			/* String to hold path to device file */
@@ -82,7 +93,6 @@ typedef struct {
   				/*   MISCELLANEOUS  */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
   u_char int_enab;		/* Interrupt Enabled flag (OUT2 of MCR) */
-  u_char fifo_enable;		/* FIFO enabled flag */
   u_char uart_full;		/* UART full flag */
   speed_t newbaud;		/* Currently set bps rate */
 
@@ -92,7 +102,7 @@ typedef struct {
   u_char TX;		/* Transmit Holding Register */
   u_char RX;		/* Received Data Register */
   u_char IER;		/* Interrupt Enable Register */
-  u_char IIR;		/* Interrupt Identification Register */
+  struct iir IIR;	/* Interrupt Identification Register */
   u_char LCR;		/* Line Control Register */
   u_char FCReg;		/* Fifo Control Register (.FCR is a name conflict) */
   u_char MCR;		/* Modem Control Register */

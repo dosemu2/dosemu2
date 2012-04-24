@@ -319,7 +319,7 @@ void ser_set_params(int num)
   com[num].TX = 0;			/* Transmit Holding Register */
   com[num].RX = 0;			/* Received Byte Register */
   com[num].IER = 0;			/* Interrupt Enable Register */
-  com[num].IIR = UART_IIR_NO_INT;	/* Interrupt I.D. Register */
+  com[num].IIR.val = UART_IIR_NO_INT;	/* Interrupt I.D. Register */
   com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
   com[num].DLAB = 0;			/* DLAB for baudrate change */
   com[num].FCReg = 0; 			/* FIFO Control Register */
@@ -332,7 +332,7 @@ void ser_set_params(int num)
   com[num].SCR = 0; 			/* Scratch Register */
   com[num].int_enab = 0;		/* FLAG: Interrupts disabled */
   com[num].int_condition = 0;		/* FLAG: No int conditions set */
-  com[num].fifo_enable = 0;		/* FLAG: FIFO enabled */
+  com[num].IIR.fifo_enable = 0;		/* FLAG: FIFO enabled */
   com[num].ms_timer = 0;		/* Modem Status check timer */
   com[num].rx_timer = 0;		/* Receive read() polling timer */
   com[num].tx_timer = 0;		/* Transmi countdown to next char */

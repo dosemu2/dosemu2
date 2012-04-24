@@ -160,7 +160,7 @@ void uart_fill(int num)
   }
 
   if (RX_BUF_BYTES(num)) {		/* Is data waiting in the buffer? */
-    if (com[num].fifo_enable) {		/* Is it in 16550 FIFO mode? */
+    if (com[num].IIR.fifo.enable) {		/* Is it in 16550 FIFO mode? */
 
       com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
 
@@ -444,7 +444,7 @@ static int get_rx(int num)
   if ( !(com[num].LSR & UART_LSR_DR)) return 0;
   
   /* Is the FIFO enabled? */
-  if (com[num].fifo_enable) {
+  if (com[num].IIR.fifo.enable) {
     /* Read data from the receive buffer.  The 16-byte (configurable)
      * limitation of the FIFO is emulated (even though the receive
      * buffer is bigger) for compatibility purposes.  Note, that the 
@@ -470,12 +470,12 @@ static int get_rx(int num)
       com[num].LSRqueued &= ~UART_LSR_DR;
         
       /* If receive interrupt is set, then update interrupt status */
-      if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI)
+      if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RDI)
         serial_int_engine(num, 0);		/* Update interrupt status */
     }
       
     /* The FIFO is not empty, so is an interrupt flagged right now? */
-    else if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI) {
+    else if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RDI) {
       
       /* Did the FIFO drop below the trigger level? */
       if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger) {
@@ -486,7 +486,7 @@ static int get_rx(int num)
       }
       else {		
         /* No, the FIFO didn't drop below trigger, but clear timeout bit */
-        com[num].IIR = (com[num].IIR & UART_IIR_ID) | UART_IIR_FIFO;
+        com[num].IIR.val = (com[num].IIR.val & UART_IIR_ID);
       }
     }
     return val;		/* Return received byte */
@@ -507,7 +507,7 @@ static int get_rx(int num)
     com[num].LSRqueued &= ~UART_LSR_DR;
   }
   /* If receive interrupt is set, then update interrupt status */
-  if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI) {
+  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RDI) {
     /* DANG_FIXTHIS Is this safe to put this here? */
     serial_int_engine(num, 0);			/* Update interrupt stuats */
   }
@@ -558,7 +558,7 @@ get_msr(int num)
   com[num].int_condition &= ~MS_INTR;		/* MSI condition satisfied */
 
   /* If the modem status interrupt is set, update interrupt status */
-  if ((com[num].IIR & UART_IIR_ID) == UART_IIR_MSI)
+  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_MSI)
     serial_int_engine(num, 0);			/* Update interrupt status */
 
   return val;					/* Return MSR value */
@@ -583,7 +583,7 @@ get_lsr(int num)
   com[num].LSR &= ~UART_LSR_ERR;	/* Clear error bits */
 
   /* If RLSI interrupt condition is set, then update interrupt status */
-  if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RLSI)
+  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RLSI)
     serial_int_engine(num, 0);		/* Update interrupt status */
   
   return (val);                         /* Return LSR value */
@@ -611,7 +611,7 @@ static void put_tx(int num, int val)
   com[num].LSR &= ~UART_LSR_TEMT;	/* TEMT not empty */
 
   /* If Transmit interrupt status is set, then update interrupt status */
-  if ((com[num].IIR & UART_IIR_ID) == UART_IIR_THRI)
+  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_THRI)
     serial_int_engine(num, 0);		/* Update interrupt status */
 
   com[num].TX = val;			/* Mainly used in overflow cases */
@@ -629,7 +629,7 @@ static void put_tx(int num, int val)
     case UART_LCR_WLEN6:  val &= 0x3f;  break;
     case UART_LCR_WLEN5:  val &= 0x1f;  break;
     }
-    if (com[num].fifo_enable) {		/* Is it in FIFO mode? */
+    if (com[num].IIR.fifo.enable) {		/* Is it in FIFO mode? */
     
       /* Is the FIFO full? */
       if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size) {
@@ -678,7 +678,7 @@ static void put_tx(int num, int val)
   }
   /* Else, not in loopback mode */
 
-  if (com[num].fifo_enable) {			/* Is FIFO enabled? */
+  if (com[num].IIR.fifo.enable) {			/* Is FIFO enabled? */
     if (TX_BUF_BYTES(num) >= TX_BUFFER_SIZE) {	/* Is FIFO already full? */
       /* try to write the character directly to the tty, hoping it
        * will be queued there. Hmmm... */
@@ -711,7 +711,7 @@ static void put_tx(int num, int val)
     else tcdrain(com[num].fd);
 #endif
   }
-  if (!com[num].fifo_enable ||
+  if (!com[num].IIR.fifo.enable ||
        TX_BUF_BYTES(num) >= (TX_BUFFER_SIZE-1)) 	/* Is FIFO full? */
       com[num].LSR &= ~UART_LSR_THRE;		/* THR full */
 
@@ -732,8 +732,6 @@ put_fcr(int num, int val)
   val &= 0xcf;				/* bits 4,5 are reserved. */
   /* Bits 1-6 are only programmed when bit 0 is set (FIFO enabled) */
   if (val & UART_FCR_ENABLE_FIFO) {
-    com[num].fifo_enable = 1;		/* Enabled FIFO flag */
-
     /* fifos are reset when we change from 16450 to 16550 mode.*/
     if (!(com[num].FCReg & UART_FCR_ENABLE_FIFO))
       uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
@@ -745,7 +743,7 @@ put_fcr(int num, int val)
 
     /* Various flags to indicate that fifos are enabled. */
     com[num].FCReg = (val & ~UART_FCR_TRIGGER_14) | UART_FCR_ENABLE_FIFO;
-    com[num].IIR |= UART_IIR_FIFO;
+    com[num].IIR.fifo_enable = IIR_FIFO_ENABLE;
 
     /* Don't need to emulate RXRDY,TXRDY pins, used for bus-mastering. */
     if (val & UART_FCR_DMA_SELECT) {
@@ -765,9 +763,8 @@ put_fcr(int num, int val)
     /* If uart was set in 16550 mode, this will reset it back to 16450 mode.
      * If it already was in 16450 mode, there is no harm done.
      */
-    com[num].fifo_enable = 0;			/* Disabled FIFO flag */
+    com[num].IIR.fifo_enable = 0;		/* Disabled FIFO flag */
     com[num].FCReg &= (~UART_FCR_ENABLE_FIFO);	/* Flag FIFO as disabled */
-    com[num].IIR &= ~UART_IIR_FIFO;		/* Flag FIFO off in IIR */
     uart_clear_fifo(num, UART_FCR_CLEAR_CMD);	/* Clear FIFO */
   }
 }
@@ -828,7 +825,7 @@ put_mcr(int num, int val)
   if (val & UART_MCR_LOOP) {		/* Is Loopback Mode set? */
     /* If loopback just enabled, clear FIFO and turn off DTR & RTS on line */
     if (changed & UART_MCR_LOOP) {		/* Was loopback just set? */
-      if (com[num].fifo_enable)
+      if (com[num].IIR.fifo.enable)
         uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Clear FIFO's */
       control = TIOCM_DTR | TIOCM_RTS;		/* DTR and RTS to be cleared */
       ioctl(com[num].fd, TIOCMBIC, &control);	/* Clear DTR and RTS */
@@ -858,7 +855,7 @@ put_mcr(int num, int val)
   else {				/* It's not in Loopback Mode */
     /* Was loopback mode just turned off now?  Then reset FIFO */
     if (changed & UART_MCR_LOOP) {
-      if (com[num].fifo_enable)
+      if (com[num].IIR.fifo.enable)
         uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
     }
 
@@ -1008,8 +1005,8 @@ do_serial_in(int num, ioport_t address)
     break;
 
   case UART_IIR:	/* Read from Interrupt Identification Register */
-    val = com[num].IIR;
-    if ((com[num].IIR & UART_IIR_ID) == UART_IIR_THRI) {
+    val = com[num].IIR.val;
+    if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_THRI) {
       if(s2_printf) s_printf("SER%d: Read IIR = 0x%x (THRI now cleared)\n",num,val);
       com[num].int_condition &= ~TX_INTR;	/* Unflag TX int condition */
       serial_int_engine(num, 0);		/* Update interrupt status */
