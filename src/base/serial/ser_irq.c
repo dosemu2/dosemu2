@@ -163,8 +163,9 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
   if (rtrn == -1)
     queued = 0;
   if (debug_level('s') > 5)
-    s_printf("SER%d: ret=%i queue=%i\n", num, rtrn, queued);
-  
+    s_printf("SER%d: buf=%i queued=%i trig=%i\n", num,
+	TX_BUF_BYTES(num), queued, com[num].tx_trigger);
+
   if (com[num].fifo_enable) {  /* Is FIFO enabled? */
     if (com[num].tx_overflow){
       if(RPT_SYSCALL(write(com[num].fd,
@@ -442,6 +443,8 @@ void serial_int_engine(int num, int int_requested)
   }
 
   check_and_update_uart_status(num);
+  if (!int_requested && !com[num].int_condition)
+    return;
 
   /* At this point, we don't much care which function is requested; that
    * is taken care of in the serial_int_engine.  However, if interrupts are

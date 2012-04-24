@@ -58,7 +58,7 @@ struct io_dev_struct {
 };
 #define MAX_IO_DEVICES 30
 
-#define MAX_DEVICES_OWNED 5
+#define MAX_DEVICES_OWNED 50
 struct owned_devices_struct {
   char * dev_names[MAX_DEVICES_OWNED];
   int devs_owned;

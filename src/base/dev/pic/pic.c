@@ -451,6 +451,7 @@ else                              /* icw2, icw3, icw4, or mask register */
     switch(pic0_icw_state){
      case 0:                        /* mask register */
        set_pic0_imr(value);
+       pic_print(1, "Set mask to ", value, " on pic0");
        break;
      case 1:                        /* icw2          */
        set_pic0_base(value);
@@ -508,6 +509,7 @@ else                         /* icw2, icw3, icw4, or mask register */
   switch(pic1_icw_state){
      case 0:                    /* mask register */
        set_pic1_imr(value);
+       pic_print(1, "Set mask to ", value, " on pic1");
        break;
      case 1:                    /* icw 2         */
        set_pic1_base(value);

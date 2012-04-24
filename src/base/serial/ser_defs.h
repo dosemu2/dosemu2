@@ -63,13 +63,9 @@
 #define SER_DEBUG_FOSSIL_RW  0       	/* 0 or 1 */
 #define SER_DEBUG_FOSSIL_STATUS 0	/* 0 or 1 */
 
-/* For more information about the com[] structure, please see serial.h */
-#if 0
-serial_t com[MAX_SER];
-#endif
-/* 
+/*
  * DANG_BEGIN_REMARK
- * 
+ *
  * IMPORTANT INFO about com[] variable array structure used in serial.c
  *
  * Most of the serial variables are stored in the com[] array.

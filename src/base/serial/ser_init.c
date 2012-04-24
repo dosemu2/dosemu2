@@ -64,9 +64,6 @@ int no_local_video = 0;
 /* See README.serial file for more information on the com[] structure 
  * The declarations for this is in ../include/serial.h
  */
-#if 0
-serial_t com[MAX_SER];
-#endif
 
 /*  Determines if the tty is already locked.  Stolen from uri-dip-3.3.7k
  *  Nice work Uri Blumenthal & Ian Lance Taylor!
@@ -416,7 +413,7 @@ static void do_ser_init(int num)
 {
   emu_iodev_t io_device;
   int i;
-  
+
   /* The following section sets up default com port, interrupt, base
   ** port address, and device path if they are undefined. The defaults are:
   **
@@ -433,25 +430,35 @@ static void do_ser_init(int num)
     ioport_t base_port;
     char *dev;
     char *handler_name;
-  } default_com[4] = {
+  } default_com[MAX_SER] = {
     { 4, 0x3F8, "/dev/ttyS0", "COM1" },
     { 3, 0x2F8, "/dev/ttyS1", "COM2" },
     { 4, 0x3E8, "/dev/ttyS2", "COM3" },
-    { 3, 0x2E8, "/dev/ttyS3", "COM4" }
+    { 3, 0x2E8, "/dev/ttyS3", "COM4" },
+
+    { 3, 0x4220, "/dev/ttyS4", "COM5" },
+    { 3, 0x4228, "/dev/ttyS5", "COM6" },
+    { 3, 0x5220, "/dev/ttyS6", "COM7" },
+    { 3, 0x5228, "/dev/ttyS7", "COM8" },
   };
 
   if (com[num].real_comport == 0) {		/* Is comport number undef? */
-    for (i = 1; i < 16; i++) if (com_port_used[i] != 1) break;
-    com[num].real_comport = i;
-    com_port_used[i] = 1;
-    s_printf("SER%d: No COMx port number given, defaulting to COM%d\n", num, i);
+    for (i = 1; i <= MAX_SER; i++) {
+      if (!com_port_used[i])
+        break;
+    }
+    if (i <= MAX_SER) {
+      com[num].real_comport = i;
+      com_port_used[i] = 1;
+      s_printf("SER%d: No COMx port number given, defaulting to COM%d\n", num, i);
+    }
   }
 
   if (com[num].interrupt <= 0) {		/* Is interrupt undefined? */
     /* Define it depending on using standard irqs */
     com[num].interrupt = pic_irq_list[default_com[com[num].real_comport-1].interrupt];
   }
-  
+
   if (com[num].base_port <= 0) {		/* Is base port undefined? */
     /* Define it depending on using standard addrs */
     com[num].base_port = default_com[com[num].real_comport-1].base_port;
@@ -499,8 +506,8 @@ static void do_ser_init(int num)
   port_register_handler(io_device, 0);
 
   /* Information about serial port added to debug file */
-  s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n", 
-        num, com[num].real_comport, com[num].interrupt, 
+  s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n",
+        num, com[num].real_comport, com[num].interrupt,
         com[num].base_port, com[num].dev);
 #if 0
   /* first call to serial timer update func to initialize the timer */
@@ -508,7 +515,7 @@ static void do_ser_init(int num)
   serial_timer_update();
 #endif
   /* Set file descriptor as unused, then attempt to open serial port */
-  com[num].fd = -1;  
+  com[num].fd = -1;
 }
 
 void serial_reset(void)
@@ -556,7 +563,7 @@ void serial_init(void)
   for (i = 0; i < config.num_ser; i++) {
     com[i].fd = -1;
     com[i].dev_locked = FALSE;
-    
+
     /* Serial port init is skipped if the port is used for a mouse, and 
      * dosemu is running in Xwindows, or not at the console.  This is due
      * to the fact the mouse is in use by Xwindows (internal driver is used)
@@ -564,11 +571,11 @@ void serial_init(void)
      */
     if (com[i].mouse && !on_console())
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
-#ifdef USE_GPM    
+#ifdef USE_GPM
     else if (com[i].mouse && strcmp(Mouse->name, "gpm") == 0)
       s_printf("SER%d: GPM competing with direct access is racy: "
                "only using GPM\n",i);
-#endif    
+#endif
     else
       do_ser_init(i);
   }

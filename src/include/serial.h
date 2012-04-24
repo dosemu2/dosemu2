@@ -35,6 +35,8 @@
 #include <termios.h>
 #include "extern.h"
 
+#define MAX_SER 8
+
 /* These are sizes for the internal recieve and transmit buffers.
  * They must be at least 16 bytes because these double as FIFO's,
  * The 16-byte limitation is emulated, though, for compatibility
@@ -47,7 +49,7 @@
 
 extern int no_local_video; /* used by virtual port code */
 EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
-EXTERN u_char com_port_used[17];       /* Used for auto-assign comport config */
+EXTERN u_char com_port_used[MAX_SER + 1];	/* Used for auto-assign comport config */
 
 typedef struct {
   				/*   MAIN VARIABLES  */
@@ -116,7 +118,6 @@ typedef struct {
   struct termios newset;		/* Current termios settings */
 } serial_t;
 
-#define MAX_SER 4
 EXTERN serial_t com[MAX_SER];
 
 #define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
