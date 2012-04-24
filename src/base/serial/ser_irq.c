@@ -289,53 +289,12 @@ void linestat_engine(int num)           /* Internal Line Status processing */
 }
 #endif
 
-/* This function updates the IIR for Line Status.  [num = port] */
-static inline void flag_IIR_linestat(int num)
-{
-  com[num].IIR.val = UART_IIR_RLSI;
-}
-
-
-/* This function updates the IIR for Receive.  [num = port] */
-static inline void flag_IIR_receive(int num)
-{
-  /* Update the IIR for RDI status */
-  if (!com[num].IIR.fifo.enable)
-    com[num].IIR.val = UART_IIR_RDI;
-  else if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger)
-    com[num].IIR.val = (com[num].IIR.val & UART_IIR_CTI) | UART_IIR_RDI;
-  else
-    com[num].IIR.val = UART_IIR_CTI;
-}
-
-/* This function updates the IIR for Transmit.  [num = port] */
-static inline void flag_IIR_transmit(int num)
-{
-  com[num].IIR.val = UART_IIR_THRI;
-}
-
-
-/* This function updates the IIR for Modem Status.  [num = port] */
-static inline void flag_IIR_modstat(int num)
-{
-  com[num].IIR.val = UART_IIR_MSI;
-}
-
-
-/* This function updates the IIR for No Interrupt.  [num = port] */
-static inline void flag_IIR_noint(int num)
-{
-  com[num].IIR.val = UART_IIR_NO_INT;
-}
-
-
 /* This function updates the queued Modem Status and Line Status registers.
  * This also updates interrupt-condition flags used to identify a potential
  * condition for the occurance of a serial interrupt.  [num = port]
  */
 static inline int check_and_update_uart_status(int num)
 {
-  int tmp;
   /* Check and update queued Line Status condition */
   if (com[num].LSRqueued & UART_LSR_ERR) {
     com[num].LSR |= (com[num].LSRqueued & UART_LSR_ERR);
@@ -379,38 +338,9 @@ static inline int check_and_update_uart_status(int num)
     com[num].int_condition &= ~MS_INTR;
   }
 
-  /* Make sure requested interrupt is still enabled, then run it.
-   * These checks are in priority order.
-   *
-   * The UART MSR and LSR status is queued until interrupt time whenever
-   * possible, to minimize the chance of 'cancelling' an interrupt
-   * condition is requested via pic_request, but before the interrupt
-   * actually runs.
-   *
-   * However, there is enough latency between pic_request() and
-   * the execution of the actual interrupt code, such that there are
-   * still cases where the UART emulation can be tricked to pic_request()
-   * an interrupt, and then the interrupt condition is satisfied *before*
-   * the interrupt code even executes!
-   */
-
-  /* Update the IIR status immediately */
-  tmp = INT_REQUEST(num);
-
-  if(s3_printf) s_printf("SER%d: tmp=%d int_cond=%d int_req=%d fifo=%i\n",
-    num, tmp, com[num].int_condition, INT_REQUEST(num),
+  if(s3_printf) s_printf("SER%d: int_cond=%d int_req=%d fifo=%i\n",
+    num, com[num].int_condition, INT_REQUEST(num),
     com[num].IIR.fifo.enable);
-
-  if (!tmp)
-    flag_IIR_noint(num);		/* No interrupt */
-  else if (tmp & LS_INTR)
-    flag_IIR_linestat(num);		/* Line Status */
-  else if (tmp & RX_INTR)
-    flag_IIR_receive(num);		/* Receive */
-  else if (tmp & TX_INTR)
-    flag_IIR_transmit(num);		/* Transmit */
-  else if (tmp & MS_INTR)
-    flag_IIR_modstat(num);		/* Modem Status */
 
   return 1;
 }

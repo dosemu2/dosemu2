@@ -105,6 +105,34 @@ void tx_buffer_slide(int num)
   com[num].tx_buf_start = 0;
 }
 
+static void clear_int_cond(int num, u_char val)
+{
+  com[num].int_condition &= ~val;
+  /* reset IIR to recalculate it later */
+  com[num].IIR.val = UART_IIR_NO_INT;
+}
+
+static void recalc_IIR(int num)
+{
+  int tmp;
+  tmp = INT_REQUEST(num);
+  if (!tmp)
+    com[num].IIR.val = UART_IIR_NO_INT;
+  else if (tmp & LS_INTR)
+    com[num].IIR.val = UART_IIR_RLSI;
+  else if (tmp & RX_INTR) {
+    /* Update the IIR for RDI status */
+    if (!com[num].IIR.fifo.enable)
+      com[num].IIR.val = UART_IIR_RDI;
+    else if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger)
+      com[num].IIR.val = (com[num].IIR.val & UART_IIR_CTI) | UART_IIR_RDI;
+    else
+      com[num].IIR.val = UART_IIR_CTI;
+  } else if (tmp & TX_INTR)
+    com[num].IIR.val = UART_IIR_THRI;
+  else if (tmp & MS_INTR)
+    com[num].IIR.val = UART_IIR_MSI;
+}
 
 /* This function checks for newly received data and fills the UART
  * FIFO (16550 mode) or receive register (16450 mode).  
@@ -210,7 +238,7 @@ void uart_clear_fifo(int num, int fifo)
     com[num].rx_buf_end = 0;		/* End of rec FIFO queue */
     com[num].rx_fifo_bytes = 0;         /* Number of bytes in emulated FIFO */
     com[num].rx_timeout = 0;		/* Receive intr already occured */
-    com[num].int_condition &= ~(LS_INTR | RX_INTR);  /* Clear LS/RX conds */
+    clear_int_cond(num, LS_INTR | RX_INTR);  /* Clear LS/RX conds */
     rx_buffer_dump(num);		/* Clear receive buffer */
   }
 
@@ -223,11 +251,9 @@ void uart_clear_fifo(int num, int fifo)
     com[num].tx_buf_end = 0;		/* End of xmit FIFO queue */
     com[num].tx_trigger = 0;            /* Transmit intr already occured */
     com[num].tx_overflow = 0;		/* Not in overflow state */
-    com[num].int_condition &= ~TX_INTR;	/* Clear TX int condition */
+    clear_int_cond(num, TX_INTR);	/* Clear TX int condition */
     tx_buffer_dump(num);		/* Clear transmit buffer */
   }
-
-  serial_int_engine(num, 0);		/* Update interrupt status */
 }
 
 
@@ -460,29 +486,22 @@ static int get_rx(int num)
     val = com[num].rx_buf[com[num].rx_buf_start];	/* Get byte */
     com[num].rx_buf_start++;
     com[num].rx_fifo_bytes--;		/* Emulated 16-byte limitation */
- 
+
     /* Did the FIFO become "empty" right now? */
     if (!com[num].rx_fifo_bytes) {
-      
+
       /* Clear the interrupt flag, and data-waiting flag. */
-      com[num].int_condition &= ~RX_INTR;
+      clear_int_cond(num, RX_INTR);
       com[num].LSR &= ~UART_LSR_DR;
       com[num].LSRqueued &= ~UART_LSR_DR;
-        
-      /* If receive interrupt is set, then update interrupt status */
-      if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RDI)
-        serial_int_engine(num, 0);		/* Update interrupt status */
     }
-      
+
     /* The FIFO is not empty, so is an interrupt flagged right now? */
     else if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RDI) {
       
       /* Did the FIFO drop below the trigger level? */
       if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger) {
-        com[num].int_condition &= ~RX_INTR;	/* Clear receive condition */
-
-        /* DANG_FIXTHIS Is this safe to put this here? */
-        serial_int_engine(num, 0);		/* Update interrupt status */
+        clear_int_cond(num, RX_INTR);	/* Clear receive condition */
       }
       else {		
         /* No, the FIFO didn't drop below trigger, but clear timeout bit */
@@ -500,16 +519,11 @@ static int get_rx(int num)
   if (RX_BUF_BYTES(num)) {
     com[num].rx_buf_start++;
   }
-  com[num].int_condition &= ~RX_INTR;
+  clear_int_cond(num, RX_INTR);
   if (!RX_BUF_BYTES(num)) {
     /* Clear data waiting status and interrupt condition flag */
     com[num].LSR &= ~UART_LSR_DR;
     com[num].LSRqueued &= ~UART_LSR_DR;
-  }
-  /* If receive interrupt is set, then update interrupt status */
-  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RDI) {
-    /* DANG_FIXTHIS Is this safe to put this here? */
-    serial_int_engine(num, 0);			/* Update interrupt stuats */
   }
 
   return val;		/* Return received byte */
@@ -555,11 +569,7 @@ get_msr(int num)
   modstat_engine(num);				/* Get the fresh MSR status */
   val = com[num].MSR;				/* Save old MSR value */
   com[num].MSR &= UART_MSR_STAT; 		/* Clear delta bits */
-  com[num].int_condition &= ~MS_INTR;		/* MSI condition satisfied */
-
-  /* If the modem status interrupt is set, update interrupt status */
-  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_MSI)
-    serial_int_engine(num, 0);			/* Update interrupt status */
+  clear_int_cond(num, MS_INTR);		/* MSI condition satisfied */
 
   return val;					/* Return MSR value */
 }
@@ -579,13 +589,9 @@ get_lsr(int num)
   int val;
 
   val = com[num].LSR;			/* Save old LSR value */
-  com[num].int_condition &= ~LS_INTR;	/* RLSI int condition satisfied */
+  clear_int_cond(num, LS_INTR);	/* RLSI int condition satisfied */
   com[num].LSR &= ~UART_LSR_ERR;	/* Clear error bits */
 
-  /* If RLSI interrupt condition is set, then update interrupt status */
-  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RLSI)
-    serial_int_engine(num, 0);		/* Update interrupt status */
-  
   return (val);                         /* Return LSR value */
 }
 
@@ -607,12 +613,8 @@ static void put_tx(int num, int val)
   /* Update the transmit timer */
   com[num].tx_timer += com[num].tx_char_time;
 #endif
-  com[num].int_condition &= ~TX_INTR;	/* TX interrupt condition satisifed */
+  clear_int_cond(num, TX_INTR);	/* TX interrupt condition satisifed */
   com[num].LSR &= ~UART_LSR_TEMT;	/* TEMT not empty */
-
-  /* If Transmit interrupt status is set, then update interrupt status */
-  if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_THRI)
-    serial_int_engine(num, 0);		/* Update interrupt status */
 
   com[num].TX = val;			/* Mainly used in overflow cases */
   com[num].tx_trigger = 1;		/* Time to trigger next tx int */
@@ -630,7 +632,6 @@ static void put_tx(int num, int val)
     case UART_LCR_WLEN5:  val &= 0x1f;  break;
     }
     if (com[num].IIR.fifo.enable) {		/* Is it in FIFO mode? */
-    
       /* Is the FIFO full? */
       if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size) {
         if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
@@ -639,7 +640,6 @@ static void put_tx(int num, int val)
         serial_int_engine(num, LS_INTR);	/* Update interrupt status */
       }
       else { /* FIFO not full */
-        
         /* Put char into recv FIFO */
         com[num].rx_buf[com[num].rx_buf_end] = val;
         com[num].rx_buf_end++;
@@ -647,7 +647,6 @@ static void put_tx(int num, int val)
 
 	/* If the buffer touches the top, slide chars to bottom of buffer */
         if ((com[num].rx_buf_end - 1) >= RX_BUFFER_SIZE) rx_buffer_slide(num);
-        
         /* Is it the past the receive FIFO trigger level? */
         if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
           com[num].rx_timeout = 0;
@@ -863,7 +862,6 @@ put_mcr(int num, int val)
     com[num].int_enab = (val & UART_MCR_OUT2) ? 1 : 0;
     if (com[num].int_enab) {
       if(s3_printf) s_printf("SER%d: Update interrupt status after MCR update\n",num);
-      serial_int_engine(num, 0);	/* Update interrupt status */
     }
 
     /* Force RTS & DTR reinitialization if the loopback state has changed */
@@ -899,18 +897,18 @@ static void
 put_lsr(int num, int val) 
 {
   int int_type = 0;
-  
+
   com[num].LSR = val & 0x1F;			/* Bits 6,7,8 are ignored */
 
   if (val & UART_LSR_ERR)                       /* Any error bits set? */
     int_type |= LS_INTR;			/* Flag RLSI interrupt */
   else
-    com[num].int_condition &= ~LS_INTR;         /* Unflag RLSI condition */
+    clear_int_cond(num, LS_INTR);         /* Unflag RLSI condition */
 
   if (val & UART_LSR_DR)                        /* Is data ready bit set? */
     int_type |= RX_INTR;			/* Flag RDI interrupt */
   else
-    com[num].int_condition &= ~RX_INTR;         /* Unflag RDI condition */
+    clear_int_cond(num, RX_INTR);         /* Unflag RDI condition */
 
   if (val & UART_LSR_THRE) {
     com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;       /* Set THRE state */
@@ -918,16 +916,18 @@ put_lsr(int num, int val)
   }
   else {
     com[num].LSR &= ~(UART_LSR_THRE | UART_LSR_TEMT);   /* Clear THRE state */
-    com[num].int_condition &= ~TX_INTR;         /* Unflag THRI condition */
+    clear_int_cond(num, TX_INTR);         /* Unflag THRI condition */
     com[num].tx_trigger = 1;                    /* Trigger next xmit int */
   }
 
   /* Update queued LSR register */
   com[num].LSRqueued = com[num].LSR;
 
-  /* Update interrupt status */
-  if(s3_printf) s_printf("SER%d: Func put_lsr caused int_type = %d\n",num,int_type);
-  serial_int_engine(num, int_type);
+  if (int_type) {
+    /* Update interrupt status */
+    if(s3_printf) s_printf("SER%d: Func put_lsr caused int_type = %d\n",num,int_type);
+    serial_int_engine(num, int_type);
+  }
 }
 
 
@@ -947,9 +947,6 @@ put_msr(int num, int val)
   if (com[num].MSRqueued & UART_MSR_DELTA) {
     if(s3_printf) s_printf("SER%d: Func put_msr requesting MS_INTR\n",num);
     serial_int_engine(num, MS_INTR);
-  }
-  else {
-    serial_int_engine(num, 0);
   }
 }
 
@@ -1005,11 +1002,12 @@ do_serial_in(int num, ioport_t address)
     break;
 
   case UART_IIR:	/* Read from Interrupt Identification Register */
+    if (com[num].IIR.val == UART_IIR_NO_INT)
+      recalc_IIR(num);
     val = com[num].IIR.val;
     if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_THRI) {
       if(s2_printf) s_printf("SER%d: Read IIR = 0x%x (THRI now cleared)\n",num,val);
-      com[num].int_condition &= ~TX_INTR;	/* Unflag TX int condition */
-      serial_int_engine(num, 0);		/* Update interrupt status */
+      clear_int_cond(num, TX_INTR);	/* Unflag TX int condition */
     }
     else {
       if(s2_printf) s_printf("SER%d: Read IIR = 0x%x\n",num,val);
@@ -1104,7 +1102,6 @@ do_serial_out(int num, ioport_t address, int val)
       }
       com[num].IER = (val & 0xF);	/* Write to IER */
       if(s1_printf) s_printf("SER%d: Write IER = 0x%x\n", num, val);
-      serial_int_engine(num, 0);		/* Update interrupt status */
     }
     break;
 
@@ -1144,6 +1141,7 @@ do_serial_out(int num, ioport_t address, int val)
     break;
   }
 
+  serial_int_engine(num, 0);		/* Update interrupt status */
   serial_run();		/* See if some work is to be done */
 
   return 0;
