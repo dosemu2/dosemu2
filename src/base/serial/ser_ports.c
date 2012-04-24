@@ -226,7 +226,6 @@ void uart_clear_fifo(int num, int fifo)
     com[num].int_condition &= ~TX_INTR;	/* Clear TX int condition */
     tx_buffer_dump(num);		/* Clear transmit buffer */
   }
-  com[num].IIR &= ~UART_IIR_FIFO;
 
   serial_int_engine(num, 0);		/* Update interrupt status */
 }
@@ -738,16 +737,15 @@ put_fcr(int num, int val)
     /* fifos are reset when we change from 16450 to 16550 mode.*/
     if (!(com[num].FCReg & UART_FCR_ENABLE_FIFO))
       uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
+    else if (val & UART_FCR_CLEAR_CMD)
+      /* Commands to reset either of the two fifos.  The clear-FIFO bits
+       * are disposed right after the FIFO's are cleared, and are not saved.
+       */
+      uart_clear_fifo(num, val & UART_FCR_CLEAR_CMD);
 
     /* Various flags to indicate that fifos are enabled. */
     com[num].FCReg = (val & ~UART_FCR_TRIGGER_14) | UART_FCR_ENABLE_FIFO;
     com[num].IIR |= UART_IIR_FIFO;
-
-    /* Commands to reset either of the two fifos.  The clear-FIFO bits
-     * are disposed right after the FIFO's are cleared, and are not saved.
-     */
-    if (val & UART_FCR_CLEAR_CMD)
-      uart_clear_fifo(num, val & UART_FCR_CLEAR_CMD);
 
     /* Don't need to emulate RXRDY,TXRDY pins, used for bus-mastering. */
     if (val & UART_FCR_DMA_SELECT) {
