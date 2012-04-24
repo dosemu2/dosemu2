@@ -56,7 +56,7 @@ static void vesa_reinit(void)
     v_printf("No VESA bios detected!\n");
     if (config.gfxmemsize < 0) config.gfxmemsize = 256;
     vesa_regs_size = 0;
-    vesa_linear_vbase = 0;
+    vesa_linear_vbase = -1;
     goto out;
   }
 
@@ -77,7 +77,7 @@ static void vesa_reinit(void)
 
   vesa_granularity = 64;
   vesa_read_write = 6;
-  vesa_linear_vbase = 0;
+  vesa_linear_vbase = -1;
 
   vesa_r.eax = 0x4f01;
   vesa_r.ecx = vesa_version >= 0x200 ? 0x81ff : 0x101;
@@ -88,9 +88,7 @@ static void vesa_reinit(void)
     vesa_granularity= VBE_vmWinGran;
     vesa_read_write = VBE_vmWinAAttrib & 6;
     if (vesa_version >= 0x200 && (VBE_vmModeAttrib & 0x80) && config.pci_video) {
-      unsigned char *p = get_hardware_ram(VBE_vmPhysBasePtr);
-      if (p)
-        vesa_linear_vbase = p - mem_base;
+      vesa_linear_vbase = get_hardware_ram(VBE_vmPhysBasePtr);
       v_printf("VESA: physical base = %x, virtual base = %x\n",
 	       VBE_vmPhysBasePtr, vesa_linear_vbase);
     }
@@ -208,13 +206,13 @@ unsigned vesa_get_lfb(void)
 #if 0
   vesa_r.eax = 0x4f02;
   /* 0x81ff | 0x4000 is the special "all memory access mode" + LFB */
-  vesa_r.ebx = vesa_linear_vbase ? 0xc1ff :
+  vesa_r.ebx = (vesa_linear_vbase != -1) ? 0xc1ff :
     vesa_version >= 0x200 ? 0x81ff : 0x101;
   do_int10_callback(&vesa_r);
   if ((vesa_r.eax & 0xffff) != 0x4f)
     return GRAPH_BASE;
 #endif
-  if (vesa_linear_vbase)
+  if (vesa_linear_vbase != -1)
     return vesa_linear_vbase;
   return GRAPH_BASE;
 }

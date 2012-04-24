@@ -106,7 +106,7 @@ void mapping_close(void);
 
 void map_hardware_ram(void);
 int register_hardware_ram(int type, unsigned base, unsigned size);
-void *get_hardware_ram(unsigned addr);
+unsigned get_hardware_ram(unsigned addr);
 void list_hardware_ram(void (*print)(const char *, ...));
 
 #endif /* _MAPPING_H_ */

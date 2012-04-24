@@ -482,7 +482,7 @@ int munmap_mapping(int cap, void *addr, size_t mapsize)
 
 struct hardware_ram {
   size_t base;
-  void *vbase;
+  unsigned vbase;
   size_t size;
   int type;
   struct hardware_ram *next;
@@ -502,23 +502,26 @@ void map_hardware_ram(void)
 {
   struct hardware_ram *hw;
   int cap;
+  unsigned char *p;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (!hw->type || hw->type == 'e') { /* virtual hardware ram, base==vbase */ 
-      hw->vbase = &mem_base[hw->base];
+      hw->vbase = hw->base;
       continue;
     }
     cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
     if (hw->base < LOWMEM_SIZE)
-      hw->vbase = &mem_base[hw->base];
+      hw->vbase = hw->base;
     alloc_mapping(cap, hw->size, hw->base);
-    hw->vbase = mmap_mapping(cap, hw->vbase, hw->size, PROT_READ | PROT_WRITE,
-			     hw->base);
-    if (hw->vbase == MAP_FAILED) {
+    p = hw->vbase == -1 ? (void *)-1 : &mem_base[hw->vbase];
+    p = mmap_mapping(cap, p, hw->size, PROT_READ | PROT_WRITE,
+		     hw->base);
+    if (p == MAP_FAILED) {
       error("mmap error in map_hardware_ram %s\n", strerror (errno));
       return;
     }
-    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %p\n",
+    hw->vbase = p - mem_base;
+    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
   }
 }
@@ -535,9 +538,9 @@ int register_hardware_ram(int type, unsigned int base, unsigned int size)
   hw = malloc(sizeof(*hw));
   hw->base = base;
   if (type == 'e')
-    hw->vbase = &mem_base[base];
+    hw->vbase = base;
   else
-    hw->vbase = MAP_FAILED;
+    hw->vbase = -1;
   hw->size = size;
   hw->type = type;
   hw->next = hardware_ram;
@@ -547,16 +550,16 @@ int register_hardware_ram(int type, unsigned int base, unsigned int size)
   return 1;
 }
 
-/* given physical address addr, gives the corresponding vbase or NULL */
-void *get_hardware_ram(unsigned addr)
+/* given physical address addr, gives the corresponding vbase or -1 */
+unsigned get_hardware_ram(unsigned addr)
 {
   struct hardware_ram *hw;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next)
-    if (hw->vbase != MAP_FAILED &&
+    if (hw->vbase != -1 &&
 	hw->base <= addr && addr < hw->base + hw->size)
-      return hw->vbase +  addr - hw->base;
-  return NULL;
+      return hw->vbase + addr - hw->base;
+  return -1;
 }
 
 void list_hardware_ram(void (*print)(const char *, ...))

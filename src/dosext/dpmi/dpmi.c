@@ -2394,7 +2394,6 @@ err:
     break;
 
   case 0x0800: {	/* create Physical Address Mapping */
-      unsigned char *p;
       unsigned addr, size, vbase;
 
       addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
@@ -2402,12 +2401,11 @@ err:
 
       D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
 
-      p = get_hardware_ram(addr);
-      if (p == 0) {
+      vbase = get_hardware_ram(addr);
+      if (vbase == -1) {
 	_eflags |= CF;
 	break;
       }
-      vbase = p - mem_base;
       _LWORD(ebx) = vbase >> 16;
       _LWORD(ecx) = vbase;
       D_printf("DPMI: getting physical memory area at 0x%x, size 0x%x, "
