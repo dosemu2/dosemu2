@@ -328,7 +328,6 @@ void ser_set_params(int num)
   com[num].MSR = 0;			/* Modem Status Register */
   com[num].MSRqueued = 0;		/* Queued MSR bits */
   com[num].SCR = 0; 			/* Scratch Register */
-  com[num].int_enab = 0;		/* FLAG: Interrupts disabled */
   com[num].int_condition = 0;		/* FLAG: No int conditions set */
   com[num].IIR.fifo_enable = 0;		/* FLAG: FIFO enabled */
   com[num].ms_timer = 0;		/* Modem Status check timer */

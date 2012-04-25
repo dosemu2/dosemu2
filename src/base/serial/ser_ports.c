@@ -844,8 +844,7 @@ put_mcr(int num, int val)
     }
 
     /* Set interrupt enable flag according to OUT2 bit in MCR */
-    com[num].int_enab = (val & UART_MCR_OUT2) ? 1 : 0;
-    if (com[num].int_enab) {
+    if (INT_ENAB(num)) {
       if(s3_printf) s_printf("SER%d: Update interrupt status after MCR update\n",num);
     }
 
