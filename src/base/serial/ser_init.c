@@ -328,12 +328,11 @@ void ser_set_params(int num)
   com[num].MSR = 0;			/* Modem Status Register */
   com[num].MSRqueued = 0;		/* Queued MSR bits */
   com[num].SCR = 0; 			/* Scratch Register */
-  com[num].int_condition = 0;		/* FLAG: No int conditions set */
+  com[num].int_condition = TX_INTR;	/* FLAG: Pending xmit intr */
   com[num].IIR.fifo_enable = 0;		/* FLAG: FIFO enabled */
   com[num].ms_timer = 0;		/* Modem Status check timer */
   com[num].rx_timer = 0;		/* Receive read() polling timer */
   com[num].tx_timer = 0;		/* Transmi countdown to next char */
-  com[num].tx_trigger = 0;		/* FLAG: Dont start more xmit ints */
   com[num].rx_timeout = TIMEOUT_RX;	/* FLAG: Receive timeout */
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */

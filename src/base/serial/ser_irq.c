@@ -164,7 +164,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
     queued = 0;
   if (debug_level('s') > 5)
     s_printf("SER%d: buf=%i queued=%i trig=%i\n", num,
-	TX_BUF_BYTES(num), queued, com[num].tx_trigger);
+	TX_BUF_BYTES(num), queued, TX_TRIGGER(num));
 
   if (com[num].IIR.fifo.enable) {  /* Is FIFO enabled? */
     /* Clear as much of the transmit FIFO as possible! */
@@ -177,16 +177,14 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
       return;		/* return and give the system time to transfer */
     }
     /* Is FIFO empty, and is it time to trigger an xmit int? */
-    if (!TX_BUF_BYTES(num) && queued <= QUEUE_THRESHOLD && com[num].tx_trigger) {
-      com[num].tx_trigger = 0;
+    if (!TX_BUF_BYTES(num) && queued <= QUEUE_THRESHOLD && TX_TRIGGER(num)) {
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
       serial_int_engine(num, TX_INTR);		/* Update interrupt status */
     }
   }
   else {					/* Not in FIFO mode */
-    if (com[num].tx_trigger && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
-      com[num].tx_trigger = 0;
+    if (TX_TRIGGER(num) && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
       serial_int_engine(num, TX_INTR);		/* Update interrupt status */
@@ -344,8 +342,7 @@ void serial_int_engine(int num, int int_requested)
   /* Safety code to avoid receive and transmit while DLAB is set high */
   if (com[num].DLAB) int_requested &= ~(RX_INTR | TX_INTR);
 
-  if (com[num].tx_trigger) {
-    com[num].tx_timer = 0;
+  if (TX_TRIGGER(num)) {
     transmit_engine(num);
   }
 

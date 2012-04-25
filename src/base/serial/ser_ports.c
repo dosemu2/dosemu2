@@ -249,7 +249,6 @@ void uart_clear_fifo(int num, int fifo)
     com[num].LSRqueued &= ~(UART_LSR_TEMT | UART_LSR_THRE);
     com[num].tx_buf_start = 0;		/* Start of xmit FIFO queue */
     com[num].tx_buf_end = 0;		/* End of xmit FIFO queue */
-    com[num].tx_trigger = 0;            /* Transmit intr already occured */
     clear_int_cond(num, TX_INTR);	/* Clear TX int condition */
     tx_buffer_dump(num);		/* Clear transmit buffer */
   }
@@ -612,7 +611,6 @@ static void put_tx(int num, int val)
   com[num].tx_timer += com[num].tx_char_time;
 #endif
   clear_int_cond(num, TX_INTR);	/* TX interrupt condition satisifed */
-  com[num].tx_trigger = 1;		/* Time to trigger next tx int */
 
   /* Loop-back writes.  Parity is currently not calculated.  No
    * UART diagnostics programs including COMTEST.EXE, that I tried,
@@ -897,7 +895,6 @@ put_lsr(int num, int val)
   else {
     com[num].LSR &= ~(UART_LSR_THRE | UART_LSR_TEMT);   /* Clear THRE state */
     clear_int_cond(num, TX_INTR);         /* Unflag THRI condition */
-    com[num].tx_trigger = 1;                    /* Trigger next xmit int */
   }
 
   /* Update queued LSR register */
@@ -1076,12 +1073,16 @@ do_serial_out(int num, ioport_t address, int val)
       if(s2_printf) s_printf("SER%d: Divisor MSB = 0x%x\n", num, val);
     }
     else {			/* Else, write to Interrupt Enable Register */
+      int tflg = 0;
       if ( !(com[num].IER & 2) && (val & 2) ) {
         /* Flag to allow THRI if enable THRE went from state 0 -> 1 */
-        com[num].tx_trigger = 1;
+        tflg = 1;
+        com[num].int_condition |= TX_INTR;	// is this needed?
       }
       com[num].IER = (val & 0xF);	/* Write to IER */
       if(s1_printf) s_printf("SER%d: Write IER = 0x%x\n", num, val);
+      if (tflg && (com[num].int_condition & TX_INTR))
+        serial_int_engine(num, TX_INTR);
     }
     break;
 

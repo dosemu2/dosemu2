@@ -88,7 +88,6 @@ typedef struct {
   				/*   TRANSMIT  */
   long int tx_timer;            /* Countdown to next char being xmitted */
   long int tx_char_time;        /* Number of 115200ths of sec per char */
-  u_char tx_trigger;		/* Flag whether Xmit int should be triggered */
   				/*   MISCELLANEOUS  */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
   speed_t newbaud;		/* Currently set bps rate */
@@ -129,6 +128,7 @@ EXTERN serial_t com[MAX_SER];
 #define TX_BUF_BYTES(num) (com[num].tx_buf_end - com[num].tx_buf_start)
 #define INT_REQUEST(num)  (com[num].int_condition & com[num].IER)
 #define INT_ENAB(num)  (com[num].MCR & UART_MCR_OUT2)
+#define TX_TRIGGER(num) (!(com[num].LSR & UART_LSR_THRE))
 
 extern int int14(void);
 extern void serial_run(void);
