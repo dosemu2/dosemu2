@@ -89,7 +89,6 @@ typedef struct {
   long int tx_timer;            /* Countdown to next char being xmitted */
   long int tx_char_time;        /* Number of 115200ths of sec per char */
   u_char tx_trigger;		/* Flag whether Xmit int should be triggered */
-  u_char tx_overflow;		/* Full outgoing buffer flag. */
   				/*   MISCELLANEOUS  */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
   u_char int_enab;		/* Interrupt Enabled flag (OUT2 of MCR) */
@@ -99,8 +98,6 @@ typedef struct {
   /* The following are serial port registers */
   int dll, dlm;		/* Baudrate divisor LSB and MSB */
   u_char DLAB;		/* Divisor Latch enabled */
-  u_char TX;		/* Transmit Holding Register */
-  u_char RX;		/* Received Data Register */
   u_char IER;		/* Interrupt Enable Register */
   struct iir IIR;	/* Interrupt Identification Register */
   u_char LCR;		/* Line Control Register */

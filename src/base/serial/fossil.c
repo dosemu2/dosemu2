@@ -225,17 +225,18 @@ void fossil_int14(int num)
 
   /* Write character (without wait) */
   case 0x0b:
-    if (!com[num].tx_overflow){
+    /* hope fifo doesn't overflow */
+    if (com[num].IIR.fifo_enable || (com[num].LSR & UART_LSR_THRE)) {
       write_char(num, LO(ax));
-      LWORD(eax)= 1;
+      LWORD(eax) = 1;
     #if SER_DEBUG_FOSSIL_RW
       s_printf("SER%d: FOSSIL 0x0b: Write char 0x%02x, return AX=%d\n", num, LO(ax), 1);
     #endif
     } else {
     #if SER_DEBUG_FOSSIL_RW
-      s_printf("SER%d: FOSSIL 0x0b: Write char 0x%02x, return AX=%d\n", num, LO(ax), !com[num].tx_overflow);
+      s_printf("SER%d: FOSSIL 0x0b: Write char 0x%02x, return AX=0\n", num, LO(ax));
     #endif
-    LWORD(eax) = !com[num].tx_overflow;
+      LWORD(eax) = 0;
     }
     break;
 
@@ -266,17 +267,17 @@ void fossil_int14(int num)
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
     int n = 0, len = LWORD(ecx);
     while (n < len) {
-      if (com[num].tx_overflow)
+      if (!com[num].IIR.fifo_enable)
         break;
       write_char(num, p[n++]);
     }
     LWORD(eax) = n;
     #if SER_DEBUG_FOSSIL_RW
       s_printf("SER%d: FOSSIL 0x19: Block write, %d/%d bytes\n", num, n, len);
-    #endif  
+    #endif
     break;
   }
-  
+
   /* Get FOSSIL driver info. */
   case 0x1b:
   {

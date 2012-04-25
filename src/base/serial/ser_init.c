@@ -316,8 +316,6 @@ void ser_set_params(int num)
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
   com[num].tx_char_time = DIV_2400 * 10;/* 115200ths of second per char */
-  com[num].TX = 0;			/* Transmit Holding Register */
-  com[num].RX = 0;			/* Received Byte Register */
   com[num].IER = 0;			/* Interrupt Enable Register */
   com[num].IIR.val = UART_IIR_NO_INT;	/* Interrupt I.D. Register */
   com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
@@ -338,7 +336,6 @@ void ser_set_params(int num)
   com[num].tx_timer = 0;		/* Transmi countdown to next char */
   com[num].tx_trigger = 0;		/* FLAG: Dont start more xmit ints */
   com[num].rx_timeout = TIMEOUT_RX;	/* FLAG: Receive timeout */
-  com[num].tx_overflow = 0;		/* FLAG: Outgoing buffer overflow */
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
 

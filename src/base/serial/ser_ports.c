@@ -250,7 +250,6 @@ void uart_clear_fifo(int num, int fifo)
     com[num].tx_buf_start = 0;		/* Start of xmit FIFO queue */
     com[num].tx_buf_end = 0;		/* End of xmit FIFO queue */
     com[num].tx_trigger = 0;            /* Transmit intr already occured */
-    com[num].tx_overflow = 0;		/* Not in overflow state */
     clear_int_cond(num, TX_INTR);	/* Clear TX int condition */
     tx_buffer_dump(num);		/* Clear transmit buffer */
   }
@@ -608,15 +607,13 @@ get_lsr(int num)
  */
 static void put_tx(int num, int val)
 {
-  int rtrn;
-#if 0  
+#if 0
   /* Update the transmit timer */
   com[num].tx_timer += com[num].tx_char_time;
 #endif
   clear_int_cond(num, TX_INTR);	/* TX interrupt condition satisifed */
   com[num].LSR &= ~UART_LSR_TEMT;	/* TEMT not empty */
 
-  com[num].TX = val;			/* Mainly used in overflow cases */
   com[num].tx_trigger = 1;		/* Time to trigger next tx int */
 
   /* Loop-back writes.  Parity is currently not calculated.  No
@@ -679,31 +676,19 @@ static void put_tx(int num, int val)
 
   if (com[num].IIR.fifo.enable) {			/* Is FIFO enabled? */
     if (TX_BUF_BYTES(num) >= TX_BUFFER_SIZE) {	/* Is FIFO already full? */
-      /* try to write the character directly to the tty, hoping it
-       * will be queued there. Hmmm... */
-      rtrn = RPT_SYSCALL(write(com[num].fd,&com[num].tx_buf[com[num].tx_buf_start],1));
-      if (rtrn != 1) {				/* Did transmit fail? */
-        com[num].tx_overflow = 1;		/* Set overflow flag */
-      }
-      else {
-        /* char written */
-        com[num].tx_buf_start++;
-        /* Squeeze char into FIFO */
-        tx_buffer_slide(num);
-        com[num].tx_buf[com[num].tx_buf_end] = val;
-        /* Update FIFO queue pointers */
-        com[num].tx_buf_end++;
-      }
-    } 
+      /* Squeeze char into FIFO */
+      tx_buffer_slide(num);
+      com[num].tx_buf[com[num].tx_buf_end - 1] = val;
+    }
     else {					/* FIFO not full */
       com[num].tx_buf[com[num].tx_buf_end] = val;  /* Put char into FIFO */
       com[num].tx_buf_end++;
-    } 
-  } 
+    }
+  }
   else { 				/* Not in FIFO mode */
-    rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
+    int rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
     if (rtrn != 1) 				/* Did transmit fail? */
-      com[num].tx_overflow = 1; 		/* Set overflow flag */
+      s_printf("SER%d: write failed! %s\n", num, strerror(errno)); 		/* Set overflow flag */
 #if 0
     /* This slows the transfer. There might be better way of avoiding
      * queueing. */

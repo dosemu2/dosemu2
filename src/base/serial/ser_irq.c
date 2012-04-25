@@ -167,24 +167,6 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 	TX_BUF_BYTES(num), queued, com[num].tx_trigger);
 
   if (com[num].IIR.fifo.enable) {  /* Is FIFO enabled? */
-    if (com[num].tx_overflow){
-      if(RPT_SYSCALL(write(com[num].fd,
-        &com[num].tx_buf[com[num].tx_buf_start], 1))!=1) {
-        return;  /* write error */
-      } else {
-        /* char was written */
-        com[num].tx_buf_start++;
-        /* Squeeze char into FIFO */
-	tx_buffer_slide(num);
-        com[num].tx_buf[com[num].tx_buf_end] = com[num].TX ;
-        /* Update FIFO queue pointers */
-        com[num].tx_buf_end++;
-	if (com[num].tx_buf_end > TX_BUFFER_SIZE) {
-	  error("SER%d: BUG: transmit buffer overflowed, couldn't happen...\n", num);
-	}
-        com[num].tx_overflow = 0;                  /* Exit overflow state */
-      }
-    }
     /* Clear as much of the transmit FIFO as possible! */
     if (TX_BUF_BYTES(num)) {
       rtrn = RPT_SYSCALL(write(com[num].fd,
@@ -203,12 +185,6 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
     }
   }
   else {					/* Not in FIFO mode */
-    if (com[num].tx_overflow) {        /* Is it in overflow state? */
-      rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX, 1));  /* Write port */
-      if (rtrn == 1)                               /* Did it succeed? */
-        com[num].tx_overflow = 0;                  /* Exit overflow state */
-      return;
-    }
     if (com[num].tx_trigger && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
@@ -410,7 +386,7 @@ int pic_serial_run(int ilevel)
 {
   int i, ret = 0;
 
-  for (i = 0; i < MAX_SER; i++) {
+  for (i = 0; i < config.num_ser; i++) {
     if (com[i].interrupt != ilevel)
       continue;
     /* Update the queued Modem Status and Line Status values. */
