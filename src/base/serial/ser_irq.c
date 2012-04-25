@@ -115,7 +115,7 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
       if (com[num].rx_timeout) {		/* Has get_rx run since int? */
         com[num].rx_timeout--;			/* Decrement counter */
         if (!com[num].rx_timeout) {		/* Has timeout counted down? */
-          com[num].LSRqueued |= UART_LSR_DR;
+          com[num].LSR |= UART_LSR_DR;
           if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
           serial_int_engine(num, RX_INTR);	/* Update interrupt status */
         }
@@ -168,17 +168,17 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
     }
     /* Is FIFO empty, and is it time to trigger an xmit int? */
     if (!TX_BUF_BYTES(num) && queued <= QUEUE_THRESHOLD && TX_TRIGGER(num)) {
-      com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
+      com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
       serial_int_engine(num, TX_INTR);		/* Update interrupt status */
     }
   }
   else {					/* Not in FIFO mode */
     if (TX_TRIGGER(num) && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
-      com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
+      com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
       serial_int_engine(num, TX_INTR);		/* Update interrupt status */
-    }  
+    }
   }
 }
 
@@ -211,21 +211,15 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
              convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
              convert_bit(control, TIOCM_CAR, UART_MSR_DCD);
   }
-           
+
   delta = msr_compute_delta_bits(com[num].MSR, newmsr);
-  
-  com[num].MSRqueued = (com[num].MSRqueued & UART_MSR_DELTA) | newmsr | delta;
+
+  com[num].MSR = (com[num].MSR & UART_MSR_DELTA) | newmsr | delta;
 
   if (delta) {
     if(s2_printf) s_printf("SER%d: Modem Status Change: MSR -> 0x%x\n",num,newmsr);
     if(s3_printf) s_printf("SER%d: Func modstat_engine requesting MS_INTR\n",num);
     serial_int_engine(num, MS_INTR);		/* Update interrupt status */
-  }
-  else if ( !(com[num].MSRqueued & UART_MSR_DELTA)) {
-    /* No interrupt is going to occur, keep MSR updated including
-     * leading-edge RI signal which does not cause an interrupt 
-     */
-    com[num].MSR = com[num].MSRqueued;
   }
 }
 
@@ -253,63 +247,6 @@ void linestat_engine(int num)           /* Internal Line Status processing */
 }
 #endif
 
-/* This function updates the queued Modem Status and Line Status registers.
- * This also updates interrupt-condition flags used to identify a potential
- * condition for the occurance of a serial interrupt.  [num = port]
- */
-static inline int check_and_update_uart_status(int num)
-{
-  /* Check and update queued Line Status condition */
-  if (com[num].LSRqueued & UART_LSR_ERR) {
-    com[num].LSR |= (com[num].LSRqueued & UART_LSR_ERR);
-    com[num].LSRqueued &= ~UART_LSR_ERR;
-    com[num].int_condition |= LS_INTR;
-  }
-  else if (! (com[num].LSR & UART_LSR_ERR)) {
-    com[num].int_condition &= ~LS_INTR;
-  }
-
-  /* Check and updated queued Receive condition. */
-  /* Safety check, avoid receive interrupt while DLAB is set high */
-  if ((com[num].LSRqueued & UART_LSR_DR) && !com[num].DLAB) {
-    com[num].rx_timeout = 0;
-    com[num].LSR |= UART_LSR_DR;
-    com[num].LSRqueued &= ~UART_LSR_DR;
-    com[num].int_condition |= RX_INTR;
-  }
-  else if ( !(com[num].LSR & UART_LSR_DR)) {
-    com[num].int_condition &= ~RX_INTR;
-  }
-
-  /* Check and update queued Transmit condition */
-  /* Safety check, avoid transmit interrupt while DLAB is set high */
-  if ((com[num].LSRqueued & UART_LSR_THRE) && !com[num].DLAB) {
-    com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
-    com[num].LSRqueued &= ~(UART_LSR_TEMT | UART_LSR_THRE);
-    com[num].int_condition |= TX_INTR;
-  }
-  else if ( !(com[num].LSR & UART_LSR_THRE)) {
-    com[num].int_condition &= ~TX_INTR;
-  }
-
-  /* Check and update queued Modem Status condition */
-  if (com[num].MSRqueued & UART_MSR_DELTA) {
-    com[num].MSR = (com[num].MSR & UART_MSR_DELTA) | com[num].MSRqueued;
-    com[num].MSRqueued &= ~(UART_MSR_DELTA);
-    com[num].int_condition |= MS_INTR;
-  }
-  else if ( !(com[num].MSR & UART_MSR_DELTA)) {
-    com[num].int_condition &= ~MS_INTR;
-  }
-
-  if(s3_printf) s_printf("SER%d: int_cond=%d int_req=%d fifo=%i\n",
-    num, com[num].int_condition, INT_REQUEST(num),
-    com[num].IIR.fifo.enable);
-
-  return 1;
-}
-
-
 /* DANG_BEGIN_FUNCTION serial_int_engine
  *
  * This function is the serial interrupts scheduler.  Its purpose is to
@@ -336,9 +273,9 @@ void serial_int_engine(int num, int int_requested)
     transmit_engine(num);
   }
 
-  check_and_update_uart_status(num);
   if (!int_requested && !com[num].int_condition)
     return;
+  com[num].int_condition |= int_requested;
 
   /* At this point, we don't much care which function is requested; that
    * is taken care of in the serial_int_engine.  However, if interrupts are
@@ -346,7 +283,7 @@ void serial_int_engine(int num, int int_requested)
    */
 
   /* See if a requested interrupt is enabled */
-  if (INT_ENAB(num) && com[num].interrupt && (com[num].int_condition & com[num].IER)) {
+  if (INT_ENAB(num) && com[num].interrupt && INT_REQUEST(num)) {
       if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
                  num, com[num].interrupt, int_requested);
       pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
@@ -376,8 +313,6 @@ int pic_serial_run(int ilevel)
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].interrupt != ilevel)
       continue;
-    /* Update the queued Modem Status and Line Status values. */
-    check_and_update_uart_status(i);
     if (INT_REQUEST(i))
       ret++;
   }

@@ -324,9 +324,7 @@ void ser_set_params(int num)
   com[num].rx_fifo_trigger = 1;		/* Receive FIFO trigger level */
   com[num].MCR = 0;			/* Modem Control Register */
   com[num].LSR = UART_LSR_TEMT | UART_LSR_THRE;   /* Txmit Hold Reg Empty */
-  com[num].LSRqueued = 0;		/* Queued LSR bits */
   com[num].MSR = 0;			/* Modem Status Register */
-  com[num].MSRqueued = 0;		/* Queued MSR bits */
   com[num].SCR = 0; 			/* Scratch Register */
   com[num].int_condition = TX_INTR;	/* FLAG: Pending xmit intr */
   com[num].IIR.fifo_enable = 0;		/* FLAG: FIFO enabled */

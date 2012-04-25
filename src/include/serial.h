@@ -103,8 +103,6 @@ typedef struct {
   u_char LSR;		/* Line Status Register */
   u_char MSR;		/* Modem Status Register */
   u_char SCR;		/* Scratch Pad Register */
-  u_char LSRqueued;     /* One-byte LSR queue for interrupts */
-  u_char MSRqueued;     /* One-byte MSR queue for interrupts */
 
   /* The following are the transmit and receive buffer variables
    * They are bigger than the 16 bytes of a real FIFO to improve
