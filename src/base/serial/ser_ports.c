@@ -612,8 +612,6 @@ static void put_tx(int num, int val)
   com[num].tx_timer += com[num].tx_char_time;
 #endif
   clear_int_cond(num, TX_INTR);	/* TX interrupt condition satisifed */
-  com[num].LSR &= ~UART_LSR_TEMT;	/* TEMT not empty */
-
   com[num].tx_trigger = 1;		/* Time to trigger next tx int */
 
   /* Loop-back writes.  Parity is currently not calculated.  No
@@ -695,9 +693,7 @@ static void put_tx(int num, int val)
     else tcdrain(com[num].fd);
 #endif
   }
-  if (!com[num].IIR.fifo.enable ||
-       TX_BUF_BYTES(num) >= (TX_BUFFER_SIZE-1)) 	/* Is FIFO full? */
-      com[num].LSR &= ~UART_LSR_THRE;		/* THR full */
+  com[num].LSR &= ~(UART_LSR_THRE | UART_LSR_TEMT);		/* THR full */
 
   transmit_engine(num);
 }
