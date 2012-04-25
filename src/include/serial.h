@@ -92,7 +92,6 @@ typedef struct {
   				/*   MISCELLANEOUS  */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
   u_char int_enab;		/* Interrupt Enabled flag (OUT2 of MCR) */
-  u_char uart_full;		/* UART full flag */
   speed_t newbaud;		/* Currently set bps rate */
 
   /* The following are serial port registers */
