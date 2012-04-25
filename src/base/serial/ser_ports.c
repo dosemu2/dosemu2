@@ -172,15 +172,16 @@ void uart_fill(int num)
         return;
       if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
         size, RX_BUF_BYTES(num));
-#if 0    
+#if 0
       if (size == 0) { 				/* No characters read? */
         com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
       }
       else
 #endif
       if (size > 0) {		/* Note that size is -1 if error */
-        com[num].rx_timeout = TIMEOUT_RX;	/* Reset timeout counter */
         com[num].rx_buf_end += size;
+        if (com[num].IIR.fifo.enable)
+          com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
       }
 #if 0
     }
@@ -188,10 +189,8 @@ void uart_fill(int num)
   }
 
   if (RX_BUF_BYTES(num)) {		/* Is data waiting in the buffer? */
+    com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
     if (com[num].IIR.fifo.enable) {		/* Is it in 16550 FIFO mode? */
-
-      com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
-
       /* The following code is to emulate the 16 byte (configurable)
        * limitation of the receive FIFO, for compatibility purposes.
        * Reset the receive FIFO counter up to a value of 16 (configurable)
@@ -200,21 +199,19 @@ void uart_fill(int num)
       com[num].rx_fifo_bytes = RX_BUF_BYTES(num);
       if (com[num].rx_fifo_bytes > com[num].rx_fifo_size)
 	      com[num].rx_fifo_bytes = com[num].rx_fifo_size;
-      
+
       /* Has it gone above the receive FIFO trigger level? */
       if (com[num].rx_fifo_bytes >= com[num].rx_fifo_trigger) {
         if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
+        com[num].rx_timeout = 0;			/* Reset receive timeout */
         com[num].LSRqueued |= UART_LSR_DR;	/* Update queued LSR */
         serial_int_engine(num, RX_INTR);	/* Update interrupt status */
       }
-      return;
+    } else {
+      /* Else, the following code executes if emulated UART is in 16450 mode. */
+      if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
+      serial_int_engine(num, RX_INTR);		/* Update interrupt status */
     }
-    /* Else, the following code executes if emulated UART is in 16450 mode. */    
-
-    com[num].rx_timeout = 0;			/* Reset receive timeout */
-    com[num].LSRqueued |= UART_LSR_DR;		/* Update queued LSR */
-    if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
-    serial_int_engine(num, RX_INTR);		/* Update interrupt status */
   }
 }
 
@@ -460,7 +457,7 @@ void ser_termios(int num)
 static int get_rx(int num)
 {
   int val;
-  com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
+  com[num].rx_timeout = 0;		/* Reset timeout counter */
 
   /* If the Received-Data-Ready bit is clear then return a 0
    * since we're not supposed to read from the buffer right now!
@@ -618,7 +615,7 @@ static void put_tx(int num, int val)
    * Even some real UART clones don't calculate parity during loopback.
    */
   if (com[num].MCR & UART_MCR_LOOP) {
-    com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
+    com[num].rx_timeout = 0;		/* Reset timeout counter */
     switch (com[num].LCR & UART_LCR_WLEN8) {	/* Word size adjustment */
     case UART_LCR_WLEN7:  val &= 0x7f;  break;
     case UART_LCR_WLEN6:  val &= 0x3f;  break;

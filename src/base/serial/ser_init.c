@@ -333,7 +333,7 @@ void ser_set_params(int num)
   com[num].ms_timer = 0;		/* Modem Status check timer */
   com[num].rx_timer = 0;		/* Receive read() polling timer */
   com[num].tx_timer = 0;		/* Transmi countdown to next char */
-  com[num].rx_timeout = TIMEOUT_RX;	/* FLAG: Receive timeout */
+  com[num].rx_timeout = 0;		/* FLAG: No Receive timeout */
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
 
