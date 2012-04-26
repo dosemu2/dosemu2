@@ -9,6 +9,11 @@
 #include "translate.h"
 #define CONFIG_SELECTION 1
 
+/********************************************/
+
+#define ATTR_FG(attrib) (attrib & 0x0F & vga.attr.data[0x12])
+#define ATTR_BG(attrib) (attrib >> 4)
+
 extern Boolean have_focus;
 extern int use_bitmap_font;
 

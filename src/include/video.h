@@ -57,11 +57,6 @@ void init_dualmon(void);
 #define MAX_COLUMNS 255
 #define MAX_LINES 128
 
-/********************************************/
-
-#define ATTR_FG(attr) (attr & 0x0F)
-#define ATTR_BG(attr) (attr >> 4)
-
 /***********************************************************************/
 
 /* Here's an idea to clean up the video code: Build a 'virtual' video
