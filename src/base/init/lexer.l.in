@@ -523,6 +523,7 @@ baudrate		RETURN(BAUDRATE);
 device			RETURN(DEVICE);
 com                     RETURN(COM);
 virtual			RETURN(VIRTUAL);
+pseudo			RETURN(PSEUDO);
 
 	/* lock file stuff */
 directory              RETURN(DIRECTORY);
