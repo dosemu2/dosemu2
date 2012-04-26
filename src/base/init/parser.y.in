@@ -1879,10 +1879,14 @@ static void stop_serial(void)
     c_printf("SER: too many ports, ignoring %s\n", sptr->dev);
     return;
   }
+  c_printf("SER%d: %s", c_ser, sptr->dev);
+  if (sptr->base_port)
+    c_printf(" port %x", sptr->base_port);
+  if (sptr->interrupt)
+    c_printf(" int %x", sptr->interrupt);
+  c_printf("\n");
   c_ser++;
   config.num_ser = c_ser;
-  c_printf("SER: %s port %x int %x\n", sptr->dev, sptr->base_port,
-	   sptr->interrupt);
 }
 
 	/* keyboard */

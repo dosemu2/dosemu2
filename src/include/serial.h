@@ -35,7 +35,7 @@
 #include <termios.h>
 #include "extern.h"
 
-#define MAX_SER 8
+#define MAX_SER 16
 
 /* These are sizes for the internal recieve and transmit buffers.
  * They must be at least 16 bytes because these double as FIFO's,

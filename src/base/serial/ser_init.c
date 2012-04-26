@@ -433,6 +433,16 @@ static void do_ser_init(int num)
     { 3, 0x4228, "/dev/ttyS5", "COM6" },
     { 3, 0x5220, "/dev/ttyS6", "COM7" },
     { 3, 0x5228, "/dev/ttyS7", "COM8" },
+
+    { 4, 0x6220, "/dev/ttyS8", "COM9" },
+    { 4, 0x6228, "/dev/ttyS9", "COM10" },
+    { 4, 0x7220, "/dev/ttyS10", "COM11" },
+    { 4, 0x7228, "/dev/ttyS11", "COM12" },
+
+    { 4, 0x8220, "/dev/ttyS12", "COM13" },
+    { 4, 0x8228, "/dev/ttyS13", "COM14" },
+    { 4, 0x9220, "/dev/ttyS14", "COM15" },
+    { 4, 0x9228, "/dev/ttyS15", "COM16" },
   };
 
   if (com[num].real_comport == 0) {		/* Is comport number undef? */
