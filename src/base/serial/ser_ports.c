@@ -191,17 +191,8 @@ void uart_fill(int num)
   if (RX_BUF_BYTES(num)) {		/* Is data waiting in the buffer? */
     com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
     if (com[num].IIR.fifo.enable) {		/* Is it in 16550 FIFO mode? */
-      /* The following code is to emulate the 16 byte (configurable)
-       * limitation of the receive FIFO, for compatibility purposes.
-       * Reset the receive FIFO counter up to a value of 16 (configurable)
-       * if we are not within an interrupt.
-       */
-      com[num].rx_fifo_bytes = RX_BUF_BYTES(num);
-      if (com[num].rx_fifo_bytes > com[num].rx_fifo_size)
-	      com[num].rx_fifo_bytes = com[num].rx_fifo_size;
-
       /* Has it gone above the receive FIFO trigger level? */
-      if (com[num].rx_fifo_bytes >= com[num].rx_fifo_trigger) {
+      if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
         if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
         com[num].rx_timeout = 0;			/* Reset receive timeout */
         serial_int_engine(num, RX_INTR);	/* Update interrupt status */
@@ -231,7 +222,6 @@ void uart_clear_fifo(int num, int fifo)
     com[num].LSR &= ~(UART_LSR_ERR | UART_LSR_DR);
     com[num].rx_buf_start = 0;		/* Beginning of rec FIFO queue */
     com[num].rx_buf_end = 0;		/* End of rec FIFO queue */
-    com[num].rx_fifo_bytes = 0;         /* Number of bytes in emulated FIFO */
     com[num].rx_timeout = 0;		/* Receive intr already occured */
     clear_int_cond(num, LS_INTR | RX_INTR);  /* Clear LS/RX conds */
     rx_buffer_dump(num);		/* Clear receive buffer */
@@ -460,28 +450,17 @@ static int get_rx(int num)
    * since we're not supposed to read from the buffer right now!
    */
   if ( !(com[num].LSR & UART_LSR_DR)) return 0;
-  
+
   /* Is the FIFO enabled? */
   if (com[num].IIR.fifo.enable) {
-    /* Read data from the receive buffer.  The 16-byte (configurable)
-     * limitation of the FIFO is emulated (even though the receive
-     * buffer is bigger) for compatibility purposes.  Note, that the 
-     * following code is optimized for speed rather than compactness.
-     */
-    com[num].rx_fifo_bytes = RX_BUF_BYTES(num);
-    if (com[num].rx_fifo_bytes > com[num].rx_fifo_size)
-	      com[num].rx_fifo_bytes = com[num].rx_fifo_size;
-     
     /* Is the receive FIFO empty? */
-    if (com[num].rx_fifo_bytes == 0) return 0;
+    if (RX_BUF_BYTES(num) == 0) return 0;
 
     val = com[num].rx_buf[com[num].rx_buf_start];	/* Get byte */
     com[num].rx_buf_start++;
-    com[num].rx_fifo_bytes--;		/* Emulated 16-byte limitation */
 
     /* Did the FIFO become "empty" right now? */
-    if (!com[num].rx_fifo_bytes) {
-
+    if (!RX_BUF_BYTES(num)) {
       /* Clear the interrupt flag, and data-waiting flag. */
       clear_int_cond(num, RX_INTR);
       com[num].LSR &= ~UART_LSR_DR;
@@ -493,9 +472,9 @@ static int get_rx(int num)
       if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger) {
         clear_int_cond(num, RX_INTR);	/* Clear receive condition */
       }
-      else {		
+      else {
         /* No, the FIFO didn't drop below trigger, but clear timeout bit */
-        com[num].IIR.val = (com[num].IIR.val & UART_IIR_ID);
+        com[num].IIR.val &= ~UART_IIR_CTI;
       }
     }
     return val;		/* Return received byte */
@@ -509,9 +488,9 @@ static int get_rx(int num)
   if (RX_BUF_BYTES(num)) {
     com[num].rx_buf_start++;
   }
-  clear_int_cond(num, RX_INTR);
-  if (!RX_BUF_BYTES(num)) {
+  if (!RX_BUF_BYTES(num)) {	// if it now became empty
     /* Clear data waiting status and interrupt condition flag */
+    clear_int_cond(num, RX_INTR);
     com[num].LSR &= ~UART_LSR_DR;
   }
 
@@ -626,7 +605,6 @@ static void put_tx(int num, int val)
         /* Put char into recv FIFO */
         com[num].rx_buf[com[num].rx_buf_end] = val;
         com[num].rx_buf_end++;
-        com[num].rx_fifo_bytes = RX_BUF_BYTES(num);
 
 	/* If the buffer touches the top, slide chars to bottom of buffer */
         if ((com[num].rx_buf_end - 1) >= RX_BUFFER_SIZE) rx_buffer_slide(num);

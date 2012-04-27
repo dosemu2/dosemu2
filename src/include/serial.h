@@ -83,7 +83,6 @@ typedef struct {
   long int rx_timer;		/* Countdown to next read() system call */
   u_char rx_timeout;		/* Recieve Interrupt timeout counter */
   u_char rx_fifo_trigger;	/* Receive Fifo trigger value */
-  int rx_fifo_bytes;		/* Receive Fifo bytes-waiting counter */
   int rx_fifo_size;		/* Size of receive FIFO to emulate */
   				/*   TRANSMIT  */
   long int tx_timer;            /* Countdown to next char being xmitted */
@@ -123,6 +122,7 @@ typedef struct {
 EXTERN serial_t com[MAX_SER];
 
 #define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
+//#define RX_FIFO_BYTES(num) min(RX_BUF_BYTES(num), com[num].rx_fifo_size)
 #define TX_BUF_BYTES(num) (com[num].tx_buf_end - com[num].tx_buf_start)
 #define INT_REQUEST(num)  (com[num].int_condition & com[num].IER)
 #define INT_ENAB(num)  (com[num].MCR & UART_MCR_OUT2)
