@@ -258,7 +258,6 @@ void priv_init(void)
 	/* retrieve $HOME from sudo's (the parent process') environment */
 	ppid = getppid();
 	if (asprintf(&path, "/proc/%d/environ", ppid) != -1) {
-	  printf("%s\n", path);
 	  if ((fp = fopen(path, "r"))) {
 	    line = NULL;
 	    while(getdelim(&line, &n, '\0', fp) != -1) {
