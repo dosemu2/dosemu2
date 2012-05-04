@@ -28,6 +28,7 @@
  *
  */
 
+#include "config.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -1178,8 +1179,10 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 {
 	static emu_iodev_t io_device;
 	FILE *fp;
-	unsigned int beg, end;
-	char portname[50], lock_file[64];
+	unsigned int beg, end, newbeg, newend;
+	size_t len;
+	ssize_t bytes;
+	char *line, *portname, lock_file[64];
 	unsigned char mapped;
 	char *devrname;
 	int fd, usemasks = 0;
@@ -1215,23 +1218,40 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		i_printf("PORT: can't open /proc/ioports\n");
 		return FALSE;
 	}
-	mapped = 0;
-	while (fscanf(fp, "%x-%x : ", &beg, &end) == 2) {
+	mapped = beg = end = len = 0;
+	portname = line = NULL;
+	while ((bytes = getline(&line, &len, fp)) != -1) {
+		int i;
+		if (bytes > 0 && line[bytes-1] == '\n')
+			line[bytes-1] = '\0';
+		if (sscanf(line, "%x-%x : %n", &newbeg, &newend, &i) < 2)
+			break;
+		if (mapped) {
+			/* only break if no overlap with previous line */
+			if (newend > end) break;
+			free(portname);
+			mapped = 0;
+		}
+		beg = newbeg;
+		end = newend;
 		if ((start <= end) && ((start+size) > beg)) {
 			/* ports are besetzt, try to open the according device */
-			fgets(portname, sizeof(portname), fp);
-			i_printf("PORT: range 0x%04x-0x%04x already registered as %s\n",
-				 beg, end, portname);
-			if (!strncasecmp(portname,"dosemu",6)) return FALSE;
+			portname = strdup(&line[i]);
 			mapped = 1;
-			break;
 		}
 	}
 	fclose (fp);
 
-	if (mapped && ((device==NULL) || (*device==0))) {
-		i_printf ("PORT: no device specified for %s\n", portname);
-		return FALSE;
+	if (mapped) {
+		char *name = portname ? portname : "";
+		i_printf("PORT: range 0x%04x-0x%04x already registered as %s\n",
+			 beg, end, name);
+		if (!strncasecmp(name,"dosemu",6)) return FALSE;
+		if (device==NULL || *device==0) {
+			i_printf ("PORT: no device specified for %s\n", name);
+			return FALSE;
+		}
+		free (portname);
 	}
 
 	io_device.fd = -1;
