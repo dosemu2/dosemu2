@@ -262,16 +262,9 @@ extern char * const lowmem_base;
 #define LOWMEM_READ_DWORD(addr)		UNIX_READ_DWORD(LOWMEM(addr))
 #define LOWMEM_WRITE_DWORD(addr, val)	UNIX_WRITE_DWORD(LOWMEM(addr), val)
 
-/* generic lowmem addresses are the ones below 1Mb, that are
- * not in the EMS frame, hardware or video memory. We can _safely_
- * add lowmem_base to those. */
-#define IS_GENERIC_LOWMEM_ADDR(addr) \
-	((addr) <= 0x9fffc || ((addr) >= 0xf4000 && (addr) <= 0xffffc))
-
 static inline void *LINEAR2UNIX(unsigned int addr)
 {
-	return IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM(addr) :
-	  dosaddr_to_unixaddr(addr);
+	return dosaddr_to_unixaddr(addr);
 }
 
 #define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))

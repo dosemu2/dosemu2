@@ -71,6 +71,37 @@ static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_file, /* and then a temp file */
 };
 
+/* The alias map is used to track alias mappings from the first 1MB + HMA
+   to the corresponding addresses in Linux address space (either lowmem,
+   vgaemu, or EMS). The DOS address (&mem_base[address]) may be r/w
+   protected by cpuemu or vgaemu, but the alias is never protected,
+   so it can be used to write without needing to unprotect and reprotect
+   afterwards.
+   If the alias is not used (hardware RAM from /dev/mem, or DPMI memory
+   (aliasing using fn 0x509 is safely ignored here)),
+   the address is identity-mapped to &mem_base[address].
+*/
+static unsigned char *aliasmap[(LOWMEM_SIZE+HMASIZE)/PAGE_SIZE];
+
+static void update_aliasmap(unsigned char *dosaddr, size_t mapsize,
+			    unsigned char *unixaddr)
+{
+  unsigned int dospage, i;
+
+  if (dosaddr >= &mem_base[LOWMEM_SIZE+HMASIZE])
+    return;
+  dospage = (dosaddr - mem_base) >> PAGE_SHIFT;
+  for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
+    aliasmap[dospage + i] = unixaddr + (i << PAGE_SHIFT);
+}
+
+void *dosaddr_to_unixaddr(unsigned int addr)
+{
+  if (addr < LOWMEM_SIZE + HMASIZE)
+    return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
+  return &mem_base[addr];
+}
+
 static int map_find_idx(struct mem_map_struct *map, int max, off_t addr)
 {
   int i;
@@ -137,6 +168,7 @@ static void kmem_map_single(int cap, int idx)
 {
   mremap_mapping(cap, kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
       MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].dst);
+  update_aliasmap(kmem_map[idx].dst, kmem_map[idx].len, kmem_map[idx].dst);
   kmem_map[idx].mapped = 1;
 }
 
@@ -180,6 +212,7 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   }
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
   addr = mappingdriver.alias(cap, target, mapsize, protect, source);
+  update_aliasmap(target, mapsize, source);
   if (cap & MAPPING_INIT_LOWRAM) {
     *(unsigned char **)&mem_base = addr;
   }
@@ -202,6 +235,7 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
       target = mmap(target, mapsize, protect, MAP_SHARED | fixed,
 		    mem_fd, source);
       close_kmem();
+      update_aliasmap(target, mapsize, target);
       if (cap & MAPPING_COPYBACK)
 	/* copy from low shared memory to the /dev/mem memory */
 	memcpy(target, lowmem_base + (size_t)target, mapsize);
@@ -256,6 +290,7 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 #endif
     addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
+    update_aliasmap(addr, mapsize, addr);
   } else {
     dosemu_error("Wrong mapping type %#x\n", cap);
     config.exitearly = 1;

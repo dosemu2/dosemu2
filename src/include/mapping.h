@@ -18,6 +18,9 @@
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
 #endif
+#ifndef PAGE_SHIFT
+#define PAGE_SHIFT	12
+#endif
 #define EMM_PAGE_SIZE	(16*1024)
 
 #define Q__printf(f,cap,a...) ({\
