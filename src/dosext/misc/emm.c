@@ -1023,12 +1023,16 @@ move_memory_region(state_t * state)
 {
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   unsigned char *dest, *source, *mem;
+  unsigned src = 0;
+  int overlap = 0;
 
   mem = Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
-  if (mem_move->source_type == 0)
-    source = MK_FP32(mem_move->source_segment, mem_move->source_offset);
+  if (mem_move->source_type == 0) {
+    source = NULL;
+    src = SEGOFF2LINEAR(mem_move->source_segment, mem_move->source_offset);
+  }
   else {
     if (!handle_info[mem_move->source_handle].active) {
       E_printf("EMS: Move memory region source handle not active\n");
@@ -1050,7 +1054,17 @@ move_memory_region(state_t * state)
     }
   }
   if (mem_move->dest_type == 0) {
-    dest = MK_FP32(mem_move->dest_segment, mem_move->dest_offset);
+    unsigned dst = SEGOFF2LINEAR(mem_move->dest_segment, mem_move->dest_offset);
+    if (source) {
+      E_printf("EMS: Move Memory Region from %p -> %#x\n", source, dst);
+      memcpy_2dos(dst, source, mem_move->size);
+    }
+    else {
+      E_printf("EMS: Move Memory Region from %#x -> %#x\n", src, dst);
+      memmove_dos2dos(dst, src, mem_move->size);
+      overlap = (src <  dst && src + mem_move->size >= dst) ||
+                (src >= dst && dst + mem_move->size >= src);
+    }
   }
   else {
     if (!handle_info[mem_move->dest_handle].active) {
@@ -1071,21 +1085,21 @@ move_memory_region(state_t * state)
       E_printf("EMS: Dest move of %p is outside handle allocation of %p, size=%x\n", dest, mem, mem_move->size);
       return (0x93);
     }
+    if (source) {
+      E_printf("EMS: Move Memory Region from %p -> %p\n", source, dest);
+      memmove(dest, source, mem_move->size);
+      overlap = (source <  dest && source + mem_move->size >= dest) ||
+                (source >= dest && dest + mem_move->size >= source);
+    }
+    else {
+      E_printf("EMS: Move Memory Region from %#x -> %p\n", src, dest);
+      memcpy_2unix(dest, src, mem_move->size);
+    }
   }
-  E_printf("EMS: Move Memory Region from %p -> %p\n", source, dest);
-  memmove_dos2dos(dest, source, mem_move->size);
 
-  if (source < dest) {
-    if (source + mem_move->size >= dest) {
-      E_printf("EMS: Source overlaps Dest\n");
-      return (EMM_MOVE_OVLAP);
-    }
-  }
-  else {
-    if (dest + mem_move->size >= source) {
-      E_printf("Dest overlaps source\n");
-      return (EMM_MOVE_OVLAP);
-    }
+  if (overlap) {
+    E_printf("EMS: Source overlaps Dest\n");
+    return (EMM_MOVE_OVLAP);
   }
   return (0);
 }

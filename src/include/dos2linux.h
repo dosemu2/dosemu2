@@ -268,7 +268,9 @@ extern int run_system_command(char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 void show_welcome_screen(void);
-void memmove_dos2dos(void *dest, const void *src, size_t n);
+void memcpy_2unix(void *dest, unsigned src, size_t n);
+void memcpy_2dos(unsigned dest, const void *src, size_t n);
+void memmove_dos2dos(unsigned dest, unsigned src, size_t n);
 
 
 int dos_read(int fd, void *data, int cnt);

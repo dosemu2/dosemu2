@@ -91,7 +91,7 @@ void extmem_copy(unsigned dst, unsigned src, unsigned len)
 {
   unsigned slen, dlen, clen, copied = 0;
   unsigned s, d, edge = LOWMEM_SIZE + HMASIZE;
-  unsigned char *ps = &mem_base[src], *pd = &mem_base[dst];
+  unsigned char *ps = NULL;
 
   while ((clen = len - copied) > 0) {
     slen = clen;
@@ -103,17 +103,25 @@ void extmem_copy(unsigned dst, unsigned src, unsigned len)
 
     dlen = clen;
     d = dst + copied;
-    if (d >= edge)
-      pd = &ext_mem_base[d - edge];
-    else if (d + dlen > edge)
+    if (d < edge && d + dlen > edge)
       dlen = edge - d;
 
     clen = min(slen, dlen);
-    x_printf("INT15: copy 0x%x bytes from %p to %p%s\n",
-      clen, ps, pd, clen != len ? " (split)" : "");
-    memmove_dos2dos(pd, ps, clen);
-    if (d < edge)
-      e_invalidate(pd, clen);
+    x_printf("INT15: copy 0x%x bytes from %#x to %#x%s\n",
+      clen, s, d, clen != len ? " (split)" : "");
+    if (d < edge) {
+      if (s < edge)
+	memmove_dos2dos(d, s, clen);
+      else
+	memcpy_2dos(d, ps, clen);
+      e_invalidate(&mem_base[d], clen);
+    } else {
+      unsigned char *pd = &ext_mem_base[d - edge];
+      if (s < edge)
+	memcpy_2unix(pd, s, clen);
+      else
+	memmove(pd, ps, clen);
+    }
     copied += clen;
   }
 }

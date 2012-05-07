@@ -668,19 +668,33 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   return err;
 }
 
-void memmove_dos2dos(void *dest, const void *src, size_t n)
+void memcpy_2unix(void *dest, unsigned src, size_t n)
+{
+  if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
+    memcpy_from_vga(dest, &mem_base[src], n);
+  else
+    MEMCPY_2UNIX(dest, src, n);
+}
+
+void memcpy_2dos(unsigned dest, const void *src, size_t n)
+{
+  if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
+    memcpy_to_vga(&mem_base[dest], src, n);
+  else
+    MEMCPY_2DOS(dest, src, n);
+}
+
+void memmove_dos2dos(unsigned dest, unsigned src, size_t n)
 {
   /* XXX GW (Game Wizard Pro) does this.
      TODO: worry about overlaps; could be a little cleaner
      using the memcheck.c mechanism */
-  unsigned char *d = dest;
-  const unsigned char *s = src;
-  if (vga.inst_emu && s >= &mem_base[0xa0000] && s < &mem_base[0xc0000])
-    memcpy_from_vga(dest, src, n);
-  else if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000])
-    memcpy_to_vga(dest, src, n);
+  if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
+    memcpy_from_vga(&mem_base[dest], &mem_base[src], n);
+  else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
+    memcpy_to_vga(&mem_base[dest], &mem_base[src], n);
   else
-    MEMMOVE_DOSP2DOSP(dest, src, n);
+    MEMMOVE_DOS2DOS(dest, src, n);
 }
 
 int dos_read(int fd, void *data, int cnt)
