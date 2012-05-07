@@ -213,7 +213,7 @@ void fatfs_done(struct disk *dp)
 /*
  * Returns # of read sectors, -1 = sector not found, -2 = read error.
  */
-int fatfs_read(fatfs_t *f, unsigned char *buf, unsigned pos, int len)
+int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len)
 {
   int i, l = len;
 
@@ -223,8 +223,8 @@ int fatfs_read(fatfs_t *f, unsigned char *buf, unsigned pos, int len)
 
   while(l) {
     if((i = read_sec(f, pos))) return i;
-    MEMCPY_2DOSP(buf, f->sec, 0x200);
-    e_invalidate(buf, 0x200);
+    MEMCPY_2DOS(buf, f->sec, 0x200);
+    e_invalidate(&mem_base[buf], 0x200);
     buf += 0x200; pos++; l--;
   }
 
@@ -235,7 +235,7 @@ int fatfs_read(fatfs_t *f, unsigned char *buf, unsigned pos, int len)
 /*
  * Returns # of written sectors, -1 = sector not found, -2 = read error.
  */
-int fatfs_write(fatfs_t *f, unsigned char *buf, unsigned pos, int len)
+int fatfs_write(fatfs_t *f, unsigned buf, unsigned pos, int len)
 {
 
   fatfs_deb("write: dir %s, sec %u, len %d\n", f->dir, pos, len);
@@ -1120,7 +1120,7 @@ void fdkernel_boot_mimic(void)
 {
   int f, size;
   char *bootfile;
-  void *loadaddress = MK_FP32(0x60,0);
+  unsigned loadaddress = SEGOFF2LINEAR(0x60,0);
   fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
 
   if (!fs || !(bootfile = full_name(fs, 0, fs->obj[1].name))) {

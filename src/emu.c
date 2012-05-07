@@ -136,7 +136,7 @@ sigjmp_buf NotJEnv;
 void 
 boot(void)
 {
-    unsigned char  *buffer;
+    unsigned buffer;
     struct disk    *dp = NULL;
 
     switch (config.hdiskboot) {
@@ -160,7 +160,7 @@ boot(void)
     disk_close();
     disk_open(dp);
 
-    buffer = LOWMEM(0x7c00);
+    buffer = 0x7c00;
 
     if (dp->boot_name) {/* Boot from the specified file */
         int bfd;
@@ -170,7 +170,7 @@ boot(void)
             error("Boot file %s missing\n",dp->boot_name);
             leavedos(16);
         }
-        if (read(bfd, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
+        if (dos_read(bfd, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
             error("Failed to read exactly %d bytes from %s\n",
                   SECTOR_SIZE, dp->boot_name);
             leavedos(16);
@@ -180,7 +180,7 @@ boot(void)
     else
     if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
-	if (RPT_SYSCALL(read(dp->fdesc, buffer, SECTOR_SIZE)) != SECTOR_SIZE) {
+	if (dos_read(dp->fdesc, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
 	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
 	    leavedos(16);
 	}

@@ -346,7 +346,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
 		    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 		    LO(ax) = 1;
 		} else {
-		    if ( (n = dos_read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
+		    if ( (n = unix_read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
 			/* cd must be in drive, reset drive and try again */
 			cdrom_reset();
 			if ((off_t) -1 == lseek (cdrom_fd, Sector*CD_FRAMESIZE, SEEK_SET)) {
@@ -354,7 +354,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
 			    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 			    LO(ax) = 1;
 			} else
-			    if ( (n = dos_read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
+			    if ( (n = unix_read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
 				HI(ax) = (errno == EFAULT ? 0x0A : 0x0F);
 				C_printf("CDROM: sector read (to %p, len %#x) failed: %s\n",
 					  transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE, strerror(errno));

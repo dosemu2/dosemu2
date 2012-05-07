@@ -153,7 +153,7 @@ typedef u_char *sda_t;
 extern sda_t sda;
 extern int sda_cur_drive_off;
 
-#define	sda_current_dta(sda)	((u_char *)(uintptr_t)(FARPTR((far_t *)&sda[sda_current_dta_off])))
+#define	sda_current_dta(sda)	(FARADDR((far_t *)&sda[sda_current_dta_off]))
 #define	sda_error_code(sda)		(*(u_short *)&sda[4])
 #define sda_cur_psp(sda)		(*(u_short *)&sda[sda_cur_psp_off])
 #define sda_cur_drive(sda)		(*(u_char *)&sda[sda_cur_drive_off])
@@ -273,8 +273,8 @@ void memcpy_2dos(unsigned dest, const void *src, size_t n);
 void memmove_dos2dos(unsigned dest, unsigned src, size_t n);
 
 
-int dos_read(int fd, void *data, int cnt);
-int dos_write(int fd, const void *data, int cnt);
+int dos_read(int fd, unsigned data, int cnt);
+int dos_write(int fd, unsigned data, int cnt);
 int com_vsprintf(char *str, char *format, va_list ap);
 int com_sprintf(char *str, char *format, ...) FORMAT(printf, 2, 3);
 int com_vfprintf(int dosfilefd, char *format, va_list ap);

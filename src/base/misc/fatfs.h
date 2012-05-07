@@ -70,8 +70,8 @@ typedef struct {
 
 } fatfs_t;
 
-int fatfs_read(fatfs_t *, unsigned char *, unsigned, int);
-int fatfs_write(fatfs_t *, unsigned char *, unsigned, int);
+int fatfs_read(fatfs_t *, unsigned, unsigned, int);
+int fatfs_write(fatfs_t *, unsigned, unsigned, int);
 
 /* boot sector */
 extern const unsigned char boot_prog[];

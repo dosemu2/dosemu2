@@ -286,6 +286,7 @@ struct mfs_dir
 
 #define FAR(x) (Addr_8086(x.segment, x.offset))
 #define FARPTR(x) (Addr_8086((x)->segment, (x)->offset))
+#define FARADDR(x) (SEGOFF2LINEAR((x)->segment, (x)->offset))
 
 typedef u_short *psp_t;
 

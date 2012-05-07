@@ -697,34 +697,45 @@ void memmove_dos2dos(unsigned dest, unsigned src, size_t n)
     MEMMOVE_DOS2DOS(dest, src, n);
 }
 
-int dos_read(int fd, void *data, int cnt)
+int unix_read(int fd, void *data, int cnt)
+{
+  return RPT_SYSCALL(read(fd, data, cnt));
+}
+
+int dos_read(int fd, unsigned data, int cnt)
 {
   int ret;
   /* GW also reads or writes directly from a file to protected video memory. */
-  unsigned char *d = data;
-  if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000]) {
+  if (vga.inst_emu && data >= 0xa0000 && data < 0xc0000) {
     char buf[cnt];
-    ret = RPT_SYSCALL(read(fd, buf, cnt));
+    ret = unix_read(fd, buf, cnt);
     if (ret >= 0)
-      memcpy_to_vga(d - mem_base, buf, ret);
+      memcpy_to_vga(data, buf, ret);
   }
   else
-    ret = RPT_SYSCALL(read(fd, lowmemp(data), cnt));
+    ret = unix_read(fd, LINEAR2UNIX(data), cnt);
   if (ret > 0)
-	e_invalidate(data, ret);
+	e_invalidate(&mem_base[data], ret);
   return (ret);
 }
 
-int dos_write(int fd, const void *data, int cnt)
+int unix_write(int fd, const void *data, int cnt)
+{
+  return RPT_SYSCALL(write(fd, data, cnt));
+}
+
+int dos_write(int fd, unsigned data, int cnt)
 {
   int ret;
-  const unsigned char *d = data;
+  const unsigned char *d;
   unsigned char buf[cnt];
-  if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000]) {
-    memcpy_from_vga(buf, d - mem_base, cnt);
+  if (vga.inst_emu && data >= 0xa0000 && data < 0xc0000) {
+    memcpy_from_vga(buf, data, cnt);
     d = buf;
+  } else {
+    d = LINEAR2UNIX(data);
   }
-  ret = RPT_SYSCALL(write(fd, d, cnt));
+  ret = unix_write(fd, d, cnt);
   g_printf("Wrote %10.10s\n", d);
   return (ret);
 }

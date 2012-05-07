@@ -88,12 +88,13 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 };
 
 
-static void dump_disk_blks(unsigned char *tb, int count, int ssiz)
+static void dump_disk_blks(unsigned tb, int count, int ssiz)
 {
   static char buf[80], cbuf[20];
   int a,i,j;
   char *p;
-  unsigned char *q;
+  unsigned char c;
+  unsigned int q;
 
   q=tb; a=0;
   while (count--) {
@@ -101,8 +102,9 @@ static void dump_disk_blks(unsigned char *tb, int count, int ssiz)
       p=buf;
       p+=sprintf(p,"%04x: ",a);
       for (j=0; j<16; j++) {
-        p+=sprintf(p,"%02x ",*q);
-        cbuf[j] = (isprint(*q)? *q:'.');
+        c=READ_BYTE(q);
+        p+=sprintf(p,"%02x ",c);
+        cbuf[j] = (isprint(c)? c:'.');
         q++;
       }
       cbuf[16]=0; a+=16;
@@ -137,7 +139,7 @@ static void dump_disk_blks(unsigned char *tb, int count, int ssiz)
  */
 
 int
-read_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
+read_sectors(struct disk *dp, unsigned buffer, long head, long sector,
 	     long track, long count)
 {
   off64_t  pos;
@@ -177,7 +179,7 @@ read_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
     if(mbroff < dp->part_info.mbr_size) {
       mbrread = dp->part_info.mbr_size - mbroff;
       mbrread = mbrread > readsize ? readsize : mbrread;
-      memcpy(buffer, dp->part_info.mbr + mbroff, mbrread);
+      memcpy_2dos(buffer, dp->part_info.mbr + mbroff, mbrread);
       d_printf("read 0x%lx bytes from MBR, ofs = 0x%lx (0x%lx bytes left)\n",
         (unsigned long) mbrread, (unsigned long) mbroff, (unsigned long) (readsize - mbrread)
       );
@@ -185,7 +187,7 @@ read_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
 
     /* ... and zero the rest */
     if(readsize > mbrread) {
-      memset(buffer + mbrread, 0, readsize - mbrread);
+      MEMSET_DOS(buffer + mbrread, 0, readsize - mbrread);
       d_printf("emulated reading 0x%lx bytes, ofs = 0x%lx\n",
         (unsigned long) (readsize - mbrread), (unsigned long) (mbroff + mbrread)
       );
@@ -217,12 +219,7 @@ read_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
       error("Sector not found in read_sector, error = %s!\n", strerror(errno));
       return -DERR_NOTFOUND;
     }
-#ifdef X86_EMULATOR
-    if (config.cpuemu>1)
-	tmpread = dos_read(dp->fdesc, buffer, count * SECTOR_SIZE - already);
-    else
-#endif
-    tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE - already));
+    tmpread = dos_read(dp->fdesc, buffer, count * SECTOR_SIZE - already);
   }
 
   if(tmpread != -1) {
@@ -236,7 +233,7 @@ read_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
 }
 
 int
-write_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
+write_sectors(struct disk *dp, unsigned buffer, long head, long sector,
 	      long track, long count)
 {
   off64_t  pos;
@@ -302,7 +299,7 @@ write_sectors(struct disk *dp, unsigned char *buffer, long head, long sector,
       error("Sector not found in write_sector!\n");
       return -DERR_NOTFOUND;
     }
-    tmpwrite = RPT_SYSCALL(write(dp->fdesc, buffer, count * SECTOR_SIZE - already));
+    tmpwrite = dos_write(dp->fdesc, buffer, count * SECTOR_SIZE - already);
   }
 
   /* this should make floppies a little safer...I would as soon use the
@@ -827,7 +824,7 @@ disk_open(struct disk *dp)
   int res=0;
   if (dp->default_cmos == ATAPI_FLOPPY) {
 	unsigned long tns;
-	if (ATAPI_buf0[0] || (read_sectors(dp, ATAPI_buf0, 0, 0, 0, 1) > 0)) {
+	if (ATAPI_buf0[0] || unix_read(dp->fdesc, ATAPI_buf0, 512) > 0) {
 	      fl.sect = *((unsigned char *)&ATAPI_buf0[0x18]);
 	      fl.head = *((unsigned char *)&ATAPI_buf0[0x1a]);
 	      tns = *((unsigned short *)&ATAPI_buf0[0x13]);
@@ -1189,7 +1186,7 @@ int int13(void)
   unsigned int disk, head, sect, track, number;
   int res;
   off64_t  pos;
-  unsigned char *buffer;
+  unsigned buffer;
   struct disk *dp;
   int checkdp_val;
 
@@ -1244,7 +1241,7 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEG_ADR((unsigned char *), es, bx);
+    buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
     number = LO(ax);
     d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
 	     disk, head, sect, track, number, REG(es), LWORD(ebx));
@@ -1300,7 +1297,7 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEG_ADR((unsigned char *), es, bx);
+    buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
     number = LO(ax);
     W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%p\n",
 	     head, sect, track, number, (void *) buffer);
@@ -1589,7 +1586,7 @@ int int13(void)
     sect = diskaddr->block_lo % dp->sectors;
     head = (diskaddr->block_lo / dp->sectors) % dp->heads;
     track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    buffer = MK_FP32(diskaddr->buf_seg, diskaddr->buf_ofs);
+    buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
     d_printf("DISK read [h:%d,s:%d,t:%d](%d)\n", head, sect, track, number);
@@ -1642,7 +1639,7 @@ int int13(void)
     sect = diskaddr->block_lo % dp->sectors;
     head = (diskaddr->block_lo / dp->sectors) % dp->heads;
     track = diskaddr->block_lo / (dp->heads * dp->sectors);
-    buffer = MK_FP32(diskaddr->buf_seg, diskaddr->buf_ofs);
+    buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
 

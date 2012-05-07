@@ -545,8 +545,8 @@ select_drive(state_t *state)
   /* for find next we will check the drive letter in the
      findfirst block which is in the DTA */
   if (!found && fn == FIND_NEXT) {
-    u_char *dta = sda_current_dta(sda);
-    dd = (*dta & ~0x80);
+    unsigned dta = sda_current_dta(sda);
+    dd = (READ_BYTE(dta) & ~0x80);
     if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root)
       found = 1;
   }
@@ -3163,7 +3163,7 @@ dos_fs_redirect(state_t *state)
 {
   char *filename1;
   char *filename2;
-  unsigned char *dta;
+  unsigned dta;
   long s_pos=0;
   unsigned int devptr;
   u_char attr;
@@ -3404,7 +3404,7 @@ dos_fs_redirect(state_t *state)
           /* physically extend the file -- ftruncate() does not
              extend on all filesystems */
           lseek(fd, -1, SEEK_CUR);
-          dos_write(fd, "", 1);
+          unix_write(fd, "", 1);
         }
       }
     }
