@@ -294,6 +294,17 @@ umb_query(void)
 
 static smpool mp = SM_EMPTY_POOL;
 
+static unsigned xms_alloc(unsigned size)
+{
+  return (unsigned char *)smalloc(&mp, size) - ext_mem_base
+    + LOWMEM_SIZE + HMASIZE;
+}
+
+static void xms_free(unsigned addr)
+{
+  smfree(&mp, &ext_mem_base[addr - (LOWMEM_SIZE + HMASIZE)]);
+}
+
 void
 xms_reset(void)
 {
@@ -323,7 +334,7 @@ void xms_helper(void)
   handle_count = 0;
   for (i = 0; i < NUM_HANDLES + 1; i++) {
     if (handles[i].valid && handles[i].addr)
-      smfree(&mp, handles[i].addr);
+      xms_free(handles[i].addr);
     handles[i].valid = 0;
   }
 
@@ -682,7 +693,7 @@ xms_allocate_EMB(int api)
        * to mean that reserving a handle of size 0 gives it no address
        */
     if (handles[h].size)
-      handles[h].addr = smalloc(&mp, handles[h].size);
+      handles[h].addr = xms_alloc(handles[h].size);
     else {
       x_printf("XMS WARNING: allocating 0 size EMB\n");
       handles[h].addr = 0;
@@ -691,7 +702,7 @@ xms_allocate_EMB(int api)
     handles[h].lockcount = 0;
     handle_count++;
 
-    x_printf("XMS: allocated EMB %u at %p\n", h, handles[h].addr);
+    x_printf("XMS: allocated EMB %u at %#x\n", h, handles[h].addr);
 
     if (api == OLDXMS)
       LWORD(edx) = h;		/* handle # */
@@ -713,7 +724,7 @@ xms_free_EMB(void)
   else {
 
     if (handles[h].addr)
-      smfree(&mp, handles[h].addr);
+      xms_free(handles[h].addr);
     else
       x_printf("XMS WARNING: freeing handle w/no address, size 0x%08x\n",
 	       handles[h].size);
@@ -728,14 +739,14 @@ xms_free_EMB(void)
 static unsigned char
 xms_move_EMB(void)
 {
-  unsigned char *src, *dest;
+  unsigned int src, dest;
   struct EMM e = get_emm(REG(ds), LWORD(esi));
 
   x_printf("XMS move extended memory block\n");
   show_emm(e);
 
   if (e.SourceHandle == 0) {
-    src = MK_FP32(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
+    src = SEGOFF2LINEAR(e.SourceOffset >> 16, e.SourceOffset & 0xffff);
   }
   else {
     if (handles[e.SourceHandle].valid == 0) {
@@ -750,7 +761,7 @@ xms_move_EMB(void)
   }
 
   if (e.DestHandle == 0) {
-    dest = MK_FP32(e.DestOffset >> 16, e.DestOffset & 0xffff);
+    dest = SEGOFF2LINEAR(e.DestOffset >> 16, e.DestOffset & 0xffff);
   }
   else {
     if (handles[e.DestHandle].valid == 0) {
@@ -765,11 +776,9 @@ xms_move_EMB(void)
     }
   }
 
-  x_printf("XMS: block move from %p to %p len 0x%x\n",
+  x_printf("XMS: block move from %#x to %#x len 0x%x\n",
 	   src, dest, e.Length);
-  memmove_dos2dos(dest, src, e.Length);
-  if (dest >= mem_base && dest < &mem_base[0x110000])
-    e_invalidate(dest, e.Length);
+  extmem_copy(dest, src, e.Length);
   x_printf("XMS: block move done\n");
 
   return 0;
@@ -799,7 +808,7 @@ xms_lock_EMB(int flag)
         return 0xaa;		/* Block is not locked */
       }
 
-    addr = handles[h].addr - ext_mem_base + LOWMEM_SIZE + HMASIZE;
+    addr = handles[h].addr;
     LWORD(edx) = addr >> 16;
     LWORD(ebx) = addr & 0xffff;
     return 0;
@@ -839,8 +848,8 @@ static unsigned char
 xms_realloc_EMB(int api)
 {
   int h;
-  unsigned long oldsize;
-  unsigned char *oldaddr;
+  unsigned int oldsize;
+  unsigned int oldaddr;
 
   h = LWORD(edx);
 
@@ -869,16 +878,16 @@ xms_realloc_EMB(int api)
 	   "XMS realloc EMB(new) %d to size 0x%08x\n",
 	   h, handles[h].size);
 
-  handles[h].addr = smalloc(&mp, handles[h].size);
+  handles[h].addr = xms_alloc(handles[h].size);
 
   /* memcpy() the old data into the new block, but only
    * min(new,old) bytes.
    */
-  memcpy(handles[h].addr, oldaddr,
+  extmem_copy(handles[h].addr, oldaddr,
 	 (oldsize <= handles[h].size) ? oldsize : handles[h].size);
 
   /* free the EMB's old Linux memory */
-  smfree(&mp, oldaddr);
+  xms_free(oldaddr);
   return 0;
 }
 
