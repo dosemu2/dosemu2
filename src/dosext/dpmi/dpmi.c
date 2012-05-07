@@ -3627,11 +3627,12 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
-	  unsigned int *buffer = (unsigned int *)(SEL_ADR(_es, _edi));
+	  unsigned int buf = GetSegmentBase(_es) +
+	    (Segments[_es>>3].is_32 ? _edi : LO_WORD(_edi));
+	  unsigned int *buffer = LINEAR2UNIX(buf);
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
-	    e_invalidate((unsigned char *)buffer, (9+6)*sizeof(*buffer));
-	    buffer = lowmemp(buffer);
+	    e_invalidate(buf, (9+6)*sizeof(*buffer));
 	    *buffer++ = REG(eax);
 	    *buffer++ = REG(ebx);
 	    *buffer++ = REG(ecx);
@@ -4249,15 +4250,14 @@ void dpmi_realmode_hlt(unsigned int lina)
     in_dpmi_dos_int = 0;
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_realmode)) {
-    struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
-      (GetSegmentBaseAddress(_es) +
-      API_16_32(_edi));
+    unsigned rmreg_addr = GetSegmentBase(_es) + API_16_32(_edi);
+    struct RealModeCallStructure *rmreg = LINEAR2UNIX(rmreg_addr);
+      
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
-    e_invalidate((unsigned char *)rmreg, sizeof(*rmreg));
-    rmreg = lowmemp(rmreg);
+    e_invalidate(rmreg_addr, sizeof(*rmreg));
     rmreg->edi = REG(edi);
     rmreg->esi = REG(esi);
     rmreg->ebp = REG(ebp);
@@ -4371,11 +4371,11 @@ done:
     _edi = 0;
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_save_restore_rm)) {
-    unsigned int *buffer = SEG_ADR((unsigned int *),es,di);
+    unsigned int buf = SEGOFF2LINEAR(REG(es), LWORD(edi));
+    unsigned int *buffer = LINEAR2UNIX(buf);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");
-      e_invalidate((unsigned char *)buffer, (9+6)*sizeof(*buffer));
-      buffer = lowmemp(buffer);
+      e_invalidate(buf, (9+6)*sizeof(*buffer));
       *buffer++ = _eax;
       *buffer++ = _ebx;
       *buffer++ = _ecx;

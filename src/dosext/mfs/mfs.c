@@ -3199,7 +3199,7 @@ dos_fs_redirect(state_t *state)
   if (!mach_fs_enabled)
     return (REDIRECT);
 
-  sft = lowmemp(Addr(state, es, edi));
+  sft = LINEAR2UNIX(SEGOFF2LINEAR(REG(es), LWORD(edi)));
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 

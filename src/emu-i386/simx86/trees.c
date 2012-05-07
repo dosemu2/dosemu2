@@ -1375,16 +1375,10 @@ quit:
 
 /////////////////////////////////////////////////////////////////////////////
 
-void e_invalidate(unsigned char *pdata, int cnt)
+void e_invalidate(unsigned data, int cnt)
 {
-	unsigned int data;
 	if (config.cpuemu <= 1)
 		return;
-#ifdef __x86_64__
-	if ((unsigned long)(pdata - mem_base) > 0xffffffff)
-		return;
-#endif
-	data = pdata - mem_base;
 	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)

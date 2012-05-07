@@ -715,7 +715,7 @@ int dos_read(int fd, unsigned data, int cnt)
   else
     ret = unix_read(fd, LINEAR2UNIX(data), cnt);
   if (ret > 0)
-	e_invalidate(&mem_base[data], ret);
+	e_invalidate(data, ret);
   return (ret);
 }
 
