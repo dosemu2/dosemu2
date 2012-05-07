@@ -189,7 +189,7 @@ static unsigned char it[0x100] = {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 static unsigned seg, osp, asp, lock, rep;
 static int count;
-static unsigned char *vga_base, *vga_end;
+static unsigned vga_base, vga_end;
 
 static unsigned arg_len(unsigned char *);
 
@@ -396,16 +396,17 @@ unsigned arg_len(unsigned char *p)
  *
  */
 
-unsigned char instr_read_byte(const unsigned char *addr)
+unsigned char instr_read_byte(const unsigned char *address)
 {
   unsigned char u;
+  unsigned addr = address - mem_base;
 
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
     u = vga_read(addr);
   }
   else {
-    u = *addr;
+    u = *address;
   }
 #if DEBUG_INSTR >= 2  
   instr_deb2("Read byte 0x%x", u);
@@ -415,7 +416,7 @@ unsigned char instr_read_byte(const unsigned char *addr)
   return u;
 }
 
-unsigned instr_read_word(const unsigned char *addr)
+unsigned instr_read_word(const unsigned char *address)
 {
   unsigned u;
 
@@ -423,13 +424,14 @@ unsigned instr_read_word(const unsigned char *addr)
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here
    */
+  unsigned addr = address - mem_base;
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
     u = 0;
     R_LO(u) = vga_read(addr);
     R_HI(u) = vga_read(addr+1);
   } else 
-    u = *(unsigned short *)addr;
+    u = *(unsigned short *)address;
 
 #if DEBUG_INSTR >= 2  
   instr_deb2("Read word 0x%x", u);
@@ -438,7 +440,7 @@ unsigned instr_read_word(const unsigned char *addr)
   return u;
 }
 
-unsigned instr_read_dword(const unsigned char *addr)
+unsigned instr_read_dword(const unsigned char *address)
 {
   unsigned u;
   
@@ -446,6 +448,7 @@ unsigned instr_read_dword(const unsigned char *addr)
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here
    */
+  unsigned addr = address - mem_base;
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
     R_LO(u) = vga_read(addr);
@@ -462,18 +465,20 @@ unsigned instr_read_dword(const unsigned char *addr)
   return u;
 }
 
-void instr_write_byte(unsigned char *addr, unsigned char u)
+void instr_write_byte(unsigned char *address, unsigned char u)
 {
+  unsigned addr = address - mem_base;
+
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
     vga_write(addr, u);
   }
-  else if (ldt_buffer && addr >= ldt_buffer &&
-      addr < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(addr - ldt_buffer, 1, (char*)&u);
+  else if (ldt_buffer && address >= ldt_buffer &&
+      address < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(address - ldt_buffer, 1, (char*)&u);
   }
   else {
-    *addr = u;
+    *address = u;
   }
 #if DEBUG_INSTR >= 2  
   instr_deb2("Write byte 0x%x", u);
@@ -481,8 +486,9 @@ void instr_write_byte(unsigned char *addr, unsigned char u)
 #endif  
 }
 
-void instr_write_word(unsigned char *dst, unsigned u)
+void instr_write_word(unsigned char *address, unsigned u)
 {
+  unsigned dst = address - mem_base;
   /*
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here.
@@ -494,12 +500,12 @@ void instr_write_word(unsigned char *dst, unsigned u)
     vga_write(dst, R_LO(u));
     vga_write(dst+1, R_HI(u));
   }
-  else if (ldt_buffer && dst >= ldt_buffer &&
-      dst < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(dst - ldt_buffer, 2, (char*)&u);
+  else if (ldt_buffer && address >= ldt_buffer &&
+      address < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(address - ldt_buffer, 2, (char*)&u);
   }
   else
-    *(unsigned short *)dst = u;
+    *(unsigned short *)address = u;
 
 #if DEBUG_INSTR >= 2  
   instr_deb2("Write word 0x%x", u);
@@ -507,8 +513,10 @@ void instr_write_word(unsigned char *dst, unsigned u)
 #endif  
 }
 
-void instr_write_dword(unsigned char *dst, unsigned u)
+void instr_write_dword(unsigned char *address, unsigned u)
 {
+  unsigned dst = address - mem_base;
+
   /*
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here.
@@ -522,9 +530,9 @@ void instr_write_dword(unsigned char *dst, unsigned u)
     vga_write(dst+2, ((unsigned char *) &u)[2]);
     vga_write(dst+3, ((unsigned char *) &u)[3]);
   }
-  else if (ldt_buffer && dst >= ldt_buffer &&
-      dst < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(dst - ldt_buffer, 4, (char*)&u);
+  else if (ldt_buffer && address >= ldt_buffer &&
+      address < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(address - ldt_buffer, 4, (char*)&u);
   }
   else 
     *(unsigned *)dst = u;
@@ -2440,7 +2448,7 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
 #endif
 
   count = cnt ? : COUNT + 1;
-  vga_base = &mem_base[vga.mem.bank_base];
+  vga_base = vga.mem.bank_base;
   vga_end =  vga_base + vga.mem.bank_len;
 
   x86.prefixes = 1;

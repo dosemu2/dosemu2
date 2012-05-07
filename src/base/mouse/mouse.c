@@ -1771,12 +1771,12 @@ mouse_update_cursor(int clipped)
 void
 text_cursor(void)
 {
-  unsigned short *p;
+  unsigned int p;
   int offset;
   int cx, cy;
   int co = READ_WORD(BIOS_SCREEN_COLUMNS);
   p = screen_adr(mouse.display_page);
-  offset = mouse_erase.x;
+  offset = mouse_erase.x*2;
   cx = MOUSE_RX >> mouse.xshift;
   cy = MOUSE_RY >> mouse.yshift;
 
@@ -1794,7 +1794,7 @@ text_cursor(void)
   	return;
 
   /* remember where we drew this. */
-  mouse_erase.x = offset = cx + cy * co;
+  mouse_erase.x = offset = 2 * (cx + cy * co);
   mouse_erase.backingstore.text[0] = vga_read_word(p + offset);
 
   /* draw it. */

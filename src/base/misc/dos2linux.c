@@ -671,7 +671,7 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 void memcpy_2unix(void *dest, unsigned src, size_t n)
 {
   if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
-    memcpy_from_vga(dest, &mem_base[src], n);
+    memcpy_from_vga(dest, src, n);
   else
     MEMCPY_2UNIX(dest, src, n);
 }
@@ -679,7 +679,7 @@ void memcpy_2unix(void *dest, unsigned src, size_t n)
 void memcpy_2dos(unsigned dest, const void *src, size_t n)
 {
   if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
-    memcpy_to_vga(&mem_base[dest], src, n);
+    memcpy_to_vga(dest, src, n);
   else
     MEMCPY_2DOS(dest, src, n);
 }
@@ -690,9 +690,9 @@ void memmove_dos2dos(unsigned dest, unsigned src, size_t n)
      TODO: worry about overlaps; could be a little cleaner
      using the memcheck.c mechanism */
   if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
-    memcpy_from_vga(&mem_base[dest], &mem_base[src], n);
+    memcpy_dos_from_vga(dest, src, n);
   else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
-    memcpy_to_vga(&mem_base[dest], &mem_base[src], n);
+    memcpy_dos_to_vga(dest, src, n);
   else
     MEMMOVE_DOS2DOS(dest, src, n);
 }
@@ -706,7 +706,7 @@ int dos_read(int fd, void *data, int cnt)
     char buf[cnt];
     ret = RPT_SYSCALL(read(fd, buf, cnt));
     if (ret >= 0)
-      memcpy_to_vga(data, buf, ret);
+      memcpy_to_vga(d - mem_base, buf, ret);
   }
   else
     ret = RPT_SYSCALL(read(fd, lowmemp(data), cnt));
@@ -721,7 +721,7 @@ int dos_write(int fd, const void *data, int cnt)
   const unsigned char *d = data;
   unsigned char buf[cnt];
   if (vga.inst_emu && d >= &mem_base[0xa0000] && d < &mem_base[0xc0000]) {
-    memcpy_from_vga(buf, d, cnt);
+    memcpy_from_vga(buf, d - mem_base, cnt);
     d = buf;
   }
   ret = RPT_SYSCALL(write(fd, d, cnt));

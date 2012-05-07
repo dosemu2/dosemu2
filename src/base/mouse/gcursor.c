@@ -105,7 +105,7 @@ realize_cursor(short *scrmask,short *curmask,int org)
 }
 
 
-#define GRBASE &mem_base[GRAPH_BASE + mouse_current_video.offset]
+#define GRBASE (GRAPH_BASE + mouse_current_video.offset)
 
 static inline 
 unsigned char read_ega_reg(int port,int index)
@@ -170,7 +170,7 @@ cga2_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 	unsigned char *bs)
 {
 	int byteWidth = ((x + width - 1) >> 3) - (x >> 3) + 1;
-	unsigned char *scr = GRBASE + cga_scanline(y) + (x >> 3);
+	unsigned scr = GRBASE + cga_scanline(y) + (x >> 3);
 
 	if (toscr)
 		while (height--) {
@@ -192,7 +192,7 @@ cga4_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 	unsigned char *bs)
 {
 	int byteWidth = ((x + width - 1) >> 2) - (x >> 2) + 1;
-	unsigned char *scr = GRBASE + cga_scanline(y) + (x >> 2);
+	unsigned scr = GRBASE + cga_scanline(y) + (x >> 2);
 
 	if (toscr)
 		while (height--) {
@@ -215,13 +215,13 @@ ega16_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 {
 	int byteWidth = ((x + width - 1) >> 3) - (x >> 3) + 1;
 	int plane;
-	unsigned char *scr = GRBASE + (y * bpl) + (x >> 3);
+	unsigned scr = GRBASE + (y * bpl) + (x >> 3);
 
 	SAVE_EGA_STATE
 
 	for (plane=0; plane<4; plane++) {
 		int h = height;
-		unsigned char *s = scr;
+		unsigned s = scr;
 
 		if (toscr) {
 			/* only enable writes to a single plane */
@@ -253,7 +253,7 @@ static void
 vga_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 	unsigned char *bs)
 {
-	unsigned char *scr = GRBASE + (y * bpl) + x;
+	unsigned scr = GRBASE + (y * bpl) + x;
 
 	if (toscr)
 		while (height--) {
@@ -286,10 +286,10 @@ cga2_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 {
 	int index = (xofs >> 3) + (yofs * 3) + (x & 7) * 48;
 	int bwidth = ((x + width - 1) >> 3) - (x >> 3);
-	unsigned char *scr = GRBASE + cga_scanline(y) + (x >> 3);
+	unsigned scr = GRBASE + cga_scanline(y) + (x >> 3);
 
 	while (height--) {
-		unsigned char *s = scr;
+		unsigned s = scr;
 		int i = index;
 		switch (bwidth) {
 			case 2: do_pixel
@@ -307,11 +307,11 @@ cga4_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 {
 	int index = (xofs >> 2) + (yofs * 5) + (x & 3) * 80;
 	int bwidth = ((x + width - 1) >> 2) - (x >> 2);
-	unsigned char *scr = GRBASE + cga_scanline(y) + (x >> 2);
+	unsigned scr = GRBASE + cga_scanline(y) + (x >> 2);
 
 
 	while (height--) {
-		unsigned char *s = scr;
+		unsigned s = scr;
 		int i = index;
 		switch (bwidth) {
 			case 4: do_pixel
@@ -331,7 +331,7 @@ ega16_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 {
 	int index = (xofs >> 3) + (yofs * 3) + (x & 7) * 48;
 	int bwidth = ((x + width - 1) >> 3) - (x >> 3);
-	unsigned char *scr = GRBASE + (y * bpl) + (x >> 3);
+	unsigned scr = GRBASE + (y * bpl) + (x >> 3);
 	int plane;
 
 	SAVE_EGA_STATE
@@ -341,7 +341,7 @@ ega16_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 	for (plane = 0; plane < 4; plane++) {
 		int h = height;
 		int ii = index;
-		unsigned char *ss = scr;
+		unsigned ss = scr;
 
 		/* enable reads from this plane */
 		write_ega_reg(GRA_I,0x4,plane);
@@ -350,7 +350,7 @@ ega16_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 		write_ega_reg(SEQ_I,0x2,1<<plane);
 
 		while (h--) {
-			unsigned char *s = ss;
+			unsigned s = ss;
 			int i = ii;
 			switch (bwidth) {
 				case 2: do_pixel
@@ -370,10 +370,10 @@ static void
 vga_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 {
 	int index = xofs + (yofs << 3);
-	unsigned char *scr = GRBASE + (y * bpl) + x;
+	unsigned scr = GRBASE + (y * bpl) + x;
 
 	while (height--) {
-		unsigned char *s = scr;
+		unsigned s = scr;
 		int i = index;
 		switch (width) {
 			case 15: do_pixel

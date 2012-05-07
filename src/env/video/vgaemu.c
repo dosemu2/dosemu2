@@ -764,72 +764,94 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
   
 }
 
-unsigned char vga_read(const unsigned char *addr)
+unsigned char vga_read(unsigned addr)
 {
   if (!vga.inst_emu)
-    return READ_BYTEP(addr);
-  return Logical_VGA_read(addr - mem_base - vga.mem.bank_base);
+    return READ_BYTE(addr);
+  return Logical_VGA_read(addr - vga.mem.bank_base);
 }
 
-unsigned short vga_read_word(const unsigned short *addr)
+unsigned short vga_read_word(unsigned addr)
 {
   if (!vga.inst_emu)
-    return READ_WORDP(addr);
-  return vga_read((const unsigned char *)addr) |
-	 vga_read((const unsigned char *)addr + 1) << 8;
+    return READ_WORD(addr);
+  return vga_read(addr) | vga_read(addr + 1) << 8;
 }
 
-void vga_write(unsigned char *addr, unsigned char val)
+void vga_write(unsigned addr, unsigned char val)
 {
   if (!vga.inst_emu) {
-    WRITE_BYTEP(addr, val);
+    WRITE_BYTE(addr, val);
     return;
   }
-  Logical_VGA_write(addr - mem_base - vga.mem.bank_base, val);
+  Logical_VGA_write(addr - vga.mem.bank_base, val);
 }
 
-void vga_write_word(unsigned short *addr, unsigned short val)
+void vga_write_word(unsigned addr, unsigned short val)
 {
   if (!vga.inst_emu) {
-    WRITE_WORDP(addr, val);
+    WRITE_WORD(addr, val);
     return;
   }
-  vga_write((unsigned char *)addr, val & 0xff);
-  vga_write((unsigned char *)addr + 1, val >> 8);
+  vga_write(addr, val & 0xff);
+  vga_write(addr + 1, val >> 8);
 }
 
-void memcpy_to_vga(void *dst, const void *src, size_t len)
+void memcpy_to_vga(unsigned dst, const void *src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMCPY_2DOSP(dst, src, len);
+    MEMCPY_2DOS(dst, src, len);
     return;
   }
   for (i = 0; i < len; i++)
-    vga_write((unsigned char *)dst + i, READ_BYTEP((unsigned char *)src + i));
+    vga_write(dst + i, ((unsigned char *)src)[i]);
 }
 
-void memcpy_from_vga(void *dst, const void *src, size_t len)
+void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMCPY_P2UNIX(dst, src, len);
+    MEMCPY_DOS2DOS(dst, src, len);
+    return;
+  }
+  for (i = 0; i < len; i++)
+    vga_write(dst + i, READ_BYTE(src + i));
+}
+
+void memcpy_from_vga(void *dst, unsigned src, size_t len)
+{
+  int i;
+  if (!vga.inst_emu) {
+    MEMCPY_2UNIX(dst, src, len);
     return;
   }
   for (i = 0; i < len; i++) {
-    WRITE_BYTEP((unsigned char *)dst + i, vga_read((unsigned char *)src + i));
+    ((unsigned char *)dst)[i] = vga_read(src + i);
   }
 }
 
-void vga_memcpy(void *dst, const void *src, size_t len)
+void memcpy_dos_from_vga(unsigned dst, unsigned src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMMOVE_DOSP2DOSP(dst, src, len);
+    MEMCPY_DOS2DOS(dst, src, len);
+    return;
+  }
+  for (i = 0; i < len; i++) {
+    WRITE_BYTE(dst + i, vga_read(src + i));
+  }
+}
+
+void vga_memcpy(unsigned dst, unsigned src, size_t len)
+{
+  int i;
+  if (!vga.inst_emu) {
+    MEMMOVE_DOS2DOS(dst, src, len);
     return;
   }
   for (i = 0; i < len; i++)
-    vga_write((unsigned char *)dst + i, vga_read((unsigned char *)src + i));
+    vga_write(dst + i, vga_read(src + i));
 }
 
 /*

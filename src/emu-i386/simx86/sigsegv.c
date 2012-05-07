@@ -55,13 +55,13 @@ int TryMemRef = 0;
 unsigned e_VgaRead(unsigned a, int mode)
 {
   unsigned u;
-  unsigned char *addr = (unsigned char *)(uintptr_t)a;
+  unsigned int addr = (unsigned char *)(uintptr_t)a - mem_base;
   if (mode&(MBYTE|MBYTX))
     u = vga_read(addr);
   else {
-    u = vga_read_word((unsigned short *)addr);
+    u = vga_read_word(addr);
     if (!(mode&DATA16))
-      u |= vga_read_word((unsigned short *)addr+1) << 16;
+      u |= vga_read_word(addr+2) << 16;
   }
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: VGA read at %08x = %08x mode %x\n",addr,u,mode);
@@ -71,7 +71,7 @@ unsigned e_VgaRead(unsigned a, int mode)
 
 void e_VgaWrite(unsigned a, unsigned u, int mode)
 {
-  unsigned char *addr = (unsigned char *)(uintptr_t)a;
+  unsigned addr = (unsigned char *)(uintptr_t)a - mem_base;
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: VGA write %08x at %08x mode %x\n",u,addr,mode);
 #endif
@@ -79,9 +79,9 @@ void e_VgaWrite(unsigned a, unsigned u, int mode)
     vga_write(addr, u);
     return;
   }
-  vga_write_word((unsigned short *)addr, u);
+  vga_write_word(addr, u);
   if (mode&DATA16) return;
-  vga_write_word((unsigned short *)addr+1, u>>16);
+  vga_write_word(addr+2, u>>16);
 }
 
 void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)

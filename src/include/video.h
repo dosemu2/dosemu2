@@ -119,7 +119,7 @@ EXTERN unsigned int screen_mask;
 
 EXTERN unsigned char video_initialized INIT(0);
 extern boolean set_video_mode(int);
-extern unsigned short *screen_adr(int page);
+extern unsigned screen_adr(int page);
 
 /* Values are set by video_config_init depending on video-card defined in config */
 /* Values are set from emu.c depending on video-config */
