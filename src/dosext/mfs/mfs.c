@@ -3324,8 +3324,8 @@ dos_fs_redirect(state_t *state)
         return (FALSE);
       }
       fd = open_files[sft_fd(sft)].fd;
-      Debug0((dbg_fd, "Read file fd=%x, dta=%p, cnt=%d\n",
-	      fd, (void *) dta, cnt));
+      Debug0((dbg_fd, "Read file fd=%x, dta=%#x, cnt=%d\n",
+	      fd, dta, cnt));
       Debug0((dbg_fd, "Read file pos = %d\n",
 	      sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n",
@@ -3395,7 +3395,7 @@ dos_fs_redirect(state_t *state)
     }
     Debug0((dbg_fd, "Handle cnt %d\n",
 	    sft_handle_cnt(sft)));
-    Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %p, cnt = %x\n", (int)sft_size(sft), (int)sft_position(sft), (void *) dta, (int)cnt));
+    Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n", (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
     if (us_debug_level > Debug_Level_0) {
       ret = dos_write(fd, dta, cnt);
       if ((ret + s_pos) > sft_size(sft)) {

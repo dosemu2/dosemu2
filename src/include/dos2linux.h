@@ -273,7 +273,9 @@ void memcpy_2dos(unsigned dest, const void *src, size_t n);
 void memmove_dos2dos(unsigned dest, unsigned src, size_t n);
 
 
+int unix_read(int fd, void *data, int cnt);
 int dos_read(int fd, unsigned data, int cnt);
+int unix_write(int fd, const void *data, int cnt);
 int dos_write(int fd, unsigned data, int cnt);
 int com_vsprintf(char *str, char *format, va_list ap);
 int com_sprintf(char *str, char *format, ...) FORMAT(printf, 2, 3);

@@ -1249,8 +1249,8 @@ int int13(void)
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       d_printf("Sector not found 1!\n");
-      d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%p\n",
-	       disk, head, sect, track, number, (void *) buffer);
+      d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%#x\n",
+	       disk, head, sect, track, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1280,8 +1280,8 @@ int int13(void)
 
     LWORD(eax) = res >> 9;
     REG(eflags) &= ~CF;
-    R_printf("DISK read @%d/%d/%d (%d) -> %p OK.\n",
-	     head, track, sect, res >> 9, (void *)buffer);
+    R_printf("DISK read @%d/%d/%d (%d) -> %#x OK.\n",
+	     head, track, sect, res >> 9, buffer);
     break;
 
   case 3:			/* write */
@@ -1299,8 +1299,8 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
     number = LO(ax);
-    W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%p\n",
-	     head, sect, track, number, (void *) buffer);
+    W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%#x\n",
+	     head, sect, track, number, buffer);
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
@@ -1593,8 +1593,8 @@ int int13(void)
 
     if (checkdp(dp) || track >= dp->tracks) {
       error("Sector not found, AH=0x42!\n");
-      d_printf("DISK %d ext read [h:%d,s:%d,t:%d](%d)->%p\n",
-	       disk, head, sect, track, number, (void *) buffer);
+      d_printf("DISK %d ext read [h:%d,s:%d,t:%d](%d)->%#x\n",
+	       disk, head, sect, track, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1625,8 +1625,8 @@ int int13(void)
     diskaddr->blocks = res >> 9;
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext read @%d/%d/%d (%d) -> %p OK.\n",
-	     head, track, sect, res >> 9, (void *)buffer);
+    R_printf("DISK ext read @%d/%d/%d (%d) -> %#x OK.\n",
+	     head, track, sect, res >> 9, buffer);
     break;
   }
   
@@ -1645,8 +1645,8 @@ int int13(void)
 
     if (checkdp(dp) || track >= dp->tracks) {
       error("Sector not found, AH=0x42!\n");
-      d_printf("DISK %d ext write [h:%d,s:%d,t:%d](%d)->%p\n",
-	       disk, head, sect, track, number, (void *) buffer);
+      d_printf("DISK %d ext write [h:%d,s:%d,t:%d](%d)->%#x\n",
+	       disk, head, sect, track, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
@@ -1690,8 +1690,8 @@ int int13(void)
     diskaddr->blocks = res >> 9;
     HI(ax) = 0;
     REG(eflags) &= ~CF;
-    R_printf("DISK ext write @%d/%d/%d (%d) -> %p OK.\n",
-	     head, track, sect, res >> 9, (void *)buffer);
+    R_printf("DISK ext write @%d/%d/%d (%d) -> %#x OK.\n",
+	     head, track, sect, res >> 9, buffer);
     break;
   }
 
