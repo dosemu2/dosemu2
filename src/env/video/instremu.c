@@ -456,7 +456,7 @@ unsigned instr_read_dword(const unsigned char *address)
     ((unsigned char *) &u)[2] = vga_read(addr+2);
     ((unsigned char *) &u)[3] = vga_read(addr+3);
   } else 
-    u = *(unsigned *)addr;
+    u = *(unsigned *)address;
 
 #if DEBUG_INSTR >= 2  
   instr_deb2("Read word 0x%x", u);
@@ -535,7 +535,7 @@ void instr_write_dword(unsigned char *address, unsigned u)
     direct_ldt_write(address - ldt_buffer, 4, (char*)&u);
   }
   else 
-    *(unsigned *)dst = u;
+    *(unsigned *)address = u;
 
 #if DEBUG_INSTR >= 2  
   instr_deb2("Write word 0x%x", u);
