@@ -176,11 +176,11 @@ extern int sda_cur_drive_off;
 #define psp_parent_psp(psp)		(*(u_short *)&psp[0x16])
 #define psp_handles(psp)		((char *)(uintptr_t)(FARPTR((far_t *)&psp[0x34])))
 
-#define lol_dpbfarptr(lol)		(*(far_t *)&lol[lol_dpbfarptr_off])
-#define lol_cdsfarptr(lol)		(*(far_t *)&lol[lol_cdsfarptr_off])
-#define lol_last_drive(lol)		(*(u_char *)&lol[lol_last_drive_off])
-#define lol_nuldev(lol)		        (&lol[lol_nuldev_off])
-#define lol_njoined(lol)		(&lol[lol_njoined_off])
+#define lol_dpbfarptr(lol)		(rFAR_FARt(READ_DWORD((lol)+lol_dpbfarptr_off)))
+#define lol_cdsfarptr(lol)		(rFAR_FARt(READ_DWORD((lol)+lol_cdsfarptr_off)))
+#define lol_last_drive(lol)		(READ_BYTE((lol)+lol_last_drive_off))
+#define lol_nuldev(lol)		        ((lol)+lol_nuldev_off)
+#define lol_njoined(lol)		((lol)+lol_njoined_off)
 
 extern int sdb_drive_letter_off;
 extern int sdb_template_name_off;
@@ -247,7 +247,7 @@ extern int sda_ext_act_off;
 extern int sda_ext_attr_off;
 extern int sda_ext_mode_off;
 
-typedef u_char *lol_t;
+typedef unsigned lol_t;
 extern lol_t lol;
 extern int lol_nuldev_off;
 

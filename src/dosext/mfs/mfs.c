@@ -288,7 +288,7 @@ static u_char first_free_drive = 0;
 static int num_drives = 0;
 static int process_mask = 0;
 
-lol_t lol = NULL;
+lol_t lol = 0;
 static far_t cdsfarptr;
 cds_t cds_base;
 sda_t sda;
@@ -1573,7 +1573,7 @@ dos_fs_dev(state_t *state)
     init_all_drives();
     mach_fs_enabled = TRUE;
 
-    lol = (lol_t) Addr(state, es, edx);
+    lol = SEGOFF2LINEAR(state->es, WORD(state->edx));
     sda = (sda_t) Addr(state, ds, esi);
     dos_major = LOW(state->ecx);
     dos_minor = HIGH(state->ecx);
@@ -1581,7 +1581,7 @@ dos_fs_dev(state_t *state)
         Debug0((dbg_fd, "dos_fs: running DosC build 0x%x\n", running_DosC));
     Debug0((dbg_fd, "dos_fs: dos_major:minor = 0x%d:%d.\n",
 	    dos_major, dos_minor));
-    Debug0((dbg_fd, "lol=%p\n", (void *) lol));
+    Debug0((dbg_fd, "lol=%#x\n", lol));
     Debug0((dbg_fd, "sda=%p\n", (void *) sda));
     if ((dos_major == 3) && (dos_minor > 9) && (dos_minor <= 31)) {
       dos_ver = DOSVER_31_33;

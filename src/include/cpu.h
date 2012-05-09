@@ -139,11 +139,14 @@ typedef struct {
 #define FP_OFF16(far_ptr)	((far_ptr) & 0xffff)
 #define FP_SEG16(far_ptr)	(((far_ptr) >> 16) & 0xffff)
 #define MK_FP32(s,o)		((void *)&mem_base[SEGOFF2LINEAR(s,o)])
-#define FP_OFF32(void_ptr)	((((unsigned char *)void_ptr)-mem_base) & 15)
-#define FP_SEG32(void_ptr)	(((((unsigned char *)void_ptr)-mem_base) >> 4) & 0xffff)
+#define FP_OFF32(linear)	((linear) & 15)
+#define FP_SEG32(linear)	(((linear) >> 4) & 0xffff)
 #define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))
 #define FARt_PTR(f_t_ptr) (MK_FP32((f_t_ptr).segment, (f_t_ptr).offset))
 #define MK_FARt(seg, off) ((far_t){(off), (seg)})
+static inline far_t rFAR_FARt(FAR_PTR far_ptr) {
+  return MK_FARt(FP_SEG16(far_ptr), FP_OFF16(far_ptr));
+}
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 

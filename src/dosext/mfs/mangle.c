@@ -69,7 +69,7 @@ the name is either a full Unix name or an 8 character candidate
 unsigned int is_dos_device(const char *fname)
 {
   char *p;
-  unsigned char *dev;
+  unsigned int dev;
   unsigned int devfar;
   int i;
 
@@ -102,7 +102,7 @@ unsigned int is_dos_device(const char *fname)
    */
 
   /* walk the chain of DOS devices; see also FreeDOS kernel code */
-  dev = &lol[lol_nuldev_off];
+  dev = lol_nuldev(lol);
   devfar = MK_FP16(FP_SEG32(dev - 0x26), 0x26);
   do
   {
@@ -114,21 +114,21 @@ unsigned int is_dos_device(const char *fname)
         /* check if remainder of device name consists of spaces or nulls */
         for (; i < 8; i++)
         {
-          char c2 = dev[0xa + i];
+          char c2 = READ_BYTE(dev + 0xa + i);
           if (c2 != ' ' && c2 != '\0')
             break;
         }
         break;
       }
-      if (toupperDOS(c1) != toupperDOS(dev[0xa + i]))
+      if (toupperDOS(c1) != toupperDOS(READ_BYTE(dev + 0xa + i)))
         break;
     }
     if (i == 8)
       return devfar;
-    if (dev[0] == 0xff || dev[1] == 0xff)
+    if (READ_BYTE(dev) == 0xff || READ_BYTE(dev+1) == 0xff)
       return 0;
-    memcpy(&devfar, dev, 4);
-    dev = MK_FP32((dev[3] << 8) | dev[2], (dev[1] << 8) | dev[0]);
+    devfar = READ_DWORD(dev);
+    dev = SEGOFF2LINEAR(FP_SEG16(devfar), FP_OFF16(devfar));
   } while (1);
 }
 

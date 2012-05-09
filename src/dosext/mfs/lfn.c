@@ -81,7 +81,7 @@ static char *handle_to_filename(int handle, int *fd)
 		return NULL;
 
 	/* Get the SFT block that contains the SFT      */
-	sp = READ_DWORDP(lol + 4);
+	sp = READ_DWORD(lol + 4);
 	sft = NULL;
 	while (sp != 0xffffffff) {
 		spp = LINEAR2UNIX(rFAR_PTR(unsigned int, sp));
