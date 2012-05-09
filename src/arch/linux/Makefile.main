@@ -50,7 +50,7 @@ DOCS= ../man
 
 ###################################################################
 
-default: version include/confpath.h doslib \
+default: version include/version.h include/confpath.h doslib \
 	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
 
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
@@ -122,6 +122,14 @@ versetup:
 	@rm -f ../bin ../commands
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
+
+include/version.h: ../Makefile.conf
+	echo '#define  VERSION $(VERSION)' > $@
+	echo '#define  SUBLEVEL $(SUBLEVEL)' >> $@
+	echo '#define  PATCHLEVEL1 $(PATCHLEVEL1)' >> $@
+	echo '#define  PATCHLEVEL2 $(PATCHLEVEL2)' >> $@
+	echo '#define  VERSTR "$(THISVERSION)"' >> $@
+	echo '#define  VERDATE "$(RELEASE_DATE)"' >> $@
 
 include/confpath.h: ../Makefile.conf
 	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@

@@ -6229,10 +6229,6 @@ else
   VV=${VV#*.}
   PATCHLEVEL2=${VV%%.*}
 fi
-DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL1 * 256 ) + $PATCHLEVEL2 ))"`
-PATCHLEVEL="${PATCHLEVEL1}.${PATCHLEVEL2}"
-THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
-EMUVER="$VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $srcdir/ChangeLog | cut '-d ' -f1`
 
 
@@ -6241,10 +6237,6 @@ RELEASE_DATE=`head -n1 $srcdir/ChangeLog | cut '-d ' -f1`
 
 
 
-cat >>confdefs.h <<_ACEOF
-#define EMUVER "$EMUVER"
-_ACEOF
-
 CONFIG_TIME=`date`
 cat >>confdefs.h <<_ACEOF
 #define CONFIG_HOST "$CONFIG_HOST"
@@ -6252,30 +6244,6 @@ _ACEOF
 
 cat >>confdefs.h <<_ACEOF
 #define CONFIG_TIME "$CONFIG_TIME"
-_ACEOF
-
-cat >>confdefs.h <<_ACEOF
-#define VERSION $VERSION
-_ACEOF
-
-cat >>confdefs.h <<_ACEOF
-#define DOSEMU_VERSION_CODE $DOSEMU_VERSION_CODE
-_ACEOF
-
-cat >>confdefs.h <<_ACEOF
-#define SUBLEVEL $SUBLEVEL
-_ACEOF
-
-cat >>confdefs.h <<_ACEOF
-#define PATCHLEVEL $PATCHLEVEL
-_ACEOF
-
-cat >>confdefs.h <<_ACEOF
-#define VERSTR "$THISVERSION"
-_ACEOF
-
-cat >>confdefs.h <<_ACEOF
-#define VERDATE "$RELEASE_DATE"
 _ACEOF
 
 
@@ -6619,20 +6587,6 @@ ac_config_files="$ac_config_files Makefile.conf dosemu.spec"
 
 
 ac_config_commands="$ac_config_commands Makefile"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

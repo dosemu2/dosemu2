@@ -9,6 +9,11 @@
 
 #include "config.h"
 #include "types.h"
+#include "version.h"
+
+#if DOSEMU_VERSION_CODE < VERSION_OF(1,1,1,1)
+  #error "Sorry, wrong DOSEMU version for keyboard unicode plugin, please upgrade"
+#endif
 
 /* keyboard related PUBLIC definitions (for keyboard clients) */
 

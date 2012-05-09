@@ -52,6 +52,7 @@ pristine distclean mrproper:  docsclean mididclean
 	rm -f core `find . -name configure.lineno`
 	rm -f src/include/config.h
 	rm -f src/include/confpath.h
+	rm -f src/include/version.h
 	rm -f src/include/plugin_*.h
 	rm -f core `find . -name '*~'`
 	rm -f core `find . -name '*[\.]o'`

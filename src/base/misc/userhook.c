@@ -144,7 +144,7 @@ static void uhook_kill(int argc, char **argv)
 static void uhook_version(int argc, char **argv)
 {
 	do_syn(argv[0]);
-	uhook_printf("dosemu-%d.%d.%g\n", VERSION, SUBLEVEL, PATCHLEVEL);
+	uhook_printf("dosemu-%d.%d.%d.%d\n", VERSION, SUBLEVEL, PATCHLEVEL1, PATCHLEVEL2);
 }
 
 static void uhook_keystroke(int argc, char **argv)

@@ -2090,8 +2090,8 @@ err:
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
 	  *(buf+1) = DPMI_DRIVER_VERSION;
-	  sprintf(buf+2, "DOSEMU Version %d.%d.%f\n", VERSION,
-		  SUBLEVEL, PATCHLEVEL);
+	  sprintf(buf+2, "DOSEMU Version %d.%d.%d.%d\n", VERSION,
+		  SUBLEVEL, PATCHLEVEL1, PATCHLEVEL2);
       }
     break;
 	  

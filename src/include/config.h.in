@@ -24,6 +24,7 @@
 #define CONFIG_H 1
 
 #define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+#define DOSEMU_VERSION_CODE VERSION_OF(VERSION,SUBLEVEL,PATCHLEVEL1,PATCHLEVEL2)
 #define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
 #define GCC_VERSION_CODE (__GNUC__ * 1000 + __GNUC_MINOR__)
 
@@ -90,12 +91,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 
 /* Define the configure time */
 #undef CONFIG_TIME
-
-/* Define the Dosemu version code */
-#undef DOSEMU_VERSION_CODE
-
-/* Define the EMU version */
-#undef EMUVER
 
 /* Define the stepping of gas code16 functionality */
 #undef GASCODE16
@@ -180,14 +175,8 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define the Dosemu patchlevel */
-#undef PATCHLEVEL
-
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* Define the Dosemu sublevel */
-#undef SUBLEVEL
 
 /* DEFINE this, if you want alsa support */
 #undef USE_ALSA
@@ -219,15 +208,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 
 /* Define if compiling with network support */
 #undef USING_NET
-
-/* Define the Dosemu version release date */
-#undef VERDATE
-
-/* Define the Dosemu version */
-#undef VERSION
-
-/* Define the version string */
-#undef VERSTR
 
 /* Define this to use the X86 CPU emulator */
 #undef X86_EMULATOR

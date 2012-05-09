@@ -14,6 +14,7 @@
 
 #define __ASM__
 #include "config.h"
+#include "version.h"
 #include "memory.h"
 #include "macros86.h"
 #include "doshelpers.h"
