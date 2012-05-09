@@ -19,11 +19,12 @@
 #include "lowmem.h"
 
 static smpool mp;
+unsigned char *dosemu_lmheap_base;
 
 int lowmem_heap_init()
 {
-    sminit(&mp, MK_FP32(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF),
-	DOSEMU_LMHEAP_SIZE);
+    dosemu_lmheap_base = MK_FP32(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF);
+    sminit(&mp, dosemu_lmheap_base, DOSEMU_LMHEAP_SIZE);
     smregister_error_notifier(dosemu_error);
     return 1;
 }

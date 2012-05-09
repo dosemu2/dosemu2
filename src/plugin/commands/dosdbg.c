@@ -46,8 +46,8 @@
 #include "dosdbg.h"
 
 #define printf  com_printf
-#define FP_OFF(x) FP_OFF32(x)
-#define FP_SEG(x) FP_SEG32(x)
+#define FP_OFF(x) DOSEMU_LMHEAP_OFFS_OF(x)
+#define FP_SEG(x) DOSEMU_LMHEAP_SEG
 
 
 typedef unsigned char uint8;

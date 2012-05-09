@@ -21,8 +21,6 @@
 #undef	stderr
 #define stderr	com_stderr
 #define intr    com_intr
-#define FP_OFF(x) FP_OFF32(x)
-#define FP_SEG(x) FP_SEG32(x)
 
 /* should sync with src/env/video/X.h */
 #define X_CHG_TITLE     1

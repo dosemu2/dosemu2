@@ -210,8 +210,8 @@ void do_int10_callback(struct vm86_regs *regs)
   /* always use the special stack to avoid corrupting DOS memory
      -- an int 10 handler may need more space than an irq and
      we can come in at any time */
-  REG(ss) = FP_SEG32(rm_stack);
-  REG(esp) = FP_OFF32(rm_stack) + RM_STACK_SIZE;
+  REG(ss) = DOSEMU_LMHEAP_SEG;
+  REG(esp) = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
   v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
   REG(eflags) = IOPL_MASK;
   /* we don't want the BIOS to call the mouse helper */

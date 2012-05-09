@@ -26,17 +26,19 @@
 static char *envptr(int *size, int parent_p)
 {
     struct PSP *parent_psp;
+    unsigned mcbseg;
     struct MCB *mcb;
 
     parent_psp = (struct PSP *)SEG2LINEAR(parent_p);
     if (parent_psp->envir_frame == 0) {
-       mcb = MK_FP32(peek(parent_p-1,0x3) + parent_p, 0);
+       mcbseg = peek(parent_p-1,0x3) + parent_p;
     }
     else {
-       mcb = MK_FP32(peek(parent_p,0x2c) - 1, 0);
+       mcbseg = peek(parent_p,0x2c) - 1;
     }
+    mcb = MK_FP32(mcbseg, 0);
     *size = mcb->size * 16;
-    return LOWMEM(SEGOFF2LINEAR(FP_SEG32(mcb) + 1, 0));
+    return LINEAR2UNIX(SEGOFF2LINEAR(mcbseg + 1, 0));
 }
 
 

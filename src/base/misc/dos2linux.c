@@ -836,8 +836,8 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 	memcpy(s, buf32, size);
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = FP_SEG32(s);
-	LWORD(edx) = FP_OFF32(s);
+	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	LWORD(eax) = 0x4000;	/* write handle */
 	/* write() can be interrupted with ^C. Therefore we set int0x23 here
 	 * so that even in this case it will return to the proper place. */
@@ -865,8 +865,8 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	if (!s) return -1;
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = FP_SEG32(s);
-	LWORD(edx) = FP_OFF32(s);
+	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
 	LWORD(eax) = 0x3f00;
 	/* read() can be interrupted with ^C, esp. when it reads from a
 	 * console. Therefore we set int0x23 here so that even in this

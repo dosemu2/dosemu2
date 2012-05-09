@@ -4,6 +4,7 @@
 #include "emu.h"
 #include "bios.h"
 #include "dos2linux.h"
+#include "lowmem.h"
 
 #define COM_PSP_SEG	(REG(es))
 #define COM_PSP_ADDR	((struct PSP *)LINEAR2UNIX(SEGOFF2LINEAR(COM_PSP_SEG, 0)))

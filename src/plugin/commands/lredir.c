@@ -66,8 +66,8 @@
 #define printf	com_printf
 #define	intr	com_intr
 #define	strncmpi strncasecmp
-#define FP_OFF(x) FP_OFF32(x)
-#define FP_SEG(x) FP_SEG32(x)
+#define FP_OFF(x) DOSEMU_LMHEAP_OFFS_OF(x)
+#define FP_SEG(x) DOSEMU_LMHEAP_SEG
 
 typedef unsigned char uint8;
 typedef unsigned int uint16;
@@ -393,8 +393,8 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
 	return 0;
     LWORD(eax) = 0x6900;
     LWORD(ebx) = toupperDOS(deviceStr[0]) - 'A' + 1;
-    REG(ds) = FP_SEG32(di);
-    LWORD(edx) = FP_OFF32(di);
+    REG(ds) = FP_SEG(di);
+    LWORD(edx) = FP_OFF(di);
     call_msdos();
     if (REG(eflags) & CF) {
 	lowmem_free((void *)di, sizeof(struct DINFO));

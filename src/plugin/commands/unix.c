@@ -32,9 +32,6 @@
 #include "msetenv.h"
 #include "unix.h"
 
-#define FP_OFF(x) FP_OFF32(x)
-#define FP_SEG(x) FP_SEG32(x)
-
 #define CAN_EXECUTE_DOS 1
 enum { EXEC_LINUX_PATH, EXEC_LITERAL, EXEC_CHOICE };
 

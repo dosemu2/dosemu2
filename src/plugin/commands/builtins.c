@@ -64,8 +64,6 @@ char *com_getenv(char *keyword)
 
 static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 {
-	struct PSP  *psp = COM_PSP_ADDR;
-
 	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
 	if (!BMEM(pa4)) return -1;
 
@@ -85,15 +83,15 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 
 	/* prepare param block */
 	BMEM(pa4)->envframe = 0; // ctcb->envir_frame;
-	BMEM(pa4)->cmdline = MK_FARt(FP_SEG32(BMEM(cmdl)), FP_OFF32(BMEM(cmdl)));
-	BMEM(pa4)->fcb1 = MK_FARt(FP_SEG32(psp->FCB1), FP_OFF32(psp->FCB1));
-	BMEM(pa4)->fcb2 = MK_FARt(FP_SEG32(psp->FCB2), FP_OFF32(psp->FCB2));
-	LWORD(es) = FP_SEG32(BMEM(pa4));
-	LWORD(ebx) = FP_OFF32(BMEM(pa4));
+	BMEM(pa4)->cmdline = MK_FARt(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFFS_OF(BMEM(cmdl)));
+	BMEM(pa4)->fcb1 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB1));
+	BMEM(pa4)->fcb2 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB2));
+	LWORD(es) = DOSEMU_LMHEAP_SEG;
+	LWORD(ebx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(pa4));
 
 	/* path of programm to load */
-	LWORD(ds) = FP_SEG32(BMEM(cmd));
-	LWORD(edx) = FP_OFF32(BMEM(cmd));
+	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
 	
 	LWORD(eax) = 0x4b00;
 	
@@ -260,8 +258,8 @@ int com_dossetcurrentdir(char *path)
         com_errno = 8;
         if (!s) return -1;
         HI(ax) = 0x3b;
-        LWORD(ds) = FP_SEG32 (s) /*COM_SEG*/;
-        LWORD(edx) = FP_OFF32 (s) /*COM_OFFS_OF(s)*/;
+        LWORD(ds) = DOSEMU_LMHEAP_SEG;
+        LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
         call_msdos();    /* call MSDOS */
         com_strfree(s);
         if (LWORD(eflags) & CF) return -1;

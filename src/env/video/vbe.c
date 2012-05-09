@@ -47,8 +47,8 @@ static void vesa_reinit(void)
 
   vbe_buffer = info_buffer = lowmem_heap_alloc(VBE_viSize+VBE_vmSize);
   vesa_r.eax = 0x4f00;
-  vesa_r.es = FP_SEG32(vbe_buffer);
-  vesa_r.edi = 0;
+  vesa_r.es = DOSEMU_LMHEAP_SEG;
+  vesa_r.edi = DOSEMU_LMHEAP_OFFS_OF(vbe_buffer);
   VBE_viVBESig = 0x32454256; /* "VBE2" */
 
   do_int10_callback(&vesa_r);
@@ -126,7 +126,8 @@ static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
   lowmem = lowmem_heap_alloc(vesa_regs_size);
   vesa_r.eax = 0x4f04;
   vesa_r.ebx = 0;
-  vesa_r.es = FP_SEG32(lowmem);
+  vesa_r.es = DOSEMU_LMHEAP_SEG;
+  vesa_r.ebx = DOSEMU_LMHEAP_OFFS_OF(lowmem);
   vesa_r.edx = 1;
   vesa_r.ecx = VESA_SAVE_BITMAP;
   do_int10_callback(&vesa_r);
@@ -149,8 +150,8 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
   lowmem = lowmem_heap_alloc(xregs16[0]);
   memcpy(lowmem, xregs, xregs16[0]);  
   vesa_r.eax = 0x4f04;
-  vesa_r.ebx = 0;
-  vesa_r.es = FP_SEG32(lowmem);
+  vesa_r.es = DOSEMU_LMHEAP_SEG;
+  vesa_r.ebx = DOSEMU_LMHEAP_OFFS_OF(lowmem);
   vesa_r.edx = 2;
   vesa_r.ecx = VESA_SAVE_BITMAP;
   /* swap int10 vectors with the original int10 vector as it was
