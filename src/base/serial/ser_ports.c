@@ -981,8 +981,6 @@ do_serial_in(int num, ioport_t address)
     break;
   }
 
-  serial_run();		/* See if some work is to be done */
-
   return val;
 }
 
@@ -1081,7 +1079,6 @@ do_serial_out(int num, ioport_t address, int val)
   }
 
   serial_int_engine(num, 0);		/* Update interrupt status */
-  serial_run();		/* See if some work is to be done */
 
   return 0;
 }
