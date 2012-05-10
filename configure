@@ -615,11 +615,6 @@ USE_SBEMU
 ASPI_SUPPORT
 DEBUGGER
 USE_MHPDBG
-RELEASE_DATE
-PATCHLEVEL2
-PATCHLEVEL1
-SUBLEVEL
-VERSION
 MKFONTDIR
 BDFTOPCF
 X_SUPPORT
@@ -6215,27 +6210,6 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling without X support..." >&5
 $as_echo "$as_me: Compiling without X support..." >&6;}
 fi
-
-PACKAGE_VERSION=`cat ${srcdir}/VERSION`
-VV=$PACKAGE_VERSION
-VERSION=${VV%%.*}
-VV=${VV#*.}
-SUBLEVEL=${VV%%.*}
-VV=${VV#*.}
-PATCHLEVEL1=${VV%%.*}
-if test $PATCHLEVEL1 = $VV; then
-  PATCHLEVEL2=0
-else
-  VV=${VV#*.}
-  PATCHLEVEL2=${VV%%.*}
-fi
-RELEASE_DATE=`head -n1 $srcdir/ChangeLog | cut '-d ' -f1`
-
-
-
-
-
-
 
 CONFIG_TIME=`date`
 cat >>confdefs.h <<_ACEOF
