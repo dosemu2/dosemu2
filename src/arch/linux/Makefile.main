@@ -123,13 +123,18 @@ versetup:
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
 
-include/version.h: ../Makefile.conf
-	echo '#define  VERSION $(VERSION)' > $@
-	echo '#define  SUBLEVEL $(SUBLEVEL)' >> $@
-	echo '#define  PATCHLEVEL1 $(PATCHLEVEL1)' >> $@
-	echo '#define  PATCHLEVEL2 $(PATCHLEVEL2)' >> $@
-	echo '#define  VERSTR "$(THISVERSION)"' >> $@
-	echo '#define  VERDATE "$(RELEASE_DATE)"' >> $@
+.PHONY: include/version.h
+include/version.h:
+	if ! test -f include/version.h || test \"$(PACKAGE_VERSION)\" != \
+	          `head -n1 include/version.h | cut -f3`; then \
+	  echo "Updating version.h"; \
+	  echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" > $@; \
+	  echo "#define	VERSION	$(VERSION)" >> $@; \
+	  echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
+	  echo "#define	PATCHLEVEL1	$(PATCHLEVEL1)" >> $@; \
+	  echo "#define	PATCHLEVEL2	$(PATCHLEVEL2)" >> $@; \
+	  echo "#define	VERDATE	\"`(cd $(top_srcdir) && ./getversion -d)`\"" >> $@; \
+	fi
 
 include/confpath.h: ../Makefile.conf
 	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@

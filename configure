@@ -6211,7 +6211,7 @@ else
 $as_echo "$as_me: Compiling without X support..." >&6;}
 fi
 
-CONFIG_TIME=`date`
+CONFIG_TIME=`date +"%F %T %z"`
 cat >>confdefs.h <<_ACEOF
 #define CONFIG_HOST "$CONFIG_HOST"
 _ACEOF

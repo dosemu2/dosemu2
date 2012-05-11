@@ -6,7 +6,7 @@
 chmod 755 set-permissions # myself ;-)
 chmod 755 ViewDocs
 chmod 755 config.guess config.sub default-configure mkkeytables
-chmod 755 mknewyear mkpluginhooks
+chmod 755 mknewyear mkpluginhooks getversion
 chmod 755 bisonpp.pl
 chmod 755 configure
 chmod 755 setup-dosemu

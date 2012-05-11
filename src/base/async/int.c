@@ -265,7 +265,7 @@ int dos_helper(void)
       install_dos(1);
     if (!config.dosbanner)
       break;
-    p_dos_str("\n\nDOSEMU " VERSTR ", released: " VERDATE ", configured: " CONFIG_TIME "\n");
+    p_dos_str("\n\nDOSEMU " VERSTR " (" VERDATE "), configured: " CONFIG_TIME "\n");
 #if 0
     if (config.dpmi)
       p_dos_str("DPMI-Server Version 0.9 installed");

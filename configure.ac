@@ -390,7 +390,7 @@ else
   AC_MSG_NOTICE(Compiling without X support...)
 fi
 
-CONFIG_TIME=`date`
+CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 

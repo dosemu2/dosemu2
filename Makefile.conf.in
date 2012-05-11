@@ -98,14 +98,17 @@ VPATH:=$(srcdir)
 REALTOPDIR:=$(top_srcdir)
 SRCPATH:=$(top_srcdir)/src
 
-RELEASE_DATE:=$(shell head -n1 $(top_srcdir)/ChangeLog | cut '-d ' -f1)
-PACKAGE_VERSION:=$(shell cat $(top_srcdir)/VERSION)
+PACKAGE_VERSION:=$(shell cd $(top_srcdir) && ./getversion)
 PACKAGE_VERSION_SPACES:=$(subst ., ,$(PACKAGE_VERSION))
+PACKAGE_VERSION_SPACES:=$(subst -, ,$(PACKAGE_VERSION_SPACES))
 VERSION:=$(word 1, $(PACKAGE_VERSION_SPACES))
 SUBLEVEL:=$(word 2, $(PACKAGE_VERSION_SPACES))
 PATCHLEVEL1:=$(word 3, $(PACKAGE_VERSION_SPACES))
 PATCHLEVEL2:=$(word 4, $(PACKAGE_VERSION_SPACES))
-ifeq "$(PATCHLEVEL2)" ""
+ifeq (3,$(words $(PACKAGE_VERSION_SPACES)))
+  PATCHLEVEL2=0
+endif
+ifeq (5,$(words $(PACKAGE_VERSION_SPACES)))
   PATCHLEVEL2=0
 endif
 PATCHLEVEL:=$(PATCHLEVEL1).$(PATCHLEVEL2)
