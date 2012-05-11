@@ -315,7 +315,6 @@ void ser_set_params(int num)
 
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
-  com[num].tx_char_time = DIV_2400 * 10;/* 115200ths of second per char */
   com[num].IER = 0;			/* Interrupt Enable Register */
   com[num].IIR.val = UART_IIR_NO_INT;	/* Interrupt I.D. Register */
   com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
@@ -330,7 +329,6 @@ void ser_set_params(int num)
   com[num].IIR.fifo_enable = 0;		/* FLAG: FIFO enabled */
   com[num].ms_timer = 0;		/* Modem Status check timer */
   com[num].rx_timer = 0;		/* Receive read() polling timer */
-  com[num].tx_timer = 0;		/* Transmi countdown to next char */
   com[num].rx_timeout = 0;		/* FLAG: No Receive timeout */
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */

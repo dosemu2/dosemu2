@@ -45,7 +45,6 @@
  * DANG_FIXTHIS Why does a RX_BUFFER_SIZE of 256 cause slower performance than a size of 128?
  */
 #define RX_BUFFER_SIZE            128
-#define TX_BUFFER_SIZE            64
 
 extern int no_local_video; /* used by virtual port code */
 EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
@@ -84,9 +83,6 @@ typedef struct {
   u_char rx_timeout;		/* Recieve Interrupt timeout counter */
   u_char rx_fifo_trigger;	/* Receive Fifo trigger value */
   int rx_fifo_size;		/* Size of receive FIFO to emulate */
-  				/*   TRANSMIT  */
-  long int tx_timer;            /* Countdown to next char being xmitted */
-  long int tx_char_time;        /* Number of 115200ths of sec per char */
   				/*   MISCELLANEOUS  */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
   speed_t newbaud;		/* Currently set bps rate */
@@ -111,9 +107,6 @@ typedef struct {
   u_char rx_buf[RX_BUFFER_SIZE];	/* Receive Buffer */
   u_char rx_buf_start;			/* Receive Buffer queue start */
   u_char rx_buf_end;			/* Receive Buffer queue end */
-  u_char tx_buf[TX_BUFFER_SIZE];	/* Transmit Buffer */
-  u_char tx_buf_start;			/* Transmit Buffer queue start */
-  u_char tx_buf_end;			/* Transmit Buffer queue end */
 
   struct termios oldset;		/* Original termios settings */
   struct termios newset;		/* Current termios settings */

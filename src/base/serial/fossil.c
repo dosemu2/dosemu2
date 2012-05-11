@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -6,10 +6,10 @@
  */
 
 /* DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * fossil.c: FOSSIL serial driver emulator for dosemu.
- * 
+ *
  * Copyright (C) 1995 by Pasi Eronen.
  * Portions Copyright (C) 1995 by Mark Rejhon
  *
@@ -62,6 +62,9 @@
 #define FOSSIL_MAGIC 0x1954
 #define FOSSIL_REVISION 5
 #define FOSSIL_MAX_FUNCTION 0x1b
+
+#define FOSSIL_RX_BUFFER_SIZE RX_BUFFER_SIZE
+#define FOSSIL_TX_BUFFER_SIZE 64
 
 static void fossil_check_info(void);
 
@@ -178,7 +181,7 @@ void fossil_int14(int num)
     uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
     com[num].rx_fifo_size = RX_BUFFER_SIZE/2;
     /* Initialize FOSSIL driver info buffer. This is used by the 
-     * function 0x1b (Get driver info). 
+     * function 0x1b (Get driver info).
      */
     com[num].fossil_info[0] = 19;       /* Structure size */
     com[num].fossil_info[1] = 0;
@@ -188,17 +191,17 @@ void fossil_int14(int num)
     com[num].fossil_info[5] = fossil_id_offset >> 8;
     com[num].fossil_info[6] = fossil_id_segment & 0xff;
     com[num].fossil_info[7] = fossil_id_segment >> 8;
-    com[num].fossil_info[8] = RX_BUFFER_SIZE & 0xff;
-    com[num].fossil_info[9] = RX_BUFFER_SIZE >> 8;
-    com[num].fossil_info[12] = TX_BUFFER_SIZE & 0xff;
-    com[num].fossil_info[13] = TX_BUFFER_SIZE >> 8;
+    com[num].fossil_info[8] = FOSSIL_RX_BUFFER_SIZE & 0xff;
+    com[num].fossil_info[9] = FOSSIL_RX_BUFFER_SIZE >> 8;
+    com[num].fossil_info[12] = FOSSIL_TX_BUFFER_SIZE & 0xff;
+    com[num].fossil_info[13] = FOSSIL_TX_BUFFER_SIZE >> 8;
     com[num].fossil_info[16] = 80;	/* Screen width */
     com[num].fossil_info[17] = 25;	/* Screen height */
     com[num].fossil_info[18] = 0;       /* Bps rate (not used) */
     s_printf("SER%d: FOSSIL 0x04: Emulation activated\n",num);
     break;
-    
-  /* FOSSIL shutdown. */  
+
+  /* FOSSIL shutdown. */
   case 0x05:
     com[num].fossil_active = FALSE;
     /* Note: the FIFO values aren't restored. Hopefully nobody notices... */
@@ -282,9 +285,11 @@ void fossil_int14(int num)
   case 0x1b:
   {
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
-    int ifree = RX_BUFFER_SIZE-RX_BUF_BYTES(num),
-      ofree = TX_BUFFER_SIZE-TX_BUF_BYTES(num),
+    int ifree = FOSSIL_RX_BUFFER_SIZE - RX_BUF_BYTES(num),
+      ofree = FOSSIL_TX_BUFFER_SIZE - ser_get_send_queue_len(num),
       bufsize = (LWORD(ecx) <= 19) ? LWORD(ecx) : 19;
+    if (ofree < 0)
+      ofree = 0;
     if (LO(dx) == 0xff)
     {
       fossil_check_info();
@@ -397,10 +402,10 @@ if (fossil_tsr_installed)
     def_fossil_info[5] = fossil_id_offset >> 8;
     def_fossil_info[6] = fossil_id_segment & 0xff;
     def_fossil_info[7] = fossil_id_segment >> 8;
-    def_fossil_info[8] = RX_BUFFER_SIZE & 0xff;
-    def_fossil_info[9] = RX_BUFFER_SIZE >> 8;
-    def_fossil_info[12] = TX_BUFFER_SIZE & 0xff;
-    def_fossil_info[13] = TX_BUFFER_SIZE >> 8;
+    def_fossil_info[8] = FOSSIL_RX_BUFFER_SIZE & 0xff;
+    def_fossil_info[9] = FOSSIL_RX_BUFFER_SIZE >> 8;
+    def_fossil_info[12] = FOSSIL_TX_BUFFER_SIZE & 0xff;
+    def_fossil_info[13] = FOSSIL_TX_BUFFER_SIZE >> 8;
     def_fossil_info[16] = 80;   /* Screen width */
     def_fossil_info[17] = 25;   /* Screen height */
     def_fossil_info[18] = 0;       /* Bps rate (not used) */

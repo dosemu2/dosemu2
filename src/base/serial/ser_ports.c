@@ -92,17 +92,13 @@ void rx_buffer_slide(int num)
   com[num].rx_buf_start = 0;
 }
 
-void tx_buffer_slide(int num)
+int ser_get_send_queue_len(int num)
 {
-  if (com[num].tx_buf_start == 0)
-    return;
-  /* Move existing chars in receive buffer to the start of buffer */
-  memmove(com[num].tx_buf, com[num].tx_buf + com[num].tx_buf_start,
-    TX_BUF_BYTES(num));
-
-  /* Update start and end pointers in buffer */        
-  com[num].tx_buf_end -= com[num].tx_buf_start;
-  com[num].tx_buf_start = 0;
+  int ret, queued;
+  ret = ioctl(com[num].fd, TIOCOUTQ, &queued);
+  if (ret < 0)
+    return ret;
+  return queued;
 }
 
 static void clear_int_cond(int num, u_char val)
@@ -231,8 +227,6 @@ void uart_clear_fifo(int num, int fifo)
   if (fifo & UART_FCR_CLEAR_XMIT) {
     /* Preserve recv data ready bit and error bits, and set THR empty */
     com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
-    com[num].tx_buf_start = 0;		/* Start of xmit FIFO queue */
-    com[num].tx_buf_end = 0;		/* End of xmit FIFO queue */
     clear_int_cond(num, TX_INTR);	/* Clear TX int condition */
     tx_buffer_dump(num);		/* Clear transmit buffer */
   }
@@ -393,14 +387,6 @@ void ser_termios(int num)
   }
   s_printf("divisor 0x%x -> 0x%lx\n", DIVISOR, rounddiv);
 
-  /* Number of 115200ths of a second for each char to transmit,
-   * This assumes 10 bits per characters, although math can easily
-   * be done here to accomodate the parity and character size.
-   * Remember: One bit takes exactly (rounddiv / 115200)ths of a second.
-   * DANG_FIXTHIS Fix the calculation assumption
-   */
-  com[num].tx_char_time = rounddiv * 10;
-  
   /* Save the newbaudrate value */
   com[num].newbaud = baud;
 
@@ -635,28 +621,13 @@ static void put_tx(int num, int val)
   }
   /* Else, not in loopback mode */
 
-  if (com[num].IIR.fifo.enable) {			/* Is FIFO enabled? */
-    if (TX_BUF_BYTES(num) >= TX_BUFFER_SIZE) {	/* Is FIFO already full? */
-      /* Squeeze char into FIFO */
-      tx_buffer_slide(num);
-      com[num].tx_buf[com[num].tx_buf_end - 1] = val;
-    }
-    else {					/* FIFO not full */
-      com[num].tx_buf[com[num].tx_buf_end] = val;  /* Put char into FIFO */
-      com[num].tx_buf_end++;
-    }
+  int rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
+  if (rtrn != 1) {				/* Did transmit fail? */
+    s_printf("SER%d: write failed! %s\n", num, strerror(errno)); 		/* Set overflow flag */
+    com[num].LSR |= UART_LSR_OE;		/* signal error */
+  } else {
+    com[num].LSR &= ~(UART_LSR_THRE | UART_LSR_TEMT);		/* THR full */
   }
-  else { 				/* Not in FIFO mode */
-    int rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
-    if (rtrn != 1) 				/* Did transmit fail? */
-      s_printf("SER%d: write failed! %s\n", num, strerror(errno)); 		/* Set overflow flag */
-#if 0
-    /* This slows the transfer. There might be better way of avoiding
-     * queueing. */
-    else tcdrain(com[num].fd);
-#endif
-  }
-  com[num].LSR &= ~(UART_LSR_THRE | UART_LSR_TEMT);		/* THR full */
 
   transmit_engine(num);
 }

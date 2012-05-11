@@ -134,7 +134,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 /* how many bytes left in output queue when signalling interrupt to DOS */
 #define QUEUE_THRESHOLD 2
 
-  int rtrn, control, queued;
+  int control, queued;
 #if 0
   /* Give system time to transmit */
   /* Disabled timer stuff, not needed any more  -- stsp */
@@ -149,36 +149,16 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
   }
 
   /* find out how many bytes are queued by tty */
-  rtrn = ioctl(com[num].fd, TIOCOUTQ, &queued);
-  if (rtrn == -1)
+  queued = ser_get_send_queue_len(num);
+  if (queued < 0)
     queued = 0;
   if (debug_level('s') > 5)
-    s_printf("SER%d: buf=%i queued=%i trig=%i\n", num,
-	TX_BUF_BYTES(num), queued, TX_TRIGGER(num));
+    s_printf("SER%d: queued=%i trig=%i\n", num, queued, TX_TRIGGER(num));
 
-  if (com[num].IIR.fifo.enable) {  /* Is FIFO enabled? */
-    /* Clear as much of the transmit FIFO as possible! */
-    if (TX_BUF_BYTES(num)) {
-      rtrn = RPT_SYSCALL(write(com[num].fd,
-        &com[num].tx_buf[com[num].tx_buf_start], TX_BUF_BYTES(num)));
-      if (rtrn <= 0) return;				/* Exit Loop if fail */
-      com[num].tx_buf_start += rtrn;
-      tx_buffer_slide(num);
-      return;		/* return and give the system time to transfer */
-    }
-    /* Is FIFO empty, and is it time to trigger an xmit int? */
-    if (!TX_BUF_BYTES(num) && queued <= QUEUE_THRESHOLD && TX_TRIGGER(num)) {
-      com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
-      if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
-      serial_int_engine(num, TX_INTR);		/* Update interrupt status */
-    }
-  }
-  else {					/* Not in FIFO mode */
-    if (TX_TRIGGER(num) && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
-      com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
-      if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
-      serial_int_engine(num, TX_INTR);		/* Update interrupt status */
-    }
+  if (TX_TRIGGER(num) && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
+    com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
+    if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
+    serial_int_engine(num, TX_INTR);		/* Update interrupt status */
   }
 }
 

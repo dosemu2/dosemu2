@@ -312,5 +312,6 @@ void receive_engine(int num);
 void transmit_engine(int num);
 void rx_buffer_slide(int num);
 void tx_buffer_slide(int num);
+int ser_get_send_queue_len(int num);
 
 #endif /* SER_DEFS_H */
