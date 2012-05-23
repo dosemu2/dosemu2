@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "config.h"
+#include "extern.h"
 
 #if __GNUC__ >= 2
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))

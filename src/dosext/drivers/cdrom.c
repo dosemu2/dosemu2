@@ -320,11 +320,13 @@ void cdrom_helper(void)
                 if (cdrom_fd < 0) {
 		  C_printf("CDROM: cdrom open (%s) failed: %s\n",
 			    path_cdrom, strerror(error));
-                  if (error == EIO) {
+                  LO(ax) = 0;
+                  if ((error == EIO) || (error==ENOMEDIUM)) {
                     /* drive which cannot be opened if no
                        disc is inserted!                   */
-                    LO(ax) = 0;
                     cdu33a = 1;
+                    if (! eject_allowed)
+                       LO(ax) = 1; /* no disk in drive */
                    }
                   else LO(ax) = 1; /* no cdrom drive installed */
                   if (! eject_allowed)

@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <linux/major.h>
 #include <asm/types.h>
 #include <sys/socket.h>
@@ -28,7 +29,11 @@
 #endif
 #include <netinet/in.h>
 #if __GLIBC__ > 1
-  #include <netinet/if.h>
+  #if 0 /* not sure what's about that, can any check what _realy_ is needed
+         * --Hans 98/02/08
+         */
+    #include <netinet/if.h>
+  #endif
   #include <netinet/if_ether.h>
 #else
   #include <linux/if_ether.h>

@@ -39,6 +39,7 @@
 #include <pwd.h>
 #include <syslog.h>
 #include <string.h>
+#include <errno.h>
 #ifdef __linux__
 #include <mntent.h>
 #endif

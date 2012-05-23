@@ -1,3 +1,15 @@
+98/02/08 ver. 0.97.3 released
+	From Alberto
+	- fix for cdrom errors on startup (only kernels 2.1.x)
+	- added $_hardware_ram to dosemu.conf
+	From "Alexander V. Lukyanov" <lav@long.yar.ru>
+	- some mods to make 0.97.2 compile on RedHat-5.0
+	From Steffen
+	- closing a security hole together with 'shell' command
+	  in /var/lib/dosemu/global.conf
+	From Hans
+	- cleaned those files in src/doc/README that confused 'patch'
+	  because of missing new line at EOF
 98/02/07 ver. 0.97.2.1 unofficial pre-release
 	From Hans
 	- some bug fixes to setup-hdimage (those bugs are in 0.66.7 too)
