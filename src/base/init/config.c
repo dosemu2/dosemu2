@@ -45,6 +45,9 @@ struct debug_flags d =
 int kernel_version_code = 0;
 int config_check_only = 0;
 
+int dosemu_argc;
+char **dosemu_argv;
+
 static void     check_for_env_autoexec_or_config(void);
 int     parse_debugflags(const char *s, unsigned char flag);
 static void     usage(void);
@@ -571,6 +574,9 @@ config_init(int argc, char **argv)
       usage();
       exit(0);
     }
+
+    dosemu_argc = argc;
+    dosemu_argv = argv;
 
     memset(usedoptions,0,sizeof(usedoptions));
     memcheck_type_init();

@@ -1,89 +1,125 @@
+/* 
+ * SIDOC_BEGIN_MODULE
+ *
+ * Description: New port handling code for DOSEMU
+ * 
+ * Maintainers: Alberto Vignani (vignani@mbox.vol.it)
+ *
+ * REMARK
+ * This is the code that allows and disallows port access within DOSEMU.
+ * The BOCHS port IO code was actually very cleverly done.  So the idea
+ * was stolen from there.
+ *
+ * This port I/O code (previously in portss.c, from Scott Bucholz) is based on
+ * a table access instead of a switch statement. This method is much more
+ * clean and easy to maintain, while not slower than a switch.
+ *
+ * Remains of the old code are emerging here and there, they will
+ * hopefully be moved back to where they belong, mainly video code.
+ * /REMARK
+ *
+ * SIDOC_END_MODULE
+ *
+ */
 
-/* ====================================================================== */
-
-#include "config.h"
-
-/* Define if we want graphics in X (of course we want :-) (root@zaphod) */
-/* WARNING: This may not work in BSD, because it was written for Linux! */
-
-/* GUS PnP support: I added code here and in cpu.c which allows you to
-   initialize the GUS under dosemu, while the Linux support is still in
-   the works. It is clearly a better solution than the loadlin/warmboot
-   method.
-   You have to use -DGUSPNP in the local Makefile to activate it.
-   WARNING: the HW addresses are hardcoded; I obtained them by running
-   isapnptools. On your system they can change depending on the other
-   PnP hardware you have; so check them before - AV
-*/
-
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <malloc.h>
+#include <string.h>
+#ifdef __NetBSD__
 #include <stdio.h>
 #include <termios.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <time.h>
-#include <string.h>
 #include <ctype.h>
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/times.h>
-#ifdef __NetBSD__
-#include <errno.h>
 #endif
-#include "bitops.h"
-#if X_GRAPHICS
-#include <sys/mman.h>           /* root@sjoerd*/
-#endif
+#include <sys/stat.h>
+#include <sys/ioctl.h>
 
 #include "emu.h"
-#include "bios.h"
-#include "mouse.h"
-#include "serial.h"
-#include "xms.h"
-#include "timers.h"
-#include "cmos.h"
-#include "memory.h"
-#include "termio.h"
-#include "config.h"
 #include "port.h"
-#include "int.h"
-#include "hgc.h"
-#include "dosio.h"
 #include "timers.h"
-
 #include "video.h"
-#include "priv.h"
-
-#if X_GRAPHICS
-#include "vgaemu.h" /* root@zaphod */
-#endif
-
-#include "pic.h"
-#include "dpmi.h"
-
-#ifdef USING_NET
-#include "ipx.h"
-#endif
-
-/* Needed for DIAMOND define */
+#include "vgaemu.h"	/* for video retrace */
+#include "hgc.h"
+#include "bios.h"
 #include "vc.h"
+#include "shared.h"
+#include "serial.h"
 
-#ifdef USE_SBEMU
-#include "sound.h"
-#endif
+/*
+ * maximum number of emulated devices allowed.  floppy, mda, etc...
+ * an 8-bit handle is used for each device:
+ */
+#define EMU_MAX_IO_DEVICES 254
 
-#include "keyb_server.h"
-#include "keyboard.h"
+#define NO_HANDLE	0x00
+#define HANDLE_STD_IO	0x01
+#define HANDLE_STD_RD	0x02
+#define HANDLE_STD_WR	0x03
+#define HANDLE_VID_IO	0x04
+#define HANDLE_SPECIAL	0x05		/* catch-all */
+#define STD_HANDLES	6
 
-#include "dma.h"
-#include "cpu-emu.h"
+static struct _port_handler {
+	Bit8u  (*read_portb)  (ioport_t port_addr);
+	void   (*write_portb) (ioport_t port_addr, Bit8u byte);
+	Bit16u (*read_portw) (ioport_t port_addr);
+	void   (*write_portw) (ioport_t port_addr, Bit16u word);
+	Bit32u (*read_portd) (ioport_t port_addr);
+	void   (*write_portd) (ioport_t port_addr, Bit32u dword);
+	char   *handler_name;
+	int    irq, fd;
+} port_handler[EMU_MAX_IO_DEVICES];
 
-extern Bit8u spkr_io_read(Bit32u port);
-extern void spkr_io_write(Bit32u port, Bit8u value);
+/*
+ * If you are worried by the size of this array keep in mind that:
+ * - it always existed, it was just not used
+ * - ports above 0x400 could be better implemented using some form of
+ *   dynamic storage
+ *	00    = no device attached, port undefined
+ *	01-FD = index into handle
+ *	FE,FF = reserved
+ * Ioperm could use a bitmap similar to set/reset_revectored
+ */
+static unsigned char port_handle_table[0x10000];
+static unsigned char port_andmask[0x400];
+static unsigned char port_ormask[0x400];
 
-/* ====================================================================== */
+static unsigned char port_handles;	/* number of io_handler's */
 
-static long nyb2bin[16] = {
+static const char *irq_handler_name[EMU_MAX_IRQS];
+
+#define SET_HANDLE(p,h)		port_handle_table[(Bit16u)(p)]=(h)
+#define EMU_HANDLER(port)	port_handler[port_handle_table[(Bit16u)(port)]]
+
+/* This is the same code that was used in cpu.c, priv_iopl is really
+   very slow */
+#define PORT_IOPLON(p,n)	if ((p)<0x400) set_ioperm((p),(n),1); else priv_iopl(3)
+#define PORT_IOPLOFF(p,n)	if ((p)<0x400) set_ioperm((p),(n),0); else priv_iopl(0)
+
+/* any user or system device which creates a new handle can't be later
+ * remapped by extra_port_init()
+ */
+void SET_HANDLE_COND(int p, int h)
+{
+  if (port_handle_table[(p)] < STD_HANDLES)
+	port_handle_table[(p)]=(h);
+  else
+	T_printf("nPORT: %#x can't be mapped to handle %#x(%#x)\n",
+	  p,h,port_handle_table[(p)]);
+}
+
+/* ---------------------------------------------------------------------- */
+/* PORT TRACING								  */
+
+static long nyb2bin[16] =
+{
 	0x30303030, 0x31303030, 0x30313030, 0x31313030,
 	0x30303130, 0x31303130, 0x30313130, 0x31313130,
 	0x30303031, 0x31303031, 0x30313031, 0x31313031,
@@ -91,785 +127,1071 @@ static long nyb2bin[16] = {
 };
 
 static char *
-p2bin (unsigned char c)
+ p2bin(unsigned char c)
 {
-  static char s[16] = "   [00000000]";
+	static char s[16] = "   [00000000]";
 
-  ((long *)s)[1]=nyb2bin[(c>>4)&15];
-  ((long *)s)[2]=nyb2bin[c&15];
-  
-  return s+3;
+	((long *) s)[1] = nyb2bin[(c >> 4) & 15];
+	((long *) s)[2] = nyb2bin[c & 15];
+
+	return s + 3;
 }
 
-/* ====================================================================== */
-/*  */
-/* inb,inw,ind,outb,outw,outd @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/ports.c  */
-/* PORT_DEBUG is to specify whether to record port writes to debug output.
-* 0 means disabled.
-* 1 means record all port accesses to 0x00 to 0xFF
-* 2 means record ANY port accesses!  (big fat debugfile!)
-* 3 means record all port accesses from 0x100 to 0x3FF
-*/ 
-#define PORT_DEBUG 3
-
-
-/*                              3b0         3b4         3b8         3bc                     */
-const unsigned char ATIports[]={ 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, /* 3b0-3bf */
-                                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, /* 3c0-3cf */
-                                 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0  /* 3d0-3df */
-                               };
-
-int isATIport(int port)
-{
-  return (    (port & 0x3ff) == 0x102
-          ||  (port & 0x3fe) == 0x1ce
-          ||  (port & 0x3fc) == 0x2ec
-          || ((port & 0x3ff) >= 0x3b0 && (port & 0x3ff) < 0x3e0 && ATIports[(port & 0x3ff)-0x3b0])
-          ||  port == 0x46e8
-         );
-}
-
-/*
- * DANG_BEGIN_FUNCTION inb
- *
- * description:
- *  INB is used to do controlled emulation of input from ports.
- *
- * arguments:
- *  port - port to input from.
- *
- * DANG_END_FUNCTION
+/* SIDOC_BEGIN_REMARK
+ * VERB
+ * PORT_DEBUG is to specify whether to record port writes to debug output.
+ *   0 means disabled.
+ *   1 means record all port accesses to 0x00 to 0xFF
+ *   2 means record ANY port accesses!  (big fat debugfile!)
+ *   3 means record all port accesses >= 0x100
+ * /VERB
+ * SIDOC_END_REMARK
  */
-unsigned char
-inb(unsigned int port)
+#define PORT_DEBUG_READ	 2
+#define PORT_DEBUG_WRITE 2
+#define PORT_TRACE_D
+
+#if PORT_DEBUG_READ > 0
+  static Bit8u log_port_read(ioport_t port, Bit8u r)
+  {
+    #if PORT_DEBUG_READ == 1
+      if (port < 0x100)
+    #elif PORT_DEBUG_READ == 3
+      if (port >= 0x100)
+    #endif
+      T_printf ("nPORTb: Rd 0x%04x -> 0x%02x %s\n", port, r, p2bin(r));
+      return r;
+  }
+  static Bit16u log_port_read_w(ioport_t port, Bit16u r)
+  {
+    #if PORT_DEBUG_READ == 1
+      if (port < 0x100)
+    #elif PORT_DEBUG_READ == 3
+      if (port >= 0x100)
+    #endif
+      T_printf ("PORTw: Rd 0x%04x -> 0x%04x\n", port, r);
+      return r;
+  }
+#ifdef PORT_TRACE_D
+  static Bit32u log_port_read_d(ioport_t port, Bit32u r)
+  {
+    #if PORT_DEBUG_READ == 1
+      if (port < 0x100)
+    #elif PORT_DEBUG_READ == 3
+      if (port >= 0x100)
+    #endif
+      T_printf ("PORTd: Rd 0x%04x -> 0x%08x\n", port, r);
+      return r;
+  }
+  #define LOG_PORT_READ_D(port, r) log_port_read_d(port, r)
+#endif
+  #define LOG_PORT_READ(port, r) log_port_read(port, r)
+  #define LOG_PORT_READ_W(port, r) log_port_read_w(port, r)
+#else
+  #define LOG_PORT_READ(port, r)	(r)
+  #define LOG_PORT_READ_W(port, r)	(r)
+  #define LOG_PORT_READ_D(port, r)	(r)
+#endif
+
+#if PORT_DEBUG_WRITE > 0
+  static void log_port_write(ioport_t port, Bit8u w)
+  {
+    #if PORT_DEBUG_WRITE == 1
+      if (port < 0x100)
+    #elif PORT_DEBUG_WRITE == 3
+      if (port >= 0x100)
+    #endif
+      T_printf("PORTb: Wr 0x%04x <- %s 0x%02x\n", port, p2bin(w), w);
+  }
+  static void log_port_write_w(ioport_t port, Bit16u w)
+  {
+    #if PORT_DEBUG_WRITE == 1
+      if (port < 0x100)
+    #elif PORT_DEBUG_WRITE == 3
+      if (port >= 0x100)
+    #endif
+      T_printf("PORTw: Wr 0x%04x <- 0x%04x\n", port, w);
+  }
+#ifdef PORT_TRACE_D
+  static void log_port_write_d(ioport_t port, Bit32u w)
+  {
+    #if PORT_DEBUG_WRITE == 1
+      if (port < 0x100)
+    #elif PORT_DEBUG_WRITE == 3
+      if (port >= 0x100)
+    #endif
+      T_printf("PORTd: Wr 0x%04x <- 0x%08x\n", port, w);
+  }
+  #define LOG_PORT_WRITE_D(port, w) log_port_write_d(port, w)
+#endif
+  #define LOG_PORT_WRITE(port, w) log_port_write(port, w)
+  #define LOG_PORT_WRITE_W(port, w) log_port_write_w(port, w)
+#else
+  #define LOG_PORT_WRITE(port, w)
+  #define LOG_PORT_WRITE_W(port, w)
+  #define LOG_PORT_WRITE_D(port, w)
+#endif
+
+/* ---------------------------------------------------------------------- */
+/* SIDOC_BEGIN_REMARK
+ *
+ * The following port_{in|out}{bwd} functions are the main entry points to
+ * the port code. They look into the port_handle_table and call the
+ * appropriate code, usually the std_port_ functions, but each device is
+ * free to register its own functions which in turn will call std_port or
+ * directly access I/O (like video code does), or emulate it - AV
+ *
+ * SIDOC_END_REMARK
+ */
+/* 
+ * SIDOC_BEGIN_FUNCTION port_inb(ioport_t port)
+ *
+ * Handles/simulates an inb() port IO read
+ *
+ * SIDOC_END_FUNCTION
+ */
+Bit8u port_inb(ioport_t port)
 {
-  PRIV_SAVE_AREA
+	Bit8u res;
+	res = EMU_HANDLER(port).read_portb(port);
+	return LOG_PORT_READ(port, res);
+}
 
-  static unsigned int cga_r = 0;
-  static unsigned char r;
-  static unsigned int tmp = 0;
+/* 
+ * SIDOC_BEGIN_FUNCTION port_outb(ioport_t port, Bit8u byte)
+ *
+ * Handles/simulates an outb() port IO write
+ *
+ * SIDOC_END_FUNCTION
+ */
+void port_outb(ioport_t port, Bit8u byte)
+{
+	LOG_PORT_WRITE(port, byte);
+	EMU_HANDLER(port).write_portb(port,byte);
+}
 
+/* 
+ * SIDOC_BEGIN_FUNCTION port_inw(ioport_t port)
+ *
+ * Handles/simulates an inw() port IO read.  Usually this invokes
+ * port_inb() twice, but it may be necessary to do full word i/o for
+ * some video boards.
+ *
+ * SIDOC_END_FUNCTION
+ */
+Bit16u port_inw(ioport_t port)
+{
+	Bit16u res;
+
+	if (EMU_HANDLER(port).read_portw != NULL) {
+		res = EMU_HANDLER(port).read_portw(port);
+		return LOG_PORT_READ_W(port, res);
+	}
+	else {
+		res = (Bit16u) port_inb(port) | (((Bit16u) port_inb(port + 1)) << 8);
+	}
+	return res;
+}
+
+/* 
+ * SIDOC_BEGIN_FUNCTION port_outw(ioport_t port, Bit16u word)
+ *
+ * Handles/simulates an outw() port IO write
+ *
+ * SIDOC_END_FUNCTION
+ */
+void port_outw(ioport_t port, Bit16u word)
+{
+	if (EMU_HANDLER(port).write_portw != NULL) {
+		LOG_PORT_WRITE_W(port, word);
+		EMU_HANDLER(port).write_portw(port, word);
+	}
+	else {
+		port_outb(port, word & 0xff);
+		port_outb(port+1, (word >> 8) & 0xff);
+	}
+}
+
+/* 
+ * SIDOC_BEGIN_FUNCTION port_ind(ioport_t port)
+ * SIDOC_BEGIN_FUNCTION port_outd(ioport_t port, Bit32u dword)
+ *
+ * Handles/simulates an ind()/outd() port IO read/write.
+ *
+ * SIDOC_END_FUNCTION
+ */
+Bit32u port_ind(ioport_t port)
+{
+	Bit32u res;
+
+	if (EMU_HANDLER(port).read_portd != NULL) {
+		res = EMU_HANDLER(port).read_portd(port);
+	}
+	else {
+		res = std_port_ind(port);
+	}
+#ifdef PORT_TRACE_D
+	return LOG_PORT_READ_D(port, res);
+#else
+	return res;
+#endif
+}
+
+void port_outd(ioport_t port, Bit32u dword)
+{
+#ifdef PORT_TRACE_D
+	LOG_PORT_WRITE_D(port, dword);
+#endif
+	if (EMU_HANDLER(port).write_portd != NULL) {
+		EMU_HANDLER(port).write_portd(port, dword);
+	}
+	else {
+		std_port_outd(port, dword);
+	}
+}
+
+
+/* ---------------------------------------------------------------------- */
+/* default port I/O access
+ */
+
+Bit8u std_port_inb(ioport_t port)
+{
+	Bit8u res;
+
+	PORT_IOPLON(port,1);
+	res = port_real_inb(port);
+	PORT_IOPLOFF(port,1);
+	return res;
+}
+
+void std_port_outb(ioport_t port, Bit8u byte)
+{
+	PORT_IOPLON(port,1);
+	port_real_outb(port, byte);
+	PORT_IOPLOFF(port,1);
+}
+
+Bit16u std_port_inw(ioport_t port)
+{
+	Bit16u res;
+
+	PORT_IOPLON(port,2);
+	res = port_real_inw(port);
+	PORT_IOPLOFF(port,2);
+	return res;
+}
+
+void std_port_outw(ioport_t port, Bit16u word)
+{
+	PORT_IOPLON(port,2);
+	port_real_outw(port, word);
+	PORT_IOPLOFF(port,2);
+}
+
+Bit32u std_port_ind(ioport_t port)
+{
+	Bit32u res;
+	PORT_IOPLON(port,4);
+	res = port_real_ind(port);
+	PORT_IOPLOFF(port,4);
+	return res;
+}
+
+void std_port_outd(ioport_t port, Bit32u dword)
+{
+	PORT_IOPLON(port,4);
+	port_real_outd(port, dword);
+	PORT_IOPLOFF(port,4);
+}
+
+
+/* ---------------------------------------------------------------------- */
+/* the following functions are all static!				  */
+
+static void pna_emsg(ioport_t port, char ch, char *s)
+{
+	T_printf("PORT%c: %x not available for %s\n", ch, port, s);
+}
+
+static Bit8u port_not_avail_inb(ioport_t port)
+{
 /* it is a fact of (hardware) life that unused locations return all
    (or almost all) the bits at 1; some software can try to detect a
    card basing on this fact and fail if it reads 0x00 - AV */
-  r = 0xff;
-
-  port &= 0xffff;
-/* On my system MS-DOS 7 startup makes a lot of reads to port 0x80, which
-   is undefined in the AT architecture; I don't know why. Also, linux
-   uses successfully since 1991 this port as a 'nop' hardware delay, and
-   so did I under djgpp. Let's assume that accessing port 0x80 is only
-   a delay operation, and don't do anything with it - AV */
-  if (port == 0x80) return 0xff;
-
-  if (port_readable((u_int)port)) {
-    r = read_port((u_int)port);
-    return r;
-  }
-
-#if X_GRAPHICS
-  if ( (config.X) &&
-            ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
-              ((port>=0x3c4) && (port<=0x3c5)) || /* erik@zaphod sequencer */
-              ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
-              ((port>=0x3d4) && (port<=0x3d5)) || /* sw: crt controller */
-              ((port>=0x3D0) && (port<=0x3DD)) ) )
-    {
-        r=VGA_emulate_inb((u_int)port);
-    }
-#endif
-  else if (config.usesX) {
-    v_printf("HGC Portread: %d\n", (int) port);
-    switch ((u_int)port) {
-    case 0x03b8:		/* mode-reg */
-	r = safe_port_in_byte((u_int)port);
-      r = (r & 0x7f) | (hgc_Mode & 0x80);
-      break;
-    case 0x03ba:		/* status-reg */
-	r = safe_port_in_byte((u_int)port);
-      break;
-    case 0x03bf:		/* conf-reg */
-      set_ioperm(port, 1, 1);
-      r = port_in((u_int)port);
-      set_ioperm(port, 1, 0);
-      r = (r & 0xfd) | (hgc_Konv & 0x02);
-      break;
-    case 0x03b4:		/* adr-reg */
-    case 0x03b5:		/* data-reg */
-	r = safe_port_in_byte((u_int)port);
-      break;
-    }
-  }
-#if 1
-  if (config.chipset && (port > 0x3b3) && (port < 0x3df) && config.mapped_bios)
-    r = (video_port_in((u_int)port));
-  else if (v_8514_base && ((port & 0x03fe) == v_8514_base) && (port & 0xfc00)) {
-    enter_priv_on();
-    iopl(3);
-    r = port_in((u_int)port) & 0xff;
-    iopl(0);
-    leave_priv_setting();
-    v_printf("8514 inb [0x%04x] = 0x%02x\n", port, r);
-  }
-  else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
-    enter_priv_on();
-    iopl(3);
-    r = port_in(port) & 0xff;
-    iopl(0);
-    leave_priv_setting();
-    v_printf("ATI inb [0x%04x] = 0x%02x\n", port, r);
-  }
-#endif
-  else switch ((u_int)port) {
-  case 0x20:
-  case 0x21:
-    r = read_pic0((u_int)port);
-    return r;		/* use 'break' if you want to trace it */
-  case 0xa0:
-  case 0xa1:
-    r = read_pic1((u_int)port);
-    return r;
-  case 0x60:
-  case 0x64:
-    r = keyb_io_read((u_int)port);
-    return r;
-  case 0x61:
-    r = spkr_io_read((u_int)port);
-    return r;
-  case 0x70:
-  case 0x71:
-    r = cmos_read((u_int)port);
-    break;		/* always trace this one */
-  case 0x40:
-  case 0x41:
-  case 0x42:
-    r = pit_inp((u_int)port);
-    return r;
-  case 0x43:
-    r = inb((u_int)port);
-    return r;
-  case 0x3ba:
-  case 0x3da:
-    /* graphic status - many programs will use this port to sync with
-     * the vert & horz retrace so as not to cause CGA snow */
-    i_printf("3ba/3da port inb\n");
-    r = (cga_r ^= 1) ? 0xcf : 0xc6;
-    break;
-
-  case 0x3bc:
-    i_printf("printer port inb [0x3bc] = 0\n");    /* 0 by default */
-    break;
-
-  case 0x3db:			/* light pen strobe reset, 0 by default */
-    break;
-    
-#ifdef GUSPNP
-  case 0x203:
-  case 0x207:
-  case 0x20b:
-  case 0x220 ... 0x22f:
-  case 0x320 ... 0x32f:
-/*  case 0x279: */
-    r = safe_port_in_byte (port);
-    return r;
-
-  case 0xa79:
-    enter_priv_on();
-    iopl (3);
-    r = port_in (port);
-    iopl (0);
-    leave_priv_setting();
-    break;
-#endif
-  default:
-    /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
-    for (tmp = 0; tmp < config.num_ser; tmp++)
-      if ((port & ~7) == com[tmp].base_port) {
-        r = do_serial_in(tmp, port);
-        return r;
-      }
-
-#ifdef USE_SBEMU
-    /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == config.sb_base) {
-      r=sb_io_read(port);
-      return r;
-    }
-    /* It seems that we might need 388, but this is write-only, at least in the
-       older chip... */
-    if ((port & ~3) == 0x388) {
-      r=adlib_io_read(port);
-      return r;
-    }
-    /* MPU401 */
-    if ((port & ~1) == config.mpu401_base) {
-	r=mpu401_io_read(port);
-	return r;
-    }
-#endif /* USE_SBEMU */
-
-    /* DMA I/O */
-    if ( ((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0) ) {
-       r=dma_io_read(port);
-    }
-
-    /* The diamond bug */
-    else if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
-      enter_priv_on();
-      iopl(3);
-      r = port_in(port);
-      iopl(0);
-      leave_priv_setting();
-      i_printf(" Diamond inb [0x%x] = 0x%x\n", port, r);
-    }
-    else {
-    i_printf("default inb [0x%x] = 0x%02x\n", port, r);
-      h_printf("read port 0x%x dummy return 0xff", port);
-    h_printf(" because not in access list\n");
-  }
-  }
-
-/* Now record the port and the read value to debugfile if needed */
-#if PORT_DEBUG > 0
-#if PORT_DEBUG == 1
-  if (port < 0x100)
-#elif PORT_DEBUG == 3
-  if (port >= 0x100)
-#endif
-    i_printf ("PORT: Rd 0x%04x -> 0x%02x\n", port, r);
-#endif
-
-  return r;    /* Return with port read value */
+	if (d.io) pna_emsg(port,'b',"read");
+	return 0xff;
 }
 
-unsigned int
-inw(int port)
+static void port_not_avail_outb(ioport_t port, Bit8u byte)
 {
-  PRIV_SAVE_AREA
-  if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
-    int value;
-
-    enter_priv_on();
-    iopl(3);
-    value = port_in_w(port) & 0xffff;
-    iopl(0);
-    leave_priv_setting();
-    v_printf("8514 inw [0x%04x] = 0x%04x\n", port, value);
-    return value;
-  }
-  else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
-    int value;
-
-    enter_priv_on();
-    iopl(3);
-    value = port_in_w(port) & 0xffff;
-    iopl(0);
-    leave_priv_setting();
-    v_printf("ATI inw [0x%04x] = 0x%04x\n", port, value);
-    return value;
-  }
-  return( read_port_w(port) );
+	if (d.io) pna_emsg(port,'b',"write");
 }
 
-unsigned int
-ind(int port)
+static Bit16u port_not_avail_inw(ioport_t port)
 {
-  PRIV_SAVE_AREA
-  int v;
-  if (config.pci && (port >= 0xcf8) && (port < 0xd00)) {
-    enter_priv_on();
-    iopl(3);
-    v=port_real_ind(port);
-    iopl(0);
-    leave_priv_setting();
-    return v;
-  }
-  v=read_port_w(port) & 0xffff;
-  return (read_port_w(port+2)<< 16) | v;
+	if (d.io) pna_emsg(port,'w',"read");
+	return 0xffff;
 }
 
-void
-outb(unsigned int port, unsigned int byte)
+static void port_not_avail_outw(ioport_t port, Bit16u value)
 {
-  PRIV_SAVE_AREA
-  static int lastport = 0;
-  static unsigned int tmp = 0;
+	if (d.io) pna_emsg(port,'w',"write");
+}
 
-  port &= 0xffff;
-  if (port == 0x80) return;   /* used by linux, djgpp.. see above */
-  byte &= 0xff;
+static Bit32u port_not_avail_ind(ioport_t port)
+{
+	if (d.io) pna_emsg(port,'d',"read");
+	return 0xffffffff;
+}
 
-  if (port_writeable(port)) {
-    write_port(byte, port);
-    return;
-  }
+static void port_not_avail_outd(ioport_t port, Bit32u value)
+{
+	if (d.io) pna_emsg(port,'d',"write");
+}
 
-  /* Port writes for enable/disable blinking character mode */
-  if (port == 0x03C0) {
-    static int last_byte = -1;
-    static int last_index = -1;
-    static int flip_flop = 1;
 
-    flip_flop = !flip_flop;
-    if (flip_flop) {
-/* JES This was last_index = 0x10..... WRONG? */
-      if (last_index == 0x10)
-	char_blink = (byte & 8) ? 1 : 0;
-      last_byte = byte;
-    }
-    else {
-      last_index = byte;
-    }
-    return;
-  }
+/* ---------------------------------------------------------------------- */
+/* SIDOC_BEGIN_REMARK
+ *
+ * optimized versions for rep - basically we avoid changing privileges
+ * and iopl on and off lots of times. We are safe letting iopl=3 here
+ * since we don't exit from this code until finished.
+ * This code is shared between VM86 and DPMI.
+ *
+ * SIDOC_END_REMARK
+ */
 
-  /* Port writes for cursor position */
-  if ((port & 0xfffe) == READ_WORD(BIOS_VIDEO_PORT)) {
-    /* Writing to the 6845 */
-    static int last_port;
-    static int last_byte;
-    static int hi = 0, lo = 0;
-    int pos;
+int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit8u *dest = base;
 
-    v_printf("Video Port outb [0x%04x]\n", port);
-    if (!config.usesX) {
-      if ((port == READ_WORD(BIOS_VIDEO_PORT) + 1) && (last_port == READ_WORD(BIOS_VIDEO_PORT))) {
-	/* We only take care of cursor positioning for now. */
-	/* This code should work most of the time, but can
-	     be defeated if i/o permissions change (e.g. by a vt
-	     switch) while a new cursor location is being written
-	     to the 6845. */
-	if (last_byte == 14) {
-	  hi = (unsigned char) byte;
-	  pos = (hi << 8) | lo;
-	  cursor_col = pos % 80;
-	  cursor_row = pos / 80;
-	  if (config.usesX)
-	    poshgacur(cursor_col,
-		      cursor_row);
+	if (count==0) return 0;
+	T_printf("Doing REP insb(%#x) %d bytes at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).read_portb == std_port_inb) {
+	    PORT_IOPLON(port,1);
+	    while (count--) {
+	      *dest = port_real_inb(port);
+	      dest += incr;
+	    }
+	    PORT_IOPLOFF(port,1);
 	}
-	else if (last_byte == 15) {
-	  lo = (unsigned char) byte;
-	  pos = (hi << 8) | lo;
-	  cursor_col = pos % 80;
-	  cursor_row = pos / 80;
-	  if (config.usesX)
-	    poshgacur(cursor_col,
-		      cursor_row);
+	else {
+	  while (count--) {
+	    *dest = EMU_HANDLER(port).read_portb(port);
+	    dest += incr;
+	  }
 	}
-      }
-      last_port = port;
-      last_byte = byte;
-    }
-    else {
-      set_ioperm(port, 1, 1);
-      port_out(byte, port);
-      set_ioperm(port, 1, 0);
-    }
-  }
-  /* the above stuff should someday be moved to crtcemu.c -- sw */
-  {
+	return dest-base;
+}
+
+int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit8u *dest = base;
+
+	if (count==0) return 0;
+	T_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).write_portb == std_port_outb) {
+	    PORT_IOPLON(port,1);
+	    while (count--) {
+	      port_real_outb(port, *dest);
+	      dest += incr;
+	    }
+	    PORT_IOPLOFF(port,1);
+	}
+	else {
+	  while (count--) {
+	    EMU_HANDLER(port).write_portb(port, *dest);
+	    dest += incr;
+	  }
+	}
+	return dest-base;
+}
+
+int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit16u *dest = base;
+
+	if (count==0) return 0;
+	T_printf("Doing REP insw(%#x) %d words at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).read_portw == std_port_inw) {
+	    PORT_IOPLON(port,2);
+	    while (count--) {
+	      *dest = port_real_inw(port);
+	      dest += incr;
+	    }
+	    PORT_IOPLOFF(port,2);
+	}
+	else if (EMU_HANDLER(port).read_portw == NULL) {
+	  Bit16u res;
+	  while (count--) {
+	    res = EMU_HANDLER(port).read_portb(port);
+	    *dest = ((Bit16u)EMU_HANDLER(port).read_portb(port+1) <<8) | res;
+	    dest += incr;
+	  }
+	}
+	else {
+	  while (count--) {
+	    *dest = EMU_HANDLER(port).read_portw(port);
+	    dest += incr;
+	  }
+	}
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit16u *dest = base;
+
+	if (count==0) return 0;
+	T_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).write_portw == std_port_outw) {
+	    PORT_IOPLON(port,2);
+	    while (count--) {
+	      port_real_outw(port, *dest);
+	      dest += incr;
+	    }
+	    PORT_IOPLOFF(port,2);
+	}
+	else if (EMU_HANDLER(port).write_portw == NULL) {
+	  Bit16u res;
+	  while (count--) {
+	    res = *dest, dest += incr;
+	    EMU_HANDLER(port).write_portb(port, res);
+	    EMU_HANDLER(port).write_portb(port+1, res>>8);
+	  }
+	}
+	else {
+	  while (count--) {
+	    EMU_HANDLER(port).write_portw(port, *dest);
+	    dest += incr;
+	  }
+	}
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+int port_rep_ind(ioport_t port, Bit32u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit32u *dest = base;
+
+	if (count==0) return 0;
+	while (count--) {
+	  *dest = port_ind(port);
+	  dest += incr;
+	}
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit32u *dest = base;
+
+	if (count==0) return 0;
+	while (count--) {
+	  port_outd(port, *dest);
+	  dest += incr;
+	}
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+
+/* ---------------------------------------------------------------------- */
+/* 
+ * SIDOC_BEGIN_FUNCTION special_port_inb,special_port_outb
+ *
+ * I don't know what to do of this stuff... it was added incrementally to
+ * port.c and has mainly to do with video code. This is not the right
+ * place for it...
+ * Anyway, this implements some HGC stuff for X
+ *
+ * SIDOC_END_FUNCTION
+ */
+
+static Bit8u special_port_inb(ioport_t port)
+{
+	Bit8u res = 0xff;
+
+	if (config.usesX) {
+	/* HGC stuff */
+	    if (port==0x3b8) {	/* HGC mode-reg */
+		res = std_port_inb (port);
+		return ((res & 0x7f) | (hgc_Mode & 0x80));
+	    }
+	    else
+	    if (port==0x3bf) {	/* HGC conf-reg */
+		res = std_port_inb (port);
+		return ((res & 0xfd) | (hgc_Konv & 0x02));
+	    }
+	}
 #if X_GRAPHICS
-    if ( (config.X) &&
-         ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
-           ((port>=0x3c4) && (port<=0x3c5)) || /* erik@zaphod sequencer */
-           ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
-           ((port>=0x3d4) && (port<=0x3d5)) || /* sw: crt controller */
-           ((port>=0x3D0) && (port<=0x3DD)) ) )
-      {
-        VGA_emulate_outb(port, (unsigned char)byte);
-        return;
-      }
-#endif
-    if (config.usesX) {
-      v_printf("HGC Portwrite: %d %d\n", (int) port, (int) byte);
-      switch (port) {
-      case 0x03b8:		/* mode-reg */
-	if (byte & 0x80)
-	  set_hgc_page(1);
+	if ((port==0x3ba)||(port==0x3da)) {
+		res = Attr_get_input_status_1();
+	}
 	else
-	  set_hgc_page(0);
-	set_ioperm(port, 1, 1);
-	port_out(byte & 0x7f, port);
-	set_ioperm(port, 1, 0);
-	break;
-      case 0x03ba:		/* status-reg */
-	set_ioperm(port, 1, 1);
-	port_out(byte, port);
-	set_ioperm(port, 1, 0);
-	break;
-      case 0x03bf:		/* conf-reg */
-	if (byte & 0x02)
-	  map_hgc_page(1);
-	else
-	  map_hgc_page(0);
-	set_ioperm(port, 1, 1);
-	port_out(byte & 0xFD, port);
-	set_ioperm(port, 1, 0);
-	break;
-      }
-      return;
-    }
-  }
-
-  if (port > 0x3b3 && port < 0x3df && config.chipset && config.mapped_bios) {
-    video_port_out(byte, port);
-    return;
-  }
-  if (v_8514_base && ((port & 0x03fe) == v_8514_base) && (port & 0xfc00)) {
-    enter_priv_on();
-    iopl(3);
-    port_out(byte, port);
-    iopl(0);
-    leave_priv_setting();
-    v_printf("8514 outb [0x%04x] = 0x%02x\n", port, byte);
-    return;
-  }
-  if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
-    enter_priv_on();
-    iopl(3);
-    port_out(byte, port);
-    iopl(0);
-    leave_priv_setting();
-    v_printf("ATI outb [0x%04x] = 0x%02x\n", port, byte);
-    return;
-  }
-
-  /* The diamond bug */
-  if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
-    enter_priv_on();
-    iopl(3);
-    port_out(byte, port);
-    iopl(0);
-    leave_priv_setting();
-    i_printf(" Diamond outb [0x%x] = 0x%x\n", port, byte);
-    return;
-  }
-
-#if PORT_DEBUG > 0
-#if PORT_DEBUG == 1
-  if (port < 0x100)
-#elif PORT_DEBUG == 3
-  if (port >= 0x100)
 #endif
-    i_printf ("PORT: Wr 0x%04x <- 0x%02x\n", port, byte);
-#endif
-
-  switch (port) {
-  case 0x20:
-  case 0x21:
-    write_pic0(port, byte);
-    break;
-  case 0x60:
-  case 0x64:
-    keyb_io_write((u_int)port, byte);
-    break;
-  case 0x61:
-    spkr_io_write((u_int)port, byte);
-    break;
-  case 0x70:
-  case 0x71:
-    cmos_write(port, byte);
-    break;
-  case 0xa0:
-  case 0xa1:
-    write_pic1(port,byte);
-    break;
-  case 0x40:
-  case 0x41:
-  case 0x42:
-    pit_outp(port, byte);
-    break;
-  case 0x43:
-    pit_control_outp(port, byte);
-    break;
-
-#ifdef GUSPNP
-  case 0x203:
-  case 0x207:
-  case 0x20b:
-  case 0x220 ... 0x22f:
-  case 0x320 ... 0x32f:
-  case 0x279:
-    set_ioperm (port, 1, 1);
-    port_out (byte, port);
-    set_ioperm (port, 1, 0);
-    break;
-
-  case 0xa79:
-    enter_priv_on();
-    iopl (3);
-    port_out (byte, port);
-    iopl (0);
-    leave_priv_setting();
-  break;
-#endif
-
-  default:
-    /* DMA I/O */
-    if (((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0)) { 
-      dma_io_write(port, byte);
-    }
-    /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
-    /* The base serial port must be a multiple of 8. */
-    for (tmp = 0; tmp < config.num_ser; tmp++) {
-      if ((port & ~7) == com[tmp].base_port) {
-      do_serial_out(tmp, port, byte);
-      lastport = port;
-      return;
-      }
-    }
-#ifdef USE_SBEMU
-    /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == config.sb_base) {
-      sb_io_write(port, byte);
-      break;
-    }
-    else if ((port & ~3) == 0x388) {
-      adlib_io_write(port, byte);
-      break;
-    }
-    /* MPU401 */
-    if ((port & ~1) == config.mpu401_base) {
-      mpu401_io_write(port, byte);
-      break;
-    }
-#endif /* USE_SBEMU */
-
-    i_printf("default outb [0x%x] 0x%02x\n", port, byte);
-    h_printf("write port 0x%x denied value %02x", port, (byte & 0xff));
-    h_printf(" because not in access list\n");
-  }
-  lastport = port;
+	if (port==0x3db)	/* light pen strobe reset */
+		res = 0;
+	return res;
 }
 
-void
-outw(unsigned int port, unsigned int value)
+static void special_port_outb(ioport_t port, Bit8u byte)
 {
-  PRIV_SAVE_AREA
-  if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
-    enter_priv_on();
-    iopl(3);
-    port_out_w(value, port);
-    iopl(0);
-    leave_priv_setting();
-    v_printf("8514 outw [0x%04x] = 0x%04x\n", port, value);
-    return;
-  }
-  if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
-    enter_priv_on();
-    iopl(3);
-    port_out_w(value, port);
-    iopl(0);
-    leave_priv_setting();
-    v_printf("ATI outw [0x%04x] = 0x%04x\n", port, value);
-    return;
-  }
-  if(!write_port_w(value,port) ) {
-    outb(port, value & 0xff);
-    outb(port + 1, value >> 8);
-  }
+	if (config.usesX) {
+	    if (port==0x3b8) {	/* HGC mode-reg */
+		if (byte & 0x80) set_hgc_page(1);
+			else set_hgc_page(0);
+		byte &= 0x7f;
+		goto defout;
+	    }
+	    else
+	    if (port==0x3bf) {	/* HGC conf-reg */
+		if (byte & 0x02) map_hgc_page(1);
+			else map_hgc_page(0);
+		byte &= 0xfd;
+		goto defout;
+	    }
+	}
 
+	/* Port writes for enable/disable blinking character mode */
+	if (port == 0x03c0) {
+		static int last_byte = -1;
+		static int last_index = -1;
+		static int flip_flop = 1;
+
+		flip_flop = !flip_flop;
+		if (flip_flop) {
+		/* JES This was last_index = 0x10..... WRONG? */
+			if (last_index == 0x10)
+				char_blink = (byte & 8) ? 1 : 0;
+			last_byte = byte;
+		}
+		else {
+			last_index = byte;
+		}
+		return;
+	}
+
+	/* Port writes for cursor position: 3b4-3b5 or 3d4-3d5 */
+	if (!config.usesX && ((port & 0xfffe)==READ_WORD(BIOS_VIDEO_PORT))) {
+		/* Writing to the 6845 */
+		static int last_port;
+		static int last_byte;
+		static unsigned int hi = 0, lo = 0;
+		int pos;
+
+		v_printf("nPORT: 6845 outb [0x%04x]\n", port);
+		if ((port == READ_WORD(BIOS_VIDEO_PORT) + 1) && (last_port == READ_WORD(BIOS_VIDEO_PORT))) {
+			/* We only take care of cursor positioning for now. */
+			/* This code should work most of the time, but can
+			   be defeated if i/o permissions change (e.g. by a vt
+			   switch) while a new cursor location is being written
+			   to the 6845. */
+			if (last_byte == 14) {
+				hi = byte;
+				pos = (hi << 8) | lo;
+				cursor_col = pos % 80;
+				cursor_row = pos / 80;
+			}
+			else if (last_byte == 15) {
+				lo = byte;
+				pos = (hi << 8) | lo;
+				cursor_col = pos % 80;
+				cursor_row = pos / 80;
+			}
+		}
+		last_port = port;
+		last_byte = byte;
+		return;
+	}
+defout:
+	std_port_outb (port, byte);
 }
 
-void
-outd(unsigned int port, unsigned int value)
-{
-  PRIV_SAVE_AREA
-  port &= 0xffff;
-  if (config.pci && (port >= 0xcf8) && (port < 0xd00)) {
-    enter_priv_on();
-    iopl(3);
-    port_real_outd(port, value);
-    iopl(0);
-    leave_priv_setting();
-    return;
-  }
-  outw(port,value & 0xffff);
-  outw(port+2,(unsigned int)value >> 16);
-}
-/* @@@ MOVE_END @@@ 32768 */
-
-
-/* The following functions were previously in portss.c */
-
-Bit8u port_safe_inb(Bit32u port)
-{
-  PRIV_SAVE_AREA
-  Bit8u res = 0;
-
-  i_printf("PORT: safe_inb ");
-  if (can_do_root_stuff) {
-    enter_priv_on();
-    iopl(3);
-    res = port_in(port);
-    iopl(0);
-
-    leave_priv_setting();
-  }
-  else
-    i_printf("want to ");
-  i_printf("in(%lx)", port);
-  if (can_do_root_stuff)
-    i_printf(" = %hx", res);
-  i_printf("\n");
-  return res;
-}
-
-void port_safe_outb(Bit32u port, Bit8u byte)
-{
-  PRIV_SAVE_AREA
-  i_printf("PORT: safe_outb ");
-  if (can_do_root_stuff) {
-    enter_priv_on();
-    iopl(3);
-    port_out(byte, port);
-    iopl(0);
-    leave_priv_setting();
-  }
-  else
-    i_printf("want to ");
-  i_printf("outb(%lx, %hx)\n", port, byte);
-}
-
-Bit16u port_safe_inw(Bit32u port)
-{
-  PRIV_SAVE_AREA
-  Bit16u res = 0;
-
-  i_printf("PORT: safe_inw ");
-  if (can_do_root_stuff) {
-    enter_priv_on();
-    iopl(3);
-    res = port_in_w(port);
-    iopl(0);
-    leave_priv_setting();
-  }
-  else
-    i_printf("want to ");
-  i_printf("inw(%lx)", port);
-  if (can_do_root_stuff)
-    i_printf(" = %x", res);
-  i_printf("\n");
-  return res;
-}
-
-void port_safe_outw(Bit32u port, Bit16u word)
-{
-  PRIV_SAVE_AREA
-  i_printf("PORT: safe_outw ");
-  if (can_do_root_stuff) {
-    enter_priv_on();
-    iopl(3);
-    port_out_w(word, port);
-    iopl(0);
-    leave_priv_setting();
-  }
-  else
-    i_printf("want to ");
-  i_printf("outw(%lx, %x)\n", port, word);
-}
-
-
+/* ---------------------------------------------------------------------- */
+/* 
+ * SIDOC_BEGIN_FUNCTION port_init()
+ *
+ * Resets all the port port_handler information.
+ * This must be called before parsing the config file -
+ * This must NOT be called again when warm booting!
+ * Can't use debug logging, it is called too early.
+ *
+ * SIDOC_END_FUNCTION
+ */
 int port_init(void)
 {
-  /* this function intentionally left blank */
-  return 0;
+  int i;
+	/* set unused elements to appropriate values */
+	for (i=0; i < EMU_MAX_IO_DEVICES; i++) {
+	  port_handler[i].read_portb   = NULL;
+	  port_handler[i].write_portb  = NULL;
+	  port_handler[i].read_portw   = NULL;
+	  port_handler[i].write_portw  = NULL;
+	  port_handler[i].read_portd   = NULL;
+	  port_handler[i].write_portd  = NULL;
+	  port_handler[i].irq = EMU_NO_IRQ;
+	  port_handler[i].fd = -1;
+	}
+
+  /* handle 0 maps to the unmapped IO device handler.  Basically any
+     ports which don't map to any other device get mapped to this
+     handler which does absolutely nothing.
+   */
+	port_handler[NO_HANDLE].read_portb = port_not_avail_inb;
+	port_handler[NO_HANDLE].write_portb = port_not_avail_outb;
+	port_handler[NO_HANDLE].read_portw = port_not_avail_inw;
+	port_handler[NO_HANDLE].write_portw = port_not_avail_outw;
+	port_handler[NO_HANDLE].handler_name = "unknown port";
+
+  /* the STD handles will be in use by many devices, and their fd
+     will always be -1
+   */
+	port_handler[HANDLE_STD_IO].read_portb = std_port_inb;
+	port_handler[HANDLE_STD_IO].write_portb = std_port_outb;
+	port_handler[HANDLE_STD_IO].read_portw = std_port_inw;
+	port_handler[HANDLE_STD_IO].write_portw = std_port_outw;
+	port_handler[HANDLE_STD_IO].handler_name = "std port io";
+
+	port_handler[HANDLE_STD_RD].read_portb = std_port_inb;
+	port_handler[HANDLE_STD_RD].write_portb = port_not_avail_outb;
+	port_handler[HANDLE_STD_RD].read_portw = std_port_inw;
+	port_handler[HANDLE_STD_RD].write_portw = port_not_avail_outw;
+	port_handler[HANDLE_STD_RD].handler_name = "std port read";
+
+	port_handler[HANDLE_STD_WR].read_portb = port_not_avail_inb;
+	port_handler[HANDLE_STD_WR].write_portb = std_port_outb;
+	port_handler[HANDLE_STD_WR].read_portw = port_not_avail_inw;
+	port_handler[HANDLE_STD_WR].write_portw = std_port_outw;
+	port_handler[HANDLE_STD_WR].handler_name = "std port write";
+
+	port_handler[HANDLE_VID_IO].read_portb = video_port_in;
+	port_handler[HANDLE_VID_IO].write_portb = video_port_out;
+	port_handler[HANDLE_VID_IO].read_portw = port_not_avail_inw;
+	port_handler[HANDLE_VID_IO].write_portw = port_not_avail_outw;
+	port_handler[HANDLE_VID_IO].handler_name = "video port io";
+
+	port_handler[HANDLE_SPECIAL].read_portb = special_port_inb;
+	port_handler[HANDLE_SPECIAL].write_portb = special_port_outb;
+	port_handler[HANDLE_SPECIAL].read_portw = port_not_avail_inw;
+	port_handler[HANDLE_SPECIAL].write_portw = port_not_avail_outw;
+	port_handler[HANDLE_SPECIAL].handler_name = "extra stuff";
+
+	port_handles = STD_HANDLES;
+
+	memset (port_handle_table, NO_HANDLE, sizeof(port_handle_table));
+	memset (port_andmask, 0xff, sizeof(port_andmask));
+	memset (port_ormask, 0, sizeof(port_ormask));
+
+	return port_handles;	/* unused but useful */
+}
+
+/* 
+ * SIDOC_BEGIN_FUNCTION extra_port_init()
+ *
+ * Catch all the special cases previously defined in ports.c
+ * mainly video stuff that should be moved away from here
+ * This must be called at the end of initialization phase
+ *
+ * NOTE: the order in which these inits are done could be significant!
+ *   I tried to keep it the same it was in ports.c but this code surely
+ *   can still have bugs
+ *
+ * SIDOC_END_FUNCTION
+ */
+int extra_port_init(void)
+{
+  int i, j;
+/*
+ * DANG_FIXTHIS This stuff should be moved to video code!!
+ */
+	if (config.chipset == ATI) {	/* taken literally! */
+		SET_HANDLE(0x46e8,HANDLE_STD_IO);
+		for (i=0x400; i<0x10000; i+=0x400) {
+			SET_HANDLE(i+0x102,HANDLE_STD_IO);
+			SET_HANDLE(i+0x1ce,HANDLE_STD_IO);
+			SET_HANDLE(i+0x1cf,HANDLE_STD_IO);
+			for (j=0; j<4; j++)
+				SET_HANDLE(i+j+0x2ec,HANDLE_STD_IO);
+			SET_HANDLE(i+0x3b4,HANDLE_STD_IO);
+			SET_HANDLE(i+0x3b5,HANDLE_STD_IO);
+			for (j=0; j<4; j++)
+				SET_HANDLE(i+j+0x3b8,HANDLE_STD_IO);
+			for (j=0; j<11; j++)
+				SET_HANDLE(i+j+0x3c0,HANDLE_STD_IO);
+			SET_HANDLE(i+0x3cc,HANDLE_STD_IO);
+			SET_HANDLE(i+0x3ce,HANDLE_STD_IO);
+			SET_HANDLE(i+0x3cf,HANDLE_STD_IO);
+			SET_HANDLE(i+0x3d4,HANDLE_STD_IO);
+			SET_HANDLE(i+0x3d5,HANDLE_STD_IO);
+			for (j=0; j<5; j++)
+				SET_HANDLE(i+j+0x3d8,HANDLE_STD_IO);
+		}
+	}
+	if (config.chipset == WDVGA) {
+		SET_HANDLE(0x46e8,HANDLE_STD_IO);
+		SET_HANDLE(0x4ae8,HANDLE_STD_IO);
+		SET_HANDLE(0xe92,HANDLE_STD_IO);	/* ??? */
+		SET_HANDLE(0xef2,HANDLE_STD_IO);	/* ??? */
+		SET_HANDLE(0xa875,HANDLE_STD_IO);	/* ??? */
+		for (i=0x2df0; i<0x2df4; i++)
+			SET_HANDLE(i,HANDLE_STD_IO);
+	}
+	if ((config.chipset == DIAMOND) ||	/* the DIAMOND bug */
+	    (config.chipset == WDVGA)) {
+		for (i=0x23c0; i<0x23d0; i++)
+			SET_HANDLE(i,HANDLE_STD_IO);
+	}
+
+	if (v_8514_base) {
+		for (i=v_8514_base+0x400; i<0x10000; i+=0x400) {
+			SET_HANDLE_COND(i,HANDLE_STD_IO);
+			SET_HANDLE_COND(i+1,HANDLE_STD_IO);
+		}
+	}
+	if (config.chipset && config.mapped_bios) {
+		for (i=0x3b4; i<0x3df; i++)
+			SET_HANDLE_COND(i,HANDLE_VID_IO);
+	}
+#if 1		/* HGC ports */
+	if (config.usesX) {
+		SET_HANDLE_COND(0x3b4,HANDLE_STD_IO);
+		SET_HANDLE_COND(0x3b5,HANDLE_STD_IO);
+		SET_HANDLE_COND(0x3ba,HANDLE_STD_IO);
+	}
+	SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
+	SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
+#endif
+#if X_GRAPHICS
+	/* DANG_FIXTHIS this code needs to be removed - it collides with vgaemu
+	 */
+	if (config.X) {
+#if 0
+		for (i=0x3c0; i<0x3c1; i++)
+			SET_HANDLE_COND(i,HANDLE_STD_IO);
+		for (i=0x3c4; i<0x3c9; i++)
+			SET_HANDLE_COND(i,HANDLE_STD_IO);
+#endif
+		for (i=0x3ce; i<0x3dd; i++)
+			SET_HANDLE_COND(i,HANDLE_STD_IO);
+	}
+#endif
+
+	if (!config.X) {
+	  SET_HANDLE_COND(0x3c0,HANDLE_SPECIAL);	/* W */
+	}
+	SET_HANDLE_COND(0x3ba,HANDLE_SPECIAL);		/* R */
+	SET_HANDLE_COND(0x3da,HANDLE_SPECIAL);		/* R */
+	SET_HANDLE_COND(0x3db,HANDLE_SPECIAL);		/* R */
+
+	i = READ_WORD(BIOS_VIDEO_PORT);
+	SET_HANDLE_COND(i,HANDLE_SPECIAL);		/* W */
+	SET_HANDLE_COND(i+1,HANDLE_SPECIAL);		/* W */
+
+ 	return 0;
+}
+
+void release_ports (void)
+{
+	int i;
+
+	for (i=0; i < port_handles; i++) {
+		if (port_handler[i].fd >= 2) {
+			close(port_handler[i].fd);
+/* DANG_FIXTHIS we should free the name but we are going to exit anyway
+ */
+/*			free(port_handler[i].handler_name); */
+		}
+	}
+	memset (port_handle_table, NO_HANDLE, sizeof(port_handle_table));
+	memset (port_andmask, 0xff, sizeof(port_andmask));
+	memset (port_ormask, 0, sizeof(port_ormask));
+
+  }
+
+/* ---------------------------------------------------------------------- */
+/* 
+ * SIDOC_BEGIN_FUNCTION port_register_handler
+ *
+ * Assigns a handle in the port table to a range of ports with or
+ * without a device, and registers the ports
+ *
+ * SIDOC_END_FUNCTION
+ */
+int port_register_handler(emu_iodev_t device, int flags)
+{
+    int handle, i;
+    struct stat devstat;
+
+    if (device.irq != EMU_NO_IRQ && device.irq >= EMU_MAX_IRQS) {
+	dbug_printf("nPORT: IO device %s registered with IRQ=%d above %u\n",
+	      device.handler_name, device.irq, EMU_MAX_IRQS - 1);
+	return 1;
+    }
+
+    /* first find existing handle for function or create new one */
+    handle = port_handles;
+    for (handle=0; handle < port_handles; handle++) {
+	if (!strcmp(port_handler[handle].handler_name, device.handler_name))
+	      break;
+    }
+
+    if (handle >= port_handles) {
+	/* no existing handle found, create new one */
+	if (port_handles >= EMU_MAX_IO_DEVICES) {
+		error("nPORT: too many IO devices, increase EMU_MAX_IO_DEVICES");
+		leavedos(77);
+	}
+
+	if (device.irq != EMU_NO_IRQ && irq_handler_name[device.irq]) {
+		error("nPORT: IRQ %d conflict.  IO devices %s & %s\n",
+		      device.irq, irq_handler_name[device.irq], device.handler_name);
+		if (device.fd) close(device.fd);
+		return 2;
+	}
+	if (device.irq != EMU_NO_IRQ && device.irq < EMU_MAX_IRQS)
+		irq_handler_name[device.irq] = device.handler_name;
+	port_handles++;
+
+	/*
+	 * for byte and double, a NULL function means that the port
+	 * access is not available, while for word means that it will
+	 * be translated into 2 byte accesses
+	 */
+	port_handler[handle].read_portb = 
+		(device.read_portb? : port_not_avail_inb);
+	port_handler[handle].write_portb = 
+		(device.write_portb? : port_not_avail_outb);
+	port_handler[handle].read_portw = device.read_portw;
+	port_handler[handle].write_portw = device.write_portw;
+	port_handler[handle].read_portd =
+		(device.read_portd? : port_not_avail_ind);
+	port_handler[handle].write_portd =
+		(device.write_portd? : port_not_avail_outd);
+	port_handler[handle].handler_name = device.handler_name;
+	port_handler[handle].irq = device.irq;
+	port_handler[handle].fd = -1;
+    }
+
+  /* change table to reflect new handler id for that address */
+    for (i = device.start_addr; i <= device.end_addr; i++) {
+	if (port_handle_table[i] != 0) {
+		error("nPORT: conflicting devices: %s & %s\n",
+		      port_handler[handle].handler_name, EMU_HANDLER(i).handler_name);
+		if (device.fd) close(device.fd);
+		return 4;
+	}
+	port_handle_table[i] = handle;
+    }
+
+    T_printf("nPORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x] fd=%d\n",
+	port_handler[handle].handler_name, handle, device.start_addr,
+	device.end_addr, (device.fd>=0? devstat.st_dev:device.fd));
+
+    if (flags & PORT_FAST) {
+	if (device.start_addr < 0x400) {
+	  T_printf("nPORT: giving fast access to ports [0x%04x-0x%04x]\n",
+		device.start_addr, device.end_addr);
+	  set_ioperm (device.start_addr, device.end_addr-device.start_addr+1, 1);
+	}
+	else
+	  T_printf("nPORT: using perm/iopl for ports [0x%04x-0x%04x]\n",
+		device.start_addr, device.end_addr);
+    }
+    return 0;
 }
 
 
-/*  */
-/* set_ioperm @@@  40960 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/emu.c --> src/emu-i386/ports.c  */
-/* return status of io_perm call */
+/* 
+ * SIDOC_BEGIN_FUNCTION port_allow_io
+ *
+ *
+ * SIDOC_END_FUNCTION
+ */
+Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
+	Bit8u andmask, unsigned int flags, char *device)
+{
+	static emu_iodev_t io_device;
+	FILE *fp;
+	unsigned int beg, end;
+	char line[100], portname[50], lock_file[64];
+	unsigned char mapped;
+	char *devrname;
+	int fd, usemasks = 0;
+
+	T_printf("nPORT: allow_io for port 0x%04x:%d perm=%x or=%x and=%x\n",
+		 start, size, permission, ormask, andmask);
+
+	if ((ormask != 0) || (andmask != 0xff)) {
+		if ((start+size) > 0x400)
+			T_printf("nPORT: andmask & ormask not supported for ports>=0x400\n");
+		else if (size > 1)
+			T_printf("nPORT: andmask & ormask not supported for multiple ports\n");
+		else
+			usemasks = 1;
+	}
+
+	/* SIDOC_BEGIN_REMARK
+	 * find out whether the port address request is available;
+	 * this way, try to deny uncoordinated access
+	 *
+	 * If it is not listed in /proc/ioports, register them 
+	 * (we need some syscall to do so bo 960609)...
+	 * (we have a module to do so AV 970813)
+	 * if it is registered, we need the name of a device to open
+	 * if we can't open it, we disallow access to that port
+	 * SIDOC_END_REMARK
+	 */
+	if ((fp = fopen("/proc/ioports", "r")) == NULL) {
+		T_printf("nPORT: can't open /proc/ioports\n");
+		return FALSE;
+	}
+	mapped = 0;
+	while (fgets(line, 100, fp)) {
+		sscanf(line, "%x-%x : %s", &beg, &end, portname);
+		if ((start <= end) && ((start+size) > beg)) {
+			/* ports are besetzt, try to open the according device */
+			T_printf("nPORT: in range 0x%04x-0x%04x already registered as %s\n",
+				 beg, end, portname);
+			if (!strncasecmp(portname,"dosemu",6)) return FALSE;
+			mapped = 1;
+			break;
+		}
+	}
+	fclose (fp);
+
+	if (mapped && ((device==NULL) || (*device==0))) {
+		T_printf ("nPORT: no device specified for %s\n", portname);
+		return FALSE;
+	}
+
+	io_device.fd = -1;
+	if (device && *device) {
+		/* SIDOC_BEGIN_REMARK
+		 * We need to check if our required port range is in use
+		 * by some device. So we look into proc/ioports to check
+		 * the addresses. Fine, but at this point we must supply
+		 * a device name ourselves, and we can't check from here
+		 * if it's the right one. The device is then open and left
+		 * open until dosemu ends; for the rest, in the original
+		 * code the device wasn't used, just locked, and only then
+		 * port access was granted.
+		 * SIDOC_END_REMARK
+		 */
+		PRIV_SAVE_AREA
+		int devperm;
+
+		devrname=strrchr(device,'/');
+		if (devrname==NULL) devrname=device; else devrname++;
+		sprintf(lock_file, "%s/%s%s", PATH_LOCKD, NAME_LOCKF, devrname);
+
+		switch (permission) {
+			case IO_READ:	devperm = O_RDONLY;
+					flags |= PORT_DEV_RD;
+					break;
+			case IO_WRITE:	devperm = O_WRONLY;
+					flags |= PORT_DEV_WR;
+					break;
+			default:	devperm = O_RDWR;
+					flags |= (PORT_DEV_RD|PORT_DEV_WR);
+		}
+		enter_priv_on();
+		io_device.fd = open(device, devperm);
+		leave_priv_setting();
+		if (io_device.fd == -1) {
+			switch (errno) {
+			case EBUSY:
+				T_printf("nPORT: Device %s busy\n", device);
+				return FALSE;
+			case EACCES:
+				T_printf("nPORT: Device %s, access not allowed\n", device);
+				return FALSE;
+			case ENOENT:
+			case ENXIO:
+				T_printf("nPORT: No such Device '%s'\n", device);
+				return FALSE;
+			default:
+				T_printf("nPORT: Device %s error %d\n", device, errno);
+				return FALSE;
+			}
+		}
+
+		fd = open(lock_file, O_RDONLY);
+		if (fd >= 0) {
+			close(fd);
+			T_printf("nPORT: Device %s is locked\n", device);
+			return FALSE;
+		}
+
+		T_printf("nPORT: Device %s opened successfully = %d\n", device,
+			io_device.fd);
+
+	}
+
+	if (permission == IO_RDWR)
+		io_device.handler_name = "std port io";
+	else if (permission == IO_READ)
+		io_device.handler_name = "std port read";
+	else
+		io_device.handler_name = "std port write";
+
+	io_device.start_addr   = start;
+	io_device.end_addr     = start + size - 1;
+	io_device.irq          = EMU_NO_IRQ;
+
+	if (usemasks) {
+		port_andmask[start] = andmask;
+		port_ormask[start] = ormask;
+	}
+	port_register_handler(io_device, flags);
+	return TRUE;
+}
+
+/* 
+ * SIDOC_BEGIN_FUNCTION set_ioperm
+ *
+ * wrapper for the ioperm() syscall, returns -1 if port>=0x400
+ *
+ * SIDOC_END_FUNCTION
+ */
 int
 set_ioperm(int start, int size, int flag)
 {
-    PRIV_SAVE_AREA
-    int             tmp;
+	PRIV_SAVE_AREA
+	int tmp;
 
-    if (!can_do_root_stuff)
-	return -1;		/* don't bother */
+	if (!can_do_root_stuff || (start>0x3ff))
+	    return -1;		/* don't bother */
+	if ((start+size)>0x3ff) size=0x400-start;
 
-#ifdef X86_EMULATOR
-    if (config.cpuemu) {
-	int i;
-	for (i=start; i<start+size; i++)
-		(flag? set_bit(i,io_bitmap):clear_bit(i,io_bitmap));
-	tmp = 0;
-    }
-#endif
-    enter_priv_on();
-    tmp = ioperm(start, size, flag);
-    leave_priv_setting();
+	/* While possibly not the best behavior I figure we ought to,
+	   turn the privilege on here instead of in every caller.
+	   If we want a privileged version of this function we can
+	   call ioperm.
+	 */
+	enter_priv_on();
+	tmp = DOS_SYSCALL(ioperm(start, size, flag));
+	leave_priv_setting();
 
-    return tmp;
+	T_printf ("nPORT: set_ioperm [%4x:%2d:%d] returns %d\n",start,size,flag,tmp);
+
+	return tmp;
 }
-/* @@@ MOVE_END @@@ 40960 */
 
+
+/* ====================================================================== */
 
 
 #ifdef __NetBSD__
-/*  */
-/* NetBSD:set_bitmap,ioperm @@@  49152 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/emu.c --> src/emu-i386/ports.c  */
-/* lifted from linux kernel, ioport.c */
-
-/* Set EXTENT bits starting at BASE in BITMAP to value TURN_ON. */
-static void
-set_bitmap(unsigned long *bitmap, short base, short extent, int new_value)
-{
-	int mask;
-	unsigned long *bitmap_base = bitmap + (base >> 5);
-	unsigned short low_index = base & 0x1f;
-	int length = low_index + extent;
-
-	if (low_index != 0) {
-		mask = (~0 << low_index);
-		if (length < 32)
-				mask &= ~(~0 << length);
-		if (new_value)
-			*bitmap_base++ |= mask;
-		else
-			*bitmap_base++ &= ~mask;
-		length -= 32;
-	}
-
-	mask = (new_value ? ~0 : 0);
-	while (length >= 32) {
-		*bitmap_base++ = mask;
-		length -= 32;
-	}
-
-	if (length > 0) {
-		mask = ~(~0 << length);
-		if (new_value)
-			*bitmap_base++ |= mask;
-		else
-			*bitmap_base++ &= ~mask;
-	}
-}
-
-#include <machine/sysarch.h>
-#include <machine/pcb.h>
-
-int
-ioperm(unsigned int startport, unsigned int howmany, int onoff)
-{
-    unsigned long bitmap[NIOPORTS/32];
-    int err;
-
-    if (startport + howmany > NIOPORTS)
-	return ERANGE;
-
-    if ((err = i386_get_ioperm(bitmap)) != 0)
-	return err;
-    i_printf("%sabling %x->%x\n", onoff ? "en" : "dis", startport, startport+howmany);
-    /* now diddle the current bitmap with the request */
-    set_bitmap(bitmap, startport, howmany, !onoff);
-
-    return i386_set_ioperm(bitmap);
-}
-/* @@@ MOVE_END @@@ 49152 */
-
-
-#endif
+#error please use old port code for NetBSD
+#endif				/* __NetBSD__ */
 

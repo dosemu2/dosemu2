@@ -334,7 +334,6 @@ void do_irq1() {
 
 void keyb_8042_init(void)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* 8042 keyboard controller */
@@ -363,7 +362,6 @@ void keyb_8042_init(void)
   io_device.start_addr   = 0x0061;
   io_device.end_addr     = 0x0061;
   port_register_handler(io_device, config.speaker==SPKR_NATIVE? PORT_FAST:0);
-#endif
   if (config.keybint) {
      pic_seti(PIC_IRQ1, do_irq1, 0);     /* init keyboard interrupt */
      pic_unmaski(PIC_IRQ1);

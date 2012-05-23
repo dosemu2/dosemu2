@@ -140,9 +140,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef X2_SUPPORT
 #undef X_GRAPHICS
 
-/* Define this to use the new port I/O code */
-#undef NEW_PORT_CODE
-
 /* Define this to use the new CMOS code */
 #undef NEW_CMOS
 

@@ -55,12 +55,7 @@
 #endif
 #include "disks.h"
 #include "port.h"
-#ifdef NEW_PORT_CODE
 #define allow_io	port_allow_io
-#else
-int allow_io(unsigned int start, int size, int permission, int ormask,
-	 int andmask, unsigned int portspeed, char *device);
-#endif
 #include "lpt.h"
 #include "video.h"
 #include "mouse.h"

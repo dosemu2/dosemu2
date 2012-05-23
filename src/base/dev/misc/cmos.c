@@ -244,7 +244,6 @@ cmos_write(ioport_t port, Bit8u byte)
 
 void cmos_init(void)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* CMOS RAM & RTC */
@@ -260,7 +259,6 @@ void cmos_init(void)
   io_device.irq          = EMU_NO_IRQ;
   io_device.fd           = -1;
   port_register_handler(io_device, 0);
-#endif
 }
 
 void cmos_reset(void)

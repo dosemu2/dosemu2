@@ -605,9 +605,7 @@ int vga_emu_init(vgaemu_display_type *vedt)
   PRIV_SAVE_AREA
   int i;
   vga_mapping_type vmt = {0, 0, 0};
-#ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
-#endif
   static unsigned char *lfb_base = NULL;
 
   if(config.vgaemu_memsize)
@@ -675,7 +673,6 @@ int vga_emu_init(vgaemu_display_type *vedt)
   Seq_init();
   CRTC_init();
 
-#ifdef NEW_PORT_CODE
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb;
   io_device.write_portb = VGA_emulate_outb;
@@ -709,7 +706,6 @@ int vga_emu_init(vgaemu_display_type *vedt)
   io_device.start_addr = CRTC_INDEX;
   io_device.end_addr = CRTC_DATA;
   port_register_handler(io_device, 0);
-#endif
 
   vbe_init(vedt);
 

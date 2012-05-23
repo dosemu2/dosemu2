@@ -48,8 +48,6 @@ static void chk_pend(void)
 	}
 }
 
-#ifdef NEW_PORT_CODE
-
 static Bit8u pci_port_inb(ioport_t port)
 {
 	unsigned char ret;
@@ -81,7 +79,6 @@ static void pci_port_outw(ioport_t port, Bit16u value)
 	port_real_outw(port,value);
 	priv_iopl(0);
 }
-#endif
 
 static Bit32u pci_port_ind(ioport_t port)
 {
@@ -124,7 +121,6 @@ static void pci_port_outd(ioport_t port, Bit32u value)
  */
 int pci_setup (void)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
 
   if (config.pci) {
@@ -143,7 +139,6 @@ int pci_setup (void)
     io_device.end_addr = PCI_CONF_DATA+3;
     port_register_handler(io_device, 0);
   }
-#endif
   return 0;
 }
 

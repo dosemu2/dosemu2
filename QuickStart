@@ -36,12 +36,14 @@ WARNING for old dosemu users:
 Then you have to edit compiletime-settings (changing on/off) and run
 ./default-configure _prior_ to running make.
 
-Or alternatively you can use the new menu driven configuration tool:
+Or (if you have Tcl/Tk installed) alternatively you can use the new menu
+driven configuration tool:
 
 - ./setup-dosemu
 
-then enter "Compile time (runs ./default-configure)", when you have
-finished toggling the configuration switches, go to < Exit >, and type ENTER,
+then chose "Compile configiration / compilation", when you have
+finished toggling the configuration switches, klick < Ok> and chose
+the appropriate action ...
 ... well it should be self descriptive.
 
 
@@ -107,7 +109,7 @@ method is described in ./doc/README-tech.txt, chapter 6).
 It doesn't require to boot native DOS, nor do you need to fiddle with
 a floppy any more:
 
-- You need to have mtools-3.6 for this to work
+- You need to have mtools-3.8 for this to work
 
 - You need an already installed (native) bootable DOS in one of your
   partitions (maybe a floppy). If this is the case, you just need to type
@@ -141,7 +143,7 @@ If you don't know how to copy files from/to the hdimage:
     # mcopy g:autoexec.bat -
     Copying autoexec.bat
     @echo off
-    echo "Welcome to dosemu 0.66!"
+    echo "Welcome to dosemu 0.98!"
 
   ... all clear ? ;-)
 
@@ -202,7 +204,7 @@ If you don't know how to copy files from/to the hdimage:
 7.  Available documentation -- mostly somewhat outdated :(
 --------------------------------------------------------------------------
 
-./doc/DOSEMU-HOWTO
+./doc/dosemu-HOWTO.txt
 	This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
 	but still very helpful.  (Read this file first, however.)
 ./ChangeLog
@@ -218,6 +220,8 @@ If you don't know how to copy files from/to the hdimage:
 ./man/dos.1
 	This is the DOSEMU man page. It is now up to date with 0.64.
 	This normally goes into the /usr/man/man1 directory.
+./man/mkfatimage16.1
+	This discribes how to create (empty) hdimages of various sizes.
 ./doc/announce
 	The announcement textfile for DOSEMU 0.66.
 ./doc/README.txt

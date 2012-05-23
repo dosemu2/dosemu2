@@ -256,6 +256,9 @@ static const u_char dos_to_latin2[]={
    0xb0, 0xa8, 0xff, 0xfb, 0xd8, 0xf8, 0x00, 0xa0   /* F8-FF */
 };
 
+extern int dosemu_argc;
+extern char **dosemu_argv;
+
 /**************************************************************************/
 
 /* From Xkeyb.c */
@@ -1139,6 +1142,7 @@ int X_init(void)
 {
   XGCValues gcv;
   XClassHint xch;
+  XWMHints wmhint;
   XSetWindowAttributes attr;
   char *display_name; 
 
@@ -1217,7 +1221,11 @@ int X_init(void)
   XSetIconName(display, mainwindow, config.X_icon_name);
   xch.res_name  = "XDosEmu";
   xch.res_class = "XDosEmu";
-  XSetClassHint(display, mainwindow, &xch);
+
+  wmhint.window_group = mainwindow;
+  wmhint.flags = WindowGroupHint;
+  XSetWMProperties(display, mainwindow, NULL, NULL, 
+    dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
 
 #if CONFIG_X_SELECTION
   /* Get atom for COMPOUND_TEXT type. */

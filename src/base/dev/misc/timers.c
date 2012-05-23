@@ -635,7 +635,6 @@ void spkr_io_write(ioport_t port, Bit8u value) {
 
 void pit_init(void)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* 8254 PIT (Programmable Interval Timer) */
@@ -676,7 +675,6 @@ void pit_init(void)
   io_device.start_addr   = 0x0047;
   io_device.end_addr     = 0x0047;
   port_register_handler(io_device, 0);
-#endif
 #endif
 }
 

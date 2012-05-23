@@ -3061,7 +3061,6 @@ if ((_ss & 7) == 7) {
 
     case 0x6c:                    /* [rep] insb */
       /* NOTE: insb uses ES, and ES can't be overwritten by prefix */
-#ifdef NEW_PORT_CODE
       if (DPMIclient_is_32)
 	_edi += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_edi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
@@ -3069,41 +3068,11 @@ if ((_ss & 7) == 7) {
 	_LWORD(edi) += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_LWORD(edi)),
         	_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       if (is_rep) _LWECX = 0;
-#else
-      if (is_rep) {
-        int delta = 1;
-        if(_LWORD(eflags) &DF ) delta = -1;
-        D_printf("DPMI: Doing REP F3 6C (rep insb) %lx bytes, DELTA %d\n",
-                LWORD32(ecx),delta);
-        if (DPMIclient_is_32) {
-          while (_ecx)  {
-             *((Bit8u *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
-             _edi += delta;
-             _ecx--;
-          }
-        }
-        else {
-          while (_LWORD(ecx))  {
-             *((Bit8u *)SEL_ADR(_es,_LWORD(edi))) = inb((int) _LWORD(edx));
-             _LWORD(edi) += delta;
-             _LWORD(ecx)--;
-          }
-        }
-      }
-      else {
-        *((Bit8u *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
-        D_printf("DPMI: insb(0x%04x) value %02x\n",
-  	       _LWORD(edx),*((Bit8u *)SEL_ADR(_es,_edi)));   
-        if(_LWORD(eflags) & DF) LWORD32(edi)--;
-        else LWORD32(edi)++;
-      }
-#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
 
     case 0x6d:			/* [rep] insw/d */
       /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
-#ifdef NEW_PORT_CODE
       if (prefix66) {
 	if (DPMIclient_is_32)
 	  _edi += port_rep_inw(_LWORD(edx), (Bit16u *)SEL_ADR(_es,_edi),
@@ -3121,54 +3090,11 @@ if ((_ss & 7) == 7) {
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       }
       if (is_rep) _LWECX = 0;
-#else
-      if (is_rep) {
-        #define ___LOCALAUX(typ,iotyp,incr,x) \
-          int delta =incr; \
-          if(_LWORD(eflags) & DF) delta = -incr; \
-          D_printf("DPMI: rep ins%c %lx words, DELTA %d\n", x, \
-                  LWORD32(ecx),delta); \
-          while(LWORD32(ecx)) { \
-            *(typ SEL_ADR(_es, _edi))=iotyp(_LWORD(edx)); \
-            LWORD32(edi) += delta; \
-            LWORD32(ecx)--; \
-          }
-
-        if (prefix66 ^ DPMIclient_is_32) {
-                                  /* rep insd */
-          ___LOCALAUX((Bit32u *),ind,4,'d')
-        }
-        else {
-                                  /* rep insw */
-          ___LOCALAUX((Bit16u *),inw,2,'w')
-        }
-        #undef  ___LOCALAUX
-      }
-      else {
-        #define ___LOCALAUX(typ,iotyp,incr,x) \
-          *(typ SEL_ADR(_es, _edi))=iotyp(_LWORD(edx)); \
-          D_printf("DPMI: ins%c(0x%lx) value %lx \n", x, \
-                  LWORD32(edx),(unsigned long)*(typ SEL_ADR(_es, _edi)) ); \
-          if(_LWORD(eflags) & DF) LWORD32(edi) -= incr; \
-          else LWORD32(edi) +=incr;
-        
-        if (prefix66 ^ DPMIclient_is_32) {
-                                  /* insd */
-          ___LOCALAUX((Bit32u *),ind,4,'d')
-        }
-        else {
-                                  /* insw */
-          ___LOCALAUX((Bit16u *),inw,2,'w')
-        }
-        #undef  ___LOCALAUX
-      }
-#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
 
     case 0x6e:			/* [rep] outsb */
       if (pref_seg < 0) pref_seg = _ds;
-#ifdef NEW_PORT_CODE
       if (DPMIclient_is_32)
 	_esi += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_esi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
@@ -3176,31 +3102,11 @@ if ((_ss & 7) == 7) {
 	_LWORD(esi) += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_LWORD(esi)),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
       if (is_rep) _LWECX = 0;
-#else
-      if (is_rep) {
-        int delta = 1;
-        D_printf("DPMI: rep outsb\n");
-        if(_LWORD(eflags) & DF) delta = -1;
-        while(LWORD32(ecx)) {
-          outb(_LWORD(edx), *((Bit8u *)SEL_ADR(pref_seg,_esi)));
-          LWORD32(esi) += delta;
-          LWORD32(ecx)--;
-        }
-      }
-      else {
-        D_printf("DPMI: outsb port 0x%04x value %02x\n",
-              _LWORD(edx),*((Bit8u *)SEL_ADR(pref_seg,_esi)));
-        outb(_LWORD(edx), *((Bit8u *)SEL_ADR(pref_seg,_esi)));
-        if(_LWORD(eflags) & DF) LWORD32(esi)--;
-        else LWORD32(esi)++;
-      }
-#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
 
     case 0x6f:			/* [rep] outsw/d */
       if (pref_seg < 0) pref_seg = _ds;
-#ifdef NEW_PORT_CODE
       if (prefix66) {
         if (DPMIclient_is_32)
 	  _esi += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_esi),
@@ -3218,47 +3124,6 @@ if ((_ss & 7) == 7) {
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       } 
       if (is_rep) _LWECX = 0;
-#else
-      if (is_rep) {
-        #define ___LOCALAUX(typ,iotyp,incr,x) \
-          int delta = incr; \
-          D_printf("DPMI:  rep outs%c\n", x); \
-          if(_LWORD(eflags) & DF) delta = -incr; \
-          while(LWORD32(ecx)) { \
-            iotyp(LWORD32(edx), *(typ SEL_ADR(pref_seg,_esi))); \
-            LWORD32(esi) += delta; \
-            LWORD32(ecx)--; \
-          }
-        
-        if (prefix66 ^ DPMIclient_is_32) {
-                                  /* rep outsd */
-          ___LOCALAUX((Bit32u *),outd,4,'d')
-        }
-        else {
-                                  /* rep outsw */
-          ___LOCALAUX((Bit16u *),outw,2,'w')
-        }
-        #undef  ___LOCALAUX
-      }
-      else {
-        #define ___LOCALAUX(typ,iotyp,incr,x) \
-          D_printf("DPMI: outs%c port 0x%04x value %x\n", x, \
-                  _LWORD(edx), (unsigned int) *(typ SEL_ADR(pref_seg,_esi))); \
-          iotyp(_LWORD(edx), *(typ SEL_ADR(pref_seg,_esi))); \
-          if(_LWORD(eflags) & DF ) LWORD32(esi) -= incr; \
-          else LWORD32(esi) +=incr;
-        
-        if (prefix66 ^ DPMIclient_is_32) {
-                                  /* outsd */
-          ___LOCALAUX((Bit32u *),outd,4,'d')
-        }
-        else {
-                                  /* outsw */
-          ___LOCALAUX((Bit16u *),outw,2,'w')
-        }
-        #undef  ___LOCALAUX
-      } 
-#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
 

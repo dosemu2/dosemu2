@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "February, 1998" "Version ALPHA 0.97.3" "MS-DOS Emulation"
+.TH DOS 1 "September, 1998" "Version ALPHA 0.98.0" "MS-DOS Emulation"
 .SH NAME
 dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -496,7 +496,7 @@ and
 .I \-V
 switches, explained more thoroughly in
 .B QuickStart.
-There is also some brief documentation in the file etc/dosemu.conf,
+There is also some very brief documentation in the file etc/dosemu.conf,
 which can be copied to /etc/dosemu.conf and edited for your needs.
 .PP
 In brief, proper use of the console device and the corresponding switches
@@ -658,12 +658,16 @@ have saner UMB support.
 
 .SH LOGGING 
 .B DOSEMU
-is able to log all use with email or 
+is able to log all use via 
 .BR syslogd (8).
-The file
-.I /etc/dosemu.loglevel
-contains information about the logging facilities. Read
-.I doc/README.loglevel
+In the file
+.I /etc/dosemu.users
+you may set the loglevel by means of the keyword
+.I log_level=value
+Where
+.I value
+can be 0 (no logging), 1 or 2 (highest loglevel). Read
+.I doc/README.txt
 for more details.
 
 
@@ -709,43 +713,78 @@ developer team - even just good detailed debug reports are all you need!
 The invoker program.
 .TP
 .I /usr/bin/xtermdos
-The xterm wrapper.
+The xterm wrapper (obsolete).
 .TP
 .I /usr/bin/xdos
 The X version.
 .TP
-.I /usr/lib/libdosemu
-The actual emulator code as a shared library (when
+.I $HOME/dosemu
+Per user
 .B DOSEMU
-is compiled as a.out).
+local directory. This will be created silently, if not
+existing.
+.TP
+.I $HOME/dosemu/tmp
+All temporary file creation happens here, we do not use /tmp anymore.
 .TP
 .I /var/run/dosemu.*
+or
+.TP
+.I $HOME/dosemu/run
 Various files used by
 .B DOSEMU
 including debugger pipes.
 .TP
 .TP
 .I /var/lib/dosemu/*
+or
+.TP
+.I $HOME/dosemu/lib
 Various files used by
 .B DOSEMU
-including diskimages and disk config files.
-.TP
-.I /var/lib/dosemu/global.conf
-Global configuration script for
-.BR DOSEMU .
+including diskimages and disk config files. This directory also holds
+the global configuration script
+.I global.conf
+for
+.B DOSEMU
+which then includes
+.I /etc/dosemu.conf
+If
+.I /etc/dosemu.users
+does allow it for a given user, then (in case of non-suid-root)
+.I $HOME/dosemu/lib
+will be taken instead of
+.I /var/lib/dosemu/*
+and the user may have its completely own configuration.
 .TP
 .I /etc/dosemu.conf
 Main configuration file for
 .BR DOSEMU .
 which is included by
-.I /var/lib/dosemu/global.conf
+.I global.conf
 .TP
 .I /etc/dosemu.users
-Contains the usernames that are allowed to use
-.BR DOSEMU .
+or
 .TP
-.I /etc/dosemu.loglevel
-Logging configuration file.
+.I /etc/dosemu/dosemu.users
+Defines the access rights to
+.BR DOSEMU
+on a per user basis and sets some vital configuration. This is the only
+fix-location configuration file,
+.BR DOSEMU
+first looks for
+.I /etc/dosemu.users
+and, if this is not found, for
+.I /etc/dosemu/dosemu.users .
+Via the keyword
+.I default_lib_dir=
+in
+.I dosemu.users
+the systemwide
+.I /var/lib/dosemu
+directory may be moved elsewere.
+For more information see
+.I ./doc/README.txt
 .TP
 .I /etc/dosemu/dos.ini
 IPX configuration file.
@@ -777,3 +816,8 @@ since the last release.
 .I MSDOS mailing list
 For more information, mail to
 .IP linux-msdos@vger.rutgers.edu
+
+
+
+.SH "SEE ALSO"
+.BR mkfatimage16 "(1), " mtools "(1)"

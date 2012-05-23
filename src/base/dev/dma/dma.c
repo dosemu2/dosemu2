@@ -1673,7 +1673,6 @@ size_t dma_do_read(int controller, int channel, Bit32u target_addr)
 void dma_init(void)
 {
   int i, j;
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
   
   /* 8237 DMA controller */
@@ -1717,7 +1716,6 @@ void dma_init(void)
   io_device.end_addr     = 0x008A;
   io_device.handler_name = "DMA - AT Pages";
   port_register_handler(io_device, 0);
-#endif
 
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 4; j++) {

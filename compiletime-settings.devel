@@ -11,7 +11,6 @@ config {
   runasroot off
   linkstatic on
   newxmouse on
-  newport on
   newcmos on
   newint on
   cpuemu off

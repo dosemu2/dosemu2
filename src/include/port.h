@@ -15,14 +15,6 @@
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
 
-#ifndef NEW_PORT_CODE
-/*
- * maximum number of emulated devices allowed.  floppy, mda, etc...
- * you can increase this to anything below 256 since an 8-bit handle
- * is used for each device
- */
-#define EMU_MAX_IO_DEVICES 0x20
-#endif
 
 /*
  * number of IRQ lines supported.  In an ISA PC there are two
@@ -109,7 +101,6 @@ extern void    port_outb(ioport_t port, Bit8u byte);
 extern void    port_outw(ioport_t port, Bit16u word);
 extern void    port_outd(ioport_t port, Bit32u word);
 
-#ifdef NEW_PORT_CODE
 extern Bit8u  std_port_inb(ioport_t port);
 extern void   std_port_outb(ioport_t port, Bit8u byte);
 extern Bit16u std_port_inw(ioport_t port);
@@ -144,23 +135,6 @@ extern void release_ports(void);
 #define PORT_DEV_RD	2
 #define PORT_DEV_WR	4
 
-#else
-extern Bit8u   port_safe_inb(Bit32u port);
-extern void    port_safe_outb(Bit32u port, Bit8u byte);
-extern Bit16u  port_safe_inw(Bit32u port);
-extern void    port_safe_outw(Bit32u port, Bit16u word);
-
-extern char safe_port_in_byte(const unsigned short port);
-extern void safe_port_out_byte(const unsigned short port, const unsigned char byte);
-
-extern unsigned char inb(unsigned int port);
-extern void outb(unsigned int port, unsigned int byte);
-extern unsigned int inw(int port);
-extern unsigned int ind(int port);
-extern void outw(unsigned int port, unsigned int value);
-extern void outd(unsigned int port, unsigned int value);
-
-#endif
 
 extern int     port_init(void);
 extern int     port_register_handler(emu_iodev_t info, int);

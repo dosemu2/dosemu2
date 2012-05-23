@@ -109,13 +109,6 @@ newxmouse	"use the new X mouse code"
 		If you encounter problems with it on your X-server,
 		only then set this switch off.
 
-newport		"use the new port I/O code" on
-
-		The new port code is more generic, though together with
-		some (seldom) DOS drivers, that access hardware directly
-		it encounters problems (we did not yet track that down).
-		Normally you should enable this switch though.
-
 newcmos		"use the new CMS code"
 
 		This handles the access to the PC CMOS memory, they old

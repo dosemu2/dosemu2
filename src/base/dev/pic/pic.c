@@ -1161,7 +1161,6 @@ void pic_sched(int ilevel, int interval)
 void pic_init(void)
 {
   /* do any one-time initialization of the PIC */
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* 8259 PIC (Programmable Interrupt Controller) */
@@ -1184,7 +1183,6 @@ void pic_init(void)
   io_device.read_portb   = read_pic1;
   io_device.write_portb  = write_pic1;
   port_register_handler(io_device, 0);
-#endif
 }
 
 void pic_reset(void)

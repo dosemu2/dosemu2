@@ -2317,9 +2317,7 @@ void sound_init(void)
 
 static void sb_init(void)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
-#endif
 
   S_printf ("SB: SB Initialisation\n");
 
@@ -2378,7 +2376,6 @@ static void sb_init(void)
     return;
   }
 
-#ifdef NEW_PORT_CODE
   /* SB Emulation */
   io_device.read_portb   = sb_io_read;
   io_device.write_portb  = sb_io_write;
@@ -2395,7 +2392,6 @@ static void sb_init(void)
     S_printf ("SB: Error registering DSP port handler\n");
     SB_info.version = SB_NONE;
   }
-#endif
 
   /* Register the Interrupt */
 
@@ -2412,13 +2408,10 @@ static void sb_init(void)
 
 static void fm_init(void)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
-#endif
   
   S_printf ("SB: FM Initialisation\n");
 
-#ifdef NEW_PORT_CODE
   /* This is the FM (Adlib + Advanced Adlib) */
   io_device.read_portb   = adlib_io_read;
   io_device.write_portb  = adlib_io_write;
@@ -2435,20 +2428,16 @@ static void fm_init(void)
     S_printf("ADLIB: Error registering port handler\n");
     SB_info.version = SB_NONE;
   }
-#endif
 
   (void) FM_driver_init();
 }
 
 static void mpu401_init(void)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
-#endif
   
   S_printf ("MPU401: MPU-401 Initialisation\n");
 
-#ifdef NEW_PORT_CODE
   /* This is the MPU-401 */
   io_device.read_portb   = mpu401_io_read;
   io_device.write_portb  = mpu401_io_write;
@@ -2465,7 +2454,6 @@ static void mpu401_init(void)
     S_printf("MPU-401: Error registering port handler\n");
     SB_info.version = SB_NONE;
   }
-#endif
 
   S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n", 
 	    config.mpu401_base);

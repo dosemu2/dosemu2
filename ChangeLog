@@ -1,3 +1,10 @@
+98/09/06 ver. 0.97.10.6 unofficial pre-release
+	From Daniel Skarda <0rfelyus@atrey.karlin.mff.cuni.cz>
+	- use of XSetWMProperties() instead of XSetClassHint() in X.c
+	  to properly set WMHints for window managers.
+	From Hans
+	- removed old port code
+	- reworked docs to prepare vor 0.98
 98/09/05 ver. 0.97.10.5 unofficial pre-release
 	From Maxim Ruchko *McSim* <mcsim@lvivholod.lviv.ua>
 	- fix for cursor hidding on console (FoxPro), cursor is positioned

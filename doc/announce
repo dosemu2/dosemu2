@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.66.7, the PC Emulator for
+The DOSEMU team is proud to announce DOSEMU 0.98.0, the PC Emulator for
 x86 based *nix. Please remember to consider this as ALPHA software.
 
 
@@ -24,8 +24,6 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
   - Runs Borlandc C++ 3.x IDE
   - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
      at the Linux console.
-  - NetBSD version of DOSEMU appreciating a growing success,
-     contact jtk@atria.com.
   - CDROM support.
   - Sound support (including emulated sound DMA)
   - NetWare and other network connectivity via builtin IPX and pktdrvr
@@ -36,7 +34,7 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
 REQUIREMENTS
 ~~~~~~~~~~~~
   - Linux >= 2.0.28 (with IPC support, IPX support optional)
-  - mtools-3.6 (for creating hdimages and DEXEs)
+  - mtools-3.8 (for creating hdimages and DEXEs)
 
 When compiling dosemu yourself:
   - GCC 2.7.2+ and LIBC 5.4.7+ are recommended for best results.
@@ -67,7 +65,9 @@ of at least:
   David Etherton 	Alberto Vignani		Eric W. Biederman
   Erik Mouw		Arjan Filius		Uwe Bonnes
   Rainer Zimmermann	Steffen Winterfeld	David Brauman
-  Rutger Nijlunsing
+  Rutger Nijlunsing	Reinhard Karcher	Michael Karcher
+  Marcus Better		Arne de Bruijn		Kenneth Corbin
+  Pasi Eronen		Robert de Bath
 
   and others too important to mention.
 
@@ -78,8 +78,8 @@ The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
   tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/...
   ftp.suse.com:/pub/dosemu/...
-                                     .../dosemu-0.66.7-bin.tgz
-                                     .../dosemu-0.66.7.tgz
+                                     .../dosemu-0.98.0-bin.tgz
+                                     .../dosemu-0.98.0.tgz
 
 The binary distribution is statically linked against libc-5.4.23 and libX*
 from XFree-3.3. It should run on all current Linux distributions.

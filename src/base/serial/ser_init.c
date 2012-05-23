@@ -323,9 +323,7 @@ com_writeb(ioport_t port, Bit8u value) {
  */
 static void do_ser_init(int num)
 {
-#ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
-#endif
   int data = 0;
   int i;
   
@@ -395,7 +393,6 @@ static void do_ser_init(int num)
 
   /*** The following is where the real initialization begins ***/
 
-#ifdef NEW_PORT_CODE
   /* Tell the port manager that we exist and that we're alive */
   io_device.read_portw  = NULL;
   io_device.write_portw = NULL;
@@ -428,7 +425,6 @@ static void do_ser_init(int num)
       break;
   }
   port_register_handler(io_device, 0);
-#endif
 
   /* Information about serial port added to debug file */
   s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n", 

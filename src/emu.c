@@ -428,9 +428,7 @@ emulate(int argc, char **argv)
     cpu_setup();		/* setup the CPU */
     pci_setup();
     hardware_setup();		/* setup any hardware */
-#ifdef NEW_PORT_CODE
     extra_port_init();		/* setup ports dependent on config */
-#endif
     memory_init();		/* initialize the memory contents */
     boot();			/* read the boot sector & get moving */
 

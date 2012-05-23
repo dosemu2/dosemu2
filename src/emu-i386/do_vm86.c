@@ -199,37 +199,15 @@ void vm86_GP_fault(void)
   case 0x6c:                    /* insb */
     /* NOTE: ES can't be overwritten; prefixes 66,67 should use esi,edi,ecx
      * but is anyone using extended regs in real mode? */
-#ifdef NEW_PORT_CODE
     /* WARNING: no test for DI wrapping! */
     LWORD(edi) += port_rep_inb(LWORD(edx), SEG_ADR((Bit8u *),es,di),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     if (is_rep) LWECX = 0;
-#else
-    if (is_rep) {
-      int delta = 1;
-      if(LWORD(eflags) &DF ) delta = -1;
-      i_printf("Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
-              LWORD(ecx),delta);
-      while (LWORD(ecx))  {
-        *(SEG_ADR((Bit8u *),es,di)) = inb((int) LWORD(edx));
-        LWORD(edi) += delta;
-        LWORD(ecx)--;
-      }
-    }
-    else {
-      *(SEG_ADR((Bit8u *),es,di)) = inb((int) LWORD(edx));
-      i_printf("insb(0x%04x) value %02x\n",
-              LWORD(edx),*(SEG_ADR((Bit8u *),es,di)));   
-      if(LWORD(eflags) & DF) LWORD(edi)--;
-      else LWORD(edi)++;
-    }
-#endif	/* NEW_PORT_CODE */
     LWORD(eip)++;
     break;
 
   case 0x6d:			/* (rep) insw / insd */
     /* NOTE: ES can't be overwritten */
-#ifdef NEW_PORT_CODE
     /* WARNING: no test for _DI wrapping! */
     if (prefix66) {
       LWORD(edi) += port_rep_ind(LWORD(edx), SEG_ADR((Bit32u *),es,di),
@@ -240,85 +218,22 @@ void vm86_GP_fault(void)
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     }
     if (is_rep) LWECX = 0;
-#else
-    if (is_rep) {
-      #define ___LOCALAUX(typ,iotyp,incr,x) \
-        int delta =incr; \
-        if(LWORD(eflags) & DF) delta = -incr; \
-        i_printf("rep ins%c %04x words, DELTA %d\n", x, \
-                LWORD(ecx),delta); \
-        while(LWORD(ecx)) { \
-          *(SEG_ADR(typ,es,di))=iotyp(LWORD(edx)); \
-          LWORD(edi) += delta; \
-          LWORD(ecx)--; \
-        }
-
-      if (prefix66) {
-                                /* rep insd */
-        ___LOCALAUX((Bit32u *),ind,4,'d')
-      }
-      else {
-                                /* rep insw */
-        ___LOCALAUX((Bit16u *),inw,2,'w')
-      }
-      #undef  ___LOCALAUX
-    }
-    else {
-      #define ___LOCALAUX(typ,iotyp,incr,x) \
-        *(SEG_ADR(typ,es,di)) =iotyp((int) LWORD(edx)); \
-        i_printf("ins%c(0x%04x) value %04x \n", x, \
-                LWORD(edx),*(SEG_ADR((unsigned short *),es,di))); \
-        if(LWORD(eflags) & DF) LWORD(edi) -= incr; \
-        else LWORD(edi) +=incr;
-      
-      if (prefix66) {
-                                /* insd */
-        ___LOCALAUX((Bit32u *),ind,4,'d')
-      }
-      else {
-                                /* insw */
-        ___LOCALAUX((Bit16u *),inw,2,'w')
-      }
-      #undef  ___LOCALAUX
-    }
-#endif	/* NEW_PORT_CODE */
     LWORD(eip)++;
     break;
       
 
   case 0x6e:			/* (rep) outsb */
     if (pref_seg < 0) pref_seg = LWORD(ds);
-#ifdef NEW_PORT_CODE
     /* WARNING: no test for _SI wrapping! */
     LWORD(esi) += port_rep_outb(LWORD(edx), __SEG_ADR((Bit8u *),pref_seg,si),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     if (is_rep) LWECX = 0;
-#else
-    if (is_rep) {
-      int delta = 1;
-      i_printf("untested: rep outsb\n");
-      if(LWORD(eflags) & DF) delta = -1;
-      while(LWORD(ecx)) {
-        outb(LWORD(edx), *(__SEG_ADR((Bit8u *),pref_seg,si)));
-        LWORD(esi) += delta;
-        LWORD(ecx)--;
-      }
-    }
-    else {
-      i_printf("untested: outsb port 0x%04x value %02x\n",
-              LWORD(edx),*(__SEG_ADR((Bit8u *),pref_seg,si)));
-      outb(LWORD(edx), *(__SEG_ADR((Bit8u *),pref_seg,si)));
-      if(LWORD(eflags) & DF) LWORD(esi)--;
-      else LWORD(esi)++;
-    }
-#endif	/* NEW_PORT_CODE */
     LWORD(eip)++;
     break;
 
 
   case 0x6f:			/* (rep) outsw / outsd */
     if (pref_seg < 0) pref_seg = LWORD(ds);
-#ifdef NEW_PORT_CODE
     /* WARNING: no test for _SI wrapping! */
     if (prefix66) {
       LWORD(esi) += port_rep_outd(LWORD(edx), __SEG_ADR((Bit32u *),pref_seg,si),
@@ -329,47 +244,6 @@ void vm86_GP_fault(void)
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     } 
     if (is_rep) LWECX = 0;
-#else
-    if (is_rep) {
-      #define ___LOCALAUX(typ,iotyp,incr,x) \
-        int delta = incr; \
-        i_printf("untested: rep outs%c\n", x); \
-        if(LWORD(eflags) & DF) delta = -incr; \
-        while(LWORD(ecx)) { \
-          iotyp(LWORD(edx), *(__SEG_ADR(typ,pref_seg,si))); \
-          LWORD(esi) += delta; \
-          LWORD(ecx)--; \
-        }
-      
-      if (prefix66) {
-                                /* rep outsd */
-        ___LOCALAUX((Bit32u *),outd,4,'d')
-      }
-      else {
-                                /* rep outsw */
-        ___LOCALAUX((Bit16u *),outw,2,'w')
-      }
-      #undef  ___LOCALAUX
-    }
-    else {
-      #define ___LOCALAUX(typ,iotyp,incr,x) \
-        i_printf("untested: outs%c port 0x%04x value %04x\n", x, \
-                LWORD(edx), (unsigned int) *(__SEG_ADR(typ,pref_seg,si))); \
-        iotyp(LWORD(edx), *(__SEG_ADR(typ,pref_seg,si))); \
-        if(LWORD(eflags) & DF ) LWORD(esi) -= incr; \
-        else LWORD(esi) +=incr;
-      
-      if (prefix66) {
-                                /* outsd */
-        ___LOCALAUX((Bit32u *),outd,4,'d')
-      }
-      else {
-                                /* outsw */
-        ___LOCALAUX((Bit16u *),outw,2,'w')
-      }
-      #undef  ___LOCALAUX
-    } 
-#endif	/* NEW_PORT_CODE */
     LWORD(eip)++;
     break;
 
