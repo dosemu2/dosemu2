@@ -40,11 +40,6 @@
  * DANG_END_REMARK
  */
 
-#ifdef __NetBSD__
-#define __ELF__				/* simulated with a.out mmap-ing stuff.
-					   use _main entrypoint. */
-#define EDEADLOCK EDEADLK
-#endif
 
 #ifndef __ELF__
 /*
@@ -78,16 +73,9 @@ __asm__("___START___: jmp _emulate\n");
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <limits.h>
-#ifndef __NetBSD__
 #include <getopt.h>
-#endif
 #include <assert.h>
 
-#ifdef __NetBSD__
-#include <signal.h>
-#include <machine/pcvt_ioctl.h>
-#include "netbsd_vm86.h"
-#endif
 #ifdef __linux__
 #if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
@@ -160,9 +148,6 @@ extern void     print_version(void);
 
 extern void io_select_init(void);
 
-#ifdef USE_THREADS
-extern void treads_init(void);
-#endif
 
 jmp_buf NotJEnv;
 
@@ -333,37 +318,6 @@ module_init(void)
     memcheck_init();		/* lower 1M memory map support */
 }
 
-#ifdef __NetBSD__
-#include <machine/segments.h>
-/*
- * Switch all segment registers to use well-known GDT entries.
- * (The default process setup uses LDT entries for all segment registers)
- */
-static u_short csel = GSEL(GUCODE_SEL, SEL_UPL);
-asm(".text");
-asm(".align 4");
-asm(".globl changesegs_lret");
-asm("changesegs_lret:");
-asm("popl %eax");
-asm("pushl _csel");
-asm("pushl %eax");
-asm("lret");
-
-void
-changesegs()
-{
-    register u_short dsel = GSEL(GUDATA_SEL, SEL_UPL);
-    u_long retaddr;
-
-    asm("pushl %0; popl %%ds" : : "g" (dsel) );
-    asm("pushl %0; popl %%es" : : "g" (dsel) );
-    asm("movl %0,%%fs" : : "r" (dsel) );
-    asm("movl %0,%%gs" : : "r" (dsel) );
-    asm("movl %0,%%ss" : : "r" (dsel) );
-    asm("call changesegs_lret");
-    return;
-}
-#endif
 
 static void do_liability_disclaimer_prompt(void)
 {
@@ -434,9 +388,6 @@ emulate(int argc, char **argv)
 {
     extern void parse_dosemu_users(void);
     int e;
-#ifdef __NetBSD__
-    changesegs();
-#endif
 
     srand(time(NULL));
     memset(&config, 0, sizeof(config));
@@ -450,14 +401,6 @@ emulate(int argc, char **argv)
 	_exit(1);		/* just in case */
     }
 
-#ifdef USE_THREADS
-    treads_init();		/* init the threads system,
-				 * after this we will be thread0.
-				 * Because treads_init() captures SIGTERM
-				 * and signal_init() also does it,
-				 * we capture it via 'exit'.
-    				 */
-#endif
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */
 
@@ -753,14 +696,7 @@ leavedos(int sig)
        }
     }
 
-#ifdef USE_THREADS
-    {
-	extern void Exit(int status);
-	Exit(sig);
-    }
-#else
     _exit(sig);
-#endif
 }
 
 #if 0
@@ -802,21 +738,3 @@ activate(int con_num)
     } else
 	do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
 }
-
-#ifdef __NetBSD__
-void
-usleep(u_int microsecs)
-{
-    /* system usleep is ghastly inefficient, using SIGALRM.
-       Instead, we use select :) */
-    struct timeval tv;
-    tv.tv_sec = microsecs / 1000000;
-    tv.tv_usec = microsecs % 1000000;
-    select(0, 0, 0, 0, &tv);
-    /* return early if awoken */
-    return;
-}
-
-
-
-#endif

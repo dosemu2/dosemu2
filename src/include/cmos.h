@@ -80,13 +80,7 @@ static __inline__ Bit8u BIN(Bit8u bcdval)
   return ((h>>1)+(h>>3)+l);	/* h*10/16+l */
 }
 
-#ifdef USE_THREADS
-extern struct lock_struct *resource_cmos;
-#define LOCK_CMOS	lock_resource(resource_cmos)
-#define UNLOCK_CMOS	unlock_resource(resource_cmos)
-#else
 #define LOCK_CMOS
 #define UNLOCK_CMOS
-#endif
 
 #endif

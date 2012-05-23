@@ -423,19 +423,6 @@ dnl Do compilation for GDB
    AC_CHECKING("Compiling without debug info");
   fi
 
-dnl Use threading code
- AC_ARG_ENABLE(threads,
-               [  --enable-threads        EXPERIMENTAL, use threading code],
-	       [threads="yes"],[threads="no"])
-  if test "$threads" = "yes" -a "$experimental" = "yes"; then
-   AC_CHECKING("Compiling with clone-threading code");
-   USE_THREADS="USE_THREADS=1"
-   AC_DEFINE_UNQUOTED(USE_THREADS)
-   AC_SUBST(USE_THREADS)
-  else
-   AC_CHECKING("Compiling single process code");
-  fi
- 
 dnl Compile with ASPI support
  AC_ARG_ENABLE(aspi,
                [  --enable-aspi           do compile with ASPI support],

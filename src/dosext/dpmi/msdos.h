@@ -29,13 +29,6 @@ static struct vm86_regs VIDEO_SAVED_REGS;
 static struct vm86_regs INT15_SAVED_REGS;
 #define S_REG(reg) (SAVED_REGS.##reg)
 #endif
-#ifdef __NetBSD__
-static struct sigcontext SAVED_REGS;
-static struct sigcontext MOUSE_SAVED_REGS;
-static struct sigcontext VIDEO_SAVED_REGS;
-static struct sigcontext INT15_SAVED_REGS;
-#define S_REG(reg) (SAVED_REGS.##reg)
-#endif
 
 
 /* these are used like:  S_LO(ax) = 2 (sets al to 2) */

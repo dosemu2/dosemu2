@@ -15,13 +15,6 @@
  *
  */
 
-/*
- * This is ALPHA-quality software.
- *
- * Using this software could be dangerous for You, your hardware or
- * anything near your hardware.
- */
-
 #define HGC_C
 
 

@@ -10,9 +10,6 @@
 #include <sys/vt.h>
 #include <sys/kd.h>
 #endif
-#ifdef __NetBSD__
-#include <machine/pcvt_ioctl.h>
-#endif
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -35,10 +32,6 @@ static struct stat orig_stat; /* original info of the VT */
 
 /* One of these has to work */
 static const char * CONSOLE[] =   { 
-#ifdef __NetBSD__
-  "/dev/console",
-  "/dev/ttyv0",
-#endif
 #ifdef __linux__
   "/dev/console",
   "/dev/tty0",
@@ -77,9 +70,6 @@ unsigned short detach (void) {
 #ifdef __linux__
   struct vt_stat vts;
 #endif
-#ifdef __NetBSD__
-  int active;
-#endif
   int pid;
   int fd;
     struct stat statout, staterr;
@@ -89,12 +79,6 @@ unsigned short detach (void) {
     return(0);
   }
   
-#ifdef __NetBSD__
-  if (ioctl(fd, VT_GETACTIVE, &active) < 0) {
-    perror("VT_GETSTATE");
-    return(0);
-  }
-#endif
 #ifdef __linux__
   if (ioctl(fd, VT_GETSTATE, &vts) < 0) {
     perror("VT_GETSTATE");
@@ -158,9 +142,6 @@ unsigned short detach (void) {
   fchmod (0, S_IRUSR | S_IWUSR);
 
   setsid();
-#ifdef __NetBSD__
-  return(active);			/* return old VT. */
-#endif
 #ifdef __linux__
   return(vts.v_active); /* return old VT. */
 #endif
@@ -193,10 +174,6 @@ void restore_vt (unsigned short vt) {
     close (console);
 
 }
-
-#ifdef __NetBSD__
-#undef VT_DISALLOCATE			/* XXX */
-#endif
 
 /* its not really critical if this succeeds */
 void disallocate_vt (void) {

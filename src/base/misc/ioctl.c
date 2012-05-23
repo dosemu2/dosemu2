@@ -4,9 +4,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#ifdef __NetBSD__
-#define EDEADLOCK EDEADLK
-#endif
 
 #include <features.h>
 #include <stdio.h>
@@ -28,11 +25,6 @@
 #include <limits.h>
 #include <assert.h>
 
-#ifdef __NetBSD__
-#include <signal.h>
-#include <machine/pcvt_ioctl.h>
-#include "netbsd_vm86.h"
-#endif
 #ifdef __linux__
 #include <signal.h>
 #if GLIBC_VERSION_CODE >= 2000
@@ -75,9 +67,6 @@
 #include "bitops.h"
 #include "pic.h"
 #include "dpmi.h"
-#ifdef __NetBSD__
-#include <setjmp.h>
-#endif
 
 #include "keyb_clients.h"
 

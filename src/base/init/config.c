@@ -314,13 +314,8 @@ config_defaults(void)
     config.sb_base = 0x220;
     config.sb_dma = 1;
     config.sb_irq = 5;
-#ifdef __NetBSD__
-    config.sb_dsp = "/dev/sound";
-    config.sb_mixer = "/dev/mixer";
-#else
     config.sb_dsp = "/dev/dsp";
     config.sb_mixer = "/dev/mixer";
-#endif /* !__NetBSD__ */
     config.mpu401_base = 0x330;
 
     config.vnet = 1;
@@ -782,13 +777,6 @@ config_init(int argc, char **argv)
 	usedoptions['L'] = 'L';
     }
 
-#if defined(__NetBSD__) && defined(X_SUPPORT) && defined(X_GRAPHICS)
-    { extern int selfmem_fd;
-    /* do this before any set*id functions are called */
-    selfmem_fd = open("/proc/curproc/mem", O_RDWR);
-    }
-#endif
-
     our_envs_init(usedoptions);
     parse_config(confname,dosrcname);
     restore_usedoptions(usedoptions);
@@ -801,10 +789,6 @@ config_init(int argc, char **argv)
     	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %ld86\n",vm86s.cpu_type);
     }
 
-#ifdef __NetBSD__
-    optreset = 1;
-    optind = 1;
-#endif
 #ifdef __linux__
     optind = 0;
 #endif

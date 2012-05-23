@@ -154,7 +154,7 @@ TODO:
 /* Modified by O.V.Zhirov at July 1998    */
 
 
-#if defined(__linux__) || defined(__NetBSD__)
+#if defined(__linux__)
 #define DOSEMU 1		/* this is a port to dosemu */
 #endif
 

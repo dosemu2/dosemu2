@@ -49,9 +49,6 @@
 #include <linux/kd.h>
 #endif
 #endif
-#ifdef __NetBSD__
-#include <machine/pcvt_ioctl.h>
-#endif
 
 #define INIT_C2TRAP
 #define NO_VC_NO_DEBUG
@@ -124,19 +121,6 @@ forbid_switch (void)
  */
 void check_console(void) {
 
-#ifdef __NetBSD__
-    struct screeninfo info;
-    int result;
-
-    config.console=0;
-    console_fd = STDIN_FILENO;     /* not STDOUT_FILENO */
-
-    if (ioctl(console_fd, VGAGETSCREEN, &info)==0) {
-	/* it's zero-based, we use 1-based */
-	scr_state.console_no = info.screen_no + 1;
-        config.console=1;
-    }
-#endif
 
 #ifdef __linux__
     struct stat chkbuf;
@@ -234,10 +218,6 @@ acquire_vt (int sig, struct sigcontext_struct context)
 
   v_printf ("VID: Acquiring VC\n");
   forbid_switch ();
-#ifdef __NetBSD__
-  if (config.console_keyb)
-      set_raw_mode();
-#endif
   if (ioctl (console_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf ("VT_RELDISP failed (or was queued)!\n");
   allow_switch ();
@@ -334,10 +314,6 @@ SIGRELEASE_call (void)
 	  /*      if (config.vga) dos_pause(); */
 	  scr_state.current = 0;
 	}
-#ifdef __NetBSD__
-      if (config.console_keyb)
-	  clear_raw_mode();
-#endif
     }
 
   scr_state.current = 0;	/* our console is no longer current */
@@ -595,11 +571,6 @@ open_kmem (void)
      * and /dev/mem is the identity-mapped (i.e. physical addressed)
      * memory. Currently under Linux, both are the same.
      */
-    /* Under NetBSD, /dev/mem is the physical memory space.  /dev/kmem
-     * is the kernel's mapping to the physical space.  Therefore, we want
-     * /dev/mem.  Since this won't cause problems on linux, I've changed
-     * everything to use /dev/mem.
-     */
 
   kmem_open_count++;
 
@@ -645,14 +616,6 @@ vc_active (void)
   return ((vtstat.v_active == scr_state.console_no));
 #endif
 
-#ifdef __NetBSD__
-  int active;
-
-  g_printf ("VC_ACTIVE!\n");
-  ioctl (console_fd, VT_GETACTIVE, &active);
-  g_printf ("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, active);
-  return ((active == scr_state.console_no));
-#endif
 }
 
 void

@@ -31,11 +31,11 @@
  * The original code was written by Joel N. Weber II. See README.sound
  * for more information. I (Alistair MacDonald) made the code compile, and
  * added a few extra features. I took the code and continued development on
- * 0.61. Michael Beck did a lot of work on 0.60.4, including the original
- * NetBSD code and capability detection under Linux. This code is basically
+ * 0.61. Michael Beck did a lot of work on 0.60.4, including capability
+ * detection under Linux. This code is basically
  * my 0.61 code, brought back into mainstream DOSEmu (0.63), but with
  * Michael's code where I thought it was better than mine. I also separated
- * out the NetBSD & Linux specific driver code. - Alistair
+ * out the Linux specific driver code. - Alistair
  *
  * For 0.66 we have updated many areas and re-organised others to make it 
  * easier to maintain. Many thanks for David for finding so many bugs ....
@@ -59,8 +59,6 @@
  * Copyright 1995  Joel N. Weber II
  * See the file README.sound in this directory for more information 
  */
-
-/* DANG_FIXME NetBSD SB code will not compile */
 
 /* Uncomment following to force complete emulation of some varient of
  * Creative Technology's SB sound card

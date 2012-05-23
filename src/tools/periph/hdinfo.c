@@ -34,20 +34,6 @@
 #include <asm/types.h>
 #include <linux/genhd.h>
 #endif
-#ifdef __NetBSD__
-#include <machine/disklabel.h>
-#define partition dos_partition
-#define boot_ind dp_flag
-#define head dp_shd
-#define sector dp_ssect
-#define cyl dp_scyl
-#define sys_ind dp_typ
-#define end_head dp_ehd
-#define end_sector dp_esect
-#define end_cyl dp_ecyl
-#define start_sect dp_start
-#define nr_sects dp_size
-#endif
 
 #include "config.h"
 #ifdef NEED_LLSEEK_PROTOTYPE

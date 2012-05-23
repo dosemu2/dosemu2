@@ -28,18 +28,10 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <limits.h>
-#ifndef __NetBSD__
 #include <getopt.h>
-#endif
 
 #if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
-#endif
-#ifdef __NetBSD__
-#include <setjmp.h>
-#include <signal.h>
-#include <machine/pcvt_ioctl.h>
-#include "netbsd_vm86.h"
 #endif
 #ifdef __linux__
 #if GLIBC_VERSION_CODE >= 2000
@@ -383,35 +375,6 @@ op0ferr:
 /* @@@ MOVE_END @@@ 32768 */
 
 
-
-/*  */
-/* run_vm86,NetBSD:vm86,vm86_return @@@  49152 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/emu.c --> src/emu-i386/do_vm86.c  */
-#ifdef __NetBSD__
-
-sigjmp_buf handlerbuf;
-
-int
-vm86(register struct vm86_struct *vm86p)
-{
-    int retval;
-
-    retval = sigsetjmp(handlerbuf, 1);
-    if (retval == 0) {
-	i386_vm86(vm86p);	/* never returns, except via signal */
-	I_printf("Return from i386_vm86()??\n");
-	vm86_GP_fault();
-	abort();			/* WTF? */
-    }
-    return retval & ~0x80000000;
-}
-
-void
-vm86_return(int sig, int code, struct sigcontext *scp)
-{
-    vm86s.substr.regs.vmsc = *scp;	/* copy vm86 registers first... */
-    siglongjmp(handlerbuf, code | 0x80000000); /* then simulate return */
-}
-#endif
 
 /*
  * DANG_BEGIN_FUNCTION run_vm86

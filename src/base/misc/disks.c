@@ -23,9 +23,6 @@
 #include <linux/fd.h>
 #include <linux/fs.h>
 #endif
-#ifdef __NetBSD__
-#include "netbsd_disk.h"
-#endif
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -371,24 +368,6 @@ image_auto(struct disk *dp)
 void
 hdisk_auto(struct disk *dp)
 {
-#ifdef __NetBSD__
-  struct disklabel label;
-  struct stat stb;
-
-  if (ioctl(dp->fdesc, DIOCGDINFO, &label) != 0 ||
-      fstat(dp->fdesc, &stb) != 0) {
-      error("can't fstat %s: %s\n", dp->dev_name,
-	    strerror(errno));
-      leavedos(21);
-  } else {
-    dp->sectors = label.d_nsectors;
-    dp->heads = label.d_ntracks;
-    dp->tracks = label.d_ncylinders;
-    dp->start = label.d_partitions[DISKPART(stb.st_rdev)].p_offset;
-    d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%d\n",
-	     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
-  }
-#endif
 #ifdef __linux__
   struct hd_geometry geo;
 
@@ -520,11 +499,6 @@ partition_setup(struct disk *dp)
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
-#ifdef __NetBSD__
-  hd_name = strdup(dp->dev_name);
-  hd_name[strlen(hd_name)-1] = 'd';	/* i.e.  /dev/rwd0g -> /dev/rwd0d */
-  PNUM = 5;				/* XXX */
-#endif
 #ifdef __linux__
   hd_name = strdup(dp->dev_name);
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
@@ -619,18 +593,6 @@ set_part_ent(struct disk *dp, char *tmp_mbr)
   long	end;		/* last sector number offset		*/
   char	*p;		/* ptr to part table entry to create	*/
 
-#ifdef __NetBSD__
-  struct disklabel label;
-  struct stat stb;
-
-  if (ioctl(dp->fdesc, DIOCGDINFO, &label) != 0 ||
-      fstat(dp->fdesc, &stb) != 0) {
-      error("can't fstat %s: %s\n", dp->dev_name,
-	    strerror(errno));
-      leavedos(21);
-  } else
-      length = label.d_partitions[DISKPART(stb.st_rdev)].p_size;
-#endif
 #ifdef __linux__
   if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
     error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
@@ -689,66 +651,6 @@ disk_close(void)
   }
 }
 
-
-#ifdef __NetBSD__
-void
-disk_open(struct disk *dp)
-{
-  PRIV_SAVE_AREA
-  struct fd_type fl;
-
-  if (dp == NULL || dp->fdesc >= 0)
-    return;
-    
-  enter_priv_on();
-  dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
-  leave_priv_setting();
-  if (dp->fdesc < 0) 
-    if (errno == EROFS || errno == EACCES) {
-      enter_priv_on();
-      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
-      leave_priv_setting();
-      if (dp->fdesc < 0) {
-        d_printf("ERROR: (disk) can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
-        /* In case we DO get more clever, we want to share that code */
-        goto fail;
-      } else {
-        dp->rdonly = 1;
-        d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
-      }
-    } else {
-      d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
-    fail:
-#if 0
-      /* We really should be more clever here */
-      fatalerr = 5;
-#endif
-      return;
-    }
-  else dp->rdonly = dp->wantrdonly;
-
-  if (ioctl(dp->fdesc, FD_GTYPE, &fl) == -1) {
-      int err = errno;
-      d_printf("ERROR: floppy gettype: %s\n", strerror(err));
-    if (err == ENODEV || err == EIO) {	/* no disk available */
-      dp->sectors = 0;
-      dp->heads = 0;
-      dp->tracks = 0;
-      return;
-    }
-    error("can't get floppy parameter of %s (%s)\n", dp->dev_name, strerror(err));
-    fatalerr = 5;
-    return;
-  }
-  d_printf("FLOPPY %s h=%d, s=%d, t=%d\n",
-	   dp->dev_name, fl.heads, fl.sectrac, fl.tracks);
-  dp->sectors = fl.sectrac;
-  dp->heads = fl.heads;
-  dp->tracks = fl.tracks;
-  /* XXX turn media change msgs off? */
-  /*  DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));*/
-}
-#endif
 
 #ifdef __linux__
 void
@@ -821,14 +723,9 @@ disk_open(struct disk *dp)
 	}
   }
   else {
- #ifdef USE_THREADS
-  static int background_ioctl(int fd, int request, void *param);
-  res = background_ioctl(dp->fdesc, FDGETPRM, &fl);
- #else
   sigalarm_onoff(0);
   res = ioctl(dp->fdesc, FDGETPRM, &fl);
   sigalarm_onoff(1);
- #endif
   }
   if (res == -1) {
 #else
@@ -947,15 +844,6 @@ disk_init(void)
     if (S_ISCHR(stbuf.st_mode))
       d_printf("ISCHR ");
     d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
-#ifdef __NetBSD__
-    if ((S_ISBLK(stbuf.st_mode) && major(stbuf.st_rdev) == 0x2) ||
-	(S_ISCHR(stbuf.st_mode) && major(stbuf.st_rdev) == 0x9)) {
-      d_printf("DISK %s removeable\n", dp->dev_name);
-      dp->removeable = 1;
-      dp->fdesc = -1;
-      continue;
-    }
-#endif
 #ifdef __linux__
     if (S_ISBLK(stbuf.st_mode) && 
     (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
@@ -1707,49 +1595,3 @@ floppy_tick(void)
     secs = 0;
   }
 }
-
-#ifdef USE_THREADS
-
-#include "lt-threads.h"
-
-static mbox_handle ioctlmbox_out;
-static mbox_handle ioctlmbox_in;
-
-struct {
-  struct msg msg;
-  int fd;
-  int request;
-  void *param;
-  int result;
-} ioctlmsg;
-
-void background_ioctl_thread(int start)
-{
-  if (!start) {
-    /* we come here _before_ any thread is started
-     * but threading is active and we run at scope of thread0.
-     * We now create the resource we need.
-     */
-     ioctlmbox_in = create_local_mailbox("diskioctl_in", 2);
-     ioctlmbox_out = create_local_mailbox("diskioctl_out", 2);
-     return;
-  }
-  /* here we are a separate thread */
-  while (1) {
-    receivemessage(ioctlmbox_in);
-    ioctlmsg.result = ioctl(ioctlmsg.fd, ioctlmsg.request, ioctlmsg.param);
-    sendmessage(ioctlmbox_out,0);
-  }
-}
-
-static int background_ioctl(int fd, int request, void *param)
-{
-  ioctlmsg.fd = fd;
-  ioctlmsg.request = request;
-  ioctlmsg.param = param;
-  sendmessage(ioctlmbox_in,0);
-  receivemessage(ioctlmbox_out);
-  return ioctlmsg.result;
-}
-
-#endif

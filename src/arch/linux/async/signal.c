@@ -40,10 +40,6 @@ extern void keyb_server_run(void);
 extern void irq_select(void);
 extern int type_in_pre_strokes();
 
-#ifdef __NetBSD__
-extern int errno;
-#endif
-
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #define E_SIGNAL	if (config.cpuemu>1) CEmuStat|=CeS_SIGPEND
@@ -129,23 +125,6 @@ signal_init(void)
 {
   struct sigaction sa;
   sigset_t trashset;
-#ifdef __NetBSD__
-  struct sigaltstack salt;
-
-  /* Point to the top of the stack, minus 4
-     just in case, and make it aligned  */ 
-  salt.ss_sp = (char *)cstack;
-  salt.ss_size = sizeof(cstack);
-  salt.ss_flags = 0;
-  if (sigaltstack(&salt, 0) != 0) {
-      /* Aieee! */
-      fprintf(stderr, "cannot set signal handling stack: %s\n\r",
-	      strerror(errno));
-      fflush(stdout);
-      fflush(stderr);
-      _exit(1);
-  }
-#endif
 
   /* block no additional signals (i.e. get the current signal mask) */
   sigemptyset(&trashset);
@@ -196,9 +175,6 @@ signal_init(void)
   NEWSETSIG(SIGBUS, dosemu_fault);
 #endif
   SETSIG(SIGINT, leavedos);   /* for "graceful" shutdown for ^C too*/
-#ifdef __NetBSD__
-  NEWSETSIG(SIGURG, vm86_return);
-#endif
   SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
   SETSIG(SIGTERM, leavedos);
 #if 0 /* Richard Stevens says it can't be caught. It's returning an
@@ -319,9 +295,7 @@ void SIGALRM_call(void)
 {
   static int first = 0;
   static hitimer_t cnt200 = 0;
-#if !defined(USE_THREADS)
   static hitimer_t cnt1000 = 0;
-#endif
   static volatile int running = 0;
 #if VIDEO_CHECK_DIRTY
   static int update_pending = 0;
@@ -330,9 +304,7 @@ void SIGALRM_call(void)
   
   if (first==0) {
     cnt200 =
-#if !defined(USE_THREADS)
     cnt1000 =
-#endif
     pic_sys_time;	/* initialize */
     first = 1;
   }
@@ -492,14 +464,12 @@ void SIGALRM_call(void)
 
 /* We update the RTC from here if it has not been defined as a thread */
 
-#if !defined(USE_THREADS)
   /* this is for EXACT per-second activities (can produce bursts) */
   if ((pic_sys_time-cnt1000) >= PIT_TICK_RATE) {
     cnt1000 += PIT_TICK_RATE;
 /*    g_printf("**** ALRM: 1sec\n"); */
     rtc_update();
   }
-#endif
 
 }
 
@@ -555,25 +525,6 @@ sigio(int sig, struct sigcontext_struct context)
 }
 #endif
 
-#ifdef __NetBSD__
-#include <setjmp.h>
-
-extern sigjmp_buf handlerbuf;
-
-void
-sigio(int sig, int code, struct sigcontext *scp)
-{
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    dpmi_sigio(scp);
-#endif /* DPMI */
-  SIGNAL_save(SIGIO_call);
-    if (scp->sc_eflags & PSL_VM) {
-	vm86s.substr.regs.vmsc = *scp;
-	siglongjmp(handlerbuf, VM86_SIGNAL | 0x80000000);
-    }
-}
-#endif
 
 #ifdef __linux__
 void
@@ -596,22 +547,6 @@ e_sigalrm(struct sigcontext_struct *context)
 #endif
 #endif
 
-#ifdef __NetBSD__
-void
-sigalrm(int sig, int code, struct sigcontext *scp)
-{
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    dpmi_sigio(scp);
-#endif /* DPMI */
-  h_printf("ding dong\n");
-  SIGNAL_save(SIGALRM_call);
-    if (scp->sc_eflags & PSL_VM) {
-	vm86s.substr.regs.vmsc = *scp;
-	siglongjmp(handlerbuf, VM86_SIGNAL | 0x80000000);
-    }
-}
-#endif
 
 void
 sigquit(int sig)

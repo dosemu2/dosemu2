@@ -231,9 +231,7 @@ void cmos_reset(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
-#ifndef USE_THREADS
   rtc_init();
-#endif
   UNLOCK_CMOS;
 
   g_printf("CMOS initialized\n");

@@ -13,11 +13,6 @@
 #include <sys/kd.h>
 #include <sys/vt.h>
 #endif
-#ifdef __NetBSD__
-#include <machine/pcvt_ioctl.h>
-/* XXX duration is top half, pitch bottom. both zero results in no noise? */
-#define KIOCSOUND KDMKTONE		
-#endif
 
 #include "emu.h"
 #include "termio.h"

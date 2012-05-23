@@ -25,9 +25,6 @@
 #if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
 #endif /* X_GRAPHICS */
-#ifdef __NetBSD__
-#include <setjmp.h>
-#endif /* __NetBSD__ */
 
 #include "emu.h"
 #include "bios.h"
@@ -65,67 +62,6 @@
 #include "dma.h"
 
 
-
-
-
-#ifdef __NetBSD__
-#include <machine/segments.h>
-
-extern sigjmp_buf handlerbuf;
-
-void dosemu_fault1(int, int, struct sigcontext *);
-
-void
-dosemu_fault(int signal, int code, struct sigcontext *scp)
-{
-    register unsigned short dsel;
-    int jmp = 0;
-    if (scp->sc_eflags & PSL_VM) {
-	vm86s.substr.regs.vmsc = *scp;
-	jmp = 1;
-    }
-
-    if (!in_dpmi) {
-	asm("pushl %%ds; popl %0" : "=r" (dsel));
-	if (dsel & SEL_LDT) {
-	    error("ds in LDT!\n");
-	    abort();
-	}
-	asm("pushl %%es; popl %0" : "=r" (dsel));
-	if (dsel & SEL_LDT) {
-	    error("es in LDT!\n");
-	    abort();
-	}
-	asm("movl %%fs,%0" : "=r" (dsel) );
-	if (dsel & SEL_LDT) {
-	    error("fs in LDT!\n");
-	    abort();
-	}
-	asm("movl %%gs,%0" : "=r" (dsel) );
-	if (dsel & SEL_LDT) {
-	    error("gs in LDT!\n");
-	    abort();
-	}
-	asm("movl %%ss,%0" : "=r" (dsel) );
-	if (dsel & SEL_LDT) {
-	    error("ss in LDT!\n");
-	    abort();
-	}
-	asm("movl %%cs,%0" : "=r" (dsel) );
-	if (dsel & SEL_LDT) {
-	    error("cs in LDT!\n");
-	    abort();
-	}
-    }
-    dosemu_fault1(signal, code, scp);
-    if (jmp)
-	siglongjmp(handlerbuf, VM86_SIGNAL | 0x80000000);
-    return;
-}
-#endif /* __NetBSD__ */
-
-
-
 /* Function prototypes */
 void print_exception_info(struct sigcontext_struct *scp);
 
@@ -145,9 +81,6 @@ dosemu_fault1(
 #ifdef __linux__
 int signal, struct sigcontext_struct *scp
 #endif /* __linux__ */
-#ifdef __NetBSD__
-int signal, int code, struct sigcontext *scp
-#endif /* __NetBSD__ */
 )
 {
   unsigned char *csp;
@@ -292,9 +225,6 @@ sgleave:
 #ifdef __linux__
     return dpmi_fault(scp);
 #endif /* __linux__ */
-#ifdef __NetBSD__
-    return dpmi_fault(scp, code);
-#endif /* __NetBSD__ */
 
   csp = (char *) _eip;
 

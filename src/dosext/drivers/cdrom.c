@@ -44,10 +44,6 @@
 #ifdef __linux__
 #include <linux/cdrom.h>
 #endif
-#ifdef __NetBSD__
-#include "netbsd_cdio.h"
-#include <string.h>
-#endif
 
 #include "emu.h"
 
@@ -160,9 +156,6 @@ struct audio_status { unsigned int status;
 #ifdef __linux__
 char *Path_cdrom[]={"/dev/cdrom","/dev/cdrom2","/dev/cdrom3","/dev/cdrom4"};
 #endif
-#ifdef __NetBSD__
-char *Path_cdrom[]={"/dev/rcd0a","/dev/rcd0a","/dev/rcd0a","/dev/rcd0a"};
-#endif
 #define path_cdrom Path_cdrom[IndexCd]
 
 #ifdef CDROM_DEBUG
@@ -226,9 +219,6 @@ void cdrom_reset()
    cdrom_fd = open (path_cdrom, O_RDONLY);
    if (cdrom_fd >= 0) ioctl (cdrom_fd, CDROMRESET, NULL);
    leave_priv_setting();
-#ifdef __NetBSD__
-   if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
-#endif
 }
 
 #define MSCD_AUDCHAN_VOLUME0       2
@@ -248,21 +238,6 @@ void cdrom_helper(void)
    struct cdrom_volctrl cdrom_volctrl;
    int n, error;
 
-#ifdef __NetBSD__
-   struct cd_toc_entry toc_entry;
-   struct cd_sub_channel_info scinfo;
-
-   memset(&cdrom_subchnl, 0, sizeof(cdrom_subchnl));
-   memset(&scinfo, 0, sizeof(scinfo));
-
-   memset(&cdrom_tocentry, 0, sizeof(cdrom_tocentry));
-   memset(&toc_entry, 0, sizeof(toc_entry));
-
-   cdrom_subchnl.data = &scinfo;
-   cdrom_subchnl.data_len = sizeof(scinfo);
-   cdrom_tocentry.data =  &toc_entry;
-   cdrom_tocentry.data_len =  sizeof(toc_entry);
-#endif
    cdrom_subchnl.cdsc_format = CDROM_MSF;
 
    IndexCd=(int)((HI(ax) & 0xC0)>>6);
@@ -272,9 +247,6 @@ void cdrom_helper(void)
         enter_priv_off();
         cdrom_fd = open (path_cdrom, O_RDONLY);
         leave_priv_setting();
-#ifdef __NetBSD__
-        if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
-#endif
 
         if (cdrom_fd < 0) {
           switch (HI(ax)) {
@@ -292,11 +264,6 @@ void cdrom_helper(void)
         }
    }
 
-#ifdef __NetBSD__
-   cdrom_subchnl.address_format = CD_MSF_FORMAT;
-   cdrom_subchnl.data_format = CD_CURRENT_POSITION;
-   cdrom_subchnl.track = 0;
-#endif
 
    switch (HI(ax)) {
      case 0x01:	/* NOTE: you can't see XA data disks if bit 10 of status
@@ -331,9 +298,6 @@ void cdrom_helper(void)
                 cdrom_fd = open (path_cdrom, O_RDONLY);
                 leave_priv_setting();
 		error = errno;
-#ifdef __NetBSD__
-                if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
-#endif
 
                 if (cdrom_fd < 0) {
 		  C_printf("CDROM: cdrom open (%s) failed: %s\n",
@@ -633,12 +597,6 @@ void cdrom_helper(void)
                   LO(ax) = 1;
                   break;
                 }
-#ifdef __NetBSD__
-                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+3,u_char) = 0;
-                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+2,u_char) = cdrom_tocentry.data->addr[1];
-                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+1,u_char) = cdrom_tocentry.data->addr[2];
-                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+0,u_char) = cdrom_tocentry.data->addr[3];
-#endif
 #ifdef __linux__
                 *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+3,u_char) = 0;
                 *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+2,u_char) = cdrom_tocentry.cdte_addr.msf.minute;
@@ -664,12 +622,6 @@ void cdrom_helper(void)
                     break;
                   }
                 }
-#ifdef __NetBSD__
-                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+3,u_char) = 0;
-                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+2,u_char) = cdrom_tocentry.data->addr[1];
-                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+1,u_char) = cdrom_tocentry.data->addr[2];
-                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+0,u_char) = cdrom_tocentry.data->addr[3];
-#endif
 #ifdef __linux__
                 *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+3,u_char) = 0;
                 *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+2,u_char) = cdrom_tocentry.cdte_addr.msf.minute;
@@ -691,12 +643,6 @@ void cdrom_helper(void)
                   }
                 }
                 req_buf = SEG_ADR((char *), ds, si);
-#ifdef __NetBSD__
-                *CALC_PTR(req_buf,MSCD_GETVOLUMESIZE_SIZE,int) =
-		     cdrom_tocentry.data->addr[1]*60*75
-		     +cdrom_tocentry.data->addr[2]*60
-		     +cdrom_tocentry.data->addr[3];
-#endif
 #ifdef __linux__
                 *CALC_PTR(req_buf,MSCD_GETVOLUMESIZE_SIZE,int) = cdrom_tocentry.cdte_addr.msf.minute*60*75
                                                                     +cdrom_tocentry.cdte_addr.msf.second*60
@@ -721,11 +667,6 @@ void cdrom_helper(void)
                 *CALC_PTR(req_buf,MSCD_QCHAN_CTRL,u_char) = (cdrom_subchnl.cdsc_adr << 4) + (cdrom_subchnl.cdsc_ctrl);
                 *CALC_PTR(req_buf,MSCD_QCHAN_TNO,u_char)  = cdrom_subchnl.cdsc_trk;
                 *CALC_PTR(req_buf,MSCD_QCHAN_IND,u_char)  = cdrom_subchnl.cdsc_ind;
-#ifdef __NetBSD__
-                *CALC_PTR(req_buf,MSCD_QCHAN_MIN,u_char)  = cdrom_subchnl.data->what.position.reladdr[1];
-                *CALC_PTR(req_buf,MSCD_QCHAN_SEC,u_char)  = cdrom_subchnl.data->what.position.reladdr[2];
-                *CALC_PTR(req_buf,MSCD_QCHAN_FRM,u_char)  = cdrom_subchnl.data->what.position.reladdr[3];
-#endif
 #ifdef __linux__
                 *CALC_PTR(req_buf,MSCD_QCHAN_MIN,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.minute;
                 *CALC_PTR(req_buf,MSCD_QCHAN_SEC,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.second;

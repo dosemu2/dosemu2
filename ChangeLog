@@ -1,3 +1,14 @@
+2000/02/28 ver. 0.99.13.3 unofficial pre-release
+	From Hans
+	- removed threads code (definitively), because no one made real
+	  use of it and we would have to adapt to kernel changes anyway.
+	  (its not worth this work)
+	- removed NetBSD code (definitively), because it was _totally_
+	  broken since long time and no one of the NetBSD people bothered
+	  to fix it (now we have a cleaner source and more space).
+	- prepared some docs for upcoming 1.0 release:
+	  doc/announce, dosemu.spec, dosemu-HOWTO.sgml, README/header*,
+	  dos.1, precompiled/autoexec.bat, 
 2000/02/26 ver. 0.99.13.2 unofficial pre-release
 	From Hans
 	- fixed bug in close_mapping() giving SIGNAL11 on -h option

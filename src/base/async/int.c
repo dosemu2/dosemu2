@@ -2416,18 +2416,6 @@ void int_vector_setup(void)
   set_int21_revectored(0);
 #endif
 
-#ifdef __NetBSD__
-  memset(&vm86s.int_byuser[0], 0x00, sizeof(vm86s.int_byuser));
-  memset(&vm86s.int21_byuser[0], 0x00, sizeof(vm86s.int21_byuser));
-
-  for (i=0; i<0x100; i++)
-    if (can_revector(i)==REVECT && i!=0x21)
-      set_revectored(i, vm86s.int_byuser);
-
-  for (i=0; i<0x100; i++)
-    if (can_revector_int21(i)==REVECT)
-      set_revectored(i, vm86s.int21_byuser);
-#endif
 }
 
 #ifdef USE_MRP_JOYSTICK

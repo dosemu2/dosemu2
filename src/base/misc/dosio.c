@@ -59,9 +59,6 @@ sharedmem;
    and forth and may cause us grief - a BUG */
 #define HMASIZE (64*1024)
 #define HMAAREA (u_char *)0x100000
-#ifdef __NetBSD__
-#define SHM_REMAP 0			/* XXX? */
-#endif
 
 /* Used for all IPC HMA activity */
 static void *shm_hma;

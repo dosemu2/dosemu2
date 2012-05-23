@@ -14,9 +14,6 @@
 #ifdef __linux__
 #include <sys/kd.h>
 #endif
-#ifdef __NetBSD__
-#include <machine/pcvt_ioctl.h>
-#endif
 
 
 void console_speaker_on(void *gp, unsigned ms, unsigned short period)

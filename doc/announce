@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.98.6, the PC Emulator for
+The DOSEMU team is proud to announce DOSEMU 1.0, the PC Emulator for
 x86 based *nix. Please remember to consider this as ALPHA software.
 
 
@@ -18,42 +18,23 @@ worth noting:
   - Graphics emulation in X for 256 color modes.
     (X-server may be in true color mode)
   - DPMI support
-  - able to run (handicapped) Windows-3.1 either on console or in X.
-    (you need the os2win31.zip package, and licenses for both,
-    Windows-3.1 and OS/2. see doc/README.Windows)
-  - Runs Borland BCC.EXE/TCC.EXE version 3.x command line compilers!
-  - Runs Borland C++ 3.x IDE
   - Runs several 32-bit DPMI-compliant video games (including those based
     on DOS/4GW) at the Linux console.
+  - integrated (command line) instruction level debugger, various break
+    points, single stepping e.t.c.
+  - integrated EMS driver
+  - integrated packet driver
+  - integrated mouse driver
   - CDROM support.
+  - ASPI driver support (CD writers, scanners, tapes e.t.c)
+  - support for redirected drives (any Linux directory can be 'mounted'
+    as DOS drive as ,ong as the DOS support redirection.
+  - can even directly boot from a Linux directory containing all DOS stuff.
   - Sound support (including sound DMA)
   - NetWare and other network connectivity via builtin IPX and pktdrvr
      support.
-  - runs on any Linux kernel >= 2.0.28 (last tested was 2.1.120)
+  - runs on any Linux kernel >= 2.0.28 (last tested was 2.3.40)
 
-WHAT IS NEW against version 0.66.7?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  - simpler and more user friendly configuration (a lot of former
-    dosemu.conf stuff is auto-detected by the new configuration script
-    global.conf, however, people with deeper knowledge of DOSEMU can fine
-    tune this script to fit their special private needs).
-    The new Tcl/Tk based configuration tool makes configuration quicker.
-  - all security problems now can be solved via appropriate configuration
-    and DOSEMU now can run non-suid-root (some features will be unavailable).
-  - support for per user DOSEMU directories.
-  - Improved graphics capability under X (including mouse support,
-    LFB and VESA support, resizing, e.t.c).
-  - Better handling of non-US keyboards, both in X and on terminal,
-    loadable key-tables. More national key-tables.
-  - more supported graphic cards under raw console mode.
-  - more precise timer emulation (using the pentium cycle counter where 
-    available)
-  - better sound support
-  - more features for the builtin debugger (dosdebug).
-  - major portions of the code have been rewritten and cleaned up.
-  - glibc adaptation (though, we haven't checked today's changes yet;-).
-  - ... and finally, lots of bugs are fixed and more DOS-applications
-    are running than ever before.
 
 
 REQUIREMENTS
@@ -62,7 +43,9 @@ REQUIREMENTS
   - mtools-3.8 (for creating hdimages and DEXEs)
 
 When compiling dosemu yourself:
-  - GCC 2.7.2+ and LIBC 5.4.7+ are recommended for best results.
+  - GCC 2.7.2+ and LIBC 5.4.46+ are recommended for best results.
+    (statically linked in libc-5.4.46 binaries perform better and
+    give stabler results)
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
      of total memory to compile, depending on configuration.
 
@@ -109,11 +92,11 @@ WHERE TO GET IT:
 The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
   ftp.dosemu.org:/dosemu/...
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/...
-                                     .../dosemu-0.98.6-1.i386.rpm
-                                     .../dosemu-0.98.6.tgz
+  ftp://metalab.unc.edu/pub/Linux/system/emulators/dosemu/...
+                                     .../dosemu-1.0.0-1.i386.rpm
+                                     .../dosemu-1.0.0.tgz
 
-The binary distribution is statically linked against libc-5.4.33 and libX*
+The binary distribution is statically linked against libc-5.4.46 and libX*
 from XFree-3.3. It should run on all current Linux distributions.
 
 

@@ -27,11 +27,6 @@
 #endif /* GLIBC_VERSION_CODE */
 #endif /* __linux__ */
 
-#ifdef __NetBSD__
-#include <sys/utsname.h>
-#define new_utsname utsname
-#endif
-
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
@@ -547,8 +542,5 @@ void print_version(void)
   warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
 #ifdef __linux__
   warn("Built for %d\n", LX_KERNEL_VERSION);
-#endif
-#ifdef __NetBSD__
-  warn("Built for %d\n", NETBSD_VERSION);
 #endif
 }

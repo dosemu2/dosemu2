@@ -16,9 +16,6 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #ifdef __linux__
 #include <sys/vfs.h>
 #endif
-#ifdef __NetBSD__
-#include <sys/mount.h>
-#endif
 #include "emu.h"
 
 #if 0
@@ -36,9 +33,6 @@ typedef unsigned char boolean_t;
 
 #define USE_DF_AND_AFS_STUFF
 
-#ifdef __NetBSD__
-#define VOLUMELABEL "NetBSD"
-#endif
 #ifdef __linux__
 #define VOLUMELABEL "Linux"
 #endif

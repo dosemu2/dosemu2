@@ -9,12 +9,6 @@
 
 __asm__(".org 0x110000");
 
-#ifdef __NetBSD__
-void __foo__()
-{
-/* just take up enough space to force large address initialization */
-}
-#endif
 
 #ifdef __linux__
 int

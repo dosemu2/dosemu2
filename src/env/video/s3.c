@@ -21,13 +21,6 @@
  * XFree86 version 2.1.1 and from the S3-driver in XFree86.
  */
 
-/*
- * This is ALPHA-quality software.
- *
- * Using this software could be dangerous for You, your hardware or
- * anything near your hardware.
- */
-
 #define S3_C
 
 

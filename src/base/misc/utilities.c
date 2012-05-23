@@ -30,9 +30,6 @@
 #include "pic.h"
 #include "dpmi.h"
 #include "utilities.h"
-#ifdef USE_THREADS
-#include "lt-threads.h"
-#endif
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
@@ -172,9 +169,6 @@ static int vlog_printf(int flg, const char *fmt, va_list args)
 #endif
      ) return 0;
 
-#ifdef USE_THREADS
-  lock_resource(resource_libc);
-#endif
 #ifdef CIRCULAR_LOGBUFFER
   logptr = loglines[loglineidx++];
 #endif
@@ -234,9 +228,6 @@ static int vlog_printf(int flg, const char *fmt, va_list args)
       }
     }
   }
-#endif
-#ifdef USE_THREADS
-  unlock_resource(resource_libc);
 #endif
   return i;
 }

@@ -11,7 +11,6 @@
 #endif
 #include "emu.h"
 #include "priv.h"
-#include "lt-threads.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -23,39 +22,11 @@
 /* Some handy information to have around */
 static uid_t uid,euid;
 static gid_t gid,egid;
-#ifndef USE_THREADS
 static uid_t cur_uid, cur_euid;
 static gid_t cur_gid, cur_egid;
-#else
-#define cur_uid  (OWN_TCB->uid)
-#define cur_euid (OWN_TCB->euid)
-#define cur_gid  (OWN_TCB->gid)
-#define cur_egid (OWN_TCB->egid)
-#endif
 
 static int skip_priv_setting = 0;
 
-#ifdef __NetBSD__
-/* NOTE: Sorry, but the NetBSD stuff is broken currently,
-         ... John Kohl is the man to help us with this ;-) */
-int internal_priv_on(void)
-{
-    if (seteuid(euid) || setegid(egid)) {
-	error("Cannot enable privs!\n");
-	return (0);
-    }
-    return (1);
-}
-
-int internal_priv_off(void)
-{
-  if (seteuid(getuid()) || setegid(getgid())) {
-    error("Cannot disable privs!\n");
-    return (0);
-  }
-  return (1);
-}
-#endif /* __NetBSD__ */
 
 #ifdef __linux__
 

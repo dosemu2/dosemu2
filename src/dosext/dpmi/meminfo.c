@@ -25,12 +25,6 @@
 #include <fcntl.h>
 #include <math.h>
 #include <string.h>
-#ifdef __NetBSD__
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <errno.h>
-#endif
 #include "meminfo.h"
 #include "emu.h"
 
@@ -105,25 +99,6 @@ SwapFree:     68484 kB
   mem.swapmegs = (mem.swaptotal>>20) +1;
   mem.bytes_per_tick = mem.total >> 8;
   mem.swapbytes_per_tick = mem.swaptotal >> 8;
-#endif
-#ifdef __NetBSD__
-  int len;
-  int mib[2];
-
-  mib[0] = CTL_HW;
-  mib[1] = HW_USERMEM;
-  len = sizeof(mem.total);
-  if (sysctl(mib, 2, &mem.total, &len, NULL, 0) != sizeof(mem.total)) {
-      error("Can't read CT_HW.HW_USERMEM: %s", strerror(errno));
-      leavedos(5);
-  }
-
-  /* We make up the rest of these numbers :) */
-
-  mem.swaptotal = 2*mem.total;
-  mem.free = 4*mem.total/5;
-  mem.swapfree = 2*mem.free;
-
 #endif
   return(&mem);
 }

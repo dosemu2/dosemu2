@@ -53,9 +53,6 @@
 #endif
 #endif
 #include <pwd.h>
-#ifdef __NetBSD__
-#include <sys/syslimits.h>		/* PATH_MAX */
-#endif
 
 #include "config.h"
 #include "emu.h"
@@ -291,16 +288,6 @@ static int ser_close(int num)
   return (i);
 }
 
-#ifdef __NetBSD__
-#define IUCLC 0
-#define OLCUC 0
-#define OCRNL ONLCR
-#define ONOCR 0
-#define ONLRET 0
-#define OFILL 0
-#define OFDEL 0
-#define XCASE 0
-#endif
 
 Bit8u
 com_readb(ioport_t port) {

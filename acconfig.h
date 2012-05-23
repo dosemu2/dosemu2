@@ -178,9 +178,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
  */
 #undef RUN_AS_ROOT
 
-/* Define this to use threading code */
-#undef USE_THREADS
-
 /* Define this to use the new interrupt handling code */
 #undef USE_NEW_INT
 

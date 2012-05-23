@@ -80,6 +80,12 @@ And updated by Eric Biederman
    the local variable is declared by a macro and preset with a magic,
    that is checked in priv.c. The below explanations reflect this change.
 
+<p>
+<verb>ReReEnter Hans (2000/02/28):  ;-) </verb>
+<p>
+
+   The treads code has definitively gone (no one made serious use of it),
+   so the above thread related arguments too.
 
 <sect1>The new 'priv stuff'
 <p>

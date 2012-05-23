@@ -31,10 +31,6 @@
 #define UCODESEL 0x23
 #define UDATASEL 0x2b
 #endif
-#ifdef __NetBSD__
-#define	UCODESEL GSEL(GUCODE_SEL, SEL_UPL)
-#define	UDATASEL GSEL(GUDATA_SEL, SEL_UPL)
-#endif
 
 EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 #define current_client (in_dpmi-1)
@@ -49,9 +45,6 @@ void dpmi_get_entry_point();
 
 #ifdef __linux__
 void dpmi_fault(struct sigcontext_struct *);
-#endif
-#ifdef __NetBSD__
-void dpmi_fault(struct sigcontext *, int);
 #endif
 void dpmi_realmode_hlt(unsigned char *);
 void run_pm_int(int);

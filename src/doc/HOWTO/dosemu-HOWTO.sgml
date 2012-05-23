@@ -3,9 +3,11 @@
 <!-- Mike Deisher, deisher@dspsun.eas.asu.edu -->
 <!-- Uwe Bonnes, bon@elektron.ikp.physik.tu-darmstadt.de -->
 <!-- Now David Hodges, davidhodges@altavista.iname.com -->
-<!-- Last edited: Time-stamp: <99/04/24 10:35:23 davidhodges> -->
+<!-- Last edited: Time-stamp: <2000/02/26 lermen@dosemu.org> -->
 
 <!-- Changelog -->
+<!-- 2000/02/26: changed 'blabla' to `blabla' to avoid formatting errors,
+                 prepared for upcoming 1.0 release.
 <!-- 99/04/12: Added sections What operating systems does dosemu work
                under ?, What processors does dosemu work on ?, What if I have
                a DEC Alpha/Sparc/other non-Intel CPU ?, Can I run Microsoft
@@ -50,7 +52,7 @@
  Updated by David Hodges, 
 <bf><htmlurl url="mailto:davidhodges@altavista.iname.com"
 name="davidhodges@altavista.iname.com"></bf>
-<date>For dosemu-0.98.6, 24 April 1999
+<date>For dosemu-1.0.0, 26 February 2000
 
 <abstract>
 This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
@@ -135,21 +137,21 @@ See section 1.4.
 <sect1>What version of Dosemu should I use?
 <p>Dosemu uses the same numbering scheme as the kernel. Uneven second
 numbers are for possible unstable developer releases, even second numbers
-are for releases considered stable. At the time of writing, <bf>0.98.6</bf>
-is the latest stable release, while <bf>0.99.10</bf> is the latest
+are for releases considered stable. At the time of writing, <bf>1.0.0</bf>
+is the latest stable release, while <bf>1.1.0</bf> is the latest
 developer's release. So if you want to use dosemu, get the latest 
 <bf>stable</bf> release. 
 
 <sect1>What's the newest version of dosemu and where can I get it?
 
-<p>The newest version of dosemu as of 99/04/09 is
-<bf>dosemu0.98.6</bf> and can be ftp'ed from:
+<p>The newest version of dosemu as of 2000/02/28 is
+<bf>dosemu-1.0.0</bf> and can be ftp'ed from:
 <tscreen>
      <htmlurl url="ftp://ftp.dosemu.org/pub/dosemu/"
      name="ftp://ftp.dosemu.org/pub/dosemu/">
 </tscreen> 
 
-Remember that this is ALPHA code, however: there may be serious bugs
+We just decided to leave BETA stage, however: there may be serious bugs
 and very little documentation for new features. The development version 
 is particularly likely to have bugs. Please use it only if you
 like to do active development. Don't report bugs in the development

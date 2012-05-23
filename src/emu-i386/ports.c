@@ -33,17 +33,6 @@
 #include <errno.h>
 #include <malloc.h>
 #include <string.h>
-#ifdef __NetBSD__
-#include <stdio.h>
-#include <termios.h>
-#include <stdlib.h>
-#include <time.h>
-#include <ctype.h>
-#include <sys/times.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/times.h>
-#endif
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #if GLIBC_VERSION_CODE >= 2000
@@ -1266,8 +1255,4 @@ set_ioperm(int start, int size, int flag)
 
 /* ====================================================================== */
 
-
-#ifdef __NetBSD__
-#error please use old port code for NetBSD
-#endif				/* __NetBSD__ */
 

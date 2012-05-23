@@ -11,15 +11,15 @@ Vendor:       DOSEMU-Development-Team
 Distribution: any i386
 Name:         dosemu
 Release:      1
-Copyright:    GPL version 2, (C) 1994-1999 The DOSEMU-Development-Team
+Copyright:    GPL version 2, (C) 1994-2000 The DOSEMU-Development-Team
 Group:        Applications/Emulators
 Provides:     dosemu
 #Requires:     mtools tcltk
 Packager:     Hans Lermen <lermen@dosemu.org>
 
-Version:      0.99.13
+Version:      1.0.0
 Summary:      The Linux DOS emulator
-Source:       dosemu-0.99.13.tgz
+Source:       dosemu-1.0.0.tgz
 Url:          http://www.dosemu.org
 Buildroot:    /var/tmp/dosemu
 

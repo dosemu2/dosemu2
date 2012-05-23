@@ -457,10 +457,6 @@ EXTERN void sigalrm(int, struct sigcontext_struct);
 EXTERN void sigio(int, struct sigcontext_struct);
 EXTERN int dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old);
 #endif
-#ifdef __NetBSD__
-EXTERN void sigalrm(int, int, struct sigcontext *);
-EXTERN void sigio(int, int, struct sigcontext *);
-#endif
 
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGWINCH
@@ -502,29 +498,6 @@ do { \
        sigaddset(x, SIG_ACQUIRE); \
 } while(0)
 
-#ifdef __NetBSD__
-#define SignalHandler sig_t
-#define __sighandler_t sig_t
-
-#define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
-					sa.sa_flags = SA_RESTART|SA_ONSTACK ; \
-					sigemptyset(&sa.sa_mask); \
-					ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
-					sigaction(sig, &sa, NULL);
-
-#define SETSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
-					sa.sa_flags = SA_RESTART; \
-					sigemptyset(&sa.sa_mask); \
-					sigaddset(&sa.sa_mask, SIG_TIME); \
-					sigaction(sig, &sa, NULL);
-
-#define NEWSETSIG(sig, fun) \
-			sa.sa_handler = (__sighandler_t) fun; \
-			sa.sa_flags = SA_RESTART|SA_ONSTACK; \
-			sigemptyset(&sa.sa_mask); \
-			sigaddset(&sa.sa_mask, SIG_TIME); \
-			sigaction(sig, &sa, NULL);
-#endif
 #ifdef __linux__
 #if GLIBC_VERSION_CODE
 #define SignalHandler __sighandler_t
@@ -589,10 +562,6 @@ EXTERN int fatalerr INIT(0);
  */
 EXTERN int running_DosC INIT(0);
 EXTERN int dosc_interface(void);
-
-#ifdef __NetBSD__
-#define iopl(value)			{ EXTERN int errno; if (i386_iopl(value) == -1) { g_printf("iopl failed: %s\n", strerror(errno)); leavedos(4);}}
-#endif
 
 EXTERN void signal_init(void);
 EXTERN void device_init(void);
