@@ -127,7 +127,7 @@ config_defaults(void)
         if (strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-#if LX_KERNEL_VERSION > 201126
+#if LX_KERNEL_VERSION > 2001126
 	  if ((kernel_version_code > 0x20100+126)
 	       && (cpuflags = get_proc_string_by_key("cpu MHz"))) {
 	    int di,df;
@@ -320,6 +320,8 @@ config_defaults(void)
     config.mpu401_base = 0x330;
 
     config.vnet = 1;
+
+    memset(config.features, 0, sizeof(config.features));
 }
 
 void dump_config_status(void)
@@ -496,6 +498,14 @@ void dump_config_status(void)
 	for (i = 0, pptr = lpt; i < config.num_lpt; i++, pptr++) {
 	  fprintf(out, "LPT%d command \"%s  %s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
 	  i+1, pptr->prtcmd, pptr->prtopt, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
+	}
+    }
+
+    {
+	int i;
+	int size = sizeof(config.features) / sizeof(config.features[0]);
+	for (i = 0; i < size; i++) {
+	  fprintf(out, "feature_%d %d\n", i, config.features[i]);
 	}
     }
 

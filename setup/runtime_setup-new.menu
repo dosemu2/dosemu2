@@ -310,6 +310,7 @@ menu "Miscellaneous Items" {
 
   string "List of IRQs to pass to DOS" irqpassing
   string "List of ports to handle directly" ports
+  string "Temporary feature hacks, see ChangeLog file for details" features
 }
 
 menu "File Extensions" {

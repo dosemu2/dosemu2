@@ -1,2 +1,2 @@
 @echo off
-echo "Welcome to dosemu 0.98!"
+echo "Welcome to dosemu 0.98!"

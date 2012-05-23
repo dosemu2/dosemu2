@@ -863,7 +863,16 @@ static int FreeDescriptor(unsigned short selector)
   Segments[ldt_entry].is_big = 0;
   Segments[ldt_entry].not_present = 1;
   Segments[ldt_entry].useable = 0;
+#if 1
+  /* We should be in sync with the real LDT  --Alberto 981209 */
+  return set_ldt_entry(ldt_entry, 0, 0, 0, 0, 1, 0
+  #ifdef WANT_WINDOWS
+    , 1, 0
+  #endif
+  );
+#else
   return 0;
+#endif
 }
 
 static inline int ConvertSegmentToDescriptor(unsigned short segment)

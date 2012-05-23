@@ -344,6 +344,23 @@ typedef struct vesamode_type_struct {
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */
 
+       /* list of arbitrary features
+        * (at minimum 1, will be increased when needed)
+        * The purpose of these parameters is to switch between code
+        * or code pieces that in principal do the same, but for some
+        * unknown reasons behave different between machines.
+        * If a 'features' becomes obsolete (problem solved) it will
+        * remain dummy for a while before re-used.
+        *
+        * NOTE: 'features' are not subject to permanent documentation!
+        *       They should be considered 'temporary hacks'
+        *
+        * Currently assigned:
+        *
+        *   features[0]		use new(0) or old(1) Slangcode
+        */
+       int features[1];
+
        /* Sound emulation */
        __u16 sb_base;
        __u8 sb_dma;

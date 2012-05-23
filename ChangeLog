@@ -1,3 +1,30 @@
+99/01/05 ver. 0.99.5.1 unofficial pre-release
+	From Pat
+	- new DosC kernel, version 1.0 Beta2, built 1937
+	  (however, still not supporting redirector)
+	From Alberto
+	- FreeDescriptor (dpmi.c) should sync with the real LDT not only
+	  with the LDT cache.
+	From Hans
+	- introduced a facility for temporary config options called
+	  'features'. The purpose of these parameters is to switch between
+	  code or code pieces that in principal do the same, but for some
+	  unknown reasons behave different between machines.
+	  If a 'features' becomes obsolete (problem solved) it will
+	  remain dummy for a while before re-used.
+	  NOTE: 'features' are not subject to permanent documentation!
+	        They should be considered 'temporary hacks'
+	  A feature can be set (or given a value) such as 'feature {0 = 1}'
+	  (in global.conf) or via /etc/dosemu.conf such as $_features="0:1"
+	  $_features can hold a list of multiple 'n:value' pairs.
+	  NOTE: $_features currently isn't used by 0.99, but we need to
+	  to have it here for compatibility with dosemu.conf used by
+	  0.98.
+	- fixed a bug in global.conf ($_X_winsize parsed wrongly)
+	- fixed typo in config.c:  LX_KERNEL_VERSION 201126 -> 2001126
+	- disabled '#define asmlinkage' in memory.h, because its not
+	  used when not <linus/linkage.h> also is included, where it finaly
+	  is defined.
 98/12/04 ver. 0.99.5 released
 	From Manuel Villegas Marin <manolo@espanet.com>
 	- Support for up to 4 cdrom drives. You need to load the cdrom.sys

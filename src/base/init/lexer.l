@@ -325,6 +325,7 @@ exprtest		RETURN(EXPRTEST);
 
 	/* keywords */
 
+feature			RETURN(FEATURE);
 abort			RETURN(ABORT);
 warn			RETURN(WARN);
 x			RETURN(L_X);

@@ -1,14 +1,15 @@
 INTRODUCTION
 ------------
-This diskette contains DOS-C version 0.92.0 for PC/XT/AT/AT386/AT486
-computers.  This is the February 7, 1997 release in an ongoing project.  
-There is a companion book, "FreeDOS Kernel" (ISBN: 0-87930-436-7) 
+This diskette contains DOS-C version 1.0 Beta 2 for PC/XT/AT/AT386/AT486
+computers.  This is the December 6, 1998 release in an ongoing project.  
+There is a companion book, "The FreeDOS Kernel" (ISBN: 0-87930-436-7) 
 published by R&D Books, an imprint of Miller Freeman of Lawrence, 
 Kansas (USA) and distributed in the USA and Canada by Publishers Group West. 
 See below for addresses.
 
 DOS-C is available by anonymous ftp at ftp.iop.com in /pub/freedos and via 
-World Wide Web at http://www.iop.com/~patv.
+World Wide Web at http://www.iop.com/~patv.  It is also available from
+http://www.dosemu.org.
 
 DOS-C is also available through the FreeDOS project.  An ftp site is 
 available for downloading Free-DOS at sunsite.unc.edu in 
@@ -35,7 +36,7 @@ Pat Villani (patv@iop.com)
 
 Copyright
 ---------
-(c) Copyright 1995, 1996, 1997 by Pasquale J. Villani
+(c) Copyright 1995, 1996 by Pasquale J. Villani
 All Rights Reserved.
 
 Addresses
@@ -50,12 +51,9 @@ P.O. Box 8843
 Emeryvill, California 94662
 USA
 
-$Header:   C:/dos-c/doc/readme.txv   1.5   06 Feb 1997 20:11:14   patv  $
+$Header:   C:/dos-c/doc/readme.txv   1.4   30 Aug 1996 21:01:18   patv  $
 
 $Log:   C:/dos-c/doc/readme.txv  $
-   
-      Rev 1.5   06 Feb 1997 20:11:14   patv
-   Release 0.92.0
    
       Rev 1.4   30 Aug 1996 21:01:18   patv
    Corrected book title.

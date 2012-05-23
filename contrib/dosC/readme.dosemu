@@ -1,19 +1,13 @@
-DOSEMU distributes the GPL version of DosC (FreeDOS version). The source
-of this can be found at the following places:
+DOSEMU distributes the GPL version of DosC (FreeDOS version).
+( current: version 1.0 Beta 2 Build 1937 )
+The source of this can be found at the following places:
 
-  ftp://sunsite.unc.edu/pub/micro/pc-stuff/freedos/
-  ftp://ftp.gui.uva.es/.1/pc/freedos/
+  ftp://ftp.dosemu.org/pub/freedos/kernel/stable/
 
 and of course Pat's home site:
 
   ftp://ftp.iop.com/pub/freedos/
   http://www.iop.com/~patv
-
-However, the current version in this dosemu distribution is the Beta#1
-test release from Pat (build1931) which we put here to support Pat
-in getting it tested. My first impression is _very_ good, it can much
-more then the (current official) FreeDos version. So please, give it
-a test.
 
 NOTE: the file COPYING is in the root dosemu directory.
 
@@ -23,5 +17,5 @@ is done by the dosemu 'make' process. As a result you'll have in
 the absolute minimum (just Pat's kernel) as a first step in supporting
 FreeDos, but we plan much more for future ;-)
 
-Hans Lermen, February 8. 1998
-<lermen@fgan.de>
+Hans Lermen, December 8. 1998
+<lermen@dosemu.org>

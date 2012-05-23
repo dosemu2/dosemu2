@@ -174,6 +174,7 @@ static int for_each_handling(int loopid, char *varname, char *delim, char *list)
 char *checked_getenv(const char *name);
 static void enter_user_scope(int incstackptr);
 static void leave_user_scope(int incstackptr);
+static void handle_features(int which, int value);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -305,6 +306,8 @@ extern void yyrestart(FILE *input_file);
 %token CDROM
 	/* ASPI driver */
 %token ASPI DEVICETYPE TARGET
+	/* features */
+%token FEATURE
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -734,6 +737,10 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		      yyerror("Can not change hardware ram access settings in user config file");
 		    }
                    '{' hardware_ram_flags '}'
+		| FEATURE '{' expression '=' expression '}'
+		    {
+			handle_features($3, $5);
+		    }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -1600,6 +1607,20 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		;
 
 %%
+
+
+	/* features */
+
+static void handle_features(int which, int value)
+{
+  if ((which < 0)
+	|| (which >= (sizeof(config.features) / sizeof(config.features[0])))) {
+    c_printf("CONF: wrong feature number %d\n", which);
+    return;
+  }
+  config.features[which] = value;
+  c_printf("CONF: feature %d set to %d\n", which, value);
+}
 
 	/* mouse */
 

@@ -10,10 +10,12 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#if 0
 #ifdef __cplusplus
 #define asmlinkage extern "C"
 #else
 #define asmlinkage
+#endif
 #endif
 
 #ifdef __ELF__
