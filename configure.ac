@@ -679,7 +679,7 @@ AC_CONFIG_FILES([Makefile.conf dosemu.spec])
 AC_CONFIG_COMMANDS([Makefile], 
 [ if ! test -f configure.ac; then 
     abssrcdir=`cd $srcdir && pwd`
-    mkdir -p `(cd $abssrcdir; find . -name .svn -prune -o -name CVS -prune -o -type d -print)`
+    mkdir -p `(cd $abssrcdir; find . -name .git -prune -o -name .svn -prune -o -name CVS -prune -o -type d -print)`
     for i in `(cd $abssrcdir; find . -name Makefile)`; do
       echo  ln -sf $abssrcdir/$i $i
       ln -sf $abssrcdir/$i $i
