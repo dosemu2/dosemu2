@@ -844,7 +844,7 @@ int e_gen_sigalrm(struct sigcontext_struct *scp)
 	    sigEMUtime = TheCPU.EMUtime;	/* and generate signal   */
 	}
 	else {
-	    TheCPU.sigalrm_pending = 0x101;	/* decremented by loops  */
+	    TheCPU.sigalrm_pending = 1;		/* tested by loops  */
 	}
 	if (TheCPU.EMUtime >= sigEMUtime) {
 		lastEMUsig = TheCPU.EMUtime;

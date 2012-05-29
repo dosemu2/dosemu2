@@ -2210,7 +2210,7 @@ shrot0:
 			*((int *)(q+1)) = dspnt;
 			if (debug_level('e')>1) e_printf("CALL: ret=%08x\n",dspnt);
 		}
-		// t:	b8 [exit_pc] c3
+		// t:	b8 [exit_pc] 5a c3
 		G1(0xb8,Cp);
 		lt->t_type = JMP_LINK;
 		/* {n}t_link = offset from codebuf start to immed value */
@@ -2230,18 +2230,20 @@ shrot0:
 		int dspnt = IG->p3;
 		linkdesc *lt = IG->lt;
 		int sz;
-		//	JCXZ:	8b 4b Ofs_ECX {66} e3 06
-		//	JCC:	7x 06
-		// nt:	b8 [nt_pc] c3
-		// t:	8b 0d [sig] e3 06
-		//	b8 [sig_pc] c3
-		//	b8 [t_pc] c3
-		sz = TAILSIZE + (mode & CKSIGN? 12:0);
+		//	JCXZ:	8b 4b Ofs_ECX e3 07 or 0f b7 4b Ofs_ECX e3 07
+		//	JCC:	7x 07
+		// nt:	b8 [nt_pc] 5a c3
+		// t:	0f b7 4f [sig] e3 07
+		//	b8 [sig_pc] 5a c3
+		//	b8 [t_pc] 5a c3
+		sz = TAILSIZE + (mode & CKSIGN? 13:0);
 		if (cond==0x31) {
 			if (mode&ADDR16) {
+			    // movzwl Ofs_ECX(%%ebx),%%ecx
 			    G4M(0x0f,0xb7,0x4b,Ofs_ECX,Cp);
 			}
 			else {
+			    // movl Ofs_ECX(%%ebx),%%ecx
 			    G3M(0x8b,0x4b,Ofs_ECX,Cp);
 			}
 			G2M(0xe3,sz,Cp);	// jecxz
@@ -2253,10 +2255,10 @@ shrot0:
 		if (mode & CKSIGN) {
 		    // check signal on NOT TAKEN branch
 		    // for backjmp-after-jcc:
-		    // decb Ofs_SIGAPEND(%%ebx)
-		    G3M(0xfe,0x4b,Ofs_SIGAPEND,Cp);
-		    // jne {continue}: exit if sigpend was 1
-		    G2M(0x75,TAILSIZE,Cp);
+		    // movzwl Ofs_SIGAPEND(%%ebx),%%ecx
+		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
+		    // jecxz {continue}: exit if sigpend not 0
+		    G2M(0xe3,TAILSIZE,Cp);
 		    // movl {exit_addr},%%eax; pop %%edx; ret
 		    G1(0xb8,Cp); G4(jpc,Cp); G2(0xc35a,Cp);
 	        }
@@ -2266,13 +2268,13 @@ shrot0:
 		/* {n}t_link = offset from codebuf start to immed value */
 		lt->nt_link.rel = Cp-BaseGenBuf;
 		G4(dspnt,Cp); G2(0xc35a,Cp);
+		// taken
 		if (IG->op==JB_LINK) {
 		    // check signal on TAKEN branch for back jumps
-		    G3M(0xfe,0x4b,Ofs_SIGAPEND,Cp);
-		    G2M(0x75,TAILSIZE,Cp);
+		    G4M(0x0f,0xb7,0x4b,Ofs_SIGAPEND,Cp);
+		    G2M(0xe3,TAILSIZE,Cp);
 		    G1(0xb8,Cp); G4(jpc,Cp); G2(0xc35a,Cp);
 	        }
-		// taken
 		G1(0xb8,Cp);
 		lt->t_link.rel = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
@@ -3291,10 +3293,8 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 		CEmuStat|=CeS_SIGPEND;
 	}
 	/* sigalrm_pending at this point can be:
-	 *  000 - if there was no signal
-	 *  0ff - if there was no signal and a jmp instruction tested it
-	 *  101 - if there was a signal but no jmp instruction tested it
-	 *  100 - if there was a signal and a jmp instruction tested it
+	 *  0 - if there was no signal
+	 *  1 - if there was a signal
 	 * .. so reset it for next try
 	 */
 	TheCPU.sigalrm_pending = 0;

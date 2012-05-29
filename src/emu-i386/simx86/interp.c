@@ -136,10 +136,10 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// jmp		b8 j j j j c3
-//	link	e9 l l l l --
-// jcc  	7x 06 b8 a a a a c3 b8 b b b b c3
-//	link	7x 06 e9 l l l l -- e9 l l l l --
+// jmp		b8 j j j j 5a c3
+//	link	e9 l l l l -- --
+// jcc  	7x 06 b8 a a a a 5a c3 b8 b b b b 5a c3
+//	link	7x 06 e9 l l l l -- -- e9 l l l l -- --
 //
 
 static unsigned int JumpGen(unsigned int P2, int mode, int cond,
