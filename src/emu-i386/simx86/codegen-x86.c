@@ -573,7 +573,15 @@ static void CodeGen(IMeta *I, int j)
 	case O_DEC_R:
 		rcod = 0x08fe;
 arith0:		{
-		G1(POPF,Cp);	// get flags from stack
+		G1(POPdx,Cp);	// get flags from stack into %%edx
+		switch (IG->op) {
+		case O_ADC_R: // tests carry
+		case O_SBB_R: // tests carry
+		case O_INC_R: // preserves carry
+		case O_DEC_R: // preserves carry
+			// shr $1,%%edx to get carry flag from stack
+			G2M(0xd1,0xea,Cp);
+		}
 		if (mode & MBYTE) {
 			if (mode & IMMED) {
 				// OPb $immed,%%al
@@ -600,7 +608,7 @@ arith0:		{
 		}
 		break;
 	case O_CLEAR:
-		G3M(POPF,0x31,0xc0,Cp);	// get flags; xorl %%eax,%%eax
+		G3M(POPdx,0x31,0xc0,Cp);	//ignore flags; xorl %%eax,%%eax
 		if (mode & MBYTE) {
 			// movb %%al,offs(%%ebx)
 			G3M(0x88,0x43,IG->p0,Cp);
@@ -609,10 +617,10 @@ arith0:		{
 			// mov{wl} %%{e}ax,offs(%%ebx)
 			Gen66(mode,Cp); G3M(0x89,0x43,IG->p0,Cp);
 		}
-		G1(PUSHF,Cp);	// flags back on stack
+		G1(PUSHF,Cp);	// new flags on stack
 		break;
 	case O_TEST:
-		G1(POPF,Cp);
+		G1(POPdx,Cp);			// ignore flags
 		if (mode & MBYTE) {
 			// testb $0xff,offs(%%ebx)
 			G4M(0xf6,0x43,IG->p0,0xff,Cp);
@@ -625,12 +633,15 @@ arith0:		{
 			// test $0xffffffff,offs(%%ebx)
 			G3M(0xf7,0x43,IG->p0,Cp); G4(0xffffffff,Cp);
 		}
-		G1(PUSHF,Cp);	// flags back on stack
+		G1(PUSHF,Cp);	// new flags on stack
 		break;
 	case O_SBSELF:
 		// if CY=0 -> reg=0,  flag=xx46
 		// if CY=1 -> reg=-1, flag=xx97
-		G3M(POPF,0x19,0xc0,Cp);	// get flags; sbbl %%eax,%%eax
+		// pop %%edx; shr $1,%%edx to get carry flag from stack
+		G3M(POPdx,0xd1,0xea,Cp);
+		// sbbl %%eax,%%eax
+		G2M(0x19,0xc0,Cp);
 		if (mode & MBYTE) {
 			// movb %%al,offs(%%ebx)
 			G3M(0x88,0x43,IG->p0,Cp);
@@ -658,7 +669,11 @@ arith0:		{
 	case O_CMP_FR:
 		rcod = CMPbfrm; /* 0x38 */
 arith1:
-		G1(POPF,Cp);	// get flags from stack
+		G1(POPdx,Cp);	// get flags from stack into %%edx
+		if (IG->op == O_ADC_FR || IG->op == O_SBB_FR) {
+			// shr $1,%%edx to get carry flag from stack
+			G2M(0xd1,0xea,Cp);
+		}
 		if (mode & MBYTE) {
 			if (mode & IMMED) {
 				// OPb $immed,Ofs_EAX(%%ebx)
@@ -696,7 +711,7 @@ arith1:
 		}
 		break;
 	case O_NEG:
-		G1(POPF,Cp);	// get flags from stack
+		G1(POPdx,Cp);	// ignore flags from stack
 		if (mode & MBYTE) {
 			// negb %%al
 			G2M(0xf6,0xd8,Cp);
@@ -706,10 +721,12 @@ arith1:
 			Gen66(mode,Cp);
 			G2M(0xf7,0xd8,Cp);
 		}
-		G1(PUSHF,Cp);	// flags back on stack
+		G1(PUSHF,Cp);	// new flags on stack
 		break;
 	case O_INC:
-		G1(POPF,Cp);	// get flags from stack
+		G1(POPdx,Cp);	// get flags from stack into %%edx
+		// shr $1,%%edx to get preserved carry flag from stack
+		G2M(0xd1,0xea,Cp);
 		if (mode & MBYTE) {
 			// incb %%al
 			G2M(0xfe,0xc0,Cp);
@@ -733,7 +750,9 @@ arith1:
 		G1(PUSHF,Cp);	// flags back on stack before writing
 		break;
 	case O_DEC:
-		G1(POPF,Cp);	// get flags from stack
+		G1(POPdx,Cp);	// get flags from stack into %%edx
+		// shr $1,%%edx to get preserved carry flag from stack
+		G2M(0xd1,0xea,Cp);
 		if (mode & MBYTE) {
 			// decb %%al
 			G2M(0xfe,0xc8,Cp);
@@ -757,7 +776,7 @@ arith1:
 		G1(PUSHF,Cp);	// flags back on stack
 		break;
 	case O_CMPXCHG: {
-		G1(POPF,Cp);	// get flags from stack
+		G1(POPdx,Cp);	// ignore flags from stack
 		if (mode & MBYTE) {
 			// movb offs1(%%ebx),%%dl
 			G3M(0x8a,0x53,IG->p0,Cp);
