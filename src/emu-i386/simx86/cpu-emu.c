@@ -1148,6 +1148,7 @@ int e_vm86(void)
   e_sigpa_count = 0;
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
   TheCPU.mem_base = (unsigned int)(uintptr_t)mem_base;
+  VgaAbsBankBase = TheCPU.mem_base + vga.mem.bank_base;
   TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);

@@ -126,6 +126,7 @@ unsigned char *BaseGenBuf = NULL;
 int GenBufSize = 0;
 
 hitimer_u TimeStartExec;
+unsigned int VgaAbsBankBase = 0;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -476,9 +477,9 @@ static void CodeGen(IMeta *I, int j)
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
 		    // movl %%edi,%%eax
 		    G2M(0x89,0xf8,Cp);
-		    // subl vga.bank_base(%%ebx),%%eax
+		    // subl VgaAbsBankBase(%%ebx),%%eax
 		    G2(0x832b,Cp);
-		    G4((unsigned char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
+		    G4((unsigned char *)&VgaAbsBankBase-CPUOFFS(0),Cp);
 		    // cmpl vga.bank_len(%%ebx),%%eax
 		    G2(0x833b,Cp);
 		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
@@ -516,9 +517,9 @@ static void CodeGen(IMeta *I, int j)
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
 		    // movl %%edi,%%ecx
 		    G2M(0x89,0xf9,Cp);
-		    // subl vga.mem.bank_base(%%ebx),%%ecx
+		    // subl VgaBankAbsBase(%%ebx),%%ecx
 		    G2(0x8b2b,Cp);
-		    G4((unsigned char *)&vga.mem.bank_base-CPUOFFS(0),Cp);
+		    G4((unsigned char *)&VgaAbsBankBase-CPUOFFS(0),Cp);
 		    // cmpl vga.mem.bank_len(%%ebx),%%ecx
 		    G2(0x8b3b,Cp);
 		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);

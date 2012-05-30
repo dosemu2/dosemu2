@@ -32,8 +32,8 @@
  *
  ***************************************************************************/
 
-#ifndef _EMU86_CODEGEN_X86_H
-#define _EMU86_CODEGEN_X86_H
+#ifndef _EMU86_CODEGEN_SIM_H
+#define _EMU86_CODEGEN_SIM_H
 
 #include "codegen.h"
 #include "vgaemu.h"

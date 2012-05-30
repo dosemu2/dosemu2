@@ -52,13 +52,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 extern int TrapVgaOn;
-
-#define GTRACE0(s)
-#define GTRACE1(s,a)
-#define GTRACE2(s,a,b)
-#define GTRACE3(s,a,b,c)
-#define GTRACE4(s,a,b,c,d)
-#define GTRACE5(s,a,b,c,d,e)
+extern unsigned int VgaAbsBankBase;
 
 /////////////////////////////////////////////////////////////////////////////
 
