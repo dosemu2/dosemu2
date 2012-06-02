@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -6,11 +6,11 @@
  */
 
 /* DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * ser_ports.c: Serial ports for DOSEMU: Software emulated 16550 UART!
  * Please read the README.serial file in this directory for more info!
- * 
+ *
  * Copyright (C) 1995 by Mark Rejhon
  *
  * The code in this module is free software; you can redistribute it
@@ -35,7 +35,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <Linux/serial.h>
 
 #include "config.h"
 #include "emu.h"
@@ -242,7 +241,6 @@ void ser_termios(int num)
 {
   speed_t baud;
   long int rounddiv;
-//  struct serial_struct ser_info;
 
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
   #define DIVISOR ((com[num].dlm << 8) | com[num].dll)
@@ -252,12 +250,7 @@ void ser_termios(int num)
     if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",num,strerror(errno));
     return;
   }
-#if 0
-/* this seems to cause slowdown */
-  ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
-  ser_info.flags |= ASYNC_LOW_LATENCY;
-  ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
-#endif
+
   s_printf("SER%d: LCR = 0x%x, ",num,com[num].LCR);
 
   /* Set the word size */

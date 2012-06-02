@@ -524,6 +524,7 @@ device			RETURN(DEVICE);
 com                     RETURN(COM);
 virtual			RETURN(VIRTUAL);
 pseudo			RETURN(PSEUDO);
+low_latency		RETURN(LOWLAT);
 
 	/* lock file stuff */
 directory              RETURN(DIRECTORY);

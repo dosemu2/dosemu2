@@ -70,6 +70,7 @@ typedef struct {
   int interrupt;		/* IRQ line handled by device */
   boolean virtual;		/* virtual modem */
   boolean pseudo;		/* pseudo-tty is used */
+  boolean low_latency;		/* set low_latency mode */
   boolean mouse;		/* Flag to turn on mouse sharing features */
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */

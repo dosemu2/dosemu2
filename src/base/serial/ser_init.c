@@ -48,6 +48,7 @@
 #include <pwd.h>
 
 #include "config.h"
+#include "Linux/serial.h"
 #include "emu.h"
 #include "port.h"
 #include "mouse.h"
@@ -210,26 +211,25 @@ static void async_serial_run(void)
 int ser_open(int num)
 {
   s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
-  
+
   if (com[num].mouse && !on_console()) {
     s_printf("SER%d: Not touching mouse outside of the console!\n",num);
     return(-1);
   }
 
   if (com[num].fd != -1) return (com[num].fd);
-  
+
   if ( com[num].virtual )
   {
     s_printf("SER: Running ser_open, %s\n", com[num].dev);
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
     s_printf("Opening Virtual Port\n");
     com[num].dev_locked = FALSE;
-    com[num].fd = 0;
   } else if (config.tty_lockdir[0]) {
     if (tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
       /* We know that we have access to the serial port */
       com[num].dev_locked = TRUE;
-    
+
       /* If the port is used for a mouse, then remove lockfile, because
        * the use of the mouse serial port can be switched between processes,
        * such as on Linux virtual consoles.
@@ -247,12 +247,12 @@ int ser_open(int num)
     s_printf("Warning: Port locking disabled in the config.\n");
     com[num].dev_locked = FALSE;
   }
-  
+
   if (!com[num].dev || !com[num].dev[0]) {
     s_printf("SER%d: Device file not yet defined!\n",num);
     return (-1);
   }
-  
+
   com[num].fd = RPT_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
   if (com[num].fd < 0) {
     error("SERIAL: Unable to open device %s: %s\n",
@@ -264,7 +264,25 @@ int ser_open(int num)
       com[num].dev);
     goto fail_close;
   }
-  (void)RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
+  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
+
+  if (com[num].low_latency) {
+    struct serial_struct ser_info;
+    int err = ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
+    if (err) {
+      error("SER%d: failure getting serial port settings, %s\n",
+          num, strerror(errno));
+    } else {
+      ser_info.flags |= ASYNC_LOW_LATENCY;
+      err = ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
+      if (err)
+        error("SER%d: failure setting low_latency flag, %s\n",
+            num, strerror(errno));
+      else
+        s_printf("SER%d: low_latency flag set\n", num);
+    }
+  }
+
   add_to_io_select(com[num].fd, 1, async_serial_run);
   return com[num].fd;
 
