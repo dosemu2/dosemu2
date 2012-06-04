@@ -71,7 +71,6 @@
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
 unsigned int (*CloseAndExec)(unsigned int PC, TNode *G, int mode, int ln);
-static void AddrGen_sim(int op, int mode, ...);
 static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln);
 
 int UseLinker = 0;
@@ -333,7 +332,7 @@ void InitGen(void)
  * address generator unit
  * careful - do not use eax, and NEVER change any flag!
  */
-static void AddrGen_sim(int op, int mode, ...)
+void AddrGen_sim(int op, int mode, ...)
 {
 	va_list	ap;
 #ifdef PROFILE
