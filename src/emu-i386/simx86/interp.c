@@ -2750,6 +2750,7 @@ repag0:
 				case 0x30: /* BTR imm8 */
 				case 0x38: /* BTC imm8 */
 					PC++; PC += ModRM(opc, PC, mode|MLOAD);
+					mode |= (TheCPU.mode & RM_REG);
 					Gen(O_BITOP, mode, opm, Fetch(PC));
 					if (opm != 0x20) {
 					    if (TheCPU.mode & RM_REG) {
