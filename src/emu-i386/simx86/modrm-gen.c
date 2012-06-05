@@ -36,85 +36,6 @@
 #include "emu86.h"
 #include "codegen.h"
 
-/////////////////////////////////////////////////////////////////////////////
-
-static void modrm_sibd(unsigned char sib, int mode, unsigned int base)
-{
-	int v = FetchL(base);
-	if (debug_level('e')>5)
-		e_printf("ModRM sibd sib=%02x base=%08x v=%08x\n",sib,base,v);
-	switch(sib) {
-		/* 0x	DS: d32 + (index<<0) */
-		case 0x05:
-		/* 4x	DS: d32 + (index<<1) */
-		case 0x45:
-		/* 8x	DS: d32 + (index<<2) */
-		case 0x85:
-		/* cx	DS: d32 + (index<<3) */
-		case 0xc5:
-			AddrGen(A_DI_2D, mode, v, Ofs_EAX, (sib>>6)&3); break;
-		case 0x0d: case 0x4d: case 0x8d: case 0xcd:
-			AddrGen(A_DI_2D, mode, v, Ofs_ECX, (sib>>6)&3); break;
-		case 0x15: case 0x55: case 0x95: case 0xd5:
-			AddrGen(A_DI_2D, mode, v, Ofs_EDX, (sib>>6)&3); break;
-		case 0x1d: case 0x5d: case 0x9d: case 0xdd:
-			AddrGen(A_DI_2D, mode, v, Ofs_EBX, (sib>>6)&3); break;
-		case 0x25:
-			AddrGen(A_DI_2D, mode|IMMED, v); break;
-		/* no SS: override on index */
-		case 0x2d: case 0x6d: case 0xad: case 0xed:
-			AddrGen(A_DI_2D, mode, v, Ofs_EBP, (sib>>6)&3); break;
-		case 0x35: case 0x75: case 0xb5: case 0xf5: 
-			AddrGen(A_DI_2D, mode, v, Ofs_ESI, (sib>>6)&3); break;
-		case 0x3d: case 0x7d: case 0xbd: case 0xfd:
-			AddrGen(A_DI_2D, mode, v, Ofs_EDI, (sib>>6)&3); break;
-		default:   break;	/* ERROR */
-	}
-}
-
-static void modrm_sib(int sib, int mode)
-{
-	int oR2;
-	if (debug_level('e')>5)
-		e_printf("ModRM sib  sib=%02x\n",sib);
-	if ((sib&0x38)==0x20) {
-		switch (sib) {
-			case 0x20: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EAX); return;
-			case 0x21: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_ECX); return;
-			case 0x22: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EDX); return;
-			case 0x23: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EBX); return;
-			case 0x24: AddrGen(A_DI_1, mode, OVERR_SS, Ofs_ESP); return;
-			case 0x25: AddrGen(A_DI_1, mode, OVERR_SS, Ofs_EBP); return;
-			case 0x26: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_ESI); return;
-			case 0x27: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EDI); return;
-			default: dbug_printf("ModRM sib: invalid %02x\n",sib);
-				leavedos(-95);
-		}
-	}
-	switch(D_MO(sib)) {
-		case 0: oR2 = Ofs_EAX; break;
-		case 1: oR2 = Ofs_ECX; break;
-		case 2: oR2 = Ofs_EDX; break;
-		case 3: oR2 = Ofs_EBX; break;
-		// case 4: special, see above
-		case 5: oR2 = Ofs_EBP; break;
-		case 6: oR2 = Ofs_ESI; break;
-		case 7: default: oR2 = Ofs_EDI; break;
-	}
-	switch(D_LO(sib)) {
-		case 0x00: AddrGen(A_DI_2, mode|RSHIFT, OVERR_DS, Ofs_EAX, oR2, (sib>>6)&3); break;
-		case 0x01: AddrGen(A_DI_2, mode|RSHIFT, OVERR_DS, Ofs_ECX, oR2, (sib>>6)&3); break;
-		case 0x02: AddrGen(A_DI_2, mode|RSHIFT, OVERR_DS, Ofs_EDX, oR2, (sib>>6)&3); break;
-		case 0x03: AddrGen(A_DI_2, mode|RSHIFT, OVERR_DS, Ofs_EBX, oR2, (sib>>6)&3); break;
-		case 0x04: AddrGen(A_DI_2, mode|RSHIFT, OVERR_SS, Ofs_ESP, oR2, (sib>>6)&3); break;
-		case 0x05: AddrGen(A_DI_2, mode|RSHIFT, OVERR_SS, Ofs_EBP, oR2, (sib>>6)&3); break;
-		case 0x06: AddrGen(A_DI_2, mode|RSHIFT, OVERR_DS, Ofs_ESI, oR2, (sib>>6)&3); break;
-		case 0x07: AddrGen(A_DI_2, mode|RSHIFT, OVERR_DS, Ofs_EDI, oR2, (sib>>6)&3); break;
-	}
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
 static char R1Tab_b[8] =
 	{ Ofs_AL, Ofs_CL, Ofs_DL, Ofs_BL, Ofs_AH, Ofs_CH, Ofs_DH, Ofs_BH };
 static char R1Tab_w[8] =
@@ -125,11 +46,31 @@ static char R1Tab_xseg[8] =
 	{ Ofs_XES, Ofs_XCS, Ofs_XSS, Ofs_XDS, Ofs_XFS, Ofs_XGS, 0xff, 0xff };
 static char R1Tab_l[8] =
 	{ Ofs_EAX, Ofs_ECX, Ofs_EDX, Ofs_EBX, Ofs_ESP, Ofs_EBP, Ofs_ESI, Ofs_EDI };
+static char R1Tab_wb[8] =
+	{ Ofs_BX, Ofs_BX, Ofs_BP, Ofs_BP, Ofs_SI, Ofs_DI, Ofs_BP, Ofs_BX };
+static char R1Tab_wi[8] =
+	{ Ofs_SI, Ofs_DI, Ofs_SI, Ofs_DI, Ofs_SP, Ofs_SP, Ofs_SP, Ofs_SP };
+
+/////////////////////////////////////////////////////////////////////////////
+
+static void modrm_sib(unsigned char mod, unsigned char sib, unsigned int base)
+{
+	if (mod == 0 && D_LO(sib) == 5) {
+		int v = FetchL(base);
+		e_printf("ModRM sibd sib=%02x base=%08x v=%08x\n",sib,base,v);
+	}
+	else {
+		e_printf("ModRM sib  sib=%02x\n",sib);
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////
 
 int ModRM(unsigned char opc, unsigned int PC, int mode)
 {
 	unsigned char mod,cab=Fetch(PC+1);
 	int l=2;
+	int dsp, base, index, shift;
 
 	if (!(mode&NOFLDR)) {
 		mod = D_MO(cab);
@@ -143,94 +84,61 @@ int ModRM(unsigned char opc, unsigned int PC, int mode)
 			REG1 = (mode&ADDR16? R1Tab_w[mod]:R1Tab_l[mod]);
 	}
 	mod = D_HO(cab);
-	switch (mod) {
-	    case 0:
-			if (mode & ADDR16) switch (D_LO(cab)) {
-				case 0: AddrGen(A_DI_2, mode, OVERR_DS, Ofs_BX, Ofs_SI); break;
-				case 1: AddrGen(A_DI_2, mode, OVERR_DS, Ofs_BX, Ofs_DI); break;
-				case 2: AddrGen(A_DI_2, mode, OVERR_SS, Ofs_BP, Ofs_SI); break;
-				case 3: AddrGen(A_DI_2, mode, OVERR_SS, Ofs_BP, Ofs_DI); break;
-				case 4: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_SI); break;
-				case 5: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_DI); break;
-				case 6: AddrGen(A_DI_0, mode|IMMED, OVERR_DS, (unsigned short)FetchW(PC+2));
-					l=4; break;
-				case 7: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_BX); break;
-			}
-			else switch (D_LO(cab)) {
-				case 0: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EAX); break;
-				case 1: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_ECX); break;
-				case 2: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EDX); break;
-				case 3: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EBX); break;
-				case 4: { 
-					unsigned char sib = Fetch(PC+2);
-					if (D_LO(sib)==5) {
-						modrm_sibd(sib,mode&MLEA,(PC+3)); l=7;
-					}
-					else {
-						modrm_sib(sib,mode&MLEA); l=3;
-					} }
-					break;
-				case 5: AddrGen(A_DI_0, mode|IMMED, OVERR_DS, FetchL(PC+2));
-					l=6; break;
-				case 6: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_ESI); break;
-				case 7: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EDI); break;
-			}
-			break;
-	    case 1:
-	    case 2: {
-			int dsp=0;
-			if (mode & ADDR16) {
-				if (mod==1) { dsp=(signed char)Fetch(PC+2); l=3; }
-					else { dsp=(short)FetchW(PC+2); l=4; }
-				switch (D_LO(cab)) {
-					case 0: AddrGen(A_DI_2, mode|IMMED, OVERR_DS, dsp, Ofs_BX, Ofs_SI); break;
-					case 1: AddrGen(A_DI_2, mode|IMMED, OVERR_DS, dsp, Ofs_BX, Ofs_DI); break;
-					case 2: AddrGen(A_DI_2, mode|IMMED, OVERR_SS, dsp, Ofs_BP, Ofs_SI); break;
-					case 3: AddrGen(A_DI_2, mode|IMMED, OVERR_SS, dsp, Ofs_BP, Ofs_DI); break;
-					case 4: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_SI); break;
-					case 5: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_DI); break;
-					case 6: AddrGen(A_DI_1, mode|IMMED, OVERR_SS, dsp, Ofs_BP); break;
-					case 7: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_BX); break;
-				}
-			}
-			else {
-				if (D_LO(cab)!=4) {
-					if (mod==1) { dsp=(signed char)Fetch(PC+2); l=3; }
-						else { dsp=FetchL(PC+2); l=6; }
-				}
-				switch (D_LO(cab)) {
-					case 0: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_EAX); break;
-					case 1: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_ECX); break;
-					case 2: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_EDX); break;
-					case 3: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_EBX); break;
-					case 4: { 
-						unsigned char sib = Fetch(PC+2);
-						modrm_sib(sib, mode&MLEA);
-						if (mod==1) { dsp=(signed char)Fetch(PC+3); l=4; }
-							else { dsp=FetchL(PC+3); l=7; }
-						}
-						AddrGen(LEA_DI_R, IMMED, dsp);
-						break;
-					case 5: AddrGen(A_DI_1, mode|IMMED, OVERR_SS, dsp, Ofs_EBP); break;
-					case 6: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_ESI); break;
-					case 7: AddrGen(A_DI_1, mode|IMMED, OVERR_DS, dsp, Ofs_EDI); break;
-				}
-			}
+	if (mod == 3) {
+		TheCPU.mode |= RM_REG;
+		if (mode & (MBYTE|MBYTX))
+			REG3 = R1Tab_b[cab&7];
+		else if (mode & ADDR16)
+			REG3 = R1Tab_w[cab&7];
+		else
+			REG3 = R1Tab_l[cab&7];
+		if (mode & MLOAD)
+			Gen(L_REG, mode, REG3);	// mov al,[ebx+reg]
+		else if (mode & MSTORE)
+			Gen(S_REG, mode, REG3);	// mov [ebx+reg],al
+		return l;
+	}
+	dsp = shift = 0;
+	if (mode & ADDR16) {
+		base = R1Tab_wb[D_LO(cab)];
+		index = R1Tab_wi[D_LO(cab)];
+		if (mod == 2 || (mod == 0 && D_LO(cab) == 6)) {
+			dsp=(unsigned short)FetchW(PC+l); l+=2;
 		}
-	    break;
-	    case 3:
-			TheCPU.mode |= RM_REG;
-			if (mode & (MBYTE|MBYTX))
-				REG3 = R1Tab_b[cab&7];
-			else if (mode & ADDR16)
-				REG3 = R1Tab_w[cab&7];
-			else
-				REG3 = R1Tab_l[cab&7];
-			if (mode & MLOAD)
-				Gen(L_REG, mode, REG3);	// mov al,[ebx+reg]
-			else if (mode & MSTORE)
-				Gen(S_REG, mode, REG3);	// mov [ebx+reg],al
-			return l;
+	}
+	else {
+		base = R1Tab_l[D_LO(cab)];
+		index = Ofs_ESP;
+		if (base == Ofs_ESP) {
+			unsigned char sib = Fetch(PC+l); l++;
+			base = R1Tab_l[D_LO(sib)];
+			index = R1Tab_l[D_MO(sib)];
+			shift = D_HO(sib);
+			if (debug_level('e')>5)
+				modrm_sib(mod, sib, PC+l);
+		}
+		if (mod == 2 || (mod == 0 && base == Ofs_EBP)) {
+			dsp=FetchL(PC+l); l+=4;
+		}
+	}
+	if (mod == 0 && l > 3) {
+		if (index == Ofs_ESP)
+			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, dsp);
+		else
+			/* no SS: override on index */
+			AddrGen(A_DI_2D, mode, dsp, index, shift);
+	}
+	else {
+		int overr = (base == Ofs_ESP || base == Ofs_EBP) ?
+			OVERR_SS : OVERR_DS;
+		if (mod==1) {
+			dsp=(signed char)Fetch(PC+l); l++;
+		}
+		if (index == Ofs_ESP)
+			AddrGen(A_DI_1, mode|IMMED, overr, dsp, base);
+		else
+			AddrGen(A_DI_2, mode|IMMED|RSHIFT, overr, dsp, base,
+				index, shift);
 	}
 	if (mode & MLOAD)
 		Gen(L_DI_R1, mode);		// mov al,[edi]
