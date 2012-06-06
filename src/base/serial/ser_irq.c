@@ -132,7 +132,7 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
 void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
 /* how many bytes left in output queue when signalling interrupt to DOS */
-#define QUEUE_THRESHOLD 2
+#define QUEUE_THRESHOLD 14
 
   int control, queued;
 #if 0

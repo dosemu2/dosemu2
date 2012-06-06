@@ -976,13 +976,13 @@ do_serial_out(int num, ioport_t address, int val)
       if(s2_printf) s_printf("SER%d: Divisor LSB = 0x%02x\n", num, val);
     }
     else {
-      put_tx(num, val);		/* else, Transmit character (write to THR) */
       if (s2_printf) {
         if (com[num].MCR & UART_MCR_LOOP)
           s_printf("SER%d: Transmit 0x%x Loopback\n",num,val);
         else
           s_printf("SER%d: Transmit 0x%x\n",num,val);
       }
+      put_tx(num, val);		/* else, Transmit character (write to THR) */
     }
     break;
 
