@@ -44,7 +44,7 @@
 
 #define L_NOP		0
 
-#define LEA_DI_R	1
+/* #define LEA_DI_R	1 */
 #define A_DI_0		2
 #define A_DI_1		3
 #define A_DI_2		4

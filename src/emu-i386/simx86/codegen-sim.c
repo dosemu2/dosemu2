@@ -342,18 +342,6 @@ void AddrGen_sim(int op, int mode, ...)
 
 	va_start(ap, mode);
 	switch(op) {
-	case LEA_DI_R:
-		if (mode&IMMED)	{
-			int o = va_arg(ap,int);
-			GTRACE3("LEA_DI_R IMM",0xff,0xff,o);
-			AR1.d += o;
-		}
-		else {
-			signed char o = Offs_From_Arg();
-			GTRACE1("LEA_DI_R",o);
-			AR1.d = (long)(CPUOFFS(o));
-		}
-		break;
 	case A_DI_0:			// base(32), imm
 	case A_DI_1: {			// base(32), {imm}, reg, {shift}
 			long idsp=0;
@@ -364,29 +352,21 @@ void AddrGen_sim(int op, int mode, ...)
 			}
 			else AR1.d = CPULONG(ofs);
 
-			if (mode&IMMED)	{
-				idsp = va_arg(ap,int);
-				if (op==A_DI_0) {
-					GTRACE3("A_DI_0",0xff,0xff,idsp);
-					if (idsp) { AR1.d += idsp; }
-					break;
-				}
+			idsp = va_arg(ap,int);
+			if (op==A_DI_0) {
+				GTRACE3("A_DI_0",0xff,0xff,idsp);
+				TR1.d = idsp;
 			}
-			if (mode & ADDR16) {
+			else if (mode & ADDR16) {
 				signed char o = Offs_From_Arg();
 				GTRACE3("A_DI_1",o,ofs,idsp);
 				TR1.d = CPUWORD(o);
-				if ((mode&IMMED) && (idsp!=0)) {
-					TR1.w.l += idsp;
-				}
+				TR1.w.l += idsp;
 			}
 			else {
 				signed char o = Offs_From_Arg();
 				GTRACE3("A_DI_1",o,ofs,idsp);
-				TR1.d = CPULONG(o);
-				if ((mode&IMMED) && (idsp!=0)) {
-					AR1.d += idsp;
-				}
+				TR1.d = CPULONG(o) + idsp;
 			}
 			AR1.d += TR1.d;
 		}
@@ -400,43 +380,30 @@ void AddrGen_sim(int op, int mode, ...)
 			}
 			else AR1.d = CPULONG(ofs);
 
-			if (mode&IMMED)	{
-				idsp = va_arg(ap,int);
-			}
+			idsp = va_arg(ap,int);
 			if (mode & ADDR16) {
 				signed char o1 = Offs_From_Arg();
 				signed char o2 = Offs_From_Arg();
 				GTRACE4("A_DI_2",o1,ofs,o2,idsp);
-				TR1.d = CPUWORD(o1) + CPUWORD(o2);
-				if ((mode&IMMED) && (idsp!=0)) {
-					TR1.d += idsp;
-				}
+				TR1.d = CPUWORD(o1) + CPUWORD(o2) + idsp;
 				AR1.d += TR1.w.l;
 			}
 			else {
 				signed char o1 = Offs_From_Arg();
 				signed char o2 = Offs_From_Arg();
-				AR1.d += CPULONG(o1);
-				TR1.d = CPULONG(o2);
-				if (mode & RSHIFT) {
-				    unsigned char sh = (unsigned char)(va_arg(ap,int));
-				    GTRACE5("A_DI_2",o1,ofs,o2,idsp,sh);
-				    if (sh) {
-					TR1.d <<= (sh & 0x1f);
-				    }
-				}
-				else {
-				    GTRACE4("A_DI_2",o1,ofs,o2,idsp);
-				}
-				if ((mode&IMMED) && idsp) {
-				    AR1.d += idsp;
-				}
+				unsigned char sh;
+				sh = (unsigned char)(va_arg(ap,int));
+				GTRACE5("A_DI_2",o1,ofs,o2,idsp,sh);
+				TR1.d = CPULONG(o1) +
+				  (CPULONG(o2) << (sh & 0x1f)) + idsp;
 				AR1.d += TR1.d;
 			}
 		}
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
 			long idsp;
+			unsigned char sh;
+			signed char o;
 			if (mode & MLEA) {
 				AR1.d = 0;
 			}
@@ -444,23 +411,11 @@ void AddrGen_sim(int op, int mode, ...)
 				AR1.d = CPULONG(OVERR_DS);
 			}
 			idsp = va_arg(ap,int);
-			if (idsp) {
-				AR1.d += idsp;
-			}
-			if (!(mode & IMMED)) {
-				unsigned char sh;
-				signed char o = Offs_From_Arg();
-				TR1.d = CPULONG(o);
-				sh = (unsigned char)(va_arg(ap,int));
-				GTRACE4("A_DI_2D",o,0xff,idsp,sh);
-				if (sh)	{
-				    TR1.d <<= (sh & 0x1f);
-				}
-				AR1.d += TR1.d;
-			}
-			else {
-				GTRACE3("A_DI_2D",0xff,0xff,idsp);
-			}
+			o = Offs_From_Arg();
+			sh = (unsigned char)(va_arg(ap,int));
+			GTRACE4("A_DI_2D",o,0xff,idsp,sh);
+			TR1.d = (CPULONG(o) << (sh & 0x1f)) + idsp;
+			AR1.d += TR1.d;
 		}
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg

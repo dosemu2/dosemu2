@@ -208,16 +208,6 @@ static void CodeGen(IMeta *I, int j)
 #endif
 
 	switch(IG->op) {
-	case LEA_DI_R:
-		if (mode&IMMED)	{
-			// leal immed(%%edi),%%edi: 8d 7f xx | bf xxxxxxxx
-			GenLeaEDI(IG->p0);
-		}
-		else {
-			// leal offs(%%ebx),%%edi
-			G3M(0x8d,0x7b,IG->p0,Cp);
-		}
-		break;
 	case A_DI_0:			// base(32), imm
 		// movl $imm,%%edi
 		G1(0xbf,Cp); G4(IG->p1,Cp);
@@ -240,7 +230,7 @@ static void CodeGen(IMeta *I, int j)
 		else {
 			// movl offs(%%ebx),%%edi
 			G3M(0x8b,0x7b,IG->p2,Cp);
-			if ((mode&IMMED) && (idsp!=0)) {
+			if (idsp!=0) {
 				GenLeaEDI(idsp);
 			}
 		}
@@ -257,26 +247,24 @@ static void CodeGen(IMeta *I, int j)
 			G4M(0x0f,0xb7,0x7b,IG->p3,Cp);
 			// addw offs(%%ebx),%%di
 			G4M(0x66,0x03,0x7b,IG->p2,Cp);
-			if ((mode&IMMED) && (idsp!=0)) {
+			if (idsp!=0) {
 				// addw $immed,%%di
 				G3(0xc78166,Cp); G2(idsp,Cp);
 			}
 		}
 		else {
+			unsigned char sh = IG->p4;
 			// movl offs(%%ebx),%%edi
 			G3M(0x8b,0x7b,IG->p3,Cp);
-			if (mode & RSHIFT) {
-			    unsigned char sh = IG->p4;
-			    if (sh) {
+			if (sh) {
 				// shll $1,%%edi
 				if (sh==1) { G2(0xe7d1,Cp); }
 				// shll $count,%%edi
 				else { G2(0xe7c1,Cp); G1(sh,Cp); }
-			    }
 			}
 			// addl offs(%%ebx),%%edi
 			G3M(0x03,0x7b,IG->p2,Cp);
-			if ((mode&IMMED) && idsp) {
+			if (idsp!=0) {
 			    GenLeaEDI(idsp);
 			}
 		}
@@ -287,24 +275,18 @@ static void CodeGen(IMeta *I, int j)
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
 		int idsp = IG->p0;
-
-		if (!(mode & IMMED)) {
-			unsigned char sh = IG->p2;
-			// movl offs(%%ebx),%%edi
-			G3M(0x8b,0x7b,IG->p1,Cp);
-			// shll $count,%%ecx
-			if (sh)	{
-			    // shll $1,%%edi
-			    if (sh==1) { G2(0xe7d1,Cp); }
-			    // shll $count,%%edi
-			    else { G2(0xe7c1,Cp); G1(sh,Cp); }
-			}
-			if (idsp) {
-			    GenLeaEDI(idsp);
-			}
-		} else {
-			// movl $idsp,%%edi
-			G1(0xbf,Cp); G4(idsp,Cp);
+		unsigned char sh = IG->p2;
+		// movl offs(%%ebx),%%edi
+		G3M(0x8b,0x7b,IG->p1,Cp);
+		// shll $count,%%ecx
+		if (sh)	{
+			// shll $1,%%edi
+			if (sh==1) { G2(0xe7d1,Cp); }
+			// shll $count,%%edi
+			else { G2(0xe7c1,Cp); G1(sh,Cp); }
+		}
+		if (idsp!=0) {
+			GenLeaEDI(idsp);
 		}
 		if (!(mode & MLEA)) {
 			// addl offs(%%ebx),%%edi (seg reg offset)
@@ -2399,24 +2381,13 @@ static void AddrGen_x86(int op, int mode, ...)
 	GenBufSize += GendBytesPerOp[op];
 
 	switch(op) {
-	case LEA_DI_R:
-		if (mode&IMMED)
-			IG->p0 = va_arg(ap,int);
-		else {
-			signed char o = Offs_From_Arg();
-			IG->p0 = o;
-		}
-		break;
 	case A_DI_0:			// base(32), imm
 	case A_DI_1: {			// base(32), {imm}, reg, {shift}
 		signed char ofs = (char)va_arg(ap,int);
 		signed char o;
 		IG->p0 = ofs;
-		IG->p1 = 0;
-		if (mode&IMMED)	{
-			IG->p1 = va_arg(ap,int);
-			if (op==A_DI_0)	break;
-		}
+		IG->p1 = va_arg(ap,int);
+		if (op==A_DI_0)	break;
 		o = Offs_From_Arg();
 		IG->p2 = o;
 		}
@@ -2424,31 +2395,26 @@ static void AddrGen_x86(int op, int mode, ...)
 	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
 		signed char o1,o2;
 		signed char ofs = (char)va_arg(ap,int);
+		unsigned char sh;
 		IG->p0 = ofs;
-		IG->p1 = 0;
-		if (mode&IMMED)	{
-			IG->p1 = va_arg(ap,int);
-		}
+		IG->p1 = va_arg(ap,int);
 		o1 = Offs_From_Arg();
 		o2 = Offs_From_Arg();
 		IG->p2 = o1;
 		IG->p3 = o2;
-		if (!(mode&ADDR16)) {
-			if (mode & RSHIFT) {
-			    unsigned char sh = (unsigned char)(va_arg(ap,int));
-			    IG->p4 = sh;
-			}
-		} }
+		sh = (unsigned char)(va_arg(ap,int));
+		IG->p4 = sh;
+		}
 		break;
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
+		signed char o;
+		unsigned char sh;
 		IG->p0 = va_arg(ap,int);
-		if (!(mode & IMMED)) {
-			signed char o = Offs_From_Arg();
-			unsigned char sh;
-			IG->p1 = o;
-			sh = (unsigned char)(va_arg(ap,int));
-			IG->p2 = sh;
-		} }
+		o = Offs_From_Arg();
+		IG->p1 = o;
+		sh = (unsigned char)(va_arg(ap,int));
+		IG->p2 = sh;
+		}
 		break;
 	case A_SR_SH4: {	// real mode make base addr from seg
 		signed char o1 = Offs_From_Arg();
