@@ -678,13 +678,13 @@ static int slang_update (void)
 	       }
 	     else last_col -= 1;
 	  }
-	else if (vga.crtc.cursor_shape.w & 0x6000) last_row = last_col = 0;
 	else
 	  {
 	     last_row = cursor_row - imin;
 	     last_col = cursor_col;
 	  }
-	
+
+	SLtt_set_cursor_visibility((vga.crtc.cursor_shape.w & 0x6000) ? 0 : 1);
 	SLsmg_gotorc (last_row, last_col);
 	SLsmg_refresh ();
 	last_prompt = DOSemu_Keyboard_Keymap_Prompt;
