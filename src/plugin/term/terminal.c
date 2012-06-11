@@ -605,9 +605,9 @@ static void show_help (void)
  */
 static int slang_update (void)
 {
-   int changed, imin, cursor_row, cursor_col;
+   int changed, imin, cursor_row, cursor_col, cursor_vis;
 
-   static int last_row, last_col, help_showing;
+   static int last_row, last_col, last_vis = -1, help_showing;
    static const char *last_prompt = NULL;
 
    if (Slsmg_is_not_initialized)
@@ -635,7 +635,7 @@ static int slang_update (void)
 	return 1;
      }
    help_showing = 0;
-   
+
    cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
    cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
    imin = Rows - SLtt_Screen_Rows;
@@ -657,6 +657,13 @@ static int slang_update (void)
       changed = update_text_screen();
    }
 
+   cursor_vis = (vga.crtc.cursor_shape.w & 0x6000) ? 0 : 1;
+   if (last_vis != cursor_vis) {
+	SLtt_set_cursor_visibility(cursor_vis);
+	last_vis = cursor_vis;
+	changed = 1;
+   }
+
    if (changed || (last_col != cursor_col) || (last_row != cursor_row)
        || (DOSemu_Keyboard_Keymap_Prompt != last_prompt))
      {
@@ -669,7 +676,7 @@ static int slang_update (void)
 	     SLsmg_write_nchars ((char *)DOSemu_Keyboard_Keymap_Prompt, last_col);
 	     memset ((char *) (prev_screen + (last_row * Columns)),
 		     Columns * 2, 0xFF);
-	     
+
 	     if (*DOSemu_Keyboard_Keymap_Prompt == '[')
 	       {
 		  /* Sticky */
@@ -684,7 +691,6 @@ static int slang_update (void)
 	     last_col = cursor_col;
 	  }
 
-	SLtt_set_cursor_visibility((vga.crtc.cursor_shape.w & 0x6000) ? 0 : 1);
 	SLsmg_gotorc (last_row, last_col);
 	SLsmg_refresh ();
 	last_prompt = DOSemu_Keyboard_Keymap_Prompt;
