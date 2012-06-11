@@ -677,8 +677,8 @@ arith1:
 		}
 		if (mode & MBYTE) {
 			if (mode & IMMED) {
-				// OPb $immed,Ofs_EAX(%%ebx)
-				G4M(0x80,0x43|rcod,Ofs_EAX,IG->p0,Cp);
+				// OPb $immed,offs(%%ebx)
+				G4M(0x80,0x43|rcod,IG->p0,IG->p1,Cp);
 			}
 			else {
 				// OPb %%al,offs(%%ebx)
@@ -687,10 +687,10 @@ arith1:
 		}
 		else {
 			if (mode & IMMED) {
-				// OP{wl} $immed,Ofs_EAX(%%ebx)
+				// OP{wl} $immed,offs(%%ebx)
 				Gen66(mode,Cp);
-				G3M(0x81,0x43|rcod,Ofs_EAX,Cp);
-				G2_4(mode,IG->p0,Cp);
+				G3M(0x81,0x43|rcod,IG->p0,Cp);
+				G2_4(mode,IG->p1,Cp);
 			}
 			else {
 				// OP{wl} %%eax,offs(%%ebx)
@@ -2560,14 +2560,6 @@ static void Gen_x86(int op, int mode, ...)
 	case O_SUB_R:
 	case O_XOR_R:
 	case O_CMP_R:
-	case O_ADD_FR:				// reg = reg op	acc
-	case O_OR_FR:
-	case O_ADC_FR:
-	case O_SBB_FR:
-	case O_AND_FR:
-	case O_SUB_FR:
-	case O_XOR_FR:
-	case O_CMP_FR:
 	case O_INC_R:
 	case O_DEC_R:
 	case O_DIV:
@@ -2576,6 +2568,22 @@ static void Gen_x86(int op, int mode, ...)
 		int v = va_arg(ap,int);
 		IG->p0 = v;
 		}
+		break;
+
+	case O_ADD_FR:				// reg = reg op	acc/imm
+	case O_OR_FR:
+	case O_ADC_FR:
+	case O_SBB_FR:
+	case O_AND_FR:
+	case O_SUB_FR:
+	case O_XOR_FR:
+	case O_CMP_FR: {
+		signed char o = Offs_From_Arg();
+		IG->p0 = o;
+		if (mode & IMMED) {
+			int v = va_arg(ap,int);
+			IG->p1 = v;
+		} }
 		break;
 
 	case L_IMM: {

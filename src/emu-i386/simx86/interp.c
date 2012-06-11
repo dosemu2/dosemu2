@@ -610,7 +610,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int m = mode | MBYTE;
 			int op = ArOpsFR[D_MO(opc)];
 			// op [ebx+Ofs_EAX],#imm
-			Gen(op, m|IMMED, Fetch(PC+1)); PC+=2;
+			Gen(op, m|IMMED, Ofs_EAX, Fetch(PC+1)); PC+=2;
 			}
 			break; 
 /*a9*/	case TESTwi:
@@ -629,7 +629,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			int m = mode;
 			int op = ArOpsFR[D_MO(opc)];
 			// op [ebx+Ofs_EAX],#imm
-			Gen(op, m|IMMED, DataFetchWL_U(mode,PC+1));
+			Gen(op, m|IMMED, Ofs_EAX, DataFetchWL_U(mode,PC+1));
 			INC_WL_PC(mode,1);
 			}
 			break; 
@@ -1004,40 +1004,55 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*82*/	case IMMEDbrm2:		// add mem8,signed imm8: no AND,OR,XOR
 /*80*/	case IMMEDbrm: {
 			int m = mode | MBYTE;
-			int op = ArOpsR[D_MO(Fetch(PC+1))];
-			PC += ModRM(opc, PC, m|MLOAD);	// al=[rm]
-			Gen(op, m|IMMED, Fetch(PC));	// op al,#imm
-			if (op!=O_CMP_R) {
-				if (TheCPU.mode & RM_REG)
-					Gen(S_REG, m, REG3);
-				else
+			int op = D_MO(Fetch(PC+1));
+			PC += ModRM(opc, PC, m);
+			if (TheCPU.mode & RM_REG) {
+				op = ArOpsFR[op];
+				// op [ebx+reg],#imm
+				Gen(op, m|IMMED, REG3, Fetch(PC));
+			}
+			else {
+				op = ArOpsR[op];
+				Gen(L_DI_R1, m);	// mov al,[edi]
+				Gen(op, m|IMMED, Fetch(PC));	// op al,#imm
+				if (op!=O_CMP_R)
 					Gen(S_DI, m);	// mov [edi],al	mem=mem op #imm
 			}
 			PC++; }
 			break;
 /*81*/	case IMMEDwrm: {
-			int op = ArOpsR[D_MO(Fetch(PC+1))];
-			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
-			Gen(op, mode|IMMED, DataFetchWL_U(mode,PC)); // op ax,#imm
-			if (op!=O_CMP_R) {
-				if (TheCPU.mode & RM_REG)
-					Gen(S_REG, mode, REG3);
-				else
+			int op = D_MO(Fetch(PC+1));
+			PC += ModRM(opc, PC, mode);
+			if (TheCPU.mode & RM_REG) {
+				op = ArOpsFR[op];
+				// op [ebx+reg],#imm
+				Gen(op, mode|IMMED, REG3, DataFetchWL_U(mode,PC));
+			}
+			else {
+				op = ArOpsR[op];
+				Gen(L_DI_R1, mode);	// mov ax,[edi]
+				Gen(op, mode|IMMED, DataFetchWL_U(mode,PC)); // op ax,#imm
+				if (op!=O_CMP_R)
 					Gen(S_DI, mode);// mov [edi],ax	mem=mem op #imm
 			}
 			INC_WL_PC(mode,0);
 			}
 			break;
 /*83*/	case IMMEDisrm: {
-			int op = ArOpsR[D_MO(Fetch(PC+1))];
+			int op = D_MO(Fetch(PC+1));
 			long v;
-			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
+			PC += ModRM(opc, PC, mode);
 			v = (signed char)Fetch(PC);
-			Gen(op, mode|IMMED, v);		// op ax,#imm
-			if (op != O_CMP_R) {
-				if (TheCPU.mode & RM_REG)
-					Gen(S_REG, mode, REG3);
-				else
+			if (TheCPU.mode & RM_REG) {
+				op = ArOpsFR[op];
+				// op [ebx+reg],#imm
+				Gen(op, mode|IMMED, REG3, v);
+			}
+			else {
+				op = ArOpsR[op];
+				Gen(L_DI_R1, mode);	// mov ax,[edi]
+				Gen(op, mode|IMMED, v);		// op ax,#imm
+				if (op != O_CMP_R)
 					Gen(S_DI, mode);// mov [edi],ax	mem=mem op #imm
 			}
 			PC++; }

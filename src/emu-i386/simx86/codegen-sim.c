@@ -1039,13 +1039,13 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_ADD_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o;
-		v.d = va_arg(ap, int);
+		signed char o = Offs_From_Arg();
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		RFL.mode = mode;
 		RFL.valid = V_ADD;
 		if (mode & IMMED) {GTRACE3("O_ADD_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADD_FR",v.bs.bl,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    if (mode & IMMED) RFL.S2 = v.b.bl;
@@ -1070,13 +1070,13 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_OR_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o;
-		v.d = va_arg(ap, int);
+		signed char o = Offs_From_Arg();
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_OR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_OR_FR",v.d,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    if (mode & IMMED) RFL.S2 = v.b.bl;
@@ -1101,15 +1101,15 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_ADC_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o;
+		signed char o = Offs_From_Arg();
 		int cy;
-		v.d = va_arg(ap, int);
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		RFL.mode = mode;
 		RFL.valid = (cy? V_ADC:V_ADD);
 		if (mode & IMMED) {GTRACE3("O_ADC_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_ADC_FR",v.bs.bl,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.bs.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    if (mode & IMMED) RFL.S2 = v.b.bl;
@@ -1134,15 +1134,15 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_SBB_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o;
+		signed char o = Offs_From_Arg();
 		int cy;
-		v.d = va_arg(ap, int);
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		cy = CPUBYTE(Ofs_FLAGS) & 1;
 		RFL.mode = mode;
 		RFL.valid = V_SBB;
 		if (mode & IMMED) {GTRACE3("O_SBB_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SBB_FR",v.bs.bl,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.bs.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    // movzbl v.bs.bl->eax; add cy,eax; neg eax
@@ -1168,13 +1168,13 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_AND_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o;
-		v.d = va_arg(ap, int);
+		signed char o = Offs_From_Arg();
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_AND_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_AND_FR",v.d,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    if (mode & IMMED) RFL.S2 = v.b.bl;
@@ -1199,13 +1199,13 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_SUB_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o;
-		v.d = va_arg(ap, int);
+		signed char o = Offs_From_Arg();
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_SUB_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_SUB_FR",v.bs.bl,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    if (mode & IMMED) RFL.S2 = -v.b.bl;
@@ -1230,13 +1230,13 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_XOR_FR: {		// O=0 SZP C=0
 		register wkreg v;
-		signed char o;
-		v.d = va_arg(ap, int);
+		signed char o = Offs_From_Arg();
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		RFL.mode = mode | CLROVF;
 		RFL.valid = V_GEN;
 		if (mode & IMMED) {GTRACE3("O_XOR_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_XOR_FR",v.d,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    if (mode & IMMED) RFL.S2 = v.b.bl;
@@ -1261,13 +1261,13 @@ static void Gen_sim(int op, int mode, ...)
 		break;
 	case O_CMP_FR: {	// OSZAPC
 		register wkreg v;
-		signed char o;
-		v.d = va_arg(ap, int);
+		signed char o = Offs_From_Arg();
+		v.d = 0;
+		if (mode & IMMED) v.d = va_arg(ap,int);
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		if (mode & IMMED) {GTRACE3("O_CMP_FR",0xff,0xff,v.d);}
 		    else {GTRACE3("O_CMP_FR",v.bs.bl,0xff,v.d);}
-		o = (mode & IMMED) ? Ofs_EAX : v.b.bl;
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    if (mode & IMMED) RFL.S2 = -v.b.bl;
