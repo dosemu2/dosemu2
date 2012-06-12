@@ -558,7 +558,7 @@ emm_restore_handle_state(int handle)
 }
 
 static int
-do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
+do_map_unmap(int handle, int physical_page, int logical_page)
 {
 
   CHECK_OS_HANDLE(handle);
@@ -567,15 +567,13 @@ do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
       (handle_info[handle].active == 0)) {
     E_printf("Invalid Handle handle=%x, active=%d\n",
 	     handle, handle_info[handle].active);
-    SETHIGH(&(state->eax), EMM_INV_HAN);
-    return (UNCHANGED);
+    return EMM_INV_HAN;
   }
 
   if ((physical_page < 0) || (physical_page >= phys_pages)) {
-    SETHIGH(&(state->eax), EMM_ILL_PHYS);
     E_printf("Invalid Physical Page physical_page=%x\n",
 	     physical_page);
-    return (UNCHANGED);
+    return EMM_ILL_PHYS;
   }
 
   if (logical_page == 0xffff) {
@@ -584,17 +582,15 @@ do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
   }
   else {
     if (logical_page >= handle_info[handle].numpages) {
-      SETHIGH(&(state->eax), EMM_LOG_OUT_RAN);
       E_printf("Logical page too high logical_page=%d, numpages=%d\n",
 	       logical_page, handle_info[handle].numpages);
-      return (UNCHANGED);
+      return EMM_LOG_OUT_RAN;
     }
 
     E_printf("EMS: do_map_unmap is mapping\n");
     map_page(handle, physical_page, logical_page);
   }
-  SETHIGH(&(state->eax), EMM_NO_ERR);
-  return (TRUE);
+  return EMM_NO_ERR;
 }
 
 static inline int
@@ -620,9 +616,25 @@ partial_map_registers(state_t * state)
   SETHIGH(&(state->eax), EMM_NO_ERR);
 }
 
+static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
+{
+  int ret = EMM_NO_ERR;
+  int i, phys, log;
+  for (i = 0; i < map_len; i++) {
+    log = array[i * 2];
+    phys = array[i * 2 + 1];
+    Kdebug0((dbg_fd, "loop: 0x%x 0x%x \n", log, phys));
+    ret = do_map_unmap(handle, phys, log);
+    if (ret != EMM_NO_ERR)
+      break;
+  }
+  return ret;
+}
+
 static void
 map_unmap_multiple(state_t * state)
 {
+  int ret;
 
   Kdebug0((dbg_fd, "map_unmap_multiple %d called\n",
 	   (int) LOW(state->eax)));
@@ -631,20 +643,14 @@ map_unmap_multiple(state_t * state)
   case MULT_LOGPHYS:{		/* 0 */
       int handle = WORD(state->edx);
       int map_len = WORD(state->ecx);
-      int i = 0, phys, log;
       u_short *array = (u_short *) Addr(state, ds, esi);
 
       Kdebug0((dbg_fd, "...using mult_logphys method, "
 	       "handle %d, map_len %d, array @ %p\n",
 	       handle, map_len, array));
 
-      for (i = 0; i < map_len; i++) {
-	log = *(u_short *) array++;
-	phys = *(u_short *) array++;
-
-	Kdebug0((dbg_fd, "loop: 0x%x 0x%x \n", log, phys));
-	do_map_unmap(state, handle, phys, log);
-      }
+      ret = emm_map_unmap_multi(array, handle, map_len);
+      SETHIGH(&(state->eax), ret);
       break;
     }
 
@@ -653,14 +659,15 @@ map_unmap_multiple(state_t * state)
       int map_len = WORD(state->ecx);
       int i = 0, phys, log, seg;
       u_short *array = (u_short *) Addr(state, ds, esi);
+      u_short *array2 = malloc(PAGE_MAP_SIZE(map_len));
 
       Kdebug0((dbg_fd, "...using mult_logseg method, "
 	       "handle %d, map_len %d, array @ %p\n",
 	       handle, map_len, array));
 
       for (i = 0; i < map_len; i++) {
-	log = *(u_short *) array;
-	seg = *(u_short *) (array + 1);
+	log = array[i * 2];
+	seg = array[i * 2 + 1];
 
 	phys = SEG_TO_PHYS(seg);
 
@@ -668,17 +675,19 @@ map_unmap_multiple(state_t * state)
 		 log, seg, phys));
 
 	if (phys == -1) {
+	  free(array2);
 	  SETHIGH(&(state->eax), EMM_ILL_PHYS);
 	  return;
 	}
 	else {
-	  do_map_unmap(state, handle, phys, log);
-	  SETHIGH(&(state->eax), EMM_NO_ERR);
+	  array2[i * 2] = log;
+	  array2[i * 2 + 1] = phys;
 	}
-	array++;
-	array++;
       }
 
+      ret = emm_map_unmap_multi(array2, handle, map_len);
+      SETHIGH(&(state->eax), ret);
+      free(array2);
       break;
     }
 
@@ -1541,8 +1550,10 @@ ems_fn(state)
       int physical_page = LOW(state->eax);
       int logical_page = WORD(state->ebx);
       int handle = WORD(state->edx);
+      int ret;
 
-      do_map_unmap(state, handle, physical_page, logical_page);
+      ret = do_map_unmap(handle, physical_page, logical_page);
+      SETHIGH(&(state->eax), ret);
       break;
     }
   case DEALLOCATE_HANDLE:{	/* 0x45 */
