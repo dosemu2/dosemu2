@@ -201,9 +201,7 @@
 
   There are various versions of the packetdriver PDETHER floating around, but
   it is recommended to use version 1.05 or later. Those versions have
-  support for a "raw packet send" interface, which allows to use the
-  NDIS over the ODI shim with an odihlp.exe NDIS3/ODI mapper (the odinsup.com
-  protocol mapper won't work with any version of PDETHER).
+  support for a "raw packet send" interface.
 
   PDETHER in its native mode understands only Ethernet_II frames, by
   enabling the dosemu.conf parameter pktdriver novell_hack it can be
