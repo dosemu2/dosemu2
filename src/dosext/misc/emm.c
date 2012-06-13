@@ -399,13 +399,6 @@ static void _do_unmap_page(unsigned int base, int size)
 	PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(base));
 }
 
-void emm_unmap_all()
-{
-  if (!config.ems_size)
-    return;
-  _do_unmap_page(PHYS_PAGE_ADDR(0), EMS_FRAME_SIZE);
-}
-
 static boolean_t
 __map_page(int physical_page)
 {
@@ -610,7 +603,7 @@ SEG_TO_PHYS(int segaddr)
 }
 
 /* EMS 4.0 functions start here */
-static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
+int emm_get_partial_map_registers(void *ptr, const u_short *segs)
 {
   u_short *buf = ptr;
   int pages, i;
@@ -636,7 +629,7 @@ static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
   return EMM_NO_ERR;
 }
 
-static void emm_set_partial_map_registers(const void *ptr)
+void emm_set_partial_map_registers(const void *ptr)
 {
   const u_short *buf = ptr;
 
@@ -647,7 +640,7 @@ static void emm_set_partial_map_registers(const void *ptr)
   set_map_registers(buf, pages);
 }
 
-static int emm_get_size_for_partial_page_map(int pages)
+int emm_get_size_for_partial_page_map(int pages)
 {
   if (!config.ems_size || pages < 0 || pages > phys_pages)
     return -1;
@@ -681,7 +674,7 @@ partial_map_registers(state_t * state)
   }
 }
 
-static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
+int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
 {
   int ret = EMM_NO_ERR;
   int i, phys, log;
@@ -1344,7 +1337,7 @@ static int get_map_registers(void *ptr, int pages, const u_short *phys)
   return EMM_NO_ERR;
 }
 
-void emm_get_map_registers(char *ptr)
+static void emm_get_map_registers(char *ptr)
 {
   if (!config.ems_size)
     return;
@@ -1374,7 +1367,7 @@ static void set_map_registers(const void *ptr, int pages)
   }
 }
 
-void emm_set_map_registers(char *ptr)
+static void emm_set_map_registers(char *ptr)
 {
   if (!config.ems_size)
     return;

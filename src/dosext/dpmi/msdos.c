@@ -54,6 +54,24 @@
 static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 
+static int ems_frame_mapped;
+static void *ems_map_buffer = NULL;
+static u_short ems_frame_unmap[EMM_UMA_STD_PHYS*2];
+static u_short ems_frame_segs[EMM_UMA_STD_PHYS+1];
+
+void msdos_setup(void)
+{
+    int i;
+
+    ems_map_buffer = malloc(emm_get_size_for_partial_page_map(EMM_UMA_STD_PHYS));
+    ems_frame_segs[0] = EMM_UMA_STD_PHYS;
+    for(i = 0; i < EMM_UMA_STD_PHYS; i++) {
+	ems_frame_segs[i + 1] = EMM_SEGMENT + i * (0x1000/EMM_UMA_STD_PHYS);
+	ems_frame_unmap[i * 2] = 0xffff;
+	ems_frame_unmap[i * 2 + 1] = i;
+    }
+}
+
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {
     unsigned short envp;
@@ -135,19 +153,20 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
 
 static void prepare_ems_frame(void)
 {
-    if (MSDOS_CLIENT.ems_frame_mapped)
+    if (ems_frame_mapped)
 	return;
-    MSDOS_CLIENT.ems_frame_mapped = 1;
-    emm_get_map_registers(MSDOS_CLIENT.ems_map_buffer);
-    emm_unmap_all();
+    ems_frame_mapped = 1;
+    emm_get_partial_map_registers(ems_map_buffer, ems_frame_segs);
+    /* 0 is the special OS_HANDLE */
+    emm_map_unmap_multi(ems_frame_unmap, 0, EMM_UMA_STD_PHYS);
 }
 
 static void restore_ems_frame(void)
 {
-    if (!MSDOS_CLIENT.ems_frame_mapped)
+    if (!ems_frame_mapped)
 	return;
-    emm_set_map_registers(MSDOS_CLIENT.ems_map_buffer);
-    MSDOS_CLIENT.ems_frame_mapped = 0;
+    emm_set_partial_map_registers(ems_map_buffer);
+    ems_frame_mapped = 0;
 }
 
 static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
@@ -595,7 +614,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    if (segment != EXEC_SEG + EXEC_Para_SIZE)
 		error("DPMI: exec: seg=%#x (%#x), size=%#x\n",
 			segment, segment - EXEC_SEG, EXEC_Para_SIZE);
-	    if (MSDOS_CLIENT.ems_frame_mapped)
+	    if (ems_frame_mapped)
 		error("DPMI: exec: EMS frame should not be mapped here\n");
 	  }
 	  return 0;

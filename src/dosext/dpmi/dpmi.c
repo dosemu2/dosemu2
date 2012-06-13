@@ -2956,6 +2956,9 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_sel32, DPMI_sel_code_start - mem_base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
+
+    if (config.pm_dos_api)
+      msdos_setup();
     return;
 
 err:
