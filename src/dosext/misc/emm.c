@@ -39,10 +39,9 @@
  *
  * In contrast to some of the comments (Yes, _I_ know the adage about that...)
  * we appear to be supporting EMS 4.0, not 3.2.  The following EMS 4.0
- * functions are not supported (yet):
- * 0x55 (map pages and jump), and 0x56 (map pages and call).  OS handle
- * support is missing, and raw page size is 16k (instead of 4k).  Other than
- * that, EMS 4.0 support appears complete.
+ * functions are not supported (yet): 0x55 (map pages and jump),
+ * 0x56 (map pages and call), and raw page size is 16k (instead of 4k).
+ * Other than that, EMS 4.0 support appears complete.
  *
  * /REMARK
  * DANG_END_MODULE
@@ -371,7 +370,8 @@ emm_deallocate_handle(int handle)
   object = handle_info[handle].object;
   destroy_memory_object(object,numpages*EMM_PAGE_SIZE);
   handle_info[handle].numpages = 0;
-  handle_info[handle].active = 0;
+  if (handle_info[handle].active == 1)
+    handle_info[handle].active = 0;
   handle_info[handle].object = NULL;
   CLEAR_HANDLE_NAME(handle_info[i].name);
   handle_total--;
@@ -440,7 +440,7 @@ __unmap_page(int physical_page)
   base = PHYS_PAGE_ADDR(physical_page);
 
   _do_unmap_page(base, EMM_PAGE_SIZE);
-  	
+
   return (TRUE);
 }
 
@@ -482,8 +482,11 @@ map_page(int handle, int physical_page, int logical_page)
   if (handle_info[handle].numpages <= logical_page)
     return (FALSE);
 
+#if 0
+/* no need to unmap before mapping */
   if (emm_map[physical_page].handle != NULL_HANDLE)
     unmap_page(physical_page);
+#endif
 
   base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
@@ -1292,12 +1295,21 @@ get_ems_hardinfo(state_t * state)
         return (UNCHANGED);
     }
   }
-  else 
+  else
   {
     Kdebug1((dbg_fd, "bios_emm: Get Hardware Info/Raw Pages - Denied\n"));
     SETHIGH(&(state->eax), 0xa4);
     return(TRUE);
   }
+}
+
+static int emm_allocate_std_pages(int pages_needed)
+{
+    int handle = emm_allocate_handle(pages_needed);
+    if (handle == EMM_ERROR)
+	return EMM_ERROR;
+    handle_info[handle].active = 0xff;
+    return handle;
 }
 
 static int
@@ -1309,7 +1321,7 @@ allocate_std_pages(state_t * state)
   Kdebug1((dbg_fd, "bios_emm: Get Handle and Standard Allocate pages = 0x%x\n",
 	   pages_needed));
 
-  if ((handle = emm_allocate_handle(pages_needed)) == EMM_ERROR) {
+  if ((handle = emm_allocate_std_pages(pages_needed)) == EMM_ERROR) {
     SETHIGH(&(state->eax), emm_error);
     return (UNCHANGED);
   }
@@ -1909,12 +1921,16 @@ static void ems_reset2(void)
     handle_info[sh_base].active = 0;
   }
 
-  /* should set up OS handle here */
-  handle_info[OS_HANDLE].numpages = 0;
-  handle_info[OS_HANDLE].object = 0;
-  handle_info[OS_HANDLE].active = 1;
+  /* set up OS handle here */
+  handle_info[OS_HANDLE].numpages = config.ems_cnv_pages;
+  handle_info[OS_HANDLE].object = LOWMEM(cnv_start_seg << 4);
+  handle_info[OS_HANDLE].active = 0xff;
   for (j = 0; j < saved_phys_pages; j++) {
     handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
+  }
+  for (sh_base = 0; sh_base < config.ems_cnv_pages; sh_base++) {
+    emm_map[sh_base + cnv_pages_start].handle = OS_HANDLE;
+    emm_map[sh_base + cnv_pages_start].logical_page = sh_base;
   }
 
   handle_total = 1;
