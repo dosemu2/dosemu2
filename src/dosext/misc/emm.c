@@ -39,7 +39,7 @@
  *
  * In contrast to some of the comments (Yes, _I_ know the adage about that...)
  * we appear to be supporting EMS 4.0, not 3.2.  The following EMS 4.0
- * functions are not supported (yet): 0x4f (partial page map functions),
+ * functions are not supported (yet):
  * 0x55 (map pages and jump), and 0x56 (map pages and call).  OS handle
  * support is missing, and raw page size is 16k (instead of 4k).  Other than
  * that, EMS 4.0 support appears complete.
@@ -69,6 +69,8 @@
 #include "dos2linux.h"
 
 static inline boolean_t unmap_page(int);
+static int get_map_registers(void *ptr, int pages, const u_short *phys);
+static void set_map_registers(const void *ptr, int pages);
 
 #include <sys/file.h>
 #include <sys/ioctl.h>
@@ -608,12 +610,75 @@ SEG_TO_PHYS(int segaddr)
 }
 
 /* EMS 4.0 functions start here */
+static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
+{
+  u_short *buf = ptr;
+  int pages, i;
+  u_short *phys;
+
+  if (!config.ems_size)
+    return EMM_NO_ERR;
+
+  pages = *segs++;
+  phys = malloc(pages * sizeof(*phys));
+  for (i = 0; i < pages; i++) {
+    int phy = SEG_TO_PHYS(segs[i]);
+    if (phy == -1) {
+      free(phys);
+      return EMM_ILL_PHYS;
+    }
+    phys[i] = phy;
+  }
+  /* store the count first for Get Partial Page Map */
+  *buf++ = pages;
+  get_map_registers(buf, pages, phys);
+  free(phys);
+  return EMM_NO_ERR;
+}
+
+static void emm_set_partial_map_registers(const void *ptr)
+{
+  const u_short *buf = ptr;
+
+  if (!config.ems_size)
+    return;
+
+  int pages = *buf++;
+  set_map_registers(buf, pages);
+}
+
+static int emm_get_size_for_partial_page_map(int pages)
+{
+  if (!config.ems_size || pages < 0 || pages > phys_pages)
+    return -1;
+  return sizeof(u_short) + PAGE_MAP_SIZE(pages);
+}
+
 static inline void
 partial_map_registers(state_t * state)
 {
+  int ret;
   Kdebug0((dbg_fd, "partial_map_registers %d called\n",
 	   (int) LOW(state->eax)));
-  SETHIGH(&(state->eax), EMM_NO_ERR);
+  switch (LOW(state->eax)) {
+  case PARTIAL_GET:
+    ret = emm_get_partial_map_registers(Addr(state, es, edi),
+					Addr(state, ds, esi));
+    SETHIGH(&(state->eax), ret);
+    break;
+  case PARTIAL_SET:
+    emm_set_partial_map_registers(Addr(state, ds, esi));
+    SETHIGH(&(state->eax), EMM_NO_ERR);
+    break;
+  case PARTIAL_GET_SIZE:
+    ret = emm_get_size_for_partial_page_map(WORD(state->ebx));
+    SETHIGH(&(state->eax), ret == -1 ? EMM_ILL_PHYS : EMM_NO_ERR);
+    break;
+  default:
+    Kdebug1((dbg_fd, "bios_emm: Partial Page Map Regs unknwn fn\n"));
+    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+    break;
+  }
 }
 
 static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
@@ -1263,32 +1328,37 @@ allocate_std_pages(state_t * state)
   return 0;
 }
 
-void emm_get_map_registers(char *ptr)
+static int get_map_registers(void *ptr, int pages, const u_short *phys)
 {
-  u_short *buf = (u_short *)ptr;
-  int i;
-  if (!config.ems_size)
-    return;
+  u_short *buf = ptr;
+  int phy, i;
 
-  for (i = 0; i < phys_pages; i++) {
-    buf[i * 2] = emm_map[i].handle;
-    buf[i * 2 + 1] = emm_map[i].logical_page;
+  for (i = 0; i < pages; i++) {
+    phy = phys ? phys[i] : i;
+    buf[i * 2] = emm_map[phy].handle;
+    buf[i * 2 + 1] = emm_map[phy].logical_page;
     Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
-	     i, emm_map[i].handle,
-	     emm_map[i].logical_page));
+	     phy, emm_map[phy].handle,
+	     emm_map[phy].logical_page));
   }
+  return EMM_NO_ERR;
 }
 
-void emm_set_map_registers(char *ptr)
+void emm_get_map_registers(char *ptr)
 {
-  u_short *buf = (u_short *)ptr;
+  if (!config.ems_size)
+    return;
+  get_map_registers(ptr, phys_pages, NULL);
+}
+
+static void set_map_registers(const void *ptr, int pages)
+{
+  const u_short *buf = ptr;
   int i;
   int handle;
   int logical_page;
-  if (!config.ems_size)
-    return;
 
-  for (i = 0; i < phys_pages; i++) {
+  for (i = 0; i < pages; i++) {
     handle = buf[i * 2];
     if (handle == OS_HANDLE)
       E_printf("EMS: trying to use OS handle in ALT_SET_REGISTERS\n");
@@ -1302,6 +1372,13 @@ void emm_set_map_registers(char *ptr)
     Kdebug1((dbg_fd, "phy %d h %x lp %d\n",
 	    i, handle, logical_page));
   }
+}
+
+void emm_set_map_registers(char *ptr)
+{
+  if (!config.ems_size)
+    return;
+  set_map_registers(ptr, phys_pages);
 }
 
 static int save_es=0;
