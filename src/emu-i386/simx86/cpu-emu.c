@@ -67,7 +67,7 @@ hitimer_t AddTime, SearchTime, ExecTime, CleanupTime; // for debug
 hitimer_t GenTime, LinkTime;
 #endif
 
-hitimer_t TotalTime;
+static hitimer_t TotalTime;
 static int iniflag = 0;
 static int vm86only = 0;
 
@@ -840,13 +840,17 @@ int e_gen_sigalrm(struct sigcontext_struct *scp)
 
 	e_sigpa_count += sigEMUdelta;
 	if (!in_vm86_emu && !in_dpmi_emu) {	/* if into dosemu itself */
-	    TheCPU.EMUtime = GETTSC();		/* resync emulator time  */
-	    sigEMUtime = TheCPU.EMUtime;	/* and generate signal   */
+	    if (eTimeCorrect >= 0) {
+		TheCPU.EMUtime = GETTSC();	/* resync emulator time  */
+		sigEMUtime = TheCPU.EMUtime;	/* and generate signal   */
+	    }
 	}
 	else {
 	    TheCPU.sigalrm_pending = 1;		/* tested by loops  */
 	}
-	if (TheCPU.EMUtime >= sigEMUtime) {
+	if (eTimeCorrect < 0)
+		return 1;
+	else if (TheCPU.EMUtime >= sigEMUtime) {
 		lastEMUsig = TheCPU.EMUtime;
 		sigEMUtime += sigEMUdelta;
 		/* we can't call sigalrm() because of the way the
@@ -906,17 +910,20 @@ void enter_cpu_emu(void)
 	TheCPU.stub_stosl = stub_stosl;
 #endif
 
-	TheCPU.EMUtime = GETTSC();
-	sigEMUdelta = realdelta*config.CPUSpeedInMhz;
-	sigEMUtime = TheCPU.EMUtime + sigEMUdelta;
-	TotalTime = 0;
-#ifdef PROFILE
+	if (eTimeCorrect >= 0) {
+		TheCPU.EMUtime = GETTSC();
+		sigEMUdelta = realdelta*config.CPUSpeedInMhz;
+		sigEMUtime = TheCPU.EMUtime + sigEMUdelta;
+	}
 	if (debug_level('e')) {
+		TotalTime = 0;
+#ifdef PROFILE
 		SearchTime = AddTime = ExecTime = CleanupTime =
 		GenTime = LinkTime = 0;
-	}
 #endif
-	e_printf("EMU86: delta alrm=%d speed=%d\n",realdelta,config.CPUSpeedInMhz);
+		dbug_printf("EMU86: delta alrm=%d speed=%d\n",
+			    realdelta,config.CPUSpeedInMhz);
+	}
 	e_sigpa_count = 0;
 
 	/* Only set the timer (for internal debug purposes only)
@@ -944,11 +951,11 @@ void enter_cpu_emu(void)
 	iniflag = 1;
 }
 
-#ifdef PROFILE
 static void print_statistics(void)
 {
 	dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",
 		    (long long)TotalTime/config.CPUSpeedInMhz);
+#ifdef PROFILE
 	dbug_printf("Total codgen time %16lld us\n",
 		    (long long)GenTime/config.CPUSpeedInMhz);
 	dbug_printf("Total linker time %16lld us\n",
@@ -980,8 +987,8 @@ static void print_statistics(void)
 	dbug_printf("Page faults       %16d\n",PageFaults);
 	dbug_printf("Signals received  %16d\n",EmuSignals);
 	dbug_printf("Tree cleanups     %16d\n",TreeCleanups);
-}
 #endif
+}
 
 void leave_cpu_emu(void)
 {
@@ -1014,9 +1021,7 @@ void leave_cpu_emu(void)
 		free(GDT);
 		LDT = NULL; GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
-#ifdef PROFILE
 		if (debug_level('e')) print_statistics();
-#endif
 		/*re*/init_emu_cpu();
 	}
 	flush_log();
@@ -1144,7 +1149,7 @@ static char *retdescs[] =
 
 int e_vm86(void)
 {
-  hitimer_t tt0;
+  hitimer_t tt0 = 0;
   int xval,retval,mode;
 #ifdef SKIP_VM86_TRACE
   int demusav;
@@ -1165,12 +1170,14 @@ int e_vm86(void)
 #endif
   if (iniflag==0) enter_cpu_emu();
 
-  tt0 = GETTSC();
+#ifdef PROFILE
+  if (debug_level('e')) tt0 = GETTSC();
+#endif
   e_sigpa_count = 0;
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
   TheCPU.mem_base = (unsigned int)(uintptr_t)mem_base;
   VgaAbsBankBase = TheCPU.mem_base + vga.mem.bank_base;
-  TheCPU.EMUtime = GETTSC();
+  if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);
 #endif
@@ -1249,9 +1256,9 @@ int e_vm86(void)
 		struct sigcontext_struct scp;
 		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */
-		TotalTime += (GETTSC() - tt0);
+		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 		dosemu_fault1(xval-1, &scp);
-		tt0 = GETTSC();
+		if (debug_level('e')) tt0 = GETTSC();
 		Scp2CpuR (&scp);
 		in_vm86 = 1;
 		retval = -1;	/* reenter vm86 emu */
@@ -1270,9 +1277,7 @@ int e_vm86(void)
   set_debug_level('e',demusav);
 #endif
   if (debug_level('e')) {
-#ifdef PROFILE
     TotalTime += (GETTSC() - tt0);
-#endif
     /* this time should become >0 only when dosemu was descheduled
      * during a vm86/dpmi call. It will be necessary to subtract this
      * value from ZeroBase to account for the elapsed time, maybe. */
@@ -1287,14 +1292,14 @@ int e_vm86(void)
 
 int e_dpmi(struct sigcontext_struct *scp)
 {
-  volatile hitimer_t tt0;
+  volatile hitimer_t tt0 = 0;
   int xval,retval,mode;
 
   if (iniflag==0) enter_cpu_emu();
 
-  tt0 = GETTSC();
+  if (debug_level('e')) tt0 = GETTSC();
   e_sigpa_count = 0;
-  TheCPU.EMUtime = GETTSC();
+  if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
 
@@ -1362,9 +1367,9 @@ int e_dpmi(struct sigcontext_struct *scp)
     }
     else {
 	int emu_dpmi_retcode;
-	TotalTime += (GETTSC() - tt0);
+	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 	emu_dpmi_retcode = dpmi_fault(scp);
-	tt0 = GETTSC();
+	if (debug_level('e')) tt0 = GETTSC();
 	if (emu_dpmi_retcode != 0) {
 	    retval=emu_dpmi_retcode; emu_dpmi_retcode = 0;
 	    if (retval == -1)
@@ -1376,10 +1381,11 @@ int e_dpmi(struct sigcontext_struct *scp)
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
   LastXNode = NULL;
-  e_printf("DPM86: retval=%#x\n", retval);
-
-  TotalTime += (GETTSC() - tt0);
-  e_printf("Sys timers d=%d\n",e_sigpa_count);
+  if (debug_level('e')) {
+    dbug_printf("DPM86: retval=%#x\n", retval);
+    TotalTime += (GETTSC() - tt0);
+    dbug_printf("Sys timers d=%d\n",e_sigpa_count);
+  }
   return retval;
 }
 

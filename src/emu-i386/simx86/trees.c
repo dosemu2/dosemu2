@@ -876,7 +876,7 @@ void DumpTree (FILE *fd)
 static int TraverseAndClean(void)
 {
   TNode *G;
-  static hitimer_t bT;
+  static hitimer_t bT = 0;
 #ifdef PROFILE
   hitimer_t t0 = 0;
 
@@ -885,7 +885,7 @@ static int TraverseAndClean(void)
   if (Traverser.init == 0) {
       Traverser.p = G = &CollectTree.root;
       Traverser.init = 1;
-      bT = GETTSC();
+      if (debug_level('e')>2) bT = GETTSC();
   }
   else
       G = Traverser.p;
@@ -893,9 +893,11 @@ static int TraverseAndClean(void)
   /* walk to next node */
   NEXTNODE(G);
   if (G == &CollectTree.root) {
-      hitimer_t bt1 = GETTSC();
-      if (debug_level('e')>2) e_printf("*\tRestart traversing n=%d %16lld\n",ninodes,(long long)(bt1-bT));
-      bT = bt1;
+      if (debug_level('e')>2) {
+          hitimer_t bt1 = GETTSC();
+          dbug_printf("*\tRestart traversing n=%d %16lld\n",ninodes,(long long)(bt1-bT));
+          bT = bt1;
+      }
       NEXTNODE(G);
   }
 

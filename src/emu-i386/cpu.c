@@ -125,7 +125,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		/* ref: Van Gilluwe, "The Undocumented PC". The program
 		 * 'cpurdtsc.exe' traps here */
 #ifdef X86_EMULATOR
-		if (config.cpuemu>1) {
+		if (config.cpuemu>1 && config.rdtsc) {
 		  REG(eax) = (unsigned long)TheCPU.EMUtime;
 		  REG(edx) = (unsigned long)(TheCPU.EMUtime>>32);
 		} else

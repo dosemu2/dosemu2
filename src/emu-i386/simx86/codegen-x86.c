@@ -2123,29 +2123,31 @@ shrot0:
 	case O_RDTSC: {
 		// rdtsc
 		G2(0x310f,Cp);
-		// movl	%%eax,%%ecx
-		// movl	%%edx,%%edi
-		G4(0xd789c189,Cp);
-		// subl	TimeStartExec.t.tl(%%ebx),%%eax
-		// sbbl	TimeStartExec.t.th(%%ebx),%%edx
-		G2(0x832b,Cp);
-		G4((unsigned char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
-		G2(0x931b,Cp);
-		G4((unsigned char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
-		// addl	TheCPU.EMUtime(%%ebx),%%eax
-		// adcl	TheCPU.EMUtime+4(%%ebx),%%edx
-		G3M(0x03,0x43,Ofs_ETIME,Cp);
-		G3M(0x13,0x53,Ofs_ETIME+4,Cp);
-		// movl	%%ecx,TimeStartExec.t.tl(%%ebx)
-		// movl	%%edi,TimeStartExec.t.th(%%ebx)
-		G2(0x8b89,Cp);
-		G4((unsigned char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
-		G2(0xbb89,Cp);
-		G4((unsigned char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
-		// movl	%%eax,TheCPU.EMUtime(%%ebx)
-		// movl	%%edx,TheCPU.EMUtime+4(%%ebx)
-		G3M(0x89,0x43,Ofs_ETIME,Cp);
-		G3M(0x89,0x53,Ofs_ETIME+4,Cp);
+		if (eTimeCorrect >= 0) {
+			// movl	%%eax,%%ecx
+			// movl	%%edx,%%edi
+			G4(0xd789c189,Cp);
+			// subl	TimeStartExec.t.tl(%%ebx),%%eax
+			// sbbl	TimeStartExec.t.th(%%ebx),%%edx
+			G2(0x832b,Cp);
+			G4((unsigned char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
+			G2(0x931b,Cp);
+			G4((unsigned char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
+			// addl	TheCPU.EMUtime(%%ebx),%%eax
+			// adcl	TheCPU.EMUtime+4(%%ebx),%%edx
+			G3M(0x03,0x43,Ofs_ETIME,Cp);
+			G3M(0x13,0x53,Ofs_ETIME+4,Cp);
+			// movl	%%ecx,TimeStartExec.t.tl(%%ebx)
+			// movl	%%edi,TimeStartExec.t.th(%%ebx)
+			G2(0x8b89,Cp);
+			G4((unsigned char *)&TimeStartExec.t.tl-CPUOFFS(0),Cp);
+			G2(0xbb89,Cp);
+			G4((unsigned char *)&TimeStartExec.t.th-CPUOFFS(0),Cp);
+			// movl	%%eax,TheCPU.EMUtime(%%ebx)
+			// movl	%%edx,TheCPU.EMUtime+4(%%ebx)
+			G3M(0x89,0x43,Ofs_ETIME,Cp);
+			G3M(0x89,0x53,Ofs_ETIME+4,Cp);
+		}
 		// movl %%eax,Ofs_EAX(%%ebx)
 		// movl %%edx,Ofs_EDX(%%ebx)
 		G3M(0x89,0x43,Ofs_EAX,Cp);
@@ -3251,9 +3253,9 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 "		prefetcht0 %0\n"
 		: : "m"(*ecpu) );
 
+	if (eTimeCorrect >= 0) {
 	__asm__ __volatile__ (
 "		push   "RE_REG(bx)"\n"
-"		pushf\n"
 "		call	1f\n"
 "		jmp	2f\n"
 "1:		push	%8\n"		/* push and get TheCPU flags    */
@@ -3265,21 +3267,38 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 "2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
 "		movl	%%eax,%1\n"	/* save PC at block exit	*/
 "		rdtsc\n"
-"		popf\n"
 "		pop    "RE_REG(bx) 	/* restore regs                 */
 		: "=S"(flg),"=c"(ePC),"=D"(mem_ref),
 		  "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th),
 		  "=&a"(TimeEndExec.t.tl),"=&d"(TimeEndExec.t.th)
 		: "c"(ecpu),"0"(flg),"2"(SeqStart)
-		: "memory"
+		: "memory", "cc"
 #ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
 		  ,"r8","r9","r10","r11"
 #endif
 		);
+	} else {
+	__asm__ __volatile__ (
+"		push   "RE_REG(bx)"\n"
+"		call	1f\n"
+"		jmp	2f\n"
+"1:		push	%4\n"		/* push and get TheCPU flags    */
+"		mov	%3,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
+"		jmp	*%5\n"		/* call SeqStart                */
+"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
+"		movl	%%eax,%1\n"	/* save PC at block exit	*/
+"		pop    "RE_REG(bx) 	/* restore regs                 */
+		: "=S"(flg),"=c"(ePC),"=D"(mem_ref)
+		: "c"(ecpu),"0"(flg),"2"(SeqStart)
+		: "memory", "cc"
+#ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
+		  ,"r8","r9","r10","r11"
+#endif
+		);
+	}
 
 	InCompiledCode = 0;
 
-	TimeEndExec.td -= TimeStartExec.td;
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | (flg &	EFLAGS_CC);
 	TheCPU.mem_ref = mem_ref;
 
@@ -3299,7 +3318,10 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 	}
 
 	
-	TheCPU.EMUtime += TimeEndExec.td;
+	if (eTimeCorrect >= 0) {
+	    TimeEndExec.td -= TimeStartExec.td;
+	    TheCPU.EMUtime += TimeEndExec.td;
+	}
 	if (debug_level('e')) {
 #ifdef PROFILE
 	    ExecTime += TimeEndExec.td;

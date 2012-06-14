@@ -3050,7 +3050,8 @@ repag0:
 		{
 		    if (debug_level('e')>2)
 			e_printf("\n%s",e_print_regs());
-		    TheCPU.EMUtime += FAKE_INS_TIME;
+		    if (eTimeCorrect >= 0)
+			TheCPU.EMUtime += FAKE_INS_TIME;
 		}
 #ifdef ASM_DUMP
 		{

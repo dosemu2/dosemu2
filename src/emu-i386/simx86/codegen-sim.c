@@ -2891,8 +2891,10 @@ static void Gen_sim(int op, int mode, ...)
 		hitimer_u t0, t1;
 		GTRACE0("O_RDTSC");
 		t0.td = GETTSC();
-		t1.td = t0.td - TheCPU.EMUtime;
-		TheCPU.EMUtime = t1.td;
+		if (eTimeCorrect >= 0) {
+			t1.td = t0.td - TheCPU.EMUtime;
+			TheCPU.EMUtime = t1.td;
+		}
 		CPULONG(Ofs_EAX) = t0.t.tl;
 		CPULONG(Ofs_EDX) = t0.t.th;
 		}
@@ -3011,7 +3013,8 @@ static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln
 		CEmuStat|=CeS_SIGPEND;
 	}
 	TheCPU.sigalrm_pending = 0;
-	TheCPU.EMUtime = GETTSC();
+	if (eTimeCorrect >= 0)
+	    TheCPU.EMUtime = GETTSC();
 	return PC;
 }
 
