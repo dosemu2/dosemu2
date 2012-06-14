@@ -91,7 +91,7 @@ void rx_buffer_slide(int num)
   com[num].rx_buf_start = 0;
 }
 
-int ser_get_send_queue_len(int num)
+int serial_get_tx_queued(int num)
 {
   int ret, queued;
   ret = ioctl(com[num].fd, TIOCOUTQ, &queued);
@@ -110,6 +110,7 @@ static void clear_int_cond(int num, u_char val)
 static void recalc_IIR(int num)
 {
   int tmp;
+  serial_update(num);
   tmp = INT_REQUEST(num);
   if (!tmp)
     com[num].IIR.val = UART_IIR_NO_INT;
@@ -883,6 +884,7 @@ do_serial_in(int num, ioport_t address)
       if(s1_printf) s_printf("SER%d: Read Divisor LSB = 0x%x\n",num,val);
     }
     else {
+      receive_engine(num);	/* see if some data can be read */
       val = get_rx(num);	/* Else, read Received Byte Register */
       if(s2_printf) s_printf("SER%d: Receive 0x%x\n",num,val);
     }

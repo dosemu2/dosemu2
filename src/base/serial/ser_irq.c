@@ -149,7 +149,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
   }
 
   /* find out how many bytes are queued by tty */
-  queued = ser_get_send_queue_len(num);
+  queued = serial_get_tx_queued(num);
   if (queued < 0)
     queued = 0;
   if (debug_level('s') > 5)
@@ -315,6 +315,13 @@ int pic_serial_run(int ilevel)
 /*                         The MAIN ENGINE LOOP                           */
 /**************************************************************************/
 
+void serial_update(int num)
+{
+  receive_engine(num);		/* Receive operations */
+  transmit_engine(num);		/* Transmit operations */
+  modstat_engine(num);  	/* Modem Status operations */
+}
+
 /* DANG_BEGIN_FUNCTION serial_run 
  *
  * This is the main housekeeping function, which should be called about
@@ -328,8 +335,7 @@ int pic_serial_run(int ilevel)
  *
  * DANG_END_FUNCTION
  */
-void
-serial_run(void)	
+void serial_run(void)
 {
   int i;
 #if 0
@@ -342,9 +348,7 @@ serial_run(void)
    */
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].fd < 0) continue;
-    receive_engine(i);		/* Receive operations */
-    transmit_engine(i);		/* Transmit operations */
-    modstat_engine(i);  	/* Modem Status operations */
+    serial_update(i);
   }
   return;
 }

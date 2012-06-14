@@ -286,7 +286,7 @@ void fossil_int14(int num)
   {
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
     int ifree = FOSSIL_RX_BUFFER_SIZE - RX_BUF_BYTES(num),
-      ofree = FOSSIL_TX_BUFFER_SIZE - ser_get_send_queue_len(num),
+      ofree = FOSSIL_TX_BUFFER_SIZE - serial_get_tx_queued(num),
       bufsize = (LWORD(ecx) <= 19) ? LWORD(ecx) : 19;
     if (ofree < 0)
       ofree = 0;
