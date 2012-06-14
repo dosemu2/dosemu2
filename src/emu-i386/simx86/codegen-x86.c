@@ -203,7 +203,8 @@ static void CodeGen(IMeta *I, int j)
 	int mode = IG->mode;
 	int rcod;
 #ifdef PROFILE
-	hitimer_t t0 = GETTSC();
+	hitimer_t t0 = 0;
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 
 	switch(IG->op) {
@@ -2361,7 +2362,7 @@ shrot0:
 	}
 	CodePtr = Cp;
 #ifdef PROFILE
-	GenTime += (GETTSC() - t0);
+	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
 
@@ -2376,7 +2377,8 @@ static void AddrGen_x86(int op, int mode, ...)
 	IMeta *I;
 	IGen *IG;
 #ifdef PROFILE
-	hitimer_t t0 = GETTSC();
+	hitimer_t t0 = 0;
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 
 	if (CurrIMeta<0) {
@@ -2458,7 +2460,7 @@ static void AddrGen_x86(int op, int mode, ...)
 	I->ngen += 1;
 	if (I->ngen >= NUMGENS) leavedos(0xbac1);
 #ifdef PROFILE
-	GenTime += (GETTSC() - t0);
+	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
 
@@ -2470,7 +2472,8 @@ static void Gen_x86(int op, int mode, ...)
 	IMeta *I;
 	IGen *IG;
 #ifdef PROFILE
-	hitimer_t t0 = GETTSC();
+	hitimer_t t0 = 0;
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 
 	if (CurrIMeta<0) {
@@ -2711,7 +2714,7 @@ static void Gen_x86(int op, int mode, ...)
 	I->ngen += 1;
 	if (I->ngen >= NUMGENS) leavedos(0xbac2);
 #ifdef PROFILE
-	GenTime += (GETTSC() - t0);
+	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
 
@@ -2952,7 +2955,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 static void NodeLinker(TNode *G)
 {
 #ifdef PROFILE
-	hitimer_t t0;
+	hitimer_t t0 = 0;
 #endif
 
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
@@ -2960,7 +2963,7 @@ static void NodeLinker(TNode *G)
 #endif
 	    return;
 #ifdef PROFILE
-	t0 = GETTSC();
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 	/* check links FROM LastXNode TO current node */
 	if (G != LastXNode) _nodelinker2(LastXNode, G);
@@ -2969,7 +2972,7 @@ static void NodeLinker(TNode *G)
 	_nodelinker2(G, G);
 
 #ifdef PROFILE
-	LinkTime += (GETTSC() - t0);
+	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
 }
 
@@ -2980,7 +2983,7 @@ void NodeUnlinker(TNode *G)
 	linkdesc *T = &G->clink;
 	backref *B = T->bkr.next;
 #ifdef PROFILE
-	hitimer_t t0;
+	hitimer_t t0 = 0;
 #endif
 
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
@@ -2988,7 +2991,7 @@ void NodeUnlinker(TNode *G)
 #endif
 	    return;
 #ifdef PROFILE
-	t0 = GETTSC();
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 	// unlink backward references (from other nodes to the current
 	// node)
@@ -3093,7 +3096,7 @@ void NodeUnlinker(TNode *G)
 	}
 	memset(T, 0, sizeof(linkdesc));
 #ifdef PROFILE
-	LinkTime += (GETTSC() - t0);
+	if (debug_level('e')) LinkTime += (GETTSC() - t0);
 #endif
 }
 
@@ -3136,7 +3139,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 		seqflg = mode >> 16;
 		NodesExecd++;
 #ifdef PROFILE
-		TotalNodesExecd++;
+		if (debug_level('e')) TotalNodesExecd++;
 #endif
 	}
 	else if (CurrIMeta > 0) {	// we're creating a new node
@@ -3175,7 +3178,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 		seqflg = I0->flags;
 		NodesParsed++;
 #ifdef PROFILE
-		TotalNodesParsed++;
+		if (debug_level('e')) TotalNodesParsed++;
 #endif
 		G = Move2Tree();	/* when is G==NULL? */
 		/* InstrMeta will be zeroed at this point */
@@ -3297,10 +3300,11 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 
 	
 	TheCPU.EMUtime += TimeEndExec.td;
+	if (debug_level('e')) {
 #ifdef PROFILE
-	ExecTime += TimeEndExec.td;
+	    ExecTime += TimeEndExec.td;
 #endif
-	if (debug_level('e')>1) {
+	    if (debug_level('e')>1) {
 		e_printf("** End code, PC=%08x sig=%x\n",ePC,
 		    TheCPU.sigalrm_pending);
 		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
@@ -3313,6 +3317,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln
 			     READ_DWORD(mem_ref));
 		    TryMemRef = 0;
 		}
+	    }
 	}
 	/* signal_pending at this point is 1 if there was ANY signal,
 	 * not just a SIGALRM

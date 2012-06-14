@@ -88,7 +88,9 @@ int SetSegReal(unsigned short sel, int ofs)
 	sd->BoundL = (sel<<4) + TheCPU.mem_base;
 	sd->BoundH = sd->BoundL + 0xffff;
 	sd->Attrib = 2;
-	e_printf("SetSeg REAL %s%04x\n",MKOFSNAM(ofs,buf),sel);
+
+	if (debug_level('e')>1)
+	    dbug_printf("SetSeg REAL %s%04x\n",MKOFSNAM(ofs,buf),sel);
 	return 0;
 }
 

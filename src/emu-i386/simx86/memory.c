@@ -103,7 +103,7 @@ static int AddMpMap(unsigned int addr, unsigned int aend, int onoff)
 			    clear_bit(page&255, M->pagemap)) & 1) << bp);
 		bp++;
 	    }
-	    if (debug_level('e')) {
+	    if (debug_level('e')>1) {
 		if (addr > mMaxMem) mMaxMem = addr;
 		if (onoff)
 		  dbug_printf("MPMAP:   protect page=%08x was %x\n",addr,bs);
@@ -313,13 +313,13 @@ int e_handle_pagefault(struct sigcontext_struct *scp)
 	 *	(f3)(66)aa,ab	stos
 	 */
 #ifdef PROFILE
-	PageFaults++;
+	if (debug_level('e')) PageFaults++;
 #endif
 	if (DPMIValidSelector(_cs))
 		p = (unsigned char *) SEL_ADR(_cs, _rip);
 	else
 		p = (unsigned char *) _rip;
-	if (debug_level('e') || (!InCompiledCode && !DPMIValidSelector(_cs))) {
+	if (debug_level('e')>1 || (!InCompiledCode && !DPMIValidSelector(_cs))) {
 		v = *((int *)p);
 		__asm__("bswap %0" : "=r" (v) : "0" (v));
 		e_printf("Faulting ops: %08x\n",v);
@@ -374,7 +374,8 @@ void mprot_end(void)
 		unsigned int addr = (M->mega<<20) | (i<<15);
 		while (b) {
 		    if (b & 1) {
-			e_printf("MP_END %08x = RWX\n",addr);
+			if (debug_level('e')>1)
+			    dbug_printf("MP_END %08x = RWX\n",addr);
 			(void)mprotect(&mem_base[addr], PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
 		    }
 		    addr += PAGE_SIZE;

@@ -238,7 +238,8 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       return 1;
     }
     else {
-      e_printf("eVGAEmuFault: unhandled page fault (not in range)\n");
+      if (debug_level('e')>1)
+	dbug_printf("eVGAEmuFault: unhandled page fault (not in range)\n");
       return 0;
     }
   }

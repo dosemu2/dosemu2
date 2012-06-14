@@ -201,8 +201,9 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		    d_nt = P1 - LONG_CS + dsp2;
 		    if (mode&DATA16) d_nt &= 0xffff;
 		    j_nt = d_nt + LONG_CS;
-	    	    e_printf("JMPs (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
-			Fetch(P1),dsp2,P1,j_t,j_nt);
+		    if (debug_level('e')>1)
+			e_printf("JMPs (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
+				 Fetch(P1),dsp2,P1,j_t,j_nt);
 		}
 		else if (Fetch(P1)==JMPd) {	/* e9 xxxx{xxxx} */
 		    int skp2 = BT24(BitDATA16,mode) + 1;
@@ -211,8 +212,9 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		    d_nt = P1 - LONG_CS + dsp2;
 		    if (mode&DATA16) d_nt &= 0xffff;
 		    j_nt = d_nt + LONG_CS;
-	    	    e_printf("JMPl (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
-			Fetch(P1),dsp2,P1,j_t,j_nt);
+		    if (debug_level('e')>1)
+			e_printf("JMPl (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
+				 Fetch(P1),dsp2,P1,j_t,j_nt);
 		}
 
 		/* backwards jump limited to 256 bytes */
@@ -254,7 +256,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 #ifdef NOJUMPS
 		if (!CONFIG_CPUSIM &&
 		    ((P2 ^ j_t) & PAGE_MASK)==0) {	// same page
-		    e_printf("** JMP: ignored\n");
+		    if (debug_level('e')>1) dbug_printf("** JMP: ignored\n");
 		    TheCPU.mode |= SKIPOP;
 		    goto takejmp;
 		}
@@ -430,7 +432,7 @@ unsigned int Interp86(unsigned int PC, int mod0)
 #endif
 			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
 #ifdef PROFILE
-				EmuSignals++;
+				if (debug_level('e')) EmuSignals++;
 #endif
 				if (CEmuStat & CeS_LOCK)
 					CEmuStat &= ~CeS_LOCK;

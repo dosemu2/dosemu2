@@ -79,7 +79,8 @@ static int m_munprotect(unsigned int addr, unsigned char *eip)
 	    return e_check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
-	e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
+	if (debug_level('e')>1)
+	    e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
 	InvalidateSingleNode(addr, eip);
 	return e_check_munprotect(addr);

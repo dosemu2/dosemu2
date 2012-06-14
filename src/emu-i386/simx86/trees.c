@@ -183,14 +183,14 @@ static TNode *avltr_probe (const int key, int *found)
       k++;
 /**/ if (k>=AVL_MAX_HEIGHT) leavedos(0x777);
 #ifdef PROFILE
-      if (k>MaxDepth) MaxDepth=k;
+      if (debug_level('e')) if (k>MaxDepth) MaxDepth=k;
 #endif
   }
   
   tree->count++;
   ninodes = tree->count;
 #ifdef PROFILE
-  if (ninodes > MaxNodes) MaxNodes = ninodes;
+  if (debug_level('e')) if (ninodes > MaxNodes) MaxNodes = ninodes;
 #endif
   q->bal = 0;
   
@@ -567,7 +567,7 @@ void avltr_destroy(void)
 {
   avltr_tree *tree;
 #ifdef PROFILE
-  hitimer_t t0;
+  hitimer_t t0 = 0;
 #endif
 
   tree = &CollectTree;
@@ -578,7 +578,7 @@ void avltr_destroy(void)
   DumpTree (tLog);
 #endif
 #ifdef PROFILE
-  t0 = GETTSC();
+  if (debug_level('e')) t0 = GETTSC();
 #endif
 
   mprot_end();
@@ -620,8 +620,10 @@ quit:
   avltr_reinit();
   mprot_init();
 #ifdef PROFILE
-  TreeCleanups++;
-  CleanupTime += (GETTSC() - t0);
+  if (debug_level('e')) {
+    TreeCleanups++;
+    CleanupTime += (GETTSC() - t0);
+  }
 #endif
 }
 
@@ -876,9 +878,9 @@ static int TraverseAndClean(void)
   TNode *G;
   static hitimer_t bT;
 #ifdef PROFILE
-  hitimer_t t0;
+  hitimer_t t0 = 0;
 
-  t0 = GETTSC();
+  if (debug_level('e')) t0 = GETTSC();
 #endif
   if (Traverser.init == 0) {
       Traverser.p = G = &CollectTree.root;
@@ -915,7 +917,7 @@ static int TraverseAndClean(void)
       Traverser.p = G;
   }
 #ifdef PROFILE
-  CleanupTime += (GETTSC() - t0);
+  if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
   return 1;
 }
@@ -934,7 +936,8 @@ TNode *Move2Tree(void)
   TNode *nG = NULL;
   IMeta *I0;
 #ifdef PROFILE
-  hitimer_t t0 = GETTSC();
+  hitimer_t t0 = 0;
+  if (debug_level('e')) t0 = GETTSC();
 #endif
   int key;
   int len, found, nap;
@@ -985,7 +988,7 @@ TNode *Move2Tree(void)
   nG->seqlen = I0->seqlen;
   nG->seqnum = I0->ncount;
 #ifdef PROFILE
-  if (nG->len > MaxNodeSize) MaxNodeSize = nG->len;
+  if (debug_level('e')) if (nG->len > MaxNodeSize) MaxNodeSize = nG->len;
 #endif
   nG->len = len = I0->totlen;
   nG->flags = I0->flags;
@@ -1051,7 +1054,7 @@ TNode *Move2Tree(void)
   if (InstrMeta==NULL) leavedos(993);
   memset(&InstrMeta[0],0,sizeof(IMeta));
 #ifdef PROFILE
-  AddTime += (GETTSC() - t0);
+  if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
   return nG;
 }
@@ -1062,7 +1065,7 @@ TNode *FindTree(int key)
   TNode *I;
   static int tccount=0;
 #ifdef PROFILE
-  hitimer_t t0;
+  hitimer_t t0 = 0;
 #endif
 
   if (TheCPU.sigprof_pending) {
@@ -1085,14 +1088,14 @@ TNode *FindTree(int key)
 			LastXNode->key, key);
 	    H->alive = NODELIFE(H);
 #ifdef PROFILE
-	    NodesFastFound++;
+	    if (debug_level('e')) NodesFastFound++;
 #endif
 	    return H;
 	}
   }
 
 #ifdef PROFILE
-  t0 = GETTSC();
+  if (debug_level('e')) t0 = GETTSC();
 #endif
   I = CollectTree.root.link[0];
   if (I == NULL) return NULL;	/* always NULL the first time! */
@@ -1113,19 +1116,19 @@ TNode *FindTree(int key)
 
   if (I && I->addr && (I->alive>0)) {
 	if (debug_level('e')>3) e_printf("Found key %08x\n",key);
-#ifdef PROFILE
-	NodesFound++;
-#endif
 	I->alive = NODELIFE(I);
 #ifdef PROFILE
-	SearchTime += (GETTSC() - t0);
+	if (debug_level('e')) {
+	    NodesFound++;
+	    SearchTime += (GETTSC() - t0);
+	}
 #endif
 	return I;
   }
 
 endsrch:
 #ifdef PROFILE
-  SearchTime += (GETTSC() - t0);
+  if (debug_level('e')) SearchTime += (GETTSC() - t0);
 #endif
   if ((ninodes>500) && (((++tccount) >= CleanFreq) || NodesCleaned)) {
 	while (NodesCleaned > 0) {
@@ -1135,10 +1138,12 @@ endsrch:
 	tccount=0;
   }
 
-  if (debug_level('e')>4) e_printf("Not found key %08x\n",key);
+  if (debug_level('e')) {
+    if (debug_level('e')>4) e_printf("Not found key %08x\n",key);
 #ifdef PROFILE
-  NodesNotFound++;
+    NodesNotFound++;
 #endif
+  }
   return NULL;
 }
 
@@ -1181,8 +1186,9 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
 	    if (enpc >= A->dnpc) {		// if it's a forward write
 		memcpy(p, TailCode, TAILSIZE);
 		*((int *)(p+TAILFIX)) = G->key + dnpc;
-		e_printf("============ Force node closing at %08x(%p)\n",
-			 (G->key+dnpc),p);
+		if (debug_level('e')>1)
+		    e_printf("============ Force node closing at %08x(%p)\n",
+			     (G->key+dnpc),p);
 		return;
 	    }
 	    A++;
@@ -1200,11 +1206,15 @@ int FindCodeNode (int addr)
   int found = 0;
   register TNode *G = &CollectTree.root;
 #ifdef PROFILE
-  hitimer_t t0;
-
-  t0 = GETTSC();
+  hitimer_t t0 = 0;
 #endif
-  if (debug_level('e')>2) e_printf("Find code node for %08x\n",addr);
+
+  if (debug_level('e')) {
+#ifdef PROFILE
+    t0 = GETTSC();
+#endif
+    if (debug_level('e')>2) e_printf("Find code node for %08x\n",addr);
+  }
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
@@ -1225,7 +1235,7 @@ int FindCodeNode (int addr)
   }
 quit:
 #ifdef PROFILE
-  SearchTime += (GETTSC() - t0);
+  if (debug_level('e')) SearchTime += (GETTSC() - t0);
 #endif
   return found;
 }
@@ -1237,11 +1247,15 @@ int InvalidateSingleNode (int addr, unsigned char *eip)
   int ah;
   TNode *G = &CollectTree.root;
 #ifdef PROFILE
-  hitimer_t t0;
-
-  t0 = GETTSC();
+  hitimer_t t0 = 0;
 #endif
-  if (debug_level('e')>1) e_printf("Invalidate at %08x\n",addr);
+
+  if (debug_level('e')) {
+#ifdef PROFILE
+    t0 = GETTSC();
+#endif
+    if (debug_level('e')>1) e_printf("Invalidate at %08x\n",addr);
+  }
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
@@ -1292,7 +1306,7 @@ int InvalidateSingleNode (int addr, unsigned char *eip)
 quit:
   LastXNode = NULL;
 #ifdef PROFILE
-  CleanupTime += (GETTSC() - t0);
+  if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
   return nnh;
 }
@@ -1304,13 +1318,13 @@ int InvalidateNodePage (int addr, int len, unsigned char *eip, int *codehit)
   register TNode *G = &CollectTree.root;
   int al, ah;
 #ifdef PROFILE
-  hitimer_t t0;
+  hitimer_t t0 = 0;
 
-  t0 = GETTSC();
+  if (debug_level('e')) t0 = GETTSC();
 #endif
   al = addr & PAGE_MASK;
   ah = ((len? addr+len-1:addr) & PAGE_MASK) + PAGE_SIZE;
-  e_printf("Invalidate area %08x..%08x\n",al,ah);
+  if (debug_level('e')>1) dbug_printf("Invalidate area %08x..%08x\n",al,ah);
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
@@ -1337,12 +1351,14 @@ int InvalidateNodePage (int addr, int len, unsigned char *eip, int *codehit)
 	int ahG = G->seqbase + G->seqlen;
 	if (RANGE_IN_RANGE(G->seqbase,ahG,al,ah)) {
 	    unsigned char *ahE = G->addr + G->len;
-	    e_printf("Invalidated node %p at %08x\n",G,G->key);
+	    if (debug_level('e')>1)
+		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
 	    G->alive = 0; G->nxkey = -1;
 	    NodeUnlinker(G);
 	    NodesCleaned++;
 	    if (codehit && ADDR_IN_RANGE(addr,G->key,ahG)) {
-		e_printf("### Also _cr2=%08x hits code %08x..%08x\n",addr,G->key,ahG);
+		if (debug_level('e')>1)
+		    e_printf("### Also _cr2=%08x hits code %08x..%08x\n",addr,G->key,ahG);
 		*codehit = 1;
 	    }
 	    /* if the current eip is in *any* chunk of code that is deleted
@@ -1353,8 +1369,9 @@ int InvalidateNodePage (int addr, int len, unsigned char *eip, int *codehit)
 	       call returns to may write to the current unprotected page.
 	    */
 	    if (eip && ADDR_IN_RANGE(eip,G->addr,ahE)) {
-	        e_printf("### Node self hit %p->%p..%p\n",
-			 eip,G->addr,ahE);
+		if (debug_level('e')>1)
+		    e_printf("### Node self hit %p->%p..%p\n",
+			     eip,G->addr,ahE);
 		BreakNode(G, eip, addr);
 	    }
 	}
@@ -1364,7 +1381,7 @@ int InvalidateNodePage (int addr, int len, unsigned char *eip, int *codehit)
 quit:
   LastXNode = NULL;
 #ifdef PROFILE
-  CleanupTime += (GETTSC() - t0);
+  if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
   return nnh;
 }
@@ -1396,12 +1413,14 @@ void e_invalidate(unsigned data, int cnt)
 static void CleanIMeta(void)
 {
 #ifdef PROFILE
-	hitimer_t t0 = GETTSC();
+	hitimer_t t0 = 0;
+
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 	if (InstrMeta==NULL) leavedos(993);
 	memset(&InstrMeta,0,sizeof(IMeta));
 #ifdef PROFILE
-	CleanupTime += (GETTSC() - t0);
+	if (debug_level('e')) CleanupTime += (GETTSC() - t0);
 #endif
 }
 
@@ -1415,7 +1434,9 @@ int NewIMeta(int npc, int mode, int *rc)
 #ifdef HOST_ARCH_X86
     if (!CONFIG_CPUSIM) {
 #ifdef PROFILE
-	hitimer_t t0 = GETTSC();
+	hitimer_t t0 = 0;
+
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 	if (CurrIMeta >= 0) {
 		// add new opcode metadata
@@ -1442,7 +1463,7 @@ int NewIMeta(int npc, int mode, int *rc)
 				CurrIMeta,I->npc,I->flags,I0->flags,I->ngen);
 		}
 #ifdef PROFILE
-		AddTime += (GETTSC() - t0);
+		if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 		CurrIMeta++;
 		if (CurrIMeta>=MAXINODES) {
@@ -1455,7 +1476,7 @@ int NewIMeta(int npc, int mode, int *rc)
 	*rc = 0;
 quit:
 #ifdef PROFILE
-	AddTime += (GETTSC() - t0);
+	if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 	return -1;
     }
@@ -1501,10 +1522,12 @@ void CollectStat (void)
 	m >>= 2;
 	xCST[cstx].m = CLEAN_SPEED(FastLog2(m));
 	i = cstx;
-	e_printf("--------------------------------------------------------------\n");
+	if (debug_level('e')>1)
+	    dbug_printf("--------------------------------------------------------------\n");
 	e_printf("SIGPROF %04d %8d %8d(%3d) %8d %d\n",i,
 		xCST[i].b,xCST[i].c,xCST[i].m,xCST[i].d,xCST[i].s);
-	e_printf("--------------------------------------------------------------\n");
+	if (debug_level('e')>1)
+	    dbug_printf("--------------------------------------------------------------\n");
 	cstx++;
 	if (cstx==CST_SIZE) {
 	    if (!xCS1) xCS1=1;
@@ -1527,11 +1550,13 @@ void CollectStat (void)
 	    CreationIndex = CLEAN_SPEED(m);
 	    CleanFreq = (8-m); if (CleanFreq<1) CleanFreq=1;
 	}
-	e_printf("--------------------------------------------------------------\n");
+	if (debug_level('e')>1)
+	    dbug_printf("--------------------------------------------------------------\n");
 	e_printf("SIGPROF %d n=%8d p=%8d x=%8d ix=%3d cln=%2d\n",
 		TheCPU.sigprof_pending,
 		ninodes,NodesParsed,NodesExecd,CreationIndex,CleanFreq);
-	e_printf("--------------------------------------------------------------\n");
+	if (debug_level('e')>1)
+	    dbug_printf("--------------------------------------------------------------\n");
 #endif
 	NodesParsed = NodesExecd = 0;
 }
@@ -1564,10 +1589,12 @@ void InitTrees(void)
 	    NodeLimit = (config.X? (NODES_IN_POOL/3):(NODES_IN_POOL/4));
 #endif
 #ifdef PROFILE
-	MaxDepth = MaxNodes = MaxNodeSize = 0;
-	TotalNodesParsed = TotalNodesExecd = PageFaults = 0;
-	NodesFound = NodesFastFound = NodesNotFound = 0;
-	TreeCleanups = 0;
+	if (debug_level('e')) {
+	    MaxDepth = MaxNodes = MaxNodeSize = 0;
+	    TotalNodesParsed = TotalNodesExecd = PageFaults = 0;
+	    NodesFound = NodesFastFound = NodesNotFound = 0;
+	    TreeCleanups = 0;
+	}
 #endif
 }
 

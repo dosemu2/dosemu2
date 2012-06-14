@@ -339,7 +339,8 @@ static void AddrGen_sim(int op, int mode, ...)
 {
 	va_list	ap;
 #ifdef PROFILE
-	hitimer_t t0 = GETTSC();
+	hitimer_t t0 = 0;
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 
 	va_start(ap, mode);
@@ -474,7 +475,7 @@ static void AddrGen_sim(int op, int mode, ...)
 	}
 	va_end(ap);
 #ifdef PROFILE
-	GenTime += (GETTSC() - t0);
+	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
 
@@ -512,7 +513,8 @@ static void Gen_sim(int op, int mode, ...)
 	int rcod=0;
 	va_list	ap;
 #ifdef PROFILE
-	hitimer_t t0 = GETTSC();
+	hitimer_t t0 = 0;
+	if (debug_level('e')) t0 = GETTSC();
 #endif
 
 	va_start(ap, mode);
@@ -1743,7 +1745,7 @@ static void Gen_sim(int op, int mode, ...)
 			cy = raft & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		e_printf("Sync C flag = %d\n", cy);
+		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
@@ -1790,7 +1792,7 @@ static void Gen_sim(int op, int mode, ...)
 				cy = (rbef>>(32-sh)) & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		e_printf("Sync C flag = %d\n", cy);
+		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
@@ -1839,7 +1841,7 @@ static void Gen_sim(int op, int mode, ...)
 			DR1.d = raft;
 		}
 		RFL.RES.d = raft;
-		e_printf("Sync C flag = %d\n", cy);
+		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1) RFL.mode |= IGNOVF;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
@@ -1880,7 +1882,7 @@ static void Gen_sim(int op, int mode, ...)
 			cy = (raft & 0x80000000U) != 0;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		e_printf("Sync C flag = %d\n", cy);
+		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
@@ -1927,7 +1929,7 @@ static void Gen_sim(int op, int mode, ...)
 			cy = (rbef>>(sh-1)) & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
-		e_printf("Sync C flag = %d\n", cy);
+		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1)
 			RFL.mode |= IGNOVF;
@@ -1970,7 +1972,7 @@ static void Gen_sim(int op, int mode, ...)
 		else
 			DR1.d = raft;
 
-		e_printf("Sync C flag = %d\n", cy);
+		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1) RFL.mode |= CLROVF;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
@@ -2011,7 +2013,7 @@ static void Gen_sim(int op, int mode, ...)
 		else
 			DR1.ds = raft;
 
-		e_printf("Sync C flag = %d\n", cy);
+		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1) RFL.mode |= CLROVF;
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
@@ -2970,7 +2972,7 @@ static void Gen_sim(int op, int mode, ...)
 	}
 	
 #ifdef PROFILE
-	GenTime += (GETTSC() - t0);
+	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
 }
 

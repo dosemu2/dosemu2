@@ -911,8 +911,10 @@ void enter_cpu_emu(void)
 	sigEMUtime = TheCPU.EMUtime + sigEMUdelta;
 	TotalTime = 0;
 #ifdef PROFILE
-	SearchTime = AddTime = ExecTime = CleanupTime =
-	GenTime = LinkTime = 0;
+	if (debug_level('e')) {
+		SearchTime = AddTime = ExecTime = CleanupTime =
+		GenTime = LinkTime = 0;
+	}
 #endif
 	e_printf("EMU86: delta alrm=%d speed=%d\n",realdelta,config.CPUSpeedInMhz);
 	e_sigpa_count = 0;
@@ -941,6 +943,45 @@ void enter_cpu_emu(void)
 	flush_log();
 	iniflag = 1;
 }
+
+#ifdef PROFILE
+static void print_statistics(void)
+{
+	dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",
+		    (long long)TotalTime/config.CPUSpeedInMhz);
+	dbug_printf("Total codgen time %16lld us\n",
+		    (long long)GenTime/config.CPUSpeedInMhz);
+	dbug_printf("Total linker time %16lld us\n",
+		    (long long)LinkTime/config.CPUSpeedInMhz);
+	dbug_printf("Total exec   time %16lld us (incl.faults)\n",
+		    (long long)ExecTime/config.CPUSpeedInMhz);
+	dbug_printf("Total insert time %16lld us\n",
+		    (long long)AddTime/config.CPUSpeedInMhz);
+	dbug_printf("Total search time %16lld us\n",
+		    (long long)SearchTime/config.CPUSpeedInMhz);
+	dbug_printf("Total clean  time %16lld us\n",
+		    (long long)CleanupTime/config.CPUSpeedInMhz);
+	dbug_printf("Max tree nodes    %16d\n",MaxNodes);
+	dbug_printf("Max node size     %16d\n",MaxNodeSize);
+	dbug_printf("Max tree depth    %16d\n",MaxDepth);
+	dbug_printf("Nodes parsed      %16d\n",TotalNodesParsed);
+	dbug_printf("Find misses       %16d\n",NodesNotFound);
+	dbug_printf("Nodes executed    %16d\n",TotalNodesExecd);
+	if (TotalNodesExecd) {
+		unsigned long long k;
+		k = ((long long)NodesFound * 100UL) /
+			(long long)TotalNodesExecd;
+		dbug_printf("Find hits         %16d (%lld%%)\n",NodesFound,k);
+		k = ((long long)NodesFastFound * 100UL) /
+			(long long)TotalNodesExecd;
+		dbug_printf("Find last hits    %16d (%lld%%)\n",
+			    NodesFastFound,k);
+	}
+	dbug_printf("Page faults       %16d\n",PageFaults);
+	dbug_printf("Signals received  %16d\n",EmuSignals);
+	dbug_printf("Tree cleanups     %16d\n",TreeCleanups);
+}
+#endif
 
 void leave_cpu_emu(void)
 {
@@ -974,29 +1015,7 @@ void leave_cpu_emu(void)
 		LDT = NULL; GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 #ifdef PROFILE
-		dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",(long long)TotalTime/config.CPUSpeedInMhz);
-		dbug_printf("Total codgen time %16lld us\n",(long long)GenTime/config.CPUSpeedInMhz);
-		dbug_printf("Total linker time %16lld us\n",(long long)LinkTime/config.CPUSpeedInMhz);
-		dbug_printf("Total exec   time %16lld us (incl.faults)\n",(long long)ExecTime/config.CPUSpeedInMhz);
-		dbug_printf("Total insert time %16lld us\n",(long long)AddTime/config.CPUSpeedInMhz);
-		dbug_printf("Total search time %16lld us\n",(long long)SearchTime/config.CPUSpeedInMhz);
-		dbug_printf("Total clean  time %16lld us\n",(long long)CleanupTime/config.CPUSpeedInMhz);
-		dbug_printf("Max tree nodes    %16d\n",MaxNodes);
-		dbug_printf("Max node size     %16d\n",MaxNodeSize);
-		dbug_printf("Max tree depth    %16d\n",MaxDepth);
-		dbug_printf("Nodes parsed      %16d\n",TotalNodesParsed);
-		dbug_printf("Find misses       %16d\n",NodesNotFound);
-		dbug_printf("Nodes executed    %16d\n",TotalNodesExecd);
-		if (TotalNodesExecd) {
-		  unsigned long long k;
-		  k = ((long long)NodesFound * 100UL) / (long long)TotalNodesExecd;
-		  dbug_printf("Find hits         %16d (%lld%%)\n",NodesFound,k);
-		  k = ((long long)NodesFastFound * 100UL) / (long long)TotalNodesExecd;
-		  dbug_printf("Find last hits    %16d (%lld%%)\n",NodesFastFound,k);
-		}
-		dbug_printf("Page faults       %16d\n",PageFaults);
-		dbug_printf("Signals received  %16d\n",EmuSignals);
-		dbug_printf("Tree cleanups     %16d\n",TreeCleanups);
+		if (debug_level('e')) print_statistics();
 #endif
 		/*re*/init_emu_cpu();
 	}
@@ -1062,14 +1081,16 @@ static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 
 	/* see config.c: int21 goes here when debug_level('D')==0 ... */
 	if (i!=0x16) {
-	    e_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
-		i, _AX, _CS, _IP);
+	    if (debug_level('e')>1)
+	        dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
+			    i, _AX, _CS, _IP);
 	    e_should_clean_tree(i);
 	}
 	return -1;
 
 cannot_handle:
-	e_printf("EMU86: calling revectored int %#x\n", i);
+	if (debug_level('e')>1)
+	    dbug_printf("EMU86: calling revectored int %#x\n", i);
 	e_should_clean_tree(i);
 	return (VM86_INTx + (i << 8));
 }
@@ -1168,9 +1189,11 @@ int e_vm86(void)
     do {
       /* enter VM86 mode */
       in_vm86_emu = 1;
-      e_printf("INTERP: enter=%08x\n",trans_addr);
+      if (debug_level('e')>1)
+	dbug_printf("INTERP: enter=%08x\n",trans_addr);
       return_addr = Interp86(trans_addr, mode);
-      e_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
+      if (debug_level('e')>1)
+	dbug_printf("INTERP: exit=%08x err=%d\n",return_addr,TheCPU.err-1);
       xval = TheCPU.err;
       in_vm86_emu = 0;
       /* 0 if ok, else exception code+1 or negative if dosemu err */
@@ -1240,16 +1263,22 @@ int e_vm86(void)
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
   LastXNode = NULL;
-  e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
+  if (debug_level('e')>1)
+    e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
 
 #ifdef SKIP_VM86_TRACE
   set_debug_level('e',demusav);
 #endif
-  TotalTime += (GETTSC() - tt0);
-  /* this time should become >0 only when dosemu was descheduled
-   * during a vm86/dpmi call. It will be necessary to subtract this
-   * value from ZeroBase to account for the elapsed time, maybe. */
-  e_printf("Sys timers d=%d\n",e_sigpa_count);
+  if (debug_level('e')) {
+#ifdef PROFILE
+    TotalTime += (GETTSC() - tt0);
+#endif
+    /* this time should become >0 only when dosemu was descheduled
+     * during a vm86/dpmi call. It will be necessary to subtract this
+     * value from ZeroBase to account for the elapsed time, maybe. */
+    if (debug_level('e')>1)
+      dbug_printf("Sys timers d=%d\n",e_sigpa_count);
+  }
   return retval;
 }
 
