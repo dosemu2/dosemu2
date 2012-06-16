@@ -931,6 +931,7 @@ do_serial_in(int num, ioport_t address)
     break;
 
   case UART_MSR:	/* Read from Modem Status Register */
+    modstat_engine(num);
     val = get_msr(num);
     if(s2_printf) s_printf("SER%d: Read MSR = 0x%x\n",num,val);
     break;
