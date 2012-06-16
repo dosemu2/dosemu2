@@ -102,9 +102,33 @@ int serial_get_tx_queued(int num)
 
 static void clear_int_cond(int num, u_char val)
 {
+  Bit8u iir_int;
+
   com[num].int_condition &= ~val;
-  /* reset IIR to recalculate it later */
-  com[num].IIR.val = UART_IIR_NO_INT;
+
+  if (com[num].IIR.val & UART_IIR_NO_INT)
+    iir_int = 0;
+  else switch (com[num].IIR.val & UART_IIR_ID) {
+  case UART_IIR_MSI:
+    iir_int = MS_INTR;
+    break;
+  case UART_IIR_THRI:
+    iir_int = TX_INTR;
+    break;
+  case UART_IIR_RDI:
+    iir_int = RX_INTR;
+    break;
+  case UART_IIR_RLSI:
+    iir_int = LS_INTR;
+    break;
+  default:
+    iir_int = 0;	/* shut up gcc warning */
+    break;
+  }
+  if (iir_int & val) {
+    /* reset IIR to recalculate later */
+    com[num].IIR.val = UART_IIR_NO_INT;
+  }
 }
 
 static void recalc_IIR(int num)
@@ -447,7 +471,7 @@ static int get_rx(int num)
     }
 
     /* The FIFO is not empty, so is an interrupt flagged right now? */
-    else if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_RDI) {
+    else if (com[num].IIR.val & UART_IIR_RDI) {
       /* Did the FIFO drop below the trigger level? */
       if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger) {
         clear_int_cond(num, RX_INTR);	/* Clear receive condition */
@@ -906,7 +930,7 @@ do_serial_in(int num, ioport_t address)
     if (com[num].IIR.val == UART_IIR_NO_INT)
       recalc_IIR(num);
     val = com[num].IIR.val;
-    if ((com[num].IIR.val & UART_IIR_ID) == UART_IIR_THRI) {
+    if (com[num].IIR.val & UART_IIR_THRI) {
       if(s2_printf) s_printf("SER%d: Read IIR = 0x%x (THRI now cleared)\n",num,val);
       clear_int_cond(num, TX_INTR);	/* Unflag TX int condition */
     }
