@@ -5,6 +5,7 @@
  */
 
 #include "config.h"
+#include "version.h"
 #include "emu.h"
 
 #define DOSC_GENERIC	1

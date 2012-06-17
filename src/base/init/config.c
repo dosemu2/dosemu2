@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <sys/utsname.h>
 
+#include "version.h"
 #include "emu.h"
 #include "timers.h"
 #include "video.h"
@@ -360,6 +361,7 @@ static void our_envs_init(char *usedoptions)
     setenv("KERNEL_VERSION_CODE", buf, 1);
     sprintf(buf, "%d", DOSEMU_VERSION_CODE);
     setenv("DOSEMU_VERSION_CODE", buf, 1);
+    setenv("DOSEMU_VERSION", VERSTR, 1);
     sprintf(buf, "%d", geteuid());
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());

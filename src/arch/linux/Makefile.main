@@ -50,7 +50,7 @@ DOCS= ../man
 
 ###################################################################
 
-default: version include/version.h include/confpath.h doslib \
+default: version include/version.h include/confpath.h ../dosemu.spec doslib \
 	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
 
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
@@ -125,15 +125,18 @@ versetup:
 
 .PHONY: include/version.h
 include/version.h:
-	if ! test -f include/version.h || test \"$(PACKAGE_VERSION)\" != \
-	          `head -n1 include/version.h | cut -f3`; then \
+	@if ! test -f include/version.h || test \"$(PACKAGE_VERSION)\" != \
+	          `head -n3 include/version.h | cut -f3`; then \
 	  echo "Updating version.h"; \
-	  echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" > $@; \
+	  echo "#ifndef	VERSION_H" > $@; \
+	  echo "#define	VERSION_H" >> $@; \
+	  echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
 	  echo "#define	VERSION	$(VERSION)" >> $@; \
 	  echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
 	  echo "#define	PATCHLEVEL1	$(PATCHLEVEL1)" >> $@; \
 	  echo "#define	PATCHLEVEL2	$(PATCHLEVEL2)" >> $@; \
 	  echo "#define	VERDATE	\"`(cd $(top_srcdir) && ./getversion -d)`\"" >> $@; \
+	  echo "#endif /* VERSION_H */" >> $@; \
 	fi
 
 include/confpath.h: ../Makefile.conf
@@ -142,6 +145,9 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
+
+../dosemu.spec: ../dosemu.spec.in
+	sed -e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
 	@echo ""

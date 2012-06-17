@@ -85,6 +85,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <syscall.h>
 #endif
 
+#include "version.h"
 #include "memory.h"
 
 #ifdef USE_MHPDBG

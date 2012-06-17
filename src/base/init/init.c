@@ -16,6 +16,7 @@
 #include <errno.h>
 
 #include "config.h"
+#include "version.h"
 #include "emu.h"
 #include "memory.h"
 #include "dpmi.h"

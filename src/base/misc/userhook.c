@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 
+#include "version.h"
 #include "emu.h"
 #include "video.h"
 #include "utilities.h"

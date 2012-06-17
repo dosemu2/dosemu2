@@ -674,7 +674,7 @@ AC_SUBST(X_CFLAGS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
-AC_CONFIG_FILES([Makefile.conf dosemu.spec])
+AC_CONFIG_FILES([Makefile.conf])
 
 AC_CONFIG_COMMANDS([Makefile], 
 [ if ! test -f configure.ac; then 

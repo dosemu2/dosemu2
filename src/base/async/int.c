@@ -20,6 +20,7 @@
 #include <errno.h>
 
 #include "config.h"
+#include "version.h"
 
 #include "emu.h"
 #include "serial.h"
