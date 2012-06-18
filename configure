@@ -6577,7 +6577,7 @@ DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD"
 
 
 
-ac_config_files="$ac_config_files Makefile.conf dosemu.spec"
+ac_config_files="$ac_config_files Makefile.conf"
 
 
 ac_config_commands="$ac_config_commands Makefile"
@@ -7330,7 +7330,6 @@ do
   case $ac_config_target in
     "src/include/config.h") CONFIG_HEADERS="$CONFIG_HEADERS src/include/config.h" ;;
     "Makefile.conf") CONFIG_FILES="$CONFIG_FILES Makefile.conf" ;;
-    "dosemu.spec") CONFIG_FILES="$CONFIG_FILES dosemu.spec" ;;
     "Makefile") CONFIG_COMMANDS="$CONFIG_COMMANDS Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
