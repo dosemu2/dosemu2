@@ -993,7 +993,7 @@ disk_init(void)
     if (S_ISBLK(stbuf.st_mode) && 
     (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
     ) {
-      d_printf("DISK %s removeable\n", dp->dev_name);
+      d_printf("DISK %s removable\n", dp->dev_name);
       dp->removeable = 1;
       dp->fdesc = -1;
       continue;

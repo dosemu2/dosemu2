@@ -463,7 +463,7 @@ int main(int argc, char **argv)
       break;
     default:
       if (warning)
-	fprintf(stderr, "Warning: Unkown midi message (0x%02x)\n", ch);
+	fprintf(stderr, "Warning: Unknown midi message (0x%02x)\n", ch);
       getbyte_next();
       break;
     }

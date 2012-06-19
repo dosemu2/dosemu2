@@ -276,7 +276,7 @@ int main (int argc, char **argv)
             fprintf(stderr, "...oh dear, have to do kill SIGKILL\n");
             kill(dospid, SIGKILL);
             fprintf(stderr, "dosemu process (pid %d) is killed\n",dospid);
-            fprintf(stderr, "If you want to switch to an other console,\n"
+            fprintf(stderr, "If you want to switch to another console,\n"
                             "then enter a number between 1..8, else just type enter:\n");
             key=fgetc(stdin);
             if ((key>='1') && (key<='8')) switch_console(key);

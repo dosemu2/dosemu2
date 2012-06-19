@@ -2179,7 +2179,7 @@ err:
 	  _ebx = block.base;
 	  _esi = block.handle;
 	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08x at 0x%08x (%s)\n",
-		   _ecx, base_address, _edx ? "commited" : "uncommitted");
+		   _ecx, base_address, _edx ? "committed" : "uncommitted");
 	  D_printf("      malloc returns address %#x\n", block.base);
 	  D_printf("                using handle 0x%08x\n",block.handle);
 	  break;
