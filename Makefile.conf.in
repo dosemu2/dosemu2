@@ -119,6 +119,7 @@ else
 endif
 THISVERSION:=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 BINPATH:=$(top_builddir)/$(THISVERSION)
+RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
 
 ifdef USE_DL_PLUGINS
 DL_CFLAGS:=-fPIC

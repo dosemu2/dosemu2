@@ -135,7 +135,7 @@ include/version.h:
 	  echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
 	  echo "#define	PATCHLEVEL1	$(PATCHLEVEL1)" >> $@; \
 	  echo "#define	PATCHLEVEL2	$(PATCHLEVEL2)" >> $@; \
-	  echo "#define	VERDATE	\"`(cd $(top_srcdir) && ./getversion -d)`\"" >> $@; \
+	  echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	  echo "#endif /* VERSION_H */" >> $@; \
 	fi
 
