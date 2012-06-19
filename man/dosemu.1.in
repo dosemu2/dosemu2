@@ -73,7 +73,7 @@ plain text output to stdout, but has the advantage that (A) the output of
 the DOS application stacks up in your xterm scroll buffer and (B) you can
 redirect it to a file such as
 .TP
-		$ dosemu -dumb dir > listing
+		$ dosemu \-dumb dir > listing
 
 Note that DOSEMU command.com's commandline editor/history will also work
 here, however, editing is restricted to BACKSPACE'ing.
@@ -148,9 +148,9 @@ default directories of the local per user DOSEMU instance
 .TP   
 .I @datadir@/dosemu/
 .TP   
-.I @datadir@/dosemu/dosemu-bin.tgz
+.I @datadir@/dosemu/dosemu\-bin.tgz
 .TP   
-.I @datadir@/dosemu/dosemu-freedos-bin.tgz
+.I @datadir@/dosemu/dosemu\-freedos\-bin.tgz
 default systemwide installation, containing binaries and templates
 (The paths can be changed during creation of the systemwide installation).
 

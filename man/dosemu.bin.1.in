@@ -150,10 +150,10 @@ detach from current virtual console or tty and attach to the first free
 virtual console
 .TP
 .I [-E] dos-command
-Run DOS command when starting DOSEMU, and, if '-E' is not given, exit
+Run DOS command when starting DOSEMU, and, if '\-E' is not given, exit
 DOSEMU after running the command. The command can also be given with
 a Linux path (for example /home/joeuser/dosemu/freedos/bin/xcopy.exe).
-Note: this only works if your autoexec.bat contains a "unix -e" command.
+Note: this only works if your autoexec.bat contains a "unix \-e" command.
 .TP
 .I -k
 use RAW console Keyboard (must be at the console)
@@ -203,20 +203,20 @@ Parse the string behind
 .I -I
 with the same syntax as global.conf or .dosemurc such as
 .TP
-		dos ... -I 'video { mda }'
+		dos ... \-I 'video { mda }'
 
 This is useful if you just want to override a given
 configuration parameter temporary. You also may have a generic configuration
 by executing a script such as
 .TP
-		dos ... -I "`myconf.sh`"
+		dos ... \-I "`myconf.sh`"
 
 where
 .I myconf.sh
 is a script writing the configuration to stdout. If you have an alternate
 configuration file besides .dosrc,
 .TP
-		dos ... -I "`cat myother.conf`"
+		dos ... \-I "`cat myother.conf`"
 
 will do the job. Note however, that you have to quote the parameter behind
 .I -I
@@ -238,7 +238,7 @@ link(s) will automatically point to updated files.
 specify which Debugging messages to allow/suppress
 .TP
 .I -h
-dump configuration to stderr and exit (implicit sets -D+c). This is useful
+dump configuration to stderr and exit (implicit sets \-D+c). This is useful
 for debugging configuration files, you should use
 .I -O
 too to direct the +c type messages to stderr. `level' can be 0, 1 or 2
@@ -251,7 +251,7 @@ with
 .I -H1
 you force dosemu to wait until the dosdebug terminal has connected. Hence to
 debug a DOS session from the very beginning you first start dosemu
-with -H1 and then start dosdebug.
+with \-H1 and then start dosdebug.
 DOSEMU will then lock before jumping into the loaded bootsector waiting
 for dosdebug to connect. Once connected you are in `stopped' state
 and can set breakpoints or single-step through the bootstrap code.
@@ -450,19 +450,19 @@ you wish
 .B dos
 to allow. The syntax of this is 
 .B DOSEMU
-takes an option "-D FLAGS", where FLAGS is a string of letters
+takes an option "\-D FLAGS", where FLAGS is a string of letters
 which specify which options to print or suppress.
 .B DOSEMU
 parses this string from left to right.
 
    +   turns the following options on (initial state)
-   -   turns the following options off
+   \-   turns the following options off
    a   turns all the options on/off, depending on flag
    0   turns all options off
    1-9 sets the debug level, the higher, the more output
    #   where # is a letter from the valid class list, 
        turns that option off/on depending on the 
-       +/- state.
+       +/\- state.
 
 .I Message Classes:
 
@@ -509,9 +509,9 @@ In case you didn't redirect stderr, nearly all output to stderr goes to
 .B /dev/null.
 
 Some examples:
-  "-D+a-v" or "-D1-v"  : all messages but video
-  "-D+kd"              : default + keyboard and disk
-  "-D0+RW"             : only disk READ and WRITE
+  "\-D+a\-v" or "\-D1\-v"  : all messages but video
+  "\-D+kd"              : default + keyboard and disk
+  "\-D0+RW"             : only disk READ and WRITE
 
 Any option letter can occur in any place.  Even pointless combinations,
 such as 
