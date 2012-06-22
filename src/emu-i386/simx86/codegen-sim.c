@@ -75,7 +75,6 @@ static void Gen_sim(int op, int mode, ...);
 static void AddrGen_sim(int op, int mode, ...);
 static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln);
 
-int TrapVgaOn = 0;
 int UseLinker = 0;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -488,18 +487,15 @@ static inline int vga_access(unsigned int m)
 
 static inline int vga_read_access(unsigned int m)
 {
-	/* unmapped VGA memory or using a planar mode */
-	if ((TheCPU.mode&RM_REG) || !TrapVgaOn) return 0;
-	m -= TheCPU.mem_base;
-	return (unsigned)(m - vga.mem.graph_base) < vga.mem.graph_size &&
-		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
-		 vga.inst_emu);
+	/* Using a planar mode */
+	if (TheCPU.mode&RM_REG) return 0;
+	return vga_access(m);
 }
 
 static inline int vga_write_access(unsigned int m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a planar mode */
-	if ((TheCPU.mode&RM_REG) || !TrapVgaOn) return 0;
+	if ((TheCPU.mode&RM_REG) || !Video->update_screen) return 0;
 	m -= TheCPU.mem_base;	
 	return ((unsigned)(m - vga.mem.graph_base) < 
 		vga.mem.graph_size + (vgaemu_bios.pages<<12) &&
@@ -679,10 +675,7 @@ static void Gen_sim(int op, int mode, ...)
 	case L_VGAREAD:
 		if (vga_read_access(AR1.d)) {
 			GTRACE0("L_VGAREAD");
-			if (vga_access(AR1.d))
-			    DR1.d = e_VgaRead(AR1.d, mode);
-			else
-			    DR1.d = 0xffffffff;
+			DR1.d = e_VgaRead(AR1.d, mode);
 			break;
 		}
 		GTRACE0("L_DI");
@@ -2518,10 +2511,7 @@ static void Gen_sim(int op, int mode, ...)
 		}
 		if (vga_read_access(AR2.d)) {
 		    while (i--) {
-			if (vga_access(AR2.d))
-			    DR1.d = e_VgaRead(AR2.d, mode);
-			else
-			    DR1.d = 0xffffffff;
+			DR1.d = e_VgaRead(AR2.d, mode);
 			AR2.pu += df;
 			if (!(mode&MBYTE)) {
 			    AR2.pu += df;

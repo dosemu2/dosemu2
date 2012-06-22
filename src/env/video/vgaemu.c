@@ -199,7 +199,7 @@
 
 /*
  * We add PROT_EXEC just because pages should be executable. Of course
- * Intel's x86 processors do not support non-executable pages, but anyway...
+ * Intel's x86 processors do not all support non-executable pages, but anyway...
  */
 #define VGA_EMU_RW_PROT		(PROT_READ | PROT_WRITE | PROT_EXEC)
 #define VGA_EMU_RO_PROT		(PROT_READ | PROT_EXEC)
@@ -328,17 +328,16 @@ volatile static int my_fault = 0;
 static void chk_ro()
 {
 #ifdef X86_EMULATOR
-  if (config.cpuemu<1) {
+  if (config.cpuemu<1)
 #endif
-    volatile char *p = (char *) 0xa0077;
+  {
+    volatile char *p = (char *) &mem_base[0xa0077];
     my_fault = 1;
     *p = 0x99;
     if(my_fault) {
       vga_deb_map("vga_emu_fault: IS WRITABLE\n");
     }
-#ifdef X86_EMULATOR
   }
-#endif
   my_fault = 0;
 }
 #endif
@@ -1184,11 +1183,7 @@ int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
     return 1;
   }
 
-  prot = (vga.inst_emu==EMU_ALL_INST
-#ifdef X86_EMULATOR
-	|| config.cpuemu>1
-#endif
-	? NONE : RO);
+  prot = (vga.inst_emu==EMU_ALL_INST ? NONE : RO);
 
   if(!vga.inst_emu) {
     if(vga.mem.dirty_map[page]) prot = RW;
@@ -1305,11 +1300,6 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   if(vmt->pages + first_page > vga.mem.pages) return 2;
 
   /* default protection for dirty pages */
-#ifdef X86_EMULATOR
-  if (config.cpuemu>1)
-      prot = VGA_EMU_NONE_PROT;
-  else
-#endif
   switch(vga.inst_emu) {
     case EMU_WRITE_INST:
       prot = VGA_EMU_RO_PROT;
@@ -1390,7 +1380,7 @@ void vgaemu_reset_mapping()
   if (!Video->update_screen) return;
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
 
-  prot = VGA_EMU_RW_PROT;
+  prot = VGA_EMU_RO_PROT;
   startpage = config.mem_size > 640 ? (config.mem_size + 3) / 4: 0xa0;
   vga.mem.graph_base = startpage << 12;
   vga.mem.graph_size = 0xc0000 - vga.mem.graph_base;

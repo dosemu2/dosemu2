@@ -212,8 +212,6 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       if (!CONFIG_CPUSIM) {
 	u = jitx86_instr_len((unsigned char *)_rip);
 	_rip += u;
-	if ((_err & 2) == 0)
-	  _eax = 0xffffffff;
       }
 #endif
       if (u==0) {
@@ -442,11 +440,6 @@ int e_emu_fault(struct sigcontext_struct *scp)
 	if (Video->update_screen) {
 		if (!DPMIValidSelector(_cs)) {
 			unsigned pf = (unsigned char *)_cr2 - mem_base;
-			if ((unsigned)(pf - vga.mem.graph_base) < 
-			    vga.mem.graph_size) {
-				TrapVgaOn = 1;
-			}
-			/* VGAEMU may also access/protect the LFB */
 			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
 		} else {
 			if(VGA_EMU_FAULT(scp,code,1)==True) {

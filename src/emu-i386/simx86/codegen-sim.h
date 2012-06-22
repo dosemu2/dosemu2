@@ -88,8 +88,6 @@ extern wkreg SR1;	// "ebp"
 extern wkreg TR1;	// "ecx"
 extern flgtmp RFL;
 
-extern int TrapVgaOn;
-
 #define GTRACE0(s)		if (debug_level('e')>2) e_printf("(G) %-12s [%s]\n",(s),showmode(mode))
 #define GTRACE1(s,r)		if (debug_level('e')>2) e_printf("(G) %-12s %s [%s]\n",(s),\
 					showreg(r),showmode(mode))

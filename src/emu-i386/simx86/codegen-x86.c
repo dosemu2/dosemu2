@@ -474,7 +474,7 @@ static void CodeGen(IMeta *I, int j)
 
 //	case L_DI_R1:
 	case L_VGAREAD:
-		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
+		if (!(TheCPU.mode&RM_REG) && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
 		    // movl %%edi,%%eax
 		    G2M(0x89,0xf8,Cp);
@@ -514,7 +514,7 @@ static void CodeGen(IMeta *I, int j)
 		break;
 //	case S_DI:
 	case L_VGAWRITE:
-		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
+		if (!(TheCPU.mode&RM_REG) && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
 		    // movl %%edi,%%ecx
 		    G2M(0x89,0xf9,Cp);
