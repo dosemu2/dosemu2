@@ -245,7 +245,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
   if (vga_page < vga.mem.pages) {
     unsigned char *p;
     unsigned long cxrep;
-    int w16;
+    int w16, mode;
 
     vga.mem.dirty_map[vga_page] = 1;
 
@@ -268,17 +268,17 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
      * this will cause the cpuemu to fail.
      */
     switch (*p) {
-	case 0x88:	// write byte
+/*88*/	case MOVbfrm:
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		e_VgaWrite(_edi,_eax,MBYTE);
 		_rip = (long)(p+2); break;
-	case 0x89:	// write word
+/*89*/	case MOVwfrm:
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32));
 		_rip = (long)(p+2); break;
-	case 0x8a:	// read byte
+/*8a*/	case MOVbtrm:
 		if (_err&2) goto badrw;
 		if (p[1]==0x07)
 		    LO_BYTE(_eax) = e_VgaRead(_edi,MBYTE);
@@ -286,7 +286,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		    LO_BYTE(_edx) = e_VgaRead(_edi,MBYTE);
 		else goto unimp;
 		_rip = (long)(p+2); break;
-	case 0x8b:	// read word
+/*8b*/	case MOVwtrm:
 		if (_err&2) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		if (w16)
@@ -294,33 +294,49 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		else
 			_eax = e_VgaRead(_edi,DATA32);
 		_rip = (long)(p+2); break;
-	case 0xa4: {	// MOVsb
+/*a4*/	case MOVSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		e_VgaMovs(scp, 1, 0, d);
 		_rip = (long)(p+1); } break;
-	case 0xa5: {	// MOVsw
+/*a5*/	case MOVSw: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		e_VgaMovs(scp, 0, w16, d*2);
 		_rip = (long)(p+1); } break;
-	case 0xaa: {	// STOsb
+/*a6*/	case CMPSb:
+		mode = MBYTE;
+		goto CMPS_common;
+/*a7*/	case CMPSw:
+		mode = w16 ? DATA16 : 0;
+	CMPS_common:
+		mode |= MOVSSRC|MOVSDST;
+		AR1.d = _edi;
+		AR2.d = _esi;
+		TR1.d = 1;
+		Gen_sim(O_MOVS_CmpD, mode);
+		FlagSync_All();
+		_edi = AR1.d;
+		_esi = AR2.d;
+		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		break;
+/*aa*/	case STOSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if ((_err&2)==0) goto badrw;
 		e_VgaWrite(_edi,_eax,MBYTE);
 		_edi+=d;
 		_rip = (long)(p+1); } break;
-	case 0xab: {	// STOsw
+/*ab*/	case STOSw: {
 		int d = (_eflags & EFLAGS_DF? -4:4);
 		if ((_err&2)==0) goto badrw;
 		if (w16) d>>=1;
 		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32)); _edi+=d;
 		_rip = (long)(p+1); } break;
-	case 0xac: {	// LODsb
+/*ac*/	case LODSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;
 		LO_BYTE(_eax) = e_VgaRead(_esi,MBYTE);
 		_esi+=d;
 		_rip = (long)(p+1); } break;
-	case 0xad: {	// LODsw
+/*ad*/	case LODSw: {
 		int d = (_eflags & EFLAGS_DF? -4:4);
 		if (_err&2) goto badrw;
 		if (w16) {
@@ -331,10 +347,28 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		    _eax = e_VgaRead(_esi,DATA32);
 		_esi+=d;
 		_rip = (long)(p+1); } break;
-	case 0xf3: {
+/*ae*/	case SCASb:
+		mode = MBYTE;
+		goto SCAS_common;
+/*af*/	case SCASw:
+		mode = w16 ? DATA16 : 0;
+	SCAS_common:
+		mode |= MOVSDST;
+		AR1.d = _edi;
+		DR1.d = _eax;
+		TR1.d = 1;
+		Gen_sim(O_MOVS_ScaD, mode);
+		FlagSync_All();
+		_edi = AR1.d;
+		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		break;
+/*f2*/	case REPNE:
+/*f3*/	case REP: {
+		int repmod;
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (p[1]==0x66) w16=1,p++;
-		if (p[1]==0xaa) {
+		switch(p[1]) {
+	/*aa*/	case STOSb:
 		    if ((_err&2)==0) goto badrw;
 		    cxrep = _ecx;
 		    while (cxrep--) {
@@ -342,11 +376,11 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 			_edi+=d;
 		    }
 		    _ecx = 0;
-		}
-		else if (p[1]==0xa4) {
+		    break;
+	/*a4*/	case MOVSb:
 		    e_VgaMovs(scp, 3, 0, d);
-		}
-		else if (p[1]==0xab) {
+		    break;
+	/*ab*/	case STOSw:
 		    if ((_err&2)==0) goto badrw;
 		    if (w16) {
 		      d *= 2;
@@ -366,11 +400,47 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		      }
 		      _ecx = 0;
 		    }
-		}
-		else if (p[1]==0xa5) {
+		    break;
+	/*a5*/	case MOVSw:
 		    e_VgaMovs(scp, 2, w16, d*2);
+		    break;
+	/*a6*/	case CMPSb:
+		    repmod = MBYTE;
+		    goto REPCMPS_common;
+	/*a7*/	case CMPSw:
+		    repmod = w16 ? DATA16 : 0;
+		REPCMPS_common:
+		    repmod |= MOVSSRC|MOVSDST|MREPCOND|
+		      (p[0]==REPNE? MREPNE:MREP);
+		    AR1.d = _edi;
+		    AR2.d = _esi;
+		    TR1.d = _ecx;
+		    Gen_sim(O_MOVS_CmpD, repmod);
+		    FlagSync_All();
+		    _edi = AR1.d;
+		    _esi = AR2.d;
+		    _ecx = TR1.d;
+		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		    break;
+	/*ae*/	case SCASb:
+		    repmod = MBYTE;
+		    goto REPSCAS_common;
+	/*af*/	case SCASw:
+		    repmod = w16 ? DATA16 : 0;
+		REPSCAS_common:
+		    repmod |= MOVSDST|MREPCOND|(p[0]==REPNE? MREPNE:MREP);
+		    AR1.d = _edi;
+		    DR1.d = _eax;
+		    TR1.d = _ecx;
+		    Gen_sim(O_MOVS_ScaD, repmod);
+		    FlagSync_All();
+		    _edi = AR1.d;
+		    _ecx = TR1.d;
+		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		    break;
+		default:
+		    goto unimp;
 		}
-		else goto unimp;
 		_rip = (long)(p+2); }
 		break;
 	default:

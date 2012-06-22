@@ -102,6 +102,7 @@ extern flgtmp RFL;
 extern void FlagSync_AP (void);
 extern void FlagSync_O (void);
 extern void FlagSync_All (void);
+extern void Gen_sim(int op, int mode, ...);
 
 /////////////////////////////////////////////////////////////////////////////
 

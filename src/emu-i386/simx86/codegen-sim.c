@@ -71,7 +71,6 @@
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
 unsigned int (*CloseAndExec)(unsigned int PC, TNode *G, int mode, int ln);
-static void Gen_sim(int op, int mode, ...);
 static void AddrGen_sim(int op, int mode, ...);
 static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln);
 
@@ -504,7 +503,7 @@ static inline int vga_write_access(unsigned int m)
 		 vga.inst_emu));
 }
 
-static void Gen_sim(int op, int mode, ...)
+void Gen_sim(int op, int mode, ...)
 {
 	int rcod=0;
 	va_list	ap;
@@ -2602,7 +2601,33 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
-		while (i && (z==k)) {
+		if (vga_read_access(AR1.d)) while (i && (z==k)) {
+		    while (i--) {
+			AR1.pu += df;
+			if (!(mode&MBYTE)) {
+			    AR1.pu += df;
+			    if (!(mode&DATA16)) AR1.pu += 2*df;
+			}
+		    }
+		    DR2.d = e_VgaRead(AR1.d, mode);
+		    if (mode&MBYTE) {
+			RFL.RES.d = (RFL.S1=DR1.b.bl) + (RFL.S2=-DR2.b.bl);
+			AR1.pu += df;
+			z = (RFL.RES.b.bl==0);
+		    }
+		    else if (mode&DATA16) {
+			RFL.RES.d = (RFL.S1=DR1.w.l) + (RFL.S2=-DR2.w.l);
+			AR1.pwu += df;
+			z = (RFL.RES.w.l==0);
+		    }
+		    else {
+			RFL.RES.d = (RFL.S1=DR1.d) + (RFL.S2=-DR2.d);
+			AR1.pdu += df;
+			z = (RFL.RES.d==0);
+		    }
+		    i--;
+		}
+		else while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			RFL.RES.d = (RFL.S1=DR1.b.bl) + (RFL.S2=-(*AR1.pu));
 			AR1.pu += df;
@@ -2635,7 +2660,42 @@ static void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
+		if (vga_read_access(AR1.d) || vga_read_access(AR2.d))
 		while (i && (z==k)) {
+		    if (vga_read_access(AR1.d))
+			DR1.d = e_VgaRead(AR1.d, mode);
+		    else if (mode&MBYTE)
+			DR1.b.bl = *AR1.pu;
+		    else if (mode&DATA16)
+			DR1.w.l = *AR1.pwu;
+		    else
+			DR1.d = *AR1.pdu;
+		    if (vga_read_access(AR2.d))
+			DR2.d = e_VgaRead(AR2.d, mode);
+		    else if (mode&MBYTE)
+			DR2.b.bl = *AR2.pu;
+		    else if (mode&DATA16)
+			DR2.w.l = *AR2.pwu;
+		    else
+			DR2.d = *AR2.pdu;
+		    if (mode&MBYTE) {
+			RFL.RES.d = (RFL.S1=DR2.b.bl) + (RFL.S2=-DR1.b.bl);
+			AR1.pu += df; AR2.pu += df;
+			z = (RFL.RES.b.bl==0);
+		    }
+		    else if (mode&DATA16) {
+			RFL.RES.d = (RFL.S1=DR2.w.l) + (RFL.S2=-DR1.w.l);
+			AR1.pwu += df; AR2.pwu += df;
+			z = (RFL.RES.w.l==0);
+		    }
+		    else {
+			RFL.RES.d = (RFL.S1=DR2.d) + (RFL.S2=-DR1.d);
+			AR1.pdu += df; AR2.pdu += df;
+			z = (RFL.RES.d==0);
+		    }
+		    i--;
+		}
+		else while (i && (z==k)) {
 		    if (mode&MBYTE) {
 			RFL.RES.d = (RFL.S1=*AR2.pu) + (RFL.S2=-(*AR1.pu));
 			AR1.pu += df; AR2.pu += df;
