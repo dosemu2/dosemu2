@@ -668,10 +668,16 @@ partial_map_registers(state_t * state)
     break;
   case PARTIAL_GET_SIZE:
     ret = emm_get_size_for_partial_page_map(WORD(state->ebx));
-    SETHIGH(&(state->eax), ret == -1 ? EMM_ILL_PHYS : EMM_NO_ERR);
+    if (ret == -1) {
+      SETHIGH(&(state->eax), EMM_ILL_PHYS);
+    }
+    else {
+      SETLOW(&(state->eax), ret);
+      SETHIGH(&(state->eax), EMM_NO_ERR);
+    }
     break;
   default:
-    Kdebug1((dbg_fd, "bios_emm: Partial Page Map Regs unknwn fn\n"));
+    Kdebug1((dbg_fd, "bios_emm: Partial Page Map Regs unknown fn\n"));
     SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
     break;
   }
