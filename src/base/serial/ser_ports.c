@@ -127,6 +127,11 @@ static void recalc_IIR(int num)
 static u_char get_IIR_val(int num)
 {
   u_char val = com[num].IIR.flags << 3;
+#if 1
+  /* Why do we need this? Is this a gcc bug or what?
+   * even __attribute__((packed)) doesnt help! */
+  val |= com[num].IIR.flg.fifo_enable << 6;
+#endif
   switch (com[num].IIR.mask) {
   case 0:
     val |= UART_IIR_NO_INT;
