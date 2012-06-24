@@ -158,7 +158,7 @@ static u_char get_IIR_val(int num)
 void uart_fill(int num)
 {
   int size = 0;
-  
+
   /* Return if in loopback mode */
   if (com[num].MCR & UART_MCR_LOOP) return;
 
@@ -171,11 +171,11 @@ void uart_fill(int num)
   if (RX_BUF_BYTES(num) < com[num].rx_fifo_size) {
 #if 0
     if (com[num].rx_timer == 0) {
-#endif    
+#endif
       /* Slide the buffer contents to the bottom */
       rx_buffer_slide(num);
-    
-      /* Do a block read of data.  
+
+      /* Do a block read of data.
        * Guaranteed minimum requested read size of (RX_BUFFER_SIZE - 16)!
        */
       size = RPT_SYSCALL(read(com[num].fd, 
@@ -193,7 +193,7 @@ void uart_fill(int num)
 #endif
       if (size > 0) {		/* Note that size is -1 if error */
         com[num].rx_buf_end += size;
-        if (FIFO_ENABLED(num))
+        if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
           com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
       }
 #if 0
@@ -207,7 +207,6 @@ void uart_fill(int num)
       /* Has it gone above the receive FIFO trigger level? */
       if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
         if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
-        com[num].rx_timeout = 0;			/* Reset receive timeout */
         serial_int_engine(num, RX_INTR);	/* Update interrupt status */
       }
     } else {
@@ -235,6 +234,7 @@ void uart_clear_fifo(int num, int fifo)
     com[num].LSR &= ~(UART_LSR_ERR | UART_LSR_DR);
     com[num].rx_buf_start = 0;		/* Beginning of rec FIFO queue */
     com[num].rx_buf_end = 0;		/* End of rec FIFO queue */
+    com[num].IIR.flg.cti = 0;		/* clear timeout */
     com[num].rx_timeout = 0;		/* Receive intr already occured */
     clear_int_cond(num, LS_INTR | RX_INTR);  /* Clear LS/RX conds */
     rx_buffer_dump(num);		/* Clear receive buffer */
@@ -441,7 +441,7 @@ void ser_termios(int num)
 static int get_rx(int num)
 {
   int val;
-  com[num].rx_timeout = 0;		/* Reset timeout counter */
+  com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
   com[num].IIR.flg.cti = 0;
 
   /* If the Received-Data-Ready bit is clear then return a 0
