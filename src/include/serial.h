@@ -51,13 +51,21 @@ EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port *
 EXTERN u_char com_port_used[MAX_SER + 1];	/* Used for auto-assign comport config */
 
 struct iir {
-  u_char val:6;
+  u_char mask;
   union {
     struct {
-      const u_char enable:1;
-      const u_char enable2:1;
-    } fifo;
-    u_char fifo_enable:2;
+      u_char cti:1;
+      u_char rsv:1;
+      u_char fifo_64b:1;
+      union {
+        struct {
+          const u_char enable:1;
+          const u_char enable2:1;
+        } fifo;
+        u_char fifo_enable:2;
+      };
+    } flg;
+    u_char flags:5;
   };
 };
 
@@ -121,6 +129,7 @@ EXTERN serial_t com[MAX_SER];
 #define INT_REQUEST(num)  (com[num].int_condition & com[num].IER)
 #define INT_ENAB(num)  (com[num].MCR & UART_MCR_OUT2)
 #define TX_TRIGGER(num) (!(com[num].LSR & UART_LSR_THRE))
+#define FIFO_ENABLED(num) (com[num].IIR.flg.fifo_enable == IIR_FIFO_ENABLE)
 
 extern int int14(void);
 extern void serial_run(void);

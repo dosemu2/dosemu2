@@ -229,7 +229,7 @@ void fossil_int14(int num)
   /* Write character (without wait) */
   case 0x0b:
     /* hope fifo doesn't overflow */
-    if (com[num].IIR.fifo_enable || (com[num].LSR & UART_LSR_THRE)) {
+    if (FIFO_ENABLED(num) || (com[num].LSR & UART_LSR_THRE)) {
       write_char(num, LO(ax));
       LWORD(eax) = 1;
     #if SER_DEBUG_FOSSIL_RW
@@ -270,7 +270,7 @@ void fossil_int14(int num)
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
     int n = 0, len = LWORD(ecx);
     while (n < len) {
-      if (!com[num].IIR.fifo_enable)
+      if (!FIFO_ENABLED(num))
         break;
       write_char(num, p[n++]);
     }

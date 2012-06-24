@@ -111,15 +111,14 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
 
   uart_fill(num);
 
-  if (com[num].IIR.fifo.enable && RX_BUF_BYTES(num)) {		/* Is it in FIFO mode? */
-      if (com[num].rx_timeout) {		/* Has get_rx run since int? */
-        com[num].rx_timeout--;			/* Decrement counter */
-        if (!com[num].rx_timeout) {		/* Has timeout counted down? */
-          com[num].LSR |= UART_LSR_DR;
-          if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
-          serial_int_engine(num, RX_INTR);	/* Update interrupt status */
-        }
-      }
+  if (FIFO_ENABLED(num) && RX_BUF_BYTES(num) && com[num].rx_timeout) {		/* Is it in FIFO mode? */
+    com[num].rx_timeout--;			/* Decrement counter */
+    if (!com[num].rx_timeout) {		/* Has timeout counted down? */
+      com[num].LSR |= UART_LSR_DR;
+      com[num].IIR.flg.cti = 1;
+      if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
+      serial_int_engine(num, RX_INTR);	/* Update interrupt status */
+    }
   }
 }
 
