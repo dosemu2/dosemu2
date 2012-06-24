@@ -771,7 +771,7 @@ put_mcr(int num, int val)
     }
 
     /* Update RTS setting on serial device only if RTS state changed */
-    if ((changed & UART_MCR_RTS) && !com[num].system_rtscts) {
+    if ((changed & UART_MCR_RTS) && !com_cfg[num].system_rtscts) {
       if(s1_printf) s_printf("SER%d: MCR: RTS -> %d\n",num,(val & UART_MCR_RTS));
       control = TIOCM_RTS;
       if (val & UART_MCR_RTS)
@@ -862,7 +862,7 @@ do_serial_in(int num, ioport_t address)
   if (com[num].fd < 0)
     return 0;
 
-  switch (address - com[num].base_port) {
+  switch (address - com_cfg[num].base_port) {
   case UART_RX:		/* Read from Received Byte Register */	
 /*case UART_DLL:*/      /* or Read from Baudrate Divisor Latch LSB */
     if (com[num].DLAB) {	/* Is DLAB set? */
@@ -957,7 +957,7 @@ do_serial_out(int num, ioport_t address, int val)
   if (com[num].fd < 0)
     return 0;
 
-  switch (address - com[num].base_port) {
+  switch (address - com_cfg[num].base_port) {
   case UART_TX:		/* Write to Transmit Holding Register */
 /*case UART_DLL:*/	/* or write to Baudrate Divisor Latch LSB */
     if (com[num].DLAB) {	/* If DLAB set, */

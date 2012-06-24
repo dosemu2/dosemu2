@@ -1969,7 +1969,7 @@ static int serial_mouse_init(void)
   int x;
   serial_t *sptr=NULL;
   for (x=0;x<config.num_ser;x++){
-    sptr = &com[x];
+    sptr = &com_cfg[x];
     if (sptr->mouse) break;
   }
   if (!sptr || !(sptr->mouse)) {

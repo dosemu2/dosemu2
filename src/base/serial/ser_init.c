@@ -61,6 +61,8 @@
 #include "vc.h"
 
 int no_local_video = 0;
+com_t com[MAX_SER];
+u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 
 /* See README.serial file for more information on the com[] structure 
  * The declarations for this is in ../include/serial.h
@@ -212,21 +214,21 @@ int ser_open(int num)
 {
   s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
 
-  if (com[num].mouse && !on_console()) {
+  if (com_cfg[num].mouse && !on_console()) {
     s_printf("SER%d: Not touching mouse outside of the console!\n",num);
     return(-1);
   }
 
   if (com[num].fd != -1) return (com[num].fd);
 
-  if ( com[num].virtual )
+  if ( com_cfg[num].virtual )
   {
-    s_printf("SER: Running ser_open, %s\n", com[num].dev);
+    s_printf("SER: Running ser_open, %s\n", com_cfg[num].dev);
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
     s_printf("Opening Virtual Port\n");
     com[num].dev_locked = FALSE;
   } else if (config.tty_lockdir[0]) {
-    if (tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
+    if (tty_lock(com_cfg[num].dev, 1) >= 0) {		/* Lock port */
       /* We know that we have access to the serial port */
       com[num].dev_locked = TRUE;
 
@@ -234,8 +236,8 @@ int ser_open(int num)
        * the use of the mouse serial port can be switched between processes,
        * such as on Linux virtual consoles.
        */
-      if (com[num].mouse)
-        if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
+      if (com_cfg[num].mouse)
+        if (tty_lock(com_cfg[num].dev, 0) >= 0)   		/* Unlock port */
           com[num].dev_locked = FALSE;
     } else {
       /* The port is in use by another process!  Don't touch the port! */
@@ -248,25 +250,25 @@ int ser_open(int num)
     com[num].dev_locked = FALSE;
   }
 
-  if (!com[num].dev || !com[num].dev[0]) {
+  if (!com_cfg[num].dev || !com_cfg[num].dev[0]) {
     s_printf("SER%d: Device file not yet defined!\n",num);
     return (-1);
   }
 
-  com[num].fd = RPT_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
+  com[num].fd = RPT_SYSCALL(open(com_cfg[num].dev, O_RDWR | O_NONBLOCK));
   if (com[num].fd < 0) {
     error("SERIAL: Unable to open device %s: %s\n",
-      com[num].dev, strerror(errno));
+      com_cfg[num].dev, strerror(errno));
     goto fail_unlock;
   }
   if (!isatty(com[num].fd)) {
     error("SERIAL: Serial port device %s is not a tty, closing\n",
-      com[num].dev);
+      com_cfg[num].dev);
     goto fail_close;
   }
   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
 
-  if (com[num].low_latency) {
+  if (com_cfg[num].low_latency) {
     struct serial_struct ser_info;
     int err = ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
     if (err) {
@@ -290,7 +292,7 @@ fail_close:
   close(com[num].fd);
   /* fall through */
 fail_unlock:
-  if (com[num].dev_locked && tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
+  if (com[num].dev_locked && tty_lock(com_cfg[num].dev, 0) >= 0)   		/* Unlock port */
     com[num].dev_locked = FALSE;
 
   com[num].fd = -2; // disable permanently
@@ -328,7 +330,7 @@ void ser_set_params(int num)
 #endif
   com[num].newset.c_cc[VMIN] = 1;
   com[num].newset.c_cc[VTIME] = 0;
-  if (com[num].system_rtscts) com[num].newset.c_cflag |= CRTSCTS;
+  if (com_cfg[num].system_rtscts) com[num].newset.c_cflag |= CRTSCTS;
   tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
 
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
@@ -357,11 +359,11 @@ void ser_set_params(int num)
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
-  if (!com[num].pseudo) {
+  if (!com_cfg[num].pseudo) {
     data = TIOCM_DTR | TIOCM_RTS;
     if (ioctl(com[num].fd, TIOCMBIC, &data) && errno == EINVAL) {
       s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", num);
-      com[num].pseudo = 1;
+      com_cfg[num].pseudo = 1;
     }
   }
 }
@@ -387,7 +389,7 @@ static int ser_close(int num)
   
   /* Clear the lockfile from DOSEMU */
   if (com[num].dev_locked) {
-    if (tty_lock(com[num].dev, 0) >= 0) 
+    if (tty_lock(com_cfg[num].dev, 0) >= 0) 
       com[num].dev_locked = FALSE;
   }
   return (i);
@@ -397,7 +399,7 @@ static int ser_close(int num)
 static Bit8u com_readb(ioport_t port) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
-    if (((u_short)(port & ~7)) == com[tmp].base_port) {
+    if (((u_short)(port & ~7)) == com_cfg[tmp].base_port) {
       return(do_serial_in(tmp, (int)port));
     }
   }
@@ -407,7 +409,7 @@ static Bit8u com_readb(ioport_t port) {
 static void com_writeb(ioport_t port, Bit8u value) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
-    if (((u_short)(port & ~7)) == com[tmp].base_port) {
+    if (((u_short)(port & ~7)) == com_cfg[tmp].base_port) {
       do_serial_out(tmp, (int)port, (int)value);
     }
   }
@@ -421,7 +423,6 @@ static void com_writeb(ioport_t port, Bit8u value) {
 static void do_ser_init(int num)
 {
   emu_iodev_t io_device;
-  int i;
 
   /* The following section sets up default com port, interrupt, base
   ** port address, and device path if they are undefined. The defaults are:
@@ -461,33 +462,27 @@ static void do_ser_init(int num)
     { 4, 0x9228, "/dev/ttyS15", "COM16" },
   };
 
-  if (com[num].real_comport == 0) {		/* Is comport number undef? */
-    for (i = 1; i <= MAX_SER; i++) {
-      if (!com_port_used[i])
-        break;
-    }
-    if (i <= MAX_SER) {
-      com[num].real_comport = i;
-      com_port_used[i] = 1;
-      s_printf("SER%d: No COMx port number given, defaulting to COM%d\n", num, i);
-    }
+  if (com_cfg[num].real_comport == 0) {		/* Is comport number undef? */
+    error("SER%d: No COMx port number given\n", num);
+    config.exitearly = 1;
+    return;
   }
 
-  if (com[num].interrupt <= 0) {		/* Is interrupt undefined? */
+  if (com_cfg[num].interrupt <= 0) {		/* Is interrupt undefined? */
     /* Define it depending on using standard irqs */
-    com[num].interrupt = pic_irq_list[default_com[com[num].real_comport-1].interrupt];
+    com_cfg[num].interrupt = pic_irq_list[default_com[com_cfg[num].real_comport-1].interrupt];
   }
 
-  if (com[num].base_port <= 0) {		/* Is base port undefined? */
+  if (com_cfg[num].base_port <= 0) {		/* Is base port undefined? */
     /* Define it depending on using standard addrs */
-    com[num].base_port = default_com[com[num].real_comport-1].base_port;
+    com_cfg[num].base_port = default_com[com_cfg[num].real_comport-1].base_port;
   }
 
-  if (!com[num].dev || !com[num].dev[0]) {	/* Is the device file undef? */
+  if (!com_cfg[num].dev || !com_cfg[num].dev[0]) {	/* Is the device file undef? */
     /* Define it using std devs */
-    com[num].dev = default_com[com[num].real_comport-1].dev;
+    com_cfg[num].dev = default_com[com_cfg[num].real_comport-1].dev;
   }
-  iodev_add_device(com[num].dev);
+  iodev_add_device(com_cfg[num].dev);
 
   /* FOSSIL emulation is inactive at startup. */
   com[num].fossil_active = FALSE;
@@ -496,16 +491,16 @@ static void do_ser_init(int num)
    * If this is nonzero, Linux will handle RTS/CTS flow control directly.
    * DANG_FIXTHIS This needs more work before it is implemented into /etc/dosemu.conf as an 'rtscts' option.
    */
-  com[num].system_rtscts = 0;
+  com_cfg[num].system_rtscts = 0;
 
   /* convert irq number to pic_ilevel number and set up interrupt
    * if irq is invalid, no interrupt will be assigned
    */
-  if(!irq_source_num[com[num].interrupt]) {
-    s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
-    pic_seti(com[num].interrupt, pic_serial_run, 0, NULL);
+  if(!irq_source_num[com_cfg[num].interrupt]) {
+    s_printf("SER%d: enabling interrupt %d\n", num, com_cfg[num].interrupt);
+    pic_seti(com_cfg[num].interrupt, pic_serial_run, 0, NULL);
   }
-  irq_source_num[com[num].interrupt]++;
+  irq_source_num[com_cfg[num].interrupt]++;
 
   /*** The following is where the real initialization begins ***/
 
@@ -516,18 +511,18 @@ static void do_ser_init(int num)
   io_device.write_portw = NULL;
   io_device.read_portd  = NULL;
   io_device.write_portd = NULL;
-  io_device.start_addr  = com[num].base_port;
-  io_device.end_addr    = com[num].base_port+7;
-  io_device.irq         = (irq_source_num[com[num].interrupt] == 1 ?
-                           com[num].interrupt : EMU_NO_IRQ);
+  io_device.start_addr  = com_cfg[num].base_port;
+  io_device.end_addr    = com_cfg[num].base_port+7;
+  io_device.irq         = (irq_source_num[com_cfg[num].interrupt] == 1 ?
+                           com_cfg[num].interrupt : EMU_NO_IRQ);
   io_device.fd		= -1;
   io_device.handler_name = default_com[num].handler_name;
   port_register_handler(io_device, 0);
 
   /* Information about serial port added to debug file */
   s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n",
-        num, com[num].real_comport, com[num].interrupt,
-        com[num].base_port, com[num].dev);
+        num, com_cfg[num].real_comport, com_cfg[num].interrupt,
+        com_cfg[num].base_port, com_cfg[num].dev);
 #if 0
   /* first call to serial timer update func to initialize the timer */
   /* value, before the com[num] structure is initialized */
@@ -549,13 +544,13 @@ void serial_reset(void)
    * This is for DOS and many programs to recognize ports automatically
    */
   for (num = 0; num < config.num_ser; num++) {
-    if ((com[num].real_comport >= 1) && (com[num].real_comport <= 4)) {
-      WRITE_WORD(0x400 + (com[num].real_comport-1)*2, com[num].base_port);
+    if ((com_cfg[num].real_comport >= 1) && (com_cfg[num].real_comport <= 4)) {
+      WRITE_WORD(0x400 + (com_cfg[num].real_comport-1)*2, com_cfg[num].base_port);
 
       /* Debugging to determine whether memory location was written properly */
       s_printf("SER%d: BIOS memory location %p has value of %#x\n", num,
-	       ((u_short *) (0x400) + (com[num].real_comport-1)) 
-	       ,READ_WORD(0x400 + 2*(com[num].real_comport-1)));
+	       ((u_short *) (0x400) + (com_cfg[num].real_comport-1)) 
+	       ,READ_WORD(0x400 + 2*(com_cfg[num].real_comport-1)));
     }
   }
 }
@@ -588,10 +583,10 @@ void serial_init(void)
      * to the fact the mouse is in use by Xwindows (internal driver is used)
      * Direct access to the mouse by dosemu is useful mainly at the console.
      */
-    if (com[i].mouse && !on_console())
+    if (com_cfg[i].mouse && !on_console())
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
 #ifdef USE_GPM
-    else if (com[i].mouse && strcmp(Mouse->name, "gpm") == 0)
+    else if (com_cfg[i].mouse && strcmp(Mouse->name, "gpm") == 0)
       s_printf("SER%d: GPM competing with direct access is racy: "
                "only using GPM\n",i);
 #endif
@@ -611,10 +606,10 @@ void serial_close(void)
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].fd < 0)
       continue;
-    if (com[i].mouse && !on_console())
+    if (com_cfg[i].mouse && !on_console())
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
 #ifdef USE_GPM    
-    else if (com[i].mouse && strcmp(Mouse->name, "gpm") == 0)
+    else if (com_cfg[i].mouse && strcmp(Mouse->name, "gpm") == 0)
       s_printf("SER%d: GPM competing with direct access is racy: "
                "only using GPM\n",i);
 #endif
@@ -637,8 +632,8 @@ void child_close_mouse(void)
     s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
-                i, com[i].dev, com[i].fd, com[i].mouse);
-      if ((com[i].mouse == TRUE) && (com[i].fd > 0)) {
+                i, com_cfg[i].dev, com[i].fd, com_cfg[i].mouse);
+      if ((com_cfg[i].mouse == TRUE) && (com[i].fd > 0)) {
         s_printf("MOUSE: CLOSE port=%d: Running ser_close.\n", i);
         rtrn = ser_close(i);
         if (rtrn) s_printf("MOUSE SERIAL ERROR - %s\n", strerror(errno));
@@ -663,8 +658,8 @@ void child_open_mouse(void)
     s_printf("MOUSE: OPEN function starting.\n");
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",
-                i, config.mouse.type, com[i].dev, com[i].mouse);
-      if (com[i].mouse == TRUE) {
+                i, config.mouse.type, com_cfg[i].dev, com_cfg[i].mouse);
+      if (com_cfg[i].mouse == TRUE) {
         s_printf("MOUSE: OPEN port=%d: Running ser-open.\n", i);
         com[i].fd = -1;
         ser_open(i);

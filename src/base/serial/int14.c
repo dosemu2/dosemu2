@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -6,16 +6,16 @@
  */
 
 /* DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * int14.c: Serial BIOS services for DOSEMU.
  * Please read the README.serial file in this directory for more info!
- * 
+ *
  * Copyright (C) 1995 by Mark Rejhon
  *
  * The code in this module is free software; you can redistribute it
  * and/or modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2 of 
+ * as published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
  *
  * This module is maintained by Mark Rejhon at these Email addresses:
@@ -25,10 +25,10 @@
  * /REMARK
  * DANG_END_MODULE
  */
- 
+
 /* DANG_BEGIN_NEWIDEA
  * If any of you coders are ambitious, try thinking of the following:
- * - Converting this into inline assembler and use direct port access 
+ * - Converting this into inline assembler and use direct port access
  * DANG_END_NEWIDEA
  */
 
@@ -37,7 +37,7 @@
 #include <termios.h>
 
 /* Other includes that may be needed for this serial code */
-#include "config.h" 
+#include "config.h"
 #include "emu.h"
 #include "serial.h"
 #include "ser_defs.h"
@@ -54,15 +54,15 @@
  *   write_LCR		Write Line Control Register
  *   write_MCR		Write Modem Control Register
  */
-#define read_char(num)        do_serial_in(num, com[num].base_port)
-#define read_LCR(num)         do_serial_in(num, com[num].base_port + 3)
-#define read_LSR(num)         do_serial_in(num, com[num].base_port + 5)
-#define read_MSR(num)         do_serial_in(num, com[num].base_port + 6)
-#define write_char(num, byte) do_serial_out(num, com[num].base_port, byte)
-#define write_DLL(num, byte)  do_serial_out(num, com[num].base_port, byte)
-#define write_DLM(num, byte)  do_serial_out(num, com[num].base_port + 1, byte)
-#define write_LCR(num, byte)  do_serial_out(num, com[num].base_port + 3, byte)
-#define write_MCR(num, byte)  do_serial_out(num, com[num].base_port + 4, byte)
+#define read_char(num)        do_serial_in(num, com_cfg[num].base_port)
+#define read_LCR(num)         do_serial_in(num, com_cfg[num].base_port + 3)
+#define read_LSR(num)         do_serial_in(num, com_cfg[num].base_port + 5)
+#define read_MSR(num)         do_serial_in(num, com_cfg[num].base_port + 6)
+#define write_char(num, byte) do_serial_out(num, com_cfg[num].base_port, byte)
+#define write_DLL(num, byte)  do_serial_out(num, com_cfg[num].base_port, byte)
+#define write_DLM(num, byte)  do_serial_out(num, com_cfg[num].base_port + 1, byte)
+#define write_LCR(num, byte)  do_serial_out(num, com_cfg[num].base_port + 3, byte)
+#define write_MCR(num, byte)  do_serial_out(num, com_cfg[num].base_port + 4, byte)
 
 
 /* The following function sets the speed of the serial port.
@@ -95,7 +95,7 @@ int int14(void)
    * the necessary arbritary port number system used throughout this module.
    */
   for(num = 0; num < config.num_ser; num++)
-    if (com[num].real_comport == (LO(dx)+1)) break;
+    if (com_cfg[num].real_comport == (LO(dx)+1)) break;
 
   if (num >= config.num_ser) return 1;	/* Exit if not on supported port */
 
@@ -104,13 +104,13 @@ int int14(void)
    * maintaining BIOS data at 40:0 like in real DOS (special case of
    * mouse on com1) - AV (hack!)
    */
-  if ((com[num].mouse) && config.mouse.intdrv) {
-    if ((com[num].mouse < 2) && (HI(ax)==0)) {
+  if ((com_cfg[num].mouse) && config.mouse.intdrv) {
+    if ((com_cfg[num].mouse < 2) && (HI(ax)==0)) {
 	if ((config.mouse.flags & CS8) == CS8)	/* linux/include/asm/termbits.h */
 	  LO(ax)=0x83;		/* 1200 8N1 */
 	else
 	  LO(ax)=0x82;		/* Microsoft: 1200 7N1 */
-	com[num].mouse++;	/* flag as already done */
+	com_cfg[num].mouse++;	/* flag as already done */
     }
     else return 1;
   }

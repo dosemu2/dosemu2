@@ -1376,8 +1376,7 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2;
 					  }
 		| PSEUDO		  { sptr->pseudo = TRUE; }
 		| LOWLAT		  { sptr->low_latency = TRUE; }
-		| COM expression		{ sptr->real_comport = $2;
-					  com_port_used[$2] = 1; }
+		| COM expression	  { sptr->real_comport = $2; }
 		| BASE expression		{ sptr->base_port = $2; }
 		| IRQ expression		{ sptr->interrupt = $2; }
 		| INTERRUPT expression	{ sptr->interrupt = $2; }
@@ -1859,12 +1858,11 @@ static void start_serial(void)
     /* The defaults for interrupt, base_port, real_comport and dev are 
     ** automatically filled in inside the do_ser_init routine of serial.c
     */
-    sptr = &com[c_ser];
+    sptr = &com_cfg[c_ser];
     sptr->dev = NULL;
     sptr->interrupt = 0; 
     sptr->base_port = 0;
     sptr->real_comport = 0;
-    sptr->fd = -1;
     sptr->mouse = 0;
     sptr->virtual = FALSE;
     sptr->pseudo = FALSE;

@@ -142,7 +142,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
   /* If Linux is handling flow control, then check the CTS state.
    * If the CTS state is low, then don't start new transmit interrupt!
    */
-  if (com[num].system_rtscts) {
+  if (com_cfg[num].system_rtscts) {
     ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
     if (!(control & TIOCM_CTS)) return;		/* Return if CTS is low */
   }
@@ -181,7 +181,7 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   com[num].ms_timer += MS_MIN_FREQ;
 #endif
 
-  if(com[num].pseudo) {
+  if(com_cfg[num].pseudo) {
     newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
   } else {
     ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
@@ -262,14 +262,14 @@ void serial_int_engine(int num, int int_requested)
    */
 
   /* See if a requested interrupt is enabled */
-  if (INT_ENAB(num) && com[num].interrupt && INT_REQUEST(num)) {
+  if (INT_ENAB(num) && com_cfg[num].interrupt && INT_REQUEST(num)) {
       if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
-                 num, com[num].interrupt, int_requested);
-      pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
+                 num, com_cfg[num].interrupt, int_requested);
+      pic_request(com_cfg[num].interrupt);		/* Flag PIC for interrupt */
   }
   else
     if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n", 
-        num, com[num].interrupt, com[num].int_condition, INT_ENAB(num), com[num].IER);
+        num, com_cfg[num].interrupt, com[num].int_condition, INT_ENAB(num), com[num].IER);
 }
 
 
@@ -290,7 +290,7 @@ int pic_serial_run(int ilevel)
   int i, ret = 0;
 
   for (i = 0; i < config.num_ser; i++) {
-    if (com[i].interrupt != ilevel)
+    if (com_cfg[i].interrupt != ilevel)
       continue;
     if (INT_REQUEST(i))
       ret++;

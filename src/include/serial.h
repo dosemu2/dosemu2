@@ -37,42 +37,11 @@
 
 #define MAX_SER 16
 
-/* These are sizes for the internal recieve and transmit buffers.
- * They must be at least 16 bytes because these double as FIFO's,
- * The 16-byte limitation is emulated, though, for compatibility
- * purposes.  (Although this may be configurable eventually)
- *
- * DANG_FIXTHIS Why does a RX_BUFFER_SIZE of 256 cause slower performance than a size of 128?
- */
-#define RX_BUFFER_SIZE            128
-
 extern int no_local_video; /* used by virtual port code */
-EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
-EXTERN u_char com_port_used[MAX_SER + 1];	/* Used for auto-assign comport config */
-
-struct iir {
-  u_char mask;
-  union {
-    struct {
-      u_char cti:1;
-      u_char rsv:1;
-      u_char fifo_64b:1;
-      union {
-        struct {
-          const u_char enable:1;
-          const u_char enable2:1;
-        } fifo;
-        u_char fifo_enable:2;
-      };
-    } flg;
-    u_char flags:5;
-  };
-};
 
 typedef struct {
   				/*   MAIN VARIABLES  */
   char *dev;			/* String to hold path to device file */
-  int fd;			/* File descriptor of device */
   int real_comport;		/* The actual COMx port number. 0 for invalid */
   ioport_t base_port;		/* Base port address handled by device */
   int interrupt;		/* IRQ line handled by device */
@@ -80,56 +49,10 @@ typedef struct {
   boolean pseudo;		/* pseudo-tty is used */
   boolean low_latency;		/* set low_latency mode */
   boolean mouse;		/* Flag to turn on mouse sharing features */
-  boolean dev_locked;           /* Flag to indicate that device is locked */
-  boolean fossil_active;	/* Flag: FOSSIL emulation active */
-  u_char fossil_info[19];	/* FOSSIL driver info buffer */
   int system_rtscts;		/* Flag: emulate RTS or let system handle it */
-  				/*   MODEM STATUS  */
-  long int ms_freq;		/* Frequency of Modem Status (MS) check */
-  long int ms_timer;            /* Countdown to forced MS check */
-  				/*   RECEIVE  */
-  long int rx_timer;		/* Countdown to next read() system call */
-  u_char rx_timeout;		/* Recieve Interrupt timeout counter */
-  u_char rx_fifo_trigger;	/* Receive Fifo trigger value */
-  int rx_fifo_size;		/* Size of receive FIFO to emulate */
-  				/*   MISCELLANEOUS  */
-  u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
-  speed_t newbaud;		/* Currently set bps rate */
-
-  /* The following are serial port registers */
-  int dll, dlm;		/* Baudrate divisor LSB and MSB */
-  u_char DLAB;		/* Divisor Latch enabled */
-  u_char IER;		/* Interrupt Enable Register */
-  struct iir IIR;	/* Interrupt Identification Register */
-  u_char LCR;		/* Line Control Register */
-  u_char FCReg;		/* Fifo Control Register (.FCR is a name conflict) */
-  u_char MCR;		/* Modem Control Register */
-  u_char LSR;		/* Line Status Register */
-  u_char MSR;		/* Modem Status Register */
-  u_char SCR;		/* Scratch Pad Register */
-
-  /* The following are the transmit and receive buffer variables
-   * They are bigger than the 16 bytes of a real FIFO to improve
-   * performance, but the 16-byte limitation of the receive FIFO
-   * is still emulated using a counter, to improve compatibility.
-   */
-  u_char rx_buf[RX_BUFFER_SIZE];	/* Receive Buffer */
-  u_char rx_buf_start;			/* Receive Buffer queue start */
-  u_char rx_buf_end;			/* Receive Buffer queue end */
-
-  struct termios oldset;		/* Original termios settings */
-  struct termios newset;		/* Current termios settings */
 } serial_t;
 
-EXTERN serial_t com[MAX_SER];
-
-#define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
-//#define RX_FIFO_BYTES(num) min(RX_BUF_BYTES(num), com[num].rx_fifo_size)
-#define TX_BUF_BYTES(num) (com[num].tx_buf_end - com[num].tx_buf_start)
-#define INT_REQUEST(num)  (com[num].int_condition & com[num].IER)
-#define INT_ENAB(num)  (com[num].MCR & UART_MCR_OUT2)
-#define TX_TRIGGER(num) (!(com[num].LSR & UART_LSR_THRE))
-#define FIFO_ENABLED(num) (com[num].IIR.flg.fifo_enable == IIR_FIFO_ENABLE)
+EXTERN serial_t com_cfg[MAX_SER];
 
 extern int int14(void);
 extern void serial_run(void);

@@ -40,10 +40,10 @@
  *   write_LCR		Write Line Control Register
  *   write_MCR		Write Modem Control Register
  */
-#define read_reg(num, offset) do_serial_in((num), com[(num)].base_port + (offset))
+#define read_reg(num, offset) do_serial_in((num), com_cfg[(num)].base_port + (offset))
 #define read_char(num)        read_reg((num), UART_RX)
 #define read_LCR(num)         read_reg((num), UART_LCR)
-#define write_reg(num, offset, byte) do_serial_out((num), com[(num)].base_port + (offset), (byte))
+#define write_reg(num, offset, byte) do_serial_out((num), com_cfg[(num)].base_port + (offset), (byte))
 #define write_char(num, byte) write_reg((num), UART_TX, (byte))
 #define write_DLL(num, byte)  write_reg((num), UART_DLL, (byte))
 #define write_DLM(num, byte)  write_reg((num), UART_DLM, (byte))
