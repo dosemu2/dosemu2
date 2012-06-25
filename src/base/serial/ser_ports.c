@@ -15,12 +15,10 @@
  *
  * The code in this module is free software; you can redistribute it
  * and/or modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2 of 
+ * as published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
  *
- * This module is maintained by Mark Rejhon at these Email addresses:
- *      marky@magmacom.com
- *      ag115@freenet.carleton.ca
+ * This module is maintained by Stas Sergeev <stsp@users.sourceforge.net>
  *
  * /REMARK
  * DANG_END_MODULE
@@ -168,52 +166,30 @@ void uart_fill(int num)
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
-  if (RX_BUF_BYTES(num) < com[num].rx_fifo_size) {
-#if 0
-    if (com[num].rx_timer == 0) {
-#endif
-      /* Slide the buffer contents to the bottom */
-      rx_buffer_slide(num);
+  if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size)
+    return;
 
-      /* Do a block read of data.
-       * Guaranteed minimum requested read size of (RX_BUFFER_SIZE - 16)!
-       */
-      size = RPT_SYSCALL(read(com[num].fd, 
+  /* Slide the buffer contents to the bottom */
+  rx_buffer_slide(num);
+
+  /* Do a block read of data.
+   * Guaranteed minimum requested read size of (RX_BUFFER_SIZE - 16)!
+   */
+  size = RPT_SYSCALL(read(com[num].fd, 
                               &com[num].rx_buf[com[num].rx_buf_end],
                               RX_BUFFER_SIZE - com[num].rx_buf_end));
-      if (size < 0)
-        return;
-      if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
+  if (size <= 0)
+    return;
+  if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
         size, RX_BUF_BYTES(num));
-#if 0
-      if (size == 0) { 				/* No characters read? */
-        com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
-      }
-      else
-#endif
-      if (size > 0) {		/* Note that size is -1 if error */
-        com[num].rx_buf_end += size;
-        if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
-          com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
-      }
-#if 0
-    }
-#endif
-  }
-
-  if (RX_BUF_BYTES(num)) {		/* Is data waiting in the buffer? */
-    com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
-    if (FIFO_ENABLED(num)) {		/* Is it in 16550 FIFO mode? */
-      /* Has it gone above the receive FIFO trigger level? */
-      if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
-        if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
-        serial_int_engine(num, RX_INTR);	/* Update interrupt status */
-      }
-    } else {
-      /* Else, the following code executes if emulated UART is in 16450 mode. */
-      if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
-      serial_int_engine(num, RX_INTR);		/* Update interrupt status */
-    }
+  com[num].rx_buf_end += size;
+  if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
+    com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
+  com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
+  /* Has it gone above the receive FIFO trigger level? */
+  if (!FIFO_ENABLED(num) || RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
+    if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
+    serial_int_engine(num, RX_INTR);	/* Update interrupt status */
   }
 }
 
@@ -447,7 +423,6 @@ static int get_rx(int num)
   /* If the Received-Data-Ready bit is clear then return a 0
    * since we're not supposed to read from the buffer right now!
    */
-  if (!(com[num].LSR & UART_LSR_DR)) return 0;
   if (!RX_BUF_BYTES(num)) return 0;
 
   /* Get byte from internal receive queue */
@@ -457,8 +432,9 @@ static int get_rx(int num)
       (FIFO_ENABLED(num) && RX_BUF_BYTES(num) < com[num].rx_fifo_trigger)) {	// if it now became empty
     /* Clear data waiting status and interrupt condition flag */
     clear_int_cond(num, RX_INTR);
-    com[num].LSR &= ~UART_LSR_DR;
   }
+  if (!RX_BUF_BYTES(num))
+    com[num].LSR &= ~UART_LSR_DR;
 
   return val;		/* Return received byte */
 }

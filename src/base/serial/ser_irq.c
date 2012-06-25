@@ -15,13 +15,11 @@
  *
  * The code in this module is free software; you can redistribute it
  * and/or modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2 of 
+ * as published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
  *
  * /REMARK
- * This module is maintained by Mark Rejhon at these Email addresses:
- *      marky@magmacom.com
- *      ag115@freenet.carleton.ca
+ * This module is maintained by Stas Sergeev <stsp@users.sourceforge.net>
  *
  * DANG_END_MODULE
  */
@@ -114,9 +112,9 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
   if (FIFO_ENABLED(num) && RX_BUF_BYTES(num) && com[num].rx_timeout) {		/* Is it in FIFO mode? */
     com[num].rx_timeout--;			/* Decrement counter */
     if (!com[num].rx_timeout) {		/* Has timeout counted down? */
-      com[num].LSR |= UART_LSR_DR;
       com[num].IIR.flg.cti = 1;
-      if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
+      if(s3_printf) s_printf("SER%d: Receive timeout (%i bytes), requesting RX_INTR\n",
+          num, RX_BUF_BYTES(num));
       serial_int_engine(num, RX_INTR);	/* Update interrupt status */
     }
   }

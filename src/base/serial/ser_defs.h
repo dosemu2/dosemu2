@@ -1,20 +1,18 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /* DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * ser_defs.h: Include file for all files in the 'serial' subdirectory.
  * Please send bug reports and bugfixes to marky@magmacom.com
  * Please read the files in this 'serial' subdirectory for more info.
- * 
+ *
  * /REMARK
- * This module is maintained by Mark Rejhon at these Email addresses:
- *     marky@magmacom.com
- *     ag115@freenet.carleton.ca
+ * This module is maintained by Stas Sergeev <stsp@users.sourceforge.net>
  *
  * COPYRIGHTS
  * ~~~~~~~~~~
