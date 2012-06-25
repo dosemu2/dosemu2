@@ -309,13 +309,7 @@ struct iir {
       u_char cti:1;
       u_char rsv:1;
       u_char fifo_64b:1;
-      union {
-        struct {
-          const u_char enable:1;
-          const u_char enable2:1;
-        } fifo;
-        u_char fifo_enable:2;
-      };
+      u_char fifo_enable:2;
     } flg;
     u_char flags:5;
   };
