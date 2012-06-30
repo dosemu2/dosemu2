@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -7,7 +7,7 @@
 /*  DANG_BEGIN_MODULE
  *
  * REMARK
- *  pic.c is a fairly complete emulation of both 8259 Priority Interrupt 
+ *  pic.c is a fairly complete emulation of both 8259 Priority Interrupt
  *  Controllers.  It also includes provision for 16 lower level interrupts.
  *  This implementation supports the following i/o commands:
  *
@@ -19,16 +19,16 @@
  *
  *      OCW1    all bits         sets interrupt mask
  *      OCW2    bits 7,5-0       EOI commands only
- *      OCW3    bits 0,1,5,6     select read register, 
+ *      OCW3    bits 0,1,5,6     select read register,
  *                               select special mask mode
  *
  *     Reads of both pic ports are supported completely.
  * /VERB
  *
  *  An important concept to understand in pic is the interrupt level.
- *  This is a value which represents the priority of the current interrupt.  
- *  It is used to identify interrupts, and IRQs can be mapped to these 
- *  levels(see pic.h~). The currently active interrupt level is maintained 
+ *  This is a value which represents the priority of the current interrupt.
+ *  It is used to identify interrupts, and IRQs can be mapped to these
+ *  levels(see pic.h~). The currently active interrupt level is maintained
  *  in pic_ilevel, which is globally available,   A pic_ilevel of 32 means
  *  no interrupts are active; 0, the highest priority, represents the NMI.
  *  IRQs 0 through 15 are mapped, in priority order, to values of 1-15
@@ -51,20 +51,20 @@
  */
 
 /*
- * > 
+ * >
  * > In 0.66.x the new interrupt is scheduled too early, and restore_rm_regs()
  * > is never called. Then the crash.
- * > 
+ * >
  * > There are at least 2 problems with this kind of code:
  * > 1) avoiding interrupt reentrancy
  * > 2) avoiding too early interrupt scheduling
- * > 
+ * >
  *
  * You have run into an old problem, which was created through attempts
  * (not by me) to speed up pic by creating holes in its re-entrancy protection.
  * As I released pic, it was quite safe on this score, however, that made
  * dosemu unpleasantly slow.  For everyone's edification, here's the problem:
- * 
+ *
  * As dos is designed, it is sometimes necessary to presume that an interrupt
  * (most often the timer, but sometimes the keyboard or even a serial port)
  * could not possibly re-trigger before a certain amount of time has elapsed.
@@ -128,6 +128,7 @@
  */
 
 #include <stdio.h>
+#include <inttypes.h>
 #include "config.h"
 #include "port.h"
 #include "hlt.h"
@@ -262,9 +263,9 @@ static unsigned char pic1_cmd;
 
 /* DANG_BEGIN_FUNCTION pic_print
  *
- * This is the pic debug message printer.  It writes out some basic 
+ * This is the pic debug message printer.  It writes out some basic
  * information, followed by an informative message.  The basic information
- * consists of: 
+ * consists of:
  *       interrupt nesting counter change flag (+, -, or blank)
  *       interrupt nesting count (pic_icount)
  *       interrupt level change flag (+, -, or blank)
@@ -279,9 +280,9 @@ static unsigned char pic1_cmd;
  * If the message part 2 pointer is a null pointer, then only message
  * part one (without the data value) is printed.
  *
- * The change flags are there to facilitate grepping for changes in 
+ * The change flags are there to facilitate grepping for changes in
  * pic_ilevel and pic_icount
- * 
+ *
  * To avoid line wrap, the first seven values are printed without labels.
  * Instead, a header line is printed every 15 messages.
  *
@@ -289,8 +290,13 @@ static unsigned char pic1_cmd;
  */
 #ifdef NO_DEBUGPRINT_AT_ALL
 #define pic_print(code,s1,v1,s2)
+#define pic_print2(code,s1,v1,s2)
 #else
 #define pic_print(code,s1,v1,s2)	if (debug_level('r')>code){p_pic_print(s1,v1,s2);}
+#define pic_print2(code,s1,v1,s2) \
+	if (debug_level('r')>code){ \
+		log_printf(1, "PIC: %s%"PRIu64"%s\n", s1, v1, s2); \
+	}
 
 static void p_pic_print(char *s1, int v1, char *s2)
 {
@@ -310,7 +316,7 @@ char ci,cc;
   if (!header_count++)
     log_printf(1, "PIC: cnt lvl pic_isr  pic_imr  pic_irr (column headers)\n");
   if(header_count>15) header_count=0;
-  
+
   if(s2)
   log_printf(1, "PIC: %c%2d %c%2d %08lx %08lx %08lx %s%02d%s\n",
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
@@ -946,9 +952,9 @@ unsigned long pic_newirr;
   t_time = s_time->td;
 
   /* check for any freshly initiated timers, and sync them to s_time */
-  pic_print(2,"pic_itime[1]= ",pic_itime[1]," ");
+  pic_print2(2,"pic_itime[1]= ",pic_itime[1]," ");
   pic_sys_time=t_time + (t_time == NEVER);
-  pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
+  pic_print2(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];
   if(pic_icount<=pic_icount_od) pic_activate();
   if(config.pic_watchdog > 0) {
@@ -1021,8 +1027,8 @@ int timer, count;
       }
    }
    if(count) pic_print(2,"Activated ",count, " interrupts.");
-   pic_print(2,"Activate ++ dos time to ",earliest, " ");
-   pic_print(2,"pic_sys_time is ",pic_sys_time," ");
+   pic_print2(2,"Activate ++ dos time to ",earliest, " ");
+   pic_print2(2,"pic_sys_time is ",pic_sys_time," ");
    /*if(!pic_icount)*/ pic_dos_time = pic_itime[32] = earliest;
 }
 
@@ -1074,7 +1080,7 @@ void pic_sched(int ilevel, int interval)
     /* avoid going through sprintf for non-debugging */
     sprintf(mesg,", delay= %d.",interval);
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);
-    pic_print(2,"pic_itime set to ",pic_itime[ilevel],"");
+    pic_print2(2,"pic_itime set to ",pic_itime[ilevel],"");
   }
 }
 
