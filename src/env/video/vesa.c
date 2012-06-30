@@ -116,7 +116,7 @@ void vbe_init(vgaemu_display_type *vedt)
 {
   int i;
   vga_mode_info *vmi = NULL;
-  unsigned char *dos_vga_bios = MK_FP32(0xc000,0x0000);
+  unsigned int dos_vga_bios = SEGOFF2LINEAR(0xc000,0x0000);
   int bios_ptr = (char *) vgaemu_bios_end - (char *) vgaemu_bios_start;
 
   static struct {
@@ -138,8 +138,8 @@ void vbe_init(vgaemu_display_type *vedt)
     .save_function_flags=0x3f 
   };
 
-  memset(dos_vga_bios, 0, VBE_BIOS_MAXPAGES << 12);	/* one page */
-  memcpy(dos_vga_bios, vgaemu_bios_start, bios_ptr);
+  MEMSET_DOS(dos_vga_bios, 0, VBE_BIOS_MAXPAGES << 12);	/* one page */
+  MEMCPY_2DOS(dos_vga_bios, vgaemu_bios_start, bios_ptr);
 
   vgaemu_bios.prod_name = (char *) vgaemu_bios_prod_name - (char *) vgaemu_bios_start;
 
@@ -154,7 +154,7 @@ void vbe_init(vgaemu_display_type *vedt)
 
     vgaemu_bios.vbe_pm_interface_len = i;
     vgaemu_bios.vbe_pm_interface = bios_ptr;
-    memcpy(dos_vga_bios + bios_ptr, vgaemu_bios_pm_interface, i);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, vgaemu_bios_pm_interface, i);
     bios_ptr += i;
 
     bios_ptr = (bios_ptr + 3) & ~3;
@@ -164,34 +164,34 @@ void vbe_init(vgaemu_display_type *vedt)
     for(i = 0x100; i <= vgaemu_bios.vbe_last_mode; i++) {
       if((vmi = vga_emu_find_mode(i, NULL))) {
 	if(vmi->VESA_mode != -1 && bios_ptr < ((VBE_BIOS_MAXPAGES << 12) - 4)) {
-	  *((unsigned short *) (dos_vga_bios + bios_ptr)) = vmi->VESA_mode;
+	  WRITE_WORD(dos_vga_bios + bios_ptr, vmi->VESA_mode);
 	  bios_ptr += 2;
 	}
       }
     }
 
-    *((short *) (dos_vga_bios + bios_ptr)) = -1;
+    WRITE_WORD(dos_vga_bios + bios_ptr, -1);
     bios_ptr += 2;
 
     /* add fonts */
     vgaemu_bios.font_8 = bios_ptr;
-    memcpy(dos_vga_bios + bios_ptr, vga_rom_08, sizeof vga_rom_08);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, vga_rom_08, sizeof vga_rom_08);
     bios_ptr += sizeof vga_rom_08;
 
     vgaemu_bios.font_14 = bios_ptr;
-    memcpy(dos_vga_bios + bios_ptr, vga_rom_14, sizeof vga_rom_14);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, vga_rom_14, sizeof vga_rom_14);
     bios_ptr += sizeof vga_rom_14;
 
     vgaemu_bios.font_16 = bios_ptr;
-    memcpy(dos_vga_bios + bios_ptr, vga_rom_16, sizeof vga_rom_16);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, vga_rom_16, sizeof vga_rom_16);
     bios_ptr += sizeof vga_rom_16;
 
     vgaemu_bios.font_14_alt = bios_ptr;
-    memcpy(dos_vga_bios + bios_ptr, vga_rom_14_alt, sizeof vga_rom_14_alt);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, vga_rom_14_alt, sizeof vga_rom_14_alt);
     bios_ptr += sizeof vga_rom_14_alt;
 
     vgaemu_bios.font_16_alt = bios_ptr;
-    memcpy(dos_vga_bios + bios_ptr, vga_rom_16_alt, sizeof vga_rom_16_alt);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, vga_rom_16_alt, sizeof vga_rom_16_alt);
     bios_ptr += sizeof vga_rom_16_alt;
   } else {
     /* only support the initial video mode, can't change it */
@@ -200,13 +200,13 @@ void vbe_init(vgaemu_display_type *vedt)
       vgaemu_bios_functionality_table.modes[2] = 0;
   }
   vgaemu_bios.functionality = bios_ptr;
-  memcpy(dos_vga_bios + bios_ptr, &vgaemu_bios_functionality_table,
+  MEMCPY_2DOS(dos_vga_bios + bios_ptr, &vgaemu_bios_functionality_table,
       sizeof vgaemu_bios_functionality_table);
   bios_ptr += sizeof vgaemu_bios_functionality_table;
 
   vgaemu_bios.size = bios_ptr;
 
-  dos_vga_bios[2] = (bios_ptr + ((1 << 9) - 1)) >> 9;
+  WRITE_BYTE(dos_vga_bios + 2, (bios_ptr + ((1 << 9) - 1)) >> 9);
   vgaemu_bios.pages = (bios_ptr + ((1 << 12) - 1)) >> 12;
 
   if (config.vgaemubios_file) {
@@ -222,7 +222,7 @@ void vbe_init(vgaemu_display_type *vedt)
   }
 
   memcheck_addtype('V', "VGAEMU Video BIOS");
-  memcheck_reserve('V', dos_vga_bios-mem_base, vgaemu_bios.pages << 12);
+  memcheck_reserve('V', dos_vga_bios, vgaemu_bios.pages << 12);
 
   if(!config.X_pm_interface) {
     v_printf("VBE: vbe_init: protected mode interface disabled\n");

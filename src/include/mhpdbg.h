@@ -120,8 +120,8 @@ struct mhpdbg_4bpar
     csip;
 };
 
-#define PAR4b_addr(x) MK_FP32(mhpdbgc.bpload_par->x.seg, \
-			      mhpdbgc.bpload_par->x.off)
+#define PAR4b_addr(x) SEGOFF2LINEAR(mhpdbgc.bpload_par->x.seg, \
+				    mhpdbgc.bpload_par->x.off)
 
 struct mhpdbgc
 {

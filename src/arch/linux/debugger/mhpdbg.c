@@ -362,9 +362,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 
 		mhpdbgc.bpload++;
 		mhpdbgc.bpload_par=MK_FP32(BIOSSEG,(long)DBGload_parblock-(long)bios_f000);
-		memcpy(mhpdbgc.bpload_par, MK_FP32(LWORD(es),LWORD(ebx)), 14);
-                memcpy(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
-                memcpy(mhpdbgc.bpload_cmd, SEG_ADR((char *), ds, dx), 128);
+		MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(LWORD(es), LWORD(ebx)), 14);
+		MEMCPY_2UNIX(mhpdbgc.bpload_cmdline, PAR4b_addr(commandline_ptr), 128);
+		MEMCPY_2UNIX(mhpdbgc.bpload_cmd, SEGOFF2LINEAR(LWORD(ds), LWORD(edx)), 128);
 		LWORD(es)=BIOSSEG;
 		LWORD(ebx)=(void *)mhpdbgc.bpload_par - MK_FP32(BIOSSEG, 0);
 		LWORD(eax)=0x4b01; /* load, but don't execute */
@@ -440,7 +440,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 #if 0
 		      mhpdbgc.bpload_bp=(mhpdbgc.bpload_par->csip.seg << 4)+mhpdbgc.bpload_par->csip.off;
 #endif
-		      mhpdbgc.bpload_bp=(unsigned char *)PAR4b_addr(csip) - mem_base;
+		      mhpdbgc.bpload_bp=PAR4b_addr(csip);
 		      if (!mhpdbgc.bpload_bp) {
 			mhp_printf("\n\nbpload: Error: loader did not fill in the entry point address!\n");
 			mhp_cmd("r");

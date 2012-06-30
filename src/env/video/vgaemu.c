@@ -1481,7 +1481,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 {
   int i;
   vga_mapping_type vmt = {0, 0, 0};
-  static unsigned char *lfb_base = NULL;
+  static unsigned int lfb_base = -1;
 
   /* clean it up - just in case */
   memset(&vga, 0, sizeof vga);
@@ -1528,14 +1528,15 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   vga_msg("vga_emu_init: scratch_page at %p\n", vga.mem.scratch_page);
 
   if(config.X_lfb) {
-    lfb_base = mmap_mapping(MAPPING_VGAEMU | MAPPING_SCRATCH, (void *)-1,
-			    vga.mem.size, PROT_READ|PROT_WRITE|PROT_EXEC, 0);
-    if(!lfb_base) {
+    unsigned char *p = mmap_mapping(MAPPING_VGAEMU | MAPPING_SCRATCH,
+		 (void *)-1, vga.mem.size, PROT_READ|PROT_WRITE|PROT_EXEC, 0);
+    if(p == MAP_FAILED)
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
-    }
+    else
+      lfb_base = p - mem_base;
   }
 
-  if(lfb_base == NULL) {
+  if(lfb_base == -1) {
     vga_msg("vga_emu_init: linear frame buffer (lfb) disabled\n");
   }
 
@@ -1565,10 +1566,10 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 
   vga.mem.bank = vga.mem.bank_pages = 0;
 
-  if(lfb_base != NULL) {
-    vga.mem.lfb_base_page = (unsigned)(lfb_base-mem_base) >> 12;
+  if(lfb_base != -1) {
+    vga.mem.lfb_base_page = lfb_base >> 12;
     memcheck_addtype('e', "VGAEMU LFB");
-    register_hardware_ram('e', lfb_base-mem_base, vga.mem.size);
+    register_hardware_ram('e', lfb_base, vga.mem.size);
   }
 
   vga_emu_setup_mode_table();
