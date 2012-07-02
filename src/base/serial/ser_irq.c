@@ -132,11 +132,10 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 #define QUEUE_THRESHOLD 14
 
   int control, queued;
-#if 0
-  /* Give system time to transmit */
-  /* Disabled timer stuff, not needed any more  -- stsp */
-  if (com[num].tx_timer > TX_BUF_THRESHOLD) return;
-#endif
+
+  if (!TX_TRIGGER(num))
+    return;
+
   /* If Linux is handling flow control, then check the CTS state.
    * If the CTS state is low, then don't start new transmit interrupt!
    */
@@ -152,7 +151,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
   if (debug_level('s') > 5)
     s_printf("SER%d: queued=%i trig=%i\n", num, queued, TX_TRIGGER(num));
 
-  if (TX_TRIGGER(num) && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
+  if (queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
     com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
     if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
     serial_int_engine(num, TX_INTR);		/* Update interrupt status */

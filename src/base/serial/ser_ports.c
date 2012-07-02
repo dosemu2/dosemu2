@@ -420,10 +420,12 @@ static int get_rx(int num)
   com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
   com[num].IIR.flg.cti = 0;
 
-  /* If the Received-Data-Ready bit is clear then return a 0
-   * since we're not supposed to read from the buffer right now!
-   */
-  if (!RX_BUF_BYTES(num)) return 0;
+  /* if no data, try to get some */
+  if (!RX_BUF_BYTES(num))
+    receive_engine(num);
+  /* if still no data, go out */
+  if (!RX_BUF_BYTES(num))
+    return 0;
 
   /* Get byte from internal receive queue */
   val = com[num].rx_buf[com[num].rx_buf_start++];
@@ -846,7 +848,6 @@ do_serial_in(int num, ioport_t address)
       if(s1_printf) s_printf("SER%d: Read Divisor LSB = 0x%x\n",num,val);
     }
     else {
-      receive_engine(num);	/* see if some data can be read */
       val = get_rx(num);	/* Else, read Received Byte Register */
       if(s2_printf) s_printf("SER%d: Receive 0x%x\n",num,val);
     }
@@ -893,7 +894,6 @@ do_serial_in(int num, ioport_t address)
     break;
 
   case UART_MSR:	/* Read from Modem Status Register */
-    modstat_engine(num);
     val = get_msr(num);
     if(s2_printf) s_printf("SER%d: Read MSR = 0x%x\n",num,val);
     break;
