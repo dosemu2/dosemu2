@@ -1,4 +1,4 @@
-/* 
+/*
  * Tim Bird, tbird@novell.com (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
@@ -7,10 +7,10 @@
  */
 
 /* ipx.c for the DOS emulator
- * 96/07/31 -	Add callback from ESR and procedure to call into 
+ * 96/07/31 -	Add callback from ESR and procedure to call into
  *		IPX from DOSEmu (bios.S ESRFarCall). JES
  *
- * 21.10.2004 -	Removed callback from ESR and procedure to call into 
+ * 21.10.2004 -	Removed callback from ESR and procedure to call into
  *		IPX from DOSEmu (bios.S ESRFarCall). stsp
  */
 
@@ -288,7 +288,7 @@ static void printIPXHeader(IPXPacket_t * IPXHeader)
   }
 }
 
-static void ipx_async_callback(void)
+static void ipx_async_callback(void *arg)
 {
   n_printf("IPX: requesting receiver IRQ\n");
   pic_request(PIC_IPX);
@@ -368,7 +368,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
   
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);
-  add_to_io_select(sock, 1, ipx_async_callback);
+  add_to_io_select(sock, 1, ipx_async_callback, NULL);
   n_printf("IPX: successfully opened socket %i, %04x\n", sock, port);
   *newPort = port;
   return (RCODE_SUCCESS);

@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -12,7 +12,7 @@
  * This Driver has extensively modified from the original driver.
  */
 
-/* 
+/*
  * DANG_BEGIN_MODULE
  *
  * Soundblaster emulation. Very incomplete. Linux Driver.
@@ -727,10 +727,10 @@ int SB_driver_init () {
   return linux_sb_get_version();
 }
 
-void linux_mpu401_register_callback(void (*io_callback)(void))
+void linux_mpu401_register_callback(void (*io_callback)(void *))
 {
   if (mpu_in_fd == -1) return;
-  add_to_io_select(mpu_in_fd, 1, io_callback);
+  add_to_io_select(mpu_in_fd, 1, io_callback, NULL);
 }
 
 void linux_mpu401_data_write(uint8_t data)

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -134,6 +134,11 @@ int vmhp_log_intercept(int flg, const char *fmt, va_list args)
   return 0;
 }
 
+static void mhp_input_async(void *arg)
+{
+  mhp_input();
+}
+
 static void mhp_init(void)
 {
   int retval;
@@ -157,7 +162,7 @@ static void mhp_init(void)
         /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
         mhpdbg.fdout = open(pipename_out, O_RDWR | O_NONBLOCK);
         if (mhpdbg.fdout != -1) {
-          add_to_io_select(mhpdbg.fdin, 0, mhp_input);
+          add_to_io_select(mhpdbg.fdin, 0, mhp_input_async, NULL);
         }
         else {
           close(mhpdbg.fdin);

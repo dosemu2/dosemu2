@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -85,7 +85,7 @@ struct pkt_statistics {
 				    /*  out of resources, etc. */
 };
 
-extern void pkt_receive_async(void);
+extern void pkt_receive_async(void *);
 extern void pkt_priv_init (void);
 extern void pkt_init (void);
 extern void pkt_reset (void);

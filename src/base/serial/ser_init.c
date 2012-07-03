@@ -189,7 +189,7 @@ static int tty_lock(char *path, int mode)
              saved_path, strerror(errno));
       return (-1);
     }
-      
+
     retval = unlink(saved_path);
     if (retval < 0) {
       error("tty: unlock: (%s): %s\n", saved_path,
@@ -200,11 +200,11 @@ static int tty_lock(char *path, int mode)
   return(0);
 }
 
-static void async_serial_run(void)
+static void async_serial_run(void *arg)
 {
-  /* Currently the fd is not passed to function, so we just call serial_run() */
-  s_printf("SERIAL: Async notification received\n");
-  serial_run();
+  int num = (long)arg;
+  s_printf("SER%d: Async notification received\n", num);
+  serial_update(num);
 }
 
 /* This function opens ONE serial port for DOSEMU.  Normally called only
@@ -285,7 +285,7 @@ int ser_open(int num)
     }
   }
 
-  add_to_io_select(com[num].fd, 1, async_serial_run);
+  add_to_io_select(com[num].fd, 1, async_serial_run, (void *)(long)num);
   return com[num].fd;
 
 fail_close:

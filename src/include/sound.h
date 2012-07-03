@@ -264,7 +264,7 @@ EXTERN struct mpu401_info_t {
 	/* Architecture specific procedures */
 	void (*data_write)(uint8_t data); /* process 1 MIDI byte */
 	int (*data_read)(uint8_t data[], int max_size);
-	void (*register_io_callback)(void (*io_callback)(void));
+	void (*register_io_callback)(void (*io_callback)(void *));
 } mpu401_info;
 
 /*

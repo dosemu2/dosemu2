@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-                     
+
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
@@ -24,7 +24,7 @@ void demo_plugin_init(void)
 	if (!my_plugin_conf) return;
 	my_plugin_fd = open("/tmp/plugin_test_pipe", O_RDWR | O_NONBLOCK);
 	if (my_plugin_fd != -1) {
-		add_to_io_select(my_plugin_fd, 0, my_plugin_ioselect);
+		add_to_io_select(my_plugin_fd, 0, my_plugin_ioselect, NULL);
 		fprintf(stderr, "PLUGIN: test_pipe listening\n");
 	}
 }
@@ -42,7 +42,7 @@ static char *bufptr = 0;
 static int sizebuf = 0;
 static Bit16u cback_ds = 0;
 
-void my_plugin_ioselect(void)
+void my_plugin_ioselect(void *arg)
 {
 	Bit16u nbytes;
 

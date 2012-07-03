@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -397,7 +397,7 @@ EXTERN int mfs_helper(state_t *regs);
 EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void leavedos(int) NORETURN;
-EXTERN void add_to_io_select(int, u_char, void(*)(void));
+EXTERN void add_to_io_select(int, u_char, void(*)(void *), void *);
 EXTERN void remove_from_io_select(int, u_char);
 #ifdef __linux__
 EXTERN void SIG_init(void);

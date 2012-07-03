@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -160,13 +160,13 @@ pkt_init(void)
       case VNET_TYPE_ETH:
 	strncpy(devname, config.netdev, sizeof(devname) - 1);
         devname[sizeof(devname) - 1] = 0;
-	add_to_io_select(pkt_fd, 1, pkt_receive_async);
+	add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
 	break;
 
       case VNET_TYPE_DSN:
 	strcpy(devname, DOSNET_DEVICE);
-	add_to_io_select(pkt_fd, 1, pkt_receive_async);
-	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async);
+	add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
+	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async, NULL);
 	break;
 
       case VNET_TYPE_TAP:
@@ -181,7 +181,7 @@ pkt_init(void)
 	    strerror(errno));
           goto fail;
         }
-	add_to_io_select(pkt_fd, 1, pkt_receive_async);
+	add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
 	break;
 
       default:
@@ -628,7 +628,7 @@ out:
     REGS = saved_regs;
 }
 
-void pkt_receive_async(void)
+void pkt_receive_async(void *arg)
 {
   if (local_receive_mode == 1)
     return;

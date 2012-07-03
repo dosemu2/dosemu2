@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -1946,7 +1946,7 @@ void mouse_post_boot(void)
   SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 }
 
-void mouse_io_callback(void)
+void mouse_io_callback(void *arg)
 {
   if (mice->intdrv && mice->fd >= 0) {
     m_printf("MOUSE: We have data\n");

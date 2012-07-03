@@ -1545,11 +1545,11 @@ static int slang_keyb_init(void)
 
 	if (!isatty(keyb_state.kbd_fd)) {
 		k_printf("KBD: Using SIGIO\n");
-		add_to_io_select(keyb_state.kbd_fd, 1, keyb_client_run);
+		add_to_io_select(keyb_state.kbd_fd, 1, keyb_client_run_async, NULL);
 	}
 	else {
 		k_printf("KBD: Not using SIGIO\n");
-		add_to_io_select(keyb_state.kbd_fd, 0, keyb_client_run);
+		add_to_io_select(keyb_state.kbd_fd, 0, keyb_client_run_async, NULL);
 	}
    
 	k_printf("KBD: slang_keyb_init() ok\n");

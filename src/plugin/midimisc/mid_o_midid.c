@@ -44,7 +44,7 @@ static pid_t midid_pid = -1;
 static int pipe_in[2], pipe_out[2], pcm_stream;
 static int timid_capt = 1, midid_dev = 0;
 
-static void midomidid_async(void)
+static void midomidid_async(void *arg)
 {
     char buf[16384];
     int n, selret;
@@ -143,7 +143,7 @@ static int midomidid_init(void)
     close(pipe_in[1]);
     if (timid_capt) {
 	pcm_stream = pcm_allocate_stream(2, "MIDI");
-	add_to_io_select(pipe_in[0], 1, midomidid_async);
+	add_to_io_select(pipe_in[0], 1, midomidid_async, NULL);
     }
     return 1;
 }

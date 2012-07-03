@@ -34,7 +34,7 @@
 static int pipe_fd = -1;
 static const char *midipipe_name = "MIDI Input: named pipe";
 
-static void midipipe_io(void)
+static void midipipe_io(void *arg)
 {
     unsigned char buf[1024];
     int n, selret;
@@ -67,7 +67,7 @@ static int midipipe_init(void)
 		 midipipe_name, name, strerror(errno));
 	return 0;
     }
-    add_to_io_select(pipe_fd, 1, midipipe_io);
+    add_to_io_select(pipe_fd, 1, midipipe_io, NULL);
     return 1;
 }
 

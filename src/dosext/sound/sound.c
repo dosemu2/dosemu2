@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -8,10 +8,9 @@
  * DANG_BEGIN_MODULE
  *
  * Description: SB emulation - Getting There ...!
- * 
- * maintainer: 
+ *
+ * maintainer:
  *   Alistair MacDonald <alistair@slitesys.demon.co.uk>
- *   Stas Sergeev <stsp@users.sourceforge.net>
  *   Ben Davis <entheh@users.sf.net>
  *
  * DANG_END_MODULE
@@ -56,7 +55,7 @@
  * Many thanks to Vlad Romascanu for the usefull info and hints.
  * -- Stas Sergeev
  *
- * 
+ *
  * Added SB16 support.
  * -- Ben Davis
  *
@@ -673,7 +672,7 @@ Bit8u mpu401_io_read(ioport_t port)
   return r;
 }
 
-static void mpu401_io_callback(void)
+static void mpu401_io_callback(void *arg)
 {
   unsigned char buf[QUEUE_SIZE];
   int n;

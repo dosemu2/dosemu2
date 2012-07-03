@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -45,6 +45,6 @@ void linux_sb_dma_complete(void);
 
 int linux_mpu401_data_read(uint8_t data[], int max_len);
 void linux_mpu401_data_write(uint8_t data);
-void linux_mpu401_register_callback(void (*io_callback)(void));
+void linux_mpu401_register_callback(void (*io_callback)(void *));
 
 int linux_sb_get_free_fragments(int *total, int *free, int *bytes);

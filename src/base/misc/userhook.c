@@ -388,7 +388,7 @@ static void uhook_config(int argc, char **argv)
 #endif
 }
 
-void uhook_input(void)
+void uhook_input(void *arg)
 {
 	if (fdin == -1) return;
 	nbytes = read(fdin, recvbuf+nbytes, UHOOK_BUFSIZE-nbytes);
@@ -483,7 +483,7 @@ void init_uhook(char *pipes)
 			fdin = -1;
 			return;
 		}
-		add_to_io_select(fdin, 0, uhook_input);
+		add_to_io_select(fdin, 0, uhook_input, NULL);
 		if (outpipename) {
 			/* NOTE: need to open read/write
 			 * else O_NONBLOCK would fail to open */

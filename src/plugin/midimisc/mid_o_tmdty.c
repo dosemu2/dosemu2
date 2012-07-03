@@ -58,7 +58,7 @@ static int ctrl_sock_in, ctrl_sock_out, data_sock, pcm_stream;
 static pid_t tmdty_pid = -1;
 static struct sockaddr_in ctrl_adr, data_adr;
 
-static void midotmdty_io(void)
+static void midotmdty_io(void *arg)
 {
     char buf[16384];
     int n, selret;
@@ -310,7 +310,7 @@ static int midotmdty_init(void)
     S_printf("\tConnect: %s\n", buf);
 
     if (TMDTY_CAPT) {
-	add_to_io_select(data_sock, 1, midotmdty_io);
+	add_to_io_select(data_sock, 1, midotmdty_io, NULL);
 	pcm_stream = pcm_allocate_stream(2, "MIDI");
     }
 

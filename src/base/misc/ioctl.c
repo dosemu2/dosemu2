@@ -65,13 +65,17 @@
 #endif
 
 #include "userhook.h"
-  
+
 #ifndef PAGE_SIZE
 #define PAGE_SIZE       4096
 #endif
 
 #define MAX_FD 1024
-void (*io_callback_func[MAX_FD])(void);
+struct io_callback_s {
+  void (*func)(void *);
+  void *arg;
+};
+struct io_callback_s io_callback_func[MAX_FD];
 
 #if defined(SIG)
 static inline int process_interrupt(SillyG_t *sg)
@@ -141,9 +145,9 @@ io_select(fd_set fds)
 
     default:			/* has at least 1 descriptor ready */
       for(i = 0; i < numselectfd; i++) {
-        if (FD_ISSET(i, &fds) && io_callback_func[i]) {
+        if (FD_ISSET(i, &fds) && io_callback_func[i].func) {
 	  g_printf("GEN: fd %i has data\n", i);
-	  io_callback_func[i]();
+	  io_callback_func[i].func(io_callback_func[i].arg);
 	}
       }
       reset_idle(0);
@@ -170,7 +174,7 @@ int i;
     FD_ZERO(&fds_sigio);	/* initialize both fd_sets to 0 */
     FD_ZERO(&fds_no_sigio);
     for (i = 0; i < MAX_FD; i++)
-      io_callback_func[i] = NULL;
+      io_callback_func[i].func = NULL;
     /* block SIGIO/SIGALRM/SIG_ACQUIRE/SIG_RELEASE until they are set to
        functions later in signal_init() and device_init() */
     sigemptyset(&set);
@@ -180,19 +184,19 @@ int i;
 
 /*
  * DANG_BEGIN_FUNCTION add_to_io_select
- * 
- * arguments: 
+ *
+ * arguments:
  * fd - File handle to add to select statment
  * want_sigio - want SIGIO (1) if it's available, or not (0).
- * 
- * description: 
+ *
+ * description:
  * Add file handle to one of 2 select FDS_SET's depending on
  * whether the kernel can handle SIGIO.
- * 
+ *
  * DANG_END_FUNCTION
  */
-void 
-add_to_io_select(int new_fd, u_char want_sigio, void (*func)(void))
+void
+add_to_io_select(int new_fd, u_char want_sigio, void (*func)(void *), void *arg)
 {
     if ((new_fd+1) > numselectfd) numselectfd = new_fd+1;
     if (numselectfd > MAX_FD) {
@@ -211,7 +215,8 @@ add_to_io_select(int new_fd, u_char want_sigio, void (*func)(void))
 	g_printf("GEN: fd=%d does not get SIGIO\n", new_fd);
 	not_use_sigio++;
     }
-    io_callback_func[new_fd] = func;
+    io_callback_func[new_fd].func = func;
+    io_callback_func[new_fd].arg = arg;
 }
 
 /*
@@ -246,7 +251,7 @@ remove_from_io_select(int new_fd, u_char used_sigio)
 	g_printf("GEN: fd=%d removed from select\n", new_fd);
 	not_use_sigio++;
     }
-    io_callback_func[new_fd] = NULL;
+    io_callback_func[new_fd].func = NULL;
 }
 
 /* @@@ MOVE_END @@@ 32768 */

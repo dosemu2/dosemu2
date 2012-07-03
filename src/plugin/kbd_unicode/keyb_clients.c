@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -179,7 +179,7 @@ void keyb_client_close(void)
 	}
 }
 
-void keyb_client_run(void) 
+void keyb_client_run(void)
 {
 	/* if a paste operation is currently running, give it priority over the keyboard
 	 * frontend, in case the user continues typing before pasting is finished.
@@ -190,6 +190,11 @@ void keyb_client_run(void)
 	else if ((Keyboard!=NULL) && (Keyboard->run!=NULL)) {
 		Keyboard->run();
 	}
+}
+
+void keyb_client_run_async(void *arg)
+{
+	keyb_client_run();
 }
 
 void keyb_client_set_leds(t_modifiers modifiers)

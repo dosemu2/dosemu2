@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -180,7 +180,7 @@ extern void int74(void);
 extern int DOSEMUMouseEvents(int);
 
 extern void do_mouse_irq(void);
-extern void mouse_io_callback(void);
+extern void mouse_io_callback(void *);
 
 extern void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
 extern void mouse_move_relative(int dx, int dy);
