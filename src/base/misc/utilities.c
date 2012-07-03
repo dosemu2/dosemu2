@@ -357,7 +357,11 @@ void advance_proc_bufferptr(void)
 
 void reset_proc_bufferptr(void)
 {
-  procbufptr = procbuf; proclastpos = 0;
+  if (proclastpos) {
+    *proclastpos = proclastdelim;
+    proclastpos =0;
+  }
+  procbufptr = procbuf;
 }
 
 char *get_proc_string_by_key(char *key)
