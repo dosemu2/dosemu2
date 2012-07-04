@@ -1794,7 +1794,8 @@ text_cursor(void)
   	return;
 
   /* remember where we drew this. */
-  mouse_erase.x = offset = 2 * (cx + cy * co);
+  mouse_erase.x = cx + cy * co;
+  offset = mouse_erase.x*2;
   mouse_erase.backingstore.text[0] = vga_read_word(p + offset);
 
   /* draw it. */
