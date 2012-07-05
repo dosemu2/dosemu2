@@ -698,43 +698,23 @@ int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
   return ret;
 }
 
-static void
-map_unmap_multiple(state_t * state)
+static int
+do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
 {
   int ret;
+  u_short *array2 = malloc(PAGE_MAP_SIZE(map_len));
 
-  Kdebug0((dbg_fd, "map_unmap_multiple %d called\n",
-	   (int) LOW(state->eax)));
-
-  switch (LOW(state->eax)) {
-  case MULT_LOGPHYS:{		/* 0 */
-      int handle = WORD(state->edx);
-      int map_len = WORD(state->ecx);
-      u_short *array = (u_short *) Addr(state, ds, esi);
-
-      Kdebug0((dbg_fd, "...using mult_logphys method, "
-	       "handle %d, map_len %d, array @ %p\n",
-	       handle, map_len, array));
-
-      ret = emm_map_unmap_multi(array, handle, map_len);
-      SETHIGH(&(state->eax), ret);
+  switch (method) {
+  case MULT_LOGPHYS: /* page no method */
+      MEMCPY_2UNIX(array2, array, PAGE_MAP_SIZE(map_len));
       break;
-    }
 
-  case MULT_LOGSEG:{
-      int handle = WORD(state->edx);
-      int map_len = WORD(state->ecx);
-      int i = 0, phys, log, seg;
-      u_short *array = (u_short *) Addr(state, ds, esi);
-      u_short *array2 = malloc(PAGE_MAP_SIZE(map_len));
-
-      Kdebug0((dbg_fd, "...using mult_logseg method, "
-	       "handle %d, map_len %d, array @ %p\n",
-	       handle, map_len, array));
+  case MULT_LOGSEG: { /* page segment method */
+      int i, phys, log, seg;
 
       for (i = 0; i < map_len; i++) {
-	log = array[i * 2];
-	seg = array[i * 2 + 1];
+	log = READ_WORD(array + PAGE_MAP_SIZE(i));
+	seg = READ_WORD(array + PAGE_MAP_SIZE(i) + sizeof(u_short));
 
 	phys = SEG_TO_PHYS(seg);
 
@@ -743,28 +723,53 @@ map_unmap_multiple(state_t * state)
 
 	if (phys == -1) {
 	  free(array2);
-	  SETHIGH(&(state->eax), EMM_ILL_PHYS);
-	  return;
+	  return EMM_ILL_PHYS;
 	}
 	else {
 	  array2[i * 2] = log;
 	  array2[i * 2 + 1] = phys;
 	}
       }
-
-      ret = emm_map_unmap_multi(array2, handle, map_len);
-      SETHIGH(&(state->eax), ret);
-      free(array2);
       break;
     }
+  }
+
+  ret = emm_map_unmap_multi(array2, handle, map_len);
+  free(array2);
+  return ret;
+}
+
+static void
+map_unmap_multiple(state_t * state)
+{
+  int handle, map_len;
+  unsigned int array;
+  int method = LOW(state->eax);
+  int ret;
+
+  Kdebug0((dbg_fd, "map_unmap_multiple %d called\n", method));
+
+  switch (method) {
+  case MULT_LOGPHYS:
+  case MULT_LOGSEG:
+    handle = WORD(state->edx);
+    map_len = WORD(state->ecx);
+    array = SEGOFF2LINEAR(state->ds, WORD(state->esi));
+    Kdebug0((dbg_fd, "...using mult_log%s method, "
+	     "handle %d, map_len %d, array @ %#x\n",
+	     method == MULT_LOGPHYS ? "phys" : "seg",
+	     handle, map_len, array));
+    ret = do_map_unmap_multi(method, array, handle, map_len);
+    break;
 
   default:
     Kdebug0((dbg_fd,
 	     "ERROR: map_unmap_multiple subfunction %d not supported\n",
-	     (int) LOW(state->eax)));
-    SETHIGH(&(state->eax), EMM_INVALID_SUB);
-    return;
+	     method));
+    ret = EMM_INVALID_SUB;
+    break;
   }
+  SETHIGH(&(state->eax), ret);
 }
 
 static void
