@@ -311,9 +311,6 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 #define MEMCPY_2DOSP(dos_addr, unix_addr, n) \
 	memcpy(lowmemp(dos_addr), (unix_addr), (n))
 
-#define MEMMOVE_DOSP2DOSP(dos_addr1, dos_addr2, n) \
-	memmove(lowmemp(dos_addr1), lowmemp(dos_addr2), (n))
-
 #endif
 
 #endif /* MEMORY_H */

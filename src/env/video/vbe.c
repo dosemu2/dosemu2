@@ -33,26 +33,33 @@ static unsigned vesa_int10, vesa_oemid;
 static unsigned vesa_version;
 static struct vm86_regs vesa_r;
 
+struct VBE_vi_vm {
+  struct VBE_vi vbei;
+  struct VBE_vm vbemi;
+} __attribute__((packed));
+
 #define VESA_SAVE_BITMAP 0xf /* save everything */
-#define VBE_BUFFER vbe_buffer
 
 /* vesa_reinit: a function to reinitialize in case the DOS VESA driver
    changes at runtime (e.g. univbe). Also called at startup */
 static void vesa_reinit(void)
 {
-  unsigned char *vbe_buffer, *info_buffer;
+  struct VBE_vi_vm *vbe_buffer;
+  struct VBE_vi *vbei;
+  struct VBE_vm *vbemi;
   char *s;
 
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
 
-  vbe_buffer = info_buffer = lowmem_heap_alloc(VBE_viSize+VBE_vmSize);
+  vbe_buffer = lowmem_heap_alloc(sizeof *vbe_buffer);
+  vbei = &vbe_buffer->vbei;
   vesa_r.eax = 0x4f00;
   vesa_r.es = DOSEMU_LMHEAP_SEG;
-  vesa_r.edi = DOSEMU_LMHEAP_OFFS_OF(vbe_buffer);
-  VBE_viVBESig = 0x32454256; /* "VBE2" */
+  vesa_r.edi = DOSEMU_LMHEAP_OFFS_OF(vbei);
+  vbei->VBESig = 0x32454256; /* "VBE2" */
 
   do_int10_callback(&vesa_r);
-  if ((vesa_r.eax & 0xffff) != 0x4f || VBE_viVBESig != 0x41534556 /* "VESA" */ ) {
+  if ((vesa_r.eax & 0xffff) != 0x4f || vbei->VBESig != 0x41534556 /* "VESA" */ ) {
     v_printf("No VESA bios detected!\n");
     if (config.gfxmemsize < 0) config.gfxmemsize = 256;
     vesa_regs_size = 0;
@@ -61,18 +68,18 @@ static void vesa_reinit(void)
   }
 
   /* check if the VESA BIOS has changed */
-  s = MK_FP32(FP_SEG16(VBE_viOEMID), FP_OFF16(VBE_viOEMID));
-  if (vesa_oemstring && VBE_viOEMID == vesa_oemid &&
+  s = MK_FP32(FP_SEG16(vbei->OEMID), FP_OFF16(vbei->OEMID));
+  if (vesa_oemstring && vbei->OEMID == vesa_oemid &&
       strcmp(s, vesa_oemstring) == 0)
     goto out;
-  vesa_oemid = VBE_viOEMID;
+  vesa_oemid = vbei->OEMID;
   if (vesa_oemstring) free(vesa_oemstring);
   vesa_oemstring = strdup(s);
 
-  if (config.gfxmemsize < 0) config.gfxmemsize = VBE_viMemory*64;
-  vesa_version = VBE_viVESAVersion;
+  if (config.gfxmemsize < 0) config.gfxmemsize = vbei->Memory*64;
+  vesa_version = vbei->VESAVersion;
 
-  vbe_buffer += VBE_viSize;
+  vbemi = &vbe_buffer->vbemi;
   memset(&vesa_r, 0, sizeof(vesa_r));
 
   vesa_granularity = 64;
@@ -85,12 +92,12 @@ static void vesa_reinit(void)
   vesa_r.edi = DOSEMU_LMHEAP_OFFS_OF(vbe_buffer);
   do_int10_callback(&vesa_r);
   if ((vesa_r.eax & 0xffff) == 0x4f) {
-    vesa_granularity= VBE_vmWinGran;
-    vesa_read_write = VBE_vmWinAAttrib & 6;
-    if (vesa_version >= 0x200 && (VBE_vmModeAttrib & 0x80) && config.pci_video) {
-      vesa_linear_vbase = get_hardware_ram(VBE_vmPhysBasePtr);
+    vesa_granularity= vbemi->WinGran;
+    vesa_read_write = vbemi->WinAAttrib & 6;
+    if (vesa_version >= 0x200 && (vbemi->ModeAttrib & 0x80) && config.pci_video) {
+      vesa_linear_vbase = get_hardware_ram(vbemi->PhysBasePtr);
       v_printf("VESA: physical base = %x, virtual base = %x\n",
-	       VBE_vmPhysBasePtr, vesa_linear_vbase);
+	       vbemi->PhysBasePtr, vesa_linear_vbase);
     }
   } else {
     v_printf("VESA: Can't get mode info\n");
@@ -108,7 +115,7 @@ static void vesa_reinit(void)
     vesa_regs_size = vesa_r.ebx * 64;
 
  out:
-  lowmem_heap_free(info_buffer);
+  lowmem_heap_free(vbe_buffer);
   v_printf("VESA: memory size = %lu, regs_size=%x\n",
 	   config.gfxmemsize, vesa_regs_size);
 }

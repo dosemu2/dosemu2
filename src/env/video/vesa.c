@@ -84,16 +84,16 @@ static vgaemu_display_type vbe_screen;
  * function prototypes
  */
 
-static int vbe_info(unsigned char *);
-static int vbe_mode_info(unsigned, unsigned char *);
+static int vbe_info(unsigned int);
+static int vbe_mode_info(unsigned, unsigned int);
 static int vbe_set_mode(unsigned);
 static int vbe_get_mode(void);
-static int vbe_save_restore(unsigned, unsigned, unsigned char *);
+static int vbe_save_restore(unsigned, unsigned, unsigned int);
 static int vbe_display_window(unsigned, unsigned, unsigned);
 static int vbe_scan_length(unsigned, unsigned);
 static int vbe_display_start(unsigned, unsigned, unsigned);
 static int vbe_dac_format(unsigned, unsigned);
-static int vbe_palette_data(unsigned, unsigned, unsigned, unsigned char *);
+static int vbe_palette_data(unsigned, unsigned, unsigned, unsigned int);
 static int vbe_pm_interface(unsigned);
 static int vbe_power_state(unsigned, unsigned);
 
@@ -272,11 +272,11 @@ void do_vesa_int()
 
   switch(_AL) {
     case 0x00:		/* return VBE controller info */
-      err_code = vbe_info(SEG_ADR((unsigned char *), es, di));
+      err_code = vbe_info(SEGOFF2LINEAR(_ES, _DI));
       break;
 
     case 0x01:		/* return VBE mode info */
-      err_code = vbe_mode_info(_CX, SEG_ADR((unsigned char *), es, di));
+      err_code = vbe_mode_info(_CX, SEGOFF2LINEAR(_ES, _DI));
       break;  
 
     case 0x02:		/* set VBE mode */
@@ -288,7 +288,7 @@ void do_vesa_int()
       break;
 
     case 0x04:		/* save/restore state */
-      err_code = vbe_save_restore(_DL, _CX, SEG_ADR((unsigned char *), es, bx));
+      err_code = vbe_save_restore(_DL, _CX, SEGOFF2LINEAR(_ES, _BX));
       break;
 
     case 0x05:		/* display window control (aka set/get bank) */
@@ -308,7 +308,7 @@ void do_vesa_int()
       break;
 
     case 0x09:		/* set/get palette data */
-      err_code = vbe_palette_data(_BL, _CX, _DX, SEG_ADR((unsigned char *), es, di));
+      err_code = vbe_palette_data(_BL, _CX, _DX, SEGOFF2LINEAR(_ES, _DI));
       break;
 
     case 0x0a:		/* return VBE PM interface */
@@ -348,11 +348,12 @@ void do_vesa_int()
  *
  */
 
-#define VBE_BUFFER vbei
-static int vbe_info(unsigned char *vbei)
+static int vbe_info(unsigned int vbeinfo)
 {
   int vbe2 = 0;
   int i;
+  struct VBE_vi vbei;
+  size_t size;
 
 #ifdef DEBUG_VBE
   v_printf(
@@ -361,37 +362,38 @@ static int vbe_info(unsigned char *vbei)
   );
 #endif
 
-  if(VBE_viVBESig == 0x32454256 /* "VBE2" */) vbe2 = 1;
+  if(vbei.VBESig == 0x32454256 /* "VBE2" */) vbe2 = 1;
 
 #ifdef DEBUG_VBE
   if(vbe2) v_printf("VBE: [0x%02x] vbe_info: VBE2 info requested\n", (unsigned) _AL);
 #endif
 
-  memset(vbei, 0, vbe2 ? 0x200 : 0x100);
+  size = vbe2 ? sizeof(vbei) : offsetof(struct VBE_vi, OEMData);
+  memset(&vbei, 0, size);
 
-  VBE_viVBESig = 0x41534556;		/* "VESA" */
-  VBE_viVESAVersion = 0x200;		/* 2.0 */
-  VBE_viOEMID = VBE_SEG_OFS(0xc000, vgaemu_bios.prod_name);
-  VBE_viCapabilities = 1;		/* 6/8 bit switchable DAC */
-  VBE_viModeList = VBE_SEG_OFS(0xc000, vgaemu_bios.vbe_mode_list);
-  VBE_viMemory = vga.mem.pages >> 4;	/* multiples of 64 kbyte */
+  vbei.VBESig = 0x41534556;		/* "VESA" */
+  vbei.VESAVersion = 0x200;		/* 2.0 */
+  vbei.OEMID = MK_FP16(0xc000, vgaemu_bios.prod_name);
+  vbei.Capabilities = 1;		/* 6/8 bit switchable DAC */
+  vbei.ModeList = MK_FP16(0xc000, vgaemu_bios.vbe_mode_list);
+  vbei.Memory = vga.mem.pages >> 4;	/* multiples of 64 kbyte */
 
   if(vbe2) {
-    i = VBE_OEMData;
-    VBE_viOEMSoftRev = VBE_OEMSoftRev;
+    i = 0;
+    vbei.OEMSoftRev = VBE_OEMSoftRev;
 
-    MEMCPY_2DOSP(vbei + i, VBE_OEMVendorName, sizeof(VBE_OEMVendorName));
-    VBE_viOEMVendorName = VBE_SEG_OFS(_ES, _DI + i);
+    memcpy(&vbei.OEMData[i], VBE_OEMVendorName, sizeof(VBE_OEMVendorName));
+    vbei.OEMVendorName = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
     i += sizeof(VBE_OEMVendorName);
 
-    MEMCPY_2DOSP(vbei + i, VBE_OEMProdName, sizeof(VBE_OEMProdName));
-    VBE_viOEMProdName = VBE_SEG_OFS(_ES, _DI + i);
+    memcpy(&vbei.OEMData[i], VBE_OEMProdName, sizeof(VBE_OEMProdName));
+    vbei.OEMProdName = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
     i += sizeof(VBE_OEMProdName);
 
-    MEMCPY_2DOSP(vbei + i, VBE_OEMProductRev, sizeof(VBE_OEMProductRev));
-    VBE_viOEMProductRev = VBE_SEG_OFS(_ES, _DI + i);
-    i += sizeof(VBE_OEMProductRev);
+    memcpy(&vbei.OEMData[i], VBE_OEMProductRev, sizeof(VBE_OEMProductRev));
+    vbei.OEMProductRev = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
   }
+  MEMCPY_2DOS(vbeinfo, &vbei, size);
 
 #ifdef DEBUG_VBE
   v_printf("VBE: [0x%02x] vbe_info: return value 0\n", (unsigned) _AL);
@@ -399,7 +401,6 @@ static int vbe_info(unsigned char *vbei)
 
   return 0;
 }
-#undef VBE_BUFFER
 
 
 /*
@@ -416,14 +417,14 @@ static int vbe_info(unsigned char *vbei)
  *
  */
 
-#define VBE_BUFFER vbemi
-static int vbe_mode_info(unsigned mode, unsigned char *vbemi)
+static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
 {
   vga_mode_info *vmi;
   int err_code = VBE_ERROR_GENERAL_FAIL;
   unsigned u;
   unsigned mode_size;
   unsigned scan_len;
+  struct VBE_vm vbemi;
 
   mode &= 0xffff;
 
@@ -434,7 +435,7 @@ static int vbe_mode_info(unsigned mode, unsigned char *vbemi)
   );
 #endif
 
-  memset(vbemi, 0, 0x100);	/* Do it always or only for valid modes? -- sw */
+  memset(&vbemi, 0, 0x100);	/* Do it always or only for valid modes? -- sw */
 
   if((vmi = vga_emu_find_mode(mode, NULL))) {
     err_code = 0;
@@ -477,48 +478,48 @@ static int vbe_mode_info(unsigned mode, unsigned char *vbemi)
     if(vmi->mode_class == GRAPH) u |= 1 << 4;	/* graphics mode */
     if(! vmi->buffer_start) u |= 1 << 6;	/* window support */
     if(vmi->color_bits >= 8 && vga.mem.lfb_base_page) u |= 1 << 7;	/* LFB support */
-    VBE_vmModeAttrib = u;
+    vbemi.ModeAttrib = u;
 
-    VBE_vmWinAAttrib = 7;
-    VBE_vmWinBAttrib = 0;			/* not supported */
+    vbemi.WinAAttrib = 7;
+    vbemi.WinBAttrib = 0;			/* not supported */
 
-    VBE_vmWinGran = vmi->buffer_len;		/* in kbyte */
-    VBE_vmWinSize = vmi->buffer_len;		/* in kbyte */
+    vbemi.WinGran = vmi->buffer_len;		/* in kbyte */
+    vbemi.WinSize = vmi->buffer_len;		/* in kbyte */
 
-    VBE_vmWinASeg = vmi->buffer_start;		/* segment address */
-    VBE_vmWinBSeg = 0;				/* not supported */
+    vbemi.WinASeg = vmi->buffer_start;		/* segment address */
+    vbemi.WinBSeg = 0;				/* not supported */
 
-    VBE_vmWinFuncPtr = VBE_SEG_OFS(0xc000, (char *) vgaemu_bios_win_func - (char *) vgaemu_bios_start);
+    vbemi.WinFuncPtr = MK_FP16(0xc000, (char *) vgaemu_bios_win_func - (char *) vgaemu_bios_start);
 
-    VBE_vmBytesPLine = scan_len;
+    vbemi.BytesPLine = scan_len;
     if(vmi->mode_class == GRAPH) {
-      VBE_vmXRes = vmi->width;
-      VBE_vmYRes = vmi->height;
+      vbemi.XRes = vmi->width;
+      vbemi.YRes = vmi->height;
     }
     else {
-      VBE_vmXRes = vmi->text_width;
-      VBE_vmYRes = vmi->text_height;
+      vbemi.XRes = vmi->text_width;
+      vbemi.YRes = vmi->text_height;
     }
-    VBE_vmXCharSize = vmi->char_width;
-    VBE_vmYCharSize = vmi->char_height;
+    vbemi.XCharSize = vmi->char_width;
+    vbemi.YCharSize = vmi->char_height;
 
-    VBE_vmNumPlanes = (vmi->mode_class == TEXT || vmi->type == PL4 || vmi->type == NONCHAIN4) ? 4 : 1;
-    VBE_vmBitsPPixel = vmi->color_bits;
-    VBE_vmBanks = vmi->type == HERC ? 4 : vmi->type == CGA ? 2 : 1;
-    VBE_vmBankSize = (vmi->type == HERC || vmi->type == CGA) ? 8 : 0;	/* in kbyte */
+    vbemi.NumPlanes = (vmi->mode_class == TEXT || vmi->type == PL4 || vmi->type == NONCHAIN4) ? 4 : 1;
+    vbemi.BitsPPixel = vmi->color_bits;
+    vbemi.Banks = vmi->type == HERC ? 4 : vmi->type == CGA ? 2 : 1;
+    vbemi.BankSize = (vmi->type == HERC || vmi->type == CGA) ? 8 : 0;	/* in kbyte */
 
-    VBE_vmMemModel = vmi->type >= P15 && vmi->type <= P32 ? DIRECT : vmi->type;
+    vbemi.MemModel = vmi->type >= P15 && vmi->type <= P32 ? DIRECT : vmi->type;
 
     if(mode_size) {
       u = vga.mem.size / mode_size;
       if(u > 0x100) u = 0x100;
       if(u == 0) u = 1;
-      VBE_vmPages = u - 1;
+      vbemi.Pages = u - 1;
     }
 
-    if(VBE_vmPages > 7) VBE_vmPages = 7;
+    if(vbemi.Pages > 7) vbemi.Pages = 7;
 
-    VBE_vmReserved1 = 1;
+    vbemi.Reserved1 = 1;
 
     if(vmi->type >= P15 && vmi->type <= P32) {
       int r_bits, g_bits, b_bits, v_bits = 0;
@@ -578,31 +579,31 @@ static int vbe_mode_info(unsigned mode, unsigned char *vbemi)
       v_bits = color_bits - v_shift;
       if(v_bits < 0) v_bits = 0;
 
-      VBE_vmRedMaskSize = r_bits;
-      VBE_vmRedFieldPos = r_shift;
-      VBE_vmGreenMaskSize = g_bits;
-      VBE_vmGreenFieldPos = g_shift;
-      VBE_vmBlueMaskSize = b_bits;
-      VBE_vmBlueFieldPos = b_shift;
-      VBE_vmRsvdMaskSize = v_bits;
-      VBE_vmRsvdFieldPos = v_shift;
+      vbemi.RedMaskSize = r_bits;
+      vbemi.RedFieldPos = r_shift;
+      vbemi.GreenMaskSize = g_bits;
+      vbemi.GreenFieldPos = g_shift;
+      vbemi.BlueMaskSize = b_bits;
+      vbemi.BlueFieldPos = b_shift;
+      vbemi.RsvdMaskSize = v_bits;
+      vbemi.RsvdFieldPos = v_shift;
     }
 
-    VBE_vmDirectColor = 0;
+    vbemi.DirectColor = 0;
     if(vmi->color_bits >= 8 && vga.mem.lfb_base_page)
-      VBE_vmPhysBasePtr = vga.mem.lfb_base_page << 12;	/* LFB support */
+      vbemi.PhysBasePtr = vga.mem.lfb_base_page << 12;	/* LFB support */
 
-    VBE_vmOffScreenOfs = 0;
-    VBE_vmOffScreenMem = 0;
+    vbemi.OffScreenOfs = 0;
+    vbemi.OffScreenMem = 0;
   }
 
 #ifdef DEBUG_VBE
   v_printf("VBE: [0x%02x] vbe_mode_info: return value %d\n", (unsigned) _AL, err_code);
 #endif
 
+  MEMCPY_2DOS(vbemodeinfo, &vbemi, sizeof vbemi);
   return err_code;
 }
-#undef VBE_BUFFER
 
 
 /*
@@ -682,7 +683,7 @@ static int vbe_get_mode()
  *
  */
 
-static int vbe_save_restore(unsigned sub_func, unsigned mask, unsigned char *buffer)
+static int vbe_save_restore(unsigned sub_func, unsigned mask, unsigned int buffer)
 {
   int err_code = 0;
 
@@ -1087,22 +1088,22 @@ int vbe_dac_format(unsigned sub_func, unsigned bits)
  *
  */
 
-int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned char *buffer)
+int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned int buffer)
 {
   int err_code = 0;
   DAC_entry dac;
 
   if(sub_func & 0x40) {		/* called via pm interface */
-    unsigned char *base;
+    unsigned int base;
     unsigned ofs;
 
     sub_func &= ~0x40;
     ofs = (_SI << 16) + _DI;
-    base = dpmi_GetSegmentBaseAddress(_BP);
-    buffer = &base[ofs];
+    base = GetSegmentBase(_BP);
+    buffer = base + ofs;
 #ifdef DEBUG_VBE
     v_printf(
-      "VBE: [0x%02x.%u] vbe_palette_data: called via pm interface, es.sel = 0x%04x, es.base = %p, es.ofs = 0x%08x\n",
+      "VBE: [0x%02x.%u] vbe_palette_data: called via pm interface, es.sel = 0x%04x, es.base = %x, es.ofs = 0x%08x\n",
       (unsigned) _AL, sub_func, (unsigned) _BP, base, ofs
     );
 #endif
@@ -1119,7 +1120,8 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
     case    0:
     case 0x80:	/* set palette */
       while(first < 256 && len) {
-        DAC_set_entry(first, buffer[2], buffer[1], buffer[0]);	/* index, r, g, b */
+        DAC_set_entry(first, READ_BYTE(buffer+2), READ_BYTE(buffer+1),
+		      READ_BYTE(buffer+0));	/* index, r, g, b */
         first++; len--; buffer += 4;
       }
       break;
@@ -1128,9 +1130,9 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
       while(first < 256 && len) {
         dac.index = first;
         DAC_get_entry(&dac);
-        buffer[2] = dac.r;
-        buffer[1] = dac.g;
-        buffer[0] = dac.b;
+        WRITE_BYTE(buffer+2, dac.r);
+        WRITE_BYTE(buffer+1, dac.g);
+        WRITE_BYTE(buffer+0, dac.b);
         first++; len--; buffer += 4;
       }
       break;

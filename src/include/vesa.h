@@ -10,65 +10,56 @@
 #define VBE_ERROR_HARDWARE_FAIL		2		/* invalid on current hardware */
 #define VBE_ERROR_MODE_FAIL		3		/* invalid in current mode */
 
-/*
- * macros for easier access to some VBE data structures
- */
-
 /* VBE info block */
-#define VBE_viVBESig		VBE_W(0x00)
-#define VBE_viVESAVersion	VBE_S(0x04)
-#define VBE_viOEMID		VBE_W(0x06)
-#define VBE_viCapabilities	VBE_W(0x0a)
-#define VBE_viModeList		VBE_W(0x0e)
-#define VBE_viMemory		VBE_S(0x12)
+struct VBE_vi {
+	uint32_t VBESig;	// 0x00
+	uint16_t VESAVersion;	// 0x04
+	uint32_t OEMID;		// 0x06
+	uint32_t Capabilities;	// 0x0a
+	uint32_t ModeList;	// 0x0e
+	uint16_t Memory;	// 0x12
 /* VBE 2.0+ */
-#define VBE_viOEMSoftRev	VBE_S(0x14)
-#define VBE_viOEMVendorName	VBE_W(0x16)
-#define VBE_viOEMProdName	VBE_W(0x1a)
-#define VBE_viOEMProductRev	VBE_W(0x1e)
-#define VBE_OEMData		0x100		/* offset to OEM data block */
-
-#define VBE_viSize		0x200
+	uint16_t OEMSoftRev;	// 0x14
+	uint32_t OEMVendorName;	// 0x16
+	uint32_t OEMProdName;	// 0x1a
+	uint32_t OEMProductRev;	// 0x1e
+	uint8_t reserved[0x100-0x22];
+	uint8_t OEMData[0x100];
+} __attribute__((packed));
 
 /* VBE mode info block */
-#define VBE_vmModeAttrib	VBE_S(0x00)
-#define VBE_vmWinAAttrib	VBE_B(0x02)
-#define VBE_vmWinBAttrib	VBE_B(0x03)
-#define VBE_vmWinGran		VBE_S(0x04)
-#define VBE_vmWinSize		VBE_S(0x06)
-#define VBE_vmWinASeg		VBE_S(0x08)
-#define VBE_vmWinBSeg		VBE_S(0x0a)
-#define VBE_vmWinFuncPtr	VBE_W(0x0c)
-#define VBE_vmBytesPLine	VBE_S(0x10)
-#define VBE_vmXRes		VBE_S(0x12)
-#define VBE_vmYRes		VBE_S(0x14)
-#define VBE_vmXCharSize		VBE_B(0x16)
-#define VBE_vmYCharSize		VBE_B(0x17)
-#define VBE_vmNumPlanes		VBE_B(0x18)
-#define VBE_vmBitsPPixel	VBE_B(0x19)
-#define VBE_vmBanks		VBE_B(0x1a)
-#define VBE_vmMemModel		VBE_B(0x1b)
-#define VBE_vmBankSize		VBE_B(0x1c)
-#define VBE_vmPages		VBE_B(0x1d)
-#define VBE_vmReserved1		VBE_B(0x1e)
-#define VBE_vmRedMaskSize	VBE_B(0x1f)
-#define VBE_vmRedFieldPos	VBE_B(0x20)
-#define VBE_vmGreenMaskSize	VBE_B(0x21)
-#define VBE_vmGreenFieldPos	VBE_B(0x22)
-#define VBE_vmBlueMaskSize	VBE_B(0x23)
-#define VBE_vmBlueFieldPos	VBE_B(0x24)
-#define VBE_vmRsvdMaskSize	VBE_B(0x25)
-#define VBE_vmRsvdFieldPos	VBE_B(0x26)
-#define VBE_vmDirectColor	VBE_B(0x27)
-#define VBE_vmPhysBasePtr	VBE_W(0x28)
-#define VBE_vmOffScreenOfs	VBE_W(0x2c)
-#define VBE_vmOffScreenMem	VBE_S(0x30)
-
-#define VBE_vmSize		0x100
-
-/* some useful macros */
-#define VBE_B(a) VBE_BUFFER[a]
-#define VBE_S(a) *((unsigned short *) (VBE_BUFFER + a))
-#define VBE_W(a) *((unsigned *) (VBE_BUFFER + a))
-
-#define VBE_SEG_OFS(a, b)	(((a) << 16) + ((b) & 0xffff))
+struct VBE_vm {
+	uint16_t ModeAttrib;	// 0x00
+	uint8_t WinAAttrib;	// 0x02
+	uint8_t WinBAttrib;	// 0x03
+	uint16_t WinGran;	// 0x04
+	uint16_t WinSize;	// 0x06
+	uint16_t WinASeg;	// 0x08
+	uint16_t WinBSeg;	// 0x0a
+	uint32_t WinFuncPtr;	// 0x0c
+	uint16_t BytesPLine;	// 0x10
+	uint16_t XRes;		// 0x12
+	uint16_t YRes;		// 0x14
+	uint8_t XCharSize;	// 0x16
+	uint8_t YCharSize;	// 0x17
+	uint8_t NumPlanes;	// 0x18
+	uint8_t BitsPPixel;	// 0x19
+	uint8_t Banks;		// 0x1a
+	uint8_t MemModel;	// 0x1b
+	uint8_t BankSize;	// 0x1c
+	uint8_t Pages;		// 0x1d
+	uint8_t Reserved1;	// 0x1e
+	uint8_t RedMaskSize;	// 0x1f
+	uint8_t RedFieldPos;	// 0x20
+	uint8_t GreenMaskSize;	// 0x21
+	uint8_t GreenFieldPos;	// 0x22
+	uint8_t BlueMaskSize;	// 0x23
+	uint8_t BlueFieldPos;	// 0x24
+	uint8_t RsvdMaskSize;	// 0x25
+	uint8_t RsvdFieldPos;	// 0x26
+	uint8_t DirectColor;	// 0x27
+	uint32_t PhysBasePtr;	// 0x28
+	uint32_t OffScreenOfs;	// 0x2c
+	uint16_t OffScreenMem;	// 0x30
+	uint8_t reserved[0x100-0x32];
+} __attribute__((packed));
