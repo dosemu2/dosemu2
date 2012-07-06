@@ -511,10 +511,13 @@ static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 			map = -1;
 			break;
 	}
-	if ((map != -1) &&
-	    (xcode && keynum != NUM_VOID) &&
-	    (XKeycodeToKeysym(display,xcode,map) == xkey) ) {
-		keycode_to_keynum[xcode] = keynum;
+	if ((map != -1) && (xcode && keynum != NUM_VOID)) {
+		int keysyms_per_keycode;
+		KeySym *sym = XGetKeyboardMapping (display, xcode, 1,
+						   &keysyms_per_keycode);
+		if (map < keysyms_per_keycode && sym[map] == xkey)
+			keycode_to_keynum[xcode] = keynum;
+		XFree(sym);
 	}
 }
 

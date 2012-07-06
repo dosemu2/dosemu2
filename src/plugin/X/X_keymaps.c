@@ -57,8 +57,8 @@ int X11_DetectLayout (void)
 {
   Display *display;
   unsigned match, mismatch, seq, i, startsym, alternate;
-  int syms, score, keyc, key, pkey, ok = 0;
-  KeySym keysym;
+  int syms, keysyms_per_keycode, score, keyc, key, pkey, ok = 0;
+  KeySym keysym, *key_mapping;
   unsigned max_seq[3] = {0, 0};
   int max_score[3] = {INT_MIN, INT_MIN};
   int ismatch = 0;
@@ -73,10 +73,10 @@ int X11_DetectLayout (void)
   if (display == NULL) return 1;
 
   XDisplayKeycodes(display, &min_keycode, &max_keycode);
-  /* We are only interested in keysyms_per_keycode.
-     There is no need to hold a local copy of the keysyms table */
-  XFree(XGetKeyboardMapping(display, min_keycode,
-			    max_keycode + 1 - min_keycode, &syms));
+  /* get data for keycode from X server */
+  key_mapping = XGetKeyboardMapping(display, min_keycode,
+			    max_keycode + 1 - min_keycode, &syms);
+  keysyms_per_keycode = syms;
   if (syms > 4) {
     k_printf("%d keysyms per keycode not supported, set to 4\n", syms);
     syms = 4;
@@ -92,9 +92,8 @@ int X11_DetectLayout (void)
     seq = 0;
     pkey = -1;
     for (keyc = min_keycode; keyc <= max_keycode; keyc++) {
-      /* get data for keycode from X server */
       for (i = startsym; i < syms; i++) {
-        keysym = XKeycodeToKeysym (display, keyc, i);
+        keysym = key_mapping[(keyc - min_keycode) * keysyms_per_keycode + i];
 	charset_to_unicode(&X_charset, &ckey[i - startsym],
                 (const unsigned char *)&keysym, sizeof(keysym));
       }
@@ -165,6 +164,7 @@ int X11_DetectLayout (void)
       kt++;
   }
   cleanup_charset_state(&X_charset);
+  XFree(key_mapping);
 
   /* we're done, report results if necessary */
   if (!ismatch)

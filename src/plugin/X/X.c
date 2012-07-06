@@ -1536,7 +1536,11 @@ static void X_handle_events(void)
 	  }
 
           if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask)) {
-            KeySym keysym = XKeycodeToKeysym(display, e.xkey.keycode, 0);
+            int keysyms_per_keycode;
+            KeySym *sym = XGetKeyboardMapping (display, e.xkey.keycode, 1,
+					       &keysyms_per_keycode);
+            KeySym keysym = *sym;
+            XFree(sym);
             if (keysym == grab_keysym) {
               force_grab = 0;
               toggle_mouse_grab();
