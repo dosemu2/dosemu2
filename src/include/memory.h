@@ -94,6 +94,10 @@
 #define XMSControl_OFF  0x4150
 #define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
 
+#define EMSControl_SEG  ROMBIOSSEG
+#define EMSControl_OFF  0x4160
+#define EMSControl_ADD  ((EMSControl_SEG << 4)+EMSControl_OFF)
+
 /* EMS origin must be at 0 */
 #define EMS_SEG		(ROMBIOSSEG+0x100)
 #define EMS_OFF		0x0000

@@ -38,10 +38,8 @@
  * of the Mach Dos Emulator. 
  *
  * In contrast to some of the comments (Yes, _I_ know the adage about that...)
- * we appear to be supporting EMS 4.0, not 3.2.  The following EMS 4.0
- * functions are not supported (yet):
- * 0x56 (map pages and call), and raw page size is 16k (instead of 4k).
- * Other than that, EMS 4.0 support appears complete.
+ * we appear to be supporting EMS 4.0, not 3.2. Raw page size is 16k
+ * (instead of 4k). Other than that, EMS 4.0 support appears complete.
  *
  * /REMARK
  * DANG_END_MODULE
@@ -66,6 +64,8 @@
 #include "mapping.h"
 #include "emm.h"
 #include "dos2linux.h"
+#include "int.h"
+#include "hlt.h"
 
 static inline boolean_t unmap_page(int);
 static int get_map_registers(void *ptr, int pages, const u_short *phys);
@@ -126,6 +126,7 @@ static void set_map_registers(const void *ptr, int pages);
 #define GET_TOTAL		2
 #define ALTER_MAP_AND_JUMP	0x55	/* V4.0 */
 #define ALTER_MAP_AND_CALL	0x56	/* V4.0 */
+#define ALTER_GET_STACK_SIZE	2
 #define GET_MPA_ARRAY		0x58	/* V4.0 */
 #define MOD_MEMORY_REGION	0x57	/* V4.0 */
 #define GET_MPA			0
@@ -1104,11 +1105,111 @@ alter_map_and_jump(state_t * state)
   }
 }
 
-static inline int
+/* input structure for EMS alter page map and call API */
+struct __attribute__ ((__packed__)) alter_map_call_struct {
+  u_int   call_addr;
+  struct  alter_map_struct new_map, old_map;
+  u_short reserved[4];
+};
+
+
+#define ALTER_STACK_SIZE (2*4) /* 4 params */
+
+static void
 alter_map_and_call(state_t * state)
 {
-  Kdebug0((dbg_fd, "alter_map_and_call %d called\n", (int) LOW(state->eax)));
-  return 0;
+  int method = LOW(state->eax);
+
+  Kdebug0((dbg_fd, "alter_map_and_call %d called\n", method));
+
+  switch(method) {
+  case MULT_LOGPHYS:  /* page number method */
+  case MULT_LOGSEG: {
+    int handle = WORD(state->edx);
+    int ret;
+    u_short seg, off;
+    u_int ssp, sp;
+    struct alter_map_call_struct alter_map_call;
+
+    /* find new mapping context */
+    MEMCPY_2UNIX(&alter_map_call, SEGOFF2LINEAR(state->ds, state->esi),
+		 sizeof alter_map_call);
+
+    ret = alter_map(method, handle, &alter_map_call.new_map);
+    SETHIGH(&(state->eax), ret);
+    if (ret != EMM_NO_ERR) break; /* mapping error */
+
+    /* call user fn */
+    /* save parameters on the stack */
+    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+    sp = LWORD(esp);
+    pushw(ssp, sp, method);
+    pushw(ssp, sp, handle);
+    pushw(ssp, sp, state->ds);
+    pushw(ssp, sp, state->esi +
+	  offsetof(struct alter_map_call_struct, old_map));
+    LWORD(esp) -= ALTER_STACK_SIZE;
+
+    /* make far call
+     * put ret addr of user fn in HLT block,
+     * and save current cs:ip for returning
+     * properly from HTL handler
+     */
+    fake_call_to(EMSControl_SEG, EMSControl_OFF);
+    seg = FP_SEG16(alter_map_call.call_addr);
+    off = FP_OFF16(alter_map_call.call_addr);
+    Kdebug0((dbg_fd, "call_addr @ %04hX:%04hXh\n", seg, off));
+    fake_call_to(seg, off);
+    break;
+  }
+
+  case ALTER_GET_STACK_SIZE:  /* get stack info size subfn */
+    SETWORD(&(state->ebx), ALTER_STACK_SIZE+8);
+    SETHIGH(&(state->eax), EMM_NO_ERR);
+    break;
+
+  default:
+    Kdebug0((dbg_fd, "bad alter_map_and_call function %d\n",
+	     (int) LOW(state->eax)));
+    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+    break;
+  }
+ }
+
+/* hlt handler for EMS
+ * Used for finishing the return path of the
+ * EMS "alter page map and call" API fn.
+ * Restores the EMS mapping context and returns to the user.
+ * On entry, SS:ESP (DOS space stack) points to return address.
+ * Pushed parameters saved by emm_alter_map_and_call() follow.
+ */
+static void
+emm_hlt_handler(void)
+{
+  struct alter_map_struct old_map;
+  u_short method;
+  u_short handle;
+  u_short seg, off;
+  u_int ssp, sp;
+  int ret;
+
+  /* restore inst. pointer */
+  fake_retf(0);
+
+  /* pop parameters from stack */
+  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  sp = LWORD(esp);
+  off = popw(ssp, sp);
+  seg = popw(ssp, sp);
+  handle = popw(ssp, sp);
+  method = popw(ssp, sp);
+  LWORD(esp) += ALTER_STACK_SIZE;
+
+  /* alter_map_call structure */
+  MEMCPY_2UNIX(&old_map, SEGOFF2LINEAR(seg, off), sizeof old_map);
+  /* restore old mapping */
+  ret = alter_map(method, handle, &old_map);
+  SETHIGH(&(REGS.eax), ret);
 }
 
 struct mem_move_struct {
@@ -2027,6 +2128,8 @@ void ems_reset(void)
 void ems_init(void)
 {
   int i, j;
+  emu_hlt_t hlt_hdlr;
+
   if (!config.ems_size && !config.pm_dos_api)
     return;
 
@@ -2068,4 +2171,11 @@ void ems_init(void)
   E_printf("EMS: initialized %i pages\n", phys_pages);
 
   ems_reset2();
+
+  /* install HLT handler */
+  hlt_hdlr.name = "EMS";
+  hlt_hdlr.start_addr = EMSControl_ADD - BIOS_HLT_BLK;
+  hlt_hdlr.end_addr = hlt_hdlr.start_addr;
+  hlt_hdlr.func = (emu_hlt_func)emm_hlt_handler;
+  hlt_register_handler(hlt_hdlr);
 }
