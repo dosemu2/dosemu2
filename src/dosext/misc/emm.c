@@ -39,7 +39,7 @@
  *
  * In contrast to some of the comments (Yes, _I_ know the adage about that...)
  * we appear to be supporting EMS 4.0, not 3.2.  The following EMS 4.0
- * functions are not supported (yet): 0x55 (map pages and jump),
+ * functions are not supported (yet):
  * 0x56 (map pages and call), and raw page size is 16k (instead of 4k).
  * Other than that, EMS 4.0 support appears complete.
  *
@@ -1030,12 +1030,78 @@ handle_dir(state_t * state)
   }
 }
 
-/* what do these do? */
-static inline int
+/* input structure for EMS alter page map and jump API */
+struct __attribute__ ((__packed__)) alter_map_struct {
+  u_char map_len;
+  u_int array;
+};
+
+static int
+alter_map(int method, int handle, const struct alter_map_struct *alter_map)
+{
+  /* input parameters */
+  int map_len;
+  u_short seg, off;
+  unsigned array;
+
+  map_len = alter_map->map_len;
+  seg = FP_SEG16(alter_map->array);
+  off = FP_OFF16(alter_map->array);
+  array = SEGOFF2LINEAR(seg, off);
+
+  Kdebug0((dbg_fd, "...using alter_log%s method, "
+	   "handle %d, map_len %d, array @ %#x, ",
+	   method == MULT_LOGPHYS ? "phys" : "seg",
+	   handle, map_len, array));
+
+  /* change mapping context */
+  return do_map_unmap_multi(method, array, handle, map_len);
+}
+
+struct __attribute__ ((__packed__)) alter_map_jmp_struct {
+  u_int jmp_addr;
+  struct alter_map_struct alter_map;
+};
+
+static void
 alter_map_and_jump(state_t * state)
 {
-  Kdebug0((dbg_fd, "alter_map_and_jump %d called\n", (int) LOW(state->eax)));
-  return 0;
+  int method = LOW(state->eax);
+
+  Kdebug0((dbg_fd, "alter_map_and_jump %d called\n", method));
+
+  switch(method) {
+  case MULT_LOGPHYS:  /* page number method */
+  case MULT_LOGSEG: {
+    /* input parameters */
+    struct alter_map_jmp_struct alter_map_jmp;
+    int handle;
+    u_short seg, off;
+    int ret;
+
+    MEMCPY_2UNIX(&alter_map_jmp, SEGOFF2LINEAR(state->ds, state->esi),
+		 sizeof alter_map_jmp);
+    handle = WORD(state->edx);
+    ret = alter_map(method, handle, &alter_map_jmp.alter_map);
+    SETHIGH(&(state->eax), ret);
+
+    if (ret != EMM_NO_ERR) break; /* mapping error */
+
+    seg = FP_SEG16(alter_map_jmp.jmp_addr);
+    off = FP_OFF16(alter_map_jmp.jmp_addr);
+    Kdebug0((dbg_fd, "jmp_addr @ %04hX:%04hXh\n", seg, off));
+
+    /* jump */
+    state->eip = off;
+    state->cs = seg;
+    break;
+  }
+
+  default:
+    Kdebug0((dbg_fd, "bad alter_map_and_jump function %d\n", method));
+    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
+    break;
+  }
 }
 
 static inline int
