@@ -1310,8 +1310,8 @@ move_memory_region(state_t * state)
     else {
       E_printf("EMS: Move Memory Region from %#x -> %#x\n", src, dst);
       memmove_dos2dos(dst, src, mem_move->size);
-      overlap = (src <  dst && src + mem_move->size >= dst) ||
-                (src >= dst && dst + mem_move->size >= src);
+      overlap = (src <  dst && src + mem_move->size > dst) ||
+                (src >= dst && dst + mem_move->size > src);
     }
   }
   else {
@@ -1336,8 +1336,8 @@ move_memory_region(state_t * state)
     if (source) {
       E_printf("EMS: Move Memory Region from %p -> %p\n", source, dest);
       memmove(dest, source, mem_move->size);
-      overlap = (source <  dest && source + mem_move->size >= dest) ||
-                (source >= dest && dest + mem_move->size >= source);
+      overlap = (source <  dest && source + mem_move->size > dest) ||
+                (source >= dest && dest + mem_move->size > source);
     }
     else {
       E_printf("EMS: Move Memory Region from %#x -> %p\n", src, dest);
@@ -1385,10 +1385,10 @@ exchange_memory_region(state_t * state)
   }
 
   if (source < dest) {
-    if (source + mem_move->size >= dest)
+    if (source + mem_move->size > dest)
       return (EMM_MOVE_OVLAPI);
   }
-  else if (dest + mem_move->size >= source)
+  else if (dest + mem_move->size > source)
     return (EMM_MOVE_OVLAPI);
 
   E_printf("EMS: Exchange Memory Region from %p -> %p\n", source, dest);
