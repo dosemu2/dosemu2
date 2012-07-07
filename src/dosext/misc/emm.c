@@ -154,6 +154,7 @@ static void set_map_registers(const void *ptr, int pages);
 #define EMM_INVALID_SUB	0x8f
 #define EMM_FEAT_NOSUP	0x91
 #define EMM_MOVE_OVLAP	0x92
+#define EMM_MOVE_SIZE   0x93
 #define EMM_MOVE_OVLAPI	0x97
 #define EMM_NOT_FOUND	0xa0  /* 971120 <ki@kretz.co.at> acc to R.Brown's int list */
 
@@ -1284,21 +1285,21 @@ move_memory_region(state_t * state)
   else {
     if (!handle_info[mem_move->source_handle].active) {
       E_printf("EMS: Move memory region source handle not active\n");
-      return (0x83);
+      return (EMM_INV_HAN);
     }
     if (handle_info[mem_move->source_handle].numpages <= mem_move->source_segment) {
       E_printf("EMS: Move memory region source numpages %d > numpages %d available\n",
 	       mem_move->source_segment, handle_info[mem_move->source_handle].numpages);
-      return (0x8a);
+      return (EMM_LOG_OUT_RAN);
     }
     source = handle_info[mem_move->source_handle].object +
       mem_move->source_segment * EMM_PAGE_SIZE +
       mem_move->source_offset;
     mem = handle_info[mem_move->source_handle].object +
       handle_info[mem_move->source_handle].numpages * EMM_PAGE_SIZE;
-    if ((source + mem_move->size - 1) > mem) {
+    if ((source + mem_move->size) > mem) {
       E_printf("EMS: Source move of %p is outside handle allocation max of %p, size=%x\n", source, mem, mem_move->size);
-      return (0x93);
+      return (EMM_MOVE_SIZE);
     }
   }
   if (mem_move->dest_type == 0) {
@@ -1317,12 +1318,12 @@ move_memory_region(state_t * state)
   else {
     if (!handle_info[mem_move->dest_handle].active) {
       E_printf("EMS: Move memory region dest handle not active\n");
-      return (0x83);
+      return (EMM_INV_HAN);
     }
     if (handle_info[mem_move->dest_handle].numpages <= mem_move->dest_segment) {
       E_printf("EMS: Move memory region dest numpages %d > numpages %d available\n",
        mem_move->dest_segment, handle_info[mem_move->dest_handle].numpages);
-      return (0x8a);
+      return (EMM_LOG_OUT_RAN);
     }
     dest = handle_info[mem_move->dest_handle].object +
       mem_move->dest_segment * EMM_PAGE_SIZE +
@@ -1331,7 +1332,7 @@ move_memory_region(state_t * state)
       handle_info[mem_move->dest_handle].numpages * EMM_PAGE_SIZE;
     if ((dest + mem_move->size) > mem) {
       E_printf("EMS: Dest move of %p is outside handle allocation of %p, size=%x\n", dest, mem, mem_move->size);
-      return (0x93);
+      return (EMM_MOVE_SIZE);
     }
     if (source) {
       E_printf("EMS: Move Memory Region from %p -> %p\n", source, dest);
@@ -1366,22 +1367,44 @@ exchange_memory_region(state_t * state)
   else {
     if (!handle_info[mem_move->source_handle].active) {
       E_printf("EMS: Xchng memory region source handle not active\n");
-      return (0x83);
+      return (EMM_INV_HAN);
+    }
+    if (handle_info[mem_move->source_handle].numpages <= mem_move->source_segment) {
+      E_printf("EMS: Xchng memory region source numpages %d > numpages %d available\n",
+	       mem_move->source_segment, handle_info[mem_move->source_handle].numpages);
+      return (EMM_LOG_OUT_RAN);
     }
     source = handle_info[mem_move->source_handle].object +
       mem_move->source_segment * EMM_PAGE_SIZE +
       mem_move->source_offset;
+    mem = handle_info[mem_move->source_handle].object +
+      handle_info[mem_move->source_handle].numpages * EMM_PAGE_SIZE;
+    if ((source + mem_move->size) > mem) {
+      E_printf("EMS: Source xchng of %p is outside handle allocation max of %p, size=%x\n", source, mem, mem_move->size);
+      return (EMM_MOVE_SIZE);
+    }
   }
   if (mem_move->dest_type == 0)
     dest = MK_FP32(mem_move->dest_segment, mem_move->dest_offset);
   else {
     if (!handle_info[mem_move->dest_handle].active) {
       E_printf("EMS: Xchng memory region dest handle not active\n");
-      return (0x83);
+      return (EMM_INV_HAN);
+    }
+    if (handle_info[mem_move->dest_handle].numpages <= mem_move->dest_segment) {
+      E_printf("EMS: Xchng memory region dest numpages %d > numpages %d available\n",
+       mem_move->dest_segment, handle_info[mem_move->dest_handle].numpages);
+      return (EMM_LOG_OUT_RAN);
     }
     dest = handle_info[mem_move->dest_handle].object +
       mem_move->dest_segment * EMM_PAGE_SIZE +
       mem_move->dest_offset;
+    mem = handle_info[mem_move->dest_handle].object +
+      handle_info[mem_move->dest_handle].numpages * EMM_PAGE_SIZE;
+    if ((dest + mem_move->size) > mem) {
+      E_printf("EMS: Dest xchng of %p is outside handle allocation of %p, size=%x\n", dest, mem, mem_move->size);
+      return (EMM_MOVE_SIZE);
+    }
   }
 
   if (source < dest) {
