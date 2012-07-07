@@ -1214,7 +1214,7 @@ emm_hlt_handler(void)
   SETHIGH(&(REGS.eax), ret);
 }
 
-struct mem_move_struct {
+struct __attribute__ ((__packed__))  mem_move_struct {
   int size;
   u_char source_type;
   u_short source_handle;
@@ -1245,29 +1245,6 @@ show_move_struct(struct mem_move_struct *mem_move)
 
 }
 
-static inline void
-load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
-{
-
-  mem_move->size = *(int *) mem;
-  mem += 4;
-
-  mem_move->source_type = *mem++;
-  mem_move->source_handle = *(u_short *) mem;
-  mem += 2;
-  mem_move->source_offset = *(u_short *) mem;
-  mem += 2;
-  mem_move->source_segment = *(u_short *) mem;
-  mem += 2;
-
-  mem_move->dest_type = *mem++;
-  mem_move->dest_handle = *(u_short *) mem;
-  mem += 2;
-  mem_move->dest_offset = *(u_short *) mem;
-  mem += 2;
-  mem_move->dest_segment = *(u_short *) mem;
-}
-
 static int
 move_memory_region(state_t * state)
 {
@@ -1276,8 +1253,8 @@ move_memory_region(state_t * state)
   unsigned src = 0;
   int overlap = 0;
 
-  mem = Addr(state, ds, esi);
-  load_move_mem(mem, mem_move);
+  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi), 
+               sizeof mem_move_struc);
   show_move_struct(mem_move);
   if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
   if (mem_move->source_type == 0) {
@@ -1361,8 +1338,8 @@ exchange_memory_region(state_t * state)
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   unsigned char *dest, *source, *mem, *tmp;
 
-  mem = Addr(state, ds, esi);
-  load_move_mem(mem, mem_move);
+  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi), 
+               sizeof mem_move_struc);
   show_move_struct(mem_move);
   if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
   if (mem_move->source_type == 0)
