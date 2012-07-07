@@ -155,6 +155,7 @@ static void set_map_registers(const void *ptr, int pages);
 #define EMM_FEAT_NOSUP	0x91
 #define EMM_MOVE_OVLAP	0x92
 #define EMM_MOVE_SIZE   0x93
+#define EMM_MOVE_1MB_LIM 0x96
 #define EMM_MOVE_OVLAPI	0x97
 #define EMM_NOT_FOUND	0xa0  /* 971120 <ki@kretz.co.at> acc to R.Brown's int list */
 
@@ -1278,6 +1279,7 @@ move_memory_region(state_t * state)
   mem = Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
+  if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
   if (mem_move->source_type == 0) {
     source = NULL;
     src = SEGOFF2LINEAR(mem_move->source_segment, mem_move->source_offset);
@@ -1362,6 +1364,7 @@ exchange_memory_region(state_t * state)
   mem = Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
+  if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
   if (mem_move->source_type == 0)
     source = MK_FP32(mem_move->source_segment, mem_move->source_offset);
   else {
