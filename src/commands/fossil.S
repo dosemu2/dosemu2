@@ -18,6 +18,7 @@
 #
 
 #include "macros86.h"
+#include "doshelpers.h"
 				       
 .text
 .code16
@@ -30,7 +31,7 @@ start:
 # -------------------------------------------------------------------------
 
 DOSEMU_HELPER_DOSEMU_CHECK = 0x00
-DOSEMU_HELPER_INT = 0xe6
+DOSEMU_HELPER_INT = DOS_HELPER_INT
 DOSEMU_MAGIC = 0xaa55
 
 DOSEMU_HELPER_SERIAL = 0x29

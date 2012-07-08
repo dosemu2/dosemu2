@@ -24,6 +24,7 @@
 # 
 
 #include "macros86.h"
+#include "doshelpers.h"
 
 .code16
 .text
@@ -32,7 +33,7 @@ _start16:
 
 DosInt   	= 0x21#         
 MouseInt 	= 0x33#
-EmuInt   	= 0xe6#
+EmuInt   	= DOS_HELPER_INT
 PrintFun 	= 0x09#	  AH= for print line function.
 PollFun  	= 0x03#        AX= for mouse get buttons and posn.
 MGarrot  	= 0x28#        AX= for emu mouse helper.

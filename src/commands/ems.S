@@ -66,7 +66,7 @@ MaxCmd	=	15
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
-LinuxEMS =	0xe6		# 0xe6 is Int for Linux EMS server
+LinuxEMS =	DOS_HELPER_INT	# 0xe6 is Int for Linux EMS server
 EMSint	=	0x67
 
 LEN	=	0

@@ -78,8 +78,6 @@ typedef unsigned int uint16;
 
 #define DEFAULT_REDIR_PARAM   0
 
-#define DOS_HELPER_INT          0xE6
-
 #define MAX_DOSERROR		0x5A
 static char *DOSerrcodes[MAX_DOSERROR+1] = {
   /* the below error list is shamelessly stolen from Ralph Brown's */
@@ -450,7 +448,7 @@ uint16 CheckForDosc(void)
     struct REGPACK preg;
 
     preg.r_ax = 0xdddc;
-    intr(0xe6, &preg);
+    intr(DOS_HELPER_INT, &preg);
 
     if (preg.r_ax == 0xdddc) {
       return 0;

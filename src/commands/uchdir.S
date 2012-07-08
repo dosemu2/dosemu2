@@ -31,5 +31,5 @@ abortmsg:
 ok_1:
 	movw	$0x81,%ax # chdir
 	movw	argv,%dx  # es:dx pointing to path
-	int	$0xe6	  # doshelper
+	int	$DOS_HELPER_INT	  # doshelper
 	call	exit

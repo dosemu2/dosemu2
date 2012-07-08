@@ -36,7 +36,7 @@
 #include "bios.h"
 #include "disks.h"
 #include "timers.h"
-#include "utilities.h"
+#include "doshelpers.h"
 #include "priv.h"
 #include "int.h"
 #include "fatfs.h"
@@ -554,7 +554,7 @@ void dir_setup(struct disk *dp)
     mbr[0x01] = 0xfe;
     mbr[0x02] = 0xff;
     mbr[0x03] = 0xcd;
-    mbr[0x04] = 0xe6;
+    mbr[0x04] = DOS_HELPER_INT;
     mbr[PART_INFO_START + 0x00] = PART_BOOT;
     mbr[PART_INFO_START + 0x01] = pi->beg_head;
     mbr[PART_INFO_START + 0x02] = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);

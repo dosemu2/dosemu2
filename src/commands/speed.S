@@ -39,13 +39,13 @@ ok_set:
 	ja	abort
 	movw	%ax,%bx
 	movw	$0x12,%ax	# set HogThreshold
-	int	$0xe6		# doshelper
+	int	$DOS_HELPER_INT		# doshelper
 ok_get:
 	lea	resultmsg,%si
 	call	print
 	movw	$0x28,%ax	# get HogThreshold
 	movw	$1,%bx		# bx=1 for Get Hogthreshold
-	int	$0xe6		# doshelper
+	int	$DOS_HELPER_INT		# doshelper
 	call	printdecimal
 	lea	linefeed,%si
 	call	print

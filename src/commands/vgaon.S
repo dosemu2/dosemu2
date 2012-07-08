@@ -22,15 +22,15 @@ _start16:
 	movw $0x70, %bx # starting port
 	movw $2, %cx    # # of ports
 	stc             # set means get I/Operms
-	int $0xe6
+	int $DOS_HELPER_INT
 	movb $4, %al
 	movb $1, %bl
-	int $0xe6
+	int $DOS_HELPER_INT
 	movb $3, %al    # dos helper I/O perms
 	movw $0x70, %bx # starting port
 	movw $2, %cx    # # of ports
 	clc            # clear means release I/Operms
-	int $0xe6
+	int $DOS_HELPER_INT
 	int $0x20  # exit
 
 # note: the VGA permissions are left on. 

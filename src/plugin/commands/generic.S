@@ -103,7 +103,7 @@ far_called:			# yes, far-called by .exe, have to save something
 				# ok, all is fine
 continue:
 	movw	$DOS_HELPER_COMMANDS, %ax
-	int	$0xe6
+	int	$DOS_HELPER_INT
 				# back, thread deleted
 	cmpw	$0, %cs:(far_ss)
 	je	normal_exit
@@ -123,7 +123,7 @@ normal_exit:
 called:
 	movw	$DOS_HELPER_COMMANDS, %ax
 	movb	$3, %ah
-	int	$0xe6
+	int	$DOS_HELPER_INT
 	ret
 	.align	16,0
 called2:

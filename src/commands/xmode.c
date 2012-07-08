@@ -122,7 +122,7 @@ int X_change_config(unsigned item, void *buf)
   r.r_dx = item;
   r.r_ax = 0xa0;
 
-  intr(0xe6, &r);
+  intr(DOS_HELPER_INT, &r);
 
   return r.r_ax;
 } 

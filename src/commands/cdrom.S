@@ -4,14 +4,14 @@
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
 
-
+#include "doshelpers.h"
 
 .code16
 .text
 	.globl	_start16
 _start16:
 
-LinuxCD	=	0xe6		# int 0xe6 for cdrom server
+LinuxCD	=	DOS_HELPER_INT	# int 0xe6 for cdrom server
 Helper  =       0x40		# code to reach cdrom server
 cr	=	0x0d
 lf	=	0x0a

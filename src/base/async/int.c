@@ -2168,7 +2168,7 @@ void setup_interrupts(void) {
   if (config.ipxsup)
     interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
 #endif
-  interrupt_function[0xe6][REVECT] = inte6;
+  interrupt_function[DOS_HELPER_INT][REVECT] = inte6;
   interrupt_function[0xe7][REVECT] = inte7;
 
   /* set up relocated video handler (interrupt 0x42) */

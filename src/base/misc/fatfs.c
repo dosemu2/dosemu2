@@ -1301,7 +1301,7 @@ void build_boot_blk(fatfs_t *f)
       b[0x41] = DOS_HELPER_BOOTSECT;
       b[0x42] = f->drive_num;
       b[0x43] = 0xcd;	/* int 0e6h */
-      b[0x44] = 0xe6;
+      b[0x44] = DOS_HELPER_INT;
 
       fatfs_msg("made boot block suitable for FreeDOS\n");
       break;

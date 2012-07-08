@@ -42,7 +42,6 @@
 #include <string.h>
 #include "detect.h"
 
-#define DOS_HELPER_INT              0xE6 /* The interrupt we use */
 #define DOS_HELPER_GET_DEBUG_STRING 0x10
 #define DOS_HELPER_SET_DEBUG_STRING 0x11
 

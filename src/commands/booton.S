@@ -17,5 +17,5 @@ _start16:
 
 	movb $0x30, %al
 	movw $1, %bx
-	int $0xe6  # enable bootdisk
+	int $DOS_HELPER_INT  # enable bootdisk
 	int $0x20  # exit

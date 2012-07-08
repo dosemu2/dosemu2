@@ -22,7 +22,7 @@ _start16:
 	movw	$1024,%cx
 	movw	$buffer,%dx
 	movw	$0x80,%ax	# DOS_HELPER_GETCWD
-	int	$0xe6		# doshelper
+	int	$DOS_HELPER_INT	# doshelper
 	lea	buffer,%si
 	call	print
 	lea	linefeed,%si

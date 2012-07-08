@@ -19,7 +19,7 @@ _start16:
 
 	movb $4, %al     # card switch
 	movb $0, %bl     # off
-	int $0xe6
+	int $DOS_HELPER_INT
 	int $0x20  # exit
 
 # note: the VGA permissions are left on. 

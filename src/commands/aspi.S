@@ -3,6 +3,8 @@
 #
 #
 
+#include "doshelpers.h"
+
 .code16
 .text
 	.globl	_start16
@@ -12,7 +14,7 @@ MaxCmd	=	15
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
-Helpint =	0xe6		# 0xe6 is Int for Linux helpers
+Helpint =	DOS_HELPER_INT	# 0xe6 is Int for Linux helpers
 Aspihlp	=	0x41		# aspi helper
 
 Header:

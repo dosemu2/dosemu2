@@ -770,7 +770,7 @@ int rng_peek(struct rng_s *rng, int idx, void *buf)
 
 int rng_put(struct rng_s *rng, void *obj)
 {
-  int head_pos, ret = 1;;
+  int head_pos, ret = 1;
   head_pos = (rng->tail + rng->objcnt * rng->objsize) % (rng->objnum * rng->objsize);
   assert(head_pos <= (rng->objnum - 1) * rng->objsize);
   memcpy(rng->buffer + head_pos, obj, rng->objsize);

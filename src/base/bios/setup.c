@@ -18,6 +18,7 @@
 #include "xms.h"
 #include "hma.h"
 #include "ipx.h"
+#include "doshelpers.h"
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
@@ -110,7 +111,7 @@ static void bios_setup(void)
 	SETIVEC(i, 0, 0);
     } else if ((i & 0xf8) == 0x68) {
 	SETIVEC(i, IRET_SEG, IRET_OFF);
-    } else if (i < 0x78 || i == 0xe6 || i == 0xe7) {
+    } else if (i < 0x78 || i == DOS_HELPER_INT || i == 0xe7) {
 	SETIVEC(i, BIOSSEG, INT_OFF(i));
     }
   }

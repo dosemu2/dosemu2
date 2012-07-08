@@ -16,7 +16,7 @@ _start16:
 #include "detect.h"
 
 	movw $0xffff, %ax
-	int $0xe6         # shouldn't return, but be sure with the HLT's
+	int $DOS_HELPER_INT         # shouldn't return, but be sure with the HLT's
 	hlt
 	hlt
 	hlt

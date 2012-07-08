@@ -33,6 +33,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+#include "doshelpers.h"
 #include "bootsect.h"
 
 
@@ -267,7 +268,7 @@ int main(int argc, char *argv[])
   buffer[63] = 0xfe;                    /* (mov ax,0xfffe; int 0xe6) */
   buffer[64] = 0xff;
   buffer[65] = 0xcd;
-  buffer[66] = 0xe6;
+  buffer[66] = DOS_HELPER_INT;
   buffer[446+0] = P_STATUS;
   buffer[446+1] = P_STARTING_HEAD;
   buffer[446+2] = ((P_STARTING_TRACK >> 2) & 0xc0) | P_STARTING_SECTOR;

@@ -22,5 +22,5 @@ _start16:
 	movb	$0,0x81(%bx)
 	movw	$0x81,%dx
 	movw	$0x53,%ax
-	int	$0xe6		# doshelper
+	int	$DOS_HELPER_INT		# doshelper
 	call	exit

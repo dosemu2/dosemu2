@@ -30,7 +30,7 @@
 #include <string.h>
 #include "detect.h"
 
-#define MHLP(rin, rout) int86(0xe6, &rin, &rout)
+#define MHLP(rin, rout) int86(DOS_HELPER_INT, &rin, &rout)
 
 
 union REGS regs;

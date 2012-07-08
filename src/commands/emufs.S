@@ -48,6 +48,8 @@
 # (I probably broke something, but it seems to work)
 #
 
+#include "doshelpers.h"
+
 .code16
 .text
 	.globl	_start16
@@ -57,7 +59,7 @@ MaxCmd	=	12
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
-Linuxfs	=	0xe6		# 0xe6 is Int for Mach Dos Server
+Linuxfs	=	DOS_HELPER_INT	# 0xe6 is Int for Mach Dos Server
 Mivec   = 	(Linuxfs * 4)   # mem loc for the interrupt vector
 
 Header:

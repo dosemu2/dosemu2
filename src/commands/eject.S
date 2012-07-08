@@ -17,10 +17,10 @@ _start16:
 
         movb $0x40, %al # unlock door
         movb $0x0C, %ah
-        int     $0xe6
+        int     $DOS_HELPER_INT
 
 	movb $0x40, %al # eject disk
         movb $0x0D, %ah
-	int     $0xe6
+	int     $DOS_HELPER_INT
 
 	int     $0x20   # exit

@@ -23,8 +23,6 @@
 
 /* some other useful definitions */
 
-#define DOSHELPER_INT 0xe6
-
 #define BIOS_DATA 0x40
 #define KEYBUF_READ_PTR  0x1a
 #define KEYBUF_WRITE_PTR 0x1c
@@ -285,7 +283,7 @@ CISH(LFN_string):
    - second helper function (int 0xe6,al=9)
  */
 	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
-	int	$DOSHELPER_INT
+	int	$DOS_HELPER_INT
 	cmpb	$0, %al
 	je	no_vbios_post
 	/* call far 0xc000:3  or call far 0xe000:3 */
@@ -304,10 +302,10 @@ no_vbios_post:
 	int	$0x10
 video_init_done:
 	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
-	int	$DOSHELPER_INT
+	int	$DOS_HELPER_INT
 
 	movb	$DOS_HELPER_SHOW_BANNER,%al
-	int	$DOSHELPER_INT
+	int	$DOS_HELPER_INT
 	movb	%cs:CISH(bios_f000_bootdrive)-bios_f000,%dl
 
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
@@ -316,7 +314,7 @@ video_init_done:
 /* ======================= Addr = F000:E2B0 (FE2B0) */
 	/* set up BIOS exit routine */
 	movw	$DOS_HELPER_REALLY_EXIT,%ax
-	int	$DOSHELPER_INT
+	int	$DOS_HELPER_INT
 
 /* COMPAS FE2C3		jmp to NMI */
 /* COMPAS FE2C6-FE3FD	reserved */
@@ -355,7 +353,7 @@ video_init_done:
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf2,%bx	/* call the user or PS/2 hook */
-	int	$DOSHELPER_INT
+	int	$DOS_HELPER_INT
 	/* if an event handler is installed we will go to Mouse_OFF
 	   or Mouse_PS2_OFF;  otherwise return here.
 	   ax and bx are popped in mouse.c
@@ -424,7 +422,7 @@ L9a:
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf0,%bx	/* start video mode set */
-	int	$DOSHELPER_INT
+	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
 
@@ -439,7 +437,7 @@ L9a:
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf1,%bx	/* end video mode set */
-	int	$DOSHELPER_INT
+	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
 	addw	$2,%sp/* pop video mode */	    
@@ -629,7 +627,7 @@ CISH(INT16_dummy_end):
 	
 	movb	%al,%ah			/* pass the scancode... */
 	movb	$DOS_HELPER_GET_BIOS_KEY,%al
-	int	$DOSHELPER_INT		/* call get_bios_key helper       */
+	int	$DOS_HELPER_INT		/* call get_bios_key helper       */
 					/* returns ax=keycode or 0,       */
 					/* also copies new shift state to */
 					/* seg 0x40                       */

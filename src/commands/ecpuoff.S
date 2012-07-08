@@ -17,5 +17,5 @@ _start16:
 
 	mov $0x91, %al
 	mov $0, %bx
-	int $0xe6  # disable bootdisk
+	int $DOS_HELPER_INT  # disable bootdisk
 	int $0x20  # exit

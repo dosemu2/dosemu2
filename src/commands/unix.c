@@ -102,7 +102,7 @@ int send_command(char **argv)
     preg.r_ax = 0x50;
     preg.r_dx = FP_OFF(&command_line);
     preg.r_es = FP_SEG(&command_line);
-    intr(0xe6, &preg);
+    intr(DOS_HELPER_INT, &preg);
 
     return(0);
 }
@@ -125,7 +125,7 @@ void do_execute_dos (int argc, char **argv)
   preg.r_dx = FP_OFF(&data);
   preg.r_es = FP_SEG(&data);
 
-  intr(0xe6, &preg);
+  intr(DOS_HELPER_INT, &preg);
 
   if (! preg.r_ax) {
     /* SUCCESSFUL */
@@ -147,7 +147,7 @@ void do_execute_dos (int argc, char **argv)
 	/* bye bye! */
         if (data[strlen(data)+1] == '\0') {
 	  preg.r_ax = 0xffff;
-	  intr(0xe6, &preg);
+	  intr(DOS_HELPER_INT, &preg);
         }
 
 	exit (0);
@@ -178,7 +178,7 @@ void do_set_dosenv (int argc, char **argv)
   preg.r_dx = FP_OFF(&data);
   preg.r_es = FP_SEG(&data);
 
-  intr(0xe6, &preg);
+  intr(DOS_HELPER_INT, &preg);
 
   if (! preg.r_ax) {
     if (msetenv(argv[0],data))

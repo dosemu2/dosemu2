@@ -8,6 +8,8 @@
 #   for dosemu 0.49, 4/1/93
 #
 
+#include "doshelpers.h"
+
 .code16	
 .text
 	.globl	boot_sect
@@ -46,7 +48,7 @@ cont1:
 
       # exit dosemu
       movw    $0xffff, %ax
-      int     $0xe6
+      int     $DOS_HELPER_INT
 
 beg_message:
       .byte    0xd,0xa           # carriage return, line feed

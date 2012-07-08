@@ -9,6 +9,8 @@
 #
 # Have a look at fatfs.c before modifying anything!!!
 
+#include "doshelpers.h"
+
 .code16	
 .text
 	.globl	boot_prog
@@ -77,7 +79,7 @@ write_msg_10:
 	movb	$0,%ah
 	int	$0x16
 	movw	$0xffff,%ax
-	int	$0xe6
+	int	$DOS_HELPER_INT
 	jmp	write_msg_10
 write_msg_20:
 	movb	$0x0e,%ah
