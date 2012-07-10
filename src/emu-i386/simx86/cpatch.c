@@ -86,25 +86,101 @@ static int m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 	return e_check_munprotect(addr);
 }
 
-asmlinkage int r_munprotect(unsigned char *paddr, unsigned int len,
-			    unsigned char *eip)
+static void r_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
-	unsigned int addr;
-	if (*eip == 0xf3) /* skip rep */
-		eip++;
-	if (*eip == 0x66)
-		len *= 2;
-	else if (*eip & 1)
-		len *= 4;
-	addr = paddr - mem_base;
 	if (EFLAGS & EFLAGS_DF) addr -= len;
 	if (debug_level('e')>3)
-	    e_printf("\tR_MUNPROT %08x:%08x %s\n",
+	    dbug_printf("\tR_MUNPROT %08x:%08x %s\n",
 		addr,addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
+	if (LINEAR2UNIX(addr) != &mem_base[addr] && !e_querymark(addr, len))
+		return;
 	InvalidateNodePage(addr,len,eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
-	return 0;
+}
+
+#define repmovs(std,letter,cld)			       \
+	asm volatile(#std" ; rep ; movs"#letter ";" #cld"\n\t" \
+		     : "=&c" (ecx), "=&D" (edi), "=&S" (esi)   \
+		     : "0" (ecx), "1" (edi), "2" (esi) \
+		     : "memory")
+
+#define repstos(std,letter,cld)			       \
+	asm volatile(#std" ; rep ; stos"#letter ";" #cld"\n\t" \
+		     : "=&c" (ecx), "=&D" (edi) \
+		     : "a" (eax), "0" (ecx), "1" (edi) \
+		     : "memory")
+
+struct rep_stack {
+	unsigned char *esi, *edi;
+	unsigned long ecx, eflags, edx, eax;
+#ifdef __x86_64__
+	unsigned long eax_pad;
+#endif
+	unsigned char *eip;
+} __attribute__((packed));
+
+
+asmlinkage void rep_movs_stos(struct rep_stack *stack)
+{
+	unsigned char *paddr = stack->edi;
+	unsigned int ecx = stack->ecx;
+	unsigned char *eip = stack->eip;
+	unsigned int addr;
+	unsigned int len = ecx;
+	unsigned char *edi;
+	unsigned char op;
+
+	if (*eip == 0xf3) /* skip rep */
+		eip++;
+	op = eip[0];
+	if (*eip == 0x66) {
+		len *= 2;
+		op = eip[1];
+	}
+	else if (*eip & 1)
+		len *= 4;
+	addr = paddr - mem_base;
+	r_munprotect(addr, len, eip);
+	edi = LINEAR2UNIX(addr);
+	if ((op & 0xfe) == 0xa4) { /* movs */
+		unsigned int source = stack->esi - mem_base;
+		unsigned char *esi = LINEAR2UNIX(source);
+		if (ecx == len) {
+			if (EFLAGS & EFLAGS_DF) repmovs(std,b,cld);
+			else repmovs(,b,);
+		}
+		else if (ecx*2 == len) {
+			if (EFLAGS & EFLAGS_DF) repmovs(std,w,cld);
+			else repmovs(,w,);
+		}
+		else {
+			if (EFLAGS & EFLAGS_DF) repmovs(std,l,cld);
+			else repmovs(,l,);
+		}
+		if (EFLAGS & EFLAGS_DF) source -= len;
+		else source += len;
+		stack->esi = &mem_base[source];
+	}
+	else { /* stos */
+		unsigned int eax = stack->eax;
+		if (ecx == len) {
+			if (EFLAGS & EFLAGS_DF) repstos(std,b,cld);
+			else repstos(,b,);
+		}
+		else if (ecx*2 == len) {
+			if (EFLAGS & EFLAGS_DF) repstos(std,w,cld);
+			else repstos(,w,);
+		}
+		else {
+			if (EFLAGS & EFLAGS_DF) repstos(std,l,cld);
+			else repstos(,l,);
+		}
+	}
+	if (EFLAGS & EFLAGS_DF) addr -= len;
+	else addr += len;
+	stack->edi = &mem_base[addr];
+	stack->ecx = ecx;
 }
 
 /* ======================================================================= */
@@ -220,16 +296,18 @@ asm (
 "stub_rep__:	jecxz	1f\n"		/* zero move, nothing to do */
 "		pushl	%eax\n"		/* save regs */
 "		pushl	%edx\n"		/* edx used in 16bit overrun emulation, save too */
-"		pushl	%ecx\n"
 "		pushfl\n"		/* push flags for DF */
-"		pushl	16(%esp)\n"	/* push return address */
 "		pushl	%ecx\n"		/* push count */
-"		pushl	%edi\n"		/* push base address */
+"		pushl	%edi\n"		/* push dest address */
+"		pushl	%esi\n"		/* push source address */
+"		pushl	%esp\n"		/* push stack */
 "		cld\n"
-"		call	r_munprotect\n"
-"		addl	$12,%esp\n"	/* remove parameters */
+"		call	rep_movs_stos\n"
+"		addl	$4,%esp\n"	/* remove stack parameter */
+"		popl	%esi\n"		/* obtain changed source address */
+"		popl	%edi\n"		/* obtain changed dest address */
+"		popl	%ecx\n"		/* obtain changed count */
 "		popfl\n"		/* real CPU flags back */
-"		popl	%ecx\n"		/* restore regs */
 "		popl	%edx\n"
 "		popl	%eax\n"		
 "1:		ret\n"
@@ -304,21 +382,19 @@ asm (
 "stub_rep__:	jrcxz	1f\n"		/* zero move, nothing to do */
 "		pushq	%rax\n"		/* save regs */
 "		pushq	%rax\n"		/* save rax twice for 16-alignment */
-"		pushq	%rcx\n"
 "		pushq	%rdx\n"
+"		pushfq\n"		/* push flags for DF */
+"		pushq	%rcx\n"
 "		pushq	%rdi\n"
 "		pushq	%rsi\n"
-"		movq	48(%rsp),%rdx\n"  /* pass return address */
-"		pushfq\n"		/* push flags for DF */
-"		movl	%ecx,%esi\n"	/* pass count */
-					/* pass base address in %rdi */
+"		movq	%rsp,%rdi\n"	/* pass stack address in %rdi */
 "		cld\n"
-"		call	r_munprotect\n"
-"		popfq\n"		/* real CPU flags back */
+"		call	rep_movs_stos\n"
 "		popq	%rsi\n"		/* restore regs */
 "		popq	%rdi\n"
-"		popq	%rdx\n"
 "		popq	%rcx\n"
+"		popfq\n"		/* real CPU flags back */
+"		popq	%rdx\n"
 "		popq	%rax\n"
 "		popq	%rax\n"
 "1:		ret\n"
