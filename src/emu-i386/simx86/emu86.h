@@ -673,7 +673,7 @@ int e_munprotect(unsigned int addr, size_t len);
 int e_check_munprotect(unsigned int addr);
 int e_querymprotrange(unsigned int al, unsigned int ah);
 int e_markpage(unsigned int addr, size_t len);
-int e_querymark(unsigned int addr);
+int e_querymark(unsigned int addr, size_t len);
 void e_resetpagemarks(unsigned int addr, size_t len);
 int e_handle_pagefault(struct sigcontext_struct *scp);
 void mprot_init(void);

@@ -70,12 +70,12 @@ static int m_mprotect(unsigned int addr)
 /*
  * Return address of the stub function is passed into eip
  */
-static int m_munprotect(unsigned int addr, unsigned char *eip)
+static int m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p [%08x]\n",
 		addr,eip,*((int *)(eip-3)));
 	/* verify that data, not code, has been hit */
-	if (!e_querymark(addr))
+	if (!e_querymark(addr, len))
 	    return e_check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
@@ -132,7 +132,7 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 	unsigned int addr = paddr - mem_base;
 	int ret;
 	Bit8u *p;
-	ret = m_munprotect(addr, eip);
+	ret = m_munprotect(addr, 1, eip);
 	p = LINEAR2UNIX(addr);
 	/* there is a slight chance that this stub hits VGA memory.
 	   For that case there is a simple instruction decoder but
@@ -147,7 +147,7 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 	unsigned int addr = paddr - mem_base;
 	int ret;
 	Bit16u *p;
-	ret = m_munprotect(addr, eip);
+	ret = m_munprotect(addr, 2, eip);
 	p = LINEAR2UNIX(addr);
 	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
@@ -159,7 +159,7 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 	unsigned int addr = paddr - mem_base;
 	int ret;
 	Bit32u *p;
-	ret = m_munprotect(addr, eip);
+	ret = m_munprotect(addr, 4, eip);
 	p = LINEAR2UNIX(addr);
 	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)

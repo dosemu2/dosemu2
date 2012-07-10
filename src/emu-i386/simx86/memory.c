@@ -127,22 +127,21 @@ static inline int e_querymprot(unsigned int addr)
 
 int e_querymprotrange(unsigned int al, unsigned int ah)
 {
-	register int a2l = al >> PAGE_SHIFT;
-	int a2h = ah >> PAGE_SHIFT;
-	tMpMap *M = MpH;
-	int res = 0;
+	int a2l, a2h, res = 0;
+	tMpMap *M = FindM(al);
 
-	while (M) {
-		if (M->mega==(a2l>>8)) {
-		    while (a2l <= a2h) {
-			res = (res<<1) | (test_bit(a2l&255, M->pagemap) & 1);
-			a2l++; if ((a2l&255)==0) break;
-		    }
+	a2l = al >> PAGE_SHIFT;
+	a2h = ah >> PAGE_SHIFT;
+
+	while (M && a2l <= a2h) {
+		res = (res<<1) | (test_bit(a2l&255, M->pagemap) & 1);
+		a2l++;
+		if ((a2l&255)==0 && a2l <= a2h) {
+			M = M->next;
+			res = 0;
 		}
-		if (a2l > a2h) return res;
-		M = M->next;
 	}
-	return 0;
+	return res;
 }
 
 
@@ -152,29 +151,52 @@ int e_querymprotrange(unsigned int al, unsigned int ah)
 int e_markpage(unsigned int addr, size_t len)
 {
 	unsigned int abeg, aend;
-	tMpMap *M;
+	tMpMap *M = FindM(addr);
 
-	abeg = (addr >> CGRAN) & CGRMASK;
-	aend = (((addr+len) >> CGRAN) + 1) & CGRMASK;
-nextmega:
-	M = FindM(addr); if (M==NULL) return 0;
-	if (debug_level('e')>1) e_printf("MARK from %04x to %04x for %08x\n",abeg,aend-1,addr);
-	while (abeg != aend) {
-	    set_bit(abeg, M->subpage);
-	    abeg = (abeg+1) & CGRMASK;
-	    if (abeg==0 && aend) { addr+=0x100000; goto nextmega; }
+	if (M == NULL) return 0;
+
+	abeg = addr >> CGRAN;
+	aend = (addr+len-1) >> CGRAN;
+
+	if (debug_level('e')>1)
+		dbug_printf("MARK from %08x to %08x for %08x\n",
+			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
+	while (M && abeg <= aend) {
+		set_bit(abeg&CGRMASK, M->subpage);
+		abeg++;
+		if ((abeg&CGRMASK) == 0)
+			M = M->next;
 	}
 	return 1;
 }
 
-int e_querymark(unsigned int addr)
+int e_querymark(unsigned int addr, size_t len)
 {
-	int idx;
-	tMpMap *M;
+	unsigned int abeg, aend;
+	tMpMap *M = FindM(addr);
 
-	M = FindM(addr); if (M==NULL) return 0;
-	idx = (addr >> CGRAN) & CGRMASK;
-	return (test_bit(idx, M->subpage) & 1);
+	if (M == NULL) return 0;
+
+	abeg = addr >> CGRAN;
+	aend = (addr+len-1) >> CGRAN;
+
+	if (debug_level('e')>2)
+		dbug_printf("QUERY MARK from %08x to %08x for %08x\n",
+			    abeg<<CGRAN,((aend+1)<<CGRAN)-1,addr);
+	while (M && abeg <= aend) {
+		if (test_bit(abeg&CGRMASK, M->subpage)) {
+			if (debug_level('e')>1)
+				dbug_printf("QUERY MARK found code at "
+					    "%08x to %08x for %08x\n",
+					    abeg<<CGRAN, ((abeg+1)<<CGRAN)-1,
+					    addr);
+			return 1;
+		}
+		abeg++;
+		if ((abeg&CGRMASK) == 0)
+			M = M->next;
+	}
+	return 0;
 }
 
 static void e_resetonepagemarks(unsigned int addr)
@@ -330,7 +352,7 @@ int e_handle_pagefault(struct sigcontext_struct *scp)
 				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
 				    _cs, _rip, addr, fault_cnt);
 		}
-		if (e_querymark(addr)) {
+		if (e_querymark(addr, 1)) {
 			e_printf("CODE node hit at %08x\n",addr);
 		}
 		else if (InCompiledCode) {
@@ -341,7 +363,7 @@ int e_handle_pagefault(struct sigcontext_struct *scp)
 	 * linked by Cpatch will do it */
 	/* ACH: we can set up a data patch for code
 	 * which has not yet been executed! */
-	if (InCompiledCode && !e_querymark(addr) && Cpatch(scp))
+	if (InCompiledCode && !e_querymark(addr, 1) && Cpatch(scp))
 		return 1;
 	/* We HAVE to invalidate all the code in the page
 	 * if the page is going to be unprotected */
