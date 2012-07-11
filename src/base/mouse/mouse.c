@@ -1040,8 +1040,8 @@ static void mouse_reset(int flag)
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
 
-  mouse.exc_lx = mouse.exc_ux = 0;
-  mouse.exc_ly = mouse.exc_uy = 0;
+  mouse.exc_lx = mouse.exc_ux = -1;
+  mouse.exc_ly = mouse.exc_uy = -1;
 
   mouse.ip = mouse.cs = 0;
   mouse.mask = 0;		/* no interrupts */
@@ -1067,8 +1067,8 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
 {
   /* Delete exclusion zone, if show cursor applied */
   if (flag == 1) {
-    mouse.exc_lx = mouse.exc_ux = 0;
-    mouse.exc_ly = mouse.exc_uy = 0;
+    mouse.exc_lx = mouse.exc_ux = -1;
+    mouse.exc_ly = mouse.exc_uy = -1;
   }
 
   /* already on, don't do anything */
@@ -1434,12 +1434,28 @@ static int mouse_round_coords(void)
 static void mouse_hide_on_exclusion(void)
 {
   /* Check exclusion zone, then turn off cursor if necessary */
-  /* !!! doesn't get graphics cursor or hotspot right !!! */
-  if (mouse.exc_lx || mouse.exc_uy) {
-    if ((mouse.x > mouse.exc_ux) && 
-        (mouse.x < mouse.exc_lx) &&
-        (mouse.y > mouse.exc_uy) &&
-        (mouse.y < mouse.exc_ly))
+  if (mouse.exc_ux != -1) {
+    short xl, xr, yt, yb;
+
+    /* find the cursor box's edges coords (in mouse coords not screen) */
+    if (mouse.gfx_cursor) { /* graphics cursor */
+      xl = mouse.x - (mouse.hotx << mouse.xshift);
+      xr = mouse.x + ((HEIGHT-1 - mouse.hotx) << mouse.xshift);
+      yt = mouse.y - (mouse.hoty << mouse.yshift);
+      yb = mouse.y + ((HEIGHT-1 - mouse.hoty) << mouse.yshift);
+    }
+    else { /* text cursor */
+      xl = MOUSE_RX;
+      xr = MOUSE_RX + (1 << mouse.xshift) - 1;
+      yt = MOUSE_RY;
+      yb = MOUSE_RY + (1 << mouse.yshift) - 1;
+
+    }
+    /* check zone boundary */
+    if ((xr >= mouse.exc_ux) &&
+        (xl <= mouse.exc_lx) &&
+        (yb >= mouse.exc_uy) &&
+        (yt <= mouse.exc_ly))
 	mouse_cursor(-1);
   }
 }
@@ -2010,8 +2026,6 @@ int DOSEMUMouseEvents(int ilevel)
 }
 
 /* TO DO LIST: (in no particular order)
-	- exclusion area doesn't take size of cursor
-		into account, also ignores hotspot
 	- play with acceleration profiles more
 */
 
