@@ -1461,14 +1461,14 @@ get_ems_hardinfo(state_t * state)
         break;
       }
       case GET_RAW_PAGECOUNT:{
-        u_short left = (EMM_TOTAL - emm_allocated) * 4;
+        u_short left = EMM_TOTAL - emm_allocated;
 
         Kdebug1((dbg_fd, "bios_emm: Get Raw Page Counts left=0x%x, t:0x%x, a:0x%x\n",
 	       left, EMM_TOTAL, emm_allocated));
 
         SETHIGH(&(state->eax), EMM_NO_ERR);
         SETWORD(&(state->ebx), left);
-        SETWORD(&(state->edx), (u_short) (EMM_TOTAL * 4));
+        SETWORD(&(state->edx), (u_short) EMM_TOTAL);
         return (TRUE);
       }
       default:
