@@ -53,7 +53,7 @@ int int17(void)
     val8 = port_inb(addr + 1);
     break;
   }
-  _AH = val8 ^ (LPT_ACK | LPT_IOERR);
+  _AH = val8 ^ (LPT_ACK | LPT_NOIOERR);
   if (!timeout) _AH |= LPT_TIMEOUT;
   NOCARRY;
 

@@ -31,9 +31,9 @@ static int stub_printer_write(int, int);
 
 struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, NULL, 5, 0x378, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK},
-  {NULL, NULL, 5, 0x278, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK},
-  {NULL, NULL, 10, 0x3bc, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK}
+  {NULL, NULL, 5, 0x378, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK},
+  {NULL, NULL, 5, 0x278, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK},
+  {NULL, NULL, 10, 0x3bc, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK}
 };
 
 static int get_printer(ioport_t port)
@@ -76,12 +76,14 @@ static void printer_io_write(ioport_t port, Bit8u value)
     return;
   switch (port - lpt[i].base_port) {
   case 0:
-    lpt[i].status = printer_write(i, value);
+    lpt[i].status = LPT_NOTBUSY | LPT_NOIOERR | LPT_ONLINE;
     lpt[i].data = value;
     break;
   case 1: /* status port, r/o */
     break;
   case 2:
+    if (!(lpt[i].control & 1) && (value & 9) == 9)
+      printer_write(i, lpt[i].data);
     lpt[i].status &= ~LPT_ACK;
     lpt[i].control = value;
     break;
@@ -172,7 +174,7 @@ static int file_printer_write(int prnum, int outchar)
   lpt[prnum].remaining = lpt[prnum].delay;
 
   fputc(outchar, lpt[prnum].file);
-  return (LPT_NOTBUSY | LPT_IOERR | LPT_ONLINE);
+  return 0;
 }
 
 int printer_write(int prnum, int outchar)

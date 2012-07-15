@@ -39,7 +39,7 @@ void printer_print_config(int prnum, void (*print)(const char *, ...));
 
 /* status bits */
 #define LPT_TIMEOUT	0x1
-#define LPT_IOERR	0x8
+#define LPT_NOIOERR	0x8
 #define LPT_ONLINE	0x10
 #define LPT_NOPAPER	0x20
 #define LPT_ACK		0x40
