@@ -376,6 +376,81 @@ notakejmp:
 
 /////////////////////////////////////////////////////////////////////////////
 
+#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
+static inline unsigned int FindExecCode(unsigned int PC)
+{
+	unsigned int temp;
+	int mode = TheCPU.mode;
+	TNode *G;
+
+	/* for a sequence to be found, it must begin with
+	 * an allowable opcode. Look into table.
+	 * NOTE - this while can loop forever and stop
+	 * any signal processing. Jumps are defined as
+	 * a 'descheduling point' for checking signals.
+	 */
+	temp = 100;	/* safety count */
+	while (temp && ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC))) {
+		if (debug_level('e')>2)
+			e_printf("** Found compiled code at %08x\n",PC);
+		if (CurrIMeta>0) {		// open code?
+			if (debug_level('e')>2)
+				e_printf("============ Closing open sequence at %08x\n",PC);
+			PC = CloseAndExec(PC, NULL, mode, __LINE__);
+			if (TheCPU.err) return PC;
+		}
+		/* ---- this is the MAIN EXECUTE point ---- */
+		{ int m = mode | (G->flags<<16) | XECFND;
+			unsigned int tmp = CloseAndExec(0, G, m, __LINE__);
+			if (!tmp) goto bad_return;
+			P0 = PC = tmp; }
+		if (TheCPU.err) return PC;
+		/* on jumps, exit to process signals */
+		if (InterOps[Fetch(PC)]&0x80) break;
+		/* if all fails, stop infinite loops here */
+		temp--;
+	}
+	return PC;
+
+bad_return:
+	dbug_printf("!!! Bad code return\n");
+	TheCPU.err = -3; return PC;
+}
+#endif
+
+static inline void HandleEmuSignals(void)
+{
+#ifdef PROFILE
+	if (debug_level('e')) EmuSignals++;
+#endif
+	if (CEmuStat & CeS_LOCK)
+		CEmuStat &= ~CeS_LOCK;
+	else if (CEmuStat & CeS_TRAP) {
+		/* force exit for single step trap */
+		if (!TheCPU.err)
+			TheCPU.err = EXCP01_SSTP;
+	}
+	//else if (CEmuStat & CeS_DRTRAP) {
+	//	if (e_debug_check(PC)) {
+	//		TheCPU.err = EXCP01_SSTP;
+	//	}
+	//}
+	else if (CEmuStat & CeS_SIGPEND) {
+		/* force exit after signal */
+		CEmuStat = (CEmuStat & ~CeS_SIGPEND) | CeS_SIGACT;
+		TheCPU.err=EXCP_SIGNAL;
+	}
+	else if (CEmuStat & CeS_RPIC) {
+		/* force exit for PIC */
+		CEmuStat &= ~CeS_RPIC;
+		TheCPU.err=EXCP_PICSIGNAL;
+	}
+	else if (CEmuStat & CeS_STI) {
+		/* force exit for IF set */
+		CEmuStat &= ~CeS_STI;
+		TheCPU.err=EXCP_STISIGNAL;
+	}
+}
 
 unsigned int Interp86(unsigned int PC, int mod0)
 {
@@ -383,9 +458,6 @@ unsigned int Interp86(unsigned int PC, int mod0)
 	unsigned short ocs = TheCPU.cs;
 	unsigned int temp;
 	register int mode;
-#ifdef HOST_ARCH_X86
-	TNode *G;
-#endif
 
 	NewNode = 0;
 	basemode = mod0;
@@ -400,74 +472,14 @@ unsigned int Interp86(unsigned int PC, int mod0)
 
 		if (!NewNode) {
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
-		    if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
-			/* for a sequence to be found, it must begin with
-			 * an allowable opcode. Look into table.
-			 * NOTE - this while can loop forever and stop
-			 * any signal processing. Jumps are defined as
-			 * a 'descheduling point' for checking signals.
-			 */
-			temp = 100;	/* safety count */
-			while (temp && ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC)) != NULL) {
-				if (debug_level('e')>2)
-					e_printf("** Found compiled code at %08x\n",PC);
-				if (CurrIMeta>0) {		// open code?
-					if (debug_level('e')>2)
-						e_printf("============ Closing open sequence at %08x\n",PC);
-					PC = CloseAndExec(PC, NULL, mode, __LINE__);
-					if (TheCPU.err) return PC;
-				}
-				/* ---- this is the MAIN EXECUTE point ---- */
-				{ int m = mode | (G->flags<<16) | XECFND;
-				  unsigned int tmp = CloseAndExec(0, G, m, __LINE__);
-				  if (!tmp) goto bad_return;
-				  P0 = PC = tmp; }
+			if (!CONFIG_CPUSIM && !(EFLAGS & TF)) {
+				PC = FindExecCode(PC);
 				if (TheCPU.err) return PC;
-				/* on jumps, exit to process signals */
-				if (InterOps[Fetch(PC)]&0x80) break;
-				/* if all fails, stop infinite loops here */
-				temp--;
 			}
-		    }
 #endif
 			if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK|CeS_RPIC|CeS_STI)) {
-#ifdef PROFILE
-				if (debug_level('e')) EmuSignals++;
-#endif
-				if (CEmuStat & CeS_LOCK)
-					CEmuStat &= ~CeS_LOCK;
-				else {
-					if (CEmuStat & CeS_TRAP) {
-						/* force exit for single step trap */
-						if (!TheCPU.err)
-							TheCPU.err = EXCP01_SSTP;
-						return PC;
-					}
-					//else if (CEmuStat & CeS_DRTRAP) {
-					//	if (e_debug_check(PC)) {
-					//		TheCPU.err = EXCP01_SSTP;
-					//		return PC;
-					//	}
-					//}
-					else if (CEmuStat & CeS_SIGPEND) {
-						/* force exit after signal */
-						CEmuStat = (CEmuStat & ~CeS_SIGPEND) | CeS_SIGACT;
-						TheCPU.err=EXCP_SIGNAL;
-						return PC;
-					}
-					else if (CEmuStat & CeS_RPIC) {
-						/* force exit for PIC */
-						CEmuStat &= ~CeS_RPIC;
-						TheCPU.err=EXCP_PICSIGNAL;
-						return PC;
-					}
-					else if (CEmuStat & CeS_STI) {
-						/* force exit for IF set */
-						CEmuStat &= ~CeS_STI;
-						TheCPU.err=EXCP_STISIGNAL;
-						return PC;
-					}
-				}
+				HandleEmuSignals();
+				if (TheCPU.err) return PC;
 			}
 			CEmuStat &= ~CeS_TRAP;
 			if (EFLAGS & TF) {
@@ -3080,11 +3092,6 @@ not_implemented:
 	dbug_printf("!!! Unimplemented %02x %02x %02x at %08x\n",opc,
 		    Fetch(PC+1),Fetch(PC+2),PC);
 	TheCPU.err = -2; return P0;
-#ifdef HOST_ARCH_X86
-bad_return:
-	dbug_printf("!!! Bad code return\n");
-	TheCPU.err = -3; return PC;
-#endif
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	TheCPU.err = EXCP0D_GPF; return P0;
