@@ -33,12 +33,11 @@
 #include <SDL.h>
 
 static const char *sdlsnd_name = "Sound Output: SDL device";
-static struct player_callbacks calls;
 static struct player_params params;
 
 static void sdlsnd_callback(void *userdata, Uint8 * stream, int len)
 {
-    calls.get_data(stream, len, &params);
+    pcm_data_get(stream, len, &params);
 }
 
 static void sdlsnd_start(void)
@@ -87,9 +86,8 @@ CONSTRUCTOR(static int sdlsnd_init(void))
     player.close = sdlsnd_close;
     player.lock = SDL_LockAudio;
     player.unlock = SDL_UnlockAudio;
-    player.timer = NULL;
 #if 1
-    return pcm_register_clocked_player(player, &calls);
+    return pcm_register_clocked_player(player);
 #else
     return 0;
 #endif

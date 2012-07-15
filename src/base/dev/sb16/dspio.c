@@ -36,7 +36,7 @@
 #include "sound/sndpcm.h"
 #include "sound/midi.h"
 #include "adlib.h"
-#include "dma.h"
+#include "dmanew.h"
 #include "sb16.h"
 #include "dspio.h"
 #include <string.h>
@@ -64,22 +64,6 @@ struct dspio_state {
 };
 
 #define DSPIO ((struct dspio_state *)dspio)
-
-static int dma8_get_format(int is_signed)
-{
-    return is_signed ? PCM_FORMAT_S8 : PCM_FORMAT_U8;
-}
-
-static int dma16_get_format(int is_signed)
-{
-    return is_signed ? PCM_FORMAT_S16_LE : PCM_FORMAT_U16_LE;
-}
-
-static int dma_get_format(int is_16, int is_signed)
-{
-    return is_16 ? dma16_get_format(is_signed) :
-	dma8_get_format(is_signed);
-}
 
 static void dma_get_silence(int is_signed, int is16bit, void *ptr)
 {
@@ -163,9 +147,10 @@ static void dspio_start_output(struct dspio_state *state)
     if (state->output_running)
 	return;
     S_printf("SB: starting output\n");
-    /* We would need real time here, but the HACK is to use stream time instead.
+    /* We would need real time here, but the HACK is to use stream
+     * timestamp instead.
      * That compensates the hack of dspio_process_dma() */
-    state->output_time_cur = pcm_get_stream_time(state->dma_strm);
+    state->output_time_cur = pcm_calc_tstamp(state->dma.rate, state->dma_strm);
     state->output_running = 1;
 }
 
@@ -296,6 +281,7 @@ static void dspio_process_dma(struct dspio_state *state)
     if (state->dma.running) {
 	state->dma.stereo = sb_dma_samp_stereo();
 	state->dma.rate = sb_get_dma_sampling_rate();
+	state->dma.samp_signed = sb_dma_samp_signed();
     }
 
     while (state->output_running && (state->output_time_cur <= time_dst ||
@@ -308,13 +294,13 @@ static void dspio_process_dma(struct dspio_state *state)
 	    if (state->speaker) {
 		pcm_write_samples(&buf, 1 << state->dma.is16bit,
 				  state->dma.rate,
-				  dma_get_format(state->dma.is16bit,
+				  pcm_get_format(state->dma.is16bit,
 						 state->dma.samp_signed),
 				  state->dma_strm);
 		if (!state->dma.stereo)
 		    pcm_write_samples(&buf, 1 << state->dma.is16bit,
 				      state->dma.rate,
-				      dma_get_format(state->dma.is16bit,
+				      pcm_get_format(state->dma.is16bit,
 						     state->dma.
 						     samp_signed),
 				      state->dma_strm);

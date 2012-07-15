@@ -39,7 +39,6 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
-#include <assert.h>
 
 
 #define SND_BUFFER_SIZE 200000	/* enough to hold 2.2s of 44100/stereo */
@@ -200,6 +199,48 @@ int pcm_format_size(int format)
     case PCM_FORMAT_U16_LE:
     case PCM_FORMAT_S16_LE:
 	return 2;
+    default:
+	error("PCM: format %i is not supported\n", format);
+	return 0;
+    }
+}
+
+static int pcm_get_format8(int is_signed)
+{
+    return is_signed ? PCM_FORMAT_S8 : PCM_FORMAT_U8;
+}
+
+static int pcm_get_format16(int is_signed)
+{
+    return is_signed ? PCM_FORMAT_S16_LE : PCM_FORMAT_U16_LE;
+}
+
+int pcm_get_format(int is_16, int is_signed)
+{
+    return is_16 ? pcm_get_format16(is_signed) :
+	pcm_get_format8(is_signed);
+}
+
+static int cutoff(int val, int min, int max)
+{
+    if (val < min)
+	return min;
+    if (val > max)
+	return max;
+    return val;
+}
+
+int pcm_samp_cutoff(int val, int format)
+{
+    switch (format) {
+    case PCM_FORMAT_U8:
+	return cutoff(val, 0, UCHAR_MAX);
+    case PCM_FORMAT_S8:
+	return cutoff(val, SCHAR_MIN, SCHAR_MAX);
+    case PCM_FORMAT_U16_LE:
+	return cutoff(val, 0, USHRT_MAX);
+    case PCM_FORMAT_S16_LE:
+	return cutoff(val, SHRT_MIN, SHRT_MAX);
     default:
 	error("PCM: format %i is not supported\n", format);
 	return 0;
@@ -402,7 +443,7 @@ int pcm_flush(int strm_idx)
     return 1;
 }
 
-double pcm_get_stream_time(int strm_idx)
+static double pcm_get_stream_time(int strm_idx)
 {
     struct sample samp;
     long long now = GETusTIME(0);
@@ -412,7 +453,7 @@ double pcm_get_stream_time(int strm_idx)
     return samp.tstamp;
 }
 
-static double pcm_calc_tstamp(double rate, int strm_idx)
+double pcm_calc_tstamp(double rate, int strm_idx)
 {
     double time, period, tstamp;
     if (rate == 0)
@@ -492,15 +533,14 @@ static int pcm_get_samples(double time, struct sample samp[MAX_STREAMS][2],
 	    if (s.tstamp > time) {
 //        S_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
 		if (samp)
-		    for (j = 0; j < pcm.stream[i].channels; j++)
-			samp[i][j] = s2[j];
+		    memcpy(samp[i], s2, sizeof(struct sample) *
+			    pcm.stream[i].channels);
 		if (time >= pcm.stream[i].start_time)
 		    ret++;
 		break;
 	    }
 	    if (shift && idxs[i] >= pcm.stream[i].channels) {
-		for (j = 0; j < pcm.stream[i].channels; j++)
-		    rng_get(&pcm.stream[i].buffer, NULL);
+		rng_remove(&pcm.stream[i].buffer, pcm.stream[i].channels, NULL);
 		idxs[i] -= pcm.stream[i].channels;
 	    }
 	    for (j = 0; j < pcm.stream[i].channels; j++)
@@ -531,17 +571,14 @@ static void pcm_mix_samples(struct sample in[][2], void *out, int channels,
 		continue;
 	    value[j] += sample_to_S16(in[i][j].data, in[i][j].format);
 	}
-	if (value[j] > SHRT_MAX)
-	    value[j] = SHRT_MAX;
-	if (value[j] < SHRT_MIN)
-	    value[j] = SHRT_MIN;
-	S16_to_sample(value[j], out + j * pcm_format_size(format), format);
+	S16_to_sample(pcm_samp_cutoff(value[j], PCM_FORMAT_S16_LE),
+		out + j * pcm_format_size(format), format);
     }
 }
 
 /* this is called by the clocked player. It prepares the data for
  * him, and, just in case, feeds it to all the unclocked players too. */
-static size_t pcm_data_get(void *data, size_t size,
+size_t pcm_data_get(void *data, size_t size,
 			   struct player_params *params)
 {
     int i, samp_sz, have_data, idxs[MAX_STREAMS], ret = 0;
@@ -567,7 +604,7 @@ static size_t pcm_data_get(void *data, size_t size,
 	start_time = now - BUFFER_DELAY * 2;
 	stop_time = start_time + frag_period;
     }
-    S_printf("PCM: going to process %zu bytes for %i players (st=%f stp=%f d=%f)\n",
+    S_printf("PCM: going to process %zi bytes for %i players (st=%f stp=%f d=%f)\n",
 	 size, players.num_clocked + players.num_unclocked, start_time,
 	 stop_time, now - start_time);
 
@@ -634,8 +671,7 @@ static size_t pcm_data_get(void *data, size_t size,
     return ret;
 }
 
-int pcm_register_clocked_player(struct clocked_player player,
-				struct player_callbacks *callbacks)
+int pcm_register_clocked_player(struct clocked_player player)
 {
     S_printf("PCM: registering clocked player: %s\n", player.name);
     if (players.num_clocked) {
@@ -643,7 +679,6 @@ int pcm_register_clocked_player(struct clocked_player player,
 	return 0;
     }
     players.clocked.player = player;
-    callbacks->get_data = pcm_data_get;
     players.num_clocked++;
     return 1;
 }
@@ -665,8 +700,6 @@ void pcm_timer(void)
 {
     int i;
     for (i = 0; i < players.num_unclocked; i++)
-	if (players.unclocked[i].player.timer)
-	    players.unclocked[i].player.timer();
     if (players.clocked.player.timer)
 	players.clocked.player.timer();
 }
@@ -689,8 +722,7 @@ void pcm_done(void)
 	    pcm_flush(i);
     if (pcm.playing)
 	pcm_stop_output();
-    if (players.clocked.player.close)
-	players.clocked.player.close();
+    players.clocked.player.close();
     for (i = 0; i < players.num_unclocked; i++)
 	players.unclocked[i].player.close();
     for (i = 0; i < pcm.num_streams; i++)

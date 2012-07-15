@@ -1,10 +1,10 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  ******** OLD_DMA_CODE COPYRIGHT
  * dma.c--dma controller emulater--Joel N. Weber II
  * Copyright (C) 1995  Joel N. Weber II
@@ -51,6 +51,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "dma.h"
+#include "dmanew.h"
 #include "pic.h"
 #include "port.h"
 

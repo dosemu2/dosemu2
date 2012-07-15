@@ -30,13 +30,15 @@ extern int pcm_allocate_stream(int channels, char *name);
 extern void pcm_set_flag(int strm_idx, int flag);
 extern void pcm_set_mode(int strm_idx, int mode);
 extern int pcm_flush(int strm_idx);
+extern int pcm_samp_cutoff(int val, int format);
+extern int pcm_get_format(int is_16, int is_signed);
 extern double pcm_samp_period(double rate, int channels);
 extern double pcm_frag_period(int size, struct player_params *params);
 extern void pcm_write_samples(void *ptr, size_t size,
-	double rate, int format, int strm_idx);
+			      double rate, int format, int strm_idx);
 extern int pcm_format_size(int format);
 extern void pcm_timer(void);
-extern double pcm_get_stream_time(int strm_idx);
+extern double pcm_calc_tstamp(double rate, int strm_idx);
 
 #define PCM_FLAG_RAW 1
 

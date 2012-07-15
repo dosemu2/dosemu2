@@ -165,17 +165,6 @@ int sb_dma_silence(void)
     return 0;
 }
 
-static int sb_dma_internal(void)
-{
-    if (!sb.dma_cmd)
-	error("SB: used inactive DMA (internal)\n");
-    switch (sb.dma_cmd) {
-    case 0xe2:
-	return 1;
-    }
-    return 0;
-}
-
 static int sb_dma_autoinit(void)
 {
     if (!sb.dma_cmd)
@@ -369,10 +358,8 @@ void sb_handle_dma(void)
     sb.dma_count--;
     if (sb.dma_count == 0xffff) {
 	sb.dma_count = sb.dma_init_count;
-	if (!sb_dma_internal()) {
-	    S_printf("SB: Done block, triggering IRQ\n");
-	    sb_activate_irq(sb_dma_16bit()? SB_IRQ_16BIT : SB_IRQ_8BIT);
-	}
+	S_printf("SB: Done block, triggering IRQ\n");
+	sb_activate_irq(sb_dma_16bit()? SB_IRQ_16BIT : SB_IRQ_8BIT);
 	if (!sb_dma_autoinit()) {
 	    stop_dma_clock();
 	    sb.dma_cmd = 0;	// disable DMA
@@ -437,11 +424,6 @@ void sb_get_midi_data(Bit8u * val)
 
 int sb_get_dma_data(void *ptr, int is16bit)
 {
-    if (sb_dma_internal()) {
-	S_printf("SB: E2 value %#x transferred\n", sb.reset_val);
-	*(Bit8u *) ptr = sb.reset_val;
-	return 1;
-    }
     if (rng_count(&sb.fifo_in)) {
 	if (is16bit) {
 	    rng_get(&sb.fifo_in, ptr);
@@ -636,6 +618,7 @@ static void sb_mixer_init(void)
     hdma_idx = config.sb_hdma ? 1 << config.sb_hdma : 0;
     sb.mixer_regs[0x80] = irq_idx;
     sb.mixer_regs[0x81] = dma_idx | hdma_idx;
+    sb.mixer_regs[0x82] = SB16_ID82;
 }
 
 static void sb_reset(void)
@@ -920,8 +903,8 @@ static void sb_dsp_write(Bit8u value)
     case 0xE1:
 	/* DSP Version - SB */
 	S_printf("SB: Query Version\n");
-	dsp_write_output(SB_16 >> 8);
-	dsp_write_output(SB_16 & 0xFF);
+	dsp_write_output(SB16_ID >> 8);
+	dsp_write_output(SB16_ID & 0xFF);
 	break;
 
     case 0xE2: {
@@ -960,6 +943,7 @@ static void sb_dsp_write(Bit8u value)
 	    sb.E2Count &= 3;
 
 	    sb.reset_val += incval;
+	    sb_put_input_sample(&sb.reset_val, 0);
 	    sb_dma_activate();
 
 	    break;

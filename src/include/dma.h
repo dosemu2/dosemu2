@@ -9,11 +9,6 @@
 
 void dma_init(void);
 void dma_reset(void);
-void dma_new_init(void);
-void dma_new_reset(void);
-
-enum { DMA_NO_DACK, DMA_DACK };
-int dma_pulse_DRQ(int ch, Bit8u *buf);
 
 /* 8237 DMA controllers */
 #define IO_DMA1_BASE	0x00	/* 8 bit slave DMA, channels 0..3 */

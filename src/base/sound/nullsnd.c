@@ -37,7 +37,6 @@
 static const char *nullsnd_name = "Sound Output: NULL device";
 const int frag_size = 4096;
 static struct player_params params;
-static struct player_callbacks calls;
 static int running, locked;
 static double last_time = 0;
 
@@ -83,7 +82,7 @@ static void nullsnd_timer(void)
     time = GETusTIME(0);
     while (time - last_time > frag_time) {
 	last_time += frag_time;
-	calls.get_data(NULL, frag_size, &params);
+	pcm_data_get(NULL, frag_size, &params);
     }
 }
 
@@ -99,5 +98,5 @@ int nullsnd_init(void)
     player.unlock = nullsnd_unlock;
     player.timer = nullsnd_timer;
     running = locked = 0;
-    return pcm_register_clocked_player(player, &calls);
+    return pcm_register_clocked_player(player);
 }

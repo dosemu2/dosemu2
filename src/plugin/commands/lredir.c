@@ -388,7 +388,6 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
     struct DINFO *di;
     char *dir;
     fatfs_t *f;
-    unsigned long serial;
     if (!(di = (struct DINFO *)lowmem_alloc(sizeof(struct DINFO))))
 	return 0;
     LWORD(eax) = 0x6900;
@@ -401,9 +400,8 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
 	printf("error retrieving serial, %#x\n", LWORD(eax));
 	return -1;
     }
-    serial = READ_DWORDP(&di->serial);
+    f = get_fat_fs_by_serial(READ_DWORDP(&di->serial));
     lowmem_free((void *)di, sizeof(struct DINFO));
-    f = get_fat_fs_by_serial(serial);
     if (!f || !(dir = f->dir)) {
 	printf("error identifying FAT volume\n");
 	return -1;

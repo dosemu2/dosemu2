@@ -52,7 +52,7 @@
 #define TMDTY_BIN "timidity"
 #define TMDTY_ARGS "-EFreverb=0 -EFchorus=0 -EFresamp=1 -EFvlpf=0 -EFns=0"
 
-static const char *midotmdty_name = "MIDI Output: midid plugin";
+static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock, pcm_stream;
 static pid_t tmdty_pid = -1;
@@ -71,7 +71,8 @@ static void midotmdty_io(void *arg)
     while ((selret = select(data_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
 	n = RPT_SYSCALL(read(data_sock, buf, sizeof(buf)));
 	if (n > 0) {
-	    pcm_write_samples(buf, n, 44100, PCM_FORMAT_S16_LE,
+	    pcm_write_samples(buf, n, TMDTY_FREQ, pcm_get_format(
+			      TMDTY_8BIT ? 0 : 1, TMDTY_UNS ? 0 : 1),
 			      pcm_stream);
 	} else {
 	    break;
@@ -233,10 +234,10 @@ static int midotmdty_detect(void)
     if (ret) {
 	const char *ver_str = "Server Version ";
 	char *ptr = strstr(buf, ver_str);
-	int vmin, vmid, vmaj, ver;
 	if (!ptr) {
 	    ret = FALSE;
 	} else {
+	    int vmin, vmid, vmaj, ver;
 	    ptr += strlen(ver_str);
 	    sscanf(ptr, "%d.%d.%d", &vmaj, &vmid, &vmin);
 	    ver = vmaj * 10000 + vmid * 100 + vmin;
@@ -311,7 +312,7 @@ static int midotmdty_init(void)
 
     if (TMDTY_CAPT) {
 	add_to_io_select(data_sock, 1, midotmdty_io, NULL);
-	pcm_stream = pcm_allocate_stream(2, "MIDI");
+	pcm_stream = pcm_allocate_stream(TMDTY_MONO ? 1 : 2, "MIDI");
     }
 
     return TRUE;

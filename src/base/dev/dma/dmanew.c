@@ -32,7 +32,8 @@
 #include "utilities.h"
 #include "port.h"
 #include "timers.h"
-#include "dma.h"
+#include "dmanew.h"
+#include "dmaregs.h"
 #include <string.h>
 
 typedef union {
@@ -82,7 +83,7 @@ static Bit8u dma_data_bus[2];
 #define HAVE_SRQ(contr, chan) (dma[contr].request & (1 << (chan)))
 #define SW_ACTIVE(contr, chan) \
   (HAVE_SRQ(contr, chan) && \
-  (dma[contr].chans[chan].mode & 0x30) == 0x20)
+  (DMA_TRANSFER_MODE(dma[contr].chans[chan].mode) == BLOCK))
 
 
 static void dma_soft_reset(int dma_idx)
@@ -105,18 +106,18 @@ static void dma_poll_DRQ(int dma_idx, int chan_idx)
 
 static void dma_update_DRQ(int dma_idx, int chan_idx)
 {
-    switch (dma[dma_idx].chans[chan_idx].mode & 0x30) {
-    case 0x00:			// demand
+    switch (DMA_TRANSFER_MODE(dma[dma_idx].chans[chan_idx].mode)) {
+    case DEMAND:
 	dma_poll_DRQ(dma_idx, chan_idx);
 	break;
-    case 0x10:			// single
+    case SINGLE:
 	dma[dma_idx].status &= ~(1 << (chan_idx + 4));
 	break;
-    case 0x20:			// block
+    case BLOCK:
 	if (REACHED_TC(dma_idx, chan_idx))
 	    dma_poll_DRQ(dma_idx, chan_idx);
 	break;
-    case 0x30:			// cascade
+    case CASCADE:
 	dma_poll_DRQ(dma_idx, chan_idx);
 	break;
     }
@@ -126,38 +127,37 @@ static void dma_process_channel(int dma_idx, int chan_idx)
 {
     struct dma_channel *chan = &dma[dma_idx].chans[chan_idx];
     Bit32u addr = (chan->page << 16) | (chan->cur_addr.value << dma_idx);
-    Bit8u mode = chan->mode;
 
     /* first, do the transfer */
-    switch (mode & 3) {
-    case 0:			/* verify */
+    switch (DMA_TRANSFER_OP(chan->mode)) {
+    case VERIFY:
 	q_printf("DMA: verify mode does nothing\n");
 	break;
-    case 1:			/* write */
+    case WRITE:
 	MEMCPY_2DOS(addr, dma_data_bus, 1 << dma_idx);
 	break;
-    case 2:			/* read */
+    case READ:
 	MEMCPY_2UNIX(dma_data_bus, addr, 1 << dma_idx);
 	break;
-    case 3:			/* invalid */
+    case INVALID:
 	q_printf("DMA: invalid mode does nothing\n");
 	break;
     }
 
     /* now advance the address */
-    if (!(dma[dma_idx].command & 2))
-	chan->cur_addr.value += (mode & 8) ? -1 : 1;
+    if ((dma[dma_idx].command & 3) != 3)
+	chan->cur_addr.value += (DMA_ADDR_DEC(chan->mode) ? -1 : 1);
 
     /* and the counter */
     chan->cur_count.value--;
     if (chan->cur_count.value == 0xffff) {	/* overflow */
-	if (mode & 4) {		/* auto-init */
+	if (DMA_AUTOINIT(chan->mode)) {
 	    q_printf("DMA: controller %i, channel %i reinitialized\n",
 		     dma_idx, chan_idx);
 	    chan->cur_addr.value = chan->base_addr.value;
 	    chan->cur_count.value = chan->base_count.value;
-	} else {		/* eop */
-	    q_printf("DMA: controller %i, channel %i EOP\n", dma_idx,
+	} else {		/* TC */
+	    q_printf("DMA: controller %i, channel %i TC\n", dma_idx,
 		     chan_idx);
 	    dma[dma_idx].status |= 1 << chan_idx;
 	    dma[dma_idx].request &= ~(1 << chan_idx);
@@ -176,7 +176,7 @@ static void dma_run_channel(int dma_idx, int chan_idx)
 	if (!MASKED(dma_idx, chan_idx) &&
 	    !REACHED_TC(dma_idx, chan_idx) &&
 	    !(dma[dma_idx].command & 4) &&
-	    ((dma[dma_idx].chans[chan_idx].mode & 0x30) != 0x30)) {
+	    (DMA_TRANSFER_MODE(dma[dma_idx].chans[chan_idx].mode) != CASCADE)) {
 	    dma_process_channel(dma_idx, chan_idx);
 	    ticks++;
 	} else {
@@ -232,65 +232,47 @@ int dma_pulse_DRQ(int ch, Bit8u * buf)
 }
 
 
+/* lets ride on the cpp ass */
 #define d(x) (x-1)
+#define HANDLE_X(n) \
+    HANDLE_##n(1, 1); \
+    HANDLE_##n(1, 2); \
+    HANDLE_##n(1, 3); \
+    HANDLE_##n(1, 4); \
+    HANDLE_##n(2, 1); \
+    HANDLE_##n(2, 2); \
+    HANDLE_##n(2, 3); \
+    HANDLE_##n(2, 4)
 static Bit8u dma_io_read(ioport_t port)
 {
     Bit8u r = 0xff;
     switch (port) {
 
-/* lets ride on the cpp ass */
 #define HANDLE_CUR_ADDR_READ(d_n, c_n) \
-  case DMA##d_n##_ADDR_##c_n: \
-    r = dma[d(d_n)].chans[d(c_n)].cur_addr.byte[dma[d(d_n)].ff]; \
-    q_printf("DMA%i: cur_addr read: %#x from Channel %d byte %d\n", \
-	d_n, r, d(c_n), dma[d(d_n)].ff); \
-    dma[d(d_n)].ff ^= 1; \
-    break
-	HANDLE_CUR_ADDR_READ(1, 1);
-	HANDLE_CUR_ADDR_READ(1, 2);
-	HANDLE_CUR_ADDR_READ(1, 3);
-	HANDLE_CUR_ADDR_READ(1, 4);
-
-	HANDLE_CUR_ADDR_READ(2, 1);
-	HANDLE_CUR_ADDR_READ(2, 2);
-	HANDLE_CUR_ADDR_READ(2, 3);
-	HANDLE_CUR_ADDR_READ(2, 4);
-#undef HANDLE_CUR_ADDR_READ
+    case DMA##d_n##_ADDR_##c_n: \
+	r = dma[d(d_n)].chans[d(c_n)].cur_addr.byte[dma[d(d_n)].ff]; \
+	q_printf("DMA%i: cur_addr read: %#x from Channel %d byte %d\n", \
+		d_n, r, d(c_n), dma[d(d_n)].ff); \
+	dma[d(d_n)].ff ^= 1; \
+	break
+	HANDLE_X(CUR_ADDR_READ);
 
 #define HANDLE_CUR_CNT_READ(d_n, c_n) \
-  case DMA##d_n##_CNT_##c_n: \
-    r = dma[d(d_n)].chans[d(c_n)].cur_count.byte[dma[d(d_n)].ff]; \
-    q_printf("DMA%i: cur_cnt read: %#x from Channel %d byte %d\n", \
-	d_n, r, d(c_n), dma[d(d_n)].ff); \
-    dma[d(d_n)].ff ^= 1; \
-    break
-	HANDLE_CUR_CNT_READ(1, 1);
-	HANDLE_CUR_CNT_READ(1, 2);
-	HANDLE_CUR_CNT_READ(1, 3);
-	HANDLE_CUR_CNT_READ(1, 4);
-
-	HANDLE_CUR_CNT_READ(2, 1);
-	HANDLE_CUR_CNT_READ(2, 2);
-	HANDLE_CUR_CNT_READ(2, 3);
-	HANDLE_CUR_CNT_READ(2, 4);
-#undef HANDLE_CUR_CNT_READ
+    case DMA##d_n##_CNT_##c_n: \
+	r = dma[d(d_n)].chans[d(c_n)].cur_count.byte[dma[d(d_n)].ff]; \
+	q_printf("DMA%i: cur_cnt read: %#x from Channel %d byte %d\n", \
+		d_n, r, d(c_n), dma[d(d_n)].ff); \
+	dma[d(d_n)].ff ^= 1; \
+	break
+	HANDLE_X(CUR_CNT_READ);
 
 #define HANDLE_PAGE_READ(d_n, c_n) \
-  case DMA##d_n##_PAGE_##c_n: \
-    r = dma[d(d_n)].chans[d(c_n)].page; \
-    q_printf("DMA%i: page read: %#x from Channel %d\n", \
-	d_n, r, d(c_n)); \
-    break
-	HANDLE_PAGE_READ(1, 1);
-	HANDLE_PAGE_READ(1, 2);
-	HANDLE_PAGE_READ(1, 3);
-	HANDLE_PAGE_READ(1, 4);
-
-	HANDLE_PAGE_READ(2, 1);
-	HANDLE_PAGE_READ(2, 2);
-	HANDLE_PAGE_READ(2, 3);
-	HANDLE_PAGE_READ(2, 4);
-#undef HANDLE_PAGE_READ
+    case DMA##d_n##_PAGE_##c_n: \
+	r = dma[d(d_n)].chans[d(c_n)].page; \
+	q_printf("DMA%i: page read: %#x from Channel %d\n", \
+		d_n, r, d(c_n)); \
+	break
+	HANDLE_X(PAGE_READ);
 
     case DMA1_STAT_REG:
 	r = dma[DMA1].status;
@@ -328,59 +310,32 @@ static void dma_io_write(ioport_t port, Bit8u value)
     switch (port) {
 
 #define HANDLE_ADDR_WRITE(d_n, c_n) \
-  case DMA##d_n##_ADDR_##c_n: \
-    dma[d(d_n)].chans[d(c_n)].base_addr.byte[dma[d(d_n)].ff] = value; \
-    dma[d(d_n)].chans[d(c_n)].cur_addr.byte[dma[d(d_n)].ff] = value; \
-    q_printf("DMA%i: addr write: %#x to Channel %d byte %d\n", \
-	d_n, value, d(c_n), dma[d(d_n)].ff); \
-    dma[d(d_n)].ff ^= 1; \
-    break
-	HANDLE_ADDR_WRITE(1, 1);
-	HANDLE_ADDR_WRITE(1, 2);
-	HANDLE_ADDR_WRITE(1, 3);
-	HANDLE_ADDR_WRITE(1, 4);
-
-	HANDLE_ADDR_WRITE(2, 1);
-	HANDLE_ADDR_WRITE(2, 2);
-	HANDLE_ADDR_WRITE(2, 3);
-	HANDLE_ADDR_WRITE(2, 4);
-#undef HANDLE_ADDR_WRITE
+    case DMA##d_n##_ADDR_##c_n: \
+	dma[d(d_n)].chans[d(c_n)].base_addr.byte[dma[d(d_n)].ff] = value; \
+	dma[d(d_n)].chans[d(c_n)].cur_addr.byte[dma[d(d_n)].ff] = value; \
+        q_printf("DMA%i: addr write: %#x to Channel %d byte %d\n", \
+		d_n, value, d(c_n), dma[d(d_n)].ff); \
+	dma[d(d_n)].ff ^= 1; \
+	break
+	HANDLE_X(ADDR_WRITE);
 
 #define HANDLE_CNT_WRITE(d_n, c_n) \
-  case DMA##d_n##_CNT_##c_n: \
-    dma[d(d_n)].chans[d(c_n)].base_count.byte[dma[d(d_n)].ff] = value; \
-    dma[d(d_n)].chans[d(c_n)].cur_count.byte[dma[d(d_n)].ff] = value; \
-    q_printf("DMA%i: count write: %#x to Channel %d byte %d\n", \
-	d_n, value, d(c_n), dma[d(d_n)].ff); \
-    dma[d(d_n)].ff ^= 1; \
-    break
-	HANDLE_CNT_WRITE(1, 1);
-	HANDLE_CNT_WRITE(1, 2);
-	HANDLE_CNT_WRITE(1, 3);
-	HANDLE_CNT_WRITE(1, 4);
-
-	HANDLE_CNT_WRITE(2, 1);
-	HANDLE_CNT_WRITE(2, 2);
-	HANDLE_CNT_WRITE(2, 3);
-	HANDLE_CNT_WRITE(2, 4);
-#undef HANDLE_CNT_WRITE
+    case DMA##d_n##_CNT_##c_n: \
+	dma[d(d_n)].chans[d(c_n)].base_count.byte[dma[d(d_n)].ff] = value; \
+	dma[d(d_n)].chans[d(c_n)].cur_count.byte[dma[d(d_n)].ff] = value; \
+	q_printf("DMA%i: count write: %#x to Channel %d byte %d\n", \
+		d_n, value, d(c_n), dma[d(d_n)].ff); \
+	dma[d(d_n)].ff ^= 1; \
+	break
+	HANDLE_X(CNT_WRITE);
 
 #define HANDLE_PAGE_WRITE(d_n, c_n) \
-  case DMA##d_n##_PAGE_##c_n: \
-    dma[d(d_n)].chans[d(c_n)].page = value; \
-    q_printf("DMA%i: page write: %#x to Channel %d\n", \
-	d_n, value, d(c_n)); \
-    break
-	HANDLE_PAGE_WRITE(1, 1);
-	HANDLE_PAGE_WRITE(1, 2);
-	HANDLE_PAGE_WRITE(1, 3);
-	HANDLE_PAGE_WRITE(1, 4);
-
-	HANDLE_PAGE_WRITE(2, 1);
-	HANDLE_PAGE_WRITE(2, 2);
-	HANDLE_PAGE_WRITE(2, 3);
-	HANDLE_PAGE_WRITE(2, 4);
-#undef HANDLE_PAGE_WRITE
+    case DMA##d_n##_PAGE_##c_n: \
+	dma[d(d_n)].chans[d(c_n)].page = value; \
+	q_printf("DMA%i: page write: %#x to Channel %d\n", \
+		d_n, value, d(c_n)); \
+	break
+	HANDLE_X(PAGE_WRITE);
 
     case DMA1_MASK_REG:
 	if (value & 4) {
@@ -488,9 +443,6 @@ static void dma_io_write(ioport_t port, Bit8u value)
 
     dma_process();		// Not needed in fact
 }
-
-#undef d
-
 
 void dma_new_reset(void)
 {

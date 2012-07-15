@@ -20,8 +20,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#ifndef _SOUND_H
-#define _SOUND_H
+#ifndef __SOUND_H__
+#define __SOUND_H__
 
 /* This is the correct way to run an SB timer tick */
 extern void run_new_sb(void);
@@ -36,9 +36,7 @@ struct player_params {
   int channels;
 };
 
-struct player_callbacks {
-  size_t (*get_data)(void *buf, size_t size, struct player_params *params);
-};
+size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 
 struct clocked_player {
   const char *name;
@@ -55,12 +53,10 @@ struct unclocked_player {
   const char *name;
   int (*open)(struct player_params *params);
   void (*close)(void);
-  void (*timer)(void);
   size_t (*write)(void *buf, size_t size);
 };
 
-extern int pcm_register_clocked_player(struct clocked_player player,
-    struct player_callbacks *callbacks);
+extern int pcm_register_clocked_player(struct clocked_player player);
 extern int pcm_register_unclocked_player(struct unclocked_player player);
 
 /** PCM sample format */
@@ -84,4 +80,4 @@ enum _PCM_format {
 	PCM_FORMAT_IMA_ADPCM,
 };
 
-#endif		/* EMU_SOUND_H */
+#endif

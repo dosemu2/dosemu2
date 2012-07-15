@@ -26,11 +26,15 @@
 #include "utilities.h"		// for rng_s
 
 #define SB_NONE  0x000
-#define SB_OLD	 0x105
-#define SB_20	 0x201
-#define SB_PRO	 0x300
-#define SB_16	 0x405
-#define SB_AWE32 0x40C
+#define SB_ID	 0x105
+#define SB20_ID	 0x201
+#define SBPRO_ID 0x300
+#define SB16_ID	 0x405
+#define SBAWE32_ID 0x40C
+
+/* bochs and the old dosemu code disagree on that value.
+ * Of course I trust bochs. :) */
+#define SB16_ID82 (2 << 5)
 
 /*
  * Various Status values

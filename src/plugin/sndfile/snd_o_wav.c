@@ -36,7 +36,7 @@
 #include <stdio.h>
 #include <sndfile.h>
 
-static const char *wavsnd_name = "Sound Output: WAV writer";
+static const char *wavsnd_name = "Sound Output: WAV file writer";
 static SNDFILE *wav;
 
 static int wavsnd_open(struct player_params *par)
@@ -69,7 +69,6 @@ CONSTRUCTOR(static int wavsnd_init(void))
     player.open = wavsnd_open;
     player.close = wavsnd_close;
     player.write = wavsnd_write;
-    player.timer = NULL;
 #if 0
     return pcm_register_unclocked_player(player);
 #else
