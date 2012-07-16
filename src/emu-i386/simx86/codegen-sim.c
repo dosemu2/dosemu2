@@ -70,8 +70,8 @@
 
 void (*Gen)(int op, int mode, ...);
 void (*AddrGen)(int op, int mode, ...);
-unsigned int (*CloseAndExec)(unsigned int PC, TNode *G, int mode, int ln);
-static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln);
+unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
+static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln);
 
 int UseLinker = 0;
 
@@ -2986,7 +2986,7 @@ void Gen_sim(int op, int mode, ...)
 /////////////////////////////////////////////////////////////////////////////
 
 
-static unsigned int CloseAndExec_sim(unsigned int PC, TNode *G, int mode, int ln)
+static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 {
 	if (debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");

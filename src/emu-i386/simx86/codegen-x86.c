@@ -116,7 +116,7 @@
 
 static void Gen_x86(int op, int mode, ...);
 static void AddrGen_x86(int op, int mode, ...);
-static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln);
+static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln);
 
 /* Buffer and pointers to store generated code */
 unsigned char *CodePtr = NULL;
@@ -3071,96 +3071,97 @@ void NodeUnlinker(TNode *G)
 
 /////////////////////////////////////////////////////////////////////////////
 /*
- * This is the function which actually executes the generated code.
+ * These are the functions which actually executes the generated code.
  *
- * It can take two paths depending on the XECFND ("eXEC block FouND")
- * flag in the ubiquitous parameter "mode":
- * 1) if XECFND is 0 we are ending a code generation phase, and our code
+ * There are two paths:
+ * 1) for CloseAndExec_x86 we are ending a code generation phase, and our code
  *	is still in the CodeBuf together with all its detailed info stored
- *	in InstrMeta. We close the sequence adding the TailCode, execute
- *	it, and then move it to the collecting tree and clear the temporary
- *	structures.
+ *	in InstrMeta. First we close the sequence adding the TailCode;
+ *	it, and move it to the collecting tree and clear the temporary
+ *	structures. Then, in Exec_x86 we execute the code.
  *	The PC parameter is the address in the source code of the next
  *	instruction following the end of the code block. It will be stored
  *	into the TailCode of the block.
- * 2) if XECFND is not 0 we are executing a sequence found in the collecting
- *	tree. The PC parameter is NULL and G is the node we found (possibly
- *	the start of a chain of linked code sequences).
+ * 2) We are executing a sequence found in the collecting tree. 
+ *	Exec_x86 is called directly.
+ *	G is the node we found (possibly the start of a chain of linked
+ *	code sequences).
  *
  * When the code is executed, it returns in eax the source address of the
  * next instruction to find/parse.
  *
  */
 
-static unsigned int CloseAndExec_x86(unsigned int PC, TNode *G, int mode, int ln)
+static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
+{
+	IMeta *I0;
+	unsigned char *p;
+	TNode *G;
+
+	if (CurrIMeta <= 0) {
+/**/		e_printf("(X) Nothing to exec at %08x\n",PC);
+		return PC;
+	}
+
+	// we're creating a new node
+	I0 = &InstrMeta[0];
+
+	if (debug_level('e')>2) {
+		e_printf("== (%d) == Closing sequence at %08x\n",ln,PC);
+	}
+
+	ProduceCode(PC);
+
+	p = CodePtr;
+	/* If the code doesn't terminate with a jump/loop instruction
+	 * it still lacks the tail code; add it here */
+	if (I0->clink.t_type==0) {
+		/* copy tail instructions to the end of the code block */
+		memcpy(p, TailCode, TAILSIZE);
+		p += TAILFIX;
+		I0->clink.t_link.abs = (unsigned int *)p;
+		*((unsigned int *)p) = PC;
+		CodePtr += TAILSIZE;
+	}
+
+	/* show jump+tail code */
+	if ((debug_level('e')>6) && (CurrIMeta>0)) {
+		IMeta *GL = &InstrMeta[CurrIMeta-1];
+		unsigned char *pl = GL->addr+GL->len;
+		GCPrint(pl, BaseGenBuf, CodePtr - pl);
+	}
+
+	I0->totlen = CodePtr - BaseGenBuf;
+	if (debug_level('e')>3)
+		e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
+
+	NodesParsed++;
+#ifdef PROFILE
+	if (debug_level('e')) TotalNodesParsed++;
+#endif
+	G = Move2Tree();	/* when is G==NULL? */
+	/* InstrMeta will be zeroed at this point */
+	/* mprotect the page here; a page fault will be triggered
+	 * if some other code tries to write over the page including
+	 * this node */
+	e_markpage(G->seqbase, G->seqlen);
+	e_mprotect(G->seqbase, G->seqlen);
+	return Exec_x86(G, ln);
+}
+
+unsigned int Exec_x86(TNode *G, int ln)
 {
 	unsigned long flg;
 	unsigned char *ecpu;
 	unsigned int mem_ref;
 	unsigned int ePC;
-	unsigned short seqflg;
-	unsigned char *SeqStart;
+	unsigned short seqflg = G->flags;
+	unsigned char *SeqStart = G->addr;
 	hitimer_u TimeEndExec;
 
-	if (mode & XECFND) {		// we found an existing node
-		SeqStart = G->addr;
-		seqflg = mode >> 16;
-		NodesExecd++;
 #ifdef PROFILE
-		if (debug_level('e')) TotalNodesExecd++;
+	if (debug_level('e')) TotalNodesExecd++;
 #endif
-	}
-	else if (CurrIMeta > 0) {	// we're creating a new node
-		IMeta *I0 = &InstrMeta[0];
-		unsigned char *p;
-
-		if (debug_level('e')>2) {
-		    e_printf("== (%d) == Closing sequence at %08x\n",ln,PC);
-		}
-
-		ProduceCode(PC);
-
-		p = CodePtr;
-		/* If the code doesn't terminate with a jump/loop instruction
-		 * it still lacks the tail code; add it here */
-		if (I0->clink.t_type==0) {
-		    /* copy tail instructions to the end of the code block */
-		    memcpy(p, TailCode, TAILSIZE);
-		    p += TAILFIX;
-		    I0->clink.t_link.abs = (unsigned int *)p;
-		    *((unsigned int *)p) = PC;
-		    CodePtr += TAILSIZE;
-		}
-
-		/* show jump+tail code */
- 		if ((debug_level('e')>6) && (CurrIMeta>0)) {
-		    IMeta *GL = &InstrMeta[CurrIMeta-1];
-		    unsigned char *pl = GL->addr+GL->len;
-		    GCPrint(pl, BaseGenBuf, CodePtr - pl);
-		}
-
-		I0->totlen = CodePtr - BaseGenBuf;
-		if (debug_level('e')>3)
-		    e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
-
-		seqflg = I0->flags;
-		NodesParsed++;
-#ifdef PROFILE
-		if (debug_level('e')) TotalNodesParsed++;
-#endif
-		G = Move2Tree();	/* when is G==NULL? */
-		/* InstrMeta will be zeroed at this point */
-		/* mprotect the page here; a page fault will be triggered
-		 * if some other code tries to write over the page including
-		 * this node */
-		e_markpage(G->seqbase, G->seqlen);
-		e_mprotect(G->seqbase, G->seqlen);
-		SeqStart = G->addr;
-	}
-	else {
-/**/		e_printf("(X) Nothing to exec at %08x\n",PC);
-		return PC;
-	}
 
 	/*
 	 * LastXNode stuff: history. We keep in every node the address of

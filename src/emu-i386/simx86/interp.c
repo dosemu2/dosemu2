@@ -82,7 +82,7 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
  *	loop at P2.
  */
 #define	CODE_FLUSH() 	if (CONFIG_CPUSIM || CurrIMeta>0) {\
-			  unsigned int P2 = CloseAndExec(P0, NULL, mode, __LINE__);\
+			  unsigned int P2 = CloseAndExec(P0, mode, __LINE__);\
 			  if (TheCPU.err) return P2;\
 			  if (!CONFIG_CPUSIM && P2 != P0) { PC=P2; continue; }\
 			} NewNode=0
@@ -292,7 +292,7 @@ jgnolink:
 	/* we just generated a jump, so the returned eip (P1) is
 	 * (almost) always different from P2.
 	 */
-	P1 = CloseAndExec(P2, NULL, mode, __LINE__); NewNode=0;
+	P1 = CloseAndExec(P2, mode, __LINE__); NewNode=0;
 	if (TheCPU.err || tailjmp) return P1;
 
 	/* evaluate cond at RUNTIME after exec'ing */
@@ -396,14 +396,15 @@ static inline unsigned int FindExecCode(unsigned int PC)
 		if (CurrIMeta>0) {		// open code?
 			if (debug_level('e')>2)
 				e_printf("============ Closing open sequence at %08x\n",PC);
-			PC = CloseAndExec(PC, NULL, mode, __LINE__);
+			PC = CloseAndExec(PC, mode, __LINE__);
 			if (TheCPU.err) return PC;
 		}
 		/* ---- this is the MAIN EXECUTE point ---- */
-		{ int m = mode | (G->flags<<16) | XECFND;
-			unsigned int tmp = CloseAndExec(0, G, m, __LINE__);
-			if (!tmp) goto bad_return;
-			P0 = PC = tmp; }
+		NodesExecd++;
+#ifdef PROFILE
+		TotalNodesExecd++;
+#endif
+		P0 = PC = Exec_x86(G, __LINE__);
 		if (TheCPU.err) return PC;
 		/* on jumps, exit to process signals */
 		if (InterOps[Fetch(PC)]&0x80) break;
@@ -411,10 +412,6 @@ static inline unsigned int FindExecCode(unsigned int PC)
 		temp--;
 	}
 	return PC;
-
-bad_return:
-	dbug_printf("!!! Bad code return\n");
-	TheCPU.err = -3; return PC;
 }
 #endif
 
@@ -3082,7 +3079,7 @@ repag0:
 		if (!(CEmuStat & CeS_TRAP)) continue;
 #endif
 		P0 = PC;
-		CloseAndExec(P0, NULL, mode, __LINE__);
+		CloseAndExec(P0, mode, __LINE__);
 		e_printf("\n%s",e_print_regs());
 		NewNode = 0;
 	}

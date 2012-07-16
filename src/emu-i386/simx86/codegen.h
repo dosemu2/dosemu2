@@ -171,7 +171,6 @@
 #define MREPNE	0x00000200
 #define MEMADR	0x00000400
 #define NOFLDR	0x00000800
-#define XECFND	0x00001000
 #define MBYTX	0x00002000
 #define MOVSSRC	0x00004000
 #define MOVSDST	0x00008000
@@ -305,7 +304,7 @@ extern void (*Gen)(int op, int mode, ...);
 extern void (*AddrGen)(int op, int mode, ...);
 extern int  (*Fp87_op)(int exop, int reg);
 void NodeUnlinker(TNode *G);
-extern unsigned int (*CloseAndExec)(unsigned int PC, TNode *G, int mode, int ln);
+extern unsigned int (*CloseAndExec)(unsigned int PC, int mode, int ln);
 void EndGen(void);
 //
 extern char InterOps[];
