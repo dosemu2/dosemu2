@@ -137,7 +137,7 @@ int ModRM(unsigned char opc, unsigned int PC, int mode)
 		if (index == Ofs_ESP)
 			AddrGen(A_DI_1, mode|IMMED, overr, dsp, base);
 		else
-			AddrGen(A_DI_2, mode|IMMED|RSHIFT, overr, dsp, base,
+			AddrGen(A_DI_2, mode|IMMED, overr, dsp, base,
 				index, shift);
 	}
 	if (mode & MLOAD)
