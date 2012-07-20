@@ -126,7 +126,7 @@ static int tty_lock(char *path, int mode)
 
   sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile,
 	  slash);
-  
+
   if (mode == 1) {      /* lock */
     {
       FILE *fd;
@@ -155,7 +155,7 @@ static int tty_lock(char *path, int mode)
       error("tty: lock: UUCP user %s unknown!\n", OWNER_LOCKS);
       return(0);        /* keep the lock anyway */
     }
-    
+
     (void) chown(saved_path, pw->pw_uid, pw->pw_gid);
     (void) chmod(saved_path, 0644);
   } 
@@ -169,7 +169,7 @@ static int tty_lock(char *path, int mode)
       return(-1);
     }
     ime = getpid();
-     
+
     if(config.tty_lockbinary)
       write (fileno(fd), &ime, sizeof(ime));
     else
@@ -351,6 +351,7 @@ void ser_set_params(int num)
   com[num].rx_timer = 0;		/* Receive read() polling timer */
   com[num].rx_timeout = 0;		/* FLAG: No Receive timeout */
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
+  com[num].tx_cnt = 0;
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
 
   if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
@@ -378,7 +379,7 @@ static int ser_close(int num)
   s_printf("SER%d: Running ser_close\n",num);
   remove_from_io_select(com[num].fd, 1);
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
-  
+
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down. 
    */
@@ -386,7 +387,7 @@ static int ser_close(int num)
   (void)RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
   i = RPT_SYSCALL(close(com[num].fd));
   com[num].fd = -1;
-  
+
   /* Clear the lockfile from DOSEMU */
   if (com[num].dev_locked) {
     if (tty_lock(com_cfg[num].dev, 0) >= 0) 
@@ -431,8 +432,6 @@ static void do_ser_init(int num)
   **   COM2:   irq = 3    base_port = 0x2F8    device = /dev/ttyS1
   **   COM3:   irq = 4    base_port = 0x3E8    device = /dev/ttyS2
   **   COM4:   irq = 3    base_port = 0x2E8    device = /dev/ttyS3
-  **
-  ** If COMx is unspecified, the next unused COMx port number is assigned.
   */
 
   static struct {
@@ -668,4 +667,3 @@ void child_open_mouse(void)
     }
   }
 }
-

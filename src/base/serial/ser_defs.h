@@ -352,6 +352,8 @@ typedef struct {
   u_char rx_buf_start;			/* Receive Buffer queue start */
   u_char rx_buf_end;			/* Receive Buffer queue end */
 
+  int tx_cnt;
+
   struct termios oldset;		/* Original termios settings */
   struct termios newset;		/* Current termios settings */
 } com_t;

@@ -568,7 +568,7 @@ static void put_tx(int num, int val)
         if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
         serial_int_engine(num, LS_INTR);	/* Update interrupt status */
       }
-      else { 
+      else {
         com[num].LSR |= UART_LSR_DR; 		/* Flag Data Ready bit */
         com[num].rx_timeout = 0;
         if(s3_printf) s_printf("SER%d: Func put_tx loopback requesting RX_INTR\n",num);
@@ -579,12 +579,18 @@ static void put_tx(int num, int val)
   }
   /* Else, not in loopback mode */
 
+  if (!(com[num].LSR & UART_LSR_THRE)) {
+    s_printf("SER%d: ERROR: TX overrun\n", num);
+    /* no indication bit for this??? */
+    return;
+  }
+
   int rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
   if (rtrn != 1) {				/* Did transmit fail? */
     s_printf("SER%d: write failed! %s\n", num, strerror(errno)); 		/* Set overflow flag */
-    com[num].LSR |= UART_LSR_OE;		/* signal error */
   } else {
     com[num].LSR &= ~(UART_LSR_THRE | UART_LSR_TEMT);		/* THR full */
+    com[num].tx_cnt++;
   }
 
   transmit_engine(num);

@@ -120,6 +120,16 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
   }
 }
 
+static void update_tx_cnt(int num)
+{
+  /* find out how many bytes are queued by tty - may be slow */
+  int queued = serial_get_tx_queued(num);
+  if (queued < 0)
+    queued = 0;
+  if (queued > com[num].tx_cnt)
+    s_printf("SER%d: ERROR: queued=%i tx_cnt=%i\n", num, queued, com[num].tx_cnt);
+  com[num].tx_cnt = queued;
+}
 
 /* This function does housekeeping for serial transmit operations.
  * Duties of this function include attempting to transmit the data out
@@ -131,31 +141,37 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 /* how many bytes left in output queue when signalling interrupt to DOS */
 #define QUEUE_THRESHOLD 14
 
-  int control, queued;
-
-  if (!TX_TRIGGER(num))
+  if (!TX_TRIGGER(num)) {
+    if (!(com[num].LSR & UART_LSR_TEMT)) {
+      if (com[num].tx_cnt)
+        update_tx_cnt(num);
+      if (!com[num].tx_cnt)
+        com[num].LSR |= UART_LSR_TEMT;
+    }
     return;
+  }
 
   /* If Linux is handling flow control, then check the CTS state.
    * If the CTS state is low, then don't start new transmit interrupt!
    */
   if (com_cfg[num].system_rtscts) {
+    int control;
     ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
     if (!(control & TIOCM_CTS)) return;		/* Return if CTS is low */
   }
 
-  /* find out how many bytes are queued by tty */
-  queued = serial_get_tx_queued(num);
-  if (queued < 0)
-    queued = 0;
+  if (com[num].tx_cnt > QUEUE_THRESHOLD)
+    update_tx_cnt(num);
   if (debug_level('s') > 5)
-    s_printf("SER%d: queued=%i trig=%i\n", num, queued, TX_TRIGGER(num));
+    s_printf("SER%d: queued=%i\n", num, com[num].tx_cnt);
+  if (com[num].tx_cnt > QUEUE_THRESHOLD)
+    return;
 
-  if (queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
-    com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
-    if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
-    serial_int_engine(num, TX_INTR);		/* Update interrupt status */
-  }
+  com[num].LSR |= UART_LSR_THRE;
+  if (!com[num].tx_cnt)
+    com[num].LSR |= UART_LSR_TEMT;
+  if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
+  serial_int_engine(num, TX_INTR);		/* Update interrupt status */
 }
 
 
