@@ -330,7 +330,8 @@ void ser_set_params(int num)
 #endif
   com[num].newset.c_cc[VMIN] = 1;
   com[num].newset.c_cc[VTIME] = 0;
-  if (com_cfg[num].system_rtscts) com[num].newset.c_cflag |= CRTSCTS;
+  if (com_cfg[num].system_rtscts)
+    com[num].newset.c_cflag |= CRTSCTS;
   tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
 
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
@@ -485,12 +486,6 @@ static void do_ser_init(int num)
 
   /* FOSSIL emulation is inactive at startup. */
   com[num].fossil_active = FALSE;
-
-  /* Flag whether to emulate RTS/CTS for DOS or let Linux do the job
-   * If this is nonzero, Linux will handle RTS/CTS flow control directly.
-   * DANG_FIXTHIS This needs more work before it is implemented into /etc/dosemu.conf as an 'rtscts' option.
-   */
-  com_cfg[num].system_rtscts = 0;
 
   /* convert irq number to pic_ilevel number and set up interrupt
    * if irq is invalid, no interrupt will be assigned

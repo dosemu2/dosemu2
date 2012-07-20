@@ -751,7 +751,7 @@ put_mcr(int num, int val)
     if (changed & UART_MCR_DTR) {
       if(s1_printf) s_printf("SER%d: MCR: DTR -> %d\n",num,(val & UART_MCR_DTR));
       control = TIOCM_DTR;
-      if (val & UART_MCR_DTR) 
+      if (val & UART_MCR_DTR)
         ioctl(com[num].fd, TIOCMBIS, &control);
       else
         ioctl(com[num].fd, TIOCMBIC, &control);
