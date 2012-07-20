@@ -108,7 +108,10 @@ static void clear_int_cond(int num, u_char val)
 static void recalc_IIR(int num)
 {
   int tmp;
+#if 0
+  /* disabled being too expensive... */
   serial_update(num);
+#endif
   tmp = INT_REQUEST(num);
   if (!tmp)
     com[num].IIR.mask = 0;
