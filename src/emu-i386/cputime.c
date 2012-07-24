@@ -97,15 +97,14 @@ int cpu_time_stop = 0;
  */
 static hitimer_t rawC4time(void)
 {
-#ifdef HAVE_GETTIMEOFDAY
-  struct timeval tv;
-  gettimeofday(&tv, NULL);	/* took 30us on a P5-150 in 1997, now
-  				 * takes 1-2us on a K6-300 under 2.1.126 */
+  struct timespec tv;
+  int err = clock_gettime(CLOCK_MONOTONIC, &tv);
+  if (err) {
+    error("Cannot get time!\n");
+    leavedos(49);
+  }
   /* unsigned is necessary to tell gcc not to sign extend the tv_ fields */
-  return ((hitimer_t)((unsigned)tv.tv_sec) * 1000000 + (unsigned)tv.tv_usec);
-#else
-#error Cannot get time
-#endif
+  return ((hitimer_t)((unsigned)tv.tv_sec) * 1000000 + (unsigned)tv.tv_nsec / 1000);
 }
 
 static hitimer_t rawP5time(void)
