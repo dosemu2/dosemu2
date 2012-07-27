@@ -103,8 +103,7 @@ static hitimer_t rawC4time(void)
     error("Cannot get time!\n");
     leavedos(49);
   }
-  /* unsigned is necessary to tell gcc not to sign extend the tv_ fields */
-  return ((hitimer_t)((unsigned)tv.tv_sec) * 1000000 + (unsigned)tv.tv_nsec / 1000);
+  return (tv.tv_sec * 1000000ULL + tv.tv_nsec / 1000);
 }
 
 static hitimer_t rawP5time(void)
