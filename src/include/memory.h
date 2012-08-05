@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -90,10 +90,6 @@
 #define IRET_SEG	ROMBIOSSEG
 #define IRET_OFF	0x62cf
 
-#define EMSControl_SEG  ROMBIOSSEG
-#define EMSControl_OFF  0x4160
-#define EMSControl_ADD  ((EMSControl_SEG << 4)+EMSControl_OFF)
-
 /* EMS origin must be at 0 */
 #define EMS_SEG		(ROMBIOSSEG+0x100)
 #define EMS_OFF		0x0000
@@ -146,10 +142,6 @@
 #define INTE7_OFF	0x6320
 #define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
-#define PIC_SEG       ROMBIOSSEG
-#define PIC_OFF       0x47ff
-#define PIC_ADD       ((PIC_SEG << 4) + PIC_OFF)
-
 #define CBACK_SEG	ROMBIOSSEG	/* callback return to dosemu */
 #define CBACK_OFF	0x63ef
 #define CBACK_ADD	((CBACK_SEG << 4) + CBACK_OFF)
@@ -175,8 +167,25 @@
 /*
  * HLT block
  */
-#define BIOS_HLT_BLK       0xfc000
+#define BIOS_HLT_BLK_SEG   0xfc00
+#define BIOS_HLT_BLK       (BIOS_HLT_BLK_SEG << 4)
 #define BIOS_HLT_BLK_SIZE  0x00800
+
+#define EMSControl_SEG  BIOS_HLT_BLK_SEG
+#define EMSControl_OFF  0x100
+#define EMSControl_ADD  ((EMSControl_SEG << 4)+EMSControl_OFF)
+
+#define PIC_SEG         BIOS_HLT_BLK_SEG
+#define PIC_OFF         0x101
+#define PIC_ADD         ((PIC_SEG << 4) + PIC_OFF)
+
+#define IPXEsrEnd_SEG   BIOS_HLT_BLK_SEG
+#define IPXEsrEnd_OFF   0x102
+#define IPXEsrEnd_ADD   ((IPXEsrEnd_SEG << 4) + IPXEsrEnd_OFF)
+
+#define PKTRcvCall_SEG   BIOS_HLT_BLK_SEG
+#define PKTRcvCall_OFF   0x103
+#define PKTRcvCall_ADD   ((PKTRcvCall_SEG << 4) + PKTRcvCall_OFF)
 
 #define VBIOS_START	(SEGOFF2LINEAR(config.vbios_seg,0))
 /*#define VBIOS_SIZE	(64*1024)*/

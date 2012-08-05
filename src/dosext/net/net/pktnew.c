@@ -46,6 +46,7 @@
 #include "libpacket.h"
 #include "dosnet.h"
 #include "pic.h"
+#include "hlt.h"
 #include "dpmi.h"
 
 #define min(a,b)	((a) < (b)? (a) : (b))
@@ -57,12 +58,15 @@ int Find_Handle(u_char *buf);
 static void printbuf(char *, struct ethhdr *);
 static int pkt_check_receive(int ilevel);
 static void pkt_receiver_callback(void);
+static void pkt_receiver_callback_hlt(Bit32u offs);
 
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
 static int pktdrvr_installed;
 
 unsigned short receive_mode;
 static unsigned short local_receive_mode;
+
+static struct vm86_regs rcv_saved_regs;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -157,6 +161,7 @@ void pkt_priv_init(void)
 void
 pkt_init(void)
 {
+    emu_hlt_t hlt_hdlr;
     if (!config.pktdrv)
       return;
     if (pktdrvr_installed == -1)
@@ -188,6 +193,12 @@ pkt_init(void)
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 
+    /* install HLT handler */
+    hlt_hdlr.name = "PKT_receiver_call";
+    hlt_hdlr.start_addr = PKTRcvCall_ADD - BIOS_HLT_BLK;
+    hlt_hdlr.end_addr = hlt_hdlr.start_addr;
+    hlt_hdlr.func = pkt_receiver_callback_hlt;
+    hlt_register_handler(hlt_hdlr);
     return;
 
 fail:
@@ -579,17 +590,18 @@ Remove_Type(int handle)
 
 static void pkt_receiver_callback(void)
 {
-    struct vm86_regs saved_regs;
-
     if (p_helper_size == 0)
       return;
 
     if(in_dpmi && !in_dpmi_dos_int)
 	fake_pm_int();
     fake_int_to(BIOSSEG, EOI_OFF);
+    rcv_saved_regs = REGS;
+    fake_call_to(PKTRcvCall_SEG, PKTRcvCall_OFF);
+}
 
-    saved_regs = REGS;
-
+static void pkt_receiver_callback_hlt(Bit32u offs)
+{
     _AX = 0;
     _BX = p_helper_handle;
     _CX = p_helper_size;
@@ -605,7 +617,7 @@ static void pkt_receiver_callback(void)
 
 out:
     p_helper_size = 0;
-    REGS = saved_regs;
+    REGS = rcv_saved_regs;
 }
 
 void pkt_receive_async(void *arg)
@@ -651,7 +663,7 @@ static int pkt_receive(void)
         p_stats->errors_in++;		/* select() somehow lied */
         return 0;
     }
-   
+
     pd_printf("========Processing New packet======\n");
     handle = Find_Handle(pkt_buf);
     if (handle == -1) 

@@ -33,6 +33,7 @@
 #include "int.h"
 #include "dpmi.h"
 #include "bios.h"
+#include "hlt.h"
 #include "ipx.h"
 #ifdef IPX
 
@@ -45,6 +46,8 @@
 static u_char IPXCancelEvent(far_t ECBPtr);
 static void ipx_recv_esr_call(void);
 static void ipx_aes_esr_call(void);
+static void ipx_esr_call_end(Bit32u offs);
+static struct vm86_regs esr_saved_regs;
 
 static ipx_socket_t *ipx_socket_list = NULL;
 /* hopefully these static ECBs will not cause races... */
@@ -63,7 +66,7 @@ static int GetMyAddress( void )
   struct sockaddr_ipx ipxs2;
   socklen_t len;
   int i;
-  
+
   sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
   if(sock==-1)
   {
@@ -79,7 +82,7 @@ static int GetMyAddress( void )
   ipxs.sipx_family=AF_IPX;
   ipxs.sipx_network=htonl(config.ipx_net);
   ipxs.sipx_port=htons(DEF_PORT);
-  
+
   /* bind this socket to network */  
   if(bind(sock,&ipxs,sizeof(ipxs))==-1)
   {
@@ -88,7 +91,7 @@ static int GetMyAddress( void )
     close( sock );
     return(-1);
   }
-  
+
   len = sizeof(ipxs2);
   if (getsockname(sock,&ipxs2,&len) < 0) {
     n_printf("IPX: could not get socket name in GetMyAddress: %s\n", strerror(errno));
@@ -113,6 +116,7 @@ static int GetMyAddress( void )
 
 void ipx_init(void)
 {
+  emu_hlt_t hlt_hdlr;
   int ccode;
   if (!config.ipxsup)
     return;
@@ -122,6 +126,13 @@ void ipx_init(void)
   }
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
+
+  /* install HLT handler */
+  hlt_hdlr.name = "IPX_esr_end";
+  hlt_hdlr.start_addr = IPXEsrEnd_ADD - BIOS_HLT_BLK;
+  hlt_hdlr.end_addr = hlt_hdlr.start_addr;
+  hlt_hdlr.func = ipx_esr_call_end;
+  hlt_register_handler(hlt_hdlr);
 }
 
 /*************************
@@ -352,7 +363,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
     close( sock );
     return (RCODE_SOCKET_TABLE_FULL);
   }
-  
+
   if( port==0 ) {
     len = sizeof(ipxs2);
     if (getsockname(sock,&ipxs2,&len) < 0) {
@@ -365,7 +376,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
       n_printf("IPX: opened dynamic socket %04x\n", port);
     }
   }
-  
+
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);
   add_to_io_select(sock, 1, ipx_async_callback, NULL);
@@ -444,21 +455,39 @@ static int GatherFragmentData(u_char *buffer, ECB_t * ECB)
   return (totalDataCount);
 }
 
-static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
+static void ipx_esr_call_setregs(far_t ECBPtr, u_char AXVal)
 {
-  struct vm86_regs saved_regs;
-
-  if(in_dpmi && !in_dpmi_dos_int)
-    fake_pm_int();
-  fake_int_to(BIOSSEG, EOI_OFF);
-
-  saved_regs = REGS;
   n_printf("IPX: Calling ESR at %04x:%04x of ECB at %04x:%04x\n",
     ECBp->ESRAddress.segment, ECBp->ESRAddress.offset,
     ECBPtr.segment, ECBPtr.offset);
   REG(es) = ECBPtr.segment;
   LWORD(esi) = ECBPtr.offset;
   LO(ax) = AXVal;
+}
+
+static void ipx_esr_call_setup(far_t ECBPtr, u_char AXVal)
+{
+  if(in_dpmi && !in_dpmi_dos_int)
+    fake_pm_int();
+  fake_int_to(BIOSSEG, EOI_OFF);
+  esr_saved_regs = REGS;
+  fake_call_to(IPXEsrEnd_SEG, IPXEsrEnd_OFF);
+  ipx_esr_call_setregs(ECBPtr, AXVal);
+  fake_call_to(ECBp->ESRAddress.segment, ECBp->ESRAddress.offset);
+}
+
+static void ipx_esr_call_end(Bit32u offs)
+{
+  REGS = esr_saved_regs;
+  n_printf("IPX: ESR callback ended\n");
+}
+
+static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
+{
+  struct vm86_regs saved_regs;
+
+  saved_regs = REGS;
+  ipx_esr_call_setregs(ECBPtr, AXVal);
   do_call_back(ECBp->ESRAddress.segment << 16 | ECBp->ESRAddress.offset);
   REGS = saved_regs;
   n_printf("IPX: ESR callback ended\n");
@@ -467,13 +496,13 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
 static void ipx_recv_esr_call(void)
 {
   n_printf("IPX: Calling receive ESR\n");
-  ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
+  ipx_esr_call_setup(recvECB, ESR_CALLOUT_IPX);
 }
 
 static void ipx_aes_esr_call(void)
 {
   n_printf("IPX: Calling AES ESR\n");
-  ipx_esr_call(aesECB, ESR_CALLOUT_AES);
+  ipx_esr_call_setup(aesECB, ESR_CALLOUT_AES);
 }
 
 static u_char IPXSendPacket(far_t ECBPtr)
