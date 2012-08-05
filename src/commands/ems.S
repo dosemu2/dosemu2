@@ -312,7 +312,9 @@ Error:
 	ret
 
 
-Mesage:	.ascii	"dosemu EMS 4.0 driver installed."
+Mesage:	.ascii	"dosemu EMS driver rev 0."
+	.byte	DOSEMU_EMS_DRIVER_VERSION+'0'
+	.ascii	" installed."
 	.byte	cr,lf,eom
 
 NoHimemMsg:
