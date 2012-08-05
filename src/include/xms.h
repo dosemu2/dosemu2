@@ -47,5 +47,6 @@ struct UMB {
 void xms_init(void);
 void xms_reset(void);
 void xms_helper(void);
+void xms_control(void);
 
 #endif /* XMS_H */

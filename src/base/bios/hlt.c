@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -8,8 +8,8 @@
  * DANG_BEGIN_MODULE
  *
  * Description: HLT handling code for DOSEMU
- * 
- * Maintainers: 
+ *
+ * Maintainers:
  *
  * In the BIOS there is a 2K 'hlt block'.  When a HLT in this block is
  * reached, the corresponding handler function is called.  If a HLT is
@@ -27,6 +27,7 @@
 #include "int.h"
 #include "bios.h"
 #include "memory.h"
+#include "xms.h"
 #include "dpmi.h"
 
 static struct {
@@ -106,6 +107,9 @@ void hlt_handle(void)
   }
   else if (lina == Mouse_HLT_ADD) {
     int33_post();
+  }
+  else if (lina == XMSControl_ADD) {
+    xms_control();
   }
   else if (lina == DPMI_ADD + HLT_OFF(DPMI_dpmi_init)) {
     /* The hlt instruction is 6 bytes in from DPMI_ADD */

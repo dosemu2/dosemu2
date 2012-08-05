@@ -90,10 +90,6 @@
 #define IRET_SEG	ROMBIOSSEG
 #define IRET_OFF	0x62cf
 
-#define XMSControl_SEG  ROMBIOSSEG
-#define XMSControl_OFF  0x4150
-#define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
-
 #define EMSControl_SEG  ROMBIOSSEG
 #define EMSControl_OFF  0x4160
 #define EMSControl_ADD  ((EMSControl_SEG << 4)+EMSControl_OFF)
@@ -166,6 +162,10 @@
 #define DOS_LONG_READ_OFF 0x4B00
 #define DOS_LONG_WRITE_SEG ROMBIOSSEG
 #define DOS_LONG_WRITE_OFF 0x4BA0
+
+#define XMSControl_SEG  ROMBIOSSEG
+#define XMSControl_OFF  0x4C40
+#define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF+5)
 
 /* For int15 0xc0 */
 #define ROM_CONFIG_SEG  BIOSSEG
