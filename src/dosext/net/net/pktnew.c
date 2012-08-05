@@ -115,6 +115,7 @@ long p_helper_receiver;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
+static char devname[10];
 
 /************************************************************************/
 
@@ -130,23 +131,32 @@ void pkt_priv_init(void)
 
     switch (config.vnet) {
       case VNET_TYPE_ETH:
-        ret = Open_sockets(config.netdev);
+	strncpy(devname, config.netdev, sizeof(devname) - 1);
+	devname[sizeof(devname) - 1] = 0;
 	break;
       case VNET_TYPE_DSN:
-        ret = Open_sockets(DOSNET_DEVICE);
+	strcpy(devname, DOSNET_DEVICE);
+	break;
+      case VNET_TYPE_TAP:
+	strcpy(devname, TAP_DEVICE);
+	if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
+	  pd_printf("PKT: trying to bind to device %s\n", config.netdev);
+	  strcpy(devname, config.netdev);
+	}
 	break;
     }
 
+    ret = Open_sockets(devname);
     if (ret < 0) {
       warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
       pktdrvr_installed = -1;
     }
+    pd_printf("PKT: Using device %s\n", devname);
 }
 
 void
 pkt_init(void)
 {
-    char devname[10];
     if (!config.pktdrv)
       return;
     if (pktdrvr_installed == -1)
@@ -154,44 +164,14 @@ pkt_init(void)
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
 
+    add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
     /* use dosnet device (dsn0) for virtual net */
-    pd_printf("PKT: VNET mode is %i\n", config.vnet);
-    switch (config.vnet) {
-      case VNET_TYPE_ETH:
-	strncpy(devname, config.netdev, sizeof(devname) - 1);
-        devname[sizeof(devname) - 1] = 0;
-	add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
-	break;
-
-      case VNET_TYPE_DSN:
-	strcpy(devname, DOSNET_DEVICE);
-	add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
+    if (config.vnet == VNET_TYPE_DSN)
 	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async, NULL);
-	break;
-
-      case VNET_TYPE_TAP:
-        strcpy(devname, TAP_DEVICE);
-        if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
-          pd_printf("PKT: trying to bind to device %s\n", config.netdev);
-          strcpy(devname, config.netdev);
-        }
-        if (Open_sockets(devname) < 0) {
-          warn("PKT: Cannot allocate TAP device %s: %s\n",
-	    strcmp(devname, TAP_DEVICE) ? devname : "(dynamic)",
-	    strerror(errno));
-          goto fail;
-        }
-	add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
-	break;
-
-      default:
-        error("Unknown vnet mode %i\n", config.vnet);
-	goto fail;
-    }
-    pd_printf("PKT: Using device %s\n", devname);
+    pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
-    
+
     /* fill other global data */
 
     GetDeviceHardwareAddress(devname, pg.hw_address);

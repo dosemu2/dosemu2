@@ -215,10 +215,14 @@ GetDeviceMTU(char *device)
 
 static int tun_alloc(char *dev)
 {
+      PRIV_SAVE_AREA
       struct ifreq ifr;
       int fd, err;
 
-      if( (fd = open("/dev/net/tun", O_RDWR)) < 0 )
+      enter_priv_on();
+      fd = open("/dev/net/tun", O_RDWR);
+      leave_priv_setting();
+      if (fd < 0)
          return -1;
 
       memset(&ifr, 0, sizeof(ifr));
@@ -232,7 +236,10 @@ static int tun_alloc(char *dev)
       if( *dev )
          strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
-      if( (err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0 ){
+      enter_priv_on();
+      err = ioctl(fd, TUNSETIFF, (void *) &ifr);
+      leave_priv_setting();
+      if (err < 0 ) {
          close(fd);
          return err;
       }
