@@ -311,8 +311,7 @@ xms_reset(void)
   config.xms_size = 0;
 }
 
-
-void xms_helper(void)
+static void xms_helper_init(void)
 {
   int i;
 
@@ -339,6 +338,20 @@ void xms_helper(void)
 
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
+}
+
+void xms_helper(void)
+{
+  switch (HI(ax)) {
+  case XMS_HELPER_XMS_INIT:
+    xms_helper_init();
+    break;
+  case XMS_HELPER_GET_ENTRY_POINT:
+    WRITE_SEG_REG(es, XMSControl_SEG);
+    LWORD(ebx) = XMSControl_OFF;
+    LWORD(eax) = 0;	/* report success */
+    break;
+  }
 }
 
 void

@@ -14,6 +14,9 @@
 #define XMS_VERSION    		0x0300	/* version 3.00 */
 #define XMS_DRIVER_VERSION	0x0301	/* my driver version 3.01 */
 
+#define XMS_HELPER_XMS_INIT 0
+#define XMS_HELPER_GET_ENTRY_POINT 1
+
 #define NUM_HANDLES     64
 #define FIRST_HANDLE    1
 
@@ -23,6 +26,7 @@
 #define OLDXMS          1
 #define NEWXMS          2
 
+#ifndef __ASSEMBLER__
 struct EMM {
    unsigned int Length;
    unsigned short SourceHandle;
@@ -48,5 +52,6 @@ void xms_init(void);
 void xms_reset(void);
 void xms_helper(void);
 void xms_control(void);
+#endif
 
 #endif /* XMS_H */

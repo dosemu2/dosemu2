@@ -56,6 +56,7 @@
 #include "memory.h"
 #include "doshelpers.h"
 #include "emm.h"
+#include "xms.h"
 
 .code16
 .text
@@ -89,6 +90,7 @@ Header:
 RHPtr:		.long 0		# ptr to request header
 
 OldXMSCall:	.long 0
+NewXMSCall:	.long 0
 OldInt2f:	.long 0
 NoEMS:		.byte 0
 
@@ -177,7 +179,7 @@ XMSHook:
 InitCodeStart:		/* all the below code gets discarded after init */
 
 HimemHook_Start:
-	lcall	$XMSControl_SEG, $XMSControl_OFF
+	lcall	*%cs:NewXMSCall
 HimemHook_End:
 
 HookHimem:
@@ -193,50 +195,42 @@ HookHimem:
 	cmpl	$0x01030301, %es:(0xffe8)
 	jb	0f
 	movb    $DOS_HELPER_XMS_HELPER, %al
+	movb    $XMS_HELPER_XMS_INIT, %ah
 	int	$DOS_HELPER_INT
 	orb	%al, %al
 	jnz	28f
 	movb	$9, %ah
 	movw	$XMSMsg, %dx
 	int	$0x21
-	jmp	1f
-
-0:      
-	movb	$9, %ah
-	movw	$NoHimemMsg, %dx
-	int	$0x21
-	jmp	9f
-28:      
-	movb	$9, %ah
-	movw	$NoXMSMsg, %dx
-	int	$0x21
+	/* internal driver installed - go out with error */
 	jmp	9f
 1:
 	/* get entry point */
+	movw	$0xffff, %bx
 	movw	$0x4310, %ax
 	int	$0x2f
+	/* see if the call worked at all */
+	cmpw	$0xffff, %bx
+	je 27f
 	/* see if it is sjmp (0xeb) */
 	cmpb	$0xeb, %es:(%bx)
-	je	2f
-	/* no sjmp :( */
-	movb	$9, %ah
-	movw	$CantHookMsg, %dx
-	int	$0x21
-	jmp	9f
-2:
-	/* see if it is our internal driver */
-	movw	%es, %ax
-	cmpw	$XMSControl_SEG, %ax
-	je	9f
-3:
+	jne	27f
+	/* save old callback address */
+	movw	%bx, OldXMSCall
+	movw	%es, OldXMSCall+2
+	/* get new entry point */
+	movb    $DOS_HELPER_XMS_HELPER, %al
+	movb    $XMS_HELPER_GET_ENTRY_POINT, %ah
+	int	$DOS_HELPER_INT
+	orb	%al, %al
+	jnz	28f
+	movw	%bx, NewXMSCall
+	movw	%es, NewXMSCall+2
 	/* now install the hook for UMB */
 	movw	%bx, %di
 	movw	$HimemHook_Start, %si
 	movw	$(HimemHook_End - HimemHook_Start), %cx
 	rep	movsb
-	/* save old callback address */
-	movw	%bx, OldXMSCall
-	movw	%ax, OldXMSCall+2
 	/* install int2f hook */
 	movb	$0x35, %ah
 	movb	$0x2f, %al
@@ -253,6 +247,23 @@ HookHimem:
 	int	$0x21
 	xorb	%al, %al
 	jmp	10f
+
+
+0:
+	movb	$9, %ah
+	movw	$NoHimemMsg, %dx
+	int	$0x21
+	jmp	9f
+27:
+	movb	$9, %ah
+	movw	$CantHookMsg, %dx
+	int	$0x21
+	jmp	9f
+28:
+	movb	$9, %ah
+	movw	$NoXMSMsg, %dx
+	int	$0x21
+#	jmp	9f
 9:
 	movb	$1, %al		# report error
 10:	ret
