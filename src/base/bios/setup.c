@@ -80,7 +80,7 @@ static inline void bios_mem_setup(void)
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 }
 
-static void bios_setup(void)
+static void bios_setup(Bit32u offs)
 {
   int i;
 
@@ -175,6 +175,6 @@ void bios_setup_init(void)
   hlt_hdlr.name	      = "BIOS setup";
   hlt_hdlr.start_addr = 0x07fe;
   hlt_hdlr.end_addr   = 0x07fe;
-  hlt_hdlr.func	      = (emu_hlt_func)bios_setup;
+  hlt_hdlr.func	      = bios_setup;
   hlt_register_handler(hlt_hdlr);
 }

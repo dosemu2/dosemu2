@@ -1110,6 +1110,11 @@ int CAN_SLEEP(void)
     (pic_sys_time > pic_dos_time)));
 }
 
+static void pic_iret_hlt(Bit32u offs)
+{
+  pic_iret();
+}
+
 void pic_init(void)
 {
   /* do any one-time initialization of the PIC */
@@ -1140,7 +1145,7 @@ void pic_init(void)
   hlt_hdlr.name       = "PIC";
   hlt_hdlr.start_addr = PIC_ADD - BIOS_HLT_BLK;
   hlt_hdlr.end_addr = hlt_hdlr.start_addr;
-  hlt_hdlr.func       = (emu_hlt_func)pic_iret;
+  hlt_hdlr.func       = pic_iret_hlt;
   hlt_register_handler(hlt_hdlr);
 }
 

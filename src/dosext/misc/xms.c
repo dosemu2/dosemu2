@@ -44,7 +44,7 @@
 #undef  DEBUG_XMS
 
 static int umb_find_unused(void);
-static void xms_control(void);
+static void xms_control(Bit32u offs);
 
 /*
 static char RCSxms[] = "$Id$";
@@ -352,7 +352,7 @@ xms_init(void)
   hlt_hdlr.name = "XMS";
   hlt_hdlr.start_addr = XMSControl_ADD - BIOS_HLT_BLK;
   hlt_hdlr.end_addr = hlt_hdlr.start_addr + 5;
-  hlt_hdlr.func = (emu_hlt_func)xms_control;
+  hlt_hdlr.func = xms_control;
   hlt_register_handler(hlt_hdlr);
 }
 
@@ -368,7 +368,7 @@ static void XMS_RET(int err)
     LO(bx) = err;
 }
 
-static void xms_control(void)
+static void xms_control(Bit32u offs)
 {
   int is_umb_fn = 0;
 

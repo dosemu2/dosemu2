@@ -1186,7 +1186,7 @@ alter_map_and_call(state_t * state)
  * Pushed parameters saved by emm_alter_map_and_call() follow.
  */
 static void
-emm_hlt_handler(void)
+emm_hlt_handler(Bit32u offs)
 {
   struct alter_map_struct old_map;
   u_short method;
@@ -2179,6 +2179,6 @@ void ems_init(void)
   hlt_hdlr.name = "EMS";
   hlt_hdlr.start_addr = EMSControl_ADD - BIOS_HLT_BLK;
   hlt_hdlr.end_addr = hlt_hdlr.start_addr;
-  hlt_hdlr.func = (emu_hlt_func)emm_hlt_handler;
+  hlt_hdlr.func = emm_hlt_handler;
   hlt_register_handler(hlt_hdlr);
 }
