@@ -196,7 +196,7 @@ pkt_init(void)
     /* install HLT handler */
     hlt_hdlr.name = "PKT_receiver_call";
     hlt_hdlr.start_addr = PKTRcvCall_ADD - BIOS_HLT_BLK;
-    hlt_hdlr.end_addr = hlt_hdlr.start_addr;
+    hlt_hdlr.len = 1;
     hlt_hdlr.func = pkt_receiver_callback_hlt;
     hlt_register_handler(hlt_hdlr);
     return;

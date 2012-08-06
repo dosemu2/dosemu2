@@ -174,7 +174,7 @@ void bios_setup_init(void)
 
   hlt_hdlr.name	      = "BIOS setup";
   hlt_hdlr.start_addr = 0x07fe;
-  hlt_hdlr.end_addr   = 0x07fe;
+  hlt_hdlr.len        = 1;
   hlt_hdlr.func	      = bios_setup;
   hlt_register_handler(hlt_hdlr);
 }

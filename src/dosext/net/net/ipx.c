@@ -130,7 +130,7 @@ void ipx_init(void)
   /* install HLT handler */
   hlt_hdlr.name = "IPX_esr_end";
   hlt_hdlr.start_addr = IPXEsrEnd_ADD - BIOS_HLT_BLK;
-  hlt_hdlr.end_addr = hlt_hdlr.start_addr;
+  hlt_hdlr.len = 1;
   hlt_hdlr.func = ipx_esr_call_end;
   hlt_register_handler(hlt_hdlr);
 }

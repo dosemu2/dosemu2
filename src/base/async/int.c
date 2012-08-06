@@ -2180,7 +2180,7 @@ void setup_interrupts(void) {
 
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.start_addr = 0x0000;
-  hlt_hdlr.end_addr   = 0x00ff;
+  hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
   hlt_register_handler(hlt_hdlr);
 }

@@ -1144,7 +1144,7 @@ void pic_init(void)
 
   hlt_hdlr.name       = "PIC";
   hlt_hdlr.start_addr = PIC_ADD - BIOS_HLT_BLK;
-  hlt_hdlr.end_addr = hlt_hdlr.start_addr;
+  hlt_hdlr.len        = 1;
   hlt_hdlr.func       = pic_iret_hlt;
   hlt_register_handler(hlt_hdlr);
 }

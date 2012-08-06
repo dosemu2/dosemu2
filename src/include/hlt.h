@@ -25,7 +25,7 @@ typedef struct {
   emu_hlt_func  func;
   const char   *name;
   Bit32u        start_addr;
-  Bit32u        end_addr;
+  int           len;
   } emu_hlt_t;
 
 extern void hlt_init(void);

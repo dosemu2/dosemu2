@@ -2178,7 +2178,7 @@ void ems_init(void)
   /* install HLT handler */
   hlt_hdlr.name = "EMS";
   hlt_hdlr.start_addr = EMSControl_ADD - BIOS_HLT_BLK;
-  hlt_hdlr.end_addr = hlt_hdlr.start_addr;
+  hlt_hdlr.len = 1;
   hlt_hdlr.func = emm_hlt_handler;
   hlt_register_handler(hlt_hdlr);
 }

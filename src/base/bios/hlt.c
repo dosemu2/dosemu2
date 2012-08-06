@@ -36,7 +36,7 @@ static struct {
   Bit16u	start_addr;
 } hlt_handler[MAX_HLT_HANDLERS];
 
-static Bit8u         hlt_handler_id[BIOS_HLT_BLK_SIZE];       
+static Bit8u         hlt_handler_id[BIOS_HLT_BLK_SIZE];
 static Bit32u        hlt_handler_count;
 
 /*
@@ -51,7 +51,7 @@ static void hlt_default(Bit32u addr)
   fake_retf(0);
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION hlt_init(void)
  *
  * description:
@@ -147,7 +147,7 @@ void hlt_handle(void)
  */
 int hlt_register_handler(emu_hlt_t handler)
 {
-  int handle, i;
+  int handle, i, j;
 
   /* first find existing handle for function or create new one */
   for (handle=0; handle < hlt_handler_count; handle++) {
@@ -170,7 +170,8 @@ int hlt_register_handler(emu_hlt_t handler)
     }
 
   /* change table to reflect new handler id for that address */
-  for (i=handler.start_addr; i <= handler.end_addr; i++) {
+  for (j = 0; j < handler.len; j++) {
+    i = j + handler.start_addr;
     if (i > BIOS_HLT_BLK_SIZE) {
       error("HLT: handler %s can not register values more than 0x%04x\n",
 	    handler.name, BIOS_HLT_BLK_SIZE);
