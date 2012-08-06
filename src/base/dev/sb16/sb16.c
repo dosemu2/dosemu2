@@ -801,9 +801,12 @@ static void sb_dsp_write(Bit8u value)
     case 0x45:
 	/* Continue Auto-Init 16-bit DMA - SB16 */
     case 0x47:
-	S_printf("SB: Unpausing DMA, left=%i\n", sb.dma_count);
-	start_dma_clock();
-	sb.paused = 0;
+	if (sb.paused) {
+	    S_printf("SB: Unpausing DMA, left=%i\n", sb.dma_count);
+	    sb.paused = 0;
+	    if (sb.dma_cmd)
+		start_dma_clock();
+	}
 	break;
 
     case 0x48:
@@ -861,8 +864,9 @@ static void sb_dsp_write(Bit8u value)
 	if (!sb.paused) {
 	    S_printf("SB: Pausing 8bit DMA, left=%i\n", sb.dma_count);
 	    sb_deactivate_irq(SB_IRQ_8BIT);
-	    stop_dma_clock();
 	    sb.paused = 1;
+	    if (sb.dma_cmd)
+		stop_dma_clock();
 	}
 	break;
 	/* Halt 16-bit DMA - SB16 */
@@ -870,8 +874,9 @@ static void sb_dsp_write(Bit8u value)
 	if (!sb.paused) {
 	    S_printf("SB: Pausing 16bit DMA, left=%i\n", sb.dma_count);
 	    sb_deactivate_irq(SB_IRQ_16BIT);
-	    stop_dma_clock();
 	    sb.paused = 1;
+	    if (sb.dma_cmd)
+		stop_dma_clock();
 	}
 	break;
 
@@ -893,9 +898,12 @@ static void sb_dsp_write(Bit8u value)
     case 0xD4:
 	/* Continue 16-bit DMA - SB16 */
     case 0xD6:
-	S_printf("SB: Unpausing DMA, left=%i\n", sb.dma_count);
-	start_dma_clock();
-	sb.paused = 0;
+	if (sb.paused) {
+	    S_printf("SB: Unpausing 16bit DMA, left=%i\n", sb.dma_count);
+	    sb.paused = 0;
+	    if (sb.dma_cmd)
+		start_dma_clock();
+	}
 	break;
 
 	/* == SPEAKER == */
@@ -910,7 +918,8 @@ static void sb_dsp_write(Bit8u value)
 	/* Exit Auto-Init 8-bit DMA - SB2.0 */
     case 0xDA:
 	S_printf("SB: Exiting DMA autoinit\n");
-	sb.dma_exit_ai = 1;
+	if (sb.dma_cmd)
+	    sb.dma_exit_ai = 1;
 	break;
 
 	/* == DSP IDENTIFICATION == */
