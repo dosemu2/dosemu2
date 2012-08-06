@@ -90,7 +90,6 @@ Header:
 RHPtr:		.long 0		# ptr to request header
 
 OldXMSCall:	.long 0
-NewXMSCall:	.long 0
 OldInt2f:	.long 0
 NoEMS:		.byte 0
 
@@ -179,7 +178,8 @@ XMSHook:
 InitCodeStart:		/* all the below code gets discarded after init */
 
 HimemHook_Start:
-	lcall	*%cs:NewXMSCall
+	.byte 0x9a	/* lcall */
+	NewXMSCall:	.long 0
 HimemHook_End:
 
 HookHimem:
@@ -224,10 +224,12 @@ HookHimem:
 	int	$DOS_HELPER_INT
 	orb	%al, %al
 	jnz	28f
+	/* patch the hook with new addr */
 	movw	%bx, NewXMSCall
 	movw	%es, NewXMSCall+2
-	/* now install the hook for UMB */
-	movw	%bx, %di
+	/* now install the hook */
+	movw	OldXMSCall, %di
+	movw	OldXMSCall+2, %es
 	movw	$HimemHook_Start, %si
 	movw	$(HimemHook_End - HimemHook_Start), %cx
 	rep	movsb
