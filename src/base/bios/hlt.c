@@ -146,47 +146,64 @@ void hlt_handle(void)
 /*
  * Register a HLT handler.
  */
-int hlt_register_handler(emu_hlt_t handler)
+Bit32u hlt_register_handler(emu_hlt_t handler)
 {
   int handle, i, j;
+  Bit32u start_addr = handler.start_addr;
 
   /* initialization check */
   assert(hlt_handler_count);
 
-  /* first find existing handle for function or create new one */
-  for (handle=0; handle < hlt_handler_count; handle++) {
-    if (!strcmp(hlt_handler[handle].name, handler.name))
-      break;
+  if (hlt_handler_count >= MAX_HLT_HANDLERS) {
+    error("HLT: too many HLT handlers, increase MAX_HLT_HANDLERS\n");
+    config.exitearly = 1;
   }
 
-  if (handle >= hlt_handler_count) {
-    /* no existing handle found, create new one */
-    if (hlt_handler_count >= MAX_HLT_HANDLERS) {
-      error("HLT: too many HLT handlers, increase MAX_HLT_HANDLERS\n");
-      leavedos(1);
+  if (start_addr == (Bit32u)-1) {
+    for (i = 0; i + handler.len <= BIOS_HLT_BLK_SIZE; i++) {
+      for (j = 0; j < handler.len; j++) {
+        if (hlt_handler_id[i + j]) {
+          i += j;
+          break;
+        }
+      }
+      /* see if found free block */
+      if (j == handler.len) {
+        start_addr = i;
+        break;
+      }
     }
-
-    hlt_handler_count++;
-
-    hlt_handler[handle].name = handler.name;
-    hlt_handler[handle].func = handler.func;
-    hlt_handler[handle].start_addr = handler.start_addr;
+    if (start_addr == (Bit32u)-1) {
+      error("HLT: Cannot find free block of len %i\n", handler.len);
+      config.exitearly = 1;
     }
+  }
+
+  handle = hlt_handler_count++;
+
+  hlt_handler[handle].name = handler.name;
+  hlt_handler[handle].func = handler.func;
+  hlt_handler[handle].start_addr = start_addr;
 
   /* change table to reflect new handler id for that address */
   for (j = 0; j < handler.len; j++) {
-    i = j + handler.start_addr;
+    i = j + start_addr;
     if (i > BIOS_HLT_BLK_SIZE) {
       error("HLT: handler %s can not register values more than 0x%04x\n",
 	    handler.name, BIOS_HLT_BLK_SIZE);
-      leavedos(1);
+      config.exitearly = 1;
     }
     if (hlt_handler_id[i] != 0) {
       error("HLT: HLT handler conflict at offset 0x%04x between %s and %s\n",
 	    i, handler.name, hlt_handler[hlt_handler_id[i]].name);
-      leavedos(1);
+      config.exitearly = 1;
     }
     hlt_handler_id[i] = handle;
   }
-  return(1);
+
+  h_printf("HLT: registered %s at %#x,%i (%s)\n",
+      handler.name, start_addr, handler.len,
+      handler.start_addr == (Bit32u)-1 ? "auto" : "manual");
+
+  return start_addr;
 }

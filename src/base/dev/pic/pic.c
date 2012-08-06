@@ -108,7 +108,7 @@
  * I elected to use a conservative hole, to maintain robustness.  Others have
  * since modified pic.c to gain speed, often without adequate testing of
  * robustness.
- * 
+ *
  * There's lots of re-entrancy protection in pic, but it has largely been
  * defeated by speed-up efforts.  Perhaps the best fix is to re-visit those
  * speed-up efforts, and see if a better solution can't be found.
@@ -154,6 +154,7 @@ static unsigned long pic_irq2_ivec = 0;
 
 static Bit16u cb_cs = 0;
 static Bit16u cb_ip = 0;
+static Bit32u PIC_OFF;
 
 /*
  * pic_pirr contains a bit set for each interrupt which has attempted to
@@ -1143,10 +1144,10 @@ void pic_init(void)
   port_register_handler(io_device, 0);
 
   hlt_hdlr.name       = "PIC";
-  hlt_hdlr.start_addr = PIC_ADD - BIOS_HLT_BLK;
+  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len        = 1;
   hlt_hdlr.func       = pic_iret_hlt;
-  hlt_register_handler(hlt_hdlr);
+  PIC_OFF = hlt_register_handler(hlt_hdlr);
 }
 
 void pic_reset(void)

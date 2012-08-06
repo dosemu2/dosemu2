@@ -48,6 +48,7 @@ static void ipx_recv_esr_call(void);
 static void ipx_aes_esr_call(void);
 static void ipx_esr_call_end(Bit32u offs);
 static struct vm86_regs esr_saved_regs;
+static Bit32u IPXEsrEnd_OFF;
 
 static ipx_socket_t *ipx_socket_list = NULL;
 /* hopefully these static ECBs will not cause races... */
@@ -129,10 +130,10 @@ void ipx_init(void)
 
   /* install HLT handler */
   hlt_hdlr.name = "IPX_esr_end";
-  hlt_hdlr.start_addr = IPXEsrEnd_ADD - BIOS_HLT_BLK;
+  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len = 1;
   hlt_hdlr.func = ipx_esr_call_end;
-  hlt_register_handler(hlt_hdlr);
+  IPXEsrEnd_OFF = hlt_register_handler(hlt_hdlr);
 }
 
 /*************************

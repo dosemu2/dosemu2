@@ -171,21 +171,10 @@
 #define BIOS_HLT_BLK       (BIOS_HLT_BLK_SEG << 4)
 #define BIOS_HLT_BLK_SIZE  0x00800
 
-#define EMSControl_SEG  BIOS_HLT_BLK_SEG
-#define EMSControl_OFF  0x100
-#define EMSControl_ADD  ((EMSControl_SEG << 4)+EMSControl_OFF)
-
 #define PIC_SEG         BIOS_HLT_BLK_SEG
-#define PIC_OFF         0x101
-#define PIC_ADD         ((PIC_SEG << 4) + PIC_OFF)
-
+#define EMSControl_SEG  BIOS_HLT_BLK_SEG
 #define IPXEsrEnd_SEG   BIOS_HLT_BLK_SEG
-#define IPXEsrEnd_OFF   0x102
-#define IPXEsrEnd_ADD   ((IPXEsrEnd_SEG << 4) + IPXEsrEnd_OFF)
-
-#define PKTRcvCall_SEG   BIOS_HLT_BLK_SEG
-#define PKTRcvCall_OFF   0x103
-#define PKTRcvCall_ADD   ((PKTRcvCall_SEG << 4) + PKTRcvCall_OFF)
+#define PKTRcvCall_SEG  BIOS_HLT_BLK_SEG
 
 #define VBIOS_START	(SEGOFF2LINEAR(config.vbios_seg,0))
 /*#define VBIOS_SIZE	(64*1024)*/

@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -35,7 +35,7 @@
  *
  * REMARK
  * This provides the EMM Memory Management for DOSEMU. It was originally part
- * of the Mach Dos Emulator. 
+ * of the Mach Dos Emulator.
  *
  * In contrast to some of the comments (Yes, _I_ know the adage about that...)
  * we appear to be supporting EMS 4.0, not 3.2. Raw page size is 16k
@@ -168,6 +168,7 @@ static u_char emm_error;
 static int handle_total, emm_allocated, phys_pages, saved_phys_pages;
 static u_short cnv_start_seg;
 static u_short cnv_pages_start;
+static Bit32u EMSControl_OFF;
 
 static struct emm_record {
   u_short handle;
@@ -2177,8 +2178,8 @@ void ems_init(void)
 
   /* install HLT handler */
   hlt_hdlr.name = "EMS";
-  hlt_hdlr.start_addr = EMSControl_ADD - BIOS_HLT_BLK;
+  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len = 1;
   hlt_hdlr.func = emm_hlt_handler;
-  hlt_register_handler(hlt_hdlr);
+  EMSControl_OFF = hlt_register_handler(hlt_hdlr);
 }

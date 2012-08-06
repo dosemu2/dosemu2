@@ -29,7 +29,7 @@ typedef struct {
   } emu_hlt_t;
 
 extern void hlt_init(void);
-extern int  hlt_register_handler(emu_hlt_t handler);
+extern Bit32u hlt_register_handler(emu_hlt_t handler);
 extern void hlt_handle(void);
 
 #endif /* _EMU_HLT_H */

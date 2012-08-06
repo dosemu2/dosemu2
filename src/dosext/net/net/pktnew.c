@@ -59,6 +59,7 @@ static void printbuf(char *, struct ethhdr *);
 static int pkt_check_receive(int ilevel);
 static void pkt_receiver_callback(void);
 static void pkt_receiver_callback_hlt(Bit32u offs);
+static Bit32u PKTRcvCall_OFF;
 
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
 static int pktdrvr_installed;
@@ -195,10 +196,10 @@ pkt_init(void)
 
     /* install HLT handler */
     hlt_hdlr.name = "PKT_receiver_call";
-    hlt_hdlr.start_addr = PKTRcvCall_ADD - BIOS_HLT_BLK;
+    hlt_hdlr.start_addr = -1;
     hlt_hdlr.len = 1;
     hlt_hdlr.func = pkt_receiver_callback_hlt;
-    hlt_register_handler(hlt_hdlr);
+    PKTRcvCall_OFF = hlt_register_handler(hlt_hdlr);
     return;
 
 fail:
