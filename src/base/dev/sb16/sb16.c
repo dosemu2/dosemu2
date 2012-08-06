@@ -165,6 +165,17 @@ int sb_dma_silence(void)
     return 0;
 }
 
+static int sb_dma_internal(void)
+{
+    if (!sb.dma_cmd)
+	error("SB: used inactive DMA (internal)\n");
+    switch (sb.dma_cmd) {
+    case 0xe2:
+	return 1;
+    }
+    return 0;
+}
+
 static int sb_dma_autoinit(void)
 {
     if (!sb.dma_cmd)
@@ -424,6 +435,14 @@ void sb_get_midi_data(Bit8u * val)
 
 int sb_get_dma_data(void *ptr, int is16bit)
 {
+    if (sb_dma_internal()) {
+	S_printf("SB: E2 value %#x transferred\n", sb.reset_val);
+	if (is16bit)
+	    *(Bit16u *) ptr = sb.reset_val;
+	else
+	    *(Bit8u *) ptr = sb.reset_val;
+	return 1;
+    }
     if (rng_count(&sb.fifo_in)) {
 	if (is16bit) {
 	    rng_get(&sb.fifo_in, ptr);
@@ -464,6 +483,8 @@ int sb_get_output_sample(void *ptr, int is16bit)
 
 void sb_put_input_sample(void *ptr, int is16bit)
 {
+    if (sb_dma_internal())
+	return;
     if (is16bit) {
 	rng_put(&sb.fifo_in, ptr);
     } else {
@@ -943,7 +964,6 @@ static void sb_dsp_write(Bit8u value)
 	    sb.E2Count &= 3;
 
 	    sb.reset_val += incval;
-	    sb_put_input_sample(&sb.reset_val, 0);
 	    sb_dma_activate();
 
 	    break;
