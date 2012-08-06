@@ -20,6 +20,7 @@
  */
 
 #include <string.h>
+#include <assert.h>
 
 #include "config.h"
 #include "emu.h"
@@ -148,6 +149,9 @@ void hlt_handle(void)
 int hlt_register_handler(emu_hlt_t handler)
 {
   int handle, i, j;
+
+  /* initialization check */
+  assert(hlt_handler_count);
 
   /* first find existing handle for function or create new one */
   for (handle=0; handle < hlt_handler_count; handle++) {

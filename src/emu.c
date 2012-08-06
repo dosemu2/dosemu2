@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -6,9 +6,9 @@
 
 /*
  * Extensions by Robert Sanders, 1992-93
- * 
+ *
  * DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * Here is where DOSEMU gets booted. From emu.c external calls are made to
  * the specific I/O systems (video/keyboard/serial/etc...) to initialize
@@ -17,26 +17,26 @@
  * timers, I/O signals, illegal instructions, etc... When every system
  * gives the green light, vm86() is called to switch into vm86 mode and
  * start executing i86 code.
- * 
+ *
  * The vm86() function will return to DOSEMU when certain `exceptions` occur
  * as when some interrupt instructions occur (0xcd).
- * 
+ *
  * The top level function emulate() is called from dos.c by way of a dll
  * entry point.
- * 
+ *
  * /REMARK
  * DANG_END_MODULE
- * 
+ *
  */
 
 
 /*
- * DANG_BEGIN_REMARK 
+ * DANG_BEGIN_REMARK
  * DOSEMU must not work within the 1 meg DOS limit, so
  * start of code is loaded at a higher address, at some time this could
  * conflict with other shared libs. If DOSEMU is compiled statically
  * (without shared libs), and org instruction is used to provide the jump
- * above 1 meg. 
+ * above 1 meg.
  * DANG_END_REMARK
  */
 
@@ -45,12 +45,12 @@
 #ifndef __ELF__
 /*
  * DANG_BEGIN_FUNCTION jmp_emulate
- * 
+ *
  * description: This function allows the startup program `dos` to know how to
  * call the emulate function by way of the dll headers. Always make sure
  * that this line is the first of emu.c and link emu.o as the first object
  * file to the lib
- * 
+ *
  * DANG_END_FUNCTION
  */
 __asm__("___START___: jmp _emulate\n");
@@ -122,6 +122,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "userhook.h"
 #include "pktdrvr.h"
 #include "dma.h"
+#include "hlt.h"
 #include "keyb_server.h"
 #include "keyb_clients.h"
 
@@ -401,7 +402,7 @@ emulate(int argc, char **argv)
 	open_kmem();
     }
     priv_drop();
-    
+
     map_hardware_ram();         /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
@@ -415,6 +416,8 @@ emulate(int argc, char **argv)
      */
     if (!config.X)
 	install_dos(0);
+
+    hlt_init();
 
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
