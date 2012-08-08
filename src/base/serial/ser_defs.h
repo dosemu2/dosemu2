@@ -21,7 +21,7 @@
  *
  *   The code in this module is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation; either version 2 of 
+ *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
  *
  * DANG_END_MODULE
@@ -30,15 +30,15 @@
 #define SER_DEFS_H
 
 #include "serial.h"
- 
-/* DANG_BEGIN_REMARK 
+
+/* DANG_BEGIN_REMARK
  * Extensions to serial debugging.
  *
  * SER_DEBUG_MAIN   (0 or 1)
  *   - extra debug output on the most critical information.
  *
  * SER_DEBUG_HEAVY   (0 or 1)
- *   - super-heavy extra debug output, including all ports reads and writes, 
+ *   - super-heavy extra debug output, including all ports reads and writes,
  *      and every character received and transmitted!
  *
  * SER_DEBUG_INTERRUPT   (0 or 1)
@@ -77,7 +77,7 @@
  *   com[x].real_comport    The COM port number.
  *   com[x].interrupt       The PIC interrupt level (based on IRQ number)
  *   com[x].mouse           Flag  mouse (to enable extended features)
- *   com[x].fd              File descriptor for port device 
+ *   com[x].fd              File descriptor for port device
  *   com[x].dev[]           Filename of port port device
  *   com[x].dev_locked      Flag whether device has been locked
  *
@@ -88,7 +88,7 @@
  * This example code illustrates the fact, and how the com[] array works:
  *
  *   for (i = 0; i < config.numser; i++)
- *     s_printf("COM port number %d has a base address of %x", 
+ *     s_printf("COM port number %d has a base address of %x",
  *              com[i].real_comport, com[i].base_port);
  *
  * DANG_END_REMARK
@@ -98,7 +98,7 @@
  * The C compiler is smart enough to not generate extra code when certain
  * debugging output commands are not defined to anything in particular.
  */
-#if SER_DEBUG_MAIN 
+#if SER_DEBUG_MAIN
 #define s1_printf 1
 #else
 #define s1_printf 0
@@ -353,6 +353,8 @@ typedef struct {
   u_char rx_buf_end;			/* Receive Buffer queue end */
 
   int tx_cnt;
+  int fossil_blkrd_running;
+  int fossil_blkrd_tid;
 
   struct termios oldset;		/* Original termios settings */
   struct termios newset;		/* Current termios settings */
@@ -390,5 +392,7 @@ void rx_buffer_slide(int num);
 void tx_buffer_slide(int num);
 int serial_get_tx_queued(int num);
 void serial_update(int num);
+void fossil_dr_hook(int num);
+void fossil_setup(int num);
 
 #endif /* SER_DEFS_H */
