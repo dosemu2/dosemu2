@@ -58,7 +58,7 @@ int Find_Handle(u_char *buf);
 static void printbuf(char *, struct ethhdr *);
 static int pkt_check_receive(int ilevel);
 static void pkt_receiver_callback(void);
-static void pkt_receiver_callback_hlt(Bit32u offs);
+static void pkt_receiver_callback_hlt(Bit32u offs, void *arg);
 static Bit32u PKTRcvCall_OFF;
 
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
@@ -601,7 +601,7 @@ static void pkt_receiver_callback(void)
     fake_call_to(PKTRcvCall_SEG, PKTRcvCall_OFF);
 }
 
-static void pkt_receiver_callback_hlt(Bit32u offs)
+static void pkt_receiver_callback_hlt(Bit32u offs, void *arg)
 {
     _AX = 0;
     _BX = p_helper_handle;

@@ -46,7 +46,7 @@
 static u_char IPXCancelEvent(far_t ECBPtr);
 static void ipx_recv_esr_call(void);
 static void ipx_aes_esr_call(void);
-static void ipx_esr_call_end(Bit32u offs);
+static void ipx_esr_call_end(Bit32u offs, void *arg);
 static struct vm86_regs esr_saved_regs;
 static Bit32u IPXEsrEnd_OFF;
 
@@ -477,7 +477,7 @@ static void ipx_esr_call_setup(far_t ECBPtr, u_char AXVal)
   fake_call_to(ECBp->ESRAddress.segment, ECBp->ESRAddress.offset);
 }
 
-static void ipx_esr_call_end(Bit32u offs)
+static void ipx_esr_call_end(Bit32u offs, void *arg)
 {
   REGS = esr_saved_regs;
   n_printf("IPX: ESR callback ended\n");
