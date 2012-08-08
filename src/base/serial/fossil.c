@@ -96,8 +96,7 @@ static void read_with_wait(void *arg)
 
 void fossil_setup(int num)
 {
-    com[num].fossil_blkrd_tid = coopth_create(read_with_wait,
-	    (void *)(long)num, "FOSSIL blocking read");
+    com[num].fossil_blkrd_tid = coopth_create("FOSSIL thread");
     com[num].fossil_blkrd_running = 0;
 }
 
@@ -162,7 +161,8 @@ void fossil_int14(int num)
   /* Read character (should be with wait) */
   case 0x02:
     com[num].fossil_blkrd_running = 1;
-    coopth_start(com[num].fossil_blkrd_tid);
+    coopth_start(com[num].fossil_blkrd_tid, read_with_wait,
+	    (void *)(long)num);
     break;
 
   /* Get port status. */

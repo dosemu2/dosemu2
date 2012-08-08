@@ -110,7 +110,7 @@ static void coopth_thread(void *arg)
     co_set_data(co_current(), (void *)COOPTH_DONE);
 }
 
-int coopth_create(coopth_func_t func, void *arg, char *name)
+int coopth_create(char *name)
 {
     emu_hlt_t hlt_hdlr;
     int num;
@@ -122,8 +122,6 @@ int coopth_create(coopth_func_t func, void *arg, char *name)
     }
     num = coopth_num++;
     thr = &coopthreads[num];
-    thr->thr.func = func;
-    thr->thr.arg = arg;
     thr->name = strdup(name);
     thr->state = COOPTHS_NONE;
     thr->thread = NULL;
@@ -138,7 +136,7 @@ int coopth_create(coopth_func_t func, void *arg, char *name)
     return num;
 }
 
-int coopth_start(int tid)
+int coopth_start(int tid, coopth_func_t func, void *arg)
 {
     struct coopth_t *thr;
     if (tid < 0 || tid >= coopth_num) {
@@ -146,6 +144,8 @@ int coopth_start(int tid)
 	leavedos(2);
     }
     thr = &coopthreads[tid];
+    thr->thr.func = func;
+    thr->thr.arg = arg;
     thr->thread = co_create(coopth_thread, &thr->thr, NULL, COOP_STK_SIZE);
     if (!thr->thread) {
 	error("Thread create failure\n");

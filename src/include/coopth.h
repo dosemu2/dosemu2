@@ -10,8 +10,8 @@
 typedef void (*coopth_func_t)(void *arg);
 
 void coopth_init(void);
-int coopth_create(coopth_func_t func, void *arg, char *name);
-int coopth_start(int tid);
+int coopth_create(char *name);
+int coopth_start(int tid, coopth_func_t func, void *arg);
 void coopth_wait(void);
 void coopth_sleep(void);
 void coopth_wake_up(int tid);
