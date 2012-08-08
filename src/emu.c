@@ -123,7 +123,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "pktdrvr.h"
 #include "dma.h"
 #include "hlt.h"
-#include "pcl.h"
+#include "coopth.h"
 #include "keyb_server.h"
 #include "keyb_clients.h"
 
@@ -419,7 +419,7 @@ emulate(int argc, char **argv)
 	install_dos(0);
 
     hlt_init();
-    co_thread_init();
+    coopth_init();
 
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/

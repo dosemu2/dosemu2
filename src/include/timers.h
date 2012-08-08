@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -7,6 +7,7 @@
 #ifndef DOSEMU_TIMERS_H
 #define DOSEMU_TIMERS_H
 
+#include <unistd.h>
 #include "config.h"
 #include "extern.h"
 #include "types.h"
