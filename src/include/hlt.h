@@ -19,14 +19,15 @@
  */
 #define MAX_HLT_HANDLERS 10
 
-typedef void (* emu_hlt_func)(Bit32u offs);
+typedef void (* emu_hlt_func)(Bit32u offs, void *arg);
 
 typedef struct {
   emu_hlt_func  func;
   const char   *name;
   Bit32u        start_addr;
   int           len;
-  } emu_hlt_t;
+  void         *arg;
+} emu_hlt_t;
 
 extern void hlt_init(void);
 extern Bit32u hlt_register_handler(emu_hlt_t handler);

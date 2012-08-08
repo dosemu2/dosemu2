@@ -31,10 +31,11 @@
 #include "xms.h"
 #include "dpmi.h"
 
-static struct {
+static struct hlt_handler {
   emu_hlt_func  func;
   const char   *name;
   Bit16u	start_addr;
+  void         *arg;
 } hlt_handler[MAX_HLT_HANDLERS];
 
 static Bit8u         hlt_handler_id[BIOS_HLT_BLK_SIZE];
@@ -44,7 +45,7 @@ static Bit32u        hlt_handler_count;
  * This is the default HLT handler for the HLT block -- assume that
  * someone did a CALLF to get to us.
  */
-static void hlt_default(Bit32u addr)
+static void hlt_default(Bit32u addr, void *arg)
 {
   /* Assume someone callf'd to get here and do a return far */
   h_printf("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
@@ -96,11 +97,12 @@ void hlt_handle(void)
 
   if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
     Bit32u offs = lina - BIOS_HLT_BLK;
+    struct hlt_handler *hlt = &hlt_handler[hlt_handler_id[offs]];
 #if CONFIG_HLT_TRACE > 0
     h_printf("HLT: fcn 0x%04lx called in HLT block, handler: %s\n", offs,
-	     hlt_handler[hlt_handler_id[offs]].name);
+	     hlt->name);
 #endif
-    hlt_handler[hlt_handler_id[offs]].func(offs - hlt_handler[hlt_handler_id[offs]].start_addr);
+    hlt->func(offs - hlt->start_addr, hlt->arg);
   }
   else if (lina == CBACK_ADD) {
     /* we are back from a callback routine */
@@ -184,6 +186,7 @@ Bit32u hlt_register_handler(emu_hlt_t handler)
   hlt_handler[handle].name = handler.name;
   hlt_handler[handle].func = handler.func;
   hlt_handler[handle].start_addr = start_addr;
+  hlt_handler[handle].arg = handler.arg;
 
   /* change table to reflect new handler id for that address */
   for (j = 0; j < handler.len; j++) {

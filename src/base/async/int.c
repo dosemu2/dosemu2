@@ -1966,7 +1966,7 @@ static void debug_int(const char *s, int i)
  * DANG_END_FUNCTION
  */
 
-static void do_int_from_hlt(Bit32u i)
+static void do_int_from_hlt(Bit32u i, void *arg)
 {
 	if (debug_level('#') > 2)
 		debug_int("Do", i);

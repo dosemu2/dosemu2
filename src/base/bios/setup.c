@@ -80,7 +80,7 @@ static inline void bios_mem_setup(void)
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 }
 
-static void bios_setup(Bit32u offs)
+static void bios_setup(Bit32u offs, void *arg)
 {
   int i;
 

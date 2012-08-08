@@ -1111,7 +1111,7 @@ int CAN_SLEEP(void)
     (pic_sys_time > pic_dos_time)));
 }
 
-static void pic_iret_hlt(Bit32u offs)
+static void pic_iret_hlt(Bit32u offs, void *arg)
 {
   pic_iret();
 }
