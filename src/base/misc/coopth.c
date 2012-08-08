@@ -149,8 +149,7 @@ int coopth_start(int tid)
     thr->thread = co_create(coopth_thread, &thr->thr, NULL, COOP_STK_SIZE);
     if (!thr->thread) {
 	error("Thread create failure\n");
-	config.exitearly = 1;
-	return -1;
+	leavedos(2);
     }
     fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
     return 0;
