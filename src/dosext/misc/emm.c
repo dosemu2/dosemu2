@@ -241,12 +241,19 @@ ems_helper(void) {
   switch (LWORD(ebx)) {
   case 0:
     E_printf("EMS Init called!\n");
-    if (!config.ems_size)
+    if (!config.ems_size) {
+      LWORD(ebx) = EMS_ERROR_DISABLED_IN_CONFIG;
       return;
+    }
     if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
       error("EMS driver version mismatch: got %i, expected %i, disabling.\n"
-    	    "Please upgrade your ems.sys from the latest dosemu package.\n",
+            "Please update your ems.sys from the latest dosemu package.\n",
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);
+      com_printf("\nEMS driver version mismatch, disabling.\n"
+            "Please update your ems.sys from the latest dosemu package.\n"
+            "\nPress any key!\n");
+      LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
+      com_biosgetch();
       return;
     }
     break;

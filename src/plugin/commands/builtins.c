@@ -237,32 +237,46 @@ static int com_argparse(char *s, char **argvx, int maxarg)
 
 int com_dosgetdrive(void)
 {
+        int ret;
+        pre_msdos();
         HI(ax) = 0x19;
         call_msdos();    /* call MSDOS */
-        return LO(ax);  /* 0=A, 1=B, ... */
+        ret = LO(ax);  /* 0=A, 1=B, ... */
+        post_msdos();
+        return ret;
 }
 
 int com_dossetdrive(int drive)
 {
+        int ret;
+        pre_msdos();
         HI(ax) = 0x0e;
         LO(dx) = drive; /* 0=A, 1=B, ... */
         call_msdos();    /* call MSDOS */
-        return LO(ax);  /* number of available logical drives */
+        ret = LO(ax);  /* number of available logical drives */
+        post_msdos();
+        return ret;
 }
 
 int com_dossetcurrentdir(char *path)
 {
         /*struct com_starter_seg  *ctcb = owntcb->params;*/
         char *s = com_strdup(path);
+        int ret;
 
         com_errno = 8;
         if (!s) return -1;
+        pre_msdos();
         HI(ax) = 0x3b;
         LWORD(ds) = DOSEMU_LMHEAP_SEG;
         LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
         call_msdos();    /* call MSDOS */
         com_strfree(s);
-        if (LWORD(eflags) & CF) return -1;
+        if (LWORD(eflags) & CF) {
+                post_msdos();
+                return -1;
+        }
+        post_msdos();
         return 0;
 }
 
@@ -373,7 +387,7 @@ int commands_plugin_inte6(void)
 	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
 	    com_error("builtins plugin version mismatch: found %i, required %i\n",
 		HI(ax), BUILTINS_PLUGIN_VERSION);
-	    com_error("You should upgrade your generic.com, isemu.com and other utilities\n"
+	    com_error("You should update your generic.com, ems.sys, isemu.com and other utilities\n"
 		  "from the latest dosemu package!\n");
 	    commands_plugin_inte6_done();
 	    return 0;

@@ -10,6 +10,9 @@
 /* increase this when ems.S is changed */
 #define DOSEMU_EMS_DRIVER_VERSION 4
 
+#define EMS_ERROR_DISABLED_IN_CONFIG 1
+#define EMS_ERROR_VERSION_MISMATCH 2
+
 #define	MAX_HANDLES	255	/* must fit in a byte */
 /* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */
 #define MAX_EMM		(config.ems_size >> 4)

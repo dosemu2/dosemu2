@@ -141,10 +141,12 @@ static void InitMFS(void)
     SDA = GetSDAPointer();
 
     /* now get the DOS version */
+    pre_msdos();
     HI(ax) = 0x30;
     call_msdos();
     _osmajor = LO(ax);
     _osminor = HI(ax);
+    post_msdos();
 
     /* get DOS version into CX */
     preg.ecx = _osmajor | (_osminor <<8);
@@ -390,16 +392,19 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
     fatfs_t *f;
     if (!(di = (struct DINFO *)lowmem_alloc(sizeof(struct DINFO))))
 	return 0;
+    pre_msdos();
     LWORD(eax) = 0x6900;
     LWORD(ebx) = toupperDOS(deviceStr[0]) - 'A' + 1;
     REG(ds) = FP_SEG(di);
     LWORD(edx) = FP_OFF(di);
     call_msdos();
     if (REG(eflags) & CF) {
+	post_msdos();
 	lowmem_free((void *)di, sizeof(struct DINFO));
 	printf("error retrieving serial, %#x\n", LWORD(eax));
 	return -1;
     }
+    post_msdos();
     f = get_fat_fs_by_serial(READ_DWORDP(&di->serial));
     lowmem_free((void *)di, sizeof(struct DINFO));
     if (!f || !(dir = f->dir)) {

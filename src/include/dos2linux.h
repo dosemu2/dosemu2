@@ -1,11 +1,11 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /* dos2linux.h
- * 
+ *
  * Function prototypes for the DOSEMU/LINUX interface
  *
  */
@@ -285,10 +285,13 @@ int com_fprintf(int dosfilefd, char *format, ...) FORMAT(printf, 2, 3);
 int com_printf(char *format, ...) FORMAT(printf, 1, 2);
 int com_puts(char *s);
 char *skip_white_and_delim(char *s, int delim);
+void pre_msdos(void);
 void call_msdos(void);
+void post_msdos(void);
 int com_doswrite(int dosfilefd, char *buf32, u_short size);
 int com_dosread(int dosfilefd, char *buf32, u_short size);
 int com_dosreadcon(char *buf32, u_short size);
+int com_dosprint(char *buf32);
 int com_biosgetch(void);
 int com_biosread(char *buf32, u_short size);
 

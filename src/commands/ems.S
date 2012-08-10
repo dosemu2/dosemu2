@@ -276,6 +276,8 @@ Init:
 	int	$LinuxEMS
 	orb	%al, %al
 	jz	1f
+	cmpb	$EMS_ERROR_DISABLED_IN_CONFIG, %bl
+	jne	Error
 	movb	$1, NoEMS
 	movb	$9, %ah
 	movw	$NoEMSMsg, %dx

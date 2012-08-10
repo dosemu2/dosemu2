@@ -1,18 +1,18 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /*
- * 
+ *
  * DANG_BEGIN_MODULE
  * REMARK
  *
  * This file contains a simple system for passing information through to
  * DOSEMU from the Linux side. It does not allow dynamic message passing,
  * but it intended to provide useful information for the DOS user.
- * 
+ *
  * As such, the current set of implemented commands are :
  * GET_USER_ENVVAR and GET_COMMAND
  *
@@ -136,7 +136,7 @@
 #include "video.h"
 #include "lowmem.h"
 #include "utilities.h"
-#include "dos2linux.h" 
+#include "dos2linux.h"
 #include "vgaemu.h"
 #include "keyb_server.h"
 
@@ -160,6 +160,7 @@ static char *misc_dos_command = NULL;
 static char *misc_dos_options = NULL;
 static int need_terminate = 0;
 int com_errno;
+static struct vm86_regs saved_regs;
 
 int misc_e6_envvar (char *str)
 {
@@ -317,7 +318,7 @@ int find_drive (char **plinux_path_resolved)
 
       /* make sure drive root ends in / */
       make_end_in_backslash (drive_linux_root_resolved);
-      
+
       j_printf ("CMP: drive=%i drive_linux_root='%s' (resolved='%s')\n",
                  drive, drive_linux_root, drive_linux_root_resolved);
 
@@ -330,12 +331,12 @@ int find_drive (char **plinux_path_resolved)
                   linux_path_resolved + strlen (drive_linux_root_resolved));
         j_printf ("\t\tModified root; linux path='%s'\n", *plinux_path_resolved);
 	free (linux_path_resolved);
-        
+
 	free (drive_linux_root_resolved);
         free (drive_linux_root);
         return drive;
       }
-      
+
       free (drive_linux_root_resolved);
       free (drive_linux_root);
     } else {
@@ -410,25 +411,25 @@ void run_unix_command(char *buffer)
         g_printf("run_unix_command(): pipe(p) failed\n");
         return;
     }
-    
+
 	/* fork child */
 	switch ((pid = fork())) {
 	case -1: /* failed */
-    	    g_printf("run_unix_command(): fork() failed\n");
-    	    return;
+	    g_printf("run_unix_command(): fork() failed\n");
+	    return;
 	case 0: /* child */
-    	    close(out[0]);		/* close read side of the stdout pipe */
-    	    close(err[0]);		/* and the stderr pipe */
+	    close(out[0]);		/* close read side of the stdout pipe */
+	    close(err[0]);		/* and the stderr pipe */
 	    close(in[1]);
 	    dup2(in[0], 0);
-    	    dup2(out[1], 1);	/* copy write side of the pipe to stdout */
-    	    dup2(err[1], 2);	/* copy write side of the pipe to stderr */
-        
+	    dup2(out[1], 1);	/* copy write side of the pipe to stdout */
+	    dup2(err[1], 2);	/* copy write side of the pipe to stderr */
+
 	    priv_drop();
-        
-    	    retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
+
+	    retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
 	    error("exec /bin/sh failed\n");
-    	    exit(retval);
+	    exit(retval);
 	    break;
         }
 
@@ -436,7 +437,7 @@ void run_unix_command(char *buffer)
         close(out[1]);		/* close write side of the pipe */
         close(err[1]);		/* and stderr pipe */
         close(in[0]);
-        
+
         /* read bytes until an error occurs or child exits
          * no big buffer here, because speed is not important
          * if speed *is* important, switch to another virtual console!
@@ -511,7 +512,7 @@ void run_unix_command(char *buffer)
         close(out[0]);		/* close read side of the stdout pipe */
         close(err[0]);		/* and the stderr pipe */
         close(in[1]);
-        
+
         /* print child exitcode. not perfect */
         g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
@@ -574,12 +575,12 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 	wchar_t wtitle [sizeof(title)];
 	char *unixptr = NULL;
 	char *s;
-         
+
 	/* app - DOS in a BOX */
 	/* name of running application (if any) */
 	if (config.X_title_show_appname && strlen (title_appname))
 	  strcpy (title, title_appname);
-         
+
 	/* append name of emulator */
 	if (strlen (title_emuname)) {
 	    if (strlen (title)) strcat (title, " - ");
@@ -627,13 +628,13 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 	Video->change_config (CHG_TITLE, wtitle);
       }
        break;
-       
+
     case CHG_TITLE_EMUNAME:
       g_printf ("change_config: emu_name = %s\n", (char *) buf);
       snprintf (title_emuname, TITLE_EMUNAME_MAXLEN, "%s", ( char *) buf);
       Video->change_config (CHG_TITLE, NULL);
       break;
-      
+
     case CHG_TITLE_APPNAME:
       g_printf ("change_config: app_name = %s\n", (char *) buf);
       snprintf (title_appname, TITLE_APPNAME_MAXLEN, "%s", (char *) buf);
@@ -660,7 +661,7 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
     case GET_TITLE_APPNAME:
       snprintf (buf, TITLE_APPNAME_MAXLEN, "%s", title_appname);
       break;
-          
+
     default:
       err = 100;
   }
@@ -779,7 +780,12 @@ int com_vfprintf(int dosfilefd, char *format, va_list ap)
 
 int com_vprintf(char *format, va_list ap)
 {
-	return com_vfprintf(1, format, ap);
+	int size;
+	char scratch2[BUF_SIZE];
+
+	size = com_vsprintf(scratch2, format, ap);
+	if (!size) return 0;
+	return com_dosprint(scratch2);
 }
 
 int com_fprintf(int dosfilefd, char *format, ...)
@@ -799,7 +805,7 @@ int com_printf(char *format, ...)
 	int ret;
 	va_start(ap, format);
 
-	ret = com_vfprintf(1, format, ap);
+	ret = com_vprintf(format, ap);
 	va_end(ap);
 	return ret;
 }
@@ -817,23 +823,35 @@ char *skip_white_and_delim(char *s, int delim)
 	return s;
 }
 
-void call_msdos(void)
+void pre_msdos(void)
 {
 	if(in_dpmi && !in_dpmi_dos_int)
 		fake_pm_int();
+	saved_regs = REGS;
+}
+
+void call_msdos(void)
+{
 	do_intr_call_back(0x21);
+}
+
+void post_msdos(void)
+{
+	REGS = saved_regs;
 }
 
 int com_doswrite(int dosfilefd, char *buf32, u_short size)
 {
 	char *s;
 	u_short int23_seg, int23_off;
+	int ret;
 
 	if (!size) return 0;
 	com_errno = 8;
 	s = lowmem_heap_alloc(size);
 	if (!s) return -1;
 	memcpy(s, buf32, size);
+	pre_msdos();
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
 	LWORD(ds) = DOSEMU_LMHEAP_SEG;
@@ -849,20 +867,25 @@ int com_doswrite(int dosfilefd, char *buf32, u_short size)
 	lowmem_heap_free(s);
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
+		post_msdos();
 		return -1;
 	}
-	return  LWORD(eax);
+	ret = LWORD(eax);
+	post_msdos();
+	return ret;
 }
 
 int com_dosread(int dosfilefd, char *buf32, u_short size)
 {
 	char *s;
 	u_short int23_seg, int23_off;
+	int ret;
 
 	if (!size) return 0;
 	com_errno = 8;
 	s = lowmem_heap_alloc(size);
 	if (!s) return -1;
+	pre_msdos();
 	LWORD(ecx) = size;
 	LWORD(ebx) = dosfilefd;
 	LWORD(ds) = DOSEMU_LMHEAP_SEG;
@@ -878,12 +901,15 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
+		post_msdos();
 		lowmem_heap_free(s);
 		return -1;
 	}
 	memcpy(buf32, s, min(size, LWORD(eax)));
+	ret = LWORD(eax);
+	post_msdos();
 	lowmem_heap_free(s);
-	return LWORD(eax);
+	return ret;
 }
 
 int com_dosreadcon(char *buf32, u_short size)
@@ -891,6 +917,7 @@ int com_dosreadcon(char *buf32, u_short size)
 	u_short rd = 0;
 
 	if (!size) return 0;
+	pre_msdos();
 	while (rd < size) {
 		LWORD(eax) = 0x600;
 		LO(dx) = 0xff;
@@ -899,11 +926,41 @@ int com_dosreadcon(char *buf32, u_short size)
 			break;
 		buf32[rd++] = LO(ax);
 	}
+	post_msdos();
 	return rd;
+}
+
+int com_dosprint(char *buf32)
+{
+	char *s;
+	u_short int23_seg, int23_off, size;
+	size = strlen(buf32) + 1;
+	if (!size) return 0;
+	com_errno = 8;
+	s = lowmem_heap_alloc(size);
+	if (!s) return -1;
+	memcpy(s, buf32, size);
+	s[size - 1] = '$';
+	pre_msdos();
+	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
+	HI(ax) = 9;
+	/* write() can be interrupted with ^C. Therefore we set int0x23 here
+	 * so that even in this case it will return to the proper place. */
+	int23_seg = ISEG(0x23);
+	int23_off = IOFF(0x23);
+	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
+	call_msdos();	/* call MSDOS */
+	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
+	post_msdos();
+	lowmem_heap_free(s);
+	return size;
 }
 
 int com_biosgetch(void)
 {
+	int ret;
+	pre_msdos();
 	do {
 		HI(ax) = 1;
 		do_intr_call_back(0x16);
@@ -912,7 +969,9 @@ int com_biosgetch(void)
 	} while (LWORD(eflags) & ZF);
 	HI(ax) = 0;
 	do_intr_call_back(0x16);
-	return LO(ax);
+	ret = LO(ax);
+	post_msdos();
+	return ret;
 }
 
 int com_biosread(char *buf32, u_short size)
