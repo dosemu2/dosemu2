@@ -39,8 +39,6 @@
 #define BIOSSEG		0xf000
 #endif
 
-#define INT_OFF(i) (0xc000+(i))
-
 #define ROM_BIOS_SELFTEST	0xe05b
 #define ROM_BIOS_EXIT		0xe2b0
 
@@ -211,6 +209,8 @@
 #ifndef __ASSEMBLER__
 
 #include "types.h"
+
+u_short INT_OFF(u_char i);
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);

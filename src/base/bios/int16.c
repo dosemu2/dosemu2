@@ -60,17 +60,17 @@ static unsigned do_extended(unsigned key, int extended)
         (scan_code == 0x4e))) {
     return -1;		/* return ditched key */
   }
-  
+
   /* Handle special cases */
   if (key == 0xe02f) {     /* KEY_PAD_SLASH */
     return 0x352f;
   }
-  
+
   if (key == 0xe00d  /* KEY_PAD_ENTER */ ||
       key == 0xe00a) { /* CTRL KEY_PAD_ENTER */
     return (key & 0xff) | 0x1c00;
   }
-  
+
   return (scan_code >= 0x85 ? -1 : key); /* Hide new scan codes */
 }
 
@@ -154,7 +154,7 @@ static void read_key(int extended)
 static void get_shift_flags(void)
 {
   unsigned char fl1, fl2, fl3;
-  
+
   fl1 = READ_BYTE(BIOS_KEYBOARD_FLAGS1);
   /* get extended shift flags*/
   fl2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2); 
@@ -163,9 +163,9 @@ static void get_shift_flags(void)
 
   /* clear everything but sysreq (0x04) in fl2 */
   /* and move it to the correct bit            */
-  
+
   /* bits 2 & 3 come from fl3	*/
-  
+
   LWORD(eax) = (((fl2 & 0x73) | ((fl2 & 0x04) << 5) | (fl3 & 0xc)) << 8) | fl1;
 }
 
@@ -175,7 +175,7 @@ static void get_shift_flags(void)
 static int store_key(unsigned keycode)
 {
   unsigned keyptr;
-  
+
   keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL) + 2;
   if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END))
     keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START);
@@ -183,7 +183,7 @@ static int store_key(unsigned keycode)
   if (READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD)==keyptr) { /* full */
     return 0;
   }
-  
+
   WRITE_WORD(BIOS_DATA_SEG + READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL), keycode);
   WRITE_WORD(BIOS_KEYBOARD_BUFFER_TAIL, keyptr);
   return 1;
