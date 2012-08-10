@@ -548,29 +548,6 @@ CISH(INT70_dummy_end):
 /* COMPAS FE729		baud rate init table */
 /* COMPAS FE73C-FE82D	reserved */
 
-/* ----------------------------------------------------------------- */
-	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF
-	.globl	CISH(INT16_dummy_start)
-/* ======================= Addr = F800:682E (FE82E) */
-/* COMPAS FE82E		jmp to INT16 */
-/* COMPAS FE831-FE986	reserved */
-CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
-        /* this is all handled by int16.c, except for ah=0/0x10:
-           for that special case we need to loop in vm86 while
-           waiting for the key */
-        sti
-        testb   $0xef, %ah
-        jz      readkey_loop
-        ljmp    $BIOSSEG, $INT_OFF(0x16)
-readkey_loop:
-        pushf
-        lcall   $BIOSSEG, $INT_OFF(0x16)
-        jz      readkey_loop
-        iret
-
-        .globl  CISH(INT16_dummy_end)
-CISH(INT16_dummy_end): 
-
 /* ----------------------------------------------------------------- */   
 	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
 #if 0

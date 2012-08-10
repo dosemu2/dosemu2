@@ -97,10 +97,6 @@
 
 #define EMM_SEGMENT             (config.ems_frame)
 
-#define INT16_SEG	ROMBIOSSEG
-#define INT16_OFF	0x682e
-#define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
-
 #define IPX_SEG		ROMBIOSSEG
 #define IPX_OFF		0x6310
 #define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
