@@ -959,6 +959,8 @@ int com_dosprint(char *buf32)
 
 int com_biosgetch(void)
 {
+	int ret;
+	pre_msdos();
 	do {
 		HI(ax) = 1;
 		do_intr_call_back(0x16);
@@ -967,7 +969,9 @@ int com_biosgetch(void)
 	} while (LWORD(eflags) & ZF);
 	HI(ax) = 0;
 	do_intr_call_back(0x16);
-	return LO(ax);
+	ret = LO(ax);
+	post_msdos();
+	return ret;
 }
 
 int com_biosread(char *buf32, u_short size)
