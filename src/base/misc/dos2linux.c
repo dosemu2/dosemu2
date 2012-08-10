@@ -1,18 +1,18 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /*
- * 
+ *
  * DANG_BEGIN_MODULE
  * REMARK
  *
  * This file contains a simple system for passing information through to
  * DOSEMU from the Linux side. It does not allow dynamic message passing,
  * but it intended to provide useful information for the DOS user.
- * 
+ *
  * As such, the current set of implemented commands are :
  * GET_USER_ENVVAR and GET_COMMAND
  *
@@ -136,7 +136,7 @@
 #include "video.h"
 #include "lowmem.h"
 #include "utilities.h"
-#include "dos2linux.h" 
+#include "dos2linux.h"
 #include "vgaemu.h"
 #include "keyb_server.h"
 
@@ -779,7 +779,12 @@ int com_vfprintf(int dosfilefd, char *format, va_list ap)
 
 int com_vprintf(char *format, va_list ap)
 {
-	return com_vfprintf(1, format, ap);
+	int size;
+	char scratch2[BUF_SIZE];
+
+	size = com_vsprintf(scratch2, format, ap);
+	if (!size) return 0;
+	return com_dosprint(scratch2);
 }
 
 int com_fprintf(int dosfilefd, char *format, ...)
@@ -799,7 +804,7 @@ int com_printf(char *format, ...)
 	int ret;
 	va_start(ap, format);
 
-	ret = com_vfprintf(1, format, ap);
+	ret = com_vprintf(format, ap);
 	va_end(ap);
 	return ret;
 }
@@ -900,6 +905,31 @@ int com_dosreadcon(char *buf32, u_short size)
 		buf32[rd++] = LO(ax);
 	}
 	return rd;
+}
+
+int com_dosprint(char *buf32)
+{
+	char *s;
+	u_short int23_seg, int23_off, size;
+	size = strlen(buf32) + 1;
+	if (!size) return 0;
+	com_errno = 8;
+	s = lowmem_heap_alloc(size);
+	if (!s) return -1;
+	memcpy(s, buf32, size);
+	s[size - 1] = '$';
+	LWORD(ds) = DOSEMU_LMHEAP_SEG;
+	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
+	HI(ax) = 9;
+	/* write() can be interrupted with ^C. Therefore we set int0x23 here
+	 * so that even in this case it will return to the proper place. */
+	int23_seg = ISEG(0x23);
+	int23_off = IOFF(0x23);
+	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
+	call_msdos();	/* call MSDOS */
+	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
+	lowmem_heap_free(s);
+	return 0;
 }
 
 int com_biosgetch(void)
