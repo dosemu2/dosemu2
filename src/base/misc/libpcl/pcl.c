@@ -377,7 +377,8 @@ static void co_runner(void)
 
 	co->restarget = co->caller;
 	co->func(co->data);
-	co_exit();
+	co_resume();
+	abort();
 }
 
 coroutine_t co_create(void (*func)(void *), void *data, void *stack, int size)
