@@ -39,8 +39,6 @@
 #define BIOSSEG		0xf000
 #endif
 
-#define INT_OFF(i) (0xc000+(i))
-
 #define ROM_BIOS_SELFTEST	0xe05b
 #define ROM_BIOS_EXIT		0xe2b0
 
@@ -96,10 +94,6 @@
 #define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
 
 #define EMM_SEGMENT             (config.ems_frame)
-
-#define INT16_SEG	ROMBIOSSEG
-#define INT16_OFF	0x682e
-#define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
 
 #define IPX_SEG		ROMBIOSSEG
 #define IPX_OFF		0x6310
@@ -215,6 +209,8 @@
 #ifndef __ASSEMBLER__
 
 #include "types.h"
+
+u_short INT_OFF(u_char i);
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);

@@ -87,12 +87,18 @@ int redir_state = 0;
 static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
+static u_short hlt_off;
+
+u_short INT_OFF(u_char i)
+{
+    return (0xc000 + i + hlt_off);
+}
 
 static void change_window_title(char *title)
 {
    if (Video->change_config)
       Video->change_config(CHG_TITLE_APPNAME, title);
-} 
+}
 
 static void kill_time(long usecs) {
    hitimer_t t_start;
@@ -2182,7 +2188,7 @@ void setup_interrupts(void) {
   hlt_hdlr.start_addr = -1;
   hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
-  hlt_register_handler(hlt_hdlr);
+  hlt_off = hlt_register_handler(hlt_hdlr);
 }
 
 

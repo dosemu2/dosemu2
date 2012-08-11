@@ -957,16 +957,26 @@ int com_dosprint(char *buf32)
 	return size;
 }
 
-int com_biosgetch(void)
+int com_bioscheckkey(void)
 {
 	int ret;
 	pre_msdos();
+	HI(ax) = 1;
+	do_intr_call_back(0x16);
+	handle_signals();
+	keyb_server_run();
+	ret = !(LWORD(eflags) & ZF);
+	post_msdos();
+	return ret;
+}
+
+int com_biosgetch(void)
+{
+	int ret;
 	do {
-		HI(ax) = 1;
-		do_intr_call_back(0x16);
-		handle_signals();
-		keyb_server_run();
-	} while (LWORD(eflags) & ZF);
+		ret = com_bioscheckkey();
+	} while (!ret);
+	pre_msdos();
 	HI(ax) = 0;
 	do_intr_call_back(0x16);
 	ret = LO(ax);

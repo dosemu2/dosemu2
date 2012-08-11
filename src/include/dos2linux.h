@@ -293,6 +293,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size);
 int com_dosreadcon(char *buf32, u_short size);
 int com_dosprint(char *buf32);
 int com_biosgetch(void);
+int com_bioscheckkey(void);
 int com_biosread(char *buf32, u_short size);
 
 void init_all_DOS_tables(void);

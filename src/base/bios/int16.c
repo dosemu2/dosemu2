@@ -14,6 +14,7 @@
 #include "config.h"
 #include "int.h"
 #include "memory.h"
+#include "dos2linux.h"
 #include "keyb_server.h"
 
 #define set_typematic_rate()
@@ -59,17 +60,17 @@ static unsigned do_extended(unsigned key, int extended)
         (scan_code == 0x4e))) {
     return -1;		/* return ditched key */
   }
-  
+
   /* Handle special cases */
   if (key == 0xe02f) {     /* KEY_PAD_SLASH */
     return 0x352f;
   }
-  
+
   if (key == 0xe00d  /* KEY_PAD_ENTER */ ||
       key == 0xe00a) { /* CTRL KEY_PAD_ENTER */
     return (key & 0xff) | 0x1c00;
   }
-  
+
   return (scan_code >= 0x85 ? -1 : key); /* Hide new scan codes */
 }
 
@@ -79,21 +80,24 @@ static unsigned do_extended(unsigned key, int extended)
  *		and sets ax=key if a key is available, else
  *		returns -1
  */
-static unsigned get_key(int extended)
+static unsigned get_key(int blocking, int extended)
 {
   unsigned key = -1;
-  
-  /* get address of next char	*/
-  unsigned keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD);
+  unsigned keyptr;
+
   do {
-    /* set flag if buffer empty	*/
-    if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL)) {
-      _EFLAGS |= ZF;
-      return -1;
-    } else {
-      /* differences for extended calls */
-      key = do_extended(READ_WORD(BIOS_DATA_SEG + keyptr), extended);
-      if (key == -1) {
+    /* get address of next char	*/
+    while ((keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD)) ==
+        READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL)) {
+      if (!blocking) {
+        _EFLAGS |= ZF;
+        return -1;
+      }
+      while (!com_bioscheckkey());
+    }
+    /* differences for extended calls */
+    key = do_extended(READ_WORD(BIOS_DATA_SEG + keyptr), extended);
+    if (key == -1) {
         keyptr += 2;
         /* check for wrap around	*/
         if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
@@ -102,7 +106,6 @@ static unsigned get_key(int extended)
         }
         /* save it as new pointer	*/
         WRITE_WORD(BIOS_KEYBOARD_BUFFER_HEAD, keyptr);
-      }
     }
   } while (key == -1);
   LWORD(eax) = key;
@@ -112,7 +115,7 @@ static unsigned get_key(int extended)
 
 static unsigned check_key_available(int extended)
 {
-  unsigned keyptr = get_key(extended);
+  unsigned keyptr = get_key(0, extended);
   if(keyptr == -1) {
     if(!port60_buffer || (port60_buffer & 0x80))
       trigger_idle();
@@ -122,15 +125,12 @@ static unsigned check_key_available(int extended)
   } else {
     reset_idle(1);
   }
-  return get_key(extended);
+  return get_key(0, extended);
 }
 
-/* this corresponds to int16/ah=0,0x10 with
-   one difference: the looping is done in
-   bios.S */
 static void read_key(int extended)
 {
-  unsigned keyptr = get_key(extended);
+  unsigned keyptr = get_key(1, extended);
 
   if (keyptr == -1) {
     /* zero flag is set so that the vm86
@@ -154,7 +154,7 @@ static void read_key(int extended)
 static void get_shift_flags(void)
 {
   unsigned char fl1, fl2, fl3;
-  
+
   fl1 = READ_BYTE(BIOS_KEYBOARD_FLAGS1);
   /* get extended shift flags*/
   fl2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2); 
@@ -163,9 +163,9 @@ static void get_shift_flags(void)
 
   /* clear everything but sysreq (0x04) in fl2 */
   /* and move it to the correct bit            */
-  
+
   /* bits 2 & 3 come from fl3	*/
-  
+
   LWORD(eax) = (((fl2 & 0x73) | ((fl2 & 0x04) << 5) | (fl3 & 0xc)) << 8) | fl1;
 }
 
@@ -175,7 +175,7 @@ static void get_shift_flags(void)
 static int store_key(unsigned keycode)
 {
   unsigned keyptr;
-  
+
   keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL) + 2;
   if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END))
     keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START);
@@ -183,7 +183,7 @@ static int store_key(unsigned keycode)
   if (READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD)==keyptr) { /* full */
     return 0;
   }
-  
+
   WRITE_WORD(BIOS_DATA_SEG + READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL), keycode);
   WRITE_WORD(BIOS_KEYBOARD_BUFFER_TAIL, keyptr);
   return 1;

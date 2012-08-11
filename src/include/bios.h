@@ -142,12 +142,6 @@ EXTERN unsigned int configuration INIT(0);	/* The virtual
 
 void            bios_setup_init(void);
 
-void            INT16_dummy_start(void);
-void            INT16_dummy_end(void);
-#if 0
-void            INT09_dummy_start(void);
-void            INT09_dummy_end(void);
-#endif
 void            INT08_dummy_start(void);
 void            INT08_dummy_end(void);
 void            INT70_dummy_start(void);
