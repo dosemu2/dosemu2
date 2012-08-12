@@ -1970,11 +1970,15 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 {
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
-  
- 	/* Always use the caller function: I am calling into the
- 	   interrupt table at the start of the dosemu bios */
+
+	/* Always use the caller function: I am calling into the
+	   interrupt table at the start of the dosemu bios */
 	fake_iret();
-	coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
+	/* HACK: do not pass 0x21 to coopthreads yet */
+	if (i == 0x21)
+	    run_caller_func(i, NO_REVECT);
+	else
+	    coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 }
 
 void do_int(int i)

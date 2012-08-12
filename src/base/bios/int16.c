@@ -1,4 +1,4 @@
-/*
+/* 
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -14,7 +14,7 @@
 #include "config.h"
 #include "int.h"
 #include "memory.h"
-#include "coopth.h"
+#include "dos2linux.h"
 #include "keyb_server.h"
 
 #define set_typematic_rate()
@@ -93,7 +93,7 @@ static unsigned get_key(int blocking, int extended)
         _EFLAGS |= ZF;
         return -1;
       }
-      coopth_wait();
+      while (!com_bioscheckkey());
     }
     /* differences for extended calls */
     key = do_extended(READ_WORD(BIOS_DATA_SEG + keyptr), extended);

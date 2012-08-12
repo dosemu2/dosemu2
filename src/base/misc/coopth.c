@@ -31,7 +31,8 @@
 
 enum CoopthRet { COOPTH_NONE, COOPTH_INPR, COOPTH_WAIT,
 	COOPTH_SLEEP, COOPTH_DONE, COOPTH_MAX };
-enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING };
+enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
+	COOPTHS_DELETE };
 
 struct coopth_thr_t {
     coopth_func_t func;
@@ -53,6 +54,7 @@ struct coopth_per_thread_t {
     enum CoopthState state;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
+    int dbg;
 };
 
 #define MAX_COOP_RECUR_DEPTH 5
@@ -61,6 +63,7 @@ struct coopth_t {
     struct coopth_thr_t thr;
     char *name;
     Bit16u hlt_off;
+    int off;
     int cur_thr;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
@@ -81,13 +84,8 @@ static void do_run_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
-
-    fake_retf(0);
     co_call(pth->thread);
     ret = pth->data.ret;
-    if (ret != COOPTH_DONE)
-	fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
-
     switch (ret) {
     case COOPTH_WAIT:
 	idle(0, 5, 0, INT2F_IDLE_USECS, thr->name);
@@ -98,10 +96,7 @@ static void do_run_thread(struct coopth_t *thr,
     case COOPTH_INPR:
 	break;
     case COOPTH_DONE:
-	pth->state = COOPTHS_NONE;
-	co_delete(pth->thread);
-	thr->cur_thr--;
-	thread_running--;
+	pth->state = COOPTHS_DELETE;
 	break;
     default:
 	error("Coopthreads error, exiting\n");
@@ -112,7 +107,13 @@ static void do_run_thread(struct coopth_t *thr,
 static void coopth_hlt(Bit32u offs, void *arg)
 {
     struct coopth_t *thr = (struct coopth_t *)arg + offs;
-    struct coopth_per_thread_t *pth = &thr->pth[thr->cur_thr - 1];
+    struct coopth_per_thread_t *pth;
+    if (thr - coopthreads >= MAX_COOPTHREADS ||
+	    thr->cur_thr < 0 || thr->cur_thr > MAX_COOP_RECUR_DEPTH) {
+	error("Coopthreads error invalid thread, exiting\n");
+	leavedos(2);
+    }
+    pth = &thr->pth[thr->cur_thr - 1];
     switch (pth->state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
@@ -123,6 +124,13 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	break;
     case COOPTHS_SLEEPING:
 	idle(0, 5, 0, INT2F_IDLE_USECS, thr->name);
+	break;
+    case COOPTHS_DELETE:
+	fake_retf(0);
+	pth->state = COOPTHS_NONE;
+	co_delete(pth->thread);
+	thr->cur_thr--;
+	thread_running--;
 	break;
     }
 }
@@ -162,6 +170,7 @@ int coopth_create(char *name)
     thr->hlt_off = register_handler(nm, thr, 1);
     thr->name = nm;
     thr->cur_thr = 0;
+    thr->off = 0;
 
     return num;
 }
@@ -186,6 +195,7 @@ int coopth_create_multi(char *name, int len)
 	thr->name = nm;
 	thr->hlt_off = hlt_off + i;
 	thr->cur_thr = 0;
+	thr->off = i;
     }
 
     return num;
@@ -204,7 +214,12 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     thr->thr.func = func;
     thr->thr.arg = arg;
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
-	error("Coopthreads recursion depth exceeded\n");
+	int i;
+	error("Coopthreads recursion depth exceeded, off=%x\n", thr->off);
+	for (i = 0; i < thr->cur_thr; i++) {
+	    error("\tthread %i state %i dbg %x\n",
+		    i, thr->pth[i].state, thr->pth[i].dbg);
+	}
 	leavedos(2);
     }
     tn = thr->cur_thr++;
@@ -212,6 +227,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->data.tid = tid;
     pth->args.thr = &thr->thr;
     pth->args.thrdata = &pth->data;
+    pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
     if (!pth->thread) {
 	error("Thread create failure\n");
