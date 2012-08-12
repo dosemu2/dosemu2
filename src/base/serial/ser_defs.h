@@ -353,7 +353,6 @@ typedef struct {
   u_char rx_buf_end;			/* Receive Buffer queue end */
 
   int tx_cnt;
-  int fossil_blkrd_running;
   int fossil_blkrd_tid;
 
   struct termios oldset;		/* Original termios settings */

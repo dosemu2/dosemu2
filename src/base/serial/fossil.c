@@ -77,32 +77,18 @@ static unsigned short fossil_id_offset, fossil_id_segment;
 
 /* This flag indicates that the DOS part of the emulation, FOSSIL.COM,
  * is loaded. This module does nothing as long as this flag is false,
- * so other (DOS-based) FOSSIL drivers may be used. 
+ * so other (DOS-based) FOSSIL drivers may be used.
  */
 static boolean fossil_tsr_installed = FALSE;
 
-static void read_with_wait(void *arg)
-{
-    int num = (long)arg;
-    while (!(com[num].LSR & UART_LSR_DR))	/* Was a character received? */
-	coopth_sleep();
-    LO(ax) = read_char(num);
-    HI(ax) = 0;
-    #if SER_DEBUG_FOSSIL_RW
-        s_printf("SER%d: FOSSIL 0x02: Read char 0x%02x\n", num, LO(ax));
-    #endif
-    com[num].fossil_blkrd_running = 0;
-}
-
 void fossil_setup(int num)
 {
-    com[num].fossil_blkrd_tid = coopth_create("FOSSIL thread");
-    com[num].fossil_blkrd_running = 0;
+    com[num].fossil_blkrd_tid = -1;
 }
 
 void fossil_dr_hook(int num)
 {
-    if (!com[num].fossil_blkrd_running)
+    if (com[num].fossil_blkrd_tid == -1)
 	return;
     coopth_wake_up(com[num].fossil_blkrd_tid);
 }
@@ -160,9 +146,15 @@ void fossil_int14(int num)
 
   /* Read character (should be with wait) */
   case 0x02:
-    com[num].fossil_blkrd_running = 1;
-    coopth_start(com[num].fossil_blkrd_tid, read_with_wait,
-	    (void *)(long)num);
+    while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
+	coopth_sleep(&com[num].fossil_blkrd_tid);
+	com[num].fossil_blkrd_tid = -1;
+    }
+    LO(ax) = read_char(num);
+    HI(ax) = 0;
+    #if SER_DEBUG_FOSSIL_RW
+        s_printf("SER%d: FOSSIL 0x02: Read char 0x%02x\n", num, LO(ax));
+    #endif
     break;
 
   /* Get port status. */

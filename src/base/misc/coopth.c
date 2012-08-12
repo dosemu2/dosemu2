@@ -38,9 +38,21 @@ struct coopth_thr_t {
     void *arg;
 };
 
+struct coopth_thrdata_t {
+    int tid;
+    enum CoopthRet ret;
+};
+
+struct coopth_starter_args_t {
+    struct coopth_thr_t *thr;
+    struct coopth_thrdata_t *thrdata;
+};
+
 struct coopth_per_thread_t {
     coroutine_t thread;
     enum CoopthState state;
+    struct coopth_thrdata_t data;
+    struct coopth_starter_args_t args;
 };
 
 #define MAX_COOP_RECUR_DEPTH 5
@@ -69,17 +81,13 @@ static void do_run_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
-    int r;
+
     fake_retf(0);
     co_call(pth->thread);
-    r = (long)co_get_data(pth->thread);
-    if (r >= COOPTH_MAX) {
-	error("Coopthreads error, exiting\n");
-	leavedos(2);
-    }
-    ret = r;
+    ret = pth->data.ret;
     if (ret != COOPTH_DONE)
 	fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
+
     switch (ret) {
     case COOPTH_WAIT:
 	idle(0, 5, 0, INT2F_IDLE_USECS, thr->name);
@@ -121,9 +129,10 @@ static void coopth_hlt(Bit32u offs, void *arg)
 
 static void coopth_thread(void *arg)
 {
-    struct coopth_thr_t *thr = arg;
-    thr->func(thr->arg);
-    co_set_data(co_current(), (void *)COOPTH_DONE);
+    struct coopth_starter_args_t *args = arg;
+    co_set_data(co_current(), args->thrdata);
+    args->thr->func(args->thr->arg);
+    args->thrdata->ret = COOPTH_DONE;
 }
 
 static int register_handler(char *name, void *arg, int len)
@@ -200,7 +209,10 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
-    pth->thread = co_create(coopth_thread, &thr->thr, NULL, COOP_STK_SIZE);
+    pth->data.tid = tid;
+    pth->args.thr = &thr->thr;
+    pth->args.thrdata = &pth->data;
+    pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
     if (!pth->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
@@ -211,9 +223,10 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     return 0;
 }
 
-static void switch_state(enum CoopthState state)
+static void switch_state(enum CoopthRet ret)
 {
-    co_set_data(co_current(), (void *)state);
+    struct coopth_thrdata_t *thdata = co_get_data(co_current());
+    thdata->ret = ret;
     co_resume();
 }
 
@@ -222,8 +235,12 @@ void coopth_wait(void)
     switch_state(COOPTH_WAIT);
 }
 
-void coopth_sleep(void)
+void coopth_sleep(int *r_tid)
 {
+    if (r_tid) {
+	struct coopth_thrdata_t *thdata = co_get_data(co_current());
+	*r_tid = thdata->tid;
+    }
     switch_state(COOPTH_SLEEP);
 }
 
