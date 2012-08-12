@@ -48,6 +48,7 @@
 #include "aspi.h"
 #include "vgaemu.h"
 #include "hlt.h"
+#include "coopth.h"
 
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
@@ -88,6 +89,7 @@ static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
 static u_short hlt_off;
+static int int_tid;
 
 u_short INT_OFF(u_char i)
 {
@@ -1962,8 +1964,19 @@ static void debug_int(const char *s, int i)
  	}
 }
 
+static void do_int_from_thr(void *arg)
+{
+    u_char i = (long)arg;
+    run_caller_func(i, NO_REVECT);
+    if (debug_level('#') > 2)
+	debug_int("RET", i);
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_INTx + (i << 8), 0, 0);
+#endif
+}
+
 /*
- * DANG_BEGIN_FUNCTION DO_INT 
+ * DANG_BEGIN_FUNCTION DO_INT
  *
  * description:
  * DO_INT is used to deal with interrupts returned to DOSEMU by the
@@ -1980,12 +1993,7 @@ static void do_int_from_hlt(Bit32u i, void *arg)
  	/* Always use the caller function: I am calling into the
  	   interrupt table at the start of the dosemu bios */
 	fake_iret();
-	run_caller_func(i, NO_REVECT);
-	if (debug_level('#') > 2)
-		debug_int("RET", i);
-#ifdef USE_MHPDBG
-	  mhp_debug(DBG_INTx + (i << 8), 0, 0);
-#endif
+	coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 }
 
 void do_int(int i)
@@ -2189,6 +2197,8 @@ void setup_interrupts(void) {
   hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
   hlt_off = hlt_register_handler(hlt_hdlr);
+
+  int_tid = coopth_create_multi("ints thread", 256);
 }
 
 

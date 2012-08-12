@@ -21,7 +21,6 @@
  */
 
 #include <string.h>
-#include <assert.h>
 #include "emu.h"
 #include "utilities.h"
 #include "timers.h"
@@ -32,7 +31,8 @@
 
 enum CoopthRet { COOPTH_NONE, COOPTH_INPR, COOPTH_WAIT,
 	COOPTH_SLEEP, COOPTH_DONE, COOPTH_MAX };
-enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING };
+enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
+	COOPTHS_DELETE };
 
 struct coopth_thr_t {
     coopth_func_t func;
@@ -47,9 +47,10 @@ struct coopth_t {
     enum CoopthState state;
 };
 
-#define MAX_COOPTHREADS 20
+#define MAX_COOPTHREADS 1024
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
+static int thread_running;
 
 #define COOP_STK_SIZE (65536*2)
 
@@ -58,24 +59,10 @@ void coopth_init(void)
     co_thread_init();
 }
 
-static void coopth_hlt(Bit32u offs, void *arg)
+static void do_run_thread(struct coopth_t *thr)
 {
-    int num = (long)arg;
-    struct coopth_t *thr;
     enum CoopthRet ret;
     int r;
-    assert(num >= 0 && num < coopth_num);
-    thr = &coopthreads[num];
-    switch (thr->state) {
-    case COOPTHS_NONE:
-	thr->state = COOPTHS_RUNNING;
-	break;
-    case COOPTHS_RUNNING:
-	break;
-    case COOPTHS_SLEEPING:
-	idle(0, 5, 0, INT2F_IDLE_USECS, thr->name);
-	return;
-    }
     co_call(thr->thread);
     r = (long)co_get_data(thr->thread);
     if (r >= COOPTH_MAX) {
@@ -93,13 +80,34 @@ static void coopth_hlt(Bit32u offs, void *arg)
     case COOPTH_INPR:
 	break;
     case COOPTH_DONE:
-	fake_retf(0);
-	thr->state = COOPTHS_NONE;
-	co_delete(thr->thread);
+	thr->state = COOPTHS_DELETE;
 	break;
     default:
 	error("Coopthreads error, exiting\n");
 	leavedos(2);
+    }
+}
+
+static void coopth_hlt(Bit32u offs, void *arg)
+{
+    struct coopth_t *thr = (struct coopth_t *)arg + offs;
+    switch (thr->state) {
+    case COOPTHS_NONE:
+	error("Coopthreads error switch to inactive thread, exiting\n");
+	leavedos(2);
+	break;
+    case COOPTHS_RUNNING:
+	do_run_thread(thr);
+	break;
+    case COOPTHS_SLEEPING:
+	idle(0, 5, 0, INT2F_IDLE_USECS, thr->name);
+	break;
+    case COOPTHS_DELETE:
+	fake_retf(0);
+	thr->state = COOPTHS_NONE;
+	co_delete(thr->thread);
+	thread_running--;
+	break;
     }
 }
 
@@ -110,10 +118,21 @@ static void coopth_thread(void *arg)
     co_set_data(co_current(), (void *)COOPTH_DONE);
 }
 
-int coopth_create(char *name)
+static int register_handler(char *name, void *arg, int len)
 {
     emu_hlt_t hlt_hdlr;
+    hlt_hdlr.name = name;
+    hlt_hdlr.start_addr = -1;
+    hlt_hdlr.len = len;
+    hlt_hdlr.func = coopth_hlt;
+    hlt_hdlr.arg = arg;
+    return hlt_register_handler(hlt_hdlr);
+}
+
+int coopth_create(char *name)
+{
     int num;
+    char *nm;
     struct coopth_t *thr;
     if (coopth_num >= MAX_COOPTHREADS) {
 	error("Too many threads\n");
@@ -121,17 +140,38 @@ int coopth_create(char *name)
 	return -1;
     }
     num = coopth_num++;
+    nm = strdup(name);
     thr = &coopthreads[num];
-    thr->name = strdup(name);
+    thr->hlt_off = register_handler(nm, thr, 1);
+    thr->name = nm;
     thr->state = COOPTHS_NONE;
     thr->thread = NULL;
 
-    hlt_hdlr.name = thr->name;
-    hlt_hdlr.start_addr = -1;
-    hlt_hdlr.len = 1;
-    hlt_hdlr.func = coopth_hlt;
-    hlt_hdlr.arg = (void *)(long)num;
-    thr->hlt_off = hlt_register_handler(hlt_hdlr);
+    return num;
+}
+
+int coopth_create_multi(char *name, int len)
+{
+    int i, num;
+    char *nm;
+    struct coopth_t *thr;
+    u_short hlt_off;
+    if (coopth_num + len > MAX_COOPTHREADS) {
+	error("Too many threads\n");
+	config.exitearly = 1;
+	return -1;
+    }
+    num = coopth_num;
+    coopth_num += len;
+    nm = strdup(name);
+    hlt_off = register_handler(nm, &coopthreads[num], len);
+    for (i = 0; i < len; i++) {
+	thr = &coopthreads[num + i];
+	thr->name = nm;
+	thr->state = COOPTHS_NONE;
+	thr->thread = NULL;
+	thr->hlt_off = hlt_off + i;
+    }
 
     return num;
 }
@@ -146,25 +186,45 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     thr = &coopthreads[tid];
     thr->thr.func = func;
     thr->thr.arg = arg;
+
+    switch (thr->state) {
+    case COOPTHS_NONE:
+	break;
+    case COOPTHS_RUNNING:
+    case COOPTHS_DELETE:
+	/* We do not handle the threaded recursion yet... */
+	g_printf("Coopthreads recursion %i\n", thread_running);
+	thr->thr.func(thr->thr.arg);
+	return 0;
+    default:
+	error("Coopthreads error, exiting, state=%i\n", thr->state);
+	leavedos(2);
+    }
     thr->thread = co_create(coopth_thread, &thr->thr, NULL, COOP_STK_SIZE);
     if (!thr->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
     }
+    thr->state = COOPTHS_RUNNING;
+    thread_running++;
     fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
     return 0;
 }
 
+static void switch_state(enum CoopthState state)
+{
+    co_set_data(co_current(), (void *)state);
+    co_resume();
+}
+
 void coopth_wait(void)
 {
-    co_set_data(co_current(), (void *)COOPTH_WAIT);
-    co_resume();
+    switch_state(COOPTH_WAIT);
 }
 
 void coopth_sleep(void)
 {
-    co_set_data(co_current(), (void *)COOPTH_SLEEP);
-    co_resume();
+    switch_state(COOPTH_SLEEP);
 }
 
 void coopth_wake_up(int tid)
