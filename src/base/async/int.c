@@ -1597,13 +1597,6 @@ void redirect_devices(void)
  */
 static int redir_it(void)
 {
-  /*
-   * Declaring the following struct volatile works around an EGCS bug
-   * (at least up to egcs-2.91.66). Otherwise the line below marked
-   * with '###' will modify the *old* (saved) struct too.
-   * -- sw
-   */
-  volatile static struct vm86_regs save_regs;
   static unsigned x0, x1, x2, x3, x4;
   unsigned u;
 
@@ -1611,58 +1604,48 @@ static int redir_it(void)
    * To start up the redirector we need (1) the list of list, (2) the DOS version and
    * (3) the swappable data area. To get these, we reuse the original file open call.
    */
-  switch(redir_state) {
-    case 1:
-      if(HI(ax) == 0x3d) {
+  if(HI(ax) != 0x3d)
+    return 0;
+
         /*
          * FreeDOS will get confused by the following calling sequence (e.i. it
          * is not reentrant 'enough'. So we will abort here - it cannot use a
          * redirector anyway.
          * -- sw
          */
-        if (running_DosC) {
+  if (running_DosC) {
           ds_printf("INT21: FreeDOS detected - no check for redirector\n");
-          return redir_state = 0;
-        }
-        save_regs = REGS;
-        redir_state = 2;
-        LWORD(eip) -= 2;
-        LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
-        ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-          redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-        return 1;
-      }
-      break;
+          redir_state = 0;
+          return 0;
+  }
+  pre_msdos();
+  LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
+  call_msdos();
+  ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-    case 2:
-      x0 = LWORD(ebx); x1 = REG(es);
-      redir_state = 3;
-      LWORD(eip) -= 2;
-      LWORD(eax) = 0x3000;
-      ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-        redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-      return 2;
-      break;
+  x0 = LWORD(ebx);
+  x1 = REG(es);
+  LWORD(eax) = 0x3000;
+  call_msdos();
+  ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-    case 3:
-      x4 = LWORD(eax);
-      redir_state = 4;
-      LWORD(eip) -= 2;
-      LWORD(eax) = 0x5d06;
-      ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-        redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-      return 3;
-      break;
+  x4 = LWORD(eax);
+  LWORD(eax) = 0x5d06;
+  call_msdos();
+  ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-    case 4:
-      x2 = LWORD(esi); x3 = REG(ds);
-      redir_state = 0;
-      u = x0 + (x1 << 4);
-      ds_printf("INT21: lol = 0x%x\n", u);
-      ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
-      ds_printf("INT21: ver = 0x%02x\n", x4);
+  x2 = LWORD(esi);
+  x3 = REG(ds);
+  redir_state = 0;
+  u = x0 + (x1 << 4);
+  ds_printf("INT21: lol = 0x%x\n", u);
+  ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
+  ds_printf("INT21: ver = 0x%02x\n", x4);
 
-      if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
+  if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
         /* Init the redirector. */
         LWORD(ecx) = x4;
         LWORD(edx) = x0; REG(es) = x1;
@@ -1672,15 +1655,13 @@ static int redir_it(void)
         mfs_inte6();
 
         redirect_devices();
-      }
-      else {
-        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
-      }
-
-      REGS = save_regs;
-      set_int21_revectored(-1);
-      break;
   }
+  else {
+        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
+  }
+
+  post_msdos();
+  set_int21_revectored(-1);
 
   return 0;
 }
@@ -2009,7 +1990,7 @@ void do_int(int i)
 	
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
-  
+
 #if 1  /* This test really ought to be in the main loop before
  	*  instruction execution not here. --EB 10 March 1997 
  	*/
@@ -2021,16 +2002,8 @@ void do_int(int i)
  		leavedos(57);
  	}
 #endif
-  
-  
- 	/* see if I want to use the caller function */
- 	/* I want to use it if I must always use it */
- 	/* assume IP was just incremented by 2 past int int instruction which set us
- 	   off */
-	
- 	if (SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)) == IVEC(i)) {
-		run_caller_func(i, can_revector(i));
-	} else if (can_revector(i) != REVECT || !run_caller_func(i, REVECT)) {
+
+	if (can_revector(i) != REVECT || !run_caller_func(i, REVECT)) {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
 			if ((i != 0x2a) && (i != 0x28))
