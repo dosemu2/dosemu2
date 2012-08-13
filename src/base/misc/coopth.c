@@ -54,6 +54,7 @@ struct coopth_per_thread_t {
     enum CoopthState state;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
+    struct coopth_thr_t post;
     int dbg;
 };
 
@@ -131,6 +132,8 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	co_delete(pth->thread);
 	thr->cur_thr--;
 	thread_running--;
+	if (pth->post.func)
+	    pth->post.func(pth->post.arg);
 	break;
     }
 }
@@ -227,6 +230,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->data.tid = tid;
     pth->args.thr = &thr->thr;
     pth->args.thrdata = &pth->data;
+    pth->post.func = NULL;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
     if (!pth->thread) {
@@ -236,6 +240,21 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->state = COOPTHS_RUNNING;
     thread_running++;
     fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
+    return 0;
+}
+
+int coopth_set_post_handler(int tid, coopth_func_t func, void *arg)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    pth = &thr->pth[thr->cur_thr - 1];
+    pth->post.func = func;
+    pth->post.arg = arg;
     return 0;
 }
 

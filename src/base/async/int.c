@@ -1157,6 +1157,11 @@ static int int21lfnhook(void)
   return 1;
 }
 
+static void int21lfnhook_thr(void *arg)
+{
+  int21lfnhook();
+}
+
 static int msdos(void)
 {
   ds_printf("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
@@ -1974,11 +1979,9 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
 	fake_iret();
-	/* HACK: do not pass 0x21 to coopthreads yet */
-	if (i == 0x21)
-	    run_caller_func(i, NO_REVECT);
-	else
-	    coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
+	coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
+	if (config.lfn && i == 0x21)
+		coopth_set_post_handler(int_tid + i, int21lfnhook_thr, NULL);
 }
 
 void do_int(int i)
@@ -2129,7 +2132,7 @@ void setup_interrupts(void) {
     interrupt_function[i][NO_REVECT] =
       interrupt_function[i][REVECT] = NULL;
   }
-  
+
   interrupt_function[5][NO_REVECT] = int05;
   /* This is called only when revectoring int10 */
   interrupt_function[0x10][NO_REVECT] = int10;
@@ -2143,8 +2146,6 @@ void setup_interrupts(void) {
   interrupt_function[0x18][NO_REVECT] = int18;
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
-  if (config.lfn)
-    interrupt_function[0x21][NO_REVECT] = int21lfnhook;
   interrupt_function[0x21][REVECT] = int21;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
