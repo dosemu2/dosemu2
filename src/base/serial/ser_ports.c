@@ -169,8 +169,11 @@ void uart_fill(int num)
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
-  if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size)
+  if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size) {
+    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", num,
+        RX_BUF_BYTES(num));
     return;
+  }
 
   /* Slide the buffer contents to the bottom */
   rx_buffer_slide(num);
@@ -185,6 +188,12 @@ void uart_fill(int num)
     return;
   if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
         size, RX_BUF_BYTES(num));
+  if (debug_level('s') >= 9) {
+    int i;
+    for (i = 0; i < size; i++)
+      s_printf("SER%d: Read %#x\n", num,
+          com[num].rx_buf[com[num].rx_buf_end + i]);
+  }
   com[num].rx_buf_end += size;
   if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
     com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
