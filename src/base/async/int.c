@@ -578,7 +578,7 @@ static int int15(void)
     switch (LO(ax))
     {
       case 0x00: {		/* giveup timeslice */
-        idle(0, 100, 0, INT15_IDLE_USECS, "topview");
+        idle(0, 100, 0, "topview");
         break;
       }
     }
@@ -1243,7 +1243,7 @@ static int msdos(void)
 #endif
 
   case 0x2C: {                   /* get time & date */
-      idle(2, 100, 0, INT2F_IDLE_USECS, "dos_time");
+      idle(2, 100, 0, "dos_time");
       return 0;
     }
 
@@ -1689,7 +1689,7 @@ static void dos_post_boot(void)
 
 /* KEYBOARD BUSY LOOP */
 static int int28(void) {
-  idle(0, 50, 0, INT28_IDLE_USECS, "int28");
+  idle(0, 50, 0, "int28");
   return 0;
 }
 
@@ -1710,7 +1710,7 @@ static int int2f(void)
 #endif
   switch (LWORD(eax)) {
     case INT2F_IDLE_MAGIC: {  /* magic "give up time slice" value */
-      idle(0, 100, 0, INT2F_IDLE_USECS, "int2f_idle_magic");
+      idle(0, 100, 0, "int2f_idle_magic");
       LWORD(eax) = 0;
       return 1;
     }
@@ -1920,7 +1920,7 @@ static void int33_check_hog(void)
   m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
   /* Ok now we test to see if the mouse has been taking a break and we can let the 
    * system get on with some real work. :-) */
-  idle(200, 20, 20, INT15_IDLE_USECS, "mouse");
+  idle(200, 20, 20, "mouse");
 }
 
 static void fake_iret(void);

@@ -49,7 +49,7 @@ void midi_write(unsigned char val)
   for (i = 0; i < out_registered; i++)
     if (out[i].initialized)
       out[i].plugin.write(val);
-//  idle(0, 0, 0, 0, "midi");
+//  idle(0, 0, 0, "midi");
 }
 
 void midi_init(void)
