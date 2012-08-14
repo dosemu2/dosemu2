@@ -191,7 +191,7 @@ void uart_fill(int num)
   if (debug_level('s') >= 9) {
     int i;
     for (i = 0; i < size; i++)
-      s_printf("SER%d: Read %#x\n", num,
+      s_printf("SER%d: Got data byte: %#x\n", num,
           com[num].rx_buf[com[num].rx_buf_end + i]);
   }
   com[num].rx_buf_end += size;
