@@ -356,20 +356,27 @@ void trigger_idle(void)
     trigger1++;
 }
 
+void dosemu_sleep(void)
+{
+  sigset_t mask;
+  if (CAN_SLEEP()) {
+    sigemptyset(&mask);
+    sigsuspend(&mask);
+  }
+}
+
 /* "strong" idle callers will have threshold1 = 0 so only the
    inner loop applies. Heuristic idlers (int16/ah=1, mouse)
    need the two loops -- the outer loop can be reset using
    reset_idle */
-int idle(int threshold1, int threshold, int threshold2, int usec, const char *who)
+int idle(int threshold1, int threshold, int threshold2, const char *who)
 {
   static int trigger = 0;
   do_periodic_stuff();
   if (config.hogthreshold && CAN_SLEEP()) {
     if(trigger1 >= config.hogthreshold * threshold1) {
       if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
-	sigset_t mask;
-	sigemptyset(&mask);
-	sigsuspend(&mask);
+	dosemu_sleep();
 	trigger = 0;
       }
       if (trigger1 > 0)
