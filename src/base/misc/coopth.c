@@ -89,7 +89,7 @@ static void do_run_thread(struct coopth_t *thr,
     ret = pth->data.ret;
     switch (ret) {
     case COOPTH_WAIT:
-	idle(0, 5, 0, INT2F_IDLE_USECS, thr->name);
+	dosemu_sleep();
 	break;
     case COOPTH_SLEEP:
 	pth->state = COOPTHS_SLEEPING;
@@ -124,7 +124,7 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	do_run_thread(thr, pth);
 	break;
     case COOPTHS_SLEEPING:
-	idle(0, 5, 0, INT2F_IDLE_USECS, thr->name);
+	dosemu_sleep();
 	break;
     case COOPTHS_DELETE:
 	fake_retf(0);
