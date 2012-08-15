@@ -262,7 +262,6 @@ int com_dossetcurrentdir(char *path)
 {
         /*struct com_starter_seg  *ctcb = owntcb->params;*/
         char *s = com_strdup(path);
-        int ret;
 
         com_errno = 8;
         if (!s) return -1;
