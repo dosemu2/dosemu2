@@ -40,7 +40,7 @@ int int17(void)
     val8 = port_inb(addr + 2);
     port_outb(addr + 2, val8 | 0x01); // send strobe
     port_outb(addr + 2, val8 & ~0x01);
-    while (((val8 = port_inb(addr + 1)) & CTS_STAT_NOT_ACKing) && timeout)
+    while (((val8 = port_inb(addr + 1)) & LPT_STAT_NOT_ACK) && timeout)
       timeout--;
     break;
   case 1:
@@ -53,7 +53,7 @@ int int17(void)
     val8 = port_inb(addr + 1);
     break;
   }
-  _AH = val8 ^ (CTS_STAT_NOT_ACKing | CTS_STAT_NOIOERR);
+  _AH = val8 ^ (LPT_STAT_NOT_ACK | LPT_STAT_NOIOERR);
   if (!timeout) _AH |= LPT_STAT_TIMEOUT;
   NOCARRY;
 

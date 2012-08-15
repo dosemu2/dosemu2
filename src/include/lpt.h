@@ -37,29 +37,22 @@ int printer_write(int prnum, int outchar);
 void printer_config(int prnum, struct printer *pptr);
 void printer_print_config(int prnum, void (*print)(const char *, ...));
 
-/* status bits, LPT */
+/* status bits */
 #define LPT_STAT_TIMEOUT	0x1
 #define LPT_STAT_NOT_IRQ	0x4
-/* status bits, Centronics */
-#define CTS_STAT_NOIOERR	0x8
-#define CTS_STAT_ONLINE		0x10
-#define CTS_STAT_NOPAPER	0x20
-#define CTS_STAT_NOT_ACKing	0x40
-#define CTS_STAT_BUSY		0x80
+#define LPT_STAT_NOIOERR	0x8
+#define LPT_STAT_ONLINE		0x10
+#define LPT_STAT_NOPAPER	0x20
+#define LPT_STAT_NOT_ACK	0x40
+#define LPT_STAT_NOT_BUSY	0x80
 
-/* control bits, LPT */
+/* control bits */
 #define LPT_CTRL_INPUT		0x20
 #define LPT_CTRL_IRQ_EN		0x10
-/* control bits, Centronics */
-#define CTS_CTRL_NOT_SELECT	0x8
-#define CTS_CTRL_NOT_INIT	0x4
-#define CTS_CTRL_NOT_AUTOLF	0x2
-#define CTS_CTRL_NOT_STROBE	0x1
-
-/* inversion masks to convert LPT<-->Centronics */
-#define LPT_STAT_INV_MASK (CTS_STAT_BUSY)
-#define LPT_CTRL_INV_MASK (CTS_CTRL_NOT_STROBE | CTS_CTRL_NOT_AUTOLF | \
-	CTS_CTRL_NOT_SELECT)
+#define LPT_CTRL_SELECT		0x8
+#define LPT_CTRL_NOT_INIT	0x4
+#define LPT_CTRL_AUTOLF		0x2
+#define LPT_CTRL_STROBE		0x1
 
 #define NUM_PRINTERS 3
 extern struct printer lpt[NUM_PRINTERS];
