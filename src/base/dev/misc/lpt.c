@@ -29,11 +29,16 @@
 
 static int stub_printer_write(int, int);
 
+#define DEFAULT_STAT (CTS_STAT_ONLINE | CTS_STAT_NOIOERR | \
+    CTS_STAT_NOT_ACKing | LPT_STAT_NOT_IRQ)
+#define DEFAULT_CTRL (CTS_CTRL_NOT_INIT | CTS_CTRL_NOT_AUTOLF | \
+    CTS_CTRL_NOT_STROBE)
+
 struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, NULL, 5, 0x378, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_NOT_ACKing | LPT_NOT_IRQ},
-  {NULL, NULL, 5, 0x278, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_NOT_ACKing | LPT_NOT_IRQ},
-  {NULL, NULL, 10, 0x3bc, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_NOT_ACKing | LPT_NOT_IRQ}
+  {NULL, NULL, 5, 0x378, .control = DEFAULT_CTRL, .status = DEFAULT_STAT},
+  {NULL, NULL, 5, 0x278, .control = DEFAULT_CTRL, .status = DEFAULT_STAT},
+  {NULL, NULL, 10, 0x3bc, .control = DEFAULT_CTRL, .status = DEFAULT_STAT}
 };
 
 static int get_printer(ioport_t port)
@@ -57,13 +62,14 @@ static Bit8u printer_io_read(ioport_t port)
   case 0:
     return lpt[i].data; /* simple unidirectional port */
   case 1: /* status port, r/o */
-    val = lpt[i].status;
+    val = lpt[i].status ^ LPT_STAT_INV_MASK;
     /* we should really set ACK after 5 us but here we just
        use the fact that the BIOS only checks this once */
-    lpt[i].status |= LPT_NOT_ACKing | LPT_NOT_IRQ;
+    lpt[i].status |= CTS_STAT_NOT_ACKing | LPT_STAT_NOT_IRQ;
+    lpt[i].status &= ~CTS_STAT_BUSY;
     return val;
   case 2:
-    return lpt[i].control;
+    return lpt[i].control ^ LPT_CTRL_INV_MASK;
   default:
     return 0xff;
   }
@@ -81,10 +87,13 @@ static void printer_io_write(ioport_t port, Bit8u value)
   case 1: /* status port, r/o */
     break;
   case 2:
-    if (!(lpt[i].control & 1) && (value & 9) == 9) {
-      /* STROBE */
+    value ^= LPT_CTRL_INV_MASK;		// convert to Centronics
+    if (((lpt[i].control & (CTS_CTRL_NOT_STROBE | CTS_CTRL_NOT_SELECT)) == 0)
+        && (value & CTS_CTRL_NOT_STROBE)) {
+      /* STROBE rising */
       printer_write(i, lpt[i].data);
-      lpt[i].status &= ~LPT_NOT_ACKing;
+      lpt[i].status &= ~CTS_STAT_NOT_ACKing;
+      lpt[i].status |= CTS_STAT_BUSY;
     }
     lpt[i].control = value;
     break;
