@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -31,9 +31,9 @@ static int stub_printer_write(int, int);
 
 struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, NULL, 5, 0x378, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK},
-  {NULL, NULL, 5, 0x278, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK},
-  {NULL, NULL, 10, 0x3bc, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK}
+  {NULL, NULL, 5, 0x378, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_NOT_ACKing | LPT_NOT_IRQ},
+  {NULL, NULL, 5, 0x278, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_NOT_ACKing | LPT_NOT_IRQ},
+  {NULL, NULL, 10, 0x3bc, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_NOT_ACKing | LPT_NOT_IRQ}
 };
 
 static int get_printer(ioport_t port)
@@ -60,7 +60,7 @@ static Bit8u printer_io_read(ioport_t port)
     val = lpt[i].status;
     /* we should really set ACK after 5 us but here we just
        use the fact that the BIOS only checks this once */
-    lpt[i].status |= LPT_ACK;
+    lpt[i].status |= LPT_NOT_ACKing | LPT_NOT_IRQ;
     return val;
   case 2:
     return lpt[i].control;
@@ -76,15 +76,16 @@ static void printer_io_write(ioport_t port, Bit8u value)
     return;
   switch (port - lpt[i].base_port) {
   case 0:
-    lpt[i].status = LPT_NOTBUSY | LPT_NOIOERR | LPT_ONLINE;
     lpt[i].data = value;
     break;
   case 1: /* status port, r/o */
     break;
   case 2:
-    if (!(lpt[i].control & 1) && (value & 9) == 9)
+    if (!(lpt[i].control & 1) && (value & 9) == 9) {
+      /* STROBE */
       printer_write(i, lpt[i].data);
-    lpt[i].status &= ~LPT_ACK;
+      lpt[i].status &= ~LPT_NOT_ACKing;
+    }
     lpt[i].control = value;
     break;
   default:
