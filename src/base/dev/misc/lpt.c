@@ -78,19 +78,29 @@ static Bit8u printer_io_read(ioport_t port)
 
   switch (port - lpt[i].base_port) {
   case 0:
-    return lpt[i].data; /* simple unidirectional port */
+    val = lpt[i].data; /* simple unidirectional port */
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Reading data byte %#x\n", i, val);
+    break;
   case 1: /* status port, r/o */
     val = lpt[i].status ^ LPT_STAT_INV_MASK;
     /* we should really set ACK after 5 us but here we just
        use the fact that the BIOS only checks this once */
     lpt[i].status |= CTS_STAT_NOT_ACKing | LPT_STAT_NOT_IRQ;
     lpt[i].status &= ~CTS_STAT_BUSY;
-    return val;
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Reading status byte %#x\n", i, val);
+    break;
   case 2:
-    return lpt[i].control ^ LPT_CTRL_INV_MASK;
+    val = lpt[i].control ^ LPT_CTRL_INV_MASK;
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Reading control byte %#x\n", i, val);
+    break;
   default:
-    return 0xff;
+    val = 0xff;
+    break;
   }
+  return val;
 }
 
 static void printer_io_write(ioport_t port, Bit8u value)
@@ -100,11 +110,15 @@ static void printer_io_write(ioport_t port, Bit8u value)
     return;
   switch (port - lpt[i].base_port) {
   case 0:
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Writing data byte %#x\n", i, value);
     lpt[i].data = value;
     break;
   case 1: /* status port, r/o */
     break;
   case 2:
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Writing control byte %#x\n", i, value);
     value ^= LPT_CTRL_INV_MASK;		// convert to Centronics
     if (((lpt[i].control & (CTS_CTRL_NOT_STROBE | CTS_CTRL_NOT_SELECT)) == 0)
         && (value & CTS_CTRL_NOT_STROBE)) {
@@ -114,8 +128,6 @@ static void printer_io_write(ioport_t port, Bit8u value)
       lpt[i].status |= CTS_STAT_BUSY;
     }
     lpt[i].control = value;
-    break;
-  default:
     break;
   }
 }
