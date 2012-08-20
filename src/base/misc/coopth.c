@@ -121,7 +121,44 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	leavedos(2);
 	break;
     case COOPTHS_RUNNING:
+	/* We have 2 kinds of recursion:
+	 *
+	 * 1. (call it recursive thread invocation)
+	 *	main_thread -> coopth_start(thread1_func) -> return
+	 *		thread1_func() -> coopth_start(thread2_func) -> return
+	 *		(thread 1 returned, became zombie)
+	 *			thread2_func() -> return
+	 *			thread2 joined
+	 *		thread1 joined
+	 *	main_thread...
+	 *
+	 * 2. (call it nested thread invocation)
+	 *	main_thread -> coopth_start(thread1_func) -> return
+	 *		thread1_func() -> do_intr_call_back() ->
+	 *		run_int_from_hlt() ->
+	 *		coopth_start(thread2_func) -> return
+	 *			thread2_func() -> return
+	 *			thread2 joined
+	 *		-> return from do_intr_call_back() ->
+	 *		return from thread1_func()
+	 *		thread1 joined
+	 *	main_thread...
+	 *
+	 * Both cases are supported here, but the nested invocation
+	 * is not supposed to be used as being too complex.
+	 * do_call_back() stuff have to be carefully converted
+	 * to coopth API so that the nesting is avoided.
+	 */
+	if (thread_running) {
+	    static int warned;
+	    if (!warned) {
+		warned = 1;
+		dosemu_error("Nested thread invocation detected, please fix!\n");
+	    }
+	}
+	thread_running++;
 	do_run_thread(thr, pth);
+	thread_running--;
 	break;
     case COOPTHS_SLEEPING:
 	dosemu_sleep();
@@ -131,7 +168,6 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	pth->state = COOPTHS_NONE;
 	co_delete(pth->thread);
 	thr->cur_thr--;
-	thread_running--;
 	if (pth->post.func)
 	    pth->post.func(pth->post.arg);
 	break;
@@ -238,7 +274,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	leavedos(2);
     }
     pth->state = COOPTHS_RUNNING;
-    thread_running++;
     fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
     return 0;
 }
@@ -256,6 +291,14 @@ int coopth_set_post_handler(int tid, coopth_func_t func, void *arg)
     pth->post.func = func;
     pth->post.arg = arg;
     return 0;
+}
+
+int coopth_is_in_thread(void)
+{
+    /* this is an ad-hoc, the caller should know better than ask */
+    if (!thread_running)
+	dosemu_error("Coopth: not in thread!\n");
+    return thread_running;
 }
 
 static void switch_state(enum CoopthRet ret)
