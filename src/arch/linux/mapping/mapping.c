@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -19,6 +19,7 @@
  */
 
 #include "emu.h"
+#include "hma.h"
 #include "utilities.h"
 #include "Linux/mman.h"
 #include "mapping.h"
@@ -100,6 +101,14 @@ void *dosaddr_to_unixaddr(unsigned int addr)
   if (addr < LOWMEM_SIZE + HMASIZE)
     return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
   return &mem_base[addr];
+}
+
+void *physaddr_to_unixaddr(unsigned int addr)
+{
+  if (addr < LOWMEM_SIZE + HMASIZE)
+    return dosaddr_to_unixaddr(addr);
+  /* XXX something other than XMS? */
+  return &ext_mem_base[addr - (LOWMEM_SIZE + HMASIZE)];
 }
 
 static int map_find_idx(struct mem_map_struct *map, int max, off_t addr)

@@ -223,6 +223,7 @@ void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(unsigned int addr);
+void *physaddr_to_unixaddr(unsigned int addr);
 void *lowmemp(const void *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect

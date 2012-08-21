@@ -21,7 +21,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #include "emu.h"
-#include "utilities.h"
+#include "ringbuf.h"
 #include "timers.h"
 #include "sound/sound.h"
 #include "sound/midi.h"

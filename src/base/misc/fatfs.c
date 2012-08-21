@@ -819,7 +819,7 @@ unsigned dos_time(time_t *tt)
 unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
 {
   static unsigned char dos_ent[0x20];
-  char *s, sdos[strlen(o->name) + 1];
+  char *s, sdos[PATH_MAX + 1];
   unsigned u, start;
   int i, l;
 

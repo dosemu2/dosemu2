@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -29,11 +29,34 @@
 
 static int stub_printer_write(int, int);
 
+/* status bits, Centronics */
+#define CTS_STAT_NOIOERR	LPT_STAT_NOIOERR
+#define CTS_STAT_ONLINE		LPT_STAT_ONLINE
+#define CTS_STAT_NOPAPER	LPT_STAT_NOPAPER
+#define CTS_STAT_NOT_ACKing	LPT_STAT_NOT_ACK
+#define CTS_STAT_BUSY		LPT_STAT_NOT_BUSY
+
+/* control bits, Centronics */
+#define CTS_CTRL_NOT_SELECT	LPT_CTRL_SELECT
+#define CTS_CTRL_NOT_INIT	LPT_CTRL_NOT_INIT
+#define CTS_CTRL_NOT_AUTOLF	LPT_CTRL_AUTOLF
+#define CTS_CTRL_NOT_STROBE	LPT_CTRL_STROBE
+
+/* inversion masks to convert LPT<-->Centronics */
+#define LPT_STAT_INV_MASK (CTS_STAT_BUSY)
+#define LPT_CTRL_INV_MASK (CTS_CTRL_NOT_STROBE | CTS_CTRL_NOT_AUTOLF | \
+	CTS_CTRL_NOT_SELECT)
+
+#define DEFAULT_STAT (CTS_STAT_ONLINE | CTS_STAT_NOIOERR | \
+    CTS_STAT_NOT_ACKing | LPT_STAT_NOT_IRQ)
+#define DEFAULT_CTRL (CTS_CTRL_NOT_INIT | CTS_CTRL_NOT_AUTOLF | \
+    CTS_CTRL_NOT_STROBE)
+
 struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, NULL, 5, 0x378, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK},
-  {NULL, NULL, 5, 0x278, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK},
-  {NULL, NULL, 10, 0x3bc, .control = 8, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_NOIOERR | LPT_ACK}
+  {NULL, NULL, 5, 0x378, .control = DEFAULT_CTRL, .status = DEFAULT_STAT},
+  {NULL, NULL, 5, 0x278, .control = DEFAULT_CTRL, .status = DEFAULT_STAT},
+  {NULL, NULL, 10, 0x3bc, .control = DEFAULT_CTRL, .status = DEFAULT_STAT}
 };
 
 static int get_printer(ioport_t port)
@@ -55,18 +78,29 @@ static Bit8u printer_io_read(ioport_t port)
 
   switch (port - lpt[i].base_port) {
   case 0:
-    return lpt[i].data; /* simple unidirectional port */
+    val = lpt[i].data; /* simple unidirectional port */
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Reading data byte %#x\n", i, val);
+    break;
   case 1: /* status port, r/o */
-    val = lpt[i].status;
+    val = lpt[i].status ^ LPT_STAT_INV_MASK;
     /* we should really set ACK after 5 us but here we just
        use the fact that the BIOS only checks this once */
-    lpt[i].status |= LPT_ACK;
-    return val;
+    lpt[i].status |= CTS_STAT_NOT_ACKing | LPT_STAT_NOT_IRQ;
+    lpt[i].status &= ~CTS_STAT_BUSY;
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Reading status byte %#x\n", i, val);
+    break;
   case 2:
-    return lpt[i].control;
+    val = lpt[i].control ^ LPT_CTRL_INV_MASK;
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Reading control byte %#x\n", i, val);
+    break;
   default:
-    return 0xff;
+    val = 0xff;
+    break;
   }
+  return val;
 }
 
 static void printer_io_write(ioport_t port, Bit8u value)
@@ -76,18 +110,24 @@ static void printer_io_write(ioport_t port, Bit8u value)
     return;
   switch (port - lpt[i].base_port) {
   case 0:
-    lpt[i].status = LPT_NOTBUSY | LPT_NOIOERR | LPT_ONLINE;
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Writing data byte %#x\n", i, value);
     lpt[i].data = value;
     break;
   case 1: /* status port, r/o */
     break;
   case 2:
-    if (!(lpt[i].control & 1) && (value & 9) == 9)
+    if (debug_level('p') >= 5)
+      p_printf("LPT%d: Writing control byte %#x\n", i, value);
+    value ^= LPT_CTRL_INV_MASK;		// convert to Centronics
+    if (((lpt[i].control & (CTS_CTRL_NOT_STROBE | CTS_CTRL_NOT_SELECT)) == 0)
+        && (value & CTS_CTRL_NOT_STROBE)) {
+      /* STROBE rising */
       printer_write(i, lpt[i].data);
-    lpt[i].status &= ~LPT_ACK;
+      lpt[i].status &= ~CTS_STAT_NOT_ACKing;
+      lpt[i].status |= CTS_STAT_BUSY;
+    }
     lpt[i].control = value;
-    break;
-  default:
     break;
   }
 }

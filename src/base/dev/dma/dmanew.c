@@ -126,7 +126,8 @@ static void dma_update_DRQ(int dma_idx, int chan_idx)
 static void dma_process_channel(int dma_idx, int chan_idx)
 {
     struct dma_channel *chan = &dma[dma_idx].chans[chan_idx];
-    Bit32u addr = (chan->page << 16) | (chan->cur_addr.value << dma_idx);
+    void *addr = physaddr_to_unixaddr(
+	    (chan->page << 16) | (chan->cur_addr.value << dma_idx));
 
     /* first, do the transfer */
     switch (DMA_TRANSFER_OP(chan->mode)) {
@@ -134,10 +135,10 @@ static void dma_process_channel(int dma_idx, int chan_idx)
 	q_printf("DMA: verify mode does nothing\n");
 	break;
     case WRITE:
-	MEMCPY_2DOS(addr, dma_data_bus, 1 << dma_idx);
+	memcpy(addr, dma_data_bus, 1 << dma_idx);
 	break;
     case READ:
-	MEMCPY_2UNIX(dma_data_bus, addr, 1 << dma_idx);
+	memcpy(dma_data_bus, addr, 1 << dma_idx);
 	break;
     case INVALID:
 	q_printf("DMA: invalid mode does nothing\n");
