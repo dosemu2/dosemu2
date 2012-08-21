@@ -226,8 +226,8 @@ void cpu_reset(void)
   REG(ebp) = 0;
   REG(eip) = 0;
   REG(cs) = 0xffff;
-  REG(esp) = 0x100;
-  REG(ss) = 0x30;		/* This is the standard pc bios stack */
+  REG(esp) = 0xfffe;
+  REG(ss) = 0;		/* This is the standard pc bios stack */
   REG(es) = 0;			/* standard pc es */
   REG(ds) = 0x40;		/* standard pc ds */
   REG(fs) = 0;

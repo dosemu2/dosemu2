@@ -80,8 +80,6 @@ static interrupt_function_t *interrupt_function[0x100][2];
 static unsigned int dos_io_buffer;
 static int dos_io_buffer_size = 0;
 
-static u_char         save_hi_ints[128];
-
 /* set if some directories are mounted during startup */
 int redir_state = 0;
 
@@ -294,26 +292,14 @@ int dos_helper(void)
       _AX=get_bios_key(_AH);
       k_printf("HELPER: get_bios_key() returned %04x\n",_AX);
       break;
-     
+
   case DOS_HELPER_VIDEO_INIT:
     v_printf("Starting Video initialization\n");
-    /* DANG_BEGIN_REMARK
-     * Many video BIOSes use hi interrupt vector locations as
-     * scratchpad area - this is because they come before DOS and feel
-     * safe to do it. But we are initializing vectors before video, so
-     * this only causes trouble. I assume no video BIOS will ever:
-     * - change vectors < 0xe0 (0:380-0:3ff area)
-     * - change anything in the vector area _after_ installation - AV
-     * DANG_END_REMARK
-     */
-    v_printf("Save hi vector area\n");
-    MEMCPY_2UNIX(save_hi_ints,0x380,128);
     _AL = config.vbios_post;
     break;
 
   case DOS_HELPER_VIDEO_INIT_DONE:
     v_printf("Finished with Video initialization\n");
-    MEMCPY_2DOS(0x380,save_hi_ints,128);
     config.emuretrace <<= 1;
     emu_video_retrace_on();
     break;
