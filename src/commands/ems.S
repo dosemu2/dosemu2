@@ -153,7 +153,7 @@ Dummy:
 Int67:
 	cmpb	$0, %cs:NoEMS
 	jne	10f
-	pushw	%ax
+	shll	$16, %eax
 	movw	$DOS_HELPER_EMS_BIOS, %ax
 	int	$LinuxEMS
 10:	iret
