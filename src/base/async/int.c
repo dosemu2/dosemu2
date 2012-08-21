@@ -1135,7 +1135,6 @@ Return: nothing
 #define EMM_FILE_HANDLE 200
 
 /* MS-DOS */
-/* see config.c: int21 is redirected here only when debug_level('D)>0 !! */
 
 static int redir_it(void);
 
@@ -1143,11 +1142,9 @@ static unsigned short int21seg, int21off;
 
 static void int21_post_boot(void)
 {
-  if (config.lfn) {
     int21seg = ISEG(0x21);
     int21off = IOFF(0x21);
     SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
-  }
 }
 
 static int int21lfnhook(void)
@@ -1328,8 +1325,10 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (ret == 0 && !IS_REDIRECTED(0x21))
-    return int21lfnhook();
+  if (ret == 0 && !IS_REDIRECTED(0x21)) {
+    coopth_set_post_handler(int_tid + 0x21, int21lfnhook_thr, NULL);
+    return 1;
+  }
   return ret;
 }
 /* ========================================================================= */
@@ -1451,7 +1450,10 @@ int can_revector(int i)
  */
 
   switch (i) {
+#if 0
+  /* we hook it in int21_post_boot(), not here */
   case 0x21:			/* we want it first...then we'll pass it on */
+#endif
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
   case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
@@ -1980,8 +1982,6 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 	   interrupt table at the start of the dosemu bios */
 	fake_iret();
 	coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
-	if (config.lfn && i == 0x21)
-		coopth_set_post_handler(int_tid + i, int21lfnhook_thr, NULL);
 }
 
 void do_int(int i)
@@ -2146,7 +2146,7 @@ void setup_interrupts(void) {
   interrupt_function[0x18][NO_REVECT] = int18;
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
-  interrupt_function[0x21][REVECT] = int21;
+  interrupt_function[0x21][NO_REVECT] = int21;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
   interrupt_function[0x2f][REVECT] = int2f;
