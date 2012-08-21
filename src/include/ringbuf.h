@@ -21,18 +21,23 @@
 
 struct rng_s {
   unsigned char *buffer;
-  int objnum, objsize, objcnt, tail;
+  unsigned int objnum, objsize, objcnt, tail;
+  int need_free;
 };
 void rng_init(struct rng_s *rng, size_t objnum, size_t objsize);
+void rng_init_pool(struct rng_s *rng, size_t objnum, size_t objsize, void *buf);
 int rng_destroy(struct rng_s *rng);
 int rng_get(struct rng_s *rng, void *buf);
-int rng_peek(struct rng_s *rng, int idx, void *buf);
+int rng_peek(struct rng_s *rng, unsigned int idx, void *buf);
 int rng_put(struct rng_s *rng, void *obj);
 int rng_put_const(struct rng_s *rng, int val);
-int rng_poke(struct rng_s *rng, int idx, void *buf);
-int rng_add(struct rng_s *rng, int num, void *buf);
+int rng_push(struct rng_s *rng, void *obj);
+int rng_push_const(struct rng_s *rng, int val);
+int rng_poke(struct rng_s *rng, unsigned int idx, void *buf);
+int rng_add(struct rng_s *rng, int num, const void *buf);
 int rng_remove(struct rng_s *rng, int num, void *buf);
 int rng_count(struct rng_s *rng);
+ssize_t rng_get_free_space(struct rng_s *rng);
 void rng_clear(struct rng_s *rng);
 
 #endif

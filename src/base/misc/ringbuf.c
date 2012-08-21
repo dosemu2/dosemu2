@@ -27,7 +27,16 @@
 
 void rng_init(struct rng_s *rng, size_t objnum, size_t objsize)
 {
-  rng->buffer = calloc(objnum, objsize);
+  void *buf = calloc(objnum, objsize);
+  assert(buf);
+  rng_init_pool(rng, objnum, objsize, buf);
+  rng->need_free = 1;
+}
+
+void rng_init_pool(struct rng_s *rng, size_t objnum, size_t objsize, void *buf)
+{
+  rng->buffer = buf;
+  rng->need_free = 0;
   rng->objnum = objnum;
   rng->objsize = objsize;
   rng->tail = rng->objcnt = 0;
@@ -36,7 +45,9 @@ void rng_init(struct rng_s *rng, size_t objnum, size_t objsize)
 int rng_destroy(struct rng_s *rng)
 {
   int ret = rng->objcnt;
-  free(rng->buffer);
+  if (rng->need_free)
+    free(rng->buffer);
+  rng->buffer = NULL;
   rng->objcnt = 0;
   return ret;
 }
@@ -53,7 +64,7 @@ int rng_get(struct rng_s *rng, void *buf)
   return 1;
 }
 
-int rng_peek(struct rng_s *rng, int idx, void *buf)
+int rng_peek(struct rng_s *rng, unsigned int idx, void *buf)
 {
   int obj_pos;
   if (rng->objcnt <= idx)
@@ -66,8 +77,9 @@ int rng_peek(struct rng_s *rng, int idx, void *buf)
 
 int rng_put(struct rng_s *rng, void *obj)
 {
-  int head_pos, ret = 1;
-  head_pos = (rng->tail + rng->objcnt * rng->objsize) % (rng->objnum * rng->objsize);
+  unsigned int head_pos, ret = 1;
+  head_pos = (rng->tail + rng->objcnt * rng->objsize) %
+	(rng->objnum * rng->objsize);
   assert(head_pos <= (rng->objnum - 1) * rng->objsize);
   memcpy(rng->buffer + head_pos, obj, rng->objsize);
   rng->objcnt++;
@@ -85,7 +97,32 @@ int rng_put_const(struct rng_s *rng, int value)
   return rng_put(rng, &value);
 }
 
-int rng_poke(struct rng_s *rng, int idx, void *buf)
+int rng_push(struct rng_s *rng, void *obj)
+{
+  unsigned int ret = 1;
+  if (rng->tail < rng->objsize) {
+    assert(!rng->tail);
+    rng->tail = rng->objsize * (rng->objnum - 1);
+  } else {
+    rng->tail -= rng->objsize;
+  }
+  memcpy(rng->buffer + rng->tail, obj, rng->objsize);
+  rng->objcnt++;
+  if (rng->objcnt > rng->objnum) {
+    rng->objcnt--;
+    ret = 0;
+  }
+  assert(rng->objcnt <= rng->objnum);
+  return ret;
+}
+
+int rng_push_const(struct rng_s *rng, int value)
+{
+  assert(rng->objsize <= sizeof(value));
+  return rng_push(rng, &value);
+}
+
+int rng_poke(struct rng_s *rng, unsigned int idx, void *buf)
 {
   int obj_pos;
   if (rng->objcnt <= idx)
@@ -95,7 +132,7 @@ int rng_poke(struct rng_s *rng, int idx, void *buf)
   return 1;
 }
 
-int rng_add(struct rng_s *rng, int num, void *buf)
+int rng_add(struct rng_s *rng, int num, const void *buf)
 {
   int i, ret = 0;
   for (i = 0; i < num; i++)
@@ -106,14 +143,23 @@ int rng_add(struct rng_s *rng, int num, void *buf)
 int rng_remove(struct rng_s *rng, int num, void *buf)
 {
   int i, ret = 0;
-  for (i = 0; i < num; i++)
+  for (i = 0; (i < num) && rng->objcnt; i++)
     ret += rng_get(rng, buf ? (unsigned char *)buf + i * rng->objsize : NULL);
   return ret;
 }
 
 int rng_count(struct rng_s *rng)
 {
+  if (!rng->buffer)
+    return -1;
   return rng->objcnt;
+}
+
+ssize_t rng_get_free_space(struct rng_s *rng)
+{
+  if (!rng->buffer)
+    return -1;
+  return (rng->objnum - rng->objcnt) * rng->objsize;
 }
 
 void rng_clear(struct rng_s *rng)
