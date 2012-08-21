@@ -341,13 +341,7 @@ int dos_helper(void)
 
   case DOS_HELPER_EMS_BIOS:
   {
-    unsigned int ssp, sp;
-
-    ssp = SEGOFF2LINEAR(REG(ss), 0);
-    sp = LWORD(esp);
-
-    LWORD(eax) = popw(ssp, sp);
-    LWORD(esp) += 2;
+    LWORD(eax) = HWORD(eax);
     E_printf("EMS: in 0xe6,0x22 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
 	     "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
     if (config.ems_size)
