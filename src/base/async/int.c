@@ -179,9 +179,22 @@ static void process_master_boot_record(void)
    LWORD(ebp) = LWORD(esi) = 0x600 + offsetof(struct mbr, partition[i]);
 }
 
+static void dos_helper_chain(void *arg)
+{
+  real_run_int(DOS_HELPER_INT);
+}
+
+static void dos_helper_thr(void *arg)
+{
+  int ret = dos_helper();
+  if (!ret)
+    coopth_set_post_handler(int_tid + DOS_HELPER_INT, dos_helper_chain, NULL);
+}
+
 static int inte6(void)
 {
-  return dos_helper();
+  coopth_start(int_tid + DOS_HELPER_INT, dos_helper_thr, NULL);
+  return 1;
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
