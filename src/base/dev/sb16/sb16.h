@@ -23,7 +23,7 @@
 #ifndef __SB16_H__
 #define __SB16_H__
 
-#include "utilities.h"		// for rng_s
+#include "ringbuf.h"		// for rng_s
 
 #define SB_NONE  0x000
 #define SB_ID	 0x105

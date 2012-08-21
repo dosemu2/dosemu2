@@ -32,6 +32,7 @@
 
 #include "emu.h"
 #include "utilities.h"
+#include "ringbuf.h"
 #include "timers.h"
 #include "sound/sound.h"
 #include "sound/sndpcm.h"
