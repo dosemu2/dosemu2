@@ -7,6 +7,8 @@
 #ifndef COOPTH_H
 #define COOPTH_H
 
+#define COOPTH_TID_INVALID (-1)
+
 typedef void (*coopth_func_t)(void *arg);
 
 void coopth_init(void);

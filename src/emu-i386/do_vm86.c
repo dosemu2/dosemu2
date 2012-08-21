@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -54,6 +54,7 @@
 #include "keymaps.h"
 #include "keyb_server.h"
 #include "bitops.h"
+#include "coopth.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -453,7 +454,15 @@ static int callback_level = 0;
 
 void callback_return(void)
 {
-	callback_level--;
+    unsigned int ssp, sp;
+    int tid;
+    ssp = SEGOFF2LINEAR(REG(ss), 0);
+    sp = LWORD(esp) + 4;
+    tid = popl(ssp, sp);
+    fake_retf(2);
+    callback_level--;
+    if (tid != COOPTH_TID_INVALID)
+	coopth_wake_up(tid);
 }
 
 /*
@@ -461,11 +470,11 @@ void callback_return(void)
  * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
  *       The _caller_ has to do this.
  */
-void do_call_back(Bit32u codefarptr)
+static void __do_call_back(Bit32u codefarptr, int intr)
 {
-	Bit16u oldcs, oldip;
 	int level;
 	int old_frozen;
+	int *sptr;
 
 	if (in_dpmi && !in_dpmi_dos_int) {
 		error("do_call_back() cannot call protected mode code\n");
@@ -479,21 +488,31 @@ void do_call_back(Bit32u codefarptr)
 		g_printf("do_call_back() re-entered! level=%i\n", callback_level);
 	}
 
-	/* we push the address of our HLT place in the bios
-	 * as return address on the stack and run vm86 mode.
-	 * When the call returns and HLT causes GPF, vm86_GP_fault() calls
-	 * callback_return() above, which then decreases callback_level
-	 * ... and then we return from here
-	 */
-	fake_call(CBACK_SEG, CBACK_OFF);/* push our return cs:ip */
-	oldcs = REG(cs);		/* save old cs:ip */
-	oldip = LWORD(eip);
-	REG(cs) = FP_SEG16(codefarptr);	/* far jump to the vm86(DOS) routine */
-	LWORD(eip) = FP_OFF16(codefarptr);
+	/* reserve space for tid */
+	LWORD(esp) -= 4;
+	sptr = dosaddr_to_unixaddr(SEGOFF2LINEAR(REG(ss), LWORD(esp)));
+	*sptr = COOPTH_TID_INVALID;
+
+	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
+	if (intr) {
+		unsigned int ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+		unsigned int sp = LWORD(esp);
+		pushw(ssp, sp, vflags);
+		LWORD(esp) = (LWORD(esp) - 2) & 0xffff;
+		clear_IF();
+		clear_TF();
+		clear_AC();
+		clear_NT();
+	}
+	fake_call_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
 
         level = callback_level++;
 	old_frozen = dosemu_frozen;
 	unfreeze_dosemu();
+	if (coopth_is_in_thread()) {
+	    coopth_sleep(sptr);
+	    goto done;
+	}
         while (callback_level > level) {
 		if (fatalerr && !in_leavedos) leavedos(99);
 	/*
@@ -504,23 +523,17 @@ void do_call_back(Bit32u codefarptr)
 		run_irqs();	/* this is essential to do BEFORE run_[vm86|dpmi]() */
 		run_vm86();
         }
+done:
 	if (old_frozen)
 		freeze_dosemu();
-	/* ... and back we are */
-	REG(cs) = oldcs;
-	LWORD(eip) = oldip;
+}
+
+void do_call_back(Bit32u codefarptr)
+{
+    __do_call_back(codefarptr, 0);
 }
 
 void do_intr_call_back(int intno)
 {
-	unsigned int ssp = SEGOFF2LINEAR(LWORD(ss), 0);
-	unsigned int sp = LWORD(esp);
-	pushw(ssp, sp, vflags);
-	LWORD(esp) = (LWORD(esp) - 2) & 0xffff;
-	clear_IF();
-	clear_TF();
-	clear_AC();
-	clear_NT();
-
-	do_call_back(MK_FP16(ISEG(intno), IOFF(intno)));
+    __do_call_back(MK_FP16(ISEG(intno), IOFF(intno)), 1);
 }

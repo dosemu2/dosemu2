@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include <assert.h>
 #include "emu.h"
 #include "utilities.h"
 #include "timers.h"
@@ -293,12 +294,22 @@ int coopth_set_post_handler(int tid, coopth_func_t func, void *arg)
     return 0;
 }
 
+static int __coopth_is_in_thread(void)
+{
+    if (!thread_running) {
+	static int warned;
+	if (!warned) {
+	    warned = 1;
+	    dosemu_error("Coopth: not in thread!\n");
+	}
+    }
+    return thread_running;
+}
+
 int coopth_is_in_thread(void)
 {
     /* this is an ad-hoc, the caller should know better than ask */
-    if (!thread_running)
-	dosemu_error("Coopth: not in thread!\n");
-    return thread_running;
+    return __coopth_is_in_thread();
 }
 
 static void switch_state(enum CoopthRet ret)
@@ -310,11 +321,13 @@ static void switch_state(enum CoopthRet ret)
 
 void coopth_wait(void)
 {
+    assert(__coopth_is_in_thread());
     switch_state(COOPTH_WAIT);
 }
 
 void coopth_sleep(int *r_tid)
 {
+    assert(__coopth_is_in_thread());
     if (r_tid) {
 	struct coopth_thrdata_t *thdata = co_get_data(co_current());
 	*r_tid = thdata->tid;

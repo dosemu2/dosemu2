@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -184,6 +184,14 @@ extern struct _fpstate vm86_fpu_state;
 		__res1 = READ_BYTE((base) + ptr); \
 		ptr = (Bit16u)(ptr + 1); \
 		(__res1 << 8) | __res0; \
+	})
+
+#define popl(base, ptr) \
+	({ \
+		Bit16u __res0, __res1; \
+		__res0 = popw(base, ptr); \
+		__res1 = popw(base, ptr); \
+		(__res1 << 16) | __res0; \
 	})
 
 #define loadflags(value) asm volatile("push %0 ; popf"::"g" (value): "cc" )
