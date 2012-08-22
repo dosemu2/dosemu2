@@ -73,6 +73,7 @@ static char win31_title[256];
 
 static void dos_post_boot(void);
 static int int33(void);
+static void fake_iret(void);
 
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
@@ -390,6 +391,7 @@ int dos_helper(void)
     break;
 
   case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
+    coopth_leave();
     mouse_helper(&vm86s.regs);
     break;
 
@@ -418,19 +420,19 @@ int dos_helper(void)
   case DOS_HELPER_RUN_UNIX:
     g_printf("Running Unix Command\n");
     run_unix_command(SEG_ADR((char *), es, dx));
-    break;   
+    break;
 
   case DOS_HELPER_GET_USER_COMMAND:
     /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
     g_printf("Locating DOS Command\n");
     LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
-    break;   
+    break;
 
   case DOS_HELPER_GET_UNIX_ENV:
     /* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
     g_printf("Interrogating UNIX Environment\n");
     LWORD(eax) = misc_e6_envvar(SEG_ADR((char *), es, dx));
-    break;   
+    break;
 
   case DOS_HELPER_0x53:
     {
@@ -524,11 +526,12 @@ int dos_helper(void)
 		_AX = -1;
 	}
         break;
-  case DOS_HELPER_BOOTSECT: {
+  case DOS_HELPER_BOOTSECT:
+      coopth_leave();
       fdkernel_boot_mimic();
       break;
-    }
   case DOS_HELPER_MBR:
+    coopth_leave();
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();
       break;
@@ -1917,8 +1920,6 @@ static void int33_check_hog(void)
    * system get on with some real work. :-) */
   idle(200, 20, 20, "mouse");
 }
-
-static void fake_iret(void);
 
 /* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
 void int33_post(void)

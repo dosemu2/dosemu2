@@ -19,6 +19,7 @@ int coopth_set_post_handler(int tid, coopth_func_t func, void *arg);
 int coopth_is_in_thread(void);
 void coopth_wait(void);
 void coopth_sleep(int *r_tid);
+void coopth_leave(void);
 void coopth_wake_up(int tid);
 void coopth_done(void);
 

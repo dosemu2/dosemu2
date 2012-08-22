@@ -31,9 +31,9 @@
 #include "coopth.h"
 
 enum CoopthRet { COOPTH_NONE, COOPTH_INPR, COOPTH_WAIT,
-	COOPTH_SLEEP, COOPTH_DONE, COOPTH_MAX };
+	COOPTH_SLEEP, COOPTH_LEAVE, COOPTH_DONE, COOPTH_MAX };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
-	COOPTHS_DELETE };
+	COOPTHS_LEAVE, COOPTHS_DELETE };
 
 struct coopth_thr_t {
     coopth_func_t func;
@@ -74,6 +74,7 @@ struct coopth_t {
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
 static int thread_running;
+static int threads_running;
 
 #define COOP_STK_SIZE (65536*2)
 
@@ -82,8 +83,7 @@ void coopth_init(void)
     co_thread_init();
 }
 
-static void do_run_thread(struct coopth_t *thr,
-	struct coopth_per_thread_t *pth)
+static void do_run_thread(struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
     co_call(pth->thread);
@@ -97,6 +97,9 @@ static void do_run_thread(struct coopth_t *thr,
 	break;
     case COOPTH_INPR:
 	break;
+    case COOPTH_LEAVE:
+	pth->state = COOPTHS_LEAVE;
+	break;
     case COOPTH_DONE:
 	pth->state = COOPTHS_DELETE;
 	break;
@@ -104,6 +107,17 @@ static void do_run_thread(struct coopth_t *thr,
 	error("Coopthreads error, exiting\n");
 	leavedos(2);
     }
+}
+
+static void do_del_thread(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth)
+{
+    pth->state = COOPTHS_NONE;
+    co_delete(pth->thread);
+    thr->cur_thr--;
+    threads_running--;
+    if (pth->post.func)
+	pth->post.func(pth->post.arg);
 }
 
 static void coopth_hlt(Bit32u offs, void *arg)
@@ -158,19 +172,21 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	    }
 	}
 	thread_running++;
-	do_run_thread(thr, pth);
+	do_run_thread(pth);
 	thread_running--;
 	break;
     case COOPTHS_SLEEPING:
 	dosemu_sleep();
 	break;
+    case COOPTHS_LEAVE:
+	fake_retf(0);
+	do_run_thread(pth);
+	assert(pth->state == COOPTHS_DELETE);
+	do_del_thread(thr, pth);
+	break;
     case COOPTHS_DELETE:
 	fake_retf(0);
-	pth->state = COOPTHS_NONE;
-	co_delete(pth->thread);
-	thr->cur_thr--;
-	if (pth->post.func)
-	    pth->post.func(pth->post.arg);
+	do_del_thread(thr, pth);
 	break;
     }
 }
@@ -275,6 +291,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	leavedos(2);
     }
     pth->state = COOPTHS_RUNNING;
+    threads_running++;
     fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
     return 0;
 }
@@ -333,6 +350,13 @@ void coopth_sleep(int *r_tid)
 	*r_tid = thdata->tid;
     }
     switch_state(COOPTH_SLEEP);
+}
+
+void coopth_leave(void)
+{
+    if (!__coopth_is_in_thread())
+	return;
+    switch_state(COOPTH_LEAVE);
 }
 
 void coopth_wake_up(int tid)
