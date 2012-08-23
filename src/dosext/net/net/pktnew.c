@@ -46,7 +46,7 @@
 #include "libpacket.h"
 #include "dosnet.h"
 #include "pic.h"
-#include "hlt.h"
+#include "coopth.h"
 #include "dpmi.h"
 
 #define min(a,b)	((a) < (b)? (a) : (b))
@@ -58,8 +58,8 @@ int Find_Handle(u_char *buf);
 static void printbuf(char *, struct ethhdr *);
 static int pkt_check_receive(int ilevel);
 static void pkt_receiver_callback(void);
-static void pkt_receiver_callback_hlt(Bit32u offs, void *arg);
-static Bit32u PKTRcvCall_OFF;
+static void pkt_receiver_callback_thr(void *arg);
+static Bit32u PKTRcvCall_TID;
 
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
 static int pktdrvr_installed;
@@ -162,7 +162,6 @@ void pkt_priv_init(void)
 void
 pkt_init(void)
 {
-    emu_hlt_t hlt_hdlr;
     if (!config.pktdrv)
       return;
     if (pktdrvr_installed == -1)
@@ -194,12 +193,7 @@ pkt_init(void)
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 
-    /* install HLT handler */
-    hlt_hdlr.name = "PKT_receiver_call";
-    hlt_hdlr.start_addr = -1;
-    hlt_hdlr.len = 1;
-    hlt_hdlr.func = pkt_receiver_callback_hlt;
-    PKTRcvCall_OFF = hlt_register_handler(hlt_hdlr);
+    PKTRcvCall_TID = coopth_create("PKT_receiver_call");
     return;
 
 fail:
@@ -598,10 +592,10 @@ static void pkt_receiver_callback(void)
 	fake_pm_int();
     fake_int_to(BIOSSEG, EOI_OFF);
     rcv_saved_regs = REGS;
-    fake_call_to(PKTRcvCall_SEG, PKTRcvCall_OFF);
+    coopth_start(PKTRcvCall_TID, pkt_receiver_callback_thr, NULL);
 }
 
-static void pkt_receiver_callback_hlt(Bit32u offs, void *arg)
+static void pkt_receiver_callback_thr(void *arg)
 {
     _AX = 0;
     _BX = p_helper_handle;

@@ -33,7 +33,7 @@
 #include "int.h"
 #include "dpmi.h"
 #include "bios.h"
-#include "hlt.h"
+#include "coopth.h"
 #include "ipx.h"
 #ifdef IPX
 
@@ -46,9 +46,7 @@
 static u_char IPXCancelEvent(far_t ECBPtr);
 static void ipx_recv_esr_call(void);
 static void ipx_aes_esr_call(void);
-static void ipx_esr_call_end(Bit32u offs, void *arg);
-static struct vm86_regs esr_saved_regs;
-static Bit32u IPXEsrEnd_OFF;
+static int recv_tid, aes_tid;
 
 static ipx_socket_t *ipx_socket_list = NULL;
 /* hopefully these static ECBs will not cause races... */
@@ -117,7 +115,6 @@ static int GetMyAddress( void )
 
 void ipx_init(void)
 {
-  emu_hlt_t hlt_hdlr;
   int ccode;
   if (!config.ipxsup)
     return;
@@ -128,12 +125,8 @@ void ipx_init(void)
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
 
-  /* install HLT handler */
-  hlt_hdlr.name = "IPX_esr_end";
-  hlt_hdlr.start_addr = -1;
-  hlt_hdlr.len = 1;
-  hlt_hdlr.func = ipx_esr_call_end;
-  IPXEsrEnd_OFF = hlt_register_handler(hlt_hdlr);
+  recv_tid = coopth_create("IPX receiver callback");
+  aes_tid = coopth_create("IPX aes callback");
 }
 
 /*************************
@@ -466,23 +459,6 @@ static void ipx_esr_call_setregs(far_t ECBPtr, u_char AXVal)
   LO(ax) = AXVal;
 }
 
-static void ipx_esr_call_setup(far_t ECBPtr, u_char AXVal)
-{
-  if(in_dpmi && !in_dpmi_dos_int)
-    fake_pm_int();
-  fake_int_to(BIOSSEG, EOI_OFF);
-  esr_saved_regs = REGS;
-  fake_call_to(IPXEsrEnd_SEG, IPXEsrEnd_OFF);
-  ipx_esr_call_setregs(ECBPtr, AXVal);
-  fake_call_to(ECBp->ESRAddress.segment, ECBp->ESRAddress.offset);
-}
-
-static void ipx_esr_call_end(Bit32u offs, void *arg)
-{
-  REGS = esr_saved_regs;
-  n_printf("IPX: ESR callback ended\n");
-}
-
 static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
 {
   struct vm86_regs saved_regs;
@@ -494,16 +470,34 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
   n_printf("IPX: ESR callback ended\n");
 }
 
-static void ipx_recv_esr_call(void)
+static void ipx_esr_call_irq(far_t ECBPtr, u_char AXVal)
+{
+  if(in_dpmi && !in_dpmi_dos_int)
+    fake_pm_int();
+  fake_int_to(BIOSSEG, EOI_OFF);
+  ipx_esr_call(ECBPtr, AXVal);
+}
+
+static void ipx_recv_esr_call_thr(void *arg)
 {
   n_printf("IPX: Calling receive ESR\n");
-  ipx_esr_call_setup(recvECB, ESR_CALLOUT_IPX);
+  ipx_esr_call_irq(recvECB, ESR_CALLOUT_IPX);
+}
+
+static void ipx_recv_esr_call(void)
+{
+  coopth_start(recv_tid, ipx_recv_esr_call_thr, NULL);
+}
+
+static void ipx_aes_esr_call_thr(void *arg)
+{
+  n_printf("IPX: Calling AES ESR\n");
+  ipx_esr_call_irq(aesECB, ESR_CALLOUT_AES);
 }
 
 static void ipx_aes_esr_call(void)
 {
-  n_printf("IPX: Calling AES ESR\n");
-  ipx_esr_call_setup(aesECB, ESR_CALLOUT_AES);
+  coopth_start(aes_tid, ipx_aes_esr_call_thr, NULL);
 }
 
 static u_char IPXSendPacket(far_t ECBPtr)
