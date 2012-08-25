@@ -1869,6 +1869,8 @@ repag0:
 			if ((EFLAGS & TF) && !(repmod & (MREP|MREPNE))) {
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
+				int rc = 0;
+				(void)NewIMeta(P0, repmod, &rc);
 				CODE_FLUSH();
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
