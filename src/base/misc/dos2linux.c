@@ -832,7 +832,7 @@ void pre_msdos(void)
 
 void call_msdos(void)
 {
-	do_intr_call_back(0x21);
+	do_int_call_back(0x21);
 }
 
 void post_msdos(void)
@@ -962,7 +962,7 @@ int com_bioscheckkey(void)
 	int ret;
 	pre_msdos();
 	HI(ax) = 1;
-	do_intr_call_back(0x16);
+	do_int_call_back(0x16);
 	handle_signals();
 	keyb_server_run();
 	ret = !(LWORD(eflags) & ZF);
@@ -978,7 +978,7 @@ int com_biosgetch(void)
 	} while (!ret);
 	pre_msdos();
 	HI(ax) = 0;
-	do_intr_call_back(0x16);
+	do_int_call_back(0x16);
 	ret = LO(ax);
 	post_msdos();
 	return ret;

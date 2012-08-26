@@ -2030,6 +2030,7 @@ void fake_int(int cs, int ip)
 
   clear_TF();
   clear_NT();
+  clear_AC();
   clear_IF();
 }
 

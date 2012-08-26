@@ -55,6 +55,7 @@
 #include "keyb_server.h"
 #include "bitops.h"
 #include "coopth.h"
+#include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -460,9 +461,10 @@ void callback_return(void)
     sp = LWORD(esp) + 4;
     tid = popl(ssp, sp);
     fake_retf(2);
-    callback_level--;
     if (tid != COOPTH_TID_INVALID)
 	coopth_wake_up(tid);
+    else
+	callback_level--;
 }
 
 /*
@@ -472,9 +474,54 @@ void callback_return(void)
  */
 static void __do_call_back(Bit32u codefarptr, int intr)
 {
+	int old_frozen;
+	int *sptr;
+
+	if (!coopth_is_in_thread()) {
+		dosemu_error("do_call_back() coopthreads error\n");
+		leavedos(25);
+	}
+	if (fault_cnt && !in_leavedos) {
+		error("do_call_back() executed within the signal context!\n");
+		leavedos(25);
+	}
+
+	/* reserve space for tid */
+	LWORD(esp) -= 4;
+	sptr = dosaddr_to_unixaddr(SEGOFF2LINEAR(REG(ss), LWORD(esp)));
+
+	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
+	if (intr)
+		fake_int_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
+	else
+		fake_call_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
+
+	old_frozen = dosemu_frozen;
+	if (dosemu_frozen)
+		unfreeze_dosemu();
+	callback_level++;
+	coopth_sleep(sptr);
+	callback_level--;
+	if (!callback_level && old_frozen)
+		freeze_dosemu();
+}
+
+void do_call_back(Bit32u codefarptr)
+{
+    __do_call_back(codefarptr, 0);
+}
+
+void do_int_call_back(int intno)
+{
+    __do_call_back(MK_FP16(ISEG(intno), IOFF(intno)), 1);
+}
+
+void do_intr_call_back(int intno)
+{
 	int level;
 	int old_frozen;
 	int *sptr;
+	Bit32u codefarptr = MK_FP16(ISEG(intno), IOFF(intno));
 
 	if (in_dpmi && !in_dpmi_dos_int) {
 		error("do_call_back() cannot call protected mode code\n");
@@ -484,9 +531,6 @@ static void __do_call_back(Bit32u codefarptr, int intr)
 		error("do_call_back() executed within the signal context!\n");
 		leavedos(25);
 	}
-	if (callback_level) {
-		g_printf("do_call_back() re-entered! level=%i\n", callback_level);
-	}
 
 	/* reserve space for tid */
 	LWORD(esp) -= 4;
@@ -494,46 +538,17 @@ static void __do_call_back(Bit32u codefarptr, int intr)
 	*sptr = COOPTH_TID_INVALID;
 
 	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
-	if (intr) {
-		unsigned int ssp = SEGOFF2LINEAR(LWORD(ss), 0);
-		unsigned int sp = LWORD(esp);
-		pushw(ssp, sp, vflags);
-		LWORD(esp) = (LWORD(esp) - 2) & 0xffff;
-		clear_IF();
-		clear_TF();
-		clear_AC();
-		clear_NT();
-	}
-	fake_call_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
+	fake_int_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
 
-        level = callback_level++;
 	old_frozen = dosemu_frozen;
-	unfreeze_dosemu();
-	if (coopth_is_in_thread()) {
-	    coopth_sleep(sptr);
-	    goto done;
-	}
-        while (callback_level > level) {
+	if (dosemu_frozen)
+		unfreeze_dosemu();
+	level = callback_level++;
+	while (callback_level > level) {
 		if (fatalerr && !in_leavedos) leavedos(99);
-	/*
-	 * BIG WARNING: We should NOT use things like loopstep_run_vm86() here!
-	 * Only the plain run_vm86() is safe (also DPMI-safe).
-	 * -stsp
-	 */
 		run_irqs();	/* this is essential to do BEFORE run_[vm86|dpmi]() */
 		run_vm86();
-        }
-done:
-	if (old_frozen)
+	}
+	if (!callback_level && old_frozen)
 		freeze_dosemu();
-}
-
-void do_call_back(Bit32u codefarptr)
-{
-    __do_call_back(codefarptr, 0);
-}
-
-void do_intr_call_back(int intno)
-{
-    __do_call_back(MK_FP16(ISEG(intno), IOFF(intno)), 1);
 }

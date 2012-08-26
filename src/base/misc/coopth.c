@@ -149,12 +149,12 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	 *
 	 * 2. (call it nested thread invocation)
 	 *	main_thread -> coopth_start(thread1_func) -> return
-	 *		thread1_func() -> do_intr_call_back() ->
+	 *		thread1_func() -> do_int_call_back() ->
 	 *		run_int_from_hlt() ->
 	 *		coopth_start(thread2_func) -> return
 	 *			thread2_func() -> return
 	 *			thread2 joined
-	 *		-> return from do_intr_call_back() ->
+	 *		-> return from do_int_call_back() ->
 	 *		return from thread1_func()
 	 *		thread1 joined
 	 *	main_thread...
