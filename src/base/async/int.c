@@ -1321,7 +1321,7 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (ret == 0 && !IS_REDIRECTED(0x21)) {
+  if (ret == 0) {
     coopth_set_post_handler(int_tid + 0x21, int21lfnhook_thr, NULL);
     return 1;
   }
