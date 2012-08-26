@@ -67,8 +67,6 @@ static int pktdrvr_installed;
 unsigned short receive_mode;
 static unsigned short local_receive_mode;
 
-static struct vm86_regs rcv_saved_regs;
-
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
 struct pkt_type {
@@ -591,12 +589,13 @@ static void pkt_receiver_callback(void)
     if(in_dpmi && !in_dpmi_dos_int)
 	fake_pm_int();
     fake_int_to(BIOSSEG, EOI_OFF);
-    rcv_saved_regs = REGS;
     coopth_start(PKTRcvCall_TID, pkt_receiver_callback_thr, NULL);
 }
 
 static void pkt_receiver_callback_thr(void *arg)
 {
+    struct vm86_regs rcv_saved_regs;
+    rcv_saved_regs = REGS;
     _AX = 0;
     _BX = p_helper_handle;
     _CX = p_helper_size;
