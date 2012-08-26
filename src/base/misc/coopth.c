@@ -161,8 +161,9 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	 *
 	 * Both cases are supported here, but the nested invocation
 	 * is not supposed to be used as being too complex.
-	 * do_call_back() stuff have to be carefully converted
-	 * to coopth API so that the nesting is avoided.
+	 * Since do_int_call_back() was converted
+	 * to coopth API, the nesting is avoided.
+	 * If not true, we print an error.
 	 */
 	if (thread_running) {
 	    static int warned;

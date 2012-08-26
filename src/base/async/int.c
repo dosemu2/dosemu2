@@ -88,7 +88,7 @@ static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
 static u_short hlt_off;
-static int int_tid;
+static int int_tid, int_rvc_tid;
 
 u_short INT_OFF(u_char i)
 {
@@ -180,22 +180,10 @@ static void process_master_boot_record(void)
    LWORD(ebp) = LWORD(esi) = 0x600 + offsetof(struct mbr, partition[i]);
 }
 
-static void dos_helper_chain(void *arg)
-{
-  real_run_int(DOS_HELPER_INT);
-}
-
-static void dos_helper_thr(void *arg)
-{
-  int ret = dos_helper();
-  if (!ret)
-    coopth_set_post_handler(int_tid + DOS_HELPER_INT, dos_helper_chain, NULL);
-}
-
 static int inte6(void)
 {
-  coopth_start(int_tid + DOS_HELPER_INT, dos_helper_thr, NULL);
-  return 1;
+  int ret = dos_helper();
+  return ret;
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
@@ -1978,6 +1966,32 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 	coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 }
 
+static void int_chain_thr(void *arg)
+{
+  int i = (long)arg;
+  real_run_int(i);
+}
+
+static void do_int_thr(void *arg)
+{
+	int i = (long)arg;
+#if 1
+	/* XXX this have to be fixed */
+	if (i != DOS_HELPER_INT)
+		coopth_leave();
+#endif
+	if (!run_caller_func(i, REVECT)) {
+		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+		if (IS_IRET(i)) {
+			if ((i != 0x2a) && (i != 0x28))
+				g_printf("just an iret 0x%02x\n", i);
+		} else {
+			coopth_set_post_handler(int_rvc_tid + i,
+				int_chain_thr, (void *)(long)i);
+		}
+	}
+}
+
 void do_int(int i)
 {
         /* we must clear the AC flag here since real mode INT instructions
@@ -2004,7 +2018,9 @@ void do_int(int i)
  	}
 #endif
 
-	if (can_revector(i) != REVECT || !run_caller_func(i, REVECT)) {
+	if (can_revector(i) == REVECT) {
+		coopth_start(int_rvc_tid + i, do_int_thr, (void *)(long)i);
+	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
 			if ((i != 0x2a) && (i != 0x28))
@@ -2171,7 +2187,8 @@ void setup_interrupts(void) {
   hlt_hdlr.func       = do_int_from_hlt;
   hlt_off = hlt_register_handler(hlt_hdlr);
 
-  int_tid = coopth_create_multi("ints thread", 256);
+  int_tid = coopth_create_multi("ints thread non-revect", 256);
+  int_rvc_tid = coopth_create_multi("ints thread revect", 256);
 }
 
 
