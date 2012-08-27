@@ -379,7 +379,7 @@ int dos_helper(void)
     break;
 
   case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
-    coopth_leave();
+    coopth_leave();	// FIX THIS!
     mouse_helper(&vm86s.regs);
     break;
 
@@ -1752,7 +1752,6 @@ static int int2f(void)
 
   switch (HI(ax)) {
   case 0x11:              /* redirector call? */
-    coopth_leave();
     if (LO(ax) == 0x23) subst_file_ext(SEG_ADR((char *), ds, si));
     if (mfs_redirector()) return 1;
     break;

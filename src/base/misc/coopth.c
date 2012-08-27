@@ -25,7 +25,6 @@
 #include "emu.h"
 #include "utilities.h"
 #include "timers.h"
-#include "int.h"
 #include "hlt.h"
 #include "pcl.h"
 #include "coopth.h"
@@ -56,6 +55,7 @@ struct coopth_per_thread_t {
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     struct coopth_thr_t post;
+    Bit16u ret_cs, ret_ip;
     int dbg;
 };
 
@@ -120,6 +120,12 @@ static void do_del_thread(struct coopth_t *thr,
 	pth->post.func(pth->post.arg);
 }
 
+static void coopth_retf(struct coopth_per_thread_t *pth)
+{
+    REG(cs) = pth->ret_cs;
+    LWORD(eip) = pth->ret_ip;
+}
+
 static void coopth_hlt(Bit32u offs, void *arg)
 {
     struct coopth_t *thr = (struct coopth_t *)arg + offs;
@@ -180,13 +186,13 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	dosemu_sleep();
 	break;
     case COOPTHS_LEAVE:
-	fake_retf(0);
+	coopth_retf(pth);
 	do_run_thread(pth);
 	assert(pth->state == COOPTHS_DELETE);
 	do_del_thread(thr, pth);
 	break;
     case COOPTHS_DELETE:
-	fake_retf(0);
+	coopth_retf(pth);
 	do_del_thread(thr, pth);
 	break;
     }
@@ -275,7 +281,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	error("Coopthreads recursion depth exceeded, %s off=%x\n",
 		thr->name, thr->off);
 	for (i = 0; i < thr->cur_thr; i++) {
-	    error("\tthread %i state %i dbg %x\n",
+	    error("\tthread %i state %i dbg %#x\n",
 		    i, thr->pth[i].state, thr->pth[i].dbg);
 	}
 	leavedos(2);
@@ -294,7 +300,10 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     pth->state = COOPTHS_RUNNING;
     threads_running++;
-    fake_call_to(BIOS_HLT_BLK_SEG, thr->hlt_off);
+    pth->ret_cs = REG(cs);
+    pth->ret_ip = LWORD(eip);
+    REG(cs) = BIOS_HLT_BLK_SEG;
+    LWORD(eip) = thr->hlt_off;
     return 0;
 }
 
