@@ -1752,6 +1752,7 @@ static int int2f(void)
 
   switch (HI(ax)) {
   case 0x11:              /* redirector call? */
+    coopth_leave();
     if (LO(ax) == 0x23) subst_file_ext(SEG_ADR((char *), ds, si));
     if (mfs_redirector()) return 1;
     break;
@@ -1854,7 +1855,7 @@ static int int2f(void)
     return 1;
   }
 
-  return !IS_REDIRECTED(0x2f);
+  return 0;
 }
 
 static void int33_check_hog(void);
@@ -1975,11 +1976,6 @@ static void int_chain_thr(void *arg)
 static void do_int_thr(void *arg)
 {
 	int i = (long)arg;
-#if 1
-	/* XXX this have to be fixed */
-	if (i != DOS_HELPER_INT)
-		coopth_leave();
-#endif
 	if (!run_caller_func(i, REVECT)) {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
