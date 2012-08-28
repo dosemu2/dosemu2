@@ -379,7 +379,6 @@ int dos_helper(void)
     break;
 
   case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
-    coopth_leave();	// FIX THIS!
     mouse_helper(&vm86s.regs);
     break;
 

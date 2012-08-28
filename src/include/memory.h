@@ -47,13 +47,13 @@
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
 
 #define Pause_SEG	(BIOSSEG)
-#define Pause_OFF	0xf110
+#define Pause_OFF	0xf120
 
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
 #define PKTDRV_SEG	(BIOSSEG)
-#define PKTDRV_OFF	0xf130
+#define PKTDRV_OFF	0xf140
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
 
 #define LFN_HELPER_SEG	BIOSSEG
@@ -62,16 +62,14 @@
 
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG-1)
-#define Mouse_OFF       (0xe2d0+0x10)
-#define Mouse_PS2_OFF   (0xe2d8+0x10)
 #define Mouse_ROUTINE_OFF  (0xe2e0+0x10)
 #define Mouse_HLT_OFF   (0xe2ff+0x10)
 #define Mouse_INT_OFF	(INT_OFF(0x33) + 0x10)
-#define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
 #define Mouse_HLT_ADD  ((Mouse_SEG << 4)+Mouse_HLT_OFF)
 
 #define EOI_OFF         0xf100
+#define EOI2_OFF        0xf110
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG

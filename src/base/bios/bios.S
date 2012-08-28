@@ -328,26 +328,6 @@ video_init_done:
 /* ======================= Addr = F800:62CF (FE2CF) */
 	iret
 
-/* ----------------------------------------------------------------- */
-	/* this is the mouse handler */
-	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_OFF
-/* ======================= Addr = F000:E2D0 (FE2D0) */
-   
-	/* 
-	mouse routine does a "pusha" before here and then pushes this
-	address ...so we just "popa; EOI; iret" to get back out
-	*/
-	popw	%es
-	popw	%ds
-	popa
-	jmp	Mouse_EOI
-
-/* ----------------------------------------------------------------- */
-	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_PS2_OFF
-/* ======================= Addr = F000:E2D8 (FE2D8) */
-	addw	$8, %sp			/* pop PS/2 mouse information   */
-	jmp	Mouse_EOI
-        
         .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
 /* ======================= Addr = F000:E2E0 (FE2E0) */
 
@@ -357,26 +337,15 @@ video_init_done:
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf2,%bx	/* call the user or PS/2 hook */
 	int	$DOS_HELPER_INT
-	/* if an event handler is installed we will go to Mouse_OFF
-	   or Mouse_PS2_OFF;  otherwise return here.
-	   ax and bx are popped in mouse.c
-	*/      
-
-Mouse_EOI:
-	pushw	%ax
-        movb    $0x20,%al
-        outb    %al,$0xa0		/* flag interrupt complete	*/
-        outb    %al,$0x20
-	popw	%ax
-	iret
+	ljmp $BIOSSEG, $EOI2_OFF
 
         .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_HLT_OFF
 /* ======================= Addr = F000:E2FF (FE2FF) */
 	/* vm86 mouse handlers return here to allow for the
 	   hogthreshold code to take effect
 	*/
-	hlt        
-        
+	hlt
+
 /* ----------------------------------------------------------------- */
 	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
 /* ======================= Addr = F800:6310 (FE310) */
@@ -761,6 +730,15 @@ CISH(INT09_dummy_end):
 	pushw	%ax
         movb    $0x20,%al
         outb    %al,$0x20		/* flag interrupt complete	*/
+	popw	%ax
+	iret
+
+	.org	EOI2_OFF
+/* ======================= Addr = F000:F100 (FF100) */
+	pushw	%ax
+	movb    $0x20,%al
+	outb    %al,$0xa0
+	outb    %al,$0x20		/* flag interrupt complete	*/
 	popw	%ax
 	iret
 
