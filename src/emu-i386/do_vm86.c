@@ -472,7 +472,7 @@ void callback_return(void)
  * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
  *       The _caller_ has to do this.
  */
-static void __do_call_back(Bit32u codefarptr, int intr)
+static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 {
 	int old_frozen;
 	int *sptr;
@@ -492,9 +492,9 @@ static void __do_call_back(Bit32u codefarptr, int intr)
 
 	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
 	if (intr)
-		fake_int_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
+		fake_int_to(cs, ip); /* far jump to the vm86(DOS) routine */
 	else
-		fake_call_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
+		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
 
 	old_frozen = dosemu_frozen;
 	if (dosemu_frozen)
@@ -506,14 +506,14 @@ static void __do_call_back(Bit32u codefarptr, int intr)
 		freeze_dosemu();
 }
 
-void do_call_back(Bit32u codefarptr)
+void do_call_back(Bit16u cs, Bit16u ip)
 {
-    __do_call_back(codefarptr, 0);
+    __do_call_back(cs, ip, 0);
 }
 
 void do_int_call_back(int intno)
 {
-    __do_call_back(MK_FP16(ISEG(intno), IOFF(intno)), 1);
+    __do_call_back(ISEG(intno), IOFF(intno), 1);
 }
 
 void do_intr_call_back(int intno)

@@ -465,7 +465,7 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
 
   saved_regs = REGS;
   ipx_esr_call_setregs(ECBPtr, AXVal);
-  do_call_back(ECBp->ESRAddress.segment << 16 | ECBp->ESRAddress.offset);
+  do_call_back(ECBp->ESRAddress.segment, ECBp->ESRAddress.offset);
   REGS = saved_regs;
   n_printf("IPX: ESR callback ended\n");
 }

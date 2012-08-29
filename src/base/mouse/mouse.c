@@ -1666,7 +1666,7 @@ static void call_int15_mouse_event_handler(void)
 
     /* jump to mouse cs:ip */
     m_printf("PS2MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
-    do_call_back(mouse.ps2.cs << 16 | mouse.ps2.ip);
+    do_call_back(mouse.ps2.cs, mouse.ps2.ip);
     REGS = saved_regs;
 }
 
@@ -1689,7 +1689,7 @@ static void call_int33_mouse_event_handler(void)
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
     REG(ds) = mouse.cs;		/* put DS in user routine */
-    do_call_back(mouse.cs << 16 | mouse.ip);
+    do_call_back(mouse.cs, mouse.ip);
     REGS = saved_regs;
 }
 

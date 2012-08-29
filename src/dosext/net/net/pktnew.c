@@ -100,7 +100,7 @@ struct pkt_globs
 	short packet_type_len;		/* length of packet type */
 	int flags;			/* per-packet-type flags */
 	int sock;			/* fd for the socket */
-	long receiver;			/* receive handler */
+	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
 	char packet_type[16];		/* packet type for this handle */
     } handle[MAX_HANDLE];          
 } pg;
@@ -114,7 +114,7 @@ struct pkt_globs
 unsigned char pkt_buf[PKT_BUF_SIZE];
 
 short p_helper_size;
-long p_helper_receiver;
+Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
@@ -335,7 +335,8 @@ pkt_int (void)
 	    hdlp = &pg.handle[free_handle];
 	    memset(hdlp, 0, sizeof(struct per_handle));
 	    hdlp->in_use = 1;
-	    hdlp->receiver = (LWORD(es) << 16) | LWORD(edi);
+	    hdlp->rcvr_cs = LWORD(es);
+	    hdlp->rcvr_ip = LWORD(edi);
 	    hdlp->packet_type_len = LWORD(ecx);
 	    memcpy(hdlp->packet_type, SEG_ADR((char *),ds,si), LWORD(ecx));
 	    hdlp->class = LO(ax);
@@ -599,7 +600,7 @@ static void pkt_receiver_callback_thr(void *arg)
     _AX = 0;
     _BX = p_helper_handle;
     _CX = p_helper_size;
-    do_call_back(p_helper_receiver);
+    do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
     if (_ES == 0 && _DI == 0)
       goto out;
     MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, p_helper_size);
@@ -607,7 +608,7 @@ static void pkt_receiver_callback_thr(void *arg)
     _SI = _DI;
     _AX = 1;
     _BX = p_helper_handle;
-    do_call_back(p_helper_receiver);
+    do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
 
 out:
     p_helper_size = 0;
@@ -705,7 +706,8 @@ static int pkt_receive(void)
 		error("PKT: Receiver is not ready, packet dropped (size=%i)\n",
 		  p_helper_size);
 	    p_helper_size = size;
-	    p_helper_receiver = hdlp->receiver;
+	    p_helper_receiver_cs = hdlp->rcvr_cs;
+	    p_helper_receiver_ip = hdlp->rcvr_ip;
 	    p_helper_handle = handle;
 	    pd_printf("Called the helpvector ... \n");
 	    return 1;
