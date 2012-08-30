@@ -104,10 +104,6 @@ void hlt_handle(void)
 #endif
     hlt->func(offs - hlt->start_addr, hlt->arg);
   }
-  else if (lina == CBACK_ADD) {
-    /* we are back from a callback routine */
-    callback_return();
-  }
   else if (lina == Mouse_HLT_ADD) {
     int33_post();
   }

@@ -437,16 +437,6 @@ L10:	/* chain to original handler (probably the video bios) */
 #endif
 
 /* ----------------------------------------------------------------- */   
-/* This hlt address is used to return back from a call back */
-/* It uses one byte.  see sigsegv.c */
-	.org	((CBACK_SEG-BIOSSEG) << 4)+CBACK_OFF
-
-/* ======================= Addr = F800:63EF (FE3EF) */
-	.globl	CISH(CBACK_return_from_dos)
-CISH(CBACK_return_from_dos):
-	hlt
-
-/* ----------------------------------------------------------------- */   
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
 
 	.globl	CISH(INT70_dummy_start)

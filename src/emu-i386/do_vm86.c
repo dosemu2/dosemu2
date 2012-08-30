@@ -453,8 +453,9 @@ void loopstep_run_vm86(void)
 
 static int callback_level = 0;
 static int callback_thr_tag;
+Bit16u CBACK_OFF;
 
-void callback_return(void)
+static void callback_return(Bit32u off2, void *arg)
 {
     unsigned int ssp, sp;
     int tid;
@@ -558,6 +559,13 @@ void do_intr_call_back(int intno)
 
 int vm86_init(void)
 {
+    emu_hlt_t hlt_hdlr;
+    hlt_hdlr.name = "do_call_back";
+    hlt_hdlr.start_addr = -1;
+    hlt_hdlr.len = 1;
+    hlt_hdlr.func = callback_return;
+    CBACK_OFF = hlt_register_handler(hlt_hdlr);
+
     callback_thr_tag = coopth_tag_alloc();
     return 0;
 }
