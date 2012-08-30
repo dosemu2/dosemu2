@@ -18,7 +18,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg);
 int coopth_set_post_handler(int tid, coopth_func_t func, void *arg);
 int coopth_is_in_thread(void);
 void coopth_wait(void);
-void coopth_sleep(int *r_tid);
+void coopth_sleep(void);
 void coopth_leave(void);
 void coopth_wake_up(int tid);
 void coopth_done(void);
@@ -26,5 +26,6 @@ void coopth_done(void);
 int coopth_tag_alloc(void);
 void coopth_tag_set(int tag, int cookie);
 void coopth_tag_clear(int tag, int cookie);
+int coopth_get_tid_by_tag(int tag, int cookie);
 
 #endif

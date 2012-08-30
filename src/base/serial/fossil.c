@@ -83,14 +83,17 @@ static boolean fossil_tsr_installed = FALSE;
 
 void fossil_setup(int num)
 {
-    com[num].fossil_blkrd_tid = -1;
+    com[num].fossil_blkrd_tag = coopth_tag_alloc();
+    com[num].fossil_blkrd_running = 0;
 }
 
 void fossil_dr_hook(int num)
 {
-    if (com[num].fossil_blkrd_tid == -1)
+    int tid;
+    if (!com[num].fossil_blkrd_running)
 	return;
-    coopth_wake_up(com[num].fossil_blkrd_tid);
+    tid = coopth_get_tid_by_tag(com[num].fossil_blkrd_tag, num);
+    coopth_wake_up(tid);
 }
 
 /**************************************************************************/
@@ -147,8 +150,11 @@ void fossil_int14(int num)
   /* Read character (should be with wait) */
   case 0x02:
     while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
-	coopth_sleep(&com[num].fossil_blkrd_tid);
-	com[num].fossil_blkrd_tid = -1;
+	com[num].fossil_blkrd_running = 1;
+	coopth_tag_set(com[num].fossil_blkrd_tag, num);
+	coopth_sleep();
+	coopth_tag_clear(com[num].fossil_blkrd_tag, num);
+	com[num].fossil_blkrd_running = 0;
     }
     LO(ax) = read_char(num);
     HI(ax) = 0;

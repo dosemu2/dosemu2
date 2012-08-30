@@ -458,12 +458,8 @@ Bit16u CBACK_OFF2;
 
 static void callback_return(Bit32u off2, void *arg)
 {
-    unsigned int ssp, sp;
-    int tid;
-    ssp = SEGOFF2LINEAR(REG(ss), 0);
-    sp = LWORD(esp) + 4;
-    tid = popl(ssp, sp);
-    fake_retf(2);
+    int tid = coopth_get_tid_by_tag(callback_thr_tag, callback_level);
+    fake_retf(0);
     coopth_wake_up(tid);
 }
 
@@ -481,7 +477,6 @@ static void callback_return_old(Bit32u off2, void *arg)
 static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 {
 	int old_frozen;
-	int *sptr;
 
 	if (!coopth_is_in_thread()) {
 		dosemu_error("do_call_back() coopthreads error\n");
@@ -491,10 +486,6 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 		error("do_call_back() executed within the signal context!\n");
 		leavedos(25);
 	}
-
-	/* reserve space for tid */
-	LWORD(esp) -= 4;
-	sptr = dosaddr_to_unixaddr(SEGOFF2LINEAR(REG(ss), LWORD(esp)));
 
 	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
 	if (intr)
@@ -507,7 +498,7 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 		unfreeze_dosemu();
 	callback_level++;
 	coopth_tag_set(callback_thr_tag, callback_level);
-	coopth_sleep(sptr);
+	coopth_sleep();
 	coopth_tag_clear(callback_thr_tag, callback_level);
 	callback_level--;
 	if (!callback_level && old_frozen)

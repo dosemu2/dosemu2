@@ -373,13 +373,9 @@ void coopth_wait(void)
     switch_state(COOPTH_WAIT);
 }
 
-void coopth_sleep(int *r_tid)
+void coopth_sleep(void)
 {
     assert(__coopth_is_in_thread());
-    if (r_tid) {
-	struct coopth_thrdata_t *thdata = co_get_data(co_current());
-	*r_tid = *thdata->tid;
-    }
     switch_state(COOPTH_SLEEP);
 }
 
@@ -464,4 +460,27 @@ void coopth_tag_clear(int tag, int cookie)
 	leavedos(2);
     }
     tagp[j].tid = COOPTH_TID_INVALID;
+}
+
+int coopth_get_tid_by_tag(int tag, int cookie)
+{
+    int j, tid = COOPTH_TID_INVALID;
+    struct coopth_tag_t *tagp;
+    assert(tag >= 0 && tag < tag_cnt);
+    tagp = tags[tag];
+    for (j = 0; j < MAX_TAGGED_THREADS; j++) {
+	if (tagp[j].cookie == cookie) {
+	    if (tagp[j].tid == COOPTH_TID_INVALID) {
+		dosemu_error("Coopth: tag %i(%i) cleared\n", tag, cookie);
+		leavedos(2);
+	    }
+	    tid = tagp[j].tid;
+	    break;
+	}
+    }
+    if (tid == COOPTH_TID_INVALID) {
+	dosemu_error("Coopth: tag %i(%i) not found\n", tag, cookie);
+	leavedos(2);
+    }
+    return tid;
 }
