@@ -14,6 +14,8 @@
 #include <sys/syscall.h>
 #endif /* __linux__ */
 
+int vm86_init(void);
+
 #ifdef X86_EMULATOR
 int e_vm86(void);
 

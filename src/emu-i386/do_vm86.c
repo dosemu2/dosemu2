@@ -452,6 +452,7 @@ void loopstep_run_vm86(void)
 
 
 static int callback_level = 0;
+static int callback_thr_tag;
 
 void callback_return(void)
 {
@@ -500,7 +501,9 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	if (dosemu_frozen)
 		unfreeze_dosemu();
 	callback_level++;
+	coopth_tag_set(callback_thr_tag, callback_level);
 	coopth_sleep(sptr);
+	coopth_tag_clear(callback_thr_tag, callback_level);
 	callback_level--;
 	if (!callback_level && old_frozen)
 		freeze_dosemu();
@@ -551,4 +554,10 @@ void do_intr_call_back(int intno)
 	}
 	if (!callback_level && old_frozen)
 		freeze_dosemu();
+}
+
+int vm86_init(void)
+{
+    callback_thr_tag = coopth_tag_alloc();
+    return 0;
 }

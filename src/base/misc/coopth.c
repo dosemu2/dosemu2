@@ -40,7 +40,7 @@ struct coopth_thr_t {
 };
 
 struct coopth_thrdata_t {
-    int tid;
+    int *tid;
     enum CoopthRet ret;
 };
 
@@ -62,7 +62,8 @@ struct coopth_per_thread_t {
 #define MAX_COOP_RECUR_DEPTH 5
 
 struct coopth_t {
-    struct coopth_thr_t thr;
+    struct coopth_thr_t start_func_tmp;
+    int tid;
     char *name;
     Bit16u hlt_off;
     int off;
@@ -76,11 +77,27 @@ static int coopth_num;
 static int thread_running;
 static int threads_running;
 
+struct coopth_tag_t {
+    int cookie;
+    int tid;
+};
+
+#define MAX_TAGS 10
+#define MAX_TAGGED_THREADS 5
+
+static struct coopth_tag_t tags[MAX_TAGS][MAX_TAGGED_THREADS];
+static int tag_cnt;
+
 #define COOP_STK_SIZE (65536*2)
 
 void coopth_init(void)
 {
+    int i, j;
     co_thread_init();
+    for (i = 0; i < MAX_TAGS; i++) {
+	for (j = 0; j < MAX_TAGGED_THREADS; j++)
+	    tags[i][j].tid = COOPTH_TID_INVALID;
+    }
 }
 
 static void do_run_thread(struct coopth_per_thread_t *pth)
@@ -234,6 +251,7 @@ int coopth_create(char *name)
     thr->name = nm;
     thr->cur_thr = 0;
     thr->off = 0;
+    thr->tid = num;
 
     return num;
 }
@@ -259,6 +277,7 @@ int coopth_create_multi(char *name, int len)
 	thr->hlt_off = hlt_off + i;
 	thr->cur_thr = 0;
 	thr->off = i;
+	thr->tid = num + i;
     }
 
     return num;
@@ -274,8 +293,9 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	leavedos(2);
     }
     thr = &coopthreads[tid];
-    thr->thr.func = func;
-    thr->thr.arg = arg;
+    assert(thr->tid == tid);
+    thr->start_func_tmp.func = func;
+    thr->start_func_tmp.arg = arg;
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
 	int i;
 	error("Coopthreads recursion depth exceeded, %s off=%x\n",
@@ -288,8 +308,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
-    pth->data.tid = tid;
-    pth->args.thr = &thr->thr;
+    pth->data.tid = &thr->tid;
+    pth->args.thr = &thr->start_func_tmp;
     pth->args.thrdata = &pth->data;
     pth->post.func = NULL;
     pth->dbg = LWORD(eax);	// for debug
@@ -358,7 +378,7 @@ void coopth_sleep(int *r_tid)
     assert(__coopth_is_in_thread());
     if (r_tid) {
 	struct coopth_thrdata_t *thdata = co_get_data(co_current());
-	*r_tid = thdata->tid;
+	*r_tid = *thdata->tid;
     }
     switch_state(COOPTH_SLEEP);
 }
@@ -386,4 +406,62 @@ void coopth_wake_up(int tid)
 void coopth_done(void)
 {
     co_thread_cleanup();
+}
+
+int coopth_tag_alloc(void)
+{
+    if (tag_cnt >= MAX_TAGS) {
+	error("Too many tags\n");
+	leavedos(2);
+    }
+    return tag_cnt++;
+}
+
+void coopth_tag_set(int tag, int cookie)
+{
+    int j, empty = -1;
+    struct coopth_thrdata_t *thdata;
+    struct coopth_tag_t *tagp, *tagp2;
+    assert(__coopth_is_in_thread());
+    assert(tag >= 0 && tag < tag_cnt);
+    tagp = tags[tag];
+    for (j = 0; j < MAX_TAGGED_THREADS; j++) {
+	if (empty == -1 && tagp[j].tid == COOPTH_TID_INVALID)
+	    empty = j;
+	if (tagp[j].cookie == cookie && tagp[j].tid != COOPTH_TID_INVALID) {
+	    dosemu_error("Coopth: tag %i(%i) already set\n", tag, cookie);
+	    leavedos(2);
+	}
+    }
+    if (empty == -1) {
+	dosemu_error("Coopth: too many tags for %i\n", tag);
+	leavedos(2);
+    }
+
+    tagp2 = &tagp[empty];
+    thdata = co_get_data(co_current());
+    tagp2->tid = *thdata->tid;
+    tagp2->cookie = cookie;
+}
+
+void coopth_tag_clear(int tag, int cookie)
+{
+    int j;
+    struct coopth_tag_t *tagp;
+    assert(tag >= 0 && tag < tag_cnt);
+    tagp = tags[tag];
+    for (j = 0; j < MAX_TAGGED_THREADS; j++) {
+	if (tagp[j].cookie == cookie) {
+	    if (tagp[j].tid == COOPTH_TID_INVALID) {
+		dosemu_error("Coopth: tag %i(%i) already cleared\n", tag, cookie);
+		leavedos(2);
+	    }
+	    break;
+	}
+    }
+    if (j >= MAX_TAGGED_THREADS) {
+	dosemu_error("Coopth: tag %i(%i) not set\n", tag, cookie);
+	leavedos(2);
+    }
+    tagp[j].tid = COOPTH_TID_INVALID;
 }

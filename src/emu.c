@@ -418,9 +418,11 @@ emulate(int argc, char **argv)
     if (!config.X)
 	install_dos(0);
 
+    /* the following duo have to be done before others who use hlt or coopth */
     hlt_init();
     coopth_init();
 
+    vm86_init();
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
