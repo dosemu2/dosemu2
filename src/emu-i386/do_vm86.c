@@ -454,6 +454,7 @@ void loopstep_run_vm86(void)
 static int callback_level = 0;
 static int callback_thr_tag;
 Bit16u CBACK_OFF;
+Bit16u CBACK_OFF2;
 
 static void callback_return(Bit32u off2, void *arg)
 {
@@ -463,10 +464,13 @@ static void callback_return(Bit32u off2, void *arg)
     sp = LWORD(esp) + 4;
     tid = popl(ssp, sp);
     fake_retf(2);
-    if (tid != COOPTH_TID_INVALID)
-	coopth_wake_up(tid);
-    else
-	callback_level--;
+    coopth_wake_up(tid);
+}
+
+static void callback_return_old(Bit32u off2, void *arg)
+{
+    fake_retf(0);
+    callback_level--;
 }
 
 /*
@@ -524,7 +528,6 @@ void do_intr_call_back(int intno)
 {
 	int level;
 	int old_frozen;
-	int *sptr;
 	Bit32u codefarptr = MK_FP16(ISEG(intno), IOFF(intno));
 
 	if (in_dpmi && !in_dpmi_dos_int) {
@@ -536,12 +539,7 @@ void do_intr_call_back(int intno)
 		leavedos(25);
 	}
 
-	/* reserve space for tid */
-	LWORD(esp) -= 4;
-	sptr = dosaddr_to_unixaddr(SEGOFF2LINEAR(REG(ss), LWORD(esp)));
-	*sptr = COOPTH_TID_INVALID;
-
-	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
+	fake_call_to(CBACK_SEG, CBACK_OFF2);	/* push our return cs:ip */
 	fake_int_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
 
 	old_frozen = dosemu_frozen;
@@ -565,6 +563,12 @@ int vm86_init(void)
     hlt_hdlr.len = 1;
     hlt_hdlr.func = callback_return;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
+
+    hlt_hdlr.name = "do_call_back_old";
+    hlt_hdlr.start_addr = -1;
+    hlt_hdlr.len = 1;
+    hlt_hdlr.func = callback_return_old;
+    CBACK_OFF2 = hlt_register_handler(hlt_hdlr);
 
     callback_thr_tag = coopth_tag_alloc();
     return 0;
