@@ -478,10 +478,6 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 {
 	int old_frozen;
 
-	if (!coopth_is_in_thread()) {
-		dosemu_error("do_call_back() coopthreads error\n");
-		leavedos(25);
-	}
 	if (fault_cnt && !in_leavedos) {
 		error("do_call_back() executed within the signal context!\n");
 		leavedos(25);
