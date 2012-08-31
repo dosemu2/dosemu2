@@ -151,9 +151,7 @@ void fossil_int14(int num)
   case 0x02:
     while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
 	com[num].fossil_blkrd_running = 1;
-	coopth_tag_set(com[num].fossil_blkrd_tag, num);
-	coopth_sleep();
-	coopth_tag_clear(com[num].fossil_blkrd_tag, num);
+	coopth_sleep_tagged(com[num].fossil_blkrd_tag, num);
 	com[num].fossil_blkrd_running = 0;
     }
     LO(ax) = read_char(num);

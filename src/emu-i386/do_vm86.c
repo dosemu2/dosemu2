@@ -497,9 +497,7 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	if (dosemu_frozen)
 		unfreeze_dosemu();
 	callback_level++;
-	coopth_tag_set(callback_thr_tag, callback_level);
-	coopth_sleep();
-	coopth_tag_clear(callback_thr_tag, callback_level);
+	coopth_sleep_tagged(callback_thr_tag, callback_level);
 	callback_level--;
 	if (!callback_level && old_frozen)
 		freeze_dosemu();
