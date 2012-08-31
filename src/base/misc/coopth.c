@@ -354,12 +354,6 @@ static int __coopth_is_in_thread(void)
     return thread_running;
 }
 
-int coopth_is_in_thread(void)
-{
-    /* this is an ad-hoc, the caller should know better than ask */
-    return __coopth_is_in_thread();
-}
-
 static void switch_state(enum CoopthRet ret)
 {
     struct coopth_thrdata_t *thdata = co_get_data(co_current());
