@@ -26,6 +26,7 @@ void coopth_done(void);
 int coopth_tag_alloc(void);
 void coopth_tag_set(int tag, int cookie);
 void coopth_tag_clear(int tag, int cookie);
+void coopth_sleep_tagged(int tag, int cookie);
 int coopth_get_tid_by_tag(int tag, int cookie);
 
 #endif

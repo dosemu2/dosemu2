@@ -484,3 +484,10 @@ int coopth_get_tid_by_tag(int tag, int cookie)
     }
     return tid;
 }
+
+void coopth_sleep_tagged(int tag, int cookie)
+{
+    coopth_tag_set(tag, cookie);
+    coopth_sleep();
+    coopth_tag_clear(tag, cookie);
+}
