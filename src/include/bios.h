@@ -171,5 +171,7 @@ void		PKTDRV_driver_name(void);
 void		PKTDRV_param(void);
 void		PKTDRV_stats(void);
 void		PKTDRV_start(void);
+void		PKTDRV_driver_entry_ip(void);
+void		PKTDRV_driver_entry_cs(void);
 
 #endif				/* BIOS_H */

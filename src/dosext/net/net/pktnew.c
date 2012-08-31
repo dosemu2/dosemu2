@@ -203,6 +203,10 @@ pkt_reset(void)
 {
     if (!config.pktdrv)
       return;
+    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
+	    MK_PKT_OFS(PKTDRV_driver_entry_ip)), INT_OFF(0x60));
+    WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
+	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOSSEG);
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
 }

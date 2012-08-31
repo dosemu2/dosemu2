@@ -751,14 +751,19 @@ idle_cycle:
 	popf
 	lret
 
-/* ----------------------------------------------------------------- */   
+/* ----------------------------------------------------------------- */
 	/* the packet driver */
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:F130 (FF130) */
 
 	.globl	CISH(PKTDRV_start)
 CISH(PKTDRV_start):
-	jmp	bios_hlt_blk+0x60
+/*	jmp to entry point is also used as signature, and therefore
+	it have to be jmp with word displacement. I've found no way
+	to tell gas that I want jmp with word displacement, so hardcode
+	it as 0xe9 */
+	.byte 0xe9
+	.word PKTDRV_entry-.-2
 
 /* The packet driver signature will be written here when the packet
    driver is initialized. */
@@ -768,6 +773,18 @@ CISH(PKTDRV_start):
 CISH(PKTDRV_driver_name):
 	.asciz	"Linux$"
 	.byte	0
+
+PKTDRV_entry:
+	ljmp	INDIRECT_PTR(%cs:CISH(PKTDRV_driver_entry)-bios_f000)
+
+	.align 4,0
+PKTDRV_driver_entry:
+	.globl	CISH(PKTDRV_driver_entry_ip)
+CISH(PKTDRV_driver_entry_ip):
+	.word 0
+	.globl	CISH(PKTDRV_driver_entry_cs)
+CISH(PKTDRV_driver_entry_cs):
+	.word 0
 
 /* ===== LFN helper f000:f230 */
 	.org	((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF
