@@ -702,7 +702,7 @@ CISH(INT09_dummy_end):
 	.byte	0x08
 
 /* ----------------------------------------------------------------- */
-	.org	0xf065
+	.org	((INT42HOOK_SEG - BIOSSEG) << 4) + INT42HOOK_OFF
 /* ======================= Addr = FF065 */
 /* COMPAS FF065		jmp to INT10 */
 /* COMPAS FF068-FF0A3	reserved */
@@ -710,7 +710,7 @@ CISH(INT09_dummy_end):
         /* Note:	 A conforming video-bios will redirect int 42 here if
           it doesn't find anything else.  Another fun suprise :	(
           I'll have to implement this in my video-bios. --EB  13 Jan 97 */
-	jmp bios_hlt_blk+0x42 /* redirect this back to our magic location */
+	hlt
 
 /* COMPAS FF0A4		video param table */
 /* COMPAS FF0FC-FF840	reserved */
