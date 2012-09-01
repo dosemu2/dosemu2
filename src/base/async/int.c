@@ -1305,6 +1305,14 @@ static int int21(void)
     return int21lfnhook();
   return ret;
 }
+
+void int42_hook(void)
+{
+  /* see comments in bios.S:INT42HOOK_OFF */
+  fake_iret();
+  fake_int_to(BIOSSEG, INT_OFF(0x42));
+}
+
 /* ========================================================================= */
 
 void real_run_int(int i)
