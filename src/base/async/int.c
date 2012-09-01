@@ -72,6 +72,7 @@ static char win31_title[256];
 
 static void dos_post_boot(void);
 static int int33(void);
+static void fake_iret(void);
 
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
@@ -1922,8 +1923,6 @@ static void int33_check_hog(void)
    * system get on with some real work. :-) */
   idle(200, 20, 20, "mouse");
 }
-
-static void fake_iret(void);
 
 /* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
 void int33_post(void)
