@@ -1549,18 +1549,29 @@ int msdos_fault(struct sigcontext_struct *scp)
 
     D_printf("MSDOS: try mov to a invalid selector 0x%04x\n", segment);
 
-#if 0
+#if 1
     /* only allow using some special GTD\'s */
     if ((segment != 0x0040) && (segment != 0xa000) &&
 	(segment != 0xb000) && (segment != 0xb800) &&
 	(segment != 0xc000) && (segment != 0xe000) &&
 	(segment != 0xf000) && (segment != 0xbf8) &&
-	(segment != 0xf800) && (segment != 0xff00))
+	(segment != 0xf800) && (segment != 0xff00) &&
+	(segment != 0x38))
 	return 0;
 #endif    
 
-    if (!(desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor_lim(segment, 0xfffff) :
-	ConvertSegmentToCodeDescriptor_lim(segment, 0xfffff))))
+    switch (segment) {
+	case 0x38:
+	    /* dos4gw sets VCPI descriptors 0x28, 0x30, 0x38 */
+	    /* The 0x38 is the "flat data" segment (0,4G) */
+	    desc = ConvertSegmentToDescriptor_lim(0, 0xffffffff);
+	    break;
+	default:
+	    /* any other special cases? */
+	    desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor(segment) :
+		ConvertSegmentToCodeDescriptor(segment));
+    }
+    if (!desc)
 	return 0;
 
     /* OKay, all the sanity checks passed. Now we go and fix the selector */
