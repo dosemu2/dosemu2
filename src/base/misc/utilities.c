@@ -704,7 +704,10 @@ void *load_plugin(const char *plugin_name)
 
     strcpy(fullname, dosemu_proc_self_exe);
     slash = strrchr(fullname, '/');
-    if (slash == NULL) return NULL;
+    if (slash == NULL) {
+      free (fullname);
+      return NULL;
+    }
     sprintf(slash + 1, "libplugin_%s.so", plugin_name);
     handle = dlopen(fullname, RTLD_LAZY);
     free(fullname);
