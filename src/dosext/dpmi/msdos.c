@@ -32,6 +32,7 @@
 #include "msdos.h"
 #include "vgaemu.h"
 #include "utilities.h"
+#include "dos2linux.h"
 
 #define SUPPORT_DOSEMU_HELPERS 1
 #if SUPPORT_DOSEMU_HELPERS
@@ -48,8 +49,8 @@
 
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
-#define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c)))
-#define WRITE_ENV_SEL(sel) (WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c), sel))
+#define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c)))
+#define WRITE_ENV_SEL(sel) (WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c), sel))
 
 static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
@@ -72,16 +73,15 @@ void msdos_setup(void)
     }
 }
 
-void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
+void msdos_init(int is_32, unsigned short mseg)
 {
     unsigned short envp;
     msdos_client_num++;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
-    MSDOS_CLIENT.current_psp = psp;
     /* convert environment pointer to a descriptor */
-    envp = READ_WORD((psp<<4)+0x2c);
+    envp = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c));
     if (envp) {
 	WRITE_ENV_SEL(ConvertSegmentToDescriptor(envp));
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
@@ -286,21 +286,21 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 
     D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
 
-    REG(cs)  = MSDOS_CLIENT.current_psp;
+    REG(cs)  = CURRENT_PSP;
     REG(eip) = 0x100;
 
 #if 0
-    _eip = READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa));
+    _eip = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa));
     _cs = ConvertSegmentToCodeDescriptor(
-      READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa+2)));
+      READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa+2)));
 #endif
 
     /* put our return address there */
-    WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa),
+    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa),
 	     DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i);
-    WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa+2), DPMI_SEG);
+    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa+2), DPMI_SEG);
 
-    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x16));
+    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x16));
     /* try segment */
     psp_sig = READ_WORD(SEGOFF2LINEAR(psp_seg_sel, 0));
     if (psp_sig != 0x20CD) {
@@ -328,14 +328,12 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
     if (!parent_psp) {
 	/* no PSP found, use current as the last resort */
 	D_printf("MSDOS: using current PSP as parent!\n");
-	parent_psp = MSDOS_CLIENT.current_psp;
+	parent_psp = CURRENT_PSP;
     }
 
     D_printf("MSDOS: parent PSP seg=%#x\n", parent_psp);
     if (parent_psp != psp_seg_sel)
-	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x16), parent_psp);
-    /* And update our PSP pointer */
-    MSDOS_CLIENT.current_psp = parent_psp;
+	WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x16), parent_psp);
 }
 
 /*
@@ -622,7 +620,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x50:		/* set PSP */
 	    if ( !in_dos_space(_LWORD(ebx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(ebx);
-		LWORD(ebx) = MSDOS_CLIENT.current_psp;
+		LWORD(ebx) = CURRENT_PSP;
 		MEMCPY_DOS2DOS(SEGOFF2LINEAR(LWORD(ebx), 0), 
 		    GetSegmentBase(_LWORD(ebx)), 0x100);
 		D_printf("MSDOS: PSP moved from %x to %x\n",
@@ -632,7 +630,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(ebx) = GetSegmentBase(_LWORD(ebx)) >> 4;
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
-	    MSDOS_CLIENT.current_psp = LWORD(ebx);
 	    return 0;
 
 	case 0x26:		/* create PSP */
@@ -643,10 +640,9 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x55:		/* create & set PSP */
 	    if ( !in_dos_space(_LWORD(edx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(edx);
-		LWORD(edx) = MSDOS_CLIENT.current_psp;
+		LWORD(edx) = CURRENT_PSP;
 	    } else {
 		REG(edx) = GetSegmentBase(_LWORD(edx)) >> 4;
-		MSDOS_CLIENT.current_psp = LWORD(edx);
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
 	    return 0;
@@ -1149,13 +1145,13 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    D_printf("MSDOS: CWD: %s\n",(char *)(GetSegmentBaseAddress(_ds) +
 			D_16_32(_esi)));
 	    break;
-#if 0	    
+#if 0
 	case 0x48:		/* allocate memory */
 	    if (LWORD(eflags) & CF)
 		break;
 	    SET_REG(eax, ConvertSegmentToDescriptor(LWORD(eax)));
 	    break;
-#endif	    
+#endif
 	case 0x4b:		/* EXEC */
 	    if (CURRENT_ENV_SEL)
 		WRITE_ENV_SEL(ConvertSegmentToDescriptor(CURRENT_ENV_SEL));
@@ -1165,7 +1161,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	case 0x62:
 	    {/* convert environment pointer to a descriptor*/
 		unsigned short psp = LWORD(ebx);
-		if (psp == MSDOS_CLIENT.current_psp && MSDOS_CLIENT.user_psp_sel) {
+		if (psp == CURRENT_PSP && MSDOS_CLIENT.user_psp_sel) {
 		    SET_REG(ebx, MSDOS_CLIENT.user_psp_sel);
 		} else {
 		    SET_REG(ebx, ConvertSegmentToDescriptor_lim(psp, 0xff));

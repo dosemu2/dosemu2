@@ -2575,7 +2575,7 @@ void dpmi_cleanup(void)
   FreeAllDescriptors();
   munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack, 
     PAGE_ALIGN(DPMI_pm_stack_size));
-  if (!DPMI_CLIENT.RSP_installed) {
+  if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
     DPMI_CLIENT.pm_block_root = NULL;
@@ -2970,9 +2970,9 @@ err:
 void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
-  unsigned short CS, DS, ES, SS, psp, my_cs;
+  unsigned short CS, DS, ES, SS, my_cs;
   unsigned int ssp, sp;
-  unsigned int my_ip, my_sp, i;
+  unsigned int my_ip, i;
   unsigned char *cp;
   int inherit_idt;
   struct sigcontext_struct *scp;
@@ -3052,9 +3052,6 @@ void dpmi_init(void)
   ssp = SEGOFF2LINEAR(REG(ss), 0);
   sp = LWORD(esp);
 
-  psp = LWORD(ebx);
-  LWORD(ebx) = popw(ssp, sp);
-
   my_ip = popw(ssp, sp);
   my_cs = popw(ssp, sp);
 
@@ -3062,8 +3059,8 @@ void dpmi_init(void)
     cp = MK_FP32(my_cs, my_ip);
 
     D_printf("Going protected with fingers crossed\n"
-		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04x\n",
-		LO(ax), my_cs, LWORD(ss), LWORD(ds), psp, my_ip, REG(esp));
+		"32bit=%d, CS=%04x SS=%04x DS=%04x ip=%04x sp=%04x\n",
+		LO(ax), my_cs, LWORD(ss), LWORD(ds), my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
@@ -3094,15 +3091,15 @@ void dpmi_init(void)
   if (!(SS = ConvertSegmentToDescriptor(LWORD(ss)))) goto err;
   /* if ds==ss, the selectors will be equal too */
   if (!(DS = ConvertSegmentToDescriptor(LWORD(ds)))) goto err;
-  if (!(ES = ConvertSegmentToDescriptor_lim(psp, 0xff))) goto err;
+  if (!(ES = ConvertSegmentToDescriptor_lim(CURRENT_PSP, 0xff))) goto err;
 
   if (debug_level('M')) {
     print_ldt();
     D_printf("LDT_ALIAS=%x dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n", DPMI_CLIENT.LDT_ALIAS, dpmi_sel(), CS, DS, SS, ES);
   }
 
-  REG(esp) += 6;
-  my_sp = LWORD(esp);
+  REG(esp) += 4;
+  HWORD(esp) = 0;
   NOCARRY;
 
   REG(cs) = DPMI_SEG;
@@ -3118,7 +3115,7 @@ void dpmi_init(void)
   scp   = &DPMI_CLIENT.stack_frame;
   _eip	= my_ip;
   _cs	= CS;
-  _esp	= my_sp;
+  _esp	= LWORD(esp);
   _ss	= SS;
   _ds	= DS;
   _es	= ES;
@@ -3137,8 +3134,7 @@ void dpmi_init(void)
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
 
   msdos_init(DPMI_CLIENT.is_32,
-    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs,
-    psp);
+    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
 
   for (i = 0; i < RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
@@ -3151,7 +3147,7 @@ err:
   error("DPMI initialization failed!\n");
   in_dpmi_dos_int = 1;
   dpmi_cleanup();
-  in_dpmi--;
+  CARRY;
 }
 
 void dpmi_sigio(struct sigcontext_struct *scp)

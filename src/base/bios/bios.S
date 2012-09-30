@@ -65,16 +65,10 @@ bios_hlt_blk:
 /* ======================= Addr = F800:4800 (FC800) */
 	.globl	CISH(DPMI_dummy_start)
 CISH(DPMI_dummy_start):
-	pushw	%bx
-	pushw	%ax
-	movb	$0x62,%ah
-	int	$0x21			/* Get PSP */
-	popw	%ax
 /* ======================= Addr = F800:4807 (FC807) */
 	.globl	CISH(DPMI_dpmi_init)
 CISH(DPMI_dpmi_init):
 	hlt
-	popw	%bx
 	lret
 /* ======================= Addr = F800:480A (FC80A) */
 	.globl	CISH(DPMI_return_from_dos)

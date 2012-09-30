@@ -32,14 +32,12 @@ struct msdos_struct {
   unsigned short user_dta_sel;
   unsigned long user_dta_off;
   unsigned short user_psp_sel;
-  unsigned short current_psp;
   unsigned short lowmem_seg;
   dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
 };
 
 extern void msdos_setup(void);
-extern void msdos_init(int is_32, unsigned short mseg,
-    unsigned short psp);
+extern void msdos_init(int is_32, unsigned short mseg);
 extern void msdos_done(void);
 extern int msdos_get_lowmem_size(void);
 extern int msdos_pre_extender(struct sigcontext_struct *scp, int intr);
@@ -57,5 +55,7 @@ extern void msdos_post_pm(struct sigcontext_struct *scp);
 #define DTA_Para_SIZE 8
 #define EXEC_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
 #define EXEC_Para_SIZE 30
+
+#define CURRENT_PSP ((u_short)sda_cur_psp(sda))
 
 #endif
