@@ -1405,13 +1405,21 @@ void restore_pm_regs(struct sigcontext_struct *scp)
   }
 }
 
-void fake_pm_int(void)
+static void __fake_pm_int(struct sigcontext_struct *scp)
 {
   D_printf("DPMI: fake_pm_int() called, in_dpmi_dos_int=0x%02x\n",in_dpmi_dos_int);
   save_rm_regs();
+  pm_to_rm_regs(scp, ~0);
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   in_dpmi_dos_int = 1;
+}
+
+void fake_pm_int(void)
+{
+  if (fault_cnt)
+    dosemu_error("fake_pm_int called from within the signal context\n");
+  __fake_pm_int(&DPMI_CLIENT.stack_frame);
 }
 
 static void get_ext_API(struct sigcontext_struct *scp)
@@ -2631,8 +2639,6 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
   }
 
   if (dos_exit) {
-    REG(cs) = DPMI_SEG;
-    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
     if (!have_tsr || !tsr_para) {
       HI(ax) = 0x4c;
       LO(ax) = errcode;
@@ -2741,12 +2747,8 @@ void run_pm_int(int i)
 
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
 
-    if (!in_dpmi_dos_int) {
-      save_rm_regs();
-      REG(cs) = DPMI_SEG;
-      REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-      in_dpmi_dos_int = 1;
-    }
+    if (!in_dpmi_dos_int)
+      fake_pm_int();
     do_int(i);
     return;
   }
@@ -3108,9 +3110,6 @@ void dpmi_init(void)
   HWORD(esp) = 0;
   NOCARRY;
 
-  REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-
   /* set int 23 to "iret" so that DOS doesn't terminate the program
      behind our back */
   SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
@@ -3250,10 +3249,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
         case 0x01: /* debug */
         case 0x03: /* int3 */
         case 0x04: /* overflow */
-	        save_rm_regs();
-	        REG(cs) = DPMI_SEG;
-	        REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-	        in_dpmi_dos_int = 1;
+		__fake_pm_int(scp);
 	        do_int(trapno);
 		break;
         default:
@@ -3261,6 +3257,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 		  "It is likely that dosemu is unstable now and should be rebooted\n",
 		  trapno);
 		quit_dpmi(scp, 0xff, 0, 0, 1);
+		break;
       }
       return;
     }
@@ -3281,7 +3278,6 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     _eflags &= ~(TF | NT | AC);
     _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
     _eip = DPMI_CLIENT.Interrupt_Table[trapno].offset;
-    return;
 #else
     /* This is how the DPMI 1.0 spec claims it should be, but
      * this doesn't work. */
@@ -3292,16 +3288,15 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     case 0x04: /* overflow */
     case 0x05: /* bounds */
     case 0x07: /* device_not_available */
-	       save_rm_regs();
-	       REG(cs) = DPMI_SEG;
-	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-	       in_dpmi_dos_int = 1;
-	       return (void) do_int(trapno);
+	       __fake_pm_int(scp);
+	       do_int(trapno);
+	       break;
     default:
 	       p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 			 "It is likely that dosemu is unstable now and should be rebooted\n",
 			 trapno);
 	       quit_dpmi(scp, 0xff, 0, 0, 1);
+	       break;
   }
 #endif
 }
