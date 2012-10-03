@@ -1422,11 +1422,7 @@ static int run_caller_func(int i, int revect)
 	if (caller_function) {
 		return caller_function();
 	} else {
-		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-		g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
-		/* This is here for old SIGILL's that modify IP */
-		if (i == 0x00)
-			LWORD(eip)+=2;
+		error("DEFIVEC: int 0x%02x %i\n", i, revect);
 		return 0;
 	}
 }
@@ -2000,7 +1996,8 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
 	fake_iret();
-	coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
+	if (interrupt_function[i][NO_REVECT])
+	      coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 }
 
 static void int_chain_thr(void *arg)
