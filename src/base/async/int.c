@@ -1455,7 +1455,7 @@ int can_revector(int i)
   case 0x1c:			/* ROM BIOS timer tick interrupt */
   case 0x23:			/* DOS Ctrl+C interrupt */
   case 0x24:			/* DOS critical error interrupt */
-    return config.dpmi ? REVECT : NO_REVECT;
+    return in_dpmi ? REVECT : NO_REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
     /* hogthreshold may be changed using "speed". Easiest to leave it
