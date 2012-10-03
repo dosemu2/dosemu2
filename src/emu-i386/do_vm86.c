@@ -391,20 +391,10 @@ run_vm86(void)
 	I_printf("Return from vm86() for STI\n");
 	break;
     case VM86_INTx:
-	if (
-	    in_dpmi &&
-	    (
-	     VM86_ARG(retval) == 0x1c || /* ROM BIOS timer tick interrupt */
-	     VM86_ARG(retval) == 0x23 || /* DOS Ctrl+C interrupt */
-	     VM86_ARG(retval) == 0x24    /* DOS critical error interrupt */
-	    )) {
-	  run_pm_dos_int(VM86_ARG(retval));
-	} else {
-	  do_int(VM86_ARG(retval));
+	do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
-	  mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
 #endif
-	}
 	break;
 #ifdef USE_MHPDBG
     case VM86_TRAP:

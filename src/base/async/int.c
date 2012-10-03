@@ -1349,6 +1349,7 @@ void real_run_int(int i)
   else
     clear_TF();
   clear_NT();
+  clear_AC();
   clear_IF();
 }
 
@@ -1567,6 +1568,35 @@ static int int19(void) {
   return 1;
 }
 
+static void do_dpmi_int(void *arg)
+{
+  int i = (long)arg;
+  run_pm_dos_int(i);
+}
+
+static int int1c(void)
+{
+  if (!in_dpmi)
+    return 0;
+  coopth_set_post_handler(int_rvc_tid + 0x1c, do_dpmi_int, (void *)0x1c);
+  return 1;
+}
+
+static int int23(void)
+{
+  if (!in_dpmi)
+    return 0;
+  coopth_set_post_handler(int_rvc_tid + 0x23, do_dpmi_int, (void *)0x23);
+  return 1;
+}
+
+static int int24(void)
+{
+  if (!in_dpmi)
+    return 0;
+  coopth_set_post_handler(int_rvc_tid + 0x24, do_dpmi_int, (void *)0x24);
+  return 1;
+}
 
 /*
  * Turn all simulated FAT devices into network drives.
@@ -2159,6 +2189,11 @@ void setup_interrupts(void) {
   interrupt_function[0x18][NO_REVECT] = int18;
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
+
+  interrupt_function[0x1c][REVECT] = int1c;
+  interrupt_function[0x23][REVECT] = int23;
+  interrupt_function[0x24][REVECT] = int24;
+
   interrupt_function[0x21][NO_REVECT] = int21;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;

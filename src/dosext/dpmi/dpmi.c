@@ -2803,7 +2803,7 @@ void run_pm_dos_int(int i)
 
   if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel()) {
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
-    do_int(i);
+    real_run_int(i);
     return;
   }
 
