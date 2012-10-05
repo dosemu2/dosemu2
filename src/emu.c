@@ -477,20 +477,17 @@ dos_ctrl_alt_del(void)
 }
 
 /* "graceful" shutdown */
-void
-leavedos(int sig)
+void __leavedos(int sig, const char *s, int num)
 {
     struct itimerval itv;
 
     if (in_leavedos)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
-       gdb_debug();
-       flush_log();
-       siglongjmp(NotJEnv, sig);
+       _exit(1);
       }
     in_leavedos++;
-    dbug_printf("leavedos(%d|0x%x) called - shutting down\n", sig, sig);
+    dbug_printf("leavedos(%s|%i) called - shutting down\n", s, num);
 #if 1 /* BUG CATCHER */
     if (in_vm86) {
       g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");
@@ -508,7 +505,7 @@ leavedos(int sig)
     g_printf("closing debugger pipes\n");
     mhp_close();
 #endif
-    
+
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
@@ -553,7 +550,7 @@ leavedos(int sig)
     show_ints(0, 0x33);
     g_printf("calling disk_close_all\n");
     disk_close_all();
-   
+
     if (config.emuretrace) {
       do_r3da_pending ();
       set_ioperm (0x3da, 1, 1);

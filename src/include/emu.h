@@ -396,7 +396,8 @@ EXTERN int mfs_inte6(void);
 EXTERN int mfs_helper(state_t *regs);
 EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
-EXTERN void leavedos(int) NORETURN;
+EXTERN void __leavedos(int sig, const char *s, int num) NORETURN;
+#define leavedos(n) __leavedos(n, __FUNCTION__, __LINE__)
 EXTERN void add_to_io_select(int, u_char, void(*)(void *), void *);
 EXTERN void remove_from_io_select(int, u_char);
 #ifdef __linux__
