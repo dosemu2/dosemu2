@@ -376,8 +376,8 @@ vga_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 		unsigned s = scr;
 		int i = index;
 		switch (width) {
-			case 15: do_pixel
 			case 16: do_pixel
+			case 15: do_pixel
 			case 14: do_pixel
 			case 13: do_pixel
 			case 12: do_pixel
