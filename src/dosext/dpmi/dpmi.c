@@ -109,6 +109,7 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
+static int in_win31;
 static unsigned long *emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
@@ -2596,6 +2597,7 @@ void dpmi_cleanup(void)
   }
   if (in_dpmi == 1) {
     in_win31 = 0;
+    win31_mode = 0;
     mprotect_mapping(MAPPING_DPMI, ldt_buffer,
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
     if (!RSP_num)
@@ -3006,7 +3008,6 @@ void dpmi_init(void)
     dpmi_free_memory = dpmi_total_memory;
     DPMI_rm_procedure_running = 0;
     pm_block_handle_used = 1;
-    in_win31 = 0;
   }
 
   DPMI_CLIENT.private_data_segment = REG(es);

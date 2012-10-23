@@ -1781,8 +1781,8 @@ static int int2f(void)
     }
     switch (LO(ax)) {
       case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-    if (in_dpmi && in_win31) {
-      D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK: %i\n", in_win31);
+    if (in_dpmi && win31_mode) {
+      D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK: %i\n", win31_mode);
       if (win31_mode == 3)
         LWORD(eax) = 0x0a03;
       else
@@ -1800,7 +1800,7 @@ static int int2f(void)
     return 1;
 
       case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
-    if(in_dpmi && in_win31) {
+    if(in_dpmi && win31_mode) {
       D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
       LWORD(eax) = 0;
       LWORD(ebx) = 0x030a;	/* 3.10 */
@@ -1810,17 +1810,17 @@ static int int2f(void)
       break;
 
       case 0x83:
-        if (in_dpmi && in_win31)
+        if (in_dpmi && win31_mode)
             LWORD (ebx) = 0;	/* W95: number of virtual machine */
       case 0x81:		/* W95: enter critical section */
-        if (in_dpmi && in_win31) {
+        if (in_dpmi && win31_mode) {
 	    D_printf ("WIN: enter critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
   }
       break;
       case 0x82:		/* W95: exit critical section */
-        if (in_dpmi && in_win31) {
+        if (in_dpmi && win31_mode) {
 	    D_printf ("WIN: exit critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
@@ -2255,7 +2255,7 @@ static void update_xtitle(void)
       return;
   }
 
-  if (in_win31 && memcmp(cmd_ptr, "krnl", 4) == 0) {
+  if (win31_mode && memcmp(cmd_ptr, "krnl", 4) == 0) {
     cmd_ptr = win31_title;
     force_update = 1;
   }
