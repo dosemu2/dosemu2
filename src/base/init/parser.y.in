@@ -1130,8 +1130,14 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| GRAPHICS
 		    { config.vga = 1;
 		    }
+		| GRAPHICS L_AUTO
+		    { config.vga = -1;
+		    }
 		| CONSOLE
 		    { config.console_video = 1;
+		    }
+		| CONSOLE L_AUTO
+		    { config.console_video = -1;
 		    }
 		| FULLREST		{ config.fullrestore = 1; }
 		| PARTREST		{ config.fullrestore = 0; }

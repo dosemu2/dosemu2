@@ -176,8 +176,8 @@ typedef struct vesamode_type_struct {
 #endif
        int CPUSpeedInMhz;
        /* for video */
-       boolean console_video;
-       boolean vga;
+       int console_video;
+       int vga;
        boolean X;
        boolean X_fullscreen;
        u_short cardtype;
