@@ -27,12 +27,12 @@
 #define NEWXMS          2
 
 #ifndef __ASSEMBLER__
-struct EMM {
+struct __attribute__ ((__packed__)) EMM {
    unsigned int Length;
    unsigned short SourceHandle;
-   unsigned int SourceOffset __attribute__((packed));
-   unsigned short DestHandle __attribute__((packed));
-   unsigned int DestOffset __attribute__((packed));
+   unsigned int SourceOffset;
+   unsigned short DestHandle;
+   unsigned int DestOffset;
 } ;
 
 struct Handle {

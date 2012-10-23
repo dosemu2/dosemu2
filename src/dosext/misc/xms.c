@@ -78,7 +78,6 @@ static int a20_local, a20_global, freeHMA;	/* is HMA free? */
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
 
-struct EMM get_emm(unsigned int, unsigned int);
 void show_emm(struct EMM);
 static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
  xms_move_EMB(void), xms_lock_EMB(int), xms_EMB_info(int), xms_realloc_EMB(int);
@@ -744,8 +743,9 @@ static unsigned char
 xms_move_EMB(void)
 {
   unsigned int src, dest;
-  struct EMM e = get_emm(REG(ds), LWORD(esi));
+  struct EMM e;
 
+  MEMCPY_2UNIX(&e, SEGOFF2LINEAR(REG(ds), LWORD(esi)), sizeof e);
   x_printf("XMS move extended memory block\n");
   show_emm(e);
 
@@ -893,27 +893,6 @@ xms_realloc_EMB(int api)
   /* free the EMB's old Linux memory */
   xms_free(oldaddr);
   return 0;
-}
-
-struct EMM
-get_emm(unsigned int seg, unsigned int off)
-{
-  struct EMM e;
-  unsigned char *p;
-
-  p = MK_FP32(seg, off);
-
-  e.Length = *(unsigned int *) p;
-  p += 4;
-  e.SourceHandle = *(unsigned short *) p;
-  p += 2;
-  e.SourceOffset = *(unsigned int *) p;
-  p += 4;
-  e.DestHandle = *(unsigned short *) p;
-  p += 2;
-  e.DestOffset = *(unsigned int *) p;
-
-  return e;
 }
 
 void
