@@ -233,8 +233,8 @@ static int dspio_fill_output(struct dspio_state *state)
     if (!state->output_running && !sb_output_fifo_empty())
 #else
     /* incomplete fifo needs a timeout, so lets not deal with it at all.
-     * Instead, deal with the filled fifo, and only if DMA is active */
-    if (sb_dma_active() && sb_output_fifo_filled())
+     * Instead, deal with the filled fifo only. */
+    if (sb_output_fifo_filled())
 #endif
 	dspio_start_output(state);
     return dma_cnt;

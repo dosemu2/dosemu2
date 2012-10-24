@@ -84,7 +84,7 @@ int sb_get_hdma_num(void)
 /* DMA mode decoding functions */
 int sb_dma_active(void)
 {
-    return (sb.dma_cmd && !sb.paused);
+    return (sb.dma_active && !sb.paused);
 }
 
 int sb_dma_16bit(void)
@@ -301,6 +301,7 @@ static void sb_dma_actualize(void)
 	sb.new_dma_init_count = 0;
 	sb.paused = 0;
 	sb.dma_exit_ai = 0;
+	sb.dma_active = 1;
     }
 }
 
@@ -373,7 +374,7 @@ void sb_handle_dma(void)
 	sb_activate_irq(sb_dma_16bit()? SB_IRQ_16BIT : SB_IRQ_8BIT);
 	if (!sb_dma_autoinit()) {
 	    stop_dma_clock();
-	    sb.dma_cmd = 0;	// disable DMA
+	    sb.dma_active = 0;	// disable DMA
 	    S_printf("SB: DMA transfer completed\n");
 	} else if (sb_fifo_enabled()) {
 	    /* auto-init & FIFO - stop till IRQ-ACK */
@@ -519,6 +520,7 @@ static void sb_dsp_reset(void)
     sb.new_dma_cmd = 0;
     sb.new_dma_mode = 0;
     sb.dma_exit_ai = 0;
+    sb.dma_active = 0;
     sb.dma_init_count = 0;
     sb.new_dma_init_count = 0;
     sb.dma_count = 0;
@@ -543,7 +545,7 @@ static void sb_dsp_soft_reset(unsigned char value)
 	    if (sb_dma_active() && sb_dma_high_speed()) {
 		/* for High-Speed mode reset means only exit High-Speed */
 		S_printf("SB: Reset called, exiting High-Speed DMA mode\n");
-		sb.dma_cmd = 0;
+		sb.dma_active = 0;
 	    } else if (sb_midi_uart()) {
 		S_printf("SB: Reset called, exiting UART midi mode\n");
 		sb.midi_cmd = 0;
@@ -804,7 +806,7 @@ static void sb_dsp_write(Bit8u value)
 	if (sb.paused) {
 	    S_printf("SB: Unpausing DMA, left=%i\n", sb.dma_count);
 	    sb.paused = 0;
-	    if (sb.dma_cmd)
+	    if (sb.dma_active)
 		start_dma_clock();
 	}
 	break;
@@ -865,7 +867,7 @@ static void sb_dsp_write(Bit8u value)
 	    S_printf("SB: Pausing 8bit DMA, left=%i\n", sb.dma_count);
 	    sb_deactivate_irq(SB_IRQ_8BIT);
 	    sb.paused = 1;
-	    if (sb.dma_cmd)
+	    if (sb.dma_active)
 		stop_dma_clock();
 	}
 	break;
@@ -875,7 +877,7 @@ static void sb_dsp_write(Bit8u value)
 	    S_printf("SB: Pausing 16bit DMA, left=%i\n", sb.dma_count);
 	    sb_deactivate_irq(SB_IRQ_16BIT);
 	    sb.paused = 1;
-	    if (sb.dma_cmd)
+	    if (sb.dma_active)
 		stop_dma_clock();
 	}
 	break;
@@ -901,7 +903,7 @@ static void sb_dsp_write(Bit8u value)
 	if (sb.paused) {
 	    S_printf("SB: Unpausing 16bit DMA, left=%i\n", sb.dma_count);
 	    sb.paused = 0;
-	    if (sb.dma_cmd)
+	    if (sb.dma_active)
 		start_dma_clock();
 	}
 	break;
@@ -918,7 +920,7 @@ static void sb_dsp_write(Bit8u value)
 	/* Exit Auto-Init 8-bit DMA - SB2.0 */
     case 0xDA:
 	S_printf("SB: Exiting DMA autoinit\n");
-	if (sb.dma_cmd)
+	if (sb.dma_active)
 	    sb.dma_exit_ai = 1;
 	break;
 
