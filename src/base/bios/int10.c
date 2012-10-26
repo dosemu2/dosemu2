@@ -355,7 +355,7 @@ static void clear_screen(void)
   v_printf("INT10: cleared screen: screen_adr %x\n", screen_adr(0));
 
   for (schar = screen_adr(0), lx = 0; lx < 16*1024;
-       vga_write_word(schar+=2, blank), lx++);
+       vga_write_word(schar, blank), lx++, schar+=2);
 
   for (s = 0; s < 8; s++) {
     set_dirty(s);
@@ -969,10 +969,10 @@ int int10(void) /* with dualmon */
          */
         if(HI(ax) == 9) {		/* use attribute from BL */
   	 c_attr = c | (LO(bx) << 8);
-	 while(n--) vga_write_word(sadr+=2, c_attr);
+	 while(n--) { vga_write_word(sadr, c_attr); sadr += 2; }
         }
         else {				/* leave attribute as it is */
-	 while(n--) vga_write(sadr+=2, c);
+	 while(n--) { vga_write(sadr, c); sadr += 2; }
         }
         set_dirty(page);
         break;
