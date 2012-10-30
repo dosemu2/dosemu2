@@ -277,11 +277,11 @@ void dspio_stop_dma(void *dspio)
 
 static void dspio_process_dma(struct dspio_state *state)
 {
-    int dma_cnt, fifo_cnt;
+    int dma_cnt, in_fifo_cnt, out_fifo_cnt;
     unsigned long long time_dst;
     Bit16u buf;
 
-    dma_cnt = fifo_cnt = 0;
+    dma_cnt = in_fifo_cnt = out_fifo_cnt = 0;
 
     time_dst = GETusTIME(0);
     if (state->dma.running) {
@@ -291,7 +291,7 @@ static void dspio_process_dma(struct dspio_state *state)
     }
 
     while (state->output_running && (state->output_time_cur <= time_dst ||
-				     fifo_cnt % (state->dma.stereo + 1))) {
+				     out_fifo_cnt % (state->dma.stereo + 1))) {
 	if (state->dma.running) {
 	    dspio_run_dma(&state->dma);
 	    dma_cnt++;
@@ -311,9 +311,7 @@ static void dspio_process_dma(struct dspio_state *state)
 						     samp_signed),
 				      state->dma_strm);
 	    }
-	    state->output_time_cur += pcm_samp_period(state->dma.rate,
-		    state->dma.stereo + 1);
-	    fifo_cnt++;
+	    out_fifo_cnt++;
 	} else {
 	    if (!sb_dma_active()) {
 		dspio_stop_output(state);
@@ -338,11 +336,13 @@ static void dspio_process_dma(struct dspio_state *state)
 	    break;
 	}
     }
+    state->output_time_cur += pcm_frame_period_us(state->dma.rate) *
+		out_fifo_cnt / (state->dma.stereo + 1);
     if (state->dma.running && state->output_time_cur > time_dst - 1)
 	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
 
     while (state->input_running && (state->input_time_cur <= time_dst ||
-				    fifo_cnt % (state->dma.stereo + 1))) {
+				    in_fifo_cnt % (state->dma.stereo + 1))) {
 	dma_get_silence(state->dma.samp_signed, state->dma.is16bit, &buf);
 	//if (!state->speaker)  /* TODO: input */
 	sb_put_input_sample(&buf, state->dma.is16bit);
@@ -350,18 +350,18 @@ static void dspio_process_dma(struct dspio_state *state)
 	    dspio_run_dma(&state->dma);
 	    dma_cnt++;
 	}
-	state->input_time_cur += pcm_samp_period(state->dma.rate,
-						 state->dma.stereo + 1);
-	fifo_cnt++;
+	in_fifo_cnt++;
     }
+    state->input_time_cur += pcm_frame_period_us(state->dma.rate) *
+				in_fifo_cnt / (state->dma.stereo + 1);
 
     if (state->dma.running)
 	dma_cnt += state->dma.input ? dspio_drain_input(state) :
 	    dspio_fill_output(state);
 
-    if (fifo_cnt || dma_cnt)
+    if (in_fifo_cnt || out_fifo_cnt || dma_cnt)
 	S_printf("SB: Processed %i FIFO, %i DMA, or=%i dr=%i time=%lli\n",
-	     fifo_cnt, dma_cnt, state->output_running, state->dma.running,
+	     out_fifo_cnt, dma_cnt, state->output_running, state->dma.running,
 	     time_dst);
 }
 

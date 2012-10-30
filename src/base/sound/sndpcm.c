@@ -306,9 +306,14 @@ static int count_active_streams(void)
     return ret;
 }
 
-double pcm_samp_period(double rate, int channels)
+double pcm_frame_period_us(double rate)
 {
-    return 1000000 / (rate * channels);
+    return (1000000 / rate);
+}
+
+static double pcm_samp_period(double rate, int channels)
+{
+    return pcm_frame_period_us(rate) / channels;
 }
 
 double pcm_frag_period(int size, struct player_params *params)

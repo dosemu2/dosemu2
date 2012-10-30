@@ -32,7 +32,7 @@ extern void pcm_set_mode(int strm_idx, int mode);
 extern int pcm_flush(int strm_idx);
 extern int pcm_samp_cutoff(int val, int format);
 extern int pcm_get_format(int is_16, int is_signed);
-extern double pcm_samp_period(double rate, int channels);
+extern double pcm_frame_period_us(double rate);
 extern double pcm_frag_period(int size, struct player_params *params);
 extern void pcm_write_samples(void *ptr, size_t size,
 			      double rate, int format, int strm_idx);

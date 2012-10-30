@@ -171,7 +171,7 @@ void adlib_done(void)
 }
 
 #ifdef HAS_YMF262
-static void adlib_process_samples(int mono_samps)
+static void adlib_process_samples(int nframes)
 {
     const int chan_map[] =
 #if ADLIB_CHANNELS == 2
@@ -184,39 +184,34 @@ static void adlib_process_samples(int mono_samps)
 #error ADLIB_CHANNELS is wrong
 	{ -1, -1, -1, -1 };
 #endif
-    int i, j, k, samps;
-    OPL3SAMPLE *chans[4], buf[4][OPL3_MAX_BUF], buf3;
-    int buf2[OPL3_MAX_BUF][ADLIB_CHANNELS];
+    int i, j, k;
+    OPL3SAMPLE *chans[4], buf[4][OPL3_MAX_BUF],
+	    buf3[OPL3_MAX_BUF][ADLIB_CHANNELS];
 
-    samps = mono_samps / ADLIB_CHANNELS;
-    if (samps > OPL3_MAX_BUF) {
-	error("Adlib: too many samples requested (%i)\n", samps);
-	samps = OPL3_MAX_BUF;
-    }
     for (i = 0; i < 4; i++)
 	chans[i] = &buf[i][0];
 
-    YMF262UpdateOne(opl3, chans, samps);
+    YMF262UpdateOne(opl3, chans, nframes);
 
-    for (i = 0; i < samps; i++) {
+    for (i = 0; i < nframes; i++) {
 	for (j = 0; j < ADLIB_CHANNELS; j++) {
-	    buf2[i][j] = 0;
+	    int buf2 = 0;
 	    for (k = 0; k < ARRAY_SIZE(chan_map); k++) {
 		if (chan_map[k] == j)
-		    buf2[i][j] += buf[k][i];
+		    buf2 += buf[k][i];
 	    }
-	    buf3 = pcm_samp_cutoff(buf2[i][j], opl3_format);
-	    pcm_write_samples(&buf3, pcm_format_size(opl3_format),
-			      opl3_rate, opl3_format, adlib_strm);
+	    buf3[i][j] = pcm_samp_cutoff(buf2, opl3_format);
 	}
     }
+    pcm_write_samples(buf3, nframes * ADLIB_CHANNELS *
+	    pcm_format_size(opl3_format), opl3_rate, opl3_format, adlib_strm);
 }
 #endif
 
 void adlib_timer(void)
 {
 #ifdef HAS_YMF262
-    int i, nsamps;
+    int i, nframes;
     double period;
     long long now = GETusTIME(0);
 
@@ -225,15 +220,14 @@ void adlib_timer(void)
 	pcm_flush(adlib_strm);
     }
     if (ADLIB_RUNNING()) {
-	period = pcm_samp_period(opl3_rate, ADLIB_CHANNELS);
-	nsamps = (now - adlib_time_cur) / period;
-	if (nsamps > OPL3_MAX_BUF)
-	    nsamps = OPL3_MAX_BUF;
-	nsamps -= nsamps % ADLIB_CHANNELS;
-	if (nsamps) {
-	    adlib_process_samples(nsamps);
-	    adlib_time_cur += nsamps * period;
-	    S_printf("SB: processed %i Adlib samples\n", nsamps);
+	period = pcm_frame_period_us(opl3_rate);
+	nframes = (now - adlib_time_cur) / period;
+	if (nframes > OPL3_MAX_BUF)
+	    nframes = OPL3_MAX_BUF;
+	if (nframes) {
+	    adlib_process_samples(nframes);
+	    adlib_time_cur += nframes * period;
+	    S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
     }
 
