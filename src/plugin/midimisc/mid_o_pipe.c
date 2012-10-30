@@ -76,5 +76,6 @@ CONSTRUCTOR(static int midopipe_register(void))
     midopipe.reset = midopipe_reset;
     midopipe.write = midopipe_write;
     midopipe.stop = NULL;
+    midopipe.timer = NULL;
     return midi_register_output_plugin(midopipe);
 }

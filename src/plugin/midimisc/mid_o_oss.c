@@ -85,5 +85,6 @@ CONSTRUCTOR(static int midooss_register(void))
     midooss.reset = midooss_reset;
     midooss.write = midooss_write;
     midooss.stop = NULL;
+    midooss.timer = NULL;
     return midi_register_output_plugin(midooss);
 }

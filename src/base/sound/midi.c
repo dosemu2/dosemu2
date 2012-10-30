@@ -96,6 +96,14 @@ void midi_stop(void)
       in[i].plugin.stop();
 }
 
+void midi_timer(void)
+{
+  int i;
+  for (i = 0; i < out_registered; i++)
+    if (out[i].plugin.timer && out[i].initialized)
+      out[i].plugin.timer();
+}
+
 void midi_put_data(unsigned char *buf, size_t size)
 {
   rng_add(&midi_in, size, buf);

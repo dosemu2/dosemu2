@@ -74,5 +74,6 @@ CONSTRUCTOR(static int midoalsa_register(void))
     midoalsa.reset = midoalsa_reset;
     midoalsa.write = midoalsa_write;
     midoalsa.stop = NULL;
+    midoalsa.timer = NULL;
     return midi_register_output_plugin(midoalsa);
 }

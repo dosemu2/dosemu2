@@ -377,6 +377,8 @@ static void dspio_process_midi(void)
     while (midi_get_data_byte(&data)) {
 	sb_put_midi_data(data);
     }
+
+    midi_timer();
 }
 
 void dspio_timer(void *dspio)

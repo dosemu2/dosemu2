@@ -388,6 +388,7 @@ CONSTRUCTOR(static int midotmdty_register(void))
     midotmdty.reset = midotmdty_reset;
     midotmdty.write = midotmdty_write;
     midotmdty.stop = midotmdty_stop;
+    midotmdty.timer = midotmdty_stop;
 #if 1
     return midi_register_output_plugin(midotmdty);
 #else

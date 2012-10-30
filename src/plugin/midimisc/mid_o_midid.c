@@ -184,6 +184,7 @@ CONSTRUCTOR(static int midomidid_register(void))
     midomidid.reset = midomidid_reset;
     midomidid.write = midomidid_write;
     midomidid.stop = NULL;
+    midomidid.timer = NULL;
 #if 0
     return midi_register_output_plugin(midomidid);
 #else

@@ -28,6 +28,7 @@ struct midi_out_plugin {
   void (*reset)(void);
   void (*write)(unsigned char);
   void (*stop)(void);
+  void (*timer)(void);
 };
 
 struct midi_in_plugin {
@@ -43,6 +44,7 @@ extern void midi_init(void);
 extern void midi_done(void);
 extern void midi_reset(void);
 extern void midi_stop(void);
+extern void midi_timer(void);
 extern void midi_put_data(unsigned char *buf, size_t size);
 extern int midi_get_data_byte(unsigned char *buf);
 extern int midi_register_output_plugin(struct midi_out_plugin plugin);
