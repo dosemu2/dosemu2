@@ -277,7 +277,7 @@ void dspio_stop_dma(void *dspio)
 
 static void dspio_process_dma(struct dspio_state *state)
 {
-    int dma_cnt, in_fifo_cnt, out_fifo_cnt;
+    int dma_cnt, in_fifo_cnt, out_fifo_cnt, nsamp;
     unsigned long long time_dst;
     Bit16u buf;
 
@@ -290,7 +290,23 @@ static void dspio_process_dma(struct dspio_state *state)
 	state->dma.samp_signed = sb_dma_samp_signed();
     }
 
-    while (state->output_running && (state->output_time_cur <= time_dst)) {
+    if (state->output_running) {
+	int nfr;
+	if (state->dma.rate) {
+	     nfr = (time_dst - state->output_time_cur) /
+		    pcm_frame_period_us(state->dma.rate);
+	    if (nfr < 0)	// happens because of get_stream_time() hack
+		nfr = 0;
+	    state->output_time_cur += nfr *
+		    pcm_frame_period_us(state->dma.rate);
+	} else {
+	    nfr = 1;
+	}
+	nsamp = nfr * (state->dma.stereo + 1);
+    } else {
+	nsamp = 0;
+    }
+    while (state->output_running && nsamp--) {
 	if (state->dma.running) {
 	    dspio_run_dma(&state->dma);
 	    dma_cnt++;
@@ -311,8 +327,6 @@ static void dspio_process_dma(struct dspio_state *state)
 				      state->dma_strm);
 	    }
 	    out_fifo_cnt++;
-	    if ((out_fifo_cnt % (state->dma.stereo + 1)) == 0)
-		state->output_time_cur += pcm_frame_period_us(state->dma.rate);
 	} else {
 	    if (!sb_dma_active()) {
 		dspio_stop_output(state);
@@ -340,7 +354,23 @@ static void dspio_process_dma(struct dspio_state *state)
     if (state->dma.running && state->output_time_cur > time_dst - 1)
 	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
 
-    while (state->input_running && (state->input_time_cur <= time_dst)) {
+    if (state->input_running) {
+	int nfr;
+	if (state->dma.rate) {
+	    nfr = (time_dst - state->input_time_cur) /
+		pcm_frame_period_us(state->dma.rate);
+	    if (nfr < 0)	// happens because of get_stream_time() hack
+		nfr = 0;
+	    state->input_time_cur += nfr *
+		    pcm_frame_period_us(state->dma.rate);
+	} else {
+	    nfr = 1;
+	}
+	nsamp = nfr * (state->dma.stereo + 1);
+    } else {
+	nsamp = 0;
+    }
+    while (state->input_running && nsamp--) {
 	dma_get_silence(state->dma.samp_signed, state->dma.is16bit, &buf);
 	//if (!state->speaker)  /* TODO: input */
 	sb_put_input_sample(&buf, state->dma.is16bit);
@@ -349,8 +379,6 @@ static void dspio_process_dma(struct dspio_state *state)
 	    dma_cnt++;
 	}
 	in_fifo_cnt++;
-	if ((in_fifo_cnt % (state->dma.stereo + 1)) == 0)
-	    state->input_time_cur += pcm_frame_period_us(state->dma.rate);
     }
 
     if (state->dma.running)
@@ -358,8 +386,8 @@ static void dspio_process_dma(struct dspio_state *state)
 	    dspio_fill_output(state);
 
     if (in_fifo_cnt || out_fifo_cnt || dma_cnt)
-	S_printf("SB: Processed %i FIFO, %i DMA, or=%i dr=%i time=%lli\n",
-	     out_fifo_cnt, dma_cnt, state->output_running, state->dma.running,
+	S_printf("SB: Processed %i %i FIFO, %i DMA, or=%i dr=%i time=%lli\n",
+	     in_fifo_cnt, out_fifo_cnt, dma_cnt, state->output_running, state->dma.running,
 	     time_dst);
 }
 

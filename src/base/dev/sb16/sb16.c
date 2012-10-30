@@ -204,7 +204,10 @@ static int sb_dma_autoinit(void)
 
 int sb_get_dma_sampling_rate(void)
 {
-    int sample_rate = sb.rate;
+    int sample_rate;
+    if (sb_dma_internal())	// that's because we don't zero sb.rate at reset...
+	return 0;	// 0 is checked in dspio.c... hacks hacks :((
+    sample_rate = sb.rate;
     if (!sb_dma_sb16mode())
 	sample_rate >>= sb_dma_samp_stereo();
     return sample_rate;
