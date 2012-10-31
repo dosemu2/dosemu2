@@ -256,6 +256,24 @@ else
   $srcdir/mkpluginhooks enable sndfile no
 fi
 
+AC_ARG_WITH(fluidsynth,
+	[  --without-fluidsynth       don't use fluidsynth even if available])
+if test "$with_fluidsynth" != "no"; then
+  AC_CHECK_LIB(fluidsynth, new_fluid_synth, with_fluidsynth="yes", with_fluidsynth="no")
+fi
+if test "$with_fluidsynth" != "no"; then
+  AC_MSG_NOTICE(Compiling with fluidsynth support...)
+  AC_DEFINE(USE_FLUIDSYNTH)
+  USE_FLUIDSYNTH="USE_FLUIDSYNTH=1"
+  AC_SUBST(USE_FLUIDSYNTH)
+  FLUSLIB="-lfluidsynth"
+  AC_SUBST(FLUSLIB)
+  $srcdir/mkpluginhooks enable fluidsynth yes
+else
+  AC_MSG_NOTICE(Compiling without fluidsynth support...)
+  $srcdir/mkpluginhooks enable fluidsynth no
+fi
+
 dnl Check whether we have pthreads and whether to use it
 
 AC_ARG_WITH(pthreads)
@@ -810,6 +828,9 @@ AH_TEMPLATE([USE_ALSA],
 
 AH_TEMPLATE([USE_SNDFILE],
 [ DEFINE this, if you want wav file output support ])
+
+AH_TEMPLATE([USE_FLUIDSYNTH],
+[ DEFINE this, if you want fluidsynth support ])
 
 AH_TEMPLATE([USE_PTHREADS],
 [ DEFINE this, if you want pthreads support ])

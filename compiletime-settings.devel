@@ -19,6 +19,7 @@ config {
   plugin_X on
   plugin_sdl on
   plugin_midimisc on
+  plugin_fluidsynth on
   plugin_translate on
   plugin_commands on
   plugin_demo off
