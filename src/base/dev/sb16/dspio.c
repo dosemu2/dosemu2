@@ -183,22 +183,31 @@ static void dspio_stop_input(struct dspio_state *state)
     state->input_running = 0;
 }
 
-static void dspio_run_dma(struct dspio_dma *dma)
+static int dspio_run_dma(struct dspio_dma *dma)
 {
     Bit8u dma_buf[2];
+
+    sb_dma_processing();	// notify that DMA busy
     dma_get_silence(dma->samp_signed, dma->is16bit, dma_buf);
     if (!dma->silence) {
 	if (dma->input)
 	    sb_get_dma_data(dma_buf, dma->is16bit);
-	if (dma_pulse_DRQ(dma->num, dma_buf) != DMA_DACK)
+	if (dma_pulse_DRQ(dma->num, dma_buf) != DMA_DACK) {
 	    S_printf("SB: DMA %i doesn't DACK!\n", dma->num);
-	if (dma->broken_hdma)
-	    dma_pulse_DRQ(dma->num, dma_buf + 1);
+	    return 0;
+	}
+	if (dma->broken_hdma) {
+	    if (dma_pulse_DRQ(dma->num, dma_buf + 1) != DMA_DACK) {
+		S_printf("SB: DMA (broken) %i doesn't DACK!\n", dma->num);
+		return 0;
+	    }
+	}
     }
     if (!dma->input)
 	sb_put_dma_data(dma_buf, dma->is16bit);
 
     sb_handle_dma();
+    return 1;
 }
 
 static void get_dma_params(struct dspio_dma *dma)
@@ -226,7 +235,8 @@ static int dspio_fill_output(struct dspio_state *state)
 {
     int dma_cnt = 0;
     while (state->dma.running && !sb_output_fifo_filled()) {
-	dspio_run_dma(&state->dma);
+	if (!dspio_run_dma(&state->dma))
+	    break;
 	dma_cnt++;
     }
 #if 0
@@ -244,7 +254,8 @@ static int dspio_drain_input(struct dspio_state *state)
 {
     int dma_cnt = 0;
     while (state->dma.running && !sb_input_fifo_empty()) {
-	dspio_run_dma(&state->dma);
+	if (!dspio_run_dma(&state->dma))
+	    break;
 	dma_cnt++;
     }
     return dma_cnt;
@@ -308,7 +319,8 @@ static void dspio_process_dma(struct dspio_state *state)
     }
     while (state->output_running && nsamp--) {
 	if (state->dma.running) {
-	    dspio_run_dma(&state->dma);
+	    if (!dspio_run_dma(&state->dma))
+		break;
 	    dma_cnt++;
 	}
 	if (sb_get_output_sample(&buf, state->dma.is16bit)) {
@@ -375,7 +387,8 @@ static void dspio_process_dma(struct dspio_state *state)
 	//if (!state->speaker)  /* TODO: input */
 	sb_put_input_sample(&buf, state->dma.is16bit);
 	if (state->dma.running) {
-	    dspio_run_dma(&state->dma);
+	    if (!dspio_run_dma(&state->dma))
+		break;
 	    dma_cnt++;
 	}
 	in_fifo_cnt++;

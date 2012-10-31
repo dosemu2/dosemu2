@@ -388,6 +388,12 @@ void sb_handle_dma(void)
 	    sb_dma_actualize();
 	}
     }
+    sb.busy = 0;
+}
+
+void sb_dma_processing(void)
+{
+    sb.busy = 1;
 }
 
 static void sb_write_midi(Bit8u value)
@@ -529,7 +535,7 @@ static void sb_dsp_reset(void)
     sb.dma_count = 0;
     sb.command_idx = 0;
     sb.E2Count = 0;
-    sb.busy_hack = 2;
+    sb.busy = 2;
 /* the following must not be zeroed out */
 #if 0
     sb.mixer_index = 0;
@@ -1054,7 +1060,7 @@ static void sb_dsp_write(Bit8u value)
  * to the i/o port, to be accepted by DSP.
  * So I am going to return 0 (ready), then 0x80 (busy) and then 0 again.
  */
-    sb.busy_hack = 2;
+    sb.busy = 2;
 }
 
 static void sb_mixer_write(Bit8u value)
@@ -1240,10 +1246,10 @@ static Bit8u sb_io_read(ioport_t port)
 
     case 0x0C:			/* DSP Write Buffer Status */
 	result = 0;
-	if (sb.busy_hack == 1)
+	if (sb.busy == 1)
 	    result = 0x80;
-	if (sb.busy_hack)
-	    sb.busy_hack--;
+	if (sb.busy && !sb_dma_active())
+	    sb.busy--;
 	S_printf("SB: Read 0x%x from DSP Write Buffer Status Register\n",
 		 result);
 	break;

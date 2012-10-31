@@ -75,7 +75,7 @@ struct sb_struct {
   uint8_t  mixer_regs[256];
   uint8_t  mixer_index;
   uint8_t  E2Count;
-  int      busy_hack;
+  int      busy;
 /* All values are imperical! */
 #define SB_DSP_CMD_BUF_SZ 8
   uint8_t  command[SB_DSP_CMD_BUF_SZ];
@@ -106,6 +106,7 @@ extern int sb_get_dma_sampling_rate(void);
 extern int sb_get_dma_data(void *ptr, int is16bit);
 extern void sb_put_dma_data(void *ptr, int is16bit);
 extern void sb_handle_dma(void);
+extern void sb_dma_processing(void);
 extern int sb_get_output_sample(void *ptr, int is16bit);
 extern void sb_put_input_sample(void *ptr, int is16bit);
 extern int sb_output_fifo_filled(void);
