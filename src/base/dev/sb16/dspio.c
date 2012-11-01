@@ -187,7 +187,8 @@ static int dspio_run_dma(struct dspio_dma *dma)
 {
     Bit8u dma_buf[2];
 
-    sb_dma_processing();	// notify that DMA busy
+    if (!sb_dma_processing())	// notify that DMA busy
+	return 0;		// sb could cancel request by timeout
     dma_get_silence(dma->samp_signed, dma->is16bit, dma_buf);
     if (!dma->silence) {
 	if (dma->input)

@@ -391,12 +391,17 @@ void sb_handle_dma(void)
     sb.busy = 0;
 }
 
-void sb_dma_processing(void)
+int sb_dma_processing(void)
 {
     sb.busy++;
     /* overflow means timed out - pure heuristic */
-    if (!sb.busy)
+    if (!sb.busy) {
 	S_printf("SB: Warning: DMA busy for too long, releasing\n");
+	stop_dma_clock();
+	sb.dma_active = 0;	// disable DMA
+	return 0;
+    }
+    return 1;
 }
 
 static void sb_write_midi(Bit8u value)

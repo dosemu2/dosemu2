@@ -106,7 +106,7 @@ extern int sb_get_dma_sampling_rate(void);
 extern int sb_get_dma_data(void *ptr, int is16bit);
 extern void sb_put_dma_data(void *ptr, int is16bit);
 extern void sb_handle_dma(void);
-extern void sb_dma_processing(void);
+extern int sb_dma_processing(void);
 extern int sb_get_output_sample(void *ptr, int is16bit);
 extern void sb_put_input_sample(void *ptr, int is16bit);
 extern int sb_output_fifo_filled(void);
