@@ -308,8 +308,6 @@ static void dspio_process_dma(struct dspio_state *state)
 		    pcm_frame_period_us(state->dma.rate);
 	    if (nfr < 0)	// happens because of get_stream_time() hack
 		nfr = 0;
-	    state->output_time_cur += nfr *
-		    pcm_frame_period_us(state->dma.rate);
 	} else {
 	    nfr = 1;
 	}
@@ -363,6 +361,9 @@ static void dspio_process_dma(struct dspio_state *state)
 	    break;
 	}
     }
+    if (state->dma.rate)
+	state->output_time_cur += (out_fifo_cnt / (state->dma.stereo + 1)) *
+		pcm_frame_period_us(state->dma.rate);
     if (state->dma.running && state->output_time_cur > time_dst - 1)
 	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
 
@@ -373,8 +374,6 @@ static void dspio_process_dma(struct dspio_state *state)
 		pcm_frame_period_us(state->dma.rate);
 	    if (nfr < 0)	// happens because of get_stream_time() hack
 		nfr = 0;
-	    state->input_time_cur += nfr *
-		    pcm_frame_period_us(state->dma.rate);
 	} else {
 	    nfr = 1;
 	}
@@ -386,13 +385,16 @@ static void dspio_process_dma(struct dspio_state *state)
 	dma_get_silence(state->dma.samp_signed, state->dma.is16bit, &buf);
 	//if (!state->speaker)  /* TODO: input */
 	sb_put_input_sample(&buf, state->dma.is16bit);
+	in_fifo_cnt++;
 	if (state->dma.running) {
 	    if (!dspio_run_dma(&state->dma))
 		break;
 	    dma_cnt++;
 	}
-	in_fifo_cnt++;
     }
+    if (state->dma.rate)
+	state->input_time_cur += (in_fifo_cnt / (state->dma.stereo + 1)) *
+		pcm_frame_period_us(state->dma.rate);
 
     if (state->dma.running)
 	dma_cnt += state->dma.input ? dspio_drain_input(state) :

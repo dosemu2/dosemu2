@@ -393,7 +393,10 @@ void sb_handle_dma(void)
 
 void sb_dma_processing(void)
 {
-    sb.busy = 1;
+    sb.busy++;
+    /* overflow means timed out - pure heuristic */
+    if (!sb.busy)
+	S_printf("SB: Warning: DMA busy for too long, releasing\n");
 }
 
 static void sb_write_midi(Bit8u value)
@@ -1246,7 +1249,7 @@ static Bit8u sb_io_read(ioport_t port)
 
     case 0x0C:			/* DSP Write Buffer Status */
 	result = 0;
-	if (sb.busy == 1)
+	if (sb.busy == 1 || (sb.busy && sb_dma_active()))
 	    result = 0x80;
 	if (sb.busy && !sb_dma_active())
 	    sb.busy--;
