@@ -22,6 +22,7 @@
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
+#include <fenv.h>
 #include <sys/wait.h>
 #include <sys/times.h>
 #include <sys/time.h>
@@ -356,6 +357,7 @@ run_vm86(void)
        state using fninit/ldmxcsr which is good enough for calling FPU-using
        routines.
     */
+    feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 
 #if 0
     /* This will protect us from Mr.Norton's bugs */
