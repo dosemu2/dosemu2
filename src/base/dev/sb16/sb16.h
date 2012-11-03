@@ -61,6 +61,7 @@ struct sb_struct {
   uint8_t  test;		/* Storage for the test value */
   uint8_t  reset_val;
   int      paused;		/* is DMA transfer paused? */ 
+  int      reset;
   uint8_t  mpu401_uart;
   uint8_t  midi_cmd;
   uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
@@ -75,7 +76,7 @@ struct sb_struct {
   uint8_t  mixer_regs[256];
   uint8_t  mixer_index;
   uint8_t  E2Count;
-  uint8_t  busy;
+  int      busy;
 /* All values are imperical! */
 #define SB_DSP_CMD_BUF_SZ 8
   uint8_t  command[SB_DSP_CMD_BUF_SZ];
@@ -106,7 +107,8 @@ extern int sb_get_dma_sampling_rate(void);
 extern int sb_get_dma_data(void *ptr, int is16bit);
 extern void sb_put_dma_data(void *ptr, int is16bit);
 extern void sb_handle_dma(void);
-extern int sb_dma_processing(void);
+extern void sb_dma_processing(void);
+extern void sb_handle_dma_timeout(void);
 extern int sb_get_output_sample(void *ptr, int is16bit);
 extern void sb_put_input_sample(void *ptr, int is16bit);
 extern int sb_output_fifo_filled(void);

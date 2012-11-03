@@ -54,6 +54,7 @@ struct dspio_dma {
     int samp_signed;
     int input;
     int silence;
+    hitimer_t time_cur;
 };
 
 struct dspio_state {
@@ -183,12 +184,10 @@ static void dspio_stop_input(struct dspio_state *state)
     state->input_running = 0;
 }
 
-static int dspio_run_dma(struct dspio_dma *dma)
+static int do_run_dma(struct dspio_dma *dma)
 {
     Bit8u dma_buf[2];
 
-    if (!sb_dma_processing())	// notify that DMA busy
-	return 0;		// sb could cancel request by timeout
     dma_get_silence(dma->samp_signed, dma->is16bit, dma_buf);
     if (!dma->silence) {
 	if (dma->input)
@@ -206,9 +205,25 @@ static int dspio_run_dma(struct dspio_dma *dma)
     }
     if (!dma->input)
 	sb_put_dma_data(dma_buf, dma->is16bit);
-
-    sb_handle_dma();
     return 1;
+}
+
+static int dspio_run_dma(struct dspio_dma *dma)
+{
+#define DMA_TIMEOUT_US 100000
+    int ret;
+    hitimer_t now = GETusTIME(0);
+    sb_dma_processing();	// notify that DMA busy
+    ret = do_run_dma(dma);
+    if (ret) {
+	sb_handle_dma();
+	dma->time_cur = now;
+    } else if (now - dma->time_cur > DMA_TIMEOUT_US) {
+	S_printf("SB: Warning: DMA busy for too long, releasing\n");
+	error("SB: DMA timeout\n");
+	sb_handle_dma_timeout();
+    }
+    return ret;
 }
 
 static void get_dma_params(struct dspio_dma *dma)
@@ -266,6 +281,7 @@ void dspio_start_dma(void *dspio)
 {
     int dma_cnt = 0;
     DSPIO->dma.running = 1;
+    DSPIO->dma.time_cur = GETusTIME(0);
     get_dma_params(&DSPIO->dma);
 
     if (DSPIO->dma.input) {

@@ -388,20 +388,18 @@ void sb_handle_dma(void)
 	    sb_dma_actualize();
 	}
     }
-    sb.busy = 0;
+    sb.busy = 1;
 }
 
-int sb_dma_processing(void)
+void sb_dma_processing(void)
 {
-    sb.busy++;
-    /* overflow means timed out - pure heuristic */
-    if (!sb.busy) {
-	S_printf("SB: Warning: DMA busy for too long, releasing\n");
-	stop_dma_clock();
-	sb.dma_active = 0;	// disable DMA
-	return 0;
-    }
-    return 1;
+    sb.busy = 2;
+}
+
+void sb_handle_dma_timeout(void)
+{
+    stop_dma_clock();
+    sb.dma_active = 0;	// disable DMA
 }
 
 static void sb_write_midi(Bit8u value)
@@ -543,6 +541,7 @@ static void sb_dsp_reset(void)
     sb.dma_count = 0;
     sb.command_idx = 0;
     sb.E2Count = 0;
+    sb.reset_val = 0xaa;
     sb.busy = 2;
 /* the following must not be zeroed out */
 #if 0
@@ -554,10 +553,10 @@ static void sb_dsp_reset(void)
 static void sb_dsp_soft_reset(unsigned char value)
 {
     if (value & 1) {
-	if (sb.reset_val) {
+	if (!sb.reset) {
 	    sb_deactivate_irq(SB_IRQ_ALL);
 	    stop_dma_clock();
-	    sb.reset_val = 0;
+	    sb.reset = 1;
 
 	    if (sb_dma_active() && sb_dma_high_speed()) {
 		/* for High-Speed mode reset means only exit High-Speed */
@@ -571,9 +570,10 @@ static void sb_dsp_soft_reset(unsigned char value)
 	    }
 	}
     } else {
-	if (!sb.reset_val) {
-	    sb.reset_val = 0xaa;
+	if (sb.reset) {
+	    sb.reset = 0;
 	    dsp_write_output(sb.reset_val);
+	    sb.busy = 1;
 	}
     }
 }
@@ -1061,14 +1061,6 @@ static void sb_dsp_write(Bit8u value)
     }
 
     sb.command_idx = 0;
-
-/* 
- * Some programs expects DSP to be busy after a command was written to it, but
- * not immediately. Probably it takes some time for the command being written
- * to the i/o port, to be accepted by DSP.
- * So I am going to return 0 (ready), then 0x80 (busy) and then 0 again.
- */
-    sb.busy = 2;
 }
 
 static void sb_mixer_write(Bit8u value)
@@ -1253,13 +1245,13 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
 
     case 0x0C:			/* DSP Write Buffer Status */
-	result = 0;
-	if (sb.busy == 1 || (sb.busy && sb_dma_active()))
-	    result = 0x80;
-	if (sb.busy && !sb_dma_active())
-	    sb.busy--;
-	S_printf("SB: Read 0x%x from DSP Write Buffer Status Register\n",
-		 result);
+	result = 0x7f;
+	if (sb.busy)
+	    result |= 0x80;
+	if (sb.busy == 1)
+	    sb.busy = 0;
+	S_printf("SB: Read 0x%x from DSP Write Buffer Status Register (%i)\n",
+		 result, sb.busy);
 	break;
 
     case 0x0D:			/* DSP MIDI Interrupt Clear - SB16 ? */
