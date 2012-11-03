@@ -400,6 +400,7 @@ void sb_handle_dma_timeout(void)
 {
     stop_dma_clock();
     sb.dma_active = 0;	// disable DMA
+    sb.busy = 0;
 }
 
 static void sb_write_midi(Bit8u value)
