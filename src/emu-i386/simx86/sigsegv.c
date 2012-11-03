@@ -189,7 +189,7 @@ static int jitx86_instr_len(const unsigned char *rip)
   return 0;
 }
 
-static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
+int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 {
   int i, j;
   unsigned vga_page = 0, u=0;
