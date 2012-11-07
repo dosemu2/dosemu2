@@ -2556,13 +2556,6 @@ void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
 		if (vga_read_access(AR1.d)) while (i && (z==k)) {
-		    while (i--) {
-			AR1.pu += df;
-			if (!(mode&MBYTE)) {
-			    AR1.pu += df;
-			    if (!(mode&DATA16)) AR1.pu += 2*df;
-			}
-		    }
 		    DR2.d = e_VgaRead(AR1.d, mode);
 		    if (mode&MBYTE) {
 			RFL.RES.d = (RFL.S1=DR1.b.bl) + (RFL.S2=-DR2.b.bl);
