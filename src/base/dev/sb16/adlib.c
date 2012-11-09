@@ -41,7 +41,7 @@
 #define OPL3_MAX_BUF 512
 #define ADLIB_CHANNELS 2
 
-#define ADLIB_THRESHOLD 2000000
+#define ADLIB_THRESHOLD 20000000
 #define ADLIB_RUNNING() (adlib_time_cur > 0)
 #define ADLIB_RUN() (adlib_time_cur = GETusTIME(0))
 #define ADLIB_STOP() (adlib_time_cur = 0)
