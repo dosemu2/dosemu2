@@ -230,7 +230,7 @@ endif
 	  fi; \
 	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	for i in README.bindist NEWS THANKS COPYING COPYING.DOSEMU; do \
+	for i in README.bindist NEWS THANKS COPYING COPYING.DOSEMU BUGS ChangeLog; do \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/$$i $(DESTDIR)$(docdir); \
 	done
 	for i in README README-tech dosemu-HOWTO sound-usage DANG EMUfailure \
