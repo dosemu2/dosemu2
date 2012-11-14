@@ -132,22 +132,6 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	unsigned char op;
 
 	addr = paddr - mem_base;
-	if (Video->update_screen) {
-		struct sigcontext_struct sc, *scp = &sc;
-		_eax = stack->eax;
-		_ecx = stack->ecx;
-		_esi = (unsigned long)stack->esi;
-		_edi = (unsigned long)stack->edi;
-		_rip = (unsigned long)stack->eip;
-		_err = 2;
-		_eflags = EFLAGS;
-		if (e_vgaemu_fault(scp, addr >> 12) == 1) {
-			stack->ecx = _ecx;
-			stack->esi = (unsigned char *)_esi;
-			stack->edi = (unsigned char *)_edi;
-			return;
-		}
-	}
 	if (*eip == 0xf3) /* skip rep */
 		eip++;
 	op = eip[0];

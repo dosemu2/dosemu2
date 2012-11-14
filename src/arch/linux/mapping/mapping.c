@@ -73,14 +73,18 @@ static struct mappingdrivers *mappingdrv[] = {
 };
 
 /* The alias map is used to track alias mappings from the first 1MB + HMA
-   to the corresponding addresses in Linux address space (either lowmem,
-   vgaemu, or EMS). The DOS address (&mem_base[address]) may be r/w
-   protected by cpuemu or vgaemu, but the alias is never protected,
+   to the corresponding addresses in Linux address space (either lowmem
+   or EMS). The DOS address (&mem_base[address]) may be r/w
+   protected by cpuemu, but the alias is never protected,
    so it can be used to write without needing to unprotect and reprotect
    afterwards.
    If the alias is not used (hardware RAM from /dev/mem, or DPMI memory
    (aliasing using fn 0x509 is safely ignored here)),
    the address is identity-mapped to &mem_base[address].
+
+   The alias is also not used for vgaemu memory to allow special traps to occur
+   in the C patches for cpuemu (LINEAR2UNIX in cpatch.c).
+   This should be cleaned up.
 */
 static unsigned char *aliasmap[(LOWMEM_SIZE+HMASIZE)/PAGE_SIZE];
 
@@ -221,7 +225,7 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   }
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
   addr = mappingdriver.alias(cap, target, mapsize, protect, source);
-  update_aliasmap(target, mapsize, source);
+  update_aliasmap(target, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
   if (cap & MAPPING_INIT_LOWRAM) {
     *(unsigned char **)&mem_base = addr;
   }
