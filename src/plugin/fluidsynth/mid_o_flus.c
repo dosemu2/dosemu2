@@ -46,7 +46,7 @@ static fluid_synth_t* synth;
 static fluid_sequencer_t* sequencer;
 static short synthSeqID;
 static fluid_midi_parser_t* parser;
-static int pcm_stream;
+static int pcm_stream, pcm_running;
 static double mf_time_cur;
 
 static int midoflus_init(void)
@@ -106,8 +106,9 @@ static void midoflus_write(unsigned char val)
 static void midoflus_stop(void)
 {
     S_printf("MIDI: stoping fluidsynth\n");
-    if (mf_time_cur > 0)
+    if (pcm_running)
 	pcm_flush(pcm_stream);
+    pcm_running = 0;
     mf_time_cur = 0;
 }
 
@@ -119,6 +120,7 @@ static void mf_process_samples(int nframes)
 	error("MIDI: fluidsynth failed\n");
 	return;
     }
+    pcm_running = 1;
     pcm_write_samples(buf, nframes * FLUS_CHANNELS * 2,
 	    flus_srate, flus_format, pcm_stream);
 }
