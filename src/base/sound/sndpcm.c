@@ -124,6 +124,9 @@ int pcm_init(void)
 #ifdef USE_SNDFILE
     load_plugin("sndfile");
 #endif
+#ifdef USE_FLUIDSYNTH
+    load_plugin("fluidsynth");
+#endif
 #endif
     if (players.num_clocked) {
 	if (!(have_clc = players.clocked.player.open())) {
