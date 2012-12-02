@@ -39,6 +39,7 @@
 #define ADLIB_BASE 0x388
 #define OPL3_INTERNAL_FREQ    14400000	// The OPL3 operates at 14.4MHz
 #define OPL3_MAX_BUF 512
+#define OPL3_MIN_BUF 128
 #define ADLIB_CHANNELS 2
 
 #define ADLIB_THRESHOLD 20000000
@@ -224,7 +225,7 @@ void adlib_timer(void)
 	nframes = (now - adlib_time_cur) / period;
 	if (nframes > OPL3_MAX_BUF)
 	    nframes = OPL3_MAX_BUF;
-	if (nframes) {
+	if (nframes >= OPL3_MIN_BUF) {
 	    adlib_process_samples(nframes);
 	    adlib_time_cur += nframes * period;
 	    S_printf("SB: processed %i Adlib samples\n", nframes);
