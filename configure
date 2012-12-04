@@ -646,6 +646,8 @@ XMKMF
 SLANGLIB
 SLANGINC
 USE_PTHREADS
+FLUSLIB
+USE_FLUIDSYNTH
 SNDFLIB
 USE_SNDFILE
 ALSALIB
@@ -736,6 +738,7 @@ with_svgalib
 with_gpm
 with_alsa
 with_sndfile
+with_fluidsynth
 with_pthreads
 with_slangdir
 with_x
@@ -1400,6 +1403,7 @@ Optional Packages:
   --without-gpm           don't use gpm
   --without-alsa          don't use alsa even if available
   --without-sndfile       don't use sndfile even if available
+  --without-fluidsynth       don't use fluidsynth even if available
 
   --with-slangdir=dir     specify S-Lang directory
   --with-x                use the X Window System
@@ -5012,6 +5016,72 @@ $as_echo "$as_me: Compiling without sndfile support..." >&6;}
 fi
 
 
+# Check whether --with-fluidsynth was given.
+if test "${with_fluidsynth+set}" = set; then :
+  withval=$with_fluidsynth;
+fi
+
+if test "$with_fluidsynth" != "no"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for new_fluid_synth in -lfluidsynth" >&5
+$as_echo_n "checking for new_fluid_synth in -lfluidsynth... " >&6; }
+if ${ac_cv_lib_fluidsynth_new_fluid_synth+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lfluidsynth  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char new_fluid_synth ();
+int
+main ()
+{
+return new_fluid_synth ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_fluidsynth_new_fluid_synth=yes
+else
+  ac_cv_lib_fluidsynth_new_fluid_synth=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_fluidsynth_new_fluid_synth" >&5
+$as_echo "$ac_cv_lib_fluidsynth_new_fluid_synth" >&6; }
+if test "x$ac_cv_lib_fluidsynth_new_fluid_synth" = xyes; then :
+  with_fluidsynth="yes"
+else
+  with_fluidsynth="no"
+fi
+
+fi
+if test "$with_fluidsynth" != "no"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling with fluidsynth support..." >&5
+$as_echo "$as_me: Compiling with fluidsynth support..." >&6;}
+  $as_echo "#define USE_FLUIDSYNTH 1" >>confdefs.h
+
+  USE_FLUIDSYNTH="USE_FLUIDSYNTH=1"
+
+  FLUSLIB="-lfluidsynth"
+
+  $srcdir/mkpluginhooks enable fluidsynth yes
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling without fluidsynth support..." >&5
+$as_echo "$as_me: Compiling without fluidsynth support..." >&6;}
+  $srcdir/mkpluginhooks enable fluidsynth no
+fi
+
+
 
 # Check whether --with-pthreads was given.
 if test "${with_pthreads+set}" = set; then :
@@ -6581,6 +6651,8 @@ ac_config_files="$ac_config_files Makefile.conf"
 
 
 ac_config_commands="$ac_config_commands Makefile"
+
+
 
 
 
