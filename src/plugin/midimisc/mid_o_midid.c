@@ -41,8 +41,9 @@
 
 static const char *midomidid_name = "MIDI Output: midid plugin";
 static pid_t midid_pid = -1;
-static int pipe_in[2], pipe_out[2], pcm_stream;
+static int pipe_in[2], pipe_out[2];
 static int timid_capt = 1, midid_dev = 0;
+static int pcm_stream, pcm_running;
 
 static void midomidid_async(void *arg)
 {
@@ -57,6 +58,7 @@ static void midomidid_async(void *arg)
     while ((selret = select(pipe_in[0] + 1, &rfds, NULL, NULL, &tv)) > 0) {
 	n = RPT_SYSCALL(read(pipe_in[0], buf, sizeof(buf)));
 	if (n > 0) {
+	    pcm_running = 1;
 	    pcm_write_samples(buf, n, 44100, PCM_FORMAT_S16_LE,
 			      pcm_stream);
 	} else {
@@ -175,6 +177,13 @@ static void midomidid_write(unsigned char val)
     write(pipe_out[1], &val, 1);
 }
 
+static void midomidid_stop(void)
+{
+    if (pcm_running)
+	pcm_flush(pcm_stream);
+    pcm_running = 0;
+}
+
 CONSTRUCTOR(static int midomidid_register(void))
 {
     struct midi_out_plugin midomidid;
@@ -183,7 +192,7 @@ CONSTRUCTOR(static int midomidid_register(void))
     midomidid.done = midomidid_done;
     midomidid.reset = midomidid_reset;
     midomidid.write = midomidid_write;
-    midomidid.stop = NULL;
+    midomidid.stop = midomidid_stop;
     midomidid.timer = NULL;
 #if 0
     return midi_register_output_plugin(midomidid);

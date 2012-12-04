@@ -54,9 +54,10 @@
 
 static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
 
-static int ctrl_sock_in, ctrl_sock_out, data_sock, pcm_stream;
+static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
 static struct sockaddr_in ctrl_adr, data_adr;
+static int pcm_stream, pcm_running;
 
 static void midotmdty_io(void *arg)
 {
@@ -71,6 +72,7 @@ static void midotmdty_io(void *arg)
     while ((selret = select(data_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
 	n = RPT_SYSCALL(read(data_sock, buf, sizeof(buf)));
 	if (n > 0) {
+	    pcm_running = 1;
 	    pcm_write_samples(buf, n, TMDTY_FREQ, pcm_get_format(
 			      TMDTY_8BIT ? 0 : 1, TMDTY_UNS ? 0 : 1),
 			      pcm_stream);
@@ -377,6 +379,9 @@ static void midotmdty_stop(void)
 {
     S_printf("\tStop\n");
     midotmdty_write(0xfc);
+    if (pcm_running)
+	pcm_flush(pcm_stream);
+    pcm_running = 0;
 }
 
 CONSTRUCTOR(static int midotmdty_register(void))
