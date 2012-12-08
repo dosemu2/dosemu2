@@ -214,30 +214,44 @@ void adlib_timer(void)
 #ifdef HAS_YMF262
     int i, nframes;
     double period;
-    long long now = GETusTIME(0);
+    long long now;
+    int time_adj;
 
     if (adlib_time_cur - adlib_time_last > ADLIB_THRESHOLD) {
 	ADLIB_STOP();
 	pcm_flush(adlib_strm);
     }
-    if (ADLIB_RUNNING()) {
+    if (ADLIB_RUNNING()) do {
+	now = GETusTIME(0);
+	/* find the closest timer */
+	time_adj = 0;
+	for (i = 0; i < 2; i++) {
+	    if (opl3_timers[i] > 0 && now > opl3_timers[i]) {
+		now = opl3_timers[i];
+		time_adj = 1;
+		if (debug_level('S') >= 9)
+		    S_printf("Adlib: time adjusted to timer %i\n", i);
+	    }
+	}
+
 	period = pcm_frame_period_us(opl3_rate);
 	nframes = (now - adlib_time_cur) / period;
 	if (nframes > OPL3_MAX_BUF)
 	    nframes = OPL3_MAX_BUF;
-	if (nframes >= OPL3_MIN_BUF) {
+	/* if time was adjusted, ignore MIN_BUF */
+	if (nframes >= OPL3_MIN_BUF || (nframes && time_adj)) {
 	    adlib_process_samples(nframes);
 	    adlib_time_cur += nframes * period;
 	    S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
-    }
 
-    for (i = 0; i < 2; i++) {
-	if (opl3_timers[i] > 0 && now > opl3_timers[i]) {
-	    S_printf("Adlib: timer %i expired\n", i);
-	    opl3_timers[i] = now - opl3_timers[i];
-	    YMF262TimerOver(opl3, i);
+	for (i = 0; i < 2; i++) {
+	    if (opl3_timers[i] > 0 && now >= opl3_timers[i]) {
+		S_printf("Adlib: timer %i expired\n", i);
+		opl3_timers[i] -= now;
+		YMF262TimerOver(opl3, i);
+	    }
 	}
-    }
+    } while (time_adj);
 #endif
 }
