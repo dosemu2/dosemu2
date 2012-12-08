@@ -122,8 +122,8 @@ static void mf_process_samples(int nframes)
 	return;
     }
     pcm_running = 1;
-    pcm_write_samples(buf, nframes * FLUS_CHANNELS * 2,
-	    flus_srate, flus_format, pcm_stream);
+    pcm_write_interleaved(buf, nframes, flus_srate, flus_format,
+	    FLUS_CHANNELS, pcm_stream);
 }
 
 static void midoflus_timer(void)

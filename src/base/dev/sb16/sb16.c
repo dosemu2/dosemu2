@@ -498,16 +498,23 @@ int sb_get_output_sample(void *ptr, int is16bit)
     return 0;
 }
 
-void sb_put_input_sample(void *ptr, int is16bit)
+int sb_input_enabled(void)
 {
-    if (sb_dma_internal())
-	return;
+    return !sb_dma_internal();
+}
+
+int sb_put_input_sample(void *ptr, int is16bit)
+{
+    int ret;
+    if (!sb_input_enabled())
+	return 0;
     if (is16bit) {
-	rng_put(&sb.fifo_in, ptr);
+	ret = rng_put(&sb.fifo_in, ptr);
     } else {
 	Bit16u tmp = *(Bit8u *) ptr;
-	rng_put(&sb.fifo_in, &tmp);
+	ret = rng_put(&sb.fifo_in, &tmp);
     }
+    return ret;
 }
 
 static void dsp_write_output(uint8_t value)

@@ -23,6 +23,9 @@
 #ifndef __SNDPCM_H__
 #define __SNDPCM_H__
 
+typedef uint16_t sndbuf_t;
+#define SNDBUF_CHANS 2
+
 extern int pcm_init(void);
 extern void pcm_done(void);
 extern void pcm_reset(void);
@@ -34,8 +37,8 @@ extern int pcm_samp_cutoff(int val, int format);
 extern int pcm_get_format(int is_16, int is_signed);
 extern double pcm_frame_period_us(double rate);
 extern double pcm_frag_period(int size, struct player_params *params);
-extern void pcm_write_samples(void *ptr, size_t size,
-			      double rate, int format, int strm_idx);
+extern void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS],
+	int frames, double rate, int format, int nchans, int strm_idx);
 extern int pcm_format_size(int format);
 extern void pcm_timer(void);
 extern double pcm_calc_tstamp(double rate, int strm_idx);

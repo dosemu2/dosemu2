@@ -43,6 +43,7 @@
 #include <stdlib.h>
 
 #define DAC_BASE_FREQ 5625
+#define PCM_MAX_BUF 512
 
 struct dspio_dma {
     int running;
@@ -303,9 +304,9 @@ void dspio_stop_dma(void *dspio)
 
 static void dspio_process_dma(struct dspio_state *state)
 {
-    int dma_cnt, in_fifo_cnt, out_fifo_cnt, nsamp;
+    int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j;
     unsigned long long time_dst;
-    Bit16u buf;
+    sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
 
     dma_cnt = in_fifo_cnt = out_fifo_cnt = 0;
 
@@ -317,42 +318,31 @@ static void dspio_process_dma(struct dspio_state *state)
     }
 
     if (state->output_running) {
-	int nfr;
 	if (state->dma.rate) {
 	     nfr = (time_dst - state->output_time_cur) /
 		    pcm_frame_period_us(state->dma.rate);
 	    if (nfr < 0)	// happens because of get_stream_time() hack
 		nfr = 0;
+	    if (nfr > PCM_MAX_BUF)
+		nfr = PCM_MAX_BUF;
 	} else {
 	    nfr = 1;
 	}
-	nsamp = nfr * (state->dma.stereo + 1);
     } else {
-	nsamp = 0;
+	nfr = 0;
     }
-    while (state->output_running && nsamp--) {
-	if (state->dma.running) {
-	    if (!dspio_run_dma(&state->dma))
-		break;
-	    dma_cnt++;
-	}
-	if (sb_get_output_sample(&buf, state->dma.is16bit)) {
-	    if (state->speaker) {
-		pcm_write_samples(&buf, 1 << state->dma.is16bit,
-				  state->dma.rate,
-				  pcm_get_format(state->dma.is16bit,
-						 state->dma.samp_signed),
-				  state->dma_strm);
-		if (!state->dma.stereo)
-		    pcm_write_samples(&buf, 1 << state->dma.is16bit,
-				      state->dma.rate,
-				      pcm_get_format(state->dma.is16bit,
-						     state->dma.
-						     samp_signed),
-				      state->dma_strm);
+    for (i = 0; i < nfr; i++) {
+	for (j = 0; j < state->dma.stereo + 1; j++) {
+	    if (state->dma.running) {
+		if (!dspio_run_dma(&state->dma))
+		    break;
+		dma_cnt++;
 	    }
-	    out_fifo_cnt++;
-	} else {
+	    if (!sb_get_output_sample(&buf[i][j], state->dma.is16bit))
+		break;
+	}
+	if (j != state->dma.stereo + 1) {
+	    /* not enough samples, see why */
 	    if (!sb_dma_active()) {
 		dspio_stop_output(state);
 	    } else {
@@ -375,41 +365,70 @@ static void dspio_process_dma(struct dspio_state *state)
 	    }
 	    break;
 	}
+	out_fifo_cnt++;
     }
-    if (state->dma.rate)
-	state->output_time_cur += (out_fifo_cnt / (state->dma.stereo + 1)) *
-		pcm_frame_period_us(state->dma.rate);
+    if (out_fifo_cnt) {
+	if (state->dma.rate) {
+	    if (state->speaker && !state->dma.silence) {
+		pcm_write_interleaved(buf, out_fifo_cnt, state->dma.rate,
+			  pcm_get_format(state->dma.is16bit,
+					 state->dma.samp_signed),
+			  state->dma.stereo + 1, state->dma_strm);
+	    }
+	    state->output_time_cur += out_fifo_cnt *
+		    pcm_frame_period_us(state->dma.rate);
+	} else {
+	    state->output_time_cur = time_dst;
+	}
+    }
     if (state->dma.running && state->output_time_cur > time_dst - 1)
 	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
 
     if (state->input_running) {
-	int nfr;
 	if (state->dma.rate) {
 	    nfr = (time_dst - state->input_time_cur) /
 		pcm_frame_period_us(state->dma.rate);
 	    if (nfr < 0)	// happens because of get_stream_time() hack
 		nfr = 0;
+	    if (nfr > PCM_MAX_BUF)
+		nfr = PCM_MAX_BUF;
 	} else {
 	    nfr = 1;
 	}
-	nsamp = nfr * (state->dma.stereo + 1);
     } else {
-	nsamp = 0;
+	nfr = 0;
     }
-    while (state->input_running && nsamp--) {
-	dma_get_silence(state->dma.samp_signed, state->dma.is16bit, &buf);
-	//if (!state->speaker)  /* TODO: input */
-	sb_put_input_sample(&buf, state->dma.is16bit);
+    for (i = 0; i < nfr; i++) {
+	for (j = 0; j < state->dma.stereo + 1; j++) {
+	    if (sb_input_enabled()) {
+		//if (!state->speaker)  /* TODO: input */
+		dma_get_silence(state->dma.samp_signed,
+			state->dma.is16bit, &buf[i][j]);
+		if (!sb_put_input_sample(&buf[i][j], state->dma.is16bit))
+		    break;
+	    }
+	}
+	if (j != state->dma.stereo + 1)
+	    break;
 	in_fifo_cnt++;
-	if (state->dma.running) {
-	    if (!dspio_run_dma(&state->dma))
-		break;
-	    dma_cnt++;
+	for (j = 0; j < state->dma.stereo + 1; j++) {
+	    if (state->dma.running) {
+		if (!dspio_run_dma(&state->dma))
+		    break;
+		dma_cnt++;
+	    }
+	}
+	if (j != state->dma.stereo + 1)
+	    break;
+    }
+    if (in_fifo_cnt) {
+	if (state->dma.rate) {
+	    state->input_time_cur += in_fifo_cnt *
+		    pcm_frame_period_us(state->dma.rate);
+	} else {
+	    state->input_time_cur = time_dst;
 	}
     }
-    if (state->dma.rate)
-	state->input_time_cur += (in_fifo_cnt / (state->dma.stereo + 1)) *
-		pcm_frame_period_us(state->dma.rate);
 
     if (state->dma.running)
 	dma_cnt += state->dma.input ? dspio_drain_input(state) :
@@ -448,8 +467,10 @@ void dspio_timer(void *dspio)
 void dspio_write_dac(void *dspio, Bit8u samp)
 {
     if (DSPIO->speaker) {
+	sndbuf_t buf[1][SNDBUF_CHANS];
+	buf[0][0] = samp;
 	DSPIO->dac_running = 1;
-	pcm_write_samples(&samp, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
-			  DSPIO->dac_strm);
+	pcm_write_interleaved(buf, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
+			  1, DSPIO->dac_strm);
     }
 }

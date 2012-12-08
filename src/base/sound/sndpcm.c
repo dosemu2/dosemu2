@@ -480,13 +480,12 @@ double pcm_calc_tstamp(double rate, int strm_idx)
     return tstamp;
 }
 
-void pcm_write_samples(void *ptr, size_t size, double rate, int format,
-		       int strm_idx)
+void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
+	double rate, int format, int nchans, int strm_idx)
 {
-    int i;
+    int i, j;
     struct sample samp;
-    int num_samples = size / pcm_format_size(format);
-    if (rng_count(&pcm.stream[strm_idx].buffer) + num_samples >=
+    if (rng_count(&pcm.stream[strm_idx].buffer) + frames * nchans >=
 	SND_BUFFER_SIZE) {
 	error("Sound buffer %i overflowed (%s)\n", strm_idx,
 	      pcm.stream[strm_idx].name);
@@ -497,14 +496,18 @@ void pcm_write_samples(void *ptr, size_t size, double rate, int format,
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
 	rate /= pcm.stream[strm_idx].raw_speed_adj;
 
+    samp.format = format;
     players.clocked.player.lock();
-    for (i = 0; i < num_samples; i++) {
-	samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
-	samp.format = format;
-	memcpy(samp.data, ptr + i * pcm_format_size(format),
-	       pcm_format_size(format));
-	rng_put(&pcm.stream[strm_idx].buffer, &samp);
-	pcm_handle_write(strm_idx, samp.tstamp);
+    for (i = 0; i < frames; i++) {
+	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
+	    int ch = min(j, nchans - 1);
+	    memcpy(samp.data, &ptr[i][ch], pcm_format_size(format));
+	    /* XXX timestamp should be independent of chan, but right
+	     * now it is not properly handled. */
+	    samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
+	    rng_put(&pcm.stream[strm_idx].buffer, &samp);
+	    pcm_handle_write(strm_idx, samp.tstamp);
+	}
     }
     players.clocked.player.unlock();
 //S_printf("PCM: time=%f\n", samp.tstamp);

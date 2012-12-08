@@ -52,6 +52,8 @@
 #define TMDTY_BIN "timidity"
 #define TMDTY_ARGS "-EFreverb=0 -EFchorus=0 -EFresamp=1 -EFvlpf=0 -EFns=0"
 
+#define TMDTY_CHANS (TMDTY_MONO ? 1 : 2)
+
 static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock;
@@ -62,9 +64,10 @@ static int pcm_stream, pcm_running;
 static void midotmdty_io(void *arg)
 {
     char buf[16384];
-    int n, selret;
+    int n, selret, fmt;
     fd_set rfds;
     struct timeval tv;
+    fmt = pcm_get_format(TMDTY_8BIT ? 0 : 1, TMDTY_UNS ? 0 : 1);
     FD_ZERO(&rfds);
     FD_SET(data_sock, &rfds);
     tv.tv_sec = 0;
@@ -72,10 +75,10 @@ static void midotmdty_io(void *arg)
     while ((selret = select(data_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
 	n = RPT_SYSCALL(read(data_sock, buf, sizeof(buf)));
 	if (n > 0) {
+	    int frames = n / (pcm_format_size(fmt) * TMDTY_CHANS);
 	    pcm_running = 1;
-	    pcm_write_samples(buf, n, TMDTY_FREQ, pcm_get_format(
-			      TMDTY_8BIT ? 0 : 1, TMDTY_UNS ? 0 : 1),
-			      pcm_stream);
+	    pcm_write_interleaved(buf, frames, TMDTY_FREQ, fmt,
+			      TMDTY_CHANS, pcm_stream);
 	} else {
 	    break;
 	}

@@ -40,7 +40,7 @@
 #define OPL3_INTERNAL_FREQ    14400000	// The OPL3 operates at 14.4MHz
 #define OPL3_MAX_BUF 512
 #define OPL3_MIN_BUF 128
-#define ADLIB_CHANNELS 2
+#define ADLIB_CHANNELS SNDBUF_CHANS
 
 #define ADLIB_THRESHOLD 20000000
 #define ADLIB_RUNNING() (adlib_time_cur > 0)
@@ -186,8 +186,8 @@ static void adlib_process_samples(int nframes)
 	{ -1, -1, -1, -1 };
 #endif
     int i, j, k;
-    OPL3SAMPLE *chans[4], buf[4][OPL3_MAX_BUF],
-	    buf3[OPL3_MAX_BUF][ADLIB_CHANNELS];
+    OPL3SAMPLE *chans[4], buf[4][OPL3_MAX_BUF];
+    sndbuf_t buf3[OPL3_MAX_BUF][ADLIB_CHANNELS];
 
     for (i = 0; i < 4; i++)
 	chans[i] = &buf[i][0];
@@ -204,8 +204,8 @@ static void adlib_process_samples(int nframes)
 	    buf3[i][j] = pcm_samp_cutoff(buf2, opl3_format);
 	}
     }
-    pcm_write_samples(buf3, nframes * ADLIB_CHANNELS *
-	    pcm_format_size(opl3_format), opl3_rate, opl3_format, adlib_strm);
+    pcm_write_interleaved(buf3, nframes, opl3_rate, opl3_format,
+	    ADLIB_CHANNELS, adlib_strm);
 }
 #endif
 
