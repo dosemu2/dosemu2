@@ -341,30 +341,8 @@ static void dspio_process_dma(struct dspio_state *state)
 	    if (!sb_get_output_sample(&buf[i][j], state->dma.is16bit))
 		break;
 	}
-	if (j != state->dma.stereo + 1) {
-	    /* not enough samples, see why */
-	    if (!sb_dma_active()) {
-		dspio_stop_output(state);
-	    } else {
-		if (debug_level('S') > 7)
-		    S_printf("SB: Output FIFO exhausted while DMA is still active (ol=%f)\n",
-			 time_dst - state->output_time_cur);
-		if (state->dma.running) {
-		    error("SB: Output FIFO exhausted while DMA is running\n");
-		} else {
-		    /* DMA is active but currently not running and the FIFO is
-		     * already exhausted. Normally we should flush the channel
-		     * and stop the output timing.
-		     * HACK: try to not flush the channel for as long as possible
-		     * in a hope the PCM buffers are large enough to hold till
-		     * the DMA is restarted. */
-		    pcm_set_mode(state->dma_strm, PCM_MODE_POST);
-		    /* awake dosemu */
-		    reset_idle(0);
-		}
-	    }
+	if (j != state->dma.stereo + 1)
 	    break;
-	}
 	out_fifo_cnt++;
     }
     if (out_fifo_cnt) {
@@ -383,6 +361,27 @@ static void dspio_process_dma(struct dspio_state *state)
     }
     if (state->dma.running && state->output_time_cur > time_dst - 1)
 	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
+    if (out_fifo_cnt < nfr) {
+	/* not enough samples, see why */
+	if (!sb_dma_active()) {
+	    dspio_stop_output(state);
+	} else {
+	    if (debug_level('S') > 7)
+		S_printf("SB: Output FIFO exhausted while DMA is still active (ol=%f)\n",
+			 time_dst - state->output_time_cur);
+	    if (state->dma.running)
+		S_printf("SB: Output FIFO exhausted while DMA is running\n");
+	    /* DMA is active but currently not running and the FIFO is
+	     * already exhausted. Normally we should flush the channel
+	     * and stop the output timing.
+	     * HACK: try to not flush the channel for as long as possible
+	     * in a hope the PCM buffers are large enough to hold till
+	     * the DMA is restarted. */
+	    pcm_set_mode(state->dma_strm, PCM_MODE_POST);
+	    /* awake dosemu */
+	    reset_idle(0);
+	}
+    }
 
     if (state->input_running) {
 	if (state->dma.rate) {
