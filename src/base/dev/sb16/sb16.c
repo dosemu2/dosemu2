@@ -543,7 +543,6 @@ static void sb_dsp_reset(void)
     sb.command_idx = 0;
     sb.E2Count = 0;
     sb.reset_val = 0xaa;
-    sb.busy = 2;
 /* the following must not be zeroed out */
 #if 0
     sb.mixer_index = 0;
@@ -568,6 +567,7 @@ static void sb_dsp_soft_reset(unsigned char value)
 		sb.midi_cmd = 0;
 	    } else {
 		sb_dsp_reset();
+		sb.busy = 2;
 	    }
 	}
     } else {
@@ -665,6 +665,7 @@ static void sb_mixer_init(void)
 static void sb_reset(void)
 {
     sb_dsp_reset();
+    sb.busy = 1;
     sb_mixer_reset();
     adlib_reset();
 }
