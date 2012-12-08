@@ -53,6 +53,7 @@ static int midoflus_init(void)
 {
     int ret;
     settings = new_fluid_settings();
+    fluid_settings_setint(settings, "synth.lock-memory", 0);
     fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
 
     synth = new_fluid_synth(settings);
