@@ -189,18 +189,16 @@ static int do_run_dma(struct dspio_dma *dma)
     Bit8u dma_buf[2];
 
     dma_get_silence(dma->samp_signed, dma->is16bit, dma_buf);
-    if (!dma->silence) {
-	if (dma->input)
-	    sb_get_dma_data(dma_buf, dma->is16bit);
-	if (dma_pulse_DRQ(dma->num, dma_buf) != DMA_DACK) {
-	    S_printf("SB: DMA %i doesn't DACK!\n", dma->num);
+    if (dma->input)
+	sb_get_dma_data(dma_buf, dma->is16bit);
+    if (dma_pulse_DRQ(dma->num, dma_buf) != DMA_DACK) {
+	S_printf("SB: DMA %i doesn't DACK!\n", dma->num);
+	return 0;
+    }
+    if (dma->broken_hdma) {
+	if (dma_pulse_DRQ(dma->num, dma_buf + 1) != DMA_DACK) {
+	    S_printf("SB: DMA (broken) %i doesn't DACK!\n", dma->num);
 	    return 0;
-	}
-	if (dma->broken_hdma) {
-	    if (dma_pulse_DRQ(dma->num, dma_buf + 1) != DMA_DACK) {
-		S_printf("SB: DMA (broken) %i doesn't DACK!\n", dma->num);
-		return 0;
-	    }
 	}
     }
     if (!dma->input)
