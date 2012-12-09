@@ -373,8 +373,11 @@ void sb_handle_dma(void)
     sb.dma_count--;
     if (sb.dma_count == 0xffff) {
 	sb.dma_count = sb.dma_init_count;
-	S_printf("SB: Done block, triggering IRQ\n");
-	sb_activate_irq(sb_dma_16bit()? SB_IRQ_16BIT : SB_IRQ_8BIT);
+	/* testsb16 will lock up if IRQ is raised on E2 */
+	if (!sb_dma_internal()) {
+	    S_printf("SB: Done block, triggering IRQ\n");
+	    sb_activate_irq(sb_dma_16bit()? SB_IRQ_16BIT : SB_IRQ_8BIT);
+	}
 	if (!sb_dma_autoinit()) {
 	    stop_dma_clock();
 	    sb.dma_active = 0;	// disable DMA
@@ -412,12 +415,12 @@ static void sb_write_midi(Bit8u value)
 
 static int sb_out_fifo_len(void)
 {
-    return sb_fifo_enabled()? DSP_OUT_FIFO_TRIGGER : 1;
+    return sb_fifo_enabled()? DSP_OUT_FIFO_TRIGGER : 2;
 }
 
 static int sb_in_fifo_len(void)
 {
-    return sb_fifo_enabled()? DSP_IN_FIFO_TRIGGER : 1;
+    return sb_fifo_enabled()? DSP_IN_FIFO_TRIGGER : 2;
 }
 
 int sb_output_fifo_filled(void)
