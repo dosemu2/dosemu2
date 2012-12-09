@@ -470,11 +470,16 @@ int sb_get_dma_data(void *ptr, int is16bit)
 	}
 	return 1;
     }
+    error("SB: input fifo empty\n");
     return 0;
 }
 
 void sb_put_dma_data(void *ptr, int is16bit)
 {
+    if (sb_output_fifo_filled()) {
+	error("SB: output fifo overflow\n");
+	return;
+    }
     if (is16bit) {
 	rng_put(&sb.fifo_out, ptr);
     } else {
@@ -508,6 +513,10 @@ int sb_put_input_sample(void *ptr, int is16bit)
     int ret;
     if (!sb_input_enabled())
 	return 0;
+    if (sb_input_fifo_filled()) {
+	S_printf("SB: ERROR: input fifo overflow\n");
+	return 0;
+    }
     if (is16bit) {
 	ret = rng_put(&sb.fifo_in, ptr);
     } else {

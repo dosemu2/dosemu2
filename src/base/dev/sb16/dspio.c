@@ -333,7 +333,7 @@ static void dspio_process_dma(struct dspio_state *state)
     }
     for (i = 0; i < nfr; i++) {
 	for (j = 0; j < state->dma.stereo + 1; j++) {
-	    if (state->dma.running) {
+	    if (state->dma.running && !sb_output_fifo_filled()) {
 		if (!dspio_run_dma(&state->dma))
 		    break;
 		dma_cnt++;
@@ -407,9 +407,8 @@ static void dspio_process_dma(struct dspio_state *state)
 		    break;
 	    }
 	}
-	if (j != state->dma.stereo + 1)
-	    break;
-	in_fifo_cnt++;
+	if (j == state->dma.stereo + 1)
+	    in_fifo_cnt++;
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (state->dma.running) {
 		if (!dspio_run_dma(&state->dma))
