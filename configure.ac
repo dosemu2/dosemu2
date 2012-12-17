@@ -661,7 +661,7 @@ if test "$GCC" = "yes" ; then
   fi
 fi
 
-AC_MSG_CHECKING(for clang...)
+AC_MSG_CHECKING(for $CC actually being clang...)
 if test -z "$ASFLAGS"; then
   ASFLAGS=-Wa,-a
 fi
