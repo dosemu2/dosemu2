@@ -68,6 +68,15 @@ Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
 #ifdef HAS_YMF262
+    int i;
+    hitimer_t now = GETusTIME(0);
+    for (i = 0; i < 2; i++) {
+	if (opl3_timers[i] > 0 && now >= opl3_timers[i]) {
+	    S_printf("Adlib: timer %i expired\n", i);
+	    opl3_timers[i] -= now;
+	    YMF262TimerOver(opl3, i);
+	}
+    }
     ret = YMF262Read(opl3, port);
 #else
     ret = 0xff;
@@ -99,10 +108,10 @@ static void adlib_io_write(ioport_t port, Bit8u value)
 static void opl3_set_timer(void *param, int num, double interval_Sec)
 {
     long long *timers = param;
-    if (interval_Sec > 0)
-	timers[num] += GETusTIME(0) + interval_Sec * 1000000;
-    else
+    if (interval_Sec < 0)
 	timers[num] = 0;
+    else
+	timers[num] += GETusTIME(0) + interval_Sec * 1000000;
     S_printf("Adlib: timer %i set to %ius\n", num,
 	     (int) (interval_Sec * 1000000));
 }

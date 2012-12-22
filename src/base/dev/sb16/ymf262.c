@@ -1714,10 +1714,10 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 		case 0x01:	/* test register */
 		break;
 		case 0x02:	/* Timer 1 */
-			chip->T[0] = (256-v)*4;
+			chip->T[0] = (255-v)*4;
 		break;
 		case 0x03:	/* Timer 2 */
-			chip->T[1] = (256-v)*16;
+			chip->T[1] = (255-v)*16;
 		break;
 		case 0x04:	/* IRQ clear / mask and Timer enable */
 			if(v&0x80)
@@ -1736,14 +1736,14 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 				/* timer 2 */
 				if(chip->st[1] != st2)
 				{
-					double interval = st2 ? (double)chip->T[1]*chip->TimerBase : 0.0;
+					double interval = st2 ? (double)chip->T[1]*chip->TimerBase : -1.0;
 					chip->st[1] = st2;
 					if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,1,interval);
 				}
 				/* timer 1 */
 				if(chip->st[0] != st1)
 				{
-					double interval = st1 ? (double)chip->T[0]*chip->TimerBase : 0.0;
+					double interval = st1 ? (double)chip->T[0]*chip->TimerBase : -1.0;
 					chip->st[0] = st1;
 					if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,0,interval);
 				}
