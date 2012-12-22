@@ -6612,8 +6612,8 @@ $as_echo "yes, version code $GLIBC_VERSION_CODE" >&6; }
   fi
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for clang..." >&5
-$as_echo_n "checking for clang...... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $CC actually being clang..." >&5
+$as_echo_n "checking for $CC actually being clang...... " >&6; }
 if test -z "$ASFLAGS"; then
   ASFLAGS=-Wa,-a
 fi
