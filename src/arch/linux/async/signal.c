@@ -71,11 +71,7 @@ static void sigquit(struct sigcontext *);
 static void sigalrm(struct sigcontext *);
 static void sigio(struct sigcontext *);
 
-#ifdef __x86_64__
 static void sigasync(int sig, siginfo_t *si, void *uc);
-#else
-static void sigasync(int sig, struct sigcontext_struct context);
-#endif
 
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
@@ -88,12 +84,10 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
   addset_signals_that_queue(&mask);
   sa.sa_mask = mask;
 
-#ifdef __x86_64__
   if (sa.sa_flags & SA_ONSTACK) {
     sa.sa_flags |= SA_SIGINFO;
     sa.sa_sigaction = fun;
   } else
-#endif
     sa.sa_handler = fun;
   sigaction(sig, &sa, NULL);
 }
@@ -819,20 +813,12 @@ static void sigasync0(int sig, struct sigcontext_struct *scp)
   dpmi_iret_setup(scp);
 }
 
-#ifdef __x86_64__
 __attribute__((no_instrument_function))
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   sigasync0(sig, (struct sigcontext_struct *)
 	   &((ucontext_t *)uc)->uc_mcontext);
 }
-#else
-__attribute__((no_instrument_function))
-static void sigasync(int sig, struct sigcontext_struct context)
-{
-  sigasync0(sig, &context);
-}
-#endif
 #endif
 
 

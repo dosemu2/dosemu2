@@ -449,20 +449,12 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 }
 
 #ifdef __linux__
-#ifdef __x86_64__
 __attribute__((no_instrument_function))
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
   dosemu_fault0(signal, (struct sigcontext_struct *)
 		&((ucontext_t *)uc)->uc_mcontext);
 }
-#else
-__attribute__((no_instrument_function))
-void dosemu_fault(int signal, struct sigcontext_struct context)
-{
-  dosemu_fault0(signal, &context);
-}
-#endif
 #endif /* __linux__ */
 
 /*

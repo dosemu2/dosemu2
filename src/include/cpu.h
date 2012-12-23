@@ -414,11 +414,7 @@ EXTERN struct vec_t *ivecs;
 #define _eflags (scp->eflags)
 #define _cr2	(scp->cr2)
 
-#ifdef __x86_64__
 void dosemu_fault(int, siginfo_t *, void *);
-#else
-void dosemu_fault(int, struct sigcontext_struct);
-#endif
 int dosemu_fault1(int signal, struct sigcontext_struct *scp);
 #endif
 
