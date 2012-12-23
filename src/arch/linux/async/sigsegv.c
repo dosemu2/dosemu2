@@ -396,12 +396,11 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 
   init_handler(scp);
 
-  if (kernel_version_code < 0x20600+14 && kernel_version_code >= 0x20500) {
+  if (kernel_version_code < 0x20600+14) {
     sigset_t set;
 
     /* this emulates SA_NODEFER, so that we can double fault.
        SA_NODEFER only works as documented in Linux kernels >= 2.6.14.
-       In 2.4 and earlier kernels double faulting is always possible.
     */
     sigemptyset(&set);
     sigaddset(&set, signal);

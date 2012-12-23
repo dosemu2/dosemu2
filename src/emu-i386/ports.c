@@ -794,8 +794,8 @@ defout:
 int port_init(void)
 {
 	int i;
-	if (kernel_version_code >= 0x20600 && kernel_version_code < 0x20606) {
-		error("You are running a 2.6 kernel older than 2.6.6.\n"
+	if (kernel_version_code < 0x20606) {
+		error("You are running a kernel older than 2.6.6.\n"
 		      "This may be very problematic for DOSEMU.\n"
 		      "Please upgrade to a newer Linux kernel before reporting\n"
 		      "problems.\n");

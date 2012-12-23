@@ -500,8 +500,7 @@ static void read_cpu_info(void)
 #endif
 #ifdef __i386__
         if (cpuflags && (strstr(cpuflags, "fxsr")) &&
-	    sizeof(vm86_fpu_state) == (112+512) &&
-	    kernel_version_code >= 0x20401) {
+	    sizeof(vm86_fpu_state) == (112+512)) {
           config.cpufxsr = 1;
 	  if (cpuflags && strstr(cpuflags, "sse"))
 	    config.cpusse = 1;
@@ -510,8 +509,7 @@ static void read_cpu_info(void)
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-	  if ((kernel_version_code > 0x20100+126)
-	       && (cpuflags = get_proc_string_by_key("cpu MHz"))) {
+	  if ((cpuflags = get_proc_string_by_key("cpu MHz"))) {
 	    int di,df;
 	    /* last known proc/cpuinfo format is xxx.xxxxxx, with 3
 	     * int and 6 decimal digits - but what if there are less

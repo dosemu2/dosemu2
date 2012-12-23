@@ -201,12 +201,7 @@ void get_time_init (void)
      * 'rdtsc off' into config file */
     RAWcpuTIME = rawC4time;		/* in usecs */
     GETcpuTIME = getC4time;		/* in usecs */
-    if (config.realcpu) {
-      if (kernel_version_code < 0x2017e)
-        g_printf("TIMER: using gettimeofday\n");
-      else
-        g_printf("TIMER: using new gettimeofday with microsecond resolution\n");
-    }
+    g_printf("TIMER: using clock_gettime(CLOCK_MONOTONIC)\n");
   }
 }
 
