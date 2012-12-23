@@ -74,62 +74,7 @@ static void sigio(struct sigcontext *);
 #ifdef __x86_64__
 static void sigasync(int sig, siginfo_t *si, void *uc);
 #else
-
-/* my glibc doesn't define this guy */
-#ifndef SA_RESTORER
-#define SA_RESTORER 0x04000000
-#endif
-
 static void sigasync(int sig, struct sigcontext_struct context);
-
-/*
- * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
- * glibc-2 uses a different struct sigaction type than the one used in
- * the kernel. The function dosemu_sigaction (in
- * src/arch/linux/async/signal.c) bypasses the glibc provided syscall
- * by doint the int 0x80 by hand. This call expects struct sigaction
- * types as defined by the kernel. The whole story ends up with an
- * incorrect set sa_restorer field, which yields a wrong stack when
- * handling signals occuring when dpmi is active, which eventually
- * segfaults the program.
- */
-
-struct kernel_sigaction {
-  __sighandler_t kernel_sa_handler;
-  unsigned long sa_mask;
-  unsigned long sa_flags;
-  void (*sa_restorer)(void);
-};
-
-void restore (void) asm ("__restore");
-
-static int
-dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
-{
-  struct kernel_sigaction my_sa;
-
-  my_sa.kernel_sa_handler = new->sa_handler;
-  memcpy(&my_sa.sa_mask, &new->sa_mask, sizeof(my_sa.sa_mask));
-  my_sa.sa_flags = new->sa_flags;
-  my_sa.sa_restorer = new->sa_restorer;
-
-  return(syscall(SYS_sigaction, sig, &my_sa, NULL));
-}
-
-/* glibc non-pthread sigaction installs this restore
-   function, which GDB recognizes as a signal trampoline.
-   So it's a good idea for us to do the same
-*/
-#define XSTR(syscall) STR(syscall)
-#define STR(syscall) #syscall
-asm (
-   ".byte 0\n"
-   ".align 8\n"
-   "__restore:\n"
-   "  popl %eax\n"
-   "  movl $"XSTR(SYS_sigreturn)", %eax\n"
-   "  int  $0x80");
-
 #endif
 
 static void
@@ -148,23 +93,9 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
     sa.sa_flags |= SA_SIGINFO;
     sa.sa_sigaction = fun;
   } else
+#endif
     sa.sa_handler = fun;
   sigaction(sig, &sa, NULL);
-#else
-  sa.sa_handler = fun;
-  /* Linuxthread's signal wrappers are incompatible with dosemu:
-     1. some old versions don't copy back the sigcontext_struct
-        on sigreturn
-     2. it may assume %gs points to something valid which it
-        does not if we return from DPMI or kernel 2.4.x vm86().
-     and it doesn't seem that the actions done by the wrapper
-        would affect dosemu: if only seems to affect sigwait()
-	and sem_post(), and we (most probably) don't use these */
-  /* So use the kernel sigaction */
-  sa.sa_flags |= SA_RESTORER;
-  sa.sa_restorer = restore;
-  dosemu_sigaction(sig, &sa, NULL);
-#endif
 }
 
 /* DANG_BEGIN_FUNCTION NEWSETQSIG
