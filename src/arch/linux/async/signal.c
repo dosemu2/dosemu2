@@ -52,8 +52,6 @@ struct  SIGNAL_queue {
   void (* signal_handler)(void);
 };
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
-/* set if sigaltstack(2) is available */
-static int have_working_sigaltstack;
 
 static struct {
   unsigned long eflags;
@@ -66,23 +64,6 @@ static struct {
 #define ARCH_GET_GS 0x1004
 #endif
 } eflags_fs_gs;
-
- /* DANG_BEGIN_REMARK
-  * We assume system call restarting... under linux 0.99pl8 and earlier,
-  * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
-  * request restarting (and thus does nothing).  However, if this ever
-  * changes, I want to be safe
-  * DANG_END_REMARK
-  */
-#ifndef SA_RESTART
-#define SA_RESTART 0
-#error SA_RESTART Not defined
-#endif
-
-#ifndef SA_ONSTACK
-#define SA_ONSTACK 0x08000000
-#undef HAVE_SIGALTSTACK
-#endif
 
 static void (*sighandlers[NSIG])(struct sigcontext *);
 
@@ -171,14 +152,6 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
   sigaction(sig, &sa, NULL);
 #else
   sa.sa_handler = fun;
-  if ((sa.sa_flags & SA_ONSTACK) && !have_working_sigaltstack)
-  {
-    sa.sa_flags &= ~SA_ONSTACK;
-    /* Point to the top of the stack, minus 4
-       just in case, and make it aligned  */
-    sa.sa_restorer =
-      (void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
-  } else {
   /* Linuxthread's signal wrappers are incompatible with dosemu:
      1. some old versions don't copy back the sigcontext_struct
         on sigreturn
@@ -188,9 +161,8 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
         would affect dosemu: if only seems to affect sigwait()
 	and sem_post(), and we (most probably) don't use these */
   /* So use the kernel sigaction */
-    sa.sa_flags |= SA_RESTORER;
-    sa.sa_restorer = restore;
-  }
+  sa.sa_flags |= SA_RESTORER;
+  sa.sa_restorer = restore;
   dosemu_sigaction(sig, &sa, NULL);
 #endif
 }
@@ -511,18 +483,13 @@ signal_init(void)
 {
   sigset_t set;
   struct sigaction oldact;
+  stack_t ss;
 
-#ifdef HAVE_SIGALTSTACK
-  {
-    stack_t ss;
-    ss.ss_sp = cstack;
-    ss.ss_size = sizeof(*cstack);
-    ss.ss_flags = SS_ONSTACK;
+  ss.ss_sp = cstack;
+  ss.ss_size = sizeof(*cstack);
+  ss.ss_flags = SS_ONSTACK;
     
-    if (sigaltstack(&ss, NULL) == 0)
-      have_working_sigaltstack = 1;
-  }
-#endif
+  sigaltstack(&ss, NULL);
 
   /* initialize user data & code selector values (used by DPMI code) */
   /* And save %fs, %gs for NPTL */

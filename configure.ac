@@ -82,7 +82,6 @@ fi
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS(gettimeofday)
-AC_CHECK_FUNCS(sigaltstack)
 AC_CHECK_LIB(rt, shm_open)
 AC_CHECK_FUNCS(shm_open)
 
