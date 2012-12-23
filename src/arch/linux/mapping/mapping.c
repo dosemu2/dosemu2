@@ -34,17 +34,6 @@
 #define MAP_32BIT 0
 #endif
 
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#endif
-#define REQUIRED_KERNEL KERNEL_VERSION(2,0,30)
-/* REQUIRED_KERNEL to be moved to configure at some point */
-
-#if REQUIRED_KERNEL >= KERNEL_VERSION(2,3,40)
-/* if this is the case we can be sure to use MREMAP_FIXED without checking */
-#define HAVE_MREMAP_FIXED 1
-#endif
-
 struct mem_map_struct {
   off_t src;
   void *base;
@@ -60,9 +49,6 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 static int init_done = 0;
 unsigned char * const mem_base;
 char * const lowmem_base;
-#ifndef HAVE_MREMAP_FIXED
-int have_mremap_fixed = 1;
-#endif
 
 static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_SHM_OPEN
@@ -166,10 +152,6 @@ static void kmem_unmap_single(int cap, int idx)
 static void kmem_unmap_mapping(int cap, void *addr, int mapsize)
 {
   int i;
-#ifndef HAVE_MREMAP_FIXED
-  if (!have_mremap_fixed)
-    return;
-#endif
   if (addr == (void*)-1)
     return;
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
@@ -189,10 +171,6 @@ static void kmem_map_single(int cap, int idx)
 static void kmem_map_mapping(int cap, void *addr, int mapsize)
 {
   int i;
-#ifndef HAVE_MREMAP_FIXED
-  if (!have_mremap_fixed)
-    return;
-#endif
   if (addr == (void*)-1)
     return;
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 0)) != -1) {
@@ -240,20 +218,6 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 	cap, target, mapsize, protect, (long long)source);
   if (cap & MAPPING_KMEM) {
     int i;
-#ifndef HAVE_MREMAP_FIXED
-    if (!have_mremap_fixed) {
-      if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
-      open_kmem();
-      if (!fixed) target = 0;
-      target = mmap(target, mapsize, protect, MAP_SHARED | fixed,
-		    mem_fd, source);
-      close_kmem();
-      update_aliasmap(target, mapsize, target);
-      if (cap & MAPPING_COPYBACK)
-	/* copy from low shared memory to the /dev/mem memory */
-	memcpy(target, lowmem_base + (size_t)target, mapsize);
-    } else
-#endif
     {
       i = map_find_idx(kmem_map, kmem_mappings, source);
       if (i == -1) {
@@ -278,14 +242,6 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
     mprotect_mapping(cap, target, mapsize, protect);
     return target;
   }
-
-#ifndef HAVE_MREMAP_FIXED
-  if (!have_mremap_fixed && (cap & MAPPING_VC)) {
-    /* if no root is available don't over-map kmem or it will be
-       lost forever ... */
-    if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
-  }
-#endif
 
   if (cap & MAPPING_COPYBACK) {
     error("COPYBACK is not supported for mapping type %#x\n", cap);
@@ -341,27 +297,6 @@ void mapping_init(void)
   int numdrivers = sizeof(mappingdrv) / sizeof(mappingdrv[0]);
 
   if (init_done) return;
-
-#ifndef HAVE_MREMAP_FIXED
-  {
-    void *ptr, *ptr1, *ptr2;
-
-    /* check for extended_mremap */
-    ptr= MAP_FAILED;
-    ptr1 = mmap(0, PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    ptr2 = mmap(0, PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (ptr1 != MAP_FAILED && ptr2 != MAP_FAILED) {
-      ptr = extended_mremap(ptr1, PAGE_SIZE, PAGE_SIZE,
-			    MREMAP_MAYMOVE | MREMAP_FIXED, ptr2);
-      munmap(ptr1, PAGE_SIZE);
-      munmap(ptr2, PAGE_SIZE);
-    }
-    if (ptr != ptr2) {
-      Q_printf("MAPPING: not using mremap_fixed because it is not supported\n");
-      have_mremap_fixed = 0;
-    }
-  }
-#endif
 
   memset(&mappingdriver, 0, sizeof(struct mappingdrivers));
   if (config.mappingdriver && strcmp(config.mappingdriver, "auto")) {
@@ -451,10 +386,6 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
 
   Q__printf("MAPPING: alloc, cap=%s, source=%#llx\n", cap, (long long)target);
   if (cap & MAPPING_KMEM) {
-#ifndef HAVE_MREMAP_FIXED
-    if (!have_mremap_fixed)
-      return NULL;
-#endif
     if (target == -1) {
       error("KMEM mapping without target\n");
       leavedos(64);
@@ -517,9 +448,6 @@ int munmap_mapping(int cap, void *addr, size_t mapsize)
   /* First of all remap the kmem mappings */
   kmem_unmap_mapping(MAPPING_OTHER, addr, mapsize);
 
-#ifndef HAVE_MREMAP_FIXED
-  if (have_mremap_fixed)
-#endif
     if (cap & MAPPING_KMEM) {
       /* Already done */
       return 0;

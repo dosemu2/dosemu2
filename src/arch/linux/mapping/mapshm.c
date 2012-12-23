@@ -43,9 +43,6 @@ static int open_mapping_shm(int cap)
 {
   static int first =1;
 
-  if (kernel_version_code < (0x20300+33) || !have_mremap_fixed) {
-    return 0;
-  }
   if (cap) Q_printf("MAPPING: open, cap=%s\n",
 				decode_mapping_cap(cap));
 
