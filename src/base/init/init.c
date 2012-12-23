@@ -336,7 +336,13 @@ void version_init(void) {
       running_kversion +=atoi(c);
   }
 #endif
-  
+
+  if (running_kversion < 2006006) {
+    error("You are running a kernel older than 2.6.6.\n"
+	  "This may be very problematic for DOSEMU.\n"
+	  "Please upgrade to a newer Linux kernel before reporting\n"
+	  "problems.\n");
+  }
 
 #if 0 /* hmm, the below _allway_ has been hit in the past,
        * because: unames.release[2] > 1 always is true

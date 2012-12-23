@@ -794,12 +794,6 @@ defout:
 int port_init(void)
 {
 	int i;
-	if (kernel_version_code < 0x20606) {
-		error("You are running a kernel older than 2.6.6.\n"
-		      "This may be very problematic for DOSEMU.\n"
-		      "Please upgrade to a newer Linux kernel before reporting\n"
-		      "problems.\n");
-	}
 
 	/* set unused elements to appropriate values */
 	for (i=0; i < EMU_MAX_IO_DEVICES; i++) {
