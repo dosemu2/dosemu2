@@ -101,6 +101,8 @@ struct mouse_struct {
 
   /* these are clipped to min and max x; they are *not* rounded. */
   short x, y;
+  /* for abs movement correction */
+  short x_delta, y_delta;
   /* unscaled ones, to not loose the precision - these need to be int to avoid overflowing 16 bits */
   int unsc_x, unsc_y;
   /* coordinates at which the cursor was last drawn */

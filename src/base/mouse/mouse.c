@@ -62,8 +62,8 @@
  * DANG_END_REMARK
  */
 
-#define MOUSE_RX mouse_roundx(mouse.x)
-#define MOUSE_RY mouse_roundy(mouse.y)
+#define MOUSE_RX mouse_roundx(mouse.x + mouse.x_delta)
+#define MOUSE_RY mouse_roundy(mouse.y + mouse.y_delta)
 
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
@@ -1051,6 +1051,7 @@ static void mouse_reset(int flag)
   mouse.rpx = mouse.rpy = mouse.rrx = mouse.rry = 0;
 
   mouse.mickeyx = mouse.mickeyy = 0;
+  mouse.x_delta = mouse.y_delta = 0;
 
   mouse.textscreenmask = 0xffff;
   mouse.textcursormask = 0x7f00;
@@ -1111,14 +1112,21 @@ mouse_setpos(void)
     m_printf("MOUSE: ignoring 'set cursor pos' in X with no grab active\n");
     return;
   }
-  mouse.x = LWORD(ecx);
-  mouse.unsc_x = mouse.x * mouse.speed_x;
-  mouse.y = LWORD(edx);
-  mouse.unsc_y = mouse.y * mouse.speed_y;
-  mouse_round_coords();
-  mouse_hide_on_exclusion();
-  mouse_do_cur(1);
-  m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
+  if (mouse.cursor_on > 0) {
+    mouse.x = LWORD(ecx);
+    mouse.unsc_x = mouse.x * mouse.speed_x;
+    mouse.y = LWORD(edx);
+    mouse.unsc_y = mouse.y * mouse.speed_y;
+    mouse_round_coords();
+    mouse_hide_on_exclusion();
+    mouse_do_cur(1);
+    m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
+  } else {
+    mouse.x_delta = LWORD(ecx) - mouse.x;
+    mouse.y_delta = LWORD(edx) - mouse.y;
+    m_printf("MOUSE: set cursor delta x:%d, y:%d\n",
+	    mouse.x_delta, mouse.y_delta);
+  }
 }
 
 void
@@ -1558,6 +1566,11 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 void mouse_move_relative(int dx, int dy)
 {
 	int unsc_x, unsc_y;
+
+	dx += mouse.x_delta;
+	dy += mouse.y_delta;
+	mouse.x_delta = mouse.y_delta = 0;
+
 	unsc_x = dx * mouse.speed_x;
 	unsc_y = dy * mouse.speed_y;
 	mouse.unsc_x += unsc_x;
@@ -1604,17 +1617,10 @@ void mouse_move_mickeys(int dx, int dy)
 
 void mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
-	int dx, dy, new_x, new_y, mx_range, my_range,
-            minx, maxx, miny, maxy, clipped;
+	int dx, dy, new_x, new_y, clipped;
 
-	minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
-	maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
-	miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
-	maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
-	mx_range = maxx - minx +1;
-	my_range = maxy - miny +1;
-	new_x = (x*mx_range)/x_range + minx;
-	new_y = (y*my_range)/y_range + miny;
+	new_x = x + mouse.x_delta;
+	new_y = y + mouse.y_delta;
 	dx = (((new_x - mouse.x) * mouse.speed_x) >> 3);
 	dy = (((new_y - mouse.y) * mouse.speed_y) >> 3);
 	mouse.mickeyx += dx;
