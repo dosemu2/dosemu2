@@ -44,11 +44,7 @@
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif
 
-#if GCC_VERSION_CODE >= 3003
 #define MAY_ALIAS __attribute__((may_alias))
-#else
-#define MAY_ALIAS
-#endif
 
 union dword {
   unsigned long l;

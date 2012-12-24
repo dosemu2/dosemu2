@@ -48,37 +48,6 @@ dnl Checks for libraries.
 
 dnl Checks for header files.
 AC_SYS_LARGEFILE
-AC_HEADER_MAJOR
-
-dnl Checks for typedefs, structures, and compiler characteristics.
-AC_C_INLINE
-AC_TYPE_OFF_T
-AC_TYPE_PID_T
-AC_TYPE_SIZE_T
-AC_TYPE_UID_T
-AC_CHECK_MEMBERS([struct stat.st_rdev])
-
-AC_CACHE_CHECK([if C compiler has "__FILE__" macro],
-ac_cv_c_has_file_macro,
-[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __FILE__);]])],[ac_cv_c_has_file_macro=yes],[ac_cv_c_has_file_macro=no]) ] )
-if test "$ac_cv_c_has_file_macro" = "no" ; then
-  AC_DEFINE(__FILE__, "")
-fi
-
-AC_CACHE_CHECK([if C compiler has "__LINE__" macro],
-ac_cv_c_has_line_macro,
-[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __LINE__);]])],[ac_cv_c_has_line_macro=yes],[ac_cv_c_has_line_macro=no]) ] )
-if test "$ac_cv_c_has_line_macro" = "no" ; then
-  AC_DEFINE(__LINE__, "")
-fi
-
-AC_CACHE_CHECK([if C compiler has "__FUNCTION__" macro],
-ac_cv_c_has_function_macro,
-[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __FUNCTION__);]])],[ac_cv_c_has_function_macro=yes],[ac_cv_c_has_function_macro=no]) ] )
-if test "$ac_cv_c_has_function_macro" = "no" ; then
-  AC_DEFINE(__FUNCTION__, "")
-fi
-
 
 dnl Checks for library functions.
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
@@ -577,52 +546,23 @@ if test "$GCC" = "yes" ; then
   major=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC__/{print $3}'`
   GCC_VERSION_CODE=$((($major * 1000) + $minor))
   AC_MSG_RESULT($GCC_VERSION_CODE)
-  if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
-     AC_MSG_CHECKING(for egcs...)
-     if "$CC" -v 2>&1|grep 'egcs-' >/dev/null; then
-       AC_MSG_RESULT([yes, using -fno-gcse to work around bugs])
-       OPT="$OPT -fno-gcse"
-     else
-       AC_MSG_RESULT(no)
-     fi
-     AC_MSG_CHECKING(for gcc-2.95 or newer ...)
-     if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
-       AC_MSG_RESULT([yes, using -fno-strict-aliasing to work around bugs])
-       OPT="$OPT -fno-strict-aliasing"
-       if test "$(( $GCC_VERSION_CODE >= 3000 ))" = "1"; then
-         DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -MP"
-       fi
-     else
-       AC_MSG_RESULT(no)
-     fi
+  if test "$GCC_VERSION_CODE" -lt 3003 ; then
+     AC_MSG_ERROR([Sorry, you need gcc-3.3 or newer or clang.])
   fi
+  AC_MSG_RESULT([using -fno-strict-aliasing to work around bugs])
+  OPT="$OPT -fno-strict-aliasing"
+  DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -MP"
 
-
-  # -m486 is usually in the specs for the compiler
-  # but gcc-3.0 wants -mcpu=i486 instead
-  # and gcc-3.4 wants -mtune=i486 instead
+  # gcc-3.3 wants -mcpu=i486
+  # but gcc-3.4 wants -mtune=i486 instead
   # let the compiler options be dependent of the _target_
   # where dosemu is compiled for, not the host
-  if test "$target_cpu" = "athlon" -a $GCC_VERSION_CODE -le 2095 ;  then
-    target_cpu="i686"
-  fi
   if test -z "$target_cpu" ; then
      true
   elif test "$GCC_VERSION_CODE" -ge 3004 ; then
      OPT="$OPT -mtune=$target_cpu"
-  elif test "$GCC_VERSION_CODE" -ge 2095 ; then
-     OPT="$OPT -mcpu=$target_cpu"
   else
-     case "$target_cpu" in
-       i486)
-         OPT="$OPT -m486"
-         ;;
-       i386)
-         OPT="$OPT -m386"
-         ;;
-       *)
-         ;;
-     esac
+     OPT="$OPT -mcpu=$target_cpu"
   fi
   if test "$target_cpu" = "athlon"; then
      OPT="$OPT -malign-functions=4 -fexpensive-optimizations"
@@ -770,19 +710,6 @@ AH_TEMPLATE([CONFIG_HOST],
 
 AH_TEMPLATE([CONFIG_TIME],
 [ Define the configure time ])
-
-AH_TEMPLATE([__FUNCTION__],
-[Define if the compiler doesn't have __FUNCTION__ macro
- This is very gcc specific (and very useful!). It is defined
- as "" if the compiler doesn't have it. ])
-
-AH_TEMPLATE([__FILE__],
-[ Define if the compiler doesn't have __FILE__ macro.
-Most compilers have this one, but just to be sure...])
-
-AH_TEMPLATE([__LINE__],
-[ Define if the compiler doesn't have __LINE__ macro.
-Most compilers have this one, but just to be sure...])
 
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])

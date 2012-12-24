@@ -28,9 +28,6 @@
 #include "sound/midi.h"
 #include "sound/sound.h"
 #include "sound/sndpcm.h"
-#if GCC_VERSION_CODE < 3001
-#define deprecated
-#endif
 
 
 static const char *midoflus_name = "MIDI Output: FluidSynth device";

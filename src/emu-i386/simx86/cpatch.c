@@ -36,14 +36,10 @@
 #include "trees.h"
 #include "codegen-arch.h"
 
-#if GCC_VERSION_CODE >= 3003
 #ifdef __i386__
 #define asmlinkage static __attribute__((used)) __attribute__((cdecl))
 #else
 #define asmlinkage static __attribute__((used))
-#endif
-#else
-#define asmlinkage static __attribute__((unused))
 #endif
 
 int s_munprotect(unsigned int addr)

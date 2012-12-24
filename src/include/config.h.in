@@ -125,9 +125,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if `st_rdev' is a member of `struct stat'. */
-#undef HAVE_STRUCT_STAT_ST_RDEV
-
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
@@ -139,14 +136,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 
 /* Define this if you want to use the XF86 video mode extension */
 #undef HAVE_XVIDMODE
-
-/* Define to 1 if `major', `minor', and `makedev' are declared in <mkdev.h>.
-   */
-#undef MAJOR_IN_MKDEV
-
-/* Define to 1 if `major', `minor', and `makedev' are declared in
-   <sysmacros.h>. */
-#undef MAJOR_IN_SYSMACROS
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
@@ -232,40 +221,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 
 /* Define for large files, on AIX-style hosts. */
 #undef _LARGE_FILES
-
-/* Define if the compiler doesn't have __FILE__ macro. Most compilers have
-   this one, but just to be sure... */
-#undef __FILE__
-
-/* Define if the compiler doesn't have __FUNCTION__ macro This is very gcc
-   specific (and very useful!). It is defined as "" if the compiler doesn't
-   have it. */
-#undef __FUNCTION__
-
-/* Define if the compiler doesn't have __LINE__ macro. Most compilers have
-   this one, but just to be sure... */
-#undef __LINE__
-
-/* Define to `int' if <sys/types.h> doesn't define. */
-#undef gid_t
-
-/* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef __cplusplus
-#undef inline
-#endif
-
-/* Define to `long int' if <sys/types.h> does not define. */
-#undef off_t
-
-/* Define to `int' if <sys/types.h> does not define. */
-#undef pid_t
-
-/* Define to `unsigned int' if <sys/types.h> does not define. */
-#undef size_t
-
-/* Define to `int' if <sys/types.h> doesn't define. */
-#undef uid_t
 
 
 #ifndef __ASM__

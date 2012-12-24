@@ -402,7 +402,7 @@ void save_vga_state(struct video_save_struct *save_regs)
 {
 
   v_printf("Saving data for %s\n", save_regs->video_name);
-  port_enter_critical_section(__FUNCTION__);
+  port_enter_critical_section(__func__);
   dosemu_vga_screenoff();
   disable_vga_card();
   store_vga_regs(save_regs->regs);
@@ -441,7 +441,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
 {
 
   v_printf("Restoring data for %s\n", save_regs->video_name);
-  port_enter_critical_section(__FUNCTION__);
+  port_enter_critical_section(__func__);
   /* my Matrox G550 seem to completely ignore the bit15, so
    * lets disable the below trick. Are there any cards that
    * really need this? */
@@ -806,7 +806,7 @@ static int vga_post_init(void)
     mprotect_mapping(MAPPING_LOWMEM, mem_base, sizeof(int_bios_area),
 		     PROT_READ | PROT_WRITE | PROT_EXEC);
     MEMCPY_2DOS(0, int_bios_area, sizeof(int_bios_area));
-    port_enter_critical_section(__FUNCTION__);
+    port_enter_critical_section(__func__);
     vesa_init();
     port_leave_critical_section();
   }

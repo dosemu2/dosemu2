@@ -49,7 +49,6 @@ void _a_shll_n_edx(CodeObj *, int);
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 
-#if GCC_VERSION_CODE >= 2095
   /*
    * NOTE:
    *	gcc-2.95 will optimize away all code behind the 'return'
@@ -62,12 +61,6 @@ void _a_shll_n_edx(CodeObj *, int);
    */
   int trick_out_gcc295_for_remap = 1;
   #define START_TEMPLATE if (trick_out_gcc295_for_remap) return;
-#else
-  /*
-   * For all gcc below gcc-2.95 we use a normal return statement:
-   */
-  #define START_TEMPLATE return;
-#endif
 
 void _a_ret(CodeObj *co)
 {

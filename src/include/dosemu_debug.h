@@ -13,19 +13,8 @@
 #include "extern.h"
 #include "machcompat.h"
 
-/* Some older gccs accept the format attribute too,
- * but not for the function pointers. :( */
-#if GCC_VERSION_CODE >= 3002
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
-#else
-# define FORMAT(T,A,B)
-#endif
-
-#if GCC_VERSION_CODE >= 2005
 # define NORETURN	__attribute__((noreturn))
-#else
-# define NORETURN
-#endif
 
 /*  DONT_DEBUG_BOOT - if you set that, debug messages are
  *	skipped until the cpuemu is activated by int0xe6, so you can
