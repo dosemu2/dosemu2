@@ -2705,9 +2705,18 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
   save_pm_regs(scp);
   in_dpmi_dos_int = 1;
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
-  /* If the API Translator didnt install the alt entry point, call interrupt */
-  if (!(msdos_ret & MSDOS_ALT_ENT)) {
-    do_int(i);
+
+  switch (i) {
+  case 0x1c:
+  case 0x23:
+  case 0x24:
+    real_run_int(i);
+    break;
+  default:
+    /* If the API Translator didnt install the alt entry point, call interrupt */
+    if (!(msdos_ret & MSDOS_ALT_ENT))
+      do_int(i);
+    break;
   }
 }
 
