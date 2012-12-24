@@ -6456,27 +6456,16 @@ $as_echo "$as_me: Compiling for native x86..." >&6;};
   fi
 
 
-
-if echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
-  GASCODE16=1
-else
-  if echo '.code16;.text;addr32; pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
-    GASCODE16=0
-  else
-    echo ''
-    echo '*** error:'
-    echo '*** Your system has no complete code16 functional gas,'
-    echo '*** you must upgrade to atleast binutils-2.9.1.0.25'
-    echo '*** in order to compile DOSEMU ... giving up'
-    echo ''
-    exit 1
-  fi
+if ! echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
+  echo ''
+  echo '*** error:'
+  echo '*** Your system has no complete code16 functional gas,'
+  echo '*** you must upgrade to at least binutils-2.9.5'
+  echo '*** in order to compile DOSEMU ... giving up'
+  echo ''
+  exit 1
 fi
 rm -f dummy.o
-cat >>confdefs.h <<_ACEOF
-#define GASCODE16 $GASCODE16
-_ACEOF
-
 
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
@@ -6632,8 +6621,6 @@ ac_config_files="$ac_config_files Makefile.conf"
 
 
 ac_config_commands="$ac_config_commands Makefile"
-
-
 
 
 

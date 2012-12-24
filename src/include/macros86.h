@@ -37,16 +37,8 @@
 #define FILL_SHORT(x,v) FILL_OPCODE x, .short v
 #define FILL_LONG(x,v) FILL_OPCODE x, .long v
 
-#if GASCODE16
-#  define CODE32 addr32
-#  define INDIRECT_PTR(x) *x
-#else
-#  define CODE32 addr32;
-#  define INDIRECT_PTR(x) x
-#endif /* GASCODE16 */
-
 /* NOTE: we need the following only for prefixing string instructions
- *       (such as lodsb, lodsw, lodsl, e.t.c.) and if GASCODE16 == 0
+ *       (such as lodsb, lodsw, lodsl, etc.)
  *       In all other cases prefixing can be imbedded in the operant itself
  */
 #ifndef SEGES

@@ -46,8 +46,8 @@
 
 .code16
 .text
-	.globl	CISH(bios_f000)
-CISH(bios_f000):
+	.globl	bios_f000
+bios_f000:
 
 	.org	((DOSEMU_LMHEAP_SEG - BIOSSEG) << 4) + DOSEMU_LMHEAP_OFF
 /* ======================= Addr = F000:4000 (F4000) */
@@ -63,75 +63,75 @@ bios_hlt_blk:
 /* ----------------------------------------------------------------- */
 	.org	((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF
 /* ======================= Addr = F800:4800 (FC800) */
-	.globl	CISH(DPMI_dummy_start)
-CISH(DPMI_dummy_start):
+	.globl	DPMI_dummy_start
+DPMI_dummy_start:
 /* ======================= Addr = F800:4807 (FC807) */
-	.globl	CISH(DPMI_dpmi_init)
-CISH(DPMI_dpmi_init):
+	.globl	DPMI_dpmi_init
+DPMI_dpmi_init:
 	hlt
 	lret
 /* ======================= Addr = F800:480A (FC80A) */
-	.globl	CISH(DPMI_return_from_dos)
-CISH(DPMI_return_from_dos):
+	.globl	DPMI_return_from_dos
+DPMI_return_from_dos:
 	hlt
 /* ======================= Addr = F800:480B (FC80B) */
-	.globl	CISH(DPMI_reserved12)
-CISH(DPMI_reserved12):
+	.globl	DPMI_reserved12
+DPMI_reserved12:
 	hlt
 /* ======================= Addr = F800:480C (FC80C+intno) */
-	.globl	CISH(DPMI_return_from_dosint)
-CISH(DPMI_return_from_dosint):
+	.globl	DPMI_return_from_dosint
+DPMI_return_from_dosint:
 	FILL_OPCODE 256,hlt
 /* ======================= Addr = F800:490C (FC90C) */
-	.globl	CISH(DPMI_return_from_realmode)
-CISH(DPMI_return_from_realmode):
+	.globl	DPMI_return_from_realmode
+DPMI_return_from_realmode:
 	hlt
 /* ======================= Addr = F800:490D (FC90D) */
-	.globl	CISH(DPMI_return_from_dos_memory)
-CISH(DPMI_return_from_dos_memory):
+	.globl	DPMI_return_from_dos_memory
+DPMI_return_from_dos_memory:
 	hlt
 /* ======================= Addr = F800:490E (FC90E) */
-CISH(DPMI_reserved):
+DPMI_reserved:
 	hlt
 	lret
 /* ======================= Addr = F800:4910 (FC910) */
-	.globl	CISH(DPMI_raw_mode_switch_rm)
-CISH(DPMI_raw_mode_switch_rm):
+	.globl	DPMI_raw_mode_switch_rm
+DPMI_raw_mode_switch_rm:
 	hlt
 /* ======================= Addr = F800:4911 (FC911) */
-	.globl	CISH(DPMI_save_restore_rm)
-CISH(DPMI_save_restore_rm):
+	.globl	DPMI_save_restore_rm
+DPMI_save_restore_rm:
 	hlt
 	lret
 /* ======================= Addr = F800:4913 (FC913) */
-	.globl	CISH(MSDOS_srm_start)
-CISH(MSDOS_srm_start):
+	.globl	MSDOS_srm_start
+MSDOS_srm_start:
 /* ======================= Addr = F800:4913 (FC913) */
-	.globl	CISH(MSDOS_mouse_callback)
-CISH(MSDOS_mouse_callback):
+	.globl	MSDOS_mouse_callback
+MSDOS_mouse_callback:
 	hlt
 	lret
 /* ======================= Addr = F800:4915 (FC915) */
-	.globl	CISH(MSDOS_PS2_mouse_callback)
-CISH(MSDOS_PS2_mouse_callback):
+	.globl	MSDOS_PS2_mouse_callback
+MSDOS_PS2_mouse_callback:
 	hlt
 	lret
 /* ======================= Addr = F800:4917 (FC917) */
-	.globl	CISH(MSDOS_srm_end)
-CISH(MSDOS_srm_end):
+	.globl	MSDOS_srm_end
+MSDOS_srm_end:
 
-	.globl	CISH(MSDOS_rpm_start)
-CISH(MSDOS_rpm_start):
+	.globl	MSDOS_rpm_start
+MSDOS_rpm_start:
 /* ======================= Addr = F800:4917 (FC917) */
-	.globl	CISH(MSDOS_return_from_rm)
-CISH(MSDOS_return_from_rm):
+	.globl	MSDOS_return_from_rm
+MSDOS_return_from_rm:
 	hlt
 /* ======================= Addr = F800:4918 (FC918) */
-	.globl	CISH(MSDOS_rpm_end)
-CISH(MSDOS_rpm_end):
+	.globl	MSDOS_rpm_end
+MSDOS_rpm_end:
 /* ======================= Addr = F800:4918 (FC918) */
-	.globl	CISH(DPMI_dummy_end)
-CISH(DPMI_dummy_end):
+	.globl	DPMI_dummy_end
+DPMI_dummy_end:
 
 /* ======================= Addr = F800:4B00 (FCB00) */
 	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
@@ -215,44 +215,44 @@ done_write:
 
 .org	0xd000
 
-	.globl	CISH(bios_f000_int10ptr)
-CISH(bios_f000_int10ptr):
+	.globl	bios_f000_int10ptr
+bios_f000_int10ptr:
 	.long	0xc0000003
 
-	.globl	CISH(bios_f000_int10_old)
-CISH(bios_f000_int10_old):
+	.globl	bios_f000_int10_old
+bios_f000_int10_old:
 	.long	0
 
-	.globl	CISH(bios_in_int10_callback)
-CISH(bios_in_int10_callback):
+	.globl	bios_in_int10_callback
+bios_in_int10_callback:
 	.byte	0
 
-	.globl	CISH(bios_f000_bootdrive)
-CISH(bios_f000_bootdrive):
+	.globl	bios_f000_bootdrive
+bios_f000_bootdrive:
 	.byte	0
 
 	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
 	.align	16,0
-	.globl	CISH(DBGload_parblock)
-CISH(DBGload_parblock):	.word	0
+	.globl	DBGload_parblock
+DBGload_parblock:	.word	0
 			.long	0,0,0
 DBGload_SSSP:		.long	0
-	.globl	CISH(DBGload_CSIP)
-CISH(DBGload_CSIP):	.long	0
+	.globl	DBGload_CSIP
+DBGload_CSIP:	.long	0
 
 	/* parameter packet, filled in by pkt_init */
-	.globl	CISH(PKTDRV_param)
-CISH(PKTDRV_param):
+	.globl	PKTDRV_param
+PKTDRV_param:
 	.byte	0,0,0,0
 	.word	0,0,0,0,0
 
 	/* driver statistics structure */
-	.globl	CISH(PKTDRV_stats)	  
-CISH(PKTDRV_stats):
+	.globl	PKTDRV_stats
+PKTDRV_stats:
 	.long	0,0,0,0,0,0,0
 
-	.globl	CISH(LFN_string)
-CISH(LFN_string):
+	.globl	LFN_string
+LFN_string:
 	.REPT 128
 	    .byte 0
 	.ENDR
@@ -286,7 +286,7 @@ CISH(LFN_string):
 	/* call far 0xc000:3  or call far 0xe000:3 */
 	/* More general than just c000 or e000 ??? */	
 	pushw	%ds
-	lcall	INDIRECT_PTR(%cs:CISH(bios_f000_int10ptr)-bios_f000)
+	lcall	*%cs:bios_f000_int10ptr-bios_f000
 	popw	%ds
 	sti
 	jmp	video_init_done
@@ -303,7 +303,7 @@ video_init_done:
 
 	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOS_HELPER_INT
-	movb	%cs:CISH(bios_f000_bootdrive)-bios_f000,%dl
+	movb	%cs:bios_f000_bootdrive-bios_f000,%dl
 
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
 
@@ -394,7 +394,7 @@ L9a:
 
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	CODE32  pushw	6(%esp)
+	addr32  pushw	6(%esp)
 	pushw	%cs
 	call	L10	/* perform the actual mode set */
 
@@ -410,7 +410,7 @@ L9a:
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
-	ljmp	INDIRECT_PTR(%cs:CISH(bios_f000_int10_old-0x8000-bios_f000))
+	ljmp	*%cs:bios_f000_int10_old-0x8000-bios_f000
 
 #ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
@@ -423,7 +423,7 @@ L10:	/* chain to original handler (probably the video bios) */
  */
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	CODE32  pushw	4(%esp)
+	addr32  pushw	4(%esp)
 	pushw	%cs
 	call	WINT10
 	hlt
@@ -433,9 +433,9 @@ L10:	/* chain to original handler (probably the video bios) */
 /* ----------------------------------------------------------------- */   
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
 
-	.globl	CISH(INT70_dummy_start)
+	.globl	INT70_dummy_start
 /* ======================= Addr = F800:63F0 (FE3F0) */
-CISH(INT70_dummy_start):		/* RTC INTERRUPT ROUTINE	*/
+INT70_dummy_start:		/* RTC INTERRUPT ROUTINE	*/
 
 	pushw	%ax
 	int	$0x4a
@@ -444,8 +444,8 @@ CISH(INT70_dummy_start):		/* RTC INTERRUPT ROUTINE	*/
 	outb	%al,$0x20
 	popw	%ax			/* restore registers            */
 	iret				/* return to interrupted code	*/
-	.globl  CISH(INT70_dummy_end)
-CISH(INT70_dummy_end):
+	.globl  INT70_dummy_end
+INT70_dummy_end:
 
 
 /* COMPAS FE3FE		jmp to INT13 HD */
@@ -504,7 +504,7 @@ CISH(INT70_dummy_end):
 /* ----------------------------------------------------------------- */   
 	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
 #if 0
-	.globl	CISH(INT09_dummy_start)
+	.globl	INT09_dummy_start
 #endif
 /* ======================= Addr = FE987 */
 /* COMPAS FE987		jmp to INT09 */
@@ -655,8 +655,8 @@ kbd_EOI:
 	ret
 
 #if 0
-	.globl  CISH(INT09_dummy_end)
-CISH(INT09_dummy_end):
+	.globl  INT09_dummy_end
+INT09_dummy_end:
 #endif
 
 
@@ -750,8 +750,8 @@ idle_cycle:
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:F130 (FF130) */
 
-	.globl	CISH(PKTDRV_start)
-CISH(PKTDRV_start):
+	.globl	PKTDRV_start
+PKTDRV_start:
 /*	jmp to entry point is also used as signature, and therefore
 	it have to be jmp with word displacement. I've found no way
 	to tell gas that I want jmp with word displacement, so hardcode
@@ -763,21 +763,21 @@ CISH(PKTDRV_start):
    driver is initialized. */
 	.asciz	"PKT DRVR"
 
-	.globl	CISH(PKTDRV_driver_name)
-CISH(PKTDRV_driver_name):
+	.globl	PKTDRV_driver_name
+PKTDRV_driver_name:
 	.asciz	"Linux$"
 	.byte	0
 
 PKTDRV_entry:
-	ljmp	INDIRECT_PTR(%cs:CISH(PKTDRV_driver_entry)-bios_f000)
+	ljmp	*%cs:PKTDRV_driver_entry-bios_f000
 
 	.align 4,0
 PKTDRV_driver_entry:
-	.globl	CISH(PKTDRV_driver_entry_ip)
-CISH(PKTDRV_driver_entry_ip):
+	.globl	PKTDRV_driver_entry_ip
+PKTDRV_driver_entry_ip:
 	.word 0
-	.globl	CISH(PKTDRV_driver_entry_cs)
-CISH(PKTDRV_driver_entry_cs):
+	.globl	PKTDRV_driver_entry_cs
+PKTDRV_driver_entry_cs:
 	.word 0
 
 /* ===== LFN helper f000:f230 */
@@ -816,8 +816,8 @@ after_int21:
  * in order to get a breakpoint for the debugger
  * (wanting to debug a program from it's very beginning)
  */
-	.globl	CISH(DBGload)
-CISH(DBGload):
+	.globl	DBGload
+DBGload:
 	cli	/* first we set up the users stack */
 	movw	%cs:DBGload_SSSP+2-bios_f000,%ss
 	movw	%cs:DBGload_SSSP-bios_f000,%sp
@@ -833,11 +833,11 @@ CISH(DBGload):
 	movw    %ax,%di
 	movw    %ax,%bp
 	sti
-	ljmp	INDIRECT_PTR(%cs:CISH(DBGload_CSIP)-bios_f000)
+	ljmp	*%cs:DBGload_CSIP-bios_f000
 				/* and give control to the program */
 
-	.globl  CISH(bios_f000_endpart1)
-CISH(bios_f000_endpart1):
+	.globl  bios_f000_endpart1
+bios_f000_endpart1:
 
 /* COMPAS FF841		jmp to INT12 */
 /* COMPAS FF844-FF84C	reserved */
@@ -849,8 +849,8 @@ CISH(bios_f000_endpart1):
 /* COMPAS FFE6E		jmp to INT1A */
 /* COMPAS FFE71-FFEA4	reserved */
 
-	.globl	CISH(bios_f000_part2)
-CISH(bios_f000_part2):
+	.globl	bios_f000_part2
+bios_f000_part2:
 
 /* ----------------------------------------------------------------- */ 
 	.org    ((INT75_SEG-BIOSSEG) << 4)+INT75_OFF
@@ -866,9 +866,9 @@ CISH(bios_f000_part2):
 /* ----------------------------------------------------------------- */   
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
 
-	.globl	CISH(INT08_dummy_start)
+	.globl	INT08_dummy_start
 /* ======================= Addr = F800:7EA5 (FFEA5) */
-CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
+INT08_dummy_start:		/* TIMER INTERRUPT ROUTINE	*/
 /* COMPAS FFEA5		jmp to INT08 */
 /* COMPAS FFEA8-FFEF2	reserved */
 #if 0
@@ -885,16 +885,16 @@ CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
         movw	%ax,%ds
 	incl	BIOS_TIMER
 	cmpl	$HOUR24_ADJUST, BIOS_TIMER /* 24 hour check */
-	jb	CISH(INT08_L1)
+	jb	INT08_L1
 	movl	$0, BIOS_TIMER
 	incb	BIOS_TIMER_OVERFLOW
-CISH(INT08_L1):
+INT08_L1:
 			/* emulate 'diskette motor running */
 			/* some old games rely on that --SW, --Hans */
 	cmpb	$0, DISKETTE_MOTOR_TIMEOUT
-	jz	CISH(INT08_L2)
+	jz	INT08_L2
 	decb	DISKETTE_MOTOR_TIMEOUT
-	jnz	CISH(INT08_L2)
+	jnz	INT08_L2
 	/* turn floppy motor off (code from Bochs) */
 	pushw	%dx
 	movw	$0x3f2, %dx
@@ -903,7 +903,7 @@ CISH(INT08_L1):
 	outb	%al, %dx
 	popw	%dx
 	
-CISH(INT08_L2):
+INT08_L2:
 	int	$0x1c		/* call int 0x1c, per bios spec	*/
 				/* must do it before EOI, but after count */
         movb    $0x20,%al
@@ -911,8 +911,8 @@ CISH(INT08_L2):
 	popw	%ax			/* restore registers            */
 	popw	%ds
 	iret				/* return to interrupted code	*/
-	.globl  CISH(INT08_dummy_end)
-CISH(INT08_dummy_end):
+	.globl  INT08_dummy_end
+INT08_dummy_end:
         
 /* COMPAS FFEF3		vector table for INT08-INT1F */
 /* COMPAS FFF23		vector table for INT70-INT77 */
@@ -942,11 +942,9 @@ CISH(INT08_dummy_end):
 /* COMPAS FFFFF		unused */
 	hlt
 
-	.globl  CISH(bios_f000_end)
-CISH(bios_f000_end):
+	.globl  bios_f000_end
+bios_f000_end:
 
 /*--------------------------------------------------------------------------*/
 
-#ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
-#endif

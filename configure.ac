@@ -533,25 +533,16 @@ dnl CPU emulator
   fi
 
 
-dnl Check for proper gas code16 functionality
-
-if echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
-  GASCODE16=1
-else
-  if echo '.code16;.text;addr32; pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
-    GASCODE16=0
-  else
-    echo ''
-    echo '*** error:'
-    echo '*** Your system has no complete code16 functional gas,'
-    echo '*** you must upgrade to atleast binutils-2.9.1.0.25'
-    echo '*** in order to compile DOSEMU ... giving up'
-    echo ''
-    exit 1
-  fi
+if ! echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
+  echo ''
+  echo '*** error:'
+  echo '*** Your system has no complete code16 functional gas,'
+  echo '*** you must upgrade to at least binutils-2.9.5'
+  echo '*** in order to compile DOSEMU ... giving up'
+  echo ''
+  exit 1
 fi
 rm -f dummy.o
-AC_DEFINE_UNQUOTED(GASCODE16, $GASCODE16)
 
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
@@ -779,9 +770,6 @@ AH_TEMPLATE([CONFIG_HOST],
 
 AH_TEMPLATE([CONFIG_TIME],
 [ Define the configure time ])
-
-AH_TEMPLATE([GASCODE16],
-[ Define the stepping of gas code16 functionality ])
 
 AH_TEMPLATE([__FUNCTION__],
 [Define if the compiler doesn't have __FUNCTION__ macro

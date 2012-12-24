@@ -57,7 +57,7 @@ int14:
 	.byte   0
 int14a:
         # in TASM this is "jmp far cs:old14"
-	ljmp	INDIRECT_PTR(%cs:old14)
+	ljmp	*%cs:old14
 
 # -------------------------------------------------------------------------
 

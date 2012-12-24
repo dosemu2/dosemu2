@@ -65,7 +65,7 @@ OurMouseISR:
 # (they will be popped by the IRET in the handler). CLI is in force
 # and will continue to be so.
 		pushf
-		lcall	INDIRECT_PTR(%cs:MouseDriver)
+		lcall	*%cs:MouseDriver
 # Save DS and set it to our CS
 		pushw %ds    # save the old DS 
 		pushw %cs	   # This PUSH/POP needed since no MOV DS,CS

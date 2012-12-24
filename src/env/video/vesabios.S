@@ -75,18 +75,18 @@
 	.globl	_start16
 _start16:
 
-		.globl CISH(vgaemu_bios_start)
-		.globl CISH(vgaemu_bios_prod_name)
-		.globl CISH(vgaemu_bios_win_func)
-		.globl CISH(vgaemu_bios_end)
+		.globl vgaemu_bios_start
+		.globl vgaemu_bios_prod_name
+		.globl vgaemu_bios_win_func
+		.globl vgaemu_bios_end
 
-CISH(vgaemu_bios_start):
+vgaemu_bios_start:
 		.byte	0x55, 0xaa	/* BIOS signature, required for BIOS extensions */
 		.byte	0x00		/* BIOS extension length in units of 512 bytes */
 		lret			/* BIOS init function */
 		nop
 		
-CISH(vgaemu_bios_prod_name):
+vgaemu_bios_prod_name:
 		.ascii	"DOSEMU VGA/VBE 2.0 Emulator"
 		.byte	0x00
 
@@ -99,7 +99,7 @@ CISH(vgaemu_bios_prod_name):
 		.ascii	"Copyright (c) 1997 Steffen Winterfeldt"
 		.byte	0x00
 
-CISH(vgaemu_bios_win_func):
+vgaemu_bios_win_func:
 		pushw	%bx
 		/* 0x40 is our own special code, (cf. vesa.c),
 		 * make it 0x00 if you think it causes problems
@@ -110,8 +110,6 @@ CISH(vgaemu_bios_win_func):
 		popw	%bx
 		lret
 
-CISH(vgaemu_bios_end):
+vgaemu_bios_end:
 
-#ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
-#endif

@@ -10,26 +10,6 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#if 0
-#ifdef __cplusplus
-#define asmlinkage extern "C"
-#else
-#define asmlinkage
-#endif
-#endif
-
-#ifdef __ELF__
-#ifdef __STDC__
-#define CISH_INLINE(x) #x
-#define CISH(x) x
-#else
-#define CISH_INLINE(x) "x"
-#define CISH(x) x
-#endif
-#else
-# error "Sorry, a.out format is no longer supported"
-#endif
-
 /* split segment 0xf000 into two region, 0xf0000 to 0xf7fff is read-write */
 /*                                       0xf8000 to 0xfffff is read-only  */
 /* so put anything need read-write into BIOSSEG and anything read-only */
