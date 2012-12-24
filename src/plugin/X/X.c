@@ -1,10 +1,10 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * DANG_BEGIN_MODULE
  *
  * REMARK
@@ -19,14 +19,14 @@
  * $Id$
  *
  * 951205: bon@elektron.ikp.physik.th-darmstadt.de
- *   Merged in again the selection stuff. Hope introduce hidden bugs 
- *        are removed!  
+ *   Merged in again the selection stuff. Hope introduce hidden bugs
+ *        are removed!
  *
  *         TODO: highlighting should be smarter and either discard area
  *               or follow ir when scrolling (text-mode
  *
  * 5/24/95, Started to get the graphics modes to work
- * Erik Mouw (J.A.K.Mouw@et.tudelft.nl) 
+ * Erik Mouw (J.A.K.Mouw@et.tudelft.nl)
  * and Arjan Filius (I.A.Filius@et.tudelft.nl)
  *
  * changed:
@@ -47,12 +47,12 @@
  * Now dosemu can work in graphics mode with X, but at the moment only in mode
  * 0x13 and very slow.
  *
- * 1995-08-30: Merged with code for pasting, removed some restrictions 
- * from Pasi's code: cut and paste and x_mouse, 
+ * 1995-08-30: Merged with code for pasting, removed some restrictions
+ * from Pasi's code: cut and paste and x_mouse,
  * (bon@elektron.ikp.physik.th-darmstadt.de)
  *
- * 1995-08-22: Lots of cleaning and rewriting, more comments, MappingNotify 
- * event support, selection support (cut only), fixed some cursor redrawing 
+ * 1995-08-22: Lots of cleaning and rewriting, more comments, MappingNotify
+ * event support, selection support (cut only), fixed some cursor redrawing
  * bugs. -- Pasi Eronen (pe@iki.fi)
  *
  *
@@ -99,7 +99,7 @@
  * network connections. Thanks to Leonid V. Kalmankin <leonid@cs.msu.su>
  * for finding the bug and testing the fix.
  * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
- *              
+ *
  * 1997/06/15: Added gamma correction for graphics modes.
  * -- sw
  *
@@ -149,7 +149,7 @@
  * -- Antonio Larrosa (antlarr@arrakis.es)
  *
  * 2000/05/31: Cleaned up mouse handling with help of Bart Oldeman.
- *  -- Eric Biederman 
+ *  -- Eric Biederman
  *
  * 2003/02/02: Implemented full-screen mode. Thanks to
  *             Michael Graffam <mgraffam@idsi.net> for his XF86 VidMode
@@ -1274,7 +1274,7 @@ static void toggle_mouse_grab(void)
  *
  * DANG_END_FUNCTION
  *
- */  
+ */
 static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_range)
 {
 #if CONFIG_X_MOUSE
@@ -1307,7 +1307,7 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 		last_cursor = new_cursor;
 	}
 
-	if (grab_active || snap_X || !have_focus)
+	if (grab_active || snap_X || !have_focus || mouse_really_left_window)
 		return;
 
 	/* Move the X cursor if needed */
@@ -1607,7 +1607,7 @@ static void X_handle_events(void)
 	  set_mouse_position(e.xmotion.x,e.xmotion.y); /*root@sjoerd*/
 	  set_mouse_buttons(e.xbutton.state|(0x80<<e.xbutton.button));
 	  break;
-	  
+
 	case ButtonRelease:
 	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
 #if CONFIG_X_SELECTION
@@ -1616,7 +1616,7 @@ static void X_handle_events(void)
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_buttons(e.xbutton.state&~(0x80<<e.xbutton.button));
 	  break;
-	  
+
 	case MotionNotify:
 #if CONFIG_X_SELECTION
 	  extend_selection(x_to_col(e.xmotion.x, w_x_res),
@@ -1624,7 +1624,7 @@ static void X_handle_events(void)
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e.xmotion.x, e.xmotion.y);
 	  break;
-	  
+
 	case EnterNotify:
 	  /* Here we trigger the kludge to snap in the cursor
 	   * drawn by win31 and align it with the X-cursor.
@@ -1634,12 +1634,13 @@ static void X_handle_events(void)
           if (mouse_really_left_window)
           {
             X_printf("X: Mouse really entering window\n");
+            mouse_really_left_window = 0;
 	    if(!grab_active) snap_X=3;
 	    set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	    set_mouse_buttons(e.xcrossing.state);
           }
 	  break;
-	  
+
 	case LeaveNotify:                   /* Should this do anything? */
 	  X_printf("X: Mouse leaving window, coordinates %d %d\n", e.xcrossing.x, e.xcrossing.y);
           /* some stupid window managers send this event if you click a
@@ -2468,14 +2469,14 @@ void X_update_cursor()
 
 
 #if CONFIG_X_MOUSE
-/* 
+/*
  * DANG_BEGIN_FUNCTION set_mouse_position
  *
  * description:
  * Place the mouse on the right position.
- * 
+ *
  * DANG_END_FUNCTION
- */ 
+ */
 void set_mouse_position(int x, int y)
 {
   int dx, dy, center_x, center_y, x0, y0;
