@@ -1397,7 +1397,7 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	if (state.l) {
 		dx -= 1;
 	}
-	mouse_move_relative(dx, dy);
+	mouse_move_mickeys(dx, dy);
 	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
 }
 
@@ -1558,6 +1558,29 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 
 void mouse_move_relative(int dx, int dy)
 {
+	int unsc_x, unsc_y;
+	unsc_x = dx * mouse.speed_x;
+	unsc_y = dy * mouse.speed_y;
+	mouse.unsc_x += unsc_x;
+	mouse.unsc_y += unsc_y;
+	mouse.x += dx;
+	mouse.y += dy;
+	/* XXX fix rounding errors! */
+	mouse.mickeyx += unsc_x >> 3;
+	mouse.mickeyy += unsc_y >> 3;
+
+	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
+		 dx, dy, mouse.x, mouse.y);
+
+	/*
+	 * update the event mask
+	 */
+	if (dx || dy)
+	   mouse_move(0);
+}
+
+void mouse_move_mickeys(int dx, int dy)
+{
 	/* according to the interrupt list, the speed setting is in
 		mickeys per eight pixels. */
 	/* IDEA: running dx and dy through a filter which dampens
@@ -1570,7 +1593,7 @@ void mouse_move_relative(int dx, int dy)
 	mouse.mickeyx += dx;
 	mouse.mickeyy += dy;
 
-	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
+	m_printf("mouse_move_mickeys(%d, %d) -> %d %d \n",
 		 dx, dy, mouse.x, mouse.y);
 
 	/*
