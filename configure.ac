@@ -81,7 +81,15 @@ fi
 
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
+#include <unistd.h>]], [[
+#if !(defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0 && defined(CLOCK_MONOTONIC))
+        #error No monotonic clock
+#endif
+	return 0;
+]])],,[
+AC_MSG_ERROR([Sorry, you need glibc with monotonic clock support (2.3.3 or newer).])])
+
 AC_CHECK_LIB(rt, shm_open)
 AC_CHECK_FUNCS(shm_open)
 
@@ -114,18 +122,6 @@ if test "$CONFIG_HOST" = "Linux"; then
   CONFIG_HOST='linux'
 fi
 AC_SUBST(CONFIG_HOST)
-
-dnl Do ELF if possible
-
-if ! printf '%b\n' '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
-   | ${CC-cc} -E - | grep bar > /dev/null; then
-  if test "$CONFIG_HOST" = "linux"; then
-    echo "------------------------------------------------------------"
-    echo "Sorry, a.out system detected, but we do no longer support it"
-    echo "------------------------------------------------------------"
-    exit 1
-  fi
-fi
 
 dnl Check for static and then also use it for tests
 
@@ -644,19 +640,9 @@ if test "$GCC" = "yes" ; then
   fi
 
   AC_MSG_CHECKING(for glibc...)
-  set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
-  major=$1; minor=$2
-  if test "$major" = "__GLIBC__"; then
-    AC_MSG_ERROR([Sorry, you need glibc-2.1.3 or newer.])
-  else
-    if test "$minor" = "__GLIBC_MINOR__"; then
-      minor=0;
-    fi
-    GLIBC_VERSION_CODE=$((($major * 1000) + $minor))
-    AC_MSG_RESULT([yes, version code $GLIBC_VERSION_CODE])
-    if test $GLIBC_VERSION_CODE -lt 2001; then
-      AC_MSG_ERROR([Sorry, you need glibc-2.1.3 or newer.])
-    fi
+  set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2}'`
+  if test "$1" = "__GLIBC__"; then
+    AC_MSG_ERROR([Sorry, you need glibc.])
   fi
 fi
 
