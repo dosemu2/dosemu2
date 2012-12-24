@@ -1628,6 +1628,7 @@ mouse_delta(int event)
  */
 static void call_int15_mouse_event_handler(void)
 {
+    struct vm86_regs saved_regs;
     int status;
     unsigned int ssp, sp;
     int dx, dy;
@@ -1655,6 +1656,7 @@ static void call_int15_mouse_event_handler(void)
     mouse.old_mickeyx += dx;
     mouse.old_mickeyy -= dy;
 
+    saved_regs = REGS;
     m_printf("PS2MOUSE data: dx=%hhx, dy=%hhx, status=%hx\n", (Bit8u)dx, (Bit8u)dy, (unsigned short)status);
     pushw(ssp, sp, status | 8);
     pushw(ssp, sp, dx & 0xff);
@@ -1662,22 +1664,17 @@ static void call_int15_mouse_event_handler(void)
     pushw(ssp, sp, 0);
     LWORD(esp) -= 8;
 
-    /* push return address F000:2100 */
-    fake_call(Mouse_SEG, Mouse_PS2_OFF);
-
     /* jump to mouse cs:ip */
-    REG(cs) = mouse.ps2.cs;
-    REG(eip) = mouse.ps2.ip;
-
     m_printf("PS2MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
+    do_call_back(mouse.ps2.cs, mouse.ps2.ip);
+    REGS = saved_regs;
 }
 
 static void call_int33_mouse_event_handler(void)
 {
-    /* push all 16-bit regs plus _DS,_ES. At F000:20F0 (bios.S) we find
-     * 'pop es; pop ds; popa; eoi' */
-    fake_pusha();
+    struct vm86_regs saved_regs;
 
+    saved_regs = REGS;
     LWORD(eax) = mouse_events;
     LWORD(ecx) = mouse.x;
     LWORD(edx) = mouse.y;
@@ -1687,18 +1684,13 @@ static void call_int33_mouse_event_handler(void)
     if (mouse.threebuttons)
       LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
 
-    /* push return address F000:20F0 */
-    fake_call(Mouse_SEG, Mouse_OFF);
-
     /* jump to mouse cs:ip */
-    REG(cs) = mouse.cs;
-    REG(eip) = mouse.ip;
-
-    REG(ds) = mouse.cs;		/* put DS in user routine */
-
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
+    REG(ds) = mouse.cs;		/* put DS in user routine */
+    do_call_back(mouse.cs, mouse.ip);
+    REGS = saved_regs;
 }
 
 /* this function is called from int74 via inte6 */
@@ -1943,16 +1935,16 @@ dosemu_mouse_init(void)
 void mouse_post_boot(void)
 {
   unsigned int ptr;
-        
+
   if (!mice->intdrv) return;
-  
+
   /* This is needed here to revectoring the interrupt, after dos
    * has revectored it. --EB 1 Nov 1997 */
-  
+
   mouse_reset_to_current_video_mode(-1);
   mouse_enable_internaldriver();
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
-  
+
   /* grab int10 back from video card for mouse */
   ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10_old - (long)bios_f000));
   m_printf("ptr is at %x; ptr[0] = %x, ptr[1] = %x\n",ptr,READ_WORD(ptr),READ_WORD(ptr+2));

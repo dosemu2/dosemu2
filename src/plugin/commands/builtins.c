@@ -320,7 +320,7 @@ void com_intr(int intno, struct REGPACK *regpack)
 	struct vm86_regs saved_regs = _regs;
 	_regs = regpack_to_regs(regpack);
 
-	do_intr_call_back(intno);
+	do_int_call_back(intno);
 
 	*regpack = regs_to_regpack(&_regs);
 	_regs = saved_regs;

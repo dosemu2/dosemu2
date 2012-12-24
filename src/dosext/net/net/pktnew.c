@@ -46,7 +46,7 @@
 #include "libpacket.h"
 #include "dosnet.h"
 #include "pic.h"
-#include "hlt.h"
+#include "coopth.h"
 #include "dpmi.h"
 
 #define min(a,b)	((a) < (b)? (a) : (b))
@@ -58,16 +58,14 @@ int Find_Handle(u_char *buf);
 static void printbuf(char *, struct ethhdr *);
 static int pkt_check_receive(int ilevel);
 static void pkt_receiver_callback(void);
-static void pkt_receiver_callback_hlt(Bit32u offs, void *arg);
-static Bit32u PKTRcvCall_OFF;
+static void pkt_receiver_callback_thr(void *arg);
+static Bit32u PKTRcvCall_TID;
 
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
 static int pktdrvr_installed;
 
 unsigned short receive_mode;
 static unsigned short local_receive_mode;
-
-static struct vm86_regs rcv_saved_regs;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -102,7 +100,7 @@ struct pkt_globs
 	short packet_type_len;		/* length of packet type */
 	int flags;			/* per-packet-type flags */
 	int sock;			/* fd for the socket */
-	long receiver;			/* receive handler */
+	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
 	char packet_type[16];		/* packet type for this handle */
     } handle[MAX_HANDLE];          
 } pg;
@@ -116,7 +114,7 @@ struct pkt_globs
 unsigned char pkt_buf[PKT_BUF_SIZE];
 
 short p_helper_size;
-long p_helper_receiver;
+Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
@@ -162,7 +160,6 @@ void pkt_priv_init(void)
 void
 pkt_init(void)
 {
-    emu_hlt_t hlt_hdlr;
     if (!config.pktdrv)
       return;
     if (pktdrvr_installed == -1)
@@ -194,12 +191,7 @@ pkt_init(void)
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 
-    /* install HLT handler */
-    hlt_hdlr.name = "PKT_receiver_call";
-    hlt_hdlr.start_addr = -1;
-    hlt_hdlr.len = 1;
-    hlt_hdlr.func = pkt_receiver_callback_hlt;
-    PKTRcvCall_OFF = hlt_register_handler(hlt_hdlr);
+    PKTRcvCall_TID = coopth_create("PKT_receiver_call");
     return;
 
 fail:
@@ -347,7 +339,8 @@ pkt_int (void)
 	    hdlp = &pg.handle[free_handle];
 	    memset(hdlp, 0, sizeof(struct per_handle));
 	    hdlp->in_use = 1;
-	    hdlp->receiver = (LWORD(es) << 16) | LWORD(edi);
+	    hdlp->rcvr_cs = LWORD(es);
+	    hdlp->rcvr_ip = LWORD(edi);
 	    hdlp->packet_type_len = LWORD(ecx);
 	    memcpy(hdlp->packet_type, SEG_ADR((char *),ds,si), LWORD(ecx));
 	    hdlp->class = LO(ax);
@@ -601,16 +594,17 @@ static void pkt_receiver_callback(void)
     if(in_dpmi && !in_dpmi_dos_int)
 	fake_pm_int();
     fake_int_to(BIOSSEG, EOI_OFF);
-    rcv_saved_regs = REGS;
-    fake_call_to(PKTRcvCall_SEG, PKTRcvCall_OFF);
+    coopth_start(PKTRcvCall_TID, pkt_receiver_callback_thr, NULL);
 }
 
-static void pkt_receiver_callback_hlt(Bit32u offs, void *arg)
+static void pkt_receiver_callback_thr(void *arg)
 {
+    struct vm86_regs rcv_saved_regs;
+    rcv_saved_regs = REGS;
     _AX = 0;
     _BX = p_helper_handle;
     _CX = p_helper_size;
-    do_call_back(p_helper_receiver);
+    do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
     if (_ES == 0 && _DI == 0)
       goto out;
     MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, p_helper_size);
@@ -618,7 +612,7 @@ static void pkt_receiver_callback_hlt(Bit32u offs, void *arg)
     _SI = _DI;
     _AX = 1;
     _BX = p_helper_handle;
-    do_call_back(p_helper_receiver);
+    do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
 
 out:
     p_helper_size = 0;
@@ -716,7 +710,8 @@ static int pkt_receive(void)
 		error("PKT: Receiver is not ready, packet dropped (size=%i)\n",
 		  p_helper_size);
 	    p_helper_size = size;
-	    p_helper_receiver = hdlp->receiver;
+	    p_helper_receiver_cs = hdlp->rcvr_cs;
+	    p_helper_receiver_ip = hdlp->rcvr_ip;
 	    p_helper_handle = handle;
 	    pd_printf("Called the helpvector ... \n");
 	    return 1;

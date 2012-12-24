@@ -34,7 +34,7 @@ REQUIRED += $(MIDID)
 
 LIBSUBDIRS=env/video base base/async \
 	arch/linux/async arch/linux/mapping \
-	base/misc base/dev/misc\
+	base/misc base/misc/libpcl base/dev/misc\
 	emu-i386 $(XCPUEMU) env base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/mouse\

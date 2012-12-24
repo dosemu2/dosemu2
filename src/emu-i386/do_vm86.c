@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -55,6 +55,8 @@
 #include "keymaps.h"
 #include "keyb_server.h"
 #include "bitops.h"
+#include "coopth.h"
+#include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -391,20 +393,10 @@ run_vm86(void)
 	I_printf("Return from vm86() for STI\n");
 	break;
     case VM86_INTx:
-	if (
-	    in_dpmi &&
-	    (
-	     VM86_ARG(retval) == 0x1c || /* ROM BIOS timer tick interrupt */
-	     VM86_ARG(retval) == 0x23 || /* DOS Ctrl+C interrupt */
-	     VM86_ARG(retval) == 0x24    /* DOS critical error interrupt */
-	    )) {
-	  run_pm_dos_int(VM86_ARG(retval));
-	} else {
-	  do_int(VM86_ARG(retval));
+	do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
-	  mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
 #endif
-	}
 	break;
 #ifdef USE_MHPDBG
     case VM86_TRAP:
@@ -452,10 +444,21 @@ void loopstep_run_vm86(void)
 
 
 static int callback_level = 0;
+static int callback_thr_tag;
+Bit16u CBACK_OFF;
+Bit16u CBACK_OFF2;
 
-void callback_return(void)
+static void callback_return(Bit32u off2, void *arg)
 {
-	callback_level--;
+    int tid = coopth_get_tid_by_tag(callback_thr_tag, callback_level);
+    fake_retf(0);
+    coopth_wake_up(tid);
+}
+
+static void callback_return_old(Bit32u off2, void *arg)
+{
+    fake_retf(0);
+    callback_level--;
 }
 
 /*
@@ -463,11 +466,46 @@ void callback_return(void)
  * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
  *       The _caller_ has to do this.
  */
-void do_call_back(Bit32u codefarptr)
+static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 {
-	Bit16u oldcs, oldip;
+	int old_frozen;
+
+	if (fault_cnt && !in_leavedos) {
+		error("do_call_back() executed within the signal context!\n");
+		leavedos(25);
+	}
+
+	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
+	if (intr)
+		fake_int_to(cs, ip); /* far jump to the vm86(DOS) routine */
+	else
+		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
+
+	old_frozen = dosemu_frozen;
+	if (dosemu_frozen)
+		unfreeze_dosemu();
+	callback_level++;
+	coopth_sleep_tagged(callback_thr_tag, callback_level);
+	callback_level--;
+	if (!callback_level && old_frozen)
+		freeze_dosemu();
+}
+
+void do_call_back(Bit16u cs, Bit16u ip)
+{
+    __do_call_back(cs, ip, 0);
+}
+
+void do_int_call_back(int intno)
+{
+    __do_call_back(ISEG(intno), IOFF(intno), 1);
+}
+
+void do_intr_call_back(int intno)
+{
 	int level;
 	int old_frozen;
+	Bit32u codefarptr = MK_FP16(ISEG(intno), IOFF(intno));
 
 	if (in_dpmi && !in_dpmi_dos_int) {
 		error("do_call_back() cannot call protected mode code\n");
@@ -477,52 +515,38 @@ void do_call_back(Bit32u codefarptr)
 		error("do_call_back() executed within the signal context!\n");
 		leavedos(25);
 	}
-	if (callback_level) {
-		g_printf("do_call_back() re-entered! level=%i\n", callback_level);
-	}
 
-	/* we push the address of our HLT place in the bios
-	 * as return address on the stack and run vm86 mode.
-	 * When the call returns and HLT causes GPF, vm86_GP_fault() calls
-	 * callback_return() above, which then decreases callback_level
-	 * ... and then we return from here
-	 */
-	fake_call(CBACK_SEG, CBACK_OFF);/* push our return cs:ip */
-	oldcs = REG(cs);		/* save old cs:ip */
-	oldip = LWORD(eip);
-	REG(cs) = FP_SEG16(codefarptr);	/* far jump to the vm86(DOS) routine */
-	LWORD(eip) = FP_OFF16(codefarptr);
+	fake_call_to(CBACK_SEG, CBACK_OFF2);	/* push our return cs:ip */
+	fake_int_to(FP_SEG16(codefarptr), FP_OFF16(codefarptr)); /* far jump to the vm86(DOS) routine */
 
-        level = callback_level++;
 	old_frozen = dosemu_frozen;
-	unfreeze_dosemu();
-        while (callback_level > level) {
+	if (dosemu_frozen)
+		unfreeze_dosemu();
+	level = callback_level++;
+	while (callback_level > level) {
 		if (fatalerr && !in_leavedos) leavedos(99);
-	/*
-	 * BIG WARNING: We should NOT use things like loopstep_run_vm86() here!
-	 * Only the plain run_vm86() is safe (also DPMI-safe).
-	 * -stsp
-	 */
 		run_irqs();	/* this is essential to do BEFORE run_[vm86|dpmi]() */
 		run_vm86();
-        }
-	if (old_frozen)
+	}
+	if (!callback_level && old_frozen)
 		freeze_dosemu();
-	/* ... and back we are */
-	REG(cs) = oldcs;
-	LWORD(eip) = oldip;
 }
 
-void do_intr_call_back(int intno)
+int vm86_init(void)
 {
-	unsigned int ssp = SEGOFF2LINEAR(LWORD(ss), 0);
-	unsigned int sp = LWORD(esp);
-	pushw(ssp, sp, vflags);
-	LWORD(esp) = (LWORD(esp) - 2) & 0xffff;
-	clear_IF();
-	clear_TF();
-	clear_AC();
-	clear_NT();
+    emu_hlt_t hlt_hdlr;
+    hlt_hdlr.name = "do_call_back";
+    hlt_hdlr.start_addr = -1;
+    hlt_hdlr.len = 1;
+    hlt_hdlr.func = callback_return;
+    CBACK_OFF = hlt_register_handler(hlt_hdlr);
 
-	do_call_back(MK_FP16(ISEG(intno), IOFF(intno)));
+    hlt_hdlr.name = "do_call_back_old";
+    hlt_hdlr.start_addr = -1;
+    hlt_hdlr.len = 1;
+    hlt_hdlr.func = callback_return_old;
+    CBACK_OFF2 = hlt_register_handler(hlt_hdlr);
+
+    callback_thr_tag = coopth_tag_alloc();
+    return 0;
 }

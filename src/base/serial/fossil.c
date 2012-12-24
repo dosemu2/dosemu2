@@ -25,8 +25,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
-#include "config.h" 
+#include "config.h"
 #include "emu.h"
+#include "coopth.h"
 #include "serial.h"
 #include "ser_defs.h"
 
@@ -76,17 +77,31 @@ static unsigned short fossil_id_offset, fossil_id_segment;
 
 /* This flag indicates that the DOS part of the emulation, FOSSIL.COM,
  * is loaded. This module does nothing as long as this flag is false,
- * so other (DOS-based) FOSSIL drivers may be used. 
+ * so other (DOS-based) FOSSIL drivers may be used.
  */
 static boolean fossil_tsr_installed = FALSE;
 
+void fossil_setup(int num)
+{
+    com[num].fossil_blkrd_tag = coopth_tag_alloc();
+    com[num].fossil_blkrd_running = 0;
+}
+
+void fossil_dr_hook(int num)
+{
+    int tid;
+    if (!com[num].fossil_blkrd_running)
+	return;
+    tid = coopth_get_tid_by_tag(com[num].fossil_blkrd_tag, num);
+    coopth_wake_up(tid);
+}
 
 /**************************************************************************/
 /*                         FOSSIL INTERRUPT 0x14                          */
 /**************************************************************************/
 
 /* This function handles the FOSSIL calls. It's called by int14.c
- * if the com[num].fossil_active flag is true, and always for 
+ * if the com[num].fossil_active flag is true, and always for
  * function 0x04 (initialize FOSSIL driver).
  */
 void fossil_int14(int num)
@@ -98,7 +113,7 @@ void fossil_int14(int num)
     int lcr;
     int divisors[] = { DIV_19200, DIV_38400, DIV_300, DIV_600, DIV_1200, 
       DIV_2400, DIV_4800, DIV_9600 };
-      
+
     s_printf("SER%d: FOSSIL 0x00: Initialize port %d, AL=0x%02x\n",
       num, LO(dx), LO(ax));
 
@@ -108,7 +123,7 @@ void fossil_int14(int num)
 
     /* Raise DTR and RTS */
     write_MCR(num, com[num].MCR | UART_MCR_DTR | UART_MCR_RTS);
-    
+
     /* Set DLAB bit, set Baudrate Divisor Latch values, and clear DLAB. */
     write_LCR(num, lcr | UART_LCR_DLAB);
     write_DLL(num, divisors[LO(ax) >> 5] & 0xff);
@@ -121,7 +136,7 @@ void fossil_int14(int num)
       num, LO(ax), HI(ax));
     break;
   }
-    
+
   /* Write character (should be with wait) */
   case 0x01:
     /* DANG_FIXTHIS This really should be write-with-wait. */
@@ -131,42 +146,35 @@ void fossil_int14(int num)
     #endif
     LWORD(eax) = FOSSIL_GET_STATUS(num);
     break;
-    
+
   /* Read character (should be with wait) */
   case 0x02:
-    uart_fill(num);			/* Fill UART with received data */
-    if (com[num].LSR & UART_LSR_DR) {	/* Was a character received? */
-      LO(ax) = read_char(num);
-      HI(ax) = 0;
-      #if SER_DEBUG_FOSSIL_RW
+    while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
+	com[num].fossil_blkrd_running = 1;
+	coopth_sleep_tagged(com[num].fossil_blkrd_tag, num);
+	com[num].fossil_blkrd_running = 0;
+    }
+    LO(ax) = read_char(num);
+    HI(ax) = 0;
+    #if SER_DEBUG_FOSSIL_RW
         s_printf("SER%d: FOSSIL 0x02: Read char 0x%02x\n", num, LO(ax));
-      #endif
-    }
-    else {
-      /* This is supposed to be read-with-wait, but I since most programs don't
-       * use this function without checking for character available, I think
-       * it doesn't matter. 
-       */
-      LO(ax) = 0;
-      HI(ax) = 0x80;
-      s_printf("SER%d: FOSSIL 0x02: Read with wait failed!\n", num);
-    }
+    #endif
     break;
-    
+
   /* Get port status. */
   case 0x03:
     uart_fill(num);			/* Fill UART with received data */
     LWORD(eax) = FOSSIL_GET_STATUS(num);
-    #if SER_DEBUG_FOSSIL_STATUS   
+    #if SER_DEBUG_FOSSIL_STATUS
       s_printf("SER%d: FOSSIL 0x03: Port Status, AH=0x%02x AL=0x%02x\n",
         num, HI(ax), LO(ax));
-    #endif	       
+    #endif
     break;
-    
+
   /* Initialize FOSSIL driver. */
   case 0x04:
     /* Do nothing if TSR isn't installed. */
-    if (!fossil_tsr_installed)	     
+    if (!fossil_tsr_installed)
       return;
     com[num].fossil_active = TRUE;
     LWORD(eax) = FOSSIL_MAGIC;
@@ -175,12 +183,12 @@ void fossil_int14(int num)
     /* Raise DTR */
     write_MCR(num, com[num].MCR | UART_MCR_DTR);
     /* Enable FIFOs. I'm not sure if the changing of FIFO size really
-     * affects anything, but it seems to work :-). 
+     * affects anything, but it seems to work :-).
      */
     write_FCR(num, UART_FCR_ENABLE_FIFO|UART_FCR_TRIGGER_14);
     uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
     com[num].rx_fifo_size = RX_BUFFER_SIZE/2;
-    /* Initialize FOSSIL driver info buffer. This is used by the 
+    /* Initialize FOSSIL driver info buffer. This is used by the
      * function 0x1b (Get driver info).
      */
     com[num].fossil_info[0] = 19;       /* Structure size */
@@ -207,13 +215,13 @@ void fossil_int14(int num)
     /* Note: the FIFO values aren't restored. Hopefully nobody notices... */
     s_printf("SER%d: FOSSIL 0x05: Emulation deactivated\n", num);
     break;
-    
+
   /* Lower/raise DTR. */  
   case 0x06:
     write_MCR(num, (com[num].MCR & ~UART_MCR_DTR) | (LO(ax) ? UART_MCR_DTR : 0));
     s_printf("SER%d: FOSSIL 0x06: DTR set to %d\n", num, LO(ax));
     break;
-  
+
   /* Purge output buffer */
   case 0x09:
     uart_clear_fifo(num, UART_FCR_CLEAR_XMIT);

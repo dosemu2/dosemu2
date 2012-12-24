@@ -48,6 +48,7 @@
 #include "aspi.h"
 #include "vgaemu.h"
 #include "hlt.h"
+#include "coopth.h"
 
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
@@ -87,6 +88,7 @@ static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
 static u_short hlt_off;
+static int int_tid, int_rvc_tid;
 
 u_short INT_OFF(u_char i)
 {
@@ -180,7 +182,8 @@ static void process_master_boot_record(void)
 
 static int inte6(void)
 {
-  return dos_helper();
+  int ret = dos_helper();
+  return ret;
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
@@ -404,19 +407,19 @@ int dos_helper(void)
   case DOS_HELPER_RUN_UNIX:
     g_printf("Running Unix Command\n");
     run_unix_command(SEG_ADR((char *), es, dx));
-    break;   
+    break;
 
   case DOS_HELPER_GET_USER_COMMAND:
     /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
     g_printf("Locating DOS Command\n");
     LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
-    break;   
+    break;
 
   case DOS_HELPER_GET_UNIX_ENV:
     /* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
     g_printf("Interrogating UNIX Environment\n");
     LWORD(eax) = misc_e6_envvar(SEG_ADR((char *), es, dx));
-    break;   
+    break;
 
   case DOS_HELPER_0x53:
     {
@@ -510,11 +513,12 @@ int dos_helper(void)
 		_AX = -1;
 	}
         break;
-  case DOS_HELPER_BOOTSECT: {
+  case DOS_HELPER_BOOTSECT:
+      coopth_leave();
       fdkernel_boot_mimic();
       break;
-    }
   case DOS_HELPER_MBR:
+    coopth_leave();
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();
       break;
@@ -1114,7 +1118,6 @@ Return: nothing
 #define EMM_FILE_HANDLE 200
 
 /* MS-DOS */
-/* see config.c: int21 is redirected here only when debug_level('D)>0 !! */
 
 static int redir_it(void);
 
@@ -1122,11 +1125,9 @@ static unsigned short int21seg, int21off;
 
 static void int21_post_boot(void)
 {
-  if (config.lfn) {
     int21seg = ISEG(0x21);
     int21off = IOFF(0x21);
     SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
-  }
 }
 
 static int int21lfnhook(void)
@@ -1134,6 +1135,11 @@ static int int21lfnhook(void)
   if (!(HI(ax) == 0x71 || HI(ax) == 0x57) || !mfs_lfn())
     fake_int_to(int21seg, int21off);
   return 1;
+}
+
+static void int21lfnhook_thr(void *arg)
+{
+  int21lfnhook();
 }
 
 static int msdos(void)
@@ -1302,8 +1308,10 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (ret == 0 && !IS_REDIRECTED(0x21))
-    return int21lfnhook();
+  if (ret == 0) {
+    coopth_set_post_handler(int_tid + 0x21, int21lfnhook_thr, NULL);
+    return 1;
+  }
   return ret;
 }
 
@@ -1341,6 +1349,7 @@ void real_run_int(int i)
   else
     clear_TF();
   clear_NT();
+  clear_AC();
   clear_IF();
 }
 
@@ -1413,11 +1422,7 @@ static int run_caller_func(int i, int revect)
 	if (caller_function) {
 		return caller_function();
 	} else {
-		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-		g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
-		/* This is here for old SIGILL's that modify IP */
-		if (i == 0x00)
-			LWORD(eip)+=2;
+		error("DEFIVEC: int 0x%02x %i\n", i, revect);
 		return 0;
 	}
 }
@@ -1433,7 +1438,10 @@ int can_revector(int i)
  */
 
   switch (i) {
+#if 0
+  /* we hook it in int21_post_boot(), not here */
   case 0x21:			/* we want it first...then we'll pass it on */
+#endif
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
   case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
@@ -1556,6 +1564,35 @@ static int int19(void) {
   return 1;
 }
 
+static void do_dpmi_int(void *arg)
+{
+  int i = (long)arg;
+  run_pm_dos_int(i);
+}
+
+static int int1c(void)
+{
+  if (!in_dpmi)
+    return 0;
+  coopth_set_post_handler(int_rvc_tid + 0x1c, do_dpmi_int, (void *)0x1c);
+  return 1;
+}
+
+static int int23(void)
+{
+  if (!in_dpmi)
+    return 0;
+  coopth_set_post_handler(int_rvc_tid + 0x23, do_dpmi_int, (void *)0x23);
+  return 1;
+}
+
+static int int24(void)
+{
+  if (!in_dpmi)
+    return 0;
+  coopth_set_post_handler(int_rvc_tid + 0x24, do_dpmi_int, (void *)0x24);
+  return 1;
+}
 
 /*
  * Turn all simulated FAT devices into network drives.
@@ -1584,13 +1621,6 @@ void redirect_devices(void)
  */
 static int redir_it(void)
 {
-  /*
-   * Declaring the following struct volatile works around an EGCS bug
-   * (at least up to egcs-2.91.66). Otherwise the line below marked
-   * with '###' will modify the *old* (saved) struct too.
-   * -- sw
-   */
-  volatile static struct vm86_regs save_regs;
   static unsigned x0, x1, x2, x3, x4;
   unsigned u;
 
@@ -1598,58 +1628,48 @@ static int redir_it(void)
    * To start up the redirector we need (1) the list of list, (2) the DOS version and
    * (3) the swappable data area. To get these, we reuse the original file open call.
    */
-  switch(redir_state) {
-    case 1:
-      if(HI(ax) == 0x3d) {
+  if(HI(ax) != 0x3d)
+    return 0;
+
         /*
          * FreeDOS will get confused by the following calling sequence (e.i. it
          * is not reentrant 'enough'. So we will abort here - it cannot use a
          * redirector anyway.
          * -- sw
          */
-        if (running_DosC) {
+  if (running_DosC) {
           ds_printf("INT21: FreeDOS detected - no check for redirector\n");
-          return redir_state = 0;
-        }
-        save_regs = REGS;
-        redir_state = 2;
-        LWORD(eip) -= 2;
-        LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
-        ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-          redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-        return 1;
-      }
-      break;
+          redir_state = 0;
+          return 0;
+  }
+  pre_msdos();
+  LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
+  call_msdos();
+  ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-    case 2:
-      x0 = LWORD(ebx); x1 = REG(es);
-      redir_state = 3;
-      LWORD(eip) -= 2;
-      LWORD(eax) = 0x3000;
-      ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-        redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-      return 2;
-      break;
+  x0 = LWORD(ebx);
+  x1 = REG(es);
+  LWORD(eax) = 0x3000;
+  call_msdos();
+  ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-    case 3:
-      x4 = LWORD(eax);
-      redir_state = 4;
-      LWORD(eip) -= 2;
-      LWORD(eax) = 0x5d06;
-      ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-        redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-      return 3;
-      break;
+  x4 = LWORD(eax);
+  LWORD(eax) = 0x5d06;
+  call_msdos();
+  ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-    case 4:
-      x2 = LWORD(esi); x3 = REG(ds);
-      redir_state = 0;
-      u = x0 + (x1 << 4);
-      ds_printf("INT21: lol = 0x%x\n", u);
-      ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
-      ds_printf("INT21: ver = 0x%02x\n", x4);
+  x2 = LWORD(esi);
+  x3 = REG(ds);
+  redir_state = 0;
+  u = x0 + (x1 << 4);
+  ds_printf("INT21: lol = 0x%x\n", u);
+  ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
+  ds_printf("INT21: ver = 0x%02x\n", x4);
 
-      if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
+  if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
         /* Init the redirector. */
         LWORD(ecx) = x4;
         LWORD(edx) = x0; REG(es) = x1;
@@ -1659,15 +1679,13 @@ static int redir_it(void)
         mfs_inte6();
 
         redirect_devices();
-      }
-      else {
-        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
-      }
-
-      REGS = save_regs;
-      set_int21_revectored(-1);
-      break;
   }
+  else {
+        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
+  }
+
+  post_msdos();
+  set_int21_revectored(-1);
 
   return 0;
 }
@@ -1869,7 +1887,7 @@ static int int2f(void)
     return 1;
   }
 
-  return !IS_REDIRECTED(0x2f);
+  return 0;
 }
 
 static void int33_check_hog(void);
@@ -1949,8 +1967,19 @@ static void debug_int(const char *s, int i)
  	}
 }
 
+static void do_int_from_thr(void *arg)
+{
+    u_char i = (long)arg;
+    run_caller_func(i, NO_REVECT);
+    if (debug_level('#') > 2)
+	debug_int("RET", i);
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_INTx + (i << 8), 0, 0);
+#endif
+}
+
 /*
- * DANG_BEGIN_FUNCTION DO_INT 
+ * DANG_BEGIN_FUNCTION DO_INT
  *
  * description:
  * DO_INT is used to deal with interrupts returned to DOSEMU by the
@@ -1963,16 +1992,33 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 {
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
-  
- 	/* Always use the caller function: I am calling into the
- 	   interrupt table at the start of the dosemu bios */
+
+	/* Always use the caller function: I am calling into the
+	   interrupt table at the start of the dosemu bios */
 	fake_iret();
-	run_caller_func(i, NO_REVECT);
-	if (debug_level('#') > 2)
-		debug_int("RET", i);
-#ifdef USE_MHPDBG
-	  mhp_debug(DBG_INTx + (i << 8), 0, 0);
-#endif
+	if (interrupt_function[i][NO_REVECT])
+	      coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
+}
+
+static void int_chain_thr(void *arg)
+{
+  int i = (long)arg;
+  real_run_int(i);
+}
+
+static void do_int_thr(void *arg)
+{
+	int i = (long)arg;
+	if (!run_caller_func(i, REVECT)) {
+		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+		if (IS_IRET(i)) {
+			if ((i != 0x2a) && (i != 0x28))
+				g_printf("just an iret 0x%02x\n", i);
+		} else {
+			coopth_set_post_handler(int_rvc_tid + i,
+				int_chain_thr, (void *)(long)i);
+		}
+	}
 }
 
 void do_int(int i)
@@ -1988,7 +2034,7 @@ void do_int(int i)
 	
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
-  
+
 #if 1  /* This test really ought to be in the main loop before
  	*  instruction execution not here. --EB 10 March 1997 
  	*/
@@ -2000,16 +2046,10 @@ void do_int(int i)
  		leavedos(57);
  	}
 #endif
-  
-  
- 	/* see if I want to use the caller function */
- 	/* I want to use it if I must always use it */
- 	/* assume IP was just incremented by 2 past int int instruction which set us
- 	   off */
-	
- 	if (SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)) == IVEC(i)) {
-		run_caller_func(i, can_revector(i));
-	} else if (can_revector(i) != REVECT || !run_caller_func(i, REVECT)) {
+
+	if (can_revector(i) == REVECT) {
+		coopth_start(int_rvc_tid + i, do_int_thr, (void *)(long)i);
+	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
 			if ((i != 0x2a) && (i != 0x28))
@@ -2035,6 +2075,7 @@ void fake_int(int cs, int ip)
 
   clear_TF();
   clear_NT();
+  clear_AC();
   clear_IF();
 }
 
@@ -2131,7 +2172,7 @@ void setup_interrupts(void) {
     interrupt_function[i][NO_REVECT] =
       interrupt_function[i][REVECT] = NULL;
   }
-  
+
   interrupt_function[5][NO_REVECT] = int05;
   /* This is called only when revectoring int10 */
   interrupt_function[0x10][NO_REVECT] = int10;
@@ -2145,9 +2186,12 @@ void setup_interrupts(void) {
   interrupt_function[0x18][NO_REVECT] = int18;
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
-  if (config.lfn)
-    interrupt_function[0x21][NO_REVECT] = int21lfnhook;
-  interrupt_function[0x21][REVECT] = int21;
+
+  interrupt_function[0x1c][REVECT] = int1c;
+  interrupt_function[0x23][REVECT] = int23;
+  interrupt_function[0x24][REVECT] = int24;
+
+  interrupt_function[0x21][NO_REVECT] = int21;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
   interrupt_function[0x2f][REVECT] = int2f;
@@ -2176,6 +2220,9 @@ void setup_interrupts(void) {
   hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
   hlt_off = hlt_register_handler(hlt_hdlr);
+
+  int_tid = coopth_create_multi("ints thread non-revect", 256);
+  int_rvc_tid = coopth_create_multi("ints thread revect", 256);
 }
 
 
