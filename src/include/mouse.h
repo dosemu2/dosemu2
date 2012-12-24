@@ -144,7 +144,7 @@ struct mouse_struct {
     unsigned short cs, ip;
   } ps2;
 };
-extern volatile struct mouse_struct mouse;
+extern struct mouse_struct mouse;
 
 struct mouse_client {
   const char *name;

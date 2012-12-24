@@ -105,8 +105,7 @@ static int sent_mouse_esc = FALSE;
 
 static struct mouse_client Mouse_serial, Mouse_none;
 static mouse_t *mice = &config.mouse;
-/* the 'volatile' is there to cover some bug in gcc -O -g3 */
-volatile struct mouse_struct mouse;
+struct mouse_struct mouse;
 
 static inline int mouse_roundx(int x)
 {
