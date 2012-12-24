@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -290,12 +290,12 @@ void install_dos(int post_boot)
 "because <Ctrl>-C and \'exit\' won\'t work!\n");
 		}
 		install_dos_(kernelsyspath);
-	} else 
+	} else
 		install_dosemu_freedos(1);
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
-		char *commands_path = 
+		char *commands_path =
 			assemble_path(dosemu_lib_dir, "drive_z", 0);
 		create_symlink(commands_path, 1);
 		free(commands_path);

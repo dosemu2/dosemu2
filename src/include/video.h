@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -20,7 +20,7 @@ typedef union {
 
 extern void gettermcap(int,int *, int *);
 
-/* if you set this to 1, the video memory dirty bit will be checked 
+/* if you set this to 1, the video memory dirty bit will be checked
    before updating the screen.
    (this affects emu.c and video/int10.c)
 */
@@ -33,7 +33,7 @@ extern void gettermcap(int,int *, int *);
    of your /etc/dosemu.conf.
    With dualmonitor support you can run CAD-programs, debuggers, or
    simply change your PC-console with "mode mono"
-   NOTE: 
+   NOTE:
      Currently this can't be used together with VIDEO_CHECK_DIRTY,
      because the kernel (vm86.c) would remap all video pages
      from 0xa0000 to 0xbffff.
@@ -49,7 +49,7 @@ void init_dualmon(void);
 #define CURSOR_END(c)   ((c).b.end)
 #define NO_CURSOR 0x2000
 
-/* 
+/*
  * xterm allows to set virtually any screen size, but DOS applications
  * and the BIOS really can't handle more than these numbers of rows and
  * columns (128*255*2 < 65535)
@@ -86,10 +86,10 @@ struct video_system {
                                   like mapping video memory, opening XWindow,
                                   etc. */
    void (*close)(void);
-   
+
    int (*setmode)(int type, int xsize,int ysize);   /* type=0 currently (text mode) */
 
-   int (*update_screen)(void);     /* (partially) update screen and cursor from the 
+   int (*update_screen)(void);     /* (partially) update screen and cursor from the
                                   video memory. called from sigalrm handler */
 
    void (*update_cursor)(void);    /* update cursor position&shape. Called by sigalrm

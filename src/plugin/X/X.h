@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -16,7 +16,7 @@ void X_draw_cursor(int x,int y);
 void X_restore_cell(int x,int y);
 void X_init_videomode(void);
 
-void X_process_key(XKeyEvent *); 
+void X_process_key(XKeyEvent *);
 void X_process_keys(XKeymapEvent *);
 
 void load_text_font(void);

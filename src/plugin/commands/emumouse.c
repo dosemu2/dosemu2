@@ -251,7 +251,7 @@ int emumouse_main(int argc, char *argv[])
 	  }
 	  break;
 
-	default: 
+	default:
           printf("ERROR! Unknown option \"%s\".\n\n", argv[i]);
 	  return usage();
 	  /* never reached */

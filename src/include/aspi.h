@@ -1,13 +1,13 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * include/aspi.h copied and modified from the wine project's wintypes.h
- * drivers/aspi.c - emulate the DOS ASPI programming interface using 
+ * drivers/aspi.c - emulate the DOS ASPI programming interface using
  *		    the Linux generic SCSI driver (/dev/sg?)
  * most of this code shamelessly stolen from the wine
  * project aspi.c written by  Bruce Milner <Bruce.Milner@genetics.utah.edu>

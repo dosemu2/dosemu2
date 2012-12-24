@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -16,13 +16,13 @@
  *
  * The pc-speaker emulator for Dosemu.
  *
- * This file contains functions to make a pc speaker beep for dosemu.  
+ * This file contains functions to make a pc speaker beep for dosemu.
  *
  * Actuall emulation is done in src/base/dev/misc/timers.c in do_sound.
  *
  * Currenly emulation is only done when the new keyboard is enabled but with a
  * little extra work it should be possible to enable it for the old keyboard
- * code if necessary. 
+ * code if necessary.
  *
  * For parts of dosemu that want to beep the pc-speaker (say the video bios)
  * #include "speaker.h"
@@ -49,25 +49,25 @@
  *  gp is passed as the first argument to the functions arguments 'on'
  *  and 'off' when global functions 'speaker_on' and 'speaker_off' are called.
  *  This allows important state information to be passed to the functions.  And
- *  reduces reliance on global variables.  
+ *  reduces reliance on global variables.
  *
  * The functions 'on' and 'off' besides the extra parameter are called just as
  * the global functions 'speaker_on' and 'speaker_off' are called respectively.
- * 
- * Before the registered function is no longer valid call 
+ *
+ * Before the registered function is no longer valid call
  * 'register_speaker(NULL, NULL, NULL)' this will reset the speaker code
  * to it's default speaker functions, which will always work.
  *
  * --EB 20 Sept 1997
  *
  * /REMARK
- * maintainer: 
+ * maintainer:
  * Eric W. Biederman <eric@biederman.org>
  * DANG_END_MODULE
  *
  * Changes:	Hans 970926 (at time of patch inclusion)
  *		- Reduced type/prototyping usage to DOSEMU common one ;-)
- *			
+ *
  */
 
 #include "emu.h"
@@ -81,8 +81,8 @@
  * ============================================================================
  */
 struct speaker_info {
-	void *gp;  /* a general pointer it can hold anything, 
-		    * it is passed to both speaker_on & speaker_off 
+	void *gp;  /* a general pointer it can hold anything,
+		    * it is passed to both speaker_on & speaker_off
 		    */
 	speaker_on_t on;
 	speaker_off_t off;
@@ -107,7 +107,7 @@ static void dumb_speaker_off(void *gp)
 	/* we can't :( */
 }
 
-static struct speaker_info dumb_speaker = 
+static struct speaker_info dumb_speaker =
 { NULL, dumb_speaker_on, dumb_speaker_off };
 
 /*
@@ -116,11 +116,11 @@ static struct speaker_info dumb_speaker =
  */
 
 
-static struct speaker_info speaker = 
+static struct speaker_info speaker =
 { NULL, dumb_speaker_on, dumb_speaker_off};
 
-void register_speaker(void *gp, 
-			     speaker_on_t speaker_on, 
+void register_speaker(void *gp,
+			     speaker_on_t speaker_on,
 			     speaker_off_t speaker_off)
 {
 	if (speaker_on && speaker_off) {
@@ -133,7 +133,7 @@ void register_speaker(void *gp,
 }
 
 /* this does the EMULATED mode speaker emulation */
-void speaker_on(unsigned ms, unsigned short period) 
+void speaker_on(unsigned ms, unsigned short period)
 {
 	if (config.speaker == SPKR_OFF)
 		return;

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1999, Egbert Eich (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
@@ -18,8 +18,8 @@
 #include "port.h"
 
 #define PCI_VERSION 0x0210  /* version 2.10 */
-#define PCI_CONFIG_1 0x01 
-#define PCI_CONFIG_2 0x02 
+#define PCI_CONFIG_1 0x01
+#define PCI_CONFIG_2 0x02
 #define MAX_DEV_PER_VENDOR_CFG1  32
 #define MAX_PCI_DEVICES 64
 #define PCI_MULTIFUNC_DEV  0x80
@@ -33,7 +33,7 @@
                                        == PCI_SUBCLASS_BRIDGE_PCI)
 #define PCI_BRIDGE_HOST_CLASS(class) ((class & PCI_SUBCLASS_MASK) \
                                        == PCI_SUBCLASS_BRIDGE_HOST)
-				     
+
 /* variables get initialized by pcibios_init() */
 static pciPtr pciList = NULL;
 struct pci_funcs *pciConfigType = NULL;
@@ -74,7 +74,7 @@ void
 pci_bios(void)
 {
     unsigned short val;
-    
+
     if (!pciConfigType)
 	return;
 
@@ -85,7 +85,7 @@ pci_bios(void)
 	clear_CF();
 	if (pciConfigType->name[0] != '2')
 	    LO(ax) = PCI_CONFIG_1; /*  no special cylce */
-	else 
+	else
 	    LO(ax) = PCI_CONFIG_2; /*  no special cylce */
 	LWORD(ebx) = PCI_VERSION;  /* version 2.10 */
 	REG(edx) = PCI_SIGNATURE;
@@ -182,7 +182,7 @@ pcibios_init(void)
     pcibuses[0] = 0;
 
     Z_printf("PCI enabled\n");
-    
+
     pciConfigType = pci_check_conf();
 
     if (!pciConfigType) {
@@ -314,7 +314,7 @@ static unsigned long readPciCfg2 (unsigned long reg, int len)
 {
     unsigned long val;
     unsigned char bus, dev, num, fn;
-  
+
     bus = (reg >> 16) & 0xff;
     dev = (reg >> 11) & 0x1f;
     fn  = (reg >>  8) & 7;
@@ -507,7 +507,7 @@ interpretCfgSpace(unsigned int *pciheader,unsigned int *pcibuses,int busidx,
 	     " class:0x%lx bdf:0x%x\n",pcibuses[busidx],
 	     dev,func,pciTmp->vendor,pciTmp->device,
 	     pciTmp->class,pciTmp->bdf);
-    if ((func == 0) 
+    if ((func == 0)
 	&& ((((pciheader[0x03] >> 16) & 0xff)
 	     & PCI_MULTIFUNC_DEV)==0))
 	func = 8;

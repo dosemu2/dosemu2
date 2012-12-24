@@ -144,7 +144,7 @@ static void print_scsi_devices(struct scsi_device_info *devs)
       idcount[devs[i].target &15] > 1 ? " <== multiple IDs" : ""
    );
   }
-}  
+}
 
 int main(int argc, char **argv)
 {

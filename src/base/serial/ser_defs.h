@@ -276,9 +276,9 @@
  */
 #define TX_BUF_THRESHOLD        11520L
 
-/* Frequency of read() on the serial device.  This is in format of 
- * 115200ths between every read().  Right now this is set to 1/60th 
- * of a second between reads, (1920/115200) if no data was waiting. 
+/* Frequency of read() on the serial device.  This is in format of
+ * 115200ths between every read().  Right now this is set to 1/60th
+ * of a second between reads, (1920/115200) if no data was waiting.
  * This is to reduce system load caused by read() on the serial device.
  */
 #define RX_READ_FREQ            1920L

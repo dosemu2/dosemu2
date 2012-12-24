@@ -126,7 +126,7 @@ struct char_set_operations terminal_charset_ops = {
 	.foreach=            &foreach_terminal,
 };
 
-/* 
+/*
  * Terminal Charset managment
  * ===========================
  */
@@ -221,7 +221,7 @@ static void is_display_charset_callback(void *callback_data,
 	}
 	if (byte_len != 1) {
 		state->out_of_range = 1;
-	} 
+	}
 	else {
 		/* If a character is repeated
 		 * take that as evidence of a
@@ -240,7 +240,7 @@ int is_display_charset(struct char_set *set)
 	int is_display;
 	int i;
 
-	/* A display character set (i.e. one that reads from video memory) 
+	/* A display character set (i.e. one that reads from video memory)
 	 * should have the property of having 256 characters, no state,
 	 * and no control characters...
 	 */

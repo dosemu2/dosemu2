@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -206,7 +206,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
   }
 
   if (i == VGAEMU_MAX_MAPPINGS) {
-    if ((unsigned)((page_fault << 12) - vga.mem.graph_base) < 
+    if ((unsigned)((page_fault << 12) - vga.mem.graph_base) <
 	vga.mem.graph_size) {	/* unmapped VGA area */
 #ifdef HOST_ARCH_X86
       if (!CONFIG_CPUSIM) {
@@ -241,7 +241,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       return 0;
     }
   }
- 
+
   if (vga_page < vga.mem.pages) {
     unsigned char *p;
     unsigned long cxrep;
@@ -253,7 +253,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       /* Normal: make the display page writeable after marking it dirty */
       vga_emu_adjust_protection(vga_page, page_fault);
       return 1;
-    }  
+    }
 
 /**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
 

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -31,7 +31,7 @@
 static void install_int_10_handler (void)
 {
   unsigned int ptr;
-  
+
   if (config.vbios_seg == 0xe000 && config.vbios_post) {
     ptr = SEGOFF2LINEAR(BIOSSEG, ((long)bios_f000_int10ptr - (long)bios_f000));
     WRITE_DWORD(ptr, 0xe0000003);
@@ -41,9 +41,9 @@ static void install_int_10_handler (void)
     v_printf("VID: install_int_10_handler: do nothing\n");
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION bios_mem_setup
- * 
+ *
  * description:
  *  Set up all memory areas as would be present on a typical i86 during
  * the boot phase.
@@ -104,8 +104,8 @@ static void bios_setup(Bit32u offs, void *arg)
       }
     }
 
-    /* interrupts >= 0xc0 are scratch (BIOS stack), 
-       unless defined by DOSEMU */	
+    /* interrupts >= 0xc0 are scratch (BIOS stack),
+       unless defined by DOSEMU */
     if ((i & 0xf8) == 0x60 || (i >= 0x78 && i < 0xc0)) { /* user interrupts */
 	/* show also EMS (int0x67) as disabled */
 	SETIVEC(i, 0, 0);

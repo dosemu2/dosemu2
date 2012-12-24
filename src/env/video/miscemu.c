@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -72,7 +72,7 @@
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 hitimer_t t_vretrace = 0;		/* cf. base/dev/misc/timers.c */
- 
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -301,10 +301,10 @@ unsigned char Misc_get_input_status_0()
  */
 unsigned char Misc_get_input_status_1()
 {
-  /* 
+  /*
    * Graphic status - many programs will use this port to sync with
    * the vert & horz retrace so as not to cause CGA snow. On VGAs this
-   * register is used to get full (read: fast) access to the video memory 
+   * register is used to get full (read: fast) access to the video memory
    * during the vertical retrace.
    *
    * bit 0 is Display Enable, bit 3 is Vertical Retrace

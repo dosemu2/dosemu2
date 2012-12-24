@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -22,8 +22,8 @@
  *   Copyright (C) 1995 by Mark Rejhon
  *
  *   All of this code is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License as  
- *   published by the Free Software Foundation; either version 2 of 
+ *   modify it under the terms of the GNU General Public License as
+ *   published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
  *
  * DANG_END_MODULE

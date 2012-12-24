@@ -25,7 +25,7 @@ static int init_iso2022_state(struct char_set_state *ch_state)
 }
 
 static size_t iso2022_to_unicode(
-	struct char_set_state *ch_state, 
+	struct char_set_state *ch_state,
 	struct char_set *set, int offset,
 	t_unicode *symbol_out, const unsigned char *str, size_t str_len)
 {
@@ -59,9 +59,9 @@ do { \
 		int bytes_per_char = 1;
 		int gn = 0;
 		struct char_set *iso2022_piece;
-		
+
 		NEXT_CHAR();
-		
+
 		switch (ch) {
 		case '$': {
 			NEXT_CHAR();
@@ -106,12 +106,12 @@ do { \
 		iso2022_piece = lookup_charset_piece((char *)&ch, 1, chars_count, bytes_per_char);
 		if (iso2022_piece) {
 			state->g[gn] = iso2022_piece;
-		} 
+		}
 		else {
 			goto bad_escape;
 		}
 		*symbol_out = U_VOID;
-	} 
+	}
 	else if (ch == SI) {
 		state->gl = 0;
 		*symbol_out = U_VOID;
@@ -127,7 +127,7 @@ do { \
 			piece = state->g[2];
 			offset = (ch & 0x80) + 0x20;
 			goto lookup_char;
-		} 
+		}
 		else {
 			goto bad_escape;
 		}
@@ -139,11 +139,11 @@ do { \
 			piece = state->g[3];
 			offset = (ch & 0x80) + 0x20;
 			goto lookup_char;
-		} 
+		}
 		else {
 			goto bad_escape;
 		}
-		
+
 	}
 	else if (ch == CSI) {
 		/* For now I don't understand any of these
@@ -172,7 +172,7 @@ do { \
 				offset++;
 			}
 			result = piece->ops->charset_to_unicode(
-				ch_state, piece, offset, symbol_out, 
+				ch_state, piece, offset, symbol_out,
 				str + consumed -1, str_len - consumed +1);
 		}
 		else {
@@ -186,16 +186,16 @@ do { \
 	}
 	ch_state->u.iso2022_state = state[0];
 	return consumed;
-#if 0	
+#if 0
  bad_args:
 	errno = EBADF;
 	return -1;
-#endif	
-#if 0	
+#endif
+#if 0
  bad_string:
 	errno = EILSEQ;
 	return -1;
-#endif	
+#endif
  bad_length:
 	errno = EINVAL;
 	return -1;
@@ -233,7 +233,7 @@ static void digup_symbol_callback(void *p, struct char_set *piece)
 	state->result = piece->ops->unicode_to_charset(
 		state->ch_state, piece, 0,
 		state->symbol, state->outbuf, state->out_len);
-	
+
 	/* success? */
 	if (state->result != -1) {
 		state->piece = piece;
@@ -248,7 +248,7 @@ static void digup_symbol_callback(void *p, struct char_set *piece)
 static void digup_symbol(struct unicode_to_iso2022_state *state)
 {
 	int i;
-	
+
 	if (setjmp(state->jmp_env) == 0) {
 		/* first try the currently mapped character sets... */
 		for(i = 0; i < 4; i++) {
@@ -259,7 +259,7 @@ static void digup_symbol(struct unicode_to_iso2022_state *state)
 	}
 }
 
-static size_t unicode_to_iso2022(struct char_set_state *ch_state, 
+static size_t unicode_to_iso2022(struct char_set_state *ch_state,
 	struct char_set *set, int offset,
 	t_unicode symbol, unsigned char *outbuf, size_t out_bytes_left)
 {
@@ -272,7 +272,7 @@ static size_t unicode_to_iso2022(struct char_set_state *ch_state,
 
 	/* set the default to no output string */
 	length = 0;
-	
+
 	/* Look for a suitable translation */
 	state.ch_state = ch_state;
 	state.piece = 0;
@@ -327,7 +327,7 @@ static size_t unicode_to_iso2022(struct char_set_state *ch_state,
 		}
 		state.result = state.piece->ops->unicode_to_charset(
 			state.ch_state, state.piece, offset,
-			state.symbol, 
+			state.symbol,
 			data + out_index, sizeof(data) - out_index);
 		if (state.result == -1) {
 			return -1;

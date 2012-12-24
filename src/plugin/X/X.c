@@ -8,7 +8,7 @@
  * DANG_BEGIN_MODULE
  *
  * REMARK
- * This module contains the video interface for the X Window 
+ * This module contains the video interface for the X Window
  * System. It has mouse and selection 'cut' support.
  *
  * /REMARK
@@ -316,7 +316,7 @@ static Window dga_window;
 
 #ifdef HAVE_XVIDMODE
 static int xf86vm_ok = 0;
-static int modecount;          
+static int modecount;
 static XF86VidModeModeInfo **vidmode_modes;
 #endif
 
@@ -466,12 +466,12 @@ void kdos_close_msg(void);
  * Interface to video emulation.
  * used in env/video/video.c
  */
-struct video_system Video_X = 
+struct video_system Video_X =
 {
    NULL,
-   X_init,         
-   X_close,      
-   X_set_videomode,      
+   X_init,
+   X_close,
+   X_set_videomode,
    X_update_screen,
    X_update_cursor,
    X_change_config,
@@ -497,7 +497,7 @@ static Display *XKBOpenDisplay(char *display_name)
 #else /* HAVE_XKB */
 	int use_xkb;
 	int major_version, minor_version;
-	
+
 	using_xkb = FALSE;
 
 	major_version = XkbMajorVersion;
@@ -514,7 +514,7 @@ static Display *XKBOpenDisplay(char *display_name)
 	if (!use_xkb) {
 		return dpy;
 	}
-	if (!XkbQueryExtension(dpy, NULL, 
+	if (!XkbQueryExtension(dpy, NULL,
 			       &xkb_event_base, &xkb_error_base,
 			       &major_version, &minor_version)) {
 		return dpy;
@@ -540,7 +540,7 @@ int X_init()
   XClassHint xch;
   XSetWindowAttributes attr;
   XTextProperty prop;
-  char *display_name; 
+  char *display_name;
   char *s;
   int i, remap_src_modes;
 
@@ -591,7 +591,7 @@ int X_init()
 #ifdef HAVE_XVIDMODE
   X_xf86vm_init();
 #endif
-  
+
   /* see if we find out something useful about our X server... -- sw */
   X_keymap_init();
 
@@ -720,7 +720,7 @@ int X_init()
     wmhint.window_group = mainwindow;
     wmhint.input = True;
     wmhint.flags = WindowGroupHint | InputHint;
-    XSetWMProperties(display, mainwindow, NULL, NULL, 
+    XSetWMProperties(display, mainwindow, NULL, NULL,
       dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
   }
   else {
@@ -814,7 +814,7 @@ void X_close()
   destroy_ximage();
 
   vga_emu_done();
-  
+
   if(graphics_cmap) XFreeColormap(display, graphics_cmap);
 
   XFreeGC(display, gc);
@@ -1028,7 +1028,7 @@ static void X_xf86vm_done(void)
   xf86vm_ok = 0;
 }
 
-#endif 
+#endif
 
 /*
  * Handle 'auto'-entries in dosemu.conf, namely
@@ -1105,7 +1105,7 @@ static int X_change_config(unsigned item, void *buf)
       }
       /* high-level write (shows name of emulator + running app) */
       /* fall through */
-       
+
     case CHG_TITLE_EMUNAME:
     case CHG_TITLE_APPNAME:
     case CHG_TITLE_SHOW_APPNAME:
@@ -1430,11 +1430,11 @@ static void X_handle_events(void)
    }
 #endif	/* CONFIG_X_MOUSE */
 
-  while (XPending(display) > 0) 
+  while (XPending(display) > 0)
     {
       XNextEvent(display,&e);
 
-      switch(e.type) 
+      switch(e.type)
 	{
        case Expose:
           /*
@@ -1450,7 +1450,7 @@ static void X_handle_events(void)
            * DOSEmu that assumes that some initialisation should be
            * done while is_mapped is FALSE. I couldn't locate the
            * exact position, though.
-           * 
+           *
            * -- 1998/08/09 sw
            */
           is_mapped = TRUE;
@@ -1471,12 +1471,12 @@ static void X_handle_events(void)
 	  X_printf("X: window unmapped\n");
 	  is_mapped = FALSE;
 	  break;
-	  
+
 	case MapNotify:
 	  X_printf("X: window mapped\n");
 	  is_mapped = TRUE;
 	  break;
-	  
+
 	case FocusIn:
 	  X_printf("X: focus in\n");
 	  if (vga.mode_class == TEXT) text_gain_focus();
@@ -1497,7 +1497,7 @@ static void X_handle_events(void)
 	  X_printf("X: window got destroyed\n");
 	  leavedos(99);
 	  break;
-	  
+
 	case ClientMessage:
 	  /* If we get a client message which has the value of the delete
 	   * atom, it means the window manager wants us to die.
@@ -1517,12 +1517,12 @@ static void X_handle_events(void)
     /* Selection-related events */
 #if CONFIG_X_SELECTION
 	case SelectionClear:
-	case SelectionNotify: 
+	case SelectionNotify:
 	case SelectionRequest:
 	  X_handle_selection(display, drawwindow, &e);
 	  break;
 #endif /* CONFIG_X_SELECTION */
-		   
+
     /* Keyboard events */
 
 	case KeyPress:
@@ -1553,7 +1553,7 @@ static void X_handle_events(void)
               break;
             }
           }
-/* 
+/*
       Clears the visible selection if the cursor is inside the selection
 */
 #if CONFIG_X_SELECTION
@@ -1579,13 +1579,13 @@ static void X_handle_events(void)
 	  break;
 
     /* A keyboard mapping has been changed (e.g., with xmodmap). */
-	case MappingNotify:  
+	case MappingNotify:
 	  X_printf("X: MappingNotify event\n");
 	  XRefreshKeyboardMapping(&e.xmapping);
 	  break;
 
 /* Mouse events */
-#if CONFIG_X_MOUSE  
+#if CONFIG_X_MOUSE
 	case ButtonPress:
 #if 0 /* *** special debug code *** --sw */
         if(e.xbutton.button == Button1) {
@@ -1700,9 +1700,9 @@ static void X_handle_events(void)
       X_update_screen();
     }
 
-#if CONFIG_X_MOUSE  
+#if CONFIG_X_MOUSE
   do_mouse_irq();
-#endif  
+#endif
 }
 
 
@@ -2091,7 +2091,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   }
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION X_set_videomode
  *
  * description:
@@ -2125,7 +2125,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
       font_height = vga.char_height;
     }
   }
-                               
+
   X_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
     mode_class != -1 ? "" : "re-init ",
     (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
@@ -2281,7 +2281,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 /*
  * Resize the X display to the appropriate size.
  */
-void X_resize_text_screen() 
+void X_resize_text_screen()
 {
   if (!use_bitmap_font) {
     w_x_res = x_res = vga.text_width * font_width;
@@ -2296,9 +2296,9 @@ void X_resize_text_screen()
   }
   saved_w_x_res = w_x_res;
   saved_w_y_res = w_y_res;
-  
+
   lock_window_size(w_x_res, w_y_res);
- 
+
   X_redraw_text_screen();
 }
 
@@ -2308,10 +2308,10 @@ void X_resize_text_screen()
 static void X_vidmode(int w, int h, int *new_width, int *new_height)
 {
   int nw, nh, dw, dh, mx, my, shift_x, shift_y;
-  
+
   nw = dw = DisplayWidth(display, screen);
   nh = dh = DisplayHeight(display, screen);
-  
+
 #ifdef HAVE_XVIDMODE
   if (xf86vm_ok) {
     static XF86VidModeModeLine vidmode_modeline;
@@ -2332,7 +2332,7 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     }
     j = -1;
     for (i=0; i<modecount; i++) {
-      if ((vidmode_modes[i]->hdisplay >= w) && 
+      if ((vidmode_modes[i]->hdisplay >= w) &&
           (vidmode_modes[i]->vdisplay >= h) &&
           (vidmode_modes[i]->hdisplay <= nw) &&
           (vidmode_modes[i]->vdisplay <= nh) &&
@@ -2363,7 +2363,7 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     nw = w_x_res;
     nh = w_y_res;
   }
-          
+
   mx = min(mouse_x, nw - 1);
   my = min(mouse_y, nh - 1);
   shift_x = 0;
@@ -2429,7 +2429,7 @@ void load_cursor_shapes()
 
 #if CONFIG_X_MOUSE
   X_standard_cursor = XCreateGlyphCursor(
-    display, cfont, cfont, 
+    display, cfont, cfont,
     XC_top_left_arrow, XC_top_left_arrow+1, &fg, &bg
   );
 
@@ -2460,7 +2460,7 @@ Cursor create_invisible_cursor()
  * Redraw the cursor if it's necessary.
  * Do nothing in graphics modes.
  */
-void X_update_cursor() 
+void X_update_cursor()
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;

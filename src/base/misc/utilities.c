@@ -42,7 +42,7 @@
  *      internal debugging use, but _never_ for productions releases!
  *      (this would break the port traceing stuff -D+T, which expects
  *      a machine interpretable and compressed format)
- * 
+ *
  *                                     --Hans 990213
  */
 #define SHOW_TIME	0		/* 0 or 1 */
@@ -154,7 +154,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
     if ((dosdebug_flags & DBGF_DISABLE_LOG_TO_FILE) || !dbg_fd) return i;
   }
 
-  if (!flg || !dbg_fd || 
+  if (!flg || !dbg_fd ||
 #ifdef USE_MHPDBG
       (shut_debug && (flg<10) && !mhpdbg.active)
 #else
@@ -266,7 +266,7 @@ int log_printf(int flg, const char *fmt, ...)
 	return ret;
 }
 
-void verror(const char *fmt, va_list args) 
+void verror(const char *fmt, va_list args)
 {
 	char fmtbuf[1025];
 	va_list orig_args;
@@ -282,7 +282,7 @@ void verror(const char *fmt, va_list args)
 		vlog_printf(10, fmtbuf, args);
 		vfprintf(stderr, fmtbuf, orig_args);
 	}
-	
+
 }
 
 void error(const char *fmt, ...)
@@ -309,11 +309,11 @@ p_dos_str(const char *fmt,...) {
 
   s = buf;
   g_printf("CONSOLE MSG: '%s'\n",buf);
-  while (*s) 
+  while (*s)
 	char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   return i;
 }
-        
+
 /* some stuff to handle reading of /proc */
 
 static char *procfile_name=0;
@@ -574,7 +574,7 @@ void subst_file_ext(char *ptr)
 	    d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
 	    subst_sys = 1;
 	}
-    } 
+    }
 }
 
 void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,

@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -24,7 +24,7 @@
  * Mike Chapman,
  * Juanjo Santamarta,
  * Mitani Hiroshi,
- * David Thomas. 
+ * David Thomas.
  *
  * And on the documentation available from SiS's web pages.
 */
@@ -44,12 +44,12 @@
 #define SEQ_I 0x3C4
 #define SEQ_D 0x3C5
 #define write_xr(num,val) {port_out(num, SEQ_I);port_out(val, SEQ_D);}
-#define read_xr(num,var) {port_out(num, SEQ_I);var=port_in(SEQ_D);} 
+#define read_xr(num,var) {port_out(num, SEQ_I);var=port_in(SEQ_D);}
 
 /* sis_unlock()                                         Unlock SiS registers
 
  * Enable register changes
- * 
+ *
  */
 
 static void sis_unlock(void)
@@ -62,13 +62,13 @@ static void sis_unlock(void)
     port_out(temp & 0x7F, vgaIOBase + 5);
 
     write_xr(5,0x86);
-    
+
 }
 
 /* sis_test()                                           Probe for SiS card
 
  * Checks for SiS segment register, then chip type and memory size.
- * 
+ *
  * Returns 1 for SiS, 0 otherwise.
  */
 
@@ -100,7 +100,7 @@ static int sis_memorydetect(void)
 
 
 /*
- * SiSProbe -- 
+ * SiSProbe --
  *      check up whether an SiS Logic based board is installed
  */
 static int SiSProbe(void)
@@ -114,28 +114,28 @@ static int SiSProbe(void)
 
 
 /*
- * sisSave -- 
+ * sisSave --
  *      save the current video mode
  *	9 additional registers
  */
 /* Read and save chipset-specific registers */
 
 void sis_save_ext_regs(u_char xregs[], u_short xregs16[])
-{ 
+{
     int i;
 
     emu_video_retrace_off();
-    sis_unlock();		
+    sis_unlock();
 
     xregs[0] = port_in(0x3cb);
     xregs[1] = port_in(0x3cd);
     for(i=6; i<0x40;i++)read_xr(i,xregs[i-4]);
-    
+
     emu_video_retrace_on();
 }
 
 /*
- * sisRestore -- 
+ * sisRestore --
  *      restore a video mode
  */
 void sis_restore_ext_regs(u_char xregs[], u_short xregs16[])
@@ -149,7 +149,7 @@ void sis_restore_ext_regs(u_char xregs[], u_short xregs16[])
     port_out(xregs[0], 0x3cb);
     port_out(xregs[1], 0x3cd);
     for(i=6; i<0x40;i++)write_xr(i,xregs[i-4]);
-    
+
     emu_video_retrace_on();
 }
 

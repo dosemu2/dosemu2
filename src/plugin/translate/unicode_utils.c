@@ -37,7 +37,7 @@ size_t character_count(const struct char_set_state *in_state, const char *str,
 	} while(max_str_len && (consumed > 0));
 	cleanup_charset_state(&state);
 	return characters;
-}	
+}
 
 /* convert a possibly multibyte string to unicode */
 size_t charset_to_unicode_string(struct char_set_state *state,

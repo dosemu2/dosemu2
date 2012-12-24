@@ -1,4 +1,4 @@
-/* 
+/*
  * Author: Karsten Rucker (rucker@astro.uni-bonn.de) (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
@@ -6,9 +6,9 @@
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * DANG_BEGIN_MODULE
- * 
+ *
  * drivers/cdrom.c
  *
  * REMARK

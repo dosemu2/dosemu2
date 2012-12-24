@@ -15,7 +15,7 @@
  *
  * The code in this module is free software; you can redistribute it
  * and/or modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2 of 
+ * as published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
  *
  * /REMARK
@@ -52,9 +52,9 @@
 #define write_LCR(num, byte)  write_reg((num), UART_LCR, (byte))
 #define write_MCR(num, byte)  write_reg((num), UART_MCR, (byte))
 
-/* Get the LSR/MSR status bits in FOSSIL format. Since we don't care about 
- * the delta/interrupt bits anyway, reading the com[] structure is 
- * faster than calling do_serial_in. 
+/* Get the LSR/MSR status bits in FOSSIL format. Since we don't care about
+ * the delta/interrupt bits anyway, reading the com[] structure is
+ * faster than calling do_serial_in.
  */
 #define FOSSIL_GET_STATUS(num) \
   (((com[(num)].LSR & 0x63) << 8) | (com[(num)].MSR & 0x80) | 0x08)
@@ -111,7 +111,7 @@ void fossil_int14(int num)
   case 0x00:
   {
     int lcr;
-    int divisors[] = { DIV_19200, DIV_38400, DIV_300, DIV_600, DIV_1200, 
+    int divisors[] = { DIV_19200, DIV_38400, DIV_300, DIV_600, DIV_1200,
       DIV_2400, DIV_4800, DIV_9600 };
 
     s_printf("SER%d: FOSSIL 0x00: Initialize port %d, AL=0x%02x\n",
@@ -216,7 +216,7 @@ void fossil_int14(int num)
     s_printf("SER%d: FOSSIL 0x05: Emulation deactivated\n", num);
     break;
 
-  /* Lower/raise DTR. */  
+  /* Lower/raise DTR. */
   case 0x06:
     write_MCR(num, (com[num].MCR & ~UART_MCR_DTR) | (LO(ax) ? UART_MCR_DTR : 0));
     s_printf("SER%d: FOSSIL 0x06: DTR set to %d\n", num, LO(ax));
@@ -313,12 +313,12 @@ void fossil_int14(int num)
     LWORD(eax)=bufsize;
     #if SER_DEBUG_FOSSIL_STATUS
       s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n", num, ifree, RX_BUFFER_SIZE, ofree, TX_BUFFER_SIZE, bufsize);
-    #endif    
+    #endif
     break;
   }
 
   /* Unimplemented functions. Some of these could be implemented quite easily,
-   * but most programs (at least the ones I use) don't use use them. 
+   * but most programs (at least the ones I use) don't use use them.
    */
 
   /* Get timer tick information. */
@@ -345,7 +345,7 @@ void fossil_int14(int num)
   case 0x14:
   /* Write character to screen (using BIOS). */
   case 0x15:
-  /* Add/delete function from timer tick chain. */ 
+  /* Add/delete function from timer tick chain. */
   case 0x16:
   /* Reboot system. */
   case 0x17:
@@ -357,7 +357,7 @@ void fossil_int14(int num)
   case 0x7f:
     s_printf("SER%d: FOSSIL 0x%02x: Function not implemented!\n", num, HI(ax));
     break;
-    
+
   /* This runs if nothing handles the FOSSIL function. */
   default:
     s_printf("SER%d: FOSSIL 0x%02x: Unknown function!\n", num, HI(ax));
@@ -370,7 +370,7 @@ void fossil_int14(int num)
 /**************************************************************************/
 
 /* The DOS part of FOSSIL emulator, FOSSIL.COM, uses this call to activate
- * the dosemu part of the emulation. 
+ * the dosemu part of the emulation.
  */
 void serial_helper(void)
 {
@@ -381,7 +381,7 @@ void serial_helper(void)
     LWORD(eax) = fossil_tsr_installed;
     s_printf("SER: FOSSIL helper 0: TSR installation check, AX=%d\n", fossil_tsr_installed);
     break;
-  
+
   /* TSR install. */
   case 1:
     fossil_tsr_installed = TRUE;
@@ -389,7 +389,7 @@ void serial_helper(void)
     fossil_id_offset = LWORD(edi);
     s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n", fossil_id_segment, fossil_id_offset);
     break;
-  
+
   default:
     s_printf("SER: FOSSIL helper 0x%02x: Unknown function!\n", HI(ax));
   }
@@ -421,7 +421,7 @@ if (fossil_tsr_installed)
     memcpy(p, def_fossil_info, bufsize);
     LWORD(eax)=bufsize;
     #if SER_DEBUG_FOSSIL_STATUS
-      s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n", 
+      s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n",
       		num, ifree, RX_BUFFER_SIZE, ofree, TX_BUFFER_SIZE, bufsize);
     #endif
     return;

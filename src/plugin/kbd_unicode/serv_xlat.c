@@ -1,16 +1,16 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * DANG_BEGIN_MODULE
- * 
+ *
  * Description: Keyboard translation
- * 
+ *
  * Maintainer: Eric Biederman <ebiederm@xmission.com>
- * 
+ *
  * REMARK
  * This module contains the the translation part of the keyboard 'server',
  * which translates key events into the form in which they can be sent to DOS.
@@ -42,7 +42,7 @@
   *  remove this hard coding without confusing dos programs.
   *  The point of dosemu's configurability is primarily to
   *  allow non-us keyboards to work as they would in dos.  Not
-  *  to make a nice place to customize your keyboard. 
+  *  to make a nice place to customize your keyboard.
   *
   * The keys currently hard coded are:
   * NUM_TAB
@@ -52,9 +52,9 @@
   * NUM_PAD_ENTER
   * NUM_PAD_SLASH
   * NUM_SPACE
-  * NUM_LBRACK		-- fixme 
-  * NUM_BACKSLASH	-- fixme 
-  * NUM_RBRACK		-- fixme 
+  * NUM_LBRACK		-- fixme
+  * NUM_BACKSLASH	-- fixme
+  * NUM_RBRACK		-- fixme
   * NUM_6		-- fixme?
   * NUM_DASH		-- fixme
   * NUM_FAKE_L_SHIFT
@@ -99,7 +99,7 @@
   * NUM_F10
   * NUM_F11
   * NUM_F12
-  * 
+  *
   */
 
 #define __KBD_SERVER
@@ -135,7 +135,7 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
  * various tables
  */
 
-/* 
+/*
  * BIOS scancode tables
  *
  * The key num is used as the index
@@ -164,7 +164,7 @@ static const Bit8u bios_ctrl_scancodes[NUM_KEY_NUMS] =
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 78-7F */
 
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 80-87 */
-   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 88-8F */ 
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 88-8F */
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 90-97 */
    0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x00,    /* 98-9F */
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* A0-A7 */
@@ -201,9 +201,9 @@ static const Bit8u bios_alt_scancodes[NUM_KEY_NUMS] =
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 78-7F */
 
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 80-87 */
-   0x00, 0x00, 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 88-8F */ 
+   0x00, 0x00, 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 88-8F */
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* 90-97 */
-   0x00, 0x00, 0x00, 0x00, 0xa6, 0x00, 0x00, 0x00,    /* 98-9F */ 
+   0x00, 0x00, 0x00, 0x00, 0xa6, 0x00, 0x00, 0x00,    /* 98-9F */
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* A0-A7 */
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* A8-AF */
    0x00, 0x00, 0x00, 0x00, 0x00, 0xa4, 0x00, 0x00,    /* B0-B7 */
@@ -218,7 +218,7 @@ static const Bit8u bios_alt_scancodes[NUM_KEY_NUMS] =
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,    /* F8-FF */
 };
 
-static const Bit8u bios_alt_mapped_scancodes[] = 
+static const Bit8u bios_alt_mapped_scancodes[] =
 {
    0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23,    /* A-H */
    0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18, 0x19,    /* I-P */
@@ -343,7 +343,7 @@ static void init_heuristics_alt_map(t_keysym *rule, t_keysym *plain_rule)
 {
 	int i, j;
 
-	/* Heuristic compute the alt code based on the 
+	/* Heuristic compute the alt code based on the
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
@@ -410,7 +410,7 @@ static void init_heuristics_ctrl_map(t_keysym *rule, t_keysym *plain_rule)
 {
 	int i, j;
 
-	/* Heuristic compute the ctrl code based on the 
+	/* Heuristic compute the ctrl code based on the
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
@@ -449,7 +449,7 @@ static void init_misc_ctrl_map(t_keysym *rule)
 	rule[NUM_PAUSE_BREAK] = KEY_BREAK;
 }
 
-static void init_translate_rule(t_keysym *rule, 
+static void init_translate_rule(t_keysym *rule,
 				int map_size, t_keysym *key_map,
 				int key_bias)
 {
@@ -459,7 +459,7 @@ static void init_translate_rule(t_keysym *rule,
 
 	for( i = 0; i < map_size; i++) {
 		ch = key_map[i];
-		if (ch == KEY_VOID) 
+		if (ch == KEY_VOID)
 			continue;
 		/* 0xef00 - 0xefff is a pass through range to the current
 		 * character set.
@@ -505,13 +505,13 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
  * their position on a US keyboard.
  */
 
-static void 
+static void
 init_scancode_translation_rules(struct scancode_translate_rules *maps,
 			      struct keytable_entry *key_table)
 {
 	struct scancode_translate_rules *rules=NULL;
 	int i, j;
-	
+
 	for(i = 0; i < MAPS_MAX; i++) {
 		if(maps[i].keyboard==KEYB_NO) {
 			rules = &maps[i];
@@ -563,13 +563,13 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	/* alt keys */
 	init_heuristics_alt_map(rules->trans_rules.rule_structs.alt.rule_map,
 		rules->trans_rules.rule_structs.plain.rule_map); /* FIXME (heuristic used) */
-	init_misc_alt_map(rules->trans_rules.rule_structs.alt.rule_map); 
+	init_misc_alt_map(rules->trans_rules.rule_structs.alt.rule_map);
 
 	/* altgr keys */
 	if (key_table->alt_map) {
 		init_translate_rule(rules->trans_rules.rule_structs.altgr.rule_map,
 				     key_table->sizemap, key_table->alt_map, 0);
-	} 
+	}
 	init_misc_altgr_map(rules->trans_rules.rule_structs.altgr.rule_map);
 
 	/* shift alt keys */
@@ -650,7 +650,7 @@ static void init_charset_keymap(struct character_translate_rules *charset,
 static void init_one_deadkey(void *p, t_keysym dead_sym, t_keysym in, t_keysym out)
 {
 	struct character_translate_rules *charset = p;
-	
+
 	if (charset->keys[dead_sym].key == NUM_VOID) {
 		/* If we can't type the dead key we can't use it
 		 * to type anything else either.
@@ -658,8 +658,8 @@ static void init_one_deadkey(void *p, t_keysym dead_sym, t_keysym in, t_keysym o
 		return;
 	}
 	if ((charset->keys[out].key != NUM_VOID) ||
-		(charset->keys[in].key == NUM_VOID) 
-				/* Only one dead key can be active at a time 
+		(charset->keys[in].key == NUM_VOID)
+				/* Only one dead key can be active at a time
 				 * but it may be needed to press one dead key
 				 * to get another (a truly silly case)
 				 */
@@ -669,7 +669,7 @@ static void init_one_deadkey(void *p, t_keysym dead_sym, t_keysym in, t_keysym o
 	/* Note: The shiftstate is the same going for the
 	 * deadsym and for the result symbol
 	 */
-	charset->keys[out].key = 
+	charset->keys[out].key =
 		charset->keys[in].key;
 	charset->keys[out].shiftstate =
 		charset->keys[in].shiftstate;
@@ -704,8 +704,8 @@ static void check_video_mem_charset(struct character_translate_rules *charset)
 static void init_one_approximation(void *p, t_unicode symbol, t_unicode approximation)
 {
 	struct character_translate_rules *charset = p;
-	
-	if ((symbol >= NUM_KEYSYMS) || (approximation >= NUM_KEYSYMS)) 
+
+	if ((symbol >= NUM_KEYSYMS) || (approximation >= NUM_KEYSYMS))
 		return;
 
 	if ((charset->keys[symbol].key == NUM_VOID) &&
@@ -737,7 +737,7 @@ static void dump_charset(struct character_translate_rules *charset)
 	}
 }
 
-static void init_charset_keys(struct character_translate_rules *charset, 
+static void init_charset_keys(struct character_translate_rules *charset,
 		       struct scancode_translate_rules maps[])
 {
 	int i;
@@ -808,10 +808,10 @@ static void init_rules(struct keyboard_rules *rules)
 	}
 }
 
-/* 
+/*
  * State management
  * =============================================================================
- */ 
+ */
 static struct keyboard_rules keyboard_rules;
 struct keyboard_state input_keyboard_state;
 struct keyboard_state dos_keyboard_state;
@@ -842,7 +842,7 @@ static void keyb_reset_state(void)
 
 static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 			       unsigned ascii, t_keysym keysym,
-			       struct keyboard_state *state) 
+			       struct keyboard_state *state)
 {
 	t_shiftstate shiftstate = state->shiftstate;
 	Bit8u bios_scan = 0;
@@ -855,7 +855,7 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 	 *  remove this hard coding without confusing dos programs.
 	 *  The point of dosemu's configurability is primarily to
 	 *  allow non-us keyboards to work as they would in dos.  Not
-	 *  to make a nice place to customize your keyboard. 
+	 *  to make a nice place to customize your keyboard.
 	 */
 
 	if (make) {
@@ -866,24 +866,24 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 			return 0;
 			break;
 			/* main block */
-		case NUM_SPACE: case NUM_BKSP: case NUM_RETURN: case NUM_TAB: 
-		case NUM_A: case NUM_B: case NUM_C: case NUM_D: case NUM_E: 
-		case NUM_F: case NUM_G: case NUM_H: case NUM_I: case NUM_J: 
-		case NUM_K: case NUM_L: case NUM_M: case NUM_N: case NUM_O: 
-		case NUM_P: case NUM_Q: case NUM_R: case NUM_S: case NUM_T: 
-		case NUM_U: case NUM_V: case NUM_W: case NUM_X: case NUM_Y: 
+		case NUM_SPACE: case NUM_BKSP: case NUM_RETURN: case NUM_TAB:
+		case NUM_A: case NUM_B: case NUM_C: case NUM_D: case NUM_E:
+		case NUM_F: case NUM_G: case NUM_H: case NUM_I: case NUM_J:
+		case NUM_K: case NUM_L: case NUM_M: case NUM_N: case NUM_O:
+		case NUM_P: case NUM_Q: case NUM_R: case NUM_S: case NUM_T:
+		case NUM_U: case NUM_V: case NUM_W: case NUM_X: case NUM_Y:
 		case NUM_Z: case NUM_1: case NUM_2: case NUM_3: case NUM_4:
-		case NUM_5: case NUM_6: case NUM_7: case NUM_8: case NUM_9: 
-		case NUM_0: case NUM_DASH: case NUM_EQUALS: case NUM_LBRACK: 
+		case NUM_5: case NUM_6: case NUM_7: case NUM_8: case NUM_9:
+		case NUM_0: case NUM_DASH: case NUM_EQUALS: case NUM_LBRACK:
 		case NUM_RBRACK: case NUM_SEMICOLON: case NUM_APOSTROPHE:
-		case NUM_GRAVE: case NUM_BACKSLASH: case NUM_COMMA: 
+		case NUM_GRAVE: case NUM_BACKSLASH: case NUM_COMMA:
 		case NUM_PERIOD: case NUM_SLASH: case NUM_LESSGREATER:
 
 			/* keypad */
-		case NUM_PAD_0: case NUM_PAD_1: case NUM_PAD_2: case NUM_PAD_3: 
+		case NUM_PAD_0: case NUM_PAD_1: case NUM_PAD_2: case NUM_PAD_3:
 		case NUM_PAD_4: case NUM_PAD_5: case NUM_PAD_6: case NUM_PAD_7:
 		case NUM_PAD_8: case NUM_PAD_9: case NUM_PAD_DECIMAL:
-		case NUM_PAD_SLASH: case NUM_PAD_AST: case NUM_PAD_MINUS: 
+		case NUM_PAD_SLASH: case NUM_PAD_AST: case NUM_PAD_MINUS:
 		case NUM_PAD_PLUS: case NUM_PAD_ENTER:
 
 			/* function keys */
@@ -892,8 +892,8 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 		case NUM_F10: case NUM_F11: case NUM_F12:
 
 			/* cursor block */
-		case NUM_INS: case NUM_DEL: case NUM_HOME: case NUM_END: 
-		case NUM_PGUP: case NUM_PGDN: case NUM_UP: case NUM_DOWN: 
+		case NUM_INS: case NUM_DEL: case NUM_HOME: case NUM_END:
+		case NUM_PGUP: case NUM_PGDN: case NUM_UP: case NUM_DOWN:
 		case NUM_LEFT: case NUM_RIGHT:
 
 			/* special */
@@ -931,7 +931,7 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 				case NUM_PAD_1: val = 1; break;
 				case NUM_PAD_0: val = 0; break;
 				}
-				state->alt_num_buffer = 
+				state->alt_num_buffer =
 					(state->alt_num_buffer*10 + val) & 0xff;
 				k_printf("KBD: alt-keypad key=%08d ascii=%c buffer=%d\n",
 					 key, ascii, state->alt_num_buffer);
@@ -939,7 +939,7 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 				bios_scan=0;
 				break;
 			}
-			
+
 			default:
 				if ((keysym >= KEY_ALT_A)&&(keysym <= KEY_ALT_Z)) {
 					bios_scan=bios_alt_mapped_scancodes[keysym - KEY_ALT_A];
@@ -954,12 +954,12 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 		}
 		else if (shiftstate & ANY_CTRL) {
 			bios_scan = bios_ctrl_scancodes[key];
-			
+
 			if (key == NUM_PRTSCR) {
 				special = 0;
 			}
 			/* Mark the extended keys */
-			switch (key) {	
+			switch (key) {
 				/* The cursor block */
 			case NUM_INS:	 case NUM_DEL:
 			case NUM_HOME:	 case NUM_END:
@@ -1013,8 +1013,8 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 			/* mark the extended keys */
 			switch(key) {
 				/* cursor block keys */
-			case NUM_HOME:	case NUM_UP:	case NUM_PGUP: 
-			case NUM_LEFT:	case NUM_RIGHT: 
+			case NUM_HOME:	case NUM_UP:	case NUM_PGUP:
+			case NUM_LEFT:	case NUM_RIGHT:
 			case NUM_END:	case NUM_DOWN:	case NUM_PGDN:
 			case NUM_INS:	case NUM_DEL:
 				ascii = 0xe0;
@@ -1038,19 +1038,19 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 			/* mark the extended keys */
 			switch(key) {
 				/* cursor block keys */
-			case NUM_HOME:	case NUM_UP:	case NUM_PGUP: 
-			case NUM_LEFT:	case NUM_RIGHT: 
+			case NUM_HOME:	case NUM_UP:	case NUM_PGUP:
+			case NUM_LEFT:	case NUM_RIGHT:
 			case NUM_END:	case NUM_DOWN:	case NUM_PGDN:
 			case NUM_INS:	case NUM_DEL:
 				ascii = 0xe0;
 			}
 		}
-	} 
+	}
 	else { /* !make */
 		if (key == NUM_SYSRQ) {
 			special = SP_SYSRQ_BREAK;
 		}
-		else if (state->alt_num_buffer && 
+		else if (state->alt_num_buffer &&
 			 (key == NUM_L_ALT || key == NUM_R_ALT)) {
 			bios_scan = 0;
 			ascii = state->alt_num_buffer;
@@ -1072,17 +1072,17 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 	}
 }
 
-static void do_shift_keys_r(Boolean make, t_keysym keysym, t_shiftstate *shiftstate_ret) 
+static void do_shift_keys_r(Boolean make, t_keysym keysym, t_shiftstate *shiftstate_ret)
 {
 	t_shiftstate mask=0, togglemask=0, shiftstate = *shiftstate_ret;
-	
+
 	/* Note:
 	 *  While it is very bad to hard code keys, dos has already
 	 *  hard coded the shift keys.  Dosemu cannot remove this
 	 *  hard coding without confusing dos programs.   The point of
 	 *  dosemu's configurability is primarily to allow non-us
 	 *  keyboards to work as they would in dos.  Not to make a
-	 *  nice place to customize your keyboard. 
+	 *  nice place to customize your keyboard.
 	 */
 	switch(keysym) {
 	case KEY_L_ALT:    mask=L_ALT; break;
@@ -1110,17 +1110,17 @@ static void do_shift_keys_r(Boolean make, t_keysym keysym, t_shiftstate *shiftst
 	else {
 		shiftstate &= ~mask;
 	}
-	
+
 	if (mask)
 		k_printf("KBD: do_shift_keys(%s): key=%02x new shiftstate=%04x\n",
 			 (shiftstate_ret == &input_keyboard_state.shiftstate)? "input":
 			 (shiftstate_ret == &dos_keyboard_state.shiftstate)? "dos":
-			 "unknown", 
+			 "unknown",
 			 keysym, shiftstate);
-	
+
 #if 0
-	if (make && config.shiftclearcaps && 
-	    (keysym==KEY_L_SHIFT || keysym==KEY_R_SHIFT)) 
+	if (make && config.shiftclearcaps &&
+	    (keysym==KEY_L_SHIFT || keysym==KEY_R_SHIFT))
 	{
 		shiftstate &= ~CAPS_LOCK;
 	}
@@ -1136,7 +1136,7 @@ static Boolean is_keypad_key(t_keynum key)
 	/* Note:
 	 *  While it is very bad to hard code keys, dos has already
 	 *  hard coded the number pad keys.  Dosemu cannot remove this
-	 *  hard coding without confusing dos programs.  The point of 
+	 *  hard coding without confusing dos programs.  The point of
 	 *  dosemu's configurabiltiy is primairy to allow non-us
 	 *  keyboards to work as they would in dos.  Not to make a nice
 	 *  place to customize your keyboard.
@@ -1182,18 +1182,18 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 		if (mask && ((shiftstate & ANY_SHIFT) != (cur_shiftstate & ANY_SHIFT)))
 			*mask |= CAPS_LOCK;
 	}
-	k_printf("KBD: translate(old_shiftstate=%04x, shiftstate=%04x, key=%04x)\n", 
+	k_printf("KBD: translate(old_shiftstate=%04x, shiftstate=%04x, key=%04x)\n",
 		 cur_shiftstate, shiftstate, key);
 
 	return shiftstate;
 }
 
-/* translate a keynum to its ASCII equivalent. 
+/* translate a keynum to its ASCII equivalent.
  * (*is_accent) returns TRUE if the if char was produced with an accent key.
  */
 
 static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
-	struct keyboard_state *state) 
+	struct keyboard_state *state)
 {
 	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
 		&state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain, key, NULL);
@@ -1243,7 +1243,7 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 
 
 /***********************************************************************************************
- * The key press work horse 
+ * The key press work horse
  ***********************************************************************************************/
 
 static inline void send_scan_code_byte(Boolean make, unsigned char c)
@@ -1299,7 +1299,7 @@ t_keynum compute_functional_keynum(Boolean make, t_keynum keynum,
 				keynum = NUM_VOID;
 			}
 		} else if (make) {
-			if (!test_bit(NUM_L_ALT, keys) && 
+			if (!test_bit(NUM_L_ALT, keys) &&
 			    !test_bit(NUM_R_ALT, keys)) {
 				keynum = NUM_PRTSCR;
 			} else {
@@ -1323,7 +1323,7 @@ t_keynum compute_functional_keynum(Boolean make, t_keynum keynum,
 				keynum = NUM_VOID;
 			}
 		} else if (make) {
-			if (!test_bit(NUM_L_CTRL, keys) && 
+			if (!test_bit(NUM_L_CTRL, keys) &&
 			    !test_bit(NUM_R_CTRL, keys)) {
 				keynum = NUM_PAUSE;
 			} else {
@@ -1436,12 +1436,12 @@ static keystring compute_scancode_string(Boolean make, t_keynum keynum)
  * from a real keyboard.
  *
  * We also filter out keys here for dosemu's own personal use.
- * 
+ *
  * Predicting the key translation is important for put_character, and
  * cut and paste that rests on top of put_character.
  *
  * Not saving the translation is important for some rare but legal
- * applications of int15. 
+ * applications of int15.
  *
  * Also doing it this way ensures we generate the correct scancodes on non-us
  * keyboards for the characters pressed.  An important advantage.
@@ -1456,7 +1456,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 
 	keynum = compute_functional_keynum(make, input_keynum, keys);
 	if (keynum == NUM_VOID) {
-		k_printf("put_keynum_r(%s) called with invalid keynum %02x:%02x\n", 
+		k_printf("put_keynum_r(%s) called with invalid keynum %02x:%02x\n",
 			 (make?"make":"break"), input_keynum, keynum);
 		return;
 	}
@@ -1468,7 +1468,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 	/* update various bits of keyboard state */
 	if (translate_key(make, keynum, state) == (Bit16u)-1)
 		return;
-	
+
 	scan_code_string = compute_scancode_string(make, keynum);
 
 	/* A real pc keyboard for backwards compatibility inserts
@@ -1530,7 +1530,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 		if (make) {
 			Boolean fake_lshift = test_bit(NUM_FAKE_L_SHIFT, keys);
 			Boolean fake_rshift = test_bit(NUM_FAKE_R_SHIFT, keys);
-			if (!test_bit(NUM_L_CTRL, keys) && 
+			if (!test_bit(NUM_L_CTRL, keys) &&
 			    !test_bit(NUM_R_CTRL, keys) &&
 			    !fake_lshift && !fake_rshift) {
 				send_scan_code_string(PRESS, SCN_FAKE_L_SHIFT);
@@ -1559,7 +1559,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 			assign_bit(rshift, NUM_FAKE_R_SHIFT, keys);
 		}
 		/* Clear fake shift actions if applicable */
-		if ((!!old_make != !!make) && 
+		if ((!!old_make != !!make) &&
 		    (!!test_bit(NUM_FAKE_L_SHIFT, keys) == !!make)) {
 			send_scan_code_string(!make, SCN_FAKE_L_SHIFT);
 		}
@@ -1575,7 +1575,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 			assign_bit(lshift, NUM_FAKE_L_SHIFT, keys);
 		}
 		/* Clear fake shift actions if applicable */
-		if ((!!old_make != !!make) && 
+		if ((!!old_make != !!make) &&
 		    (!!test_bit(NUM_FAKE_R_SHIFT, keys) == !!make)) {
 			send_scan_code_string(!make, SCN_FAKE_R_SHIFT);
 		}
@@ -1615,9 +1615,9 @@ static void put_keynum(Boolean make, t_keynum input_keynum, t_keysym sym, struct
 }
 
  /***********************************************************************************************
-  * Intermediate level interface functions 
+  * Intermediate level interface functions
   ***********************************************************************************************/
-  
+
 /*
  * DANG_BEGIN_FUNCTION compute_keynum
  *
@@ -1625,43 +1625,43 @@ static void put_keynum(Boolean make, t_keynum input_keynum, t_keysym sym, struct
  * 0xe0 prefixes) until it thinks it has assembled an entire keyboard
  * event. The entire keyboard event is then returned, otherwise
  * NUM_VOID is returned.
- * 
+ *
  * DANG_END_FUNCTION
  */
 
-t_keynum compute_keynum(Boolean *make_ret, 
-			t_rawkeycode code, struct raw_key_state *state) 
+t_keynum compute_keynum(Boolean *make_ret,
+			t_rawkeycode code, struct raw_key_state *state)
 {
 	t_scancode scan;
 	t_keynum key;
 	Boolean make = FALSE;
 	*make_ret = FALSE;
-	
+
 	k_printf("KBD: compute_keynum(%x, %x, %s) called\n",
-		 (int)code, state->rawprefix, 
+		 (int)code, state->rawprefix,
 		 (state ==&input_keyboard_state.raw_state)? "input":
 		 (state ==&dos_keyboard_state.raw_state)? "dos":
 		 "unknown");
-	
+
 	if (code==0xe0 || code==0xe1) {
 		state->rawprefix=code;
 		return NUM_VOID;
 	}
-	
+
 	if (state->rawprefix==0xe1) {     /* PAUSE key: expext 2 scancode bytes */
 		state->rawprefix = 0xe100 | code;
 		return NUM_VOID;
 	}
-	
+
 	scan = (state->rawprefix<<8) | code;
 	state->rawprefix=0;
-	
+
 	if ((scan&0xff0000) == 0xe10000)
 		k_printf("KBD: E1 scancode 0x%06x\n",(int)scan);
-	
+
 	/* for BIOS, ignore the fake shift scancodes 0xe02a, 0xe0aa 0xe036, 0xe0b6
 	   sent by the keyboard for fn/numeric keys */
-	
+
 	if (scan==0xe02a || scan==0xe0aa || scan==0xe036 || scan==0xe0b6) {
 		key = NUM_VOID;
 	}
@@ -1691,20 +1691,20 @@ t_keynum compute_keynum(Boolean *make_ret,
 	*make_ret = make;
 	return key;
 }
-/* 
+/*
  * DANG_BEGIN_FUNCTION translate_key
  * translate_key takes a keysym event and calculates the appropriate
  * bios translation.
  *
  * As a side effect translate_key updates the apropriate pieces of state
  * to reflect the current keyboard state.
- * 
+ *
  * Calling translate_key twice on the same data is likely to be hazardous.
  *
  * DANG_END_FUNCTION
  */
 
-Bit16u translate_key(Boolean make, t_keynum key, 
+Bit16u translate_key(Boolean make, t_keynum key,
 		   struct keyboard_state *state)
 {
 	Boolean is_accent;
@@ -1712,20 +1712,20 @@ Bit16u translate_key(Boolean make, t_keynum key,
 	Bit8u ascii;
 	t_keysym keysym;
 
-	k_printf("translate_key: make=%d, key=%04x, %s\n", 
+	k_printf("translate_key: make=%d, key=%04x, %s\n",
 		 make, key,
 		 (state == &input_keyboard_state)? "input":
 		 (state == &dos_keyboard_state)? "dos":
 		 "unknown");
 
 	/* Each of the following functions:
-	 * update_keypressed_state, 
+	 * update_keypressed_state,
 	 * do_shift_keys_r, translate_r & make_bios_code_r can potentially
 	 * change the keyboard state.
 	 */
-	
+
 	update_keypressed_state(make, key, &state->keys_pressed);
-				     	
+
 	is_accent = FALSE;
 	keysym = translate_r(make, key, &is_accent, state);
 	do_shift_keys_r(make, keysym, &state->shiftstate);
@@ -1764,7 +1764,7 @@ t_modifiers get_modifiers_r(t_shiftstate shiftstate)
 	if (shiftstate & ANY_CTRL)	modifiers |= MODIFIER_CTRL;
 	if (shiftstate & ANY_ALT)	modifiers |= MODIFIER_ALT;
 	/* Note: when R_ALT is active both MODIFIER_ALT & MODIFIER_ALTGR are
-	 * active 
+	 * active
 	 */
 	if (shiftstate & R_ALT)		modifiers |= MODIFIER_ALTGR;
 	if (shiftstate & CAPS_LOCK)	modifiers |= MODIFIER_CAPS;
@@ -1780,7 +1780,7 @@ t_modifiers get_modifiers_r(t_shiftstate shiftstate)
  * the new shiftstate to come into effect.
  */
 
-static void sync_shift_state(t_modifiers desired, struct keyboard_state *state) 
+static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 {
 	t_modifiers current = get_modifiers_r(state->shiftstate);
 	struct key_pressed_state *keys = &state->keys_pressed;
@@ -1788,7 +1788,7 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 	/* altgr implies alt */
 	if (desired & MODIFIER_ALTGR)	desired |= MODIFIER_ALT;
 
-	/* To keep some bits constant copy them from state->shiftstate into 
+	/* To keep some bits constant copy them from state->shiftstate into
 	 * desired.
 	 */
 	if (current == desired) {
@@ -1916,9 +1916,9 @@ static void type_alt_num(unsigned char ascii, struct keyboard_state *state)
 	int old_alt_num_buffer;
 	int amount_to_add, one,two,three;
 	t_shiftstate alt_shiftstate;
-	
-	static const t_keynum num_key[] = 
-	{ NUM_PAD_0, NUM_PAD_1, NUM_PAD_2, NUM_PAD_3, NUM_PAD_4, 
+
+	static const t_keynum num_key[] =
+	{ NUM_PAD_0, NUM_PAD_1, NUM_PAD_2, NUM_PAD_3, NUM_PAD_4,
 	  NUM_PAD_5, NUM_PAD_6, NUM_PAD_7, NUM_PAD_8, NUM_PAD_9 };
 
 	k_printf("KBD: type_alt_num(%04x, '%c') called\n",
@@ -1963,7 +1963,7 @@ static void type_alt_num(unsigned char ascii, struct keyboard_state *state)
 	if (alt_shiftstate &R_ALT) {
 		put_keynum_r(PRESS, NUM_R_ALT, state);
 	}
-	
+
 	/* press keys to restore the old alt_num_buffer */
 	amount_to_add = old_alt_num_buffer;
 	three = amount_to_add %10; amount_to_add /= 10;
@@ -1988,18 +1988,18 @@ static void type_alt_num(unsigned char ascii, struct keyboard_state *state)
  * It also handles a slightly ugly case.  Sometimes it is simply known that we
  * want some symbol with extra modifiers added.  Examples are Ctrl-A or Alt-A.
  * Quite a few of these don't have their own special symbols, and it wouldn't
- * help even if they did, because we generally don't have enough information to 
+ * help even if they did, because we generally don't have enough information to
  * map those hypothetical symbols to keys.
  *
  * I make an attempt to handle that ugly case here, but for symbols that you
- * require dead keys to press, or symbols that can only be pressed with an 
+ * require dead keys to press, or symbols that can only be pressed with an
  * alt# combination I ignore the request for extra modifiers.  Perhaps later.
  *
  * Note: this routine does not allow for the modification of the shiftstate!
  */
 
 static void put_character_symbol(
-	Boolean make, t_modifiers modifiers, t_keysym ch, 
+	Boolean make, t_modifiers modifiers, t_keysym ch,
 	struct keyboard_state *state)
 {
 	t_modifiers old_shiftstate, new_shiftstate;
@@ -2035,10 +2035,10 @@ static void put_character_symbol(
 }
 
 /***********************************************************************************************
- * High-level interface functions 
+ * High-level interface functions
  ***********************************************************************************************/
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION put_rawkey
  *
  * This function sends a raw keycode byte, e.g. read directly from the hardware,
@@ -2060,7 +2060,7 @@ static void put_character_symbol(
  * in the 'raw' field of the queue.
  */
 
-void put_rawkey(t_rawkeycode code) 
+void put_rawkey(t_rawkeycode code)
 {
 	Boolean make;
 	t_keynum key;
@@ -2070,13 +2070,13 @@ void put_rawkey(t_rawkeycode code)
 	}
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION move_keynum
  *
  * This does all the work of sending a key event to DOS.
  * Either pressing a key releasing one.  The key to move is
  * the key specified by keynum.
- *  
+ *
  *   keynum - the keynum from keynum.h indicating a physical key
  *   make  - TRUE for key press, FALSE for release
  *
@@ -2108,7 +2108,7 @@ int move_keynum(Boolean make, t_keynum keynum, t_keysym sym)
 	return result;
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION keysym_to_keynum
  *
  * Allows peeking into the keytables.
@@ -2136,13 +2136,13 @@ t_keynum keysym_to_keynum(t_keysym key, t_modifiers * modifiers)
 	return keynum;
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION move_key
  *
  * This does all the work of sending a key event to DOS.
  * Either pressing a key releasing one.  The key to move is
  * the key that is labeled with the specified keysym.
- *  
+ *
  *   key  - the keysym, one of the KEY_ constants from new-kbd.h
  *   make  - TRUE for key press, FALSE for release
  *
@@ -2182,7 +2182,7 @@ int move_key(Boolean make, t_keysym key)
 	return result;
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION put_symbol
  *
  * This does all the work of sending a key event to DOS.
@@ -2191,7 +2191,7 @@ int move_key(Boolean make, t_keysym key)
  * Applications using int16h will always see the symbol passed
  * here, if it is representable in the current dos character set.  The
  * appropriate scancodes are generated automatically to keep the
- * keyboard code consistent.  
+ * keyboard code consistent.
  *
  * An emulated hardware scancode is also sent to port60h.
  *
@@ -2202,7 +2202,7 @@ int move_key(Boolean make, t_keysym key)
  * DANG_END_FUNCTION
  */
 
-void put_symbol(Boolean make, t_keysym sym) 
+void put_symbol(Boolean make, t_keysym sym)
 {
 	k_printf("put_symbol: keysym=%04x\n",
 		 sym);
@@ -2210,7 +2210,7 @@ void put_symbol(Boolean make, t_keysym sym)
 }
 
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION put_modified_symbol
  *
  * This does all the work of sending a key event to DOS.
@@ -2223,7 +2223,7 @@ void put_symbol(Boolean make, t_keysym sym)
  * This function behaves as put_symbol does, except before pressing
  * the key it adds the specified modifiers to the modifiers it would
  * normally use.
- * 
+ *
  * For cases where the symbol can only be created by an alt# combination
  * or by pressing a dead key (Basically any case where more than one
  * key is requried, after setting the shiftstate) it gives up and just
@@ -2243,11 +2243,11 @@ void put_modified_symbol(Boolean make, t_modifiers modifiers, t_keysym sym)
 	put_character_symbol(make, modifiers, sym, &input_keyboard_state);
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION get_shiftstate
  *
  * This simply reads the keyboard server's shift state.
- * 
+ *
  * This is intended to be used in conjunction with set_shiftstate
  * to sync up a shiftstate with a source of key events.
  *
@@ -2263,15 +2263,15 @@ t_modifiers get_shiftstate(void)
 	return get_modifiers_r(input_keyboard_state.shiftstate);
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION set_shiftstate
  *
  * This simply sets the keyboard server's shift state.
  *
- * If there are shiftstate bits you want to keep fixed simply grab them with 
+ * If there are shiftstate bits you want to keep fixed simply grab them with
  * get_shiftstate, before calling this function.
  *
- * This changes the keyboard flags by generating the appropriate 
+ * This changes the keyboard flags by generating the appropriate
  * shift key make/break codes that normally come along with such
  * changes. So this function should be safe in any context.
  *
@@ -2281,23 +2281,23 @@ t_modifiers get_shiftstate(void)
  * DANG_END_FUNCTION
  */
 
-void set_shiftstate(t_modifiers s) 
+void set_shiftstate(t_modifiers s)
 {
 	sync_shift_state(s, &input_keyboard_state);
-} 
+}
 
 
-int keyb_server_reset(void) 
+int keyb_server_reset(void)
 {
 	k_printf("KBD: keyb_server_reset()\n");
 
 	keyb_reset_state();
 	backend_reset();
-   
+
 	return TRUE;
 }
 
-int keyb_server_init(void) 
+int keyb_server_init(void)
 {
 	k_printf("KBD: keyb_server_init()\n");
 	if (!config.keytable)
@@ -2306,7 +2306,7 @@ int keyb_server_init(void)
 	return 1;
 }
 
-void keyb_server_close(void) 
+void keyb_server_close(void)
 {
 	k_printf("KBD: keyb_server_close()\n");
 }
@@ -2315,4 +2315,4 @@ void keyb_server_run(void)
 {
 	backend_run();
 }
- 
+

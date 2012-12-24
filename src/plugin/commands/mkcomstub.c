@@ -34,7 +34,7 @@ where is\n\
 
         return 1;
        }
-       
+
   if ((tmpl = fopen(argv[1],"r")) == NULL)
      { printf("unable to read %s",argv[1]);
        return 1;
@@ -58,7 +58,7 @@ where is\n\
        if (fsize > 0)
 	  fwrite(buf,1,fsize,fout);
       }
-  
+
   if (argc > 4)
     { if ((fsize = strlen(argv[4]) + 2) < MAXBUFSIZE)
        { strcpy(buf,argv[4]);

@@ -1,16 +1,16 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * SIDOC_BEGIN_MODULE
  *
  * Description: PCI configuration space access
  * (only configuration mechanism 1 is fully implemented so far)
  * used by the console video drivers and the PCI BIOS
- * 
+ *
  * SIDOC_END_MODULE
  */
 
@@ -189,7 +189,7 @@ static int pci_check_device_present_cfg1(unsigned char bus, unsigned char device
     unsigned long val;
     unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
 	                 PCI_EN;
-    
+
     if (priv_iopl(3)) {
       error("iopl(): %s\n", strerror(errno));
       return 0;
@@ -210,7 +210,7 @@ static int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
 				 unsigned char fn, unsigned int *buf)
 {
   int i;
-  
+
   if (priv_iopl(3)) {
     error("iopl(): %s\n", strerror(errno));
     return 0;
@@ -271,7 +271,7 @@ static int pci_check_device_present_cfg2(unsigned char bus, unsigned char device
 					 unsigned char fn)
 {
     unsigned long val;
-    
+
     if (priv_iopl(3)) {
       error("iopl(): %s\n", strerror(errno));
       return 0;
@@ -316,7 +316,7 @@ static int pci_read_header_proc (unsigned char bus, unsigned char device,
   /* Get only first 64 bytes: See src/linux/drivers/pci/proc.c for
      why. They are not joking. My NCR810 crashes the machine on read
      of register 0xd8 */
-  
+
   read(fd, buf, 64);
   close(fd);
   return 0;
@@ -417,7 +417,7 @@ int pci_setup (void)
     io_device.write_portd = std_port_outd;
     io_device.irq = EMU_NO_IRQ;
     io_device.fd = -1;
-  
+
     if (pciConfigType->name[0] == '1') {
       io_device.handler_name = "PCI Config Type 1";
       io_device.start_addr = PCI_CONF_ADDR;
@@ -518,7 +518,7 @@ static void pciemu_port_write(ioport_t port, unsigned long val, int len)
     if ((pci->header[3] & 0x007f0000) == 0) {
       if (num >= PCI_BASE_ADDRESS_0 && num <= PCI_BASE_ADDRESS_5)
 	val &= pci->region[num - PCI_BASE_ADDRESS_0].rawsize;
-      if (num == PCI_ROM_ADDRESS) 
+      if (num == PCI_ROM_ADDRESS)
 	val &= pci->region[6].rawsize;
     }
     pci->header[num >> 2] = val;

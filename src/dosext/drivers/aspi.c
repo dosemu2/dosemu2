@@ -1,15 +1,15 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * DANG_BEGIN_MODULE
  * REMARK
  * VERB
- * drivers/aspi.c - emulate the DOS ASPI programming interface using 
+ * drivers/aspi.c - emulate the DOS ASPI programming interface using
  *		    the Linux generic SCSI driver (/dev/sg?)
  * basic aspi code shamelessly stolen from the wine
  * project aspi.c written by  Bruce Milner <Bruce.Milner@genetics.utah.edu>
@@ -218,7 +218,7 @@ static int query_device_type(char *devname)
   struct CDB_inquiry *cdb;
   int sg_off = sizeof(struct sg_header);
   struct standard_inquiry_data *si;
-  
+
   fd = open(devname, O_RDWR);
   if (fd < 0) return -1;
 
@@ -508,7 +508,7 @@ static void ASPI_DebugPrintCmd16(SRB_ExecSCSICmd16 *prb)
         A_printf("\tTransfer by scsi cmd set to Host->Target. Length not checked\n");
     else if (U_TARGET_TO_HOST(prb))
         A_printf("\tTransfer by scsi cmd set to Target->Host. Length not checked\n");
-    else 
+    else
         A_printf("\tTransfer by scsi cmd set to NONE. Length not checked\n");
   }
 
@@ -609,9 +609,9 @@ static Bit16u ASPI_ExecScsiCmd16(SRB16 *p, FARPTR16 segptr_prb)
   if (direction == D_UNDF) {       /* look in our table which is incomplete */
 	if (U_HOST_TO_TARGET(prb))
 	    direction = D_H_T;
-	else if (U_TARGET_TO_HOST(prb))	
+	else if (U_TARGET_TO_HOST(prb))
 	    direction = D_T_H;
-  }	
+  }
   A_printf("ASPI: direction = %d\n",direction);
   /* build up sg_header + scsi cmd */
   if (direction == D_H_T) {
@@ -723,7 +723,7 @@ again:
   if (sg_hd) free(sg_hd);
   ASPI_DebugPrintResult16(prb);
   return SS_COMP;
-  
+
 error_exit:
   if (error_code == EBUSY) {
       prb->SRB_Status = SS_ASPI_IS_BUSY;
@@ -797,7 +797,7 @@ static Bit16u ASPI_Inquiry(SRB_HaInquiry16 *p, FARPTR16 segptr_prb)
   memcpy(p->HA_ManagerId, "DOSEMU ASPI     ",16);
   memcpy(p->HA_Identifier,"DUMMY SCSI ADAPT",16);
   memset(p->HA_Unique,0,16);
-    
+
 #if 0 /* this is wrong here, the srb is _no_ SRB_ExecSCSICmd16 */
   ASPI_DebugPrintResult16((SRB_ExecSCSICmd16 *)prb);
 #endif
@@ -892,7 +892,7 @@ void aspi_helper(int mode)
    for (n=0; n<64; ++n) {
 	A_printf("%02x ",*p++);
 	if ((n%16)==15) A_printf("\n");
-   }	
+   }
 }
 #endif
 

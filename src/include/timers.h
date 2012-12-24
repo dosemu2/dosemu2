@@ -76,7 +76,7 @@ void dosemu_sleep(void);
  */
 static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 {
-	return (unsigned long)(v >> 32) * (unsigned long long)f + 
+	return (unsigned long)(v >> 32) * (unsigned long long)f +
 	  (((unsigned long)(v & 0xffffffff) * (unsigned long long)f) >> 32);
 }
 

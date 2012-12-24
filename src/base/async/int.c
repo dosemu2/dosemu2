@@ -498,9 +498,9 @@ int dos_helper(void)
   	}
         break;
   case DOS_HELPER_CPUEMUOFF:
-	if ((config.cpuemu>1) 
+	if ((config.cpuemu>1)
 #ifdef TRACE_DPMI
-	&& (debug_level('t')==0) 
+	&& (debug_level('t')==0)
 #endif
 	&& !in_dpmi)
 	    leave_cpu_emu();
@@ -999,7 +999,7 @@ Note:	this function is also supported by the Sperry PC, which predates the
     }
     NOCARRY;
     break;
-	  
+
 /*
 --------B-1A04-------------------------------
 INT 1A - TIME - GET REAL-TIME CLOCK DATE (AT,XT286,PS)
@@ -1081,7 +1081,7 @@ Return: nothing
     /* This has been VERIFIED on an AMI BIOS -- AV */
     rtc_write(CMOS_STATUSB, rtc_read(CMOS_STATUSB) & ~0x20);
     break;
- 
+
   case 0xb1:			/* Intel PCI BIOS v 2.0c */
       pci_bios();
     break;
@@ -1372,10 +1372,10 @@ void real_run_int(int i)
  * as well equally the current values (retIP = curIP +2 technically).
  *
  * However if the function is called (from dos) by simulating an int instruction
- * (something that is common with chained interrupt vectors) 
- * _CS:_IP = BIOS_SEG:HLT_OFF(i) and _FLAGS = curFLAGS 
+ * (something that is common with chained interrupt vectors)
+ * _CS:_IP = BIOS_SEG:HLT_OFF(i) and _FLAGS = curFLAGS
  * while retCS, retIP, and retFlags are on the stack.  These I pop and place in
- * the appropriate registers.  
+ * the appropriate registers.
  *
  * This functions actions certainly correct for functions executing an int/iret
  * discipline.  And almost certianly correct for functions executing an
@@ -1387,7 +1387,7 @@ void real_run_int(int i)
  * Finally there is a possible trouble spot lurking in this code.  Interrupts
  * are only implicitly disabled when it calls the caller function, so if for
  * some reason the main loop would be entered before the caller function returns
- * wrong code may execute if the retFLAGS have interrupts enabled!  
+ * wrong code may execute if the retFLAGS have interrupts enabled!
  *
  * This is only a real handicap for sequences of dosemu code execute for long
  * periods of time as we try to improve timer response and prevent signal queue
@@ -1397,7 +1397,7 @@ void real_run_int(int i)
  * semantics of default_interupt, I can't implement this function as I
  * would like.  In the tricky case of being called from dos by
  * simulating an int instruction, I must leave retCS, retIP, on the
- * stack.  But I can safely read retFlags so I do.  
+ * stack.  But I can safely read retFlags so I do.
  * I pop retCS, and retIP just before returning to dos, as well as
  * dropping the stack slot  that held retFlags.
  *
@@ -1519,7 +1519,7 @@ unsigned base=screen_adr(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     g_printf("PrintScreen: base=%x, lines=%i columns=%i\n", base, li, co);
     if (printer_open(0) == -1) return;
     for (y_pos=0; y_pos < li; y_pos++) {
-	for (x_pos=0; x_pos < co; x_pos++) 
+	for (x_pos=0; x_pos < co; x_pos++)
 	    printer_write(0, vga_read(base + 2*(y_pos*co + x_pos)));
 	printer_write(0, 0x0d);
 	printer_write(0, 0x0a);
@@ -1527,7 +1527,7 @@ unsigned base=screen_adr(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     printer_close(0);
 }
 
-static int int05(void) 
+static int int05(void)
 {
      /* FIXME does this test actually catch an unhandled bound exception */
     if( *SEG_ADR((Bit8u *), cs, ip) == 0x62 ) {	/* is this BOUND ? */
@@ -1894,11 +1894,11 @@ static void int33_check_hog(void);
 
 /* mouse */
 static int int33(void) {
-/* New code introduced by Ed Sirett (ed@cityscape.co.uk)  26/1/95 to give 
- * garrot control when the dos app is polling the mouse and the mouse is 
+/* New code introduced by Ed Sirett (ed@cityscape.co.uk)  26/1/95 to give
+ * garrot control when the dos app is polling the mouse and the mouse is
  * taking a break. */
 
-/* Firstly do the actual mouse function. */   
+/* Firstly do the actual mouse function. */
 /* N.B. This code lets the real mode mouse driver return at a HLT, so
  * after it returns the hogthreshold code can do its job.
  */
@@ -1915,14 +1915,14 @@ static void int33_check_hog(void)
 {
   static unsigned short int oldx=0, oldy=0;
 
-/* It seems that the only mouse sub-function that could be plausibly used to 
- * poll the mouse is AX=3 - get mouse buttons and position. 
+/* It seems that the only mouse sub-function that could be plausibly used to
+ * poll the mouse is AX=3 - get mouse buttons and position.
  * The mouse driver should have left AX=3 unaltered during its call.
- * The correct response should have the buttons in the low 3 bits in BX and 
- * x,y in CX,DX. 
- * Some programs seem to interleave calls to read mouse with various other 
+ * The correct response should have the buttons in the low 3 bits in BX and
+ * x,y in CX,DX.
+ * Some programs seem to interleave calls to read mouse with various other
  * sub-functions (Esp. 0x0b  0x05 and 0x06)
- * As a result we do not reset the  trigger value in these cases. 
+ * As a result we do not reset the  trigger value in these cases.
  * Sadly, some programs use the user-specified mouse-event handler function (0x0c)
  * after which they then wait for mouse events presumably in a tight loop, I think
  * that we won't be able to stop these programs from burning CPU cycles.
@@ -1937,7 +1937,7 @@ static void int33_check_hog(void)
     }
   }
   m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
-  /* Ok now we test to see if the mouse has been taking a break and we can let the 
+  /* Ok now we test to see if the mouse has been taking a break and we can let the
    * system get on with some real work. :-) */
   idle(200, 20, 20, "mouse");
 }
@@ -2031,12 +2031,12 @@ void do_int(int i)
            hardware INTs will mess things up.
         */
         clear_AC();
-	
+
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
 
 #if 1  /* This test really ought to be in the main loop before
- 	*  instruction execution not here. --EB 10 March 1997 
+ 	*  instruction execution not here. --EB 10 March 1997
  	*/
 
  	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
@@ -2345,7 +2345,7 @@ void do_periodic_stuff(void)
 	#undef VM86_RETURN_VALUE
     }
 
-#ifdef USE_MHPDBG  
+#ifdef USE_MHPDBG
     if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
 #endif
 

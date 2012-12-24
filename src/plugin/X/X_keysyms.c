@@ -93,8 +93,8 @@ struct xkey_to_dosemu_key {
 
 #define KEY_LEFT_TAB       KEY_VOID
 #define KEY_SHIFT_LOCK     KEY_VOID
-#define KEY_MULTI_KEY      KEY_VOID 
-#define KEY_MODE_SWITCH    KEY_VOID 
+#define KEY_MULTI_KEY      KEY_VOID
+#define KEY_MODE_SWITCH    KEY_VOID
 
 #define KEY_DOSEMU_CLEAR   KEY_VOID
 #define KEY_DOSEMU_BEGIN   KEY_VOID
@@ -312,7 +312,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_Control_R,		KEY_R_CTRL },
 { XK_Caps_Lock,		KEY_CAPS },
 { XK_Shift_Lock,	KEY_SHIFT_LOCK },
- 			
+
 { XK_Meta_L,		KEY_L_META },
 { XK_Meta_R,		KEY_R_META },
 { XK_Alt_L,		KEY_L_ALT },
@@ -579,7 +579,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_bar,                 U_VERTICAL_LINE },
 { XK_braceright,          U_RIGHT_CURLY_BRACKET },
 { XK_asciitilde,          U_TILDE },
-			  
+
 { XK_nobreakspace,        U_NO_BREAK_SPACE },
 { XK_exclamdown,          U_INVERTED_EXCLAMATION_MARK },
 { XK_cent,        	  U_CENT_SIGN },
@@ -1111,20 +1111,20 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_Greek_OMICRONaccent,              U_GREEK_CAPITAL_LETTER_OMICRON_WITH_TONOS },
 { XK_Greek_UPSILONaccent,              U_GREEK_CAPITAL_LETTER_UPSILON_WITH_TONOS },
 { XK_Greek_UPSILONdieresis,            U_GREEK_CAPITAL_LETTER_UPSILON_WITH_DIALYTIKA },
-{ XK_Greek_OMEGAaccent,                U_GREEK_CAPITAL_LETTER_OMEGA_WITH_TONOS },                 
+{ XK_Greek_OMEGAaccent,                U_GREEK_CAPITAL_LETTER_OMEGA_WITH_TONOS },
 { XK_Greek_accentdieresis,             U_GREEK_DIALYTIKA_TONOS },
 { XK_Greek_horizbar,                   U_HORIZONTAL_BAR },
-{ XK_Greek_alphaaccent,                U_GREEK_SMALL_LETTER_ALPHA_WITH_TONOS },                 
-{ XK_Greek_epsilonaccent,              U_GREEK_SMALL_LETTER_EPSILON_WITH_TONOS },               
-{ XK_Greek_etaaccent,                  U_GREEK_SMALL_LETTER_ETA_WITH_TONOS },                   
-{ XK_Greek_iotaaccent,                 U_GREEK_SMALL_LETTER_IOTA_WITH_TONOS },                 
+{ XK_Greek_alphaaccent,                U_GREEK_SMALL_LETTER_ALPHA_WITH_TONOS },
+{ XK_Greek_epsilonaccent,              U_GREEK_SMALL_LETTER_EPSILON_WITH_TONOS },
+{ XK_Greek_etaaccent,                  U_GREEK_SMALL_LETTER_ETA_WITH_TONOS },
+{ XK_Greek_iotaaccent,                 U_GREEK_SMALL_LETTER_IOTA_WITH_TONOS },
 { XK_Greek_iotadieresis,               U_GREEK_SMALL_LETTER_IOTA_WITH_DIALYTIKA },
-{ XK_Greek_iotaaccentdieresis,         U_GREEK_SMALL_LETTER_IOTA_WITH_DIALYTIKA_AND_TONOS },   
-{ XK_Greek_omicronaccent,              U_GREEK_SMALL_LETTER_OMICRON_WITH_TONOS },               
-{ XK_Greek_upsilonaccent,              U_GREEK_SMALL_LETTER_UPSILON_WITH_TONOS },               
-{ XK_Greek_upsilondieresis,            U_GREEK_SMALL_LETTER_UPSILON_WITH_DIALYTIKA },           
+{ XK_Greek_iotaaccentdieresis,         U_GREEK_SMALL_LETTER_IOTA_WITH_DIALYTIKA_AND_TONOS },
+{ XK_Greek_omicronaccent,              U_GREEK_SMALL_LETTER_OMICRON_WITH_TONOS },
+{ XK_Greek_upsilonaccent,              U_GREEK_SMALL_LETTER_UPSILON_WITH_TONOS },
+{ XK_Greek_upsilondieresis,            U_GREEK_SMALL_LETTER_UPSILON_WITH_DIALYTIKA },
 { XK_Greek_upsilonaccentdieresis,      U_GREEK_SMALL_LETTER_UPSILON_WITH_DIALYTIKA_AND_TONOS },
-{ XK_Greek_omegaaccent,                U_GREEK_SMALL_LETTER_OMEGA_WITH_TONOS },                 
+{ XK_Greek_omegaaccent,                U_GREEK_SMALL_LETTER_OMEGA_WITH_TONOS },
 { XK_Greek_ALPHA,                      U_GREEK_CAPITAL_LETTER_ALPHA },
 { XK_Greek_BETA,                       U_GREEK_CAPITAL_LETTER_BETA },
 { XK_Greek_GAMMA,                      U_GREEK_CAPITAL_LETTER_GAMMA },
@@ -1882,7 +1882,7 @@ static size_t X_keysym_to_unicode(struct char_set_state *state,
 	struct xkey_to_dosemu_key match[1], *result;
 
 	if (!initialized) {
-		qsort(keysym_map, keysym_map_size, sizeof(match), 
+		qsort(keysym_map, keysym_map_size, sizeof(match),
 			keysym_map_compare);
 		initialized = 1;
 	}
@@ -1894,7 +1894,7 @@ static size_t X_keysym_to_unicode(struct char_set_state *state,
 	else {
 		match->xkey = *((KeySym *)str);
 	}
-	result = bsearch(match, keysym_map, keysym_map_size, sizeof(match), 
+	result = bsearch(match, keysym_map, keysym_map_size, sizeof(match),
 		keysym_map_compare);
 	if (!result) {
 		result = match;
@@ -1930,15 +1930,15 @@ static size_t unicode_to_X_keysym(struct char_set_state *state,
 	return -1;
 }
 
-static void for_each_keysym_mapping(struct char_set *set, 
+static void for_each_keysym_mapping(struct char_set *set,
 	int offset,
 	void *callback_data, foreach_callback_t callback)
 {
 	int i;
 	for(i = 0; i < keysym_map_size; i++) {
-		callback(callback_data, 
+		callback(callback_data,
 			keysym_map[i].dosemu_key,
-			(const unsigned char *)&keysym_map[i].xkey, 
+			(const unsigned char *)&keysym_map[i].xkey,
 			sizeof(keysym_map[i].xkey));
 	}
 }

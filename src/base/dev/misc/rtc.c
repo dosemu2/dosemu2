@@ -1,14 +1,14 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * SIDOC_BEGIN_MODULE
  *
  * Description: CMOS handling and RTC emulation
- * 
+ *
  * Maintainers: Alberto Vignani (vignani@tin.it)
  *
  * SIDOC_END_MODULE
@@ -375,10 +375,10 @@ unsigned long get_linux_ticks(int set_cmos, int *day_rollover)
 	struct tm *tm;
 
 	gettimeofday(&tv, NULL);
-	
+
 	lint = ((long long)(unsigned long)tv.tv_sec) * 1000;
 	lint += tv.tv_usec / 1000;
-				
+
 	tm = localtime(&tv.tv_sec);
 	if(tm == NULL) return -1;
 

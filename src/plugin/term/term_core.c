@@ -1,9 +1,9 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
-/* 
+/*
  * DANG_BEGIN_MODULE
  *
  * REMARK
@@ -69,7 +69,7 @@ int term_init(void)
 #ifdef USE_RELAYTOOL
 	dbug_printf("Using S-Lang version %d, with %sUTF8 support \n",
 		SLang_Version,
-		SLang_Version >= 20000 || 
+		SLang_Version >= 20000 ||
 		libslang_symbol_is_present("SLsmg_write_nwchars") ? "" : "no ");
 #endif
 	SLang_Exit_Error_Hook = sl_exit_error;
@@ -85,7 +85,7 @@ int term_init(void)
 
 void term_close(void)
 {
-	if (--term_initialized != 0) 
+	if (--term_initialized != 0)
 		return;
 }
 

@@ -91,19 +91,19 @@ t_keynum validate_keynum(t_keynum key)
 
 	/* function keys */
 
-	case NUM_ESC:	 
-	case NUM_F1:	 
-	case NUM_F2:	 
-	case NUM_F3:	 
-	case NUM_F4:	 
-	case NUM_F5:	 
-	case NUM_F6:	 
-	case NUM_F7:	 
-	case NUM_F8:	 
-	case NUM_F9:	 
-	case NUM_F10:	 
-	case NUM_F11:	 
-	case NUM_F12:	 
+	case NUM_ESC:
+	case NUM_F1:
+	case NUM_F2:
+	case NUM_F3:
+	case NUM_F4:
+	case NUM_F5:
+	case NUM_F6:
+	case NUM_F7:
+	case NUM_F8:
+	case NUM_F9:
+	case NUM_F10:
+	case NUM_F11:
+	case NUM_F12:
 
 	/* cursor block */
 

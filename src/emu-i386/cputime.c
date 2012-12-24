@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -12,7 +12,7 @@
  * Functions used to get a monoton, 64-bit time value either from the
  * kernel (with gettimeofday()) or from the CPU hi-res timer
  * Maintainer: vignani@mail.tin.it (Alberto Vignani)
- * 
+ *
  * SIDOC_END_MODULE
  */
 
@@ -244,14 +244,14 @@ void freeze_dosemu_manual(void)
 void freeze_dosemu(void)
 {
   if (dosemu_frozen) return;
-  
+
   stop_cputime(0);
   dosemu_frozen = 1;
   if (dosemu_user_froze) dosemu_user_froze--;
   dbug_printf("*** dosemu frozen\n");
-  
+
   speaker_pause();
-  
+
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
 }
@@ -259,9 +259,9 @@ void freeze_dosemu(void)
 void unfreeze_dosemu(void)
 {
   if (!dosemu_frozen) return;
-  
+
   speaker_resume ();
-  
+
   restart_cputime(0);
   dosemu_frozen = 0;
   dosemu_user_froze = 0;
@@ -291,7 +291,7 @@ static int getmhz(void)
 		:"=a" (b0),
 		 "=d" (b1));
 	b = (((hitimer_t)b1 << 32) | b0) - (((hitimer_t)a1 << 32) | a0);
-	a = (tv2.tv_sec*1000000 + tv2.tv_usec) - 
+	a = (tv2.tv_sec*1000000 + tv2.tv_usec) -
 	    (tv1.tv_sec*1000000 + tv1.tv_usec);
 	return (int)((b*4096)/a);
 }

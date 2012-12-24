@@ -45,7 +45,7 @@ struct mem_map_struct {
 #define MAX_KMEM_MAPPINGS 4096
 static int kmem_mappings = 0;
 static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
- 
+
 static int init_done = 0;
 unsigned char * const mem_base;
 char * const lowmem_base;
@@ -267,7 +267,7 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
   }
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   return addr;
-}        
+}
 
 void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
   unsigned long flags, void *target)
@@ -400,7 +400,7 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
     close_kmem();
     if (addr == MAP_FAILED)
       return addr;
-    
+
     kmem_map[kmem_mappings].src = target; /* target is actually source */
     kmem_map[kmem_mappings].base = addr;
     kmem_map[kmem_mappings].dst = NULL;
@@ -471,7 +471,7 @@ static struct hardware_ram *hardware_ram;
  *
  * description:
  *  Initialize the hardware direct-mapped pages
- * 
+ *
  * DANG_END_FUNCTION
  */
 void map_hardware_ram(void)
@@ -481,7 +481,7 @@ void map_hardware_ram(void)
   unsigned char *p;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
-    if (!hw->type || hw->type == 'e') { /* virtual hardware ram, base==vbase */ 
+    if (!hw->type || hw->type == 'e') { /* virtual hardware ram, base==vbase */
       hw->vbase = hw->base;
       continue;
     }

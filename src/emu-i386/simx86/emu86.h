@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -167,7 +167,7 @@ extern hitimer_t GenTime, LinkTime;
 #define OPERoverride	0x66
 #define ADDRoverride	0x67
 #define PUSHwi		0x68
-#define IMULwrm		0x69 
+#define IMULwrm		0x69
 #define PUSHbi		0x6a
 #define IMULbrm		0x6b
 #define INSb		0x6c
@@ -261,7 +261,7 @@ extern hitimer_t GenTime, LinkTime;
 #define MOVidi		0xbf
 
 #define SHIFTbi		0xc0
-#define SHIFTwi		0xc1 
+#define SHIFTwi		0xc1
 #define RETisp		0xc2
 #define RET			0xc3
 #define LES			0xc4
@@ -269,7 +269,7 @@ extern hitimer_t GenTime, LinkTime;
 #define MOVbirm		0xc6
 #define MOVwirm		0xc7
 #define ENTER		0xc8
-#define LEAVE		0xc9 
+#define LEAVE		0xc9
 #define RETlisp		0xca
 #define RETl		0xcb
 #define INT3		0xcc
@@ -509,9 +509,9 @@ extern hitimer_t GenTime, LinkTime;
 #define CPUID_FEATURE_RSVD1  0x00000400
 #define CPUID_FEATURE_SEP    0x00000800
 #define CPUID_FEATURE_MTTR   0x00001000
-#define CPUID_FEATURE_PGE    0x00002000 
+#define CPUID_FEATURE_PGE    0x00002000
 #define CPUID_FEATURE_MCA    0x00004000
-#define CPUID_FEATURE_CMOV   0x00008000 
+#define CPUID_FEATURE_CMOV   0x00008000
 
 #define CPUID_FEATURE_PAT    0x00010000
 #define CPUID_FEATURE_36PG   0x00020000
@@ -521,10 +521,10 @@ extern hitimer_t GenTime, LinkTime;
 #define CPUID_FEATURE_RSVD4  0x00100000
 #define CPUID_FEATURE_RSVD5  0x00200000
 #define CPUID_FEATURE_RSVD6  0x00400000
-#define CPUID_FEATURE_MMX    0x00800000 
+#define CPUID_FEATURE_MMX    0x00800000
 #define CPUID_FEATURE_FXSAVE 0x01000000
 #define CPUID_FEATURE_PIII   0x02000000  /* pentium III, unknown */
-#define CPUID_FEATURE_RSVD   0xfc780400 
+#define CPUID_FEATURE_RSVD   0xfc780400
 
 #define MSR_TSC              0x00000010
 #define MSR_MTRR_CAP         0x000000fe

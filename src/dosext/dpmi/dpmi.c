@@ -243,7 +243,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 
 /*
  * DANG_BEGIN_REMARK
- * 
+ *
  * We are caching ldt here for speed reasons and for Windows 3.1.
  * I would love to have an readonly ldt-alias (located in the first
  * 16MByte for use with 16-Bit descriptors (WIN-LDT)). This is on my
@@ -324,9 +324,9 @@ static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
       if (isldt) {
 	unsigned int *lp2;
 	lp2 = (unsigned int *) &ldt_buffer[i*LDT_ENTRY_SIZE];
-	D_printf("       cache: %08x %08x\n", *(lp2+1), *lp2); 
+	D_printf("       cache: %08x %08x\n", *(lp2+1), *lp2);
 	D_printf("         seg: Base %08x, Limit %05x, Type %d, Big %d\n",
-	     Segments[i].base_addr, Segments[i].limit, Segments[i].type, Segments[i].is_big); 
+	     Segments[i].base_addr, Segments[i].limit, Segments[i].type, Segments[i].is_big);
       }
     }
   }
@@ -393,7 +393,7 @@ void dpmi_iret_setup(struct sigcontext_struct *scp)
   _eflags &= ~TF;
   _rip = (unsigned long)DPMI_iret;
   _rsp = (unsigned long)iret_frame;
-  _cs = getsegment(cs); 
+  _cs = getsegment(cs);
 }
 #endif
 
@@ -471,7 +471,7 @@ static direct_dpmi_transfer_t direct_dpmi_transfer_p;
 
 static int direct_dpmi_switch(struct sigcontext_struct *scp)
 {
-#ifdef __i386__  
+#ifdef __i386__
   dpmi_switch_jmp->offset = _eip;
   dpmi_switch_jmp->selector = _cs;
   scp->esp_at_signal = _esp;
@@ -499,7 +499,7 @@ static int dpmi_control(void)
 {
 /*
  * DANG_BEGIN_REMARK
- * 
+ *
  * DPMI is designed such that the stack change needs a task switch.
  * We are doing it via an SIGSEGV - instead of one task switch we have
  * now four :-(.
@@ -890,7 +890,7 @@ static inline int CheckDataSelector(struct sigcontext_struct *scp,
 		       || Segments[selector >> 3].not_present)) {
     if (in_dosemu) {
       error("%cS selector invalid: 0x%04X, type=%x np=%i\n",
-        letter, selector, Segments[selector >> 3].type, 
+        letter, selector, Segments[selector >> 3].type,
 	    Segments[selector >> 3].not_present);
       D_printf("%s", DPMI_show_state(scp));
 #if 1
@@ -1101,7 +1101,7 @@ int GetDescriptor(us selector, unsigned int *lp)
   unsigned char *type_ptr;
   if (SystemSelector(selector))
     return -1; /* invalid value 8021 */
-#if 0    
+#if 0
   modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
 #else
   /* DANG_BEGIN_REMARK
@@ -1124,7 +1124,7 @@ int GetDescriptor(us selector, unsigned int *lp)
         if (in_win31)
           MPROT_LDT_ENTRY(selector >> 3);
   }
-#endif  
+#endif
   MEMCPY_2DOSP(lp, &ldt_buffer[selector & 0xfff8], 8);
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n", selector>>3, selector, READ_DWORDP(lp+1), READ_DWORDP(lp));
   return 0;
@@ -1744,10 +1744,10 @@ static void do_int31(struct sigcontext_struct *scp)
       _LWORD(eax) = 0x8022;
       _eflags |= CF;
     }
-#if 1    
+#if 1
     /* do it dpmi 1.00 host\'s way */
     FreeSegRegs(scp, _LWORD(ebx));
-#endif    
+#endif
     break;
   case 0x0002:
     if (!(_LWORD(eax)=ConvertSegmentToDescriptor(_LWORD(ebx)))) {
@@ -2042,9 +2042,9 @@ err:
 	 _eflags |= CF;
 	 break;
        }
-	   
+
        DPMI_CLIENT.realModeCallBack[i].selector = _ds;
-       DPMI_CLIENT.realModeCallBack[i].offset = API_16_32(_esi); 
+       DPMI_CLIENT.realModeCallBack[i].offset = API_16_32(_esi);
        DPMI_CLIENT.realModeCallBack[i].rmreg_selector = _es;
        DPMI_CLIENT.realModeCallBack[i].rmreg_offset = API_16_32(_edi);
        DPMI_CLIENT.realModeCallBack[i].rmreg =
@@ -2110,13 +2110,13 @@ err:
 		  SUBLEVEL, PATCHLEVEL1, PATCHLEVEL2);
       }
     break;
-	  
+
   case 0x0500:
     GetFreeMemoryInformation( (unsigned int *)
 	(GetSegmentBaseAddress(_es) + API_16_32(_edi)));
     break;
   case 0x0501:	/* Allocate Memory Block */
-    { 
+    {
       dpmi_pm_block block;
       unsigned int mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
 
@@ -2205,7 +2205,7 @@ err:
 	dpmi_pm_block *old_block, block;
 	unsigned short *sel_array;
 	unsigned long old_base, old_len;
-	
+
 /* JES Unsure of ASSUMING sel_array OK to be nit to NULL */
 	sel_array = NULL;
 	handle = _esi;
@@ -2227,7 +2227,7 @@ err:
 	}
 	old_base = (unsigned long)old_block->base;
 	old_len = old_block->size;
-	
+
 	if(_edx & 0x2) {		/* update descriptor required */
 	    sel_array = (unsigned short *)(GetSegmentBaseAddress(_es) + API_16_32(_ebx));
 	    D_printf("DPMI: update descriptor required\n");
@@ -2269,17 +2269,17 @@ err:
   case 0x0509:			/* Map conventional memory,1.0 */
     {
 	unsigned long low_addr, handle, offset;
-	
+
 	handle = _esi;
 	low_addr = _edx;
 	offset = _ebx;
-	
+
 	if (low_addr > 0xf0000) {
 	    _eflags |= CF;
 	    _LWORD(eax) = 0x8003; /* system integrity */
 	    break;
 	}
-	
+
 	if ((low_addr & 0xfff) || (offset & 0xfff)) {
 	    _eflags |= CF;
 	    _LWORD(eax) = 0x8025; /* invalid linear address */
@@ -2390,7 +2390,7 @@ err:
     if (!DPMIGetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
       _eflags |= CF;
     break;
-        
+
   case 0x0507:			/* Set Page Attributes */
     D_printf("DPMI: Set Page Attributes for %i pages\n", _ecx);
     if (!DPMISetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
@@ -2501,13 +2501,13 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     if (DPMI_CLIENT.is_32) {
 	unsigned int *ssp = sp;
 	*--ssp = get_vFLAGS(_eflags);
-	*--ssp = dpmi_sel(); 
+	*--ssp = dpmi_sel();
 	*--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
 	_esp -= 12;
     } else {
 	unsigned short *ssp = sp;
 	*--ssp = get_vFLAGS(_eflags);
-	*--ssp = dpmi_sel(); 
+	*--ssp = dpmi_sel();
 	*--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_callback);
 	LO_WORD(_esp) -= 6;
     }
@@ -2566,7 +2566,7 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
   } else {
     unsigned short *ssp = sp;
     *--ssp = in_dpmi_dos_int;
-    *--ssp = dpmi_sel(); 
+    *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
     _LWORD(esp) -= 6;
   }
@@ -2588,7 +2588,7 @@ void dpmi_cleanup(void)
     dosemu_error("Quitting DPMI while !in_dpmi_dos_int\n");
   msdos_done();
   FreeAllDescriptors();
-  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack, 
+  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
     PAGE_ALIGN(DPMI_pm_stack_size));
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
@@ -2788,10 +2788,10 @@ void run_pm_int(int i)
     *--ssp = in_dpmi_dos_int;
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
-    *--ssp = _cs; 
+    *--ssp = _cs;
     *--ssp = (unsigned short) _eip;
     *--ssp = (unsigned short) get_vFLAGS(_eflags);
-    *--ssp = dpmi_sel(); 
+    *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     LO_WORD(_esp) -= 18;
   }
@@ -2857,7 +2857,7 @@ void run_pm_dos_int(int i)
   } else {
     unsigned short *ssp = sp;
     *--ssp = get_vFLAGS(_eflags);
-    *--ssp = dpmi_sel(); 
+    *--ssp = dpmi_sel();
     *--ssp = ret_eip;
     LO_WORD(_esp) -= 6;
   }
@@ -3032,7 +3032,7 @@ void dpmi_init(void)
   if (SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_buffer - mem_base,
         LDT_INIT_LIMIT, 0,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-    
+
   if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
   if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, (unsigned char *)DPMI_CLIENT.pm_stack - mem_base,
         DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
@@ -3280,7 +3280,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     } else {
       unsigned short *ssp = sp;
       *--ssp = get_vFLAGS(_eflags);
-      *--ssp = _cs; 
+      *--ssp = _cs;
       *--ssp = _eip;
       _LWORD(esp) -= 6;
     }
@@ -3367,7 +3367,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 #ifdef SHOWREGS
   print_ldt();
 #endif
-  
+
   if (DPMI_CLIENT.Exception_Table[_trapno].selector == dpmi_sel()) {
     do_default_cpu_exception(scp, _trapno);
     return;
@@ -3414,7 +3414,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     *--ssp = 0;
 
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
-    *--ssp = ((unsigned short) get_vFLAGS(_eflags) << 16) | _cs; 
+    *--ssp = ((unsigned short) get_vFLAGS(_eflags) << 16) | _cs;
     *--ssp = ((unsigned short) _eip << 16) | _err;
     *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
   }
@@ -3481,7 +3481,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
   csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
   sp = SEL_ADR(_ss, _esp);
-  
+
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3) {
@@ -3511,7 +3511,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
     Bit32u org_eip;
     int pref_seg;
     int done,is_rep,prefix66,prefix67;
-    
+
     /* DANG_BEGIN_REMARK
      * Here we handle all prefixes prior switching to the appropriate routines
      * The exception CS:EIP will point to the first prefix that effects the
@@ -3555,7 +3555,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	    break;
 	default: /* int/hlt/0f/cpu_exception */
 	    ret = -1;
-	    break;	
+	    break;
 	}
 #ifdef CPUEMU_DIRECT_IO
        if (InCompiledCode && !Segments[_cs >> 3].is_32) {
@@ -3749,7 +3749,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  _gs = *ssp++;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_callback)) {
-	  
+
 	  struct RealModeCallStructure *rmreg;
 
 	  rmreg = (struct RealModeCallStructure *)(GetSegmentBaseAddress(_es)
@@ -3774,7 +3774,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  REG(eip) = (long) rmreg->ip;
 	  REG(ss) = rmreg->ss;
 	  REG(esp) = (long) rmreg->sp;
-	  
+
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -4029,7 +4029,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
         else
 	  _LWORD(esi) += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_LWORD(esi)),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
-      } 
+      }
       if (is_rep) set_LWECX(0);
       LWORD32(eip,++);
       break;
@@ -4273,7 +4273,7 @@ void dpmi_realmode_hlt(unsigned int lina)
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_realmode)) {
     unsigned rmreg_addr = GetSegmentBase(_es) + API_16_32(_edi);
     struct RealModeCallStructure *rmreg = LINEAR2UNIX(rmreg_addr);
-      
+
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
@@ -4345,7 +4345,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 
       case 0x0101:	/* free block */
 	break;
-      
+
       case 0x0102:	/* resize block */
         if (ValidAndUsedSelector(begin_selector)) {
 	  length = GetSegmentLimit(begin_selector) + 1;

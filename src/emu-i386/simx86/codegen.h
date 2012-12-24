@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -206,7 +206,7 @@
 // returns 1(16 bit), 0(32 bit)
 #define BTA(bpos, mode) (((mode) >> (bpos)) & 1)
 
-// returns 2(16 bit), 4(32 bit)	
+// returns 2(16 bit), 4(32 bit)
 #define BT24(bpos, mode) (4 - (((mode) << (1-(bpos))) & 2))
 
 static __inline__ int FastLog2(register int v)

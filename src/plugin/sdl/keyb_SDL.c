@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -137,11 +137,11 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  case SDLK_NUMLOCK:
 		key = KEY_NUM;
 		break;
-		
+
 	  case SDLK_SCROLLOCK:
 		key = KEY_SCROLL;
 		break;
-		
+
 	  case SDLK_KP0 ... SDLK_KP9:
 		key = (keysym.sym - SDLK_KP0) + KEY_PAD_0;
 		break;
@@ -202,15 +202,15 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  case SDLK_DELETE:
 		key = KEY_DEL;
 		break;
-		
+
 	  case SDLK_INSERT:
 		key = KEY_INS;
-		break;		
-		
+		break;
+
 	  case SDLK_BACKSPACE:
 		key = KEY_BKSP;
 		break;
-		
+
 	  case SDLK_ESCAPE:
 		key = KEY_ESC;
 		break;
@@ -247,20 +247,20 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 		key = KEY_DOSEMU_UNDO;
 		break;
 
-	  case SDLK_RSHIFT: key = KEY_R_SHIFT ; break;		
-	  case SDLK_LSHIFT: key = KEY_L_SHIFT ; break;		
-	  case SDLK_RCTRL: key = KEY_R_CTRL ; break;		
-	  case SDLK_LCTRL: key = KEY_L_CTRL ; break;		
+	  case SDLK_RSHIFT: key = KEY_R_SHIFT ; break;
+	  case SDLK_LSHIFT: key = KEY_L_SHIFT ; break;
+	  case SDLK_RCTRL: key = KEY_R_CTRL ; break;
+	  case SDLK_LCTRL: key = KEY_L_CTRL ; break;
 	  case SDLK_RMETA: key = KEY_R_META ; break;
 	  case SDLK_MODE: key = KEY_MODE_SWITCH ; break;
-	  case SDLK_RALT: key = KEY_R_ALT ; break;		
+	  case SDLK_RALT: key = KEY_R_ALT ; break;
 	  case SDLK_RSUPER: key = KEY_R_SUPER ; break;
 	  case SDLK_LMETA: key = KEY_L_META ; break;
-	  case SDLK_LALT: key = KEY_L_ALT ; break;		
+	  case SDLK_LALT: key = KEY_L_ALT ; break;
 	  case SDLK_LSUPER: key = KEY_L_SUPER ; break;
 
 	  /* case SDLK_POWER: */
-	  default: 
+	  default:
 		if (keysym.sym > 255)
 			key = KEY_VOID;
 		break;
@@ -288,6 +288,6 @@ struct keyboard_client Keyboard_SDL =  {
 	NULL,                   /* init */
 	NULL,                   /* reset */
 	NULL,                   /* close */
-	NULL,                   /* run */       
+	NULL,                   /* run */
 	NULL                    /* set_leds */
 };

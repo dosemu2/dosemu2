@@ -351,7 +351,7 @@ void joy_init (void)
 
 		joy_numaxes [joynum] = 0;
 		joy_numbuttons [joynum] = 0;
-		
+
 		/* set to initial values */
 		for (axis = 0; axis < 4; axis++)
 			joy_axis [joynum][axis] = JOY_AXIS_INVALID;
@@ -547,8 +547,8 @@ void joy_init (void)
 		joy_init_printf ("WARNING! No joysticks enabled!\n");
 	#endif
 		joy_status = 0;
-		
-		/* 
+
+		/*
 		 * We don't need to register the port - leave it for direct port
 		 * access (Sourceforge Support Request #1178900).  If direct port
 		 * access is not used, the DOSEMU port emulation will return the
@@ -990,7 +990,7 @@ static inline void joy_linux_read_events (void)
 	}
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION joy_linux_read_status
  *
  * Read both the current position and current button status of the joystick
@@ -1041,7 +1041,7 @@ static inline void joy_linux_read_status (void)
 	#endif
 	}	/* for (joynum = 0; joynum < 2; joynum++)	{ */
 }
- 
+
 /*
  * DANG_BEGIN_FUNCTION joy_linux_read_buttons_(family)
  *
@@ -1236,7 +1236,7 @@ int joy_bios_read (void)
 		/* 1st joystick */
 		LWORD(eax) = joy_driver->read_axis (JOY_0, JOY_X, 0, 1);	/* x */
 		LWORD(ebx) = joy_driver->read_axis (JOY_0, JOY_Y, 0, 0);	/* y */
-		
+
 		/* 2nd joystick */
 		LWORD(ecx) = joy_driver->read_axis (JOY_1, JOY_X, 0, 0);	/* x */
 		LWORD(edx) = joy_driver->read_axis (JOY_1, JOY_Y, 0, 0);	/* y */

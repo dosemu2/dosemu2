@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -205,7 +205,7 @@ fp_mem:
 		G2(0xc189,Cp);
 		// orb 0x3f,al
 		G2(0x3f0c,Cp);
-		// movw	ax,FPUC(ebx)		
+		// movw	ax,FPUC(ebx)
 		G3(0x438966,Cp); G1(Ofs_FPUC,Cp);
 		// fldcw FPUC(ebx)
 		G2(0x6bd9,Cp); G1(Ofs_FPUC,Cp);
@@ -347,7 +347,7 @@ fp_mem:
 		   case 2:		/* FCLEX */
 			goto fp_op;
 		   case 3:		/* FINIT */
-			// movw	0x37f,FPUC(ebx)		
+			// movw	0x37f,FPUC(ebx)
 			G3M(0x66,0xc7,0x43,Cp); G1(Ofs_FPUC,Cp); G2(0x37f,Cp);
 			goto fp_op;
 		   default: /* FNENI,FNDISI: 8087 */

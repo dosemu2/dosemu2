@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -23,7 +23,7 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 	int btn;
 	static int last_btn = 0;
 	int x_pos, y_pos;
-    
+
 	/* Decode Xterm mouse information to a GPM style event */
 
 	if (*kbcount >= 3) {
@@ -36,7 +36,7 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 		/* Variable btn has following meaning: */
 		/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up */
 		btn = (*kbp)[0] & 3;
-    
+
 		/* There seems to be no way of knowing which button was released */
 		/* So we assume all the buttons were released */
 		if (btn == 3){

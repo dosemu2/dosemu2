@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -23,13 +23,13 @@
         pushw (4*\n)
         lret
         \rtnlabel: popw %ds
-.endm   
-										
+.endm
+
 .macro FILL_OPCODE x,v
 .rept \x
 \v
 .endr
-.endm                                           
+.endm
 
 #define FILL_BYTE(x,v) FILL_OPCODE x, .byte v
 #define FILL_DWORD(x,v) FILL_OPCODE x, .int v

@@ -1,10 +1,10 @@
-/* 
+/*
  * DANG_BEGIN_MODULE
- * 
+ *
  * Description: Keyboard coordinator
- * 
+ *
  * Maintainer: Eric Biederman <ebiederm@xmission.com>
- * 
+ *
  * REMARK
  * This module coordinates the initialization of the keyboard.
  *
@@ -29,7 +29,7 @@ void keyb_priv_init(void)
 	keyb_8042_init();
 }
 
-void keyb_init(void) 
+void keyb_init(void)
 {
 	if (!keyb_server_init()) {
 		error("can't init keyboard server\n");

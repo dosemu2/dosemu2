@@ -37,7 +37,7 @@ static inline int is_keypad_keysym(t_keysym key)
 	int result = FALSE;
 	switch(key) {
 	case KEY_PAD_SLASH:	case KEY_PAD_AST:	case KEY_PAD_MINUS:
-	case KEY_PAD_7:		case KEY_PAD_8:		case KEY_PAD_9:	
+	case KEY_PAD_7:		case KEY_PAD_8:		case KEY_PAD_9:
 	case KEY_PAD_4:		case KEY_PAD_5:		case KEY_PAD_6:	case KEY_PAD_PLUS:
 	case KEY_PAD_1:		case KEY_PAD_2:		case KEY_PAD_3:
 	case KEY_PAD_0:		case KEY_PAD_DECIMAL:	case KEY_PAD_ENTER:
@@ -46,7 +46,7 @@ static inline int is_keypad_keysym(t_keysym key)
 	case KEY_PAD_HOME:	case KEY_PAD_UP:	case KEY_PAD_PGUP:
 	case KEY_PAD_LEFT:	case KEY_PAD_CENTER:	case KEY_PAD_RIGHT:
 	case KEY_PAD_END:	case KEY_PAD_DOWN:	case KEY_PAD_PGDN:
-	case KEY_PAD_INS:	case KEY_PAD_DEL:	
+	case KEY_PAD_INS:	case KEY_PAD_DEL:
 
 	case KEY_PAD_SEPARATOR:
 #endif /* HAVE_UNICODE_KEYB */

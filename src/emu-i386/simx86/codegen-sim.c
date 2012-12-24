@@ -276,7 +276,7 @@ static inline int FlagSync_AP_ (void)
 	    af = (RFL.S1 ^ -RFL.S2 ^ RFL.RES.d) & 0x10;
 	else if ((RFL.valid==V_ADC)||(RFL.valid==V_ADD))
 	    af = (RFL.S1 ^ RFL.S2 ^ RFL.RES.d) & 0x10;
-	else       
+	else
 	    af = CPUBYTE(Ofs_FLAGS)&0x10; // Intel says undefined.
 	// PF
 	pf = parity[RFL.RES.b.bl];
@@ -449,8 +449,8 @@ static inline int vga_write_access(unsigned int m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a planar mode */
 	if ((TheCPU.mode&RM_REG) || !Video->update_screen) return 0;
-	m -= TheCPU.mem_base;	
-	return ((unsigned)(m - vga.mem.graph_base) < 
+	m -= TheCPU.mem_base;
+	return ((unsigned)(m - vga.mem.graph_base) <
 		vga.mem.graph_size + (vgaemu_bios.pages<<12) &&
 		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
 		 m >= 0xc0000 ||
@@ -1710,7 +1710,7 @@ void Gen_sim(int op, int mode, ...)
 		sh &= 31;
 		if(!sh)
 			break;
-			
+
 		if (mode & MBYTE) {
 			sh %= 9;
 			rbef = DR1.b.bl;
@@ -1725,7 +1725,7 @@ void Gen_sim(int op, int mode, ...)
 			rbef = DR1.w.l;
 			raft = (rbef<<sh) | (rbef>>(17-sh)) | (cy<<(sh-1));
 			DR1.w.l = raft;
-			if (sh) 
+			if (sh)
 				cy = (rbef>>(16-sh)) & 1;
 			ov = (rbef & 0x8000) != (raft & 0x8000);
 		}
@@ -1757,23 +1757,23 @@ void Gen_sim(int op, int mode, ...)
 		if(!sh)
 			// All flags unchanged (at least on PIII)
 			break;
-			
+
 		RFL.mode = mode;
 		RFL.valid = V_GEN;
-		if (mode & MBYTE) 
+		if (mode & MBYTE)
 			rbef = DR1.b.bl;
 		else if (mode & DATA16)
 			rbef = DR1.w.l;
 		else
 			rbef = DR1.d;
-		
+
 		// To simulate overflow flag. Keep in mind it is only defined
 		// for sh==1. In that case, SHL r/m,1 behaves like ADD r/m,r/m.
 		// So flag state gets set up like that
 		RFL.S1 = RFL.S2 = rbef;
 		raft = (rbef << sh);
 		RFL.RES.d = raft;
-			
+
 		if (mode & MBYTE) {
 			cy = (raft & 0x100) != 0;
 			DR1.b.bl = raft;
@@ -1896,10 +1896,10 @@ void Gen_sim(int op, int mode, ...)
 			ClearOF();
 			break;	// shift count 0, flags unchanged, except OVFL
 		}
-		  
+
 		RFL.mode = mode;
 		RFL.valid = V_GEN;
-		if (mode & MBYTE) 
+		if (mode & MBYTE)
 			rbef = DR1.b.bl;
 		else if (mode & DATA16)
 			rbef = DR1.w.l;
@@ -1910,10 +1910,10 @@ void Gen_sim(int op, int mode, ...)
 		cy = (rbef >> (sh-1)) & 1;
 		raft = rbef >> sh;
 		RFL.RES.d = raft;
-		
+
 		if (mode & MBYTE)
 			DR1.b.bl = raft;
-		else if (mode & DATA16) 
+		else if (mode & DATA16)
 			DR1.w.l = raft;
 		else
 			DR1.d = raft;
@@ -1937,10 +1937,10 @@ void Gen_sim(int op, int mode, ...)
 			ClearOF();
 			break;	// shift count 0, flags unchanged, except OVFL
 		}
-		  
+
 		RFL.mode = mode;
 		RFL.valid = V_GEN;
-		if (mode & MBYTE) 
+		if (mode & MBYTE)
 			rbef = DR1.bs.bl;
 		else if (mode & DATA16)
 			rbef = DR1.ws.l;
@@ -1951,10 +1951,10 @@ void Gen_sim(int op, int mode, ...)
 		cy = (rbef >> (sh-1)) & 1;
 		raft = rbef >> sh;
 		RFL.RES.d = raft;
-		
+
 		if (mode & MBYTE)
 			DR1.bs.bl = raft;
-		else if (mode & DATA16) 
+		else if (mode & DATA16)
 			DR1.ws.l = raft;
 		else
 			DR1.ds = raft;
@@ -1984,7 +1984,7 @@ void Gen_sim(int op, int mode, ...)
 				unsigned char altmp = DR1.b.bl;
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl += 6;
-					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) || 
+					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) ||
 					  (altmp > 0xf9)) | 0x10;
 				}
 				if ((altmp > 0x99) || (IS_CF_SET)) {
@@ -2003,7 +2003,7 @@ void Gen_sim(int op, int mode, ...)
 				unsigned char altmp = DR1.b.bl;
 				if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 					DR1.b.bl -= 6;
-					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) || 
+					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) ||
 						(altmp < 6)) | 0x10;
 				}
 				if ((altmp > 0x99) || (IS_CF_SET)) {
@@ -2346,7 +2346,7 @@ void Gen_sim(int op, int mode, ...)
 	    		AR1.d = CPULONG(Ofs_XES);
 			SR1.d = CPUWORD(Ofs_DI); /* for overflow calc */
 			AR1.d += SR1.d;
-			
+
 		    }
 		    TR1.d = (mode&(MREP|MREPNE)? CPUWORD(Ofs_CX) : 1);
 		}
@@ -2969,7 +2969,7 @@ void Gen_sim(int op, int mode, ...)
 			}
 		}
 	}
-	
+
 #ifdef PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif

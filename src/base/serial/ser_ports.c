@@ -71,7 +71,7 @@ static inline void tx_buffer_dump(int num)
 }
 
 
-/* This function slides the contents of the receive buffer to the 
+/* This function slides the contents of the receive buffer to the
  * bottom of the buffer.  A sliding buffer is used instead of
  * a circular buffer because this way, a single read() can easily
  * put data straight into our internal receive buffer!
@@ -84,7 +84,7 @@ void rx_buffer_slide(int num)
   memmove(com[num].rx_buf, com[num].rx_buf + com[num].rx_buf_start,
     RX_BUF_BYTES(num));
 
-  /* Update start and end pointers in buffer */        
+  /* Update start and end pointers in buffer */
   com[num].rx_buf_end -= com[num].rx_buf_start;
   com[num].rx_buf_start = 0;
 }
@@ -149,9 +149,9 @@ static u_char get_IIR_val(int num)
 }
 
 /* This function checks for newly received data and fills the UART
- * FIFO (16550 mode) or receive register (16450 mode).  
+ * FIFO (16550 mode) or receive register (16450 mode).
  *
- * Note: The receive buffer is now a sliding buffer instead of 
+ * Note: The receive buffer is now a sliding buffer instead of
  * a queue.  This has been found to be more efficient here.
  *
  * [num = port]
@@ -163,9 +163,9 @@ void uart_fill(int num)
   /* Return if in loopback mode */
   if (com[num].MCR & UART_MCR_LOOP) return;
 
-  /* Is it time to do another read() of the serial device yet? 
-   * The rx_timer is used to prevent system load caused by empty read()'s 
-   * It also skip the following code block if the receive buffer 
+  /* Is it time to do another read() of the serial device yet?
+   * The rx_timer is used to prevent system load caused by empty read()'s
+   * It also skip the following code block if the receive buffer
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
@@ -181,7 +181,7 @@ void uart_fill(int num)
   /* Do a block read of data.
    * Guaranteed minimum requested read size of (RX_BUFFER_SIZE - 16)!
    */
-  size = RPT_SYSCALL(read(com[num].fd, 
+  size = RPT_SYSCALL(read(com[num].fd,
                               &com[num].rx_buf[com[num].rx_buf_end],
                               RX_BUFFER_SIZE - com[num].rx_buf_end));
   if (size <= 0)
@@ -210,13 +210,13 @@ void uart_fill(int num)
 /* This function clears the specified XMIT and/or RCVR FIFO's.  This is
  * done on initialization, and when changing from 16450 to 16550 mode, and
  * vice versa.  [num = port, fifo = flags to indicate which fifos to clear]
- */ 
+ */
 void uart_clear_fifo(int num, int fifo)
 {
   /* DANG_FIXTHIS Should clearing UART cause THRE int if it's enabled? */
 
   if(s1_printf) s_printf("SER%d: Clear FIFO.\n",num);
-  
+
   /* Clear the receive FIFO */
   if (fifo & UART_FCR_CLEAR_RCVR) {
     /* Preserve THR empty state, clear error bits and recv data ready bit */
@@ -310,8 +310,8 @@ void ser_termios(int num)
   }
 
   /* Linux 1.1.65 and above supports 115200 and 57600 directly, while
-   * Linux 1.1.64 and below do not support them.  For these kernels, make 
-   * B115200 and B57600 equal to B38400.  These defines also may be 
+   * Linux 1.1.64 and below do not support them.  For these kernels, make
+   * B115200 and B57600 equal to B38400.  These defines also may be
    * important if DOSEMU is ported to other nix-like operating systems.
    */
   #ifndef B115200
@@ -320,7 +320,7 @@ void ser_termios(int num)
   #ifndef B57600
   #define B57600 B38400
   #endif
-                       
+
   /* The following sets the baudrate.  These nested IF statements rounds
    * upwards to the next higher baudrate. (ie, rounds downwards to the next
    * valid divisor value) The formula is:  bps = 1843200 / (divisor * 16)
@@ -471,7 +471,7 @@ static int get_rx(int num)
 int msr_compute_delta_bits(int oldmsr, int newmsr)
 {
   int delta;
-  
+
   /* Compute difference bits, and restrict RI bit to trailing-edge */
   delta = (oldmsr ^ newmsr) & ~(newmsr & UART_MSR_RI);
 
@@ -527,7 +527,7 @@ get_lsr(int num)
 
 /* This function transmits a character.  This function is called mainly
  * through do_serial_out, when the Transmit Register is written to.
- * The end result is that the character is put into the THR or the 
+ * The end result is that the character is put into the THR or the
  * transmit FIFO. (or receive fifo if in Loopback test mode)
  * [num = port, val = character to transmit]
  */
@@ -784,7 +784,7 @@ put_mcr(int num, int val)
  * [num = port, val = new value to write to LSR]
  */
 static void
-put_lsr(int num, int val) 
+put_lsr(int num, int val)
 {
   int int_type = 0;
 
@@ -840,7 +840,7 @@ put_msr(int num, int val)
 
 /* DANG_BEGIN_FUNCTION do_serial_in
  * The following function returns a value from an I/O port.  The port
- * is an I/O address such as 0x3F8 (the base port address of COM1). 
+ * is an I/O address such as 0x3F8 (the base port address of COM1).
  * There are 8 I/O addresses for each serial port which ranges from
  * the base port (ie 0x3F8) to the base port plus seven (ie 0x3FF).
  * [num = abritary port number for serial line, address = I/O port address]
@@ -860,7 +860,7 @@ do_serial_in(int num, ioport_t address)
     return 0;
 
   switch (address - com_cfg[num].base_port) {
-  case UART_RX:		/* Read from Received Byte Register */	
+  case UART_RX:		/* Read from Received Byte Register */
 /*case UART_DLL:*/      /* or Read from Baudrate Divisor Latch LSB */
     if (com[num].DLAB) {	/* Is DLAB set? */
       val = com[num].dll;	/* Then read Divisor Latch LSB */
@@ -933,9 +933,9 @@ do_serial_in(int num, ioport_t address)
 }
 
 
-/* DANG_BEGIN_FUNCTION do_serial_out 
+/* DANG_BEGIN_FUNCTION do_serial_out
  * The following function writes a value to an I/O port.  The port
- * is an I/O address such as 0x3F8 (the base port address of COM1). 
+ * is an I/O address such as 0x3F8 (the base port address of COM1).
  * [num = abritary port number for serial line, address = I/O port address,
  * val = value to write to I/O port address]
  * DANG_END_FUNCTION

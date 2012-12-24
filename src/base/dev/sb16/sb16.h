@@ -53,14 +53,14 @@
 #define SB_IRQ_DSP (SB_IRQ_8BIT | SB_IRQ_16BIT | SB_IRQ_MIDI)
 #define SB_IRQ_ALL (SB_IRQ_DSP | SB_IRQ_MPU401)
 
-/* 
- * DSP information / states 
+/*
+ * DSP information / states
  */
 struct sb_struct {
   uint16_t rate;		/* The current sample rate for input */
   uint8_t  test;		/* Storage for the test value */
   uint8_t  reset_val;
-  int      paused;		/* is DMA transfer paused? */ 
+  int      paused;		/* is DMA transfer paused? */
   int      reset;
   uint8_t  mpu401_uart;
   uint8_t  midi_cmd;

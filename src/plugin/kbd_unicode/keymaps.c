@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -31,7 +31,7 @@ int X11_DetectLayout (void);
 #endif
 
 /* DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * These are definitions, giving which key is related to which scancode in
  * raw keyboard mode. Basically, the code of 'x' on a US keyboard may be that
@@ -534,7 +534,7 @@ CONST t_keysym key_map_dk[] =
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID
 };
- 
+
 CONST t_keysym shift_map_dk[] =
 {
   U_VOID, 27, '!', '"', '#', '$', '%', '&',
@@ -1512,7 +1512,7 @@ CONST t_keysym key_map_pl[] =
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID};
-     
+
 CONST t_keysym shift_map_pl[] =
 {
      U_VOID,27,'!','@','#','$','%','^',
@@ -1528,7 +1528,7 @@ CONST t_keysym shift_map_pl[] =
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID};
-     
+
 CONST t_keysym alt_map_pl[] =
 {
      U_VOID,U_VOID,U_VOID,'@',U_VOID,U_VOID,U_VOID,U_VOID,
@@ -1840,11 +1840,11 @@ CONST t_keysym ctrl_map_ru[] =
 };
 
 CONST t_keysym key_map_tr[] =	{
-	U_VOID,27,'1','2','3','4','5','6','7','8','9','0','*','-',127,9, 
+	U_VOID,27,'1','2','3','4','5','6','7','8','9','0','*','-',127,9,
 	'q','w','e','r','t','y','u',0x131,'o','p',0x11f,0xfc,13,U_VOID,
 	'a','s','d','f','g','h','j','k','l',0x15f,'i',0xe9,U_VOID,44,
 	'z','x','c','v','b','n','m',0xf6,0xe7,'.',U_VOID,
-	'*',U_VOID,' ',U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID, 
+	'*',U_VOID,' ',U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
 	U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
 	U_VOID,'-',U_VOID,U_VOID,U_VOID,'+',U_VOID,
 	U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,'<',U_VOID,
@@ -1853,7 +1853,7 @@ CONST t_keysym key_map_tr[] =	{
 };
 CONST t_keysym shift_map_tr[] =
 {
-     U_VOID,27,'!','\'','^','+','%','&','/','(',')','=','?','_',127,9, 
+     U_VOID,27,'!','\'','^','+','%','&','/','(',')','=','?','_',127,9,
      'Q','W','E','R','T','Y','U','I','O','P',0x11e,0xdc,13,U_VOID,
 		 'A','S','D','F','G','H','J','K','L',0x15e,0x130,34,U_VOID,';',
 		 'Z','X','C','V','B','N','M',0xd6,0xc7,':',U_VOID,
@@ -1867,13 +1867,13 @@ CONST t_keysym shift_map_tr[] =
 CONST t_keysym alt_map_tr[] =
 {
      U_VOID,U_VOID,U_VOID,U_VOID,'#','$',U_VOID,U_VOID,'{','[',']','}','\\',
-		 U_VOID,U_VOID,U_VOID, 
+		 U_VOID,U_VOID,U_VOID,
      '@',U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
-		 '~',U_VOID,U_VOID,U_VOID,U_VOID, 
+		 '~',U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
-		 U_VOID,'`',U_VOID,U_VOID,U_VOID,U_VOID, 
+		 U_VOID,'`',U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
-		 U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID, 
+		 U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
 		 U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
 		 U_VOID,U_VOID,'|',U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
@@ -2037,7 +2037,7 @@ struct keytable_entry keytable_list[] = {
     num_table_dot,},
   {"cz-qwertz", KEYB_CZ_QWERTZ, 0, CT(key_map_cz_qwertz), CT(num_table_comma),
     key_map_cz_qwertz, shift_map_cz_qwertz, alt_map_cz_qwertz,
-    num_table_comma,},                                       
+    num_table_comma,},
   {"ru", KEYB_RU, KT_ALTERNATE, CT(key_map_ru), CT(num_table_dot),
     key_map_ru, shift_map_ru, alt_map_ru,
     num_table_dot, ctrl_map_ru},
@@ -2067,10 +2067,10 @@ static char* pretty_keysym(t_keysym d)
 	else {
 		sprintf(b, "'%c' ", (char) d);
 	}
-	
+
 	if(d == '\'') s = "'\\''";
 	if(d == KEY_VOID) s = " -- ";
-	
+
 	return s;
 }
 #endif
@@ -2087,7 +2087,7 @@ static t_keysym dosemu_val(unsigned k)
 
 	unsigned t = KTYP(k), v = KVAL(k);
 	t_keysym d;
-	
+
 	d = KEY_VOID;
 	if (t >= 14)
 		/* NR_TYPES is 14 in the kernel but keyboard.h doesn't
@@ -2144,8 +2144,8 @@ static t_keysym dosemu_val(unsigned k)
 		}
 		break;
 #endif
-		
-		
+
+
 	case KT_SPEC:
 		switch(k) {
 		case K_HOLE:  d = KEY_VOID; break;
@@ -2153,7 +2153,7 @@ static t_keysym dosemu_val(unsigned k)
 		default:      d = KEY_VOID; /* K_CAPS, K_NUM, ... ??? */
 		}
 		break;
-		
+
 	case KT_PAD:
 		switch(k) {
 		case K_P0:	d = KEY_PAD_INS; break;
@@ -2176,7 +2176,7 @@ static t_keysym dosemu_val(unsigned k)
 		default:	d = KEY_VOID; break;
 		}
 		break;
-		
+
 	case KT_SHIFT:
 		switch(k) {
 		case K_SHIFT:	d = KEY_L_SHIFT; break;
@@ -2192,7 +2192,7 @@ static t_keysym dosemu_val(unsigned k)
 	case KT_META:
 		d = KEY_VOID;
 		break;
-		
+
 	case KT_DEAD:
 		switch(k) {
 		case K_DGRAVE: d = KEY_DEAD_GRAVE; break;
@@ -2213,7 +2213,7 @@ static t_keysym dosemu_val(unsigned k)
 	default:
 		break;
 	}
-	
+
 	return d;
 }
 
@@ -2222,7 +2222,7 @@ struct keycode_map {
 	unsigned char dosemu;
 	unsigned char kernel;
 };
-static const struct keycode_map dosemu_to_kernel[] = 
+static const struct keycode_map dosemu_to_kernel[] =
 {
 	{NUM_L_ALT,		0x38},
 	{NUM_R_ALT,		100},
@@ -2327,7 +2327,7 @@ static const struct keycode_map dosemu_to_kernel[] =
 	{NUM_DOWN,		108},
 	{NUM_LEFT,		105},
 	{NUM_RIGHT,		106},
-	
+
 	{NUM_LWIN,		125},
 	{NUM_RWIN,		126},
 	{NUM_MENU,		127},
@@ -2342,12 +2342,12 @@ static int read_kbd_table(struct keytable_entry *kt,
 	int fd, i, j = -1;
 	struct kbentry ke;
 	int altgr_present, altgr_lock_present;
-	
+
 	fd = getfd();
 	if(fd < 0) {
 		return 1;
 	}
-	
+
 	altgr_present = 0;
 	altgr_lock_present = 0;
 	for(i = 0; i < sizeof(dosemu_to_kernel)/sizeof(dosemu_to_kernel[0]); i++) {
@@ -2357,15 +2357,15 @@ static int read_kbd_table(struct keytable_entry *kt,
 		kernel = dosemu_to_kernel[i].kernel;
 		dosemu = dosemu_to_kernel[i].dosemu;
 		ke.kb_index = kernel;
-		
+
 		ke.kb_table = 0;
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		vp = ke.kb_value;
-		
+
 		ke.kb_table = 1 << KG_SHIFT;
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		vs = ke.kb_value;
-		
+
 		ke.kb_table = 1 << KG_ALTGR;
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		va = ke.kb_value;
@@ -2373,11 +2373,11 @@ static int read_kbd_table(struct keytable_entry *kt,
 		ke.kb_table = (1 << KG_SHIFT) | (1 << KG_ALTGR);
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		vsa = ke.kb_value;
-		
+
 		ke.kb_table = 1 << KG_CTRL;
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		vc = ke.kb_value;
-		
+
 		kp = dosemu_val(vp);
 		ks = dosemu_val(vs);
 		ka = dosemu_val(va);
@@ -2451,7 +2451,7 @@ static int read_kbd_table(struct keytable_entry *kt,
  *
  * NOTE: If you use X you might get the *wrong* mapping
  * (e.g. on remote machines)... :-)
- * 
+ *
  * we now compare this map and all the keymaps above
  * with the X keymap (if X is available) and chose the
  * best one.
@@ -2459,10 +2459,10 @@ static int read_kbd_table(struct keytable_entry *kt,
 void setup_default_keytable()
 {
   static char *dt_name = "auto";
-  static t_keysym 
-	  plain_map[NUM_KEY_NUMS], 
-	  shift_map[NUM_KEY_NUMS], 
-	  alt_map[NUM_KEY_NUMS], 
+  static t_keysym
+	  plain_map[NUM_KEY_NUMS],
+	  shift_map[NUM_KEY_NUMS],
+	  alt_map[NUM_KEY_NUMS],
 	  num_map[14],
 	  ctrl_map[NUM_KEY_NUMS],
 	  shift_alt_map[NUM_KEY_NUMS],
@@ -2525,7 +2525,7 @@ void setup_default_keytable()
 #ifdef USE_DL_PLUGINS
   handle = load_plugin("X");
   if (handle) {
-    int (*X11_DetectLayout)(void) = 
+    int (*X11_DetectLayout)(void) =
       (int(*)(void))dlsym(handle, "X11_DetectLayout");
     if (X11_DetectLayout)
       idx = X11_DetectLayout();

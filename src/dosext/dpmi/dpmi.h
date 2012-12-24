@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -62,10 +62,10 @@ typedef struct segment_descriptor_s
     unsigned int	limit;		/* Limit of Segment */
     unsigned int	type:2;
     unsigned int	is_32:1;	/* one for is 32-bit Segment */
-    unsigned int	readonly:1;	/* one for read only Segments */	
+    unsigned int	readonly:1;	/* one for read only Segments */
     unsigned int	is_big:1;	/* Granularity */
-    unsigned int	not_present:1;		
-    unsigned int	useable:1;		
+    unsigned int	not_present:1;
+    unsigned int	useable:1;
     unsigned int	used;		/* Segment in use by client # */
 					/* or Linux/GLibc (0xfe) */
 					/* or DOSEMU (0xff) */

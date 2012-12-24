@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -24,4 +24,4 @@
 #if (LX_KERNEL_VERSION < 2000028) || ((LX_KERNEL_VERSION >= 2001000) && (LX_KERNEL_VERSION < 2001015))
 #error "wrong kernel version: < 2.0.28 or 2.1.x < 2.1.15"
 #endif
-#endif 
+#endif

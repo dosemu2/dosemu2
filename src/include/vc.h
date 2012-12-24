@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -191,5 +191,5 @@ extern int dos_has_vt;
 
 EXTERN int user_vc_switch INIT(0);
 
-#endif 
+#endif
 /* End of include/vc.h */

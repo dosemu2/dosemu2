@@ -15,7 +15,7 @@ struct print_state
 	int line;
 	int chars;
 };
-static void start_line(struct print_state *state, int max) 
+static void start_line(struct print_state *state, int max)
 {
 	if (state->chars > max) {
 		fprintf(state->out, "\n");
@@ -40,10 +40,10 @@ static void print_header(struct print_state *state)
 static void print_trailer(struct print_state *state)
 {
 	start_line(state, 0);
-	fprintf(state->out, 
+	fprintf(state->out,
 "};\n"
 		);
-	
+
 }
 
 static void print_entry(struct print_state *state, int letter, int attrib)
@@ -85,7 +85,7 @@ struct entry {
 static unsigned char compute_attribute(char *type)
 {
 	unsigned char attrib = KEYSYM_UNKNOWN;
-	
+
 	if (type[0] == 'M') {
 		attrib = KEYSYM_COMBINING;
 	}
@@ -256,7 +256,7 @@ static int compute_missing_attribute(int letter)
 	case KEY_DEAD_KEY_PAD:
 		attrib = KEYSYM_DEAD;
 		break;
-		
+
 	/* dosemu special functions */
 	case KEY_DOSEMU_HELP:
 	case KEY_DOSEMU_REDRAW:

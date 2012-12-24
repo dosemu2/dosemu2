@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -48,7 +48,7 @@
  * This module generates x86 code. Hey, wait... x86 from x86?
  * Actually the generated code runs always in 32-bit mode, so in a way
  * the 16-bit V86 mode is "emulated".
- * 
+ *
  * All instructions operate on a virtual CPU image in memory ("TheCPU"),
  * and are completely self-contained. They read from TheCPU registers,
  * operate, and store back to the same registers. There's an exception -
@@ -1805,7 +1805,7 @@ shrot0:
 				break;
 			    case MOVSSRC:
 			    	/* limit in eax, want it in edx */
-				// xchg %%eax,%%edx	
+				// xchg %%eax,%%edx
 			        G1(XCHGdx,Cp);
 			        break;
 			    case MOVSSRC | MOVSDST:
@@ -1824,7 +1824,7 @@ shrot0:
 			G2M(JBE_JNA,0x02,Cp);
 			// mov %%ecx,%%edx
 			G2M(MOVwfrm,0xCA,Cp);
-			// 0: 
+			// 0:
 			// xchg %%ecx,%%edx
 			G2M(XCHGwrm,0xCA,Cp);
 			// sub %%ecx, %%edx
@@ -3082,7 +3082,7 @@ void NodeUnlinker(TNode *G)
  *	The PC parameter is the address in the source code of the next
  *	instruction following the end of the code block. It will be stored
  *	into the TailCode of the block.
- * 2) We are executing a sequence found in the collecting tree. 
+ * 2) We are executing a sequence found in the collecting tree.
  *	Exec_x86 is called directly.
  *	G is the node we found (possibly the start of a chain of linked
  *	code sequences).
@@ -3284,7 +3284,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 		}
 	}
 
-	
+
 	if (eTimeCorrect >= 0) {
 	    TimeEndExec.td -= TimeStartExec.td;
 	    TheCPU.EMUtime += TimeEndExec.td;

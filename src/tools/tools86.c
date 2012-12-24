@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -11,9 +11,9 @@
  *
  * (C) 1994 under GPL:  Hans Lermen <lermen@elserv.ffm.fgan.de>
  * (put under DOSEMU policy 1998, --Hans)
- *  
+ *
  * Tools86 has two operation modes:
- * 
+ *
  * 1. Additional Preprocessor for as86
  *
  *    Because some of the features in as86 are buggy or not
@@ -23,7 +23,7 @@
  *    through tools86 we have the the following "extensions" to as86:
  *
  *    - We can have multiple asm instructions per line (needed if using
- *      CPP macros). 
+ *      CPP macros).
  *      The delimiter between the instructions is "!!!" (three bangs).
  *      This will be translated by tools86 to "\n", which can't not be
  *      passed through CPP macros. Example:
@@ -39,15 +39,15 @@
  *      .REPT  count
  *        ...any code or data...
  *      .ENDR
- *      
- *      "count" must be a simple number or a expression of form 
+ *
+ *      "count" must be a simple number or a expression of form
  *      "(count -const)" or "(count +const)", sorry, but I was too lazy to
  *      to implement more.
  *
  *      .REPT and .ENDR may appear on the same line. So we can realize
  *      a FILL_LONG macro as follows:
  *
- *          #define FILL_LONG(x,value) .long value .REPT (x-1) ,value .ENDR      
+ *          #define FILL_LONG(x,value) .long value .REPT (x-1) ,value .ENDR
  *
  *      And  FILL_LONG(5,-2) will produce the following output:
  *
@@ -61,7 +61,7 @@
  *      gcc -E test.S | tools86 -E >test.s
  *      as86 -0 -w -j -g -o test.o
  *
- *    NOTE: 
+ *    NOTE:
  *    The -g switch is necessary to avoid local "a" labels to be
  *    converted later (see below).
  *    The -j switch is neccessary for jumping larger then +/-128.
@@ -82,7 +82,7 @@
  *
  *    The resulting test.o is now linkable with ld and can be put into
  *    a library.
- *    The only restriction is, that you can only have a .text segment, 
+ *    The only restriction is, that you can only have a .text segment,
  *    ( no .data or .bss). But you *can* have public
  *    global symbols and reference them from other GCC produced code.
  *
@@ -97,7 +97,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <string.h> 
+#include <string.h>
 #include <errno.h>
 #include <ctype.h>
 
@@ -162,7 +162,7 @@ static int change_aout(char *objfile, int update_symtable)
 {
   FILE * f;
 #ifdef __linux__
-  struct bsd_header bsd; 
+  struct bsd_header bsd;
   struct gnu_header gnu;
 #endif
   int ret;
@@ -221,7 +221,7 @@ static inline int _skipwhite(FILE *f) {
   ungetc(c,f);
   return c;
 }
-  
+
 static inline int was(char *s, char *b, int buf_i, int buf_n) {
   int i=buf_i, n=buf_n;
   while (*s) {
@@ -243,7 +243,7 @@ static inline void _fputc(int c, FILE *fo, char *cb, int copy, int *cbuf_i) {
     }
   }
 }
-  
+
 static inline void _put(int c, FILE *fo, char *cb, int copy, int *cbuf_i,
 			char *b, int *buf_i, int *buf_n) {
   if (*buf_n >= SIZE_BBUF) _fputc(b[*buf_i], fo, cb, copy, cbuf_i);
@@ -251,7 +251,7 @@ static inline void _put(int c, FILE *fo, char *cb, int copy, int *cbuf_i,
   b[*buf_i]=c;
   INC_BBUF(*buf_i,1);
 }
-  
+
 static inline void _flush(FILE *fo, char *cb, int copy, int *cbuf_i,
 			  char *b, int *buf_i, int *buf_n) {
   INC_BBUF(*buf_i,-*buf_n);
@@ -262,13 +262,13 @@ static inline void _flush(FILE *fo, char *cb, int copy, int *cbuf_i,
   *buf_i = 0;
   *buf_n = 0;
 }
-  
+
 static inline void _unget(int count, int *buf_i, int *buf_n) {
   if (count > *buf_n) count = *buf_n;
   INC_BBUF(*buf_i,-count);
   *buf_n -= count;
 }
-  
+
 static inline int _nextnum(int *pc, FILE *f) {
   int c=*pc;
   char auxb[40];
@@ -280,7 +280,7 @@ static inline int _nextnum(int *pc, FILE *f) {
     }
     else {
       if (isspace(c)) {
-	c = _skipwhite(f); 
+	c = _skipwhite(f);
 	if (c==')') fgetc(f);
 	break;
       }
@@ -314,7 +314,7 @@ static int preprocess(FILE *f, FILE *fo)
   char cb[COPY_BUF_SIZE];
   int buf_i=0, buf_n=0, copy=0, cbuf_i=0, copy_count=0;
   int c;
-  
+
   while ((c=fgetc(f)) != EOF) {
     switch (c) {
       case '!': {
@@ -387,11 +387,11 @@ int main (int argc, char** argv)
   if (!strcmp(argv[1],"-E")) {
     return preprocess(stdin,stdout);
   }
-  
+
   if (change_aout(argv[1],1)) {
     fprintf(stderr, "conv_aout: error on converting\n");
     return 1;
-  }  
+  }
   return 0;
 }
 

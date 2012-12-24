@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -591,7 +591,7 @@ void Cpu2Reg (void)
    * The cpuemu should not change VIP, the good one is always in vm86s.
    */
   mask = VIF | eTSSMASK;
-  vm86s.regs.eflags = (vm86s.regs.eflags & VIP) | 
+  vm86s.regs.eflags = (vm86s.regs.eflags & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
@@ -706,7 +706,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
     _eip = return_addr & 0xffff;
     /* rebuild running flags */
     mask = VIF | eTSSMASK;
-    vm86s.regs.eflags = (vm86s.regs.eflags & VIP) | 
+    vm86s.regs.eflags = (vm86s.regs.eflags & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
     _eflags = vm86s.regs.eflags & ~VM;
   }

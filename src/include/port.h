@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -6,7 +6,7 @@
 
 /*
  * include/port.h - contains INLINE-Functions for port access
- * 
+ *
  */
 
 #ifndef _PORT_H

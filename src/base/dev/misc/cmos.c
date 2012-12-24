@@ -1,14 +1,14 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * SIDOC_BEGIN_MODULE
  *
  * Description: CMOS handling routines
- * 
+ *
  * Originally by Robert Sanders, gt8134b@prism.gatech.edu
  * New CMOS code by vignani@mail.tin.it 1997-98
  *
@@ -115,7 +115,7 @@ void cmos_init(void)
   rtc_init();
 
   /* CMOS floppies...is this correct? */
-  SET_CMOS(CMOS_DISKTYPE, 
+  SET_CMOS(CMOS_DISKTYPE,
 	(config.fdisks ? (disktab[0].default_cmos << 4) : 0) |
 	((config.fdisks > 1) ? disktab[1].default_cmos & 0xf : 0));
 

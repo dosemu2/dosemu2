@@ -540,7 +540,7 @@ main(int argc, char **argv)
 
     /* duplicate redirection: try to reredirect */
     if (ccode == 0x55) {
-      DeleteDriveRedirection(deviceStr);     
+      DeleteDriveRedirection(deviceStr);
       ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
                              deviceParam);
     }

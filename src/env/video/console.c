@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -25,10 +25,10 @@
 static void console_update_cursor(void)
 {
   /* This routine updates the state of the cursor, including its cursor
-   * position and visibility.  The linux console recognizes the ANSI code 
-   * "\033[y;xH" where y is the cursor row, and x is the cursor position.  
-   * For example "\033[15;8H" printed to stdout will move the cursor to 
-   * row 15, column 8.   The "\033[?25l" string hides the cursor and the 
+   * position and visibility.  The linux console recognizes the ANSI code
+   * "\033[y;xH" where y is the cursor row, and x is the cursor position.
+   * For example "\033[15;8H" printed to stdout will move the cursor to
+   * row 15, column 8.   The "\033[?25l" string hides the cursor and the
    * "\033[?25h" string shows the cursor.
    */
 
@@ -36,7 +36,7 @@ static void console_update_cursor(void)
   static int oldx = -1;
   static int oldy = -1;
   static int oldblink = 0;
-  
+
   int xpos = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
   int ypos = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
   int blinkflag = !(vga.crtc.cursor_shape.w & 0x6000);
@@ -49,21 +49,21 @@ static void console_update_cursor(void)
   /* The cursor is off-screen, so disable its blinking */
   if ((unsigned) xpos >= vga.text_width || (unsigned) ypos >= vga.text_height)
     blinkflag = 0;
-  
+
   if (blinkflag) {
     /* Enable blinking if it has not already */
     if (!oldblink)
       fprintf(stdout,"\033[?25h");
     /* Update cursor position if it has moved since last time in this func */
-    if ((xpos != oldx) || (ypos != oldy)) 
+    if ((xpos != oldx) || (ypos != oldy))
       fprintf(stdout,"\033[%d;%dH",ypos+1,xpos+1);
   }
   else {
-    /* Disable blinking if it hasnt already */ 
+    /* Disable blinking if it hasnt already */
     if (oldblink)
       fprintf(stdout,"\033[?25l");
   }
-  
+
   /* Save current state of cursor for next call to this function. */
   oldx = xpos; oldy = ypos; oldblink = blinkflag;
 }
@@ -78,11 +78,11 @@ static int console_post_init(void)
   kdmode = config.vga? KD_GRAPHICS: KD_TEXT;
   ioctl(console_fd, KDSETMODE, kdmode);
 
-  /* Clear the Linux console screen. The console recognizes these codes: 
+  /* Clear the Linux console screen. The console recognizes these codes:
    * \033[?25h = show cursor.
-   * \033[0m = reset color.  
-   * \033[H = Move cursor to upper-left corner of screen.  
-   * \033[2J = Clear screen.  
+   * \033[0m = reset color.
+   * \033[H = Move cursor to upper-left corner of screen.
+   * \033[2J = Clear screen.
    */
   vga_emu_init(0, NULL);
   if (!config.vga) {
@@ -103,7 +103,7 @@ static int console_post_init(void)
      The action seems sensible only if config.console_video.
                                                    saw@shade.msu.ru
   */
-  
+
   if (config.force_vt_switch && !vc_active()) {
     if (ioctl(console_fd, VT_ACTIVATE, scr_state.console_no)<0)
       v_printf("VID: error VT switching %s\n", strerror(errno));

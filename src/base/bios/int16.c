@@ -24,7 +24,7 @@ enum {
 };
 
 /* SUBROUTINE:	Dumb down a key for nonextend keyboards
- * on return:	
+ * on return:
  * 		-1 => ignore/ditch key, otherwise valid
  */
 static unsigned do_extended(unsigned key, int extended)
@@ -35,15 +35,15 @@ static unsigned do_extended(unsigned key, int extended)
   if (extended == EXTENDED || key == 0x00e0) {
     return key;
   }
-    
+
   /* remove 0xE0 from AL for nonextended calls */
   /* is character 0xE0 ? */
-  if ((key & 0xff) == 0xe0) {     
+  if ((key & 0xff) == 0xe0) {
     key &= ~0xff;           /* yes, set to 0x00 */
     if (scan_code == 0x23)  /* small cyrillic er */
       return 0x00e0;
     /* Hide new scan codes */
-    return scan_code >= 0x85 ? -1 : key; 
+    return scan_code >= 0x85 ? -1 : key;
   }
 
   /* Not always alt keys but nearly */
@@ -102,7 +102,7 @@ static unsigned get_key(int blocking, int extended)
         /* check for wrap around	*/
         if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
           /* wrap - get buffer start	*/
-          keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START); 
+          keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START);
         }
         /* save it as new pointer	*/
         WRITE_WORD(BIOS_KEYBOARD_BUFFER_HEAD, keyptr);
@@ -157,7 +157,7 @@ static void get_shift_flags(void)
 
   fl1 = READ_BYTE(BIOS_KEYBOARD_FLAGS1);
   /* get extended shift flags*/
-  fl2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2); 
+  fl2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2);
   fl3 = READ_BYTE(BIOS_KEYBOARD_FLAGS3);
   /* disallow bits 2, 3, & 7 	*/
 
@@ -169,7 +169,7 @@ static void get_shift_flags(void)
   LWORD(eax) = (((fl2 & 0x73) | ((fl2 & 0x04) << 5) | (fl3 & 0xc)) << 8) | fl1;
 }
 
-/* SUBROUTINE: store keycode in the BIOS keyboard buffer, 
+/* SUBROUTINE: store keycode in the BIOS keyboard buffer,
  * return 1 if buffer is not full.
  */
 static int store_key(unsigned keycode)

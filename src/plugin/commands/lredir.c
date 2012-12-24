@@ -489,7 +489,7 @@ int lredir_main(int argc, char **argv)
       return(0);
     }
 
-    if (strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {    
+    if (strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {
       DeleteDriveRedirection(argv[2]);
       return(0);
     }
@@ -552,7 +552,7 @@ int lredir_main(int argc, char **argv)
 
     /* duplicate redirection: try to reredirect */
     if (ccode == 0x55) {
-      DeleteDriveRedirection(deviceStr);     
+      DeleteDriveRedirection(deviceStr);
       ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
                              deviceParam);
     }

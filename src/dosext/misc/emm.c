@@ -393,7 +393,7 @@ emm_deallocate_handle(int handle)
 static void _do_map_page(unsigned int dst, caddr_t src, int size)
 {
   E_printf("EMS: mmap()ing from %p to %#x\n", src, dst);
-  
+
   if (MAP_FAILED == alias_mapping(MAPPING_EMS, dst, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  src)) {
@@ -423,7 +423,7 @@ __map_page(int physical_page)
   if (handle == NULL_HANDLE)
     return (FALSE);
 
-  E_printf("EMS: map()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
+  E_printf("EMS: map()ing physical page 0x%01x, handle=%d, logical page 0x%x\n",
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = PHYS_PAGE_ADDR(physical_page);
@@ -445,7 +445,7 @@ __unmap_page(int physical_page)
   if (handle == NULL_HANDLE)
     return (FALSE);
 
-  E_printf("EMS: unmap()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
+  E_printf("EMS: unmap()ing physical page 0x%01x, handle=%d, logical page 0x%x\n",
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = PHYS_PAGE_ADDR(physical_page);
@@ -482,13 +482,13 @@ map_page(int handle, int physical_page, int logical_page)
   unsigned int base;
   caddr_t logical;
 
-  E_printf("EMS: map_page(handle=%d, phy_page=%d, log_page=%d), prev handle=%d\n", 
+  E_printf("EMS: map_page(handle=%d, phy_page=%d, log_page=%d), prev handle=%d\n",
            handle, physical_page, logical_page, emm_map[physical_page].handle);
 
   if ((physical_page < 0) || (physical_page >= phys_pages))
     return (FALSE);
 
-  if (handle == NULL_HANDLE) 
+  if (handle == NULL_HANDLE)
     return (FALSE);
   if (handle_info[handle].numpages <= logical_page)
     return (FALSE);
@@ -1006,7 +1006,7 @@ handle_dir(state_t * state)
 
   case SEARCH_NAMED:{
 	int handle;
-	char xxx[9]; 
+	char xxx[9];
 	char *array = Addr(state, ds, esi);
 	strncpy(xxx,array,8); xxx[8]=0;
 	Kdebug0((dbg_fd, "SEARCH_NAMED '%s' function called\n",xxx));
@@ -1261,7 +1261,7 @@ move_memory_region(state_t * state)
   unsigned src = 0;
   int overlap = 0;
 
-  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi), 
+  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi),
                sizeof mem_move_struc);
   show_move_struct(mem_move);
   if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
@@ -1346,7 +1346,7 @@ exchange_memory_region(state_t * state)
   struct mem_move_struct mem_move_struc, *mem_move = &mem_move_struc;
   unsigned char *dest, *source, *mem, *tmp;
 
-  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi), 
+  MEMCPY_2UNIX(mem_move, SEGOFF2LINEAR(state->ds, state->esi),
                sizeof mem_move_struc);
   show_move_struct(mem_move);
   if (mem_move->size > 0x100000) return EMM_MOVE_1MB_LIM;
@@ -1451,7 +1451,7 @@ get_mpa_array(state_t * state)
 static int
 get_ems_hardinfo(state_t * state)
 {
-  if (os_allow) 
+  if (os_allow)
      {
     switch (LOW(state->eax)) {
       case GET_ARRAY:{
@@ -1652,7 +1652,7 @@ alternate_map_register(state_t * state)
 	  SETHIGH(&(state->eax), EMM_INVALID_SUB);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA not allowed bl=0x%x\n", (unsigned int)LOW(state->ebx)));
 	}
-      else 
+      else
        {
 	  SETHIGH(&(state->eax), EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA\n"));
@@ -1664,7 +1664,7 @@ alternate_map_register(state_t * state)
 	  SETHIGH(&(state->eax), EMM_INVALID_SUB);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA not allowed bl=0x%x\n", (unsigned int)LOW(state->ebx)));
 	}
-      else 
+      else
        {
 	  SETHIGH(&(state->eax), EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Disable DMA\n"));
@@ -1676,7 +1676,7 @@ alternate_map_register(state_t * state)
 	  SETHIGH(&(state->eax), EMM_INVALID_SUB);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA not allowed bl=0x%x\n", (unsigned int)LOW(state->ebx)));
 	}
-      else 
+      else
        {
 	  SETHIGH(&(state->eax), EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate DMA\n"));
@@ -1694,7 +1694,7 @@ os_set_function(state_t * state)
 {
   switch (LOW(state->eax)) {
     case 00:			/* Open access to EMS / Get OS key */
-      if (os_inuse) 
+      if (os_inuse)
 	 {
 	    if (WORD(state->ebx) == os_key1 && WORD(state->ecx) == os_key2)
 	      {
@@ -1702,13 +1702,13 @@ os_set_function(state_t * state)
 		 SETHIGH(&(state->eax), EMM_NO_ERR);
 		 Kdebug1((dbg_fd, "bios_emm: OS Allowing access\n"));
 	      }
-	    else 
+	    else
 	      {
 		 SETHIGH(&(state->eax), 0xa4);
 		 Kdebug1((dbg_fd, "bios_emm: Illegal OS Allow access attempt\n"));
 	      }
-	 } 
-       else 
+	 }
+       else
          {
 	    os_allow=1;
 	    os_inuse=1;
@@ -1719,7 +1719,7 @@ os_set_function(state_t * state)
          }
        return;
     case 01:			/* Disable access to EMS */
-      if (os_inuse) 
+      if (os_inuse)
 	 {
 	    if (WORD(state->ebx) == os_key1 && WORD(state->ecx) == os_key2)
 	      {
@@ -1727,13 +1727,13 @@ os_set_function(state_t * state)
 		 SETHIGH(&(state->eax), EMM_NO_ERR);
 		 Kdebug1((dbg_fd, "bios_emm: OS Disallowing access\n"));
 	      }
-	    else 
+	    else
 	      {
 		 SETHIGH(&(state->eax), 0xa4);
 		 Kdebug1((dbg_fd, "bios_emm: Illegal OS Disallow access attempt\n"));
 	      }
-	 } 
-       else 
+	 }
+       else
          {
 	    os_allow=0;
 	    os_inuse=1;
@@ -1751,16 +1751,16 @@ os_set_function(state_t * state)
 	  SETHIGH(&(state->eax), EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: OS Returning access\n"));
 	}
-      else 
+      else
        {
 	  SETHIGH(&(state->eax), 0xa4);
 	  Kdebug1((dbg_fd, "bios_emm: OS Illegal returning access attempt\n"));
-       }     
+       }
      return;
-     
+
   }
 }
-     
+
 /* end of EMS 4.0 functions */
 
 boolean_t
@@ -2070,7 +2070,7 @@ ems_fn(state)
     break;
 
   case OS_SET_FUNCTION: /* 0x5D */
-      os_set_function(state); 
+      os_set_function(state);
     break;
 
 /* This seems to be used by DV.

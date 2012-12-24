@@ -80,14 +80,14 @@ static void     usage(char *basename);
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override
- * 
- * description: 
+ *
+ * description:
  * Process user CPU override from the config file ('cpu xxx') or
  * from the command line. Returns the selected CPU identifier or
  * -1 on error.
- * 
+ *
  * DANG_END_FUNCTION
- * 
+ *
  */
 int cpu_override (int cpu)
 {
@@ -199,7 +199,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("X_bilin_filt %d\nX_mode13fact %d\nX_winsize_x %d\n",
         config.X_bilin_filt, config.X_mode13fact, config.X_winsize_x);
     (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
-        config.X_winsize_y, config.X_gamma, config.X_fullscreen, 
+        config.X_winsize_y, config.X_gamma, config.X_fullscreen,
 	     config.vgaemu_memsize);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
@@ -288,7 +288,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     list_hardware_ram(print);
     (*print)("ipxsup %d\nvnet %d\npktflags 0x%x\n",
 	config.ipxsup, config.vnet, config.pktflags);
-    
+
     {
         int i;
 	for (i = 0; i < config.num_lpt; i++)
@@ -323,7 +323,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     }
 }
 
-static void 
+static void
 open_terminal_pipe(char *path)
 {
     terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
@@ -437,7 +437,7 @@ void secure_option_preparse(int *argc, char **argv)
   else setenv("DOSEMU_LAX_CHECKING", "on", 1);
 
   if (*argc <=1 ) return;
- 
+
   opt = get_option("--Fusers", 1, argc, argv);
   if (opt && opt[0]) {
     if (runningsuid) {
@@ -693,13 +693,13 @@ static config_scrub_t config_scrub_func[100];
 
 /*
  * DANG_BEGIN_FUNCTION register_config_scrub
- * 
- * description: 
+ *
+ * description:
  * register a function Enforce consistency upon the `config` structure after
  * all values have been set to remove silly option combinations
- * 
+ *
  * DANG_END_FUNCTION
- * 
+ *
  */
 int register_config_scrub(config_scrub_t new_config_scrub)
 {
@@ -721,13 +721,13 @@ int register_config_scrub(config_scrub_t new_config_scrub)
 
 /*
  * DANG_BEGIN_FUNCTION unregister_config_scrub
- * 
- * description: 
- * Complement of register_config_scrub 
+ *
+ * description:
+ * Complement of register_config_scrub
  * This removes a scrub function.
- * 
+ *
  * DANG_END_FUNCTION
- * 
+ *
  */
 void unregister_config_scrub( config_scrub_t old_config_scrub)
 {
@@ -741,13 +741,13 @@ void unregister_config_scrub( config_scrub_t old_config_scrub)
 
 /*
  * DANG_BEGIN_FUNCTION config_scrub
- * 
- * description: 
+ *
+ * description:
  * Enforce consistency upon the `config` structure after
  * all values have been set to remove silly option combinations
- * 
+ *
  * DANG_END_FUNCTION
- * 
+ *
  */
 static void config_scrub(void)
 {
@@ -762,15 +762,15 @@ static void config_scrub(void)
 
 /*
  * DANG_BEGIN_FUNCTION config_init
- * 
- * description: 
+ *
+ * description:
  * This is called to parse the command-line arguments and config
- * files. 
+ * files.
  *
  * DANG_END_FUNCTION
- * 
+ *
  */
-void 
+void
 config_init(int argc, char **argv)
 {
     int             c=0;
@@ -814,7 +814,7 @@ config_init(int argc, char **argv)
 	    usedoptions['X'] = 'X';
 	/* called as 'xdos' */
     }
-    
+
     /* options get parsed twice so show our own errors and only once */
     opterr = 0;
     if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
@@ -823,7 +823,7 @@ config_init(int argc, char **argv)
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 's':
-	    if (can_do_root_stuff)	
+	    if (can_do_root_stuff)
 		can_do_root_stuff_enabled = 1;
 	    else
 		error("The -s switch requires root privileges\n");
@@ -914,7 +914,7 @@ config_init(int argc, char **argv)
     if (!can_do_root_stuff_enabled)
 	can_do_root_stuff = 0;
     else if (under_root_login)
-    	fprintf(stderr,"\nRunning as root in full feature mode\n");      
+    	fprintf(stderr,"\nRunning as root in full feature mode\n");
     else
     	fprintf(stderr,"\nRunning privileged (%s) in full feature mode\n",
 		using_sudo ? "via sudo" : "suid-root");
@@ -1120,7 +1120,7 @@ config_init(int argc, char **argv)
 }
 
 
-static void 
+static void
 check_for_env_autoexec_or_config(void)
 {
     char           *cp;

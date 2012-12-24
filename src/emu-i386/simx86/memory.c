@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -214,7 +214,7 @@ static void e_resetonepagemarks(unsigned int addr)
 void e_resetpagemarks(unsigned int addr, size_t len)
 {
 	int i, pages;
-	
+
 	pages = ((addr + len - 1) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT) + 1;
 	for (i = 0; i < pages; i++)
 		e_resetonepagemarks(addr + i * PAGE_SIZE);
@@ -401,7 +401,7 @@ void mprot_end(void)
 			(void)mprotect(&mem_base[addr], PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
 		    }
 		    addr += PAGE_SIZE;
-	 	    b >>= 1;   	
+	 	    b >>= 1;
 		}
 	    }
 	    M = M->next;

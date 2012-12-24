@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -85,7 +85,7 @@ static void display_x_components(Display *display)
 	XkbComponentListPtr list;
 	int max_inout;
 	int i;
-	
+
 	max_inout = 1024;
 	list = XkbListComponents(display, XkbUseCoreKbd, &names, &max_inout);
 	X_printf("X: Components(%d)\n", max_inout);
@@ -125,7 +125,7 @@ static void display_x_components(Display *display)
 			list->geometry[i].flags,
 			list->geometry[i].name);
 	}
-	
+
 	XkbFreeComponentList(list);
 #endif /* HAVE_XKB */
 }
@@ -150,20 +150,20 @@ static void display_x_keyboard(Display *display)
 		X_printf("X: No keyboard description!\n");
 		return;
 	}
-	X_printf("X: keycodes min:%d max:%d\n", 
+	X_printf("X: keycodes min:%d max:%d\n",
 		desc->min_key_code, desc->max_key_code);
 
 #if 0
 	status = XkbGetNames(display, XkbAllNamesMask, desc);
 	if (status != Success) {
-		X_printf("XkbGetNames failed: %d %s\n", 
+		X_printf("XkbGetNames failed: %d %s\n",
 			status,
 			XStatusString(status)
 			);
 	}
 #endif
 
-	
+
 	names = desc->names;
 	if (!names) {
 		X_printf("X: No keyboard names!\n");
@@ -176,36 +176,36 @@ static void display_x_keyboard(Display *display)
 		X_printf("X: types: ");    X_atom(names->types);    X_printf("\n");
 		X_printf("X: compat: ");   X_atom(names->compat);   X_printf("\n");
 		for(i = 0; i < XkbNumVirtualMods; i++) {
-			X_printf("X: vmod(%i): ", i); 
-			X_atom(names->vmods[i]); 
+			X_printf("X: vmod(%i): ", i);
+			X_atom(names->vmods[i]);
 			X_printf("\n");
 		}
 		for(i = 0; i < XkbNumIndicators; i++) {
-			X_printf("X: indicator(%i): ", i); 
-			X_atom(names->indicators[i]); 
+			X_printf("X: indicator(%i): ", i);
+			X_atom(names->indicators[i]);
 			X_printf("\n");
 		}
 		for(i = 0; i < XkbNumKbdGroups; i++) {
-			X_printf("X: group(%i): ", i); 
-			X_atom(names->groups[i]); 
+			X_printf("X: group(%i): ", i);
+			X_atom(names->groups[i]);
 			X_printf("\n");
 		}
 		X_printf("X: key_names (%d)\n", names->num_keys);
 		for(i = desc->min_key_code; i <= desc->max_key_code; i++) {
 			int j;
-			X_printf("X: %d->%.*s\n", 
+			X_printf("X: %d->%.*s\n",
 				i, sizeof(names->keys[i].name), names->keys[i].name);
 		}
 		X_printf("X: key_aliases (%d)\n", names->num_key_aliases);
 		for(i = 0; i < names->num_key_aliases; i++) {
-			X_printf("%s->%s\n", 
+			X_printf("%s->%s\n",
 				names->key_aliases[i].alias,
 				names->key_aliases[i].real);
 		}
 		X_printf("X: radio_groups (%d)\n", names->num_rg);
 		for(i = 0; i < names->num_rg; i++) {
-			X_printf("X: %i->", i); 
-			X_atom(names->radio_groups[i]); 
+			X_printf("X: %i->", i);
+			X_atom(names->radio_groups[i]);
 			X_printf("\n");
 		}
 		X_printf("X: phys_symbols: "); X_atom(names->phys_symbols); X_printf("\n");
@@ -219,10 +219,10 @@ static void display_x_keyboard(Display *display)
 	} else {
 		/* Print Keyboard Geometry */
 		X_printf("X: Geometry "); X_atom(geom->name); X_printf("\n");
-		
+
 		X_printf("X: key_aliases(%d)\n", geom->sz_key_aliases);
 		for(i = 0; i < geom->sz_key_aliases; i++) {
-			X_printf("%s->%s\n", 
+			X_printf("%s->%s\n",
 				geom->key_aliases[i].alias,
 				geom->key_aliases[i].real);
 		}
@@ -240,14 +240,14 @@ static void display_x_keyboard(Display *display)
 				for(k = 0; k < row->num_keys; k++) {
 					XkbKeyPtr key;
 					key = row->keys + k;
-					X_printf("X:   key(%d): %.*s\n", 
+					X_printf("X:   key(%d): %.*s\n",
 						k, sizeof(key->name.name), key->name.name);
 
 				}
 			}
 		}
 	}
-	
+
 	XkbFreeKeyboard(desc, XkbAllNamesMask, TRUE);
 #endif /* HAVE_XKB */
 }
@@ -459,8 +459,8 @@ static Boolean setup_keycode_to_keynum_mapping(Display *display)
 		X_printf("X: No keyboard Description!\n");
 		return FALSE;
 	}
-	for(i = 0; 
-		i < sizeof(keynum_from_keycode)/sizeof(keynum_from_keycode[0]); 
+	for(i = 0;
+		i < sizeof(keynum_from_keycode)/sizeof(keynum_from_keycode[0]);
 		i++) {
 		KeyCode xcode;
 		xcode = XkbFindKeycodeByName(desc,
@@ -470,7 +470,7 @@ static Boolean setup_keycode_to_keynum_mapping(Display *display)
 			keycode_to_keynum[xcode] = keynum_from_keycode[i].keynum;
 			X_printf("X: mapping %s(%02x) -> %02x\n",
 				keynum_from_keycode[i].keycode_name,
-				xcode, 
+				xcode,
 				keynum_from_keycode[i].keynum);
 		}
 	}
@@ -481,7 +481,7 @@ static Boolean setup_keycode_to_keynum_mapping(Display *display)
 #endif /* HAVE_XKB */
 }
 
-static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym, 
+static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 	const unsigned char *str, size_t str_len)
 {
 	KeySym xkey;
@@ -558,7 +558,7 @@ static void put_keycode(int make, int keycode, t_keysym sym)
 {
 	t_keysym keynum;
 	keynum = keycode_to_keynum[keycode];
-	if (keynum == NUM_VOID) 
+	if (keynum == NUM_VOID)
 		return;
 	move_keynum(make, keynum, sym);
 }

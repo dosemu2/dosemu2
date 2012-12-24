@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -121,7 +121,7 @@ int X11_DetectLayout (void)
 	  if (debug_level('k') > 5)
 	    k_printf("key: %d score %d for keycode %d, %x %x %x, "
 		     "got %x %x %x %x\n",
-		     key, ok, keyc, lkey[0], lkey[1], lkey[2], 
+		     key, ok, keyc, lkey[0], lkey[1], lkey[2],
 		     ckey[0], ckey[1], ckey[2], ckey[3]);
           if (ok > 0) {
             score += ok;
@@ -145,7 +145,7 @@ int X11_DetectLayout (void)
     k_printf("matches=%d, mismatches=%d, seq=%d, score=%d\n",
            match, mismatch, seq, score);
     if (score > max_score[alternate] ||
-       (score == max_score[alternate] && 
+       (score == max_score[alternate] &&
 	((seq > max_seq[alternate]) ||
 	 (seq == max_seq[alternate] && kt->keyboard == KEYB_AUTO)))) {
       /* best match so far */

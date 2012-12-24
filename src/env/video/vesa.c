@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1997 Steffen Winterfeldt (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
@@ -120,22 +120,22 @@ void vbe_init(vgaemu_display_type *vedt)
   int bios_ptr = (char *) vgaemu_bios_end - (char *) vgaemu_bios_start;
 
   static struct {
-    char modes[3]; 
+    char modes[3];
     char reserved1[4];
-    char scanlines; 
+    char scanlines;
     char character_blocks;
     char max_active_blocks;
     short support_flags;
     short reserved2;
     char save_function_flags;
     char reserved3;
-  } vgaemu_bios_functionality_table = 
+  } vgaemu_bios_functionality_table =
   { .modes =		 {0xff,0xe0,0x0f}, /* Modes 0-7, 0dh-0fh, 10h-13h supported */
-    .scanlines =	 7,		   /* scanlines 200,350,400 supported */	
-    .character_blocks =  2,		   /* This all corresponds to a real BIOS */		
+    .scanlines =	 7,		   /* scanlines 200,350,400 supported */
+    .character_blocks =  2,		   /* This all corresponds to a real BIOS */
     .max_active_blocks = 8,		   /* See Ralf Brown's interrupt list */
     .support_flags =	 0xeff,		   /* INT 10h, AH=1b for documentation */
-    .save_function_flags=0x3f 
+    .save_function_flags=0x3f
   };
 
   MEMSET_DOS(dos_vga_bios, 0, VBE_BIOS_MAXPAGES << 12);	/* one page */
@@ -262,7 +262,7 @@ void vbe_init(vgaemu_display_type *vedt)
 void do_vesa_int()
 {
   int err_code = VBE_ERROR_GENERAL_FAIL;
-  
+
 #if 0
   v_printf(
     "VBE: function 0x%02x, bx = 0x%04x cx = 0x%04x, dx = 0x%04x, es = 0x%04x, di = 0x%04x\n",
@@ -277,7 +277,7 @@ void do_vesa_int()
 
     case 0x01:		/* return VBE mode info */
       err_code = vbe_mode_info(_CX, SEGOFF2LINEAR(_ES, _DI));
-      break;  
+      break;
 
     case 0x02:		/* set VBE mode */
       err_code = vbe_set_mode(_BX);
@@ -608,7 +608,7 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
 
 /*
  * VBE function 0x02
- * 
+ *
  * Set VBE mode.
  *
  * Calls base/bios/int10.c::set_video_mode() to actually set
@@ -702,14 +702,14 @@ static int vbe_save_restore(unsigned sub_func, unsigned mask, unsigned int buffe
     (unsigned) _AL, sub_func, err_code, (unsigned) _BX
   );
 #endif
-  
+
   return err_code;
 }
 
 
 /*
  * VBE function 0x05
- * 
+ *
  * Set or get the currently mapped memory bank.
  * This function fails when called in an LFB mode.
  *
@@ -780,7 +780,7 @@ static int vbe_display_window(unsigned sub_func, unsigned window, unsigned bank)
     );
   }
 #endif
-  
+
   return err_code;
 }
 
@@ -922,7 +922,7 @@ int vbe_scan_length(unsigned sub_func, unsigned scan_len)
     (unsigned) _AL, sub_func, err_code, (unsigned) _BX, (unsigned) _CX, (unsigned) _DX
   );
 #endif
-  
+
   return err_code;
 }
 
@@ -1004,7 +1004,7 @@ int vbe_display_start(unsigned sub_func, unsigned x, unsigned y)
     );
   }
 #endif
-  
+
   return err_code;
 }
 
@@ -1069,7 +1069,7 @@ int vbe_dac_format(unsigned sub_func, unsigned bits)
     );
   }
 #endif
-  
+
   return err_code;
 }
 
@@ -1152,7 +1152,7 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned i
     (unsigned) _AL, sub_func, err_code
   );
 #endif
-  
+
   return err_code;
 }
 
@@ -1199,7 +1199,7 @@ int vbe_pm_interface(unsigned sub_func)
     (unsigned) _AL, sub_func, err_code, (unsigned) _CX, (unsigned) _ES, (unsigned) _DI
   );
 #endif
-  
+
   return err_code;
 }
 
@@ -1257,7 +1257,7 @@ int vbe_power_state(unsigned sub_func, unsigned state)
     (unsigned) _AL, sub_func, err_code, (unsigned) _BL, (unsigned) _BH
   );
 #endif
-  
+
   return err_code;
 }
 

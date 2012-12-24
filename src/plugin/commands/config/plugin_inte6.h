@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -13,7 +13,7 @@
  *    case (DOS_HELPER_PLUGIN+MYFUNCTION_OFFSET):
  *       if ( ! my_plugin_inte6()) return 0;
  *       break;
- * 
+ *
  */
 
 case DOS_HELPER_COMMANDS:

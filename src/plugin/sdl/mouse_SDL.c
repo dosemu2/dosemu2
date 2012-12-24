@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -19,7 +19,7 @@ static SDL_Cursor* mouse_GFX_cursor = NULL;
 
 void SDL_set_mouse_move(int x, int y, int w_x_res, int w_y_res)
 {
-  /* In text modes, as our cursor's shape is a box, 
+  /* In text modes, as our cursor's shape is a box,
    * we transmit the  coordinate of his center
    * rather than the coordinate of the upper left corner */
   if(vga.mode_class == TEXT) {
@@ -35,13 +35,13 @@ void SDL_set_mouse_text_cursor(void)
   int i,j;
 
   if (mouse_TEXT_cursor != NULL) {
-    SDL_FreeCursor(mouse_TEXT_cursor);  
+    SDL_FreeCursor(mouse_TEXT_cursor);
   }
   i = vga.char_width / 8;
   data = malloc(sizeof(*data) * i * (vga.char_height) );
   mask = malloc(sizeof(*data) * i * (vga.char_height) );
   j = vga.char_height / 3;
-  memset(data, 0, i * vga.char_height);      
+  memset(data, 0, i * vga.char_height);
   memset(mask , 0, i* j);
   memset(mask + i * j, 255, i* (vga.char_height - 2 * j));
   memset(mask + i * (vga.char_height - j), 0, i*j  );

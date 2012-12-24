@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -60,7 +60,7 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #endif
 
 
-/* macros for accessing video memory. w is an ushort* 
+/* macros for accessing video memory. w is an ushort*
    to a character cell, attr is a byte.
 */
 
@@ -106,7 +106,7 @@ static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
     "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
     len, x, y, (unsigned) attr
   );
-  
+
   Text->Draw_string(x, y, text, len, attr);
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
     Text->Draw_line(x, y, len);
@@ -156,7 +156,7 @@ static void restore_cell(unsigned cursor_location)
  * rectangle otherwise).
  */
 static void draw_cursor(void)
-{  
+{
   int x, y;
 
   if(check_cursor_location(vga.crtc.cursor_location - vga.display_start, &x, &y) &&
@@ -205,7 +205,7 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
     for (j = 0; j < vga.char_width; j ++)
       *deb++ = fg;
     deb += len - vga.char_width;
-    for (i = 0; i < vga.char_height - 2; i ++) { 
+    for (i = 0; i < vga.char_height - 2; i ++) {
       *deb++ = fg;
       deb += vga.char_width - 2;
       *deb++ = fg;
@@ -506,7 +506,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
   }
 
   return remap_obj.remap_rect(&remap_obj, vga.char_width * x, height * y,
-			      vga.char_width * len, height);    
+			      vga.char_width * len, height);
 }
 
 /*
@@ -541,22 +541,22 @@ int update_text_screen(void)
    * routine updates the entire screen.  So the variable "lines"
    * contains the maximum number of lines to update at once in one
    * call to this routine.  This is set by the "updatelines" keyword
-   * in /etc/dosemu.conf 
+   * in /etc/dosemu.conf
    */
 	lines = config.X_updatelines;
-	if (lines < 2) 
+	if (lines < 2)
 	  lines = 2;
 	else if (lines > vga.text_height)
 	  lines = vga.text_height;
 
   /* The highest priority is given to the current screen row for the
-   * first iteration of the loop, for maximum typing response.  
+   * first iteration of the loop, for maximum typing response.
    * If y is out of bounds, then give it an invalid value so that it
    * can be given a different value during the loop.
    */
 	y = cursor_row =
 	  (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
-	if ((y < 0) || (y >= vga.text_height)) 
+	if ((y < 0) || (y >= vga.text_height))
 	  y = -1;
 
 /*  X_printf("X: X_update_screen, co=%d, li=%d, yloop=%d, y=%d, lines=%d\n",
@@ -566,13 +566,13 @@ int update_text_screen(void)
    * of lines have been updated, or the entire screen has been scanned.
    */
 	co = vga.scan_len / 2;
-	while ((numdone < lines) && (numscan < vga.text_height)) 
+	while ((numdone < lines) && (numscan < vga.text_height))
 	  {
     /* The following sets the row to be scanned and updated, if it is not
      * the first iteration of the loop, or y has an invalid value from
      * loop pre-initialization.
      */
-	    if ((numscan > 0) || (y < 0)) 
+	    if ((numscan > 0) || (y < 0))
 	      {
 		yloop = (yloop+1) % vga.text_height;
 		if (yloop == cursor_row)
@@ -580,12 +580,12 @@ int update_text_screen(void)
 		y = yloop;
 	      }
 	    numscan++;
-	    
+
 	    sp = (Bit16u*)(vga.mem.base + vga.display_start) + y*co;
 	    oldsp = prev_screen + y*co;
 
 	    x=0;
-	    do 
+	    do
 	      {
         /* find a non-matching character position */
 		start_x = x;
@@ -600,8 +600,8 @@ int update_text_screen(void)
 		}
 /* now scan in a string of changed chars of the same attribute.
    To keep the number of X calls (and thus the overhead) low,
-   we tolerate a few unchanged characters (up to MAX_UNCHANGED in 
-   a row) in the 'changed' string. 
+   we tolerate a few unchanged characters (up to MAX_UNCHANGED in
+   a row) in the 'changed' string.
 */
 		bp = charbuff;
 		start_off = (u_char *)sp - vga.mem.base - vga.display_start;
@@ -613,18 +613,18 @@ int update_text_screen(void)
 #endif
 		attr=XATTR(sp);
 		unchanged=0;         /* counter for unchanged chars */
-		
-		while(1) 
+
+		while(1)
 		  {
 		    *bp++=XCHAR(sp);
 		    *oldsp++ = XREAD_WORD(sp);
-		    sp++; 
+		    sp++;
 		    x++;
 
 		    if ((XATTR(sp) != attr) || (x == vga.text_width))
 		      break;
 		    if (XREAD_WORD(sp) == *oldsp) {
-		      if (unchanged > MAX_UNCHANGED) 
+		      if (unchanged > MAX_UNCHANGED)
 			break;
 		      unchanged++;
 		    }
@@ -636,7 +636,7 @@ int update_text_screen(void)
 			visible_selection = FALSE;
 #endif
 		    }
-		  } 
+		  }
 		len=x-start_x-unchanged;
 
                 /* ok, we've got the string now send it to the X server */
@@ -646,10 +646,10 @@ int update_text_screen(void)
 		if ((prev_cursor_location >= start_off) &&
 		    (prev_cursor_location < start_off + len*2))
 		  {
-		    prev_cursor_shape=NO_CURSOR;  
+		    prev_cursor_shape=NO_CURSOR;
 /* old cursor was overwritten */
 		  }
-	      } 
+	      }
 	    while(x<vga.text_width);
 line_done:
 /* Increment the number of successfully updated lines counter */
@@ -664,15 +664,15 @@ chk_cursor:
 	  }
 
 /*	X_printf("X: X_update_screen: %d lines updated\n",numdone);*/
-	
-	if (numdone) 
+
+	if (numdone)
 	  {
             if (numscan==vga.text_height)
               return 1;     /* changed, entire screen updated */
             else
               return 2;     /* changed, part of screen updated */
 	  }
-	else 
+	else
 	  {
 /* The updates look a bit cleaner when reset to top of the screen
  * if nothing had changed on the screen in this call to screen_restore
@@ -680,7 +680,7 @@ chk_cursor:
 	    yloop = -1;
 	    return(1);
 	  }
-      
+
   return 0;
 }
 
@@ -689,13 +689,13 @@ void text_lose_focus()
   have_focus = FALSE;
   blink_state = TRUE;
   blink_count = config.X_blinkrate;
-  redraw_cursor();   
+  redraw_cursor();
 }
 
 void text_gain_focus()
 {
   have_focus = TRUE;
-  redraw_cursor();   
+  redraw_cursor();
 }
 
 #if CONFIG_SELECTION
@@ -707,7 +707,7 @@ static void calculate_selection(void)
 {
   int co = vga.scan_len / 2;
   Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
-  if ((sel_end_row < sel_start_row) || 
+  if ((sel_end_row < sel_start_row) ||
     ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col)))
   {
     sel_start = screen_adr+sel_end_row*co+sel_end_col;
@@ -755,7 +755,7 @@ void clear_selection_data(void)
 void clear_if_in_selection()
 {
   unsigned cursor_row, cursor_col;
-  
+
   if (!visible_selection)
     return;
 
@@ -770,7 +770,7 @@ void clear_if_in_selection()
       /* or infront of selection */
     {
       X_printf("X:selection clear, key-event!\n");
-      clear_visible_selection(); 
+      clear_visible_selection();
     }
 }
 
@@ -812,9 +812,9 @@ void extend_selection(int col, int row)
 void start_extend_selection(int col, int row)
 {
   /* Try to extend selection, visibility is handled by extend_selection*/
-    doing_selection =  visible_selection = TRUE;  
+    doing_selection =  visible_selection = TRUE;
     extend_selection(col, row);
-  
+
 }
 
 static void save_selection(int col1, int row1, int col2, int row2)
@@ -825,19 +825,19 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	size_t sel_space, sel_text_bytes;
 	u_char *p;
 	Bit16u *screen_adr;
-        
+
 	struct char_set_state video_state; /* must not have any... */
 
 	struct char_set *video_charset = trconfig.video_mem_charset;
-  
+
 	init_charset_state(&video_state, video_charset);
-	
+
 	co = vga.scan_len / 2;
 	screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
 	p = sel_text_dos = malloc(vga.text_width);
 	sel_space = (row2-row1+1)*(co+1)*MB_LEN_MAX+1;
 	sel_text_unicode = sel_text = malloc(sel_space * sizeof(t_unicode));
-  
+
 	/* Copy the text data. */
 	for (row = row1; (row <= row2); row++)
 	{
@@ -866,7 +866,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 		}
 		/* Remove end-of-line spaces and add a newline. */
 		if (col == vga.text_width)
-		{ 
+		{
 			sel_text_unicode--;
 			while ((*sel_text_unicode == ' ') &&
 			       (sel_text_unicode > prev_sel_text_unicode)) {
@@ -889,7 +889,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	}
 	*sel_text_unicode = '\0';
 	sel_space--;
-  
+
 	cleanup_charset_state(&video_state);
 }
 
@@ -911,14 +911,14 @@ static void save_selection_data(void)
   row2 = (sel_end-screen_adr)/co;
   col1 = (sel_start-screen_adr)%co;
   col2 = (sel_end-screen_adr)%co;
-  
+
   /* Allocate space for text. */
   if (sel_text != NULL)
     free(sel_text);
 
   save_selection(col1, row1, col2, row2);
-  
-  v_printf("VGAEMU: Selection, %d,%d->%d,%d\n", 
+
+  v_printf("VGAEMU: Selection, %d,%d->%d,%d\n",
 	   col1, row1, col2, row2);
 }
 

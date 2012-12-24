@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -11,7 +11,7 @@
  *
  * REMARK
  * Currently the XMS 3.0 spec is covered in this file. XMS is fairly simple
- * as it only deals with allocating extended memory and then moving it 
+ * as it only deals with allocating extended memory and then moving it
  * around in specific calls. This spec also includes the allocation of UMB's,
  * so they are also included as part of this file. The amount of xms memory
  * returned to DOS programs via the XMS requests, or int15 fnc88 is set in
@@ -679,7 +679,7 @@ xms_allocate_EMB(int api)
     x_printf("XMS: out of memory (only %dK available)\n",subtotal);
     return 0xa0; /* Out of memory */
   }
-  
+
   if (!(h = FindFreeHandle(FIRST_HANDLE))) {
     x_printf("XMS: out of handles\n");
     return 0xa1;

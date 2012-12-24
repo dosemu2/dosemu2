@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -26,7 +26,7 @@
 /* These are ati specific functions */
 
 unsigned char ati_extregs[]=
-{                   0xa3,             0xa6, 0xa7,                   0xab, 0xac, 0xad, 0xae, 
+{                   0xa3,             0xa6, 0xa7,                   0xab, 0xac, 0xad, 0xae,
   0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6,       0xb8, 0xb9, 0xba,             0xbd, 0xbe, 0xbf
 };
 
@@ -38,7 +38,7 @@ void ati_save_ext_regs(u_char xregs[], u_short xregs16[])
 
   emu_video_retrace_off();
   for (i=0; i<ATI_EXTREGS; i++)
-  { 
+  {
     port_out(ati_extregs[i], 0x1ce);
     xregs[1+i] = port_in(0x1cf) & 0xff;
   }
@@ -51,7 +51,7 @@ void ati_restore_ext_regs(u_char xregs[], u_short xregs16[])
 
   emu_video_retrace_off();
   for (i=0; i<ATI_EXTREGS; i++)
-  { 
+  {
     port_out_w(ati_extregs[i]+((int)xregs[1+i]<<8), 0x1ce);
   }
   emu_video_retrace_on();
@@ -89,7 +89,7 @@ u_char ati_ext_video_port_in(ioport_t port)
 
   switch (port) {
   case 0x1ce:
-      return (dosemu_regs.xregs[0]); 
+      return (dosemu_regs.xregs[0]);
   case 0x1cf:
     switch (dosemu_regs.xregs[0]) {
     case 0xa3:

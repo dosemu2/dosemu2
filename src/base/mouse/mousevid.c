@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -24,7 +24,7 @@
 #define CGA_OFFS	0x18000
 #define EGA_OFFS	0x00000
 
-struct mousevideoinfo videomodes[] =  { 
+struct mousevideoinfo videomodes[] =  {
 	{ 0,'T',40,25,160,ORG_TEXT,CGA_OFFS },
 	{ 1,'T',40,25,160,ORG_TEXT,CGA_OFFS },
 	{ 2,'T',80,25,160,ORG_TEXT,CGA_OFFS },
@@ -99,7 +99,7 @@ get_current_video_mode(int mode)
        about bank switching and LFBs */
     ret = vesamode;
   }
-  else 
+  else
   {
     /* invalid video mode */
     if(i != 0x6a && (i < 0 || i > 0x13 || !videomodes[i].textgraph)) {

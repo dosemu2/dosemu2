@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -224,7 +224,7 @@ SIGRELEASE_call (void)
 	}
 
       set_linux_video ();
-      if (can_do_root_stuff) 
+      if (can_do_root_stuff)
 	release_perm ();
       put_video_ram ();
 
@@ -300,7 +300,7 @@ static void unmap_video_ram(int copyback)
 }
 
 static void map_video_ram(void)
-{ 
+{
   void *graph_mem;
   off_t pbase = GRAPH_BASE;
   unsigned int vbase = pbase;

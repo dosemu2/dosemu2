@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -292,7 +292,7 @@ typedef u_short *psp_t;
 
 #define PSPPTR(x) (Addr_8086(x, 0))
 
-struct drive_info 
+struct drive_info
 {
   char *root;
   int root_len;

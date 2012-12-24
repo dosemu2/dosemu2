@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
 	  }
 	  break;
 
-	default: 
+	default:
           printf("ERROR! Unknown option \"%s\".\n\n", argv[i]);
 	  usage();
 	  /* never reached */

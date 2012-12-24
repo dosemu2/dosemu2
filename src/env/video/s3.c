@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) 1994 Christoph Niemann (original code)
  *          Christoph.Niemann@linux.org
  * All modifications in this file to the original code are
@@ -34,7 +34,7 @@
 #include "vga.h"
 #include "s3.h"
 #include "priv.h"
- 
+
 static int s3_chip = 0;
 static int s3_chiprev = 0;
 static int s3_memsize = 0;
@@ -131,8 +131,8 @@ static short s3_crt_regs[0x40] = {
  * CR34         7       Misc Register bit 3-2 (Clock)   1=lock
  * CR35         4       Vertical Timing Registers       1=lock
  * CR35         5       Horizontal Timing Registers     1=lock
- * 
- * XXXX mostly, need to lock the enhanced command regs on the 805 (and 
+ *
+ * XXXX mostly, need to lock the enhanced command regs on the 805 (and
  * probably below) to avoid display corruption.
  */
 static void s3_lock(void)
@@ -327,15 +327,15 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
                 /* set S3 ext. SR registers */
                 if (IS_TRIO) {
 		     out_seq(0x08, 0x06);    /* unlock extended seq regs */
-		     out_seq(0x09, xregs[51]);         
-		     out_seq(0x0A, xregs[52]);         
-		     out_seq(0x0D, xregs[53]);         
-		     out_seq(0x10, xregs[54]);         
-		     out_seq(0x11, xregs[55]);         
-		     out_seq(0x12, xregs[56]);         
-		     out_seq(0x13, xregs[57]);         
-		     out_seq(0x15, xregs[58]);         
-		     out_seq(0x18, xregs[59]);         
+		     out_seq(0x09, xregs[51]);
+		     out_seq(0x0A, xregs[52]);
+		     out_seq(0x0D, xregs[53]);
+		     out_seq(0x10, xregs[54]);
+		     out_seq(0x11, xregs[55]);
+		     out_seq(0x12, xregs[56]);
+		     out_seq(0x13, xregs[57]);
+		     out_seq(0x15, xregs[58]);
+		     out_seq(0x18, xregs[59]);
 		     out_seq(0x08, xregs[50]); /* restore lock */
 		}
 	}
@@ -623,7 +623,7 @@ void vga_init_s3(void)
 				}
 			}
 			break;
-				
+
 		case 0xB0:	name = "928";
 				s3_series = S3_928;
 				break;
@@ -738,7 +738,7 @@ void vga_init_s3(void)
 
 	/* register high S3 video ports */
 	io_device.irq = EMU_NO_IRQ;
-	io_device.fd = -1;	  
+	io_device.fd = -1;
 	io_device.handler_name = "std port io";
 
 	io_device.start_addr = 0x8000 | s3_8514_base;

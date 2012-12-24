@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -8,7 +8,7 @@
 /*
  * DANG_BEGIN_REMARK
  * The Helper Interrupt uses the following groups:
- * 
+ *
  * 0x00      - Check for DOSEMU
  * 0x01-0x11 - Initialisation functions & Debugging
  * 0x12      - Set hogthreshold (aka garrot?)

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -64,7 +64,7 @@
 #define DEBUG_INSTR	0	/* (<= 2) instruction emulation */
 
 #define COUNT  150	/* bail out when this #instructions were simulated
-			   after a VGA r/w access */			       
+			   after a VGA r/w access */
 
 #define R_LO(a) LO_BYTE(a)
 #define R_HI(a) HI_BYTE(a)
@@ -408,11 +408,11 @@ unsigned char instr_read_byte(const unsigned char *address)
   else {
     u = *address;
   }
-#if DEBUG_INSTR >= 2  
+#if DEBUG_INSTR >= 2
   instr_deb2("Read byte 0x%x", u);
   if (addr<0x8000000) v_printf(" from address %x\n", addr); else v_printf("\n");
-#endif  
-  
+#endif
+
   return u;
 }
 
@@ -430,20 +430,20 @@ unsigned instr_read_word(const unsigned char *address)
     u = 0;
     R_LO(u) = vga_read(addr);
     R_HI(u) = vga_read(addr+1);
-  } else 
+  } else
     u = *(unsigned short *)address;
 
-#if DEBUG_INSTR >= 2  
+#if DEBUG_INSTR >= 2
   instr_deb2("Read word 0x%x", u);
   if (addr<0x8000000) v_printf(" from address %x\n", addr); else v_printf("\n");
-#endif  
+#endif
   return u;
 }
 
 unsigned instr_read_dword(const unsigned char *address)
 {
   unsigned u;
-  
+
   /*
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here
@@ -455,13 +455,13 @@ unsigned instr_read_dword(const unsigned char *address)
     R_HI(u) = vga_read(addr+1);
     ((unsigned char *) &u)[2] = vga_read(addr+2);
     ((unsigned char *) &u)[3] = vga_read(addr+3);
-  } else 
+  } else
     u = *(unsigned *)address;
 
-#if DEBUG_INSTR >= 2  
+#if DEBUG_INSTR >= 2
   instr_deb2("Read word 0x%x", u);
   if (addr<0x8000000) v_printf(" from address %x\n", addr); else v_printf("\n");
-#endif  
+#endif
   return u;
 }
 
@@ -480,10 +480,10 @@ void instr_write_byte(unsigned char *address, unsigned char u)
   else {
     *address = u;
   }
-#if DEBUG_INSTR >= 2  
+#if DEBUG_INSTR >= 2
   instr_deb2("Write byte 0x%x", u);
   if (addr<0x8000000) v_printf(" at address %x\n", addr); else v_printf("\n");
-#endif  
+#endif
 }
 
 void instr_write_word(unsigned char *address, unsigned u)
@@ -507,10 +507,10 @@ void instr_write_word(unsigned char *address, unsigned u)
   else
     *(unsigned short *)address = u;
 
-#if DEBUG_INSTR >= 2  
+#if DEBUG_INSTR >= 2
   instr_deb2("Write word 0x%x", u);
   if (dst<0x8000000) v_printf(" at address %x\n", dst); else v_printf("\n");
-#endif  
+#endif
 }
 
 void instr_write_dword(unsigned char *address, unsigned u)
@@ -534,13 +534,13 @@ void instr_write_dword(unsigned char *address, unsigned u)
       address < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
     direct_ldt_write(address - ldt_buffer, 4, (char*)&u);
   }
-  else 
+  else
     *(unsigned *)address = u;
 
-#if DEBUG_INSTR >= 2  
+#if DEBUG_INSTR >= 2
   instr_deb2("Write word 0x%x", u);
   if (dst<0x8000000) v_printf(" at address %x\n", dst); else v_printf("\n");
-#endif  
+#endif
 }
 
 /* We use the cpu itself to set the flags, which is easy since we are
@@ -562,7 +562,7 @@ void instr_flags(unsigned val, unsigned smask, unsigned long *eflags)
 unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned char op2, unsigned long *eflags)
 {
   unsigned long flags;
-  
+
   switch (op&0x7){
   case 1: /* or */
     OPandFLAG(flags, orb, op1, op2, =q, q);
@@ -600,7 +600,7 @@ unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned lon
   unsigned long flags;
   unsigned short opw1 = op1;
   unsigned short opw2 = op2;
-  
+
   switch (op&0x7){
   case 1: /* or */
     OPandFLAG(flags, orw, opw1, opw2, =r, r);
@@ -636,7 +636,7 @@ unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned lon
 unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned long *eflags)
 {
   unsigned long flags;
-  
+
   switch (op&0x7){
   case 1: /* or */
     OPandFLAG(flags, orl, op1, op2, =r, r);
@@ -676,7 +676,7 @@ unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned
   unsigned mask = wordmask[size];
   unsigned smask = (mask >> 1) + 1;
   op2 &= 31;
-        
+
   switch (op&0x7){
   case 0: /* rol */
     op2 &= width-1;
@@ -706,14 +706,14 @@ unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned
     *eflags &= ~(CF|OF);
     *eflags |= carry | ((((result >> (width-1)) ^ (result >> (width-2))) << 11) & OF);
     return result;
-  case 4: /* shl */        
+  case 4: /* shl */
     result = (op1 << op2) & mask;
     instr_flags(result, smask, eflags);
     *eflags &= ~(CF|OF);
     *eflags |= ((op1 >> (width-op2))&CF) |
       ((((op1 >> (width-1)) ^ (op1 >> (width-2))) << 11) & OF);
     return result;
-  case 5: /* shr */        
+  case 5: /* shr */
     result = ((unsigned)(op1&mask) >> op2);
     instr_flags(result, smask, eflags);
     *eflags &= ~(CF|OF);
@@ -731,14 +731,14 @@ unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned
 
 static inline void push(unsigned val, x86_regs *x86)
 {
-  unsigned char *mem; 
-  
+  unsigned char *mem;
+
   if (x86->_32bit)
     x86->esp -= x86->operand_size;
   else
     SP -= x86->operand_size;
   mem = x86->ss_base + (x86->esp & wordmask[(x86->_32bit+1)*2]);
-  if (x86->operand_size == 4) 
+  if (x86->operand_size == 4)
     instr_write_dword(mem, val);
   else
     instr_write_word(mem, val);
@@ -760,9 +760,9 @@ static inline void pop(unsigned *val, x86_regs *x86)
  * description:
  * instr_sim is used to simulate instructions that access the
  * VGA video memory in planar modes when using X as the video output
- * device.  
+ * device.
  *
- * It is necessary to do this in order to simulate the effects 
+ * It is necessary to do this in order to simulate the effects
  * of the hardware VGA controller in X mode.
  *
  * If the return value is 0, it means the instruction was not one
@@ -773,7 +773,7 @@ static inline void pop(unsigned *val, x86_regs *x86)
  * arguments:
  * x86: the structure holding everything about the cpu-state we need.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  */
 
 /* helper functions/macros reg8/reg/sreg/sib/modrm16/32 for instr_sim
@@ -790,10 +790,10 @@ unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len)
 
   switch(cp[1] & 0xc0) { /* decode modifier */
   case 0x40:
-    addr = (int)(signed char)cp[3]; 
+    addr = (int)(signed char)cp[3];
     break;
   case 0x80:
-    addr = R_DWORD(cp[3]); 
+    addr = R_DWORD(cp[3]);
     break;
   }
 
@@ -801,22 +801,22 @@ unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len)
     addr += *reg(cp[2]>>3, x86) << (cp[2] >> 6);
 
   switch(cp[2] & 0x07) { /* decode address */
-  case 0x00: 
-  case 0x01: 
-  case 0x02: 
-  case 0x03: 
-  case 0x06: 
-  case 0x07: 
+  case 0x00:
+  case 0x01:
+  case 0x02:
+  case 0x03:
+  case 0x06:
+  case 0x07:
     return addr + *reg(cp[2], x86) + x86->seg_base;
   case 0x04: /* esp */
     return addr + x86->esp + x86->seg_ss_base;
-  case 0x05: 
+  case 0x05:
     if (cp[1] >= 0x40)
       return addr + x86->ebp + x86->seg_ss_base;
     else {
-      *inst_len += 4; 
+      *inst_len += 4;
       return addr + R_DWORD(cp[3]) + x86->seg_base;
-    }	  
+    }
   }
   return 0; /* keep gcc happy */
 }
@@ -825,14 +825,14 @@ unsigned char *modrm16(unsigned char *cp, x86_regs *x86, int *inst_len)
 {
   unsigned addr = 0;
   *inst_len = 0;
-  
+
   switch(cp[1] & 0xc0) { /* decode modifier */
   case 0x40:
-    addr = (short)(signed char)cp[2]; 
+    addr = (short)(signed char)cp[2];
     *inst_len = 1;
     break;
   case 0x80:
-    addr = R_WORD(cp[2]); 
+    addr = R_WORD(cp[2]);
     *inst_len = 2;
     break;
   case 0xc0:
@@ -841,29 +841,29 @@ unsigned char *modrm16(unsigned char *cp, x86_regs *x86, int *inst_len)
     else
       return reg8(cp[1], x86);
   }
-  
+
 
   switch(cp[1] & 0x07) { /* decode address */
-  case 0x00: 
+  case 0x00:
     return ((addr + x86->ebx + x86->esi) & 0xffff) + x86->seg_base;
-  case 0x01: 
+  case 0x01:
     return ((addr + x86->ebx + x86->edi) & 0xffff) + x86->seg_base;
-  case 0x02: 
+  case 0x02:
     return ((addr + x86->ebp + x86->esi) & 0xffff) + x86->seg_ss_base;
-  case 0x03: 
+  case 0x03:
     return ((addr + x86->ebp + x86->edi) & 0xffff) + x86->seg_ss_base;
-  case 0x04: 
+  case 0x04:
     return ((addr + x86->esi) & 0xffff) + x86->seg_base;
-  case 0x05: 
+  case 0x05:
     return ((addr + x86->edi) & 0xffff) + x86->seg_base;
-  case 0x06: 
+  case 0x06:
     if (cp[1] >= 0x40)
       return ((addr + x86->ebp) & 0xffff) + x86->seg_ss_base;
     else {
-      *inst_len += 2; 
+      *inst_len += 2;
       return R_WORD(cp[2]) + x86->seg_base;
-    }     
-  case 0x07: 
+    }
+  case 0x07:
     return ((addr + x86->ebx) & 0xffff) + x86->seg_base;
   }
   return 0; /* keep gcc happy */
@@ -880,7 +880,7 @@ unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len)
     *inst_len = 1;
     break;
   case 0x80:
-    addr = R_DWORD(cp[2]); 
+    addr = R_DWORD(cp[2]);
     *inst_len = 4;
     break;
   case 0xc0:
@@ -890,23 +890,23 @@ unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len)
       return reg8(cp[1], x86);
   }
   switch(cp[1] & 0x07) { /* decode address */
-  case 0x00: 
-  case 0x01: 
-  case 0x02: 
-  case 0x03: 
-  case 0x06: 
-  case 0x07: 
+  case 0x00:
+  case 0x01:
+  case 0x02:
+  case 0x03:
+  case 0x06:
+  case 0x07:
     return addr + *reg(cp[1], x86) + x86->seg_base;
   case 0x04: /* sib byte follows */
     *inst_len += 1;
     return sib(cp, x86, inst_len);
-  case 0x05: 
+  case 0x05:
     if (cp[1] >= 0x40)
       return addr + x86->ebp + x86->seg_ss_base;
     else {
-      *inst_len += 4; 
+      *inst_len += 4;
       return R_DWORD(cp[2]) + x86->seg_base;
-    }	  
+    }
   }
   return 0; /* keep gcc happy */
 }
@@ -1026,10 +1026,10 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   if (x86->prefixes) {
     prepare_x86(x86);
   }
-  
+
   x86->prefixes = handle_prefixes(x86);
   eip += x86->prefixes;
-  
+
   if (x86->rep != REP_NONE) {
     /* TODO: All these rep instruction can still be heavily optimized */
     i2 = 0;
@@ -1037,30 +1037,30 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       repcount = x86->ecx;
       switch(cs[eip]) {
       case 0xa4:         /* rep movsb */
-#if DEBUG_INSTR >= 1      
+#if DEBUG_INSTR >= 1
         if (x86->es_base >= 0xa0000 && x86->es_base < 0xb0000 &&
             x86->seg_base >= 0xa0000 && x86->seg_base < 0xb0000)
           instr_deb("VGAEMU: Video to video memcpy, ecx=%x\n", x86->ecx);
         /* TODO: accelerate this using memcpy */
 #endif
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0;
-             i += loop_inc, und++, count--) 
+             i += loop_inc, und++, count--)
           instr_write_byte(x86->es_base + x86->edi+i,
             instr_read_byte(x86->seg_base + x86->esi+i));
         x86->edi += i;
         x86->esi += i;
         break;
-        
+
       case 0xa5:         /* rep movsw/d */
         /* TODO: accelerate this using memcpy */
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0;
-             i += loop_inc*x86->operand_size, und++, count--) 
+             i += loop_inc*x86->operand_size, und++, count--)
           x86->instr_write(x86->es_base + x86->edi+i,
             x86->instr_read(x86->seg_base + x86->esi+i));
         x86->edi += i;
         x86->esi += i;
         break;
-        
+
       case 0xa6:         /* rep cmpsb */
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0; count--) {
           instr_binary_byte(7, instr_read_byte(x86->seg_base + x86->esi+i),
@@ -1075,7 +1075,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         x86->edi += i;
         x86->esi += i;
         break;
-        
+
       case 0xa7:         /* rep cmpsw/d */
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0; count--) {
           x86->instr_binary(7, instr_read_byte(x86->seg_base + x86->esi+i),
@@ -1090,19 +1090,19 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         x86->edi += i;
         x86->esi += i;
         break;
-        
+
       case 0xaa: /* rep stosb */
         /* TODO: accelerate this using memset */
         for (und2 = x86->edi, und = 0; und < repcount && !signal_pending && count>0;
-             und2 += loop_inc, und++, count--) 
+             und2 += loop_inc, und++, count--)
           instr_write_byte(x86->es_base + und2, AL);
         x86->edi = und2;
         break;
-        
+
       case 0xab: /* rep stosw */
         /* TODO: accelerate this using memset */
         for (und2 = x86->edi, und = 0; und < repcount && !signal_pending && count>0;
-             und2 += loop_inc*x86->operand_size, und++, count--) 
+             und2 += loop_inc*x86->operand_size, und++, count--)
           x86->instr_write(x86->es_base + und2, x86->eax);
         x86->edi = und2;
         break;
@@ -1119,7 +1119,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         }
         x86->edi = und2;
         break;
-        
+
       case 0xaf: /* rep scasw */
         for (und2 = x86->edi, und = 0; und < repcount && !signal_pending && count>0; count--) {
           x86->instr_binary(7, x86->eax, x86->instr_read(x86->es_base + und2), &EFLAGS);
@@ -1132,42 +1132,42 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         }
         x86->edi = und2;
         break;
-        
+
       default:
         return 0;
       }
-      
+
       x86->ecx -= und;
       if (x86->ecx > 0 && i2 == 0) return 1;
-        
+
     } else {
       repcount = CX;
       switch(cs[eip]) {
       case 0xa4:         /* rep movsb */
-#if DEBUG_INSTR >= 1      
+#if DEBUG_INSTR >= 1
         if (x86->es_base >= 0xa0000 && x86->es_base < 0xb0000 &&
             x86->seg_base >= 0xa0000 && x86->seg_base < 0xb0000)
           instr_deb("VGAEMU: Video to video memcpy, cx=%x\n", CX);
         /* TODO: accelerate this using memcpy */
 #endif
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0;
-             i += loop_inc, und++, count--) 
+             i += loop_inc, und++, count--)
           instr_write_byte(x86->es_base + ((x86->edi+i) & 0xffff),
             instr_read_byte(x86->seg_base + ((x86->esi+i) & 0xffff)));
         DI += i;
         SI += i;
         break;
-        
+
       case 0xa5:         /* rep movsw/d */
         /* TODO: accelerate this using memcpy */
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0;
-             i += loop_inc*x86->operand_size, und++, count--) 
+             i += loop_inc*x86->operand_size, und++, count--)
           x86->instr_write(x86->es_base + ((x86->edi+i) & 0xffff),
             x86->instr_read(x86->seg_base + ((x86->esi+i) & 0xffff)));
         DI += i;
         SI += i;
         break;
-        
+
       case 0xa6: /* rep?z cmpsb */
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0; count--) {
           instr_binary_byte(7, instr_read_byte(x86->seg_base + ((x86->esi+i) & 0xffff)),
@@ -1182,7 +1182,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         DI += i;
         SI += i;
         break;
-        
+
       case 0xa7: /* rep?z cmpsw/d */
         for (i = 0, und = 0; und < repcount && !signal_pending && count>0; count--) {
           x86->instr_binary(7, x86->instr_read(x86->seg_base + ((x86->esi+i) & 0xffff)),
@@ -1197,26 +1197,26 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         DI += i;
         SI += i;
         break;
-    
+
       case 0xaa: /* rep stosb */
         /* TODO: accelerate this using memset */
         for (uns = DI, und = 0; und < repcount && !signal_pending && count>0;
-             uns += loop_inc, und++, count--) 
+             uns += loop_inc, und++, count--)
           instr_write_byte(x86->es_base + uns, AL);
         DI = uns;
         break;
-        
+
       case 0xab: /* rep stosw/d */
         /* TODO: accelerate this using memset */
         for (uns = DI, und = 0; und < repcount && !signal_pending && count>0;
-             uns += loop_inc*x86->operand_size, und++, count--) 
+             uns += loop_inc*x86->operand_size, und++, count--)
           x86->instr_write(x86->es_base + uns, (x86->operand_size == 4 ? x86->eax : AX));
         DI = uns;
         break;
-        
+
       case 0xae: /* rep scasb */
         for (uns = DI, und = 0; und < repcount && !signal_pending && count>0; count--) {
-          instr_binary_byte(7, AL, instr_read_byte(x86->es_base + uns), &EFLAGS);          
+          instr_binary_byte(7, AL, instr_read_byte(x86->es_base + uns), &EFLAGS);
           uns += loop_inc;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0x0 repnz 0x1 repz */ {
@@ -1226,7 +1226,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         }
         DI = uns;
         break;
-        
+
       case 0xaf: /* rep scasw/d */
         for (uns = DI, und = 0; und < repcount && !signal_pending && count>0; count--) {
           x86->instr_binary(7, AX, instr_read_word(x86->es_base + uns), &EFLAGS);
@@ -1239,7 +1239,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         }
         DI = uns;
         break;
-      
+
       default:
         return 0;
       }
@@ -1262,7 +1262,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     if (cs[eip]<0x38)
       instr_write_byte(mem, uc);
     eip += 2 + inst_len; break;
-            
+
   case 0x01:		/* add r/m16,reg16 */
   case 0x09:		/* or r/m16,reg16 */
   case 0x11:		/* adc r/m16,reg16 */
@@ -1319,7 +1319,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     uc = instr_binary_byte(cs[eip]>>3, AL, cs[eip + 1], &EFLAGS);
     if (cs[eip]<0x38) AL = uc;
     eip += 2; break;
-            
+
   case 0x05:		/* add ax,imm16 */
   case 0x0d:		/* or ax,imm16 */
   case 0x15:		/* adc ax,imm16 */
@@ -1329,37 +1329,37 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x35:		/* xor ax,imm16 */
   case 0x3d:		/* cmp ax,imm16 */
     und = x86->instr_binary(cs[eip]>>3, x86->eax, R_DWORD(cs[eip + 1]), &EFLAGS);
-    if (x86->operand_size == 2) { 
+    if (x86->operand_size == 2) {
       if (cs[eip]<0x38) AX = und;
       eip += 3;
     } else {
       if (cs[eip]<0x38) x86->eax = und;
-      eip += 5; 
+      eip += 5;
     }
     break;
-    
+
   case 0x06:  /* push sreg */
   case 0x0e:
   case 0x16:
-  case 0x1e:        
+  case 0x1e:
     push(*sreg(cs[eip]>>3, x86), x86);
     eip++; break;
 
-  case 0x07:		/* pop es */  
+  case 0x07:		/* pop es */
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
       pop(&x86->es, x86);
       REG(es)  = x86->es;
       x86->es_base = SEG2LINEAR(x86->es);
-      eip++; 
-    }   
+      eip++;
+    }
     break;
-    
-  /* don't do 0x0f (extended instructions) for now */ 
-  /* 0x17 pop ss is a bit dangerous and rarely used */  
 
-  case 0x1f:		/* pop ds */  
+  /* don't do 0x0f (extended instructions) for now */
+  /* 0x17 pop ss is a bit dangerous and rarely used */
+
+  case 0x1f:		/* pop ds */
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
@@ -1367,7 +1367,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       REG(ds)  = x86->ds;
       x86->ds_base = SEG2LINEAR(x86->ds);
       x86->seg_base = x86->ds_base;
-      eip++; 
+      eip++;
     }
     break;
 
@@ -1375,21 +1375,21 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     if (((AL & 0xf) > 9) || (EFLAGS&AF)) {
       AL += 6;
       EFLAGS |= AF;
-    } else                  
+    } else
       EFLAGS &= ~AF;
     if ((AL > 0x9f) || (EFLAGS&CF)) {
       AL += 0x60;
       instr_flags(AL, 0x80, &EFLAGS);
       EFLAGS |= CF;
-    } else 
+    } else
       instr_flags(AL, 0x80, &EFLAGS);
     eip++; break;
-    
+
   case 0x2f:  /* das */
     if (((AL & 0xf) > 9) || (EFLAGS&AF)) {
       AL -= 6;
       EFLAGS |= AF;
-    } else                  
+    } else
       EFLAGS &= ~AF;
     if ((AL > 0x9f) || (EFLAGS&CF)) {
       AL -= 0x60;
@@ -1397,26 +1397,26 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       EFLAGS |= CF;
     } else
       instr_flags(AL, 0x80, &EFLAGS);
-    eip++; break;  
+    eip++; break;
 
   case 0x37:  /* aaa */
     if (((AL & 0xf) > 9) || (EFLAGS&AF)) {
       AL = (x86->eax+6) & 0xf;
       AH++;
       EFLAGS |= (CF|AF);
-    } else                  
+    } else
       EFLAGS &= ~(CF|AF);
-    eip++; break;  
-      
+    eip++; break;
+
   case 0x3f:  /* aas */
     if (((AL & 0xf) > 9) || (EFLAGS&AF)) {
       AL = (x86->eax-6) & 0xf;
       AH--;
       EFLAGS |= (CF|AF);
-    } else                  
+    } else
       EFLAGS &= ~(CF|AF);
-    eip++; break;  
-      
+    eip++; break;
+
   case 0x40:
   case 0x41:
   case 0x42:
@@ -1434,7 +1434,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     EFLAGS |= unl & (OF|ZF|SF|PF|AF);
     eip++; break;
-       
+
   case 0x48:
   case 0x49:
   case 0x4a:
@@ -1452,7 +1452,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     EFLAGS |= unl & (OF|ZF|SF|PF|AF);
     eip++; break;
-       
+
   case 0x50:
   case 0x51:
   case 0x52:
@@ -1463,7 +1463,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x57: /* push reg */
     push(*reg(cs[eip],x86), x86);
     eip++; break;
-    
+
   case 0x58:
   case 0x59:
   case 0x5a:
@@ -1483,11 +1483,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x68: /* push imm16 */
     push(R_DWORD(cs[eip + 1]), x86);
     eip += x86->operand_size + 1; break;
-         
+
   case 0x6a: /* push imm8 */
     push((int)(signed char)cs[eip + 1], x86);
     eip += 2; break;
-         
+
   case 0x70: OP_JCC(EFLAGS & OF);         /*jo*/
   case 0x71: OP_JCC(!(EFLAGS & OF));      /*jno*/
   case 0x72: OP_JCC(EFLAGS & CF);         /*jc*/
@@ -1517,7 +1517,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     mem = x86->modrm(cs + eip, x86, &inst_len);
     und = x86->instr_binary(cs[eip + 1]>>3, x86->instr_read(mem), R_DWORD(cs[eip + 2 + inst_len]), &EFLAGS);
     if ((cs[eip + 1]&0x38) < 0x38) x86->instr_write(mem, und);
-    eip += x86->operand_size + 2 + inst_len; 
+    eip += x86->operand_size + 2 + inst_len;
     break;
 
   case 0x83:		/* logical r/m,imm8 */
@@ -1531,16 +1531,16 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     instr_flags(instr_read_byte(x86->modrm(cs + eip, x86, &inst_len)) & *reg8(cs[eip + 1]>>3,x86),
                 0x80, &EFLAGS);
     eip += inst_len + 2; break;
-      
+
   case 0x85: /* test r/m16, reg */
-    if (x86->operand_size == 2) 
+    if (x86->operand_size == 2)
       instr_flags(instr_read_word(x86->modrm(cs + eip, x86, &inst_len)) & R_WORD(*reg(cs[eip + 1]>>3,x86)),
                 0x8000, &EFLAGS);
     else
       instr_flags(instr_read_dword(x86->modrm(cs + eip, x86, &inst_len)) & *reg(cs[eip + 1]>>3,x86),
                 0x80000000, &EFLAGS);
     eip += inst_len + 2; break;
-      
+
   case 0x86:		/* xchg r/m8,reg8 */
     reg_8 = reg8(cs[eip + 1]>>3, x86);
     mem = x86->modrm(cs + eip, x86, &inst_len);
@@ -1548,7 +1548,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     *reg_8 = instr_read_byte(mem);
     instr_write_byte(mem, uc);
     eip += inst_len + 2; break;
-      
+
   case 0x87:		/* xchg r/m16,reg */
     dstreg = reg(cs[eip + 1]>>3, x86);
     mem = x86->modrm(cs + eip, x86, &inst_len);
@@ -1597,17 +1597,17 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip += inst_len + 2; break;
 
   case 0x8e:		/* mov segreg,r/m16 */
-    if (pmode || x86->operand_size == 4) 
+    if (pmode || x86->operand_size == 4)
       return 0;
     else switch (cs[eip + 1]&0x38) {
-    case 0:      
+    case 0:
       mem = x86->modrm(cs + eip, x86, &inst_len);
       if ((cs[eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
         mem = (unsigned char *)reg(cs[eip + 1], x86);
       REG(es) = x86->es = instr_read_word(mem);
       x86->es_base = SEG2LINEAR(x86->es);
       eip += inst_len + 2; break;
-    case 0x18:  
+    case 0x18:
       mem = x86->modrm(cs + eip, x86, &inst_len);
       if ((cs[eip + 1] & 0xc0) == 0xc0) /* compensate for mov es,reg */
 	mem = (unsigned char *)reg(cs[eip + 1], x86);
@@ -1624,7 +1624,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     if ((cs[eip + 1]&0x38) == 0){
       pop(&und, x86);
       x86->instr_write(x86->modrm(cs + eip, x86, &inst_len), und);
-      eip += inst_len + 2; 
+      eip += inst_len + 2;
     } else
       return 0;
     break;
@@ -1649,7 +1649,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     eip++; break;
 
-  case 0x98: 
+  case 0x98:
     if (x86->operand_size == 2) /* cbw */
       AX = (short)(signed char)AL;
     else /* cwde */
@@ -1672,11 +1672,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       x86->cs = R_WORD(cs[eip + 3]);
       REG(cs)  = x86->cs;
       x86->cs_base = SEG2LINEAR(x86->cs);
-      eip = R_WORD(cs[eip + 1]); 
+      eip = R_WORD(cs[eip + 1]);
       cs = (unsigned char *)x86->cs_base;
     }
     break;
-    /* NO: 0x9b wait 0x9c pushf 0x9d popf*/    
+    /* NO: 0x9b wait 0x9c pushf 0x9d popf*/
 
   case 0x9e: /* sahf */
     R_LO(EFLAGS) = AH;
@@ -1696,7 +1696,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else
       x86->eax = instr_read_dword((R_DWORD(cs[eip + 1]) & wordmask[x86->address_size])+x86->seg_base);
     eip += 1 + x86->address_size; break;
-   
+
   case 0xa2:		/* mov moff16,al */
     instr_write_byte((R_DWORD(cs[eip + 1]) & wordmask[x86->address_size])+x86->seg_base, AL);
     eip += 1 + x86->address_size; break;
@@ -1903,7 +1903,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       x86->es_base = SEG2LINEAR(x86->es);
       R_WORD(*reg(cs[eip + 1] >> 3, x86)) = instr_read_word(mem);
       eip += inst_len + 2; break;
-    }   
+    }
 
   case 0xc5:		/* lds */
     if (pmode || x86->operand_size == 4)
@@ -1927,9 +1927,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     x86->instr_write(mem, R_DWORD(cs[eip + 2 + inst_len]));
     eip += x86->operand_size + inst_len + 2;
     break;
-    /* 0xc8 enter */  
+    /* 0xc8 enter */
 
-  case 0xc9: /*leave*/   
+  case 0xc9: /*leave*/
     if (x86->_32bit)
       x86->esp = x86->ebp;
     else
@@ -1937,7 +1937,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     pop(&x86->ebp, x86);
     eip++; break;
 
-  case 0xca: /*retf imm 16*/          
+  case 0xca: /*retf imm 16*/
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
@@ -1951,7 +1951,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     break;
 
-  case 0xcb: /*retf*/          
+  case 0xcb: /*retf*/
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
@@ -1962,7 +1962,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       cs = (unsigned char *)x86->cs_base;
     }
     break;
-    
+
     /* 0xcc int3 0xcd int 0xce into 0xcf iret */
 
   case 0xd0: /* shift r/m8, 1 */
@@ -1981,7 +1981,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else
       instr_write_dword(mem, instr_shift(cs[eip + 1]>>3, instr_read_dword(mem), 1, 4, &EFLAGS));
     eip += inst_len + 2; break;
-    
+
   case 0xd2: /* shift r/m8, cl */
     if ((cs[eip + 1]&0x38)==0x30) return 0;
     mem = x86->modrm(cs + eip, x86, &inst_len);
@@ -2005,8 +2005,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     AL = AL % cs[eip + 1];
     instr_flags(AL, 0x80, &EFLAGS);
     eip += 2; break;
-    
-  case 0xd5:  /* aad byte */ 
+
+  case 0xd5:  /* aad byte */
     AL = AH * cs[eip + 1] + AL;
     AH = 0;
     instr_flags(AL, 0x80, &EFLAGS);
@@ -2036,17 +2036,17 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0xe3:  /* jcxz */
     eip += ((x86->address_size == 4 ? x86->ecx : CX) ? 2 : 2 + (signed char)cs[eip + 1]);
     break;
-    
+
   /* 0xe4 in ib 0xe5 in iw 0xe6 out ib 0xe7 out iw */
 
   case 0xe8: /* call near */
-    push(eip + 1 + x86->operand_size, x86);   
+    push(eip + 1 + x86->operand_size, x86);
     /* fall through */
-    
+
   case 0xe9: /* jmp near */
     eip += x86->operand_size + 1 + (R_DWORD(cs[eip + 1]) & wordmask[x86->operand_size]);
     break;
-    
+
   case 0xea: /*jmp far*/
     if (pmode || x86->operand_size == 4)
       return 0;
@@ -2075,17 +2075,17 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0xee: /* out dx, al */
     /* Note that we short circuit if we can */
     if (VGA_emulate_outb(DX, AL) && vga.inst_emu)
-      eip++; 
+      eip++;
     else
       return 0;
     break;
-    
+
   case 0xef: /* out dx, ax */
     if ((x86->operand_size == 2) &&
         VGA_emulate_outb(DX, AL) &&
 	      VGA_emulate_outb(DX + 1, AH) &&
         vga.inst_emu)
-      eip++; 
+      eip++;
     else
       return 0;
     break;
@@ -2094,7 +2094,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
     /* 0xf2 repnz 0xf3 repz handled above */
     /* 0xf4 hlt */
-    
+
   case 0xf5: /* cmc */
     EFLAGS ^= CF;
     eip++; break;
@@ -2145,7 +2145,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     break;
 
-  case 0xf7: 
+  case 0xf7:
     mem = x86->modrm(cs + eip, x86, &inst_len);
     switch (cs[eip + 1]&0x38) {
     case 0x00: /* test mem word, imm */
@@ -2156,10 +2156,10 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     case 0x10: /*not word*/
       x86->instr_write(mem, ~x86->instr_read(mem));
       eip += inst_len + 2; break;
-    case 0x18: /*neg word*/       
+    case 0x18: /*neg word*/
       x86->instr_write(mem, x86->instr_binary(7, 0, x86->instr_read(mem), &EFLAGS));
       eip += inst_len + 2; break;
-    case 0x20: /*mul word*/       
+    case 0x20: /*mul word*/
       if (x86->operand_size == 4) return 0;
       und = AX * instr_read_word(mem);
       AX = und & 0xffff;
@@ -2176,7 +2176,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       EFLAGS &= ~(CF|OF);
       if (DX)
         EFLAGS |= (CF|OF);
-      eip += inst_len + 2; break;      
+      eip += inst_len + 2; break;
     case 0x30: /*div word*/
       if (x86->operand_size == 4) return 0;
       und = (DX<<16) + AX;
@@ -2199,7 +2199,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       eip += inst_len + 2; break;
     }
     break;
-    
+
   case 0xf8: /* clc */
     EFLAGS &= ~CF;
     eip++; break;;
@@ -2230,13 +2230,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
       instr_write_byte(mem, uc);
       eip += inst_len + 2; break;
-    case 0x08:        
+    case 0x08:
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
       OPandFLAG0(unl, decb, uc, =q);
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
       instr_write_byte(mem, uc);
       eip += inst_len + 2; break;
-    default:              
+    default:
       return 0;
     }
     break;
@@ -2252,18 +2252,18 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
       instr_write_word(mem, uns);
       eip += inst_len + 2; break;
-    case 0x08: /* dec */       
+    case 0x08: /* dec */
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
       OPandFLAG0(unl, decw, uns, =r);
       EFLAGS |= unl & (OF|ZF|SF|PF|AF);
       instr_write_word(mem, uns);
       eip += inst_len + 2; break;;
-    case 0x10: /*call near*/          
+    case 0x10: /*call near*/
       push(eip + inst_len + 2, x86);
       eip = uns;
       break;
-      
-    case 0x18: /*call far*/          
+
+    case 0x18: /*call far*/
       if (pmode || x86->operand_size == 4)
         return 0;
       else {
@@ -2276,12 +2276,12 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         cs = (unsigned char *)x86->cs_base;
       }
       break;
-      
-    case 0x20: /*jmp near*/          
+
+    case 0x20: /*jmp near*/
       eip = uns;
       break;
-      
-    case 0x28: /*jmp far*/          
+
+    case 0x28: /*jmp far*/
       if (pmode || x86->operand_size == 4)
         return 0;
       else {
@@ -2292,11 +2292,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         cs = (unsigned char *)x86->cs_base;
       }
       break;
-      
+
     case 0x30: /*push*/
       push(uns, x86);
       eip += inst_len + 2; break;
-    default:              
+    default:
       return 0;
     }
     break;
@@ -2313,7 +2313,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 #endif
 
   return 1;
-}  
+}
 
 static void scp_to_x86_regs(x86_regs *x86, struct sigcontext_struct *scp, int pmode)
 {
@@ -2416,9 +2416,9 @@ static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pm
  * pmode - flags protected mode
  * cnt - number of instructions to be simulated
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  */
- 
+
 void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
 {
 #if DEBUG_INSTR >= 1
@@ -2452,7 +2452,7 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
   vga_end =  vga_base + vga.mem.bank_len;
 
   x86.prefixes = 1;
-  
+
   do {
     if ((!cnt && signal_pending) || !instr_sim(&x86, pmode))
       break;
@@ -2474,7 +2474,7 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
     if(!x86._32bit)
       x86.eip &= 0xffff;
   }
-  
+
 
   x86_regs_to_scp(&x86, scp, pmode);
 }
@@ -2564,7 +2564,7 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
     case 0x1f:	/* pop ds */
       ret = sreg_idx(cs[x86.eip] >> 3);
       pop(new_val, &x86);
-      x86.eip++; 
+      x86.eip++;
       break;
 
     case 0x0f:
@@ -2574,7 +2574,7 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
         case 0xa9:	/* pop gs */
 	  pop(new_val, &x86);
 	  ret = sreg_idx(cs[x86.eip] >> 3);
-	  x86.eip++; 
+	  x86.eip++;
 	  break;
 
 	case 0xb2:	/* lss */

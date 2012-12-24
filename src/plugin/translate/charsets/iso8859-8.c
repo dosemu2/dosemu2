@@ -17,7 +17,7 @@ static const t_unicode iso8859_8_g1_chars[] = {
 struct char_set iso8859_8_g1 = {
 	1,
 	CHARS(iso8859_8_g1_chars),
-	138, "H", 1, 96, 
+	138, "H", 1, 96,
 };
 struct char_set iso8859_8 = {
 	.c0 = &ascii_c0,

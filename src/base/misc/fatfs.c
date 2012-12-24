@@ -147,7 +147,7 @@ void fatfs_init(struct disk *dp)
     if(u * 0xfff0u > f->total_secs) break;
   }
   f->cluster_secs = u;
-  f->fat_secs = f->fat_type == FAT_TYPE_FAT12 ? 
+  f->fat_secs = f->fat_type == FAT_TYPE_FAT12 ?
 	((f->total_secs / u + 2) * 3 + 0x3ff) >> 10 :
 	((f->total_secs / u + 2) * 2 + 0x1ff) >> 9;
   f->root_secs = 4;
@@ -1102,7 +1102,7 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
     last_end = last_start + f->obj[u].len;
     if(clu >= last_end) return 0;
   }
-  
+
   if(clu == last_end - 1) return 0xffff;
 
   return clu + 1;

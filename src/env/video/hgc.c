@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) 1994 Martin Ludwig  (original code)
  *          Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de
  * All modifications in this file to the original code are

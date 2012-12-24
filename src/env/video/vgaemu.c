@@ -1,9 +1,9 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
- 
+
 /*
  * Containing modifications of first step  VGA mode 12h support which is
  * (C) Copyright 2000 by David Hindman.
@@ -15,7 +15,7 @@
  *
  * These modifications are distributed under the terms of the
  * GNU General Public License.  The copyright to the modifications
- * is hereby assigned to the "DOSEMU-Development-Team" 
+ * is hereby assigned to the "DOSEMU-Development-Team"
  *
  */
 
@@ -66,7 +66,7 @@
  *   Adam Moss (aspirin@tigerden.com):
  *    - Fixed method 2 of vgaemu_get_changes_in_pages()
  *    - Very simplified vgaemu_get_changes_and_update_XImage_0x13()
- *  Erik Mouw: 
+ *  Erik Mouw:
  *    - Split VGAemu in three files
  *    - Some minor bug fixes
  *
@@ -582,14 +582,14 @@ Bit16u VGA_emulate_inw(ioport_t port)
 }
 
 
-/* 
+/*
  * This routine emulates a logical VGA read (CPU read  within the
  * VGA memory range a0000-bffff).  This usually doesn't just read the
  * byte from memory.  Instead, the VGA controller mediates the
  * read in a very complex fashion that depends on the settings of the
  * VGA control registers.  So we will call this a Logical VGA read.
  *
- * Much of the code in this routine is adapted from bochs. 
+ * Much of the code in this routine is adapted from bochs.
  * Bochs is Copyright (C) 2000 MandrakeSoft S.A. and distributed under LGPL.
  * Bochs was originally authored by Kevin Lawton.
  */
@@ -614,7 +614,7 @@ static Bit32u color2pixels[16] = {0,0xff,0xff00,0xffff,0xff0000,0xff00ff,0xffff0
 
 static unsigned char Logical_VGA_read(unsigned offset)
 {
-  
+
   switch (ReadMode) {
     case 0: /* read mode 0 */
       VGALatch[0] = vga.mem.base[          offset];
@@ -638,7 +638,7 @@ static unsigned char Logical_VGA_read(unsigned offset)
 	    /* XORing gives all bits that are different */
 	    /* after combining through OR the "equal" bits are zero, hence a NOT */
 
-      retval = ~((latch & 0xff) | ((latch>>8) & 0xff) | 
+      retval = ~((latch & 0xff) | ((latch>>8) & 0xff) |
                 ((latch>>16) & 0xff) | ((latch>>24) & 0xff));
 #if 0
       vga_msg(
@@ -656,20 +656,20 @@ static unsigned char Logical_VGA_read(unsigned offset)
     }
 }
 
-/* 
+/*
  * This routine emulates a logical VGA write (CPU write to within the
  * VGA memory range a0000-bffff).  This usually doesn't just place the
  * byte into memory.  Instead, the VGA controller mediates the
  * write in a very complex fashion that depends on the settings of the
  * VGA control registers.  So we will call this a Logical VGA write,
  * and the lower level thing which places bytes in video RAM we will
- * call a Physical VGA write. 
+ * call a Physical VGA write.
  *
- * Much of the code in this routine is adapted from bochs. 
+ * Much of the code in this routine is adapted from bochs.
  * Bochs is Copyright (C) 2000 MandrakeSoft S.A. and distributed under LGPL.
  * Bochs was originally authored by Kevin Lawton.
  */
- 
+
 static Bit32u rasterop(Bit32u value)
 {
   Bit32u bitmask = BitMask, vga_latch;
@@ -679,7 +679,7 @@ static Bit32u rasterop(Bit32u value)
   bitmask |= bitmask << 16; /* bitmask extended over 4 bytes */
   switch (RasterOp) {
     case 0: /* replace */
-      return (value & bitmask) | (vga_latch & ~bitmask); 
+      return (value & bitmask) | (vga_latch & ~bitmask);
     case 1: /* AND with latch data */
       return (value | ~bitmask) & vga_latch;
     case 2: /* OR with latch data */
@@ -692,7 +692,7 @@ static Bit32u rasterop(Bit32u value)
 
 static Bit32u Logical_VGA_CalcNewVal (unsigned char value)
 {
-  Bit32u enable_set_reset, new_val = 0; 
+  Bit32u enable_set_reset, new_val = 0;
   Bit8u bitmask;
 
   switch (WriteMode) {
@@ -702,7 +702,7 @@ static Bit32u Logical_VGA_CalcNewVal (unsigned char value)
       new_val |= new_val<<8;
       new_val |= new_val<<16; /* value extended over 4 bytes */
       enable_set_reset = color2pixels[EnableSetReset];
-      return rasterop((new_val & ~enable_set_reset) | 
+      return rasterop((new_val & ~enable_set_reset) |
                          (color2pixels[SetReset] & enable_set_reset));
 
     case 1: /* write mode 1 */
@@ -714,9 +714,9 @@ static Bit32u Logical_VGA_CalcNewVal (unsigned char value)
       return rasterop(color2pixels[value & 0xf]);
 
     case 3: /* write mode 3 */
-      bitmask = BitMask; 
+      bitmask = BitMask;
       /* perform rotate on CPU data */
-      BitMask = ((value >> DataRotate) | (value << (8 - DataRotate))) & 
+      BitMask = ((value >> DataRotate) | (value << (8 - DataRotate))) &
                       bitmask; /* Set Bitmask temporarily */
       new_val = rasterop(color2pixels[SetReset]);
       BitMask = bitmask; /* get old bitmask back */
@@ -725,7 +725,7 @@ static Bit32u Logical_VGA_CalcNewVal (unsigned char value)
     default:
       break;
     }
-  
+
   return new_val;
 }
 
@@ -760,7 +760,7 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
     vga.mem.dirty_map[vga_page + 0x20] = 1;
     vga.mem.dirty_map[vga_page + 0x30] = 1;
   }
-  
+
 }
 
 unsigned char vga_read(unsigned addr)
@@ -861,7 +861,7 @@ void vga_memcpy(unsigned dst, unsigned src, size_t len)
  * This function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
  * The sigcontext_struct is defined in include/cpu.h.
  * Now it catches only changes in a 4K page, but maybe it is useful to
- * catch each video access. The problem when you do that is, you have to 
+ * catch each video access. The problem when you do that is, you have to
  * simulate each instruction which could write to the video memory.
  * It is easy to get the place where the exception happens (scp->cr2),
  * but what are those changes?
@@ -878,9 +878,9 @@ void vga_memcpy(unsigned dst, unsigned src, size_t len)
  * arguments:
  * scp - A pointer to a struct sigcontext_struct holding some relevant data.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
 {
@@ -943,7 +943,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   }
 
   if(i == VGAEMU_MAX_MAPPINGS) {
-    if ((unsigned)((page_fault << 12) - vga.mem.graph_base) < 
+    if ((unsigned)((page_fault << 12) - vga.mem.graph_base) <
 	vga.mem.graph_size) {	/* unmapped VGA area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip));
@@ -988,7 +988,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
       return False;
     }
   }
- 
+
   if(vga_page < vga.mem.pages) {
     vga.mem.dirty_map[vga_page] = 1;
 #ifdef X86_EMULATOR
@@ -1000,7 +1000,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       vga_emu_adjust_protection(vga_page, page_fault);
-    }  
+    }
     else {
 #if 1
       /* XXX Hack: dosemu touched the protected page of video mem, which is
@@ -1013,7 +1013,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
       }
 #endif
 
-      /* A VGA mode PL4/PL2 video memory access has been trapped 
+      /* A VGA mode PL4/PL2 video memory access has been trapped
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
@@ -1100,7 +1100,7 @@ int vga_emu_protect_page(unsigned page, int prot)
   vgaemu_update_prot_cache(page, sys_prot);
 
   return i;
-} 
+}
 
 
 /*
@@ -1419,7 +1419,7 @@ static void vgaemu_register_ports(void)
   io_device.write_portd = NULL;
   io_device.irq = EMU_NO_IRQ;
   io_device.fd = -1;
-  
+
   /* register VGAEmu */
   io_device.handler_name = "VGAEmu VGA Controller";
   io_device.start_addr = VGA_BASE;
@@ -1473,9 +1473,9 @@ static void vgaemu_register_ports(void)
  * vedt - Pointer to struct describing the type of display we are actually
  *        attached to.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 {
@@ -1620,7 +1620,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
     int fd, ok = 0;
 
     PRIV_SAVE_AREA
-    enter_priv_on();				  
+    enter_priv_on();
 
     if((fd = open("/dev/mem", O_RDONLY)) >= 0) {
       if(
@@ -1631,7 +1631,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
       }
       close(fd);
     }
-    
+
     leave_priv_setting();
 
     if(!ok) {
@@ -1739,7 +1739,7 @@ static void print_prot_map()
  * grab all changes. You can specify an upper limit for the size of the
  * area that will be returned using `veut->max_max_len' and `veut->max_len'.
  * See the example in env/video/X.c how this works.
- * 
+ *
  * If the return value of vga_emu_update() is >= 0, it is the number of changed
  * pages, -1 means there are still changed pages but the maximum update chunk size
  * (`veut->max_max_len') was exceeded.
@@ -1751,9 +1751,9 @@ static void print_prot_map()
  * arguments:
  * veut - A pointer to a vga_emu_update_type object holding all relevant info.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 int vga_emu_update(vga_emu_update_type *veut)
 {
@@ -1846,7 +1846,7 @@ int vga_emu_update(vga_emu_update_type *veut)
   return j - i;
 }
 
- 
+
 /*
  * DANG_BEGIN_FUNCTION vgaemu_switch_plane
  *
@@ -1859,9 +1859,9 @@ int vga_emu_update(vga_emu_update_type *veut)
  * arguments:
  * plane (0..3) - The plane to map.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 int vgaemu_switch_plane(unsigned plane)
 {
@@ -1896,9 +1896,9 @@ int vgaemu_switch_plane(unsigned plane)
  * arguments:
  * bank - The bank to switch to.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 int vga_emu_switch_bank(unsigned bank)
 {
@@ -1914,7 +1914,7 @@ int vga_emu_switch_bank(unsigned bank)
     vga_msg("vga_emu_switch_bank: failed to access bank %u\n", bank);
     return False;
   }
-  
+
   vga_deb_bank("vga_emu_switch_bank: switched to bank %u\n", bank);
 
   return True;
@@ -1986,7 +1986,7 @@ int vga_emu_setup_mode(vga_mode_info *vmi, int mode_index, unsigned width, unsig
  *
  * Note: a new mode is added only if it didn't already exist.
  *
- */     
+ */
 
 static void vga_emu_setup_mode_table()
 {
@@ -2027,7 +2027,7 @@ static void vga_emu_setup_mode_table()
     vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 16);
     vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 24);
     vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 32);
-  }  
+  }
 
   while((vmt0 = vmt = config.vesamode_list) != NULL) {
     if(vmt != NULL) while(vmt->next != NULL) { vmt0 = vmt; vmt = vmt->next; }
@@ -2117,9 +2117,9 @@ static void vga_emu_setup_mode_table()
  * mode   - video mode.
  * vmi    - pointer into internal mode list
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
 {
@@ -2161,16 +2161,16 @@ vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
  * width  - Number of text columns.
  * height - Number of text rows.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 int vga_emu_setmode(int mode, int width, int height)
 {
   unsigned u = -1;
   int i;
   vga_mode_info *vmi = NULL, *vmi2 = NULL;
-  
+
   vga_msg("vga_emu_setmode: requested mode: 0x%02x (%d x %d)\n", mode, width, height);
 
   while((vmi = vga_emu_find_mode(mode, vmi))) {
@@ -2205,7 +2205,7 @@ int vga_emu_setmode(int mode, int width, int height)
     mode, vmi->width, vmi->height, vmi->color_bits, vmi->text_width, vmi->text_height,
     vmi->char_width, vmi->char_height, vmi->buffer_len, vmi->buffer_start
   );
-       
+
   vga.mode = mode;
   vga.VGA_mode = vmi->VGA_mode;
   vga.VESA_mode = vmi->VESA_mode;
@@ -2335,7 +2335,7 @@ int vga_emu_setmode(int mode, int width, int height)
   /* need to fix vgaemu before this is possible */
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
-  
+
   vga_msg("vga_emu_setmode: mode initialized\n");
 
   return True;
@@ -2425,9 +2425,9 @@ int vgaemu_map_bank()
  * width  - Number of text columns.
  * height - Number of text rows.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 int vga_emu_set_textsize(int width, int height)
 {
@@ -2449,7 +2449,7 @@ int vga_emu_set_textsize(int width, int height)
  *
  * DANG_END_FUNCTION
  *
- */     
+ */
 
 void dirty_all_video_pages()
 {
@@ -2463,9 +2463,9 @@ void dirty_all_video_pages()
  * description:
  * Marks all colors as changed.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
- */     
+ */
 
 void dirty_all_vga_colors()
 {
@@ -2493,12 +2493,12 @@ void dirty_all_vga_colors()
  * arguments:
  * de - list of DAC entries to store changed colors in
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
  * Note: vga.dac.rgb[i].index holds the dirty flag but in the returned
  * DAC entries .index is the VGA color number.
  *
- */     
+ */
 
 int changed_vga_colors(DAC_entry *de)
 {
@@ -2549,7 +2549,7 @@ int changed_vga_colors(DAC_entry *de)
         a = vga.attr.data[k] |
             ((vga.attr.data[0x14] & 0x0c) << 4);	/* bits 7-6 */
       }
-      
+
       if(
         vga.dac.rgb[a].index == True ||
         vga.attr.dirty[k] == True
@@ -2589,7 +2589,7 @@ int changed_vga_colors(DAC_entry *de)
  *
  * DANG_END_FUNCTION
  *
- */     
+ */
 
 void vgaemu_adj_cfg(unsigned what, unsigned msg)
 {
@@ -2605,7 +2605,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga.seq.addr_mode = u;
       u1 = vga.seq.addr_mode == 0 ? 4 : 1;
       if(u1 != vga.mem.planes) {
-        vga.mem.planes = u1; vga.reconfig.mem = 1;   
+        vga.mem.planes = u1; vga.reconfig.mem = 1;
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
       }
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
@@ -2638,7 +2638,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	return;
       vga.crtc.addr_mode = u;
       if (vga.config.standard)
-	vga.display_start = (vga.crtc.data[0x0d] + (vga.crtc.data[0x0c] << 8)) << 
+	vga.display_start = (vga.crtc.data[0x0d] + (vga.crtc.data[0x0c] << 8)) <<
 	      vga.crtc.addr_mode;
       /* this shift should really be a rotation, depending on mode control bit 5 */
       vga.crtc.cursor_location =  (vga.crtc.data[0x0f] + (vga.crtc.data[0x0e] << 8)) <<
@@ -2665,16 +2665,16 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if (vga.height > 1024)
 	return;
 
-      vertical_total = 
-	      vga.crtc.data[0x6] + 
+      vertical_total =
+	      vga.crtc.data[0x6] +
 	      ((vga.crtc.data[0x7] & 0x1) << (8 - 0)) +
 	      ((vga.crtc.data[0x7] & 0x20) << (9 - 5));
-      vertical_retrace_start = 
+      vertical_retrace_start =
 	      vga.crtc.data[0x10] +
 	      ((vga.crtc.data[0x7] & 0x4) << (8 - 2)) +
 	      ((vga.crtc.data[0x7] & 0x80) << (9 - 7));
       vertical_retrace_end = vga.crtc.data[0x11]  & 0x0F;
-      vertical_display_end = 
+      vertical_display_end =
 	      vga.crtc.data[0x12] +
 	      ((vga.crtc.data[0x7] & 0x2) << (8 - 1)) +
 	      ((vga.crtc.data[0x7] & 0x40) << (9 - 6));
@@ -2834,7 +2834,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       old_color_bits = vga.color_bits;
       vga.color_bits = vga.pixel_size;
       vga.inst_emu = (vga.mode_type==PL4 || vga.mode_type==PL2 ||
-	(vga.color_bits == 8 && 
+	(vga.color_bits == 8 &&
 	 ((vga.seq.map_mask | 0xf8) & (vga.seq.map_mask - 1))))
 	? EMU_ALL_INST : 0;
       if (oldclass != vga.mode_class) {
@@ -2971,10 +2971,10 @@ void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr)
   if(
     dx <= 0 || dy <= 0 || x0 < 0 ||
     x1 >= vga.text_width || y0 < 0 || y1 >= vga.text_height
-  ) { 
+  ) {
     vga_msg("vgaemu_scroll: scroll parameters impossibly out of bounds\n");
     return;
-  } 
+  }
 
   height = READ_WORD(BIOS_FONT_HEIGHT);
   x0 = x0 * 8;

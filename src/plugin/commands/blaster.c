@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -15,7 +15,7 @@
 #include "sound.h"
 
 int blaster_main(int argc, char **argv) {
-	
+
 	if (config.sound) {
 		char tmpbuf[30];
 		char blaster[255];

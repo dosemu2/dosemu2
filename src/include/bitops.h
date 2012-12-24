@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -13,7 +13,7 @@
  * If I can figure out how to use Linus' bitops.h directly, I'll reduce
  * this file to an #include and just my added function. For now, this
  * works. -JLS $Id$
- * 
+ *
  */
 
 /*
@@ -39,7 +39,7 @@ static int pic0_to_emu(char flags);
  * These have to be done with inline assembly: that way the bit-setting is
  * guaranteed to be atomic. All bit operations return 0 if the bit was
  * cleared before the operation and != 0 if it was not.
- * 
+ *
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
@@ -109,7 +109,7 @@ emu_to_pic0(int flags)
 
     __asm__         __volatile__("shll $6,%0\n\t"
 				 "shlw $7, %w0\n\t"
-				 "shrl $14, %0 " 
+				 "shrl $14, %0 "
 				 :"=r"(flags):"0"(flags));
     return flags;
 }

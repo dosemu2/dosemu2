@@ -10,15 +10,15 @@
  * 0x00020008  - The value Hannu notes in his explaination
  * 0x00FF0008  - Try more fragments
  *
- * See /usr/src/linux/drivers/sound/experimental.txt for full details 
+ * See /usr/src/linux/drivers/sound/experimental.txt for full details
  */
 
 #define MAX_NUM_FRAGMENTS       0x20
 #define MIN_NUM_FRAGMENTS       0x4
 
-/* 
+/*
  * milliseconds to buffer sound. It should be high enough to avoid
- * clicking, but low enough to not delay the sound to much 
+ * clicking, but low enough to not delay the sound to much
  */
 #define BUFFER_MSECS		60
 

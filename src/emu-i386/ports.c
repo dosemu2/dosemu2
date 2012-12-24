@@ -1,14 +1,14 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * SIDOC_BEGIN_MODULE
  *
  * Description: New port handling code for DOSEMU
- * 
+ *
  * Maintainers: Alberto Vignani (vignani@mail.tin.it)
  *
  * REMARK
@@ -196,7 +196,7 @@ static void log_port_write_d(ioport_t port, Bit32u w)
  *
  * SIDOC_END_REMARK
  */
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_inb(ioport_t port)
  *
  * Handles/simulates an inb() port IO read
@@ -210,7 +210,7 @@ Bit8u port_inb(ioport_t port)
 	return LOG_PORT_READ(port, res);
 }
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_outb(ioport_t port, Bit8u byte)
  *
  * Handles/simulates an outb() port IO write
@@ -223,7 +223,7 @@ void port_outb(ioport_t port, Bit8u byte)
 	EMU_HANDLER(port).write_portb(port,byte);
 }
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_inw(ioport_t port)
  *
  * Handles/simulates an inw() port IO read.  Usually this invokes
@@ -246,7 +246,7 @@ Bit16u port_inw(ioport_t port)
 	return res;
 }
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_outw(ioport_t port, Bit16u word)
  *
  * Handles/simulates an outw() port IO write
@@ -265,7 +265,7 @@ void port_outw(ioport_t port, Bit16u word)
 	}
 }
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_ind(ioport_t port)
  * SIDOC_BEGIN_FUNCTION port_outd(ioport_t port, Bit32u dword)
  *
@@ -323,7 +323,7 @@ static Bit8u port_not_avail_inb(ioport_t port)
 /* it is a fact of (hardware) life that unused locations return all
    (or almost all) the bits at 1; some software can try to detect a
    card basing on this fact and fail if it reads 0x00 - AV
-   
+
    The joystick code is dependent on 0xff as joystick.c:r1.4
    (2005-04-08) stopped registering port handlers if no joystick
    is initialised - Clarence Dang
@@ -370,7 +370,7 @@ static void port_not_avail_outd(ioport_t port, Bit32u value)
 /* default port I/O access
  */
 
-struct portreq 
+struct portreq
 {
         ioport_t port;
         int type;
@@ -688,7 +688,7 @@ int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 	return (Bit8u *)dest-(Bit8u *)base;
 }
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION special_port_inb,special_port_outb
  *
  * I don't know what to do of this stuff... it was added incrementally to
@@ -781,7 +781,7 @@ defout:
 }
 
 /* ---------------------------------------------------------------------- */
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_init()
  *
  * Resets all the port port_handler information.
@@ -928,7 +928,7 @@ static void port_server(void)
         }
 }
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION extra_port_init()
  *
  * Catch all the special cases previously defined in ports.c
@@ -1071,7 +1071,7 @@ void release_ports (void)
   }
 
 /* ---------------------------------------------------------------------- */
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_register_handler
  *
  * Assigns a handle in the port table to a range of ports with or
@@ -1117,9 +1117,9 @@ int port_register_handler(emu_iodev_t device, int flags)
 	 * access is not available, while for word means that it will
 	 * be translated into 2 byte accesses
 	 */
-	port_handler[handle].read_portb = 
+	port_handler[handle].read_portb =
 		(device.read_portb? : port_not_avail_inb);
-	port_handler[handle].write_portb = 
+	port_handler[handle].write_portb =
 		(device.write_portb? : port_not_avail_outb);
 	port_handler[handle].read_portw = device.read_portw;
 	port_handler[handle].write_portw = device.write_portw;
@@ -1162,7 +1162,7 @@ int port_register_handler(emu_iodev_t device, int flags)
 }
 
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION port_allow_io
  *
  *
@@ -1201,7 +1201,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	 * find out whether the port address request is available;
 	 * this way, try to deny uncoordinated access
 	 *
-	 * If it is not listed in /proc/ioports, register them 
+	 * If it is not listed in /proc/ioports, register them
 	 * (we need some syscall to do so bo 960609)...
 	 * (we have a module to do so AV 970813)
 	 * if it is registered, we need the name of a device to open
@@ -1332,7 +1332,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	return TRUE;
 }
 
-/* 
+/*
  * SIDOC_BEGIN_FUNCTION set_ioperm
  *
  * wrapper for the ioperm() syscall, returns -1 if not successful.

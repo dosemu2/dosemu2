@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -30,7 +30,7 @@
 static unsigned char screenmasks[384];
 static unsigned char cursormasks[384];
 
-static void 
+static void
 realize_mask(unsigned char *dest,short *src,int org,int vga_val)
 {
 	static int pixelsPerByte[] = { 0, 8, 4, 8, 1 };
@@ -48,7 +48,7 @@ realize_mask(unsigned char *dest,short *src,int org,int vga_val)
 		for (y=0; y<16; y++) {
 			unsigned mask;
 			unsigned srcy = src[y];
-			static unsigned char lut8[] = 
+			static unsigned char lut8[] =
 				{ 0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01 };
 			static unsigned char lut4[] = { 0xC0,0x30,0x0C,0x03 };
 
@@ -97,7 +97,7 @@ realize_mask(unsigned char *dest,short *src,int org,int vga_val)
 }
 
 
-static void 
+static void
 realize_cursor(short *scrmask,short *curmask,int org)
 {
 	realize_mask(screenmasks,scrmask,org,255);
@@ -107,14 +107,14 @@ realize_cursor(short *scrmask,short *curmask,int org)
 
 #define GRBASE (GRAPH_BASE + mouse_current_video.offset)
 
-static inline 
+static inline
 unsigned char read_ega_reg(int port,int index)
 {
 	port_outb(port, index);
 	return port_inb(port+1);
 }
 
-static inline 
+static inline
 void write_ega_reg(int port,int index,unsigned char value)
 {
 	port_outb(port, index);
@@ -147,7 +147,7 @@ void write_ega_reg(int port,int index,unsigned char value)
 /* all CGA modes have 80 bytes per line */
 
 /* return offset into CGA memory of scanline y */
-static inline 
+static inline
 int cga_scanline(int y)
 {
 	int offset = (y&1)? 0x2000 : 0x0000;
@@ -155,7 +155,7 @@ int cga_scanline(int y)
 }
 
 /* if we're on scanline y, return the offset to the start of scanline (y+1) */
-static inline 
+static inline
 int cga_nextscan(int y)
 {
 	if (y & 1)
@@ -165,7 +165,7 @@ int cga_nextscan(int y)
 }
 
 
-static void 
+static void
 cga2_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 	unsigned char *bs)
 {
@@ -187,7 +187,7 @@ cga2_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 }
 
 
-static void 
+static void
 cga4_bitblt(int x,int y,int width,int height,int toscr,int bpl,
 	unsigned char *bs)
 {
@@ -336,7 +336,7 @@ ega16_cursor(int x,int y,int width,int height,int xofs,int yofs,int bpl)
 
 	SAVE_EGA_STATE
 
-	/* repeat once for each plane.  requires more vram accesses but 
+	/* repeat once for each plane.  requires more vram accesses but
 		fewer port writes.  these days that's usually a win. */
 	for (plane = 0; plane < 4; plane++) {
 		int h = height;
@@ -419,7 +419,7 @@ define_graphics_cursor(short *scrmask,short *curmask)
 }
 
 
-static int 
+static int
 get_current_graphics_video_mode(void)
 {
 	int badmode;

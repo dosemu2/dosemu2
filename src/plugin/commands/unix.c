@@ -247,17 +247,17 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
       com_fprintf (com_stderr, "ERROR: %s: %s\n", strerror(errno), linux_path);
       return (1);
   }
-  
+
   drive = find_drive (&linux_path_resolved);
   if (drive < 0) {
     drive = -drive;
-    
+
     if (drive >= 26) {
       if (drive == 26) {
         com_fprintf (com_stderr,
                      "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
       }
-      
+
       free(linux_path_resolved);
       return (1);
     }
@@ -276,14 +276,14 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
       return (1);
     }
   }
-  
-  
+
+
   /* switch to the drive */
   j_printf ("Switching to drive %i (%c:)\n", drive, drive + 'A');
   com_dossetdrive (drive);
   if (com_dosgetdrive () != drive) {
     com_fprintf (com_stderr, "ERROR: Could not change to %c:\n", drive + 'A');
-     
+
     if (com_dossetdrive (com_dosgetdrive ()) < 26)
       com_fprintf (com_stderr, "Try 'LASTDRIVE=Z' in CONFIG.SYS.\n");
 
@@ -291,7 +291,7 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
     return (1);
   }
 
-  
+
   make_unmake_dos_mangled_path (dos_path, linux_path_resolved,
                                 drive, 1/*alias*/);
   j_printf ("DOS path: '%s' (from linux '%s')\n",
@@ -304,7 +304,7 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
     int err;
     b++;
     dos_dir = strndup(slash_ptr, b - slash_ptr);
-    
+
     j_printf ("Changing to directory '%s'\n", dos_dir);
     err = com_dossetcurrentdir (dos_dir);
     if (err) {
@@ -319,7 +319,7 @@ static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
     com_fprintf (com_stderr, "INTERNAL ERROR: no backslash in DOS path\n");
     return (1);
   }
-  
+
 
   /* return the 8.3 EXE name */
   strcpy (linux_path/*arg as return value*/, b);

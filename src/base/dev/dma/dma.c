@@ -175,7 +175,7 @@ void dma_assert_DREQ(int channel)
 	   dma[controller].i[ch].mask);
 #endif				/* EXCESSIVE_DEBUG */
 
-  /* 
+  /*
    * Must assert DREQ before activating the channel, otherwise it ignores the
    * the request - AM
    */
@@ -387,7 +387,7 @@ static inline void activate_channel(int controller, int channel)
   ch = get_ch(controller, channel);
 
   dma[controller].i[channel].mask = 0;
-  /* 
+  /*
    * We only _actually_ activate the channel if DREQ is set. It's irrelevant
    * otherwise (from an idea by Michael Karcher) - AM
    */
@@ -403,7 +403,7 @@ static inline void activate_channel(int controller, int channel)
   }
 }
 
-/* 
+/*
  * This ensures that the controller is not called for this channel.
  */
 static inline void deactivate_channel(int controller, int channel)
@@ -501,10 +501,10 @@ static void dma_recover_values(int controller, int channel)
 }
 
 #if 0
-/* 
- * Obselete? 
+/*
+ * Obselete?
  * Might make a useful public function if converted to just take a single
- * parameter - AM 
+ * parameter - AM
  */
 static Bit16u length_transferred(int controller, int channel)
 {
@@ -1049,7 +1049,7 @@ static void dma_process_block_mode_write(int controller, int channel)
 }
 
 
-/* 
+/*
  * Cascade mode Writes are not supported - Unimportant
  */
 static void dma_process_cascade_mode_write(int controller, int channel)
@@ -1211,8 +1211,8 @@ static void dma_process_block_mode_read(int controller, int channel)
 }
 
 
-/* 
- * DANG_FIXTHIS: Cascade Mode Reads are not supported 
+/*
+ * DANG_FIXTHIS: Cascade Mode Reads are not supported
  */
 static void dma_process_cascade_mode_read(int controller, int channel)
 {
@@ -1227,8 +1227,8 @@ static void dma_process_cascade_mode_read(int controller, int channel)
   deactivate_channel(controller, channel);
 }
 
-/* 
- * DANG_FIXTHIS: The Verify Mode is not supported 
+/*
+ * DANG_FIXTHIS: The Verify Mode is not supported
  */
 static void dma_process_verify_mode(int controller, int channel)
 {
@@ -1246,8 +1246,8 @@ static void dma_process_verify_mode(int controller, int channel)
 }
 
 
-/* 
- * DANG_FIXTHIS: The Invalid Mode is not supported (!) 
+/*
+ * DANG_FIXTHIS: The Invalid Mode is not supported (!)
  */
 static void dma_process_invalid_mode(int controller, int channel)
 {
@@ -1275,9 +1275,9 @@ static int dma_process_channel(int controller, int channel)
   if (dma[controller].i[channel].DACK_handler)
     dma[controller].i[channel].DACK_handler();
 
-  /* 
-   * Telling the DMA controller to READ means that you 
-   * want to read from the address, so we actually need 
+  /*
+   * Telling the DMA controller to READ means that you
+   * want to read from the address, so we actually need
    * to write !
    */
 
@@ -1406,7 +1406,7 @@ void dma_init(void)
   io_device.fd = -1;
 
   /*
-   * XT Controller 
+   * XT Controller
    */
   io_device.start_addr = 0x0000;
   io_device.end_addr = 0x000F;

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -133,15 +133,15 @@ static inline void set_raw_mode(void)
 
 /*
  * DANG_BEGIN_FUNCTION raw_keyboard_init
- * 
+ *
  * Initialize the keyboard for RAW mode.
- * 
+ *
  * DANG_END_FUNCTION
  */
 static int raw_keyboard_init(void)
 {
   k_printf("KBD(raw): raw_keyboard_init()\n");
-   
+
   kbd_fd = STDIN_FILENO;
 
   ioctl(kbd_fd, KDGKBMODE, &save_mode);
@@ -165,22 +165,22 @@ static int raw_keyboard_init(void)
     k_printf("KBD(raw): Not using SIGIO\n");
     add_to_io_select(kbd_fd, 0, keyb_client_run_async, NULL);
   }
-   
+
   return TRUE;
 }
 
 /*
  * DANG_BEGIN_FUNCTION raw_keyboard_reset
- * 
+ *
  * Reset the keyboard shiftstate to match the keyboard LED's
- * 
+ *
  * DANG_END_FUNCTION
  */
 static void raw_keyboard_reset(void)
 {
-  /* initialise the server's shift state to the current keyboard state */ 
+  /* initialise the server's shift state to the current keyboard state */
   set_shiftstate(get_kbd_flags());
-	
+
 }
 
 /* something like this oughta be defined in linux/kd.h but isn't... */
@@ -195,7 +195,7 @@ static void raw_keyboard_close(void)
 
     k_printf("KBD(raw): resetting LEDs to normal mode\n");
     ioctl(kbd_fd, KDSETLED, LED_NORMAL);
-   
+
     k_printf("KBD(raw): Resetting TERMIOS structure.\n");
     if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) < 0) {
       k_printf("KBD(raw): Resetting keyboard termios failed.\n");

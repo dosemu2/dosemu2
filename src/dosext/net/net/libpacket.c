@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -49,12 +49,12 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
    */
 
 int GetDosnetID(void)
-{  
+{
     return DosnetID;
 }
 
 void GenerateDosnetID(void)
-{  
+{
     DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
     pd_printf("Assigned DosnetID=%x\n", DosnetID);
 }
@@ -126,7 +126,7 @@ int OpenNetworkLink(char *name, unsigned short netid)
  *	Close a file handle to a raw packet type.
  */
 
-void 
+void
 CloseNetworkLink(int sock)
 {
 	close(sock);
@@ -151,11 +151,11 @@ CloseNetworkLink(int sock)
  *	-1	Error.
  */
 
-int 
+int
 GetDeviceHardwareAddress(char *device, unsigned char *addr)
-{  
+{
 	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP) {
-		/* This routine is totally local; doesn't make 
+		/* This routine is totally local; doesn't make
 		   request to actual device. */
 		int i;
 		memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
@@ -175,15 +175,15 @@ GetDeviceHardwareAddress(char *device, unsigned char *addr)
 
 		strcpy(req.ifr_name, device);
 
-		err = ioctl(s, SIOCGIFHWADDR, &req);  
+		err = ioctl(s, SIOCGIFHWADDR, &req);
 		close(s);
 		if (err == -1)
 			return err;
-#ifdef NET3    
+#ifdef NET3
 		memcpy(addr, req.ifr_hwaddr.sa_data,8);
 #else
 		memcpy(addr, req.ifr_hwaddr, 8);
-#endif  
+#endif
 	}
 	return 0;
 }
@@ -196,7 +196,7 @@ GetDeviceHardwareAddress(char *device, unsigned char *addr)
  *	-1	Error.
  */
 
-int 
+int
 GetDeviceMTU(char *device)
 {
 	int s = socket(AF_INET, SOCK_DGRAM, 0);

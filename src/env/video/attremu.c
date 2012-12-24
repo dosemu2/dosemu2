@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -40,7 +40,7 @@
  *
  * VGADOC says about the attribute controller:
  * Port 3C0h is special in that it is both address and data-write register.
- * Data reads happen from port 3C1h. An internal flip-flop remembers whether 
+ * Data reads happen from port 3C1h. An internal flip-flop remembers whether
  * it is currently acting as an address or data register.
  * Reading port 3DAh will reset the flip-flop to address mode.
  *

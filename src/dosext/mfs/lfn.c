@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -152,9 +152,9 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 			return 1;
 		}
 	}
-	dos_closedir(dir);	  
+	dos_closedir(dir);
 	return 0;
-}      
+}
 
 /* input: fpath = unix path
 	  current_drive = drive for DOS path
@@ -242,7 +242,7 @@ static int parse_name(const char **src, char **cp, char *dest)
 	int retval = 0;
 	char *p = *cp;
 	char c;
-  
+
 	while(1) switch(c=*(*src)++) {
 	case '/':
 	case '\\':
@@ -255,7 +255,7 @@ static int parse_name(const char **src, char **cp, char *dest)
 			return -1;
 		/* keep one trailing period if a * was encountered */
 		if (p[0] == '.' && (retval & PNE_WILDCARD_STAR))
-			p++;		
+			p++;
 		*cp = p;
 		return retval;
 	case '*':
@@ -267,7 +267,7 @@ static int parse_name(const char **src, char **cp, char *dest)
 	default:
 		addChar(c);
 	}
-  
+
  errRet:
 	return -1;
 }
@@ -309,7 +309,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		/* referenced for network with empty current_ldt.	    */
 		return 0;
 	}
-  
+
 	/* Do we have a drive?						*/
 	if (src[1] == ':')
 		result = toupperDOS(src0) - 'A';
@@ -330,7 +330,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		if (!(flags & CDSSUBST))
 			return result;
 		result = toupperDOS(cds_current_path(cds)[0]) - 'A';
-		if (result < 0 || result >= MAX_DRIVE || 
+		if (result < 0 || result >= MAX_DRIVE ||
 		    result >= lol_last_drive(lol))
 			return -PATH_NOT_FOUND;
 		if (!drives[result].root)
@@ -345,7 +345,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		   cds_rootlen(cds), cds_current_path(cds));
 	WRITE_WORDP(&sda[sda_cds_off],
 		   lol_cdsfarptr(lol).offset + result * cds_record_size);
- 
+
 	dest[0] = (result & 0x1f) + 'A';
 	dest[1] = ':';
 
@@ -375,7 +375,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 			}
 		}
 	}
-    
+
 	/* Make fully-qualified logical path */
 	/* register these two used characters and the \0 terminator byte */
 	/* we always append the current dir to stat the drive;
@@ -391,11 +391,11 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		memcpy(dest, cds_current_path(cds), cds_rootlen(cds));
 		if (cds_flags(cds) & CDSSUBST) {
 			/* The drive had been changed --> update the CDS pointer */
-			if (dest[1] == ':') { 
-				/* sanity check if this really 
+			if (dest[1] == ':') {
+				/* sanity check if this really
 				   is a local drive still */
 				unsigned i = toupperDOS(dest[0]) - 'A';
-				
+
 				if (i < lol_last_drive(lol))
 					/* sanity check #2 */
 					result = (result & 0xffe0) | i;
@@ -426,7 +426,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		if (gotAnyWildcards)
 			return -PATH_NOT_FOUND;
 		switch(*src++)
-		{   
+		{
 		case '/':
 		case '\\':	/* skip multiple separators (duplicated slashes) */
 			addSep = ADD;
@@ -470,7 +470,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 				addChar(*rootPos);
 				addSep = DONT_ADD;
 			}
-	
+
 			--src;
 			/* first character skipped in switch() */
 			i = parse_name(&src, &p, dest);
@@ -488,14 +488,14 @@ static int truename(char *dest, const char *src, int allowwildcards)
 		/* MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
 		   or "CDS.C\\" fails. */
 		/* But don't add the separator, if the last component was ".." */
-		/* we must also add a seperator if dest = "c:" */  
+		/* we must also add a seperator if dest = "c:" */
 		addChar('\\');
 	}
-  
+
 	*p = '\0';				/* add the string terminator */
-  
+
 	d_printf("Absolute logical path: \"%s\"\n", dest);
-  
+
 	/* look for any JOINed drives */
 	if (dest[2] != '/' && lol_njoined(lol)) {
 		cds_t cdsp = cds_base;
@@ -507,7 +507,7 @@ static int truename(char *dest, const char *src, int allowwildcards)
 			   the logical path */
 			if ((cds_flags(cdsp) & CDSJOINED)
 			    && (dest[j] == '\\' || dest[j] == '\0')
-			    && memcmp(dest, cds_current_path(cdsp), j) == 0) { 
+			    && memcmp(dest, cds_current_path(cdsp), j) == 0) {
 				/* JOINed drive found */
 				dest[0] = i + 'A'; /* index is physical here */
 				dest[1] = ':';
@@ -560,7 +560,7 @@ static int build_truename(char *dest, const char *src, int mode)
 
 	d_printf("LFN: build_posix_path: %s\n", src);
 	dd = truename(dest, src, mode);
-	
+
 	if (dd < 0) {
 		lfn_error(-dd);
 		return -1;
@@ -617,7 +617,7 @@ static int recur_match(const char *pattern, const char *string)
 					return 0;
 			}
 			/* no match, failure... */
-			return 1;				
+			return 1;
 		} else if (c == '?') {
 			if (*string++ == '\0')
 				return 1;
@@ -670,7 +670,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 	unsigned int dest;
 
 	if (lfn_sfn_match(dir->pattern, de, name_lfn, name_8_3) != 0)
-		return 0;	
+		return 0;
 
 	if (!strcmp(de->d_long_name,".") || !strcmp(de->d_long_name,"..")) {
 		if (strlen(dir->dirbase) <= drives[dir->drive].root_len)
@@ -716,7 +716,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 		WRITE_WORD(dest+0xe, date);
 		WRITE_WORD(dest+0xc, time);
 	} else {
-		unsigned long long wtime;	  
+		unsigned long long wtime;
 		d_printf("LFN: using WIN date/time\n");
 		wtime = unix_to_win_time(st.st_mtime);
 		WRITE_DWORD(dest+0x14, wtime);
@@ -822,7 +822,7 @@ static int wildcard_delete(char *fpath, int drive)
 	free(pattern);
 	dos_closedir(dir);
 	if (errcode)
-		return lfn_error(errcode);	
+		return lfn_error(errcode);
 	return 1;
 }
 
@@ -837,14 +837,14 @@ static int wildcard_delete(char *fpath, int drive)
     passed on to DOS using SFNs (chdir, open) using a small BIOS stub.
   - the SFNs are the Samba style SFNs that DOSEMU has used for as
     long as I can remember.
-*/  
+*/
 
 static int mfs_lfn_(void)
 {
 	char *cwd;
 	char fpath[PATH_MAX];
 	char fpath2[PATH_MAX];
-	
+
 	int drive, dirhandle = 0, rc, doserrno = FILE_NOT_FOUND;
 	unsigned int dest = SEGOFF2LINEAR(_ES, _DI);
 	char *src = MK_FP32(_DS, _DX);
@@ -854,7 +854,7 @@ static int mfs_lfn_(void)
 	struct mfs_dirent *de;
 	char *slash;
 	struct lfndir *dir = NULL;
-	
+
 	d_printf("LFN: doing LFN!, AX=%x DL=%x\n", _AX, _DL);
 	NOCARRY;
 
@@ -962,7 +962,7 @@ static int mfs_lfn_(void)
 		case 2: /* get physical size of uncompressed file */
 			_DX = st.st_size >> 16;
 			_AX = st.st_size & 0xffff;
-			break; 
+			break;
 		case 3: /* set last write date/time */
 			utimbuf.modtime = time_to_unix(_DI, _CX);
 			if (dos_utime(fpath, &utimbuf) != 0)
@@ -999,7 +999,7 @@ static int mfs_lfn_(void)
 			return lfn_error(DISK_DRIVE_INVALID);
 		if (!drives[drive].root)
 			return 0;
-			
+
 		cwd = cds_current_path(drive_cds(drive));
 		dest = SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath, cwd, drive);
@@ -1122,7 +1122,7 @@ static int mfs_lfn_(void)
 	{
 		int i;
 		char filename[PATH_MAX];
-	  
+
 		src = MK_FP32(_DS, _SI);
 		d_printf("LFN: truename %s, cl=%d\n", src, _CL);
 		i = 0;
@@ -1278,7 +1278,7 @@ static int mfs_lfn_(void)
 	}
 	case 0xa9: /* server create or open file */
 	case 0xaa: /* create/terminate/query subst */
-	default: 
+	default:
 		return 0;
 	}
 	return 1; /* finished: back to caller */

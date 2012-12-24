@@ -1,25 +1,25 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
    Unix SMB/Netbios implementation.
    Version 1.9.
    Copyright (C) Andrew Tridgell 1992,1993,1994
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -175,21 +175,21 @@ static BOOL is_8_3(char *fname)
 		  return(False);
 	      p++;
 	  }
-      }      
+      }
 #else
     while (*p)
       {
 	if (!VALID_DOS_PCHAR(p))
 	  return(False);
 	p++;
-      }      
+      }
 #endif /* KANJI */
   }
 
   /* no dot and less than 9 means OK */
   if (!dot_pos)
     return(len <= 8);
-	
+
   l = PTR_DIFF(dot_pos,fname);
 
   /* base must be at least 1 char except special cases . and .. */
@@ -200,7 +200,7 @@ static BOOL is_8_3(char *fname)
   if (l > 8)
     return(False);
 
-  if (lp_strip_dot() && 
+  if (lp_strip_dot() &&
       len - l == 1 &&
       !strchr(dot_pos+1,'.'))
     {
@@ -264,7 +264,7 @@ static void push_mangled_name(char *s)
   for (i=0;i<mangled_stack_len;i++)
     if (strcmp(s,mangled_stack[i]) == 0)
       {
-	array_promote(mangled_stack[0],sizeof(fstring),i);	
+	array_promote(mangled_stack[0],sizeof(fstring),i);
 	return;
       }
 
@@ -315,7 +315,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
 	      strcpy(s,mangled_stack[i]);
 	      strcat(s,extension);
 	      break;
-	    }	  
+	    }
 	}
     }
 
@@ -323,11 +323,11 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
     {
       DEBUG(3,("Found %s on mangled stack as %s\n",s,mangled_stack[i]));
       array_promote(mangled_stack[0],sizeof(fstring),i);
-      return(True);      
+      return(True);
     }
 
   return(False);
-}	
+}
 
 /* this is the magic char used for mangling */
 char magic_char = '~';
@@ -515,7 +515,7 @@ BOOL name_convert(char *Name, BOOL mangle)
   mangle_name_83(Name, NULL);
 
   DEBUG(5,("to %s\n",Name));
-  
+
   return(True);
 }
 
@@ -772,7 +772,7 @@ void mangle_search_83(char *s,char *home,char *dir, char *MangledMap)
   if (!dirptr)
     return;
 
-  
+
   for (dname = ReadDirName(dirptr); dname; dname = ReadDirName(dirptr))
     {
       strcpy(tmpname,dname);
@@ -786,7 +786,7 @@ void mangle_search_83(char *s,char *home,char *dir, char *MangledMap)
 	  return;
 	}
     }
-  
+
   /* didn't find it */
   strnorm(s);
 
@@ -805,7 +805,7 @@ void unix_convert_83(char *s,char *home,BOOL mangle, char *MangledMap)
 
   strnorm(s);
 
-  if (!mangle) 
+  if (!mangle)
     return;
 
   if (MangledMap && *MangledMap) {
@@ -859,7 +859,7 @@ void unix_convert_83(char *s,char *home,BOOL mangle, char *MangledMap)
 
       *directory = *name = *rest = 0;
 
-      /* pull off the rest of the name */      
+      /* pull off the rest of the name */
       if ((p2 = strchr(p,'/')))
 	{
 	  *p2 = 0;

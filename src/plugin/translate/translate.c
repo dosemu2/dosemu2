@@ -15,7 +15,7 @@
  */
 
 static size_t charset_to_unicode_default(
-	struct char_set_state *state, 
+	struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode *symbol_out, const unsigned char *str, size_t in_len)
 {
@@ -29,7 +29,7 @@ static size_t charset_to_unicode_default(
 }
 
 static size_t unicode_to_charset_default(
-	struct char_set_state *state, 
+	struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode symbol, unsigned char *outbuf, size_t out_len)
 {
@@ -89,7 +89,7 @@ struct char_set_operations dummy_charset_ops = {
  * ======================================
  */
 static size_t unicode_to_charset_primitive(
-	struct char_set_state *state, 
+	struct char_set_state *state,
 	struct char_set *piece, int offset,
 	t_unicode symbol, unsigned char *outbuf, size_t out_len)
 {
@@ -113,7 +113,7 @@ static size_t unicode_to_charset_primitive(
 			buff[0] = (i/piece->logical_chars_count) + offset;
 			buff[1] = (i%piece->logical_chars_count) + offset;
 		}
-	} 
+	}
 	if (buff_len > 0) {
 		if (buff_len <= out_len) {
 			memcpy(outbuf, buff, buff_len);
@@ -131,7 +131,7 @@ static size_t unicode_to_charset_primitive(
 }
 
 static size_t charset_to_unicode_primitive(
-	struct char_set_state *state, 
+	struct char_set_state *state,
 	struct char_set *piece, int offset,
 	t_unicode *symbol_out,
 	const unsigned char *str, size_t in_len)
@@ -177,8 +177,8 @@ static size_t charset_to_unicode_primitive(
 	}
 }
 
-static void foreach_primitive(struct char_set *piece, 
-	int offset, 
+static void foreach_primitive(struct char_set *piece,
+	int offset,
 	void *callback_data, foreach_callback_t callback)
 {
 	unsigned char buff[2];
@@ -207,7 +207,7 @@ struct char_set_operations primitive_charset_ops =
 	.foreach=            &foreach_primitive,
 };
 
-/* 
+/*
  * Default Compound Charset operations
  * =====================================
  */
@@ -223,12 +223,12 @@ static size_t attempt_piece(struct char_set_state *state,
 	if (piece->logical_chars_count == 94) {
 		offset++;
 	}
-	return piece->ops->unicode_to_charset(state, piece, offset, 
+	return piece->ops->unicode_to_charset(state, piece, offset,
 		symbol, outbuf, out_len);
 }
 
 static size_t unicode_to_compound_charset(
-	struct char_set_state *ch_state, 
+	struct char_set_state *ch_state,
 	struct char_set *set, int offset,
 	t_unicode symbol,
 	unsigned char *outbuf, size_t out_len)
@@ -265,8 +265,8 @@ static size_t unicode_to_compound_charset(
 
 
 static size_t compound_charset_to_unicode(
-	struct char_set_state *state, 
-	struct char_set *set, int offset, 
+	struct char_set_state *state,
+	struct char_set *set, int offset,
 	t_unicode *symbol_out,
 	const unsigned char *str, size_t in_len)
 {
@@ -309,8 +309,8 @@ static void foreach_piece(
 	}
 	piece->ops->foreach(piece, offset, callback_data, callback);
 }
-	
-static void foreach_compound_charset(struct char_set *set, 
+
+static void foreach_compound_charset(struct char_set *set,
 	int offset,
 	void *callback_data, foreach_callback_t callback)
 {
@@ -348,7 +348,7 @@ static void initialize_charset_piece(struct char_set *piece)
 static void initialize_charset_ops(struct char_set *set)
 {
 	if (!set->ops) {
-		if (set->c0 || set->c1 || set->g0 || set->g1) { 
+		if (set->c0 || set->c1 || set->g0 || set->g1) {
 			set->ops = &compound_charset_ops;
 		}
 		else if (set->chars) {
@@ -518,11 +518,11 @@ static void unicode_to_charset_callback(void *p, t_unicode approximation)
 {
 	struct unicode_to_charset_state *state = p;
 
-	if (debug_level('u') > 1) 
+	if (debug_level('u') > 1)
 		u_printf("U: symbol %04x approximation: %04x\n",
 		state->symbol, approximation);
 	state->result = state->chars->ops->unicode_to_charset(
-		state->ostate, state->chars, 0, approximation, 
+		state->ostate, state->chars, 0, approximation,
 		state->outbuf, state->out_bytes_left);
 
 	/* done searching? */
@@ -538,7 +538,7 @@ size_t unicode_to_charset(struct char_set_state *ostate, t_unicode symbol,
 
 	if (out_bytes_left == 0) {
 		errno = E2BIG;
-		return -1; 
+		return -1;
 	}
 	if (!ostate) {
 		errno = EBADF;
@@ -552,7 +552,7 @@ size_t unicode_to_charset(struct char_set_state *ostate, t_unicode symbol,
 
 	state.result = state.chars->ops->unicode_to_charset(
 		ostate, state.chars, 0, symbol, outbuf, out_bytes_left);
-	
+
 	if ((state.result == -1) && (errno == EILSEQ)) {
 		state.symbol = symbol;
 		state.ostate = ostate;
@@ -591,7 +591,7 @@ size_t unicode_to_charset(struct char_set_state *ostate, t_unicode symbol,
 	return state.result;
 }
 
-size_t charset_to_unicode(struct char_set_state *state, 
+size_t charset_to_unicode(struct char_set_state *state,
 	t_unicode *symbol,
 	const unsigned char *inbuf, size_t in_bytes_left)
 {
@@ -640,7 +640,7 @@ int init_charset_state(struct char_set_state *state, struct char_set *chars)
 	return chars->ops->init(state);
 }
 
-void copy_charset_state(struct char_set_state *dst, 
+void copy_charset_state(struct char_set_state *dst,
 	const struct char_set_state *src)
 {
 	if (!src || !dst) {
@@ -661,7 +661,7 @@ void cleanup_charset_state(struct char_set_state *state)
 	}
 }
 
-void foreach_character_mapping(struct char_set *set, 
+void foreach_character_mapping(struct char_set *set,
 	void *callback_data, foreach_callback_t callback)
 {
 	set->ops->foreach(set, 0, callback_data, callback);
@@ -758,7 +758,7 @@ const unsigned char latin_to_dos[] = {
 
 /* cp437 -> iso8859-1 */
 const unsigned char dos_to_latin[] = {
-   0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,  /* 80-87 */ 
+   0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,  /* 80-87 */
    0xea, 0xeb, 0xe8, 0xef, 0xee, 0xec, 0xc4, 0xc5,  /* 88-8F */
    0xc9, 0xe6, 0xc6, 0xf4, 0xf6, 0xf2, 0xfb, 0xf9,  /* 90-97 */
    0xff, 0xd6, 0xdc, 0xa2, 0xa3, 0xa5, 0x00, 0x00,  /* 98-9F */
@@ -774,7 +774,7 @@ const unsigned char dos_to_latin[] = {
    0x00, 0x00, 0x00, 0xf0, 0x00, 0xd8, 0x00, 0x00,  /* E8-EF */
    0x00, 0xb1, 0x00, 0x00, 0x00, 0x00, 0xf7, 0x00,  /* F0-F7 */
    0xb0, 0xb7, 0x00, 0x00, 0xb3, 0xb2, 0x00, 0x00   /* F8-FF */
-};  
+};
 
 /* iso-8859-1 -> cp850 */
 const unsigned char latin1_to_dos[] = {
@@ -891,7 +891,7 @@ void translate_test(void)
 	video_charset = lookup_charset("cp437_display");
 	old_charset = dos_to_latin;
 	old_reverse_charset = latin_to_dos;
-	/* Build the translate tables */	
+	/* Build the translate tables */
 	for(i = 0; i < 256; i++) {
 		t_unicode uni;
 		uni = charset_to_unicode(video_charset, i);

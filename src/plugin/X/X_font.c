@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -35,7 +35,7 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
-/* 
+/*
  * Change color values in our graphics context 'gc'.
  */
 static void set_gc_attr(Bit8u attr)
@@ -194,7 +194,7 @@ static void X_set_text_palette(DAC_entry col)
     get_approx_color(&xc, text_cmap, read_cmap);
     read_cmap = 0;
     X_printf("X: refresh_text_palette: %d (%d -> app. %d)\n", i, (int) text_colors[i], (int) xc.pixel);
-      
+
   }
   else {
     X_printf("X: refresh_text_palette: %d (%d -> %d)\n", i, (int) text_colors[i], (int) xc.pixel);
@@ -205,7 +205,7 @@ static void X_set_text_palette(DAC_entry col)
 
 static struct text_system Text_X =
 {
-   X_draw_string, 
+   X_draw_string,
    X_draw_line,
    X_draw_text_cursor,
    X_set_text_palette,

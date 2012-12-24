@@ -17,7 +17,7 @@
  * GET_USER_ENVVAR and GET_COMMAND
  *
  * These are made available to the DOSEMU by using the DOS_HELPER interrupt
- * (Currently 0xE6) and writing a string into a location passed to this 
+ * (Currently 0xE6) and writing a string into a location passed to this
  * interrupt handler using the registers. In the case of GET_USER_ENVVAR the
  * string also contains the name of the environment variable to interrogate.
  * (The string is overwritten with the reply).
@@ -37,76 +37,76 @@
  *	so that "dosemu keen1.exe" works again.
  *	But do not use heuristics that split options from commands, by making
  *	quotes of filenames that contain spaces compulsory.
- *	
+ *
  *	Revision 1.14  2005/12/18 07:58:44  bartoldeman
  *	Put some basic checks into dos_read/dos_write, and memmove_dos2dos to
  *	avoid touching the protected video memory.
  *	Fixes #1379806 (gw stopped to work under X).
- *	
+ *
  *	Revision 1.13  2005/11/29 18:24:31  stsp
- *	
+ *
  *	call_msdos() must switch to real mode before calling DOS, if needed.
- *	
+ *
  *	Revision 1.12  2005/11/29 10:25:04  bartoldeman
  *	Adjust video.c init so that -dumb does not pop up an X window.
  *	Make -dumb quiet until the command is executed if a command is given. So
  *	dosemu -dumb dir
  *	gives a directory listing and nothing else.
- *	
+ *
  *	Revision 1.11  2005/11/21 18:12:51  stsp
- *	
+ *
  *	- Map the DOS<-->unix STDOUT/STDERR properly for unix.com.
  *	- Improved the DOS console reading for unix.com
- *	
+ *
  *	Revision 1.10  2005/11/19 00:54:40  stsp
- *	
+ *
  *	Make unix.com "keyboard-aware" (FR #1360156). It works like a tty
  *	in a -icanon mode.
  *	system() replaced with execlp() to make it possible to emulate ^C
  *	with SIGINT.
  *	Also reworked the output-grabbing again - it was still skipping an
  *	output sometimes.
- *	
+ *
  *	Revision 1.9  2005/11/18 21:47:56  stsp
- *	
+ *
  *	Make unix.com to use DOS/stdout instead of the direct video mem access,
  *	so that the file redirection to work.
- *	
+ *
  *	Revision 1.8  2005/11/02 04:52:55  stsp
- *	
+ *
  *	Fix run_unix_command (#1345102)
- *	
+ *
  *	Revision 1.7  2005/09/30 22:15:59  stsp
- *	
+ *
  *	Avoid using LOWMEM for the non-const addresses.
  *	This fixes iplay (again), as it read()s directly to the EMS frame.
  *	Also, moved dos_read/write to dos2linux.c to make them globally
  *	available. And removed the __builtin_constant_p() check in LINEAR2UNIX -
  *	gcc might still be able to optimize the const addresses, but falling
  *	back for dosaddr_to_unixaddr() will happen less frequently.
- *	
+ *
  *	Revision 1.6  2005/09/05 09:47:56  bartoldeman
  *	Moved much of X_change_config to dos2linux.c. Much of it will be shared
  *	with SDL.
- *	
+ *
  *	Revision 1.5  2005/06/20 17:12:11  stsp
- *	
+ *
  *	Remove the ancient (unused) ioctl queueing code.
- *	
+ *
  *	Revision 1.4  2005/05/20 00:26:09  bartoldeman
  *	It's 2005 this year.
- *	
+ *
  *	Revision 1.3  2005/03/21 17:24:09  stsp
- *	
+ *
  *	Fixed (and re-enabled) the terminate-after-execute feature (bug #1152829).
  *	Also some minor adjustments/leftovers.
- *	
+ *
  *	Revision 1.2  2004/01/16 20:50:27  bartoldeman
  *	Happy new year!
- *	
+ *
  *	Revision 1.1.1.1  2003/06/23 00:02:07  bartoldeman
  *	Initial import (dosemu-1.1.5.2).
- *	
+ *
  *
  * DANG_END_CHANGELOG
  *
@@ -364,28 +364,28 @@ int find_drive (char **plinux_path_resolved)
  * DANG_BEGIN_FUNCTION run_unix_command
  *
  * description:
- *  Runs a command and prints the (stdout and stderr) output on the dosemu 
+ *  Runs a command and prints the (stdout and stderr) output on the dosemu
  *  screen.
  *
  * return: nothing
  *
- * arguments: 
+ * arguments:
  *   buffer - string with command to execute
  *
  * DANG_END_FUNCTION
  *
  *
- * This function forks a child process (don't worry, it doesn't take 
- * much memory, read the fork manpage) and creates a pipe between the 
- * parent and the child. The child redirects stdout to the write side 
- * of the pipe and executes the command, the parents reads the read 
- * side of the pipe and prints the command output on the dosemu screen. 
- * system() is used to execute the command because this function uses a 
- * shell (/bin/sh -c command), so nice things like this work: 
+ * This function forks a child process (don't worry, it doesn't take
+ * much memory, read the fork manpage) and creates a pipe between the
+ * parent and the child. The child redirects stdout to the write side
+ * of the pipe and executes the command, the parents reads the read
+ * side of the pipe and prints the command output on the dosemu screen.
+ * system() is used to execute the command because this function uses a
+ * shell (/bin/sh -c command), so nice things like this work:
  *
  * C:\>unix ls -CF /usr/src/dosemu/video / *.[ch]
  *
- * Even output redirection works, but you have to quote the command in 
+ * Even output redirection works, but you have to quote the command in
  * dosemu:
  *
  * C:\>unix "ps aux | grep dos > /msdos/c/unixcmd.txt"
@@ -590,7 +590,7 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
 	  if (strlen (title)) strcat (title, " - ");
 	  unixptr = title + strlen (title);
 	  /* foreign string, cannot trust its length to be <= TITLE_EMUNAME_MAXLEN */
-	  snprintf (unixptr, TITLE_EMUNAME_MAXLEN, "%s ", config.X_title);  
+	  snprintf (unixptr, TITLE_EMUNAME_MAXLEN, "%s ", config.X_title);
 	}
 
 	if (dosemu_frozen) {

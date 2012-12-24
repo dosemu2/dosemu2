@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -19,7 +19,7 @@
  *
  * addr1=malloc(size1); free(addr1); addr2=malloc(size2);
  * assert(size1 > size2 || addr2 >= addr1);
- * 
+ *
  * This last assumption is not always true with the recent linux kernels
  * (2.6.7-mm2 here). Thats why we have to allocate the pool and manage
  * the memory ourselves.
@@ -173,7 +173,7 @@ void dpmi_alloc_pool(void)
     sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
     dpmi_total_memory = num_pages << PAGE_SHIFT;
 
-    D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory); 
+    D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory);
     config.dpmi_base = (uintptr_t)mpool_ptr;
 }
 
@@ -289,7 +289,7 @@ static void restore_page_protection(dpmi_pm_block *block)
       uncommit(&mem_base[block->base + (i << PAGE_SHIFT)], PAGE_SIZE);
   }
 }
-	 
+
 dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
 {
     dpmi_pm_block *block;
@@ -332,7 +332,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     if (base == 0)
 	ptr = (void *)-1;
     else
-	ptr = mem_base+base; 
+	ptr = mem_base+base;
     if (committed && size > dpmi_free_memory)
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
@@ -420,7 +420,7 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     newsize = PAGE_ALIGN(newsize);
     if (newsize == block -> size)     /* do nothing */
 	return block;
-    
+
     if ((newsize > block -> size) &&
 	((newsize - block -> size) > dpmi_free_memory)) {
 	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");
@@ -459,7 +459,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     newsize = PAGE_ALIGN(newsize);
     if (newsize == block -> size)     /* do nothing */
 	return block;
-    
+
     if ((newsize > block -> size) && committed &&
 	((newsize - block -> size) > dpmi_free_memory)) {
 	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");

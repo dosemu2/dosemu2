@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -186,14 +186,14 @@ static TNode *avltr_probe (const int key, int *found)
       if (debug_level('e')) if (k>MaxDepth) MaxDepth=k;
 #endif
   }
-  
+
   tree->count++;
   ninodes = tree->count;
 #ifdef PROFILE
   if (debug_level('e')) if (ninodes > MaxNodes) MaxNodes = ninodes;
 #endif
   q->bal = 0;
-  
+
   r = p = s->link[(int) s->cache];
   while (p != q) {
       p->bal = p->cache * 2 - 1;
@@ -282,14 +282,14 @@ static TNode *avltr_probe (const int key, int *found)
 	  p->bal = 0;
       }
   }
-		
+
   if (t != &tree->root && s == t->link[1]) t->link[1] = p;
     else t->link[0] = p;
 
   return q;
 }
 
-  
+
 void avltr_delete (const int key)
 {
   avltr_tree *tree = &CollectTree;
@@ -369,7 +369,7 @@ void avltr_delete (const int key)
 
 	    a[k] = 0;
 	    pa[k++] = r;
-	    
+
 	    while (s->link[0] != NULL) {
 		r = s;
 		s = r->link[0];
@@ -421,7 +421,7 @@ void avltr_delete (const int key)
 
       if (a[k] == 0) {
 	  TNode *const r = s->link[1];
-	  
+
 	  if (s->bal == -1) {
 	      s->bal = 0;
 	      continue;
@@ -474,7 +474,7 @@ void avltr_delete (const int key)
       }
       else {
 	  TNode *const r = s->link[0];
-	  
+
 	  if (s->bal == +1) {
 	      s->bal = 0;
 	      continue;
@@ -1085,7 +1085,7 @@ TNode *FindTree(int key)
 	    H = LastXNode;
 	}
 	if (H) {
-	    if (debug_level('e')>4) 
+	    if (debug_level('e')>4)
 		e_printf("History: LastXNode at %08x to key=%08x\n",
 			LastXNode->key, key);
 	    H->alive = NODELIFE(H);

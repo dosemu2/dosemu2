@@ -51,12 +51,12 @@
 #include "vgaemu.h"
 
 /* DANG_BEGIN_REMARK
- * I have not properly tested this INT74 - JES 96/10/20 
+ * I have not properly tested this INT74 - JES 96/10/20
  * I have removed it.  INT74 is irq 12.  Which I suppose is the proper
  * irq for a ps2 mouse.  It appears initial support was planned to
  * support irq 12 and at Mouse_ROUTINE_OFF is a routine that
  * acknowledges an irq.  That routine is probably what should be
- * acknowledging irq12, and what int 0x74 should point to.  
+ * acknowledging irq12, and what int 0x74 should point to.
  * I have disabled int0x74 support for now. --EB 29 Oct 1997
  * Got it working --BO 4 Nov 2004
  * DANG_END_REMARK
@@ -72,7 +72,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_mickeys(void), mouse_version(void), mouse_enable_internaldriver(void),
  mouse_disable_internaldriver(void),
 #if 0
- mouse_software_reset(void), 
+ mouse_software_reset(void),
 #endif
  mouse_getgeninfo(void), mouse_exclusionarea(void), mouse_setcurspeed(void),
  mouse_undoc1(void), mouse_storestate(void), mouse_restorestate(void),
@@ -108,14 +108,14 @@ static mouse_t *mice = &config.mouse;
 /* the 'volatile' is there to cover some bug in gcc -O -g3 */
 volatile struct mouse_struct mouse;
 
-static inline int mouse_roundx(int x) 
-{ 
-	return x & ~((1 << mouse.xshift)-1); 
+static inline int mouse_roundx(int x)
+{
+	return x & ~((1 << mouse.xshift)-1);
 }
 
-static inline int mouse_roundy(int y) 
+static inline int mouse_roundy(int y)
 {
-	return y & ~((1 << mouse.yshift)-1); 
+	return y & ~((1 << mouse.yshift)-1);
 }
 
 static short default_graphcursormask[HEIGHT] =  {
@@ -174,16 +174,16 @@ void register_mouse_client(struct mouse_client *mouse)
 }
 
 void
-mouse_helper(struct vm86_regs *regs) 
+mouse_helper(struct vm86_regs *regs)
 {
   if (!mice->intdrv) {
     m_printf("MOUSE No Internaldriver set, exiting mouse_helper()\n");
     SETWORD(&regs->eax, 0xffff);
     return;
   }
- 
+
   SETWORD(&regs->eax, 0);		/* Set successful completion */
-    
+
   switch (LOW(regs->ebx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
@@ -214,7 +214,7 @@ mouse_helper(struct vm86_regs *regs)
     if (LOW(regs->ecx) < 1) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       SETWORD(&regs->eax, 1);
-    } else 
+    } else
       mice->init_speed_y = mouse.speed_y = LOW(regs->ecx);
     break;
   case 5:				/* Set horizontal speed */
@@ -225,7 +225,7 @@ mouse_helper(struct vm86_regs *regs)
       mice->init_speed_x = mouse.speed_x = LOW(regs->ecx);
     break;
   case 6:				/* Ignore horz/vert selection */
-    if (LOW(regs->ecx) == 1) 
+    if (LOW(regs->ecx) == 1)
       mouse.ignorexy = TRUE;
     else
       mouse.ignorexy = FALSE;
@@ -276,7 +276,7 @@ mouse_helper(struct vm86_regs *regs)
 }
 
 void mouse_ps2bios(void)
-{        
+{
   m_printf("PS2MOUSE: Call ax=0x%04x, bx=0x%04x\n", LWORD(eax), LWORD(ebx));
   if (!mice->intdrv) {
     REG(eax) = 0x0500;        /* No ps2 mouse device handler */
@@ -285,7 +285,7 @@ void mouse_ps2bios(void)
   }
 
   switch (REG(eax) &= 0x00FF) {
-  case 0x0000:                    
+  case 0x0000:
     mouse.ps2.state = HI(bx);
     HI(ax) = 0;
     NOCARRY;
@@ -365,7 +365,7 @@ mouse_int(void)
     /* save old highlight mouse tracking */
     printf("\033[?1001s");
     /* enable mouse tracking */
-    printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");	
+    printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");
     fflush (stdout);
     m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
     sent_mouse_esc = TRUE;
@@ -439,11 +439,11 @@ mouse_int(void)
     break;
 
   case 0x10:			/* Define mouse exclusion zone */
-    mouse_exclusionarea();	
+    mouse_exclusionarea();
     break;
 
   case 0x11: 			/* Undocumented */
-    mouse_undoc1();		
+    mouse_undoc1();
     break;
 
   case 0x12:			/* Set Large Graphics Cursor Block */
@@ -451,11 +451,11 @@ mouse_int(void)
     break;
 
   case 0x13:			/* Set Maximum for mouse speed doubling */
-    mouse_doublespeed();	
+    mouse_doublespeed();
     break;
 
   case 0x14:			/* Exchange Event Handler */
-    mouse_excevhand();	
+    mouse_excevhand();
     break;
 
   case 0x15:			/* Get size of buffer needed to hold state */
@@ -506,7 +506,7 @@ mouse_int(void)
     mouse_enable_internaldriver();
     break;
 
-  case 0x21:			
+  case 0x21:
 #if 0
     mouse_software_reset();	/* Perform Software reset on mouse */
 #else
@@ -528,7 +528,7 @@ mouse_int(void)
     break;
 
   case 0x25:			/* Get general driver information */
-    mouse_getgeninfo();	
+    mouse_getgeninfo();
     break;
 
   case 0x26:			/* Return Maximal Co-ordinates */
@@ -543,11 +543,11 @@ mouse_int(void)
   case 0x28:			/* Set video mode */
     mouse_setvidmode();		/* TO DO ! now ! */
     break;
- 
+
   case 0x29:			/* Count video modes */
     mouse_countvids();		/* TO DO ! now ! */
     break;
- 
+
   case 0x2A:			/* Get cursor hotspot */
     mouse_gethotspot();		/* TO DO ! when > 7.02 */
     break;
@@ -587,13 +587,13 @@ mouse_int(void)
     break;
 
   case 0x33:			/* Get switch settings */
-    mouse_getswitchset();	/* TO DO ! when > 7.05 */ 
+    mouse_getswitchset();	/* TO DO ! when > 7.05 */
     break;
 
   case 0x34:			/* Get MOUSE.INI ! Location */
     mouse_getinilocation();	/* TO DO ! when > 8.00 */
     break;
- 
+
   case 0x35:			/* LCD Large Screen support */
     mouse_lcd();		/* TO DO ! when > 8.10 */
     break;
@@ -679,7 +679,7 @@ mouse_exclusionarea(void)
 static void
 mouse_getstorereq(void)
 {
-  if (!mouse.threebuttons) 
+  if (!mouse.threebuttons)
     LWORD(eax) = 0x42;                /* Configures mouse for Microsoft Mode */
   else {
     LWORD(eax) = 0xffff;              /* Configures mouse for PC Mouse Mode */
@@ -704,7 +704,7 @@ mouse_getmaxminvirt(void)
   LWORD(ecx) = mouse.virtual_maxx;
   LWORD(edx) = mouse.virtual_maxy;
   m_printf("MOUSE: VIRTUAL COORDINATES: x: %d-%d, y: %d-%d\n",
-    mouse.virtual_minx, mouse.virtual_maxx, 
+    mouse.virtual_minx, mouse.virtual_maxx,
     mouse.virtual_miny, mouse.virtual_maxy);
 }
 
@@ -740,13 +740,13 @@ mouse_software_reset(void)
   m_printf("MOUSE: software reset on mouse\n");
 
   /* Disable cursor, and de-install current event handler */
-  mouse.cursor_on = -1;      
+  mouse.cursor_on = -1;
   mouse.cs=0;
   mouse.ip=0;
   mouse_enable_internaldriver();
 
   /* Return 0xffff on success, 0x21 on failure */
-  LWORD(eax) = 0xffff;  
+  LWORD(eax) = 0xffff;
 
   /* Return Number of mouse buttons */
   if (mouse.threebuttons)
@@ -854,7 +854,7 @@ mouse_excevhand(void)
 void
 mouse_undoc1(void)
 {
-  /* This routine is for GENIUS mice only > version 9.06 
+  /* This routine is for GENIUS mice only > version 9.06
    * This function is not defined by my documentation */
 
   if (mouse.threebuttons && (MOUSE_VERSION > 0x0906)) {
@@ -903,7 +903,7 @@ mouse_reset_to_current_video_mode(int mode)
   */
   get_current_video_mode(mode);
 
-  /* 
+  /*
    * Actually what happens is: if a Text mode is found, height and width
    * are in characters, else they are in pixels. This was clearly done to
    * confuse people. Besides, they ignore the ACTUAL maxx,maxy values as
@@ -921,18 +921,18 @@ mouse_reset_to_current_video_mode(int mode)
  * pick a shift factor, possibly to keep at least a 640x200 resolution.
  *
  * The general programming documentation doesn't make this clear.
- * And says that in text modes it is safe to divide the resolution by 
+ * And says that in text modes it is safe to divide the resolution by
  * 8 to get the coordinates in characters.
  *
  * The only safe way to handle the mouse driver is to call function
- * 0x26 Get max x & max y coordinates and scale whatever the driver 
+ * 0x26 Get max x & max y coordinates and scale whatever the driver
  * returns yourself.
  *
  * To handle programs written by programmers who weren't so cautious a
  * doctrine of least suprise has been implemented.
  *
  * As much as possible do the same as a standard dos mouse driver in the
- * original vga modes 0,1,2,3,4,5,6,7,13,14,15,16,17,18,19. 
+ * original vga modes 0,1,2,3,4,5,6,7,13,14,15,16,17,18,19.
  *
  * For other text modes allow the divide by 8 technique to work.
  * For other graphics modes return x & y in screen coordinates.
@@ -944,7 +944,7 @@ mouse_reset_to_current_video_mode(int mode)
  * simplest, and most common route, which is also long standing dosemu
  * practice of always shifting the xaxis by 1.  When I researched this
  * I could find no examples that did otherwise.
- * 
+ *
  *
  * -- Eric Biederman 19 August 1998
  *
@@ -966,7 +966,7 @@ mouse_reset_to_current_video_mode(int mode)
     mouse.gfx_cursor = FALSE;
   } else {
     mouse.gfx_cursor = TRUE;
-    mouse.xshift = 0;    
+    mouse.xshift = 0;
     mouse.yshift = 0;
     while ((mouse_current_video.width << mouse.xshift) < mouse.min_max_x) {
       mouse.xshift++;
@@ -983,7 +983,7 @@ mouse_reset_to_current_video_mode(int mode)
 
   /* force update first time after reset */
   mouse.oldrx = -1;
-  
+
   /* Change mouse.maxx & mouse.maxy from ranges to maximums */
   mouse.maxx = mouse_roundx(mouse.maxx - 1);
   mouse.maxy = mouse_roundy(mouse.maxy - 1);
@@ -996,7 +996,7 @@ mouse_reset_to_current_video_mode(int mode)
   mouse.virtual_miny = mouse.miny;
   mouse.virtual_maxy = mouse.maxy;
 
-  m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n", 
+  m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n",
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y, mouse.ignorexy,
 	   mice->type);
   last_mouse_call_read_mickeys = 0;
@@ -1020,10 +1020,10 @@ static void mouse_reset(int flag)
   /* Return number of mouse buttons */
   if (flag == 0) {
     LWORD(eax) = 0xffff;
-    if (mouse.threebuttons) 
-      LWORD(ebx)=3; 
-    else 
-      LWORD(ebx)=2; 
+    if (mouse.threebuttons)
+      LWORD(ebx)=3;
+    else
+      LWORD(ebx)=2;
     mouse_reset_to_current_video_mode(-1);
   }
 
@@ -1062,7 +1062,7 @@ static void mouse_reset(int flag)
   mouse_do_cur(1);
 }
 
-void 
+void
 mouse_cursor(int flag)	/* 1=show, -1=hide */
 {
   /* Delete exclusion zone, if show cursor applied */
@@ -1083,11 +1083,11 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   		(flag == 1 && mouse.cursor_on == 0)){
 	  mouse_do_cur(1);
   }
- 
+
   m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
 }
 
-void 
+void
 mouse_pos(void)
 {
   m_printf("MOUSE: get mouse position x:%d, y:%d, b(l%d m%d r%d)\n", mouse.x,
@@ -1101,7 +1101,7 @@ mouse_pos(void)
 }
 
 /* Set mouse position */
-void 
+void
 mouse_setpos(void)
 {
   /* WP reads mickeys, and then sets the cursor position to make certain
@@ -1122,7 +1122,7 @@ mouse_setpos(void)
   m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
 }
 
-void 
+void
 mouse_bpressinfo(void)
 {
   m_printf("MOUSE: Button press info\n");
@@ -1131,14 +1131,14 @@ mouse_bpressinfo(void)
     LWORD(ebx) = 0;
 
   switch(LWORD(ebx)) {
- 
+
   case 0:				/* left button */
     LWORD(ebx) = mouse.lpcount;
     mouse.lpcount = 0;
     LWORD(ecx) = mouse.lpx;
     LWORD(edx) = mouse.lpy;
     break;
- 
+
   case 1:				/* right button */
     LWORD(ebx) = mouse.rpcount;
     mouse.rpcount = 0;
@@ -1153,13 +1153,13 @@ mouse_bpressinfo(void)
     LWORD(edx) = mouse.mpy;
     break;
   }
-  
+
   LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(eax) |= (mouse.mbutton ? 4 : 0);
 }
 
-void 
+void
 mouse_brelinfo(void)
 {
   m_printf("MOUSE: Button release info\n");
@@ -1168,14 +1168,14 @@ mouse_brelinfo(void)
     LWORD(ebx) = 0;
 
   switch(LWORD(ebx)) {
- 
+
   case 0:				/* left button */
     LWORD(ebx) = mouse.lrcount;
     mouse.lrcount = 0;
     LWORD(ecx) = mouse.lrx;
     LWORD(edx) = mouse.lry;
-    break; 
- 
+    break;
+
   case 1:				/* right button */
     LWORD(ebx) = mouse.rrcount;
     mouse.rrcount = 0;
@@ -1189,13 +1189,13 @@ mouse_brelinfo(void)
     LWORD(edx) = mouse.mry;
     break;
   }
-  
+
   LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(eax) |= (mouse.mbutton ? 4 : 0);
 }
 
-void 
+void
 mouse_setxminmax(void)
 {
   m_printf("MOUSE: set horz. min: %d, max: %d\n", LWORD(ecx), LWORD(edx));
@@ -1208,7 +1208,7 @@ mouse_setxminmax(void)
   mouse.virtual_maxx += (1 << mouse.xshift) -1;
 }
 
-void 
+void
 mouse_setyminmax(void)
 {
   m_printf("MOUSE: set vert. min: %d, max: %d\n", LWORD(ecx), LWORD(edx));
@@ -1221,7 +1221,7 @@ mouse_setyminmax(void)
   mouse.virtual_maxy += (1 << mouse.yshift) -1;
 }
 
-void 
+void
 mouse_set_gcur(void)
 {
   unsigned short *ptr = MK_FP32(LWORD(es),LWORD(edx));
@@ -1241,7 +1241,7 @@ mouse_set_gcur(void)
   define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
 }
 
-void 
+void
 mouse_set_tcur(void)
 {
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
@@ -1252,7 +1252,7 @@ mouse_set_tcur(void)
 	  mouse.textcursormask = LWORD(edx);
 	  mouse_do_cur(1);
   } else {					/* Hardware cursor */
-  /* CX - should be starting line of hardware cursor 
+  /* CX - should be starting line of hardware cursor
    * DX - should be ending line of hardware cursor
    * FIXME ! -- then again, who ever actually uses the hw cursor? */
    /* (the only advantage of the hw cursor is that you don't have to
@@ -1263,7 +1263,7 @@ mouse_set_tcur(void)
   }
 }
 
-void 
+void
 mouse_setsub(void)
 {
   mouse.cs = LWORD(es);
@@ -1274,7 +1274,7 @@ mouse_setsub(void)
 	   LWORD(es), LWORD(edx), LWORD(ecx));
 }
 
-void 
+void
 mouse_mickeys(void)
 {
   m_printf("MOUSE: read mickeys %d %d\n", mouse.mickeyx, mouse.mickeyy);
@@ -1292,7 +1292,7 @@ mouse_mickeys(void)
   last_mouse_call_read_mickeys = 1;
 }
 
-void 
+void
 mouse_version(void)
 {
   LWORD(ebx) = MOUSE_VERSION;
@@ -1327,7 +1327,7 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	static struct keyboard_mouse_state {
 		int l, r, u, d;
 		int ul, ur, dl, dr;
-		int lbutton, mbutton, rbutton; 
+		int lbutton, mbutton, rbutton;
 	} state;
 	int dx, dy;
 	switch (key) {
@@ -1467,7 +1467,7 @@ static void mouse_move(int clipped)
   mouse_update_cursor(clipped);
 
   m_printf("MOUSE: move: x=%d,y=%d\n", mouse.x, mouse.y);
-   
+
   mouse_delta(DELTA_CURSOR);
 }
 
@@ -1527,11 +1527,11 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 	/* Provide 3 button emulation on 2 button mice,
 	   But only when PC Mouse Mode is set, otherwise
 	   Microsoft Mode = 2 buttons.
-	   Middle press if left/right pressed together. 
-	   Middle release done for us by the above routines. 
+	   Middle press if left/right pressed together.
+	   Middle release done for us by the above routines.
 	   This bit also resets the left/right button, because
-	   we can't have all three buttons pressed at once. 
-	   Well, we could, but not under emulation on 2 button mice. 
+	   we can't have all three buttons pressed at once.
+	   Well, we could, but not under emulation on 2 button mice.
 	   Alan Hourihane */
 
 	if (mice->emulate3buttons && mouse.threebuttons) {
@@ -1584,7 +1584,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
 	int dx, dy, new_x, new_y, mx_range, my_range,
             minx, maxx, miny, maxy, clipped;
-        
+
 	minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
 	maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
 	miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
@@ -1603,12 +1603,12 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, mouse.x, mouse.y);
-	m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n", 
+	m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n",
 		 dx, dy, mouse.mickeyx, mouse.mickeyy);
 	/*
 	 * update the event mask
 	 */
-	if (dx || dy || mouse.x != new_x || mouse.y != new_y) 
+	if (dx || dy || mouse.x != new_x || mouse.y != new_y)
 	   mouse_move(clipped);
 }
 
@@ -1758,7 +1758,7 @@ static void mouse_do_cur(int callback)
   miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
   maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
 
-  Mouse->set_cursor(mouse.cursor_on == 0?1: 0, 
+  Mouse->set_cursor(mouse.cursor_on == 0?1: 0,
 		    mouse.x - minx, mouse.y - miny,
 		    maxx - minx +1, maxy - miny +1);
 }
@@ -1807,14 +1807,14 @@ text_cursor(void)
   mouse_erase.backingstore.text[0] = vga_read_word(p + offset);
 
   /* draw it. */
-  mouse_erase.backingstore.text[1] = 
+  mouse_erase.backingstore.text[1] =
     (vga_read_word(p + offset) & mouse.textscreenmask) ^ mouse.textcursormask;
   vga_write_word(p + offset, mouse_erase.backingstore.text[1]);
 
   mouse_erase.drawn = TRUE;
 }
 
-void 
+void
 graph_cursor(void)
 {
   erase_graphics_cursor(&mouse_erase);
@@ -1854,7 +1854,7 @@ static void mouse_client_init(void)
   while(TRUE) {
     m_printf("MOUSE: initialising '%s' mode mouse client\n",
              Mouse->name);
-    
+
     ok = Mouse->init?Mouse->init():TRUE;
     if (ok) {
       m_printf("MOUSE: Mouse init ok, '%s' mode\n", Mouse->name);
@@ -1894,7 +1894,7 @@ dosemu_mouse_init(void)
 #else
   char *p=(char *)0xefe00;
 #endif
- 
+
   mouse.ignorexy = FALSE;
 
   /* set minimum internal resolution
@@ -1968,7 +1968,7 @@ dosemu_mouse_close(void)
 {
   if (mice->type == MOUSE_XTERM && !sent_mouse_esc)
     return;
-  if (Mouse && Mouse->close) Mouse->close(); 
+  if (Mouse && Mouse->close) Mouse->close();
   sent_mouse_esc = FALSE;
 }
 

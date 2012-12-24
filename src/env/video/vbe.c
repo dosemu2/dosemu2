@@ -142,7 +142,7 @@ static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
   xregs16[0] = vesa_regs_size;
   xregs16[1] = IOFF(0x10);
   xregs16[2] = ISEG(0x10);
-  memcpy(xregs, lowmem, vesa_regs_size);  
+  memcpy(xregs, lowmem, vesa_regs_size);
   lowmem_heap_free(lowmem);
 }
 
@@ -155,7 +155,7 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
   if (xregs16[0] == 0)
     return;
   lowmem = lowmem_heap_alloc(xregs16[0]);
-  memcpy(lowmem, xregs, xregs16[0]);  
+  memcpy(lowmem, xregs, xregs16[0]);
   vesa_r.eax = 0x4f04;
   vesa_r.es = DOSEMU_LMHEAP_SEG;
   vesa_r.ebx = DOSEMU_LMHEAP_OFFS_OF(lowmem);
@@ -200,7 +200,7 @@ void vesa_init(void)
   save_ext_regs = vesa_save_ext_regs;
   restore_ext_regs = vesa_restore_ext_regs;
   set_bank_read = vesa_setbank_read;
-  set_bank_write = vesa_setbank_write;  
+  set_bank_write = vesa_setbank_write;
 }
 
 unsigned vesa_get_lfb(void)

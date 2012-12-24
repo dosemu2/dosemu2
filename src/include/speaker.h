@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -46,8 +46,8 @@ typedef void (*speaker_off_t)(void *gp);
 
 /* an invalid value of speaker_on || speaker_off resets the default speaker */
 /* Each new sound event should override the last one */
-void register_speaker(void *gp, 
-			     speaker_on_t speaker_on, 
+void register_speaker(void *gp,
+			     speaker_on_t speaker_on,
 			     speaker_off_t speaker_off);
 
 /*

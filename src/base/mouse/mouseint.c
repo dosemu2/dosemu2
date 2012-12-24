@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -74,7 +74,7 @@ static void DOSEMUSetupMouse(void)
           DOSEMUSetMouseSpeed(1200, mice->baudRate, mice->flags);
         }
       else if (mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2 &&
-	       mice->type != MOUSE_IMPS2) 
+	       mice->type != MOUSE_IMPS2)
 	{
 	  m_printf("MOUSE: setting speed to %d baud\n",mice->baudRate);
 #if 0   /* this causes my dosemu to hang [rz] */
@@ -170,7 +170,7 @@ static void DOSEMUSetupMouse(void)
 #endif
 #endif
 }
- 
+
 static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 {
   int                  i, buttons=0, dx=0, dy=0;
@@ -193,7 +193,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
     {	0x00,	0x00,	0x00,	0x00,	0	},  /* X-mouse (unused entry) */
     {	0xc0,	0x00,	0x00,	0x00,	4	},  /* IMPS/2 mouse */
   };
-  
+
      for ( i=0; i < nBytes; i++) {
 	/*
 	 * check, if we have a usable data byte
@@ -215,7 +215,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	   m_printf("MOUSEINT: Skipping byte %02x\n",rBuf[i]);
 	   continue;
 	}
-	
+
 	pBuf[pBufP++] = rBuf[i];
 	if (pBufP != proto[mice->type][4]) continue;
 	m_printf("MOUSEINT: package %02x %02x %02x\n",pBuf[0],pBuf[1],pBuf[2]);
@@ -223,7 +223,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	 * assembly full package
 	 */
 	switch(mice->type) {
-	   
+
 	case MOUSE_MICROSOFT:	    /* The ms protocol, unextended. */
 	   buttons = ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
 	   dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
@@ -251,7 +251,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 
 	case MOUSE_MOUSEMAN:	    /* MouseMan / TrackMan   [CHRIS-211092] */
 	/*
-	 * the damned MouseMan has 3/4 bytes packets. The extra byte 
+	 * the damned MouseMan has 3/4 bytes packets. The extra byte
 	 * is only there if the middle button is active.
 	 * I get the extra byte as a packet with magic numbers in it.
 	 * and then switch to 4-byte mode (A.Rubini in gpm-1.10)
@@ -259,7 +259,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	 */
 	   /* chordMiddle is always 0! see config.c */
 	   if (mice->chordMiddle)
-	      buttons = ((pBuf[0] & 0x30) == 0x30) ? 2 : 
+	      buttons = ((pBuf[0] & 0x30) == 0x30) ? 2 :
 	      (((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4));
 	   else {
 	      buttons = ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
@@ -315,13 +315,13 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	   dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
 	   dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
 	   break;
-      
+
 	case MOUSE_MOUSESYSTEMS:             /* Mouse Systems Corp */
 	   buttons = (~pBuf[0]) & 0x07;
 	   dx =    (char)(pBuf[1]) + (char)(pBuf[3]);
 	   dy = - ((char)(pBuf[2]) + (char)(pBuf[4]));
 	   break;
-      
+
 	case MOUSE_HITACHI:           /* MM_HitTablet */
 	   buttons = pBuf[0] & 0x07;
 	   if (buttons != 0)
@@ -336,7 +336,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	   dx = (pBuf[0] & 0x10) ?   pBuf[1] : -pBuf[1];
 	   dy = (pBuf[0] & 0x08) ? -pBuf[2] :   pBuf[2];
 	   break;
-      
+
 	case MOUSE_BUSMOUSE:              /* BusMouse */
 	   buttons = (~pBuf[0]) & 0x07;
 	   dx =   (char)pBuf[1];
@@ -373,7 +373,7 @@ static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
         mouse_t *mice = &config.mouse;
 
         m_printf("MOUSE: set speed %d -> %d\n",old,new);
-   
+
 	if (tcgetattr(mice->fd, &tty) < 0)
 	{
 		m_printf("MOUSE: Unable to get status of mouse. Mouse may not function properly.\n");
@@ -411,7 +411,7 @@ static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 	{
 		m_printf("MOUSE: Unable to set mouse attributes. Mouse may not function properly.\n");
 	}
-   
+
 	switch (new)
 	{
 	case 9600:
@@ -456,7 +456,7 @@ static void raw_mouse_getevent(void)
 	static unsigned char rBuf[MOUSE_BUFFER];
 	static int qBeg = 0, qEnd = 0;
         mouse_t *mice = &config.mouse;
-        
+
 	int nBytes, nBytesProc;
 
         nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
@@ -564,7 +564,7 @@ static int raw_mouse_init(void)
 
   if (!mice->intdrv)
     return FALSE;
-  
+
   m_printf("Opening internal mouse: %s\n", mice->dev);
   if (!parent_open_mouse())
     return FALSE;
@@ -573,7 +573,7 @@ static int raw_mouse_init(void)
   if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
     DOSEMUSetupMouse();
   /* this is only to try to get the initial internal driver two/three
-     button mode state correct; user can override it later. */ 
+     button mode state correct; user can override it later. */
   if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MS3BUTTON ||
       mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2)
     mice->has3buttons = FALSE;

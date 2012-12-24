@@ -1,12 +1,12 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * CPU/V86 support for dosemu
  * /REMARK
@@ -101,7 +101,7 @@ unsigned int TRs[2] =
 /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
 struct _fpstate vm86_fpu_state __attribute__ ((aligned(16)));
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION cpu_trap_0f
  *
  * process opcodes 0F xx xx trapped by GP_fault
@@ -285,7 +285,7 @@ static void fpu_io_write(ioport_t port, Bit8u val)
   }
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION cpu_setup
  *
  * description:

@@ -4,7 +4,7 @@
 /* utf8 */
 
 static size_t utf8_to_unicode(
-	struct char_set_state *state, 
+	struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode *symbol, const unsigned char *str, size_t len)
 {

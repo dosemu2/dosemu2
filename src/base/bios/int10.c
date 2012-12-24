@@ -1,18 +1,18 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * DANG_BEGIN_MODULE
  *
  * REMARK
  * Video BIOS implementation.
  *
  * This module handles the int10 video functions.
- * Most functions here change only the video memory and status 
- * variables; the actual screen is then rendered asynchronously 
+ * Most functions here change only the video memory and status
+ * variables; the actual screen is then rendered asynchronously
  * after these by Video->update_screen.
  *
  * /REMARK
@@ -20,7 +20,7 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * 5/24/95, Erik Mouw (J.A.K.Mouw@et.tudelft.nl) and 
+ * 5/24/95, Erik Mouw (J.A.K.Mouw@et.tudelft.nl) and
  * Arjan Filius (I.A.Filius@et.tudelft.nl)
  * changed int10() to make graphics work with X.
  *
@@ -28,7 +28,7 @@
  * more VGA comaptible) and removed new_set_video_mode().
  * Removed (useless) global variable "gfx_mode".
  * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
- * 
+ *
  * Readded new_set_video_mode, its needed for non-X compiles.
  * -- EB 3 June 1998
  *
@@ -96,9 +96,9 @@ unsigned screen_adr(int page)
 }
 
 /* this maps the cursor shape given by int10, fn1 to the actually
-   displayed cursor start&end values in cursor_shape. This seems 
+   displayed cursor start&end values in cursor_shape. This seems
    to be typical IBM Black Compatiblity Magic.
-   I modeled it approximately from the behaviour of my own 
+   I modeled it approximately from the behaviour of my own
    VGA's BIOS.
    I'm not sure if it is correct for start=end and for font_heights
    other than 16.
@@ -147,7 +147,7 @@ static inline void set_cursor_shape(ushort shape) {
       crt_outw(0xa, NO_CURSOR);
       return;
    }
-   
+
    cs&=0x0F;
    ce&=0x0F;
    if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
@@ -165,7 +165,7 @@ static inline void set_cursor_shape(ushort shape) {
 /* This is a better scroll routine, mostly for aesthetic reasons. It was
  * just too horrible to contemplate a scroll that worked 1 character at a
  * time :-)
- * 
+ *
  * It may give some performance improvement on some systems (it does
  * on mine) (Andrew Tridgell)
  */
@@ -217,7 +217,7 @@ bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
     l = 0;
 
   set_dirty(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
-  
+
   if (l == 0) {			/* Wipe mode */
     for (y = y0; y <= y1; y++)
       memcpy_to_vga(sadr + 2 * (y * co + x0), tbuf, dx * 2);
@@ -249,7 +249,7 @@ static int using_text_mode(void)
   return mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a);
 }
 
-/* Output a character to the screen. */ 
+/* Output a character to the screen. */
 void char_out(unsigned char ch, int page)
 {
   tty_char_out(ch, page, -1);
@@ -258,7 +258,7 @@ void char_out(unsigned char ch, int page)
 /*
  * Output a character to the screen.
  * If attr != -1, set the attribute byte, too.
- */ 
+ */
 void tty_char_out(unsigned char ch, int s, int attr)
 {
   int newline_att = 7;
@@ -298,11 +298,11 @@ void tty_char_out(unsigned char ch, int s, int attr)
   case 8:           /* Backspace */
     if (xpos > 0) xpos--;
     break;
-  
+
   case '\t':        /* Tab */
     i10_deb("char_out: tab\n");
     do {
-	char_out(' ', s); 
+	char_out(' ', s);
   	xpos = get_bios_cursor_x_position(s);
     } while (xpos % 8 != 0);
     break;
@@ -339,7 +339,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
   set_cursor_pos(s, xpos, ypos);
 }
 
-/* The following clears the screen buffer. It does it only to the screen 
+/* The following clears the screen buffer. It does it only to the screen
  * buffer.  If in termcap mode, the screen will be cleared the next time
  * restore_screen() is called.
  */
@@ -438,7 +438,7 @@ static int adjust_font_size(int vga_font_height)
   if (Video->setmode != NULL) {
     /* otherwise we can't change li */
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
-    WRITE_WORD(BIOS_VIDEO_MEMORY_USED, 
+    WRITE_WORD(BIOS_VIDEO_MEMORY_USED,
 	       TEXT_SIZE(READ_WORD(BIOS_SCREEN_COLUMNS), li));
   }
   return 1;
@@ -504,7 +504,7 @@ boolean set_video_mode(int mode) {
     WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
     port = 0x3b4;
   } else {
-    WRITE_BYTE(BIOS_CONFIGURATION, 
+    WRITE_BYTE(BIOS_CONFIGURATION,
 	       (READ_BYTE(BIOS_CONFIGURATION) & ~0x30) | 0x20);
     port = 0x3d4;
   }
@@ -560,7 +560,7 @@ boolean set_video_mode(int mode) {
   /*
    * The following code (& comment) is taken literally
    * from the old set_video_mode(). Don't know what it's
-   * for (or if it works). -- 1998/04/04 sw 
+   * for (or if it works). -- 1998/04/04 sw
    */
 
   /*
@@ -650,7 +650,7 @@ boolean set_video_mode(int mode) {
 
   set_text_scanlines(400);
   return 1;
-}    
+}
 
 /* get the active and alternate display combination code */
 static void get_dcc(int *active_dcc, int *alternate_dcc)
@@ -1029,14 +1029,14 @@ int int10(void) /* with dualmon */
           "tty put char: page %u, char 0x%02x '%c'\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
         );
-        char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
+        char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
       }
       else {
         i10_deb(
           "tty put char: page %u, char 0x%02x '%c', attr 0x%02x\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
         );
-        tty_char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), LO(bx)); 
+        tty_char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), LO(bx));
       }
       break;
 
@@ -1235,7 +1235,7 @@ int int10(void) /* with dualmon */
           more_lines:
             /* Also activating the target bank - some programs */
             /* seem to assume this. Sigh...                    */
-            
+
             Seq_set_index(3);     /* sequencer: character map select */
             /* available: x, y, c...!?    transforming bitfields...  */
             x = (LO(bx) & 3) | ((LO(bx) & 4) << 2);
@@ -1420,7 +1420,7 @@ int int10(void) /* with dualmon */
              /* bit 0x20 is screen refresh off */
           }
 #if 0
-          LO(ax) = 0x12;  
+          LO(ax) = 0x12;
 #endif
           break;
 
@@ -1694,7 +1694,7 @@ void video_mem_setup(void)
   WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co,li));   /* size of video regen area in bytes */
 
   WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
-    
+
   /* This is needed in the video stuff. Grabbed from boot(). */
   if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE) {
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
@@ -1706,11 +1706,11 @@ void video_mem_setup(void)
   WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
 
   WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
-    
+
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
-    
+
   WRITE_WORD(BIOS_FONT_HEIGHT, 16);
-    
+
   /* XXX - these are the values for VGA color!
      should reflect the real display hardware. */
   WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);
@@ -1721,7 +1721,7 @@ void video_mem_setup(void)
      into a table. Requires modification of our BIOS, and setting up
      lots of tables*/
   WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
-    
+
   if (!config.vga) {
     WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
     /* point int 1f to the default 8x8 graphics font for high characters */

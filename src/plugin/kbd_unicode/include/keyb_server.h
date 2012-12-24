@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -89,7 +89,7 @@ void backend_reset(void);
 #endif  /* not __ASM__ */
 
 /* physical scancodes deviating from keysyms */
-#define _SCN_PRTSCR		0xe037 
+#define _SCN_PRTSCR		0xe037
 #define _SCN_PAUSE_MAKE		0xe11d45
 #define _SCN_PAUSE_BREAK	0xe19dc5
 

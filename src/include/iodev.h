@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -21,7 +21,7 @@
 extern void iodev_init(void);
 extern void iodev_reset(void);
 extern void iodev_term(void);
-extern void iodev_register(char *name, void (*init_func)(void), 
+extern void iodev_register(char *name, void (*init_func)(void),
 	void (*reset_func)(void), void (*term_func)(void));
 void iodev_unregiseter(char *name);
 void iodev_add_device(char *dev_name);

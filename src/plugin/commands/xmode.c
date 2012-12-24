@@ -163,5 +163,5 @@ static int X_change_config(unsigned item, void *buf)
 	return Video->change_config(item, buf);
   }
   return -1;
-} 
+}
 

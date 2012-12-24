@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -516,7 +516,7 @@ override:
 			Gen(O_AND_R, m, REG1);		// op  al,[ebx+reg]
 			}
 			break;
-/*18*/	case SBBbfrm:	
+/*18*/	case SBBbfrm:
 /*1a*/	case SBBbtrm:	if (RmIsReg[Fetch(PC+1)]&2) {	// same reg
 			    Gen(O_SBSELF, mode|MBYTE, R1Tab_b[Fetch(PC+1)&7]);
 			    PC+=2; break;
@@ -540,7 +540,7 @@ intop28:		{ int m = mode | MBYTE;
 				Gen(S_DI, m);		// mov [edi],al		mem=mem op reg
 			    }
 			} }
-			break; 
+			break;
 /*02*/	case ADDbtrm:
 /*12*/	case ADCbtrm:
 /*3a*/	case CMPbtrm:
@@ -595,7 +595,7 @@ intop29:		PC += ModRM(opc, PC, mode);	// DI=mem
 				Gen(S_DI, mode);	// mov [edi],(e)ax	mem=mem op reg
 			    }
 			}
-			break; 
+			break;
 /*03*/	case ADDwtrm:
 /*13*/	case ADCwtrm:
 /*3b*/	case CMPwtrm:
@@ -603,13 +603,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC += ModRM(opc, PC, mode|MLOAD);	// (e)ax=[rm]
 			Gen(op, mode, REG1);		// op [ebx+reg], (e)ax
 			}
-			break; 
+			break;
 /*a8*/	case TESTbi: {
 			int m = mode | MBYTE;
 			Gen(L_IMM_R1, m, Fetch(PC+1)); PC+=2;	// mov al,#imm
 			Gen(O_AND_R, m, Ofs_AL);		// op al,[ebx+reg]
 		        }
-			break; 
+			break;
 /*04*/	case ADDbia:
 /*0c*/	case ORbi:
 /*14*/	case ADCbi:
@@ -623,12 +623,12 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			// op [ebx+Ofs_EAX],#imm
 			Gen(op, m|IMMED, Ofs_EAX, Fetch(PC+1)); PC+=2;
 			}
-			break; 
+			break;
 /*a9*/	case TESTwi:
 			Gen(L_IMM_R1, mode|IMMED, DataFetchWL_U(mode,PC+1));
 			INC_WL_PC(mode,1);
 			Gen(O_AND_R, mode, Ofs_EAX);
-			break; 
+			break;
 /*05*/	case ADDwia:
 /*0d*/	case ORwi:
 /*15*/	case ADCwi:
@@ -643,7 +643,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(op, m|IMMED, Ofs_EAX, DataFetchWL_U(mode,PC+1));
 			INC_WL_PC(mode,1);
 			}
-			break; 
+			break;
 /*69*/	case IMULwrm:
 			PC += ModRM(opc, PC, mode|MLOAD); // mov (e)ax,[rm]
 			Gen(O_IMUL,mode|IMMED,DataFetchWL_S(mode,PC),REG1);
@@ -924,7 +924,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(O_PUSH, mode); PC++;
 			break;
 /*68*/	case PUSHwi:
-			Gen(O_PUSHI, mode, DataFetchWL_U(mode,(PC+1))); 
+			Gen(O_PUSHI, mode, DataFetchWL_U(mode,(PC+1)));
 			INC_WL_PC(mode,1);
 			break;
 /*6a*/	case PUSHbi:
@@ -979,7 +979,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*7b*/	case JNP_JPO:
 /*7c*/	case JL_JNGE:
 /*7d*/	case JNL_JGE:
-/*7e*/	case JLE_JNG: 
+/*7e*/	case JLE_JNG:
 /*7f*/	case JNLE_JG:   {
 			  PC = JumpGen(PC, mode, (opc-JO), 0);
 			  if (TheCPU.err) return PC;
@@ -1107,7 +1107,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    Gen(L_REG, mode|MBYTE, REG1);
 			    PC += ModRM(opc, PC, mode|MBYTE|MSTORE); // [rm]=al
 			}
-			break; 
+			break;
 /*89*/	case MOVwfrm:
 			if (ModGetReg1(PC, mode)==3) {
 			    Gen(L_REG2REG, mode, REG1, REG3); PC+=2;
@@ -1115,7 +1115,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    Gen(L_REG, mode, REG1);
 			    PC += ModRM(opc, PC, mode|MSTORE); // [rm]=(e)ax
 			}
-			break; 
+			break;
 /*8a*/	case MOVbtrm:
 			if (ModGetReg1(PC, MBYTE)==3) {
 			    Gen(L_REG2REG, MBYTE, REG3, REG1); PC+=2;
@@ -1123,7 +1123,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    PC += ModRM(opc, PC, mode|MBYTE|MLOAD); // al=[rm]
 			    Gen(S_REG, mode|MBYTE, REG1);
 			}
-			break; 
+			break;
 /*8b*/	case MOVwtrm:
 			if (ModGetReg1(PC, mode)==3) {
 			    Gen(L_REG2REG, mode, REG3, REG1); PC+=2;
@@ -1131,7 +1131,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    PC += ModRM(opc, PC, mode|MLOAD); // (e)ax=[rm]
 			    Gen(S_REG, mode, REG1);
 			}
-			break; 
+			break;
 /*8c*/	case MOVsrtrm:
 			PC += ModRM(opc, PC, mode|SEGREG);
 			Gen(L_REG, mode|DATA16, REG1);
@@ -1140,7 +1140,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    Gen(S_REG, mode|DATA16, REG3);
 			else
 			    Gen(S_DI, mode|DATA16);
-			break; 
+			break;
 /*8d*/	case LEA:
 			if (Fetch(PC+1) >= 0xc0) {
 			    CODE_FLUSH();
@@ -1148,7 +1148,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			}
 			PC += ModRM(opc, PC, mode|MLEA);
 			Gen(S_DI_R, mode, REG1);
-			break; 
+			break;
 
 /*c4*/	case LES:
 			if (Fetch(PC+1) >= 0xc0) {
@@ -1226,7 +1226,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				default: goto illegal_op;
 			    }
 			}
-			break; 
+			break;
 
 /*9b*/	case oWAIT:
 /*90*/	case NOP:	//if (!IsCodeInBuf()) Gen(L_NOP, mode);
@@ -1242,7 +1242,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 /*95*/	case XCHGbp:
 /*96*/	case XCHGsi:
 /*97*/	case XCHGdi:
-			Gen(O_XCHG_R, mode, Ofs_EAX, R1Tab_l[D_LO(opc)]); 
+			Gen(O_XCHG_R, mode, Ofs_EAX, R1Tab_l[D_LO(opc)]);
 			PC++; break;
 
 /*a0*/	case MOVmal:
@@ -2115,7 +2115,7 @@ repag0:
 					} else {
 						dp = DataGetWL_U(mode, TheCPU.mem_ref);
 					}
-					if (REG1==Ofs_DX) { 
+					if (REG1==Ofs_DX) {
 						PUSH(mode, &TheCPU.eip);
 						if (debug_level('e')>2)
 							e_printf("CALL indirect: ret=%08x\n\tcalling: %08x\n",
@@ -2756,7 +2756,7 @@ repag0:
 				Gen(O_BITOP, mode, (opc2-0xa0), REG1);
 				if (opc2 != 0xa3 && (TheCPU.mode & RM_REG)) {
 				    Gen(S_REG, mode, REG3);
-				} 
+				}
 				break;
 			case 0xbc: /* BSF */
 			case 0xbd: /* BSR */
@@ -2973,7 +2973,7 @@ repag0:
 				    Gen(S_REG, mode|MBYTE, REG3);
 				else
 				    Gen(S_DI, mode|MBYTE);
-				break; 
+				break;
 			case 0xc1: /* XADDw */
 				PC++; PC += ModRM(opc, PC, mode|MLOAD);
 				Gen(O_XCHG, mode, REG1);
@@ -2982,7 +2982,7 @@ repag0:
 				    Gen(S_REG, mode, REG3);
 				else
 				    Gen(S_DI, mode);
-				break; 
+				break;
 
 			/* case 0xc2-0xc6:	MMX */
 			case 0xc7: { /*	Code Extension 23 - 01=CMPXCHG8B mem */

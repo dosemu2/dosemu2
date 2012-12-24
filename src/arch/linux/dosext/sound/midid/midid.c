@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -11,7 +11,7 @@
    the General Midi standard.
 
    For use with DOSEMU0.65+, read the dosemu/doc/README.sound .
-   
+
    (c) 1997 R.Nijlunsing <rutger@null.net>
    (c) 2002 Robert Komar <rkomar@telus.net>
    (c) 2002-2005 Stas Sergeev <stsp@users.sourceforge.net>

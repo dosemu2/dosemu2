@@ -17,7 +17,7 @@ static const t_unicode iso8859_14_g1_chars[] = {
 struct char_set iso8859_14_g1 = {
 	1,
 	CHARS(iso8859_14_g1_chars),
-	0, "", 1, 96, 
+	0, "", 1, 96,
 };
 
 struct char_set iso8859_14 = {

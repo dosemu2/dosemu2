@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -64,12 +64,12 @@ void keyb_close(void);
 
 #define NUM_KEYSYMS 0x10000 /* really 0xFFFE */
 
-/* Keysyms: Constants to be passed to put_key(). 
+/* Keysyms: Constants to be passed to put_key().
    These constants are equal to unicode symbols,
    except where unicode is lacking in which they are mapped to
    the application specific unicode area.
-   They are functionally equivalent to but different from X11 Keysyms. 
-   
+   They are functionally equivalent to but different from X11 Keysyms.
+
    A keysym is the value that sits on the top of a key and defines
    either the character the key produces, or the function of that key shift, up...
    In a give keyboard layout there cannot be 2 instances of the same keysym, on

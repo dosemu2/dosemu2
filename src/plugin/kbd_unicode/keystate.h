@@ -63,7 +63,7 @@ struct keyboard_state {
 	struct keyboard_rules *rules;
 	struct key_pressed_state keys_pressed;
 	t_shiftstate shiftstate;
-	int alt_num_buffer;		/* used for alt-keypad entry mode */ 
+	int alt_num_buffer;		/* used for alt-keypad entry mode */
 	t_keysym accent;		/* buffer for dead-key accents */
 	struct raw_key_state raw_state;	/* used in putrawkey() */
 };
@@ -71,9 +71,9 @@ struct keyboard_state {
 
 extern t_keynum compute_functional_keynum(Boolean make, t_keynum keynum,
 					  struct key_pressed_state *keystate);
-extern t_keynum compute_keynum(Boolean *make_ret, 
+extern t_keynum compute_keynum(Boolean *make_ret,
 			       t_rawkeycode code, struct raw_key_state *state);
-extern Bit16u translate_key(Boolean make, t_keynum key, 
+extern Bit16u translate_key(Boolean make, t_keynum key,
 			    struct keyboard_state *state);
 
 extern struct keyboard_state dos_keyboard_state;

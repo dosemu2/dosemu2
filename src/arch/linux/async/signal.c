@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -338,12 +338,12 @@ static SillyG_t SillyG_[16 + 1];
 
 /*
  * DANG_BEGIN_FUNCTION SIG_init
- * 
+ *
  * description: Allow DOSEMU to be made aware when a hard interrupt occurs
  * The IRQ numbers to monitor are taken from config.sillyint, each bit
  * corresponding to one IRQ. The higher 16 bit are defining the use of
  * SIGIO
- * 
+ *
  * DANG_END_FUNCTION
  */
 void SIG_init(void)
@@ -413,7 +413,7 @@ signal_init(void)
   ss.ss_sp = cstack;
   ss.ss_size = sizeof(*cstack);
   ss.ss_flags = SS_ONSTACK;
-    
+
   sigaltstack(&ss, NULL);
 
   /* initialize user data & code selector values (used by DPMI code) */
@@ -514,11 +514,11 @@ signal_init(void)
  * DANG_BEGIN_FUNCTION handle_signals
  *
  * description:
- *  Due to signals happening at any time, the actual work to be done 
+ *  Due to signals happening at any time, the actual work to be done
  * because a signal occurs is done here in a serial fashion.
  *
  * The concept, should this eventualy work, is that a signal should only
- * flag that it has occurred and let DOSEMU deal with it in an orderly 
+ * flag that it has occurred and let DOSEMU deal with it in an orderly
  * fashion as it executes the rest of it's code.
  *
  * DANG_END_FUNCTION
@@ -540,7 +540,7 @@ static void handle_signals_force(int force_reentry) {
     signal_handler = signal_queue[SIGNAL_head].signal_handler;
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
     signal_handler();
-/* 
+/*
  * If more SIGNALS need to be dealt with, make sure we request interruption
  * by the kernel ASAP.
  */
@@ -595,7 +595,7 @@ static void SIGALRM_call(void)
   static int update_pending = 0;
 #endif
   int retval;
-  
+
   if (first==0) {
     cnt200 =
     cnt1000 =
@@ -607,7 +607,7 @@ static void SIGALRM_call(void)
   mouse_curtick();
 
   /* If it is running in termcap mode, then update the screen.
-   * First it sets a running flag, so as to avoid re-entrancy of 
+   * First it sets a running flag, so as to avoid re-entrancy of
    * update_screen while it is in use.  After update_screen is done,
    * it returns a nonzero value if there was any updates to the screen.
    * If there were any updates to the screen, then set a countdown value
@@ -615,8 +615,8 @@ static void SIGALRM_call(void)
    * This increases the DOSEMU-to-termcap update efficiency greatly.
    * The countdown counter is currently at a value of 2.
    */
-   
-   /* This now (again) tests screen_bitmap, i.e. checks if the screen 
+
+   /* This now (again) tests screen_bitmap, i.e. checks if the screen
     * was written to at all. This doesn't seem to achieve much for now,
     * but it will be helpful when implementing X graphics.
     * It's a bit tricky, however, because previous calls of update_screen
@@ -624,10 +624,10 @@ static void SIGALRM_call(void)
     * is set to 1 if only part of the screen was updated (update_screen
     * returns 2), meaning that update_screen will in any case be called
     * next time.
-    * (*** this only applies if VIDEO_CHECK_DIRTY is set, which is 
+    * (*** this only applies if VIDEO_CHECK_DIRTY is set, which is
     *      currently not the default! ***)
     *
-    * return vales for update_screen are now:    
+    * return vales for update_screen are now:
     *       0 nothing changed
     *       1 changed, entire screen updated
     *       2 changed, only partially updated
@@ -638,18 +638,18 @@ static void SIGALRM_call(void)
      blink_cursor();
   }
   if (!running) {
-    if (Video->update_screen 
+    if (Video->update_screen
 #if VIDEO_CHECK_DIRTY
        && (update_pending || vm86s.screen_bitmap&screen_mask)
 #endif
-       ) 
+       )
     {
        running = -1;
        retval = Video->update_screen();
 #if 0
        v_printf("update_screen returned %d\n",retval);
 #endif
-       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq) 
+       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq)
                         : 0;
 #if VIDEO_CHECK_DIRTY
        update_pending=(retval==2);
@@ -664,7 +664,7 @@ static void SIGALRM_call(void)
   else if (running > 0) {
     running--;
   }
-  
+
   if (Video->handle_events)
      Video->handle_events();
 
@@ -697,7 +697,7 @@ static void SIGALRM_call(void)
 /*
  * DANG_BEGIN_REMARK
  *  Check for keyboard coming from client
- *  For now, first byte is interrupt requests from Client 
+ *  For now, first byte is interrupt requests from Client
  * DANG_END_REMARK
  */
  if (*(u_char *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) & 0x40) {
@@ -775,7 +775,7 @@ inline void SIGNAL_save( void (*signal_call)(void) ) {
  *
  * description:
  *  Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU
- * will be flagged to run this call which inturn checks which 
+ * will be flagged to run this call which inturn checks which
  * fd(s) was set and execute the proper routine to get the I/O
  * from that device.
  *
@@ -794,7 +794,7 @@ static void sigio(struct sigcontext_struct *scp)
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
 }
- 
+
 static void sigalrm(struct sigcontext_struct *scp)
 {
   if(e_gen_sigalrm(scp)) {

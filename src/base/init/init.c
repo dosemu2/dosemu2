@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -70,7 +70,7 @@ static inline void dbug_dumpivec(void)
  *
  * description:
  *  Initialize stdio, open debugging output file if user specified one
- * 
+ *
  * DANG_END_FUNCTION
  */
 void stdio_init(void)
@@ -106,7 +106,7 @@ void stdio_init(void)
  *
  * description:
  *  Beats me
- * 
+ *
  * DANG_END_FUNCTION
  */
 void time_setting_init(void)
@@ -119,7 +119,7 @@ void time_setting_init(void)
  *
  * description:
  *  Tells the OS to send us periodic timer messages
- * 
+ *
  * DANG_END_FUNCTION
  */
 void timer_interrupt_init(void)
@@ -151,7 +151,7 @@ void timer_interrupt_init(void)
  *
  * description:
  *  Map the video bios into main memory
- * 
+ *
  * DANG_END_FUNCTION
  */
 uint32_t int_bios_area[0x500/sizeof(uint32_t)];
@@ -191,7 +191,7 @@ void map_video_bios(void)
  * description:
  *  Setup the dosemu amazing custom BIOS, quietly overwriting anything
  *  was copied there before. Do not overwrite graphic fonts!
- * 
+ *
  * DANG_END_FUNCTION
  */
 static inline void map_custom_bios(void)
@@ -210,9 +210,9 @@ static inline void map_custom_bios(void)
   lowmem_heap_init();
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION memory_init
- * 
+ *
  * description:
  *  Set up all memory areas as would be present on a typical i86 during
  * the boot phase.
@@ -226,9 +226,9 @@ void memory_init(void)
   bios_setup_init();
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION device_init
- * 
+ *
  * description:
  *  Calls all initialization routines for devices (keyboard, video, serial,
  *    disks, etc.)
@@ -242,9 +242,9 @@ void device_init(void)
   keyb_priv_init();
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION low_mem_init
- * 
+ *
  * description:
  *  Initializes the lower 1Meg via mmap & sets up the HMA region
  *
@@ -275,7 +275,7 @@ void low_mem_init(void)
 	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
     leavedos(99);
 #else
-    if (config.cpuemu < 3) 
+    if (config.cpuemu < 3)
     {
       /* switch on vm86-only JIT CPU emulation to with non-zero base */
       config.cpuemu = 3;
@@ -315,7 +315,7 @@ void low_mem_init(void)
 
 /*
  * DANG_BEGIN_FUNCTION version_init
- * 
+ *
  * description:
  *  Find version of OS running and set necessary global parms.
  *
@@ -355,13 +355,13 @@ void version_init(void) {
   }
 #endif
 
-   
+
 }
 
 void print_version(void)
 {
   struct utsname unames;
-    
+
   uname((struct utsname *)&unames);
   warn("DOSEMU-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);

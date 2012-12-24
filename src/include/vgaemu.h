@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -61,7 +61,7 @@
 #include "video.h"
 
 
-/* 
+/*
  * Definition of video mode classes.
  */
 
@@ -69,7 +69,7 @@
 #define GRAPH		 1
 
 
-/* 
+/*
  * Definition of video mode types.
  * Don't change the defines of types 0 - 15, they're standard VBE types;
  * mode types >= 16 are OEM types.

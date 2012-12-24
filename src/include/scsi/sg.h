@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -11,7 +11,7 @@
 
 /*
    History:
-    Started: Aug 9 by Lawrence Foard (entropy@world.std.com), to allow user 
+    Started: Aug 9 by Lawrence Foard (entropy@world.std.com), to allow user
      process control of SCSI devices.
     Development Sponsored by Killy Corp. NY NY
 */
@@ -19,9 +19,9 @@
 #ifndef _SCSI_GENERIC_H
 #define _SCSI_GENERIC_H
 
-/* 
+/*
  An SG device is accessed by writing "packets" to it, the replies
- are then read using the read call. The same header is used for 
+ are then read using the read call. The same header is used for
  reply, just ignore reply_len field.
 */
 

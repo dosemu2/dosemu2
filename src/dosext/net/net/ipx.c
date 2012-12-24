@@ -82,7 +82,7 @@ static int GetMyAddress( void )
   ipxs.sipx_network=htonl(config.ipx_net);
   ipxs.sipx_port=htons(DEF_PORT);
 
-  /* bind this socket to network */  
+  /* bind this socket to network */
   if(bind(sock,&ipxs,sizeof(ipxs))==-1)
   {
     n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
@@ -145,7 +145,7 @@ IPXInt2FHandler(void)
   return 1;
 }
 
-static void 
+static void
 ipx_remove_socket(ipx_socket_t * sk)
 {
   ipx_socket_t *s;
@@ -166,7 +166,7 @@ ipx_remove_socket(ipx_socket_t * sk)
   }
 }
 
-static void 
+static void
 ipx_insert_socket(u_short socket, u_short PSP, int fd)
 {
   ipx_socket_t *sk;
@@ -228,7 +228,7 @@ static void dumpBytes(u_char * memptr, int count)
 static void printECB(ECB_t * ECB)
 {
   int i;
-   
+
   if(debug_level('n')) {
     n_printf("--DOS ECB (dump)--\n");
     dumpBytes((u_char *) ECB, 60);
@@ -839,7 +839,7 @@ int IPXCheckForAESReady(int ilevel)
 	}
 	ECBPtr = ECBp->Link;
       }
-    }    
+    }
     s = s->next;
   }
   return 0;

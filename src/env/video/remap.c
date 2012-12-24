@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1997 Steffen Winterfeldt (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
@@ -248,7 +248,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
     }
     else {
       for(u = 0; u < 0x100; u++) {
-        u0 = u1 = 0; 
+        u0 = u1 = 0;
         if((u & 0x80)) u0 |= 1 <<  0;
         if((u & 0x40)) u0 |= 1 <<  8;
         if((u & 0x20)) u0 |= 1 << 16;
@@ -2387,7 +2387,7 @@ void gen_4to8_all(RemapObject *ro)
   unsigned char *src, *src0, *dst, *src1, *src_last;
   unsigned char *clut = (unsigned char*) ro->true_color_lut;
   unsigned *dst1, *lut;
-  
+
   src0 = ro->src_image;
   dst = ro->dst_image + ro->dst_offset;
   d_x_len = ro->dst_width;
@@ -2676,7 +2676,7 @@ void gen_15to32_1(RemapObject *ro)
     dst_4 = (unsigned *) dst;
 
     for(j = 0; j < ro->dst_width; j++) {
-      // get 5-bit color values 
+      // get 5-bit color values
       // (green channel is cut between two byte values)
       //  [0] 00000000gggrrrrr
       //  [1] 000000000bbbbbgg
@@ -2718,7 +2718,7 @@ void gen_16to32_1(RemapObject *ro)
     dst_4 = (unsigned *) dst;
 
     for(j = 0; j < ro->dst_width; j++) {
-      // get 5-bit/6-bit color values 
+      // get 5-bit/6-bit color values
       // (green channel is cut between two byte values)
       //  [0] 00000000gggrrrrr
       //  [1] 00000000bbbbbggg

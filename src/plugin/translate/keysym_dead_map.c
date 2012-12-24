@@ -373,7 +373,7 @@ static const struct dead_map keysym_dead_map[] =
 { 0x0327, 0x0048, 0x1E28 },
 { 0x0327, 0x0068, 0x1E29 },
 
-/* 0306 Breve */ 
+/* 0306 Breve */
 { 0x0306, 0x0306, 0x02D8 }, /* just for keyboard */
 { 0x0306, 0x0020, 0x02D8 },
 { 0x0306, 0x0041, 0x0102 },
@@ -511,7 +511,7 @@ static const struct dead_map keysym_dead_map[] =
 /* 030C Caron */
 { 0x030C, 0x030C, 0x02C7 }, /* Only for keyboard */
 { 0x030C, 0x0020, 0x02C7 }, /* This isn't mentioned? */
-{ 0x030C, 0x0043, 0x010C }, 
+{ 0x030C, 0x0043, 0x010C },
 { 0x030C, 0x0063, 0x010D },
 { 0x030C, 0x0044, 0x010E },
 { 0x030C, 0x0064, 0x010F },
@@ -1231,7 +1231,7 @@ void traverse_dead_key_list(void *p,  dead_keys_callback_t callback)
 {
 	int i;
 	for(i = 0; i < keysym_dead_map_count; i++) {
-		callback(p, keysym_dead_map[i].dead_key, 
+		callback(p, keysym_dead_map[i].dead_key,
 			keysym_dead_map[i].in, keysym_dead_map[i].out);
 	}
 }

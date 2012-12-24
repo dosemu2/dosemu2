@@ -1,20 +1,20 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
+/*
  * mkfatimage.c: Make a FAT hdimage pre-loaded with files.
- * 
+ *
  * Copyright (C) 1995 by Pasi Eronen.
  *
  * Support for variable disk size and 16-bit FAT by Peter Wainwright, 1996.
  *
  * The code in this module is free software; you can redistribute it
  * and/or modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2 of 
+ * as published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
  *
  * Note:
@@ -24,7 +24,7 @@
  *   erratic behaviour).
  * - Duplicate files aren't detected.
  * - There's no real boot sector code, just "dosemu exit" call.
- * 
+ *
  */
 #include <ctype.h>
 #include <stdio.h>
@@ -39,7 +39,7 @@
 
 
 /* These can be changed -- at least in theory. In practise, it doesn't
- * seem to work very well (I don't know why). 
+ * seem to work very well (I don't know why).
  */
 #define SECTORS_PER_TRACK 17
 #define HEADS 4
@@ -84,7 +84,7 @@ long bytes_per_cluster;
 #define SECTORS_PER_ROOT_DIRECTORY ((ROOT_DIRECTORY_ENTRIES*32)/BYTES_PER_SECTOR)
 
 
-struct input_file 
+struct input_file
 {
   char *filename;
   char dos_filename[12];
@@ -117,7 +117,7 @@ static int first_available_cluster = 2;
 
 
 /* Zero the sector buffer. */
-static void clear_buffer(void) 
+static void clear_buffer(void)
 {
   memset(buffer, 0, BYTES_PER_SECTOR);
 }
@@ -148,12 +148,12 @@ static void close_exit(int errcode)
 static void put_fat(int n, int value)
 {
   if (p_type == P_TYPE_12BIT) {
-    if (n & 1) 
+    if (n & 1)
       {
 	fat[(n/2)*3+1] = (fat[(n/2)*3+1] & ~0xf0) | ((value & 0x0f) << 4);
 	fat[(n/2)*3+2] = (value >> 4) & 0xff;
       }
-    else 
+    else
       {
 	fat[(n/2)*3] = value & 0xff;
 	fat[(n/2)*3+1] = (fat[n/2*3+1] & ~0x0f) | ((value >> 8) & 0x0f);
@@ -186,7 +186,7 @@ static void put_root_directory(int n, struct input_file *f)
 
 
 /* Get input file information, create DOS filename, and add it to
- * input_files array. 
+ * input_files array.
  */
 static void add_input_file(char *filename)
 {
@@ -195,7 +195,7 @@ static void add_input_file(char *filename)
   struct input_file *i = &input_files[input_file_count];
 
   /* Check that the root directory isn't full (also count volume label). */
-  if (input_file_count >= (ROOT_DIRECTORY_ENTRIES-1)) 
+  if (input_file_count >= (ROOT_DIRECTORY_ENTRIES-1))
   {
     fprintf(stderr, "mkfatimage: Root directory full!\n");
     return;
@@ -207,7 +207,7 @@ static void add_input_file(char *filename)
   else
     base++;
   ext=NULL;
-  if (strlen(base) <= 12) 
+  if (strlen(base) <= 12)
   {
     strcpy(tmp, base);
     base = tmp;
@@ -217,7 +217,7 @@ static void add_input_file(char *filename)
       ext = base + strlen(base);
   }
   if ((strlen(base) == 0) || (strlen(base) > 8) ||
-    (strlen(ext) > 3) || (strchr(ext, '.') != NULL)) 
+    (strlen(ext) > 3) || (strchr(ext, '.') != NULL))
   {
     fprintf(stderr, "%s: File name is not DOS-compatible\n", filename);
     return;
@@ -234,7 +234,7 @@ static void add_input_file(char *filename)
     return;
   }
   i->size = s.st_size;
-  i->mtime = s.st_mtime;     
+  i->mtime = s.st_mtime;
   if (i->size == 0)
   {
     i->size_in_clusters = 0;
@@ -351,7 +351,7 @@ int main(int argc, char *argv[])
     /* sectors_per_cluster must be a power of 2 */
     p_type = P_TYPE_32MB;
     sectors_per_cluster = 1;
-    while ((p_sectors / (1 << sectors_per_cluster)) > 65535) 
+    while ((p_sectors / (1 << sectors_per_cluster)) > 65535)
       sectors_per_cluster++;
     sectors_per_cluster = 1 << sectors_per_cluster;
   }
@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
   clear_buffer();
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
-  buffer[2] = 0x90; 
+  buffer[2] = 0x90;
   buffer[62] = 0xb8;                    /* Exec MBR. */
   buffer[63] = 0xfe;                    /* (mov ax,0xfffe; int 0xe6) */
   buffer[64] = 0xff;
@@ -402,7 +402,7 @@ int main(int argc, char *argv[])
   put_dword(&buffer[446+12], p_sectors);
   put_word(&buffer[510], 0xaa55);
   write_buffer();
-  
+
   /* Write empty sectors to fill track 0. */
   clear_buffer();
   for (n = 2; (n <= p_starting_absolute_sector); n++)
@@ -439,7 +439,7 @@ int main(int argc, char *argv[])
   put_word(&buffer[26], heads);
   put_word(&buffer[28], HIDDEN_SECTORS);
   if (p_sectors < 65536L)
-    put_dword(&buffer[32], 0); 
+    put_dword(&buffer[32], 0);
   else
     put_dword(&buffer[32], p_sectors);
   buffer[36] = 0x80;
@@ -455,12 +455,12 @@ int main(int argc, char *argv[])
   }
   put_word(&buffer[510], 0xaa55);
   write_buffer();
-  
+
   /* Write FATs. */
   memset(fat, 0, sizeof(sectors_per_fat*BYTES_PER_SECTOR));
   put_fat(0, 0xfff8);
   put_fat(1, 0xffff);
-  for (n = 0; (n < input_file_count); n++) 
+  for (n = 0; (n < input_file_count); n++)
   {
     for (m = input_files[n].starting_cluster; (m < input_files[n].ending_cluster); m++)
       put_fat(m, m+1);
@@ -469,12 +469,12 @@ int main(int argc, char *argv[])
   for (n = 1; (n <= FAT_COPIES); n++)
     fwrite(fat, 1, sectors_per_fat*BYTES_PER_SECTOR, outfile);
   free(fat);
-  
+
   /* Write root directory. */
   memset(root_directory, 0, sizeof(root_directory));
   m = 0;
   /* If there's a volume label, add it first. */
-  if (strlen(volume_label) > 0) 
+  if (strlen(volume_label) > 0)
   {
     unsigned char *p = &root_directory[m*32];
     memcpy(p, volume_label, n);
@@ -488,17 +488,17 @@ int main(int argc, char *argv[])
     m++;
   }
   fwrite(root_directory, 1, SECTORS_PER_ROOT_DIRECTORY*BYTES_PER_SECTOR, outfile);
-  
+
   /* Write data area. */
-  for (n = 0; (n < input_file_count); n++) 
+  for (n = 0; (n < input_file_count); n++)
   {
     FILE *f = fopen(input_files[n].filename, "rb");
-    if (f == NULL) 
+    if (f == NULL)
     {
       fprintf(stderr, "%s: %s\n", input_files[n].filename, strerror(errno));
       continue;
     }
-    for (m = 0; (m < (input_files[n].size_in_clusters*sectors_per_cluster)); m++) 
+    for (m = 0; (m < (input_files[n].size_in_clusters*sectors_per_cluster)); m++)
     {
       clear_buffer();
       fread(buffer, 1, BYTES_PER_SECTOR, f);

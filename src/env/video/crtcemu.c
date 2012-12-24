@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -224,20 +224,20 @@ void CRTC_write_value(unsigned char data)
 	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
-      break; 
-     
+      break;
+
     case 0x0a:          /* cursor shape start */
       CURSOR_START(vga.crtc.cursor_shape) = u;
       crtc_deb("CRTC_write_value: cursor shape start = 0x%02x\n", u);
-      break; 
-     
+      break;
+
     case 0x0b:          /* cursor shape end   */
       CURSOR_END(vga.crtc.cursor_shape) = u;
       crtc_deb("CRTC_write_value: cursor shape end = 0x%02x\n", u);
-      break; 
-     
+      break;
+
     case 0x0c:		/* Start Address High */
-      /* these shifts involving vga.crtc.addr_mode should really be rotations, 
+      /* these shifts involving vga.crtc.addr_mode should really be rotations,
          depending on mode control bit 5 */
       vga.display_start = (vga.crtc.data[0x0d] + (u << 8)) << vga.crtc.addr_mode;
       crtc_deb("CRTC_write_value: Start Address = 0x%04x, high changed\n", vga.display_start);
@@ -250,7 +250,7 @@ void CRTC_write_value(unsigned char data)
       break;
 
     case 0x0e:		/* Cursor Location High */
-      vga.crtc.cursor_location = (vga.crtc.data[0x0f] + (u << 8)) << vga.crtc.addr_mode; 
+      vga.crtc.cursor_location = (vga.crtc.data[0x0f] + (u << 8)) << vga.crtc.addr_mode;
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 
@@ -276,7 +276,7 @@ void CRTC_write_value(unsigned char data)
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
-  
+
     case 0x13:          /* Number of bytes in a scanline */
       if(NEWBITS(0xFF)) {
 	vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 0);
@@ -322,7 +322,7 @@ void CRTC_write_value(unsigned char data)
 	vgaemu_adj_cfg(CFG_CRTC_LINE_COMPARE, 0);
       }
       break;
-      
+
     default:
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (ignored)\n", ind, u);
   }

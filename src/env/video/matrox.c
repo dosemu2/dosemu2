@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -40,7 +40,7 @@
 static struct MGAextreg {
 	unsigned char ExtVga[6];
 } MGAReg;
-    
+
 /*
  * Driver data structures.
  */
@@ -107,7 +107,7 @@ vgaProtect(Boolean on)
 /*
  * MGACountRAM --
  *
- * Counts amount of installed RAM 
+ * Counts amount of installed RAM
  */
 static int
 MGACountRam(unsigned long linbase)
@@ -117,12 +117,12 @@ MGACountRam(unsigned long linbase)
 	unsigned char tmp, tmp3, tmp5;
 
 	base = MapVidMem(linbase, 8192 * 1024);
-	
+
 	/* turn MGA mode on - enable linear frame buffer (CRTCEXT3) */
 	port_real_outb(0x3DE, 3);
 	tmp = port_real_inb(0x3DF);
 	port_real_outb(0x3DF, tmp | 0x80);
-	
+
 	/* write, read and compare method */
 	base[0x500000] = 0x55;
 	base[0x300000] = 0x33;
@@ -133,9 +133,9 @@ MGACountRam(unsigned long linbase)
 	/* restore CRTCEXT3 state */
 	port_real_outb(0x3DE, 3);
 	port_real_outb(0x3DF, tmp);
-	
+
 	UnMapVidMem((char *)base, 8192 * 1024);
-	
+
 	if(tmp5 == 0x55)
 		return 8192;
 	if(tmp3 == 0x33)
@@ -150,12 +150,12 @@ MGACountRam(unsigned long linbase)
  *
  * This function is called when the virtual terminal on which the server
  * is running is entered or left, as well as when the server starts up
- * and is shut down.	Its function is to obtain and relinquish I/O 
+ * and is shut down.	Its function is to obtain and relinquish I/O
  * permissions for the SVGA device.	 This includes unlocking access to
  * any registers that may be protected on the chipset, and locking those
  * registers again on exit.
  */
-static void 
+static void
 MGAEnterLeave(Boolean enter)
 {
 	unsigned char temp;
@@ -246,7 +246,7 @@ static Boolean matroxProbe(void)
   MGAEnterLeave(TRUE);
 
   MGA_memsize = MGACountRam(pciconf[5]&~0xfff);
-	
+
   v_printf("MGA base address: 0x%x\n", MGA_8514_base);
 
   if (config.gfxmemsize < 0)
@@ -265,7 +265,7 @@ static Boolean matroxProbe(void)
  * MGA3026Restore -- for mga2064 with ti3026
  *
  * This function restores a video mode.	 It basically writes out all of
- * the registers that have previously been saved in the vgaMGARec data 
+ * the registers that have previously been saved in the vgaMGARec data
  * structure.
  */
 static void
@@ -286,14 +286,14 @@ MGA3026Restore(void)
  * MGARestore --
  *
  * This function restores a video mode.	 It basically writes out all of
- * the registers that have previously been saved in the vgaMGARec data 
+ * the registers that have previously been saved in the vgaMGARec data
  * structure.
  */
 void matrox_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
   emu_video_retrace_off();
   vgaProtect(TRUE);
-	
+
   switch (MGAchipset)
   {
     case PCI_CHIP_MGA2064:
@@ -321,14 +321,14 @@ MGA3026Save(void)
 {
   int i;
   struct MGAextreg *save = &MGAReg;
-	
+
   /*
    * Code is needed to get back to bank zero.
    */
   port_real_outw(0x3DE, 0x0004);
-	
+
   /*
-   * The port I/O code necessary to read in the extended registers 
+   * The port I/O code necessary to read in the extended registers
    * into the fields of the vgaMGARec structure.
    */
   for (i = 0; i < 6; i++)

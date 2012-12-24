@@ -92,9 +92,9 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	/* path of programm to load */
 	LWORD(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
-	
+
 	LWORD(eax) = 0x4b00;
-	
+
 	if (quit)
 		fake_call_to(BIOSSEG, ROM_BIOS_EXIT);
 

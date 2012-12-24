@@ -46,7 +46,7 @@ static int paste_unicode_text(const t_unicode *text, int len)
  * pasting in X causes either utf8, iso2022, or iso8859-1, all with
  * unix ('\n') line end convention.
  */
-int paste_text(const char *text, int len, char *charset) 
+int paste_text(const char *text, int len, char *charset)
 {
 	struct char_set *paste_charset = lookup_charset(charset);
 	struct char_set_state state;
@@ -64,17 +64,17 @@ int paste_text(const char *text, int len, char *charset)
 
 	charset_to_unicode_string(&state, str, &text, len);
 	cleanup_charset_state(&state);
-	
+
 	result = paste_unicode_text(str, characters);
 	free(str);
-	
+
 	return result;
 }
 
-static void paste_run(void) 
+static void paste_run(void)
 {
 	int count=0;
-   
+
 	k_printf("KBD: paste_run running\n");
 	if (paste_buffer) {    /* paste in progress */
 		while (1) {
@@ -112,7 +112,7 @@ void register_keyboard_client(struct keyboard_client *keyboard)
 }
 
 /* DANG_BEGIN_FUNCTION keyb_client_init
- * 
+ *
  * Figures out which keyboard client to use and initialises it.
  *
  * First it calls the probe method to see if it should use the client,
@@ -139,7 +139,7 @@ int keyb_client_init(void)
 		if (ok) {
 			k_printf("KBD: initialising '%s' mode keyboard client\n",
 				Keyboard->name);
-			
+
 			ok = Keyboard->init?Keyboard->init():TRUE;
 			if (ok) {
 				k_printf("KBD: Keyboard init ok, '%s' mode\n",
@@ -153,7 +153,7 @@ int keyb_client_init(void)
 		}
 		Keyboard = Keyboard->next;
 	}
-	
+
 	/* Rationalize the keyboard config.
 	 * This should probably be done elsewhere . . .
 	 */
@@ -172,7 +172,7 @@ void keyb_client_reset(void)
 	}
 }
 
-void keyb_client_close(void) 
+void keyb_client_close(void)
 {
 	if ((Keyboard!=NULL) && (Keyboard->close!=NULL)) {
 		Keyboard->close();
@@ -202,7 +202,7 @@ void keyb_client_set_leds(t_modifiers modifiers)
 	/* FIXME static variable. . . */
 	static t_modifiers prev_modifiers = -1;
 
-	if (modifiers == prev_modifiers) 
+	if (modifiers == prev_modifiers)
 		return;
 	prev_modifiers = modifiers;
 

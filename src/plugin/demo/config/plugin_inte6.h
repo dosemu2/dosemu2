@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -15,7 +15,7 @@
  *       if ( ! my_plugin_inte6()) return 0;
  *       break;
  *    }
- * 
+ *
  * Don't forget the curly brackets around your statement.
  */
 

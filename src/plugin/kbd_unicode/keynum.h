@@ -1,7 +1,7 @@
 #ifndef keynum_h
 #define keynum_h
-/* 
- * key numbers 
+/*
+ * key numbers
  * Keynums are unique identifiers of physical keys. (As in X)
  *
  * The names are taken from the symbols on those keys in the standard

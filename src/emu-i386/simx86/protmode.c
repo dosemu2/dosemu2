@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -269,8 +269,8 @@ unsigned short GetSelectorXfer(unsigned short w)
   flags=DTgetFlags(w);
   if (!(flags&DF_PRESENT)) return DT_NO_XFER;
   if (flags&DF_USER) {
-	if (flags&DF_CODE) return (flags&DF_32? DT_XFER_CODE32:DT_XFER_CODE16);  
-	    else return (flags&DF_32? DT_XFER_DATA32:DT_XFER_DATA16);  
+	if (flags&DF_CODE) return (flags&DF_32? DT_XFER_CODE32:DT_XFER_CODE16);
+	    else return (flags&DF_32? DT_XFER_DATA32:DT_XFER_DATA16);
   }
   return sysxfer[flags&15];
 }

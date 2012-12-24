@@ -17,7 +17,7 @@ static const t_unicode iso8859_7_g1_chars[] = {
 struct char_set iso8859_7_g1 = {
 	1,
 	CHARS(iso8859_7_g1_chars),
-	126, "F", 1, 96, 
+	126, "F", 1, 96,
 };
 
 struct char_set iso8859_7 = {
@@ -25,7 +25,7 @@ struct char_set iso8859_7 = {
 	.g0 = &ascii_g0,
 	.c1 = &ascii_c1,
 	.g1 = &iso8859_7_g1,
-	.names = { "iso8859-7", 0 }, 
+	.names = { "iso8859-7", 0 },
 };
 
 CONSTRUCTOR(static void init(void))

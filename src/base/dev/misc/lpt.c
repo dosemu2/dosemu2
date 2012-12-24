@@ -330,7 +330,7 @@ void printer_print_config(int prnum, void (*print)(const char *, ...))
   struct printer *pptr = &lpt[prnum];
   (*print)("LPT%d command \"%s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
 	  prnum+1, (pptr->prtcmd ? pptr->prtcmd : ""), pptr->delay,
-	   (pptr->dev ? pptr->dev : ""), pptr->base_port); 
+	   (pptr->dev ? pptr->dev : ""), pptr->base_port);
 }
 
 #undef LPT_C

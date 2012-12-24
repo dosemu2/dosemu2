@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -62,7 +62,7 @@ void DBGload_CSIP(void);
 void DBGload_parblock(void);
 
 int vmhp_log_intercept(int flg, const char *fmt, va_list args);
- 
+
 #define MHP_BUFFERSIZE 8192
 struct mhpdbg
 {
@@ -72,7 +72,7 @@ struct mhpdbg
    int nbytes;
    int active;
    int flags;
-   
+
    int fdin,fdout;
 };
 

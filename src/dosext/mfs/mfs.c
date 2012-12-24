@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -10,9 +10,9 @@
  *
  * REMARK
  * This is the file redirector code for DOSEMU. It was built on the Mach
- * DOS redirector and as such continues that copyright as well in 
- * addition the GNU copyright. This redirector uses the 
- * DOS int2f fnx 11 calls to give running DOS programs access to any 
+ * DOS redirector and as such continues that copyright as well in
+ * addition the GNU copyright. This redirector uses the
+ * DOS int2f fnx 11 calls to give running DOS programs access to any
  * Unix mounted drives that permissions exist for.
  *
  * /REMARK
@@ -48,7 +48,7 @@
 
 Work started by Tim Bird (tbird@novell.com) 28th October 1993
 
-	
+
 	added support for CONTROL_REDIRECTION in dos_fs_redirect.
 	removed my_drive, and made drive arrays 0-based instead of
 	first_drive based.
@@ -370,7 +370,7 @@ static int cds_drive(cds_t cds)
 {
   ptrdiff_t cds_offset = cds - cds_base;
   int drive = cds_offset / cds_record_size;
-  
+
   if (drive >= 0 && drive < MAX_DRIVE && cds_offset % cds_record_size == 0)
     return drive;
   else
@@ -448,7 +448,7 @@ select_drive(state_t *state)
   default:
     check_cds = TRUE;
     break;
-   
+
  /* The rest are unknown - assume check_cds */
  /*
 	case CREATE_TRUNCATE_NO_DIR	0x18
@@ -861,7 +861,7 @@ init_drive(int dd, char *path, int options)
 	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
   if (options >= 2 && options <= 5)
     register_cdrom(dd, options - 1);
-#if 0  
+#if 0
   calculate_drive_pointers (dd);
 #endif
   return (1);
@@ -975,7 +975,7 @@ static struct dir_ent *make_entry(struct dir_list *dir_list)
 {
 /* DANG_FIXTHIS returned size of struct dir_ent seems wrong at 28 bytes. */
 /* DANG_BEGIN_REMARK
- * The msdos_dir_ent structure has much more than 28 bytes. 
+ * The msdos_dir_ent structure has much more than 28 bytes.
  * Is this significant?
  * DANG_END_REMARK
  */
@@ -1055,7 +1055,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->time = sbuf.st_mtime;
     entry->attr = get_dos_attr(buf,entry->mode,entry->hidden);
   }
-} 
+}
 
 /* converts d_name to DOS 8:3 and compares with the wildcard */
 static boolean_t convert_compare(char *d_name, char *fname, char *fext,
@@ -1117,10 +1117,10 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   dir_list = NULL;
 
 /* DANG_BEGIN_REMARK
- * 
+ *
  * Added compares to device so that newer versions of Foxpro which test directories
  * using xx\yy\device perform closer to whats DOS does.
- * 
+ *
  * DANG_END_REMARK
  */
   if (mname && is_dos_device(mname)) {
@@ -1157,7 +1157,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
       entry->attr = get_dos_attr(buf,entry->mode,entry->hidden);
     }
     dos_closedir(cur_dir);
-    return (dir_list);      
+    return (dir_list);
   }
   else {
     boolean_t is_root = (strlen(name) == drives[drive].root_len);
@@ -1177,8 +1177,8 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 	handle_signals();
 
 	Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
-      
-	/* this is the expensive part, done much later in findnext 
+
+	/* this is the expensive part, done much later in findnext
 	   if mname == NULL */
 	if (!convert_compare(cur_ent->d_name, fname, fext,
 			      mname, mext, is_root))
@@ -1291,7 +1291,7 @@ init_dos_offsets(int ver)
 
       lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
-      lol_nuldev_off = 0x22;      
+      lol_nuldev_off = 0x22;
       lol_njoined_off = 0x34;
       break;
     }
@@ -1353,7 +1353,7 @@ init_dos_offsets(int ver)
 
       /* same */ lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
-      lol_nuldev_off = 0x22;      
+      lol_nuldev_off = 0x22;
       lol_njoined_off = 0x34;
 
       break;
@@ -1418,7 +1418,7 @@ init_dos_offsets(int ver)
 
       /* same */ lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
-      lol_nuldev_off = 0x22;      
+      lol_nuldev_off = 0x22;
       lol_njoined_off = 0x34;
 
       break;
@@ -1696,7 +1696,7 @@ void time_to_dos(time_t clock, u_short *date, u_short *time)
 	   ((tm->tm_sec>>1) & 0x1f));
 }
 
-time_t time_to_unix(u_short dos_date, u_short dos_time) 
+time_t time_to_unix(u_short dos_date, u_short dos_time)
 {
    struct tm T;
    T.tm_sec  = (dos_time & 0x1f) << 1;    dos_time >>= 5;
@@ -1738,7 +1738,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
       else
 	ch = SLASH;
       /* fall through */
-    case EOS:  
+    case EOS:
     case SLASH:
     case '.':
       /* remove trailing spaces for SFNs */
@@ -1779,7 +1779,7 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
   /* Skip over leading <drive>:\ in the path */
   if (path[1]==':')
     path += cds_rootlen(drive_cds(drive));
-  
+
   /* strip \\linux\fs if present */
   if (strncasecmp(path, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
     size_t len;
@@ -1794,9 +1794,9 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
 
   Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
           drives[drive].root_len));
-  
+
   path_to_ufs(ufs, drives[drive].root_len, path, 0, lowercase);
-  
+
   /* remove any double slashes */
   i = 0;
   while (ufs[i]) {
@@ -1914,7 +1914,7 @@ boolean_t find_file(char *fpath, struct stat * st, int drive, int *doserrno)
     struct stat st;
     char *s = strrchr(fpath, '/');
     int path_exists = 0;
-      
+
     /* check if path exists */
     if (s != NULL) {
       *s = '\0';
@@ -1924,7 +1924,7 @@ boolean_t find_file(char *fpath, struct stat * st, int drive, int *doserrno)
     Debug0((dbg_fd, "device exists  = %d\n", s == NULL || path_exists));
     return (s == NULL || path_exists);
   }
-  
+
   /* first see if the path exists as is */
   if (stat(fpath, st) == 0) {
     Debug0((dbg_fd, "file exists as is\n"));
@@ -2017,7 +2017,7 @@ compare(char *fname, char *fext, char *mname, char *mext)
   /* if got here then name matches */
   if (is_dos_device(mname))
     return (TRUE);
-  
+
   /* match ext next */
   for (i = 0; i < 3; i++) {
     if (mext[i] == '?') {
@@ -2062,7 +2062,7 @@ struct stack_entry
   unsigned psp;
   int seq;
   int duplicates;
-  char *fpath;      
+  char *fpath;
 };
 
 #define HLIST_WATCH_CNT 64	/* if more than HWC hlist positions then ... */
@@ -2071,7 +2071,7 @@ static struct
 {
   int tos;                      /* top of stack */
   int seq;                      /* sequence number */
-  /* 
+  /*
    * = 1 : watching
    * = 0 : findnext in progress without watching
    */
@@ -2091,7 +2091,7 @@ static void free_list(struct stack_entry *se, boolean_t force)
   free(se->fpath);
   se->fpath = NULL;
 
-  list = se->hlist;  
+  list = se->hlist;
   if (list == NULL)
     return;
 
@@ -2144,7 +2144,7 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, char *fpath)
       }
     }
   }
-  
+
   if (hlists.tos >= HLIST_STACK_SIZE) {
     Debug0((dbg_fd, "hlist_push: past maximum stack\n"));
     error("MFS: hlist_push: past maximum stack\n");
@@ -2160,9 +2160,9 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, char *fpath)
   return se - hlists.stack;;
 }
 
-/* 
+/*
  * DOS allows more than one open (not finished) findfirst/findnext!
- * But repeated findfirst with more than HLIST_WATCH_CNT hlist positions 
+ * But repeated findfirst with more than HLIST_WATCH_CNT hlist positions
  * is an indicator for possible broken findfirsts/findnexts.
  * We are looking for more than HLIST_WATCH_CNT hlist positions,
  * these are candidates to watch for deletion. --ms
@@ -2173,7 +2173,7 @@ static inline void hlist_set_watch(unsigned psp)
   int cnt = 0;
 
   if (hlists.watch) return; /* watching in progress */
-          
+
   se = &hlists.stack[hlists.tos];
   for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
     if ((se->psp == psp) && (++cnt > HLIST_WATCH_CNT)) {
@@ -2204,7 +2204,7 @@ static inline void hlist_pop(int indx, unsigned psp)
     Debug0((dbg_fd, "hlist_pop: popped list not empty?!\n"));
   }
   free_list(se, FALSE);
-  
+
   for (se = &hlists.stack[hlists.tos-1];
        se >= hlists.stack && se->hlist == NULL;
        --se);
@@ -2229,7 +2229,7 @@ static inline void hlist_pop_psp(unsigned psp)
     }
     if (se->hlist != NULL) {
       new_tos = se - hlists.stack + 1;
-    }            
+    }
   }
   hlists.tos = new_tos;
 }
@@ -2749,7 +2749,7 @@ share(int fd, int mode, int drive, sft_t sft)
    * This lock is 'invisible' to DOS programs because the code
    * (extracted from the Samba project) in mfs lock requires that the
    * handler wrapps the locks below or equal 0x3fffffff (mask=0xC0000000)
-   * So, 0x3fffffff + 0x3fffffff = 0x7ffffffe 
+   * So, 0x3fffffff + 0x3fffffff = 0x7ffffffe
    * and 0x7fffffff is my start position.  --Maxim Ruchko
    */
   struct flock fl;
@@ -2786,7 +2786,7 @@ share(int fd, int mode, int drive, sft_t sft)
   if ((fl.l_type == F_RDLCK && mode != O_RDONLY) ||
       (fl.l_type == F_WRLCK && mode != O_WRONLY))
     return FALSE;
-  
+
   switch ( share_mode ) {
     /* this is a little heuristic and does not completely
        match to DOS behaviour. That would require tracking
@@ -2903,7 +2903,7 @@ static void find_dir(char *fpath, int drive)
 {
   struct stat st;
   char *bs_pos, *buf;
-  
+
   bs_pos = getbasename(fpath);
   if (bs_pos == fpath + 1)
     return;
@@ -2988,7 +2988,7 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
       if (!(attr & DIRECTORY)) {
 	continue;
       }
-      if (de->long_path 
+      if (de->long_path
 	  && strncmp(de->name, ".       ", 8)
 	  && strncmp(de->name, "..      ", 8)) {
 	/* Path is long, so we do not allow subdirectories
@@ -3195,7 +3195,7 @@ dos_fs_redirect(state_t *state)
 #endif
 
  dos_mode = 0;
- 
+
   if (!mach_fs_enabled)
     return (REDIRECT);
 
@@ -3289,14 +3289,14 @@ dos_fs_redirect(state_t *state)
     else {
       Debug0((dbg_fd, "Close file succeeds\n"));
 
-      /* if bit 14 in device_info is set, dos requests to set the file 
+      /* if bit 14 in device_info is set, dos requests to set the file
          date/time on closing. R.Brown states this incorrectly (inverted).
       */
-         
-      if (sft_device_info(sft) & 0x4000) {  
+
+      if (sft_device_info(sft) & 0x4000) {
          struct utimbuf ut;
          u_short dos_date=sft_date(sft),dos_time=sft_time(sft);
-         
+
          Debug0((dbg_fd,"close: setting file date=%04x time=%04x [<- dos format]\n",
                  dos_date,dos_time));
          ut.actime=ut.modtime=time_to_unix(dos_date,dos_time);
@@ -3367,7 +3367,7 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    
+
     cnt = WORD(state->ecx);
     fd = open_files[sft_fd(sft)].fd;
     Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
@@ -3516,7 +3516,7 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ret);
       return (FALSE);
     }
-    return (TRUE);    
+    return (TRUE);
   case DELETE_FILE:		/* 0x13 */
     {
       struct dir_list *dir_list = NULL;
@@ -3535,7 +3535,7 @@ dos_fs_redirect(state_t *state)
 	SETWORD(&(state->eax), FILE_NOT_FOUND);
 	return (FALSE);
       }
-      
+
       auspr(filename1, fname, fext);
 
       bs_pos = getbasename(fpath);
@@ -3627,7 +3627,7 @@ dos_fs_redirect(state_t *state)
 	sft_open_mode(sft) = dos_mode & 0xFF;
     }
     dos_mode &= 0xF;
-	
+
 	/*
 	   This method is ALSO in undoc dos.  They have the command
 	   defined differently in two different places.  The important
@@ -3861,7 +3861,7 @@ dos_fs_redirect(state_t *state)
 
     Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
 
-    /* 
+    /*
      * we examine the hlists.stack.hlist for broken find_firsts/find_nexts. --ms
      */
     hlist_watch_pop(sda_cur_psp(sda));
@@ -3947,14 +3947,14 @@ dos_fs_redirect(state_t *state)
     hlist_index = sdb_p_cluster(sdb);
     hlist = NULL;
 
-    /* 
+    /*
      * if watched find_next in progress, refresh sequence number. --ms
      */
     Debug0((dbg_fd, "Find next hlist_index=%d\n",hlist_index));
 
     if (hlist_index < hlists.tos) {
       if (hlists.stack[hlist_index].seq > 0)
-        hlists.stack[hlist_index].seq = hlists.seq; 
+        hlists.stack[hlist_index].seq = hlists.seq;
 
       Debug0((dbg_fd, "Find next seq=%d\n",hlists.stack[hlist_index].seq));
 
@@ -4079,7 +4079,7 @@ dos_fs_redirect(state_t *state)
 		ret = (errno == EAGAIN) ? FILE_LOCK_VIOLATION :
 		      (errno == ENOLCK) ? SHARING_BUF_EXCEEDED :
 		      ACCESS_DENIED;
-		SETWORD(&(state->eax), ret); 
+		SETWORD(&(state->eax), ret);
 		return FALSE;
 	}
     break;
@@ -4119,7 +4119,7 @@ dos_fs_redirect(state_t *state)
     if (open_files[sft_fd(sft)].name == NULL) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
-    }    
+    }
     fd = open_files[sft_fd(sft)].fd;
     return (dos_flush(fd) == 0);
     break;
@@ -4128,13 +4128,13 @@ dos_fs_redirect(state_t *state)
       boolean_t file_exists;
       u_short action = sda_ext_act(sda);
 	  u_short mode;
-	  
+
       mode = sda_ext_mode(sda) & 0x7f;
       attr = *(u_short *) Addr(state, ss, esp);
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));
-      
+
       build_ufs_path(fpath, filename1, drive);
       file_exists = find_file(fpath, &st, drive, &doserrno);
       if (file_exists && is_dos_device(fpath))

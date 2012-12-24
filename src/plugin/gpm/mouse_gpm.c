@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -19,7 +19,7 @@
 #include "vc.h"
 
 /* there exist several binary incompatible Gpm_Event structures,
-   depending on the GPM version and distribution. 
+   depending on the GPM version and distribution.
    This makes it impossible to use the structure from gpm.h while
    still having cross-distribution binaries */
 typedef struct {
@@ -91,7 +91,7 @@ static int gpm_init(void)
 
 	if (config.vga || !mice->intdrv || !on_console())
 		return FALSE;
-	
+
 	conn.eventMask	 = ~0;
 	conn.defaultMask = GPM_MOVE;
 	conn.minMod	 = 0;

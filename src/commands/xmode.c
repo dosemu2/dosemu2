@@ -125,5 +125,5 @@ int X_change_config(unsigned item, void *buf)
   intr(DOS_HELPER_INT, &r);
 
   return r.r_ax;
-} 
+}
 

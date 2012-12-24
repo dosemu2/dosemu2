@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -216,7 +216,7 @@ int uchdir_main(int argc, char **argv)
 int ugetcwd_main(int argc, char **argv)
 {
 	char s[256];
-	
+
 	getcwd(s, sizeof(s));
 	com_printf("%s\n", s);
 	return 0;

@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -40,7 +40,7 @@ const char *backtitle = NULL;
 
 const char *dialog_result;
 
-/* 
+/*
  * Attribute values, default is for mono display
  */
 chtype attributes[] =
@@ -215,7 +215,7 @@ print_autowrap (WINDOW * win, const char *prompt, int width, int y, int x)
     strcpy (tempstr, prompt);
 
     prompt_len = strlen(tempstr);
-	
+
     /*
      * Remove newlines
      */
@@ -361,7 +361,7 @@ first_alpha(const char *string, const char *exempt)
 		if (strchr("<[(", c)) ++in_paren;
 		if (strchr(">])", c)) --in_paren;
 
-		if ((! in_paren) && isalpha(c) && 
+		if ((! in_paren) && isalpha(c) &&
 		     strchr(exempt, c) == 0)
 			return i;
 	}

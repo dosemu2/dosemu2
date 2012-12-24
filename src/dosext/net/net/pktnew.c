@@ -74,7 +74,7 @@ struct pkt_type {
     int pkt_type_len;
     unsigned char pkt_type[MAX_PKT_TYPE_SIZE];
     int count;       /* To sort the array based on counts of packet type */
-} pkt_type_array[MAX_HANDLE]; 
+} pkt_type_array[MAX_HANDLE];
 int max_pkt_type_array=0;
 
 #define PKT_BUF_SIZE (ETH_FRAME_LEN+32)
@@ -102,7 +102,7 @@ struct pkt_globs
 	int sock;			/* fd for the socket */
 	Bit16u rcvr_cs, rcvr_ip;	/* receive handler */
 	char packet_type[16];		/* packet type for this handle */
-    } handle[MAX_HANDLE];          
+    } handle[MAX_HANDLE];
 } pg;
 
 /* creates a pointer into the BIOS from the asm exported labels */
@@ -266,7 +266,7 @@ pkt_int (void)
 	REG(eax) = 2;				/* basic+extended functions */
 	REG(ebx) = 1;				/* version */
 
-        /* If  hdlp_handle == 0,  it is not always a valid handle. 
+        /* If  hdlp_handle == 0,  it is not always a valid handle.
 	   At least in case of CUTCP it sets it to zero for the first
 	   time.
 	*/
@@ -277,7 +277,7 @@ pkt_int (void)
 	REG(edx) = pg.type;			/* type (dummy) */
 	REG(ds) = PKTDRV_SEG;			/* driver name */
 	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_driver_name);
-        pd_printf("Class returned = %d, handle=%d, pg.classes[0]=%d \n", 
+        pd_printf("Class returned = %d, handle=%d, pg.classes[0]=%d \n",
 		  REG(ecx)>>8, hdlp_handle, pg.classes[0] );
 	return 1;
 
@@ -286,7 +286,7 @@ pkt_int (void)
 	    HI(dx) = E_NO_CLASS;
 	    break;
 	}
-	if (LWORD(ebx) != 0xffff && LWORD(ebx) != pg.type) { 
+	if (LWORD(ebx) != 0xffff && LWORD(ebx) != pg.type) {
             /* check if_type */
 	    HI(dx) = E_NO_TYPE;
 	    break;
@@ -371,7 +371,7 @@ pkt_int (void)
 		    }
 		}
 	    }
-	    Insert_Type(free_handle, hdlp->packet_type_len, 
+	    Insert_Type(free_handle, hdlp->packet_type_len,
 			    hdlp->packet_type);
 	    REG(eax) = free_handle;		/* return the handle */
 	}
@@ -392,22 +392,22 @@ pkt_int (void)
 	p_stats->bytes_out += LWORD(ecx);
 
 	pd_printf("========Sending packet======\n");
-	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si)); 
+	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si));
 	if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
 	{
 		    char *p;
 		    short len;
-		    
+
 		    p = SEG_ADR((char *),ds,si);
 		    p += 2 * ETH_ALEN;	/* point to protocol type */
-		    
+
 		    if (p[0] == (char)(ETH_P_IPX >> 8) &&
 			p[1] == (char)ETH_P_IPX &&
 			p[2] == (char)0xff && p[3] == (char)0xff)
 		    {
 			/* it is a Novell Ethernet-II packet, make it */
 			/* "raw 802.3" by overwriting type with length */
-			
+
 			len = (p[4] << 8) | (unsigned char)p[5];
 			len = (len + 1) & ~1; /* make length even */
 			p[0] = len >> 8;
@@ -423,12 +423,12 @@ pkt_int (void)
 			 pkt_fd, LWORD(ecx), errno);
 		    break;
 	}
-	
+
 	p_stats->errors_out++;
 	HI(dx) = E_CANT_SEND;
     }
     break;
-    
+
     case F_TERMINATE:
 	if (hdlp == NULL || !hdlp->in_use)
 	    HI(dx) = E_BAD_HANDLE;
@@ -514,7 +514,7 @@ Open_sockets(char *name)
 {
     GenerateDosnetID();
 
-   /* This handle is inserted to receive packets of type "dosnet broadcast". 
+   /* This handle is inserted to receive packets of type "dosnet broadcast".
       These are really speaking broadcast packets meant to be received by
       all dosemus. Their destination addresses are changed by dosemu, and
       are changed back to 'ffffff..' when these packets are received by dosemu.    */
@@ -531,23 +531,23 @@ Open_sockets(char *name)
 	return pkt_fd;
 
     max_pkt_fd = pkt_fd + 1;
-    if (max_pkt_fd <= pkt_broadcast_fd) 
-	max_pkt_fd = pkt_broadcast_fd + 1; 
+    if (max_pkt_fd <= pkt_broadcast_fd)
+	max_pkt_fd = pkt_broadcast_fd + 1;
 
     local_receive_mode = receive_mode;
     pd_printf("PKT: detected receive mode %i\n", receive_mode);
 
-    return 0;    
+    return 0;
 }
 
 /* register a new packet type */
-static int 
+static int
 Insert_Type(int handle, int pkt_type_len, char *pkt_type)
 {
     int i, nchars;
     if(pkt_type_len > MAX_PKT_TYPE_SIZE) return -1;
     if (max_pkt_type_array >= MAX_HANDLE) return -1;
-    
+
     pd_printf("Trying to insert: handle %d, pkt_type_len=%d\n ",
 	      handle, pkt_type_len);
 
@@ -555,16 +555,16 @@ Insert_Type(int handle, int pkt_type_len, char *pkt_type)
     for(i=0; i < max_pkt_type_array; i++) {
 	nchars = pkt_type_array[i].pkt_type_len;
 	if ((pkt_type_array[i].handle == handle) ||
-	    ((nchars > 1) 
+	    ((nchars > 1)
 	     && !memcmp(&pkt_type_array[i].pkt_type, pkt_type, nchars)))
 	    return  -1;
     }
     pkt_type_array[max_pkt_type_array].pkt_type_len = pkt_type_len;
     pkt_type_array[max_pkt_type_array].handle = handle;
     pkt_type_array[max_pkt_type_array].count = 0;
-    memcpy(&pkt_type_array[max_pkt_type_array].pkt_type, 
+    memcpy(&pkt_type_array[max_pkt_type_array].pkt_type,
 	   pkt_type, pkt_type_len);
-    for(i=0; i<pkt_type_len; i++) 
+    for(i=0; i<pkt_type_len; i++)
 	pd_printf(" %.2x", pkt_type_array[max_pkt_type_array].pkt_type[i]);
     pd_printf("\n");
     pd_printf("Succeeded: inserted at %d\n", max_pkt_type_array);
@@ -574,14 +574,14 @@ Insert_Type(int handle, int pkt_type_len, char *pkt_type)
 
 static int
 Remove_Type(int handle)
-{ 
+{
     int i, shift_up;
     shift_up=0;
     for( i=0; i<max_pkt_type_array; i++) {
 	if( shift_up )
             pkt_type_array[i-1]=pkt_type_array[i];
-	else if (pkt_type_array[i].handle == handle) 
-	    shift_up=1; 
+	else if (pkt_type_array[i].handle == handle)
+	    shift_up=1;
     }
     return 0;
 }
@@ -651,9 +651,9 @@ static int pkt_receive(void)
     if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
         return 0;
 
-    if(FD_ISSET(pkt_fd, &readset)) 
+    if(FD_ISSET(pkt_fd, &readset))
         fd = pkt_fd;
-    else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset)) 
+    else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset))
         fd = pkt_broadcast_fd;
     else return 0;
 
@@ -665,7 +665,7 @@ static int pkt_receive(void)
 
     pd_printf("========Processing New packet======\n");
     handle = Find_Handle(pkt_buf);
-    if (handle == -1) 
+    if (handle == -1)
         return 0;
     pd_printf("Found handle %d\n", handle);
 
@@ -676,11 +676,11 @@ static int pkt_receive(void)
 		pd_printf("It is a broadcast packet\n");
 		if(memcmp(pkt_buf + ETH_ALEN, pg.hw_address, ETH_ALEN) == 0) {
 		    /* Ignore our own ethernet broadcast. */
-		    pd_printf("It was my own packet, ignored\n"); 
+		    pd_printf("It was my own packet, ignored\n");
 		    return 0;
 		}
 		memcpy(pkt_buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
-		printbuf("Translated:", (struct ethhdr *)pkt_buf); 
+		printbuf("Translated:", (struct ethhdr *)pkt_buf);
 	    }
 
 	    /* No need to hack the incoming packets it seems. */
@@ -703,7 +703,7 @@ static int pkt_receive(void)
 	    p_stats->packets_in++;
 	    p_stats->bytes_in += size;
 
-	    printbuf("received packet:", (struct ethhdr *)pkt_buf); 
+	    printbuf("received packet:", (struct ethhdr *)pkt_buf);
 	    /* stuff things in global vars and queue a hardware */
 	    /* interrupt which will perform the upcall */
 	    if (p_helper_size)
@@ -730,8 +730,8 @@ static int pkt_check_receive(int ilevel)
   return 0;
 }
 
-/*  Find_Handle does type demultiplexing. 
-    Given a packet, it compares the type fields and finds out which 
+/*  Find_Handle does type demultiplexing.
+    Given a packet, it compares the type fields and finds out which
     handle should take the given packet.
     An array of types is maintained.
 */
@@ -745,7 +745,7 @@ Find_Handle(u_char *buf)
     /* find this packet's frame type, and hence position to compare the type */
     if (ntohs(eth->h_proto) >= 1536)
 	p = buf + 2 * ETH_ALEN;		/* Ethernet-II */
-    else 
+    else
 	p = buf + 2 * ETH_ALEN + 2;     /* All the rest frame types. */
     pd_printf("Received packet type: 0x%x\n", ntohs(eth->h_proto));
 

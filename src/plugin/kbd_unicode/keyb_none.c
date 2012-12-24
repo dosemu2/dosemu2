@@ -1,10 +1,10 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* This file contains the dummy keyboard client. 
+/* This file contains the dummy keyboard client.
  * It does nothing.
  */
 
@@ -25,7 +25,7 @@ static int none_probe(void)
 	return !load_plugin("term");
 }
 
-struct keyboard_client Keyboard_none = 
+struct keyboard_client Keyboard_none =
 {
 	"No keyboard",	/* name */
 	none_probe,	/* probe */

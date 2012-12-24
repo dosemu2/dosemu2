@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -8,33 +8,33 @@
 #ifndef PIC_H
 #define PIC_H
 
-/* Priority Interrupt Controller Emulation 
+/* Priority Interrupt Controller Emulation
    Copyright (C) 1994, J. Lawrence Stephan  jlarry@delanet.com
 
-   This software is distributed under the terms of the GNU General Public 
-   License, there are NO WARRANTIES, expressed or implied.  Use at your own 
-   risk.  Use of this software as a part of any product is permitted only 
-   if that  product is also distributed under the terms of the GNU General 
-   Public  License.  
-   
+   This software is distributed under the terms of the GNU General Public
+   License, there are NO WARRANTIES, expressed or implied.  Use at your own
+   risk.  Use of this software as a part of any product is permitted only
+   if that  product is also distributed under the terms of the GNU General
+   Public  License.
 
 
- Definitions for 8259A programmable Interrupt Controller Emulation 
-  
+
+ Definitions for 8259A programmable Interrupt Controller Emulation
+
 
   IRQ priority levels.  These are in order of priority, lowest number has
    highest priority.  Levels 16 - 30 are available for use, but currently
    have no fixed assignment.  They are extras for the convenience of dosemu.
-   31 is tentatively reserved for a watchdog timer  (stall alarm).  
-   
+   31 is tentatively reserved for a watchdog timer  (stall alarm).
+
    IRQ2 does not exist.  A PCs IRQ2 line is actually connected to IRQ9.  The
    bios for IRQ9 does an int1a, then sends an EOI to the second PIC. ( This
    is simulated in the PIC code if IRQ9 points to the bios segment.)  For
    this reason there is no PIC_IRQ2.
-  
+
 */
-   
-/* Values from 16 - 31 are available for assignment if not already 
+
+/* Values from 16 - 31 are available for assignment if not already
  * assigned below.  They can be used to activate dos interrupts not
  * associated to the hardware pic controllers, or simply to activate
  * other dosemu code.  This is best used to initiate non-signal dosemu
@@ -87,7 +87,7 @@ extern hitimer_t pic_itime[33];
    the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
    as are the interrupt vectors for all but [1] through [15], which  may be
    changed by the ICW2 command from dos. (Some dos extenders do this.) */
-   
+
 struct lvldef {
        int (*func)(int);
        void (*callback)(void);
@@ -101,7 +101,7 @@ void write_pic0(ioport_t port, Bit8u value); /* write to PIC 0 */
 void write_pic1(ioport_t port, Bit8u value); /* write to PIC 1 */
 Bit8u read_pic0(ioport_t port);             /* read from PIC 0 */
 Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
-void pic_seti(unsigned int, int (*)(int), unsigned int, void (*)(void)); 
+void pic_seti(unsigned int, int (*)(int), unsigned int, void (*)(void));
                                        /* set function and interrupt vector */
 void run_irqs(void);                                  /* run requested irqs */
 #define pic_run() run_irqs()   /* the right way to call run_irqs */

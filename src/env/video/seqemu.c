@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * seqemu.c 
+ * seqemu.c
  *
  * VGA sequencer emulator for VGAemu
  *

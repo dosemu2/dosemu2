@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -13,7 +13,7 @@
  * Means: we can do stuff that needs root access (iopl, ioperm, e.t.c.)
  * Dos NOT mean, that _have_ that rights already, it needs enter_priv_on
  * anyway.
- */ 
+ */
 EXTERN int can_do_root_stuff INIT(0);
 
 /* set, if dosemu was started from a 'root login',

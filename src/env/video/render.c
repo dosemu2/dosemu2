@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -358,7 +358,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
   int update_ret;
 #ifdef DEBUG_SHOW_UPDATE_AREA
   static int dsua_fg_color = 0;
-#endif		
+#endif
 
   while((update_ret = vga_emu_update(veut)) > 0) {
     remap_obj.src_image = veut->base + veut->display_start - update_offset;
@@ -435,7 +435,7 @@ static int update_graphics_screen(vga_emu_update_type *veut)
   }
 
   if (vga.line_compare < vga.height) {
-          
+
     veut->display_start = 0;
     veut->display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut->max_len = veut->max_max_len;

@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -56,7 +56,7 @@ static int GETB(ioport_t port, int idx)
 /* ali_unlock()                                         Unlock ALI registers
 
  * Enable register changes
- * 
+ *
  */
 
 static void ali_unlock(void)
@@ -73,7 +73,7 @@ static void ali_unlock(void)
 
 /* ali_lock()                                           Lock Ali registers
  * Prevents registers from accidental change
- * 
+ *
  */
 
 static void ali_lock(void)
@@ -104,7 +104,7 @@ static int cwg(void)
 /* ali_test()                                           Probe for Ali card
 
  * Checks for Ali segment register, then chip type and memory size.
- * 
+ *
  * Returns 1 for Ali, 0 otherwise.
  */
 
@@ -162,7 +162,7 @@ static int ali_memorydetect(void)
 
 
 /*
- * AvanceProbe -- 
+ * AvanceProbe --
  *      check up whether an Avance Logic based board is installed
  */
 static int AvanceProbe(void)
@@ -176,7 +176,7 @@ static int AvanceProbe(void)
 
 
 /*
- * avanceSave -- 
+ * avanceSave --
  *      save the current video mode
  *	9 additional registers
  */
@@ -206,7 +206,7 @@ void avance_save_ext_regs(u_char xregs[], u_short xregs16[])
 }
 
 /*
- * avanceRestore -- 
+ * avanceRestore --
  *      restore a video mode
  */
 void avance_restore_ext_regs(u_char xregs[], u_short xregs16[])

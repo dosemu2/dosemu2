@@ -43,8 +43,8 @@
 /*                          The SERIAL ENGINES                            */
 /**************************************************************************/
 
-/* This function updates the timer counters for several serial events 
- * which includes: Transmission so that data gets written to the serial 
+/* This function updates the timer counters for several serial events
+ * which includes: Transmission so that data gets written to the serial
  * device at a constant rate, without buffer overflows.  Receive, so that
  * the read() system call is not done more often than needed.  Modem
  * Status check, so that it is not done more often than needed.
@@ -63,8 +63,8 @@ void serial_timer_update(void)
   unsigned long elapsed;	/* No of 115200ths seconds elapsed */
   int i;
 
-  /* Get system time.  PLEASE DONT CHANGE THIS LINE, unless you can 
-   * _guarantee_ that the substitute/stored timer value _is_ up to date 
+  /* Get system time.  PLEASE DONT CHANGE THIS LINE, unless you can
+   * _guarantee_ that the substitute/stored timer value _is_ up to date
    * at _this_ instant!  (i.e: vm86s exit time did not not work well)
    */
   tp = GETusTIME(0);
@@ -98,12 +98,12 @@ void serial_timer_update(void)
 }
 #endif
 
-/* This function does housekeeping for serial receive operations.  Duties 
+/* This function does housekeeping for serial receive operations.  Duties
  * of this function include keeping the UART FIFO/RBR register filled,
  * and checking if it's time to generate a hardware interrupt (RDI).
  * [num = port]
  */
-void receive_engine(int num)	/* Internal 16550 Receive emulation */ 
+void receive_engine(int num)	/* Internal 16550 Receive emulation */
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
 
@@ -180,7 +180,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
  * and updating the MSR, and checking if it's time to generate a hardware
  * interrupt (MSI).    [num = port]
  */
-void modstat_engine(int num)		/* Internal Modem Status processing */ 
+void modstat_engine(int num)		/* Internal Modem Status processing */
 {
   int control;
   int newmsr, delta;
@@ -189,7 +189,7 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   if (com[num].MCR & UART_MCR_LOOP) return;
 
 #if 0
-  /* Return if it is not time to do a modem status check */  
+  /* Return if it is not time to do a modem status check */
   if (com[num].ms_timer > 0) return;
   com[num].ms_timer += MS_MIN_FREQ;
 #endif
@@ -276,12 +276,12 @@ void serial_int_engine(int num, int int_requested)
 
   /* See if a requested interrupt is enabled */
   if (INT_ENAB(num) && com_cfg[num].interrupt && INT_REQUEST(num)) {
-      if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
+      if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n",
                  num, com_cfg[num].interrupt, int_requested);
       pic_request(com_cfg[num].interrupt);		/* Flag PIC for interrupt */
   }
   else
-    if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n", 
+    if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n",
         num, com_cfg[num].interrupt, com[num].int_condition, INT_ENAB(num), com[num].IER);
 }
 
@@ -334,15 +334,15 @@ void serial_update(int num)
   modstat_engine(num);  	/* Modem Status operations */
 }
 
-/* DANG_BEGIN_FUNCTION serial_run 
+/* DANG_BEGIN_FUNCTION serial_run
  *
  * This is the main housekeeping function, which should be called about
- * 20 to 100 times per second.  The more frequent, the better, up to 
+ * 20 to 100 times per second.  The more frequent, the better, up to
  * a certain point.   However, it should be self-compensating if it
  * executes 10 times or even 1000 times per second.   Serial performance
  * increases with frequency of execution of serial_run.
  *
- * Serial mouse performance becomes more smooth if the time between 
+ * Serial mouse performance becomes more smooth if the time between
  * calls to serial_run are smaller.
  *
  * DANG_END_FUNCTION
@@ -354,7 +354,7 @@ void serial_run(void)
   /* Update the internal serial timers */
   serial_timer_update();
 #endif
-  /* Do the necessary interrupt checksing in a logically efficient manner.  
+  /* Do the necessary interrupt checksing in a logically efficient manner.
    * All the engines have built-in code to prevent loading the
    * system if they are called 100x's per second.
    */

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -121,21 +121,21 @@ int real_enter_priv_on(saved_priv_status *privs)
   push_priv(privs);
   return _priv_on();
 }
-  
+
 int real_enter_priv_off(saved_priv_status *privs)
 {
   if (skip_priv_setting) return 1;
   push_priv(privs);
   return _priv_off();
 }
-  
+
 int real_leave_priv_setting(saved_priv_status *privs)
 {
   if (skip_priv_setting) return 1;
   if (PRIVS_WERE_ON(privs)) return _priv_on();
   return _priv_off();
 }
-  
+
 int priv_iopl(int pl)
 {
   int ret;
@@ -273,7 +273,7 @@ void priv_init(void)
       }
     }
   }
-  
+
   if (!can_do_root_stuff)
     {
       skip_priv_setting = 1;

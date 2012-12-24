@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -51,7 +51,7 @@ void _a_shll_n_edx(CodeObj *, int);
 
 #if GCC_VERSION_CODE >= 2095
   /*
-   * NOTE: 
+   * NOTE:
    *	gcc-2.95 will optimize away all code behind the 'return'
    *	and the function end (closing curly bracket),
    *	hence it will remove our code generator templates.
@@ -1190,7 +1190,7 @@ void pent_8to32_all_init(RemapObject *ro)
       l0 = l1 = 1;
       j = 0;
     }
-  
+
   }
 
   _a_addl_n_edi(co, ro->dst_scan_len - d_o_r);

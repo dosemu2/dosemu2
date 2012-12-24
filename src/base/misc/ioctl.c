@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -161,13 +161,13 @@ io_select(fd_set fds)
 
 /*
  * DANG_BEGIN_FUNCTION io_select_init
- * 
- * description: 
+ *
+ * description:
  * Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
- * 
+ *
  * DANG_END_FUNCTION
  */
-void 
+void
 io_select_init(void) {
 sigset_t set;
 int i;
@@ -221,18 +221,18 @@ add_to_io_select(int new_fd, u_char want_sigio, void (*func)(void *), void *arg)
 
 /*
  * DANG_BEGIN_FUNCTION remove_from_io_select
- * 
- * arguments: 
- * fd - File handle to remove from select statment. 
+ *
+ * arguments:
+ * fd - File handle to remove from select statment.
  * used_sigio - used SIGIO (1) if it's available, or not (0).
- * 
- * description: 
+ *
+ * description:
  * Remove a file handle from one of 2 select FDS_SET's depending
  * on whether the kernel can handle SIGIO.
- * 
+ *
  * DANG_END_FUNCTION
  */
-void 
+void
 remove_from_io_select(int new_fd, u_char used_sigio)
 {
     if (new_fd < 0) {

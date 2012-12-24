@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -146,7 +146,7 @@ int signal, struct sigcontext_struct *scp
 		   do_int(_trapno);
 		   return 0;
 		 }
- 		 /* Some db commands start with 2e (use cs segment) 
+ 		 /* Some db commands start with 2e (use cs segment)
 		    and thus is accounted for here */
  		 if (csp[0] == 0x2e) {
  		   csp++;
@@ -170,7 +170,7 @@ int signal, struct sigcontext_struct *scp
                 /* fall into default case if not X */
 
 
-      default:	
+      default:
 sgleave:
 #if 0
 		 error("unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
@@ -215,7 +215,7 @@ sgleave:
  * video/int10.c:    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
  * EMS and XMS memory transfer functions may also touch video mem.
  *  but if only the protection needs to be adjusted (no instructions emulated)
- *  we should be able to handle it in DOSEMU 
+ *  we should be able to handle it in DOSEMU
  */
     v_printf("BUG: dosemu touched protected video mem, but trying to recover\n");
     if(VGA_EMU_FAULT(scp,code,1)==True)
@@ -371,7 +371,7 @@ bad:
     for (i = 0; i < 10; i++)
       dbug_printf("%02x ", *csp++);
     dbug_printf("\n");
- 
+
     show_regs(__FILE__, __LINE__);
 
     fatalerr = 4;
@@ -507,7 +507,7 @@ void print_exception_info(struct sigcontext_struct *scp)
       error("@-> ");
       for (i = 0; i < 10; i++)
 	error("@%02x ", *csp++);
-      error("@\n");    
+      error("@\n");
       break;
 
 

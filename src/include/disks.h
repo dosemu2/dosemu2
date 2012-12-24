@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -122,7 +122,7 @@ struct image_header {
 
 /*
  * Array of disk structures for floppies...
- */ 
+ */
 EXTERN struct disk disktab[MAX_FDISKS];
 
 /*

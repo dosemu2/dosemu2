@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -101,7 +101,7 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 	e.xselection.property = property;
 
 	if (sel_text == NULL || target == None) {
-		X_printf("X: Window 0x%lx requested selection, but it's empty!\n",   
+		X_printf("X: Window 0x%lx requested selection, but it's empty!\n",
 			(unsigned long) requestor);
 		e.xselection.property = None;
 	}
@@ -142,9 +142,9 @@ static void send_selection(Display *display, Time time, Window requestor, Atom t
 		}
 		send_text = get_selection_string(charset);
 		X_printf("X: selection: %s\n",send_text);
-		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
+		XChangeProperty(display, requestor, property, target, 8, PropModeReplace,
 			(unsigned char *)send_text, strlen(send_text));
-		X_printf("X: Selection sent to window 0x%lx as %s\n", 
+		X_printf("X: Selection sent to window 0x%lx as %s\n",
 			(unsigned long) requestor, XGetAtomName(display, target));
 		free(send_text);
 	}
@@ -168,9 +168,9 @@ static void scr_request_selection(Display *dpy,Window W,int time)
 {
   X_printf("X: mouse selection requested\n");
   X_printf("X: mouse display %p\n", dpy);
-  
+
   get_selection_targets(dpy);
-  if (XGetSelectionOwner(dpy,XA_PRIMARY) == None) 
+  if (XGetSelectionOwner(dpy,XA_PRIMARY) == None)
     {
       /*  No primary selection so use the cut buffer.
        */
@@ -206,7 +206,7 @@ static void scr_paste_primary(Display *dpy,Window window,int property,int Delete
 
   get_selection_targets(dpy);
   nread = 0;
-  do 
+  do
     {
       int i;
       if (XGetWindowProperty(dpy,window,property,nread/4,PROP_SIZE,Delete,
@@ -247,7 +247,7 @@ static void scr_paste_primary(Display *dpy,Window window,int property,int Delete
 	XFree(data);
 	return;
       }
-      
+
       X_printf("X: Pasting using character set %s\n", charsets[i]);
       paste_text((char *)data,nitems,charsets[i]);
 
@@ -261,12 +261,12 @@ void X_handle_selection(Display *display, Window mainwindow, XEvent *e)
   switch(e->type) {
     /* Selection-related events */
     /* The user made a selection in another window, so our selection
-     * data is no longer needed. 
+     * data is no longer needed.
      */
   case SelectionClear:
     clear_selection_data();
     break;
-  case SelectionNotify: 
+  case SelectionNotify:
     scr_paste_primary(display,e->xselection.requestor,
 		      e->xselection.property,True,
 		      e->xselection.target,e->xselection.time);

@@ -58,22 +58,22 @@ struct char_set_state {
 };
 
 typedef size_t (*charset_to_unicode_t)(
-	struct char_set_state *state, 
+	struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode *symbol_out, const unsigned char *str, size_t in_len);
 typedef size_t (*unicode_to_charset_t)(
-	struct char_set_state *state, 
+	struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode symbol, unsigned char *str, size_t out_len);
 typedef int (*init_charset_state_t)(struct char_set_state *state);
 typedef void (*cleanup_charset_state_t)(struct char_set_state *state);
 typedef void (*copy_charset_state_t)(
 	struct char_set_state *dst, const struct char_set_state *src);
-typedef void (*foreach_callback_t)(void *callback_data, 
+typedef void (*foreach_callback_t)(void *callback_data,
 	t_unicode symbol, const unsigned char *bytes, size_t byte_len);
 typedef void (*foreach_t)(struct char_set *set, int offset,
 	void *callback_data, foreach_callback_t callback);
-	
+
 struct char_set_operations
 {
 	unicode_to_charset_t unicode_to_charset;
@@ -111,9 +111,9 @@ size_t charset_to_unicode(struct char_set_state *state, t_unicode *symbol,
 
 int init_charset_state(struct char_set_state *state, struct char_set *char_set);
 void cleanup_charset_state(struct char_set_state *state);
-void copy_charset_state(struct char_set_state *dst, 
+void copy_charset_state(struct char_set_state *dst,
 	const struct char_set_state *src);
-void foreach_character_mapping(struct char_set *set, 
+void foreach_character_mapping(struct char_set *set,
 	void *callback_data, foreach_callback_t callback);
 
 /* char set registration & lookup */
@@ -140,8 +140,8 @@ extern struct char_set_operations compound_charset_ops;
 
 #define CHARS(X) (sizeof(X)/sizeof((X)[0])),(X)
 
-/* 
- * utility functions 
+/*
+ * utility functions
  * ====================
  */
 

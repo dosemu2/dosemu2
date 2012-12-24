@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -20,7 +20,7 @@ void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 
 #if 0
 	/* Turn off the previos sound, I hope */
-	new_state.bell_pitch = 0;  
+	new_state.bell_pitch = 0;
 	new_state.bell_duration = 0;
 	XChangeKeyboardControl(display, KBBellDuration | KBBellPitch, &new_state);
 	XBell(display, -100);
@@ -34,7 +34,7 @@ void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 	if (new_state.bell_pitch >= 0x8000) new_state.bell_pitch = 0x7fff;
 	new_state.bell_duration = ms;
 	XChangeKeyboardControl(display, KBBellDuration | KBBellPitch, &new_state);
-	
+
 	/* Reset the sound defaults */
 	XBell(display, 100); /* I'm not sure how to get the default here so make it loud. */
 	new_state.bell_pitch = -1;  /* reset the sound defaults */

@@ -1855,7 +1855,7 @@ void test_vm86(void)
 
     /* move code to proper address. We use the same layout as a .com
        dos program. */
-    movedata(_my_ds(), (unsigned)&vm86_code_start, sel, VM86_CODE_IP, 
+    movedata(_my_ds(), (unsigned)&vm86_code_start, sel, VM86_CODE_IP,
 	     &vm86_code_end - &vm86_code_start);
 
     /* hook int21 */

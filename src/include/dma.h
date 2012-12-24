@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -163,7 +163,7 @@ and probably is unimportant since dosemu uses its own bios, not the pc's */
 /* We'll start with the low bits and move toward the high ones */
 
 /* The low two bits are the ch selectors */
-#define DMA_CH_SELECT         0x03   
+#define DMA_CH_SELECT         0x03
 
 /* After that comes the direction of the transfer */
 #define DMA_WRITE             0x04  /* This is the write mode */

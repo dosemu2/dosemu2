@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -122,7 +122,7 @@ static void dump_disk_blks(unsigned tb, int count, int ssiz)
  *  |||..........,,,######################################
  *
  *   |   adds up to 1 sector (512 bytes) of Master Boot Record (MBR)
- *       THIS IS KEPT IN MEMORY, and is the file 
+ *       THIS IS KEPT IN MEMORY, and is the file
  *       <DOSEMU_LIB_DIR>/partition.<partition>.
  *
  *   .   is any number of sectors before the desired partition start address.
@@ -169,7 +169,7 @@ read_sectors(struct disk *dp, unsigned buffer, long head, long sector,
 
     readsize = readsize > -pos ? -pos : readsize;
 
-    /* 
+    /*
      * this will end up pretending to read the requested data, but will
      * only read as much as can be read from the fake MBR in memory
      * and zero the rest
@@ -339,7 +339,7 @@ image_auto(struct disk *dp)
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
     dp->fdesc = open64(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
-    /* The next line should only be done in case the open succeeds, 
+    /* The next line should only be done in case the open succeeds,
        but that should be the normal case, and allows somewhat better
        code for the if (how sick can you get, since the open is going to
        take a lot more time anyways :-) )
@@ -350,7 +350,7 @@ image_auto(struct disk *dp)
       /* We should check whether errno is EROFS, but if not the next open will
          fail again and the following lseek will throw us out of dos. So we win
          a very tiny amount of time in case it works. Also, if for some reason
-         this does work (should be impossible), we can at least try to 
+         this does work (should be impossible), we can at least try to
          continue. (again how sick can you get :-) )
        */
       dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
@@ -425,7 +425,7 @@ hdisk_auto(struct disk *dp)
       leavedos(1);
     }
   }
- 
+
   if (dp->type == HDISK && read(dp->fdesc, tmp_mbr, SECTOR_SIZE) == SECTOR_SIZE
       && tmp_mbr[SECTOR_SIZE - 2] == 0x55 && tmp_mbr[SECTOR_SIZE - 1] == 0xaa) {
     /* see also fdisk.c in util-linux: HDIO_GETGEO is not reliable; we should
@@ -725,7 +725,7 @@ static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr)
   p[2] = p[6] = 255;
   p[3] = p[7] = 255;
   p[4] = 0xe;
-    
+
   p[0] = PART_BOOT;						/* bootable  */
   if (CYL(dp->start) <= 1023) {
     p[1] = HEAD(dp->start);					/* beg head  */
@@ -788,7 +788,7 @@ disk_open(struct disk *dp)
 
   if (dp == NULL || dp->fdesc >= 0)
     return;
-    
+
   dp->fdesc = SILENT_DOS_SYSCALL(open64(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
 
   /* FIXME:
@@ -813,7 +813,7 @@ disk_open(struct disk *dp)
   else dp->rdonly = dp->wantrdonly;
 
 {
-#if 1 
+#if 1
   /* NOTE: Starting with linux 1.3.100 the floppy driver has changed
    * so that it no longer returns from the following ioctl without
    * getting interrupted by SIGALARM (-EINTR). Also a retry does not help,
@@ -874,7 +874,7 @@ void
 disk_close_all(void)
 {
   struct disk *dp;
-  
+
   if (!disks_initiated) return;  /* prevent idiocy */
   if (config.bootdisk && bootdisk.fdesc >= 0) {
     d_printf("Boot disk Closing %x\n", bootdisk.fdesc);
@@ -990,7 +990,7 @@ disk_init(void)
       d_printf("ISCHR ");
     d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
 #ifdef __linux__
-    if (S_ISBLK(stbuf.st_mode) && 
+    if (S_ISBLK(stbuf.st_mode) &&
     (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
     ) {
       d_printf("DISK %s removable\n", dp->dev_name);
@@ -1629,7 +1629,7 @@ int int13(void)
 	     head, track, sect, res >> 9, buffer);
     break;
   }
-  
+
   case 0x43: {                  /* IBM/MS Extensions, write */
     struct ibm_ms_diskaddr_pkt *diskaddr;
 

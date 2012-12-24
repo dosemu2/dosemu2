@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -7,14 +7,14 @@
 
 /*
 This file contains X keyboard tables and handling routines
-for dosemu. 
+for dosemu.
   exports:  X_process_key(XKeyEvent *)
             X_process_keys(XKmapmapEvent *);
   uses:     putkey(t_scancode scan, Boolean make, uchar charcode)
-    
+
 ******************************************************************
-  
-Part of the original code in this file was taken from pcemu written by David Hedley 
+
+Part of the original code in this file was taken from pcemu written by David Hedley
 (hedley@cs.bris.ac.uk).
 
 Since this code has been totally rewritten the pcemu license no longer applies
@@ -51,7 +51,7 @@ static int get_modifier_mask(XModifierKeymap *map, int keycode)
 	for(i = 0; i < 8; i++) {
 		int j;
 		for(j = 0; j < map->max_keypermod; j++, kcp++) {
-			if (*kcp == 0) 
+			if (*kcp == 0)
 				continue;
 			if (*kcp == keycode)
 				return 1 << i;
@@ -68,14 +68,14 @@ static void X_modifier_info_init(Display *display)
 	/* Only the CapsLockMask is precomputed */
 	X_mi.CapsLockMask = LockMask;
 	X_mi.CapsLockKeycode = XKeysymToKeycode(display, XK_Caps_Lock);
-	X_mi.NumLockMask = 0; 
+	X_mi.NumLockMask = 0;
 	X_mi.NumLockKeycode = XKeysymToKeycode(display, XK_Num_Lock);
-	X_mi.ScrollLockMask = 0; 
+	X_mi.ScrollLockMask = 0;
 	X_mi.ScrollLockKeycode = XKeysymToKeycode(display, XK_Scroll_Lock);
 	X_mi.AltMask = 0;
 	X_mi.AltGrMask = 0;
 	X_mi.InsLockMask = 0;
-	
+
 
 	map = XGetModifierMapping(display);
 
@@ -106,7 +106,7 @@ static void X_modifier_info_init(Display *display)
 	if (!X_mi.InsLockMask) {
 		X_mi.InsLockMask = get_modifier_mask(map, XKeysymToKeycode(display, XK_KP_Insert));
 	}
-	
+
 
 	X_printf("X: CapsLockMask = 0x%x\n", X_mi.CapsLockMask);
 	X_printf("X: CapsLockKeycode = 0x%x\n", X_mi.CapsLockKeycode);
@@ -197,7 +197,7 @@ void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state)
 	   event, for the disable.  So we don't sync on the release event to prevent
 	   unnecessary key events from being sent.
 	*/
-	
+
 	/* Check for modifiers released outside this window */
 	if (!!(shiftstate & MODIFIER_SHIFT) != !!(e_state & ShiftMask)) {
 		shiftstate ^= MODIFIER_SHIFT;
@@ -220,7 +220,7 @@ void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state)
 	  }
 	}
 
-	if (X_mi.CapsLockMask && 
+	if (X_mi.CapsLockMask &&
 	    (!!(shiftstate & MODIFIER_CAPS) != !!(e_state & X_mi.CapsLockMask))
 		&& (make || (kc != X_mi.CapsLockKeycode))) {
 		shiftstate ^= MODIFIER_CAPS;
@@ -288,7 +288,7 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 		modifiers = e->state & (~modifiers);
 	}
 #endif
-	charset_to_unicode(&X_charset, &result->key, 
+	charset_to_unicode(&X_charset, &result->key,
 		(const unsigned char *)&xkey, sizeof(xkey));
 	result->make = (e->type == KeyPress);
 	result->modifiers = map_X_modifiers(modifiers);
@@ -304,7 +304,7 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 void X_process_key(XKeyEvent *e)
 {
 	struct mapped_X_event event;
-	
+
 	if (!initialized) {
 		keyb_X_init(display);
 		initialized = 1;

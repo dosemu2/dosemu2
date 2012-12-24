@@ -1,14 +1,14 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* dos emulator, Matthias Lautner 
+/* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
  * DANG_BEGIN_MODULE
- * 
+ *
  * REMARK
  * Initial program executed to run DOSEMU. Gets access to libdosemu
  * and sets international character parms. Finally calls entry
@@ -21,7 +21,7 @@
  */
 
 #include <stdio.h>
-#include <unistd.h> 
+#include <unistd.h>
 #include <a.out.h>
 #include <locale.h>
 #include <errno.h>
@@ -55,7 +55,7 @@ main(int argc, char **argv)
 {
   struct exec header;
   FILE *f;
-  char *libpath = LIBDOSEMU; 
+  char *libpath = LIBDOSEMU;
 
 
   buf[0] = ' ';

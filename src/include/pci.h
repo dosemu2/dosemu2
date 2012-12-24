@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -17,7 +17,7 @@
 #define PCI_BASE_ADDRESS_SPACE_MEMORY	0x00
 #define PCI_BASE_ADDRESS_MEM_MASK	(~0x0fUL)
 #define PCI_BASE_ADDRESS_IO_MASK	(~0x03UL)
-#define PCI_ROM_ADDRESS			0x30		
+#define PCI_ROM_ADDRESS			0x30
 #define PCI_ROM_ADDRESS_MASK		(~0x7ffUL)
 #define PCI_CLASS_DISPLAY_VGA		0x0300
 #define PCI_CLASS_BRIDGE_HOST		0x0600

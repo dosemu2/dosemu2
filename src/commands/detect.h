@@ -125,7 +125,7 @@ printnibble:
 	popw	%bx
 	popw	%ax
 	ret
-	
+
 
 # Converts AX to ASCII and prints it
 # AX=number

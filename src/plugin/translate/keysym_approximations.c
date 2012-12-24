@@ -44,7 +44,7 @@ static const struct unicode_close_match approximations[] =
 	 * These mappings prevent unmapped function keys from
 	 * having the same mapping as unmapped characters,
 	 * which are o.k. to display as a strange character.
-	 * 
+	 *
 	 */
 	{ KEY_PAD_HOME,		U_NULL },
 	{ KEY_PAD_UP,		U_NULL },
@@ -134,7 +134,7 @@ static const struct unicode_close_match approximations[] =
 
 	/* General approximations */
 	{ U_HOUSE,				U_CIRCUMFLEX_ACCENT },
-	
+
 	{ U_WHITE_SMILING_FACE,			U_LATIN_SMALL_LETTER_O_WITH_DIAERESIS },
 	{ U_BLACK_SMILING_FACE, 		U_LATIN_CAPITAL_LETTER_O_WITH_DIAERESIS },
 	{ U_BLACK_HEART_SUIT,			U_LATIN_SMALL_LETTER_H },
@@ -193,7 +193,7 @@ static const struct unicode_close_match approximations[] =
 
 	{ U_PESETA_SIGN,			U_LATIN_CAPITAL_LETTER_P},
 	{ U_LATIN_SMALL_LETTER_F_WITH_HOOK,	U_LATIN_SMALL_LETTER_F},
-	
+
 	{ U_REVERSED_NOT_SIGN,			U_HYPHEN_MINUS },
 
 	{ U_LIGHT_SHADE, 			U_COLON },
@@ -213,7 +213,7 @@ static const struct unicode_close_match approximations[] =
 	{ U_BOX_DRAWINGS_UP_SINGLE_AND_LEFT_DOUBLE,		U_APOSTROPHE},
 	{ U_BOX_DRAWINGS_LIGHT_DOWN_AND_LEFT,			U_NOT_SIGN},
 	{ U_BOX_DRAWINGS_LIGHT_DOWN_AND_LEFT,			U_PERIOD},
-	
+
 	{ U_BOX_DRAWINGS_LIGHT_UP_AND_RIGHT,			U_GRAVE_ACCENT},
 	{ U_BOX_DRAWINGS_LIGHT_UP_AND_HORIZONTAL,		U_GRAVE_ACCENT},
 	{ U_BOX_DRAWINGS_LIGHT_DOWN_AND_HORIZONTAL,		U_PLUS_SIGN},
@@ -262,7 +262,7 @@ static const struct unicode_close_match approximations[] =
 	{ U_GREEK_SMALL_LETTER_DELTA,		U_LATIN_SMALL_LETTER_O_WITH_ACUTE},
 	{ U_INFINITY,				U_LATIN_SMALL_LETTER_O},
 	{ U_GREEK_SMALL_LETTER_PHI,		U_LATIN_SMALL_LETTER_O_WITH_STROKE},
-	{ U_GREEK_SMALL_LETTER_EPSILON, 	U_LATIN_CAPITAL_LETTER_E}, 
+	{ U_GREEK_SMALL_LETTER_EPSILON, 	U_LATIN_CAPITAL_LETTER_E},
 	{ U_INTERSECTION,			U_LATIN_SMALL_LETTER_N},
 
 	{ U_IDENTICAL_TO,			U_EQUALS_SIGN},
@@ -299,7 +299,7 @@ static const struct unicode_close_match approximations[] =
 	{ U_CEDILLA,				U_COMMA },
 	{ U_LATIN_CAPITAL_LETTER_O_WITH_STROKE,	U_GREEK_SMALL_LETTER_PHI },
 	{ U_LATIN_SMALL_LETTER_O_WITH_STROKE,	U_GREEK_SMALL_LETTER_PHI },
-/*	
+/*
 	{ U_CURRENCY_SIGN,			x },
 	{ U_COPYRIGHT_SIGN,			x },
 	{ U_REGISTERED_SIGN,			x },
@@ -351,7 +351,7 @@ void traverse_approximation_list(void *p, approximation_list_callback_t callback
 {
 	int i;
 	for(i = 0; i < approximation_count; i++) {
-		callback(p, 
+		callback(p,
 			approximations[i].symbol,
 			approximations[i].approximation);
 	}

@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -232,7 +232,7 @@ int mhp_getaxlist_value(int v, int mask)
 static void mhp_delaxlist_value(int v, int mask)
 {
   int i,j;
-  
+
   for (i=0,j=0; i < axlist_count; i++) {
     if (((v ^ mhp_axlist[i]) & mask)) {
       mhp_axlist[j] = mhp_axlist[i];
@@ -1204,7 +1204,7 @@ static void mhp_bpint(int argc, char * argv[])
    int i1;
 
    if (argc <2) return;
-   if (!check_for_stopped()) return; 
+   if (!check_for_stopped()) return;
    sscanf(argv[1], "%x", &i1);
    if (test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
          mhp_printf( "Duplicate BPINT %02x, nothing done\n", i1);
@@ -1220,7 +1220,7 @@ static void mhp_bcint(int argc, char * argv[])
    int i1;
 
    if (argc <2) return;
-   if (!check_for_stopped()) return; 
+   if (!check_for_stopped()) return;
    sscanf(argv[1], "%x", &i1);
    if (!test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
          mhp_printf( "No BPINT %02x, nothing done\n", i1);
@@ -1236,7 +1236,7 @@ static void mhp_bpintd(int argc, char * argv[])
    int i1,v1=0;
 
    if (argc <2) return;
-   if (!check_for_stopped()) return; 
+   if (!check_for_stopped()) return;
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {
@@ -1260,7 +1260,7 @@ static void mhp_bcintd(int argc, char * argv[])
    int i1,v1=0;
 
    if (argc <2) return;
-   if (!check_for_stopped()) return; 
+   if (!check_for_stopped()) return;
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {
@@ -1286,7 +1286,7 @@ static void mhp_bcintd(int argc, char * argv[])
 
 static void mhp_bpload(int argc, char * argv[])
 {
-   if (!check_for_stopped()) return; 
+   if (!check_for_stopped()) return;
    if (mhpdbgc.bpload) {
      mhp_printf("load breakpoint already pending\n");
      return;
@@ -1526,7 +1526,7 @@ static void mhp_print_ldt(int argc, char * argv[])
   lp = (unsigned int *) buffer;
   lp += (seg & 0xFFF8) >> 2;
   lp_ += (seg & 0xFFF8) >> 2;
-  
+
   for (i=(seg & 0xFFF8); i< 0x10000; i+=8,lp++, lp_+=2) {
     cache_mismatch = (lp[0] != lp_[0]) || ((lp[1]|Abit) != (lp_[1]|Abit));
     if ((lp[0] && lp[1]) ||  cache_mismatch) {
@@ -1658,7 +1658,7 @@ static void mhp_bplog(int argc, char * argv[])
    char *s;
 
    if (argc >1) {
-     if (!check_for_stopped()) return; 
+     if (!check_for_stopped()) return;
      argv++;
      buf[0] = 0;
      while (*argv) {
@@ -1743,7 +1743,7 @@ void mhp_regex(const char *fmt, va_list args)
 {
   int i, hit;
   char *s;
-  
+
   if (!(dosdebug_flags & DBGF_LOG_TO_BREAK)) return;
   lbufi += vsprintf(lbuf+lbufi, fmt, args);
   hit = 0;

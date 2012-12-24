@@ -136,7 +136,7 @@ __asm__("___START___: jmp _emulate\n");
 
 sigjmp_buf NotJEnv;
 
-void 
+void
 boot(void)
 {
     unsigned buffer;
@@ -198,7 +198,7 @@ boot(void)
     disk_close();
 }
 
-static inline void 
+static inline void
 vm86plus_init(void)
 {
 #ifdef __i386__
@@ -298,23 +298,23 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
 
 /*
  * DANG_BEGIN_FUNCTION emulate
- * 
- * arguments: 
- * argc - Argument count. 
+ *
+ * arguments:
+ * argc - Argument count.
  * argv - Arguments.
- * 
- * description: 
+ *
+ * description:
  * Emulate gets called from dos.c. It initializes DOSEMU to
  * prepare it for running in vm86 mode. This involves catching signals,
  * preparing memory, calling all the initialization functions for the I/O
  * subsystems (video/serial/etc...), getting the boot sector instructions
  * and calling vm86().
- * 
+ *
  * DANG_END_FUNCTION
- * 
+ *
  */
 #ifdef __ELF__
-int 
+int
 main(int argc, char **argv)
 #else
 int
@@ -444,7 +444,7 @@ emulate(int argc, char **argv)
 
     fflush(stdout);
 
-#ifdef USE_MHPDBG  
+#ifdef USE_MHPDBG
     mhp_debug(DBG_INIT, 0, 0);
 #endif
     timer_interrupt_init();	/* start sending int 8h int signals */

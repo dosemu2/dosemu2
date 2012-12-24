@@ -73,7 +73,7 @@ static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
 static void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
 {
   int blockbits, oss_fragsize;
-  
+
   if(fragsize > MAX_DMA_TRANSFERSIZE) {
     oss_fragsize = MAX_DMA_TRANSFERSIZE;
   } else {
@@ -81,7 +81,7 @@ static void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
   }
   block_size = oss_fragsize;
 
-  for (blockbits = 0; oss_fragsize > 1; 
+  for (blockbits = 0; oss_fragsize > 1;
        blockbits++, oss_fragsize = oss_fragsize >> 1);
   /* blockbits now contains floor(log2(oss_fragsize)), and oss_fragsize is
       destroyed */
@@ -91,7 +91,7 @@ static void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
     sound_frag_size = 4;
 
   num_sound_frag = blocksize / (1 << sound_frag_size);
-  
+
   if (num_sound_frag > config.oss_max_frags) {
     num_sound_frag = config.oss_max_frags;
   }
@@ -114,22 +114,22 @@ static void linux_sb_write_mixer(int ch, uint8_t val)
   }
 
   switch (ch) {
-  case SB_MIXER_VOLUME: 
+  case SB_MIXER_VOLUME:
     driver_channel = SOUND_MIXER_VOLUME;
     break;
-  case SB_MIXER_PCM: 
+  case SB_MIXER_PCM:
     driver_channel = SOUND_MIXER_PCM;
     break;
-  case SB_MIXER_SYNTH: 
+  case SB_MIXER_SYNTH:
     driver_channel = SOUND_MIXER_SYNTH;
     break;
-  case SB_MIXER_CD: 
+  case SB_MIXER_CD:
     driver_channel = SOUND_MIXER_CD;
     break;
-  case SB_MIXER_LINE: 
+  case SB_MIXER_LINE:
     driver_channel = SOUND_MIXER_LINE;
     break;
-  case SB_MIXER_MIC: 
+  case SB_MIXER_MIC:
     /* Special Case: No value */
     break;
   }
@@ -170,22 +170,22 @@ static uint8_t linux_sb_read_mixer(int ch)
   }
 
   switch (ch) {
-  case SB_MIXER_VOLUME: 
+  case SB_MIXER_VOLUME:
     driver_channel = SOUND_MIXER_VOLUME;
     break;
-  case SB_MIXER_PCM: 
+  case SB_MIXER_PCM:
     driver_channel = SOUND_MIXER_PCM;
     break;
-  case SB_MIXER_SYNTH: 
+  case SB_MIXER_SYNTH:
     driver_channel = SOUND_MIXER_SYNTH;
     break;
-  case SB_MIXER_CD: 
+  case SB_MIXER_CD:
     driver_channel = SOUND_MIXER_CD;
     break;
-  case SB_MIXER_LINE: 
+  case SB_MIXER_LINE:
     driver_channel = SOUND_MIXER_LINE;
     break;
-  case SB_MIXER_MIC: 
+  case SB_MIXER_MIC:
     driver_channel = SOUND_MIXER_MIC;
     break;
   }
@@ -349,7 +349,7 @@ int linux_sb_get_version(void)
 
   if (dsp_fd_write == -1)
     dsp_fd_write = RPT_SYSCALL(open(config.sb_dsp, O_WRONLY | O_NONBLOCK));
-  
+
   if (dsp_fd_write > 0) {
     /* Ok, let's try to set stereo for output */
     tmp = 1;
@@ -368,7 +368,7 @@ int linux_sb_get_version(void)
        * SB 2.0 is using the high-speed command (DSP: 0x99). BUT: the high-
        * speed command is existing for playback, and without HS you can play
        * back up to 22 kHz, and with HS you can play back up to 44 kHz (!)
-       *            (-Karch)       
+       *            (-Karch)
        */
 
        tmp=44100;
@@ -387,7 +387,7 @@ int linux_sb_get_version(void)
       tmp = AFMT_S16_LE;
       if (ioctl(dsp_fd_write, SNDCTL_DSP_SAMPLESIZE, &tmp) < 0 || tmp != AFMT_S16_LE)
 	version = SB_PRO;
-      else 
+      else
         version = SB_16;
     }
   } else {
@@ -402,12 +402,12 @@ int linux_sb_get_version(void)
     }
     S_printf("SB:[Linux] SoundBlaster %s can be emulated.\n", s);
   }
-  else 
+  else
     S_printf("SB:[Linux] No sounddevice for SoundBlaster emulation found.\n");
 
   /*
    * The devices are closed until we need them. This makes the driver more
-   * OS friendly, but leaves the possibility that we can't access the driver 
+   * OS friendly, but leaves the possibility that we can't access the driver
    * when we want to. - Alistair
    */
 
@@ -454,7 +454,7 @@ int linux_sb_dma_start_init(int read)
     }
   }
   oss_block_size = (result < 0 ? 0 : new_block_size);
-  
+
   return result;
 }
 
@@ -517,7 +517,7 @@ int linux_sb_get_free_fragments(int *total, int *free, int *bytes)
     return DMA_HANDLER_OK;
 
   if (ioctl(dsp_fd_write, SNDCTL_DSP_GETOSPACE, &data) > -1) {
-    S_printf ("SB:[Linux] Get Free Fragments (%d, %d)\n", 
+    S_printf ("SB:[Linux] Get Free Fragments (%d, %d)\n",
 	      data.fragstotal, data.fragments);
 
     *total = data.fragstotal;
@@ -529,7 +529,7 @@ int linux_sb_get_free_fragments(int *total, int *free, int *bytes)
     if (errno == EBADF) {
       return DMA_HANDLER_OK;
     } else {
-      S_printf ("SB:[Linux] Get Free Fragments IOCTL error (%s)\n", 
+      S_printf ("SB:[Linux] Get Free Fragments IOCTL error (%s)\n",
 		strerror(errno));
       return DMA_HANDLER_NOT_OK;
     }
@@ -553,7 +553,7 @@ int linux_sb_dma_complete_test(void)
 
   result = linux_sb_get_free_fragments(&total_fragments, &free_fragments, &bytes);
 
-    /* 
+    /*
      * As we set fragments that way that all are used, we can just
      * look for space in the output buffer. If there is more than
      * one fragment left, we have still space, and we want it to be
@@ -658,18 +658,18 @@ int SB_driver_init () {
    * our actual hardware can support, but it doesn't harm to define extra
    * functions.
    */
-  
+
   /* Mixer Functions */
   SB_driver.write_mixer         = linux_sb_write_mixer;
   SB_driver.read_mixer          = linux_sb_read_mixer;
-  
+
   /* Speaker Functions */
   SB_driver.speaker_on          = linux_sb_enable_speaker;
   SB_driver.speaker_off         = linux_sb_disable_speaker;
-  
+
   /* Direct DAC */
   SB_driver.DAC_write           = linux_sb_DAC_write;
-  
+
   /* DMA Functions */
   SB_driver.DMA_start_init      = linux_sb_dma_start_init;
   SB_driver.DMA_do_read         = linux_sb_do_read;
@@ -681,7 +681,7 @@ int SB_driver_init () {
   SB_driver.DMA_can_change_speed= linux_sb_dma_is_empty;
   SB_driver.DMA_complete        = linux_sb_dma_complete;
   SB_driver.DMA_set_blocksize   = linux_sb_dma_set_blocksize;
-   
+
   /* Miscellaneous Functions */
   SB_driver.set_speed           = linux_sb_set_speed;
   SB_driver.play_buffer         = NULL;
@@ -719,8 +719,8 @@ int SB_driver_init () {
   }
 
   /*
-   * This determines a suitable value for the SB Version that we can 
-   * emulate given the actual hardware capabilities, as indicated by 
+   * This determines a suitable value for the SB Version that we can
+   * emulate given the actual hardware capabilities, as indicated by
    * various probes of the Linux Sound Driver(s).
    */
 

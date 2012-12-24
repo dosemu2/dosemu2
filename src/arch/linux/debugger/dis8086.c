@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -13,10 +13,10 @@
  */
 
 /*
-	Ripped out some stuff from the mame releae to only make it for 386's 
-	Changed some variables to use the standard DOSBox data types 
-	Added my callback opcode 
-	
+	Ripped out some stuff from the mame releae to only make it for 386's
+	Changed some variables to use the standard DOSBox data types
+	Added my callback opcode
+
 */
 
 /*

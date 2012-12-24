@@ -4,7 +4,7 @@
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* dos emulator, Matthias Lautner 
+/* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
  */
@@ -17,7 +17,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <setjmp.h>
-#include <signal.h> 
+#include <signal.h>
 
 #include "types.h"
 #include "extern.h"
@@ -47,7 +47,7 @@ extern SillyG_t *SillyG;
    The `vm86_struct` is used to pass all the necessary status/registers to
    DOSEMU when running in vm86 mode.
  * DANG_END_REMARK
-*/ 
+*/
 
 union vm86plus_union
 {
@@ -100,7 +100,7 @@ EXTERN char *cl,		/* clear screen */
 *ve;				/* cursor normal */
 #endif
 
-/* the fd for the keyboard */ 
+/* the fd for the keyboard */
 EXTERN int console_fd INIT(-1);
 
 /* the file descriptor for /dev/mem mmap'ing */
@@ -272,7 +272,7 @@ typedef struct vesamode_type_struct {
        int dpmi, pm_dos_api, no_null_checks;
        unsigned long dpmi_base;
 
-       int sillyint;            /* IRQ numbers for Silly Interrupt Generator 
+       int sillyint;            /* IRQ numbers for Silly Interrupt Generator
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
 
        struct keytable_entry *keytable;
@@ -331,16 +331,16 @@ typedef struct vesamode_type_struct {
 
        /* joystick */
        char *joy_device[2];
-       
+
        /* range for joystick axis values */
        int joy_dos_min;		/* must be > 0 */
        int joy_dos_max;		/* avoid setting this to > 250 */
-       
+
        int joy_granularity;	/* the higher, the less sensitive - for wobbly joysticks */
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
        int cli_timeout;		/* cli timeout hack */
-       int pic_watchdog;        /* pic watchdog reschedule hack */      
+       int pic_watchdog;        /* pic watchdog reschedule hack */
      }
 
 config_t;
@@ -420,7 +420,7 @@ extern void init_handler(struct sigcontext_struct *scp);
 extern int check_fix_fs_gs_base(unsigned char prefix);
 #endif
 
-/* 
+/*
  * DANG_BEGIN_REMARK
  * DOSEMU keeps system wide configuration status in a structure
  * called config.

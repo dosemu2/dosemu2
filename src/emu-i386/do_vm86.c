@@ -109,7 +109,7 @@ void vm86_GP_fault(void)
     ssp = SEG_ADR((us *), ss, sp);
     if ((*csp&0xfd)==0xec) {	/* inb, outb */
     	i_printf("VM86_GP_FAULT at %08lx, cod=%02x %02x*%02x %02x %02x %02x\n"
-		 "                 stk=%04x %04x %04x %04x\n", 
+		 "                 stk=%04x %04x %04x %04x\n",
 		 (long)csp,
 		 csp[-2], csp[-1], csp[0], csp[1], csp[2], csp[3],
 		 ssp[0], ssp[1], ssp[2], ssp[3]);
@@ -151,7 +151,7 @@ void vm86_GP_fault(void)
        default: done=1;
     }
   } while (!done);
-  csp--;   
+  csp--;
   org_eip = REG(eip);
   LWORD(eip) += (csp-lina);
 
@@ -163,7 +163,7 @@ void vm86_GP_fault(void)
   }
 #endif
   switch (*csp) {
-  
+
        /* interrupt calls after prefix: we go back to vm86 */
   case 0xcc:    /* int 3       and let it generate an */
   case 0xcd:    /* int         interrupt (don't advance eip) */
@@ -201,7 +201,7 @@ void vm86_GP_fault(void)
     if (is_rep) setLWECX(0);
     LWORD(eip)++;
     break;
-      
+
 
   case 0x6e:			/* (rep) outsb */
     if (pref_seg < 0) pref_seg = LWORD(ds);
@@ -223,7 +223,7 @@ void vm86_GP_fault(void)
     else {
       LWORD(esi) += port_rep_outw(LWORD(edx), __SEG_ADR((Bit16u *),pref_seg,si),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
-    } 
+    }
     if (is_rep) setLWECX(0);
     LWORD(eip)++;
     break;
@@ -312,13 +312,13 @@ op0ferr:
 
 /*
  * DANG_BEGIN_FUNCTION run_vm86
- * 
- * description: 
+ *
+ * description:
  * Here is where DOSEMU runs VM86 mode with the vm86() call
  * which also has the registers that it will be called with. It will stop
  * vm86 mode for many reasons, like trying to execute an interrupt, doing
  * port I/O to ports not opened for I/O, etc ...
- * 
+ *
  * DANG_END_FUNCTION
  */
 void
@@ -429,8 +429,8 @@ freeze_idle:
 
 /*
  * DANG_BEGIN_FUNCTION loopstep_run_vm86
- * 
- * description: 
+ *
+ * description:
  * Here we collect all stuff, that has to be executed within
  * _one_ pass (step) of a loop containing run_vm86().
  * DANG_END_FUNCTION

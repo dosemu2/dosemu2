@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -59,7 +59,7 @@
 #define SB_MIXER_LINE    5
 #define SB_MIXER_MIC     6
 
-/* 
+/*
  * SB information / states
  */
 
@@ -81,8 +81,8 @@ EXTERN struct sb_information_t {
   uint16_t version;               /* Version of the SB being emulated */
 } SB_info;
 
-/* 
- * DSP information / states 
+/*
+ * DSP information / states
  */
 
 EXTERN struct DSP_information_t {
@@ -98,19 +98,19 @@ EXTERN struct DSP_information_t {
   uint8_t  data;                  /* Data is available */
   int32_t  length;                /* Length of the DMA transfer, in bytes or words */
   size_t   units_left;            /* No. of bytes/words left in current blk */
-/* 
+/*
  * This is the maximum number of bytes/words transferred via DMA. If you turn
  * it too low, the dosemu-overhead gets too big, so the transfer is
  * interrupted (clicking, buzzing), if you make it too high, some
  * programs reading the dma-registers are confused, because the registers
- * jump in too high steps 
+ * jump in too high steps
  */
 #define IRQ_AT_EMPTY 1
 #define START_DMA_AT_EMPTY 2
 #define DMA_CONTINUE 4		/* NOT for DMA pause/restart !!! */
 #define DREQ_AT_EOI 8
-  uint8_t  empty_state;	       /* what we have to do when transfer ends */ 
-  uint8_t  pause_state;	       /* is DMA transfer paused? */ 
+  uint8_t  empty_state;	       /* what we have to do when transfer ends */
+  uint8_t  pause_state;	       /* is DMA transfer paused? */
 #define SB_USES_DMA 1
 #define HIGH_SPEED_DMA 2
 #define SB_DMA_INPUT 4
@@ -160,14 +160,14 @@ EXTERN struct SB_driver_t {
   int   (* DMA_can_change_speed)(void);
   void  (* DMA_complete)(void);
   void  (* DMA_set_blocksize)(int, int); /* **CRISK** */
-   
+
   /*
    * Miscellaneous Functions
    */
   int  (* set_speed)(uint16_t speed, uint8_t stereo, uint8_t is_16bit, uint8_t is_signed);
   void  (* play_buffer)(void *buffer, uint16_t length);
 
-} SB_driver; 
+} SB_driver;
 
 #define SB_IRQ_8BIT           1
 #define SB_IRQ_16BIT          2
@@ -216,11 +216,11 @@ EXTERN struct adlib_info_t {
 
 } adlib_info;
 
-/* 
- * Output Queue information 
+/*
+ * Output Queue information
  */
 
-/* 
+/*
  * How big the output buffer should be. This _MUST_ be a power of 2.
  * The queue is big, so that it can accomodate the copyright string.
  */
@@ -291,8 +291,8 @@ if (config.sound == 2) run_new_sb(); else if (sb_is_running) sb_controller()
  ***************************************************************************
  */
 
-/* 
- * This is anded with the address to see if it's valid 
+/*
+ * This is anded with the address to see if it's valid
  */
 
 #define SOUND_IO_MASK 0xFFF0

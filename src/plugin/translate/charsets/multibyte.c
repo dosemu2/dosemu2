@@ -21,7 +21,7 @@ static void cleanup_multibyte_state(struct char_set_state *state)
 }
 
 /* Multibyte translation... */
-static size_t unicode_to_multibyte(struct char_set_state *state, 
+static size_t unicode_to_multibyte(struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode symbol, unsigned char *outbuf, size_t out_bytes_left)
 {
@@ -34,20 +34,20 @@ static size_t unicode_to_multibyte(struct char_set_state *state,
 	return result;
 }
 
-static size_t multibyte_to_unicode(struct char_set_state *state, 
+static size_t multibyte_to_unicode(struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode *symbol, const unsigned char *inbuf, size_t in_bytes_left)
 {
 	wchar_t wide_symbol;
 	size_t result;
-	
+
 	*symbol = U_VOID;
-	result = mbrtowc(&wide_symbol, (const char *)inbuf, in_bytes_left, 
+	result = mbrtowc(&wide_symbol, (const char *)inbuf, in_bytes_left,
 		&state->u.mb_state);
 	if (result == -2) {
 		errno = EINVAL;
 		result = -1;
-	} 
+	}
 	if (result != -1) {
 		*symbol = wide_symbol;
 	}

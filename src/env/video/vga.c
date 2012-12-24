@@ -1,11 +1,11 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
 /*
- * video/vga.c - This file contains function for VGA-cards only 
+ * video/vga.c - This file contains function for VGA-cards only
  */
 
 #include <stdio.h>
@@ -17,8 +17,8 @@
 #endif
 
 #include "bios.h"
-#include "emu.h" 
-#include "int.h" 
+#include "emu.h"
+#include "int.h"
 #include "port.h"
 #include "memory.h"
 #include "video.h"

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -56,7 +56,7 @@ static int SDL_set_text_mode(int tw, int th, int w ,int h);
 static int SDL_change_config(unsigned, void *);
 static void toggle_grab(void);
 
-struct video_system Video_SDL = 
+struct video_system Video_SDL =
 {
   0,
   SDL_init,
@@ -185,7 +185,7 @@ int SDL_init(void)
     config.X_fullscreen = 1;
   if (config.X_fullscreen)
     toggle_grab();
-   
+
   SDL_csd.bits = video_info->vfmt->BitsPerPixel;
   SDL_csd.bytes = (video_info->vfmt->BitsPerPixel + 7) >> 3;
   SDL_csd.r_mask = video_info->vfmt->Rmask;
@@ -213,13 +213,13 @@ int SDL_init(void)
   /* SDL_APPACTIVE event does not occur when an application window is first
    * created.
    * So we push that event into the queue */
- 
+
   evt.type = SDL_ACTIVEEVENT;
   evt.active.type = SDL_ACTIVEEVENT;
   evt.active.gain = 1;
   evt.active.state = SDL_APPACTIVE;
   SDL_PushEvent(&evt);
- 
+
   /* Same for focus event */
   evt.type = SDL_ACTIVEEVENT;
   evt.active.type = SDL_ACTIVEEVENT;
@@ -241,7 +241,7 @@ void SDL_close(void)
   if (x11.display && x11.window != None)
     X_load_text_font(x11.display, 1, x11.window, NULL, NULL, NULL);
 #endif
-  SDL_Quit();   
+  SDL_Quit();
 }
 
 static void SDL_update(void)
@@ -338,7 +338,7 @@ int SDL_set_text_mode(int tw, int th, int w ,int h)
     resize_text_mapper(SDL_image_mode);
   SDL_resize_image(w, h);
   SDL_set_mouse_text_cursor();
-  /* that's all */ 
+  /* that's all */
   return 0;
 }
 
@@ -356,7 +356,7 @@ static void SDL_change_mode(int *x_res, int *y_res)
 
     modes=SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_HWSURFACE);
     if (modes == (SDL_Rect **) 0) {
-      modes=SDL_ListModes(NULL, SDL_FULLSCREEN);			 
+      modes=SDL_ListModes(NULL, SDL_FULLSCREEN);
     }
     if (modes != (SDL_Rect **) -1) {
       unsigned mw = 0;
@@ -455,11 +455,11 @@ int SDL_update_screen(void)
 }
 
 static void SDL_refresh_private_palette(DAC_entry *col, int num)
-{  
+{
  /* SDL cannot change colors 1, 5, 7... in a single step, cause
   * the SetColors command can only change consecutive colors.
-  * 
-  * So there were three choices : 
+  *
+  * So there were three choices :
   * i. Do a SetColor for each color that changed
   * ii. Do a SetColor for the whole palette. This need the current palette
   * to be saved in memory
@@ -470,18 +470,18 @@ static void SDL_refresh_private_palette(DAC_entry *col, int num)
   int cols;
   RGBColor c;
   int k;
-  unsigned bits, shift;   
-  cols = 1 << vga.pixel_size;   
+  unsigned bits, shift;
+  cols = 1 << vga.pixel_size;
   if(cols > 256) cols = 256;
   for(k = 0; k < num; k++) {
     c.r = col[k].r; c.g = col[k].g; c.b = col[k].b;
     bits = vga.dac.bits;
     gamma_correct(&remap_obj, &c, &bits);
-    if (bits < 8)  shift = 8 - bits; 
+    if (bits < 8)  shift = 8 - bits;
     else shift = 0;
-    vga_colors[col[k].index].r = c.r << shift;	  
-    vga_colors[col[k].index].g = c.g << shift;	  
-    vga_colors[col[k].index].b = c.b << shift;	  
+    vga_colors[col[k].index].r = c.r << shift;
+    vga_colors[col[k].index].g = c.g << shift;
+    vga_colors[col[k].index].b = c.b << shift;
   }
   SDL_SetColors(surface, vga_colors, 0, cols);
 }
@@ -641,7 +641,7 @@ static void SDL_handle_selection(XEvent *e)
 {
   switch(e->type) {
   case SelectionClear:
-  case SelectionNotify: 
+  case SelectionNotify:
   case SelectionRequest:
   case ButtonRelease:
     if (x11.display && x11.window != None) {
@@ -665,7 +665,7 @@ static void SDL_handle_events(void)
    if (busy) return;
    busy = 1;
    while (SDL_PollEvent(&event)) {
-     switch (event.type) {   
+     switch (event.type) {
      case SDL_ACTIVEEVENT: {
        if (event.active.state  == SDL_APPACTIVE) {
 	 if (event.active.gain == 1) {
@@ -681,7 +681,7 @@ static void SDL_handle_events(void)
 	   }
 	 } else {
 	   /* TODO */
-	 }			  
+	 }
        } else if (event.active.state == SDL_APPINPUTFOCUS) {
 	 if (event.active.gain == 1) {
 	   v_printf("SDL: focus in\n");
@@ -796,7 +796,7 @@ static void SDL_handle_events(void)
        v_printf("PAS ENCORE TRAITE\n");
        /* TODO */
        break;
-     }	
+     }
    }
 #ifdef X_SUPPORT
    if (!use_bitmap_font && X_handle_text_expose())

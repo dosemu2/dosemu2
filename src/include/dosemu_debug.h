@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -58,7 +58,7 @@
  *   used: aA  cCdDeE  g h iIj k   mMn   pP QrRsStTu v wW X   Z#
  *   free:   bB      fF G H   J KlL   NoO  q        U V  x yYz
  */
- 
+
 #define DEBUG_CLASSES 128
 struct debug_class
 {
@@ -91,7 +91,7 @@ EXTERN int shut_debug INIT(0);
 #  define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(flg,fmt,##a); }while(0)
 # endif
 #else
-# define ifprintf(flg,fmt,a...) 
+# define ifprintf(flg,fmt,a...)
 #endif
 
 /* unconditional message into debug log */

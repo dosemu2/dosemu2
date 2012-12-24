@@ -110,7 +110,7 @@ void mhp_close(void)
    }
    unlink(pipename_in);
    free(pipename_in);
-   unlink(pipename_out);   
+   unlink(pipename_out);
    free(pipename_out);
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
@@ -274,7 +274,7 @@ static void mhp_poll(void)
       /* new session has started */
       mhpdbg.active++;
       vm86s.vm86plus.vm86dbg_active = 1;
-      
+
       mhp_printf ("%s", mhp_banner);
       mhp_cmd("rmapfile");
       mhp_send();

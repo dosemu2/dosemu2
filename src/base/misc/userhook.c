@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -318,7 +318,7 @@ static void uhook_lredir(int argc, char **argv)
 		} else {
 			uhook_printf("Drive %c is not redirected\n",argv[1][0]);
 		}
-	
+
 
                 return;
 	}

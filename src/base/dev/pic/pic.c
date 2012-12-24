@@ -180,7 +180,7 @@ static unsigned long pic0_imr = 0xf800;  /* interrupt mask register, pic0 */
 static unsigned long pic1_imr = 0x0670;         /* interrupt mask register, pic1 */
 static unsigned long pic_imr = 0xfff8;          /* interrupt mask register */
 static unsigned int pic_stack[32];     /* list of active irqd */
-static unsigned int pic_sp = 0;	       /* pointer to pic_stack */ 
+static unsigned int pic_sp = 0;	       /* pointer to pic_stack */
 static unsigned int pic_vm86_count = 0;   /* count of times 'round the vm86 loop*/
 static unsigned int pic_dpmi_count = 0;   /* count of times 'round the dpmi loop*/
 static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
@@ -204,7 +204,7 @@ static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER};
-  
+
 #define PNULL	(void *) 0
 static struct lvldef pic_iinfo[32] = {
 {PNULL,PNULL,0x02}, {PNULL,PNULL,0x08}, {PNULL,PNULL,0x09}, {PNULL,PNULL,0x70},
@@ -232,7 +232,7 @@ static void do_irq(int ilevel);
  * get_pic1_irr()  returns pic1 interrupt request register ||
  * set_pic0_base() sets base interrupt for irq0 - irq7     ||
  * set_pic1_base() sets base interrupt for irq8 - irq15    //
- * write_pic0()    processes write to pic0 i/o 
+ * write_pic0()    processes write to pic0 i/o
  * write_pic1()    processes write to pic1 i/o
  * read_pic0()     processes read from pic0 i/o
  * read_pic1()     processes read from pic1 i/o
@@ -334,7 +334,7 @@ char ci,cc;
  * is maintained by run_irqs, and is valid whenever the emulator code for
  * an interrupt is active.  These functions maintain an external stack,
  * which is valid from the time the dos interrupt code is called until
- * the code has issued all necessary EOIs.  Because pic will not necessarily 
+ * the code has issued all necessary EOIs.  Because pic will not necessarily
  * get control immediately after an EOI, another EOI (for another interrupt)
  * could occur.  This external stack is kept strictly synchronized with
  * the actions of the dos code to avoid any problems.  pic_push and pic_pop
@@ -408,7 +408,7 @@ void write_pic0(ioport_t port, Bit8u value)
 {
 
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3
- * if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR 
+ * if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR
  */
 
 #if 0
@@ -437,7 +437,7 @@ if(!port){                          /* icw1, ocw2, ocw3 */
     pic0_icw_state = 1;
     pic0_cmd=1;
     }
-  
+
   else if (value&0x08){              /* ocw3 */
     if(value&2) pic0_isr_requested = value&1;
     if(value&64)pic_smm = value&32; /* must be either 0 or 32, conveniently */
@@ -463,9 +463,9 @@ else                              /* icw2, icw3, icw4, or mask register */
      case 1:                        /* icw2          */
        set_pic0_base(value);
      default:                       /* icw2, 3, and 4*/
-       if(pic0_icw_state++ >= icw_max_state) pic0_icw_state=0; 
+       if(pic0_icw_state++ >= icw_max_state) pic0_icw_state=0;
   }
-}  
+}
 
 
 void write_pic1(ioport_t port, Bit8u value)
@@ -521,9 +521,9 @@ else                         /* icw2, icw3, icw4, or mask register */
      case 1:                    /* icw 2         */
        set_pic1_base(value);
      default:                   /* icw 2,3 and 4 */
-       if(pic1_icw_state++ >= icw_max_state) pic1_icw_state=0; 
+       if(pic1_icw_state++ >= icw_max_state) pic1_icw_state=0;
   }
-}  
+}
 
 
 /* DANG_BEGIN_FUNCTION read_pic0,read_pic1
@@ -562,7 +562,7 @@ Bit8u read_pic1(ioport_t port)
  * when the interrupt is activated.  This function should call do_irq()
  * if the DOS interrupt is really to be activated.  If there is no special
  * dosemu code to call, the second parameter can specify do_irq(), but
- * see that description for some special considerations. 
+ * see that description for some special considerations.
  * The third parameter is a number of an interrupt to activate if there is
  * no default interrupt for this ilevel.
  * The fourth parameter is the dosemu function to be called from do_irq().
@@ -603,7 +603,7 @@ void pic_seti(unsigned int level, int (*func)(int), unsigned int ivec,
  * written in assembly language in order to take advantage of atomic
  * (indivisible) instructions, so that it should be safe for a two
  * process model, even in a multiple CPU machine.  A c language
- * version was started, but it became impossible, even with in-line 
+ * version was started, but it became impossible, even with in-line
  * assembly macros, because such macros can only return a single result.
  * If I find a way to do it in c, I will, but don't hold your breath.
  *
@@ -679,22 +679,22 @@ void run_irqs(void)
        }
 }
 
-   
+
 /* DANG_BEGIN_FUNCTION do_irq
  *
  *  do_irq() calls the correct do_int().
  *  It then executes a vm86 loop until an outb( end-of-interrupt) is found.
- *  For priority levels 0 and >15 (not real IRQs), vm86 executes once, then 
+ *  For priority levels 0 and >15 (not real IRQs), vm86 executes once, then
  *  returns, since no outb20 will come.
  *  Returns: 0 = complete, 1 = interrupt not run because it directly
  *  calls our "bios"   See run_timer_tick() in timer.c for an example
  *  To assure notification when the irq completes, we push flags, ip, and cs
- *  here and fake cs:ip to PIC_[SEG,OFF], where there is a hlt.  This makes 
+ *  here and fake cs:ip to PIC_[SEG,OFF], where there is a hlt.  This makes
  *  the irq generate a sigsegv, which calls pic_iret when it completes.
  *  pic_iret then pops the real cs:ip from the stack.
  *  This routine is RE-ENTRANT - it calls run_irqs,
  *  which may call an interrupt routine,
- *  which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!! 
+ *  which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!!
  *  No single interrupt is ever re-entered.
  *
  * Callers:
@@ -750,16 +750,16 @@ static void do_irq(int ilevel)
  *
  * pic_resched decrements a count of interrupts on the stack
  * (set by do_irq()). If the count is then less or equal to some pre-defined
- * value (normally 1, pic_icount_od), pic_resched moves all queued interrupts 
+ * value (normally 1, pic_icount_od), pic_resched moves all queued interrupts
  * to the interrupt request register.
  *
- * Normally it is called from pic_iret(), but it can also be called 
+ * Normally it is called from pic_iret(), but it can also be called
  * directly if dosemu was fooled by the program and failed to catch iret.
  *
  * DANG_END_FUNCTION
  */
 void
-pic_resched(void) 
+pic_resched(void)
 {
 unsigned long pic_newirr, pic_last_ilevel;
     if(pic_icount) {
@@ -793,10 +793,10 @@ unsigned long pic_newirr, pic_last_ilevel;
  *
  * pic_request triggers an interrupt.  There is presently no way to
  * "un-trigger" an interrupt.  The interrupt will be initiated the
- * next time pic_run is called, unless masked or superceded by a 
+ * next time pic_run is called, unless masked or superceded by a
  * higher priority interrupt.  pic_request takes one argument, an
  * interrupt level, which specifies the interrupt to be triggered.
- * If that interrupt is already active, the request will be queued 
+ * If that interrupt is already active, the request will be queued
  * until all active interrupts have been completed.  The queue is
  * only one request deep for each interrupt, so it is the responsibility
  * of the interrupt code to retrigger itself if more interrupts are
@@ -859,14 +859,14 @@ void pic_untrigger(int inum)
  * Interrupts end when they issue an outb 0x20 to the pic, however it is
  * not yet safe at that time to retrigger interrupts, since the stack has
  * not been restored to its initial state by an iret.  pic_iret is called
- * whenever interrupts have been enabled by a popf, sti, or iret.  It 
+ * whenever interrupts have been enabled by a popf, sti, or iret.  It
  * determines if an iret was the cause by comparing stack contents with
  * cs and ip. If so, it calls pic_resched() and does the actual iret by
  * pop'ing ip and cs from stack.
- * It is possible for pic_iret to be fooled by dos code; for this reason 
- * active interrupts are checked, any queued interrupts that are also 
+ * It is possible for pic_iret to be fooled by dos code; for this reason
+ * active interrupts are checked, any queued interrupts that are also
  * active will remain queued.
- * Also, some programs fake an iret, so that it is possible for pic_iret 
+ * Also, some programs fake an iret, so that it is possible for pic_iret
  * to fail.
  * See pic_watch for the watchdog timer that catches and fixes this event.
  *
@@ -924,11 +924,11 @@ pic_iret(void)
       }
 }
 
- 
+
 /* DANG_BEGIN_FUNCTION pic_watch
  *
  * pic_watch is a watchdog timer for pending interrupts.  If pic_iret
- * somehow fails to activate a pending interrupt request for 2 consecutive 
+ * somehow fails to activate a pending interrupt request for 2 consecutive
  * timer ticks, pic_watch will activate them anyway.  pic_watch is called
  * ONLY by timer_tick, the interval timer signal handler, so the two functions
  * will probably be merged.
@@ -967,14 +967,14 @@ unsigned long pic_newirr;
       }
     }
   }
-}      
+}
 
 
 /* DANG_BEGIN_FUNCTION pic_pending
  * This function returns a non-zero value if the designated interrupt has
  * been requested and is not masked.  In these circumstances, it is important
  * for a hardware emulation to return a status which does *not* reflect the
- * event(s) which caused the request, until the interrupt actually gets 
+ * event(s) which caused the request, until the interrupt actually gets
  * processed.  This, in turn, hides the interrupt latency of pic from the dos
  * software.
  *
@@ -983,10 +983,10 @@ unsigned long pic_newirr;
  *
  * If the requested interrupt level is currently active, the returned status
  * will depend upon whether the interrupt code has re-requested itself.  If
- * no re-request has occurred, a value of false (zero) will be returned.  
+ * no re-request has occurred, a value of false (zero) will be returned.
  * DANG_END_FUNCTION
  */
- 
+
 int pic_pending(void)
 {
     return (pic_irr & ~(pic_isr | pic_imr | pic_irqs_active));
@@ -1003,7 +1003,7 @@ int pic_irq_masked(int num)
 }
 
 /* DANG_BEGIN_FUNCTION pic_activate
- * 
+ *
  * pic_activate requests any interrupts whose scheduled time has arrived.
  * anything after pic_dos_time and before pic_sys_time is activated.
  * pic_dos_time is advanced to the earliest time scheduled.
@@ -1017,7 +1017,7 @@ int timer, count;
 /*if(pic_irr&~pic_imr) return;*/
    earliest = pic_sys_time;
    count = 0;
-   for (timer=0; timer<32; ++timer) { 
+   for (timer=0; timer<32; ++timer) {
       if ((pic_itime[timer] != NEVER) && (pic_itime[timer] < pic_sys_time)) {
          if (pic_itime[timer] != pic_ltime[timer]) {
                if ((earliest == NEVER) || (pic_itime[timer] < earliest))
@@ -1038,7 +1038,7 @@ int timer, count;
  * time interval.  The time measurement is in unis of 1193047/second,
  * the same rate as the pit counters.  This is convenient for timer
  * emulation, but can also be used for pacing other functions, such as
- * serial emulation, incoming keystrokes, or video updates.  Some sample 
+ * serial emulation, incoming keystrokes, or video updates.  Some sample
  * intervals:
  *
  * rate/sec:	5	7.5	11	13.45	15	30	60
@@ -1048,15 +1048,15 @@ int timer, count;
  * interval:	9942	6628	5965	4971	3314	2485	1657
  *
  * rate/sec:	960	1440	1920	2880	3840	5760	11520
- * interval:	1243	829	621	414	311	207	103	
+ * interval:	1243	829	621	414	311	207	103
  *
  * pic_sched expects two parameters: an interrupt level and an interval.
  * To assure proper repeat scheduling, pic_sched should be called from
- * within the interrupt handler for the same interrupt.  The maximum 
+ * within the interrupt handler for the same interrupt.  The maximum
  * interval is 15 minutes (0x3fffffff).
  * DANG_END_FUNCTION
  */
- 
+
 void pic_sched(int ilevel, int interval)
 {
   char mesg[35];

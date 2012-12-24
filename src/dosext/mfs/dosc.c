@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -78,7 +78,7 @@ int dosc_interface(void)
   switch (HI(ax)) {
     case DOSC_NOTIFY: {  /* install check and notify */
       running_DosC = LWORD(ebx);
-      LWORD(eax) = (Bit16u)DOSEMU_VERSION_CODE;   
+      LWORD(eax) = (Bit16u)DOSEMU_VERSION_CODE;
       LWORD(edx) = DOSEMU_VERSION_CODE >> 16;
       c_printf("Booted DosC kernel build %d\n", running_DosC);
       break;

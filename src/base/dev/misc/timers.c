@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -8,7 +8,7 @@
  * DANG_BEGIN_MODULE
  *
  * Description: Timer emulation for DOSEMU.
- * 
+ *
  * Maintainers: J. Lawrence Stephan
  *              Scott Buchholz
  *
@@ -61,7 +61,7 @@ static Bit8u port61 = 0x0c;
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
  *
- * description:  
+ * description:
  * ensure the 0x40 port timer is initially set correctly
  *
  * DANG_END_FUNCTION
@@ -134,16 +134,16 @@ void timer_tick(void)
 
   /* compute the number of 100ticks since we started */
   time_curr  = (tp.td - pit[0].time.td) / 100;
-  
+
   /* Reset old timer value to 0 if time_curr wrapped around back to 0 */
   if (time_curr < time_old) time_old = 0;
-  
+
   /* Compute number of 100ticks ticks since the last time this function ran */
   ticks_accum += (time_curr - time_old);
-  
+
   /* Save old value of the timer */
   time_old = time_curr;
-  
+
   if (config.cli_timeout && in_dpmi && !in_dpmi_dos_int && is_cli) {
 /*
    XXX as IF is not set by popf, we have to set it explicitly after a
@@ -160,7 +160,7 @@ void timer_tick(void)
       set_IF();
     }
   }
-  
+
   /* test for stuck interrupts, trigger any scheduled interrupts */
   pic_watch(&tp);
 }
@@ -170,20 +170,20 @@ void timer_tick(void)
 
 /* DANG_BEGIN_FUNCTION do_sound
  *
- * do_sound handles the _emulated_ mode pc-speaker emulation.  
+ * do_sound handles the _emulated_ mode pc-speaker emulation.
  *
  * As far as I can determine all cases of the pc-speaker are now
  * emulated.  But I am not sure where Rainer Zimmerman got his
  * (pit[2].mode == 2) || (pit[2].mode == 3) test in the original
  * implementation, it doesn't seem to cause problems though.
  *
- * The implementation of speaker_on & speaker_off can be found in 
+ * The implementation of speaker_on & speaker_off can be found in
  * src/base/speaker.c
  *
  * Major Changes from version written by Rainter Zimmerman.
  *
  * o Added support for programs that control the directly through bit 1
- *   of port61. 
+ *   of port61.
  *
  * o Added a generic interface to allow multiple speaker backends.
  *
@@ -222,7 +222,7 @@ void do_sound(Bit16u period)
 	}
 }
 
- 
+
 static void pit_latch(int latch)
 {
   hitimer_u cur_time;
@@ -532,7 +532,7 @@ void pit_control_outp(ioport_t port, Bit8u val)
  *
  * This code has been replaced by interrupt scheduling code in pic.
  * The result is that we simply call pic_sched and run the dos interrupt.
- * If the new code causes no problems, I'll revise this section permanently. 
+ * If the new code causes no problems, I'll revise this section permanently.
  *
  * DANG_END_FUNCTION
  */
@@ -585,7 +585,7 @@ void spkr_io_write(ioport_t port, Bit8u value) {
        case SPKR_NATIVE:
           port_safe_outb(0x61, value & 0x03);
           break;
-      
+
        case SPKR_EMULATED:
 	  port61 = value & 0x0f;
           do_sound(pit[2].write_latch & 0xffff);

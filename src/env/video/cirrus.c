@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -147,7 +147,7 @@ static int cirrusReprogrammedMCLK = 0;
    can do, for example, masking).
 
    The pattern copy requires an 8x8 pattern (64 pixels) at the source
-   address in video memory, and fills a box with specified size and 
+   address in video memory, and fills a box with specified size and
    destination address with the pattern. This is in fact the way to do
    solid fills.
 
@@ -174,7 +174,7 @@ static inline int rdinx(const ioport_t port, const int index)
 #define in_crt(i)	rdinx(CRT_I,(i))
 
 /*
- * cirrusEnterLeave -- 
+ * cirrusEnterLeave --
  *      enable/disable io-mapping
  */
 static void cirrusEnterLeave(char enter)
@@ -209,11 +209,11 @@ static void cirrusEnterLeave(char enter)
 
 
 /*
- * cirrusProbe -- 
+ * cirrusProbe --
  *      check up whether a cirrus based board is installed
  */
 static int cirrusProbe(void)
-{  
+{
 /*     int cirrusClockNo; */
      unsigned char lockreg,IdentVal;
      unsigned char id, rev, partstatus;
@@ -222,16 +222,16 @@ static int cirrusProbe(void)
 
      old = rdinx(0x3c4, 0x06);
      cirrusEnterLeave(1); /* Make the timing regs writable */
-	  
+
      /* Kited the following from the Cirrus */
      /* Databook */
      /* If it's a Cirrus at all, we should be */
      /* able to read back the lock register */
      /* we wrote in cirrusEnterLeave() */
-	  
+
      port_out(0x06,0x3C4);
      lockreg = port_in(0x3C5);
-	  
+
      /* Ok, if it's not 0x12, we're not a Cirrus542X or 62x5. */
      if (lockreg != 0x12)
        {
@@ -239,13 +239,13 @@ static int cirrusProbe(void)
          cirrusEnterLeave(0);
          return(0);
        }
-	  
+
      /* OK, it's a Cirrus. Now, what kind of */
      /* Cirrus? We read in the ident reg, */
      /* CRTC index 27 */
-	  
+
      port_out(0x27, vgaIOBase+4); IdentVal = port_in(vgaIOBase+5);
-	  
+
      cirrusChip = -1;
      id  = (IdentVal & 0xFc) >> 2;
      rev = (IdentVal & 0x03);
@@ -283,7 +283,7 @@ static int cirrusProbe(void)
 	       cirrusChip = CLGD5429;
 	       break;
 
-	     /* 
+	     /*
 	      * LCD driver chips...  the +1 options are because
 	      * these chips have one more bit of chip rev level
 	      */
@@ -335,7 +335,7 @@ static int cirrusProbe(void)
 	       return(0);
 	       break;
        }
-	  
+
      if (cirrusChip == CLGD5430 || cirrusChip == CLGD5434 ||
          cirrusChip == CLGD5436) {
          /* Write sane value to Display Compression Control */
@@ -345,7 +345,7 @@ static int cirrusProbe(void)
          temp = port_in(0x3cf) & 0xc0;
          port_out(temp, 0x3cf);
        }
-     
+
      /* OK, we are a Cirrus */
      v_printf("Cirrus chipset: type 0x%02x, rev %d\n", id, rev);
 
@@ -359,17 +359,17 @@ static int cirrusProbe(void)
      }
 #endif
 
-     if (!cirrus_memsize) 
+     if (!cirrus_memsize)
 	  {
-	  if (Is_62x5(cirrusChip)) 
+	  if (Is_62x5(cirrusChip))
 	       {
-	       /* 
+	       /*
 		* According to Ed Strauss at Cirrus, the 62x5 has 512k.
 		* That's it.  Period.
 		*/
 	         cirrus_memsize = 512;
 	       }
-	  else 
+	  else
 	  if (HAVE543X()) {
 	  	/* The scratch register method does not work on the 543x. */
 	  	/* Use the DRAM bandwidth bit and the DRAM bank switching */
@@ -399,7 +399,7 @@ static int cirrusProbe(void)
 		/* this bit of undocumented black art....*/
 	       port_out(0x0a, 0x3C4);
 	       memreg = port_in(0x3C5);
-	  
+
 	       switch( (memreg & 0x18) >> 3 )
 		    {
 		  case 0:
@@ -439,9 +439,9 @@ static int cirrusProbe(void)
          CIRRUS.ChipHas32bpp = 0;
      }
 
-     /* 
+     /*
       * Banking granularity is 16k for the 5426, 5428 or 5429
-      * when allowing access to 2MB, and 4k otherwise 
+      * when allowing access to 2MB, and 4k otherwise
       */
      if (vga256InfoRec.videoRam > 1024)
           {
@@ -492,7 +492,7 @@ static int cirrusProbe(void)
 
 
 /*
- * cirrusRestore -- 
+ * cirrusRestore --
  *      restore a video mode
  */
 void cirrus_restore_ext_regs(u_char xregs[], u_short xregs16[])
@@ -560,10 +560,10 @@ void cirrus_restore_ext_regs(u_char xregs[], u_short xregs16[])
       /* Restore the hardware cursor */
       port_out (0x13, 0x3C4);
       port_out (xregs[11], 0x3C5);
-      
+
       port_out (xregs[7], 0x3C4);
       port_out (xregs[6], 0x3C5);
-      
+
       port_out (xregs[9], 0x3C4);
       port_out (xregs[8], 0x3C5);
 
@@ -600,13 +600,13 @@ void cirrus_restore_ext_regs(u_char xregs[], u_short xregs16[])
 }
 
 /*
- * cirrusSave -- 
+ * cirrusSave --
  *      save the current video mode
  */
 void cirrus_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
   unsigned char             temp1, temp2;
-  
+
   emu_video_retrace_off();
   vgaIOBase = (port_in(0x3CC) & 0x01) ? 0x3D0 : 0x3B0;
 
@@ -641,8 +641,8 @@ void cirrus_save_ext_regs(u_char xregs[], u_short xregs16[])
   xregs[0] = temp1;
   xregs[1] = temp2;
 
-  port_out(0x0b, 0x3CE);		
-  xregs[2] = port_in(0x3CF); 
+  port_out(0x0b, 0x3CE);
+  xregs[2] = port_in(0x3CF);
 
   if (HAVE543X()) {
       port_out(0x0f, 0x3ce); xregs[20] = port_in(0x3cf);
@@ -662,15 +662,15 @@ void cirrus_save_ext_regs(u_char xregs[], u_short xregs16[])
       port_out (0x11, 0x3C4);
       xregs[9] = port_in (0x3C4);
       xregs[8] = port_in (0x3C5);
-  
+
       port_out (0x12, 0x3C4);
       xregs[10] = port_in (0x3C5);
-  
+
       port_out (0x13, 0x3C4);
       xregs[11] = port_in (0x3C5);
-    }  
+    }
 
-  if ((cirrusChip >= CLGD5424 && cirrusChip <= CLGD5429) || HAVE543X()) 
+  if ((cirrusChip >= CLGD5424 && cirrusChip <= CLGD5429) || HAVE543X())
        {
        /* Save the Performance Tuning Register on these chips only. */
         port_out(0x16, 0x3C4); xregs[21] = port_in(0x3C5);

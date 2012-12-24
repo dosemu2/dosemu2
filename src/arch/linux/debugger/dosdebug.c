@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -65,7 +65,7 @@ static int find_dosemu_pid(char *tmpfile, int local)
   dn[i++]=0;
   id=dn+i;
   j-=i;
-  
+
   dir = opendir(dn);
   if (!dir) {
     free(dn);
@@ -75,7 +75,7 @@ static int find_dosemu_pid(char *tmpfile, int local)
   }
   i = 0;
   while((p = readdir(dir))) {
-          
+
     if(!strncmp(id,p->d_name,j) && p->d_name[j] >= '0' && p->d_name[j] <= '9') {
       pid = strtol(p->d_name + j, 0, 0);
       if(check_pid(pid)) {
@@ -111,7 +111,7 @@ static int check_pid(int pid)
 {
   int fd;
   char buf[32], name[128];
-  
+
   memset(buf, 0, sizeof(buf));
   sprintf(name, "/proc/%d/stat", pid);
   if ((fd = open(name, O_RDONLY)) ==-1) return 0;
@@ -159,7 +159,7 @@ static void handle_console_input(void)
   static char sbuf[MHP_BUFFERSIZE]="\n";
   static int sn=1;
   int n;
-  
+
   n=read(0, buf, sizeof(buf));
   if (n>0) {
     if (n==1 && buf[0]=='\n') write(fdout, sbuf, sn);
@@ -201,11 +201,11 @@ int main (int argc, char **argv)
 {
   int numfds,dospid;
   char *home_p;
-  
+
   FD_ZERO(&readfds);
 
   home_p = getenv("HOME");
-  
+
   if (!argv[1]) {
     dospid = -1;
     if (home_p) {
@@ -217,14 +217,14 @@ int main (int argc, char **argv)
     if (dospid == -1) {
       dospid=find_dosemu_pid(TMPFILE_VAR "dbgin.", 0);
     }
-  }  
+  }
   else dospid=strtol(argv[1], 0, 0);
 
   if (!check_pid(dospid)) {
     fprintf(stderr, "no dosemu running on pid %d\n", dospid);
     exit(1);
   }
-  
+
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
   fdout = -1;
   if (home_p) {
@@ -282,7 +282,7 @@ int main (int argc, char **argv)
             if ((key>='1') && (key<='8')) switch_console(key);
             fprintf(stderr,
               "dosdebug terminated\n"
-              "NOTE: If you had a totally locked console,\n" 
+              "NOTE: If you had a totally locked console,\n"
               "      you may have to blindly type in 'kbd -a; texmode'\n"
               "      on the console you switched to.\n"
             );

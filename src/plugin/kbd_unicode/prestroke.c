@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -38,7 +38,7 @@ static t_unicode *type_one_key(t_unicode *in)
 
 	stroke_pause = default_stroke_pause;
 	if (!in || !in[0]) return 0;
-	
+
 	ch=*(in++);
 	switch(ch) {
 	case '\\': {
@@ -55,7 +55,7 @@ static t_unicode *type_one_key(t_unicode *in)
 		case 'n': esc++;
 		case '^': { /* example:  \a  == \^G  == <Ctrl>G
 			       		 \r  == \^M  == <Ctrl>M == <ENTER> */
-			if (esc >= 0) 
+			if (esc >= 0)
 				ch = ctrl[esc];
 			else
 				ch = *(in++);
@@ -106,7 +106,7 @@ static t_unicode *type_one_key(t_unicode *in)
 			}
 			return in;
 		}
-		case 'M': { /* 'M' ==  as in Move, 
+		case 'M': { /* 'M' ==  as in Move,
                        ('P' would be nicer (Pu for PageUp) but is already used...)
                        example: \Mh  == <HOME>   \Mu  == <PageUp>
                                 \Me  == <END>    \Md  == <PageDown>
@@ -157,14 +157,14 @@ int type_in_pre_strokes(void)
 		size_t characters, src_len;
 		const char *ptr;
 		struct char_set_state state;
-		
+
 		init_charset_state(&state, keyb_charset);
 		src_len = strlen(config.pre_stroke) +1;
 
 		ptr = config.pre_stroke;
 		characters = character_count(&state, ptr, src_len);
 
-		pre_stroke_mem = pre_stroke = 
+		pre_stroke_mem = pre_stroke =
 			malloc(sizeof(t_unicode) * (characters +1));
 		charset_to_unicode_string(&state, pre_stroke, &ptr, src_len);
 

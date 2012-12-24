@@ -90,7 +90,7 @@ int int14(void)
 {
   int num;
   int temp;
-  
+
   /* Translate the requested COM port number in the DL register, into
    * the necessary arbritary port number system used throughout this module.
    */
@@ -124,21 +124,21 @@ int int14(void)
 
   switch (HI(ax)) {
   case 0:		/* Initialize serial port. */
-    s_printf("SER%d: INT14 0x0: Initialize port %d, AL=0x%x\n", 
+    s_printf("SER%d: INT14 0x0: Initialize port %d, AL=0x%x\n",
 	num, LO(dx), LO(ax));
 
     /* Read the LCR register */
     temp = read_LCR(num);
-    
+
     /* The following sets character size, parity, and stopbits */
     temp = (temp & ~UART_LCR_PARA) | (LO(ax) & UART_LCR_PARA);
 
     /* Raise DTR and RTS on the Modem Control Register */
     write_MCR(num, 0x3);
-    
+
     /* Set DLAB bit, in order to set the baudrate */
     write_LCR(num, temp | 0x80);
-    
+
     /* Write the Baudrate Divisor Latch values */
     switch (LO(ax) & 0xE0) {
     case 0x00:   set_speed(num, DIV_110);   break;
@@ -158,10 +158,10 @@ int int14(void)
     HI(ax) = read_LSR(num);		/* Read Line Status (LSR) into AH */
     LO(ax) = read_MSR(num);		/* Read Modem Status (MSR) into AL */
 
-    s_printf("SER%d: INT14 0x0: Return with AL=0x%x AH=0x%x\n", 
+    s_printf("SER%d: INT14 0x0: Return with AL=0x%x AH=0x%x\n",
 	num, LO(ax), HI(ax));
     break;
-    
+
   /* Write character function */
   case 1:
     s_printf("SER%d: INT14 0x1: Write char 0x%x\n",num,LO(ax));
@@ -169,7 +169,7 @@ int int14(void)
     HI(ax) = read_LSR(num);		/* Read Line Status (LSR) into AH */
     LO(ax) = read_MSR(num);		/* Read Modem Status (MSR) into AL */
     break;
-    
+
   /* Read character function */
   case 2:
     uart_fill(num);			/* Fill UART with received data */
@@ -183,7 +183,7 @@ int int14(void)
       s_printf("SER%d: INT14 0x2: Read char timeout.\n",num);
     }
     break;
-    
+
   /* Port Status request function. */
   case 3:
     uart_fill(num);			/* Fill UART with received data */
@@ -192,7 +192,7 @@ int int14(void)
     s_printf("SER%d: INT14 0x3: Port Status, AH=0x%x AL=0x%x\n",
                num,HI(ax),LO(ax));
     break;
-    
+
   /* FOSSIL initialize. */
   case 4:
     fossil_int14(num);

@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -37,7 +37,7 @@
 
 struct video_system *Video = NULL;
 
-/* I put Video_none here because I don't want to make a special file for such 
+/* I put Video_none here because I don't want to make a special file for such
  * a simple task -- Goga
  */
 static int i_empty_void (void) {return 0;}
@@ -156,7 +156,7 @@ static int using_kms(void)
     return 0;
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION video_init
  *
  * description:
@@ -235,7 +235,7 @@ static int video_init(void)
         leavedos(99);
      }
      v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
-/* 
+/*
  * DANG_BEGIN_REMARK
  * Here the sleeping lion will be awoken and eat much of CPU time !!!
  *
@@ -244,7 +244,7 @@ static int video_init(void)
  *    (there may be 1000000 per second)
  *   Write access to RD-only page results in page-fault (mm/memory.c),
  *   which will set a bit in current->screen_bitmap and calls do_wp_page()
- *   which does __get_free_page(GFP_KERNEL) but frees it immediatly, 
+ *   which does __get_free_page(GFP_KERNEL) but frees it immediatly,
  *   because copy-on-write is not neccessary and sets RD/WR for the page.
  *   (this could happen 32000000 per second, if the CPU were fast enough)
  * It would be better to get the DIRTY-bit directly from the page table,
@@ -258,7 +258,7 @@ static int video_init(void)
 #endif
 
   }
-  
+
   return 0;
 }
 
@@ -354,7 +354,7 @@ reserve_video_memory(void)
 {
   int graph_base = GRAPH_BASE, graph_size = GRAPH_SIZE;
 
-/* 
+/*
  * DANG_BEGIN_REMARK
  * reserve_video_memory()
  *

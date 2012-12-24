@@ -20,7 +20,7 @@
  *
  * The code in this module is free software; you can redistribute it
  * and/or modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2 of 
+ * as published by the Free Software Foundation; either version 2 of
  * the License, or (at your option) any later version.
  *
  * This module is maintained by Mark Rejhon at these Email addresses:
@@ -64,7 +64,7 @@ int no_local_video = 0;
 com_t com[MAX_SER];
 u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 
-/* See README.serial file for more information on the com[] structure 
+/* See README.serial file for more information on the com[] structure
  * The declarations for this is in ../include/serial.h
  */
 
@@ -85,7 +85,7 @@ static int tty_already_locked(char *nam)
   /* there's no active process that owns that lock.        */
   if(config.tty_lockbinary)
     i = read(fileno(fd), &pid, sizeof(pid)) == sizeof(pid);
-  else 
+  else
     i = fscanf(fd, "%d", &pid);
 
   (void) fclose(fd);
@@ -104,7 +104,7 @@ static int tty_already_locked(char *nam)
 
 /*  Locks or unlocks a terminal line Stolen from uri-dip-3.3.7k
  *  Nice work Uri Blumenthal & Ian Lance Taylor!
- *  [path = device name, 
+ *  [path = device name,
  *   mode: 1 = lock, 2 = reaquire lock, anythingelse = unlock,
  *   return = zero if success, greater than zero for failure]
  */
@@ -158,7 +158,7 @@ static int tty_lock(char *path, int mode)
 
     (void) chown(saved_path, pw->pw_uid, pw->pw_gid);
     (void) chmod(saved_path, 0644);
-  } 
+  }
   else if (mode == 2) { /* re-acquire a lock after a fork() */
     FILE *fd;
 
@@ -178,7 +178,7 @@ static int tty_lock(char *path, int mode)
     (void) fclose(fd);
     (void) chmod(saved_path, 0444);
     return(0);
-  } 
+  }
   else {    /* unlock */
     FILE *fd;
     int retval;
@@ -309,12 +309,12 @@ void ser_set_params(int num)
   com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
   com[num].newset.c_iflag |= (IGNBRK | IGNPAR);
   com[num].newset.c_iflag &= ~(BRKINT | PARMRK | INPCK | ISTRIP |
-                               INLCR | IGNCR | INLCR | ICRNL | IXON | 
+                               INLCR | IGNCR | INLCR | ICRNL | IXON |
                                IXOFF | IUCLC | IXANY | IMAXBEL);
   com[num].newset.c_oflag &= ~(OPOST | OLCUC | ONLCR | OCRNL | ONOCR |
                                ONLRET | OFILL | OFDEL);
-  com[num].newset.c_lflag &= ~(XCASE | ISIG | ICANON | IEXTEN | ECHO | 
-                               ECHONL | ECHOE | ECHOK | ECHOPRT | ECHOCTL | 
+  com[num].newset.c_lflag &= ~(XCASE | ISIG | ICANON | IEXTEN | ECHO |
+                               ECHONL | ECHOE | ECHOK | ECHOPRT | ECHOCTL |
                                ECHOKE | NOFLSH | TOSTOP);
 #else
   /* These values should only be used as a last resort, or for testing */
@@ -372,7 +372,7 @@ void ser_set_params(int num)
 }
 
 
-/* This function closes ONE serial port for DOSEMU.  Normally called 
+/* This function closes ONE serial port for DOSEMU.  Normally called
  * only by do_ser_init below.   [num = port, return = file error code]
  */
 static int ser_close(int num)
@@ -383,7 +383,7 @@ static int ser_close(int num)
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
 
   /* save current dosemu settings of the file and restore the old settings
-   * before closing the file down. 
+   * before closing the file down.
    */
   (void)RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
   (void)RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
@@ -392,7 +392,7 @@ static int ser_close(int num)
 
   /* Clear the lockfile from DOSEMU */
   if (com[num].dev_locked) {
-    if (tty_lock(com_cfg[num].dev, 0) >= 0) 
+    if (tty_lock(com_cfg[num].dev, 0) >= 0)
       com[num].dev_locked = FALSE;
   }
   return (i);
@@ -419,7 +419,7 @@ static void com_writeb(ioport_t port, Bit8u value) {
 }
 
 /* The following function is the main initialization routine that
- * initializes the UART for ONE serial port.  This includes setting up 
+ * initializes the UART for ONE serial port.  This includes setting up
  * the environment, define default variables, the emulated UART's init
  * stat, and open/initialize the serial line.   [num = port]
  */
@@ -544,14 +544,14 @@ void serial_reset(void)
 
       /* Debugging to determine whether memory location was written properly */
       s_printf("SER%d: BIOS memory location %p has value of %#x\n", num,
-	       ((u_short *) (0x400) + (com_cfg[num].real_comport-1)) 
+	       ((u_short *) (0x400) + (com_cfg[num].real_comport-1))
 	       ,READ_WORD(0x400 + 2*(com_cfg[num].real_comport-1)));
     }
   }
 }
 
 /* DANG_BEGIN_FUNCTION serial_init
- * 
+ *
  * This is the master serial initialization function that is called
  * upon startup of DOSEMU to initialize ALL the emulated UARTs for
  * all configured serial ports.  The UART is initialized via the
@@ -573,7 +573,7 @@ void serial_init(void)
     com[i].fd = -1;
     com[i].dev_locked = FALSE;
 
-    /* Serial port init is skipped if the port is used for a mouse, and 
+    /* Serial port init is skipped if the port is used for a mouse, and
      * dosemu is running in Xwindows, or not at the console.  This is due
      * to the fact the mouse is in use by Xwindows (internal driver is used)
      * Direct access to the mouse by dosemu is useful mainly at the console.
@@ -603,7 +603,7 @@ void serial_close(void)
       continue;
     if (com_cfg[i].mouse && !on_console())
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
-#ifdef USE_GPM    
+#ifdef USE_GPM
     else if (com_cfg[i].mouse && strcmp(Mouse->name, "gpm") == 0)
       s_printf("SER%d: GPM competing with direct access is racy: "
                "only using GPM\n",i);
@@ -626,7 +626,7 @@ void child_close_mouse(void)
   if (on_console()) {
     s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
     for (i = 0; i < config.num_ser; i++) {
-      s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
+      s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n",
                 i, com_cfg[i].dev, com[i].fd, com_cfg[i].mouse);
       if ((com_cfg[i].mouse == TRUE) && (com[i].fd > 0)) {
         s_printf("MOUSE: CLOSE port=%d: Running ser_close.\n", i);

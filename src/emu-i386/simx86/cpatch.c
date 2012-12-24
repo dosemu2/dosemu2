@@ -1,5 +1,5 @@
 /***************************************************************************
- * 
+ *
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -309,7 +309,7 @@ asm (
 "		popl	%ecx\n"		/* obtain changed count */
 "		popfl\n"		/* real CPU flags back */
 "		popl	%edx\n"
-"		popl	%eax\n"		
+"		popl	%eax\n"
 "1:		ret\n"
 );
 

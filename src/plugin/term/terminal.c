@@ -1,24 +1,24 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-/* 
- * video/terminal.c - contains the video-functions for terminals 
+/*
+ * video/terminal.c - contains the video-functions for terminals
  *
- * This module has been extensively updated by Mark Rejhon at: 
+ * This module has been extensively updated by Mark Rejhon at:
  * ag115@freenet.carleton.ca.
  *
  * Please send patches and bugfixes for this module to the above Email
  * address.  Thanks!
- * 
+ *
  * Now, who can write a VGA emulator for SVGALIB and X? :-)
  */
 
 /* Both FAST and NCURSES support has been replaced by calls to the SLang
  * screen management routines.  Now, METHOD_FAST and METHOD_NCURSES are both
- * synonyms for SLang.  The result is a dramatic increase in speed and the 
+ * synonyms for SLang.  The result is a dramatic increase in speed and the
  * code size has dropped by a factor of three.
  * The slang library is available from amy.tch.harvard.edu in pub/slang.
  * John E. Davis (Nov 17, 1994).
@@ -63,7 +63,7 @@
 #include "bios.h"
 #include "emu.h"
 #include "memory.h"
-#include "video.h" 
+#include "video.h"
 #include "serial.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
@@ -76,7 +76,7 @@
 
 struct text_system Text_term;
 
-/* The interpretation of the DOS attributes depend upon if the adapter is 
+/* The interpretation of the DOS attributes depend upon if the adapter is
  * color or not.
  * If color:
  *   Bit: 0   Foreground blue
@@ -87,17 +87,17 @@ struct text_system Text_term;
  *   Bit: 5   Background green
  *   Bit: 6   Background red
  *   Bit: 7   blinking bit  (see below)
- * 
- * and if mono bits 3 and 7 have the same interpretation.  However, the 
+ *
+ * and if mono bits 3 and 7 have the same interpretation.  However, the
  * Foreground and Background bits have a different interpretation:
- * 
+ *
  *    Foreground   Background    Interpretation
  *      111          000           Normal white on black
  *      000          111           Reverse video (white on black)
  *      000          000           Invisible characters
  *      001          000           Underline
  *     anything else is invalid.
- */    
+ */
 
 static int BW_Attribute_Map[256];
 static int Color_Attribute_Map[256];
@@ -136,7 +136,7 @@ static void get_screen_size (void)
 
    SLtt_Screen_Rows = 0;
    SLtt_Screen_Cols = 0;
-   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) 
+   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0)
      {
         if (ws.ws_row > MAX_LINES || ws.ws_col > MAX_COLUMNS)
 	  {
@@ -147,7 +147,7 @@ static void get_screen_size (void)
 	SLtt_Screen_Rows = ws.ws_row;
 	SLtt_Screen_Cols = ws.ws_col;
      }
-   if ((SLtt_Screen_Rows <= 0) 
+   if ((SLtt_Screen_Rows <= 0)
        || (SLtt_Screen_Cols <= 0))
      {
 	SLtt_Screen_Cols = 80;
@@ -287,7 +287,7 @@ static void set_char_set (void)
 			 (int)result, buff, result, result == 1 && buff[1] ? buff[1] : 0);
 
 		/* If we have any non control charcters in 0x80 - 0x9f
-		 * set up  the slang code up so we can send them. 
+		 * set up  the slang code up so we can send them.
 		 */
 		if (result > 1 || (buff[0] >= 0x80 && buff[0] <= 0x9f
 		    && (((uni >= 0x20) && (uni < 0x80)) || (uni > 0x9f)))) {
@@ -298,7 +298,7 @@ static void set_char_set (void)
 		cleanup_charset_state(&term_state);
 		cleanup_charset_state(&display_state);
 	}
-	/* Slang should filter out the control sequences for us... 
+	/* Slang should filter out the control sequences for us...
 	 * So don't worry about characters 0x00 - 0x1f && 0x80 - 0x9f
 	 */
 }
@@ -309,7 +309,7 @@ int using_xterm(void)
 
    if (term == NULL)
       return 0;
-   
+
    return !strncmp("xterm", term, 5) ||
            !strncmp("rxvt", term, 4) ||
            !strcmp("dtterm", term);
@@ -351,8 +351,8 @@ static int term_change_config(unsigned item, void *buf)
    case GET_TITLE_APPNAME:
       snprintf (buf, TITLE_APPNAME_MAXLEN, "%s", title_appname);
       return 0;
-   } 
-   return 100;   
+   }
+   return 100;
 }
 
 static void sigwinch(struct sigcontext_struct *scp)
@@ -379,7 +379,7 @@ static int slutf8_enable(int mode)
 
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
- */ 
+ */
 static int terminal_initialize(void)
 {
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
@@ -388,13 +388,13 @@ static int terminal_initialize(void)
    struct termios buf;
 
    v_printf("VID: terminal_initialize() called \n");
-   
+
    /* This maps (r,g,b) --> (b,g,r) */
-   rotate[0] = 0; rotate[1] = 4; 
+   rotate[0] = 0; rotate[1] = 4;
    rotate[2] = 2; rotate[3] = 6;
    rotate[4] = 1; rotate[5] = 5;
    rotate[6] = 3; rotate[7] = 7;
-   
+
    if(no_local_video!=1) {
      Video_term.update_screen = slang_update;
    }
@@ -446,7 +446,7 @@ static int terminal_initialize(void)
    SLtt_Blink_Mode = 1;
 
    SLtt_Use_Ansi_Colors = is_color;
-   
+
    if (is_color) Attribute_Map = Color_Attribute_Map;
    else Attribute_Map = BW_Attribute_Map;
 
@@ -471,20 +471,20 @@ static int terminal_initialize(void)
 	 */
 	BW_Attribute_Map[attr] = 0;
 #endif
-	
+
 	sltt_attr = 0;
 	if (attr & 0x80) sltt_attr |= SLTT_BLINK_MASK;
 	if (attr & 0x08) sltt_attr |= SLTT_BOLD_MASK;
-	
+
 	bw_sltt_attr = color_sltt_attr = sltt_attr;
-	
+
 	bg = (attr >> 4) & 0x07;
 	fg = (attr & 0x07);
-	
+
 	/* color information */
 	color_sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
 	SLtt_set_color_object (attr, color_sltt_attr);
-	
+
 	/* Monochrome information */
 	if ((fg == 0x01) && (bg == 0x00)) bw_sltt_attr |= SLTT_ULINE_MASK;
 	if (bg & 0x7) bw_sltt_attr |= SLTT_REV_MASK;
@@ -493,19 +493,19 @@ static int terminal_initialize(void)
 	     /* Invisible */
 	     BW_Attribute_Map [attr] = -attr;
 	  }
-	
+
 	SLtt_set_mono (attr, NULL, bw_sltt_attr);
      }
-   
-   /* object 0 is special.  It is normal video.  Lets fix that now. */   
+
+   /* object 0 is special.  It is normal video.  Lets fix that now. */
    BW_Attribute_Map[0x7] = Color_Attribute_Map[0x7] = 0;
    BW_Attribute_Map[0] = Color_Attribute_Map[0] = 7;
-   
+
    SLtt_set_color_object (0, 0x000700);
    SLtt_set_mono (0, NULL, 0x000700);
    SLtt_set_color_object (7, 0);
    SLtt_set_mono (7, NULL, 0);
-   
+
    set_char_set ();
    return 0;
 }
@@ -534,7 +534,7 @@ static void v_write(int fd, unsigned char *ch, int len)
 }
 #endif
 
-static char *Help[] = 
+static char *Help[] =
 {
    "NOTE: The '^@' defaults to Ctrl-^, see dosemu.conf 'terminal {escchar}' .",
    "Function Keys:",
@@ -563,7 +563,7 @@ static char *Help[] =
 #endif
    "Miscellaneous:",
    "    ^@^R : Redraw display      ^@^L : Redraw the display.",
-   "    ^@^Z : Suspend dosemu      ^@b  : Select BEST monochrome mode.",    
+   "    ^@^Z : Suspend dosemu      ^@b  : Select BEST monochrome mode.",
    "    ^@ Up Arrow: Force the top of DOS screen to be displayed.",
    "    ^@ Dn Arrow: Force the bottom of DOS screen to be displayed.",
    "    ^@ Space: Reset Sticky keys and Panning to automatic panning mode.",
@@ -582,9 +582,9 @@ static void show_help (void)
    int i;
    char *s;
    SLsmg_cls ();
-   
+
    i = 0;
-   while ((s = Help[i]) != NULL) 
+   while ((s = Help[i]) != NULL)
      {
 	if (*s)
 	  {
@@ -597,8 +597,8 @@ static void show_help (void)
    SLsmg_refresh ();
 }
 
-   
-   
+
+
 
 /* global variables co and li determine the size of the screen.  Also, use
  * the short pointers prev_screen and screen_adr for updating the screen.
@@ -615,7 +615,7 @@ static int slang_update (void)
 #if SLANG_VERSION < 10000
      if (!SLsmg_init_smg ())
 #else
-     if (SLsmg_init_smg() == -1) 
+     if (SLsmg_init_smg() == -1)
 #endif
        {
 	 error ("Unable to initialize SMG routines.");
@@ -628,7 +628,7 @@ static int slang_update (void)
 
    SLtt_Blink_Mode = (vga.attr.data[0x10] & 0x8) != 0;
 
-   if (DOSemu_Slang_Show_Help) 
+   if (DOSemu_Slang_Show_Help)
      {
 	if (help_showing == 0) show_help ();
 	help_showing = 1;
@@ -639,7 +639,7 @@ static int slang_update (void)
    cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
    cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
    imin = Rows - SLtt_Screen_Rows;
-   if (((DOSemu_Terminal_Scroll == 0) && 
+   if (((DOSemu_Terminal_Scroll == 0) &&
 	(cursor_row < SLtt_Screen_Rows))
        || (DOSemu_Terminal_Scroll == -1))
      {
@@ -780,7 +780,7 @@ static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u a
 void dos_slang_redraw (void)
 {
    if (Slsmg_is_not_initialized) return;
-   
+
    redraw_text_screen();
    SLsmg_refresh ();
 }
@@ -791,7 +791,7 @@ void dos_slang_suspend (void)
    if (Slsmg_is_not_initialized) return;
    terminal_close();
    keyboard_close();
-   
+
    terminal_initialize();
    keyboard_init();
     */
@@ -803,43 +803,43 @@ void dos_slang_smart_set_mono (void)
    int i, max_attr;
    unsigned int attr_count [256], max_count;
    register unsigned short *s, *smax;
-   
+
    Attribute_Map = BW_Attribute_Map;
    s = (unsigned short *)(vga.mem.base + vga.display_start);
    smax = s + Rows * Columns;
-   
+
    for (i = 0; i < 256; i++) attr_count[i] = 0;
-   
+
    while (s < smax)
      {
 	attr_count[*s >> 8] += 1;
 	s++;
      }
-   
+
    max_attr = 0;
    max_count = 0;
-   
+
    for (i = 0; i < 256; i++)
      {
 	Attribute_Map[i] = 1;
-	if (attr_count[i] > max_count) 
+	if (attr_count[i] > max_count)
 	  {
 	     max_attr = i;
 	     max_count = attr_count[i];
 	  }
      }
-   
+
    SLtt_normal_video ();
-   
+
    Attribute_Map [max_attr] = 0;
    SLtt_Use_Ansi_Colors = 0;
-   
+
    SLtt_set_mono (1, NULL, SLTT_REV_MASK);
    SLtt_set_mono (0, NULL, 0);
-   
-   memset ((unsigned char *) prev_screen, 0xFF, 
+
+   memset ((unsigned char *) prev_screen, 0xFF,
 	   2 * SLtt_Screen_Rows * SLtt_Screen_Cols);
-   
+
    set_char_set ();
 }
 
@@ -856,9 +856,9 @@ static void term_set_text_palette(DAC_entry color)
 
 struct video_system Video_term = {
    NULL,
-   terminal_initialize, 
-   terminal_close,      
-   term_setmode,      
+   terminal_initialize,
+   terminal_close,
+   term_setmode,
    slang_update,
    term_update_cursor,
    NULL,
@@ -867,7 +867,7 @@ struct video_system Video_term = {
 
 struct text_system Text_term =
 {
-   term_draw_string, 
+   term_draw_string,
    NULL,
    term_draw_text_cursor,
    term_set_text_palette,

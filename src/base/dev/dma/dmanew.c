@@ -466,7 +466,7 @@ void dma_new_init(void)
     io_device.fd = -1;
 
     /*
-     * XT Controller 
+     * XT Controller
      */
     io_device.start_addr = 0x0000;
     io_device.end_addr = 0x000F;

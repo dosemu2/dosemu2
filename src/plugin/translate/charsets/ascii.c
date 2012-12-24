@@ -61,8 +61,8 @@ static const t_unicode ascii_c1_chars[] = {
 };
 
 /* I don't know that this really exists but iso8859 assumes it exists somewhere.. */
-struct char_set ascii_c1 = { 
-	1, 
+struct char_set ascii_c1 = {
+	1,
 	CHARS(ascii_c1_chars),
 };
 

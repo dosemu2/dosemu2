@@ -30,7 +30,7 @@ static const t_unicode koi8_r_g1_chars[] = {
 struct char_set koi8_r_g1 = {
 	1,
 	CHARS(koi8_r_g1_chars),
-	0, "", 1, 96, 
+	0, "", 1, 96,
 };
 
 struct char_set koi8_r = {

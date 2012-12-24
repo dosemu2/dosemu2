@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -20,7 +20,7 @@
  * /REMARK
  *
  * Maintainers: Scott Buchholz
- * 
+ *
  * DANG_END_MODULE
  *
  */
@@ -128,9 +128,9 @@ void iodev_term(void)
       ptr->term_func();
 }
 
-void iodev_register(char *name, 
-	void (*init_func)(void), 
-	void (*reset_func)(void), 
+void iodev_register(char *name,
+	void (*init_func)(void),
+	void (*reset_func)(void),
 	void (*term_func)(void))
 {
 	struct io_dev_struct *ptr;

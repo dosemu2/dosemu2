@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -297,6 +297,6 @@ int main(int argc, char **argv)
   else if (setflags) changeflags(flags);
   else if (extract) getconf();
   else usage();
-  
+
   return 0;
 }

@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -28,7 +28,7 @@ static vga_mode_info vga_mode_table[] = {
 
   /*
    * The standard CGA/EGA/MCGA/VGA modes.
-   * Modifying the definitions for the standard modes 
+   * Modifying the definitions for the standard modes
    * will confuse the VGA Emulator - so don't do that!
    */
   {0x00,    -1,  TEXT, TEXT,  4,  360,  400,  40, 25,  9, 16},

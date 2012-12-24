@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -20,19 +20,19 @@
  *
  * 1/16/1995, Erik Mouw (jakmouw@et.tudelft.nl):
  *   Changed MDA_init() to test for exotic Hercules cards.
- *   Now it should support MDA, Hercules Graphics Card, Hercules Graphics 
+ *   Now it should support MDA, Hercules Graphics Card, Hercules Graphics
  *   Card Plus (also known as Hercules RamFont) and Hercules InColor.
  *   The new CRTC init values come from original Hercules documentation.
  *
  * DANG_BEGIN_MODULE
  *
- * The dual monitor support files to use a monochrome card as 
+ * The dual monitor support files to use a monochrome card as
  * second video subsystem. Usefull with for example Borland Turbo
  * Debugger and Turbo Profiler, HelpPC.
- * Supported cards are: 
+ * Supported cards are:
  *  - MDA (Monochrome Display Adapter)
  *  - Hercules Graphics Card (_the_ Hercules card)
- *  - Hercules Graphics Card Plus (a.k.a. Hercules RamFont) 
+ *  - Hercules Graphics Card Plus (a.k.a. Hercules RamFont)
  *  - Hercules InColor (the "color monochrome card").
  *
  * DANG_END_MODULE
@@ -40,11 +40,11 @@
  *
  * DANG_BEGIN_REMARK
  *
- * After MDA_init() the VGA is configured, something in video.c 
- * or console.c "reprograms" the monochrome card again in such a way 
- * that I always have to run hgc.com before I can use any program that 
- * uses the monochrome card. I've spent a day trying to find it, but I 
- * can't figure out. Something is writing to one of the following ports: 
+ * After MDA_init() the VGA is configured, something in video.c
+ * or console.c "reprograms" the monochrome card again in such a way
+ * that I always have to run hgc.com before I can use any program that
+ * uses the monochrome card. I've spent a day trying to find it, but I
+ * can't figure out. Something is writing to one of the following ports:
  * 0x3b4, 0x3b5, 0x3b8, 0x3b9, 0x3ba, 0x3bb, 0x3bf.
  * The problem occurs at (at least) the following 2 systems:
  *
@@ -78,7 +78,7 @@
 
 struct video_system *Video_default;
 
-/* 
+/*
   Dualmon type:
     0 -> unknown
     1 -> MDA
@@ -95,22 +95,22 @@ static int dualmon_card_type = DM_UNKNOWN;
 
 /*
   6845 values for the Hercules Graphics Card:
-  
+
   horizontal length in chars-1
   horizontal displayed
   horizontal sync position
   horizontal sync width
-  
+
   vertical total height in chars-1
   vertical adjust
   vertical displayed
   vertical sync position
-  
+
   interlace mode
   max scan line address
   cursor start
   cursur end
-  
+
   start address high
   start address low
   cursor address high
@@ -147,7 +147,7 @@ static int map_MDA_for_dualmon(void)
       return 0;
     }
     v_printf("VID: for dualmon, mapped MDA video ram at 0x%05x, size=0x%04x\n",
-          MDA_PHYS_TEXT_BASE,size);                                 
+          MDA_PHYS_TEXT_BASE,size);
     return 1;
   }
   if (config.dualmon && (_IS_VS(Video_graphics) /* || _IS_VS(Video_console )*/ )) return 2;
@@ -165,12 +165,12 @@ static int map_MDA_for_dualmon(void)
  *  card at all, we just think there is one and poke an peek in the void.
  *  After the detection the card is initialized.
  *
- * returns: 
+ * returns:
  *  nothing
  *
- * arguments: 
+ * arguments:
  *  none
- * 
+ *
  * DANG_END_FUNCTION
  */
 static void MDA_init(void)
@@ -178,40 +178,40 @@ static void MDA_init(void)
   /* following code is from Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de (video/hgc.c) */
 
   /* Detection code comes from vgadoc3 (available on every Simtel
-     mirror, look for the file vgadoc3.zip) and Hercules 
+     mirror, look for the file vgadoc3.zip) and Hercules
      documentation.
      Init code changed by Erik Mouw (jakmouw@et.tudelft.nl).
-     Init values were false. New init values come from original 
+     Init values were false. New init values come from original
      Hercules documentation. CRTC init code made more elegant.
   */
 
   int val, x, y;
-  
+
   /* First detect which card we have to deal with */
   port_out(1, 0x03bf);		/* Switch to HALF mode */
-  
+
   port_out(0x0f, 0x3b4);	/* Change cursor location low */
   y=port_in(0x3b5) & 0xff;	/* old value */
   v_printf("DUALMON: 0x3b4,0x0f before=0x%02x\n", y);
-  
+
   port_out(0xff-y, 0x3b5);	/* new value */
   for(x=0; x<1000; x++);	/* Sleep something */
   val=port_in(0x3b5) & 0xff;	/* read it again */
   v_printf("DUALMON: 0x3b4,0x0f after=0x%02x\n", val);
-  
-  port_out(y, 0x3b5);    /* reset the old value */  
-  
+
+  port_out(y, 0x3b5);    /* reset the old value */
+
   if(val==(0xff-y))		 /* Cursor changed ? */
   {
       val=port_in(0x3ba) & 0x80;
-      
+
       for(x=0x8000; x>0; x--)
       {
           y=port_in(0x03ba);
           if((y&0x80)!=val)
               break;
       }
-      
+
       if(x==0)
           dualmon_card_type=DM_MDA;
       else if((y&0x70)==0x50)
@@ -230,31 +230,31 @@ static void MDA_init(void)
     case DM_MDA:
       v_printf("a MDA\n");
       break;
-      
+
     case DM_HGC:
       v_printf("a Hercules Graphics Card\n");
       break;
-      
+
     case DM_RAMFONT:
       v_printf("a Hercules Graphics Card Plus (RamFont)\n");
       break;
-      
+
     case DM_INCOLOR:
       v_printf("a Hercules InColor\n");
       break;
-      
+
     default:
       v_printf("unknown\n");
       break;
   }
-  
+
   /* Go to the standard 6845 init stuff */
   for(x=0; x<16; x++)
   {
       port_out(x, 0x03b4);
       port_out(dualmon_text_table[x], 0x03b5);
   }
-  
+
   /* This is only for Ramfont cards and higher */
   if(dualmon_card_type>=DM_RAMFONT)
   {
@@ -263,7 +263,7 @@ static void MDA_init(void)
       /* bit 0: ROM (0) or RAM (1) font */
       /* bit 1: nine (0) or eight (1) pixel wide characters */
       /* bit 2: 4Kb (0) or 48Kb (1) ramfont */
-  } 
+  }
 
   /* Graphics allowed with 1 page (half mode) */
   port_out(1,0x03bf);
@@ -274,7 +274,7 @@ static void MDA_init(void)
   /*   "This blinker has no effect on the cursor. Every character   */
   /*    whose attribute indicates blinking, will now blink."        */
   port_out(0x28,0x03b8);
-} 
+}
 
 static void reinit_MDA_regs(void)
 {
@@ -286,13 +286,13 @@ static void reinit_MDA_regs(void)
   port_out(1,0x03bf);
   /* Texmode, screen & cursor visible, page 0 */
   port_out(0x28,0x03b8);
-} 
+}
 
 static int dualmon_init(void)
 {
   v_printf("VID: dualmon_init called\n");
-  /* We never need to intercept, if we get the ports now. */ 
-  if ( set_ioperm(0x3b4, 1, 1) || set_ioperm(0x3b5, 1, 1) || set_ioperm(0x3b8, 1, 1) 
+  /* We never need to intercept, if we get the ports now. */
+  if ( set_ioperm(0x3b4, 1, 1) || set_ioperm(0x3b5, 1, 1) || set_ioperm(0x3b8, 1, 1)
                             || set_ioperm(0x3ba, 1, 1) || set_ioperm(0x3bf, 1, 1) ) {
               v_printf("VID: dualmon, can't get I/O permissions \n");
                     exit(-1);
@@ -334,7 +334,7 @@ if (old != READ_WORD(BIOS_CONFIGURATION)) {
 }
   if ((READ_WORD(BIOS_CONFIGURATION) & 0x30) != 0x30 &&
       Video_default->update_cursor)
-    Video_default->update_cursor(); 
+    Video_default->update_cursor();
 }
 
 struct video_system Video_dualmon = {

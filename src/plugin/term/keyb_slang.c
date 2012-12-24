@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -78,7 +78,7 @@ static struct keyboard_state
 	int KeyNot_Ready;	 /* a flag */
 	int Keystr_Len;
 	unsigned long Shift_Flags;
-	
+
 	struct char_set_state translate_state;
 } keyb_state;
 
@@ -92,7 +92,7 @@ static struct keyboard_state
  * keymaps is invoked via the special key defined for it, the new keymap
  * is only in effect for the next character at which point the normal one
  * becomes active again.
- * 
+ *
  * The normal keymap is fairly robust.  It contains mappings for all the
  * ascii characters (0-26, 28-256).  The escape character itself (27) is
  * included only in the sence that it is the prefix character for arrow
@@ -524,7 +524,7 @@ static int define_key(const char *key, unsigned long scan,
 	int i;
 
 	if (strlen(key) > SLANG_MAX_KEYMAP_KEY_SEQ) {
-		k_printf("key string too long %s\n", key); 
+		k_printf("key string too long %s\n", key);
 		return -1;
 	}
 
@@ -575,7 +575,7 @@ static int define_key(const char *key, unsigned long scan,
 		(memcmp(pre_key->str, key_str, key_str[0]) == 0)) {
 		unsigned long prev_scan;
 		prev_scan = (unsigned long)pre_key->f.f;
-		
+
 		k_printf("KBD: Previously mapped to: %04lx:%04lx\n\n",
 			prev_scan >> 16, prev_scan & 0xFFFF);
 		return 0;
@@ -596,7 +596,7 @@ static int define_key(const char *key, unsigned long scan,
 static int define_keyset(Keymap_Scan_Type *k, SLKeyMap_List_Type *m)
 {
 	char *str;
-	
+
 	while ((str = k->keystr), (*str != 0)) {
 		define_key(str, k->scan_code, m);
 		k++;
@@ -629,11 +629,11 @@ static int init_slang_keymaps(void)
 	unsigned long esc_scan;
 	char * term;
 	char * kf21;
-	
+
 	/* Do some sanity checking */
 	if (config.term_esc_char >= 32)
 		config.term_esc_char = 30;
-	
+
 	/* Carriage Return & Escape are not going to be used by any sane person */
 	if ((config.term_esc_char == '\x0d') ||
 		(config.term_esc_char == '\x1b'))
@@ -643,18 +643,18 @@ static int init_slang_keymaps(void)
 	/* escape characters are identity mapped in unicode. */
 	esc_scan = config.term_esc_char;
 	esc_scan |= CTRL_MASK;
-	
+
 	keyb_state.Esc_Char = config.term_esc_char + '@';
-	
+
 	if (keyb_state.The_Normal_KeyMap != NULL)
 		return 0;
-	
+
 	if (NULL == (m = keyb_state.The_Normal_KeyMap = SLang_create_keymap("Normal", NULL)))
 		return -1;
-	
+
 	/* Everybody needs these */
 	define_keyset(Dosemu_defined_fkeys, m);
-	
+
 	/* Keypad in a special way */
 	define_keyset(Dosemu_Xkeys, m);
 
@@ -677,7 +677,7 @@ static int init_slang_keymaps(void)
 	}
 
 	define_keyset(CTRL, m);
-	
+
 	term = getenv("TERM");
 	if( using_xterm() ) {
 		/* Oh no, this is _BAD_, there are so many different things called 'xterm'*/
@@ -699,7 +699,7 @@ static int init_slang_keymaps(void)
 		define_keyset(Linux_Keypad, m);
 	}
 #endif
-	else if( term && strcmp("vt52", term) && 
+	else if( term && strcmp("vt52", term) &&
 		!strncmp("vt", term, 2) && term[2] >= '1' && term[2] <= '9' ) {
 		/* A 'real' VT ... yesss, if you're sure ... */
 		if (!kf21) define_keyset(vtxxx_fkeys, m);
@@ -709,14 +709,14 @@ static int init_slang_keymaps(void)
 
   /* And more Dosemu keys */
 	define_keyset(Dosemu_Ctrl_keys, m);
-	
+
 	if (slang_get_error())
 		return -1;
 
 	/*
 	 * If the erase key (as set by stty) is a reasonably safe one, use it.
 	 */
-	if( ((keyb_state.erasekey>0 && keyb_state.erasekey<' ')) && 
+	if( ((keyb_state.erasekey>0 && keyb_state.erasekey<' ')) &&
 		keyb_state.erasekey != 27 && keyb_state.erasekey != keyb_state.Esc_Char)
 	{
 		buf[0] = '^';
@@ -728,7 +728,7 @@ static int init_slang_keymaps(void)
 		buf[1] = 0;
 		define_key(buf, KEY_BKSP, m);
 	}
-	
+
 	/*
 	 * Now add one more for the esc character so that sending it twice sends
 	 * it.
@@ -741,12 +741,12 @@ static int init_slang_keymaps(void)
 	SLkm_define_key(buf, (VOID *) esc_scan, m);
 	if (slang_get_error())
 		return -1;
-	
+
 	/* Note: define_keys_by_character comes last or we could never define functions keys. . . */
 	define_remaining_characters(m);
 	if (slang_get_error())
 		return -1;
-	
+
 	return 0;
 }
 
@@ -760,7 +760,7 @@ static int init_slang_keymaps(void)
 static int read_some_keys(void)
 {
 	int cc;
-	
+
 	if (keyb_state.kbcount == 0)
 		keyb_state.kbp = keyb_state.kbbuf;
 	else if (keyb_state.kbp > &keyb_state.kbbuf[(KBBUF_SIZE * 3) / 5]) {
@@ -802,7 +802,7 @@ static int sltermio_input_pending(void)
 	struct timeval scr_tv;
        hitimer_t t_start, t_dif;
 	fd_set fds;
-	
+
 #if 0
 #define	THE_TIMEOUT 750000L
 #else
@@ -812,12 +812,12 @@ static int sltermio_input_pending(void)
 	FD_SET(keyb_state.kbd_fd, &fds);
 	scr_tv.tv_sec = 0L;
 	scr_tv.tv_usec = THE_TIMEOUT;
-	
+
 	t_start = GETusTIME(0);
 	errno = 0;
 	while ((int)select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv) < (int)1) {
                t_dif = GETusTIME(0) - t_start;
-		
+
 		if ((t_dif >= THE_TIMEOUT) || (errno != EINTR))
 			return 0;
 		errno = 0;
@@ -836,8 +836,8 @@ static int sltermio_input_pending(void)
 static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 {
 	unsigned long flags = 0;
-	
-	k_printf("KBD: slang_send_scancode(ls_flags=%08lx, lscan=%08lx)\n", 
+
+	k_printf("KBD: slang_send_scancode(ls_flags=%08lx, lscan=%08lx)\n",
 		ls_flags, lscan);
 
 	if (lscan == KEY_MOUSE) {
@@ -862,7 +862,7 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 
 		case KEY_DASH:   lscan = KEY_PAD_MINUS; break;
 		case KEY_RETURN: lscan = KEY_PAD_ENTER; break;
-			
+
 		case KEY_0:      lscan = KEY_PAD_0; break;
 		case KEY_1:	 lscan = KEY_PAD_1; break;
 		case KEY_2:	 lscan = KEY_PAD_2; break;
@@ -872,23 +872,23 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 		case KEY_6:      lscan = KEY_PAD_6; break;
 		case KEY_7:      lscan = KEY_PAD_7; break;
 		case KEY_9:      lscan = KEY_PAD_9; break;
-			
+
 		/* This is a special */
-		case KEY_8:		
+		case KEY_8:
 			if ( ls_flags & SHIFT_MASK ) {
 				ls_flags &= ~SHIFT_MASK;
 				lscan = KEY_PAD_AST;
 			}
 			else     lscan =  KEY_PAD_8; break;
-		
+
 		/* Need to remove the shift flag for this */
-		case KEY_EQUALS:	
+		case KEY_EQUALS:
 			if (ls_flags & SHIFT_MASK ) {
 				ls_flags &= ~SHIFT_MASK;
 				lscan = KEY_PAD_PLUS;
 			} /* else It is silly to translate an equals */
 			break;
-		
+
 		/* This still generates the wrong scancode - should be $E02F */
 		case KEY_SLASH:	 lscan = KEY_PAD_SLASH; break;
 		}
@@ -899,36 +899,36 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 		lscan = KEY_SYSRQ;
 		ls_flags |= MOVE_MASK;
 	}
-   
+
 	if ((ls_flags & SHIFT_MASK)
 		&& ((ls_flags & STICKY_SHIFT_MASK) == 0)) {
 		flags |= SHIFT_MASK;
 		move_key(PRESS, KEY_L_SHIFT);
 	}
-	
+
 	if ((ls_flags & CTRL_MASK)
 		&& ((ls_flags & STICKY_CTRL_MASK) == 0)) {
 		flags |= CTRL_MASK;
 		move_key(PRESS, KEY_L_CTRL);
 	}
-	
+
 	if ((ls_flags & ALT_MASK)
 		&& ((ls_flags & STICKY_ALT_MASK) == 0)) {
 		flags |= ALT_MASK;
 		move_key(PRESS, KEY_L_ALT);
 	}
-	
+
 	if ((ls_flags & ALTGR_MASK)
 		&& ((ls_flags & STICKY_ALTGR_MASK) == 0)) {
 		flags |= ALTGR_MASK;
 		move_key(PRESS, KEY_R_ALT);
 	}
-	
+
 	if (!(ls_flags & MOVE_MASK)) {
 		/* For any keys we know do not modify the shiftstate
 		 * this is the optimal way to go.  As it handles all
-		 * of the weird cases. 
-		 */ 
+		 * of the weird cases.
+		 */
 		put_modified_symbol(PRESS, get_shiftstate(), lscan);
 		put_modified_symbol(RELEASE, get_shiftstate(), lscan);
 	} else {
@@ -967,7 +967,7 @@ void handle_slang_keys(Boolean make, t_keysym key)
 	case KEY_DOSEMU_PAN_DOWN:
 		DOSemu_Terminal_Scroll = 1;
 		break;
-	case KEY_DOSEMU_PAN_LEFT: 
+	case KEY_DOSEMU_PAN_LEFT:
 		/* this should be implemented someday */
 		break;
 	case KEY_DOSEMU_PAN_RIGHT:
@@ -988,7 +988,7 @@ void handle_slang_keys(Boolean make, t_keysym key)
 		if (keyb_state.Shift_Flags & STICKY_ALTGR_MASK) {
 			move_key(RELEASE, KEY_R_ALT);
 		}
-		
+
 		keyb_state.Shift_Flags = 0;
 	}
 	return;
@@ -1021,7 +1021,7 @@ static void do_slang_special_keys(unsigned long scan)
 		if ( !(keyb_state.Shift_Flags & STICKY_CTRL_MASK))
 			keyb_state.Shift_Flags |= CTRL_MASK;
 		break;
-		
+
 	case STICKY_CTRL_KEY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & CTRL_MASK)
 			keyb_state.Shift_Flags &= ~CTRL_MASK;
@@ -1034,12 +1034,12 @@ static void do_slang_special_keys(unsigned long scan)
 			move_key(PRESS, KEY_L_CTRL);
 		}
 		break;
-		
+
 	case SHIFT_KEY_SCAN_CODE:
 		if ( !(keyb_state.Shift_Flags & STICKY_SHIFT_MASK))
 			keyb_state.Shift_Flags |= SHIFT_MASK;
 		break;
-		
+
 	case STICKY_SHIFT_KEY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & SHIFT_MASK)
 			keyb_state.Shift_Flags &= ~SHIFT_MASK;
@@ -1052,12 +1052,12 @@ static void do_slang_special_keys(unsigned long scan)
 			move_key(PRESS, KEY_L_SHIFT);
 		}
 		break;
-		
+
 	case ALT_KEY_SCAN_CODE:
 		if ( !(keyb_state.Shift_Flags & STICKY_ALT_MASK))
 			keyb_state.Shift_Flags |= ALT_MASK;
 		break;
-		
+
 	case STICKY_ALT_KEY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & ALT_MASK)
 			keyb_state.Shift_Flags &= ~ALT_MASK;
@@ -1070,12 +1070,12 @@ static void do_slang_special_keys(unsigned long scan)
 			move_key(PRESS, KEY_L_ALT);
 		}
 		break;
-		
+
 	case ALTGR_KEY_SCAN_CODE:
 		if ( !(keyb_state.Shift_Flags & STICKY_ALTGR_MASK))
 			keyb_state.Shift_Flags |= ALTGR_MASK;
 		break;
-		
+
 	case STICKY_ALTGR_KEY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & ALTGR_MASK)
 			keyb_state.Shift_Flags &= ~ALTGR_MASK;
@@ -1088,35 +1088,35 @@ static void do_slang_special_keys(unsigned long scan)
 			move_key(PRESS, KEY_R_ALT);
 		}
 		break;
-		
+
 	case KEYPAD_KEY_SCAN_CODE:
 		keyb_state.Shift_Flags |= KEYPAD_MASK;
 		break;
-		
+
 	case SCROLL_DOWN_SCAN_CODE:
 		DOSemu_Terminal_Scroll = 1;
 		break;
-		
+
 	case SCROLL_UP_SCAN_CODE:
 		DOSemu_Terminal_Scroll = -1;
 		break;
-		
+
 	case REDRAW_SCAN_CODE:
 		dos_slang_redraw();
 		break;
-		
+
 	case SUSPEND_SCAN_CODE:
 		dos_slang_suspend();
 		break;
-		
+
 	case HELP_SCAN_CODE:
 		DOSemu_Slang_Show_Help = 1;
 		break;
-		
+
 	case RESET_SCAN_CODE:
 		DOSemu_Slang_Show_Help = 0;
 		DOSemu_Terminal_Scroll = 0;
-		
+
 		if (keyb_state.Shift_Flags & STICKY_CTRL_MASK) {
 			move_key(RELEASE, KEY_L_CTRL);
 		}
@@ -1129,22 +1129,22 @@ static void do_slang_special_keys(unsigned long scan)
 		if (keyb_state.Shift_Flags & STICKY_ALTGR_MASK) {
 			move_key(RELEASE, KEY_R_ALT);
 		}
-		
+
 		keyb_state.Shift_Flags = 0;
-		
+
 		break;
-		
+
 	case SET_MONO_SCAN_CODE:
 		dos_slang_smart_set_mono();
 		break;
 	}
 
-	
+
 	if (keyb_state.Shift_Flags & (SHIFT_MASK | STICKY_SHIFT_MASK))	prompt_no += 1;
 	if (keyb_state.Shift_Flags & (CTRL_MASK | STICKY_CTRL_MASK)) 	prompt_no += 2;
 	if (keyb_state.Shift_Flags & (ALT_MASK | STICKY_ALT_MASK)) 	prompt_no += 4;
 	if (keyb_state.Shift_Flags & (ALTGR_MASK | STICKY_ALTGR_MASK))	prompt_no += 8;
-	
+
 	DOSemu_Keyboard_Keymap_Prompt = keymap_prompts[prompt_no];
 }
 
@@ -1291,9 +1291,9 @@ static void do_slang_getkeys(void)
 		do_slang_special_keys(0);
 		return;
 	}
-	
+
 	k_printf("KBD: do_slang_getkeys() found %d bytes\n", keyb_state.kbcount);
-	
+
 	/* Now process the keys that are buffered up */
 	while (keyb_state.kbcount) {
 		unsigned long scan = 0;
@@ -1305,7 +1305,7 @@ static void do_slang_getkeys(void)
 
 		key = SLang_do_key(keyb_state.The_Normal_KeyMap, getkey_callback);
 		slang_set_error(0);
-		
+
 		if (keyb_state.KeyNot_Ready) {
 			if ((keyb_state.Keystr_Len == 1) && (*keyb_state.kbp == 27)) {
 				/*
@@ -1315,7 +1315,7 @@ static void do_slang_getkeys(void)
 				k_printf("KBD: got ESC character\n");
 				if (sltermio_input_pending())
 					return;
-				
+
 				k_printf("KBD: slang got single ESC\n");
 				symbol = KEY_ESC;
 				key = NULL;
@@ -1323,12 +1323,12 @@ static void do_slang_getkeys(void)
 			}
 			else
 				break;			/* try again next time */
-		} 
-		
+		}
+
 		if (key) {
 			scan = (unsigned long) key->f.f | modifier;
 			symbol = scan & 0xFFFF;
-		} 
+		}
 		result = 1;
 		if (symbol == KEY_VOID) {
 			/* rough draft version don't stop here... */
@@ -1358,20 +1358,20 @@ static void do_slang_getkeys(void)
 
 		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
 		keyb_state.kbp += keyb_state.Keystr_Len;
-		
+
                if (key == NULL && symbol != KEY_ESC) {
 			/* undefined key --- return */
 			DOSemu_Slang_Show_Help = 0;
 			keyb_state.kbcount = 0;
 			break;
 		}
-		
+
 		if (DOSemu_Slang_Show_Help) {
 			DOSemu_Slang_Show_Help = 0;
 			continue;
 		}
-		
-		
+
+
 		k_printf("KBD: scan=%08lx Shift_Flags=%08lx str[0]=%d str='%s' len=%d\n",
                        scan,keyb_state.Shift_Flags,key ? key->str[0] : 27,
                        key ? strprintable((char *)key->str+1): "ESC", keyb_state.Keystr_Len);
@@ -1387,10 +1387,10 @@ static void do_slang_getkeys(void)
 
 /*
  * DANG_BEGIN_FUNCTION setup_pc_scancode_mode
- * 
+ *
  * Initialize the keyboard in pc scancode mode.
  * This functionality is ideal but rarely supported on a terminal.
- * 
+ *
  * DANG_END_FUNCTION
  */
 static void setup_pc_scancode_mode(void)
@@ -1404,10 +1404,10 @@ static void setup_pc_scancode_mode(void)
 
 /*
  * DANG_BEGIN_FUNCTION exit_pc_scancode_mode
- * 
+ *
  * Set the terminal back to a keyboard mode other
  * programs can understand.
- * 
+ *
  * DANG_END_FUNCTION
  */
 static void exit_pc_scancode_mode(void)
@@ -1421,10 +1421,10 @@ static void exit_pc_scancode_mode(void)
 
 /*
  * DANG_BEGIN_FUNCTION do_pc_scancode_getkeys
- * 
+ *
  * Set the terminal back to a keyboard mode other
  * programs can understand.
- * 
+ *
  * DANG_END_FUNCTION
  */
 static void do_pc_scancode_getkeys(void)
@@ -1433,7 +1433,7 @@ static void do_pc_scancode_getkeys(void)
 		return;
 	}
 	k_printf("KBD: do_pc_scancode_getkeys() found %d bytes\n", keyb_state.kbcount);
-	
+
 	/* Now process the keys that are buffered up */
 	while(keyb_state.kbcount) {
 		unsigned char ch = *(keyb_state.kbp++);
@@ -1444,13 +1444,13 @@ static void do_pc_scancode_getkeys(void)
 
 /*
  * DANG_BEGIN_FUNCTION slang_keyb_init()
- * 
+ *
  * Code is called at start up to set up the terminal line for non-raw mode.
- * 
+ *
  * DANG_END_FUNCTION
  */
-   
-static int slang_keyb_init(void) 
+
+static int slang_keyb_init(void)
 {
 	struct termios buf;
 
@@ -1464,7 +1464,7 @@ static int slang_keyb_init(void)
 	keyb_state.save_kbd_flags = -1;
 	keyb_state.pc_scancode_mode = FALSE;
 	keyb_state.The_Normal_KeyMap = (void *)0;
-	
+
 	keyb_state.Esc_Char = 0;
 	keyb_state.erasekey = 0;
 	keyb_state.KeyNot_Ready = TRUE;
@@ -1474,18 +1474,18 @@ static int slang_keyb_init(void)
 
 	SLtt_Force_Keypad_Init = 1;
 	term_init();
-	
+
 	set_shiftstate(0);
 
 	if (SLtt_tgetstr("S4") && SLtt_tgetstr("S5")) {
 		keyb_state.pc_scancode_mode = TRUE;
 	}
-   
+
 	keyb_state.kbd_fd = STDIN_FILENO;
 	kbd_fd = keyb_state.kbd_fd; /* FIXME the kbd_fd global!! */
 	keyb_state.save_kbd_flags = fcntl(keyb_state.kbd_fd, F_GETFL);
 	fcntl(keyb_state.kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
-   
+
 	if (tcgetattr(keyb_state.kbd_fd, &keyb_state.save_termios) < 0
 	    && errno != EINVAL && errno != ENOTTY) {
 		error("slang_keyb_init(): Couldn't tcgetattr(kbd_fd,...) errno=%d\n", errno);
@@ -1498,7 +1498,7 @@ static int slang_keyb_init(void)
 	} else {
 		buf.c_iflag &= (ISTRIP | IGNBRK | IXON | IXOFF);
 	}
-	buf.c_cflag &= ~(CLOCAL | CSIZE | PARENB);  
+	buf.c_cflag &= ~(CLOCAL | CSIZE | PARENB);
 	buf.c_cflag |= CS8;
 	buf.c_lflag &= 0;	/* ISIG */
 	buf.c_cc[VMIN] = 1;
@@ -1551,12 +1551,12 @@ static int slang_keyb_init(void)
 		k_printf("KBD: Not using SIGIO\n");
 		add_to_io_select(keyb_state.kbd_fd, 0, keyb_client_run_async, NULL);
 	}
-   
+
 	k_printf("KBD: slang_keyb_init() ok\n");
 	return TRUE;
 }
 
-static void slang_keyb_close(void)  
+static void slang_keyb_close(void)
 {
 	exit_pc_scancode_mode();
 	if (tcsetattr(keyb_state.kbd_fd, TCSAFLUSH, &keyb_state.save_termios) < 0
@@ -1573,9 +1573,9 @@ static void slang_keyb_close(void)
 
 /*
  * DANG_BEGIN_FUNCTION slang_keyb_probe()
- * 
+ *
  * Code is called at start up to see if we can use the slang keyboard.
- * 
+ *
  * DANG_END_FUNCTION
  */
 

@@ -28,7 +28,7 @@ static int switch_to_console(int vc_num)
 	return FALSE;
 }
 
-Boolean handle_dosemu_keys(Boolean make, t_keysym key) 
+Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 {
 	Boolean result = TRUE;
 	switch(key) {
@@ -55,7 +55,7 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 			leavedos(0);
 		}
 		break;
-		
+
 	case KEY_DOSEMU_FREEZE:
 		if (make) {
 			if (!dosemu_frozen) {
@@ -66,7 +66,7 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 		}
 		break;
 
-	case KEY_DOSEMU_VT_1: 
+	case KEY_DOSEMU_VT_1:
 	case KEY_DOSEMU_VT_2:
 	case KEY_DOSEMU_VT_3:
 	case KEY_DOSEMU_VT_4:
@@ -84,7 +84,7 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 			result = switch_to_console(vc_num);
 		}
 		break;
-			
+
 	case KEY_MOUSE_UP:
 	case KEY_MOUSE_DOWN:
 	case KEY_MOUSE_LEFT:

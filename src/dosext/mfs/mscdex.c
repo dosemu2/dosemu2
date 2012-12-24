@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is derived from dos_mscdex.cpp which is
  *  Copyright (C) 2002-2005  The DOSBox Team
  *

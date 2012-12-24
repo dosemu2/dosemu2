@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -12,7 +12,7 @@
  * Exports: keyb_8042_init(void), keyb_8042_reset(void)
  *
  * Maintainers: Scott Buchholz, Rainer Zimmermann
- * 
+ *
  * REMARK
  * This code provides truly rudimentary 8042 controller emulation.
  * Not having any documentation on the 8042 makes it hard to improve. :)
@@ -205,7 +205,7 @@ static void write_port60(Bit8u value)
       wstate=0;
       break;
     default:
-      h_printf("8042: write port 0x60 illegal state (0x%02x), resending\n", 
+      h_printf("8042: write port 0x60 illegal state (0x%02x), resending\n",
 	       wstate);
       wstate=0;
       write_port60(value);
@@ -220,13 +220,13 @@ static void write_port64(Bit8u value) {
 	  case 0x20:       /* read 8042 command byte */
              output_byte_8042(keyb_ctrl_command);
 	     break;
-	  
+
 	  case 0x60:       /* write 8042 command byte */
 	     wstate=0x60;
 	     break;
 
 #if 0 /* not sure if these are ok and/or needed. */
-	  
+
 	  case 0xa4:       /* passwort installed test */
 	     output_byte_8042(0xfa);   /* no password */
 	     break;
@@ -238,19 +238,19 @@ static void write_port64(Bit8u value) {
 	  case 0xa9:       /* aux interface test */
 	     output_byte_8042(0x00);  /* ok */
 	     break;
-	  
+
 	  case 0xaa:       /* 8042 self test */
 	     output_byte_8042(0x55);  /* ok */
 	     break;
-	  
+
 	  case 0xab:       /* keyboard interface test */
 	     output_byte_8042(0x00);  /* ok */
 	     break;
-	  
+
 	  case 0xc0:       /* read 8042 input port */
 	     output_byte_8042(0xff);   /* just send _something_... */
 	     break;
-#endif	  
+#endif
 	  case 0xd1:       /* next write to port 0x60 drives hardware port */
 	     wstate=0xd1;
 	     break;
@@ -274,7 +274,7 @@ static Bit8u read_port60(void)
 {
   Bit8u r = port60_buffer;
   port60_ready = 0;
-   
+
   h_printf("8042: read port 0x60 = 0x%02x\n", r);
 
 #if KEYB_CMD
@@ -298,7 +298,7 @@ static Bit8u read_port60(void)
       rstate = 0;
       break;
   }
-#endif   
+#endif
   return r;
 }
 
@@ -308,16 +308,16 @@ Bit8u keyb_io_read(ioport_t port)
   Bit8u r = 0;
 
   switch (port) {
-  case 0x60:     
+  case 0x60:
       r = read_port60();
-     
-      /* We ought to untrigger IRQ1, in case DOS was reading port60h with interrupts off, 
+
+      /* We ought to untrigger IRQ1, in case DOS was reading port60h with interrupts off,
        * but currently the PIC code doesn't support this. */
-#if 0     
+#if 0
       if (!port60_ready)
          pic_untrigger(PIC_IRQ1);
 #endif
-     
+
       k_printf("8042: read port 0x60 read=0x%02x\n",r);
     break;
 
@@ -392,7 +392,7 @@ void keyb_8042_init(void)
 
 void keyb_8042_reset(void)
 {
-#if KEYB_CMD   
+#if KEYB_CMD
   rstate = 0;
   wstate = 0;
   keyb_ctrl_scanmap    = 1;

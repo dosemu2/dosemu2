@@ -42,7 +42,7 @@
  * 0.67 has seen the introduction of stub code for handling Adlib (the timers
  * work after a fashion now) and changes to handle auto-init DMA. I've merged
  * some code from Michael Karcher (Michael.Karcher@writeme.com) although I
- * can't use all of it because it duplicates the auto-init (and I prefer my 
+ * can't use all of it because it duplicates the auto-init (and I prefer my
  * way - its cleaner!
  *
  * Included Michael's reworked Auto-Init, as it fixed a number of problems with
@@ -64,7 +64,7 @@
  * Original Copyright Notice:
  * ==========================
  * Copyright 1995  Joel N. Weber II
- * See the file README.sound in this directory for more information 
+ * See the file README.sound in this directory for more information
  */
 
 /* Uncomment following to force complete emulation of some varient of
@@ -224,7 +224,7 @@ void dsp_write_output(uint8_t value)
   SB_dsp.data = SB_DATA_AVAIL;
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: Insert into output Queue [%u]... (0x%x)\n", 
+    S_printf ("SB: Insert into output Queue [%u]... (0x%x)\n",
 	    Q_HOLDS(SB_queue), value);
   }
 }
@@ -247,7 +247,7 @@ uint8_t dsp_read_output(void)
     r = Q_GET(SB_queue);
 
     if (debug_level('S') >= 2) {
-      S_printf ("SB: Remove from output Queue [%u]... (0x%X)\n", 
+      S_printf ("SB: Remove from output Queue [%u]... (0x%X)\n",
 	      Q_HOLDS(SB_queue), r);
     }
   }
@@ -313,7 +313,7 @@ static Bit8u sb_io_read(ioport_t port)
 		result = 0xFF;
 	}
 	break;
-    
+
    case 0x05: /* Mixer Data Register */
      result = sb_mixer_data_read();
 		break;
@@ -330,7 +330,7 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
 
    case 0x0A: /* DSP Read Data - SB */
-     value = dsp_read_output(); 
+     value = dsp_read_output();
      S_printf ("SB: Read 0x%x from SB DSP\n", value);
      result = value;
      break;
@@ -352,7 +352,7 @@ static Bit8u sb_io_read(ioport_t port)
      result = 0xFF;
      break;
 
-   case 0x0E:		
+   case 0x0E:
      /* DSP Data Available Status - SB */
      /* DSP 8-bit IRQ Ack - SB */
      S_printf("SB: 8-bit IRQ Ack: %x\n", SB_dsp.data);
@@ -456,10 +456,10 @@ Bit8u sb_mixer_data_read (void)
 
 			/* === SB16 Registers === */
 
-			/* 
+			/*
 			 * Additional registers, originally from Karcher
-			 * Updated to remove assumptions and separate into 
-			 * functions - AM 
+			 * Updated to remove assumptions and separate into
+			 * functions - AM
 			 */
 
 	        case 0x80: /* IRQ Select */
@@ -470,9 +470,9 @@ Bit8u sb_mixer_data_read (void)
 
 	        case 0x82: /* IRQ Status */
 		        return sb_get_mixer_IRQ_status();
-		
+
 		default:
-			S_printf("SB: invalid read from mixer (%x)\n", 
+			S_printf("SB: invalid read from mixer (%x)\n",
 				 SB_info.mixer_index);
 			value = 0xFF;
 			break;
@@ -496,7 +496,7 @@ Bit8u sb_get_mixer_IRQ_mask (void)
   Bit8u value;
 
   value = 0xF0; /* Reserved top bits are 1 */
-  
+
   value |= sb_irq_to_bit (config.sb_irq);
   /* And for the other IRQs ... */
 
@@ -565,7 +565,7 @@ Bit8u sb_get_mixer_IRQ_status (void)
  * port - The I/O port being read from.
  *
  * description:
- * This handles all of the reads for the adlib (FM) emulation. The value read 
+ * This handles all of the reads for the adlib (FM) emulation. The value read
  * is returned. The value of 0xFF indicates an invalid read. (assumes the ports
  * float high when not pulled low by the hardware.)
  * The FM emulation is not written yet. The current plan is to use the midi
@@ -580,14 +580,14 @@ static Bit8u adlib_io_read(ioport_t port)
 
   /* Adlib Base Port is 0x388 */
   /* Adv. Adlib Base Port is 0x38A */
-  
+
   switch (port){
-  case 0x388:    
+  case 0x388:
     S_printf ("Adlib: Read from Adlib port (%#x)\n", port);
     result = fm_io_read (ADLIB_STATUS);
     break;
 
-  case 0x38A:    
+  case 0x38A:
     S_printf ("Adv_Adlib: Read from Adlib Advanced port (%#x)\n", port);
     result = fm_io_read (ADV_ADLIB_STATUS);
     break;
@@ -595,7 +595,7 @@ static Bit8u adlib_io_read(ioport_t port)
 	default:
 		S_printf("%#x is an unhandled read port\n", port);
   };
-  
+
   if (debug_level('S') >= 2) {
     S_printf ("Adlib: Read from port 0x%x returns 0x%x\n", port, result);
   }
@@ -613,11 +613,11 @@ static Bit8u fm_io_read (ioport_t port)
 		/* DANG_FIXTHIS Adlib status reads are unimplemented */
     /* retval = 31; - according to sblast.doc ? */
     retval = 0; /* - according to adlib_sb.txt */
-    if ( (adlib_timers[0].expired == 1) 
+    if ( (adlib_timers[0].expired == 1)
 	 && (adlib_timers[0].enabled == 1) ) {
       retval |= (64 | 128);
     }
-    if ( (adlib_timers[1].expired == 1) 
+    if ( (adlib_timers[1].expired == 1)
 	 && (adlib_timers[1].enabled == 1) ) {
       retval |= (32 | 128) ;
     }
@@ -628,7 +628,7 @@ static Bit8u fm_io_read (ioport_t port)
 		/* DANG_FIXTHIS Advanced adlib reads are unimplemented */
     return 31;
   };
-  
+
   return 0;
 }
 
@@ -649,9 +649,9 @@ Bit8u mpu401_io_read(ioport_t port)
 {
   ioport_t addr;
 	Bit8u r=0xff;
-  
+
   addr = port - config.mpu401_base;
-  
+
   switch(addr) {
   case 0:
     /* Read data port */
@@ -709,17 +709,17 @@ static void mpu401_io_callback(void *arg)
 static void sb_io_write(ioport_t port, Bit8u value)
 {
   ioport_t addr;
-  
+
   addr = port - config.sb_base;
 
   if (debug_level('S') >= 2) {
     S_printf("SB: [crisk] port 0x%04x value 0x%02x\n", (Bit16u)port, value);
   }
-  
+
   switch (addr) {
-    
+
     /* == FM MUSIC or C/MS == */
-    
+
   case 0x00:
     if (SB_info.version >= SB_PRO) {
 			/* FM Music Left Register Port - SBPro */
@@ -761,9 +761,9 @@ static void sb_io_write(ioport_t port, Bit8u value)
 			sb_cms_write (CMS_UPPER_REGISTER, value);
     }
     break;
-    
+
     /* == MIXER == */
-    
+
   case 0x04: /* Mixer Register Port - SBPro */
 		sb_mixer_register_write (value);
     break;
@@ -780,7 +780,7 @@ static void sb_io_write(ioport_t port, Bit8u value)
 
 		/* == FM MUSIC == */
 
-  case 0x08:		
+  case 0x08:
 		/* FM Music Register Port - SB */
 		/* Alias for 0x00 - SBPro */
 		fm_io_write (FM_LEFT_REGISTER, value);
@@ -878,7 +878,7 @@ void sb_mixer_data_write (Bit8u value)
 			}
 			break;
 
-      case 0x0E: 
+      case 0x0E:
 	if (!(value & 32)) {
 	  S_printf("SB: Warning: Output filter is not supported!\n");
 	  value |= 32;
@@ -889,21 +889,21 @@ void sb_mixer_data_write (Bit8u value)
 	  SB_dsp.dma_mode &= ~SB_USES_DMA;	/* stop DMA :( */
 	  SB_dsp.empty_state = START_DMA_AT_EMPTY | DMA_CONTINUE;
 	}
-	break;	
-		
-      case 0x22: 
+	break;
+
+      case 0x22:
 	sb_write_mixer(SB_MIXER_VOLUME, value);
 	break;
 
-      case 0x26: 
+      case 0x26:
 	sb_write_mixer(SB_MIXER_SYNTH, value);
 	break;
 
-      case 0x28: 
+      case 0x28:
 	sb_write_mixer(SB_MIXER_CD, value);
 	break;
 
-      case 0x2E: 
+      case 0x2E:
 	sb_write_mixer(SB_MIXER_LINE, value);
 	break;
 
@@ -911,11 +911,11 @@ void sb_mixer_data_write (Bit8u value)
 			S_printf ("SB: Unknown index 0x%x in Mixer Write\n",
 				  SB_info.mixer_index);
       break;
-    } 
+    }
     mixer_emu_regs[SB_info.mixer_index] = value;
   }
 }
-    
+
 void sb_do_reset (Bit8u value)
 {
   dma_drop_DREQ(CURRENT_DMA_CHANNEL);
@@ -934,7 +934,7 @@ void sb_do_reset (Bit8u value)
     dsp_write_output(0xAA);
   }
 }
-    
+
 static inline void dma_start(int use_16bit, int use_signed, int sb16_command)
 {
   SB_dsp.is_sb16_command = sb16_command;
@@ -945,7 +945,7 @@ static inline void dma_start(int use_16bit, int use_signed, int sb16_command)
   dma_pending = 1;
   dma_assert_DREQ(CURRENT_DMA_CHANNEL);
   if (!SB_info.speaker) {
-   /* 
+   /*
     * it seems that when speaker is disabled, DMA transfer is running at
     * maximum speed, disregarding the sampling rate. So we are going to
     * start and complete it right now.
@@ -954,7 +954,7 @@ static inline void dma_start(int use_16bit, int use_signed, int sb16_command)
       dpmi_return_request();
   }
 }
-    
+
 /*
  * DANG_BEGIN_FUNCTION sb_dsp_write
  *
@@ -966,8 +966,8 @@ static inline void dma_start(int use_16bit, int use_signed, int sb16_command)
  * data bytes. The number of bytes depends upon the function. The function
  * to be executed is determined by the first byte.
  * If there is no existing command then the command is stored. This then used
- * in the switch to identify the action to be taken. When the command has 
- * supplied all of its arguments, or failed, then the command storage is 
+ * in the switch to identify the action to be taken. When the command has
+ * supplied all of its arguments, or failed, then the command storage is
  * cleared. Each DSP function is responsible for clearing this itself.
  * Again, this function relies on other functions to do the real work, and
  * apart from storing details of the command and parameters is basically a
@@ -975,16 +975,16 @@ static inline void dma_start(int use_16bit, int use_signed, int sb16_command)
  *
  * DANG_END_FUNCTION
  */
-    
-void sb_dsp_write ( Bit8u value ) 
+
+void sb_dsp_write ( Bit8u value )
 {
 #define REQ_PARAMS(i) if (SB_dsp.num_parameters < i) return
 #define PAR_LSB_MSB(i) (SB_dsp.parameter[i] | (SB_dsp.parameter[i+1] << 8))
 #define PAR_MSB_LSB(i) ((SB_dsp.parameter[i] << 8) | SB_dsp.parameter[i+1])
 
-	/* 
-	 * ALL commands set SB_dsp.command to SB_NO_DSP_COMMAND when they 
-	 * complete 
+	/*
+	 * ALL commands set SB_dsp.command to SB_NO_DSP_COMMAND when they
+	 * complete
 	 */
 
       if (SB_dsp.command == SB_NO_DSP_COMMAND ||
@@ -1004,8 +1004,8 @@ void sb_dsp_write ( Bit8u value )
       /* == STATUS == */
 
 		/* 0x03: ASP Status - SB16ASP */
-	
-	case 0x04:	
+
+	case 0x04:
 	if (SB_info.version >= SB_20 && SB_info.version <= SB_PRO) {
 			/* DSP Status - SB2.0-Pro2 - Obselete */
 			sb_dsp_get_status ();
@@ -1014,22 +1014,22 @@ void sb_dsp_write ( Bit8u value )
 			sb_dsp_unsupported_command ();
 	}
 	break;
-	
+
 		/* 0x05: ??? - SB16ASP */
 	case 0x05:
 		REQ_PARAMS(1);
 		sb_dsp_unsupported_command();
 		break;
-	
-	case 0x10:	
+
+	case 0x10:
 		/* Direct 8-bit DAC - SB */
 		REQ_PARAMS(1);
-		S_printf("SB: Direct 8-bit DAC write (%u)\n", 
+		S_printf("SB: Direct 8-bit DAC write (%u)\n",
 			SB_dsp.parameter[0]);
 		sb_write_DAC(8, SB_dsp.parameter[0]);
 	break;
-	
-	
+
+
 		/* == OUTPUT COMMANDS == */
 
 	case 0x14:
@@ -1061,16 +1061,16 @@ void sb_dsp_write ( Bit8u value )
 		SB_dsp.dma_mode &= ~SB_DMA_INPUT;
 		/* dma_start(); */
 	break;
-	
-	case 0x1C:	
+
+	case 0x1C:
 		/* DMA 8-bit DAC (Auto-Init) - SB2.0 */
 		if (SB_info.version < SB_20) {
 			S_printf("SB: 8-bit Auto-Init DMA DAC not supported on this SB version.\n");
 		}
 		if (!SB_dsp.length) {
-		/* 
+		/*
 		 * There seem to be two(!) ways to use the instruction
-		 * 0x1C (8bit, lowspeed, auto): 
+		 * 0x1C (8bit, lowspeed, auto):
 		 *   1. Set blocklength via 0x48, BLOCK, LENGTH
 		 *      Issue 0x1C parameterless.
 		 *   2. Issue 0x1C with blocklength as parameter, WITHOUT
@@ -1094,8 +1094,8 @@ void sb_dsp_write ( Bit8u value )
 		SB_dsp.dma_mode &= ~SB_DMA_INPUT;
 		dma_start(0, 0, 0);
 	break;
-	
-	case 0x1F:	
+
+	case 0x1F:
 		/* DMA 2-bit ADPCM DAC (Reference, Auto-Init) - SB2.0 */
 		if (SB_info.version < SB_20) {
 			S_printf("SB: 2-bit Auto-Init DMA DAC not supported on this SB version.\n");
@@ -1109,7 +1109,7 @@ void sb_dsp_write ( Bit8u value )
 
 		/* == INPUT COMMANDS == */
 
-	case 0x20:	
+	case 0x20:
 		/* Direct 8-bit ADC - SB */
 		S_printf ("SB: 8-bit ADC (Unimplemented)\n");
  		dsp_write_output (0);
@@ -1133,8 +1133,8 @@ void sb_dsp_write ( Bit8u value )
 		}
  		dsp_write_output (0);
 		break;
-			
-	case 0x2C:	
+
+	case 0x2C:
 		/* DMA 8-bit ADC (Auto-Init) - SB2.0 */
 		if (SB_info.version < SB_20) {
 			S_printf("SB: 8-bit Auto-Init DMA ADC not supported on this SB version.\n");
@@ -1204,7 +1204,7 @@ void sb_dsp_write ( Bit8u value )
 			  SB_dsp.parameter[0]);
 		sb_do_midi_write();
 		break;
-	
+
 
 		/* == SAMPLE SPEED == */
 
@@ -1243,18 +1243,18 @@ void sb_dsp_write ( Bit8u value )
 
 
 	/* == OUTPUT == */
-	
+
 	case 0x45:
 		/* Continue Auto-Init 8-bit DMA - SB16 */
 		restart_dsp_dma();
 	break;
-	
+
 	case 0x47:
 		/* Continue Auto-Init 16-bit DMA - SB16 */
 		restart_dsp_dma();
 	break;
-	
-	case 0x48:	
+
+	case 0x48:
 		/* Set DMA Block Size - SB2.0 */
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
@@ -1322,11 +1322,11 @@ void sb_dsp_write ( Bit8u value )
 		SB_dsp.dma_mode &= ~SB_DMA_INPUT;
 		/* dma_start(); */
 	break;
-	
+
 	case 0x80:
 		/* Silence DAC - SB */
 		REQ_PARAMS(2);
-		SB_dsp.length = PAR_LSB_MSB(0) + 1; 
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 		sb_write_silence();
 		break;
 
@@ -1363,9 +1363,9 @@ void sb_dsp_write ( Bit8u value )
 		SB_dsp.dma_mode &= ~SB_DMA_INPUT;
 	        dma_start(0, 0, 0);
 	break;
-	 
+
 	/* == INPUT == */
-	
+
 	case 0x98:
 		/* DMA 8-bit ADC (High Speed, Auto-Init) - SB2.0-Pro2 */
 		if (SB_info.version < SB_20 || SB_info.version > SB_PRO) {
@@ -1398,11 +1398,11 @@ void sb_dsp_write ( Bit8u value )
 		SB_dsp.dma_mode |= SB_DMA_INPUT;
 		dma_start(0, 0, 0);
 	break;
-	
-	
+
+
 		/* == STEREO MODE == */
 
-	case 0xA0:	
+	case 0xA0:
 		/* Enable Mono Input - SBPro Only */
 		S_printf ("SB: Disable Stereo Input not implemented\n");
 	break;
@@ -1411,7 +1411,7 @@ void sb_dsp_write ( Bit8u value )
 		/* Enable Stereo Input - SBPro Only */
 		S_printf ("SB: Enable Stereo Input not implemented\n");
 	break;
-	
+
 
 	/* == SB16 direct ADC/DAC == */
 
@@ -1477,15 +1477,15 @@ void sb_dsp_write ( Bit8u value )
 
 
 	/* == DMA == */
-	
+
 	case 0xD0:
 		/* Halt 8-bit DMA - SB */
-	pause_dsp_dma(); 
+	pause_dsp_dma();
 	break;
-	
+
 
 		/* == SPEAKER == */
-		
+
 	case 0xD1:
 		/* Enable Speaker - SB */
 		sb_enable_speaker();
@@ -1494,7 +1494,7 @@ void sb_dsp_write ( Bit8u value )
 		  SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		}
 	break;
-	
+
 	case 0xD3:
 		/* Disable Speaker - SB */
 		sb_disable_speaker();
@@ -1503,8 +1503,8 @@ void sb_dsp_write ( Bit8u value )
 		  SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		}
 	break;
-	
-	
+
+
 		/* == DMA == */
 
 	case 0xD4:
@@ -1521,17 +1521,17 @@ void sb_dsp_write ( Bit8u value )
 		/* Continue 16-bit DMA - SB16 */
 		restart_dsp_dma();
 	break;
-	
+
 
 		/* == SPEAKER == */
-		
+
 	case 0xD8:
 		/* Speaker Status */
 		dsp_write_output (SB_info.speaker);
 		break;
-	
+
 	/* == DMA == */
-	
+
 	case 0xD9:
 		/* Exit Auto-Init 16-bit DMA - SB16 */
 	case 0xDA:
@@ -1539,9 +1539,9 @@ void sb_dsp_write ( Bit8u value )
 		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		break;
 
-	
+
 	/* == DSP IDENTIFICATION == */
-	
+
 	case 0xE0:
 		/* DSP Identification - SB2.0 */
 		REQ_PARAMS(1);
@@ -1600,7 +1600,7 @@ void sb_dsp_write ( Bit8u value )
 	case 0xE8:
 		/* Read from Test - SB2.0 */
 		if (SB_info.version >= SB_20) {
-			S_printf("SB: Read 0x%x from test register.\n", 
+			S_printf("SB: Read 0x%x from test register.\n",
 				 SB_dsp.test);
 			dsp_write_output(SB_dsp.test);
 			}
@@ -1617,7 +1617,7 @@ void sb_dsp_write ( Bit8u value )
 
 		/* == STATUS == */
 
-	case 0xF1:	
+	case 0xF1:
 		/* DSP Auxiliary Status - SBPro2 */
 		sb_get_aux_status();
 		break;
@@ -1625,7 +1625,7 @@ void sb_dsp_write ( Bit8u value )
 
 		/* == IRQ == */
 
-	case 0xF2:	
+	case 0xF2:
 		/* 8-bit IRQ - SB */
 	        sb_activate_irq (SB_IRQ_8BIT);
 		break;
@@ -1646,7 +1646,7 @@ void sb_dsp_write ( Bit8u value )
       SB_dsp.command = SB_NO_DSP_COMMAND;
       SB_dsp.num_parameters = 0;
 
-/* 
+/*
  * Some programs expects DSP to be busy after a command was written to it, but
  * not immediately. Probably it takes some time for the command being written
  * to the i/o port, to be accepted by DSP.
@@ -1658,10 +1658,10 @@ void sb_dsp_write ( Bit8u value )
 }
 
 
-/* 
- * DANG_FIXTHIS DSP Status is unimplemented 
+/*
+ * DANG_FIXTHIS DSP Status is unimplemented
  */
-void sb_dsp_get_status (void) 
+void sb_dsp_get_status (void)
 {
 	Bit8u output = 0;
 
@@ -1673,9 +1673,9 @@ void sb_dsp_get_status (void)
 
 	dsp_write_output(output);
 }
-	
+
 void sb_dsp_unsupported_command (void)
-{	
+{
     S_printf ("SB: Unsupported Command 0x%x (parameter 0x%x)\n",
 	SB_dsp.command, SB_dsp.parameter[0]);
 }
@@ -1694,17 +1694,17 @@ void *silence_data;
 
      /* DANG_FIXME sb_write_silence should take into account the sample type */
 
-		/* 
-		 * Originally from Karcher using a special function, 
+		/*
+		 * Originally from Karcher using a special function,
 		 * generalized by Alistair
 		 */
 
-		 
+
 		if(SB_IN_STEREO_MODE)
 		  SB_dsp.length *= 2;
 		if(SB_dsp.is_16bit)
 		  SB_dsp.length *= 2;
-		
+
 		silence_data = malloc(SB_dsp.length);
 		if (silence_data == NULL) {
 		  S_printf("SB: Failed to alloc memory for silence. Aborting\n");
@@ -1746,7 +1746,7 @@ static void adlib_io_write(ioport_t port, Bit8u value)
 		S_printf("Adlib: Write 0x%x to Data Port\n", value);
 		fm_io_write(ADLIB_DATA, value);
 	break;
-	
+
 	case 0x38A:		/* Adv. Adlib Register Port */
 		S_printf("Adv_Adlib: Write 0x%x to Register Port\n", value);
 		fm_io_write(ADV_ADLIB_REGISTER, value);
@@ -1757,7 +1757,7 @@ static void adlib_io_write(ioport_t port, Bit8u value)
 		break;
     };
 }
-	
+
 static void fm_io_write(ioport_t port, Bit8u value)
 {
     switch (port) {
@@ -1824,7 +1824,7 @@ static void fm_io_write(ioport_t port, Bit8u value)
 	    break;
 	  }
 		break;
-	
+
 	case ADV_ADLIB_REGISTER:
 		/* DANG_FIXTHIS Advanced Adlib register writes are unimplemented */
 		break;
@@ -1832,7 +1832,7 @@ static void fm_io_write(ioport_t port, Bit8u value)
 	case ADV_ADLIB_DATA:
 		/* DANG_FIXTHIS Advanced Adlib data writes are unimplemented */
 		break;
-	
+
     };
 }
 
@@ -1874,11 +1874,11 @@ void mpu401_io_write(ioport_t port, Bit8u value)
 }
 
 
-/* 
- * DANG_FIXTHIS SB Midi is Unimplemented 
+/*
+ * DANG_FIXTHIS SB Midi is Unimplemented
  */
 
-void sb_do_midi_write (void) 
+void sb_do_midi_write (void)
 {
 	S_printf("SB: Sorry, unimplemented MIDI command 0x%x\n", SB_dsp.command);
 }
@@ -1907,20 +1907,20 @@ static void dsp_do_copyright(void)
 }
 
 
-/* 
- * DANG_FIXTHIS Sine Generation is unimplemented 
+/*
+ * DANG_FIXTHIS Sine Generation is unimplemented
  */
 void sb_do_sine (void)
 {
 	S_printf("SB: Start Sine generator. (unimplemented)\n");
-	
+
 	if (SB_info.version < SB_16) {
 		sb_enable_speaker();
 	}
 }
 
-/* 
- * DANG_FIXTHIS AUX Status is Unimplemented 
+/*
+ * DANG_FIXTHIS AUX Status is Unimplemented
  */
 void sb_get_aux_status (void)
 {
@@ -1944,7 +1944,7 @@ void sb_get_version (void)
  * DMA Support
  * ===========
  */
- 
+
 #define SB_IRQ_PEND (SB_info.irq.pending & (SB_IRQ_8BIT | SB_IRQ_16BIT))
 void pause_dsp_dma(void)
 {
@@ -1975,7 +1975,7 @@ void restart_dsp_dma(void)
   else if (debug_level('S') >= 3) {
     S_printf ("SB: Optional function 'DMA_resume' not provided.\n");
   }
-   
+
   SB_dsp.pause_state = 0;
   sb_is_running |= DSP_OUTPUT_RUN;
   if (!SB_dsp.empty_state)
@@ -2130,7 +2130,7 @@ static void handle_dma_IO(int size)
   }
 
   SB_dsp.units_left -= size;
-     
+
   if(SB_dsp.units_left)
   {
     if(!(SB_dsp.dma_mode & SB_USES_DMA)) {	/* what? Damn this ST3... */
@@ -2214,7 +2214,7 @@ static Bit8u missed_byte;
           S_printf("SB: Warning: requested %d (odd) bytes in Stereo\n",length);
         length--;
         if (length == 0) {
-/* 
+/*
  * The idea of this hack is to preserve the last byte and attach it to the
  * beginning of the next block. Outputting it now will result in unexpected
  * reverberation, dropping it will result in a channel swapping.
@@ -2356,7 +2356,7 @@ char fill;
   length = min(size, SB_dsp.units_left);
   if (!length)
     return 0;
-  S_printf("SB: Going to read %d bytes\n", length);    
+  S_printf("SB: Going to read %d bytes\n", length);
 
   if (!SB_driver.DMA_do_read) {
     S_printf("SB: function \"DMA_do_read\" not provided, can't use DMA!\n");
@@ -2486,7 +2486,7 @@ static void sb_check_complete (void)
 
     if(SB_dsp.empty_state & DREQ_AT_EOI) {
       if (/*!into_irq && */!SB_info.irq.pending) {
-	S_printf("SB: Warning: program doesn't ACK the interrupt, enjoy clicking.\n");  
+	S_printf("SB: Warning: program doesn't ACK the interrupt, enjoy clicking.\n");
 	if(!SB_dsp.pause_state)
           dma_assert_DREQ(CURRENT_DMA_CHANNEL);
 	SB_dsp.empty_state &= ~DREQ_AT_EOI;
@@ -2613,7 +2613,7 @@ static void sb_init(void)
 static void fm_init(void)
 {
   emu_iodev_t  io_device;
-  
+
   S_printf ("SB: FM Initialisation\n");
 
   /* This is the FM (Adlib + Advanced Adlib) */
@@ -2639,7 +2639,7 @@ static void fm_init(void)
 static void mpu401_init(void)
 {
   emu_iodev_t  io_device;
-  
+
   S_printf ("MPU401: MPU-401 Initialisation\n");
 
   /* This is the MPU-401 */
@@ -2659,7 +2659,7 @@ static void mpu401_init(void)
     SB_info.version = SB_NONE;
   }
 
-  S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n", 
+  S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n",
 	    config.mpu401_base);
 
   Q_CLEAR(mpu401_info.data);
@@ -2762,7 +2762,7 @@ static void mpu401_reset (void)
 static void sb_write_DAC (int bits, uint8_t value)
 {
   S_printf ("SB: Direct DAC write (%u bits)\n", bits);
-  
+
   if (SB_driver.DAC_write == NULL) {
     S_printf ("SB: Required function 'DAC_write' not provided.\n");
   }
@@ -2861,11 +2861,11 @@ void sb_update_timers () {
   Bit8u current_value;
   Bit16u int08_irq;
 
-  if ( (adlib_timers[0].enabled != 1) 
+  if ( (adlib_timers[0].enabled != 1)
        && (adlib_timers[1].enabled != 1) ) {
 
-    /* 
-     * We only make it here if both of the timers have been turned off 
+    /*
+     * We only make it here if both of the timers have been turned off
      * individually, rather than using the reset. We turn this off in the
      * 'sb_is_running' flags - AM
      */
@@ -2874,8 +2874,8 @@ void sb_update_timers () {
     return;
   }
 
-  /* Get system time.  PLEASE DONT CHANGE THIS LINE, unless you can 
-   * _guarantee_ that the substitute/stored timer value _is_ up to date 
+  /* Get system time.  PLEASE DONT CHANGE THIS LINE, unless you can
+   * _guarantee_ that the substitute/stored timer value _is_ up to date
    * at _this_ instant!  (i.e: vm86s exit time did not not work well)
    */
   tp = GETusTIME(0);
@@ -2895,7 +2895,7 @@ void sb_update_timers () {
     if (current_value > adlib_timers[0].counter) {
       S_printf ("Adlib: timer1 has expired \n");
       adlib_timers[0].expired = 1;
-      pic_request(int08_irq);    
+      pic_request(int08_irq);
     }
   }
   if (adlib_timers[1].enabled == 1) {
@@ -2905,7 +2905,7 @@ void sb_update_timers () {
     if (current_value > adlib_timers[1].counter) {
       S_printf ("Adlib: timer2 has expired \n");
       adlib_timers[1].expired = 1;
-      pic_request(int08_irq);    
+      pic_request(int08_irq);
     }
   }
 }
@@ -2917,7 +2917,7 @@ void sb_update_timers () {
  */
 
 
-/* 
+/*
  * This code was originally by Michael Karcher, but has had a number of
  * assumptions cleaned up - AM
  */

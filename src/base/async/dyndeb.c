@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -73,11 +73,11 @@ int set_debug_level(int letter, int level)
 
 /*
  * DANG_BEGIN_FUNCTION parse_debugflags
- * 
- * arguments: 
+ *
+ * arguments:
  * s - string of options.
- * 
- * description: 
+ *
+ * description:
  * This part is fairly flexible...you specify the debugging
  * flags you wish with -D string.  The string consists of the following
  * characters: +   turns the following options on (initial state) -
@@ -85,19 +85,19 @@ int set_debug_level(int letter, int level)
  * depending on whether +/- is set 0-9 sets debug levels (0 is off, 9 is
  * most verbose) #   where # is a letter from the valid option list (see
  * docs), turns that option off/on depending on the +/- state.
- * 
+ *
  * Any option letter can occur in any place.  Even meaningless combinations,
  * such as "01-a-1+0vk" will be parsed without error, so be careful. Some
  * options are set by default, some are clear. This is subject to my whim.
  * You can ensure which are set by explicitly specifying.
- * 
+ *
  * DANG_END_FUNCTION
  */
 int parse_debugflags(const char *s, unsigned char flag)
 {
 	char            c;
 	int ret = 0;
-	
+
 	dbug_printf("debug flags: %s\n", s);
 	while ((c = *(s++)))
 		switch (c) {
@@ -144,22 +144,22 @@ int GetDebugFlagsHelper(char *debugStr, int print)
 {
 	int i;
 	struct debug_class *class;
-	
+
 	if (print) dbug_printf("GetDebugFlagsHelper\n");
 	if (print) dbug_printf("debugStr at %p\n", debugStr);
 	i = 0;
-	
+
 	for(class = debug; class <= &debug[DEBUG_CLASSES-1]; class++) {
 		if (!class->letter) {
 			continue;
 		}
-		debugStr[i++] = DebugFlag(class->level); 
+		debugStr[i++] = DebugFlag(class->level);
 		debugStr[i++] = class->letter;
 	}
-	
+
 	debugStr[i++] = '\0';
 	if (print) dbug_printf("debugStr is %s\n", debugStr);
-	
+
 	return (0);
 }
 
@@ -167,7 +167,7 @@ void print_debug_usage(FILE *stream)
 {
 	struct debug_class *class;
 	int i;
-	fprintf(stream, 
+	fprintf(stream,
 		"    -D set debug-msg mask to flags {+-}{0-9}{");
 	for(class = debug; class <= &debug[DEBUG_CLASSES-1]; class++) {
 		if (class->letter) {
@@ -233,7 +233,7 @@ CONSTRUCTOR(static void init(void))
 	register_debug_class('D', int21_change_level, "dos int 21h");
 	register_debug_class('C', 0, "CDROM");
 	register_debug_class('v', 0, "video");
-	register_debug_class('X', 0, "X support");       
+	register_debug_class('X', 0, "X support");
 	register_debug_class('k', 0, "keyboard");
 	register_debug_class('i', 0, "i/o instructions (in/out)");
 	register_debug_class('T', port_trace_change_level, "I/O trace");

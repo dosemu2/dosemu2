@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -87,7 +87,7 @@ static void handle_console_input(void)
   static char sbuf[UHOOK_BUFFERSIZE]="\n";
   static int sn=1;
   int n;
-  
+
   n=read(0, buf, sizeof(buf));
   if (n>0) {
     if (!strncmp(buf, "q\n", 2)) exit(0);
@@ -120,7 +120,7 @@ static void handle_uhook_input(void)
 int main (int argc, char **argv)
 {
   int numfds;
-  
+
   FD_ZERO(&readfds);
 
   if (argc <= 2) usage();

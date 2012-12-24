@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
  *
@@ -406,7 +406,7 @@ void DAC_set_write_index(unsigned char index)
  * DANG_BEGIN_FUNCTION DAC_read_value
  *
  * Read a value from the DAC. Each read will cycle through the registers for
- * red, green and blue. After a ``blue read'' the read index will be 
+ * red, green and blue. After a ``blue read'' the read index will be
  * incremented. Read VGADOC4 if you want to know more about the DAC.
  * This is a hardware emulation function.
  *
@@ -496,7 +496,7 @@ void DAC_write_value(unsigned char value)
       vga.dac.rgb[vga.dac.write_index].b = value;
       vga.dac.pel_index = 'r';
       vga.dac.write_index++;
-      
+
       /* observed behaviour on a real system - clarence */
       vga.dac.read_index = vga.dac.write_index - 1;
       break;

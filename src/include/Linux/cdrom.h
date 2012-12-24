@@ -67,14 +67,14 @@
  * CDROM IOCTL structures
  */
 
-struct cdrom_blk 
+struct cdrom_blk
 {
 	unsigned from;
 	unsigned short len;
 };
 
 
-struct cdrom_msf 
+struct cdrom_msf
 {
 	u_char	cdmsf_min0;	/* start minute */
 	u_char	cdmsf_sec0;	/* start second */
@@ -84,7 +84,7 @@ struct cdrom_msf
 	u_char	cdmsf_frame1;	/* end frame */
 };
 
-struct cdrom_ti 
+struct cdrom_ti
 {
 	u_char	cdti_trk0;	/* start track */
 	u_char	cdti_ind0;	/* start index */
@@ -92,7 +92,7 @@ struct cdrom_ti
 	u_char	cdti_ind1;	/* end index */
 };
 
-struct cdrom_tochdr 	
+struct cdrom_tochdr
 {
 	u_char	cdth_trk0;	/* start track */
 	u_char	cdth_trk1;	/* end track */
@@ -111,7 +111,7 @@ union cdrom_addr		/* address in either MSF or logical format */
 	int			lba;
 };
 
-struct cdrom_tocentry 
+struct cdrom_tocentry
 {
 	u_char	cdte_track;
 	u_char	cdte_adr	:4;
@@ -137,7 +137,7 @@ struct cdrom_tocentry
  */
 #define	CDROM_LEADOUT	0xAA
 
-struct cdrom_subchnl 
+struct cdrom_subchnl
 {
 	u_char	cdsc_format;
 	u_char	cdsc_audiostatus;
@@ -171,7 +171,7 @@ struct cdrom_volctrl
 	u_char	channel3;
 };
 
-struct cdrom_read      
+struct cdrom_read
 {
 	int	cdread_lba;
 	caddr_t	cdread_bufaddr;
@@ -243,7 +243,7 @@ struct cdrom_multisession
  * enable (1) / disable (0) auto-ejecting
  */
 #define CDROMEJECT_SW		0x530f	/* arg: 0 or 1 */
- 
+
 /*
  * obtain the start-of-last-session address of multi session disks
  */
@@ -259,19 +259,19 @@ struct cdrom_multisession
 #define CDROMVOLREAD		0x5313	/* let the drive tell its volume setting */
 					/* (struct cdrom_volctrl) */
 
-/* 
+/*
  * these ioctls are used in aztcd.c and optcd.c
  */
 #define CDROMREADRAW		0x5314	/* read data in raw mode */
 #define CDROMREADCOOKED		0x5315	/* read data in cooked mode */
 #define CDROMSEEK		0x5316  /* seek msf address */
-  
+
 /*
  * for playing audio in logical block addressing mode
  */
 #define CDROMPLAYBLK		0x5317	/* (struct cdrom_blk) */
 
-/* 
+/*
  * these ioctls are used in optcd.c
  */
 #define CDROMREADALL		0x5318	/* read all 2646 bytes */
@@ -316,7 +316,7 @@ struct cdrom_multisession
 /*
  * CD-ROM capacity structure.
  */
-struct scsi_capacity 
+struct scsi_capacity
 {
 	u_long	capacity;
 	u_long	lbasize;
@@ -335,7 +335,7 @@ struct scsi_capacity
 /*
  * standard mode-select header prepended to all mode-select commands
  */
-struct ccs_modesel_head 
+struct ccs_modesel_head
 {
 	u_char	_r1;	/* reserved */
 	u_char	medium;	/* device-specific medium type */
@@ -353,7 +353,7 @@ struct ccs_modesel_head
 /*
  * error recovery parameters
  */
-struct ccs_err_recovery 
+struct ccs_err_recovery
 {
 	u_char	_r1 : 2;	/* reserved */
 	u_char	page_code : 6;	/* page code */
@@ -376,7 +376,7 @@ struct ccs_err_recovery
 /*
  * disco/reco parameters
  */
-struct ccs_disco_reco 
+struct ccs_disco_reco
 {
 	u_char	_r1	: 2;	/* reserved */
 	u_char	page_code : 6;	/* page code */
@@ -392,7 +392,7 @@ struct ccs_disco_reco
 /*
  * drive geometry parameters
  */
-struct ccs_geometry 
+struct ccs_geometry
 {
 	u_char	_r1	: 2;	/* reserved */
 	u_char	page_code : 6;	/* page code */
@@ -419,7 +419,7 @@ struct ccs_geometry
 /*
  * cache parameters
  */
-struct ccs_cache 
+struct ccs_cache
 {
 	u_char	_r1	: 2;	/* reserved */
 	u_char	page_code : 6;	/* page code */
@@ -439,7 +439,7 @@ struct ccs_cache
  * Overrides for Emacs so that we follow Linus's tabbing style.
  * Emacs will notice this stuff at the end of the file and automatically
  * adjust the settings for this buffer only.  This must remain at the end
- * of the file. 
+ * of the file.
  * ---------------------------------------------------------------------------
  * Local variables:
  * c-indent-level: 8
