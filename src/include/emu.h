@@ -363,8 +363,8 @@ EXTERN int port_readable(unsigned short);
 EXTERN int port_writeable(unsigned short);
 EXTERN unsigned char read_port(unsigned short);
 EXTERN int write_port(unsigned int, unsigned short);
-EXTERN __inline__ void parent_nextscan(void);
-EXTERN __inline__ void disk_close(void);
+EXTERN void parent_nextscan(void);
+EXTERN void disk_close(void);
 EXTERN void cpu_setup(void);
 EXTERN void cpu_reset(void);
 EXTERN void real_run_int(int);
@@ -409,7 +409,7 @@ EXTERN void SIG_close(void);
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
 
-EXTERN inline void SIGNAL_save( void (*signal_call)(void) );
+extern void SIGNAL_save( void (*signal_call)(void) );
 extern void handle_signals(void);
 extern void handle_signals_force_reentry(void);
 

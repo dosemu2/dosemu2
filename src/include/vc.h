@@ -109,7 +109,7 @@ typedef unsigned char uchar;
 extern int on_console(void);
 extern void vt_activate(int con_num);
 extern int vc_active(void);
-extern __inline__ void allow_switch(void);
+extern void allow_switch(void);
 extern void set_vc_screen_page(void);
 extern void init_get_video_ram(int);
 extern void set_process_control(void);

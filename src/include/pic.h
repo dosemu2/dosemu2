@@ -118,7 +118,7 @@ void pic_set_callback(Bit16u cs, Bit16u ip);
 void pic_iret(void);                         /* interrupt completion notify */
 void pic_iret_dpmi(void);                    /* interrupt completion notify */
 void pic_resched(void);
-inline void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
+void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
 void do_irq0(void);				/* timer interrupt */
 int pic_pending(void);			/* inform caller if interrupt is pending */
 int pic_irq_active(int num);

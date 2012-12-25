@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT([DOSEMU], [],
 [http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse],dosemu)
 AC_CONFIG_SRCDIR(src/dos.c)
-AC_PREREQ(2.53)
+AC_PREREQ(2.59)
 
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
@@ -16,6 +16,8 @@ AC_CONFIG_HEADER(src/include/config.h)
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
+ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99], [CPPFLAGS="$CPPFLAGS -std=gnu99"; export CPPFLAGS])
+
 AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
   CPPFLAGS="$CPPFLAGS -m$with_target_bits"
   export CPPFLAGS

@@ -235,7 +235,7 @@ int dpmi_check_return(struct sigcontext_struct *scp);
 void dpmi_init(void);
 extern void copy_context(struct sigcontext_struct *d,
     struct sigcontext_struct *s, int copy_fpu);
-extern inline unsigned short dpmi_sel(void);
+extern unsigned short dpmi_sel(void);
 extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
 extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
 
