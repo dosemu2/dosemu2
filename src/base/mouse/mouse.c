@@ -62,8 +62,8 @@
  * DANG_END_REMARK
  */
 
-#define MOUSE_RX mouse_roundx(mouse.x + mouse.x_delta)
-#define MOUSE_RY mouse_roundy(mouse.y + mouse.y_delta)
+#define MOUSE_RX mouse_roundx(mouse.x)
+#define MOUSE_RY mouse_roundy(mouse.y)
 
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
@@ -1052,6 +1052,7 @@ static void mouse_reset(int flag)
 
   mouse.mickeyx = mouse.mickeyy = 0;
   mouse.x_delta = mouse.y_delta = 0;
+  mouse.abs_x = mouse.abs_y = 0;
 
   mouse.textscreenmask = 0xffff;
   mouse.textcursormask = 0x7f00;
@@ -1112,18 +1113,19 @@ mouse_setpos(void)
     m_printf("MOUSE: ignoring 'set cursor pos' in X with no grab active\n");
     return;
   }
+  mouse.x = LWORD(ecx);
+  mouse.unsc_x = mouse.x * mouse.speed_x;
+  mouse.y = LWORD(edx);
+  mouse.unsc_y = mouse.y * mouse.speed_y;
+  mouse_round_coords();
   if (mouse.cursor_on > 0) {
-    mouse.x = LWORD(ecx);
-    mouse.unsc_x = mouse.x * mouse.speed_x;
-    mouse.y = LWORD(edx);
-    mouse.unsc_y = mouse.y * mouse.speed_y;
-    mouse_round_coords();
+    mouse.x_delta = mouse.y_delta = 0;
     mouse_hide_on_exclusion();
     mouse_do_cur(1);
     m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
   } else {
-    mouse.x_delta = LWORD(ecx) - mouse.x;
-    mouse.y_delta = LWORD(edx) - mouse.y;
+    mouse.x_delta = mouse.x - mouse.abs_x;
+    mouse.y_delta = mouse.y - mouse.abs_y;
     m_printf("MOUSE: set cursor delta x:%d, y:%d\n",
 	    mouse.x_delta, mouse.y_delta);
   }
@@ -1566,11 +1568,6 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 void mouse_move_relative(int dx, int dy)
 {
 	int unsc_x, unsc_y;
-
-	dx += mouse.x_delta;
-	dy += mouse.y_delta;
-	mouse.x_delta = mouse.y_delta = 0;
-
 	unsc_x = dx * mouse.speed_x;
 	unsc_y = dy * mouse.speed_y;
 	mouse.unsc_x += unsc_x;
@@ -1617,16 +1614,21 @@ void mouse_move_mickeys(int dx, int dy)
 
 void mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
-	int dx, dy, new_x, new_y, clipped;
-
-	new_x = x + mouse.x_delta;
-	new_y = y + mouse.y_delta;
+	int dx, dy, new_x, new_y, mx_range, my_range, clipped;
+	mx_range = mouse.maxx - mouse.minx +1;
+	my_range = mouse.maxy - mouse.miny +1;
+	new_x = (x*mx_range)/x_range + mouse.minx + mouse.x_delta;
+	new_y = (y*my_range)/y_range + mouse.miny + mouse.y_delta;
 	dx = (((new_x - mouse.x) * mouse.speed_x) >> 3);
 	dy = (((new_y - mouse.y) * mouse.speed_y) >> 3);
 	mouse.mickeyx += dx;
 	mouse.mickeyy += dy;
 	mouse.x = new_x;
 	mouse.y = new_y;
+	mouse.abs_x = x;
+	mouse.abs_y = y;
+	mouse.unsc_x = new_x * mouse.speed_x;
+	mouse.unsc_y = new_y * mouse.speed_y;
 	clipped = mouse_round_coords();
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
@@ -1766,8 +1768,6 @@ do_mouse_irq()
 /* unconditional mouse cursor update */
 static void mouse_do_cur(int callback)
 {
-  int minx, maxx, miny, maxy;
-
   if (mouse.gfx_cursor) {
     graph_cursor();
   }
@@ -1780,15 +1780,9 @@ static void mouse_do_cur(int callback)
 
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
      requested it to be moved */
-
-  minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
-  maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
-  miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
-  maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
-
   Mouse->set_cursor(mouse.cursor_on == 0?1: 0,
-		    mouse.x - minx, mouse.y - miny,
-		    maxx - minx +1, maxy - miny +1);
+		    mouse.x - mouse.minx, mouse.y - mouse.miny,
+		    mouse.maxx - mouse.minx +1, mouse.maxy - mouse.miny +1);
 }
 
 /* conditionally update the mouse cursor only if it's changed position. */
