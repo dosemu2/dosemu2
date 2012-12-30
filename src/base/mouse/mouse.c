@@ -876,6 +876,59 @@ mouse_setcurspeed(void)
   }
 }
 
+static void reset_unscaled(void)
+{
+	mouse.unsc_x = mouse.unsc_y = 0;
+}
+
+static int get_unsc_x(int dx)
+{
+	int mx_range;
+	mx_range = mouse.maxx - mouse.minx +1;
+	return dx * mouse.speed_x * mx_range;
+}
+
+static int get_unsc_y(int dy)
+{
+	int my_range;
+	my_range = mouse.maxy - mouse.miny +1;
+	return dy * mouse.speed_y * my_range;
+}
+
+static int get_mk_x(int ux)
+{
+	int mx_range;
+	mx_range = mouse.maxx - mouse.minx +1;
+	return ux / (mx_range * 8);
+}
+
+static int get_mk_y(int uy)
+{
+	int my_range;
+	my_range = mouse.maxy - mouse.miny +1;
+	return uy / (my_range * 8);
+}
+
+static void recalc_coords(int x_range, int y_range)
+{
+	int dx = mouse.unsc_x / (x_range * mouse.speed_x);
+	int dy = mouse.unsc_y / (y_range * mouse.speed_y);
+	mouse.x += dx;
+	mouse.y += dy;
+	mouse.unsc_x -= get_unsc_x(dx);
+	mouse.unsc_y -= get_unsc_y(dy);
+}
+
+static void add_mk(int dx, int dy)
+{
+	int mx_range, my_range;
+	mx_range = mouse.maxx - mouse.minx +1;
+	my_range = mouse.maxy - mouse.miny +1;
+	mouse.unsc_x += dx * 8 * mx_range;
+	mouse.unsc_y += dy * 8 * my_range;
+	recalc_coords(mx_range, my_range);
+}
+
 /*
  * Because the mouse hook finally works all video sets that pass
  * through the video bios eventually pass through here.
@@ -1114,15 +1167,14 @@ mouse_setpos(void)
     return;
   }
   mouse.x = LWORD(ecx);
-  mouse.unsc_x = mouse.x * mouse.speed_x;
   mouse.y = LWORD(edx);
-  mouse.unsc_y = mouse.y * mouse.speed_y;
+  reset_unscaled();
   mouse_round_coords();
+  m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
   if (mouse.cursor_on > 0) {
     mouse.x_delta = mouse.y_delta = 0;
     mouse_hide_on_exclusion();
     mouse_do_cur(1);
-    m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
   } else {
     mouse.x_delta = mouse.x - mouse.abs_x;
     mouse.y_delta = mouse.y - mouse.abs_y;
@@ -1419,24 +1471,22 @@ static int mouse_round_coords(void)
 	/* put the mouse coordinate in bounds */
 	if (mouse.x < mouse.virtual_minx) {
 		mouse.x = mouse.virtual_minx;
-		mouse.unsc_x = mouse.x * mouse.speed_x;
 		clipped = 1;
 	}
 	if (mouse.y < mouse.virtual_miny) {
 		mouse.y = mouse.virtual_miny;
-		mouse.unsc_y = mouse.y * mouse.speed_y;
 		clipped = 1;
 	}
 	if (mouse.x > mouse.virtual_maxx) {
 		mouse.x = mouse.virtual_maxx;
-		mouse.unsc_x = mouse.x * mouse.speed_x;
 		clipped = 1;
 	}
 	if (mouse.y > mouse.virtual_maxy) {
 		mouse.y = mouse.virtual_maxy;
-		mouse.unsc_y = mouse.y * mouse.speed_y;
 		clipped = 1;
 	}
+	if (clipped)
+		reset_unscaled();
 	return clipped;
 }
 
@@ -1565,18 +1615,17 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 	   mouse_rb();
 }
 
-void mouse_move_relative(int dx, int dy)
+void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 {
 	int unsc_x, unsc_y;
-	unsc_x = dx * mouse.speed_x;
-	unsc_y = dy * mouse.speed_y;
+	unsc_x = get_unsc_x(dx);
+	unsc_y = get_unsc_y(dy);
 	mouse.unsc_x += unsc_x;
 	mouse.unsc_y += unsc_y;
-	mouse.x += dx;
-	mouse.y += dy;
+	recalc_coords(x_range, y_range);
 	/* XXX fix rounding errors! */
-	mouse.mickeyx += unsc_x >> 3;
-	mouse.mickeyy += unsc_y >> 3;
+	mouse.mickeyx += get_mk_x(unsc_x);
+	mouse.mickeyy += get_mk_y(unsc_y);
 
 	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
 		 dx, dy, mouse.x, mouse.y);
@@ -1590,15 +1639,7 @@ void mouse_move_relative(int dx, int dy)
 
 void mouse_move_mickeys(int dx, int dy)
 {
-	/* according to the interrupt list, the speed setting is in
-		mickeys per eight pixels. */
-	/* IDEA: running dx and dy through a filter which dampens
-		values near zero and amplifies larger values might
-		give us a cheap acceleration profile. */
-	mouse.unsc_x += dx << 3;
-	mouse.unsc_y += dy << 3;
-	mouse.x = mouse.unsc_x / mouse.speed_x;
-	mouse.y = mouse.unsc_y / mouse.speed_y;
+	add_mk(dx, dy);
 	mouse.mickeyx += dx;
 	mouse.mickeyy += dy;
 
@@ -1617,18 +1658,17 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	int dx, dy, new_x, new_y, mx_range, my_range, clipped;
 	mx_range = mouse.maxx - mouse.minx +1;
 	my_range = mouse.maxy - mouse.miny +1;
-	new_x = (x*mx_range)/x_range + mouse.minx + mouse.x_delta;
-	new_y = (y*my_range)/y_range + mouse.miny + mouse.y_delta;
-	dx = (((new_x - mouse.x) * mouse.speed_x) >> 3);
-	dy = (((new_y - mouse.y) * mouse.speed_y) >> 3);
+	new_x = (x*mx_range)/x_range + mouse.minx;
+	new_y = (y*my_range)/y_range + mouse.miny;
+	dx = (((new_x - mouse.abs_x) * mouse.speed_x) >> 3);
+	dy = (((new_y - mouse.abs_y) * mouse.speed_y) >> 3);
 	mouse.mickeyx += dx;
 	mouse.mickeyy += dy;
-	mouse.x = new_x;
-	mouse.y = new_y;
-	mouse.abs_x = x;
-	mouse.abs_y = y;
-	mouse.unsc_x = new_x * mouse.speed_x;
-	mouse.unsc_y = new_y * mouse.speed_y;
+	mouse.x = new_x + mouse.x_delta;
+	mouse.y = new_y + mouse.y_delta;
+	reset_unscaled();
+	mouse.abs_x = new_x;
+	mouse.abs_y = new_y;
 	clipped = mouse_round_coords();
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
