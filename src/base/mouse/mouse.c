@@ -915,8 +915,8 @@ static void recalc_coords(int x_range, int y_range)
 	int dy = mouse.unsc_y / (y_range * mouse.speed_y);
 	mouse.x += dx;
 	mouse.y += dy;
-	mouse.unsc_x -= get_unsc_x(dx);
-	mouse.unsc_y -= get_unsc_y(dy);
+	mouse.unsc_x -= dx * x_range * mouse.speed_x;
+	mouse.unsc_y -= dy * y_range * mouse.speed_y;
 }
 
 static void add_mk(int dx, int dy)
