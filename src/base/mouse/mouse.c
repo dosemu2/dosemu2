@@ -379,12 +379,12 @@ mouse_int(void)
 
   case 0x01:			/* Show Mouse Cursor */
     mouse_cursor(1);
-    if (Mouse->set_cursor) Mouse->set_cursor(3, 0, 0, 0, 0);
+    if (Mouse->set_cursor) Mouse->set_cursor(3, -1, -1, -1, -1);
     break;
 
   case 0x02:			/* Hide Mouse Cursor */
     mouse_cursor(-1);
-    if (Mouse->set_cursor) Mouse->set_cursor(2, 0, 0, 0, 0);
+    if (Mouse->set_cursor) Mouse->set_cursor(2, -1, -1, -1, -1);
     break;
 
   case 0x03:			/* Get Mouse Position and Button Status */
