@@ -1721,11 +1721,15 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 		break;
 		case 0x04:	/* IRQ clear / mask and Timer enable */
 			if(v&0x80)
-			{	/* IRQ flags clear */
+			{
+				double interval;
+				/* IRQ flags clear */
 				OPL3_STATUS_RESET(chip,0x60);
 				/* reload timer */
-				if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,0,(double)chip->T[0]*chip->TimerBase);
-				if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,1,(double)chip->T[1]*chip->TimerBase);
+				interval = chip->st[0] ? (double)chip->T[0]*chip->TimerBase : -1.0;
+				if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,0,interval);
+				interval = chip->st[1] ? (double)chip->T[1]*chip->TimerBase : -1.0;
+				if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,1,interval);
 			}
 			else
 			{	/* set IRQ mask ,timer enable */
