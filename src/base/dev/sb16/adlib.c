@@ -282,7 +282,8 @@ void adlib_timer(void)
 	}
 
 	for (i = 0; i < 2; i++) {
-	    if (opl3_timers[i].time > 0 && now >= opl3_timers[i].time) {
+	    if (opl3_timers[i].time > 0 && !opl3_timers[i].expired &&
+		    now >= opl3_timers[i].time) {
 		S_printf("Adlib: timer %i expired\n", i);
 		opl3_timers[i].expired = 1;
 		YMF262TimerOver(opl3, i);
