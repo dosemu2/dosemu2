@@ -1723,6 +1723,9 @@ static void OPL3WriteReg(OPL3 *chip, int r, int v)
 			if(v&0x80)
 			{	/* IRQ flags clear */
 				OPL3_STATUS_RESET(chip,0x60);
+				/* reload timer */
+				if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,0,(double)chip->T[0]*chip->TimerBase);
+				if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,1,(double)chip->T[1]*chip->TimerBase);
 			}
 			else
 			{	/* set IRQ mask ,timer enable */
@@ -2460,8 +2463,6 @@ static int OPL3TimerOver(OPL3 *chip,int c)
 	{	/* Timer A */
 		OPL3_STATUS_SET(chip,0x40);
 	}
-	/* reload timer */
-	if (chip->TimerHandler) (chip->TimerHandler)(chip->TimerParam,c,(double)chip->T[c]*chip->TimerBase);
 	return chip->status>>7;
 }
 

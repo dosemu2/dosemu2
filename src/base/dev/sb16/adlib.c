@@ -44,13 +44,17 @@
 
 #define ADLIB_THRESHOLD 20000000
 #define ADLIB_RUNNING() (adlib_time_cur > 0)
-#define ADLIB_RUN() (adlib_time_cur = GETusTIME(0))
+#define ADLIB_RUN() adlib_start()
 #define ADLIB_STOP() (adlib_time_cur = 0)
 
 #ifdef HAS_YMF262
 static void *opl3;
 #endif
-static long long opl3_timers[2];
+struct opl3_timer {
+    long long time;
+    int expired;
+};
+static struct opl3_timer opl3_timers[2];
 static int adlib_strm;
 static double adlib_time_cur, adlib_time_last;
 #if OPL3_SAMPLE_BITS==16
@@ -64,6 +68,13 @@ static const int opl3_rate = 44100;
 static const int opl3_rate = 22050;
 #endif
 
+static void adlib_start(void)
+{
+    opl3_timers[0].time = opl3_timers[1].time = 0;
+    opl3_timers[0].expired = opl3_timers[1].expired = 0;
+    adlib_time_cur = GETusTIME(0);
+}
+
 Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
@@ -71,9 +82,10 @@ Bit8u adlib_io_read_base(ioport_t port)
     int i;
     hitimer_t now = GETusTIME(0);
     for (i = 0; i < 2; i++) {
-	if (opl3_timers[i] > 0 && now >= opl3_timers[i]) {
+	if (opl3_timers[i].time > 0 && !opl3_timers[i].expired &&
+		now >= opl3_timers[i].time) {
 	    S_printf("Adlib: timer %i expired\n", i);
-	    opl3_timers[i] -= now;
+	    opl3_timers[i].expired = 1;
 	    YMF262TimerOver(opl3, i);
 	}
     }
@@ -107,11 +119,24 @@ static void adlib_io_write(ioport_t port, Bit8u value)
 #ifdef HAS_YMF262
 static void opl3_set_timer(void *param, int num, double interval_Sec)
 {
-    long long *timers = param;
+    struct opl3_timer *timers = param;
+    hitimer_t now = GETusTIME(0);
     if (interval_Sec < 0)
-	timers[num] = 0;
-    else
-	timers[num] += GETusTIME(0) + interval_Sec * 1000000;
+	timers[num].time = 0;
+    else if (interval_Sec == 0)
+	timers[num].time = now;
+    else {
+	if (!timers[num].time)
+	    timers[num].time = now + interval_Sec * 1000000;
+	else {
+	    long long delta;
+	    int n;
+	    delta = now - timers[num].time;
+	    n = delta / (interval_Sec * 1000000);
+	    timers[num].time += interval_Sec * 1000000 * (n + 1);
+	}
+    }
+    timers[num].expired = 0;
     S_printf("Adlib: timer %i set to %ius\n", num,
 	     (int) (interval_Sec * 1000000));
 }
@@ -166,7 +191,8 @@ void adlib_init(void)
 
 void adlib_reset(void)
 {
-    opl3_timers[0] = opl3_timers[1] = 0;
+    opl3_timers[0].time = opl3_timers[1].time = 0;
+    opl3_timers[0].expired = opl3_timers[1].expired = 0;
     adlib_time_cur = adlib_time_last = 0;
 #ifdef HAS_YMF262
     YMF262ResetChip(opl3);
@@ -235,8 +261,9 @@ void adlib_timer(void)
 	/* find the closest timer */
 	time_adj = 0;
 	for (i = 0; i < 2; i++) {
-	    if (opl3_timers[i] > 0 && now > opl3_timers[i]) {
-		now = opl3_timers[i];
+	    if (opl3_timers[i].time > 0 && !opl3_timers[i].expired &&
+		    now > opl3_timers[i].time) {
+		now = opl3_timers[i].time;
 		time_adj = 1;
 		if (debug_level('S') >= 9)
 		    S_printf("Adlib: time adjusted to timer %i\n", i);
@@ -255,9 +282,9 @@ void adlib_timer(void)
 	}
 
 	for (i = 0; i < 2; i++) {
-	    if (opl3_timers[i] > 0 && now >= opl3_timers[i]) {
+	    if (opl3_timers[i].time > 0 && now >= opl3_timers[i].time) {
 		S_printf("Adlib: timer %i expired\n", i);
-		opl3_timers[i] -= now;
+		opl3_timers[i].expired = 1;
 		YMF262TimerOver(opl3, i);
 	    }
 	}
