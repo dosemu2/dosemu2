@@ -1789,12 +1789,7 @@ static void call_mouse_event_handler(void)
 	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
 	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
   }
-  if (mouse.old_mickeyx != mouse.mickeyx ||
-      mouse.old_mickeyy != mouse.mickeyy)
-    /* keep requesting until the mouse driver caught up */
-    pic_request(PIC_IMOUSE);
-  else
-    mouse_events = 0;
+  mouse_events = 0;
 }
 
 void
