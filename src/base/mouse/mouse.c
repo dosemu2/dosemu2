@@ -917,6 +917,8 @@ static void recalc_coords(int x_range, int y_range)
 	int dy = mouse.unsc_y / (y_range * mouse.speed_y);
 	mouse.x += dx;
 	mouse.y += dy;
+	mouse.abs_x += dx;
+	mouse.abs_y += dy;
 	mouse.mickeyx += get_mk_x(mouse.unsc_x);
 	mouse.mickeyy += get_mk_y(mouse.unsc_y);
 	mouse.unsc_x -= dx * x_range * mouse.speed_x;
@@ -1496,6 +1498,16 @@ static int mouse_round_coords(void)
 		mouse.y = mouse.virtual_maxy;
 		clipped = 1;
 	}
+
+	if (mouse.abs_x > mouse.maxx)
+		mouse.abs_x = mouse.maxx;
+	if (mouse.abs_x < mouse.minx)
+		mouse.abs_x = mouse.minx;
+	if (mouse.abs_y > mouse.maxy)
+		mouse.abs_y = mouse.maxy;
+	if (mouse.abs_y < mouse.miny)
+		mouse.abs_y = mouse.miny;
+
 	if (clipped)
 		reset_unscaled();
 	return clipped;

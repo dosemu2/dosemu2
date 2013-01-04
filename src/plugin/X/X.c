@@ -344,7 +344,6 @@ static Cursor X_standard_cursor;
 
 #if CONFIG_X_MOUSE
 static Cursor X_mouse_nocursor;
-static int snap_X = 0;
 static int mouse_cursor_visible = 0;
 static int mouse_really_left_window = 1;
 #endif
@@ -1307,7 +1306,7 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 		last_cursor = new_cursor;
 	}
 
-	if (grab_active || snap_X || !have_focus || mouse_really_left_window ||
+	if (grab_active || !have_focus || mouse_really_left_window ||
 			mx == -1 || my == -1)
 		return;
 
@@ -1636,7 +1635,6 @@ static void X_handle_events(void)
           {
             X_printf("X: Mouse really entering window\n");
             mouse_really_left_window = 0;
-	    if(!grab_active) snap_X=3;
 	    set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	    set_mouse_buttons(e.xcrossing.state);
           }
@@ -1652,6 +1650,9 @@ static void X_handle_events(void)
               e.xcrossing.y >= 0 && e.xcrossing.y < w_y_res) {
             X_printf("X: bogus LeaveNotify event\n");
             mouse_really_left_window = 0;
+          } else {
+            /* move mouse to corner */
+            mouse_move_relative(-1000, -1000, w_x_res, w_y_res);
           }
 	  break;
 
@@ -2503,17 +2504,6 @@ void set_mouse_position(int x, int y)
     XWarpPointer(display, None, drawwindow, 0, 0, 0, 0, center_x, center_y);
     mouse_move_relative(dx, dy, w_x_res, w_y_res);
   } else {
-   if(snap_X) {
-     /*
-      * win31 cursor snap kludge, we temporary force the DOS cursor to the
-      * upper left corner (0,0). If we after that release snapping,
-      * normal X-events will move the cursor to the exact position. (Hans)
-      */
-      x0 = y0 = 0;
-      dx = -3 * x_res; dy = -3 * y_res;		/* enough ??? -- sw */
-      mouse_move_relative(dx, dy, w_x_res, w_y_res);
-      snap_X--;
-    }
     mouse_move_absolute(x, y, w_x_res, w_y_res);
   }
 
