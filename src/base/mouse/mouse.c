@@ -1711,17 +1711,20 @@ mouse_delta(int event)
  */
 static void call_int15_mouse_event_handler(void)
 {
-    struct vm86_regs saved_regs;
-    int status;
-    unsigned int ssp, sp;
-    int dx, dy;
+  struct vm86_regs saved_regs;
+  int status;
+  unsigned int ssp, sp;
+  int dx, dy, cnt = 0;
 
-    ssp = SEGOFF2LINEAR(LWORD(ss), 0);
-    sp = LWORD(esp);
+  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
+  sp = LWORD(esp);
+  saved_regs = REGS;
 
-    dx = MICKEYX() - mouse.old_mickeyx;
+  do {
+    cnt++;
+    dx = MICKEYX();
     /* PS/2 wants the y direction reversed */
-    dy = mouse.old_mickeyy - MICKEYY();
+    dy = -MICKEYY();
 
     status = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 8;
     if (mouse.threebuttons)
@@ -1731,26 +1734,29 @@ static void call_int15_mouse_event_handler(void)
       dx = dx < -128 ? -128 : 127;
     if (dy < -128 || dy > 127)
       dy = dy < -128 ? -128 : 127;
+    mouse.mickeyx -= dx << 3;
+    mouse.mickeyy += dy << 3;
     /* we'll call the handler again */
     if (dx < 0)
       status |= 0x10;
     if (dy < 0)
       status |= 0x20;
-    mouse.old_mickeyx += dx;
-    mouse.old_mickeyy -= dy;
 
-    saved_regs = REGS;
     m_printf("PS2MOUSE data: dx=%hhx, dy=%hhx, status=%hx\n", (Bit8u)dx, (Bit8u)dy, (unsigned short)status);
-    pushw(ssp, sp, status | 8);
+    pushw(ssp, sp, status);
     pushw(ssp, sp, dx & 0xff);
     pushw(ssp, sp, dy & 0xff);
     pushw(ssp, sp, 0);
     LWORD(esp) -= 8;
 
     /* jump to mouse cs:ip */
-    m_printf("PS2MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
+    m_printf("PS2MOUSE: .........jumping to %04x:%04x %i times\n",
+	    mouse.ps2.cs, mouse.ps2.ip, cnt);
     do_call_back(mouse.ps2.cs, mouse.ps2.ip);
-    REGS = saved_regs;
+    LWORD(esp) += 8;
+  } while (MICKEYX() || MICKEYY());
+
+  REGS = saved_regs;
 }
 
 static void call_int33_mouse_event_handler(void)

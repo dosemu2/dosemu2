@@ -1652,7 +1652,7 @@ static void X_handle_events(void)
             mouse_really_left_window = 0;
           } else {
             /* move mouse to corner */
-            mouse_move_relative(-1000, -1000, w_x_res, w_y_res);
+            mouse_move_relative(-3 * x_res, -3 * y_res, w_x_res, w_y_res);
           }
 	  break;
 
