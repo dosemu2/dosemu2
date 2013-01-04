@@ -204,6 +204,8 @@ static void *midoflus_thread(void *arg)
 
 static void midoflus_timer(void)
 {
+    if (mf_time_cur == 0)
+	return;
     sem_post(&sem);
 }
 
