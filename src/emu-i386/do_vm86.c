@@ -451,7 +451,9 @@ Bit16u CBACK_OFF2;
 static void callback_return(Bit32u off2, void *arg)
 {
     int tid = coopth_get_tid_by_tag(callback_thr_tag, callback_level);
-    fake_retf(0);
+    Bit32u ret = (long)coopth_get_user_data(tid);
+    REG(cs) = FP_SEG16(ret);
+    LWORD(eip) = FP_OFF16(ret);
     coopth_wake_up(tid);
 }
 
@@ -469,13 +471,19 @@ static void callback_return_old(Bit32u off2, void *arg)
 static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 {
 	int old_frozen;
+	Bit32u ret;
 
 	if (fault_cnt && !in_leavedos) {
 		error("do_call_back() executed within the signal context!\n");
 		leavedos(25);
 	}
 
-	fake_call_to(CBACK_SEG, CBACK_OFF);	/* push our return cs:ip */
+	/* save return address - dont use DOS stack for that :( */
+	ret = MK_FP16(REG(cs), LWORD(eip));
+	coopth_set_user_data((void *)(long)ret);
+	REG(cs) = CBACK_SEG;
+	LWORD(eip) = CBACK_OFF;
+
 	if (intr)
 		fake_int_to(cs, ip); /* far jump to the vm86(DOS) routine */
 	else

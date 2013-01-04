@@ -42,6 +42,7 @@ struct coopth_thr_t {
 struct coopth_thrdata_t {
     int *tid;
     enum CoopthRet ret;
+    void *udata;
 };
 
 struct coopth_starter_args_t {
@@ -352,6 +353,27 @@ static int __coopth_is_in_thread(void)
 	}
     }
     return thread_running;
+}
+
+void coopth_set_user_data(void *udata)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(__coopth_is_in_thread());
+    thdata = co_get_data(co_current());
+    thdata->udata = udata;
+}
+
+void *coopth_get_user_data(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    pth = &thr->pth[thr->cur_thr - 1];
+    return pth->data.udata;
 }
 
 static void switch_state(enum CoopthRet ret)
