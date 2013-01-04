@@ -64,6 +64,8 @@
 
 #define MOUSE_RX mouse_roundx(mouse.x)
 #define MOUSE_RY mouse_roundy(mouse.y)
+#define MICKEYX() (mouse.mickeyx >> 3)
+#define MICKEYY() (mouse.mickeyy >> 3)
 
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
@@ -899,14 +901,14 @@ static int get_mk_x(int ux)
 {
 	int mx_range;
 	mx_range = mouse.maxx - mouse.minx +1;
-	return ux / (mx_range * 8);
+	return ux / mx_range;
 }
 
 static int get_mk_y(int uy)
 {
 	int my_range;
 	my_range = mouse.maxy - mouse.miny +1;
-	return uy / (my_range * 8);
+	return uy / my_range;
 }
 
 static void recalc_coords(int x_range, int y_range)
@@ -915,6 +917,8 @@ static void recalc_coords(int x_range, int y_range)
 	int dy = mouse.unsc_y / (y_range * mouse.speed_y);
 	mouse.x += dx;
 	mouse.y += dy;
+	mouse.mickeyx += get_mk_x(mouse.unsc_x);
+	mouse.mickeyy += get_mk_y(mouse.unsc_y);
 	mouse.unsc_x -= dx * x_range * mouse.speed_x;
 	mouse.unsc_y -= dy * y_range * mouse.speed_y;
 }
@@ -927,6 +931,13 @@ static void add_mk(int dx, int dy)
 	mouse.unsc_x += dx * 8 * mx_range;
 	mouse.unsc_y += dy * 8 * my_range;
 	recalc_coords(mx_range, my_range);
+}
+
+static void add_px(int dx, int dy, int x_range, int y_range)
+{
+	mouse.unsc_x += get_unsc_x(dx);
+	mouse.unsc_y += get_unsc_y(dy);
+	recalc_coords(x_range, y_range);
 }
 
 /*
@@ -1338,15 +1349,15 @@ mouse_setsub(void)
 void
 mouse_mickeys(void)
 {
-  m_printf("MOUSE: read mickeys %d %d\n", mouse.mickeyx, mouse.mickeyy);
+  m_printf("MOUSE: read mickeys %d %d\n", MICKEYX(), MICKEYY());
   /* I'm pretty sure the raw motion counters don't take the speed
   	compensation into account; at least DeluxePaint agrees with me */
   /* That doesn't mean that some "advanced" mouse driver with acceleration
   	profiles, etc., wouldn't want to tweak these values; then again,
   	this function is probably used most often by games, and they'd
   	probably just rather have the raw counts */
-  LWORD(ecx) = mouse.mickeyx;
-  LWORD(edx) = mouse.mickeyy;
+  LWORD(ecx) = MICKEYX();
+  LWORD(edx) = MICKEYY();
 
   /* counters get reset after read */
   mouse.mickeyx = mouse.mickeyy = 0;
@@ -1617,15 +1628,7 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 
 void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 {
-	int unsc_x, unsc_y;
-	unsc_x = get_unsc_x(dx);
-	unsc_y = get_unsc_y(dy);
-	mouse.unsc_x += unsc_x;
-	mouse.unsc_y += unsc_y;
-	recalc_coords(x_range, y_range);
-	/* XXX fix rounding errors! */
-	mouse.mickeyx += get_mk_x(unsc_x);
-	mouse.mickeyy += get_mk_y(unsc_y);
+	add_px(dx, dy, x_range, y_range);
 
 	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
 		 dx, dy, mouse.x, mouse.y);
@@ -1640,8 +1643,6 @@ void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 void mouse_move_mickeys(int dx, int dy)
 {
 	add_mk(dx, dy);
-	mouse.mickeyx += dx;
-	mouse.mickeyy += dy;
 
 	m_printf("mouse_move_mickeys(%d, %d) -> %d %d \n",
 		 dx, dy, mouse.x, mouse.y);
@@ -1660,8 +1661,8 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	my_range = mouse.maxy - mouse.miny +1;
 	new_x = (x*mx_range)/x_range + mouse.minx;
 	new_y = (y*my_range)/y_range + mouse.miny;
-	dx = (((new_x - mouse.abs_x) * mouse.speed_x) >> 3);
-	dy = (((new_y - mouse.abs_y) * mouse.speed_y) >> 3);
+	dx = (new_x - mouse.abs_x) * mouse.speed_x;
+	dy = (new_y - mouse.abs_y) * mouse.speed_y;
 	mouse.mickeyx += dx;
 	mouse.mickeyy += dy;
 	mouse.x = new_x + mouse.x_delta;
@@ -1678,7 +1679,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	/*
 	 * update the event mask
 	 */
-	if (dx || dy || mouse.x != new_x || mouse.y != new_y)
+	if (dx || dy)
 	   mouse_move(clipped);
 }
 
@@ -1706,9 +1707,9 @@ static void call_int15_mouse_event_handler(void)
     ssp = SEGOFF2LINEAR(LWORD(ss), 0);
     sp = LWORD(esp);
 
-    dx = mouse.mickeyx - mouse.old_mickeyx;
+    dx = MICKEYX() - mouse.old_mickeyx;
     /* PS/2 wants the y direction reversed */
-    dy = mouse.old_mickeyy - mouse.mickeyy;
+    dy = mouse.old_mickeyy - MICKEYY();
 
     status = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 8;
     if (mouse.threebuttons)
@@ -1748,8 +1749,8 @@ static void call_int33_mouse_event_handler(void)
     LWORD(eax) = mouse_events;
     LWORD(ecx) = mouse.x;
     LWORD(edx) = mouse.y;
-    LWORD(esi) = mouse.mickeyx;
-    LWORD(edi) = mouse.mickeyy;
+    LWORD(esi) = MICKEYX();
+    LWORD(edi) = MICKEYY();
     LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
     if (mouse.threebuttons)
       LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
@@ -1780,8 +1781,8 @@ static void call_mouse_event_handler(void)
   if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
     call_int15_mouse_event_handler();
   } else {
-    mouse.old_mickeyx = mouse.mickeyx;
-    mouse.old_mickeyy = mouse.mickeyy;
+    mouse.old_mickeyx = MICKEYX();
+    mouse.old_mickeyy = MICKEYY();
     if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
       call_int33_mouse_event_handler();
     else
