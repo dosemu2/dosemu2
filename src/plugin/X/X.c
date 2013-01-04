@@ -2502,17 +2502,18 @@ void set_mouse_position(int x, int y)
     y0 = dy + mouse_y;
     XWarpPointer(display, None, drawwindow, 0, 0, 0, 0, center_x, center_y);
     mouse_move_relative(dx, dy, w_x_res, w_y_res);
-  } else if(snap_X) {
-    /*
-     * win31 cursor snap kludge, we temporary force the DOS cursor to the
-     * upper left corner (0,0). If we after that release snapping,
-     * normal X-events will move the cursor to the exact position. (Hans)
-     */
-     x0 = y0 = 0;
-     dx = -3 * x_res; dy = -3 * y_res;		/* enough ??? -- sw */
-     mouse_move_relative(dx, dy, w_x_res, w_y_res);
-     snap_X--;
   } else {
+   if(snap_X) {
+     /*
+      * win31 cursor snap kludge, we temporary force the DOS cursor to the
+      * upper left corner (0,0). If we after that release snapping,
+      * normal X-events will move the cursor to the exact position. (Hans)
+      */
+      x0 = y0 = 0;
+      dx = -3 * x_res; dy = -3 * y_res;		/* enough ??? -- sw */
+      mouse_move_relative(dx, dy, w_x_res, w_y_res);
+      snap_X--;
+    }
     mouse_move_absolute(x, y, w_x_res, w_y_res);
   }
 
