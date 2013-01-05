@@ -1638,7 +1638,8 @@ static void X_handle_events(void)
           if (mouse_really_left_window)
           {
 	    X_printf("X: Mouse really entering window\n");
-	    if (mouse_really_left_window == -1 && !grab_active) {
+	    if (!grab_active) {
+            /* move mouse to corner */
 	      mouse_move_relative(-3 * x_res, -3 * y_res, w_x_res, w_y_res);
 	      ignore_move = 1;
             } else {
@@ -1659,9 +1660,6 @@ static void X_handle_events(void)
               e.xcrossing.y >= 0 && e.xcrossing.y < w_y_res) {
             X_printf("X: bogus LeaveNotify event\n");
             mouse_really_left_window = 0;
-          } else {
-            /* move mouse to corner */
-            mouse_move_relative(-3 * x_res, -3 * y_res, w_x_res, w_y_res);
           }
 	  break;
 
