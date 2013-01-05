@@ -345,7 +345,7 @@ static Cursor X_standard_cursor;
 #if CONFIG_X_MOUSE
 static Cursor X_mouse_nocursor;
 static int mouse_cursor_visible = 0;
-static int mouse_really_left_window = 1;
+static int mouse_really_left_window = -1;
 #endif
 
 static GC gc;
@@ -1306,7 +1306,7 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 		last_cursor = new_cursor;
 	}
 
-	if (grab_active || !have_focus || mouse_really_left_window ||
+	if (grab_active || !have_focus || mouse_really_left_window == 1 ||
 			mx == -1 || my == -1)
 		return;
 
@@ -1633,10 +1633,13 @@ static void X_handle_events(void)
           X_printf("X: Mouse entering window event\n");
           if (mouse_really_left_window)
           {
-            X_printf("X: Mouse really entering window\n");
-            mouse_really_left_window = 0;
-	    set_mouse_position(e.xcrossing.x, e.xcrossing.y);
+	    X_printf("X: Mouse really entering window\n");
+	    if (mouse_really_left_window == -1 && !grab_active)
+	      mouse_move_relative(-3 * x_res, -3 * y_res, w_x_res, w_y_res);
+            else
+	      set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	    set_mouse_buttons(e.xcrossing.state);
+	    mouse_really_left_window = 0;
           }
 	  break;
 
