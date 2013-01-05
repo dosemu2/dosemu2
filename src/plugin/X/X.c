@@ -346,6 +346,7 @@ static Cursor X_standard_cursor;
 static Cursor X_mouse_nocursor;
 static int mouse_cursor_visible = 0;
 static int mouse_really_left_window = -1;
+static int ignore_move;
 #endif
 
 static GC gc;
@@ -1622,7 +1623,10 @@ static void X_handle_events(void)
 	  extend_selection(x_to_col(e.xmotion.x, w_x_res),
 			   y_to_row(e.xmotion.y, w_y_res));
 #endif /* CONFIG_X_SELECTION */
-	  set_mouse_position(e.xmotion.x, e.xmotion.y);
+	  if (ignore_move)
+	    ignore_move--;
+	  else
+	    set_mouse_position(e.xmotion.x, e.xmotion.y);
 	  break;
 
 	case EnterNotify:
@@ -1634,10 +1638,12 @@ static void X_handle_events(void)
           if (mouse_really_left_window)
           {
 	    X_printf("X: Mouse really entering window\n");
-	    if (mouse_really_left_window == -1 && !grab_active)
+	    if (mouse_really_left_window == -1 && !grab_active) {
 	      mouse_move_relative(-3 * x_res, -3 * y_res, w_x_res, w_y_res);
-            else
+	      ignore_move = 1;
+            } else {
 	      set_mouse_position(e.xcrossing.x, e.xcrossing.y);
+	    }
 	    set_mouse_buttons(e.xcrossing.state);
 	    mouse_really_left_window = 0;
           }
