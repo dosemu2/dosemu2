@@ -56,6 +56,7 @@ struct dspio_dma {
     int samp_signed;
     int input;
     int silence;
+    int dsp_fifo_enabled;
     hitimer_t time_cur;
 };
 
@@ -113,24 +114,24 @@ void dspio_write_midi(void *dspio, Bit8u value)
     run_new_sb();
 }
 
-static int dspio_out_fifo_len(void)
+static int dspio_out_fifo_len(struct dspio_dma *dma)
 {
-    return sb_fifo_enabled()? DSP_OUT_FIFO_TRIGGER : 2;
+    return dma->dsp_fifo_enabled ? DSP_OUT_FIFO_TRIGGER : 2;
 }
 
-static int dspio_in_fifo_len(void)
+static int dspio_in_fifo_len(struct dspio_dma *dma)
 {
-    return sb_fifo_enabled()? DSP_IN_FIFO_TRIGGER : 2;
+    return dma->dsp_fifo_enabled ? DSP_IN_FIFO_TRIGGER : 2;
 }
 
 static int dspio_output_fifo_filled(struct dspio_state *state)
 {
-    return rng_count(&state->fifo_out) >= dspio_out_fifo_len();
+    return rng_count(&state->fifo_out) >= dspio_out_fifo_len(&state->dma);
 }
 
 static int dspio_input_fifo_filled(struct dspio_state *state)
 {
-    return rng_count(&state->fifo_in) >= dspio_in_fifo_len();
+    return rng_count(&state->fifo_in) >= dspio_in_fifo_len(&state->dma);
 }
 
 static int dspio_input_fifo_empty(struct dspio_state *state)
@@ -245,6 +246,7 @@ void dspio_clear_fifos(void *dspio)
 {
     rng_clear(&DSPIO->fifo_in);
     rng_clear(&DSPIO->fifo_out);
+    DSPIO->dma.dsp_fifo_enabled = 1;
 }
 
 void *dspio_init(void)
@@ -274,6 +276,7 @@ void dspio_reset(void *dspio)
     memset(&DSPIO->dma, 0, sizeof(struct dspio_dma));
     DSPIO->input_running =
 	DSPIO->output_running = DSPIO->dac_running = DSPIO->speaker = 0;
+    DSPIO->dma.dsp_fifo_enabled = 1;
 
     pcm_reset();
     midi_reset();
@@ -407,6 +410,7 @@ static void get_dma_params(struct dspio_dma *dma)
     dma->samp_signed = sb_dma_samp_signed();
     dma->input = sb_dma_input();
     dma->silence = sb_dma_silence();
+    dma->dsp_fifo_enabled = sb_fifo_enabled();
 }
 
 static int dspio_fill_output(struct dspio_state *state)
@@ -478,6 +482,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	state->dma.stereo = sb_dma_samp_stereo();
 	state->dma.rate = sb_get_dma_sampling_rate();
 	state->dma.samp_signed = sb_dma_samp_signed();
+	state->dma.dsp_fifo_enabled = sb_fifo_enabled();
     }
 
     if (state->output_running) {
