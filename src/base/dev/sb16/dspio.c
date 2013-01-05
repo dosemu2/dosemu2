@@ -41,6 +41,7 @@
 #include "dspio.h"
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define DAC_BASE_FREQ 5625
 #define PCM_MAX_BUF 512
@@ -62,6 +63,14 @@ struct dspio_state {
     double input_time_cur, output_time_cur, midi_time_cur;
     int dma_strm, dac_strm;
     int input_running, output_running, dac_running, speaker;
+#define DSP_FIFO_SIZE 64
+    struct rng_s fifo_in;
+    struct rng_s fifo_out;
+#define DSP_OUT_FIFO_TRIGGER 32
+#define DSP_IN_FIFO_TRIGGER 32
+#define MIDI_FIFO_SIZE 32
+    struct rng_s midi_fifo_in;
+    struct rng_s midi_fifo_out;
     struct dspio_dma dma;
 };
 
@@ -97,21 +106,167 @@ int dspio_get_speaker_state(void *dspio)
     return DSPIO->speaker;
 }
 
+void dspio_write_midi(void *dspio, Bit8u value)
+{
+    rng_put(&DSPIO->midi_fifo_out, &value);
+
+    run_new_sb();
+}
+
+static int dspio_out_fifo_len(void)
+{
+    return sb_fifo_enabled()? DSP_OUT_FIFO_TRIGGER : 2;
+}
+
+static int dspio_in_fifo_len(void)
+{
+    return sb_fifo_enabled()? DSP_IN_FIFO_TRIGGER : 2;
+}
+
+static int dspio_output_fifo_filled(struct dspio_state *state)
+{
+    return rng_count(&state->fifo_out) >= dspio_out_fifo_len();
+}
+
+static int dspio_input_fifo_filled(struct dspio_state *state)
+{
+    return rng_count(&state->fifo_in) >= dspio_in_fifo_len();
+}
+
+static int dspio_input_fifo_empty(struct dspio_state *state)
+{
+    return !rng_count(&state->fifo_in);
+}
+
+static int dspio_midi_output_empty(struct dspio_state *state)
+{
+    return !rng_count(&state->midi_fifo_out);
+}
+
+static Bit8u dspio_get_midi_data(struct dspio_state *state)
+{
+    Bit8u val;
+    int ret = rng_get(&state->midi_fifo_out, &val);
+    assert(ret == 1);
+    return val;
+}
+
+Bit8u dspio_get_midi_in_byte(void *dspio)
+{
+    Bit8u val;
+    int ret = rng_get(&DSPIO->midi_fifo_in, &val);
+    assert(ret == 1);
+    return val;
+}
+
+void dspio_put_midi_in_byte(void *dspio, Bit8u val)
+{
+    rng_put_const(&DSPIO->midi_fifo_in, val);
+}
+
+int dspio_get_midi_in_fillup(void *dspio)
+{
+    return rng_count(&DSPIO->midi_fifo_in);
+}
+
+void dspio_clear_midi_in_fifo(void *dspio)
+{
+    rng_clear(&DSPIO->midi_fifo_in);
+}
+
+static int dspio_get_dma_data(struct dspio_state *state, void *ptr, int is16bit)
+{
+    if (sb_get_dma_data(ptr, is16bit))
+	return 1;
+    if (rng_count(&state->fifo_in)) {
+	if (is16bit) {
+	    rng_get(&state->fifo_in, ptr);
+	} else {
+	    Bit16u tmp;
+	    rng_get(&state->fifo_in, &tmp);
+	    *(Bit8u *) ptr = tmp;
+	}
+	return 1;
+    }
+    error("SB: input fifo empty\n");
+    return 0;
+}
+
+static void dspio_put_dma_data(struct dspio_state *state, void *ptr, int is16bit)
+{
+    if (dspio_output_fifo_filled(state)) {
+	error("SB: output fifo overflow\n");
+	return;
+    }
+    if (is16bit) {
+	rng_put(&state->fifo_out, ptr);
+    } else {
+	Bit16u tmp = *(Bit8u *) ptr;
+	rng_put(&state->fifo_out, &tmp);
+    }
+}
+
+static int dspio_get_output_sample(struct dspio_state *state, void *ptr,
+	int is16bit)
+{
+    if (rng_count(&state->fifo_out)) {
+	if (is16bit) {
+	    rng_get(&state->fifo_out, ptr);
+	} else {
+	    Bit16u tmp;
+	    rng_get(&state->fifo_out, &tmp);
+	    *(Bit8u *) ptr = tmp;
+	}
+	return 1;
+    }
+    return 0;
+}
+
+static int dspio_put_input_sample(struct dspio_state *state, void *ptr,
+	int is16bit)
+{
+    int ret;
+    if (!sb_input_enabled())
+	return 0;
+    if (dspio_input_fifo_filled(state)) {
+	S_printf("SB: ERROR: input fifo overflow\n");
+	return 0;
+    }
+    if (is16bit) {
+	ret = rng_put(&state->fifo_in, ptr);
+    } else {
+	Bit16u tmp = *(Bit8u *) ptr;
+	ret = rng_put(&state->fifo_in, &tmp);
+    }
+    return ret;
+}
+
+void dspio_clear_fifos(void *dspio)
+{
+    rng_clear(&DSPIO->fifo_in);
+    rng_clear(&DSPIO->fifo_out);
+}
+
 void *dspio_init(void)
 {
-    struct dspio_state *dspio;
-    dspio = malloc(sizeof(struct dspio_state));
-    if (!dspio)
+    struct dspio_state *state;
+    state = malloc(sizeof(struct dspio_state));
+    if (!state)
 	return NULL;
     pcm_init();
-    dspio->dac_strm = pcm_allocate_stream(1, "SB DAC");
-    pcm_set_flag(dspio->dac_strm, PCM_FLAG_RAW);
-    dspio->dma_strm = pcm_allocate_stream(2, "SB DMA");
+    state->dac_strm = pcm_allocate_stream(1, "SB DAC");
+    pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
+    state->dma_strm = pcm_allocate_stream(2, "SB DMA");
+
+    rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
+    rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
+    rng_init(&state->midi_fifo_in, MIDI_FIFO_SIZE, 1);
+    rng_init(&state->midi_fifo_out, MIDI_FIFO_SIZE, 1);
 
     adlib_init();
     midi_init();
 
-    return dspio;
+    return state;
 }
 
 void dspio_reset(void *dspio)
@@ -128,6 +283,12 @@ void dspio_done(void *dspio)
 {
     pcm_done();
     midi_done();
+
+    rng_destroy(&DSPIO->fifo_in);
+    rng_destroy(&DSPIO->fifo_out);
+    rng_destroy(&DSPIO->midi_fifo_in);
+    rng_destroy(&DSPIO->midi_fifo_out);
+
     free(dspio);
 }
 
@@ -185,13 +346,14 @@ static void dspio_stop_input(struct dspio_state *state)
     state->input_running = 0;
 }
 
-static int do_run_dma(struct dspio_dma *dma)
+static int do_run_dma(struct dspio_state *state)
 {
     Bit8u dma_buf[2];
+    struct dspio_dma *dma = &state->dma;
 
     dma_get_silence(dma->samp_signed, dma->is16bit, dma_buf);
     if (dma->input)
-	sb_get_dma_data(dma_buf, dma->is16bit);
+	dspio_get_dma_data(state, dma_buf, dma->is16bit);
     if (dma_pulse_DRQ(dma->num, dma_buf) != DMA_DACK) {
 	S_printf("SB: DMA %i doesn't DACK!\n", dma->num);
 	return 0;
@@ -203,17 +365,18 @@ static int do_run_dma(struct dspio_dma *dma)
 	}
     }
     if (!dma->input)
-	sb_put_dma_data(dma_buf, dma->is16bit);
+	dspio_put_dma_data(state, dma_buf, dma->is16bit);
     return 1;
 }
 
-static int dspio_run_dma(struct dspio_dma *dma)
+static int dspio_run_dma(struct dspio_state *state)
 {
 #define DMA_TIMEOUT_US 100000
     int ret;
+    struct dspio_dma *dma = &state->dma;
     hitimer_t now = GETusTIME(0);
     sb_dma_processing();	// notify that DMA busy
-    ret = do_run_dma(dma);
+    ret = do_run_dma(state);
     if (ret) {
 	sb_handle_dma();
 	dma->time_cur = now;
@@ -249,8 +412,8 @@ static void get_dma_params(struct dspio_dma *dma)
 static int dspio_fill_output(struct dspio_state *state)
 {
     int dma_cnt = 0;
-    while (state->dma.running && !sb_output_fifo_filled()) {
-	if (!dspio_run_dma(&state->dma))
+    while (state->dma.running && !dspio_output_fifo_filled(state)) {
+	if (!dspio_run_dma(state))
 	    break;
 	dma_cnt++;
     }
@@ -259,7 +422,7 @@ static int dspio_fill_output(struct dspio_state *state)
 #else
     /* incomplete fifo needs a timeout, so lets not deal with it at all.
      * Instead, deal with the filled fifo only. */
-    if (sb_output_fifo_filled())
+    if (dspio_output_fifo_filled(state))
 #endif
 	dspio_start_output(state);
     return dma_cnt;
@@ -268,8 +431,8 @@ static int dspio_fill_output(struct dspio_state *state)
 static int dspio_drain_input(struct dspio_state *state)
 {
     int dma_cnt = 0;
-    while (state->dma.running && !sb_input_fifo_empty()) {
-	if (!dspio_run_dma(&state->dma))
+    while (state->dma.running && !dspio_input_fifo_empty(state)) {
+	if (!dspio_run_dma(state))
 	    break;
 	dma_cnt++;
     }
@@ -287,7 +450,7 @@ void dspio_start_dma(void *dspio)
 	dspio_start_input(DSPIO);
     } else {
 	dma_cnt = dspio_fill_output(DSPIO);
-	if (DSPIO->dma.running && sb_output_fifo_filled())
+	if (DSPIO->dma.running && dspio_output_fifo_filled(DSPIO))
 	    S_printf("SB: Output filled, processed %i DMA cycles\n",
 		     dma_cnt);
 	else
@@ -333,12 +496,13 @@ static void dspio_process_dma(struct dspio_state *state)
     }
     for (i = 0; i < nfr; i++) {
 	for (j = 0; j < state->dma.stereo + 1; j++) {
-	    if (state->dma.running && !sb_output_fifo_filled()) {
-		if (!dspio_run_dma(&state->dma))
+	    if (state->dma.running && !dspio_output_fifo_filled(state)) {
+		if (!dspio_run_dma(state))
 		    break;
 		dma_cnt++;
 	    }
-	    if (!sb_get_output_sample(&buf[i][j], state->dma.is16bit))
+	    if (!dspio_get_output_sample(state, &buf[i][j],
+		    state->dma.is16bit))
 		break;
 	}
 	if (j != state->dma.stereo + 1)
@@ -403,7 +567,8 @@ static void dspio_process_dma(struct dspio_state *state)
 		//if (!state->speaker)  /* TODO: input */
 		dma_get_silence(state->dma.samp_signed,
 			state->dma.is16bit, &buf[i][j]);
-		if (!sb_put_input_sample(&buf[i][j], state->dma.is16bit))
+		if (!dspio_put_input_sample(state, &buf[i][j],
+			state->dma.is16bit))
 		    break;
 	    }
 	}
@@ -411,7 +576,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	    in_fifo_cnt++;
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (state->dma.running) {
-		if (!dspio_run_dma(&state->dma))
+		if (!dspio_run_dma(state))
 		    break;
 		dma_cnt++;
 	    }
@@ -438,17 +603,18 @@ static void dspio_process_dma(struct dspio_state *state)
 	     time_dst);
 }
 
-static void dspio_process_midi(void)
+static void dspio_process_midi(struct dspio_state *state)
 {
     Bit8u data;
     /* no timing for now */
-    while (!sb_midi_output_empty()) {
-	sb_get_midi_data(&data);
+    while (!dspio_midi_output_empty(state)) {
+	data = dspio_get_midi_data(state);
 	midi_write(data);
     }
 
     while (midi_get_data_byte(&data)) {
-	sb_put_midi_data(data);
+	dspio_put_midi_in_byte(state, data);
+	sb_handle_midi_data();
     }
 
     midi_timer();
@@ -458,7 +624,7 @@ void dspio_timer(void *dspio)
 {
     adlib_timer();
     dspio_process_dma(DSPIO);
-    dspio_process_midi();
+    dspio_process_midi(DSPIO);
     pcm_timer();
 }
 

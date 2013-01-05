@@ -84,7 +84,7 @@ int sb_get_hdma_num(void)
 /* DMA mode decoding functions */
 int sb_dma_active(void)
 {
-    return (sb.dma_active && !sb.paused);
+    return (sb.dma_cmd && !sb.paused);
 }
 
 int sb_dma_16bit(void)
@@ -109,7 +109,7 @@ static int sb_dma_sb16mode(void)
     return 0;
 }
 
-static int sb_fifo_enabled(void)
+int sb_fifo_enabled(void)
 {
     if (!sb.dma_cmd)
 	error("SB: used inactive DMA (fifo)\n");
@@ -174,6 +174,11 @@ static int sb_dma_internal(void)
 	return 1;
     }
     return 0;
+}
+
+int sb_input_enabled(void)
+{
+    return !sb_dma_internal();
 }
 
 static int sb_dma_autoinit(void)
@@ -304,7 +309,6 @@ static void sb_dma_actualize(void)
 	sb.new_dma_init_count = 0;
 	sb.paused = 0;
 	sb.dma_exit_ai = 0;
-	sb.dma_active = 1;
     }
 }
 
@@ -380,7 +384,7 @@ void sb_handle_dma(void)
 	}
 	if (!sb_dma_autoinit()) {
 	    stop_dma_clock();
-	    sb.dma_active = 0;	// disable DMA
+	    sb.dma_cmd = 0;	// disable DMA
 	    S_printf("SB: DMA transfer completed\n");
 	} else if (sb_fifo_enabled()) {
 	    /* auto-init & FIFO - stop till IRQ-ACK */
@@ -402,131 +406,8 @@ void sb_dma_processing(void)
 void sb_handle_dma_timeout(void)
 {
     stop_dma_clock();
-    sb.dma_active = 0;	// disable DMA
+    sb.dma_cmd = 0;	// disable DMA
     sb.busy = 1;
-}
-
-static void sb_write_midi(Bit8u value)
-{
-    rng_put(&sb.midi_fifo_out, &value);
-
-    run_new_sb();
-}
-
-static int sb_out_fifo_len(void)
-{
-    return sb_fifo_enabled()? DSP_OUT_FIFO_TRIGGER : 2;
-}
-
-static int sb_in_fifo_len(void)
-{
-    return sb_fifo_enabled()? DSP_IN_FIFO_TRIGGER : 2;
-}
-
-int sb_output_fifo_filled(void)
-{
-    return rng_count(&sb.fifo_out) >= sb_out_fifo_len();
-}
-
-int sb_input_fifo_filled(void)
-{
-    return rng_count(&sb.fifo_in) >= sb_in_fifo_len();
-}
-
-int sb_input_fifo_empty(void)
-{
-    return !rng_count(&sb.fifo_in);
-}
-
-int sb_output_fifo_empty(void)
-{
-    return !rng_count(&sb.fifo_out);
-}
-
-int sb_midi_output_empty(void)
-{
-    return !rng_count(&sb.midi_fifo_out);
-}
-
-void sb_get_midi_data(Bit8u * val)
-{
-    rng_get(&sb.midi_fifo_out, val);
-}
-
-int sb_get_dma_data(void *ptr, int is16bit)
-{
-    if (sb_dma_internal()) {
-	S_printf("SB: E2 value %#x transferred\n", sb.reset_val);
-	if (is16bit)
-	    *(Bit16u *) ptr = sb.reset_val;
-	else
-	    *(Bit8u *) ptr = sb.reset_val;
-	return 1;
-    }
-    if (rng_count(&sb.fifo_in)) {
-	if (is16bit) {
-	    rng_get(&sb.fifo_in, ptr);
-	} else {
-	    Bit16u tmp;
-	    rng_get(&sb.fifo_in, &tmp);
-	    *(Bit8u *) ptr = tmp;
-	}
-	return 1;
-    }
-    error("SB: input fifo empty\n");
-    return 0;
-}
-
-void sb_put_dma_data(void *ptr, int is16bit)
-{
-    if (sb_output_fifo_filled()) {
-	error("SB: output fifo overflow\n");
-	return;
-    }
-    if (is16bit) {
-	rng_put(&sb.fifo_out, ptr);
-    } else {
-	Bit16u tmp = *(Bit8u *) ptr;
-	rng_put(&sb.fifo_out, &tmp);
-    }
-}
-
-int sb_get_output_sample(void *ptr, int is16bit)
-{
-    if (rng_count(&sb.fifo_out)) {
-	if (is16bit) {
-	    rng_get(&sb.fifo_out, ptr);
-	} else {
-	    Bit16u tmp;
-	    rng_get(&sb.fifo_out, &tmp);
-	    *(Bit8u *) ptr = tmp;
-	}
-	return 1;
-    }
-    return 0;
-}
-
-int sb_input_enabled(void)
-{
-    return !sb_dma_internal();
-}
-
-int sb_put_input_sample(void *ptr, int is16bit)
-{
-    int ret;
-    if (!sb_input_enabled())
-	return 0;
-    if (sb_input_fifo_filled()) {
-	S_printf("SB: ERROR: input fifo overflow\n");
-	return 0;
-    }
-    if (is16bit) {
-	ret = rng_put(&sb.fifo_in, ptr);
-    } else {
-	Bit16u tmp = *(Bit8u *) ptr;
-	ret = rng_put(&sb.fifo_in, &tmp);
-    }
-    return ret;
 }
 
 static void dsp_write_output(uint8_t value)
@@ -542,12 +423,10 @@ static void sb_dsp_reset(void)
 {
     S_printf("SB: Resetting SB DSP\n");
 
-    rng_clear(&sb.dsp_queue);
-    rng_clear(&sb.fifo_in);
-    rng_clear(&sb.fifo_out);
-
-    dspio_toggle_speaker(sb.dspio, 0);
     stop_dma_clock();
+    dspio_toggle_speaker(sb.dspio, 0);
+    dspio_clear_fifos(sb.dspio);
+    rng_clear(&sb.dsp_queue);
     sb.paused = 0;
     sb.midi_cmd = 0;
     sb.dma_cmd = 0;
@@ -555,7 +434,6 @@ static void sb_dsp_reset(void)
     sb.new_dma_cmd = 0;
     sb.new_dma_mode = 0;
     sb.dma_exit_ai = 0;
-    sb.dma_active = 0;
     sb.dma_init_count = 0;
     sb.new_dma_init_count = 0;
     sb.dma_count = 0;
@@ -580,7 +458,7 @@ static void sb_dsp_soft_reset(unsigned char value)
 	    if (sb_dma_active() && sb_dma_high_speed()) {
 		/* for High-Speed mode reset means only exit High-Speed */
 		S_printf("SB: Reset called, exiting High-Speed DMA mode\n");
-		sb.dma_active = 0;
+		sb.dma_cmd = 0;
 	    } else if (sb_midi_uart()) {
 		S_printf("SB: Reset called, exiting UART midi mode\n");
 		sb.midi_cmd = 0;
@@ -809,7 +687,7 @@ static void sb_dsp_write(Bit8u value)
     case 0x38:			/* Midi Write */
 	REQ_PARAMS(1);
 	S_printf("SB: Write 0x%x to SB Midi Port\n", sb.command[1]);
-	sb_write_midi(sb.command[1]);
+	dspio_write_midi(sb.dspio, sb.command[1]);
 	break;
 
 	/* == SAMPLE SPEED == */
@@ -844,7 +722,7 @@ static void sb_dsp_write(Bit8u value)
 	if (sb.paused) {
 	    S_printf("SB: Unpausing DMA, left=%i\n", sb.dma_count);
 	    sb.paused = 0;
-	    if (sb.dma_active)
+	    if (sb.dma_cmd)
 		start_dma_clock();
 	}
 	break;
@@ -905,7 +783,7 @@ static void sb_dsp_write(Bit8u value)
 	    S_printf("SB: Pausing 8bit DMA, left=%i\n", sb.dma_count);
 	    sb_deactivate_irq(SB_IRQ_8BIT);
 	    sb.paused = 1;
-	    if (sb.dma_active)
+	    if (sb.dma_cmd)
 		stop_dma_clock();
 	}
 	break;
@@ -915,7 +793,7 @@ static void sb_dsp_write(Bit8u value)
 	    S_printf("SB: Pausing 16bit DMA, left=%i\n", sb.dma_count);
 	    sb_deactivate_irq(SB_IRQ_16BIT);
 	    sb.paused = 1;
-	    if (sb.dma_active)
+	    if (sb.dma_cmd)
 		stop_dma_clock();
 	}
 	break;
@@ -941,7 +819,7 @@ static void sb_dsp_write(Bit8u value)
 	if (sb.paused) {
 	    S_printf("SB: Unpausing 16bit DMA, left=%i\n", sb.dma_count);
 	    sb.paused = 0;
-	    if (sb.dma_active)
+	    if (sb.dma_cmd)
 		start_dma_clock();
 	}
 	break;
@@ -958,7 +836,7 @@ static void sb_dsp_write(Bit8u value)
 	/* Exit Auto-Init 8-bit DMA - SB2.0 */
     case 0xDA:
 	S_printf("SB: Exiting DMA autoinit\n");
-	if (sb.dma_active)
+	if (sb.dma_cmd)
 	    sb.dma_exit_ai = 1;
 	break;
 
@@ -1193,7 +1071,7 @@ static void sb_io_write(ioport_t port, Bit8u value)
 	/* == DSP == */
     case 0x0C:			/* dsp write register */
 	if (sb_midi_uart()) {
-	    sb_write_midi(value);
+	    dspio_write_midi(sb.dspio, value);
 	    break;
 	}
 	if (sb_dma_active() && sb_dma_high_speed()) {
@@ -1329,6 +1207,19 @@ static Bit8u sb_io_read(ioport_t port)
     return result;
 }
 
+int sb_get_dma_data(void *ptr, int is16bit)
+{
+    if (sb_dma_internal()) {
+	S_printf("SB: E2 value %#x transferred\n", sb.reset_val);
+	if (is16bit)
+	    *(Bit16u *) ptr = sb.reset_val;
+	else
+	    *(Bit8u *) ptr = sb.reset_val;
+	return 1;
+    }
+    return 0;
+}
+
 static Bit8u mpu401_io_read(ioport_t port)
 {
     ioport_t addr;
@@ -1339,11 +1230,13 @@ static Bit8u mpu401_io_read(ioport_t port)
     switch (addr) {
     case 0:
 	/* Read data port */
-	rng_get(&sb.midi_fifo_in, &r);
-	S_printf
-	    ("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
-	     r, rng_count(&sb.midi_fifo_in));
-	if (!rng_count(&sb.midi_fifo_in))
+	if (dspio_get_midi_in_fillup(sb.dspio))
+	    r = dspio_get_midi_in_byte(sb.dspio);
+	else
+	    S_printf("MPU401: ERROR: No data to read\n");
+	S_printf("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
+	     r, dspio_get_midi_in_fillup(sb.dspio));
+	if (!dspio_get_midi_in_fillup(sb.dspio))
 	    sb_deactivate_irq(SB_IRQ_MPU401);
 	sb_run_irq(SB_IRQ_MPU401);
 	break;
@@ -1351,7 +1244,7 @@ static Bit8u mpu401_io_read(ioport_t port)
 	/* Read status port */
 	/* 0x40=OUTPUT_AVAIL; 0x80=INPUT_AVAIL */
 	r = 0xff & (~0x40);	/* Output is always possible */
-	if (rng_count(&sb.midi_fifo_in))
+	if (dspio_get_midi_in_fillup(sb.dspio))
 	    r &= (~0x80);
 	S_printf("MPU401: Read status port = 0x%02x\n", r);
 	break;
@@ -1369,13 +1262,13 @@ static void mpu401_io_write(ioport_t port, Bit8u value)
 	/* Write data port */
 	S_printf("MPU401: Write 0x%02x to data port\n", value);
 	if (sb.mpu401_uart)
-	    sb_write_midi(value);
+	    dspio_write_midi(sb.dspio, value);
 	break;
     case 1:
 	/* Write command port */
 	S_printf("MPU401: Write 0x%02x to command port\n", value);
-	rng_clear(&sb.midi_fifo_in);
-	rng_put_const(&sb.midi_fifo_in, 0xfe);	/* A command is sent: MPU_ACK it next time */
+	dspio_clear_midi_in_fifo(sb.dspio);
+	dspio_put_midi_in_byte(sb.dspio, 0xfe);	/* A command is sent: MPU_ACK it next time */
 	switch (value) {
 	case 0x3f:		// 0x3F = UART mode
 	    sb.mpu401_uart = 1;
@@ -1387,10 +1280,10 @@ static void mpu401_io_write(ioport_t port, Bit8u value)
 	case 0x80:		// Clock ??
 	    break;
 	case 0xac:		// Query version
-	    rng_put_const(&sb.midi_fifo_in, 0x15);
+	    dspio_put_midi_in_byte(sb.dspio, 0x15);
 	    break;
 	case 0xad:		// Query revision
-	    rng_put_const(&sb.midi_fifo_in, 0x1);
+	    dspio_put_midi_in_byte(sb.dspio, 0x1);
 	    break;
 	}
 	sb_activate_irq(SB_IRQ_MPU401);
@@ -1407,20 +1300,20 @@ static void process_sb_midi_input(void)
 	dsp_write_output(time >> 8);
 	dsp_write_output(time >> 16);
     }
-    rng_get(&sb.midi_fifo_in, &tmp);
+    tmp = dspio_get_midi_in_byte(sb.dspio);
     dsp_write_output(tmp);
 }
 
-void sb_put_midi_data(unsigned char val)
+void sb_handle_midi_data(void)
 {
-    rng_put(&sb.midi_fifo_in, &val);
+#define MPU401_IN_FIFO_TRIGGER 1
     if (sb_midi_input()) {
-	while (rng_count(&sb.midi_fifo_in))
+	while (dspio_get_midi_in_fillup(sb.dspio))
 	    process_sb_midi_input();
 	if (sb_midi_int())
 	    sb_activate_irq(SB_IRQ_MIDI);
     } else if (sb.mpu401_uart) {
-	if (rng_count(&sb.midi_fifo_in) == MPU401_IN_FIFO_TRIGGER)
+	if (dspio_get_midi_in_fillup(sb.dspio) == MPU401_IN_FIFO_TRIGGER)
 	    sb_activate_irq(SB_IRQ_MPU401);
     }
 }
@@ -1463,10 +1356,6 @@ static void sb_dsp_init(void)
 {
     memset(&sb, 0, sizeof(sb));
     rng_init(&sb.dsp_queue, DSP_QUEUE_SIZE, 1);
-    rng_init(&sb.fifo_in, DSP_FIFO_SIZE, 2);
-    rng_init(&sb.fifo_out, DSP_FIFO_SIZE, 2);
-    rng_init(&sb.midi_fifo_in, MIDI_FIFO_SIZE, 1);
-    rng_init(&sb.midi_fifo_out, MIDI_FIFO_SIZE, 1);
 
     sb.reset_val = 0xaa;
 }
@@ -1474,10 +1363,6 @@ static void sb_dsp_init(void)
 static void sb_dsp_done(void)
 {
     rng_destroy(&sb.dsp_queue);
-    rng_destroy(&sb.fifo_in);
-    rng_destroy(&sb.fifo_out);
-    rng_destroy(&sb.midi_fifo_in);
-    rng_destroy(&sb.midi_fifo_out);
 }
 
 /*

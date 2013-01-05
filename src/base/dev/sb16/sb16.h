@@ -62,11 +62,10 @@ struct sb_struct {
   uint8_t  reset_val;
   int      paused;		/* is DMA transfer paused? */
   int      reset;
-  uint8_t  mpu401_uart;
+  int      mpu401_uart;
   uint8_t  midi_cmd;
   uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  dma_mode;		/* Information we need on the DMA transfer */
-  int      dma_active;
   int      dma_exit_ai;		/* exit DMA autoinit */
   uint8_t  new_dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  new_dma_mode;	/* Information we need on the DMA transfer */
@@ -83,15 +82,6 @@ struct sb_struct {
   int      command_idx;
 #define DSP_QUEUE_SIZE 64
   struct rng_s dsp_queue;
-#define DSP_FIFO_SIZE 64
-  struct rng_s fifo_in;
-  struct rng_s fifo_out;
-#define DSP_OUT_FIFO_TRIGGER 32
-#define DSP_IN_FIFO_TRIGGER 32
-#define MIDI_FIFO_SIZE 32
-#define MPU401_IN_FIFO_TRIGGER 1
-  struct rng_s midi_fifo_in;
-  struct rng_s midi_fifo_out;
   void *dspio;
 };
 
@@ -99,25 +89,17 @@ extern int sb_get_dma_num(void);
 extern int sb_get_hdma_num(void);
 extern int sb_dma_active(void);
 extern int sb_dma_16bit(void);
+extern int sb_fifo_enabled(void);
 extern int sb_dma_samp_signed(void);
 extern int sb_dma_samp_stereo(void);
 extern int sb_dma_input(void);
 extern int sb_dma_silence(void);
 extern int sb_get_dma_sampling_rate(void);
 extern int sb_get_dma_data(void *ptr, int is16bit);
-extern void sb_put_dma_data(void *ptr, int is16bit);
 extern void sb_handle_dma(void);
 extern void sb_dma_processing(void);
 extern void sb_handle_dma_timeout(void);
-extern int sb_get_output_sample(void *ptr, int is16bit);
 extern int sb_input_enabled(void);
-extern int sb_put_input_sample(void *ptr, int is16bit);
-extern int sb_output_fifo_filled(void);
-extern int sb_input_fifo_filled(void);
-extern int sb_input_fifo_empty(void);
-extern int sb_output_fifo_empty(void);
-extern void sb_put_midi_data(unsigned char val);
-extern int sb_midi_output_empty(void);
-extern void sb_get_midi_data(Bit8u *val);
+extern void sb_handle_midi_data(void);
 
 #endif
