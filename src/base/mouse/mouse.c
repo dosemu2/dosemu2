@@ -1136,6 +1136,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   if (flag == 1) {
     mouse.exc_lx = mouse.exc_ux = -1;
     mouse.exc_ly = mouse.exc_uy = -1;
+    mouse.x_delta = mouse.y_delta = 0;
   }
 
   /* already on, don't do anything */
@@ -1183,17 +1184,16 @@ mouse_setpos(void)
   mouse.y = LWORD(edx);
   reset_unscaled();
   mouse_round_coords();
-  m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
-  if (mouse.cursor_on > 0) {
+  mouse_hide_on_exclusion();
+  if (mouse.cursor_on >= 0) {
     mouse.x_delta = mouse.y_delta = 0;
-    mouse_hide_on_exclusion();
     mouse_do_cur(1);
   } else {
     mouse.x_delta = mouse.x - mouse.abs_x;
     mouse.y_delta = mouse.y - mouse.abs_y;
-    m_printf("MOUSE: set cursor delta x:%d, y:%d\n",
-	    mouse.x_delta, mouse.y_delta);
   }
+  m_printf("MOUSE: set cursor pos x:%d, y:%d delta x:%d, y:%d\n",
+	mouse.x, mouse.y, mouse.x_delta, mouse.y_delta);
 }
 
 void
@@ -1641,6 +1641,7 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 {
 	add_px(dx, dy, x_range, y_range);
+	mouse.x_delta = mouse.y_delta = 0;
 
 	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
 		 dx, dy, mouse.x, mouse.y);
@@ -1683,6 +1684,13 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	mouse.abs_x = new_x;
 	mouse.abs_y = new_y;
 	clipped = mouse_round_coords();
+	/* we dont allow DOS prog to grab mouse pointer by locking it
+	 * inside a clipping region. So just update deltas instead if
+	 * it is invisible, and do nothing if visible. */
+	if (clipped && mouse.cursor_on < 0) {
+	    mouse.x_delta = mouse.x - mouse.abs_x;
+	    mouse.y_delta = mouse.y - mouse.abs_y;
+	}
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, mouse.x, mouse.y);
@@ -1692,7 +1700,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	 * update the event mask
 	 */
 	if (dx || dy)
-	   mouse_move(clipped);
+	   mouse_move(0);
 }
 
 /*
@@ -1835,7 +1843,8 @@ static void mouse_do_cur(int callback)
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
      requested it to be moved */
   Mouse->set_cursor(mouse.cursor_on == 0?1: 0,
-		    mouse.x - mouse.minx, mouse.y - mouse.miny,
+		    mouse.x - mouse.x_delta - mouse.minx,
+		    mouse.y - mouse.y_delta - mouse.miny,
 		    mouse.maxx - mouse.minx +1, mouse.maxy - mouse.miny +1);
 }
 
