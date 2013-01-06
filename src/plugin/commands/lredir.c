@@ -78,6 +78,7 @@ typedef unsigned int uint16;
 #define DOS_GET_LIST_OF_LISTS  0x5200
 #define DOS_GET_SDA_POINTER    0x5D06
 #define DOS_GET_REDIRECTION    0x5F02
+#define DOS_GET_CWD            0x4700
 #define DOS_REDIRECT_DEVICE    0x5F03
 #define DOS_CANCEL_REDIRECTION 0x5F04
 
@@ -266,6 +267,31 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char **presourc
       *presourceStr = strdup(slashedResourceStr + 2);
       return (CC_SUCCESS);
     }
+}
+
+static int getCWD(char **presourceStr)
+{
+    char *cwd;
+    struct REGPACK preg = REGPACK_INIT;
+    uint8_t drive = sda_cur_drive(sda);
+    char dl;
+    cwd = lowmem_alloc(64);
+    preg.r_ax = DOS_GET_CWD;
+    preg.r_dx = 0;
+    preg.r_ds = FP_SEG(cwd);
+    preg.r_si = FP_OFF(cwd);
+    intr(0x21, &preg);
+    if (preg.r_flags & CARRY_FLAG) {
+	lowmem_free(cwd, 64);
+	return preg.r_ax ?: -1;
+    }
+    dl = ((drive & 0x80) ? 'C' + (drive & 0x7f) : 'A' + drive);
+    if (cwd[0])
+	asprintf(presourceStr, "%c:\\%s", dl, cwd);
+    else
+	asprintf(presourceStr, "%c:", dl);
+    lowmem_free(cwd, 64);
+    return 0;
 }
 
 /********************************************
@@ -498,10 +524,24 @@ int lredir_main(int argc, char **argv)
     /* assume the command is to redirect a drive */
     /* read the drive letter and resource string */
     carg = 3;
-    if (argc > 2 && argv[2][1] == ':') {
+    if (argc > 2 && (argv[2][1] == ':' || (argv[2][0] == '.' &&
+	    argv[2][1] == '\\'))) {
+      char *argv2;
       /* lredir c: d: */
+      if (argv[2][1] == '\\') {
+        char *tmp;
+        int err = getCWD(&tmp);
+        if (err) {
+          printf("Error: unable to get CWD\n");
+          goto MainExit;
+        }
+        asprintf(&argv2, "%s\\%s", tmp, argv[2] + 2);
+        free(tmp);
+      } else {
+        argv2 = strdup(argv[2]);
+      }
       strcpy(deviceStr, argv[1]);
-      strncpy(deviceStr2, argv[2], 2);
+      strncpy(deviceStr2, argv2, 2);
       deviceStr2[2] = 0;
       if ((argc > 3 && toupperDOS(argv[3][0]) == 'F') ||
 	((ccode = FindRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS)) {
@@ -510,8 +550,9 @@ int lredir_main(int argc, char **argv)
 	  goto MainExit;
 	}
       }
-      asprintf(&resourceStr, "%s%s", resourceStr2, argv[2] + 3);
+      asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3);
       free(resourceStr2);
+      free(argv2);
     } else {
       if (argc > 1 && argv[1][1] != ':') {
 	int nextDrive;
