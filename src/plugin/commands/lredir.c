@@ -453,7 +453,8 @@ int lredir_main(int argc, char **argv)
 #endif
 
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char *resourceStr;
+    char deviceStr2[MAX_DEVICE_STRING_LENGTH];
+    char *resourceStr, *resourceStr2;
 
 
     /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
@@ -500,13 +501,17 @@ int lredir_main(int argc, char **argv)
     if (argc > 2 && argv[2][1] == ':') {
       /* lredir c: d: */
       strcpy(deviceStr, argv[1]);
+      strncpy(deviceStr2, argv[2], 2);
+      deviceStr2[2] = 0;
       if ((argc > 3 && toupperDOS(argv[3][0]) == 'F') ||
-    	((ccode = FindRedirectionByDevice(argv[2], &resourceStr)) != CC_SUCCESS)) {
-        if ((ccode = FindFATRedirectionByDevice(argv[2], &resourceStr)) != CC_SUCCESS) {
-          printf("Error: unable to find redirection for drive %s\n", argv[2]);
+	((ccode = FindRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS)) {
+        if ((ccode = FindFATRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS) {
+          printf("Error: unable to find redirection for drive %s\n", deviceStr2);
 	  goto MainExit;
 	}
       }
+      asprintf(&resourceStr, "%s%s", resourceStr2, argv[2] + 3);
+      free(resourceStr2);
     } else {
       if (argc > 1 && argv[1][1] != ':') {
 	int nextDrive;
