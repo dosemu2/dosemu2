@@ -550,8 +550,12 @@ int lredir_main(int argc, char **argv)
 	  goto MainExit;
 	}
       }
-      asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3);
-      free(resourceStr2);
+      if (strlen(argv2) > 3) {
+        asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3);
+        free(resourceStr2);
+      } else {
+        resourceStr = resourceStr2;
+      }
       free(argv2);
     } else {
       if (argc > 1 && argv[1][1] != ':') {
