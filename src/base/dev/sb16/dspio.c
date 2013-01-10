@@ -469,6 +469,22 @@ void dspio_stop_dma(void *dspio)
     DSPIO->dma.running = 0;
 }
 
+static int calc_nframes(struct dspio_state *state,
+	hitimer_t time_beg, hitimer_t time_dst)
+{
+    int nfr;
+    if (state->dma.rate) {
+	nfr = (time_dst - time_beg) / pcm_frame_period_us(state->dma.rate);
+	if (nfr < 0)	// happens because of get_stream_time() hack
+	    nfr = 0;
+	if (nfr > PCM_MAX_BUF)
+	    nfr = PCM_MAX_BUF;
+    } else {
+	nfr = 1;
+    }
+    return nfr;
+}
+
 static void dspio_process_dma(struct dspio_state *state)
 {
     int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j;
@@ -485,20 +501,10 @@ static void dspio_process_dma(struct dspio_state *state)
 	state->dma.dsp_fifo_enabled = sb_fifo_enabled();
     }
 
-    if (state->output_running) {
-	if (state->dma.rate) {
-	     nfr = (time_dst - state->output_time_cur) /
-		    pcm_frame_period_us(state->dma.rate);
-	    if (nfr < 0)	// happens because of get_stream_time() hack
-		nfr = 0;
-	    if (nfr > PCM_MAX_BUF)
-		nfr = PCM_MAX_BUF;
-	} else {
-	    nfr = 1;
-	}
-    } else {
+    if (state->output_running)
+	nfr = calc_nframes(state, state->output_time_cur, time_dst);
+    else
 	nfr = 0;
-    }
     for (i = 0; i < nfr; i++) {
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (state->dma.running && !dspio_output_fifo_filled(state)) {
@@ -552,20 +558,10 @@ static void dspio_process_dma(struct dspio_state *state)
 	}
     }
 
-    if (state->input_running) {
-	if (state->dma.rate) {
-	    nfr = (time_dst - state->input_time_cur) /
-		pcm_frame_period_us(state->dma.rate);
-	    if (nfr < 0)	// happens because of get_stream_time() hack
-		nfr = 0;
-	    if (nfr > PCM_MAX_BUF)
-		nfr = PCM_MAX_BUF;
-	} else {
-	    nfr = 1;
-	}
-    } else {
+    if (state->input_running)
+	nfr = calc_nframes(state, state->input_time_cur, time_dst);
+    else
 	nfr = 0;
-    }
     for (i = 0; i < nfr; i++) {
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (sb_input_enabled()) {
