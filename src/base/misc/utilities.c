@@ -298,13 +298,12 @@ void error(const char *fmt, ...)
 int
 p_dos_str(const char *fmt,...) {
   va_list args;
-  static char buf[1025];
+  static char buf[1024];
   char *s;
   int i;
 
   va_start(args, fmt);
-  buf[sizeof(buf)-1] = 0;
-  i = vsnprintf(buf, sizeof(buf)-1,  fmt, args);
+  i = com_vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
 
   s = buf;

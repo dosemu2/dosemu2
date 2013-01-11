@@ -127,6 +127,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <assert.h>
 
 #include "emu.h"
 #include "cpu-emu.h"
@@ -743,19 +744,32 @@ int dos_write(int fd, unsigned data, int cnt)
 }
 
 #define BUF_SIZE 1024
-int com_vsprintf(char *str, char *format, va_list ap)
+int com_vsnprintf(char *str, size_t msize, const char *format, va_list ap)
 {
 	char *s = str;
 	int i, size;
 	char scratch[BUF_SIZE];
 
-	size = vsnprintf(scratch, BUF_SIZE, format, ap);
+	assert(msize <= BUF_SIZE);
+	size = vsnprintf(scratch, msize, format, ap);
 	for (i=0; i < size; i++) {
-		if (scratch[i] == '\n') *s++ = '\r';
+		if (s - str >= msize - 1)
+			break;
+		if (scratch[i] == '\n') {
+			*s++ = '\r';
+			if (s - str >= msize - 1)
+				break;
+		}
 		*s++ = scratch[i];
 	}
-	*s = 0;
+	if (msize)
+		*s = 0;
 	return s - str;
+}
+
+int com_vsprintf(char *str, const char *format, va_list ap)
+{
+	return com_vsnprintf(str, BUF_SIZE, format, ap);
 }
 
 int com_sprintf(char *str, char *format, ...)
