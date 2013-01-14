@@ -171,7 +171,8 @@ int SDL_init(void)
   use_bitmap_font = 1;
   if (SDL_Init(SDL_INIT_VIDEO| SDL_INIT_NOPARACHUTE) < 0) {
     error("SDL: %s\n", SDL_GetError());
-    leavedos(99);
+    config.exitearly = 1;
+    return -1;
   }
   SDL_EnableUNICODE(1);
   SDL_VideoDriverName(driver, 8);
@@ -203,7 +204,8 @@ int SDL_init(void)
 
   if(vga_emu_init(remap_src_modes, &SDL_csd)) {
     error("SDL: SDL_init: VGAEmu init failed!\n");
-    leavedos(99);
+    config.exitearly = 1;
+    return -1;
   }
 
 #ifdef X_SUPPORT
