@@ -390,11 +390,6 @@ emulate(int argc, char **argv)
     /* here we include the hooks to possible plug-ins */
     #include "plugin_init.h"
 
-    if (config.exitearly) {
-      dbug_printf("Leaving DOS before booting\n");
-      leavedos(0);
-    }
-
     mapping_init();		/* initialize mapping drivers */
     low_mem_init();		/* initialize the lower 1Meg */
 
@@ -432,6 +427,12 @@ emulate(int argc, char **argv)
      * the io_select_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
     signal_init();              /* initialize sig's & sig handlers */
+
+    if (config.exitearly) {
+      dbug_printf("Leaving DOS before booting\n");
+      leavedos(0);
+    }
+
     ems_init();			/* initialize ems */
     xms_init();			/* initialize xms */
     dpmi_setup();
