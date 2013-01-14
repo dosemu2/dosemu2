@@ -39,6 +39,7 @@
 #include "utilities.h"
 #include "speaker.h"
 
+static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
@@ -58,7 +59,7 @@ static void toggle_grab(void);
 
 struct video_system Video_SDL =
 {
-  0,
+  SDL_priv_init,
   SDL_init,
   SDL_close,
   SDL_set_videomode,
@@ -99,6 +100,7 @@ static struct {
 
 static int force_grab = 0;
 int grab_active = 0;
+static int init_failed;
 
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
@@ -162,18 +164,33 @@ static void init_x11_window_font(void)
 }
 #endif /* X_SUPPORT */
 
+int SDL_priv_init(void)
+{
+  /* in order to open GPM mouse, SDL needs privs */
+  PRIV_SAVE_AREA
+  int ret;
+  enter_priv_on();
+  ret = SDL_Init(SDL_INIT_VIDEO| SDL_INIT_NOPARACHUTE);
+  leave_priv_setting();
+  if (ret < 0) {
+    error("SDL: %s\n", SDL_GetError());
+    config.exitearly = 1;
+    init_failed = 1;
+    return -1;
+  }
+  return 0;
+}
+
 int SDL_init(void)
 {
   SDL_Event evt;
   char driver[8];
   int have_true_color;
 
-  use_bitmap_font = 1;
-  if (SDL_Init(SDL_INIT_VIDEO| SDL_INIT_NOPARACHUTE) < 0) {
-    error("SDL: %s\n", SDL_GetError());
-    config.exitearly = 1;
+  if (init_failed)
     return -1;
-  }
+
+  use_bitmap_font = 1;
   SDL_EnableUNICODE(1);
   SDL_VideoDriverName(driver, 8);
   v_printf("SDL: Using driver: %s\n", driver);
