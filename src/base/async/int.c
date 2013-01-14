@@ -1438,8 +1438,9 @@ int can_revector(int i)
  */
 
   switch (i) {
-#if 0
-  /* we hook it in int21_post_boot(), not here */
+#if 1
+  /* we hook it in int21_post_boot(), not here,
+   * but for early logging we revect it here too */
   case 0x21:			/* we want it first...then we'll pass it on */
 #endif
   case 0x28:                    /* keyboard idle interrupt */
@@ -2047,7 +2048,7 @@ void do_int(int i)
  	}
 #endif
 
-	if (can_revector(i) == REVECT) {
+	if (can_revector(i) == REVECT && interrupt_function[i][REVECT]) {
 		coopth_start(int_rvc_tid + i, do_int_thr, (void *)(long)i);
 	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
