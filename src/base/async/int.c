@@ -72,6 +72,9 @@
 static char win31_title[256];
 
 static void dos_post_boot(void);
+static int post_boot;
+static int int21_hooked;
+
 static int int33(void);
 static void fake_iret(void);
 
@@ -1125,9 +1128,21 @@ static unsigned short int21seg, int21off;
 
 static void int21_post_boot(void)
 {
+  if (!int21_hooked) {
     int21seg = ISEG(0x21);
     int21off = IOFF(0x21);
     SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
+    int21_hooked = 1;
+    ds_printf("INT21: interrupt hook installed\n");
+  }
+}
+
+static int int21_hook(void)
+{
+  int21_post_boot();
+  interrupt_function[0x21][REVECT] = NULL;
+  reset_revectored(0x21, &vm86s.int_revectored);
+  return 0;
 }
 
 static int int21lfnhook(void)
@@ -1691,11 +1706,10 @@ static int redir_it(void)
   return 0;
 }
 
-static int post_boot = 0;
-
 void dos_post_boot_reset(void)
 {
   post_boot = 0;
+  int21_hooked = 0;
 }
 
 static void dos_post_boot(void)
@@ -2192,6 +2206,7 @@ void setup_interrupts(void) {
   interrupt_function[0x23][REVECT] = int23;
   interrupt_function[0x24][REVECT] = int24;
 
+  interrupt_function[0x21][REVECT] = int21_hook;
   interrupt_function[0x21][NO_REVECT] = int21;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
