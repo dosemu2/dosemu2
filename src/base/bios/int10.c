@@ -261,7 +261,6 @@ void char_out(unsigned char ch, int page)
  */
 void tty_char_out(unsigned char ch, int s, int attr)
 {
-  int newline_att = 7;
   int xpos, ypos, co, li;
   int gfx_mode = 0;
   unsigned dst;
@@ -288,11 +287,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     break;
 
   case '\n':         /* Newline */
-    /* Color newline */
-    newline_att = gfx_mode ? 0 :
-      vga_read(screen_adr(s) + 2*(ypos*co + xpos) + 1);
     ypos++;
-    xpos = 0;                  /* EDLIN needs this behavior */
     break;
 
   case 8:           /* Backspace */
@@ -333,8 +328,11 @@ void tty_char_out(unsigned char ch, int s, int attr)
     ypos--;
     if(gfx_mode)
       vgaemu_scroll(0, 0, co - 1, li - 1, 1, 0);
-    else
-      bios_scroll(0,0,co-1,li-1,1,newline_att);
+    else {
+      /* Scroll with color newline */
+      bios_scroll(0,0,co-1,li-1,1,
+		  vga_read(screen_adr(s) + 2*(ypos*co + xpos) + 1));
+    }
   }
   set_cursor_pos(s, xpos, ypos);
 }
