@@ -166,7 +166,9 @@ static void init_x11_window_font(void)
 
 int SDL_priv_init(void)
 {
-  /* in order to open GPM mouse, SDL needs privs */
+  /* The privs are needed for opening /dev/input/mice.
+   * Unfortunately SDL does not support gpm.
+   * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
   int ret;
   enter_priv_on();
@@ -412,6 +414,12 @@ static void SDL_change_mode(int *x_res, int *y_res)
 #endif
     SDL_ShowCursor(SDL_ENABLE);
   surface =  SDL_SetVideoMode(*x_res, *y_res, SDL_csd.bits, flags);
+  if (!surface) {
+    dosemu_error("SDL_SetVideoMode(%i %i) failed: %s\n", *x_res, *y_res,
+	SDL_GetError());
+    leavedos(23);
+    return;
+  }
   SDL_ShowCursor(SDL_DISABLE);
   if (use_bitmap_font || vga.mode_class == GRAPH) {
     remap_obj.dst_resize(&remap_obj, *x_res, *y_res, surface->pitch);
