@@ -112,7 +112,7 @@ static int vbe_power_state(unsigned, unsigned);
  *
  */
 
-void vbe_init(vgaemu_display_type *vedt)
+void vbe_pre_init(void)
 {
   int i;
   vga_mode_info *vmi = NULL;
@@ -232,10 +232,10 @@ void vbe_init(vgaemu_display_type *vedt)
     "VBE: vbe_init: %d pages for VGA BIOS, vga.mem.base = %p\n",
     vgaemu_bios.pages, vga.mem.base
   );
+}
 
-  if(!vedt)
-    return;
-
+void vbe_init(vgaemu_display_type *vedt)
+{
   vbe_screen = *vedt;
 
   v_printf(

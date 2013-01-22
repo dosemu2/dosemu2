@@ -1646,6 +1646,8 @@ int vga_emu_pre_init(void)
   }
 #endif
 
+  vbe_pre_init();
+
   vga_msg(
     "vga_emu_init: memory: %u kbyte at %p (lfb at %#x); %ssupport for mono modes\n",
     vga.mem.size >> 10, vga.mem.base,

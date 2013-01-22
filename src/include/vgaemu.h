@@ -522,6 +522,7 @@ int vga_emu_adjust_protection(unsigned, unsigned);
  * Functions defined in env/video/vesa.c.
  */
 
+void vbe_pre_init(void);
 void vbe_init(vgaemu_display_type *);
 void do_vesa_int(void);
 
