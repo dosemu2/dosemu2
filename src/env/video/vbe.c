@@ -54,8 +54,8 @@ static void vesa_reinit(void)
   vbe_buffer = lowmem_heap_alloc(sizeof *vbe_buffer);
   vbei = &vbe_buffer->vbei;
   vesa_r.eax = 0x4f00;
-  vesa_r.es = DOSEMU_LMHEAP_SEG;
-  vesa_r.edi = DOSEMU_LMHEAP_OFFS_OF(vbei);
+  vesa_r.es = DOSEMU_LMHEAP_SEG + (DOSEMU_LMHEAP_OFFS_OF(vbei)>>4);
+  vesa_r.edi = 0;
   vbei->VBESig = 0x32454256; /* "VBE2" */
 
   do_int10_callback(&vesa_r);
@@ -88,8 +88,8 @@ static void vesa_reinit(void)
 
   vesa_r.eax = 0x4f01;
   vesa_r.ecx = vesa_version >= 0x200 ? 0x81ff : 0x101;
-  vesa_r.es = DOSEMU_LMHEAP_SEG;
-  vesa_r.edi = DOSEMU_LMHEAP_OFFS_OF(vbe_buffer);
+  vesa_r.es = DOSEMU_LMHEAP_SEG + (DOSEMU_LMHEAP_OFFS_OF(vbe_buffer)>>4);
+  vesa_r.edi = DOSEMU_LMHEAP_OFFS_OF(vbe_buffer) & 0xf;
   do_int10_callback(&vesa_r);
   if ((vesa_r.eax & 0xffff) == 0x4f) {
     vesa_granularity= vbemi->WinGran;
@@ -133,8 +133,7 @@ static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
   lowmem = lowmem_heap_alloc(vesa_regs_size);
   vesa_r.eax = 0x4f04;
   vesa_r.ebx = 0;
-  vesa_r.es = DOSEMU_LMHEAP_SEG;
-  vesa_r.ebx = DOSEMU_LMHEAP_OFFS_OF(lowmem);
+  vesa_r.es = DOSEMU_LMHEAP_SEG + (DOSEMU_LMHEAP_OFFS_OF(lowmem)>>4);
   vesa_r.edx = 1;
   vesa_r.ecx = VESA_SAVE_BITMAP;
   do_int10_callback(&vesa_r);
@@ -157,8 +156,8 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
   lowmem = lowmem_heap_alloc(xregs16[0]);
   memcpy(lowmem, xregs, xregs16[0]);
   vesa_r.eax = 0x4f04;
-  vesa_r.es = DOSEMU_LMHEAP_SEG;
-  vesa_r.ebx = DOSEMU_LMHEAP_OFFS_OF(lowmem);
+  vesa_r.ebx = 0;
+  vesa_r.es = DOSEMU_LMHEAP_SEG + (DOSEMU_LMHEAP_OFFS_OF(lowmem)>>4);
   vesa_r.edx = 2;
   vesa_r.ecx = VESA_SAVE_BITMAP;
   /* swap int10 vectors with the original int10 vector as it was
