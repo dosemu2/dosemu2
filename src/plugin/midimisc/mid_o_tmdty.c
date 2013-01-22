@@ -45,14 +45,13 @@
 
 #define TMDTY_HOST "localhost"
 #define TMDTY_FREQ 44100
-#define TMDTY_MONO 0
 #define TMDTY_8BIT 0
 #define TMDTY_UNS 0
 #define TMDTY_CAPT 1
 #define TMDTY_BIN "timidity"
 #define TMDTY_ARGS "-EFreverb=0 -EFchorus=0 -EFresamp=1 -EFvlpf=0 -EFns=0"
 
-#define TMDTY_CHANS (TMDTY_MONO ? 1 : 2)
+#define TMDTY_CHANS 2
 
 static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
 
@@ -63,7 +62,7 @@ static int pcm_stream, pcm_running;
 
 static void midotmdty_io(void *arg)
 {
-    char buf[16384];
+    sndbuf_t buf[16384][SNDBUF_CHANS];
     int n, selret, fmt;
     fd_set rfds;
     struct timeval tv;
@@ -140,8 +139,6 @@ static int midotmdty_preinit(void)
 	    sprintf(opt_buf, " --sampling-freq=%d", TMDTY_FREQ);
 	    strcat(tmdty_sound_spec, opt_buf);
 	}
-	if (TMDTY_MONO)
-	    strcat(tmdty_sound_spec, " --output-mono");
 	if (TMDTY_8BIT)
 	    strcat(tmdty_sound_spec, " --output-8bit");
 	if (TMDTY_UNS)
@@ -317,7 +314,7 @@ static int midotmdty_init(void)
 
     if (TMDTY_CAPT) {
 	add_to_io_select(data_sock, 1, midotmdty_io, NULL);
-	pcm_stream = pcm_allocate_stream(TMDTY_MONO ? 1 : 2, "MIDI");
+	pcm_stream = pcm_allocate_stream(TMDTY_CHANS, "MIDI");
     }
 
     return TRUE;
