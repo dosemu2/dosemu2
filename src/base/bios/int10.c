@@ -489,6 +489,8 @@ boolean set_video_mode(int mode) {
   if(Video->setmode == NULL) {
     /* set display start to 0 */
     crt_outw(0xc, 0);
+    /* mode control to text mode default */
+    crt_outw(0x17, 0xa3);
     /* mode change clears screen unless bit7 of AL set */
     if(clear_mem)
       clear_screen();
