@@ -80,7 +80,24 @@ static inline void bios_mem_setup(void)
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 }
 
-static void bios_setup(Bit32u offs, void *arg)
+static void late_init(void)
+{
+  static int initialized;
+  LWORD(eip)++; // skip hlt
+  if (initialized)
+    return;
+
+  /* if something else is to be added here,
+   * add the "late_init" member into dev_list instead */
+  video_late_init();
+
+  /* signals should be initialized after everything else */
+  signal_late_init();
+
+  initialized = 1;
+}
+
+static void bios_setup(void)
 {
   int i;
 
@@ -167,13 +184,25 @@ static void bios_setup(Bit32u offs, void *arg)
   fake_retf(0);
 }
 
+static void bios_setup_hlt(Bit32u offs, void *arg)
+{
+  switch (offs) {
+    case 0:
+      return late_init();
+    case 1:
+      return bios_setup();
+    default:
+      ;
+  }
+}
+
 void bios_setup_init(void)
 {
   emu_hlt_t hlt_hdlr;
 
   hlt_hdlr.name	      = "BIOS setup";
   hlt_hdlr.start_addr = 0x07fe;
-  hlt_hdlr.len        = 1;
-  hlt_hdlr.func	      = bios_setup;
+  hlt_hdlr.len        = 2;
+  hlt_hdlr.func	      = bios_setup_hlt;
   hlt_register_handler(hlt_hdlr);
 }

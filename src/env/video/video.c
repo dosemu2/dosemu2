@@ -470,5 +470,10 @@ void video_post_init(void)
 {
   scr_state_init();
   vga_emu_pre_init();
-  if (Video && Video->init) Video->init();
+}
+
+void video_late_init(void)
+{
+  if (Video && Video->init)
+    Video->init();
 }

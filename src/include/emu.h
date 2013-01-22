@@ -452,6 +452,7 @@ EXTERN int dosc_interface(void);
 
 EXTERN void dump_config_status(void (*printfunc)(const char *, ...));
 EXTERN void signal_init(void);
+EXTERN void signal_late_init(void);
 EXTERN void device_init(void);
 EXTERN void memory_init(void);
 EXTERN void map_video_bios(void);
@@ -463,6 +464,7 @@ EXTERN void print_version(void);
 EXTERN void keyboard_flags_init(void);
 EXTERN void video_config_init(void);
 EXTERN void video_post_init(void);
+EXTERN void video_late_init(void);
 EXTERN void video_mem_setup(void);
 EXTERN void printer_init(void);
 EXTERN void printer_mem_setup(void);
