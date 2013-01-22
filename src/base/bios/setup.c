@@ -12,6 +12,7 @@
 #include "bios.h"
 #include "memory.h"
 #include "hlt.h"
+#include "coopth.h"
 #include "int.h"
 #include "iodev.h"
 #include "emm.h"
@@ -19,6 +20,8 @@
 #include "hma.h"
 #include "ipx.h"
 #include "doshelpers.h"
+
+static int li_tid;
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
@@ -80,6 +83,19 @@ static inline void bios_mem_setup(void)
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 }
 
+static void late_init_thr(void *arg)
+{
+  /* if something else is to be added here,
+   * add the "late_init" member into dev_list instead */
+  video_late_init();
+}
+
+static void late_init_post(void *arg)
+{
+  /* signals should be initialized after everything else */
+  signal_late_init();
+}
+
 static void late_init(void)
 {
   static int initialized;
@@ -87,13 +103,9 @@ static void late_init(void)
   if (initialized)
     return;
 
-  /* if something else is to be added here,
-   * add the "late_init" member into dev_list instead */
-  video_late_init();
-
-  /* signals should be initialized after everything else */
-  signal_late_init();
-
+  /* late_init can call int10, so make it a thread */
+  coopth_start(li_tid, late_init_thr, NULL);
+  coopth_set_post_handler(li_tid, late_init_post, NULL);
   initialized = 1;
 }
 
@@ -205,4 +217,6 @@ void bios_setup_init(void)
   hlt_hdlr.len        = 2;
   hlt_hdlr.func	      = bios_setup_hlt;
   hlt_register_handler(hlt_hdlr);
+
+  li_tid = coopth_create("late_init");
 }
