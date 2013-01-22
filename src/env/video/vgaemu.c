@@ -1479,6 +1479,31 @@ static void vgaemu_register_ports(void)
 
 int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 {
+
+  if(csd != NULL) {
+    vgaemu_display_type vedt;
+
+    vedt.src_modes = src_modes;
+    vedt.bits = csd->bits;
+    vedt.bytes = csd->bytes;
+    vedt.r_mask = csd->r_mask;
+    vedt.g_mask = csd->g_mask;
+    vedt.b_mask = csd->b_mask;
+    vedt.r_shift = csd->r_shift;
+    vedt.g_shift = csd->g_shift;
+    vedt.b_shift = csd->b_shift;
+    vedt.r_bits = csd->r_bits;
+    vedt.g_bits = csd->g_bits;
+    vedt.b_bits = csd->b_bits;
+    vbe_init(&vedt);
+  } else {
+    vbe_init(NULL);
+  }
+  return 0;
+}
+
+int vga_emu_pre_init(void)
+{
   int i;
   vga_mapping_type vmt = {0, 0, 0};
   static unsigned int lfb_base = -1;
@@ -1573,26 +1598,6 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   }
 
   vga_emu_setup_mode_table();
-
-  if(csd != NULL) {
-    vgaemu_display_type vedt;
-
-    vedt.src_modes = src_modes;
-    vedt.bits = csd->bits;
-    vedt.bytes = csd->bytes;
-    vedt.r_mask = csd->r_mask;
-    vedt.g_mask = csd->g_mask;
-    vedt.b_mask = csd->b_mask;
-    vedt.r_shift = csd->r_shift;
-    vedt.g_shift = csd->g_shift;
-    vedt.b_shift = csd->b_shift;
-    vedt.r_bits = csd->r_bits;
-    vedt.g_bits = csd->g_bits;
-    vedt.b_bits = csd->b_bits;
-    vbe_init(&vedt);
-  } else {
-    vbe_init(NULL);
-  }
 
   /*
    * Make the VGA-BIOS ROM read-only; some dirty programs try to write to the ROM!
