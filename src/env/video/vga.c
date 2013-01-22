@@ -754,12 +754,6 @@ static int vga_post_init(void)
   }
 
   if (config.chipset == VESA) {
-    /* vesa_init() calls vm86() before POST:
-       temporarily fill interrupt table with real mode vectors:
-       the real initialization takes place later in setup.c, in POST */
-    mprotect_mapping(MAPPING_LOWMEM, mem_base, sizeof(int_bios_area),
-		     PROT_READ | PROT_WRITE | PROT_EXEC);
-    MEMCPY_2DOS(0, int_bios_area, sizeof(int_bios_area));
     port_enter_critical_section(__func__);
     vesa_init();
     port_leave_critical_section();
@@ -770,11 +764,6 @@ static int vga_post_init(void)
   v_printf("VGA: mem size %ld\n", config.gfxmemsize);
 
   save_vga_state(&linux_regs);
-  if (config.chipset == VESA) {
-    MEMSET_DOS(0, 0, sizeof(int_bios_area));
-    mprotect_mapping(MAPPING_LOWMEM, mem_base, sizeof(int_bios_area),
-		     PROT_NONE);
-  }
 
   dosemu_vga_screenon();
   config.vga = 1;
