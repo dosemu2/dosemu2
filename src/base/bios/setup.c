@@ -108,7 +108,7 @@ static void late_init(void)
   initialized = 1;
 }
 
-static void bios_setup(void)
+void bios_setup(void)
 {
   int i;
 
@@ -204,10 +204,8 @@ static void bios_setup_hlt(Bit32u offs, void *arg)
   LWORD(eip)++; // skip hlt
   switch (offs) {
     case 0:
-      return bios_setup();
-    case 1:
       return late_init();
-    case 2:
+    case 1:
       return bios_reset();
   }
 }
@@ -218,7 +216,7 @@ void bios_setup_init(void)
 
   hlt_hdlr.name	      = "BIOS setup";
   hlt_hdlr.start_addr = 0x07fe;
-  hlt_hdlr.len        = 3;
+  hlt_hdlr.len        = 2;
   hlt_hdlr.func	      = bios_setup_hlt;
   hlt_register_handler(hlt_hdlr);
 
