@@ -167,10 +167,10 @@ pkt_init(void)
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
 
-    add_to_io_select(pkt_fd, 1, pkt_receive_async, NULL);
+    add_to_io_select(pkt_fd, pkt_receive_async, NULL);
     /* use dosnet device (dsn0) for virtual net */
     if (config.vnet == VNET_TYPE_DSN)
-	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async, NULL);
+	add_to_io_select(pkt_broadcast_fd, pkt_receive_async, NULL);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);

@@ -373,7 +373,7 @@ static u_char IPXOpenSocket(u_short port, u_short * newPort)
 
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);
-  add_to_io_select(sock, 1, ipx_async_callback, NULL);
+  add_to_io_select(sock, ipx_async_callback, NULL);
   n_printf("IPX: successfully opened socket %i, %04x\n", sock, port);
   *newPort = port;
   return (RCODE_SUCCESS);
