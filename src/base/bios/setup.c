@@ -105,7 +105,7 @@ static void late_init_post(void *arg)
   initialized = 1;
 }
 
-static void late_init(Bit32u offs, void *arg)
+void post_hook(void)
 {
   LWORD(eip)++; // skip hlt
   /* late_init can call int10, so make it a thread */
@@ -200,19 +200,9 @@ static void bios_reset(void)
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
   boot();			/* read the boot sector & get moving */
-
-  fake_retf(0);
 }
 
 void bios_setup_init(void)
 {
-  emu_hlt_t hlt_hdlr;
-
-  hlt_hdlr.name	      = "BIOS setup";
-  hlt_hdlr.start_addr = 0x07fe;
-  hlt_hdlr.len        = 1;
-  hlt_hdlr.func	      = late_init;
-  hlt_register_handler(hlt_hdlr);
-
   li_tid = coopth_create("late_init");
 }

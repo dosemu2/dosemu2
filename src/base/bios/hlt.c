@@ -121,6 +121,9 @@ void hlt_handle(void)
   else if (lina == INT42HOOK_ADD) {
     int42_hook();
   }
+  else if (lina == POSTHOOK_ADD) {
+    post_hook();
+  }
   else if (lina == DPMI_ADD + HLT_OFF(DPMI_dpmi_init)) {
     /* The hlt instruction is 6 bytes in from DPMI_ADD */
     _IP += 1;	/* skip halt to point to FAR RET */
