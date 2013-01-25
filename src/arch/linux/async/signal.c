@@ -406,6 +406,7 @@ void SIG_close(void)
 void
 signal_init(void)
 {
+  sigset_t set;
   struct sigaction oldact;
   stack_t ss;
 
@@ -502,14 +503,20 @@ signal_init(void)
   newsetsig(SIGSEGV, dosemu_fault);
   newsetsig(SIGCHLD, sigasync);
   registersig(SIGCHLD, cleanup_child);
+  /* unblock SIGIO, SIG_ACQUIRE, SIG_RELEASE */
+  sigemptyset(&set);
+  addset_signals_that_queue(&set);
+  /* dont unblock SIGALRM for now */
+  sigdelset(&set, SIGALRM);
+  sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
 void signal_late_init(void)
 {
   sigset_t set;
-  /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
+  /* unblock SIGALRM */
   sigemptyset(&set);
-  addset_signals_that_queue(&set);
+  sigaddset(&set, SIGALRM);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 

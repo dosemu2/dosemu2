@@ -99,7 +99,6 @@ static void late_init_post(void *arg)
 static void late_init(void)
 {
   static int initialized;
-  LWORD(eip)++; // skip hlt
   if (initialized)
     return;
 
@@ -184,8 +183,12 @@ static void bios_setup(void)
     WRITE_BYTE(ptr, config.hdiskboot ? 0x80 : 0);
   }
 
-  dos_post_boot_reset();
   bios_mem_setup();		/* setup values in BIOS area */
+}
+
+static void bios_reset(void)
+{
+  dos_post_boot_reset();
   iodev_reset();		/* reset all i/o devices          */
   ems_reset();
   xms_reset();
@@ -198,11 +201,14 @@ static void bios_setup(void)
 
 static void bios_setup_hlt(Bit32u offs, void *arg)
 {
+  LWORD(eip)++; // skip hlt
   switch (offs) {
     case 0:
-      return late_init();
-    case 1:
       return bios_setup();
+    case 1:
+      return late_init();
+    case 2:
+      return bios_reset();
   }
 }
 
@@ -212,7 +218,7 @@ void bios_setup_init(void)
 
   hlt_hdlr.name	      = "BIOS setup";
   hlt_hdlr.start_addr = 0x07fe;
-  hlt_hdlr.len        = 2;
+  hlt_hdlr.len        = 3;
   hlt_hdlr.func	      = bios_setup_hlt;
   hlt_register_handler(hlt_hdlr);
 
