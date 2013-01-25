@@ -499,34 +499,45 @@ static void parent_close_mouse (void)
     child_close_mouse ();
 }
 
-static int parent_open_mouse (void)
+void mouse_priv_init(void)
 {
   mouse_t *mice = &config.mouse;
+  mice->fd = -1;
   if (mice->intdrv && (mice->type == MOUSE_GPM ||
       mice->type == MOUSE_XTERM || mice->type == MOUSE_X ||
       mice->type == MOUSE_SDL))
-    return 1;
+    return;
   if (mice->intdrv)
     {
       struct stat buf;
       int mode = O_RDWR | O_NONBLOCK;
 
       if (!mice->dev || !strlen(mice->dev))
-        return 0;
+        return;
       stat(mice->dev, &buf);
       if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
 	/* no write permission is necessary for FIFO's (eg., gpm) */
         mode = O_RDONLY | O_NONBLOCK;
       }
-      mice->fd = -1;
       /* gpm + non-graphics mode doesn't work */
       if ((!S_ISFIFO(buf.st_mode) || config.vga) && mice->dev)
       {
-	mice->fd = DOS_SYSCALL(open(mice->dev, mode));
+        PRIV_SAVE_AREA
+        enter_priv_on();
+        mice->fd = DOS_SYSCALL(open(mice->dev, mode));
+        leave_priv_setting();
         if (mice->fd == -1) {
           error("Cannot open internal mouse device %s\n",mice->dev);
         }
       }
+    }
+}
+
+static int parent_open_mouse (void)
+{
+  mouse_t *mice = &config.mouse;
+  if (mice->intdrv)
+    {
       if (mice->fd == -1) {
  	mice->intdrv = FALSE;
  	mice->type = MOUSE_NONE;

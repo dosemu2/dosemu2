@@ -169,6 +169,7 @@ void mouse_curtick(void);
 
 EXTERN int keyboard_mouse;
 
+extern void mouse_priv_init(void);
 extern void dosemu_mouse_init(void);
 extern void dosemu_mouse_reset(void);
 extern void mouse_ps2bios(void);
