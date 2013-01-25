@@ -2076,7 +2076,7 @@ static int serial_mouse_init(void)
 }
 
 static struct mouse_client Mouse_serial =  {
-  "No Mouse",   /* name */
+  "Serial Mouse",   /* name */
   serial_mouse_init,	/* init */
   NULL,		/* close */
   NULL,		/* run */
