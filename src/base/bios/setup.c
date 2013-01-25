@@ -203,8 +203,6 @@ static void bios_setup_hlt(Bit32u offs, void *arg)
       return late_init();
     case 1:
       return bios_setup();
-    default:
-      ;
   }
 }
 
