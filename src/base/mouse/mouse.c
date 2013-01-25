@@ -1997,7 +1997,6 @@ dosemu_mouse_init(void)
   else
   	mouse.threebuttons = FALSE;
 
-  mice->fd = -1;
   /* Set to disabled, will be enabled in post_boot() */
   mouse.enabled = FALSE;
 
