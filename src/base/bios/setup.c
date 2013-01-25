@@ -83,8 +83,13 @@ static inline void bios_mem_setup(void)
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 }
 
+static int initialized;
+static void bios_reset(void);
+
 static void late_init_thr(void *arg)
 {
+  if (initialized)
+    return;
   /* if something else is to be added here,
    * add the "late_init" member into dev_list instead */
   video_late_init();
@@ -92,20 +97,20 @@ static void late_init_thr(void *arg)
 
 static void late_init_post(void *arg)
 {
-  /* signals should be initialized after everything else */
-  signal_late_init();
-}
-
-static void late_init(void)
-{
-  static int initialized;
+  bios_reset();
   if (initialized)
     return;
+  /* signals should be initialized after everything else */
+  signal_late_init();
+  initialized = 1;
+}
 
+static void late_init(Bit32u offs, void *arg)
+{
+  LWORD(eip)++; // skip hlt
   /* late_init can call int10, so make it a thread */
   coopth_start(li_tid, late_init_thr, NULL);
   coopth_set_post_handler(li_tid, late_init_post, NULL);
-  initialized = 1;
 }
 
 void bios_setup(void)
@@ -199,25 +204,14 @@ static void bios_reset(void)
   fake_retf(0);
 }
 
-static void bios_setup_hlt(Bit32u offs, void *arg)
-{
-  LWORD(eip)++; // skip hlt
-  switch (offs) {
-    case 0:
-      return late_init();
-    case 1:
-      return bios_reset();
-  }
-}
-
 void bios_setup_init(void)
 {
   emu_hlt_t hlt_hdlr;
 
   hlt_hdlr.name	      = "BIOS setup";
   hlt_hdlr.start_addr = 0x07fe;
-  hlt_hdlr.len        = 2;
-  hlt_hdlr.func	      = bios_setup_hlt;
+  hlt_hdlr.len        = 1;
+  hlt_hdlr.func	      = late_init;
   hlt_register_handler(hlt_hdlr);
 
   li_tid = coopth_create("late_init");
