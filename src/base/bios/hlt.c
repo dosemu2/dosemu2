@@ -31,12 +31,20 @@
 #include "xms.h"
 #include "dpmi.h"
 
-static struct hlt_handler {
+/*
+ * maximum number of halt handlers.
+ * you can increase this to anything below 256 since an 8-bit handle
+ * is used for each device
+ */
+#define MAX_HLT_HANDLERS 50
+
+struct hlt_handler {
   emu_hlt_func  func;
   const char   *name;
   Bit16u	start_addr;
   void         *arg;
-} hlt_handler[MAX_HLT_HANDLERS];
+};
+static struct hlt_handler hlt_handler[MAX_HLT_HANDLERS];
 
 static Bit8u         hlt_handler_id[BIOS_HLT_BLK_SIZE];
 static Bit32u        hlt_handler_count;

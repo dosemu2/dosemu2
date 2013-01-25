@@ -12,13 +12,6 @@
 #endif
 #include "bios.h"
 
-/*
- * maximum number of halt handlers.
- * you can increase this to anything below 256 since an 8-bit handle
- * is used for each device
- */
-#define MAX_HLT_HANDLERS 10
-
 typedef void (* emu_hlt_func)(Bit32u offs, void *arg);
 
 typedef struct {
