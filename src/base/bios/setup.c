@@ -85,6 +85,7 @@ static inline void bios_mem_setup(void)
 
 static int initialized;
 static void bios_reset(void);
+static void bios_setup(void);
 
 static void late_init_thr(void *arg)
 {
@@ -108,12 +109,13 @@ static void late_init_post(void *arg)
 void post_hook(void)
 {
   LWORD(eip)++; // skip hlt
+  bios_setup();
   /* late_init can call int10, so make it a thread */
   coopth_start(li_tid, late_init_thr, NULL);
   coopth_set_post_handler(li_tid, late_init_post, NULL);
 }
 
-void bios_setup(void)
+static void bios_setup(void)
 {
   int i;
 
