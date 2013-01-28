@@ -12,6 +12,7 @@
  */
 
 #include <signal.h>
+#include <assert.h>
 #include "emu.h"
 #include "memory.h"
 #include "smalloc.h"
@@ -42,4 +43,28 @@ void * lowmem_heap_alloc(int size)
 void lowmem_heap_free(void *p)
 {
 	return smfree(&mp, p);
+}
+
+
+#define RM_STACK_SIZE 0x200
+static void *rm_stack;
+static int in_rm_stack;
+
+int get_rm_stack(Bit16u *ss_p, Bit16u *sp_p)
+{
+	if (!(in_rm_stack++)) {
+		rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
+		assert(rm_stack);
+		*ss_p = DOSEMU_LMHEAP_SEG;
+		*sp_p = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
+		return 1;
+	}
+	return 0;
+}
+
+void put_rm_stack(void)
+{
+	assert(in_rm_stack > 0);
+	if (!(--in_rm_stack))
+		lowmem_heap_free(rm_stack);
 }

@@ -14,4 +14,7 @@ extern unsigned char *dosemu_lmheap_base;
 #define DOSEMU_LMHEAP_OFFS_OF(s) \
   (((unsigned char *)(s) - dosemu_lmheap_base) + DOSEMU_LMHEAP_OFF)
 
+int get_rm_stack(Bit16u *ss_p, Bit16u *sp_p);
+void put_rm_stack(void);
+
 #endif

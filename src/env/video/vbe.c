@@ -48,6 +48,8 @@ static void do_int10_callback(struct vm86_regs *regs)
 {
   struct vm86plus_struct saved_vm86;
   char *p;
+  Bit16u new_ss, new_sp;
+  int stk;
 
   if(in_dpmi && !in_dpmi_dos_int)
     fake_pm_int();
@@ -57,18 +59,21 @@ static void do_int10_callback(struct vm86_regs *regs)
   /* always use the special stack to avoid corrupting DOS memory
      -- an int 10 handler may need more space than an irq and
      we can come in at any time */
-  REG(ss) = DOSEMU_LMHEAP_SEG;
-  REG(esp) = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
+  stk = get_rm_stack(&new_ss, &new_sp);
+  if (stk) {
+    REG(ss) = new_ss;
+    REG(esp) = new_sp;
+  }
   v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
   REG(eflags) = IOPL_MASK;
   /* we don't want the BIOS to call the mouse helper */
   p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
   *p = 1;
-  pic_cli();
+  clear_IF();
   do_intr_call_back(0x10);
-  pic_sti();
   *p = 0;
   v_printf("VGA: interrupt returned, ax=%#x\n", LWORD(eax));
+  put_rm_stack();
   *regs = REGS;
   vm86s = saved_vm86;
 }
