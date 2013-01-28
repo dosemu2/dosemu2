@@ -171,7 +171,7 @@ void sb_do_midi_write (void);
 
 void sb_cms_write (ioport_t port, Bit8u value);
 
-inline void sb_mixer_register_write (Bit8u value);
+static void sb_mixer_register_write (Bit8u value);
 void sb_mixer_data_write (Bit8u value);
 Bit8u sb_mixer_data_read (void);
 
@@ -838,7 +838,7 @@ void sb_cms_write (ioport_t port, Bit8u value)
 	}
 }
 
-inline void sb_mixer_register_write (Bit8u value)
+static void sb_mixer_register_write (Bit8u value)
 {
     if (SB_info.version > SB_20) {
 		SB_info.mixer_index = value;

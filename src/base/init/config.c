@@ -610,6 +610,7 @@ static void config_post_process(const char *usedoptions)
 		config.X = 0;
 #endif
 	}
+	config.mouse.type = MOUSE_X;
     }
     if (on_console()) {
 	if (!can_do_root_stuff && config.console_video) {
