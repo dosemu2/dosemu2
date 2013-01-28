@@ -427,10 +427,6 @@ static int terminal_initialize(void)
    /* initialize VGA emulator */
    use_bitmap_font = FALSE;
    config.X_updatelines = Rows;
-   if (vga_emu_init(0, NULL)) {
-     error("X: X_init: VGAEmu init failed!\n");
-     leavedos(99);
-   }
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;

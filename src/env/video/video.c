@@ -45,7 +45,6 @@ static void v_empty_void (void) {}
 
 static int video_none_init(void)
 {
-  vga_emu_init(0, NULL);
   vga_emu_setmode(video_mode, CO, LI);
   return 0;
 }
