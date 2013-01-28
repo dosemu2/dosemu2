@@ -276,8 +276,8 @@ static void store_vga_mem(u_char * mem, int banks)
 	 1.5 seconds here using a linear frame buffer. So we'll
 	 have lots of SIGALRMs coming by. Another solution to
 	 this problem would be to use a thread */
-      while (signal_pending)
-	handle_signals_force_reentry();
+	/* XXX replace with something from coopthreads */
+      handle_signals_force_reentry();
       if (planar) {
         /* Store planes */
 	port_out(0x04, GRA_I);
@@ -327,8 +327,8 @@ static void restore_vga_mem(u_char * mem, int banks)
   for (cbank = 0; cbank < banks; cbank++) {
     if (planar && banks > 1) set_bank_write(cbank);
     for (plane = 0; plane < 4; plane++) {
-      while (signal_pending)
-	handle_signals_force_reentry();
+      /* XXX replace with something from coopthreads */
+      handle_signals_force_reentry();
       if (planar) {
         /* Store planes */
         port_out(0x02, SEQ_I);

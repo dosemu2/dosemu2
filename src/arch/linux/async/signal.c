@@ -541,7 +541,7 @@ static void handle_signals_force(int force_reentry) {
   if (in_handle_signals++ && !force_reentry)
     error("BUG: handle_signals() re-entered!\n");
 
-  if ( SIGNAL_head != SIGNAL_tail ) {
+  while ( SIGNAL_head != SIGNAL_tail ) {
 #ifdef X86_EMULATOR
     if ((config.cpuemu>1) && (debug_level('e')>3))
       {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
@@ -550,17 +550,6 @@ static void handle_signals_force(int force_reentry) {
     signal_handler = signal_queue[SIGNAL_head].signal_handler;
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
     signal_handler();
-/*
- * If more SIGNALS need to be dealt with, make sure we request interruption
- * by the kernel ASAP.
- */
-      if (SIGNAL_head != SIGNAL_tail) {
-	signal_pending = 1;
-      }
-  }
-
-  if (signal_pending) {
-    dpmi_return_request();
   }
 
   in_handle_signals--;
