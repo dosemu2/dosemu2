@@ -16,5 +16,8 @@ extern unsigned char *dosemu_lmheap_base;
 
 int get_rm_stack(Bit16u *ss_p, Bit16u *sp_p);
 void put_rm_stack(void);
+void get_rm_stack_regs(struct vm86_regs *regs, struct vm86_regs *saved_regs);
+void rm_stack_enter(void);
+void rm_stack_leave(void);
 
 #endif

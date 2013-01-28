@@ -46,26 +46,15 @@ static void *rm_stack = NULL;
 
 static void do_int10_callback(struct vm86_regs *regs)
 {
-  struct vm86plus_struct saved_vm86;
+  struct vm86_regs saved_regs;
   char *p;
-  Bit16u new_ss, new_sp;
-  int stk;
 
-  if(in_dpmi && !in_dpmi_dos_int)
-    fake_pm_int();
-  saved_vm86 = vm86s;
-  memset(&vm86s, 0, sizeof(vm86s));
-  REGS = *regs;
   /* always use the special stack to avoid corrupting DOS memory
      -- an int 10 handler may need more space than an irq and
      we can come in at any time */
-  stk = get_rm_stack(&new_ss, &new_sp);
-  if (stk) {
-    REG(ss) = new_ss;
-    REG(esp) = new_sp;
-  }
+  get_rm_stack_regs(regs, &saved_regs);
+  REGS = *regs;
   v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
-  REG(eflags) = IOPL_MASK;
   /* we don't want the BIOS to call the mouse helper */
   p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
   *p = 1;
@@ -73,9 +62,9 @@ static void do_int10_callback(struct vm86_regs *regs)
   do_intr_call_back(0x10);
   *p = 0;
   v_printf("VGA: interrupt returned, ax=%#x\n", LWORD(eax));
-  put_rm_stack();
   *regs = REGS;
-  vm86s = saved_vm86;
+  put_rm_stack();
+  REGS = saved_regs;
 }
 
 /* vesa_reinit: a function to reinitialize in case the DOS VESA driver

@@ -17,6 +17,7 @@
 #include "memory.h"
 #include "smalloc.h"
 #include "utilities.h"
+#include "dpmi.h"
 #include "lowmem.h"
 
 static smpool mp;
@@ -67,4 +68,42 @@ void put_rm_stack(void)
 	assert(in_rm_stack > 0);
 	if (!(--in_rm_stack))
 		lowmem_heap_free(rm_stack);
+}
+
+/* recursion is _very_unlikely, but define an array */
+#define MAX_SAVED_REGS 5
+static struct vm86_regs rm_regs_stack[MAX_SAVED_REGS];
+
+static void switch_stack(struct vm86_regs *regs)
+{
+	Bit16u new_ss, new_sp;
+	int stk;
+	stk = get_rm_stack(&new_ss, &new_sp);
+	if (stk) {
+		regs->ss = new_ss;
+		regs->esp = new_sp;
+	}
+}
+
+void get_rm_stack_regs(struct vm86_regs *regs, struct vm86_regs *saved_regs)
+{
+	if(in_dpmi && !in_dpmi_dos_int)
+		fake_pm_int();
+	*saved_regs = REGS;
+	switch_stack(regs);
+}
+
+void rm_stack_enter(void)
+{
+	if(in_dpmi && !in_dpmi_dos_int)
+		fake_pm_int();
+	assert(in_rm_stack < MAX_SAVED_REGS);
+	rm_regs_stack[in_rm_stack] = REGS;
+	switch_stack(&REGS);
+}
+
+void rm_stack_leave(void)
+{
+	put_rm_stack();
+	REGS = rm_regs_stack[in_rm_stack];
 }
