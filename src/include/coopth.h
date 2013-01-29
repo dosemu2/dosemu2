@@ -20,6 +20,7 @@ int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post);
 void coopth_set_user_data(void *udata);
 void *coopth_get_user_data(int tid);
+void coopth_yield(void);
 void coopth_wait(void);
 void coopth_sleep(void);
 void coopth_leave(void);

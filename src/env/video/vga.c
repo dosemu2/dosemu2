@@ -19,6 +19,7 @@
 #include "bios.h"
 #include "emu.h"
 #include "int.h"
+#include "coopth.h"
 #include "port.h"
 #include "memory.h"
 #include "video.h"
@@ -276,8 +277,10 @@ static void store_vga_mem(u_char * mem, int banks)
 	 1.5 seconds here using a linear frame buffer. So we'll
 	 have lots of SIGALRMs coming by. Another solution to
 	 this problem would be to use a thread */
-	/* XXX replace with something from coopthreads */
-      handle_signals_force_reentry();
+      handle_signals_force_enter();
+      coopth_yield();
+      handle_signals_force_leave();
+
       if (planar) {
         /* Store planes */
 	port_out(0x04, GRA_I);
@@ -327,8 +330,12 @@ static void restore_vga_mem(u_char * mem, int banks)
   for (cbank = 0; cbank < banks; cbank++) {
     if (planar && banks > 1) set_bank_write(cbank);
     for (plane = 0; plane < 4; plane++) {
-      /* XXX replace with something from coopthreads */
-      handle_signals_force_reentry();
+
+      /* process pending signals */
+      handle_signals_force_enter();
+      coopth_yield();
+      handle_signals_force_leave();
+
       if (planar) {
         /* Store planes */
         port_out(0x02, SEQ_I);

@@ -411,7 +411,8 @@ EXTERN void SIG_close(void);
 
 extern void SIGNAL_save( void (*signal_call)(void) );
 extern void handle_signals(void);
-extern void handle_signals_force_reentry(void);
+extern void handle_signals_force_enter(void);
+extern void handle_signals_force_leave(void);
 
 extern void addset_signals_that_queue(sigset_t *x);
 extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));

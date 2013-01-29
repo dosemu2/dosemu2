@@ -29,7 +29,8 @@
 #include "pcl.h"
 #include "coopth.h"
 
-enum CoopthRet { COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE, COOPTH_DONE };
+enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
+	COOPTH_DONE };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
 	COOPTHS_LEAVE, COOPTHS_DELETE };
 
@@ -112,6 +113,8 @@ static void do_run_thread(struct coopth_per_thread_t *pth)
     co_call(pth->thread);
     ret = pth->data.ret;
     switch (ret) {
+    case COOPTH_YIELD:
+	break;
     case COOPTH_WAIT:
 	dosemu_sleep();
 	break;
@@ -409,6 +412,12 @@ static void switch_state(enum CoopthRet ret)
     struct coopth_thrdata_t *thdata = co_get_data(co_current());
     thdata->ret = ret;
     co_resume();
+}
+
+void coopth_yield(void)
+{
+    assert(__coopth_is_in_thread());
+    switch_state(COOPTH_YIELD);
 }
 
 void coopth_wait(void)

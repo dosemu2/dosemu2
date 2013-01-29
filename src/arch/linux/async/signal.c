@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
@@ -553,6 +554,17 @@ void signal_late_init(void)
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
+void handle_signals_force_enter(void)
+{
+  assert(in_handle_signals);
+  in_handle_signals--;
+}
+
+void handle_signals_force_leave(void)
+{
+  in_handle_signals++;
+}
+
 /*
  * DANG_BEGIN_FUNCTION handle_signals
  *
@@ -567,7 +579,7 @@ void signal_late_init(void)
  * DANG_END_FUNCTION
  *
  */
-static void handle_signals_force(int force_reentry) {
+void handle_signals(void) {
   void (*signal_handler)(void);
 
   if (in_handle_signals)
@@ -584,14 +596,6 @@ static void handle_signals_force(int force_reentry) {
     coopth_start(sh_tid, signal_thr, signal_handler);
     in_handle_signals++;
   }
-}
-
-void handle_signals(void) {
-  handle_signals_force(0);
-}
-
-void handle_signals_force_reentry(void) {
-  handle_signals_force(1);
 }
 
 /* ==============================================================
