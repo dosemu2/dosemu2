@@ -90,7 +90,6 @@ static void late_init_post(void *arg);
 
 static void late_init_thr(void *arg)
 {
-  coopth_set_post_handler(late_init_post, NULL);
   if (initialized)
     return;
   /* if something else is to be added here,
@@ -208,4 +207,5 @@ static void bios_reset(void)
 void bios_setup_init(void)
 {
   li_tid = coopth_create("late_init");
+  coopth_set_permanent_post_handler(li_tid, late_init_post, NULL);
 }

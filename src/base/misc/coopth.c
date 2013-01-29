@@ -75,6 +75,7 @@ struct coopth_t {
     int off;
     int cur_thr;
     struct coopth_ctx_handlers_t ctxh;
+    struct coopth_thr_t post;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
@@ -142,6 +143,8 @@ static void do_del_thread(struct coopth_t *thr,
     threads_running--;
     if (pth->data.post.func)
 	pth->data.post.func(pth->data.post.arg);
+    if (thr->post.func)
+	thr->post.func(thr->post.arg);
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -361,6 +364,19 @@ int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
     thr->ctxh.pre.arg = arg_pre;
     thr->ctxh.post.func = post;
     thr->ctxh.post.arg = arg_post;
+    return 0;
+}
+
+int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
+{
+    struct coopth_t *thr;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    thr->post.func = func;
+    thr->post.arg = arg;
     return 0;
 }
 

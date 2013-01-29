@@ -15,6 +15,7 @@ void coopth_init(void);
 int coopth_create(char *name);
 int coopth_create_multi(char *name, int len);
 int coopth_start(int tid, coopth_func_t func, void *arg);
+int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg);
 int coopth_set_post_handler(coopth_func_t func, void *arg);
 int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post);
