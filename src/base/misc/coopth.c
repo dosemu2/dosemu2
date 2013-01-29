@@ -34,7 +34,7 @@ enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
 	COOPTHS_LEAVE, COOPTHS_DELETE };
 
-struct coopth_thr_t {
+struct coopth_thrfunc_t {
     coopth_func_t func;
     void *arg;
 };
@@ -43,17 +43,17 @@ struct coopth_thrdata_t {
     int *tid;
     enum CoopthRet ret;
     void *udata;
-    struct coopth_thr_t post;
+    struct coopth_thrfunc_t post;
 };
 
 struct coopth_starter_args_t {
-    struct coopth_thr_t *thr;
+    struct coopth_thrfunc_t thr;
     struct coopth_thrdata_t *thrdata;
 };
 
 struct coopth_ctx_handlers_t {
-    struct coopth_thr_t pre;
-    struct coopth_thr_t post;
+    struct coopth_thrfunc_t pre;
+    struct coopth_thrfunc_t post;
 };
 
 struct coopth_per_thread_t {
@@ -68,14 +68,13 @@ struct coopth_per_thread_t {
 #define MAX_COOP_RECUR_DEPTH 5
 
 struct coopth_t {
-    struct coopth_thr_t start_func_tmp;
     int tid;
     char *name;
     Bit16u hlt_off;
     int off;
     int cur_thr;
     struct coopth_ctx_handlers_t ctxh;
-    struct coopth_thr_t post;
+    struct coopth_thrfunc_t post;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
@@ -241,7 +240,7 @@ static void coopth_thread(void *arg)
 {
     struct coopth_starter_args_t *args = arg;
     co_set_data(co_current(), args->thrdata);
-    args->thr->func(args->thr->arg);
+    args->thr.func(args->thr.arg);
     args->thrdata->ret = COOPTH_DONE;
 }
 
@@ -316,8 +315,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     thr = &coopthreads[tid];
     assert(thr->tid == tid);
-    thr->start_func_tmp.func = func;
-    thr->start_func_tmp.arg = arg;
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
 	int i;
 	error("Coopthreads recursion depth exceeded, %s off=%x\n",
@@ -332,7 +329,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth = &thr->pth[tn];
     pth->data.tid = &thr->tid;
     pth->data.post.func = NULL;
-    pth->args.thr = &thr->start_func_tmp;
+    pth->args.thr.func = func;
+    pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
