@@ -50,6 +50,11 @@ struct coopth_starter_args_t {
     struct coopth_thrdata_t *thrdata;
 };
 
+struct coopth_ctx_handlers_t {
+    struct coopth_thr_t pre;
+    struct coopth_thr_t post;
+};
+
 struct coopth_per_thread_t {
     coroutine_t thread;
     enum CoopthState state;
@@ -68,6 +73,7 @@ struct coopth_t {
     Bit16u hlt_off;
     int off;
     int cur_thr;
+    struct coopth_ctx_handlers_t ctxh;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
@@ -135,10 +141,12 @@ static void do_del_thread(struct coopth_t *thr,
 	pth->data.post.func(pth->data.post.arg);
 }
 
-static void coopth_retf(struct coopth_per_thread_t *pth)
+static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     REG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
+    if (thr->ctxh.post.func)
+	thr->ctxh.post.func(thr->ctxh.post.arg);
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -156,18 +164,6 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
     assert(pth->state > COOPTHS_NONE);
     return pth;
 }
-
-#if 0
-static struct coopth_per_thread_t *next_thr(struct coopth_t *thr)
-{
-    struct coopth_per_thread_t *pth;
-    assert(thr - coopthreads < MAX_COOPTHREADS);
-    pth = get_pth(thr, thr->cur_thr);
-    /* it must be idle */
-    assert(pth->state == COOPTHS_NONE);
-    return pth;
-}
-#endif
 
 static void coopth_hlt(Bit32u offs, void *arg)
 {
@@ -223,13 +219,13 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	dosemu_sleep();
 	break;
     case COOPTHS_LEAVE:
-	coopth_retf(pth);
+	coopth_retf(thr, pth);
 	do_run_thread(pth);
 	assert(pth->state == COOPTHS_DELETE);
 	do_del_thread(thr, pth);
 	break;
     case COOPTHS_DELETE:
-	coopth_retf(pth);
+	coopth_retf(thr, pth);
 	do_del_thread(thr, pth);
 	break;
     }
@@ -340,10 +336,28 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     pth->state = COOPTHS_RUNNING;
     threads_running++;
+    if (thr->ctxh.pre.func)
+	thr->ctxh.pre.func(thr->ctxh.pre.arg);
     pth->ret_cs = REG(cs);
     pth->ret_ip = LWORD(eip);
     REG(cs) = BIOS_HLT_BLK_SEG;
     LWORD(eip) = thr->hlt_off;
+    return 0;
+}
+
+int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
+	coopth_func_t post, void *arg_post)
+{
+    struct coopth_t *thr;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    thr->ctxh.pre.func = pre;
+    thr->ctxh.pre.arg = arg_pre;
+    thr->ctxh.post.func = post;
+    thr->ctxh.post.arg = arg_post;
     return 0;
 }
 

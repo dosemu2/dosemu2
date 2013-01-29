@@ -26,6 +26,8 @@
 #include "vgatext.h"
 #include "timers.h"
 #include "int.h"
+#include "lowmem.h"
+#include "coopth.h"
 #include "dpmi.h"
 #include "pic.h"
 #include "ipx.h"
@@ -52,6 +54,9 @@ struct  SIGNAL_queue {
   void (* signal_handler)(void);
 };
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
+
+static int sh_tid;
+static int in_handle_signals;
 
 static struct {
   unsigned long eflags;
@@ -394,6 +399,30 @@ void SIG_close(void)
 #endif
 }
 
+static void sig_ctx_prepare(void *arg)
+{
+  rm_stack_enter();
+  clear_IF();
+}
+
+static void sig_ctx_restore(void *arg)
+{
+  rm_stack_leave();
+}
+
+static void signal_thr_post(void *arg)
+{
+  in_handle_signals--;
+  handle_signals();
+}
+
+static void signal_thr(void *arg)
+{
+  void (*signal_handler)(void) = arg;
+  coopth_set_post_handler(signal_thr_post, NULL);
+  signal_handler();
+}
+
 /* DANG_BEGIN_FUNCTION signal_init
  *
  * description:
@@ -509,6 +538,10 @@ signal_init(void)
   /* dont unblock SIGALRM for now */
   sigdelset(&set, SIGALRM);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
+
+  sh_tid = coopth_create("signal handling");
+  coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, NULL,
+	sig_ctx_restore, NULL);
 }
 
 void signal_late_init(void)
@@ -535,13 +568,12 @@ void signal_late_init(void)
  *
  */
 static void handle_signals_force(int force_reentry) {
-  static int in_handle_signals = 0;
   void (*signal_handler)(void);
 
-  if (in_handle_signals++ && !force_reentry)
-    error("BUG: handle_signals() re-entered!\n");
+  if (in_handle_signals)
+    return;
 
-  while ( SIGNAL_head != SIGNAL_tail ) {
+  if ( SIGNAL_head != SIGNAL_tail ) {
 #ifdef X86_EMULATOR
     if ((config.cpuemu>1) && (debug_level('e')>3))
       {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
@@ -549,10 +581,9 @@ static void handle_signals_force(int force_reentry) {
     signal_pending = 0;
     signal_handler = signal_queue[SIGNAL_head].signal_handler;
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
-    signal_handler();
+    coopth_start(sh_tid, signal_thr, signal_handler);
+    in_handle_signals++;
   }
-
-  in_handle_signals--;
 }
 
 void handle_signals(void) {

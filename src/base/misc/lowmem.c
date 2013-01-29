@@ -95,11 +95,8 @@ void get_rm_stack_regs(struct vm86_regs *regs, struct vm86_regs *saved_regs)
 
 void rm_stack_enter(void)
 {
-	if(in_dpmi && !in_dpmi_dos_int)
-		fake_pm_int();
 	assert(in_rm_stack < MAX_SAVED_REGS);
-	rm_regs_stack[in_rm_stack] = REGS;
-	switch_stack(&REGS);
+	get_rm_stack_regs(&REGS, &rm_regs_stack[in_rm_stack]);
 }
 
 void rm_stack_leave(void)
