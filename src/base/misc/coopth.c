@@ -42,6 +42,7 @@ struct coopth_thrdata_t {
     int *tid;
     enum CoopthRet ret;
     void *udata;
+    struct coopth_thr_t post;
 };
 
 struct coopth_starter_args_t {
@@ -54,7 +55,6 @@ struct coopth_per_thread_t {
     enum CoopthState state;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
-    struct coopth_thr_t post;
     Bit16u ret_cs, ret_ip;
     int dbg;
 };
@@ -131,8 +131,8 @@ static void do_del_thread(struct coopth_t *thr,
     co_delete(pth->thread);
     thr->cur_thr--;
     threads_running--;
-    if (pth->post.func)
-	pth->post.func(pth->post.arg);
+    if (pth->data.post.func)
+	pth->data.post.func(pth->data.post.arg);
 }
 
 static void coopth_retf(struct coopth_per_thread_t *pth)
@@ -141,16 +141,38 @@ static void coopth_retf(struct coopth_per_thread_t *pth)
     LWORD(eip) = pth->ret_ip;
 }
 
+static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
+{
+    assert(idx >= 0 && idx < MAX_COOP_RECUR_DEPTH);
+    return &thr->pth[idx];
+}
+
+static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
+{
+    struct coopth_per_thread_t *pth;
+    assert(thr - coopthreads < MAX_COOPTHREADS);
+    pth = get_pth(thr, thr->cur_thr - 1);
+    /* it must be running */
+    assert(pth->state > COOPTHS_NONE);
+    return pth;
+}
+
+#if 0
+static struct coopth_per_thread_t *next_thr(struct coopth_t *thr)
+{
+    struct coopth_per_thread_t *pth;
+    assert(thr - coopthreads < MAX_COOPTHREADS);
+    pth = get_pth(thr, thr->cur_thr);
+    /* it must be idle */
+    assert(pth->state == COOPTHS_NONE);
+    return pth;
+}
+#endif
+
 static void coopth_hlt(Bit32u offs, void *arg)
 {
     struct coopth_t *thr = (struct coopth_t *)arg + offs;
-    struct coopth_per_thread_t *pth;
-    if (thr - coopthreads >= MAX_COOPTHREADS ||
-	    thr->cur_thr < 0 || thr->cur_thr > MAX_COOP_RECUR_DEPTH) {
-	error("Coopthreads error invalid thread, exiting\n");
-	leavedos(2);
-    }
-    pth = &thr->pth[thr->cur_thr - 1];
+    struct coopth_per_thread_t *pth = current_thr(thr);
     switch (pth->state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
@@ -307,9 +329,9 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
     pth->data.tid = &thr->tid;
+    pth->data.post.func = NULL;
     pth->args.thr = &thr->start_func_tmp;
     pth->args.thrdata = &pth->data;
-    pth->post.func = NULL;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
     if (!pth->thread) {
@@ -325,21 +347,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     return 0;
 }
 
-int coopth_set_post_handler(int tid, coopth_func_t func, void *arg)
-{
-    struct coopth_t *thr;
-    struct coopth_per_thread_t *pth;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
-    thr = &coopthreads[tid];
-    pth = &thr->pth[thr->cur_thr - 1];
-    pth->post.func = func;
-    pth->post.arg = arg;
-    return 0;
-}
-
 static int __coopth_is_in_thread(void)
 {
     if (!thread_running) {
@@ -350,6 +357,16 @@ static int __coopth_is_in_thread(void)
 	}
     }
     return thread_running;
+}
+
+int coopth_set_post_handler(coopth_func_t func, void *arg)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(__coopth_is_in_thread());
+    thdata = co_get_data(co_current());
+    thdata->post.func = func;
+    thdata->post.arg = arg;
+    return 0;
 }
 
 void coopth_set_user_data(void *udata)
@@ -369,7 +386,7 @@ void *coopth_get_user_data(int tid)
 	leavedos(2);
     }
     thr = &coopthreads[tid];
-    pth = &thr->pth[thr->cur_thr - 1];
+    pth = current_thr(thr);
     return pth->data.udata;
 }
 
@@ -408,7 +425,7 @@ void coopth_wake_up(int tid)
 	leavedos(2);
     }
     thr = &coopthreads[tid];
-    pth = &thr->pth[thr->cur_thr - 1];
+    pth = current_thr(thr);
     pth->state = COOPTHS_RUNNING;
 }
 

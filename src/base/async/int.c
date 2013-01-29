@@ -1321,7 +1321,7 @@ static int int21(void)
 {
   int ret = msdos();
   if (ret == 0) {
-    coopth_set_post_handler(int_tid + 0x21, int21lfnhook_thr, NULL);
+    coopth_set_post_handler(int21lfnhook_thr, NULL);
     return 1;
   }
   return ret;
@@ -1587,7 +1587,7 @@ static int int1c(void)
 {
   if (!in_dpmi)
     return 0;
-  coopth_set_post_handler(int_rvc_tid + 0x1c, do_dpmi_int, (void *)0x1c);
+  coopth_set_post_handler(do_dpmi_int, (void *)0x1c);
   return 1;
 }
 
@@ -1595,7 +1595,7 @@ static int int23(void)
 {
   if (!in_dpmi)
     return 0;
-  coopth_set_post_handler(int_rvc_tid + 0x23, do_dpmi_int, (void *)0x23);
+  coopth_set_post_handler(do_dpmi_int, (void *)0x23);
   return 1;
 }
 
@@ -1603,7 +1603,7 @@ static int int24(void)
 {
   if (!in_dpmi)
     return 0;
-  coopth_set_post_handler(int_rvc_tid + 0x24, do_dpmi_int, (void *)0x24);
+  coopth_set_post_handler(do_dpmi_int, (void *)0x24);
   return 1;
 }
 
@@ -2027,7 +2027,7 @@ static void do_int_thr(void *arg)
 			if ((i != 0x2a) && (i != 0x28))
 				g_printf("just an iret 0x%02x\n", i);
 		} else {
-			coopth_set_post_handler(int_rvc_tid + i,
+			coopth_set_post_handler(
 				int_chain_thr, (void *)(long)i);
 		}
 	}
