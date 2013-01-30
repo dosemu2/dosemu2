@@ -420,7 +420,6 @@ static void signal_thr_post(void *arg)
 static void signal_thr(void *arg)
 {
   void (*signal_handler)(void) = arg;
-  coopth_set_post_handler(signal_thr_post, NULL);
   signal_handler();
 }
 
@@ -543,6 +542,7 @@ signal_init(void)
   sh_tid = coopth_create("signal handling");
   coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, NULL,
 	sig_ctx_restore, NULL);
+  coopth_set_permanent_post_handler(sh_tid, signal_thr_post, NULL);
 }
 
 void signal_late_init(void)

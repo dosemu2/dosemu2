@@ -13,6 +13,7 @@
 #include "memory.h"
 #include "hlt.h"
 #include "coopth.h"
+#include "lowmem.h"
 #include "int.h"
 #include "iodev.h"
 #include "emm.h"
@@ -97,6 +98,16 @@ static void late_init_thr(void *arg)
   video_late_init();
 }
 
+static void thr_start_helper(void *arg)
+{
+  rm_stack_enter();
+}
+
+static void thr_term_helper(void *arg)
+{
+  rm_stack_leave();
+}
+
 static void late_init_post(void *arg)
 {
   bios_reset();
@@ -111,6 +122,7 @@ void post_hook(void)
 {
   LWORD(eip)++; // skip hlt
   bios_setup();
+
   /* late_init can call int10, so make it a thread */
   coopth_start(li_tid, late_init_thr, NULL);
 }
@@ -207,5 +219,7 @@ static void bios_reset(void)
 void bios_setup_init(void)
 {
   li_tid = coopth_create("late_init");
+  coopth_set_ctx_handlers(li_tid, thr_start_helper, NULL,
+	thr_term_helper, NULL);
   coopth_set_permanent_post_handler(li_tid, late_init_post, NULL);
 }

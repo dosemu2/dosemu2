@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "emu.h"
+#include "utilities.h"
 #include "vc.h"
 #include "vga.h"
 #include "dpmi.h"
@@ -49,21 +50,37 @@ static void do_int10_callback(struct vm86_regs *regs)
   struct vm86_regs saved_regs;
   char *p;
 
-  /* always use the special stack to avoid corrupting DOS memory
-     -- an int 10 handler may need more space than an irq and
-     we can come in at any time */
-  get_rm_stack_regs(regs, &saved_regs);
+  // XXX temporary hack
+  int bad_stack = ((REG(ss) != DOSEMU_LMHEAP_SEG) ||
+	(in_dpmi && !in_dpmi_dos_int));
+  if (bad_stack) {
+    /* XXX catch all occurances and fix them, then remove this */
+    dosemu_error("bad stack\n");
+    get_rm_stack_regs(regs, &saved_regs);
+  } else {
+    saved_regs = REGS;
+  }
+
   REGS = *regs;
   v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
   /* we don't want the BIOS to call the mouse helper */
   p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
   *p = 1;
-  clear_IF();
-  do_intr_call_back(0x10);
+
+  if (bad_stack) {
+    clear_IF();
+    do_intr_call_back(0x10);
+  } else {
+    do_int_call_back(0x10);
+  }
+
   *p = 0;
   v_printf("VGA: interrupt returned, ax=%#x\n", LWORD(eax));
   *regs = REGS;
-  put_rm_stack();
+
+  if (bad_stack)
+    put_rm_stack();
+
   REGS = saved_regs;
 }
 
