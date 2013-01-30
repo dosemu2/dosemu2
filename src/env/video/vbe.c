@@ -33,7 +33,6 @@ static char *vesa_oemstring = NULL;
 static unsigned vesa_linear_vbase;
 static unsigned vesa_int10, vesa_oemid;
 static unsigned vesa_version;
-static struct vm86_regs vesa_r;
 
 struct VBE_vi_vm {
   struct VBE_vi vbei;
@@ -88,6 +87,7 @@ static void do_int10_callback(struct vm86_regs *regs)
    changes at runtime (e.g. univbe). Also called at startup */
 static void vesa_reinit(void)
 {
+  struct vm86_regs vesa_r = REGS;
   struct VBE_vi_vm *vbe_buffer;
   struct VBE_vi *vbei;
   struct VBE_vm *vbemi;
@@ -124,7 +124,6 @@ static void vesa_reinit(void)
   vesa_version = vbei->VESAVersion;
 
   vbemi = &vbe_buffer->vbemi;
-  memset(&vesa_r, 0, sizeof(vesa_r));
 
   vesa_granularity = 64;
   vesa_read_write = 6;
@@ -167,6 +166,7 @@ static void vesa_reinit(void)
 /* Read and save chipset-specific registers */
 static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
+  struct vm86_regs vesa_r = REGS;
   void *lowmem;
 
   /* if int10 changed we may have to reinitialize */
@@ -192,6 +192,7 @@ static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
 /* Restore and write chipset-specific registers */
 static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
+  struct vm86_regs vesa_r = REGS;
   void *lowmem;
   unsigned long current_int10;
 
@@ -221,6 +222,7 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
 
 static void vesa_setbank_read(unsigned char bank)
 {
+  struct vm86_regs vesa_r = REGS;
   vesa_r.eax = 0x4f05;
   vesa_r.ebx = (vesa_read_write & 2) ? 0 : 1;
   vesa_r.edx = bank*64/vesa_granularity;
@@ -229,6 +231,7 @@ static void vesa_setbank_read(unsigned char bank)
 
 static void vesa_setbank_write(unsigned char bank)
 {
+  struct vm86_regs vesa_r = REGS;
   vesa_r.eax = 0x4f05;
   vesa_r.ebx = (vesa_read_write & 4) ? 0 : 1;
   vesa_r.edx = bank*64/vesa_granularity;
