@@ -486,13 +486,13 @@ void __leavedos(int sig, const char *s, int num)
 {
     struct itimerval itv;
 
+    dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
     if (in_leavedos)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
        _exit(1);
       }
     in_leavedos++;
-    dbug_printf("leavedos(%s|%i) called - shutting down\n", s, num);
 #if 1 /* BUG CATCHER */
     if (in_vm86) {
       g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");
