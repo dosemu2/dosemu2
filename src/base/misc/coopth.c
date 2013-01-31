@@ -378,13 +378,13 @@ int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
     return 0;
 }
 
-static int __coopth_is_in_thread(void)
+static int __coopth_is_in_thread(const char *f)
 {
     if (!thread_running) {
 	static int warned;
 	if (!warned) {
 	    warned = 1;
-	    dosemu_error("Coopth: not in thread!\n");
+	    dosemu_error("Coopth: %s: not in thread!\n", f);
 	}
     }
     return thread_running;
@@ -393,7 +393,7 @@ static int __coopth_is_in_thread(void)
 int coopth_set_post_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
-    assert(__coopth_is_in_thread());
+    assert(__coopth_is_in_thread(__func__));
     thdata = co_get_data(co_current());
     thdata->post.func = func;
     thdata->post.arg = arg;
@@ -403,7 +403,7 @@ int coopth_set_post_handler(coopth_func_t func, void *arg)
 void coopth_set_user_data(void *udata)
 {
     struct coopth_thrdata_t *thdata;
-    assert(__coopth_is_in_thread());
+    assert(__coopth_is_in_thread(__func__));
     thdata = co_get_data(co_current());
     thdata->udata = udata;
 }
@@ -430,25 +430,25 @@ static void switch_state(enum CoopthRet ret)
 
 void coopth_yield(void)
 {
-    assert(__coopth_is_in_thread());
+    assert(__coopth_is_in_thread(__func__));
     switch_state(COOPTH_YIELD);
 }
 
 void coopth_wait(void)
 {
-    assert(__coopth_is_in_thread());
+    assert(__coopth_is_in_thread(__func__));
     switch_state(COOPTH_WAIT);
 }
 
 void coopth_sleep(void)
 {
-    assert(__coopth_is_in_thread());
+    assert(__coopth_is_in_thread(__func__));
     switch_state(COOPTH_SLEEP);
 }
 
 void coopth_leave(void)
 {
-    if (!__coopth_is_in_thread())
+    if (!__coopth_is_in_thread(__func__))
 	return;
     switch_state(COOPTH_LEAVE);
 }
@@ -485,7 +485,7 @@ void coopth_tag_set(int tag, int cookie)
     int j, empty = -1;
     struct coopth_thrdata_t *thdata;
     struct coopth_tag_t *tagp, *tagp2;
-    assert(__coopth_is_in_thread());
+    assert(__coopth_is_in_thread(__func__));
     assert(tag >= 0 && tag < tag_cnt);
     tagp = tags[tag];
     for (j = 0; j < MAX_TAGGED_THREADS; j++) {

@@ -237,6 +237,20 @@ static void store_vga_regs(u_char regs[])
   emu_video_retrace_on();
 }
 
+static void process_signals(void)
+{
+  /* XXX can be called from late_init() or from signal handling */
+  if (in_signal_handler()) {
+    v_printf("re-entering signal handler\n");
+    handle_signals_force_enter();
+    coopth_yield();
+    handle_signals_force_leave();
+  } else {
+    v_printf("entering signal handler\n");
+    handle_signals();
+  }
+}
+
 /* Store EGA/VGA display planes (4) */
 static void store_vga_mem(u_char * mem, int banks)
 {
@@ -277,9 +291,7 @@ static void store_vga_mem(u_char * mem, int banks)
 	 1.5 seconds here using a linear frame buffer. So we'll
 	 have lots of SIGALRMs coming by. Another solution to
 	 this problem would be to use a thread */
-      handle_signals_force_enter();
-      coopth_yield();
-      handle_signals_force_leave();
+      process_signals();
 
       if (planar) {
         /* Store planes */
@@ -332,9 +344,7 @@ static void restore_vga_mem(u_char * mem, int banks)
     for (plane = 0; plane < 4; plane++) {
 
       /* process pending signals */
-      handle_signals_force_enter();
-      coopth_yield();
-      handle_signals_force_leave();
+      process_signals();
 
       if (planar) {
         /* Store planes */

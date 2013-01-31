@@ -13,7 +13,6 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
@@ -36,6 +35,7 @@
 #include "iodev.h"
 #include "serial.h"
 #include "debug.h"
+#include "utilities.h"
 #include "dosemu_config.h"
 
 #include "keyb_clients.h"
@@ -554,9 +554,17 @@ void signal_late_init(void)
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
+int in_signal_handler(void)
+{
+  return in_handle_signals;
+}
+
 void handle_signals_force_enter(void)
 {
-  assert(in_handle_signals);
+  if (!in_handle_signals) {
+    dosemu_error("in_handle_signals=0\n");
+    return;
+  }
   in_handle_signals--;
 }
 
