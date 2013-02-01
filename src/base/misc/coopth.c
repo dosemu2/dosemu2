@@ -32,7 +32,7 @@
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
 	COOPTH_DONE };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
-	COOPTHS_LEAVE, COOPTHS_DELETE };
+	COOPTHS_AWAKEN, COOPTHS_LEAVE, COOPTHS_DELETE };
 
 struct coopth_thrfunc_t {
     coopth_func_t func;
@@ -75,6 +75,7 @@ struct coopth_t {
     int off;
     int cur_thr;
     struct coopth_ctx_handlers_t ctxh;
+    struct coopth_ctx_handlers_t sleeph;
     struct coopth_thrfunc_t post;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
@@ -172,10 +173,18 @@ static void coopth_hlt(Bit32u offs, void *arg)
 {
     struct coopth_t *thr = (struct coopth_t *)arg + offs;
     struct coopth_per_thread_t *pth = current_thr(thr);
+again:
     switch (pth->state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
 	leavedos(2);
+	break;
+    case COOPTHS_AWAKEN:
+	if (thr->sleeph.post.func)
+	    thr->sleeph.post.func(thr->sleeph.post.arg);
+	pth->state = COOPTHS_RUNNING;
+	/* I hate 'case' without 'break'... so use 'goto' instead. :-)) */
+	goto again;
 	break;
     case COOPTHS_RUNNING:
 	/* We have 2 kinds of recursion:
@@ -217,8 +226,12 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	thread_running++;
 	do_run_thread(pth);
 	thread_running--;
-	if (pth->state == COOPTHS_SLEEPING && pth->data.sleep.func)
-	    pth->data.sleep.func(pth->data.sleep.arg);
+	if (pth->state == COOPTHS_SLEEPING) {
+	    if (pth->data.sleep.func)
+		pth->data.sleep.func(pth->data.sleep.arg);
+	    if (thr->sleeph.pre.func)
+		thr->sleeph.pre.func(thr->sleeph.pre.arg);
+	}
 	break;
     case COOPTHS_SLEEPING:
 	dosemu_sleep();
@@ -367,6 +380,22 @@ int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
     return 0;
 }
 
+int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
+	coopth_func_t post, void *arg_post)
+{
+    struct coopth_t *thr;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    thr->sleeph.pre.func = pre;
+    thr->sleeph.pre.arg = arg_pre;
+    thr->sleeph.post.func = post;
+    thr->sleeph.post.arg = arg_post;
+    return 0;
+}
+
 int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
 {
     struct coopth_t *thr;
@@ -485,7 +514,7 @@ void coopth_wake_up(int tid)
     }
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    pth->state = COOPTHS_RUNNING;
+    pth->state = COOPTHS_AWAKEN;
 }
 
 void coopth_done(void)

@@ -239,20 +239,6 @@ static void store_vga_regs(u_char regs[])
   emu_video_retrace_on();
 }
 
-static void process_signals(void)
-{
-  /* XXX can be called from late_init() or from signal handling */
-  if (in_signal_handler()) {
-    v_printf("re-entering signal handler\n");
-    handle_signals_force_enter();
-    coopth_yield();
-    handle_signals_force_leave();
-  } else {
-    v_printf("entering signal handler\n");
-    handle_signals();
-  }
-}
-
 static sem_t cpy_sem;
 static pthread_t cpy_thr;
 struct vmem_chunk {
@@ -384,10 +370,6 @@ static void restore_vga_mem(u_char * mem, int banks)
   for (cbank = 0; cbank < banks; cbank++) {
     if (planar && banks > 1) set_bank_write(cbank);
     for (plane = 0; plane < 4; plane++) {
-
-      /* process pending signals */
-      process_signals();
-
       if (planar) {
         /* Store planes */
         port_out(0x02, SEQ_I);
