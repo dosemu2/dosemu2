@@ -342,6 +342,7 @@ __attribute__((no_instrument_function))
 static void sig_child(struct sigcontext_struct *scp)
 {
   init_handler(scp);
+  dbug_printf("Got SIGCHLD\n");
   SIGNAL_save(cleanup_child);
 }
 
@@ -350,7 +351,7 @@ static void leavedos_signal(int sig)
 {
   init_handler(NULL);
   if (ld_sig) {
-    error("gracefull exit failed, aborting\n");
+    error("gracefull exit failed, aborting (sig=%i)\n", sig);
     _exit(sig);
   }
   dbug_printf("Terminating on signal %i\n", sig);

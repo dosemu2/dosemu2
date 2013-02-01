@@ -83,7 +83,7 @@ static int  color_text;
 #define MAXMODES 34
 
 
-static inline void
+static void
 forbid_switch (void)
 {
   scr_state.vt_allow = 0;
@@ -132,11 +132,6 @@ void
 allow_switch (void)
 {
   scr_state.vt_allow = 1;
-  if (scr_state.vt_requested)
-    {
-      v_printf ("VID: clearing old vt request\n");
-      SIGRELEASE_call ();
-    }
 }
 
 static void __SIGACQUIRE_call(void)
@@ -226,10 +221,6 @@ static void __SIGRELEASE_call(void)
       if (!scr_state.vt_allow)
 	{
 	  v_printf ("disallowed vt switch!\n");
-#if 0
-	  scr_state.vt_requested = 1;
-#endif
-	  v_printf ("Released_vt finished!\n");
 	  return;
 	}
 
@@ -439,7 +430,6 @@ set_process_control (void)
   vt_mode.acqsig = SIG_ACQUIRE;
   vt_mode.frsig = 0;
 
-  scr_state.vt_requested = 0;	/* a switch has not been attempted yet */
   allow_switch ();
 
   registersig (SIG_RELEASE, release_vt);

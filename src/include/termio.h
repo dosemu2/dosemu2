@@ -28,8 +28,7 @@
 
 struct screen_stat {
   int console_no,		/* our console number */
-   vt_allow,			/* whether to allow VC switches */
-   vt_requested;		/* whether one was requested in forbidden state */
+   vt_allow;			/* whether to allow VC switches */
 
   int current;			/* boolean: is our VC current? */
 

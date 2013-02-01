@@ -306,7 +306,6 @@ scr_state_init(void) {
     }
   }
   scr_state.vt_allow = 0;
-  scr_state.vt_requested = 0;
   scr_state.mapped = 0;
   scr_state.pageno = 0;
   scr_state.virt_address = virt_text_base;
