@@ -314,26 +314,50 @@ void init_handler(struct sigcontext_struct *scp)
     loadregister(gs, eflags_fs_gs.gs);
 }
 
-/* this cleaning up is necessary to avoid the port server becoming
-   a zombie process */
-__attribute__((no_instrument_function))
-static void cleanup_child(struct sigcontext_struct *scp)
+static int ld_sig;
+static void leavedos_call(void)
+{
+  leavedos(ld_sig);
+}
+
+static void cleanup_child(void)
 {
   int status;
-  init_handler(scp);
   if (portserver_pid &&
       waitpid(portserver_pid, &status, WNOHANG) > 0 &&
       WIFSIGNALED(status)) {
     error("port server terminated, exiting\n");
-    leavedos(1);
+  } else {
+    error("unexpected SIGCHLD, exiting\n");
   }
+  leavedos(1);
+}
+
+/* this cleaning up is necessary to avoid the port server becoming
+   a zombie process */
+__attribute__((no_instrument_function))
+static void sig_child(struct sigcontext_struct *scp)
+{
+  init_handler(scp);
+  SIGNAL_save(cleanup_child);
 }
 
 __attribute__((no_instrument_function))
 static void leavedos_signal(int sig)
 {
   init_handler(NULL);
-  leavedos(sig);
+  if (ld_sig) {
+    error("gracefull exit failed, aborting\n");
+    _exit(sig);
+  }
+  dbug_printf("Terminating on signal %i\n", sig);
+  ld_sig = sig;
+  SIGNAL_save(leavedos_call);
+  /* abort current sighandlers */
+  if (in_handle_signals) {
+    g_printf("Interrupting active signal handlers\n");
+    in_handle_signals = 0;
+  }
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */
@@ -491,7 +515,7 @@ signal_init(void)
    SIGALRM		14	NQ	(SIG_TIME)sigasync
    SIGTERM		15	S	leavedos
    SIGSTKFLT		16
-   SIGCHLD		17	N       cleanup_child
+   SIGCHLD		17	N       sig_child
    SIGCONT		18
    SIGSTOP		19
    SIGTSTP		20
@@ -542,7 +566,7 @@ signal_init(void)
   newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
   newsetsig(SIGCHLD, sigasync);
-  registersig(SIGCHLD, cleanup_child);
+  registersig(SIGCHLD, sig_child);
   /* unblock SIGIO, SIG_ACQUIRE, SIG_RELEASE */
   sigemptyset(&set);
   addset_signals_that_queue(&set);
@@ -814,7 +838,8 @@ static void SIGALRM_call(void)
  * DANG_END_FUNCTION
  *
  */
-inline void SIGNAL_save( void (*signal_call)(void) ) {
+void SIGNAL_save( void (*signal_call)(void) )
+{
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
   signal_pending = 1;
