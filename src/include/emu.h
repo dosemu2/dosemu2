@@ -70,8 +70,6 @@ EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
 EXTERN int running_kversion INIT(0);
 
-EXTERN char *(*cstack)[16384];
-
 EXTERN int screen_mode;
 
 /* number of highest vid page - 1 */

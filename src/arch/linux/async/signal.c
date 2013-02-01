@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
+#include <sys/mman.h>
 
 #include "emu.h"
 #include "vm86plus.h"
@@ -435,12 +436,22 @@ static void signal_thr(void *arg)
 void
 signal_init(void)
 {
+/* reserve 1024 uncommitted pages for stack */
+#define SIGSTACK_SIZE (1024 * getpagesize())
   sigset_t set;
   struct sigaction oldact;
   stack_t ss;
+  void *cstack;
 
+  cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
+	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+  if (cstack == MAP_FAILED) {
+    error("Unable to allocate stack\n");
+    config.exitearly = 1;
+    return;
+  }
   ss.ss_sp = cstack;
-  ss.ss_size = sizeof(*cstack);
+  ss.ss_size = SIGSTACK_SIZE;
   ss.ss_flags = SS_ONSTACK;
 
   sigaltstack(&ss, NULL);
