@@ -44,6 +44,7 @@ struct coopth_thrdata_t {
     enum CoopthRet ret;
     void *udata;
     struct coopth_thrfunc_t post;
+    struct coopth_thrfunc_t sleep;
 };
 
 struct coopth_starter_args_t {
@@ -127,9 +128,6 @@ static void do_run_thread(struct coopth_per_thread_t *pth)
     case COOPTH_DONE:
 	pth->state = COOPTHS_DELETE;
 	break;
-    default:
-	error("Coopthreads error, exiting\n");
-	leavedos(2);
     }
 }
 
@@ -219,6 +217,8 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	thread_running++;
 	do_run_thread(pth);
 	thread_running--;
+	if (pth->state == COOPTHS_SLEEPING && pth->data.sleep.func)
+	    pth->data.sleep.func(pth->data.sleep.arg);
 	break;
     case COOPTHS_SLEEPING:
 	dosemu_sleep();
@@ -329,6 +329,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth = &thr->pth[tn];
     pth->data.tid = &thr->tid;
     pth->data.post.func = NULL;
+    pth->data.sleep.func = NULL;
+    pth->data.udata = NULL;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
@@ -390,20 +392,40 @@ static int __coopth_is_in_thread(const char *f)
     return thread_running;
 }
 
+#define _coopth_is_in_thread() __coopth_is_in_thread(__func__)
+
+int coopth_get_tid(void)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current());
+    return *thdata->tid;
+}
+
 int coopth_set_post_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
-    assert(__coopth_is_in_thread(__func__));
+    assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
     thdata->post.func = func;
     thdata->post.arg = arg;
     return 0;
 }
 
+int coopth_set_sleep_handler(coopth_func_t func, void *arg)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current());
+    thdata->sleep.func = func;
+    thdata->sleep.arg = arg;
+    return 0;
+}
+
 void coopth_set_user_data(void *udata)
 {
     struct coopth_thrdata_t *thdata;
-    assert(__coopth_is_in_thread(__func__));
+    assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
     thdata->udata = udata;
 }
@@ -430,25 +452,25 @@ static void switch_state(enum CoopthRet ret)
 
 void coopth_yield(void)
 {
-    assert(__coopth_is_in_thread(__func__));
+    assert(_coopth_is_in_thread());
     switch_state(COOPTH_YIELD);
 }
 
 void coopth_wait(void)
 {
-    assert(__coopth_is_in_thread(__func__));
+    assert(_coopth_is_in_thread());
     switch_state(COOPTH_WAIT);
 }
 
 void coopth_sleep(void)
 {
-    assert(__coopth_is_in_thread(__func__));
+    assert(_coopth_is_in_thread());
     switch_state(COOPTH_SLEEP);
 }
 
 void coopth_leave(void)
 {
-    if (!__coopth_is_in_thread(__func__))
+    if (!_coopth_is_in_thread())
 	return;
     switch_state(COOPTH_LEAVE);
 }
@@ -485,7 +507,7 @@ void coopth_tag_set(int tag, int cookie)
     int j, empty = -1;
     struct coopth_thrdata_t *thdata;
     struct coopth_tag_t *tagp, *tagp2;
-    assert(__coopth_is_in_thread(__func__));
+    assert(_coopth_is_in_thread());
     assert(tag >= 0 && tag < tag_cnt);
     tagp = tags[tag];
     for (j = 0; j < MAX_TAGGED_THREADS; j++) {

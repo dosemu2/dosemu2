@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <semaphore.h>
+#include <pthread.h>
 #ifdef __linux__
 #include <sys/kd.h>
 #include <sys/vt.h>
@@ -251,6 +253,37 @@ static void process_signals(void)
   }
 }
 
+static sem_t cpy_sem;
+static pthread_t cpy_thr;
+struct vmem_chunk {
+  u_char *mem;
+  unsigned vmem;
+  size_t len;
+  int to_vid;
+  int ctid;
+};
+static struct vmem_chunk vmem_chunk_thr;
+
+static void *vmemcpy_thread(void *arg)
+{
+  struct vmem_chunk *vmc = arg;
+  while (1) {
+    sem_wait(&cpy_sem);
+    if (vmc->to_vid)
+      MEMCPY_2DOS(vmc->vmem, vmc->mem, vmc->len);
+    else
+      MEMCPY_2UNIX(vmc->mem, vmc->vmem, vmc->len);
+    coopth_wake_up(vmc->ctid);
+  }
+  return NULL;
+}
+
+static void sleep_cb(void *arg)
+{
+  sem_t *sem = arg;
+  sem_post(sem);
+}
+
 /* Store EGA/VGA display planes (4) */
 static void store_vga_mem(u_char * mem, int banks)
 {
@@ -287,12 +320,6 @@ static void store_vga_mem(u_char * mem, int banks)
   for (cbank = 0; cbank < banks; cbank++) {
     if (planar && banks > 1) set_bank_read(cbank);
     for (plane = 0; plane < 4; plane++) {
-      /* reading video memory can be very slow: 16384MB takes
-	 1.5 seconds here using a linear frame buffer. So we'll
-	 have lots of SIGALRMs coming by. Another solution to
-	 this problem would be to use a thread */
-      process_signals();
-
       if (planar) {
         /* Store planes */
 	port_out(0x04, GRA_I);
@@ -301,7 +328,22 @@ static void store_vga_mem(u_char * mem, int banks)
 	set_bank_read(cbank * 4 + plane);
       else
 	vmem += PLANE_SIZE;
-      MEMCPY_2UNIX(mem, vmem, PLANE_SIZE);
+
+      /* reading video memory can be very slow: 16384MB takes
+	 1.5 seconds here using a linear frame buffer. So we'll
+	 have lots of SIGALRMs coming by. Another solution to
+	 this problem would be to use a thread --Bart */
+      /* SOLVED: with coopthreads_v2 we can do that in a separate
+       * pthread's thread, here's how: --stsp */
+      vmem_chunk_thr.mem = mem;
+      vmem_chunk_thr.vmem = vmem;
+      vmem_chunk_thr.len = PLANE_SIZE;
+      vmem_chunk_thr.to_vid = 0;
+      vmem_chunk_thr.ctid = coopth_get_tid();
+      coopth_set_sleep_handler(sleep_cb, &cpy_sem);
+      coopth_sleep();
+      /* end of magic: chunk copied */
+
       v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, READ_DWORD(vmem));
       mem += PLANE_SIZE;
     }
@@ -354,7 +396,16 @@ static void restore_vga_mem(u_char * mem, int banks)
 	set_bank_write(cbank * 4 + plane);
       else
 	vmem += PLANE_SIZE;
-      MEMCPY_2DOS(vmem, mem, PLANE_SIZE);
+
+      vmem_chunk_thr.mem = mem;
+      vmem_chunk_thr.vmem = vmem;
+      vmem_chunk_thr.len = PLANE_SIZE;
+      vmem_chunk_thr.to_vid = 1;
+      vmem_chunk_thr.ctid = coopth_get_tid();
+      coopth_set_sleep_handler(sleep_cb, &cpy_sem);
+      coopth_sleep();
+      /* end of magic: chunk copied */
+
       v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *)mem);
       mem += PLANE_SIZE;
     }
@@ -634,6 +685,10 @@ static void vga_close(void)
     ioctl(console_fd, VT_DISALLOCATE, arg);
   }
   ioctl(console_fd, KIOCSOUND, 0);	/* turn off any sound */
+
+  pthread_cancel(cpy_thr);
+  pthread_join(cpy_thr, NULL);
+  sem_destroy(&cpy_sem);
 }
 
 struct video_system Video_graphics = {
@@ -747,6 +802,9 @@ static void dump_video_regs(void)
 
 static int vga_post_init(void)
 {
+  sem_init(&cpy_sem, 0, 0);
+  pthread_create(&cpy_thr, NULL, vmemcpy_thread, &vmem_chunk_thr);
+
   /* this function initialises vc switch routines */
   Video_console.init();
 
