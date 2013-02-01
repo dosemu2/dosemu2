@@ -117,7 +117,6 @@ EXTERN void loopstep_run_vm86(void);
 EXTERN void vm86_GP_fault(void);
 
 EXTERN void do_call_back(Bit16u cs, Bit16u ip);
-EXTERN void do_intr_call_back(int intno);
 EXTERN void do_int_call_back(int intno);
 
 #define NOWAIT  0
