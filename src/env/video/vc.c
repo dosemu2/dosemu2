@@ -139,13 +139,13 @@ static void __SIGACQUIRE_call(void)
   get_video_ram (WAIT);
   set_dos_video ();
   /*      if (config.vga) dos_unpause(); */
-  unfreeze_dosemu();
   unfreeze_mouse();
 }
 
 static void SIGACQUIRE_call(void)
 {
   if (in_vc_call) {
+    v_printf ("VID: Cannot acquire console, waiting\n");
     handle_signals_requeue();
     return;
   }
@@ -173,6 +173,7 @@ acquire_vt (struct sigcontext_struct *scp)
   allow_switch ();
   SIGNAL_save (SIGACQUIRE_call);
   scr_state.current = 1;
+  unfreeze_dosemu();
 }
 
 static void

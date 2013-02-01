@@ -326,8 +326,7 @@ static void leavedos_call(void)
 static void cleanup_child(void)
 {
   int status;
-  if (portserver_pid &&
-      waitpid(portserver_pid, &status, WNOHANG) > 0 &&
+  if (waitpid(portserver_pid, &status, WNOHANG) > 0 &&
       WIFSIGNALED(status)) {
     error("port server terminated, exiting\n");
   } else {
@@ -339,11 +338,13 @@ static void cleanup_child(void)
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
 __attribute__((no_instrument_function))
-static void sig_child(struct sigcontext_struct *scp)
+static void sig_child(int sig, siginfo_t *si, void *uc)
 {
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
-  dbug_printf("Got SIGCHLD\n");
-  SIGNAL_save(cleanup_child);
+  if (portserver_pid == si->si_pid)
+    SIGNAL_save(cleanup_child);
 }
 
 __attribute__((no_instrument_function))
@@ -429,13 +430,13 @@ void SIG_close(void)
 #endif
 }
 
-static void sig_ctx_prepare(void *arg)
+void sig_ctx_prepare(void *arg)
 {
   rm_stack_enter();
   clear_IF();
 }
 
-static void sig_ctx_restore(void *arg)
+void sig_ctx_restore(void *arg)
 {
   rm_stack_leave();
 }
@@ -525,7 +526,7 @@ signal_init(void)
    SIGALRM		14	NQ	(SIG_TIME)sigasync
    SIGTERM		15	S	leavedos
    SIGSTKFLT		16
-   SIGCHLD		17	N       sig_child
+   SIGCHLD		17	NQ       sig_child
    SIGCONT		18
    SIGSTOP		19
    SIGTSTP		20
@@ -575,8 +576,7 @@ signal_init(void)
     newsetqsig(SIGPROF, sigasync);
   newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
-  newsetsig(SIGCHLD, sigasync);
-  registersig(SIGCHLD, sig_child);
+  newsetqsig(SIGCHLD, sig_child);
   /* unblock SIGIO, SIG_ACQUIRE, SIG_RELEASE */
   sigemptyset(&set);
   addset_signals_that_queue(&set);

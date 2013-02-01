@@ -50,7 +50,7 @@ static void do_int10_callback(struct vm86_regs *regs)
   char *p;
 
   // XXX temporary hack
-  int bad_stack = ((REG(ss) != DOSEMU_LMHEAP_SEG) || in_leavedos ||
+  int bad_stack = ((REG(ss) != DOSEMU_LMHEAP_SEG) ||
 	(in_dpmi && !in_dpmi_dos_int));
   if (bad_stack) {
     /* XXX catch all occurances and fix them, then remove this */

@@ -135,6 +135,7 @@ __asm__("___START___: jmp _emulate\n");
 #endif
 
 sigjmp_buf NotJEnv;
+static int ld_tid;
 
 void
 boot(void)
@@ -412,6 +413,9 @@ emulate(int argc, char **argv)
     /* the following duo have to be done before others who use hlt or coopth */
     hlt_init();
     coopth_init();
+    ld_tid = coopth_create("leavedos");
+    coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, NULL,
+	sig_ctx_restore, NULL);
 
     vm86_init();
     HMA_init();			/* HMA can only be done now after mapping
@@ -477,11 +481,21 @@ dos_ctrl_alt_del(void)
     cpu_reset();
 }
 
+static int leavedos_started;
+
+static void leavedos_thr(void *arg)
+{
+    dbug_printf("leavedos thread started\n");
+    /* this may require working vm86() */
+    video_close();
+    leavedos_started = 1;
+    dbug_printf("leavedos thread ended\n");
+}
+
 /* "graceful" shutdown */
 void __leavedos(int sig, const char *s, int num)
 {
     struct itimerval itv;
-
     dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
     if (in_leavedos)
       {
@@ -489,13 +503,15 @@ void __leavedos(int sig, const char *s, int num)
        _exit(1);
       }
     in_leavedos++;
-#if 1 /* BUG CATCHER */
-    if (in_vm86) {
-      g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");
-      show_regs(__FILE__, __LINE__);
-    }
-#endif
-    in_vm86 = 0;
+    registersig(SIGALRM, NULL);
+
+    /* abandon current thread if any, and start new one */
+    coopth_leave();
+    coopth_start(ld_tid, leavedos_thr, NULL);
+    /* vc switch may require vm86() so call it right here */
+    while (!leavedos_started)
+	run_vm86();
+    coopth_done();
 
     /* try to notify dosdebug */
 #ifdef USE_MHPDBG
@@ -512,7 +528,6 @@ void __leavedos(int sig, const char *s, int num)
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     }
-    registersig(SIGALRM, NULL);
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"

@@ -418,9 +418,9 @@ int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
     return 0;
 }
 
-static int __coopth_is_in_thread(const char *f)
+static int __coopth_is_in_thread(int warn, const char *f)
 {
-    if (!thread_running) {
+    if (!thread_running && warn) {
 	static int warned;
 	if (!warned) {
 	    warned = 1;
@@ -430,7 +430,8 @@ static int __coopth_is_in_thread(const char *f)
     return thread_running;
 }
 
-#define _coopth_is_in_thread() __coopth_is_in_thread(__func__)
+#define _coopth_is_in_thread() __coopth_is_in_thread(1, __func__)
+#define _coopth_is_in_thread_nowarn() __coopth_is_in_thread(0, __func__)
 
 int coopth_get_tid(void)
 {
@@ -508,7 +509,7 @@ void coopth_sleep(void)
 
 void coopth_leave(void)
 {
-    if (!_coopth_is_in_thread())
+    if (!_coopth_is_in_thread_nowarn())
 	return;
     switch_state(COOPTH_LEAVE);
 }
