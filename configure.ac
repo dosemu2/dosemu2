@@ -242,16 +242,13 @@ else
 fi
 
 dnl Check whether we have pthreads and whether to use it
-
-AC_ARG_WITH(pthreads)
-if test "$with_pthreads" = "yes"; then
-  AC_CHECK_LIB(pthread, pthread_create, , with_pthreads="no")
-fi
+AC_CHECK_LIB(pthread, pthread_create, with_pthreads="yes")
 if test "$with_pthreads" = "yes"; then
   AC_MSG_NOTICE(Compiling with pthreads support...)
   AC_DEFINE(USE_PTHREADS)
   USE_PTHREADS="USE_PTHREADS=1"
   AC_SUBST(USE_PTHREADS)
+  LIBS="$LIBS -lpthread"
 else
   AC_MSG_NOTICE(Compiling without pthreads support...)
 fi
