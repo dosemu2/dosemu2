@@ -75,6 +75,7 @@ static int release_perm (void);
 
 static void SIGRELEASE_call (void);
 static void SIGACQUIRE_call (void);
+static int in_vc_call;
 
 static int  color_text;
 
@@ -138,14 +139,24 @@ allow_switch (void)
     }
 }
 
-static inline void
-SIGACQUIRE_call (void)
+static void __SIGACQUIRE_call(void)
 {
   get_video_ram (WAIT);
   set_dos_video ();
   /*      if (config.vga) dos_unpause(); */
   unfreeze_dosemu();
   unfreeze_mouse();
+}
+
+static void SIGACQUIRE_call(void)
+{
+  if (in_vc_call) {
+    handle_signals_requeue();
+    return;
+  }
+  in_vc_call++;
+  __SIGACQUIRE_call();
+  in_vc_call--;
 }
 
 int dos_has_vt = 1;
@@ -206,8 +217,7 @@ static void set_linux_video (void)
     }
 }
 
-static void
-SIGRELEASE_call (void)
+static void __SIGRELEASE_call(void)
 {
   if (scr_state.current == 1)
     {
@@ -246,6 +256,17 @@ SIGRELEASE_call (void)
     if (user_vc_switch) shut_debug = 1;
 #endif
   }
+}
+
+static void SIGRELEASE_call(void)
+{
+  if (in_vc_call) {
+    handle_signals_requeue();
+    return;
+  }
+  in_vc_call++;
+  __SIGRELEASE_call();
+  in_vc_call--;
 }
 
 static int wait_vc_active (void)
