@@ -32,7 +32,7 @@
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
 	COOPTH_DONE };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
-	COOPTHS_AWAKEN, COOPTHS_LEAVE, COOPTHS_DELETE };
+	COOPTHS_AWAKEN, COOPTHS_WAIT, COOPTHS_LEAVE, COOPTHS_DELETE };
 
 struct coopth_thrfunc_t {
     coopth_func_t func;
@@ -118,7 +118,7 @@ static void do_run_thread(struct coopth_per_thread_t *pth)
     case COOPTH_YIELD:
 	break;
     case COOPTH_WAIT:
-	dosemu_sleep();
+	pth->state = COOPTHS_WAIT;
 	break;
     case COOPTH_SLEEP:
 	pth->state = COOPTHS_SLEEPING;
@@ -226,12 +226,21 @@ again:
 	thread_running++;
 	do_run_thread(pth);
 	thread_running--;
-	if (pth->state == COOPTHS_SLEEPING) {
+	if (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_WAIT ||
+		pth->state == COOPTHS_RUNNING) {
 	    if (pth->data.sleep.func)
 		pth->data.sleep.func(pth->data.sleep.arg);
 	    if (thr->sleeph.pre.func)
 		thr->sleeph.pre.func(thr->sleeph.pre.arg);
+	    if (pth->state == COOPTHS_RUNNING)	// coopth_yield() case
+		pth->state = COOPTHS_AWAKEN;
+	    if (pth->state == COOPTHS_WAIT)
+		goto again;
 	}
+	break;
+    case COOPTHS_WAIT:
+	dosemu_sleep();
+	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTHS_SLEEPING:
 	dosemu_sleep();
