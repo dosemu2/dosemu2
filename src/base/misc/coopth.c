@@ -138,7 +138,6 @@ static void do_del_thread(struct coopth_t *thr,
     pth->state = COOPTHS_NONE;
     co_delete(pth->thread);
     thr->cur_thr--;
-    threads_running--;
     if (pth->data.post.func)
 	pth->data.post.func(pth->data.post.arg);
     if (thr->post.func)
@@ -151,6 +150,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     LWORD(eip) = pth->ret_ip;
     if (thr->ctxh.post.func)
 	thr->ctxh.post.func(thr->ctxh.post.arg);
+    threads_running--;
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -527,8 +527,24 @@ void coopth_wake_up(int tid)
     pth->state = COOPTHS_AWAKEN;
 }
 
+void coopth_join(int tid, void (*helper)(void))
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    while (pth->state != COOPTHS_NONE)
+	helper();
+}
+
 void coopth_done(void)
 {
+    if (threads_running)
+	error("Coopth: not all threads properly shut down\n");
     co_thread_cleanup();
 }
 

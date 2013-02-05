@@ -481,14 +481,11 @@ dos_ctrl_alt_del(void)
     cpu_reset();
 }
 
-static int leavedos_started;
-
 static void leavedos_thr(void *arg)
 {
     dbug_printf("leavedos thread started\n");
     /* this may require working vm86() */
     video_close();
-    leavedos_started = 1;
     dbug_printf("leavedos thread ended\n");
 }
 
@@ -508,9 +505,8 @@ void __leavedos(int sig, const char *s, int num)
     /* abandon current thread if any, and start new one */
     coopth_leave();
     coopth_start(ld_tid, leavedos_thr, NULL);
-    /* vc switch may require vm86() so call it right here */
-    while (!leavedos_started)
-	run_vm86();
+    /* vc switch may require vm86() so call it while waiting for thread */
+    coopth_join(ld_tid, run_vm86);
     coopth_done();
 
     /* try to notify dosdebug */
