@@ -34,11 +34,7 @@
 #include "sound/sound.h"
 #include "sound/sndpcm.h"
 #include "adlib.h"
-#ifdef HAS_DBOPL
-typedef uintptr_t       Bitu;
-typedef intptr_t        Bits;
 #include "dbadlib.h"
-#endif
 #include <limits.h>
 
 #define ADLIB_BASE 0x388
@@ -52,14 +48,12 @@ typedef intptr_t        Bits;
 #define ADLIB_RUN() (adlib_time_cur = GETusTIME(0))
 #define ADLIB_STOP() (adlib_time_cur = 0)
 
-#if defined(HAS_DBOPL)
 static AdlibTimer opl3_timers[2];
 #define OPL3_SAMPLE_BITS 16
 #if (OPL3_SAMPLE_BITS==16)
 typedef Bit16s OPL3SAMPLE;
 #elif (OPL3_SAMPLE_BITS==8)
 typedef Bit8s OPL3SAMPLE;
-#endif
 #endif
 static int adlib_strm;
 static double adlib_time_cur, adlib_time_last;
@@ -73,11 +67,7 @@ static const int opl3_rate = 44100;
 Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
-#if defined(HAS_DBOPL)
     ret = dbadlib_PortRead(opl3_timers, port);
-#else
-    ret = 0xff;
-#endif
     S_printf("Adlib: Read %hhx from port %x\n", ret, port);
     return ret;
 }
@@ -87,20 +77,16 @@ static Bit8u adlib_io_read(ioport_t port)
     return adlib_io_read_base(port - ADLIB_BASE);
 }
 
-#ifdef HAS_DBOPL
 static void opl3_update(void);
-#endif
 
 void adlib_io_write_base(ioport_t port, Bit8u value)
 {
     adlib_time_last = GETusTIME(0);
     S_printf("Adlib: Write %hhx to port %x\n", value, port);
-#if defined(HAS_DBOPL)
     if ( port&1 ) {
       opl3_update();
     }
     dbadlib_PortWrite(opl3_timers, port, value);
-#endif
 }
 
 static void adlib_io_write(ioport_t port, Bit8u value)
@@ -108,14 +94,12 @@ static void adlib_io_write(ioport_t port, Bit8u value)
     adlib_io_write_base(port - ADLIB_BASE, value);
 }
 
-#ifdef HAS_DBOPL
 static void opl3_update(void)
 {
     if (!ADLIB_RUNNING())
 	ADLIB_RUN();
     run_new_sb();
 }
-#endif
 
 void opl3_init(void)
 {
@@ -139,9 +123,7 @@ void opl3_init(void)
 	error("ADLIB: Cannot registering port handler\n");
     }
 
-#if defined(HAS_DBOPL)
     dbadlib_init(opl3_timers, opl3_rate);
-#endif
 }
 
 void adlib_init(void)
@@ -158,25 +140,16 @@ void adlib_done(void)
 {
 }
 
-#ifdef HAS_DBOPL
 static void adlib_process_samples(int nframes)
 {
-    int i, j;
-    Bit32s buf[OPL3_MAX_BUF*ADLIB_CHANNELS];
-    sndbuf_t buf3[OPL3_MAX_BUF][ADLIB_CHANNELS];
-
+    sndbuf_t buf[OPL3_MAX_BUF][SNDBUF_CHANS];
     dbadlib_generate(nframes, buf);
-    for (i = 0; i < nframes; i++)
-	for (j = 0; j < ADLIB_CHANNELS; j++)
-	    buf3[i][j] = pcm_samp_cutoff(buf[i*ADLIB_CHANNELS+j], opl3_format);
-    pcm_write_interleaved(buf3, nframes, opl3_rate, opl3_format,
+    pcm_write_interleaved(buf, nframes, opl3_rate, opl3_format,
 	    ADLIB_CHANNELS, adlib_strm);
 }
-#endif
 
 void adlib_timer(void)
 {
-#ifdef HAS_DBOPL
     int i, nframes;
     double period;
     long long now;
@@ -192,7 +165,7 @@ void adlib_timer(void)
 	/* find the closest timer */
 	for (i = 0; i < 2; i++) {
 	    if (opl3_timers[i].enabled && !opl3_timers[i].overflow &&
-			now > opl3_timers[i].start) {
+			!opl3_timers[i].masked && now > opl3_timers[i].start) {
 		now = opl3_timers[i].start;
 		time_adj = 1;
 		if (debug_level('S') >= 9)
@@ -212,10 +185,7 @@ void adlib_timer(void)
 	}
 
 	for (i = 0; i < 2; i++) {
-#ifdef HAS_DBOPL
 	    AdlibTimer__Update(&opl3_timers[i], now);
-#endif
 	}
     } while (time_adj);
-#endif
 }

@@ -29,9 +29,7 @@
 #include <sys/types.h>
 #include "emu.h"
 #include "timers.h"
-typedef uintptr_t       Bitu;
-typedef intptr_t        Bits;
-#include "dbopl.h"
+#include "opl.h"
 #include "dbadlib.h"
 
 /*
@@ -39,7 +37,7 @@ Chip
 */
 
 //Check for it being a write to the timer
-static bool AdlibChip__Write(AdlibTimer *timer, Bit32u reg, Bit8u val) {
+static bool AdlibChip__WriteTimer(AdlibTimer *timer, Bit32u reg, Bit8u val) {
 	switch ( reg ) {
 	case 0x02:
 		timer[0].counter = val;
@@ -111,18 +109,16 @@ static struct {
 	//Last selected address in the chip for the different modes
 	Bit32u normal;
 } reg;
-static Chip handler;
 
 // stripped down from DOSBOX adlib.cpp: Adlib::Module::PortWrite
 void dbadlib_PortWrite(AdlibTimer *timer, Bitu port, Bitu val ) {
 	if ( port&1 ) {
-		if ( !AdlibChip__Write( timer, reg.normal, val ) ) {
-			Chip__WriteReg( &handler, reg.normal, val );
+		if ( !AdlibChip__WriteTimer( timer, reg.normal, val ) ) {
+			opl_write( reg.normal, val );
 		}
 	} else {
-		//Ask the handler to write the address
-		//Make sure to clip them in the right range
-		reg.normal = Chip__WriteAddr( &handler, port, val ) & 0x1ff;
+		opl_write_index( port, val );
+		reg.normal = val & 0x1ff;
 	}
 }
 
@@ -141,21 +137,11 @@ Bitu dbadlib_PortRead(AdlibTimer *timer, Bitu port) {
 void dbadlib_init(AdlibTimer *timer, int opl3_rate)
 {
 	AdlibChip__AdlibChip(timer);
-	DBOPL_InitTables();
-	Chip__Chip(&handler);
-	Chip__Setup(&handler, opl3_rate);
+	opl_init(opl3_rate);
 }
 
 // converted from DOSBOX dbopl.cpp: DBOPL::Handler::Generate
-void dbadlib_generate(Bitu total, Bit32s* output )
+void dbadlib_generate(Bitu total, Bit16s output[][2])
 {
-	if (handler.opl3Active)
-		Chip__GenerateBlock3(&handler, total, output );
-	else {
-		// convert mono output to stereo output
-		int i;
-		Chip__GenerateBlock2(&handler, total, output );
-		for (i=total-1; i>=0; i--)
-			output[i*2] = output[i*2+1] = output[i];
-	}
+	opl_getsample((Bit16s *)output, total);
 }

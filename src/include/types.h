@@ -52,6 +52,8 @@ typedef uint32_t           Bit32u;  /* type of 32 bit unsigned quantity */
 typedef  int32_t           Bit32s;  /* type of 32 bit signed quantity */
 typedef uint64_t           Bit64u;  /* type of 64 bit unsigned quantity */
 typedef  int64_t           Bit64s;  /* type of 64 bit signed quantity */
+typedef unsigned           Bitu;
+typedef int                Bits;
 
 typedef Bit32u ioport_t;	/* for compatibility */
 
