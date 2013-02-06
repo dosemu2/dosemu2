@@ -1,11 +1,4 @@
 /*
- *  Copyright (C) 2006 Stas Sergeev <stsp@users.sourceforge.net>
- *
- * The below copyright strings have to be distributed unchanged together
- * with this file. This prefix can not be modified or separated.
- */
-
-/*
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -20,19 +13,16 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#ifndef __ADLIB_H__
-#define __ADLIB_H__
 
-#ifdef HAS_YMF262
-#include "ymf262.h"
-#endif
+#ifndef __OPL_H__
+#define __OPL_H__
 
-void opl3_init(void);
-void adlib_init(void);
-void adlib_done(void);
-void adlib_reset(void);
-void adlib_timer(void);
-Bit8u adlib_io_read_base(ioport_t port);
-void adlib_io_write_base(ioport_t port, Bit8u value);
+// general functions
+void opl_init(Bit32u samplerate);
+void opl_write(Bitu idx, Bit8u val);
+void opl_getsample(Bit16s* sndptr, Bits numsamples);
+
+Bitu opl_reg_read(Bitu port);
+void opl_write_index(Bitu port, Bit8u val);
 
 #endif

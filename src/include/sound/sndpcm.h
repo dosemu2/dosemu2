@@ -23,7 +23,7 @@
 #ifndef __SNDPCM_H__
 #define __SNDPCM_H__
 
-typedef uint16_t sndbuf_t;
+typedef int16_t sndbuf_t;
 #define SNDBUF_CHANS 2
 
 extern int pcm_init(void);
