@@ -8,8 +8,8 @@ top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
 
-CFILES = sb16.c dspio.c adlib.c ymf262.c
-ALL_CPPFLAGS += -DHAS_YMF262
+CFILES = sb16.c dspio.c adlib.c dbopl.c dbadlib.c
+ALL_CPPFLAGS += -DHAS_DBOPL
 
 all: lib
 

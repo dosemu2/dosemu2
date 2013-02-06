@@ -23,7 +23,9 @@
 #ifndef __ADLIB_H__
 #define __ADLIB_H__
 
+#ifdef HAS_YMF262
 #include "ymf262.h"
+#endif
 
 void opl3_init(void);
 void adlib_init(void);

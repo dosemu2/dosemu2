@@ -22,7 +22,7 @@
  */
 
 /*
- * Purpose: glue between dosemu and the MAME OPL3 emulator.
+ * Purpose: glue between dosemu and the DOSBOX/MAME OPL3 emulator.
  *
  * Author: Stas Sergeev.
  */
@@ -34,6 +34,11 @@
 #include "sound/sound.h"
 #include "sound/sndpcm.h"
 #include "adlib.h"
+#ifdef HAS_DBOPL
+typedef uintptr_t       Bitu;
+typedef intptr_t        Bits;
+#include "dbadlib.h"
+#endif
 #include <limits.h>
 
 #define ADLIB_BASE 0x388
@@ -44,17 +49,18 @@
 
 #define ADLIB_THRESHOLD 20000000
 #define ADLIB_RUNNING() (adlib_time_cur > 0)
-#define ADLIB_RUN() adlib_start()
+#define ADLIB_RUN() (adlib_time_cur = GETusTIME(0))
 #define ADLIB_STOP() (adlib_time_cur = 0)
 
-#ifdef HAS_YMF262
-static void *opl3;
+#if defined(HAS_DBOPL)
+static AdlibTimer opl3_timers[2];
+#define OPL3_SAMPLE_BITS 16
+#if (OPL3_SAMPLE_BITS==16)
+typedef Bit16s OPL3SAMPLE;
+#elif (OPL3_SAMPLE_BITS==8)
+typedef Bit8s OPL3SAMPLE;
 #endif
-struct opl3_timer {
-    long long time;
-    int expired;
-};
-static struct opl3_timer opl3_timers[2];
+#endif
 static int adlib_strm;
 static double adlib_time_cur, adlib_time_last;
 #if OPL3_SAMPLE_BITS==16
@@ -62,34 +68,13 @@ static const int opl3_format = PCM_FORMAT_S16_LE;
 #else
 static const int opl3_format = PCM_FORMAT_S8;
 #endif
-#if 0
 static const int opl3_rate = 44100;
-#else
-static const int opl3_rate = 22050;
-#endif
-
-static void adlib_start(void)
-{
-    opl3_timers[0].time = opl3_timers[1].time = 0;
-    opl3_timers[0].expired = opl3_timers[1].expired = 0;
-    adlib_time_cur = GETusTIME(0);
-}
 
 Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
-#ifdef HAS_YMF262
-    int i;
-    hitimer_t now = GETusTIME(0);
-    for (i = 0; i < 2; i++) {
-	if (opl3_timers[i].time > 0 && !opl3_timers[i].expired &&
-		now >= opl3_timers[i].time) {
-	    S_printf("Adlib: timer %i expired\n", i);
-	    opl3_timers[i].expired = 1;
-	    YMF262TimerOver(opl3, i);
-	}
-    }
-    ret = YMF262Read(opl3, port);
+#if defined(HAS_DBOPL)
+    ret = dbadlib_PortRead(opl3_timers, port);
 #else
     ret = 0xff;
 #endif
@@ -102,12 +87,19 @@ static Bit8u adlib_io_read(ioport_t port)
     return adlib_io_read_base(port - ADLIB_BASE);
 }
 
+#ifdef HAS_DBOPL
+static void opl3_update(void);
+#endif
+
 void adlib_io_write_base(ioport_t port, Bit8u value)
 {
     adlib_time_last = GETusTIME(0);
     S_printf("Adlib: Write %hhx to port %x\n", value, port);
-#ifdef HAS_YMF262
-    YMF262Write(opl3, port, value);
+#if defined(HAS_DBOPL)
+    if ( port&1 ) {
+      opl3_update();
+    }
+    dbadlib_PortWrite(opl3_timers, port, value);
 #endif
 }
 
@@ -116,42 +108,12 @@ static void adlib_io_write(ioport_t port, Bit8u value)
     adlib_io_write_base(port - ADLIB_BASE, value);
 }
 
-#ifdef HAS_YMF262
-static void opl3_set_timer(void *param, int num, double interval_Sec)
-{
-    struct opl3_timer *timers = param;
-    hitimer_t now = GETusTIME(0);
-    if (interval_Sec < 0)
-	timers[num].time = 0;
-    else if (interval_Sec == 0)
-	timers[num].time = now;
-    else {
-	if (!timers[num].time)
-	    timers[num].time = now + interval_Sec * 1000000;
-	else {
-	    long long delta;
-	    int n;
-	    delta = now - timers[num].time;
-	    n = delta / (interval_Sec * 1000000);
-	    timers[num].time += interval_Sec * 1000000 * (n + 1);
-	}
-    }
-    timers[num].expired = 0;
-    S_printf("Adlib: timer %i set to %ius\n", num,
-	     (int) (interval_Sec * 1000000));
-}
-
-static void opl3_update(void *param, int min_interval_us)
+#ifdef HAS_DBOPL
+static void opl3_update(void)
 {
     if (!ADLIB_RUNNING())
 	ADLIB_RUN();
     run_new_sb();
-}
-
-static void opl3_irq(void *param, int irq)
-{
-    S_printf("SB: OPL3 IRQ (%i)\n", irq);
-    /* this IRQ is not wired, nothing to do */
 }
 #endif
 
@@ -176,11 +138,9 @@ void opl3_init(void)
     if (port_register_handler(io_device, 0) != 0) {
 	error("ADLIB: Cannot registering port handler\n");
     }
-#ifdef HAS_YMF262
-    opl3 = YMF262Init(OPL3_INTERNAL_FREQ, opl3_rate);
-    YMF262SetTimerHandler(opl3, opl3_set_timer, opl3_timers);
-    YMF262SetUpdateHandler(opl3, opl3_update, NULL);
-    YMF262SetIRQHandler(opl3, opl3_irq, NULL);
+
+#if defined(HAS_DBOPL)
+    dbadlib_init(opl3_timers, opl3_rate);
 #endif
 }
 
@@ -191,54 +151,24 @@ void adlib_init(void)
 
 void adlib_reset(void)
 {
-    opl3_timers[0].time = opl3_timers[1].time = 0;
-    opl3_timers[0].expired = opl3_timers[1].expired = 0;
     adlib_time_cur = adlib_time_last = 0;
-#ifdef HAS_YMF262
-    YMF262ResetChip(opl3);
-#endif
 }
 
 void adlib_done(void)
 {
-#ifdef HAS_YMF262
-    YMF262Shutdown(opl3);
-#endif
 }
 
-#ifdef HAS_YMF262
+#ifdef HAS_DBOPL
 static void adlib_process_samples(int nframes)
 {
-    const int chan_map[] =
-#if ADLIB_CHANNELS == 2
-	{ 0, 1, 0, 1 };
-#elif ADLIB_CHANNELS == 1
-	{ 0, 0, 0, 0 };
-#elif ADLIB_CHANNELS == 4
-	{ 0, 1, 2, 3 };
-#else
-#error ADLIB_CHANNELS is wrong
-	{ -1, -1, -1, -1 };
-#endif
-    int i, j, k;
-    OPL3SAMPLE *chans[4], buf[4][OPL3_MAX_BUF];
+    int i, j;
+    Bit32s buf[OPL3_MAX_BUF*ADLIB_CHANNELS];
     sndbuf_t buf3[OPL3_MAX_BUF][ADLIB_CHANNELS];
 
-    for (i = 0; i < 4; i++)
-	chans[i] = &buf[i][0];
-
-    YMF262UpdateOne(opl3, chans, nframes);
-
-    for (i = 0; i < nframes; i++) {
-	for (j = 0; j < ADLIB_CHANNELS; j++) {
-	    int buf2 = 0;
-	    for (k = 0; k < ARRAY_SIZE(chan_map); k++) {
-		if (chan_map[k] == j)
-		    buf2 += buf[k][i];
-	    }
-	    buf3[i][j] = pcm_samp_cutoff(buf2, opl3_format);
-	}
-    }
+    dbadlib_generate(nframes, buf);
+    for (i = 0; i < nframes; i++)
+	for (j = 0; j < ADLIB_CHANNELS; j++)
+	    buf3[i][j] = pcm_samp_cutoff(buf[i*ADLIB_CHANNELS+j], opl3_format);
     pcm_write_interleaved(buf3, nframes, opl3_rate, opl3_format,
 	    ADLIB_CHANNELS, adlib_strm);
 }
@@ -246,7 +176,7 @@ static void adlib_process_samples(int nframes)
 
 void adlib_timer(void)
 {
-#ifdef HAS_YMF262
+#ifdef HAS_DBOPL
     int i, nframes;
     double period;
     long long now;
@@ -258,12 +188,12 @@ void adlib_timer(void)
     }
     if (ADLIB_RUNNING()) do {
 	now = GETusTIME(0);
-	/* find the closest timer */
 	time_adj = 0;
+	/* find the closest timer */
 	for (i = 0; i < 2; i++) {
-	    if (opl3_timers[i].time > 0 && !opl3_timers[i].expired &&
-		    now > opl3_timers[i].time) {
-		now = opl3_timers[i].time;
+	    if (opl3_timers[i].enabled && !opl3_timers[i].overflow &&
+			now > opl3_timers[i].start) {
+		now = opl3_timers[i].start;
 		time_adj = 1;
 		if (debug_level('S') >= 9)
 		    S_printf("Adlib: time adjusted to timer %i\n", i);
@@ -282,12 +212,9 @@ void adlib_timer(void)
 	}
 
 	for (i = 0; i < 2; i++) {
-	    if (opl3_timers[i].time > 0 && !opl3_timers[i].expired &&
-		    now >= opl3_timers[i].time) {
-		S_printf("Adlib: timer %i expired\n", i);
-		opl3_timers[i].expired = 1;
-		YMF262TimerOver(opl3, i);
-	    }
+#ifdef HAS_DBOPL
+	    AdlibTimer__Update(&opl3_timers[i], now);
+#endif
 	}
     } while (time_adj);
 #endif
