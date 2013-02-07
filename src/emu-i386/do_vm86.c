@@ -455,7 +455,6 @@ static void callback_return(Bit32u off2, void *arg)
  */
 static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 {
-	int old_frozen;
 	Bit32u ret;
 
 	if (fault_cnt && !in_leavedos) {
@@ -474,14 +473,9 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	else
 		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
 
-	old_frozen = dosemu_frozen;
-	if (dosemu_frozen)
-		unfreeze_dosemu();
 	callback_level++;
 	coopth_sleep_tagged(callback_thr_tag, callback_level);
 	callback_level--;
-	if (!callback_level && old_frozen)
-		freeze_dosemu();
 }
 
 void do_call_back(Bit16u cs, Bit16u ip)
