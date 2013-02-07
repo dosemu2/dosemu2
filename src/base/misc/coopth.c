@@ -578,9 +578,9 @@ int coopth_flush(void (*helper)(void))
 void coopth_done(void)
 {
     if (threads_running) {
-	int i;
+	int i, thm = min(threads_running, MAX_RUNNING_THRS);
 	error("Coopth: not all threads properly shut down\n");
-	for (i = 0; i < threads_running; i++) {
+	for (i = 0; i < thm; i++) {
 	    int tid = running_tids[i];
 	    struct coopth_t *thr = &coopthreads[tid];
 	    struct coopth_per_thread_t *pth = current_thr(thr);
