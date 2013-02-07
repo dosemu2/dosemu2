@@ -416,15 +416,7 @@ run_vm86(void)
     }
   }
 
-freeze_idle:
   do_periodic_stuff();
-
-  if (dosemu_frozen) {
-    static int minpoll = 0;
-    if (!(++minpoll & 7)) usleep(10000);
-    g_printf("VM86: freeze: loop\n");
-    goto freeze_idle;
-  }
 }
 
 /*

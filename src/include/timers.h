@@ -144,6 +144,7 @@ extern Bit8u pit_control_inp(ioport_t);
 extern void pit_control_outp(ioport_t port, Bit8u val);
 extern void initialize_timers(void);
 extern void get_time_init(void);
+extern void cputime_late_init(void);
 extern void do_sound(Bit16u period);
 
 #endif /* DOSEMU_TIMERS_H */

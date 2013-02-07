@@ -449,7 +449,6 @@ static void signal_thr_post(void *arg)
     signal_requeue--;
     SIGNAL_save(signal_handler);
   }
-  handle_signals();
 }
 
 static void signal_thr(void *arg)

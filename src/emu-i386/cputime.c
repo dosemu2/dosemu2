@@ -27,6 +27,7 @@
 #include "timers.h"
 #include "pic.h"
 #include "int.h"
+#include "coopth.h"
 #include "speaker.h"
 #include "dosemu_config.h"
 
@@ -90,6 +91,7 @@ static hitimer_t C4Base = 0;
 static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
+static int freeze_tid;
 
 /*
  * RAWcpuTIME points to one of these functions, and returns the
@@ -205,6 +207,13 @@ void get_time_init (void)
   }
 }
 
+void cputime_late_init(void)
+{
+  freeze_tid = coopth_create("dosemu_freeze");
+  coopth_set_ctx_handlers(freeze_tid, sig_ctx_prepare, NULL,
+	sig_ctx_restore, NULL);
+}
+
 
 /* --------------------------------------------------------------------- */
 
@@ -235,6 +244,16 @@ int restart_cputime (int quiet)
 int dosemu_frozen = 0;
 int dosemu_user_froze = 0;
 
+static void freeze_thr(void *arg)
+{
+  coopth_sleep();
+}
+
+static void freeze_start(void *arg)
+{
+  coopth_start(freeze_tid, freeze_thr, arg);
+}
+
 void freeze_dosemu_manual(void)
 {
   dosemu_user_froze = 2;
@@ -254,6 +273,8 @@ void freeze_dosemu(void)
 
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
+
+  coopth_set_post_handler(freeze_start, NULL);
 }
 
 void unfreeze_dosemu(void)
@@ -269,6 +290,8 @@ void unfreeze_dosemu(void)
 
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
+
+  coopth_wake_up(freeze_tid);
 }
 
 

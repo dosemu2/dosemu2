@@ -358,7 +358,6 @@ emulate(int argc, char **argv)
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 
-    get_time_init();		/* debug can use CPUtime */
     io_select_init();
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
@@ -418,6 +417,7 @@ emulate(int argc, char **argv)
 	sig_ctx_restore, NULL);
 
     vm86_init();
+    cputime_late_init();
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
