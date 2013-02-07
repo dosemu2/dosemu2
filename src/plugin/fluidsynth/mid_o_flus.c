@@ -21,8 +21,6 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #include <fluidsynth.h>
-#include <semaphore.h>
-#include <pthread.h>
 #include "fluid_midi.h"
 #include "emu.h"
 #include "init.h"
@@ -48,11 +46,6 @@ static fluid_midi_parser_t* parser;
 static int pcm_stream, pcm_running;
 static double mf_time_cur, mf_time_base;
 
-static sem_t sem;
-static pthread_t thread;
-static int synth_done;
-static pthread_mutex_t done_mtx;
-static void *midoflus_thread(void *arg);
 
 static int midoflus_init(void)
 {
@@ -76,16 +69,11 @@ static int midoflus_init(void)
 
     pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI");
 
-    sem_init(&sem, 0, 0);
-    pthread_mutex_init(&done_mtx, NULL);
-
     return 1;
 }
 
 static void midoflus_done(void)
 {
-    pthread_mutex_destroy(&done_mtx);
-    sem_destroy(&sem);
     delete_fluid_midi_parser(parser);
     delete_fluid_sequencer(sequencer);
     delete_fluid_synth(synth);
@@ -101,9 +89,7 @@ static void midoflus_start(void)
     S_printf("MIDI: starting fluidsynth\n");
     mf_time_cur = GETusTIME(0);
     mf_time_base = mf_time_cur;
-    synth_done = 0;
     fluid_sequencer_process(sequencer, 0);
-    pthread_create(&thread, NULL, midoflus_thread, NULL);
 }
 
 static void midoflus_write(unsigned char val)
@@ -129,7 +115,7 @@ static void midoflus_write(unsigned char val)
 
 static void mf_process_samples(int nframes)
 {
-    uint16_t buf[FLUS_MAX_BUF][FLUS_CHANNELS];
+    sndbuf_t buf[FLUS_MAX_BUF][FLUS_CHANNELS];
     int ret = fluid_synth_write_s16(synth, nframes, buf, 0, 2, buf, 1, 2);
     if (ret != FLUID_OK) {
 	error("MIDI: fluidsynth failed\n");
@@ -172,13 +158,6 @@ static void midoflus_stop(void)
     S_printf("MIDI: stopping fluidsynth at msec=%i\n", msec);
     /* advance past last event */
     fluid_sequencer_process(sequencer, msec);
-    /* shut down synth thread */
-    pthread_mutex_lock(&done_mtx);
-    synth_done = 1;
-    pthread_mutex_unlock(&done_mtx);
-    sem_post(&sem);
-    pthread_join(thread, NULL);
-
     /* shut down all active notes */
     fluid_synth_system_reset(synth);
     if (pcm_running)
@@ -187,26 +166,11 @@ static void midoflus_stop(void)
     mf_time_cur = 0;
 }
 
-static void *midoflus_thread(void *arg)
-{
-    int done;
-    do {
-	sem_wait(&sem);
-	process_samples(GETusTIME(0), FLUS_MIN_BUF);
-	pthread_mutex_lock(&done_mtx);
-	done = synth_done;
-	pthread_mutex_unlock(&done_mtx);
-    } while (!done);
-    /* play remaining samples */
-    process_samples(GETusTIME(0), 1);
-    return NULL;
-}
-
 static void midoflus_timer(void)
 {
     if (mf_time_cur == 0)
 	return;
-    sem_post(&sem);
+    process_samples(GETusTIME(0), FLUS_MIN_BUF);
 }
 
 CONSTRUCTOR(static int midoflus_register(void))
