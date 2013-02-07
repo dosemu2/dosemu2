@@ -39,11 +39,14 @@ struct coopth_thrfunc_t {
     void *arg;
 };
 
+#define MAX_POST_H 5
+
 struct coopth_thrdata_t {
     int *tid;
     enum CoopthRet ret;
     void *udata;
-    struct coopth_thrfunc_t post;
+    struct coopth_thrfunc_t post[MAX_POST_H];
+    int posth_num;
     struct coopth_thrfunc_t sleep;
 };
 
@@ -137,11 +140,12 @@ static void do_run_thread(struct coopth_per_thread_t *pth)
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
+    int i;
     pth->state = COOPTHS_NONE;
     co_delete(pth->thread);
     thr->cur_thr--;
-    if (pth->data.post.func)
-	pth->data.post.func(pth->data.post.arg);
+    for (i = 0; i < pth->data.posth_num; i++)
+	pth->data.post[i].func(pth->data.post[i].arg);
     if (thr->post.func)
 	thr->post.func(thr->post.arg);
 }
@@ -352,7 +356,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
     pth->data.tid = &thr->tid;
-    pth->data.post.func = NULL;
+    pth->data.posth_num = 0;
     pth->data.sleep.func = NULL;
     pth->data.udata = NULL;
     pth->args.thr.func = func;
@@ -450,8 +454,10 @@ int coopth_set_post_handler(coopth_func_t func, void *arg)
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
-    thdata->post.func = func;
-    thdata->post.arg = arg;
+    assert(thdata->posth_num < MAX_POST_H);
+    thdata->post[thdata->posth_num].func = func;
+    thdata->post[thdata->posth_num].arg = arg;
+    thdata->posth_num++;
     return 0;
 }
 
