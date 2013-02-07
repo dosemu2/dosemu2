@@ -493,6 +493,7 @@ static void leavedos_thr(void *arg)
 void __leavedos(int sig, const char *s, int num)
 {
     struct itimerval itv;
+    int tmp;
     dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
     if (in_leavedos)
       {
@@ -504,6 +505,9 @@ void __leavedos(int sig, const char *s, int num)
 
     /* abandon current thread if any, and start new one */
     coopth_leave();
+    tmp = coopth_flush(run_vm86);
+    if (tmp)
+      dbug_printf("flushed %i threads\n", tmp);
     coopth_start(ld_tid, leavedos_thr, NULL);
     /* vc switch may require vm86() so call it while waiting for thread */
     coopth_join(ld_tid, run_vm86);

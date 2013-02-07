@@ -84,7 +84,9 @@ struct coopth_t {
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
 static int thread_running;
+#define MAX_RUNNING_THRS 10
 static int threads_running;
+static int running_tids[MAX_RUNNING_THRS];	// for debug
 
 struct coopth_tag_t {
     int cookie;
@@ -363,6 +365,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	leavedos(2);
     }
     pth->state = COOPTHS_RUNNING;
+    if (threads_running < MAX_RUNNING_THRS)
+	running_tids[threads_running] = tid;
     threads_running++;
     if (thr->ctxh.pre.func)
 	thr->ctxh.pre.func(thr->ctxh.pre.arg);
@@ -541,10 +545,49 @@ void coopth_join(int tid, void (*helper)(void))
 	helper();
 }
 
+static struct coopth_t *on_thread(void)
+{
+    int i;
+    if (REG(cs) != BIOS_HLT_BLK_SEG)
+	return NULL;
+    for (i = 0; i < coopth_num; i++) {
+	if (LWORD(eip) == coopthreads[i].hlt_off)
+	    return &coopthreads[i];
+    }
+    return NULL;
+}
+
+/* desperate cleanup attempt, not extremely reliable */
+int coopth_flush(void (*helper)(void))
+{
+    struct coopth_t *thr;
+    int tr = threads_running;
+    assert(!_coopth_is_in_thread_nowarn());
+    while (threads_running && (thr = on_thread())) {
+	struct coopth_per_thread_t *pth = current_thr(thr);
+	/* only flush zombies */
+	if (pth->state != COOPTHS_DELETE)
+	    break;
+	helper();
+    }
+    if (threads_running)
+	error("Coopth: %i threads stalled\n", threads_running);
+    return tr - threads_running;
+}
+
 void coopth_done(void)
 {
-    if (threads_running)
+    if (threads_running) {
+	int i;
 	error("Coopth: not all threads properly shut down\n");
+	for (i = 0; i < threads_running; i++) {
+	    int tid = running_tids[i];
+	    struct coopth_t *thr = &coopthreads[tid];
+	    struct coopth_per_thread_t *pth = current_thr(thr);
+	    error("\ttid=%i state=%i name=%s off=%#x\n", tid, pth->state,
+		    thr->name, thr->off);
+	}
+    }
     co_thread_cleanup();
 }
 
