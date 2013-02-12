@@ -262,6 +262,10 @@ void *dspio_init(void)
     state = malloc(sizeof(struct dspio_state));
     if (!state)
 	return NULL;
+    memset(&state->dma, 0, sizeof(struct dspio_dma));
+    state->input_running =
+	state->output_running = state->dac_running = state->speaker = 0;
+    state->dma.dsp_fifo_enabled = 1;
     pcm_init();
     state->dac_strm = pcm_allocate_stream(1, "SB DAC");
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
@@ -283,11 +287,6 @@ void *dspio_init(void)
 
 void dspio_reset(void *dspio)
 {
-    memset(&DSPIO->dma, 0, sizeof(struct dspio_dma));
-    DSPIO->input_running =
-	DSPIO->output_running = DSPIO->dac_running = DSPIO->speaker = 0;
-    DSPIO->dma.dsp_fifo_enabled = 1;
-
     pcm_reset();
     midi_reset();
 }
