@@ -51,8 +51,6 @@ static void do_int10_callback(struct vm86_regs *regs)
   char *p;
 
   saved_regs = REGS;
-  /* attach to DOS context before touching REGS */
-  coopth_attach();
   REGS = *regs;
   v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
   /* we don't want the BIOS to call the mouse helper */
@@ -69,12 +67,14 @@ static void do_int10_callback(struct vm86_regs *regs)
    changes at runtime (e.g. univbe). Also called at startup */
 static void vesa_reinit(void)
 {
-  struct vm86_regs vesa_r = REGS;
+  struct vm86_regs vesa_r;
   struct VBE_vi_vm *vbe_buffer;
   struct VBE_vi *vbei;
   struct VBE_vm *vbemi;
   char *s;
 
+  coopth_attach();
+  vesa_r = REGS;
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
 
   vbe_buffer = lowmem_heap_alloc(sizeof *vbe_buffer);
@@ -148,9 +148,11 @@ static void vesa_reinit(void)
 /* Read and save chipset-specific registers */
 static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
-  struct vm86_regs vesa_r = REGS;
+  struct vm86_regs vesa_r;
   void *lowmem;
 
+  coopth_attach();
+  vesa_r = REGS;
   /* if int10 changed we may have to reinitialize */
   if (MK_FP16(ISEG(0x10), IOFF(0x10)) != vesa_int10)
     vesa_reinit();
@@ -174,12 +176,14 @@ static void vesa_save_ext_regs(u_char xregs[], u_short xregs16[])
 /* Restore and write chipset-specific registers */
 static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
-  struct vm86_regs vesa_r = REGS;
+  struct vm86_regs vesa_r;
   void *lowmem;
   unsigned long current_int10;
 
   if (xregs16[0] == 0)
     return;
+  coopth_attach();
+  vesa_r = REGS;
   lowmem = lowmem_heap_alloc(xregs16[0]);
   memcpy(lowmem, xregs, xregs16[0]);
   vesa_r.eax = 0x4f04;
@@ -204,7 +208,9 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
 
 static void vesa_setbank_read(unsigned char bank)
 {
-  struct vm86_regs vesa_r = REGS;
+  struct vm86_regs vesa_r;
+  coopth_attach();
+  vesa_r = REGS;
   vesa_r.eax = 0x4f05;
   vesa_r.ebx = (vesa_read_write & 2) ? 0 : 1;
   vesa_r.edx = bank*64/vesa_granularity;
@@ -213,7 +219,9 @@ static void vesa_setbank_read(unsigned char bank)
 
 static void vesa_setbank_write(unsigned char bank)
 {
-  struct vm86_regs vesa_r = REGS;
+  struct vm86_regs vesa_r;
+  coopth_attach();
+  vesa_r = REGS;
   vesa_r.eax = 0x4f05;
   vesa_r.ebx = (vesa_read_write & 4) ? 0 : 1;
   vesa_r.edx = bank*64/vesa_granularity;
