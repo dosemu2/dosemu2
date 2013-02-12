@@ -2341,6 +2341,7 @@ void do_periodic_stuff(void)
 	return;
 
     handle_signals();
+    coopth_run();
     /* dont go to poll the I/O if <10mS elapsed */
     if (GETusTIME(0) - last_time >= 10000) {
 	last_time = GETusTIME(0);

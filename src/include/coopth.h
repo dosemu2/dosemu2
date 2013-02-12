@@ -35,6 +35,7 @@ void coopth_leave(void);
 void coopth_attach(void);
 void coopth_wake_up(int tid);
 void coopth_done(void);
+void coopth_run(void);
 
 int coopth_tag_alloc(void);
 void coopth_tag_set(int tag, int cookie);

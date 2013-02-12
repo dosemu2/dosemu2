@@ -23,6 +23,7 @@
 #include "vga.h"
 #include "dpmi.h"
 #include "lowmem.h"
+#include "coopth.h"
 #include "vbe.h"
 #include "vesa.h"
 #include "mapping.h"
@@ -50,6 +51,8 @@ static void do_int10_callback(struct vm86_regs *regs)
   char *p;
 
   saved_regs = REGS;
+  /* attach to DOS context before touching REGS */
+  coopth_attach();
   REGS = *regs;
   v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
   /* we don't want the BIOS to call the mouse helper */

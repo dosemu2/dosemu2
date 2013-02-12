@@ -588,6 +588,7 @@ signal_init(void)
 	sig_ctx_restore, NULL);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter, NULL,
 	handle_signals_force_leave, NULL);
+  coopth_set_detached(sh_tid);
 }
 
 void signal_late_init(void)
