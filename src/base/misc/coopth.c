@@ -30,8 +30,9 @@
 #include "coopth.h"
 
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
-	COOPTH_DONE };
+	COOPTH_DONE, COOPTH_ATTACH };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
+	COOPTHS_YIELD,
 	COOPTHS_AWAKEN, COOPTHS_WAIT, COOPTHS_LEAVE, COOPTHS_DELETE };
 
 struct coopth_thrfunc_t {
@@ -66,6 +67,7 @@ struct coopth_per_thread_t {
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     Bit16u ret_cs, ret_ip;
+    int attached;
     int dbg;
 };
 
@@ -77,6 +79,7 @@ struct coopth_t {
     Bit16u hlt_off;
     int off;
     int cur_thr;
+    int detached;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     struct coopth_thrfunc_t post;
@@ -87,9 +90,10 @@ struct coopth_t {
 static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
 static int thread_running;
-#define MAX_RUNNING_THRS 10
 static int threads_running;
-static int running_tids[MAX_RUNNING_THRS];	// for debug
+#define MAX_ACT_THRS 10
+static int threads_active;
+static int active_tids[MAX_ACT_THRS];
 
 struct coopth_tag_t {
     int cookie;
@@ -101,6 +105,7 @@ struct coopth_tag_t {
 
 static struct coopth_tag_t tags[MAX_TAGS][MAX_TAGGED_THREADS];
 static int tag_cnt;
+static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 
 #define COOP_STK_SIZE (65536*2)
 
@@ -114,13 +119,15 @@ void coopth_init(void)
     }
 }
 
-static void do_run_thread(struct coopth_per_thread_t *pth)
+static void do_run_thread(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
     co_call(pth->thread);
     ret = pth->data.ret;
     switch (ret) {
     case COOPTH_YIELD:
+	pth->state = COOPTHS_YIELD;
 	break;
     case COOPTH_WAIT:
 	pth->state = COOPTHS_WAIT;
@@ -134,13 +141,16 @@ static void do_run_thread(struct coopth_per_thread_t *pth)
     case COOPTH_DONE:
 	pth->state = COOPTHS_DELETE;
 	break;
+    case COOPTH_ATTACH:
+	coopth_callf(thr, pth);
+	break;
     }
 }
 
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
-    int i;
+    int i, found = 0;
     pth->state = COOPTHS_NONE;
     co_delete(pth->thread);
     thr->cur_thr--;
@@ -148,15 +158,41 @@ static void do_del_thread(struct coopth_t *thr,
 	pth->data.post[i].func(pth->data.post[i].arg);
     if (thr->post.func)
 	thr->post.func(thr->post.arg);
+
+    for (i = 0; i < threads_active; i++) {
+	if (active_tids[i] == thr->tid) {
+	    assert(!found);
+	    found++;
+	    continue;
+	}
+	if (found)
+	    active_tids[i - 1] = active_tids[i];
+    }
+    assert(found);
+    threads_active--;
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
+    if (!pth->attached)
+	return;
+    threads_running--;
     REG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
     if (thr->ctxh.post.func)
 	thr->ctxh.post.func(thr->ctxh.post.arg);
-    threads_running--;
+}
+
+static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+{
+    if (thr->ctxh.pre.func)
+	thr->ctxh.pre.func(thr->ctxh.pre.arg);
+    pth->ret_cs = REG(cs);
+    pth->ret_ip = LWORD(eip);
+    REG(cs) = BIOS_HLT_BLK_SEG;
+    LWORD(eip) = thr->hlt_off;
+    threads_running++;
+    pth->attached = 1;
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -230,19 +266,20 @@ again:
 	    }
 	}
 	thread_running++;
-	do_run_thread(pth);
+	do_run_thread(thr, pth);
 	thread_running--;
 	if (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_WAIT ||
-		pth->state == COOPTHS_RUNNING) {
+		pth->state == COOPTHS_YIELD) {
 	    if (pth->data.sleep.func)
 		pth->data.sleep.func(pth->data.sleep.arg);
 	    if (thr->sleeph.pre.func)
 		thr->sleeph.pre.func(thr->sleeph.pre.arg);
-	    if (pth->state == COOPTHS_RUNNING)	// coopth_yield() case
-		pth->state = COOPTHS_AWAKEN;
-	    if (pth->state == COOPTHS_WAIT)
+	    if (pth->state == COOPTHS_YIELD || pth->state == COOPTHS_WAIT)
 		goto again;
 	}
+	break;
+    case COOPTHS_YIELD:
+	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTHS_WAIT:
 	dosemu_sleep();
@@ -253,7 +290,7 @@ again:
 	break;
     case COOPTHS_LEAVE:
 	coopth_retf(thr, pth);
-	do_run_thread(pth);
+	do_run_thread(thr, pth);
 	assert(pth->state == COOPTHS_DELETE);
 	do_del_thread(thr, pth);
 	break;
@@ -362,6 +399,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
+    pth->attached = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
     if (!pth->thread) {
@@ -369,15 +407,10 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	leavedos(2);
     }
     pth->state = COOPTHS_RUNNING;
-    if (threads_running < MAX_RUNNING_THRS)
-	running_tids[threads_running] = tid;
-    threads_running++;
-    if (thr->ctxh.pre.func)
-	thr->ctxh.pre.func(thr->ctxh.pre.arg);
-    pth->ret_cs = REG(cs);
-    pth->ret_ip = LWORD(eip);
-    REG(cs) = BIOS_HLT_BLK_SEG;
-    LWORD(eip) = thr->hlt_off;
+    assert(threads_active < MAX_ACT_THRS);
+    active_tids[threads_active++] = tid;
+    if (!thr->detached)
+	coopth_callf(thr, pth);
     return 0;
 }
 
@@ -423,6 +456,18 @@ int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
     thr = &coopthreads[tid];
     thr->post.func = func;
     thr->post.arg = arg;
+    return 0;
+}
+
+int coopth_set_detached(int tid)
+{
+    struct coopth_t *thr;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    thr->detached = 1;
     return 0;
 }
 
@@ -517,6 +562,12 @@ void coopth_sleep(void)
     switch_state(COOPTH_SLEEP);
 }
 
+void coopth_attach(void)
+{
+    assert(_coopth_is_in_thread());
+    switch_state(COOPTH_ATTACH);
+}
+
 void coopth_leave(void)
 {
     if (!_coopth_is_in_thread_nowarn())
@@ -584,12 +635,14 @@ int coopth_flush(void (*helper)(void))
 void coopth_done(void)
 {
     if (threads_running) {
-	int i, thm = min(threads_running, MAX_RUNNING_THRS);
+	int i;
 	error("Coopth: not all threads properly shut down\n");
-	for (i = 0; i < thm; i++) {
-	    int tid = running_tids[i];
+	for (i = 0; i < threads_active; i++) {
+	    int tid = active_tids[i];
 	    struct coopth_t *thr = &coopthreads[tid];
 	    struct coopth_per_thread_t *pth = current_thr(thr);
+	    if (!pth->attached)
+		continue;
 	    error("\ttid=%i state=%i name=%s off=%#x\n", tid, pth->state,
 		    thr->name, thr->off);
 	}

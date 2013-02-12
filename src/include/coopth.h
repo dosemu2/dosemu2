@@ -23,6 +23,7 @@ int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post);
 void coopth_join(int tid, void (*helper)(void));
 int coopth_flush(void (*helper)(void));
+int coopth_set_detached(int tid);
 int coopth_set_sleep_handler(coopth_func_t func, void *arg);
 void coopth_set_user_data(void *udata);
 void *coopth_get_user_data(int tid);
@@ -31,6 +32,7 @@ void coopth_yield(void);
 void coopth_wait(void);
 void coopth_sleep(void);
 void coopth_leave(void);
+void coopth_attach(void);
 void coopth_wake_up(int tid);
 void coopth_done(void);
 
