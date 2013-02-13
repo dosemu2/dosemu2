@@ -703,11 +703,8 @@ int coopth_flush(void (*helper)(void))
 	    break;
 	}
 	pth = current_thr(thr);
-	/* if not yet started, we try to start it */
-	if (pth->state == COOPTHS_STARTING)
-	    helper();
 	/* only flush zombies */
-	if (pth->state != COOPTHS_DELETE)
+	if (pth->state != COOPTHS_DELETE && pth->state != COOPTHS_STARTING)
 	    break;
 	helper();
     }
