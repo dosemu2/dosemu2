@@ -67,7 +67,7 @@ struct coopth_per_thread_t {
     enum CoopthState state;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
-    Bit16u ret_cs, ret_ip;
+    Bit16u ret_cs, ret_ip, ret_if;
     int attached;
     int dbg;
 };
@@ -79,8 +79,10 @@ struct coopth_t {
     char *name;
     Bit16u hlt_off;
     int off;
+    int len;
     int cur_thr;
     int detached;
+    int interruptible;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     struct coopth_thrfunc_t post;
@@ -184,6 +186,10 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     threads_running--;
     REG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
+    if (pth->ret_if)
+	_set_IF();
+    else
+	clear_IF();
     if (thr->ctxh.post.func)
 	thr->ctxh.post.func(thr->ctxh.post.arg);
 }
@@ -194,10 +200,12 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	return;
     if (thr->ctxh.pre.func)
 	thr->ctxh.pre.func(thr->ctxh.pre.arg);
+    pth->ret_if = isset_IF();
     pth->ret_cs = REG(cs);
     pth->ret_ip = LWORD(eip);
     REG(cs) = BIOS_HLT_BLK_SEG;
     LWORD(eip) = thr->hlt_off;
+    clear_IF();
     threads_running++;
     pth->attached = 1;
 }
@@ -233,6 +241,8 @@ again:
     case COOPTHS_AWAKEN:
 	if (thr->sleeph.post.func)
 	    thr->sleeph.post.func(thr->sleeph.post.arg);
+	if (thr->interruptible)
+	    clear_IF();
 	pth->state = COOPTHS_RUNNING;
 	/* I hate 'case' without 'break'... so use 'goto' instead. :-)) */
 	goto again;
@@ -279,6 +289,8 @@ again:
 	thread_running--;
 	if (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_WAIT ||
 		pth->state == COOPTHS_YIELD) {
+	    if (thr->interruptible)
+		_set_IF();
 	    if (pth->data.sleep.func)
 		pth->data.sleep.func(pth->data.sleep.arg);
 	    if (thr->sleeph.pre.func)
@@ -354,6 +366,7 @@ int coopth_create(char *name)
     thr->cur_thr = 0;
     thr->off = 0;
     thr->tid = num;
+    thr->len = 1;
 
     return num;
 }
@@ -380,6 +393,7 @@ int coopth_create_multi(char *name, int len)
 	thr->cur_thr = 0;
 	thr->off = i;
 	thr->tid = num + i;
+	thr->len = (i == 0 ? len : 1);
     }
 
     return num;
@@ -487,6 +501,22 @@ int coopth_set_detached(int tid)
     }
     thr = &coopthreads[tid];
     thr->detached = 1;
+    return 0;
+}
+
+int coopth_set_interruptible(int tid)
+{
+    int i;
+    struct coopth_t *thr;
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+    thr = &coopthreads[tid];
+    for (i = 0; i < thr->len; i++) {
+	struct coopth_t *thr1 = &coopthreads[tid + i];
+	thr1->interruptible = 1;
+    }
     return 0;
 }
 
@@ -662,25 +692,20 @@ static struct coopth_t *on_thread(void)
 /* desperate cleanup attempt, not extremely reliable */
 int coopth_flush(void (*helper)(void))
 {
-#define MAX_ATTEMPTS 10
     struct coopth_t *thr;
     int tr = threads_running;
     assert(!_coopth_is_in_thread_nowarn());
     while (threads_running) {
-	int attempt = 0;
 	struct coopth_per_thread_t *pth;
-	while (!(thr = on_thread())) {
-	    helper();
-	    attempt++;
-	    if (attempt >= MAX_ATTEMPTS) {
-		error("Coopth: thread not found\n");
-		break;
-	    }
+	thr = on_thread();
+	if (!thr) {
+	    error("Coopth: thread not found\n");
+	    break;
 	}
 	pth = current_thr(thr);
-	/* if not yet started, we can delete it */
+	/* if not yet started, we try to start it */
 	if (pth->state == COOPTHS_STARTING)
-	    pth->state = COOPTHS_DELETE;
+	    helper();
 	/* only flush zombies */
 	if (pth->state != COOPTHS_DELETE)
 	    break;

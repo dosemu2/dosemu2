@@ -433,7 +433,6 @@ void SIG_close(void)
 void sig_ctx_prepare(void *arg)
 {
   rm_stack_enter();
-  clear_IF();
 }
 
 void sig_ctx_restore(void *arg)
