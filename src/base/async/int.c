@@ -2235,8 +2235,6 @@ void setup_interrupts(void) {
 
   int_tid = coopth_create_multi("ints thread non-revect", 256);
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
-  coopth_set_interruptible(int_tid);
-  coopth_set_interruptible(int_rvc_tid);
 }
 
 

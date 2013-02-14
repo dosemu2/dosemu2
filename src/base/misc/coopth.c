@@ -82,7 +82,6 @@ struct coopth_t {
     int len;
     int cur_thr;
     int detached;
-    int interruptible;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     struct coopth_thrfunc_t post;
@@ -241,7 +240,7 @@ again:
     case COOPTHS_AWAKEN:
 	if (thr->sleeph.post.func)
 	    thr->sleeph.post.func(thr->sleeph.post.arg);
-	if (thr->interruptible)
+	if (pth->ret_if)
 	    clear_IF();
 	pth->state = COOPTHS_RUNNING;
 	/* I hate 'case' without 'break'... so use 'goto' instead. :-)) */
@@ -289,7 +288,7 @@ again:
 	thread_running--;
 	if (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_WAIT ||
 		pth->state == COOPTHS_YIELD) {
-	    if (thr->interruptible)
+	    if (pth->ret_if)
 		_set_IF();
 	    if (pth->data.sleep.func)
 		pth->data.sleep.func(pth->data.sleep.arg);
@@ -501,22 +500,6 @@ int coopth_set_detached(int tid)
     }
     thr = &coopthreads[tid];
     thr->detached = 1;
-    return 0;
-}
-
-int coopth_set_interruptible(int tid)
-{
-    int i;
-    struct coopth_t *thr;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
-    thr = &coopthreads[tid];
-    for (i = 0; i < thr->len; i++) {
-	struct coopth_t *thr1 = &coopthreads[tid + i];
-	thr1->interruptible = 1;
-    }
     return 0;
 }
 
