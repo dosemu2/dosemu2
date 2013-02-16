@@ -93,6 +93,7 @@ static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
 static int thread_running;
 static int threads_running;
+static int threads_sleeping;
 #define MAX_ACT_THRS 10
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
@@ -144,7 +145,6 @@ static void do_run_thread(struct coopth_t *thr,
 	pth->state = COOPTHS_DELETE;
 	break;
     case COOPTH_ATTACH:
-	assert(thr->detached);
 	coopth_callf(thr, pth);
 	break;
     }
@@ -242,6 +242,8 @@ again:
 	    thr->sleeph.post.func(thr->sleeph.post.arg);
 	if (pth->ret_if)
 	    clear_IF();
+	assert(threads_sleeping);
+	threads_sleeping--;
 	pth->state = COOPTHS_RUNNING;
 	/* I hate 'case' without 'break'... so use 'goto' instead. :-)) */
 	goto again;
@@ -288,6 +290,7 @@ again:
 	thread_running--;
 	if (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_WAIT ||
 		pth->state == COOPTHS_YIELD) {
+	    threads_sleeping++;
 	    if (pth->ret_if)
 		_set_IF();
 	    if (pth->data.sleep.func)
@@ -676,29 +679,27 @@ static struct coopth_t *on_thread(void)
 int coopth_flush(void (*helper)(void))
 {
     struct coopth_t *thr;
-    int tr = threads_running;
     assert(!_coopth_is_in_thread_nowarn());
     while (threads_running) {
 	struct coopth_per_thread_t *pth;
 	thr = on_thread();
-	if (!thr) {
-	    error("Coopth: thread not found\n");
+	if (!thr)
 	    break;
-	}
 	pth = current_thr(thr);
 	/* only flush zombies */
 	if (pth->state != COOPTHS_DELETE && pth->state != COOPTHS_STARTING)
 	    break;
 	helper();
     }
-    if (threads_running)
+    if (threads_running && !threads_sleeping)
 	error("Coopth: %i threads stalled\n", threads_running);
-    return tr - threads_running;
+    return threads_running;
 }
 
 void coopth_done(void)
 {
-    if (threads_running) {
+    /* there is no safe way (yet) to delete sleeping threads */
+    if (threads_running && !threads_sleeping) {
 	int i;
 	error("Coopth: not all threads properly shut down\n");
 	for (i = 0; i < threads_active; i++) {

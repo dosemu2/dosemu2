@@ -507,7 +507,7 @@ void __leavedos(int sig, const char *s, int num)
     coopth_leave();
     tmp = coopth_flush(run_vm86);
     if (tmp)
-      dbug_printf("flushed %i threads\n", tmp);
+      dbug_printf("%i threads still active\n", tmp);
     coopth_start(ld_tid, leavedos_thr, NULL);
     /* vc switch may require vm86() so call it while waiting for thread */
     coopth_join(ld_tid, run_vm86);
