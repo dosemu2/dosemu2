@@ -193,19 +193,18 @@ static void SetOF(void)
 
 static inline int FlagSync_O_ (void)
 {
-	int of,xof,nf;
-	register wkreg s2;
+	int nf;
 	// OF
 	/* overflow rule using MSB:
-	 *	src1 src2  res	ovf
-	 *	  0    0    0    0
-	 *	  0    0    1    1	BUT stc;sbb 0,0 -> ..ff, OF=0
-	 *	  0    1    0    0
-	 *	  0    1    1    0
-	 *	  1    0    0    0	BUT stc;sbb 80..,0 -> 7f.., OF=1
-	 *	  1    0    1    0
-	 *	  1    1    0    1
-	 *	  1    1    1    0
+	 *	src1 src2 res OF ad/sub
+	 *	  0    0    0    0  0
+	 *	  0    0    1    1  0
+	 *	  0    1    0    0  0
+	 *	  0    1    1    0  1
+	 *	  1    0    0    0  1
+	 *	  1    0    1    0  0
+	 *	  1    1    0    1  0
+	 *	  1    1    1    0  0
 	 */
 	if (RFL.valid==V_INVALID) return (CPUWORD(Ofs_FLAGS)&0x800);
 	if (RFL.mode & CLROVF)
@@ -213,25 +212,21 @@ static inline int FlagSync_O_ (void)
 	else if (RFL.mode & SETOVF)
 		nf = 0x800;
 	else {
-		s2.d = RFL.S2;
-		of = ~(RFL.S1 ^ s2.d) & (RFL.S1 ^ RFL.RES.d);
-		xof = 0;
+		if (RFL.valid==V_SUB || RFL.valid==V_SBB)
+			nf = ~(-RFL.S2);
+		else
+			nf = RFL.S2;
+		nf = ~(RFL.S1 ^ nf) & (RFL.S1 ^ RFL.RES.d);
 		if (RFL.mode & MBYTE) {		// 0080->0800
-		    if (((RFL.valid==V_SUB)&&(s2.b.bl==0x80)) ||
-			((RFL.valid==V_SBB)&&(s2.b.bl==0x7f))) xof=0x800;
-		    of <<= 4;
+		    nf <<= 4;
 		}
 		else if (RFL.mode & DATA16) {	// 8000->0800
-		    if (((RFL.valid==V_SUB)&&(s2.w.l==0x8000)) ||
-			((RFL.valid==V_SBB)&&(s2.w.l==0x7fff))) xof=0x800;
-		    of >>= 4;
+		    nf >>= 4;
 		}
 		else {				// 80000000->0800
-		    if (((RFL.valid==V_SUB)&&(s2.d==0x80000000)) ||
-			((RFL.valid==V_SBB)&&(s2.d==0x7fffffff))) xof=0x800;
-		    of >>= 20;
+		    nf >>= 20;
 		}
-		nf = (of^xof) & 0x800;
+		nf &= 0x800;
 	}
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
