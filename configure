@@ -739,7 +739,6 @@ with_gpm
 with_alsa
 with_sndfile
 with_fluidsynth
-with_pthreads
 with_slangdir
 with_x
 enable_mitshm
@@ -1404,7 +1403,6 @@ Optional Packages:
   --without-alsa          don't use alsa even if available
   --without-sndfile       don't use sndfile even if available
   --without-fluidsynth       don't use fluidsynth even if available
-
   --with-slangdir=dir     specify S-Lang directory
   --with-x                use the X Window System
   --with-target-cpu=CPU	  use the specified target CPU (default=auto)
@@ -4883,15 +4881,7 @@ $as_echo "$as_me: Compiling without fluidsynth support..." >&6;}
   $srcdir/mkpluginhooks enable fluidsynth no
 fi
 
-
-
-# Check whether --with-pthreads was given.
-if test "${with_pthreads+set}" = set; then :
-  withval=$with_pthreads;
-fi
-
-if test "$with_pthreads" = "yes"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_create in -lpthread" >&5
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_create in -lpthread" >&5
 $as_echo_n "checking for pthread_create in -lpthread... " >&6; }
 if ${ac_cv_lib_pthread_pthread_create+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4928,17 +4918,9 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pthread_pthread_create" >&5
 $as_echo "$ac_cv_lib_pthread_pthread_create" >&6; }
 if test "x$ac_cv_lib_pthread_pthread_create" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBPTHREAD 1
-_ACEOF
-
-  LIBS="-lpthread $LIBS"
-
-else
-  with_pthreads="no"
+  with_pthreads="yes"
 fi
 
-fi
 if test "$with_pthreads" = "yes"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling with pthreads support..." >&5
 $as_echo "$as_me: Compiling with pthreads support..." >&6;}
@@ -4946,6 +4928,7 @@ $as_echo "$as_me: Compiling with pthreads support..." >&6;}
 
   USE_PTHREADS="USE_PTHREADS=1"
 
+  LIBS="$LIBS -lpthread"
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling without pthreads support..." >&5
 $as_echo "$as_me: Compiling without pthreads support..." >&6;}
