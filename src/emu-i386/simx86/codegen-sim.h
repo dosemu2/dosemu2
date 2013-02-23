@@ -68,7 +68,7 @@ typedef union {
 } wkreg;
 
 typedef struct {
-	int valid, mode;
+	int valid, mode, cout;
 	int S1,S2;
 	wkreg RES;
 } flgtmp;

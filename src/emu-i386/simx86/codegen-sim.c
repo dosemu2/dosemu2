@@ -126,6 +126,9 @@ static inline void MARK(void)	// oops...objdump shows all the code at the
 static inline void FlagHandleAdd(int src1, int src2, int res, int wordsize)
 {
 	int cout = (src1 & src2) | ((src1 | src2) & ~res);
+	if (wordsize == 32) RFL.cout = cout;
+	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
+	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
 	int cy = cout >> (wordsize - 1);
 	SET_CF(cy & 1);
 }
@@ -133,8 +136,19 @@ static inline void FlagHandleAdd(int src1, int src2, int res, int wordsize)
 static inline void FlagHandleSub(int src1, int src2, int res, int wordsize)
 {
 	int cout = (~src1 & src2) | ((~src1 ^ src2) & res);
-	int cy = cout >> (32 - wordsize);
+	if (wordsize == 32) RFL.cout = cout;
+	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
+	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
+	int cy = cout >> (wordsize - 1);
 	SET_CF(cy & 1);
+}
+
+static inline void FlagHandleIncDec(int low, int high, int wordsize)
+{
+	int cout = low & ~high;
+	if (wordsize == 32) RFL.cout = cout;
+	if (wordsize == 16) RFL.cout = ((cout >> 14) << 30) | (cout & 8);
+	if (wordsize == 8)  RFL.cout = ((cout >> 6) << 30) | (cout & 8);
 }
 
 static inline int FlagSync_NZ (void)
@@ -202,23 +216,9 @@ static inline int FlagSync_O_ (void)
 		nf = 0;
 	else if (RFL.mode & SETOVF)
 		nf = 0x800;
-	else {
-		nf = (RFL.S1 ^ RFL.RES.d);
-		if (RFL.valid==V_SUB || RFL.valid==V_SBB)
-			nf &= (RFL.S1 ^ RFL.S2);
-		else
-			nf &= ~(RFL.S1 ^ RFL.S2);
-		if (RFL.mode & MBYTE) {		// 0080->0800
-		    nf <<= 4;
-		}
-		else if (RFL.mode & DATA16) {	// 8000->0800
-		    nf >>= 4;
-		}
-		else {				// 80000000->0800
-		    nf >>= 20;
-		}
-		nf &= 0x800;
-	}
+	else
+		// 80000000->0800 ^ 40000000->0800
+		nf = ((RFL.cout >> 20) ^ (RFL.cout >> 19)) & 0x800;
 	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
 }
@@ -951,14 +951,17 @@ void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    CPUBYTE(o) = RFL.RES.d = RFL.S1 + 1;
+		    FlagHandleIncDec(RFL.S1, RFL.RES.d, 8);
 		}
 		else if (mode & DATA16) {
 		    RFL.S1 = CPUWORD(o);
 		    CPUWORD(o) = RFL.RES.d = RFL.S1 + 1;
+		    FlagHandleIncDec(RFL.S1, RFL.RES.d, 16);
 		}
 		else {
 		    RFL.S1 = CPULONG(o);
 		    CPULONG(o) = RFL.RES.d = RFL.S1 + 1;
+		    FlagHandleIncDec(RFL.S1, RFL.RES.d, 32);
 		}
 		}
 		break;
@@ -971,14 +974,17 @@ void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 		    RFL.S1 = CPUBYTE(o);
 		    CPUBYTE(o) = RFL.RES.d = RFL.S1 - 1;
+		    FlagHandleIncDec(RFL.RES.d, RFL.S1, 8);
 		}
 		else if (mode & DATA16) {
 		    RFL.S1 = CPUWORD(o);
 		    CPUWORD(o) = RFL.RES.d = RFL.S1 - 1;
+		    FlagHandleIncDec(RFL.RES.d, RFL.S1, 16);
 		}
 		else {
 		    RFL.S1 = CPULONG(o);
 		    CPULONG(o) = RFL.RES.d = RFL.S1 - 1;
+		    FlagHandleIncDec(RFL.RES.d, RFL.S1, 32);
 		}
 		}
 		break;
@@ -1263,14 +1269,16 @@ void Gen_sim(int op, int mode, ...)
 		RFL.S1 = 0;
 		if (mode & MBYTE) {
 			DR1.b.bl = RFL.RES.d = -(RFL.S2 = DR1.b.bl);
+			FlagHandleSub(0, RFL.S2, RFL.RES.d, 8);
 		}
 		else if (mode & DATA16) {
 			DR1.w.l = RFL.RES.d = -(RFL.S2 = DR1.w.l);
+			FlagHandleSub(0, RFL.S2, RFL.RES.d, 16);
 		}
 		else {
 			DR1.d = RFL.RES.d = -(RFL.S2 = DR1.d);
+			FlagHandleSub(0, RFL.S2, RFL.RES.d, 32);
 		}
-		SET_CF(RFL.S2!=0);
 		break;
 	case O_INC:		// OSZAP
 		GTRACE0("O_INC");
@@ -1280,14 +1288,17 @@ void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 			RFL.S1 = DR1.bs.bl;
 			DR1.b.bl = RFL.RES.d = RFL.S1 + 1;
+			FlagHandleIncDec(RFL.S1, RFL.RES.d, 8);
 		}
 		else if (mode & DATA16) {
 			RFL.S1 = DR1.ws.l;
 			DR1.w.l = RFL.RES.d = RFL.S1 + 1;
+			FlagHandleIncDec(RFL.S1, RFL.RES.d, 16);
 		}
 		else {
 			RFL.S1 = DR1.d;
 			DR1.d = RFL.RES.d = RFL.S1 + 1;
+			FlagHandleIncDec(RFL.S1, RFL.RES.d, 32);
 		}
 		break;
 	case O_DEC:		// OSZAP
@@ -1298,14 +1309,17 @@ void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 			RFL.S1 = DR1.bs.bl;
 			DR1.b.bl = RFL.RES.d = RFL.S1 - 1;
+			FlagHandleIncDec(RFL.RES.d, RFL.S1, 8);
 		}
 		else if (mode & DATA16) {
 			RFL.S1 = DR1.ws.l;
 			DR1.w.l = RFL.RES.d = RFL.S1 - 1;
+			FlagHandleIncDec(RFL.RES.d, RFL.S1, 16);
 		}
 		else {
 			RFL.S1 = DR1.d;
 			DR1.d = RFL.RES.d = RFL.S1 - 1;
+			FlagHandleIncDec(RFL.RES.d, RFL.S1, 32);
 		}
 		break;
 	case O_CMPXCHG: {		// OSZAPC
@@ -1789,14 +1803,17 @@ void Gen_sim(int op, int mode, ...)
 		if (mode & MBYTE) {
 			cy = (raft & 0x100) != 0;
 			DR1.b.bl = raft;
+			RFL.cout = rbef << 24;
 		}
 		else if (mode & DATA16) {
 			cy = (raft & 0x10000) != 0;
 			DR1.w.l = raft;
+			RFL.cout = rbef << 16;
 		}
 		else {
 			cy = (rbef>>(32-sh)) & 1;
 			DR1.d = raft;
+			RFL.cout = rbef & 0xc0000000;
 		}
 		RFL.RES.d = raft;
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
@@ -1923,13 +1940,18 @@ void Gen_sim(int op, int mode, ...)
 		raft = rbef >> sh;
 		RFL.RES.d = raft;
 
-		if (mode & MBYTE)
+		if (mode & MBYTE) {
 			DR1.b.bl = raft;
-		else if (mode & DATA16)
+			RFL.cout = raft << 24;
+		}
+		else if (mode & DATA16) {
 			DR1.w.l = raft;
-		else
+			RFL.cout = raft << 16;
+		}
+		else {
 			DR1.d = raft;
-
+			RFL.cout = raft & 0xc0000000;
+		}
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
 		if (sh>1) RFL.mode |= CLROVF;
@@ -1973,7 +1995,7 @@ void Gen_sim(int op, int mode, ...)
 
 		if (debug_level('e')>1) dbug_printf("Sync C flag = %d\n", cy);
 		SET_CF(cy);
-		if (sh>1) RFL.mode |= CLROVF;
+		RFL.cout = 0;  /* clears overflow & auxiliary carry flag */
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		break;
@@ -1988,6 +2010,7 @@ void Gen_sim(int op, int mode, ...)
 		if (subop != AAM && subop != AAD)
 			FlagSync_AP();
 		RFL.valid = V_ADD;
+		RFL.cout = 0; /* clears overflow & auxiliary carry flag */
 		RFL.S1 = 0;
 		DR1.d = CPULONG(Ofs_EAX);
 		switch (subop) {
@@ -2873,6 +2896,7 @@ void Gen_sim(int op, int mode, ...)
 				DR1.d = (DR1.d << shc) | (DR1.d >> (32-shc));
 				cy = DR1.d & 1;
 				RFL.RES.d = DR1.w.l = DR1.w.h;
+				FlagHandleAdd(RFL.S1, RFL.S2, RFL.RES.d, 16);
 			}
 			else {		// right: >>mem|reg>>
 				DR1.w.h = CPUWORD(o);
@@ -2881,6 +2905,7 @@ void Gen_sim(int op, int mode, ...)
 				DR1.d = (DR1.d >> shc) | (DR1.d << (32-shc));
 				cy = (DR1.d >> 31) & 1;
 				RFL.RES.d = DR1.w.l;
+				FlagHandleAdd(RFL.RES.d, RFL.RES.d, RFL.S1, 16);
 			}
 		}
 		else {
@@ -2892,6 +2917,7 @@ void Gen_sim(int op, int mode, ...)
 				cy = (v.td >> (64-shc)) & 1;
 				v.td <<= shc;
 				RFL.RES.d = DR1.d = v.t.th;
+				FlagHandleAdd(RFL.S1, RFL.S2, RFL.RES.d, 32);
 			}
 			else {		// right: >>mem|reg>>
 				v.t.th = CPULONG(o);
@@ -2900,6 +2926,7 @@ void Gen_sim(int op, int mode, ...)
 				cy = (v.td >> (shc-1)) & 1;
 				v.td >>= shc;
 				RFL.RES.d = DR1.d = v.t.tl;
+				FlagHandleAdd(RFL.RES.d, RFL.RES.d, RFL.S1, 32);
 			}
 		}
 		SET_CF(cy);
