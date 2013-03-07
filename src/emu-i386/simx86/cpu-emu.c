@@ -39,6 +39,7 @@
 #include <string.h>		/* for memset */
 #include <setjmp.h>
 #include <sys/time.h>
+#include <fenv.h>
 #include "emu.h"
 #include "vm86plus.h"
 #include "timers.h"
@@ -629,6 +630,10 @@ static void Scp2Cpu (struct sigcontext_struct *scp)
 #endif
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
+
+  /* Native FPU used for JIT, for simulator this is just to switch off
+     FPU exceptions */
+  loadfpstate(*scp->fpstate);
 }
 
 /*
@@ -693,6 +698,13 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
    * (b0-b1 are currently unimplemented here)
    */
   if (!TheCPU.err) _err = 0;		//???
+  savefpstate(*scp->fpstate);
+  /* there is no real need to save and restore the FPU state of the
+     emulator itself: savefpstate (fnsave) also resets the current FPU
+     state using fninit/ldmxcsr which is good enough for calling FPU-using
+     routines.
+  */
+  feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 
   if (in_dpmi) {
     _cs = TheCPU.cs;
