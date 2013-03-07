@@ -1343,6 +1343,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    RFL.S1 = DR1.d;
 		    RFL.S2 = (mode & RM_REG) ? CPULONG(o2) : *AR1.pdu;
+		    RFL.RES.d = RFL.S1 - RFL.S2;
 		    FlagHandleSub(RFL.S1, RFL.S2, RFL.RES.d, 32);
 		}
 		if (RFL.RES.d == 0) {
