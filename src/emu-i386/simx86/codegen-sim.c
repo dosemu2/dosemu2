@@ -113,6 +113,11 @@ static inline void MARK(void)	// oops...objdump shows all the code at the
 
 /* add/sub rule for carry using MSB:
  * the carry-out expressions from Bochs 2.6 are used here.
+ * RFL.cout is a cheap-to-compute 32-bit word that encodes the following flags:
+ * CF is bit 31
+ * OF is bit 31 xor bit 30
+ * AF is bit 3
+ *
  *	src1 src2  res	cy(add) cy(sub)
  *	  0    0    0    0	0
  *	  0    0    1    0	1
@@ -260,7 +265,7 @@ static inline int FlagSync_AP_ (void)
 	// 0 0 1 -> AC  0 1 1 -> NA  1 0 1 -> NA  1 1 1 -> AC
 	if ((RFL.valid==V_SUB)||(RFL.valid==V_SBB)||
 	    (RFL.valid==V_ADC)||(RFL.valid==V_ADD))
-	    af = (RFL.S1 ^ RFL.S2 ^ RFL.RES.d) & 0x10;
+	    af = (RFL.cout & 0x8) << 1;
 	else
 	    af = CPUBYTE(Ofs_FLAGS)&0x10; // Intel says undefined.
 	// PF
@@ -2021,7 +2026,7 @@ void Gen_sim(int op, int mode, ...)
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl += 6;
 					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) ||
-					  (altmp > 0xf9)) | 0x10;
+					  (altmp > 0xf9)) | 8;
 				}
 				if ((altmp > 0x99) || (IS_CF_SET)) {
 					DR1.b.bl += 0x60;
@@ -2029,9 +2034,7 @@ void Gen_sim(int op, int mode, ...)
 				}
 				SET_CF(cyaf & 1);
 				RFL.RES.d = DR1.bs.bl; /* for flags */
-				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
-				/* RFL.S1=0 so
-				   (RFL.S1^RFL.S2^RFL.RES.d)&0x10 gives AF */
+				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
 				}
 				break;
 			case DAS: {
@@ -2040,7 +2043,7 @@ void Gen_sim(int op, int mode, ...)
 				if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 					DR1.b.bl -= 6;
 					cyaf = ((CPUBYTE(Ofs_FLAGS)&1) ||
-						(altmp < 6)) | 0x10;
+						(altmp < 6)) | 8;
 				}
 				if ((altmp > 0x99) || (IS_CF_SET)) {
 					DR1.b.bl -= 0x60;
@@ -2048,7 +2051,7 @@ void Gen_sim(int op, int mode, ...)
 				}
 				SET_CF(cyaf & 1);
 				RFL.RES.d = DR1.bs.bl; /* for flags */
-				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
+				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
 				}
 				break;
 			case AAA: {
@@ -2057,13 +2060,13 @@ void Gen_sim(int op, int mode, ...)
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl = (DR1.b.bl + 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh + 1 + icarry);
-					cyaf = 0x11;
+					cyaf = 9;
 				} else {
 					cyaf = 0;
 					DR1.b.bl &= 0x0f;
 				}
 				SET_CF(cyaf & 1);
-				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
+				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
 				}
 				break;
 			case AAS: {
@@ -2072,13 +2075,13 @@ void Gen_sim(int op, int mode, ...)
 				if (((DR1.b.bl & 0x0f) > 9 ) || (IS_AF_SET)) {
 					DR1.b.bl = (DR1.b.bl - 6) & 0x0f;
 					DR1.b.bh = (DR1.b.bh - 1 - icarry);
-					cyaf = 0x11;
+					cyaf = 9;
 				} else {
 					cyaf = 0;
 					DR1.b.bl &= 0x0f;
 				}
 				SET_CF(cyaf & 1);
-				RFL.S2 = RFL.RES.d ^ (cyaf & 0x10);
+				RFL.cout = (RFL.cout & ~8) | (cyaf & 8);
 				}
 				break;
 			case AAM: {
