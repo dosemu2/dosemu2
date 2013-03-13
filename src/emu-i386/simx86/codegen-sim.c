@@ -109,6 +109,39 @@ static inline void MARK(void)	// oops...objdump shows all the code at the
 
 /////////////////////////////////////////////////////////////////////////////
 
+static inline int is_zf_set(void)
+{
+	if (RFL.valid==V_INVALID)
+	    return (CPUBYTE(Ofs_FLAGS)&0x40) >> 6;
+	if (RFL.mode & MBYTE)
+	    return RFL.RES.b.bl==0;
+	if (RFL.mode & DATA16)
+	    return RFL.RES.w.l==0;
+	return RFL.RES.d==0;
+}
+
+static inline int is_sf_set(void)
+{
+	if (RFL.valid==V_INVALID)
+	    return (CPUBYTE(Ofs_FLAGS)&0x80) >> 7;
+	if (RFL.mode & MBYTE)
+	    return (RFL.RES.b.bl & 0x80) >> 7;
+	if (RFL.mode & DATA16)
+	    return (RFL.RES.w.l & 0x8000) >> 15;
+	return (RFL.RES.d & 0x80000000) >> 31;
+}
+
+static inline int is_of_set(void)
+{
+	if (RFL.valid==V_INVALID)
+	    return (CPUWORD(Ofs_FLAGS)&0x800) >> 11;
+	if (RFL.mode & CLROVF)
+	    return 0;
+	if (RFL.mode & SETOVF)
+	    return 1;
+	return ((RFL.cout >> 31) ^ (RFL.cout >> 30)) & 1;
+}
+
 #define SET_CF(c)	CPUBYTE(Ofs_FLAGS)=((CPUBYTE(Ofs_FLAGS)&0xfe)|(c))
 
 /* add/sub rule for carry using MSB:
@@ -2931,10 +2964,78 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 
-	case JMP_LINK:		// cond, dspt, retaddr, link
+	case JMP_LINK: {	// cond, dspt, retaddr, link
+		/* evaluate cond at RUNTIME after exec'ing */
+		int cond = va_arg(ap,int);
+		P0 = va_arg(ap,unsigned int);
+		unsigned int d_nt = va_arg(ap,unsigned int);
+		if (cond == 0x11)
+			PUSH(mode, &d_nt);
+		if (debug_level('e')>2) {
+			if(cond == 0x11)
+				dbug_printf("CALL: ret=%08x\n",d_nt);
+			dbug_printf("** Jump taken to %08x\n",P0);
+		} }
+		break;
+
 	case JF_LINK:
-	case JB_LINK:		// cond, PC, dspt, dspnt, link
-	case JLOOP_LINK:	// cond, PC, dspt, dspnt, link
+	case JB_LINK: {		// cond, PC, dspt, dspnt, link
+		int cond = va_arg(ap,int);
+		unsigned int PC = va_arg(ap,unsigned int);
+		unsigned int j_t = va_arg(ap,unsigned int);
+		unsigned int j_nt = va_arg(ap,unsigned int);
+		(void)PC;
+		switch(cond) {
+		case 0x00:
+			P0 = is_of_set() ? j_t : j_nt; break;
+		case 0x01:
+			P0 = !is_of_set() ? j_t : j_nt; break;
+		case 0x02: P0 = IS_CF_SET ? j_t : j_nt; break;
+		case 0x03: P0 = !IS_CF_SET ? j_t : j_nt; break;
+		case 0x04: P0 = is_zf_set() ? j_t : j_nt; break;
+		case 0x05: P0 = !is_zf_set() ? j_t : j_nt; break;
+		case 0x06: P0 = IS_CF_SET || is_zf_set() ? j_t : j_nt; break;
+		case 0x07: P0 = !IS_CF_SET && !is_zf_set() ? j_t : j_nt; break;
+		case 0x08: P0 = is_sf_set() ? j_t : j_nt; break;
+		case 0x09: P0 = !is_sf_set() ? j_t : j_nt; break;
+		case 0x0a:
+			e_printf("!!! JPset\n");
+			FlagSync_AP();
+			P0 = IS_PF_SET ? j_t : j_nt; break;
+		case 0x0b:
+			e_printf("!!! JPclr\n");
+			FlagSync_AP();
+			P0 = !IS_PF_SET ? j_t : j_nt; break;
+		case 0x0c:
+			P0 = is_sf_set() ^ is_of_set() ? j_t : j_nt; break;
+		case 0x0d:
+			P0 = !(is_sf_set() ^ is_of_set()) ? j_t : j_nt; break;
+		case 0x0e:
+			P0 = (is_sf_set() ^ is_of_set()) || is_zf_set() ? j_t : j_nt; break;
+		case 0x0f:
+			P0 = !(is_sf_set() ^ is_of_set()) && !is_zf_set() ? j_t : j_nt; break;
+		case 0x31:	// JCXZ
+			P0 = ((mode&ADDR16? rCX : rECX) == 0) ? j_t : j_nt; break;
+		}
+		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		}
+		break;
+	case JLOOP_LINK: {	// cond, dspt, dspnt, link
+		int cond = va_arg(ap,int);
+		unsigned int j_t = va_arg(ap,unsigned int);
+		unsigned int j_nt = va_arg(ap,unsigned int);
+		int cxv = (mode&ADDR16? --rCX : --rECX);
+		switch(cond) {
+		case 0x20:	// LOOP
+			P0 = cxv != 0 ? j_t : j_nt; break;
+		case 0x24:	// LOOPZ
+			P0 = cxv != 0 && is_zf_set() ? j_t : j_nt; break;
+		case 0x25:	// LOOPNZ
+			P0 = cxv != 0 && !is_zf_set() ? j_t : j_nt; break;
+		}
+		if (debug_level('e')>2 && P0 == j_t) dbug_printf("** Jump taken to %08x\n",j_t);
+		}
+		break;
 	default:
 		leavedos(0x494c4c);
 		break;
@@ -2987,33 +3088,30 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 	    if (debug_level('e')>2) {
 		e_printf("== (%04d) == Closing sequence at %08x\n",ln,PC);
 	    }
-	}
-	CurrIMeta = -1;
-
-	if (RFL.valid!=V_INVALID)
-	    CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS) & 0x3f) | FlagSync_NZ();
 #if defined(SINGLESTEP)||defined(SINGLEBLOCK)
-	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
+	    dbug_printf("\n%s",e_print_regs());
 #endif
-#ifdef DEBUG_MORE
-	if (debug_level('e')>1) {
-#else
-	if (debug_level('e')>3) {
+#ifndef DEBUG_MORE
+	    if (debug_level('e')>3)
 #endif
+	    {
 	    dbug_printf("(R) DR1=%08x DR2=%08x AR1=%08x AR2=%08x\n",
 		DR1.d,DR2.d,AR1.d,AR2.d);
 	    dbug_printf("(R) SR1=%08x TR1=%08x\n",
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL m=[%s] v=%d cout=%08x RES=%08x\n\n",
 		showmode(RFL.mode),RFL.valid,RFL.cout,RFL.RES.d);
+	    }
 	}
+
+	CurrIMeta = -1;
 	if (signal_pending) {
 		CEmuStat|=CeS_SIGPEND;
 	}
 	TheCPU.sigalrm_pending = 0;
 	if (eTimeCorrect >= 0)
 	    TheCPU.EMUtime = GETTSC();
-	return PC;
+	return P0;
 }
 
 

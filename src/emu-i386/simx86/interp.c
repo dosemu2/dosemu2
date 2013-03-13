@@ -184,7 +184,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 
 #ifdef HOST_ARCH_X86
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-	if (!UseLinker || CONFIG_CPUSIM || (EFLAGS & TF))
+	if ((EFLAGS & TF) || (!UseLinker && !CONFIG_CPUSIM))
 #endif
 #endif
 	    goto jgnolink;
@@ -296,13 +296,10 @@ jgnolink:
 	if (TheCPU.err || tailjmp) return P1;
 
 	/* evaluate cond at RUNTIME after exec'ing */
+	if (CONFIG_CPUSIM) FlagSync_All();
 	switch(cond) {
-	case 0x00:
-		if (CONFIG_CPUSIM) FlagSync_O();
-		taken = IS_OF_SET; break;
-	case 0x01:
-		if (CONFIG_CPUSIM) FlagSync_O();
-		taken = !IS_OF_SET; break;
+	case 0x00: taken = IS_OF_SET; break;
+	case 0x01: taken = !IS_OF_SET; break;
 	case 0x02: taken = IS_CF_SET; break;
 	case 0x03: taken = !IS_CF_SET; break;
 	case 0x04: taken = IS_ZF_SET; break;
@@ -313,23 +310,17 @@ jgnolink:
 	case 0x09: taken = !IS_SF_SET; break;
 	case 0x0a:
 		e_printf("!!! JPset\n");
-		if (CONFIG_CPUSIM) FlagSync_AP();
 		taken = IS_PF_SET; break;
 	case 0x0b:
 		e_printf("!!! JPclr\n");
-		if (CONFIG_CPUSIM) FlagSync_AP();
 		taken = !IS_PF_SET; break;
 	case 0x0c:
-		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = IS_SF_SET ^ IS_OF_SET; break;
 	case 0x0d:
-		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = !(IS_SF_SET ^ IS_OF_SET); break;
 	case 0x0e:
-		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = (IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET; break;
 	case 0x0f:
-		if (CONFIG_CPUSIM) FlagSync_O();
 		taken = !(IS_SF_SET ^ IS_OF_SET) && !IS_ZF_SET; break;
 	case 0x10: taken = 1; break;
 	case 0x11: {
