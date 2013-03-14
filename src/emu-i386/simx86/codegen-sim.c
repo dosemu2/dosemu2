@@ -1807,7 +1807,7 @@ void Gen_sim(int op, int mode, ...)
 			sh &= 7;
 			RFL.S1 = RFL.S2 = rbef = DR1.b.bl;
 			raft = (rbef>>sh) | (rbef<<(8-sh));
-			DR1.b.bl = RFL.RES.d = raft;
+			DR1.b.bl = raft;
 			cy = (raft & 0x80) != 0;
 			ov = (rbef & 0x80) != (raft & 0x80);
 		}
@@ -1852,7 +1852,7 @@ void Gen_sim(int op, int mode, ...)
 			sh %= 9;
 			RFL.S1 = RFL.S2 = rbef = DR1.b.bl;
 			raft = (rbef>>sh) | (rbef<<(9-sh)) | (cy<<(8-sh));
-			DR1.b.bl = RFL.RES.d = raft;
+			DR1.b.bl = raft;
 			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
 			// else keep carry.
@@ -1862,7 +1862,7 @@ void Gen_sim(int op, int mode, ...)
 			sh %= 17;
 			RFL.S1 = RFL.S2 = rbef = DR1.w.l;
 			raft = (rbef>>sh) | (rbef<<(17-sh)) | (cy<<(16-sh));
-			DR1.w.l = RFL.RES.d = raft;
+			DR1.w.l = raft;
 			if(sh)
 				cy = (rbef>>(sh-1)) & 1;
 			ov = (rbef & 0x8000) != (raft & 0x8000);
@@ -1871,7 +1871,7 @@ void Gen_sim(int op, int mode, ...)
 			RFL.S1 = RFL.S2 = rbef = DR1.d;
 			raft = (rbef>>sh) | (cy<<(32-sh));
 			if (sh>1) raft |= (rbef<<(33-sh));
-			DR1.d = RFL.RES.d = raft;
+			DR1.d = raft;
 			cy = (rbef>>(sh-1)) & 1;
 			ov = (rbef & 0x80000000U) != (raft & 0x80000000U);
 		}
