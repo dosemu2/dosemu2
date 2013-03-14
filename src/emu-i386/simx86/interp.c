@@ -146,8 +146,8 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 			      int btype)
 {
 	unsigned int P1;
-	int taken=0, tailjmp=0;
-	int dsp, cxv, gim, rc;
+	int taken=0;
+	int dsp, cxv, rc;
 	int pskip;
 	unsigned int d_t, d_nt, j_t, j_nt;
 
@@ -189,7 +189,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 #endif
 	    goto jgnolink;
 
-	gim = 0;
 	switch(cond) {
 	case 0x00 ... 0x0f:
 	case 0x31:
@@ -218,34 +217,27 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		}
 
 		/* backwards jump limited to 256 bytes */
-		if ((dsp > -256) && (dsp < 0)) {
-		    Gen(JB_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
-		    gim = 1;
-		}
-		else if (dsp) {
-		    /* forward jump or backward jump >=256 bytes */
-		    if ((dsp < 0) || (dsp > pskip)) {
-			Gen(JF_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
-			gim = 1;
+		if ((dsp > -256) && (dsp < pskip)) {
+		    if (dsp >= 0) {
+			// dsp>0 && dsp<pskip: jumps in the jmp itself
+			if (dsp > 0)
+			    e_printf("### self jmp=%x dsp=%d pskip=%d\n",cond,dsp,pskip);
+			else // dsp==0
+			    /* strange but possible, very tight loop with an external
+			     * condition changing a flag */
+			    e_printf("### dsp=0 jmp=%x pskip=%d\n",cond,pskip);
 		    }
-		    else if (dsp==pskip) {
+		    Gen(JB_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
+		}
+		else {
+		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",cond);
 			TheCPU.mode |= SKIPOP;
 			goto notakejmp;
 		    }
-		    else {	// dsp>0 && dsp<pskip: jumps in the jmp itself
-			TheCPU.err = -103;
-			dbug_printf("### err 103 jmp=%x dsp=%d pskip=%d\n",cond,dsp,pskip);
-			return P2;
-		    }
+		    /* forward jump or backward jump >=256 bytes */
+		    Gen(JF_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
 		}
-		else {	// dsp==0
-		    /* strange but possible, very tight loop with an external
-		     * condition changing a flag */
-		    e_printf("### dsp=0 jmp=%x pskip=%d\n",cond,pskip);
-		    break;
-		}
-		tailjmp=1;
 		break;
 	case 0x10:
 		if (dsp==0) {	// eb fe
@@ -264,8 +256,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 #endif
 	case 0x11:
 		Gen(JMP_LINK, mode, cond, j_t, d_nt, &InstrMeta[0].clink);
-		gim = 1;
-		tailjmp=1;
 		break;
 	case 0x20: case 0x24: case 0x25:
 		if (dsp == 0) {
@@ -277,23 +267,23 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		}
 		else {
 			Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
-			gim = 1;
-			tailjmp=1;
 		}
 		break;
 	default: dbug_printf("JumpGen: unknown condition\n");
 		break;
 	}
 
-	if (gim)
-	    (void)NewIMeta(P2, mode, &rc);
+	NewIMeta(P2, mode, &rc);
 
-jgnolink:
 	/* we just generated a jump, so the returned eip (P1) is
 	 * (almost) always different from P2.
 	 */
 	P1 = CloseAndExec(P2, mode, __LINE__); NewNode=0;
-	if (TheCPU.err || tailjmp) return P1;
+	return P1;
+
+jgnolink:
+	P1 = CloseAndExec(P2, mode, __LINE__); NewNode=0;
+	if (TheCPU.err) return P1;
 
 	/* evaluate cond at RUNTIME after exec'ing */
 	if (CONFIG_CPUSIM) FlagSync_All();
