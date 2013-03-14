@@ -146,8 +146,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 			      int btype)
 {
 	unsigned int P1;
-	int taken=0;
-	int dsp, cxv, rc;
+	int dsp, rc;
 	int pskip;
 	unsigned int d_t, d_nt, j_t, j_nt;
 
@@ -182,19 +181,14 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 	/* jump address for not taken branch, usually next instruction */
 	j_nt = d_nt + LONG_CS;
 
-#ifdef HOST_ARCH_X86
-#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-	if ((EFLAGS & TF) || (!UseLinker && !CONFIG_CPUSIM))
-#endif
-#endif
-	    goto jgnolink;
-
 	switch(cond) {
 	case 0x00 ... 0x0f:
 	case 0x31:
 		P1 = P2 + pskip;
 		/* is there a jump after the condition? if yes, simplify */
-		if (Fetch(P1)==JMPsid) {	/* eb xx */
+#if !defined(SINGLESTEP)
+		if (!(EFLAGS & TF)) {
+		  if (Fetch(P1)==JMPsid) {	/* eb xx */
 		    int dsp2 = (signed char)Fetch(P1+1) + 2;
 	    	    if (dsp2 < 0) mode |= CKSIGN;
 		    d_nt = P1 - LONG_CS + dsp2;
@@ -203,8 +197,8 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		    if (debug_level('e')>1)
 			e_printf("JMPs (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
 				 Fetch(P1),dsp2,P1,j_t,j_nt);
-		}
-		else if (Fetch(P1)==JMPd) {	/* e9 xxxx{xxxx} */
+		  }
+		  else if (Fetch(P1)==JMPd) {	/* e9 xxxx{xxxx} */
 		    int skp2 = BT24(BitDATA16,mode) + 1;
 		    int dsp2 = skp2 + (int)DataFetchWL_S(mode, P1+1);
 	    	    if (dsp2 < 0) mode |= CKSIGN;
@@ -214,8 +208,9 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		    if (debug_level('e')>1)
 			e_printf("JMPl (%02x,%d) at %08x after Jcc: t=%08x nt=%08x\n",
 				 Fetch(P1),dsp2,P1,j_t,j_nt);
+		  }
 		}
-
+#endif
 		/* backwards jump limited to 256 bytes */
 		if ((dsp > -256) && (dsp < pskip)) {
 		    if (dsp >= 0) {
@@ -232,8 +227,13 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		else {
 		    if (dsp == pskip) {
 			e_printf("### jmp %x 00\n",cond);
-			TheCPU.mode |= SKIPOP;
-			goto notakejmp;
+#if !defined(SINGLESTEP)
+			if (!(EFLAGS & TF)) {
+			    TheCPU.mode |= SKIPOP;
+			    TheCPU.eip = d_nt;
+			    return j_nt;
+			}
+#endif
 		    }
 		    /* forward jump or backward jump >=256 bytes */
 		    Gen(JF_LINK, mode, cond, P2, j_t, j_nt, &InstrMeta[0].clink);
@@ -246,12 +246,15 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		}
 #ifdef HOST_ARCH_X86
 #ifdef NOJUMPS
-		if (!CONFIG_CPUSIM &&
+#if !defined(SINGLESTEP)
+		if (!(EFLAGS & TF) && !CONFIG_CPUSIM &&
 		    ((P2 ^ j_t) & PAGE_MASK)==0) {	// same page
 		    if (debug_level('e')>1) dbug_printf("** JMP: ignored\n");
 		    TheCPU.mode |= SKIPOP;
-		    goto takejmp;
+		    TheCPU.eip = d_t;
+		    return j_t;
 		}
+#endif
 #endif
 #endif
 	case 0x11:
@@ -259,15 +262,18 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		break;
 	case 0x20: case 0x24: case 0x25:
 		if (dsp == 0) {
+#if !defined(SINGLESTEP)
+		    if (!(EFLAGS & TF)) {
 		    	// ndiags: shorten delay loops (e2 fe)
 			e_printf("### loop %x 0xfe\n",cond);
 			Gen(L_IMM, ((mode&ADDR16) ? (mode|DATA16) : mode),
 			    Ofs_ECX, 0);
-			goto notakejmp;
+			TheCPU.eip = d_nt;
+			return j_nt;
+		    }
+#endif
 		}
-		else {
-			Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
-		}
+		Gen(JLOOP_LINK, mode, cond, j_t, j_nt, &InstrMeta[0].clink);
 		break;
 	default: dbug_printf("JumpGen: unknown condition\n");
 		break;
@@ -280,78 +286,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 	 */
 	P1 = CloseAndExec(P2, mode, __LINE__); NewNode=0;
 	return P1;
-
-jgnolink:
-	P1 = CloseAndExec(P2, mode, __LINE__); NewNode=0;
-	if (TheCPU.err) return P1;
-
-	/* evaluate cond at RUNTIME after exec'ing */
-	if (CONFIG_CPUSIM) FlagSync_All();
-	switch(cond) {
-	case 0x00: taken = IS_OF_SET; break;
-	case 0x01: taken = !IS_OF_SET; break;
-	case 0x02: taken = IS_CF_SET; break;
-	case 0x03: taken = !IS_CF_SET; break;
-	case 0x04: taken = IS_ZF_SET; break;
-	case 0x05: taken = !IS_ZF_SET; break;
-	case 0x06: taken = IS_CF_SET || IS_ZF_SET; break;
-	case 0x07: taken = !IS_CF_SET && !IS_ZF_SET; break;
-	case 0x08: taken = IS_SF_SET; break;
-	case 0x09: taken = !IS_SF_SET; break;
-	case 0x0a:
-		e_printf("!!! JPset\n");
-		taken = IS_PF_SET; break;
-	case 0x0b:
-		e_printf("!!! JPclr\n");
-		taken = !IS_PF_SET; break;
-	case 0x0c:
-		taken = IS_SF_SET ^ IS_OF_SET; break;
-	case 0x0d:
-		taken = !(IS_SF_SET ^ IS_OF_SET); break;
-	case 0x0e:
-		taken = (IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET; break;
-	case 0x0f:
-		taken = !(IS_SF_SET ^ IS_OF_SET) && !IS_ZF_SET; break;
-	case 0x10: taken = 1; break;
-	case 0x11: {
-			PUSH(mode, &d_nt);
-			if (debug_level('e')>2) e_printf("CALL: ret=%08x\n",d_nt);
-			taken = 1;
-		   } break;
-	case 0x20:	// LOOP
-		   cxv = (mode&ADDR16? --rCX : --rECX);
-		   taken = (cxv != 0); break;
-	case 0x24:	// LOOPZ
-		   cxv = (mode&ADDR16? --rCX : --rECX);
-		   taken = (cxv != 0) && IS_ZF_SET; break;
-	case 0x25:	// LOOPNZ
-		   cxv = (mode&ADDR16? --rCX : --rECX);
-		   taken = (cxv != 0) && !IS_ZF_SET; break;
-	case 0x31:	// JCXZ
-		   cxv = (mode&ADDR16? rCX : rECX);
-		   taken = (cxv == 0); break;
-	}
-	NewNode = 0;
-	if (taken) {
-		if (dsp==0) {	// infinite loop
-		    if ((cond&0xf0)==0x20) {	// loops
-		    	// ndiags: shorten delay loops (e2 fe)
-			if (mode&ADDR16) rCX=0; else rECX=0;
-			return j_nt;
-		    }
-		    TheCPU.err = -103;
-		    return P2;
-		}
-		if (debug_level('e')>2) e_printf("** Jump taken to %08x\n",j_t);
-#ifdef HOST_ARCH_X86
-takejmp:
-#endif
-		TheCPU.eip = d_t;
-		return j_t;
-	}
-notakejmp:
-	TheCPU.eip = d_nt;
-	return j_nt;
 }
 
 
