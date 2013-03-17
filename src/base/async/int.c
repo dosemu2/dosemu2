@@ -392,7 +392,7 @@ int dos_helper(void)
   case DOS_HELPER_CDROM_HELPER:{
       E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
 	       "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
-      cdrom_helper(NULL, NULL);
+      cdrom_helper(NULL, NULL, 0);
       break;
     }
 
