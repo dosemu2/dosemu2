@@ -471,7 +471,7 @@ EXTERN void hma_exit(void);
 EXTERN void ems_helper(void);
 EXTERN boolean_t ems_fn(struct vm86_regs *);
 EXTERN void mouse_helper(struct vm86_regs *);
-EXTERN void cdrom_helper(unsigned char *, unsigned char *);
+EXTERN void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
 EXTERN int mscdex(void);
 EXTERN void boot(void);
 EXTERN void do_liability_disclaimer_prompt(int stage, int prompt);

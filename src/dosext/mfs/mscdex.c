@@ -67,7 +67,8 @@ void unregister_cdrom(int drive)
 	numDrives--;
 }
 
-static int ReadSectors(int drive, Bit32u sector, Bit16u num, unsigned char *buf)
+static int ReadSectors(int drive, Bit32u sector, Bit16u num, unsigned char *buf,
+		       unsigned int dosbuf)
 {
 	unsigned char req_buf[24];
 	unsigned save_ax = _AX;
@@ -79,23 +80,29 @@ static int ReadSectors(int drive, Bit32u sector, Bit16u num, unsigned char *buf)
 	*CALC_PTR(req_buf, MSCD_READ_ADRESSING, u_char) = 0;
 	*CALC_PTR(req_buf, MSCD_READ_NUMSECTORS, u_short) = num;
 	_AH = 2 | (driver << 6);
-	cdrom_helper(req_buf, buf);
+	cdrom_helper(req_buf, buf, dosbuf);
 	error = _AL == 0 ? 0 : MSCDEX_ERROR_DRIVE_NOT_READY;
 	_AX = save_ax;
 	return error;
 }
 
-static int ReadVTOC(int drive, Bit16u volume, unsigned char *buf)
+static int ReadVTOC(int drive, Bit16u volume, unsigned char *buf, unsigned int dosbuf)
 {
 	char id[5];
 	Bit8u type;
-	int error = ReadSectors(drive, 16 + volume, 1, buf);
+	int error = ReadSectors(drive, 16 + volume, 1, buf, dosbuf);
 	if (error)
 		return error;
-	MEMCPY_P2UNIX(id, buf + 1, 5);
-	if (memcmp("CD001", id, 5) != 0)
-		return MSCDEX_ERROR_BAD_FORMAT;
-	type = READ_BYTEP(buf);
+	if (buf) {
+		if (memcmp("CD001", buf + 1, 5) != 0)
+			return MSCDEX_ERROR_BAD_FORMAT;
+		type = *buf;
+	} else {
+		MEMCPY_2UNIX(id, dosbuf + 1, 5);
+		if (memcmp("CD001", id, 5) != 0)
+			return MSCDEX_ERROR_BAD_FORMAT;
+		type = READ_BYTE(dosbuf);
+	}
 	return (type == 1) ? 1 : (type == 0xFF) ? 0xFF : 0;
 }
 
@@ -103,7 +110,7 @@ int get_volume_label_cdrom(int drive, char *buf)
 {
 	char *p;
 	unsigned char readbuf[CD_FRAMESIZE];
-	if (ReadVTOC(drive, 0x00, readbuf))
+	if (ReadVTOC(drive, 0x00, readbuf, 0))
 		return 0;
 	memcpy(buf, readbuf + 40, 31);
 	buf[31] = '\0';
@@ -167,7 +174,7 @@ static int namecomp(const unsigned char *name1, size_t len1,
 	return 0;
 }
 
-static int GetDirectoryEntry(int drive, int copyFlag, unsigned char *pathname,
+static int GetDirectoryEntry(int drive, int copyFlag, Bit32u pathname,
 			     Bit32u buffer)
 {
 	char searchName[256];
@@ -178,7 +185,7 @@ static int GetDirectoryEntry(int drive, int copyFlag, unsigned char *pathname,
 	size_t searchlen;
 
 	/* skip initial \ */
-	MEMCPY_P2UNIX(searchName, pathname + 1, 255);
+	MEMCPY_2UNIX(searchName, pathname + 1, 255);
 	searchName[255] = '\0';
 	strupperDOS(searchName);
 
@@ -190,7 +197,7 @@ static int GetDirectoryEntry(int drive, int copyFlag, unsigned char *pathname,
 
 	C_printf("MSCDEX: Get DirEntry : Find : %s\n", searchName);
 	// read vtoc
-	error = ReadSectors(drive, 16, 1, defBuffer);
+	error = ReadSectors(drive, 16, 1, defBuffer, 0);
 	if (error)
 		return error;
 	// TODO: has to be iso 9660
@@ -214,7 +221,7 @@ static int GetDirectoryEntry(int drive, int copyFlag, unsigned char *pathname,
 
 		while (1) {
 			error =
-			    ReadSectors(drive, dirEntrySector, 1, defBuffer);
+			    ReadSectors(drive, dirEntrySector, 1, defBuffer, 0);
 			if (error)
 				return error;
 			index = 0;
@@ -263,7 +270,7 @@ static int GetDirectoryEntry(int drive, int copyFlag, unsigned char *pathname,
 
 int mscdex(void)
 {
-	unsigned char *buf = MK_FP32(_ES, _BX);
+	unsigned int buf = SEGOFF2LINEAR(_ES, _BX);
 	unsigned long dev;
 	unsigned seg, strat, intr;
 	int error;
@@ -290,9 +297,9 @@ int mscdex(void)
 		for (i = 0; i < 4; i++) {
 			if (cd_drives[i] != -1) {
 				/* subunit: always 0 for cdrom.sys */
-				WRITE_BYTEP(buf, 0x00);
+				WRITE_BYTE(buf, 0x00);
 				devname[7] = i + '1';
-				WRITE_DWORDP(buf + 1, is_dos_device(devname));
+				WRITE_DWORD(buf + 1, is_dos_device(devname));
 				buf += 5;
 			}
 		};
@@ -302,10 +309,10 @@ int mscdex(void)
 	case 0x04:		/* documentation file name */
 		{
 			unsigned char readbuf[CD_FRAMESIZE];
-			if (ReadVTOC(_CX, 0x00, readbuf) == 0) {
-				MEMCPY_2DOSP(buf, readbuf + 702 + (_AL - 2) * 37,
+			if (ReadVTOC(_CX, 0x00, readbuf, 0) == 0) {
+				MEMCPY_2DOS(buf, readbuf + 702 + (_AL - 2) * 37,
 					    37);
-				WRITE_BYTEP(buf + 37, 0);
+				WRITE_BYTE(buf + 37, 0);
 				NOCARRY;
 			} else {
 				_AX = MSCDEX_ERROR_UNKNOWN_DRIVE;
@@ -315,7 +322,7 @@ int mscdex(void)
 		}
 	case 0x05:		/* read vtoc */
 		NOCARRY;
-		error = ReadVTOC(_CX, _DX, buf);
+		error = ReadVTOC(_CX, _DX, NULL, buf);
 		if (error) {
 			_AL = error;
 			CARRY;
@@ -323,7 +330,7 @@ int mscdex(void)
 		break;
 	case 0x08:		/* read sectors */
 		NOCARRY;
-		error = ReadSectors(_CX, (_SI << 16) + _DI, _DX, buf);
+		error = ReadSectors(_CX, (_SI << 16) + _DI, _DX, NULL, buf);
 		if (error) {
 			_AL = error;
 			CARRY;
@@ -348,7 +355,7 @@ int mscdex(void)
 	case 0x0D:		/* get drives */
 		for (i = 0; i < 4; i++)
 			if (cd_drives[i] != -1)
-				WRITE_BYTEP(buf++, cd_drives[i]);
+				WRITE_BYTE(buf++, cd_drives[i]);
 		break;
 	case 0x0F:		/* Get directory entry */
 		CARRY;
