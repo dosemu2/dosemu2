@@ -1583,16 +1583,20 @@ int int13(void)
     FLUSHDISK(dp);
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
-    sect = diskaddr->block_lo % dp->sectors;
-    head = (diskaddr->block_lo / dp->sectors) % dp->heads;
-    track = diskaddr->block_lo / (dp->heads * dp->sectors);
+    checkdp_val = checkdp(dp);
+    sect = head = track = 0;
+    if (!checkdp_val) {
+      sect = diskaddr->block_lo % dp->sectors;
+      head = (diskaddr->block_lo / dp->sectors) % dp->heads;
+      track = diskaddr->block_lo / (dp->heads * dp->sectors);
+    }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
     d_printf("DISK read [h:%d,s:%d,t:%d](%d)\n", head, sect, track, number);
 
-    if (checkdp(dp) || track >= dp->tracks) {
-      error("Sector not found, AH=0x42!\n");
+    if (checkdp_val || track >= dp->tracks) {
+      d_printf("Sector not found, AH=0x42!\n");
       d_printf("DISK %d ext read [h:%d,s:%d,t:%d](%d)->%#x\n",
 	       disk, head, sect, track, number, buffer);
       if (dp) {
@@ -1636,15 +1640,19 @@ int int13(void)
     FLUSHDISK(dp);
     disk_open(dp);
     diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
-    sect = diskaddr->block_lo % dp->sectors;
-    head = (diskaddr->block_lo / dp->sectors) % dp->heads;
-    track = diskaddr->block_lo / (dp->heads * dp->sectors);
+    checkdp_val = checkdp(dp);
+    sect = head = track = 0;
+    if (!checkdp_val) {
+      sect = diskaddr->block_lo % dp->sectors;
+      head = (diskaddr->block_lo / dp->sectors) % dp->heads;
+      track = diskaddr->block_lo / (dp->heads * dp->sectors);
+    }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
 
-    if (checkdp(dp) || track >= dp->tracks) {
-      error("Sector not found, AH=0x42!\n");
+    if (checkdp_val || track >= dp->tracks) {
+      error("Sector not found, AH=0x43!\n");
       d_printf("DISK %d ext write [h:%d,s:%d,t:%d](%d)->%#x\n",
 	       disk, head, sect, track, number, buffer);
       if (dp) {
