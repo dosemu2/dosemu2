@@ -540,7 +540,8 @@ int lredir_main(int argc, char **argv)
       } else {
         argv2 = strdup(argv[2]);
       }
-      strcpy(deviceStr, argv[1]);
+      strncpy(deviceStr, argv[1], 2);
+      deviceStr[2] = 0;
       strncpy(deviceStr2, argv2, 2);
       deviceStr2[2] = 0;
       if ((argc > 3 && toupperDOS(argv[3][0]) == 'F') ||
@@ -574,7 +575,8 @@ int lredir_main(int argc, char **argv)
 	deviceStr[2] = '\0';
 	carg = 2;
       } else if (argc > 2) {
-        strcpy(deviceStr, argv[1]);
+        strncpy(deviceStr, argv[1], 2);
+        deviceStr[2] = 0;
         resourceStr = strdup(argv[2]);
       }
     }
