@@ -137,6 +137,7 @@
 #include "timers.h"
 #include "video.h"
 #include "lowmem.h"
+#include "coopth.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #include "vgaemu.h"
@@ -398,8 +399,9 @@ void run_unix_command(char *buffer)
 
     /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
 
-    int out[2], err[2], in[2];
-    int pid, status, retval, mxs, rd;
+    int pty_fd, pts_fd;
+    int done = 0;
+    int pid, status, retval, rd;
     char buf[128];
     fd_set rfds;
     struct timeval tv;
@@ -407,116 +409,89 @@ void run_unix_command(char *buffer)
     if (buffer==NULL) return;
     g_printf("UNIX: run '%s'\n",buffer);
 
-    /* create a pipe... */
-    if(pipe(out) || pipe(in) || pipe(err))
+    pty_fd = posix_openpt(O_RDWR);
+    if (pty_fd == -1)
     {
-        g_printf("run_unix_command(): pipe(p) failed\n");
+        g_printf("run_unix_command(): openpt failed %s\n", strerror(errno));
         return;
     }
+    unlockpt(pty_fd);
 
-	/* fork child */
-	switch ((pid = fork())) {
-	case -1: /* failed */
-	    g_printf("run_unix_command(): fork() failed\n");
-	    return;
-	case 0: /* child */
-	    close(out[0]);		/* close read side of the stdout pipe */
-	    close(err[0]);		/* and the stderr pipe */
-	    close(in[1]);
-	    dup2(in[0], 0);
-	    dup2(out[1], 1);	/* copy write side of the pipe to stdout */
-	    dup2(err[1], 2);	/* copy write side of the pipe to stderr */
-
-	    priv_drop();
-
-	    retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
-	    error("exec /bin/sh failed\n");
-	    exit(retval);
-	    break;
-        }
-
-        /* parent */
-        close(out[1]);		/* close write side of the pipe */
-        close(err[1]);		/* and stderr pipe */
-        close(in[0]);
-
-        /* read bytes until an error occurs or child exits
-         * no big buffer here, because speed is not important
-         * if speed *is* important, switch to another virtual console!
-         * If both stdout and stderr produce output, we should
-         * decide what to do (print only the stderr?)
-         */
-        mxs = max(out[0], err[0]) + 1;
-
-        for (;;) {		/* nice eternal loop */
-		int done = 0;
-
-		tv.tv_sec = 0;
-		tv.tv_usec = 10000;
-		FD_ZERO(&rfds);
-		FD_SET(out[0], &rfds);
-		FD_SET(err[0], &rfds);
-		retval = select (mxs, &rfds, NULL, NULL, &tv);
-
-		if (retval > 0) {
-			int nr;
-			/* one of the pipes has data, or EOF */
-			if (FD_ISSET(out[0], &rfds)) {
-				nr = read(out[0], buf, sizeof(buf));
-				if (nr > 0) {
-					buf[nr] = 0;
-					com_fprintf(STDOUT_FILENO, "%s", buf);
-				}
-				if (nr == 0)
-					done++;
-			}
-			if (FD_ISSET(err[0], &rfds)) {
-				nr = read(err[0], buf, sizeof(buf));
-				if (nr > 0) {
-					buf[nr] = 0;
-					com_fprintf(STDERR_FILENO, "%s", buf);
-				}
-				if (nr == 0)
-					done++;
-			}
-		}
-		if (done >= 2)		// if both pipes closed - return
-			break;
-
-		if ((rd = com_dosreadcon(buf, sizeof(buf)))) {
-			char *ctrc = NULL;
-			if ((ctrc = memchr(buf, 3, rd)))
-				*ctrc = 0;	// avoid fancy char on screen
-			buf[rd] = 0;
-			if ((rd = strlen(buf))) {
-				char *OxD;
-				/* unix process doesn't like \r */
-				while ((OxD = memchr(buf, '\r', rd)))
-					*OxD = '\n';
-				/* emulate echo :( */
-				com_puts(buf); // this returns just-skipped \r's
-				/* write to unix process */
-				write(in[1], buf, rd);
-			}
-			/* emulate ^C */
-			if (ctrc)
-				kill(pid, SIGINT);
-		}
-
-		handle_signals();
+    /* fork child */
+    switch ((pid = fork())) {
+    case -1: /* failed */
+	g_printf("run_unix_command(): fork() failed\n");
+	return;
+    case 0: /* child */
+	priv_drop();
+	setsid();	// will have ctty
+	if (grantpt(pty_fd) != 0) {
+	    g_printf("run_unix_command(): grantpt failed %s\n", strerror(errno));
+	    exit(EXIT_FAILURE);
 	}
+	close(0);
+	close(1);
+	close(2);
+	pts_fd = open(ptsname(pty_fd), O_RDWR);
+	if (pts_fd != 0) {
+	    g_printf("run_unix_command(): open pts failed %s\n", strerror(errno));
+	    exit(EXIT_FAILURE);
+	}
+	close(pty_fd);
+	dup(0);
+	dup(0);
 
-        /* kill the child (to be sure (s)he (?) is really dead) */
-        if(kill(pid, SIGTERM)!=0)
-            kill(pid, SIGKILL);
-        waitpid(pid, &status, 0);
+	setenv("LC_ALL", "C", 1);	// disable i18n
+	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
+	error("exec /bin/sh failed\n");
+	exit(retval);
+	break;
+    }
 
-        close(out[0]);		/* close read side of the stdout pipe */
-        close(err[0]);		/* and the stderr pipe */
-        close(in[1]);
+    while(1) {
+	tv.tv_sec = 0;
+	tv.tv_usec = 10000;
+	FD_ZERO(&rfds);
+	FD_SET(pty_fd, &rfds);
+	retval = RPT_SYSCALL(select(pty_fd + 1, &rfds, NULL, NULL, &tv));
+	switch (retval) {
+	case -1:
+	    g_printf("run_unix_command(): select error %s\n", strerror(errno));
+	    done++;
+	    break;
+	case 0:
+	    break;
+	default:
+	    /* one of the pipes has data, or EOF */
+	    rd = RPT_SYSCALL(read(pty_fd, buf, sizeof(buf)));
+	    switch (rd) {
+	    case -1:
+		g_printf("run_unix_command(): read error %s\n", strerror(errno));
+		/* no break */
+	    case 0:
+		done++;
+		break;
+	    default:
+		com_doswrite(STDOUT_FILENO, buf, rd);
+		break;
+	    }
+	    break;
+	}
+	if (done)
+	    break;
 
-        /* print child exitcode. not perfect */
-        g_printf("run_unix_command() (parent): child exit code: %i\n",
+	rd = com_dosreadcon(buf, sizeof(buf));
+	if (rd > 0)
+	    write(pty_fd, buf, rd);
+
+	coopth_yield();
+    }
+
+    close(pty_fd);
+    waitpid(pid, &status, 0);
+
+    /* print child exitcode. not perfect */
+    g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
 }
 
