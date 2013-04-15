@@ -312,11 +312,13 @@ again:
 	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTHS_WAIT:
-	dosemu_sleep();
+	if (pth->attached)
+	    dosemu_sleep();
 	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTHS_SLEEPING:
-	dosemu_sleep();
+	if (pth->attached)
+	    dosemu_sleep();
 	break;
     case COOPTHS_LEAVE:
 	coopth_retf(thr, pth);
@@ -598,6 +600,16 @@ static void switch_state(enum CoopthRet ret)
     co_resume();
 }
 
+static void ensure_attached(void)
+{
+    struct coopth_thrdata_t *thdata;
+    thdata = co_get_data(co_current());
+    if (!*thdata->attached) {
+	dosemu_error("Not allowed for detached thread\n");
+	leavedos(2);
+    }
+}
+
 void coopth_yield(void)
 {
     assert(_coopth_is_in_thread());
@@ -607,6 +619,7 @@ void coopth_yield(void)
 void coopth_wait(void)
 {
     assert(_coopth_is_in_thread());
+    ensure_attached();
     switch_state(COOPTH_WAIT);
 }
 
