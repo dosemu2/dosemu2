@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include <setjmp.h>
 #include <assert.h>
 #include "emu.h"
 #include "utilities.h"
@@ -44,12 +45,15 @@ struct coopth_thrfunc_t {
 
 struct coopth_thrdata_t {
     int *tid;
-    int *attached;
+    int attached;
     enum CoopthRet ret;
     void *udata;
     struct coopth_thrfunc_t post[MAX_POST_H];
     int posth_num;
     struct coopth_thrfunc_t sleep;
+    struct coopth_thrfunc_t clnup;
+    jmp_buf cancel_ret;
+    int cancelled;
 };
 
 struct coopth_starter_args_t {
@@ -69,7 +73,6 @@ struct coopth_per_thread_t {
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     Bit16u ret_cs, ret_ip, ret_if;
-    int attached;
     int dbg;
 };
 
@@ -181,7 +184,7 @@ static void do_del_thread(struct coopth_t *thr,
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    if (!pth->attached)
+    if (!pth->data.attached)
 	return;
     threads_running--;
     REG(cs) = pth->ret_cs;
@@ -196,7 +199,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 
 static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    if (pth->attached)
+    if (pth->data.attached)
 	return;
     if (thr->ctxh.pre.func)
 	thr->ctxh.pre.func(thr->ctxh.pre.arg);
@@ -207,7 +210,7 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     LWORD(eip) = thr->hlt_off;
     clear_IF();
     threads_running++;
-    pth->attached = 1;
+    pth->data.attached = 1;
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -312,12 +315,12 @@ again:
 	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTHS_WAIT:
-	if (pth->attached)
+	if (pth->data.attached)
 	    dosemu_sleep();
 	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTHS_SLEEPING:
-	if (pth->attached)
+	if (pth->data.attached)
 	    dosemu_sleep();
 	break;
     case COOPTHS_LEAVE:
@@ -344,7 +347,10 @@ static void coopth_thread(void *arg)
 {
     struct coopth_starter_args_t *args = arg;
     co_set_data(co_current(), args->thrdata);
-    args->thr.func(args->thr.arg);
+    if (setjmp(args->thrdata->cancel_ret) == 0)
+	args->thr.func(args->thr.arg);
+    else if (args->thrdata->clnup.func)
+	args->thrdata->clnup.func(args->thrdata->clnup.arg);
     args->thrdata->ret = COOPTH_DONE;
 }
 
@@ -439,14 +445,15 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
     pth->data.tid = &thr->tid;
-    pth->data.attached = &pth->attached;
+    pth->data.attached = 0;
     pth->data.posth_num = 0;
     pth->data.sleep.func = NULL;
+    pth->data.clnup.func = NULL;
     pth->data.udata = NULL;
+    pth->data.cancelled = 0;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->attached = 0;
     pth->set_sleep = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
@@ -524,7 +531,7 @@ void coopth_run(void)
 	struct coopth_t *thr = &coopthreads[tid];
 	struct coopth_per_thread_t *pth = current_thr(thr);
 	/* only run detached threads here */
-	if (pth->attached)
+	if (pth->data.attached)
 	    continue;
 	thread_run(thr, pth);
     }
@@ -604,16 +611,26 @@ static void ensure_attached(void)
 {
     struct coopth_thrdata_t *thdata;
     thdata = co_get_data(co_current());
-    if (!*thdata->attached) {
+    if (!thdata->attached) {
 	dosemu_error("Not allowed for detached thread\n");
 	leavedos(2);
     }
+}
+
+static void check_cancel(void)
+{
+    /* cancellation point */
+    struct coopth_thrdata_t *thdata;
+    thdata = co_get_data(co_current());
+    if (thdata->cancelled)
+	longjmp(thdata->cancel_ret, 1);
 }
 
 void coopth_yield(void)
 {
     assert(_coopth_is_in_thread());
     switch_state(COOPTH_YIELD);
+    check_cancel();
 }
 
 void coopth_wait(void)
@@ -621,12 +638,14 @@ void coopth_wait(void)
     assert(_coopth_is_in_thread());
     ensure_attached();
     switch_state(COOPTH_WAIT);
+    check_cancel();
 }
 
 void coopth_sleep(void)
 {
     assert(_coopth_is_in_thread());
     switch_state(COOPTH_SLEEP);
+    check_cancel();
 }
 
 void coopth_attach(void)
@@ -634,7 +653,7 @@ void coopth_attach(void)
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
-    if (*thdata->attached)
+    if (thdata->attached)
 	return;
     switch_state(COOPTH_ATTACH);
 }
@@ -646,6 +665,12 @@ void coopth_leave(void)
     switch_state(COOPTH_LEAVE);
 }
 
+static void do_awake(struct coopth_per_thread_t *pth)
+{
+    assert(pth->state == COOPTHS_SLEEPING);
+    pth->state = COOPTHS_AWAKEN;
+}
+
 void coopth_wake_up(int tid)
 {
     struct coopth_t *thr;
@@ -653,8 +678,7 @@ void coopth_wake_up(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    assert(pth->state == COOPTHS_SLEEPING);
-    pth->state = COOPTHS_AWAKEN;
+    do_awake(pth);
 }
 
 void coopth_asleep(int tid)
@@ -667,11 +691,28 @@ void coopth_asleep(int tid)
      * "asynchronously" putting to sleep normal threads. */
     assert(thr->detached);
     pth = current_thr(thr);
-    assert(!pth->attached);
+    assert(!pth->data.attached);
     /* since we dont know the current state,
      * we cant just change it to SLEEPING here
      * the way we do in coopth_wake_up(). */
     pth->set_sleep = 1;
+}
+
+static void do_cancel(struct coopth_per_thread_t *pth)
+{
+    pth->data.cancelled = 1;
+    if (pth->state == COOPTHS_SLEEPING)
+	do_awake(pth);
+}
+
+void coopth_cancel(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    do_cancel(pth);
 }
 
 void coopth_join(int tid, void (*helper)(void))
@@ -709,27 +750,24 @@ int coopth_flush(void (*helper)(void))
 	if (!thr)
 	    break;
 	pth = current_thr(thr);
-	/* only flush zombies */
-	if (pth->state != COOPTHS_DELETE && pth->state != COOPTHS_STARTING)
-	    break;
+	do_cancel(pth);
 	helper();
     }
-    if (threads_running && !threads_sleeping)
+    if (threads_running)
 	error("Coopth: %i threads stalled\n", threads_running);
     return threads_running;
 }
 
 void coopth_done(void)
 {
-    /* there is no safe way (yet) to delete sleeping threads */
-    if (threads_running && !threads_sleeping) {
+    if (threads_running) {
 	int i;
 	error("Coopth: not all threads properly shut down\n");
 	for (i = 0; i < threads_active; i++) {
 	    int tid = active_tids[i];
 	    struct coopth_t *thr = &coopthreads[tid];
 	    struct coopth_per_thread_t *pth = current_thr(thr);
-	    if (!pth->attached)
+	    if (!pth->data.attached)
 		continue;
 	    error("\ttid=%i state=%i name=%s off=%#x\n", tid, pth->state,
 		    thr->name, thr->off);
