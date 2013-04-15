@@ -65,6 +65,7 @@ struct coopth_ctx_handlers_t {
 struct coopth_per_thread_t {
     coroutine_t thread;
     enum CoopthState state;
+    int set_sleep;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     Bit16u ret_cs, ret_ip, ret_if;
@@ -249,6 +250,12 @@ again:
 	goto again;
 	break;
     case COOPTHS_RUNNING:
+	if (pth->set_sleep) {
+	    pth->set_sleep = 0;
+	    pth->state = COOPTHS_SLEEPING;
+	    goto again;
+	}
+
 	/* We have 2 kinds of recursion:
 	 *
 	 * 1. (call it recursive thread invocation)
@@ -401,15 +408,20 @@ int coopth_create_multi(char *name, int len)
     return num;
 }
 
+static void check_tid(int tid)
+{
+    if (tid < 0 || tid >= coopth_num) {
+	dosemu_error("Wrong tid\n");
+	leavedos(2);
+    }
+}
+
 int coopth_start(int tid, coopth_func_t func, void *arg)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     int tn;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     assert(thr->tid == tid);
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
@@ -433,6 +445,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
     pth->attached = 0;
+    pth->set_sleep = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
     if (!pth->thread) {
@@ -453,10 +466,7 @@ int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post)
 {
     struct coopth_t *thr;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     thr->ctxh.pre.func = pre;
     thr->ctxh.pre.arg = arg_pre;
@@ -469,10 +479,7 @@ int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post)
 {
     struct coopth_t *thr;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     thr->sleeph.pre.func = pre;
     thr->sleeph.pre.arg = arg_pre;
@@ -484,10 +491,7 @@ int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
 int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
 {
     struct coopth_t *thr;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     thr->post.func = func;
     thr->post.arg = arg;
@@ -497,10 +501,7 @@ int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
 int coopth_set_detached(int tid)
 {
     struct coopth_t *thr;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     thr->detached = 1;
     return 0;
@@ -584,10 +585,7 @@ void *coopth_get_user_data(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     return pth->data.udata;
@@ -639,23 +637,35 @@ void coopth_wake_up(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
+    assert(pth->state == COOPTHS_SLEEPING);
     pth->state = COOPTHS_AWAKEN;
+}
+
+void coopth_asleep(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    /* only support detached threads: I don't see the need for
+     * "asynchronously" putting to sleep normal threads. */
+    assert(thr->detached);
+    pth = current_thr(thr);
+    assert(!pth->attached);
+    /* since we dont know the current state,
+     * we cant just change it to SLEEPING here
+     * the way we do in coopth_wake_up(). */
+    pth->set_sleep = 1;
 }
 
 void coopth_join(int tid, void (*helper)(void))
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
-    if (tid < 0 || tid >= coopth_num) {
-	dosemu_error("Wrong tid\n");
-	leavedos(2);
-    }
+    check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     while (pth->state != COOPTHS_NONE)
