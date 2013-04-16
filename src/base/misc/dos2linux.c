@@ -353,104 +353,20 @@ int find_drive (char **plinux_path_resolved)
   return free_drive;
 }
 
+static int pty_fd;
+static int pty_tid;
+static int cbrk;
 
-/*
- * 2/9/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
- *  - initial version
- * 3/10/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
- *  - fixed security hole
- *  - stderr output also to dosemu screen
- * 2/27/1997, Alberto Vignani (vignani@mail.tin.it):
- *  - make it work (tested with 'ls -lR /' and 'updatedb &')
- *
- * DANG_BEGIN_FUNCTION run_unix_command
- *
- * description:
- *  Runs a command and prints the (stdout and stderr) output on the dosemu
- *  screen.
- *
- * return: nothing
- *
- * arguments:
- *   buffer - string with command to execute
- *
- * DANG_END_FUNCTION
- *
- *
- * This function forks a child process (don't worry, it doesn't take
- * much memory, read the fork manpage) and creates a pipe between the
- * parent and the child. The child redirects stdout to the write side
- * of the pipe and executes the command, the parents reads the read
- * side of the pipe and prints the command output on the dosemu screen.
- * system() is used to execute the command because this function uses a
- * shell (/bin/sh -c command), so nice things like this work:
- *
- * C:\>unix ls -CF /usr/src/dosemu/video / *.[ch]
- *
- * Even output redirection works, but you have to quote the command in
- * dosemu:
- *
- * C:\>unix "ps aux | grep dos > /msdos/c/unixcmd.txt"
- *
- */
-void run_unix_command(char *buffer)
+static void pty_thr(void *arg)
 {
-    /* unix command is in a null terminate buffer pointed to by ES:DX. */
-
-    /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
-
-    int pty_fd, pts_fd;
-    int done = 0;
-    int pid, status, retval, rd;
     char buf[128];
     fd_set rfds;
     struct timeval tv;
-
-    if (buffer==NULL) return;
-    g_printf("UNIX: run '%s'\n",buffer);
-
-    pty_fd = posix_openpt(O_RDWR);
-    if (pty_fd == -1)
-    {
-        g_printf("run_unix_command(): openpt failed %s\n", strerror(errno));
-        return;
-    }
-    unlockpt(pty_fd);
-
-    /* fork child */
-    switch ((pid = fork())) {
-    case -1: /* failed */
-	g_printf("run_unix_command(): fork() failed\n");
-	return;
-    case 0: /* child */
-	priv_drop();
-	setsid();	// will have ctty
-	if (grantpt(pty_fd) != 0) {
-	    g_printf("run_unix_command(): grantpt failed %s\n", strerror(errno));
-	    exit(EXIT_FAILURE);
-	}
-	close(0);
-	close(1);
-	close(2);
-	pts_fd = open(ptsname(pty_fd), O_RDWR);
-	if (pts_fd != 0) {
-	    g_printf("run_unix_command(): open pts failed %s\n", strerror(errno));
-	    exit(EXIT_FAILURE);
-	}
-	close(pty_fd);
-	dup(0);
-	dup(0);
-
-	setenv("LC_ALL", "C", 1);	// disable i18n
-	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
-	error("exec /bin/sh failed\n");
-	exit(retval);
-	break;
-    }
-
-    while(1) {
+    int retval, rd, wr, done;
+    while (1) {
+	done = rd = wr = 0;
 	tv.tv_sec = 0;
-	tv.tv_usec = 10000;
+	tv.tv_usec = 0;
 	FD_ZERO(&rfds);
 	FD_SET(pty_fd, &rfds);
 	retval = RPT_SYSCALL(select(pty_fd + 1, &rfds, NULL, NULL, &tv));
@@ -472,24 +388,135 @@ void run_unix_command(char *buffer)
 		done++;
 		break;
 	    default:
-		com_doswrite(STDOUT_FILENO, buf, rd);
+		com_doswritecon(buf, rd);
 		break;
 	    }
 	    break;
 	}
-	if (done)
-	    break;
+	if (done) {
+#if 0
+	    coopth_sleep();
+#else
+	    coopth_yield();
+	    continue;
+#endif
+	}
 
-	rd = com_dosreadcon(buf, sizeof(buf));
-	if (rd > 0)
-	    write(pty_fd, buf, rd);
+	wr = com_dosreadcon(buf, sizeof(buf));
+	if (wr > 0)
+	    write(pty_fd, buf, wr);
 
-	coopth_yield();
+	/* this is a detached thread, not allowed to do coopth_wait() */
+	if (!rd && !wr)
+	    coopth_yield();
+    }
+}
+
+int dostty_init(void)
+{
+    pty_fd = posix_openpt(O_RDWR);
+    if (pty_fd == -1)
+    {
+        error("openpt failed %s\n", strerror(errno));
+        return -1;
+    }
+    unlockpt(pty_fd);
+    pty_tid = coopth_create("dostty");
+    coopth_set_detached(pty_tid);
+    coopth_start(pty_tid, pty_thr, NULL);
+    coopth_asleep(pty_tid);
+    return 0;
+}
+
+void dostty_done(void)
+{
+    coopth_cancel(pty_tid);
+    close(pty_fd);
+}
+
+static int dostty_open(void)
+{
+    int err, pts_fd;
+    err = grantpt(pty_fd);
+    if (err) {
+	error("grantpt failed: %s\n", strerror(errno));
+	return err;
+    }
+    pts_fd = open(ptsname(pty_fd), O_RDWR);
+    if (pts_fd == -1) {
+	error("pts open failed: %s\n", strerror(errno));
+	return err;
+    }
+    return pts_fd;
+}
+
+static void dostty_start(void)
+{
+    char a;
+    int rd;
+    cbrk = com_setcbreak(0);
+    /* flush pending input first */
+    do {
+	rd = com_dosreadcon(&a, 1);
+    } while (rd > 0);
+    coopth_wake_up(pty_tid);
+}
+
+static void dostty_stop(void)
+{
+    coopth_asleep(pty_tid);
+    com_setcbreak(cbrk);
+}
+
+void run_unix_command(char *buffer)
+{
+    /* unix command is in a null terminate buffer pointed to by ES:DX. */
+
+    /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
+
+    int pts_fd;
+    int pid, status, retval;
+
+    if (buffer==NULL) return;
+    g_printf("UNIX: run '%s'\n",buffer);
+#if 0
+    dostty_init();
+#endif
+    /* fork child */
+    switch ((pid = fork())) {
+    case -1: /* failed */
+	g_printf("run_unix_command(): fork() failed\n");
+	return;
+    case 0: /* child */
+	priv_drop();
+	setsid();	// will have ctty
+	close(0);
+	close(1);
+	close(2);
+	pts_fd = dostty_open();
+	if (pts_fd != 0) {
+	    g_printf("run_unix_command(): open pts failed %s\n", strerror(errno));
+	    exit(EXIT_FAILURE);
+	}
+	dup(0);
+	dup(0);
+
+	setenv("LC_ALL", "C", 1);	// disable i18n
+	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
+	error("exec /bin/sh failed\n");
+	exit(retval);
+	break;
     }
 
-    close(pty_fd);
-    waitpid(pid, &status, 0);
-
+    dostty_start();
+    while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
+	coopth_wait();
+    if (retval == -1)
+	error("waitpid: %s\n", strerror(errno));
+    dostty_stop();
+#if 0
+    dostty_done();
+#endif
     /* print child exitcode. not perfect */
     g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
@@ -904,17 +931,34 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 
 int com_dosreadcon(char *buf32, u_short size)
 {
-	u_short rd = 0;
+	u_short rd;
 
-	if (!size) return 0;
+	if (!size)
+		return 0;
 	pre_msdos();
-	while (rd < size) {
+	for (rd = 0; rd < size; rd++) {
 		LWORD(eax) = 0x600;
 		LO(dx) = 0xff;
 		call_msdos();
 		if (LWORD(eflags) & ZF)
 			break;
-		buf32[rd++] = LO(ax);
+		buf32[rd] = LO(ax);
+	}
+	post_msdos();
+	return rd;
+}
+
+int com_doswritecon(char *buf32, u_short size)
+{
+	u_short rd;
+
+	if (!size)
+		return 0;
+	pre_msdos();
+	for (rd = 0; rd < size; rd++) {
+		LWORD(eax) = 0x600;
+		LO(dx) = buf32[rd];
+		call_msdos();
 	}
 	post_msdos();
 	return rd;
@@ -997,4 +1041,18 @@ int com_biosread(char *buf32, u_short size)
 	}
 	p_dos_str("\n");
 	return rd;
+}
+
+int com_setcbreak(int on)
+{
+	int old_b;
+	pre_msdos();
+	LWORD(eax) = 0x3300;
+	call_msdos();
+	old_b = LO(dx);
+	LO(ax) = 1;
+	LO(dx) = on;
+	call_msdos();
+	post_msdos();
+	return old_b;
 }

@@ -416,6 +416,7 @@ emulate(int argc, char **argv)
     coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, NULL,
 	sig_ctx_restore, NULL);
 
+    dostty_init();
     vm86_init();
     cputime_late_init();
     HMA_init();			/* HMA can only be done now after mapping
@@ -502,6 +503,9 @@ void __leavedos(int sig, const char *s, int num)
       }
     in_leavedos++;
     registersig(SIGALRM, NULL);
+
+    /* close coopthreads-related stuff first */
+    dostty_done();
 
     /* abandon current thread if any, and start new one */
     coopth_leave();
