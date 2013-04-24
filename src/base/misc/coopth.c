@@ -34,7 +34,7 @@ enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
 	COOPTH_DONE, COOPTH_ATTACH };
 enum CoopthState { COOPTHS_NONE, COOPTHS_STARTING, COOPTHS_RUNNING,
 	COOPTHS_SLEEPING, COOPTHS_YIELD,
-	COOPTHS_AWAKEN, COOPTHS_WAIT, COOPTHS_DELETE };
+	COOPTHS_AWAKEN, COOPTHS_WAIT, COOPTHS_LEAVE, COOPTHS_DELETE };
 
 struct coopth_thrfunc_t {
     coopth_func_t func;
@@ -145,7 +145,7 @@ static void do_run_thread(struct coopth_t *thr,
 	pth->state = COOPTHS_SLEEPING;
 	break;
     case COOPTH_LEAVE:
-	coopth_retf(thr, pth);
+	pth->state = COOPTHS_LEAVE;
 	break;
     case COOPTH_DONE:
 	pth->state = COOPTHS_DELETE;
@@ -317,6 +317,8 @@ again:
 	    if (pth->state == COOPTHS_YIELD || pth->state == COOPTHS_WAIT)
 		goto again;
 	}
+	/* even if the state is still RUNNING, need to break away
+	 * as the entry point might change */
 	break;
     }
     case COOPTHS_YIELD:
@@ -330,6 +332,11 @@ again:
     case COOPTHS_SLEEPING:
 	if (pth->data.attached)
 	    dosemu_sleep();
+	break;
+    case COOPTHS_LEAVE:
+	coopth_retf(thr, pth);
+	pth->state = COOPTHS_RUNNING;
+	/* cannot goto again here - entry point should change */
 	break;
     case COOPTHS_DELETE:
 	coopth_retf(thr, pth);
