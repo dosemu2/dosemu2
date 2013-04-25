@@ -33,8 +33,7 @@
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
 	COOPTH_DONE, COOPTH_ATTACH };
 enum CoopthState { COOPTHS_NONE, COOPTHS_STARTING, COOPTHS_RUNNING,
-	COOPTHS_SLEEPING, COOPTHS_YIELD,
-	COOPTHS_AWAKEN, COOPTHS_WAIT, COOPTHS_LEAVE, COOPTHS_DELETE };
+	COOPTHS_SLEEPING, COOPTHS_AWAKEN, COOPTHS_LEAVE, COOPTHS_DELETE };
 
 struct coopth_thrfunc_t {
     coopth_func_t func;
@@ -128,7 +127,7 @@ void coopth_init(void)
     }
 }
 
-static void do_run_thread(struct coopth_t *thr,
+static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
@@ -136,10 +135,12 @@ static void do_run_thread(struct coopth_t *thr,
     ret = pth->data.ret;
     switch (ret) {
     case COOPTH_YIELD:
-	pth->state = COOPTHS_YIELD;
+	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTH_WAIT:
-	pth->state = COOPTHS_WAIT;
+	if (pth->data.attached)
+	    dosemu_sleep();
+	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTH_SLEEP:
 	pth->state = COOPTHS_SLEEPING;
@@ -154,6 +155,7 @@ static void do_run_thread(struct coopth_t *thr,
 	coopth_callf(thr, pth);
 	break;
     }
+    return ret;
 }
 
 static void do_del_thread(struct coopth_t *thr,
@@ -256,6 +258,7 @@ again:
 	break;
     case COOPTHS_RUNNING: {
 	int jr;
+	enum CoopthRet tret;
 	if (pth->set_sleep) {
 	    pth->set_sleep = 0;
 	    pth->state = COOPTHS_SLEEPING;
@@ -303,32 +306,22 @@ again:
 	    joinable_running++;
 	}
 	thread_running++;
-	do_run_thread(thr, pth);
+	tret = do_run_thread(thr, pth);
 	thread_running--;
 	joinable_running = jr;
-	if (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_WAIT ||
-		pth->state == COOPTHS_YIELD) {
+	if (tret == COOPTH_SLEEP || tret == COOPTH_WAIT ||
+		tret == COOPTH_YIELD) {
 	    if (pth->ret_if)
 		_set_IF();
 	    if (pth->data.sleep.func)
 		pth->data.sleep.func(pth->data.sleep.arg);
 	    if (thr->sleeph.pre.func)
 		thr->sleeph.pre.func(thr->sleeph.pre.arg);
-	    if (pth->state == COOPTHS_YIELD || pth->state == COOPTHS_WAIT)
-		goto again;
 	}
 	/* even if the state is still RUNNING, need to break away
 	 * as the entry point might change */
 	break;
     }
-    case COOPTHS_YIELD:
-	pth->state = COOPTHS_AWAKEN;
-	break;
-    case COOPTHS_WAIT:
-	if (pth->data.attached)
-	    dosemu_sleep();
-	pth->state = COOPTHS_AWAKEN;
-	break;
     case COOPTHS_SLEEPING:
 	if (pth->data.attached)
 	    dosemu_sleep();
@@ -735,8 +728,8 @@ static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	if (pth->state == COOPTHS_SLEEPING)
 	    do_awake(pth);
     } else {
-	do_run_thread(thr, pth);
-	assert(pth->state == COOPTHS_DELETE);
+	enum CoopthRet tret = do_run_thread(thr, pth);
+	assert(tret == COOPTH_DONE);
 	do_del_thread(thr, pth);
     }
 }
