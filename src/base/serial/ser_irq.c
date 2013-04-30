@@ -143,9 +143,15 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 
   if (!TX_TRIGGER(num)) {
     if (!(com[num].LSR & UART_LSR_TEMT)) {
+#if 0
+/* the below code doesn't work right because of this slowdown patch:
+ * http://lkml.indiana.edu/hypermail/linux/kernel/1210.1/01456.html
+ * Disable it for now.
+ */
       if (com[num].tx_cnt)
         update_tx_cnt(num);
       if (!com[num].tx_cnt)
+#endif
         com[num].LSR |= UART_LSR_TEMT;
     }
     return;
