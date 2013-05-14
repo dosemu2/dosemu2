@@ -18,6 +18,9 @@
  * Purpose: cooperative threading between dosemu and DOS code.
  *
  * Author: Stas Sergeev <stsp@users.sourceforge.net>
+ *
+ * This is a V2 implementation of coopthreads in dosemu.
+ * V1 was too broken and was removed by commit 158ca93963d968fdc
  */
 
 #include <string.h>
@@ -34,6 +37,7 @@ enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_LEAVE,
 	COOPTH_DONE, COOPTH_ATTACH };
 enum CoopthState { COOPTHS_NONE, COOPTHS_STARTING, COOPTHS_RUNNING,
 	COOPTHS_SLEEPING, COOPTHS_AWAKEN, COOPTHS_LEAVE, COOPTHS_DELETE };
+enum CoopthJmp { COOPTH_JMP_NONE, COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
 
 struct coopth_thrfunc_t {
     coopth_func_t func;
@@ -51,7 +55,7 @@ struct coopth_thrdata_t {
     int posth_num;
     struct coopth_thrfunc_t sleep;
     struct coopth_thrfunc_t clnup;
-    jmp_buf cancel_ret;
+    jmp_buf exit_jmp;
     int cancelled;
 };
 
@@ -348,13 +352,24 @@ static void coopth_hlt(Bit32u offs, void *arg)
 static void coopth_thread(void *arg)
 {
     struct coopth_starter_args_t *args = arg;
-    /* can be cancelled before start */
-    if (!args->thrdata->cancelled) {
-	co_set_data(co_current(), args->thrdata);
-	if (setjmp(args->thrdata->cancel_ret) == 0)
-	    args->thr.func(args->thr.arg);
-	else if (args->thrdata->clnup.func)
+    enum CoopthJmp jret;
+    if (args->thrdata->cancelled) {
+	/* can be cancelled before start - no cleanups set yet */
+	args->thrdata->ret = COOPTH_DONE;
+	return;
+    }
+    co_set_data(co_current(), args->thrdata);
+    jret = setjmp(args->thrdata->exit_jmp);
+    switch (jret) {
+    case COOPTH_JMP_NONE:
+	args->thr.func(args->thr.arg);
+	break;
+    case COOPTH_JMP_CANCEL:
+	if (args->thrdata->clnup.func)
 	    args->thrdata->clnup.func(args->thrdata->clnup.arg);
+	break;
+    case COOPTH_JMP_EXIT:
+	break;
     }
     args->thrdata->ret = COOPTH_DONE;
 }
@@ -625,8 +640,7 @@ static void switch_state(enum CoopthRet ret)
 
 static void ensure_attached(void)
 {
-    struct coopth_thrdata_t *thdata;
-    thdata = co_get_data(co_current());
+    struct coopth_thrdata_t *thdata = co_get_data(co_current());
     if (!thdata->attached) {
 	dosemu_error("Not allowed for detached thread\n");
 	leavedos(2);
@@ -636,10 +650,9 @@ static void ensure_attached(void)
 static void check_cancel(void)
 {
     /* cancellation point */
-    struct coopth_thrdata_t *thdata;
-    thdata = co_get_data(co_current());
+    struct coopth_thrdata_t *thdata = co_get_data(co_current());
     if (thdata->cancelled)
-	longjmp(thdata->cancel_ret, 1);
+	longjmp(thdata->exit_jmp, COOPTH_JMP_CANCEL);
 }
 
 void coopth_yield(void)
@@ -672,6 +685,14 @@ void coopth_attach(void)
     if (thdata->attached)
 	return;
     switch_state(COOPTH_ATTACH);
+}
+
+void coopth_exit(void)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current());
+    longjmp(thdata->exit_jmp, COOPTH_JMP_EXIT);
 }
 
 static int is_detached(void)
