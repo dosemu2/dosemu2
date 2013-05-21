@@ -54,18 +54,24 @@ static int disks_initiated = 0;
 
 static void set_part_ent(struct disk *dp, unsigned char *tmp_mbr);
 
-#define USE_FSYNC 1
-
 #if 1
-#  ifdef USE_FSYNC
-#     define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) fsync(dp->fdesc);
-#  else
-#     define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) disk_close();
-#  endif
+#  define FLUSHDISK(dp) flush_disk(dp)
 #else
-#define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) \
-  ioctl(dp->fdesc, FDFLUSH, 0)
+#  define FLUSHDISK(dp) if (dp && dp->removeable && !config.fastfloppy) \
+    ioctl(dp->fdesc, FDFLUSH, 0)
 #endif
+
+static void flush_disk(struct disk *dp)
+{
+  if (dp && dp->removeable && dp->fdesc >= 0) {
+    if (dp->type == IMAGE || (dp->type == FLOPPY && !config.fastfloppy)) {
+      close(dp->fdesc);
+      dp->fdesc = -1;
+    } else {
+      fsync(dp->fdesc);
+    }
+  }
+}
 
 /* NOTE: the "header" element in the structure above can (and will) be
  * negative. This facilitates treating partitions as disks (i.e. using
@@ -338,14 +344,14 @@ image_auto(struct disk *dp)
 
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
-    dp->fdesc = open64(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
     /* The next line should only be done in case the open succeeds,
        but that should be the normal case, and allows somewhat better
        code for the if (how sick can you get, since the open is going to
        take a lot more time anyways :-) )
     */
     dp->rdonly = dp->wantrdonly;
-    dp->fdesc = open64(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR);
     if (dp->fdesc == -1) {
       /* We should check whether errno is EROFS, but if not the next open will
          fail again and the following lseek will throw us out of dos. So we win
@@ -353,7 +359,7 @@ image_auto(struct disk *dp)
          this does work (should be impossible), we can at least try to
          continue. (again how sick can you get :-) )
        */
-      dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
+      dp->fdesc = open(dp->dev_name, O_RDONLY);
       dp->rdonly = 1;
     }
   }
@@ -789,7 +795,7 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
 
-  dp->fdesc = SILENT_DOS_SYSCALL(open64(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
 
   /* FIXME:
    * Why the hell was the below handling restricted to non-removeable disks?
@@ -798,7 +804,7 @@ disk_open(struct disk *dp)
    */
   if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
-      dp->fdesc = DOS_SYSCALL(open64(dp->dev_name, O_RDONLY, 0));
+      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY));
       if (dp->fdesc < 0) {
         error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
@@ -943,11 +949,11 @@ disk_init(void)
   disks_initiated = 1;  /* disk_init has been called */
   init_all_DOS_tables();
   if (config.bootdisk) {
-    bootdisk.fdesc = open64(bootdisk.type == DIR_TYPE ? "/dev/null" : bootdisk.dev_name,
-			    bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
+    bootdisk.fdesc = open(bootdisk.type == DIR_TYPE ? "/dev/null" : bootdisk.dev_name,
+			    bootdisk.rdonly ? O_RDONLY : O_RDWR);
     if (bootdisk.fdesc < 0) {
       if ((errno == EROFS || errno == EACCES) && bootdisk.type != DIR_TYPE) {
-        bootdisk.fdesc = open64(bootdisk.dev_name, O_RDONLY, 0);
+        bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY);
         if (bootdisk.fdesc < 0) {
           error("can't open bootdisk %s for read nor write: %s\n", bootdisk.dev_name, strerror(errno));
           config.exitearly = 1;
@@ -978,32 +984,36 @@ disk_init(void)
   for (i = 0; i < FDISKS; i++) {
     dp = &disktab[i];
     dp->floppy = 1;
+    dp->removeable = 1;
     dp->drive_num = i;
     dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("can't stat %s\n", dp->dev_name);
       config.exitearly = 1;
     }
-    if (S_ISBLK(stbuf.st_mode))
-      d_printf("ISBLK ");
-    if (S_ISCHR(stbuf.st_mode))
-      d_printf("ISCHR ");
+    if (S_ISREG(stbuf.st_mode)) {
+      d_printf("dev %s is an image\n", dp->dev_name);
+      dp->type = IMAGE;
+    }
     d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
 #ifdef __linux__
     if (S_ISBLK(stbuf.st_mode) &&
     (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
     ) {
       d_printf("DISK %s removable\n", dp->dev_name);
-      dp->removeable = 1;
       dp->fdesc = -1;
       continue;
     }
 #endif
-    dp->fdesc = open64(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name,
-	    dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    if (dp->type == DIR_TYPE) {
+      dp->removeable = 0;
+      dp->fdesc = open("/dev/null", O_RDONLY);
+    } else {
+      dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
+    }
     if (dp->fdesc < 0) {
       if ((errno == EROFS || errno == EACCES) && bootdisk.type != DIR_TYPE) {
-        dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
+        dp->fdesc = open(dp->dev_name, O_RDONLY);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           config.exitearly = 1;
@@ -1063,10 +1073,10 @@ disk_init(void)
 	  d_printf("IMAGE: Using user permissions\n");
 	}
     }
-    dp->fdesc = open64(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
+        dp->fdesc = open(dp->dev_name, O_RDONLY);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           config.exitearly = 1;
