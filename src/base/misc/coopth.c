@@ -496,12 +496,15 @@ int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post)
 {
     struct coopth_t *thr;
+    int i;
     check_tid(tid);
-    thr = &coopthreads[tid];
-    thr->ctxh.pre.func = pre;
-    thr->ctxh.pre.arg = arg_pre;
-    thr->ctxh.post.func = post;
-    thr->ctxh.post.arg = arg_post;
+    for (i = 0; i < coopthreads[tid].len; i++) {
+	thr = &coopthreads[tid + i];
+	thr->ctxh.pre.func = pre;
+	thr->ctxh.pre.arg = arg_pre;
+	thr->ctxh.post.func = post;
+	thr->ctxh.post.arg = arg_post;
+    }
     return 0;
 }
 
@@ -509,22 +512,28 @@ int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post)
 {
     struct coopth_t *thr;
+    int i;
     check_tid(tid);
-    thr = &coopthreads[tid];
-    thr->sleeph.pre.func = pre;
-    thr->sleeph.pre.arg = arg_pre;
-    thr->sleeph.post.func = post;
-    thr->sleeph.post.arg = arg_post;
+    for (i = 0; i < coopthreads[tid].len; i++) {
+	thr = &coopthreads[tid + i];
+	thr->sleeph.pre.func = pre;
+	thr->sleeph.pre.arg = arg_pre;
+	thr->sleeph.post.func = post;
+	thr->sleeph.post.arg = arg_post;
+    }
     return 0;
 }
 
 int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
 {
     struct coopth_t *thr;
+    int i;
     check_tid(tid);
-    thr = &coopthreads[tid];
-    thr->post.func = func;
-    thr->post.arg = arg;
+    for (i = 0; i < coopthreads[tid].len; i++) {
+	thr = &coopthreads[tid + i];
+	thr->post.func = func;
+	thr->post.arg = arg;
+    }
     return 0;
 }
 
