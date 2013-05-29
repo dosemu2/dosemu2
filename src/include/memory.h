@@ -43,10 +43,8 @@
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG-1)
 #define Mouse_ROUTINE_OFF  (0xe2e0+0x10)
-#define Mouse_HLT_OFF   (0xe2ff+0x10)
 #define Mouse_INT_OFF	(INT_OFF(0x33) + 0x10)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
-#define Mouse_HLT_ADD  ((Mouse_SEG << 4)+Mouse_HLT_OFF)
 
 #define EOI_OFF         0xf100
 #define EOI2_OFF        0xf110

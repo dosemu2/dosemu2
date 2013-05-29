@@ -173,7 +173,6 @@ extern void mouse_priv_init(void);
 extern void dosemu_mouse_init(void);
 extern void dosemu_mouse_reset(void);
 extern void mouse_ps2bios(void);
-extern void int33_post(void);
 extern int mouse_int(void);
 extern void dosemu_mouse_close(void);
 extern void freeze_mouse(void);

@@ -333,13 +333,6 @@ video_init_done:
 	int	$DOS_HELPER_INT
 	ljmp $BIOSSEG, $EOI2_OFF
 
-        .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_HLT_OFF
-/* ======================= Addr = F000:E2FF (FE2FF) */
-	/* vm86 mouse handlers return here to allow for the
-	   hogthreshold code to take effect
-	*/
-	hlt
-
 /* ----------------------------------------------------------------- */
 	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
 /* ======================= Addr = F800:6310 (FE310) */

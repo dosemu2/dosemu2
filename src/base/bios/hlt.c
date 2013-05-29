@@ -112,9 +112,6 @@ void hlt_handle(void)
 #endif
     hlt->func(offs - hlt->start_addr, hlt->arg);
   }
-  else if (lina == Mouse_HLT_ADD) {
-    int33_post();
-  }
   else if (lina == XMSControl_ADD) {
     xms_control();
   }

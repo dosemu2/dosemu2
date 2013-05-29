@@ -92,6 +92,8 @@ static int can_change_title = 0;
 static u_short hlt_off, iret_hlt_off;
 static int int_tid, int_rvc_tid;
 
+static u_short Mouse_HLT_OFF;
+
 u_short INT_OFF(u_char i)
 {
     return (0xc000 + i + hlt_off);
@@ -1928,7 +1930,7 @@ static int int33(void) {
  * after it returns the hogthreshold code can do its job.
  */
   if (IS_REDIRECTED(0x33)) {
-    fake_int_to(Mouse_SEG, Mouse_HLT_OFF);
+    fake_int_to(BIOS_HLT_BLK_SEG, Mouse_HLT_OFF);
     return 0;
   }
   mouse_int();
@@ -1968,7 +1970,7 @@ static void int33_check_hog(void)
 }
 
 /* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
-void int33_post(void)
+static void int33_post(Bit32u off, void *arg)
 {
   set_iret();
   int33_check_hog();
@@ -2288,6 +2290,12 @@ void setup_interrupts(void) {
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
   coopth_set_prepost_handlers(int_rvc_tid, rvc_int_pre, NULL,
 	rvc_int_post, NULL);
+
+  hlt_hdlr.name       = "mouse post";
+  hlt_hdlr.start_addr = -1;
+  hlt_hdlr.len        = 1;
+  hlt_hdlr.func       = int33_post;
+  Mouse_HLT_OFF = hlt_register_handler(hlt_hdlr);
 }
 
 
