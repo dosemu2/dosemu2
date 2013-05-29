@@ -61,14 +61,15 @@ struct coopth_thrdata_t {
     int cancelled;
 };
 
-struct coopth_starter_args_t {
-    struct coopth_thrfunc_t thr;
-    struct coopth_thrdata_t *thrdata;
-};
-
 struct coopth_ctx_handlers_t {
     struct coopth_thrfunc_t pre;
     struct coopth_thrfunc_t post;
+};
+
+struct coopth_starter_args_t {
+    struct coopth_thrfunc_t thr;
+    struct coopth_thrdata_t *thrdata;
+    struct coopth_ctx_handlers_t *prepost;
 };
 
 struct coopth_per_thread_t {
@@ -94,6 +95,7 @@ struct coopth_t {
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     struct coopth_thrfunc_t post;
+    struct coopth_ctx_handlers_t prepost;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
@@ -361,6 +363,8 @@ static void coopth_thread(void *arg)
 	return;
     }
     co_set_data(co_current(), args->thrdata);
+    if (args->prepost->pre.func)
+	args->prepost->pre.func(args->prepost->pre.arg);
     jret = setjmp(args->thrdata->exit_jmp);
     switch (jret) {
     case COOPTH_JMP_NONE:
@@ -373,6 +377,8 @@ static void coopth_thread(void *arg)
     case COOPTH_JMP_EXIT:
 	break;
     }
+    if (args->prepost->post.func)
+	args->prepost->post.func(args->prepost->post.arg);
     args->thrdata->ret = COOPTH_DONE;
 }
 
@@ -476,6 +482,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
+    pth->args.prepost = &thr->prepost;
     pth->set_sleep = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
@@ -522,6 +529,22 @@ int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	thr->sleeph.pre.arg = arg_pre;
 	thr->sleeph.post.func = post;
 	thr->sleeph.post.arg = arg_post;
+    }
+    return 0;
+}
+
+int coopth_set_prepost_handlers(int tid, coopth_func_t pre, void *arg_pre,
+	coopth_func_t post, void *arg_post)
+{
+    struct coopth_t *thr;
+    int i;
+    check_tid(tid);
+    for (i = 0; i < coopthreads[tid].len; i++) {
+	thr = &coopthreads[tid + i];
+	thr->prepost.pre.func = pre;
+	thr->prepost.pre.arg = arg_pre;
+	thr->prepost.post.func = post;
+	thr->prepost.post.arg = arg_post;
     }
     return 0;
 }
@@ -642,6 +665,15 @@ void *coopth_pop_user_data(int tid)
     pth = current_thr(thr);
     assert(pth->data.udata_num > 0);
     return pth->data.udata[--pth->data.udata_num];
+}
+
+void *coopth_pop_user_data_cur(void)
+{
+    struct coopth_thrdata_t *thdata;
+    assert(_coopth_is_in_thread());
+    thdata = co_get_data(co_current());
+    assert(thdata->udata_num > 0);
+    return thdata->udata[--thdata->udata_num];
 }
 
 static void switch_state(enum CoopthRet ret)

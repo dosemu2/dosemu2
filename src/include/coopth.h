@@ -21,6 +21,8 @@ int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post);
 int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
 	coopth_func_t post, void *arg_post);
+int coopth_set_prepost_handlers(int tid, coopth_func_t pre, void *arg_pre,
+	coopth_func_t post, void *arg_post);
 void coopth_join(int tid, void (*helper)(void));
 int coopth_flush(void (*helper)(void));
 int coopth_set_detached(int tid);
@@ -28,6 +30,7 @@ int coopth_set_sleep_handler(coopth_func_t func, void *arg);
 int coopth_set_cleanup_handler(coopth_func_t func, void *arg);
 void coopth_push_user_data(void *udata);
 void *coopth_pop_user_data(int tid);
+void *coopth_pop_user_data_cur(void);
 int coopth_get_tid(void);
 void coopth_yield(void);
 void coopth_wait(void);
