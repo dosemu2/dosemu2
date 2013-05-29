@@ -76,7 +76,6 @@ static int post_boot;
 static int int21_hooked;
 
 static int int33(void);
-static void fake_iret(void);
 
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
@@ -90,12 +89,26 @@ int redir_state = 0;
 static char title_hint[9] = "";
 static char title_current[TITLE_APPNAME_MAXLEN];
 static int can_change_title = 0;
-static u_short hlt_off;
+static u_short hlt_off, iret_hlt_off;
 static int int_tid, int_rvc_tid;
 
 u_short INT_OFF(u_char i)
 {
     return (0xc000 + i + hlt_off);
+}
+
+static void set_iret(void)
+{
+  unsigned int ssp, sp;
+  u_short flgs;
+  u_int mask = TF_MASK | NT_MASK | IF_MASK | VIF_MASK;
+  REG(cs) = BIOS_HLT_BLK_SEG;
+  LWORD(eip) = iret_hlt_off;
+
+  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  sp = LWORD(esp) + 4;
+  flgs = popw(ssp, sp);
+  REG(eflags) = ((REG(eflags) & mask) | (flgs & ~mask));
 }
 
 static void change_window_title(char *title)
@@ -1330,7 +1343,7 @@ static int int21(void)
 void int42_hook(void)
 {
   /* see comments in bios.S:INT42HOOK_OFF */
-  fake_iret();
+  set_iret();
   fake_int_to(BIOSSEG, INT_OFF(0x42));
 }
 
@@ -1957,7 +1970,7 @@ static void int33_check_hog(void)
 /* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
 void int33_post(void)
 {
-  fake_iret();
+  set_iret();
   int33_check_hog();
 }
 
@@ -2007,7 +2020,7 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
-	fake_iret();
+	set_iret();
 	if (interrupt_function[i][NO_REVECT])
 	      coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 }
@@ -2035,6 +2048,7 @@ static void do_int_thr(void *arg)
 
 void do_int(int i)
 {
+#if 1
         /* we must clear the AC flag here since real mode INT instructions
            do that too. An IRET (not IRETD) instruction then does not set AC
            because the AC flag is in the high part of the eflags.
@@ -2043,6 +2057,9 @@ void do_int(int i)
            hardware INTs will mess things up.
         */
         clear_AC();
+#else
+	fake_int_to(BIOS_HLT_BLK_SEG, iret_hlt_off);
+#endif
 
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
@@ -2151,9 +2168,10 @@ void fake_retf(unsigned pop_count)
   _SP += 4 + 2 * pop_count;
 }
 
-static void fake_iret(void)
+static void ret_from_int(Bit32u i, void *arg)
 {
   unsigned int ssp, sp;
+  u_short flgs;
 
   ssp = SEGOFF2LINEAR(REG(ss), 0);
   sp = LWORD(esp);
@@ -2161,7 +2179,34 @@ static void fake_iret(void)
   _SP += 6;
   _IP = popw(ssp, sp);
   _CS = popw(ssp, sp);
-  set_FLAGS(popw(ssp, sp));
+  flgs = popw(ssp, sp);
+  if (flgs & IF)
+    _set_IF();
+  else
+    clear_IF();
+  REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
+}
+
+static void rvc_int_pre(void *arg)
+{
+  coopth_push_user_data((void *)(long)get_vFLAGS(REG(eflags)));
+  clear_TF();
+  clear_NT();
+#if 0
+  /* AC already cleared in do_int() */
+  clear_AC();
+#endif
+  clear_IF();
+}
+
+static void rvc_int_post(void *arg)
+{
+  u_short flgs = (long)coopth_pop_user_data_cur();
+  if (flgs & IF)
+    _set_IF();
+  else
+    clear_IF();
+  REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
 }
 
 /*
@@ -2233,8 +2278,16 @@ void setup_interrupts(void) {
   hlt_hdlr.func       = do_int_from_hlt;
   hlt_off = hlt_register_handler(hlt_hdlr);
 
+  hlt_hdlr.name       = "int return";
+  hlt_hdlr.start_addr = -1;
+  hlt_hdlr.len        = 1;
+  hlt_hdlr.func       = ret_from_int;
+  iret_hlt_off = hlt_register_handler(hlt_hdlr);
+
   int_tid = coopth_create_multi("ints thread non-revect", 256);
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
+  coopth_set_prepost_handlers(int_rvc_tid, rvc_int_pre, NULL,
+	rvc_int_post, NULL);
 }
 
 
