@@ -78,7 +78,7 @@ struct coopth_per_thread_t {
     int set_sleep;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
-    Bit16u ret_cs, ret_ip, ret_if;
+    Bit16u ret_cs, ret_ip;
     int dbg;
 };
 
@@ -202,10 +202,6 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     threads_joinable--;
     REG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
-    if (pth->ret_if)
-	_set_IF();
-    else
-	clear_IF();
     if (thr->ctxh.post.func)
 	thr->ctxh.post.func(thr->ctxh.post.arg);
     pth->data.attached = 0;
@@ -217,12 +213,10 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	return;
     if (thr->ctxh.pre.func)
 	thr->ctxh.pre.func(thr->ctxh.pre.arg);
-    pth->ret_if = isset_IF();
     pth->ret_cs = REG(cs);
     pth->ret_ip = LWORD(eip);
     REG(cs) = BIOS_HLT_BLK_SEG;
     LWORD(eip) = thr->hlt_off;
-    clear_IF();
     threads_joinable++;
     pth->data.attached = 1;
 }
@@ -258,8 +252,6 @@ again:
     case COOPTHS_AWAKEN:
 	if (thr->sleeph.post.func)
 	    thr->sleeph.post.func(thr->sleeph.post.arg);
-	if (pth->ret_if)
-	    clear_IF();
 	pth->state = COOPTHS_RUNNING;
 	/* I hate 'case' without 'break'... so use 'goto' instead. :-)) */
 	goto again;
@@ -319,8 +311,6 @@ again:
 	joinable_running = jr;
 	if (tret == COOPTH_SLEEP || tret == COOPTH_WAIT ||
 		tret == COOPTH_YIELD) {
-	    if (pth->ret_if)
-		_set_IF();
 	    if (pth->data.sleep.func)
 		pth->data.sleep.func(pth->data.sleep.arg);
 	    if (thr->sleeph.pre.func)
@@ -853,12 +843,7 @@ int coopth_flush(void (*helper)(void))
 	    break;
 	pth = current_thr(thr);
 	assert(pth->data.attached);
-	if (pth->state == COOPTHS_STARTING) {	// give it last chance
-	    helper();
-	    assert(pth->state != COOPTHS_STARTING);
-	    continue;
-	}
-	if (pth->state != COOPTHS_DELETE)	// wow, found sleeper!
+	if (pth->state != COOPTHS_DELETE)	// found sleeping or starting
 	    do_cancel(thr, pth);
 	do_join(pth, helper);
     }
