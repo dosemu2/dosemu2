@@ -45,12 +45,14 @@ struct coopth_thrfunc_t {
 };
 
 #define MAX_POST_H 5
+#define MAX_UDATA 5
 
 struct coopth_thrdata_t {
     int *tid;
     int attached;
     enum CoopthRet ret;
-    void *udata;
+    void *udata[MAX_UDATA];
+    int udata_num;
     struct coopth_thrfunc_t post[MAX_POST_H];
     int posth_num;
     struct coopth_thrfunc_t sleep;
@@ -469,7 +471,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->data.posth_num = 0;
     pth->data.sleep.func = NULL;
     pth->data.clnup.func = NULL;
-    pth->data.udata = NULL;
+    pth->data.udata_num = 0;
     pth->data.cancelled = 0;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
@@ -622,22 +624,24 @@ int coopth_set_cleanup_handler(coopth_func_t func, void *arg)
     return 0;
 }
 
-void coopth_set_user_data(void *udata)
+void coopth_push_user_data(void *udata)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
-    thdata->udata = udata;
+    assert(thdata->udata_num < MAX_UDATA);
+    thdata->udata[thdata->udata_num++] = udata;
 }
 
-void *coopth_get_user_data(int tid)
+void *coopth_pop_user_data(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    return pth->data.udata;
+    assert(pth->data.udata_num > 0);
+    return pth->data.udata[--pth->data.udata_num];
 }
 
 static void switch_state(enum CoopthRet ret)

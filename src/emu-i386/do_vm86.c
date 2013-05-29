@@ -442,7 +442,7 @@ Bit16u CBACK_OFF;
 static void callback_return(Bit32u off2, void *arg)
 {
     int tid = coopth_get_tid_by_tag(callback_thr_tag, callback_level);
-    Bit32u ret = (long)coopth_get_user_data(tid);
+    Bit32u ret = (long)coopth_pop_user_data(tid);
     REG(cs) = FP_SEG16(ret);
     LWORD(eip) = FP_OFF16(ret);
     coopth_wake_up(tid);
@@ -464,7 +464,7 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 
 	/* save return address - dont use DOS stack for that :( */
 	ret = MK_FP16(REG(cs), LWORD(eip));
-	coopth_set_user_data((void *)(long)ret);
+	coopth_push_user_data((void *)(long)ret);
 	REG(cs) = CBACK_SEG;
 	LWORD(eip) = CBACK_OFF;
 
