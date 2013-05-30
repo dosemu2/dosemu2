@@ -87,7 +87,7 @@ static inline void bios_mem_setup(void)
 static int initialized;
 static void bios_reset(void);
 static void bios_setup(void);
-static void late_init_post(void *arg);
+static void late_init_post(int tid);
 
 static void late_init_thr(void *arg)
 {
@@ -98,17 +98,17 @@ static void late_init_thr(void *arg)
   video_late_init();
 }
 
-static void thr_start_helper(void *arg)
+static void thr_start_helper(int tid)
 {
   rm_stack_enter();
 }
 
-static void thr_term_helper(void *arg)
+static void thr_term_helper(int tid)
 {
   rm_stack_leave();
 }
 
-static void late_init_post(void *arg)
+static void late_init_post(int tid)
 {
   bios_reset();
   if (initialized)
@@ -219,7 +219,6 @@ static void bios_reset(void)
 void bios_setup_init(void)
 {
   li_tid = coopth_create("late_init");
-  coopth_set_ctx_handlers(li_tid, thr_start_helper, NULL,
-	thr_term_helper, NULL);
-  coopth_set_permanent_post_handler(li_tid, late_init_post, NULL);
+  coopth_set_ctx_handlers(li_tid, thr_start_helper, thr_term_helper);
+  coopth_set_permanent_post_handler(li_tid, late_init_post);
 }

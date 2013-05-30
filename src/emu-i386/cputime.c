@@ -210,8 +210,7 @@ void get_time_init (void)
 void cputime_late_init(void)
 {
   freeze_tid = coopth_create("dosemu_freeze");
-  coopth_set_ctx_handlers(freeze_tid, sig_ctx_prepare, NULL,
-	sig_ctx_restore, NULL);
+  coopth_set_ctx_handlers(freeze_tid, sig_ctx_prepare, sig_ctx_restore);
 }
 
 

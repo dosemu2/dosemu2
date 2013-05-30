@@ -60,8 +60,8 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 static int sh_tid;
 static int in_handle_signals;
 static int signal_requeue;
-static void handle_signals_force_enter(void *arg);
-static void handle_signals_force_leave(void *arg);
+static void handle_signals_force_enter(int tid);
+static void handle_signals_force_leave(int tid);
 
 static struct {
   unsigned long eflags;
@@ -430,13 +430,13 @@ void SIG_close(void)
 #endif
 }
 
-void sig_ctx_prepare(void *arg)
+void sig_ctx_prepare(int tid)
 {
   rm_stack_enter();
   clear_IF();
 }
 
-void sig_ctx_restore(void *arg)
+void sig_ctx_restore(int tid)
 {
   rm_stack_leave();
 }
@@ -584,10 +584,9 @@ signal_init(void)
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 
   sh_tid = coopth_create("signal handling");
-  coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, NULL,
-	sig_ctx_restore, NULL);
-  coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter, NULL,
-	handle_signals_force_leave, NULL);
+  coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
+  coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
+	handle_signals_force_leave);
   coopth_set_detached(sh_tid);
 }
 
@@ -600,7 +599,7 @@ void signal_late_init(void)
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
-static void handle_signals_force_enter(void *arg)
+static void handle_signals_force_enter(int tid)
 {
   if (!in_handle_signals) {
     dosemu_error("in_handle_signals=0\n");
@@ -609,7 +608,7 @@ static void handle_signals_force_enter(void *arg)
   in_handle_signals--;
 }
 
-static void handle_signals_force_leave(void *arg)
+static void handle_signals_force_leave(int tid)
 {
   in_handle_signals++;
 }

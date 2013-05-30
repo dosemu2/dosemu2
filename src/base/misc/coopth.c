@@ -62,6 +62,11 @@ struct coopth_thrdata_t {
 };
 
 struct coopth_ctx_handlers_t {
+    coopth_hndl_t pre;
+    coopth_hndl_t post;
+};
+
+struct coopth_pp_handlers_t {
     struct coopth_thrfunc_t pre;
     struct coopth_thrfunc_t post;
 };
@@ -69,7 +74,7 @@ struct coopth_ctx_handlers_t {
 struct coopth_starter_args_t {
     struct coopth_thrfunc_t thr;
     struct coopth_thrdata_t *thrdata;
-    struct coopth_ctx_handlers_t *prepost;
+    struct coopth_pp_handlers_t *prepost;
 };
 
 struct coopth_per_thread_t {
@@ -94,8 +99,8 @@ struct coopth_t {
     int detached;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
-    struct coopth_thrfunc_t post;
-    struct coopth_ctx_handlers_t prepost;
+    coopth_hndl_t post;
+    struct coopth_pp_handlers_t prepost;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
@@ -175,8 +180,8 @@ static void do_del_thread(struct coopth_t *thr,
     thr->cur_thr--;
     for (i = 0; i < pth->data.posth_num; i++)
 	pth->data.post[i].func(pth->data.post[i].arg);
-    if (thr->post.func)
-	thr->post.func(thr->post.arg);
+    if (thr->post)
+	thr->post(thr->tid);
 
     if (thr->cur_thr == 0) {
 	int found = 0;
@@ -202,8 +207,8 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     threads_joinable--;
     REG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
-    if (thr->ctxh.post.func)
-	thr->ctxh.post.func(thr->ctxh.post.arg);
+    if (thr->ctxh.post)
+	thr->ctxh.post(thr->tid);
     pth->data.attached = 0;
 }
 
@@ -211,8 +216,8 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     if (pth->data.attached)
 	return;
-    if (thr->ctxh.pre.func)
-	thr->ctxh.pre.func(thr->ctxh.pre.arg);
+    if (thr->ctxh.pre)
+	thr->ctxh.pre(thr->tid);
     pth->ret_cs = REG(cs);
     pth->ret_ip = LWORD(eip);
     REG(cs) = BIOS_HLT_BLK_SEG;
@@ -250,8 +255,8 @@ again:
 	goto again;
 	break;
     case COOPTHS_AWAKEN:
-	if (thr->sleeph.post.func)
-	    thr->sleeph.post.func(thr->sleeph.post.arg);
+	if (thr->sleeph.post)
+	    thr->sleeph.post(thr->tid);
 	pth->state = COOPTHS_RUNNING;
 	/* I hate 'case' without 'break'... so use 'goto' instead. :-)) */
 	goto again;
@@ -313,8 +318,8 @@ again:
 		tret == COOPTH_YIELD) {
 	    if (pth->data.sleep.func)
 		pth->data.sleep.func(pth->data.sleep.arg);
-	    if (thr->sleeph.pre.func)
-		thr->sleeph.pre.func(thr->sleeph.pre.arg);
+	    if (thr->sleeph.pre)
+		thr->sleeph.pre(thr->tid);
 	}
 	/* even if the state is still RUNNING, need to break away
 	 * as the entry point might change */
@@ -491,34 +496,28 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     return 0;
 }
 
-int coopth_set_ctx_handlers(int tid, coopth_func_t pre, void *arg_pre,
-	coopth_func_t post, void *arg_post)
+int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
 {
     struct coopth_t *thr;
     int i;
     check_tid(tid);
     for (i = 0; i < coopthreads[tid].len; i++) {
 	thr = &coopthreads[tid + i];
-	thr->ctxh.pre.func = pre;
-	thr->ctxh.pre.arg = arg_pre;
-	thr->ctxh.post.func = post;
-	thr->ctxh.post.arg = arg_post;
+	thr->ctxh.pre = pre;
+	thr->ctxh.post = post;
     }
     return 0;
 }
 
-int coopth_set_sleep_handlers(int tid, coopth_func_t pre, void *arg_pre,
-	coopth_func_t post, void *arg_post)
+int coopth_set_sleep_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
 {
     struct coopth_t *thr;
     int i;
     check_tid(tid);
     for (i = 0; i < coopthreads[tid].len; i++) {
 	thr = &coopthreads[tid + i];
-	thr->sleeph.pre.func = pre;
-	thr->sleeph.pre.arg = arg_pre;
-	thr->sleeph.post.func = post;
-	thr->sleeph.post.arg = arg_post;
+	thr->sleeph.pre = pre;
+	thr->sleeph.post = post;
     }
     return 0;
 }
@@ -539,15 +538,14 @@ int coopth_set_prepost_handlers(int tid, coopth_func_t pre, void *arg_pre,
     return 0;
 }
 
-int coopth_set_permanent_post_handler(int tid, coopth_func_t func, void *arg)
+int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func)
 {
     struct coopth_t *thr;
     int i;
     check_tid(tid);
     for (i = 0; i < coopthreads[tid].len; i++) {
 	thr = &coopthreads[tid + i];
-	thr->post.func = func;
-	thr->post.arg = arg;
+	thr->post = func;
     }
     return 0;
 }

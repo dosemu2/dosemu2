@@ -413,8 +413,7 @@ emulate(int argc, char **argv)
     hlt_init();
     coopth_init();
     ld_tid = coopth_create("leavedos");
-    coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, NULL,
-	sig_ctx_restore, NULL);
+    coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore);
 
     dostty_init();
     vm86_init();

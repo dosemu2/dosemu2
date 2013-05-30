@@ -967,13 +967,22 @@ disk_init(void)
       }
     }
     else bootdisk.rdonly = bootdisk.wantrdonly;
-    bootdisk.removeable = 0;
+    bootdisk.removeable = 1;
     bootdisk.floppy = 1;
     bootdisk.drive_num = 0;
     bootdisk.serial = 0xB00B00B0;
     if (bootdisk.type == DIR_TYPE) {
       disk_fptrs[bootdisk.type].autosense(&bootdisk);
       disk_fptrs[bootdisk.type].setup(&bootdisk);
+    } else {
+      if (stat(bootdisk.dev_name, &stbuf) < 0) {
+        error("can't stat %s\n", bootdisk.dev_name);
+        config.exitearly = 1;
+      }
+      if (S_ISREG(stbuf.st_mode)) {
+        d_printf("dev %s is an image\n", bootdisk.dev_name);
+        bootdisk.type = IMAGE;
+      }
     }
   }
 
