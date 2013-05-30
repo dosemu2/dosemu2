@@ -464,7 +464,7 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 
 	/* save return address - dont use DOS stack for that :( */
 	ret = MK_FP16(REG(cs), LWORD(eip));
-	coopth_push_user_data((void *)(long)ret);
+	coopth_push_user_data_cur((void *)(long)ret);
 	REG(cs) = CBACK_SEG;
 	LWORD(eip) = CBACK_OFF;
 

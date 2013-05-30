@@ -635,7 +635,18 @@ int coopth_set_cleanup_handler(coopth_func_t func, void *arg)
     return 0;
 }
 
-void coopth_push_user_data(void *udata)
+void coopth_push_user_data(int tid, void *udata)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    assert(pth->data.udata_num < MAX_UDATA);
+    pth->data.udata[pth->data.udata_num++] = udata;
+}
+
+void coopth_push_user_data_cur(void *udata)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());

@@ -2189,9 +2189,9 @@ static void ret_from_int(Bit32u i, void *arg)
   REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
 }
 
-static void rvc_int_pre(void *arg)
+static void rvc_int_pre(int tid)
 {
-  coopth_push_user_data((void *)(long)get_vFLAGS(REG(eflags)));
+  coopth_push_user_data(tid, (void *)(long)get_vFLAGS(REG(eflags)));
   clear_TF();
   clear_NT();
 #if 0
@@ -2201,9 +2201,9 @@ static void rvc_int_pre(void *arg)
   clear_IF();
 }
 
-static void rvc_int_post(void *arg)
+static void rvc_int_post(int tid)
 {
-  u_short flgs = (long)coopth_pop_user_data_cur();
+  u_short flgs = (long)coopth_pop_user_data(tid);
   if (flgs & IF)
     _set_IF();
   else
@@ -2288,8 +2288,7 @@ void setup_interrupts(void) {
 
   int_tid = coopth_create_multi("ints thread non-revect", 256);
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
-  coopth_set_prepost_handlers(int_rvc_tid, rvc_int_pre, NULL,
-	rvc_int_post, NULL);
+  coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
 
   hlt_hdlr.name       = "mouse post";
   hlt_hdlr.start_addr = -1;
