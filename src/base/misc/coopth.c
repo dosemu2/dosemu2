@@ -963,3 +963,16 @@ void coopth_sleep_tagged(int tag, int cookie)
     coopth_sleep();
     coopth_tag_clear(tag, cookie);
 }
+
+void coopth_yield_tagged(int tag, int cookie)
+{
+    /* first, make sure the control flow was altered.
+     * Otherwise this call makes no sense and sleep should be use instead. */
+    struct coopth_t *thr = on_thread();
+    struct coopth_t *thr1 = &coopthreads[coopth_get_tid()];
+    assert(thr != thr1);	// thr is likely NULL here
+
+    coopth_tag_set(tag, cookie);
+    coopth_yield();
+    coopth_tag_clear(tag, cookie);
+}

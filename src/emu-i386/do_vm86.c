@@ -445,7 +445,6 @@ static void callback_return(Bit32u off2, void *arg)
     Bit32u ret = (long)coopth_pop_user_data(tid);
     REG(cs) = FP_SEG16(ret);
     LWORD(eip) = FP_OFF16(ret);
-    coopth_wake_up(tid);
 }
 
 /*
@@ -474,7 +473,10 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
 
 	callback_level++;
-	coopth_sleep_tagged(callback_thr_tag, callback_level);
+	/* no need to even put the thread to sleep:
+	 * since the code flow was changed, coopth_yield()
+	 * will magically not return before callback is finished. */
+	coopth_yield_tagged(callback_thr_tag, callback_level);
 	callback_level--;
 }
 
