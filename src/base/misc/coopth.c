@@ -66,15 +66,9 @@ struct coopth_ctx_handlers_t {
     coopth_hndl_t post;
 };
 
-struct coopth_pp_handlers_t {
-    struct coopth_thrfunc_t pre;
-    struct coopth_thrfunc_t post;
-};
-
 struct coopth_starter_args_t {
     struct coopth_thrfunc_t thr;
     struct coopth_thrdata_t *thrdata;
-    struct coopth_pp_handlers_t *prepost;
 };
 
 struct coopth_per_thread_t {
@@ -100,7 +94,6 @@ struct coopth_t {
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     coopth_hndl_t post;
-    struct coopth_pp_handlers_t prepost;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
@@ -358,8 +351,7 @@ static void coopth_thread(void *arg)
 	return;
     }
     co_set_data(co_current(), args->thrdata);
-    if (args->prepost->pre.func)
-	args->prepost->pre.func(args->prepost->pre.arg);
+
     jret = setjmp(args->thrdata->exit_jmp);
     switch (jret) {
     case COOPTH_JMP_NONE:
@@ -372,8 +364,7 @@ static void coopth_thread(void *arg)
     case COOPTH_JMP_EXIT:
 	break;
     }
-    if (args->prepost->post.func)
-	args->prepost->post.func(args->prepost->post.arg);
+
     args->thrdata->ret = COOPTH_DONE;
 }
 
@@ -477,7 +468,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->args.prepost = &thr->prepost;
     pth->set_sleep = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
@@ -518,22 +508,6 @@ int coopth_set_sleep_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post)
 	thr = &coopthreads[tid + i];
 	thr->sleeph.pre = pre;
 	thr->sleeph.post = post;
-    }
-    return 0;
-}
-
-int coopth_set_prepost_handlers(int tid, coopth_func_t pre, void *arg_pre,
-	coopth_func_t post, void *arg_post)
-{
-    struct coopth_t *thr;
-    int i;
-    check_tid(tid);
-    for (i = 0; i < coopthreads[tid].len; i++) {
-	thr = &coopthreads[tid + i];
-	thr->prepost.pre.func = pre;
-	thr->prepost.pre.arg = arg_pre;
-	thr->prepost.post.func = post;
-	thr->prepost.post.arg = arg_post;
     }
     return 0;
 }
