@@ -108,16 +108,6 @@ static int threads_total;
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
 
-struct coopth_tag_t {
-    int cookie;
-    int tid;
-};
-
-#define MAX_TAGS 10
-#define MAX_TAGGED_THREADS 5
-
-static struct coopth_tag_t tags[MAX_TAGS][MAX_TAGGED_THREADS];
-static int tag_cnt;
 static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 
@@ -125,12 +115,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 
 void coopth_init(void)
 {
-    int i, j;
     co_thread_init();
-    for (i = 0; i < MAX_TAGS; i++) {
-	for (j = 0; j < MAX_TAGGED_THREADS; j++)
-	    tags[i][j].tid = COOPTH_TID_INVALID;
-    }
 }
 
 static enum CoopthRet do_run_thread(struct coopth_t *thr,
@@ -876,103 +861,10 @@ again:
     co_thread_cleanup();
 }
 
-int coopth_tag_alloc(void)
+int coopth_get_scheduled(void)
 {
-    if (tag_cnt >= MAX_TAGS) {
-	error("Too many tags\n");
-	leavedos(2);
-    }
-    return tag_cnt++;
-}
-
-void coopth_tag_set(int tag, int cookie)
-{
-    int j, empty = -1;
-    struct coopth_thrdata_t *thdata;
-    struct coopth_tag_t *tagp, *tagp2;
-    assert(_coopth_is_in_thread());
-    assert(tag >= 0 && tag < tag_cnt);
-    tagp = tags[tag];
-    for (j = 0; j < MAX_TAGGED_THREADS; j++) {
-	if (empty == -1 && tagp[j].tid == COOPTH_TID_INVALID)
-	    empty = j;
-	if (tagp[j].cookie == cookie && tagp[j].tid != COOPTH_TID_INVALID) {
-	    dosemu_error("Coopth: tag %i(%i) already set\n", tag, cookie);
-	    leavedos(2);
-	}
-    }
-    if (empty == -1) {
-	dosemu_error("Coopth: too many tags for %i\n", tag);
-	leavedos(2);
-    }
-
-    tagp2 = &tagp[empty];
-    thdata = co_get_data(co_current());
-    tagp2->tid = *thdata->tid;
-    tagp2->cookie = cookie;
-}
-
-void coopth_tag_clear(int tag, int cookie)
-{
-    int j;
-    struct coopth_tag_t *tagp;
-    assert(tag >= 0 && tag < tag_cnt);
-    tagp = tags[tag];
-    for (j = 0; j < MAX_TAGGED_THREADS; j++) {
-	if (tagp[j].cookie == cookie) {
-	    if (tagp[j].tid == COOPTH_TID_INVALID) {
-		dosemu_error("Coopth: tag %i(%i) already cleared\n", tag, cookie);
-		leavedos(2);
-	    }
-	    break;
-	}
-    }
-    if (j >= MAX_TAGGED_THREADS) {
-	dosemu_error("Coopth: tag %i(%i) not set\n", tag, cookie);
-	leavedos(2);
-    }
-    tagp[j].tid = COOPTH_TID_INVALID;
-}
-
-int coopth_get_tid_by_tag(int tag, int cookie)
-{
-    int j, tid = COOPTH_TID_INVALID;
-    struct coopth_tag_t *tagp;
-    assert(tag >= 0 && tag < tag_cnt);
-    tagp = tags[tag];
-    for (j = 0; j < MAX_TAGGED_THREADS; j++) {
-	if (tagp[j].cookie == cookie) {
-	    if (tagp[j].tid == COOPTH_TID_INVALID) {
-		dosemu_error("Coopth: tag %i(%i) cleared\n", tag, cookie);
-		leavedos(2);
-	    }
-	    tid = tagp[j].tid;
-	    break;
-	}
-    }
-    if (tid == COOPTH_TID_INVALID) {
-	dosemu_error("Coopth: tag %i(%i) not found\n", tag, cookie);
-	leavedos(2);
-    }
-    return tid;
-}
-
-void coopth_sleep_tagged(int tag, int cookie)
-{
-    coopth_tag_set(tag, cookie);
-    coopth_sleep();
-    coopth_tag_clear(tag, cookie);
-}
-
-void coopth_yield_tagged(int tag, int cookie)
-{
-    /* first, make sure the control flow was altered.
-     * Otherwise this call makes no sense and sleep should be use instead. */
     struct coopth_t *thr = on_thread();
-    struct coopth_t *thr1 = &coopthreads[coopth_get_tid()];
-    assert(thr != thr1);	// thr is likely NULL here
-
-    coopth_tag_set(tag, cookie);
-    coopth_yield();
-    coopth_tag_clear(tag, cookie);
+    if (!thr)
+	return COOPTH_TID_INVALID;
+    return thr->tid;
 }

@@ -28,6 +28,7 @@
 #include "config.h"
 #include "emu.h"
 #include "coopth.h"
+#include "coopth_utils.h"
 #include "serial.h"
 #include "ser_defs.h"
 

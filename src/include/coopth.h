@@ -30,6 +30,7 @@ void coopth_push_user_data_cur(void *udata);
 void *coopth_pop_user_data(int tid);
 void *coopth_pop_user_data_cur(void);
 int coopth_get_tid(void);
+int coopth_get_scheduled(void);
 void coopth_yield(void);
 void coopth_wait(void);
 void coopth_sleep(void);
@@ -41,12 +42,5 @@ void coopth_asleep(int tid);
 void coopth_cancel(int tid);
 void coopth_done(void);
 void coopth_run(void);
-
-int coopth_tag_alloc(void);
-void coopth_tag_set(int tag, int cookie);
-void coopth_tag_clear(int tag, int cookie);
-void coopth_sleep_tagged(int tag, int cookie);
-void coopth_yield_tagged(int tag, int cookie);
-int coopth_get_tid_by_tag(int tag, int cookie);
 
 #endif
