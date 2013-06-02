@@ -28,7 +28,6 @@
 #include "config.h"
 #include "emu.h"
 #include "coopth.h"
-#include "coopth_utils.h"
 #include "serial.h"
 #include "ser_defs.h"
 
@@ -84,17 +83,14 @@ static boolean fossil_tsr_installed = FALSE;
 
 void fossil_setup(int num)
 {
-    com[num].fossil_blkrd_tag = coopth_tag_alloc();
-    com[num].fossil_blkrd_running = 0;
+    com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
 }
 
 void fossil_dr_hook(int num)
 {
-    int tid;
-    if (!com[num].fossil_blkrd_running)
+    if (com[num].fossil_blkrd_tid == COOPTH_TID_INVALID)
 	return;
-    tid = coopth_get_tid_by_tag(com[num].fossil_blkrd_tag, num);
-    coopth_wake_up(tid);
+    coopth_wake_up(com[num].fossil_blkrd_tid);
 }
 
 /**************************************************************************/
@@ -151,9 +147,9 @@ void fossil_int14(int num)
   /* Read character (should be with wait) */
   case 0x02:
     while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
-	com[num].fossil_blkrd_running = 1;
-	coopth_sleep_tagged(com[num].fossil_blkrd_tag, num);
-	com[num].fossil_blkrd_running = 0;
+	com[num].fossil_blkrd_tid = coopth_get_tid();
+	coopth_sleep();
+	com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
     }
     LO(ax) = read_char(num);
     HI(ax) = 0;
