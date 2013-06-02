@@ -23,6 +23,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <fenv.h>
+#include <assert.h>
 #include <sys/wait.h>
 #include <sys/times.h>
 #include <sys/time.h>
@@ -56,7 +57,6 @@
 #include "keyb_server.h"
 #include "bitops.h"
 #include "coopth.h"
-#include "coopth_utils.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -436,14 +436,16 @@ void loopstep_run_vm86(void)
 }
 
 
-static int callback_level = 0;
-static int callback_thr_tag;
+static int callback_level;
+#define MAX_CBKS 256
+static int callback_thr_tids[MAX_CBKS];
 Bit16u CBACK_OFF;
 
 static void callback_return(Bit32u off2, void *arg)
 {
-    int tid = coopth_get_tid_by_tag(callback_thr_tag, callback_level);
-    Bit32u ret = (long)coopth_pop_user_data(tid);
+    Bit32u ret;
+    assert(callback_level > 0);
+    ret = (long)coopth_pop_user_data(callback_thr_tids[callback_level - 1]);
     REG(cs) = FP_SEG16(ret);
     LWORD(eip) = FP_OFF16(ret);
 }
@@ -473,11 +475,13 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	else
 		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
 
+	assert(callback_level < MAX_CBKS);
+	callback_thr_tids[callback_level] = coopth_get_tid();
 	callback_level++;
 	/* no need to even put the thread to sleep:
 	 * since the code flow was changed, coopth_yield()
 	 * will magically not return before callback is finished. */
-	coopth_yield_tagged(callback_thr_tag, callback_level);
+	coopth_yield();
 	callback_level--;
 }
 
@@ -499,7 +503,5 @@ int vm86_init(void)
     hlt_hdlr.len = 1;
     hlt_hdlr.func = callback_return;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
-
-    callback_thr_tag = coopth_tag_alloc();
     return 0;
 }
