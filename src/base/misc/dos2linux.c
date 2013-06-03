@@ -388,7 +388,9 @@ static void pty_thr(void *arg)
 		done++;
 		break;
 	    default:
+		coopth_attach();
 		com_doswritecon(buf, rd);
+		coopth_detach();
 		break;
 	    }
 	    break;
@@ -402,7 +404,9 @@ static void pty_thr(void *arg)
 #endif
 	}
 
+	coopth_attach();
 	wr = com_dosreadcon(buf, sizeof(buf));
+	coopth_detach();
 	if (wr > 0)
 	    write(pty_fd, buf, wr);
 
@@ -423,6 +427,7 @@ int dostty_init(void)
     unlockpt(pty_fd);
     pty_tid = coopth_create("dostty");
     coopth_set_detached(pty_tid);
+    coopth_set_ctx_handlers(pty_tid, sig_ctx_prepare, sig_ctx_restore);
     coopth_start(pty_tid, pty_thr, NULL);
     coopth_asleep(pty_tid);
     return 0;

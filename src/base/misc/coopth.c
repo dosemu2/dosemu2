@@ -705,7 +705,7 @@ static int is_detached(void)
     return (!thdata->attached);
 }
 
-void coopth_leave(void)
+void coopth_detach(void)
 {
     if (!_coopth_is_in_thread_nowarn() || is_detached())
 	return;

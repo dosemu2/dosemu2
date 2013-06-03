@@ -507,7 +507,7 @@ void __leavedos(int sig, const char *s, int num)
     dostty_done();
 
     /* abandon current thread if any, and start new one */
-    coopth_leave();
+    coopth_detach();
     tmp = coopth_flush(run_vm86);
     if (tmp)
       dbug_printf("%i threads still active\n", tmp);

@@ -532,11 +532,11 @@ int dos_helper(void)
 	}
         break;
   case DOS_HELPER_BOOTSECT:
-      coopth_leave();
+      coopth_detach();
       fdkernel_boot_mimic();
       break;
   case DOS_HELPER_MBR:
-    coopth_leave();
+    coopth_detach();
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();
       break;

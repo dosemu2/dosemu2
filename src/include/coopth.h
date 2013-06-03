@@ -34,7 +34,7 @@ int coopth_get_scheduled(void);
 void coopth_yield(void);
 void coopth_wait(void);
 void coopth_sleep(void);
-void coopth_leave(void);
+void coopth_detach(void);
 void coopth_attach(void);
 void coopth_exit(void);
 void coopth_wake_up(int tid);
