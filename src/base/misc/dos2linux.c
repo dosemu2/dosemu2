@@ -355,6 +355,8 @@ int find_drive (char **plinux_path_resolved)
 
 static int pty_fd;
 static int pty_tid;
+static int unx_tid = COOPTH_TID_INVALID;
+static int pty_done;
 static int cbrk;
 
 static void pty_thr(void *arg)
@@ -362,9 +364,17 @@ static void pty_thr(void *arg)
     char buf[128];
     fd_set rfds;
     struct timeval tv;
-    int retval, rd, wr, done;
+    int retval, rd, wr;
     while (1) {
-	done = rd = wr = 0;
+	if (pty_done) {
+	    if (unx_tid != COOPTH_TID_INVALID) {
+		coopth_wake_up(unx_tid);
+		unx_tid = COOPTH_TID_INVALID;
+	    }
+	    coopth_yield();
+	    continue;
+	}
+	rd = wr = 0;
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
 	FD_ZERO(&rfds);
@@ -373,7 +383,7 @@ static void pty_thr(void *arg)
 	switch (retval) {
 	case -1:
 	    g_printf("run_unix_command(): select error %s\n", strerror(errno));
-	    done++;
+	    pty_done++;
 	    break;
 	case 0:
 	    break;
@@ -385,7 +395,7 @@ static void pty_thr(void *arg)
 		g_printf("run_unix_command(): read error %s\n", strerror(errno));
 		/* no break */
 	    case 0:
-		done++;
+		pty_done++;
 		break;
 	    default:
 		coopth_attach();
@@ -395,14 +405,8 @@ static void pty_thr(void *arg)
 	    }
 	    break;
 	}
-	if (done) {
-#if 0
-	    coopth_sleep();
-#else
-	    coopth_yield();
+	if (pty_done)
 	    continue;
-#endif
-	}
 
 	coopth_attach();
 	wr = com_dosreadcon(buf, sizeof(buf));
@@ -464,11 +468,16 @@ static void dostty_start(void)
     do {
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
+    pty_done = 0;
     coopth_wake_up(pty_tid);
 }
 
 static void dostty_stop(void)
 {
+    /* first we sleep to allow reader thread to finish */
+    unx_tid = coopth_get_tid();
+    coopth_sleep();
+    /* then we put reader thread to sleep */
     coopth_asleep(pty_tid);
     com_setcbreak(cbrk);
 }
