@@ -650,6 +650,12 @@ static void ensure_attached(void)
     }
 }
 
+void coopth_ensure_attached(void)
+{
+    assert(_coopth_is_in_thread());
+    ensure_attached();
+}
+
 static void check_cancel(void)
 {
     /* cancellation point */
@@ -763,6 +769,8 @@ void coopth_cancel(int tid)
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     check_tid(tid);
+    if (_coopth_is_in_thread_nowarn())
+	assert(tid != coopth_get_tid());
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     do_cancel(thr, pth);
