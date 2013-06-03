@@ -438,16 +438,16 @@ void loopstep_run_vm86(void)
 
 static int callback_level;
 #define MAX_CBKS 256
-static int callback_thr_tids[MAX_CBKS];
+static far_t callback_rets[MAX_CBKS];
 Bit16u CBACK_OFF;
 
 static void callback_return(Bit32u off2, void *arg)
 {
-    Bit32u ret;
+    far_t ret;
     assert(callback_level > 0);
-    ret = (long)coopth_pop_user_data(callback_thr_tids[callback_level - 1]);
-    REG(cs) = FP_SEG16(ret);
-    LWORD(eip) = FP_OFF16(ret);
+    ret = callback_rets[callback_level - 1];
+    REG(cs) = ret.segment;
+    LWORD(eip) = ret.offset;
 }
 
 /*
@@ -457,7 +457,7 @@ static void callback_return(Bit32u off2, void *arg)
  */
 static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 {
-	Bit32u ret;
+	far_t *ret;
 
 	if (fault_cnt && !in_leavedos) {
 		error("do_call_back() executed within the signal context!\n");
@@ -465,8 +465,10 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	}
 
 	/* save return address - dont use DOS stack for that :( */
-	ret = MK_FP16(REG(cs), LWORD(eip));
-	coopth_push_user_data_cur((void *)(long)ret);
+	assert(callback_level < MAX_CBKS);
+	ret = &callback_rets[callback_level];
+	ret->segment = REG(cs);
+	ret->offset = LWORD(eip);
 	REG(cs) = CBACK_SEG;
 	LWORD(eip) = CBACK_OFF;
 
@@ -475,8 +477,6 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 	else
 		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
 
-	assert(callback_level < MAX_CBKS);
-	callback_thr_tids[callback_level] = coopth_get_tid();
 	callback_level++;
 	/* no need to even put the thread to sleep:
 	 * since the code flow was changed, coopth_yield()
