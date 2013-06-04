@@ -432,8 +432,8 @@ int dostty_init(void)
     pty_tid = coopth_create("dostty");
     coopth_set_detached(pty_tid);
     coopth_set_ctx_handlers(pty_tid, sig_ctx_prepare, sig_ctx_restore);
+    coopth_init_sleeping(pty_tid);
     coopth_start(pty_tid, pty_thr, NULL);
-    coopth_asleep(pty_tid);
     return 0;
 }
 

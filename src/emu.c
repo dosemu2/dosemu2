@@ -415,7 +415,6 @@ emulate(int argc, char **argv)
     ld_tid = coopth_create("leavedos");
     coopth_set_ctx_handlers(ld_tid, sig_ctx_prepare, sig_ctx_restore);
 
-    dostty_init();
     vm86_init();
     cputime_late_init();
     HMA_init();			/* HMA can only be done now after mapping
@@ -436,6 +435,7 @@ emulate(int argc, char **argv)
     ems_init();			/* initialize ems */
     xms_init();			/* initialize xms */
     dpmi_setup();
+    dostty_init();
 
     if (not_use_sigio)
 	k_printf("Atleast 1 NON-SIGIO file handle in use.\n");

@@ -92,6 +92,7 @@ struct coopth_t {
     int len;
     int cur_thr;
     int detached;
+    int set_sleep;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     coopth_hndl_t post;
@@ -461,7 +462,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->set_sleep = 0;
+    pth->set_sleep = thr->set_sleep;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
     if (!pth->thread) {
@@ -476,6 +477,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     threads_total++;
     if (!thr->detached)
 	coopth_callf(thr, pth);
+    else
+	thread_run(thr, pth);
     return 0;
 }
 
@@ -523,6 +526,15 @@ int coopth_set_detached(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     thr->detached = 1;
+    return 0;
+}
+
+int coopth_init_sleeping(int tid)
+{
+    struct coopth_t *thr;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    thr->set_sleep = 1;
     return 0;
 }
 
