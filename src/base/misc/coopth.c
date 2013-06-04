@@ -111,6 +111,8 @@ static int active_tids[MAX_ACT_THRS];
 
 static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+static void do_del_thread(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth);
 
 #define COOP_STK_SIZE (65536*2)
 
@@ -141,7 +143,10 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	pth->state = COOPTHS_DETACH;
 	break;
     case COOPTH_DONE:
-	pth->state = COOPTHS_DELETE;
+	if (pth->data.attached)
+	    pth->state = COOPTHS_DELETE;
+	else
+	    do_del_thread(thr, pth);
 	break;
     case COOPTH_ATTACH:
 	coopth_callf(thr, pth);
@@ -314,6 +319,7 @@ again:
 	/* cannot goto again here - entry point should change */
 	break;
     case COOPTHS_DELETE:
+	assert(pth->data.attached);
 	coopth_retf(thr, pth);
 	do_del_thread(thr, pth);
 	break;
@@ -777,7 +783,6 @@ static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     } else {
 	enum CoopthRet tret = do_run_thread(thr, pth);
 	assert(tret == COOPTH_DONE);
-	do_del_thread(thr, pth);
     }
 }
 
