@@ -503,11 +503,11 @@ void __leavedos(int sig, const char *s, int num)
     in_leavedos++;
     registersig(SIGALRM, NULL);
 
+    /* abandon current thread if any */
+    coopth_leave();
     /* close coopthreads-related stuff first */
     dostty_done();
-
-    /* abandon current thread if any, and start new one */
-    coopth_detach();
+    /* try to clean up threads */
     tmp = coopth_flush(run_vm86);
     if (tmp)
       dbug_printf("%i threads still active\n", tmp);
