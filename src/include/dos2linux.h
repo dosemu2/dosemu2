@@ -311,7 +311,7 @@ char *strlowerDOS(char *s);
 int strequalDOS(const char *s1, const char *s2);
 int name_ufs_to_dos(char *dest, const char *src);
 
-int dostty_init(void);
-void dostty_done(void);
+int dos2tty_init(void);
+void dos2tty_done(void);
 
 #endif /* DOS2LINUX_H */

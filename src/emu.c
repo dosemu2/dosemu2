@@ -435,7 +435,7 @@ emulate(int argc, char **argv)
     ems_init();			/* initialize ems */
     xms_init();			/* initialize xms */
     dpmi_setup();
-    dostty_init();
+    dos2tty_init();
 
     if (not_use_sigio)
 	k_printf("Atleast 1 NON-SIGIO file handle in use.\n");
@@ -506,7 +506,7 @@ void __leavedos(int sig, const char *s, int num)
     /* abandon current thread if any */
     coopth_leave();
     /* close coopthreads-related stuff first */
-    dostty_done();
+    dos2tty_done();
     /* try to clean up threads */
     tmp = coopth_flush(run_vm86);
     if (tmp)

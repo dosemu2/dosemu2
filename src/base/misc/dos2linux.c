@@ -420,7 +420,7 @@ static void pty_thr(void *arg)
     }
 }
 
-int dostty_init(void)
+int dos2tty_init(void)
 {
     pty_fd = posix_openpt(O_RDWR);
     if (pty_fd == -1)
@@ -429,21 +429,20 @@ int dostty_init(void)
         return -1;
     }
     unlockpt(pty_fd);
-    pty_tid = coopth_create("dostty");
+    pty_tid = coopth_create("dos2tty");
     coopth_set_detached(pty_tid);
-    coopth_set_ctx_handlers(pty_tid, sig_ctx_prepare, sig_ctx_restore);
     coopth_init_sleeping(pty_tid);
     coopth_start(pty_tid, pty_thr, NULL);
     return 0;
 }
 
-void dostty_done(void)
+void dos2tty_done(void)
 {
     coopth_cancel(pty_tid);
     close(pty_fd);
 }
 
-static int dostty_open(void)
+static int dos2tty_open(void)
 {
     int err, pts_fd;
     err = grantpt(pty_fd);
@@ -459,7 +458,7 @@ static int dostty_open(void)
     return pts_fd;
 }
 
-static void dostty_start(void)
+static void dos2tty_start(int own_ctx)
 {
     char a;
     int rd;
@@ -469,10 +468,15 @@ static void dostty_start(void)
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
     pty_done = 0;
+
+    if (own_ctx)
+	coopth_set_ctx_handlers(pty_tid, NULL, NULL);
+    else
+	coopth_set_ctx_handlers(pty_tid, sig_ctx_prepare, sig_ctx_restore);
     coopth_wake_up(pty_tid);
 }
 
-static void dostty_stop(void)
+static void dos2tty_stop(void)
 {
     /* first we sleep to allow reader thread to finish */
     unx_tid = coopth_get_tid();
@@ -494,7 +498,7 @@ void run_unix_command(char *buffer)
     if (buffer==NULL) return;
     g_printf("UNIX: run '%s'\n",buffer);
 #if 0
-    dostty_init();
+    dos2tty_init();
 #endif
     /* fork child */
     switch ((pid = fork())) {
@@ -507,7 +511,7 @@ void run_unix_command(char *buffer)
 	close(0);
 	close(1);
 	close(2);
-	pts_fd = dostty_open();
+	pts_fd = dos2tty_open();
 	if (pts_fd != 0) {
 	    g_printf("run_unix_command(): open pts failed %s\n", strerror(errno));
 	    exit(EXIT_FAILURE);
@@ -522,14 +526,19 @@ void run_unix_command(char *buffer)
 	break;
     }
 
-    dostty_start();
+    /* if interrupts are disabled, it is safe to start
+     * dos2tty thread in the current context.
+     * dosemu had a bad history of running int handlers with
+     * interrupts enabled, hence the assert() below. */
+    assert(!isset_IF());
+    dos2tty_start(1);
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
-    dostty_stop();
+    dos2tty_stop();
 #if 0
-    dostty_done();
+    dos2tty_done();
 #endif
     /* print child exitcode. not perfect */
     g_printf("run_unix_command() (parent): child exit code: %i\n",
