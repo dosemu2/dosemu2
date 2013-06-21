@@ -757,7 +757,7 @@ d_nullf(struct disk *dp)
 
 unsigned char ATAPI_buf0[512] = { 0 };
 
-inline void
+void
 disk_close(void)
 {
   struct disk *dp;
@@ -796,6 +796,8 @@ disk_open(struct disk *dp)
     return;
 
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
+  if (dp->type == IMAGE)
+    return;
 
   /* FIXME:
    * Why the hell was the below handling restricted to non-removeable disks?
@@ -949,31 +951,26 @@ disk_init(void)
   disks_initiated = 1;  /* disk_init has been called */
   init_all_DOS_tables();
   if (config.bootdisk) {
-    bootdisk.fdesc = open(bootdisk.type == DIR_TYPE ? "/dev/null" : bootdisk.dev_name,
-			    bootdisk.rdonly ? O_RDONLY : O_RDWR);
-    if (bootdisk.fdesc < 0) {
-      if ((errno == EROFS || errno == EACCES) && bootdisk.type != DIR_TYPE) {
-        bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY);
-        if (bootdisk.fdesc < 0) {
-          error("can't open bootdisk %s for read nor write: %s\n", bootdisk.dev_name, strerror(errno));
-          config.exitearly = 1;
-        } else {
-          bootdisk.rdonly = 1;
-          d_printf("(disk) can't open bootdisk %s for read/write. Readonly did work though\n", bootdisk.dev_name);
-        }
-      } else {
-        error("can't open bootdisk %s: %s\n", bootdisk.dev_name, strerror(errno));
-        config.exitearly = 1;
-      }
-    }
-    else bootdisk.rdonly = bootdisk.wantrdonly;
-    bootdisk.removeable = 0;
+    bootdisk.fdesc = -1;
+    bootdisk.rdonly = bootdisk.wantrdonly;
+    bootdisk.removeable = 1;
     bootdisk.floppy = 1;
     bootdisk.drive_num = 0;
     bootdisk.serial = 0xB00B00B0;
     if (bootdisk.type == DIR_TYPE) {
+      bootdisk.removeable = 0;
       disk_fptrs[bootdisk.type].autosense(&bootdisk);
       disk_fptrs[bootdisk.type].setup(&bootdisk);
+    } else {
+      if (stat(bootdisk.dev_name, &stbuf) < 0) {
+        error("can't stat %s\n", bootdisk.dev_name);
+        config.exitearly = 1;
+        return;
+      }
+      if (S_ISREG(stbuf.st_mode)) {
+        d_printf("dev %s is an image\n", bootdisk.dev_name);
+        bootdisk.type = IMAGE;
+      }
     }
   }
 
@@ -1005,30 +1002,10 @@ disk_init(void)
       continue;
     }
 #endif
+    dp->fdesc = -1;
+    dp->rdonly = dp->wantrdonly;
     if (dp->type == DIR_TYPE) {
       dp->removeable = 0;
-      dp->fdesc = open("/dev/null", O_RDONLY);
-    } else {
-      dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
-    }
-    if (dp->fdesc < 0) {
-      if ((errno == EROFS || errno == EACCES) && bootdisk.type != DIR_TYPE) {
-        dp->fdesc = open(dp->dev_name, O_RDONLY);
-        if (dp->fdesc < 0) {
-          error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
-          config.exitearly = 1;
-        } else {
-          dp->rdonly = 1;
-          d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
-        }
-      } else {
-        error("can't open %s: %s\n", dp->dev_name, strerror(errno));
-        /* 'leavedos' here hangs the machine */
-        config.exitearly = 1;
-      }
-    }
-    else dp->rdonly = dp->wantrdonly;
-    if (dp->type == DIR_TYPE) {
       disk_fptrs[dp->type].autosense(dp);
       disk_fptrs[dp->type].setup(dp);
     }
