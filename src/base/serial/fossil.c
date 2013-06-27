@@ -148,7 +148,9 @@ void fossil_int14(int num)
   case 0x02:
     while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
 	com[num].fossil_blkrd_tid = coopth_get_tid();
+	_set_IF();
 	coopth_sleep();
+	clear_IF();
 	com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
     }
     LO(ax) = read_char(num);

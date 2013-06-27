@@ -458,7 +458,7 @@ static int dos2tty_open(void)
     return pts_fd;
 }
 
-static void dos2tty_start(int own_ctx)
+static void dos2tty_start(void)
 {
     char a;
     int rd;
@@ -468,11 +468,8 @@ static void dos2tty_start(int own_ctx)
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
     pty_done = 0;
-
-    if (own_ctx)
-	coopth_set_ctx_handlers(pty_tid, NULL, NULL);
-    else
-	coopth_set_ctx_handlers(pty_tid, sig_ctx_prepare, sig_ctx_restore);
+    /* must run with interrupts enabled to read keypresses */
+    assert(isset_IF());
     coopth_wake_up(pty_tid);
 }
 
@@ -526,14 +523,12 @@ void run_unix_command(char *buffer)
 	break;
     }
 
-    /* if interrupts are disabled, it is safe to start
-     * dos2tty thread in the current context.
-     * dosemu had a bad history of running int handlers with
-     * interrupts enabled, hence the assert() below. */
     assert(!isset_IF());
-    dos2tty_start(1);
+    _set_IF();
+    dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
+    clear_IF();
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
     dos2tty_stop();
