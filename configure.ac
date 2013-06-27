@@ -578,9 +578,6 @@ if test "$GCC" = "yes" ; then
 fi
 
 AC_MSG_CHECKING(for $CC actually being clang...)
-if test -z "$ASFLAGS"; then
-  ASFLAGS=-Wa,-a
-fi
 if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
   if "$CC" -no-integrated-as -E - < /dev/null 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes])

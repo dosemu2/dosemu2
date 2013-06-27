@@ -41,7 +41,7 @@ dist:: $(ALL) Makefile
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
 
 %.o:	%.S
-	$(CC) -c $(ALL_CPPFLAGS) $(ASFLAGS) -o $@ $< > $*.s.out
+	$(CC) -c $(ALL_CPPFLAGS) $(ASFLAGS) -o $@ $<
 
 %.d:	%.c
 	$(CPP) -c $(ALL_CPPFLAGS) $< > /dev/null
