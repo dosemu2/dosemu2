@@ -16,7 +16,8 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-
+#include <inttypes.h>
+#include <stdlib.h>
 #include "arp.h"  /* include self for control */
 
 

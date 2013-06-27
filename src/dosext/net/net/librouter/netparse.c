@@ -16,6 +16,8 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
+#include <inttypes.h>
+#include <stdlib.h>
 #include "netparse.h"  /* include self for control */
 
 /* Parse an Ethernet frame, retrieve src mac, dst mac and VLAN id (vlan = -1 means 'no 802.1Q'). Returns the address of the ethernet payload (or NULL in case of an error) */

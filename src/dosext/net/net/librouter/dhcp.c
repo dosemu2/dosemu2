@@ -16,7 +16,10 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-
+#include <inttypes.h>
+#include "emu.h"
+#include "arp.h"
+#include "forgehdr.h"
 #include "dhcp.h"  /* include self for control */
 
 
@@ -80,13 +83,13 @@ int dhcpserver(uint8_t *udppayload, int bufflen, struct arptabletype **arptable,
     }
   }
   if (dhcpmsg < 0) {
-    puts("Got a DHCP request without any DHCP message... Ignored.");
+    pd_printf("Got a DHCP request without any DHCP message... Ignored.");
     return(0);
   }
   if ((dhcpmsg == 1) || (dhcpmsg == 3)) { /* DISCOVER or REQUEST */
       uint32_t clientip;
       int y;
-      printf("Got a DHCP request from %02X:%02X:%02X:%02X:%02X:%02X\n", dhcpclientmac[0], dhcpclientmac[1], dhcpclientmac[2], dhcpclientmac[3], dhcpclientmac[4], dhcpclientmac[5]);
+      pd_printf("Got a DHCP request from %02X:%02X:%02X:%02X:%02X:%02X\n", dhcpclientmac[0], dhcpclientmac[1], dhcpclientmac[2], dhcpclientmac[3], dhcpclientmac[4], dhcpclientmac[5]);
       /* compute an 'OFFER' answer */
       clientip = compute_client_ip(arptable, dhcpclientmac, myip & mynetmask); /* find the IP to assign to the client */
       x = 0;

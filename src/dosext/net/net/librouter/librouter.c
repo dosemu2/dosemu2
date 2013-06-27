@@ -23,7 +23,6 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
@@ -36,14 +35,15 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/select.h>
-
-#include "slirp.c"
-#include "arp.c"
-#include "netparse.c"
-#include "forgehdr.c"
-#include "processpkt.c"
+#include "emu.h"
+#include "slirp.h"
+#include "netparse.h"
+#include "arp.h"
+#include "forgehdr.h"
+#include "processpkt.h"
 #include "librouter.h"  /* include self for control */
 
+#define printf pd_printf
 
 
 /* returns a socket that can be monitored for new incoming packets. Returns -1 on error. */
@@ -81,7 +81,7 @@ int librouter_init(char *slirpexec) {
   /* now that slirp is open, we compute a socketpair, return one end of the pair to the caller, and fork off to work on the other end */
 
   if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
-    puts("opening stream socket pair failed");
+    pd_printf("opening stream socket pair failed");
     return(-1);
   }
 
@@ -159,5 +159,4 @@ int librouter_init(char *slirpexec) {
         } /* for (;;) */
      }
   }
-
 }

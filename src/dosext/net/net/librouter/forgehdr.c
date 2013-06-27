@@ -16,6 +16,7 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
+#include <inttypes.h>
 #include "forgehdr.h"  /* include self for control */
 
 void forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *bufflen) {

@@ -16,8 +16,12 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-#include "dhcp.c"
-
+#include <inttypes.h>
+#include <unistd.h>
+#include "netparse.h"
+#include "slirp.h"
+#include "arp.h"
+#include "dhcp.h"
 #include "processpkt.h"  /* include self for control */
 
 static uint32_t iparr2uint(uint8_t *iparr) {

@@ -28,16 +28,19 @@
 
 
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <inttypes.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <string.h>
+#include <errno.h>
+#include "emu.h"
 #include "slirp.h"  /* include self for control */
 
 #define READ 0
 #define WRITE 1
-
+#define printf pd_printf
 
 static pid_t popen2(const char *command, int *slirpfd) {
   pid_t pid;
@@ -65,11 +68,11 @@ static pid_t popen2(const char *command, int *slirpfd) {
       close(slirpfd[0]);
 
       if (dup2(slirpfd[1], STDIN_FILENO) == -1) {
-        fprintf(stderr, "dup2() failed: %s\n", strerror(errno));
+        printf("dup2() failed: %s\n", strerror(errno));
       }
       /* slirp seems to use stdin bidirectionally instead of using stdout for SLIP output (?) */
       if (dup2(slirpfd[1], STDOUT_FILENO) == -1) {
-        fprintf(stderr, "dup2() failed: %s\n", strerror(errno));
+        printf("dup2() failed: %s\n", strerror(errno));
       }
 
       /* redirect stderr to null, because slirp uses stderr to print out its own infos, and I don't want this stuff to be printed on user's console as coming from dosemu */
@@ -79,7 +82,7 @@ static pid_t popen2(const char *command, int *slirpfd) {
       }
 
       if (execlp(command, command, NULL) < 0) {
-        fprintf(stderr, "execlp() failed when calling '%s': %s\n", command, strerror(errno));
+        printf("execlp() failed when calling '%s': %s\n", command, strerror(errno));
       }
       exit(0); /* we need the child to die if it doesn't work properly, otherwise the user would end up with two DOSemu consoles on his desktop */
   }
@@ -91,7 +94,7 @@ static pid_t popen2(const char *command, int *slirpfd) {
 
 int slirp_open(char *slirpcmd, int *slirpfd) {
   if (popen2(slirpcmd, slirpfd) <= 0) {
-    puts("Unable to exec slirp");
+    pd_printf("Unable to exec slirp");
     return(-1);
   }
   return(0);
