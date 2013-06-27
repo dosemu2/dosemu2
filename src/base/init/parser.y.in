@@ -618,7 +618,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| IPXNETWORK int_bool	{ config.ipx_net = $2; }
 		| PKTDRIVER bool
 		    {
-		      if (config.vnet == VNET_TYPE_TAP || $2 == 0 || is_in_allowed_classes(CL_NET)) {
+		      if (config.vnet == VNET_TYPE_TAP || config.vnet == VNET_TYPE_SLIRP || $2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
 				($2) ? "enabled" : "disabled");
@@ -2006,6 +2006,10 @@ static void start_disk(void)
 static void start_vnet(char *mode) {
   if (strcmp(mode, "tap") == 0) {
     config.vnet = VNET_TYPE_TAP;
+    return;
+  }
+  if (strcmp(mode, "slirp") == 0) {
+    config.vnet = VNET_TYPE_SLIRP;
     return;
   }
   IFCLASS(CL_NET) {}

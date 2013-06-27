@@ -38,6 +38,9 @@
 #include "dosnet.h"
 #include "pktdrvr.h"
 
+/* librouter is used for usernet networking (using slirp as a backend) */
+#include "librouter/librouter.h"
+
 static int tun_alloc(char *dev);
 
 static unsigned short int DosnetID = 0xffff;
@@ -82,6 +85,11 @@ int OpenNetworkLink(char *name, unsigned short netid)
 		receive_mode = 6;
 		return tun_alloc(name);
 	}
+
+        if (config.vnet == VNET_TYPE_SLIRP) {
+                receive_mode = 6;
+                return librouter_init(name);
+        }
 
 	proto = htons(netid);
 
@@ -154,7 +162,7 @@ CloseNetworkLink(int sock)
 int
 GetDeviceHardwareAddress(char *device, unsigned char *addr)
 {
-	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP) {
+	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP || config.vnet == VNET_TYPE_SLIRP) {
 		/* This routine is totally local; doesn't make
 		   request to actual device. */
 		int i;

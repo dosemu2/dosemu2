@@ -371,6 +371,7 @@ emulate(int argc, char **argv)
 #endif
 #endif
 #endif
+
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
     print_version();            /* log version information */
@@ -381,7 +382,7 @@ emulate(int argc, char **argv)
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
     SIG_init();			/* priv part of the signal init */
-    pkt_priv_init();
+    pkt_priv_init();            /* initialize the packet driver interface */
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_init.h"

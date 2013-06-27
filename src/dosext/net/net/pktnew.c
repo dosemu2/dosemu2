@@ -140,6 +140,8 @@ void pkt_priv_init(void)
       case VNET_TYPE_DSN:
 	strcpy(devname, DOSNET_DEVICE);
 	break;
+      case VNET_TYPE_SLIRP:
+        break;
       case VNET_TYPE_TAP:
 	strcpy(devname, TAP_DEVICE);
 	if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
@@ -149,12 +151,21 @@ void pkt_priv_init(void)
 	break;
     }
 
-    ret = Open_sockets(devname);
-    if (ret < 0) {
-      warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
-      pktdrvr_installed = -1;
+    if (config.vnet == VNET_TYPE_SLIRP) {
+        ret = Open_sockets(config.netdev);
+        if (ret < 0) {
+          warn("PKT: Cannot open slirp channel: %s\n", strerror(errno));
+          pktdrvr_installed = -1;
+        }
+        pd_printf("PKT: Using backend %s\n", config.netdev);
+      } else {
+        ret = Open_sockets(devname);
+        if (ret < 0) {
+          warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
+          pktdrvr_installed = -1;
+        }
+        pd_printf("PKT: Using device %s\n", devname);
     }
-    pd_printf("PKT: Using device %s\n", devname);
 }
 
 void
