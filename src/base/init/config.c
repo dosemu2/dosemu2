@@ -688,6 +688,14 @@ static void config_post_process(const char *usedoptions)
         free(keymap_load_base_path);
     keymap_load_base_path = NULL;
     dexe_load_path = NULL;
+
+    if (config.sound == -1) {
+#ifdef SDL_SUPPORT
+      config.sound = load_plugin("sdl") ? 2 : 1;
+#else
+      config.sound = 1;
+#endif
+    }
 }
 
 static config_scrub_t config_scrub_func[100];

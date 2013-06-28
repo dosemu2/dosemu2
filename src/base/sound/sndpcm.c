@@ -44,7 +44,7 @@
 
 #define SND_BUFFER_SIZE 200000	/* enough to hold 2.2s of 44100/stereo */
 #define RAW_BUFFER_SIZE 400000	/* can hold 2.2s of 44100/stereo/16bit */
-#define BUFFER_DELAY 200000.0
+#define BUFFER_DELAY 40000.0
 
 enum {
     SNDBUF_STATE_INACTIVE,
