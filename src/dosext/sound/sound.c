@@ -2507,12 +2507,6 @@ static void sb_check_complete (void)
 
 void sound_init(void)
 {
-  if (config.sound == -1)
-#ifdef SDL_SUPPORT
-    config.sound = load_plugin("sdl") ? 2 : 1;
-#else
-    config.sound = 1;
-#endif
   if (config.sound == 2) {
     sound_new_init();
     return;
@@ -2521,6 +2515,7 @@ void sound_init(void)
     sb_init();
     fm_init();
     mpu401_init();
+    return;
   }
 }
 
