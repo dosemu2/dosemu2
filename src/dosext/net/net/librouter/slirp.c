@@ -35,14 +35,14 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/prctl.h>
 #include "emu.h"
 #include "slirp.h"  /* include self for control */
 
-#define READ 0
-#define WRITE 1
 #define printf pd_printf
 
-static pid_t popen2(const char *command, int *slirpfd) {
+
+static pid_t slirp_popen2(const char *command, int *slirpfd) {
   pid_t pid;
   int flags;
 
@@ -51,7 +51,7 @@ static pid_t popen2(const char *command, int *slirpfd) {
     return(-1);
   }
 
-  /* mark our end of the pipe non-blocking because of the timer based poll */
+  /* mark our end of the pipe non-blocking */
   flags = fcntl(slirpfd[0], F_GETFL);
   if (flags == -1) printf("fcntl(,F_GETFL) failed: %s\n", strerror(errno));
   flags |= O_NONBLOCK;
@@ -63,6 +63,8 @@ static pid_t popen2(const char *command, int *slirpfd) {
       return(pid);
     } else if (pid == 0) { /* child process */
       int nfd;
+
+      prctl(PR_SET_PDEATHSIG, SIGHUP); /* Asking the kernel to kill me if my parent dies */
 
       /* close the parent's end of the socket, to avoid writing any garbage to it by mistake */
       close(slirpfd[0]);
@@ -81,9 +83,20 @@ static pid_t popen2(const char *command, int *slirpfd) {
         dup2(nfd, STDERR_FILENO);
       }
 
-      if (execlp(command, command, NULL) < 0) {
+      if (command != NULL) { /* if the user provided an executable, run it */
+        if (execlp(command, command, NULL) < 0) {
+          printf("execlp() failed when calling '%s': %s\n", command, strerror(errno));
+        }
+      }
+      /* if above command hasn't worked, or user haven't provided any command, try a hardcoded value */
+      if (execlp("slirp-fullbolt", "slirp-fullbolt", NULL) < 0) {
         printf("execlp() failed when calling '%s': %s\n", command, strerror(errno));
       }
+      /* if above command hasn't worked, try another hardcoded value */
+      if (execlp("slirp", "slirp", NULL) < 0) {
+        printf("execlp() failed when calling '%s': %s\n", command, strerror(errno));
+      }
+
       exit(0); /* we need the child to die if it doesn't work properly, otherwise the user would end up with two DOSemu consoles on his desktop */
   }
   close(slirpfd[1]);
@@ -93,12 +106,30 @@ static pid_t popen2(const char *command, int *slirpfd) {
 
 
 int slirp_open(char *slirpcmd, int *slirpfd) {
-  if (popen2(slirpcmd, slirpfd) <= 0) {
+  int x, notemptyflag = 0;
+  /* check if slirpcmd contains any non-empty chars */
+  if (slirpcmd != NULL) {
+    for (x = 0; (slirpcmd[x] != 0) && (notemptyflag == 0); x++) {
+      switch (slirpcmd[x]) {
+        case ' ':
+        case '\r':
+        case '\n':
+        case '\t':
+          break;
+        default:
+          notemptyflag = 1;
+          break;
+      }
+    }
+    if (notemptyflag == 0) slirpcmd = NULL; /* if the string is empty, force its pointer to NULL */
+  }
+  if (slirp_popen2(slirpcmd, slirpfd) <= 0) {
     pd_printf("Unable to exec slirp");
     return(-1);
   }
   return(0);
 }
+
 
 void slirp_close(int *slirpfd) {
   close(slirpfd[0]);
@@ -140,7 +171,7 @@ int slirp_read(uint8_t *buff, int slirpfd) {
   int x;
   /* puts("slirp_read()"); */
   for (x = 0;; x++) {
-    read(slirpfd, &buff[x], 1);
+    if (read(slirpfd, &buff[x], 1) != 1) return(-1);
     if (buff[x] == 192) return(x);
     if (buff[x] == 219) {
       read(slirpfd, &buff[x], 1);
