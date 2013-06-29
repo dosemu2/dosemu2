@@ -23,7 +23,7 @@ HFILES = arp.h dhcp.h forgehdr.h librouter.h netparse.h processpkt.h slirp.h
 DEPENDS= $(CFILES:.c=.d)
 OBJS=$(CFILES:.c=.o)
 
-ALL = $(CFILES) $(HFILES)
+ALL = $(CFILES) $(HFILES) readme.txt
 
 
 all:  lib
