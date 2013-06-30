@@ -61,7 +61,6 @@ static void pkt_receiver_callback(void);
 static void pkt_receiver_callback_thr(void *arg);
 static Bit32u PKTRcvCall_TID;
 
-int pkt_fd = -1;
 static int pktdrvr_installed;
 
 unsigned short receive_mode;
@@ -118,7 +117,7 @@ Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
-static char devname[10];
+static char devname[256];
 
 /************************************************************************/
 
@@ -165,7 +164,7 @@ pkt_init(void)
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
 
-    add_to_io_select(pkt_fd, pkt_receive_async, NULL);
+    pkt_io_select(pkt_receive_async, NULL);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
@@ -410,12 +409,12 @@ pkt_int (void)
 		    }
 	}
 
-	if (write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
+	if (pkt_write(SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
 		    return 1;
 	} else {
-		    warn("WriteToNetwork(%d,buffer,%u): error %d\n",
-			 pkt_fd, LWORD(ecx), errno);
+		    warn("WriteToNetwork(len=%u): error %d\n",
+			 LWORD(ecx), errno);
 		    break;
 	}
 
@@ -506,9 +505,9 @@ static int
 Open_sockets(char *name)
 {
     /* The socket for normal packets */
-    pkt_fd = OpenNetworkLink(name);
-    if (pkt_fd < 0)
-	return pkt_fd;
+    int ret = OpenNetworkLink(name);
+    if (ret < 0)
+	return ret;
 
     local_receive_mode = receive_mode;
     pd_printf("PKT: detected receive mode %i\n", receive_mode);
@@ -606,32 +605,19 @@ static int pkt_receive(void)
 {
     int size, handle;
     struct per_handle *hdlp;
-    struct timeval tv;
-    fd_set readset;
 
     if (!pktdrvr_installed) {
         pd_printf("Driver not initialized ...\n");
 	return 0;
     }
 
-    tv.tv_sec = 0;				/* set a (small) timeout */
-    tv.tv_usec = 0;
-
-    /* anything ready? */
-    FD_ZERO(&readset);
-    FD_SET(pkt_fd, &readset);
-    /* anything ready? */
-    if (select(pkt_fd + 1, &readset, NULL, NULL, &tv) <= 0)
-        return 0;
-
-    if(!FD_ISSET(pkt_fd, &readset))
-        return 0;
-
-    size = read(pkt_fd, pkt_buf, PKT_BUF_SIZE);
+    size = pkt_read(pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
         return 0;
     }
+    if (size == 0)
+	return 0;
 
     pd_printf("========Processing New packet======\n");
     handle = Find_Handle(pkt_buf);
