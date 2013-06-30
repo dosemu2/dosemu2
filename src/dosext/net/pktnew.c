@@ -163,8 +163,6 @@ pkt_init(void)
       goto fail;
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
-
-    pkt_io_select(pkt_receive_async, NULL);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
@@ -594,13 +592,6 @@ out:
     REGS = rcv_saved_regs;
 }
 
-void pkt_receive_async(void *arg)
-{
-  if (local_receive_mode == 1)
-    return;
-  pic_request(PIC_NET);
-}
-
 static int pkt_receive(void)
 {
     int size, handle;
@@ -610,6 +601,8 @@ static int pkt_receive(void)
         pd_printf("Driver not initialized ...\n");
 	return 0;
     }
+    if (local_receive_mode == 1)
+	return 0;
 
     size = pkt_read(pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
