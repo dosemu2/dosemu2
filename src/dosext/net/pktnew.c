@@ -130,6 +130,7 @@ void pkt_priv_init(void)
     if (!config.pktdrv)
       return;
 
+    LibpacketInit();
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
     switch (config.vnet) {

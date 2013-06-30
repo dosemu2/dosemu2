@@ -17,8 +17,10 @@
  *
  */
 
-#define VNET_TYPE_ETH 0
-#define VNET_TYPE_TAP 2
+enum {
+	VNET_TYPE_ETH,
+	VNET_TYPE_TAP,
+};
 
 #define F_DRIVER_INFO	1
 #define F_ACCESS_TYPE	2
