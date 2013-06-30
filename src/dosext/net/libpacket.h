@@ -6,7 +6,7 @@
 
 void LibpacketInit(void);
 int OpenNetworkLink(char *);
-void CloseNetworkLink(int);
+void CloseNetworkLink(void);
 int GetDeviceHardwareAddress(char *, unsigned char *);
 int GetDeviceMTU(char *);
 

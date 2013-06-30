@@ -20,6 +20,7 @@
 enum {
 	VNET_TYPE_ETH,
 	VNET_TYPE_TAP,
+	VNET_TYPE_MAX,
 };
 
 #define F_DRIVER_INFO	1
