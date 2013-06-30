@@ -35,13 +35,14 @@
 #include "emu.h"
 #include "priv.h"
 #include "libpacket.h"
-#include "dosnet.h"
 #include "pktdrvr.h"
 
 static int tun_alloc(char *dev);
 
 static unsigned short int DosnetID = 0xffff;
 char local_eth_addr[6] = {0,0,0,0,0,0};
+#define DOSNET_TYPE_BASE        0x9000
+#define DOSNET_FAKED_ETH_ADDRESS   "dbx\x90xx"
 
 /* Should return a unique ID corresponding to this invocation of
    dosemu not clashing with other dosemus. We use a random value and
@@ -154,7 +155,7 @@ CloseNetworkLink(int sock)
 int
 GetDeviceHardwareAddress(char *device, unsigned char *addr)
 {
-	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP) {
+	if (config.vnet == VNET_TYPE_TAP) {
 		/* This routine is totally local; doesn't make
 		   request to actual device. */
 		int i;
