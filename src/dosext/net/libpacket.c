@@ -54,7 +54,6 @@ struct pkt_ops {
     void (*close)(void);
     int (*get_hw_addr)(char *device, unsigned char *addr);
     int (*get_MTU)(char *device);
-    void (*io_select)(void(*callback)(void *), void *arg);
     ssize_t (*pkt_read)(void *buf, size_t count);
     ssize_t (*pkt_write)(const void *buf, size_t count);
 };
@@ -70,6 +69,11 @@ static void GenerateDosnetID(void)
 {
 	DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
 	pd_printf("Assigned DosnetID=%x\n", DosnetID);
+}
+
+static void pkt_receive_req(void *arg)
+{
+  pic_request(PIC_NET);
 }
 
 /*
@@ -127,6 +131,9 @@ static int OpenNetworkLinkEth(char *name)
 		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
 
 	pkt_fd = s;
+
+	add_to_io_select(pkt_fd, pkt_receive_req, NULL);
+
 	return 0;
 }
 
@@ -134,6 +141,9 @@ static int OpenNetworkLinkTap(char *name)
 {
 	receive_mode = 6;
 	pkt_fd = tun_alloc(name);
+	if (pkt_fd < 0)
+		return pkt_fd;
+	add_to_io_select(pkt_fd, pkt_receive_req, NULL);
 	return 0;
 }
 
@@ -290,16 +300,6 @@ static int tun_alloc(char *dev)
       return fd;
 }
 
-static void pkt_io_select_eth(void(*callback)(void *), void *arg)
-{
-    add_to_io_select(pkt_fd, callback, arg);
-}
-
-void pkt_io_select(void(*callback)(void *), void *arg)
-{
-    ops[config.vnet].io_select(callback, arg);
-}
-
 static ssize_t pkt_read_eth(void *buf, size_t count)
 {
     struct timeval tv;
@@ -342,7 +342,6 @@ void LibpacketInit(void)
 	ops[VNET_TYPE_ETH].close = CloseNetworkLinkEth;
 	ops[VNET_TYPE_ETH].get_hw_addr = GetDeviceHardwareAddressEth;
 	ops[VNET_TYPE_ETH].get_MTU = GetDeviceMTUEth;
-	ops[VNET_TYPE_ETH].io_select = pkt_io_select_eth;
 	ops[VNET_TYPE_ETH].pkt_read = pkt_read_eth;
 	ops[VNET_TYPE_ETH].pkt_write = pkt_write_eth;
 
@@ -350,7 +349,6 @@ void LibpacketInit(void)
 	ops[VNET_TYPE_TAP].close = CloseNetworkLinkEth;
 	ops[VNET_TYPE_TAP].get_hw_addr = GetDeviceHardwareAddressTap;
 	ops[VNET_TYPE_TAP].get_MTU = GetDeviceMTUEth;
-	ops[VNET_TYPE_TAP].io_select = pkt_io_select_eth;
 	ops[VNET_TYPE_TAP].pkt_read = pkt_read_eth;
 	ops[VNET_TYPE_TAP].pkt_write = pkt_write_eth;
 
