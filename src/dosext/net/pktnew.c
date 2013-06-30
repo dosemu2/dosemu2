@@ -504,11 +504,8 @@ pkt_int (void)
 static int
 Open_sockets(char *name)
 {
-    GenerateDosnetID();
-
     /* The socket for normal packets */
-    pkt_fd = OpenNetworkLink(name,
-      config.vnet == VNET_TYPE_ETH ? ETH_P_ALL : GetDosnetID());
+    pkt_fd = OpenNetworkLink(name);
     if (pkt_fd < 0)
 	return pkt_fd;
 

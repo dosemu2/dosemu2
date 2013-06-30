@@ -5,9 +5,7 @@
  */
 
 
-int OpenNetworkLink(char *, unsigned short);
+int OpenNetworkLink(char *);
 void CloseNetworkLink(int);
 int GetDeviceHardwareAddress(char *, unsigned char *);
 int GetDeviceMTU(char *);
-int GetDosnetID(void);
-void GenerateDosnetID(void);
