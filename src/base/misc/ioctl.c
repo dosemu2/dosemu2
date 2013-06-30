@@ -198,23 +198,17 @@ int i;
 void
 add_to_io_select(int new_fd, void (*func)(void *), void *arg)
 {
+    int flags;
     if ((new_fd+1) > numselectfd) numselectfd = new_fd+1;
     if (numselectfd > MAX_FD) {
 	error("Too many IO fds used.\n");
 	leavedos(76);
     }
-    if (1) {
-	int             flags;
-	flags = fcntl(new_fd, F_GETFL);
-	fcntl(new_fd, F_SETOWN, getpid());
-	fcntl(new_fd, F_SETFL, flags | O_ASYNC);
-	FD_SET(new_fd, &fds_sigio);
-	g_printf("GEN: fd=%d gets SIGIO\n", new_fd);
-    } else {
-	FD_SET(new_fd, &fds_no_sigio);
-	g_printf("GEN: fd=%d does not get SIGIO\n", new_fd);
-	not_use_sigio++;
-    }
+    flags = fcntl(new_fd, F_GETFL);
+    fcntl(new_fd, F_SETOWN, getpid());
+    fcntl(new_fd, F_SETFL, flags | O_ASYNC);
+    FD_SET(new_fd, &fds_sigio);
+    g_printf("GEN: fd=%d gets SIGIO\n", new_fd);
     io_callback_func[new_fd].func = func;
     io_callback_func[new_fd].arg = arg;
 }
@@ -232,25 +226,18 @@ add_to_io_select(int new_fd, void (*func)(void *), void *arg)
  *
  * DANG_END_FUNCTION
  */
-void
-remove_from_io_select(int new_fd, u_char used_sigio)
+void remove_from_io_select(int new_fd)
 {
+    int flags;
     if (new_fd < 0) {
 	g_printf("GEN: removing bogus fd %d (ignoring)\n", new_fd);
 	return;
     }
-    if (used_sigio) {
-	int             flags;
-	flags = fcntl(new_fd, F_GETFL);
-	fcntl(new_fd, F_SETOWN, NULL);
-	fcntl(new_fd, F_SETFL, flags & ~O_ASYNC);
-	FD_CLR(new_fd, &fds_sigio);
-	g_printf("GEN: fd=%d removed from select SIGIO\n", new_fd);
-    } else {
-	FD_CLR(new_fd, &fds_no_sigio);
-	g_printf("GEN: fd=%d removed from select\n", new_fd);
-	not_use_sigio++;
-    }
+    flags = fcntl(new_fd, F_GETFL);
+    fcntl(new_fd, F_SETOWN, NULL);
+    fcntl(new_fd, F_SETFL, flags & ~O_ASYNC);
+    FD_CLR(new_fd, &fds_sigio);
+    g_printf("GEN: fd=%d removed from select SIGIO\n", new_fd);
     io_callback_func[new_fd].func = NULL;
 }
 

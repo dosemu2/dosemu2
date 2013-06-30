@@ -156,7 +156,7 @@ static void midomidid_done(void)
     if (midid_pid == -1)
 	return;
     if (timid_capt) {
-	remove_from_io_select(pipe_in[0], 1);
+	remove_from_io_select(pipe_in[0]);
     }
     close(pipe_out[1]);
     close(pipe_in[0]);

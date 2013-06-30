@@ -491,7 +491,7 @@ static void parent_close_mouse (void)
   if (mice->intdrv)
      {
 	if (mice->fd > 0) {
-   	   remove_from_io_select(mice->fd, 1);
+   	   remove_from_io_select(mice->fd);
            (void)DOS_SYSCALL(close (mice->fd));
 	}
     }
@@ -555,7 +555,7 @@ void freeze_mouse(void)
   mouse_t *mice = &config.mouse;
   if (mouse_frozen || mice->fd == -1)
     return;
-  remove_from_io_select(mice->fd, 1);
+  remove_from_io_select(mice->fd);
   mouse_frozen = 1;
 }
 

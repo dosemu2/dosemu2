@@ -166,6 +166,7 @@ int OpenNetworkLink(char *name)
 
 static void CloseNetworkLinkEth(void)
 {
+	remove_from_io_select(pkt_fd);
 	close(pkt_fd);
 }
 
