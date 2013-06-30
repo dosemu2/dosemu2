@@ -398,7 +398,6 @@ dnl but only vm86plus
    USE_MHPDBG="USE_MHPDBG=1"
    AC_SUBST(USE_MHPDBG)
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-   OPTIONALSUBDIRS="dosext/net/v-net"
    REQUIRED="tools commands tools/periph"
 fi
 AC_SUBST(DEBUGGER)
