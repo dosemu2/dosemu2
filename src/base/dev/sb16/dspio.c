@@ -546,6 +546,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	    state->output_time_cur += out_fifo_cnt *
 		    pcm_frame_period_us(state->dma.rate);
 	} else {
+	    S_printf("SB: Warning: rate not set?\n");
 	    state->output_time_cur = time_dst;
 	}
     }

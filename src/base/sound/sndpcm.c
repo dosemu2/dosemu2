@@ -511,11 +511,11 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 	    pcm_handle_write(strm_idx, samp.tstamp);
 	}
     }
-    players.clocked.player.unlock();
 //S_printf("PCM: time=%f\n", samp.tstamp);
 
     if (!pcm.playing)
 	pcm_start_output();
+    players.clocked.player.unlock();
 }
 
 static int pcm_get_samples(double time, struct sample samp[MAX_STREAMS][2],
@@ -722,15 +722,18 @@ void pcm_reset(void)
 {
     int i;
     S_printf("PCM: reset\n");
+    players.clocked.player.lock();
     if (pcm.playing)
 	pcm_stop_output();
     for (i = 0; i < pcm.num_streams; i++)
 	pcm_reset_stream(i);
+    players.clocked.player.unlock();
 }
 
 void pcm_done(void)
 {
     int i;
+    players.clocked.player.lock();
     for (i = 0; i < pcm.num_streams; i++)
 	if (pcm.stream[i].state == SNDBUF_STATE_PLAYING)
 	    pcm_flush(i);
@@ -741,4 +744,5 @@ void pcm_done(void)
 	players.unclocked[i].player.close();
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
+    players.clocked.player.unlock();
 }
