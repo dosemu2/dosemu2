@@ -44,6 +44,8 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 #define DOSNET_TYPE_BASE        0x9000
 #define DOSNET_FAKED_ETH_ADDRESS   "dbx\x90xx"
 
+static int pkt_fd = -1;
+
 /* Should return a unique ID corresponding to this invocation of
    dosemu not clashing with other dosemus. We use a random value and
    hope for the best.
@@ -116,13 +118,15 @@ static int OpenNetworkLinkEth(char *name)
 	receive_mode = (req.ifr_flags & IFF_PROMISC) ? 6 :
 		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
 
-	return s;
+	pkt_fd = s;
+	return 0;
 }
 
 static int OpenNetworkLinkTap(char *name)
 {
 	receive_mode = 6;
-	return tun_alloc(name);
+	pkt_fd = tun_alloc(name);
+	return 0;
 }
 
 int OpenNetworkLink(char *name)
@@ -141,10 +145,18 @@ int OpenNetworkLink(char *name)
  *	Close a file handle to a raw packet type.
  */
 
-void
-CloseNetworkLink(int sock)
+static void CloseNetworkLinkEth(void)
 {
-	close(sock);
+	close(pkt_fd);
+}
+
+void CloseNetworkLink(int sock)
+{
+	switch (config.vnet) {
+	case VNET_TYPE_TAP:
+	case VNET_TYPE_ETH:
+		CloseNetworkLinkEth();
+	}
 }
 
 /*
@@ -282,4 +294,64 @@ static int tun_alloc(char *dev)
       strcpy(dev, ifr.ifr_name);
 
       return fd;
+}
+
+static void pkt_io_select_eth(void(*callback)(void *), void *arg)
+{
+    add_to_io_select(pkt_fd, callback, arg);
+}
+
+void pkt_io_select(void(*callback)(void *), void *arg)
+{
+    switch (config.vnet) {
+    case VNET_TYPE_TAP:
+    case VNET_TYPE_ETH:
+	pkt_io_select_eth(callback, arg);
+    }
+}
+
+static ssize_t pkt_read_eth(void *buf, size_t count)
+{
+    struct timeval tv;
+    fd_set readset;
+
+    tv.tv_sec = 0;				/* set a (small) timeout */
+    tv.tv_usec = 0;
+
+    /* anything ready? */
+    FD_ZERO(&readset);
+    FD_SET(pkt_fd, &readset);
+    /* anything ready? */
+    if (select(pkt_fd + 1, &readset, NULL, NULL, &tv) <= 0)
+        return 0;
+
+    if(!FD_ISSET(pkt_fd, &readset))
+        return 0;
+
+    return read(pkt_fd, buf, count);
+}
+
+ssize_t pkt_read(void *buf, size_t count)
+{
+    switch (config.vnet) {
+    case VNET_TYPE_TAP:
+    case VNET_TYPE_ETH:
+	return pkt_read_eth(buf, count);
+    }
+    return -1;
+}
+
+static ssize_t pkt_write_eth(const void *buf, size_t count)
+{
+    return write(pkt_fd, buf, count);
+}
+
+ssize_t pkt_write(const void *buf, size_t count)
+{
+    switch (config.vnet) {
+    case VNET_TYPE_TAP:
+    case VNET_TYPE_ETH:
+	return pkt_write_eth(buf, count);
+    }
+    return -1;
 }
