@@ -348,12 +348,14 @@ static void pcm_start_output(void)
     players.clocked.time = 0;
     players.clocked.player.start();
     pcm.playing = 1;
+    S_printf("PCM: output started\n");
 }
 
 static void pcm_stop_output(void)
 {
     players.clocked.player.stop();
     pcm.playing = 0;
+    S_printf("PCM: output stopped\n");
 }
 
 static void pcm_handle_get(int strm_idx, double time)
