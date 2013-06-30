@@ -440,10 +440,10 @@ static void sb_dsp_reset(void)
     sb.command_idx = 0;
     sb.E2Count = 0;
     sb.reset_val = 0xaa;
+    sb.rate = 32000;	// NFS in sbpro mode needs this rate
 /* the following must not be zeroed out */
 #if 0
     sb.mixer_index = 0;
-    sb.rate = 0;
 #endif
 }
 
@@ -981,14 +981,14 @@ static void sb_mixer_write(Bit8u value)
 	/* 0x0C is ignored - sets record source and a filter */
 	if (!(value & 32)) {
 	    S_printf("SB: Warning: Input filter is not supported!\n");
-	    value |= 32;
+//	    value |= 32;
 	}
 	break;
 
     case 0x0E:
 	if (!(value & 32)) {
 	    S_printf("SB: Warning: Output filter is not supported!\n");
-	    value |= 32;
+//	    value |= 32;
 	}
 	break;
 
@@ -1013,6 +1013,8 @@ static void sb_mixer_write(Bit8u value)
 		 sb.mixer_index);
 	break;
     }
+
+    S_printf("SB: write mixer reg %#x val=%#x\n", sb.mixer_index, value);
     sb.mixer_regs[sb.mixer_index] = value;
 }
 
