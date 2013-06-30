@@ -46,6 +46,18 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 
 static int pkt_fd = -1;
 
+struct pkt_ops {
+    int (*open)(char *name);
+    void (*close)(void);
+    int (*get_hw_addr)(char *device, unsigned char *addr);
+    int (*get_MTU)(char *device);
+    void (*io_select)(void(*callback)(void *), void *arg);
+    ssize_t (*pkt_read)(void *buf, size_t count);
+    ssize_t (*pkt_write)(const void *buf, size_t count);
+};
+
+static struct pkt_ops ops[VNET_TYPE_MAX];
+
 /* Should return a unique ID corresponding to this invocation of
    dosemu not clashing with other dosemus. We use a random value and
    hope for the best.
@@ -55,12 +67,6 @@ static void GenerateDosnetID(void)
 {
 	DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
 	pd_printf("Assigned DosnetID=%x\n", DosnetID);
-}
-
-void LibpacketInit(void)
-{
-
-	GenerateDosnetID();
 }
 
 /*
@@ -132,13 +138,7 @@ static int OpenNetworkLinkTap(char *name)
 int OpenNetworkLink(char *name)
 {
 
-	switch (config.vnet) {
-	case VNET_TYPE_TAP:
-	    return OpenNetworkLinkTap(name);
-	case VNET_TYPE_ETH:
-	    return OpenNetworkLinkEth(name);
-	}
-	return -1;
+	return ops[config.vnet].open(name);
 }
 
 /*
@@ -150,13 +150,9 @@ static void CloseNetworkLinkEth(void)
 	close(pkt_fd);
 }
 
-void CloseNetworkLink(int sock)
+void CloseNetworkLink(void)
 {
-	switch (config.vnet) {
-	case VNET_TYPE_TAP:
-	case VNET_TYPE_ETH:
-		CloseNetworkLinkEth();
-	}
+	ops[config.vnet].close();
 }
 
 /*
@@ -219,13 +215,7 @@ static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
 
 int GetDeviceHardwareAddress(char *device, unsigned char *addr)
 {
-	switch (config.vnet) {
-	case VNET_TYPE_TAP:
-		return GetDeviceHardwareAddressTap(device, addr);
-	case VNET_TYPE_ETH:
-		return GetDeviceHardwareAddressEth(device, addr);
-	}
-	return -1;
+	return ops[config.vnet].get_hw_addr(device, addr);
 }
 
 /*
@@ -253,12 +243,7 @@ static int GetDeviceMTUEth(char *device)
 
 int GetDeviceMTU(char *device)
 {
-	switch (config.vnet) {
-	case VNET_TYPE_TAP:
-	case VNET_TYPE_ETH:
-		return GetDeviceMTUEth(device);
-	}
-	return -1;
+	return ops[config.vnet].get_MTU(device);
 }
 
 static int tun_alloc(char *dev)
@@ -303,11 +288,7 @@ static void pkt_io_select_eth(void(*callback)(void *), void *arg)
 
 void pkt_io_select(void(*callback)(void *), void *arg)
 {
-    switch (config.vnet) {
-    case VNET_TYPE_TAP:
-    case VNET_TYPE_ETH:
-	pkt_io_select_eth(callback, arg);
-    }
+    ops[config.vnet].io_select(callback, arg);
 }
 
 static ssize_t pkt_read_eth(void *buf, size_t count)
@@ -333,12 +314,7 @@ static ssize_t pkt_read_eth(void *buf, size_t count)
 
 ssize_t pkt_read(void *buf, size_t count)
 {
-    switch (config.vnet) {
-    case VNET_TYPE_TAP:
-    case VNET_TYPE_ETH:
-	return pkt_read_eth(buf, count);
-    }
-    return -1;
+    return ops[config.vnet].pkt_read(buf, count);
 }
 
 static ssize_t pkt_write_eth(const void *buf, size_t count)
@@ -348,10 +324,26 @@ static ssize_t pkt_write_eth(const void *buf, size_t count)
 
 ssize_t pkt_write(const void *buf, size_t count)
 {
-    switch (config.vnet) {
-    case VNET_TYPE_TAP:
-    case VNET_TYPE_ETH:
-	return pkt_write_eth(buf, count);
-    }
-    return -1;
+    return ops[config.vnet].pkt_write(buf, count);
+}
+
+void LibpacketInit(void)
+{
+	ops[VNET_TYPE_ETH].open = OpenNetworkLinkEth;
+	ops[VNET_TYPE_ETH].close = CloseNetworkLinkEth;
+	ops[VNET_TYPE_ETH].get_hw_addr = GetDeviceHardwareAddressEth;
+	ops[VNET_TYPE_ETH].get_MTU = GetDeviceMTUEth;
+	ops[VNET_TYPE_ETH].io_select = pkt_io_select_eth;
+	ops[VNET_TYPE_ETH].pkt_read = pkt_read_eth;
+	ops[VNET_TYPE_ETH].pkt_write = pkt_write_eth;
+
+	ops[VNET_TYPE_TAP].open = OpenNetworkLinkTap;
+	ops[VNET_TYPE_TAP].close = CloseNetworkLinkEth;
+	ops[VNET_TYPE_TAP].get_hw_addr = GetDeviceHardwareAddressTap;
+	ops[VNET_TYPE_TAP].get_MTU = GetDeviceMTUEth;
+	ops[VNET_TYPE_TAP].io_select = pkt_io_select_eth;
+	ops[VNET_TYPE_TAP].pkt_read = pkt_read_eth;
+	ops[VNET_TYPE_TAP].pkt_write = pkt_write_eth;
+
+	GenerateDosnetID();
 }
