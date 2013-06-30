@@ -356,7 +356,6 @@ void LibpacketInit(void)
 	/* FIXME: please fill .close */
 	ops[VNET_TYPE_SLIRP].get_hw_addr = GetDeviceHardwareAddressTap;
 	/* FIXME: please fill .get_MTU */
-	ops[VNET_TYPE_TAP].io_select = pkt_io_select_eth;
 	ops[VNET_TYPE_TAP].pkt_read = pkt_read_eth;
 	ops[VNET_TYPE_TAP].pkt_write = pkt_write_eth;
 
