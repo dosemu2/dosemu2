@@ -2009,10 +2009,8 @@ static void start_vnet(char *mode) {
     return;
   }
   IFCLASS(CL_NET) {}
-  if (strlen(mode) == 0 || strcmp(mode, "direct") == 0)
+  if (strcmp(mode, "eth") == 0)
     config.vnet = VNET_TYPE_ETH;
-  else if (strcmp(mode, "dosnet") == 0)
-    config.vnet = VNET_TYPE_DSN;
   else {
     error("Unknown vnet mode \"%s\"\n", mode);
     config.exitearly = 1;
