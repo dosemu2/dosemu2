@@ -19,7 +19,7 @@ include $(top_builddir)/Makefile.conf
 
 
 CFILES = ipx.c ipxglt.c libpacket.c pktnew.c
-HFILES =       libpacket.h 
+HFILES = libpacket.h
 DEPENDS= $(CFILES:.c=.d)
 OBJS=$(CFILES:.c=.o)
 
