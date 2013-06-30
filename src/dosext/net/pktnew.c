@@ -44,11 +44,11 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include "libpacket.h"
-#include "dosnet.h"
 #include "pic.h"
 #include "coopth.h"
 #include "dpmi.h"
 
+#define TAP_DEVICE  "tap%d"
 #define min(a,b)	((a) < (b)? (a) : (b))
 
 static int Open_sockets(char *name);
@@ -61,7 +61,6 @@ static void pkt_receiver_callback(void);
 static void pkt_receiver_callback_thr(void *arg);
 static Bit32u PKTRcvCall_TID;
 
-int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
 static int pktdrvr_installed;
 
 unsigned short receive_mode;
@@ -118,7 +117,7 @@ Bit16u p_helper_receiver_cs, p_helper_receiver_ip;
 short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
-static char devname[10];
+static char devname[256];
 
 /************************************************************************/
 
@@ -130,18 +129,15 @@ void pkt_priv_init(void)
     if (!config.pktdrv)
       return;
 
+    LibpacketInit();
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
     switch (config.vnet) {
       case VNET_TYPE_ETH:
+      case VNET_TYPE_SLIRP:
 	strncpy(devname, config.netdev, sizeof(devname) - 1);
 	devname[sizeof(devname) - 1] = 0;
 	break;
-      case VNET_TYPE_DSN:
-	strcpy(devname, DOSNET_DEVICE);
-	break;
-      case VNET_TYPE_SLIRP:
-        break;
       case VNET_TYPE_TAP:
 	strcpy(devname, TAP_DEVICE);
 	if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
@@ -151,21 +147,12 @@ void pkt_priv_init(void)
 	break;
     }
 
-    if (config.vnet == VNET_TYPE_SLIRP) {
-        ret = Open_sockets(config.netdev);
-        if (ret < 0) {
-          warn("PKT: Cannot open slirp channel: %s\n", strerror(errno));
-          pktdrvr_installed = -1;
-        }
-        pd_printf("PKT: Using backend %s\n", config.netdev);
-      } else {
-        ret = Open_sockets(devname);
-        if (ret < 0) {
-          warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
-          pktdrvr_installed = -1;
-        }
-        pd_printf("PKT: Using device %s\n", devname);
+    ret = Open_sockets(devname);
+    if (ret < 0) {
+      warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
+      pktdrvr_installed = -1;
     }
+    pd_printf("PKT: Using device %s\n", devname);
 }
 
 void
@@ -178,10 +165,7 @@ pkt_init(void)
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
 
-    add_to_io_select(pkt_fd, pkt_receive_async, NULL);
-    /* use dosnet device (dsn0) for virtual net */
-    if (config.vnet == VNET_TYPE_DSN)
-	add_to_io_select(pkt_broadcast_fd, pkt_receive_async, NULL);
+    pkt_io_select(pkt_receive_async, NULL);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
@@ -426,12 +410,12 @@ pkt_int (void)
 		    }
 	}
 
-	if (write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
+	if (pkt_write(SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
 		    return 1;
 	} else {
-		    warn("WriteToNetwork(%d,buffer,%u): error %d\n",
-			 pkt_fd, LWORD(ecx), errno);
+		    warn("WriteToNetwork(len=%u): error %d\n",
+			 LWORD(ecx), errno);
 		    break;
 	}
 
@@ -518,32 +502,13 @@ pkt_int (void)
     return 1;
 }
 
-/* Open two sockets for the virtual network, one for normal packets
-   and one for broadcasts. */
 static int
 Open_sockets(char *name)
 {
-    GenerateDosnetID();
-
-   /* This handle is inserted to receive packets of type "dosnet broadcast".
-      These are really speaking broadcast packets meant to be received by
-      all dosemus. Their destination addresses are changed by dosemu, and
-      are changed back to 'ffffff..' when these packets are received by dosemu.    */
-    if (config.vnet == VNET_TYPE_DSN) {
-      pkt_broadcast_fd = OpenNetworkLink(name, DOSNET_BROADCAST_TYPE);
-      if (pkt_broadcast_fd < 0)
-	return pkt_broadcast_fd;
-    }
-
     /* The socket for normal packets */
-    pkt_fd = OpenNetworkLink(name,
-      config.vnet == VNET_TYPE_ETH ? ETH_P_ALL : GetDosnetID());
-    if (pkt_fd < 0)
-	return pkt_fd;
-
-    max_pkt_fd = pkt_fd + 1;
-    if (max_pkt_fd <= pkt_broadcast_fd)
-	max_pkt_fd = pkt_broadcast_fd + 1;
+    int ret = OpenNetworkLink(name);
+    if (ret < 0)
+	return ret;
 
     local_receive_mode = receive_mode;
     pd_printf("PKT: detected receive mode %i\n", receive_mode);
@@ -639,40 +604,21 @@ void pkt_receive_async(void *arg)
 
 static int pkt_receive(void)
 {
-    int size,handle, fd;
+    int size, handle;
     struct per_handle *hdlp;
-    struct timeval tv;
-    fd_set readset;
 
     if (!pktdrvr_installed) {
         pd_printf("Driver not initialized ...\n");
 	return 0;
     }
 
-    tv.tv_sec = 0;				/* set a (small) timeout */
-    tv.tv_usec = 0;
-
-    /* anything ready? */
-    FD_ZERO(&readset);
-    FD_SET(pkt_fd, &readset);
-    if (config.vnet == VNET_TYPE_DSN) {
-      FD_SET(pkt_broadcast_fd, &readset);
-    }
-    /* anything ready? */
-    if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
-        return 0;
-
-    if(FD_ISSET(pkt_fd, &readset))
-        fd = pkt_fd;
-    else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset))
-        fd = pkt_broadcast_fd;
-    else return 0;
-
-    size = read(fd, pkt_buf, PKT_BUF_SIZE);
+    size = pkt_read(pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
         return 0;
     }
+    if (size == 0)
+	return 0;
 
     pd_printf("========Processing New packet======\n");
     handle = Find_Handle(pkt_buf);
@@ -682,18 +628,6 @@ static int pkt_receive(void)
 
     hdlp = &pg.handle[handle];
     if (hdlp->in_use) {
-            /* VINOD: If it is broadcast type, translate it back ... */
-	    if (config.vnet == VNET_TYPE_DSN && memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
-		pd_printf("It is a broadcast packet\n");
-		if(memcmp(pkt_buf + ETH_ALEN, pg.hw_address, ETH_ALEN) == 0) {
-		    /* Ignore our own ethernet broadcast. */
-		    pd_printf("It was my own packet, ignored\n");
-		    return 0;
-		}
-		memcpy(pkt_buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
-		printbuf("Translated:", (struct ethhdr *)pkt_buf);
-	    }
-
 	    /* No need to hack the incoming packets it seems. */
 #if 0
 	    if (pg.flags & FLAG_NOVELL)	{ /* Novell hack? */

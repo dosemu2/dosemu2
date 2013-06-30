@@ -376,7 +376,6 @@ CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 
-OPTIONALSUBDIRS="dosext/net/v-net"
 REQUIRED="tools commands tools/periph"
 
 dnl enable EXPERIMENTAL stuff

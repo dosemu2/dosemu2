@@ -18,13 +18,12 @@ include $(top_builddir)/Makefile.conf
 # let gcc do extended checking
 
 
-CFILES = ipx.c ipxglt.c libpacket.c pktnew.c
-HFILES = libpacket.h
+CFILES = arp.c dhcp.c forgehdr.c librouter.c netparse.c processpkt.c slirp.c
+HFILES = arp.h dhcp.h forgehdr.h librouter.h netparse.h processpkt.h slirp.h
 DEPENDS= $(CFILES:.c=.d)
 OBJS=$(CFILES:.c=.o)
 
-ALL = $(CFILES) $(HFILES) libpacket.c.multi libpacket.c.single \
-	pktnew.c.multi pktnew.c.single README
+ALL = $(CFILES) $(HFILES) readme.txt
 
 
 all:  lib

@@ -17,10 +17,12 @@
  *
  */
 
-#define VNET_TYPE_ETH 0
-#define VNET_TYPE_DSN 1
-#define VNET_TYPE_TAP 2
-#define VNET_TYPE_SLIRP 3
+enum {
+	VNET_TYPE_ETH,
+	VNET_TYPE_TAP,
+	VNET_TYPE_SLIRP,
+	VNET_TYPE_MAX,
+};
 
 #define F_DRIVER_INFO	1
 #define F_ACCESS_TYPE	2

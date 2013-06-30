@@ -11,7 +11,7 @@
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
 
-NET=dosext/net/net dosext/net/net/librouter
+NET=dosext/net dosext/net/librouter
 
 #
 # This is defined when the SB Emulation is required. You should re-configure,
