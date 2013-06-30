@@ -18,7 +18,6 @@
  */
 
 #define VNET_TYPE_ETH 0
-#define VNET_TYPE_DSN 1
 #define VNET_TYPE_TAP 2
 
 #define F_DRIVER_INFO	1

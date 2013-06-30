@@ -673,11 +673,6 @@ static void config_post_process(const char *usedoptions)
         config.pci = 0;
     }
 
-    if (config.vnet == VNET_TYPE_DSN) {
-	error("DOSNET is deprecated and will soon be removed.\n"
-	"Please consider using TAP instead.\n"
-	"To do this, you have to set $_vnet=\"TAP\"\n");
-    }
     if (dosemu_lib_dir_path != dosemulib_default)
         free(dosemu_lib_dir_path);
     dosemu_lib_dir_path = NULL;

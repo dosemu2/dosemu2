@@ -44,11 +44,11 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include "libpacket.h"
-#include "dosnet.h"
 #include "pic.h"
 #include "coopth.h"
 #include "dpmi.h"
 
+#define TAP_DEVICE  "tap%d"
 #define min(a,b)	((a) < (b)? (a) : (b))
 
 static int Open_sockets(char *name);
@@ -137,9 +137,6 @@ void pkt_priv_init(void)
 	strncpy(devname, config.netdev, sizeof(devname) - 1);
 	devname[sizeof(devname) - 1] = 0;
 	break;
-      case VNET_TYPE_DSN:
-	strcpy(devname, DOSNET_DEVICE);
-	break;
       case VNET_TYPE_TAP:
 	strcpy(devname, TAP_DEVICE);
 	if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
@@ -168,7 +165,6 @@ pkt_init(void)
     p_stats = MK_PTR(PKTDRV_stats);
 
     add_to_io_select(pkt_fd, pkt_receive_async, NULL);
-    /* use dosnet device (dsn0) for virtual net */
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
