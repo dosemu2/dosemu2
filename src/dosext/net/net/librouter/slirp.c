@@ -35,7 +35,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/prctl.h>
 #include "emu.h"
 #include "slirp.h"  /* include self for control */
 
@@ -63,8 +62,6 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
       return(pid);
     } else if (pid == 0) { /* child process */
       int nfd;
-
-      prctl(PR_SET_PDEATHSIG, SIGHUP); /* Asking the kernel to kill me if my parent dies */
 
       /* close the parent's end of the socket, to avoid writing any garbage to it by mistake */
       close(slirpfd[0]);
