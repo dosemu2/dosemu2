@@ -48,7 +48,7 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 
 static int init_done = 0;
 unsigned char * const mem_base;
-char * const lowmem_base;
+char * lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_SHM_OPEN
@@ -416,7 +416,7 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
 
   if (cap & MAPPING_INIT_LOWRAM) {
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
-    *(char **)(&lowmem_base) = addr;
+    lowmem_base = addr;
   }
   return addr;
 }

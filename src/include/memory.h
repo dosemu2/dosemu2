@@ -223,7 +223,7 @@ extern unsigned char * const mem_base;
    It is set "const" to help GCC optimize accesses. In reality it is set only
    once, at startup
 */
-extern char * const lowmem_base;
+extern char * lowmem_base;
 
 #define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )
