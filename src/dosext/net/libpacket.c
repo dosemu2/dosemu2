@@ -49,12 +49,7 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
    hope for the best.
    */
 
-int GetDosnetID(void)
-{
-    return DosnetID;
-}
-
-void GenerateDosnetID(void)
+static void GenerateDosnetID(void)
 {
     DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
     pd_printf("Assigned DosnetID=%x\n", DosnetID);
@@ -72,19 +67,21 @@ void GenerateDosnetID(void)
  *	hell will break loose - unless you use virtual TCP/IP (dosnet).
  */
 
-int OpenNetworkLink(char *name, unsigned short netid)
+int OpenNetworkLink(char *name)
 {
 	PRIV_SAVE_AREA
 	int s, proto, ret;
 	struct ifreq req;
 	struct sockaddr_ll addr;
 
+	GenerateDosnetID();
+
 	if (config.vnet == VNET_TYPE_TAP) {
 		receive_mode = 6;
 		return tun_alloc(name);
 	}
 
-	proto = htons(netid);
+	proto = htons(DosnetID);
 
 	enter_priv_on();
 	s = socket(PF_PACKET, SOCK_RAW, proto);
