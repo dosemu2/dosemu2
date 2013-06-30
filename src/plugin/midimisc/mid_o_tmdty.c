@@ -328,7 +328,7 @@ static void midotmdty_done(void)
     int n, status;
 
     if (TMDTY_CAPT)
-	remove_from_io_select(data_sock, 1);
+	remove_from_io_select(data_sock);
 
     write(ctrl_sock_out, cmd1, strlen(cmd1));
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);

@@ -379,7 +379,7 @@ static int ser_close(int num)
 {
   int i;
   s_printf("SER%d: Running ser_close\n",num);
-  remove_from_io_select(com[num].fd, 1);
+  remove_from_io_select(com[num].fd);
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
 
   /* save current dosemu settings of the file and restore the old settings
