@@ -61,7 +61,7 @@ static void pkt_receiver_callback(void);
 static void pkt_receiver_callback_thr(void *arg);
 static Bit32u PKTRcvCall_TID;
 
-int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
+int pkt_fd = -1;
 static int pktdrvr_installed;
 
 unsigned short receive_mode;
@@ -169,8 +169,6 @@ pkt_init(void)
 
     add_to_io_select(pkt_fd, pkt_receive_async, NULL);
     /* use dosnet device (dsn0) for virtual net */
-    if (config.vnet == VNET_TYPE_DSN)
-	add_to_io_select(pkt_broadcast_fd, pkt_receive_async, NULL);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
 
     pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
@@ -507,32 +505,16 @@ pkt_int (void)
     return 1;
 }
 
-/* Open two sockets for the virtual network, one for normal packets
-   and one for broadcasts. */
 static int
 Open_sockets(char *name)
 {
     GenerateDosnetID();
-
-   /* This handle is inserted to receive packets of type "dosnet broadcast".
-      These are really speaking broadcast packets meant to be received by
-      all dosemus. Their destination addresses are changed by dosemu, and
-      are changed back to 'ffffff..' when these packets are received by dosemu.    */
-    if (config.vnet == VNET_TYPE_DSN) {
-      pkt_broadcast_fd = OpenNetworkLink(name, DOSNET_BROADCAST_TYPE);
-      if (pkt_broadcast_fd < 0)
-	return pkt_broadcast_fd;
-    }
 
     /* The socket for normal packets */
     pkt_fd = OpenNetworkLink(name,
       config.vnet == VNET_TYPE_ETH ? ETH_P_ALL : GetDosnetID());
     if (pkt_fd < 0)
 	return pkt_fd;
-
-    max_pkt_fd = pkt_fd + 1;
-    if (max_pkt_fd <= pkt_broadcast_fd)
-	max_pkt_fd = pkt_broadcast_fd + 1;
 
     local_receive_mode = receive_mode;
     pd_printf("PKT: detected receive mode %i\n", receive_mode);
@@ -628,7 +610,7 @@ void pkt_receive_async(void *arg)
 
 static int pkt_receive(void)
 {
-    int size,handle, fd;
+    int size, handle;
     struct per_handle *hdlp;
     struct timeval tv;
     fd_set readset;
@@ -644,20 +626,14 @@ static int pkt_receive(void)
     /* anything ready? */
     FD_ZERO(&readset);
     FD_SET(pkt_fd, &readset);
-    if (config.vnet == VNET_TYPE_DSN) {
-      FD_SET(pkt_broadcast_fd, &readset);
-    }
     /* anything ready? */
-    if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
+    if (select(pkt_fd + 1, &readset, NULL, NULL, &tv) <= 0)
         return 0;
 
-    if(FD_ISSET(pkt_fd, &readset))
-        fd = pkt_fd;
-    else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset))
-        fd = pkt_broadcast_fd;
-    else return 0;
+    if(!FD_ISSET(pkt_fd, &readset))
+        return 0;
 
-    size = read(fd, pkt_buf, PKT_BUF_SIZE);
+    size = read(pkt_fd, pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
         return 0;
@@ -671,18 +647,6 @@ static int pkt_receive(void)
 
     hdlp = &pg.handle[handle];
     if (hdlp->in_use) {
-            /* VINOD: If it is broadcast type, translate it back ... */
-	    if (config.vnet == VNET_TYPE_DSN && memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
-		pd_printf("It is a broadcast packet\n");
-		if(memcmp(pkt_buf + ETH_ALEN, pg.hw_address, ETH_ALEN) == 0) {
-		    /* Ignore our own ethernet broadcast. */
-		    pd_printf("It was my own packet, ignored\n");
-		    return 0;
-		}
-		memcpy(pkt_buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
-		printbuf("Translated:", (struct ethhdr *)pkt_buf);
-	    }
-
 	    /* No need to hack the incoming packets it seems. */
 #if 0
 	    if (pg.flags & FLAG_NOVELL)	{ /* Novell hack? */
