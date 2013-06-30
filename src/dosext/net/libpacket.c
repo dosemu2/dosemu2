@@ -51,8 +51,14 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 
 static void GenerateDosnetID(void)
 {
-    DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
-    pd_printf("Assigned DosnetID=%x\n", DosnetID);
+	DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
+	pd_printf("Assigned DosnetID=%x\n", DosnetID);
+}
+
+void LibpacketInit(void)
+{
+
+	GenerateDosnetID();
 }
 
 /*
@@ -67,19 +73,12 @@ static void GenerateDosnetID(void)
  *	hell will break loose - unless you use virtual TCP/IP (dosnet).
  */
 
-int OpenNetworkLink(char *name)
+static int OpenNetworkLinkEth(char *name)
 {
 	PRIV_SAVE_AREA
 	int s, proto, ret;
 	struct ifreq req;
 	struct sockaddr_ll addr;
-
-	GenerateDosnetID();
-
-	if (config.vnet == VNET_TYPE_TAP) {
-		receive_mode = 6;
-		return tun_alloc(name);
-	}
 
 	proto = htons(DosnetID);
 
@@ -120,6 +119,24 @@ int OpenNetworkLink(char *name)
 	return s;
 }
 
+static int OpenNetworkLinkTap(char *name)
+{
+	receive_mode = 6;
+	return tun_alloc(name);
+}
+
+int OpenNetworkLink(char *name)
+{
+
+	switch (config.vnet) {
+	case VNET_TYPE_TAP:
+	    return OpenNetworkLinkTap(name);
+	case VNET_TYPE_ETH:
+	    return OpenNetworkLinkEth(name);
+	}
+	return -1;
+}
+
 /*
  *	Close a file handle to a raw packet type.
  */
@@ -149,41 +166,54 @@ CloseNetworkLink(int sock)
  *	-1	Error.
  */
 
-int
-GetDeviceHardwareAddress(char *device, unsigned char *addr)
+static int GetDeviceHardwareAddressEth(char *device, unsigned char *addr)
 {
-	if (config.vnet == VNET_TYPE_TAP) {
-		/* This routine is totally local; doesn't make
-		   request to actual device. */
-		int i;
-		memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
-		*(unsigned short int *)&(local_eth_addr[2]) = DosnetID;
+	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	struct ifreq req;
+	int err;
 
-		memcpy(addr, local_eth_addr, 6);
+	strcpy(req.ifr_name, device);
 
-		pd_printf("Assigned Ethernet Address = ");
-		for (i=0; i < 6; i++)
-			pd_printf("%02x:", local_eth_addr[i] & 0xff);
-		pd_printf("\n");
-       	}
-	else {
-		int s = socket(AF_INET, SOCK_DGRAM, 0);
-		struct ifreq req;
-		int err;
-
-		strcpy(req.ifr_name, device);
-
-		err = ioctl(s, SIOCGIFHWADDR, &req);
-		close(s);
-		if (err == -1)
-			return err;
+	err = ioctl(s, SIOCGIFHWADDR, &req);
+	close(s);
+	if (err == -1)
+		return err;
 #ifdef NET3
-		memcpy(addr, req.ifr_hwaddr.sa_data,8);
+	memcpy(addr, req.ifr_hwaddr.sa_data,8);
 #else
-		memcpy(addr, req.ifr_hwaddr, 8);
+	memcpy(addr, req.ifr_hwaddr, 8);
 #endif
-	}
+
 	return 0;
+}
+
+static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
+{
+	/* This routine is totally local; doesn't make
+	   request to actual device. */
+	int i;
+	memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
+	*(unsigned short int *)&(local_eth_addr[2]) = DosnetID;
+
+	memcpy(addr, local_eth_addr, 6);
+
+	pd_printf("Assigned Ethernet Address = ");
+	for (i=0; i < 6; i++)
+		pd_printf("%02x:", local_eth_addr[i] & 0xff);
+	pd_printf("\n");
+
+	return 0;
+}
+
+int GetDeviceHardwareAddress(char *device, unsigned char *addr)
+{
+	switch (config.vnet) {
+	case VNET_TYPE_TAP:
+		return GetDeviceHardwareAddressTap(device, addr);
+	case VNET_TYPE_ETH:
+		return GetDeviceHardwareAddressEth(device, addr);
+	}
+	return -1;
 }
 
 /*
@@ -194,8 +224,7 @@ GetDeviceHardwareAddress(char *device, unsigned char *addr)
  *	-1	Error.
  */
 
-int
-GetDeviceMTU(char *device)
+static int GetDeviceMTUEth(char *device)
 {
 	int s = socket(AF_INET, SOCK_DGRAM, 0);
 	struct ifreq req;
@@ -210,6 +239,15 @@ GetDeviceMTU(char *device)
 	return req.ifr_mtu;
 }
 
+int GetDeviceMTU(char *device)
+{
+	switch (config.vnet) {
+	case VNET_TYPE_TAP:
+	case VNET_TYPE_ETH:
+		return GetDeviceMTUEth(device);
+	}
+	return -1;
+}
 
 static int tun_alloc(char *dev)
 {

@@ -4,7 +4,7 @@
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
 
-
+void LibpacketInit(void);
 int OpenNetworkLink(char *);
 void CloseNetworkLink(int);
 int GetDeviceHardwareAddress(char *, unsigned char *);
