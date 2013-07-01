@@ -46,6 +46,10 @@
 #define RAW_BUFFER_SIZE 400000	/* can hold 2.2s of 44100/stereo/16bit */
 #define BUFFER_DELAY 40000.0
 
+#define MAX_BUFFER_DELAY (BUFFER_DELAY * 3)
+#define INIT_BUFFER_DELAY (BUFFER_DELAY * 2)
+#define MIN_BUFFER_DELAY (BUFFER_DELAY / 2)
+
 enum {
     SNDBUF_STATE_INACTIVE,
     SNDBUF_STATE_PLAYING,
@@ -373,7 +377,7 @@ static void pcm_handle_get(int strm_idx, double time)
 #if 1
 	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 #define ADJ_PERIOD 2000000
-	    double raw_delay = BUFFER_DELAY * 2;
+	    double raw_delay = INIT_BUFFER_DELAY;
 	    double delta = (fillup - raw_delay) / (raw_delay * 320);
 	    if (time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
 		/* of course this heuristic doesnt work, but we have to try... */
@@ -610,12 +614,12 @@ size_t pcm_data_get(void *data, size_t size,
     frag_period = pcm_frag_period(size, params);
     stop_time = start_time + frag_period;
     if (start_time == 0 ||
-	start_time < now - BUFFER_DELAY * 3
-	|| stop_time > now - BUFFER_DELAY / 2) {
+	start_time < now - MAX_BUFFER_DELAY
+	|| stop_time > now - MIN_BUFFER_DELAY) {
 	if (start_time != 0)
 	    error("PCM: \"%s\" out of sync\n",
 		  players.clocked.player.name);
-	start_time = now - BUFFER_DELAY * 2;
+	start_time = now - INIT_BUFFER_DELAY;
 	stop_time = start_time + frag_period;
     }
     S_printf("PCM: going to process %zi bytes for %i players (st=%f stp=%f d=%f)\n",
@@ -674,7 +678,7 @@ size_t pcm_data_get(void *data, size_t size,
 	    continue;
 	S_printf("PCM: stream %i fillup2: %i\n", i,
 		 rng_count(&pcm.stream[i].buffer));
-	pcm_handle_get(i, now + frag_period - BUFFER_DELAY);
+	pcm_handle_get(i, now - INIT_BUFFER_DELAY + frag_period);
     }
 
     if (!count_active_streams() && pcm.playing)
