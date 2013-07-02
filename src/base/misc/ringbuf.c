@@ -177,7 +177,7 @@ struct seqitem {
 int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len, int maxnum)
 {
     seq->beg = seq->cur = buffer;
-    seq->len = len;
+    seq->len = seq->avail = len;
     rng_init(&seq->rng, maxnum, sizeof(struct seqitem));
     return 0;
 }
@@ -186,6 +186,8 @@ int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len)
 {
     struct seqitem it;
     int ret;
+    if (seq->avail < len)
+	return 0;
     if (seq->cur + len > seq->beg + seq->len)
 	seq->cur = seq->beg;
     assert(seq->cur + len <= seq->beg + seq->len);
@@ -193,8 +195,8 @@ int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len)
     it.pos = seq->cur;
     it.len = len;
     seq->cur += len;
+    seq->avail -= len;
     ret = rng_put(&seq->rng, &it);
-    assert(ret == 1);
     return ret * len;
 }
 
@@ -202,10 +204,12 @@ int seqbuf_read(struct seqbuf *seq, void *buffer, size_t len)
 {
     struct seqitem it;
     int ret = rng_get(&seq->rng, &it);
-    assert(ret == 1);
+    if (!ret)
+	return 0;
     if (len < it.len)
 	return -it.len;
     memcpy(buffer, it.pos, it.len);
+    seq->avail += it.len;
     return it.len;
 }
 
@@ -213,7 +217,9 @@ void *seqbuf_get(struct seqbuf *seq, size_t *len)
 {
     struct seqitem it;
     int ret = rng_get(&seq->rng, &it);
-    assert(ret == 1);
+    if (!ret)
+	return NULL;
+    seq->avail += it.len;
     *len = it.len;
     return it.pos;
 }

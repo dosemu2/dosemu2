@@ -43,7 +43,7 @@ void rng_clear(struct rng_s *rng);
 
 struct seqbuf {
     char *beg, *cur;
-    size_t len;
+    size_t len, avail;
     struct rng_s rng;
 };
 int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len, int maxnum);
