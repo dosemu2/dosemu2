@@ -17,22 +17,22 @@
  */
 
 #include <inttypes.h>
-#include "emu.h"
 #include "arp.h"
 #include "forgehdr.h"
 #include "dhcp.h"  /* include self for control */
 
 
+
 /* gets an IP for a given mac */
-static uint32_t compute_client_ip(struct arptabletype **arptable, uint8_t *dhcpclientmac, uint32_t mynet) {
+static uint32_t librouter_compute_client_ip(struct arptabletype **arptable, uint8_t *dhcpclientmac, uint32_t mynet) {
   uint32_t result;
   /* first let's check if the mac is already present */
-  result = arp_getip(*arptable, dhcpclientmac);
+  result = librouter_arp_getip(*arptable, dhcpclientmac);
   if (result != 0) return(result);
   /* if this mac is unknown, then find the next free ip */
   for (result = mynet + 1;; result += 1) {
-    if (arp_getmac(*arptable, result) == 0) {
-      *arptable = arp_learn(*arptable, dhcpclientmac, result);
+    if (librouter_arp_getmac(*arptable, result) == 0) {
+      *arptable = librouter_arp_learn(*arptable, dhcpclientmac, result);
       return(result);
     }
   }
@@ -40,7 +40,7 @@ static uint32_t compute_client_ip(struct arptabletype **arptable, uint8_t *dhcpc
 
 
 /* analyzes a DHCP request, and computes an answer */
-int dhcpserver(uint8_t *udppayload, int bufflen, struct arptabletype **arptable, uint32_t myip, uint32_t mynetmask, uint8_t *mymac, uint8_t **buffanswerptr) {
+int librouter_dhcpserver(uint8_t *udppayload, int bufflen, struct arptabletype **arptable, uint32_t myip, uint32_t mynetmask, uint8_t *mymac, uint8_t **buffanswerptr) {
   uint8_t bootphdr[] = {0x01, 0x01, 0x06};
   uint8_t dhcpcookie[] = {0x63, 0x82, 0x53, 0x63};
   uint8_t dhcpclientmac[6];
@@ -83,15 +83,15 @@ int dhcpserver(uint8_t *udppayload, int bufflen, struct arptabletype **arptable,
     }
   }
   if (dhcpmsg < 0) {
-    pd_printf("Got a DHCP request without any DHCP message... Ignored.");
+    /* puts("Got a DHCP request without any DHCP message... Ignored."); */
     return(0);
   }
   if ((dhcpmsg == 1) || (dhcpmsg == 3)) { /* DISCOVER or REQUEST */
       uint32_t clientip;
       int y;
-      pd_printf("Got a DHCP request from %02X:%02X:%02X:%02X:%02X:%02X\n", dhcpclientmac[0], dhcpclientmac[1], dhcpclientmac[2], dhcpclientmac[3], dhcpclientmac[4], dhcpclientmac[5]);
+      /* printf("Got a DHCP request from %02X:%02X:%02X:%02X:%02X:%02X\n", dhcpclientmac[0], dhcpclientmac[1], dhcpclientmac[2], dhcpclientmac[3], dhcpclientmac[4], dhcpclientmac[5]); */
       /* compute an 'OFFER' answer */
-      clientip = compute_client_ip(arptable, dhcpclientmac, myip & mynetmask); /* find the IP to assign to the client */
+      clientip = librouter_compute_client_ip(arptable, dhcpclientmac, myip & mynetmask); /* find the IP to assign to the client */
       x = 0;
       buffanswer[x++] = 0x02; /* msg type = BOOT REPLY */
       buffanswer[x++] = 0x01; /* hw type = ethernet */
@@ -172,14 +172,14 @@ int dhcpserver(uint8_t *udppayload, int bufflen, struct arptabletype **arptable,
       buffanswer[x++] = 255; /* option '255' is not a real option, it's a END marker */
       for (y = 0; y < 16; y++) buffanswer[x++] = 0; /* add some "optional padding".. I don't know what's the point is, but I've seen other DHCP server doing this, so they might be some obscure reasons */
       /* encapsulate into UDP */
-      forge_udp(67, 68, &buffanswer, &x);
-      forge_ip(myip, clientip, 17, &buffanswer, &x);
-      forge_eth(&buffanswer, &x, mymac, dhcpclientmac);
+      librouter_forge_udp(67, 68, &buffanswer, &x);
+      librouter_forge_ip(myip, clientip, 17, &buffanswer, &x);
+      librouter_forge_eth(&buffanswer, &x, mymac, dhcpclientmac);
       *buffanswerptr = buffanswer;
-      printf("client will receive IP %u.%u.%u.%u\n", (clientip >> 24) & 0xFF, (clientip >> 16) & 0xFF, (clientip >> 8) & 0xFF, clientip & 0xFF);
+      /* printf("client will receive IP %u.%u.%u.%u\n", (clientip >> 24) & 0xFF, (clientip >> 16) & 0xFF, (clientip >> 8) & 0xFF, clientip & 0xFF); */
       return(x);
     } else {
-      printf("Got a DHCP request of unknown type (%d)\n", dhcpmsg);
+      /* printf("Got a DHCP request of unknown type (%d)\n", dhcpmsg); */
       return(0);
   }
 }

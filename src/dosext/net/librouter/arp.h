@@ -16,8 +16,8 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-#ifndef arp_h_sentinel
-#define arp_h_sentinel
+#ifndef librouter_arp_h_sentinel
+#define librouter_arp_h_sentinel
 
 struct arptabletype {
   uint8_t macaddr[6];
@@ -25,9 +25,9 @@ struct arptabletype {
   struct arptabletype *next;
 };
 
-int maccmp(uint8_t *maca, uint8_t *macb);
-struct arptabletype *arp_learn(struct arptabletype *arptable, uint8_t *macaddr, uint32_t ipaddr);
-uint8_t *arp_getmac(struct arptabletype *arptable, uint32_t ipaddr);
-uint32_t arp_getip(struct arptabletype *arptable, uint8_t *macaddr);
+int librouter_maccmp(uint8_t *maca, uint8_t *macb);
+struct arptabletype *librouter_arp_learn(struct arptabletype *arptable, uint8_t *macaddr, uint32_t ipaddr);
+uint8_t *librouter_arp_getmac(struct arptabletype *arptable, uint32_t ipaddr);
+uint32_t librouter_arp_getip(struct arptabletype *arptable, uint8_t *macaddr);
 
 #endif

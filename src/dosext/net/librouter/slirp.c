@@ -35,10 +35,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include "emu.h"
 #include "slirp.h"  /* include self for control */
 
-#define printf pd_printf
 
 
 static pid_t slirp_popen2(const char *command, int *slirpfd) {
@@ -46,15 +44,17 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
   int flags;
 
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, slirpfd) != 0) {
-    printf("socketpair() failed: %s\n", strerror(errno));
+    /* printf("socketpair() failed: %s\n", strerror(errno)); */
     return(-1);
   }
 
   /* mark our end of the pipe non-blocking */
   flags = fcntl(slirpfd[0], F_GETFL);
-  if (flags == -1) printf("fcntl(,F_GETFL) failed: %s\n", strerror(errno));
+  /* if (flags == -1) printf("fcntl(,F_GETFL) failed: %s\n", strerror(errno)); */
   flags |= O_NONBLOCK;
-  if (fcntl(slirpfd[0], F_SETFL, flags) != 0) printf("fcntl(,F_SETFL,) failed: %s\n", strerror(errno));
+  if (fcntl(slirpfd[0], F_SETFL, flags) != 0) {
+    /* printf("fcntl(,F_SETFL,) failed: %s\n", strerror(errno)); */
+  }
 
   pid = fork();
 
@@ -67,11 +67,11 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
       close(slirpfd[0]);
 
       if (dup2(slirpfd[1], STDIN_FILENO) == -1) {
-        printf("dup2() failed: %s\n", strerror(errno));
+        /*p rintf("dup2() failed: %s\n", strerror(errno)); */
       }
       /* slirp seems to use stdin bidirectionally instead of using stdout for SLIP output (?) */
       if (dup2(slirpfd[1], STDOUT_FILENO) == -1) {
-        printf("dup2() failed: %s\n", strerror(errno));
+        /* printf("dup2() failed: %s\n", strerror(errno)); */
       }
 
       /* redirect stderr to null, because slirp uses stderr to print out its own infos, and I don't want this stuff to be printed on user's console as coming from dosemu */
@@ -82,19 +82,19 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
 
       if (command != NULL) { /* if the user provided an executable, run it */
         if (execlp(command, command, NULL) < 0) {
-          printf("execlp() failed when calling '%s': %s\n", command, strerror(errno));
+          /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
         }
       }
       /* if above command hasn't worked, or user haven't provided any command, try a hardcoded value */
       if (execlp("slirp-fullbolt", "slirp-fullbolt", NULL) < 0) {
-        printf("execlp() failed when calling '%s': %s\n", command, strerror(errno));
+        /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
       }
       /* if above command hasn't worked, try another hardcoded value */
       if (execlp("slirp", "slirp", NULL) < 0) {
-        printf("execlp() failed when calling '%s': %s\n", command, strerror(errno));
+        /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
       }
 
-      exit(0); /* we need the child to die if it doesn't work properly, otherwise the user would end up with two DOSemu consoles on his desktop */
+      exit(0); /* we need the child to die if it doesn't work properly, otherwise the user would end up with two of his calling processes */
   }
   close(slirpfd[1]);
   return(pid);
@@ -102,7 +102,7 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
 
 
 
-int slirp_open(char *slirpcmd, int *slirpfd) {
+int librouter_slirp_open(char *slirpcmd, int *slirpfd) {
   int x, notemptyflag = 0;
   /* check if slirpcmd contains any non-empty chars */
   if (slirpcmd != NULL) {
@@ -121,20 +121,20 @@ int slirp_open(char *slirpcmd, int *slirpfd) {
     if (notemptyflag == 0) slirpcmd = NULL; /* if the string is empty, force its pointer to NULL */
   }
   if (slirp_popen2(slirpcmd, slirpfd) <= 0) {
-    pd_printf("Unable to exec slirp");
+    /* printf("Unable to exec slirp"); */
     return(-1);
   }
   return(0);
 }
 
 
-void slirp_close(int *slirpfd) {
+void librouter_slirp_close(int *slirpfd) {
   close(slirpfd[0]);
   close(slirpfd[1]);
 }
 
 
-int slirp_send(uint8_t *buff, int bufflen, int slirpfd) {
+int librouter_slirp_send(uint8_t *buff, int bufflen, int slirpfd) {
   int x;
   uint8_t escEND[] = {219,220};
   uint8_t escESC[] = {219,221};
@@ -164,7 +164,7 @@ int slirp_send(uint8_t *buff, int bufflen, int slirpfd) {
 }
 
 
-int slirp_read(uint8_t *buff, int slirpfd) {
+int librouter_slirp_read(uint8_t *buff, int slirpfd) {
   int x;
   /* puts("slirp_read()"); */
   for (x = 0;; x++) {

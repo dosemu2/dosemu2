@@ -25,5 +25,28 @@
 
 #ifndef librouter_h_sentinel
   #define librouter_h_sentinel
+
+ /* initialize the librouter library. slirpexec is a string with the         *
+  * path/filename of the slirp binary to use, or NULL if librouter have to   *
+  * try to figure it out by itself. Returns a socket that can be monitored   *
+  * for new incoming packets, or -1 on error.                                */
   int librouter_init(char *slirpexec);
+
+ /* receive a frame from librouter. *buff is the place where the frame have  *
+  * to be copied. This function is non-blocking. It returns 0 if nothing     *
+  * awaited, a negative value on error, and a positive value with the length *
+  * of the frame that has been copied into *buff. Make sure that buff can    *
+  * contain at least 2048 bytes.                                             */
+  int librouter_recvframe(int sock, uint8_t *buff);
+
+  /* send a frame to librouter. *buff is the content you want to send. len   *
+   * is the total length of the frame.                                       *
+   * returns 0 on success, a negative value on error, or a positive value if *
+   * *buff have been filled with a frame you should read. IMPORTANT: *buff   *
+   * must be at least 1024 bytes long!.                                      */
+  int librouter_sendframe(int sock, uint8_t *buff, int len);
+
+  /* closes the librouter communication channel.                             */
+  void librouter_close(int sock);
+
 #endif

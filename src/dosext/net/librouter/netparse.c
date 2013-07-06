@@ -21,7 +21,7 @@
 #include "netparse.h"  /* include self for control */
 
 /* Parse an Ethernet frame, retrieve src mac, dst mac and VLAN id (vlan = -1 means 'no 802.1Q'). Returns the address of the ethernet payload (or NULL in case of an error) */
-void *parse_ethernet(uint8_t *ethframe, int ethframe_len, uint8_t **srcmac, uint8_t **dstmac, int *vlanid, int *ethertype) {
+void *librouter_parse_ethernet(uint8_t *ethframe, int ethframe_len, uint8_t **srcmac, uint8_t **dstmac, int *vlanid, int *ethertype) {
   if (ethframe_len < 15) return(NULL); /* an ethernet frame is at least 14 bytes long (that's the minimal header's length) */
   *dstmac = ethframe;  /* fetch dst mac address */
   *srcmac = ethframe + 6; /* fetch src mac address */
@@ -47,7 +47,7 @@ void *parse_ethernet(uint8_t *ethframe, int ethframe_len, uint8_t **srcmac, uint
 }
 
 
-void *parse_ipv4(uint8_t *packet, int len, uint8_t **ipsrc, uint8_t **ipdst, int *ipprotocol, int *dscp, int *ttl, int *id, int *fragoffset, int *morefragsflag) {
+void *librouter_parse_ipv4(uint8_t *packet, int len, uint8_t **ipsrc, uint8_t **ipdst, int *ipprotocol, int *dscp, int *ttl, int *id, int *fragoffset, int *morefragsflag) {
   int hdrlen;
   if (len < 21) return(NULL); /* an IP packet is at least 20 bytes long (header's length) */
   if ((packet[0] & 0xF0) != 0x40) return(NULL); /* version should be alway 4 for IPv4! */
@@ -70,7 +70,7 @@ void *parse_ipv4(uint8_t *packet, int len, uint8_t **ipsrc, uint8_t **ipdst, int
 }
 
 
-void *parse_udp(uint8_t *packet, int len, int *portsrc, int *portdst) {
+void *librouter_parse_udp(uint8_t *packet, int len, int *portsrc, int *portdst) {
   if (len < 9) return(NULL); /* a UDP header is 8 bytes long */
   *portsrc = packet[0];
   *portsrc <<= 8;
@@ -82,7 +82,7 @@ void *parse_udp(uint8_t *packet, int len, int *portsrc, int *portdst) {
 }
 
 
-void *parse_tcp(uint8_t *packet, int len, int *portsrc, int *portdst) {
+void *librouter_parse_tcp(uint8_t *packet, int len, int *portsrc, int *portdst) {
   int hdrlen;
   if (len < 21) return(NULL); /* a TCP header is at least 20 bytes long */
   *portsrc = packet[0];

@@ -49,6 +49,9 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 
 static int pkt_fd = -1;
 
+static int librouter_bufflen = 0;
+static unsigned char librouter_buff[2048];
+
 struct pkt_ops {
     int (*open)(char *name);
     void (*close)(void);
@@ -151,6 +154,7 @@ static int OpenNetworkLinkSlirp(char *name)
 {
 	receive_mode = 6;
 	pkt_fd = librouter_init(name);
+        add_to_io_select(pkt_fd, pkt_receive_req, NULL);
 	return 0;
 }
 
@@ -169,6 +173,13 @@ static void CloseNetworkLinkEth(void)
 	remove_from_io_select(pkt_fd);
 	close(pkt_fd);
 }
+
+static void CloseNetworkLinkSlirp(void)
+{
+        remove_from_io_select(pkt_fd);
+        librouter_close(pkt_fd);
+}
+
 
 void CloseNetworkLink(void)
 {
@@ -261,6 +272,11 @@ static int GetDeviceMTUEth(char *device)
 	return req.ifr_mtu;
 }
 
+static int GetDeviceMTUSlirp(char *device)
+{
+  return(1500);
+}
+
 int GetDeviceMTU(char *device)
 {
 	return ops[config.vnet].get_MTU(device);
@@ -301,6 +317,21 @@ static int tun_alloc(char *dev)
       return fd;
 }
 
+static ssize_t pkt_read_slirp(void *buf, size_t count)
+{
+  int res;
+  /* first check the internal single-packet buffer */
+  if (librouter_bufflen > 0) {
+    memcpy(buf, librouter_buff, librouter_bufflen);
+    res = librouter_bufflen;
+    librouter_bufflen = 0;
+    return(res);
+  }
+  /* else poll librouter */
+  res = librouter_recvframe(pkt_fd, buf);
+  return(res);
+}
+
 static ssize_t pkt_read_eth(void *buf, size_t count)
 {
     struct timeval tv;
@@ -332,6 +363,16 @@ static ssize_t pkt_write_eth(const void *buf, size_t count)
     return write(pkt_fd, buf, count);
 }
 
+static ssize_t pkt_write_slirp(const void *buf, size_t count)
+{
+  memcpy(librouter_buff, buf, count); /* we copy buf into our own buffer first, because librouter needs write access to the buffer */
+  librouter_bufflen = librouter_sendframe(pkt_fd, librouter_buff, count);
+  if (librouter_bufflen > 0) { /* we've got something back already! */
+    pkt_receive_req(NULL); /* this makes the underlying DOS get some kind of a signal 'hey buddy, you've got some data' */
+  }
+  return(count);
+}
+
 ssize_t pkt_write(const void *buf, size_t count)
 {
     return ops[config.vnet].pkt_write(buf, count);
@@ -354,11 +395,11 @@ void LibpacketInit(void)
 	ops[VNET_TYPE_TAP].pkt_write = pkt_write_eth;
 
 	ops[VNET_TYPE_SLIRP].open = OpenNetworkLinkSlirp;
-	/* FIXME: please fill .close */
+	ops[VNET_TYPE_SLIRP].close = CloseNetworkLinkSlirp;
 	ops[VNET_TYPE_SLIRP].get_hw_addr = GetDeviceHardwareAddressTap;
-	/* FIXME: please fill .get_MTU */
-	ops[VNET_TYPE_TAP].pkt_read = pkt_read_eth;
-	ops[VNET_TYPE_TAP].pkt_write = pkt_write_eth;
+        ops[VNET_TYPE_SLIRP].get_MTU = GetDeviceMTUSlirp;
+	ops[VNET_TYPE_SLIRP].pkt_read = pkt_read_slirp;
+	ops[VNET_TYPE_SLIRP].pkt_write = pkt_write_slirp;
 
 	GenerateDosnetID();
 }

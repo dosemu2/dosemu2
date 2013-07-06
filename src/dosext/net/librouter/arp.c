@@ -23,7 +23,7 @@
 
 
 /* returns 0 if both MAC addresses are equal, non-zero otherwise. */
-int maccmp(uint8_t *maca, uint8_t *macb) {
+int librouter_maccmp(uint8_t *maca, uint8_t *macb) {
   int x;
   for (x = 0; x < 6; x++) {
     if (maca[x] != macb[x]) return(1);
@@ -32,8 +32,8 @@ int maccmp(uint8_t *maca, uint8_t *macb) {
 }
 
 
-/* whenever we receive a packet, we call arp_learn to make it possibly learn a new mac/ip pair. */
-struct arptabletype *arp_learn(struct arptabletype *arptable, uint8_t *macaddr, uint32_t ipaddr) {
+/* whenever we receive a packet, we call librouter_arp_learn to make it possibly learn a new mac/ip pair. */
+struct arptabletype *librouter_arp_learn(struct arptabletype *arptable, uint8_t *macaddr, uint32_t ipaddr) {
   struct arptabletype *arpentry;
   int x;
   for (arpentry = arptable; arpentry != NULL; arpentry = arpentry->next) {
@@ -54,7 +54,7 @@ struct arptabletype *arp_learn(struct arptabletype *arptable, uint8_t *macaddr, 
 
 
 /* looks into the arp table and returns a pointer to the mac address of the given IP. returns NULL if no record found. */
-uint8_t *arp_getmac(struct arptabletype *arptable, uint32_t ipaddr) {
+uint8_t *librouter_arp_getmac(struct arptabletype *arptable, uint32_t ipaddr) {
   struct arptabletype *arpentry;
   for (arpentry = arptable; arpentry != NULL; arpentry = arpentry->next) {
     if (arpentry->ipaddr == ipaddr) break; /* found entry */
@@ -64,10 +64,10 @@ uint8_t *arp_getmac(struct arptabletype *arptable, uint32_t ipaddr) {
 
 
 /* looks into the arp table and returns the first IP address of a given mac. returns 0 if no record found. */
-uint32_t arp_getip(struct arptabletype *arptable, uint8_t *macaddr) {
+uint32_t librouter_arp_getip(struct arptabletype *arptable, uint8_t *macaddr) {
   struct arptabletype *arpentry;
   for (arpentry = arptable; arpentry != NULL; arpentry = arpentry->next) {
-    if (maccmp(arpentry->macaddr, macaddr) == 0) return(arpentry->ipaddr);
+    if (librouter_maccmp(arpentry->macaddr, macaddr) == 0) return(arpentry->ipaddr);
   }
   return(0);
 }

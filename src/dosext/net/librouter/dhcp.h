@@ -16,7 +16,7 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-#ifndef dhcp_h_sentinel
-#define dhcp_h_sentinel
-int dhcpserver(uint8_t *udppayload, int bufflen, struct arptabletype **arptable, uint32_t myip, uint32_t mynetmask, uint8_t *mymac, uint8_t **buffanswerptr);
+#ifndef librouter_dhcp_h_sentinel
+#define librouter_dhcp_h_sentinel
+int librouter_dhcpserver(uint8_t *udppayload, int bufflen, struct arptabletype **arptable, uint32_t myip, uint32_t mynetmask, uint8_t *mymac, uint8_t **buffanswerptr);
 #endif

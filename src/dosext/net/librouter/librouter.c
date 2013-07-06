@@ -36,7 +36,6 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/select.h>
-#include "emu.h"
 #include "slirp.h"
 #include "netparse.h"
 #include "arp.h"
@@ -44,126 +43,93 @@
 #include "processpkt.h"
 #include "librouter.h"  /* include self for control */
 
-#define printf pd_printf
+
+static uint8_t librouter_mymac[] = {0xF0,0xDE,0xF1,0x29,0x07,0x85};
+static uint32_t librouter_myip[] = {(10 << 24) | (0 << 16) | (2 << 8) | 1,  /* me as the gateway */
+                          (10 << 24) | (0 << 16) | (2 << 8) | 2,  /* me as the host */
+                          (10 << 24) | (0 << 16) | (2 << 8) | 3,  /* me as the dns server */
+                          0};                                     /* last entry is marked as '0' */
+static uint32_t librouter_mynetmask = 0xFFFFFF00;
+static struct arptabletype *librouter_arptable = NULL;
 
 
-/* returns a socket that can be monitored for new incoming packets. Returns -1 on error. */
-int librouter_init(char *slirpexec) {
-  uint8_t mymac[] = {0xF0,0xDE,0xF1,0x29,0x07,0x85};
-  uint32_t myip[] = {(10 << 24) | (0 << 16) | (2 << 8) | 1,  /* me as the gateway */
-                     (10 << 24) | (0 << 16) | (2 << 8) | 2,  /* me as the host */
-                     (10 << 24) | (0 << 16) | (2 << 8) | 3,  /* me as the dns server */
-                     0};                                     /* last entry is marked as '0' */
-  uint32_t mynetmask = 0xFFFFFF00;
+/* close librouter */
+void librouter_close(int sock) {
+  close(sock);
+}
 
-  struct arptabletype *arptable = NULL;
-  #define buffmaxlen 4096
-  uint8_t buff[buffmaxlen];
-  int x, bufflen;
-  int slirpfdarr[2], sockpair[2];
-  int slirpfd, clientfd, highestfd;
-  pid_t child;
-  fd_set rfds;
+
+/* send a frame to librouter. *buff is the content you want to send. len is the total length of the frame.
+   returns 0 on success, a negative value on error, or a positive value if *buff have been filled with a frame you should read. IMPORTANT: *buff must be at least 1024 bytes long!. */
+int librouter_sendframe(int sock, uint8_t *buff, int len) {
+  return(librouter_processpkt(buff, len, librouter_myip, librouter_mynetmask, librouter_mymac, sock, &librouter_arptable));
+}
+
+
+/* receive a frame from librouter. *buff is the place where the frame have to be copied. This function is non-blocking. It returns 0 if nothing awaited, a negative value on error, and a positive value with the length of the frame that has been copied into *buff. Make sure that buff can contain at least 2048 bytes. */
+int librouter_recvframe(int sock, uint8_t *buff) {
+  uint8_t *dstmac;
+  uint8_t *ipsrcarr, *ipdstarr;
+  uint32_t ipdst;
+  int ipprotocol, dscp, ttl, id, fragoffset, morefragsflag;
+  uint8_t ethbroadcast[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  uint8_t *buffptr;
+  int bufflen, x;
   struct timeval tv;
+  fd_set rfds;
+  FD_ZERO(&rfds);
+  FD_SET(sock, &rfds);
+  /* Wait no time */
+  tv.tv_sec = 0;
+  tv.tv_usec = 0;
+  /* wait for something to happen */
+  if (select(sock+1, &rfds, NULL, NULL, &tv) == 0) return(0); /* if nothing awaits, return immediately */
+  /* otherwise something is going on on the slirp socket */
+  buffptr = buff + 14; /* leaving some place before data, for the eth header */
+  bufflen = librouter_slirp_read(buffptr, sock);
+  /* printf("Got %d bytes on the slirp iface.\n", bufflen); */
+  if (bufflen <= 0) { /* slirp is gone */
+    close(sock);
+    return(-1);
+  }
+  /* else bufflen > 0, so there is some real data awaiting */
+  /* analyze the IP header */
+  librouter_parse_ipv4(buffptr, bufflen, &ipsrcarr, &ipdstarr, &ipprotocol, &dscp, &ttl, &id, &fragoffset, &morefragsflag);
+  ipdst = 0;
+  for (x = 0; x < 4; x++) {
+    ipdst <<= 8;
+    ipdst |= ipdstarr[x];
+  }
+  /* check if the destination belongs to my network - if not, ignore the packet and return 0 */
+  if ((ipdst & librouter_mynetmask) != (librouter_myip[0] & librouter_mynetmask)) return(0);
+  /* otherwise the packet is destinated to our network indeed */
+  dstmac = librouter_arp_getmac(librouter_arptable, ipdst); /* compute the dst mac */
+  if (dstmac == NULL) {
+    /* printf("Could not find the mac for %u.%u.%u.%u in the ARP cache. Broadcasting then!\n", ipdstarr[0], ipdstarr[1], ipdstarr[2], ipdstarr[3]); */
+    dstmac = ethbroadcast;
+  }
+  /* encapsulate the data into an eth frame and relay it */
+  librouter_forge_eth(&buffptr, &bufflen, librouter_mymac, dstmac);
+  return(bufflen);
+}
+
+
+/* initialize the librouter library. slirpexec is a string with the path/filename of the slirp binary to use, or NULL if librouter have to try to figure it out by itself. Returns a socket that can be monitored for new incoming packets, or -1 on error. */
+int librouter_init(char *slirpexec) {
+  int x;
+  int slirpfdarr[2];
 
   /* open the communication channel with SLIRP */
-  if (slirp_open(slirpexec, slirpfdarr) != 0) {
-    printf("Error: failed to invoke '%s'.\n", slirpexec);
+  if (librouter_slirp_open(slirpexec, slirpfdarr) != 0) {
+    /* printf("Error: failed to invoke '%s'.\n", slirpexec); */
     return(-1);
   }
   /* printf("open SLIRP channel (%s): success.\n", slirpexec); */
 
   /* add all my IP addresses to the ARP cache, to avoid distributing them later to clients via DHCP */
-  for (x = 0; myip[x] != 0; x++) {
-    arptable = arp_learn(arptable, mymac, myip[x]);
+  for (x = 0; librouter_myip[x] != 0; x++) {
+    librouter_arptable = librouter_arp_learn(librouter_arptable, librouter_mymac, librouter_myip[x]);
   }
-  slirpfd = slirpfdarr[0];
-
-  /* now that slirp is open, we compute a socketpair, return one end of the pair to the caller, and fork off to work on the other end */
-
-  /* note: do NOT use SOCK_DGRAM with socketpair, because DGRAM (being purely non-connected) doesn't notify you when the socket gets closed, so select() won't detect when the socket gets closed on the other end. I can't use SOCK_STREAM here because I badly need to preserve message boundaries (since these are nothing else than raw eth frames). Fortunately Linux provides us with a cool alternative: SOCK_SEQPACKET. Preserves messages boundaries AND notifies on close. */
-  if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sockpair) < 0) {
-    pd_printf("opening stream socket pair failed");
-    return(-1);
-  }
-
-  /* fork off */
-  if ((child = fork()) == -1) {
-      printf("fork error: %s\n", strerror(errno));
-      return(-1);
-    } else if (child != 0) {     /* This is the parent. */
-      close(sockpair[0]);
-      return(sockpair[1]);
-   } else {     /* This is the child - it stays active and keep processing incoming/outgoing stuff */
-      close(sockpair[1]); /* but first close the parent's end of the socket, to be sure we won't write there by mistake */
-      clientfd = sockpair[0];
-      for (;;) {
-        /* wait for activity on sockets */
-        FD_ZERO(&rfds);
-        FD_SET(clientfd, &rfds);
-        FD_SET(slirpfd, &rfds);
-        if (slirpfd > clientfd) {
-            highestfd = slirpfd;
-          } else {
-            highestfd = clientfd;
-        }
-        /* Wait up to one second. */
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-        /* wait for something to happen */
-        select(highestfd+1, &rfds, NULL, NULL, &tv);
-        /* is there something on the client fd? */
-        if (FD_ISSET(clientfd, &rfds) != 0) {
-          bufflen = read(clientfd, buff, buffmaxlen);
-          if (bufflen < 0) { /* error on socket - most probably dosemu is gone */
-            close(clientfd);
-            close(slirpfd);
-            exit(0);
-          }
-          /* puts("Got packet from clientfd"); */
-          processpkt(buff, bufflen, myip, mynetmask, mymac, slirpfd, &arptable, clientfd);
-        }
-
-        /* is there something on the slirp iface? */
-        if (FD_ISSET(slirpfd, &rfds) != 0) {
-          uint8_t *buffptr;
-          buffptr = buff + 128; /* leaving some place before data, for headers */
-          bufflen = slirp_read(buffptr, slirpfd);
-          /* printf("Got %d bytes on the slirp iface.\n", bufflen); */
-          if (bufflen < 0) { /* slirp is gone (probably because the dosemu parent has been terminated) */
-            close(clientfd);
-            close(slirpfd);
-            exit(0);
-          }
-          if (bufflen > 0) { /* ignore 0-len packets (these are generated by SLIP) */
-            uint8_t *dstmac;
-            uint8_t *ipsrcarr, *ipdstarr;
-            uint32_t ipdst;
-            int ipprotocol, dscp, ttl, id, fragoffset, morefragsflag;
-            uint8_t ethbroadcast[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-            /* analyze the IP header */
-            parse_ipv4(buffptr, bufflen, &ipsrcarr, &ipdstarr, &ipprotocol, &dscp, &ttl, &id, &fragoffset, &morefragsflag);
-            ipdst = 0;
-            for (x = 0; x < 4; x++) {
-              ipdst <<= 8;
-              ipdst |= ipdstarr[x];
-            }
-            /* check if the destination belongs to my network */
-            if ((ipdst & mynetmask) == (myip[0] & mynetmask)) {
-              /* compute the dst mac */
-              dstmac = arp_getmac(arptable, ipdst);
-              if (dstmac == NULL) {
-                printf("Could not find the mac for %u.%u.%u.%u in the ARP cache. Broadcasting then!\n", ipdstarr[0], ipdstarr[1], ipdstarr[2], ipdstarr[3]);
-                dstmac = ethbroadcast;
-              }
-              /* encapsulate the data into an eth frame and relay it */
-              forge_eth(&buffptr, &bufflen, mymac, dstmac);
-              write(clientfd, buffptr, bufflen);
-            }
-          }
-
-
-        } /* for (;;) */
-     }
-  }
+  /* return the slirp socket to the application for monitoring needs */
+  return(slirpfdarr[0]);
 }

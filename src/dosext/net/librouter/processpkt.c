@@ -24,7 +24,7 @@
 #include "dhcp.h"
 #include "processpkt.h"  /* include self for control */
 
-static uint32_t iparr2uint(uint8_t *iparr) {
+static uint32_t librouter_iparr2uint(uint8_t *iparr) {
   uint32_t res;
   res = iparr[0];
   res <<= 8;
@@ -39,7 +39,7 @@ static uint32_t iparr2uint(uint8_t *iparr) {
 
 
 /* processes the received frame */
-int processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t mynetmask, uint8_t *mymac, int slirpfd, struct arptabletype **arptable, int tapfd) {
+int librouter_processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t mynetmask, uint8_t *mymac, int slirpfd, struct arptabletype **arptable) {
     uint8_t *srcmac, *dstmac;
     int vlanid, ethertype;
     uint8_t *ethpayload, *ippayload, *udppayload;
@@ -47,11 +47,11 @@ int processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t mynetmask, u
     int x;
     uint8_t broadcastmac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     int ipprotocol, fragoffset = 0, morefragsflag = 0, ipdscp, ipttl, ipid, portsrc = 0, portdst = 0;
-    ethpayload = parse_ethernet(buff, bufflen, &srcmac, &dstmac, &vlanid, &ethertype);
+    ethpayload = librouter_parse_ethernet(buff, bufflen, &srcmac, &dstmac, &vlanid, &ethertype);
     /* printf("Got frame from %02X:%02X:%02X:%02X:%02X:%02X to %02X:%02X:%02X:%02X:%02X:%02X with ethtype 0x%02X.\n", srcmac[0], srcmac[1], srcmac[2], srcmac[3], srcmac[4], srcmac[5], dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5], ethertype); */
 
     /* check the dst mac - if it's not for us, forget about the frame */
-    if ((maccmp(mymac, dstmac) != 0) && (maccmp(broadcastmac, dstmac) != 0)) return(0);
+    if ((librouter_maccmp(mymac, dstmac) != 0) && (librouter_maccmp(broadcastmac, dstmac) != 0)) return(0);
 
     if (ethertype == 0x806) { /* ARP */
         uint8_t arpreqhdr[] = {0x00, 0x01, 0x08, 0x00, 0x06, 0x04, 0x00, 0x01};
@@ -62,7 +62,7 @@ int processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t mynetmask, u
           if (ethpayload[x] != arpreqhdr[x]) arpreqvalidated = 0;
         }
         if (arpreqhdr != 0) {
-          uint32_t localip = iparr2uint(&ethpayload[24]);
+          uint32_t localip = librouter_iparr2uint(&ethpayload[24]);
           arpreqvalidated = 0; /* check that the IP that the host asks about is one of ours */
           for (x = 0; myip[x] != 0; x++) {
             if (localip == myip[x]) arpreqvalidated = 1;
@@ -119,32 +119,33 @@ int processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t mynetmask, u
             buff[x++] = remotehostip[1];
             buff[x++] = remotehostip[2];
             buff[x++] = remotehostip[3];
-            write(tapfd, buff, x); /* send the answer back */
-            return(0);
+            return(x);
           }
         }
       } else if (ethertype == 0x800) { /* IPv4 */
-        ippayload = parse_ipv4(ethpayload, bufflen - (buff - ethpayload), &ipsrc, &ipdst, &ipprotocol, &ipdscp, &ipttl, &ipid, &fragoffset, &morefragsflag);
-        *arptable = arp_learn(*arptable, srcmac, iparr2uint(ipsrc)); /* fill the arp table if necessary */
+        ippayload = librouter_parse_ipv4(ethpayload, bufflen - (buff - ethpayload), &ipsrc, &ipdst, &ipprotocol, &ipdscp, &ipttl, &ipid, &fragoffset, &morefragsflag);
+        *arptable = librouter_arp_learn(*arptable, srcmac, librouter_iparr2uint(ipsrc)); /* fill the arp table if necessary */
         if ((fragoffset == 0) && (morefragsflag == 0)) {  /* ignore all fragmentation */
           /* printf("packet is from %u.%u.%u.%u to %u.%u.%u.%u, ipproto = %d\n", ipsrc[0], ipsrc[1], ipsrc[2], ipsrc[3], ipdst[0], ipdst[1], ipdst[2], ipdst[3], ipprotocol); */
           if (ipprotocol == 17) {  /* UDP */
-            udppayload = parse_udp(ippayload, bufflen - (buff - ippayload), &portsrc, &portdst);
+            udppayload = librouter_parse_udp(ippayload, bufflen - (buff - ippayload), &portsrc, &portdst);
             /* printf("UDP dgram from port %d to port %d\n", portsrc, portdst); */
             if ((portsrc == 68) && (portdst == 67)) {  /* I only care if it's a DHCP request */
               uint8_t *buffptr = buff + 128;
               /* puts("Got a DHCP request"); */
-              x = dhcpserver(udppayload, bufflen - (buff - udppayload), arptable, myip[0], mynetmask, mymac, &buffptr);
+              x = librouter_dhcpserver(udppayload, bufflen - (buff - udppayload), arptable, myip[0], mynetmask, mymac, &buffptr);
               if (x > 0) {
-                write(tapfd, buffptr, x); /* send the answer back */
-                return(0);
+                int i;
+                /* copy the answer into the buffer */
+                for (i = 0; i < x; i++) buff[i] = buffptr[i];
+                return(x);
               }
             }
           }
         }
         /* finally, send the packet to SLIRP (if it's not a broadcast packet) */
         if ((ipdst[0] != 0xFF) && (ipdst[1] != 0xFF) && (ipdst[2] != 0xFF) && (ipdst[3] != 0xFF)) {
-          slirp_send(ethpayload, bufflen - (buff - ethpayload), slirpfd);
+          librouter_slirp_send(ethpayload, bufflen - (buff - ethpayload), slirpfd);
         }
     }
   return(0);

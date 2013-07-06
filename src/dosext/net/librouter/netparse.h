@@ -16,10 +16,10 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-#ifndef netparse_h_sentinel
-#define netparse_h_sentinel
-void *parse_ethernet(uint8_t *ethframe, int ethframe_len, uint8_t **srcmac, uint8_t **dstmac, int *vlanid, int *ethertype);
-void *parse_ipv4(uint8_t *packet, int len, uint8_t **ipsrc, uint8_t **ipdst, int *ipprotocol, int *dscp, int *ttl, int *id, int *fragoffset, int *morefragsflag);
-void *parse_udp(uint8_t *packet, int len, int *portsrc, int *portdst);
-void *parse_tcp(uint8_t *packet, int len, int *portsrc, int *portdst);
+#ifndef librouter_netparse_h_sentinel
+#define librouter_netparse_h_sentinel
+void *librouter_parse_ethernet(uint8_t *ethframe, int ethframe_len, uint8_t **srcmac, uint8_t **dstmac, int *vlanid, int *ethertype);
+void *librouter_parse_ipv4(uint8_t *packet, int len, uint8_t **ipsrc, uint8_t **ipdst, int *ipprotocol, int *dscp, int *ttl, int *id, int *fragoffset, int *morefragsflag);
+void *librouter_parse_udp(uint8_t *packet, int len, int *portsrc, int *portdst);
+void *librouter_parse_tcp(uint8_t *packet, int len, int *portsrc, int *portdst);
 #endif

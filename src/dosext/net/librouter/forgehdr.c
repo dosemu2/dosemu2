@@ -19,7 +19,7 @@
 #include <inttypes.h>
 #include "forgehdr.h"  /* include self for control */
 
-void forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *bufflen) {
+void librouter_forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *bufflen) {
   uint8_t *buffdata;
   *buffptr -= 8;
   *bufflen += 8;
@@ -35,7 +35,7 @@ void forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *bufflen) {
 }
 
 
-void forge_ip(uint32_t ipsrc, uint32_t ipdst, int ipproto, uint8_t **buffptr, int *bufflen) {
+void librouter_forge_ip(uint32_t ipsrc, uint32_t ipdst, int ipproto, uint8_t **buffptr, int *bufflen) {
   int x, cksum;
   uint16_t *hdr16;
   uint8_t *buffdata;
@@ -75,7 +75,7 @@ void forge_ip(uint32_t ipsrc, uint32_t ipdst, int ipproto, uint8_t **buffptr, in
 }
 
 
-void forge_eth(uint8_t **buffptr, int *bufflen, uint8_t *srcmac, uint8_t *dstmac) {
+void librouter_forge_eth(uint8_t **buffptr, int *bufflen, uint8_t *srcmac, uint8_t *dstmac) {
   uint8_t *buffdata;
   *buffptr -= 14;
   *bufflen += 14;

@@ -17,9 +17,9 @@
  */
 
 
-#ifndef forgehdr_h_sentinel
-#define forgehdr_h_sentinel
-void forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *bufflen);
-void forge_ip(uint32_t ipsrc, uint32_t ipdst, int ipproto, uint8_t **buffptr, int *bufflen);
-void forge_eth(uint8_t **buffptr, int *bufflen, uint8_t *srcmac, uint8_t *dstmac);
+#ifndef librouter_forgehdr_h_sentinel
+#define librouter_forgehdr_h_sentinel
+void librouter_forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *bufflen);
+void librouter_forge_ip(uint32_t ipsrc, uint32_t ipdst, int ipproto, uint8_t **buffptr, int *bufflen);
+void librouter_forge_eth(uint8_t **buffptr, int *bufflen, uint8_t *srcmac, uint8_t *dstmac);
 #endif

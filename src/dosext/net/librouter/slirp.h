@@ -16,10 +16,10 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-#ifndef slirp_h_sentinel
-#define slirp_h_sentinel
-int slirp_open(char *slirpcmd, int *slirpfd);
-void slirp_close(int *slirpfd);
-int slirp_send(uint8_t *buff, int bufflen, int slirpfd);
-int slirp_read(uint8_t *buff, int slirpfd);
+#ifndef librouter_slirp_h_sentinel
+#define librouter_slirp_h_sentinel
+int librouter_slirp_open(char *slirpcmd, int *slirpfd);
+void librouter_slirp_close(int *slirpfd);
+int librouter_slirp_send(uint8_t *buff, int bufflen, int slirpfd);
+int librouter_slirp_read(uint8_t *buff, int slirpfd);
 #endif

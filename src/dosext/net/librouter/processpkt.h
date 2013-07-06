@@ -16,7 +16,7 @@
  * Contact: <mateusz$viste-family.net> (replace the $ sign by a @)
  */
 
-#ifndef processpkt_h_sentinel
-#define processpkt_h_sentinel
-int processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t mynetmask, uint8_t *mymac, int slirpfd, struct arptabletype **arptable, int tapfd);
+#ifndef librouter_processpkt_h_sentinel
+#define librouter_processpkt_h_sentinel
+int librouter_processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t mynetmask, uint8_t *mymac, int slirpfd, struct arptabletype **arptable);
 #endif
