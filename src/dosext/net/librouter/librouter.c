@@ -46,9 +46,9 @@
 
 static uint8_t librouter_mymac[] = {0xF0,0xDE,0xF1,0x29,0x07,0x85};
 static uint32_t librouter_myip[] = {(10 << 24) | (0 << 16) | (2 << 8) | 1,  /* me as the gateway */
-                          (10 << 24) | (0 << 16) | (2 << 8) | 2,  /* me as the host */
-                          (10 << 24) | (0 << 16) | (2 << 8) | 3,  /* me as the dns server */
-                          0};                                     /* last entry is marked as '0' */
+                                    (10 << 24) | (0 << 16) | (2 << 8) | 2,  /* me as the host */
+                                    (10 << 24) | (0 << 16) | (2 << 8) | 3,  /* me as the dns server */
+                                    0};                                     /* last entry is marked as '0' */
 static uint32_t librouter_mynetmask = 0xFFFFFF00;
 static struct arptabletype *librouter_arptable = NULL;
 

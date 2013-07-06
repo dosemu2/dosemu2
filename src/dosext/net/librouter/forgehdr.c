@@ -19,6 +19,21 @@
 #include <inttypes.h>
 #include "forgehdr.h"  /* include self for control */
 
+
+/* computes a checksum for n bytes, starting at *buff. */
+int librouter_cksum(uint8_t *buff, int n) {
+  int x, cksum = 0;
+  uint16_t *hdr16 = (uint16_t *) buff;
+  for (x = 0; x < (n >> 1); x++) cksum += hdr16[x];
+  if ((n & 1) != 0) cksum += buff[n - 1]; /* add the last byte if n is odd */
+  x = (cksum >> 16) & 0xF;  /* save the first nibble */
+  cksum += x;  /* add the first nibble (carry) to the cksum */
+  cksum &= 0xFFFF; /* keep only the first 16 bits */
+  cksum ^= 0xFFFF;  /* invert all bits */
+  return(cksum);
+}
+
+
 void librouter_forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *bufflen) {
   uint8_t *buffdata;
   *buffptr -= 8;
@@ -36,8 +51,7 @@ void librouter_forge_udp(int portsrc, int portdst, uint8_t **buffptr, int *buffl
 
 
 void librouter_forge_ip(uint32_t ipsrc, uint32_t ipdst, int ipproto, uint8_t **buffptr, int *bufflen) {
-  int x, cksum;
-  uint16_t *hdr16;
+  int cksum;
   uint8_t *buffdata;
   *buffptr -= 20;
   *bufflen += 20;
@@ -63,13 +77,7 @@ void librouter_forge_ip(uint32_t ipsrc, uint32_t ipdst, int ipproto, uint8_t **b
   buffdata[18] = (ipdst >> 8) & 0xFF;
   buffdata[19] = ipdst & 0xFF;
   /* compute the IP cksum */
-  cksum = 0;
-  hdr16 = (uint16_t *) buffdata;
-  for (x = 0; x < 10; x++) cksum += hdr16[x];
-  x = (cksum >> 16) & 0xF; /* save the first nibble */
-  cksum += x;  /* add the first nibble (carry) to the cksum */
-  cksum &= 0xFFFF; /* keep only the first 16 bits */
-  cksum ^= 0xFFFF;  /* invert all bits */
+  cksum = librouter_cksum(buffdata, 20);
   buffdata[10] = cksum & 0xFF;    /* update the cksum values in the header */
   buffdata[11] = cksum >> 8;
 }

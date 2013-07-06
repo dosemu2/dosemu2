@@ -22,6 +22,7 @@
 #include "slirp.h"
 #include "arp.h"
 #include "dhcp.h"
+#include "forgehdr.h"
 #include "processpkt.h"  /* include self for control */
 
 static uint32_t librouter_iparr2uint(uint8_t *iparr) {
@@ -123,29 +124,47 @@ int librouter_processpkt(uint8_t *buff, int bufflen, uint32_t *myip, uint32_t my
           }
         }
       } else if (ethertype == 0x800) { /* IPv4 */
-        ippayload = librouter_parse_ipv4(ethpayload, bufflen - (buff - ethpayload), &ipsrc, &ipdst, &ipprotocol, &ipdscp, &ipttl, &ipid, &fragoffset, &morefragsflag);
+        ippayload = librouter_parse_ipv4(ethpayload, bufflen - (ethpayload - buff), &ipsrc, &ipdst, &ipprotocol, &ipdscp, &ipttl, &ipid, &fragoffset, &morefragsflag);
         *arptable = librouter_arp_learn(*arptable, srcmac, librouter_iparr2uint(ipsrc)); /* fill the arp table if necessary */
         if ((fragoffset == 0) && (morefragsflag == 0)) {  /* ignore all fragmentation */
           /* printf("packet is from %u.%u.%u.%u to %u.%u.%u.%u, ipproto = %d\n", ipsrc[0], ipsrc[1], ipsrc[2], ipsrc[3], ipdst[0], ipdst[1], ipdst[2], ipdst[3], ipprotocol); */
-          if (ipprotocol == 17) {  /* UDP */
-            udppayload = librouter_parse_udp(ippayload, bufflen - (buff - ippayload), &portsrc, &portdst);
-            /* printf("UDP dgram from port %d to port %d\n", portsrc, portdst); */
-            if ((portsrc == 68) && (portdst == 67)) {  /* I only care if it's a DHCP request */
-              uint8_t *buffptr = buff + 128;
-              /* puts("Got a DHCP request"); */
-              x = librouter_dhcpserver(udppayload, bufflen - (buff - udppayload), arptable, myip[0], mynetmask, mymac, &buffptr);
-              if (x > 0) {
+          if (ipprotocol == 1) {  /* ICMP */
+              if ((ippayload[0] == 8) && (ippayload[1] == 0)) { /* is it ECHO REQUEST with code 0? */
+                uint8_t buff2[2048];
+                uint8_t *buffptr = buff2 + 128;
                 int i;
-                /* copy the answer into the buffer */
-                for (i = 0; i < x; i++) buff[i] = buffptr[i];
-                return(x);
+                bufflen -= (ippayload - buff);  /* reset the size to be only the size of the ICMP payload (we will increment it later) */
+                for (i = 0; i < bufflen; i++) buffptr[i] = ippayload[i]; /* copy the icmp segment */
+                buffptr[0] = 0; /* change the ECHO REQUEST byte to a ECHO REPLY */
+                buffptr[2] = 0; /* clear the cksum field */
+                buffptr[3] = 0; /* clear the cksum field */
+                i = librouter_cksum(buffptr, bufflen); /* recompute the cksum */
+                buffptr[2] = (i & 0xFF);
+                buffptr[3] = (i >> 8);
+                librouter_forge_ip(librouter_iparr2uint(ipdst), librouter_iparr2uint(ipsrc), 1, &buffptr, &bufflen);  /* add the IP header */
+                librouter_forge_eth(&buffptr, &bufflen, dstmac, srcmac);  /* add the eth header */
+                for (i = 0; i < bufflen; i++) buff[i] = buffptr[i]; /* copy the whole frame back the the original buffer */
+                return(bufflen); /* send the answer back */
               }
-            }
+            } else if (ipprotocol == 17) { /* UDP */
+              udppayload = librouter_parse_udp(ippayload, bufflen - (ippayload - buff), &portsrc, &portdst);
+              /* printf("UDP dgram from port %d to port %d\n", portsrc, portdst); */
+              if ((portsrc == 68) && (portdst == 67)) {  /* I only care if it's a DHCP request */
+                uint8_t *buffptr = buff + 128;
+                /* puts("Got a DHCP request"); */
+                x = librouter_dhcpserver(udppayload, bufflen - (udppayload - buff), arptable, myip[0], mynetmask, mymac, &buffptr);
+                if (x > 0) {
+                  int i;
+                  /* copy the answer into the buffer */
+                  for (i = 0; i < x; i++) buff[i] = buffptr[i];
+                  return(x);
+                }
+              }
           }
         }
         /* finally, send the packet to SLIRP (if it's not a broadcast packet) */
         if ((ipdst[0] != 0xFF) && (ipdst[1] != 0xFF) && (ipdst[2] != 0xFF) && (ipdst[3] != 0xFF)) {
-          librouter_slirp_send(ethpayload, bufflen - (buff - ethpayload), slirpfd);
+          librouter_slirp_send(ethpayload, bufflen - (ethpayload - buff), slirpfd);
         }
     }
   return(0);

@@ -61,43 +61,53 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
   if (pid < 0) { /* fork failed! */
       return(pid);
     } else if (pid == 0) { /* child process */
-      int nfd;
+      int nfd, execres;
 
       /* close the parent's end of the socket, to avoid writing any garbage to it by mistake */
       close(slirpfd[0]);
 
       if (dup2(slirpfd[1], STDIN_FILENO) == -1) {
-        /*p rintf("dup2() failed: %s\n", strerror(errno)); */
+        /* printf("dup2() failed: %s\n", strerror(errno)); */
       }
       /* slirp seems to use stdin bidirectionally instead of using stdout for SLIP output (?) */
       if (dup2(slirpfd[1], STDOUT_FILENO) == -1) {
         /* printf("dup2() failed: %s\n", strerror(errno)); */
       }
 
-      /* redirect stderr to null, because slirp uses stderr to print out its own infos, and I don't want this stuff to be printed on user's console as coming from dosemu */
+      /* redirect stderr to null, because slirp uses stderr to print out its own infos, and I don't want this stuff to be printed on user's console */
       nfd = open("/dev/null", O_RDWR);
       if (nfd != -1) {
         dup2(nfd, STDERR_FILENO);
       }
 
-      if (command != NULL) { /* if the user provided an executable, run it */
-        if (execlp(command, command, NULL) < 0) {
+      for (;;) { /* this is not a real loop, but only a way to break out easily */
+        if (command != NULL) { /* if the user provided an executable, run it */
+          execres = execlp(command, command, NULL);
+          if (execres >= 0) { /* slirp ended for some reason */
+              break;
+            } else {
+              /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
+          }
+        }
+        /* if above command hasn't worked, or user haven't provided any command, try a hardcoded value */
+        execres = execlp("slirp-fullbolt", "slirp-fullbolt", NULL);
+        if (execres >= 0) {  /* slirp ended for some reason */
+            break;
+          } else {
+            /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
+        }
+        /* if above command hasn't worked, try another hardcoded value */
+        if (execlp("slirp", "slirp", NULL) < 0) {
           /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
         }
+        break; /* we don't have other ideas to try, so let's quit here */
       }
-      /* if above command hasn't worked, or user haven't provided any command, try a hardcoded value */
-      if (execlp("slirp-fullbolt", "slirp-fullbolt", NULL) < 0) {
-        /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
-      }
-      /* if above command hasn't worked, try another hardcoded value */
-      if (execlp("slirp", "slirp", NULL) < 0) {
-        /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
-      }
-
-      exit(0); /* we need the child to die if it doesn't work properly, otherwise the user would end up with two of his calling processes */
+      close(slirpfd[1]); /* close the communication socket before quitting */
+      exit(0); /* we need the child to die if it doesn't work properly, otherwise the user would end up with two of his calling processes (because we forked, remember?) */
+    } else {  /* parent process */
+      close(slirpfd[1]);
+      return(pid);
   }
-  close(slirpfd[1]);
-  return(pid);
 }
 
 
