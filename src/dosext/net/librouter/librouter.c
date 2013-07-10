@@ -88,10 +88,8 @@ int librouter_recvframe(int sock, uint8_t *buff) {
   buffptr = buff + 14; /* leaving some place before data, for the eth header */
   bufflen = librouter_slirp_read(buffptr, sock);
   /* printf("Got %d bytes on the slirp iface.\n", bufflen); */
-  if (bufflen <= 0) { /* slirp is gone */
-    close(sock);
+  if (bufflen <= 0)
     return(-1);
-  }
   /* else bufflen > 0, so there is some real data awaiting */
   /* analyze the IP header */
   librouter_parse_ipv4(buffptr, bufflen, &ipsrcarr, &ipdstarr, &ipprotocol, &dscp, &ttl, &id, &fragoffset, &morefragsflag);
