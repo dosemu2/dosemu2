@@ -56,7 +56,6 @@ extern int smdestroy(struct mempool *mp);
 extern size_t smget_free_space(struct mempool *mp);
 extern size_t smget_largest_free_area(struct mempool *mp);
 extern int smget_area_size(struct mempool *mp, void *ptr);
-extern void *smalloc_query(struct mempool *mp, size_t size);
 extern void smregister_error_notifier(void (*func)(char *fmt, ...)
   FORMAT(printf, 1, 2));
 
