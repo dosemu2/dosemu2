@@ -10,7 +10,7 @@
 #define SM_COMMIT_SUPPORT 1
 
 struct memnode {
-  struct memnode *next, *prev;
+  struct memnode *next;
   size_t size;
   int used;
   unsigned char *mem_area;
@@ -26,7 +26,6 @@ typedef struct mempool {
 
 #define SM_EMPTY_NODE { \
   NULL,		 /* *next */ \
-  NULL,		 /* *prev */ \
   0, 		 /* size */ \
   0,		 /* used */ \
   NULL,		 /* *mem_area */ \
