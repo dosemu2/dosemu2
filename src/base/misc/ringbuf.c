@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stddef.h>
+#include "utilities.h"
 #include "ringbuf.h"
 
 void rng_init(struct rng_s *rng, size_t objnum, size_t objsize)
@@ -169,57 +171,102 @@ void rng_clear(struct rng_s *rng)
 
 
 /* sequential buffer API */
-struct seqitem {
-    char *pos;
-    size_t len;
-};
 
-int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len, int maxnum)
+#define SQALIGN(x) (ALIGN(x, sizeof(struct seqitem)))
+/* silly macros to not break strict aliasing */
+#define SQ_PSUB(x, y) ((char *)(x) - (char *)(y))
+#define SQ_PINC(x, y) ((char *)(x) + (y))
+#define SQ_BEG(s) ((char *)(s)->beg)
+#define SQ_END(s) (SQ_BEG(s) + (s)->len)
+#define SQ_TAIL(s) ((char *)(s)->tail)
+#define SQ_PREV(s) ((char *)(s)->prev)
+
+int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len)
 {
-    seq->beg = seq->cur = buffer;
-    seq->len = seq->avail = len;
-    rng_init(&seq->rng, maxnum, sizeof(struct seqitem));
+    void *beg = (void *)SQALIGN((ptrdiff_t)buffer);
+    seq->beg = beg;
+    seq->tail = beg;
+    seq->len = len - SQ_PSUB(seq->beg, buffer);
+    seq->prev = NULL;
     return 0;
+}
+
+static struct seqitem *sqcalc_next(struct seqbuf *seq, struct seqitem *pit)
+{
+    size_t opos, pos;
+    assert(pit);
+    opos = SQ_PSUB(pit, seq->beg);
+    pos = opos + sizeof(struct seqitem) + pit->len + pit->waste;
+    return (struct seqitem *)(SQ_BEG(seq) + SQALIGN(pos));
+}
+
+static struct seqitem *sqcalc_next_wrp(struct seqbuf *seq, struct seqitem *pit)
+{
+    struct seqitem *itp = sqcalc_next(seq, pit);
+    if ((char *)itp == SQ_END(seq))
+	itp = seq->beg;
+    assert((char *)itp < SQ_END(seq));
+    return itp;
+}
+
+static size_t sqcalc_avail(struct seqbuf *seq)
+{
+    size_t avail1, avail2;
+    char *cur, *tail = SQ_TAIL(seq);
+    if (!seq->prev)
+	return seq->len;
+    cur = (char *)sqcalc_next(seq, seq->prev);
+    if (cur < tail)
+	return tail - cur;
+    avail1 = seq->len - SQ_PSUB(cur, seq->beg);
+    avail2 = tail - SQ_BEG(seq);
+    return max(avail1, avail2);
 }
 
 int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len)
 {
-    struct seqitem it;
-    int ret;
-    if (seq->avail < len)
+    struct seqitem it, *itp;
+    size_t avail = sqcalc_avail(seq);
+    size_t req_len = SQALIGN(len + sizeof(struct seqitem));
+    if (avail < req_len || !len)
 	return 0;
-    if (seq->cur + len > seq->beg + seq->len)
-	seq->cur = seq->beg;
-    assert(seq->cur + len <= seq->beg + seq->len);
-    memcpy(seq->cur, buffer, len);
-    it.pos = seq->cur;
+    itp = (seq->prev ? sqcalc_next(seq, seq->prev) : seq->beg);
+    if (SQ_PINC(itp, req_len) > SQ_END(seq)) {
+	assert(seq->prev);
+	seq->prev->waste += SQ_PSUB(SQ_END(seq), itp);
+	itp = seq->beg;
+    }
+    assert(SQ_PINC(itp, req_len) <= SQ_END(seq));
+    it.waste = req_len - len;
     it.len = len;
-    seq->cur += len;
-    seq->avail -= len;
-    ret = rng_put(&seq->rng, &it);
-    return ret * len;
+    *itp = it;
+    seq->prev = itp;
+    memcpy(itp + 1, buffer, len);
+    return len;
 }
 
 int seqbuf_read(struct seqbuf *seq, void *buffer, size_t len)
 {
-    struct seqitem it;
-    int ret = rng_get(&seq->rng, &it);
-    if (!ret)
+    struct seqitem *itp;
+    int used = (seq->len != sqcalc_avail(seq));
+    if (!used)
 	return 0;
-    if (len < it.len)
-	return -it.len;
-    memcpy(buffer, it.pos, it.len);
-    seq->avail += it.len;
-    return it.len;
+    itp = seq->tail;
+    if (len < itp->len)
+	return -itp->len;
+    memcpy(buffer, itp + 1, itp->len);
+    seq->tail = sqcalc_next_wrp(seq, itp);
+    return itp->len;
 }
 
 void *seqbuf_get(struct seqbuf *seq, size_t *len)
 {
-    struct seqitem it;
-    int ret = rng_get(&seq->rng, &it);
-    if (!ret)
+    struct seqitem *itp;
+    int used = (seq->len != sqcalc_avail(seq));
+    if (!used)
 	return NULL;
-    seq->avail += it.len;
-    *len = it.len;
-    return it.pos;
+    itp = seq->tail;
+    seq->tail = sqcalc_next_wrp(seq, itp);
+    *len = itp->len;
+    return itp + 1;
 }

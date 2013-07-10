@@ -41,12 +41,15 @@ ssize_t rng_get_free_space(struct rng_s *rng);
 void rng_clear(struct rng_s *rng);
 
 
-struct seqbuf {
-    char *beg, *cur;
-    size_t len, avail;
-    struct rng_s rng;
+struct seqitem {
+    size_t len, waste;
 };
-int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len, int maxnum);
+
+struct seqbuf {
+    struct seqitem *beg, *tail, *prev;
+    size_t len;
+};
+int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len);
 int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len);
 int seqbuf_read(struct seqbuf *seq, void *buffer, size_t len);
 void *seqbuf_get(struct seqbuf *seq, size_t *len);
