@@ -27,6 +27,34 @@ static void smerror_dummy(char *fmt, ...)
 {
 }
 
+#if SM_COMMIT_SUPPORT
+static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
+{
+    if (!mp->uncommit)
+      return;
+    mp->uncommit(addr, size);
+}
+
+static int sm_commit(struct mempool *mp, void *addr, size_t size,
+	void *e_addr, size_t e_size)
+{
+  if (!mp->commit)
+    return 1;
+  if (!mp->commit(addr, size)) {
+    smerror("SMALLOC: failed to commit %p %zi\n", addr, size);
+    if (e_size)
+      sm_uncommit(mp, e_addr, e_size);
+    return 0;
+  }
+  return 1;
+}
+
+static int sm_commit_simple(struct mempool *mp, void *addr, size_t size)
+{
+  return sm_commit(mp, addr, size, NULL, 0);
+}
+#endif
+
 static void mntruncate(struct memnode *pmn, size_t size)
 {
   int delta = pmn->size - size;
@@ -105,7 +133,7 @@ static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
     return NULL;
   }
 #if SM_COMMIT_SUPPORT
-  if (mp->commit && !mp->commit(mn->mem_area, size))
+  if (!sm_commit_simple(mp, mn->mem_area, size))
     return NULL;
 #endif
   mn->used = 1;
@@ -138,8 +166,7 @@ void smfree(struct mempool *mp, void *ptr)
   }
   assert(mn->size > 0);
 #if SM_COMMIT_SUPPORT
-  if (mp->uncommit)
-    mp->uncommit(mn->mem_area, mn->size);
+  sm_uncommit(mp, mn->mem_area, mn->size);
 #endif
   mn->used = 0;
   if (mn->next && !mn->next->used) {
@@ -166,16 +193,13 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
 	(nmn->used ? 0 : nmn->size) >= size) {
     /* move to prev memnode */
 #if SM_COMMIT_SUPPORT
-    if (mp->commit) {
-      size_t psize = min(size, pmn->size);
-      if (!mp->commit(pmn->mem_area, psize))
+    size_t psize = min(size, pmn->size);
+    if (!sm_commit_simple(mp, pmn->mem_area, psize))
+      return NULL;
+    if (size > pmn->size + mn->size) {
+      if (!sm_commit(mp, nmn->mem_area, size - pmn->size - mn->size,
+	    pmn->mem_area, psize))
         return NULL;
-      if (size > pmn->size + mn->size &&
-		!mp->commit(nmn->mem_area, size - pmn->size - mn->size)) {
-	if (mp->uncommit)
-	  mp->uncommit(pmn->mem_area, psize);
-	return NULL;
-      }
     }
 #endif
     pmn->used = 1;
@@ -185,8 +209,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
 #if SM_COMMIT_SUPPORT
     if (size < pmn->size + mn->size) {
       size_t overl = size > pmn->size ? size - pmn->size : 0;
-      if (mp->uncommit)
-        mp->uncommit(mn->mem_area + overl, mn->size - overl);
+      sm_uncommit(mp, mn->mem_area + overl, mn->size - overl);
     }
 #endif
     if (!nmn->used)	// merge with next
@@ -228,8 +251,7 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
   if (size < mn->size) {
     /* shrink */
 #if SM_COMMIT_SUPPORT
-    if (mp->uncommit)
-      mp->uncommit(mn->mem_area + size, mn->size - size);
+    sm_uncommit(mp, mn->mem_area + size, mn->size - size);
 #endif
     mntruncate(mn, size);
   } else {
@@ -238,7 +260,7 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
       /* expand by shrinking next memnode */
 #if SM_COMMIT_SUPPORT
-      if (mp->commit && !mp->commit(nmn->mem_area, size - mn->size))
+      if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
         return NULL;
 #endif
       memset(nmn->mem_area, 0, size - mn->size);
