@@ -93,14 +93,6 @@ static struct memnode *smfind_free_area(struct mempool *mp, size_t size)
   return NULL;
 }
 
-/* NOTE: it is *guaranteed* that a subsequent call to smalloc() with
- * the same arguments, will return the same pointer this function will. */
-void *smalloc_query(struct mempool *mp, size_t size)
-{
-  struct memnode *mn = smfind_free_area(mp, size);
-  return mn ? mn->mem_area : NULL;
-}
-
 void *smalloc(struct mempool *mp, size_t size)
 {
   struct memnode *mn;
