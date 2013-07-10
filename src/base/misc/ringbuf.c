@@ -270,3 +270,11 @@ void *seqbuf_get(struct seqbuf *seq, size_t *len)
     *len = itp->len;
     return itp + 1;
 }
+
+size_t seqbuf_get_read_len(struct seqbuf *seq)
+{
+    int used = (seq->len != sqcalc_avail(seq));
+    if (!used)
+	return 0;
+    return seq->tail->len;
+}
