@@ -74,7 +74,12 @@ static void GenerateDosnetID(void)
 	pd_printf("Assigned DosnetID=%x\n", DosnetID);
 }
 
-static void pkt_receive_req(void *arg)
+static void pkt_receive_req_async(void *arg)
+{
+  pic_request(PIC_NET);
+}
+
+static void pkt_receive_req(void)
 {
   pic_request(PIC_NET);
 }
@@ -135,7 +140,7 @@ static int OpenNetworkLinkEth(char *name)
 
 	pkt_fd = s;
 
-	add_to_io_select(pkt_fd, pkt_receive_req, NULL);
+	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
 
 	return 0;
 }
@@ -146,7 +151,7 @@ static int OpenNetworkLinkTap(char *name)
 	pkt_fd = tun_alloc(name);
 	if (pkt_fd < 0)
 		return pkt_fd;
-	add_to_io_select(pkt_fd, pkt_receive_req, NULL);
+	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
 	return 0;
 }
 
@@ -154,7 +159,7 @@ static int OpenNetworkLinkSlirp(char *name)
 {
 	receive_mode = 6;
 	pkt_fd = librouter_init(name);
-        add_to_io_select(pkt_fd, pkt_receive_req, NULL);
+        add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
 	return 0;
 }
 
@@ -368,7 +373,7 @@ static ssize_t pkt_write_slirp(const void *buf, size_t count)
   memcpy(librouter_buff, buf, count); /* we copy buf into our own buffer first, because librouter needs write access to the buffer */
   librouter_bufflen = librouter_sendframe(pkt_fd, librouter_buff, count);
   if (librouter_bufflen > 0) { /* we've got something back already! */
-    pkt_receive_req(NULL); /* this makes the underlying DOS get some kind of a signal 'hey buddy, you've got some data' */
+    pkt_receive_req(); /* this makes the underlying DOS get some kind of a signal 'hey buddy, you've got some data' */
   }
   return(count);
 }
