@@ -41,13 +41,7 @@
      section 3. This code is marked with an appropriate text at the
      beginning of each file involved.
 
-5.   Redistributions of repackaged official DOSEMU source packages,
-     including the compression method, but not including the placement
-     of unchanged compressed DOSEMU packages within envelops (e.g.
-     *.rpm, *.deb, double compress), must be clearly marked as
-     modified and unofficial.
-
-6.   This file, COPYING.DOSEMU, must be distributed together with
+5.   This file, COPYING.DOSEMU, must be distributed together with
      the DOSEMU distribution or any derivative work. This file and
      the GPL in the file COPYING must not be separated. Clauses
      2 to 7 must not be interpreted to restrict or modify clause 1,
