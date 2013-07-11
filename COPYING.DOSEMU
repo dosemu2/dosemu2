@@ -36,8 +36,8 @@
      within the code, and the copyrights are also at the end of this
      file. The rest of the code is covered by the GPL.
 
-4.   Some code, that was covered by GNU LIBRARY GENERAL PUBLIC LICENSE
-     (GLGPL) has been transformed to GPL as is allowed by the GLGPL
+4.   Some code, that was covered by GNU Lesser General Public License
+     (LGPL) has been transformed to GPL as is allowed by the LGPL
      section 3. This code is marked with an appropriate text at the
      beginning of each file involved.
 
@@ -58,7 +58,7 @@
      including the compression method, but not including the placement
      of unchanged compressed DOSEMU packages within envelops (e.g.
      *.rpm, *.deb, double compress), must be clearly marked as
-     modified and unofficial. 
+     modified and unofficial.
 
 7.   This file, COPYING.DOSEMU, must be distributed together with
      the DOSEMU distribution or any derivative work. This file and
