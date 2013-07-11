@@ -557,6 +557,8 @@ Remove_Type(int handle)
 	else if (pkt_type_array[i].handle == handle)
 	    shift_up=1;
     }
+    if (shift_up)
+	max_pkt_type_array--;
     return 0;
 }
 

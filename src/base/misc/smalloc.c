@@ -7,7 +7,7 @@
 /*
  * smalloc - small memory allocator for dosemu.
  *
- * Authors: Stas Sergeev (main author), Bart Oldeman
+ * Author: Stas Sergeev
  */
 
 #include <stdlib.h>
@@ -27,6 +27,34 @@ static void smerror_dummy(char *fmt, ...)
 {
 }
 
+#if SM_COMMIT_SUPPORT
+static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
+{
+    if (!mp->uncommit)
+      return;
+    mp->uncommit(addr, size);
+}
+
+static int sm_commit(struct mempool *mp, void *addr, size_t size,
+	void *e_addr, size_t e_size)
+{
+  if (!mp->commit)
+    return 1;
+  if (!mp->commit(addr, size)) {
+    smerror("SMALLOC: failed to commit %p %zi\n", addr, size);
+    if (e_size)
+      sm_uncommit(mp, e_addr, e_size);
+    return 0;
+  }
+  return 1;
+}
+
+static int sm_commit_simple(struct mempool *mp, void *addr, size_t size)
+{
+  return sm_commit(mp, addr, size, NULL, 0);
+}
+#endif
+
 static void mntruncate(struct memnode *pmn, size_t size)
 {
   int delta = pmn->size - size;
@@ -44,7 +72,6 @@ static void mntruncate(struct memnode *pmn, size_t size)
     pmn->size -= delta;
     if (nmn->size == 0) {
       pmn->next = nmn->next;
-      if (pmn->next) pmn->next->prev = pmn;
       free(nmn);
       assert(!pmn->next || pmn->next->used);
     }
@@ -55,8 +82,6 @@ static void mntruncate(struct memnode *pmn, size_t size)
 
     new_mn = malloc(sizeof(struct memnode));
     new_mn->next = pmn->next;
-    new_mn->prev = pmn;
-    if (new_mn->next) new_mn->next->prev = new_mn;
     new_mn->size = delta;
     new_mn->used = 0;
     new_mn->mem_area = pmn->mem_area + size;
@@ -66,17 +91,20 @@ static void mntruncate(struct memnode *pmn, size_t size)
   }
 }
 
-static struct memnode *find_mn(struct mempool *mp, unsigned char *ptr)
+static struct memnode *find_mn(struct mempool *mp, unsigned char *ptr,
+    struct memnode **prev)
 {
-  struct memnode *mn;
+  struct memnode *pmn, *mn;
   if (!POOL_USED(mp)) {
     smerror("SMALLOC: unused pool passed\n");
     return NULL;
   }
-  for (mn = &mp->mn; mn; mn = mn->next) {
+  for (pmn = NULL, mn = &mp->mn; mn; pmn = mn, mn = mn->next) {
     if (mn->mem_area > ptr)
       return NULL;
     if (mn->mem_area == ptr) {
+      if (prev)
+        *prev = pmn;
       return mn;
     }
   }
@@ -93,15 +121,7 @@ static struct memnode *smfind_free_area(struct mempool *mp, size_t size)
   return NULL;
 }
 
-/* NOTE: it is *guaranteed* that a subsequent call to smalloc() with
- * the same arguments, will return the same pointer this function will. */
-void *smalloc_query(struct mempool *mp, size_t size)
-{
-  struct memnode *mn = smfind_free_area(mp, size);
-  return mn ? mn->mem_area : NULL;
-}
-
-void *smalloc(struct mempool *mp, size_t size)
+static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
 {
   struct memnode *mn;
   if (!size) {
@@ -113,13 +133,21 @@ void *smalloc(struct mempool *mp, size_t size)
     return NULL;
   }
 #if SM_COMMIT_SUPPORT
-  if (mp->commit && !mp->commit(mn->mem_area, size))
+  if (!sm_commit_simple(mp, mn->mem_area, size))
     return NULL;
 #endif
   mn->used = 1;
   mntruncate(mn, size);
   assert(mn->size == size);
   memset(mn->mem_area, 0, size);
+  return mn;
+}
+
+void *smalloc(struct mempool *mp, size_t size)
+{
+  struct memnode *mn = sm_alloc_mn(mp, size);
+  if (!mn)
+    return NULL;
   return mn->mem_area;
 }
 
@@ -128,7 +156,7 @@ void smfree(struct mempool *mp, void *ptr)
   struct memnode *mn, *pmn;
   if (!ptr)
     return;
-  if (!(mn = find_mn(mp, ptr))) {
+  if (!(mn = find_mn(mp, ptr, &pmn))) {
     smerror("SMALLOC: bad pointer passed to smfree()\n");
     return;
   }
@@ -138,8 +166,7 @@ void smfree(struct mempool *mp, void *ptr)
   }
   assert(mn->size > 0);
 #if SM_COMMIT_SUPPORT
-  if (mp->uncommit)
-    mp->uncommit(mn->mem_area, mn->size);
+  sm_uncommit(mp, mn->mem_area, mn->size);
 #endif
   mn->used = 0;
   if (mn->next && !mn->next->used) {
@@ -147,7 +174,6 @@ void smfree(struct mempool *mp, void *ptr)
     assert(mn->next->mem_area >= mn->mem_area);
     mntruncate(mn, mn->size + mn->next->size);
   }
-  pmn = mn->prev;
   if (pmn && !pmn->used) {
     /* merge with prev */
     assert(pmn->mem_area <= mn->mem_area);
@@ -156,12 +182,59 @@ void smfree(struct mempool *mp, void *ptr)
   }
 }
 
+/* part of smrealloc() that covers the cases where the
+ * extra memnode needs to be allocated for realloc */
+static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
+	struct memnode *pmn, struct memnode *mn,
+	struct memnode *nmn, size_t size)
+{
+  struct memnode *new_mn;
+  if (pmn && !pmn->used && pmn->size + mn->size +
+	(nmn->used ? 0 : nmn->size) >= size) {
+    /* move to prev memnode */
+#if SM_COMMIT_SUPPORT
+    size_t psize = min(size, pmn->size);
+    if (!sm_commit_simple(mp, pmn->mem_area, psize))
+      return NULL;
+    if (size > pmn->size + mn->size) {
+      if (!sm_commit(mp, nmn->mem_area, size - pmn->size - mn->size,
+	    pmn->mem_area, psize))
+        return NULL;
+    }
+#endif
+    pmn->used = 1;
+    memmove(pmn->mem_area, mn->mem_area, mn->size);
+    memset(pmn->mem_area + mn->size, 0, size - mn->size);
+    mn->used = 0;
+#if SM_COMMIT_SUPPORT
+    if (size < pmn->size + mn->size) {
+      size_t overl = size > pmn->size ? size - pmn->size : 0;
+      sm_uncommit(mp, mn->mem_area + overl, mn->size - overl);
+    }
+#endif
+    if (!nmn->used)	// merge with next
+      mntruncate(mn, mn->size + nmn->size);
+    mntruncate(pmn, size);
+    new_mn = pmn;
+  } else {
+    /* relocate */
+    new_mn = sm_alloc_mn(mp, size);
+    if (!new_mn) {
+      smerror("SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
+      return NULL;
+    }
+    memcpy(new_mn->mem_area, mn->mem_area, mn->size);
+    smfree(mp, mn->mem_area);
+  }
+  return new_mn;
+}
+
 void *smrealloc(struct mempool *mp, void *ptr, size_t size)
 {
   struct memnode *mn, *pmn;
   if (!ptr)
     return smalloc(mp, size);
-  if (!(mn = find_mn(mp, ptr))) {
+  if (!(mn = find_mn(mp, ptr, &pmn))) {
     smerror("SMALLOC: bad pointer passed to smrealloc()\n");
     return NULL;
   }
@@ -178,64 +251,25 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
   if (size < mn->size) {
     /* shrink */
 #if SM_COMMIT_SUPPORT
-    if (mp->uncommit)
-      mp->uncommit(mn->mem_area + size, mn->size - size);
+    sm_uncommit(mp, mn->mem_area + size, mn->size - size);
 #endif
     mntruncate(mn, size);
   } else {
     /* grow */
     struct memnode *nmn = mn->next;
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
-      /* expand */
+      /* expand by shrinking next memnode */
 #if SM_COMMIT_SUPPORT
-      if (mp->commit && !mp->commit(nmn->mem_area, size - mn->size))
+      if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
         return NULL;
 #endif
       memset(nmn->mem_area, 0, size - mn->size);
       mntruncate(mn, size);
     } else {
-      pmn = mn->prev;
-      if (pmn && !pmn->used && pmn->size + mn->size + (nmn->used ? 0 : nmn->size) >= size) {
-        /* move */
-#if SM_COMMIT_SUPPORT
-        if (mp->commit) {
-	  size_t psize = min(size, pmn->size);
-	  if (!mp->commit(pmn->mem_area, psize))
-            return NULL;
-	  if (size > pmn->size + mn->size &&
-		!mp->commit(nmn->mem_area, size - pmn->size - mn->size)) {
-	    if (mp->uncommit)
-	      mp->uncommit(pmn->mem_area, psize);
-            return NULL;
-	  }
-        }
-#endif
-        pmn->used = 1;
-        memmove(pmn->mem_area, mn->mem_area, mn->size);
-        memset(pmn->mem_area + mn->size, 0, size - mn->size);
-        mn->used = 0;
-#if SM_COMMIT_SUPPORT
-	if (size < pmn->size + mn->size) {
-	  size_t overl = size > pmn->size ? size - pmn->size : 0;
-	  if (mp->uncommit)
-	    mp->uncommit(mn->mem_area + overl, mn->size - overl);
-	}
-#endif
-        if (!nmn->used)
-          mntruncate(mn, mn->size + nmn->size);
-        mntruncate(pmn, size);
-        return pmn->mem_area;
-      } else {
-        /* relocate */
-        void *new_ptr = smalloc(mp, size);
-        if (!new_ptr) {
-          smerror("SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
-          return NULL;
-        }
-        memcpy(new_ptr, mn->mem_area, mn->size);
-        smfree(mp, mn->mem_area);
-        return new_ptr;
-      }
+      /* need to allocate new memnode */
+      mn = sm_realloc_alloc_mn(mp, pmn, mn, nmn, size);
+      if (!mn)
+        return NULL;
     }
   }
   assert(mn->size == size);
@@ -247,7 +281,6 @@ int sminit(struct mempool *mp, void *start, size_t size)
   mp->mn.size = size;
   mp->mn.used = 0;
   mp->mn.next = NULL;
-  mp->mn.prev = NULL;
   mp->mn.mem_area = start;
 #if SM_COMMIT_SUPPORT
   mp->commit = NULL;
@@ -309,7 +342,7 @@ size_t smget_largest_free_area(struct mempool *mp)
 int smget_area_size(struct mempool *mp, void *ptr)
 {
   struct memnode *mn;
-  if (!(mn = find_mn(mp, ptr))) {
+  if (!(mn = find_mn(mp, ptr, NULL))) {
     smerror("SMALLOC: bad pointer passed to smget_area_size()\n");
     return -1;
   }

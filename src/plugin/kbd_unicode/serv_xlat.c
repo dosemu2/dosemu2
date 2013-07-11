@@ -127,6 +127,11 @@
 #error NUM_KEYSYMS needs to be 0x10000
 #endif
 
+/* FIXME FIXME!
+ * this does not work yet: intended only for pasting, but implemented
+ * also for normal keypresses. So disable until this fixed. */
+#define PASTE_RECOMPUTE 0
+
 static void sync_shift_state(t_modifiers desired, struct keyboard_state *state);
 static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 	struct translate_rule *rule, t_keynum key, t_shiftstate *mask);
@@ -1471,6 +1476,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 
 	scan_code_string = compute_scancode_string(make, keynum);
 
+#if PASTE_RECOMPUTE
 	/* A real pc keyboard for backwards compatibility inserts
 	 * fake presses and releases of the left and right shift keys
 	 */
@@ -1599,6 +1605,9 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 		break;
 	}
 	}
+#else
+	send_scan_code_string(make, scan_code_string);
+#endif
 	/* although backend_run() is called periodically anyway, for faster response
 	 * it's a good idea to call it straight away.
 	 */

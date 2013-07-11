@@ -50,7 +50,7 @@
  * shouldn't affect 'hardware' behaviour, but this seems the only way of knowing how
  * fast DOS is processing keystrokes, in particular for pasting.
  */
-#define KEYBUF_HACK 1
+#define KEYBUF_HACK 0
 
 /********** QUEUE ***********/
 

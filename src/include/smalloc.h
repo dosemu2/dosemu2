@@ -10,7 +10,7 @@
 #define SM_COMMIT_SUPPORT 1
 
 struct memnode {
-  struct memnode *next, *prev;
+  struct memnode *next;
   size_t size;
   int used;
   unsigned char *mem_area;
@@ -26,7 +26,6 @@ typedef struct mempool {
 
 #define SM_EMPTY_NODE { \
   NULL,		 /* *next */ \
-  NULL,		 /* *prev */ \
   0, 		 /* size */ \
   0,		 /* used */ \
   NULL,		 /* *mem_area */ \
@@ -57,7 +56,6 @@ extern int smdestroy(struct mempool *mp);
 extern size_t smget_free_space(struct mempool *mp);
 extern size_t smget_largest_free_area(struct mempool *mp);
 extern int smget_area_size(struct mempool *mp, void *ptr);
-extern void *smalloc_query(struct mempool *mp, size_t size);
 extern void smregister_error_notifier(void (*func)(char *fmt, ...)
   FORMAT(printf, 1, 2));
 
