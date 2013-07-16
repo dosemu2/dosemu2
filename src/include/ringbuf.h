@@ -43,10 +43,16 @@ void rng_clear(struct rng_s *rng);
 
 struct seqitem {
     size_t len, waste;
+    uint8_t data[0];
+};
+
+union seqiu {
+    struct seqitem it;
+    uint8_t bytes[sizeof(struct seqitem)];
 };
 
 struct seqbuf {
-    struct seqitem *beg, *tail, *prev;
+    union seqiu *beg, *tail, *prev;
     size_t len;
 };
 int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len);
