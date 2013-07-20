@@ -6113,7 +6113,6 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-OPTIONALSUBDIRS="dosext/net/v-net"
 REQUIRED="tools commands tools/periph"
 
  # Check whether --enable-experimental was given.
@@ -6137,7 +6136,6 @@ _ACEOF
    USE_MHPDBG="USE_MHPDBG=1"
 
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-   OPTIONALSUBDIRS="dosext/net/v-net"
    REQUIRED="tools commands tools/periph"
 fi
 
@@ -6360,9 +6358,6 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $CC actually being clang..." >&5
 $as_echo_n "checking for $CC actually being clang...... " >&6; }
-if test -z "$ASFLAGS"; then
-  ASFLAGS=-Wa,-a
-fi
 if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
   if "$CC" -no-integrated-as -E - < /dev/null 2>&1|grep 'clang' >/dev/null; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
