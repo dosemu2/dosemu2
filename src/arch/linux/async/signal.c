@@ -453,8 +453,10 @@ static void signal_thr_post(void *arg)
 
 static void signal_thr(void *arg)
 {
-  void (*signal_handler)(void) = arg;
-  coopth_set_post_handler(signal_thr_post, arg);
+  void (*signal_handler)(void);
+  signal_handler = signal_queue[SIGNAL_head].signal_handler;
+  SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
+  coopth_set_post_handler(signal_thr_post, signal_handler);
   signal_handler();
 }
 
@@ -642,16 +644,12 @@ int signal_pending(void)
  *
  */
 void handle_signals(void) {
-  void (*signal_handler)(void);
-
   if (in_handle_signals)
     return;
 
   if (signal_pending()) {
-    signal_handler = signal_queue[SIGNAL_head].signal_handler;
-    SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
     in_handle_signals++;
-    coopth_start(sh_tid, signal_thr, signal_handler);
+    coopth_start(sh_tid, signal_thr, NULL);
   }
 }
 
