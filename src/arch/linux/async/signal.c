@@ -650,8 +650,8 @@ void handle_signals(void) {
     signal_pending = 0;
     signal_handler = signal_queue[SIGNAL_head].signal_handler;
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
-    coopth_start(sh_tid, signal_thr, signal_handler);
     in_handle_signals++;
+    coopth_start(sh_tid, signal_thr, signal_handler);
   }
 }
 
