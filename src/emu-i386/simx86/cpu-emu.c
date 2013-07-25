@@ -1369,8 +1369,8 @@ int e_dpmi(struct sigcontext_struct *scp)
     E_TIME_STRETCH;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
-	if (debug_level('e')>2) e_printf("DPMI sigpending = %d\n",signal_pending);
-	if (signal_pending) {
+	if (debug_level('e')>2) e_printf("DPMI sigpending = %d\n",signal_pending());
+	if (signal_pending()) {
 	    retval=0;
 	}
     }

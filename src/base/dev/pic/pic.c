@@ -1107,7 +1107,7 @@ void pic_cli(void)
 
 int CAN_SLEEP(void)
 {
-  return (!(pic_icount || pic_isr || (REG(eflags) & VIP) || signal_pending ||
+  return (!(pic_icount || pic_isr || (REG(eflags) & VIP) || signal_pending() ||
     (pic_sys_time > pic_dos_time)));
 }
 

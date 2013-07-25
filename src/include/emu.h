@@ -62,7 +62,7 @@ EXTERN union vm86plus_union vm86u INIT ( {{
 } );
 #define vm86s (vm86u.vm86ps)
 
-EXTERN volatile sig_atomic_t signal_pending INIT(0);
+int signal_pending(void);
 EXTERN volatile int fault_cnt INIT(0);
 EXTERN fd_set fds_sigio, fds_no_sigio;
 EXTERN unsigned int not_use_sigio INIT(0);

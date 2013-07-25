@@ -622,6 +622,11 @@ void handle_signals_requeue(void)
   signal_requeue++;
 }
 
+int signal_pending(void)
+{
+  return (SIGNAL_head != SIGNAL_tail);
+}
+
 /*
  * DANG_BEGIN_FUNCTION handle_signals
  *
@@ -642,12 +647,7 @@ void handle_signals(void) {
   if (in_handle_signals)
     return;
 
-  if ( SIGNAL_head != SIGNAL_tail ) {
-#ifdef X86_EMULATOR
-    if ((config.cpuemu>1) && (debug_level('e')>3))
-      {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
-#endif
-    signal_pending = 0;
+  if (signal_pending()) {
     signal_handler = signal_queue[SIGNAL_head].signal_handler;
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
     in_handle_signals++;
@@ -856,7 +856,6 @@ void SIGNAL_save( void (*signal_call)(void) )
 {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-  signal_pending = 1;
   if (in_dpmi)
     dpmi_return_request();
 }
