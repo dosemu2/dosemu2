@@ -450,6 +450,7 @@ EXTERN int running_DosC INIT(0);
 EXTERN int dosc_interface(void);
 
 EXTERN void dump_config_status(void (*printfunc)(const char *, ...));
+EXTERN void signal_pre_init(void);
 EXTERN void signal_init(void);
 EXTERN void signal_late_init(void);
 EXTERN void device_init(void);
