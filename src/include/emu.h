@@ -411,6 +411,7 @@ extern void handle_signals(void);
 extern void sig_ctx_prepare(int tid);
 extern void sig_ctx_restore(int tid);
 
+extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
 extern void addset_signals_that_queue(sigset_t *x);
 extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));
 extern void init_handler(struct sigcontext_struct *scp);

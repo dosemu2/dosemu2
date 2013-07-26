@@ -60,6 +60,14 @@ struct  SIGNAL_queue {
 };
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 
+#define MAX_SIGCHLD_HANDLERS 10
+struct sigchld_hndl {
+  pid_t pid;
+  void (*handler)(void);
+};
+static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
+static int chd_hndl_num;
+
 static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid);
@@ -326,17 +334,29 @@ static void leavedos_call(void *arg)
   leavedos(*sig);
 }
 
+int sigchld_register_handler(pid_t pid, void (*handler)(void))
+{
+  assert(chd_hndl_num < MAX_SIGCHLD_HANDLERS);
+  chld_hndl[chd_hndl_num].handler = handler;
+  chld_hndl[chd_hndl_num].pid = pid;
+  chd_hndl_num++;
+  return 0;
+}
+
 static void cleanup_child(void *arg)
 {
+  int i;
   pid_t *pid = arg;
 
-  if (portserver_pid == *pid) {
-    error("port server terminated, exiting\n");
-    leavedos(1);
+  for (i = 0; i < chd_hndl_num; i++) {
+    if (chld_hndl[i].pid == *pid)
+      break;
+  }
+  if (i >= chd_hndl_num) {
+    g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
     return;
   }
-
-  g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
+  chld_hndl[i].handler();
 }
 
 /* this cleaning up is necessary to avoid the port server becoming
@@ -351,7 +371,7 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
   init_handler(scp);
   pid = waitpid(si->si_pid, &status, WNOHANG);
   if (pid != si->si_pid) {
-    error("unexpected SIGCHLD(%i %i %x)\n", si->si_pid, pid, status);
+    g_printf("unexpected SIGCHLD(%i %i %x)\n", si->si_pid, pid, status);
     return;
   }
   SIGNAL_save(cleanup_child, &pid, sizeof(pid));
