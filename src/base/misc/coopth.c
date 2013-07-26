@@ -179,10 +179,12 @@ static void do_del_thread(struct coopth_t *thr,
     }
     threads_total--;
 
-    for (i = 0; i < pth->data.posth_num; i++)
-	pth->data.post[i].func(pth->data.post[i].arg);
-    if (thr->post)
-	thr->post(thr->tid);
+    if (!pth->data.cancelled) {
+	for (i = 0; i < pth->data.posth_num; i++)
+	    pth->data.post[i].func(pth->data.post[i].arg);
+	if (thr->post)
+	    thr->post(thr->tid);
+    }
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -856,8 +858,7 @@ int coopth_flush(void (*helper)(void))
 	    break;
 	pth = current_thr(thr);
 	assert(pth->data.attached);
-	if (pth->state != COOPTHS_DELETE)	// found sleeping or starting
-	    do_cancel(thr, pth);
+	do_cancel(thr, pth);
 	do_join(pth, helper);
     }
     if (threads_joinable)
