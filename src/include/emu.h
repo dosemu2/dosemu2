@@ -408,7 +408,6 @@ EXTERN void SIG_close(void);
 
 extern void SIGNAL_save( void (*signal_call)(void) );
 extern void handle_signals(void);
-extern void handle_signals_requeue(void);
 extern void sig_ctx_prepare(int tid);
 extern void sig_ctx_restore(int tid);
 

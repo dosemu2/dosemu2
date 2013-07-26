@@ -59,7 +59,6 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 
 static int sh_tid;
 static int in_handle_signals;
-static int signal_requeue;
 static void handle_signals_force_enter(int tid);
 static void handle_signals_force_leave(int tid);
 
@@ -441,14 +440,9 @@ void sig_ctx_restore(int tid)
   rm_stack_leave();
 }
 
-static void signal_thr_post(void *arg)
+static void signal_thr_post(int tid)
 {
   in_handle_signals--;
-  if (signal_requeue) {
-    void (*signal_handler)(void) = arg;
-    signal_requeue--;
-    SIGNAL_save(signal_handler);
-  }
 }
 
 static void signal_thr(void *arg)
@@ -456,7 +450,6 @@ static void signal_thr(void *arg)
   void (*signal_handler)(void);
   signal_handler = signal_queue[SIGNAL_head].signal_handler;
   SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
-  coopth_set_post_handler(signal_thr_post, signal_handler);
   signal_handler();
 }
 
@@ -589,6 +582,7 @@ signal_init(void)
   coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
 	handle_signals_force_leave);
+  coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
 }
 
@@ -613,15 +607,6 @@ static void handle_signals_force_enter(int tid)
 static void handle_signals_force_leave(int tid)
 {
   in_handle_signals++;
-}
-
-void handle_signals_requeue(void)
-{
-  if (!in_handle_signals) {
-    dosemu_error("in_handle_signals=0\n");
-    return;
-  }
-  signal_requeue++;
 }
 
 int signal_pending(void)

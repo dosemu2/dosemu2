@@ -55,7 +55,7 @@
 #include "machcompat.h"
 #include "bios.h"
 #include "port.h"
-
+#include "coopth.h"
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
@@ -144,10 +144,13 @@ static void __SIGACQUIRE_call(void)
 
 static void SIGACQUIRE_call(void)
 {
-  if (in_vc_call) {
-    v_printf ("VID: Cannot acquire console, waiting\n");
-    handle_signals_requeue();
-    return;
+  int logged = 0;
+  while (in_vc_call) {
+    if (!logged) {
+      v_printf("VID: Cannot acquire console, waiting\n");
+      logged = 1;
+    }
+    coopth_yield();
   }
   in_vc_call++;
   __SIGACQUIRE_call();
@@ -252,9 +255,13 @@ static void __SIGRELEASE_call(void)
 
 static void SIGRELEASE_call(void)
 {
-  if (in_vc_call) {
-    handle_signals_requeue();
-    return;
+  int logged = 0;
+  while (in_vc_call) {
+    if (!logged) {
+      v_printf("VID: Cannot release console, waiting\n");
+      logged = 1;
+    }
+    coopth_yield();
   }
   in_vc_call++;
   __SIGRELEASE_call();
