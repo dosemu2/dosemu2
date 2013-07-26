@@ -62,7 +62,7 @@ EXTERN union vm86plus_union vm86u INIT ( {{
 } );
 #define vm86s (vm86u.vm86ps)
 
-EXTERN volatile sig_atomic_t signal_pending INIT(0);
+int signal_pending(void);
 EXTERN volatile int fault_cnt INIT(0);
 EXTERN fd_set fds_sigio, fds_no_sigio;
 EXTERN unsigned int not_use_sigio INIT(0);
@@ -406,12 +406,12 @@ EXTERN void SIG_close(void);
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
 
-extern void SIGNAL_save( void (*signal_call)(void) );
+extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size );
 extern void handle_signals(void);
-extern void handle_signals_requeue(void);
 extern void sig_ctx_prepare(int tid);
 extern void sig_ctx_restore(int tid);
 
+extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
 extern void addset_signals_that_queue(sigset_t *x);
 extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));
 extern void init_handler(struct sigcontext_struct *scp);

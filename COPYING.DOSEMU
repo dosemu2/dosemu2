@@ -41,31 +41,9 @@
      section 3. This code is marked with an appropriate text at the
      beginning of each file involved.
 
-5.   The nature of DOSEMU requires the use of (ie "booting") a DOS, which 
-     may be proprietary. This could be interpreted as 'library linking'
-     the DOS functions to DOSEMU (this view comes from interpreting more
-     into the current version (2) of the GPL than is actually defined).
-
-     However, past discussions about the scope of 'library linking' with
-     GPL code and the possibility that future versions of the GPL may
-     define this issue in a more restrictive manner, made it necessary to
-     restrict the DOSEMU copyright explicitly to version 2 of the GPL.
-                                              ============        ===
-
-     We grant the right to use a proprietary DOS together with DOSEMU.
-
-6.   Redistributions of repackaged official DOSEMU source packages,
-     including the compression method, but not including the placement
-     of unchanged compressed DOSEMU packages within envelops (e.g.
-     *.rpm, *.deb, double compress), must be clearly marked as
-     modified and unofficial.
-
-7.   This file, COPYING.DOSEMU, must be distributed together with
+5.   This file, COPYING.DOSEMU, must be distributed together with
      the DOSEMU distribution or any derivative work. This file and
-     the GPL in the file COPYING must not be separated. Clauses
-     2 to 7 must not be interpreted to restrict or modify clause 1,
-     but only clarify the copyright. All clauses in this file must
-     be kept intact when applicable.
+     the GPL in the file COPYING must not be separated.
 
 The copyrights referred to in clause 3 are from:
 

@@ -60,7 +60,7 @@ unsigned char port_andmask[0x10000];
 unsigned char port_ormask[0x10000];
 static unsigned char portfast_map[0x10000/8];
 static unsigned char emu_io_bitmap[0x10000/8];
-pid_t portserver_pid = 0;
+static pid_t portserver_pid = 0;
 
 static unsigned char port_handles;	/* number of io_handler's */
 
@@ -874,6 +874,12 @@ int port_init(void)
 	return port_handles;	/* unused but useful */
 }
 
+static void portserver_exit(void)
+{
+	error("port server terminated, exiting\n");
+	leavedos(1);
+}
+
 /* port server: this function runs in a seperate process from the main
    DOSEMU. This enables the main DOSEMU to drop root privileges. The
    server can do that as well: by setting iopl(3).
@@ -1032,9 +1038,12 @@ int extra_port_init(void)
                                 portserver_pid = fork();
                                 if (portserver_pid == 0) {
                                         port_server();
+                                        exit(0);	// never come here
                                 }
                                 close(port_fd_in[1]);
                                 close(port_fd_out[0]);
+                                sigchld_register_handler(portserver_pid,
+                            		portserver_exit);
                                 break;
                         }
                 }

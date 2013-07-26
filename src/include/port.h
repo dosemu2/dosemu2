@@ -180,7 +180,6 @@ extern unsigned char port_handle_table[];
 extern unsigned char port_andmask[];
 extern unsigned char port_ormask[];
 
-extern pid_t portserver_pid;
 
 #define PORT_FAST	1
 #define PORT_DEV_RD	2

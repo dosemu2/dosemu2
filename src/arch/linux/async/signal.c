@@ -17,6 +17,7 @@
 #include <sys/wait.h>
 #include <sys/syscall.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #include "emu.h"
 #include "vm86plus.h"
@@ -50,16 +51,25 @@
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
+#define MAX_SIG_DATA_SIZE 128
 static u_short SIGNAL_head=0; u_short SIGNAL_tail=0;
 struct  SIGNAL_queue {
-/*  struct sigcontext_struct context; */
-  void (* signal_handler)(void);
+  void (*signal_handler)(void *);
+  char arg[MAX_SIG_DATA_SIZE];
+  size_t arg_size;
 };
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 
+#define MAX_SIGCHLD_HANDLERS 10
+struct sigchld_hndl {
+  pid_t pid;
+  void (*handler)(void);
+};
+static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
+static int chd_hndl_num;
+
 static int sh_tid;
 static int in_handle_signals;
-static int signal_requeue;
 static void handle_signals_force_enter(int tid);
 static void handle_signals_force_leave(int tid);
 
@@ -318,21 +328,35 @@ void init_handler(struct sigcontext_struct *scp)
 }
 
 static int ld_sig;
-static void leavedos_call(void)
+static void leavedos_call(void *arg)
 {
-  leavedos(ld_sig);
+  int *sig = arg;
+  leavedos(*sig);
 }
 
-static void cleanup_child(void)
+int sigchld_register_handler(pid_t pid, void (*handler)(void))
 {
-  int status;
-  if (waitpid(portserver_pid, &status, WNOHANG) > 0 &&
-      WIFSIGNALED(status)) {
-    error("port server terminated, exiting\n");
-  } else {
-    error("unexpected SIGCHLD, exiting\n");
+  assert(chd_hndl_num < MAX_SIGCHLD_HANDLERS);
+  chld_hndl[chd_hndl_num].handler = handler;
+  chld_hndl[chd_hndl_num].pid = pid;
+  chd_hndl_num++;
+  return 0;
+}
+
+static void cleanup_child(void *arg)
+{
+  int i;
+  pid_t *pid = arg;
+
+  for (i = 0; i < chd_hndl_num; i++) {
+    if (chld_hndl[i].pid == *pid)
+      break;
   }
-  leavedos(1);
+  if (i >= chd_hndl_num) {
+    g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
+    return;
+  }
+  chld_hndl[i].handler();
 }
 
 /* this cleaning up is necessary to avoid the port server becoming
@@ -340,11 +364,17 @@ static void cleanup_child(void)
 __attribute__((no_instrument_function))
 static void sig_child(int sig, siginfo_t *si, void *uc)
 {
+  pid_t pid;
+  int status;
   struct sigcontext_struct *scp =
 	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
-  if (portserver_pid == si->si_pid)
-    SIGNAL_save(cleanup_child);
+  pid = waitpid(si->si_pid, &status, WNOHANG);
+  if (pid != si->si_pid) {
+    g_printf("unexpected SIGCHLD(%i %i %x)\n", si->si_pid, pid, status);
+    return;
+  }
+  SIGNAL_save(cleanup_child, &pid, sizeof(pid));
 }
 
 __attribute__((no_instrument_function))
@@ -357,7 +387,7 @@ static void leavedos_signal(int sig)
   }
   dbug_printf("Terminating on signal %i\n", sig);
   ld_sig = sig;
-  SIGNAL_save(leavedos_call);
+  SIGNAL_save(leavedos_call, &sig, sizeof(sig));
   /* abort current sighandlers */
   if (in_handle_signals) {
     g_printf("Interrupting active signal handlers\n");
@@ -441,21 +471,21 @@ void sig_ctx_restore(int tid)
   rm_stack_leave();
 }
 
-static void signal_thr_post(void *arg)
+static void signal_thr_post(int tid)
 {
   in_handle_signals--;
-  if (signal_requeue) {
-    void (*signal_handler)(void) = arg;
-    signal_requeue--;
-    SIGNAL_save(signal_handler);
-  }
 }
 
 static void signal_thr(void *arg)
 {
-  void (*signal_handler)(void) = arg;
-  coopth_set_post_handler(signal_thr_post, arg);
-  signal_handler();
+  struct SIGNAL_queue *sig = &signal_queue[SIGNAL_head];
+  struct SIGNAL_queue sig_c;	// local copy for signal-safety
+  sig_c.signal_handler = signal_queue[SIGNAL_head].signal_handler;
+  sig_c.arg_size = sig->arg_size;
+  if (sig->arg_size)
+    memcpy(sig_c.arg, sig->arg, sig->arg_size);
+  SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
+  sig_c.signal_handler(sig_c.arg);
 }
 
 /* DANG_BEGIN_FUNCTION signal_init
@@ -587,6 +617,7 @@ signal_init(void)
   coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
 	handle_signals_force_leave);
+  coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
 }
 
@@ -613,13 +644,9 @@ static void handle_signals_force_leave(int tid)
   in_handle_signals++;
 }
 
-void handle_signals_requeue(void)
+int signal_pending(void)
 {
-  if (!in_handle_signals) {
-    dosemu_error("in_handle_signals=0\n");
-    return;
-  }
-  signal_requeue++;
+  return (SIGNAL_head != SIGNAL_tail);
 }
 
 /*
@@ -637,21 +664,12 @@ void handle_signals_requeue(void)
  *
  */
 void handle_signals(void) {
-  void (*signal_handler)(void);
-
   if (in_handle_signals)
     return;
 
-  if ( SIGNAL_head != SIGNAL_tail ) {
-#ifdef X86_EMULATOR
-    if ((config.cpuemu>1) && (debug_level('e')>3))
-      {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
-#endif
-    signal_pending = 0;
-    signal_handler = signal_queue[SIGNAL_head].signal_handler;
-    SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
-    coopth_start(sh_tid, signal_thr, signal_handler);
+  if (signal_pending()) {
     in_handle_signals++;
+    coopth_start(sh_tid, signal_thr, NULL);
   }
 }
 
@@ -676,7 +694,7 @@ void handle_signals(void) {
  * counter here.
  * ============================================================== */
 
-static void SIGALRM_call(void)
+static void SIGALRM_call(void *arg)
 {
   static int first = 0;
   static hitimer_t cnt200 = 0;
@@ -852,11 +870,14 @@ static void SIGALRM_call(void)
  * DANG_END_FUNCTION
  *
  */
-void SIGNAL_save( void (*signal_call)(void) )
+void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len)
 {
-  signal_queue[SIGNAL_tail].signal_handler=signal_call;
+  signal_queue[SIGNAL_tail].signal_handler = signal_call;
+  signal_queue[SIGNAL_tail].arg_size = len;
+  assert(len <= MAX_SIG_DATA_SIZE);
+  if (len)
+    memcpy(signal_queue[SIGNAL_tail].arg, arg, len);
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-  signal_pending = 1;
   if (in_dpmi)
     dpmi_return_request();
 }
@@ -874,7 +895,7 @@ void SIGNAL_save( void (*signal_call)(void) )
  * DANG_END_FUNCTION
  *
  */
-static void SIGIO_call(void){
+static void SIGIO_call(void *arg){
   /* Call select to see if any I/O is ready on devices */
   io_select(fds_sigio);
 }
@@ -882,7 +903,7 @@ static void SIGIO_call(void){
 #ifdef __linux__
 static void sigio(struct sigcontext_struct *scp)
 {
-  SIGNAL_save(SIGIO_call);
+  SIGNAL_save(SIGIO_call, NULL, 0);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
 }
@@ -890,7 +911,7 @@ static void sigio(struct sigcontext_struct *scp)
 static void sigalrm(struct sigcontext_struct *scp)
 {
   if(e_gen_sigalrm(scp)) {
-    SIGNAL_save(SIGALRM_call);
+    SIGNAL_save(SIGALRM_call, NULL, 0);
     if (in_dpmi && !in_vm86)
       dpmi_sigio(scp);
   }

@@ -3307,7 +3307,7 @@ unsigned int Exec_x86(TNode *G, int ln)
 	/* signal_pending at this point is 1 if there was ANY signal,
 	 * not just a SIGALRM
 	 */
-	if (signal_pending) {
+	if (signal_pending()) {
 		CEmuStat|=CeS_SIGPEND;
 	}
 	/* sigalrm_pending at this point can be:

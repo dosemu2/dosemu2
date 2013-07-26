@@ -548,8 +548,7 @@ void __leavedos(int sig, const char *s, int num)
 	* My port logic is actually stolen from kd_nosound in the kernel.
 	* 		--EB 21 September 1997
 	*/
-       if (portserver_pid)
-          port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
+        port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
     }
 
 #ifdef SIG

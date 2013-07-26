@@ -1,14 +1,26 @@
 /*
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- * for details see file COPYING.DOSEMU in the DOSEMU distribution
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /*
  * Console graphics interface to the (real) VESA BIOS
  *
  * Authors: Stas Sergeev, Bart Oldeman, based on svgalib's vesa driver
+ *
+ * Note: original vesa driver in svgalib came with no explicit copyrights
+ * or license clauses.
  */
 
 

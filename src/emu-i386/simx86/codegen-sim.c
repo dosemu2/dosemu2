@@ -3105,7 +3105,7 @@ static unsigned int CloseAndExec_sim(unsigned int PC, int mode, int ln)
 	}
 
 	CurrIMeta = -1;
-	if (signal_pending) {
+	if (signal_pending()) {
 		CEmuStat|=CeS_SIGPEND;
 	}
 	TheCPU.sigalrm_pending = 0;
