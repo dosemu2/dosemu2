@@ -73,8 +73,8 @@ static void get_video_ram (int waitflag);
 static void put_video_ram (void);
 static int release_perm (void);
 
-static void SIGRELEASE_call (void);
-static void SIGACQUIRE_call (void);
+static void SIGRELEASE_call (void *);
+static void SIGACQUIRE_call (void *);
 static int in_vc_call;
 
 static int  color_text;
@@ -142,7 +142,7 @@ static void __SIGACQUIRE_call(void)
   unfreeze_mouse();
 }
 
-static void SIGACQUIRE_call(void)
+static void SIGACQUIRE_call(void *arg)
 {
   int logged = 0;
   while (in_vc_call) {
@@ -174,7 +174,7 @@ acquire_vt (struct sigcontext_struct *scp)
   if (ioctl (console_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf ("VT_RELDISP failed (or was queued)!\n");
   allow_switch ();
-  SIGNAL_save (SIGACQUIRE_call);
+  SIGNAL_save (SIGACQUIRE_call, NULL, 0);
   scr_state.current = 1;
   unfreeze_dosemu();
 }
@@ -253,7 +253,7 @@ static void __SIGRELEASE_call(void)
   }
 }
 
-static void SIGRELEASE_call(void)
+static void SIGRELEASE_call(void *arg)
 {
   int logged = 0;
   while (in_vc_call) {
@@ -301,7 +301,7 @@ static void release_vt (struct sigcontext_struct *scp)
 {
   dos_has_vt = 0;
 
-  SIGNAL_save (SIGRELEASE_call);
+  SIGNAL_save (SIGRELEASE_call, NULL, 0);
 }
 
 static void unmap_video_ram(int copyback)

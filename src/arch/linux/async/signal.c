@@ -17,6 +17,7 @@
 #include <sys/wait.h>
 #include <sys/syscall.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #include "emu.h"
 #include "vm86plus.h"
@@ -50,10 +51,12 @@
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
+#define MAX_SIG_DATA_SIZE 128
 static u_short SIGNAL_head=0; u_short SIGNAL_tail=0;
 struct  SIGNAL_queue {
-/*  struct sigcontext_struct context; */
-  void (* signal_handler)(void);
+  void (*signal_handler)(void *);
+  char arg[MAX_SIG_DATA_SIZE];
+  size_t arg_size;
 };
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 
@@ -317,21 +320,23 @@ void init_handler(struct sigcontext_struct *scp)
 }
 
 static int ld_sig;
-static void leavedos_call(void)
+static void leavedos_call(void *arg)
 {
-  leavedos(ld_sig);
+  int *sig = arg;
+  leavedos(*sig);
 }
 
-static void cleanup_child(void)
+static void cleanup_child(void *arg)
 {
-  int status;
-  if (waitpid(portserver_pid, &status, WNOHANG) > 0 &&
-      WIFSIGNALED(status)) {
+  pid_t *pid = arg;
+
+  if (portserver_pid == *pid) {
     error("port server terminated, exiting\n");
-  } else {
-    error("unexpected SIGCHLD, exiting\n");
+    leavedos(1);
+    return;
   }
-  leavedos(1);
+
+  g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
 }
 
 /* this cleaning up is necessary to avoid the port server becoming
@@ -339,11 +344,17 @@ static void cleanup_child(void)
 __attribute__((no_instrument_function))
 static void sig_child(int sig, siginfo_t *si, void *uc)
 {
+  pid_t pid;
+  int status;
   struct sigcontext_struct *scp =
 	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
-  if (portserver_pid == si->si_pid)
-    SIGNAL_save(cleanup_child);
+  pid = waitpid(si->si_pid, &status, WNOHANG);
+  if (pid != si->si_pid) {
+    error("unexpected SIGCHLD(%i %i %x)\n", si->si_pid, pid, status);
+    return;
+  }
+  SIGNAL_save(cleanup_child, &pid, sizeof(pid));
 }
 
 __attribute__((no_instrument_function))
@@ -356,7 +367,7 @@ static void leavedos_signal(int sig)
   }
   dbug_printf("Terminating on signal %i\n", sig);
   ld_sig = sig;
-  SIGNAL_save(leavedos_call);
+  SIGNAL_save(leavedos_call, &sig, sizeof(sig));
   /* abort current sighandlers */
   if (in_handle_signals) {
     g_printf("Interrupting active signal handlers\n");
@@ -447,10 +458,14 @@ static void signal_thr_post(int tid)
 
 static void signal_thr(void *arg)
 {
-  void (*signal_handler)(void);
-  signal_handler = signal_queue[SIGNAL_head].signal_handler;
+  struct SIGNAL_queue *sig = &signal_queue[SIGNAL_head];
+  struct SIGNAL_queue sig_c;	// local copy for signal-safety
+  sig_c.signal_handler = signal_queue[SIGNAL_head].signal_handler;
+  sig_c.arg_size = sig->arg_size;
+  if (sig->arg_size)
+    memcpy(sig_c.arg, sig->arg, sig->arg_size);
   SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
-  signal_handler();
+  sig_c.signal_handler(sig_c.arg);
 }
 
 /* DANG_BEGIN_FUNCTION signal_init
@@ -659,7 +674,7 @@ void handle_signals(void) {
  * counter here.
  * ============================================================== */
 
-static void SIGALRM_call(void)
+static void SIGALRM_call(void *arg)
 {
   static int first = 0;
   static hitimer_t cnt200 = 0;
@@ -835,9 +850,13 @@ static void SIGALRM_call(void)
  * DANG_END_FUNCTION
  *
  */
-void SIGNAL_save( void (*signal_call)(void) )
+void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len)
 {
-  signal_queue[SIGNAL_tail].signal_handler=signal_call;
+  signal_queue[SIGNAL_tail].signal_handler = signal_call;
+  signal_queue[SIGNAL_tail].arg_size = len;
+  assert(len <= MAX_SIG_DATA_SIZE);
+  if (len)
+    memcpy(signal_queue[SIGNAL_tail].arg, arg, len);
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
   if (in_dpmi)
     dpmi_return_request();
@@ -856,7 +875,7 @@ void SIGNAL_save( void (*signal_call)(void) )
  * DANG_END_FUNCTION
  *
  */
-static void SIGIO_call(void){
+static void SIGIO_call(void *arg){
   /* Call select to see if any I/O is ready on devices */
   io_select(fds_sigio);
 }
@@ -864,7 +883,7 @@ static void SIGIO_call(void){
 #ifdef __linux__
 static void sigio(struct sigcontext_struct *scp)
 {
-  SIGNAL_save(SIGIO_call);
+  SIGNAL_save(SIGIO_call, NULL, 0);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
 }
@@ -872,7 +891,7 @@ static void sigio(struct sigcontext_struct *scp)
 static void sigalrm(struct sigcontext_struct *scp)
 {
   if(e_gen_sigalrm(scp)) {
-    SIGNAL_save(SIGALRM_call);
+    SIGNAL_save(SIGALRM_call, NULL, 0);
     if (in_dpmi && !in_vm86)
       dpmi_sigio(scp);
   }
