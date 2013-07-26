@@ -45,7 +45,6 @@ static void v_empty_void (void) {}
 
 static int video_none_init(void)
 {
-  vga_emu_init(0, NULL);
   vga_emu_setmode(video_mode, CO, LI);
   return 0;
 }
@@ -469,5 +468,11 @@ video_config_init(void) {
 void video_post_init(void)
 {
   scr_state_init();
-  if (Video && Video->init) Video->init();
+  vga_emu_pre_init();
+}
+
+void video_late_init(void)
+{
+  if (Video && Video->init)
+    Video->init();
 }

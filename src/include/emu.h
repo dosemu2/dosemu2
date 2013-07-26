@@ -398,7 +398,7 @@ EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void __leavedos(int sig, const char *s, int num) NORETURN;
 #define leavedos(n) __leavedos(n, __func__, __LINE__)
-EXTERN void add_to_io_select(int, u_char, void(*)(void *), void *);
+EXTERN void add_to_io_select(int, void(*)(void *), void *);
 EXTERN void remove_from_io_select(int, u_char);
 #ifdef __linux__
 EXTERN void SIG_init(void);
@@ -452,6 +452,7 @@ EXTERN int dosc_interface(void);
 
 EXTERN void dump_config_status(void (*printfunc)(const char *, ...));
 EXTERN void signal_init(void);
+EXTERN void signal_late_init(void);
 EXTERN void device_init(void);
 EXTERN void memory_init(void);
 EXTERN void map_video_bios(void);
@@ -463,6 +464,7 @@ EXTERN void print_version(void);
 EXTERN void keyboard_flags_init(void);
 EXTERN void video_config_init(void);
 EXTERN void video_post_init(void);
+EXTERN void video_late_init(void);
 EXTERN void video_mem_setup(void);
 EXTERN void printer_init(void);
 EXTERN void printer_mem_setup(void);

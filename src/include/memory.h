@@ -100,6 +100,10 @@
 #define INT42HOOK_OFF	0x7065
 #define INT42HOOK_ADD	((INT42HOOK_SEG << 4) + INT42HOOK_OFF)
 
+#define POSTHOOK_SEG	ROMBIOSSEG
+#define POSTHOOK_OFF	0x605B
+#define POSTHOOK_ADD	((POSTHOOK_SEG << 4) + POSTHOOK_OFF)
+
 /* int10 watcher for mouse support */
 /* This was in BIOSSEG (a) so we could write old_int10,
  * when it made a difference...

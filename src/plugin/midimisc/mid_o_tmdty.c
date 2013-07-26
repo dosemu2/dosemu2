@@ -313,7 +313,7 @@ static int midotmdty_init(void)
     S_printf("\tConnect: %s\n", buf);
 
     if (TMDTY_CAPT) {
-	add_to_io_select(data_sock, 1, midotmdty_io, NULL);
+	add_to_io_select(data_sock, midotmdty_io, NULL);
 	pcm_stream = pcm_allocate_stream(TMDTY_CHANS, "MIDI");
     }
 

@@ -270,7 +270,7 @@ LFN_string:
 .org	ROM_BIOS_SELFTEST
 /* COMPAS FE05B		jmp to POST */
 /* COMPAS FE05E-FE2C2	reserved */
-	lcall	$0xfc00, $0x07fe
+	hlt
 	sti
 
 /* ----------------------------------------------------------------- */	  

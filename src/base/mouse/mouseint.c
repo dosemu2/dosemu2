@@ -543,7 +543,7 @@ static int parent_open_mouse (void)
  	mice->type = MOUSE_NONE;
  	return 0;
       }
-      add_to_io_select(mice->fd, 1, mouse_io_callback, NULL);
+      add_to_io_select(mice->fd, mouse_io_callback, NULL);
     }
   else
     child_open_mouse ();
@@ -564,7 +564,7 @@ void unfreeze_mouse(void)
   mouse_t *mice = &config.mouse;
   if (!mouse_frozen || mice->fd == -1)
     return;
-  add_to_io_select(mice->fd, 1, mouse_io_callback, NULL);
+  add_to_io_select(mice->fd, mouse_io_callback, NULL);
   mouse_frozen = 0;
 }
 

@@ -67,7 +67,7 @@ static int midipipe_init(void)
 		 midipipe_name, name, strerror(errno));
 	return 0;
     }
-    add_to_io_select(pipe_fd, 1, midipipe_io, NULL);
+    add_to_io_select(pipe_fd, midipipe_io, NULL);
     return 1;
 }
 

@@ -157,14 +157,7 @@ static int raw_keyboard_init(void)
 
   set_raw_mode();
 
-  if (!isatty(kbd_fd)) {
-    k_printf("KBD(raw): Using SIGIO\n");
-    add_to_io_select(kbd_fd, 1, keyb_client_run_async, NULL);
-  }
-  else {
-    k_printf("KBD(raw): Not using SIGIO\n");
-    add_to_io_select(kbd_fd, 0, keyb_client_run_async, NULL);
-  }
+  add_to_io_select(kbd_fd, keyb_client_run_async, NULL);
 
   return TRUE;
 }

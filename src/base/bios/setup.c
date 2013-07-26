@@ -12,6 +12,7 @@
 #include "bios.h"
 #include "memory.h"
 #include "hlt.h"
+#include "coopth.h"
 #include "int.h"
 #include "iodev.h"
 #include "emm.h"
@@ -19,6 +20,8 @@
 #include "hma.h"
 #include "ipx.h"
 #include "doshelpers.h"
+
+static int li_tid;
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
@@ -80,7 +83,39 @@ static inline void bios_mem_setup(void)
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 }
 
-static void bios_setup(Bit32u offs, void *arg)
+static int initialized;
+static void bios_reset(void);
+static void bios_setup(void);
+
+static void late_init_thr(void *arg)
+{
+  if (initialized)
+    return;
+  /* if something else is to be added here,
+   * add the "late_init" member into dev_list instead */
+  video_late_init();
+}
+
+static void late_init_post(void *arg)
+{
+  bios_reset();
+  if (initialized)
+    return;
+  /* signals should be initialized after everything else */
+  signal_late_init();
+  initialized = 1;
+}
+
+void post_hook(void)
+{
+  LWORD(eip)++; // skip hlt
+  bios_setup();
+  /* late_init can call int10, so make it a thread */
+  coopth_start(li_tid, late_init_thr, NULL);
+  coopth_set_post_handler(li_tid, late_init_post, NULL);
+}
+
+static void bios_setup(void)
 {
   int i;
 
@@ -155,25 +190,21 @@ static void bios_setup(Bit32u offs, void *arg)
     WRITE_BYTE(ptr, config.hdiskboot ? 0x80 : 0);
   }
 
-  dos_post_boot_reset();
   bios_mem_setup();		/* setup values in BIOS area */
+}
+
+static void bios_reset(void)
+{
+  dos_post_boot_reset();
   iodev_reset();		/* reset all i/o devices          */
   ems_reset();
   xms_reset();
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
   boot();			/* read the boot sector & get moving */
-
-  fake_retf(0);
 }
 
 void bios_setup_init(void)
 {
-  emu_hlt_t hlt_hdlr;
-
-  hlt_hdlr.name	      = "BIOS setup";
-  hlt_hdlr.start_addr = 0x07fe;
-  hlt_hdlr.len        = 1;
-  hlt_hdlr.func	      = bios_setup;
-  hlt_register_handler(hlt_hdlr);
+  li_tid = coopth_create("late_init");
 }

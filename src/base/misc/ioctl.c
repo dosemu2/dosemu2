@@ -196,14 +196,14 @@ int i;
  * DANG_END_FUNCTION
  */
 void
-add_to_io_select(int new_fd, u_char want_sigio, void (*func)(void *), void *arg)
+add_to_io_select(int new_fd, void (*func)(void *), void *arg)
 {
     if ((new_fd+1) > numselectfd) numselectfd = new_fd+1;
     if (numselectfd > MAX_FD) {
 	error("Too many IO fds used.\n");
 	leavedos(76);
     }
-    if (want_sigio) {
+    if (1) {
 	int             flags;
 	flags = fcntl(new_fd, F_GETFL);
 	fcntl(new_fd, F_SETOWN, getpid());

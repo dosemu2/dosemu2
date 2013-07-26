@@ -285,7 +285,7 @@ int ser_open(int num)
     }
   }
 
-  add_to_io_select(com[num].fd, 1, async_serial_run, (void *)(long)num);
+  add_to_io_select(com[num].fd, async_serial_run, (void *)(long)num);
   return com[num].fd;
 
 fail_close:

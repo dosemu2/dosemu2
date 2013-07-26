@@ -37,8 +37,6 @@
 #include "sis.h"
 #include "vbe.h"
 #include "pci.h"
-#include "dpmi.h"
-#include "lowmem.h"
 #include "mapping.h"
 #ifdef USE_SVGALIB
 #include "svgalib.h"
@@ -193,48 +191,6 @@ static inline void enable_vga_card(void)
   emu_video_retrace_on();
   /* disable video */
 }
-
-#define RM_STACK_SIZE 0x200
-static void *rm_stack = NULL;
-
-void do_int10_callback(struct vm86_regs *regs)
-{
-  struct vm86plus_struct saved_vm86;
-  char *p;
-
-  if(in_dpmi && !in_dpmi_dos_int)
-    fake_pm_int();
-  saved_vm86 = vm86s;
-  memset(&vm86s, 0, sizeof(vm86s));
-  REGS = *regs;
-  /* always use the special stack to avoid corrupting DOS memory
-     -- an int 10 handler may need more space than an irq and
-     we can come in at any time */
-  REG(ss) = DOSEMU_LMHEAP_SEG;
-  REG(esp) = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
-  v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
-  REG(eflags) = IOPL_MASK;
-  /* we don't want the BIOS to call the mouse helper */
-  p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
-  *p = 1;
-  pic_cli();
-  do_intr_call_back(0x10);
-  pic_sti();
-  *p = 0;
-  v_printf("VGA: interrupt returned, ax=%#x\n", LWORD(eax));
-  *regs = REGS;
-  vm86s = saved_vm86;
-}
-
-#if 0
-static void do_int10_setmode(int mode)
-{
-  struct vm86_regs r;
-  r.eax = 0x4f02;
-  r.ebx = mode;
-  do_int10_callback(&r);
-}
-#endif
 
 /* Store current EGA/VGA regs */
 static void store_vga_regs(u_char regs[])
@@ -797,15 +753,7 @@ static int vga_post_init(void)
     }
   }
 
-  if (config.chipset == PLAINVGA || config.chipset == VESA)
-    rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
   if (config.chipset == VESA) {
-    /* vesa_init() calls vm86() before POST:
-       temporarily fill interrupt table with real mode vectors:
-       the real initialization takes place later in setup.c, in POST */
-    mprotect_mapping(MAPPING_LOWMEM, mem_base, sizeof(int_bios_area),
-		     PROT_READ | PROT_WRITE | PROT_EXEC);
-    MEMCPY_2DOS(0, int_bios_area, sizeof(int_bios_area));
     port_enter_critical_section(__func__);
     vesa_init();
     port_leave_critical_section();
@@ -816,11 +764,6 @@ static int vga_post_init(void)
   v_printf("VGA: mem size %ld\n", config.gfxmemsize);
 
   save_vga_state(&linux_regs);
-  if (config.chipset == VESA) {
-    MEMSET_DOS(0, 0, sizeof(int_bios_area));
-    mprotect_mapping(MAPPING_LOWMEM, mem_base, sizeof(int_bios_area),
-		     PROT_NONE);
-  }
 
   dosemu_vga_screenon();
   config.vga = 1;

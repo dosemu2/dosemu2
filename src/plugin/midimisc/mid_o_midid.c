@@ -145,7 +145,7 @@ static int midomidid_init(void)
     close(pipe_in[1]);
     if (timid_capt) {
 	pcm_stream = pcm_allocate_stream(2, "MIDI");
-	add_to_io_select(pipe_in[0], 1, midomidid_async, NULL);
+	add_to_io_select(pipe_in[0], midomidid_async, NULL);
     }
     return 1;
 }

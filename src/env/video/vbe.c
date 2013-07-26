@@ -20,6 +20,7 @@
 #include "emu.h"
 #include "vc.h"
 #include "vga.h"
+#include "dpmi.h"
 #include "lowmem.h"
 #include "vbe.h"
 #include "vesa.h"
@@ -39,6 +40,38 @@ struct VBE_vi_vm {
 } __attribute__((packed));
 
 #define VESA_SAVE_BITMAP 0xf /* save everything */
+
+#define RM_STACK_SIZE 0x200
+static void *rm_stack = NULL;
+
+static void do_int10_callback(struct vm86_regs *regs)
+{
+  struct vm86plus_struct saved_vm86;
+  char *p;
+
+  if(in_dpmi && !in_dpmi_dos_int)
+    fake_pm_int();
+  saved_vm86 = vm86s;
+  memset(&vm86s, 0, sizeof(vm86s));
+  REGS = *regs;
+  /* always use the special stack to avoid corrupting DOS memory
+     -- an int 10 handler may need more space than an irq and
+     we can come in at any time */
+  REG(ss) = DOSEMU_LMHEAP_SEG;
+  REG(esp) = DOSEMU_LMHEAP_OFFS_OF(rm_stack) + RM_STACK_SIZE;
+  v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
+  REG(eflags) = IOPL_MASK;
+  /* we don't want the BIOS to call the mouse helper */
+  p = MK_FP32(BIOSSEG, (long)&bios_in_int10_callback - (long)bios_f000);
+  *p = 1;
+  pic_cli();
+  do_intr_call_back(0x10);
+  pic_sti();
+  *p = 0;
+  v_printf("VGA: interrupt returned, ax=%#x\n", LWORD(eax));
+  *regs = REGS;
+  vm86s = saved_vm86;
+}
 
 /* vesa_reinit: a function to reinitialize in case the DOS VESA driver
    changes at runtime (e.g. univbe). Also called at startup */
@@ -193,6 +226,7 @@ static void vesa_setbank_write(unsigned char bank)
 
 void vesa_init(void)
 {
+  rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
   vesa_reinit();
   /* This is all we need before booting. Memory info comes later */
