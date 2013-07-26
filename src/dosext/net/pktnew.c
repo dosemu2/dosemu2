@@ -124,7 +124,7 @@ static char devname[256];
 /* initialize the packet driver interface (called at startup) */
 void pkt_priv_init(void)
 {
-    int ret = 0;
+    int ret;
     /* initialize the globals */
     if (!config.pktdrv)
       return;
@@ -147,21 +147,40 @@ void pkt_priv_init(void)
 	break;
     }
 
-    ret = Open_sockets(devname);
-    if (ret < 0) {
-      warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
-      pktdrvr_installed = -1;
+    /* call Open_sockets() only for priv configs */
+    switch (config.vnet) {
+      case VNET_TYPE_ETH:
+      case VNET_TYPE_TAP:
+	ret = Open_sockets(devname);
+	if (ret < 0) {
+	  warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
+	  pktdrvr_installed = -1;
+	}
+	pd_printf("PKT: Using device %s\n", devname);
     }
-    pd_printf("PKT: Using device %s\n", devname);
 }
 
 void
 pkt_init(void)
 {
+    int ret;
     if (!config.pktdrv)
       return;
     if (pktdrvr_installed == -1)
       goto fail;
+
+    /* call Open_sockets() only for non-priv configs */
+    switch (config.vnet) {
+      case VNET_TYPE_SLIRP:
+	ret = Open_sockets(devname);
+	if (ret < 0) {
+	  warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
+	  pktdrvr_installed = -1;
+	  goto fail;
+	}
+	pd_printf("PKT: Using device %s\n", devname);
+    }
+
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
