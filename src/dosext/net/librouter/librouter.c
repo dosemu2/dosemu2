@@ -44,6 +44,8 @@
 #include "librouter.h"  /* include self for control */
 
 
+static pid_t slirp_pid = -1;
+
 static uint8_t librouter_mymac[] = {0xF0,0xDE,0xF1,0x29,0x07,0x85};
 static uint32_t librouter_myip[] = {(10 << 24) | (0 << 16) | (2 << 8) | 1,  /* me as the gateway */
                                     (10 << 24) | (0 << 16) | (2 << 8) | 2,  /* me as the host */
@@ -116,12 +118,15 @@ int librouter_recvframe(int sock, uint8_t *buff) {
 int librouter_init(char *slirpexec) {
   int x;
   int slirpfdarr[2];
+  pid_t pid;
 
   /* open the communication channel with SLIRP */
-  if (librouter_slirp_open(slirpexec, slirpfdarr) != 0) {
+  pid = librouter_slirp_open(slirpexec, slirpfdarr);
+  if (pid == -1) {
     /* printf("Error: failed to invoke '%s'.\n", slirpexec); */
     return(-1);
   }
+  slirp_pid = pid;
   /* printf("open SLIRP channel (%s): success.\n", slirpexec); */
 
   /* add all my IP addresses to the ARP cache, to avoid distributing them later to clients via DHCP */
@@ -130,4 +135,9 @@ int librouter_init(char *slirpexec) {
   }
   /* return the slirp socket to the application for monitoring needs */
   return(slirpfdarr[0]);
+}
+
+pid_t librouter_get_slirp_pid(void)
+{
+  return slirp_pid;
 }

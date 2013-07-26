@@ -49,4 +49,6 @@
   /* closes the librouter communication channel.                             */
   void librouter_close(int sock);
 
+  /* returns pid of the slirp process */
+  pid_t librouter_get_slirp_pid(void);
 #endif

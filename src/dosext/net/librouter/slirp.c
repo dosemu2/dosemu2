@@ -112,7 +112,7 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
 
 
 
-int librouter_slirp_open(char *slirpcmd, int *slirpfd) {
+pid_t librouter_slirp_open(char *slirpcmd, int *slirpfd) {
   int x, notemptyflag = 0;
   /* check if slirpcmd contains any non-empty chars */
   if (slirpcmd != NULL) {
@@ -130,11 +130,7 @@ int librouter_slirp_open(char *slirpcmd, int *slirpfd) {
     }
     if (notemptyflag == 0) slirpcmd = NULL; /* if the string is empty, force its pointer to NULL */
   }
-  if (slirp_popen2(slirpcmd, slirpfd) <= 0) {
-    /* printf("Unable to exec slirp"); */
-    return(-1);
-  }
-  return(0);
+  return slirp_popen2(slirpcmd, slirpfd);
 }
 
 

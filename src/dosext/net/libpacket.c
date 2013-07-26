@@ -155,11 +155,18 @@ static int OpenNetworkLinkTap(char *name)
 	return 0;
 }
 
+static void slirp_exit(void)
+{
+	error("SLIRP unexpectedly terminated\n");
+	leavedos(3);
+}
+
 static int OpenNetworkLinkSlirp(char *name)
 {
 	receive_mode = 6;
 	pkt_fd = librouter_init(name);
-        add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
+	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
+	sigchld_register_handler(librouter_get_slirp_pid(), slirp_exit);
 	return 0;
 }
 
