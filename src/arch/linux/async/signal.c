@@ -488,7 +488,7 @@ static void signal_thr(void *arg)
   sig_c.signal_handler(sig_c.arg);
 }
 
-/* DANG_BEGIN_FUNCTION signal_init
+/* DANG_BEGIN_FUNCTION signal_pre_init
  *
  * description:
  *  Initialize the signals to have NONE being blocked.
@@ -498,7 +498,7 @@ static void signal_thr(void *arg)
  *
  */
 void
-signal_init(void)
+signal_pre_init(void)
 {
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
@@ -612,7 +612,11 @@ signal_init(void)
   /* dont unblock SIGALRM for now */
   sigdelset(&set, SIGALRM);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
+}
 
+void
+signal_init(void)
+{
   sh_tid = coopth_create("signal handling");
   coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
