@@ -85,7 +85,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_detpage(void), mouse_getmaxminvirt(void);
 
 /* mouse movement functions */
-static void mouse_reset(int);
+static void mouse_reset(void);
 static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 
 /* graphics cursor */
@@ -376,7 +376,7 @@ mouse_int(void)
 
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
-    mouse_reset(0);
+    mouse_reset();
     break;
 
   case 0x01:			/* Show Mouse Cursor */
@@ -511,7 +511,7 @@ mouse_int(void)
 #if 0
     mouse_software_reset();	/* Perform Software reset on mouse */
 #else
-    mouse_reset(0);		/* Should Perform reset on mouse */
+    mouse_reset();		/* Should Perform reset on mouse */
 #endif
     break;
 
@@ -1073,27 +1073,25 @@ void mouse_enable_native_cursor(int flag)
   mouse_do_cur(1);
 }
 
-static void mouse_reset(int flag)
+static void mouse_reset(void)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
 
   mouse.ps2.state = 0;
 
-  if (flag == 0) mouse_enable_internaldriver();
+  mouse_enable_internaldriver();
 
   /* Return 0xffff on mouse installed, 0x0000 - no mouse driver installed */
   /* Return number of mouse buttons */
-  if (flag == 0) {
-    LWORD(eax) = 0xffff;
-    if (mouse.threebuttons)
+  LWORD(eax) = 0xffff;
+  if (mouse.threebuttons)
       LWORD(ebx)=3;
-    else
+  else
       LWORD(ebx)=2;
-    mouse_reset_to_current_video_mode(-1);
-  }
+  mouse_reset_to_current_video_mode(-1);
 
   /* turn cursor off if reset requested by software and it was on. */
-  if ((flag == 0) && (mouse.cursor_on >= 0)) {
+  if (mouse.cursor_on >= 0) {
   	mouse.cursor_on = 0;
   	mouse_cursor(-1);
   }
@@ -1957,9 +1955,6 @@ void dosemu_mouse_reset(void)
 {
   if (mice->intdrv)
     SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-
-  /* We set the defaults at the end so that we can test the mouse type */
-  mouse_reset(1);		/* Let's set defaults now ! */
 }
 
 /*
