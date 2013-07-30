@@ -33,7 +33,7 @@
 #include "pcl.h"
 #include "coopth.h"
 
-enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP,
+enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,
 	COOPTH_DONE, COOPTH_ATTACH, COOPTH_DETACH };
 enum CoopthState { COOPTHS_NONE, COOPTHS_STARTING, COOPTHS_RUNNING,
 	COOPTHS_SLEEPING, COOPTHS_AWAKEN, COOPTHS_DETACH, COOPTHS_DELETE };
@@ -139,6 +139,8 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	break;
     case COOPTH_SLEEP:
 	pth->state = COOPTHS_SLEEPING;
+	break;
+    case COOPTH_SCHED:
 	break;
     case COOPTH_DETACH:
 	pth->state = COOPTHS_DETACH;
@@ -675,10 +677,11 @@ static void ensure_attached(void)
     }
 }
 
-void coopth_ensure_attached(void)
+static int is_detached(void)
 {
-    assert(_coopth_is_in_thread());
-    ensure_attached();
+    struct coopth_thrdata_t *thdata = co_get_data(co_current());
+    assert(thdata);
+    return (!thdata->attached);
 }
 
 static void check_cancel(void)
@@ -689,11 +692,41 @@ static void check_cancel(void)
 	longjmp(thdata->exit_jmp, COOPTH_JMP_CANCEL);
 }
 
+static struct coopth_t *on_thread(void)
+{
+    int i;
+    if (REG(cs) != BIOS_HLT_BLK_SEG)
+	return NULL;
+    for (i = 0; i < threads_active; i++) {
+	int tid = active_tids[i];
+	if (LWORD(eip) == coopthreads[tid].hlt_off)
+	    return &coopthreads[tid];
+    }
+    return NULL;
+}
+
+static int get_scheduled(void)
+{
+    struct coopth_t *thr = on_thread();
+    if (!thr)
+	return COOPTH_TID_INVALID;
+    return thr->tid;
+}
+
 void coopth_yield(void)
 {
-    assert(_coopth_is_in_thread());
+    assert(_coopth_is_in_thread() && is_detached());
     switch_state(COOPTH_YIELD);
     check_cancel();
+}
+
+void coopth_sched(void)
+{
+    assert(_coopth_is_in_thread());
+    ensure_attached();
+    /* the check below means that we switch to DOS code, not dosemu code */
+    assert(get_scheduled() != coopth_get_tid());
+    switch_state(COOPTH_SCHED);
 }
 
 void coopth_wait(void)
@@ -727,13 +760,6 @@ void coopth_exit(void)
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
     longjmp(thdata->exit_jmp, COOPTH_JMP_EXIT);
-}
-
-static int is_detached(void)
-{
-    struct coopth_thrdata_t *thdata = co_get_data(co_current());
-    assert(thdata);
-    return (!thdata->attached);
 }
 
 void coopth_detach(void)
@@ -834,19 +860,6 @@ void coopth_join(int tid, void (*helper)(void))
     do_join(pth, helper);
 }
 
-static struct coopth_t *on_thread(void)
-{
-    int i;
-    if (REG(cs) != BIOS_HLT_BLK_SEG)
-	return NULL;
-    for (i = 0; i < threads_active; i++) {
-	int tid = active_tids[i];
-	if (LWORD(eip) == coopthreads[tid].hlt_off)
-	    return &coopthreads[tid];
-    }
-    return NULL;
-}
-
 /* desperate cleanup attempt, not extremely reliable */
 int coopth_flush(void (*helper)(void))
 {
@@ -912,8 +925,7 @@ again:
 
 int coopth_get_scheduled(void)
 {
-    struct coopth_t *thr = on_thread();
-    if (!thr)
-	return COOPTH_TID_INVALID;
-    return thr->tid;
+    assert(_coopth_is_in_thread());
+    ensure_attached();
+    return get_scheduled();
 }

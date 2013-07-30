@@ -478,12 +478,8 @@ static void __do_call_back(Bit16u cs, Bit16u ip, int intr)
 		fake_call_to(cs, ip); /* far jump to the vm86(DOS) routine */
 
 	callback_level++;
-	/* no need to even put the thread to sleep:
-	 * since the code flow was changed, coopth_yield()
-	 * will magically not return before callback is finished. */
-	/* Unfortunately this trick doesn't work for detached threads */
-	coopth_ensure_attached();
-	coopth_yield();
+	/* switch to DOS code */
+	coopth_sched();
 	callback_level--;
 }
 
