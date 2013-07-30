@@ -303,8 +303,11 @@ again:
 	joinable_running = jr;
 	if (tret == COOPTH_SLEEP || tret == COOPTH_WAIT ||
 		tret == COOPTH_YIELD) {
-	    if (pth->data.sleep.func)
+	    if (pth->data.sleep.func) {
+		/* oneshot sleep handler */
 		pth->data.sleep.func(pth->data.sleep.arg);
+		pth->data.sleep.func = NULL;
+	    }
 	    if (thr->sleeph.pre)
 		thr->sleeph.pre(thr->tid);
 	}
