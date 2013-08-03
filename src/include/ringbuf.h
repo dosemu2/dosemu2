@@ -59,6 +59,7 @@ int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len);
 int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len);
 int seqbuf_read(struct seqbuf *seq, void *buffer, size_t len);
 void *seqbuf_get(struct seqbuf *seq, size_t *len);
+void seqbuf_put(struct seqbuf *seq);
 size_t seqbuf_get_read_len(struct seqbuf *seq);
 
 #endif

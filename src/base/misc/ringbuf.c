@@ -194,16 +194,12 @@ int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len)
 
 static union seqiu *sqcalc_next(struct seqbuf *seq, union seqiu *pit)
 {
-    union seqiu_p {
-	union seqiu *s;
-	uint8_t *b;
-    };
     size_t opos, pos;
     assert(pit);
     opos = SQ_PSUB(pit, seq->beg);
     pos = opos + sizeof(struct seqitem) + pit->it.len + pit->it.waste;
     assert(pos <= seq->len && (pos == SQALIGN(pos) || pos == seq->len));
-    return ((union seqiu_p){ .b = SQ_BEG(seq) + pos }).s;
+    return (union seqiu *)(SQ_BEG(seq) + pos);
 }
 
 static union seqiu *sqcalc_next_wrp(struct seqbuf *seq, union seqiu *pit)
@@ -250,44 +246,48 @@ int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len)
     return len;
 }
 
+static void sqadvance_tail(struct seqbuf *seq)
+{
+    if (seq->tail == seq->prev) {
+	seq->prev = NULL;
+	seq->tail = seq->beg;
+    } else {
+	seq->tail = sqcalc_next_wrp(seq, seq->tail);
+    }
+}
+
 int seqbuf_read(struct seqbuf *seq, void *buffer, size_t len)
 {
     union seqiu *itp;
+    size_t rlen;
     if (!seq->prev)
 	return 0;
     itp = seq->tail;
     if (len < itp->it.len)
 	return -itp->it.len;
-    if (itp == seq->prev) {
-	seq->prev = NULL;
-	seq->tail = seq->beg;
-    } else {
-	seq->tail = sqcalc_next_wrp(seq, itp);
-    }
     memcpy(buffer, itp->it.data, itp->it.len);
-    return itp->it.len;
+    rlen = itp->it.len;
+    sqadvance_tail(seq);
+    return rlen;
 }
 
 void *seqbuf_get(struct seqbuf *seq, size_t *len)
 {
-    union seqiu *itp;
     if (!seq->prev)
 	return NULL;
-    itp = seq->tail;
-    if (itp == seq->prev) {
-	seq->prev = NULL;
-	seq->tail = seq->beg;
-    } else {
-	seq->tail = sqcalc_next_wrp(seq, itp);
-    }
-    *len = itp->it.len;
-    return itp->it.data;
+    *len = seq->tail->it.len;
+    return seq->tail->it.data;
+}
+
+void seqbuf_put(struct seqbuf *seq)
+{
+    assert(seq->prev);
+    sqadvance_tail(seq);
 }
 
 size_t seqbuf_get_read_len(struct seqbuf *seq)
 {
-    int used = (seq->len != sqcalc_avail(seq));
-    if (!used)
+    if (!seq->prev)
 	return 0;
     return seq->tail->it.len;
 }
