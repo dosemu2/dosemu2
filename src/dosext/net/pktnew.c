@@ -134,15 +134,18 @@ void pkt_priv_init(void)
 
     switch (config.vnet) {
       case VNET_TYPE_ETH:
+	strncpy(devname, config.ethdev, sizeof(devname) - 1);
+	devname[sizeof(devname) - 1] = 0;
+	break;
       case VNET_TYPE_SLIRP:
-	strncpy(devname, config.netdev, sizeof(devname) - 1);
+	strncpy(devname, config.slirp, sizeof(devname) - 1);
 	devname[sizeof(devname) - 1] = 0;
 	break;
       case VNET_TYPE_TAP:
 	strcpy(devname, TAP_DEVICE);
-	if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
-	  pd_printf("PKT: trying to bind to device %s\n", config.netdev);
-	  strcpy(devname, config.netdev);
+	if (strncmp(config.tapdev, TAP_DEVICE, 3) == 0) {
+	  pd_printf("PKT: trying to bind to device %s\n", config.tapdev);
+	  strcpy(devname, config.tapdev);
 	}
 	break;
     }

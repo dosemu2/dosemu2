@@ -229,7 +229,9 @@ typedef struct vesamode_type_struct {
        boolean ipxsup;
        long    ipx_net;
        int     vnet;
-       char   *netdev;
+       char   *ethdev;
+       char   *tapdev;
+       char   *slirp;
        boolean pktdrv;
        boolean dosbanner;
        boolean emuretrace;
