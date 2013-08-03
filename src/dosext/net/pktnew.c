@@ -599,14 +599,17 @@ static void pkt_receiver_callback_thr(void *arg)
     _AX = 0;
     _BX = p_helper_handle;
     _CX = p_helper_size;
+    _DX = 0;	// no lookahead buffer
+    _DI = 0;	// no error
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
-    if (_ES == 0 && _DI == 0)
+    if ((_ES == 0 && _DI == 0) || (_CX && _CX < p_helper_size))
       goto out;
     MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, p_helper_size);
     _DS = _ES;
     _SI = _DI;
     _AX = 1;
     _BX = p_helper_handle;
+    _CX = p_helper_size;
     do_call_back(p_helper_receiver_cs, p_helper_receiver_ip);
 
 out:
