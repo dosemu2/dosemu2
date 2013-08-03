@@ -592,6 +592,9 @@ static void pkt_receiver_callback_thr(void *arg)
 out:
     p_helper_size = 0;
     REGS = rcv_saved_regs;
+
+    /* check for next frame */
+    pic_request(PIC_NET);
 }
 
 static int pkt_receive(void)
