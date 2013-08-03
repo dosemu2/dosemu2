@@ -33,6 +33,7 @@
 #include <net/ethernet.h>
 
 #include "emu.h"
+#include "ringbuf.h"
 #include "priv.h"
 #include "libpacket.h"
 #include "pktdrvr.h"
@@ -49,8 +50,9 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 
 static int pkt_fd = -1;
 
-static int librouter_bufflen = 0;
-static unsigned char librouter_buff[2048];
+static struct seqbuf sqb;
+#define LIBROUTER_BUF_LEN 2048
+static unsigned char librouter_buff[LIBROUTER_BUF_LEN];
 
 struct pkt_ops {
     int (*open)(char *name);
@@ -163,6 +165,7 @@ static void slirp_exit(void)
 
 static int OpenNetworkLinkSlirp(char *name)
 {
+	seqbuf_init(&sqb, librouter_buff, LIBROUTER_BUF_LEN);
 	receive_mode = 6;
 	pkt_fd = librouter_init(name);
 	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
@@ -331,17 +334,17 @@ static int tun_alloc(char *dev)
 
 static ssize_t pkt_read_slirp(void *buf, size_t count)
 {
-  int res;
+  size_t len = seqbuf_get_read_len(&sqb);
   /* first check the internal single-packet buffer */
-  if (librouter_bufflen > 0) {
-    memcpy(buf, librouter_buff, librouter_bufflen);
-    res = librouter_bufflen;
-    librouter_bufflen = 0;
-    return(res);
+  if (len > 0) {
+    if (len > count) {
+	error("pkt_read_slirp: small read requested, %zi<%zi\n", count, len);
+	return -1;
+    }
+    return seqbuf_read(&sqb, buf, count);
   }
   /* else poll librouter */
-  res = librouter_recvframe(pkt_fd, buf);
-  return(res);
+  return librouter_recvframe(pkt_fd, buf);
 }
 
 static ssize_t pkt_read_eth(void *buf, size_t count)
@@ -377,9 +380,12 @@ static ssize_t pkt_write_eth(const void *buf, size_t count)
 
 static ssize_t pkt_write_slirp(const void *buf, size_t count)
 {
-  memcpy(librouter_buff, buf, count); /* we copy buf into our own buffer first, because librouter needs write access to the buffer */
-  librouter_bufflen = librouter_sendframe(pkt_fd, librouter_buff, count);
-  if (librouter_bufflen > 0) { /* we've got something back already! */
+  int buf2_len;
+  unsigned char buf2[LIBROUTER_BUF_LEN];
+  memcpy(buf2, buf, count); /* we copy buf into our own buffer first, because librouter needs write access to the buffer */
+  buf2_len = librouter_sendframe(pkt_fd, buf2, count);
+  if (buf2_len > 0) { /* we've got something back already! */
+    seqbuf_write(&sqb, buf2, buf2_len);
     pkt_receive_req(); /* this makes the underlying DOS get some kind of a signal 'hey buddy, you've got some data' */
   }
   return(count);
