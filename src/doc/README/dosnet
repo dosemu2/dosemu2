@@ -78,7 +78,7 @@ be down as soon as you exit DOSEMU.
 Or set
 <screen>
 $_pktdriver=(on)
-$_vnet = "tap
+$_vnet = "tap"
 $_netdev = "tap0"
 </screen>
 </para>
@@ -195,4 +195,31 @@ have a look into IP-Masquerade-HOWTO.
 </para>
 </sect3>
 </sect2>
+
+<sect2>
+<title>Slirp (pseudo-NAT) networking backend</title>
+<para>
+If you just need to have a working internet access from within your
+DOSEMU environment, then you might want to consider using Slirp networking.
+Slirp is a user mode networking utility providing a NAT-like
+service. In Slirp mode, DOSEMU will provide a DHCP server, as well as a
+virtualized network in the 10.0.2.0/24 range, with a default gateway and a
+DNS server.
+</para>
+<para>
+Set it as follows:
+<screen>
+$_pktdriver=(on)
+$_vnet = "slirp"
+$_slirp = "/usr/bin/slirp"
+</screen>
+</para>
+<para>
+Your wattcp.cfg file will look as simple as this:
+<screen>
+my_ip=dhcp
+</screen>
+</para>
+</sect2>
+
 </sect1>
