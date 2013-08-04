@@ -6,7 +6,7 @@
 <para>
 The easiest (and not recommended) way to set up the networking
 in DOSEMU is to use the direct NIC access. It means that DOSEMU
-will exclusively use one of your network interfaces, say eth0.
+will exclusively use one of your network interfaces, say eth1.
 No other processes will be able to use that interface. If they
 try to, the data exchange will became unreliable. So you have
 to make sure that this network interface is not used by anything
@@ -14,8 +14,8 @@ including the kernel itself, before starting DOSEMU.
 The settings for this method are as follows:
 <screen>
 $_pktdriver = (on)
-$_netdev = "eth0"
-$_vnet = "direct"
+$_ethdev = "eth1"
+$_vnet = "eth"
 </screen>
 Note that this method requires root privileges.
 </para>
@@ -51,7 +51,7 @@ Set
 <screen>
 $_pktdriver=(on)
 $_vnet = "tap"
-$_netdev = ""
+$_tapdev = ""
 </screen>
 </para>
 <para>
@@ -79,7 +79,7 @@ Or set
 <screen>
 $_pktdriver=(on)
 $_vnet = "tap"
-$_netdev = "tap0"
+$_tapdev = "tap0"
 </screen>
 </para>
 <para>
