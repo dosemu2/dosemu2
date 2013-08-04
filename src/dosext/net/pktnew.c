@@ -164,7 +164,7 @@ retry:
 	    config.vnet = VNET_TYPE_SLIRP;
 	    goto retry;
 	  }
-	  pktdrvr_installed = -1;
+	  pktdrvr_installed = 0;
 	}
     }
 }
@@ -173,10 +173,8 @@ void
 pkt_init(void)
 {
     int ret;
-    if (!config.pktdrv)
+    if (!config.pktdrv || !pktdrvr_installed)
       return;
-    if (pktdrvr_installed == -1)
-      goto fail;
 
     /* call Open_sockets() only for non-priv configs */
     switch (config.vnet) {
@@ -184,8 +182,8 @@ pkt_init(void)
 	ret = Open_sockets(devname);
 	if (ret < 0) {
 	  warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
-	  pktdrvr_installed = -1;
-	  goto fail;
+	  pktdrvr_installed = 0;
+	  return;
 	}
 	pd_printf("PKT: Using device %s\n", devname);
     }
@@ -213,10 +211,6 @@ pkt_init(void)
     p_param->xmt_bufs = 2 - 1;
 
     PKTRcvCall_TID = coopth_create("PKT_receiver_call");
-    return;
-
-fail:
-    pktdrvr_installed = 0;
 }
 
 void
