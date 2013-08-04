@@ -132,6 +132,7 @@ void pkt_priv_init(void)
     LibpacketInit();
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
+retry:
     switch (config.vnet) {
       case VNET_TYPE_ETH:
 	strncpy(devname, config.ethdev, sizeof(devname) - 1);
@@ -154,12 +155,17 @@ void pkt_priv_init(void)
     switch (config.vnet) {
       case VNET_TYPE_ETH:
       case VNET_TYPE_TAP:
+	pd_printf("PKT: Using device %s\n", devname);
 	ret = Open_sockets(devname);
 	if (ret < 0) {
-	  warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
+	  warn("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+	  if (config.slirp[0]) {
+	    warn("PKT: Trying slirp instead\n");
+	    config.vnet = VNET_TYPE_SLIRP;
+	    goto retry;
+	  }
 	  pktdrvr_installed = -1;
 	}
-	pd_printf("PKT: Using device %s\n", devname);
     }
 }
 
