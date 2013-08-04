@@ -187,7 +187,7 @@ pkt_init(void)
 	    pktdrvr_installed = 0;
 	  } else {
 	    error("Unable to run slirp, %s\n", devname);
-	    leavedos(3);
+	    config.exitearly = 1;
 	  }
 	  return;
 	}

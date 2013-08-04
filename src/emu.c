@@ -427,6 +427,7 @@ emulate(int argc, char **argv)
      * This also must be done when the signals are blocked, so after
      * the io_select_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
+    dos2tty_init();
     signal_init();              /* initialize sig's & sig handlers */
 
     if (config.exitearly) {
@@ -437,7 +438,6 @@ emulate(int argc, char **argv)
     ems_init();			/* initialize ems */
     xms_init();			/* initialize xms */
     dpmi_setup();
-    dos2tty_init();
 
     if (not_use_sigio)
 	k_printf("Atleast 1 NON-SIGIO file handle in use.\n");
