@@ -162,6 +162,7 @@ retry:
 	  if (config.slirp[0]) {
 	    warn("PKT: Trying slirp instead\n");
 	    config.vnet = VNET_TYPE_SLIRP;
+	    pktdrvr_installed = -1;	// fallback
 	    goto retry;
 	  }
 	  pktdrvr_installed = 0;
@@ -181,8 +182,13 @@ pkt_init(void)
       case VNET_TYPE_SLIRP:
 	ret = Open_sockets(devname);
 	if (ret < 0) {
-	  warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
-	  pktdrvr_installed = 0;
+	  if (pktdrvr_installed == -1) {
+	    warn("PKT: Cannot run slirp, %s\n", devname);
+	    pktdrvr_installed = 0;
+	  } else {
+	    error("Unable to run slirp, %s\n", devname);
+	    leavedos(3);
+	  }
 	  return;
 	}
 	pd_printf("PKT: Using device %s\n", devname);
