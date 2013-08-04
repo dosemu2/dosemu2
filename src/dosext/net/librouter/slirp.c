@@ -37,13 +37,13 @@
 #include <errno.h>
 #include "slirp.h"  /* include self for control */
 
+static int slirp_stderr[2];
 
-
-static pid_t slirp_popen2(const char *command, int *slirpfd) {
+static pid_t slirp_popen2(const char *command, int *slirpfd, int *slirp_pipe) {
   pid_t pid;
   int flags;
 
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, slirpfd) != 0) {
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, slirpfd) || pipe(slirp_pipe)) {
     /* printf("socketpair() failed: %s\n", strerror(errno)); */
     return(-1);
   }
@@ -61,51 +61,30 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
   if (pid < 0) { /* fork failed! */
       return(pid);
     } else if (pid == 0) { /* child process */
-      int nfd, execres;
+      int execres;
 
       /* close the parent's end of the socket, to avoid writing any garbage to it by mistake */
       close(slirpfd[0]);
+      close(slirp_pipe[0]);
 
-      if (dup2(slirpfd[1], STDIN_FILENO) == -1) {
-        /* printf("dup2() failed: %s\n", strerror(errno)); */
-      }
+      dup2(slirpfd[1], STDIN_FILENO);
       /* slirp seems to use stdin bidirectionally instead of using stdout for SLIP output (?) */
-      if (dup2(slirpfd[1], STDOUT_FILENO) == -1) {
-        /* printf("dup2() failed: %s\n", strerror(errno)); */
-      }
+      dup2(slirpfd[1], STDOUT_FILENO);
+      dup2(slirp_pipe[1], STDERR_FILENO);
 
-      /* redirect stderr to null, because slirp uses stderr to print out its own infos, and I don't want this stuff to be printed on user's console */
-      nfd = open("/dev/null", O_RDWR);
-      if (nfd != -1) {
-        dup2(nfd, STDERR_FILENO);
-      }
-
-      for (;;) { /* this is not a real loop, but only a way to break out easily */
-        if (command != NULL) { /* if the user provided an executable, run it */
-          execres = execlp(command, command, NULL);
-          if (execres >= 0) { /* slirp ended for some reason */
-              break;
-            } else {
-              /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
-          }
-        }
+      if (command && command[0]) { /* if the user provided an executable, run it */
+        execres = execlp(command, command, NULL);
+      } else {
         /* if above command hasn't worked, or user haven't provided any command, try a hardcoded value */
         execres = execlp("slirp-fullbolt", "slirp-fullbolt", NULL);
-        if (execres >= 0) {  /* slirp ended for some reason */
-            break;
-          } else {
-            /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
-        }
         /* if above command hasn't worked, try another hardcoded value */
-        if (execlp("slirp", "slirp", NULL) < 0) {
-          /* printf("execlp() failed when calling '%s': %s\n", command, strerror(errno)); */
-        }
-        break; /* we don't have other ideas to try, so let's quit here */
+        execres = execlp("slirp", "slirp", NULL);
       }
       close(slirpfd[1]); /* close the communication socket before quitting */
-      exit(0); /* we need the child to die if it doesn't work properly, otherwise the user would end up with two of his calling processes (because we forked, remember?) */
+      exit(execres);
     } else {  /* parent process */
       close(slirpfd[1]);
+      close(slirp_pipe[1]);
       return(pid);
   }
 }
@@ -113,30 +92,26 @@ static pid_t slirp_popen2(const char *command, int *slirpfd) {
 
 
 pid_t librouter_slirp_open(char *slirpcmd, int *slirpfd) {
-  int x, notemptyflag = 0;
-  /* check if slirpcmd contains any non-empty chars */
-  if (slirpcmd != NULL) {
-    for (x = 0; (slirpcmd[x] != 0) && (notemptyflag == 0); x++) {
-      switch (slirpcmd[x]) {
-        case ' ':
-        case '\r':
-        case '\n':
-        case '\t':
-          break;
-        default:
-          notemptyflag = 1;
-          break;
-      }
-    }
-    if (notemptyflag == 0) slirpcmd = NULL; /* if the string is empty, force its pointer to NULL */
+  char buf[1024];
+  const char *str = "Slirp";
+  int n;
+  pid_t pid = slirp_popen2(slirpcmd, slirpfd, slirp_stderr);
+  if (pid < 0)
+    return pid;
+  n = read(slirp_stderr[0], buf, sizeof(buf));
+  if (n <= strlen(str) || n == sizeof(buf) ||
+        strncmp(buf, str, strlen(str)) != 0) {
+    close(slirpfd[0]);
+    close(slirp_stderr[0]);
+    return -1;
   }
-  return slirp_popen2(slirpcmd, slirpfd);
+  return pid;
 }
 
 
 void librouter_slirp_close(int *slirpfd) {
   close(slirpfd[0]);
-  close(slirpfd[1]);
+  close(slirp_stderr[0]);
 }
 
 
