@@ -376,7 +376,7 @@ CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 
-REQUIRED="tools commands tools/periph"
+REQUIRED="commands tools/periph"
 
 dnl enable EXPERIMENTAL stuff
  AC_ARG_ENABLE(experimental,
@@ -395,7 +395,6 @@ dnl but only vm86plus
    USE_MHPDBG="USE_MHPDBG=1"
    AC_SUBST(USE_MHPDBG)
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-   REQUIRED="tools commands tools/periph"
 fi
 AC_SUBST(DEBUGGER)
 
