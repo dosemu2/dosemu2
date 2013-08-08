@@ -636,7 +636,7 @@ size_t pcm_data_get(void *data, size_t size,
 	memset(idxs, 0, sizeof(idxs));
 	pcm.out_buf.idx = 0;
 
-	while (time < stop_time - (frame_period / 10.0)) {
+	while (pcm.out_buf.idx < size) {
 	    have_data = pcm_get_samples(time, samp, 0, idxs);
 	    if (!have_data && i >= players.num_clocked)
 		break;
@@ -651,6 +651,9 @@ size_t pcm_data_get(void *data, size_t size,
 	    pcm.out_buf.idx += samp_sz * player_parms->channels;
 	    time += frame_period;
 	}
+	if (fabs(time - stop_time) > frame_period)
+	    error("PCM: time=%f stop_time=%f p=%f\n",
+		    time, stop_time, frame_period);
 
 	/* feed the data to player */
 	if (i < players.num_clocked) {
