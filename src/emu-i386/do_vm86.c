@@ -497,7 +497,6 @@ int vm86_init(void)
 {
     emu_hlt_t hlt_hdlr;
     hlt_hdlr.name = "do_call_back";
-    hlt_hdlr.start_addr = -1;
     hlt_hdlr.len = 1;
     hlt_hdlr.func = callback_return;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);

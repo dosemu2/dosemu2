@@ -39,10 +39,8 @@
 #define MAX_HLT_HANDLERS 50
 
 struct hlt_handler {
-  emu_hlt_func  func;
-  const char   *name;
+  emu_hlt_t	h;
   Bit16u	start_addr;
-  void         *arg;
 };
 static struct hlt_handler hlt_handler[MAX_HLT_HANDLERS];
 
@@ -73,8 +71,8 @@ void hlt_init(void)
 {
   int i;
 
-  hlt_handler[0].func = hlt_default;
-  hlt_handler[0].name = "Unmapped HLT instruction";
+  hlt_handler[0].h.func = hlt_default;
+  hlt_handler[0].h.name = "Unmapped HLT instruction";
 
   hlt_handler_count   = 1;
 
@@ -110,7 +108,7 @@ void hlt_handle(void)
     h_printf("HLT: fcn 0x%04lx called in HLT block, handler: %s\n", offs,
 	     hlt->name);
 #endif
-    hlt->func(offs - hlt->start_addr, hlt->arg);
+    hlt->h.func(offs - hlt->start_addr, hlt->h.arg);
   }
   else if (lina == XMSControl_ADD) {
     xms_control();
@@ -158,7 +156,7 @@ void hlt_handle(void)
 Bit32u hlt_register_handler(emu_hlt_t handler)
 {
   int handle, i, j;
-  Bit32u start_addr = handler.start_addr;
+  Bit32u start_addr = -1;
 
   /* initialization check */
   assert(hlt_handler_count);
@@ -168,8 +166,7 @@ Bit32u hlt_register_handler(emu_hlt_t handler)
     config.exitearly = 1;
   }
 
-  if (start_addr == (Bit32u)-1) {
-    for (i = 0; i + handler.len <= BIOS_HLT_BLK_SIZE; i++) {
+  for (i = 0; i + handler.len <= BIOS_HLT_BLK_SIZE; i++) {
       for (j = 0; j < handler.len; j++) {
         if (hlt_handler_id[i + j]) {
           i += j;
@@ -181,39 +178,24 @@ Bit32u hlt_register_handler(emu_hlt_t handler)
         start_addr = i;
         break;
       }
-    }
-    if (start_addr == (Bit32u)-1) {
+  }
+  if (start_addr == (Bit32u)-1) {
       error("HLT: Cannot find free block of len %i\n", handler.len);
       config.exitearly = 1;
-    }
+      return -1;
   }
 
   handle = hlt_handler_count++;
 
-  hlt_handler[handle].name = handler.name;
-  hlt_handler[handle].func = handler.func;
+  hlt_handler[handle].h = handler;
   hlt_handler[handle].start_addr = start_addr;
-  hlt_handler[handle].arg = handler.arg;
 
   /* change table to reflect new handler id for that address */
-  for (j = 0; j < handler.len; j++) {
-    i = j + start_addr;
-    if (i > BIOS_HLT_BLK_SIZE) {
-      error("HLT: handler %s can not register values more than 0x%04x\n",
-	    handler.name, BIOS_HLT_BLK_SIZE);
-      config.exitearly = 1;
-    }
-    if (hlt_handler_id[i] != 0) {
-      error("HLT: HLT handler conflict at offset 0x%04x between %s and %s\n",
-	    i, handler.name, hlt_handler[hlt_handler_id[i]].name);
-      config.exitearly = 1;
-    }
-    hlt_handler_id[i] = handle;
-  }
+  for (j = 0; j < handler.len; j++)
+    hlt_handler_id[start_addr + j] = handle;
 
-  h_printf("HLT: registered %s at %#x,%i (%s)\n",
-      handler.name, start_addr, handler.len,
-      handler.start_addr == (Bit32u)-1 ? "auto" : "manual");
+  h_printf("HLT: registered %s at %#x,%i\n",
+      handler.name, start_addr, handler.len);
 
   return start_addr;
 }

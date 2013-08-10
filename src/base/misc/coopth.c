@@ -372,7 +372,6 @@ static int register_handler(char *name, void *arg, int len)
 {
     emu_hlt_t hlt_hdlr;
     hlt_hdlr.name = name;
-    hlt_hdlr.start_addr = -1;
     hlt_hdlr.len = len;
     hlt_hdlr.func = coopth_hlt;
     hlt_hdlr.arg = arg;
