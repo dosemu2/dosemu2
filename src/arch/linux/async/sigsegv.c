@@ -217,9 +217,10 @@ sgleave:
  *  but if only the protection needs to be adjusted (no instructions emulated)
  *  we should be able to handle it in DOSEMU
  */
-    v_printf("BUG: dosemu touched protected video mem, but trying to recover\n");
-    if(VGA_EMU_FAULT(scp,code,1)==True)
+    if(VGA_EMU_FAULT(scp,code,1)==True) {
+      v_printf("BUG: dosemu touched protected video mem, but trying to recover\n");
       return 0;
+    }
   }
 #endif
 
