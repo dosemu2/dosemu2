@@ -288,17 +288,17 @@ again:
 	 * to coopth API, the nesting is avoided.
 	 * If not true, we print an error.
 	 */
-	jr = joinable_running;
-	if (pth->data.attached) {
-	    if (joinable_running) {
-		static int warned;
-		if (!warned) {
-		    warned = 1;
-		    dosemu_error("Nested thread invocation detected, please fix!\n");
-		}
+	if (joinable_running) {
+	    static int warned;
+	    if (!warned) {
+		warned = 1;
+		dosemu_error("Nested thread invocation detected, please fix! "
+			"(at=%i)\n", pth->data.attached);
 	    }
-	    joinable_running++;
 	}
+	jr = joinable_running;
+	if (pth->data.attached)
+	    joinable_running++;
 	thread_running++;
 	tret = do_run_thread(thr, pth);
 	thread_running--;
@@ -714,7 +714,7 @@ static int get_scheduled(void)
 
 void coopth_yield(void)
 {
-    assert(_coopth_is_in_thread() && is_detached());
+    assert(_coopth_is_in_thread());
     switch_state(COOPTH_YIELD);
     check_cancel();
 }

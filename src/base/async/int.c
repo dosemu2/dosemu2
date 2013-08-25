@@ -127,7 +127,7 @@ static void kill_time(long usecs) {
 	sigset_t mask;
 	sigemptyset(&mask);
 	sigsuspend(&mask);
-	do_periodic_stuff();
+	coopth_wait();
    }
 }
 

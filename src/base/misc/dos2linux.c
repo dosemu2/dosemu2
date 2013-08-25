@@ -567,10 +567,8 @@ int run_system_command(char *buffer)
     }
     else {
 	/* parent */
-        while (waitpid(pid, &status, WNOHANG) != pid) {
-            handle_signals();
-            usleep(10000);
-        }
+        while (waitpid(pid, &status, WNOHANG) != pid)
+            coopth_wait();
         return WEXITSTATUS(status);
     }
 }
@@ -1015,8 +1013,6 @@ int com_bioscheckkey(void)
 	pre_msdos();
 	HI(ax) = 1;
 	do_int_call_back(0x16);
-	handle_signals();
-	keyb_server_run();
 	ret = !(LWORD(eflags) & ZF);
 	post_msdos();
 	return ret;

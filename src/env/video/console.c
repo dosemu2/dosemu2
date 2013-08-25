@@ -20,6 +20,7 @@
 #include "vc.h"
 #include "mapping.h"
 #include "bios.h"
+#include "coopth.h"
 #include "vgaemu.h"
 
 static void console_update_cursor(void)
@@ -127,10 +128,11 @@ static int console_post_init(void)
  *    Fake running signal_handler() engine to process release/acquire
  *    vt's.
  */
-      while(vc_active())handle_signals();
+      while(vc_active())
+        coopth_wait();
       ioctl(console_fd, VT_ACTIVATE, scr_state.console_no);
-      while(!vc_active())handle_signals();
-      handle_signals();
+      while(!vc_active())
+        coopth_wait();
     }
   }
   else
