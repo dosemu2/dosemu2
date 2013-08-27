@@ -18,6 +18,8 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include "Linux/if_tun.h"
@@ -186,8 +188,12 @@ static void CloseNetworkLinkEth(void)
 
 static void CloseNetworkLinkSlirp(void)
 {
-        remove_from_io_select(pkt_fd);
-        librouter_close(pkt_fd);
+	int stat;
+	pid_t pid = librouter_get_slirp_pid();
+	remove_from_io_select(pkt_fd);
+	sigchld_enable_handler(pid, 0);
+	librouter_close(pkt_fd);
+	waitpid(pid, &stat, 0);
 }
 
 

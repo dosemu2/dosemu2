@@ -232,6 +232,13 @@ pkt_reset(void)
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
 }
 
+void pkt_term(void)
+{
+    if (!config.pktdrv || !pktdrvr_installed)
+      return;
+    CloseNetworkLink();
+}
+
 /* this is the handler for INT calls from DOS to the packet driver */
 int
 pkt_int (void)

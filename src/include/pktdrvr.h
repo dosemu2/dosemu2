@@ -91,6 +91,7 @@ struct pkt_statistics {
 extern void pkt_priv_init (void);
 extern void pkt_init (void);
 extern void pkt_reset (void);
+extern void pkt_term (void);
 
 extern unsigned short receive_mode;
 
