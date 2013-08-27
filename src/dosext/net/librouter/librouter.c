@@ -57,7 +57,7 @@ static struct arptabletype *librouter_arptable = NULL;
 
 /* close librouter */
 void librouter_close(int sock) {
-  close(sock);
+  librouter_slirp_close();
 }
 
 
@@ -117,11 +117,11 @@ int librouter_recvframe(int sock, uint8_t *buff) {
 /* initialize the librouter library. slirpexec is a string with the path/filename of the slirp binary to use, or NULL if librouter have to try to figure it out by itself. Returns a socket that can be monitored for new incoming packets, or -1 on error. */
 int librouter_init(char *slirpexec) {
   int x;
-  int slirpfdarr[2];
+  int slirpfd;
   pid_t pid;
 
   /* open the communication channel with SLIRP */
-  pid = librouter_slirp_open(slirpexec, slirpfdarr);
+  pid = librouter_slirp_open(slirpexec, &slirpfd);
   if (pid == -1) {
     /* printf("Error: failed to invoke '%s'.\n", slirpexec); */
     return(-1);
@@ -134,7 +134,7 @@ int librouter_init(char *slirpexec) {
     librouter_arptable = librouter_arp_learn(librouter_arptable, librouter_mymac, librouter_myip[x]);
   }
   /* return the slirp socket to the application for monitoring needs */
-  return(slirpfdarr[0]);
+  return(slirpfd);
 }
 
 pid_t librouter_get_slirp_pid(void)

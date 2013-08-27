@@ -19,7 +19,7 @@
 #ifndef librouter_slirp_h_sentinel
 #define librouter_slirp_h_sentinel
 int librouter_slirp_open(char *slirpcmd, int *slirpfd);
-void librouter_slirp_close(int *slirpfd);
+void librouter_slirp_close(void);
 int librouter_slirp_send(uint8_t *buff, int bufflen, int slirpfd);
 int librouter_slirp_read(uint8_t *buff, int slirpfd);
 #endif

@@ -37,6 +37,7 @@
 #include <errno.h>
 #include "slirp.h"  /* include self for control */
 
+static int slirp_fd[2];
 static int slirp_stderr[2];
 
 static pid_t slirp_popen2(const char *command, int *slirpfd, int *slirp_pipe) {
@@ -91,26 +92,27 @@ static pid_t slirp_popen2(const char *command, int *slirpfd, int *slirp_pipe) {
 
 
 
-pid_t librouter_slirp_open(char *slirpcmd, int *slirpfd) {
+pid_t librouter_slirp_open(char *slirpcmd, int *r_slirpfd) {
   char buf[1024];
   const char *str = "Slirp";
   int n;
-  pid_t pid = slirp_popen2(slirpcmd, slirpfd, slirp_stderr);
+  pid_t pid = slirp_popen2(slirpcmd, slirp_fd, slirp_stderr);
   if (pid < 0)
     return pid;
   n = read(slirp_stderr[0], buf, sizeof(buf));
   if (n <= strlen(str) || n == sizeof(buf) ||
         strncmp(buf, str, strlen(str)) != 0) {
-    close(slirpfd[0]);
+    close(slirp_fd[0]);
     close(slirp_stderr[0]);
     return -1;
   }
+  *r_slirpfd = slirp_fd[0];
   return pid;
 }
 
 
-void librouter_slirp_close(int *slirpfd) {
-  close(slirpfd[0]);
+void librouter_slirp_close(void) {
+  close(slirp_fd[0]);
   close(slirp_stderr[0]);
 }
 
