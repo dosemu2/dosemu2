@@ -345,17 +345,20 @@ int sigchld_register_handler(pid_t pid, void (*handler)(void))
 
 static void cleanup_child(void *arg)
 {
-  int i;
-  pid_t *pid = arg;
+  int i, status;
+  pid_t pid2, pid = *(pid_t *)arg;
 
   for (i = 0; i < chd_hndl_num; i++) {
-    if (chld_hndl[i].pid == *pid)
+    if (chld_hndl[i].pid == pid)
       break;
   }
   if (i >= chd_hndl_num) {
-    g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
+//    g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
     return;
   }
+  pid2 = waitpid(pid, &status, WNOHANG);
+  if (pid2 != pid)
+    return;
   chld_hndl[i].handler();
 }
 
@@ -364,17 +367,10 @@ static void cleanup_child(void *arg)
 __attribute__((no_instrument_function))
 static void sig_child(int sig, siginfo_t *si, void *uc)
 {
-  pid_t pid;
-  int status;
   struct sigcontext_struct *scp =
 	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
-  pid = waitpid(si->si_pid, &status, WNOHANG);
-  if (pid != si->si_pid) {
-    g_printf("unexpected SIGCHLD(%i %i %x)\n", si->si_pid, pid, status);
-    return;
-  }
-  SIGNAL_save(cleanup_child, &pid, sizeof(pid));
+  SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid));
 }
 
 __attribute__((no_instrument_function))
