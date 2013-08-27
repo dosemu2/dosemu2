@@ -389,11 +389,10 @@ void dosemu_sleep(void)
 int idle(int threshold1, int threshold, int threshold2, const char *who)
 {
   static int trigger = 0;
-  do_periodic_stuff();
   if (config.hogthreshold && CAN_SLEEP()) {
     if(trigger1 >= config.hogthreshold * threshold1) {
       if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
-	dosemu_sleep();
+	coopth_wait();
 	trigger = 0;
       }
       if (trigger1 > 0)

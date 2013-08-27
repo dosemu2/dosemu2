@@ -6096,7 +6096,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-REQUIRED="tools commands tools/periph"
+REQUIRED="commands tools/periph"
 
  # Check whether --enable-experimental was given.
 if test "${enable_experimental+set}" = set; then :
@@ -6119,7 +6119,6 @@ _ACEOF
    USE_MHPDBG="USE_MHPDBG=1"
 
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-   REQUIRED="tools commands tools/periph"
 fi
 
 

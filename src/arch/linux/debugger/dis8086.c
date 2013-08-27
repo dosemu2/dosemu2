@@ -92,7 +92,6 @@ static inline unsigned char mem_readb(unsigned int x)
   else
     return READ_BYTE(x);
 }
-typedef unsigned Bitu;
 
 typedef Bit8u  UINT8;
 typedef Bit16u UINT16;

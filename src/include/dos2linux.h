@@ -263,8 +263,7 @@ extern int misc_e6_need_terminate(void);
 
 extern int find_drive (char **linux_path_resolved);
 
-extern void run_unix_command (char *buffer);
-extern int run_system_command(char *buffer);
+extern int run_unix_command (char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 void show_welcome_screen(void);

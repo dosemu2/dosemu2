@@ -2185,7 +2185,6 @@ void ems_init(void)
 
   /* install HLT handler */
   hlt_hdlr.name = "EMS";
-  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len = 1;
   hlt_hdlr.func = emm_hlt_handler;
   EMSControl_OFF = hlt_register_handler(hlt_hdlr);

@@ -324,12 +324,9 @@ local_clean:
 	  $(BINPATH)/bin/dos $(BINPATH)/bin/*.so *.s core \
 	  *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug
 
-local_realclean:
-	-rm -f tools/tools86
-
 clean:: local_clean
 
-realclean::   local_realclean local_clean
+realclean::   local_clean
 
 CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
 REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))

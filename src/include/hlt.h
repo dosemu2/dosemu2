@@ -17,7 +17,6 @@ typedef void (* emu_hlt_func)(Bit32u offs, void *arg);
 typedef struct {
   emu_hlt_func  func;
   const char   *name;
-  Bit32u        start_addr;
   int           len;
   void         *arg;
 } emu_hlt_t;

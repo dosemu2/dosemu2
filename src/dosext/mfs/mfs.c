@@ -193,6 +193,7 @@ TODO:
 #include "redirect.h"
 #include "mangle.h"
 #include "utilities.h"
+#include "coopth.h"
 #include "cpu-emu.h"
 #endif
 
@@ -1174,7 +1175,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 	  /* the pending sigalrm must be delivered now */
 	  sigalarm_block(1);
 	}
-	handle_signals();
+	coopth_yield();
 
 	Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
 

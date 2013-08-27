@@ -127,7 +127,7 @@ static void kill_time(long usecs) {
 	sigset_t mask;
 	sigemptyset(&mask);
 	sigsuspend(&mask);
-	do_periodic_stuff();
+	coopth_wait();
    }
 }
 
@@ -441,7 +441,7 @@ int dos_helper(void)
 
   case DOS_HELPER_0x53:
     {
-        LWORD(eax) = run_system_command(SEG_ADR((char *), es, dx));
+        LWORD(eax) = run_unix_command(SEG_ADR((char *), es, dx));
 	break;
     }
 
@@ -2275,13 +2275,11 @@ void setup_interrupts(void) {
   set_int21_revectored(redir_state = 1);
 
   hlt_hdlr.name       = "interrupts";
-  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
   hlt_off = hlt_register_handler(hlt_hdlr);
 
   hlt_hdlr.name       = "int return";
-  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len        = 1;
   hlt_hdlr.func       = ret_from_int;
   iret_hlt_off = hlt_register_handler(hlt_hdlr);
@@ -2291,7 +2289,6 @@ void setup_interrupts(void) {
   coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
 
   hlt_hdlr.name       = "mouse post";
-  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len        = 1;
   hlt_hdlr.func       = int33_post;
   Mouse_HLT_OFF = hlt_register_handler(hlt_hdlr);

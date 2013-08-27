@@ -179,26 +179,6 @@ int speed_main(int argc, char **argv)
 	return 0;
 }
 
-int system_main(int argc, char **argv)
-{
-	char c[256];
-	int i;
-
-	if (argc <= 1) {
-		com_printf("Run system command_to_execute\n");
-		return 1;
-	}
-
-	c[0] = 0;
-	strcat(c, argv[1]);
-	for (i=2; i < argc; i++) {
-		strcat(c, " ");
-		strcat(c, argv[i]);
-	}
-	run_system_command(c);
-	return 0;
-}
-
 int uchdir_main(int argc, char **argv)
 {
 	struct PSP *psp = COM_PSP_ADDR;
@@ -268,7 +248,6 @@ void commands_plugin_init(void)
 	register_com_program("EJECT", eject_main);
 	register_com_program("EXITEMU", exitemu_main);
 	register_com_program("SPEED", speed_main);
-	register_com_program("SYSTEM", system_main);
 	register_com_program("UCHDIR", uchdir_main);
 	register_com_program("UGETCWD", ugetcwd_main);
 	register_com_program("VGAOFF", vgaoff_main);

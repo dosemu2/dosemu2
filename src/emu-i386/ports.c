@@ -37,6 +37,8 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/io.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "emu.h"
 #include "port.h"
@@ -1054,10 +1056,13 @@ int extra_port_init(void)
 
 void port_exit(void)
 {
+	int stat;
 	struct portreq pr;
 	if (!portserver_pid) return;
-        pr.type = TYPE_EXIT;
+	sigchld_enable_handler(portserver_pid, 0);
+	pr.type = TYPE_EXIT;
 	write(port_fd_out[1], &pr, sizeof(pr));
+	waitpid(portserver_pid, &stat, 0);
 	portserver_pid = 0;
 }
 

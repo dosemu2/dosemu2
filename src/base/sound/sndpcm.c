@@ -318,17 +318,12 @@ double pcm_frame_period_us(double rate)
     return (1000000 / rate);
 }
 
-static double pcm_samp_period(double rate, int channels)
-{
-    return pcm_frame_period_us(rate) / channels;
-}
-
 double pcm_frag_period(int size, struct player_params *params)
 {
     int samp_sz, nsamps;
     samp_sz = pcm_format_size(params->format);
     nsamps = size / samp_sz;
-    return nsamps * pcm_samp_period(params->rate, params->channels);
+    return nsamps * pcm_frame_period_us(params->rate) / params->channels;
 }
 
 static int peek_last_sample(int strm_idx, struct sample *samp)
@@ -476,7 +471,7 @@ double pcm_calc_tstamp(double rate, int strm_idx)
     time = pcm_get_stream_time(strm_idx);
     if (pcm.stream[strm_idx].state == SNDBUF_STATE_INACTIVE)
 	return time;
-    period = pcm_samp_period(rate, pcm.stream[strm_idx].channels);
+    period = pcm_frame_period_us(rate);
     tstamp = time + period;
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 	long long now = GETusTIME(0);
@@ -491,6 +486,13 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 {
     int i, j;
     struct sample samp;
+    if (nchans > pcm.stream[strm_idx].channels) {
+	dosemu_error("PCM: wrong num of channels specified %i, max %i, "
+		"name=%s\n",
+		nchans, pcm.stream[strm_idx].channels,
+		pcm.stream[strm_idx].name);
+	return;
+    }
     if (rng_count(&pcm.stream[strm_idx].buffer) + frames * nchans >=
 	SND_BUFFER_SIZE) {
 	error("Sound buffer %i overflowed (%s)\n", strm_idx,
@@ -505,15 +507,13 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     samp.format = format;
     players.clocked.player.lock();
     for (i = 0; i < frames; i++) {
+	samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
 	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
-	    int ch = min(j, nchans - 1);
+	    int ch = j % nchans;
 	    memcpy(samp.data, &ptr[i][ch], pcm_format_size(format));
-	    /* XXX timestamp should be independent of chan, but right
-	     * now it is not properly handled. */
-	    samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
 	    rng_put(&pcm.stream[strm_idx].buffer, &samp);
-	    pcm_handle_write(strm_idx, samp.tstamp);
 	}
+	pcm_handle_write(strm_idx, samp.tstamp);
     }
 //S_printf("PCM: time=%f\n", samp.tstamp);
 
@@ -601,7 +601,7 @@ size_t pcm_data_get(void *data, size_t size,
 {
     int i, samp_sz, have_data, idxs[MAX_STREAMS], ret = 0;
     long long now;
-    double start_time, stop_time, samp_period, frag_period, time;
+    double start_time, stop_time, frame_period, frag_period, time;
     struct player_params *player_parms;
     struct sample samp[MAX_STREAMS][2];
 
@@ -630,14 +630,13 @@ size_t pcm_data_get(void *data, size_t size,
 	player_parms = (i < players.num_clocked ?
 			params : &players.unclocked[i - players.num_clocked].
 			params);
-	samp_period =
-	    pcm_samp_period(player_parms->rate, player_parms->channels);
+	frame_period = pcm_frame_period_us(player_parms->rate);
 	time = start_time;
 	samp_sz = pcm_format_size(player_parms->format);
 	memset(idxs, 0, sizeof(idxs));
 	pcm.out_buf.idx = 0;
 
-	while (time < stop_time - (samp_period / 10.0)) {
+	while (pcm.out_buf.idx < size) {
 	    have_data = pcm_get_samples(time, samp, 0, idxs);
 	    if (!have_data && i >= players.num_clocked)
 		break;
@@ -650,8 +649,11 @@ size_t pcm_data_get(void *data, size_t size,
 	    pcm_mix_samples(samp, pcm.out_buf.data + pcm.out_buf.idx,
 			    player_parms->channels, player_parms->format);
 	    pcm.out_buf.idx += samp_sz * player_parms->channels;
-	    time += samp_period * player_parms->channels;
+	    time += frame_period;
 	}
+	if (fabs(time - stop_time) > frame_period)
+	    error("PCM: time=%f stop_time=%f p=%f\n",
+		    time, stop_time, frame_period);
 
 	/* feed the data to player */
 	if (i < players.num_clocked) {

@@ -1144,7 +1144,6 @@ void pic_init(void)
   port_register_handler(io_device, 0);
 
   hlt_hdlr.name       = "PIC";
-  hlt_hdlr.start_addr = -1;
   hlt_hdlr.len        = 1;
   hlt_hdlr.func       = pic_iret_hlt;
   PIC_OFF = hlt_register_handler(hlt_hdlr);

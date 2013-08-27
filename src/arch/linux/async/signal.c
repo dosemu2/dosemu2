@@ -64,6 +64,7 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 struct sigchld_hndl {
   pid_t pid;
   void (*handler)(void);
+  int enabled;
 };
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
@@ -339,23 +340,40 @@ int sigchld_register_handler(pid_t pid, void (*handler)(void))
   assert(chd_hndl_num < MAX_SIGCHLD_HANDLERS);
   chld_hndl[chd_hndl_num].handler = handler;
   chld_hndl[chd_hndl_num].pid = pid;
+  chld_hndl[chd_hndl_num].enabled = 1;
   chd_hndl_num++;
+  return 0;
+}
+
+int sigchld_enable_handler(pid_t pid, int on)
+{
+  int i;
+  for (i = 0; i < chd_hndl_num; i++) {
+    if (chld_hndl[i].pid == pid)
+      break;
+  }
+  if (i >= chd_hndl_num)
+    return -1;
+  chld_hndl[i].enabled = on;
   return 0;
 }
 
 static void cleanup_child(void *arg)
 {
-  int i;
-  pid_t *pid = arg;
+  int i, status;
+  pid_t pid2, pid = *(pid_t *)arg;
 
   for (i = 0; i < chd_hndl_num; i++) {
-    if (chld_hndl[i].pid == *pid)
+    if (chld_hndl[i].pid == pid)
       break;
   }
-  if (i >= chd_hndl_num) {
-    g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
+  if (i >= chd_hndl_num)
     return;
-  }
+  if (!chld_hndl[i].enabled)
+    return;
+  pid2 = waitpid(pid, &status, WNOHANG);
+  if (pid2 != pid)
+    return;
   chld_hndl[i].handler();
 }
 
@@ -364,17 +382,10 @@ static void cleanup_child(void *arg)
 __attribute__((no_instrument_function))
 static void sig_child(int sig, siginfo_t *si, void *uc)
 {
-  pid_t pid;
-  int status;
   struct sigcontext_struct *scp =
 	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
-  pid = waitpid(si->si_pid, &status, WNOHANG);
-  if (pid != si->si_pid) {
-    g_printf("unexpected SIGCHLD(%i %i %x)\n", si->si_pid, pid, status);
-    return;
-  }
-  SIGNAL_save(cleanup_child, &pid, sizeof(pid));
+  SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid));
 }
 
 __attribute__((no_instrument_function))
