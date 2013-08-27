@@ -14,8 +14,7 @@ D:=$(BINPATH)/commands
 COM1=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
 	$(D)/bootoff.com $(D)/booton.com \
 	$(D)/ecpuon.com $(D)/ecpuoff.com \
-	$(D)/uchdir.com $(D)/speed.com $(D)/ugetcwd.com \
-	$(D)/system.com
+	$(D)/uchdir.com $(D)/speed.com $(D)/ugetcwd.com
 COM2=$(D)/isemu.com $(D)/mgarrot.com $(D)/fossil.com
 SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys $(D)/aspi.sys
 OBJS=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))

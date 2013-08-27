@@ -483,7 +483,7 @@ static void dos2tty_stop(void)
     com_setcbreak(cbrk);
 }
 
-void run_unix_command(char *buffer)
+int run_unix_command(char *buffer)
 {
     /* unix command is in a null terminate buffer pointed to by ES:DX. */
 
@@ -492,7 +492,6 @@ void run_unix_command(char *buffer)
     int pts_fd;
     int pid, status, retval;
 
-    if (buffer==NULL) return;
     g_printf("UNIX: run '%s'\n",buffer);
 #if 0
     dos2tty_init();
@@ -501,7 +500,7 @@ void run_unix_command(char *buffer)
     switch ((pid = fork())) {
     case -1: /* failed */
 	g_printf("run_unix_command(): fork() failed\n");
-	return;
+	return -1;
     case 0: /* child */
 	priv_drop();
 	setsid();	// will have ctty
@@ -538,39 +537,7 @@ void run_unix_command(char *buffer)
     /* print child exitcode. not perfect */
     g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
-}
-
-
-/*
- * This runs system() in a forked environment with all priviledges off
- * while scheduling vital DOSEMU functionality in the background.
- */
-int run_system_command(char *buffer)
-{
-    int pid, status;
-
-    if (!buffer || !buffer[0]) return 1;
-
-    /* fork child */
-    pid=fork();
-    if (pid == -1) {
-        /* failed */
-        g_printf("run_system_command(): fork() failed\n");
-        return 1;
-    }
-    else if (pid == 0) {
-	/* child */
-	int retval;
-	priv_drop(); /* we drop _all_ priviledges */
-        retval=system(buffer);	/* execute command */
-        _exit(retval);
-    }
-    else {
-	/* parent */
-        while (waitpid(pid, &status, WNOHANG) != pid)
-            coopth_wait();
-        return WEXITSTATUS(status);
-    }
+    return WEXITSTATUS(status);
 }
 
 /*

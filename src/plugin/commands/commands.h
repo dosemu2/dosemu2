@@ -14,7 +14,6 @@ int eject_main(int argc, char **argv);
 int emumouse_main(int argc, char **argv);
 int exitemu_main(int argc, char **argv);
 int speed_main(int argc, char **argv);
-int system_main(int argc, char **argv);
 int uchdir_main(int argc, char **argv);
 int ugetcwd_main(int argc, char **argv);
 int vgaon_main(int argc, char **argv);

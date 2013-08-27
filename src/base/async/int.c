@@ -441,7 +441,7 @@ int dos_helper(void)
 
   case DOS_HELPER_0x53:
     {
-        LWORD(eax) = run_system_command(SEG_ADR((char *), es, dx));
+        LWORD(eax) = run_unix_command(SEG_ADR((char *), es, dx));
 	break;
     }
 
