@@ -64,6 +64,7 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 struct sigchld_hndl {
   pid_t pid;
   void (*handler)(void);
+  int enabled;
 };
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
@@ -339,7 +340,21 @@ int sigchld_register_handler(pid_t pid, void (*handler)(void))
   assert(chd_hndl_num < MAX_SIGCHLD_HANDLERS);
   chld_hndl[chd_hndl_num].handler = handler;
   chld_hndl[chd_hndl_num].pid = pid;
+  chld_hndl[chd_hndl_num].enabled = 1;
   chd_hndl_num++;
+  return 0;
+}
+
+int sigchld_enable_handler(pid_t pid, int on)
+{
+  int i;
+  for (i = 0; i < chd_hndl_num; i++) {
+    if (chld_hndl[i].pid == pid)
+      break;
+  }
+  if (i >= chd_hndl_num)
+    return -1;
+  chld_hndl[i].enabled = on;
   return 0;
 }
 
@@ -352,10 +367,10 @@ static void cleanup_child(void *arg)
     if (chld_hndl[i].pid == pid)
       break;
   }
-  if (i >= chd_hndl_num) {
-//    g_printf("Unexpected SIGCHLD from pid %i\n", *pid);
+  if (i >= chd_hndl_num)
     return;
-  }
+  if (!chld_hndl[i].enabled)
+    return;
   pid2 = waitpid(pid, &status, WNOHANG);
   if (pid2 != pid)
     return;
