@@ -275,11 +275,11 @@ void fossil_int14(int num)
   case 0x19:
   {
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
-    int n = 0, len = LWORD(ecx);
-    while (n < len) {
-      if (!FIFO_ENABLED(num))
+    int n, len = LWORD(ecx);
+    for (n = 0; n < len; n++) {
+      if (!FIFO_ENABLED(num) && !(com[num].LSR & UART_LSR_THRE))
         break;
-      write_char(num, p[n++]);
+      write_char(num, p[n]);
     }
     LWORD(eax) = n;
     #if SER_DEBUG_FOSSIL_RW
