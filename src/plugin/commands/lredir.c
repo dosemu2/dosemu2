@@ -473,6 +473,7 @@ int lredir_main(int argc, char **argv)
 {
     uint16 ccode;
     uint16 deviceParam;
+    uint8 deviceType = REDIR_DISK_TYPE;
     int carg;
 #if 0
     unsigned long dversion;
@@ -540,10 +541,10 @@ int lredir_main(int argc, char **argv)
       } else {
         argv2 = strdup(argv[2]);
       }
-      strncpy(deviceStr, argv[1], 2);
-      deviceStr[2] = 0;
-      strncpy(deviceStr2, argv2, 2);
-      deviceStr2[2] = 0;
+      strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
+      deviceStr[sizeof(deviceStr) - 1] = 0;
+      strncpy(deviceStr2, argv2, sizeof(deviceStr2) - 1);
+      deviceStr2[sizeof(deviceStr2) - 1] = 0;
       if ((argc > 3 && toupperDOS(argv[3][0]) == 'F') ||
 	((ccode = FindRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS)) {
         if ((ccode = FindFATRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS) {
@@ -559,7 +560,7 @@ int lredir_main(int argc, char **argv)
       }
       free(argv2);
     } else {
-      if (argc > 1 && argv[1][1] != ':') {
+      if (argc > 1 && strchr(argv[1], '\\')) {
 	int nextDrive;
         resourceStr = strdup(argv[1]);
 	nextDrive = find_drive(&resourceStr);
@@ -575,8 +576,8 @@ int lredir_main(int argc, char **argv)
 	deviceStr[2] = '\0';
 	carg = 2;
       } else if (argc > 2) {
-        strncpy(deviceStr, argv[1], 2);
-        deviceStr[2] = 0;
+        strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
+        deviceStr[sizeof(deviceStr) - 1] = 0;
         resourceStr = strdup(argv[2]);
       }
     }
@@ -592,6 +593,12 @@ int lredir_main(int argc, char **argv)
 	  cdrom = argv[carg+1][0] - '0';
         deviceParam = 1 + cdrom;
       }
+      if (toupperDOS(argv[carg][0]) == 'P') {
+        char *old_rs = resourceStr;
+        asprintf(&resourceStr, "%s\\%s", "LINUX\\PRN", old_rs);
+        free(old_rs);
+        deviceType = REDIR_PRINTER_TYPE;
+      }
     }
 
     /* upper-case both strings */
@@ -599,13 +606,13 @@ int lredir_main(int argc, char **argv)
     strupperDOS(resourceStr);
 
     /* now actually redirect the drive */
-    ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+    ccode = RedirectDevice(deviceStr, resourceStr, deviceType,
                            deviceParam);
 
     /* duplicate redirection: try to reredirect */
     if (ccode == 0x55) {
       DeleteDriveRedirection(deviceStr);
-      ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+      ccode = RedirectDevice(deviceStr, resourceStr, deviceType,
                              deviceParam);
     }
 
