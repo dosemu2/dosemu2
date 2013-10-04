@@ -54,7 +54,7 @@ void printer_print_config(int prnum, void (*print)(const char *, ...));
 #define LPT_CTRL_AUTOLF		0x2
 #define LPT_CTRL_STROBE		0x1
 
-#define NUM_PRINTERS 3
+#define NUM_PRINTERS 9
 extern struct printer lpt[NUM_PRINTERS];
 
 #define NUM_LPTS 3

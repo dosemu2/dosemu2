@@ -20,6 +20,8 @@
 #include "xms.h"
 #include "hma.h"
 #include "ipx.h"
+#include "serial.h"
+#include "utilities.h"
 #include "doshelpers.h"
 
 static int li_tid;
@@ -65,8 +67,8 @@ static inline void bios_mem_setup(void)
    * configured number of floppy disks
    */
   CONF_NFLOP(configuration, config.fdisks);
-  CONF_NSER(configuration, config.num_ser);
-  CONF_NLPT(configuration, config.num_lpt);
+  CONF_NSER(configuration, min(config.num_ser, NUM_COMS));
+  CONF_NLPT(configuration, min(config.num_lpt, NUM_LPTS));
   if (config.mouse.intdrv)
     configuration |= CONF_MOUSE;
 

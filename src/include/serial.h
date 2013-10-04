@@ -36,6 +36,7 @@
 #include "extern.h"
 
 #define MAX_SER 16
+#define NUM_COMS 4
 
 extern int no_local_video; /* used by virtual port code */
 
