@@ -194,6 +194,7 @@ TODO:
 #include "mangle.h"
 #include "utilities.h"
 #include "coopth.h"
+#include "lpt.h"
 #include "cpu-emu.h"
 #endif
 
@@ -263,10 +264,12 @@ boolean_t mach_fs_enabled = FALSE;
 #define SFT_FDEVICE 0x0080
 #define SFT_FEOF 0x0040
 
+enum { TYPE_NONE, TYPE_DISK, TYPE_PRINTER };
 struct file_fd
 {
   char *name;
   int fd;
+  int type;
 };
 
 /* Need to know how many drives are redirected */
@@ -3159,6 +3162,44 @@ int dos_rename(const char *filename1, const char *filename2, int drive, int lfn)
   return 0;
 }
 
+static int validate_mode(char *fpath, state_t *state, int drive,
+	u_short dos_mode, u_short *unix_mode, u_char *attr, struct stat *st)
+{
+  int doserrno = FILE_NOT_FOUND;
+  if (!find_file(fpath, st, drive, &doserrno)) {
+    Debug0((dbg_fd, "open failed: '%s'\n", fpath));
+    SETWORD(&(state->eax), doserrno);
+    return (FALSE);
+  }
+  if (st->st_mode & S_IFDIR) {
+    Debug0((dbg_fd, "S_IFDIR: '%s'\n", fpath));
+    SETWORD(&(state->eax), FILE_NOT_FOUND);
+    return (FALSE);
+  }
+  *attr = get_dos_attr(fpath,st->st_mode,is_hidden(fpath));
+  if (dos_mode == READ_ACC) {
+    *unix_mode = O_RDONLY;
+  }
+  else if (dos_mode == WRITE_ACC) {
+    *unix_mode = O_WRONLY;
+  }
+  else if (dos_mode == READ_WRITE_ACC) {
+    *unix_mode = O_RDWR;
+  }
+  else if (dos_mode == 0x40) { /* what's this mode ?? */
+    *unix_mode = O_RDWR;
+  }
+  else {
+    Debug0((dbg_fd, "Illegal access_mode 0x%x\n", dos_mode));
+    *unix_mode = O_RDONLY;
+  }
+  if (drives[drive].read_only && unix_mode != O_RDONLY) {
+    SETWORD(&(state->eax), ACCESS_DENIED);
+    return (FALSE);
+  }
+  return TRUE;
+}
+
 static int
 dos_fs_redirect(state_t *state)
 {
@@ -3172,7 +3213,7 @@ dos_fs_redirect(state_t *state)
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
   u_char create_file=0;
-  int fd, drive;
+  int fd, drive, ftype;
   int cnt;
   int ret = REDIRECT;
   sft_t sft;
@@ -3279,7 +3320,7 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Still more handles\n"));
       return (TRUE);
     }
-    else if (filename1 == NULL || close(fd) != 0) {
+    if (filename1 == NULL) {
       Debug0((dbg_fd, "Close file fails\n"));
       if (filename1 != NULL) {
         free(filename1);
@@ -3287,7 +3328,11 @@ dos_fs_redirect(state_t *state)
       }
       return (FALSE);
     }
-    else {
+    if (open_files[cnt].type == TYPE_PRINTER)
+      printer_close(fd);
+    else
+      close(fd);
+
       Debug0((dbg_fd, "Close file succeeds\n"));
 
       /* if bit 14 in device_info is set, dos requests to set the file
@@ -3313,7 +3358,6 @@ dos_fs_redirect(state_t *state)
         open_files[cnt].name = NULL;
       }
       return (TRUE);
-    }
   case READ_FILE:
     {				/* 0x08 */
       int return_val;
@@ -3372,6 +3416,14 @@ dos_fs_redirect(state_t *state)
     cnt = WORD(state->ecx);
     fd = open_files[sft_fd(sft)].fd;
     Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
+    if (open_files[sft_fd(sft)].type == TYPE_PRINTER) {
+      for (ret = 0; ret < cnt; ret++) {
+        if (printer_write(fd, READ_BYTE(dta + ret)) != 0)
+          break;
+      }
+      SETWORD(&(state->ecx), ret);
+      return TRUE;
+    }
 
     /* According to U DOS 2, any write with a (cnt)=CX=0 should truncate fd to
    sft_size , do to how ftruncate works, I'll only do an ftruncate
@@ -3646,53 +3698,35 @@ dos_fs_redirect(state_t *state)
     }
     build_ufs_path(fpath, filename1, drive);
     auspr(filename1, fname, fext);
-    if (!find_file(fpath, &st, drive, &doserrno)) {
-      Debug0((dbg_fd, "open failed: '%s'\n", fpath));
-      SETWORD(&(state->eax), doserrno);
-      return (FALSE);
-    }
     devptr = is_dos_device(fpath);
     if (devptr) {
       open_device (devptr, fname, sft);
       Debug0((dbg_fd, "device open succeeds: '%s'\n", fpath));
       return (TRUE);
     }
-    if (st.st_mode & S_IFDIR) {
-      Debug0((dbg_fd, "S_IFDIR: '%s'\n", fpath));
-      SETWORD(&(state->eax), FILE_NOT_FOUND);
-      return (FALSE);
-    }
-    attr = get_dos_attr(fpath,st.st_mode,is_hidden(fpath));
-    if (dos_mode == READ_ACC) {
-      unix_mode = O_RDONLY;
-    }
-    else if (dos_mode == WRITE_ACC) {
-      unix_mode = O_WRONLY;
-    }
-    else if (dos_mode == READ_WRITE_ACC) {
-      unix_mode = O_RDWR;
-    }
-    else if (dos_mode == 0x40) { /* what's this mode ?? */
-      unix_mode = O_RDWR;
-    }
-    else {
-      Debug0((dbg_fd, "Illegal access_mode 0x%x\n", dos_mode));
-      unix_mode = O_RDONLY;
-    }
-    if (drives[drive].read_only && unix_mode != O_RDONLY) {
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
-
-    if ((fd = open(fpath, unix_mode )) < 0) {
-      Debug0((dbg_fd, "access denied:'%s'\n", fpath));
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
-    }
-    if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
-      close( fd );
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
+    if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+      bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
+      if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
+        return FALSE;
+      fd = bs_pos[1] - '0';
+      if (printer_open(fd) != 0)
+        return FALSE;
+      attr = 0;
+      ftype = TYPE_PRINTER;
+    } else {
+      if (!validate_mode(fpath, state, drive, dos_mode, &unix_mode, &attr, &st))
+        return FALSE;
+      if ((fd = open(fpath, unix_mode )) < 0) {
+        Debug0((dbg_fd, "access denied:'%s'\n", fpath));
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return (FALSE);
+      }
+      if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
+        close( fd );
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return (FALSE);
+      }
+      ftype = TYPE_DISK;
     }
 
     memcpy(sft_name(sft), fname, 8);
@@ -3717,6 +3751,7 @@ dos_fs_redirect(state_t *state)
       if (open_files[cnt].name == NULL) {
         open_files[cnt].name = strdup(fpath);
         open_files[cnt].fd = fd;
+        open_files[cnt].type = ftype;
         sft_fd(sft) = cnt;
         break;
       }

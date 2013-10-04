@@ -38,6 +38,7 @@ typedef unsigned char boolean_t;
 #endif
 
 #define LINUX_RESOURCE "\\\\LINUX\\FS"
+#define LINUX_PRN_RESOURCE "\\\\LINUX\\PRN"
 
 #define FALSE 0
 #define TRUE 1
