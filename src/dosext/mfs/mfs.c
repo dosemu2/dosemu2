@@ -2552,6 +2552,9 @@ RedirectDevice(state_t * state)
   path[0] = 0;
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
+  if (strncmp(resourceName, LINUX_PRN_RESOURCE,
+	      strlen(LINUX_PRN_RESOURCE)) == 0)
+    return TRUE;
   if (strncmp(resourceName, LINUX_RESOURCE,
 	      strlen(LINUX_RESOURCE)) != 0) {
     /* pass call on to next redirector, if any */
