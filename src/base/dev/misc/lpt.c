@@ -62,7 +62,7 @@ struct printer lpt[NUM_PRINTERS] =
 static int get_printer(ioport_t port)
 {
   int i;
-  for (i = 0; i < 3; i++)
+  for (i = 0; i < NUM_LPTS; i++)
     if (lpt[i].base_port <= port && port <= lpt[i].base_port + 2)
       return i;
   return -1;
@@ -260,7 +260,7 @@ printer_init(void)
   io_device.irq          = EMU_NO_IRQ;
   io_device.fd           = -1;
 
-  for (i = 0; i < 3; i++) {
+  for (i = 0; i < NUM_PRINTERS; i++) {
     p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : "<<NODEV>>");
     lpt[i].file = NULL;
     lpt[i].remaining = -1;	/* mark not accessed yet */
@@ -268,7 +268,7 @@ printer_init(void)
       lpt[i].fops = dev_pfops;
     else if (lpt[i].prtcmd)
       lpt[i].fops = pipe_pfops;
-    if (i >= config.num_lpt) lpt[i].base_port = 0;
+    if (i >= min(config.num_lpt, NUM_LPTS)) lpt[i].base_port = 0;
 
     if (lpt[i].base_port != 0 && lpt[i].fops.open) {
       io_device.start_addr = lpt[i].base_port;

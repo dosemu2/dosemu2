@@ -57,4 +57,6 @@ void printer_print_config(int prnum, void (*print)(const char *, ...));
 #define NUM_PRINTERS 3
 extern struct printer lpt[NUM_PRINTERS];
 
+#define NUM_LPTS 3
+
 #endif /* LPT_H */

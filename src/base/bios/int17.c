@@ -24,7 +24,7 @@ int int17(void)
   ioport_t addr;
 
   CARRY;
-  if (_DX >= 3 || _AH >= 3)
+  if (_DX >= NUM_LPTS)
     return 1;
   addr = READ_WORD(BIOS_ADDRESS_LPT1 + _DX * 2);
   if (addr == 0)
@@ -49,9 +49,11 @@ int int17(void)
     port_outb(addr + 2, val8 | 0x04);
     val8 = port_inb(addr + 1);
     break;
-  default: /* case 2: */
+  case 2:
     val8 = port_inb(addr + 1);
     break;
+  default:
+    return 1;
   }
   _AH = val8 ^ (LPT_STAT_NOT_ACK | LPT_STAT_NOIOERR);
   if (!timeout) _AH |= LPT_STAT_TIMEOUT;
@@ -64,7 +66,7 @@ void
 printer_mem_setup(void)
 {
   int i;
-  for (i = 0; i < 3; i++) {
+  for (i = 0; i < NUM_LPTS; i++) {
     /* set the port address for each printer in bios */
     WRITE_WORD(BIOS_ADDRESS_LPT1 + i * 2, lpt[i].base_port);
     WRITE_BYTE(BIOS_LPT1_TIMEOUT + i, 20);
