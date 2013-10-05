@@ -3410,10 +3410,12 @@ dos_fs_redirect(state_t *state)
       }
       return (FALSE);
     }
-    if (open_files[cnt].type == TYPE_PRINTER)
+    if (open_files[cnt].type == TYPE_PRINTER) {
       printer_close(fd);
-    else
+      Debug0((dbg_fd, "printer %i closed\n", fd));
+    } else {
       close(fd);
+    }
 
       Debug0((dbg_fd, "Close file succeeds\n"));
 
@@ -3790,7 +3792,7 @@ dos_fs_redirect(state_t *state)
       bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
       if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
         return FALSE;
-      fd = bs_pos[1] - '0';
+      fd = bs_pos[1] - '0' - 1;
       if (printer_open(fd) != 0)
         return FALSE;
       attr = 0;
@@ -3849,7 +3851,7 @@ dos_fs_redirect(state_t *state)
       bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
       if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
         return FALSE;
-      fd = bs_pos[1] - '0';
+      fd = bs_pos[1] - '0' - 1;
       if (printer_open(fd) != 0) {
         Debug0((dbg_fd, "printer %i open failure!\n", fd));
         return FALSE;
@@ -3858,6 +3860,7 @@ dos_fs_redirect(state_t *state)
       strcpy(fpath, filename1);
       fname[0] = 0;
       fext[0] = 0;
+      ftype = TYPE_PRINTER;
     } else {
      build_ufs_path(fpath, filename1, drive);
      auspr(filename1, fname, fext);
@@ -3902,9 +3905,10 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return FALSE;
      }
+     ftype = TYPE_DISK;
     }
 
-    do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, TYPE_DISK, 0);
+    do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 0);
     Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
     Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
 
