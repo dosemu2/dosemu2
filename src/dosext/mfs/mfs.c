@@ -3845,9 +3845,23 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1, drive);
-    auspr(filename1, fname, fext);
-    if (find_file(fpath, &st, drive, NULL)) {
+    if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+      bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
+      if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
+        return FALSE;
+      fd = bs_pos[1] - '0';
+      if (printer_open(fd) != 0) {
+        Debug0((dbg_fd, "printer %i open failure!\n", fd));
+        return FALSE;
+      }
+      Debug0((dbg_fd, "printer open succeeds: '%s'\n", filename1));
+      strcpy(fpath, filename1);
+      fname[0] = 0;
+      fext[0] = 0;
+    } else {
+     build_ufs_path(fpath, filename1, drive);
+     auspr(filename1, fname, fext);
+     if (find_file(fpath, &st, drive, NULL)) {
       devptr = is_dos_device(fpath);
       if (devptr) {
         open_device (devptr, fname, sft);
@@ -3860,9 +3874,9 @@ dos_fs_redirect(state_t *state)
 	Debug0((dbg_fd, "File exists '%s'\n", fpath));
 	return (FALSE);
       }
-    }
+     }
 
-    if ((fd = open(fpath, (O_RDWR | O_CREAT),
+     if ((fd = open(fpath, (O_RDWR | O_CREAT),
 		   get_unix_attr(0664, attr))) < 0) {
       find_dir(fpath, drive);
       Debug0((dbg_fd, "trying '%s'\n", fpath));
@@ -3877,16 +3891,17 @@ dos_fs_redirect(state_t *state)
 #endif
 	return (FALSE);
       }
-    }
-    if (file_on_fat(fpath))
+     }
+     if (file_on_fat(fpath))
       set_fat_attr(fd, attr);
 
-    if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
+     if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
       Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n",
 	      fpath, strerror(errno), errno));
       close(fd);
       SETWORD(&(state->eax), ACCESS_DENIED);
       return FALSE;
+     }
     }
 
     do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, TYPE_DISK, 0);
