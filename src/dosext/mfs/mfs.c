@@ -483,6 +483,7 @@ select_drive(state_t *state)
 
   if (!found && check_cds) {
     char *fn1 = sda_filename1(sda);
+    Debug0((dbg_fd, "cds FNX=%.15s\n", fn1));
     if (fn != SET_CURRENT_DIRECTORY &&
 	strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
       dd = DRIVE_Z;
@@ -522,8 +523,14 @@ select_drive(state_t *state)
       dd = DRIVE_Z;
     }
 
-    if (!found)
-      dd = toupperDOS(fn1[0]) - 'A';
+    if (!found) {
+      if (fn1[1] == ':')
+        dd = toupperDOS(fn1[0]) - 'A';
+      else if (strlen(fn1) == 4 && isdigit(fn1[3]))
+        dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[3]) - '0' - 1;
+      else
+        dd = MAX_DRIVE;
+    }
     if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
       /* removed ':' check so DRDOS would be happy,
 	     there is a slight worry about possible device name
@@ -539,6 +546,8 @@ select_drive(state_t *state)
       dd = DRIVE_Z;
     } else if (name[1] == ':') {
       dd = toupperDOS(name[0]) - 'A';
+    } else if (strlen(name) == 4 && isdigit(name[3])) {
+      dd = PRINTER_BASE_DRIVE + toupperDOS(name[3]) - '0' - 1;
     } else {
       dd = sda_cur_drive(sda);
     }
@@ -2571,7 +2580,7 @@ RedirectDevice(state_t * state)
     p = resourceName + strlen(LINUX_PRN_RESOURCE);
     if (p[0] != '\\' || !isdigit(p[1]))
       return FALSE;
-    drive = PRINTER_BASE_DRIVE + p[1] - '0' - 1;
+    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
     if (init_drive(drive, p + 1, 0) == 0) {
       SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
       return (FALSE);
