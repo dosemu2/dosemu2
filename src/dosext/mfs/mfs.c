@@ -517,6 +517,7 @@ select_drive(state_t *state)
 
   if (!found && check_sda_ffn) {
     char *fn1 = sda_filename1(sda);
+    Debug0((dbg_fd, "sda FNX=%.15s\n", fn1));
 
     if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
       found = 1;
@@ -526,8 +527,9 @@ select_drive(state_t *state)
     if (!found) {
       if (fn1[1] == ':')
         dd = toupperDOS(fn1[0]) - 'A';
-      else if (strlen(fn1) == 4 && isdigit(fn1[3]))
-        dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[3]) - '0' - 1;
+      else if (strncasecmp(fn1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
+        dd = PRINTER_BASE_DRIVE + toupperDOS(fn1[sizeof(LINUX_PRN_RESOURCE)]) -
+	    '0' - 1;
       else
         dd = MAX_DRIVE;
     }
@@ -4069,7 +4071,12 @@ dos_fs_redirect(state_t *state)
     }
     break;
   case QUALIFY_FILENAME:	/* 0x23 */
-    /* do nothing here */
+    if (drive > PRINTER_BASE_DRIVE && drive < MAX_DRIVE) {
+      char *dst = (char *) Addr(state, es, edi);
+      sprintf(dst, "%s\\%s", LINUX_PRN_RESOURCE, drives[drive].root);
+      return TRUE;
+    }
+    /* XXX SHOULD BE IMPLEMENTED PROPERLY! */
     break;
   case LOCK_FILE_REGION:	/* 0x0a */
 	/* The following code only apply to DOS 4.0 and later */
