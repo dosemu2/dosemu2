@@ -3235,6 +3235,53 @@ static int validate_mode(char *fpath, state_t *state, int drive,
   return TRUE;
 }
 
+static void do_update_sft(char *fpath, char *fname, char *fext, sft_t sft,
+	int drive, u_char attr, u_short FCBcall, int fd, int ftype,
+	int existing)
+{
+    struct stat st;
+    int cnt;
+
+    memcpy(sft_name(sft), fname, 8);
+    memcpy(sft_ext(sft), fext, 3);
+
+    if (!existing) {
+      if (FCBcall)
+        sft_open_mode(sft) |= 0x00f0;
+      else
+    #if 0
+        sft_open_mode(sft) = 0x3; /* write only */
+    #else
+        sft_open_mode(sft) = 0x2; /* read/write */
+    #endif
+    }
+    sft_directory_entry(sft) = 0;
+    sft_directory_sector(sft) = 0;
+    sft_attribute_byte(sft) = attr;
+    sft_device_info(sft) = (drive & 0x1f) + (0x8040);
+    fstat(fd, &st);
+    time_to_dos(st.st_mtime, &sft_date(sft),
+		&sft_time(sft));
+
+    sft_size(sft) = st.st_size;
+    sft_position(sft) = 0;
+    for (cnt = 0; cnt < 255; cnt++)
+    {
+      if (open_files[cnt].name == NULL) {
+        open_files[cnt].name = strdup(fpath);
+        open_files[cnt].fd = fd;
+        open_files[cnt].type = ftype;
+        sft_fd(sft) = cnt;
+        break;
+      }
+    }
+    if (cnt == 255)
+    {
+      error("Panic: too many open files\n");
+      leavedos(1);
+    }
+}
+
 static int
 dos_fs_redirect(state_t *state)
 {
@@ -3764,38 +3811,7 @@ dos_fs_redirect(state_t *state)
       ftype = TYPE_DISK;
     }
 
-    memcpy(sft_name(sft), fname, 8);
-    memcpy(sft_ext(sft), fext, 3);
-
-#if 0
-    if (FCBcall)
-      sft_open_mode(sft) |= 0x00F0;
-#endif
-
-    /* store the name for FILE_CLOSE */
-    sft_directory_entry(sft) = 0;
-    sft_directory_sector(sft) = 0;
-    sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = (drive & 0x1f) + (0x8040);
-    time_to_dos(st.st_mtime,
-		&sft_date(sft), &sft_time(sft));
-    sft_size(sft) = st.st_size;
-    sft_position(sft) = 0;
-    for (cnt = 0; cnt < 255; cnt++)
-    {
-      if (open_files[cnt].name == NULL) {
-        open_files[cnt].name = strdup(fpath);
-        open_files[cnt].fd = fd;
-        open_files[cnt].type = ftype;
-        sft_fd(sft) = cnt;
-        break;
-      }
-    }
-    if (cnt == 255)
-    {
-      error("Panic: too many open files\n");
-      leavedos(1);
-    }
+    do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, ftype, 1);
     Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
     Debug0((dbg_fd, "Size : %ld\n", (long) st.st_size));
 
@@ -3873,48 +3889,7 @@ dos_fs_redirect(state_t *state)
       return FALSE;
     }
 
-    memcpy(sft_name(sft), fname, 8);
-    memcpy(sft_ext(sft), fext, 3);
-
-    /* This caused a bug with temporary files so they couldn't be read,
-   they were made write-only */
-#if 0
-    sft_open_mode(sft) = 0x1;
-#else
-    if (FCBcall)
-      sft_open_mode(sft) |= 0x00f0;
-    else
-  #if 0
-      sft_open_mode(sft) = 0x3; /* write only */
-  #else
-      sft_open_mode(sft) = 0x2; /* read/write */
-  #endif
-#endif
-    sft_directory_entry(sft) = 0;
-    sft_directory_sector(sft) = 0;
-    sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = (drive & 0x1f) + (0x8040);
-    fstat(fd, &st);
-    time_to_dos(st.st_mtime, &sft_date(sft),
-		&sft_time(sft));
-
-    /* file size starts at 0 bytes */
-    sft_size(sft) = 0;
-    sft_position(sft) = 0;
-    for (cnt = 0; cnt < 255; cnt++)
-    {
-      if (open_files[cnt].name == NULL) {
-        open_files[cnt].name = strdup(fpath);
-        open_files[cnt].fd = fd;
-        sft_fd(sft) = cnt;
-        break;
-      }
-    }
-    if (cnt == 255)
-    {
-      error("Panic: too many open files\n");
-      leavedos(1);
-    }
+    do_update_sft(fpath, fname, fext, sft, drive, attr, FCBcall, fd, TYPE_DISK, 0);
     Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
     Debug0((dbg_fd, "size = 0x%x\n", sft_size(sft)));
 
