@@ -485,7 +485,7 @@ select_drive(state_t *state)
     char *fn1 = sda_filename1(sda);
     if (fn != SET_CURRENT_DIRECTORY &&
 	strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0)
-      dd = MAX_DRIVE - 1;
+      dd = DRIVE_Z;
     else
       dd = cds_drive(sda_cds);
     if (dd >= 0 && drives[dd].root)
@@ -508,7 +508,7 @@ select_drive(state_t *state)
 	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
 	*/
     if (dd == 0 && (sft_device_info(sft) & 0x8000))
-      dd = MAX_DRIVE - 1;
+      dd = DRIVE_Z;
     if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
       found = 1;
     }
@@ -519,7 +519,7 @@ select_drive(state_t *state)
 
     if (strncasecmp(fn1, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
       found = 1;
-      dd = MAX_DRIVE - 1;
+      dd = DRIVE_Z;
     }
 
     if (!found)
@@ -536,7 +536,7 @@ select_drive(state_t *state)
     char *name = (char *) Addr(state, ds, esi);
     Debug0((dbg_fd, "FNX=%.15s\n", name));
     if (strncasecmp(name, LINUX_RESOURCE, strlen(LINUX_RESOURCE)) == 0) {
-      dd = MAX_DRIVE - 1;
+      dd = DRIVE_Z;
     } else if (name[1] == ':') {
       dd = toupperDOS(name[0]) - 'A';
     } else {
@@ -723,7 +723,7 @@ init_all_drives(void)
       drives[dd].read_only = FALSE;
     }
     /* special processing for UNC "drive" */
-    drives[MAX_DRIVE - 1].root = "";
+    drives[DRIVE_Z].root = "";
     process_mask = umask(0);
     umask(process_mask);
   }
@@ -823,6 +823,15 @@ init_drive(int dd, char *path, int options)
   struct stat st;
   char *new_path;
   int new_len;
+
+  if (dd >= PRINTER_BASE_DRIVE) {	// a printer
+    if (dd >= MAX_DRIVE)
+      return 0;
+    drives[dd].root = strdup(path);
+    drives[dd].root_len = strlen(path);
+    drives[dd].read_only = options;
+    return 1;
+  }
 
   new_path = malloc(PATH_MAX + 1);
   if (new_path == NULL) {
@@ -2542,6 +2551,7 @@ RedirectDevice(state_t * state)
 {
   char *resourceName;
   char *deviceName;
+  char *p;
   char path[256];
   int drive;
   cds_t cds;
@@ -2553,8 +2563,21 @@ RedirectDevice(state_t * state)
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
   if (strncmp(resourceName, LINUX_PRN_RESOURCE,
-	      strlen(LINUX_PRN_RESOURCE)) == 0)
-    return TRUE;
+	      strlen(LINUX_PRN_RESOURCE)) == 0) {
+    if (state->ecx & 7) {
+      Debug0((dbg_fd, "Readonly printer redirection\n"));
+      return FALSE;
+    }
+    p = resourceName + strlen(LINUX_PRN_RESOURCE);
+    if (p[0] != '\\' || !isdigit(p[1]))
+      return FALSE;
+    drive = PRINTER_BASE_DRIVE + p[1] - '0' - 1;
+    if (init_drive(drive, p + 1, 0) == 0) {
+      SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
+      return (FALSE);
+    }
+    return (TRUE);
+  }
   if (strncmp(resourceName, LINUX_RESOURCE,
 	      strlen(LINUX_RESOURCE)) != 0) {
     /* pass call on to next redirector, if any */
@@ -2594,9 +2617,7 @@ RedirectDevice(state_t * state)
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return (FALSE);
   }
-  else {
-    return (TRUE);
-  }
+  return (TRUE);
 }
 
 int ResetRedirection(int dsk)

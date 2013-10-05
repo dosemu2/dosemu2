@@ -27,9 +27,13 @@ typedef unsigned char boolean_t;
 #define d_namlen d_reclen
 #endif
 
+#define PRINTER_BASE_DRIVE 33
+#define MAX_PRINTER 9
+
 #ifndef MAX_DRIVE
-#define MAX_DRIVE 33
+#define MAX_DRIVE (PRINTER_BASE_DRIVE + MAX_PRINTER)
 #endif
+#define DRIVE_Z 32
 
 #define USE_DF_AND_AFS_STUFF
 
@@ -299,7 +303,7 @@ struct drive_info
   int root_len;
   boolean_t read_only;
 };
-extern struct drive_info drives[MAX_DRIVE];
+extern struct drive_info drives[];
 
 /* dos attribute byte flags */
 #define REGULAR_FILE 	0x00
