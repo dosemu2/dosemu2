@@ -53,6 +53,7 @@
 #include <stdio.h>    /* printf  */
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "emu.h"
 #include "memory.h"
@@ -575,10 +576,14 @@ int lredir_main(int argc, char **argv)
 	deviceStr[1] = ':';
 	deviceStr[2] = '\0';
 	carg = 2;
-      } else if (argc > 2) {
+      } else if (argc > 2 && strlen(argv[2]) > 1) {
         strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
         deviceStr[sizeof(deviceStr) - 1] = 0;
         resourceStr = strdup(argv[2]);
+      } else if (argc > 1 && isdigit(argv[1][3])) {	// lredir lptX
+        strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
+        resourceStr = strdup(argv[1] + 3);
+	carg = 2;
       }
     }
     deviceParam = DEFAULT_REDIR_PARAM;
