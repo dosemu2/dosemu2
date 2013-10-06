@@ -28,6 +28,7 @@ void fake_call(int, int);
 void fake_call_to(int cs, int ip);
 void fake_pusha(void);
 void fake_retf(unsigned pop_count);
+void fake_iret(void);
 void setup_interrupts(void);
 void version_init(void);
 void int_vector_setup(void);

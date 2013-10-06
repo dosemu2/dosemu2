@@ -28,6 +28,7 @@
 #include "config.h"
 #include "emu.h"
 #include "hlt.h"
+#include "int.h"
 #include "coopth.h"
 #include "serial.h"
 #include "ser_defs.h"
@@ -131,6 +132,9 @@ static void fossil_irq(Bit32u idx, void *arg)
       break;
     }
   }
+
+  fake_iret();
+  fake_int_to(BIOSSEG, EOI_OFF);
 }
 
 /**************************************************************************/

@@ -2170,6 +2170,19 @@ void fake_retf(unsigned pop_count)
   _SP += 4 + 2 * pop_count;
 }
 
+void fake_iret(void)
+{
+  unsigned int ssp, sp;
+
+  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  sp = LWORD(esp);
+
+  _SP += 6;
+  _IP = popw(ssp, sp);
+  _CS = popw(ssp, sp);
+  set_FLAGS(popw(ssp, sp));
+}
+
 static void ret_from_int(Bit32u i, void *arg)
 {
   unsigned int ssp, sp;
