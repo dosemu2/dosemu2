@@ -518,7 +518,6 @@ keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 base			RETURN(BASE);
 irq			RETURN(IRQ);
-interrupt		RETURN(INTERRUPT);
 baudrate		RETURN(BAUDRATE);
 device			RETURN(DEVICE);
 com                     RETURN(COM);

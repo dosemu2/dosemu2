@@ -62,7 +62,7 @@
 
 int no_local_video = 0;
 com_t com[MAX_SER];
-u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
+static u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 
 /* See README.serial file for more information on the com[] structure
  * The declarations for this is in ../include/serial.h
@@ -469,9 +469,11 @@ static void do_ser_init(int num)
     return;
   }
 
-  if (com_cfg[num].interrupt <= 0) {		/* Is interrupt undefined? */
+  if (com_cfg[num].irq == 0) {		/* Is interrupt undefined? */
     /* Define it depending on using standard irqs */
-    com_cfg[num].interrupt = pic_irq_list[default_com[com_cfg[num].real_comport-1].interrupt];
+    com[num].interrupt = pic_irq_list[default_com[com_cfg[num].real_comport-1].interrupt];
+  } else {
+    com[num].interrupt = pic_irq_list[com_cfg[num].irq];
   }
 
   if (com_cfg[num].base_port <= 0) {		/* Is base port undefined? */
@@ -491,11 +493,11 @@ static void do_ser_init(int num)
   /* convert irq number to pic_ilevel number and set up interrupt
    * if irq is invalid, no interrupt will be assigned
    */
-  if(!irq_source_num[com_cfg[num].interrupt]) {
-    s_printf("SER%d: enabling interrupt %d\n", num, com_cfg[num].interrupt);
-    pic_seti(com_cfg[num].interrupt, pic_serial_run, 0, NULL);
+  if(!irq_source_num[com_cfg[num].irq]) {
+    s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
+    pic_seti(com[num].interrupt, pic_serial_run, 0, NULL);
   }
-  irq_source_num[com_cfg[num].interrupt]++;
+  irq_source_num[com_cfg[num].irq]++;
 
   /*** The following is where the real initialization begins ***/
 
@@ -508,15 +510,15 @@ static void do_ser_init(int num)
   io_device.write_portd = NULL;
   io_device.start_addr  = com_cfg[num].base_port;
   io_device.end_addr    = com_cfg[num].base_port+7;
-  io_device.irq         = (irq_source_num[com_cfg[num].interrupt] == 1 ?
-                           com_cfg[num].interrupt : EMU_NO_IRQ);
+  io_device.irq         = (irq_source_num[com[num].interrupt] == 1 ?
+                           com[num].interrupt : EMU_NO_IRQ);
   io_device.fd		= -1;
   io_device.handler_name = default_com[num].handler_name;
   port_register_handler(io_device, 0);
 
   /* Information about serial port added to debug file */
   s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n",
-        num, com_cfg[num].real_comport, com_cfg[num].interrupt,
+        num, com_cfg[num].real_comport, com[num].interrupt,
         com_cfg[num].base_port, com_cfg[num].dev);
 #if 0
   /* first call to serial timer update func to initialize the timer */

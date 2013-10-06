@@ -284,14 +284,14 @@ void serial_int_engine(int num, int int_requested)
    */
 
   /* See if a requested interrupt is enabled */
-  if (INT_ENAB(num) && com_cfg[num].interrupt && INT_REQUEST(num)) {
+  if (INT_ENAB(num) && com[num].interrupt && INT_REQUEST(num)) {
       if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n",
-                 num, com_cfg[num].interrupt, int_requested);
-      pic_request(com_cfg[num].interrupt);		/* Flag PIC for interrupt */
+                 num, com[num].interrupt, int_requested);
+      pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
   }
   else
     if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n",
-        num, com_cfg[num].interrupt, com[num].int_condition, INT_ENAB(num), com[num].IER);
+        num, com[num].interrupt, com[num].int_condition, INT_ENAB(num), com[num].IER);
 }
 
 
@@ -312,7 +312,7 @@ int pic_serial_run(int ilevel)
   int i, ret = 0;
 
   for (i = 0; i < config.num_ser; i++) {
-    if (com_cfg[i].interrupt != ilevel)
+    if (com[i].interrupt != ilevel)
       continue;
     if (INT_REQUEST(i))
       ret++;

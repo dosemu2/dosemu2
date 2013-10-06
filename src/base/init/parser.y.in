@@ -267,7 +267,7 @@ while (0)
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
-%token BASE IRQ INTERRUPT DEVICE CHARSET BAUDRATE VIRTUAL PSEUDO RTSCTS LOWLAT
+%token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL PSEUDO RTSCTS LOWLAT
 	/* mouse */
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
@@ -1384,8 +1384,7 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2;
 		| LOWLAT		  { sptr->low_latency = TRUE; }
 		| COM expression	  { sptr->real_comport = $2; }
 		| BASE expression		{ sptr->base_port = $2; }
-		| IRQ expression		{ sptr->interrupt = $2; }
-		| INTERRUPT expression	{ sptr->interrupt = $2; }
+		| IRQ expression		{ sptr->irq = $2; }
 		| MOUSE			{ sptr->mouse = 1; }
 		| STRING
 		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
@@ -1866,7 +1865,7 @@ static void start_serial(void)
     */
     sptr = &com_cfg[c_ser];
     sptr->dev = NULL;
-    sptr->interrupt = 0; 
+    sptr->irq = 0; 
     sptr->base_port = 0;
     sptr->real_comport = 0;
     sptr->mouse = 0;
@@ -1889,8 +1888,8 @@ static void stop_serial(void)
   c_printf("SER%d: %s", c_ser, sptr->dev);
   if (sptr->base_port)
     c_printf(" port %x", sptr->base_port);
-  if (sptr->interrupt)
-    c_printf(" int %x", sptr->interrupt);
+  if (sptr->irq)
+    c_printf(" irq %x", sptr->irq);
   c_printf("\n");
   c_ser++;
   config.num_ser = c_ser;

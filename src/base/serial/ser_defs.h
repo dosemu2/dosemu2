@@ -298,8 +298,6 @@
  */
 #define MS_MIN_FREQ		3840L
 
-extern u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
-
 struct iir {
   u_char mask;
   union {
@@ -328,6 +326,7 @@ typedef struct {
   u_char rx_fifo_trigger;	/* Receive Fifo trigger value */
   int rx_fifo_size;		/* Size of receive FIFO to emulate */
   				/*   MISCELLANEOUS  */
+  int interrupt;		/* IRQ line handled by device */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
   speed_t newbaud;		/* Currently set bps rate */
 
