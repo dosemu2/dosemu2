@@ -436,7 +436,7 @@ static void do_ser_init(int num)
   */
 
   static struct {
-    int interrupt;
+    int irq;
     ioport_t base_port;
     char *dev;
     char *handler_name;
@@ -470,10 +470,9 @@ static void do_ser_init(int num)
 
   if (com_cfg[num].irq == 0) {		/* Is interrupt undefined? */
     /* Define it depending on using standard irqs */
-    com[num].interrupt = pic_irq_list[default_com[com_cfg[num].real_comport-1].interrupt];
-  } else {
-    com[num].interrupt = pic_irq_list[com_cfg[num].irq];
+    com_cfg[num].irq = default_com[com_cfg[num].real_comport-1].irq;
   }
+  com[num].interrupt = pic_irq_list[com_cfg[num].irq];
 
   if (com_cfg[num].base_port <= 0) {		/* Is base port undefined? */
     /* Define it depending on using standard addrs */
@@ -509,8 +508,8 @@ static void do_ser_init(int num)
   io_device.write_portd = NULL;
   io_device.start_addr  = com_cfg[num].base_port;
   io_device.end_addr    = com_cfg[num].base_port+7;
-  io_device.irq         = (irq_source_num[com[num].interrupt] == 1 ?
-                           com[num].interrupt : EMU_NO_IRQ);
+  io_device.irq         = (irq_source_num[com_cfg[num].irq] == 1 ?
+                           com_cfg[num].irq : EMU_NO_IRQ);
   io_device.fd		= -1;
   io_device.handler_name = default_com[num].handler_name;
   port_register_handler(io_device, 0);

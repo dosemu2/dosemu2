@@ -284,7 +284,7 @@ void serial_int_engine(int num, int int_requested)
    */
 
   /* See if a requested interrupt is enabled */
-  if (INT_ENAB(num) && com[num].interrupt && INT_REQUEST(num)) {
+  if (INT_ENAB(num) && INT_REQUEST(num)) {
       if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n",
                  num, com[num].interrupt, int_requested);
       pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
