@@ -27,6 +27,7 @@
 #include <termios.h>
 #include "config.h"
 #include "emu.h"
+#include "hlt.h"
 #include "coopth.h"
 #include "serial.h"
 #include "ser_defs.h"
@@ -81,9 +82,21 @@ static unsigned short fossil_id_offset, fossil_id_segment;
  */
 static boolean fossil_tsr_installed = FALSE;
 
-void fossil_setup(int num)
+static u_short irq_hlt;
+static void fossil_irq(Bit32u idx, void *arg);
+
+static void fossil_init(void)
 {
-    com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
+  emu_hlt_t hlt_hdlr;
+  hlt_hdlr.name       = "fossil isr";
+  hlt_hdlr.len        = 1;
+  hlt_hdlr.func       = fossil_irq;
+  irq_hlt = hlt_register_handler(hlt_hdlr);
+
+  fossil_tsr_installed = TRUE;
+  fossil_id_segment = LWORD(es);
+  fossil_id_offset = LWORD(edi);
+  s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n", fossil_id_segment, fossil_id_offset);
 }
 
 void fossil_dr_hook(int num)
@@ -91,6 +104,11 @@ void fossil_dr_hook(int num)
     if (com[num].fossil_blkrd_tid == COOPTH_TID_INVALID)
 	return;
     coopth_wake_up(com[num].fossil_blkrd_tid);
+}
+
+static void fossil_irq(Bit32u idx, void *arg)
+{
+  s_printf("FOSSIL: got irq\n");
 }
 
 /**************************************************************************/
@@ -187,6 +205,10 @@ void fossil_int14(int num)
     write_FCR(num, UART_FCR_ENABLE_FIFO|UART_FCR_TRIGGER_14);
     uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
     com[num].rx_fifo_size = RX_BUFFER_SIZE/2;
+    /* init IRQs, set disabled */
+    write_MCR(num, com[num].MCR | UART_MCR_OUT2);
+    SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
+    com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
     /* Initialize FOSSIL driver info buffer. This is used by the
      * function 0x1b (Get driver info).
      */
@@ -383,10 +405,7 @@ void serial_helper(void)
 
   /* TSR install. */
   case 1:
-    fossil_tsr_installed = TRUE;
-    fossil_id_segment = LWORD(es);
-    fossil_id_offset = LWORD(edi);
-    s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n", fossil_id_segment, fossil_id_offset);
+    fossil_init();
     break;
 
   default:
@@ -426,4 +445,3 @@ if (fossil_tsr_installed)
     return;
   }
 }
-

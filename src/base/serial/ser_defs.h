@@ -391,6 +391,5 @@ void tx_buffer_slide(int num);
 int serial_get_tx_queued(int num);
 void serial_update(int num);
 void fossil_dr_hook(int num);
-void fossil_setup(int num);
 
 #endif /* SER_DEFS_H */

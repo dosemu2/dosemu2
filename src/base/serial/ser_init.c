@@ -354,7 +354,6 @@ void ser_set_params(int num)
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   com[num].tx_cnt = 0;
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
-  fossil_setup(num);
 
   if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
   ser_termios(num);			/* Set line settings now */
