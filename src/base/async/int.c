@@ -1881,12 +1881,10 @@ static int int2f(void)
         LWORD(eax) = 1;
         return 1;
 
-      case 0x86:            /* Are we in protected mode? */
+      case 0x86:
         D_printf("DPMI CPU mode check in real mode.\n");
-        if (in_dpmi && !in_dpmi_dos_int) /* set AX to zero only if program executes in protected mode */
-	    LWORD(eax) = 0;	/* say ok */
-		 /* else let AX untouched (non-zero) */
-      return 1;
+        /* for protected-mode counterpart see do_dpmi_int() */
+        return 1;
 
       case 0x87:            /* Call for getting DPMI entry point */
 	dpmi_get_entry_point();

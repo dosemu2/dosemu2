@@ -825,8 +825,6 @@ char *skip_white_and_delim(char *s, int delim)
 
 void pre_msdos(void)
 {
-	if(in_dpmi && !in_dpmi_dos_int)
-		fake_pm_int();
 	saved_regs = REGS;
 }
 
