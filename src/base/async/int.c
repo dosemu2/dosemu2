@@ -2183,6 +2183,18 @@ void fake_iret(void)
   set_FLAGS(popw(ssp, sp));
 }
 
+void do_eoi_iret(void)
+{
+  _IP = BIOSSEG;
+  _CS = EOI_OFF;
+}
+
+void do_eoi2_iret(void)
+{
+  _IP = BIOSSEG;
+  _CS = EOI2_OFF;
+}
+
 static void ret_from_int(Bit32u i, void *arg)
 {
   unsigned int ssp, sp;

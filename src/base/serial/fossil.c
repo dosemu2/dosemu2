@@ -133,8 +133,7 @@ static void fossil_irq(Bit32u idx, void *arg)
     }
   }
 
-  fake_iret();
-  fake_int_to(BIOSSEG, EOI_OFF);
+  do_eoi_iret();
 }
 
 /**************************************************************************/
