@@ -207,6 +207,7 @@
 #define UART_IER_RLSI	0x04	/* Enable receiver line status interrupt */
 #define UART_IER_THRI	0x02	/* Enable Transmitter holding register int. */
 #define UART_IER_RDI	0x01	/* Enable receiver data interrupt */
+#define UART_IER_VALID	0x0f
 
 /* These are the definitions for the Modem Control Register
  */
@@ -390,6 +391,5 @@ void rx_buffer_slide(int num);
 void tx_buffer_slide(int num);
 int serial_get_tx_queued(int num);
 void serial_update(int num);
-void fossil_dr_hook(int num);
 
 #endif /* SER_DEFS_H */

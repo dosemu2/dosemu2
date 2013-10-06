@@ -198,7 +198,6 @@ void uart_fill(int num)
   if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
     com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
   com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
-  fossil_dr_hook(num);			/* tell fossil that data ready */
   /* Has it gone above the receive FIFO trigger level? */
   if (!FIFO_ENABLED(num) || RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
     if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
@@ -978,12 +977,12 @@ do_serial_out(int num, ioport_t address, int val)
     }
     else {			/* Else, write to Interrupt Enable Register */
       int tflg = 0;
-      if ( !(com[num].IER & 2) && (val & 2) ) {
+      if ( !(com[num].IER & UART_IER_THRI) && (val & UART_IER_THRI) ) {
         /* Flag to allow THRI if enable THRE went from state 0 -> 1 */
         tflg = 1;
         com[num].int_condition |= TX_INTR;	// is this needed?
       }
-      com[num].IER = (val & 0xF);	/* Write to IER */
+      com[num].IER = (val & UART_IER_VALID);	/* Write to IER */
       if(s1_printf) s_printf("SER%d: Write IER = 0x%x\n", num, val);
       if (tflg)
         serial_int_engine(num, 0);

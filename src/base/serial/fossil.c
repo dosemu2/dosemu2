@@ -45,6 +45,8 @@
 #define read_reg(num, offset) do_serial_in((num), com_cfg[(num)].base_port + (offset))
 #define read_char(num)        read_reg((num), UART_RX)
 #define read_LCR(num)         read_reg((num), UART_LCR)
+#define read_LSR(num)         read_reg((num), UART_LSR)
+#define read_IIR(num)         read_reg((num), UART_IIR)
 #define write_reg(num, offset, byte) do_serial_out((num), com_cfg[(num)].base_port + (offset), (byte))
 #define write_char(num, byte) write_reg((num), UART_TX, (byte))
 #define write_DLL(num, byte)  write_reg((num), UART_DLL, (byte))
@@ -52,6 +54,7 @@
 #define write_FCR(num, byte)  write_reg((num), UART_FCR, (byte))
 #define write_LCR(num, byte)  write_reg((num), UART_LCR, (byte))
 #define write_MCR(num, byte)  write_reg((num), UART_MCR, (byte))
+#define write_IER(num, byte)  write_reg((num), UART_IER, (byte))
 
 /* Get the LSR/MSR status bits in FOSSIL format. Since we don't care about
  * the delta/interrupt bits anyway, reading the com[] structure is
@@ -99,16 +102,35 @@ static void fossil_init(void)
   s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n", fossil_id_segment, fossil_id_offset);
 }
 
-void fossil_dr_hook(int num)
-{
-    if (com[num].fossil_blkrd_tid == COOPTH_TID_INVALID)
-	return;
-    coopth_wake_up(com[num].fossil_blkrd_tid);
-}
-
 static void fossil_irq(Bit32u idx, void *arg)
 {
+  int i;
+  uint8_t iir, lsr;
   s_printf("FOSSIL: got irq\n");
+  for (i = 0; i < config.num_ser; i++) {
+    if (com[i].fd < 0)
+      continue;
+    iir = read_IIR(i);
+    switch (iir) {
+    case UART_IIR_NO_INT:
+      break;
+    case UART_IIR_RDI:
+      write_IER(i, 0);
+      lsr = read_LSR(i);
+      if (lsr & UART_LSR_DR) {
+        if (com[i].fossil_blkrd_tid != COOPTH_TID_INVALID) {
+	  coopth_wake_up(com[i].fossil_blkrd_tid);
+	  com[i].fossil_blkrd_tid = COOPTH_TID_INVALID;
+	} else {
+	  error("FOSSIL: tid not set!\n");
+	}
+      }
+      break;
+    default:
+      s_printf("FOSSIL: unexpected interrupt cond %#x\n", iir);
+      break;
+    }
+  }
 }
 
 /**************************************************************************/
@@ -166,10 +188,10 @@ void fossil_int14(int num)
   case 0x02:
     while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
 	com[num].fossil_blkrd_tid = coopth_get_tid();
+	write_IER(num, UART_IER_RDI);
 	_set_IF();
 	coopth_sleep();
 	clear_IF();
-	com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
     }
     LO(ax) = read_char(num);
     HI(ax) = 0;
@@ -207,6 +229,7 @@ void fossil_int14(int num)
     com[num].rx_fifo_size = RX_BUFFER_SIZE/2;
     /* init IRQs, set disabled */
     write_MCR(num, com[num].MCR | UART_MCR_OUT2);
+    write_IER(num, 0);
     SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
     com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
     /* Initialize FOSSIL driver info buffer. This is used by the
