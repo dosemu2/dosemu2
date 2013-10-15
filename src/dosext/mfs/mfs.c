@@ -3228,7 +3228,7 @@ static int validate_mode(char *fpath, state_t *state, int drive,
     Debug0((dbg_fd, "Illegal access_mode 0x%x\n", dos_mode));
     *unix_mode = O_RDONLY;
   }
-  if (drives[drive].read_only && unix_mode != O_RDONLY) {
+  if (drives[drive].read_only && dos_mode != READ_ACC) {
     SETWORD(&(state->eax), ACCESS_DENIED);
     return (FALSE);
   }
