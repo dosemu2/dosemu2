@@ -33,6 +33,7 @@
 #include "speaker.h"
 #include "hma.h"
 
+#define RESET_LINE_MASK 1
 
 /* accurate emulation of special 8042 and keyboard commands - currently untested...
 */
@@ -256,9 +257,14 @@ static void write_port64(Bit8u value) {
 	     break;
 
 	  case 0xf0 ... 0xff: /* produce 6ms pulse on hardware port */
-	     h_printf("8042: produce 6ms pulse on hardware port, ignored\n");
 	     wstate=0;
 	     port60_ready=0;
+	     if (!(value & RESET_LINE_MASK)) {
+	         h_printf("8042: produce 6ms pulse on cpu reset line\n");
+	         cpu_reset();
+	     }
+	     else
+	         h_printf("8042: produce 6ms pulse on hardware port, ignored\n");
 	     break;
 
 	  default:

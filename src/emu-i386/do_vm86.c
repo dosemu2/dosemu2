@@ -257,8 +257,8 @@ void vm86_GP_fault(void)
     LWORD(eip) += 2;
     break;
   case 0xe6:			/* outb xx */
-    outb((int) csp[1], LO(ax));
     LWORD(eip) += 2;
+    outb((int) csp[1], LO(ax));
     break;
 
   case 0xef:			/* outw dx */
@@ -267,8 +267,8 @@ void vm86_GP_fault(void)
     LWORD(eip) += 1;
     break;
   case 0xee:			/* outb dx */
-    outb(LWORD(edx), LO(ax));
     LWORD(eip) += 1;
+    outb(LWORD(edx), LO(ax));
     break;
 
   case 0xf4:			/* hlt...I use it for various things,
