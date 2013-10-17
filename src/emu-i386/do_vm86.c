@@ -170,25 +170,28 @@ void vm86_GP_fault(void)
   case 0xcd:    /* int         interrupt (don't advance eip) */
   case 0xce:    /* into */
     break;
+
   case 0xcf:                   /* iret */
     if (prefix67) goto op0ferr; /* iretd */
     break;
+
   case 0xf1:                   /* int 1 */
     LWORD(eip)++; /* emulated "undocumented" instruction */
     do_int(1);
     break;
 
   case 0x6c:                    /* insb */
+    LWORD(eip)++;
     /* NOTE: ES can't be overwritten; prefixes 66,67 should use esi,edi,ecx
      * but is anyone using extended regs in real mode? */
     /* WARNING: no test for DI wrapping! */
     LWORD(edi) += port_rep_inb(LWORD(edx), SEG_ADR((Bit8u *),es,di),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     if (is_rep) setLWECX(0);
-    LWORD(eip)++;
     break;
 
   case 0x6d:			/* (rep) insw / insd */
+    LWORD(eip)++;
     /* NOTE: ES can't be overwritten */
     /* WARNING: no test for _DI wrapping! */
     if (prefix66) {
@@ -200,21 +203,19 @@ void vm86_GP_fault(void)
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     }
     if (is_rep) setLWECX(0);
-    LWORD(eip)++;
     break;
 
-
   case 0x6e:			/* (rep) outsb */
+    LWORD(eip)++;
     if (pref_seg < 0) pref_seg = LWORD(ds);
     /* WARNING: no test for _SI wrapping! */
     LWORD(esi) += port_rep_outb(LWORD(edx), __SEG_ADR((Bit8u *),pref_seg,si),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     if (is_rep) setLWECX(0);
-    LWORD(eip)++;
     break;
 
-
   case 0x6f:			/* (rep) outsw / outsd */
+    LWORD(eip)++;
     if (pref_seg < 0) pref_seg = LWORD(ds);
     /* WARNING: no test for _SI wrapping! */
     if (prefix66) {
@@ -226,48 +227,51 @@ void vm86_GP_fault(void)
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     }
     if (is_rep) setLWECX(0);
-    LWORD(eip)++;
     break;
 
   case 0xe5:			/* inw xx, ind xx */
+    LWORD(eip) += 2;
     if (prefix66) REG(eax) = ind((int) csp[1]);
     else LWORD(eax) = inw((int) csp[1]);
-    LWORD(eip) += 2;
     break;
+
   case 0xe4:			/* inb xx */
+    LWORD(eip) += 2;
     LWORD(eax) &= ~0xff;
     LWORD(eax) |= inb((int) csp[1]);
-    LWORD(eip) += 2;
     break;
 
   case 0xed:			/* inw dx, ind dx */
+    LWORD(eip)++;
     if (prefix66) REG(eax) = ind(LWORD(edx));
     else LWORD(eax) = inw(LWORD(edx));
-    LWORD(eip) += 1;
     break;
+
   case 0xec:			/* inb dx */
+    LWORD(eip)++;
     LWORD(eax) &= ~0xff;
     LWORD(eax) |= inb(LWORD(edx));
-    LWORD(eip) += 1;
     break;
 
   case 0xe7:			/* outw xx */
+    LWORD(eip) += 2;
     if (prefix66) outd((int)csp[1], REG(eax));
     else outw((int)csp[1], LWORD(eax));
-    LWORD(eip) += 2;
     break;
+
   case 0xe6:			/* outb xx */
     LWORD(eip) += 2;
     outb((int) csp[1], LO(ax));
     break;
 
-  case 0xef:			/* outw dx */
+  case 0xef:			/* outw dx, outd dx */
+    LWORD(eip)++;
     if (prefix66) outd(LWORD(edx), REG(eax));
     else outw(LWORD(edx), REG(eax));
-    LWORD(eip) += 1;
     break;
+
   case 0xee:			/* outb dx */
-    LWORD(eip) += 1;
+    LWORD(eip)++;
     outb(LWORD(edx), LO(ax));
     break;
 
