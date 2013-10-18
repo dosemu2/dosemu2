@@ -189,6 +189,9 @@ void fossil_int14(int num)
 
   /* Read character (should be with wait) */
   case 0x02:
+    #if SER_DEBUG_FOSSIL_RW
+        s_printf("SER%d: FOSSIL 0x02: Read char with wait\n", num);
+    #endif
     while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
 	com[num].fossil_blkrd_tid = coopth_get_tid();
 	write_IER(num, UART_IER_RDI);

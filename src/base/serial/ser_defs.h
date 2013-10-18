@@ -58,7 +58,7 @@
 #define SER_DEBUG_MAIN       1		/* 0 or 1 */
 #define SER_DEBUG_HEAVY      1		/* 0 or 1 */
 #define SER_DEBUG_INTERRUPT  1		/* 0 or 1 */
-#define SER_DEBUG_FOSSIL_RW  0       	/* 0 or 1 */
+#define SER_DEBUG_FOSSIL_RW  1       	/* 0 or 1 */
 #define SER_DEBUG_FOSSIL_STATUS 0	/* 0 or 1 */
 
 /*
