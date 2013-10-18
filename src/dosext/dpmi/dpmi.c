@@ -3247,6 +3247,18 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     }
 #endif
 
+    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+
+    if ((_trapno != 0xe && _trapno != 0x3 && _trapno != 0x1)
+#ifdef X86_EMULATOR
+      || debug_level('e')
+#endif
+     )
+    { D_printf("%s", DPMI_show_state(scp)); }
+#ifdef SHOWREGS
+    print_ldt();
+#endif
+
     D_printf("DPMI: do_default_cpu_exception 0x%02x at %#x:%#x ss:sp=%x:%x\n",
       trapno, (int)_cs, (int)_eip, (int)_ss, (int)_esp);
 
@@ -3336,8 +3348,6 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   set_debug_level('M', 1);
 #endif
 
-  mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
-
 #ifdef TRACE_DPMI
   if (debug_level('t') && (_trapno == 1)) {
     do_default_cpu_exception(scp, _trapno);
@@ -3356,16 +3366,6 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       flush_log();
       leavedos(0x5046);
   }
-#endif
-
-  if ((_trapno != 0xe && _trapno != 0x3 && _trapno != 0x1)
-#ifdef X86_EMULATOR
-      || debug_level('e')
-#endif
-     )
-    { D_printf("%s", DPMI_show_state(scp)); }
-#ifdef SHOWREGS
-  print_ldt();
 #endif
 
   if (DPMI_CLIENT.Exception_Table[_trapno].selector == dpmi_sel()) {
