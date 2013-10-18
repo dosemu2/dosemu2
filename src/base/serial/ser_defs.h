@@ -191,6 +191,7 @@
 #define UART_IIR_THRI	0x02	/* Transmitter holding register empty */
 #define UART_IIR_RDI	0x04	/* Receiver data interrupt */
 #define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
+#define UART_IIR_CND_MASK 7
 #if 0
 #define UART_IIR_CTI    0x0c	/* Character timeout indication */
 #define UART_IIR_ID	0x06	/* Mask for the interrupt ID */

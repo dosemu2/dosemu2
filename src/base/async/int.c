@@ -2183,14 +2183,14 @@ void fake_iret(void)
 
 void do_eoi_iret(void)
 {
-  _IP = BIOSSEG;
-  _CS = EOI_OFF;
+  _CS = BIOSSEG;
+  _IP = EOI_OFF;
 }
 
 void do_eoi2_iret(void)
 {
-  _IP = BIOSSEG;
-  _CS = EOI2_OFF;
+  _CS = BIOSSEG;
+  _IP = EOI2_OFF;
 }
 
 static void ret_from_int(Bit32u i, void *arg)

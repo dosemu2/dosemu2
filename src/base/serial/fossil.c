@@ -29,6 +29,7 @@
 #include "emu.h"
 #include "hlt.h"
 #include "int.h"
+#include "port.h"
 #include "coopth.h"
 #include "serial.h"
 #include "ser_defs.h"
@@ -112,7 +113,7 @@ static void fossil_irq(Bit32u idx, void *arg)
     if (com[i].fd < 0)
       continue;
     iir = read_IIR(i);
-    switch (iir) {
+    switch (iir & UART_IIR_CND_MASK) {
     case UART_IIR_NO_INT:
       break;
     case UART_IIR_RDI:
@@ -217,7 +218,8 @@ void fossil_int14(int num)
     break;
 
   /* Initialize FOSSIL driver. */
-  case 0x04:
+  case 0x04: {
+    uint8_t imr;
     /* Do nothing if TSR isn't installed. */
     if (!fossil_tsr_installed)
       return;
@@ -237,6 +239,9 @@ void fossil_int14(int num)
     write_MCR(num, com[num].MCR | UART_MCR_OUT2);
     write_IER(num, 0);
     SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
+    imr = port_inb(0x21);
+    imr &= ~(1 << com_cfg[num].irq);
+    port_outb(0x21, imr);
     com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
     /* Initialize FOSSIL driver info buffer. This is used by the
      * function 0x1b (Get driver info).
@@ -258,6 +263,7 @@ void fossil_int14(int num)
     com[num].fossil_info[18] = 0;       /* Bps rate (not used) */
     s_printf("SER%d: FOSSIL 0x04: Emulation activated\n",num);
     break;
+  }
 
   /* FOSSIL shutdown. */
   case 0x05:
