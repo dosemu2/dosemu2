@@ -160,6 +160,8 @@ void uart_fill(int num)
 {
   int size = 0;
 
+  if (com[num].fd < 0) return;
+
   /* Return if in loopback mode */
   if (com[num].MCR & UART_MCR_LOOP) return;
 
