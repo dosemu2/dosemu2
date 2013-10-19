@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
+#include <assert.h>
 #include "config.h"
 #include "emu.h"
 #include "hlt.h"
@@ -190,14 +191,26 @@ void fossil_int14(int num)
 
   /* Read character (should be with wait) */
   case 0x02:
+    if (com[num].fossil_blkrd_tid != COOPTH_TID_INVALID) {
+	/* the previous read was probably interrupted by ^C... */
+	s_printf("SER%d: FOSSIL 0x02: Read with wait interrupted??\n", num);
+	coopth_ensure_sleeping(com[num].fossil_blkrd_tid);
+	/* to avoid resouce leakage, we just kill it the unsafe way */
+	coopth_cancel(com[num].fossil_blkrd_tid);
+	coopth_unsafe_detach(com[num].fossil_blkrd_tid);
+	com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
+	write_IER(num, 0);
+    }
+
+    while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
     #if SER_DEBUG_FOSSIL_RW
         s_printf("SER%d: FOSSIL 0x02: Read char with wait\n", num);
     #endif
-    while (!(com[num].LSR & UART_LSR_DR)) {	/* Was a character received? */
-	com[num].fossil_blkrd_tid = coopth_get_tid();
 	write_IER(num, UART_IER_RDI);
 	_set_IF();
+	com[num].fossil_blkrd_tid = coopth_get_tid();
 	coopth_sleep();
+	assert(com[num].fossil_blkrd_tid == COOPTH_TID_INVALID);
 	clear_IF();
     }
     LO(ax) = read_char(num);
@@ -219,7 +232,7 @@ void fossil_int14(int num)
 
   /* Initialize FOSSIL driver. */
   case 0x04: {
-    uint8_t imr;
+    uint8_t imr, imr1;
     /* Do nothing if TSR isn't installed. */
     if (!fossil_tsr_installed)
       return;
@@ -239,9 +252,10 @@ void fossil_int14(int num)
     write_MCR(num, com[num].MCR | UART_MCR_OUT2);
     write_IER(num, 0);
     SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
-    imr = port_inb(0x21);
+    imr = imr1 = port_inb(0x21);
     imr &= ~(1 << com_cfg[num].irq);
-    port_outb(0x21, imr);
+    if (imr != imr1)
+	port_outb(0x21, imr);
     com[num].fossil_blkrd_tid = COOPTH_TID_INVALID;
     /* Initialize FOSSIL driver info buffer. This is used by the
      * function 0x1b (Get driver info).

@@ -338,6 +338,11 @@ static void coopth_hlt(Bit32u offs, void *arg)
 {
     struct coopth_t *thr = (struct coopth_t *)arg + offs;
     struct coopth_per_thread_t *pth = current_thr(thr);
+    if (!pth->data.attached) {
+	/* someone used coopth_unsafe_detach()? */
+	error("HLT on detached thread\n");
+	leavedos(2);
+    }
     thread_run(thr, pth);
 }
 
@@ -437,6 +442,16 @@ static void check_tid(int tid)
     }
 }
 
+void coopth_ensure_sleeping(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    assert(pth->state == COOPTHS_SLEEPING);
+}
+
 int coopth_start(int tid, coopth_func_t func, void *arg)
 {
     struct coopth_t *thr;
@@ -532,6 +547,21 @@ int coopth_set_detached(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     thr->detached = 1;
+    return 0;
+}
+
+int coopth_unsafe_detach(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    dosemu_error("coopth_unsafe_detach() called\n");
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    assert(pth->data.attached);
+    /* this is really unsafe and should be used only if
+     * the DOS side of the thread have disappeared. */
+    pth->data.attached = 0;
     return 0;
 }
 
@@ -823,6 +853,9 @@ static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	if (pth->state == COOPTHS_SLEEPING)
 	    do_awake(pth);
     } else {
+	/* ignore current state and run the thread.
+	 * It will reach the cancellation point and exit with COOPTH_DONE,
+	 * after which, do_run_thread() will delete it. */
 	enum CoopthRet tret = do_run_thread(thr, pth);
 	assert(tret == COOPTH_DONE);
     }
