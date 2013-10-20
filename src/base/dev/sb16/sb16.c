@@ -1168,9 +1168,10 @@ static Bit8u sb_io_read(ioport_t port)
 	S_printf("SB: 8-bit IRQ Ack: %x\n", result);
 	if (sb_irq_active(SB_IRQ_8BIT)) {
 	    sb_deactivate_irq(SB_IRQ_8BIT);
-	    sb_dma_actualize();
-	    if (sb_dma_active() && sb_fifo_enabled() && !sb_dma_16bit())
+	    if (sb_dma_active() && sb_fifo_enabled() && !sb_dma_16bit()) {
+		sb_dma_actualize();
 		sb_dma_start();
+	    }
 	}
 	break;
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
@@ -1178,9 +1179,10 @@ static Bit8u sb_io_read(ioport_t port)
 	S_printf("SB: 16-bit IRQ Ack: %x\n", result);
 	if (sb_irq_active(SB_IRQ_16BIT)) {
 	    sb_deactivate_irq(SB_IRQ_16BIT);
-	    sb_dma_actualize();
-	    if (sb_dma_active() && sb_fifo_enabled() && sb_dma_16bit())
+	    if (sb_dma_active() && sb_fifo_enabled() && sb_dma_16bit()) {
+		sb_dma_actualize();
 		sb_dma_start();
+	    }
 	}
 	break;
 
