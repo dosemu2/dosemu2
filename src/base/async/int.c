@@ -736,6 +736,7 @@ static int int15(void)
   case 0xda:
   case 0xdb:
 	HI(ax) = 0x86;
+	CARRY;
 	break;
 
   case 0xe8:
