@@ -585,6 +585,41 @@ static int int15(void)
     }
     CARRY;
     break;
+
+  case 0x24:  /* PS/2 A20 gate support */
+    switch(LO(ax))
+    {
+      case 0: /* disable A20 gate */
+        set_a20(0);
+        HI(ax) = 0;
+        NOCARRY;
+        break;
+
+      case 1: /* enable A20 gate */
+        set_a20(1);
+        HI(ax) = 0;
+        NOCARRY;
+        break;
+
+      case 2: /* get A20 gate status */
+        HI(ax) = 0;
+        LO(ax) = a20;
+        LWORD(ecx) = 0;
+        NOCARRY;
+        break;
+
+      case 3: /* query A20 gate support */
+        HI(ax) = 0;
+        LWORD(ebx) = 1;
+        NOCARRY;
+        break;
+
+      default:
+        HI(ax) = 0x86;
+        CARRY;
+    }
+    break;
+
   case 0x41:			/* wait on external event */
     break;
   case 0x4f:			/* Keyboard intercept */
@@ -731,7 +766,6 @@ static int int15(void)
 	break;
     }
   /* else fall through */
-  case 0x24:		/* PS/2 A20 gate support */
   case 0xd8:		/* EISA - should be set in config? */
   case 0xda:
   case 0xdb:
