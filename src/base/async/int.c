@@ -610,7 +610,7 @@ static int int15(void)
 
       case 3: /* query A20 gate support */
         HI(ax) = 0;
-        LWORD(ebx) = 1;
+        LWORD(ebx) = 3;
         NOCARRY;
         break;
 

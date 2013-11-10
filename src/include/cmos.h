@@ -42,6 +42,7 @@
 #define CMOS_HD1EXT	0x19	/* drive C: extension byte */
 #define CMOS_HD2EXT	0x1a	/* drive D: extension byte */
 #define CMOS_RESV3	0x1b
+#define CMOS_SYSOP      0x2d    /* system operational flags (for fast A20 gate) */
 #define CMOS_CHKSUMM	0x2e	/* checksum over 0x10-0x20 */
 #define CMOS_CHKSUML	0x2f
 #define CMOS_PEXTMEML	0x30	/* extended memory over 1 MB found during POST */

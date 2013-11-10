@@ -12,7 +12,7 @@ include $(top_builddir)/Makefile.conf
 #  src/base/misc/timers.c -> ../dev/misc/timers.c
 
 
-CFILES=cmos.c timers.c lpt.c rtc.c pci.c joystick.c
+CFILES=cmos.c timers.c lpt.c rtc.c pci.c joystick.c chipset.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

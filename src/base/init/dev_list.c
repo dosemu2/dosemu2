@@ -34,6 +34,7 @@
 #include "int.h"
 #include "port.h"
 #include "pic.h"
+#include "chipset.h"
 #include "serial.h"
 #include "mouse.h"
 #include "keyb_server.h"     /* for keyb_8042_{init,reset} */
@@ -73,6 +74,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "internal_mouse",  dosemu_mouse_init,  dosemu_mouse_reset, dosemu_mouse_close },
   { "serial",  serial_init,  serial_reset,  serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
+  { "chipset", chipset_init, NULL,          NULL },
 #if 0
   { "pos",     pos_init,     pos_reset,     NULL },
 #endif

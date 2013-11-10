@@ -165,6 +165,9 @@ void cmos_init(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
+  /* system operational flags (for fast A20 gate) */
+  SET_CMOS(CMOS_SYSOP, 0x3f);
+
   g_printf("CMOS initialized\n");
 }
 
