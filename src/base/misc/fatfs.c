@@ -128,6 +128,10 @@ void fatfs_init(struct disk *dp)
       case THREE_INCH_720KFLOP:
         f->fat_id = 0xf9;
 	break;
+      case FIVE_INCH_360KFLOP:
+        f->fat_id = 0xfd;
+	break;
+
     }
     f->fat_type = FAT_TYPE_FAT12;
   } else {

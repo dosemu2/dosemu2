@@ -116,6 +116,7 @@ struct image_header {
 #define THREE_INCH_288MFLOP 5	/* 3.5 in, 2.88 MB floppy */
 #define ATAPI_FLOPPY	   16	/* ATAPI removable floppy */
 #define FIVE_INCH_FLOPPY    2	/* 5.25 in, 1.2 MB floppy */
+#define FIVE_INCH_360KFLOP  1	/* 5.25 in,  360 K floppy */
 #define MAX_FDISKS 4
 #define MAX_HDISKS 16
 #define SECTOR_SIZE		512
