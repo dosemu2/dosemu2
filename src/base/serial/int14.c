@@ -165,9 +165,13 @@ int int14(void)
   /* Write character function */
   case 1:
     s_printf("SER%d: INT14 0x1: Write char 0x%x\n",num,LO(ax));
-    write_char(num, LO(ax));		/* Transmit character */
-    HI(ax) = read_LSR(num);		/* Read Line Status (LSR) into AH */
-    LO(ax) = read_MSR(num);		/* Read Modem Status (MSR) into AL */
+    if (FIFO_ENABLED(num) || (com[num].LSR & UART_LSR_THRE)) {
+      write_char(num, LO(ax));		/* Transmit character */
+      HI(ax) = read_LSR(num) & ~0x80;	/* Character was sent */
+    } else {
+      s_printf("SER%d: INT14 TX overrun\n",num);
+      HI(ax) = read_LSR(num) | 0x80;	/* return error */
+    }
     break;
 
   /* Read character function */
