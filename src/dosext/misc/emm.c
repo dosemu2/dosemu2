@@ -1425,13 +1425,19 @@ get_mpa_array(state_t * state)
 
       Kdebug0((dbg_fd, "GET_MPA addr %p called\n", ptr));
 
-      for (i = 0; i < phys_pages; i++) {
-	*ptr = PHYS_PAGE_SEGADDR(i);
-	ptr++;
-	*ptr = i;
-	ptr++;
-	Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
-		 PHYS_PAGE_SEGADDR(i), i));
+      /* the array must be given in ascending order of segment,
+         so give the page frame only after other pages */
+      for (i = cnv_pages_start; i < phys_pages; i++) {
+        *ptr++ = PHYS_PAGE_SEGADDR(i);
+        *ptr++ = i;
+        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
+      }
+      for (i = 0; i < cnv_pages_start; i++) {
+        *ptr++ = PHYS_PAGE_SEGADDR(i);
+        *ptr++ = i;
+        Kdebug0((dbg_fd, "seg_addr 0x%x page_no %d\n",
+                 PHYS_PAGE_SEGADDR(i), i));
       }
 
       SETHIGH(&(state->eax), EMM_NO_ERR);
