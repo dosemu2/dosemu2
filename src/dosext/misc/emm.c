@@ -167,11 +167,11 @@ static u_char emm_error;
 #define EMM_TOTAL	MAX_EMM
 
 static int handle_total, emm_allocated;
-static u_short cnv_pages_start;
 static Bit32u EMSControl_OFF;
 #define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 #define phys_pages (config.ems_cnv_pages + config.ems_uma_pages)
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
+#define cnv_pages_start config.ems_uma_pages
 
 static struct emm_record {
   u_short handle;
@@ -2173,7 +2173,6 @@ void ems_init(void)
     memcheck_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
   }
   /* now in conventional mem */
-  cnv_pages_start = i;
   E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
        config.ems_cnv_pages, cnv_start_seg);
   for (j = 0; j < config.ems_cnv_pages; j++, i++) {
