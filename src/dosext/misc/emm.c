@@ -167,11 +167,11 @@ static u_char emm_error;
 #define EMM_TOTAL	MAX_EMM
 
 static int handle_total, emm_allocated;
-static u_short cnv_pages_start;
 static Bit32u EMSControl_OFF;
 #define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 #define phys_pages (config.ems_cnv_pages + config.ems_uma_pages)
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
+#define uma_pages_start config.ems_cnv_pages
 
 static struct emm_record {
   u_short handle;
@@ -2121,8 +2121,8 @@ static void ems_reset2(void)
     handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
   }
   for (sh_base = 0; sh_base < config.ems_cnv_pages; sh_base++) {
-    emm_map[sh_base + cnv_pages_start].handle = OS_HANDLE;
-    emm_map[sh_base + cnv_pages_start].logical_page = sh_base;
+    emm_map[sh_base].handle = OS_HANDLE;
+    emm_map[sh_base].logical_page = sh_base;
   }
 
   handle_total = 1;
@@ -2141,7 +2141,7 @@ void ems_reset(void)
 
 void ems_init(void)
 {
-  int i, j;
+  int i;
   emu_hlt_t hlt_hdlr;
 
   if (!config.ems_size && !config.pm_dos_api)
@@ -2166,18 +2166,16 @@ void ems_init(void)
   open_mapping(MAPPING_EMS);
   E_printf("EMS: initializing memory\n");
 
+  /* conventional mem pages should go first! This is important for GET_MPA */
+  E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
+       config.ems_cnv_pages, cnv_start_seg);
+  for (i = 0; i < config.ems_cnv_pages; i++)
+    emm_map[i].phys_seg = cnv_start_seg + 0x400 * i;
   memcheck_addtype('E', "EMS page frame");
   /* set up standard EMS frame in UMA */
   for (i = 0; i < config.ems_uma_pages; i++) {
-    emm_map[i].phys_seg = EMM_SEGMENT + 0x400 * i;
-    memcheck_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
-  }
-  /* now in conventional mem */
-  cnv_pages_start = i;
-  E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
-       config.ems_cnv_pages, cnv_start_seg);
-  for (j = 0; j < config.ems_cnv_pages; j++, i++) {
-    emm_map[i].phys_seg = cnv_start_seg + 0x400 * j;
+    emm_map[uma_pages_start + i].phys_seg = EMM_SEGMENT + 0x400 * i;
+    memcheck_reserve('E', PHYS_PAGE_ADDR(uma_pages_start + i), EMM_PAGE_SIZE);
   }
   E_printf("EMS: initialized %i pages\n", phys_pages);
 
