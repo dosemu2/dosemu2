@@ -64,6 +64,7 @@
 #include "mapping.h"
 #include "emm.h"
 #include "dos2linux.h"
+#include "utilities.h"
 #include "int.h"
 #include "hlt.h"
 
@@ -165,10 +166,11 @@ static u_char emm_error;
 
 #define EMM_TOTAL	MAX_EMM
 
-static int handle_total, emm_allocated, phys_pages, saved_phys_pages;
+static int handle_total, emm_allocated, phys_pages;
 static u_short cnv_start_seg;
 static u_short cnv_pages_start;
 static Bit32u EMSControl_OFF;
+#define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 
 static struct emm_record {
   u_short handle;
@@ -2169,7 +2171,6 @@ void ems_init(void)
     emm_map[i].phys_seg = EMM_SEGMENT + 0x400 * i;
     memcheck_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
   }
-  saved_phys_pages = (i < EMM_MAX_SAVED_PHYS ? i : EMM_MAX_SAVED_PHYS);
   /* now in conventional mem */
   cnv_start_seg = 0xa000 - 0x400 * config.ems_cnv_pages;
   cnv_pages_start = i;
