@@ -166,11 +166,12 @@ static u_char emm_error;
 
 #define EMM_TOTAL	MAX_EMM
 
-static int handle_total, emm_allocated, phys_pages;
+static int handle_total, emm_allocated;
 static u_short cnv_start_seg;
 static u_short cnv_pages_start;
 static Bit32u EMSControl_OFF;
 #define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
+#define phys_pages (config.ems_cnv_pages + config.ems_uma_pages)
 
 static struct emm_record {
   u_short handle;
@@ -2179,7 +2180,6 @@ void ems_init(void)
   for (j = 0; j < config.ems_cnv_pages; j++, i++) {
     emm_map[i].phys_seg = cnv_start_seg + 0x400 * j;
   }
-  phys_pages = i;
   E_printf("EMS: initialized %i pages\n", phys_pages);
 
   ems_reset2();
