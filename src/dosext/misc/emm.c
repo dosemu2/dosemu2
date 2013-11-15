@@ -572,16 +572,6 @@ emm_restore_handle_state(int handle)
 static int
 do_map_unmap(int handle, int physical_page, int logical_page)
 {
-
-  CHECK_OS_HANDLE(handle);
-
-  if ((handle < 0) || (handle > MAX_HANDLES) ||
-      (handle_info[handle].active == 0)) {
-    E_printf("Invalid Handle handle=%x, active=%d\n",
-	     handle, handle_info[handle].active);
-    return EMM_INV_HAN;
-  }
-
   if ((physical_page < 0) || (physical_page >= phys_pages)) {
     E_printf("Invalid Physical Page physical_page=%x\n",
 	     physical_page);
@@ -598,7 +588,13 @@ do_map_unmap(int handle, int physical_page, int logical_page)
 	       logical_page, handle_info[handle].numpages);
       return EMM_LOG_OUT_RAN;
     }
-
+    if ((handle < 0) || (handle > MAX_HANDLES) ||
+        (handle_info[handle].active == 0)) {
+      E_printf("Invalid Handle handle=%x, active=%d\n",
+	     handle, handle_info[handle].active);
+      return EMM_INV_HAN;
+    }
+    CHECK_OS_HANDLE(handle);
     E_printf("EMS: do_map_unmap is mapping\n");
     map_page(handle, physical_page, logical_page);
   }
