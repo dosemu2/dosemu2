@@ -45,7 +45,8 @@ void rtc_run(void)
   static hitimer_t last_time = -1;
   int rate;
   hitimer_t ticks_m, cur_time = GETusTIME(0);
-  if (last_time == -1 || last_time > cur_time) {
+  if (last_time == -1 || last_time > cur_time ||
+      !(GET_CMOS(CMOS_STATUSB) & 0x40)) {
     last_time = cur_time;
     return;
   }
