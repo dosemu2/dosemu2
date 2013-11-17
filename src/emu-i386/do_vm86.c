@@ -420,8 +420,6 @@ run_vm86(void)
 	fatalerr = 4;
     }
   }
-
-  do_periodic_stuff();
 }
 
 /*
@@ -434,9 +432,12 @@ run_vm86(void)
  */
 void loopstep_run_vm86(void)
 {
-	run_vm86();
+    run_vm86();
+    if (!in_leavedos) {
+	do_periodic_stuff();
 	hardware_run();
 	pic_run();		/* trigger any hardware interrupts requested */
+    }
 }
 
 
