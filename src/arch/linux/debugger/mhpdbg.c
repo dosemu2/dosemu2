@@ -213,7 +213,13 @@ void mhp_input()
 
 static void mhp_poll_loop(void)
 {
+   static int in_poll_loop;
    char *ptr, *ptr1;
+   if (in_poll_loop) {
+      error("mhp_poll_loop() reentered\n");
+      return;
+   }
+   in_poll_loop++;
    for (;;) {
       handle_signals();
       /* NOTE: if there is input on mhpdbg.fdin, as result of handle_signals
@@ -245,7 +251,7 @@ static void mhp_poll_loop(void)
 	 vm86s.vm86plus.vm86dbg_active = 0;
 	 mhpdbg.sendptr = 0;
          mhpdbg.nbytes = 0;
-         return;
+         break;
       }
       mhpdbg.recvbuf[mhpdbg.nbytes] = 0x00;
       ptr = (char *)mhpdbg.recvbuf;
@@ -260,6 +266,7 @@ static void mhp_poll_loop(void)
       }
       mhpdbg.nbytes = 0;
    }
+   in_poll_loop--;
 }
 
 static void mhp_poll(void)
