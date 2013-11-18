@@ -1108,7 +1108,7 @@ void pic_cli(void)
 int CAN_SLEEP(void)
 {
   return (!(pic_icount || pic_isr || (REG(eflags) & VIP) || signal_pending() ||
-    (pic_sys_time > pic_dos_time)));
+    (pic_sys_time > pic_dos_time) || in_leavedos));
 }
 
 static void pic_iret_hlt(Bit32u offs, void *arg)
