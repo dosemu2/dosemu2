@@ -165,7 +165,7 @@ static void set_map_registers(const void *ptr, int pages);
 static u_char emm_error;
 
 
-#define EMM_TOTAL	MAX_EMM
+#define EMM_TOTAL	(MAX_EMM + config.ems_cnv_pages)
 
 static int handle_total, emm_allocated;
 static Bit32u EMSControl_OFF;
@@ -2103,7 +2103,7 @@ static void ems_reset2(void)
   if (!config.ems_size && !config.pm_dos_api)
     return;
 
-  emm_allocated = 0;
+  emm_allocated = config.ems_cnv_pages;
   for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
     emm_map[sh_base].handle = NULL_HANDLE;
   }
