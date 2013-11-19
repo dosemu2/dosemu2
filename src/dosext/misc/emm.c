@@ -109,6 +109,7 @@ static void set_map_registers(const void *ptr, int pages);
 #define REALLOCATE_PAGES	0x51	/* V4.0 */
 #define HANDLE_ATTRIBUTE	0x52	/* V4.0 */
 #define ALTERNATE_MAP_REGISTER  0x5B	/* V4.0 */
+#define PREPARE_FOR_WARMBOOT    0x5C	/* V4.0 */
 #define OS_SET_FUNCTION	        0x5D	/* V4.0 */
 
 #define GET_ATT			0
@@ -2072,6 +2073,11 @@ ems_fn(state)
 
   case ALTERNATE_MAP_REGISTER: /* 0x5B */
       alternate_map_register(state);
+    break;
+
+  case PREPARE_FOR_WARMBOOT: /* 0x5C */
+      ems_reset();
+      SETHIGH(&(state->eax), EMM_NO_ERR);
     break;
 
   case OS_SET_FUNCTION: /* 0x5D */
