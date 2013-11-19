@@ -754,17 +754,18 @@ do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
 static void
 map_unmap_multiple(state_t * state)
 {
-  int handle, map_len;
+  int handle = WORD(state->edx);
+  int map_len;
   unsigned int array;
   int method = LOW(state->eax);
   int ret;
 
   Kdebug0((dbg_fd, "map_unmap_multiple %d called\n", method));
+  CHECK_HANDLE(handle);
 
   switch (method) {
   case MULT_LOGPHYS:
   case MULT_LOGSEG:
-    handle = WORD(state->edx);
     map_len = WORD(state->ecx);
     array = SEGOFF2LINEAR(state->ds, WORD(state->esi));
     Kdebug0((dbg_fd, "...using mult_log%s method, "
