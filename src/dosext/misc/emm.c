@@ -941,11 +941,11 @@ handle_name(state_t * state)
       int handle = WORD(state->edx);
       u_char *array = (u_char *) Addr(state, es, edi);
 
+      CHECK_HANDLE(handle);
       handle_info[handle].name[8] = 0;
       Kdebug0((dbg_fd, "get handle name %d = %s\n", handle,
 	       handle_info[handle].name));
 
-      CHECK_HANDLE(handle);
       memmove(array, &handle_info[handle].name, 8);
       SETHIGH(&(state->eax), EMM_NO_ERR);
 
