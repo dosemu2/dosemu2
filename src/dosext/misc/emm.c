@@ -375,6 +375,8 @@ emm_deallocate_handle(int handle)
 
   if ((handle < 0) || (handle >= MAX_HANDLES))
     return (FALSE);
+  if (handle_info[handle].active != 1)
+    return (FALSE);
   for (i = 0; i < phys_pages; i++) {
     if (emm_map[i].handle == handle) {
       unmap_page(i);
@@ -385,8 +387,7 @@ emm_deallocate_handle(int handle)
   object = handle_info[handle].object;
   destroy_memory_object(object,numpages*EMM_PAGE_SIZE);
   handle_info[handle].numpages = 0;
-  if (handle_info[handle].active == 1)
-    handle_info[handle].active = 0;
+  handle_info[handle].active = 0;
   handle_info[handle].object = NULL;
   CLEAR_HANDLE_NAME(handle_info[i].name);
   handle_total--;
@@ -1498,15 +1499,6 @@ get_ems_hardinfo(state_t * state)
   }
 }
 
-static int emm_allocate_std_pages(int pages_needed)
-{
-    int handle = emm_allocate_handle(pages_needed);
-    if (handle == EMM_ERROR)
-	return EMM_ERROR;
-    handle_info[handle].active = 0xff;
-    return handle;
-}
-
 static int
 allocate_std_pages(state_t * state)
 {
@@ -1516,7 +1508,7 @@ allocate_std_pages(state_t * state)
   Kdebug1((dbg_fd, "bios_emm: Get Handle and Standard Allocate pages = 0x%x\n",
 	   pages_needed));
 
-  if ((handle = emm_allocate_std_pages(pages_needed)) == EMM_ERROR) {
+  if ((handle = emm_allocate_handle(pages_needed)) == EMM_ERROR) {
     SETHIGH(&(state->eax), emm_error);
     return (UNCHANGED);
   }
