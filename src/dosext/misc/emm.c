@@ -584,11 +584,6 @@ do_map_unmap(int handle, int physical_page, int logical_page)
     unmap_page(physical_page);
   }
   else {
-    if (logical_page >= handle_info[handle].numpages) {
-      E_printf("Logical page too high logical_page=%d, numpages=%d\n",
-	       logical_page, handle_info[handle].numpages);
-      return EMM_LOG_OUT_RAN;
-    }
     if ((handle < 0) || (handle > MAX_HANDLES) ||
         (handle_info[handle].active == 0)) {
       E_printf("Invalid Handle handle=%x, active=%d\n",
@@ -596,6 +591,11 @@ do_map_unmap(int handle, int physical_page, int logical_page)
       return EMM_INV_HAN;
     }
     CHECK_OS_HANDLE(handle);
+    if (logical_page >= handle_info[handle].numpages) {
+      E_printf("Logical page too high logical_page=%d, numpages=%d\n",
+	       logical_page, handle_info[handle].numpages);
+      return EMM_LOG_OUT_RAN;
+    }
     E_printf("EMS: do_map_unmap is mapping\n");
     map_page(handle, physical_page, logical_page);
   }
