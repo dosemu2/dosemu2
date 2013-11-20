@@ -42,6 +42,7 @@
 #include "serial.h"
 #include "ser_defs.h"
 #include "mouse.h"
+#include "coopth.h"
 
 /* These macros are shortcuts to access various serial port registers:
  *   read_char		Read character
@@ -162,10 +163,19 @@ int int14(void)
 	num, LO(ax), HI(ax));
     break;
 
-  /* Write character function */
-  case 1:
+  /* Write character with wait */
+  case 1: {
+    int i;
     s_printf("SER%d: INT14 0x1: Write char 0x%x\n",num,LO(ax));
-    if (FIFO_ENABLED(num) || (com[num].LSR & UART_LSR_THRE)) {
+#if 1
+    for (i = 0; i < 10; i++) {
+      if (read_LSR(num) & UART_LSR_THRE)
+        break;
+      s_printf("SER%d: INT14 0x1: Wait for xmit\n",num);
+      coopth_wait();
+    }
+#endif
+    if (FIFO_ENABLED(num) || (read_LSR(num) & UART_LSR_THRE)) {
       write_char(num, LO(ax));		/* Transmit character */
       HI(ax) = read_LSR(num) & ~0x80;	/* Character was sent */
     } else {
@@ -173,11 +183,12 @@ int int14(void)
       HI(ax) = read_LSR(num) | 0x80;	/* return error */
     }
     break;
+  }
 
   /* Read character function */
   case 2:
     uart_fill(num);			/* Fill UART with received data */
-    if (com[num].LSR & UART_LSR_DR) {	/* Was a character received? */
+    if (read_LSR(num) & UART_LSR_DR) {	/* Was a character received? */
       LO(ax) = read_char(num);		/* Read character */
       HI(ax) = read_LSR(num) & ~0x80;	/* Character was received */
       s_printf("SER%d: INT14 0x2: Read char 0x%x\n",num,LO(ax));
