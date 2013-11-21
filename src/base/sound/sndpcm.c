@@ -393,7 +393,7 @@ static void pcm_handle_get(int strm_idx, double time)
 	    /* ditch the last sample here, if it is the only remaining */
 	    if (!(pcm.stream[strm_idx].flags & PCM_FLAG_RAW) &&
 		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL)
-		error("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
+		S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm_reset_stream(strm_idx);
 	}
