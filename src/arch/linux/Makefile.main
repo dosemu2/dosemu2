@@ -126,7 +126,8 @@ versetup:
 .PHONY: include/version.h
 include/version.h:
 	@if ! test -f include/version.h || test \"$(PACKAGE_VERSION)\" != \
-	          `head -n3 include/version.h | cut -f3`; then \
+	      `echo VERSTR | $(CC) -E -include include/version.h - | tail -n 1`; \
+	      then \
 	  echo "Updating version.h"; \
 	  echo "#ifndef	VERSION_H" > $@; \
 	  echo "#define	VERSION_H" >> $@; \
