@@ -174,7 +174,7 @@ acquire_vt (struct sigcontext_struct *scp)
   if (ioctl (console_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf ("VT_RELDISP failed (or was queued)!\n");
   allow_switch ();
-  SIGNAL_save (SIGACQUIRE_call, NULL, 0);
+  SIGNAL_save (SIGACQUIRE_call, NULL, 0, __func__);
   scr_state.current = 1;
   unfreeze_dosemu();
 }
@@ -301,7 +301,7 @@ static void release_vt (struct sigcontext_struct *scp)
 {
   dos_has_vt = 0;
 
-  SIGNAL_save (SIGRELEASE_call, NULL, 0);
+  SIGNAL_save (SIGRELEASE_call, NULL, 0, __func__);
 }
 
 static void unmap_video_ram(int copyback)
