@@ -124,10 +124,9 @@ static void kill_time(long usecs) {
 
    t_start = GETusTIME(0);
    while (GETusTIME(0) - t_start < usecs) {
-	sigset_t mask;
-	sigemptyset(&mask);
-	sigsuspend(&mask);
+	_set_IF();
 	coopth_wait();
+	clear_IF();
    }
 }
 
