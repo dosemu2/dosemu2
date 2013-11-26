@@ -167,11 +167,12 @@ int int14(void)
   /* Write character with wait */
   case 1: {
     const int timeout = 10;
+    const int scale = 0x10000;
     int i = 1;
-    hitimer_t tmr = GETtickTIME(0);
+    hitimer_t end_time = GETtickTIME(0) + timeout * scale;
     s_printf("SER%d: INT14 0x1: Write char 0x%x\n",num,LO(ax));
 #if 1
-    while (GETtickTIME(0) < tmr + timeout) {
+    while (GETtickTIME(0) < end_time) {
       if (read_LSR(num) & UART_LSR_THRE)
         break;
       s_printf("SER%d: INT14 0x1: Wait for xmit, %i\n", num, i);
