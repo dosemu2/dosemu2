@@ -42,6 +42,7 @@
 #include "serial.h"
 #include "ser_defs.h"
 #include "mouse.h"
+#include "timers.h"
 #include "coopth.h"
 
 /* These macros are shortcuts to access various serial port registers:
@@ -165,13 +166,16 @@ int int14(void)
 
   /* Write character with wait */
   case 1: {
-    int i;
+    const int timeout = 10;
+    int i = 1;
+    hitimer_t tmr = GETtickTIME(0);
     s_printf("SER%d: INT14 0x1: Write char 0x%x\n",num,LO(ax));
 #if 1
-    for (i = 0; i < 10; i++) {
+    while (GETtickTIME(0) < tmr + timeout) {
       if (read_LSR(num) & UART_LSR_THRE)
         break;
-      s_printf("SER%d: INT14 0x1: Wait for xmit\n",num);
+      s_printf("SER%d: INT14 0x1: Wait for xmit, %i\n", num, i);
+      i++;
       coopth_wait();
     }
 #endif
