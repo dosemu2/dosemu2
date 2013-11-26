@@ -762,6 +762,8 @@ void coopth_wait(void)
 {
     assert(_coopth_is_in_thread());
     ensure_attached();
+    if (!isset_IF())
+	dosemu_error("sleep with interrupts disabled\n");
     switch_state(COOPTH_WAIT);
     check_cancel();
 }
@@ -769,6 +771,8 @@ void coopth_wait(void)
 void coopth_sleep(void)
 {
     assert(_coopth_is_in_thread());
+    if (!is_detached() && !isset_IF())
+	dosemu_error("sleep with interrupts disabled\n");
     switch_state(COOPTH_SLEEP);
     check_cancel();
 }

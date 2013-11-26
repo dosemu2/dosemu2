@@ -392,7 +392,9 @@ int idle(int threshold1, int threshold, int threshold2, const char *who)
   if (config.hogthreshold && CAN_SLEEP()) {
     if(trigger1 >= config.hogthreshold * threshold1) {
       if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
+        _set_IF();
 	coopth_wait();
+	clear_IF();
 	trigger = 0;
       }
       if (trigger1 > 0)
