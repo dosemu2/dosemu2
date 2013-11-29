@@ -172,7 +172,6 @@ void fossil_int14(int num)
     write_DLM(num, divisors[LO(ax) >> 5] >> 8);
     write_LCR(num, lcr & ~UART_LCR_DLAB);
 
-    uart_fill(num);			/* Fill UART with received data */
     LWORD(eax) = FOSSIL_GET_STATUS(num);
     s_printf("SER%d: FOSSIL 0x00: Return with AL=0x%02x AH=0x%02x\n",
       num, LO(ax), HI(ax));
@@ -222,7 +221,6 @@ void fossil_int14(int num)
 
   /* Get port status. */
   case 0x03:
-    uart_fill(num);			/* Fill UART with received data */
     LWORD(eax) = FOSSIL_GET_STATUS(num);
     #if SER_DEBUG_FOSSIL_STATUS
       s_printf("SER%d: FOSSIL 0x03: Port Status, AH=0x%02x AL=0x%02x\n",
@@ -327,9 +325,14 @@ void fossil_int14(int num)
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
     int n = 0, len = LWORD(ecx);
     while (n < len) {
-      /* Don't call uart_fill if it isn't necessary. */
-      if (!(com[num].LSR & UART_LSR_DR))
-        uart_fill(num);			/* Fill UART with received data */
+#if 0
+      /* do we need wait here? */
+      if (!(com[num].LSR & UART_LSR_DR)) {
+        _set_IF();
+        coopth_wait();
+        clear_IF();
+      }
+#endif
       if (com[num].LSR & UART_LSR_DR) 	/* Was a character received? */
         p[n++] = read_char(num);       	/* Read character */
       else

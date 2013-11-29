@@ -156,7 +156,6 @@ int int14(void)
     /* Lower DLAB bit */
     write_LCR(num, temp & ~0x80);
 
-    uart_fill(num);			/* Fill UART with received data */
     HI(ax) = read_LSR(num);		/* Read Line Status (LSR) into AH */
     LO(ax) = read_MSR(num);		/* Read Modem Status (MSR) into AL */
 
@@ -194,7 +193,6 @@ int int14(void)
 
   /* Read character function */
   case 2:
-    uart_fill(num);			/* Fill UART with received data */
     if (read_LSR(num) & UART_LSR_DR) {	/* Was a character received? */
       LO(ax) = read_char(num);		/* Read character */
       HI(ax) = read_LSR(num) & ~0x80;	/* Character was received */
@@ -208,7 +206,6 @@ int int14(void)
 
   /* Port Status request function. */
   case 3:
-    uart_fill(num);			/* Fill UART with received data */
     HI(ax) = read_LSR(num);		/* Read Line Status (LSR) into AH */
     LO(ax) = read_MSR(num);		/* Read Modem Status (MSR) into AL */
     s_printf("SER%d: INT14 0x3: Port Status, AH=0x%x AL=0x%x\n",

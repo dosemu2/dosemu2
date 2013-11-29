@@ -98,6 +98,65 @@ void serial_timer_update(void)
 }
 #endif
 
+/* This function checks for newly received data and fills the UART
+ * FIFO (16550 mode) or receive register (16450 mode).
+ *
+ * Note: The receive buffer is now a sliding buffer instead of
+ * a queue.  This has been found to be more efficient here.
+ *
+ * [num = port]
+ */
+static void uart_fill(int num)
+{
+  int size = 0;
+
+  if (com[num].fd < 0) return;
+
+  /* Return if in loopback mode */
+  if (com[num].MCR & UART_MCR_LOOP) return;
+
+  /* Is it time to do another read() of the serial device yet?
+   * The rx_timer is used to prevent system load caused by empty read()'s
+   * It also skip the following code block if the receive buffer
+   * contains enough data for a full FIFO (at least 16 bytes).
+   * The receive buffer is a sliding buffer.
+   */
+  if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size) {
+    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", num,
+        RX_BUF_BYTES(num));
+    return;
+  }
+
+  /* Slide the buffer contents to the bottom */
+  rx_buffer_slide(num);
+
+  /* Do a block read of data.
+   * Guaranteed minimum requested read size of (RX_BUFFER_SIZE - 16)!
+   */
+  size = RPT_SYSCALL(read(com[num].fd,
+                              &com[num].rx_buf[com[num].rx_buf_end],
+                              RX_BUFFER_SIZE - com[num].rx_buf_end));
+  if (size <= 0)
+    return;
+  if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
+        size, RX_BUF_BYTES(num));
+  if (debug_level('s') >= 9) {
+    int i;
+    for (i = 0; i < size; i++)
+      s_printf("SER%d: Got data byte: %#x\n", num,
+          com[num].rx_buf[com[num].rx_buf_end + i]);
+  }
+  com[num].rx_buf_end += size;
+  if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
+    com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
+  com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
+  /* Has it gone above the receive FIFO trigger level? */
+  if (!FIFO_ENABLED(num) || RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
+    if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
+    serial_int_engine(num, RX_INTR);	/* Update interrupt status */
+  }
+}
+
 /* This function does housekeeping for serial receive operations.  Duties
  * of this function include keeping the UART FIFO/RBR register filled,
  * and checking if it's time to generate a hardware interrupt (RDI).
@@ -107,7 +166,9 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
 
-  uart_fill(num);
+  /* optimization: don't read() when enough data buffered */
+  if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger)
+    uart_fill(num);
 
   if (FIFO_ENABLED(num) && RX_BUF_BYTES(num) && com[num].rx_timeout) {		/* Is it in FIFO mode? */
     com[num].rx_timeout--;			/* Decrement counter */
