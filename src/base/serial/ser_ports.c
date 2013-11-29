@@ -388,6 +388,8 @@ static int get_rx(int num)
       (FIFO_ENABLED(num) && RX_BUF_BYTES(num) < com[num].rx_fifo_trigger)) {	// if it now became empty
     /* Clear data waiting status and interrupt condition flag */
     clear_int_cond(num, RX_INTR);
+    /* and see if more to read */
+    receive_engine(num);
   }
   if (!RX_BUF_BYTES(num))
     com[num].LSR &= ~UART_LSR_DR;
