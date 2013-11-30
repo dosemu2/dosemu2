@@ -102,7 +102,7 @@ static void clear_int_cond(int num, u_char val)
 {
   com[num].int_condition &= ~val;
   /* reset IIR too, to recalculate later */
-  com[num].IIR.mask &= ~val;
+  com[num].IIR.mask = 0;
 }
 
 static void recalc_IIR(int num)
@@ -384,8 +384,7 @@ static int get_rx(int num)
   /* Get byte from internal receive queue */
   val = com[num].rx_buf[com[num].rx_buf_start++];
   /* Update receive queue pointer and number of chars waiting */
-  if (!RX_BUF_BYTES(num) ||
-      (FIFO_ENABLED(num) && RX_BUF_BYTES(num) < com[num].rx_fifo_trigger)) {	// if it now became empty
+  if (!FIFO_ENABLED(num) || RX_BUF_BYTES(num) < com[num].rx_fifo_trigger) {
     /* Clear data waiting status and interrupt condition flag */
     clear_int_cond(num, RX_INTR);
     /* and see if more to read */
