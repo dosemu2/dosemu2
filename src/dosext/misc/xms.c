@@ -852,7 +852,6 @@ static unsigned char
 xms_realloc_EMB(int api)
 {
   int h;
-  unsigned int oldsize;
   unsigned int oldaddr;
 
   h = LWORD(edx);
@@ -867,7 +866,6 @@ xms_realloc_EMB(int api)
     return 0xab;
   }
 
-  oldsize = handles[h].size;
   oldaddr = handles[h].addr;
 
   /* BX is the 16-bit new size in KBytes for the old API, but the new
@@ -882,16 +880,12 @@ xms_realloc_EMB(int api)
 	   "XMS realloc EMB(new) %d to size 0x%08x\n",
 	   h, handles[h].size);
 
-  handles[h].addr = xms_alloc(handles[h].size);
+  handles[h].addr = xms_realloc(oldaddr, handles[h].size);
+  if (!handles[h].addr) {
+    x_printf("XMS: out of memory on realloc\n");
+    return 0xa0; /* Out of memory */
+  }
 
-  /* memcpy() the old data into the new block, but only
-   * min(new,old) bytes.
-   */
-  extmem_copy(handles[h].addr, oldaddr,
-	 (oldsize <= handles[h].size) ? oldsize : handles[h].size);
-
-  /* free the EMB's old Linux memory */
-  xms_free(oldaddr);
   return 0;
 }
 
