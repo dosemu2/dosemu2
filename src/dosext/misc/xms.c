@@ -294,8 +294,19 @@ static smpool mp = SM_EMPTY_POOL;
 
 static unsigned xms_alloc(unsigned size)
 {
-  return (unsigned char *)smalloc(&mp, size) - ext_mem_base
-    + LOWMEM_SIZE + HMASIZE;
+  unsigned char *ptr = smalloc(&mp, size);
+  if (!ptr)
+    return 0;
+  return ptr - ext_mem_base + LOWMEM_SIZE + HMASIZE;
+}
+
+static unsigned xms_realloc(unsigned dosptr, unsigned size)
+{
+  unsigned char *optr = &ext_mem_base[dosptr - (LOWMEM_SIZE + HMASIZE)];
+  unsigned char *ptr = smrealloc(&mp, optr, size);
+  if (!ptr)
+    return 0;
+  return ptr - ext_mem_base + LOWMEM_SIZE + HMASIZE;
 }
 
 static void xms_free(unsigned addr)
@@ -656,9 +667,9 @@ xms_query_freemem(int api)
 static unsigned char
 xms_allocate_EMB(int api)
 {
-  unsigned int totalBytes, subtotal;
   unsigned int h;
   unsigned int kbsize;
+  unsigned addr;
 
   if (api == OLDXMS)
     kbsize = LWORD(edx);
@@ -666,53 +677,42 @@ xms_allocate_EMB(int api)
     kbsize = REG(edx);
   x_printf("XMS alloc EMB(%s) size %d KB\n", (api==OLDXMS)?"old":"new",kbsize);
 
-  totalBytes = 0;
-  for (h = FIRST_HANDLE; h <= NUM_HANDLES; h++) {
-    if (ValidHandle(h))
-      totalBytes += handles[h].size;
-  }
-
-  subtotal = config.xms_size - (totalBytes / 1024);
-  /* total free is max allowable XMS - the number of K already allocated */
-  if(kbsize > subtotal)
-  {
-    x_printf("XMS: out of memory (only %dK available)\n",subtotal);
-    return 0xa0; /* Out of memory */
-  }
-
   if (!(h = FindFreeHandle(FIRST_HANDLE))) {
     x_printf("XMS: out of handles\n");
     return 0xa1;
   }
-  else {
-    handles[h].num = h;
-    handles[h].valid = 1;
-    handles[h].size = kbsize*1024;
+  if (kbsize == 0) {
+    x_printf("XMS WARNING: allocating 0 size EMB\n");
+    addr = 0;
+  } else {
+    addr = xms_alloc(kbsize*1024);
+    if (!addr) {
+      x_printf("XMS: out of memory\n");
+      return 0xa0; /* Out of memory */
+    }
+  }
+  handles[h].num = h;
+  handles[h].valid = 1;
+  handles[h].size = kbsize*1024;
+  handles[h].addr = addr;
 
-    x_printf("XMS: EMB size %d bytes\n", handles[h].size);
+  x_printf("XMS: EMB size %d bytes\n", handles[h].size);
 
     /* I could just rely on the behavior of malloc(0) here, but
        * I'd rather not.  I'm going to interpret the XMS 3.0 spec
        * to mean that reserving a handle of size 0 gives it no address
        */
-    if (handles[h].size)
-      handles[h].addr = xms_alloc(handles[h].size);
-    else {
-      x_printf("XMS WARNING: allocating 0 size EMB\n");
-      handles[h].addr = 0;
-    }
 
-    handles[h].lockcount = 0;
-    handle_count++;
+  handles[h].lockcount = 0;
+  handle_count++;
 
-    x_printf("XMS: allocated EMB %u at %#x\n", h, handles[h].addr);
+  x_printf("XMS: allocated EMB %u at %#x\n", h, handles[h].addr);
 
-    if (api == OLDXMS)
-      LWORD(edx) = h;		/* handle # */
-    else
-      REG(edx) = h;
-    return 0;
-  }
+  if (api == OLDXMS)
+    LWORD(edx) = h;		/* handle # */
+  else
+    REG(edx) = h;
+  return 0;
 }
 
 static unsigned char
