@@ -288,6 +288,7 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
 
 int sminit(struct mempool *mp, void *start, size_t size)
 {
+  mp->size = size;
   mp->mn.size = size;
   mp->mn.used = 0;
   mp->mn.next = NULL;
