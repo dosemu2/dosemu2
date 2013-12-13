@@ -852,7 +852,7 @@ static unsigned char
 xms_realloc_EMB(int api)
 {
   int h;
-  unsigned int oldaddr;
+  unsigned int newaddr, newsize;
 
   h = LWORD(edx);
 
@@ -866,25 +866,26 @@ xms_realloc_EMB(int api)
     return 0xab;
   }
 
-  oldaddr = handles[h].addr;
-
   /* BX is the 16-bit new size in KBytes for the old API, but the new
    * XMS 3.0 32-bit API uses EBX
    */
   if (api == OLDXMS)
-    handles[h].size = LWORD(ebx) * 1024;
+    newsize = LWORD(ebx) * 1024;
   else
-    handles[h].size = REG(ebx) * 1024;
+    newsize = REG(ebx) * 1024;
+  if (newsize == handles[h].size)
+    return 0;
 
-  x_printf((api == OLDXMS) ? "XMS realloc EMB(old) %d to size 0x%04x\n" :
-	   "XMS realloc EMB(new) %d to size 0x%08x\n",
-	   h, handles[h].size);
+  x_printf("XMS realloc EMB(%s) %d to size 0x%04x\n",
+	   api == OLDXMS ? "old" : "new", h, newsize);
 
-  handles[h].addr = xms_realloc(oldaddr, handles[h].size);
-  if (!handles[h].addr) {
+  newaddr = xms_realloc(handles[h].addr, newsize);
+  if (!newaddr) {
     x_printf("XMS: out of memory on realloc\n");
     return 0xa0; /* Out of memory */
   }
+  handles[h].addr = newaddr;
+  handles[h].size = newsize;
 
   return 0;
 }
