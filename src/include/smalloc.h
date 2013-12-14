@@ -20,6 +20,7 @@ typedef struct mempool {
   size_t size;
   struct memnode mn;
 #if SM_COMMIT_SUPPORT
+  size_t avail;
   int (*commit)(void *area, size_t size);
   int (*uncommit)(void *area, size_t size);
 #endif
@@ -36,6 +37,7 @@ typedef struct mempool {
 #define SM_EMPTY_POOL { \
   0,		 /* size */ \
   SM_EMPTY_NODE, /* mn */ \
+  0,		 /* avail */ \
   NULL,		 /* commit */ \
   NULL,		 /* uncommit */ \
 }

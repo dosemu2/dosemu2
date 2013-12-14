@@ -40,12 +40,14 @@ static void smerror_dummy(char *fmt, ...)
 #if SM_COMMIT_SUPPORT
 static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
 {
+    mp->avail += size;
+    assert(mp->avail <= mp->size);
     if (!mp->uncommit)
       return;
     mp->uncommit(addr, size);
 }
 
-static int sm_commit(struct mempool *mp, void *addr, size_t size,
+static int __sm_commit(struct mempool *mp, void *addr, size_t size,
 	void *e_addr, size_t e_size)
 {
   if (!mp->commit)
@@ -57,6 +59,17 @@ static int sm_commit(struct mempool *mp, void *addr, size_t size,
     return 0;
   }
   return 1;
+}
+
+static int sm_commit(struct mempool *mp, void *addr, size_t size,
+	void *e_addr, size_t e_size)
+{
+    int ok = __sm_commit(mp, addr, size, e_addr, e_size);
+    if (ok) {
+	assert(mp->avail >= size);
+	mp->avail -= size;
+    }
+    return ok;
 }
 
 static int sm_commit_simple(struct mempool *mp, void *addr, size_t size)
@@ -294,6 +307,7 @@ int sminit(struct mempool *mp, void *start, size_t size)
   mp->mn.next = NULL;
   mp->mn.mem_area = start;
 #if SM_COMMIT_SUPPORT
+  mp->avail = size;
   mp->commit = NULL;
   mp->uncommit = NULL;
 #endif
@@ -330,6 +344,9 @@ int smdestroy(struct mempool *mp)
 
 size_t smget_free_space(struct mempool *mp)
 {
+#if SM_COMMIT_SUPPORT
+  return mp->avail;
+#else
   struct memnode *mn;
   size_t count = 0;
   for (mn = &mp->mn; mn; mn = mn->next) {
@@ -337,6 +354,7 @@ size_t smget_free_space(struct mempool *mp)
       count += mn->size;
   }
   return count;
+#endif
 }
 
 size_t smget_largest_free_area(struct mempool *mp)
