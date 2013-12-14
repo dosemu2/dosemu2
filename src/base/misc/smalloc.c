@@ -37,7 +37,6 @@ static void smerror_dummy(char *fmt, ...)
 {
 }
 
-#if SM_COMMIT_SUPPORT
 static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
 {
     mp->avail += size;
@@ -76,7 +75,6 @@ static int sm_commit_simple(struct mempool *mp, void *addr, size_t size)
 {
   return sm_commit(mp, addr, size, NULL, 0);
 }
-#endif
 
 static void mntruncate(struct memnode *pmn, size_t size)
 {
@@ -155,10 +153,8 @@ static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
     smerror("SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
-#if SM_COMMIT_SUPPORT
   if (!sm_commit_simple(mp, mn->mem_area, size))
     return NULL;
-#endif
   mn->used = 1;
   mntruncate(mn, size);
   assert(mn->size == size);
@@ -188,9 +184,7 @@ void smfree(struct mempool *mp, void *ptr)
     return;
   }
   assert(mn->size > 0);
-#if SM_COMMIT_SUPPORT
   sm_uncommit(mp, mn->mem_area, mn->size);
-#endif
   mn->used = 0;
   if (mn->next && !mn->next->used) {
     /* merge with next */
@@ -215,7 +209,6 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
   if (pmn && !pmn->used && pmn->size + mn->size +
 	(nmn->used ? 0 : nmn->size) >= size) {
     /* move to prev memnode */
-#if SM_COMMIT_SUPPORT
     size_t psize = min(size, pmn->size);
     if (!sm_commit_simple(mp, pmn->mem_area, psize))
       return NULL;
@@ -224,17 +217,14 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
 	    pmn->mem_area, psize))
         return NULL;
     }
-#endif
     pmn->used = 1;
     memmove(pmn->mem_area, mn->mem_area, mn->size);
     memset(pmn->mem_area + mn->size, 0, size - mn->size);
     mn->used = 0;
-#if SM_COMMIT_SUPPORT
     if (size < pmn->size + mn->size) {
       size_t overl = size > pmn->size ? size - pmn->size : 0;
       sm_uncommit(mp, mn->mem_area + overl, mn->size - overl);
     }
-#endif
     if (!nmn->used)	// merge with next
       mntruncate(mn, mn->size + nmn->size);
     mntruncate(pmn, size);
@@ -273,19 +263,15 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
     return ptr;
   if (size < mn->size) {
     /* shrink */
-#if SM_COMMIT_SUPPORT
     sm_uncommit(mp, mn->mem_area + size, mn->size - size);
-#endif
     mntruncate(mn, size);
   } else {
     /* grow */
     struct memnode *nmn = mn->next;
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
       /* expand by shrinking next memnode */
-#if SM_COMMIT_SUPPORT
       if (!sm_commit_simple(mp, nmn->mem_area, size - mn->size))
         return NULL;
-#endif
       memset(nmn->mem_area, 0, size - mn->size);
       mntruncate(mn, size);
     } else {
@@ -306,15 +292,12 @@ int sminit(struct mempool *mp, void *start, size_t size)
   mp->mn.used = 0;
   mp->mn.next = NULL;
   mp->mn.mem_area = start;
-#if SM_COMMIT_SUPPORT
   mp->avail = size;
   mp->commit = NULL;
   mp->uncommit = NULL;
-#endif
   return 0;
 }
 
-#if SM_COMMIT_SUPPORT
 int sminit_com(struct mempool *mp, void *start, size_t size,
     int (*commit)(void *area, size_t size),
     int (*uncommit)(void *area, size_t size))
@@ -324,7 +307,6 @@ int sminit_com(struct mempool *mp, void *start, size_t size,
   mp->uncommit = uncommit;
   return 0;
 }
-#endif
 
 int smdestroy(struct mempool *mp)
 {
@@ -344,17 +326,7 @@ int smdestroy(struct mempool *mp)
 
 size_t smget_free_space(struct mempool *mp)
 {
-#if SM_COMMIT_SUPPORT
   return mp->avail;
-#else
-  struct memnode *mn;
-  size_t count = 0;
-  for (mn = &mp->mn; mn; mn = mn->next) {
-    if (!mn->used)
-      count += mn->size;
-  }
-  return count;
-#endif
 }
 
 size_t smget_largest_free_area(struct mempool *mp)
