@@ -31,11 +31,13 @@
 
 static void smerror_dummy(char *fmt, ...) FORMAT(printf, 1, 2);
 
-static void (*smerror)(char *fmt, ...) FORMAT(printf, 1, 2) = smerror_dummy;
+static void (*smerr)(char *fmt, ...) FORMAT(printf, 1, 2) = smerror_dummy;
 
 static void smerror_dummy(char *fmt, ...)
 {
 }
+
+#define smerror(mp, ...) mp->smerror(__VA_ARGS__)
 
 static void sm_uncommit(struct mempool *mp, void *addr, size_t size)
 {
@@ -52,7 +54,7 @@ static int __sm_commit(struct mempool *mp, void *addr, size_t size,
   if (!mp->commit)
     return 1;
   if (!mp->commit(addr, size)) {
-    smerror("SMALLOC: failed to commit %p %zi\n", addr, size);
+    smerror(mp, "SMALLOC: failed to commit %p %zi\n", addr, size);
     if (e_size)
       sm_uncommit(mp, e_addr, e_size);
     return 0;
@@ -117,7 +119,7 @@ static struct memnode *find_mn(struct mempool *mp, unsigned char *ptr,
 {
   struct memnode *pmn, *mn;
   if (!POOL_USED(mp)) {
-    smerror("SMALLOC: unused pool passed\n");
+    smerror(mp, "SMALLOC: unused pool passed\n");
     return NULL;
   }
   for (pmn = NULL, mn = &mp->mn; mn; pmn = mn, mn = mn->next) {
@@ -146,11 +148,11 @@ static struct memnode *sm_alloc_mn(struct mempool *mp, size_t size)
 {
   struct memnode *mn;
   if (!size) {
-    smerror("SMALLOC: zero-sized allocation attempted\n");
+    smerror(mp, "SMALLOC: zero-sized allocation attempted\n");
     return NULL;
   }
   if (!(mn = smfind_free_area(mp, size))) {
-    smerror("SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
+    smerror(mp, "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
   if (!sm_commit_simple(mp, mn->mem_area, size))
@@ -176,11 +178,11 @@ void smfree(struct mempool *mp, void *ptr)
   if (!ptr)
     return;
   if (!(mn = find_mn(mp, ptr, &pmn))) {
-    smerror("SMALLOC: bad pointer passed to smfree()\n");
+    smerror(mp, "SMALLOC: bad pointer passed to smfree()\n");
     return;
   }
   if (!mn->used) {
-    smerror("SMALLOC: attempt to free the not allocated region (double-free)\n");
+    smerror(mp, "SMALLOC: attempt to free the not allocated region (double-free)\n");
     return;
   }
   assert(mn->size > 0);
@@ -233,7 +235,7 @@ static struct memnode *sm_realloc_alloc_mn(struct mempool *mp,
     /* relocate */
     new_mn = sm_alloc_mn(mp, size);
     if (!new_mn) {
-      smerror("SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
+      smerror(mp, "SMALLOC: Out Of Memory on realloc, requested=%zu\n", size);
       return NULL;
     }
     memcpy(new_mn->mem_area, mn->mem_area, mn->size);
@@ -248,11 +250,11 @@ void *smrealloc(struct mempool *mp, void *ptr, size_t size)
   if (!ptr)
     return smalloc(mp, size);
   if (!(mn = find_mn(mp, ptr, &pmn))) {
-    smerror("SMALLOC: bad pointer passed to smrealloc()\n");
+    smerror(mp, "SMALLOC: bad pointer passed to smrealloc()\n");
     return NULL;
   }
   if (!mn->used) {
-    smerror("SMALLOC: attempt to realloc the not allocated region\n");
+    smerror(mp, "SMALLOC: attempt to realloc the not allocated region\n");
     return NULL;
   }
   if (size == 0) {
@@ -295,6 +297,7 @@ int sminit(struct mempool *mp, void *start, size_t size)
   mp->avail = size;
   mp->commit = NULL;
   mp->uncommit = NULL;
+  mp->smerror = smerr;
   return 0;
 }
 
@@ -344,13 +347,20 @@ int smget_area_size(struct mempool *mp, void *ptr)
 {
   struct memnode *mn;
   if (!(mn = find_mn(mp, ptr, NULL))) {
-    smerror("SMALLOC: bad pointer passed to smget_area_size()\n");
+    smerror(mp, "SMALLOC: bad pointer passed to smget_area_size()\n");
     return -1;
   }
   return mn->size;
 }
 
-void smregister_error_notifier(void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
+void smregister_error_notifier(struct mempool *mp,
+	void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
 {
-  smerror = func;
+  mp->smerror = func;
+}
+
+void smregister_default_error_notifier(
+	void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
+{
+  smerr = func;
 }

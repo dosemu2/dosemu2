@@ -16,26 +16,12 @@ struct memnode {
 
 typedef struct mempool {
   size_t size;
-  struct memnode mn;
   size_t avail;
+  struct memnode mn;
   int (*commit)(void *area, size_t size);
   int (*uncommit)(void *area, size_t size);
+  void (*smerror)(char *fmt, ...) FORMAT(printf, 1, 2);
 } smpool;
-
-#define SM_EMPTY_NODE { \
-  NULL,		 /* *next */ \
-  0, 		 /* size */ \
-  0,		 /* used */ \
-  NULL,		 /* *mem_area */ \
-}
-
-#define SM_EMPTY_POOL { \
-  0,		 /* size */ \
-  SM_EMPTY_NODE, /* mn */ \
-  0,		 /* avail */ \
-  NULL,		 /* commit */ \
-  NULL,		 /* uncommit */ \
-}
 
 extern void *smalloc(struct mempool *mp, size_t size);
 extern void smfree(struct mempool *mp, void *ptr);
@@ -48,7 +34,9 @@ extern int smdestroy(struct mempool *mp);
 extern size_t smget_free_space(struct mempool *mp);
 extern size_t smget_largest_free_area(struct mempool *mp);
 extern int smget_area_size(struct mempool *mp, void *ptr);
-extern void smregister_error_notifier(void (*func)(char *fmt, ...)
+extern void smregister_error_notifier(struct mempool *mp,
+  void (*func)(char *fmt, ...) FORMAT(printf, 1, 2));
+extern void smregister_default_error_notifier(void (*func)(char *fmt, ...)
   FORMAT(printf, 1, 2));
 
 #endif

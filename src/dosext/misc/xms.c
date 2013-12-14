@@ -290,7 +290,7 @@ umb_query(void)
 
 /* end of stuff from Mach */
 
-static smpool mp = SM_EMPTY_POOL;
+static smpool mp;
 
 static unsigned xms_alloc(unsigned size)
 {
@@ -321,6 +321,15 @@ xms_reset(void)
   config.xms_size = 0;
 }
 
+static void xx_printf(char *fmt, ...) FORMAT(printf, 1, 2);
+static void xx_printf(char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  vlog_printf(0, fmt, args);
+  va_end(args);
+}
+
 static void xms_helper_init(void)
 {
   int i;
@@ -348,6 +357,7 @@ static void xms_helper_init(void)
 
   smdestroy(&mp);
   sminit(&mp, ext_mem_base, config.xms_size * 1024);
+  smregister_error_notifier(&mp, xx_printf);
 }
 
 void xms_helper(void)
