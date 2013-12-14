@@ -154,9 +154,14 @@ int pcm_init(void)
     return 1;
 }
 
-static void pcm_reset_stream(int strm_idx)
+static void pcm_clear_stream(int strm_idx)
 {
     rng_clear(&pcm.stream[strm_idx].buffer);
+}
+
+static void pcm_reset_stream(int strm_idx)
+{
+    pcm_clear_stream(strm_idx);
     pcm.stream[strm_idx].state = SNDBUF_STATE_INACTIVE;
     pcm.stream[strm_idx].mode = PCM_MODE_NORMAL;
 }
@@ -395,7 +400,7 @@ static void pcm_handle_get(int strm_idx, double time)
 		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL)
 		S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
-	    pcm_reset_stream(strm_idx);
+	    pcm_clear_stream(strm_idx);
 	}
 	break;
 
