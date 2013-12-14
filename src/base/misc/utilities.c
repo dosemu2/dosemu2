@@ -285,7 +285,7 @@ void verror(const char *fmt, va_list args)
 		vlog_printf(10, fmtbuf, args);
 		vfprintf(stderr, fmtbuf, orig_args);
 	}
-
+	va_end(orig_args);
 }
 
 void error(const char *fmt, ...)
