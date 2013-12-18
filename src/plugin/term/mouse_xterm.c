@@ -27,42 +27,43 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 	/* Decode Xterm mouse information to a GPM style event */
 
 	if (*kbcount >= 3) {
-
-		x_pos = (*kbp)[1] - 32;
-		y_pos = (*kbp)[2] - 32;
-		mouse_move_absolute(x_pos-1, y_pos-1, vga.text_width, vga.text_height);
-		m_printf("XTERM MOUSE: movement (click follows) detected to pos x=%d: y=%d\n", x_pos, y_pos);
+		x_pos = (*kbp)[1] - 33;
+		y_pos = (*kbp)[2] - 33;
+		mouse_move_absolute(x_pos, y_pos,
+			READ_WORD(BIOS_SCREEN_COLUMNS),
+			READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1);
+		m_printf("XTERM MOUSE: movement detected to pos x=%d: y=%d\n", x_pos, y_pos);
 
 		/* Variable btn has following meaning: */
-		/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up */
-		btn = (*kbp)[0] & 3;
+		/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up,
+		 * 32 = no button state change */
+		btn = (*kbp)[0] - 32;
 
-		/* There seems to be no way of knowing which button was released */
-		/* So we assume all the buttons were released */
-		if (btn == 3){
+		switch (btn) {
+		case 0:
+			mouse_move_buttons(1, 0, 0);
+			m_printf("XTERM MOUSE: left button click detected\n");
+			last_btn = 1;
+			break;
+		case 1:
+			mouse_move_buttons(0, 1, 0);
+			m_printf("XTERM MOUSE: middle button click detected\n");
+			last_btn = 2;
+			break;
+		case 2:
+			mouse_move_buttons(0, 0, 1);
+			m_printf("XTERM MOUSE: right button click detected\n");
+			last_btn = 3;
+			break;
+		case 3:
+			/* There seems to be no way of knowing which button was released */
+			/* So we assume all the buttons were released */
 			if (last_btn) {
 				mouse_move_buttons(0, 0, 0);
 				m_printf("XTERM MOUSE: button release detected\n");
 				last_btn = 0;
 			}
-		} else {
-			switch (btn) {
-			case 0:
-				mouse_move_buttons(1, 0, 0);
-				m_printf("XTERM MOUSE: left button click detected\n");
-				last_btn = 1;
-				break;
-			case 1:
-				mouse_move_buttons(0, 1, 0);
-				m_printf("XTERM MOUSE: middle button click detected\n");
-				last_btn = 2;
-				break;
-			case 2:
-				mouse_move_buttons(0, 0, 1);
-				m_printf("XTERM MOUSE: right button click detected\n");
-				last_btn = 3;
-				break;
-			}
+			break;
 		}
 		*kbcount -= 3;	/* update count */
 		*kbp += 3;
@@ -90,6 +91,7 @@ static int xterm_mouse_init(void)
 	mice->type = MOUSE_XTERM;
 	mice->use_absolute = 1;
 	mice->native_cursor = 0;      /* we have the xterm cursor */
+	SLtt_set_mouse_mode(0, 0);
 
 	return TRUE;
 }
