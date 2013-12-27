@@ -340,13 +340,13 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 
 #define vflags read_FLAGS()
 
-#if 0
 /* this is the array of interrupt vectors */
 struct vec_t {
   unsigned short offset;
   unsigned short segment;
 };
 
+#if 0
 EXTERN struct vec_t *ivecs;
 
 #endif

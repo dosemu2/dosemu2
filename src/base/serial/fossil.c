@@ -249,6 +249,8 @@ void fossil_int14(int num)
     /* init IRQs, set disabled */
     write_MCR(num, com[num].MCR | UART_MCR_OUT2);
     write_IER(num, 0);
+    com[num].ivec.segment = ISEG(com[num].interrupt);
+    com[num].ivec.offset = IOFF(com[num].interrupt);
     SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
     imr = imr1 = port_inb(0x21);
     imr &= ~(1 << com_cfg[num].irq);
@@ -278,11 +280,19 @@ void fossil_int14(int num)
   }
 
   /* FOSSIL shutdown. */
-  case 0x05:
+  case 0x05: {
+    uint8_t imr;
+    if (!com[num].fossil_active)
+      break;
+    imr = port_inb(0x21);
+    imr |= (1 << com_cfg[num].irq);
+    port_outb(0x21, imr);
+    SETIVEC(com[num].interrupt, com[num].ivec.segment, com[num].ivec.offset);
     com[num].fossil_active = FALSE;
     /* Note: the FIFO values aren't restored. Hopefully nobody notices... */
     s_printf("SER%d: FOSSIL 0x05: Emulation deactivated\n", num);
     break;
+  }
 
   /* Lower/raise DTR. */
   case 0x06:
