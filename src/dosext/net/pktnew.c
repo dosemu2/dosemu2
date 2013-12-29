@@ -46,11 +46,13 @@
 #include "libpacket.h"
 #include "pic.h"
 #include "coopth.h"
+#include "hlt.h"
+#include "utilities.h"
 #include "dpmi.h"
 
 #define TAP_DEVICE  "tap%d"
-#define min(a,b)	((a) < (b)? (a) : (b))
 
+static void pkt_hlt(Bit32u idx, void *arg);
 static int Open_sockets(char *name);
 static int Insert_Type(int, int, char *);
 static int Remove_Type(int);
@@ -60,6 +62,7 @@ static int pkt_check_receive(int ilevel);
 static void pkt_receiver_callback(void);
 static void pkt_receiver_callback_thr(void *arg);
 static Bit32u PKTRcvCall_TID;
+static Bit16u pkt_hlt_off;
 
 static int pktdrvr_installed;
 
@@ -157,10 +160,17 @@ void pkt_priv_init(void)
 void
 pkt_init(void)
 {
+    emu_hlt_t hlt_hdlr;
     if (!config.pktdrv)
       return;
     if (pktdrvr_installed == -1)
       goto fail;
+
+    hlt_hdlr.name       = "pkt callout";
+    hlt_hdlr.len        = 1;
+    hlt_hdlr.func       = pkt_hlt;
+    pkt_hlt_off = hlt_register_handler(hlt_hdlr);
+
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
@@ -193,19 +203,18 @@ fail:
 void
 pkt_reset(void)
 {
-    if (!config.pktdrv)
+    if (!config.pktdrv || !pktdrvr_installed)
       return;
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
-	    MK_PKT_OFS(PKTDRV_driver_entry_ip)), INT_OFF(0x60));
+	    MK_PKT_OFS(PKTDRV_driver_entry_ip)), pkt_hlt_off);
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
-	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOSSEG);
+	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOS_HLT_BLK_SEG);
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
 }
 
 /* this is the handler for INT calls from DOS to the packet driver */
-int
-pkt_int (void)
+static int pkt_int(void)
 {
     struct per_handle *hdlp;
     int hdlp_handle=-1;
@@ -497,6 +506,12 @@ pkt_int (void)
 		LWORD(cs),LWORD(ds),LWORD(es),LWORD(ss));
 
     return 1;
+}
+
+static void pkt_hlt(Bit32u idx, void *arg)
+{
+    fake_iret();
+    pkt_int();
 }
 
 static int

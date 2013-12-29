@@ -2313,10 +2313,6 @@ void setup_interrupts(void) {
   interrupt_function[0x2f][REVECT] = int2f;
   interrupt_function[0x33][NO_REVECT] = mouse_int;
   interrupt_function[0x33][REVECT] = int33;
-#ifdef USING_NET
-  if (config.pktdrv)
-    interrupt_function[0x60][NO_REVECT] = pkt_int;
-#endif
 #ifdef IPX
   if (config.ipxsup)
     interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
