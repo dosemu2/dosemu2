@@ -654,6 +654,7 @@ ALSALIB
 USE_ALSA
 GPMLIB
 USE_GPM
+USE_VDE
 USE_SVGALIB
 EGREP
 GREP
@@ -735,6 +736,7 @@ with_fdtarball
 enable_linkstatic
 enable_dlplugins
 with_svgalib
+with_vde
 with_gpm
 with_alsa
 with_sndfile
@@ -1399,6 +1401,7 @@ Optional Packages:
   --with-fdtarball=file   give the name of the FreeDOS tarball or 'none'
                           (default: dosemu-freedos-bin.tgz)
   --with-svgalib          use svgalib if available
+  --with-vde              use VDE if available
   --without-gpm           don't use gpm
   --without-alsa          don't use alsa even if available
   --without-sndfile       don't use sndfile even if available
@@ -4617,6 +4620,75 @@ $as_echo "$as_me: Compiling without svgalib support" >&6;}
 fi
 
 
+# Check whether --with-vde was given.
+if test "${with_vde+set}" = set; then :
+  withval=$with_vde;
+fi
+
+if test "$with_vde" = "yes"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Checking for VDE... " >&5
+$as_echo "$as_me: Checking for VDE... " >&6;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for vde_close in -lvdeplug" >&5
+$as_echo_n "checking for vde_close in -lvdeplug... " >&6; }
+if ${ac_cv_lib_vdeplug_vde_close+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lvdeplug  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vde_close ();
+int
+main ()
+{
+return vde_close ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_vdeplug_vde_close=yes
+else
+  ac_cv_lib_vdeplug_vde_close=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_vdeplug_vde_close" >&5
+$as_echo "$ac_cv_lib_vdeplug_vde_close" >&6; }
+if test "x$ac_cv_lib_vdeplug_vde_close" = xyes; then :
+   ac_fn_c_check_header_mongrel "$LINENO" "libvdeplug.h" "ac_cv_header_libvdeplug_h" "$ac_includes_default"
+if test "x$ac_cv_header_libvdeplug_h" = xyes; then :
+  use_vde="yes"
+else
+  use_vde="no"
+fi
+
+
+
+fi
+
+fi
+if test "$use_vde" = "yes"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling with VDE support" >&5
+$as_echo "$as_me: Compiling with VDE support" >&6;}
+
+$as_echo "#define USE_VDE 1" >>confdefs.h
+
+  USE_VDE="USE_VDE=1"
+
+  # TODO: turn that into a plugin
+  LIBS="$LIBS -lvdeplug"
+fi
+
 
 # Check whether --with-gpm was given.
 if test "${with_gpm+set}" = set; then :
@@ -6335,6 +6407,9 @@ $as_echo_n "checking for glibc...... " >&6; }
   set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2}'`
   if test "$1" = "__GLIBC__"; then
     as_fn_error $? "Sorry, you need glibc." "$LINENO" 5
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
   fi
 fi
 

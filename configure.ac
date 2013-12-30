@@ -167,8 +167,25 @@ if test "$with_svgalib" = "yes"; then
   fi
 fi
 
-dnl Check whether we have gpm and whether to use it
+dnl Check whether we have vde and whether to use it
+AC_ARG_WITH(vde,
+	[  --with-vde              use VDE if available])
+if test "$with_vde" = "yes"; then
+  AC_MSG_NOTICE(Checking for VDE... )
+  AC_CHECK_LIB(vdeplug, vde_close,
+    [ AC_CHECK_HEADER(libvdeplug.h, use_vde="yes", use_vde="no") ]
+  )
+fi
+if test "$use_vde" = "yes"; then
+  AC_MSG_NOTICE(Compiling with VDE support)
+  AC_DEFINE([USE_VDE], [1], [Define this to use VDE for networking])
+  USE_VDE="USE_VDE=1"
+  AC_SUBST(USE_VDE)
+  # TODO: turn that into a plugin
+  LIBS="$LIBS -lvdeplug"
+fi
 
+dnl Check whether we have gpm and whether to use it
 AC_ARG_WITH(gpm,
 	[  --without-gpm           don't use gpm])
 if test "$with_gpm" != "no"; then
@@ -571,6 +588,8 @@ if test "$GCC" = "yes" ; then
   set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2}'`
   if test "$1" = "__GLIBC__"; then
     AC_MSG_ERROR([Sorry, you need glibc.])
+  else
+    AC_MSG_RESULT([yes])
   fi
 fi
 
