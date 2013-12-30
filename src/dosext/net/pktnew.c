@@ -132,14 +132,16 @@ void pkt_priv_init(void)
     LibpacketInit();
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
+#ifdef USE_VDE
 retry:
+#endif
     switch (config.vnet) {
       case VNET_TYPE_ETH:
 	strncpy(devname, config.ethdev, sizeof(devname) - 1);
 	devname[sizeof(devname) - 1] = 0;
 	break;
-      case VNET_TYPE_SLIRP:
-	strncpy(devname, config.slirp, sizeof(devname) - 1);
+      case VNET_TYPE_VDE:
+	strncpy(devname, config.vdeswitch, sizeof(devname) - 1);
 	devname[sizeof(devname) - 1] = 0;
 	break;
       case VNET_TYPE_TAP:
@@ -159,12 +161,12 @@ retry:
 	ret = Open_sockets(devname);
 	if (ret < 0) {
 	  warn("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-	  if (config.slirp[0]) {
-	    warn("PKT: Trying slirp instead\n");
-	    config.vnet = VNET_TYPE_SLIRP;
-	    pktdrvr_installed = -1;	// fallback
-	    goto retry;
-	  }
+#ifdef USE_VDE
+	  warn("PKT: Trying VDE instead\n");
+	  config.vnet = VNET_TYPE_VDE;
+	  pktdrvr_installed = -1;	// fallback
+	  goto retry;
+#endif
 	  pktdrvr_installed = 0;
 	}
     }
@@ -179,19 +181,19 @@ pkt_init(void)
 
     /* call Open_sockets() only for non-priv configs */
     switch (config.vnet) {
-      case VNET_TYPE_SLIRP:
+      case VNET_TYPE_VDE:
 	ret = Open_sockets(devname);
 	if (ret < 0) {
 	  if (pktdrvr_installed == -1) {
-	    warn("PKT: Cannot run slirp, %s\n", devname);
+	    warn("PKT: Cannot run VDE, %s\n", devname[0] ? devname : "(auto)");
 	    pktdrvr_installed = 0;
 	  } else {
-	    error("Unable to run slirp, %s\n", devname);
+	    error("Unable to run VDE, %s\n", devname[0] ? devname : "(auto)");
 	    config.exitearly = 1;
 	  }
 	  return;
 	}
-	pd_printf("PKT: Using device %s\n", devname);
+	pd_printf("PKT: Using device %s\n", devname[0] ? devname : "(auto)");
     }
 
     p_param = MK_PTR(PKTDRV_param);

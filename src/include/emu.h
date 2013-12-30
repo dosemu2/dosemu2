@@ -231,7 +231,7 @@ typedef struct vesamode_type_struct {
        int     vnet;
        char   *ethdev;
        char   *tapdev;
-       char   *slirp;
+       char   *vdeswitch;
        boolean pktdrv;
        boolean dosbanner;
        boolean emuretrace;

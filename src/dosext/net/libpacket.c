@@ -26,15 +26,14 @@
 #include <netinet/if_ether.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
+#ifdef USE_VDE
+#include <libvdeplug.h>
+#endif
 
 #include "emu.h"
-#include "ringbuf.h"
 #include "priv.h"
-#include "libpacket.h"
 #include "pktdrvr.h"
-
-/* librouter is used for usernet networking (using slirp as a backend) */
-#include "librouter/librouter.h"
+#include "libpacket.h"
 
 static int tun_alloc(char *dev);
 
@@ -45,9 +44,9 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 
 static int pkt_fd = -1;
 
-static struct seqbuf sqb;
-#define LIBROUTER_BUF_LEN 2048
-static unsigned char librouter_buff[LIBROUTER_BUF_LEN];
+#ifdef USE_VDE
+static VDECONN *vde;
+#endif
 
 struct pkt_ops {
     int (*open)(char *name);
@@ -72,11 +71,6 @@ static void GenerateDosnetID(void)
 }
 
 static void pkt_receive_req_async(void *arg)
-{
-  pic_request(PIC_NET);
-}
-
-static void pkt_receive_req(void)
 {
   pic_request(PIC_NET);
 }
@@ -152,23 +146,18 @@ static int OpenNetworkLinkTap(char *name)
 	return 0;
 }
 
-static void slirp_exit(void)
+#ifdef USE_VDE
+static int OpenNetworkLinkVde(char *name)
 {
-	error("SLIRP unexpectedly terminated\n");
-	leavedos(3);
-}
-
-static int OpenNetworkLinkSlirp(char *name)
-{
-	pkt_fd = librouter_init(name);
-	if (pkt_fd < 0)
-	    return pkt_fd;
+	vde = vde_open(name, "dosemu", NULL);
+	if (!vde)
+	    return -1;
+	pkt_fd = vde_datafd(vde);
 	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
-	sigchld_register_handler(librouter_get_slirp_pid(), slirp_exit);
-	seqbuf_init(&sqb, librouter_buff, LIBROUTER_BUF_LEN);
 	receive_mode = 6;
 	return 0;
 }
+#endif
 
 int OpenNetworkLink(char *name)
 {
@@ -186,16 +175,13 @@ static void CloseNetworkLinkEth(void)
 	close(pkt_fd);
 }
 
-static void CloseNetworkLinkSlirp(void)
+#ifdef USE_VDE
+static void CloseNetworkLinkVde(void)
 {
-	int stat;
-	pid_t pid = librouter_get_slirp_pid();
 	remove_from_io_select(pkt_fd);
-	sigchld_enable_handler(pid, 0);
-	librouter_close(pkt_fd);
-	waitpid(pid, &stat, 0);
+	vde_close(vde);
 }
-
+#endif
 
 void CloseNetworkLink(void)
 {
@@ -288,10 +274,12 @@ static int GetDeviceMTUEth(char *device)
 	return req.ifr_mtu;
 }
 
-static int GetDeviceMTUSlirp(char *device)
+#ifdef USE_VDE
+static int GetDeviceMTUVde(char *device)
 {
   return(1500);
 }
+#endif
 
 int GetDeviceMTU(char *device)
 {
@@ -333,20 +321,29 @@ static int tun_alloc(char *dev)
       return fd;
 }
 
-static ssize_t pkt_read_slirp(void *buf, size_t count)
+#ifdef USE_VDE
+static ssize_t pkt_read_vde(void *buf, size_t count)
 {
-  size_t len = seqbuf_get_read_len(&sqb);
-  /* first check the internal single-packet buffer */
-  if (len > 0) {
-    if (len > count) {
-	error("pkt_read_slirp: small read requested, %zi<%zi\n", count, len);
-	return -1;
-    }
-    return seqbuf_read(&sqb, buf, count);
+  ssize_t len;
+  fd_set set;
+  struct timeval tv = {};
+  int selrt;
+  FD_ZERO(&set);
+  FD_SET(pkt_fd, &set);
+  /* vde_recv() ignores flags... so we use select() */
+  selrt = select(pkt_fd + 1, &set, NULL, NULL, &tv);
+  if (selrt <= 0)
+    return 0;
+  len = vde_recv(vde, buf, count, MSG_DONTWAIT);
+  if (len == 0) {
+    error("VDE unexpectedly terminated\n");
+    leavedos(3);
   }
-  /* else poll librouter */
-  return librouter_recvframe(pkt_fd, buf);
+  if (len < 0)
+    error("recv() returned %zi, %s\n", len, strerror(errno));
+  return len;
 }
+#endif
 
 static ssize_t pkt_read_eth(void *buf, size_t count)
 {
@@ -379,18 +376,22 @@ static ssize_t pkt_write_eth(const void *buf, size_t count)
     return write(pkt_fd, buf, count);
 }
 
-static ssize_t pkt_write_slirp(const void *buf, size_t count)
+#ifdef USE_VDE
+static ssize_t pkt_write_vde(const void *buf, size_t count)
 {
-  int buf2_len;
-  unsigned char buf2[LIBROUTER_BUF_LEN];
-  memcpy(buf2, buf, count); /* we copy buf into our own buffer first, because librouter needs write access to the buffer */
-  buf2_len = librouter_sendframe(pkt_fd, buf2, count);
-  if (buf2_len > 0) { /* we've got something back already! */
-    seqbuf_write(&sqb, buf2, buf2_len);
-    pkt_receive_req(); /* this makes the underlying DOS get some kind of a signal 'hey buddy, you've got some data' */
+  ssize_t ret;
+  ret = vde_send(vde, buf, count, 0);
+  if (ret == -1) {
+    int err = errno;
+    error("vde_send(): %s\n", strerror(err));
+    if (err == ENOTCONN || err == ECONNREFUSED) {
+      error("VDE unexpectedly terminated\n");
+      leavedos(3);
+    }
   }
-  return(count);
+  return ret;
 }
+#endif
 
 ssize_t pkt_write(const void *buf, size_t count)
 {
@@ -413,12 +414,14 @@ void LibpacketInit(void)
 	ops[VNET_TYPE_TAP].pkt_read = pkt_read_eth;
 	ops[VNET_TYPE_TAP].pkt_write = pkt_write_eth;
 
-	ops[VNET_TYPE_SLIRP].open = OpenNetworkLinkSlirp;
-	ops[VNET_TYPE_SLIRP].close = CloseNetworkLinkSlirp;
-	ops[VNET_TYPE_SLIRP].get_hw_addr = GetDeviceHardwareAddressTap;
-        ops[VNET_TYPE_SLIRP].get_MTU = GetDeviceMTUSlirp;
-	ops[VNET_TYPE_SLIRP].pkt_read = pkt_read_slirp;
-	ops[VNET_TYPE_SLIRP].pkt_write = pkt_write_slirp;
+#ifdef USE_VDE
+	ops[VNET_TYPE_VDE].open = OpenNetworkLinkVde;
+	ops[VNET_TYPE_VDE].close = CloseNetworkLinkVde;
+	ops[VNET_TYPE_VDE].get_hw_addr = GetDeviceHardwareAddressTap;
+        ops[VNET_TYPE_VDE].get_MTU = GetDeviceMTUVde;
+	ops[VNET_TYPE_VDE].pkt_read = pkt_read_vde;
+	ops[VNET_TYPE_VDE].pkt_write = pkt_write_vde;
+#endif
 
 	GenerateDosnetID();
 }
