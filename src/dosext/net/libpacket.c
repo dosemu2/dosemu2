@@ -31,6 +31,7 @@
 #endif
 
 #include "emu.h"
+#include "utilities.h"
 #include "priv.h"
 #include "pktdrvr.h"
 #include "libpacket.h"
@@ -46,6 +47,7 @@ static int pkt_fd = -1;
 
 #ifdef USE_VDE
 static VDECONN *vde;
+static struct popen2 vdesw, slirp;
 #endif
 
 struct pkt_ops {
@@ -147,8 +149,60 @@ static int OpenNetworkLinkTap(char *name)
 }
 
 #ifdef USE_VDE
+static void vde_exit(void)
+{
+	error("vde failed, exiting\n");
+	leavedos(35);
+}
+
+static char *start_vde(void)
+{
+	char cmd[256];
+	int err, n;
+	char *nam = tmpnam(NULL);
+	snprintf(cmd, sizeof(cmd), "vde_switch -s %s", nam);
+	err = popen2(cmd, &vdesw);
+	if (err) {
+	    error("failed to start %s\n", cmd);
+	    goto fail2;
+	}
+	sigchld_register_handler(vdesw.child_pid, vde_exit);
+	n = read(vdesw.from_child, cmd, sizeof(cmd));
+	if (n <= 0 || !strstr(cmd, " started")) {
+	    error("vde_switch failed: %s\n", cmd);
+	    goto fail1;
+	}
+	snprintf(cmd, sizeof(cmd), "slirpvde -s %s 2>&1", nam);
+	err = popen2(cmd, &slirp);
+	if (err) {
+	    error("failed to start %s\n", cmd);
+	    goto fail1;
+	}
+	sigchld_register_handler(slirp.child_pid, vde_exit);
+	while (1) {
+	    n = read(slirp.from_child, cmd, sizeof(cmd));
+	    if (n <= 0)
+		break;
+	    pd_printf("slirp: %s", cmd);
+	    if (strstr(cmd, "vde switch"))
+		break;
+	}
+	pd_printf("PKT: started VDE at %s\n", nam);
+	return nam;
+
+fail1:
+	pclose2(&vdesw);
+fail2:
+	return NULL;
+}
+
 static int OpenNetworkLinkVde(char *name)
 {
+	if (!name[0]) {
+	    name = start_vde();
+	    if (!name)
+		return -1;
+	}
 	vde = vde_open(name, "dosemu", NULL);
 	if (!vde)
 	    return -1;
@@ -180,6 +234,10 @@ static void CloseNetworkLinkVde(void)
 {
 	remove_from_io_select(pkt_fd);
 	vde_close(vde);
+	sigchld_enable_handler(slirp.child_pid, 0);
+	pclose2(&slirp);
+	sigchld_enable_handler(vdesw.child_pid, 0);
+	pclose2(&vdesw);
 }
 #endif
 
