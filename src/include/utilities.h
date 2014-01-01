@@ -100,5 +100,6 @@ struct popen2 {
 };
 
 int popen2(const char *cmdline, struct popen2 *childinfo);
+int pclose2(struct popen2 *childinfo);
 
 #endif /* UTILITIES_H */
