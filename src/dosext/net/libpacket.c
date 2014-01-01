@@ -168,11 +168,17 @@ static char *start_vde(void)
 	}
 	sigchld_register_handler(vdesw.child_pid, vde_exit);
 	n = read(vdesw.from_child, cmd, sizeof(cmd));
-	if (n <= 0 || !strstr(cmd, " started")) {
+	if (n <= 0) {
+	    error("read failed: %s\n", strerror(errno));
+	    goto fail1;
+	}
+	cmd[n] = 0;
+	if (!strstr(cmd, " started")) {
 	    error("vde_switch failed: %s\n", cmd);
 	    goto fail1;
 	}
-	snprintf(cmd, sizeof(cmd), "slirpvde -s %s 2>&1", nam);
+	snprintf(cmd, sizeof(cmd), "slirpvde -s %s %s 2>&1", nam,
+		config.slirp_args ?: "");
 	err = popen2(cmd, &slirp);
 	if (err) {
 	    error("failed to start %s\n", cmd);
@@ -183,6 +189,7 @@ static char *start_vde(void)
 	    n = read(slirp.from_child, cmd, sizeof(cmd));
 	    if (n <= 0)
 		break;
+	    cmd[n] = 0;
 	    pd_printf("slirp: %s", cmd);
 	    if (strstr(cmd, "vde switch"))
 		break;

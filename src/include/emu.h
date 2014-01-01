@@ -232,6 +232,7 @@ typedef struct vesamode_type_struct {
        char   *ethdev;
        char   *tapdev;
        char   *vdeswitch;
+       char   *slirp_args;
        boolean pktdrv;
        boolean dosbanner;
        boolean emuretrace;

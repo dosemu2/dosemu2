@@ -654,6 +654,7 @@ novell_hack		RETURN(NOVELLHACK);
 ethdev			RETURN(ETHDEV);
 tapdev			RETURN(TAPDEV);
 vdeswitch		RETURN(VDESWITCH);
+slirpargs		RETURN(SLIRPARGS);
 vnet			RETURN(VNET);
 	/* debug flags */
 
