@@ -26,6 +26,7 @@
 #include <netinet/if_ether.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
+#include <assert.h>
 #ifdef USE_VDE
 #include <libvdeplug.h>
 #endif
@@ -44,20 +45,12 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 #define DOSNET_FAKED_ETH_ADDRESS   "dbx\x90xx"
 
 static int pkt_fd = -1;
+static int num_backends;
 
 #ifdef USE_VDE
 static VDECONN *vde;
 static struct popen2 vdesw, slirp;
 #endif
-
-struct pkt_ops {
-    int (*open)(char *name);
-    void (*close)(void);
-    int (*get_hw_addr)(char *device, unsigned char *addr);
-    int (*get_MTU)(char *device);
-    ssize_t (*pkt_read)(void *buf, size_t count);
-    ssize_t (*pkt_write)(const void *buf, size_t count);
-};
 
 static struct pkt_ops ops[VNET_TYPE_MAX];
 
@@ -74,7 +67,17 @@ static void GenerateDosnetID(void)
 
 static void pkt_receive_req_async(void *arg)
 {
-  pic_request(PIC_NET);
+	pic_request(PIC_NET);
+}
+
+static struct pkt_ops *find_ops(int id)
+{
+	int i;
+	for (i = 0; i < num_backends; i++) {
+		if (ops[i].id == id)
+			return &ops[i];
+	}
+	return NULL;
 }
 
 /*
@@ -223,7 +226,7 @@ static int OpenNetworkLinkVde(char *name)
 int OpenNetworkLink(char *name)
 {
 
-	return ops[config.vnet].open(name);
+	return find_ops(config.vnet)->open(name);
 }
 
 /*
@@ -250,7 +253,7 @@ static void CloseNetworkLinkVde(void)
 
 void CloseNetworkLink(void)
 {
-	ops[config.vnet].close();
+	find_ops(config.vnet)->close();
 }
 
 /*
@@ -313,7 +316,7 @@ static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
 
 int GetDeviceHardwareAddress(char *device, unsigned char *addr)
 {
-	return ops[config.vnet].get_hw_addr(device, addr);
+	return find_ops(config.vnet)->get_hw_addr(device, addr);
 }
 
 /*
@@ -348,7 +351,7 @@ static int GetDeviceMTUVde(char *device)
 
 int GetDeviceMTU(char *device)
 {
-	return ops[config.vnet].get_MTU(device);
+	return find_ops(config.vnet)->get_MTU(device);
 }
 
 static int tun_alloc(char *dev)
@@ -433,7 +436,7 @@ static ssize_t pkt_read_eth(void *buf, size_t count)
 
 ssize_t pkt_read(void *buf, size_t count)
 {
-    return ops[config.vnet].pkt_read(buf, count);
+    return find_ops(config.vnet)->pkt_read(buf, count);
 }
 
 static ssize_t pkt_write_eth(const void *buf, size_t count)
@@ -460,32 +463,48 @@ static ssize_t pkt_write_vde(const void *buf, size_t count)
 
 ssize_t pkt_write(const void *buf, size_t count)
 {
-    return ops[config.vnet].pkt_write(buf, count);
+    return find_ops(config.vnet)->pkt_write(buf, count);
+}
+
+int pkt_register_backend(struct pkt_ops *o)
+{
+    int idx = num_backends++;
+    assert(idx < ARRAY_SIZE(ops));
+    ops[idx] = *o;
+    return idx;
 }
 
 void LibpacketInit(void)
 {
-	ops[VNET_TYPE_ETH].open = OpenNetworkLinkEth;
-	ops[VNET_TYPE_ETH].close = CloseNetworkLinkEth;
-	ops[VNET_TYPE_ETH].get_hw_addr = GetDeviceHardwareAddressEth;
-	ops[VNET_TYPE_ETH].get_MTU = GetDeviceMTUEth;
-	ops[VNET_TYPE_ETH].pkt_read = pkt_read_eth;
-	ops[VNET_TYPE_ETH].pkt_write = pkt_write_eth;
+	struct pkt_ops o;
 
-	ops[VNET_TYPE_TAP].open = OpenNetworkLinkTap;
-	ops[VNET_TYPE_TAP].close = CloseNetworkLinkEth;
-	ops[VNET_TYPE_TAP].get_hw_addr = GetDeviceHardwareAddressTap;
-	ops[VNET_TYPE_TAP].get_MTU = GetDeviceMTUEth;
-	ops[VNET_TYPE_TAP].pkt_read = pkt_read_eth;
-	ops[VNET_TYPE_TAP].pkt_write = pkt_write_eth;
+	o.id = VNET_TYPE_ETH;
+	o.open = OpenNetworkLinkEth;
+	o.close = CloseNetworkLinkEth;
+	o.get_hw_addr = GetDeviceHardwareAddressEth;
+	o.get_MTU = GetDeviceMTUEth;
+	o.pkt_read = pkt_read_eth;
+	o.pkt_write = pkt_write_eth;
+	pkt_register_backend(&o);
+
+	o.id = VNET_TYPE_TAP;
+	o.open = OpenNetworkLinkTap;
+	o.close = CloseNetworkLinkEth;
+	o.get_hw_addr = GetDeviceHardwareAddressTap;
+	o.get_MTU = GetDeviceMTUEth;
+	o.pkt_read = pkt_read_eth;
+	o.pkt_write = pkt_write_eth;
+	pkt_register_backend(&o);
 
 #ifdef USE_VDE
-	ops[VNET_TYPE_VDE].open = OpenNetworkLinkVde;
-	ops[VNET_TYPE_VDE].close = CloseNetworkLinkVde;
-	ops[VNET_TYPE_VDE].get_hw_addr = GetDeviceHardwareAddressTap;
-        ops[VNET_TYPE_VDE].get_MTU = GetDeviceMTUVde;
-	ops[VNET_TYPE_VDE].pkt_read = pkt_read_vde;
-	ops[VNET_TYPE_VDE].pkt_write = pkt_write_vde;
+	o.id = VNET_TYPE_VDE;
+	o.open = OpenNetworkLinkVde;
+	o.close = CloseNetworkLinkVde;
+	o.get_hw_addr = GetDeviceHardwareAddressTap;
+	o.get_MTU = GetDeviceMTUVde;
+	o.pkt_read = pkt_read_vde;
+	o.pkt_write = pkt_write_vde;
+	pkt_register_backend(&o);
 #endif
 
 	GenerateDosnetID();

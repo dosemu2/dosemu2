@@ -93,6 +93,18 @@ extern void pkt_init (void);
 extern void pkt_reset (void);
 extern void pkt_term (void);
 
+struct pkt_ops {
+    int id;
+    int (*open)(char *name);
+    void (*close)(void);
+    int (*get_hw_addr)(char *device, unsigned char *addr);
+    int (*get_MTU)(char *device);
+    ssize_t (*pkt_read)(void *buf, size_t count);
+    ssize_t (*pkt_write)(const void *buf, size_t count);
+};
+
+extern int pkt_register_backend(struct pkt_ops *o);
+
 extern unsigned short receive_mode;
 
 #endif				/* PKTDRVR_H */
