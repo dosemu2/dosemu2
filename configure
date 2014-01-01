@@ -654,6 +654,7 @@ ALSALIB
 USE_ALSA
 GPMLIB
 USE_GPM
+VDELIB
 USE_VDE
 USE_SVGALIB
 EGREP
@@ -4685,8 +4686,11 @@ $as_echo "#define USE_VDE 1" >>confdefs.h
 
   USE_VDE="USE_VDE=1"
 
-  # TODO: turn that into a plugin
-  LIBS="$LIBS -lvdeplug"
+  $srcdir/mkpluginhooks enable vde yes
+  VDELIB="-lvdeplug"
+
+else
+  $srcdir/mkpluginhooks enable vde no
 fi
 
 

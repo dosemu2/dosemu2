@@ -65,6 +65,7 @@ static int pktdrvr_installed;
 
 unsigned short receive_mode;
 static unsigned short local_receive_mode;
+static int pkt_fd;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -238,7 +239,8 @@ void pkt_term(void)
 {
     if (!config.pktdrv || !pktdrvr_installed)
       return;
-    CloseNetworkLink();
+    remove_from_io_select(pkt_fd);
+    CloseNetworkLink(pkt_fd);
 }
 
 /* this is the handler for INT calls from DOS to the packet driver */
@@ -445,7 +447,7 @@ pkt_int (void)
 		    }
 	}
 
-	if (pkt_write(SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
+	if (pkt_write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
 		    return 1;
 	} else {
@@ -537,6 +539,11 @@ pkt_int (void)
     return 1;
 }
 
+static void pkt_receive_req_async(void *arg)
+{
+	pic_request(PIC_NET);
+}
+
 static int
 Open_sockets(char *name)
 {
@@ -544,6 +551,8 @@ Open_sockets(char *name)
     int ret = OpenNetworkLink(name);
     if (ret < 0)
 	return ret;
+    pkt_fd = ret;
+    add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
 
     local_receive_mode = receive_mode;
     pd_printf("PKT: detected receive mode %i\n", receive_mode);
@@ -650,7 +659,7 @@ static int pkt_receive(void)
     if (local_receive_mode == 1)
 	return 0;
 
-    size = pkt_read(pkt_buf, PKT_BUF_SIZE);
+    size = pkt_read(pkt_fd, pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
         return 0;

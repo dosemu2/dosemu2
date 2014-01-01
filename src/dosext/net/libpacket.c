@@ -27,9 +27,6 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <assert.h>
-#ifdef USE_VDE
-#include <libvdeplug.h>
-#endif
 
 #include "emu.h"
 #include "utilities.h"
@@ -44,14 +41,7 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 #define DOSNET_TYPE_BASE        0x9000
 #define DOSNET_FAKED_ETH_ADDRESS   "dbx\x90xx"
 
-static int pkt_fd = -1;
 static int num_backends;
-
-#ifdef USE_VDE
-static VDECONN *vde;
-static struct popen2 vdesw, slirp;
-#endif
-
 static struct pkt_ops ops[VNET_TYPE_MAX];
 
 /* Should return a unique ID corresponding to this invocation of
@@ -62,12 +52,9 @@ static struct pkt_ops ops[VNET_TYPE_MAX];
 static void GenerateDosnetID(void)
 {
 	DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
+	memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
+	*(unsigned short int *)&(local_eth_addr[2]) = DosnetID;
 	pd_printf("Assigned DosnetID=%x\n", DosnetID);
-}
-
-static void pkt_receive_req_async(void *arg)
-{
-	pic_request(PIC_NET);
 }
 
 static struct pkt_ops *find_ops(int id)
@@ -134,126 +121,39 @@ static int OpenNetworkLinkEth(char *name)
 	receive_mode = (req.ifr_flags & IFF_PROMISC) ? 6 :
 		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
 
-	pkt_fd = s;
-
-	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
-
-	return 0;
+	return s;
 }
 
 static int OpenNetworkLinkTap(char *name)
 {
-	receive_mode = 6;
-	pkt_fd = tun_alloc(name);
+	int pkt_fd = tun_alloc(name);
 	if (pkt_fd < 0)
 		return pkt_fd;
-	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
-	return 0;
-}
-
-#ifdef USE_VDE
-static void vde_exit(void)
-{
-	error("vde failed, exiting\n");
-	leavedos(35);
-}
-
-static char *start_vde(void)
-{
-	char cmd[256];
-	int err, n;
-	char *nam = tmpnam(NULL);
-	snprintf(cmd, sizeof(cmd), "vde_switch -s %s", nam);
-	err = popen2(cmd, &vdesw);
-	if (err) {
-	    error("failed to start %s\n", cmd);
-	    goto fail2;
-	}
-	sigchld_register_handler(vdesw.child_pid, vde_exit);
-	n = read(vdesw.from_child, cmd, sizeof(cmd));
-	if (n <= 0) {
-	    error("read failed: %s\n", strerror(errno));
-	    goto fail1;
-	}
-	cmd[n] = 0;
-	if (!strstr(cmd, " started")) {
-	    error("vde_switch failed: %s\n", cmd);
-	    goto fail1;
-	}
-	snprintf(cmd, sizeof(cmd), "slirpvde -s %s %s 2>&1", nam,
-		config.slirp_args ?: "");
-	err = popen2(cmd, &slirp);
-	if (err) {
-	    error("failed to start %s\n", cmd);
-	    goto fail1;
-	}
-	sigchld_register_handler(slirp.child_pid, vde_exit);
-	while (1) {
-	    n = read(slirp.from_child, cmd, sizeof(cmd));
-	    if (n <= 0)
-		break;
-	    cmd[n] = 0;
-	    pd_printf("slirp: %s", cmd);
-	    if (strstr(cmd, "vde switch"))
-		break;
-	}
-	pd_printf("PKT: started VDE at %s\n", nam);
-	return nam;
-
-fail1:
-	pclose2(&vdesw);
-fail2:
-	return NULL;
-}
-
-static int OpenNetworkLinkVde(char *name)
-{
-	if (!name[0]) {
-	    name = start_vde();
-	    if (!name)
-		return -1;
-	}
-	vde = vde_open(name, "dosemu", NULL);
-	if (!vde)
-	    return -1;
-	pkt_fd = vde_datafd(vde);
-	add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
 	receive_mode = 6;
-	return 0;
+	return pkt_fd;
 }
-#endif
 
 int OpenNetworkLink(char *name)
 {
 
-	return find_ops(config.vnet)->open(name);
+	struct pkt_ops *o = find_ops(config.vnet);
+	if (!o)
+		return -1;
+	return o->open(name);
 }
 
 /*
  *	Close a file handle to a raw packet type.
  */
 
-static void CloseNetworkLinkEth(void)
+static void CloseNetworkLinkEth(int pkt_fd)
 {
-	remove_from_io_select(pkt_fd);
 	close(pkt_fd);
 }
 
-#ifdef USE_VDE
-static void CloseNetworkLinkVde(void)
+void CloseNetworkLink(int pkt_fd)
 {
-	remove_from_io_select(pkt_fd);
-	vde_close(vde);
-	sigchld_enable_handler(slirp.child_pid, 0);
-	pclose2(&slirp);
-	sigchld_enable_handler(vdesw.child_pid, 0);
-	pclose2(&vdesw);
-}
-#endif
-
-void CloseNetworkLink(void)
-{
-	find_ops(config.vnet)->close();
+	find_ops(config.vnet)->close(pkt_fd);
 }
 
 /*
@@ -296,21 +196,21 @@ static int GetDeviceHardwareAddressEth(char *device, unsigned char *addr)
 	return 0;
 }
 
+void pkt_get_fake_mac(unsigned char *addr)
+{
+	int i;
+	memcpy(addr, local_eth_addr, 6);
+	for (i=0; i < 6; i++)
+		pd_printf("%02x:", local_eth_addr[i] & 0xff);
+	pd_printf("\n");
+}
+
 static int GetDeviceHardwareAddressTap(char *device, unsigned char *addr)
 {
 	/* This routine is totally local; doesn't make
 	   request to actual device. */
-	int i;
-	memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
-	*(unsigned short int *)&(local_eth_addr[2]) = DosnetID;
-
-	memcpy(addr, local_eth_addr, 6);
-
+	pkt_get_fake_mac(addr);
 	pd_printf("Assigned Ethernet Address = ");
-	for (i=0; i < 6; i++)
-		pd_printf("%02x:", local_eth_addr[i] & 0xff);
-	pd_printf("\n");
-
 	return 0;
 }
 
@@ -341,13 +241,6 @@ static int GetDeviceMTUEth(char *device)
 		return -1;
 	return req.ifr_mtu;
 }
-
-#ifdef USE_VDE
-static int GetDeviceMTUVde(char *device)
-{
-  return(1500);
-}
-#endif
 
 int GetDeviceMTU(char *device)
 {
@@ -389,31 +282,7 @@ static int tun_alloc(char *dev)
       return fd;
 }
 
-#ifdef USE_VDE
-static ssize_t pkt_read_vde(void *buf, size_t count)
-{
-  ssize_t len;
-  fd_set set;
-  struct timeval tv = {};
-  int selrt;
-  FD_ZERO(&set);
-  FD_SET(pkt_fd, &set);
-  /* vde_recv() ignores flags... so we use select() */
-  selrt = select(pkt_fd + 1, &set, NULL, NULL, &tv);
-  if (selrt <= 0)
-    return 0;
-  len = vde_recv(vde, buf, count, MSG_DONTWAIT);
-  if (len == 0) {
-    error("VDE unexpectedly terminated\n");
-    leavedos(3);
-  }
-  if (len < 0)
-    error("recv() returned %zi, %s\n", len, strerror(errno));
-  return len;
-}
-#endif
-
-static ssize_t pkt_read_eth(void *buf, size_t count)
+static ssize_t pkt_read_eth(int pkt_fd, void *buf, size_t count)
 {
     struct timeval tv;
     fd_set readset;
@@ -434,36 +303,19 @@ static ssize_t pkt_read_eth(void *buf, size_t count)
     return read(pkt_fd, buf, count);
 }
 
-ssize_t pkt_read(void *buf, size_t count)
+ssize_t pkt_read(int fd, void *buf, size_t count)
 {
-    return find_ops(config.vnet)->pkt_read(buf, count);
+    return find_ops(config.vnet)->pkt_read(fd, buf, count);
 }
 
-static ssize_t pkt_write_eth(const void *buf, size_t count)
+static ssize_t pkt_write_eth(int pkt_fd, const void *buf, size_t count)
 {
     return write(pkt_fd, buf, count);
 }
 
-#ifdef USE_VDE
-static ssize_t pkt_write_vde(const void *buf, size_t count)
+ssize_t pkt_write(int fd, const void *buf, size_t count)
 {
-  ssize_t ret;
-  ret = vde_send(vde, buf, count, 0);
-  if (ret == -1) {
-    int err = errno;
-    error("vde_send(): %s\n", strerror(err));
-    if (err == ENOTCONN || err == ECONNREFUSED) {
-      error("VDE unexpectedly terminated\n");
-      leavedos(3);
-    }
-  }
-  return ret;
-}
-#endif
-
-ssize_t pkt_write(const void *buf, size_t count)
-{
-    return find_ops(config.vnet)->pkt_write(buf, count);
+    return find_ops(config.vnet)->pkt_write(fd, buf, count);
 }
 
 int pkt_register_backend(struct pkt_ops *o)
@@ -477,6 +329,8 @@ int pkt_register_backend(struct pkt_ops *o)
 void LibpacketInit(void)
 {
 	struct pkt_ops o;
+
+	GenerateDosnetID();
 
 	o.id = VNET_TYPE_ETH;
 	o.open = OpenNetworkLinkEth;
@@ -496,16 +350,9 @@ void LibpacketInit(void)
 	o.pkt_write = pkt_write_eth;
 	pkt_register_backend(&o);
 
+#ifdef USE_DL_PLUGINS
 #ifdef USE_VDE
-	o.id = VNET_TYPE_VDE;
-	o.open = OpenNetworkLinkVde;
-	o.close = CloseNetworkLinkVde;
-	o.get_hw_addr = GetDeviceHardwareAddressTap;
-	o.get_MTU = GetDeviceMTUVde;
-	o.pkt_read = pkt_read_vde;
-	o.pkt_write = pkt_write_vde;
-	pkt_register_backend(&o);
+	load_plugin("vde");
 #endif
-
-	GenerateDosnetID();
+#endif
 }

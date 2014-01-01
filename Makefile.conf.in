@@ -57,6 +57,7 @@ LIBS:=@LIBS@
 X_LIBS:=@X_LIBS@
 SLANGLIB:=@SLANGLIB@
 GPMLIB:=@GPMLIB@
+VDELIB:=@VDELIB@
 CC:=@CC@
 CPP:=@CPP@
 LD:=@CC@
@@ -127,6 +128,6 @@ RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
 ifdef USE_DL_PLUGINS
 DL_CFLAGS:=-fPIC
 else
-LIBS:=$(LIBS) $(SLANGLIB) $(X_LIBS) $(GPMLIB) $(ALSALIB) $(SNDFLIB)
+LIBS:=$(LIBS) $(SLANGLIB) $(X_LIBS) $(GPMLIB) $(VDELIB) $(ALSALIB) $(SNDFLIB)
 -include $(top_builddir)/src/plugin/*/Makefile.conf
 endif

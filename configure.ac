@@ -181,8 +181,11 @@ if test "$use_vde" = "yes"; then
   AC_DEFINE([USE_VDE], [1], [Define this to use VDE for networking])
   USE_VDE="USE_VDE=1"
   AC_SUBST(USE_VDE)
-  # TODO: turn that into a plugin
-  LIBS="$LIBS -lvdeplug"
+  $srcdir/mkpluginhooks enable vde yes
+  VDELIB="-lvdeplug"
+  AC_SUBST(VDELIB)
+else
+  $srcdir/mkpluginhooks enable vde no
 fi
 
 dnl Check whether we have gpm and whether to use it

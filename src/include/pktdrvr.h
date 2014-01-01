@@ -96,14 +96,15 @@ extern void pkt_term (void);
 struct pkt_ops {
     int id;
     int (*open)(char *name);
-    void (*close)(void);
+    void (*close)(int);
     int (*get_hw_addr)(char *device, unsigned char *addr);
     int (*get_MTU)(char *device);
-    ssize_t (*pkt_read)(void *buf, size_t count);
-    ssize_t (*pkt_write)(const void *buf, size_t count);
+    ssize_t (*pkt_read)(int fd, void *buf, size_t count);
+    ssize_t (*pkt_write)(int fd, const void *buf, size_t count);
 };
 
 extern int pkt_register_backend(struct pkt_ops *o);
+extern void pkt_get_fake_mac(unsigned char *addr);
 
 extern unsigned short receive_mode;
 
