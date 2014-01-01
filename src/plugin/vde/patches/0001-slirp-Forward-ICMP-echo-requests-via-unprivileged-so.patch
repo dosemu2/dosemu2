@@ -1,0 +1,292 @@
+From e6d43cfb1f937898dc031c7b38a23e5ccad8bd9a Mon Sep 17 00:00:00 2001
+From: Jan Kiszka <jan.kiszka@siemens.com>
+Date: Wed, 20 Jul 2011 12:20:18 +0200
+Subject: [PATCH] slirp: Forward ICMP echo requests via unprivileged sockets
+
+Linux 3.0 gained support for unprivileged ICMP ping sockets. Use this
+feature to forward guest pings to the outer world. The host admin has to
+set the ping_group_range in order to grant access to those sockets. To
+allow ping for the users group (GID 100):
+
+echo 100 100 > /proc/sys/net/ipv4/ping_group_range
+
+Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+---
+ slirp/ip_icmp.c  | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ slirp/ip_icmp.h  |  3 ++
+ slirp/ip_input.c |  1 +
+ slirp/misc.c     | 13 +++++++++
+ slirp/slirp.c    | 37 ++++++++++++++++++++++++
+ slirp/slirp.h    |  5 ++++
+ slirp/socket.c   |  2 ++
+ 7 files changed, 147 insertions(+), 1 deletion(-)
+
+diff --git a/slirp/ip_icmp.c b/slirp/ip_icmp.c
+index 4f10826..14a5312 100644
+--- a/slirp/ip_icmp.c
++++ b/slirp/ip_icmp.c
+@@ -60,6 +60,52 @@ static const int icmp_flush[19] = {
+ /* ADDR MASK REPLY (18) */ 0
+ };
+ 
++void icmp_init(Slirp *slirp)
++{
++    slirp->icmp.so_next = slirp->icmp.so_prev = &slirp->icmp;
++    slirp->icmp_last_so = &slirp->icmp;
++}
++
++static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
++{
++    struct ip *ip = mtod(m, struct ip *);
++    struct sockaddr_in addr;
++
++    so->s = qemu_socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
++    if (so->s == -1) {
++        return -1;
++    }
++
++    so->so_m = m;
++    so->so_faddr = ip->ip_dst;
++    so->so_laddr = ip->ip_src;
++    so->so_iptos = ip->ip_tos;
++    so->so_type = IPPROTO_ICMP;
++    so->so_state = SS_ISFCONNECTED;
++    so->so_expire = curtime + SO_EXPIRE;
++
++    addr.sin_family = AF_INET;
++    addr.sin_addr = so->so_faddr;
++
++    insque(so, &so->slirp->icmp);
++
++    if (sendto(so->s, m->m_data + hlen, m->m_len - hlen, 0,
++               (struct sockaddr *)&addr, sizeof(addr)) == -1) {
++        DEBUG_MISC((dfd, "icmp_input icmp sendto tx errno = %d-%s\n",
++                    errno, strerror(errno)));
++        icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));
++        icmp_detach(so);
++    }
++
++    return 0;
++}
++
++void icmp_detach(struct socket *so)
++{
++    closesocket(so->s);
++    sofree(so);
++}
++
+ /*
+  * Process a received ICMP message.
+  */
+@@ -97,7 +143,6 @@ icmp_input(struct mbuf *m, int hlen)
+   DEBUG_ARG("icmp_type = %d", icp->icmp_type);
+   switch (icp->icmp_type) {
+   case ICMP_ECHO:
+-    icp->icmp_type = ICMP_ECHOREPLY;
+     ip->ip_len += hlen;	             /* since ip_input subtracts this */
+     if (ip->ip_dst.s_addr == slirp->vhost_addr.s_addr) {
+       icmp_reflect(m);
+@@ -107,6 +152,9 @@ icmp_input(struct mbuf *m, int hlen)
+       struct socket *so;
+       struct sockaddr_in addr;
+       if ((so = socreate(slirp)) == NULL) goto freeit;
++      if (icmp_send(so, m, hlen) == 0) {
++        return;
++      }
+       if(udp_attach(so) == -1) {
+ 	DEBUG_MISC((dfd,"icmp_input udp_attach errno = %d-%s\n",
+ 		    errno,strerror(errno)));
+@@ -321,6 +369,7 @@ icmp_reflect(struct mbuf *m)
+   m->m_len -= hlen;
+   icp = mtod(m, struct icmp *);
+ 
++  icp->icmp_type = ICMP_ECHOREPLY;
+   icp->icmp_cksum = 0;
+   icp->icmp_cksum = cksum(m, ip->ip_len - hlen);
+ 
+@@ -351,3 +400,39 @@ icmp_reflect(struct mbuf *m)
+ 
+   (void ) ip_output((struct socket *)NULL, m);
+ }
++
++void icmp_receive(struct socket *so)
++{
++    struct mbuf *m = so->so_m;
++    struct ip *ip = mtod(m, struct ip *);
++    int hlen = ip->ip_hl << 2;
++    u_char error_code;
++    struct icmp *icp;
++    int id, len;
++
++    m->m_data += hlen;
++    m->m_len -= hlen;
++    icp = mtod(m, struct icmp *);
++
++    id = icp->icmp_id;
++    len = recv(so->s, icp, m->m_len, 0);
++    icp->icmp_id = id;
++
++    m->m_data -= hlen;
++    m->m_len += hlen;
++
++    if (len == -1 || len == 0) {
++        if (errno == ENETUNREACH) {
++            error_code = ICMP_UNREACH_NET;
++        } else {
++            error_code = ICMP_UNREACH_HOST;
++        }
++        DEBUG_MISC((dfd, " udp icmp rx errno = %d-%s\n", errno,
++                    strerror(errno)));
++        icmp_error(so->so_m, ICMP_UNREACH, error_code, 0, strerror(errno));
++    } else {
++        icmp_reflect(so->so_m);
++        so->so_m = NULL; /* Don't m_free() it again! */
++    }
++    icmp_detach(so);
++}
+diff --git a/slirp/ip_icmp.h b/slirp/ip_icmp.h
+index 2692822..b3da1f2 100644
+--- a/slirp/ip_icmp.h
++++ b/slirp/ip_icmp.h
+@@ -153,9 +153,12 @@ struct icmp {
+ 	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
+ 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
+ 
++void icmp_init(Slirp *slirp);
+ void icmp_input(struct mbuf *, int);
+ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
+                 const char *message);
+ void icmp_reflect(struct mbuf *);
++void icmp_receive(struct socket *so);
++void icmp_detach(struct socket *so);
+ 
+ #endif
+diff --git a/slirp/ip_input.c b/slirp/ip_input.c
+index 46c60b0..5e67631 100644
+--- a/slirp/ip_input.c
++++ b/slirp/ip_input.c
+@@ -58,6 +58,7 @@ ip_init(Slirp *slirp)
+     slirp->ipq.ip_link.next = slirp->ipq.ip_link.prev = &slirp->ipq.ip_link;
+     udp_init(slirp);
+     tcp_init(slirp);
++    icmp_init(slirp);
+ }
+ 
+ /*
+diff --git a/slirp/misc.c b/slirp/misc.c
+index 34179e2..6002550 100644
+--- a/slirp/misc.c
++++ b/slirp/misc.c
+@@ -407,4 +407,17 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
+                        inet_ntoa(dst_addr), ntohs(dst_port),
+                        so->so_rcv.sb_cc, so->so_snd.sb_cc);
+     }
++
++    for (so = slirp->icmp.so_next; so != &slirp->icmp; so = so->so_next) {
++        n = snprintf(buf, sizeof(buf), "  ICMP[%d sec]",
++                     (so->so_expire - curtime) / 1000);
++        src.sin_addr = so->so_laddr;
++        dst_addr = so->so_faddr;
++        memset(&buf[n], ' ', 19 - n);
++        buf[19] = 0;
++        monitor_printf(mon, "%s %3d %15s  -    ", buf, so->s,
++                       src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
++        monitor_printf(mon, "%15s  -    %5d %5d\n", inet_ntoa(dst_addr),
++                       so->so_rcv.sb_cc, so->so_snd.sb_cc);
++    }
+ }
+diff --git a/slirp/slirp.c b/slirp/slirp.c
+index 1593be1..faaa2f3 100644
+--- a/slirp/slirp.c
++++ b/slirp/slirp.c
+@@ -373,6 +373,31 @@ void slirp_select_fill(int *pnfds,
+ 				UPD_NFDS(so->s);
+ 			}
+ 		}
++
++                /*
++                 * ICMP sockets
++                 */
++                for (so = slirp->icmp.so_next; so != &slirp->icmp;
++                     so = so_next) {
++                    so_next = so->so_next;
++
++                    /*
++                     * See if it's timed out
++                     */
++                    if (so->so_expire) {
++                        if (so->so_expire <= curtime) {
++                            icmp_detach(so);
++                            continue;
++                        } else {
++                            do_slowtimo = 1; /* Let socket expire */
++                        }
++                    }
++
++                    if (so->so_state & SS_ISFCONNECTED) {
++                        FD_SET(so->s, readfds);
++                        UPD_NFDS(so->s);
++                    }
++                }
+ 	}
+ 
+         *pnfds = nfds;
+@@ -542,6 +567,18 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
+                             sorecvfrom(so);
+                         }
+ 		}
++
++                /*
++                 * Check incoming ICMP relies.
++                 */
++                for (so = slirp->icmp.so_next; so != &slirp->icmp;
++                     so = so_next) {
++                     so_next = so->so_next;
++
++                    if (so->s != -1 && FD_ISSET(so->s, readfds)) {
++                        icmp_receive(so);
++                    }
++                }
+ 	}
+ 
+ 	/*
+diff --git a/slirp/slirp.h b/slirp/slirp.h
+index 954289a..16bb6ba 100644
+--- a/slirp/slirp.h
++++ b/slirp/slirp.h
+@@ -152,6 +152,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
+ #include "tcp_var.h"
+ #include "tcpip.h"
+ #include "udp.h"
++#include "ip_icmp.h"
+ #include "mbuf.h"
+ #include "sbuf.h"
+ #include "socket.h"
+@@ -218,6 +219,10 @@ struct Slirp {
+     struct socket udb;
+     struct socket *udp_last_so;
+ 
++    /* icmp states */
++    struct socket icmp;
++    struct socket *icmp_last_so;
++
+     /* tftp states */
+     char *tftp_prefix;
+     struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
+diff --git a/slirp/socket.c b/slirp/socket.c
+index 6119234..9b8ae13 100644
+--- a/slirp/socket.c
++++ b/slirp/socket.c
+@@ -71,6 +71,8 @@ sofree(struct socket *so)
+       slirp->tcp_last_so = &slirp->tcb;
+   } else if (so == slirp->udp_last_so) {
+       slirp->udp_last_so = &slirp->udb;
++  } else if (so == slirp->icmp_last_so) {
++      slirp->icmp_last_so = &slirp->icmp;
+   }
+   m_free(so->so_m);
+ 
+-- 
+1.8.3.1
+

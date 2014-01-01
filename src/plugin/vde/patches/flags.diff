@@ -1,0 +1,50 @@
+Index: src/lib/libvdeplug.c
+===================================================================
+--- src/lib/libvdeplug.c	(revision 564)
++++ src/lib/libvdeplug.c	(working copy)
+@@ -600,7 +600,7 @@
+ #ifdef CONNECTED_P2P
+ 	ssize_t retval;
+ 	if (__builtin_expect(conn!=0,1)) {
+-		if (__builtin_expect(((retval=recv(conn->fddata,buf,len,0)) > 0), 1))
++		if (__builtin_expect(((retval=recv(conn->fddata,buf,len,flags)) > 0), 1))
+ 			return retval;
+ 		else {
+ 			if (retval == 0 && conn->outsock != NULL) {
+@@ -616,7 +616,7 @@
+ 	}
+ #else
+ 	if (__builtin_expect(conn!=0,1))
+-		return recv(conn->fddata,buf,len,0);
++		return recv(conn->fddata,buf,len,flags);
+ 	else {
+ 		errno=EBADF;
+ 		return -1;
+@@ -629,13 +629,13 @@
+ #ifdef CONNECTED_P2P
+ 	if (__builtin_expect(conn!=0,1)) {
+ 		ssize_t retval;
+-		if (__builtin_expect(((retval=send(conn->fddata,buf,len,0)) >= 0),1)) 
++		if (__builtin_expect(((retval=send(conn->fddata,buf,len,flags)) >= 0),1)) 
+ 			return retval;
+ 		else {
+ 			if (__builtin_expect(errno == ENOTCONN || errno == EDESTADDRREQ,0)) {
+ 				if (__builtin_expect(conn->outsock != NULL,1)) {
+ 					connect(conn->fddata, conn->outsock,conn->outlen);
+-					return send(conn->fddata,buf,len,0);
++					return send(conn->fddata,buf,len,flags);
+ 				} else
+ 					return retval;
+ 			} else
+@@ -648,9 +648,9 @@
+ #else
+ 	if (__builtin_expect(conn!=0,1)) {
+ 		if (__builtin_expect(conn->outsock == NULL,1))
+-			return send(conn->fddata,buf,len,0);
++			return send(conn->fddata,buf,len,flags);
+ 		else 
+-			return sendto(conn->fddata,buf,len,0,
++			return sendto(conn->fddata,buf,len,flags,
+ 					conn->outsock,conn->outlen);
+ 	} else {
+ 		errno=EBADF;

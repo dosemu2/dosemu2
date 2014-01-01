@@ -1,0 +1,26 @@
+Index: src/kvde_switch/consmgmt.c
+===================================================================
+--- src/kvde_switch/consmgmt.c	(revision 564)
++++ src/kvde_switch/consmgmt.c	(working copy)
+@@ -567,7 +567,7 @@
+ 	}
+ 	/* add stdin (if tty), connect and data fds to the set of fds we wait for
+ 	 *    * input */
+-	if(isatty(0) && !daemonize)
++	if(!daemonize)
+ 	{
+ 		console_type=add_type(&swmi,0);
+ 		add_fd(0,console_type,NULL);
+Index: src/vde_switch/consmgmt.c
+===================================================================
+--- src/vde_switch/consmgmt.c	(revision 564)
++++ src/vde_switch/consmgmt.c	(working copy)
+@@ -570,7 +571,7 @@
+ 	}
+ 	/* add stdin (if tty), connect and data fds to the set of fds we wait for
+ 	 *    * input */
+-	if(isatty(0) && !daemonize)
++	if(!daemonize)
+ 	{
+ 		console_type=add_type(&swmi,0);
+ 		add_fd(0,console_type,NULL);
