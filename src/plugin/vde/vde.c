@@ -23,6 +23,8 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <libvdeplug.h>
@@ -43,7 +45,7 @@ static void vde_exit(void)
 static char *start_vde(void)
 {
     char cmd[256];
-    int err, n, started;
+    int err, n, started, fd, pmin, pmax;
     fd_set fds;
     struct timeval tv;
     char *nam = tmpnam(NULL);
@@ -66,7 +68,7 @@ static char *start_vde(void)
 	error("you appear to have unpatched vde\n");
 	break;
     default:
-	n = read(vdesw.from_child, cmd, sizeof(cmd));
+	n = read(vdesw.from_child, cmd, sizeof(cmd) - 1);
 	switch (n) {
 	case -1:
 	    error("read failed: %s\n", strerror(errno));
@@ -80,6 +82,27 @@ static char *start_vde(void)
 	    error("vde_switch failed: %s\n", cmd);
 	    goto fail1;
 	}
+
+	/* check for userspace pings */
+	fd = open("/proc/sys/net/ipv4/ping_group_range", O_RDONLY);
+	if (fd == -1) {
+	    pd_printf("PKT: no /proc/sys/net/ipv4/ping_group_range??\n");
+	    goto out;
+	}
+	n = read(fd, cmd, sizeof(cmd) - 1);
+	if (n <= 0)
+	    goto out2;
+	cmd[n] = 0;
+	sscanf(cmd, "%i %i", &pmin, &pmax);
+	/* this is not a strict check, but default value is 1 0 */
+	if (pmin > pmax)
+	    error("userspace pings are disabled.\n"
+		    "\tTo enable them, do as root:\n"
+		    "\techo 0 65535 > /proc/sys/net/ipv4/ping_group_range\n");
+	pd_printf("PKT: ping_group_range is %s", cmd);
+out2:
+	close(fd);
+out:
 	break;
     }
     snprintf(cmd, sizeof(cmd), "slirpvde -s %s %s 2>&1", nam,
@@ -91,7 +114,7 @@ static char *start_vde(void)
     }
     started = 0;
     while (1) {
-	n = read(slirp.from_child, cmd, sizeof(cmd));
+	n = read(slirp.from_child, cmd, sizeof(cmd) - 1);
 	if (n <= 0)
 	    break;
 	cmd[n] = 0;
