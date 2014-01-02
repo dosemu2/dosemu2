@@ -43,7 +43,9 @@ static void vde_exit(void)
 static char *start_vde(void)
 {
     char cmd[256];
-    int err, n;
+    int err, n, started;
+    fd_set fds;
+    struct timeval tv;
     char *nam = tmpnam(NULL);
     snprintf(cmd, sizeof(cmd), "vde_switch -s %s", nam);
     err = popen2(cmd, &vdesw);
@@ -51,16 +53,34 @@ static char *start_vde(void)
 	error("failed to start %s\n", cmd);
 	goto fail2;
     }
-    sigchld_register_handler(vdesw.child_pid, vde_exit);
-    n = read(vdesw.from_child, cmd, sizeof(cmd));
-    if (n <= 0) {
-	error("read failed: %s\n", strerror(errno));
+    FD_ZERO(&fds);
+    FD_SET(vdesw.from_child, &fds);
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    err = select(vdesw.from_child + 1, &fds, NULL, NULL, &tv);
+    switch(err) {
+    case -1:
+	error("select failed: %s\n", strerror(errno));
 	goto fail1;
-    }
-    cmd[n] = 0;
-    if (!strstr(cmd, " started")) {
-	error("vde_switch failed: %s\n", cmd);
-	goto fail1;
+    case 0:
+	error("you appear to have unpatched vde\n");
+	break;
+    default:
+	n = read(vdesw.from_child, cmd, sizeof(cmd));
+	switch (n) {
+	case -1:
+	    error("read failed: %s\n", strerror(errno));
+	    goto fail1;
+	case 0:
+	    error("failed to start %s\n", cmd);
+	    goto fail1;
+	}
+	cmd[n] = 0;
+	if (!strstr(cmd, " started")) {
+	    error("vde_switch failed: %s\n", cmd);
+	    goto fail1;
+	}
+	break;
     }
     snprintf(cmd, sizeof(cmd), "slirpvde -s %s %s 2>&1", nam,
 	     config.slirp_args ? : "");
@@ -69,19 +89,30 @@ static char *start_vde(void)
 	error("failed to start %s\n", cmd);
 	goto fail1;
     }
-    sigchld_register_handler(slirp.child_pid, vde_exit);
+    started = 0;
     while (1) {
 	n = read(slirp.from_child, cmd, sizeof(cmd));
 	if (n <= 0)
 	    break;
 	cmd[n] = 0;
 	pd_printf("slirp: %s", cmd);
-	if (strstr(cmd, "vde switch"))
+	if (strstr(cmd, "vde switch")) {
+	    started = 1;
 	    break;
+	}
     }
+    if (!started) {
+	error("failed to start slirpvde\n");
+	goto fail0;
+    }
+
+    sigchld_register_handler(vdesw.child_pid, vde_exit);
+    sigchld_register_handler(slirp.child_pid, vde_exit);
     pd_printf("PKT: started VDE at %s\n", nam);
     return nam;
 
+  fail0:
+    pclose2(&slirp);
   fail1:
     pclose2(&vdesw);
   fail2:
