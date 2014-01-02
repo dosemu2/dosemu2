@@ -45,12 +45,24 @@ static void vde_exit(void)
 static char *start_vde(void)
 {
     char cmd[256];
-    int err, n, started, fd, pmin, pmax;
+    int err, n, started, fd, pmin, pmax, q;
     fd_set fds;
     struct timeval tv;
     char *nam = tmpnam(NULL);
+    fd = -1;
+    q = (pkt_get_flags() & PKT_FLG_QUIET);
+    if (q) {
+	fd = dup(STDERR_FILENO);
+	close(STDERR_FILENO);
+	open("/dev/null", O_WRONLY);
+    }
     snprintf(cmd, sizeof(cmd), "vde_switch -s %s", nam);
     err = popen2(cmd, &vdesw);
+    if (fd != -1) {
+	close(STDERR_FILENO);
+	dup(fd);
+	close(fd);
+    }
     if (err) {
 	error("failed to start %s\n", cmd);
 	goto fail2;
@@ -74,7 +86,8 @@ static char *start_vde(void)
 	    error("read failed: %s\n", strerror(errno));
 	    goto fail1;
 	case 0:
-	    error("failed to start %s\n", cmd);
+	    if (!q)
+		error("failed to start %s\n", cmd);
 	    goto fail1;
 	}
 	cmd[n] = 0;

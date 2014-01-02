@@ -44,6 +44,8 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 static int num_backends;
 static struct pkt_ops ops[VNET_TYPE_MAX];
 
+static int pkt_flags;
+
 /* Should return a unique ID corresponding to this invocation of
    dosemu not clashing with other dosemus. We use a random value and
    hope for the best.
@@ -355,4 +357,24 @@ void LibpacketInit(void)
 	load_plugin("vde");
 #endif
 #endif
+}
+
+void pkt_set_flags(int flags)
+{
+	pkt_flags |= flags;
+}
+
+void pkt_clear_flags(int flags)
+{
+	pkt_flags &= ~flags;
+}
+
+int pkt_get_flags(void)
+{
+	return pkt_flags;
+}
+
+int pkt_is_registered_type(int type)
+{
+	return !!find_ops(type);
 }

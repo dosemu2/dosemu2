@@ -133,16 +133,10 @@ void pkt_priv_init(void)
     LibpacketInit();
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
-#ifdef USE_VDE
 retry:
-#endif
     switch (config.vnet) {
       case VNET_TYPE_ETH:
 	strncpy(devname, config.ethdev, sizeof(devname) - 1);
-	devname[sizeof(devname) - 1] = 0;
-	break;
-      case VNET_TYPE_VDE:
-	strncpy(devname, config.vdeswitch, sizeof(devname) - 1);
 	devname[sizeof(devname) - 1] = 0;
 	break;
       case VNET_TYPE_TAP:
@@ -151,6 +145,10 @@ retry:
 	  pd_printf("PKT: trying to bind to device %s\n", config.tapdev);
 	  strcpy(devname, config.tapdev);
 	}
+	break;
+      case VNET_TYPE_VDE:
+	strncpy(devname, config.vdeswitch, sizeof(devname) - 1);
+	devname[sizeof(devname) - 1] = 0;
 	break;
     }
 
@@ -162,12 +160,13 @@ retry:
 	ret = Open_sockets(devname);
 	if (ret < 0) {
 	  warn("PKT: Cannot open %s: %s\n", devname, strerror(errno));
-#ifdef USE_VDE
-	  warn("PKT: Trying VDE instead\n");
-	  config.vnet = VNET_TYPE_VDE;
-	  pktdrvr_installed = -1;	// fallback
-	  goto retry;
-#endif
+	  if (pkt_is_registered_type(VNET_TYPE_VDE)) {
+	    warn("PKT: Trying VDE instead\n");
+	    pkt_set_flags(PKT_FLG_QUIET);
+	    config.vnet = VNET_TYPE_VDE;
+	    pktdrvr_installed = -1;	// fallback
+	    goto retry;
+	  }
 	  pktdrvr_installed = 0;
 	}
     }
@@ -190,7 +189,8 @@ pkt_init(void)
 	    pktdrvr_installed = 0;
 	  } else {
 	    error("Unable to run VDE, %s\n", devname[0] ? devname : "(auto)");
-	    config.exitearly = 1;
+//	    config.exitearly = 1;
+	    pktdrvr_installed = 0;
 	  }
 	  return;
 	}
