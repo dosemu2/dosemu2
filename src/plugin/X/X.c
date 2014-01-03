@@ -1377,10 +1377,6 @@ static void toggle_fullscreen_mode(int init)
     w_y_res = saved_w_y_res;
     XUngrabKeyboard(display, CurrentTime);
     XUngrabPointer(display, CurrentTime);
-    if (force_grab && grab_active) {
-      toggle_mouse_grab();
-    }
-    force_grab = 0;
     mainwindow = normalwindow;
     X_vidmode(-1, -1, &resize_width, &resize_height);
     if (vga.mode_class == GRAPH || use_bitmap_font) {
@@ -1389,6 +1385,10 @@ static void toggle_fullscreen_mode(int init)
     }
     XMapWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
+    if (force_grab && grab_active) {
+      toggle_mouse_grab();
+    }
+    force_grab = 0;
   }
   if(vga.mode_class == TEXT && !use_bitmap_font) {
     X_resize_text_screen();
