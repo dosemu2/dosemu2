@@ -197,21 +197,43 @@ have a look into IP-Masquerade-HOWTO.
 </sect2>
 
 <sect2>
-<title>Slirp (pseudo-NAT) networking backend</title>
+<title>VDE networking backend</title>
 <para>
 If you just need to have a working internet access from within your
-DOSEMU environment, then you might want to consider using Slirp networking.
-Slirp is a user mode networking utility providing a NAT-like
-service. In Slirp mode, DOSEMU will provide a DHCP server, as well as a
-virtualized network in the 10.0.2.0/24 range, with a default gateway and a
-DNS server.
+DOSEMU environment, then you might want to consider using VDE networking.
+slirpvde is a user mode networking utility providing a NAT-like
+service, DHCP server, as well as a virtualized network in the 10.0.2.0/24
+range, with a default gateway and a DNS server.
+Note that dosemu uses VDE backend as a fallback when other methods are
+unavailable. It also tries to start all the vde utilities, so no
+configuration efforts are usually needed.
 </para>
 <para>
-Set it as follows:
+Use the following command to get VDE sources:
+<screen>
+svn checkout svn://svn.code.sf.net/p/vde/svn/trunk vde-svn
+</screen>
+You may also need to apply the following patches:
+<ulink url=http://sourceforge.net/p/vde/bugs/70/attachment/flags.diff>
+patch1
+</ulink>
+<ulink url=http://sourceforge.net/p/vde/bugs/71/attachment/atty.diff>
+patch2
+</ulink>
+<ulink url=http://sourceforge.net/p/vde/bugs/_discuss/thread/dc88b292/4b26/attachment/msg.diff>
+patch3
+</ulink>
+<ulink url=http://sourceforge.net/p/vde/bugs/73/attachment/0001-slirp-Forward-ICMP-echo-requests-via-unprivileged-so.patch>
+patch4
+</ulink>
+</para>
+<para>
+VDE-specific config options:
 <screen>
 $_pktdriver=(on)
-$_vnet = "slirp"
-$_slirp = "/usr/bin/slirp"
+$_vnet = "vde"
+$_vdeswitch = "/tmp/switch1
+$_slirpargs = "--dhcp"
 </screen>
 </para>
 <para>
