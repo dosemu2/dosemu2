@@ -881,6 +881,7 @@ mouse_setcurspeed(void)
 static void reset_unscaled(void)
 {
 	mouse.unsc_x = mouse.unsc_y = 0;
+	mouse.unscm_x = mouse.unscm_y = 0;
 }
 
 static int get_unsc_x(int dx)
@@ -897,48 +898,45 @@ static int get_unsc_y(int dy)
 	return dy * mouse.speed_y * my_range;
 }
 
-static int get_mk_x(int ux)
-{
-	int mx_range;
-	mx_range = mouse.maxx - mouse.minx +1;
-	return ux / mx_range;
-}
-
-static int get_mk_y(int uy)
-{
-	int my_range;
-	my_range = mouse.maxy - mouse.miny +1;
-	return uy / my_range;
-}
-
 static void recalc_coords(int x_range, int y_range)
 {
 	int dx = mouse.unsc_x / (x_range * mouse.speed_x);
 	int dy = mouse.unsc_y / (y_range * mouse.speed_y);
+	int dmx = mouse.unscm_x / x_range;
+	int dmy = mouse.unscm_y / y_range;
 	mouse.x += dx;
 	mouse.y += dy;
 	mouse.abs_x += dx;
 	mouse.abs_y += dy;
-	mouse.mickeyx += get_mk_x(mouse.unsc_x);
-	mouse.mickeyy += get_mk_y(mouse.unsc_y);
+	mouse.mickeyx += dmx;
+	mouse.mickeyy += dmy;
 	mouse.unsc_x -= dx * x_range * mouse.speed_x;
 	mouse.unsc_y -= dy * y_range * mouse.speed_y;
+	mouse.unscm_x -= dmx * x_range;
+	mouse.unscm_y -= dmy * y_range;
 }
 
 static void add_mk(int dx, int dy)
 {
-	int mx_range, my_range;
-	mx_range = mouse.maxx - mouse.minx +1;
-	my_range = mouse.maxy - mouse.miny +1;
-	mouse.unsc_x += dx * 8 * mx_range;
-	mouse.unsc_y += dy * 8 * my_range;
+	int mx_range = mouse.maxx - mouse.minx +1;
+	int my_range = mouse.maxy - mouse.miny +1;
+	int udx = dx * 8 * mx_range;
+	int udy = dy * 8 * my_range;
+	mouse.unsc_x += udx;
+	mouse.unsc_y += udy;
+	mouse.unscm_x += udx;
+	mouse.unscm_y += udy;
 	recalc_coords(mx_range, my_range);
 }
 
 static void add_px(int dx, int dy, int x_range, int y_range)
 {
-	mouse.unsc_x += get_unsc_x(dx);
-	mouse.unsc_y += get_unsc_y(dy);
+	int udx = get_unsc_x(dx);
+	int udy = get_unsc_y(dy);
+	mouse.unsc_x += udx;
+	mouse.unsc_y += udy;
+	mouse.unscm_x += udx;
+	mouse.unscm_y += udy;
 	recalc_coords(x_range, y_range);
 }
 
