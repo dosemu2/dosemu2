@@ -47,8 +47,8 @@ static int kmem_mappings = 0;
 static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 
 static int init_done = 0;
-unsigned char * const mem_base;
-char * lowmem_base;
+unsigned char *mem_base;
+char *lowmem_base;
 
 static struct mappingdrivers *mappingdrv[] = {
 #ifdef HAVE_SHM_OPEN
@@ -210,9 +210,11 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   }
 #endif
   addr = mappingdriver.alias(cap, target, mapsize, protect, source);
+  if (addr == MAP_FAILED)
+    return addr;
   update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
   if (cap & MAPPING_INIT_LOWRAM) {
-    *(unsigned char **)&mem_base = addr;
+    mem_base = addr;
   }
   return addr;
 }
@@ -266,6 +268,8 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 #endif
     addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
+    if (addr == MAP_FAILED)
+      return addr;
     update_aliasmap(addr, mapsize, addr);
   } else {
     dosemu_error("Wrong mapping type %#x\n", cap);
