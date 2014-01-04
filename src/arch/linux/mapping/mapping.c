@@ -191,7 +191,7 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
-  if (!((cap & MAPPING_INIT_LOWRAM) && target))
+  if (targ != -1)
     cap |= MAPPING_FIXED;
   if (cap & MAPPING_COPYBACK) {
     if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
