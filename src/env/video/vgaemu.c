@@ -1538,7 +1538,7 @@ int vga_emu_pre_init(void)
   vga.mem.size = (vga.mem.size + ~(-1 << 18)) & (-1 << 18);
   vga.mem.pages = vga.mem.size >> 12;
 
-  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12), 0);
+  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12), -1);
   if(!vga.mem.base) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     return 1;
