@@ -152,6 +152,7 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern unsigned char *ldt_buffer;
+extern unsigned char *ldt_alias;
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__

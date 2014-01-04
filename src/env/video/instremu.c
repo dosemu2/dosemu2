@@ -473,9 +473,9 @@ void instr_write_byte(unsigned char *address, unsigned char u)
     count = COUNT;
     vga_write(addr, u);
   }
-  else if (ldt_buffer && address >= ldt_buffer &&
-      address < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(address - ldt_buffer, 1, (char*)&u);
+  else if (ldt_alias && address >= ldt_alias &&
+      address < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(address - ldt_alias, 1, (char*)&u);
   }
   else {
     *address = u;
@@ -500,9 +500,9 @@ void instr_write_word(unsigned char *address, unsigned u)
     vga_write(dst, R_LO(u));
     vga_write(dst+1, R_HI(u));
   }
-  else if (ldt_buffer && address >= ldt_buffer &&
-      address < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(address - ldt_buffer, 2, (char*)&u);
+  else if (ldt_alias && address >= ldt_alias &&
+      address < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(address - ldt_alias, 2, (char*)&u);
   }
   else
     *(unsigned short *)address = u;
@@ -530,9 +530,9 @@ void instr_write_dword(unsigned char *address, unsigned u)
     vga_write(dst+2, ((unsigned char *) &u)[2]);
     vga_write(dst+3, ((unsigned char *) &u)[3]);
   }
-  else if (ldt_buffer && address >= ldt_buffer &&
-      address < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(address - ldt_buffer, 4, (char*)&u);
+  else if (ldt_alias && address >= ldt_alias &&
+      address < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(address - ldt_alias, 4, (char*)&u);
   }
   else
     *(unsigned *)address = u;

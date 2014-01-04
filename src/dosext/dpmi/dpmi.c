@@ -89,14 +89,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
  */
 #define EXC_TO_PM_INT 1
 
-#define MPROT_LDT_ENTRY(ent) \
-  mprotect_mapping(MAPPING_DPMI, \
-    (void *)(((unsigned long)&ldt_buffer[(ent)*LDT_ENTRY_SIZE]) & PAGE_MASK), \
-    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ)
-#define MUNPROT_LDT_ENTRY(ent) \
-  mprotect_mapping(MAPPING_DPMI, \
-    (void *)(((unsigned long)&ldt_buffer[(ent)*LDT_ENTRY_SIZE]) & PAGE_MASK), \
-    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE)
 #define LDT_INIT_LIMIT 0xfff
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
@@ -127,6 +119,7 @@ int DPMI_pm_procedure_running = 0;
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 unsigned char *ldt_buffer;
+unsigned char *ldt_alias;
 static unsigned short dpmi_sel16, dpmi_sel32;
 inline unsigned short dpmi_sel()
 { return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16; }
@@ -252,11 +245,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
  * DANG_END_REMARK
  */
 
-  if (in_win31)
-    MUNPROT_LDT_ENTRY(entry);
   __retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-  if (in_win31)
-    MPROT_LDT_ENTRY(entry);
   return __retval;
 }
 
@@ -723,7 +712,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
     if ((limit = GetSegmentLimit(DPMI_CLIENT.LDT_ALIAS)) <
         (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_buffer - mem_base,
+      SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_alias - mem_base,
         limit + (number_of_descriptors / (DPMI_page_size /
         LDT_ENTRY_SIZE) + 1) * DPMI_page_size,
         0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
@@ -1118,11 +1107,7 @@ int GetDescriptor(us selector, unsigned int *lp)
   type_ptr = ((unsigned char *)(&ldt_buffer[selector & 0xfff8])) + 5;
   if (typebyte != *type_ptr) {
 	D_printf("DPMI: change type only in local selector\n");
-        if (in_win31)
-    	  MUNPROT_LDT_ENTRY(selector >> 3);
 	*type_ptr=typebyte;
-        if (in_win31)
-          MPROT_LDT_ENTRY(selector >> 3);
   }
 #endif
   MEMCPY_2DOSP(lp, &ldt_buffer[selector & 0xfff8], 8);
@@ -1174,9 +1159,7 @@ void direct_ldt_write(int offset, int length, char *buffer)
     FreeDescriptor(selector);
     Segments[ldt_entry].used = in_dpmi;	/* Prevent of a reuse */
   }
-  MUNPROT_LDT_ENTRY(ldt_entry);
   memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
-  MPROT_LDT_ENTRY(ldt_entry);
 }
 
 void GetFreeMemoryInformation(unsigned int *lp)
@@ -2598,8 +2581,6 @@ void dpmi_cleanup(void)
   if (in_dpmi == 1) {
     in_win31 = 0;
     win31_mode = 0;
-    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
     if (!RSP_num)
       dpmi_free_pool();
   }
@@ -2945,11 +2926,22 @@ void dpmi_setup(void)
     }
 #endif
 
-    ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE, 0);
+    ldt_buffer = alloc_mapping(MAPPING_SHARED,
+	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), -1);
     if (ldt_buffer == MAP_FAILED) {
       error("DPMI: can't allocate memory for ldt_buffer\n");
       goto err;
+    }
+    ldt_alias = alias_mapping(MAPPING_DPMI, -1,
+	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, ldt_buffer);
+    if (ldt_alias == MAP_FAILED) {
+      error("DPMI: can't allocate memory for ldt_alias\n");
+      goto err;
+    }
+    D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, ldt_alias);
+    if (ldt_alias < mem_base) {
+	error("FIX THIS\n");
+	leavedos(5);
     }
 
     get_ldt(ldt_buffer);
@@ -3029,7 +3021,7 @@ void dpmi_init(void)
   }
 
   if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_buffer - mem_base,
+  if (SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_alias - mem_base,
         LDT_INIT_LIMIT, 0,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
@@ -3694,8 +3686,6 @@ int dpmi_fault(struct sigcontext_struct *scp)
             _eax = DPMI_CLIENT.LDT_ALIAS;  /* simulate direct ldt access */
 	    _eflags &= ~CF;
 	    in_win31 = 1;
-	    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-	      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
 	  } else
             _eflags |= CF;
 
@@ -4188,8 +4178,8 @@ int dpmi_fault(struct sigcontext_struct *scp)
 #endif
       }
     } else if (_trapno == 0x0e) {
-      if ((unsigned char *)_cr2 >= ldt_buffer &&
-	  (unsigned char *)_cr2 < ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+      if ((unsigned char *)_cr2 >= ldt_alias &&
+	  (unsigned char *)_cr2 < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
 	instr_emu(scp, 1, 10);
 	return ret;
       }
