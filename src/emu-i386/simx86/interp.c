@@ -2962,15 +2962,15 @@ repag0:
 
 		if (NewNode) {
 			int rc=0;
-			if (!(TheCPU.mode&SKIPOP))
-				(void)NewIMeta(P0, TheCPU.mode, &rc);
-#ifdef HOST_ARCH_X86
-			if (!CONFIG_CPUSIM && rc < 0) {	// metadata table full
-				if (debug_level('e')>2)
-					e_printf("============ Tab full:cannot close sequence\n");
-				leavedos(0x9000);
+			if (!(TheCPU.mode&SKIPOP)) {
+				NewIMeta(P0, TheCPU.mode, &rc);
+				if (rc < 0) {
+					if (debug_level('e')>2)
+						e_printf("============ Tab full:cannot close sequence\n");
+					CODE_FLUSH();
+					NewIMeta(P0, TheCPU.mode, &rc);
+				}
 			}
-#endif
 		}
 		else
 		{
