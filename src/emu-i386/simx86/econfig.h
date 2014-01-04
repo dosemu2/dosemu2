@@ -44,7 +44,7 @@
 
 #define	FAKE_INS_TIME	20
 
-#define MAXINODES	512
+#define MAXINODES	4096
 #define NUMGENS		16
 #undef	ASM_DUMP
 #define ASM_DUMP_FILE	"/DOS/asmdump.log"
