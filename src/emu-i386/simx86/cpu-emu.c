@@ -1266,6 +1266,8 @@ int e_vm86(void)
 	      break;
 	    default: {
 		struct sigcontext_struct scp;
+		struct _fpstate fps;
+		scp.fpstate = &fps;
 		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */
 		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
