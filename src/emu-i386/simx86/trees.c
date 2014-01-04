@@ -1444,6 +1444,9 @@ int NewIMeta(int npc, int mode, int *rc)
 		// add new opcode metadata
 		IMeta *I,*I0;
 
+		if (CurrIMeta>=MAXINODES) {
+			*rc = -1; goto quit;
+		}
 		I  = &InstrMeta[CurrIMeta];
 		if (CurrIMeta==0) {		// no open code sequences
 			if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
@@ -1468,9 +1471,6 @@ int NewIMeta(int npc, int mode, int *rc)
 		if (debug_level('e')) AddTime += (GETTSC() - t0);
 #endif
 		CurrIMeta++;
-		if (CurrIMeta>=MAXINODES) {
-			*rc = -1; goto quit;
-		}
 		*rc = 1; I++;
 		I->ngen = 0;
 		return CurrIMeta;
