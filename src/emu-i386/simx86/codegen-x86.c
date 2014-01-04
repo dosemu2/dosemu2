@@ -2367,6 +2367,7 @@ static void AddrGen_x86(int op, int mode, ...)
 		BaseGenBuf=NULL; GenBufSize=0;
 	}
 	I = &InstrMeta[CurrIMeta];
+	if (I->ngen >= NUMGENS) leavedos(0xbac1);
 	IG = &(I->gen[I->ngen]);
 	if (debug_level('e')>6) dbug_printf("AGEN: %3d %6x\n",op,mode);
 
@@ -2421,8 +2422,7 @@ static void AddrGen_x86(int op, int mode, ...)
 		break;
 	}
 	va_end(ap);
-	I->ngen += 1;
-	if (I->ngen >= NUMGENS) leavedos(0xbac1);
+	I->ngen++;
 #ifdef PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
@@ -2446,6 +2446,7 @@ static void Gen_x86(int op, int mode, ...)
 		BaseGenBuf=NULL; GenBufSize = 0;
 	}
 	I = &InstrMeta[CurrIMeta];
+	if (I->ngen >= NUMGENS) leavedos(0xbac2);
 	IG = &(I->gen[I->ngen]);
 	if (debug_level('e')>6) dbug_printf("CGEN: %3d %6x\n",op,mode);
 
@@ -2675,8 +2676,7 @@ static void Gen_x86(int op, int mode, ...)
 	}
 
 	va_end(ap);
-	I->ngen += 1;
-	if (I->ngen >= NUMGENS) leavedos(0xbac2);
+	I->ngen++;
 #ifdef PROFILE
 	if (debug_level('e')) GenTime += (GETTSC() - t0);
 #endif
