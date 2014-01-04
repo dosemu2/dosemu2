@@ -544,8 +544,12 @@ int lredir_main(int argc, char **argv)
       }
       strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
       deviceStr[sizeof(deviceStr) - 1] = 0;
+      if (deviceStr[1] == ':')		// may be LPTx
+        deviceStr[2] = 0;
       strncpy(deviceStr2, argv2, sizeof(deviceStr2) - 1);
       deviceStr2[sizeof(deviceStr2) - 1] = 0;
+      if (deviceStr2[1] == ':')		// may be cwd
+        deviceStr2[2] = 0;
       if ((argc > 3 && toupperDOS(argv[3][0]) == 'F') ||
 	((ccode = FindRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS)) {
         if ((ccode = FindFATRedirectionByDevice(deviceStr2, &resourceStr2)) != CC_SUCCESS) {
@@ -579,9 +583,12 @@ int lredir_main(int argc, char **argv)
       } else if (argc > 2 && strlen(argv[2]) > 1) {
         strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
         deviceStr[sizeof(deviceStr) - 1] = 0;
+        if (deviceStr[1] == ':')		// may be LPTx
+          deviceStr[2] = 0;
         resourceStr = strdup(argv[2]);
       } else if (argc > 1 && isdigit(argv[1][3])) {	// lredir lptX
         strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
+        deviceStr[sizeof(deviceStr) - 1] = 0;
         resourceStr = strdup(argv[1] + 3);
 	carg = 2;
       }
