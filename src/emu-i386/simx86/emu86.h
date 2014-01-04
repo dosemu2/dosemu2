@@ -660,7 +660,7 @@ int ModGetReg1(unsigned int PC, int mode);
 char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);
 char *e_print_regs(void);
 char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode);
-char *e_trace_fp(void);
+const char *e_trace_fp(void);
 void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
 char *showmode(unsigned int m);

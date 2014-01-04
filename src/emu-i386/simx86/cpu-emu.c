@@ -410,13 +410,16 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
 #endif
 
 
-char *e_trace_fp(void)
+const char *e_trace_fp(void)
 {
 	static char buf[512];
 	int i, ifpr;
 	char *p;
-	long double *FPRSTT = &TheCPU.fpregs[TheCPU.fpstt];
+	long double *FPRSTT;
 
+	if (!TheCPU.fpregs)
+	  return "";
+	FPRSTT = &TheCPU.fpregs[TheCPU.fpstt];
 	ifpr = TheCPU.fpstt&7;
 	p = buf;
 	for (i=0; i<8; i++) {
