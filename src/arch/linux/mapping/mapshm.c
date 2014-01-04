@@ -20,19 +20,16 @@
 
 static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protect, void *source)
 {
+  int flags = MREMAP_MAYMOVE;
   /* The trick is to set old_len = 0,
    * this won't unmap at the old address, but with
    * shared mem the 'nopage' vm_op will map in the right
    * pages. We need however to take care not to map
    * past the end of the shm area
    */
-  if (!(cap & MAPPING_FIXED)) {
-    /* target is a hint: can't use MREMAP_MAYMOVE directly */
-    target = mmap(target, mapsize, protect, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (target == MAP_FAILED) return MAP_FAILED;
-  }
-  target = extended_mremap(source, 0, mapsize,
-		MREMAP_MAYMOVE | MREMAP_FIXED, target);
+  if (cap & MAPPING_FIXED)
+    flags |= MREMAP_FIXED;
+  target = extended_mremap(source, 0, mapsize, flags, target);
   if (target == MAP_FAILED) return MAP_FAILED;
 
   mprotect(target, mapsize, protect);
