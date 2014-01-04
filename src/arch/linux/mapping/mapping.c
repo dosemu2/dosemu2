@@ -202,6 +202,13 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
     }
   }
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
+#ifdef __x86_64__
+  if (!(cap & MAPPING_FIXED) && (cap & (MAPPING_DPMI|MAPPING_VGAEMU))) {
+    target = mmap(NULL, mapsize, protect,
+		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+    cap |= MAPPING_FIXED;
+  }
+#endif
   addr = mappingdriver.alias(cap, target, mapsize, protect, source);
   update_aliasmap(target, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
   if (cap & MAPPING_INIT_LOWRAM) {
