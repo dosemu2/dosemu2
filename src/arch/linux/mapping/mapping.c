@@ -210,7 +210,7 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   }
 #endif
   addr = mappingdriver.alias(cap, target, mapsize, protect, source);
-  update_aliasmap(target, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
+  update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
   if (cap & MAPPING_INIT_LOWRAM) {
     *(unsigned char **)&mem_base = addr;
   }
