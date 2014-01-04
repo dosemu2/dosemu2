@@ -316,6 +316,7 @@ struct iir {
 typedef struct {
   				/*   MAIN VARIABLES  */
   int fd;			/* File descriptor of device */
+  boolean fifo;
   boolean dev_locked;           /* Flag to indicate that device is locked */
   boolean fossil_active;	/* Flag: FOSSIL emulation active */
   u_char fossil_info[19];	/* FOSSIL driver info buffer */

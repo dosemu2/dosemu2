@@ -190,6 +190,9 @@ void ser_termios(int num)
   speed_t baud;
   long int rounddiv;
 
+  if (com[num].fifo)
+    return;
+
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
   #define DIVISOR ((com[num].dlm << 8) | com[num].dll)
 
@@ -475,6 +478,7 @@ get_lsr(int num)
  */
 static void put_tx(int num, int val)
 {
+  int rtrn = 1;
 #if 0
   /* Update the transmit timer */
   com[num].tx_timer += com[num].tx_char_time;
@@ -540,7 +544,8 @@ static void put_tx(int num, int val)
     return;
   }
 
-  int rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
+  if (!com[num].fifo)
+    rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
   if (rtrn != 1) {				/* Did transmit fail? */
     s_printf("SER%d: write failed! %s\n", num, strerror(errno)); 		/* Set overflow flag */
   } else {

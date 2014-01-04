@@ -212,7 +212,11 @@ static void async_serial_run(void *arg)
  */
 int ser_open(int num)
 {
-  s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
+  struct stat st;
+  int err, oflags = O_NONBLOCK;
+
+  s_printf("SER%d: Running ser_open, %s, fd=%d\n", num, com_cfg[num].dev,
+	com[num].fd);
 
   if (com_cfg[num].mouse && !on_console()) {
     s_printf("SER%d: Not touching mouse outside of the console!\n",num);
@@ -223,22 +227,17 @@ int ser_open(int num)
 
   if ( com_cfg[num].virtual )
   {
-    s_printf("SER: Running ser_open, %s\n", com_cfg[num].dev);
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
     s_printf("Opening Virtual Port\n");
     com[num].dev_locked = FALSE;
   } else if (config.tty_lockdir[0]) {
-    if (tty_lock(com_cfg[num].dev, 1) >= 0) {		/* Lock port */
+    if (!com_cfg[num].mouse && tty_lock(com_cfg[num].dev, 1) >= 0) {		/* Lock port */
       /* We know that we have access to the serial port */
-      com[num].dev_locked = TRUE;
-
-      /* If the port is used for a mouse, then remove lockfile, because
+      /* If the port is used for a mouse, then don't lock, because
        * the use of the mouse serial port can be switched between processes,
        * such as on Linux virtual consoles.
        */
-      if (com_cfg[num].mouse)
-        if (tty_lock(com_cfg[num].dev, 0) >= 0)   		/* Unlock port */
-          com[num].dev_locked = FALSE;
+      com[num].dev_locked = TRUE;
     } else {
       /* The port is in use by another process!  Don't touch the port! */
       com[num].dev_locked = FALSE;
@@ -250,25 +249,39 @@ int ser_open(int num)
     com[num].dev_locked = FALSE;
   }
 
-  if (!com_cfg[num].dev || !com_cfg[num].dev[0]) {
-    s_printf("SER%d: Device file not yet defined!\n",num);
-    return (-1);
+  err = stat(com_cfg[num].dev, &st);
+  if (err) {
+    error("SERIAL: stat(%s) failed: %s\n", com_cfg[num].dev, strerror(errno));
+    com[num].fd = -2;
+    return -1;
+  }
+  if (S_ISFIFO(st.st_mode)) {
+    s_printf("SER%i: %s is fifo, setting pseudo flag\n", num,
+	    com_cfg[num].dev);
+    com[num].fifo = TRUE;
+    com_cfg[num].pseudo = TRUE;
+    oflags |= O_RDONLY;
+  } else {
+    oflags |= O_RDWR;
   }
 
-  com[num].fd = RPT_SYSCALL(open(com_cfg[num].dev, O_RDWR | O_NONBLOCK));
+  com[num].fd = RPT_SYSCALL(open(com_cfg[num].dev, oflags));
   if (com[num].fd < 0) {
     error("SERIAL: Unable to open device %s: %s\n",
       com_cfg[num].dev, strerror(errno));
     goto fail_unlock;
   }
-  if (!isatty(com[num].fd)) {
+
+  if (!com[num].fifo && !isatty(com[num].fd)) {
     error("SERIAL: Serial port device %s is not a tty, closing\n",
       com_cfg[num].dev);
     goto fail_close;
   }
-  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
 
-  if (com_cfg[num].low_latency) {
+  if (!com[num].fifo) {
+   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
+
+   if (com_cfg[num].low_latency) {
     struct serial_struct ser_info;
     int err = ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
     if (err) {
@@ -283,6 +296,7 @@ int ser_open(int num)
       else
         s_printf("SER%d: low_latency flag set\n", num);
     }
+   }
   }
 
   add_to_io_select(com[num].fd, async_serial_run, (void *)(long)num);
@@ -332,7 +346,8 @@ void ser_set_params(int num)
   com[num].newset.c_cc[VTIME] = 0;
   if (com_cfg[num].system_rtscts)
     com[num].newset.c_cflag |= CRTSCTS;
-  tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
+  if (!com[num].fifo)
+    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
 
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
@@ -384,8 +399,10 @@ static int ser_close(int num)
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down.
    */
-  (void)RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-  (void)RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
+  if (!com[num].fifo) {
+    RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
+    RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
+  }
   i = RPT_SYSCALL(close(com[num].fd));
   com[num].fd = -1;
 
@@ -609,7 +626,8 @@ void serial_close(void)
                "only using GPM\n",i);
 #endif
     else {
-      (void)RPT_SYSCALL(tcsetattr(com[i].fd, TCSADRAIN, &com[i].oldset));
+      if (!com[i].fifo)
+        RPT_SYSCALL(tcsetattr(com[i].fd, TCSADRAIN, &com[i].oldset));
       ser_close(i);
     }
   }
