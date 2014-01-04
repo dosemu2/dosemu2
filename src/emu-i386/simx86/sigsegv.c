@@ -96,7 +96,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	if (op&1) {		/* byte move */
 	    if (op&4) goto vga2vgab;
 	    while (rep--) {
-		e_VgaWrite(_edi,READ_BYTE(_rsi),MBYTE);
+		e_VgaWrite(_edi,READ_BYTE(_rsi - (ptrdiff_t)mem_base),MBYTE);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -105,7 +105,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	else if (w16&1) {	/* word move */
 	    if (op&4) goto vga2vgaw;
 	    while (rep--) {
-		e_VgaWrite(_edi,READ_WORD(_rsi),DATA16);
+		e_VgaWrite(_edi,READ_WORD(_rsi - (ptrdiff_t)mem_base),DATA16);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -115,7 +115,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	    dp *= 2;
 	    if (op&4) goto vga2vgal;
 	    while (rep--) {
-		e_VgaWrite(_edi,READ_DWORD(_rsi),DATA32);
+		e_VgaWrite(_edi,READ_DWORD(_rsi - (ptrdiff_t)mem_base),DATA32);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -133,7 +133,7 @@ vga2vgab:
 	        }
 	    }
 	    else while (rep--) {
-		WRITE_BYTE(_rdi, e_VgaRead(_esi,MBYTE));
+		WRITE_BYTE(_rdi - (ptrdiff_t)mem_base, e_VgaRead(_esi,MBYTE));
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -148,7 +148,7 @@ vga2vgaw:
 	        }
 	    }
 	    else while (rep--) {
-		WRITE_WORD(_rdi, e_VgaRead(_esi,DATA16));
+		WRITE_WORD(_rdi - (ptrdiff_t)mem_base, e_VgaRead(_esi,DATA16));
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -164,7 +164,7 @@ vga2vgal:
 	        }
 	    }
 	    else while (rep--) {
-		WRITE_DWORD(_rdi, e_VgaRead(_esi,DATA32));
+		WRITE_DWORD(_rdi - (ptrdiff_t)mem_base, e_VgaRead(_esi,DATA32));
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
