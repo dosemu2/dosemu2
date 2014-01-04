@@ -819,6 +819,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF))
 			{ int m = mode;		// enter with prefix
+			int cnt = 2;
 			Gen(O_PUSH1, m);
 			/* optimized multiple register push */
 			do {
@@ -832,7 +833,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			    else {
 				m |= (basemode & DATA16);
 			    }
-			} while (opc);
+			} while (++cnt < NUMGENS && opc);
 			Gen(O_PUSH3, m); break; }
 #endif
 			Gen(L_REG, mode, R1Tab_l[opc-1]);
@@ -860,12 +861,13 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 			int m = mode;
+			int cnt = 2;
 			Gen(O_POP1, m);
 			do {
 				Gen(O_POP2, m, R1Tab_l[D_LO(Fetch(PC))]);
 				m = UNPREFIX(m);
 				PC++;
-			} while ((Fetch(PC)&0xf8)==0x58);
+			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58);
 			if (opc!=POPsp) Gen(O_POP3, m); break; }
 #endif
 			Gen(O_POP, mode);
@@ -1196,11 +1198,12 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
 			if (!(EFLAGS & TF)) {
+				int cnt = 3;
 				do {
 					Gen(O_MOVS_MovD, m);
 					m = UNPREFIX(m);
 					PC++;
-				} while (Fetch(PC) == MOVSw);
+				} while (++cnt < NUMGENS && Fetch(PC) == MOVSw);
 				if (Fetch(PC) == MOVSb) {
 					Gen(O_MOVS_MovD, m|MBYTE);
 					PC++;
@@ -1232,11 +1235,15 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 			Gen(O_MOVS_SetA, m);
 			Gen(L_REG, m, Ofs_EAX);
 #ifndef SINGLESTEP
-			if (!(EFLAGS & TF)) do {
+			if (!(EFLAGS & TF)) {
+			    int cnt = 3;
+			    do {
 				Gen(O_MOVS_StoD, m);
 				m = UNPREFIX(m);
 				PC++;
-			} while (Fetch(PC) == STOSw); else
+			    } while (++cnt < NUMGENS && Fetch(PC) == STOSw);
+			}
+			else
 #endif
 			{
 				Gen(O_MOVS_StoD, m); PC++;
