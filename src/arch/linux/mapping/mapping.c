@@ -79,7 +79,7 @@ static void update_aliasmap(unsigned char *dosaddr, size_t mapsize,
 {
   unsigned int dospage, i;
 
-  if (dosaddr >= &mem_base[LOWMEM_SIZE+HMASIZE])
+  if (dosaddr < mem_base || dosaddr >= &mem_base[LOWMEM_SIZE+HMASIZE])
     return;
   dospage = (dosaddr - mem_base) >> PAGE_SHIFT;
   for (i = 0; i < mapsize >> PAGE_SHIFT; i++)
@@ -212,10 +212,9 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   addr = mappingdriver.alias(cap, target, mapsize, protect, source);
   if (addr == MAP_FAILED)
     return addr;
-  update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
-  if (cap & MAPPING_INIT_LOWRAM) {
+  if (cap & MAPPING_INIT_LOWRAM)
     mem_base = addr;
-  }
+  update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
   return addr;
 }
 
