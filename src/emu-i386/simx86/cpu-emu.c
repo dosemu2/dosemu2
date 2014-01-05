@@ -770,7 +770,7 @@ erseg:
 
   trans_addr = LONG_CS + _eip;
   if (debug_level('e')>1) {
-	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08lx -> %08x\n\tIP=%08x:%08x\n%s\n",
+	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08lx -> %08x\n\tIP=%16llx:%08x\n%s\n",
 			(TheCPU.err? " ERR":""),
 			_eflags, TheCPU.eflags, LONG_CS, _eip,
 			e_print_regs());
@@ -1190,7 +1190,7 @@ int e_vm86(void)
 #endif
   e_sigpa_count = 0;
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
-  TheCPU.mem_base = (unsigned int)(uintptr_t)mem_base;
+  TheCPU.mem_base = (unsigned long long)mem_base;
   VgaAbsBankBase = TheCPU.mem_base + vga.mem.bank_base;
   if (eTimeCorrect >= 0) TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE

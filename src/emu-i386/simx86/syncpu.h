@@ -104,10 +104,10 @@ typedef struct {
 /*6c*/	unsigned short sigalrm_pending, sigprof_pending;
 /*70*/		 int err;
 /*74*/	unsigned int StackMask;
-/*78*/	unsigned int mem_base;
-/*7c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
+/*78*/	unsigned long long mem_base;
+	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
-/*90*/	unsigned int tr[2];
+	unsigned int tr[2];
 
 	unsigned int mode;
 	unsigned int sreg1;
