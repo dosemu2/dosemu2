@@ -383,6 +383,7 @@ dnl enable EXPERIMENTAL stuff
                [  --enable-experimental   enable configuration of EXPERIMENTAL stuff])
   if test "$enable_experimental" = "yes"; then
    AC_MSG_NOTICE(Allowing EXPERIMENTAL stuff to be configured...);
+   AC_DEFINE([EXPERIMENTAL], 1, [ Define this to enable experimental stuff ])
   else
    AC_MSG_NOTICE(EXPERIMENTAL stuff disabled...);
   fi

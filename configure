@@ -6106,6 +6106,9 @@ fi
   if test "$enable_experimental" = "yes"; then
    { $as_echo "$as_me:${as_lineno-$LINENO}: Allowing EXPERIMENTAL stuff to be configured..." >&5
 $as_echo "$as_me: Allowing EXPERIMENTAL stuff to be configured..." >&6;};
+
+$as_echo "#define EXPERIMENTAL 1" >>confdefs.h
+
   else
    { $as_echo "$as_me:${as_lineno-$LINENO}: EXPERIMENTAL stuff disabled..." >&5
 $as_echo "$as_me: EXPERIMENTAL stuff disabled..." >&6;};
