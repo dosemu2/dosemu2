@@ -290,14 +290,13 @@ void low_mem_init(void)
       if(dbg_fd)
         fprintf(stderr, "For more information, see %s.\n", config.debugout);
     }
-#if 1
+#ifdef EXPERIMENTAL
+    result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
+			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
+#else
     /* try 1MB+64K as base (may be higher if execshield is active) */
     result = alias_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE,
 			   LOWMEM_SIZE + HMASIZE,
-			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-#else
-    /* this doesn't work yet, FIX! */
-    result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
 #endif
 #endif

@@ -203,7 +203,9 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   }
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
 #ifdef __x86_64__
-  if (!(cap & MAPPING_FIXED) && (cap & (MAPPING_DPMI|MAPPING_VGAEMU))) {
+  /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
+  if (!(cap & MAPPING_FIXED) && (cap &
+	(MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM))) {
     target = mmap(NULL, mapsize, protect,
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     cap |= MAPPING_FIXED;
