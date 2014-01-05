@@ -213,6 +213,8 @@ void *lowmemp(const void *ptr);
 */
 extern unsigned char *mem_base;
 
+#define MEM_BASE32(off) (void*)(((uintptr_t)mem_base + (off)) & 0xffffffff)
+
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.
    It does not have any holes or mapping for video RAM etc.
    The difference is that the mirror image is not read or write protected so

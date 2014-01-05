@@ -965,7 +965,7 @@ void *GetSegmentBaseAddress(unsigned short selector)
 {
   if (!ValidAndUsedSelector(selector))
     return 0;
-  return &mem_base[Segments[selector >> 3].base_addr];
+  return MEM_BASE32(Segments[selector >> 3].base_addr);
 }
 
 /* needed in env/video/vesa.c */
@@ -2939,10 +2939,6 @@ void dpmi_setup(void)
       goto err;
     }
     D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, ldt_alias);
-    if (ldt_alias < mem_base) {
-	error("FIX THIS\n");
-	leavedos(5);
-    }
 
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
