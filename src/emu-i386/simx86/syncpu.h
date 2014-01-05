@@ -99,14 +99,17 @@ typedef struct {
 /* ------------------------------------------------ */
 /*58*/	unsigned short fpuc, fpus;
 /*5c*/	unsigned short fpstt, fptag;
-/*60*/	unsigned int _fni[3];
 /* ------------------------------------------------ */
 /*6c*/	unsigned short sigalrm_pending, sigprof_pending;
-/*70*/		 int err;
+/*70*/	int err;
 /*74*/	unsigned int StackMask;
-/*78*/	unsigned long long mem_base;
-	unsigned int cr[5]; /* only cr[0] is used in compiled code */
+	unsigned long long mem_base;
+	/* begin of cr array */
+	unsigned int cr[1]; /* only cr[0] is used in compiled code */
+	unsigned int end_mark[0];
 /* ------------------------------------------------ */
+	unsigned int __cr_contd[4];	/* continued cr array, dont move */
+	/* end of cr array, don't scatter */
 	unsigned int tr[2];
 
 	unsigned int mode;
@@ -165,6 +168,7 @@ extern union SynCPU TheCPU_union;
 #define TheCPU TheCPU_union.s
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
+#define Ofs_END		(int)(offsetof(SynCPU,end_mark)-SCBASE)
 
 #define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+(o))
 

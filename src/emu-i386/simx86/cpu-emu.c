@@ -796,6 +796,10 @@ void init_emu_cpu (void)
 				// then don't use it to stretch either
   if (config.cpuemu == 3)
     vm86only = 1;
+  if (Ofs_END > 128) {
+    error("CPUEMU: Ofs_END is too large, %i\n", Ofs_END);
+    config.exitearly = 1;
+  }
   memset(&TheCPU, 0, sizeof(SynCPU));
   TheCPU.cr[0] = 0x13;	/* valid bits: 0xe005003f */
   TheCPU.dr[4] = 0xffff1ff0;
@@ -1037,7 +1041,6 @@ void leave_cpu_emu(void)
 		LDT = NULL; GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 		if (debug_level('e')) print_statistics();
-		/*re*/init_emu_cpu();
 	}
 	flush_log();
 }
