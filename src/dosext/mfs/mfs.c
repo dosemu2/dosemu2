@@ -3006,9 +3006,8 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
 
   attr = sdb_attribute(sdb);
 
-  if (hlist != NULL) {
-   is_root = (strlen(fpath) == drives[drive].root_len);
-   while (sdb_dir_entry(sdb) < hlist->nr_entries) {
+  is_root = (strlen(fpath) == drives[drive].root_len);
+  while (sdb_dir_entry(sdb) < hlist->nr_entries) {
 
     de = &hlist->de[sdb_dir_entry(sdb)];
 
@@ -3051,9 +3050,7 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
     if (sdb_dir_entry(sdb) >= hlist->nr_entries)
       hlist_pop(hlist_index, sda_cur_psp(sda));
     return (TRUE);
-   }
   }
-
   /* no matches or empty directory */
   Debug0((dbg_fd, "No more matches\n"));
 #if 0 /* Hardly any directory is really empty (there are always some vol.labels,
@@ -4022,10 +4019,15 @@ dos_fs_redirect(state_t *state)
         hlists.stack[hlist_index].seq = hlists.seq;
 
       Debug0((dbg_fd, "Find next seq=%d\n",hlists.stack[hlist_index].seq));
-
-      strcpy(fpath, hlists.stack[hlist_index].fpath);
       hlist = hlists.stack[hlist_index].hlist;
+
     }
+    if (!hlist) {
+      Debug0((dbg_fd, "No more matches\n"));
+      SETWORD(&(state->eax), NO_MORE_FILES);
+      return (FALSE);
+    }
+    strcpy(fpath, hlists.stack[hlist_index].fpath);
 
     Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%p\n",
 	    sdb_template_name(sdb),
