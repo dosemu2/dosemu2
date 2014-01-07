@@ -101,7 +101,6 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static int in_win31;
 static unsigned long *emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
@@ -2579,7 +2578,6 @@ void dpmi_cleanup(void)
     DPMI_CLIENT.pm_block_root = NULL;
   }
   if (in_dpmi == 1) {
-    in_win31 = 0;
     win31_mode = 0;
     if (!RSP_num)
       dpmi_free_pool();
@@ -3033,7 +3031,7 @@ void dpmi_init(void)
     inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
 #if WINDOWS_HACKS
 /* work around the disability of win31 in Standard mode to run the DPMI apps */
-	&& !(in_win31 && win31_mode == 2)
+	&& (win31_mode != 2)
 #endif
     ;
   else
@@ -3680,7 +3678,6 @@ int dpmi_fault(struct sigcontext_struct *scp)
           if (_LWORD(eax) == 0x0100) {
             _eax = DPMI_CLIENT.LDT_ALIAS;  /* simulate direct ldt access */
 	    _eflags &= ~CF;
-	    in_win31 = 1;
 	  } else
             _eflags |= CF;
 

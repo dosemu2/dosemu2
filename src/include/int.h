@@ -13,7 +13,7 @@
 
 #define WINDOWS_HACKS 1
 #if WINDOWS_HACKS
-EXTERN int win31_mode INIT(3);
+EXTERN int win31_mode INIT(0);
 #endif
 
 EXTERN unsigned int  check_date INIT(0);
