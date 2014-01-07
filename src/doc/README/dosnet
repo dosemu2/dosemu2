@@ -6,7 +6,7 @@
 <para>
 The easiest (and not recommended) way to set up the networking
 in DOSEMU is to use the direct NIC access. It means that DOSEMU
-will exclusively use one of your network interfaces, say eth0.
+will exclusively use one of your network interfaces, say eth1.
 No other processes will be able to use that interface. If they
 try to, the data exchange will became unreliable. So you have
 to make sure that this network interface is not used by anything
@@ -14,8 +14,8 @@ including the kernel itself, before starting DOSEMU.
 The settings for this method are as follows:
 <screen>
 $_pktdriver = (on)
-$_netdev = "eth0"
-$_vnet = "direct"
+$_ethdev = "eth1"
+$_vnet = "eth"
 </screen>
 Note that this method requires root privileges.
 </para>
@@ -51,7 +51,7 @@ Set
 <screen>
 $_pktdriver=(on)
 $_vnet = "tap"
-$_netdev = ""
+$_tapdev = ""
 </screen>
 </para>
 <para>
@@ -78,8 +78,8 @@ be down as soon as you exit DOSEMU.
 Or set
 <screen>
 $_pktdriver=(on)
-$_vnet = "tap
-$_netdev = "tap0"
+$_vnet = "tap"
+$_tapdev = "tap0"
 </screen>
 </para>
 <para>
@@ -195,4 +195,53 @@ have a look into IP-Masquerade-HOWTO.
 </para>
 </sect3>
 </sect2>
+
+<sect2>
+<title>VDE networking backend</title>
+<para>
+If you just need to have a working internet access from within your
+DOSEMU environment, then you might want to consider using VDE networking.
+slirpvde is a user mode networking utility providing a NAT-like
+service, DHCP server, as well as a virtualized network in the 10.0.2.0/24
+range, with a default gateway and a DNS server.
+Note that dosemu uses VDE backend as a fallback when other methods are
+unavailable. It also tries to start all the vde utilities, so no
+configuration efforts are usually needed.
+</para>
+<para>
+Use the following command to get VDE sources:
+<screen>
+svn checkout svn://svn.code.sf.net/p/vde/svn/trunk vde-svn
+</screen>
+You may also need to apply the following patches:
+<ulink url=http://sourceforge.net/p/vde/bugs/70/attachment/flags.diff>
+patch1
+</ulink>
+<ulink url=http://sourceforge.net/p/vde/bugs/71/attachment/atty.diff>
+patch2
+</ulink>
+<ulink url=http://sourceforge.net/p/vde/bugs/_discuss/thread/dc88b292/4b26/attachment/msg.diff>
+patch3
+</ulink>
+<ulink url=http://sourceforge.net/p/vde/bugs/73/attachment/0001-slirp-Forward-ICMP-echo-requests-via-unprivileged-so.patch>
+patch4
+</ulink>
+</para>
+<para>
+VDE-specific config options:
+<screen>
+$_pktdriver=(on)
+$_vnet = "vde"
+$_vdeswitch = "/tmp/switch1
+$_slirpargs = "--dhcp"
+</screen>
+</para>
+<para>
+Your wattcp.cfg file will look as simple as this:
+<screen>
+my_ip=dhcp
+</screen>
+</para>
+</sect2>
+
 </sect1>

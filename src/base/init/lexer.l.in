@@ -651,8 +651,10 @@ joy_latency             RETURN(JOY_LATENCY);
 
 	/* packet driver */
 novell_hack		RETURN(NOVELLHACK);
-	/* Vinod's dosnet stuff (when to use former libpacket.c.multi */
-netdev			RETURN(NETDEV);
+ethdev			RETURN(ETHDEV);
+tapdev			RETURN(TAPDEV);
+vdeswitch		RETURN(VDESWITCH);
+slirpargs		RETURN(SLIRPARGS);
 vnet			RETURN(VNET);
 	/* debug flags */
 

@@ -71,6 +71,9 @@ while [ "$1" != "" ]; do
     svgalib)
       if [ "$2" = "on" ]; then STRING="$STRING --with-svgalib"; fi
       ;;
+    vde)
+      if [ "$2" = "on" ]; then STRING="$STRING --with-vde"; fi
+      ;;
     gpm)
       if [ "$2" = "off" ]; then STRING="$STRING --without-gpm"; fi
       ;;

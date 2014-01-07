@@ -68,6 +68,7 @@ static int pktdrvr_installed;
 
 unsigned short receive_mode;
 static unsigned short local_receive_mode;
+static int pkt_fd;
 
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
@@ -127,7 +128,7 @@ static char devname[256];
 /* initialize the packet driver interface (called at startup) */
 void pkt_priv_init(void)
 {
-    int ret = 0;
+    int ret;
     /* initialize the globals */
     if (!config.pktdrv)
       return;
@@ -135,41 +136,75 @@ void pkt_priv_init(void)
     LibpacketInit();
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
+retry:
     switch (config.vnet) {
       case VNET_TYPE_ETH:
-	strncpy(devname, config.netdev, sizeof(devname) - 1);
+	strncpy(devname, config.ethdev, sizeof(devname) - 1);
 	devname[sizeof(devname) - 1] = 0;
 	break;
       case VNET_TYPE_TAP:
 	strcpy(devname, TAP_DEVICE);
-	if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
-	  pd_printf("PKT: trying to bind to device %s\n", config.netdev);
-	  strcpy(devname, config.netdev);
+	if (strncmp(config.tapdev, TAP_DEVICE, 3) == 0) {
+	  pd_printf("PKT: trying to bind to device %s\n", config.tapdev);
+	  strcpy(devname, config.tapdev);
 	}
+	break;
+      case VNET_TYPE_VDE:
+	strncpy(devname, config.vdeswitch, sizeof(devname) - 1);
+	devname[sizeof(devname) - 1] = 0;
 	break;
     }
 
-    ret = Open_sockets(devname);
-    if (ret < 0) {
-      warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
-      pktdrvr_installed = -1;
+    /* call Open_sockets() only for priv configs */
+    switch (config.vnet) {
+      case VNET_TYPE_ETH:
+      case VNET_TYPE_TAP:
+	pd_printf("PKT: Using device %s\n", devname);
+	ret = Open_sockets(devname);
+	if (ret < 0) {
+	  warn("PKT: Cannot open %s: %s\n", devname, strerror(errno));
+	  if (pkt_is_registered_type(VNET_TYPE_VDE)) {
+	    warn("PKT: Trying VDE instead\n");
+	    pkt_set_flags(PKT_FLG_QUIET);
+	    config.vnet = VNET_TYPE_VDE;
+	    pktdrvr_installed = -1;	// fallback
+	    goto retry;
+	  }
+	  pktdrvr_installed = 0;
+	}
     }
-    pd_printf("PKT: Using device %s\n", devname);
 }
 
 void
 pkt_init(void)
 {
+    int ret;
     emu_hlt_t hlt_hdlr;
-    if (!config.pktdrv)
+    if (!config.pktdrv || !pktdrvr_installed)
       return;
-    if (pktdrvr_installed == -1)
-      goto fail;
 
     hlt_hdlr.name       = "pkt callout";
     hlt_hdlr.len        = 1;
     hlt_hdlr.func       = pkt_hlt;
     pkt_hlt_off = hlt_register_handler(hlt_hdlr);
+
+    /* call Open_sockets() only for non-priv configs */
+    switch (config.vnet) {
+      case VNET_TYPE_VDE:
+	ret = Open_sockets(devname);
+	if (ret < 0) {
+	  if (pktdrvr_installed == -1) {
+	    warn("PKT: Cannot run VDE, %s\n", devname[0] ? devname : "(auto)");
+	    pktdrvr_installed = 0;
+	  } else {
+	    error("Unable to run VDE, %s\n", devname[0] ? devname : "(auto)");
+//	    config.exitearly = 1;
+	    pktdrvr_installed = 0;
+	  }
+	  return;
+	}
+	pd_printf("PKT: Using device %s\n", devname[0] ? devname : "(auto)");
+    }
 
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
@@ -194,10 +229,6 @@ pkt_init(void)
     p_param->xmt_bufs = 2 - 1;
 
     PKTRcvCall_TID = coopth_create("PKT_receiver_call");
-    return;
-
-fail:
-    pktdrvr_installed = 0;
 }
 
 void
@@ -211,6 +242,14 @@ pkt_reset(void)
 	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOS_HLT_BLK_SEG);
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
+}
+
+void pkt_term(void)
+{
+    if (!config.pktdrv || !pktdrvr_installed)
+      return;
+    remove_from_io_select(pkt_fd);
+    CloseNetworkLink(pkt_fd);
 }
 
 /* this is the handler for INT calls from DOS to the packet driver */
@@ -416,7 +455,7 @@ static int pkt_int(void)
 		    }
 	}
 
-	if (pkt_write(SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
+	if (pkt_write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
 		    return 1;
 	} else {
@@ -514,6 +553,11 @@ static void pkt_hlt(Bit32u idx, void *arg)
     pkt_int();
 }
 
+static void pkt_receive_req_async(void *arg)
+{
+	pic_request(PIC_NET);
+}
+
 static int
 Open_sockets(char *name)
 {
@@ -521,6 +565,8 @@ Open_sockets(char *name)
     int ret = OpenNetworkLink(name);
     if (ret < 0)
 	return ret;
+    pkt_fd = ret;
+    add_to_io_select(pkt_fd, pkt_receive_req_async, NULL);
 
     local_receive_mode = receive_mode;
     pd_printf("PKT: detected receive mode %i\n", receive_mode);
@@ -627,7 +673,7 @@ static int pkt_receive(void)
     if (local_receive_mode == 1)
 	return 0;
 
-    size = pkt_read(pkt_buf, PKT_BUF_SIZE);
+    size = pkt_read(pkt_fd, pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
         return 0;

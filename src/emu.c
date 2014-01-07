@@ -371,6 +371,7 @@ emulate(int argc, char **argv)
 #endif
 #endif
 #endif
+
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
     print_version();            /* log version information */

@@ -20,6 +20,7 @@
 enum {
 	VNET_TYPE_ETH,
 	VNET_TYPE_TAP,
+	VNET_TYPE_VDE,
 	VNET_TYPE_MAX,
 };
 
@@ -90,6 +91,25 @@ struct pkt_statistics {
 extern void pkt_priv_init (void);
 extern void pkt_init (void);
 extern void pkt_reset (void);
+extern void pkt_term (void);
+
+struct pkt_ops {
+    int id;
+    int (*open)(char *name);
+    void (*close)(int);
+    int (*get_hw_addr)(char *device, unsigned char *addr);
+    int (*get_MTU)(char *device);
+    ssize_t (*pkt_read)(int fd, void *buf, size_t count);
+    ssize_t (*pkt_write)(int fd, const void *buf, size_t count);
+};
+
+extern int pkt_register_backend(struct pkt_ops *o);
+extern void pkt_get_fake_mac(unsigned char *addr);
+
+#define PKT_FLG_QUIET 1
+void pkt_set_flags(int flags);
+void pkt_clear_flags(int flags);
+int pkt_get_flags(void);
 
 extern unsigned short receive_mode;
 

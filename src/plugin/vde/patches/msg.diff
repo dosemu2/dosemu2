@@ -1,0 +1,21 @@
+Index: src/vde_switch/consmgmt.c
+===================================================================
+--- src/vde_switch/consmgmt.c	(revision 564)
++++ src/vde_switch/consmgmt.c	(working copy)
+@@ -179,6 +179,7 @@
+ 	if (f) {
+ 		vfprintf(f,format,arg);
+ 		fprintf(f,"\n");
++		fflush(f);
+ 	} else
+ 		printlog(LOG_INFO,format,arg);
+ 	va_end(arg);
+@@ -628,6 +629,8 @@
+ 		mgmt_data=add_type(&swmi,0);
+ 		add_fd(mgmtconnfd,mgmt_ctl,NULL);
+ 	}
++
++	printoutc(stdout, "vde_switch started");
+ }
+ 
+ static int vde_logout() 

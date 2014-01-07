@@ -241,7 +241,7 @@ while (0)
 
 	/* main options */
 %token DOSBANNER FASTFLOPPY HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
-%token NETDEV VNET
+%token ETHDEV TAPDEV VDESWITCH SLIRPARGS VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC
 %token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS 
@@ -618,13 +618,16 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| IPXNETWORK int_bool	{ config.ipx_net = $2; }
 		| PKTDRIVER bool
 		    {
-		      if (config.vnet == VNET_TYPE_TAP || $2 == 0 || is_in_allowed_classes(CL_NET)) {
+		      if (config.vnet == VNET_TYPE_TAP || config.vnet == VNET_TYPE_VDE || $2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
 				($2) ? "enabled" : "disabled");
 		      }
 		    }
-		| NETDEV string_expr	{ free(config.netdev); config.netdev = $2; }
+		| ETHDEV string_expr	{ free(config.ethdev); config.ethdev = $2; }
+		| TAPDEV string_expr	{ free(config.tapdev); config.tapdev = $2; }
+		| VDESWITCH string_expr	{ free(config.vdeswitch); config.vdeswitch = $2; }
+		| SLIRPARGS string_expr	{ free(config.slirp_args); config.slirp_args = $2; }
 		| NOVELLHACK bool	{ config.pktflags = ($2!=0); }
 		| VNET string_expr	{ start_vnet($2); free($2); }
 		| SPEAKER speaker
@@ -2006,6 +2009,10 @@ static void start_disk(void)
 static void start_vnet(char *mode) {
   if (strcmp(mode, "tap") == 0) {
     config.vnet = VNET_TYPE_TAP;
+    return;
+  }
+  if (strcmp(mode, "vde") == 0) {
+    config.vnet = VNET_TYPE_VDE;
     return;
   }
   IFCLASS(CL_NET) {}

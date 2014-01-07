@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
+#include <stddef.h>
+#include "utilities.h"
 #include "ringbuf.h"
 
 void rng_init(struct rng_s *rng, size_t objnum, size_t objsize)
@@ -165,4 +168,126 @@ ssize_t rng_get_free_space(struct rng_s *rng)
 void rng_clear(struct rng_s *rng)
 {
   rng->objcnt = 0;
+}
+
+
+/* sequential buffer API */
+
+#define SQALIGN(x) (ALIGN(x, sizeof(struct seqitem)))
+#define SQ_PSUB(x, y) ((x)->bytes - (y)->bytes)
+#define SQ_PINC(x, y) ((x)->bytes + (y))
+#define SQ_PDEC(x, y) ((x)->bytes - (y))
+#define SQ_BEG(s) ((s)->beg->bytes)
+#define SQ_END(s) (SQ_BEG(s) + (s)->len)
+#define SQ_TAIL(s) ((s)->tail->bytes)
+#define SQ_PREV(s) ((s)->prev->bytes)
+
+int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len)
+{
+    void *beg = (void *)SQALIGN((ptrdiff_t)buffer);
+    seq->beg = beg;
+    seq->tail = beg;
+    seq->len = len - (SQ_BEG(seq) - (uint8_t *)buffer);
+    seq->prev = NULL;
+    return 0;
+}
+
+static union seqiu *sqcalc_next(struct seqbuf *seq, union seqiu *pit)
+{
+    size_t opos, pos;
+    assert(pit);
+    opos = SQ_PSUB(pit, seq->beg);
+    pos = opos + sizeof(struct seqitem) + pit->it.len + pit->it.waste;
+    assert(pos <= seq->len && (pos == SQALIGN(pos) || pos == seq->len));
+    return (union seqiu *)(SQ_BEG(seq) + pos);
+}
+
+static union seqiu *sqcalc_next_wrp(struct seqbuf *seq, union seqiu *pit)
+{
+    union seqiu *itp = sqcalc_next(seq, pit);
+    if (itp->bytes >= SQ_END(seq))
+	itp = seq->beg;
+    return itp;
+}
+
+static size_t sqcalc_avail(struct seqbuf *seq)
+{
+    size_t avail1, avail2;
+    union seqiu *cur;
+    if (!seq->prev)
+	return seq->len;
+    cur = sqcalc_next(seq, seq->prev);
+    /* cur == tail means full because empty is !prev */
+    if (cur <= seq->tail)
+	return SQ_PSUB(seq->tail, cur);
+    avail1 = seq->len - SQ_PSUB(cur, seq->beg);
+    avail2 = SQ_PSUB(seq->tail, seq->beg);
+    return max(avail1, avail2);
+}
+
+int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len)
+{
+    union seqiu *itp;
+    size_t avail = sqcalc_avail(seq);
+    size_t req_len = SQALIGN(len + sizeof(struct seqitem));
+    if (avail < req_len || !len)
+	return 0;
+    itp = (seq->prev ? sqcalc_next(seq, seq->prev) : seq->beg);
+    if (SQ_PINC(itp, req_len) > SQ_END(seq)) {
+	assert(seq->prev);
+	seq->prev->it.waste += SQ_END(seq) - itp->bytes;
+	itp = seq->beg;
+    }
+    assert(SQ_PINC(itp, req_len) <= SQ_END(seq));
+    itp->it.waste = req_len - len;
+    itp->it.len = len;
+    memcpy(itp->it.data, buffer, len);
+    seq->prev = itp;
+    return len;
+}
+
+static void sqadvance_tail(struct seqbuf *seq)
+{
+    if (seq->tail == seq->prev) {
+	seq->prev = NULL;
+	seq->tail = seq->beg;
+    } else {
+	seq->tail = sqcalc_next_wrp(seq, seq->tail);
+    }
+}
+
+int seqbuf_read(struct seqbuf *seq, void *buffer, size_t len)
+{
+    union seqiu *itp;
+    size_t rlen;
+    if (!seq->prev)
+	return 0;
+    itp = seq->tail;
+    if (len < itp->it.len)
+	return -itp->it.len;
+    memcpy(buffer, itp->it.data, itp->it.len);
+    rlen = itp->it.len;
+    sqadvance_tail(seq);
+    return rlen;
+}
+
+void *seqbuf_get(struct seqbuf *seq, size_t *len)
+{
+    if (!seq->prev)
+	return NULL;
+    *len = seq->tail->it.len;
+    return seq->tail->it.data;
+}
+
+void seqbuf_put(struct seqbuf *seq)
+{
+    assert(seq->prev);
+    sqadvance_tail(seq);
+}
+
+size_t seqbuf_get_read_len(struct seqbuf *seq)
+{
+    if (!seq->prev)
+	return 0;
+    return seq->tail->it.len;
 }

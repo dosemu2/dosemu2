@@ -40,4 +40,26 @@ int rng_count(struct rng_s *rng);
 ssize_t rng_get_free_space(struct rng_s *rng);
 void rng_clear(struct rng_s *rng);
 
+
+struct seqitem {
+    size_t len, waste;
+    uint8_t data[0];
+};
+
+union seqiu {
+    struct seqitem it;
+    uint8_t bytes[sizeof(struct seqitem)];
+};
+
+struct seqbuf {
+    union seqiu *beg, *tail, *prev;
+    size_t len;
+};
+int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len);
+int seqbuf_write(struct seqbuf *seq, const void *buffer, size_t len);
+int seqbuf_read(struct seqbuf *seq, void *buffer, size_t len);
+void *seqbuf_get(struct seqbuf *seq, size_t *len);
+void seqbuf_put(struct seqbuf *seq);
+size_t seqbuf_get_read_len(struct seqbuf *seq);
+
 #endif

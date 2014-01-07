@@ -93,7 +93,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "ipx",      ipx_init,    NULL,          NULL },
 #endif
 #ifdef USING_NET
-  { "packet driver", pkt_init, pkt_reset,   NULL },
+  { "packet driver", pkt_init, pkt_reset,   pkt_term },
 #endif
   { NULL,      NULL,         NULL,          NULL }
 };

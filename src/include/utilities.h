@@ -68,6 +68,30 @@ static __inline__ int power_of_2_sqrt(int val)
 	_x > _y ? _x : _y; })
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
+
+// http://bits.stephan-brumme.com/roundUpToNextPowerOfTwo.html
+static inline unsigned int roundUpToNextPowerOfTwo(unsigned int x)
+{
+  x--;
+  x |= x >> 1;  // handle  2 bit numbers
+  x |= x >> 2;  // handle  4 bit numbers
+  x |= x >> 4;  // handle  8 bit numbers
+  x |= x >> 8;  // handle 16 bit numbers
+  x |= x >> 16; // handle 32 bit numbers
+  x++;
+
+  return x;
+}
+
+#define P2ALIGN(x, y) (((x) + (y) - 1) & -(y))
+#define ALIGN(x, y) (P2ALIGN(x, roundUpToNextPowerOfTwo(y)))
+
+struct popen2 {
+    pid_t child_pid;
+    int   from_child, to_child;
+};
+
+int popen2(const char *cmdline, struct popen2 *childinfo);
+int pclose2(struct popen2 *childinfo);
 
 #endif /* UTILITIES_H */
