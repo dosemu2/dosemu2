@@ -217,6 +217,7 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   if (cap & MAPPING_INIT_LOWRAM)
     mem_base = addr;
   update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
+  Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
   return addr;
 }
 
@@ -430,6 +431,7 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
     lowmem_base = addr;
   }
+  Q__printf("MAPPING: %s allocated at %p\n", cap, addr);
   return addr;
 }
 
