@@ -461,25 +461,24 @@ int pcm_flush(int strm_idx)
 static double pcm_get_stream_time(int strm_idx)
 {
     struct sample samp;
-    long long now = GETusTIME(0);
     if (pcm.stream[strm_idx].state == SNDBUF_STATE_INACTIVE ||
 	!peek_last_sample(strm_idx, &samp))
-	return now;
+	return 0;
     return samp.tstamp;
 }
 
 double pcm_calc_tstamp(double rate, int strm_idx)
 {
     double time, period, tstamp;
+    long long now = GETusTIME(0);
     if (rate == 0)
-	return GETusTIME(0);
+	return now;
     time = pcm_get_stream_time(strm_idx);
-    if (pcm.stream[strm_idx].state == SNDBUF_STATE_INACTIVE)
-	return time;
+    if (time == 0)
+	return now;
     period = pcm_frame_period_us(rate);
     tstamp = time + period;
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
-	long long now = GETusTIME(0);
 	if (tstamp < now)
 	    tstamp = now;
     }
