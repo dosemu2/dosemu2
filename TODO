@@ -1,0 +1,12 @@
+TODO items for the next release:
+
+- revisit COPYING.DOSEMU and solve its problems
+
+- merge "devel" branch
+
+- decide what to do with slirp and the respective branch
+
+- look into all the cpuemu-related bugreports
+
+- bring the new sound code to the state where it can replace
+  the old sound code
