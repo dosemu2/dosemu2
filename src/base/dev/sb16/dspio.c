@@ -326,10 +326,7 @@ static void dspio_start_output(struct dspio_state *state)
     if (state->output_running)
 	return;
     S_printf("SB: starting output\n");
-    /* We would need real time here, but the HACK is to use stream
-     * timestamp instead.
-     * That compensates the hack of dspio_process_dma() */
-    state->output_time_cur = pcm_calc_tstamp(state->dma.rate, state->dma_strm);
+    state->output_time_cur = GETusTIME(0);
     state->output_running = 1;
 }
 

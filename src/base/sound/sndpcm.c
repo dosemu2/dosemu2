@@ -467,7 +467,7 @@ static double pcm_get_stream_time(int strm_idx)
     return samp.tstamp;
 }
 
-double pcm_calc_tstamp(double rate, int strm_idx)
+static double pcm_calc_tstamp(double rate, int strm_idx)
 {
     double time, period, tstamp;
     long long now = GETusTIME(0);

@@ -41,7 +41,6 @@ extern void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS],
 	int frames, double rate, int format, int nchans, int strm_idx);
 extern int pcm_format_size(int format);
 extern void pcm_timer(void);
-extern double pcm_calc_tstamp(double rate, int strm_idx);
 
 #define PCM_FLAG_RAW 1
 
