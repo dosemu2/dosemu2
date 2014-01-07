@@ -3016,6 +3016,9 @@ void dpmi_init(void)
     leavedos(2);
   }
 
+  msdos_init(DPMI_CLIENT.is_32,
+    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
+
   if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
   if (SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_alias - mem_base,
         LDT_INIT_LIMIT, 0,
@@ -3104,21 +3107,13 @@ void dpmi_init(void)
     D_printf("LDT_ALIAS=%x dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n", DPMI_CLIENT.LDT_ALIAS, dpmi_sel(), CS, DS, SS, ES);
   }
 
-  REG(esp) += 4;
-  HWORD(esp) = 0;
-  NOCARRY;
-
-  /* set int 23 to "iret" so that DOS doesn't terminate the program
-     behind our back */
-  SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
-
   in_dpmi_dos_int = 0;
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   scp   = &DPMI_CLIENT.stack_frame;
   _eip	= my_ip;
   _cs	= CS;
-  _esp	= LWORD(esp);
+  _esp	= sp;
   _ss	= SS;
   _ds	= DS;
   _es	= ES;
@@ -3134,15 +3129,19 @@ void dpmi_init(void)
   }
 #endif
   scp->fpstate = &DPMI_CLIENT.fpu_state;
-  rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
-
-  msdos_init(DPMI_CLIENT.is_32,
-    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
 
   for (i = 0; i < RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
     dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
   }
+
+  REG(esp) += 4;
+  HWORD(esp) = 0;
+  NOCARRY;
+  rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
+  /* set int 23 to "iret" so that DOS doesn't terminate the program
+     behind our back */
+  SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
 
   return; /* return immediately to the main loop */
 
