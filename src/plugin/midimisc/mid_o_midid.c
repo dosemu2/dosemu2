@@ -96,6 +96,7 @@ static int midomidid_init(void)
     }
     switch ((midid_pid = fork())) {
     case 0:
+	setsid();
 	close(pipe_in[0]);
 	close(pipe_out[1]);
 	dup2(pipe_out[0], STDIN_FILENO);

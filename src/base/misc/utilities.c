@@ -747,6 +747,7 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
     p = fork();
     if(p < 0) return p; /* Fork failed */
     if(p == 0) { /* child */
+        setsid();	// escape ctty
         close(pipe_stdin[1]);
         dup2(pipe_stdin[0], 0);
         close(pipe_stdin[0]);

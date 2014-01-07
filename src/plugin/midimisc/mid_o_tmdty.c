@@ -122,6 +122,7 @@ static int midotmdty_preinit(void)
     }
     switch ((tmdty_pid = fork())) {
     case 0:
+	setsid();
 	close(tmdty_pipe_in[0]);
 	close(tmdty_pipe_out[1]);
 	dup2(tmdty_pipe_out[0], STDIN_FILENO);

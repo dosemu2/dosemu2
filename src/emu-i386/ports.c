@@ -1039,6 +1039,7 @@ int extra_port_init(void)
                                 pipe(port_fd_in);
                                 portserver_pid = fork();
                                 if (portserver_pid == 0) {
+                                        setsid();
                                         port_server();
                                         exit(0);	// never come here
                                 }
