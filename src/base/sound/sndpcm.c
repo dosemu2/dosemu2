@@ -527,18 +527,35 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     players.clocked.player.unlock();
 }
 
-static int pcm_get_samples(double time, struct sample samp[MAX_STREAMS][2],
-			   int shift, int *idxs)
+static void pcm_remove_samples(double time)
 {
-    int i, j, ret = 0, idxs2[MAX_STREAMS] = { 0, };
-    struct sample s, s2[2];
-
-    if (!idxs)
-	idxs = idxs2;
+    #define GUARD_SAMPS 1
+    int i;
+    struct sample s;
     for (i = 0; i < pcm.num_streams; i++) {
-	if (samp)
-	    for (j = 0; j < pcm.stream[i].channels; j++)
-		samp[i][j].format = PCM_FORMAT_NONE;
+	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+	    continue;
+	while (rng_count(&pcm.stream[i].buffer) >= pcm.stream[i].channels *
+		(GUARD_SAMPS + 1)) {
+	    /* we leave GUARD_SAMPS samples below the timestamp untouched */
+	    rng_peek(&pcm.stream[i].buffer, pcm.stream[i].channels *
+		    GUARD_SAMPS, &s);
+	    if (s.tstamp > time)
+		break;
+	    rng_remove(&pcm.stream[i].buffer, pcm.stream[i].channels, NULL);
+	}
+    }
+}
+
+static int pcm_get_samples(double time,
+		struct sample samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs)
+{
+    int i, j, ret = 0;
+    struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
+
+    for (i = 0; i < pcm.num_streams; i++) {
+	for (j = 0; j < pcm.stream[i].channels; j++)
+	    samp[i][j] = mute_samp;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
 
@@ -546,28 +563,24 @@ static int pcm_get_samples(double time, struct sample samp[MAX_STREAMS][2],
 	for (j = 0; j < pcm.stream[i].channels; j++) {
 	    if (idxs[i] >= pcm.stream[i].channels)
 		rng_peek(&pcm.stream[i].buffer,
-			 idxs[i] - pcm.stream[i].channels + j, &s2[j]);
+			 idxs[i] - pcm.stream[i].channels + j, &prev_s[j]);
 	    else
-		s2[j] = mute_samp;
+		prev_s[j] = mute_samp;
 	}
 	while (rng_count(&pcm.stream[i].buffer) - idxs[i] >=
 	       pcm.stream[i].channels) {
-	    rng_peek(&pcm.stream[i].buffer, idxs[i], &s);
-	    if (s.tstamp > time) {
+	    for (j = 0; j < pcm.stream[i].channels; j++)
+		rng_peek(&pcm.stream[i].buffer, idxs[i] + j, &s[j]);
+	    if (s[0].tstamp > time) {
 //        S_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
-		if (samp)
-		    memcpy(samp[i], s2, sizeof(struct sample) *
+		memcpy(samp[i], prev_s, sizeof(struct sample) *
 			    pcm.stream[i].channels);
 		if (time >= pcm.stream[i].start_time)
 		    ret++;
 		break;
 	    }
-	    if (shift && idxs[i] >= pcm.stream[i].channels) {
-		rng_remove(&pcm.stream[i].buffer, pcm.stream[i].channels, NULL);
-		idxs[i] -= pcm.stream[i].channels;
-	    }
-	    for (j = 0; j < pcm.stream[i].channels; j++)
-		rng_peek(&pcm.stream[i].buffer, idxs[i]++, &s2[j]);
+	    memcpy(prev_s, s, sizeof(struct sample) * pcm.stream[i].channels);
+	    idxs[i] += pcm.stream[i].channels;
 	}
     }
     return ret;
@@ -642,7 +655,7 @@ size_t pcm_data_get(void *data, size_t size,
 	pcm.out_buf.idx = 0;
 
 	while (pcm.out_buf.idx < size) {
-	    have_data = pcm_get_samples(time, samp, 0, idxs);
+	    have_data = pcm_get_samples(time, samp, idxs);
 	    if (!have_data && i >= players.num_clocked)
 		break;
 	    if (pcm.out_buf.idx + samp_sz * player_parms->channels >
@@ -679,7 +692,7 @@ size_t pcm_data_get(void *data, size_t size,
     players.clocked.time = stop_time;
 
     /* remove processed samples from input buffers (last sample stays) */
-    pcm_get_samples(stop_time, NULL, 1, NULL);
+    pcm_remove_samples(stop_time);
     for (i = 0; i < pcm.num_streams; i++) {
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
