@@ -5,8 +5,13 @@ TODO items for the next release:
 - merge "devel" branch
 
 - decide what to do with slirp and the respective branch
+    DONE: added vde support.
+    However, since it needs patches and is not packaged by fedora,
+    there may still be the place for an embedded slirp (not what current
+    slirp branch provides)
 
 - look into all the cpuemu-related bugreports
+    DONE, everything is revisited and fixed
 
 - bring the new sound code to the state where it can replace
   the old sound code
