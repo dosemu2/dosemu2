@@ -76,7 +76,7 @@ static int read_data(fatfs_t *, unsigned);
 static void make_label(fatfs_t *);
 static unsigned new_obj(fatfs_t *);
 static void scan_dir(fatfs_t *, unsigned);
-static char *full_name(fatfs_t *, unsigned, char *);
+static char *full_name(fatfs_t *, unsigned, const char *);
 static void add_object(fatfs_t *, unsigned, char *);
 static unsigned dos_time(time_t *);
 static unsigned make_dos_entry(fatfs_t *, obj_t *, unsigned char **);
@@ -505,7 +505,7 @@ struct fs_prio sfiles[] = {
     [AUT_IDX]  = { "AUTOEXEC.BAT",	0, 0 },
 };
 
-static char *d_name;
+static fatfs_t *cur_d;
 
 static int get_s_idx(const char *name)
 {
@@ -519,8 +519,7 @@ static int get_s_idx(const char *name)
 
 static int d_filter(const struct dirent *d)
 {
-    const char *name;
-    char path[PATH_MAX];
+    const char *name, *path;
     int i, idx, sfs, err;
     struct stat sb;
     struct fs_prio *fp;
@@ -535,8 +534,7 @@ static int d_filter(const struct dirent *d)
     fp = &sfiles[idx];
     if (!fp->is_sys)
 	return 1;
-    strcpy(path, d_name);
-    strcat(path, name);
+    path = full_name(cur_d, 0, name);
     err = stat(path, &sb);
     if (err)
 	return 1;
@@ -673,7 +671,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
             }
     }
 
-    d_name = name;
+    cur_d = f;
     num = scandir(name, &dlist, d_filter, d_compar);
     free(name);
     if (num <= 0) {
@@ -747,7 +745,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
 /*
  * Return fully qualified filename.
  */
-char *full_name(fatfs_t *f, unsigned oi, char *name)
+char *full_name(fatfs_t *f, unsigned oi, const char *name)
 {
   char *s = f->ffn;
   int i = MAX_DIR_NAME_LEN, j;
