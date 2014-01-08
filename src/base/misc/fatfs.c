@@ -89,12 +89,16 @@ static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *);
 static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsigned blks, unsigned seg, unsigned ofs);
 
+static int sys_type;
+static int sys_done;
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
   fatfs_t *f;
   unsigned u;
 
+  sys_type = sys_done = 0;
   if(dp->fatfs) fatfs_done(dp);
   fatfs_msg("init: %s\n", dp->dev_name);
 
@@ -480,6 +484,122 @@ unsigned new_obj(fatfs_t *f)
   return f->objs++;
 }
 
+struct fs_prio {
+    const char *name;
+    const int is_sys;
+    int prio;
+};
+
+enum { IO_IDX, MSD_IDX, IBMB_IDX, IBMD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
+	CONF_IDX, AUT_IDX };
+
+struct fs_prio sfiles[] = {
+    [IO_IDX]   = { "IO.SYS",		1, 0 },
+    [MSD_IDX]  = { "MSDOS.SYS",		1, 0 },
+    [IBMB_IDX] = { "IBMBIO.COM",	1, 0 },
+    [IBMD_IDX] = { "IBMDOS.COM",	1, 0 },
+    [IPL_IDX]  = { "IPL.SYS",		1, 0 },
+    [KER_IDX]  = { "KERNEL.SYS",	1, 0 },
+    [CMD_IDX]  = { "COMMAND.COM",	0, 0 },
+    [CONF_IDX] = { "CONFIG.SYS",	0, 0 },
+    [AUT_IDX]  = { "AUTOEXEC.BAT",	0, 0 },
+};
+
+static char *d_name;
+
+static int get_s_idx(const char *name)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
+	if (strequalDOS(name, sfiles[i].name))
+	    return i;
+    }
+    return -1;
+}
+
+static int d_filter(const struct dirent *d)
+{
+    const char *name;
+    char path[PATH_MAX];
+    int i, idx, sfs, err;
+    struct stat sb;
+    struct fs_prio *fp;
+    if (sys_done)
+	return 1;
+    name = d->d_name;
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+	return 0;
+    idx = get_s_idx(name);
+    if (idx == -1)
+	return 1;
+    fp = &sfiles[idx];
+    if (!fp->is_sys)
+	return 1;
+    strcpy(path, d_name);
+    strcat(path, name);
+    err = stat(path, &sb);
+    if (err)
+	return 1;
+    if (!(S_ISREG(sb.st_mode) && sb.st_size > 0))
+	return 1;
+    sys_type |= 1 << idx;
+
+    if((sys_type & 3) == 3) {
+      sys_type = 3;		/* MS-DOS */
+      sfiles[IO_IDX].prio = 1;
+      sfiles[MSD_IDX].prio = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & 0x0c) == 0x0c) {
+      sys_type = 0x0c;		/* DR-DOS */
+      sfiles[IBMB_IDX].prio = 1;
+      sfiles[IBMD_IDX].prio = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & 0x10) == 0x10) {
+      sys_type = 0x10;		/* FreeDOS, orig. Patv kernel */
+      sfiles[IPL_IDX].prio = 1;
+      sfs = 2;
+      sys_done = 1;
+    }
+    if((sys_type & 0x20) == 0x20) {
+      sys_type = 0x20;		/* FreeDOS, FD maintained kernel */
+      sfiles[KER_IDX].prio = 1;
+      sfs = 2;
+      sys_done = 1;
+    }
+    if (sys_done) {
+	for (i = 0; i < ARRAY_SIZE(sfiles); i++) {
+	    if (sfiles[i].is_sys)
+		continue;
+	    sfiles[i].prio = sfs++;
+	}
+    }
+
+    return 1;
+}
+
+static int d_compar(const struct dirent **d1, const struct dirent **d2)
+{
+    const char *name1 = (*d1)->d_name;
+    const char *name2 = (*d2)->d_name;
+    int idx1 = get_s_idx(name1);
+    int idx2 = get_s_idx(name2);
+    struct fs_prio *fp1, *fp2;
+    if (idx1 == -1)
+	return 1;
+    if (idx2 == -1)
+	return -1;
+    fp1 = &sfiles[idx1];
+    fp2 = &sfiles[idx2];
+    if (fp1->prio && (fp1->prio < fp2->prio))
+	return -1;
+    if (fp2->prio && (fp2->prio < fp1->prio))
+	return 1;
+    return alphasort(d1, d2);
+}
 
 /*
  * Reads the directory entries and assigns the object ids.
@@ -488,12 +608,10 @@ void scan_dir(fatfs_t *f, unsigned oi)
 {
   obj_t *o = f->obj + oi;
   DIR *dir;
-  struct dirent* dent;
   struct stat sb;
   char *s, *name, *buf, *buf_ptr;
   unsigned u;
-  int i, fd, size, sfs = 0;
-  char *sf[] = { NULL, NULL, NULL, NULL, NULL };
+  int i, fd, size;
 
   // just checking...
   if(!o->is.dir || o->size || !o->name || o->is.scanned) {
@@ -505,7 +623,21 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
   o->is.scanned = 1;
 
+  name = full_name(f, oi, "");
+  if(!name) {
+    fatfs_msg("file name too complex: object %u\n", oi);
+    return;
+  }
+  name = strdup(name);
+
   if(oi) {
+    struct dirent* dent;
+    dir = opendir(name);
+    free(name);
+    if(dir == NULL) {
+      fatfs_msg("cannot read directory \"%s\"\n", name);
+      return;
+    }
     for(i = 0; i < 2; i++) {
       if((u = new_obj(f))) {	/* ".", ".." */
         o = f->obj + oi;
@@ -521,8 +653,12 @@ void scan_dir(fatfs_t *f, unsigned oi)
         o->size += 0x20;
       }
     }
-  }
-  else {
+    while((dent = readdir(dir)))
+      add_object(f, oi, dent->d_name);
+    closedir(dir);
+  } else {
+    struct dirent **dlist;
+    int num;
     /* look for "boot.blk" and read it */
     s = full_name(f, oi, "boot.blk");
     if (s && access(s, R_OK) == 0 && !stat(s, &sb) &&
@@ -534,21 +670,20 @@ void scan_dir(fatfs_t *f, unsigned oi)
                   }
                   close(fd);
 	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
-                }
+            }
     }
 
-    /* look for "IO.SYS" & "MSDOS.SYS" */
-    s = full_name(f, oi, "io.sys");
-    if (s && access(s, R_OK) == 0 && stat(s, &sb) == 0 &&
-	S_ISREG(sb.st_mode) && sb.st_size > 0)
-	    f->sys_type |= 1;
-    if (access(full_name(f, oi, "msdos.sys"), R_OK) == 0) f->sys_type |= 2;
-    s = full_name(f, oi, "ibmbio.com");
-    if (s && access(s, R_OK) == 0 && stat(s, &sb) == 0 &&
-	S_ISREG(sb.st_mode) && sb.st_size > 0) {
-	  f->sys_type |= 4;
-          if(S_ISREG(sb.st_mode)) {
-                if((fd = open(s, O_RDONLY)) != -1) {
+    d_name = name;
+    num = scandir(name, &dlist, d_filter, d_compar);
+    free(name);
+    if (num <= 0) {
+      fatfs_msg("fatfs: empty dir?\n");
+      return;
+    }
+    if (sys_type == 0x0c) {
+        s = full_name(f, oi, dlist[0]->d_name);
+        if (s && stat(s, &sb) == 0) {
+            if((fd = open(s, O_RDONLY)) != -1) {
                   buf = malloc(sb.st_size + 1);
 		  size = read(fd, buf, sb.st_size);
 		  if (size > 0) {
@@ -558,17 +693,14 @@ void scan_dir(fatfs_t *f, unsigned oi)
 		      buf_ptr += strlen(buf_ptr) + 1;
 		    }
 		    if (buf_ptr < buf + size)
-		      f->sys_type |= 0x40;
+		      sys_type = 0x40;
 		  }
                   free(buf);
                   close(fd);
-                }
-          }
+            }
+        }
     }
-    if (access(full_name(f, oi, "ibmdos.com"), R_OK) == 0) f->sys_type |= 8;
-    if (access(full_name(f, oi, "ipl.sys"), R_OK) == 0) f->sys_type |= 0x10;
-    if (access(full_name(f, oi, "kernel.sys"), R_OK) == 0) f->sys_type |= 0x20;
-    else {
+    if (!sys_done) {
       char *libdir = getenv("DOSEMU_LIB_DIR");
       if (libdir) {
 	char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);
@@ -577,70 +709,14 @@ void scan_dir(fatfs_t *f, unsigned oi)
 	free(kernelsyspath);
       }
     }
-
-    if((f->sys_type & 3) == 3) {
-      f->sys_type = 3;			/* MS-DOS */
-      sf[0] = "IO.SYS";
-      sf[1] = "MSDOS.SYS";
-      sfs = 2;
+    for (i = 0; i < num; i++) {
+      struct dirent *dent = dlist[i];
+      add_object(f, oi, dent->d_name);
+      free(dent);
     }
-    if((f->sys_type & 0x4c) == 0x4c) {
-      f->sys_type = 0x40;		/* PC-DOS */
-      sf[0] = "IBMBIO.COM";
-      sf[1] = "IBMDOS.COM";
-      sfs = 2;
-    }
-    if((f->sys_type & 0x0c) == 0x0c) {
-      f->sys_type = 0x0c;	/* DR-DOS */
-      sf[0] = "IBMBIO.COM";
-      sf[1] = "IBMDOS.COM";
-      sfs = 2;
-    }
-    if((f->sys_type & 0x30) == 0x10) {
-      f->sys_type = 0x10;	/* FreeDOS, orig. Patv kernel */
-      sf[0] = "IPL.SYS";
-      sfs = 1;
-    }
-
-    if((f->sys_type & 0x30) == 0x20) {
-      f->sys_type = 0x20;	/* FreeDOS, FD maintained kernel */
-      sf[0] = "KERNEL.SYS";
-      sfs = 1;
-    }
-
-#define TRY_ADD(x) \
-    sf[sfs] = x; \
-    if (access(full_name(f, oi, sf[sfs]), R_OK) == 0) \
-      sfs++
-
-    TRY_ADD("COMMAND.COM");
-    TRY_ADD("CONFIG.SYS");
-    TRY_ADD("AUTOEXEC.BAT");
-
-    for (i = 0; i < sfs; i++)
-      add_object(f, oi, sf[i]);
+    free(dlist);
+    f->sys_type = sys_type;
     fatfs_msg("system type is 0x%x\n", f->sys_type);
-  }
-
-  name = full_name(f, oi, "");
-  if(!name) {
-    fatfs_msg("file name too complex: object %u\n", oi);
-    return;
-  }
-  dir = opendir(name);
-  if(dir == NULL) {
-    fatfs_msg("cannot read directory \"%s\"\n", name);
-  } else {
-    while((dent = readdir(dir))) {
-      for(i = 0; i < sfs; i++) {
-        if(strequalDOS(dent->d_name, sf[i]))
-	  break;
-      }
-      if(i == sfs)
-        add_object(f, oi, dent->d_name);
-    }
-
-    closedir(dir);
   }
 
   o = f->obj + oi;
@@ -679,12 +755,15 @@ char *full_name(fatfs_t *f, unsigned oi, char *name)
 
   if(!s || !name || oi >= f->objs) return NULL;
 
+#if 0
   j = strlen(name);
   if(j > MAX_FILE_NAME_LEN) return NULL;
   do {
     s[i + j] = tolowerDOS(name[j]);
   } while (--j >= 0);
-
+#else
+  strcpy(s + i, name);
+#endif
   /* directory name cached ? */
   if(oi == f->ffn_obj) {
     fatfs_deb2("full_name: %u = \"%s\" (cached)\n", oi, f->ffn_ptr);
