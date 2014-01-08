@@ -3014,9 +3014,6 @@ void dpmi_init(void)
     leavedos(2);
   }
 
-  msdos_init(DPMI_CLIENT.is_32,
-    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
-
   if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
   if (SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_alias - mem_base,
         LDT_INIT_LIMIT, 0,
@@ -3063,6 +3060,7 @@ void dpmi_init(void)
   my_cs = popw(ssp, sp);
 
   if (debug_level('M')) {
+    unsigned sp2;
     cp = MK_FP32(my_cs, my_ip);
 
     D_printf("Going protected with fingers crossed\n"
@@ -3081,12 +3079,12 @@ void dpmi_init(void)
     D_printf("\n");
 
     D_printf("STACK: ");
-    sp = (sp & 0xffff0000) | (((sp & 0xffff) - 10 ) & 0xffff);
+    sp2 = (sp & 0xffff0000) | (((sp & 0xffff) - 10 ) & 0xffff);
     for (i = 0; i < 10; i++)
-      D_printf("%02x ", popb(ssp, sp));
+      D_printf("%02x ", popb(ssp, sp2));
     D_printf("-> ");
     for (i = 0; i < 10; i++)
-      D_printf("%02x ", popb(ssp, sp));
+      D_printf("%02x ", popb(ssp, sp2));
     D_printf("\n");
     flush_log();
   }
@@ -3128,15 +3126,18 @@ void dpmi_init(void)
 #endif
   scp->fpstate = &DPMI_CLIENT.fpu_state;
 
-  for (i = 0; i < RSP_num; i++) {
-    D_printf("DPMI: Calling RSP %i\n", i);
-    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
-  }
-
   REG(esp) += 4;
   HWORD(esp) = 0;
   NOCARRY;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
+
+  msdos_init(DPMI_CLIENT.is_32,
+    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
+
+  for (i = 0; i < RSP_num; i++) {
+    D_printf("DPMI: Calling RSP %i\n", i);
+    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
+  }
   /* set int 23 to "iret" so that DOS doesn't terminate the program
      behind our back */
   SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
@@ -3146,8 +3147,20 @@ void dpmi_init(void)
 err:
   error("DPMI initialization failed!\n");
   in_dpmi_dos_int = 1;
-  dpmi_cleanup();
   CARRY;
+  FreeAllDescriptors();
+  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
+    PAGE_ALIGN(DPMI_pm_stack_size));
+  if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
+    DPMIfreeAll();
+    free(DPMI_CLIENT.pm_block_root);
+    DPMI_CLIENT.pm_block_root = NULL;
+  }
+  if (in_dpmi == 1) {
+    if (!RSP_num)
+      dpmi_free_pool();
+  }
+  in_dpmi--;
 }
 
 void dpmi_sigio(struct sigcontext_struct *scp)
