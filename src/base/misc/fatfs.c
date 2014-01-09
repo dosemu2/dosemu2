@@ -157,7 +157,7 @@ void fatfs_init(struct disk *dp)
   f->fat_secs = f->fat_type == FAT_TYPE_FAT12 ?
 	((f->total_secs / u + 2) * 3 + 0x3ff) >> 10 :
 	((f->total_secs / u + 2) * 2 + 0x1ff) >> 9;
-  f->root_secs = 4;
+  f->root_secs = f->fat_type == FAT_TYPE_FAT12 ? 14 : 32;
 
   f->root_entries = f->root_secs << 4;
 
@@ -865,8 +865,22 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
   tmp_o.time = dos_time(&sb.st_mtime);
 
   tmp_o.name = name;
-  if(!(u = make_dos_entry(f, &tmp_o, NULL))) return;
+  if(!(u = make_dos_entry(f, &tmp_o, NULL))) {
+    fatfs_deb("fatfs: make_dos_entry(%s) failed\n", name);
+    return;
+  }
   tmp_o.dos_dir_size = u;
+  if (parent == 0 && f->obj[parent].size >= f->root_secs << 9) {
+    static int warned;
+    fatfs_deb("fatfs: root directory overflow on %s, %i\n",
+	    f->obj[parent].name, f->obj[parent].size);
+    if (!warned) {
+      error("fatfs: root directory overflow on %s, %i\n",
+	    f->obj[parent].name, f->obj[parent].size);
+      warned++;
+    }
+    return;
+  }
 
   if(!(tmp_o.name = strdup(name))) return;
 
@@ -1078,12 +1092,18 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos)
   }
   if(pos >= o->size) return 0;
 
-  if(!(s = full_name(f, o->parent, o->name))) return -1;
+  if(!(s = full_name(f, o->parent, o->name))) {
+    fatfs_deb("fatfs: qualifying %s failed\n", o->name);
+    return -1;
+  }
 
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
   if(f->fd_obj == 0) {
-    if((f->fd = open(s, O_RDONLY)) == -1) return -1;
+    if((f->fd = open(s, O_RDONLY)) == -1) {
+      fatfs_deb("fatfs: open %s failed\n", s);
+      return -1;
+    }
     f->fd_obj = oi;
   }
 
