@@ -516,7 +516,7 @@ void dir_auto(struct disk *dp)
    */
     dp->sectors = 63;
     dp->heads = 255;
-    dp->tracks = 50;
+    dp->tracks = 255;
     dp->start = dp->sectors;
   }
 

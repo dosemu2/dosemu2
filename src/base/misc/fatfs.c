@@ -1033,6 +1033,7 @@ void assign_clusters(fatfs_t *f, unsigned max_clu, unsigned max_obj)
       f->first_free_cluster -= f->obj[u].len;
       f->got_all_objs = 1;
       fatfs_msg("assign_clusters: file system full\n");
+      error("fatfs: file system full, %s\n", f->obj[0].name);
     }
     fatfs_deb("assign_clusters: obj %u, start %u, len %u (%s)\n",
 	u, f->obj[u].start, f->obj[u].len, f->obj[u].name);
