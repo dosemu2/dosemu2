@@ -586,6 +586,8 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
     int idx1 = get_s_idx(name1);
     int idx2 = get_s_idx(name2);
     struct fs_prio *fp1, *fp2;
+    if (idx1 == -1 && idx2 == -1)
+	return alphasort(d1, d2);
     if (idx1 == -1)
 	return 1;
     if (idx2 == -1)
@@ -679,6 +681,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
       return;
     }
     if (sys_type == 0x0c) {
+	/* see if it is PC-DOS or DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
         if (s && stat(s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
@@ -699,6 +702,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
         }
     }
     if (!sys_done) {
+      /* try preinstalled freedos */
       char *libdir = getenv("DOSEMU_LIB_DIR");
       if (libdir) {
 	char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);

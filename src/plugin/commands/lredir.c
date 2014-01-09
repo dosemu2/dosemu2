@@ -564,8 +564,7 @@ int lredir_main(int argc, char **argv)
         resourceStr = resourceStr2;
       }
       free(argv2);
-    } else {
-      if (argc > 1 && strchr(argv[1], '\\')) {
+    } else if (argc > 1 && strchr(argv[1], '\\')) {
 	int nextDrive;
         resourceStr = strdup(argv[1]);
 	nextDrive = find_drive(&resourceStr);
@@ -580,36 +579,39 @@ int lredir_main(int argc, char **argv)
 	deviceStr[1] = ':';
 	deviceStr[2] = '\0';
 	carg = 2;
-      } else if (argc > 2 && strlen(argv[2]) > 1) {
+    } else if (argc > 2 && strlen(argv[2]) > 1) {
         strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
         deviceStr[sizeof(deviceStr) - 1] = 0;
         if (deviceStr[1] == ':')		// may be LPTx
           deviceStr[2] = 0;
         resourceStr = strdup(argv[2]);
-      } else if (argc > 1 && isdigit(argv[1][3])) {	// lredir lptX
+    } else if (argc > 1 && isdigit(argv[1][3])) {	// lredir lptX
         strncpy(deviceStr, argv[1], sizeof(deviceStr) - 1);
         deviceStr[sizeof(deviceStr) - 1] = 0;
         resourceStr = strdup(argv[1] + 3);
 	carg = 2;
-      }
+    } else {
+	printf("lredir: Invalid arguments\n");
+	return(0);
     }
     deviceParam = DEFAULT_REDIR_PARAM;
 
     if (argc > carg) {
       if (toupperDOS(argv[carg][0]) == 'R') {
         deviceParam = 1;
-      }
-      if (toupperDOS(argv[carg][0]) == 'C') {
+      } else if (toupperDOS(argv[carg][0]) == 'C') {
 	int cdrom = 1;
 	if (argc > carg+1 && argv[carg+1][0] >= '1' && argv[carg+1][0] <= '4')
 	  cdrom = argv[carg+1][0] - '0';
         deviceParam = 1 + cdrom;
-      }
-      if (toupperDOS(argv[carg][0]) == 'P') {
+      } else if (toupperDOS(argv[carg][0]) == 'P') {
         char *old_rs = resourceStr;
         asprintf(&resourceStr, "%s\\%s", "LINUX\\PRN", old_rs);
         free(old_rs);
         deviceType = REDIR_PRINTER_TYPE;
+      } else {
+	printf("lredir: Unknown parameter %c\n", argv[carg][0]);
+	return(0);
       }
     }
 
