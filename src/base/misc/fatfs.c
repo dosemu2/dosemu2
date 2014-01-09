@@ -98,7 +98,6 @@ void fatfs_init(struct disk *dp)
   fatfs_t *f;
   unsigned u;
 
-  sys_type = sys_done = 0;
   if(dp->fatfs) fatfs_done(dp);
   fatfs_msg("init: %s\n", dp->dev_name);
 
@@ -607,11 +606,12 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 void scan_dir(fatfs_t *f, unsigned oi)
 {
   obj_t *o = f->obj + oi;
-  DIR *dir;
   struct stat sb;
-  char *s, *name, *buf, *buf_ptr;
+  char *s, *name;
   unsigned u;
-  int i, fd, size;
+  int i;
+  struct dirent **dlist;
+  int num;
 
   // just checking...
   if(!o->is.dir || o->size || !o->name || o->is.scanned) {
@@ -628,16 +628,18 @@ void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("file name too complex: object %u\n", oi);
     return;
   }
+  if (!oi)
+    sys_type = sys_done = 0;
   name = strdup(name);
+  cur_d = f;
+  num = scandir(name, &dlist, d_filter, d_compar);
+  free(name);
+  if (num < 0) {
+    fatfs_msg("fatfs: scandir failed\n");
+    return;
+  }
 
   if(oi) {
-    struct dirent* dent;
-    dir = opendir(name);
-    free(name);
-    if(dir == NULL) {
-      fatfs_msg("cannot read directory \"%s\"\n", name);
-      return;
-    }
     for(i = 0; i < 2; i++) {
       if((u = new_obj(f))) {	/* ".", ".." */
         o = f->obj + oi;
@@ -653,12 +655,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
         o->size += 0x20;
       }
     }
-    while((dent = readdir(dir)))
-      add_object(f, oi, dent->d_name);
-    closedir(dir);
   } else {
-    struct dirent **dlist;
-    int num;
+    char *buf, *buf_ptr;
+    int fd, size;
     /* look for "boot.blk" and read it */
     s = full_name(f, oi, "boot.blk");
     if (s && access(s, R_OK) == 0 && !stat(s, &sb) &&
@@ -671,14 +670,6 @@ void scan_dir(fatfs_t *f, unsigned oi)
                   close(fd);
 	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
             }
-    }
-
-    cur_d = f;
-    num = scandir(name, &dlist, d_filter, d_compar);
-    free(name);
-    if (num <= 0) {
-      fatfs_msg("fatfs: empty dir?\n");
-      return;
     }
     if (sys_type == 0x0c) {
 	/* see if it is PC-DOS or DR-DOS */
@@ -711,17 +702,17 @@ void scan_dir(fatfs_t *f, unsigned oi)
 	free(kernelsyspath);
       }
     }
-    for (i = 0; i < num; i++) {
-      struct dirent *dent = dlist[i];
-      add_object(f, oi, dent->d_name);
-      free(dent);
-    }
-    free(dlist);
     f->sys_type = sys_type;
     fatfs_msg("system type is 0x%x\n", f->sys_type);
   }
 
-  o = f->obj + oi;
+  for (i = 0; i < num; i++) {
+    struct dirent *dent = dlist[i];
+    add_object(f, oi, dent->d_name);
+    free(dent);
+  }
+  free(dlist);
+
   if(oi == 0) {
     if(*f->label != ' ') {
       if((u = new_obj(f))) {	/* volume label */
@@ -741,6 +732,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     }
   }
 
+  o = f->obj + oi;
   u = f->cluster_secs << 9;
   o->len = (o->size + u - 1) / u;
 }
