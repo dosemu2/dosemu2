@@ -53,8 +53,12 @@
 enum {
     SNDBUF_STATE_INACTIVE,
     SNDBUF_STATE_PLAYING,
-    SNDBUF_STATE_FLUSHING
+    SNDBUF_STATE_FLUSHING,
+    SNDBUF_STATE_STALLED,
 };
+
+#define STREAM_INACTIVE(i) (pcm.stream[i].state == SNDBUF_STATE_INACTIVE || \
+    pcm.stream[i].state == SNDBUF_STATE_STALLED)
 
 struct sample {
     int format;
@@ -313,7 +317,7 @@ static int count_active_streams(void)
 {
     int i, ret = 0;
     for (i = 0; i < pcm.num_streams; i++)
-	if (pcm.stream[i].state != SNDBUF_STATE_INACTIVE)
+	if (!STREAM_INACTIVE(i))
 	    ret++;
     return ret;
 }
@@ -369,6 +373,7 @@ static void pcm_handle_get(int strm_idx, double time)
     switch (pcm.stream[strm_idx].state) {
 
     case SNDBUF_STATE_INACTIVE:
+    case SNDBUF_STATE_STALLED:
 	error("PCM: getting data from inactive buffer (strm=%i)\n",
 	      strm_idx);
 	break;
@@ -401,6 +406,26 @@ static void pcm_handle_get(int strm_idx, double time)
 		S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm_clear_stream(strm_idx);
+	    pcm.stream[strm_idx].state = SNDBUF_STATE_STALLED;
+	}
+	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING &&
+		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL &&
+		fillup < MIN_BUFFER_DELAY) {
+	    S_printf("PCM: buffer fillup %f is too low, %s\n",
+		    fillup, pcm.stream[strm_idx].name);
+	    /* FIXME: how do we propagate that event to the caller?
+	     * The hackish (but simple) solution was removed in f0e0a7d437
+	     * Maybe we don't even need to? The only known reason for the
+	     * permanent buffer starvation is when the caller does
+	     * "unnecessary" flushes. pcm_truncate_stream() can then
+	     * reset the timing, but it currently does nothing, so the
+	     * possibility of starvation exists.
+	     * Anyway, SB code was fixed to minimize the chances of
+	     * unnecessary flushes, so maybe the problem does not exist,
+	     * or exists only for a poorly written DOS progs.
+	     * Of course there are many reasons for the temporary
+	     * starvations, we only need to make sure they are quickly
+	     * re-filled. */
 	}
 	break;
 
@@ -422,6 +447,7 @@ static void pcm_handle_write(int strm_idx, double time)
 	break;
 
     case SNDBUF_STATE_INACTIVE:
+    case SNDBUF_STATE_STALLED:
 	pcm.stream[strm_idx].start_time = time;
 	S_printf("PCM: stream %i (%s) started, time=%f delta=%f\n",
 		 strm_idx, pcm.stream[strm_idx].name, time,
@@ -430,6 +456,14 @@ static void pcm_handle_write(int strm_idx, double time)
 
     }
     pcm.stream[strm_idx].state = SNDBUF_STATE_PLAYING;
+
+    if (pcm.playing && time < players.clocked.time) {
+	error("PCM: timing screwed up\n");
+	S_printf("PCM: timing screwed up, s=%i cur=%f pl=%f delta=%f\n",
+		strm_idx, time, players.clocked.time,
+		players.clocked.time - time);
+	players.clocked.time = time;
+    }
 }
 
 static void pcm_handle_flush(int strm_idx)
@@ -447,6 +481,9 @@ static void pcm_handle_flush(int strm_idx)
 	pcm.stream[strm_idx].state = SNDBUF_STATE_FLUSHING;
 	break;
 
+    case SNDBUF_STATE_STALLED:
+	pcm.stream[strm_idx].state = SNDBUF_STATE_INACTIVE;
+	break;
     }
 }
 
@@ -461,7 +498,7 @@ int pcm_flush(int strm_idx)
 static double pcm_get_stream_time(int strm_idx)
 {
     struct sample samp;
-    if (pcm.stream[strm_idx].state == SNDBUF_STATE_INACTIVE ||
+    if (STREAM_INACTIVE(strm_idx) ||
 	!peek_last_sample(strm_idx, &samp))
 	return 0;
     return samp.tstamp;
@@ -532,7 +569,7 @@ static void pcm_remove_samples(double time)
     int i;
     struct sample s;
     for (i = 0; i < pcm.num_streams; i++) {
-	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+	if (STREAM_INACTIVE(i))
 	    continue;
 	while (rng_count(&pcm.stream[i].buffer) >= pcm.stream[i].channels *
 		(GUARD_SAMPS + 1)) {
@@ -555,7 +592,7 @@ static int pcm_get_samples(double time,
     for (i = 0; i < pcm.num_streams; i++) {
 	for (j = 0; j < pcm.stream[i].channels; j++)
 	    samp[i][j] = mute_samp;
-	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+	if (STREAM_INACTIVE(i))
 	    continue;
 
 //    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
@@ -693,7 +730,7 @@ size_t pcm_data_get(void *data, size_t size,
     /* remove processed samples from input buffers (last sample stays) */
     pcm_remove_samples(stop_time);
     for (i = 0; i < pcm.num_streams; i++) {
-	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+	if (STREAM_INACTIVE(i))
 	    continue;
 	S_printf("PCM: stream %i fillup2: %i\n", i,
 		 rng_count(&pcm.stream[i].buffer));
@@ -758,7 +795,8 @@ void pcm_done(void)
     int i;
     players.clocked.player.lock();
     for (i = 0; i < pcm.num_streams; i++)
-	if (pcm.stream[i].state == SNDBUF_STATE_PLAYING)
+	if (pcm.stream[i].state == SNDBUF_STATE_PLAYING ||
+		pcm.stream[i].state == SNDBUF_STATE_STALLED)
 	    pcm_flush(i);
     if (pcm.playing)
 	pcm_stop_output();
