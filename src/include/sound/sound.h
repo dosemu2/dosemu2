@@ -36,7 +36,8 @@ struct player_params {
   int channels;
 };
 
-size_t pcm_data_get(void *data, size_t size, struct player_params *params);
+size_t pcm_data_get(void *data, size_t size, struct player_params *params,
+	int handle);
 
 struct clocked_player {
   const char *name;
@@ -44,7 +45,7 @@ struct clocked_player {
   void (*close)(void);
   void (*start)(void);
   void (*stop)(void);
-  void (*timer)(void);
+  void (*timer)(double);
   void (*lock)(void);
   void (*unlock)(void);
 };

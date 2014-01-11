@@ -23,6 +23,6 @@
 #ifndef __NULLSND_H__
 #define __NULLSND_H__
 
-extern int nullsnd_init(void);
+extern void nullsnd_init(void);
 
 #endif

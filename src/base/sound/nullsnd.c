@@ -39,6 +39,7 @@ const int frag_size = 4096;
 static struct player_params params;
 static int running, locked;
 static double last_time = 0;
+static int handle;
 
 static void nullsnd_start(void)
 {
@@ -73,7 +74,7 @@ static void nullsnd_unlock(void)
     locked--;
 }
 
-static void nullsnd_timer(void)
+static void nullsnd_timer(double dtime)
 {
     double time, frag_time;
     if (!running || locked)
@@ -82,11 +83,11 @@ static void nullsnd_timer(void)
     time = GETusTIME(0);
     while (time - last_time > frag_time) {
 	last_time += frag_time;
-	pcm_data_get(NULL, frag_size, &params);
+	pcm_data_get(NULL, frag_size, &params, handle);
     }
 }
 
-int nullsnd_init(void)
+void nullsnd_init(void)
 {
     struct clocked_player player;
     player.name = nullsnd_name;
@@ -98,5 +99,5 @@ int nullsnd_init(void)
     player.unlock = nullsnd_unlock;
     player.timer = nullsnd_timer;
     running = locked = 0;
-    return pcm_register_clocked_player(player);
+    handle = pcm_register_clocked_player(player);
 }

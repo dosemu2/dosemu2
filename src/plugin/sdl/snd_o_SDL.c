@@ -34,10 +34,11 @@
 
 static const char *sdlsnd_name = "Sound Output: SDL device";
 static struct player_params params;
+static int handle;
 
 static void sdlsnd_callback(void *userdata, Uint8 * stream, int len)
 {
-    pcm_data_get(stream, len, &params);
+    pcm_data_get(stream, len, &params, handle);
 }
 
 static void sdlsnd_start(void)
@@ -81,9 +82,9 @@ static void sdlsnd_close(void)
 #endif
 }
 
-CONSTRUCTOR(static int sdlsnd_init(void))
+CONSTRUCTOR(static void sdlsnd_init(void))
 {
-    struct clocked_player player;
+    struct clocked_player player = {};
     player.name = sdlsnd_name;
     player.start = sdlsnd_start;
     player.stop = sdlsnd_stop;
@@ -91,9 +92,5 @@ CONSTRUCTOR(static int sdlsnd_init(void))
     player.close = sdlsnd_close;
     player.lock = SDL_LockAudio;
     player.unlock = SDL_UnlockAudio;
-#if 1
-    return pcm_register_clocked_player(player);
-#else
-    return 0;
-#endif
+    handle = pcm_register_clocked_player(player);
 }
