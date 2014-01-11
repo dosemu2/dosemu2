@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 
-CFILES = midi.c sndpcm.c nullsnd.c
+CFILES = midi.c sndpcm.c
 
 all: lib
 

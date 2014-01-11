@@ -36,7 +36,6 @@
 #include "timers.h"
 #include "sound/sound.h"
 #include "sound/sndpcm.h"
-#include "nullsnd.h"
 #include <string.h>
 #include <math.h>
 #include <limits.h>
