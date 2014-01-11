@@ -590,13 +590,14 @@ static void pcm_remove_samples(double time)
 }
 
 static int pcm_get_samples(double time,
-		struct sample samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs)
+		struct sample samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs,
+		int out_channels)
 {
     int i, j, ret = 0;
     struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
 
     for (i = 0; i < pcm.num_streams; i++) {
-	for (j = 0; j < pcm.stream[i].channels; j++)
+	for (j = 0; j < out_channels; j++)
 	    samp[i][j] = mute_samp;
 	if (STREAM_INACTIVE(i))
 	    continue;
@@ -609,32 +610,26 @@ static int pcm_get_samples(double time,
 	    else
 		prev_s[j] = mute_samp;
 	}
+	if (out_channels == 2 && pcm.stream[i].channels == 1)
+	    prev_s[1] = prev_s[0];
 	while (rng_count(&pcm.stream[i].buffer) - idxs[i] >=
 	       pcm.stream[i].channels) {
 	    for (j = 0; j < pcm.stream[i].channels; j++)
 		rng_peek(&pcm.stream[i].buffer, idxs[i] + j, &s[j]);
 	    if (s[0].tstamp > time) {
 //        S_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
-		memcpy(samp[i], prev_s, sizeof(struct sample) *
-			    pcm.stream[i].channels);
+		memcpy(samp[i], prev_s, sizeof(struct sample) * out_channels);
 		if (time >= pcm.stream[i].start_time)
 		    ret++;
 		break;
 	    }
 	    memcpy(prev_s, s, sizeof(struct sample) * pcm.stream[i].channels);
+	    if (out_channels == 2 && pcm.stream[i].channels == 1)
+		prev_s[1] = prev_s[0];
 	    idxs[i] += pcm.stream[i].channels;
 	}
     }
     return ret;
-}
-
-static void pcm_process_channels(struct sample samp[][2], int out_channels)
-{
-    int i;
-    for (i = 0; i < pcm.num_streams; i++) {
-	if (out_channels == 2 && pcm.stream[i].channels == 1)
-	    samp[i][1] = samp[i][0];
-    }
 }
 
 static void pcm_mix_samples(struct sample in[][2], void *out, int channels,
@@ -698,13 +693,12 @@ size_t pcm_data_get(void *data, size_t size,
     pcm.out_buf.idx = 0;
 
     while (pcm.out_buf.idx < size) {
-	pcm_get_samples(time, samp, idxs);
+	pcm_get_samples(time, samp, idxs, params->channels);
 	if (pcm.out_buf.idx + samp_sz * params->channels >
 		RAW_BUFFER_SIZE) {
 	    error("PCM: output buffer overflowed\n");
 	    break;
 	}
-	pcm_process_channels(samp, params->channels);
 	pcm_mix_samples(samp, pcm.out_buf.data + pcm.out_buf.idx,
 			    params->channels, params->format);
 	pcm.out_buf.idx += samp_sz * params->channels;
