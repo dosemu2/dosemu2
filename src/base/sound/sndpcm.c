@@ -40,6 +40,7 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
+#include <pthread.h>
 
 
 #define SND_BUFFER_SIZE 200000	/* enough to hold 2.2s of 44100/stereo */
@@ -91,8 +92,10 @@ struct stream {
 #define MAX_STREAMS 10
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
+    pthread_mutex_t strm_mtx;
     int num_streams;
     int playing;
+    double time;
     struct raw_buffer out_buf;
 } pcm;
 
@@ -121,6 +124,7 @@ int pcm_init(void)
     int i, have_clc = 0;
     S_printf("PCM: init\n");
     memset(&pcm, 0, sizeof(pcm));
+    pthread_mutex_init(&pcm.strm_mtx, NULL);
 //  memset(&players, 0, sizeof(players));
 #ifdef USE_DL_PLUGINS
 #ifdef SDL_SUPPORT
@@ -355,6 +359,7 @@ static void pcm_start_output(void)
 {
     players.clocked.time = 0;
     players.clocked.player.start();
+    pcm.time = GETusTIME(0) - MAX_BUFFER_DELAY;
     pcm.playing = 1;
     S_printf("PCM: output started\n");
 }
@@ -411,8 +416,9 @@ static void pcm_handle_get(int strm_idx, double time)
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING &&
 		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL &&
 		fillup < MIN_BUFFER_DELAY) {
-	    S_printf("PCM: buffer fillup %f is too low, %s\n",
-		    fillup, pcm.stream[strm_idx].name);
+	    S_printf("PCM: buffer fillup %f is too low, %s %i %f\n",
+		    fillup, pcm.stream[strm_idx].name,
+		    rng_count(&pcm.stream[strm_idx].buffer), time);
 	    /* FIXME: how do we propagate that event to the caller?
 	     * The hackish (but simple) solution was removed in f0e0a7d437
 	     * Maybe we don't even need to? The only known reason for the
@@ -451,18 +457,18 @@ static void pcm_handle_write(int strm_idx, double time)
 	pcm.stream[strm_idx].start_time = time;
 	S_printf("PCM: stream %i (%s) started, time=%f delta=%f\n",
 		 strm_idx, pcm.stream[strm_idx].name, time,
-		 time - players.clocked.time);
+		 time - pcm.time);
 	break;
 
     }
     pcm.stream[strm_idx].state = SNDBUF_STATE_PLAYING;
 
-    if (pcm.playing && time < players.clocked.time) {
+    if (pcm.playing && time < pcm.time) {
 	error("PCM: timing screwed up\n");
-	S_printf("PCM: timing screwed up, s=%i cur=%f pl=%f delta=%f\n",
-		strm_idx, time, players.clocked.time,
-		players.clocked.time - time);
-	players.clocked.time = time;
+	S_printf("PCM: timing screwed up, s=%s cur=%f pl=%f delta=%f\n",
+		pcm.stream[strm_idx].name, time, pcm.time,
+		pcm.time - time);
+	pcm.time = time;
     }
 }
 
@@ -547,8 +553,16 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 
     samp.format = format;
     players.clocked.player.lock();
+    pthread_mutex_lock(&pcm.strm_mtx);
     for (i = 0; i < frames; i++) {
+	int l;
+	struct sample s2;
 	samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
+	l = peek_last_sample(strm_idx, &s2);
+	if (l && samp.tstamp < s2.tstamp) {
+	    error("%i %f %f\n", strm_idx, samp.tstamp, s2.tstamp);
+	    leavedos(20);
+	}
 	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
 	    int ch = j % nchans;
 	    memcpy(samp.data, &ptr[i][ch], pcm_format_size(format));
@@ -556,6 +570,7 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 	}
 	pcm_handle_write(strm_idx, samp.tstamp);
     }
+    pthread_mutex_unlock(&pcm.strm_mtx);
 //S_printf("PCM: time=%f\n", samp.tstamp);
 
     if (!pcm.playing)
@@ -648,15 +663,12 @@ static void pcm_mix_samples(struct sample in[][2], void *out, int channels,
     }
 }
 
-/* this is called by the clocked player. It prepares the data for
- * him, and, just in case, feeds it to all the unclocked players too. */
 size_t pcm_data_get(void *data, size_t size,
 			   struct player_params *params)
 {
-    int i, samp_sz, have_data, idxs[MAX_STREAMS], ret = 0;
+    int samp_sz, idxs[MAX_STREAMS], ret = 0;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
-    struct player_params *player_parms;
     struct sample samp[MAX_STREAMS][2];
 
     if (size > SND_BUFFER_SIZE) {
@@ -670,9 +682,17 @@ size_t pcm_data_get(void *data, size_t size,
     if (start_time == 0 ||
 	start_time < now - MAX_BUFFER_DELAY
 	|| stop_time > now - MIN_BUFFER_DELAY) {
-	if (start_time != 0)
-	    error("PCM: \"%s\" out of sync\n",
-		  players.clocked.player.name);
+	if (start_time != 0) {
+	    if (start_time < now - MAX_BUFFER_DELAY)
+		error("PCM: \"%s\" too large delay, start=%f min=%f d=%f\n",
+		  players.clocked.player.name, start_time,
+		  now - MAX_BUFFER_DELAY, now - MAX_BUFFER_DELAY - start_time);
+	    if (stop_time > now - MIN_BUFFER_DELAY)
+		error("PCM: \"%s\" too small delay, start=%f max=%f d=%f\n",
+		  players.clocked.player.name, start_time,
+		  now - MIN_BUFFER_DELAY, start_time -
+		  (now - MIN_BUFFER_DELAY));
+	}
 	start_time = now - INIT_BUFFER_DELAY;
 	stop_time = start_time + frag_period;
     }
@@ -680,17 +700,60 @@ size_t pcm_data_get(void *data, size_t size,
 	 size, players.num_clocked + players.num_unclocked, start_time,
 	 stop_time, now - start_time);
 
-    for (i = 0; i < players.num_clocked + players.num_unclocked; i++) {
-	player_parms = (i < players.num_clocked ?
-			params : &players.unclocked[i - players.num_clocked].
-			params);
+    pthread_mutex_lock(&pcm.strm_mtx);
+    frame_period = pcm_frame_period_us(params->rate);
+    time = start_time;
+    samp_sz = pcm_format_size(params->format);
+    memset(idxs, 0, sizeof(idxs));
+    pcm.out_buf.idx = 0;
+
+    while (pcm.out_buf.idx < size) {
+	pcm_get_samples(time, samp, idxs);
+	if (pcm.out_buf.idx + samp_sz * params->channels >
+		RAW_BUFFER_SIZE) {
+	    error("PCM: output buffer overflowed\n");
+	    break;
+	}
+	pcm_process_channels(samp, params->channels);
+	pcm_mix_samples(samp, pcm.out_buf.data + pcm.out_buf.idx,
+			    params->channels, params->format);
+	pcm.out_buf.idx += samp_sz * params->channels;
+	time += frame_period;
+    }
+    if (fabs(time - stop_time) > frame_period)
+	error("PCM: time=%f stop_time=%f p=%f\n",
+		    time, stop_time, frame_period);
+
+    /* feed the data to player */
+    if (data)
+	memcpy(data, pcm.out_buf.data, pcm.out_buf.idx);
+    players.clocked.time = stop_time;
+
+    ret = pcm.out_buf.idx;
+    pthread_mutex_unlock(&pcm.strm_mtx);
+    if (ret != size)
+	error("PCM: requested=%zi prepared=%i\n", size, ret);
+    return ret;
+}
+
+static void pcm_advance_time(double stop_time)
+{
+    int i, samp_sz, have_data, idxs[MAX_STREAMS];
+    double start_time, frame_period, time;
+    struct player_params *player_parms;
+    struct sample samp[MAX_STREAMS][2];
+
+    start_time = pcm.time;
+    pthread_mutex_lock(&pcm.strm_mtx);
+    for (i = players.num_clocked; i < players.num_clocked + players.num_unclocked; i++) {
+	player_parms = &players.unclocked[i - players.num_clocked].params;
 	frame_period = pcm_frame_period_us(player_parms->rate);
 	time = start_time;
 	samp_sz = pcm_format_size(player_parms->format);
 	memset(idxs, 0, sizeof(idxs));
 	pcm.out_buf.idx = 0;
 
-	while (pcm.out_buf.idx < size) {
+	while (time < stop_time - frame_period / 10) {
 	    have_data = pcm_get_samples(time, samp, idxs);
 	    if (!have_data && i >= players.num_clocked)
 		break;
@@ -705,27 +768,18 @@ size_t pcm_data_get(void *data, size_t size,
 	    pcm.out_buf.idx += samp_sz * player_parms->channels;
 	    time += frame_period;
 	}
-	if (fabs(time - stop_time) > frame_period)
-	    error("PCM: time=%f stop_time=%f p=%f\n",
-		    time, stop_time, frame_period);
 
 	/* feed the data to player */
-	if (i < players.num_clocked) {
-	    if (data)
-		memcpy(data, pcm.out_buf.data, pcm.out_buf.idx);
-	    ret = pcm.out_buf.idx;
-	} else {
-	    int j = i - players.num_clocked;
-	    if (players.unclocked[j].opened && pcm.out_buf.idx) {
+	int j = i - players.num_clocked;
+	if (players.unclocked[j].opened && pcm.out_buf.idx) {
 		S_printf("PCM: going to write %i bytes to player %i (%s)\n",
 		     pcm.out_buf.idx, i, players.unclocked[j].player.name);
 		players.unclocked[j].player.write(pcm.out_buf.data,
 						  pcm.out_buf.idx);
-	    }
 	}
     }
 
-    players.clocked.time = stop_time;
+    pcm.time = stop_time;
 
     /* remove processed samples from input buffers (last sample stays) */
     pcm_remove_samples(stop_time);
@@ -734,15 +788,12 @@ size_t pcm_data_get(void *data, size_t size,
 	    continue;
 	S_printf("PCM: stream %i fillup2: %i\n", i,
 		 rng_count(&pcm.stream[i].buffer));
-	pcm_handle_get(i, now - INIT_BUFFER_DELAY + frag_period);
+	pcm_handle_get(i, stop_time);
     }
+    pthread_mutex_unlock(&pcm.strm_mtx);
 
     if (!count_active_streams() && pcm.playing)
 	pcm_stop_output();
-
-    if (ret != size)
-	error("PCM: requested=%zi prepared=%i\n", size, ret);
-    return ret;
 }
 
 int pcm_register_clocked_player(struct clocked_player player)
@@ -776,6 +827,7 @@ void pcm_timer(void)
     for (i = 0; i < players.num_unclocked; i++)
     if (players.clocked.player.timer)
 	players.clocked.player.timer();
+    pcm_advance_time(GETusTIME(0) - MAX_BUFFER_DELAY);
 }
 
 void pcm_reset(void)
@@ -806,4 +858,5 @@ void pcm_done(void)
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
     players.clocked.player.unlock();
+    pthread_mutex_destroy(&pcm.strm_mtx);
 }
