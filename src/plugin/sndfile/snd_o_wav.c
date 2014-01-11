@@ -50,6 +50,7 @@ static int wavsnd_open(void)
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
+    params.id = PCM_ID_P;
 #if ENABLED
     info.samplerate = params.rate;
     info.channels = params.channels;

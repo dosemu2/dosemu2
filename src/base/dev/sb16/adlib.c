@@ -128,7 +128,7 @@ void opl3_init(void)
 
 void adlib_init(void)
 {
-    adlib_strm = pcm_allocate_stream(ADLIB_CHANNELS, "Adlib");
+    adlib_strm = pcm_allocate_stream(ADLIB_CHANNELS, "Adlib", PCM_ID_P);
 }
 
 void adlib_reset(void)

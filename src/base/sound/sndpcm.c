@@ -86,6 +86,7 @@ struct stream {
     double last_fillup;
     /* --- */
     char *name;
+    int id;
 };
 
 struct pcm_player_wr {
@@ -150,7 +151,7 @@ static void pcm_reset_stream(int strm_idx)
     pcm.stream[strm_idx].mode = PCM_MODE_NORMAL;
 }
 
-int pcm_allocate_stream(int channels, char *name)
+int pcm_allocate_stream(int channels, char *name, int id)
 {
     int index;
     if (pcm.num_streams >= MAX_STREAMS) {
@@ -162,6 +163,7 @@ int pcm_allocate_stream(int channels, char *name)
 	     sizeof(struct sample));
     pcm.stream[index].channels = channels;
     pcm.stream[index].name = name;
+    pcm.stream[index].id = id;
     pcm_reset_stream(index);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;
@@ -591,7 +593,7 @@ static void pcm_remove_samples(double time)
 
 static int pcm_get_samples(double time,
 		struct sample samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs,
-		int out_channels)
+		int out_channels, int id)
 {
     int i, j, ret = 0;
     struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
@@ -599,7 +601,7 @@ static int pcm_get_samples(double time,
     for (i = 0; i < pcm.num_streams; i++) {
 	for (j = 0; j < out_channels; j++)
 	    samp[i][j] = mute_samp;
-	if (STREAM_INACTIVE(i))
+	if (STREAM_INACTIVE(i) || pcm.stream[i].id != id)
 	    continue;
 
 //    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
@@ -679,8 +681,6 @@ size_t pcm_data_get(void *data, size_t size,
 	start_time = now - INIT_BUFFER_DELAY;
 	stop_time = start_time + frag_period;
     }
-    if (stop_time > now)
-	stop_time = now;
     S_printf("PCM: going to process %zi bytes for %s (st=%f stp=%f d=%f)\n",
 	 size, pcm.players[handle].player.name, start_time,
 	 stop_time, now - start_time);
@@ -693,7 +693,7 @@ size_t pcm_data_get(void *data, size_t size,
     pcm.out_buf.idx = 0;
 
     while (pcm.out_buf.idx < size) {
-	pcm_get_samples(time, samp, idxs, params->channels);
+	pcm_get_samples(time, samp, idxs, params->channels, params->id);
 	if (pcm.out_buf.idx + samp_sz * params->channels >
 		RAW_BUFFER_SIZE) {
 	    error("PCM: output buffer overflowed\n");

@@ -29,7 +29,7 @@ typedef int16_t sndbuf_t;
 extern int pcm_init(void);
 extern void pcm_done(void);
 extern void pcm_reset(void);
-extern int pcm_allocate_stream(int channels, char *name);
+extern int pcm_allocate_stream(int channels, char *name, int id);
 extern void pcm_set_flag(int strm_idx, int flag);
 extern void pcm_set_mode(int strm_idx, int mode);
 extern int pcm_flush(int strm_idx);

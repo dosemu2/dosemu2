@@ -69,6 +69,7 @@ static int sdlsnd_open(void)
     params.rate = spec1.freq;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = spec1.channels;
+    params.id = PCM_ID_P;
     return 1;
 }
 

@@ -34,6 +34,7 @@ struct player_params {
   int rate;
   int format;
   int channels;
+  int id;
 };
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params,
@@ -70,5 +71,7 @@ enum _PCM_format {
 	/** Ima-ADPCM */
 	PCM_FORMAT_IMA_ADPCM,
 };
+
+enum { PCM_ID_P, PCM_ID_R };
 
 #endif

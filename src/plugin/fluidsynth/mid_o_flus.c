@@ -67,7 +67,7 @@ static int midoflus_init(void)
     synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
     parser = new_fluid_midi_parser();
 
-    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI");
+    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI", PCM_ID_P);
 
     return 1;
 }
