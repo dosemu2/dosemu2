@@ -101,12 +101,12 @@ static void wavsnd_timer(double dtime)
 
 CONSTRUCTOR(static void wavsnd_init(void))
 {
-    struct clocked_player player = {};
+    struct pcm_player player = {};
     player.name = wavsnd_name;
     player.open = wavsnd_open;
     player.close = wavsnd_close;
     player.start = wavsnd_start;
     player.stop = wavsnd_stop;
     player.timer = wavsnd_timer;
-    handle = pcm_register_clocked_player(player);
+    handle = pcm_register_player(player);
 }

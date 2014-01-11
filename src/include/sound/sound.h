@@ -39,26 +39,16 @@ struct player_params {
 size_t pcm_data_get(void *data, size_t size, struct player_params *params,
 	int handle);
 
-struct clocked_player {
+struct pcm_player {
   const char *name;
   int (*open)(void);
   void (*close)(void);
   void (*start)(void);
   void (*stop)(void);
   void (*timer)(double);
-  void (*lock)(void);
-  void (*unlock)(void);
 };
 
-struct unclocked_player {
-  const char *name;
-  int (*open)(struct player_params *params);
-  void (*close)(void);
-  size_t (*write)(void *buf, size_t size);
-};
-
-extern int pcm_register_clocked_player(struct clocked_player player);
-extern int pcm_register_unclocked_player(struct unclocked_player player);
+extern int pcm_register_player(struct pcm_player player);
 
 /** PCM sample format */
 enum _PCM_format {

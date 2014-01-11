@@ -84,13 +84,13 @@ static void sdlsnd_close(void)
 
 CONSTRUCTOR(static void sdlsnd_init(void))
 {
-    struct clocked_player player = {};
+    struct pcm_player player = {};
     player.name = sdlsnd_name;
     player.start = sdlsnd_start;
     player.stop = sdlsnd_stop;
     player.open = sdlsnd_open;
     player.close = sdlsnd_close;
-    player.lock = SDL_LockAudio;
-    player.unlock = SDL_UnlockAudio;
-    handle = pcm_register_clocked_player(player);
+//    player.lock = SDL_LockAudio;
+//    player.unlock = SDL_UnlockAudio;
+    handle = pcm_register_player(player);
 }
