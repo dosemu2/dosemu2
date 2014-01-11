@@ -42,8 +42,8 @@
 #include <pthread.h>
 
 
-#define SND_BUFFER_SIZE 200000	/* enough to hold 2.2s of 44100/stereo */
-#define RAW_BUFFER_SIZE 400000	/* can hold 2.2s of 44100/stereo/16bit */
+#define SND_BUFFER_SIZE 50000	/* enough to hold 0.5s of 44100/stereo */
+#define RAW_BUFFER_SIZE 100000	/* can hold 0.5s of 44100/stereo/16bit */
 #define BUFFER_DELAY 40000.0
 
 #define MAX_BUFFER_DELAY (BUFFER_DELAY * 3)

@@ -33,7 +33,6 @@
 #include "sound/sndpcm.h"
 #include <stdio.h>
 #include <sndfile.h>
-#include <pthread.h>
 
 #define ENABLED 0
 
