@@ -44,7 +44,6 @@
 
 
 #define SND_BUFFER_SIZE 50000	/* enough to hold 0.5s of 44100/stereo */
-#define RAW_BUFFER_SIZE 100000	/* can hold 0.5s of 44100/stereo/16bit */
 #define BUFFER_DELAY 40000.0
 
 #define MAX_BUFFER_DELAY (BUFFER_DELAY * 3)
@@ -73,11 +72,6 @@ struct sample {
 };
 
 static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, {0, 0} };
-
-struct raw_buffer {
-    unsigned char data[RAW_BUFFER_SIZE];
-    int idx;
-};
 
 struct stream {
     int channels;
@@ -111,7 +105,6 @@ struct pcm_struct {
     int num_players;
     int playing;
     double time;
-    struct raw_buffer out_buf;
 } pcm;
 
 int pcm_init(void)
@@ -278,20 +271,20 @@ static short sample_to_S16(void *data, int format)
     }
 }
 
-static void S16_to_sample(short sample, void *buf, int format)
+static void S16_to_sample(short sample, sndbuf_t *buf, int format)
 {
     switch (format) {
     case PCM_FORMAT_U8:
-	*(unsigned char *) buf = SS2UC(sample);
+	*buf = SS2UC(sample);
 	break;
     case PCM_FORMAT_S8:
-	*(signed char *) buf = SS2SC(sample);
+	*buf = SS2SC(sample);
 	break;
     case PCM_FORMAT_U16_LE:
-	*(unsigned short *) buf = SS2US(sample);
+	*buf = SS2US(sample);
 	break;
     case PCM_FORMAT_S16_LE:
-	*(signed short *) buf = sample;
+	*buf = sample;
 	break;
     default:
 	error("PCM: format1 %i is not supported\n", format);
@@ -672,8 +665,8 @@ static int pcm_get_samples(double time,
     return ret;
 }
 
-static void pcm_mix_samples(struct sample in[][2], void *out, int channels,
-			    int format)
+static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
+	sndbuf_t out[SNDBUF_CHANS], int channels, int format)
 {
     int i, j;
     int value[2] = { 0, 0 };
@@ -685,27 +678,23 @@ static void pcm_mix_samples(struct sample in[][2], void *out, int channels,
 	    value[j] += sample_to_S16(in[i][j].data, in[i][j].format);
 	}
 	S16_to_sample(pcm_samp_cutoff(value[j], PCM_FORMAT_S16_LE),
-		out + j * pcm_format_size(format), format);
+		&out[j], format);
     }
 }
 
-size_t pcm_data_get(void *data, size_t size,
+int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 			   struct player_params *params)
 {
-    int samp_sz, idxs[MAX_STREAMS], handle, id, ret = 0;
+    int idxs[MAX_STREAMS], out_idx, handle, id;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     struct sample samp[MAX_STREAMS][2];
 
-    if (size > SND_BUFFER_SIZE) {
-	S_printf("PCM: size %zi is too much\n", size);
-	size = SND_BUFFER_SIZE;
-    }
     now = GETusTIME(0);
     handle = params->handle;
     id = pcm.players[handle].player.id;
     start_time = pcm.players[handle].time;
-    frag_period = pcm_frag_period(size, params);
+    frag_period = nframes * pcm_frame_period_us(params->rate);
     stop_time = start_time + frag_period;
     if (start_time < now - MAX_BUFFER_DELAY) {
 	error("PCM: \"%s\" too large delay, start=%f min=%f d=%f\n",
@@ -723,71 +712,56 @@ size_t pcm_data_get(void *data, size_t size,
 	stop_time = start_time + frag_period;
     }
     if (stop_time > now - MIN_BUFFER_DELAY) {
-	size_t new_size;
+	size_t new_nf;
 	S_printf("PCM: \"%s\" too small delay, stop=%f max=%f d=%f\n",
 		  pcm.players[handle].player.name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
 	stop_time = now - MIN_BUFFER_DELAY;
 	frag_period = stop_time - start_time;
-	new_size = pcm_frag_size(frag_period, params);
-	assert(new_size <= size);
-	size = new_size;
+	new_nf = frag_period / pcm_frame_period_us(params->rate);
+	assert(new_nf <= nframes);
+	nframes = new_nf;
     }
-    S_printf("PCM: going to process %zi bytes for %s (st=%f stp=%f d=%f)\n",
-	 size, pcm.players[handle].player.name, start_time,
+    S_printf("PCM: going to process %i samps for %s (st=%f stp=%f d=%f)\n",
+	 nframes, pcm.players[handle].player.name, start_time,
 	 stop_time, now - start_time);
 
     pthread_mutex_lock(&pcm.strm_mtx);
     frame_period = pcm_frame_period_us(params->rate);
     time = start_time;
-    samp_sz = pcm_format_size(params->format);
     memset(idxs, 0, sizeof(idxs));
-    pcm.out_buf.idx = 0;
 
-    while (pcm.out_buf.idx < size) {
+    for (out_idx = 0; out_idx < nframes; out_idx++) {
 	pcm_get_samples(time, samp, idxs, params->channels, id);
-	if (pcm.out_buf.idx + samp_sz * params->channels >
-		RAW_BUFFER_SIZE) {
-	    error("PCM: output buffer overflowed\n");
-	    break;
-	}
-	pcm_mix_samples(samp, pcm.out_buf.data + pcm.out_buf.idx,
-			    params->channels, params->format);
-	pcm.out_buf.idx += samp_sz * params->channels;
+	pcm_mix_samples(samp, buf[out_idx], params->channels, params->format);
 	time += frame_period;
     }
     if (fabs(time - stop_time) > frame_period)
 	error("PCM: time=%f stop_time=%f p=%f\n",
 		    time, stop_time, frame_period);
-
-    /* feed the data to player */
-    if (data)
-	memcpy(data, pcm.out_buf.data, pcm.out_buf.idx);
     pcm.players[handle].time = stop_time;
-
-    ret = pcm.out_buf.idx;
     pthread_mutex_unlock(&pcm.strm_mtx);
-    if (ret != size)
-	error("PCM: requested=%zi prepared=%i\n", size, ret);
-    return ret;
+
+    if (out_idx != nframes)
+	error("PCM: requested=%i prepared=%i\n", nframes, out_idx);
+    return out_idx;
 }
 
-size_t pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
+size_t pcm_data_get(void *data, size_t size,
 			   struct player_params *params)
 {
     int i, j;
-    char b[nframes * params->channels * 2];
+    sndbuf_t buf[size][SNDBUF_CHANS];
     int ss = pcm_format_size(params->format);
     int fsz = params->channels * ss;
-    int sz = nframes * fsz;
-    sz = pcm_data_get(b, sz, params);
-    nframes = sz / fsz;
+    int nframes = size / fsz;
+    nframes = pcm_data_get_interleaved(buf, nframes, params);
     for (i = 0; i < nframes; i++) {
 	for (j = 0; j < params->channels; j++)
-	    memcpy(&buf[i][j], &b[i * fsz + j * ss], ss);
+	    memcpy(data + (i * fsz + j * ss), &buf[i][j], ss);
     }
-    return nframes;
+    return nframes * fsz;
 }
 
 static void pcm_advance_time(double stop_time)

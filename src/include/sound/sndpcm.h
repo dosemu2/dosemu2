@@ -44,7 +44,7 @@ extern int pcm_format_size(int format);
 extern void pcm_timer(void);
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
-size_t pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
+int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	struct player_params *params);
 
 #define PCM_FLAG_RAW 1
