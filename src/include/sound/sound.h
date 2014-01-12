@@ -73,6 +73,6 @@ enum _PCM_format {
 	PCM_FORMAT_IMA_ADPCM,
 };
 
-enum { PCM_ID_P, PCM_ID_R };
+enum { PCM_ID_P, PCM_ID_R, PCM_ID_MAX };
 
 #endif

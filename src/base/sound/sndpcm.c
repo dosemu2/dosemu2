@@ -300,12 +300,15 @@ static void S16_to_sample(short sample, void *buf, int format)
     }
 }
 
-static int count_active_streams(void)
+static int count_active_streams(int id)
 {
     int i, ret = 0;
-    for (i = 0; i < pcm.num_streams; i++)
+    for (i = 0; i < pcm.num_streams; i++) {
+	if (id != PCM_ID_MAX && pcm.stream[i].id != id)
+	    continue;
 	if (!STREAM_INACTIVE(i))
 	    ret++;
+    }
     return ret;
 }
 
@@ -364,31 +367,35 @@ static int pcm_truncate_stream(int strm_idx)
     return 0;
 }
 
-static void pcm_start_output(void)
+static void pcm_start_output(int id)
 {
     int i;
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_player_wr *p = &pcm.players[i];
+	if (p->player.id != id)
+	    continue;
 	if (p->opened) {
 	    p->time = now - INIT_BUFFER_DELAY;
 	    p->player.start(p->player.arg);
 	}
     }
     pcm.time = now - MAX_BUFFER_DELAY;
-    pcm.playing = 1;
+    pcm.playing |= (1 << id);
     S_printf("PCM: output started\n");
 }
 
-static void pcm_stop_output(void)
+static void pcm_stop_output(int id)
 {
     int i;
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_player_wr *p = &pcm.players[i];
+	if (id != PCM_ID_MAX && p->player.id != id)
+	    continue;
 	if (p->opened)
 	    p->player.stop(p->player.arg);
     }
-    pcm.playing = 0;
+    pcm.playing &= ~(1 << id);
     S_printf("PCM: output stopped\n");
 }
 
@@ -600,8 +607,8 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     pthread_mutex_unlock(&pcm.strm_mtx);
 //S_printf("PCM: time=%f\n", samp.tstamp);
 
-    if (!pcm.playing)
-	pcm_start_output();
+    if (!(pcm.playing & (1 << pcm.stream[strm_idx].id)))
+	pcm_start_output(pcm.stream[strm_idx].id);
 }
 
 static void pcm_remove_samples(double time)
@@ -784,8 +791,10 @@ static void pcm_advance_time(double stop_time)
     }
     pthread_mutex_unlock(&pcm.strm_mtx);
 
-    if (!count_active_streams() && pcm.playing)
-	pcm_stop_output();
+    for (i = 0; i < PCM_ID_MAX; i++) {
+	if (!count_active_streams(i) && (pcm.playing & (1 << i)))
+	    pcm_stop_output(i);
+    }
 }
 
 int pcm_register_player(struct pcm_player player)
@@ -819,7 +828,7 @@ void pcm_reset(void)
     int i;
     S_printf("PCM: reset\n");
     if (pcm.playing)
-	pcm_stop_output();
+	pcm_stop_output(PCM_ID_MAX);
     pthread_mutex_lock(&pcm.strm_mtx);
     for (i = 0; i < pcm.num_streams; i++)
 	pcm_reset_stream(i);
@@ -837,7 +846,7 @@ void pcm_done(void)
     }
     pthread_mutex_unlock(&pcm.strm_mtx);
     if (pcm.playing)
-	pcm_stop_output();
+	pcm_stop_output(PCM_ID_MAX);
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_player_wr *p = &pcm.players[i];
 	if (p->opened) {
