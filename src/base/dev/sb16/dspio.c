@@ -69,6 +69,7 @@ struct dspio_state {
     double input_time_cur, output_time_cur, midi_time_cur;
     int dma_strm, dac_strm;
     int input_running, output_running, dac_running, speaker;
+    int i_handle, i_started;
 #define DSP_FIFO_SIZE 64
     struct rng_s fifo_in;
     struct rng_s fifo_out;
@@ -256,9 +257,22 @@ void dspio_clear_fifos(void *dspio)
     DSPIO->dma.dsp_fifo_enabled = 1;
 }
 
+static void dspio_i_start(void *arg)
+{
+    struct dspio_state *state = arg;
+    state->i_started = 1;
+}
+
+static void dspio_i_stop(void *arg)
+{
+    struct dspio_state *state = arg;
+    state->i_started = 0;
+}
+
 void *dspio_init(void)
 {
     struct dspio_state *state;
+    struct pcm_player player = {};
     state = malloc(sizeof(struct dspio_state));
     if (!state)
 	return NULL;
@@ -266,6 +280,13 @@ void *dspio_init(void)
     state->input_running =
 	state->output_running = state->dac_running = state->speaker = 0;
     state->dma.dsp_fifo_enabled = 1;
+
+    player.name = "SB REC";
+    player.start = dspio_i_start;
+    player.stop = dspio_i_stop;
+    player.arg = state;
+    player.id = PCM_ID_R;
+    state->i_handle = pcm_register_player(player);
     pcm_init();
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
@@ -575,12 +596,27 @@ static void dspio_process_dma(struct dspio_state *state)
 	nfr = calc_nframes(state, state->input_time_cur, time_dst);
     else
 	nfr = 0;
+    if (nfr && state->i_started) {
+	struct player_params params;
+	params.rate = state->dma.rate;
+	params.channels = state->dma.stereo + 1;
+	params.format = pcm_get_format(state->dma.is16bit,
+		state->dma.samp_signed);
+	params.handle = state->i_handle;
+	nfr = pcm_data_get_interleaved(buf, nfr, &params);
+    }
+    /* the input data may be overwritten with silence below.
+     * We still need to get it from PCM buffers to stay in sync. */
+    if (state->speaker || !state->i_started) {
+	for (i = 0; i < nfr; i++) {
+	    for (j = 0; j < state->dma.stereo + 1; j++)
+		dma_get_silence(state->dma.samp_signed,
+			state->dma.is16bit, &buf[i][j]);
+	}
+    }
     for (i = 0; i < nfr; i++) {
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (sb_input_enabled()) {
-		//if (!state->speaker)  /* TODO: input */
-		dma_get_silence(state->dma.samp_signed,
-			state->dma.is16bit, &buf[i][j]);
 		if (!dspio_put_input_sample(state, &buf[i][j],
 			state->dma.is16bit))
 		    break;

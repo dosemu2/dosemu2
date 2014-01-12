@@ -37,8 +37,6 @@ struct player_params {
   int handle;
 };
 
-size_t pcm_data_get(void *data, size_t size, struct player_params *params);
-
 struct pcm_player {
   const char *name;
   int (*open)(void *);

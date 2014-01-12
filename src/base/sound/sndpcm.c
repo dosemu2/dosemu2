@@ -118,9 +118,7 @@ int pcm_init(void)
 {
     int i;
     S_printf("PCM: init\n");
-    memset(&pcm, 0, sizeof(pcm));
     pthread_mutex_init(&pcm.strm_mtx, NULL);
-//  memset(&players, 0, sizeof(players));
 #ifdef USE_DL_PLUGINS
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
@@ -773,6 +771,23 @@ size_t pcm_data_get(void *data, size_t size,
     if (ret != size)
 	error("PCM: requested=%zi prepared=%i\n", size, ret);
     return ret;
+}
+
+size_t pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
+			   struct player_params *params)
+{
+    int i, j;
+    char b[nframes * params->channels * 2];
+    int ss = pcm_format_size(params->format);
+    int fsz = params->channels * ss;
+    int sz = nframes * fsz;
+    sz = pcm_data_get(b, sz, params);
+    nframes = sz / fsz;
+    for (i = 0; i < nframes; i++) {
+	for (j = 0; j < params->channels; j++)
+	    memcpy(&buf[i][j], &b[i * fsz + j * ss], ss);
+    }
+    return nframes;
 }
 
 static void pcm_advance_time(double stop_time)

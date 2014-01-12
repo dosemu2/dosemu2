@@ -30,6 +30,7 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
+#include "sound/sndpcm.h"
 #include <SDL.h>
 
 static const char *sdlsnd_name = "Sound Output: SDL device";
