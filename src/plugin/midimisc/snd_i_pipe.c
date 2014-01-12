@@ -30,7 +30,6 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
-#include "sound/sndpcm.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>

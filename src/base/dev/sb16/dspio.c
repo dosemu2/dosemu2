@@ -33,7 +33,6 @@
 #include "emu.h"
 #include "timers.h"
 #include "sound/sound.h"
-#include "sound/sndpcm.h"
 #include "sound/midi.h"
 #include "adlib.h"
 #include "dmanew.h"

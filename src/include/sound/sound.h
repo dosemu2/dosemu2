@@ -73,4 +73,32 @@ enum _PCM_format {
 
 enum { PCM_ID_P, PCM_ID_R, PCM_ID_MAX };
 
+typedef int16_t sndbuf_t;
+#define SNDBUF_CHANS 2
+
+extern int pcm_init(void);
+extern void pcm_done(void);
+extern void pcm_reset(void);
+extern int pcm_allocate_stream(int channels, char *name, int id);
+extern void pcm_set_flag(int strm_idx, int flag);
+extern void pcm_set_mode(int strm_idx, int mode);
+extern int pcm_flush(int strm_idx);
+extern int pcm_samp_cutoff(int val, int format);
+extern int pcm_get_format(int is_16, int is_signed);
+extern int pcm_frag_size(double period, struct player_params *params);
+extern double pcm_frame_period_us(double rate);
+extern double pcm_frag_period(int size, struct player_params *params);
+extern void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS],
+	int frames, double rate, int format, int nchans, int strm_idx);
+extern int pcm_format_size(int format);
+extern void pcm_timer(void);
+
+size_t pcm_data_get(void *data, size_t size, struct player_params *params);
+int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
+	struct player_params *params);
+
+#define PCM_FLAG_RAW 1
+
+enum { PCM_MODE_NORMAL, PCM_MODE_POST };
+
 #endif

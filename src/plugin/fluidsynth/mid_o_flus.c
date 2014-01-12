@@ -27,7 +27,6 @@
 #include "timers.h"
 #include "sound/midi.h"
 #include "sound/sound.h"
-#include "sound/sndpcm.h"
 
 
 static const char *midoflus_name = "MIDI Output: FluidSynth device";

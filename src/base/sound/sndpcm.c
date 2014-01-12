@@ -35,7 +35,6 @@
 #include "ringbuf.h"
 #include "timers.h"
 #include "sound/sound.h"
-#include "sound/sndpcm.h"
 #include <string.h>
 #include <math.h>
 #include <limits.h>

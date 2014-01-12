@@ -25,7 +25,6 @@
 #include "init.h"
 #include "utilities.h"
 #include "sound/sound.h"
-#include "sound/sndpcm.h"
 #include "sound/midi.h"
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -32,7 +32,6 @@
 #include "timers.h"
 #include "utilities.h"
 #include "sound/sound.h"
-#include "sound/sndpcm.h"
 #include "adlib.h"
 #include "dbadlib.h"
 #include <limits.h>

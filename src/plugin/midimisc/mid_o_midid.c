@@ -25,7 +25,6 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
-#include "sound/sndpcm.h"
 #include "sound/midi.h"
 #include <stdio.h>
 #include <stdlib.h>
