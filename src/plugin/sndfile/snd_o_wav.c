@@ -40,7 +40,6 @@ static const char *wavsnd_name = "Sound Output: WAV file writer";
 static SNDFILE *wav;
 struct player_params params;
 static int started;
-static int handle;
 
 static int wavsnd_open(void *arg)
 {
@@ -50,7 +49,6 @@ static int wavsnd_open(void *arg)
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
-    params.id = PCM_ID_P;
 #if ENABLED
     info.samplerate = params.rate;
     info.channels = params.channels;
@@ -94,7 +92,7 @@ static void wavsnd_timer(double dtime, void *arg)
 	return;
     if (size > BUF_SIZE)
 	size = BUF_SIZE;
-    size = pcm_data_get(buf, size, &params, handle);
+    size = pcm_data_get(buf, size, &params);
     if (size > 0)
 	wavsnd_write(buf, size);
 }
@@ -108,5 +106,6 @@ CONSTRUCTOR(static void wavsnd_init(void))
     player.start = wavsnd_start;
     player.stop = wavsnd_stop;
     player.timer = wavsnd_timer;
-    handle = pcm_register_player(player);
+    player.id = PCM_ID_P;
+    params.handle = pcm_register_player(player);
 }

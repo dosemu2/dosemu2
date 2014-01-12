@@ -34,11 +34,10 @@ struct player_params {
   int rate;
   int format;
   int channels;
-  int id;
+  int handle;
 };
 
-size_t pcm_data_get(void *data, size_t size, struct player_params *params,
-	int handle);
+size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 
 struct pcm_player {
   const char *name;
@@ -48,6 +47,7 @@ struct pcm_player {
   void (*stop)(void *);
   void (*timer)(double, void *);
   void *arg;
+  int id;
 };
 
 extern int pcm_register_player(struct pcm_player player);

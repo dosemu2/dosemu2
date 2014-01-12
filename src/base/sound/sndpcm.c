@@ -685,9 +685,9 @@ static void pcm_mix_samples(struct sample in[][2], void *out, int channels,
 }
 
 size_t pcm_data_get(void *data, size_t size,
-			   struct player_params *params, int handle)
+			   struct player_params *params)
 {
-    int samp_sz, idxs[MAX_STREAMS], ret = 0;
+    int samp_sz, idxs[MAX_STREAMS], handle, id, ret = 0;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     struct sample samp[MAX_STREAMS][2];
@@ -697,6 +697,8 @@ size_t pcm_data_get(void *data, size_t size,
 	size = SND_BUFFER_SIZE;
     }
     now = GETusTIME(0);
+    handle = params->handle;
+    id = pcm.players[handle].player.id;
     start_time = pcm.players[handle].time;
     frag_period = pcm_frag_period(size, params);
     stop_time = start_time + frag_period;
@@ -739,7 +741,7 @@ size_t pcm_data_get(void *data, size_t size,
     pcm.out_buf.idx = 0;
 
     while (pcm.out_buf.idx < size) {
-	pcm_get_samples(time, samp, idxs, params->channels, params->id);
+	pcm_get_samples(time, samp, idxs, params->channels, id);
 	if (pcm.out_buf.idx + samp_sz * params->channels >
 		RAW_BUFFER_SIZE) {
 	    error("PCM: output buffer overflowed\n");
