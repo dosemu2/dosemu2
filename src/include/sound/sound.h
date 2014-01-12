@@ -42,11 +42,12 @@ size_t pcm_data_get(void *data, size_t size, struct player_params *params,
 
 struct pcm_player {
   const char *name;
-  int (*open)(void);
-  void (*close)(void);
-  void (*start)(void);
-  void (*stop)(void);
-  void (*timer)(double);
+  int (*open)(void *);
+  void (*close)(void *);
+  void (*start)(void *);
+  void (*stop)(void *);
+  void (*timer)(double, void *);
+  void *arg;
 };
 
 extern int pcm_register_player(struct pcm_player player);

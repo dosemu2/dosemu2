@@ -136,10 +136,14 @@ int pcm_init(void)
 #endif
 #endif
     for (i = 0; i < pcm.num_players; i++) {
-	pcm.players[i].opened = pcm.players[i].player.open();
-	if (!pcm.players[i].opened) {
+	struct pcm_player_wr *p = &pcm.players[i];
+	if (p->player.open)
+	    p->opened = p->player.open(p->player.arg);
+	else
+	    p->opened = 1;
+	if (!p->opened) {
 	    S_printf("PCM: \"%s\" failed to open\n",
-		  pcm.players[i].player.name);
+		  p->player.name);
 	}
     }
     return 1;
@@ -365,9 +369,10 @@ static void pcm_start_output(void)
     int i;
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
-	if (pcm.players[i].opened) {
-	    pcm.players[i].time = now - INIT_BUFFER_DELAY;
-	    pcm.players[i].player.start();
+	struct pcm_player_wr *p = &pcm.players[i];
+	if (p->opened) {
+	    p->time = now - INIT_BUFFER_DELAY;
+	    p->player.start(p->player.arg);
 	}
     }
     pcm.time = now - MAX_BUFFER_DELAY;
@@ -379,8 +384,9 @@ static void pcm_stop_output(void)
 {
     int i;
     for (i = 0; i < pcm.num_players; i++) {
-	if (pcm.players[i].opened)
-	    pcm.players[i].player.stop();
+	struct pcm_player_wr *p = &pcm.players[i];
+	if (p->opened)
+	    p->player.stop(p->player.arg);
     }
     pcm.playing = 0;
     S_printf("PCM: output stopped\n");
@@ -797,9 +803,10 @@ void pcm_timer(void)
     int i;
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
-	if (pcm.players[i].opened && pcm.players[i].player.timer) {
+	struct pcm_player_wr *p = &pcm.players[i];
+	if (p->opened && p->player.timer) {
 	    double delta = now - INIT_BUFFER_DELAY - pcm.players[i].time;
-	    pcm.players[i].player.timer(delta);
+	    p->player.timer(delta, p->player.arg);
 	}
     }
     pcm_advance_time(now - MAX_BUFFER_DELAY);
@@ -830,8 +837,12 @@ void pcm_done(void)
     if (pcm.playing)
 	pcm_stop_output();
     for (i = 0; i < pcm.num_players; i++) {
-	if (pcm.players[i].opened)
-	    pcm.players[i].player.close();
+	struct pcm_player_wr *p = &pcm.players[i];
+	if (p->opened) {
+	    if (p->player.close)
+		p->player.close(p->player.arg);
+	    p->opened = 0;
+	}
     }
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);

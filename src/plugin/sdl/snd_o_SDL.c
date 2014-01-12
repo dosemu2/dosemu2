@@ -41,17 +41,17 @@ static void sdlsnd_callback(void *userdata, Uint8 * stream, int len)
     pcm_data_get(stream, len, &params, handle);
 }
 
-static void sdlsnd_start(void)
+static void sdlsnd_start(void *arg)
 {
     SDL_PauseAudio(0);
 }
 
-static void sdlsnd_stop(void)
+static void sdlsnd_stop(void *arg)
 {
     SDL_PauseAudio(1);
 }
 
-static int sdlsnd_open(void)
+static int sdlsnd_open(void *arg)
 {
     SDL_AudioSpec spec, spec1;
     S_printf("Initializing SDL sound output\n");
@@ -73,7 +73,7 @@ static int sdlsnd_open(void)
     return 1;
 }
 
-static void sdlsnd_close(void)
+static void sdlsnd_close(void *arg)
 {
     /* DISABLED because of this:
      * http://bugzilla.libsdl.org/show_bug.cgi?id=1449

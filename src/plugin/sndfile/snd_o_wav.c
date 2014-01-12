@@ -42,7 +42,7 @@ struct player_params params;
 static int started;
 static int handle;
 
-static int wavsnd_open(void)
+static int wavsnd_open(void *arg)
 {
 #if ENABLED
     SF_INFO info;
@@ -62,7 +62,7 @@ static int wavsnd_open(void)
 #endif
 }
 
-static void wavsnd_close(void)
+static void wavsnd_close(void *arg)
 {
     sf_close(wav);
 }
@@ -72,17 +72,17 @@ static size_t wavsnd_write(void *data, size_t size)
     return sf_write_raw(wav, data, size);
 }
 
-static void wavsnd_start(void)
+static void wavsnd_start(void *arg)
 {
     started = 1;
 }
 
-static void wavsnd_stop(void)
+static void wavsnd_stop(void *arg)
 {
     started = 0;
 }
 
-static void wavsnd_timer(double dtime)
+static void wavsnd_timer(double dtime, void *arg)
 {
     #define BUF_SIZE 4096
     char buf[BUF_SIZE];
