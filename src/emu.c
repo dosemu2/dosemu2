@@ -385,9 +385,6 @@ emulate(int argc, char **argv)
     SIG_init();			/* Silly Interrupt Generator */
     pkt_priv_init();            /* initialize the packet driver interface */
 
-    /* here we include the hooks to possible plug-ins */
-    #include "plugin_init.h"
-
     mapping_init();		/* initialize mapping drivers */
     low_mem_init();		/* initialize the lower 1Meg */
 
@@ -429,6 +426,8 @@ emulate(int argc, char **argv)
     iodev_init();		/* initialize devices */
     dos2tty_init();
     signal_init();              /* initialize sig's & sig handlers */
+    /* here we include the hooks to possible plug-ins */
+    #include "plugin_init.h"
 
     if (config.exitearly) {
       dbug_printf("Leaving DOS before booting\n");
