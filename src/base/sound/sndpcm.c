@@ -302,9 +302,9 @@ static int count_active_streams(int id)
     return ret;
 }
 
-double pcm_frame_period_us(double rate)
+double pcm_frame_period_us(int rate)
 {
-    return (1000000 / rate);
+    return (1000000.0 / rate);
 }
 
 double pcm_frag_period(int size, struct player_params *params)
@@ -462,7 +462,7 @@ static void pcm_handle_get(int strm_idx, double time)
     }
 }
 
-static int pcm_handle_write(int strm_idx, double time)
+static int pcm_handle_pre_write(int strm_idx, double time)
 {
     int err;
     switch (pcm.stream[strm_idx].state) {
@@ -554,29 +554,16 @@ static double pcm_calc_tstamp(double rate, int strm_idx)
 }
 
 void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
-	double rate, int format, int nchans, int strm_idx)
+	int rate, int format, int nchans, int strm_idx)
 {
     int i, j;
     struct sample samp;
-    if (nchans > pcm.stream[strm_idx].channels) {
-	dosemu_error("PCM: wrong num of channels specified %i, max %i, "
-		"name=%s\n",
-		nchans, pcm.stream[strm_idx].channels,
-		pcm.stream[strm_idx].name);
-	return;
-    }
-    if (rng_count(&pcm.stream[strm_idx].buffer) + frames * nchans >=
-	SND_BUFFER_SIZE) {
-	error("Sound buffer %i overflowed (%s)\n", strm_idx,
-	      pcm.stream[strm_idx].name);
-	pcm_reset_stream(strm_idx);
-//    return;
-    }
-
+    assert(nchans <= pcm.stream[strm_idx].channels);
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
 	rate /= pcm.stream[strm_idx].raw_speed_adj;
 
     samp.format = format;
+    samp.tstamp = 0;
     pthread_mutex_lock(&pcm.strm_mtx);
     for (i = 0; i < frames; i++) {
 	int l;
@@ -584,14 +571,20 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 	do {
 	    /* unfortunately the state machine may need a retry */
 	    samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
-	    l = pcm_handle_write(strm_idx, samp.tstamp);
+	    l = pcm_handle_pre_write(strm_idx, samp.tstamp);
 	} while (l);
 	l = peek_last_sample(strm_idx, &s2);
 	assert(!(l && samp.tstamp < s2.tstamp));
 	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
 	    int ch = j % nchans;
 	    memcpy(samp.data, &ptr[i][ch], pcm_format_size(format));
-	    rng_put(&pcm.stream[strm_idx].buffer, &samp);
+	    l = rng_put(&pcm.stream[strm_idx].buffer, &samp);
+	    if (!l) {
+		error("Sound buffer %i overflowed (%s)\n", strm_idx,
+		    pcm.stream[strm_idx].name);
+		pcm_clear_stream(strm_idx);
+		rng_put(&pcm.stream[strm_idx].buffer, &samp);
+	    }
 	}
     }
     pthread_mutex_unlock(&pcm.strm_mtx);

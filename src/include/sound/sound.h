@@ -86,10 +86,10 @@ extern int pcm_flush(int strm_idx);
 extern int pcm_samp_cutoff(int val, int format);
 extern int pcm_get_format(int is_16, int is_signed);
 extern int pcm_frag_size(double period, struct player_params *params);
-extern double pcm_frame_period_us(double rate);
+extern double pcm_frame_period_us(int rate);
 extern double pcm_frag_period(int size, struct player_params *params);
 extern void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS],
-	int frames, double rate, int format, int nchans, int strm_idx);
+	int frames, int rate, int format, int nchans, int strm_idx);
 extern int pcm_format_size(int format);
 extern void pcm_timer(void);
 
