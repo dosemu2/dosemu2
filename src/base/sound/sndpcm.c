@@ -42,10 +42,10 @@
 #include <assert.h>
 
 
-#define SND_BUFFER_SIZE 50000	/* enough to hold 0.5s of 44100/stereo */
+#define SND_BUFFER_SIZE 100000	/* enough to hold 1.1s of 44100/stereo */
 #define BUFFER_DELAY 40000.0
 
-#define MAX_BUFFER_DELAY (BUFFER_DELAY * 3)
+#define MAX_BUFFER_DELAY (BUFFER_DELAY * 10)
 #define INIT_BUFFER_DELAY (BUFFER_DELAY * 2)
 #define MIN_BUFFER_DELAY (BUFFER_DELAY)
 #define MAX_BUFFER_PERIOD (MAX_BUFFER_DELAY - MIN_BUFFER_DELAY)
@@ -78,6 +78,8 @@ struct stream {
     int state;
     int mode;
     int flags;
+    int stretch;
+    int prepared;
     double start_time;
     /* for the raw channels heuristic */
     double raw_speed_adj;
@@ -147,8 +149,11 @@ static void pcm_clear_stream(int strm_idx)
 static void pcm_reset_stream(int strm_idx)
 {
     pcm_clear_stream(strm_idx);
+    if (pcm.stream[strm_idx].state != SNDBUF_STATE_FLUSHING)
+	pcm.stream[strm_idx].prepared = 0;
     pcm.stream[strm_idx].state = SNDBUF_STATE_INACTIVE;
     pcm.stream[strm_idx].mode = PCM_MODE_NORMAL;
+    pcm.stream[strm_idx].stretch = 0;
 }
 
 int pcm_allocate_stream(int channels, char *name, int id)
@@ -330,31 +335,51 @@ static int peek_last_sample(int strm_idx, struct sample *samp)
     return rng_peek(&pcm.stream[strm_idx].buffer, idx - 1, samp);
 }
 
+void pcm_prepare_stream(int strm_idx)
+{
+    long long now = GETusTIME(0);
+    struct stream *s = &pcm.stream[strm_idx];
+    switch (s->state) {
+
+    case SNDBUF_STATE_PLAYING:
+    case SNDBUF_STATE_STALLED:
+	error("PCM: prepare playing/stalled stream %s\n", s->name);
+	return;
+
+    case SNDBUF_STATE_FLUSHING: {
+	/* very careful: because of poor syncing the stupid things happen.
+	 * Like, for instance, samples written in the future... */
+	struct sample samp;
+	int l = peek_last_sample(strm_idx, &samp);
+	if (l && now < samp.tstamp) {
+	    S_printf("PCM: ERROR: sample in the future, %f now=%llu, %s\n",
+		    samp.tstamp, now, s->name);
+	    now = samp.tstamp;
+	}
+	break;
+    }
+    }
+
+    s->start_time = now;
+    s->prepared = 1;
+}
+
+static void pcm_stream_stretch(int strm_idx)
+{
+    long long now = GETusTIME(0);
+    struct stream *s = &pcm.stream[strm_idx];
+    assert(s->state != SNDBUF_STATE_PLAYING &&
+	    s->state != SNDBUF_STATE_INACTIVE);
+    s->start_time = now;
+    s->stretch = 1;
+}
+
 static double calc_buffer_fillup(int strm_idx, double time)
 {
     struct sample samp;
     if (!peek_last_sample(strm_idx, &samp))
 	return 0;
     return samp.tstamp > time ? samp.tstamp - time : 0;
-}
-
-static int pcm_truncate_stream(int strm_idx)
-{
-    double fillup;
-    if (pcm.stream[strm_idx].state != SNDBUF_STATE_FLUSHING &&
-	    pcm.stream[strm_idx].state != SNDBUF_STATE_STALLED)
-	return 0;
-    if (pcm.stream[strm_idx].state == SNDBUF_STATE_STALLED) {
-	pcm_reset_stream(strm_idx);
-	return 1;
-    }
-    assert(pcm.playing);
-    fillup = calc_buffer_fillup(strm_idx, pcm.time + MAX_BUFFER_PERIOD);
-    if (fillup == 0) {
-	pcm_reset_stream(strm_idx);
-	return 1;
-    }
-    return 0;
 }
 
 static void pcm_start_output(int id)
@@ -396,7 +421,6 @@ static void pcm_handle_get(int strm_idx, double time)
     switch (pcm.stream[strm_idx].state) {
 
     case SNDBUF_STATE_INACTIVE:
-    case SNDBUF_STATE_STALLED:
 	error("PCM: getting data from inactive buffer (strm=%i)\n",
 	      strm_idx);
 	break;
@@ -432,6 +456,7 @@ static void pcm_handle_get(int strm_idx, double time)
 		S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm.stream[strm_idx].state = SNDBUF_STATE_STALLED;
+	    pcm_stream_stretch(strm_idx);
 	}
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING &&
 		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL &&
@@ -455,46 +480,35 @@ static void pcm_handle_get(int strm_idx, double time)
 
     case SNDBUF_STATE_FLUSHING:
 	if (rng_count(&pcm.stream[strm_idx].buffer) <
-	    pcm.stream[strm_idx].channels * 2 && fillup == 0)
+		pcm.stream[strm_idx].channels * 2 && fillup == 0) {
 	    pcm_reset_stream(strm_idx);
+	    S_printf("PCM: stream %s stopped\n", pcm.stream[strm_idx].name);
+	} else if (fillup == 0 && !pcm.stream[strm_idx].stretch) {
+	    pcm_stream_stretch(strm_idx);
+	    S_printf("PCM: stream %s passed wr margin\n",
+		    pcm.stream[strm_idx].name);
+	}
 	break;
 
+    case SNDBUF_STATE_STALLED:
+	break;
     }
 }
 
-static int pcm_handle_pre_write(int strm_idx, double time)
+static void pcm_handle_write(int strm_idx, double time)
 {
-    int err;
-    switch (pcm.stream[strm_idx].state) {
-
-    case SNDBUF_STATE_FLUSHING:
-	err = pcm_truncate_stream(strm_idx);
-	if (err)
-	    return err;
-	break;
-
-    case SNDBUF_STATE_INACTIVE:
-    case SNDBUF_STATE_STALLED:
-	pcm.stream[strm_idx].start_time = time;
-	S_printf("PCM: stream %i (%s) started, time=%f delta=%f\n",
-		 strm_idx, pcm.stream[strm_idx].name, time,
-		 time - pcm.time);
-	break;
-
-    }
-
     if (pcm.playing && time < pcm.time + MAX_BUFFER_PERIOD) {
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING)
 	    error("PCM: timing screwed up\n");
 	S_printf("PCM: timing screwed up, s=%s cur=%f pl=%f delta=%f\n",
 		pcm.stream[strm_idx].name, time, pcm.time,
 		pcm.time - time);
-	err = pcm_truncate_stream(strm_idx);
-	if (err)
-	    return err;
     }
-    pcm.stream[strm_idx].state = SNDBUF_STATE_PLAYING;
-    return 0;
+    if (pcm.stream[strm_idx].state != SNDBUF_STATE_PLAYING) {
+	pcm.stream[strm_idx].state = SNDBUF_STATE_PLAYING;
+	pcm.stream[strm_idx].stretch = 0;
+	pcm.stream[strm_idx].prepared = 0;
+    }
 }
 
 static void pcm_handle_flush(int strm_idx)
@@ -529,24 +543,55 @@ int pcm_flush(int strm_idx)
 static double pcm_get_stream_time(int strm_idx)
 {
     struct sample samp;
-    if (STREAM_INACTIVE(strm_idx) ||
-	!peek_last_sample(strm_idx, &samp))
-	return 0;
-    return samp.tstamp;
+    int rc;
+    long long now = GETusTIME(0);
+    double time = pcm.stream[strm_idx].start_time;
+    double delta = now - time;
+    switch (pcm.stream[strm_idx].state) {
+
+    case SNDBUF_STATE_INACTIVE:
+	if (pcm.stream[strm_idx].prepared) {
+	    if (delta > MIN_BUFFER_DELAY) {
+		error("PCM: too large delta on stream %s\n",
+			pcm.stream[strm_idx].name);
+		return now;
+	    }
+	    return time;
+	}
+	S_printf("PCM: ERROR: not prepared %s\n", pcm.stream[strm_idx].name);
+	return now;
+
+    case SNDBUF_STATE_STALLED:
+	assert(pcm.stream[strm_idx].stretch);
+	S_printf("PCM: restarting stalled stream %s\n",
+		pcm.stream[strm_idx].name);
+	return now - fmod(delta, MIN_BUFFER_DELAY);
+
+    case SNDBUF_STATE_FLUSHING:
+	if (pcm.stream[strm_idx].stretch) {
+	    S_printf("PCM: restarting stream %s\n", pcm.stream[strm_idx].name);
+	    return now - fmod(delta, MIN_BUFFER_DELAY);
+	}
+	S_printf("PCM: resuming stream %s\n", pcm.stream[strm_idx].name);
+	/* no break */
+    case SNDBUF_STATE_PLAYING:
+	rc = peek_last_sample(strm_idx, &samp);
+	assert(rc);
+	return samp.tstamp;
+
+    }
+    return 0;
 }
 
-static double pcm_calc_tstamp(double rate, int strm_idx)
+static double pcm_calc_tstamp(int rate, int strm_idx)
 {
     double time, period, tstamp;
-    long long now = GETusTIME(0);
-    if (rate == 0)
-	return now;
+    assert(rate);
     time = pcm_get_stream_time(strm_idx);
-    if (time == 0)
-	return now;
     period = pcm_frame_period_us(rate);
     tstamp = time + period;
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
+	long long now = GETusTIME(0);
 	if (tstamp < now)
 	    tstamp = now;
     }
@@ -568,11 +613,7 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     for (i = 0; i < frames; i++) {
 	int l;
 	struct sample s2;
-	do {
-	    /* unfortunately the state machine may need a retry */
-	    samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
-	    l = pcm_handle_pre_write(strm_idx, samp.tstamp);
-	} while (l);
+	samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
 	l = peek_last_sample(strm_idx, &s2);
 	assert(!(l && samp.tstamp < s2.tstamp));
 	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
@@ -586,12 +627,13 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 		rng_put(&pcm.stream[strm_idx].buffer, &samp);
 	    }
 	}
+	pcm_handle_write(strm_idx, samp.tstamp);
     }
-    pthread_mutex_unlock(&pcm.strm_mtx);
 //S_printf("PCM: time=%f\n", samp.tstamp);
 
     if (!(pcm.playing & (1 << pcm.stream[strm_idx].id)))
 	pcm_start_output(pcm.stream[strm_idx].id);
+    pthread_mutex_unlock(&pcm.strm_mtx);
 }
 
 static void pcm_remove_samples(double time)
@@ -759,8 +801,8 @@ size_t pcm_data_get(void *data, size_t size,
 static void pcm_advance_time(double stop_time)
 {
     int i;
-    pcm.time = stop_time;
     pthread_mutex_lock(&pcm.strm_mtx);
+    pcm.time = stop_time;
     /* remove processed samples from input buffers (last sample stays) */
     pcm_remove_samples(stop_time);
     for (i = 0; i < pcm.num_streams; i++) {
@@ -770,12 +812,12 @@ static void pcm_advance_time(double stop_time)
 		 rng_count(&pcm.stream[i].buffer));
 	pcm_handle_get(i, stop_time + MAX_BUFFER_PERIOD);
     }
-    pthread_mutex_unlock(&pcm.strm_mtx);
 
     for (i = 0; i < PCM_ID_MAX; i++) {
 	if (!count_active_streams(i) && (pcm.playing & (1 << i)))
 	    pcm_stop_output(i);
     }
+    pthread_mutex_unlock(&pcm.strm_mtx);
 }
 
 int pcm_register_player(struct pcm_player player)
@@ -814,9 +856,9 @@ void pcm_reset(void)
 {
     int i;
     S_printf("PCM: reset\n");
+    pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_MAX);
-    pthread_mutex_lock(&pcm.strm_mtx);
     for (i = 0; i < pcm.num_streams; i++)
 	pcm_reset_stream(i);
     pthread_mutex_unlock(&pcm.strm_mtx);
@@ -831,9 +873,9 @@ void pcm_done(void)
 		pcm.stream[i].state == SNDBUF_STATE_STALLED)
 	    pcm_flush(i);
     }
-    pthread_mutex_unlock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_MAX);
+    pthread_mutex_unlock(&pcm.strm_mtx);
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_player_wr *p = &pcm.players[i];
 	if (p->opened) {

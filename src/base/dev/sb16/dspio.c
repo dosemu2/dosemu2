@@ -346,6 +346,7 @@ static void dspio_start_output(struct dspio_state *state)
     if (state->output_running)
 	return;
     S_printf("SB: starting output\n");
+    pcm_prepare_stream(state->dma_strm);
     state->output_time_cur = GETusTIME(0);
     state->output_running = 1;
 }

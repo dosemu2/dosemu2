@@ -93,6 +93,7 @@ extern void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS],
 	int frames, int rate, int format, int nchans, int strm_idx);
 extern int pcm_format_size(int format);
 extern void pcm_timer(void);
+extern void pcm_prepare_stream(int strm_idx);
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
