@@ -366,7 +366,7 @@ static void pcm_start_output(int id)
 	if (p->player.id != id)
 	    continue;
 	if (p->opened) {
-	    p->time = now - INIT_BUFFER_DELAY;
+	    pcm_reset_player(i);
 	    p->player.start(p->player.arg);
 	}
     }
@@ -788,6 +788,12 @@ int pcm_register_player(struct pcm_player player)
     }
     pcm.players[pcm.num_players].player = player;
     return pcm.num_players++;
+}
+
+void pcm_reset_player(int handle)
+{
+    long long now = GETusTIME(0);
+    pcm.players[handle].time = now - INIT_BUFFER_DELAY;
 }
 
 void pcm_timer(void)
