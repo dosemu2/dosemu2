@@ -102,6 +102,7 @@ struct pcm_struct {
     struct stream stream[MAX_STREAMS];
     int num_streams;
     pthread_mutex_t strm_mtx;
+    pthread_mutex_t time_mtx;
     struct pcm_player_wr players[MAX_PLAYERS];
     int num_players;
     int playing;
@@ -113,6 +114,7 @@ int pcm_init(void)
     int i;
     S_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
+    pthread_mutex_init(&pcm.time_mtx, NULL);
 #ifdef USE_DL_PLUGINS
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
@@ -464,17 +466,6 @@ static void pcm_handle_get(int strm_idx, double time)
 	    S_printf("PCM: buffer fillup %f is too low, %s %i %f\n",
 		    fillup, pcm.stream[strm_idx].name,
 		    rng_count(&pcm.stream[strm_idx].buffer), time);
-	    /* FIXME: how do we propagate that event to the caller?
-	     * The hackish (but simple) solution was removed in f0e0a7d437
-	     * Maybe we don't even need to? The only known reason for the
-	     * permanent buffer starvation is when the caller does
-	     * "unnecessary" flushes.
-	     * Anyway, SB code was fixed to minimize the chances of
-	     * unnecessary flushes, so maybe the problem does not exist,
-	     * or exists only for a poorly written DOS progs.
-	     * Of course there are many reasons for the temporary
-	     * starvations, we only need to make sure they are quickly
-	     * re-filled. */
 	}
 	break;
 
@@ -581,6 +572,18 @@ static double pcm_get_stream_time(int strm_idx)
 
     }
     return 0;
+}
+
+double pcm_time_lock(int strm_idx)
+{
+    /* well, yes, the lock needs to be per-stream... Go get it. :) */
+    pthread_mutex_lock(&pcm.time_mtx);
+    return pcm_get_stream_time(strm_idx);
+}
+
+void pcm_time_unlock(int strm_idx)
+{
+    pthread_mutex_unlock(&pcm.time_mtx);
 }
 
 static double pcm_calc_tstamp(int rate, int strm_idx)
@@ -849,7 +852,9 @@ void pcm_timer(void)
 	    p->player.timer(delta, p->player.arg);
 	}
     }
+    pthread_mutex_lock(&pcm.time_mtx);
     pcm_advance_time(now - MAX_BUFFER_DELAY);
+    pthread_mutex_unlock(&pcm.time_mtx);
 }
 
 void pcm_reset(void)
@@ -887,4 +892,5 @@ void pcm_done(void)
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
     pthread_mutex_destroy(&pcm.strm_mtx);
+    pthread_mutex_destroy(&pcm.time_mtx);
 }

@@ -65,7 +65,7 @@ struct dspio_dma {
 };
 
 struct dspio_state {
-    double input_time_cur, output_time_cur, midi_time_cur;
+    double input_time_cur, midi_time_cur;
     int dma_strm, dac_strm;
     int input_running, output_running, dac_running, speaker;
     int i_handle, i_started;
@@ -347,7 +347,6 @@ static void dspio_start_output(struct dspio_state *state)
 	return;
     S_printf("SB: starting output\n");
     pcm_prepare_stream(state->dma_strm);
-    state->output_time_cur = GETusTIME(0);
     state->output_running = 1;
 }
 
@@ -521,6 +520,7 @@ static void dspio_process_dma(struct dspio_state *state)
 {
     int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j;
     unsigned long long time_dst;
+    double output_time_cur;
     sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
 
     dma_cnt = in_fifo_cnt = out_fifo_cnt = 0;
@@ -533,8 +533,9 @@ static void dspio_process_dma(struct dspio_state *state)
 	state->dma.dsp_fifo_enabled = sb_fifo_enabled();
     }
 
+    output_time_cur = pcm_time_lock(state->dma_strm);
     if (state->output_running)
-	nfr = calc_nframes(state, state->output_time_cur, time_dst);
+	nfr = calc_nframes(state, output_time_cur, time_dst);
     else
 	nfr = 0;
     for (i = 0; i < nfr; i++) {
@@ -560,14 +561,9 @@ static void dspio_process_dma(struct dspio_state *state)
 					 state->dma.samp_signed),
 			  state->dma.stereo + 1, state->dma_strm);
 	    }
-	    state->output_time_cur += out_fifo_cnt *
-		    pcm_frame_period_us(state->dma.rate);
-	} else {
-	    S_printf("SB: Warning: rate not set?\n");
-	    state->output_time_cur = time_dst;
 	}
     }
-    if (state->dma.running && state->output_time_cur > time_dst - 1)
+    if (state->dma.running && output_time_cur > time_dst - 1)
 	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
     if (out_fifo_cnt < nfr) {
 	/* not enough samples, see why */
@@ -576,7 +572,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	} else {
 	    if (debug_level('S') > 7)
 		S_printf("SB: Output FIFO exhausted while DMA is still active (ol=%f)\n",
-			 time_dst - state->output_time_cur);
+			 time_dst - output_time_cur);
 	    if (state->dma.running)
 		S_printf("SB: Output FIFO exhausted while DMA is running\n");
 	    /* DMA is active but currently not running and the FIFO is
@@ -590,7 +586,9 @@ static void dspio_process_dma(struct dspio_state *state)
 	    reset_idle(0);
 	}
     }
+    pcm_time_unlock(state->dma_strm);
 
+    /* TODO: sync also input time with PCM? */
     if (state->input_running)
 	nfr = calc_nframes(state, state->input_time_cur, time_dst);
     else
