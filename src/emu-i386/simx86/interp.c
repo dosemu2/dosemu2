@@ -2104,7 +2104,7 @@ repag0:
 
 /*6c*/	case INSb: {
 			unsigned short a;
-			unsigned long rd;
+			unsigned int rd;
 			CODE_FLUSH();
 			a = rDX;
 			if (!test_ioperm(a)) goto not_permitted;
@@ -2222,7 +2222,7 @@ repag0:
 			rAL = port_real_inb(a);
 			PC += 2; } break;
 /*6d*/	case INSw: {
-			unsigned long rd;
+			unsigned int rd;
 			int dp;
 			CODE_FLUSH();
 			if (!test_ioperm(rDX)) goto not_permitted;
