@@ -93,10 +93,12 @@ void sndpipe_plugin_init(void)
 
 void sndpipe_plugin_close(void)
 {
+#if ENABLED
     if (pipe_in == -1)
 	return;
     if (pcm_running)
 	pcm_flush(pcm_stream);
     remove_from_io_select(pipe_in);
     close(pipe_in);
+#endif
 }
