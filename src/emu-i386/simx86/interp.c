@@ -2223,17 +2223,15 @@ repag0:
 			PC += 2; } break;
 /*6d*/	case INSw: {
 			unsigned long rd;
-			void *p;
 			int dp;
 			CODE_FLUSH();
 			if (!test_ioperm(rDX)) goto not_permitted;
 			rd = (mode&ADDR16? rDI:rEDI);
-			p = (void *)(LONG_ES+rd);
 			if (mode&DATA16) {
-				*((short *)p) = port_real_inw(rDX); dp=2;
+				WRITE_WORD(LONG_ES+rd, port_real_inw(rDX)); dp=2;
 			}
 			else {
-				*((int *)p) = port_real_ind(rDX); dp=4;
+				WRITE_DWORD(LONG_ES+rd, port_real_ind(rDX)); dp=4;
 			}
 			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
