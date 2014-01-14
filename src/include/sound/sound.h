@@ -96,6 +96,7 @@ extern void pcm_timer(void);
 extern void pcm_prepare_stream(int strm_idx);
 extern double pcm_time_lock(int strm_idx);
 extern void pcm_time_unlock(int strm_idx);
+extern double pcm_get_stream_time(int strm_idx);
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,

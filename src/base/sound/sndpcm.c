@@ -303,8 +303,9 @@ static int count_active_streams(int id)
     for (i = 0; i < pcm.num_streams; i++) {
 	if (id != PCM_ID_MAX && pcm.stream[i].id != id)
 	    continue;
-	if (!STREAM_INACTIVE(i))
-	    ret++;
+	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+	    continue;
+	ret++;
     }
     return ret;
 }
@@ -449,13 +450,15 @@ static void pcm_handle_get(int strm_idx, double time)
 #endif
 	if (rng_count(&pcm.stream[strm_idx].buffer) <
 	    pcm.stream[strm_idx].channels * 2 && fillup == 0) {
+	    S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
+		      strm_idx, pcm.stream[strm_idx].name);
 	    /* ditch the last sample here, if it is the only remaining */
 	    pcm_clear_stream(strm_idx);
 	}
 	if (fillup == 0) {
 	    if (!(pcm.stream[strm_idx].flags & PCM_FLAG_RAW) &&
 		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL)
-		S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
+		S_printf("PCM: ERROR: buffer on stream %i stalled (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm.stream[strm_idx].state = SNDBUF_STATE_STALLED;
 	    pcm_stream_stretch(strm_idx);
@@ -531,7 +534,7 @@ int pcm_flush(int strm_idx)
     return 1;
 }
 
-static double pcm_get_stream_time(int strm_idx)
+double pcm_get_stream_time(int strm_idx)
 {
     struct sample samp;
     int rc;

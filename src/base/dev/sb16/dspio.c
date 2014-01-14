@@ -553,15 +553,12 @@ static void dspio_process_dma(struct dspio_state *state)
 	    break;
 	out_fifo_cnt++;
     }
-    if (out_fifo_cnt) {
-	if (state->dma.rate) {
-	    if (state->speaker && !state->dma.silence) {
-		pcm_write_interleaved(buf, out_fifo_cnt, state->dma.rate,
+    if (out_fifo_cnt && state->dma.rate) {
+	pcm_write_interleaved(buf, out_fifo_cnt, state->dma.rate,
 			  pcm_get_format(state->dma.is16bit,
 					 state->dma.samp_signed),
 			  state->dma.stereo + 1, state->dma_strm);
-	    }
-	}
+	output_time_cur = pcm_get_stream_time(state->dma_strm);
     }
     if (state->dma.running && output_time_cur > time_dst - 1)
 	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
