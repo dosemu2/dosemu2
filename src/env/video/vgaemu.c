@@ -1069,6 +1069,7 @@ int vga_emu_protect_page(unsigned page, int prot)
 {
   int i;
   int sys_prot;
+  unsigned char *p;
 
   sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
 
@@ -1086,7 +1087,16 @@ int vga_emu_protect_page(unsigned page, int prot)
     page, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
   );
 
-  i = mprotect_mapping(MAPPING_VGAEMU, &mem_base[page << 12], 1 << 12, sys_prot);
+  if(
+    vga.mem.lfb_base_page &&
+    page >= vga.mem.lfb_base_page &&
+    page < vga.mem.lfb_base_page + vga.mem.pages) {
+    p = &vga.mem.lfb_base[(page - vga.mem.lfb_base_page) << 12];
+  }
+  else {
+    p = &mem_base[page << 12];
+  }
+  i = mprotect_mapping(MAPPING_VGAEMU, p, 1 << 12, sys_prot);
 
   if(i == -1) {
     sys_prot = 0xfe;
@@ -1311,9 +1321,15 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       prot = VGA_EMU_RW_PROT;
   }
 
-  i = alias_mapping(MAPPING_VGAEMU,
-    vmt->base_page << 12, vmt->pages << 12,
-    prot, vga.mem.base + (first_page << 12));
+  i = 0;
+  if(mapping == VGAEMU_MAP_BANK_MODE)
+    i = alias_mapping(MAPPING_VGAEMU,
+      vmt->base_page << 12, vmt->pages << 12,
+      prot, vga.mem.base + (first_page << 12));
+  else /* LFB: mapped at init, just need to set protection */
+    if (mprotect_mapping(MAPPING_VGAEMU, &mem_base[vmt->base_page << 12],
+			 vmt->pages << 12, prot) == -1)
+      i = MAP_FAILED;
 
   if(i == MAP_FAILED) {
     prot = 0xfe;
@@ -1502,7 +1518,6 @@ int vga_emu_pre_init(void)
 {
   int i;
   vga_mapping_type vmt = {0, 0, 0};
-  static unsigned int lfb_base = -1;
 
   /* clean it up - just in case */
   memset(&vga, 0, sizeof vga);
@@ -1547,16 +1562,17 @@ int vga_emu_pre_init(void)
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
   vga_msg("vga_emu_init: scratch_page at %p\n", vga.mem.scratch_page);
 
+  vga.mem.lfb_base = NULL;
   if(config.X_lfb) {
-    unsigned char *p = mmap_mapping(MAPPING_VGAEMU | MAPPING_SCRATCH,
-		 (void *)-1, vga.mem.size, PROT_READ|PROT_WRITE|PROT_EXEC, 0);
+    unsigned char *p = alias_mapping(MAPPING_VGAEMU,
+				     -1, vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
     if(p == MAP_FAILED)
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     else
-      lfb_base = p - mem_base;
+      vga.mem.lfb_base = p;
   }
 
-  if(lfb_base == -1) {
+  if(vga.mem.lfb_base == NULL) {
     vga_msg("vga_emu_init: linear frame buffer (lfb) disabled\n");
   }
 
@@ -1586,7 +1602,8 @@ int vga_emu_pre_init(void)
 
   vga.mem.bank = vga.mem.bank_pages = 0;
 
-  if(lfb_base != -1) {
+  if(vga.mem.lfb_base != NULL) {
+    unsigned int lfb_base = vga.mem.lfb_base - mem_base;
     vga.mem.lfb_base_page = lfb_base >> 12;
     memcheck_addtype('e', "VGAEMU LFB");
     register_hardware_ram('e', lfb_base, vga.mem.size);
