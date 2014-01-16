@@ -561,7 +561,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	output_time_cur = pcm_get_stream_time(state->dma_strm);
     }
     if (state->dma.running && output_time_cur > time_dst - 1)
-	pcm_set_mode(state->dma_strm, PCM_MODE_NORMAL);
+	pcm_clear_flag(state->dma_strm, PCM_FLAG_POST);
     if (out_fifo_cnt < nfr) {
 	/* not enough samples, see why */
 	if (!sb_dma_active()) {
@@ -578,7 +578,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	     * HACK: try to not flush the channel for as long as possible
 	     * in a hope the PCM buffers are large enough to hold till
 	     * the DMA is restarted. */
-	    pcm_set_mode(state->dma_strm, PCM_MODE_POST);
+	    pcm_set_flag(state->dma_strm, PCM_FLAG_POST);
 	    /* awake dosemu */
 	    reset_idle(0);
 	}

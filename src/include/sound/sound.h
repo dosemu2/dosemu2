@@ -82,7 +82,7 @@ extern void pcm_done(void);
 extern void pcm_reset(void);
 extern int pcm_allocate_stream(int channels, char *name, int id);
 extern void pcm_set_flag(int strm_idx, int flag);
-extern void pcm_set_mode(int strm_idx, int mode);
+extern void pcm_clear_flag(int strm_idx, int flag);
 extern int pcm_flush(int strm_idx);
 extern int pcm_samp_cutoff(int val, int format);
 extern int pcm_get_format(int is_16, int is_signed);
@@ -103,7 +103,6 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	struct player_params *params);
 
 #define PCM_FLAG_RAW 1
-
-enum { PCM_MODE_NORMAL, PCM_MODE_POST };
+#define PCM_FLAG_POST 2
 
 #endif

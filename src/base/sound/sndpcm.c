@@ -76,7 +76,6 @@ struct stream {
     int channels;
     struct rng_s buffer;
     int state;
-    int mode;
     int flags;
     int stretch;
     int prepared;
@@ -154,7 +153,6 @@ static void pcm_reset_stream(int strm_idx)
     if (pcm.stream[strm_idx].state != SNDBUF_STATE_FLUSHING)
 	pcm.stream[strm_idx].prepared = 0;
     pcm.stream[strm_idx].state = SNDBUF_STATE_INACTIVE;
-    pcm.stream[strm_idx].mode = PCM_MODE_NORMAL;
     pcm.stream[strm_idx].stretch = 0;
 }
 
@@ -180,20 +178,20 @@ void pcm_set_flag(int strm_idx, int flag)
 {
     if (pcm.stream[strm_idx].flags & flag)
 	return;
-    S_printf("PCM: setting flag %i for stream %i (%s)\n",
+    S_printf("PCM: setting flag %x for stream %i (%s)\n",
 	     flag, strm_idx, pcm.stream[strm_idx].name);
     pcm.stream[strm_idx].flags |= flag;
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
 	pcm.stream[strm_idx].raw_speed_adj = 1.0;
 }
 
-void pcm_set_mode(int strm_idx, int mode)
+void pcm_clear_flag(int strm_idx, int flag)
 {
-    if (pcm.stream[strm_idx].mode == mode)
+    if (!(pcm.stream[strm_idx].flags & flag))
 	return;
-    S_printf("PCM: setting mode %i for stream %i (%s)\n",
-	     mode, strm_idx, pcm.stream[strm_idx].name);
-    pcm.stream[strm_idx].mode = mode;
+    S_printf("PCM: clearing flag %x for stream %i (%s)\n",
+	     flag, strm_idx, pcm.stream[strm_idx].name);
+    pcm.stream[strm_idx].flags &= ~flag;
 }
 
 int pcm_format_size(int format)
@@ -456,15 +454,14 @@ static void pcm_handle_get(int strm_idx, double time)
 	    pcm_clear_stream(strm_idx);
 	}
 	if (fillup == 0) {
-	    if (!(pcm.stream[strm_idx].flags & PCM_FLAG_RAW) &&
-		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL)
+	    if (!(pcm.stream[strm_idx].flags & (PCM_FLAG_RAW | PCM_FLAG_POST)))
 		S_printf("PCM: ERROR: buffer on stream %i stalled (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm.stream[strm_idx].state = SNDBUF_STATE_STALLED;
 	    pcm_stream_stretch(strm_idx);
 	}
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING &&
-		pcm.stream[strm_idx].mode == PCM_MODE_NORMAL &&
+		!(pcm.stream[strm_idx].flags & PCM_FLAG_POST) &&
 		fillup < WR_BUFFER_LW) {
 	    S_printf("PCM: buffer fillup %f is too low, %s %i %f\n",
 		    fillup, pcm.stream[strm_idx].name,
