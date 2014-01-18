@@ -81,6 +81,8 @@ struct stream {
     int prepared;
     double start_time;
     double stop_time;
+    double stretch_per;
+    double stretch_tot;
     /* for the raw channels heuristic */
     double raw_speed_adj;
     double last_adj_time;
@@ -155,6 +157,8 @@ static void pcm_reset_stream(int strm_idx)
 	pcm.stream[strm_idx].prepared = 0;
     pcm.stream[strm_idx].state = SNDBUF_STATE_INACTIVE;
     pcm.stream[strm_idx].stretch = 0;
+    pcm.stream[strm_idx].stretch_per = 0;
+    pcm.stream[strm_idx].stretch_tot = 0;
 }
 
 int pcm_allocate_stream(int channels, char *name, int id)
@@ -457,7 +461,6 @@ static void pcm_handle_get(int strm_idx, double time)
 		S_printf("PCM: ERROR: buffer on stream %i stalled (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm.stream[strm_idx].state = SNDBUF_STATE_STALLED;
-	    pcm_stream_stretch(strm_idx);
 	}
 	if (pcm.stream[strm_idx].state == SNDBUF_STATE_PLAYING &&
 		!(pcm.stream[strm_idx].flags & PCM_FLAG_POST) &&
@@ -497,8 +500,11 @@ static void pcm_handle_write(int strm_idx, double time)
 
     switch (pcm.stream[strm_idx].state) {
     case SNDBUF_STATE_STALLED:
-	S_printf("PCM: restarting stalled stream %s\n",
-		pcm.stream[strm_idx].name);
+	pcm.stream[strm_idx].stretch_tot += pcm.stream[strm_idx].stretch_per;
+	S_printf("PCM: restarting stalled stream %s, str=%f strt=%f\n",
+		pcm.stream[strm_idx].name, pcm.stream[strm_idx].stretch_per,
+		pcm.stream[strm_idx].stretch_tot);
+	pcm.stream[strm_idx].stretch_per = 0;
 	break;
     case SNDBUF_STATE_FLUSHING:
 	if (pcm.stream[strm_idx].stretch)
@@ -544,7 +550,7 @@ int pcm_flush(int strm_idx)
     return 1;
 }
 
-double pcm_get_stream_time(int strm_idx)
+static double get_stream_time(int strm_idx)
 {
     long long now = GETusTIME(0);
     double time = pcm.stream[strm_idx].start_time;
@@ -565,8 +571,9 @@ user_tstamp:
 	return now;
 
     case SNDBUF_STATE_STALLED:
-	assert(pcm.stream[strm_idx].stretch);
-	return now - fmod(delta, MIN_BUFFER_DELAY);
+	pcm.stream[strm_idx].stretch_per = now - MIN_BUFFER_DELAY -
+		pcm.stream[strm_idx].stop_time;
+	return now - MIN_BUFFER_DELAY;
 
     case SNDBUF_STATE_FLUSHING:
 	if (pcm.stream[strm_idx].stretch)
@@ -583,6 +590,13 @@ user_tstamp:
     return 0;
 }
 
+double pcm_get_stream_time(int strm_idx)
+{
+    /* we allow user to write samples to the future to prevent
+     * subsequent underflows */
+    return get_stream_time(strm_idx) - pcm.stream[strm_idx].stretch_tot;
+}
+
 double pcm_time_lock(int strm_idx)
 {
     /* well, yes, the lock needs to be per-stream... Go get it. :) */
@@ -597,7 +611,7 @@ void pcm_time_unlock(int strm_idx)
 
 static double pcm_calc_tstamp(int strm_idx)
 {
-    double tstamp = pcm_get_stream_time(strm_idx);
+    double tstamp = get_stream_time(strm_idx);
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 	long long now = GETusTIME(0);
 	if (tstamp < now)
@@ -666,11 +680,11 @@ static void pcm_remove_samples(double time)
     }
 }
 
-static int pcm_get_samples(double time,
+static void pcm_get_samples(double time,
 		struct sample samp[MAX_STREAMS][SNDBUF_CHANS], int *idxs,
 		int out_channels, int id)
 {
-    int i, j, ret = 0;
+    int i, j;
     struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
 
     for (i = 0; i < pcm.num_streams; i++) {
@@ -696,8 +710,6 @@ static int pcm_get_samples(double time,
 	    if (s[0].tstamp > time) {
 //        S_printf("PCM: stream %i time=%lli, req_time=%lli\n", i, s.tstamp, time);
 		memcpy(samp[i], prev_s, sizeof(struct sample) * out_channels);
-		if (time >= pcm.stream[i].start_time)
-		    ret++;
 		break;
 	    }
 	    memcpy(prev_s, s, sizeof(struct sample) * pcm.stream[i].channels);
@@ -706,7 +718,6 @@ static int pcm_get_samples(double time,
 	    idxs[i] += pcm.stream[i].channels;
 	}
     }
-    return ret;
 }
 
 static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
