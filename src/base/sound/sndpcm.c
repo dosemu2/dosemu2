@@ -418,7 +418,8 @@ static void pcm_stop_output(int id)
 static void pcm_handle_get(int strm_idx, double time)
 {
     double fillup = calc_buffer_fillup(strm_idx, time);
-    S_printf("PCM: Buffer %i fillup=%f\n", strm_idx, fillup);
+    if (debug_level('S') >= 9)
+	S_printf("PCM: Buffer %i fillup=%f\n", strm_idx, fillup);
     switch (pcm.stream[strm_idx].state) {
 
     case SNDBUF_STATE_INACTIVE:
@@ -454,7 +455,7 @@ static void pcm_handle_get(int strm_idx, double time)
 	    pcm_clear_stream(strm_idx);
 	}
 	if (fillup == 0) {
-	    if (!(pcm.stream[strm_idx].flags & (PCM_FLAG_RAW | PCM_FLAG_POST)))
+	    if (!(pcm.stream[strm_idx].flags & PCM_FLAG_RAW))
 		S_printf("PCM: ERROR: buffer on stream %i stalled (%s)\n",
 		      strm_idx, pcm.stream[strm_idx].name);
 	    pcm.stream[strm_idx].state = SNDBUF_STATE_STALLED;
@@ -495,6 +496,20 @@ static void pcm_handle_write(int strm_idx, double time)
 		pcm.stream[strm_idx].name, time, pcm.time,
 		pcm.time - time);
     }
+
+    switch (pcm.stream[strm_idx].state) {
+    case SNDBUF_STATE_STALLED:
+	S_printf("PCM: restarting stalled stream %s\n",
+		pcm.stream[strm_idx].name);
+	break;
+    case SNDBUF_STATE_FLUSHING:
+	if (pcm.stream[strm_idx].stretch)
+	    S_printf("PCM: restarting stream %s\n", pcm.stream[strm_idx].name);
+	else
+	    S_printf("PCM: resuming stream %s\n", pcm.stream[strm_idx].name);
+	break;
+    }
+
     if (pcm.stream[strm_idx].state != SNDBUF_STATE_PLAYING) {
 	pcm.stream[strm_idx].state = SNDBUF_STATE_PLAYING;
 	pcm.stream[strm_idx].stretch = 0;
@@ -554,16 +569,11 @@ double pcm_get_stream_time(int strm_idx)
 
     case SNDBUF_STATE_STALLED:
 	assert(pcm.stream[strm_idx].stretch);
-	S_printf("PCM: restarting stalled stream %s\n",
-		pcm.stream[strm_idx].name);
 	return now - fmod(delta, MIN_BUFFER_DELAY);
 
     case SNDBUF_STATE_FLUSHING:
-	if (pcm.stream[strm_idx].stretch) {
-	    S_printf("PCM: restarting stream %s\n", pcm.stream[strm_idx].name);
+	if (pcm.stream[strm_idx].stretch)
 	    return now - fmod(delta, MIN_BUFFER_DELAY);
-	}
-	S_printf("PCM: resuming stream %s\n", pcm.stream[strm_idx].name);
 	/* no break */
     case SNDBUF_STATE_PLAYING:
 	rc = peek_last_sample(strm_idx, &samp);
@@ -811,7 +821,8 @@ static void pcm_advance_time(double stop_time)
     for (i = 0; i < pcm.num_streams; i++) {
 	if (STREAM_INACTIVE(i))
 	    continue;
-	S_printf("PCM: stream %i fillup2: %i\n", i,
+	if (debug_level('S') >= 9)
+	    S_printf("PCM: stream %i fillup2: %i\n", i,
 		 rng_count(&pcm.stream[i].buffer));
 	pcm_handle_get(i, stop_time + MAX_BUFFER_PERIOD);
     }

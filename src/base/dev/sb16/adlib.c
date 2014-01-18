@@ -67,7 +67,8 @@ Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
     ret = dbadlib_PortRead(opl3_timers, port);
-    S_printf("Adlib: Read %hhx from port %x\n", ret, port);
+    if (debug_level('S') >= 9)
+	S_printf("Adlib: Read %hhx from port %x\n", ret, port);
     return ret;
 }
 
@@ -81,7 +82,8 @@ static void opl3_update(void);
 void adlib_io_write_base(ioport_t port, Bit8u value)
 {
     adlib_time_last = GETusTIME(0);
-    S_printf("Adlib: Write %hhx to port %x\n", value, port);
+    if (debug_level('S') >= 9)
+	S_printf("Adlib: Write %hhx to port %x\n", value, port);
     if ( port&1 ) {
       opl3_update();
     }
@@ -180,7 +182,8 @@ void adlib_timer(void)
 	if (nframes >= OPL3_MIN_BUF || (nframes && time_adj)) {
 	    adlib_process_samples(nframes);
 	    adlib_time_cur += nframes * period;
-	    S_printf("SB: processed %i Adlib samples\n", nframes);
+	    if (debug_level('S') >= 7)
+		S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
 
 	for (i = 0; i < 2; i++) {

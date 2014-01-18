@@ -522,6 +522,7 @@ static void dspio_process_dma(struct dspio_state *state)
     unsigned long long time_dst;
     double output_time_cur;
     sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
+    static int warned;
 
     dma_cnt = in_fifo_cnt = out_fifo_cnt = 0;
 
@@ -560,18 +561,22 @@ static void dspio_process_dma(struct dspio_state *state)
 			  state->dma.stereo + 1, state->dma_strm);
 	output_time_cur = pcm_get_stream_time(state->dma_strm);
     }
-    if (state->dma.running && output_time_cur > time_dst - 1)
+    if (state->dma.running && output_time_cur > time_dst - 1) {
 	pcm_clear_flag(state->dma_strm, PCM_FLAG_POST);
+	warned = 0;
+    }
     if (out_fifo_cnt < nfr) {
 	/* not enough samples, see why */
 	if (!sb_dma_active()) {
 	    dspio_stop_output(state);
 	} else {
-	    if (debug_level('S') > 7)
+	    if (!warned) {
 		S_printf("SB: Output FIFO exhausted while DMA is still active (ol=%f)\n",
 			 time_dst - output_time_cur);
+		warned = 1;
+	    }
 	    if (state->dma.running)
-		S_printf("SB: Output FIFO exhausted while DMA is running\n");
+		S_printf("SB: Output FIFO exhausted while DMA is running (no DACK?)\n");
 	    /* DMA is active but currently not running and the FIFO is
 	     * already exhausted. Normally we should flush the channel
 	     * and stop the output timing.
@@ -641,7 +646,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	dma_cnt += state->dma.input ? dspio_drain_input(state) :
 	    dspio_fill_output(state);
 
-    if (in_fifo_cnt || out_fifo_cnt || dma_cnt)
+    if (debug_level('S') >= 7 && (in_fifo_cnt || out_fifo_cnt || dma_cnt))
 	S_printf("SB: Processed %i %i FIFO, %i DMA, or=%i dr=%i time=%lli\n",
 	     in_fifo_cnt, out_fifo_cnt, dma_cnt, state->output_running, state->dma.running,
 	     time_dst);
