@@ -80,6 +80,7 @@ struct stream {
     int stretch;
     int prepared;
     double start_time;
+    double stop_time;
     /* for the raw channels heuristic */
     double raw_speed_adj;
     double last_adj_time;
@@ -347,18 +348,15 @@ void pcm_prepare_stream(int strm_idx)
 	error("PCM: prepare playing/stalled stream %s\n", s->name);
 	return;
 
-    case SNDBUF_STATE_FLUSHING: {
+    case SNDBUF_STATE_FLUSHING:
 	/* very careful: because of poor syncing the stupid things happen.
 	 * Like, for instance, samples written in the future... */
-	struct sample samp;
-	int l = peek_last_sample(strm_idx, &samp);
-	if (l && now < samp.tstamp) {
+	if (now < s->stop_time) {
 	    S_printf("PCM: ERROR: sample in the future, %f now=%llu, %s\n",
-		    samp.tstamp, now, s->name);
-	    now = samp.tstamp;
+		    s->stop_time, now, s->name);
+	    now = s->stop_time;
 	}
 	break;
-    }
     }
 
     s->start_time = now;
@@ -377,10 +375,10 @@ static void pcm_stream_stretch(int strm_idx)
 
 static double calc_buffer_fillup(int strm_idx, double time)
 {
-    struct sample samp;
-    if (!peek_last_sample(strm_idx, &samp))
+    struct stream *s = &pcm.stream[strm_idx];
+    if (s->state != SNDBUF_STATE_PLAYING && s->state != SNDBUF_STATE_FLUSHING)
 	return 0;
-    return samp.tstamp > time ? samp.tstamp - time : 0;
+    return s->stop_time > time ? s->stop_time - time : 0;
 }
 
 static void pcm_start_output(int id)
@@ -548,8 +546,6 @@ int pcm_flush(int strm_idx)
 
 double pcm_get_stream_time(int strm_idx)
 {
-    struct sample samp;
-    int rc;
     long long now = GETusTIME(0);
     double time = pcm.stream[strm_idx].start_time;
     double delta = now - time;
@@ -581,9 +577,7 @@ user_tstamp:
 	/* in SLoppy TimeStamp mode ignore user's timestamp */
 	/* no break */
     case SNDBUF_STATE_PLAYING:
-	rc = peek_last_sample(strm_idx, &samp);
-	assert(rc);
-	return samp.tstamp;
+	return pcm.stream[strm_idx].stop_time;
 
     }
     return 0;
@@ -601,13 +595,9 @@ void pcm_time_unlock(int strm_idx)
     pthread_mutex_unlock(&pcm.time_mtx);
 }
 
-static double pcm_calc_tstamp(int rate, int strm_idx)
+static double pcm_calc_tstamp(int strm_idx)
 {
-    double time, period, tstamp;
-    assert(rate);
-    time = pcm_get_stream_time(strm_idx);
-    period = pcm_frame_period_us(rate);
-    tstamp = time + period;
+    double tstamp = pcm_get_stream_time(strm_idx);
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 	long long now = GETusTIME(0);
 	if (tstamp < now)
@@ -621,17 +611,19 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 {
     int i, j;
     struct sample samp;
+    double frame_per;
     assert(nchans <= pcm.stream[strm_idx].channels);
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
 	rate /= pcm.stream[strm_idx].raw_speed_adj;
 
     samp.format = format;
     samp.tstamp = 0;
+    frame_per = pcm_frame_period_us(rate);
     pthread_mutex_lock(&pcm.strm_mtx);
     for (i = 0; i < frames; i++) {
 	int l;
 	struct sample s2;
-	samp.tstamp = pcm_calc_tstamp(rate, strm_idx);
+	samp.tstamp = pcm_calc_tstamp(strm_idx);
 	l = peek_last_sample(strm_idx, &s2);
 	assert(!(l && samp.tstamp < s2.tstamp));
 	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
@@ -646,8 +638,8 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 	    }
 	}
 	pcm_handle_write(strm_idx, samp.tstamp);
+	pcm.stream[strm_idx].stop_time = samp.tstamp + frame_per;
     }
-//S_printf("PCM: time=%f\n", samp.tstamp);
 
     if (!(pcm.playing & (1 << pcm.stream[strm_idx].id)))
 	pcm_start_output(pcm.stream[strm_idx].id);
