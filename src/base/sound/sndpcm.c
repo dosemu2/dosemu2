@@ -557,6 +557,7 @@ double pcm_get_stream_time(int strm_idx)
 
     case SNDBUF_STATE_INACTIVE:
 	if (pcm.stream[strm_idx].prepared) {
+user_tstamp:
 	    if (delta > MIN_BUFFER_DELAY) {
 		error("PCM: too large delta on stream %s\n",
 			pcm.stream[strm_idx].name);
@@ -574,6 +575,10 @@ double pcm_get_stream_time(int strm_idx)
     case SNDBUF_STATE_FLUSHING:
 	if (pcm.stream[strm_idx].stretch)
 	    return now - fmod(delta, MIN_BUFFER_DELAY);
+	if (pcm.stream[strm_idx].prepared &&
+		!(pcm.stream[strm_idx].flags & PCM_FLAG_SLTS))
+	    goto user_tstamp;
+	/* in SLoppy TimeStamp mode ignore user's timestamp */
 	/* no break */
     case SNDBUF_STATE_PLAYING:
 	rc = peek_last_sample(strm_idx, &samp);

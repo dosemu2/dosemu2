@@ -104,5 +104,6 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 
 #define PCM_FLAG_RAW 1
 #define PCM_FLAG_POST 2
+#define PCM_FLAG_SLTS 4
 
 #endif
