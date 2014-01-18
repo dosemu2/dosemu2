@@ -519,7 +519,7 @@ static int calc_nframes(struct dspio_state *state,
 
 static void dspio_process_dma(struct dspio_state *state)
 {
-    int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j;
+    int dma_cnt, nfr, in_fifo_cnt, out_fifo_cnt, i, j, tlocked;
     unsigned long long time_dst;
     double output_time_cur;
     sndbuf_t buf[PCM_MAX_BUF][SNDBUF_CHANS];
@@ -535,11 +535,14 @@ static void dspio_process_dma(struct dspio_state *state)
 	state->dma.dsp_fifo_enabled = sb_fifo_enabled();
     }
 
-    output_time_cur = pcm_time_lock(state->dma_strm);
-    if (state->output_running)
+    if (state->output_running) {
+	output_time_cur = pcm_time_lock(state->dma_strm);
+	tlocked = 1;
 	nfr = calc_nframes(state, output_time_cur, time_dst);
-    else
+    } else {
 	nfr = 0;
+	tlocked = 0;
+    }
     for (i = 0; i < nfr; i++) {
 	for (j = 0; j < state->dma.stereo + 1; j++) {
 	    if (state->dma.running && !dspio_output_fifo_filled(state)) {
@@ -562,7 +565,7 @@ static void dspio_process_dma(struct dspio_state *state)
 			  state->dma.stereo + 1, state->dma_strm);
 	output_time_cur = pcm_get_stream_time(state->dma_strm);
     }
-    if (state->dma.running && output_time_cur > time_dst - 1) {
+    if (out_fifo_cnt && state->dma.running && output_time_cur > time_dst - 1) {
 	pcm_clear_flag(state->dma_strm, PCM_FLAG_POST);
 	warned = 0;
     }
@@ -571,7 +574,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	if (!sb_dma_active()) {
 	    dspio_stop_output(state);
 	} else {
-	    if (!warned) {
+	    if (nfr && !warned) {
 		S_printf("SB: Output FIFO exhausted while DMA is still active (ol=%f)\n",
 			 time_dst - output_time_cur);
 		warned = 1;
@@ -589,7 +592,8 @@ static void dspio_process_dma(struct dspio_state *state)
 	    reset_idle(0);
 	}
     }
-    pcm_time_unlock(state->dma_strm);
+    if (tlocked)
+	pcm_time_unlock(state->dma_strm);
 
     /* TODO: sync also input time with PCM? */
     if (state->input_running)
