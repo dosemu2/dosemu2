@@ -829,11 +829,11 @@ static void keyb_init_state(void)
 		init_scancode_translation_rules(keyboard_rules.maps, config.altkeytable);
 	}
 	init_charset_keys(&keyboard_rules.charset, keyboard_rules.maps);
+	init_active_keyboard_state(&input_keyboard_state, &keyboard_rules);
+	init_active_keyboard_state(&dos_keyboard_state, &keyboard_rules);
 }
 static void keyb_reset_state(void)
 {
-	init_active_keyboard_state(&input_keyboard_state, &keyboard_rules);
-	init_active_keyboard_state(&dos_keyboard_state, &keyboard_rules);
 }
 /******************************************************************************************
  * Queue front end (keycode translation etc.)
