@@ -61,9 +61,6 @@ enum {
     SNDBUF_STATE_STALLED,
 };
 
-#define STREAM_INACTIVE(i) (pcm.stream[i].state == SNDBUF_STATE_INACTIVE || \
-    pcm.stream[i].state == SNDBUF_STATE_STALLED)
-
 struct sample {
     int format;
     double tstamp;
@@ -666,7 +663,7 @@ static void pcm_remove_samples(double time)
     int i;
     struct sample s;
     for (i = 0; i < pcm.num_streams; i++) {
-	if (STREAM_INACTIVE(i))
+	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
 	while (rng_count(&pcm.stream[i].buffer) >= pcm.stream[i].channels *
 		(GUARD_SAMPS + 1)) {
@@ -690,7 +687,8 @@ static void pcm_get_samples(double time,
     for (i = 0; i < pcm.num_streams; i++) {
 	for (j = 0; j < out_channels; j++)
 	    samp[i][j] = mute_samp;
-	if (STREAM_INACTIVE(i) || pcm.stream[i].id != id)
+	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
+		pcm.stream[i].id != id)
 	    continue;
 
 //    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
@@ -827,7 +825,7 @@ static void pcm_advance_time(double stop_time)
     /* remove processed samples from input buffers (last sample stays) */
     pcm_remove_samples(stop_time);
     for (i = 0; i < pcm.num_streams; i++) {
-	if (STREAM_INACTIVE(i))
+	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
 	if (debug_level('S') >= 9)
 	    S_printf("PCM: stream %i fillup2: %i\n", i,
