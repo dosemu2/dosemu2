@@ -290,7 +290,7 @@ void *dspio_init(void)
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
     state->dma_strm = pcm_allocate_stream(2, "SB DMA", PCM_ID_P);
-    pcm_set_flag(state->dac_strm, PCM_FLAG_SLTS);
+    pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
     rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
