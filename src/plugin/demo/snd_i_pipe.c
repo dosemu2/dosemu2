@@ -38,18 +38,13 @@
 #include <errno.h>
 #include "config/plugin_config.h"
 
-#define ENABLED EXPERIMENTAL
-
 static int pipe_in = -1;
-#if ENABLED
 static int pcm_stream, pcm_running;
 static const char *PIPE_NAME = "/tmp/desnd_pipe";
-#endif
 #define PIPE_FREQ 44100
 #define PIPE_CHANS 2
 #define PIPE_FMT PCM_FORMAT_S16_LE
 
-#if ENABLED
 static void pipe_async(void *arg)
 {
     sndbuf_t buf[16384][SNDBUF_CHANS];
@@ -77,28 +72,23 @@ static void pipe_async(void *arg)
 	tv.tv_usec = 0;
     }
 }
-#endif
 
 void sndpipe_plugin_init(void)
 {
-#if ENABLED
     mkfifo(PIPE_NAME, 0666);
     pipe_in = open(PIPE_NAME, O_RDONLY | O_NONBLOCK);
     if (pipe_in == -1)
 	return;
     pcm_stream = pcm_allocate_stream(2, "PCM IN", PCM_ID_R);
     add_to_io_select(pipe_in, pipe_async, NULL);
-#endif
 }
 
 void sndpipe_plugin_close(void)
 {
-#if ENABLED
     if (pipe_in == -1)
 	return;
     if (pcm_running)
 	pcm_flush(pcm_stream);
     remove_from_io_select(pipe_in);
     close(pipe_in);
-#endif
 }
