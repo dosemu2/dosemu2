@@ -13,4 +13,4 @@
  *
  */
 
-demo_plugin_init();
+sndpipe_plugin_init();

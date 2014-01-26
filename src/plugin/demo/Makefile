@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 
-CFILES=demo.c
+CFILES=snd_i_pipe.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

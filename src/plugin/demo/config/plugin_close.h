@@ -13,7 +13,6 @@
  *
  * This routine should do _nothing_, if its counterpart my_plugin_init()
  * did decide to disable the plugin.
- * Don't forget the curly brackets around your statement.
  */
 
-demo_plugin_close();
+sndpipe_plugin_close();
