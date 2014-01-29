@@ -351,9 +351,14 @@ void pcm_prepare_stream(int strm_idx)
     switch (s->state) {
 
     case SNDBUF_STATE_PLAYING:
-    case SNDBUF_STATE_STALLED:
-	error("PCM: prepare playing/stalled stream %s\n", s->name);
+	error("PCM: prepare playing stream %s\n", s->name);
 	return;
+
+    case SNDBUF_STATE_STALLED:
+	error("PCM: prepare stalled stream %s\n", s->name);
+	/* should never happen, but if we are here we reset stretches */
+	pcm_reset_stream(strm_idx);
+	break;
 
     case SNDBUF_STATE_FLUSHING:
 	/* very careful: because of poor syncing the stupid things happen.

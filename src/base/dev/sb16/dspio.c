@@ -98,13 +98,12 @@ static void dma_get_silence(int is_signed, int is16bit, void *ptr)
 void dspio_toggle_speaker(void *dspio, int on)
 {
     if (!on && DSPIO->speaker) {
-	if (DSPIO->output_running) {
-	    pcm_flush(DSPIO->dma_strm);
-	}
 	if (DSPIO->dac_running) {
 	    pcm_flush(DSPIO->dac_strm);
 	    DSPIO->dac_running = 0;
 	}
+	/* we don't flush PCM stream here because DSP uses PCM layer
+	 * for timing, and timing is needed even when speaker is disabled... */
     }
     DSPIO->speaker = on;
 }
@@ -356,8 +355,7 @@ static void dspio_stop_output(struct dspio_state *state)
     if (!state->output_running)
 	return;
     S_printf("SB: stopping output\n");
-    if (state->speaker)
-	pcm_flush(state->dma_strm);
+    pcm_flush(state->dma_strm);
     state->output_running = 0;
 }
 
@@ -551,8 +549,15 @@ static void dspio_process_dma(struct dspio_state *state)
 		dma_cnt++;
 	    }
 	    if (!dspio_get_output_sample(state, &buf[i][j],
-		    state->dma.is16bit))
-		break;
+		    state->dma.is16bit)) {
+		/* if speaker disabled but DMA is active, we write
+		 * silence to keep timing steady. */
+		if (!state->speaker && sb_dma_active())
+		    dma_get_silence(state->dma.samp_signed,
+			    state->dma.is16bit, &buf[i][j]);
+		else
+		    break;
+	    }
 	}
 	if (j != state->dma.stereo + 1)
 	    break;
@@ -564,10 +569,10 @@ static void dspio_process_dma(struct dspio_state *state)
 					 state->dma.samp_signed),
 			  state->dma.stereo + 1, state->dma_strm);
 	output_time_cur = pcm_get_stream_time(state->dma_strm);
-    }
-    if (out_fifo_cnt && state->dma.running && output_time_cur > time_dst - 1) {
-	pcm_clear_flag(state->dma_strm, PCM_FLAG_POST);
-	warned = 0;
+	if (state->dma.running && output_time_cur > time_dst - 1) {
+	    pcm_clear_flag(state->dma_strm, PCM_FLAG_POST);
+	    warned = 0;
+	}
     }
     if (out_fifo_cnt < nfr) {
 	/* not enough samples, see why */
