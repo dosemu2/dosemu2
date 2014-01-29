@@ -42,8 +42,9 @@ static fluid_synth_t* synth;
 static fluid_sequencer_t* sequencer;
 static short synthSeqID;
 static fluid_midi_parser_t* parser;
-static int pcm_stream, pcm_running;
-static double mf_time_cur, mf_time_base;
+static int pcm_stream;
+static int output_running, pcm_running;
+static double mf_time_base;
 
 
 static int midoflus_init(void)
@@ -86,16 +87,17 @@ static void midoflus_reset(void)
 static void midoflus_start(void)
 {
     S_printf("MIDI: starting fluidsynth\n");
-    mf_time_cur = GETusTIME(0);
-    mf_time_base = mf_time_cur;
+    mf_time_base = GETusTIME(0);
+    pcm_prepare_stream(pcm_stream);
     fluid_sequencer_process(sequencer, 0);
+    output_running = 1;
 }
 
 static void midoflus_write(unsigned char val)
 {
     fluid_midi_event_t* event;
 
-    if (mf_time_cur == 0)
+    if (!output_running)
 	midoflus_start();
 
     event = fluid_midi_parser_parse(parser, val);
@@ -128,9 +130,10 @@ static void mf_process_samples(int nframes)
 static void process_samples(long long now, int min_buf)
 {
     int nframes, retry;
-    double period;
-    if (mf_time_cur == 0)
+    double period, mf_time_cur;
+    if (!output_running)
 	return;
+    mf_time_cur = pcm_time_lock(pcm_stream);
     do {
 	retry = 0;
 	period = pcm_frame_period_us(flus_srate);
@@ -141,11 +144,12 @@ static void process_samples(long long now, int min_buf)
 	}
 	if (nframes >= min_buf) {
 	    mf_process_samples(nframes);
-	    mf_time_cur += nframes * period;
+	    mf_time_cur = pcm_get_stream_time(pcm_stream);
 	    if (debug_level('S') >= 5)
 		S_printf("MIDI: processed %i samples with fluidsynth\n", nframes);
 	}
     } while (retry);
+    pcm_time_unlock(pcm_stream);
 }
 
 static void midoflus_stop(void)
@@ -162,12 +166,12 @@ static void midoflus_stop(void)
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
-    mf_time_cur = 0;
+    output_running = 0;
 }
 
 static void midoflus_timer(void)
 {
-    if (mf_time_cur == 0)
+    if (!output_running)
 	return;
     process_samples(GETusTIME(0), FLUS_MIN_BUF);
 }
