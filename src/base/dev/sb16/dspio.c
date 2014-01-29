@@ -549,15 +549,8 @@ static void dspio_process_dma(struct dspio_state *state)
 		dma_cnt++;
 	    }
 	    if (!dspio_get_output_sample(state, &buf[i][j],
-		    state->dma.is16bit)) {
-		/* if speaker disabled but DMA is active, we write
-		 * silence to keep timing steady. */
-		if (!state->speaker && sb_dma_active())
-		    dma_get_silence(state->dma.samp_signed,
-			    state->dma.is16bit, &buf[i][j]);
-		else
-		    break;
-	    }
+		    state->dma.is16bit))
+		break;
 	}
 	if (j != state->dma.stereo + 1)
 	    break;
