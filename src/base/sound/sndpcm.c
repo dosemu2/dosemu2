@@ -72,10 +72,11 @@ static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, {0, 0} };
 struct stream {
     int channels;
     struct rng_s buffer;
+    int buf_cnt;
     int state;
     int flags;
-    int stretch;
-    int prepared;
+    int stretch:1;
+    int prepared:1;
     double start_time;
     double stop_time;
     double stretch_per;
@@ -89,14 +90,17 @@ struct stream {
     int id;
 };
 
+#define MAX_STREAMS 10
+#define MAX_PLAYERS 10
 struct pcm_player_wr {
     struct pcm_player player;
     double time;
-    int opened;
+    int opened:1;
+    int last_cnt[MAX_STREAMS];
+    int last_idx[MAX_STREAMS];
+    double last_tstamp[MAX_STREAMS];
 };
 
-#define MAX_STREAMS 10
-#define MAX_PLAYERS 10
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
     int num_streams;
@@ -144,6 +148,7 @@ int pcm_init(void)
 
 static void pcm_clear_stream(int strm_idx)
 {
+    pcm.stream[strm_idx].buf_cnt += rng_count(&pcm.stream[strm_idx].buffer);
     rng_clear(&pcm.stream[strm_idx].buffer);
 }
 
@@ -168,6 +173,7 @@ int pcm_allocate_stream(int channels, char *name, int id)
     index = pcm.num_streams++;
     rng_init(&pcm.stream[index].buffer, SND_BUFFER_SIZE,
 	     sizeof(struct sample));
+    pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].channels = channels;
     pcm.stream[index].name = name;
     pcm.stream[index].id = id;
@@ -672,6 +678,7 @@ static void pcm_remove_samples(double time)
 		    GUARD_SAMPS, &s);
 	    if (s.tstamp > time)
 		break;
+	    pcm.stream[i].buf_cnt += pcm.stream[i].channels;
 	    rng_remove(&pcm.stream[i].buffer, pcm.stream[i].channels, NULL);
 	}
     }
@@ -735,13 +742,50 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
     }
 }
 
+static void calc_idxs(struct pcm_player_wr *pl, int idxs[MAX_STREAMS])
+{
+    int i;
+    for (i = 0; i < pcm.num_streams; i++) {
+	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+	    continue;
+	assert(pcm.stream[i].buf_cnt >= pl->last_cnt[i]);
+	if (pl->last_idx[i] > pcm.stream[i].buf_cnt - pl->last_cnt[i]) {
+	    struct sample s;
+	    idxs[i] = pl->last_idx[i] - (pcm.stream[i].buf_cnt -
+		    pl->last_cnt[i]);
+	    assert(idxs[i] <= rng_count(&pcm.stream[i].buffer));
+	    rng_peek(&pcm.stream[i].buffer, idxs[i] - 1, &s);
+	    assert(pl->last_tstamp[i] == s.tstamp);
+	} else {
+	    idxs[i] = 0;
+	}
+    }
+}
+
+static void save_idxs(struct pcm_player_wr *pl, int idxs[MAX_STREAMS])
+{
+    int i;
+    for (i = 0; i < pcm.num_streams; i++) {
+	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+	    continue;
+	assert(idxs[i] <= rng_count(&pcm.stream[i].buffer));
+	if (idxs[i] > 0) {
+	    struct sample s;
+	    rng_peek(&pcm.stream[i].buffer, idxs[i] - 1, &s);
+	    pl->last_tstamp[i] = s.tstamp;
+	}
+	pl->last_cnt[i] = pcm.stream[i].buf_cnt;
+	pl->last_idx[i] = idxs[i];
+    }
+}
+
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 			   struct player_params *params)
 {
     int idxs[MAX_STREAMS], out_idx, handle, id;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
-    struct sample samp[MAX_STREAMS][2];
+    struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
 
     now = GETusTIME(0);
     handle = params->handle;
@@ -783,7 +827,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     pthread_mutex_lock(&pcm.strm_mtx);
     frame_period = pcm_frame_period_us(params->rate);
     time = start_time;
-    memset(idxs, 0, sizeof(idxs));
+    calc_idxs(&pcm.players[handle], idxs);
 
     for (out_idx = 0; out_idx < nframes; out_idx++) {
 	pcm_get_samples(time, samp, idxs, params->channels, id);
@@ -794,6 +838,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	error("PCM: time=%f stop_time=%f p=%f\n",
 		    time, stop_time, frame_period);
     pcm.players[handle].time = stop_time;
+    save_idxs(&pcm.players[handle], idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
     if (out_idx != nframes)
@@ -856,6 +901,10 @@ void pcm_reset_player(int handle)
 {
     long long now = GETusTIME(0);
     pcm.players[handle].time = now - INIT_BUFFER_DELAY;
+    memset(pcm.players[handle].last_idx, 0,
+	    sizeof(pcm.players[handle].last_idx));
+    memset(pcm.players[handle].last_cnt, 0,
+	    sizeof(pcm.players[handle].last_cnt));
 }
 
 void pcm_timer(void)
