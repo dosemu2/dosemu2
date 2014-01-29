@@ -43,9 +43,6 @@
 #define ADLIB_CHANNELS SNDBUF_CHANS
 
 #define ADLIB_THRESHOLD 20000000
-#define ADLIB_RUNNING() (adlib_time_cur > 0)
-#define ADLIB_RUN() (adlib_time_cur = GETusTIME(0))
-#define ADLIB_STOP() (adlib_time_cur = 0)
 
 static AdlibTimer opl3_timers[2];
 #define OPL3_SAMPLE_BITS 16
@@ -55,7 +52,8 @@ typedef Bit16s OPL3SAMPLE;
 typedef Bit8s OPL3SAMPLE;
 #endif
 static int adlib_strm;
-static double adlib_time_cur, adlib_time_last;
+static int adlib_running;
+static double adlib_time_last;
 #if OPL3_SAMPLE_BITS==16
 static const int opl3_format = PCM_FORMAT_S16_LE;
 #else
@@ -97,8 +95,10 @@ static void adlib_io_write(ioport_t port, Bit8u value)
 
 static void opl3_update(void)
 {
-    if (!ADLIB_RUNNING())
-	ADLIB_RUN();
+    if (!adlib_running) {
+	pcm_prepare_stream(adlib_strm);
+	adlib_running = 1;
+    }
     run_new_sb();
 }
 
@@ -134,7 +134,7 @@ void adlib_init(void)
 
 void adlib_reset(void)
 {
-    adlib_time_cur = adlib_time_last = 0;
+    adlib_time_last = 0;
 }
 
 void adlib_done(void)
@@ -152,15 +152,20 @@ static void adlib_process_samples(int nframes)
 void adlib_timer(void)
 {
     int i, nframes;
-    double period;
+    double period, adlib_time_cur;
     long long now;
     int time_adj;
 
+    if (!adlib_running)
+	return;
+    adlib_time_cur = pcm_time_lock(adlib_strm);
     if (adlib_time_cur - adlib_time_last > ADLIB_THRESHOLD) {
-	ADLIB_STOP();
 	pcm_flush(adlib_strm);
+	adlib_running = 0;
+	pcm_time_unlock(adlib_strm);
+	return;
     }
-    if (ADLIB_RUNNING()) do {
+    if (adlib_running) do {
 	now = GETusTIME(0);
 	time_adj = 0;
 	/* find the closest timer */
@@ -181,7 +186,7 @@ void adlib_timer(void)
 	/* if time was adjusted, ignore MIN_BUF */
 	if (nframes >= OPL3_MIN_BUF || (nframes && time_adj)) {
 	    adlib_process_samples(nframes);
-	    adlib_time_cur += nframes * period;
+	    adlib_time_cur = pcm_get_stream_time(adlib_strm);
 	    if (debug_level('S') >= 7)
 		S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
@@ -190,4 +195,5 @@ void adlib_timer(void)
 	    AdlibTimer__Update(&opl3_timers[i], now);
 	}
     } while (time_adj);
+    pcm_time_unlock(adlib_strm);
 }
