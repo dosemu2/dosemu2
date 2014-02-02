@@ -153,21 +153,35 @@ static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
 }
 #endif
 
+static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
+{
+  unsigned long p;
+  if (is_32)
+    p = GetSegmentBase(sel) + reg;
+  else
+    p = GetSegmentBase(sel) + LO_WORD(reg);
+  /* The address needs to wrap, also in 64-bit! */
+  return MEM_BASE32(p);
+}
+
 void *SEL_ADR(unsigned short sel, unsigned int reg)
 {
   if (!(sel & 0x0004)) {
     /* GDT */
     return (void *)(uintptr_t)reg;
-  } else {
-    unsigned char *p;
-    /* LDT */
-    if (Segments[sel>>3].is_32)
-      p = GetSegmentBaseAddress(sel) + reg;
-    else
-      p = GetSegmentBaseAddress(sel) + LO_WORD(reg);
-    /* The address needs to wrap, also in 64-bit! */
-    return (void *)(uintptr_t)(unsigned)(uintptr_t)p;
   }
+  /* LDT */
+  return SEL_ADR_LDT(sel, reg, Segments[sel>>3].is_32);
+}
+
+static void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg)
+{
+  if (!(sel & 0x0004)) {
+    /* GDT */
+    dosemu_error("GDT not allowed\n");
+    return (void *)(uintptr_t)reg;
+  }
+  return SEL_ADR_LDT(sel, reg, DPMI_CLIENT.is_32);
 }
 
 int get_ldt(void *buffer)
@@ -1269,7 +1283,7 @@ static void *enter_lpms(struct sigcontext_struct *scp)
   _esp = D_16_32(pmstack_esp);
   DPMI_CLIENT.in_dpmi_pm_stack++;
 
-  return GetSegmentBaseAddress(pmstack_sel) + D_16_32(pmstack_esp);
+  return SEL_ADR_CLNT(pmstack_sel, pmstack_esp);
 }
 
 static void leave_lpms(struct sigcontext_struct *scp)
@@ -1407,7 +1421,7 @@ void fake_pm_int(void)
 
 static void get_ext_API(struct sigcontext_struct *scp)
 {
-      char *ptr = (char *) (GetSegmentBaseAddress(_ds) + D_16_32(_esi));
+      char *ptr = SEL_ADR_CLNT(_ds, _esi);
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
       if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
         if (config.pm_dos_api) {
@@ -3747,8 +3761,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 	  struct RealModeCallStructure *rmreg;
 
-	  rmreg = (struct RealModeCallStructure *)(GetSegmentBaseAddress(_es)
-		                + D_16_32(_edi));
+	  rmreg = SEL_ADR_CLNT(_es, _edi);
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from client realmode callback procedure, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
