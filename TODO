@@ -17,4 +17,5 @@ TODO items for the next release:
   the old sound code
 
 - look into bug 517 which discusses the regressions added by
-  allowing non-fixed lowmem mappings
+  allowing non-fixed lowmem mappings, cpuemu updates, sound updates
+  and the other recently added regressions
