@@ -551,6 +551,10 @@ static void dspio_process_dma(struct dspio_state *state)
 	    if (!dspio_get_output_sample(state, &buf[i][j],
 		    state->dma.is16bit))
 		break;
+	    /* if speaker disabled, overwrite DMA data with silence */
+	    if (!state->speaker)
+		dma_get_silence(state->dma.samp_signed,
+			state->dma.is16bit, &buf[i][j]);
 	}
 	if (j != state->dma.stereo + 1)
 	    break;
