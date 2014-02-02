@@ -1711,11 +1711,11 @@ static void do_int31(struct sigcontext_struct *scp)
 /* old way to use DPMI API, as per specs */
 #define API_32(s) DPMI_CLIENT.is_32
 #else
-/* allow 16bit clients to access the 32bit API. DPMI extension. */
+/* allow 16bit clients to access the 32bit API. dosemu's DPMI extension. */
 #define API_32(s) (Segments[(s)->cs >> 3].is_32 || DPMI_CLIENT.is_32)
 #endif
-
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
+#define SEL_ADR_X(s, a) SEL_ADR_LDT(s, a, API_32(scp))
 
   if (debug_level('M')) {
     D_printf("DPMI: int31, ax=%04x, ebx=%08x, ecx=%08x, edx=%08x\n",
@@ -1798,12 +1798,10 @@ static void do_int31(struct sigcontext_struct *scp)
     }
     break;
   case 0x000b:
-    GetDescriptor(_LWORD(ebx),
-	(unsigned int *) (GetSegmentBaseAddress(_es) + API_16_32(_edi)));
+    GetDescriptor(_LWORD(ebx), SEL_ADR_X(_es, _edi));
     break;
   case 0x000c:
-    if (SetDescriptor(_LWORD(ebx),
-	  (unsigned int *) (GetSegmentBaseAddress(_es) + API_16_32(_edi)))) {
+    if (SetDescriptor(_LWORD(ebx), SEL_ADR_X(_es, _edi))) {
       _LWORD(eax) = 0x8022;
       _eflags |= CF;
     }
@@ -1816,8 +1814,7 @@ static void do_int31(struct sigcontext_struct *scp)
     break;
   case 0x000e: {
       int i;
-      struct sel_desc_s *array = (struct sel_desc_s *) (GetSegmentBaseAddress(_es) +
-			API_16_32(_edi));
+      struct sel_desc_s *array = SEL_ADR_X(_es, _edi);
       for (i = 0; i < _LWORD(ecx); i++) {
         if (GetDescriptor(array[i].selector, array[i].descriptor) == -1)
 	  break;
@@ -1831,8 +1828,7 @@ static void do_int31(struct sigcontext_struct *scp)
     break;
   case 0x000f: {
       int i;
-      struct sel_desc_s *array = (struct sel_desc_s *) (GetSegmentBaseAddress(_es) +
-			API_16_32(_edi));
+      struct sel_desc_s *array = SEL_ADR_X(_es, _edi);
       for (i = 0; i < _LWORD(ecx); i++) {
         if (SetDescriptor(array[i].selector, array[i].descriptor) == -1)
 	  break;
@@ -1959,8 +1955,7 @@ err:
   case 0x0302:	/* Call Real Mode Procedure With Iret Frame */
     save_rm_regs();
     {
-      struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
-        (GetSegmentBaseAddress(_es) + API_16_32(_edi));
+      struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
       us *ssp;
       unsigned int rm_ssp, rm_sp;
       int i;
@@ -2043,10 +2038,7 @@ err:
        DPMI_CLIENT.realModeCallBack[i].offset = API_16_32(_esi);
        DPMI_CLIENT.realModeCallBack[i].rmreg_selector = _es;
        DPMI_CLIENT.realModeCallBack[i].rmreg_offset = API_16_32(_edi);
-       DPMI_CLIENT.realModeCallBack[i].rmreg =
-	                  (struct RealModeCallStructure *)
-	                         (GetSegmentBaseAddress(_es) +
-	                         API_16_32(_edi));
+       DPMI_CLIENT.realModeCallBack[i].rmreg = SEL_ADR_X(_es, _edi);
        _LWORD(ecx) = DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD;
        _LWORD(edx) = i;
        /* Install the realmode callback, 0xf4=hlt */
@@ -2108,8 +2100,7 @@ err:
     break;
 
   case 0x0500:
-    GetFreeMemoryInformation( (unsigned int *)
-	(GetSegmentBaseAddress(_es) + API_16_32(_edi)));
+    GetFreeMemoryInformation(SEL_ADR_X(_es, _edi));
     break;
   case 0x0501:	/* Allocate Memory Block */
     {
@@ -2225,7 +2216,7 @@ err:
 	old_len = old_block->size;
 
 	if(_edx & 0x2) {		/* update descriptor required */
-	    sel_array = (unsigned short *)(GetSegmentBaseAddress(_es) + API_16_32(_ebx));
+	    sel_array = SEL_ADR_X(_es, _ebx);
 	    D_printf("DPMI: update descriptor required\n");
 	}
 	block = DPMIreallocLinear(handle, newsize, _edx & 1);
@@ -2359,8 +2350,7 @@ err:
 
   case 0x0c00:	/* Install Resident Service Provider Callback */
     {
-      struct RSPcall_s *callback = (struct RSPcall_s *)
-        ((unsigned char *)GetSegmentBaseAddress(_es) + API_16_32(_edi));
+      struct RSPcall_s *callback = SEL_ADR_X(_es, _edi);
       if (RSP_num >= DPMI_MAX_CLIENTS) {
         _eflags |= CF;
 	_LWORD(eax) = 0x8015;
