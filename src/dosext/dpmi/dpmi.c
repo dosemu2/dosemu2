@@ -174,7 +174,7 @@ void *SEL_ADR(unsigned short sel, unsigned int reg)
   return SEL_ADR_LDT(sel, reg, Segments[sel>>3].is_32);
 }
 
-static void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg)
+void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg)
 {
   if (!(sel & 0x0004)) {
     /* GDT */
@@ -974,7 +974,7 @@ FI;
   return 1;
 }
 
-void *GetSegmentBaseAddress(unsigned short selector)
+static void *GetSegmentBaseAddress(unsigned short selector)
 {
   if (!ValidAndUsedSelector(selector))
     return 0;

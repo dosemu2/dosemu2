@@ -43,6 +43,7 @@ void direct_ldt_write(int offset, int length, char *buffer);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 void *SEL_ADR(unsigned short sel, unsigned int reg);
+void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg);
 
 #define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
 
@@ -198,7 +199,6 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 void GetFreeMemoryInformation(unsigned int *lp);
 int GetDescriptor(us selector, unsigned int *lp);
 void *dpmi_GetSegmentBaseAddress(unsigned short selector);
-void *GetSegmentBaseAddress(unsigned short);
 unsigned int GetSegmentBase(unsigned short);
 unsigned int GetSegmentLimit(unsigned short);
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu);

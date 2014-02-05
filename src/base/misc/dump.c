@@ -181,7 +181,7 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
     }
     else {
       /* LDT */
-      csp2 = (GetSegmentBaseAddress(_cs) + _eip) - 10;
+      csp2 = SEL_ADR(_cs, _eip) - 10;
     }
     /* We have a problem here, if we get a page fault or any kind of
      * 'not present' error and then we try accessing the code/stack
@@ -212,10 +212,7 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
       }
       else {
         /* LDT */
-        if (Segments[_ss>>3].is_32)
-	  ssp2 = (GetSegmentBaseAddress(_ss) + _esp ) - 10;
-        else
-	  ssp2 = (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10;
+	ssp2 = SEL_ADR(_ss, _esp) - 10;
       }
       sprintf(buf, "%sSTACK: ", buf);
       if (!(_ss & 0x0004) ||
