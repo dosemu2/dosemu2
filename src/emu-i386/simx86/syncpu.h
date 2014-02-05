@@ -99,17 +99,17 @@ typedef struct {
 /* ------------------------------------------------ */
 /*58*/	unsigned short fpuc, fpus;
 /*5c*/	unsigned short fpstt, fptag;
-/*60*/	unsigned int _fni[3];
 /* ------------------------------------------------ */
-/*6c*/	unsigned short sigalrm_pending, sigprof_pending;
-/*70*/	int err;
-/*74*/	unsigned int StackMask;
-/*78*/ 	unsigned int mem_base;
+/*60*/	unsigned short sigalrm_pending, sigprof_pending;
+/*64*/	unsigned int StackMask;
+/*68*/ 	unsigned int mem_base;
 	/* begin of cr array */
-/*7c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
+/*6c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
-/*90*/	unsigned int tr[2];
+/*80*/	unsigned int end_mark[0];
+	unsigned int tr[2];
 
+	int err;
 	unsigned int mode;
 	unsigned int sreg1;
 	unsigned int dreg1;
@@ -166,7 +166,7 @@ extern union SynCPU TheCPU_union;
 #define TheCPU TheCPU_union.s
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
-#define Ofs_END		(int)(offsetof(SynCPU,cr[1])-SCBASE)
+#define Ofs_END		(int)(offsetof(SynCPU,end_mark)-SCBASE)
 
 #define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+(o))
 
@@ -198,7 +198,6 @@ extern union SynCPU TheCPU_union;
 #define Ofs_FS		(char)(offsetof(SynCPU,fs)-SCBASE)
 #define Ofs_GS		(char)(offsetof(SynCPU,gs)-SCBASE)
 #define Ofs_EFLAGS	(char)(offsetof(SynCPU,eflags)-SCBASE)
-#define Ofs_ERR		(char)(offsetof(SynCPU,err)-SCBASE)
 #define Ofs_CR0		(char)(offsetof(SynCPU,cr[0])-SCBASE)
 #define Ofs_CR2		(char)(offsetof(SynCPU,cr2)-SCBASE)
 #define Ofs_STACKM	(char)(offsetof(SynCPU,StackMask)-SCBASE)
