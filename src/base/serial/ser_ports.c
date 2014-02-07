@@ -386,13 +386,11 @@ static int get_rx(int num)
 
   /* Get byte from internal receive queue */
   val = com[num].rx_buf[com[num].rx_buf_start++];
-  /* Update receive queue pointer and number of chars waiting */
-  if (!FIFO_ENABLED(num) || RX_BUF_BYTES(num) < com[num].rx_fifo_trigger) {
-    /* Clear data waiting status and interrupt condition flag */
-    clear_int_cond(num, RX_INTR);
-    /* and see if more to read */
-    receive_engine(num);
-  }
+  /* Clear data waiting status and interrupt condition flag */
+  clear_int_cond(num, RX_INTR);
+  /* and see if more to read */
+  receive_engine(num);
+
   if (!RX_BUF_BYTES(num))
     com[num].LSR &= ~UART_LSR_DR;
 
