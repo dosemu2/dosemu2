@@ -2455,9 +2455,7 @@ void do_periodic_stuff(void)
     /* dont go to poll the I/O if <10mS elapsed */
     if (GETusTIME(0) - last_time >= 10000) {
 	last_time = GETusTIME(0);
-	io_select(fds_sigio);	/* we need this in order to catch lost SIGIOs */
-	if (not_use_sigio)
-	    io_select(fds_no_sigio);
+	io_select();	/* we need this in order to catch lost SIGIOs */
 
 	/* catch user hooks here */
 	if (uhook_fdin != -1) uhook_poll();

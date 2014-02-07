@@ -438,10 +438,6 @@ emulate(int argc, char **argv)
     xms_init();			/* initialize xms */
     dpmi_setup();
 
-    if (not_use_sigio)
-	k_printf("Atleast 1 NON-SIGIO file handle in use.\n");
-    else
-	k_printf("No NON-SIGIO file handles in use.\n");
     g_printf("EMULATE\n");
 
     fflush(stdout);

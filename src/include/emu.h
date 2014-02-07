@@ -64,8 +64,6 @@ EXTERN union vm86plus_union vm86u INIT ( {{
 
 int signal_pending(void);
 EXTERN volatile int fault_cnt INIT(0);
-EXTERN fd_set fds_sigio, fds_no_sigio;
-EXTERN unsigned int not_use_sigio INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
 EXTERN int running_kversion INIT(0);
@@ -375,7 +373,7 @@ EXTERN int int10(void);
 EXTERN int int13(void);
 EXTERN int int16(void);
 EXTERN int int17(void);
-EXTERN void io_select(fd_set);
+EXTERN void io_select(void);
 EXTERN void io_select_init(void);
 EXTERN int pd_receive_packet(void);
 EXTERN int printer_tick(u_long);

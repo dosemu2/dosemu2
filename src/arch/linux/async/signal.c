@@ -834,9 +834,7 @@ static void SIGALRM_call(void *arg)
  }
 #endif
 
-  io_select(fds_sigio);	/* we need this in order to catch lost SIGIOs */
-  if (not_use_sigio)
-    io_select(fds_no_sigio);
+  io_select();	/* we need this in order to catch lost SIGIOs */
 
   alarm_idle();
 
@@ -917,7 +915,7 @@ void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len,
  */
 static void SIGIO_call(void *arg){
   /* Call select to see if any I/O is ready on devices */
-  io_select(fds_sigio);
+  io_select();
 }
 
 #ifdef __linux__

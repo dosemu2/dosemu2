@@ -76,6 +76,7 @@ struct io_callback_s {
   void *arg;
 };
 struct io_callback_s io_callback_func[MAX_FD];
+static fd_set fds_sigio;
 
 #if defined(SIG)
 static inline int process_interrupt(SillyG_t *sg)
@@ -115,7 +116,7 @@ static inline void irq_select(void)
 static int numselectfd= 0;
 
 void
-io_select(fd_set fds)
+io_select(void)
 {
   int selrtn, i;
   struct timeval tvptr;
@@ -127,7 +128,7 @@ io_select(fd_set fds)
   irq_select();
 #endif
 
-  while ( ((selrtn = select(numselectfd, &fds, NULL, NULL, &tvptr)) == -1)
+  while ( ((selrtn = select(numselectfd, &fds_sigio, NULL, NULL, &tvptr)) == -1)
         && (errno == EINTR)) {
     tvptr.tv_sec=0L;
     tvptr.tv_usec=0L;
@@ -145,7 +146,7 @@ io_select(fd_set fds)
 
     default:			/* has at least 1 descriptor ready */
       for(i = 0; i < numselectfd; i++) {
-        if (FD_ISSET(i, &fds) && io_callback_func[i].func) {
+        if (FD_ISSET(i, &fds_sigio) && io_callback_func[i].func) {
 	  g_printf("GEN: fd %i has data\n", i);
 	  io_callback_func[i].func(io_callback_func[i].arg);
 	}
@@ -172,7 +173,6 @@ io_select_init(void) {
 sigset_t set;
 int i;
     FD_ZERO(&fds_sigio);	/* initialize both fd_sets to 0 */
-    FD_ZERO(&fds_no_sigio);
     for (i = 0; i < MAX_FD; i++)
       io_callback_func[i].func = NULL;
     /* block SIGIO/SIGALRM/SIG_ACQUIRE/SIG_RELEASE until they are set to
