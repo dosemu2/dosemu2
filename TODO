@@ -19,3 +19,5 @@ TODO items for the next release:
 - look into bug 517 which discusses the regressions added by
   allowing non-fixed lowmem mappings, cpuemu updates, sound updates
   and the other recently added regressions
+
+- resurrect irqpassing on x86-64
