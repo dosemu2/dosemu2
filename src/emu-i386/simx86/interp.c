@@ -245,6 +245,10 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 		    leavedos(0xebfe);
 		}
 #ifdef HOST_ARCH_X86
+		/* note: nojumps is disabled by default -- while it seems
+		   an easy optimization, it forces re-JITting of the code
+		   at the jmp's target, instead of using the node linker
+		   to see if there is already code there */
 #ifdef NOJUMPS
 #if !defined(SINGLESTEP)
 		if (!(EFLAGS & TF) && !CONFIG_CPUSIM &&

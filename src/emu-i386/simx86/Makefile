@@ -16,7 +16,7 @@ CFILES = trees.c interp.c cpu-emu.c modrm-gen.c codegen-x86.c fp87-x86.c \
 	memory.c tables.c
 ALL_CPPFLAGS +=-I$(EM86DIR) $(EM86FLG)
 
-ALL_CPPFLAGS +=-DNOJUMPS
+#ALL_CPPFLAGS +=-DNOJUMPS
 
 SFILES=
 ALL=$(CFILES) $(SFILES)
