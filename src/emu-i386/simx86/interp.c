@@ -294,7 +294,6 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
 static inline unsigned int FindExecCode(unsigned int PC)
 {
-	unsigned int temp;
 	int mode = TheCPU.mode;
 	TNode *G;
 
@@ -304,8 +303,8 @@ static inline unsigned int FindExecCode(unsigned int PC)
 	 * any signal processing. Jumps are defined as
 	 * a 'descheduling point' for checking signals.
 	 */
-	temp = 100;	/* safety count */
-	while (temp && ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC))) {
+	while (!(CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK)) &&
+	       ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC))) {
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
 		if (CurrIMeta>0) {		// open code?
@@ -321,10 +320,6 @@ static inline unsigned int FindExecCode(unsigned int PC)
 #endif
 		P0 = PC = Exec_x86(G, __LINE__);
 		if (TheCPU.err) return PC;
-		/* on jumps, exit to process signals */
-		if (InterOps[Fetch(PC)]&0x80) break;
-		/* if all fails, stop infinite loops here */
-		temp--;
 	}
 	return PC;
 }
