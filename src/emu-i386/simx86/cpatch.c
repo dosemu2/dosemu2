@@ -42,25 +42,25 @@
 #define asmlinkage static __attribute__((used))
 #endif
 
-int s_munprotect(unsigned int addr)
+int s_munprotect(unsigned int addr, size_t len)
 {
 	if (debug_level('e')>3) e_printf("\tS_MUNPROT %08x\n",addr);
-	return e_check_munprotect(addr);
+	return e_check_munprotect(addr, len);
 }
 
-int s_mprotect(unsigned int addr)
+int s_mprotect(unsigned int addr, size_t len)
 {
 	if (debug_level('e')>3) e_printf("\tS_MPROT   %08x\n",addr);
-	return e_mprotect(addr,0);
+	return e_mprotect(addr, len);
 }
 
 #ifdef HOST_ARCH_X86
 
-static int m_mprotect(unsigned int addr)
+static int m_mprotect(unsigned int addr, size_t len)
 {
 	if (debug_level('e')>3)
 	    e_printf("\tM_MPROT   %08x\n",addr);
-	return e_mprotect(addr,0);
+	return e_mprotect(addr, len);
 }
 
 /*
@@ -72,14 +72,14 @@ static int m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 		addr,eip,*((int *)(eip-3)));
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr, len))
-	    return e_check_munprotect(addr);
+	    return e_check_munprotect(addr, len);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
 	if (debug_level('e')>1)
 	    e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
 /*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
-	InvalidateSingleNode(addr, eip);
-	return e_check_munprotect(addr);
+	InvalidateNodePage(addr,len,eip,NULL);
+	return e_check_munprotect(addr, len);
 }
 
 static void r_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
@@ -184,19 +184,19 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 {
 	unsigned int addr = paddr - mem_base;
-	int ret = s_munprotect(addr);
+	int ret = s_munprotect(addr, 2);
 	WRITE_WORD(addr, value);
 	if (ret & 1)
-		s_mprotect(addr);
+		s_mprotect(addr, 2);
 }
 
 asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 {
 	unsigned int addr = paddr - mem_base;
-	int ret = s_munprotect(addr);
+	int ret = s_munprotect(addr, 4);
 	WRITE_DWORD(addr, value);
 	if (ret & 1)
-		s_mprotect(addr);
+		s_mprotect(addr, 4);
 }
 
 asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
@@ -211,7 +211,7 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 	   we must use mov %al,(%edi) (%rdi for x86_64) */
 	asm("movb %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
-		m_mprotect(addr);
+		m_mprotect(addr, 1);
 }
 
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
@@ -223,7 +223,7 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 	p = LINEAR2UNIX(addr);
 	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
-		m_mprotect(addr);
+		m_mprotect(addr, 2);
 }
 
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
@@ -235,7 +235,7 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 	p = LINEAR2UNIX(addr);
 	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 	if (ret & 1)
-		m_mprotect(addr);
+		m_mprotect(addr, 4);
 }
 
 #ifdef __i386__

@@ -292,11 +292,11 @@ int e_munprotect(unsigned int addr, size_t len)
 
 /* check if the address is aliased to a non protected page, and if it is,
    do not try to unprotect it */
-int e_check_munprotect(unsigned int addr)
+int e_check_munprotect(unsigned int addr, size_t len)
 {
 	if (LINEAR2UNIX(addr) != &mem_base[addr])
 		return 0;
-	return e_munprotect(addr,0);
+	return e_munprotect(addr, len);
 }
 
 

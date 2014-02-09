@@ -1181,7 +1181,7 @@ int e_vm86(void)
    || ((REG(cs)&0xf000)==config.vbios_seg)
 #endif
    ) {
-	s_munprotect(0);
+	s_munprotect(0, 1);
 	InvalidateSegs();
 	return true_vm86(&vm86s);
   }
