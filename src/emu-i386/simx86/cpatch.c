@@ -438,18 +438,27 @@ int Cpatch(struct sigcontext_struct *scp)
 
     if (*p==0x66) w16=1,p++; else w16=0;
     v = *((int *)p) & 0xffffff;
-    if (v==0x0e0489) {		// stack: never fail
+    while (v==0x0e0489) {		// stack: never fail
 	// mov %%{e}ax,(%%esi,%%ecx,1)
 	// we have a sequence:	66 89 04 0e
 	//		or	89 04 0e
-	if (debug_level('e')>1) e_printf("### Stack patch at %p\n",eip);
+	if (debug_level('e')>1) e_printf("### Stack patch at %p\n",p);
 	if (w16) {
-	    p--; JSRPATCH(p,Ofs_stub_stk_16); p[3] = 0x90;
+	    p--; JSRPATCH(p,Ofs_stub_stk_16); p[3] = 0x90; p+=4;
 	}
 	else {
-	    JSRPATCH(p,Ofs_stub_stk_32);
+	    JSRPATCH(p,Ofs_stub_stk_32); p+=3;
 	}
-	return 1;
+	/* check for optimized multiple register push */
+	if (p[0]==0x89) return 1; //O_PUSH3
+	p += 9;
+	if (*p==0x66) w16=1,p++; else w16=0;
+	v = *((int *)p) & 0xffffff;
+	/* extra check: should not fail */
+	if (v!=0x0e0489) {
+	    dbug_printf("CPUEMU: stack patch failure, fix source code!\n");
+	    return 1;
+	}
     }
     if (v==0x900788) {		// movb %%al,(%%edi)
 	// we have a sequence:	88 07 90
