@@ -46,14 +46,14 @@
 #include "codegen.h"
 #include "dpmi.h"
 
-#define CGRAN		4		/* 2^n */
+#define CGRAN		0		/* 2^n */
 #define CGRMASK		(0xfffff>>CGRAN)
 
 typedef struct _mpmap {
 	struct _mpmap *next;
 	int mega;
 	unsigned char pagemap[32];	/* (32*8)=256 pages *4096 = 1M */
-	unsigned int subpage[0x100000>>(CGRAN+5)];	/* 16-byte granularity, 64k bits */
+	unsigned int subpage[0x100000>>(CGRAN+5)];	/* 2^CGRAN-byte granularity, 1M/2^CGRAN bits */
 } tMpMap;
 
 static tMpMap *MpH = NULL;
@@ -205,10 +205,10 @@ static void e_resetonepagemarks(unsigned int addr)
 	tMpMap *M;
 
 	M = FindM(addr); if (M==NULL) return;
-	/* reset all 256 bits=8 longs for the page */
-	idx = ((addr >> PAGE_SHIFT) & 255) << 3;
-	if (debug_level('e')>1) e_printf("UNMARK 256 bits at %08x (long=%x)\n",addr,idx);
-	for (i=0; i<8; i++) M->subpage[idx++] = 0;
+	/* reset all n bits=n/32 longs for the page */
+	idx = ((addr >> PAGE_SHIFT) & 255) << (7-CGRAN);
+	if (debug_level('e')>1) e_printf("UNMARK %d bits at %08x (long=%x)\n",4096>>CGRAN,addr,idx);
+	for (i=0; i<(128>>CGRAN); i++) M->subpage[idx++] = 0;
 }
 
 void e_resetpagemarks(unsigned int addr, size_t len)
