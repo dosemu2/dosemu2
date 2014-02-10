@@ -181,10 +181,10 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 	/* jump address for not taken branch, usually next instruction */
 	j_nt = d_nt + LONG_CS;
 
+	P1 = P2 + pskip;
 	switch(cond) {
 	case 0x00 ... 0x0f:
 	case 0x31:
-		P1 = P2 + pskip;
 		/* is there a jump after the condition? if yes, simplify */
 #if !defined(SINGLESTEP)
 		if (!(EFLAGS & TF)) {
@@ -288,7 +288,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 	/* we just generated a jump, so the returned eip (P1) is
 	 * (almost) always different from P2.
 	 */
-	P1 = CloseAndExec(P2, mode, __LINE__); NewNode=0;
+	P1 = CloseAndExec(P1, mode, __LINE__); NewNode=0;
 	return P1;
 }
 
