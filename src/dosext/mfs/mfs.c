@@ -3563,11 +3563,15 @@ dos_fs_redirect(state_t *state)
 	  int spc = 1;
 	  int bps = 512;
 
-	  while (tot > 65535) {
+	  while (spc < 64 && tot > 65535) {
 	    spc *= 2;
 	    free /= 2;
 	    tot  /= 2;
 	  }
+	  /* report no more than 32*1024*64K = 2G, even if some
+	     DOS version 7 can see more */
+	  if (tot>65535) tot=65535;
+	  if (free>65535) free=65535;
 
 	  /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
 	  SETWORD(&(state->eax), spc);
