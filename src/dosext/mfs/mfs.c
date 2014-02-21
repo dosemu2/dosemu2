@@ -3520,19 +3520,16 @@ dos_fs_redirect(state_t *state)
       sft_size(sft) = sft_position(sft);
     }
 
-    if (us_debug_level > Debug_Level_0) {
-      s_pos = lseek(fd, sft_position(sft), SEEK_SET);
-      if (s_pos < 0 && errno != ESPIPE) {
+    s_pos = lseek(fd, sft_position(sft), SEEK_SET);
+    if (s_pos < 0 && errno != ESPIPE) {
 	SETWORD(&(state->ecx), 0);
 	return (TRUE);
-      }
     }
     Debug0((dbg_fd, "Handle cnt %d\n",
 	    sft_handle_cnt(sft)));
     Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %#x, cnt = %x\n", (int)sft_size(sft), (int)sft_position(sft), dta, (int)cnt));
-    if (us_debug_level > Debug_Level_0) {
-      ret = dos_write(fd, dta, cnt);
-      if ((ret + s_pos) > sft_size(sft)) {
+    ret = dos_write(fd, dta, cnt);
+    if ((ret + s_pos) > sft_size(sft)) {
 	sft_size(sft) = ret + s_pos;
         if (ret == 0) {
           /* physically extend the file -- ftruncate() does not
@@ -3540,21 +3537,18 @@ dos_fs_redirect(state_t *state)
           lseek(fd, -1, SEEK_CUR);
           unix_write(fd, "", 1);
         }
-      }
     }
     Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
-    if (us_debug_level > Debug_Level_0)
-      if (ret < 0) {
+    if (ret < 0) {
 	Debug0((dbg_fd, "Write Failed : %s\n", strerror(errno)));
 	return (FALSE);
-      }
+    }
     Debug0((dbg_fd, "sft_position=%u, Sft_size=%u\n",
 	    sft_position(sft), sft_size(sft)));
     SETWORD(&(state->ecx), ret);
     sft_position(sft) += ret;
-    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
-    if (us_debug_level > Debug_Level_0)
-      return (TRUE);
+//    sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
+    return (TRUE);
   case GET_DISK_SPACE:
     {				/* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF

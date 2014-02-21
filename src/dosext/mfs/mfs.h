@@ -49,8 +49,6 @@ typedef unsigned char boolean_t;
 #define UNCHANGED 2
 #define REDIRECT 3
 
-#define us_debug_level 10
-#define Debug_Level_0 0
 #define dbg_fd -1
 
 #define d_Stub(arg1, s, a...)   d_printf("MFS: "s, ##a)
