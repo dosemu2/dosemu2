@@ -344,6 +344,11 @@ void ser_termios(int num)
   /* The following does the actual system calls to set the line parameters */
   cfsetispeed(&com[num].newset, baud);
   cfsetospeed(&com[num].newset, baud);
+  if (debug_level('s') > 7) {
+    s_printf("SER%d: iflag=%x oflag=%x cflag=%x lflag=%x\n", num,
+	    com[num].newset.c_iflag, com[num].newset.c_oflag,
+	    com[num].newset.c_cflag, com[num].newset.c_lflag);
+  }
   tcsetattr(com[num].fd, TCSADRAIN, &com[num].newset);
 
 #if 0
