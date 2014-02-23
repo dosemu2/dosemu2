@@ -207,6 +207,77 @@ static void async_serial_run(void *arg)
   serial_update(num);
 }
 
+static void ser_set_params(int num)
+{
+  int data = 0;
+  /* The following adjust raw line settings needed for DOSEMU serial     */
+  /* These defines are based on the Minicom 1.70 communications terminal */
+#if 1
+  com[num].newset.c_cflag |= (CLOCAL | CREAD);
+  com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
+  com[num].newset.c_iflag |= (IGNBRK | IGNPAR);
+  com[num].newset.c_iflag &= ~(BRKINT | PARMRK | INPCK | ISTRIP |
+                               INLCR | IGNCR | INLCR | ICRNL | IXON |
+                               IXOFF | IUCLC | IXANY | IMAXBEL);
+  com[num].newset.c_oflag &= ~(OPOST | OLCUC | ONLCR | OCRNL | ONOCR |
+                               ONLRET | OFILL | OFDEL);
+  com[num].newset.c_lflag &= ~(XCASE | ISIG | ICANON | IEXTEN | ECHO |
+                               ECHONL | ECHOE | ECHOK | ECHOPRT | ECHOCTL |
+                               ECHOKE | NOFLSH | TOSTOP);
+#else
+  /* These values should only be used as a last resort, or for testing */
+  com[num].newset.c_iflag = IGNBRK | IGNPAR;
+  com[num].newset.c_lflag = 0;
+  com[num].newset.c_oflag = 0;
+  com[num].newset.c_cflag |= CLOCAL | CREAD;
+  com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
+#endif
+
+#ifdef __linux__
+  com[num].newset.c_line = 0;
+#endif
+  com[num].newset.c_cc[VMIN] = 1;
+  com[num].newset.c_cc[VTIME] = 0;
+  if (com_cfg[num].system_rtscts)
+    com[num].newset.c_cflag |= CRTSCTS;
+  if (!com[num].fifo)
+    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
+
+  com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
+  com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
+  com[num].IER = 0;			/* Interrupt Enable Register */
+  com[num].IIR.mask = 0;		/* Interrupt I.D. Register */
+  com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
+  com[num].FCReg = 0; 			/* FIFO Control Register */
+  com[num].rx_fifo_trigger = 1;		/* Receive FIFO trigger level */
+  com[num].MCR = 0;			/* Modem Control Register */
+  com[num].LSR = UART_LSR_TEMT | UART_LSR_THRE;   /* Txmit Hold Reg Empty */
+  com[num].MSR = 0;			/* Modem Status Register */
+  com[num].SCR = 0; 			/* Scratch Register */
+  com[num].int_condition = TX_INTR;	/* FLAG: Pending xmit intr */
+  com[num].IIR.flags = 0;		/* FLAG: FIFO disabled */
+  com[num].ms_timer = 0;		/* Modem Status check timer */
+  com[num].rx_timer = 0;		/* Receive read() polling timer */
+  com[num].rx_timeout = 0;		/* FLAG: No Receive timeout */
+  com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
+  com[num].tx_cnt = 0;
+  uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
+
+  if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
+  ser_termios(num);			/* Set line settings now */
+  modstat_engine(num);
+
+  /* Pull down DTR and RTS.  This is the most natural for most comm */
+  /* devices including mice so that DTR rises during mouse init.    */
+  if (!com_cfg[num].pseudo) {
+    data = TIOCM_DTR | TIOCM_RTS;
+    if (ioctl(com[num].fd, TIOCMBIC, &data) && errno == EINVAL) {
+      s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", num);
+      com_cfg[num].pseudo = 1;
+    }
+  }
+}
+
 /* This function opens ONE serial port for DOSEMU.  Normally called only
  * by do_ser_init below.   [num = port, return = file descriptor]
  */
@@ -299,6 +370,7 @@ int ser_open(int num)
     }
    }
   }
+  ser_set_params(num);
 
   add_to_io_select(com[num].fd, async_serial_run, (void *)(long)num);
   return com[num].fd;
@@ -312,77 +384,6 @@ fail_unlock:
 
   com[num].fd = -2; // disable permanently
   return -1;
-}
-
-void ser_set_params(int num)
-{
-  int data = 0;
-  /* The following adjust raw line settings needed for DOSEMU serial     */
-  /* These defines are based on the Minicom 1.70 communications terminal */
-#if 1
-  com[num].newset.c_cflag |= (CLOCAL | CREAD);
-  com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
-  com[num].newset.c_iflag |= (IGNBRK | IGNPAR);
-  com[num].newset.c_iflag &= ~(BRKINT | PARMRK | INPCK | ISTRIP |
-                               INLCR | IGNCR | INLCR | ICRNL | IXON |
-                               IXOFF | IUCLC | IXANY | IMAXBEL);
-  com[num].newset.c_oflag &= ~(OPOST | OLCUC | ONLCR | OCRNL | ONOCR |
-                               ONLRET | OFILL | OFDEL);
-  com[num].newset.c_lflag &= ~(XCASE | ISIG | ICANON | IEXTEN | ECHO |
-                               ECHONL | ECHOE | ECHOK | ECHOPRT | ECHOCTL |
-                               ECHOKE | NOFLSH | TOSTOP);
-#else
-  /* These values should only be used as a last resort, or for testing */
-  com[num].newset.c_iflag = IGNBRK | IGNPAR;
-  com[num].newset.c_lflag = 0;
-  com[num].newset.c_oflag = 0;
-  com[num].newset.c_cflag |= CLOCAL | CREAD;
-  com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
-#endif
-
-#ifdef __linux__
-  com[num].newset.c_line = 0;
-#endif
-  com[num].newset.c_cc[VMIN] = 1;
-  com[num].newset.c_cc[VTIME] = 0;
-  if (com_cfg[num].system_rtscts)
-    com[num].newset.c_cflag |= CRTSCTS;
-  if (!com[num].fifo)
-    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
-
-  com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
-  com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
-  com[num].IER = 0;			/* Interrupt Enable Register */
-  com[num].IIR.mask = 0;		/* Interrupt I.D. Register */
-  com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
-  com[num].FCReg = 0; 			/* FIFO Control Register */
-  com[num].rx_fifo_trigger = 1;		/* Receive FIFO trigger level */
-  com[num].MCR = 0;			/* Modem Control Register */
-  com[num].LSR = UART_LSR_TEMT | UART_LSR_THRE;   /* Txmit Hold Reg Empty */
-  com[num].MSR = 0;			/* Modem Status Register */
-  com[num].SCR = 0; 			/* Scratch Register */
-  com[num].int_condition = TX_INTR;	/* FLAG: Pending xmit intr */
-  com[num].IIR.flags = 0;		/* FLAG: FIFO disabled */
-  com[num].ms_timer = 0;		/* Modem Status check timer */
-  com[num].rx_timer = 0;		/* Receive read() polling timer */
-  com[num].rx_timeout = 0;		/* FLAG: No Receive timeout */
-  com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
-  com[num].tx_cnt = 0;
-  uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
-
-  if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
-  ser_termios(num);			/* Set line settings now */
-  modstat_engine(num);
-
-  /* Pull down DTR and RTS.  This is the most natural for most comm */
-  /* devices including mice so that DTR rises during mouse init.    */
-  if (!com_cfg[num].pseudo) {
-    data = TIOCM_DTR | TIOCM_RTS;
-    if (ioctl(com[num].fd, TIOCMBIC, &data) && errno == EINVAL) {
-      s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", num);
-      com_cfg[num].pseudo = 1;
-    }
-  }
 }
 
 

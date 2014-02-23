@@ -795,10 +795,8 @@ do_serial_in(int num, ioport_t address)
   int val;
 
   /* delayed open happens here */
-  if (com[num].fd == -1) {
-    if (ser_open(num) >= 0)
-      ser_set_params(num);
-  }
+  if (com[num].fd == -1)
+    ser_open(num);
   if (com[num].fd < 0)
     return 0;
 
@@ -888,10 +886,8 @@ do_serial_out(int num, ioport_t address, int val)
 {
 
   /* delayed open happens here */
-  if (com[num].fd == -1) {
-    if (ser_open(num) >= 0)
-      ser_set_params(num);
-  }
+  if (com[num].fd == -1)
+    ser_open(num);
   if (com[num].fd < 0)
     return 0;
 
