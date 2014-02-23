@@ -280,6 +280,7 @@ int ser_open(int num)
 
   if (!com[num].fifo) {
    RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
+   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
 
    if (com_cfg[num].low_latency) {
     struct serial_struct ser_info;
