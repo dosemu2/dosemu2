@@ -4036,13 +4036,13 @@ dos_fs_redirect(state_t *state)
         return (FALSE);
       }
       fd = open_files[sft_fd(sft)].fd;
-      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%d\n",
-	      fd, offset));
+      Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%lld\n",
+	      fd, (long long)offset));
       if (offset > 0)
 	offset = -offset;
       offset = lseek(fd, offset, SEEK_END);
-      Debug0((dbg_fd, "Seek returns fs=%d ofs=%d\n",
-	      fd, offset));
+      Debug0((dbg_fd, "Seek returns fs=%d ofs=%lld\n",
+	      fd, (long long)offset));
       if (offset != -1) {
 	sft_position(sft) = offset;
 	SETWORD(&(state->edx), offset >> 16);

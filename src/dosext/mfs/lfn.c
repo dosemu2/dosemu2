@@ -18,6 +18,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <wctype.h>
+#include <sys/vfs.h>
 
 #include "emu.h"
 #include "mfs.h"
@@ -703,6 +704,7 @@ static int getfindnext(struct mfs_dirent *de, const struct lfndir *dir)
 	WRITE_BYTE(dest, get_dos_attr(fpath,st.st_mode,is_hidden(de->d_long_name)));
 	free(fpath);
 	WRITE_DWORD(dest + 0x20, st.st_size);
+	WRITE_DWORD(dest + 0x1c, st.st_size >> 32);
 	if (_SI == 1) {
 		u_short date, time;
 		d_printf("LFN: using DOS date/time\n");
@@ -890,6 +892,41 @@ static int mfs_lfn_(void)
 		case 0x07: /* set creation date/time, impossible in Linux */
 			return 1;
 		}
+		return 1;
+	} else if (_AH == 0x73) {
+		unsigned int spc = 1;
+		unsigned int bps = 512;
+		unsigned int free, tot;
+		struct statfs fsbuf;
+
+		if (_AL != 3) return 0;
+
+		d_printf("LFN: Get disk space %s\n", src);
+		drive = build_posix_path(fpath, src, 0);
+		if (drive < 0)
+			return drive + 2;
+		if (!find_file(fpath, &st, drive, NULL)|| !S_ISDIR(st.st_mode))
+			return lfn_error(PATH_NOT_FOUND);
+		if (statfs(fpath, &fsbuf) < 0)
+			return lfn_error(PATH_NOT_FOUND);
+
+		free = (fsbuf.f_bsize / 512) * fsbuf.f_bavail;
+		tot = (fsbuf.f_bsize / 512) * fsbuf.f_blocks;
+		WRITE_DWORD(dest, 0x24);
+		/* to give compatible value to mfs.c */
+		while (spc < 64 && tot > 65535) {
+			spc *= 2;
+			free /= 2;
+			tot  /= 2;
+		}
+		WRITE_DWORD(dest + 0x4, spc);
+		WRITE_DWORD(dest + 0x8, bps);
+		WRITE_DWORD(dest + 0xc, free);
+		WRITE_DWORD(dest + 0x10, tot);
+		WRITE_DWORD(dest + 0x14, free * spc);
+		WRITE_DWORD(dest + 0x18, tot * spc);
+		WRITE_DWORD(dest + 0x1c, free);
+		WRITE_DWORD(dest + 0x20, tot);
 		return 1;
 	}
 	/* else _AH == 0x71 */
