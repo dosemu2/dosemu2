@@ -637,7 +637,7 @@ put_lcr(int num, int val)
 
   /* obviously the writes to LCR (except BREAK state) would
    * invalidate the rx fifo. We clear tx too. */
-  if (changed & ~UART_LCR_SBC) {
+  if ((changed & ~UART_LCR_SBC) && !DLAB(num)) {
     uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
     ser_termios(num);			/* Sets new line settings */
   }
