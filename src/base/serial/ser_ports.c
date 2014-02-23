@@ -618,11 +618,9 @@ put_lcr(int num, int val)
 
   if (val & UART_LCR_DLAB) {		/* Is Baudrate Divisor Latch set? */
     s_printf("SER%d: LCR = 0x%x, DLAB high.\n", num, val);
-    com[num].DLAB = 1;			/* Baudrate Divisor Latch flag */
   }
   else {
     s_printf("SER%d: LCR = 0x%x, DLAB low.\n", num, val);
-    com[num].DLAB = 0;			/* Baudrate Divisor Latch flag */
   }
 
   if (changed & UART_LCR_SBC) {
@@ -807,7 +805,7 @@ do_serial_in(int num, ioport_t address)
   switch (address - com_cfg[num].base_port) {
   case UART_RX:		/* Read from Received Byte Register */
 /*case UART_DLL:*/      /* or Read from Baudrate Divisor Latch LSB */
-    if (com[num].DLAB) {	/* Is DLAB set? */
+    if (DLAB(num)) {	/* Is DLAB set? */
       val = com[num].dll;	/* Then read Divisor Latch LSB */
       if(s1_printf) s_printf("SER%d: Read Divisor LSB = 0x%x\n",num,val);
     }
@@ -819,7 +817,7 @@ do_serial_in(int num, ioport_t address)
 
   case UART_IER:	/* Read from Interrupt Enable Register */
 /*case UART_DLM:*/      /* or Read from Baudrate Divisor Latch MSB */
-    if (com[num].DLAB) {	/* Is DLAB set? */
+    if (DLAB(num)) {	/* Is DLAB set? */
       val = com[num].dlm;	/* Then read Divisor Latch MSB */
       if(s1_printf) s_printf("SER%d: Read Divisor MSB = 0x%x\n",num,val);
     }
@@ -900,7 +898,7 @@ do_serial_out(int num, ioport_t address, int val)
   switch (address - com_cfg[num].base_port) {
   case UART_TX:		/* Write to Transmit Holding Register */
 /*case UART_DLL:*/	/* or write to Baudrate Divisor Latch LSB */
-    if (com[num].DLAB) {	/* If DLAB set, */
+    if (DLAB(num)) {	/* If DLAB set, */
       com[num].dll = val;	/* then write to Divisor Latch LSB */
       if(s2_printf) s_printf("SER%d: Divisor LSB = 0x%02x\n", num, val);
     }
@@ -917,7 +915,7 @@ do_serial_out(int num, ioport_t address, int val)
 
   case UART_IER:	/* Write to Interrupt Enable Register */
 /*case UART_DLM:*/	/* or write to Baudrate Divisor Latch MSB */
-    if (com[num].DLAB) {	/* If DLAB set, */
+    if (DLAB(num)) {	/* If DLAB set, */
       com[num].dlm = val;	/* then write to Divisor Latch MSB */
       if(s2_printf) s_printf("SER%d: Divisor MSB = 0x%x\n", num, val);
     }

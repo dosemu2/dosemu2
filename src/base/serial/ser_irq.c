@@ -331,7 +331,7 @@ void linestat_engine(int num)           /* Internal Line Status processing */
 void serial_int_engine(int num, int int_requested)
 {
   /* Safety code to avoid receive and transmit while DLAB is set high */
-  if (com[num].DLAB) int_requested &= ~(RX_INTR | TX_INTR);
+  if (DLAB(num)) int_requested &= ~(RX_INTR | TX_INTR);
 
   if (TX_TRIGGER(num)) {
     transmit_engine(num);

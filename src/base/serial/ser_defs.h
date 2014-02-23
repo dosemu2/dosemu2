@@ -336,7 +336,6 @@ typedef struct {
 
   /* The following are serial port registers */
   int dll, dlm;		/* Baudrate divisor LSB and MSB */
-  u_char DLAB;		/* Divisor Latch enabled */
   u_char IER;		/* Interrupt Enable Register */
   struct iir IIR;	/* Interrupt Identification Register */
   u_char LCR;		/* Line Control Register */
@@ -371,6 +370,7 @@ extern com_t com[MAX_SER];
 #define INT_ENAB(num)  (com[num].MCR & UART_MCR_OUT2)
 #define TX_TRIGGER(num) (!(com[num].LSR & UART_LSR_THRE))
 #define FIFO_ENABLED(num) (com[num].IIR.flg.fifo_enable == IIR_FIFO_ENABLE)
+#define DLAB(num) (com[num].LCR & UART_LCR_DLAB)
 
 /*******************************************************************
  *  Function declarations in order to resolve function references  *

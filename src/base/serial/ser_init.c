@@ -354,7 +354,6 @@ void ser_set_params(int num)
   com[num].IER = 0;			/* Interrupt Enable Register */
   com[num].IIR.mask = 0;		/* Interrupt I.D. Register */
   com[num].LCR = UART_LCR_WLEN8;	/* Line Control Register: 5N1 */
-  com[num].DLAB = 0;			/* DLAB for baudrate change */
   com[num].FCReg = 0; 			/* FIFO Control Register */
   com[num].rx_fifo_trigger = 1;		/* Receive FIFO trigger level */
   com[num].MCR = 0;			/* Modem Control Register */
