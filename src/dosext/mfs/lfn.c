@@ -894,10 +894,7 @@ static int mfs_lfn_(void)
 		}
 		return 1;
 	} else if (_AH == 0x73) {
-		unsigned int spc = 1;
-		unsigned int bps = 512;
-		unsigned int free, tot;
-		struct statfs fsbuf;
+		unsigned int spc, bps, free, tot;
 
 		if (_AL != 3) return 0;
 
@@ -907,18 +904,10 @@ static int mfs_lfn_(void)
 			return drive + 2;
 		if (!find_file(fpath, &st, drive, NULL)|| !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
-		if (statfs(fpath, &fsbuf) < 0)
+		if (!dos_get_disk_space(fpath, &free, &tot, &spc, &bps))
 			return lfn_error(PATH_NOT_FOUND);
 
-		free = (fsbuf.f_bsize / 512) * fsbuf.f_bavail;
-		tot = (fsbuf.f_bsize / 512) * fsbuf.f_blocks;
 		WRITE_DWORD(dest, 0x24);
-		/* to give compatible value to mfs.c */
-		while (spc < 64 && tot > 65535) {
-			spc *= 2;
-			free /= 2;
-			tot  /= 2;
-		}
 		WRITE_DWORD(dest + 0x4, spc);
 		WRITE_DWORD(dest + 0x8, bps);
 		WRITE_DWORD(dest + 0xc, free);

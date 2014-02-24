@@ -706,14 +706,23 @@ int dos_utime(char *fpath, struct utimbuf *ut)
   return -1;
 }
 
-static int
-get_disk_space(char *cwd, unsigned int *free, unsigned int *total)
+int dos_get_disk_space(const char *cwd, unsigned int *free, unsigned int *total,
+		       unsigned int *spc, unsigned int *bps)
 {
   struct statfs fsbuf;
 
   if (statfs(cwd, &fsbuf) >= 0) {
+    /* return unit = 512-byte blocks @ 1 spc, std for floppy */
+    *spc = 1;
+    *bps = 512;
     *free = (fsbuf.f_bsize / 512) * fsbuf.f_bavail;
     *total = (fsbuf.f_bsize / 512) * fsbuf.f_blocks;
+
+    while (*spc < 64 && *total > 65535) {
+      *spc *= 2;
+      *free /= 2;
+      *total  /= 2;
+    }
     return (1);
   }
   else
@@ -3552,22 +3561,13 @@ dos_fs_redirect(state_t *state)
   case GET_DISK_SPACE:
     {				/* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
-      unsigned int free, tot;
+      unsigned int free, tot, spc, bps;
 
       Debug0((dbg_fd, "Get Disk Space\n"));
       build_ufs_path(fpath, cds_current_path(drive_cds(drive)), drive);
 
       if (find_file(fpath, &st, drive, NULL)) {
-	if (get_disk_space(fpath, &free, &tot)) {
-	  /* return unit = 512-byte blocks @ 1 spc, std for floppy */
-	  int spc = 1;
-	  int bps = 512;
-
-	  while (spc < 64 && tot > 65535) {
-	    spc *= 2;
-	    free /= 2;
-	    tot  /= 2;
-	  }
+	if (dos_get_disk_space(fpath, &free, &tot, &spc, &bps)) {
 	  /* report no more than 32*1024*64K = 2G, even if some
 	     DOS version 7 can see more */
 	  if (tot>65535) tot=65535;
