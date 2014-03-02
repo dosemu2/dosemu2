@@ -210,28 +210,10 @@ static void async_serial_run(void *arg)
 static void ser_set_params(int num)
 {
   int data = 0;
-  /* The following adjust raw line settings needed for DOSEMU serial     */
-  /* These defines are based on the Minicom 1.70 communications terminal */
-#if 1
-  com[num].newset.c_cflag |= (CLOCAL | CREAD);
-  com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
-  com[num].newset.c_iflag |= (IGNBRK | IGNPAR);
-  com[num].newset.c_iflag &= ~(BRKINT | PARMRK | INPCK | ISTRIP |
-                               INLCR | IGNCR | INLCR | ICRNL | IXON |
-                               IXOFF | IUCLC | IXANY | IMAXBEL);
-  com[num].newset.c_oflag &= ~(OPOST | OLCUC | ONLCR | OCRNL | ONOCR |
-                               ONLRET | OFILL | OFDEL);
-  com[num].newset.c_lflag &= ~(XCASE | ISIG | ICANON | IEXTEN | ECHO |
-                               ECHONL | ECHOE | ECHOK | ECHOPRT | ECHOCTL |
-                               ECHOKE | NOFLSH | TOSTOP);
-#else
-  /* These values should only be used as a last resort, or for testing */
+  com[num].newset.c_cflag = CS8 | CLOCAL | CREAD;
   com[num].newset.c_iflag = IGNBRK | IGNPAR;
-  com[num].newset.c_lflag = 0;
   com[num].newset.c_oflag = 0;
-  com[num].newset.c_cflag |= CLOCAL | CREAD;
-  com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
-#endif
+  com[num].newset.c_lflag = 0;
 
 #ifdef __linux__
   com[num].newset.c_line = 0;
