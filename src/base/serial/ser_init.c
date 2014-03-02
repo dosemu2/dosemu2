@@ -402,7 +402,7 @@ static int ser_close(int num)
    */
   if (!com[num].fifo) {
     RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-    RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
+    RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].oldset));
   }
   i = RPT_SYSCALL(close(com[num].fd));
   com[num].fd = -1;
@@ -628,7 +628,7 @@ void serial_close(void)
 #endif
     else {
       if (!com[i].fifo)
-        RPT_SYSCALL(tcsetattr(com[i].fd, TCSADRAIN, &com[i].oldset));
+        RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
       ser_close(i);
     }
   }

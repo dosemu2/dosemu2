@@ -339,7 +339,7 @@ void ser_termios(int num)
 	    com[num].newset.c_iflag, com[num].newset.c_oflag,
 	    com[num].newset.c_cflag, com[num].newset.c_lflag);
   }
-  tcsetattr(com[num].fd, TCSADRAIN, &com[num].newset);
+  tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
 
 #if 0
   /* Many mouse drivers require this, they detect for Framing Errors
