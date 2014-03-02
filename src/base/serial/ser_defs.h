@@ -332,7 +332,6 @@ typedef struct {
   				/*   MISCELLANEOUS  */
   int interrupt;		/* IRQ line handled by device */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
-  speed_t newbaud;		/* Currently set bps rate */
 
   /* The following are serial port registers */
   int dll, dlm;		/* Baudrate divisor LSB and MSB */
