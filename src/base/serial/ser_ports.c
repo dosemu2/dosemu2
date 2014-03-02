@@ -331,13 +331,6 @@ void ser_termios(int num)
   }
   s_printf("divisor 0x%x -> 0x%lx\n", DIVISOR, rounddiv);
 
-#ifdef __linux__
-  /* These are required to increase chances that 57600/115200 will work. */
-  /* At least, these were needed on my system, Linux 1.2 and Libc 4.6.27 */
-  com[num].newset.c_cflag &= ~CBAUD;
-  com[num].newset.c_cflag |= baud;
-#endif
-
   /* The following does the actual system calls to set the line parameters */
   cfsetispeed(&com[num].newset, baud);
   cfsetospeed(&com[num].newset, baud);
