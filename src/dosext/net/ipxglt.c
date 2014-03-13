@@ -34,6 +34,7 @@
 #define FALSE   0
 #define TRUE    1
 #define TIMEOUT 250000
+#define TRUST_RTABLE 1
 
 typedef struct
 {
@@ -74,15 +75,23 @@ static int AddRoute( unsigned long targetNet, unsigned network,
         return(0);
 }
 
-static int CheckRouteExist(unsigned long targetNet, unsigned network,
-                           unsigned char node[])
+static int CheckRouteExist(unsigned long targetNet
+#if !TRUST_RTABLE
+	, unsigned network,
+	  unsigned char node[]
+#endif
+	)
 {
-char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_str;
-
+	char buf_targ[9], proc_net[9], proc_node[13], *proc_str;
+#if !TRUST_RTABLE
+	char buf_net[9], buf_node[13];
+#endif
 	sprintf(buf_targ, "%08lX", (unsigned long)htonl(targetNet));
+#if !TRUST_RTABLE
 	sprintf(buf_net, "%08lX", (unsigned long)htonl(network));
 	sprintf(buf_node, "%02X%02X%02X%02X%02X%02X", node[0], node[1],
                      node[2], node[3], node[4], node[5]);
+#endif
 
 	if(access("/proc/net/ipx/route",R_OK) == 0)
 		open_proc_scan("/proc/net/ipx/route");
@@ -100,6 +109,7 @@ char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_st
 	sscanf(proc_str, "%s %s", proc_net, proc_node);
 	close_proc_scan();
 
+#if !TRUST_RTABLE
 	if (strcmp(buf_net, proc_net) || strcmp(buf_node, proc_node)) {
 		if(access("/proc/net/ipx/interface",R_OK) == 0)
 			open_proc_scan("/proc/net/ipx/interface");
@@ -119,6 +129,7 @@ char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_st
 		close_proc_scan();
 		/* fall through */
 	}
+#endif
 
 	return 1;
 }
@@ -138,6 +149,14 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
         int retries;
         fd_set  fds;
         int done, retCode, selrtn;
+
+#if TRUST_RTABLE
+	if (CheckRouteExist(network)) {
+	    n_printf("IPX: Route <%08lx> already exists\n",
+		(unsigned long int)htonl(network));
+	    return 0;
+	}
+#endif
 
         retCode = -1;
 	sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
@@ -258,29 +277,31 @@ RepeatSelect:
 
                 *hops = htons(RipResponse.Hops);
                 *ticks = htons(RipResponse.Ticks);
+#if !TRUST_RTABLE
 		if (CheckRouteExist(network, ipxs.sipx_network, ipxs.sipx_node)) {
 		   n_printf("IPX: Route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x> already exists\n",
                      (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
                      ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
                      ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
-		} else {
-                  retCode = AddRoute( network, ipxs.sipx_network,
+		   goto CloseGLTExit;
+		}
+#endif
+                retCode = AddRoute( network, ipxs.sipx_network,
                         ipxs.sipx_node );
-                  if( retCode < 0 ) {
+                if( retCode < 0 ) {
                         error("IPX: Failure adding route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x>\n",
                                 (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
                                 ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
                                 ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
 			error("IPX: Try manually add this route with ipx_route command\nor use RIP daemon like ipxripd\n");
-                  } else {
+                } else {
                         n_printf("IPX: Success adding route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x>\n",
                                 (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
                                 ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
                                 ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
-                  }
-		}
+                }
         } else {
-                printf("IPX: Error %d in GetLocalTarget main packet send/receive loop\n", retCode);
+                error("IPX: Error %d in GetLocalTarget main packet send/receive loop\n", retCode);
         }
 CloseGLTExit:
         close( sock );
