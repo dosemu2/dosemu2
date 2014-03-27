@@ -782,7 +782,6 @@ void start_selection(int col, int row)
 {
   sel_start_col = sel_end_col = col;
   sel_start_row = sel_end_row = row;
-  calculate_selection();
   doing_selection = visible_selection = TRUE;
   X_printf("X:start selection , start %d %d, end %d %d\n",
 	   sel_start_col,sel_start_row,sel_end_col,sel_end_row);
@@ -800,7 +799,6 @@ void extend_selection(int col, int row)
     return;
   sel_end_col = col;
   sel_end_row = row;
-  calculate_selection();
   X_printf("X:extend selection , start %d %d, end %d %d\n",
 	   sel_start_col,sel_start_row,sel_end_col,sel_end_row);
 }
@@ -931,6 +929,7 @@ t_unicode *end_selection()
   if (!doing_selection)
     return NULL;
   doing_selection = FALSE;
+  calculate_selection();
   save_selection_data();
   return sel_text;
 }
