@@ -68,9 +68,12 @@ static int find_dosemu_pid(char *tmpfile, int local)
 
   dir = opendir(dn);
   if (!dir) {
-    free(dn);
-    if (local) return -1;
+    if (local) {
+      free(dn);
+      return -1;
+    }
     fprintf(stderr, "can't open directory %s\n",dn);
+    free(dn);
     exit(1);
   }
   i = 0;
