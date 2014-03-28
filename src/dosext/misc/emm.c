@@ -211,7 +211,7 @@ static u_short os_allow=1;
 	{ memmove((nameptr), (name), 8); nameptr[8]=0; }
 
 #define CHECK_HANDLE(handle) \
-  if ((handle < 0) || (handle > MAX_HANDLES) || \
+  if ((handle < 0) || (handle >= MAX_HANDLES) || \
       (handle_info[handle].active == 0)) { \
     E_printf("Invalid Handle handle=%x, active=%d\n", \
              handle, handle_info[handle].active);  \
@@ -585,7 +585,7 @@ do_map_unmap(int handle, int physical_page, int logical_page)
     unmap_page(physical_page);
   }
   else {
-    if ((handle < 0) || (handle > MAX_HANDLES) ||
+    if ((handle < 0) || (handle >= MAX_HANDLES) ||
         (handle_info[handle].active == 0)) {
       E_printf("Invalid Handle handle=%x, active=%d\n",
 	     handle, handle_info[handle].active);
@@ -794,7 +794,7 @@ reallocate_pages(state_t * state)
   int newcount = WORD(state->ebx);
   void *obj;
 
-  if ((handle < 0) || (handle > MAX_HANDLES)) {
+  if ((handle < 0) || (handle >= MAX_HANDLES)) {
     SETHIGH(&(state->eax), EMM_INV_HAN);
     return;
   }
@@ -1835,7 +1835,7 @@ ems_fn(state)
       if (handle == OS_HANDLE)
 	E_printf("EMS: trying to use OS handle in DEALLOCATE_HANDLE\n");
 
-      if ((handle < 0) || (handle > MAX_HANDLES) ||
+      if ((handle < 0) || (handle >= MAX_HANDLES) ||
 	  (handle_info[handle].active == 0)) {
 	E_printf("EMS: Invalid Handle\n");
 	SETHIGH(&(state->eax), EMM_INV_HAN);
@@ -1862,7 +1862,7 @@ ems_fn(state)
       if (handle == OS_HANDLE)
 	E_printf("EMS: trying to use OS handle in SAVE_PAGE_MAP\n");
 
-      if ((handle < 0) || (handle > MAX_HANDLES) ||
+      if ((handle < 0) || (handle >= MAX_HANDLES) ||
 	  (handle_info[handle].active == 0)) {
 	SETHIGH(&(state->eax), EMM_INV_HAN);
 	return (UNCHANGED);
@@ -1881,7 +1881,7 @@ ems_fn(state)
       if (handle == OS_HANDLE)
 	E_printf("EMS: trying to use OS handle in RESTORE_PAGE_MAP\n");
 
-      if ((handle < 0) || (handle > MAX_HANDLES) ||
+      if ((handle < 0) || (handle >= MAX_HANDLES) ||
 	  (handle_info[handle].active == 0)) {
 	SETHIGH(&(state->eax), EMM_INV_HAN);
 	return (UNCHANGED);
@@ -1912,7 +1912,7 @@ ems_fn(state)
       Kdebug1((dbg_fd, "bios_emm: Get Pages Owned, han-0x%x\n",
 	       handle));
 
-      if ((handle < 0) || (handle > MAX_HANDLES) ||
+      if ((handle < 0) || (handle >= MAX_HANDLES) ||
 	  (handle_info[handle].active == 0)) {
 	SETHIGH(&(state->eax), EMM_INV_HAN);
 	SETWORD(&(state->ebx), 0);
