@@ -2187,5 +2187,6 @@ void ems_init(void)
   hlt_hdlr.name = "EMS";
   hlt_hdlr.len = 1;
   hlt_hdlr.func = emm_hlt_handler;
+  hlt_hdlr.arg        = NULL;
   EMSControl_OFF = hlt_register_handler(hlt_hdlr);
 }

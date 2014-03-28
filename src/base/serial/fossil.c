@@ -97,6 +97,7 @@ static void fossil_init(void)
   hlt_hdlr.name       = "fossil isr";
   hlt_hdlr.len        = 1;
   hlt_hdlr.func       = fossil_irq;
+  hlt_hdlr.arg        = NULL;
   irq_hlt = hlt_register_handler(hlt_hdlr);
 
   fossil_tsr_installed = TRUE;

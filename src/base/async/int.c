@@ -2330,11 +2330,13 @@ void setup_interrupts(void) {
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
+  hlt_hdlr.arg        = NULL;
   hlt_off = hlt_register_handler(hlt_hdlr);
 
   hlt_hdlr.name       = "int return";
   hlt_hdlr.len        = 1;
   hlt_hdlr.func       = ret_from_int;
+  hlt_hdlr.arg        = NULL;
   iret_hlt_off = hlt_register_handler(hlt_hdlr);
 
   int_tid = coopth_create_multi("ints thread non-revect", 256);
@@ -2344,6 +2346,7 @@ void setup_interrupts(void) {
   hlt_hdlr.name       = "mouse post";
   hlt_hdlr.len        = 1;
   hlt_hdlr.func       = int33_post;
+  hlt_hdlr.arg        = NULL;
   Mouse_HLT_OFF = hlt_register_handler(hlt_hdlr);
 }
 
