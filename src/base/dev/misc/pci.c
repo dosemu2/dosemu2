@@ -351,8 +351,10 @@ static int pci_check_device_present_proc(unsigned char bus, unsigned char device
 					 unsigned char fn)
 {
   int fd = pci_open_proc(bus, device, fn);
+  if (fd == -1)
+    return 0;
   close(fd);
-  return (fd != -1);
+  return 1;
 }
 
 static struct pci_funcs pci_cfg1 = {
