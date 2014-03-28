@@ -573,7 +573,7 @@ static int build_truename(char *dest, const char *src, int mode)
 		return MAX_DRIVE - 1;
 	}
 
-	if (dd > MAX_DRIVE || !drives[dd].root)
+	if (dd >= MAX_DRIVE || !drives[dd].root)
 		return -2;
 
 	if (!((cds_flags(drive_cds(dd))) & CDS_FLAG_REMOTE) ||
