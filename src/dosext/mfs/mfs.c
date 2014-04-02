@@ -863,7 +863,7 @@ init_drive(int dd, char *path, int options)
     drives[dd].root_len = 1;
     drives[dd].root = strdup("/");
     if (!find_file(new_path, &st, dd, NULL)) {
-      error("MFS: couldn't find root path %s\n", new_path);
+      warn("MFS: couldn't find root path %s\n", new_path);
       free(new_path);
       return (0);
     }
