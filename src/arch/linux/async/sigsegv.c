@@ -305,13 +305,14 @@ bad:
     error("cpu exception in dosemu code outside of %s!\n"
 	  "trapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
-	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
+	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n\n",
 	  (in_dpmi ? "DPMI client" : "VM86()"),
 	  _trapno, _err, _cr2,
 	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss);
 
-    error("Please report the contents of ~/.dosemu/boot.log at\n"
-"http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse\n"
+    error("Please update from git, compile with debug information and "
+	"report the contents of ~/.dosemu/boot.log at\n"
+"http://sourceforge.net/tracker/?atid=457447&group_id=49784\n"
 #ifndef _DEBUG
 "It would be even more helpful if would recompile DOSEMU and reproduce this\n"
 "bug with \"debug on\" in compiletime-settings.\n"
