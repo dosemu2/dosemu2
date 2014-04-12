@@ -191,7 +191,7 @@ static void handle_dbg_input(void)
     n=read(fdin, buf, sizeof(buf));
   } while (n < 0 && errno == EAGAIN);
   if (n >0) {
-    if ((p=strchr(buf,1))!=NULL) n=p-buf;
+    if ((p=memchr(buf,1,n))!=NULL) n=p-buf;
     write(1, buf, n);
     if (p!=NULL) exit(0);
   }
