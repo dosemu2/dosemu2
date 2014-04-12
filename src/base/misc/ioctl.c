@@ -120,6 +120,7 @@ io_select(void)
 {
   int selrtn, i;
   struct timeval tvptr;
+  fd_set fds = fds_sigio;
 
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
@@ -128,7 +129,7 @@ io_select(void)
   irq_select();
 #endif
 
-  while ( ((selrtn = select(numselectfd, &fds_sigio, NULL, NULL, &tvptr)) == -1)
+  while ( ((selrtn = select(numselectfd, &fds, NULL, NULL, &tvptr)) == -1)
         && (errno == EINTR)) {
     tvptr.tv_sec=0L;
     tvptr.tv_usec=0L;
@@ -146,7 +147,7 @@ io_select(void)
 
     default:			/* has at least 1 descriptor ready */
       for(i = 0; i < numselectfd; i++) {
-        if (FD_ISSET(i, &fds_sigio) && io_callback_func[i].func) {
+        if (FD_ISSET(i, &fds) && io_callback_func[i].func) {
 	  g_printf("GEN: fd %i has data\n", i);
 	  io_callback_func[i].func(io_callback_func[i].arg);
 	}
