@@ -2529,7 +2529,6 @@ void setup_default_keytable()
       (int(*)(void))dlsym(handle, "X11_DetectLayout");
     if (X11_DetectLayout)
       idx = X11_DetectLayout();
-    dlclose(handle);
   }
 #else
   idx = X11_DetectLayout();
