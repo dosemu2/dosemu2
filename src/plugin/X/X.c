@@ -475,7 +475,8 @@ struct video_system Video_X =
    X_update_screen,
    X_update_cursor,
    X_change_config,
-   X_handle_events
+   X_handle_events,
+   .name = "X"
 };
 
 struct render_system Render_X =
@@ -2589,12 +2590,7 @@ void kdos_close_msg()
 
 CONSTRUCTOR(static void init(void))
 {
-#ifdef USE_DL_PLUGINS
-	if (Video) return;
-
-	config.X = 1;	/* activate X mode if dosemu was */
-	Video = &Video_X;
-#endif
+	register_video_client(&Video_X);
 	register_keyboard_client(&Keyboard_X);
 	register_mouse_client(&Mouse_X);
 }

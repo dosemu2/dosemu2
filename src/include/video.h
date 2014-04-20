@@ -99,6 +99,7 @@ struct video_system {
                                   e.g. window title (optional) */
    void (*handle_events)(void);    /* event handler (not strictly video but
                                   related, optional) */
+   const char *name;
 };
 
 extern struct video_system *Video;
@@ -198,7 +199,8 @@ enum {
 extern void clear_console_video(void);
 extern int console_size(void);
 extern int load_file(char *name, int foffset, unsigned char *mstart, int msize);
-
+extern void register_video_client(struct video_system *vid);
+extern struct video_system *video_get(const char *name);
 
 /* moved here from s3.c --AV  */
 #define BASE_8514_1	0x2e8

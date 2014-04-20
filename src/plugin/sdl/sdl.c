@@ -66,7 +66,8 @@ struct video_system Video_SDL =
   SDL_update_screen,
   SDL_update_cursor,
   SDL_change_config,
-  SDL_handle_events
+  SDL_handle_events,
+  .name = "sdl"
 };
 
 struct render_system Render_SDL =
@@ -836,12 +837,7 @@ static void SDL_handle_events(void)
 
 CONSTRUCTOR(static void init(void))
 {
-#ifdef USE_DL_PLUGINS
-   if (Video)
-     return;
-   config.X = 1;
-   Video = &Video_SDL;
-#endif
+   register_video_client(&Video_SDL);
    register_keyboard_client(&Keyboard_SDL);
    register_mouse_client(&Mouse_SDL);
 }

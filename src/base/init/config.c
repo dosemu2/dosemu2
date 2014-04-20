@@ -602,13 +602,12 @@ static void config_post_process(const char *usedoptions)
 	config.emuretrace = 0;	/* already emulated */
 
 	if (!Video) {
-#if !defined(USE_DL_PLUGINS) && defined(X_SUPPORT)
-	    config.X = 1;
-	    Video = &Video_X;
-#else
-	    if (!load_plugin("X"))
+	    load_plugin("X");
+	    Video = video_get("X");
+	    if (Video)
+		config.X = 1;
+	    else
 		config.X = 0;
-#endif
 	}
 	config.mouse.type = MOUSE_X;
     }
@@ -1032,10 +1031,9 @@ config_init(int argc, char **argv)
 	    break;
 	case 'S':
 	    load_plugin("sdl");
-#if !defined(USE_DL_PLUGINS) && defined(SDL_SUPPORT)
-	    config.X = 1;
-	    Video = &Video_SDL;
-#endif
+	    Video = video_get("sdl");
+	    if (Video)
+		config.X = 1;
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;

@@ -19,6 +19,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <assert.h>
 
 #include "config.h"
 #include "emu.h"
@@ -36,6 +37,9 @@
 #include "pci.h"
 
 struct video_system *Video = NULL;
+#define MAX_VID_CLIENTS 16
+static struct video_system *vid_clients[MAX_VID_CLIENTS];
+static int num_vid_clients;
 
 /* I put Video_none here because I don't want to make a special file for such
  * a simple task -- Goga
@@ -57,7 +61,8 @@ struct video_system Video_none = {
   NULL,	        /* update_screen */
   v_empty_void,	/* update_cursor */
   NULL,         /* change_config */
-  NULL          /* handle_events */
+  NULL,         /* handle_events */
+  .name = "none"
 };
 
 static int no_real_terminal(void)
@@ -155,6 +160,23 @@ static int using_kms(void)
     return 0;
 }
 
+void register_video_client(struct video_system *vid)
+{
+    assert(num_vid_clients < MAX_VID_CLIENTS);
+    vid_clients[num_vid_clients++] = vid;
+    v_printf("VID: registered video client %s\n", vid->name);
+}
+
+struct video_system *video_get(const char *name)
+{
+    int i;
+    for (i = 0; i < num_vid_clients; i++) {
+	if (strcmp(vid_clients[i]->name, name) == 0)
+	    return vid_clients[i];
+    }
+    return NULL;
+}
+
 /*
  * DANG_BEGIN_FUNCTION video_init
  *
@@ -171,10 +193,9 @@ static int video_init(void)
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
     warn("KMS detected: using SDL mode.\n");
     load_plugin("sdl");
-#if !defined(USE_DL_PLUGINS) && defined(SDL_SUPPORT)
-    config.X = 1;
-    Video = &Video_SDL;
-#endif
+    Video = video_get("sdl");
+    if (Video)
+      config.X = 1;
   }
 
   /* figure out which video front end we are to use */

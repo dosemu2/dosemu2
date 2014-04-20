@@ -174,6 +174,7 @@ struct video_system Video_console = {
    NULL,             /* update_screen */
    console_update_cursor,
    NULL,
-   NULL              /* handle_events */
+   NULL,              /* handle_events */
+   .name = "console"
 };
 

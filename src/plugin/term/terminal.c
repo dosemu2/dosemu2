@@ -858,7 +858,8 @@ struct video_system Video_term = {
    slang_update,
    term_update_cursor,
    NULL,
-   NULL
+   NULL,
+   .name = "term"
 };
 
 struct text_system Text_term =

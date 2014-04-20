@@ -439,5 +439,6 @@ struct video_system Video_hgc = {
    NULL,             /* update_screen */
    NULL,
    NULL,
-   NULL
+   NULL,
+   .name = "hgc"
 };
