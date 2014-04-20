@@ -286,7 +286,7 @@ void install_dos(int post_boot)
 	symlink_created = 0;
 	dosemu_lib_dir = getenv("DOSEMU_LIB_DIR");
 	if (!dosemu_lib_dir) dosemu_lib_dir = "";
-	kernelsyspath = assemble_path(dosemu_lib_dir, "drive_z/kernel.sys", 0);
+	kernelsyspath = assemble_path(dosemu_lib_dir, "freedos/kernel.sys", 0);
 	if (config.hdiskboot != 1 ||
 	    config.install ||
 	    !exists_file(kernelsyspath)) {
