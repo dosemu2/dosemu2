@@ -700,6 +700,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
   free(name);
   if (num < 0) {
     fatfs_msg("fatfs: scandir failed\n");
+    if (oi)
+      return;
     if (try_add_fdos(f, oi))
       set_vol_and_len(f, oi);
     return;
