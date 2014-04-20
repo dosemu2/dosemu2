@@ -207,7 +207,12 @@ void fatfs_done(struct disk *dp)
 
   if(!(f = dp->fatfs)) return;
 
-  for(u = 1 ; u < f->objs; u++) if(f->obj[u].name) free(f->obj[u].name);
+  for(u = 1 ; u < f->objs; u++) {
+    if(f->obj[u].name)
+      free(f->obj[u].name);
+    if(f->obj[u].full_name)
+      free(f->obj[u].full_name);
+  }
 
   if(f->ffn) free(f->ffn);
   if(f->sec) free(f->sec);
@@ -601,7 +606,7 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
     return alphasort(d1, d2);
 }
 
-static void try_add_fdos(fatfs_t *f, unsigned oi)
+static int try_add_fdos(fatfs_t *f, unsigned oi)
 {
     if (!fd_added) {
 	/* try preinstalled freedos */
@@ -614,6 +619,8 @@ static void try_add_fdos(fatfs_t *f, unsigned oi)
 		fd_added++;
 	    }
 	    free(kernelsyspath);
+	    if (fd_added)
+		return 1;
 	    kernelsyspath = assemble_path(libdir, "freedos/kernel.sys", 0);
 	    if (access(kernelsyspath, R_OK) == 0) {
 		add_object(f, oi, kernelsyspath);
@@ -621,8 +628,40 @@ static void try_add_fdos(fatfs_t *f, unsigned oi)
 		fd_added++;
 	    }
 	    free(kernelsyspath);
+	    if (fd_added)
+		return 1;
 	}
     }
+    return 0;
+}
+
+static void set_vol_and_len(fatfs_t *f, unsigned oi)
+{
+  obj_t *o = f->obj + oi;
+  struct stat sb;
+  unsigned u;
+  if(oi == 0) {
+    if(*f->label != ' ') {
+      if((u = new_obj(f))) {	/* volume label */
+        o = f->obj + oi;
+        f->obj[u].name = strdup(f->label);
+        f->obj[u].parent = oi;
+        f->obj[u].is.label = 1;
+        f->obj[u].is.not_real = 1;
+        if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
+        f->obj[u].dos_dir_size = 0x20;
+        o->size += 0x20;
+        if(!stat(f->dir, &sb)) {
+          f->obj[u].time = dos_time(&sb.st_mtime);
+        }
+	fatfs_deb2("added label \"%s\"\n", f->label);
+      }
+    }
+  }
+
+  o = f->obj + oi;
+  u = f->cluster_secs << 9;
+  o->len = (o->size + u - 1) / u;
 }
 
 /*
@@ -661,7 +700,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
   free(name);
   if (num < 0) {
     fatfs_msg("fatfs: scandir failed\n");
-    try_add_fdos(f, oi);
+    if (try_add_fdos(f, oi))
+      set_vol_and_len(f, oi);
     return;
   }
 
@@ -732,28 +772,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
   }
   free(dlist);
 
-  if(oi == 0) {
-    if(*f->label != ' ') {
-      if((u = new_obj(f))) {	/* volume label */
-        o = f->obj + oi;
-        f->obj[u].name = strdup(f->label);
-        f->obj[u].parent = oi;
-        f->obj[u].is.label = 1;
-        f->obj[u].is.not_real = 1;
-        if(!f->obj[oi].first_child) f->obj[oi].first_child = u;
-        f->obj[u].dos_dir_size = 0x20;
-        o->size += 0x20;
-        if(!stat(f->dir, &sb)) {
-          f->obj[u].time = dos_time(&sb.st_mtime);
-        }
-	fatfs_deb2("added label \"%s\"\n", f->label);
-      }
-    }
-  }
-
-  o = f->obj + oi;
-  u = f->cluster_secs << 9;
-  o->len = (o->size + u - 1) / u;
+  set_vol_and_len(f, oi);
 }
 
 
