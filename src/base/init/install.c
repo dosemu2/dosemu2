@@ -35,6 +35,15 @@ static int symlink_created;
 static char *dosemu_lib_dir;
 int unix_e_welcome;
 
+static int bios_read_string(char *buf, u_short len)
+{
+    int ret;
+    _set_IF();
+    ret = com_biosread(buf, len);
+    clear_IF();
+    return ret;
+}
+
 void show_welcome_screen(void)
 {
 	/* called from unix -e */
@@ -272,7 +281,7 @@ void install_dos(int post_boot)
 		return;
 	if (post_boot) {
 		printf_ = p_dos_str;
-		read_string = com_biosread;
+		read_string = bios_read_string;
 	}
 	symlink_created = 0;
 	dosemu_lib_dir = getenv("DOSEMU_LIB_DIR");
