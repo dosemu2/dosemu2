@@ -697,8 +697,10 @@ void scan_dir(fatfs_t *f, unsigned oi)
       char *libdir = getenv("DOSEMU_LIB_DIR");
       if (libdir) {
 	char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);
-	if (access(kernelsyspath, R_OK) == 0)
+	if (access(kernelsyspath, R_OK) == 0) {
+	  add_object(f, oi, "kernel.sys");
 	  f->sys_type |= 0x20;
+	}
 	free(kernelsyspath);
       }
     }
@@ -828,7 +830,7 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
   fatfs_deb("trying to add \"%s\":\n", s);
   if(stat(s, &sb)) {
     int found = 0;
-    if (strcmp(name, "KERNEL.SYS") == 0) {
+    if (strequalDOS(name, "KERNEL.SYS")) {
       char *libdir = getenv("DOSEMU_LIB_DIR");
       fatfs_deb("does not exist\n");
       if (libdir) {
