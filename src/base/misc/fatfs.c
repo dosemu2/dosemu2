@@ -91,6 +91,7 @@ static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsign
 
 static int sys_type;
 static int sys_done;
+static int fd_added;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
@@ -600,6 +601,30 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
     return alphasort(d1, d2);
 }
 
+static void try_add_fdos(fatfs_t *f, unsigned oi)
+{
+    if (!fd_added) {
+	/* try preinstalled freedos */
+	char *libdir = getenv("DOSEMU_LIB_DIR");
+	if (libdir) {
+	    char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);
+	    if (access(kernelsyspath, R_OK) == 0) {
+		add_object(f, oi, kernelsyspath);
+		f->sys_type |= 0x20;
+		fd_added++;
+	    }
+	    free(kernelsyspath);
+	    kernelsyspath = assemble_path(libdir, "freedos/kernel.sys", 0);
+	    if (access(kernelsyspath, R_OK) == 0) {
+		add_object(f, oi, kernelsyspath);
+		f->sys_type |= 0x20;
+		fd_added++;
+	    }
+	    free(kernelsyspath);
+	}
+    }
+}
+
 /*
  * Reads the directory entries and assigns the object ids.
  */
@@ -636,6 +661,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
   free(name);
   if (num < 0) {
     fatfs_msg("fatfs: scandir failed\n");
+    try_add_fdos(f, oi);
     return;
   }
 
@@ -692,19 +718,10 @@ void scan_dir(fatfs_t *f, unsigned oi)
             }
         }
     }
-    if (!sys_done) {
-      /* try preinstalled freedos */
-      char *libdir = getenv("DOSEMU_LIB_DIR");
-      if (libdir) {
-	char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);
-	if (access(kernelsyspath, R_OK) == 0) {
-	  add_object(f, oi, "kernel.sys");
-	  f->sys_type |= 0x20;
-	}
-	free(kernelsyspath);
-      }
-    }
-    f->sys_type = sys_type;
+    if (!sys_done)
+      try_add_fdos(f, oi);
+    else
+      f->sys_type = sys_type;
     fatfs_msg("system type is 0x%x\n", f->sys_type);
   }
 
@@ -787,9 +804,9 @@ char *full_name(fatfs_t *f, unsigned oi, const char *name)
 }
 
 
-void add_object(fatfs_t *f, unsigned parent, char *name)
+void add_object(fatfs_t *f, unsigned parent, char *nm)
 {
-  char *s;
+  char *s, *name = nm;
   struct stat sb;
   obj_t tmp_o = {{0}, 0};
   unsigned u;
@@ -822,28 +839,21 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
 #endif
   if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
 
-  if(!(s = full_name(f, parent, name))) {
-    fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
-    return;
+  if (name[0] == '/') {
+    s = nm;
+    name = strrchr(nm, '/') + 1;
+  } else {
+    if(!(s = full_name(f, parent, name))) {
+      fatfs_msg("file name too complex: parent %u, name \"%s\"\n", parent, name);
+      return;
+    }
   }
+  tmp_o.full_name = strdup(s);
 
   fatfs_deb("trying to add \"%s\":\n", s);
   if(stat(s, &sb)) {
-    int found = 0;
-    if (strequalDOS(name, "KERNEL.SYS")) {
-      char *libdir = getenv("DOSEMU_LIB_DIR");
-      fatfs_deb("does not exist\n");
-      if (libdir) {
-	s = assemble_path(libdir, "drive_z/kernel.sys", 0);
-	fatfs_deb("trying to add \"%s\":\n", s);
-	found = (stat(s, &sb) == 0);
-	free(s);
-      }
-    }
-    if (!found) {
       fatfs_deb("file not found\n");
       return;
-    }
   }
 
   if(!(S_ISDIR(sb.st_mode) || S_ISREG(sb.st_mode))) {
@@ -1223,20 +1233,13 @@ void fdkernel_boot_mimic(void)
   unsigned loadaddress = SEGOFF2LINEAR(0x60,0);
   fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
 
-  if (!fs || !(bootfile = full_name(fs, 0, fs->obj[1].name))) {
+  if (!fs || !(bootfile = fs->obj[1].full_name)) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
   }
   if ((f = open(bootfile, O_RDONLY)) == -1) {
-    char *libdir = getenv("DOSEMU_LIB_DIR");
-    if (libdir)
-      bootfile = assemble_path(libdir, "drive_z/kernel.sys", 0);
-    if (!libdir || (f = open(bootfile, O_RDONLY)) == -1) {
       error("cannot open DOS system file %s\n", bootfile);
-      if (libdir) free(bootfile);
       leavedos(99);
-    }
-    if (libdir) free(bootfile);
   }
   size = lseek(f, 0, SEEK_END);
   lseek(f, 0, SEEK_SET);

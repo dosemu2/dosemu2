@@ -31,6 +31,7 @@ typedef struct {
   unsigned size;			/* file length in bytes */
   unsigned time;			/* date/time in dos format */
   char *name;
+  char *full_name;
   unsigned dos_dir_size;		/* size of the dos directory entry */
 } obj_t;
 
