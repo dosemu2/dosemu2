@@ -218,7 +218,8 @@ static void operator_off(op_type* op_pt) {
 // or when the keep-sustained bit is turned off (->sustain_nokeep)
 static void operator_sustain(op_type* op_pt) {
 	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;	// number of (standardized) samples
-	for (Bit32u ct=0; ct<num_steps_add; ct++) {
+	Bit32u ct;
+	for (ct=0; ct<num_steps_add; ct++) {
 		op_pt->cur_env_step++;
 	}
 	op_pt->generator_pos -= num_steps_add*FIXEDPT;
@@ -233,7 +234,8 @@ static void operator_release(op_type* op_pt) {
 	}
 
 	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;	// number of (standardized) samples
-	for (Bit32u ct=0; ct<num_steps_add; ct++) {
+	Bit32u ct;
+	for (ct=0; ct<num_steps_add; ct++) {
 		op_pt->cur_env_step++;						// sample counter
 		if ((op_pt->cur_env_step & op_pt->env_step_r)==0) {
 			if (op_pt->amp <= 0.00000001) {
@@ -258,7 +260,8 @@ static void operator_decay(op_type* op_pt) {
 	}
 
 	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;	// number of (standardized) samples
-	for (Bit32u ct=0; ct<num_steps_add; ct++) {
+	Bit32u ct;
+	for (ct=0; ct<num_steps_add; ct++) {
 		op_pt->cur_env_step++;
 		if ((op_pt->cur_env_step & op_pt->env_step_d)==0) {
 			if (op_pt->amp <= op_pt->sustain_level) {
@@ -284,7 +287,8 @@ static void operator_attack(op_type* op_pt) {
 	op_pt->amp = ((op_pt->a3*op_pt->amp + op_pt->a2)*op_pt->amp + op_pt->a1)*op_pt->amp + op_pt->a0;
 
 	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;		// number of (standardized) samples
-	for (Bit32u ct=0; ct<num_steps_add; ct++) {
+	Bit32u ct;
+	for (ct=0; ct<num_steps_add; ct++) {
 		op_pt->cur_env_step++;	// next sample
 		if ((op_pt->cur_env_step & op_pt->env_step_a)==0) {		// check if next step already reached
 			if (op_pt->amp > 1.0) {
@@ -967,8 +971,8 @@ void opl_getsample(Bit16s* sndptr, Bits numsamples) {
 	Bit32s trem_lut[BLOCKBUF_SIZE];
 
 	Bits samples_to_process = numsamples;
-
-	for (Bits cursmp=0; cursmp<samples_to_process; cursmp+=endsamples) {
+	Bits cursmp;
+	for (cursmp=0; cursmp<samples_to_process; cursmp+=endsamples) {
 		endsamples = samples_to_process-cursmp;
 		if (endsamples>BLOCKBUF_SIZE) endsamples = BLOCKBUF_SIZE;
 
@@ -1126,7 +1130,8 @@ void opl_getsample(Bit16s* sndptr, Bits numsamples) {
 #if defined(OPLTYPE_IS_OPL3)
 		if ((adlibreg[0x105]&1)==0) max_channel = NUM_CHANNELS/2;
 #endif
-		for (Bits cur_ch=max_channel-1; cur_ch>=0; cur_ch--) {
+		Bits cur_ch;
+		for (cur_ch=max_channel-1; cur_ch>=0; cur_ch--) {
 			// skip drum/percussion operators
 			if ((adlibreg[ARC_PERC_MODE]&0x20) && (cur_ch >= 6) && (cur_ch < 9)) continue;
 
