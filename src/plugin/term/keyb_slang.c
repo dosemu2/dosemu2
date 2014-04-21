@@ -759,6 +759,9 @@ static int init_slang_keymaps(void)
 
 static int read_some_keys(void)
 {
+	fd_set fds;
+	struct timeval tv = { 0, 0 };
+	int selrt;
 	int cc;
 
 	if (keyb_state.kbcount == 0)
@@ -767,6 +770,13 @@ static int read_some_keys(void)
 		memmove(keyb_state.kbbuf, keyb_state.kbp, keyb_state.kbcount);
 		keyb_state.kbp = keyb_state.kbbuf;
 	}
+	FD_ZERO(&fds);
+	FD_SET(keyb_state.kbd_fd, &fds);
+	selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &tv);
+	if (selrt <= 0)
+		return 0;
+	if (!FD_ISSET(keyb_state.kbd_fd, &fds))
+		return 0;
 	cc = read(keyb_state.kbd_fd, &keyb_state.kbp[keyb_state.kbcount], KBBUF_SIZE - keyb_state.kbcount - 1);
 	k_printf("KBD: cc found %d characters (Xlate)\n", cc);
 	if (cc > 0)
@@ -1484,7 +1494,7 @@ static int slang_keyb_init(void)
 	keyb_state.kbd_fd = STDIN_FILENO;
 	kbd_fd = keyb_state.kbd_fd; /* FIXME the kbd_fd global!! */
 	keyb_state.save_kbd_flags = fcntl(keyb_state.kbd_fd, F_GETFL);
-	fcntl(keyb_state.kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
+//	fcntl(keyb_state.kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
 
 	if (tcgetattr(keyb_state.kbd_fd, &keyb_state.save_termios) < 0
 	    && errno != EINVAL && errno != ENOTTY) {

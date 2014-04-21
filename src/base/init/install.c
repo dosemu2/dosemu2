@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #include "emu.h"
 #include "disks.h"
@@ -18,7 +19,11 @@
 static int terminal_read(char *buf32, u_short size)
 {
 	char x[size+2];
-	fgets(x, size+2, stdin);
+	char *p = fgets(x, size+2, stdin);
+	if (!p) {
+		error("fgets() failed: %s\n", strerror(errno));
+		return -1;
+	}
 	size = strlen(x);
 	if (size && x[size - 1] == '\n') {
 		size--;
