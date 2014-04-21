@@ -16,7 +16,7 @@ AC_CONFIG_HEADER(src/include/config.h)
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
-ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99], [CPPFLAGS="$CPPFLAGS -std=gnu99"; export CPPFLAGS])
+dnl ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99], [CPPFLAGS="$CPPFLAGS -std=gnu99"; export CPPFLAGS])
 AC_PROG_CPP
 
 AC_ARG_WITH(target-bits, [  --with-target-bits=bits compile for 32 or 64 bits (default=auto)],
