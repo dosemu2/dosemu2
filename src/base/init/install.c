@@ -145,13 +145,7 @@ static void install_dosemu_freedos (int choice)
 	free(system_str);
 	create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
-#if 0
 	unix_e_welcome = 1;
-#else
-	/* after creating symlinks, we need to re-init drives and fatfs
-	 * subsystems. It looks easier to just terminate dosemu... FIXME! */
-	leavedos(1);
-#endif
 }
 
 static char proprietary_notice[] =
@@ -314,7 +308,13 @@ void install_dos(int post_boot)
 			assemble_path(dosemu_lib_dir, "drive_z", 0);
 		create_symlink(commands_path, 1);
 		free(commands_path);
+#if 0
 		if(post_boot)
 			disk_reset();
+#else
+		/* after creating symlinks, we need to re-init drives and fatfs
+		 * subsystems. It looks easier to just terminate dosemu... FIXME! */
+		leavedos(1);
+#endif
 	}
 }
