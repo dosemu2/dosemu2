@@ -11,7 +11,7 @@ lredir del d: > nul
 lredir d: linux\fs%DOSDRIVE_D%
 :nodrived
 rem uncomment to load another bitmap font
-rem loadhi display con=(vga,437,2)
+rem lh display con=(vga,437,2)
 rem mode con codepage prepare=((850) z:\cpi\ega.cpx)
 rem mode con codepage select 850
 rem chcp 850
