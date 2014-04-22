@@ -399,6 +399,16 @@ emulate(int argc, char **argv)
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
 
+    /*
+     * Do the 'liability disclaimer' stuff we need to avoid problems
+     * with laws in some countries.
+     *
+     * show it at the beginning only for terminals and direct console
+     * else the banner code in int.c does it.
+     */
+    if (!config.X)
+	install_dos(0);
+
     /* the following duo have to be done before others who use hlt or coopth */
     hlt_init();
     coopth_init();
@@ -419,16 +429,6 @@ emulate(int argc, char **argv)
     signal_init();              /* initialize sig's & sig handlers */
     /* here we include the hooks to possible plug-ins */
     #include "plugin_init.h"
-
-    /*
-     * Do the 'liability disclaimer' stuff we need to avoid problems
-     * with laws in some countries.
-     *
-     * show it at the beginning only for terminals and direct console
-     * else the banner code in int.c does it.
-     */
-    if (!config.X)
-	install_dos(0);
 
     if (config.exitearly) {
       dbug_printf("Leaving DOS before booting\n");
