@@ -458,6 +458,7 @@ badrw:
   error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
 	_rip, _err);
   leavedos(0x5643);
+  return 0;
 }
 
 /* ======================================================================= */

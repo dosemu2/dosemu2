@@ -378,6 +378,7 @@ bad:
 
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
+    return 0;
     }
   }
 }

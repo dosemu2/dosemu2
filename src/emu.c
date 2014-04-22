@@ -136,6 +136,7 @@ __asm__("___START___: jmp _emulate\n");
 
 sigjmp_buf NotJEnv;
 static int ld_tid;
+static int can_leavedos;
 
 void
 boot(void)
@@ -455,6 +456,8 @@ emulate(int argc, char **argv)
     if (getenv("HOME"))
       setenv("DOSDRIVE_D", getenv("HOME"), 0);
 
+    can_leavedos = 1;
+
     while (!fatalerr && !config.exitearly) {
 	loopstep_run_vm86();
     }
@@ -497,6 +500,12 @@ void __leavedos(int sig, const char *s, int num)
        error("leavedos called recursively, forgetting the graceful exit!\n");
        _exit(1);
       }
+
+    if (!can_leavedos) {
+      config.exitearly = 1;
+      return;
+    }
+
     in_leavedos++;
     registersig(SIGALRM, NULL);
 

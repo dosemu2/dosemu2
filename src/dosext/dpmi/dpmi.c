@@ -2828,6 +2828,7 @@ void run_pm_dos_int(int i)
     default:
       error("run_pm_dos_int called with arg 0x%x\n", i);
       leavedos(87);
+      return;
   }
 
   D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
