@@ -288,6 +288,16 @@ void install_dos(int post_boot)
 		printf_ = p_dos_str;
 		read_string = bios_read_string;
 	}
+
+	if (first_time) {
+		do_liability_disclaimer_prompt(post_boot, 1);
+		if (!config.X)
+			printf_(
+"DOSEMU will run on _this_ terminal.\n"
+"To exit you need to execute \'exitemu\' from within DOS,\n"
+"because <Ctrl>-C and \'exit\' won\'t work!\n");
+	}
+
 	symlink_created = 0;
 	dosemu_lib_dir = getenv("DOSEMU_LIB_DIR");
 	if (!dosemu_lib_dir) dosemu_lib_dir = "";
@@ -295,14 +305,6 @@ void install_dos(int post_boot)
 	if (config.hdiskboot != 1 ||
 	    config.install ||
 	    !exists_file(kernelsyspath)) {
-		if (first_time) {
-			do_liability_disclaimer_prompt(post_boot, 1);
-			if (!config.X)
-				printf_(
-"DOSEMU will run on _this_ terminal.\n"
-"To exit you need to execute \'exitemu\' from within DOS,\n"
-"because <Ctrl>-C and \'exit\' won\'t work!\n");
-		}
 		install_dos_(kernelsyspath);
 	} else
 		install_dosemu_freedos(1);
