@@ -1254,11 +1254,11 @@ void fdkernel_boot_mimic(void)
   unsigned loadaddress = SEGOFF2LINEAR(0x60,0);
   fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
 
-  bootfile = fs->obj[1].full_name;
-  if (!fs || !bootfile) {
+  if (!fs || !fs->obj[1].full_name) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
   }
+  bootfile = fs->obj[1].full_name;
   if ((f = open(bootfile, O_RDONLY)) == -1) {
       error("cannot open DOS system file %s\n", bootfile);
       leavedos(99);
