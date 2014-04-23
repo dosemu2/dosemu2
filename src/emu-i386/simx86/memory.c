@@ -347,7 +347,7 @@ int e_handle_pagefault(struct sigcontext_struct *scp)
 		e_printf("Faulting ops: %08x\n",v);
 
 		if (!InCompiledCode) {
-			dbug_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
+			e_printf("*\tFault out of %scode, cs:eip=%x:%lx,"
 				    " cr2=%x, fault_cnt=%d\n",
 				    !DPMIValidSelector(_cs) ? "DOSEMU " : "",
 				    _cs, _rip, addr, fault_cnt);
