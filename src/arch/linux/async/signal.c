@@ -521,6 +521,9 @@ signal_pre_init(void)
   stack_t ss;
   void *cstack;
 
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
   cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
 	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
   if (cstack == MAP_FAILED) {
