@@ -3093,6 +3093,7 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	IMeta *I0;
 	unsigned char *p;
 	TNode *G;
+	unsigned short seqlen;
 
 	if (CurrIMeta <= 0) {
 /**/		e_printf("(X) Nothing to exec at %08x\n",PC);
@@ -3140,8 +3141,16 @@ static unsigned int CloseAndExec_x86(unsigned int PC, int mode, int ln)
 	/* mprotect the page here; a page fault will be triggered
 	 * if some other code tries to write over the page including
 	 * this node */
-	e_markpage(G->seqbase, G->seqlen);
-	e_mprotect(G->seqbase, G->seqlen);
+	seqlen = G->seqlen;
+	/* Special case: translated block followed by int instruction.
+	   Ints are always interpreted, but sometimes (e.g. for FPU emulators,
+	   INT 3x) the int instruction is modified by the int handler to
+	   become an actual FPU instruction). This makes sure that then
+	   the whole block is retranslated so it is as long as possible */
+	if (Fetch(G->seqbase+seqlen) == INT)
+	  seqlen += 2;
+	e_markpage(G->seqbase, seqlen);
+	e_mprotect(G->seqbase, seqlen);
 	return Exec_x86(G, ln);
 }
 
