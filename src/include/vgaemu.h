@@ -508,7 +508,11 @@ void dirty_all_vga_colors(void);
 int changed_vga_colors(DAC_entry *);
 void vgaemu_adj_cfg(unsigned, unsigned);
 void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
-void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr);
+void vgaemu_put_char(unsigned char c, unsigned char page, unsigned char attr);
+void vgaemu_repeat_char(unsigned char c, unsigned char page,
+    unsigned char attr, unsigned char count);
+void vgaemu_repeat_char_attr(unsigned char c, unsigned char page,
+    unsigned char attr, unsigned char count);
 void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr);
 unsigned char vgaemu_get_pixel(int x, int y, unsigned char page);
 unsigned char vga_read(unsigned addr);
@@ -520,7 +524,8 @@ void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len);
 void memcpy_from_vga(void *dst, unsigned src, size_t len);
 void memcpy_dos_from_vga(unsigned dst, unsigned src, size_t len);
 void vga_memcpy(unsigned dst, unsigned src, size_t len);
-void vga_memset(unsigned dst, char val, size_t len);
+void vga_memset(unsigned dst, unsigned char val, size_t len);
+void vga_memsetw(unsigned dst, unsigned short val, size_t len);
 /* for cpuemu: */
 int vga_emu_protect_page(unsigned, int);
 int vga_emu_adjust_protection(unsigned, unsigned);

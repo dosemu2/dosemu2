@@ -762,7 +762,8 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
 unsigned char vga_read(unsigned addr)
 {
-  if (!vga.inst_emu)
+  if (!vga.inst_emu || addr < vga.mem.bank_base ||
+	addr >= vga.mem.bank_base + vga.mem.bank_len)
     return READ_BYTE(addr);
   return Logical_VGA_read(addr - vga.mem.bank_base);
 }
@@ -776,7 +777,8 @@ unsigned short vga_read_word(unsigned addr)
 
 void vga_write(unsigned addr, unsigned char val)
 {
-  if (!vga.inst_emu) {
+  if (!vga.inst_emu || addr < vga.mem.bank_base ||
+	addr >= vga.mem.bank_base + vga.mem.bank_len) {
     WRITE_BYTE(addr, val);
     return;
   }
@@ -850,7 +852,7 @@ void vga_memcpy(unsigned dst, unsigned src, size_t len)
     vga_write(dst + i, vga_read(src + i));
 }
 
-void vga_memset(unsigned dst, char val, size_t len)
+void vga_memset(unsigned dst, unsigned char val, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
@@ -859,6 +861,21 @@ void vga_memset(unsigned dst, char val, size_t len)
   }
   for (i = 0; i < len; i++)
     vga_write(dst + i, val);
+}
+
+void vga_memsetw(unsigned dst, unsigned short val, size_t len)
+{
+  if (!vga.inst_emu) {
+    while (len--) {
+      WRITE_WORD(dst, val);
+      dst += 2;
+    }
+    return;
+  }
+  while (len--) {
+    vga_write_word(dst, val);
+    dst += 2;
+  }
 }
 
 /*

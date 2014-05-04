@@ -8,76 +8,34 @@
 #include "vgatables.h"
 #include "vgabios.h"
 
-/* this is a copy/paste from vgaemu.c.
- * It should be properly ported to use port I/O and bios data
- * instead of vgaemu internal structures. */
+/* port (part) of LGPL'd VGABios:
+ * http://savannah.nongnu.org/projects/vgabios
+ * Ported to dosemu by stsp  */
 
 #define vga_msg(x...) v_printf("VGAEmu: " x)
-#define read_byte(seg, off) (READ_BYTE(SEGOFF2LINEAR(seg, off)))
-#define write_byte(seg, off, val) (WRITE_BYTE(SEGOFF2LINEAR(seg, off), val))
-#define read_word(seg, off) (READ_WORD(SEGOFF2LINEAR(seg, off)))
-#define write_word(seg, off, val) (WRITE_WORD(SEGOFF2LINEAR(seg, off), val))
+#define read_byte(seg, off) (vga_read(SEGOFF2LINEAR(seg, off)))
+#define write_byte(seg, off, val) (vga_write(SEGOFF2LINEAR(seg, off), val))
+#define read_word(seg, off) (vga_read_word(SEGOFF2LINEAR(seg, off)))
+#define write_word(seg, off, val) (vga_write_word(SEGOFF2LINEAR(seg, off), val))
 #define outw port_outw
 #define memsetb(seg, off, val, len) vga_memset(SEGOFF2LINEAR(seg, off), val, len)
-#define memsetw(seg, off, val, len) vga_memset(SEGOFF2LINEAR(seg, off), val, (len) * 2)
+#define memsetw(seg, off, val, len) vga_memsetw(SEGOFF2LINEAR(seg, off), val, len)
 #define memcpyb(seg, off, sseg, soff, len) vga_memcpy(\
     SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), len)
 #define memcpyw(seg, off, sseg, soff, len) vga_memcpy(\
     SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), (len) * 2)
 
+#define vgafont14 dosaddr_to_unixaddr(vgaemu_bios.font_14)
+#define vgafont16 dosaddr_to_unixaddr(vgaemu_bios.font_16)
+#define vgafont8 dosaddr_to_unixaddr(vgaemu_bios.font_8)
+
+#define DEBUG
+#define unimplemented() error("vgabios: unimplemented, %s:%i\n", \
+	__func__, __LINE__);
+
 static vga_mode_info *get_vmi(void)
 {
     return vga_emu_find_mode(READ_BYTE(BIOS_VIDEO_MODE), NULL);
-}
-
-static unsigned vgaemu_xy2ofs(unsigned x, unsigned y)
-{
-  unsigned ofs;
-  vga_mode_info *vmi = get_vmi();
-
-  switch(vmi->type) {
-    case TEXT:
-    case P15:
-    case P16:
-      ofs = vga.scan_len * y + 2 * x;
-      break;
-
-    case PL1:
-    case PL2:
-    case PL4:
-      ofs = vga.scan_len * y + (x >> 3);
-      break;
-
-    case P8:
-      ofs = vga.scan_len * y + x;
-      break;
-
-    case P24:
-      ofs = vga.scan_len * y + 3 * x;
-      break;
-
-    case P32:
-      ofs = vga.scan_len * y + 4 * x;
-      break;
-
-    case CGA:
-      if(vmi->color_bits == 1) {
-        ofs = vga.scan_len * (y >> 1) + (x >> 3) + (y & 1) * 0x2000;
-      }
-      else {	/* vmi->color_bits == 2 */
-        ofs = vga.scan_len * (y >> 1) + (x >> 2) + (y & 1) * 0x2000;
-      }
-      break;
-
-    default:
-      ofs = 0;
-  }
-
-  if(ofs >= vga.mem.size) ofs = 0;
-
-//  vga_msg("vgaemu_xy2ofs: %u.%u -> 0x%x\n", x, y, ofs);
-
-  return ofs;
 }
 
 // --------------------------------------------------------------------------------------------
@@ -148,6 +106,7 @@ Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
   }
 }
 
+// --------------------------------------------------------------------------------------------
 static void biosfn_scroll(
 Bit8u nblines,Bit8u attr,Bit8u rul,Bit8u cul,Bit8u rlr,Bit8u clr,Bit8u page,
 Bit8u dir)
@@ -311,165 +270,515 @@ void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr)
  biosfn_scroll(nblines,attr,y0,x0,y1,x1,0xff,dir);
 }
 
-void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)
+// --------------------------------------------------------------------------------------------
+static void biosfn_get_cursor_pos (Bit8u page,Bit16u *shape,Bit16u *pos)
 {
-  unsigned src, ofs, height, u, page0, page1, start_x, start_y, m, mc, v;
-  unsigned col = attr;
-  unsigned char *font;
-  vga_mode_info *vmi = get_vmi();
+ // Default
+ *shape = 0;
+ *pos = 0;
 
-  vga_msg(
-    "vgaemu_put_char: x.y %d.%d, char 0x%02x, attr 0x%02x\n",
-    x, y, c, attr
-  );
+ if(page>7)return;
+ // FIXME should handle VGA 14/16 lines
+ *shape = read_word(BIOSMEM_SEG,BIOSMEM_CURSOR_TYPE);
+ *pos = read_word(BIOSMEM_SEG,BIOSMEM_CURSOR_POS+page*2);
+}
 
-  height = READ_WORD(BIOS_FONT_HEIGHT);
+// --------------------------------------------------------------------------------------------
+static void write_gfx_char_pl4(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
+	Bit8u nbcols,Bit8u cheight)
+{
+ Bit8u i,j,mask;
+ Bit8u *fdata;
+ Bit16u addr,dest,src;
 
-  start_x = x * 8;
-  start_y = y * height;
-
-  if(
-    vmi->type == P15 || vmi->type == P16 ||
-    vmi->type == P24 || vmi->type == P32
-  ) {
-    // Maybe use default DAC table to look up color values?
-    col = 0xffffffff;
+ switch(cheight)
+  {case 14:
+    fdata = vgafont14;
+    break;
+   case 16:
+    fdata = vgafont16;
+    break;
+   default:
+    fdata = vgafont8;
   }
-
-  if(vmi->type == CGA && c >= 0x80) {
-    /* use special 8x8 gfx chars in modes 4, 5, 6 */
-    src = IVEC(0x1f);
-    src -= 0x80 * 8;
+ addr=xcurs+ycurs*cheight*nbcols;
+ src = car * cheight;
+ outw(VGAREG_SEQU_ADDRESS, 0x0f02);
+ outw(VGAREG_GRDC_ADDRESS, 0x0205);
+ if(attr&0x80)
+  {
+   outw(VGAREG_GRDC_ADDRESS, 0x1803);
   }
-  else {
-    src = IVEC(0x43);
+ else
+  {
+   outw(VGAREG_GRDC_ADDRESS, 0x0003);
   }
-  src += height * c;
-  font = &mem_base[src];
-
-  ofs = vgaemu_xy2ofs(start_x, start_y);
-  vga_msg("vgaemu_put_char: src 0x%x, ofs 0x%x, height %u\n", src, ofs, height);
-
-  if(
-    ofs >= vga.mem.size ||
-    ofs + height * vga.scan_len >= vga.mem.size ||
-    height == 0 || height > 32
-  ) {
-    vga_msg("vgaemu_put_char: values out of range\n");
-    return;
-  }
-
-  page0 = page1 = ofs >> 12;
-  for(u = 0; u < height; u++) {
-    ofs = vgaemu_xy2ofs(start_x, start_y + u);
-    if((ofs >> 12) > page1) page1 = ofs >> 12;
-    switch(vmi->type) {
-      case CGA:
-        if(vmi->color_bits == 1) {
-          if((attr & 0x80)) {
-            vga.mem.base[ofs] ^= (attr & 1) ? font[u] : 0;
-          }
-          else {
-            vga.mem.base[ofs] = (attr & 1) ? font[u] : 0;
-          }
-        }
-        else {	/* vmi->color_bits == 2 */
-          mc = (attr & 3) << 14;
-          for(v = 0, m = 0x80; m; m >>= 1, mc >>= 2) {
-            v |= (font[u] & m) ? mc : 0;
-          }
-          if((attr & 0x80)) {
-            vga.mem.base[ofs] ^= v >> 8;
-            vga.mem.base[ofs + 1] ^= v;
-          }
-          else {
-            vga.mem.base[ofs] = v >> 8;
-            vga.mem.base[ofs + 1] = v;
-          }
-        }
-        break;
-
-      case PL4:
-        if((attr & 0x80)) {
-          vga.mem.base[ofs + 0x20000] ^= (attr & 4) ? font[u] : 0;
-          vga.mem.base[ofs + 0x30000] ^= (attr & 8) ? font[u] : 0;
-        }
-        else {
-          vga.mem.base[ofs + 0x20000] = (attr & 4) ? font[u] : 0;
-          vga.mem.base[ofs + 0x30000] = (attr & 8) ? font[u] : 0;
-        }
-      case PL2:
-        if((attr & 0x80)) {
-          vga.mem.base[ofs + 0x10000] ^= (attr & 2) ? font[u] : 0;
-        }
-        else {
-          vga.mem.base[ofs + 0x10000] = (attr & 2) ? font[u] : 0;
-        }
-      case PL1:
-        if((attr & 0x80)) {
-          vga.mem.base[ofs] ^= (attr & 1) ? font[u] : 0;
-        }
-        else {
-          vga.mem.base[ofs] = (attr & 1) ? font[u] : 0;
-        }
-        break;
-
-      case P8:
-        for(m = 0x80; m; m >>= 1)
-          vga.mem.base[ofs++] = (font[u] & m) ? attr : 0;
-        ofs -= 8;
-        break;
-
-      case P15:
-      case P16:
-        for(m = 0x80; m; m >>= 1) {
-          if((font[u] & m)) {
-            vga.mem.base[ofs++] = col;
-            vga.mem.base[ofs++] = col >> 8;
-          }
-          else {
-            vga.mem.base[ofs++] = 0;
-            vga.mem.base[ofs++] = 0;
-          }
-        }
-        ofs -= 16;
-        break;
-
-      case P24:
-        for(m = 0x80; m; m >>= 1) {
-          if((font[u] & m)) {
-            vga.mem.base[ofs++] = col;
-            vga.mem.base[ofs++] = col >> 8;
-            vga.mem.base[ofs++] = col >> 16;
-          }
-          else {
-            vga.mem.base[ofs++] = 0;
-            vga.mem.base[ofs++] = 0;
-            vga.mem.base[ofs++] = 0;
-          }
-        }
-        ofs -= 24;
-        break;
+ for(i=0;i<cheight;i++)
+  {
+   dest=addr+i*nbcols;
+   for(j=0;j<8;j++)
+    {
+     mask=0x80>>j;
+     outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
+//     read_byte(0xa000,dest);
+     if(fdata[src+i]&mask)
+      {
+       write_byte(0xa000,dest,attr&0x0f);
+      }
+     else
+      {
+       write_byte(0xa000,dest,0x00);
+      }
     }
   }
+#if 0
+ASM_START
+  mov dx, # VGAREG_GRDC_ADDRESS
+  mov ax, #0xff08
+  out dx, ax
+  mov ax, #0x0005
+  out dx, ax
+  mov ax, #0x0003
+  out dx, ax
+ASM_END
+#else
+  outw(VGAREG_GRDC_ADDRESS, 0xff08);
+  outw(VGAREG_GRDC_ADDRESS, 0x0005);
+  outw(VGAREG_GRDC_ADDRESS, 0x0003);
+#endif
+}
 
-  for(u = page0; u <= page1; u++) {
-    vga.mem.dirty_map[u] = 1;
-  }
-  switch(vmi->type) {
-    case PL1:
-    case PL2:
-    case PL4:
-      vga.mem.dirty_map[page0 + 0x10] = 1;
-      vga.mem.dirty_map[page0 + 0x20] = 1;
-      vga.mem.dirty_map[page0 + 0x30] = 1;
-      vga.mem.dirty_map[page1 + 0x10] = 1;
-      vga.mem.dirty_map[page1 + 0x20] = 1;
-      vga.mem.dirty_map[page1 + 0x30] = 1;
-      break;
+// --------------------------------------------------------------------------------------------
+static void write_gfx_char_cga(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
+    Bit8u nbcols,Bit8u bpp)
+{
+ Bit8u i,j,mask,data;
+ Bit8u *fdata;
+ Bit16u addr,dest,src;
+
+ fdata = vgafont8;
+ addr=(xcurs*bpp)+ycurs*320;
+ src = car * 8;
+ for(i=0;i<8;i++)
+  {
+   dest=addr+(i>>1)*80;
+   if (i & 1) dest += 0x2000;
+   mask = 0x80;
+   if (bpp == 1)
+    {
+     if (attr & 0x80)
+      {
+       data = read_byte(0xb800,dest);
+      }
+     else
+      {
+       data = 0x00;
+      }
+     for(j=0;j<8;j++)
+      {
+       if (fdata[src+i] & mask)
+        {
+         if (attr & 0x80)
+          {
+           data ^= (attr & 0x01) << (7-j);
+          }
+         else
+          {
+           data |= (attr & 0x01) << (7-j);
+          }
+        }
+       mask >>= 1;
+      }
+     write_byte(0xb800,dest,data);
+    }
+   else
+    {
+     while (mask > 0)
+      {
+       if (attr & 0x80)
+        {
+         data = read_byte(0xb800,dest);
+        }
+       else
+        {
+         data = 0x00;
+        }
+       for(j=0;j<4;j++)
+        {
+         if (fdata[src+i] & mask)
+          {
+           if (attr & 0x80)
+            {
+             data ^= (attr & 0x03) << ((3-j)*2);
+            }
+           else
+            {
+             data |= (attr & 0x03) << ((3-j)*2);
+            }
+          }
+         mask >>= 1;
+        }
+       write_byte(0xb800,dest,data);
+       dest += 1;
+      }
+    }
   }
 }
 
+// --------------------------------------------------------------------------------------------
+static void write_gfx_char_lin(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
+    Bit8u nbcols)
+{
+ Bit8u i,j,mask,data;
+ Bit8u *fdata;
+ Bit16u addr,dest,src;
+
+ fdata = vgafont8;
+ addr=xcurs*8+ycurs*nbcols*64;
+ src = car * 8;
+ for(i=0;i<8;i++)
+  {
+   dest=addr+i*nbcols*8;
+   mask = 0x80;
+   for(j=0;j<8;j++)
+    {
+     data = 0x00;
+     if (fdata[src+i] & mask)
+      {
+       data = attr;
+      }
+     write_byte(0xa000,dest+j,data);
+     mask >>= 1;
+    }
+  }
+}
+
+// --------------------------------------------------------------------------------------------
+static void biosfn_set_cursor_pos(Bit8u page,Bit16u cursor)
+{
+ Bit8u xcurs,ycurs,current;
+ Bit16u nbcols,nbrows,address,crtc_addr;
+
+ // Should not happen...
+ if(page>7)return;
+
+ // Bios cursor pos
+ write_word(BIOSMEM_SEG, BIOSMEM_CURSOR_POS+2*page, cursor);
+
+ // Set the hardware cursor
+ current=read_byte(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
+ if(page==current)
+  {
+   // Get the dimensions
+   nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+   nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+
+   xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
+
+   // Calculate the address knowing nbcols nbrows and page num
+   address=SCREEN_IO_START(nbcols,nbrows,page)+xcurs+ycurs*nbcols;
+
+   // CRTC regs 0x0e and 0x0f
+   crtc_addr=read_word(BIOSMEM_SEG,BIOSMEM_CRTC_ADDRESS);
+   outb(crtc_addr,0x0e);
+   outb(crtc_addr+1,(address&0xff00)>>8);
+   outb(crtc_addr,0x0f);
+   outb(crtc_addr+1,address&0x00ff);
+  }
+}
+
+// --------------------------------------------------------------------------------------------
+static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
+{// flag = WITH_ATTR / NO_ATTR
+
+ Bit8u cheight,xcurs,ycurs,bpp;
+ Bit16u nbcols,nbrows,address;
+ Bit16u cursor,dummy;
+ vga_mode_info *vmi = get_vmi();
+
+ // special case if page is 0xff, use current page
+ if(page==0xff)
+  page=read_byte(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
+
+ // Get the cursor pos for the page
+ biosfn_get_cursor_pos(page,&dummy,&cursor);
+ xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
+
+ // Get the dimensions
+ nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+
+ switch(car)
+  {
+   case 7:
+    //FIXME should beep
+    break;
+
+   case 8:
+    if(xcurs>0)xcurs--;
+    break;
+
+   case '\r':
+    xcurs=0;
+    break;
+
+   case '\n':
+    ycurs++;
+    break;
+
+   case '\t':
+    do
+     {
+      biosfn_write_teletype(' ',page,attr,flag);
+      biosfn_get_cursor_pos(page,&dummy,&cursor);
+      xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
+     }while(xcurs%8==0);
+    break;
+
+   default:
+
+    if(vmi->mode_class==TEXT)
+     {
+      // Compute the address  
+      address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+ycurs*nbcols)*2;
+
+      // Write the char 
+      write_byte(vmi->buffer_start,address,car);
+
+      if(flag==WITH_ATTR)
+       write_byte(vmi->buffer_start,address+1,attr);
+     }
+    else
+     {
+      // FIXME gfx mode not complete
+      cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+      bpp=vmi->color_bits;
+      switch(vmi->type)
+       {
+        case PLANAR4:
+        case PLANAR1:
+          write_gfx_char_pl4(car,attr,xcurs,ycurs,nbcols,cheight);
+          break;
+        case CGA:
+          write_gfx_char_cga(car,attr,xcurs,ycurs,nbcols,bpp);
+          break;
+        case LINEAR8:
+          write_gfx_char_lin(car,attr,xcurs,ycurs,nbcols);
+          break;
+#ifdef DEBUG
+        default:
+          unimplemented();
+#endif
+       }
+     }
+    xcurs++;
+  }
+
+ // Do we need to wrap ?
+ if(xcurs==nbcols)
+  {xcurs=0;
+   ycurs++;
+  }
+
+ // Do we need to scroll ?
+ if(ycurs==nbrows)
+  {
+   if(vmi->mode_class==TEXT)
+    {
+     address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+(ycurs-1)*nbcols)*2;
+     attr=read_byte(vmi->buffer_start,address+1);
+     biosfn_scroll(0x01,attr,0,0,nbrows-1,nbcols-1,page,SCROLL_UP);
+    }
+   else
+    {
+     biosfn_scroll(0x01,0x00,0,0,nbrows-1,nbcols-1,page,SCROLL_UP);
+    }
+   ycurs-=1;
+  }
+
+ // Set the cursor for the page
+ cursor=ycurs; cursor<<=8; cursor+=xcurs;
+ biosfn_set_cursor_pos(page,cursor);
+}
+
+void vgaemu_put_char(unsigned char c, unsigned char page, unsigned char attr)
+{
+ vga_msg(
+    "vgaemu_put_char: page %d, char 0x%02x, attr 0x%02x\n",
+    page, c, attr
+ );
+
+ biosfn_write_teletype(c, page, attr, NO_ATTR);
+}
+
+#if 0
+// --------------------------------------------------------------------------------------------
+static void biosfn_write_string(Bit8u flag,Bit8u page,Bit8u attr,Bit16u count,
+    Bit8u row,Bit8u col,Bit16u seg,Bit16u offset)
+{
+ Bit16u newcurs,oldcurs,dummy;
+ Bit8u car;
+
+ // Read curs info for the page
+ biosfn_get_cursor_pos(page,&dummy,&oldcurs);
+
+ // if row=0xff special case : use current cursor position
+ if(row==0xff)
+  {col=oldcurs&0x00ff;
+   row=(oldcurs&0xff00)>>8;
+  }
+
+ newcurs=row; newcurs<<=8; newcurs+=col;
+ biosfn_set_cursor_pos(page,newcurs);
+ 
+ while(count--!=0)
+  {
+   car=read_byte(seg,offset++);
+   if((flag&0x02)!=0)
+    attr=read_byte(seg,offset++);
+
+   biosfn_write_teletype(car,page,attr,WITH_ATTR);
+  }
+ 
+ // Set back curs pos 
+ if((flag&0x01)==0)
+  biosfn_set_cursor_pos(page,oldcurs);
+}
+#endif
+
+// --------------------------------------------------------------------------------------------
+static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
+    Bit16u count)
+{
+ Bit8u cheight,xcurs,ycurs,bpp;
+ Bit16u nbcols,nbrows,address;
+ Bit16u cursor,dummy;
+ vga_mode_info *vmi = get_vmi();
+
+ // Get the cursor pos for the page
+ biosfn_get_cursor_pos(page,&dummy,&cursor);
+ xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
+
+ // Get the dimensions
+ nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+
+ if(vmi->mode_class==TEXT)
+  {
+   // Compute the address
+   address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+ycurs*nbcols)*2;
+
+   dummy=((Bit16u)attr<<8)+car;
+   memsetw(vmi->buffer_start,address,dummy,count);
+  }
+ else
+  {
+   // FIXME gfx mode not complete
+   cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+   bpp=vmi->color_bits;
+   while((count-->0) && (xcurs<nbcols))
+    {
+     switch(vmi->type)
+      {
+       case PLANAR4:
+       case PLANAR1:
+         write_gfx_char_pl4(car,attr,xcurs,ycurs,nbcols,cheight);
+         break;
+       case CGA:
+         write_gfx_char_cga(car,attr,xcurs,ycurs,nbcols,bpp);
+         break;
+       case LINEAR8:
+         write_gfx_char_lin(car,attr,xcurs,ycurs,nbcols);
+         break;
+#ifdef DEBUG
+       default:
+         unimplemented();
+#endif
+      }
+     xcurs++;
+    }
+  }
+}
+
+// --------------------------------------------------------------------------------------------
+static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
+    Bit16u count)
+{
+ Bit8u cheight,xcurs,ycurs,bpp;
+ Bit16u nbcols,nbrows,address;
+ Bit16u cursor,dummy;
+ vga_mode_info *vmi = get_vmi();
+
+ // Get the cursor pos for the page
+ biosfn_get_cursor_pos(page,&dummy,&cursor);
+ xcurs=cursor&0x00ff;ycurs=(cursor&0xff00)>>8;
+
+ // Get the dimensions
+ nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+
+ if(vmi->mode_class==TEXT)
+  {
+   // Compute the address
+   address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+ycurs*nbcols)*2;
+
+   while(count-->0)
+    {write_byte(vmi->buffer_start,address,car);
+     address+=2;
+    }
+  }
+ else
+  {
+   // FIXME gfx mode not complete
+   cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+   bpp=vmi->color_bits;
+   while((count-->0) && (xcurs<nbcols))
+    {
+     switch(vmi->type)
+      {
+       case PLANAR4:
+       case PLANAR1:
+         write_gfx_char_pl4(car,attr,xcurs,ycurs,nbcols,cheight);
+         break;
+       case CGA:
+         write_gfx_char_cga(car,attr,xcurs,ycurs,nbcols,bpp);
+         break;
+       case LINEAR8:
+         write_gfx_char_lin(car,attr,xcurs,ycurs,nbcols);
+         break;
+#ifdef DEBUG
+       default:
+         unimplemented();
+#endif
+      }
+     xcurs++;
+    }
+  }
+}
+
+void vgaemu_repeat_char_attr(unsigned char c, unsigned char page,
+    unsigned char attr, unsigned char count)
+{
+ vga_msg(
+    "vgaemu_repeat_char_attr: page %d, char 0x%02x, attr 0x%02x rep %d\n",
+    page, c, attr, count
+ );
+
+ biosfn_write_char_attr(c, page, attr, count);
+}
+
+void vgaemu_repeat_char(unsigned char c, unsigned char page,
+    unsigned char attr, unsigned char count)
+{
+ vga_msg(
+    "vgaemu_repeat_char: page %d, char 0x%02x, attr 0x%02x rep %d\n",
+    page, c, attr, count
+ );
+
+ biosfn_write_char_only(c, page, attr, count);
+}
+
+// --------------------------------------------------------------------------------------------
 /* TODO: support page number */
 static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
 {
@@ -559,6 +868,7 @@ void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr)
  biosfn_write_pixel(page, attr, x, y);
 }
 
+// --------------------------------------------------------------------------------------------
 /* TODO: support page number */
 static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
 {

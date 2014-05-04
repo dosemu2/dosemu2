@@ -308,7 +308,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
   default:          /* Printable character */
     if(gfx_mode) {
-      vgaemu_put_char(xpos, ypos, ch, attr);
+      vgaemu_put_char(ch, s, attr);
     }
     else
     {
@@ -762,7 +762,6 @@ int int10(void) /* with dualmon */
   /* some code here is copied from Alan Cox ***************/
   int x, y, co, li;
   unsigned page, page_size, address;
-  u_char c;
   unsigned sm;
 
 #if USE_DUALMON
@@ -936,56 +935,19 @@ int int10(void) /* with dualmon */
        * the difference is that 0xA ignores color for text modes
        */
     case 0x09:		/* write char & attr */
-    case 0x0a:		/* write char */
-      if(HI(ax) == 0x0a && using_text_mode()) {
-        i10_deb(
-          "write char: page %u, char 0x%02x '%c'\n",
-          HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
-        );
-      }
-      else {
-        i10_deb(
-          "write char: page %u, char 0x%02x '%c', attr 0x%02x\n",
+      i10_deb(
+          "rep char: page %u, char 0x%02x '%c', attr 0x%02x\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
-        );
-      }
-      if(using_text_mode()) {
-        unsigned sadr;
-        u_short c_attr;
-        int n;
+      );
+      vgaemu_repeat_char_attr(LO(ax), HI(bx), LO(bx), LWORD(ecx));
+      break;
 
-        page = HI(bx);
-        sadr = screen_adr(page)
-	     + (get_bios_cursor_y_position(page) * co
-	        + get_bios_cursor_x_position(page)) * 2;
-        n = LWORD(ecx);
-        c = LO(ax);
-
-        /* XXX - need to make sure this doesn't overrun video memory!
-         * we don't really know how large video memory is yet (I haven't
-         * abstracted things yet) so we'll just leave it for the
-         * Great Video Housecleaning foretold in the TODO file of the
-         * ancients
-         */
-        if(HI(ax) == 9) {		/* use attribute from BL */
-  	 c_attr = c | (LO(bx) << 8);
-	 while(n--) { vga_write_word(sadr, c_attr); sadr += 2; }
-        }
-        else {				/* leave attribute as it is */
-	 while(n--) { vga_write(sadr, c); sadr += 2; }
-        }
-        set_dirty(page);
-        break;
-      }
-      else {
-        unsigned
-          x = get_bios_cursor_x_position(0),
-          y = get_bios_cursor_y_position(0),
-          n = LWORD(ecx);
-
-        while(x < vga.text_width && n--)
-          vgaemu_put_char(x++, y, LO(ax), LO(bx));
-      }
+    case 0x0a:		/* write char */
+      i10_deb(
+          "rep char: page %u, char 0x%02x '%c'\n",
+          HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
+      );
+      vgaemu_repeat_char(LO(ax), HI(bx), LO(bx), LWORD(ecx));
       break;
 
 
