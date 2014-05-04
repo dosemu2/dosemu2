@@ -426,49 +426,56 @@ ASM_END
 /* TODO: support page number */
 unsigned char vgaemu_get_pixel(int x, int y, unsigned char page)
 {
-  unsigned ofs, u = 0, v = 0;
-  vga_mode_info *vmi = get_vmi();
+ Bit8u mask,attr,data,i;
+ Bit16u addr;
+ vga_mode_info *vmi = get_vmi();
+ int BH = page, CX = x, DX = y;
 
-  vga_msg(
+ vga_msg(
     "vgaemu_get_pixel: x.y %d.%d, page 0x%02x\n",
     x, y, page
-  );
+ );
 
-  ofs = vgaemu_xy2ofs(x, y);
-  vga_msg("vgaemu_get_pixel: ofs 0x%x\n", ofs);
-
-  if(ofs >= vga.mem.size) {
-    vga_msg("vgaemu_get_pixel: values out of range\n");
-    return 0;
+ switch(vmi->type)
+  {
+   case PLANAR4:
+   case PLANAR1:
+     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+     mask = 0x80 >> (CX & 0x07);
+     attr = 0x00;
+     for(i=0;i<4;i++)
+      {
+       outw(VGAREG_GRDC_ADDRESS, (i << 8) | 0x04);
+       data = read_byte(0xa000,addr) & mask;
+       if (data > 0) attr |= (0x01 << i);
+      }
+     break;
+   case CGA:
+     addr=(CX>>2)+(DX>>1)*80;
+     if (DX & 1) addr += 0x2000;
+     data = read_byte(0xb800,addr);
+     if(vmi->color_bits==2)
+      {
+       attr = (data >> ((3 - (CX & 0x03)) * 2)) & 0x03;
+      }
+     else
+      {
+       attr = (data >> (7 - (CX & 0x07))) & 0x01;
+      }
+     break;
+   case LINEAR8:
+     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8);
+     attr=read_byte(0xa000,addr);
+     break;
+   default:
+#ifdef DEBUG
+     unimplemented();
+#endif
+     attr = 0;
   }
-
-  switch(vmi->type) {
-      case CGA:
-        if(vmi->color_bits == 1)
-          return (vga.mem.base[ofs] >> (7 - (x & 7))) & 1;
-        else 	/* vmi->color_bits == 2 */
-          return (vga.mem.base[ofs] >> (2 * (3 - (x & 3)))) & 3;
-
-      case PL1:
-        u--;
-        ofs -= 0x10000;
-      case PL2:
-        u -= 2;
-        ofs -= 0x20000;
-      case PL4:
-        u += 4;
-        ofs += 0x40000;
-        while (u--) {
-          ofs -= 0x10000;
-          v <<= 1;
-          v |= (vga.mem.base[ofs] >> (7 - (x & 7))) & 1;
-        }
-        return v;
-
-      case P8:
-        return vga.mem.base[ofs];
-
-      default:
-        return 0;
-  }
+#if 0
+ write_word(ss,AX,(read_word(ss,AX) & 0xff00) | attr);
+#else
+ return attr;
+#endif
 }
