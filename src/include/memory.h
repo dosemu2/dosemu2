@@ -172,7 +172,7 @@
 
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */
-#define TEXT_SIZE(co,li) (((co*li*2)+4095)&(~4095)) /* 4000(4096?) text page size */
+#define TEXT_SIZE(co,li) (((co*li*2)|0xff)+1)
 
 #define GRAPH_BASE 0xA0000
 #define GRAPH_SIZE 0x20000
