@@ -471,17 +471,11 @@ void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)
 }
 
 /* TODO: support page number */
-void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char atr)
+static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
 {
  Bit8u mask,attr,data;
  Bit16u addr;
  vga_mode_info *vmi = get_vmi();
- int CX = x, DX = y, BH = page, AL = atr;
-
- vga_msg(
-    "vgaemu_put_pixel: x.y %d.%d, page 0x%02x, attr 0x%02x\n",
-    x, y, page, atr
- );
 
  switch(vmi->type)
   {
@@ -556,18 +550,21 @@ ASM_END
   }
 }
 
+void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr)
+{
+ vga_msg(
+    "vgaemu_put_pixel: x.y %d.%d, page 0x%02x, attr 0x%02x\n",
+    x, y, page, attr
+ );
+ biosfn_write_pixel(page, attr, x, y);
+}
+
 /* TODO: support page number */
-unsigned char vgaemu_get_pixel(int x, int y, unsigned char page)
+static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
 {
  Bit8u mask,attr,data,i;
  Bit16u addr;
  vga_mode_info *vmi = get_vmi();
- int BH = page, CX = x, DX = y;
-
- vga_msg(
-    "vgaemu_get_pixel: x.y %d.%d, page 0x%02x\n",
-    x, y, page
- );
 
  switch(vmi->type)
   {
@@ -611,4 +608,13 @@ unsigned char vgaemu_get_pixel(int x, int y, unsigned char page)
 #else
  return attr;
 #endif
+}
+
+unsigned char vgaemu_get_pixel(int x, int y, unsigned char page)
+{
+ vga_msg(
+    "vgaemu_get_pixel: x.y %d.%d, page 0x%02x\n",
+    x, y, page
+ );
+ return biosfn_read_pixel(page, x, y);
 }
