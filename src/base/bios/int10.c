@@ -63,7 +63,7 @@
 #include "bios.h"
 #include "int.h"
 #include "speaker.h"
-
+#include "utilities.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 
@@ -613,13 +613,10 @@ boolean set_video_mode(int mode) {
       }
       WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co, li));
     } else {
-      unsigned page_size = vga.scan_len * vga.height;
-      if (page_size != 0) {
-	page_size = vga.mem.bank_pages * 4096 / page_size;
-	if (page_size != 0) {
-	  page_size = vga.mem.bank_pages * 4096 / page_size;
-	}
-      }
+      unsigned page_size = roundUpToNextPowerOfTwo(
+	    (vga.scan_len * vga.height) | 0xfff);
+      if (page_size > vga.mem.bank_pages * 4096)
+        page_size = vga.mem.bank_pages * 4096;
       WRITE_WORD(BIOS_VIDEO_MEMORY_USED, page_size);
     }
     WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
