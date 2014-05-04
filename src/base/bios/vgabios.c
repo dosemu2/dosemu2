@@ -829,7 +829,6 @@ void vgaemu_repeat_char(unsigned char c, unsigned char page,
 }
 
 // --------------------------------------------------------------------------------------------
-/* TODO: support page number */
 static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
 {
  Bit8u mask,attr,data;
@@ -840,7 +839,8 @@ static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
   {
    case PLANAR4:
    case PLANAR1:
-     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)+
+       READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      mask = 0x80 >> (CX & 0x07);
      outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
      outw(VGAREG_GRDC_ADDRESS, 0x0205);
@@ -899,7 +899,8 @@ ASM_END
      write_byte(0xb800,addr,data);
      break;
    case LINEAR8:
-     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8);
+     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8)+
+       READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      write_byte(0xa000,addr,AL);
      break;
 #ifdef DEBUG
@@ -919,7 +920,6 @@ void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr)
 }
 
 // --------------------------------------------------------------------------------------------
-/* TODO: support page number */
 static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
 {
  Bit8u mask,attr,data,i;
@@ -930,7 +930,8 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
   {
    case PLANAR4:
    case PLANAR1:
-     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)+
+       READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      mask = 0x80 >> (CX & 0x07);
      attr = 0x00;
      for(i=0;i<4;i++)
@@ -954,7 +955,8 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
       }
      break;
    case LINEAR8:
-     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8);
+     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8)+
+       READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      attr=read_byte(0xa000,addr);
      break;
    default:
