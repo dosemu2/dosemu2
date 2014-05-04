@@ -81,18 +81,18 @@
 //#define TEXT       0x00
 //#define GRAPH      0x01
 
-#define CTEXT      0x00
-#define MTEXT      0x01
+#define CTEXT      TEXT
+#define MTEXT      TEXT_MONO
 //#define CGA        0x02
-#define PLANAR1    0x03
-#define PLANAR4    0x04
-#define LINEAR8    0x05
+#define PLANAR1    PL1
+#define PLANAR4    PL4
+#define LINEAR8    P8
 
 // for SVGA
-#define LINEAR15   0x10
-#define LINEAR16   0x11
-#define LINEAR24   0x12
-#define LINEAR32   0x13
+#define LINEAR15   P15
+#define LINEAR16   P16
+#define LINEAR24   P24
+#define LINEAR32   P32
 
 #if 0
 typedef struct
