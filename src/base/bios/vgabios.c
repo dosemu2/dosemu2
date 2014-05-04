@@ -221,7 +221,6 @@ Bit8u dir)
   }
  else
   {
-   // FIXME gfx mode not complete
    address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
    cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
    switch(vmi->type)
@@ -335,8 +334,8 @@ static void biosfn_get_cursor_pos (Bit8u page,Bit16u *shape,Bit16u *pos)
 }
 
 // --------------------------------------------------------------------------------------------
-static void write_gfx_char_pl4(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
-	Bit8u nbcols,Bit8u cheight)
+static void write_gfx_char_pl4(Bit16u vstart,Bit8u car,Bit8u attr,
+	Bit8u xcurs,Bit8u ycurs,Bit8u nbcols,Bit8u cheight)
 {
  Bit8u i,j,mask;
  Bit8u *fdata;
@@ -352,7 +351,7 @@ static void write_gfx_char_pl4(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
    default:
     fdata = vgafont8;
   }
- addr=xcurs+ycurs*cheight*nbcols;
+ addr=xcurs+ycurs*cheight*nbcols+vstart;
  src = car * cheight;
  outw(VGAREG_SEQU_ADDRESS, 0x0f02);
  outw(VGAREG_GRDC_ADDRESS, 0x0205);
@@ -400,15 +399,15 @@ ASM_END
 }
 
 // --------------------------------------------------------------------------------------------
-static void write_gfx_char_cga(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
-    Bit8u nbcols,Bit8u bpp)
+static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
+	Bit8u xcurs,Bit8u ycurs,Bit8u nbcols,Bit8u bpp)
 {
  Bit8u i,j,mask,data;
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
  fdata = vgafont8;
- addr=(xcurs*bpp)+ycurs*320;
+ addr=(xcurs*bpp)+ycurs*320+vstart;
  src = car * 8;
  for(i=0;i<8;i++)
   {
@@ -477,15 +476,15 @@ static void write_gfx_char_cga(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
 }
 
 // --------------------------------------------------------------------------------------------
-static void write_gfx_char_lin(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
-    Bit8u nbcols)
+static void write_gfx_char_lin(Bit16u vstart,Bit8u car,Bit8u attr,
+	Bit8u xcurs,Bit8u ycurs,Bit8u nbcols)
 {
  Bit8u i,j,mask,data;
  Bit8u *fdata;
  Bit16u addr,dest,src;
 
  fdata = vgafont8;
- addr=xcurs*8+ycurs*nbcols*64;
+ addr=xcurs*8+ycurs*nbcols*64+vstart;
  src = car * 8;
  for(i=0;i<8;i++)
   {
@@ -601,20 +600,20 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
      }
     else
      {
-      // FIXME gfx mode not complete
+      address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
       cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
       bpp=vmi->color_bits;
       switch(vmi->type)
        {
         case PLANAR4:
         case PLANAR1:
-          write_gfx_char_pl4(car,attr,xcurs,ycurs,nbcols,cheight);
+          write_gfx_char_pl4(address,car,attr,xcurs,ycurs,nbcols,cheight);
           break;
         case CGA:
-          write_gfx_char_cga(car,attr,xcurs,ycurs,nbcols,bpp);
+          write_gfx_char_cga(address,car,attr,xcurs,ycurs,nbcols,bpp);
           break;
         case LINEAR8:
-          write_gfx_char_lin(car,attr,xcurs,ycurs,nbcols);
+          write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols);
           break;
 #ifdef DEBUG
         default:
@@ -724,7 +723,7 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
   }
  else
   {
-   // FIXME gfx mode not complete
+   address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
    cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
    bpp=vmi->color_bits;
    while((count-->0) && (xcurs<nbcols))
@@ -733,13 +732,13 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
       {
        case PLANAR4:
        case PLANAR1:
-         write_gfx_char_pl4(car,attr,xcurs,ycurs,nbcols,cheight);
+         write_gfx_char_pl4(address,car,attr,xcurs,ycurs,nbcols,cheight);
          break;
        case CGA:
-         write_gfx_char_cga(car,attr,xcurs,ycurs,nbcols,bpp);
+         write_gfx_char_cga(address,car,attr,xcurs,ycurs,nbcols,bpp);
          break;
        case LINEAR8:
-         write_gfx_char_lin(car,attr,xcurs,ycurs,nbcols);
+         write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols);
          break;
 #ifdef DEBUG
        default:
@@ -780,7 +779,7 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
   }
  else
   {
-   // FIXME gfx mode not complete
+   address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
    cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
    bpp=vmi->color_bits;
    while((count-->0) && (xcurs<nbcols))
@@ -789,13 +788,13 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
       {
        case PLANAR4:
        case PLANAR1:
-         write_gfx_char_pl4(car,attr,xcurs,ycurs,nbcols,cheight);
+         write_gfx_char_pl4(address,car,attr,xcurs,ycurs,nbcols,cheight);
          break;
        case CGA:
-         write_gfx_char_cga(car,attr,xcurs,ycurs,nbcols,bpp);
+         write_gfx_char_cga(address,car,attr,xcurs,ycurs,nbcols,bpp);
          break;
        case LINEAR8:
-         write_gfx_char_lin(car,attr,xcurs,ycurs,nbcols);
+         write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols);
          break;
 #ifdef DEBUG
        default:
