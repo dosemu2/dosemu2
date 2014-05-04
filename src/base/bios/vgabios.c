@@ -75,9 +75,9 @@
 #define memcpyw(seg, off, sseg, soff, len) vga_memcpy(\
     SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), (len) * 2)
 
-#define vgafont14 dosaddr_to_unixaddr(vgaemu_bios.font_14)
-#define vgafont16 dosaddr_to_unixaddr(vgaemu_bios.font_16)
-#define vgafont8 dosaddr_to_unixaddr(vgaemu_bios.font_8)
+#define vgafont14 dosaddr_to_unixaddr(SEGOFF2LINEAR(0xc000, vgaemu_bios.font_14))
+#define vgafont16 dosaddr_to_unixaddr(SEGOFF2LINEAR(0xc000, vgaemu_bios.font_16))
+#define vgafont8 dosaddr_to_unixaddr(SEGOFF2LINEAR(0xc000, vgaemu_bios.font_8))
 
 #define DEBUG
 #define unimplemented() error("vgabios: unimplemented, %s:%i\n", \
@@ -370,7 +370,7 @@ static void write_gfx_char_pl4(Bit8u car,Bit8u attr,Bit8u xcurs,Bit8u ycurs,
     {
      mask=0x80>>j;
      outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
-//     read_byte(0xa000,dest);
+     read_byte(0xa000,dest);
      if(fdata[src+i]&mask)
       {
        write_byte(0xa000,dest,attr&0x0f);
