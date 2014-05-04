@@ -64,6 +64,7 @@
 #include "port.h"
 #include "emu86.h"
 #include "vgaemu.h"
+#include "video.h"
 #include "codegen-sim.h"
 
 #undef	DEBUG_MORE

@@ -57,10 +57,6 @@
 #if !defined __VGAEMU_H
 #define __VGAEMU_H
 
-#include "config.h"
-#include "video.h"
-
-
 /*
  * Definition of video mode classes.
  */
@@ -323,6 +319,15 @@ typedef struct {
  */
 
 #define CRTC_MAX_INDEX 0x18		/* 25 registers */
+
+typedef unsigned char byte;
+
+typedef union {
+  struct {
+    byte end, start;
+  } b;
+  unsigned short w;
+} cshape;
 
 typedef struct {
   unsigned addr_mode;

@@ -38,6 +38,7 @@
 #include "codegen-arch.h"
 #include "port.h"
 #include "dpmi.h"
+#include "video.h"
 
 unsigned int P0;
 #ifdef PROFILE

@@ -7,7 +7,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES=int10.c int16.c int17.c hlt.c setup.c bios.o
+CFILES=int10.c int16.c int17.c hlt.c setup.c vgabios.c bios.o
 
 all: lib
 
