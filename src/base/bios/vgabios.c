@@ -2,18 +2,21 @@
 #include "memory.h"
 #include "bios.h"
 #include "cpu.h"
+#include "port.h"
 #include "dosemu_debug.h"
 #include "vgaemu.h"
+#include "vgatables.h"
 
 /* this is a copy/paste from vgaemu.c.
  * It should be properly ported to use port I/O and bios data
  * instead of vgaemu internal structures. */
 
 #define vga_msg(x...) v_printf("VGAEmu: " x)
-
-static Bit32u color2pixels[16] = {0,0xff,0xff00,0xffff,0xff0000,0xff00ff,0xffff00,
-			0x00ffffff,0xff000000,0xff0000ff,0xff00ff00,0xff00ffff,
-			0xffff0000,0xffff00ff,0xffffff00,0xffffffff};
+#define read_byte(seg, off) (READ_BYTE(SEGOFF2LINEAR(seg, off)))
+#define write_byte(seg, off, val) (WRITE_BYTE(SEGOFF2LINEAR(seg, off), val))
+#define read_word(seg, off) (READ_WORD(SEGOFF2LINEAR(seg, off)))
+#define write_word(seg, off, val) (WRITE_WORD(SEGOFF2LINEAR(seg, off), val))
+#define outw port_outw
 
 static vga_mode_info *get_vmi(void)
 {
@@ -335,83 +338,88 @@ void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)
 }
 
 /* TODO: support page number */
-void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr)
+void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char atr)
 {
-  unsigned ofs, u, page0, v;
-  unsigned col = attr;
-  vga_mode_info *vmi = get_vmi();
+ Bit8u mask,attr,data;
+ Bit16u addr;
+ vga_mode_info *vmi = get_vmi();
+ int CX = x, DX = y, BH = page, AL = atr;
 
-  vga_msg(
+ vga_msg(
     "vgaemu_put_pixel: x.y %d.%d, page 0x%02x, attr 0x%02x\n",
-    x, y, page, attr
-  );
+    x, y, page, atr
+ );
 
-  ofs = vgaemu_xy2ofs(x, y);
-  vga_msg("vgaemu_put_pixel: ofs 0x%x\n", ofs);
-
-  if(ofs >= vga.mem.size) {
-    vga_msg("vgaemu_put_pixel: values out of range\n");
-    return;
-  }
-
-  page0 = ofs >> 12;
-
-  switch(vmi->type) {
-      case CGA:
-        if(vmi->color_bits == 1) {
-          col = (attr & 1) << (7 - (x & 7));
-	   v = 1 << (7 - (x & 7));
-        }
-        else {	/* vmi->color_bits == 2 */
-          col = (attr & 3) << (2 * (3 - (x & 3)));
-	   v = 3 << (2 * (3 - (x & 3)));
-        }
-        if((attr & 0x80)) {
-          vga.mem.base[ofs] ^= col;
-        }
-        else {
-          vga.mem.base[ofs] &= ~v;
-          vga.mem.base[ofs] |= col;
-        }
-        break;
-
-      case PL1:
-        col &= 1;
-      case PL2:
-        col &= 3;
-      case PL4:
-        col &= 15;
-        v = 1 << (7 - (x & 7));
-        v |= v<<8;
-        v |= v<<16;
-        col = v & color2pixels[col];
-        for (u = 0; u < 4; u++) {
-          if((attr & 0x80)) {
-            vga.mem.base[ofs] ^= col;
-          } else {
-            vga.mem.base[ofs] &= ~v;
-            vga.mem.base[ofs] |= col;
-          }
-          col >>= 8;
-          ofs += 0x10000;
-        }
-        break;
-
-      case P8:
-        vga.mem.base[ofs] = attr;
-        break;
-  }
-
-  vga.mem.dirty_map[page0] = 1;
-
-  switch(vmi->type) {
-    case PL1:
-    case PL2:
-    case PL4:
-      vga.mem.dirty_map[page0 + 0x10] = 1;
-      vga.mem.dirty_map[page0 + 0x20] = 1;
-      vga.mem.dirty_map[page0 + 0x30] = 1;
-      break;
+ switch(vmi->type)
+  {
+   case PLANAR4:
+   case PLANAR1:
+     addr = CX/8+DX*read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+     mask = 0x80 >> (CX & 0x07);
+     outw(VGAREG_GRDC_ADDRESS, (mask << 8) | 0x08);
+     outw(VGAREG_GRDC_ADDRESS, 0x0205);
+     data = read_byte(0xa000,addr);
+     if (AL & 0x80)
+      {
+       outw(VGAREG_GRDC_ADDRESS, 0x1803);
+      }
+     write_byte(0xa000,addr,AL);
+#if 0
+ASM_START
+     mov dx, # VGAREG_GRDC_ADDRESS
+     mov ax, #0xff08
+     out dx, ax
+     mov ax, #0x0005
+     out dx, ax
+     mov ax, #0x0003
+     out dx, ax
+ASM_END
+#else
+     outw(VGAREG_GRDC_ADDRESS, 0xff08);
+     outw(VGAREG_GRDC_ADDRESS, 0x0005);
+     outw(VGAREG_GRDC_ADDRESS, 0x0003);
+#endif
+     break;
+   case CGA:
+     if(vmi->color_bits==2)
+      {
+       addr=(CX>>2)+(DX>>1)*80;
+      }
+     else
+      {
+       addr=(CX>>3)+(DX>>1)*80;
+      }
+     if (DX & 1) addr += 0x2000;
+     data = read_byte(0xb800,addr);
+     if(vmi->color_bits==2)
+      {
+       attr = (AL & 0x03) << ((3 - (CX & 0x03)) * 2);
+       mask = 0x03 << ((3 - (CX & 0x03)) * 2);
+      }
+     else
+      {
+       attr = (AL & 0x01) << (7 - (CX & 0x07));
+       mask = 0x01 << (7 - (CX & 0x07));
+      }
+     if (AL & 0x80)
+      {
+       data ^= attr;
+      }
+     else
+      {
+       data &= ~mask;
+       data |= attr;
+      }
+     write_byte(0xb800,addr,data);
+     break;
+   case LINEAR8:
+     addr=CX+DX*(read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS)*8);
+     write_byte(0xa000,addr,AL);
+     break;
+#ifdef DEBUG
+   default:
+     unimplemented();
+#endif
   }
 }
 
