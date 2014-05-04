@@ -6,6 +6,7 @@
 #include "dosemu_debug.h"
 #include "vgaemu.h"
 #include "vgatables.h"
+#include "vgabios.h"
 
 /* this is a copy/paste from vgaemu.c.
  * It should be properly ported to use port I/O and bios data
@@ -17,6 +18,12 @@
 #define read_word(seg, off) (READ_WORD(SEGOFF2LINEAR(seg, off)))
 #define write_word(seg, off, val) (WRITE_WORD(SEGOFF2LINEAR(seg, off), val))
 #define outw port_outw
+#define memsetb(seg, off, val, len) vga_memset(SEGOFF2LINEAR(seg, off), val, len)
+#define memsetw(seg, off, val, len) vga_memset(SEGOFF2LINEAR(seg, off), val, (len) * 2)
+#define memcpyb(seg, off, sseg, soff, len) vga_memcpy(\
+    SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), len)
+#define memcpyw(seg, off, sseg, soff, len) vga_memcpy(\
+    SEGOFF2LINEAR(seg, off), SEGOFF2LINEAR(sseg, soff), (len) * 2)
 
 static vga_mode_info *get_vmi(void)
 {
@@ -73,109 +80,235 @@ static unsigned vgaemu_xy2ofs(unsigned x, unsigned y)
   return ofs;
 }
 
-static void vgaemu_move_vga_mem(unsigned dst, unsigned src, unsigned len)
+// --------------------------------------------------------------------------------------------
+static void vgamem_copy_pl4(
+Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 {
-  unsigned char *dp, *sp;
-  vga_mode_info *vmi = get_vmi();
+ Bit16u src,dest;
+ Bit8u i;
 
-  if(len == 0) return;
+ src=ysrc*cheight*nbcols+xstart;
+ dest=ydest*cheight*nbcols+xstart;
+ outw(VGAREG_GRDC_ADDRESS, 0x0105);
+ for(i=0;i<cheight;i++)
+  {
+   memcpyb(0xa000,dest+i*nbcols,0xa000,src+i*nbcols,cols);
+  }
+ outw(VGAREG_GRDC_ADDRESS, 0x0005);
+}
 
-  dp = vga.mem.base + dst;
-  sp = vga.mem.base + src;
+// --------------------------------------------------------------------------------------------
+static void vgamem_fill_pl4(
+Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
+{
+ Bit16u dest;
+ Bit8u i;
 
-  memcpy(dp, sp, len);
-  switch(vmi->type) {
-    case PL4:
-      memcpy(dp + 0x20000, sp + 0x20000, len);
-      memcpy(dp + 0x30000, sp + 0x30000, len);
-    case PL2:
-      memcpy(dp + 0x10000, sp + 0x10000, len);
-      break;
+ dest=ystart*cheight*nbcols+xstart;
+ outw(VGAREG_GRDC_ADDRESS, 0x0205);
+ for(i=0;i<cheight;i++)
+  {
+   memsetb(0xa000,dest+i*nbcols,attr,cols);
+  }
+ outw(VGAREG_GRDC_ADDRESS, 0x0005);
+}
+
+// --------------------------------------------------------------------------------------------
+static void vgamem_copy_cga(
+Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
+{
+ Bit16u src,dest;
+ Bit8u i;
+
+ src=((ysrc*cheight*nbcols)>>1)+xstart;
+ dest=((ydest*cheight*nbcols)>>1)+xstart;
+ for(i=0;i<cheight;i++)
+  {
+   if (i & 1)
+     memcpyb(0xb800,0x2000+dest+(i>>1)*nbcols,0xb800,0x2000+src+(i>>1)*nbcols,cols);
+   else
+     memcpyb(0xb800,dest+(i>>1)*nbcols,0xb800,src+(i>>1)*nbcols,cols);
   }
 }
 
-static void vgaemu_clear_vga_mem(unsigned dst, unsigned len, unsigned char attr)
+// --------------------------------------------------------------------------------------------
+static void vgamem_fill_cga(
+Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 {
-  vga_mode_info *vmi = get_vmi();
-  if(len == 0) return;
+ Bit16u dest;
+ Bit8u i;
 
-  switch(vmi->type) {
-    case PL4:
-      memset(vga.mem.base + dst + 0x20000, attr & 4 ? 0xff : 0, len);
-      memset(vga.mem.base + dst + 0x30000, attr & 8 ? 0xff : 0, len);
-    case PL2:
-      memset(vga.mem.base + dst + 0x10000, attr & 2 ? 0xff : 0, len);
-    case PL1:
-      memset(vga.mem.base + dst, attr & 1 ? 0xff : 0, len);
-      break;
-    case CGA:
-      if(vmi->color_bits == 1)
-        attr = attr & 1 ? 0xff : 0;
-      else {  /* vmi->color_bits == 2 */
-        attr &= 3;
-        attr |= (attr<<2);
-        attr |= (attr<<4);
+ dest=((ystart*cheight*nbcols)>>1)+xstart;
+ for(i=0;i<cheight;i++)
+  {
+   if (i & 1)
+     memsetb(0xb800,0x2000+dest+(i>>1)*nbcols,attr,cols);
+   else
+     memsetb(0xb800,dest+(i>>1)*nbcols,attr,cols);
+  }
+}
+
+static void biosfn_scroll(
+Bit8u nblines,Bit8u attr,Bit8u rul,Bit8u cul,Bit8u rlr,Bit8u clr,Bit8u page,
+Bit8u dir)
+{
+ Bit8u cheight,bpp,cols;
+ Bit16u nbcols,nbrows,i;
+ Bit16u address;
+ vga_mode_info *vmi = get_vmi();
+
+ // page == 0xFF if current
+
+ if(rul>rlr)return;
+ if(cul>clr)return;
+
+ // Get the dimensions
+ nbrows=read_byte(BIOSMEM_SEG,BIOSMEM_NB_ROWS)+1;
+ nbcols=read_word(BIOSMEM_SEG,BIOSMEM_NB_COLS);
+
+ // Get the current page
+ if(page==0xFF)
+  page=read_byte(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
+
+ if(rlr>=nbrows)rlr=nbrows-1;
+ if(clr>=nbcols)clr=nbcols-1;
+ if(nblines>nbrows)nblines=0;
+ cols=clr-cul+1;
+
+ if(vmi->mode_class==TEXT)
+  {
+   // Compute the address
+   address=SCREEN_MEM_START(nbcols,nbrows,page);
+#ifdef DEBUG
+   printf("Scroll, address %04x (%04x %04x %02x)\n",address,nbrows,nbcols,page);
+#endif
+
+   if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
+    {
+     memsetw(vmi->buffer_start,address,(Bit16u)attr*0x100+' ',nbrows*nbcols);
+    }
+   else
+    {// if Scroll up
+     if(dir==SCROLL_UP)
+      {for(i=rul;i<=rlr;i++)
+        {
+         if((i+nblines>rlr)||(nblines==0))
+          memsetw(vmi->buffer_start,address+(i*nbcols+cul)*2,(Bit16u)attr*0x100+' ',cols);
+         else
+          memcpyw(vmi->buffer_start,address+(i*nbcols+cul)*2,vmi->buffer_start,((i+nblines)*nbcols+cul)*2,cols);
+        }
       }
-    default: /* this does not make sense for P16 and P24, but
-                attr is a char anyway */
-      memset(vga.mem.base + dst, attr, len);
+     else
+      {for(i=rlr;i>=rul;i--)
+        {
+         if((i<rul+nblines)||(nblines==0))
+          memsetw(vmi->buffer_start,address+(i*nbcols+cul)*2,(Bit16u)attr*0x100+' ',cols);
+         else
+          memcpyw(vmi->buffer_start,address+(i*nbcols+cul)*2,vmi->buffer_start,((i-nblines)*nbcols+cul)*2,cols);
+         if (i>rlr) break;
+        }
+      }
+    }
+  }
+ else
+  {
+   // FIXME gfx mode not complete
+   cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
+   switch(vmi->type)
+    {
+     case PLANAR4:
+     case PLANAR1:
+       if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
+        {
+         outw(VGAREG_GRDC_ADDRESS, 0x0205);
+         memsetb(vmi->buffer_start,0,attr,nbrows*nbcols*cheight);
+         outw(VGAREG_GRDC_ADDRESS, 0x0005);
+        }
+       else
+        {// if Scroll up
+         if(dir==SCROLL_UP)
+          {for(i=rul;i<=rlr;i++)
+            {
+             if((i+nblines>rlr)||(nblines==0))
+              vgamem_fill_pl4(cul,i,cols,nbcols,cheight,attr);
+             else
+              vgamem_copy_pl4(cul,i+nblines,i,cols,nbcols,cheight);
+            }
+          }
+         else
+          {for(i=rlr;i>=rul;i--)
+            {
+             if((i<rul+nblines)||(nblines==0))
+              vgamem_fill_pl4(cul,i,cols,nbcols,cheight,attr);
+             else
+              vgamem_copy_pl4(cul,i,i-nblines,cols,nbcols,cheight);
+             if (i>rlr) break;
+            }
+          }
+        }
+       break;
+     case CGA:
+       bpp=vmi->color_bits;
+       if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
+        {
+         memsetb(vmi->buffer_start,0,attr,nbrows*nbcols*cheight*bpp);
+        }
+       else
+        {
+         if(bpp==2)
+          {
+           cul<<=1;
+           cols<<=1;
+           nbcols<<=1;
+          }
+         // if Scroll up
+         if(dir==SCROLL_UP)
+          {for(i=rul;i<=rlr;i++)
+            {
+             if((i+nblines>rlr)||(nblines==0))
+              vgamem_fill_cga(cul,i,cols,nbcols,cheight,attr);
+             else
+              vgamem_copy_cga(cul,i+nblines,i,cols,nbcols,cheight);
+            }
+          }
+         else
+          {for(i=rlr;i>=rul;i--)
+            {
+             if((i<rul+nblines)||(nblines==0))
+              vgamem_fill_cga(cul,i,cols,nbcols,cheight,attr);
+             else
+              vgamem_copy_cga(cul,i,i-nblines,cols,nbcols,cheight);
+             if (i>rlr) break;
+            }
+          }
+        }
+       break;
+#ifdef DEBUG
+     default:
+       printf("Scroll in graphics mode ");
+       unimplemented();
+#endif
+    }
   }
 }
 
 void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr)
 {
-  int dx, dy;
-  unsigned height;
-  vga_mode_info *vmi = get_vmi();
+ Bit8u dir, nblines;
 
-  vga_msg(
+ vga_msg(
     "vgaemu_scroll: %d lines, area %d.%d-%d.%d, attr 0x%02x\n",
     n, x0, y0, x1, y1, attr
-  );
+ );
 
-  if(x1 >= vmi->text_width || y1 >= vmi->text_height) {
-    if(x1 >= vmi->text_width) x1 = vmi->text_width - 1;
-    if(y1 >= vmi->text_height) y1 = vmi->text_height - 1;
-  }
-  dx = x1 - x0 + 1;
-  dy = y1 - y0 + 1;
-  if(n >= dy || n <= -dy) n = 0;
-  if(
-    dx <= 0 || dy <= 0 || x0 < 0 ||
-    x1 >= vmi->text_width || y0 < 0 || y1 >= vmi->text_height
-  ) {
-    vga_msg("vgaemu_scroll: scroll parameters impossibly out of bounds\n");
-    return;
-  }
-
-  height = READ_WORD(BIOS_FONT_HEIGHT);
-  x0 = x0 * 8;
-  dx = vgaemu_xy2ofs((x1 + 1) * 8, 0) - vgaemu_xy2ofs(x0, 0);
-
-  y0 *= height;
-  if(n == 0) {
-    y1 = (y1 + 1) * height - 1;
-  }
-  else if(n > 0) {
-    y1 = (y1 + 1 - n) * height - 1;
-    for(; y0 <= y1; y0++) {
-      vgaemu_move_vga_mem(vgaemu_xy2ofs(x0, y0), vgaemu_xy2ofs(x0, y0 + height * n), dx);
-    }
-    y1 += n * height;
-  }
-  else {	/* n < 0 */
-    y0 -= n * height;
-    y1 = (y1 + 1) * height - 1;
-    for(; y0 <= y1; y1--) {
-      vgaemu_move_vga_mem(vgaemu_xy2ofs(x0, y1), vgaemu_xy2ofs(x0, y1 + height * n), dx);
-    }
-    y0 += n * height;
-  }
-  for(; y0 <= y1; y0++) {
-    vgaemu_clear_vga_mem(vgaemu_xy2ofs(x0, y0), dx, attr);
-  }
-
-  dirty_all_video_pages();
+ if (n >= 0) {
+   dir = SCROLL_UP;
+   nblines = n;
+ } else {
+   dir = SCROLL_DOWN;
+   nblines = -n;
+ }
+ biosfn_scroll(nblines,attr,y0,x0,y1,x1,0xff,dir);
 }
 
 void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)

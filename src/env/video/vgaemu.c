@@ -850,6 +850,17 @@ void vga_memcpy(unsigned dst, unsigned src, size_t len)
     vga_write(dst + i, vga_read(src + i));
 }
 
+void vga_memset(unsigned dst, char val, size_t len)
+{
+  int i;
+  if (!vga.inst_emu) {
+    MEMSET_DOS(dst, val, len);
+    return;
+  }
+  for (i = 0; i < len; i++)
+    vga_write(dst + i, val);
+}
+
 /*
  * DANG_BEGIN_FUNCTION vga_emu_fault
  *

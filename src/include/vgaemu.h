@@ -520,6 +520,7 @@ void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len);
 void memcpy_from_vga(void *dst, unsigned src, size_t len);
 void memcpy_dos_from_vga(unsigned dst, unsigned src, size_t len);
 void vga_memcpy(unsigned dst, unsigned src, size_t len);
+void vga_memset(unsigned dst, char val, size_t len);
 /* for cpuemu: */
 int vga_emu_protect_page(unsigned, int);
 int vga_emu_adjust_protection(unsigned, unsigned);
