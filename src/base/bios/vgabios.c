@@ -22,13 +22,13 @@
 //
 // ============================================================================================
 //
-//  This VGA Bios is specific to the plex86/bochs Emulated VGA card. 
-//  You can NOT drive any physical vga card with it. 
+//  This VGA Bios is specific to the plex86/bochs Emulated VGA card.
+//  You can NOT drive any physical vga card with it.
 //
 // ============================================================================================
 //
 //  This file contains code ripped from :
-//   - rombios.c of plex86 
+//   - rombios.c of plex86
 //
 //  This VGA Bios contains fonts from :
 //   - fntcol16.zip (c) by Joseph Gil avalable at :
@@ -589,10 +589,10 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
 
     if(vmi->mode_class==TEXT)
      {
-      // Compute the address  
+      // Compute the address
       address=SCREEN_MEM_START(nbcols,nbrows,page)+(xcurs+ycurs*nbcols)*2;
 
-      // Write the char 
+      // Write the char
       write_byte(vmi->buffer_start,address,car);
 
       if(flag==WITH_ATTR)
@@ -680,7 +680,7 @@ static void biosfn_write_string(Bit8u flag,Bit8u page,Bit8u attr,Bit16u count,
 
  newcurs=row; newcurs<<=8; newcurs+=col;
  biosfn_set_cursor_pos(page,newcurs);
- 
+
  while(count--!=0)
   {
    car=read_byte(seg,offset++);
@@ -689,8 +689,8 @@ static void biosfn_write_string(Bit8u flag,Bit8u page,Bit8u attr,Bit16u count,
 
    biosfn_write_teletype(car,page,attr,WITH_ATTR);
   }
- 
- // Set back curs pos 
+
+ // Set back curs pos
  if((flag&0x01)==0)
   biosfn_set_cursor_pos(page,oldcurs);
 }
