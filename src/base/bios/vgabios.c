@@ -1,3 +1,57 @@
+// ============================================================================================
+/*
+ * vgabios.c
+ */
+// ============================================================================================
+//
+//  Copyright (C) 2001-2008 the LGPL VGABios developers Team
+//
+//  This library is free software; you can redistribute it and/or
+//  modify it under the terms of the GNU Lesser General Public
+//  License as published by the Free Software Foundation; either
+//  version 2 of the License, or (at your option) any later version.
+//
+//  This library is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+//  Lesser General Public License for more details.
+//
+//  You should have received a copy of the GNU Lesser General Public
+//  License along with this library; if not, write to the Free Software
+//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+//
+// ============================================================================================
+//
+//  This VGA Bios is specific to the plex86/bochs Emulated VGA card. 
+//  You can NOT drive any physical vga card with it. 
+//
+// ============================================================================================
+//
+//  This file contains code ripped from :
+//   - rombios.c of plex86 
+//
+//  This VGA Bios contains fonts from :
+//   - fntcol16.zip (c) by Joseph Gil avalable at :
+//      ftp://ftp.simtel.net/pub/simtelnet/msdos/screen/fntcol16.zip
+//     These fonts are public domain
+//
+//  This VGA Bios is based on information taken from :
+//   - Kevin Lawton's vga card emulation for bochs/plex86
+//   - Ralf Brown's interrupts list available at http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html
+//   - Finn Thogersons' VGADOC4b available at http://home.worldonline.dk/~finth/
+//   - Michael Abrash's Graphics Programming Black Book
+//   - Francois Gervais' book "programmation des cartes graphiques cga-ega-vga" edited by sybex
+//   - DOSEMU 1.0.1 source code for several tables values and formulas
+//
+// Thanks for patches, comments and ideas to :
+//   - techt@pikeonline.net
+//
+// ============================================================================================
+
+/* port (part) of LGPL'd VGABios:
+ * http://savannah.nongnu.org/projects/vgabios
+ * Ported to dosemu by stsp  */
+
 #include <string.h>
 #include "memory.h"
 #include "bios.h"
@@ -7,10 +61,6 @@
 #include "vgaemu.h"
 #include "vgatables.h"
 #include "vgabios.h"
-
-/* port (part) of LGPL'd VGABios:
- * http://savannah.nongnu.org/projects/vgabios
- * Ported to dosemu by stsp  */
 
 #define vga_msg(x...) v_printf("VGAEmu: " x)
 #define read_byte(seg, off) (vga_read(SEGOFF2LINEAR(seg, off)))
