@@ -89,14 +89,14 @@ static vga_mode_info *get_vmi(void)
 }
 
 // --------------------------------------------------------------------------------------------
-static void vgamem_copy_pl4(
+static void vgamem_copy_pl4(Bit16u vstart,
 Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 {
  Bit16u src,dest;
  Bit8u i;
 
- src=ysrc*cheight*nbcols+xstart;
- dest=ydest*cheight*nbcols+xstart;
+ src=ysrc*cheight*nbcols+xstart+vstart;
+ dest=ydest*cheight*nbcols+xstart+vstart;
  outw(VGAREG_GRDC_ADDRESS, 0x0105);
  for(i=0;i<cheight;i++)
   {
@@ -106,13 +106,13 @@ Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 }
 
 // --------------------------------------------------------------------------------------------
-static void vgamem_fill_pl4(
+static void vgamem_fill_pl4(Bit16u vstart,
 Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 {
  Bit16u dest;
  Bit8u i;
 
- dest=ystart*cheight*nbcols+xstart;
+ dest=ystart*cheight*nbcols+xstart+vstart;
  outw(VGAREG_GRDC_ADDRESS, 0x0205);
  for(i=0;i<cheight;i++)
   {
@@ -122,14 +122,14 @@ Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 }
 
 // --------------------------------------------------------------------------------------------
-static void vgamem_copy_cga(
+static void vgamem_copy_cga(Bit16u vstart,
 Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 {
  Bit16u src,dest;
  Bit8u i;
 
- src=((ysrc*cheight*nbcols)>>1)+xstart;
- dest=((ydest*cheight*nbcols)>>1)+xstart;
+ src=((ysrc*cheight*nbcols)>>1)+xstart+vstart;
+ dest=((ydest*cheight*nbcols)>>1)+xstart+vstart;
  for(i=0;i<cheight;i++)
   {
    if (i & 1)
@@ -140,13 +140,13 @@ Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 }
 
 // --------------------------------------------------------------------------------------------
-static void vgamem_fill_cga(
+static void vgamem_fill_cga(Bit16u vstart,
 Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 {
  Bit16u dest;
  Bit8u i;
 
- dest=((ystart*cheight*nbcols)>>1)+xstart;
+ dest=((ystart*cheight*nbcols)>>1)+xstart+vstart;
  for(i=0;i<cheight;i++)
   {
    if (i & 1)
@@ -222,6 +222,7 @@ Bit8u dir)
  else
   {
    // FIXME gfx mode not complete
+   address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
    cheight=read_byte(BIOSMEM_SEG,BIOSMEM_CHAR_HEIGHT);
    switch(vmi->type)
     {
@@ -230,7 +231,7 @@ Bit8u dir)
        if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
         {
          outw(VGAREG_GRDC_ADDRESS, 0x0205);
-         memsetb(vmi->buffer_start,0,attr,nbrows*nbcols*cheight);
+         memsetb(vmi->buffer_start,address,attr,nbrows*nbcols*cheight);
          outw(VGAREG_GRDC_ADDRESS, 0x0005);
         }
        else
@@ -239,18 +240,18 @@ Bit8u dir)
           {for(i=rul;i<=rlr;i++)
             {
              if((i+nblines>rlr)||(nblines==0))
-              vgamem_fill_pl4(cul,i,cols,nbcols,cheight,attr);
+              vgamem_fill_pl4(address,cul,i,cols,nbcols,cheight,attr);
              else
-              vgamem_copy_pl4(cul,i+nblines,i,cols,nbcols,cheight);
+              vgamem_copy_pl4(address,cul,i+nblines,i,cols,nbcols,cheight);
             }
           }
          else
           {for(i=rlr;i>=rul;i--)
             {
              if((i<rul+nblines)||(nblines==0))
-              vgamem_fill_pl4(cul,i,cols,nbcols,cheight,attr);
+              vgamem_fill_pl4(address,cul,i,cols,nbcols,cheight,attr);
              else
-              vgamem_copy_pl4(cul,i,i-nblines,cols,nbcols,cheight);
+              vgamem_copy_pl4(address,cul,i,i-nblines,cols,nbcols,cheight);
              if (i>rlr) break;
             }
           }
@@ -260,7 +261,7 @@ Bit8u dir)
        bpp=vmi->color_bits;
        if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1)
         {
-         memsetb(vmi->buffer_start,0,attr,nbrows*nbcols*cheight*bpp);
+         memsetb(vmi->buffer_start,address,attr,nbrows*nbcols*cheight*bpp);
         }
        else
         {
@@ -275,18 +276,18 @@ Bit8u dir)
           {for(i=rul;i<=rlr;i++)
             {
              if((i+nblines>rlr)||(nblines==0))
-              vgamem_fill_cga(cul,i,cols,nbcols,cheight,attr);
+              vgamem_fill_cga(address,cul,i,cols,nbcols,cheight,attr);
              else
-              vgamem_copy_cga(cul,i+nblines,i,cols,nbcols,cheight);
+              vgamem_copy_cga(address,cul,i+nblines,i,cols,nbcols,cheight);
             }
           }
          else
           {for(i=rlr;i>=rul;i--)
             {
              if((i<rul+nblines)||(nblines==0))
-              vgamem_fill_cga(cul,i,cols,nbcols,cheight,attr);
+              vgamem_fill_cga(address,cul,i,cols,nbcols,cheight,attr);
              else
-              vgamem_copy_cga(cul,i,i-nblines,cols,nbcols,cheight);
+              vgamem_copy_cga(address,cul,i,i-nblines,cols,nbcols,cheight);
              if (i>rlr) break;
             }
           }
