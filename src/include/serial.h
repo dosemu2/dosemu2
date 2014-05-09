@@ -51,6 +51,10 @@ typedef struct {
   boolean low_latency;		/* set low_latency mode */
   boolean mouse;		/* Flag to turn on mouse sharing features */
   int system_rtscts;		/* Flag: emulate RTS or let system handle it */
+  ioport_t dmx_port;
+  Bit8u dmx_mask;
+  int dmx_shift;
+  int dmx_val:1;
 } serial_t;
 
 EXTERN serial_t com_cfg[MAX_SER];

@@ -46,6 +46,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <pwd.h>
+#include <assert.h>
 
 #include "config.h"
 #include "Linux/serial.h"
@@ -63,6 +64,88 @@
 int no_local_video = 0;
 com_t com[MAX_SER];
 static u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
+struct ser_dmx {
+  ioport_t port;
+  Bit8u def_val;
+  int use_cnt;
+  char name[16];
+};
+#define DMX_MAX 4
+static struct ser_dmx dmxs[DMX_MAX];
+static int num_dmxs;
+
+static void add_dmx(ioport_t port, int val)
+{
+  int i;
+  Bit8u dval = val - 1;
+  for (i = 0; i < num_dmxs; i++) {
+    if (dmxs[i].port == port) {
+      if (dmxs[i].def_val != dval) {
+        error("SER: inconsistent config for demux on port %#x\n", port);
+        return;
+      }
+      dmxs[i].use_cnt++;
+      return;
+    }
+  }
+  num_dmxs++;
+  assert(num_dmxs <= DMX_MAX);
+  dmxs[i].port = port;
+  dmxs[i].def_val = dval;
+  dmxs[i].use_cnt = 1;
+  sprintf(dmxs[i].name, "ser_dmx_%i", i);
+}
+
+static Bit8u dmx_readb(ioport_t port)
+{
+  int num, i;
+  Bit8u val;
+  for (i = 0; i < num_dmxs; i++) {
+    if (dmxs[i].port == port)
+      break;
+  }
+  assert(i < num_dmxs);
+  val = dmxs[i].def_val;
+  for (num = 0; num < config.num_ser; num++) {
+    if (com_cfg[num].dmx_port == port &&
+	(com[num].int_condition & com_cfg[num].dmx_mask)) {
+      if (com_cfg[num].dmx_val)
+        val |= 1 << com_cfg[num].dmx_shift;
+      else
+        val &= ~(1 << com_cfg[num].dmx_shift);
+    }
+  }
+  s_printf("SER: read demux at port %#x=%#x\n", dmxs[i].port, val);
+  return val;
+}
+
+static void dmx_writeb(ioport_t port, Bit8u value)
+{
+  s_printf("SER: write to readonly port %#x, val=%#x\n", port, value);
+}
+
+static int init_dmxs(void)
+{
+  emu_iodev_t io_device;
+  int i;
+
+  for (i = 0; i < num_dmxs; i++) {
+    io_device.read_portb  = dmx_readb;
+    io_device.write_portb = dmx_writeb;
+    io_device.read_portw  = NULL;
+    io_device.write_portw = NULL;
+    io_device.read_portd  = NULL;
+    io_device.write_portd = NULL;
+    io_device.start_addr  = dmxs[i].port;
+    io_device.end_addr    = dmxs[i].port;
+    io_device.irq         = EMU_NO_IRQ;
+    io_device.fd          = -1;
+    io_device.handler_name = dmxs[i].name;
+    port_register_handler(io_device, 0);
+    s_printf("SER: added demux at port %#x\n", dmxs[i].port);
+  }
+  return i;
+}
 
 /* See README.serial file for more information on the com[] structure
  * The declarations for this is in ../include/serial.h
@@ -525,6 +608,9 @@ static void do_ser_init(int num)
 #endif
   /* Set file descriptor as unused, then attempt to open serial port */
   com[num].fd = -1;
+
+  if (com_cfg[num].dmx_port)
+    add_dmx(com_cfg[num].dmx_port, com_cfg[num].dmx_val);
 }
 
 void serial_reset(void)
@@ -588,6 +674,8 @@ void serial_init(void)
     else
       do_ser_init(i);
   }
+
+  init_dmxs();
 }
 
 /* Like serial_init, this is the master function that is called externally,

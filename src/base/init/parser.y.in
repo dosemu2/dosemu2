@@ -1877,6 +1877,7 @@ static void start_serial(void)
     sptr->pseudo = FALSE;
     sptr->system_rtscts = FALSE;
     sptr->low_latency = FALSE;
+    sptr->dmx_port = 0;
   }
 }
 
