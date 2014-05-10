@@ -313,6 +313,27 @@ static void ser_reset_dev(int num)
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
 }
 
+static void ser_setup_custom(int num)
+{
+  int i, cnt;
+  switch (com_cfg[num].custom) {
+  case SER_CUSTOM_NONE:
+    break;
+  case SER_CUSTOM_PCCOM:
+    s_printf("SER%d: setting up PCCOM config\n", num);
+    cnt = 0;
+    for (i = 0; i < num; i++) {
+      if (com_cfg[i].custom == SER_CUSTOM_PCCOM)
+        cnt++;
+    }
+    com_cfg[num].dmx_port = (cnt < 4 ? 0x2bf : 0x1bf);
+    com_cfg[num].dmx_mask = RX_INTR;
+    com_cfg[num].dmx_shift = cnt;
+    com_cfg[num].dmx_val = 0;
+    break;
+  }
+}
+
 static void ser_set_params(int num)
 {
   int data = 0;
@@ -548,6 +569,8 @@ static void do_ser_init(int num)
     { 4, 0x9220, "/dev/ttyS14", "COM15" },
     { 4, 0x9228, "/dev/ttyS15", "COM16" },
   };
+
+  ser_setup_custom(num);
 
   if (com_cfg[num].real_comport == 0) {		/* Is comport number undef? */
     error("SER%d: No COMx port number given\n", num);
