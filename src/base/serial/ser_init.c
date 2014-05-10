@@ -290,24 +290,8 @@ static void async_serial_run(void *arg)
   serial_update(num);
 }
 
-static void ser_set_params(int num)
+static void ser_reset_dev(int num)
 {
-  int data = 0;
-  com[num].newset.c_cflag = CS8 | CLOCAL | CREAD;
-  com[num].newset.c_iflag = IGNBRK | IGNPAR;
-  com[num].newset.c_oflag = 0;
-  com[num].newset.c_lflag = 0;
-
-#ifdef __linux__
-  com[num].newset.c_line = 0;
-#endif
-  com[num].newset.c_cc[VMIN] = 1;
-  com[num].newset.c_cc[VTIME] = 0;
-  if (com_cfg[num].system_rtscts)
-    com[num].newset.c_cflag |= CRTSCTS;
-  if (!com[num].fifo)
-    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
-
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
   com[num].IER = 0;			/* Interrupt Enable Register */
@@ -327,10 +311,28 @@ static void ser_set_params(int num)
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   com[num].tx_cnt = 0;
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
+}
+
+static void ser_set_params(int num)
+{
+  int data = 0;
+  com[num].newset.c_cflag = CS8 | CLOCAL | CREAD;
+  com[num].newset.c_iflag = IGNBRK | IGNPAR;
+  com[num].newset.c_oflag = 0;
+  com[num].newset.c_lflag = 0;
+
+#ifdef __linux__
+  com[num].newset.c_line = 0;
+#endif
+  com[num].newset.c_cc[VMIN] = 1;
+  com[num].newset.c_cc[VTIME] = 0;
+  if (com_cfg[num].system_rtscts)
+    com[num].newset.c_cflag |= CRTSCTS;
+  if (!com[num].fifo)
+    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
 
   if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
   ser_termios(num);			/* Set line settings now */
-  modstat_engine(num);
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
@@ -438,6 +440,8 @@ int ser_open(int num)
   ser_set_params(num);
 
   add_to_io_select(com[num].fd, async_serial_run, (void *)(long)num);
+
+  modstat_engine(num);
   return com[num].fd;
 
 fail_close:
@@ -611,6 +615,8 @@ static void do_ser_init(int num)
 
   if (com_cfg[num].dmx_port)
     add_dmx(com_cfg[num].dmx_port, com_cfg[num].dmx_val);
+
+  ser_reset_dev(num);
 }
 
 void serial_reset(void)
