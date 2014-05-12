@@ -38,6 +38,7 @@
 #include "serial.h"
 #include "debug.h"
 #include "utilities.h"
+#include "userhook.h"
 #include "dosemu_config.h"
 
 #include "keyb_clients.h"
@@ -838,6 +839,13 @@ static void SIGALRM_call(void *arg)
 #endif
 
   io_select();	/* we need this in order to catch lost SIGIOs */
+  /* catch user hooks here */
+  if (uhook_fdin != -1) uhook_poll();
+
+  /* here we include the hooks to possible plug-ins */
+  #define VM86_RETURN_VALUE retval
+  #include "plugin_poll.h"
+  #undef VM86_RETURN_VALUE
 
   alarm_idle();
 

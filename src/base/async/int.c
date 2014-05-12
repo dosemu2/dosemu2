@@ -65,8 +65,6 @@
 
 #include "keyb_server.h"
 
-#include "userhook.h"
-
 #undef  DEBUG_INT1A
 
 static char win31_title[256];
@@ -2455,19 +2453,6 @@ void do_periodic_stuff(void)
 
     handle_signals();
     coopth_run();
-    /* dont go to poll the I/O if <10mS elapsed */
-    if (GETusTIME(0) - last_time >= 10000) {
-	last_time = GETusTIME(0);
-	io_select();	/* we need this in order to catch lost SIGIOs */
-
-	/* catch user hooks here */
-	if (uhook_fdin != -1) uhook_poll();
-
-	/* here we include the hooks to possible plug-ins */
-	#define VM86_RETURN_VALUE retval
-	#include "plugin_poll.h"
-	#undef VM86_RETURN_VALUE
-    }
 
 #ifdef USE_MHPDBG
     if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
