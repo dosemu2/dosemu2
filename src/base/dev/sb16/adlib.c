@@ -35,6 +35,7 @@
 #include "adlib.h"
 #include "dbadlib.h"
 #include <limits.h>
+#include <pthread.h>
 
 #define ADLIB_BASE 0x388
 #define OPL3_INTERNAL_FREQ    14400000	// The OPL3 operates at 14.4MHz
@@ -61,10 +62,14 @@ static const int opl3_format = PCM_FORMAT_S8;
 #endif
 static const int opl3_rate = 44100;
 
+static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
+
 Bit8u adlib_io_read_base(ioport_t port)
 {
     Bit8u ret;
+    pthread_mutex_lock(&synth_mtx);
     ret = dbadlib_PortRead(opl3_timers, port);
+    pthread_mutex_unlock(&synth_mtx);
     if (debug_level('S') >= 9)
 	S_printf("Adlib: Read %hhx from port %x\n", ret, port);
     return ret;
@@ -85,7 +90,9 @@ void adlib_io_write_base(ioport_t port, Bit8u value)
     if ( port&1 ) {
       opl3_update();
     }
+    pthread_mutex_lock(&synth_mtx);
     dbadlib_PortWrite(opl3_timers, port, value);
+    pthread_mutex_unlock(&synth_mtx);
 }
 
 static void adlib_io_write(ioport_t port, Bit8u value)
@@ -144,7 +151,9 @@ void adlib_done(void)
 static void adlib_process_samples(int nframes)
 {
     sndbuf_t buf[OPL3_MAX_BUF][SNDBUF_CHANS];
+    pthread_mutex_lock(&synth_mtx);
     dbadlib_generate(nframes, buf);
+    pthread_mutex_unlock(&synth_mtx);
     pcm_write_interleaved(buf, nframes, opl3_rate, opl3_format,
 	    ADLIB_CHANNELS, adlib_strm);
 }
@@ -197,8 +206,11 @@ void adlib_timer(void)
 		S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
 #if UPDATE_TIMERS
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < 2; i++) {
+	    pthread_mutex_lock(&synth_mtx);
 	    AdlibTimer__Update(&opl3_timers[i], now);
+	    pthread_mutex_unlock(&synth_mtx);
+	}
 #endif
     } while (time_adj);
     pcm_time_unlock(adlib_strm);
