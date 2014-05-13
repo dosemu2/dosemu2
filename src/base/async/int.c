@@ -2446,8 +2446,6 @@ static void update_xtitle(void)
 
 void do_periodic_stuff(void)
 {
-    static hitimer_t last_time = 0;
-
     if (in_crit_section)
 	return;
 
