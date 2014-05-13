@@ -149,9 +149,14 @@ static void adlib_process_samples(int nframes)
 	    ADLIB_CHANNELS, adlib_strm);
 }
 
+/* we know that timer updates do not affect synth, so disable that code */
+#define UPDATE_TIMERS 0
 void adlib_timer(void)
 {
-    int i, nframes;
+#if UPDATE_TIMERS
+    int i;
+#endif
+    int nframes;
     double period, adlib_time_cur;
     long long now;
     int time_adj;
@@ -168,6 +173,7 @@ void adlib_timer(void)
     if (adlib_running) do {
 	now = GETusTIME(0);
 	time_adj = 0;
+#if UPDATE_TIMERS
 	/* find the closest timer */
 	for (i = 0; i < 2; i++) {
 	    if (opl3_timers[i].enabled && !opl3_timers[i].overflow &&
@@ -178,7 +184,7 @@ void adlib_timer(void)
 		    S_printf("Adlib: time adjusted to timer %i\n", i);
 	    }
 	}
-
+#endif
 	period = pcm_frame_period_us(opl3_rate);
 	nframes = (now - adlib_time_cur) / period;
 	if (nframes > OPL3_MAX_BUF)
@@ -190,10 +196,10 @@ void adlib_timer(void)
 	    if (debug_level('S') >= 7)
 		S_printf("SB: processed %i Adlib samples\n", nframes);
 	}
-
-	for (i = 0; i < 2; i++) {
+#if UPDATE_TIMERS
+	for (i = 0; i < 2; i++)
 	    AdlibTimer__Update(&opl3_timers[i], now);
-	}
+#endif
     } while (time_adj);
     pcm_time_unlock(adlib_strm);
 }
