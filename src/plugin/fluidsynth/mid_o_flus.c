@@ -20,6 +20,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include <pthread.h>
 #include <fluidsynth.h>
 #include "fluid_midi.h"
 #include "emu.h"
@@ -46,6 +47,7 @@ static int pcm_stream;
 static int output_running, pcm_running;
 static double mf_time_base;
 
+static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int midoflus_init(void)
 {
@@ -100,6 +102,7 @@ static void midoflus_write(unsigned char val)
     if (!output_running)
 	midoflus_start();
 
+    pthread_mutex_lock(&synth_mtx);
     event = fluid_midi_parser_parse(parser, val);
     if (event != NULL) {
 	int ret;
@@ -112,12 +115,16 @@ static void midoflus_write(unsigned char val)
 	if (ret != FLUID_OK)
 	    S_printf("MIDI: failed sending midi event\n");
     }
+    pthread_mutex_unlock(&synth_mtx);
 }
 
 static void mf_process_samples(int nframes)
 {
     sndbuf_t buf[FLUS_MAX_BUF][FLUS_CHANNELS];
-    int ret = fluid_synth_write_s16(synth, nframes, buf, 0, 2, buf, 1, 2);
+    int ret;
+    pthread_mutex_lock(&synth_mtx);
+    ret = fluid_synth_write_s16(synth, nframes, buf, 0, 2, buf, 1, 2);
+    pthread_mutex_unlock(&synth_mtx);
     if (ret != FLUID_OK) {
 	error("MIDI: fluidsynth failed\n");
 	return;
