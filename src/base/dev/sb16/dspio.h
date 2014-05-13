@@ -34,6 +34,7 @@ extern int dspio_get_speaker_state(void *dspio);
 extern Bit32u dspio_get_midi_in_time(void *dspio);
 extern void dspio_write_dac(void *dspio, Bit8u samp);
 extern void dspio_timer(void *dspio);
+extern void dspio_run_synth(void);
 extern void dspio_write_midi(void *dspio, Bit8u value);
 extern void dspio_clear_fifos(void *dspio);
 extern Bit8u dspio_get_midi_in_byte(void *dspio);

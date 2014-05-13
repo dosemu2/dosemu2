@@ -808,7 +808,7 @@ static void SIGALRM_call(void *arg)
 
 #ifdef USE_SBEMU
   /* This is a macro */
-  run_sb();
+  run_sound();
 #endif
 
   serial_run();

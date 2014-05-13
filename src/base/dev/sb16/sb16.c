@@ -1341,6 +1341,11 @@ void run_new_sb(void)
     dspio_timer(sb.dspio);
 }
 
+void run_new_sound(void)
+{
+    dspio_run_synth();
+}
+
 static void mpu401_init(void)
 {
     emu_iodev_t io_device;

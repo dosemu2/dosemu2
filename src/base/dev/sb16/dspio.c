@@ -686,12 +686,15 @@ static void *synth_thread(void *arg)
     return NULL;
 }
 
-void dspio_timer(void *dspio)
+void dspio_run_synth(void)
 {
     sem_post(&syn_sem);
+}
+
+void dspio_timer(void *dspio)
+{
     dspio_process_dma(DSPIO);
     dspio_process_midi(DSPIO);
-    pcm_timer();
 }
 
 void dspio_write_dac(void *dspio, Bit8u samp)

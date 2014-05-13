@@ -20,6 +20,7 @@
 
 #include "extern.h"
 #include "types.h"
+#include "sound/sound.h"
 
 /*
  ***************************************************************************
@@ -284,6 +285,12 @@ extern void run_new_sb(void);
 /* This is the correct way to run an SB timer tick */
 #define run_sb()  \
 if (config.sound == 2) run_new_sb(); else if (sb_is_running) sb_controller()
+#define run_sound() do { \
+  if (config.sound == 2) { \
+    run_new_sound(); \
+    pcm_timer(); \
+  } \
+} while (0)
 
 /*
  ***************************************************************************

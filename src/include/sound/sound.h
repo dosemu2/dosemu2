@@ -25,6 +25,7 @@
 
 /* This is the correct way to run an SB timer tick */
 extern void run_new_sb(void);
+extern void run_new_sound(void);
 
 extern void sound_new_init(void);
 extern void sound_new_reset(void);
