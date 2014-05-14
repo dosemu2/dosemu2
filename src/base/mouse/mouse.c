@@ -882,8 +882,6 @@ static void reset_unscaled(void)
 {
 	mouse.unsc_x = mouse.unsc_y = 0;
 	mouse.unscm_x = mouse.unscm_y = 0;
-	mouse.mickeyx = mouse.x * mouse.speed_x;
-	mouse.mickeyy = mouse.y * mouse.speed_y;
 }
 
 static int get_unsc_x(int dx)
