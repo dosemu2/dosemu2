@@ -58,6 +58,7 @@
  */
 #define read_char(num)        do_serial_in(num, com_cfg[num].base_port)
 #define read_LCR(num)         do_serial_in(num, com_cfg[num].base_port + 3)
+#define read_MCR(num)         do_serial_in(num, com_cfg[num].base_port + 4)
 #define read_LSR(num)         do_serial_in(num, com_cfg[num].base_port + 5)
 #define read_MSR(num)         do_serial_in(num, com_cfg[num].base_port + 6)
 #define write_char(num, byte) do_serial_out(num, com_cfg[num].base_port, byte)
@@ -135,9 +136,6 @@ int int14(void)
     /* The following sets character size, parity, and stopbits */
     temp = (temp & ~UART_LCR_PARA) | (LO(ax) & UART_LCR_PARA);
 
-    /* Raise DTR and RTS on the Modem Control Register */
-    write_MCR(num, 0x3);
-
     /* Set DLAB bit, in order to set the baudrate */
     write_LCR(num, temp | 0x80);
 
@@ -155,6 +153,13 @@ int int14(void)
 
     /* Lower DLAB bit */
     write_LCR(num, temp & ~0x80);
+
+    /* Note that SeaBIOS does not touch MCR... why do we? */
+    temp = read_MCR(num) & UART_MCR_VALID;
+    temp &= ~UART_MCR_LOOP;
+    /* Raise DTR and RTS on the Modem Control Register */
+    temp |= UART_MCR_DTR | UART_MCR_RTS;
+    write_MCR(num, temp);
 
     HI(ax) = read_LSR(num);		/* Read Line Status (LSR) into AH */
     LO(ax) = read_MSR(num);		/* Read Modem Status (MSR) into AL */

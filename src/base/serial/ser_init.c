@@ -46,6 +46,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <pwd.h>
+#include <assert.h>
 
 #include "config.h"
 #include "Linux/serial.h"
@@ -63,6 +64,88 @@
 int no_local_video = 0;
 com_t com[MAX_SER];
 static u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
+struct ser_dmx {
+  ioport_t port;
+  Bit8u def_val;
+  int use_cnt;
+  char name[16];
+};
+#define DMX_MAX 4
+static struct ser_dmx dmxs[DMX_MAX];
+static int num_dmxs;
+
+static void add_dmx(ioport_t port, int val)
+{
+  int i;
+  Bit8u dval = val - 1;
+  for (i = 0; i < num_dmxs; i++) {
+    if (dmxs[i].port == port) {
+      if (dmxs[i].def_val != dval) {
+        error("SER: inconsistent config for demux on port %#x\n", port);
+        return;
+      }
+      dmxs[i].use_cnt++;
+      return;
+    }
+  }
+  num_dmxs++;
+  assert(num_dmxs <= DMX_MAX);
+  dmxs[i].port = port;
+  dmxs[i].def_val = dval;
+  dmxs[i].use_cnt = 1;
+  sprintf(dmxs[i].name, "ser_dmx_%i", i);
+}
+
+static Bit8u dmx_readb(ioport_t port)
+{
+  int num, i;
+  Bit8u val;
+  for (i = 0; i < num_dmxs; i++) {
+    if (dmxs[i].port == port)
+      break;
+  }
+  assert(i < num_dmxs);
+  val = dmxs[i].def_val;
+  for (num = 0; num < config.num_ser; num++) {
+    if (com_cfg[num].dmx_port == port &&
+	(com[num].int_condition & com_cfg[num].dmx_mask)) {
+      if (com_cfg[num].dmx_val)
+        val |= 1 << com_cfg[num].dmx_shift;
+      else
+        val &= ~(1 << com_cfg[num].dmx_shift);
+    }
+  }
+  s_printf("SER: read demux at port %#x=%#x\n", dmxs[i].port, val);
+  return val;
+}
+
+static void dmx_writeb(ioport_t port, Bit8u value)
+{
+  s_printf("SER: write to readonly port %#x, val=%#x\n", port, value);
+}
+
+static int init_dmxs(void)
+{
+  emu_iodev_t io_device;
+  int i;
+
+  for (i = 0; i < num_dmxs; i++) {
+    io_device.read_portb  = dmx_readb;
+    io_device.write_portb = dmx_writeb;
+    io_device.read_portw  = NULL;
+    io_device.write_portw = NULL;
+    io_device.read_portd  = NULL;
+    io_device.write_portd = NULL;
+    io_device.start_addr  = dmxs[i].port;
+    io_device.end_addr    = dmxs[i].port;
+    io_device.irq         = EMU_NO_IRQ;
+    io_device.fd          = -1;
+    io_device.handler_name = dmxs[i].name;
+    port_register_handler(io_device, 0);
+    s_printf("SER: added demux at port %#x\n", dmxs[i].port);
+  }
+  return i;
+}
 
 /* See README.serial file for more information on the com[] structure
  * The declarations for this is in ../include/serial.h
@@ -207,24 +290,8 @@ static void async_serial_run(void *arg)
   serial_update(num);
 }
 
-static void ser_set_params(int num)
+static void ser_reset_dev(int num)
 {
-  int data = 0;
-  com[num].newset.c_cflag = CS8 | CLOCAL | CREAD;
-  com[num].newset.c_iflag = IGNBRK | IGNPAR;
-  com[num].newset.c_oflag = 0;
-  com[num].newset.c_lflag = 0;
-
-#ifdef __linux__
-  com[num].newset.c_line = 0;
-#endif
-  com[num].newset.c_cc[VMIN] = 1;
-  com[num].newset.c_cc[VTIME] = 0;
-  if (com_cfg[num].system_rtscts)
-    com[num].newset.c_cflag |= CRTSCTS;
-  if (!com[num].fifo)
-    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
-
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
   com[num].IER = 0;			/* Interrupt Enable Register */
@@ -244,10 +311,54 @@ static void ser_set_params(int num)
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   com[num].tx_cnt = 0;
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
+}
+
+static void ser_setup_custom(int num)
+{
+  int i, cnt;
+  switch (com_cfg[num].custom) {
+  case SER_CUSTOM_NONE:
+    break;
+  case SER_CUSTOM_PCCOM:
+    s_printf("SER%d: setting up PCCOM config\n", num);
+    cnt = 0;
+    for (i = 0; i < num; i++) {
+      if (com_cfg[i].custom == SER_CUSTOM_PCCOM)
+        cnt++;
+    }
+    com_cfg[num].dmx_port = (cnt < 4 ? 0x2bf : 0x1bf);
+    com_cfg[num].dmx_mask = RX_INTR;
+    com_cfg[num].dmx_shift = cnt;
+    com_cfg[num].dmx_val = 0;
+
+    if (!com_cfg[num].base_port)
+      com_cfg[num].base_port = (cnt < 4 ? 0x2a0 : 0x1a0) + cnt * 8;
+    if (!com_cfg[num].irq)
+      com_cfg[num].irq = (cnt < 4 ? 5 : 7);
+    break;
+  }
+}
+
+static void ser_set_params(int num)
+{
+  int data = 0;
+  com[num].newset.c_cflag = CS8 | CLOCAL | CREAD;
+  com[num].newset.c_iflag = IGNBRK | IGNPAR;
+  com[num].newset.c_oflag = 0;
+  com[num].newset.c_lflag = 0;
+
+#ifdef __linux__
+  com[num].newset.c_line = 0;
+#endif
+  com[num].newset.c_cc[VMIN] = 1;
+  com[num].newset.c_cc[VTIME] = 0;
+  if (com_cfg[num].system_rtscts)
+    com[num].newset.c_cflag |= CRTSCTS;
+  if (!com[num].fifo)
+    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
 
   if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
   ser_termios(num);			/* Set line settings now */
-  modstat_engine(num);
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
@@ -355,6 +466,8 @@ int ser_open(int num)
   ser_set_params(num);
 
   add_to_io_select(com[num].fd, async_serial_run, (void *)(long)num);
+
+  modstat_engine(num);
   return com[num].fd;
 
 fail_close:
@@ -462,6 +575,8 @@ static void do_ser_init(int num)
     { 4, 0x9228, "/dev/ttyS15", "COM16" },
   };
 
+  ser_setup_custom(num);
+
   if (com_cfg[num].real_comport == 0) {		/* Is comport number undef? */
     error("SER%d: No COMx port number given\n", num);
     config.exitearly = 1;
@@ -525,6 +640,11 @@ static void do_ser_init(int num)
 #endif
   /* Set file descriptor as unused, then attempt to open serial port */
   com[num].fd = -1;
+
+  if (com_cfg[num].dmx_port)
+    add_dmx(com_cfg[num].dmx_port, com_cfg[num].dmx_val);
+
+  ser_reset_dev(num);
 }
 
 void serial_reset(void)
@@ -588,6 +708,8 @@ void serial_init(void)
     else
       do_ser_init(i);
   }
+
+  init_dmxs();
 }
 
 /* Like serial_init, this is the master function that is called externally,

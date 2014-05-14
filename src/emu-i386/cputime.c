@@ -245,7 +245,9 @@ int dosemu_user_froze = 0;
 
 static void freeze_thr(void *arg)
 {
+  _set_IF();
   coopth_sleep();
+  clear_IF();
 }
 
 static void freeze_start(void *arg)

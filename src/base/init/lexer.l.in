@@ -526,6 +526,7 @@ virtual			RETURN(VIRTUAL);
 pseudo			RETURN(PSEUDO);
 rtscts			RETURN(RTSCTS);
 low_latency		RETURN(LOWLAT);
+pccom			RETURN(PCCOM);
 
 	/* lock file stuff */
 directory              RETURN(DIRECTORY);

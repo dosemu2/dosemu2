@@ -267,7 +267,7 @@ while (0)
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
-%token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL PSEUDO RTSCTS LOWLAT
+%token BASE IRQ DEVICE CHARSET BAUDRATE VIRTUAL PSEUDO RTSCTS LOWLAT PCCOM
 	/* mouse */
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
@@ -1385,6 +1385,7 @@ serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2;
 		| PSEUDO		  { sptr->pseudo = TRUE; }
 		| RTSCTS		  { sptr->system_rtscts = TRUE; }
 		| LOWLAT		  { sptr->low_latency = TRUE; }
+		| PCCOM			  { sptr->custom = SER_CUSTOM_PCCOM; }
 		| COM expression	  { sptr->real_comport = $2; }
 		| BASE expression		{ sptr->base_port = $2; }
 		| IRQ expression		{ sptr->irq = $2; }
@@ -1877,6 +1878,8 @@ static void start_serial(void)
     sptr->pseudo = FALSE;
     sptr->system_rtscts = FALSE;
     sptr->low_latency = FALSE;
+    sptr->dmx_port = 0;
+    sptr->custom = SER_CUSTOM_NONE;
   }
 }
 

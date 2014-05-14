@@ -477,7 +477,9 @@ static void dos2tty_stop(void)
 {
     /* first we sleep to allow reader thread to finish */
     unx_tid = coopth_get_tid();
+    _set_IF();
     coopth_sleep();
+    clear_IF();
     /* then we put reader thread to sleep */
     coopth_asleep(pty_tid);
     com_setcbreak(cbrk);
