@@ -331,8 +331,10 @@ static void ser_setup_custom(int num)
     com_cfg[num].dmx_shift = cnt;
     com_cfg[num].dmx_val = 0;
 
-    com_cfg[num].base_port = (cnt < 4 ? 0x2a0 : 0x1a0) + cnt * 8;
-    com_cfg[num].irq = (cnt < 4 ? 5 : 7);
+    if (!com_cfg[num].base_port)
+      com_cfg[num].base_port = (cnt < 4 ? 0x2a0 : 0x1a0) + cnt * 8;
+    if (!com_cfg[num].irq)
+      com_cfg[num].irq = (cnt < 4 ? 5 : 7);
     break;
   }
 }
