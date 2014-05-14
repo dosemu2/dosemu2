@@ -898,16 +898,22 @@ static int get_unsc_y(int dy)
 	return dy * mouse.speed_y * my_range;
 }
 
-static void recalc_coords(int x_range, int y_range)
+static void recalc_coords(int udx, int udy, int x_range, int y_range)
 {
-	int dx = mouse.unsc_x / (x_range * mouse.speed_x);
-	int dy = mouse.unsc_y / (y_range * mouse.speed_y);
-	int dmx = mouse.unscm_x / x_range;
-	int dmy = mouse.unscm_y / y_range;
+	int dx, dy, dmx, dmy;
+	mouse.unsc_x += udx;
+	mouse.unsc_y += udy;
+	mouse.unscm_x += udx;
+	mouse.unscm_y += udy;
+	dx = mouse.unsc_x / (x_range * mouse.speed_x);
+	dy = mouse.unsc_y / (y_range * mouse.speed_y);
+	dmx = mouse.unscm_x / x_range;
+	dmy = mouse.unscm_y / y_range;
 	mouse.x += dx;
 	mouse.y += dy;
 	mouse.abs_x += dx;
 	mouse.abs_y += dy;
+	mouse_round_coords();
 	mouse.mickeyx += dmx;
 	mouse.mickeyy += dmy;
 	mouse.unsc_x -= dx * x_range * mouse.speed_x;
@@ -922,22 +928,14 @@ static void add_mk(int dx, int dy)
 	int my_range = mouse.maxy - mouse.miny +1;
 	int udx = dx * 8 * mx_range;
 	int udy = dy * 8 * my_range;
-	mouse.unsc_x += udx;
-	mouse.unsc_y += udy;
-	mouse.unscm_x += udx;
-	mouse.unscm_y += udy;
-	recalc_coords(mx_range, my_range);
+	recalc_coords(udx, udy, mx_range, my_range);
 }
 
 static void add_px(int dx, int dy, int x_range, int y_range)
 {
 	int udx = get_unsc_x(dx);
 	int udy = get_unsc_y(dy);
-	mouse.unsc_x += udx;
-	mouse.unsc_y += udy;
-	mouse.unscm_x += udx;
-	mouse.unscm_y += udy;
-	recalc_coords(x_range, y_range);
+	recalc_coords(udx, udy, x_range, y_range);
 }
 
 /*
@@ -1494,7 +1492,7 @@ static int mouse_round_coords(void)
 		mouse.y = mouse.virtual_maxy;
 		clipped = 1;
 	}
-
+#if 0
 	if (mouse.abs_x > mouse.maxx)
 		mouse.abs_x = mouse.maxx;
 	if (mouse.abs_x < mouse.minx)
@@ -1503,7 +1501,7 @@ static int mouse_round_coords(void)
 		mouse.abs_y = mouse.maxy;
 	if (mouse.abs_y < mouse.miny)
 		mouse.abs_y = mouse.miny;
-
+#endif
 	if (clipped)
 		reset_unscaled();
 	return clipped;
@@ -1540,7 +1538,6 @@ static void mouse_hide_on_exclusion(void)
 
 static void mouse_move(int clipped)
 {
-  mouse_round_coords();
   mouse_hide_on_exclusion();
   mouse_update_cursor(clipped);
 
