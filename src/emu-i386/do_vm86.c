@@ -422,6 +422,7 @@ run_vm86(void)
  */
 void loopstep_run_vm86(void)
 {
+    uncache_time();
     run_vm86();
     do_periodic_stuff();
     hardware_run();

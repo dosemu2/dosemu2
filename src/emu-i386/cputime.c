@@ -92,12 +92,9 @@ static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
 static int freeze_tid;
+static hitimer_t cached_time;
 
-/*
- * RAWcpuTIME points to one of these functions, and returns the
- * absolute CPU time
- */
-static hitimer_t rawC4time(void)
+static hitimer_t do_gettime(void)
 {
   struct timespec tv;
   int err = clock_gettime(CLOCK_MONOTONIC, &tv);
@@ -106,6 +103,22 @@ static hitimer_t rawC4time(void)
     leavedos(49);
   }
   return (tv.tv_sec * 1000000ULL + tv.tv_nsec / 1000);
+}
+
+/*
+ * RAWcpuTIME points to one of these functions, and returns the
+ * absolute CPU time
+ */
+static hitimer_t rawC4time(void)
+{
+  if (!cached_time)
+    cached_time = do_gettime();
+  return cached_time;
+}
+
+void uncache_time(void)
+{
+  cached_time = 0;
 }
 
 static hitimer_t rawP5time(void)
@@ -379,6 +392,7 @@ void dosemu_sleep(void)
 {
   sigset_t mask;
   if (CAN_SLEEP()) {
+    uncache_time();
     sigemptyset(&mask);
     sigsuspend(&mask);
   }

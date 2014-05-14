@@ -131,6 +131,7 @@ int stop_cputime (int);
 int restart_cputime (int);
 extern int cpu_time_stop;	/* for dosdebug */
 int bogospeed(unsigned long *spus, unsigned long *sptick);
+void uncache_time(void);
 
 void freeze_dosemu_manual(void);
 void freeze_dosemu(void);

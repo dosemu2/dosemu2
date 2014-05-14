@@ -42,6 +42,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "emu.h"
 #include "memory.h"
 #include "dos2linux.h"
+#include "timers.h"
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
@@ -4203,6 +4204,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
       return 1;
   }
 
+  uncache_time();
   hardware_run();
 
   if (in_dpmi_dos_int || (isset_IF() && pic_pending()) || return_requested) {
