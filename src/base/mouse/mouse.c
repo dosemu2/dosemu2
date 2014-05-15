@@ -911,8 +911,6 @@ static void recalc_coords(int udx, int udy, int x_range, int y_range)
 	dmy = mouse.unscm_y / y_range;
 	mouse.x += dx;
 	mouse.y += dy;
-	mouse.abs_x += dx;
-	mouse.abs_y += dy;
 	mouse_round_coords();
 	mouse.mickeyx += dmx;
 	mouse.mickeyy += dmy;
