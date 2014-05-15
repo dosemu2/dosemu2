@@ -102,6 +102,7 @@ static int last_mouse_call_read_mickeys = 0;
 
 static void call_mouse_event_handler(void);
 static int mouse_events = 0;
+static int dragged;
 static mouse_erase_t mouse_erase;
 static int sent_mouse_esc = FALSE;
 
@@ -1356,6 +1357,7 @@ mouse_mickeys(void)
   /* counters get reset after read */
   mouse.mickeyx = mouse.mickeyy = 0;
   last_mouse_call_read_mickeys = 1;
+  dragged = 0;
 }
 
 void
@@ -1696,7 +1698,12 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 
 void mouse_drag_to_corner(int x_range, int y_range)
 {
+	m_printf("MOUSE: drag to corner\n");
 	mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range);
+	dragged = 1;
+	mouse.abs_x = mouse.x;
+	mouse.abs_y = mouse.y;
+	mouse.x_delta = mouse.y_delta = 0;
 }
 
 /*
@@ -1779,11 +1786,31 @@ static void call_int33_mouse_event_handler(void)
 
     /* jump to mouse cs:ip */
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
-	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
+	     mouse_events, mouse.x, mouse.y, mouse.mickeyx, mouse.mickeyy,
+	     LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
     REG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
     REGS = saved_regs;
+
+    /* When mouse is dragged to the corner with mouse_drag_to_corner(),
+     * the mickey counters are going crazy. This is not a problem when
+     * an app _reads_ the counters - they are then reset. However, if it
+     * doesn't read them but instead monitors them via callback (Carmageddon),
+     * then we need to sync them with coords eventually, or, otherwise, drop
+     * the dragging hack entirely. Since the dragging hack is pretty
+     * useful and the idea of monitoring mickeys is outright silly (and
+     * almost no progs do that), the dragging hack stays, and the hack
+     * below compensates its effect on mickeys. - stsp */
+    if (dragged) {
+      /* syncing mickey counters with coords is silly, I know, but
+       * Carmageddon needs this after dragging mouse to the corner. */
+      mouse.mickeyx = mouse.x * mouse.speed_x;
+      mouse.mickeyy = mouse.y * mouse.speed_y;
+      dragged = 0;
+      m_printf("MOUSE: mickey synced with coords, x:%i->%i y:%i->%i\n",
+          mouse.x, mouse.mickeyx, mouse.y, mouse.mickeyy);
+    }
 }
 
 /* this function is called from int74 via inte6 */
