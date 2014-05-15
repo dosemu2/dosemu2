@@ -1694,6 +1694,11 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	   mouse_move(0);
 }
 
+void mouse_drag_to_corner(int x_range, int y_range)
+{
+	mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range);
+}
+
 /*
  * add the event to the current event mask
  */

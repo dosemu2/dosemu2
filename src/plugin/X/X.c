@@ -1641,7 +1641,7 @@ static void X_handle_events(void)
 	    X_printf("X: Mouse really entering window\n");
 	    if (!grab_active) {
             /* move mouse to corner */
-	      mouse_move_relative(-3 * x_res, -3 * y_res, w_x_res, w_y_res);
+	      mouse_drag_to_corner(w_x_res, w_y_res);
 	      ignore_move = 1;
             } else {
 	      set_mouse_position(e.xcrossing.x, e.xcrossing.y);
