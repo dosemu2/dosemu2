@@ -165,6 +165,8 @@ Bit8u dir)
  Bit16u nbcols,nbrows,i;
  Bit16u address;
  vga_mode_info *vmi = get_vmi();
+ if (!vmi)
+   return;
 
  // page == 0xFF if current
 
@@ -545,6 +547,8 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
  Bit16u nbcols,nbrows,address;
  Bit16u cursor,dummy;
  vga_mode_info *vmi = get_vmi();
+ if (!vmi)
+   return;
 
  // special case if page is 0xff, use current page
  if(page==0xff)
@@ -704,6 +708,8 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
  Bit16u nbcols,nbrows,address;
  Bit16u cursor,dummy;
  vga_mode_info *vmi = get_vmi();
+ if (!vmi)
+   return;
 
  // Get the cursor pos for the page
  biosfn_get_cursor_pos(page,&dummy,&cursor);
@@ -758,6 +764,8 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
  Bit16u nbcols,nbrows,address;
  Bit16u cursor,dummy;
  vga_mode_info *vmi = get_vmi();
+ if (!vmi)
+   return;
 
  // Get the cursor pos for the page
  biosfn_get_cursor_pos(page,&dummy,&cursor);
@@ -834,6 +842,8 @@ static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
  Bit8u mask,attr,data;
  Bit16u addr;
  vga_mode_info *vmi = get_vmi();
+ if (!vmi)
+   return;
 
  switch(vmi->type)
   {
@@ -925,6 +935,8 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
  Bit8u mask,attr,data,i;
  Bit16u addr;
  vga_mode_info *vmi = get_vmi();
+ if (!vmi)
+   return 0xff;
 
  switch(vmi->type)
   {
