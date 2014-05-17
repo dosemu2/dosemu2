@@ -9,14 +9,6 @@
 
 #include "extern.h"
 #include "port.h"
-typedef unsigned char byte;
-
-typedef union {
-  struct {
-    byte end, start;
-  } b;
-  unsigned short w;
-} cshape;
 
 extern void gettermcap(int,int *, int *);
 

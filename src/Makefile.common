@@ -7,7 +7,7 @@
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-OBJS:=$(CFILES:.c=.o)
+OBJS:=$(CFILES:.c=.o) $(SFILES:.S=.o)
 endif
 
 ifndef DEPENDS
