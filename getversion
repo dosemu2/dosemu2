@@ -1,7 +1,8 @@
 #!/bin/sh
 if test "$1" = "-d"; then
   if test -d .git; then
-    git log HEAD^..HEAD --format=%cd --date=short
+    # need -n 1 for merge commits
+    git log HEAD^..HEAD -n 1 --format=%cd --date=short
   else
     date -r VERSION +%F
   fi
