@@ -902,6 +902,30 @@ static int get_unsc_y(int dy)
 static void recalc_coords(int udx, int udy, int x_range, int y_range)
 {
 	int dx, dy, dmx, dmy;
+	if (udx > 0) {
+		int max_dx = mouse.virtual_maxx - mouse.x;
+		int max_udx = max_dx * (x_range * mouse.speed_x);
+		if (udx + mouse.unsc_x > max_udx)
+			udx = max_udx - mouse.unsc_x;
+	}
+	if (udx < 0) {
+		int min_dx = mouse.virtual_minx - mouse.x;	// negative
+		int min_udx = min_dx * (x_range * mouse.speed_x);
+		if (udx + mouse.unsc_x < min_udx)
+			udx = min_udx - mouse.unsc_x;
+	}
+	if (udy > 0) {
+		int max_dy = mouse.virtual_maxy - mouse.y;
+		int max_udy = max_dy * (y_range * mouse.speed_y);
+		if (udy + mouse.unsc_y > max_udy)
+			udy = max_udy - mouse.unsc_y;
+	}
+	if (udy < 0) {
+		int min_dy = mouse.virtual_miny - mouse.y;	// negative
+		int min_udy = min_dy * (y_range * mouse.speed_y);
+		if (udy + mouse.unsc_y < min_udy)
+			udy = min_udy - mouse.unsc_y;
+	}
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
 	mouse.unscm_x += udx;
@@ -912,7 +936,7 @@ static void recalc_coords(int udx, int udy, int x_range, int y_range)
 	dmy = mouse.unscm_y / y_range;
 	mouse.x += dx;
 	mouse.y += dy;
-	mouse_round_coords();
+//	mouse_round_coords();	// already rounded
 	mouse.mickeyx += dmx;
 	mouse.mickeyy += dmy;
 	mouse.unsc_x -= dx * x_range * mouse.speed_x;
