@@ -1720,6 +1720,22 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	   mouse_move(0);
 }
 
+void mouse_sync_coords(int x, int y, int x_range, int y_range)
+{
+	int mx_range, my_range;
+	mx_range = mouse.maxx - mouse.minx +1;
+	my_range = mouse.maxy - mouse.miny +1;
+	mouse.x = (x*mx_range)/x_range + mouse.minx;
+	mouse.y = (y*my_range)/y_range + mouse.miny;
+	mouse.abs_x = mouse.x;
+	mouse.abs_y = mouse.y;
+	mouse.x_delta = mouse.y_delta = 0;
+	mouse.mickeyx = mouse.x * mouse.speed_x;
+	mouse.mickeyy = mouse.y * mouse.speed_y;
+	m_printf("MOUSE: synced coords, x:%i->%i y:%i->%i\n",
+		mouse.x, mouse.mickeyx, mouse.y, mouse.mickeyy);
+}
+
 void mouse_drag_to_corner(int x_range, int y_range)
 {
 	m_printf("MOUSE: drag to corner\n");

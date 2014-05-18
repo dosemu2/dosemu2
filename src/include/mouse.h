@@ -191,6 +191,7 @@ extern void mouse_move_relative(int dx, int dy, int x_range, int y_range);
 extern void mouse_move_mickeys(int dx, int dy);
 extern void mouse_move_absolute(int x, int y, int x_range, int y_range);
 extern void mouse_drag_to_corner(int x_range, int y_range);
+extern void mouse_sync_coords(int x, int y, int x_range, int y_range);
 extern void mouse_reset_to_current_video_mode(int mode);
 extern void mouse_enable_native_cursor(int flag);
 
