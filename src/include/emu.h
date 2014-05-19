@@ -366,7 +366,7 @@ EXTERN void disk_close(void);
 EXTERN void cpu_setup(void);
 EXTERN void cpu_reset(void);
 EXTERN void real_run_int(int);
-#define run_int do_int
+#define run_int real_run_int
 EXTERN int mfs_redirector(void);
 EXTERN int mfs_lfn(void);
 EXTERN int int10(void);

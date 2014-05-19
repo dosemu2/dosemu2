@@ -2743,7 +2743,7 @@ void run_pm_int(int i)
 
     if (!in_dpmi_dos_int)
       fake_pm_int();
-    do_int(i);
+    real_run_int(i);
     return;
   }
 
