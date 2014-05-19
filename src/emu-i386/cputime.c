@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 #include "emu.h"
 #include "video.h"
 #include "timers.h"
@@ -93,6 +94,7 @@ static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
 static int freeze_tid;
 static hitimer_t cached_time;
+static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static hitimer_t do_gettime(void)
 {
@@ -111,14 +113,20 @@ static hitimer_t do_gettime(void)
  */
 static hitimer_t rawC4time(void)
 {
+  hitimer_t ctime;
+  pthread_mutex_lock(&ctime_mtx);
   if (!cached_time)
     cached_time = do_gettime();
-  return cached_time;
+  ctime = cached_time;
+  pthread_mutex_unlock(&ctime_mtx);
+  return ctime;
 }
 
 void uncache_time(void)
 {
+  pthread_mutex_lock(&ctime_mtx);
   cached_time = 0;
+  pthread_mutex_unlock(&ctime_mtx);
 }
 
 static hitimer_t rawP5time(void)
