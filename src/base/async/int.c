@@ -2052,9 +2052,12 @@ static void do_int_from_hlt(Bit32u i, void *arg)
 
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
-	set_iret();
-	if (interrupt_function[i][NO_REVECT])
+	if (interrupt_function[i][NO_REVECT]) {
+	      set_iret();
 	      coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
+	} else {
+	      fake_iret();
+	}
 }
 
 static void int_chain_thr(void *arg)
