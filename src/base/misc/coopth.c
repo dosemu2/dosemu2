@@ -327,7 +327,10 @@ again:
     case COOPTHS_DETACH:
 	coopth_retf(thr, pth);
 	pth->state = COOPTHS_RUNNING;
-	/* cannot goto again here - entry point should change */
+	/* we changed entry point but detached thread doesn't care.
+	 * We need to call it again to avoid races: coopth_leave()
+	 * must not allow vm86() within, it is not a sleeping func. */
+	goto again;
 	break;
     case COOPTHS_DELETE:
 	assert(pth->data.attached);
