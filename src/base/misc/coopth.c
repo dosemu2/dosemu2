@@ -24,6 +24,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <setjmp.h>
 #include <assert.h>
 #include "emu.h"
@@ -78,6 +79,7 @@ struct coopth_per_thread_t {
     int set_sleep;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
+    char *stack;
     Bit16u ret_cs, ret_ip;
     int dbg;
 };
@@ -91,6 +93,7 @@ struct coopth_t {
     int off;
     int len;
     int cur_thr;
+    int max_thr;
     int detached;
     int set_sleep;
     struct coopth_ctx_handlers_t ctxh;
@@ -472,6 +475,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
+    if (thr->cur_thr > thr->max_thr)
+	thr->max_thr = thr->cur_thr;
     pth->data.tid = &thr->tid;
     pth->data.attached = 0;
     pth->data.posth_num = 0;
@@ -485,7 +490,10 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thrdata = &pth->data;
     pth->set_sleep = thr->set_sleep;
     pth->dbg = LWORD(eax);	// for debug
-    pth->thread = co_create(coopth_thread, &pth->args, NULL, COOP_STK_SIZE);
+    if (!pth->stack)
+	pth->stack = malloc(COOP_STK_SIZE);
+    pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
+	    COOP_STK_SIZE);
     if (!pth->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
@@ -956,6 +964,15 @@ again:
     /* at this point all detached threads should be killed,
      * except perhaps current one */
     assert(threads_total == threads_joinable + it);
+
+    for (i = 0; i < coopth_num; i++) {
+	struct coopth_t *thr = &coopthreads[i];
+	int j;
+	for (j = thr->cur_thr; j < thr->max_thr; j++) {
+	    struct coopth_per_thread_t *pth = &thr->pth[j];
+	    free(pth->stack);
+	}
+    }
     co_thread_cleanup();
 }
 
