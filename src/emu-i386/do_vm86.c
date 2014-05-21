@@ -323,7 +323,7 @@ static int handle_GP_hlt(void)
 void
 run_vm86(void)
 {
-  int retval;
+  int retval, cnt;
 
   if (in_dpmi && !in_dpmi_dos_int) {
     run_dpmi();
@@ -348,13 +348,18 @@ run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
+    cnt = 0;
     while (handle_GP_hlt()) {
+	cnt++;
 	if (debug_level('g')>3) {
-	    g_printf("DO_VM86: premature fault handled\n");
+	    g_printf("DO_VM86: premature fault handled, %i\n", cnt);
 	    g_printf("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	}
 	if (in_dpmi && !in_dpmi_dos_int)
+	    return;
+	/* if thread wants some sleep, we can't fuck it in a busy loop */
+	if (coopth_wants_sleep())
 	    return;
     }
 

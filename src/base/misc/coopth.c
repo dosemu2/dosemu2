@@ -985,3 +985,13 @@ int coopth_get_scheduled(void)
     ensure_attached();
     return get_scheduled();
 }
+
+int coopth_wants_sleep(void)
+{
+    struct coopth_t *thr = on_thread();
+    struct coopth_per_thread_t *pth;
+    if (!thr)
+	return 0;
+    pth = current_thr(thr);
+    return (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_AWAKEN);
+}

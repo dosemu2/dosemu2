@@ -47,5 +47,6 @@ void coopth_asleep(int tid);
 void coopth_cancel(int tid);
 void coopth_done(void);
 void coopth_run(void);
+int coopth_wants_sleep(void);
 
 #endif
