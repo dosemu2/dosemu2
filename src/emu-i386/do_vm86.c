@@ -298,7 +298,16 @@ static void vm86_GP_fault(void)
 }
 /* @@@ MOVE_END @@@ 32768 */
 
-
+static int handle_GP_hlt(void)
+{
+  unsigned char *csp;
+  csp = SEG_ADR((unsigned char *), cs, ip);
+  if (*csp == 0xf4) {
+    hlt_handle();
+    return 1;
+  }
+  return 0;
+}
 
 /*
  * DANG_BEGIN_FUNCTION run_vm86
@@ -339,9 +348,14 @@ run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
-    if (handle_GP_fault()) {
-	g_printf ("DO_VM86: premature fault handled\n");
-	return;
+    while (handle_GP_hlt()) {
+	if (debug_level('g')>3) {
+	    g_printf("DO_VM86: premature fault handled\n");
+	    g_printf("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x\n",
+		_CS, _EIP, _SS, _SP, _EFLAGS);
+	}
+	if (in_dpmi && !in_dpmi_dos_int)
+	    return;
     }
 
     loadfpstate(vm86_fpu_state);
