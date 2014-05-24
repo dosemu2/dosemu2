@@ -31,6 +31,8 @@
 #include "xms.h"
 #include "dpmi.h"
 
+#define CONFIG_HLT_TRACE 1
+
 /*
  * maximum number of halt handlers.
  * you can increase this to anything below 256 since an 8-bit handle
@@ -105,8 +107,8 @@ void hlt_handle(void)
     Bit32u offs = lina - BIOS_HLT_BLK;
     struct hlt_handler *hlt = &hlt_handler[hlt_handler_id[offs]];
 #if CONFIG_HLT_TRACE > 0
-    h_printf("HLT: fcn 0x%04lx called in HLT block, handler: %s\n", offs,
-	     hlt->name);
+    h_printf("HLT: fcn 0x%04x called in HLT block, handler: %s +%#x\n", offs,
+	     hlt->h.name, offs - hlt->start_addr);
 #endif
     hlt->h.func(offs - hlt->start_addr, hlt->h.arg);
   }
