@@ -135,11 +135,7 @@ static void read_key(int extended)
   unsigned keyptr = get_key(1, extended);
 
   if (keyptr == -1) {
-    /* zero flag is set so that the vm86
-       assembly can call us again */
-    /* but first sleep a little bit */
-    if (config.hogthreshold)
-      usleep(INT2F_IDLE_USECS);
+    /* should not be here - blocking call */
     return;
   }
 

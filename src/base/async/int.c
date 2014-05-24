@@ -378,7 +378,7 @@ int dos_helper(void)
 
   case DOS_HELPER_GARROT_HELPER:             /* Mouse garrot helper */
     if (!LWORD(ebx))   /* Wait sub-function requested */
-      usleep(INT28_IDLE_USECS);
+      idle(0, 50, 0, "mouse_garrot");
     else {             /* Get Hogthreshold value sub-function*/
       LWORD(ebx)= config.hogthreshold;
       LWORD(eax)= config.hogthreshold;
