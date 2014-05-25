@@ -35,12 +35,14 @@
 #include <assert.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
+#include <linux/version.h>
 extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include <sys/user.h>
 #include <sys/syscall.h>
 
 #include "version.h"
 #include "emu.h"
+#include "dosemu_config.h"
 #include "memory.h"
 #include "dos2linux.h"
 #ifdef USE_MHPDBG
@@ -3004,7 +3006,14 @@ void dpmi_setup(void)
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DPMI_sel_code_start - mem_base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
-                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
+      if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
+        p_dos_str("DPMI is not supported on your kernel!\n");
+        error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
+	    "Try enabling CPU emulator with $_cpu_emu=\"full\" in dosemu.conf\n");
+      }
+      goto err2;
+    }
     if (SetSelector(dpmi_sel32, DPMI_sel_code_start - mem_base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
@@ -3015,6 +3024,7 @@ void dpmi_setup(void)
 
 err:
     error("DPMI initialization failed, disabling\n");
+err2:
     config.dpmi = 0;
 }
 
