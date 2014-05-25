@@ -90,10 +90,11 @@ void hlt_init(void)
  *
  * DANG_END_FUNCTION
  */
-void hlt_handle(void)
+int hlt_handle(void)
 {
   Bit32u  lina = SEGOFF2LINEAR(_CS, _IP);
   int rmcb_client, rmcb_num;
+  int ret = HLT_RET_NORMAL;
 
 #if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
   if ((config.cpuemu>1) && (lina == CPUEMUI10_ADD)) {
@@ -111,6 +112,7 @@ void hlt_handle(void)
 	     hlt->h.name, offs - hlt->start_addr);
 #endif
     hlt->h.func(offs - hlt->start_addr, hlt->h.arg);
+    ret = hlt->h.ret;
   }
   else if (lina == XMSControl_ADD) {
     xms_control();
@@ -149,7 +151,9 @@ void hlt_handle(void)
     show_regs(__FILE__, __LINE__);
 #endif
     _IP += 1;
+    ret = HLT_RET_FAIL;
   }
+  return ret;
 }
 
 /*

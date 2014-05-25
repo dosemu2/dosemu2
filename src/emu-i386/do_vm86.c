@@ -302,11 +302,9 @@ static int handle_GP_hlt(void)
 {
   unsigned char *csp;
   csp = SEG_ADR((unsigned char *), cs, ip);
-  if (*csp == 0xf4) {
-    hlt_handle();
-    return 1;
-  }
-  return 0;
+  if (*csp == 0xf4)
+    return hlt_handle();
+  return HLT_RET_NONE;
 }
 
 /*
@@ -349,7 +347,7 @@ run_vm86(void)
     }
 
     cnt = 0;
-    while (handle_GP_hlt()) {
+    while ((retval = handle_GP_hlt())) {
 	cnt++;
 	if (debug_level('g')>3) {
 	    g_printf("DO_VM86: premature fault handled, %i\n", cnt);
@@ -361,6 +359,11 @@ run_vm86(void)
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
 	if (coopth_wants_sleep())
 	    return;
+	/* some subsystems doesn't want this optimization loop as well */
+	if (retval == HLT_RET_SPECIAL)
+	    return;
+	if (retval != HLT_RET_NORMAL)
+	    break;
     }
 
     loadfpstate(vm86_fpu_state);

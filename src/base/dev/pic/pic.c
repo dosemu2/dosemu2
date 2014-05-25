@@ -1145,6 +1145,7 @@ void pic_init(void)
 
   hlt_hdlr.name       = "PIC";
   hlt_hdlr.func       = pic_iret_hlt;
+  hlt_hdlr.ret        = HLT_RET_SPECIAL;
   PIC_OFF = hlt_register_handler(hlt_hdlr);
 }
 

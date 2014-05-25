@@ -19,12 +19,15 @@ typedef struct {
   const char   *name;
   int           len;
   void         *arg;
+  int           ret;
 } emu_hlt_t;
 
-#define HLT_INITIALIZER { NULL, NULL, 1, NULL }
+#define HLT_INITIALIZER { NULL, NULL, 1, NULL, HLT_RET_NORMAL }
+
+enum { HLT_RET_NONE, HLT_RET_FAIL, HLT_RET_NORMAL, HLT_RET_SPECIAL };
 
 extern void hlt_init(void);
 extern Bit32u hlt_register_handler(emu_hlt_t handler);
-extern void hlt_handle(void);
+extern int hlt_handle(void);
 
 #endif /* _EMU_HLT_H */
