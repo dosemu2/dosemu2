@@ -21,6 +21,8 @@ typedef struct {
   void         *arg;
 } emu_hlt_t;
 
+#define HLT_INITIALIZER { NULL, NULL, 1, NULL }
+
 extern void hlt_init(void);
 extern Bit32u hlt_register_handler(emu_hlt_t handler);
 extern void hlt_handle(void);

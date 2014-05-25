@@ -2165,7 +2165,7 @@ void ems_reset(void)
 void ems_init(void)
 {
   int i, j;
-  emu_hlt_t hlt_hdlr;
+  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
   if (!config.ems_size && !config.pm_dos_api)
     return;
@@ -2207,8 +2207,6 @@ void ems_init(void)
 
   /* install HLT handler */
   hlt_hdlr.name = "EMS";
-  hlt_hdlr.len = 1;
   hlt_hdlr.func = emm_hlt_handler;
-  hlt_hdlr.arg        = NULL;
   EMSControl_OFF = hlt_register_handler(hlt_hdlr);
 }

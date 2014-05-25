@@ -381,7 +381,7 @@ static void coopth_thread(void *arg)
 
 static int register_handler(char *name, void *arg, int len)
 {
-    emu_hlt_t hlt_hdlr;
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = name;
     hlt_hdlr.len = len;
     hlt_hdlr.func = coopth_hlt;

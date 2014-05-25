@@ -2282,7 +2282,9 @@ static void rvc_int_post(int tid)
 
 void setup_interrupts(void) {
   int i;
-  emu_hlt_t hlt_hdlr;
+  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+  emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
+  emu_hlt_t hlt_hdlr3 = HLT_INITIALIZER;
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
@@ -2331,24 +2333,19 @@ void setup_interrupts(void) {
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
-  hlt_hdlr.arg        = NULL;
   hlt_off = hlt_register_handler(hlt_hdlr);
 
-  hlt_hdlr.name       = "int return";
-  hlt_hdlr.len        = 1;
-  hlt_hdlr.func       = ret_from_int;
-  hlt_hdlr.arg        = NULL;
-  iret_hlt_off = hlt_register_handler(hlt_hdlr);
+  hlt_hdlr2.name       = "int return";
+  hlt_hdlr2.func       = ret_from_int;
+  iret_hlt_off = hlt_register_handler(hlt_hdlr2);
 
   int_tid = coopth_create_multi("ints thread non-revect", 256);
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
   coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
 
-  hlt_hdlr.name       = "mouse post";
-  hlt_hdlr.len        = 1;
-  hlt_hdlr.func       = int33_post;
-  hlt_hdlr.arg        = NULL;
-  Mouse_HLT_OFF = hlt_register_handler(hlt_hdlr);
+  hlt_hdlr3.name       = "mouse post";
+  hlt_hdlr3.func       = int33_post;
+  Mouse_HLT_OFF = hlt_register_handler(hlt_hdlr3);
 }
 
 

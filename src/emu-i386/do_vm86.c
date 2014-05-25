@@ -508,11 +508,9 @@ void do_int_call_back(int intno)
 
 int vm86_init(void)
 {
-    emu_hlt_t hlt_hdlr;
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = "do_call_back";
-    hlt_hdlr.len = 1;
     hlt_hdlr.func = callback_return;
-    hlt_hdlr.arg = NULL;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
     return 0;
 }

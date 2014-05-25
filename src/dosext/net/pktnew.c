@@ -179,14 +179,12 @@ void
 pkt_init(void)
 {
     int ret;
-    emu_hlt_t hlt_hdlr;
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     if (!config.pktdrv || !pktdrvr_installed)
       return;
 
     hlt_hdlr.name       = "pkt callout";
-    hlt_hdlr.len        = 1;
     hlt_hdlr.func       = pkt_hlt;
-    hlt_hdlr.arg        = NULL;
     pkt_hlt_off = hlt_register_handler(hlt_hdlr);
 
     /* call Open_sockets() only for non-priv configs */
