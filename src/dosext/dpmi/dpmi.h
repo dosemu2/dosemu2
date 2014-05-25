@@ -31,7 +31,7 @@
 					/* private data for DPMI server */
 #define RM_CB_Para_ADD (DTA_Para_ADD+DTA_Para_SIZE)
 #define RM_CB_Para_SIZE 1
-#define current_client (in_dpmi-1)
+#define current_client ({ assert(in_dpmi); in_dpmi-1; })
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 

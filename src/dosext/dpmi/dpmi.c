@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
@@ -662,7 +663,7 @@ static int SystemSelector(unsigned short selector)
   return !DPMIValidSelector(selector) || Segments[selector >> 3].used == 0xff;
 }
 
-static unsigned short AllocateDescriptorsAt(unsigned short selector,
+static unsigned short allocate_descriptors_at(unsigned short selector,
     int number_of_descriptors)
 {
   int ldt_entry = selector >> 3, i;
@@ -672,9 +673,10 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
       number_of_descriptors);
     return 0;
   }
-  for (i=0;i<number_of_descriptors;i++)
+  for (i=0;i<number_of_descriptors;i++) {
     if (Segments[ldt_entry+i].used || SystemSelector(((ldt_entry+i)<<3)|7))
       return 0;
+  }
 
   for (i=0;i<number_of_descriptors;i++) {
     if (in_dpmi)
@@ -684,18 +686,35 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
     }
   }
   D_printf("DPMI: Allocate %d descriptors started at 0x%04x\n",
-	number_of_descriptors, (ldt_entry<<3) | 0x0007);
-  /* dpmi spec says, the descriptor allocated should be "data" with */
-  /* base and limit set to 0 */
-  for (i = 0; i < number_of_descriptors; i++)
-      if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
-  return (ldt_entry<<3) | 0x0007;
+	number_of_descriptors, selector);
+  return number_of_descriptors;
 }
 
-static unsigned short AllocateDescriptorsFrom(int first_ldt, int number_of_descriptors)
+static unsigned short AllocateDescriptorsAt(unsigned short selector,
+    int number_of_descriptors)
+{
+  int i, ldt_entry;
+  if (!in_dpmi) {
+    dosemu_error("AllocDescriptors error\n");
+    return 0;
+  }
+  if (allocate_descriptors_at(selector, number_of_descriptors) !=
+	number_of_descriptors)
+    return 0;
+  /* dpmi spec says, the descriptor allocated should be "data" with */
+  /* base and limit set to 0 */
+  ldt_entry = selector >> 3;
+  for (i = 0; i < number_of_descriptors; i++) {
+      if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
+  }
+  return selector;
+}
+
+static unsigned short allocate_descriptors_from(int first_ldt, int number_of_descriptors)
 {
   int next_ldt=first_ldt, i;
+  unsigned short selector;
   unsigned char used=1;
 #if 0
   if (number_of_descriptors > MAX_SELECTORS - 0x100)
@@ -712,15 +731,37 @@ static unsigned short AllocateDescriptorsFrom(int first_ldt, int number_of_descr
     for (i=0;i<number_of_descriptors;i++)
       used |= Segments[next_ldt+i].used || SystemSelector(((next_ldt+i)<<3)|7);
   }
-  return AllocateDescriptorsAt((next_ldt<<3) | 0x0007, number_of_descriptors);
+  selector = (next_ldt<<3) | 0x0007;
+  if (allocate_descriptors_at(selector, number_of_descriptors) !=
+	number_of_descriptors)
+    return 0;
+  return selector;
+}
+
+static unsigned short allocate_descriptors(int number_of_descriptors)
+{
+  /* first 0x10 descriptors are reserved */
+  return allocate_descriptors_from(0x10, number_of_descriptors);
 }
 
 unsigned short AllocateDescriptors(int number_of_descriptors)
 {
-  int selector, ldt_entry, limit;
-  /* first 0x10 descriptors are reserved */
-  selector = AllocateDescriptorsFrom(0x10, number_of_descriptors);
-  if (selector && DPMI_CLIENT.LDT_ALIAS) {
+  int selector, i, ldt_entry, limit;
+  if (!in_dpmi) {
+    dosemu_error("AllocDescriptors error\n");
+    return 0;
+  }
+  selector = allocate_descriptors(number_of_descriptors);
+  if (!selector)
+    return 0;
+  /* dpmi spec says, the descriptor allocated should be "data" with */
+  /* base and limit set to 0 */
+  ldt_entry = selector >> 3;
+  for (i = 0; i < number_of_descriptors; i++) {
+      if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
+  }
+  if (DPMI_CLIENT.LDT_ALIAS) {
     ldt_entry = selector >> 3;
     if ((limit = GetSegmentLimit(DPMI_CLIENT.LDT_ALIAS)) <
         (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
@@ -2959,8 +3000,8 @@ void dpmi_setup(void)
       }
     }
 
-    if (!(dpmi_sel16 = AllocateDescriptors(1))) goto err;
-    if (!(dpmi_sel32 = AllocateDescriptors(1))) goto err;
+    if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
+    if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DPMI_sel_code_start - mem_base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
@@ -3462,7 +3503,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
   int ret = 0;
   /* Note: in_dpmi/current_client can change within that finction. */
   int orig_client = current_client;
-#define ORIG_CTXP (current_client >= orig_client ? \
+#define ORIG_CTXP ((in_dpmi && current_client >= orig_client) ? \
   &DPMIclient[orig_client].stack_frame : NULL)
 
   /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
