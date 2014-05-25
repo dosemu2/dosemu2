@@ -129,6 +129,8 @@ inline unsigned short dpmi_sel()
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 
+static int dpmi_not_supported;
+
 #define CHECK_SELECTOR(x) \
 { if (!ValidAndUsedSelector(x) || SystemSelector(x)) { \
       _LWORD(eax) = 0x8022; \
@@ -607,6 +609,17 @@ static int dpmi_control(void)
 void dpmi_get_entry_point(void)
 {
     D_printf("Request for DPMI entry\n");
+
+    if (dpmi_not_supported) {
+      p_dos_str("DPMI is not supported on your linux kernel!\n");
+      CARRY;
+      return;
+    }
+    if (!config.dpmi) {
+      p_dos_str("DPMI disabled, please check the dosemu config and log\n");
+      CARRY;
+      return;
+    }
 
     REG(eax) = 0; /* no error */
 
@@ -3008,7 +3021,7 @@ void dpmi_setup(void)
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
       if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
-        p_dos_str("DPMI is not supported on your kernel!\n");
+        dpmi_not_supported = 1;
         error("DPMI is not supported on your kernel ( >= 3.14 ), sorry!\n"
 	    "Try enabling CPU emulator with $_cpu_emu=\"full\" in dosemu.conf\n");
       }

@@ -1853,9 +1853,6 @@ static int int2f(void)
     break;
 
   case 0x16:		/* misc PM/Win functions */
-    if (!config.dpmi) {
-      break;		/* fall into real_run_int() */
-    }
     switch (LO(ax)) {
       case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
     if (in_dpmi && win31_mode) {
@@ -1874,7 +1871,9 @@ static int int2f(void)
       case 0x07:		/* Win95 Device CallOut */
       case 0x08:		/* Win95 Init Complete Notification */
       case 0x09:		/* Win95 Begin Exit Notification */
-    return 1;
+	if (in_dpmi)
+	  return 1;
+	break;
 
       case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
     if(in_dpmi && win31_mode) {
