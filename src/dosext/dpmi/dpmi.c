@@ -45,6 +45,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dosemu_config.h"
 #include "memory.h"
 #include "dos2linux.h"
+#include "timers.h"
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
@@ -2799,7 +2800,7 @@ void run_pm_int(int i)
 
     if (!in_dpmi_dos_int)
       fake_pm_int();
-    do_int(i);
+    real_run_int(i);
     return;
   }
 
@@ -4267,6 +4268,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
       return 1;
   }
 
+  uncache_time();
   hardware_run();
 
   if (in_dpmi_dos_int || (isset_IF() && pic_pending()) || return_requested) {

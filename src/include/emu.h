@@ -112,8 +112,6 @@ extern sigjmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
 EXTERN void loopstep_run_vm86(void);
-EXTERN void vm86_GP_fault(void);
-
 EXTERN void do_call_back(Bit16u cs, Bit16u ip);
 EXTERN void do_int_call_back(int intno);
 
@@ -366,7 +364,7 @@ EXTERN void disk_close(void);
 EXTERN void cpu_setup(void);
 EXTERN void cpu_reset(void);
 EXTERN void real_run_int(int);
-#define run_int do_int
+#define run_int real_run_int
 EXTERN int mfs_redirector(void);
 EXTERN int mfs_lfn(void);
 EXTERN int int10(void);

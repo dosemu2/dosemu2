@@ -525,14 +525,19 @@ static void dspio_process_dma(struct dspio_state *state)
 
     dma_cnt = in_fifo_cnt = out_fifo_cnt = 0;
 
-    time_dst = GETusTIME(0);
     if (state->dma.running) {
 	state->dma.stereo = sb_dma_samp_stereo();
 	state->dma.rate = sb_get_dma_sampling_rate();
 	state->dma.samp_signed = sb_dma_samp_signed();
 	state->dma.dsp_fifo_enabled = sb_fifo_enabled();
+	dma_cnt += state->dma.input ? dspio_drain_input(state) :
+	    dspio_fill_output(state);
     }
 
+    if (!state->output_running && !state->input_running)
+	return;
+
+    time_dst = GETusTIME(0);
     if (state->output_running) {
 	output_time_cur = pcm_time_lock(state->dma_strm);
 	tlocked = 1;
@@ -649,14 +654,9 @@ static void dspio_process_dma(struct dspio_state *state)
 	}
     }
 
-    if (state->dma.running)
-	dma_cnt += state->dma.input ? dspio_drain_input(state) :
-	    dspio_fill_output(state);
-
     if (debug_level('S') >= 7 && (in_fifo_cnt || out_fifo_cnt || dma_cnt))
-	S_printf("SB: Processed %i %i FIFO, %i DMA, or=%i dr=%i time=%lli\n",
-	     in_fifo_cnt, out_fifo_cnt, dma_cnt, state->output_running, state->dma.running,
-	     time_dst);
+	S_printf("SB: Processed %i %i FIFO, %i DMA, or=%i dr=%i\n",
+	     in_fifo_cnt, out_fifo_cnt, dma_cnt, state->output_running, state->dma.running);
 }
 
 static void dspio_process_midi(struct dspio_state *state)

@@ -88,11 +88,9 @@
  * DANG_END_FUNCTION
  */
 
-void vm86_GP_fault(void)
+static int handle_GP_fault(void)
 {
-
   unsigned char *csp, *lina;
-  Bit32u org_eip;
   int pref_seg;
   int done,is_rep,prefix66,prefix67;
 
@@ -153,8 +151,6 @@ void vm86_GP_fault(void)
     }
   } while (!done);
   csp--;
-  org_eip = REG(eip);
-  LWORD(eip) += (csp-lina);
 
 #if defined(X86_EMULATOR) && defined(CPUEMU_DIRECT_IO)
   if (InCompiledCode) {
@@ -164,16 +160,6 @@ void vm86_GP_fault(void)
   }
 #endif
   switch (*csp) {
-
-       /* interrupt calls after prefix: we go back to vm86 */
-  case 0xcc:    /* int 3       and let it generate an */
-  case 0xcd:    /* int         interrupt (don't advance eip) */
-  case 0xce:    /* into */
-    break;
-
-  case 0xcf:                   /* iret */
-    if (prefix67) goto op0ferr; /* iretd */
-    break;
 
   case 0xf1:                   /* int 1 */
     LWORD(eip)++; /* emulated "undocumented" instruction */
@@ -281,16 +267,25 @@ void vm86_GP_fault(void)
     break;
 
   case 0x0f: /* was: RDE hack, now handled in cpu.c */
-    if (!cpu_trap_0f(csp, NULL)) goto op0ferr;
+    if (!cpu_trap_0f(csp, NULL))
+      return 0;
     break;
 
   case 0xf0:			/* lock */
   default:
-    if (is_rep) fprintf(stderr, "Nope REP F3,CSP = 0x%04x\n", csp[0]);
-    /* er, why don't we advance eip here, and
-	 why does it work??  */
-op0ferr:
-    REG(eip) = org_eip;
+    return 0;
+  }
+
+  LWORD(eip) += (csp-lina);
+  return 1;
+}
+
+static void vm86_GP_fault(void)
+{
+    unsigned char *lina;
+    if (handle_GP_fault())
+	return;
+    lina = SEG_ADR((unsigned char *), cs, ip);
 #ifdef USE_MHPDBG
     mhp_debug(DBG_GPF, 0, 0);
 #endif
@@ -300,20 +295,17 @@ op0ferr:
     show_ints(0, 0x33);
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
-  }				/* end of switch() */
-
-#ifdef TRACE_DPMI
-  if (debug_level('t')==0)
-#endif
-  if (LWORD(eflags) & TF) {
-    g_printf("TF: trap done");
-    show_regs(__FILE__, __LINE__);
-  }
-
 }
 /* @@@ MOVE_END @@@ 32768 */
 
-
+static int handle_GP_hlt(void)
+{
+  unsigned char *csp;
+  csp = SEG_ADR((unsigned char *), cs, ip);
+  if (*csp == 0xf4)
+    return hlt_handle();
+  return HLT_RET_NONE;
+}
 
 /*
  * DANG_BEGIN_FUNCTION run_vm86
@@ -329,7 +321,7 @@ op0ferr:
 void
 run_vm86(void)
 {
-  int retval;
+  int retval, cnt;
 
   if (in_dpmi && !in_dpmi_dos_int) {
     run_dpmi();
@@ -352,6 +344,26 @@ run_vm86(void)
 	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
 			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
 			_SI, _DI, _ES, _EFLAGS);
+    }
+
+    cnt = 0;
+    while ((retval = handle_GP_hlt())) {
+	cnt++;
+	if (debug_level('g')>3) {
+	    g_printf("DO_VM86: premature fault handled, %i\n", cnt);
+	    g_printf("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x\n",
+		_CS, _EIP, _SS, _SP, _EFLAGS);
+	}
+	if (in_dpmi && !in_dpmi_dos_int)
+	    return;
+	/* if thread wants some sleep, we can't fuck it in a busy loop */
+	if (coopth_wants_sleep())
+	    return;
+	/* some subsystems doesn't want this optimization loop as well */
+	if (retval == HLT_RET_SPECIAL)
+	    return;
+	if (retval != HLT_RET_NORMAL)
+	    break;
     }
 
     loadfpstate(vm86_fpu_state);
@@ -432,6 +444,7 @@ run_vm86(void)
  */
 void loopstep_run_vm86(void)
 {
+    uncache_time();
     run_vm86();
     do_periodic_stuff();
     hardware_run();
@@ -498,11 +511,9 @@ void do_int_call_back(int intno)
 
 int vm86_init(void)
 {
-    emu_hlt_t hlt_hdlr;
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = "do_call_back";
-    hlt_hdlr.len = 1;
     hlt_hdlr.func = callback_return;
-    hlt_hdlr.arg = NULL;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
     return 0;
 }

@@ -31,6 +31,8 @@
 #include "xms.h"
 #include "dpmi.h"
 
+#define CONFIG_HLT_TRACE 1
+
 /*
  * maximum number of halt handlers.
  * you can increase this to anything below 256 since an 8-bit handle
@@ -88,10 +90,11 @@ void hlt_init(void)
  *
  * DANG_END_FUNCTION
  */
-void hlt_handle(void)
+int hlt_handle(void)
 {
   Bit32u  lina = SEGOFF2LINEAR(_CS, _IP);
   int rmcb_client, rmcb_num;
+  int ret = HLT_RET_NORMAL;
 
 #if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
   if ((config.cpuemu>1) && (lina == CPUEMUI10_ADD)) {
@@ -105,10 +108,11 @@ void hlt_handle(void)
     Bit32u offs = lina - BIOS_HLT_BLK;
     struct hlt_handler *hlt = &hlt_handler[hlt_handler_id[offs]];
 #if CONFIG_HLT_TRACE > 0
-    h_printf("HLT: fcn 0x%04lx called in HLT block, handler: %s\n", offs,
-	     hlt->name);
+    h_printf("HLT: fcn 0x%04x called in HLT block, handler: %s +%#x\n", offs,
+	     hlt->h.name, offs - hlt->start_addr);
 #endif
     hlt->h.func(offs - hlt->start_addr, hlt->h.arg);
+    ret = hlt->h.ret;
   }
   else if (lina == XMSControl_ADD) {
     xms_control();
@@ -147,7 +151,9 @@ void hlt_handle(void)
     show_regs(__FILE__, __LINE__);
 #endif
     _IP += 1;
+    ret = HLT_RET_FAIL;
   }
+  return ret;
 }
 
 /*
