@@ -932,6 +932,7 @@ static void SIGIO_call(void *arg){
 #ifdef __linux__
 static void sigio(struct sigcontext_struct *scp)
 {
+  e_gen_sigalrm(scp);
   SIGNAL_save(SIGIO_call, NULL, 0, __func__);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
