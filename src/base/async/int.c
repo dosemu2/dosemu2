@@ -1325,12 +1325,6 @@ static int msdos(void)
           }
         }
       }
-      if (strstrDOS(cmd, "KRNL386") || strstr(str, "KRNL286")) {
-	/* WinOS2 mouse driver calls this vector */
-	/* It would be difficult to detect the winos2 mouse driver
-	 * itself, so hook an interrupt when any windows kernel loads. */
-	SETIVEC(0x66, IRET_SEG, IRET_OFF);
-      }
 #endif
 
       if (!Video->change_config)
@@ -2105,6 +2099,13 @@ void do_int(int i)
  	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
  	   which sometimes can crash the whole system, not only dosemu... */
  	if (SEGOFF2LINEAR(ISEG(i), IOFF(i)) < 1024) {
+#if WINDOWS_HACKS
+		if (i == 0x66 && win31_mode) {
+			/* WinOS2 mouse driver calls this vector */
+			g_printf("ignoring int 0x66\n");
+			return;
+		}
+#endif
  		error("OUCH! attempt to execute interrupt table - quickly dying\n");
  		leavedos(57);
  	}
