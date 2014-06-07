@@ -140,13 +140,29 @@ BOOL is_valid_DOS_char(int c)
 
 /* case insensitive comparison of two DOS names */
 /* upname is always already uppercased          */
-BOOL strequalDOS(const char *name, const char *upname)
+static BOOL strnequalDOS(const char *name, const char *upname, int len)
 {
   const char *n, *un;
-  for (n = name, un = upname; *n || *un; n++, un++)
+  for (n = name, un = upname; *n && *un && len; n++, un++, len--)
     if (toupperDOS((unsigned char)*n) != (unsigned char)*un)
       return FALSE;
   return TRUE;
+}
+
+BOOL strequalDOS(const char *name, const char *upname)
+{
+  return strnequalDOS(name, upname, strlen(upname));
+}
+
+char *strstrDOS(char *haystack, const char *upneedle)
+{
+  char *p = haystack;
+  while (*p) {
+    if (strnequalDOS(p, upneedle, strlen(upneedle)))
+      return p;
+    p++;
+  }
+  return NULL;
 }
 
 BOOL strhasupperDOS(char *s)

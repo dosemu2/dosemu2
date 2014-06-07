@@ -308,6 +308,7 @@ char *strupperDOS(char *s);
 char *strlowerDOS(char *s);
 #define iscntrlDOS(c) (((unsigned char)(c)) < 0x20)
 int strequalDOS(const char *s1, const char *s2);
+char *strstrDOS(char *haystack, const char *upneedle);
 int name_ufs_to_dos(char *dest, const char *src);
 
 int dos2tty_init(void);

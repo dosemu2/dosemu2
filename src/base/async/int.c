@@ -1289,11 +1289,12 @@ static int msdos(void)
   case 0x4B: {			/* program load */
       char *ptr, *tmp_ptr;
       char cmdname[256];
-      char *str = SEG_ADR((char*), ds, dx);
+      char *cmd = SEG_ADR((char*), ds, dx);
+      char *str = cmd;
 
 #if WINDOWS_HACKS
-      if ((ptr = strstr(str, "\\system\\dosx.exe")) ||
-	  (ptr = strstr(str, "\\system\\win386.exe"))) {
+      if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
+	  (ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
         struct param4a *pa4 = SEG_ADR((struct param4a *), es, bx);
         struct lowstring *args = FARt_PTR(pa4->cmdline);
         int have_args = 0;
@@ -1323,10 +1324,12 @@ static int msdos(void)
             args->len -= tmp_ptr - cmdname;
           }
         }
+      }
+      if (strstrDOS(cmd, "KRNL386") || strstr(str, "KRNL286")) {
 	/* WinOS2 mouse driver calls this vector */
-	/* INT_OFF(0x68) is where we have an IRET (hack) -
-	   INT_OFF(0x66) didn't have one. */
-	SETIVEC(0x66, BIOSSEG, INT_OFF(0x68));
+	/* It would be difficult to detect the winos2 mouse driver
+	 * itself, so hook an interrupt when any windows kernel loads. */
+	SETIVEC(0x66, IRET_SEG, IRET_OFF);
       }
 #endif
 
