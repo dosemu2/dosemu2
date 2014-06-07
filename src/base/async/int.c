@@ -2101,13 +2101,10 @@ void do_int(int i)
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
 
-#if 1  /* This test really ought to be in the main loop before
- 	*  instruction execution not here. --EB 10 March 1997
- 	*/
-
+#if 1
  	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
  	   which sometimes can crash the whole system, not only dosemu... */
- 	if (SEGOFF2LINEAR(_CS, _IP) < 1024) {
+ 	if (SEGOFF2LINEAR(ISEG(i), IOFF(i)) < 1024) {
  		error("OUCH! attempt to execute interrupt table - quickly dying\n");
  		leavedos(57);
  	}
