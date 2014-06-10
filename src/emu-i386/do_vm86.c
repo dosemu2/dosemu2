@@ -307,64 +307,9 @@ static int handle_GP_hlt(void)
   return HLT_RET_NONE;
 }
 
-/*
- * DANG_BEGIN_FUNCTION run_vm86
- *
- * description:
- * Here is where DOSEMU runs VM86 mode with the vm86() call
- * which also has the registers that it will be called with. It will stop
- * vm86 mode for many reasons, like trying to execute an interrupt, doing
- * port I/O to ports not opened for I/O, etc ...
- *
- * DANG_END_FUNCTION
- */
-void
-run_vm86(void)
+static void _do_vm86(void)
 {
-  int retval, cnt;
-
-  if (in_dpmi && !in_dpmi_dos_int) {
-    run_dpmi();
-  } else {
-    /*
-     * always invoke vm86() with this call.  all the messy stuff will be
-     * in here.
-     */
-
-    if (
-#ifdef X86_EMULATOR
-	(debug_level('e')>1)||
-#endif
-	(debug_level('g')>3)) {
-	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
-		_CS, _EIP, _SS, _SP, _EFLAGS);
-	if (debug_level('g')>8)
-	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
-	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
-	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
-			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
-			_SI, _DI, _ES, _EFLAGS);
-    }
-
-    cnt = 0;
-    while ((retval = handle_GP_hlt())) {
-	cnt++;
-	if (debug_level('g')>3) {
-	    g_printf("DO_VM86: premature fault handled, %i\n", cnt);
-	    g_printf("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x\n",
-		_CS, _EIP, _SS, _SP, _EFLAGS);
-	}
-	if (in_dpmi && !in_dpmi_dos_int)
-	    return;
-	/* if thread wants some sleep, we can't fuck it in a busy loop */
-	if (coopth_wants_sleep())
-	    return;
-	/* some subsystems doesn't want this optimization loop as well */
-	if (retval == HLT_RET_SPECIAL)
-	    return;
-	if (retval != HLT_RET_NORMAL)
-	    break;
-    }
+    int retval;
 
     loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
@@ -431,7 +376,74 @@ run_vm86(void)
 	error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
 	fatalerr = 4;
     }
+}
+
+/*
+ * DANG_BEGIN_FUNCTION run_vm86
+ *
+ * description:
+ * Here is where DOSEMU runs VM86 mode with the vm86() call
+ * which also has the registers that it will be called with. It will stop
+ * vm86 mode for many reasons, like trying to execute an interrupt, doing
+ * port I/O to ports not opened for I/O, etc ...
+ *
+ * DANG_END_FUNCTION
+ */
+void run_vm86(void)
+{
+  int retval, cnt;
+
+  if (in_dpmi && !in_dpmi_dos_int) {
+    run_dpmi();
+  } else {
+    /*
+     * always invoke vm86() with this call.  all the messy stuff will be
+     * in here.
+     */
+
+    if (
+#ifdef X86_EMULATOR
+	(debug_level('e')>1)||
+#endif
+	(debug_level('g')>3)) {
+	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
+		_CS, _EIP, _SS, _SP, _EFLAGS);
+	if (debug_level('g')>8)
+	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
+	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
+	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
+			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
+			_SI, _DI, _ES, _EFLAGS);
+    }
+
+    cnt = 0;
+    while ((retval = handle_GP_hlt())) {
+	cnt++;
+	if (debug_level('g')>3) {
+	    g_printf("DO_VM86: premature fault handled, %i\n", cnt);
+	    g_printf("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x\n",
+		_CS, _EIP, _SS, _SP, _EFLAGS);
+	}
+	if (in_dpmi && !in_dpmi_dos_int)
+	    return;
+	/* if thread wants some sleep, we can't fuck it in a busy loop */
+	if (coopth_wants_sleep())
+	    return;
+	/* some subsystems doesn't want this optimization loop as well */
+	if (retval == HLT_RET_SPECIAL)
+	    return;
+	if (retval != HLT_RET_NORMAL)
+	    break;
+    }
+    _do_vm86();
   }
+}
+
+/* same as run_vm86(), but avoids any looping in handling GPFs */
+void vm86_helper(void)
+{
+  assert(in_dpmi_dos_int);
+  _do_vm86();
 }
 
 /*

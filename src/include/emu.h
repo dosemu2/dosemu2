@@ -111,6 +111,7 @@ void dos_ctrl_alt_del(void);	/* disabled */
 extern sigjmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
+EXTERN void vm86_helper(void);
 EXTERN void loopstep_run_vm86(void);
 EXTERN void do_call_back(Bit16u cs, Bit16u ip);
 EXTERN void do_int_call_back(int intno);

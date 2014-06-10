@@ -142,7 +142,7 @@ struct RSP_s {
 };
 
 EXTERN volatile int in_dpmi INIT(0);/* Set to 1 when running under DPMI */
-EXTERN volatile int in_dpmi_dos_int INIT(0);
+EXTERN volatile int in_dpmi_dos_int INIT(1);
 EXTERN volatile int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 EXTERN volatile int is_cli INIT(0);

@@ -514,12 +514,12 @@ void __leavedos(int sig, const char *s, int num)
     /* close coopthreads-related stuff first */
     dos2tty_done();
     /* try to clean up threads */
-    tmp = coopth_flush(run_vm86);
+    tmp = coopth_flush(vm86_helper);
     if (tmp)
       dbug_printf("%i threads still active\n", tmp);
     coopth_start(ld_tid, leavedos_thr, NULL);
     /* vc switch may require vm86() so call it while waiting for thread */
-    coopth_join(ld_tid, run_vm86);
+    coopth_join(ld_tid, vm86_helper);
     coopth_done();
 
     /* try to notify dosdebug */
