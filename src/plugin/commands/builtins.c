@@ -34,6 +34,7 @@
 #include "int.h"
 #include "utilities.h"
 #include "lowmem.h"
+#include "coopth.h"
 #include "smalloc.h"
 
 /* hope 2K is enough */
@@ -72,6 +73,11 @@ char *com_getenv(char *keyword)
 	return 0;
 }
 
+static void do_exit(void *arg)
+{
+	fake_call_to(BIOSSEG, ROM_BIOS_EXIT);
+}
+
 static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 {
 	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
@@ -106,7 +112,7 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	LWORD(eax) = 0x4b00;
 
 	if (quit)
-		fake_call_to(BIOSSEG, ROM_BIOS_EXIT);
+		coopth_set_post_handler(do_exit, NULL);
 
 	real_run_int(0x21);
 
