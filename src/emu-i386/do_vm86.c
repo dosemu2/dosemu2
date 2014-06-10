@@ -434,6 +434,17 @@ void run_vm86(void)
 	    return;
 	if (retval != HLT_RET_NORMAL)
 	    break;
+
+	if (debug_level('g') > 3) {
+	  dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
+		_CS, _EIP, _SS, _SP, _EFLAGS);
+	  if (debug_level('g')>8)
+	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
+	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
+	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
+			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
+			_SI, _DI, _ES, _EFLAGS);
+	}
     }
     _do_vm86();
   }
