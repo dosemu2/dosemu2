@@ -788,11 +788,18 @@ void coopth_sleep(void)
     check_cancel();
 }
 
+static void ensure_single(struct coopth_thrdata_t *thdata)
+{
+    struct coopth_t *thr = &coopthreads[*thdata->tid];
+    assert(thr->cur_thr == 1);
+}
+
 void coopth_attach(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
+    ensure_single(thdata);
     if (thdata->attached)
 	return;
     switch_state(COOPTH_ATTACH);
@@ -811,6 +818,7 @@ void coopth_detach(void)
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
     thdata = co_get_data(co_current());
+    ensure_single(thdata);
     if (!thdata->attached)
 	return;
     switch_state(COOPTH_DETACH);
@@ -822,6 +830,7 @@ void coopth_leave(void)
     if (!_coopth_is_in_thread_nowarn())
 	return;
     thdata = co_get_data(co_current());
+    ensure_single(thdata);
     thdata->leave = 1;
     if (!thdata->attached)
 	return;
@@ -900,6 +909,10 @@ void coopth_join(int tid, void (*helper)(void))
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
+    /* since main thread can call this, we have to use helper
+     * function instead of just coopth_sched(). As a result,
+     * recursion into run_vm86() can happen. Hope its safe. */
+    assert(!_coopth_is_in_thread_nowarn() || is_detached());
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
