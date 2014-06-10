@@ -51,6 +51,7 @@ struct {
     char *cmd, *cmdl;
     struct param4a *pa4;
     int allocated;
+    int quit;
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
 
@@ -83,6 +84,9 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
 	if (!BMEM(pa4)) return -1;
 
+	BMEM(allocated) = 1;
+	BMEM(quit) = quit;
+
 	BMEM(cmd) = com_strdup(command);
 	if (!BMEM(cmd)) {
 		com_errno = 8;
@@ -104,19 +108,12 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	BMEM(pa4)->fcb2 = MK_FARt(COM_PSP_SEG, offsetof(struct PSP, FCB2));
 	LWORD(es) = DOSEMU_LMHEAP_SEG;
 	LWORD(ebx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(pa4));
-
 	/* path of programm to load */
 	LWORD(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
 
 	LWORD(eax) = 0x4b00;
-
-	if (quit)
-		coopth_set_post_handler(do_exit, NULL);
-
 	real_run_int(0x21);
-
-	BMEM(allocated) = 1;
 
 	return 0;
 }
@@ -128,6 +125,7 @@ int com_system(char *command, int quit)
 
 	snprintf(cmdline, sizeof(cmdline), "/C %s", command);
 	if (!program) program = "\\COMMAND.COM";
+	coopth_leave();
 	return load_and_run_DOS_program(program, cmdline, quit);
 }
 
@@ -439,6 +437,8 @@ int commands_plugin_inte6_done(void)
 	    com_strfree(BMEM(cmd));
 	    lowmem_free((void *)BMEM(pa4), sizeof(struct param4a));
 	    lowmem_free(BMEM(cmdl), 256);
+	    if (BMEM(quit))
+		coopth_set_post_handler(do_exit, NULL);
 	}
 	pool_used--;
 	if (!pool_used) {
