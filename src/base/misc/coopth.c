@@ -51,7 +51,6 @@ struct coopth_thrfunc_t {
 struct coopth_thrdata_t {
     int *tid;
     int attached;
-    int leave;
     enum CoopthRet ret;
     void *udata[MAX_UDATA];
     int udata_num;
@@ -487,7 +486,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->data.clnup.func = NULL;
     pth->data.udata_num = 0;
     pth->data.cancelled = 0;
-    pth->data.leave = 0;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
@@ -824,19 +822,6 @@ void coopth_detach(void)
     switch_state(COOPTH_DETACH);
 }
 
-void coopth_leave(void)
-{
-    struct coopth_thrdata_t *thdata;
-    if (!_coopth_is_in_thread_nowarn())
-	return;
-    thdata = co_get_data(co_current());
-    ensure_single(thdata);
-    thdata->leave = 1;
-    if (!thdata->attached)
-	return;
-    switch_state(COOPTH_DETACH);
-}
-
 static void do_awake(struct coopth_per_thread_t *pth)
 {
     assert(pth->state == COOPTHS_SLEEPING);
@@ -892,8 +877,6 @@ void coopth_cancel(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    if (pth->data.leave)
-	return;
     if (_coopth_is_in_thread_nowarn())
 	assert(tid != coopth_get_tid());
     do_cancel(thr, pth);

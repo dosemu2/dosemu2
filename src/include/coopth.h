@@ -40,7 +40,7 @@ void coopth_sleep(void);
 void coopth_sched(void);
 void coopth_detach(void);
 void coopth_attach(void);
-void coopth_leave(void);
+#define coopth_leave() coopth_detach()
 void coopth_exit(void);
 void coopth_wake_up(int tid);
 void coopth_asleep(int tid);
