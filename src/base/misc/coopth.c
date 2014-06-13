@@ -789,7 +789,8 @@ void coopth_sleep(void)
 static void ensure_single(struct coopth_thrdata_t *thdata)
 {
     struct coopth_t *thr = &coopthreads[*thdata->tid];
-    assert(thr->cur_thr == 1);
+    if (thr->cur_thr != 1)
+	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
 }
 
 void coopth_attach(void)
