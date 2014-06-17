@@ -146,7 +146,9 @@ static BOOL strnequalDOS(const char *name, const char *upname, int len)
   for (n = name, un = upname; *n && *un && len; n++, un++, len--)
     if (toupperDOS((unsigned char)*n) != (unsigned char)*un)
       return FALSE;
-  return TRUE;
+  if (!len || (! *n && ! *un))
+    return TRUE;
+  return FALSE;
 }
 
 BOOL strequalDOS(const char *name, const char *upname)
