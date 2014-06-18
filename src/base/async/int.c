@@ -420,7 +420,7 @@ int dos_helper(void)
   }
 
   case DOS_HELPER_RUN_UNIX:
-    g_printf("Running Unix Command\n");
+    g_printf("Running Unix Command:%s\n",SEG_ADR((char *), es, dx));
     run_unix_command(SEG_ADR((char *), es, dx));
     break;
 
@@ -1291,15 +1291,26 @@ static int msdos(void)
       char cmdname[256];
       char *cmd = SEG_ADR((char*), ds, dx);
       char *str = cmd;
+      struct param4a *pa4 = SEG_ADR((struct param4a *), es, bx);
+      struct lowstring *args = FARt_PTR(pa4->cmdline);
+      if (LO(ax) != 3) {	/* AL=03h:load overlay have no cmdline in EPB */
+        strncpy(cmdname, args->s, args->len);
+        cmdname[args->len] = 0;
+      } else {
+        strncpy(cmdname, cmd, sizeof(cmdname) - 1);
+        cmdname[sizeof(cmdname) - 1] = 0;
+      }
+      if (debug_level('D') > 2) {
+        if (LO(ax) != 3)
+          ds_printf("INT21 4B: load/execute program=\"%s\", L(cmdline=\"%s\")=%i\n", str, cmdname, args->len);
+        else
+          ds_printf("INT21 4B: load overlay=\"%s\"\n", str);
+      }
 
 #if WINDOWS_HACKS
       if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
 	  (ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
-        struct param4a *pa4 = SEG_ADR((struct param4a *), es, bx);
-        struct lowstring *args = FARt_PTR(pa4->cmdline);
         int have_args = 0;
-        strncpy(cmdname, args->s, args->len);
-        cmdname[args->len] = 0;
         tmp_ptr = strstr(cmdname, "krnl386");
         if (!tmp_ptr)
           tmp_ptr = strstr(cmdname, "krnl286");
