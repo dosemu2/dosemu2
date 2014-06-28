@@ -1272,6 +1272,7 @@ mouse_brelinfo(void)
     mouse.rrcount = 0;
     LWORD(ecx) = mouse.rrx;
     LWORD(edx) = mouse.rry;
+    break;
 
   case 2:				/* middle button */
     LWORD(ebx) = mouse.mrcount;
