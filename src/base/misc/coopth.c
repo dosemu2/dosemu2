@@ -135,8 +135,6 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTH_WAIT:
-	if (pth->data.attached)
-	    dosemu_sleep();
 	pth->state = COOPTHS_AWAKEN;
 	break;
     case COOPTH_SLEEP:
@@ -305,6 +303,8 @@ again:
 	tret = do_run_thread(thr, pth);
 	thread_running--;
 	joinable_running = jr;
+	if (tret == COOPTH_WAIT && pth->data.attached)
+	    dosemu_sleep();
 	if (tret == COOPTH_SLEEP || tret == COOPTH_WAIT ||
 		tret == COOPTH_YIELD) {
 	    if (pth->data.sleep.func) {
