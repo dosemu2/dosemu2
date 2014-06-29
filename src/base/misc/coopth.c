@@ -823,6 +823,15 @@ void coopth_detach(void)
     switch_state(COOPTH_DETACH);
 }
 
+/* same as coopth_detach(), but is allowed to be called from main thr
+ * (in which case it just returns) */
+void coopth_leave(void)
+{
+    if (!_coopth_is_in_thread_nowarn())
+       return;
+    coopth_detach();
+}
+
 static void do_awake(struct coopth_per_thread_t *pth)
 {
     assert(pth->state == COOPTHS_SLEEPING);
