@@ -103,8 +103,9 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
   sigset_t mask;
 
   sa.sa_flags = flags;
-  sigemptyset(&mask);
-  addset_signals_that_queue(&mask);
+  /* initially block all signals. The handler will unblock some
+   * when it is safe (after segment registers are restored) */
+  sigfillset(&mask);
   sa.sa_mask = mask;
 
   if (sa.sa_flags & SA_ONSTACK) {
@@ -249,7 +250,7 @@ int check_fix_fs_gs_base(unsigned char prefix)
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 __attribute__((no_instrument_function))
-void init_handler(struct sigcontext_struct *scp)
+static void __init_handler(struct sigcontext_struct *scp)
 {
   /*
    * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
@@ -328,6 +329,25 @@ void init_handler(struct sigcontext_struct *scp)
 #endif
   if (getsegment(gs) != eflags_fs_gs.gs)
     loadregister(gs, eflags_fs_gs.gs);
+}
+
+__attribute__((no_instrument_function))
+void init_handler(struct sigcontext_struct *scp)
+{
+  /* All signals are initially blocked.
+   * We need to restore registers before unblocking signals.
+   * Otherwise the nested signal handler will restore the registers
+   * and return; the current signal handler will then save the wrong
+   * registers.
+   * Note: in 64bit mode some segment registers are neither saved nor
+   * restored by the signal dispatching code in kernel, so we have
+   * to restore them by hands.
+   */
+  sigset_t mask;
+  __init_handler(scp);
+  sigemptyset(&mask);
+  addset_signals_that_queue(&mask);
+  sigprocmask(SIG_SETMASK, &mask, NULL);
 }
 
 static int ld_sig;
