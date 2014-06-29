@@ -2065,11 +2065,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xe2: /* loop */
     eip += ( (x86->address_size == 4 ? --x86->ecx : --CX) ?
-             2 + *(unsigned char *)MEM_BASE32(cs + eip + 1) : 2); break;
+             2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2); break;
 
   case 0xe3:  /* jcxz */
     eip += ((x86->address_size == 4 ? x86->ecx : CX) ? 2 :
-	2 + *(unsigned char *)MEM_BASE32(cs + eip + 1));
+	2 + *(signed char *)MEM_BASE32(cs + eip + 1));
     break;
 
   /* 0xe4 in ib 0xe5 in iw 0xe6 out ib 0xe7 out iw */
