@@ -3706,9 +3706,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
-	  unsigned int buf = GetSegmentBase(_es) +
-	    (Segments[_es>>3].is_32 ? _edi : LO_WORD(_edi));
-	  unsigned short *buffer = LINEAR2UNIX(buf);
+	  unsigned short *buffer = SEL_ADR_LDT(_es, _edi, Segments[_es>>3].is_32);
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
 //	    e_invalidate(buf, (9+6)*sizeof(*buffer));
@@ -4336,14 +4334,13 @@ void dpmi_realmode_hlt(unsigned int lina)
     in_dpmi_dos_int = 0;
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_realmode)) {
-    unsigned rmreg_addr = GetSegmentBase(_es) + API_16_32(_edi);
-    struct RealModeCallStructure *rmreg = LINEAR2UNIX(rmreg_addr);
+    struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
 
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
-    e_invalidate(rmreg_addr, sizeof(*rmreg));
+//    e_invalidate(rmreg, sizeof(*rmreg));
     rmreg->edi = REG(edi);
     rmreg->esi = REG(esi);
     rmreg->ebp = REG(ebp);

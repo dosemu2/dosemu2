@@ -42,7 +42,7 @@
 #define TRANS_BUFFER_SEG EMM_SEGMENT
 #define EXEC_SEG (MSDOS_CLIENT.lowmem_seg + EXEC_Para_ADD)
 
-#define DTA_over_1MB (GetSegmentBase(MSDOS_CLIENT.user_dta_sel) + MSDOS_CLIENT.user_dta_off)
+#define DTA_over_1MB (SEL_ADR(MSDOS_CLIENT.user_dta_sel, MSDOS_CLIENT.user_dta_off))
 #define DTA_under_1MB SEGOFF2LINEAR(MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD, 0)
 
 #define MAX_DOS_PATH 260
@@ -355,7 +355,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
-	    MEMCPY_DOS2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
+	    MEMCPY_2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
 	    break;
 	}
     }
@@ -506,7 +506,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		MSDOS_CLIENT.user_dta_off = off;
 		REG(ds) = MSDOS_CLIENT.lowmem_seg+DTA_Para_ADD;
 		REG(edx)=0;
-                MEMCPY_DOS2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
+                MEMCPY_2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
 	    } else {
                 REG(ds) = GetSegmentBase(_ds) >> 4;
                 MSDOS_CLIENT.user_dta_sel = 0;
@@ -981,7 +981,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
-	    MEMCPY_DOS2DOS(DTA_over_1MB, DTA_under_1MB, 0x80);
+	    MEMCPY_2UNIX(DTA_over_1MB, DTA_under_1MB, 0x80);
 	    break;
 	}
     }
