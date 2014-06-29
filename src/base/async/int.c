@@ -78,7 +78,7 @@ static int int33(void);
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
 
-static unsigned int dos_io_buffer;
+static char *dos_io_buffer;
 static int dos_io_buffer_size = 0;
 
 /* set if some directories are mounted during startup */
@@ -482,7 +482,7 @@ int dos_helper(void)
 	unsigned int size = REG(ecx);
 	unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
 	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_DOS2DOS(dos_io_buffer + offs, dos_ptr, size);
+	    MEMCPY_2UNIX(dos_io_buffer + offs, dos_ptr, size);
 	break;
     }
 
@@ -491,7 +491,7 @@ int dos_helper(void)
 	unsigned int size = REG(ecx);
 	unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
 	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_DOS2DOS(dos_ptr, dos_io_buffer + offs, size);
+	    MEMCPY_2DOS(dos_ptr, dos_io_buffer + offs, size);
 	break;
     }
 
@@ -2471,7 +2471,7 @@ void do_periodic_stuff(void)
 	update_xtitle();
 }
 
-void set_io_buffer(unsigned int ptr, unsigned int size)
+void set_io_buffer(char *ptr, unsigned int size)
 {
   dos_io_buffer = ptr;
   dos_io_buffer_size = size;

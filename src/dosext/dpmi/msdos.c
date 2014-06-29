@@ -678,7 +678,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    break;
 	case 0x3f:		/* dos read */
-	    set_io_buffer(GetSegmentBase(_ds) + D_16_32(_edx),
+	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx),
 		D_16_32(_ecx));
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
@@ -687,7 +687,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    fake_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF);
 	    return MSDOS_ALT_ENT;
 	case 0x40:		/* DOS Write */
-	    set_io_buffer(GetSegmentBase(_ds) + D_16_32(_edx),
+	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx),
 		D_16_32(_ecx));
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;

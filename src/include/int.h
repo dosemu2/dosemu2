@@ -48,7 +48,7 @@ int dos_helper(void);
 
 void do_periodic_stuff(void);
 
-void set_io_buffer(unsigned int ptr, unsigned int size);
+void set_io_buffer(char *ptr, unsigned int size);
 void unset_io_buffer(void);
 
 void int42_hook(void);
