@@ -529,8 +529,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
-	    MEMCPY_DOS2DOS(SEGOFF2LINEAR(REG(ds), LWORD(edx)),
-			GetSegmentBase(_ds) + D_16_32(_edx),
+	    MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(edx)),
+			SEL_ADR_CLNT(_ds, _edx),
 			0x50);
 	    return 0;
 	case 0x29:		/* Parse a file name for FCB */
@@ -539,14 +539,14 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		prepare_ems_frame();
 		REG(ds) = seg;
 		REG(esi) = 0;
-		MEMCPY_DOS2DOS(SEGOFF2LINEAR(REG(ds), LWORD(esi)),
-			    GetSegmentBase(_ds) + D_16_32(_esi),
+		MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(esi)),
+			    SEL_ADR_CLNT(_ds, _esi),
 			    0x100);
 		seg += 0x10;
 		REG(es) = seg;
 		REG(edi) = 0;
-		MEMCPY_DOS2DOS(SEGOFF2LINEAR(REG(es), LWORD(edi)),
-			    GetSegmentBase(_es) + D_16_32(_edi),
+		MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(edi)),
+			    SEL_ADR_CLNT(_es, _edi),
 			    0x50);
 	    }
 	    return 0;
@@ -573,14 +573,14 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    /* must copy parameter block */
 	    REG(es) = segment;
 	    REG(ebx) = 0;
-	    MEMCPY_DOS2DOS(SEGOFF2LINEAR(REG(es), LWORD(ebx)),
-	       GetSegmentBase(_es) + D_16_32(_ebx), 0x20);
+	    MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(ebx)),
+	       SEL_ADR_CLNT(_es, _ebx), 0x20);
 	    segment += 2;
 #if 0
 	    /* now the envrionment segment */
 	    sel = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)));
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)), segment);
-	    MEMCPY_DOS2DOS(SEGOFF2LINEAR(segment, 0),           /* 4K envr. */
+	    MEMCPY_2DOS(SEGOFF2LINEAR(segment, 0),           /* 4K envr. */
 		GetSegmentBase(sel),
 		0x1000);
 	    segment += 0x100;
@@ -592,8 +592,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    sel = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4));
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4), segment);
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2), 0);
-	    MEMCPY_DOS2DOS(SEGOFF2LINEAR(segment, 0),
-		GetSegmentBase(sel) + off,
+	    MEMCPY_2DOS(SEGOFF2LINEAR(segment, 0),
+		SEL_ADR_CLNT(sel, off),
 		0x80);
 	    segment += 8;
 
