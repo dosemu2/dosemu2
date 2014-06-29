@@ -949,7 +949,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
 
   if(pmode) {
 #if DEBUG_MAP >= 1
-    cs_ip = (unsigned char *) (dpmi_GetSegmentBaseAddress(_cs) + _eip);
+    cs_ip = SEL_ADR_CLNT(_cs, _eip);
 #endif
     vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",

@@ -1031,19 +1031,6 @@ FI;
   return 1;
 }
 
-static void *GetSegmentBaseAddress(unsigned short selector)
-{
-  if (!ValidAndUsedSelector(selector))
-    return 0;
-  return MEM_BASE32(Segments[selector >> 3].base_addr);
-}
-
-/* needed in env/video/vesa.c */
-void *dpmi_GetSegmentBaseAddress(unsigned short selector)
-{
-  return GetSegmentBaseAddress(selector);
-}
-
 unsigned int GetSegmentBase(unsigned short selector)
 {
   if (!ValidAndUsedSelector(selector))

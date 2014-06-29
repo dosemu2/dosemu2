@@ -198,7 +198,6 @@ int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
 void GetFreeMemoryInformation(unsigned int *lp);
 int GetDescriptor(us selector, unsigned int *lp);
-void *dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned int GetSegmentBase(unsigned short);
 unsigned int GetSegmentLimit(unsigned short);
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu);

@@ -88,7 +88,7 @@
 #define BP (R_WORD(x86->ebp))
 #define EFLAGS (x86->eflags)
 #define FLAGS (R_WORD(EFLAGS))
-#define OP_JCC(cond) eip += (cond) ? 2 + (signed char)cs[eip + 1] : 2; break;
+#define OP_JCC(cond) eip += (cond) ? 2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2; break;
 
 /* assembly macros to speed up x86 on x86 emulation: the cpu helps us in setting
    the flags */
@@ -143,8 +143,8 @@ typedef struct x86_regs {
   unsigned eip;
   unsigned long eflags;
   unsigned es, cs, ss, ds, fs, gs;
-  unsigned char *cs_base, *ds_base, *es_base, *ss_base, *fs_base, *gs_base;
-  unsigned char *seg_base, *seg_ss_base;
+  unsigned cs_base, ds_base, es_base, ss_base, fs_base, gs_base;
+  unsigned seg_base, seg_ss_base;
   unsigned _32bit:1;	/* 16/32 bit code */
   unsigned address_size; /* in bytes so either 4 or 2 */
   unsigned operand_size;
@@ -737,7 +737,7 @@ static inline void push(unsigned val, x86_regs *x86)
     x86->esp -= x86->operand_size;
   else
     SP -= x86->operand_size;
-  mem = x86->ss_base + (x86->esp & wordmask[(x86->_32bit+1)*2]);
+  mem = MEM_BASE32(x86->ss_base + (x86->esp & wordmask[(x86->_32bit+1)*2]));
   if (x86->operand_size == 4)
     instr_write_dword(mem, val);
   else
@@ -746,7 +746,7 @@ static inline void push(unsigned val, x86_regs *x86)
 
 static inline void pop(unsigned *val, x86_regs *x86)
 {
-  unsigned char *mem = x86->ss_base + (x86->esp & wordmask[(x86->_32bit+1)*2]);
+  unsigned char *mem = MEM_BASE32(x86->ss_base + (x86->esp & wordmask[(x86->_32bit+1)*2]));
   if (x86->_32bit)
     x86->esp += x86->operand_size;
   else
@@ -807,15 +807,15 @@ unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len)
   case 0x03:
   case 0x06:
   case 0x07:
-    return addr + *reg(cp[2], x86) + x86->seg_base;
+    return MEM_BASE32(addr + *reg(cp[2], x86) + x86->seg_base);
   case 0x04: /* esp */
-    return addr + x86->esp + x86->seg_ss_base;
+    return MEM_BASE32(addr + x86->esp + x86->seg_ss_base);
   case 0x05:
     if (cp[1] >= 0x40)
-      return addr + x86->ebp + x86->seg_ss_base;
+      return MEM_BASE32(addr + x86->ebp + x86->seg_ss_base);
     else {
       *inst_len += 4;
-      return addr + R_DWORD(cp[3]) + x86->seg_base;
+      return MEM_BASE32(addr + R_DWORD(cp[3]) + x86->seg_base);
     }
   }
   return 0; /* keep gcc happy */
@@ -845,26 +845,26 @@ unsigned char *modrm16(unsigned char *cp, x86_regs *x86, int *inst_len)
 
   switch(cp[1] & 0x07) { /* decode address */
   case 0x00:
-    return ((addr + x86->ebx + x86->esi) & 0xffff) + x86->seg_base;
+    return MEM_BASE32(((addr + x86->ebx + x86->esi) & 0xffff) + x86->seg_base);
   case 0x01:
-    return ((addr + x86->ebx + x86->edi) & 0xffff) + x86->seg_base;
+    return MEM_BASE32(((addr + x86->ebx + x86->edi) & 0xffff) + x86->seg_base);
   case 0x02:
-    return ((addr + x86->ebp + x86->esi) & 0xffff) + x86->seg_ss_base;
+    return MEM_BASE32(((addr + x86->ebp + x86->esi) & 0xffff) + x86->seg_ss_base);
   case 0x03:
-    return ((addr + x86->ebp + x86->edi) & 0xffff) + x86->seg_ss_base;
+    return MEM_BASE32(((addr + x86->ebp + x86->edi) & 0xffff) + x86->seg_ss_base);
   case 0x04:
-    return ((addr + x86->esi) & 0xffff) + x86->seg_base;
+    return MEM_BASE32(((addr + x86->esi) & 0xffff) + x86->seg_base);
   case 0x05:
-    return ((addr + x86->edi) & 0xffff) + x86->seg_base;
+    return MEM_BASE32(((addr + x86->edi) & 0xffff) + x86->seg_base);
   case 0x06:
     if (cp[1] >= 0x40)
-      return ((addr + x86->ebp) & 0xffff) + x86->seg_ss_base;
+      return MEM_BASE32(((addr + x86->ebp) & 0xffff) + x86->seg_ss_base);
     else {
       *inst_len += 2;
-      return R_WORD(cp[2]) + x86->seg_base;
+      return MEM_BASE32(R_WORD(cp[2]) + x86->seg_base);
     }
   case 0x07:
-    return ((addr + x86->ebx) & 0xffff) + x86->seg_base;
+    return MEM_BASE32(((addr + x86->ebx) & 0xffff) + x86->seg_base);
   }
   return 0; /* keep gcc happy */
 }
@@ -896,16 +896,16 @@ unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len)
   case 0x03:
   case 0x06:
   case 0x07:
-    return addr + *reg(cp[1], x86) + x86->seg_base;
+    return MEM_BASE32(addr + *reg(cp[1], x86) + x86->seg_base);
   case 0x04: /* sib byte follows */
     *inst_len += 1;
     return sib(cp, x86, inst_len);
   case 0x05:
     if (cp[1] >= 0x40)
-      return addr + x86->ebp + x86->seg_ss_base;
+      return MEM_BASE32(addr + x86->ebp + x86->seg_ss_base);
     else {
       *inst_len += 4;
-      return R_DWORD(cp[2]) + x86->seg_base;
+      return MEM_BASE32(R_DWORD(cp[2]) + x86->seg_base);
     }
   }
   return 0; /* keep gcc happy */
@@ -914,11 +914,10 @@ unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len)
 static int handle_prefixes(x86_regs *x86)
 {
   unsigned eip = x86->eip;
-  unsigned char *cs = (unsigned char *) x86->cs_base;
   int prefix = 0;
 
-  for (;;) {
-    switch(cs[eip++]) {
+  for (;; eip++) {
+    switch(*(unsigned char *)MEM_BASE32(x86->cs_base + eip)) {
     /* handle (some) prefixes */
       case 0x26:
         prefix++;
@@ -1010,7 +1009,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   int i, i2, inst_len;
   int loop_inc = (EFLAGS&DF) ? -1 : 1;		// make it a char ?
   unsigned eip = x86->eip;
-  unsigned char *cs = (unsigned char *) x86->cs_base;
+  unsigned cs = x86->cs_base;
 
 #if DEBUG_INSTR >= 2
   {
@@ -1018,7 +1017,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     unsigned char frmtbuf[256];
     refseg = x86->cs;
     dump_x86_regs(x86);
-    rc = dis_8086(cs+eip, frmtbuf, x86->_32bit, &refseg, cs);
+    rc = dis_8086(MEM_BASE32(cs+eip), frmtbuf, x86->_32bit, &refseg, MEM_BASE32(cs));
     instr_deb("vga_emu_fault: about to simulate %d: %s\n", count, frmtbuf);
   }
 #endif
@@ -1035,7 +1034,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     i2 = 0;
     if (x86->address_size == 4) {
       repcount = x86->ecx;
-      switch(cs[eip]) {
+      switch(*(unsigned char *)MEM_BASE32(cs + eip)) {
       case 0xa4:         /* rep movsb */
 #if DEBUG_INSTR >= 1
         if (x86->es_base >= 0xa0000 && x86->es_base < 0xb0000 &&
@@ -1045,8 +1044,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 #endif
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0;
              i += loop_inc, und++, count--)
-          instr_write_byte(x86->es_base + x86->edi+i,
-            instr_read_byte(x86->seg_base + x86->esi+i));
+          instr_write_byte(MEM_BASE32(x86->es_base + x86->edi+i),
+            instr_read_byte(MEM_BASE32(x86->seg_base + x86->esi+i)));
         x86->edi += i;
         x86->esi += i;
         break;
@@ -1055,16 +1054,16 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         /* TODO: accelerate this using memcpy */
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0;
              i += loop_inc*x86->operand_size, und++, count--)
-          x86->instr_write(x86->es_base + x86->edi+i,
-            x86->instr_read(x86->seg_base + x86->esi+i));
+          x86->instr_write(MEM_BASE32(x86->es_base + x86->edi+i),
+            x86->instr_read(MEM_BASE32(x86->seg_base + x86->esi+i)));
         x86->edi += i;
         x86->esi += i;
         break;
 
       case 0xa6:         /* rep cmpsb */
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          instr_binary_byte(7, instr_read_byte(x86->seg_base + x86->esi+i),
-            instr_read_byte(x86->es_base + x86->edi+i), &EFLAGS);
+          instr_binary_byte(7, instr_read_byte(MEM_BASE32(x86->seg_base + x86->esi+i)),
+            instr_read_byte(MEM_BASE32(x86->es_base + x86->edi+i)), &EFLAGS);
           i += loop_inc;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0xf2 repnz 0xf3 repz */ {
@@ -1078,8 +1077,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
       case 0xa7:         /* rep cmpsw/d */
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          x86->instr_binary(7, instr_read_byte(x86->seg_base + x86->esi+i),
-            x86->instr_read(x86->es_base + x86->edi+i), &EFLAGS);
+          x86->instr_binary(7, instr_read_byte(MEM_BASE32(x86->seg_base + x86->esi+i)),
+            x86->instr_read(MEM_BASE32(x86->es_base + x86->edi+i)), &EFLAGS);
           i += loop_inc*x86->operand_size;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0xf2 repnz 0xf3 repz */ {
@@ -1095,7 +1094,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         /* TODO: accelerate this using memset */
         for (und2 = x86->edi, und = 0; und < repcount && !signal_pending() && count>0;
              und2 += loop_inc, und++, count--)
-          instr_write_byte(x86->es_base + und2, AL);
+          instr_write_byte(MEM_BASE32(x86->es_base + und2), AL);
         x86->edi = und2;
         break;
 
@@ -1103,13 +1102,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         /* TODO: accelerate this using memset */
         for (und2 = x86->edi, und = 0; und < repcount && !signal_pending() && count>0;
              und2 += loop_inc*x86->operand_size, und++, count--)
-          x86->instr_write(x86->es_base + und2, x86->eax);
+          x86->instr_write(MEM_BASE32(x86->es_base + und2), x86->eax);
         x86->edi = und2;
         break;
 
       case 0xae: /* rep scasb */
         for (und2 = x86->edi, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          instr_binary_byte(7, AL, instr_read_byte(x86->es_base + und2), &EFLAGS);
+          instr_binary_byte(7, AL, instr_read_byte(MEM_BASE32(x86->es_base + und2)), &EFLAGS);
           und2 += loop_inc;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0x0 repnz 0x1 repz */ {
@@ -1122,7 +1121,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
       case 0xaf: /* rep scasw */
         for (und2 = x86->edi, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          x86->instr_binary(7, x86->eax, x86->instr_read(x86->es_base + und2), &EFLAGS);
+          x86->instr_binary(7, x86->eax, x86->instr_read(MEM_BASE32(x86->es_base + und2)), &EFLAGS);
           und2 += loop_inc*x86->operand_size;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0x0 repnz 0x1 repz */ {
@@ -1142,7 +1141,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
     } else {
       repcount = CX;
-      switch(cs[eip]) {
+      switch(*(unsigned char *)MEM_BASE32(cs + eip)) {
       case 0xa4:         /* rep movsb */
 #if DEBUG_INSTR >= 1
         if (x86->es_base >= 0xa0000 && x86->es_base < 0xb0000 &&
@@ -1152,8 +1151,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 #endif
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0;
              i += loop_inc, und++, count--)
-          instr_write_byte(x86->es_base + ((x86->edi+i) & 0xffff),
-            instr_read_byte(x86->seg_base + ((x86->esi+i) & 0xffff)));
+          instr_write_byte(MEM_BASE32(x86->es_base + ((x86->edi+i) & 0xffff)),
+            instr_read_byte(MEM_BASE32(x86->seg_base + ((x86->esi+i) & 0xffff))));
         DI += i;
         SI += i;
         break;
@@ -1162,16 +1161,16 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         /* TODO: accelerate this using memcpy */
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0;
              i += loop_inc*x86->operand_size, und++, count--)
-          x86->instr_write(x86->es_base + ((x86->edi+i) & 0xffff),
-            x86->instr_read(x86->seg_base + ((x86->esi+i) & 0xffff)));
+          x86->instr_write(MEM_BASE32(x86->es_base + ((x86->edi+i) & 0xffff)),
+            x86->instr_read(MEM_BASE32(x86->seg_base + ((x86->esi+i) & 0xffff))));
         DI += i;
         SI += i;
         break;
 
       case 0xa6: /* rep?z cmpsb */
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          instr_binary_byte(7, instr_read_byte(x86->seg_base + ((x86->esi+i) & 0xffff)),
-            instr_read_byte(x86->es_base + ((x86->edi+i) & 0xffff)), &EFLAGS);
+          instr_binary_byte(7, instr_read_byte(MEM_BASE32(x86->seg_base + ((x86->esi+i) & 0xffff))),
+            instr_read_byte(MEM_BASE32(x86->es_base + ((x86->edi+i) & 0xffff))), &EFLAGS);
           i += loop_inc;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0x0 repnz 0x1 repz */ {
@@ -1185,8 +1184,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
       case 0xa7: /* rep?z cmpsw/d */
         for (i = 0, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          x86->instr_binary(7, x86->instr_read(x86->seg_base + ((x86->esi+i) & 0xffff)),
-                      x86->instr_read(x86->es_base + ((x86->edi+i) & 0xffff)), &EFLAGS);
+          x86->instr_binary(7, x86->instr_read(MEM_BASE32(x86->seg_base + ((x86->esi+i) & 0xffff))),
+                      x86->instr_read(MEM_BASE32(x86->es_base + ((x86->edi+i) & 0xffff))), &EFLAGS);
           i += loop_inc * x86->operand_size;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0x0 repnz 0x1 repz */ {
@@ -1202,7 +1201,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         /* TODO: accelerate this using memset */
         for (uns = DI, und = 0; und < repcount && !signal_pending() && count>0;
              uns += loop_inc, und++, count--)
-          instr_write_byte(x86->es_base + uns, AL);
+          instr_write_byte(MEM_BASE32(x86->es_base + uns), AL);
         DI = uns;
         break;
 
@@ -1210,13 +1209,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         /* TODO: accelerate this using memset */
         for (uns = DI, und = 0; und < repcount && !signal_pending() && count>0;
              uns += loop_inc*x86->operand_size, und++, count--)
-          x86->instr_write(x86->es_base + uns, (x86->operand_size == 4 ? x86->eax : AX));
+          x86->instr_write(MEM_BASE32(x86->es_base + uns), (x86->operand_size == 4 ? x86->eax : AX));
         DI = uns;
         break;
 
       case 0xae: /* rep scasb */
         for (uns = DI, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          instr_binary_byte(7, AL, instr_read_byte(x86->es_base + uns), &EFLAGS);
+          instr_binary_byte(7, AL, instr_read_byte(MEM_BASE32(x86->es_base + uns)), &EFLAGS);
           uns += loop_inc;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0x0 repnz 0x1 repz */ {
@@ -1229,7 +1228,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
       case 0xaf: /* rep scasw/d */
         for (uns = DI, und = 0; und < repcount && !signal_pending() && count>0; count--) {
-          x86->instr_binary(7, AX, instr_read_word(x86->es_base + uns), &EFLAGS);
+          x86->instr_binary(7, AX, instr_read_word(MEM_BASE32(x86->es_base + uns)), &EFLAGS);
           uns += loop_inc*x86->operand_size;
           und++;
           if (((EFLAGS & ZF) >> 6) != x86->rep) /* 0x0 repnz 0x1 repz */ {
@@ -1248,7 +1247,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }
     eip++;
   }
-  else switch(cs[eip]) {
+  else switch(*(unsigned char *)MEM_BASE32(cs + eip)) {
   case 0x00:		/* add r/m8,reg8 */
   case 0x08:		/* or r/m8,reg8 */
   case 0x10:		/* adc r/m8,reg8 */
@@ -1257,9 +1256,10 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x28:		/* sub r/m8,reg8 */
   case 0x30:		/* xor r/m8,reg8 */
   case 0x38:		/* cmp r/m8,reg8 */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    uc = instr_binary_byte(cs[eip]>>3, instr_read_byte(mem), *reg8(cs[eip + 1]>>3, x86), &EFLAGS);
-    if (cs[eip]<0x38)
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    uc = instr_binary_byte((*(unsigned char *)MEM_BASE32(cs + eip))>>3,
+	instr_read_byte(mem), *reg8((*(unsigned char *)MEM_BASE32(cs + eip + 1))>>3, x86), &EFLAGS);
+    if (*(unsigned char *)MEM_BASE32(cs + eip)<0x38)
       instr_write_byte(mem, uc);
     eip += 2 + inst_len; break;
 
@@ -1271,9 +1271,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x29:		/* sub r/m16,reg16 */
   case 0x31:		/* xor r/m16,reg16 */
   case 0x39:		/* cmp r/m16,reg16 */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    und = x86->instr_binary(cs[eip]>>3, x86->instr_read(mem), *reg(cs[eip + 1]>>3, x86), &EFLAGS);
-    if (cs[eip]<0x38)
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    und = x86->instr_binary(*(unsigned char *)MEM_BASE32(cs + eip)>>3, x86->instr_read(mem), *reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86), &EFLAGS);
+    if (*(unsigned char *)MEM_BASE32(cs + eip)<0x38)
       x86->instr_write(mem, und);
     eip += 2 + inst_len; break;
 
@@ -1285,9 +1285,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x2a:		/* sub reg8,r/m8 */
   case 0x32:		/* xor reg8,r/m8 */
   case 0x3a:		/* cmp reg8,r/m8 */
-    reg_8 = reg8(cs[eip + 1]>>3, x86);
-    uc = instr_binary_byte(cs[eip]>>3, *reg_8, instr_read_byte(x86->modrm(cs + eip, x86, &inst_len)), &EFLAGS);
-    if (cs[eip]<0x38) *reg_8 = uc;
+    reg_8 = reg8(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+    uc = instr_binary_byte(*(unsigned char *)MEM_BASE32(cs + eip)>>3,
+	*reg_8, instr_read_byte(x86->modrm(MEM_BASE32(cs + eip),
+	x86, &inst_len)), &EFLAGS);
+    if (*(unsigned char *)MEM_BASE32(cs + eip)<0x38) *reg_8 = uc;
     eip += 2 + inst_len; break;
 
   case 0x03:		/* add reg,r/m16 */
@@ -1298,9 +1300,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x2b:		/* sub reg,r/m16 */
   case 0x33:		/* xor reg,r/m16 */
   case 0x3b:		/* cmp reg,r/m16 */
-    dstreg = reg(cs[eip + 1]>>3, x86);
-    und = x86->instr_binary(cs[eip]>>3, *dstreg, x86->instr_read(x86->modrm(cs + eip, x86, &inst_len)), &EFLAGS);
-    if (cs[eip]<0x38) {
+    dstreg = reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+    und = x86->instr_binary(*(unsigned char *)MEM_BASE32(cs + eip)>>3,
+	*dstreg, x86->instr_read(x86->modrm(MEM_BASE32(cs + eip), x86,
+	&inst_len)), &EFLAGS);
+    if (*(unsigned char *)MEM_BASE32(cs + eip)<0x38) {
       if (x86->operand_size == 2)
         R_WORD(*dstreg) = und;
       else
@@ -1316,8 +1320,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x2c:		/* sub al,imm8 */
   case 0x34:		/* xor al,imm8 */
   case 0x3c:		/* cmp al,imm8 */
-    uc = instr_binary_byte(cs[eip]>>3, AL, cs[eip + 1], &EFLAGS);
-    if (cs[eip]<0x38) AL = uc;
+    uc = instr_binary_byte(*(unsigned char *)MEM_BASE32(cs + eip)>>3, AL,
+	*(unsigned char *)MEM_BASE32(cs + eip + 1), &EFLAGS);
+    if (*(unsigned char *)MEM_BASE32(cs + eip)<0x38) AL = uc;
     eip += 2; break;
 
   case 0x05:		/* add ax,imm16 */
@@ -1328,12 +1333,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x2d:		/* sub ax,imm16 */
   case 0x35:		/* xor ax,imm16 */
   case 0x3d:		/* cmp ax,imm16 */
-    und = x86->instr_binary(cs[eip]>>3, x86->eax, R_DWORD(cs[eip + 1]), &EFLAGS);
+    und = x86->instr_binary(*(unsigned char *)MEM_BASE32(cs + eip)>>3,
+	x86->eax, R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)), &EFLAGS);
     if (x86->operand_size == 2) {
-      if (cs[eip]<0x38) AX = und;
+      if (*(unsigned char *)MEM_BASE32(cs + eip)<0x38) AX = und;
       eip += 3;
     } else {
-      if (cs[eip]<0x38) x86->eax = und;
+      if (*(unsigned char *)MEM_BASE32(cs + eip)<0x38) x86->eax = und;
       eip += 5;
     }
     break;
@@ -1342,7 +1348,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x0e:
   case 0x16:
   case 0x1e:
-    push(*sreg(cs[eip]>>3, x86), x86);
+    push(*sreg(*(unsigned char *)MEM_BASE32(cs + eip)>>3, x86), x86);
     eip++; break;
 
   case 0x07:		/* pop es */
@@ -1350,8 +1356,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       return 0;
     else {
       pop(&x86->es, x86);
-      REG(es)  = x86->es;
-      x86->es_base = SEG2LINEAR(x86->es);
+      REG(es) = x86->es;
+      x86->es_base = SEGOFF2LINEAR(x86->es, 0);
       eip++;
     }
     break;
@@ -1365,7 +1371,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else {
       pop(&x86->ds, x86);
       REG(ds)  = x86->ds;
-      x86->ds_base = SEG2LINEAR(x86->ds);
+      x86->ds_base = SEGOFF2LINEAR(x86->ds, 0);
       x86->seg_base = x86->ds_base;
       eip++;
     }
@@ -1426,7 +1432,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x46:
   case 0x47: /* inc reg */
     EFLAGS &= ~(OF|ZF|SF|PF|AF);
-    dstreg = reg(cs[eip], x86);
+    dstreg = reg(*(unsigned char *)MEM_BASE32(cs + eip), x86);
     if (x86->operand_size == 2) {
       OPandFLAG0(unl, incw, R_WORD(*dstreg), =r);
     } else {
@@ -1444,7 +1450,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x4e:
   case 0x4f: /* dec reg */
     EFLAGS &= ~(OF|ZF|SF|PF|AF);
-    dstreg = reg(cs[eip], x86);
+    dstreg = reg(*(unsigned char *)MEM_BASE32(cs + eip), x86);
     if (x86->operand_size == 2) {
       OPandFLAG0(unl, decw, R_WORD(*dstreg), =r);
     } else {
@@ -1461,7 +1467,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x55:
   case 0x56:
   case 0x57: /* push reg */
-    push(*reg(cs[eip],x86), x86);
+    push(*reg(*(unsigned char *)MEM_BASE32(cs + eip),x86), x86);
     eip++; break;
 
   case 0x58:
@@ -1474,18 +1480,18 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x5f: /* pop reg */
     pop(&und, x86);
     if (x86->operand_size == 2)
-      R_WORD(*reg(cs[eip],x86)) = und;
+      R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip),x86)) = und;
     else
-      *reg(cs[eip],x86) = und;
+      *reg(*(unsigned char *)MEM_BASE32(cs + eip),x86) = und;
     eip++; break;
 
     /* 0x60 */
   case 0x68: /* push imm16 */
-    push(R_DWORD(cs[eip + 1]), x86);
+    push(R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)), x86);
     eip += x86->operand_size + 1; break;
 
   case 0x6a: /* push imm8 */
-    push((int)(signed char)cs[eip + 1], x86);
+    push((int)*(signed char *)MEM_BASE32(cs + eip + 1), x86);
     eip += 2; break;
 
   case 0x70: OP_JCC(EFLAGS & OF);         /*jo*/
@@ -1507,51 +1513,58 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0x80:		/* logical r/m8,imm8 */
   case 0x82:
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    uc = instr_binary_byte(cs[eip + 1]>>3, instr_read_byte(mem), cs[eip + 2 + inst_len], &EFLAGS);
-    if ((cs[eip + 1]&0x38) < 0x38)
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    uc = instr_binary_byte(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,
+	instr_read_byte(mem), *(unsigned char *)MEM_BASE32(cs + eip + 2 + inst_len), &EFLAGS);
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) < 0x38)
       instr_write_byte(mem, uc);
     eip += 3 + inst_len; break;
 
   case 0x81:		/* logical r/m,imm */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    und = x86->instr_binary(cs[eip + 1]>>3, x86->instr_read(mem), R_DWORD(cs[eip + 2 + inst_len]), &EFLAGS);
-    if ((cs[eip + 1]&0x38) < 0x38) x86->instr_write(mem, und);
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    und = x86->instr_binary(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,
+	x86->instr_read(mem), R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 2 + inst_len)), &EFLAGS);
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) < 0x38) x86->instr_write(mem, und);
     eip += x86->operand_size + 2 + inst_len;
     break;
 
   case 0x83:		/* logical r/m,imm8 */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    und = x86->instr_binary(cs[eip + 1]>>3, x86->instr_read(mem), (int)(signed char)cs[eip + 2 + inst_len],
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    und = x86->instr_binary(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,
+	x86->instr_read(mem), (int)*(signed char *)MEM_BASE32(cs + eip + 2 + inst_len),
         &EFLAGS);
-    if ((cs[eip + 1]&0x38) < 0x38) x86->instr_write(mem, und);
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) < 0x38)
+	x86->instr_write(mem, und);
     eip += inst_len + 3; break;
 
   case 0x84: /* test r/m8, reg8 */
-    instr_flags(instr_read_byte(x86->modrm(cs + eip, x86, &inst_len)) & *reg8(cs[eip + 1]>>3,x86),
+    instr_flags(instr_read_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len)) &
+		*reg8(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,x86),
                 0x80, &EFLAGS);
     eip += inst_len + 2; break;
 
   case 0x85: /* test r/m16, reg */
     if (x86->operand_size == 2)
-      instr_flags(instr_read_word(x86->modrm(cs + eip, x86, &inst_len)) & R_WORD(*reg(cs[eip + 1]>>3,x86)),
+      instr_flags(instr_read_word(x86->modrm(MEM_BASE32(cs + eip), x86,
+		&inst_len)) & R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,x86)),
                 0x8000, &EFLAGS);
     else
-      instr_flags(instr_read_dword(x86->modrm(cs + eip, x86, &inst_len)) & *reg(cs[eip + 1]>>3,x86),
+      instr_flags(instr_read_dword(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len)) &
+		*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,x86),
                 0x80000000, &EFLAGS);
     eip += inst_len + 2; break;
 
   case 0x86:		/* xchg r/m8,reg8 */
-    reg_8 = reg8(cs[eip + 1]>>3, x86);
-    mem = x86->modrm(cs + eip, x86, &inst_len);
+    reg_8 = reg8(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     uc = *reg_8;
     *reg_8 = instr_read_byte(mem);
     instr_write_byte(mem, uc);
     eip += inst_len + 2; break;
 
   case 0x87:		/* xchg r/m16,reg */
-    dstreg = reg(cs[eip + 1]>>3, x86);
-    mem = x86->modrm(cs + eip, x86, &inst_len);
+    dstreg = reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86);
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     und = *dstreg;
     if (x86->operand_size == 2)
       R_WORD(*dstreg) = instr_read_word(mem);
@@ -1561,58 +1574,67 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip += inst_len + 2; break;
 
   case 0x88:		/* mov r/m8,reg8 */
-    instr_write_byte(x86->modrm(cs + eip, x86, &inst_len), *reg8(cs[eip + 1]>>3, x86));
+    instr_write_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len),
+	*reg8(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86));
     eip += inst_len + 2; break;
 
   case 0x89:		/* mov r/m16,reg */
-    x86->instr_write(x86->modrm(cs + eip, x86, &inst_len), *reg(cs[eip + 1]>>3, x86));
+    x86->instr_write(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len),
+	*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86));
     eip += inst_len + 2; break;
 
   case 0x8a:		/* mov reg8,r/m8 */
-    *reg8(cs[eip + 1]>>3, x86) = instr_read_byte(x86->modrm(cs + eip, x86, &inst_len));
+    *reg8(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) =
+	instr_read_byte(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
     eip += inst_len + 2; break;
 
   case 0x8b:		/* mov reg,r/m16 */
     if (x86->operand_size == 2)
-      R_WORD(*reg(cs[eip + 1]>>3, x86)) = instr_read_word(x86->modrm(cs + eip, x86, &inst_len));
+      R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86)) =
+        instr_read_word(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
     else
-      *reg(cs[eip + 1]>>3, x86) = instr_read_dword(x86->modrm(cs + eip, x86, &inst_len));
+      *reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86) =
+        instr_read_dword(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len));
     eip += inst_len + 2; break;
 
   case 0x8c: /* mov r/m16,segreg */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    if ((cs[eip + 1] & 0xc0) == 0xc0) /* compensate for mov r,segreg */
-      mem = (unsigned char *)reg(cs[eip + 1], x86);
-    instr_write_word(mem, *sreg(cs[eip + 1]>>3, x86));
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1) & 0xc0) == 0xc0) /* compensate for mov r,segreg */
+      mem = (unsigned char *)reg(*(unsigned char *)MEM_BASE32(cs + eip + 1), x86);
+    instr_write_word(mem, *sreg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, x86));
     eip += inst_len + 2; break;
 
   case 0x8d: /* lea */
-    mem = x86->seg_ss_base;
+  {
+    unsigned mem = x86->seg_ss_base;
     x86->seg_ss_base = x86->seg_base;
     if (x86->operand_size == 2)
-      R_WORD(*reg(cs[eip + 1]>>3,x86)) = x86->modrm(cs + eip, x86, &inst_len) - x86->seg_base;
+      R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,x86)) =
+        x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len) - (unsigned char *)MEM_BASE32(x86->seg_base);
     else
-      *reg(cs[eip + 1]>>3,x86) = x86->modrm(cs + eip, x86, &inst_len) - x86->seg_base;
+      *reg(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,x86) =
+        x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len) - (unsigned char *)MEM_BASE32(x86->seg_base);
     x86->seg_ss_base = mem;
     eip += inst_len + 2; break;
+  }
 
   case 0x8e:		/* mov segreg,r/m16 */
     if (pmode || x86->operand_size == 4)
       return 0;
-    else switch (cs[eip + 1]&0x38) {
+    else switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0:
-      mem = x86->modrm(cs + eip, x86, &inst_len);
-      if ((cs[eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
-        mem = (unsigned char *)reg(cs[eip + 1], x86);
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+      if ((*(unsigned char *)MEM_BASE32(cs + eip + 1) & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
+        mem = (unsigned char *)reg(*(unsigned char *)MEM_BASE32(cs + eip + 1), x86);
       REG(es) = x86->es = instr_read_word(mem);
-      x86->es_base = SEG2LINEAR(x86->es);
+      x86->es_base = SEGOFF2LINEAR(x86->es, 0);
       eip += inst_len + 2; break;
     case 0x18:
-      mem = x86->modrm(cs + eip, x86, &inst_len);
-      if ((cs[eip + 1] & 0xc0) == 0xc0) /* compensate for mov es,reg */
-	mem = (unsigned char *)reg(cs[eip + 1], x86);
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+      if ((*(unsigned char *)MEM_BASE32(cs + eip + 1) & 0xc0) == 0xc0) /* compensate for mov es,reg */
+	mem = (unsigned char *)reg(*(unsigned char *)MEM_BASE32(cs + eip + 1), x86);
       REG(ds) = x86->ds = instr_read_word(mem);
-      x86->ds_base = SEG2LINEAR(x86->ds);
+      x86->ds_base = SEGOFF2LINEAR(x86->ds, 0);
       x86->seg_base = x86->ds_base;
       eip += inst_len + 2; break;
     default:
@@ -1621,9 +1643,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     break;
 
   case 0x8f: /*pop*/
-    if ((cs[eip + 1]&0x38) == 0){
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) == 0){
       pop(&und, x86);
-      x86->instr_write(x86->modrm(cs + eip, x86, &inst_len), und);
+      x86->instr_write(x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len), und);
       eip += inst_len + 2;
     } else
       return 0;
@@ -1638,7 +1660,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0x95:
   case 0x96:
   case 0x97: /* xchg reg, ax */
-    dstreg = reg(cs[eip],x86);
+    dstreg = reg(*(unsigned char *)MEM_BASE32(cs + eip),x86);
     und = x86->eax;
     if (x86->operand_size == 2) {
       AX = *dstreg;
@@ -1669,11 +1691,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else {
       push(x86->cs, x86);
       push(eip + 5, x86);
-      x86->cs = R_WORD(cs[eip + 3]);
+      x86->cs = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 3));
       REG(cs)  = x86->cs;
-      x86->cs_base = SEG2LINEAR(x86->cs);
-      eip = R_WORD(cs[eip + 1]);
-      cs = (unsigned char *)x86->cs_base;
+      x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
+      eip = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
+      cs = x86->cs_base;
     }
     break;
     /* NO: 0x9b wait 0x9c pushf 0x9d popf*/
@@ -1687,31 +1709,38 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip++; break;
 
   case 0xa0:		/* mov al,moff16 */
-    AL = instr_read_byte((R_DWORD(cs[eip + 1]) & wordmask[x86->address_size])+x86->seg_base);
+    AL = instr_read_byte(MEM_BASE32((R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)) &
+	wordmask[x86->address_size])+x86->seg_base));
     eip += 1 + x86->address_size; break;
 
   case 0xa1:		/* mov ax,moff16 */
     if (x86->operand_size == 2)
-      AX = instr_read_word((R_DWORD(cs[eip + 1]) & wordmask[x86->address_size])+x86->seg_base);
+      AX = instr_read_word(MEM_BASE32((R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)) &
+        wordmask[x86->address_size])+x86->seg_base));
     else
-      x86->eax = instr_read_dword((R_DWORD(cs[eip + 1]) & wordmask[x86->address_size])+x86->seg_base);
+      x86->eax = instr_read_dword(MEM_BASE32((R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)) &
+        wordmask[x86->address_size])+x86->seg_base));
     eip += 1 + x86->address_size; break;
 
   case 0xa2:		/* mov moff16,al */
-    instr_write_byte((R_DWORD(cs[eip + 1]) & wordmask[x86->address_size])+x86->seg_base, AL);
+    instr_write_byte(MEM_BASE32((R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)) &
+	wordmask[x86->address_size])+x86->seg_base), AL);
     eip += 1 + x86->address_size; break;
 
   case 0xa3:		/* mov moff16,ax */
-    x86->instr_write((R_DWORD(cs[eip + 1]) & wordmask[x86->address_size])+x86->seg_base, x86->eax);
+    x86->instr_write(MEM_BASE32((R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)) &
+	wordmask[x86->address_size])+x86->seg_base), x86->eax);
     eip += 1 + x86->address_size; break;
 
   case 0xa4:		/* movsb */
     if (x86->address_size == 4) {
-      instr_write_byte(x86->es_base + x86->edi, instr_read_byte(x86->seg_base + x86->esi));
+      instr_write_byte(MEM_BASE32(x86->es_base + x86->edi),
+        instr_read_byte(MEM_BASE32(x86->seg_base + x86->esi)));
       x86->edi += loop_inc;
       x86->esi += loop_inc;
     } else {
-      instr_write_byte(x86->es_base + DI, instr_read_byte(x86->seg_base + SI));
+      instr_write_byte(MEM_BASE32(x86->es_base + DI),
+        instr_read_byte(MEM_BASE32(x86->seg_base + SI)));
       DI += loop_inc;
       SI += loop_inc;
     }
@@ -1719,12 +1748,14 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xa5:		/* movsw */
     if (x86->address_size == 4) {
-      x86->instr_write(x86->es_base + x86->edi, x86->instr_read(x86->seg_base + x86->esi));
+      x86->instr_write(MEM_BASE32(x86->es_base + x86->edi),
+        x86->instr_read(MEM_BASE32(x86->seg_base + x86->esi)));
       x86->edi += loop_inc * x86->operand_size;
       x86->esi += loop_inc * x86->operand_size;
     }
     else {
-      x86->instr_write(x86->es_base + DI, x86->instr_read(x86->seg_base + SI));
+      x86->instr_write(MEM_BASE32(x86->es_base + DI),
+        x86->instr_read(MEM_BASE32(x86->seg_base + SI)));
       DI += loop_inc * x86->operand_size;
       SI += loop_inc * x86->operand_size;
     }
@@ -1732,13 +1763,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xa6: /*cmpsb */
     if (x86->address_size == 4) {
-      instr_binary_byte(7, instr_read_byte(x86->seg_base + x86->esi),
-                  instr_read_byte(x86->es_base + x86->edi), &EFLAGS);
+      instr_binary_byte(7, instr_read_byte(MEM_BASE32(x86->seg_base + x86->esi)),
+                  instr_read_byte(MEM_BASE32(x86->es_base + x86->edi)), &EFLAGS);
       x86->edi += loop_inc;
       x86->esi += loop_inc;
     } else {
-      instr_binary_byte(7, instr_read_byte(x86->seg_base + SI),
-                  instr_read_byte(x86->es_base + DI), &EFLAGS);
+      instr_binary_byte(7, instr_read_byte(MEM_BASE32(x86->seg_base + SI)),
+                  instr_read_byte(MEM_BASE32(x86->es_base + DI)), &EFLAGS);
       DI += loop_inc;
       SI += loop_inc;
     }
@@ -1746,67 +1777,67 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xa7: /* cmpsw */
     if (x86->address_size == 4) {
-      x86->instr_binary(7, x86->instr_read(x86->seg_base + x86->esi),
-                  x86->instr_read(x86->es_base + x86->edi), &EFLAGS);
+      x86->instr_binary(7, x86->instr_read(MEM_BASE32(x86->seg_base + x86->esi)),
+                  x86->instr_read(MEM_BASE32(x86->es_base + x86->edi)), &EFLAGS);
       x86->edi += loop_inc * x86->operand_size;
       x86->esi += loop_inc * x86->operand_size;
     } else {
-      x86->instr_binary(7, x86->instr_read(x86->seg_base + SI),
-                  x86->instr_read(x86->es_base + DI), &EFLAGS);
+      x86->instr_binary(7, x86->instr_read(MEM_BASE32(x86->seg_base + SI)),
+                  x86->instr_read(MEM_BASE32(x86->es_base + DI)), &EFLAGS);
       DI += loop_inc * x86->operand_size;
       SI += loop_inc * x86->operand_size;
     }
     eip++; break;
 
   case 0xa8: /* test al, imm */
-    instr_flags(AL & cs[eip + 1], 0x80, &EFLAGS);
+    instr_flags(AL & *(unsigned char *)MEM_BASE32(cs + eip + 1), 0x80, &EFLAGS);
     eip += 2; break;
 
   case 0xa9: /* test ax, imm */
     if (x86->operand_size == 2) {
-      instr_flags(AX & R_WORD(cs[eip + 1]), 0x8000, &EFLAGS);
+      instr_flags(AX & R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)), 0x8000, &EFLAGS);
       eip += 3; break;
     } else {
-      instr_flags(x86->eax & R_DWORD(cs[eip + 1]), 0x80000000, &EFLAGS);
+      instr_flags(x86->eax & R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)), 0x80000000, &EFLAGS);
       eip += 5; break;
     }
 
   case 0xaa:		/* stosb */
     if (x86->address_size == 4) {
-      instr_write_byte(x86->es_base + x86->edi, AL);
+      instr_write_byte(MEM_BASE32(x86->es_base + x86->edi), AL);
       x86->edi += loop_inc;
     } else {
-      instr_write_byte(x86->es_base + DI, AL);
+      instr_write_byte(MEM_BASE32(x86->es_base + DI), AL);
       DI += loop_inc;
     }
     eip++; break;
 
   case 0xab:		/* stosw */
     if (x86->address_size == 4) {
-      x86->instr_write(x86->es_base + x86->edi, x86->eax);
+      x86->instr_write(MEM_BASE32(x86->es_base + x86->edi), x86->eax);
       x86->edi += loop_inc * x86->operand_size;
     } else {
-      x86->instr_write(x86->es_base + DI, x86->eax);
+      x86->instr_write(MEM_BASE32(x86->es_base + DI), x86->eax);
       DI += loop_inc * x86->operand_size;
     }
     eip++; break;
 
   case 0xac:		/* lodsb */
     if (x86->address_size == 4) {
-      AL = instr_read_byte(x86->seg_base + x86->esi);
+      AL = instr_read_byte(MEM_BASE32(x86->seg_base + x86->esi));
       x86->esi += loop_inc;
     } else {
-      AL = instr_read_byte(x86->seg_base + SI);
+      AL = instr_read_byte(MEM_BASE32(x86->seg_base + SI));
       SI += loop_inc;
     }
     eip++; break;
 
   case 0xad: /* lodsw */
     if (x86->address_size == 4) {
-      und = x86->instr_read(x86->seg_base + x86->esi);
+      und = x86->instr_read(MEM_BASE32(x86->seg_base + x86->esi));
       x86->esi += loop_inc * x86->operand_size;
     } else {
-      und = x86->instr_read(x86->seg_base + SI);
+      und = x86->instr_read(MEM_BASE32(x86->seg_base + SI));
       SI += loop_inc * x86->operand_size;
     }
     if (x86->operand_size == 2)
@@ -1817,20 +1848,20 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xae: /* scasb */
     if (x86->address_size == 4) {
-      instr_binary_byte(7, AL, instr_read_byte(x86->es_base + x86->edi), &EFLAGS);
+      instr_binary_byte(7, AL, instr_read_byte(MEM_BASE32(x86->es_base + x86->edi)), &EFLAGS);
       x86->edi += loop_inc;
     } else {
-      instr_binary_byte(7, AL, instr_read_byte(x86->es_base + DI), &EFLAGS);
+      instr_binary_byte(7, AL, instr_read_byte(MEM_BASE32(x86->es_base + DI)), &EFLAGS);
       DI += loop_inc;
     }
     eip++; break;
 
   case 0xaf: /* scasw */
     if (x86->address_size == 4) {
-      x86->instr_binary(7, x86->eax, x86->instr_read(x86->es_base + x86->edi), &EFLAGS);
+      x86->instr_binary(7, x86->eax, x86->instr_read(MEM_BASE32(x86->es_base + x86->edi)), &EFLAGS);
       x86->edi += loop_inc * x86->operand_size;
     } else {
-      x86->instr_binary(7, x86->eax, x86->instr_read(x86->es_base + DI), &EFLAGS);
+      x86->instr_binary(7, x86->eax, x86->instr_read(MEM_BASE32(x86->es_base + DI)), &EFLAGS);
       DI += loop_inc * x86->operand_size;
     }
     eip++; break;
@@ -1843,7 +1874,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0xb5:
   case 0xb6:
   case 0xb7:
-    *reg8(cs[eip], x86) = cs[eip + 1];
+    *reg8(*(unsigned char *)MEM_BASE32(cs + eip), x86) = *(unsigned char *)MEM_BASE32(cs + eip + 1);
     eip += 2; break;
 
   case 0xb8:
@@ -1855,37 +1886,39 @@ static inline int instr_sim(x86_regs *x86, int pmode)
   case 0xbe:
   case 0xbf:
     if (x86->operand_size == 2) {
-      R_WORD(*reg(cs[eip], x86)) = R_WORD(cs[eip + 1]);
+      R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip), x86)) =
+        R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
       eip += 3; break;
     } else {
-      *reg(cs[eip], x86) = R_DWORD(cs[eip + 1]);
+      *reg(*(unsigned char *)MEM_BASE32(cs + eip), x86) =
+        R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
       eip += 5; break;
     }
 
   case 0xc0: /* shift byte, imm8 */
-    if ((cs[eip + 1]&0x38)==0x30) return 0;
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    instr_write_byte(mem,instr_shift(cs[eip + 1]>>3, (signed char) instr_read_byte(mem),
-                                       cs[eip + 2+inst_len], 1, &EFLAGS));
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38)==0x30) return 0;
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    instr_write_byte(mem,instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, (signed char) instr_read_byte(mem),
+                *(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len), 1, &EFLAGS));
     eip += inst_len + 3; break;
 
   case 0xc1: /* shift word, imm8 */
-    if ((cs[eip + 1]&0x38)==0x30) return 0;
-    mem = x86->modrm(cs + eip, x86, &inst_len);
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38)==0x30) return 0;
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     if (x86->operand_size == 2)
-      instr_write_word(mem, instr_shift(cs[eip + 1]>>3, (short)instr_read_word(mem),
-                                      cs[eip + 2+inst_len], 2, &EFLAGS));
+      instr_write_word(mem, instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, (short)instr_read_word(mem),
+                  *(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len), 2, &EFLAGS));
     else
-      instr_write_dword(mem, instr_shift(cs[eip + 1]>>3, instr_read_dword(mem),
-                                      cs[eip + 2+inst_len], 4, &EFLAGS));
+      instr_write_dword(mem, instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, instr_read_dword(mem),
+                  *(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len), 4, &EFLAGS));
     eip += inst_len + 3; break;
 
   case 0xc2:		/* ret imm16*/
     pop(&und, x86);
     if (x86->_32bit)
-      x86->esp += R_WORD(cs[eip + 1]);
+      x86->esp += R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
     else
-      SP += R_WORD(cs[eip + 1]);
+      SP += R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
     eip = und;
     break;
 
@@ -1897,11 +1930,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
-      mem = x86->modrm(cs + eip, x86, &inst_len);
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
       x86->es = instr_read_word(mem+2);
       REG(es)  = x86->es;
-      x86->es_base = SEG2LINEAR(x86->es);
-      R_WORD(*reg(cs[eip + 1] >> 3, x86)) = instr_read_word(mem);
+      x86->es_base = SEGOFF2LINEAR(x86->es, 0);
+      R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1) >> 3, x86)) = instr_read_word(mem);
       eip += inst_len + 2; break;
     }
 
@@ -1909,22 +1942,22 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
-      mem = x86->modrm(cs + eip, x86, &inst_len);
+      mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
       x86->ds = instr_read_word(mem+2);
       REG(ds)  = x86->ds;
-      x86->ds_base = x86->seg_base = SEG2LINEAR(x86->ds);
-      R_WORD(*reg(cs[eip + 1] >> 3, x86)) = instr_read_word(mem);
+      x86->ds_base = x86->seg_base = SEGOFF2LINEAR(x86->ds, 0);
+      R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1) >> 3, x86)) = instr_read_word(mem);
       eip += inst_len + 2; break;
     }
 
   case 0xc6:		/* mov r/m8,imm8 */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    instr_write_byte(mem, cs[eip + 2 + inst_len]);
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    instr_write_byte(mem, *(unsigned char *)MEM_BASE32(cs + eip + 2 + inst_len));
     eip += inst_len + 3; break;
 
   case 0xc7:		/* mov r/m,imm */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    x86->instr_write(mem, R_DWORD(cs[eip + 2 + inst_len]));
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    x86->instr_write(mem, R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 2 + inst_len)));
     eip += x86->operand_size + inst_len + 2;
     break;
     /* 0xc8 enter */
@@ -1944,9 +1977,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       pop(&und, x86);
       pop(&x86->cs, x86);
       REG(cs)  = x86->cs;
-      x86->cs_base = SEG2LINEAR(x86->cs);
-      SP += R_WORD(cs[eip + 1]);
-      cs = (unsigned char *)x86->cs_base;
+      x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
+      SP += R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
+      cs = x86->cs_base;
       eip = und;
     }
     break;
@@ -1958,56 +1991,57 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       pop(&eip, x86);
       pop(&x86->cs, x86);
       REG(cs)  = x86->cs;
-      x86->cs_base = SEG2LINEAR(x86->cs);
-      cs = (unsigned char *)x86->cs_base;
+      x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
+      cs = x86->cs_base;
     }
     break;
 
     /* 0xcc int3 0xcd int 0xce into 0xcf iret */
 
   case 0xd0: /* shift r/m8, 1 */
-    if ((cs[eip + 1]&0x38)==0x30) return 0;
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    instr_write_byte(mem, instr_shift(cs[eip + 1]>>3, (signed char) instr_read_byte(mem),
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38)==0x30) return 0;
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    instr_write_byte(mem, instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3,
+	    (signed char) instr_read_byte(mem),
                                         1, 1, &EFLAGS));
     eip += inst_len + 2; break;
 
   case 0xd1: /* shift r/m16, 1 */
-    if ((cs[eip + 1]&0x38)==0x30) return 0;
-    mem = x86->modrm(cs + eip, x86, &inst_len);
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38)==0x30) return 0;
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     if (x86->operand_size == 2)
-      instr_write_word(mem, instr_shift(cs[eip + 1]>>3, (short) instr_read_word(mem),
+      instr_write_word(mem, instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, (short) instr_read_word(mem),
                                         1, 2, &EFLAGS));
     else
-      instr_write_dword(mem, instr_shift(cs[eip + 1]>>3, instr_read_dword(mem), 1, 4, &EFLAGS));
+      instr_write_dword(mem, instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, instr_read_dword(mem), 1, 4, &EFLAGS));
     eip += inst_len + 2; break;
 
   case 0xd2: /* shift r/m8, cl */
-    if ((cs[eip + 1]&0x38)==0x30) return 0;
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    instr_write_byte(mem,instr_shift(cs[eip + 1]>>3, (signed char) instr_read_byte(mem),
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38)==0x30) return 0;
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    instr_write_byte(mem,instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, (signed char) instr_read_byte(mem),
                                        CL, 1, &EFLAGS));
     eip += inst_len + 2; break;
 
   case 0xd3: /* shift r/m16, cl */
-    if ((cs[eip + 1]&0x38)==0x30) return 0;
-    mem = x86->modrm(cs + eip, x86, &inst_len);
+    if ((*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38)==0x30) return 0;
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     if (x86->operand_size == 2)
-      instr_write_word(mem, instr_shift(cs[eip + 1]>>3, (short) instr_read_word(mem),
+      instr_write_word(mem, instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, (short) instr_read_word(mem),
                                        CL, 2, &EFLAGS));
     else
-      instr_write_dword(mem, instr_shift(cs[eip + 1]>>3, instr_read_dword(mem),
+      instr_write_dword(mem, instr_shift(*(unsigned char *)MEM_BASE32(cs + eip + 1)>>3, instr_read_dword(mem),
                                        CL, 4, &EFLAGS));
     eip += inst_len + 2; break;
 
   case 0xd4:  /* aam byte */
-    AH = AL / cs[eip + 1];
-    AL = AL % cs[eip + 1];
+    AH = AL / *(unsigned char *)MEM_BASE32(cs + eip + 1);
+    AL = AL % *(unsigned char *)MEM_BASE32(cs + eip + 1);
     instr_flags(AL, 0x80, &EFLAGS);
     eip += 2; break;
 
   case 0xd5:  /* aad byte */
-    AL = AH * cs[eip + 1] + AL;
+    AL = AH * *(unsigned char *)MEM_BASE32(cs + eip + 1) + AL;
     AH = 0;
     instr_flags(AL, 0x80, &EFLAGS);
     eip += 2; break;
@@ -2017,24 +2051,25 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip++; break;
 
   case 0xd7: /* xlat */
-    AL =  instr_read_byte(x86->seg_base+(x86->ebx & wordmask[x86->address_size])+AL);
+    AL =  instr_read_byte(MEM_BASE32(x86->seg_base+(x86->ebx & wordmask[x86->address_size])+AL));
     eip++; break;
     /* 0xd8 - 0xdf copro */
 
   case 0xe0: /* loopnz */
     eip += ( (x86->address_size == 4 ? --x86->ecx : --CX) && !(EFLAGS & ZF) ?
-             2 + (signed char)(cs[eip + 1]) : 2); break;
+             2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2); break;
 
   case 0xe1: /* loopz */
     eip += ( (x86->address_size == 4 ? --x86->ecx : --CX) && (EFLAGS & ZF) ?
-             2 + (signed char)(cs[eip + 1]) : 2); break;
+             2 + *(signed char *)MEM_BASE32(cs + eip + 1) : 2); break;
 
   case 0xe2: /* loop */
     eip += ( (x86->address_size == 4 ? --x86->ecx : --CX) ?
-             2 + (signed char)(cs[eip + 1]) : 2); break;
+             2 + *(unsigned char *)MEM_BASE32(cs + eip + 1) : 2); break;
 
   case 0xe3:  /* jcxz */
-    eip += ((x86->address_size == 4 ? x86->ecx : CX) ? 2 : 2 + (signed char)cs[eip + 1]);
+    eip += ((x86->address_size == 4 ? x86->ecx : CX) ? 2 :
+	2 + *(unsigned char *)MEM_BASE32(cs + eip + 1));
     break;
 
   /* 0xe4 in ib 0xe5 in iw 0xe6 out ib 0xe7 out iw */
@@ -2044,23 +2079,23 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     /* fall through */
 
   case 0xe9: /* jmp near */
-    eip += x86->operand_size + 1 + (R_DWORD(cs[eip + 1]) & wordmask[x86->operand_size]);
+    eip += x86->operand_size + 1 + (R_DWORD(*(unsigned char *)MEM_BASE32(cs + eip + 1)) & wordmask[x86->operand_size]);
     break;
 
   case 0xea: /*jmp far*/
     if (pmode || x86->operand_size == 4)
       return 0;
     else {
-      x86->cs = R_WORD(cs[eip+3]);
+      x86->cs = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip+3));
       REG(cs)  = x86->cs;
-      x86->cs_base = SEG2LINEAR(x86->cs);
-      eip = R_WORD(cs[eip + 1]);
-      cs = (unsigned char *)x86->cs_base;
+      x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
+      eip = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
+      cs = x86->cs_base;
     }
     break;
 
   case 0xeb: /* jmp short */
-    eip += 2 + (signed char)(cs[eip + 1]); break;
+    eip += 2 + *(signed char *)MEM_BASE32(cs + eip + 1); break;
 
   case 0xec: /* in al, dx */
     /* Note that we short circuit if we can */
@@ -2100,10 +2135,10 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip++; break;
 
   case 0xf6:
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    switch (cs[eip + 1]&0x38) {
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* test mem byte, imm */
-      instr_flags(instr_read_byte(mem) & cs[eip + 2+inst_len], 0x80, &EFLAGS);
+      instr_flags(instr_read_byte(mem) & *(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len), 0x80, &EFLAGS);
       eip += inst_len + 3; break;
     case 0x08: return 0;
     case 0x10: /*not byte*/
@@ -2146,11 +2181,11 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     break;
 
   case 0xf7:
-    mem = x86->modrm(cs + eip, x86, &inst_len);
-    switch (cs[eip + 1]&0x38) {
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
+    switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* test mem word, imm */
       if (x86->operand_size == 4) return 0;
-      instr_flags(instr_read_word(mem) & R_WORD(cs[eip + 2+inst_len]), 0x8000, &EFLAGS);
+      instr_flags(instr_read_word(mem) & R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 2+inst_len)), 0x8000, &EFLAGS);
       eip += inst_len + 4; break;
     case 0x08: return 0;
     case 0x10: /*not word*/
@@ -2221,9 +2256,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip++; break;;
 
   case 0xfe: /* inc/dec mem */
-    mem = x86->modrm(cs + eip, x86, &inst_len);
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     uc = instr_read_byte(mem);
-    switch (cs[eip + 1]&0x38) {
+    switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00:
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
       OPandFLAG0(unl, incb, uc, =q);
@@ -2243,9 +2278,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0xff:
     if (x86->operand_size == 4) return 0;
-    mem = x86->modrm(cs + eip, x86, &inst_len);
+    mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
     uns = instr_read_word(mem);
-    switch (cs[eip + 1]&0x38) {
+    switch (*(unsigned char *)MEM_BASE32(cs + eip + 1)&0x38) {
     case 0x00: /* inc */
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
       OPandFLAG0(unl, incw, uns, =r);
@@ -2271,9 +2306,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         x86->cs = instr_read_word(mem+2);
         push(eip + inst_len + 2, x86);
         REG(cs)  = x86->cs;
-        x86->cs_base = SEG2LINEAR(x86->cs);
+        x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
         eip = uns;
-        cs = (unsigned char *)x86->cs_base;
+        cs = x86->cs_base;
       }
       break;
 
@@ -2287,9 +2322,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       else {
         x86->cs = instr_read_word(mem+2);
         REG(cs)  = x86->cs;
-        x86->cs_base = SEG2LINEAR(x86->cs);
+        x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
         eip = uns;
-        cs = (unsigned char *)x86->cs_base;
+        cs = x86->cs_base;
       }
       break;
 
@@ -2334,12 +2369,12 @@ static void scp_to_x86_regs(x86_regs *x86, struct sigcontext_struct *scp, int pm
     x86->ss = _ss;
     x86->fs = _fs;
     x86->gs = _gs;
-    x86->cs_base = (unsigned char *)dpmi_GetSegmentBaseAddress(_cs);
-    x86->ds_base = (unsigned char *)dpmi_GetSegmentBaseAddress(_ds);
-    x86->es_base = (unsigned char *)dpmi_GetSegmentBaseAddress(_es);
-    x86->ss_base = (unsigned char *)dpmi_GetSegmentBaseAddress(_ss);
-    x86->fs_base = (unsigned char *)dpmi_GetSegmentBaseAddress(_fs);
-    x86->gs_base = (unsigned char *)dpmi_GetSegmentBaseAddress(_gs);
+    x86->cs_base = GetSegmentBase(_cs);
+    x86->ds_base = GetSegmentBase(_ds);
+    x86->es_base = GetSegmentBase(_es);
+    x86->ss_base = GetSegmentBase(_ss);
+    x86->fs_base = GetSegmentBase(_fs);
+    x86->gs_base = GetSegmentBase(_gs);
     x86->_32bit = _cs && dpmi_mhp_get_selector_size(_cs) ? 1 : 0;
   }
   else {
@@ -2359,12 +2394,12 @@ static void scp_to_x86_regs(x86_regs *x86, struct sigcontext_struct *scp, int pm
     x86->ss = REG(ss);
     x86->fs = REG(fs);
     x86->gs = REG(gs);
-    x86->cs_base = SEG2LINEAR(x86->cs);
-    x86->ds_base = SEG2LINEAR(x86->ds);
-    x86->es_base = SEG2LINEAR(x86->es);
-    x86->ss_base = SEG2LINEAR(x86->ss);
-    x86->fs_base = SEG2LINEAR(x86->fs);
-    x86->gs_base = SEG2LINEAR(x86->gs);
+    x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
+    x86->ds_base = SEGOFF2LINEAR(x86->ds, 0);
+    x86->es_base = SEGOFF2LINEAR(x86->es, 0);
+    x86->ss_base = SEGOFF2LINEAR(x86->ss, 0);
+    x86->fs_base = SEGOFF2LINEAR(x86->fs, 0);
+    x86->gs_base = SEGOFF2LINEAR(x86->gs, 0);
     x86->_32bit = 0;
   }
   prepare_x86(x86);
@@ -2470,7 +2505,7 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
   }
 #endif
   if (i == 0 && !signal_pending()) { /* really an unknown instruction from the beginning */
-    x86.eip += instr_len((unsigned char *) (x86.cs_base + x86.eip));
+    x86.eip += instr_len(MEM_BASE32(x86.cs_base + x86.eip));
     if(!x86._32bit)
       x86.eip &= 0xffff;
   }
@@ -2483,22 +2518,22 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
     unsigned int *new_val)
 {
   unsigned char *mem;
-  unsigned char *cs;
+  unsigned char cs;
   int inst_len, ret = -1;
   x86_regs x86;
 
   scp_to_x86_regs(&x86, scp, pmode);
 
-  cs = (unsigned char *) x86.cs_base;
+  cs = x86.cs_base;
   x86.prefixes = handle_prefixes(&x86);
   x86.eip += x86.prefixes;
 
-  switch(cs[x86.eip]) {
+  switch(*(unsigned char *)MEM_BASE32(cs + x86.eip)) {
     case 0x8e:		/* mov segreg,r/m16 */
-      ret = sreg_idx(cs[x86.eip + 1] >> 3);
-      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
-      if ((cs[x86.eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
-        mem = (unsigned char *)reg(cs[x86.eip + 1], &x86);
+      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3);
+      mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
+      if ((*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
+        mem = (unsigned char *)reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1), &x86);
       *new_val = instr_read_word(mem);
       x86.eip += inst_len + 2;
       break;
@@ -2511,9 +2546,9 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
       pop(&tmp_eip, &x86);
       pop(new_val, &x86);
       ret = cs_INDEX;
-      switch (cs[x86.eip]) {
+      switch (*(unsigned char *)MEM_BASE32(cs + x86.eip)) {
         case 0xca: /*retf imm 16*/
-	  x86.esp += ((unsigned short *) (&cs[x86.eip + 1]))[0];
+	  x86.esp += ((unsigned short *) (MEM_BASE32(cs + x86.eip + 1)))[0];
 	  break;
         case 0xcf: /*iret*/
 	{
@@ -2530,31 +2565,31 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
     case 0xea:			/* jmp seg:off16/off32 */
     {
       unsigned tmp_eip;
-      tmp_eip = x86.instr_read(x86.cs_base + x86.eip + 1);
-      *new_val = instr_read_word(x86.cs_base + x86.eip + 1 + x86.operand_size);
+      tmp_eip = x86.instr_read(MEM_BASE32(x86.cs_base + x86.eip + 1));
+      *new_val = instr_read_word(MEM_BASE32(x86.cs_base + x86.eip + 1 + x86.operand_size));
       ret = cs_INDEX;
       x86.eip = tmp_eip;
     }
     break;
 
     case 0xc4:		/* les */
-      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+      mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
       *new_val = instr_read_word(mem+x86.operand_size);
       if (x86.operand_size == 2)
-	R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
       else
-	*reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
       ret = es_INDEX;
       x86.eip += inst_len + 2;
       break;
 
     case 0xc5:		/* lds */
-      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+      mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
       *new_val = instr_read_word(mem+x86.operand_size);
       if (x86.operand_size == 2)
-	R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
       else
-	*reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
       ret = ds_INDEX;
       x86.eip += inst_len + 2;
       break;
@@ -2562,50 +2597,50 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
     case 0x07:	/* pop es */
     case 0x17:	/* pop ss */
     case 0x1f:	/* pop ds */
-      ret = sreg_idx(cs[x86.eip] >> 3);
+      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + x86.eip) >> 3);
       pop(new_val, &x86);
       x86.eip++;
       break;
 
     case 0x0f:
       x86.eip++;
-      switch (cs[x86.eip]) {
+      switch (*(unsigned char *)MEM_BASE32(cs + x86.eip)) {
         case 0xa1:	/* pop fs */
         case 0xa9:	/* pop gs */
 	  pop(new_val, &x86);
-	  ret = sreg_idx(cs[x86.eip] >> 3);
+	  ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + x86.eip) >> 3);
 	  x86.eip++;
 	  break;
 
 	case 0xb2:	/* lss */
-	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+	  mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
 	  *new_val = instr_read_word(mem+x86.operand_size);
 	  if (x86.operand_size == 2)
-	    R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	    R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
 	  else
-	    *reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	    *reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
 	  ret = ss_INDEX;
 	  x86.eip += inst_len + 2;
 	  break;
 
 	case 0xb4:	/* lfs */
-	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+	  mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
 	  *new_val = instr_read_word(mem+x86.operand_size);
 	  if (x86.operand_size == 2)
-	    R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	    R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
 	  else
-	    *reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	    *reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
 	  ret = fs_INDEX;
 	  x86.eip += inst_len + 2;
 	  break;
 
 	case 0xb5:	/* lgs */
-	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+	  mem = x86.modrm(MEM_BASE32(cs + x86.eip), &x86, &inst_len);
 	  *new_val = instr_read_word(mem+x86.operand_size);
 	  if (x86.operand_size == 2)
-	    R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	    R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86)) = instr_read_word(mem);
 	  else
-	    *reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	    *reg(*(unsigned char *)MEM_BASE32(cs + x86.eip + 1) >> 3, &x86) = instr_read_dword(mem);
 	  ret = gs_INDEX;
 	  x86.eip += inst_len + 2;
 	  break;
