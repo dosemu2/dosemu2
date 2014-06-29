@@ -413,9 +413,11 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 }
 
 __attribute__((no_instrument_function))
-static void leavedos_signal(int sig)
+static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
-  init_handler(NULL);
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp);
   if (ld_sig) {
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
     _exit(sig);
@@ -429,7 +431,9 @@ static void leavedos_signal(int sig)
     in_handle_signals = 0;
   }
   /* process it now */
-  handle_signals();
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(scp);
+  dpmi_iret_setup(scp);
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */
@@ -622,14 +626,9 @@ signal_pre_init(void)
 #ifdef SIGBUS /* for newer kernels */
   newsetsig(SIGBUS, dosemu_fault);
 #endif
-  setsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
-  setsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
-  setsig(SIGTERM, leavedos_signal);
-#if 0 /* Richard Stevens says it can't be caught. It's returning an
-       * error anyway
-       */
-  setsig(SIGKILL, leavedos_signal);
-#endif
+  newsetsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
+  newsetsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
+  newsetsig(SIGTERM, leavedos_signal);
   newsetsig(SIGQUIT, sigasync);
   registersig(SIGQUIT, sigquit);
   setsig(SIGPIPE, SIG_IGN);
