@@ -2518,7 +2518,7 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
     unsigned int *new_val)
 {
   unsigned char *mem;
-  unsigned char cs;
+  unsigned cs;
   int inst_len, ret = -1;
   x86_regs x86;
 
