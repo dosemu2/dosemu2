@@ -182,6 +182,8 @@ static int midotmdty_preinit(void)
     close(tmdty_pipe_in[1]);
     ctrl_sock_in = tmdty_pipe_in[0];
     ctrl_sock_out = tmdty_pipe_out[1];
+    /* no handler, default handler does waitpid() */
+    sigchld_register_handler(tmdty_pid, NULL);
 
     return TRUE;
 
@@ -252,12 +254,10 @@ static int midotmdty_detect(void)
     }
 
     if (!ret) {
+	sigchld_enable_handler(tmdty_pid, 0);
 	close(data_sock);
 	close(ctrl_sock_out);
-	if (tmdty_pid != -1) {
-	    waitpid(tmdty_pid, &status, 0);
-	    tmdty_pid = -1;
-	}
+	waitpid(tmdty_pid, &status, 0);
     }
 
     return ret;
@@ -338,16 +338,14 @@ static void midotmdty_done(void)
 	shutdown(data_sock, 2);
 	close(data_sock);
     }
+    sigchld_enable_handler(tmdty_pid, 0);
     write(ctrl_sock_out, cmd2, strlen(cmd2));
     n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     buf[n] = 0;
     S_printf("\tQuit: %s\n", buf);
 
     close(ctrl_sock_out);
-    if (tmdty_pid != -1) {
-	waitpid(tmdty_pid, &status, 0);
-	tmdty_pid = -1;
-    }
+    waitpid(tmdty_pid, &status, 0);
 }
 
 static void midotmdty_reset(void)
@@ -370,8 +368,6 @@ static void midotmdty_reset(void)
 
 static void midotmdty_write(Bit8u val)
 {
-    if (tmdty_pid == -1)
-	return;
     send(data_sock, &val, 1, MSG_DONTWAIT);
 }
 

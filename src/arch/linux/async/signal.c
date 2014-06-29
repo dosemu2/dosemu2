@@ -396,7 +396,8 @@ static void cleanup_child(void *arg)
   pid2 = waitpid(pid, &status, WNOHANG);
   if (pid2 != pid)
     return;
-  chld_hndl[i].handler();
+  if (chld_hndl[i].handler)
+    chld_hndl[i].handler();
 }
 
 /* this cleaning up is necessary to avoid the port server becoming
