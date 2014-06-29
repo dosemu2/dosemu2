@@ -388,6 +388,7 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
+  dpmi_iret_setup(scp);
 }
 
 __attribute__((no_instrument_function))
@@ -406,6 +407,8 @@ static void leavedos_signal(int sig)
     g_printf("Interrupting active signal handlers\n");
     in_handle_signals = 0;
   }
+  /* process it now */
+  handle_signals();
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */
