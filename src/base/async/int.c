@@ -1308,6 +1308,10 @@ static int msdos(void)
       }
 
 #if WINDOWS_HACKS
+      if ((ptr = strstrDOS(cmd, "KRNL386")) ||
+          (ptr = strstrDOS(cmd, "KRNL286"))) {
+        win31_mode = ptr[4] - '0';
+      }
       if ((ptr = strstrDOS(cmd, "\\SYSTEM\\DOSX.EXE")) ||
 	  (ptr = strstrDOS(cmd, "\\SYSTEM\\WIN386.EXE"))) {
         int have_args = 0;
@@ -1325,8 +1329,6 @@ static int msdos(void)
         memcpy(ptr+8, tmp_ptr, 7);
 #endif
         strcpy(ptr+8+7, ".exe");
-        sprintf(win31_title, "Windows 3.1 in %c86 mode", tmp_ptr[4]);
-        str = win31_title;
         win31_mode = tmp_ptr[4] - '0';
         if (have_args) {
           tmp_ptr = strchr(tmp_ptr, ' ');
@@ -1335,6 +1337,10 @@ static int msdos(void)
             args->len -= tmp_ptr - cmdname;
           }
         }
+      }
+      if (win31_mode) {
+        sprintf(win31_title, "Windows 3.1 in %c86 mode", win31_mode + '0');
+        str = win31_title;
       }
 #endif
 
