@@ -153,7 +153,7 @@ static BOOL strnequalDOS(const char *name, const char *upname, int len)
 
 BOOL strequalDOS(const char *name, const char *upname)
 {
-  return strnequalDOS(name, upname, strlen(upname));
+  return strnequalDOS(name, upname, strlen(upname) + 1);
 }
 
 char *strstrDOS(char *haystack, const char *upneedle)
