@@ -1339,7 +1339,7 @@ static int msdos(void)
         }
       }
       if (win31_mode) {
-        sprintf(win31_title, "Windows 3.1 in %c86 mode", win31_mode + '0');
+        sprintf(win31_title, "Windows 3.1 in %i86 mode", win31_mode);
         str = win31_title;
       }
 #endif
