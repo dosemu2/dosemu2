@@ -701,6 +701,7 @@ int X_init()
   attr.cursor = X_standard_cursor;
 
   XChangeWindowAttributes(display, drawwindow, CWEventMask | CWCursor, &attr);
+  XkbSetDetectableAutoRepeat(display, True, NULL);
 
   /* thanks to Wine */
   if (XmbTextListToTextProperty( display, &config.X_title, 1, XStdICCTextStyle,
