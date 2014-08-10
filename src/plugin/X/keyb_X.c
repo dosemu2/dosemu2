@@ -243,6 +243,7 @@ void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state)
 }
 
 static int initialized= 0;
+#if 0
 void X_process_keys(XKeymapEvent *e)
 {
 	if (!initialized) {
@@ -254,6 +255,7 @@ void X_process_keys(XKeymapEvent *e)
 		return;
 	}
 }
+#endif
 
 void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 {

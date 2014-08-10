@@ -580,7 +580,7 @@ static void put_keycode(int make, int keycode, t_keysym sym)
 	move_keynum(make, keynum, sym);
 }
 
-
+#if 0
 void X_keycode_process_keys(XKeymapEvent *e)
 {
 	int i;
@@ -605,6 +605,7 @@ void X_keycode_process_keys(XKeymapEvent *e)
 		}
 	}
 }
+#endif
 
 void X_keycode_process_key(XKeyEvent *e)
 {

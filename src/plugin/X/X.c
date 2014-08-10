@@ -1575,12 +1575,14 @@ static void X_handle_events(void)
 	  keyrel_pending = 1;
 	  break;
 
+#if 0
 	case KeymapNotify:
           X_printf("X: KeymapNotify event\n");
           /* don't process keys when doing fullscreen switching (this generates
              two events for fullscreen and one back to windowed mode )*/
           X_process_keys(&e.xkeymap);
 	  break;
+#endif
 
     /* A keyboard mapping has been changed (e.g., with xmodmap). */
 	case MappingNotify:
