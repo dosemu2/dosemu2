@@ -30,8 +30,8 @@ struct X_keyb_config {
 struct X_keyb_config *keyb_config = NULL;
 
 #define MAX_X_KEYCODES 256
-static t_keysym keycode_to_keynum[MAX_X_KEYCODES];
-#define KEYCODE_TO_KEYNUM(i) keycode_to_keynum[i]
+static int keycode_to_keynum[MAX_X_KEYCODES];
+#define KEYCODE_TO_KEYNUM(i) k2kn(i)
 
 #if 0
 const char *XStatusString(Status status)
@@ -449,6 +449,14 @@ static const struct {
 	{ NUM_PAUSE_BREAK,  "BREA"},
 };
 
+static t_keynum k2kn(KeyCode xcode)
+{
+	int idx = keycode_to_keynum[xcode];
+	if (idx == -1)
+		return NUM_VOID;
+	return keynum_from_keycode[idx].keynum;
+}
+
 static Boolean setup_keycode_to_keynum_mapping(Display *display)
 {
 #if HAVE_XKB
@@ -468,7 +476,7 @@ static Boolean setup_keycode_to_keynum_mapping(Display *display)
 			keynum_from_keycode[i].keycode_name, TRUE);
 		X_printf("X: looking for %s\n", keynum_from_keycode[i].keycode_name);
 		if (xcode && (KEYCODE_TO_KEYNUM(xcode) == NUM_VOID)) {
-			keycode_to_keynum[xcode] = keynum_from_keycode[i].keynum;
+			keycode_to_keynum[xcode] = i;
 			X_printf("X: mapping %s(%02x) -> %02x\n",
 				keynum_from_keycode[i].keycode_name,
 				xcode,
@@ -516,8 +524,16 @@ static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 		int keysyms_per_keycode;
 		KeySym *sym = XGetKeyboardMapping (display, xcode, 1,
 						   &keysyms_per_keycode);
-		if (map < keysyms_per_keycode && sym[map] == xkey)
-			keycode_to_keynum[xcode] = keynum;
+		if (map < keysyms_per_keycode && sym[map] == xkey) {
+			int i;
+			for(i = 0; i < sizeof(keynum_from_keycode)/sizeof(keynum_from_keycode[0]);
+					i++) {
+				if (keynum_from_keycode[i].keynum == keynum) {
+					keycode_to_keynum[xcode] = i;
+					break;
+				}
+			}
+		}
 		XFree(sym);
 	}
 }
@@ -531,7 +547,7 @@ static void X_keycode_initialize(Display *display)
 
 
 	for(i = 0; i < MAX_X_KEYCODES; i++) {
-		keycode_to_keynum[i] = NUM_VOID;
+		keycode_to_keynum[i] = -1;
 	}
 #if 0
 	display_x_keyboard(display);
