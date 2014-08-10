@@ -31,6 +31,7 @@ struct X_keyb_config *keyb_config = NULL;
 
 #define MAX_X_KEYCODES 256
 static t_keysym keycode_to_keynum[MAX_X_KEYCODES];
+#define KEYCODE_TO_KEYNUM(i) keycode_to_keynum[i]
 
 #if 0
 const char *XStatusString(Status status)
@@ -466,7 +467,7 @@ static Boolean setup_keycode_to_keynum_mapping(Display *display)
 		xcode = XkbFindKeycodeByName(desc,
 			keynum_from_keycode[i].keycode_name, TRUE);
 		X_printf("X: looking for %s\n", keynum_from_keycode[i].keycode_name);
-		if (xcode && (keycode_to_keynum[xcode] == NUM_VOID)) {
+		if (xcode && (KEYCODE_TO_KEYNUM(xcode) == NUM_VOID)) {
 			keycode_to_keynum[xcode] = keynum_from_keycode[i].keynum;
 			X_printf("X: mapping %s(%02x) -> %02x\n",
 				keynum_from_keycode[i].keycode_name,
@@ -545,7 +546,7 @@ static void X_keycode_initialize(Display *display)
 	}
 #if 1
 	for(i = 0; i < MAX_X_KEYCODES; i++) {
-		t_keynum keynum = keycode_to_keynum[i];
+		t_keynum keynum = KEYCODE_TO_KEYNUM(i);
 		if (keynum != NUM_VOID) {
 			k_printf("mapping keycode:%d  -> keynum: 0x%02x\n",
 				 i, keynum);
@@ -557,7 +558,7 @@ static void X_keycode_initialize(Display *display)
 static void put_keycode(int make, int keycode, t_keysym sym)
 {
 	t_keysym keynum;
-	keynum = keycode_to_keynum[keycode];
+	keynum = KEYCODE_TO_KEYNUM(keycode);
 	if (keynum == NUM_VOID)
 		return;
 	move_keynum(make, keynum, sym);
