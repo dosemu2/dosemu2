@@ -438,7 +438,9 @@ int Cpatch(struct sigcontext_struct *scp)
 
     if (*p==0x66) w16=1,p++; else w16=0;
     v = *((int *)p) & 0xffffff;
-    while (v==0x0e0489) {		// stack: never fail
+    if (v==0x0e0489) {		// stack: never fail
+      int cnt = 0;
+      do {
 	// mov %%{e}ax,(%%esi,%%ecx,1)
 	// we have a sequence:	66 89 04 0e
 	//		or	89 04 0e
@@ -454,11 +456,11 @@ int Cpatch(struct sigcontext_struct *scp)
 	p += 9;
 	if (*p==0x66) w16=1,p++; else w16=0;
 	v = *((int *)p) & 0xffffff;
-	/* extra check: should not fail */
-	if (v!=0x0e0489) {
+	cnt++;
+      } while (v==0x0e0489);
+      if (cnt < 2)
 	    dbug_printf("CPUEMU: stack patch failure, fix source code!\n");
-	    return 1;
-	}
+      return 1;
     }
     if (v==0x900788) {		// movb %%al,(%%edi)
 	// we have a sequence:	88 07 90
