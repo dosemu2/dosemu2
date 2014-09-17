@@ -2321,29 +2321,39 @@ void X_resize_text_screen()
  */
 static void X_vidmode(int w, int h, int *new_width, int *new_height)
 {
-  int nw, nh, dw, dh, mx, my, shift_x, shift_y;
+  int nw, nh, mx, my, shift_x, shift_y;
 
-  nw = dw = DisplayWidth(display, screen);
-  nh = dh = DisplayHeight(display, screen);
+  nw = DisplayWidth(display, screen);
+  nh = DisplayHeight(display, screen);
 
 #ifdef HAVE_XVIDMODE
   if (xf86vm_ok) {
     static XF86VidModeModeLine vidmode_modeline;
     static int viewport_x, viewport_y, dotclock;
-    int vx = 0, vy = 0;
     int i, j, restore_dotclock = 0;
-
+    int vx = 0, vy = 0;
+#else
+  {
+#endif
+    static int prev_w, prev_h;
     if (w == -1 && h == -1) { /* need to perform reset to windowed mode */
-      w = vidmode_modeline.hdisplay;
-      h = vidmode_modeline.vdisplay;
+      w = prev_w;
+      h = prev_h;
+#ifdef HAVE_XVIDMODE
       vx = viewport_x;
       vy = viewport_y;
       restore_dotclock = 1;
+#endif
     } else if (mainwindow != fullscreenwindow) {
+#ifdef HAVE_XVIDMODE
       XF86VidModeGetModeLine(display,screen,&dotclock,&vidmode_modeline);
       XF86VidModeGetViewPort(display,screen,&viewport_x,&viewport_y);
+#endif
+      prev_w = nw;
+      prev_h = nh;
       mainwindow = fullscreenwindow;
     }
+#ifdef HAVE_XVIDMODE
     j = -1;
     for (i=0; i<modecount; i++) {
       if ((vidmode_modes[i]->hdisplay >= w) &&
@@ -2370,12 +2380,8 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     X_printf("X: vidmode asking for (%d,%d); setting (%d,%d)\n", w, h, nw, nh);
     XF86VidModeSwitchToMode(display,screen,vidmode_modes[j]);
     XF86VidModeSetViewPort (display,screen,vx,vy);
-  } else {
-    error("X: mode switch requested but does not work\n");
-  }
-#else
-  error("X: mode switch requested but is not compiled in\n");
 #endif
+  }
 
   if (mainwindow == normalwindow) {
     nw = w_x_res;
