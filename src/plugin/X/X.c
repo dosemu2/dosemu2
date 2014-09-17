@@ -2370,7 +2370,11 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     X_printf("X: vidmode asking for (%d,%d); setting (%d,%d)\n", w, h, nw, nh);
     XF86VidModeSwitchToMode(display,screen,vidmode_modes[j]);
     XF86VidModeSetViewPort (display,screen,vx,vy);
+  } else {
+    error("X: mode switch requested but does not work\n");
   }
+#else
+  error("X: mode switch requested but is not compiled in\n");
 #endif
 
   if (mainwindow == normalwindow) {
