@@ -57,7 +57,7 @@ while [ "$1" != "" ]; do
       if [ "$2" = "off" ]; then STRING="$STRING --disable-mitshm"; fi
       ;;
     vidmode)
-      if [ "$2" = "off" ]; then STRING="$STRING --without-vidmode"; fi
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-vidmode"; fi
       ;;
     sbemu)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-sbemu"; fi

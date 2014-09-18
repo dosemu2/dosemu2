@@ -1381,7 +1381,7 @@ Optional Features:
   --enable-linkstatic     make statically linked binaries
   --disable-dlplugins     do NOT use dynamically loaded plugins
   --disable-mitshm        do NOT use the MITSHM X extension
-  --disable-vidmode       do NOT use the XF86 vidmode extension
+  --enable-vidmode        use XF86 vidmode extension
   --enable-experimental   enable configuration of EXPERIMENTAL stuff
   --enable-debug          compile with debug info
   --disable-aspi          do NOT compile with ASPI support
@@ -5833,7 +5833,7 @@ if test "${enable_vidmode+set}" = set; then :
   enableval=$enable_vidmode;
 fi
 
-    if test "$enable_vidmode" != "no" ; then
+    if test "$enable_vidmode" = "yes" ; then
       { $as_echo "$as_me:${as_lineno-$LINENO}: checking for XF86VidModeSwitchToMode in -lXxf86vm" >&5
 $as_echo_n "checking for XF86VidModeSwitchToMode in -lXxf86vm... " >&6; }
 if ${ac_cv_lib_Xxf86vm_XF86VidModeSwitchToMode+:} false; then :
@@ -5877,7 +5877,7 @@ else
 fi
 
     fi
-    if test "$enable_vidmode" = "no"; then
+    if test "$enable_vidmode" != "yes"; then
                { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling without the XF86 video mode extension" >&5
 $as_echo "$as_me: Compiling without the XF86 video mode extension" >&6;}
     else

@@ -363,11 +363,11 @@ if test "$have_x" = "yes" ; then
     LIBS="-lXext $LIBS"
 
     AC_ARG_ENABLE(vidmode,
-              [  --disable-vidmode       do NOT use the XF86 vidmode extension])
-    if test "$enable_vidmode" != "no" ; then
+              [  --enable-vidmode        use XF86 vidmode extension])
+    if test "$enable_vidmode" = "yes" ; then
       AC_CHECK_LIB(Xxf86vm, XF86VidModeSwitchToMode, enable_vidmode="yes", enable_vidmode="no")
     fi
-    if test "$enable_vidmode" = "no"; then
+    if test "$enable_vidmode" != "yes"; then
                AC_MSG_NOTICE(Compiling without the XF86 video mode extension)
     else
 	       AC_CHECK_HEADER(X11/extensions/xf86vmode.h,
