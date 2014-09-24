@@ -27,8 +27,6 @@
 #include "utilities.h"
 #include "dos2linux.h"
 
-static int stub_printer_write(int, int);
-
 /* status bits, Centronics */
 #define CTS_STAT_NOIOERR	LPT_STAT_NOIOERR
 #define CTS_STAT_ONLINE		LPT_STAT_ONLINE
@@ -143,90 +141,96 @@ static void printer_io_write(ioport_t port, Bit8u value)
 static int dev_printer_open(int prnum)
 {
   int um = umask(026);
-  lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+  lpt[prnum].dev_fd = open(lpt[prnum].dev, O_WRONLY);
   umask(um);
+  if (lpt[prnum].dev_fd == -1) {
+    error("LPT%i: error opening %s: %s\n", prnum, lpt[prnum].dev,
+	strerror(errno));
+    return -1;
+  }
+  p_printf("LPT: opened printer %d to %s\n", prnum, lpt[prnum].dev);
   return 0;
+}
+
+static void pipe_callback(void *arg)
+{
+  char buf[1024];
+  int num = (long)arg;
+  int n = read(lpt[num].file.from_child, buf, sizeof(buf));
+  if (n > 0) {
+    buf[n] = 0;
+    error("LPT%i: %s\n", num, buf);
+  }
 }
 
 static int pipe_printer_open(int prnum)
 {
+  int err;
+  err = popen2(lpt[prnum].prtcmd, &lpt[prnum].file);
+  if (err) {
+    error("system(\"%s\") in lpt.c failed, cannot print! "
+	"Command returned error %s\n", lpt[prnum].prtcmd, strerror(errno));
+    return err;
+  }
   p_printf("LPT: doing printer command ..%s..\n", lpt[prnum].prtcmd);
-
-  lpt[prnum].file = popen(lpt[prnum].prtcmd, "w");
-  if (lpt[prnum].file == NULL)
-    error("system(\"%s\") in lpt.c failed, cannot print!\
-  Command returned error %s\n", lpt[prnum].prtcmd, strerror(errno));
-  return 0;
+  add_to_io_select(lpt[prnum].file.from_child, pipe_callback, (void *)(long)prnum);
+  return err;
 }
 
 int printer_open(int prnum)
 {
   int rc;
 
-  if (lpt[prnum].file != NULL)
+  if (lpt[prnum].opened) {
+    dosemu_error("opening printer %i twice\n", prnum);
     return 0;
-
-  if (lpt[prnum].fops.open == NULL)
-    return -1;
+  }
 
   rc = lpt[prnum].fops.open(prnum);
-  /* use line buffering so we don't need to have a long wait for output */
-  setvbuf(lpt[prnum].file, NULL, _IOLBF, 0);
-  p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
-	   lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>",
-           (void *) lpt[prnum].file);
+  if (!rc)
+    lpt[prnum].opened = 1;
+  else
+    error("Error opening printer %i\n", prnum);
   return rc;
 }
 
 static int dev_printer_close(int prnum)
 {
-  if (lpt[prnum].file != NULL)
-    fclose(lpt[prnum].file);
-  return 0;
+  return close(lpt[prnum].dev_fd);
 }
 
 static int pipe_printer_close(int prnum)
 {
-  if (lpt[prnum].file != NULL)
-    pclose(lpt[prnum].file);
-  lpt[prnum].file = NULL;
-  return 0;
+  remove_from_io_select(lpt[prnum].file.from_child);
+  return pclose2(&lpt[prnum].file);
 }
 
 int printer_close(int prnum)
 {
-  if (lpt[prnum].fops.close) {
-    p_printf("LPT: closing printer %d, %s\n", prnum,
-	     lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>");
-
+  if (lpt[prnum].opened && lpt[prnum].fops.close) {
+    p_printf("LPT: closing printer %d\n", prnum);
     lpt[prnum].fops.close(prnum);
-    lpt[prnum].file = NULL;
     lpt[prnum].remaining = -1;
   }
-  lpt[prnum].fops.write = stub_printer_write;
+  lpt[prnum].opened = 0;
   return 0;
 }
 
-static int stub_printer_write(int prnum, int outchar)
+static int dev_printer_write(int prnum, Bit8u outchar)
 {
-  printer_open(prnum);
-
-  /* from now on, use real write */
-  lpt[prnum].fops.write = lpt[prnum].fops.realwrite;
-
-  return printer_write(prnum, outchar);
+  return write(lpt[prnum].dev_fd, &outchar, 1);
 }
 
-static int file_printer_write(int prnum, int outchar)
+static int pipe_printer_write(int prnum, Bit8u outchar)
 {
-  lpt[prnum].remaining = lpt[prnum].delay;
-
-  fputc(outchar, lpt[prnum].file);
-  return 0;
+  return write(lpt[prnum].file.to_child, &outchar, 1);;
 }
 
 int printer_write(int prnum, int outchar)
 {
+  if (!lpt[prnum].opened)
+    printer_open(prnum);
+  lpt[prnum].remaining = lpt[prnum].delay;
   return lpt[prnum].fops.write(prnum, outchar);
 }
 
@@ -240,16 +244,14 @@ int printer_write(int prnum, int outchar)
 static struct p_fops dev_pfops =
 {
   dev_printer_open,
-  stub_printer_write,
+  dev_printer_write,
   dev_printer_close,
-  file_printer_write
 };
 static struct p_fops pipe_pfops =
 {
   pipe_printer_open,
-  stub_printer_write,
+  pipe_printer_write,
   pipe_printer_close,
-  file_printer_write
 };
 
 void
@@ -270,7 +272,7 @@ printer_init(void)
 
   for (i = 0; i < NUM_PRINTERS; i++) {
     p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : "<<NODEV>>");
-    lpt[i].file = NULL;
+    lpt[i].opened = 0;
     lpt[i].remaining = -1;	/* mark not accessed yet */
     if (lpt[i].dev)
       lpt[i].fops = dev_pfops;
@@ -311,8 +313,6 @@ printer_tick(u_long secno)
 	lpt[i].remaining--;
 	if (!lpt[i].remaining)
 	  printer_close(i);
-	else if (lpt[i].file != NULL)
-	  fflush(lpt[i].file);
       }
     }
   }

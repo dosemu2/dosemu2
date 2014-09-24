@@ -7,11 +7,12 @@
 #ifndef LPT_H
 #define LPT_H 1
 
+#include "utilities.h"
+
 struct p_fops {
   int (*open) (int prtnum);
-  int (*write) (int prtnum, int data);
+  int (*write) (int prtnum, Bit8u data);
   int (*close) (int prtnum);
-  int (*realwrite) (int prnum, int data);
 };
 
 struct printer {
@@ -21,10 +22,10 @@ struct printer {
   ioport_t base_port;		/* Base port address handled by device */
 
   /* end of user-set options */
-  FILE *file;
-  int remaining;
-
+  struct popen2 file;
+  int dev_fd;
   struct p_fops fops;
+  int opened, remaining;
 
   Bit8u data, status, control;
 };
