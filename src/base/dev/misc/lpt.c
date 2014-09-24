@@ -271,7 +271,10 @@ printer_init(void)
   io_device.fd           = -1;
 
   for (i = 0; i < NUM_PRINTERS; i++) {
-    p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : lpt[i].prtcmd);
+    if (!lpt[i].dev && !lpt[i].prtcmd)
+      continue;
+    p_printf("LPT%i: initializing printer %s\n", i+1,
+	lpt[i].dev ? lpt[i].dev : lpt[i].prtcmd);
     lpt[i].opened = 0;
     lpt[i].remaining = -1;	/* mark not accessed yet */
     if (lpt[i].dev)
@@ -327,7 +330,6 @@ void printer_config(int prnum, struct printer *pptr)
     destptr = &lpt[prnum];
     destptr->prtcmd = pptr->prtcmd;
     destptr->dev = pptr->dev;
-    destptr->file = pptr->file;
     destptr->remaining = pptr->remaining;
     destptr->delay = pptr->delay;
   }
