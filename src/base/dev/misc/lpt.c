@@ -208,9 +208,9 @@ static int pipe_printer_close(int prnum)
 int printer_close(int prnum)
 {
   if (lpt[prnum].opened && lpt[prnum].fops.close) {
-    p_printf("LPT: closing printer %d\n", prnum);
+    p_printf("LPT%i: closing printer\n", prnum+1);
     lpt[prnum].fops.close(prnum);
-    lpt[prnum].remaining = -1;
+    lpt[prnum].remaining = 0;
   }
   lpt[prnum].opened = 0;
   return 0;
@@ -271,19 +271,19 @@ printer_init(void)
   io_device.fd           = -1;
 
   for (i = 0; i < NUM_PRINTERS; i++) {
+    lpt[i].opened = 0;
+    lpt[i].remaining = 0;	/* mark not accessed yet */
     if (!lpt[i].dev && !lpt[i].prtcmd)
       continue;
     p_printf("LPT%i: initializing printer %s\n", i+1,
 	lpt[i].dev ? lpt[i].dev : lpt[i].prtcmd);
-    lpt[i].opened = 0;
-    lpt[i].remaining = -1;	/* mark not accessed yet */
     if (lpt[i].dev)
       lpt[i].fops = dev_pfops;
     else if (lpt[i].prtcmd)
       lpt[i].fops = pipe_pfops;
     if (i >= min(config.num_lpt, NUM_LPTS)) lpt[i].base_port = 0;
 
-    if (lpt[i].base_port != 0 && lpt[i].fops.open) {
+    if (lpt[i].base_port != 0) {
       io_device.start_addr = lpt[i].base_port;
       io_device.end_addr   = lpt[i].base_port + 2;
       port_register_handler(io_device, 0);
@@ -297,6 +297,8 @@ close_all_printers(void)
   int loop;
 
   for (loop = 0; loop < NUM_PRINTERS; loop++) {
+    if (!lpt[loop].opened)
+      continue;
     p_printf("LPT: closing printer %d (%s)\n", loop,
 	     lpt[loop].dev ? lpt[loop].dev : lpt[loop].prtcmd);
     printer_close(loop);
@@ -309,8 +311,9 @@ printer_tick(u_long secno)
   int i;
 
   for (i = 0; i < NUM_PRINTERS; i++) {
-    if (lpt[i].remaining >= 0) {
-      p_printf("LPT: doing real tick for %d\n", i);
+    if (lpt[i].remaining > 0) {
+      if (debug_level('p') >= 9)
+        p_printf("LPT%i: doing tick %d\n", i+1, lpt[i].remaining);
       if (lpt[i].remaining) {
         reset_idle(2);
 	lpt[i].remaining--;
@@ -330,7 +333,6 @@ void printer_config(int prnum, struct printer *pptr)
     destptr = &lpt[prnum];
     destptr->prtcmd = pptr->prtcmd;
     destptr->dev = pptr->dev;
-    destptr->remaining = pptr->remaining;
     destptr->delay = pptr->delay;
   }
 }
