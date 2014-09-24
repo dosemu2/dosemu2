@@ -34,6 +34,7 @@ int printer_open(int prnum);
 int printer_close(int prnum);
 int printer_flush(int prnum);
 int printer_write(int prnum, int outchar);
+ioport_t get_lpt_base(int lptnum);
 void printer_config(int prnum, struct printer *pptr);
 void printer_print_config(int prnum, void (*print)(const char *, ...));
 
@@ -53,9 +54,6 @@ void printer_print_config(int prnum, void (*print)(const char *, ...));
 #define LPT_CTRL_NOT_INIT	0x4
 #define LPT_CTRL_AUTOLF		0x2
 #define LPT_CTRL_STROBE		0x1
-
-#define NUM_PRINTERS 9
-extern struct printer lpt[NUM_PRINTERS];
 
 #define NUM_LPTS 3
 

@@ -68,7 +68,7 @@ printer_mem_setup(void)
   int i;
   for (i = 0; i < NUM_LPTS; i++) {
     /* set the port address for each printer in bios */
-    WRITE_WORD(BIOS_ADDRESS_LPT1 + i * 2, lpt[i].base_port);
+    WRITE_WORD(BIOS_ADDRESS_LPT1 + i * 2, get_lpt_base(i));
     WRITE_BYTE(BIOS_LPT1_TIMEOUT + i, 20);
   }
 }

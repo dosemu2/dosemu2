@@ -52,12 +52,20 @@ static int stub_printer_write(int, int);
 #define DEFAULT_CTRL (CTS_CTRL_NOT_INIT | CTS_CTRL_NOT_AUTOLF | \
     CTS_CTRL_NOT_STROBE)
 
-struct printer lpt[NUM_PRINTERS] =
+#define NUM_PRINTERS 9
+static struct printer lpt[NUM_PRINTERS] =
 {
   {NULL, NULL, 5, 0x378, .control = DEFAULT_CTRL, .status = DEFAULT_STAT},
   {NULL, NULL, 5, 0x278, .control = DEFAULT_CTRL, .status = DEFAULT_STAT},
   {NULL, NULL, 10, 0x3bc, .control = DEFAULT_CTRL, .status = DEFAULT_STAT}
 };
+
+ioport_t get_lpt_base(int lptnum)
+{
+  if (lptnum >= NUM_LPTS)
+    return -1;
+  return lpt[lptnum].base_port;
+}
 
 static int get_printer(ioport_t port)
 {
