@@ -1927,7 +1927,6 @@ static void start_printer(void)
 {
   pptr->prtcmd = NULL;
   pptr->dev = NULL;
-  pptr->file = NULL;
   pptr->remaining = -1;
   pptr->delay = 10;
 }
