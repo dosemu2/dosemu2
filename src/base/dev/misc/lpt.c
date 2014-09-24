@@ -86,7 +86,7 @@ static Bit8u printer_io_read(ioport_t port)
   case 0:
     val = lpt[i].data; /* simple unidirectional port */
     if (debug_level('p') >= 5)
-      p_printf("LPT%d: Reading data byte %#x\n", i, val);
+      p_printf("LPT%d: Reading data byte %#x\n", i+1, val);
     break;
   case 1: /* status port, r/o */
     val = lpt[i].status ^ LPT_STAT_INV_MASK;
@@ -95,12 +95,12 @@ static Bit8u printer_io_read(ioport_t port)
     lpt[i].status |= CTS_STAT_NOT_ACKing | LPT_STAT_NOT_IRQ;
     lpt[i].status &= ~CTS_STAT_BUSY;
     if (debug_level('p') >= 5)
-      p_printf("LPT%d: Reading status byte %#x\n", i, val);
+      p_printf("LPT%d: Reading status byte %#x\n", i+1, val);
     break;
   case 2:
     val = lpt[i].control ^ LPT_CTRL_INV_MASK;
     if (debug_level('p') >= 5)
-      p_printf("LPT%d: Reading control byte %#x\n", i, val);
+      p_printf("LPT%d: Reading control byte %#x\n", i+1, val);
     break;
   default:
     val = 0xff;
@@ -117,14 +117,14 @@ static void printer_io_write(ioport_t port, Bit8u value)
   switch (port - lpt[i].base_port) {
   case 0:
     if (debug_level('p') >= 5)
-      p_printf("LPT%d: Writing data byte %#x\n", i, value);
+      p_printf("LPT%d: Writing data byte %#x\n", i+1, value);
     lpt[i].data = value;
     break;
   case 1: /* status port, r/o */
     break;
   case 2:
     if (debug_level('p') >= 5)
-      p_printf("LPT%d: Writing control byte %#x\n", i, value);
+      p_printf("LPT%d: Writing control byte %#x\n", i+1, value);
     value ^= LPT_CTRL_INV_MASK;		// convert to Centronics
     if (((lpt[i].control & (CTS_CTRL_NOT_STROBE | CTS_CTRL_NOT_SELECT)) == 0)
         && (value & CTS_CTRL_NOT_STROBE)) {
@@ -144,7 +144,7 @@ static int dev_printer_open(int prnum)
   lpt[prnum].dev_fd = open(lpt[prnum].dev, O_WRONLY);
   umask(um);
   if (lpt[prnum].dev_fd == -1) {
-    error("LPT%i: error opening %s: %s\n", prnum, lpt[prnum].dev,
+    error("LPT%i: error opening %s: %s\n", prnum+1, lpt[prnum].dev,
 	strerror(errno));
     return -1;
   }
@@ -159,7 +159,7 @@ static void pipe_callback(void *arg)
   int n = read(lpt[num].file.from_child, buf, sizeof(buf));
   if (n > 0) {
     buf[n] = 0;
-    error("LPT%i: %s\n", num, buf);
+    error("LPT%i: %s\n", num+1, buf);
   }
 }
 
@@ -271,7 +271,7 @@ printer_init(void)
   io_device.fd           = -1;
 
   for (i = 0; i < NUM_PRINTERS; i++) {
-    p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : "<<NODEV>>");
+    p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : lpt[i].prtcmd);
     lpt[i].opened = 0;
     lpt[i].remaining = -1;	/* mark not accessed yet */
     if (lpt[i].dev)
@@ -295,7 +295,7 @@ close_all_printers(void)
 
   for (loop = 0; loop < NUM_PRINTERS; loop++) {
     p_printf("LPT: closing printer %d (%s)\n", loop,
-	     lpt[loop].dev ? lpt[loop].dev : "<<NODEV>>");
+	     lpt[loop].dev ? lpt[loop].dev : lpt[loop].prtcmd);
     printer_close(loop);
   }
 }
