@@ -129,6 +129,9 @@ static void printer_io_write(ioport_t port, Bit8u value)
     if (((lpt[i].control & (CTS_CTRL_NOT_STROBE | CTS_CTRL_NOT_SELECT)) == 0)
         && (value & CTS_CTRL_NOT_STROBE)) {
       /* STROBE rising */
+      if (debug_level('p') >= 9)
+        p_printf("LPT%d: STROBE, sending %#x (%c)\n", i+1, lpt[i].data,
+	    lpt[i].data);
       printer_write(i, lpt[i].data);
       lpt[i].status &= ~CTS_STAT_NOT_ACKing;
       lpt[i].status |= CTS_STAT_BUSY;
@@ -226,11 +229,13 @@ static int pipe_printer_write(int prnum, Bit8u outchar)
   return write(lpt[prnum].file.to_child, &outchar, 1);;
 }
 
-int printer_write(int prnum, int outchar)
+int printer_write(int prnum, Bit8u outchar)
 {
   if (!lpt[prnum].opened)
     printer_open(prnum);
   lpt[prnum].remaining = lpt[prnum].delay;
+  if (debug_level('p') >= 9)
+    p_printf("LPT%d: writing %#x (%c)\n", prnum+1, outchar, outchar);
   return lpt[prnum].fops.write(prnum, outchar);
 }
 

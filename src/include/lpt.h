@@ -34,7 +34,7 @@ struct printer {
 int printer_open(int prnum);
 int printer_close(int prnum);
 int printer_flush(int prnum);
-int printer_write(int prnum, int outchar);
+int printer_write(int prnum, Bit8u outchar);
 ioport_t get_lpt_base(int lptnum);
 void printer_config(int prnum, struct printer *pptr);
 void printer_print_config(int prnum, void (*print)(const char *, ...));
