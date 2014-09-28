@@ -45,6 +45,9 @@
      the DOSEMU distribution or any derivative work. This file and
      the GPL in the file COPYING must not be separated.
 
+6.   There are no restrictions to run any (proprietary or free) DOS software
+     under dosemu, unless the license of that software says otherwise.
+
 The copyrights referred to in clause 3 are from:
 
 --- The Mach DOS Emulator
