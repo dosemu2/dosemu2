@@ -364,6 +364,10 @@ static void mhp_rusermap(int argc, char *argv[])
      last_symbol2++;
   }
   fclose(ifp);
+  if (!last_symbol2) {
+    mhp_printf("failed to read symbols from map file\n");
+    return;
+  }
 /*symbl2_end = symbl2_table[last_symbol2-1].addr;*/
   mhp_printf("%d symbol(s) processed\n", last_symbol2);
   mhp_printf("highest address %04x:%04x(%s)\n",
@@ -426,6 +430,10 @@ static void mhp_rmapfile(int argc, char *argv[])
   }
   else
     fclose(ifp);
+  if (!last_symbol) {
+    mhp_printf("failed to read symbols from map file\n");
+    return;
+  }
   addrmax = symbol_table[last_symbol-1].addr;
   mhp_printf("%d symbol(s) processed\n", last_symbol);
   mhp_printf("highest address %08lx(%s)\n", addrmax, getname(addrmax));
