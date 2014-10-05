@@ -1,10 +1,8 @@
 
-             Copyright of DOSEMU, October 2006
+             Copyright of DOSEMU2, October 2014
              =================================
 
-1.   Copyright (C) 1992, ..., 2006 the "DOSEMU-Development-Team"
-
-     This program is free software; you can redistribute it and/or modify
+1.   This program is free software; you can redistribute it and/or modify
      it under the terms of the GNU General Public License, version 2, as
      published by the Free Software Foundation.
 
@@ -19,17 +17,6 @@
 
 2.   All sources in the official distribution of DOSEMU have the copyright
      of clause 1 unless explicitly stated otherwise.
-
-     The DOSEMU-Development-Team is legally represented by its
-     current co-ordinator:
-
-       1992          Matthias Lautner
-       1993          Robert Sanders <gt8134b@prism.gatech.edu>
-       1994 .. 1996  James MacLean <macleajb@ednet.ns.ca>
-       1997 .. 2001  Hans Lermen <lermen@fgan.de>
-       2001 .. now   Bart Oldeman <bart@dosemu.org> 
-
-     Every co-ordinator passes on the right to represent to his successor.
 
 3.   This copyright does not cover all parts of the DOSEMU code!
      Parts of the code not covered by the GPL are marked explicitly
