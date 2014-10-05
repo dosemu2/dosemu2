@@ -2605,6 +2605,5 @@ void kdos_close_msg()
 CONSTRUCTOR(static void init(void))
 {
 	register_video_client(&Video_X);
-	register_keyboard_client(&Keyboard_X);
 	register_mouse_client(&Mouse_X);
 }
