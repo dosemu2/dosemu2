@@ -649,6 +649,7 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     for (i = 0; i < frames; i++) {
 	int l;
 	struct sample s2;
+retry:
 	samp.tstamp = pcm_calc_tstamp(strm_idx);
 	l = peek_last_sample(strm_idx, &s2);
 	assert(!(l && samp.tstamp < s2.tstamp));
@@ -659,8 +660,8 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 	    if (!l) {
 		error("Sound buffer %i overflowed (%s)\n", strm_idx,
 		    pcm.stream[strm_idx].name);
-		pcm_clear_stream(strm_idx);
-		rng_put(&pcm.stream[strm_idx].buffer, &samp);
+		pcm_reset_stream(strm_idx);
+		goto retry;
 	    }
 	}
 	pcm_handle_write(strm_idx, samp.tstamp);
