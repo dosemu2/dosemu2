@@ -450,6 +450,10 @@ static void pcm_handle_get(int strm_idx, double time)
 		    (fillup < raw_delay / 1.5 &&
 		     fillup < pcm.stream[strm_idx].last_fillup)) {
 		    pcm.stream[strm_idx].raw_speed_adj -= delta;
+		    if (pcm.stream[strm_idx].raw_speed_adj > 5)
+			pcm.stream[strm_idx].raw_speed_adj = 5;
+		    if (pcm.stream[strm_idx].raw_speed_adj < 0.2)
+			pcm.stream[strm_idx].raw_speed_adj = 0.2;
 //          error("speed %f\n", pcm.stream[strm_idx].raw_speed_adj);
 		}
 		pcm.stream[strm_idx].last_fillup = fillup;
