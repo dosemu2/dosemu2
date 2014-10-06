@@ -1,4 +1,4 @@
-/* include/sdl_config.h.in.  Generated from configure.ac by autoheader.  */
+/* include/_sdl_config.h.in.  Generated from configure.ac by autoheader.  */
 
 
 #ifndef SDL_CONFIG_H

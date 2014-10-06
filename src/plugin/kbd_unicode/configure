@@ -1962,7 +1962,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-ac_config_headers="$ac_config_headers include/kbd_unicode_config.h"
+ac_config_headers="$ac_config_headers include/_kbd_unicode_config.h"
 
 
 ac_ext=c
@@ -3837,7 +3837,7 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
-    "include/kbd_unicode_config.h") CONFIG_HEADERS="$CONFIG_HEADERS include/kbd_unicode_config.h" ;;
+    "include/_kbd_unicode_config.h") CONFIG_HEADERS="$CONFIG_HEADERS include/_kbd_unicode_config.h" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -4188,3 +4188,5 @@ fi
 
 
 
+
+sed 's/#define PACKAGE_.\+//' include/_kbd_unicode_config.h >include/kbd_unicode_config.h

@@ -1,4 +1,4 @@
-/* include/kbd_unicode_config.h.in.  Generated from configure.ac by autoheader.  */
+/* include/_kbd_unicode_config.h.in.  Generated from configure.ac by autoheader.  */
 
 
 #ifndef UNICODE_KEYB_CONFIG_H

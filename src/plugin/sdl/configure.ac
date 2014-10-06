@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 AC_CONFIG_SRCDIR([sdl.c])
-AC_CONFIG_HEADER([include/sdl_config.h])
+AC_CONFIG_HEADER([include/_sdl_config.h])
 AC_CONFIG_AUX_DIR([../../..])
 
 dnl Check for SDL
@@ -37,3 +37,5 @@ AH_TEMPLATE([SDL_SUPPORT],
 AH_BOTTOM([
 #endif /* SDL_CONFIG_H */
 ])
+
+sed 's/#define PACKAGE_.\+//' include/_sdl_config.h >include/sdl_config.h

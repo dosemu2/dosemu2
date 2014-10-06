@@ -1830,7 +1830,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-ac_config_headers="$ac_config_headers include/sdl_config.h"
+ac_config_headers="$ac_config_headers include/_sdl_config.h"
 
 ac_aux_dir=
 for ac_dir in ../../.. "$srcdir"/../../..; do
@@ -3629,7 +3629,7 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
-    "include/sdl_config.h") CONFIG_HEADERS="$CONFIG_HEADERS include/sdl_config.h" ;;
+    "include/_sdl_config.h") CONFIG_HEADERS="$CONFIG_HEADERS include/_sdl_config.h" ;;
     "Makefile.conf") CONFIG_FILES="$CONFIG_FILES Makefile.conf" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
@@ -4218,3 +4218,5 @@ fi
 
 
 
+
+sed 's/#define PACKAGE_.\+//' include/_sdl_config.h >include/sdl_config.h

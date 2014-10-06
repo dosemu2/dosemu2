@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 AC_CONFIG_SRCDIR([serv_xlat.c])
-AC_CONFIG_HEADER(include/kbd_unicode_config.h)
+AC_CONFIG_HEADER(include/_kbd_unicode_config.h)
 
 dnl Check for the XKB extension to get reliable keyboard handling
 AC_CHECK_HEADER(X11/XKBlib.h, have_xkb="yes", have_xkb="no")
@@ -30,3 +30,5 @@ AH_TEMPLATE(HAVE_XKB,
 AH_BOTTOM([
 #endif /* UNICODE_KEYB_CONFIG_H */
 ])
+
+sed 's/#define PACKAGE_.\+//' include/_kbd_unicode_config.h >include/kbd_unicode_config.h
