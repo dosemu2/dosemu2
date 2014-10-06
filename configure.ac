@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([DOSEMU], [],
-[http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse],dosemu)
+AC_INIT([DOSEMU2], m4_esyscmd([tr -d '\n' < VERSION]),
+    [https://github.com/stsp/dosemu2/issues], dosemu2)
 AC_CONFIG_SRCDIR(src/dos.c)
 AC_PREREQ(2.59)
 
@@ -663,7 +663,7 @@ AH_TOP([
 #define CONFIG_H 1
 
 #define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
-#define DOSEMU_VERSION_CODE VERSION_OF(VERSION,SUBLEVEL,PATCHLEVEL1,PATCHLEVEL2)
+#define DOSEMU_VERSION_CODE VERSION_OF(VERSION,SUBLEVEL,0,0)
 #define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
 #define GCC_VERSION_CODE (__GNUC__ * 1000 + __GNUC_MINOR__)
 

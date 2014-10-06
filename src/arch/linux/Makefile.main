@@ -134,8 +134,6 @@ include/version.h:
 	  echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
 	  echo "#define	VERSION	$(VERSION)" >> $@; \
 	  echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
-	  echo "#define	PATCHLEVEL1	$(PATCHLEVEL1)" >> $@; \
-	  echo "#define	PATCHLEVEL2	$(PATCHLEVEL2)" >> $@; \
 	  echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	  echo "#endif /* VERSION_H */" >> $@; \
 	fi

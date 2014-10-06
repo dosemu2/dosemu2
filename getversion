@@ -8,7 +8,7 @@ if test "$1" = "-d"; then
   fi
 else
   if test -d .git; then
-    s=`git describe --match "dosemu-[0-9]*" HEAD | sed -e 's/^dosemu-//'`
+    s=`git describe --match "dosemu2-[0-9]*" HEAD | sed -e 's/^dosemu2-//'`
   else
     s=`cat VERSION`
   fi

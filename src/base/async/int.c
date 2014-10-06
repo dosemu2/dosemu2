@@ -213,7 +213,7 @@ int dos_helper(void)
      * ...we let GCC at compiletime translate it to 0xHHLL, HH=major, LL=minor.
      * This way we avoid usage of float instructions.
      */
-    LWORD(ecx) = PATCHLEVEL1 * 0x100 + PATCHLEVEL2;
+    LWORD(ecx) = 0;//PATCHLEVEL1 * 0x100 + PATCHLEVEL2;
     LWORD(edx) = (config.X)? 0x1:0;  /* Return if running under X */
     g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);
@@ -289,7 +289,7 @@ int dos_helper(void)
       install_dos(1);
     if (!config.dosbanner)
       break;
-    p_dos_str("\n\nDOSEMU " VERSTR " (" VERDATE "), configured: " CONFIG_TIME "\n");
+    p_dos_str("\n\n"PACKAGE_NAME " "VERSTR ", configured: " CONFIG_TIME "\n");
 #if 0
     if (config.dpmi)
       p_dos_str("DPMI-Server Version 0.9 installed");
