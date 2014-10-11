@@ -2,38 +2,47 @@
              Copyright of DOSEMU2, October 2014
              =================================
 
-1.   This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License, version 2, as
-     published by the Free Software Foundation.
+1.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-     You should have received a copy of the GNU General Public License along
-     with this program; if not, write to the Free Software Foundation, Inc.,
-     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-2.   All sources in the official distribution of DOSEMU have the copyright
-     of clause 1 unless explicitly stated otherwise.
+2.  All dosemu2 sources that have no explicit copyright statement,
+    are copyrighted under GPLv2.
 
-3.   This copyright does not cover all parts of the DOSEMU code!
-     Parts of the code not covered by the GPL are marked explicitly
-     within the code, and the copyrights are also at the end of this
-     file. The rest of the code is covered by the GPL.
+3.  Parts of the code not covered by the GPL are marked explicitly
+    within the code, and the copyrights are also at the end of this
+    file.
 
-4.   Some code, that was covered by GNU Lesser General Public License
-     (LGPL) has been transformed to GPL as is allowed by the LGPL
-     section 3. This code is marked with an appropriate text at the
-     beginning of each file involved.
+4.  There are no restrictions to run any (proprietary or free) DOS software
+    under dosemu, unless the license of that software says otherwise.
 
-5.   This file, COPYING.DOSEMU, must be distributed together with
-     the DOSEMU distribution or any derivative work. This file and
-     the GPL in the file COPYING must not be separated.
+The copyrights referred to in clause 2:
 
-6.   There are no restrictions to run any (proprietary or free) DOS software
-     under dosemu, unless the license of that software says otherwise.
+--- GPLv2 (used as a default license in older dosemu releases)
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2, as
+    published by the Free Software Foundation.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 The copyrights referred to in clause 3 are from:
 
