@@ -1,5 +1,5 @@
-# 
-# (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+#
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
@@ -122,7 +122,7 @@ Add0_2: addb    $'0',%al
 DumpNibble2:
         call    DumpAsciiChar
 
-        movb    $0x30,%al		#' '; 
+        movb    $0x30,%al		#' ';
         call    DumpAsciiChar
 
         popw    %cx

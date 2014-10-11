@@ -1,6 +1,6 @@
-# 
+#
 # All modifications in this file to the original code are
-# (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
@@ -8,23 +8,23 @@
 
 #
 # fossil.S: FOSSIL serial driver emulator for dosemu.
-# 
+#
 # Copyright (C) 1995 by Pasi Eronen.
 #
 # The code in this module is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2 of 
+# as published by the Free Software Foundation; either version 2 of
 # the License, or (at your option) any later version.
 #
 
 #include "macros86.h"
 #include "doshelpers.h"
-				       
+				
 .text
 .code16
 	.globl	_start16
 _start16:
-        
+
 start:
         jmp      check_init
 
@@ -44,7 +44,7 @@ FOSSIL_MAX_FUNCTION = 0x1b
 # -------------------------------------------------------------------------
 
 old14:
-        .long   -1                
+        .long   -1
 fossil_id_string:
         .ascii  "dosemu FOSSIL emulator"
 	.byte   0
@@ -52,8 +52,8 @@ fossil_id_string:
 int14:
         jmp     int14a
 	.byte   0,0,0,0
-	.word   FOSSIL_MAGIC          
-	.byte   FOSSIL_MAX_FUNCTION   
+	.word   FOSSIL_MAGIC
+	.byte   FOSSIL_MAX_FUNCTION
 	.byte   0
 int14a:
         # in TASM this is "jmp far cs:old14"

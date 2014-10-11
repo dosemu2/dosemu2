@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
@@ -27,7 +27,7 @@ DPMI_direct_transfer:
 
 	.globl DPMI_iret
 	.type DPMI_iret,@function
-DPMI_iret:	  
+DPMI_iret:	
 	iretl
 
 	.code32

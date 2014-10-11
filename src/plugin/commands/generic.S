@@ -1,5 +1,5 @@
-# 
-# (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+#
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
@@ -31,7 +31,7 @@ _start16:
 	.align	128,0
 start:
 #include "detect.h"
-        
+
         # use old code for versions <= 1.3.1
         cmpl    $0x01030100, real_version
         jbe     old_generic

@@ -1,5 +1,5 @@
-# 
-# (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+#
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
 #
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
@@ -33,6 +33,6 @@ _start16:
 	int $DOS_HELPER_INT
 	int $0x20  # exit
 
-# note: the VGA permissions are left on. 
+# note: the VGA permissions are left on.
 
 

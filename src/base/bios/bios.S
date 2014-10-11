@@ -1,5 +1,5 @@
-/* 
- * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+/*
+ * (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING.DOSEMU in the DOSEMU distribution
  */
@@ -273,7 +273,7 @@ LFN_string:
 	hlt
 	sti
 
-/* ----------------------------------------------------------------- */	  
+/* ----------------------------------------------------------------- */	
 /* This is for the video init - it calls in order:
    - first helper function (int0xe6,al=8)
    - the video BIOS init entry point at C000:3 or E000:3
@@ -291,7 +291,7 @@ LFN_string:
 	sti
 	jmp	video_init_done
 
-/* ----------------------------------------------------------------- */	  
+/* ----------------------------------------------------------------- */	
 /* Post-less video init
  */
 no_vbios_post:
@@ -340,7 +340,7 @@ ipx_handler:
 	int	$0x7a
 	lret
 
-/* ----------------------------------------------------------------- */   
+/* ----------------------------------------------------------------- */
 		/* This is an int e7 used for FCB opens */
 	.org	((INTE7_SEG-BIOSSEG) << 4)+INTE7_OFF
 /* ======================= Addr = F800:6320 (FE320) */
@@ -399,7 +399,7 @@ L9a:
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
-	addw	$2,%sp/* pop video mode */	    
+	addw	$2,%sp/* pop video mode */	
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
@@ -423,7 +423,7 @@ L10:	/* chain to original handler (probably the video bios) */
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 #endif
 
-/* ----------------------------------------------------------------- */   
+/* ----------------------------------------------------------------- */
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
 
 	.globl	INT70_dummy_start
@@ -475,7 +475,7 @@ INT70_dummy_end:
 
 /* COMPAS FE6F1		reserved */
 /* COMPAS FE6F2		jmp to INT19 */
-/* ----------------------------------------------------------------- */   
+/* ----------------------------------------------------------------- */
 	.org	ROM_CONFIG_OFF /* for int15 */
 
 /* ======================= Addr = FE6F5 */
@@ -494,7 +494,7 @@ INT70_dummy_end:
 /* COMPAS FE729		baud rate init table */
 /* COMPAS FE73C-FE82D	reserved */
 
-/* ----------------------------------------------------------------- */   
+/* ----------------------------------------------------------------- */
 	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
 #if 0
 	.globl	INT09_dummy_start
@@ -522,7 +522,7 @@ INT70_dummy_end:
 	je	kbd_do_CAD
 1:
 	
-/*ERIC	* src/base/bios/bios.S (INT09_dummy_start): 
+/*ERIC	* src/base/bios/bios.S (INT09_dummy_start):
 	removed spurious 'mov al,ah' between in al,0x60 and mov ah,$0x4f
 	it was trashing the value read and would serve no useful purpose.
 */
@@ -586,9 +586,9 @@ kbd_done:
 	popw	%ds
 	popw	%bx
 	popw	%ax			/* restore registers		*/
-	iret        
+	iret
 
-store_key:        
+store_key:
         movw    KEYBUF_WRITE_PTR,%bx
         incw    %bx
         incw    %bx
@@ -600,9 +600,9 @@ no_wrap:
         je      buffer_full
         xchgw   KEYBUF_WRITE_PTR,%bx    /* ok, update write pointer     */
         movw    %ax,(%bx)               /* and store key in buffer      */
-buffer_full:        
+buffer_full:
         ret
-        
+
 kbd_do_pause:
 	testb   $PAUSE_MASK,KEYBOARD_FLAGS_2	/* already paused? */
 	jnz     kbd_done			/* do nothing */
@@ -719,7 +719,7 @@ INT09_dummy_end:
 	popw	%ax
 	iret
 
-/* ----------------------------------------------------------------- */   
+/* ----------------------------------------------------------------- */
 	/* pause cycle */
 	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
 /* ======================= Addr = F000:F110 (FF110) */
@@ -787,7 +787,7 @@ PKTDRV_driver_entry_cs:
         jmp     do_int21
 do_6c:
         cmpb    $1, %al        /* ax=6c01 means created by lfn.c */
-        movb    $0, %al        
+        movb    $0, %al
         jnz     do_int21
         movb    $1, %dl        /* then transform to open (dl=1) */
         int	$0x21
@@ -795,7 +795,7 @@ do_6c:
         jmp     after_int21
 do_int21:
         int	$0x21
-after_int21:        
+after_int21:
         popw	%si
         popw	%dx
         popw	%ds
@@ -845,7 +845,7 @@ bios_f000_endpart1:
 	.globl	bios_f000_part2
 bios_f000_part2:
 
-/* ----------------------------------------------------------------- */ 
+/* ----------------------------------------------------------------- */
 	.org    ((INT75_SEG-BIOSSEG) << 4)+INT75_OFF
 /* ======================= Addr = F800:7E98 (FFE98) */
 	xorb %al, %al
@@ -856,7 +856,7 @@ bios_f000_part2:
 	int $2		/* Bochs does this; RBIL says: redirected to INT 02 */
         iret		/* by the BIOS, for compatibility with the PC */
 
-/* ----------------------------------------------------------------- */   
+/* ----------------------------------------------------------------- */
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
 
 	.globl	INT08_dummy_start
@@ -906,7 +906,7 @@ INT08_L2:
 	iret				/* return to interrupted code	*/
 	.globl  INT08_dummy_end
 INT08_dummy_end:
-        
+
 /* COMPAS FFEF3		vector table for INT08-INT1F */
 /* COMPAS FFF23		vector table for INT70-INT77 */
 /* COMPAS FFF33-FFF53	reserved */

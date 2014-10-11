@@ -1,5 +1,5 @@
-# 
-# (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+#
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
@@ -220,7 +220,7 @@ read_long:
 	movb	$Helper, %al
 	movb	$0x02, %ah
         orb	%cs:arg, %ah
-	lds	%es:READLONG_TRANSFER(%di), %si 
+	lds	%es:READLONG_TRANSFER(%di), %si
 	int	$LinuxCD
 	cmpb	$0, %al
 	jne	read_long_fail
@@ -574,7 +574,7 @@ cont:	mov	$Message, %dx
 	movb	$0x09, %ah
 	int     $0x21
 InitEnde:
-	movw	$Message, %es:INIT_EndAdress(%di) 
+	movw	$Message, %es:INIT_EndAdress(%di)
         movw	%cs, %ax
 	movw	%ax, %es:INIT_EndAdress+2(%di)
 # future calls to init must return in error
@@ -615,7 +615,7 @@ StartParse:
 	jb 	EndParseArgs
 	jz 	NextChar
 
-	cmpb	$'1',(%si)		#lowest allowed value is '1'; 
+	cmpb	$'1',(%si)		#lowest allowed value is '1';
 	jb	NextChar		#if not get next character
 	cmpb	$'4',(%si)		#highest allowed value is '4'
 	ja	NextChar		#if higher get next character

@@ -1,41 +1,41 @@
-# 
+#
 # All modifications in this file to the original code are
-# (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING.DOSEMU in the DOSEMU distribution
 #
 
 
 #
-# 
+#
 # Mach Operating System
 # Copyright (c) 1993,1992,1991,1990 Carnegie Mellon University
-# Copyright (c) 1991 IBM Corporation 
+# Copyright (c) 1991 IBM Corporation
 # All Rights Reserved.
-# 
+#
 # Permission to use, copy, modify and distribute this software and its
 # documentation is hereby granted, provided that both the copyright
 # notice and this permission notice appear in all copies of the
 # software, derivative works or modified versions, and any portions
 # thereof, and that both notices appear in supporting documentation,
-# and that the nema IBM not be used in advertising or publicity 
+# and that the nema IBM not be used in advertising or publicity
 # pertaining to distribution of the software without specific, written
 # prior permission.
-# 
+#
 # CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
 # CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
 # ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
-# 
+#
 # Carnegie Mellon requests users of this software to return to
-# 
+#
 #  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
 #  School of Computer Science
 #  Carnegie Mellon University
 #  Pittsburgh PA 15213-3890
-# 
+#
 # any improvements or extensions that they make and grant Carnegie Mellon
 # the rights to redistribute these changes.
-# 
+#
 # MACHFS.ASM  MS-DOS device driver to interface mach file system
 # with the dos server's monitor.
 #
@@ -244,7 +244,7 @@ MFSini:
 	cmp $0,%ax
 	jne AlreadyDone
 
-	movw	$0x3000, %ax 
+	movw	$0x3000, %ax
 	xorb	%bh,%bh
 	int	$0x21
 	pushw	%ax
@@ -277,7 +277,7 @@ Init:
 	xorw %bx,%bx
 	pushw	%si
 	movw	$DirName, %si
-	movb	$0x24, (%si) 
+	movb	$0x24, (%si)
 	movw    $0x20, %ax
 	int	$Linuxfs
 	popw	%si

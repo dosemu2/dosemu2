@@ -19,7 +19,7 @@ Aspihlp	=	0x41		# aspi helper
 
 Header:
 	.long	-1		# link to next device driver
-	.word	0xC000		# attribute word for driver 
+	.word	0xC000		# attribute word for driver
 				# (char, supports IOCTL strings (it doesn't!)
 	.word	Strat		# ptr to strategy routine
 	.word	Intr		# ptr to interrupt service routine
@@ -142,7 +142,7 @@ Init:
 	or	%ax,%ax
 	jnz	Initgo
 Initabort:
-	mov	$9,%ah 
+	mov	$9,%ah
 	mov	$OutMess,%dx
 	int	$0x21
 	movw	$Header, %es:14(%di)
