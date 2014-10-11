@@ -1,9 +1,3 @@
-/*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 /* 	MS-DOS API translator for DOSEMU\'s DPMI Server
  *
  * DANG_BEGIN_MODULE msdos.h

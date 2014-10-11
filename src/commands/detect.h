@@ -1,10 +1,4 @@
 /*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * This is file detect.h
  * Used for DOSEMU supplied DOS-tools to detect DOSEMU
  * For gas code also some rudimentary runtime system is supported

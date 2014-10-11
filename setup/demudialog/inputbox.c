@@ -1,11 +1,4 @@
 /*
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  *  inputbox.c -- implements the input box
  *
  *  ORIGINAL AUTHOR: Savio Lam (lam836@cs.cuhk.hk)

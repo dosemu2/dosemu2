@@ -1,11 +1,3 @@
-#
-# All modifications in this file to the original code are
-# (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
-#
-# for details see file COPYING in the DOSEMU distribution
-#
-
-
 # ems.S for the Linux DOS emulator
 #   provide a V86-mode ISR and device driver for EMS emulation
 #

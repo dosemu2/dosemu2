@@ -1,11 +1,4 @@
 /*
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * video/cirrus.c
  * $XConsortium: cir_driver.c,v 1.5 95/01/23 15:35:14 kaleb Exp $ *
  * $XFree86: xc/programs/Xserver/hw/xfree86/vga256/drivers/cirrus/cir_driver.c,v 3.17 1995/06/02 11:19:47 dawes Exp $ *

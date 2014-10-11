@@ -1,12 +1,4 @@
 #
-# All modifications in this file to the original code are
-# (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
-#
-# for details see file COPYING in the DOSEMU distribution
-#
-
-
-#
 # fossil.S: FOSSIL serial driver emulator for dosemu.
 #
 # Copyright (C) 1995 by Pasi Eronen.

@@ -1,10 +1,3 @@
-/*
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 /* Modified for DOSEMU's internal mouse driver support
  * by Alan Hourihane (alanh@fairlite.demon.co.uk)
  * (29/4/94)

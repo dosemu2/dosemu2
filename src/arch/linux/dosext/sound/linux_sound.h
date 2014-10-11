@@ -1,10 +1,4 @@
 /*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * This sets the number & size of the buffers in the Linux sound driver
  *
  * 0x00020008  - The value Hannu notes in his explaination

@@ -1,9 +1,3 @@
-/*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 #ifndef SPEAKER_H
 #define SPEAKER_H
 

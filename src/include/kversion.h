@@ -1,10 +1,4 @@
 /*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * NOTE:  don't include this file in DOSEMU code, except for v-net/dosnet.c
  *        (which is a kernel module) and other real kernel code (modules).
  *        User space DOSEMU should compile kernel independently.

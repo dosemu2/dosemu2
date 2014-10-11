@@ -1,11 +1,3 @@
-/*
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- *
- */
-
 /* this code is adapted from 2asm via MAME and DOSBox
  * changed jcc in 32-bit mode (addr_to_hex) to give normal addresses without :
  * store referenced address in refoff for dosdebug.

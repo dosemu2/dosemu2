@@ -1,11 +1,4 @@
 /*
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
 
    Reads STDIN and interprets it as raw MIDI data according to
    the General Midi standard.

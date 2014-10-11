@@ -1,9 +1,3 @@
-/*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 /* dynamic debug handlers - by Tim Bird */
 /* modified to support debug levels -- peak */
 /* Rehash so we aren't changing the code all of the time. Eric Biederman */

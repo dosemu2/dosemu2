@@ -1,9 +1,3 @@
-/*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 /* memory.h - general constants/functions for memory, addresses, etc.
  *    for Linux DOS emulator, Robert Sanders, gt8134b@prism.gatech.edu
  */

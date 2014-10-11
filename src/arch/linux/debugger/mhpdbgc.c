@@ -1,11 +1,4 @@
 /*
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * DOSEMU debugger,  1995 Max Parke <mhp@light.lightlink.com>
  *
  * (c) Copyright 1995-1996, Max H. Parke under the terms of the

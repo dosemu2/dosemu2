@@ -1,10 +1,3 @@
-#
-# (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
-#
-# for details see file COPYING in the DOSEMU distribution
-#
-
-
 # speed.S, to generate speed.com, for dosemu 0.67.16, 97/11/22
 # Set/Get HogThreshold
 #                                            Hans Lermen@fgan.de

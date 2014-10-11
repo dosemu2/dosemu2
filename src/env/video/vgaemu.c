@@ -1,10 +1,4 @@
 /*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * Containing modifications of first step  VGA mode 12h support which is
  * (C) Copyright 2000 by David Hindman.
  *

@@ -1,9 +1,3 @@
-/*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 /* a port of CMDLINE.AWK */
 #if !defined( __LARGE__) && !defined(__COMPACT__)
 #error "Use the LARGE or COMPACT model!"

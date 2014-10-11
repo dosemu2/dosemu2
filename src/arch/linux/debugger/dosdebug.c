@@ -1,10 +1,4 @@
 /*
- * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
-/*
  * DOSEMU debugger,  1995 Max Parke <mhp@light.lightlink.com>
  *
  * This is file dosdebug.c
