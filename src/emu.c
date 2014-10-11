@@ -1,7 +1,7 @@
 /*
- * (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
- * for details see file COPYING.DOSEMU in the DOSEMU distribution
+ * for details see file COPYING in the DOSEMU distribution
  */
 
 /*
@@ -251,7 +251,7 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
   "This program is  distributed  in  the  hope that it will be useful,\n"
   "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
   "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the files\n"
-  "COPYING.DOSEMU and COPYING for more details.\n"
+  "COPYING for more details.\n"
   "Use  this  program  at  your  own  risk!\n\n";
 
   static char text2[] =

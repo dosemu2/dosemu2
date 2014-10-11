@@ -1,7 +1,7 @@
 #
-# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
 #
-# for details see file COPYING.DOSEMU in the DOSEMU distribution
+# for details see file COPYING in the DOSEMU distribution
 #
 #USE_SLCURSES = 1  # this works buggy on some systems :-(
 #DBGFLAGS = -g

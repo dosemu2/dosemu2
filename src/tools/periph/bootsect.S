@@ -1,7 +1,7 @@
 #
 # (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
 #
-# for details see file COPYING.DOSEMU in the DOSEMU distribution
+# for details see file COPYING in the DOSEMU distribution
 #
 
 #  modified by Robert Sanders, gt8134b@prism.gatech.edu
