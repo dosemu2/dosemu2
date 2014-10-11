@@ -1,11 +1,11 @@
 #
-# Robert Sanders, gt8134b@prism.gatech.edu (original code)
 # (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
 
 # exitemu.S, to generate exitemu.com, for dosemu 0.49, 4/9/93
+# Robert Sanders, gt8134b@prism.gatech.edu
 #
 
 .code16

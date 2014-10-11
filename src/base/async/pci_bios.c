@@ -1,5 +1,4 @@
 /*
- * (C) Copyright 1999, Egbert Eich (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -8,6 +7,8 @@
 
 /*
  * PCI BIOS support for dosemu
+ *
+ * (C) Copyright 1999, Egbert Eich
  */
 #include <unistd.h>
 #include <stdlib.h>

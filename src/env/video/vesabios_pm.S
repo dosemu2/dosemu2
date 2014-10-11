@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 1997 Steffen Winterfeldt (original code)
- * email: Steffen Winterfeldt <wfeldt@suse.de>
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -21,6 +19,10 @@
  *
  * /REMARK
  * DANG_END_MODULE
+ *
+ *
+ * Copyright (c) 1997 Steffen Winterfeldt,
+ * email: Steffen Winterfeldt <wfeldt@suse.de>
  *
  * DANG_BEGIN_CHANGELOG
  *

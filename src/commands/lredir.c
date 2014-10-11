@@ -1,5 +1,4 @@
 /*
- * Written: 10/29/93 by Tim Bird (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -9,6 +8,7 @@
 /***********************************************
  * File: LREDIR.C
  *  Program for Linux DOSEMU disk redirector functions
+ * Written: 10/29/93 by Tim Bird
  * Fixes: 1/7/95 by Tim Josling TEJ: check correct # args
  *      :                            display read/write status correctly
  * Changes: 3/19/95 by Kang-Jin Lee
