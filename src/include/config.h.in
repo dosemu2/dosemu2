@@ -1,21 +1,15 @@
 /* src/include/config.h.in.  Generated from configure.ac by autoheader.  */
 
 
-/* 
- * (C) Copyright 1992, ..., 2007 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING.DOSEMU in the DOSEMU distribution
- */
-
 /*
  * BIG FAT WARNING:
  *
  * These #defines come from configure.ac.
- * If you edit config.h.in, your efforts will become useless the next 
+ * If you edit config.h.in, your efforts will become useless the next
  * time you run autoheader or autoreconf.
  *
- * All lines within AH_TOP and AH_BOTTOM are copied unchanged into 
- * config.h.in. Read the GNU autoconf documentation to learn more 
+ * All lines within AH_TOP and AH_BOTTOM are copied unchanged into
+ * config.h.in. Read the GNU autoconf documentation to learn more
  * xabout configure & friends.
  *
  */
