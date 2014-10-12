@@ -1,15 +1,9 @@
-DOSEMU is a user-level program which uses certain special features
-of the Linux kernel and the 80386 processor to run MS-DOS/FreeDOS/
-DR-DOS in what we in the biz call a `DOS box.'
-
-You may freely use, modify and redistribute it under the terms
-of the GNU General Public License, version 2; for details see
-the file "COPYING".
+DOSEMU2 is a program that allows you to run DOS software under linux.
 
 Please refer to the NEWS file to read about recent user-visible
 changes.
 
-How to set up DOSEMU:
+How to set up DOSEMU2:
 * Installation from source:
   please refer to the file INSTALL
 * Installation of the ready to use binary distribution (stable versions only):
@@ -18,32 +12,13 @@ How to set up DOSEMU:
 Something's not right!!!
 --------------------------------------------------------------------------
 
-- Read your dosemu.conf file carefully and make corrections.
-
-- Try disabling certain features.  On the linux console, the video options 
-  and some of the rawkeyboard options sometimes cause problems.
-
-- Read all documentation files carefully, and try to get some help from
-  others who have used DOSEMU.
-
-- Read the dosemu-HOWTO for Q&A's.
-
-- If no luck, please send us a debug report by typing 'dosemu -D+a -o debug'
-  and send the file debug together with your config files and a
-  description of your problem to the SF bug tracking system that you can
-  reach from
-
-    http://www.dosemu.org
-
-  Don't forget to mention the versions of DOSEMU, GCC, LIBC, Binutils etc.
-  For problems with the packaging of DOSEMU by Linux distributors,
-  please bother them directly - we won't hunt after those bugs.
+- Please send bug reports to
+  https://github.com/stsp/dosemu2/issues
+  Don't forget to attach the needed logs (see "man dosemu.bin" for
+  logging option).
 
   For general discussion on dosemu use the mailing list
   linux-msdos@vger.kernel.org
-
-- Please be patient with us.  We get flooded with bug reports and do our
-  best to respond in a timely fashion.
 
 Available documentation -- mostly somewhat outdated :(
 --------------------------------------------------------------------------
@@ -85,8 +60,3 @@ You can just execute ./ViewDocs to read the docs.
 
 Many thanks to all involved, including all those who submitted debug
 output for our viewing pleasure, keep it coming.
-
-
-       Bart Oldeman
-
-Email: linux-msdos@vger.kernel.org
