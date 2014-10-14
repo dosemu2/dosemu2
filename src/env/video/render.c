@@ -28,7 +28,7 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
 static void bitmap_draw_line(int x, int y, int len)
@@ -37,7 +37,7 @@ static void bitmap_draw_line(int x, int y, int len)
 
   ra = draw_bitmap_line(x, y, len);
   if (ra.width)
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
@@ -46,7 +46,7 @@ static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end
 
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus);
   if (ra.width)
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
 static void bitmap_set_text_palette(DAC_entry col)
@@ -366,7 +366,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
     XSync(display, False);
 #endif
 
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 
     v_printf("update_graphics_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,

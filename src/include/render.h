@@ -9,7 +9,7 @@
 
 struct render_system
 {
-  void (*put_image)(int x, int y, unsigned width, unsigned height);
+  void (*refresh_rect)(int x, int y, unsigned width, unsigned height);
 };
 
 extern struct RemapObjectStruct remap_obj;
