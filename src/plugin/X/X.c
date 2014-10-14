@@ -419,9 +419,6 @@ static int MakePrivateColormap(void);
 static ColorSpaceDesc MakeSharedColormap(void);
 static int try_cube(unsigned long *, c_cube *);
 
-/* palette/color update stuff */
-static void refresh_private_palette(DAC_entry *col, int num);
-
 /* ximage/drawing related stuff */
 static void create_ximage(void);
 static void destroy_ximage(void);
@@ -481,7 +478,6 @@ struct video_system Video_X =
 
 struct render_system Render_X =
 {
-   refresh_private_palette,
    put_ximage,
 };
 
@@ -749,8 +745,6 @@ int X_init()
     }
   }
 
-  if(have_true_color || have_shmap)
-    Render_X.refresh_private_palette = NULL;
   register_render_system(&Render_X);
   X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
@@ -1883,54 +1877,6 @@ int try_cube(unsigned long *p, c_cube *c)
   }
   return i;
 }
-
-
-/*
- * Update the private palette to match the current DAC entries.
- */
-void refresh_private_palette(DAC_entry *col, int num)
-{
-  XColor xcolor[256];
-  RGBColor c;
-  int i, k;
-  unsigned bits, shift;
-
-  /*
-   * Colormap size is limited to cmap_colors, not 256. This leads to
-   * incorrect displays at screens with less than 8 bit color depth.
-   * --> So don't use private palettes with less than 256 colors.
-   */
-
-  for(i = k = 0; k < num; k++) {
-    if(col[k].index < cmap_colors) {
-      c.r = col[k].r; c.g = col[k].g; c.b = col[k].b;
-      bits = dac_bits;
-      gamma_correct(&remap_obj, &c, &bits);
-      shift = 16 - bits;
-      xcolor[i].flags = DoRed | DoGreen | DoBlue;
-      xcolor[i].pixel = col[k].index;
-      xcolor[i].red   = c.r << shift;
-      xcolor[i].green = c.g << shift;
-      xcolor[i].blue  = c.b << shift;
-#if 0
-      X_printf(
-        "X: refresh_private_palette: color 0x%02x (0x%02x 0x%02x 0x%02x) -> (0x%04x 0x%04x 0x%04x)\n",
-        (unsigned) col[k].index, (unsigned) c.r, (unsigned) c.g, (unsigned) c.b,
-        (unsigned) xcolor[i].red, (unsigned) xcolor[i].green, (unsigned) xcolor[i].blue
-      );
-#else
-      X_printf("X: refresh_private_palette: color 0x%02x\n", (unsigned) col[k].index);
-#endif
-      i++;
-    }
-    else {
-      X_printf("X: refresh_private_palette: color 0x%02x not updated\n", (unsigned) col[k].index);
-    }
-  }
-
-  if(graphics_cmap && i) XStoreColors(display, graphics_cmap, xcolor, i);
-}
-
 
 /*
  * Create an image. Will use shared memory, if available.

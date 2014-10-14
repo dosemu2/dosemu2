@@ -45,7 +45,6 @@ static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
 static void SDL_update_cursor(void);
 static int SDL_update_screen(void);
-static void SDL_refresh_private_palette(DAC_entry *col, int num);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int *x_res, int *y_res);
 
@@ -72,7 +71,6 @@ struct video_system Video_SDL =
 
 struct render_system Render_SDL =
 {
-   SDL_refresh_private_palette,
    SDL_put_image,
 };
 
@@ -92,7 +90,6 @@ static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 /* For graphics mode */
 static vga_emu_update_type veut;
 static ColorSpaceDesc SDL_csd;
-static SDL_Color vga_colors[256];
 
 static struct {
   int num, max;
@@ -218,8 +215,6 @@ int SDL_init(void)
   have_true_color = (video_info->vfmt->palette == NULL);
   remap_src_modes = remapper_init(&SDL_image_mode, SDL_csd.bits, have_true_color, 0);
 
-  if(have_true_color)
-    Render_SDL.refresh_private_palette = NULL;
   register_render_system(&Render_SDL);
 
   if(vga_emu_init(remap_src_modes, &SDL_csd)) {
@@ -480,38 +475,6 @@ int SDL_update_screen(void)
     return ret;
   }
   return 0;
-}
-
-static void SDL_refresh_private_palette(DAC_entry *col, int num)
-{
- /* SDL cannot change colors 1, 5, 7... in a single step, cause
-  * the SetColors command can only change consecutive colors.
-  *
-  * So there were three choices :
-  * i. Do a SetColor for each color that changed
-  * ii. Do a SetColor for the whole palette. This need the current palette
-  * to be saved in memory
-  * iii. Group all changed consecutive colors and do a SetColor for each group
-  * The 2nd solution is faster (5/10 times) than the first, and is implemented
-  * here. The 3rd solution is perhaps better but i haven't really tried
-  * to implement it */
-  int cols;
-  RGBColor c;
-  int k;
-  unsigned bits, shift;
-  cols = 1 << vga.pixel_size;
-  if(cols > 256) cols = 256;
-  for(k = 0; k < num; k++) {
-    c.r = col[k].r; c.g = col[k].g; c.b = col[k].b;
-    bits = vga.dac.bits;
-    gamma_correct(&remap_obj, &c, &bits);
-    if (bits < 8)  shift = 8 - bits;
-    else shift = 0;
-    vga_colors[col[k].index].r = c.r << shift;
-    vga_colors[col[k].index].g = c.g << shift;
-    vga_colors[col[k].index].b = c.b << shift;
-  }
-  SDL_SetColors(surface, vga_colors, 0, cols);
 }
 
 /* this only pushes the rectangle on a stack; updating is done later */

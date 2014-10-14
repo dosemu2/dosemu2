@@ -9,8 +9,6 @@
 
 struct render_system
 {
-  /* set the private palette */
-  void (*refresh_private_palette)(DAC_entry *col, int num);
   void (*put_image)(int x, int y, unsigned width, unsigned height);
 };
 

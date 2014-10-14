@@ -138,11 +138,6 @@ static Boolean refresh_truecolor(DAC_entry *col, int num)
 Boolean refresh_palette(DAC_entry *col)
 {
   int j = changed_vga_colors(col);
-
-  if(Render->refresh_private_palette) {
-    Render->refresh_private_palette(col, j);
-    return vga.mode_class == TEXT;
-  }
   return refresh_truecolor(col, j);
 }
 
