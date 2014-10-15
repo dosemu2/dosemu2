@@ -79,6 +79,20 @@ fi
 
 mkdir -p ~/.dosemu
 BPATH_FILE=~/.dosemu/bindist_path
+LOG_FILE=~/.dosemu/boot.log
+MAX_LOGS=3
+
+if [ -f $LOG_FILE ]; then
+  NL=`ls $LOG_FILE.? 2>/dev/null | tail -n 1 | xargs basename 2>/dev/null | cut -d "." -f 3`
+  if [ -z "$NL" ]; then
+    NL="1"
+  elif [ $NL -ge $MAX_LOGS ]; then
+    NL="1"
+  else
+    NL=`expr $NL + 1`
+  fi
+  mv -f $LOG_FILE $LOG_FILE.$NL
+fi
 
 BOOT_DIR_PATH=$THISDIR
 # check whether this user has already got his private installation
