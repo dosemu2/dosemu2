@@ -23,4 +23,4 @@ void remapper_done(void);
 void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 			 vga_emu_update_type *veut);
 int update_screen(vga_emu_update_type *veut);
-Boolean refresh_palette(DAC_entry *col);
+Boolean refresh_palette(void);

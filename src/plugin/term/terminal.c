@@ -843,10 +843,6 @@ static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last,
 {
 }
 
-static void term_set_text_palette(DAC_entry color)
-{
-}
-
 #define term_setmode NULL
 #define term_update_cursor NULL
 
@@ -867,5 +863,4 @@ struct text_system Text_term =
    term_draw_string,
    NULL,
    term_draw_text_cursor,
-   term_set_text_palette,
 };

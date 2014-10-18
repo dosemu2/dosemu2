@@ -176,17 +176,17 @@ static void get_approx_color(XColor *xc, Colormap cmap, int read_cmap)
 /*
  * Update the active X colormap for text modes DAC entry col.
  */
-static void X_set_text_palette(DAC_entry col)
+static void X_set_text_palette(DAC_entry *col, int i)
 {
   int read_cmap = 1;
-  int i, shift = 16 - vga.dac.bits;
+  int shift = 16 - vga.dac.bits;
   XColor xc;
 
   xc.flags = DoRed | DoGreen | DoBlue;
-  xc.pixel = text_colors[i = col.index];
-  xc.red   = col.r << shift;
-  xc.green = col.g << shift;
-  xc.blue  = col.b << shift;
+  xc.pixel = text_colors[i];
+  xc.red   = col->r << shift;
+  xc.green = col->g << shift;
+  xc.blue  = col->b << shift;
 
   if(text_col_stats[i]) XFreeColors(text_display, text_cmap, &xc.pixel, 1, 0);
 

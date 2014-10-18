@@ -498,7 +498,7 @@ int vgaemu_map_bank(void);
 int vga_emu_set_textsize(int, int);
 void dirty_all_video_pages(void);
 void dirty_all_vga_colors(void);
-int changed_vga_colors(DAC_entry *);
+int changed_vga_colors(void (*upd_func)(DAC_entry *, int));
 void vgaemu_adj_cfg(unsigned, unsigned);
 void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
 void vgaemu_put_char(unsigned char c, unsigned char page, unsigned char attr);

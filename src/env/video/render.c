@@ -49,17 +49,11 @@ static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
-static void bitmap_set_text_palette(DAC_entry col)
-{
-  /* done by remapper */
-}
-
 static struct text_system Text_bitmap =
 {
   bitmap_draw_string,
   bitmap_draw_line,
   bitmap_draw_text_cursor,
-  bitmap_set_text_palette,
 };
 
 int register_render_system(struct render_system *render_system)
@@ -122,23 +116,15 @@ void remapper_done(void)
  * Update the displayed image to match the current DAC entries.
  * Will redraw the *entire* screen if at least one color has changed.
  */
-static Boolean refresh_truecolor(DAC_entry *col, int num)
+static void refresh_truecolor(DAC_entry *col, int index)
 {
-  Boolean colchanged = False;
-  int i;
-
-  for(i = 0; i < num; i++) {
-    colchanged |=
-    remap_obj.palette_update(&remap_obj, col[i].index, vga.dac.bits, col[i].r, col[i].g, col[i].b);
-  }
-  return colchanged;
+  remap_obj.palette_update(&remap_obj, index, vga.dac.bits, col->r, col->g, col->b);
 }
 
 /* returns True if the screen needs to be redrawn */
-Boolean refresh_palette(DAC_entry *col)
+Boolean refresh_palette(void)
 {
-  int j = changed_vga_colors(col);
-  return refresh_truecolor(col, j);
+  return changed_vga_colors(refresh_truecolor);
 }
 
 /*
@@ -146,9 +132,7 @@ Boolean refresh_palette(DAC_entry *col)
  */
 static void refresh_graphics_palette(void)
 {
-  DAC_entry col[256];
-
-  if (refresh_palette(col))
+  if (refresh_palette())
     dirty_all_video_pages();
 }
 
