@@ -40,7 +40,7 @@
 #include "vgaemu.h"
 #include "remap.h"
 #include "vgatext.h"
-#include "render.h"
+#include "render_priv.h"
 #include "translate.h"
 
 static struct text_system * Text = NULL;

@@ -13,6 +13,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "video.h"
+#include "render_priv.h"
 
 RemapObject remap_obj;
 int remap_features;
