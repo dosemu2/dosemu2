@@ -418,9 +418,7 @@ static void SDL_change_mode(int *x_res, int *y_res)
   }
   SDL_ShowCursor(SDL_DISABLE);
   if (use_bitmap_font || vga.mode_class == GRAPH) {
-    remap_obj.dst_resize(&remap_obj, *x_res, *y_res, surface->pitch);
-    remap_obj.dst_image = surface->pixels;
-    *remap_obj.dst_color_space = SDL_csd;
+    render_init(surface->pixels, &SDL_csd, *x_res, *y_res, surface->pitch);
   }
 #ifdef X_SUPPORT
   {

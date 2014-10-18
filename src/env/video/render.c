@@ -438,3 +438,11 @@ int update_screen(vga_emu_update_type *veut)
   return vga.mode_class == TEXT ? update_text_screen() :
     update_graphics_screen(veut);
 }
+
+void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
+	int scan_len)
+{
+  remap_obj.dst_resize(&remap_obj, width, height, scan_len);
+  remap_obj.dst_image = img;
+  *remap_obj.dst_color_space = *csd;
+}

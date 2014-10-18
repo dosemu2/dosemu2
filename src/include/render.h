@@ -24,3 +24,5 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 			 vga_emu_update_type *veut);
 int update_screen(vga_emu_update_type *veut);
 Boolean refresh_palette(void);
+void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
+	int scan_len);

@@ -1995,8 +1995,7 @@ void resize_ximage(unsigned width, unsigned height)
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  remap_obj.dst_resize(&remap_obj, width, height, ximage->bytes_per_line);
-  remap_obj.dst_image = (unsigned char *)ximage->data;
+  render_init((unsigned char *)ximage->data, &X_csd, width, height, ximage->bytes_per_line);
 }
 
 /*
@@ -2047,7 +2046,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   if (use_bitmap_font) {
     resize_text_mapper(ximage_mode);
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
-    *remap_obj.dst_color_space = X_csd;
   }
 }
 
@@ -2179,45 +2177,19 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-
-    remap_obj.dst_image = (unsigned char *)ximage->data;
-    *remap_obj.dst_color_space = X_csd;
-    remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
+    render_init((unsigned char *)ximage->data, &X_csd, w_x_res, w_y_res, ximage->bytes_per_line);
 
     sh.width = w_x_res;
     sh.height = w_y_res;
-    if(!(remap_obj.state & ROS_SCALE_ALL)) {
-      sh.width_inc = x_res;
-      sh.height_inc = y_res;
-    }
-    else {
-      sh.width_inc = 1;
-      sh.height_inc = 1;
-    }
+    sh.width_inc = 1;
+    sh.height_inc = 1;
     sh.min_aspect.x = w_x_res;
     sh.min_aspect.y = w_y_res;
     sh.max_aspect = sh.min_aspect;
-
-    if(remap_obj.state & ROS_SCALE_ALL) {
-      sh.min_width = 0;
-      sh.min_height = 0;
-    }
-    else {
-      sh.min_width = w_x_res;
-      sh.min_height = w_y_res;
-    }
-    if(remap_obj.state & ROS_SCALE_ALL) {
-      sh.max_width = 32767;
-      sh.max_height = 32767;
-    }
-    else if(remap_obj.state & ROS_SCALE_2) {
-      sh.max_width = x_res << 1;
-      sh.max_height = y_res << 1;
-    }
-    else {
-      sh.max_width = w_x_res;
-      sh.max_height = w_y_res;
-    }
+    sh.min_width = 0;
+    sh.min_height = 0;
+    sh.max_width = 32767;
+    sh.max_height = 32767;
 
     sh.flags = PResizeInc | PSize  | PMinSize | PMaxSize;
     if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
