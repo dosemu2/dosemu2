@@ -2514,7 +2514,7 @@ void dirty_all_vga_colors()
   for(i = 0; i < 0x10; i++) vga.attr.dirty[i] = True;		/* palette regs */
   vga.attr.dirty[0x11] = True;					/* border color */
 
-  for(i = 0; i < 256; i++) vga.dac.rgb[i].index = True;		/* index = dirty flag ! */
+  for(i = 0; i < 256; i++) vga.dac.rgb[i].dirty = True;
 }
 
 
@@ -2558,14 +2558,14 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
   */
   if(vga.pixel_size > 4) {
     for(i = j = 0; i < cols; i++) {
-      if(vga.dac.rgb[i].index == True) {
+      if(vga.dac.rgb[i].dirty == True) {
         de = vga.dac.rgb[i];
         m = vga.dac.pel_mask;
         de.r &= m; de.g &= m; de.b &= m;
         if (upd_func)
           upd_func(&de, i);
         j++;
-        vga.dac.rgb[i].index = False;
+        vga.dac.rgb[i].dirty = False;
         vga_deb_col("changed_vga_colors: color 0x%02x\n", i);
       }
     }
@@ -2595,7 +2595,7 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
       }
 
       if(
-        vga.dac.rgb[a].index == True ||
+        vga.dac.rgb[a].dirty == True ||
         vga.attr.dirty[k] == True
       ) {
         vga.attr.dirty[k] = False;
@@ -2604,7 +2604,7 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
         de.r &= m; de.g &= m; de.b &= m;
         if (upd_func)
           upd_func(&de, i);
-        vga.dac.rgb[a].index = False;
+        vga.dac.rgb[a].dirty = False;
         j++;
         vga_deb_col(
           "changed_vga_colors: color 0x%02x, pal 0x%02x, rgb 0x%02x 0x%02x 0x%02x\n",

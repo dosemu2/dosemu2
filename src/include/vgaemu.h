@@ -153,7 +153,8 @@
  */
 
 typedef struct {
-  unsigned char index, r, g, b;		/* index, red, green, blue */
+  unsigned char r, g, b;
+  int dirty;
 } DAC_entry;
 
 
@@ -538,7 +539,7 @@ void do_vesa_int(void);
 
 void DAC_init(void);
 void DAC_set_width(unsigned);
-void DAC_get_entry(DAC_entry *);
+void DAC_get_entry(DAC_entry *, int);
 void DAC_set_entry(unsigned char, unsigned char, unsigned char, unsigned char);
 void DAC_rgb2gray(unsigned char);
 

@@ -1122,8 +1122,7 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned i
 
     case 1:
       while(first < 256 && len) {
-        dac.index = first;
-        DAC_get_entry(&dac);
+        DAC_get_entry(&dac, first);
         WRITE_BYTE(buffer+2, dac.r);
         WRITE_BYTE(buffer+1, dac.g);
         WRITE_BYTE(buffer+0, dac.b);
