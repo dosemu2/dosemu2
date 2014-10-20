@@ -9,6 +9,7 @@
 
 extern Display *display;
 extern struct keyboard_client Keyboard_X;
+extern struct video_system Video_X;
 
 void           get_vga_colors (void);
 void           X_handler      (void);
