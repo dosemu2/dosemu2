@@ -413,6 +413,7 @@ static void SDL_change_mode(int *x_res, int *y_res)
   if (!surface) {
     dosemu_error("SDL_SetVideoMode(%i %i) failed: %s\n", *x_res, *y_res,
 	SDL_GetError());
+    init_failed = 1;
     leavedos(23);
     return;
   }
@@ -452,6 +453,8 @@ void SDL_update_cursor(void)
 
 int SDL_update_screen(void)
 {
+  if (init_failed)
+    return 1;
   if(vga.reconfig.re_init) {
     vga.reconfig.re_init = 0;
     sdl_rects.num = 0;
