@@ -210,7 +210,7 @@ static int video_init(void)
      if (config.cardtype == CARD_MDA)
        {
 	 v_printf("VID: Video set to Video_hgc\n");
-	 Video = &Video_hgc;
+	 Video = video_get("hgc");
        }
      else
        {

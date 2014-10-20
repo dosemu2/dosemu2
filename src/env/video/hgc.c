@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "init.h"
 #include "port.h"
 #include "video.h"
 #include "vc.h"
@@ -426,7 +427,7 @@ static void hga_close(void)
 }
 
 
-struct video_system Video_hgc = {
+static struct video_system Video_hgc = {
    hgc_init,
    hgc_post_init,
    hga_close,
@@ -437,3 +438,8 @@ struct video_system Video_hgc = {
    NULL,
    .name = "hgc"
 };
+
+CONSTRUCTOR(static void init(void))
+{
+   register_video_client(&Video_hgc);
+}
