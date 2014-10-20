@@ -218,21 +218,19 @@ static int video_init(void)
 	 Video=&Video_console;
        }
   }
-  else
-#if !defined(USE_DL_PLUGINS) && defined(USE_SLANG)
-  {
-     v_printf("VID: Video set to Video_term\n");
-     Video=&Video_term;       /* S-Lang */
-  }
-#else
-  if (!load_plugin("term")) {
+  else {
+#if defined(USE_DL_PLUGINS) && defined(USE_SLANG)
+    if (!load_plugin("term")) {
      error("Terminal (S-Lang library) support not compiled in.\n"
            "Install slang-devel and recompile, use xdosemu or console "
            "dosemu (needs root) instead.\n");
      /* too early to call leavedos */
      exit(1);
-  }
+    }
+    v_printf("VID: Video set to Video_term\n");
+    Video = video_get("term");       /* S-Lang */
 #endif
+  }
 
 #if USE_DUALMON
   init_dualmon();

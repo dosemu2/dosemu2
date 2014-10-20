@@ -93,7 +93,7 @@ extern struct video_system *Video;
 extern struct video_system *Video_default;
 #endif
 extern struct video_system Video_none, Video_X,
-  Video_console, Video_hgc, Video_term, Video_SDL;
+  Video_console, Video_hgc, Video_SDL;
 
 EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
                              /* used&updated by Video->update_screen    */

@@ -75,6 +75,7 @@
 #include "dos2linux.h"
 
 struct text_system Text_term;
+static struct video_system Video_term;
 
 /* The interpretation of the DOS attributes depend upon if the adapter is
  * color or not.
@@ -846,7 +847,7 @@ static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last,
 #define term_setmode NULL
 #define term_update_cursor NULL
 
-struct video_system Video_term = {
+static struct video_system Video_term = {
    NULL,
    terminal_initialize,
    terminal_close,
@@ -864,3 +865,8 @@ struct text_system Text_term =
    NULL,
    term_draw_text_cursor,
 };
+
+CONSTRUCTOR(static void init(void))
+{
+   register_video_client(&Video_term);
+}
