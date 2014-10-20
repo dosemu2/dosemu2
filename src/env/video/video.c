@@ -47,7 +47,7 @@ static int video_none_init(void)
   return 0;
 }
 
-struct video_system Video_none = {
+static struct video_system Video_none = {
   i_empty_void,	/* priv_init */
   video_none_init,	/* init */
   v_empty_void,	/* close */
