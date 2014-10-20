@@ -14,6 +14,7 @@
 
 #include "bios.h"
 #include "emu.h"
+#include "init.h"
 #include "int.h"
 #include "coopth.h"
 #include "port.h"
@@ -667,7 +668,7 @@ static void vga_close(void)
   sem_destroy(&cpy_sem);
 }
 
-struct video_system Video_graphics = {
+static struct video_system Video_graphics = {
    vga_initialize,
    vga_post_init,
    vga_close,
@@ -822,6 +823,11 @@ static int vga_post_init(void)
   set_vc_screen_page();
   video_initialized = 1;
   return 0;
+}
+
+CONSTRUCTOR(static void init(void))
+{
+   register_video_client(&Video_graphics);
 }
 
 /* End of video/vga.c */

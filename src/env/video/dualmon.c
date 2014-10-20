@@ -74,7 +74,7 @@
 #include "vga.h"
 #include "mapping.h"
 
-#define _IS_VS(s) (Video == ((struct video_system *)&(s)) )
+#define _IS_VS(s) (strcmp(Video->name, s) == 0)
 
 struct video_system *Video_default;
 
@@ -128,12 +128,12 @@ static unsigned char dualmon_text_table[] =
 static int map_MDA_for_dualmon(void)
 {
   if (!config.dualmon) return 0;
-  if ( (!_IS_VS(Video_none) && !_IS_VS(Video_graphics)
+  if ( (!_IS_VS("none") && !_IS_VS("graphics")
         /* not stable yet: works with "mode mono", but not yet with "TD -do" */
 #if 1
 	&& !config.X
 #endif
-       ) && (!_IS_VS(Video_hgc))) {
+       ) && (!_IS_VS("hgc"))) {
     int size=TEXT_SIZE(CO,LI);
     if (alloc_mapping(MAPPING_HGC | MAPPING_KMEM, (size_t) size,
 	MDA_PHYS_TEXT_BASE) == (caddr_t) -1) {
@@ -150,7 +150,7 @@ static int map_MDA_for_dualmon(void)
           MDA_PHYS_TEXT_BASE,size);
     return 1;
   }
-  if (config.dualmon && (_IS_VS(Video_graphics) /* || _IS_VS(Video_console )*/ )) return 2;
+  if (config.dualmon && (_IS_VS("graphics") /* || _IS_VS(Video_console )*/ )) return 2;
   return 0;
 }
 

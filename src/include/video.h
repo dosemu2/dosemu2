@@ -92,7 +92,7 @@ extern struct video_system *Video;
 #if USE_DUALMON
 extern struct video_system *Video_default;
 #endif
-extern struct video_system Video_none, Video_graphics, Video_X,
+extern struct video_system Video_none, Video_X,
   Video_console, Video_hgc, Video_term, Video_SDL;
 
 EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */

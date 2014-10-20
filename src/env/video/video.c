@@ -204,7 +204,7 @@ static int video_init(void)
   }
   else if (config.vga) {
      v_printf("VID: Video set to Video_graphics\n");
-     Video=&Video_graphics;
+     Video = video_get("graphics");
   }
   else if (config.console_video) {
      if (config.cardtype == CARD_MDA)
