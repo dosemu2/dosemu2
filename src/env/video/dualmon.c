@@ -150,7 +150,7 @@ static int map_MDA_for_dualmon(void)
           MDA_PHYS_TEXT_BASE,size);
     return 1;
   }
-  if (config.dualmon && (_IS_VS("graphics") /* || _IS_VS(Video_console )*/ )) return 2;
+  if (config.dualmon && (_IS_VS("graphics") /* || _IS_VS("console")*/ )) return 2;
   return 0;
 }
 

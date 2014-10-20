@@ -215,7 +215,7 @@ static int video_init(void)
      else
        {
 	 v_printf("VID: Video set to Video_console\n");
-	 Video=&Video_console;
+	 Video = video_get("console");
        }
   }
   else {

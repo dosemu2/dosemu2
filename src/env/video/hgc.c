@@ -32,6 +32,7 @@ static void hgc_meminit(void);
 static void mda_initialize(void);
 static void mda_reinitialize(void);
 static void set_hgc_page(int page);
+static struct video_system *Video_console;
 
 static char hgc_Mode;
 static char hgc_Konv;
@@ -385,6 +386,11 @@ static void set_hgc_page(int page)
 
 static int hgc_init(void)
 {
+  Video_console = video_get("console");
+  if (!Video_console) {
+    error("console video plugin unavailable\n");
+    return -1;
+  }
   hgc_meminit();
   mda_initialize();
 
@@ -401,7 +407,7 @@ static int hgc_init(void)
 
 static int hgc_post_init(void)
 {
-  Video_console.init();
+  Video_console->init();
   return 0;
 }
 

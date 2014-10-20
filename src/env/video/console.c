@@ -9,6 +9,7 @@
 #endif
 
 #include "emu.h"
+#include "init.h"
 #include "termio.h"
 #include "video.h"
 #include "vc.h"
@@ -160,7 +161,7 @@ static void console_close(void)
 
 #define console_setmode NULL
 
-struct video_system Video_console = {
+static struct video_system Video_console = {
    console_init,
    console_post_init,
    console_close,
@@ -172,3 +173,7 @@ struct video_system Video_console = {
    .name = "console"
 };
 
+CONSTRUCTOR(static void init(void))
+{
+   register_video_client(&Video_console);
+}
