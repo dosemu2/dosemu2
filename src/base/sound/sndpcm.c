@@ -357,7 +357,9 @@ void pcm_prepare_stream(int strm_idx)
     case SNDBUF_STATE_STALLED:
 	error("PCM: prepare stalled stream %s\n", s->name);
 	/* should never happen, but if we are here we reset stretches */
+	pthread_mutex_lock(&pcm.strm_mtx);
 	pcm_reset_stream(strm_idx);
+	pthread_mutex_unlock(&pcm.strm_mtx);
 	break;
 
     case SNDBUF_STATE_FLUSHING:
@@ -549,7 +551,9 @@ static void pcm_handle_flush(int strm_idx)
 	break;
 
     case SNDBUF_STATE_STALLED:
+	pthread_mutex_lock(&pcm.strm_mtx);
 	pcm_reset_stream(strm_idx);
+	pthread_mutex_unlock(&pcm.strm_mtx);
 	break;
     }
 }
@@ -835,6 +839,12 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	 stop_time, now - start_time);
 
     pthread_mutex_lock(&pcm.strm_mtx);
+    if (!pcm.players[handle].opened) {
+	S_printf("PCM: player %s already closed\n",
+		pcm.players[handle].player.name);
+	pthread_mutex_unlock(&pcm.strm_mtx);
+	return 0;
+    }
     frame_period = pcm_frame_period_us(params->rate);
     time = start_time;
     calc_idxs(&pcm.players[handle], idxs);
@@ -948,25 +958,28 @@ void pcm_reset(void)
 void pcm_done(void)
 {
     int i;
-    pthread_mutex_lock(&pcm.strm_mtx);
     for (i = 0; i < pcm.num_streams; i++) {
 	if (pcm.stream[i].state == SNDBUF_STATE_PLAYING ||
 		pcm.stream[i].state == SNDBUF_STATE_STALLED)
 	    pcm_flush(i);
     }
+    pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_MAX);
-    pthread_mutex_unlock(&pcm.strm_mtx);
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_player_wr *p = &pcm.players[i];
 	if (p->opened) {
-	    if (p->player.close)
+	    if (p->player.close) {
+		pthread_mutex_unlock(&pcm.strm_mtx);
 		p->player.close(p->player.arg);
+		pthread_mutex_lock(&pcm.strm_mtx);
+	    }
 	    p->opened = 0;
 	}
     }
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
+    pthread_mutex_unlock(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.time_mtx);
 }
