@@ -81,6 +81,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
 /* mouse movement functions */
 static void mouse_reset(void);
 static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
+static void mouse_reset_to_current_video_mode(int mode);
 
 /* graphics cursor */
 void graph_cursor(void), text_cursor(void);
@@ -968,7 +969,7 @@ static void add_px(int dx, int dy, int x_range, int y_range)
  * Win31 does not reset the mouse in the normal way, and
  * the only clue we have is the video mode (0x62 and 0x06 for 1024x768)
  */
-void
+static void
 mouse_reset_to_current_video_mode(int mode)
 {
   /* Setup MAX / MIN co-ordinates */
