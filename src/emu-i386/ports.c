@@ -852,7 +852,16 @@ int port_init(void)
 	port_handler[HANDLE_VID_IO].read_portd = NULL;
 	port_handler[HANDLE_VID_IO].write_portd = NULL;
 	port_handler[HANDLE_VID_IO].handler_name = "video port io";
+#else
+	port_handler[HANDLE_VID_IO].read_portb = std_port_inb;
+	port_handler[HANDLE_VID_IO].write_portb = std_port_outb;
+	port_handler[HANDLE_VID_IO].read_portw = std_port_inw;
+	port_handler[HANDLE_VID_IO].write_portw = std_port_outw;
+	port_handler[HANDLE_VID_IO].read_portd = std_port_ind;
+	port_handler[HANDLE_VID_IO].write_portd = std_port_outd;
+	port_handler[HANDLE_VID_IO].handler_name = "std port io";
 #endif
+
 	port_handler[HANDLE_SPECIAL].read_portb = special_port_inb;
 	port_handler[HANDLE_SPECIAL].write_portb = special_port_outb;
 	port_handler[HANDLE_SPECIAL].read_portw = NULL;
@@ -993,21 +1002,12 @@ int extra_port_init(void)
 			SET_HANDLE_COND(i+1,HANDLE_STD_IO);
 		}
 	}
-#if 0
 	if (config.chipset && config.mapped_bios) {
 		for (i=0x3b4; i<0x3bc; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
 		for (i=0x3c0; i<0x3df; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
 	}
-#else
-	if (config.chipset && config.mapped_bios) {
-		for (i=0x3b4; i<0x3bc; i++)
-			SET_HANDLE_COND(i,HANDLE_STD_IO);
-		for (i=0x3c0; i<0x3df; i++)
-			SET_HANDLE_COND(i,HANDLE_STD_IO);
-	}
-#endif
 	if (config.vga) {
 	  SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
 	  SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);

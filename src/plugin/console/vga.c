@@ -59,6 +59,13 @@ static unsigned char vregs[60] =
   0xE3
 };
 
+void (*save_ext_regs) (u_char xregs[], u_short xregs16[]);
+void (*restore_ext_regs) (u_char xregs[], u_short xregs16[]);
+void (*set_bank_read) (unsigned char bank);
+void (*set_bank_write) (unsigned char bank);
+void (*ext_video_port_out) (ioport_t port, unsigned char value);
+u_char(*ext_video_port_in) (ioport_t port);
+
 /* These are dummy calls */
 static void save_ext_regs_dummy(u_char xregs[], u_short xregs16[])
 {
