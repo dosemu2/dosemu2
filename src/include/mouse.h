@@ -180,12 +180,27 @@ extern int DOSEMUMouseEvents(int);
 extern void do_mouse_irq(void);
 extern void mouse_io_callback(void *);
 
-extern void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
-extern void mouse_move_relative(int dx, int dy, int x_range, int y_range);
-extern void mouse_move_mickeys(int dx, int dy);
-extern void mouse_move_absolute(int x, int y, int x_range, int y_range);
-extern void mouse_drag_to_corner(int x_range, int y_range);
-extern void mouse_sync_coords(int x, int y, int x_range, int y_range);
-extern void mouse_enable_native_cursor(int flag);
+struct mouse_drv {
+  int  (*init)(void);
+  void (*move_buttons)(int lbutton, int mbutton, int rbutton);
+  void (*move_relative)(int dx, int dy, int x_range, int y_range);
+  void (*move_mickeys)(int dx, int dy);
+  void (*move_absolute)(int x, int y, int x_range, int y_range);
+  void (*drag_to_corner)(int x_range, int y_range);
+  void (*sync_coords)(int x, int y, int x_range, int y_range);
+  void (*enable_native_cursor)(int flag);
+  char *name;
+  struct mouse_drv *next;
+};
+
+void register_mouse_driver(struct mouse_drv *mouse);
+
+void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
+void mouse_move_relative(int dx, int dy, int x_range, int y_range);
+void mouse_move_mickeys(int dx, int dy);
+void mouse_move_absolute(int x, int y, int x_range, int y_range);
+void mouse_drag_to_corner(int x_range, int y_range);
+void mouse_sync_coords(int x, int y, int x_range, int y_range);
+void mouse_enable_native_cursor(int flag);
 
 #endif /* MOUSE_H */

@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 
 #include "emu.h"
+#include "init.h"
 #include "bios.h"
 #include "int.h"
 #include "memory.h"
@@ -83,6 +84,14 @@ static void mouse_reset(void);
 static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 static void mouse_reset_to_current_video_mode(int mode);
 
+static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton);
+static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range);
+static void int33_mouse_move_mickeys(int dx, int dy);
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range);
+static void int33_mouse_drag_to_corner(int x_range, int y_range);
+static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range);
+static void int33_mouse_enable_native_cursor(int flag);
+
 /* graphics cursor */
 void graph_cursor(void), text_cursor(void);
 void graph_plane(int);
@@ -101,7 +110,6 @@ static int dragged;
 static mouse_erase_t mouse_erase;
 static int sent_mouse_esc = FALSE;
 
-static struct mouse_client Mouse_serial, Mouse_none;
 static mouse_t *mice = &config.mouse;
 struct mouse_struct mouse;
 
@@ -152,23 +160,6 @@ static short default_graphscreenmask[HEIGHT] =  {
   0xf87f,  /*1111100001111111*/
   0xfcff   /*1111110011111111*/
 };
-
-
-struct mouse_client *Mouse = NULL;
-
-/* register mouse at the back of the linked list */
-void register_mouse_client(struct mouse_client *mouse)
-{
-	struct mouse_client *m;
-
-	mouse->next = NULL;
-	if (Mouse == NULL)
-		Mouse = mouse;
-	else {
-		for (m = Mouse; m->next; m = m->next);
-		m->next = mouse;
-	}
-}
 
 void
 mouse_helper(struct vm86_regs *regs)
@@ -1088,7 +1079,7 @@ mouse_reset_to_current_video_mode(int mode)
   last_mouse_call_read_mickeys = 0;
 }
 
-void mouse_enable_native_cursor(int flag)
+static void int33_mouse_enable_native_cursor(int flag)
 {
   mice->native_cursor = flag;
   mouse_do_cur(1);
@@ -1492,8 +1483,8 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	if (state.l) {
 		dx -= 1;
 	}
-	mouse_move_mickeys(dx, dy);
-	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
+	int33_mouse_move_mickeys(dx, dy);
+	int33_mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
 }
 
 static int mouse_round_coords(void)
@@ -1626,7 +1617,7 @@ static void mouse_rb(void)
   }
 }
 
-void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
+static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 {
 	/* Provide 3 button emulation on 2 button mice,
 	   But only when PC Mouse Mode is set, otherwise
@@ -1660,7 +1651,7 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 	   mouse_rb();
 }
 
-void mouse_move_relative(int dx, int dy, int x_range, int y_range)
+static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range)
 {
 	add_px(dx, dy, x_range, y_range);
 	mouse.x_delta = mouse.y_delta = 0;
@@ -1675,7 +1666,7 @@ void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 	   mouse_move(0);
 }
 
-void mouse_move_mickeys(int dx, int dy)
+static void int33_mouse_move_mickeys(int dx, int dy)
 {
 	add_mk(dx, dy);
 
@@ -1689,7 +1680,7 @@ void mouse_move_mickeys(int dx, int dy)
 	   mouse_move(0);
 }
 
-void mouse_move_absolute(int x, int y, int x_range, int y_range)
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
 	int dx, dy, new_x, new_y, mx_range, my_range, clipped;
 	mx_range = mouse.maxx - mouse.minx +1;
@@ -1725,7 +1716,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	   mouse_move(0);
 }
 
-void mouse_sync_coords(int x, int y, int x_range, int y_range)
+static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range)
 {
 	int mx_range, my_range;
 	mx_range = mouse.maxx - mouse.minx +1;
@@ -1741,10 +1732,10 @@ void mouse_sync_coords(int x, int y, int x_range, int y_range)
 		mouse.x, mouse.mickeyx, mouse.y, mouse.mickeyy);
 }
 
-void mouse_drag_to_corner(int x_range, int y_range)
+static void int33_mouse_drag_to_corner(int x_range, int y_range)
 {
 	m_printf("MOUSE: drag to corner\n");
-	mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range);
+	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range);
 	dragged = 1;
 	mouse.abs_x = mouse.x;
 	mouse.abs_y = mouse.y;
@@ -1993,34 +1984,6 @@ mouse_curtick(void)
   mouse_update_cursor(0);
 }
 
-static void mouse_client_init(void)
-{
-  int ok;
-
-#ifdef USE_GPM
-  if (Mouse == NULL)
-    load_plugin("gpm");
-#endif
-  register_mouse_client(&Mouse_serial);
-  register_mouse_client(&Mouse_raw);
-  register_mouse_client(&Mouse_none);
-  while(TRUE) {
-    m_printf("MOUSE: initialising '%s' mode mouse client\n",
-             Mouse->name);
-
-    ok = Mouse->init?Mouse->init():TRUE;
-    if (ok) {
-      m_printf("MOUSE: Mouse init ok, '%s' mode\n", Mouse->name);
-      break;
-    }
-    else {
-      m_printf("MOUSE: Mouse init ***failed***, '%s' mode\n",
-               Mouse->name);
-    }
-    Mouse = Mouse->next;
-  }
-}
-
 void dosemu_mouse_reset(void)
 {
   if (mice->intdrv)
@@ -2035,8 +1998,7 @@ void dosemu_mouse_reset(void)
  *
  * DANG_END_FUNCTION
  */
-void
-dosemu_mouse_init(void)
+static int int33_mouse_init(void)
 {
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
 #if 1 /* BUG CATCHER */
@@ -2044,6 +2006,9 @@ dosemu_mouse_init(void)
 #else
   char *p=(char *)0xefe00;
 #endif
+
+  if (!mice->intdrv)
+    return 0;
 
   mouse.ignorexy = FALSE;
 
@@ -2071,14 +2036,11 @@ dosemu_mouse_init(void)
   mouse.speed_x = mice->init_speed_x;
   mouse.speed_y = mice->init_speed_y;
 
-  mouse_client_init();
-
-  if (mice->intdrv) {
-    memcpy(p,mouse_ver,sizeof(mouse_ver));
-    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, NULL);
-  }
+  memcpy(p,mouse_ver,sizeof(mouse_ver));
+  pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, NULL);
 
   m_printf("MOUSE: INIT complete\n");
+  return 1;
 }
 
 void mouse_post_boot(void)
@@ -2121,45 +2083,6 @@ dosemu_mouse_close(void)
   sent_mouse_esc = FALSE;
 }
 
-
-static int serial_mouse_init(void)
-{
-  int x;
-  serial_t *sptr=NULL;
-  for (x=0;x<config.num_ser;x++){
-    sptr = &com_cfg[x];
-    if (sptr->mouse) break;
-  }
-  if (!sptr || !(sptr->mouse)) {
-    m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
-    return FALSE;
-  }
-  m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
-  mice->intdrv = FALSE;
-  return TRUE;
-}
-
-static struct mouse_client Mouse_serial =  {
-  "Serial Mouse",   /* name */
-  serial_mouse_init,	/* init */
-  NULL,		/* close */
-  NULL,		/* run */
-  NULL
-};
-
-static int none_init(void)
-{
-  return TRUE;
-}
-
-static struct mouse_client Mouse_none =  {
-  "No Mouse",   /* name */
-  none_init,	/* init */
-  NULL,		/* close */
-  NULL,		/* run */
-  NULL
-};
-
 int DOSEMUMouseEvents(int ilevel)
 {
   if (Mouse->run) Mouse->run();
@@ -2170,3 +2093,19 @@ int DOSEMUMouseEvents(int ilevel)
 	- play with acceleration profiles more
 */
 
+struct mouse_drv int33_mouse = {
+  int33_mouse_init,
+  int33_mouse_move_buttons,
+  int33_mouse_move_relative,
+  int33_mouse_move_mickeys,
+  int33_mouse_move_absolute,
+  int33_mouse_drag_to_corner,
+  int33_mouse_sync_coords,
+  int33_mouse_enable_native_cursor,
+  "int33 mouse"
+};
+
+CONSTRUCTOR(static void int33_mouse_register(void))
+{
+  register_mouse_driver(&int33_mouse);
+}

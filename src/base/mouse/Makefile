@@ -9,19 +9,18 @@ include $(top_builddir)/Makefile.conf
 
 # The following variables may go into the Makfile in the parent-directory
 
-DEFINES=-DCLEARDTR_SUPPORT
 ALL_CPPFLAGS+=$(DEFINES)
 
 # Insert all source- and header-files here.
 
 
-CFILES = mouse.c mouseint.c mousevid.c gcursor.c
+CFILES = mouse.c mouseint.c mousevid.c gcursor.c mousedrv.c
 DEPENDS=$(CFILES:.c=.d)
 HFILES = mousevid.h
 ALL = $(CFILES) $(HFILES)
-OBJS = mouse.o mouseint.o mousevid.o gcursor.o
+OBJS = $(CFILES:.c=.o)
 
-all:  	lib
+all: lib
 
 install:
 
