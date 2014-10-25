@@ -45,7 +45,6 @@
 #include "Linux/serial.h"
 #include "emu.h"
 #include "port.h"
-#include "mouse.h"
 #include "bios.h"
 #include "pic.h"
 #include "serial.h"
@@ -375,11 +374,6 @@ int ser_open(int num)
   s_printf("SER%d: Running ser_open, %s, fd=%d\n", num, com_cfg[num].dev,
 	com[num].fd);
 
-  if (com_cfg[num].mouse && !on_console()) {
-    s_printf("SER%d: Not touching mouse outside of the console!\n",num);
-    return(-1);
-  }
-
   if (com[num].fd != -1) return (com[num].fd);
 
   if ( com_cfg[num].virtual )
@@ -388,7 +382,7 @@ int ser_open(int num)
     s_printf("Opening Virtual Port\n");
     com[num].dev_locked = FALSE;
   } else if (config.tty_lockdir[0]) {
-    if (!com_cfg[num].mouse && tty_lock(com_cfg[num].dev, 1) >= 0) {		/* Lock port */
+    if (tty_lock(com_cfg[num].dev, 1) >= 0) {		/* Lock port */
       /* We know that we have access to the serial port */
       /* If the port is used for a mouse, then don't lock, because
        * the use of the mouse serial port can be switched between processes,
@@ -691,15 +685,7 @@ void serial_init(void)
      * to the fact the mouse is in use by Xwindows (internal driver is used)
      * Direct access to the mouse by dosemu is useful mainly at the console.
      */
-    if (com_cfg[i].mouse && !on_console())
-      s_printf("SER%d: Not touching mouse outside of the console!\n",i);
-#ifdef USE_GPM
-    else if (com_cfg[i].mouse && strcmp(Mouse->name, "gpm") == 0)
-      s_printf("SER%d: GPM competing with direct access is racy: "
-               "only using GPM\n",i);
-#endif
-    else
-      do_ser_init(i);
+    do_ser_init(i);
   }
 
   init_dmxs();
@@ -716,66 +702,8 @@ void serial_close(void)
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].fd < 0)
       continue;
-    if (com_cfg[i].mouse && !on_console())
-      s_printf("SER%d: Not touching mouse outside of the console!\n",i);
-#ifdef USE_GPM
-    else if (com_cfg[i].mouse && strcmp(Mouse->name, "gpm") == 0)
-      s_printf("SER%d: GPM competing with direct access is racy: "
-               "only using GPM\n",i);
-#endif
-    else {
-      if (!com[i].fifo)
+    if (!com[i].fifo)
         RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
-      ser_close(i);
-    }
-  }
-}
-
-/* The following de-initializes the mouse on the serial port that the mouse
- * has been enabled on.  For mouse sharing purposes, this is the function
- * that is called when the user switches out of the VC running DOSEMU.
- * (Also, this silly function name needs to be changed soon.)
- */
-void child_close_mouse(void)
-{
-  u_char i, rtrn;
-  if (on_console()) {
-    s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
-    for (i = 0; i < config.num_ser; i++) {
-      s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n",
-                i, com_cfg[i].dev, com[i].fd, com_cfg[i].mouse);
-      if ((com_cfg[i].mouse == TRUE) && (com[i].fd > 0)) {
-        s_printf("MOUSE: CLOSE port=%d: Running ser_close.\n", i);
-        rtrn = ser_close(i);
-        if (rtrn) s_printf("MOUSE SERIAL ERROR - %s\n", strerror(errno));
-      }
-      else {
-        s_printf("MOUSE: CLOSE port=%d: Not running ser_close.\n", i);
-      }
-    }
-    s_printf("MOUSE: CLOSE function ended.\n");
-  }
-}
-
-/* The following initializes the mouse on the serial port that the mouse
- * has been enabled on.  For mouse sharing purposes, this is the function
- * that is called when the user switches back into the VC running DOSEMU.
- * (Also, this silly function name needs to be changed soon.)
- */
-void child_open_mouse(void)
-{
-  u_char i;
-  if (on_console()) {
-    s_printf("MOUSE: OPEN function starting.\n");
-    for (i = 0; i < config.num_ser; i++) {
-      s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",
-                i, config.mouse.type, com_cfg[i].dev, com_cfg[i].mouse);
-      if (com_cfg[i].mouse == TRUE) {
-        s_printf("MOUSE: OPEN port=%d: Running ser-open.\n", i);
-        com[i].fd = -1;
-        ser_open(i);
-        tcgetattr(com[i].fd, &com[i].newset);
-      }
-    }
+    ser_close(i);
   }
 }

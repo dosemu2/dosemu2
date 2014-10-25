@@ -29,7 +29,6 @@
 
 #include "config.h"
 #include "emu.h"
-#include "mouse.h"
 #include "ser_defs.h"
 
 

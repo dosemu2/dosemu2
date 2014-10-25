@@ -477,33 +477,22 @@ static void raw_mouse_getevent(void)
 static void parent_close_mouse (void)
 {
   mouse_t *mice = &config.mouse;
-  if (mice->intdrv && (mice->type == MOUSE_GPM ||
-      mice->type == MOUSE_XTERM || mice->type == MOUSE_X ||
-      mice->type == MOUSE_SDL))
-    return;
-  if (mice->intdrv)
-     {
-	if (mice->fd > 0) {
-   	   remove_from_io_select(mice->fd);
-           (void)DOS_SYSCALL(close (mice->fd));
-	}
-    }
-  else
-    child_close_mouse ();
+  if (mice->fd > 0) {
+    remove_from_io_select(mice->fd);
+    DOS_SYSCALL(close (mice->fd));
+  }
 }
 
 void mouse_priv_init(void)
 {
   mouse_t *mice = &config.mouse;
+  struct stat buf;
+  int mode = O_RDWR | O_NONBLOCK;
   mice->fd = -1;
-  if (mice->intdrv && (mice->type == MOUSE_GPM ||
+  if (mice->type == MOUSE_GPM ||
       mice->type == MOUSE_XTERM || mice->type == MOUSE_X ||
-      mice->type == MOUSE_SDL))
+      mice->type == MOUSE_SDL)
     return;
-  if (mice->intdrv)
-    {
-      struct stat buf;
-      int mode = O_RDWR | O_NONBLOCK;
 
       if (!mice->dev || !strlen(mice->dev))
         return;
@@ -523,23 +512,17 @@ void mouse_priv_init(void)
           error("Cannot open internal mouse device %s\n",mice->dev);
         }
       }
-    }
 }
 
 static int parent_open_mouse (void)
 {
   mouse_t *mice = &config.mouse;
-  if (mice->intdrv)
-    {
-      if (mice->fd == -1) {
- 	mice->intdrv = FALSE;
- 	mice->type = MOUSE_NONE;
- 	return 0;
-      }
-      add_to_io_select(mice->fd, mouse_io_callback, NULL);
-    }
-  else
-    child_open_mouse ();
+  if (mice->fd == -1) {
+	mice->intdrv = FALSE;
+	mice->type = MOUSE_NONE;
+	return 0;
+  }
+  add_to_io_select(mice->fd, mouse_io_callback, NULL);
   return 1;
 }
 

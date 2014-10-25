@@ -34,7 +34,6 @@
 #include "emu.h"
 #include "serial.h"
 #include "ser_defs.h"
-#include "mouse.h"
 #include "timers.h"
 #include "coopth.h"
 
