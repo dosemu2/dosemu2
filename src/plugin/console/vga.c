@@ -278,6 +278,7 @@ static void store_vga_mem(u_char * mem, int banks)
 {
   int cbank, plane, planar;
   unsigned vmem = GRAPH_BASE;
+  int iflg;
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
@@ -330,7 +331,12 @@ static void store_vga_mem(u_char * mem, int banks)
       vmem_chunk_thr.to_vid = 0;
       vmem_chunk_thr.ctid = coopth_get_tid();
       coopth_set_sleep_handler(sleep_cb, &cpy_sem);
+      iflg = isset_IF();
+      if (!iflg)
+        _set_IF();
       coopth_sleep();
+      if (!iflg)
+        clear_IF();
       /* end of magic: chunk copied */
 
       v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, READ_DWORD(vmem));
@@ -348,6 +354,7 @@ static void restore_vga_mem(u_char * mem, int banks)
 {
   int plane, cbank, planar;
   unsigned vmem = GRAPH_BASE;
+  int iflg;
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
@@ -388,7 +395,12 @@ static void restore_vga_mem(u_char * mem, int banks)
       vmem_chunk_thr.to_vid = 1;
       vmem_chunk_thr.ctid = coopth_get_tid();
       coopth_set_sleep_handler(sleep_cb, &cpy_sem);
+      iflg = isset_IF();
+      if (!iflg)
+        _set_IF();
       coopth_sleep();
+      if (!iflg)
+        clear_IF();
       /* end of magic: chunk copied */
 
       v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *)mem);
