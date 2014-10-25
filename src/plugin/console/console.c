@@ -68,6 +68,7 @@ static int console_post_init(void)
 {
   int kdmode;
 
+  set_vc_screen_page();
   set_process_control();
   k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
   /* Some escape sequences don't work in KD_GRAPHICS... */

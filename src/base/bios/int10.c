@@ -755,7 +755,7 @@ int int10(void) /* with dualmon */
   unsigned page, page_size, address;
   unsigned sm;
 
-#if USE_DUALMON
+#if 0 && USE_DUALMON
   static int last_equip=-1;
 
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {

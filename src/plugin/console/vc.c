@@ -83,45 +83,6 @@ forbid_switch (void)
   scr_state.vt_allow = 0;
 }
 
-/* check whether we are running on the console; initialise
- * console_fd and scr_state.console_no
- */
-int on_console(void) {
-
-
-#ifdef __linux__
-    struct stat chkbuf;
-    int major, minor;
-
-    if (console_fd == -2 || config.X)
-	return 0;
-
-    console_fd = -2;
-
-    if (fstat(STDIN_FILENO, &chkbuf) != 0)
-	return 0;
-
-    major = chkbuf.st_rdev >> 8;
-    minor = chkbuf.st_rdev & 0xff;
-
-    c_printf("major = %d minor = %d\n",
-	    major, minor);
-    /* console major num is 4, minor 64 is the first serial line */
-    if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64)) {
-       scr_state.console_no = minor;
-       console_fd = STDIN_FILENO;
-       return 1;
-    }
-#endif
-    return 0;
-}
-
-void
-vt_activate(int con_num)
-{
-    ioctl(console_fd, VT_ACTIVATE, con_num);
-}
-
 void
 allow_switch (void)
 {
@@ -479,51 +440,6 @@ void clear_console_video(void)
   k_printf("KBD: Release mouse control\n");
   ioctl(console_fd, KDSETMODE, KD_TEXT);
   clear_process_control();
-}
-
-/* why count ??? */
-/* Because you do not want to open it more than once! */
-static u_char kmem_open_count = 0;
-
-void
-open_kmem (void)
-{
-  PRIV_SAVE_AREA
-  /* as I understad it, /dev/kmem is the kernel's view of memory,
-     * and /dev/mem is the identity-mapped (i.e. physical addressed)
-     * memory. Currently under Linux, both are the same.
-     */
-
-  kmem_open_count++;
-
-  if (mem_fd != -1)
-    return;
-  enter_priv_on();
-  mem_fd = open("/dev/mem", O_RDWR);
-  leave_priv_setting();
-  if (mem_fd < 0)
-    {
-      error("can't open /dev/mem: errno=%d, %s \n",
-	     errno, strerror (errno));
-      leavedos (0);
-      return;
-    }
-  g_printf ("Kmem opened successfully\n");
-}
-
-void
-close_kmem (void)
-{
-
-  if (kmem_open_count)
-    {
-      kmem_open_count--;
-      if (kmem_open_count)
-	return;
-      close (mem_fd);
-      mem_fd = -1;
-      v_printf ("Kmem closed successfully\n");
-    }
 }
 
 int

@@ -77,6 +77,7 @@
 #define _IS_VS(s) (strcmp(Video->name, s) == 0)
 
 struct video_system *Video_default;
+static void init_dualmon(void);
 
 /*
   Dualmon type:
@@ -291,6 +292,7 @@ static void reinit_MDA_regs(void)
 static int dualmon_init(void)
 {
   v_printf("VID: dualmon_init called\n");
+  init_dualmon();
   /* We never need to intercept, if we get the ports now. */
   if ( set_ioperm(0x3b4, 1, 1) || set_ioperm(0x3b5, 1, 1) || set_ioperm(0x3b8, 1, 1)
                             || set_ioperm(0x3ba, 1, 1) || set_ioperm(0x3bf, 1, 1) ) {
@@ -347,7 +349,7 @@ struct video_system Video_dualmon = {
    .name = "dualmon"
 };
 
-void init_dualmon(void)
+static void init_dualmon(void)
 {
   if (config.dualmon) {
     config.dualmon = map_MDA_for_dualmon();

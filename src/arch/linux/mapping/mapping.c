@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/syscall.h>
+#include <fcntl.h>
 
 #ifndef __x86_64__
 #undef MAP_32BIT
@@ -561,4 +562,49 @@ void list_hardware_ram(void (*print)(const char *, ...))
   (*print)("hardware_pages:\n");
   for (hw = hardware_ram; hw != NULL; hw = hw->next)
     (*print)("%08x-%08x\n", hw->base, hw->base + hw->size - 1);
+}
+
+/* why count ??? */
+/* Because you do not want to open it more than once! */
+static u_char kmem_open_count = 0;
+
+void
+open_kmem (void)
+{
+  PRIV_SAVE_AREA
+  /* as I understad it, /dev/kmem is the kernel's view of memory,
+     * and /dev/mem is the identity-mapped (i.e. physical addressed)
+     * memory. Currently under Linux, both are the same.
+     */
+
+  kmem_open_count++;
+
+  if (mem_fd != -1)
+    return;
+  enter_priv_on();
+  mem_fd = open("/dev/mem", O_RDWR);
+  leave_priv_setting();
+  if (mem_fd < 0)
+    {
+      error("can't open /dev/mem: errno=%d, %s \n",
+	     errno, strerror (errno));
+      leavedos (0);
+      return;
+    }
+  g_printf ("Kmem opened successfully\n");
+}
+
+void
+close_kmem (void)
+{
+
+  if (kmem_open_count)
+    {
+      kmem_open_count--;
+      if (kmem_open_count)
+	return;
+      close (mem_fd);
+      mem_fd = -1;
+      v_printf ("Kmem closed successfully\n");
+    }
 }

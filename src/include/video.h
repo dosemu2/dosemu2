@@ -25,7 +25,6 @@ extern void gettermcap(int,int *, int *);
      from 0xa0000 to 0xbffff.
 */
 #define USE_DUALMON 1
-void init_dualmon(void);
 
 #if USE_DUALMON && VIDEO_CHECK_DIRTY
   #error "Currently USE_DUALMON can't be used together with VIDEO_CHECK_DIRTY"
@@ -89,9 +88,6 @@ struct video_system {
 };
 
 extern struct video_system *Video;
-#if USE_DUALMON
-extern struct video_system *Video_default;
-#endif
 
 EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
                              /* used&updated by Video->update_screen    */
