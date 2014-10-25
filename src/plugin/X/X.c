@@ -2467,7 +2467,7 @@ void set_mouse_buttons(int state)
 static int X_mouse_init(void)
 {
   mouse_t *mice = &config.mouse;
-  if (Video != &Video_X || !mice->intdrv)
+  if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
   mice->use_absolute = 1;

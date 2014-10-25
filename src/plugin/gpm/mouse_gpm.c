@@ -89,7 +89,7 @@ static int gpm_init(void)
 	mouse_t *mice = &config.mouse;
 	Gpm_Connect conn;
 
-	if (config.vga || !mice->intdrv || !on_console())
+	if (config.vga || !on_console())
 		return FALSE;
 
 	conn.eventMask	 = ~0;

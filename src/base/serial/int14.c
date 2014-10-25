@@ -95,22 +95,6 @@ int int14(void)
 
   if (num >= config.num_ser) return 1;	/* Exit if not on supported port */
 
-  /* Reinit the serial port if it is in use for a mouse, with
-   * the standard mouse parameters,
-   * maintaining BIOS data at 40:0 like in real DOS (special case of
-   * mouse on com1) - AV (hack!)
-   */
-  if ((com_cfg[num].mouse) && config.mouse.intdrv) {
-    if ((com_cfg[num].mouse < 2) && (HI(ax)==0)) {
-	if ((config.mouse.flags & CS8) == CS8)	/* linux/include/asm/termbits.h */
-	  LO(ax)=0x83;		/* 1200 8N1 */
-	else
-	  LO(ax)=0x82;		/* Microsoft: 1200 7N1 */
-	com_cfg[num].mouse++;	/* flag as already done */
-    }
-    else return 1;
-  }
-
   /* If FOSSIL is active, call it! */
   if (com[num].fossil_active)
   {

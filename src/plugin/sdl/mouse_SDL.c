@@ -69,7 +69,7 @@ static void SDL_set_mouse_cursor(int action, int mx, int my, int x_range, int y_
 static int SDL_mouse_init(void)
 {
   mouse_t *mice = &config.mouse;
-  if (Video != &Video_SDL || !mice->intdrv)
+  if (Video != &Video_SDL)
     return FALSE;
 
   mouse_GFX_cursor = SDL_GetCursor();
