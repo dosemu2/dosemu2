@@ -896,30 +896,35 @@ static int get_unsc_y(int dy)
 static void recalc_coords(int udx, int udy, int x_range, int y_range)
 {
 	int dx, dy, dmx, dmy;
-	if (udx > 0) {
+#define ROUND_MK 0
+#if ROUND_MK
+	if (!(mouse.ps2.cs || mouse.ps2.ip)) {
+	    if (udx > 0) {
 		int max_dx = mouse.virtual_maxx - mouse.x;
 		int max_udx = max_dx * (x_range * mouse.speed_x);
 		if (udx + mouse.unsc_x > max_udx)
 			udx = max_udx - mouse.unsc_x;
-	}
-	if (udx < 0) {
+	    }
+	    if (udx < 0) {
 		int min_dx = mouse.virtual_minx - mouse.x;	// negative
 		int min_udx = min_dx * (x_range * mouse.speed_x);
 		if (udx + mouse.unsc_x < min_udx)
 			udx = min_udx - mouse.unsc_x;
-	}
-	if (udy > 0) {
+	    }
+	    if (udy > 0) {
 		int max_dy = mouse.virtual_maxy - mouse.y;
 		int max_udy = max_dy * (y_range * mouse.speed_y);
 		if (udy + mouse.unsc_y > max_udy)
 			udy = max_udy - mouse.unsc_y;
-	}
-	if (udy < 0) {
+	    }
+	    if (udy < 0) {
 		int min_dy = mouse.virtual_miny - mouse.y;	// negative
 		int min_udy = min_dy * (y_range * mouse.speed_y);
 		if (udy + mouse.unsc_y < min_udy)
 			udy = min_udy - mouse.unsc_y;
+	    }
 	}
+#endif
 	mouse.unsc_x += udx;
 	mouse.unsc_y += udy;
 	mouse.unscm_x += udx;
@@ -930,7 +935,9 @@ static void recalc_coords(int udx, int udy, int x_range, int y_range)
 	dmy = mouse.unscm_y / y_range;
 	mouse.x += dx;
 	mouse.y += dy;
-//	mouse_round_coords();	// already rounded
+#if !ROUND_MK
+	mouse_round_coords();
+#endif
 	mouse.mickeyx += dmx;
 	mouse.mickeyy += dmy;
 	mouse.unsc_x -= dx * x_range * mouse.speed_x;
@@ -1493,7 +1500,9 @@ static int mouse_round_coords(void)
 	/* Make certain we have the correct screen boundaries */
 
 	int clipped = 0;
-
+	/* in ps2 mode ignore clipping */
+	if (mouse.ps2.cs || mouse.ps2.ip)
+		return 0;
 	/* put the mouse coordinate in bounds */
 	if (mouse.x < mouse.virtual_minx) {
 		mouse.x = mouse.virtual_minx;
@@ -1820,7 +1829,7 @@ static void call_int33_mouse_event_handler(void)
       LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
 
     /* jump to mouse cs:ip */
-    m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
+    m_printf("MOUSE: event %d, x %d, y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.mickeyx, mouse.mickeyy,
 	     LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
