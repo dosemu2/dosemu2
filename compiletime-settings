@@ -22,6 +22,7 @@ config {
   plugin_fluidsynth on
   plugin_translate on
   plugin_commands on
+  plugin_console on
   plugin_demo off
   target_bits auto
   target_cpu auto

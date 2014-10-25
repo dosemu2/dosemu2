@@ -349,3 +349,8 @@ struct keyboard_client Keyboard_X =  {
 	NULL,			/* run */       /* the X11 event handler is run seperately */
 	NULL,			/* set_leds */
 };
+
+CONSTRUCTOR(static void init(void))
+{
+	register_keyboard_client(&Keyboard_X);
+}

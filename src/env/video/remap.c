@@ -29,7 +29,7 @@
  *
  */
 
-#include "config.h"
+#include "emu.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +38,8 @@
 #include <sys/mman.h>	/* mprotect() */
 
 #include "remap.h"
+#include "vgaemu.h"
+#include "render_priv.h"
 #include "mapping.h"
 
 #define LUT_OFS_33  256 * 3

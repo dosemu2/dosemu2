@@ -13,6 +13,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "video.h"
+#include "render_priv.h"
 
 RemapObject remap_obj;
 int remap_features;
@@ -28,7 +29,7 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
 static void bitmap_draw_line(int x, int y, int len)
@@ -37,7 +38,7 @@ static void bitmap_draw_line(int x, int y, int len)
 
   ra = draw_bitmap_line(x, y, len);
   if (ra.width)
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
@@ -46,12 +47,7 @@ static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end
 
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus);
   if (ra.width)
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
-}
-
-static void bitmap_set_text_palette(DAC_entry col)
-{
-  /* done by remapper */
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
 
 static struct text_system Text_bitmap =
@@ -59,7 +55,6 @@ static struct text_system Text_bitmap =
   bitmap_draw_string,
   bitmap_draw_line,
   bitmap_draw_text_cursor,
-  bitmap_set_text_palette,
 };
 
 int register_render_system(struct render_system *render_system)
@@ -122,28 +117,15 @@ void remapper_done(void)
  * Update the displayed image to match the current DAC entries.
  * Will redraw the *entire* screen if at least one color has changed.
  */
-static Boolean refresh_truecolor(DAC_entry *col, int num)
+static void refresh_truecolor(DAC_entry *col, int index)
 {
-  Boolean colchanged = False;
-  int i;
-
-  for(i = 0; i < num; i++) {
-    colchanged |=
-    remap_obj.palette_update(&remap_obj, col[i].index, vga.dac.bits, col[i].r, col[i].g, col[i].b);
-  }
-  return colchanged;
+  remap_obj.palette_update(&remap_obj, index, vga.dac.bits, col->r, col->g, col->b);
 }
 
 /* returns True if the screen needs to be redrawn */
-Boolean refresh_palette(DAC_entry *col)
+Boolean refresh_palette(void)
 {
-  int j = changed_vga_colors(col);
-
-  if(Render->refresh_private_palette) {
-    Render->refresh_private_palette(col, j);
-    return vga.mode_class == TEXT;
-  }
-  return refresh_truecolor(col, j);
+  return changed_vga_colors(refresh_truecolor);
 }
 
 /*
@@ -151,9 +133,7 @@ Boolean refresh_palette(DAC_entry *col)
  */
 static void refresh_graphics_palette(void)
 {
-  DAC_entry col[256];
-
-  if (refresh_palette(col))
+  if (refresh_palette())
     dirty_all_video_pages();
 }
 
@@ -371,7 +351,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
     XSync(display, False);
 #endif
 
-    Render->put_image(ra.x, ra.y, ra.width, ra.height);
+    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 
     v_printf("update_graphics_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
@@ -458,4 +438,12 @@ int update_screen(vga_emu_update_type *veut)
 
   return vga.mode_class == TEXT ? update_text_screen() :
     update_graphics_screen(veut);
+}
+
+void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
+	int scan_len)
+{
+  remap_obj.dst_resize(&remap_obj, width, height, scan_len);
+  remap_obj.dst_image = img;
+  *remap_obj.dst_color_space = *csd;
 }

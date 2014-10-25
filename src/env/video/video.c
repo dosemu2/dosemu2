@@ -14,6 +14,10 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <assert.h>
+#ifdef __linux__
+#include <sys/kd.h>
+#include <sys/vt.h>
+#endif
 
 #include "config.h"
 #include "emu.h"
@@ -26,7 +30,6 @@
 #include "termio.h"
 #include "vc.h"
 #include "mapping.h"
-#include "vga.h"
 #include "utilities.h"
 #include "pci.h"
 
@@ -47,7 +50,7 @@ static int video_none_init(void)
   return 0;
 }
 
-struct video_system Video_none = {
+static struct video_system Video_none = {
   i_empty_void,	/* priv_init */
   video_none_init,	/* init */
   v_empty_void,	/* close */
@@ -192,6 +195,9 @@ static int video_init(void)
       config.X = 1;
   }
 
+#if defined(USE_DL_PLUGINS)
+  load_plugin("console");
+#endif
   /* figure out which video front end we are to use */
   if (no_real_terminal() || config.cardtype == CARD_NONE) {
      v_printf("VID: Video set to Video_none\n");
@@ -204,39 +210,33 @@ static int video_init(void)
   }
   else if (config.vga) {
      v_printf("VID: Video set to Video_graphics\n");
-     Video=&Video_graphics;
+     Video = video_get("graphics");
   }
   else if (config.console_video) {
      if (config.cardtype == CARD_MDA)
        {
 	 v_printf("VID: Video set to Video_hgc\n");
-	 Video = &Video_hgc;
+	 Video = video_get("hgc");
        }
      else
        {
 	 v_printf("VID: Video set to Video_console\n");
-	 Video=&Video_console;
+	 Video = video_get("console");
        }
   }
-  else
-#if !defined(USE_DL_PLUGINS) && defined(USE_SLANG)
-  {
-     v_printf("VID: Video set to Video_term\n");
-     Video=&Video_term;       /* S-Lang */
-  }
-#else
-  if (!load_plugin("term")) {
+  else {
+#if defined(USE_DL_PLUGINS) && defined(USE_SLANG)
+    if (!load_plugin("term")) {
      error("Terminal (S-Lang library) support not compiled in.\n"
            "Install slang-devel and recompile, use xdosemu or console "
            "dosemu (needs root) instead.\n");
      /* too early to call leavedos */
      exit(1);
+    }
+    v_printf("VID: Video set to Video_term\n");
+    Video = video_get("term");       /* S-Lang */
+#endif
   }
-#endif
-
-#if USE_DUALMON
-  init_dualmon();
-#endif
 
   if (Video->priv_init)
       Video->priv_init();          /* call the specific init routine */
@@ -489,4 +489,43 @@ void video_late_init(void)
 {
   if (Video && Video->init)
     Video->init();
+}
+
+/* check whether we are running on the console; initialise
+ * console_fd and scr_state.console_no
+ */
+int on_console(void) {
+
+
+#ifdef __linux__
+    struct stat chkbuf;
+    int major, minor;
+
+    if (console_fd == -2 || config.X)
+	return 0;
+
+    console_fd = -2;
+
+    if (fstat(STDIN_FILENO, &chkbuf) != 0)
+	return 0;
+
+    major = chkbuf.st_rdev >> 8;
+    minor = chkbuf.st_rdev & 0xff;
+
+    c_printf("major = %d minor = %d\n",
+	    major, minor);
+    /* console major num is 4, minor 64 is the first serial line */
+    if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64)) {
+       scr_state.console_no = minor;
+       console_fd = STDIN_FILENO;
+       return 1;
+    }
+#endif
+    return 0;
+}
+
+void
+vt_activate(int con_num)
+{
+    ioctl(console_fd, VT_ACTIVATE, con_num);
 }

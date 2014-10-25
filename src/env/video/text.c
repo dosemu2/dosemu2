@@ -40,7 +40,7 @@
 #include "vgaemu.h"
 #include "remap.h"
 #include "vgatext.h"
-#include "render.h"
+#include "render_priv.h"
 #include "translate.h"
 
 static struct text_system * Text = NULL;
@@ -264,8 +264,7 @@ void reset_redraw_text_screen(void)
  */
 static void refresh_text_palette(void)
 {
-  DAC_entry col[16];
-  int j, k;
+  int j;
 
   if(vga.pixel_size > 4) {
     X_printf("X: refresh_text_palette: invalid color size - no updates made\n");
@@ -273,17 +272,12 @@ static void refresh_text_palette(void)
   }
 
   if(use_bitmap_font) {
-    if(refresh_palette(col))
+    if(refresh_palette())
       redraw_text_screen();
     return;
   }
 
-  j = changed_vga_colors(col);
-
-  for(k = 0; k < j; k++) {
-    Text->SetPalette(col[k]);
-  }
-
+  j = changed_vga_colors(Text->SetPalette);
   if(j) redraw_text_screen();
 }
 

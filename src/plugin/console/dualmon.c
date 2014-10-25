@@ -74,9 +74,10 @@
 #include "vga.h"
 #include "mapping.h"
 
-#define _IS_VS(s) (Video == ((struct video_system *)&(s)) )
+#define _IS_VS(s) (strcmp(Video->name, s) == 0)
 
 struct video_system *Video_default;
+static void init_dualmon(void);
 
 /*
   Dualmon type:
@@ -128,12 +129,12 @@ static unsigned char dualmon_text_table[] =
 static int map_MDA_for_dualmon(void)
 {
   if (!config.dualmon) return 0;
-  if ( (!_IS_VS(Video_none) && !_IS_VS(Video_graphics)
+  if ( (!_IS_VS("none") && !_IS_VS("graphics")
         /* not stable yet: works with "mode mono", but not yet with "TD -do" */
 #if 1
 	&& !config.X
 #endif
-       ) && (!_IS_VS(Video_hgc))) {
+       ) && (!_IS_VS("hgc"))) {
     int size=TEXT_SIZE(CO,LI);
     if (alloc_mapping(MAPPING_HGC | MAPPING_KMEM, (size_t) size,
 	MDA_PHYS_TEXT_BASE) == (caddr_t) -1) {
@@ -150,7 +151,7 @@ static int map_MDA_for_dualmon(void)
           MDA_PHYS_TEXT_BASE,size);
     return 1;
   }
-  if (config.dualmon && (_IS_VS(Video_graphics) /* || _IS_VS(Video_console )*/ )) return 2;
+  if (config.dualmon && (_IS_VS("graphics") /* || _IS_VS("console")*/ )) return 2;
   return 0;
 }
 
@@ -291,6 +292,7 @@ static void reinit_MDA_regs(void)
 static int dualmon_init(void)
 {
   v_printf("VID: dualmon_init called\n");
+  init_dualmon();
   /* We never need to intercept, if we get the ports now. */
   if ( set_ioperm(0x3b4, 1, 1) || set_ioperm(0x3b5, 1, 1) || set_ioperm(0x3b8, 1, 1)
                             || set_ioperm(0x3ba, 1, 1) || set_ioperm(0x3bf, 1, 1) ) {
@@ -347,7 +349,7 @@ struct video_system Video_dualmon = {
    .name = "dualmon"
 };
 
-void init_dualmon(void)
+static void init_dualmon(void)
 {
   if (config.dualmon) {
     config.dualmon = map_MDA_for_dualmon();

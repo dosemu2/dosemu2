@@ -419,9 +419,6 @@ static int MakePrivateColormap(void);
 static ColorSpaceDesc MakeSharedColormap(void);
 static int try_cube(unsigned long *, c_cube *);
 
-/* palette/color update stuff */
-static void refresh_private_palette(DAC_entry *col, int num);
-
 /* ximage/drawing related stuff */
 static void create_ximage(void);
 static void destroy_ximage(void);
@@ -481,7 +478,6 @@ struct video_system Video_X =
 
 struct render_system Render_X =
 {
-   refresh_private_palette,
    put_ximage,
 };
 
@@ -749,8 +745,6 @@ int X_init()
     }
   }
 
-  if(have_true_color || have_shmap)
-    Render_X.refresh_private_palette = NULL;
   register_render_system(&Render_X);
   X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
@@ -1884,54 +1878,6 @@ int try_cube(unsigned long *p, c_cube *c)
   return i;
 }
 
-
-/*
- * Update the private palette to match the current DAC entries.
- */
-void refresh_private_palette(DAC_entry *col, int num)
-{
-  XColor xcolor[256];
-  RGBColor c;
-  int i, k;
-  unsigned bits, shift;
-
-  /*
-   * Colormap size is limited to cmap_colors, not 256. This leads to
-   * incorrect displays at screens with less than 8 bit color depth.
-   * --> So don't use private palettes with less than 256 colors.
-   */
-
-  for(i = k = 0; k < num; k++) {
-    if(col[k].index < cmap_colors) {
-      c.r = col[k].r; c.g = col[k].g; c.b = col[k].b;
-      bits = dac_bits;
-      gamma_correct(&remap_obj, &c, &bits);
-      shift = 16 - bits;
-      xcolor[i].flags = DoRed | DoGreen | DoBlue;
-      xcolor[i].pixel = col[k].index;
-      xcolor[i].red   = c.r << shift;
-      xcolor[i].green = c.g << shift;
-      xcolor[i].blue  = c.b << shift;
-#if 0
-      X_printf(
-        "X: refresh_private_palette: color 0x%02x (0x%02x 0x%02x 0x%02x) -> (0x%04x 0x%04x 0x%04x)\n",
-        (unsigned) col[k].index, (unsigned) c.r, (unsigned) c.g, (unsigned) c.b,
-        (unsigned) xcolor[i].red, (unsigned) xcolor[i].green, (unsigned) xcolor[i].blue
-      );
-#else
-      X_printf("X: refresh_private_palette: color 0x%02x\n", (unsigned) col[k].index);
-#endif
-      i++;
-    }
-    else {
-      X_printf("X: refresh_private_palette: color 0x%02x not updated\n", (unsigned) col[k].index);
-    }
-  }
-
-  if(graphics_cmap && i) XStoreColors(display, graphics_cmap, xcolor, i);
-}
-
-
 /*
  * Create an image. Will use shared memory, if available.
  * The image is used in graphics modes only.
@@ -2049,8 +1995,7 @@ void resize_ximage(unsigned width, unsigned height)
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  remap_obj.dst_resize(&remap_obj, width, height, ximage->bytes_per_line);
-  remap_obj.dst_image = (unsigned char *)ximage->data;
+  render_init((unsigned char *)ximage->data, &X_csd, width, height, ximage->bytes_per_line);
 }
 
 /*
@@ -2101,7 +2046,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   if (use_bitmap_font) {
     resize_text_mapper(ximage_mode);
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
-    *remap_obj.dst_color_space = X_csd;
   }
 }
 
@@ -2233,45 +2177,19 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-
-    remap_obj.dst_image = (unsigned char *)ximage->data;
-    *remap_obj.dst_color_space = X_csd;
-    remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
+    render_init((unsigned char *)ximage->data, &X_csd, w_x_res, w_y_res, ximage->bytes_per_line);
 
     sh.width = w_x_res;
     sh.height = w_y_res;
-    if(!(remap_obj.state & ROS_SCALE_ALL)) {
-      sh.width_inc = x_res;
-      sh.height_inc = y_res;
-    }
-    else {
-      sh.width_inc = 1;
-      sh.height_inc = 1;
-    }
+    sh.width_inc = 1;
+    sh.height_inc = 1;
     sh.min_aspect.x = w_x_res;
     sh.min_aspect.y = w_y_res;
     sh.max_aspect = sh.min_aspect;
-
-    if(remap_obj.state & ROS_SCALE_ALL) {
-      sh.min_width = 0;
-      sh.min_height = 0;
-    }
-    else {
-      sh.min_width = w_x_res;
-      sh.min_height = w_y_res;
-    }
-    if(remap_obj.state & ROS_SCALE_ALL) {
-      sh.max_width = 32767;
-      sh.max_height = 32767;
-    }
-    else if(remap_obj.state & ROS_SCALE_2) {
-      sh.max_width = x_res << 1;
-      sh.max_height = y_res << 1;
-    }
-    else {
-      sh.max_width = w_x_res;
-      sh.max_height = w_y_res;
-    }
+    sh.min_width = 0;
+    sh.min_height = 0;
+    sh.max_width = 32767;
+    sh.max_height = 32767;
 
     sh.flags = PResizeInc | PSize  | PMinSize | PMaxSize;
     if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
@@ -2605,6 +2523,5 @@ void kdos_close_msg()
 CONSTRUCTOR(static void init(void))
 {
 	register_video_client(&Video_X);
-	register_keyboard_client(&Keyboard_X);
 	register_mouse_client(&Mouse_X);
 }

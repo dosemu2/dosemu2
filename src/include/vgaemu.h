@@ -153,7 +153,8 @@
  */
 
 typedef struct {
-  unsigned char index, r, g, b;		/* index, red, green, blue */
+  unsigned char r, g, b;
+  int dirty;
 } DAC_entry;
 
 
@@ -498,7 +499,7 @@ int vgaemu_map_bank(void);
 int vga_emu_set_textsize(int, int);
 void dirty_all_video_pages(void);
 void dirty_all_vga_colors(void);
-int changed_vga_colors(DAC_entry *);
+int changed_vga_colors(void (*upd_func)(DAC_entry *, int));
 void vgaemu_adj_cfg(unsigned, unsigned);
 void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
 void vgaemu_put_char(unsigned char c, unsigned char page, unsigned char attr);
@@ -538,7 +539,7 @@ void do_vesa_int(void);
 
 void DAC_init(void);
 void DAC_set_width(unsigned);
-void DAC_get_entry(DAC_entry *);
+void DAC_get_entry(DAC_entry *, int);
 void DAC_set_entry(unsigned char, unsigned char, unsigned char, unsigned char);
 void DAC_rgb2gray(unsigned char);
 

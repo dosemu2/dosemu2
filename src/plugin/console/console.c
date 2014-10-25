@@ -9,6 +9,7 @@
 #endif
 
 #include "emu.h"
+#include "init.h"
 #include "termio.h"
 #include "video.h"
 #include "vc.h"
@@ -67,6 +68,7 @@ static int console_post_init(void)
 {
   int kdmode;
 
+  set_vc_screen_page();
   set_process_control();
   k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
   /* Some escape sequences don't work in KD_GRAPHICS... */
@@ -160,7 +162,7 @@ static void console_close(void)
 
 #define console_setmode NULL
 
-struct video_system Video_console = {
+static struct video_system Video_console = {
    console_init,
    console_post_init,
    console_close,
@@ -172,3 +174,7 @@ struct video_system Video_console = {
    .name = "console"
 };
 
+CONSTRUCTOR(static void init(void))
+{
+   register_video_client(&Video_console);
+}

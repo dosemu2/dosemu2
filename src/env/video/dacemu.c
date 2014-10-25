@@ -268,7 +268,7 @@ void DAC_set_width(unsigned bits)
     vga.reconfig.dac = 1;
     vga.dac.bits = bits;
     vga.color_modified = True;
-    for(i = 0; i < 256; i++) vga.dac.rgb[i].index = True;	/* index = dirty flag ! */
+    for(i = 0; i < 256; i++) vga.dac.rgb[i].dirty = True;	/* index = dirty flag ! */
   }
 }
 
@@ -283,15 +283,13 @@ void DAC_set_width(unsigned bits)
  * DANG_END_FUNCTION
  *
  */
-void DAC_get_entry(DAC_entry *entry)
+void DAC_get_entry(DAC_entry *entry, int index)
 {
-  unsigned char u;
-
-  *entry = vga.dac.rgb[u = entry->index]; entry->index = u;
+  *entry = vga.dac.rgb[index];
 
   dac_deb(
     "DAC_get_entry: dac.rgb[0x%02x] = 0x%02x 0x%02x 0x%02x\n",
-    entry->index, entry->r, entry->g, entry->b
+    index, entry->r, entry->g, entry->b
   );
 }
 
@@ -321,7 +319,7 @@ void DAC_set_entry(unsigned char index, unsigned char r, unsigned char g, unsign
     vga.dac.rgb[index].b != b
   ) {
     vga.color_modified = True;
-    vga.dac.rgb[index].index = True;
+    vga.dac.rgb[index].dirty = True;
     vga.dac.rgb[index].r = r;
     vga.dac.rgb[index].g = g;
     vga.dac.rgb[index].b = b;
@@ -349,7 +347,7 @@ void DAC_rgb2gray(unsigned char index)
   i = (i + 0x80) >> 8;
   if(i > m) i = m;
 
-  vga.dac.rgb[index].index = True;
+  vga.dac.rgb[index].dirty = True;
   vga.dac.rgb[index].r = vga.dac.rgb[index].g = vga.dac.rgb[index].b = i;
 }
 
@@ -471,7 +469,7 @@ void DAC_write_value(unsigned char value)
     (unsigned) vga.dac.write_index, vga.dac.pel_index, (unsigned) value
   );
 
-  vga.dac.rgb[vga.dac.write_index].index = True;	/* index = dirty flag ! */
+  vga.dac.rgb[vga.dac.write_index].dirty = True;	/* index = dirty flag ! */
   vga.color_modified = True;
 
   switch(vga.dac.pel_index) {
@@ -538,7 +536,7 @@ void DAC_set_pel_mask(unsigned char mask)
   if(vga.dac.pel_mask != mask) {
     vga.dac.pel_mask = mask;
     vga.color_modified = True;
-    for(i = 0; i < 256; i++) { vga.dac.rgb[i].index = True; }	/* index = dirty flag ! */
+    for(i = 0; i < 256; i++) { vga.dac.rgb[i].dirty = True; }	/* index = dirty flag ! */
   }
 }
 

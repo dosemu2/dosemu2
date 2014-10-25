@@ -265,7 +265,6 @@ int dos_helper(void)
       if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
 	warn("couldn't get range!\n");
       config.vga = 1;
-      set_vc_screen_page();
       warn("WARNING: jumping to 0[c/e]000:0003\n");
 
       ssp = SEGOFF2LINEAR(REG(ss), 0);

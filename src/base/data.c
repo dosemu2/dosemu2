@@ -14,7 +14,6 @@
 #include "termio.h"
 #include "machcompat.h"
 #include "vc.h"
-#include "../env/video/vga.h" /* NOTE: there exists also /usr/include/vga.h !! */
 #include "video.h"
 #include "mouse.h"
 #include "bios.h"

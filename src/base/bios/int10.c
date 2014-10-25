@@ -755,7 +755,7 @@ int int10(void) /* with dualmon */
   unsigned page, page_size, address;
   unsigned sm;
 
-#if USE_DUALMON
+#if 0 && USE_DUALMON
   static int last_equip=-1;
 
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
@@ -1083,8 +1083,7 @@ int int10(void) /* with dualmon */
              break;
 
            case 0x15:	/* Read Individual DAC Register */
-             rgb.index = LO(bx);
-             DAC_get_entry(&rgb);
+             DAC_get_entry(&rgb, LO(bx));
              HI(dx) = rgb.r; HI(cx) = rgb.g; LO(cx) = rgb.b;
              break;
 
@@ -1093,11 +1092,10 @@ int int10(void) /* with dualmon */
              count = LWORD(ecx);
              src = SEGOFF2LINEAR(REG(es), LWORD(edx));
              for(i = 0; i < count; i++, index++) {
-               rgb.index = index;
-               DAC_get_entry(&rgb);
-	       WRITE_BYTE(src + 3*i, rgb.r);
-	       WRITE_BYTE(src + 3*i + 1, rgb.g);
-	       WRITE_BYTE(src + 3*i + 2, rgb.b);
+               DAC_get_entry(&rgb, index);
+               WRITE_BYTE(src + 3*i, rgb.r);
+               WRITE_BYTE(src + 3*i + 1, rgb.g);
+               WRITE_BYTE(src + 3*i + 2, rgb.b);
              }
              break;
 

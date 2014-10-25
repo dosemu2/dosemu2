@@ -14,6 +14,7 @@
 
 #include "bios.h"
 #include "emu.h"
+#include "init.h"
 #include "int.h"
 #include "coopth.h"
 #include "port.h"
@@ -42,6 +43,7 @@
 #define PLANE_SIZE (64*1024)
 
 static int vga_post_init(void);
+static struct video_system *Video_console;
 
 /* Here are the REGS values for valid dos int10 call */
 
@@ -554,6 +556,11 @@ static void set_console_video(void)
 
 static int vga_initialize(void)
 {
+  Video_console = video_get("console");
+  if (!Video_console) {
+    error("console video plugin unavailable\n");
+    return -1;
+  }
   set_console_video();
 
   linux_regs.mem = NULL;
@@ -667,7 +674,7 @@ static void vga_close(void)
   sem_destroy(&cpy_sem);
 }
 
-struct video_system Video_graphics = {
+static struct video_system Video_graphics = {
    vga_initialize,
    vga_post_init,
    vga_close,
@@ -783,7 +790,7 @@ static int vga_post_init(void)
   pthread_create(&cpy_thr, NULL, vmemcpy_thread, &vmem_chunk_thr);
 
   /* this function initialises vc switch routines */
-  Video_console.init();
+  Video_console->init();
 
   if (!config.mapped_bios) {
     error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
@@ -822,6 +829,11 @@ static int vga_post_init(void)
   set_vc_screen_page();
   video_initialized = 1;
   return 0;
+}
+
+CONSTRUCTOR(static void init(void))
+{
+   register_video_client(&Video_graphics);
 }
 
 /* End of video/vga.c */
