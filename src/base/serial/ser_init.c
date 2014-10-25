@@ -430,9 +430,10 @@ int ser_open(int num)
   }
 
   if (!com[num].fifo && !isatty(com[num].fd)) {
-    error("SERIAL: Serial port device %s is not a tty, closing\n",
+    s_printf("SERIAL: Serial port device %s is not a tty\n",
       com_cfg[num].dev);
-    goto fail_close;
+    com[num].fifo = TRUE;
+    com_cfg[num].pseudo = TRUE;
   }
 
   if (!com[num].fifo) {
@@ -463,7 +464,6 @@ int ser_open(int num)
   modstat_engine(num);
   return com[num].fd;
 
-fail_close:
   close(com[num].fd);
   /* fall through */
 fail_unlock:
