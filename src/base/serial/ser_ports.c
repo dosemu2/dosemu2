@@ -431,7 +431,6 @@ put_mcr(int num, int val)
 {
   int newmsr, delta;
   int changed;
-  int control;
   changed = com[num].MCR ^ val;			/* Bitmask of changed bits */
   com[num].MCR = val & UART_MCR_VALID;		/* Set valid bits for MCR */
 
@@ -440,8 +439,8 @@ put_mcr(int num, int val)
     if (changed & UART_MCR_LOOP) {		/* Was loopback just set? */
       if (FIFO_ENABLED(num))
         uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Clear FIFO's */
-      control = TIOCM_DTR | TIOCM_RTS;		/* DTR and RTS to be cleared */
-      ioctl(com[num].fd, TIOCMBIC, &control);	/* Clear DTR and RTS */
+      serial_rts(num, 0);
+      serial_dtr(num, 0);
     }
 
     /* During a UART Loopback test these bits are, Write(Out) => Read(In)
@@ -482,21 +481,13 @@ put_mcr(int num, int val)
     /* Update DTR setting on serial device only if DTR state changed */
     if (changed & UART_MCR_DTR) {
       if(s1_printf) s_printf("SER%d: MCR: DTR -> %d\n",num,(val & UART_MCR_DTR));
-      control = TIOCM_DTR;
-      if (val & UART_MCR_DTR)
-        ioctl(com[num].fd, TIOCMBIS, &control);
-      else
-        ioctl(com[num].fd, TIOCMBIC, &control);
+      serial_dtr(num, !!(val & UART_MCR_DTR));
     }
 
     /* Update RTS setting on serial device only if RTS state changed */
     if ((changed & UART_MCR_RTS) && !com_cfg[num].system_rtscts) {
       if(s1_printf) s_printf("SER%d: MCR: RTS -> %d\n",num,(val & UART_MCR_RTS));
-      control = TIOCM_RTS;
-      if (val & UART_MCR_RTS)
-        ioctl(com[num].fd, TIOCMBIS, &control);
-      else
-        ioctl(com[num].fd, TIOCMBIC, &control);
+      serial_rts(num, !!(val & UART_MCR_RTS));
     }
   }
 }
@@ -574,9 +565,9 @@ do_serial_in(int num, ioport_t address)
   int val;
 
   /* delayed open happens here */
-  if (com[num].fd == -1)
-    ser_open(num);
-  if (com[num].fd < 0)
+  if (!com[num].opened)
+    com[num].opened = ser_open(num);
+  if (!com[num].opened)
     return 0;
 
   switch (address - com_cfg[num].base_port) {
@@ -665,9 +656,9 @@ do_serial_out(int num, ioport_t address, int val)
 {
 
   /* delayed open happens here */
-  if (com[num].fd == -1)
-    ser_open(num);
-  if (com[num].fd < 0)
+  if (!com[num].opened)
+    com[num].opened = ser_open(num);
+  if (!com[num].opened)
     return 0;
 
   switch (address - com_cfg[num].base_port) {

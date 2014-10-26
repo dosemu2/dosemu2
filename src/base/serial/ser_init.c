@@ -38,17 +38,16 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <limits.h>
-#include <pwd.h>
 #include <assert.h>
 
 #include "config.h"
-#include "Linux/serial.h"
 #include "emu.h"
 #include "port.h"
 #include "bios.h"
 #include "pic.h"
 #include "serial.h"
 #include "ser_defs.h"
+#include "tty_io.h"
 #include "utilities.h"	/* due to getpwnam */
 #include "iodev.h"
 #include "vc.h"
@@ -139,149 +138,6 @@ static int init_dmxs(void)
   return i;
 }
 
-/* See README.serial file for more information on the com[] structure
- * The declarations for this is in ../include/serial.h
- */
-
-/*  Determines if the tty is already locked.  Stolen from uri-dip-3.3.7k
- *  Nice work Uri Blumenthal & Ian Lance Taylor!
- *  [nam = complete path to lock file, return = nonzero if locked]
- */
-static int tty_already_locked(char *nam)
-{
-  int  i = 0, pid = 0;
-  FILE *fd = (FILE *)0;
-
-  /* Does the lock file on our device exist? */
-  if ((fd = fopen(nam, "r")) == (FILE *)0)
-    return 0; /* No, return perm to continue */
-
-  /* Yes, the lock is there.  Now let's make sure at least */
-  /* there's no active process that owns that lock.        */
-  if(config.tty_lockbinary)
-    i = read(fileno(fd), &pid, sizeof(pid)) == sizeof(pid);
-  else
-    i = fscanf(fd, "%d", &pid);
-
-  (void) fclose(fd);
-
-  if (i != 1) /* Lock file format's wrong! Kill't */
-    return 0;
-
-  /* We got the pid, check if the process's alive */
-  if (kill(pid, 0) == 0)      /* it found process */
-    return 1;                 /* Yup, it's running... */
-
-  /* Dead, we can proceed locking this device...  */
-  return 0;
-}
-
-
-/*  Locks or unlocks a terminal line Stolen from uri-dip-3.3.7k
- *  Nice work Uri Blumenthal & Ian Lance Taylor!
- *  [path = device name,
- *   mode: 1 = lock, 2 = reaquire lock, anythingelse = unlock,
- *   return = zero if success, greater than zero for failure]
- */
-static int tty_lock(char *path, int mode)
-{
-  char saved_path[strlen(config.tty_lockdir) + 1 +
-                  strlen(config.tty_lockfile) +
-                  strlen(path) + 1];
-  struct passwd *pw;
-  pid_t ime;
-  char *slash;
-
-  if (path == NULL) return(0);        /* standard input */
-  slash = strrchr(path, '/');
-  if (slash == NULL)
-    slash = path;
-  else
-    slash++;
-
-  sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile,
-	  slash);
-
-  if (mode == 1) {      /* lock */
-    {
-      FILE *fd;
-      if (tty_already_locked(saved_path) == 1) {
-        error("attempt to use already locked tty %s\n", saved_path);
-        return (-1);
-      }
-      unlink(saved_path);	/* kill stale lockfiles, if any */
-      fd = fopen(saved_path, "w");
-      if (fd == (FILE *)0) {
-        error("tty: lock: (%s): %s\n", saved_path, strerror(errno));
-        return(-1);
-      }
-
-      ime = getpid();
-      if(config.tty_lockbinary)
-	write (fileno(fd), &ime, sizeof(ime));
-      else
-	fprintf(fd, "%10d\n", (int)ime);
-
-      (void)fclose(fd);
-    }
-
-    /* Make sure UUCP owns the lockfile.  Required by some packages. */
-    if ((pw = getpwnam(OWNER_LOCKS)) == NULL) {
-      error("tty: lock: UUCP user %s unknown!\n", OWNER_LOCKS);
-      return(0);        /* keep the lock anyway */
-    }
-
-    (void) chown(saved_path, pw->pw_uid, pw->pw_gid);
-    (void) chmod(saved_path, 0644);
-  }
-  else if (mode == 2) { /* re-acquire a lock after a fork() */
-    FILE *fd;
-
-     fd = fopen(saved_path,"w");
-     if (fd == (FILE *)0) {
-      error("tty_lock: reacquire (%s): %s\n",
-              saved_path, strerror(errno));
-      return(-1);
-    }
-    ime = getpid();
-
-    if(config.tty_lockbinary)
-      write (fileno(fd), &ime, sizeof(ime));
-    else
-      fprintf(fd, "%10d\n", (int)ime);
-
-    (void) fclose(fd);
-    (void) chmod(saved_path, 0444);
-    return(0);
-  }
-  else {    /* unlock */
-    FILE *fd;
-    int retval;
-
-    fd = fopen(saved_path,"w");
-    if (fd == (FILE *)0) {
-      error("tty_lock: can't reopen %s to delete: %s\n",
-             saved_path, strerror(errno));
-      return (-1);
-    }
-
-    retval = unlink(saved_path);
-    if (retval < 0) {
-      error("tty: unlock: (%s): %s\n", saved_path,
-             strerror(errno));
-      return(-1);
-    }
-  }
-  return(0);
-}
-
-static void async_serial_run(void *arg)
-{
-  int num = (long)arg;
-  s_printf("SER%d: Async notification received\n", num);
-  serial_update(num);
-}
-
 static void ser_reset_dev(int num)
 {
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
@@ -330,173 +186,6 @@ static void ser_setup_custom(int num)
     break;
   }
 }
-
-static void ser_set_params(int num)
-{
-  int data = 0;
-  com[num].newset.c_cflag = CS8 | CLOCAL | CREAD;
-  com[num].newset.c_iflag = IGNBRK | IGNPAR;
-  com[num].newset.c_oflag = 0;
-  com[num].newset.c_lflag = 0;
-
-#ifdef __linux__
-  com[num].newset.c_line = 0;
-#endif
-  com[num].newset.c_cc[VMIN] = 1;
-  com[num].newset.c_cc[VTIME] = 0;
-  if (com_cfg[num].system_rtscts)
-    com[num].newset.c_cflag |= CRTSCTS;
-  if (!com[num].fifo)
-    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
-
-  if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
-  ser_termios(num);			/* Set line settings now */
-
-  /* Pull down DTR and RTS.  This is the most natural for most comm */
-  /* devices including mice so that DTR rises during mouse init.    */
-  if (!com_cfg[num].pseudo) {
-    data = TIOCM_DTR | TIOCM_RTS;
-    if (ioctl(com[num].fd, TIOCMBIC, &data) && errno == EINVAL) {
-      s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", num);
-      com_cfg[num].pseudo = 1;
-    }
-  }
-}
-
-/* This function opens ONE serial port for DOSEMU.  Normally called only
- * by do_ser_init below.   [num = port, return = file descriptor]
- */
-int ser_open(int num)
-{
-  struct stat st;
-  int err, oflags = O_NONBLOCK;
-
-  s_printf("SER%d: Running ser_open, %s, fd=%d\n", num, com_cfg[num].dev,
-	com[num].fd);
-
-  if (com[num].fd != -1) return (com[num].fd);
-
-  if ( com_cfg[num].virtual )
-  {
-    /* don't try to remove any lock: they don't make sense for ttyname(0) */
-    s_printf("Opening Virtual Port\n");
-    com[num].dev_locked = FALSE;
-  } else if (config.tty_lockdir[0]) {
-    if (tty_lock(com_cfg[num].dev, 1) >= 0) {		/* Lock port */
-      /* We know that we have access to the serial port */
-      /* If the port is used for a mouse, then don't lock, because
-       * the use of the mouse serial port can be switched between processes,
-       * such as on Linux virtual consoles.
-       */
-      com[num].dev_locked = TRUE;
-    } else {
-      /* The port is in use by another process!  Don't touch the port! */
-      com[num].dev_locked = FALSE;
-      com[num].fd = -2;
-      return(-1);
-    }
-  } else {
-    s_printf("Warning: Port locking disabled in the config.\n");
-    com[num].dev_locked = FALSE;
-  }
-
-  err = stat(com_cfg[num].dev, &st);
-  if (err) {
-    error("SERIAL: stat(%s) failed: %s\n", com_cfg[num].dev, strerror(errno));
-    com[num].fd = -2;
-    return -1;
-  }
-  if (S_ISFIFO(st.st_mode)) {
-    s_printf("SER%i: %s is fifo, setting pseudo flag\n", num,
-	    com_cfg[num].dev);
-    com[num].fifo = TRUE;
-    com_cfg[num].pseudo = TRUE;
-    oflags |= O_RDONLY;
-  } else {
-    oflags |= O_RDWR;
-  }
-
-  com[num].fd = RPT_SYSCALL(open(com_cfg[num].dev, oflags));
-  if (com[num].fd < 0) {
-    error("SERIAL: Unable to open device %s: %s\n",
-      com_cfg[num].dev, strerror(errno));
-    goto fail_unlock;
-  }
-
-  if (!com[num].fifo && !isatty(com[num].fd)) {
-    s_printf("SERIAL: Serial port device %s is not a tty\n",
-      com_cfg[num].dev);
-    com[num].fifo = TRUE;
-    com_cfg[num].pseudo = TRUE;
-  }
-
-  if (!com[num].fifo) {
-   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
-   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-
-   if (com_cfg[num].low_latency) {
-    struct serial_struct ser_info;
-    int err = ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
-    if (err) {
-      error("SER%d: failure getting serial port settings, %s\n",
-          num, strerror(errno));
-    } else {
-      ser_info.flags |= ASYNC_LOW_LATENCY;
-      err = ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
-      if (err)
-        error("SER%d: failure setting low_latency flag, %s\n",
-            num, strerror(errno));
-      else
-        s_printf("SER%d: low_latency flag set\n", num);
-    }
-   }
-  }
-  ser_set_params(num);
-
-  add_to_io_select(com[num].fd, async_serial_run, (void *)(long)num);
-
-  modstat_engine(num);
-  return com[num].fd;
-
-  close(com[num].fd);
-  /* fall through */
-fail_unlock:
-  if (com[num].dev_locked && tty_lock(com_cfg[num].dev, 0) >= 0)   		/* Unlock port */
-    com[num].dev_locked = FALSE;
-
-  com[num].fd = -2; // disable permanently
-  return -1;
-}
-
-
-/* This function closes ONE serial port for DOSEMU.  Normally called
- * only by do_ser_init below.   [num = port, return = file error code]
- */
-static int ser_close(int num)
-{
-  int i;
-  s_printf("SER%d: Running ser_close\n",num);
-  remove_from_io_select(com[num].fd);
-  uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
-
-  /* save current dosemu settings of the file and restore the old settings
-   * before closing the file down.
-   */
-  if (!com[num].fifo) {
-    RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-    RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].oldset));
-  }
-  i = RPT_SYSCALL(close(com[num].fd));
-  com[num].fd = -1;
-
-  /* Clear the lockfile from DOSEMU */
-  if (com[num].dev_locked) {
-    if (tty_lock(com_cfg[num].dev, 0) >= 0)
-      com[num].dev_locked = FALSE;
-  }
-  return (i);
-}
-
 
 static Bit8u com_readb(ioport_t port) {
   int tmp;
@@ -678,6 +367,7 @@ void serial_init(void)
   /* Do UART init here - Need to set up registers and init the lines. */
   for (i = 0; i < config.num_ser; i++) {
     com[i].fd = -1;
+    com[i].opened = FALSE;
     com[i].dev_locked = FALSE;
 
     /* Serial port init is skipped if the port is used for a mouse, and
