@@ -28,21 +28,21 @@
 #include "tty_io.h"
 
 /* This function flushes the internal unix receive buffer [num = port] */
-void rx_buffer_dump(int num)
+static void tty_rx_buffer_dump(com_t *com)
 {
-  tcflush(com[num].fd,TCIFLUSH);
+  tcflush(com->fd, TCIFLUSH);
 }
 
 /* This function flushes the internal unix transmit buffer [num = port] */
-void tx_buffer_dump(int num)
+static void tty_tx_buffer_dump(com_t *com)
 {
-  tcflush(com[num].fd,TCOFLUSH);
+  tcflush(com->fd, TCOFLUSH);
 }
 
-int serial_get_tx_queued(int num)
+static int tty_get_tx_queued(com_t *com)
 {
   int ret, queued;
-  ret = ioctl(com[num].fd, TIOCOUTQ, &queued);
+  ret = ioctl(com->fd, TIOCOUTQ, &queued);
   if (ret < 0)
     return ret;
   return queued;
@@ -53,71 +53,71 @@ int serial_get_tx_queued(int num)
  * stored in the Line Control Register (com[].LCR) and the Baudrate
  * Divisor Latch Registers (com[].dlm and com[].dll)     [num = port]
  */
-void ser_termios(int num)
+static void tty_termios(com_t *com)
 {
   speed_t baud;
   long int rounddiv;
 
-  if (com[num].fifo)
+  if (com->fifo)
     return;
 
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
-  #define DIVISOR ((com[num].dlm << 8) | com[num].dll)
+  #define DIVISOR ((com->dlm << 8) | com->dll)
 
   /* Return if not a tty */
-  if (tcgetattr(com[num].fd, &com[num].newset) == -1) {
-    if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",num,strerror(errno));
+  if (tcgetattr(com->fd, &com->newset) == -1) {
+    if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",com->num,strerror(errno));
     return;
   }
 
-  s_printf("SER%d: LCR = 0x%x, ",num,com[num].LCR);
+  s_printf("SER%d: LCR = 0x%x, ",com->num,com->LCR);
 
   /* Set the word size */
-  com[num].newset.c_cflag &= ~CSIZE;
-  switch (com[num].LCR & UART_LCR_WLEN8) {
+  com->newset.c_cflag &= ~CSIZE;
+  switch (com->LCR & UART_LCR_WLEN8) {
   case UART_LCR_WLEN5:
-    com[num].newset.c_cflag |= CS5;
+    com->newset.c_cflag |= CS5;
     s_printf("5");
     break;
   case UART_LCR_WLEN6:
-    com[num].newset.c_cflag |= CS6;
+    com->newset.c_cflag |= CS6;
     s_printf("6");
     break;
   case UART_LCR_WLEN7:
-    com[num].newset.c_cflag |= CS7;
+    com->newset.c_cflag |= CS7;
     s_printf("7");
     break;
   case UART_LCR_WLEN8:
-    com[num].newset.c_cflag |= CS8;
+    com->newset.c_cflag |= CS8;
     s_printf("8");
     break;
   }
 
   /* Set the parity.  Rarely-used MARK and SPACE parities not supported yet */
-  if (com[num].LCR & UART_LCR_PARITY) {
-    com[num].newset.c_cflag |= PARENB;
-    if (com[num].LCR & UART_LCR_EPAR) {
-      com[num].newset.c_cflag &= ~PARODD;
+  if (com->LCR & UART_LCR_PARITY) {
+    com->newset.c_cflag |= PARENB;
+    if (com->LCR & UART_LCR_EPAR) {
+      com->newset.c_cflag &= ~PARODD;
       s_printf("E");
     }
     else {
-      com[num].newset.c_cflag |= PARODD;
+      com->newset.c_cflag |= PARODD;
       s_printf("O");
     }
   }
   else {
-    com[num].newset.c_cflag &= ~PARENB;
+    com->newset.c_cflag &= ~PARENB;
     s_printf("N");
   }
 
   /* Set the stop bits: UART_LCR_STOP set means 2 stop bits, 1 otherwise */
-  if (com[num].LCR & UART_LCR_STOP) {
+  if (com->LCR & UART_LCR_STOP) {
     /* This is actually 1.5 stop bit when word size is 5 bits */
-    com[num].newset.c_cflag |= CSTOPB;
+    com->newset.c_cflag |= CSTOPB;
     s_printf("2, ");
   }
   else {
-    com[num].newset.c_cflag &= ~CSTOPB;
+    com->newset.c_cflag &= ~CSTOPB;
     s_printf("1, ");
   }
 
@@ -200,68 +200,68 @@ void ser_termios(int num)
   s_printf("divisor 0x%x -> 0x%lx\n", DIVISOR, rounddiv);
 
   /* The following does the actual system calls to set the line parameters */
-  cfsetispeed(&com[num].newset, baud);
-  cfsetospeed(&com[num].newset, baud);
+  cfsetispeed(&com->newset, baud);
+  cfsetospeed(&com->newset, baud);
   if (debug_level('s') > 7) {
-    s_printf("SER%d: iflag=%x oflag=%x cflag=%x lflag=%x\n", num,
-	    com[num].newset.c_iflag, com[num].newset.c_oflag,
-	    com[num].newset.c_cflag, com[num].newset.c_lflag);
+    s_printf("SER%d: iflag=%x oflag=%x cflag=%x lflag=%x\n", com->num,
+	    com->newset.c_iflag, com->newset.c_oflag,
+	    com->newset.c_cflag, com->newset.c_lflag);
   }
-  tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
+  tcsetattr(com->fd, TCSANOW, &com->newset);
 #if 0
   /* Many mouse drivers require this, they detect for Framing Errors
    * coming from the mouse, during initialization, usually right after
    * the LCR register is set, so this is why this line of code is here
    */
-  if (com[num].mouse) {
-    com[num].LSR |= UART_LSR_FE; 		/* Set framing error */
-    if(s3_printf) s_printf("SER%d: Func ser_termios requesting LS_INTR\n",num);
-    serial_int_engine(num, LS_INTR);		/* Update interrupt status */
+  if (com->mouse) {
+    com->LSR |= UART_LSR_FE; 		/* Set framing error */
+    if(s3_printf) s_printf("SER%d: Func ser_termios requesting LS_INTR\n",com->num);
+    serial_int_engine(com->num, LS_INTR);		/* Update interrupt status */
   }
 #endif
 }
 
-int serial_brkctl(int num, int brkflg)
+static int tty_brkctl(com_t *com, int brkflg)
 {
   int ret;
   /* there is change of break state */
   if (brkflg) {
-    s_printf("SER%d: Setting BREAK state.\n", num);
-    tcdrain(com[num].fd);
-    ret = ioctl(com[num].fd, TIOCSBRK);
+    s_printf("SER%d: Setting BREAK state.\n", com->num);
+    tcdrain(com->fd);
+    ret = ioctl(com->fd, TIOCSBRK);
   } else {
-    s_printf("SER%d: Clearing BREAK state.\n", num);
-    ret = ioctl(com[num].fd, TIOCCBRK);
+    s_printf("SER%d: Clearing BREAK state.\n", com->num);
+    ret = ioctl(com->fd, TIOCCBRK);
   }
   return ret;
 }
 
-ssize_t serial_write(int num, char *buf, size_t len)
+static ssize_t tty_write(com_t *com, char *buf, size_t len)
 {
-  if (com[num].fifo)	// R/O fifo
+  if (com->fifo)	// R/O fifo
     return len;
-  return RPT_SYSCALL(write(com[num].fd, buf, len));   /* Attempt char xmit */
+  return RPT_SYSCALL(write(com->fd, buf, len));   /* Attempt char xmit */
 }
 
-int serial_dtr(int num, int flag)
+static int tty_dtr(com_t *com, int flag)
 {
   int ret, control;
   control = TIOCM_DTR;
   if (flag)
-    ret = ioctl(com[num].fd, TIOCMBIS, &control);
+    ret = ioctl(com->fd, TIOCMBIS, &control);
   else
-    ret = ioctl(com[num].fd, TIOCMBIC, &control);
+    ret = ioctl(com->fd, TIOCMBIC, &control);
   return ret;
 }
 
-int serial_rts(int num, int flag)
+static int tty_rts(com_t *com, int flag)
 {
   int ret, control;
   control = TIOCM_RTS;
   if (flag)
-    ret = ioctl(com[num].fd, TIOCMBIS, &control);
+    ret = ioctl(com->fd, TIOCMBIS, &control);
   else
-    ret = ioctl(com[num].fd, TIOCMBIC, &control);
+    ret = ioctl(com->fd, TIOCMBIC, &control);
   return ret;
 }
 
@@ -396,34 +396,34 @@ static int tty_lock(char *path, int mode)
   return(0);
 }
 
-static void ser_set_params(int num)
+static void ser_set_params(com_t *com)
 {
   int data = 0;
-  com[num].newset.c_cflag = CS8 | CLOCAL | CREAD;
-  com[num].newset.c_iflag = IGNBRK | IGNPAR;
-  com[num].newset.c_oflag = 0;
-  com[num].newset.c_lflag = 0;
+  com->newset.c_cflag = CS8 | CLOCAL | CREAD;
+  com->newset.c_iflag = IGNBRK | IGNPAR;
+  com->newset.c_oflag = 0;
+  com->newset.c_lflag = 0;
 
 #ifdef __linux__
-  com[num].newset.c_line = 0;
+  com->newset.c_line = 0;
 #endif
-  com[num].newset.c_cc[VMIN] = 1;
-  com[num].newset.c_cc[VTIME] = 0;
-  if (com_cfg[num].system_rtscts)
-    com[num].newset.c_cflag |= CRTSCTS;
-  if (!com[num].fifo)
-    tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
+  com->newset.c_cc[VMIN] = 1;
+  com->newset.c_cc[VTIME] = 0;
+  if (com_cfg[com->num].system_rtscts)
+    com->newset.c_cflag |= CRTSCTS;
+  if (!com->fifo)
+    tcsetattr(com->fd, TCSANOW, &com->newset);
 
-  if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
-  ser_termios(num);			/* Set line settings now */
+  if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n", com->num);
+  tty_termios(com);			/* Set line settings now */
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
-  if (!com_cfg[num].pseudo) {
+  if (!com_cfg[com->num].pseudo) {
     data = TIOCM_DTR | TIOCM_RTS;
-    if (ioctl(com[num].fd, TIOCMBIC, &data) && errno == EINVAL) {
-      s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", num);
-      com_cfg[num].pseudo = 1;
+    if (ioctl(com->fd, TIOCMBIC, &data) && errno == EINVAL) {
+      s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", com->num);
+      com_cfg[com->num].pseudo = 1;
     }
   }
 }
@@ -436,15 +436,15 @@ static void ser_set_params(int num)
  *
  * [num = port]
  */
-int uart_fill(int num)
+static int tty_uart_fill(com_t *com)
 {
   int size = 0;
 
-  if (com[num].fd < 0)
+  if (com->fd < 0)
     return 0;
 
   /* Return if in loopback mode */
-  if (com[num].MCR & UART_MCR_LOOP)
+  if (com->MCR & UART_MCR_LOOP)
     return 0;
 
   /* Is it time to do another read() of the serial device yet?
@@ -453,206 +453,227 @@ int uart_fill(int num)
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
-  if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size) {
-    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", num,
-        RX_BUF_BYTES(num));
+  if (RX_BUF_BYTES(com->num) >= com->rx_fifo_size) {
+    if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", com->num,
+        RX_BUF_BYTES(com->num));
     return 0;
   }
 
   /* Slide the buffer contents to the bottom */
-  rx_buffer_slide(num);
+  rx_buffer_slide(com->num);
 
   /* Do a block read of data.
    * Guaranteed minimum requested read size of (RX_BUFFER_SIZE - 16)!
    */
-  size = RPT_SYSCALL(read(com[num].fd,
-                              &com[num].rx_buf[com[num].rx_buf_end],
-                              RX_BUFFER_SIZE - com[num].rx_buf_end));
+  size = RPT_SYSCALL(read(com->fd,
+                              &com->rx_buf[com->rx_buf_end],
+                              RX_BUFFER_SIZE - com->rx_buf_end));
   if (size <= 0)
     return 0;
-  if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
-        size, RX_BUF_BYTES(num));
+  if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n", com->num,
+        size, RX_BUF_BYTES(com->num));
   if (debug_level('s') >= 9) {
     int i;
     for (i = 0; i < size; i++)
-      s_printf("SER%d: Got data byte: %#x\n", num,
-          com[num].rx_buf[com[num].rx_buf_end + i]);
+      s_printf("SER%d: Got data byte: %#x\n", com->num,
+          com->rx_buf[com->rx_buf_end + i]);
   }
-  com[num].rx_buf_end += size;
+  com->rx_buf_end += size;
   return size;
 }
 
 static void async_serial_run(void *arg)
 {
-  int num = (long)arg;
+  com_t *com = arg;
   int size;
-  s_printf("SER%d: Async notification received\n", num);
-  size = uart_fill(num);
+  s_printf("SER%d: Async notification received\n", com->num);
+  size = tty_uart_fill(com);
   if (size > 0)
-    receive_engine(num, size);
+    receive_engine(com->num, size);
 }
 
 /* This function opens ONE serial port for DOSEMU.  Normally called only
  * by do_ser_init below.   [num = port, return = file descriptor]
  */
-int ser_open(int num)
+static int tty_open(com_t *com)
 {
   struct stat st;
   int err, oflags = O_NONBLOCK;
 
-  if (com[num].fd != -1)
+  if (com->fd != -1)
     return -1;
-  s_printf("SER%d: Running ser_open, %s, fd=%d\n", num, com_cfg[num].dev,
-	com[num].fd);
+  s_printf("SER%d: Running ser_open, %s, fd=%d\n", com->num,
+	com_cfg[com->num].dev, com->fd);
 
-  if (com[num].fd != -1) return (com[num].fd);
+  if (com->fd != -1)
+    return (com->fd);
 
-  if ( com_cfg[num].virtual )
+  if (com_cfg[com->num].virtual)
   {
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
     s_printf("Opening Virtual Port\n");
-    com[num].dev_locked = FALSE;
+    com->dev_locked = FALSE;
   } else if (config.tty_lockdir[0]) {
-    if (tty_lock(com_cfg[num].dev, 1) >= 0) {		/* Lock port */
+    if (tty_lock(com_cfg[com->num].dev, 1) >= 0) {		/* Lock port */
       /* We know that we have access to the serial port */
       /* If the port is used for a mouse, then don't lock, because
        * the use of the mouse serial port can be switched between processes,
        * such as on Linux virtual consoles.
        */
-      com[num].dev_locked = TRUE;
+      com->dev_locked = TRUE;
     } else {
       /* The port is in use by another process!  Don't touch the port! */
-      com[num].dev_locked = FALSE;
-      com[num].fd = -2;
+      com->dev_locked = FALSE;
+      com->fd = -2;
       return(-1);
     }
   } else {
     s_printf("Warning: Port locking disabled in the config.\n");
-    com[num].dev_locked = FALSE;
+    com->dev_locked = FALSE;
   }
 
-  err = stat(com_cfg[num].dev, &st);
+  err = stat(com_cfg[com->num].dev, &st);
   if (err) {
-    error("SERIAL: stat(%s) failed: %s\n", com_cfg[num].dev, strerror(errno));
-    com[num].fd = -2;
+    error("SERIAL: stat(%s) failed: %s\n", com_cfg[com->num].dev,
+	    strerror(errno));
+    com->fd = -2;
     return -1;
   }
   if (S_ISFIFO(st.st_mode)) {
-    s_printf("SER%i: %s is fifo, setting pseudo flag\n", num,
-	    com_cfg[num].dev);
-    com[num].fifo = TRUE;
-    com_cfg[num].pseudo = TRUE;
+    s_printf("SER%i: %s is fifo, setting pseudo flag\n", com->num,
+	    com_cfg[com->num].dev);
+    com->fifo = TRUE;
+    com_cfg[com->num].pseudo = TRUE;
     oflags |= O_RDONLY;
   } else {
     oflags |= O_RDWR;
   }
 
-  com[num].fd = RPT_SYSCALL(open(com_cfg[num].dev, oflags));
-  if (com[num].fd < 0) {
+  com->fd = RPT_SYSCALL(open(com_cfg[com->num].dev, oflags));
+  if (com->fd < 0) {
     error("SERIAL: Unable to open device %s: %s\n",
-      com_cfg[num].dev, strerror(errno));
+      com_cfg[com->num].dev, strerror(errno));
     goto fail_unlock;
   }
 
-  if (!com[num].fifo && !isatty(com[num].fd)) {
+  if (!com->fifo && !isatty(com->fd)) {
     s_printf("SERIAL: Serial port device %s is not a tty\n",
-      com_cfg[num].dev);
-    com[num].fifo = TRUE;
-    com_cfg[num].pseudo = TRUE;
+      com_cfg[com->num].dev);
+    com->fifo = TRUE;
+    com_cfg[com->num].pseudo = TRUE;
   }
 
-  if (!com[num].fifo) {
-   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
-   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
+  if (!com->fifo) {
+   RPT_SYSCALL(tcgetattr(com->fd, &com->oldset));
+   RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
 
-   if (com_cfg[num].low_latency) {
+   if (com_cfg[com->num].low_latency) {
     struct serial_struct ser_info;
-    int err = ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
+    int err = ioctl(com->fd, TIOCGSERIAL, &ser_info);
     if (err) {
       error("SER%d: failure getting serial port settings, %s\n",
-          num, strerror(errno));
+          com->num, strerror(errno));
     } else {
       ser_info.flags |= ASYNC_LOW_LATENCY;
-      err = ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
+      err = ioctl(com->fd, TIOCSSERIAL, &ser_info);
       if (err)
         error("SER%d: failure setting low_latency flag, %s\n",
-            num, strerror(errno));
+            com->num, strerror(errno));
       else
-        s_printf("SER%d: low_latency flag set\n", num);
+        s_printf("SER%d: low_latency flag set\n", com->num);
     }
    }
   }
-  ser_set_params(num);
+  ser_set_params(com);
 
-  add_to_io_select(com[num].fd, async_serial_run, (void *)(long)num);
+  add_to_io_select(com->fd, async_serial_run, (void *)com);
 
-  modstat_engine(num);
-  return com[num].fd;
+  modstat_engine(com->num);
+  return com->fd;
 
-  close(com[num].fd);
+  close(com->fd);
   /* fall through */
 fail_unlock:
-  if (com[num].dev_locked && tty_lock(com_cfg[num].dev, 0) >= 0)   		/* Unlock port */
-    com[num].dev_locked = FALSE;
+  if (com->dev_locked && tty_lock(com_cfg[com->num].dev, 0) >= 0) /* Unlock port */
+    com->dev_locked = FALSE;
 
-  com[num].fd = -2; // disable permanently
+  com->fd = -2; // disable permanently
   return -1;
 }
 
 /* This function closes ONE serial port for DOSEMU.  Normally called
  * only by do_ser_init below.   [num = port, return = file error code]
  */
-int ser_close(int num)
+static int tty_close(com_t *com)
 {
   int i;
-  if (com[num].fd < 0)
+  if (com->fd < 0)
     return -1;
-  s_printf("SER%d: Running ser_close\n",num);
-  remove_from_io_select(com[num].fd);
-  uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
+  s_printf("SER%d: Running ser_close\n", com->num);
+  remove_from_io_select(com->fd);
 
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down.
    */
-  if (!com[num].fifo) {
-    RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-    RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].oldset));
+  if (!com->fifo) {
+    RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
+    RPT_SYSCALL(tcsetattr(com->fd, TCSANOW, &com->oldset));
   }
-  i = RPT_SYSCALL(close(com[num].fd));
-  com[num].fd = -1;
+  i = RPT_SYSCALL(close(com->fd));
+  com->fd = -1;
 
   /* Clear the lockfile from DOSEMU */
-  if (com[num].dev_locked) {
-    if (tty_lock(com_cfg[num].dev, 0) >= 0)
-      com[num].dev_locked = FALSE;
+  if (com->dev_locked) {
+    if (tty_lock(com_cfg[com->num].dev, 0) >= 0)
+      com->dev_locked = FALSE;
   }
   return (i);
 }
 
-int serial_get_cts(int num)
+static int tty_get_cts(com_t *com)
 {
   int control;
-  ioctl(com[num].fd, TIOCMGET, &control);
+  ioctl(com->fd, TIOCMGET, &control);
   return !!(control & TIOCM_CTS);
 }
 
-int serial_get_dsr(int num)
+static int tty_get_dsr(com_t *com)
 {
   int control;
-  ioctl(com[num].fd, TIOCMGET, &control);
+  ioctl(com->fd, TIOCMGET, &control);
   return !!(control & TIOCM_DSR);
 }
 
-int serial_get_rng(int num)
+static int tty_get_rng(com_t *com)
 {
   int control;
-  ioctl(com[num].fd, TIOCMGET, &control);
+  ioctl(com->fd, TIOCMGET, &control);
   return !!(control & TIOCM_RNG);
 }
 
-int serial_get_car(int num)
+static int tty_get_car(com_t *com)
 {
   int control;
-  ioctl(com[num].fd, TIOCMGET, &control);
+  ioctl(com->fd, TIOCMGET, &control);
   return !!(control & TIOCM_CAR);
 }
+
+
+struct serial_drv tty_drv = {
+  tty_rx_buffer_dump,
+  tty_tx_buffer_dump,
+  tty_get_tx_queued,
+  tty_termios,
+  tty_brkctl,
+  tty_write,
+  tty_dtr,
+  tty_rts,
+  tty_open,
+  tty_close,
+  tty_uart_fill,
+  tty_get_cts,
+  tty_get_dsr,
+  tty_get_rng,
+  tty_get_car,
+  "tty_io"
+};

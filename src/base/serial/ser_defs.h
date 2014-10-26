@@ -294,6 +294,8 @@
  */
 #define MS_MIN_FREQ		3840L
 
+struct serial_drv;
+
 struct iir {
   u_char mask;
   union {
@@ -309,6 +311,7 @@ struct iir {
 
 typedef struct {
   				/*   MAIN VARIABLES  */
+  int num;
   int fd;			/* File descriptor of device */
   boolean opened;
   boolean fifo;
@@ -353,6 +356,8 @@ typedef struct {
 
   struct termios oldset;		/* Original termios settings */
   struct termios newset;		/* Current termios settings */
+
+  struct serial_drv *drv;
 } com_t;
 
 extern com_t com[MAX_SER];
@@ -386,5 +391,40 @@ void rx_buffer_slide(int num);
 void tx_buffer_slide(int num);
 int serial_get_tx_queued(int num);
 void serial_update(int num);
+
+void rx_buffer_dump(int num);
+void tx_buffer_dump(int num);
+int serial_get_tx_queued(int num);
+void ser_termios(int num);
+int serial_brkctl(int num, int brkflg);
+ssize_t serial_write(int num, char *buf, size_t len);
+int serial_dtr(int num, int flag);
+int serial_rts(int num, int flag);
+int ser_open(int num);
+int ser_close(int num);
+int uart_fill(int num);
+int serial_get_cts(int num);
+int serial_get_dsr(int num);
+int serial_get_rng(int num);
+int serial_get_car(int num);
+
+struct serial_drv {
+  void (*rx_buffer_dump)(com_t *com);
+  void (*tx_buffer_dump)(com_t *com);
+  int (*serial_get_tx_queued)(com_t *com);
+  void (*ser_termios)(com_t *com);
+  int (*serial_brkctl)(com_t *com, int brkflg);
+  ssize_t (*serial_write)(com_t *com, char *buf, size_t len);
+  int (*serial_dtr)(com_t *com, int flag);
+  int (*serial_rts)(com_t *com, int flag);
+  int (*ser_open)(com_t *com);
+  int (*ser_close)(com_t *com);
+  int (*uart_fill)(com_t *com);
+  int (*serial_get_cts)(com_t *com);
+  int (*serial_get_dsr)(com_t *com);
+  int (*serial_get_rng)(com_t *com);
+  int (*serial_get_car)(com_t *com);
+  char *name;
+};
 
 #endif /* SER_DEFS_H */

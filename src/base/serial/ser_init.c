@@ -360,9 +360,11 @@ void serial_init(void)
 
   /* Do UART init here - Need to set up registers and init the lines. */
   for (i = 0; i < config.num_ser; i++) {
+    com[i].num = i;
     com[i].fd = -1;
     com[i].opened = FALSE;
     com[i].dev_locked = FALSE;
+    com[i].drv = &tty_drv;
 
     /* Serial port init is skipped if the port is used for a mouse, and
      * dosemu is running in Xwindows, or not at the console.  This is due
@@ -389,3 +391,36 @@ void serial_close(void)
     ser_close(i);
   }
 }
+
+
+#define SER_FN0(rt, f) \
+rt f(int num) \
+{ \
+  return com[num].drv->f(&com[num]); \
+}
+#define SER_FN1(rt, f, p, c) \
+rt f(int num, p c) \
+{ \
+  return com[num].drv->f(&com[num], c); \
+}
+#define SER_FN2(rt, f, p1, c1, p2, c2) \
+rt f(int num, p1 c1, p2 c2) \
+{ \
+  return com[num].drv->f(&com[num], c1, c2); \
+}
+
+SER_FN0(void, rx_buffer_dump)
+SER_FN0(void, tx_buffer_dump)
+SER_FN0(int, serial_get_tx_queued)
+SER_FN0(void, ser_termios)
+SER_FN1(int, serial_brkctl, int, brkflg)
+SER_FN2(ssize_t, serial_write, char*, buf, size_t, len)
+SER_FN1(int, serial_dtr, int, flag)
+SER_FN1(int, serial_rts, int, flag)
+SER_FN0(int, ser_open)
+SER_FN0(int, ser_close)
+SER_FN0(int, uart_fill)
+SER_FN0(int, serial_get_cts)
+SER_FN0(int, serial_get_dsr)
+SER_FN0(int, serial_get_rng)
+SER_FN0(int, serial_get_car)
