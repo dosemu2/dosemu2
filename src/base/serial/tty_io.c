@@ -409,7 +409,7 @@ static void ser_set_params(com_t *com)
 #endif
   com->newset.c_cc[VMIN] = 1;
   com->newset.c_cc[VTIME] = 0;
-  if (com_cfg[com->num].system_rtscts)
+  if (com->cfg->system_rtscts)
     com->newset.c_cflag |= CRTSCTS;
   if (!com->fifo)
     tcsetattr(com->fd, TCSANOW, &com->newset);
@@ -419,11 +419,11 @@ static void ser_set_params(com_t *com)
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
-  if (!com_cfg[com->num].pseudo) {
+  if (!com->cfg->pseudo) {
     data = TIOCM_DTR | TIOCM_RTS;
     if (ioctl(com->fd, TIOCMBIC, &data) && errno == EINVAL) {
       s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", com->num);
-      com_cfg[com->num].pseudo = 1;
+      com->cfg->pseudo = 1;
     }
   }
 }
@@ -503,18 +503,18 @@ static int tty_open(com_t *com)
   if (com->fd != -1)
     return -1;
   s_printf("SER%d: Running ser_open, %s, fd=%d\n", com->num,
-	com_cfg[com->num].dev, com->fd);
+	com->cfg->dev, com->fd);
 
   if (com->fd != -1)
     return (com->fd);
 
-  if (com_cfg[com->num].virtual)
+  if (com->cfg->virtual)
   {
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
     s_printf("Opening Virtual Port\n");
     com->dev_locked = FALSE;
   } else if (config.tty_lockdir[0]) {
-    if (tty_lock(com_cfg[com->num].dev, 1) >= 0) {		/* Lock port */
+    if (tty_lock(com->cfg->dev, 1) >= 0) {		/* Lock port */
       /* We know that we have access to the serial port */
       /* If the port is used for a mouse, then don't lock, because
        * the use of the mouse serial port can be switched between processes,
@@ -532,42 +532,42 @@ static int tty_open(com_t *com)
     com->dev_locked = FALSE;
   }
 
-  err = stat(com_cfg[com->num].dev, &st);
+  err = stat(com->cfg->dev, &st);
   if (err) {
-    error("SERIAL: stat(%s) failed: %s\n", com_cfg[com->num].dev,
+    error("SERIAL: stat(%s) failed: %s\n", com->cfg->dev,
 	    strerror(errno));
     com->fd = -2;
     return -1;
   }
   if (S_ISFIFO(st.st_mode)) {
     s_printf("SER%i: %s is fifo, setting pseudo flag\n", com->num,
-	    com_cfg[com->num].dev);
+	    com->cfg->dev);
     com->fifo = TRUE;
-    com_cfg[com->num].pseudo = TRUE;
+    com->cfg->pseudo = TRUE;
     oflags |= O_RDONLY;
   } else {
     oflags |= O_RDWR;
   }
 
-  com->fd = RPT_SYSCALL(open(com_cfg[com->num].dev, oflags));
+  com->fd = RPT_SYSCALL(open(com->cfg->dev, oflags));
   if (com->fd < 0) {
     error("SERIAL: Unable to open device %s: %s\n",
-      com_cfg[com->num].dev, strerror(errno));
+      com->cfg->dev, strerror(errno));
     goto fail_unlock;
   }
 
   if (!com->fifo && !isatty(com->fd)) {
     s_printf("SERIAL: Serial port device %s is not a tty\n",
-      com_cfg[com->num].dev);
+      com->cfg->dev);
     com->fifo = TRUE;
-    com_cfg[com->num].pseudo = TRUE;
+    com->cfg->pseudo = TRUE;
   }
 
   if (!com->fifo) {
    RPT_SYSCALL(tcgetattr(com->fd, &com->oldset));
    RPT_SYSCALL(tcgetattr(com->fd, &com->newset));
 
-   if (com_cfg[com->num].low_latency) {
+   if (com->cfg->low_latency) {
     struct serial_struct ser_info;
     int err = ioctl(com->fd, TIOCGSERIAL, &ser_info);
     if (err) {
@@ -594,7 +594,7 @@ static int tty_open(com_t *com)
   close(com->fd);
   /* fall through */
 fail_unlock:
-  if (com->dev_locked && tty_lock(com_cfg[com->num].dev, 0) >= 0) /* Unlock port */
+  if (com->dev_locked && tty_lock(com->cfg->dev, 0) >= 0) /* Unlock port */
     com->dev_locked = FALSE;
 
   com->fd = -2; // disable permanently
@@ -624,7 +624,7 @@ static int tty_close(com_t *com)
 
   /* Clear the lockfile from DOSEMU */
   if (com->dev_locked) {
-    if (tty_lock(com_cfg[com->num].dev, 0) >= 0)
+    if (tty_lock(com->cfg->dev, 0) >= 0)
       com->dev_locked = FALSE;
   }
   return (i);

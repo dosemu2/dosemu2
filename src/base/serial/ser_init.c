@@ -361,6 +361,7 @@ void serial_init(void)
   /* Do UART init here - Need to set up registers and init the lines. */
   for (i = 0; i < config.num_ser; i++) {
     com[i].num = i;
+    com[i].cfg = &com_cfg[i];
     com[i].fd = -1;
     com[i].opened = FALSE;
     com[i].dev_locked = FALSE;

@@ -311,6 +311,7 @@ struct iir {
 
 typedef struct {
   				/*   MAIN VARIABLES  */
+  serial_t *cfg;
   int num;
   int fd;			/* File descriptor of device */
   boolean opened;
