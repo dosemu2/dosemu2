@@ -6,15 +6,15 @@ include $(top_builddir)/Makefile.conf
 # Please read the code in this directory for more information.
 
 #The C files, include files and dependancies here.
-CFILES = ser_init.c ser_irq.c ser_ports.c int14.c fossil.c
-DEPENDS= ser_init.d ser_irq.d ser_ports.d int14.d fossil.d
+CFILES = ser_init.c ser_irq.c ser_ports.c int14.c fossil.c tty_io.c
+DEPENDS=$(CFILES:.c=.d)
 HFILES = ser_defs.h
 
 # Insert all source- and header-files here.
 ALL = $(CFILES) $(HFILES) README.serial
 
 # All object-files are included here.
-OBJS = ser_init.o ser_irq.o ser_ports.o int14.o fossil.o
+OBJS = $(CFILES:.c=.o)
 
 all: lib
 
