@@ -32,12 +32,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/time.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <errno.h>
-#include <limits.h>
 #include <assert.h>
 
 #include "config.h"
@@ -50,7 +45,6 @@
 #include "tty_io.h"
 #include "utilities.h"	/* due to getpwnam */
 #include "iodev.h"
-#include "vc.h"
 
 int no_local_video = 0;
 com_t com[MAX_SER];
@@ -390,10 +384,8 @@ void serial_close(void)
   int i;
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
-    if (com[i].fd < 0)
+    if (!com[i].opened)
       continue;
-    if (!com[i].fifo)
-        RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
     ser_close(i);
   }
 }

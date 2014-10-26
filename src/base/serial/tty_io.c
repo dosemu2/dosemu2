@@ -628,3 +628,31 @@ int ser_close(int num)
   }
   return (i);
 }
+
+int serial_get_cts(int num)
+{
+  int control;
+  ioctl(com[num].fd, TIOCMGET, &control);
+  return !!(control & TIOCM_CTS);
+}
+
+int serial_get_dsr(int num)
+{
+  int control;
+  ioctl(com[num].fd, TIOCMGET, &control);
+  return !!(control & TIOCM_DSR);
+}
+
+int serial_get_rng(int num)
+{
+  int control;
+  ioctl(com[num].fd, TIOCMGET, &control);
+  return !!(control & TIOCM_RNG);
+}
+
+int serial_get_car(int num)
+{
+  int control;
+  ioctl(com[num].fd, TIOCMGET, &control);
+  return !!(control & TIOCM_CAR);
+}

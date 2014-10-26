@@ -20,10 +20,6 @@
 /**************************** DECLARATIONS *******************************/
 
 #include <stdio.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <string.h>
 #include <errno.h>
 

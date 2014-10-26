@@ -19,11 +19,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/time.h>
-#include <termios.h>
-#include <sys/ioctl.h>
 
 #include "config.h"
 #include "emu.h"
@@ -168,9 +164,9 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
    * If the CTS state is low, then don't start new transmit interrupt!
    */
   if (com_cfg[num].system_rtscts) {
-    int control;
-    ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
-    if (!(control & TIOCM_CTS)) return;		/* Return if CTS is low */
+    int cts = serial_get_cts(num);
+    if (!cts)
+      return;		/* Return if CTS is low */
   }
 
   if (com[num].tx_cnt > QUEUE_THRESHOLD)
@@ -195,7 +191,6 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
  */
 void modstat_engine(int num)		/* Internal Modem Status processing */
 {
-  int control;
   int newmsr, delta;
 
   /* Return if in loopback mode */
@@ -210,11 +205,10 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   if(com_cfg[num].pseudo) {
     newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
   } else {
-    ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
-    newmsr = convert_bit(control, TIOCM_CTS, UART_MSR_CTS) |
-             convert_bit(control, TIOCM_DSR, UART_MSR_DSR) |
-             convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
-             convert_bit(control, TIOCM_CAR, UART_MSR_DCD);
+    newmsr = (serial_get_cts(num) ? UART_MSR_CTS : 0) |
+             (serial_get_dsr(num) ? UART_MSR_DSR : 0) |
+             (serial_get_rng(num) ? UART_MSR_RI : 0) |
+             (serial_get_car(num) ? UART_MSR_DCD : 0);
   }
 
   delta = msr_compute_delta_bits(com[num].MSR, newmsr);
@@ -377,7 +371,8 @@ void serial_run(void)
    * system if they are called 100x's per second.
    */
   for (i = 0; i < config.num_ser; i++) {
-    if (com[i].fd < 0) continue;
+    if (!com[i].opened)
+      continue;
     serial_update(i);
   }
   return;
