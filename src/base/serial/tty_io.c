@@ -436,14 +436,16 @@ static void ser_set_params(int num)
  *
  * [num = port]
  */
-void uart_fill(int num)
+int uart_fill(int num)
 {
   int size = 0;
 
-  if (com[num].fd < 0) return;
+  if (com[num].fd < 0)
+    return 0;
 
   /* Return if in loopback mode */
-  if (com[num].MCR & UART_MCR_LOOP) return;
+  if (com[num].MCR & UART_MCR_LOOP)
+    return 0;
 
   /* Is it time to do another read() of the serial device yet?
    * The rx_timer is used to prevent system load caused by empty read()'s
@@ -454,7 +456,7 @@ void uart_fill(int num)
   if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size) {
     if(s3_printf) s_printf("SER%d: Too many bytes (%i) in buffer\n", num,
         RX_BUF_BYTES(num));
-    return;
+    return 0;
   }
 
   /* Slide the buffer contents to the bottom */
@@ -467,7 +469,7 @@ void uart_fill(int num)
                               &com[num].rx_buf[com[num].rx_buf_end],
                               RX_BUFFER_SIZE - com[num].rx_buf_end));
   if (size <= 0)
-    return;
+    return 0;
   if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
         size, RX_BUF_BYTES(num));
   if (debug_level('s') >= 9) {
@@ -477,16 +479,17 @@ void uart_fill(int num)
           com[num].rx_buf[com[num].rx_buf_end + i]);
   }
   com[num].rx_buf_end += size;
-  if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
-    com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
+  return size;
 }
 
 static void async_serial_run(void *arg)
 {
   int num = (long)arg;
+  int size;
   s_printf("SER%d: Async notification received\n", num);
-  uart_fill(num);
-  receive_engine(num);
+  size = uart_fill(num);
+  if (size > 0)
+    receive_engine(num, size);
 }
 
 /* This function opens ONE serial port for DOSEMU.  Normally called only

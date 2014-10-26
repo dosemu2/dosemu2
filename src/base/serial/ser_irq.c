@@ -31,6 +31,7 @@
 #include "pic.h"
 #include "serial.h"
 #include "ser_defs.h"
+#include "tty_io.h"
 
 /**************************************************************************/
 /*                          The SERIAL ENGINES                            */
@@ -96,9 +97,12 @@ void serial_timer_update(void)
  * and checking if it's time to generate a hardware interrupt (RDI).
  * [num = port]
  */
-void receive_engine(int num)	/* Internal 16550 Receive emulation */
+void receive_engine(int num, int size)	/* Internal 16550 Receive emulation */
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
+
+  if (RX_BUF_BYTES(num) == size && FIFO_ENABLED(num)) /* if fifo was empty */
+    com[num].rx_timeout = TIMEOUT_RX;	/* set timeout counter */
 
   if (RX_BUF_BYTES(num)) {
     com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
@@ -338,10 +342,12 @@ int pic_serial_run(int ilevel)
 
 void serial_update(int num)
 {
+  int size = 0;
   /* optimization: don't read() when enough data buffered */
   if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger)
-    uart_fill(num);
-  receive_engine(num);		/* Receive operations */
+    size = uart_fill(num);
+  if (size > 0)
+    receive_engine(num, size);		/* Receive operations */
   transmit_engine(num);		/* Transmit operations */
   modstat_engine(num);  	/* Modem Status operations */
 }

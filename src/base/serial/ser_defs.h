@@ -380,7 +380,7 @@ void ser_termios(int num);
 void modstat_engine(int num);
 int msr_compute_delta_bits(int oldmsr, int newmsr);
 int ser_open(int num);
-void receive_engine(int num);
+void receive_engine(int num, int size);
 void transmit_engine(int num);
 void rx_buffer_slide(int num);
 void tx_buffer_slide(int num);

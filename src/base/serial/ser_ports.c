@@ -167,8 +167,11 @@ static int get_rx(int num)
   com[num].IIR.flg.cti = 0;
 
   /* if no data, try to get some */
-  if (!RX_BUF_BYTES(num))
-    receive_engine(num);
+  if (!RX_BUF_BYTES(num)) {
+    int size = uart_fill(num);
+    if (size > 0)
+      receive_engine(num, size);
+  }
   /* if still no data, go out */
   if (!RX_BUF_BYTES(num))
     return 0;
@@ -178,7 +181,7 @@ static int get_rx(int num)
   /* Clear data waiting status and interrupt condition flag */
   clear_int_cond(num, RX_INTR);
   /* and see if more to read */
-  receive_engine(num);
+  receive_engine(num, 0);
 
   if (!RX_BUF_BYTES(num))
     com[num].LSR &= ~UART_LSR_DR;
