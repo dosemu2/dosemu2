@@ -173,8 +173,24 @@ int int14(void)
   }
 
   /* Read character function */
-  case 2:
-    if (read_LSR(num) & UART_LSR_DR) {	/* Was a character received? */
+  case 2: {
+    const int timeout = 10;
+    const int scale = 0x10000;
+    int i = 1;
+    hitimer_t end_time = GETtickTIME(0) + timeout * scale;
+    s_printf("SER%d: INT14 0x1: Read char 0x%x\n",num,LO(ax));
+#if 1
+    while (GETtickTIME(0) < end_time) {
+      if (read_LSR(num) & UART_LSR_DR)
+        break;
+      s_printf("SER%d: INT14 0x1: Wait for recv, %i\n", num, i);
+      i++;
+      _set_IF();
+      coopth_wait();
+      clear_IF();
+    }
+#endif
+    if ((read_LSR(num) & UART_LSR_DR) && (read_MSR(num) & UART_MSR_DSR)) {
       LO(ax) = read_char(num);		/* Read character */
       HI(ax) = read_LSR(num) & ~0x80;	/* Character was received */
       s_printf("SER%d: INT14 0x2: Read char 0x%x\n",num,LO(ax));
@@ -184,6 +200,7 @@ int int14(void)
       s_printf("SER%d: INT14 0x2: Read char timeout.\n",num);
     }
     break;
+  }
 
   /* Port Status request function. */
   case 3:
