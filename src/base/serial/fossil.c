@@ -170,16 +170,6 @@ void fossil_int14(int num)
     break;
   }
 
-  /* Write character (should be with wait) */
-  case 0x01:
-    /* DANG_FIXTHIS This really should be write-with-wait. */
-    write_char(num, LO(ax));
-    #if SER_DEBUG_FOSSIL_RW
-      s_printf("SER%d: FOSSIL 0x01: Write char 0x%02x\n", num, LO(ax));
-    #endif
-    LWORD(eax) = FOSSIL_GET_STATUS(num);
-    break;
-
   /* Read character (should be with wait) */
   case 0x02:
     if (com[num].fossil_blkrd_tid != COOPTH_TID_INVALID) {
@@ -208,15 +198,6 @@ void fossil_int14(int num)
     HI(ax) = 0;
     #if SER_DEBUG_FOSSIL_RW
         s_printf("SER%d: FOSSIL 0x02: Read char 0x%02x\n", num, LO(ax));
-    #endif
-    break;
-
-  /* Get port status. */
-  case 0x03:
-    LWORD(eax) = FOSSIL_GET_STATUS(num);
-    #if SER_DEBUG_FOSSIL_STATUS
-      s_printf("SER%d: FOSSIL 0x03: Port Status, AH=0x%02x AL=0x%02x\n",
-        num, HI(ax), LO(ax));
     #endif
     break;
 

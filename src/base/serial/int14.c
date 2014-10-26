@@ -94,15 +94,13 @@ int int14(void)
 
   if (num >= config.num_ser) return 1;	/* Exit if not on supported port */
 
-  /* If FOSSIL is active, call it! */
-  if (com[num].fossil_active)
-  {
-    fossil_int14(num);
-    return 1;
-  }
-
   switch (HI(ax)) {
   case 0:		/* Initialize serial port. */
+    if (com[num].fossil_active) {
+      fossil_int14(num);
+      break;
+    }
+
     s_printf("SER%d: INT14 0x0: Initialize port %d, AL=0x%x\n",
 	num, LO(dx), LO(ax));
 
@@ -178,6 +176,11 @@ int int14(void)
     const int scale = 0x10000;
     int i = 1;
     hitimer_t end_time = GETtickTIME(0) + timeout * scale;
+    if (com[num].fossil_active) {
+      fossil_int14(num);
+      break;
+    }
+
     s_printf("SER%d: INT14 0x1: Read char 0x%x\n",num,LO(ax));
 #if 1
     while (GETtickTIME(0) < end_time) {
@@ -217,6 +220,11 @@ int int14(void)
 
   /* This runs if nothing handles the int14 function */
   default:
+    if (com[num].fossil_active) {
+      fossil_int14(num);
+      break;
+    }
+
     s_printf("SER%d: INT14 0x%x: Unsupported interrupt on port %d\n",
               num,HI(ax),LO(dx));
     break;
