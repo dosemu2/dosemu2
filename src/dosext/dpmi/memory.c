@@ -280,7 +280,7 @@ static void restore_page_protection(dpmi_pm_block *block)
   int i;
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
     if ((block->attrs[i] & 7) == 0)
-      uncommit(&mem_base[block->base + (i << PAGE_SHIFT)], PAGE_SIZE);
+      uncommit(MEM_BASE32(block->base + (i << PAGE_SHIFT)), PAGE_SIZE);
   }
 }
 
@@ -363,9 +363,9 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned int handle)
     if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
     if (block->linear) {
-	munmap_mapping(MAPPING_DPMI, &mem_base[block->base], block->size);
+	munmap_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size);
     } else {
-	smfree(&mem_pool, &mem_base[block->base]);
+	smfree(&mem_pool, MEM_BASE32(block->base));
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
 	if ((block->attrs[i] & 7) == 1)    // if committed page, account it
@@ -422,9 +422,9 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
     }
 
     /* realloc needs full access to the old block */
-    mprotect_mapping(MAPPING_DPMI, &mem_base[block->base], block->size,
+    mprotect_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size,
         PROT_READ | PROT_WRITE | PROT_EXEC);
-    if (!(ptr = smrealloc(&mem_pool, &mem_base[block->base], newsize)))
+    if (!(ptr = smrealloc(&mem_pool, MEM_BASE32(block->base), newsize)))
 	return NULL;
 
     finish_realloc(block, newsize, 1);
@@ -464,9 +464,9 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     * We have to make sure the whole region have the same protection, so that
     * it can be merged into a single VMA. Otherwise mremap() will fail!
     */
-    mprotect_mapping(MAPPING_DPMI, &mem_base[block->base], block->size,
+    mprotect_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size,
       PROT_READ | PROT_WRITE | PROT_EXEC);
-    ptr = mremap_mapping(MAPPING_DPMI, &mem_base[block->base], block->size, newsize,
+    ptr = mremap_mapping(MAPPING_DPMI, MEM_BASE32(block->base), block->size, newsize,
       MREMAP_MAYMOVE, (void*)-1);
     if (ptr == MAP_FAILED) {
 	restore_page_protection(block);
