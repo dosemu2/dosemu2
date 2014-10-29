@@ -160,7 +160,7 @@ static void get_screen_size (void)
      if (config.prompt && first) {
        printf("Note that DOS needs 25 lines. You might want to enlarge your\n");
        printf("window before continuing.\n\n");
-       printf("Now type ENTER to start DOSEMU or <Ctrl>C to cancel\n");
+       printf("Now type ENTER to start DOSEMU\n");
        getchar();
        first = 0;
        get_screen_size();
