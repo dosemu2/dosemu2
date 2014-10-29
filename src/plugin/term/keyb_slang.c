@@ -62,6 +62,7 @@ static inline int slang_get_error(void)
 static struct keyboard_state
 {
 	int kbd_fd;
+	hitimer_t t_start;
 
 	int kbcount;
 	Bit8u kbbuf[KBBUF_SIZE];
@@ -810,8 +811,9 @@ static int getkey_callback(void)
 static int sltermio_input_pending(void)
 {
 	struct timeval scr_tv;
-       hitimer_t t_start, t_dif;
+	hitimer_t t_dif;
 	fd_set fds;
+	int selrt;
 
 #if 0
 #define	THE_TIMEOUT 750000L
@@ -821,18 +823,18 @@ static int sltermio_input_pending(void)
 	FD_ZERO(&fds);
 	FD_SET(keyb_state.kbd_fd, &fds);
 	scr_tv.tv_sec = 0L;
-	scr_tv.tv_usec = THE_TIMEOUT;
+	scr_tv.tv_usec = 0;
 
-	t_start = GETusTIME(0);
-	errno = 0;
-	while ((int)select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv) < (int)1) {
-               t_dif = GETusTIME(0) - t_start;
-
-		if ((t_dif >= THE_TIMEOUT) || (errno != EINTR))
-			return 0;
-		errno = 0;
-		scr_tv.tv_sec = 0L;
-               scr_tv.tv_usec = THE_TIMEOUT - (long)t_dif;
+	selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv);
+	switch(selrt < 0) {
+	case -1:
+		k_printf("ERROR: select failed, %s\n", strerror(errno));
+		return -1;
+	case 0:
+		t_dif = GETusTIME(0) - keyb_state.t_start;
+		if (t_dif >= THE_TIMEOUT)
+			return -1;
+		return 0;
 	}
 	return 1;
 }
@@ -1269,13 +1271,30 @@ static void do_slang_getkeys(void)
 	int cc;
 	int modifier = 0;
 
-	k_printf("KBD: do_slang_getkeys()\n");
+	if (keyb_state.KeyNot_Ready && (keyb_state.Keystr_Len == 1) &&
+			(*keyb_state.kbp == 27)) {
+		switch (sltermio_input_pending()) {
+		case -1:
+			k_printf("KBD: slang got single ESC\n");
+			keyb_state.kbcount--;	/* update count */
+			keyb_state.kbp++;
+			slang_send_scancode(keyb_state.Shift_Flags, KEY_ESC);
+			keyb_state.KeyNot_Ready = 0;
+			return;
+		case 0:
+			return;
+		case 1:
+			break;
+		}
+	}
 
 	cc = read_some_keys();
-	if (-1 == cc && (old_flags == 0 || (old_flags & WAIT_MASK))) {
+	if (cc <= 0 && (old_flags == 0 || (old_flags & WAIT_MASK))) {
 		old_flags &= ~WAIT_MASK;
 		return;
 	}
+
+	k_printf("KBD: do_slang_getkeys()\n");
 	/* restore shift-state from previous keypress */
 	if (old_flags & SHIFT_MASK) {
 		move_key(RELEASE, KEY_L_SHIFT);
@@ -1297,7 +1316,7 @@ static void do_slang_getkeys(void)
 		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
 	}
 	old_flags = 0;
-	if (-1 == cc) {
+	if (cc <= 0) {
 		do_slang_special_keys(0);
 		return;
 	}
@@ -1317,22 +1336,9 @@ static void do_slang_getkeys(void)
 		slang_set_error(0);
 
 		if (keyb_state.KeyNot_Ready) {
-			if ((keyb_state.Keystr_Len == 1) && (*keyb_state.kbp == 27)) {
-				/*
-				 * We have an esc character.  If nothing else is available to be
-				 * read after a brief period, assume user really wants esc.
-				 */
-				k_printf("KBD: got ESC character\n");
-				if (sltermio_input_pending())
-					return;
-
-				k_printf("KBD: slang got single ESC\n");
-				symbol = KEY_ESC;
-				key = NULL;
-				/* drop on through to the return for the undefined key below. */
-			}
-			else
-				break;			/* try again next time */
+			k_printf("KBD: got ESC character\n");
+			keyb_state.t_start = GETusTIME(0);
+			break;			/* try again next time */
 		}
 
 		if (key) {
@@ -1439,7 +1445,7 @@ static void exit_pc_scancode_mode(void)
  */
 static void do_pc_scancode_getkeys(void)
 {
-	if (-1 == read_some_keys()) {
+	if (read_some_keys() <= 0) {
 		return;
 	}
 	k_printf("KBD: do_pc_scancode_getkeys() found %d bytes\n", keyb_state.kbcount);
