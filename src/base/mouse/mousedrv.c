@@ -1,9 +1,10 @@
+#include <stdlib.h>
 #include "emu.h"
 #include "serial.h"
 #include "utilities.h"
 #include "mouse.h"
 
-static struct mouse_drv *mdrv, *cur_drv;
+static struct mouse_drv_wrp *mdrv, *cur_drv;
 
 struct mouse_client *Mouse = NULL;
 
@@ -21,16 +22,18 @@ void register_mouse_client(struct mouse_client *mouse)
 	}
 }
 
-void register_mouse_driver(struct mouse_drv *mouse)
+void register_mouse_driver(struct mouse_drv *mouse, void *udata)
 {
-	struct mouse_drv *m;
-
-	mouse->next = NULL;
+	struct mouse_drv_wrp *m, *ms;
+	ms = malloc(sizeof(*ms));
+	ms->drv = mouse;
+	ms->udata = udata;
+	ms->next = NULL;
 	if (mdrv == NULL)
-		mdrv = mouse;
+		mdrv = ms;
 	else {
 		for (m = mdrv; m->next; m = m->next);
-		m->next = mouse;
+		m->next = ms;
 	}
 }
 
@@ -102,9 +105,9 @@ static void mouse_client_init(void)
 
 void dosemu_mouse_init(void)
 {
-  struct mouse_drv *m;
+  struct mouse_drv_wrp *m;
   for (m = mdrv; m; m = m->next) {
-    if (m->init()) {
+    if (m->drv->init(m->udata)) {
       cur_drv = m;
       break;
     }
@@ -115,42 +118,42 @@ void dosemu_mouse_init(void)
 
 void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 {
-    if (cur_drv && cur_drv->move_buttons)
-	cur_drv->move_buttons(lbutton, mbutton, rbutton);
+    if (cur_drv && cur_drv->drv->move_buttons)
+	cur_drv->drv->move_buttons(lbutton, mbutton, rbutton, cur_drv->udata);
 }
 
 void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->move_relative)
-	cur_drv->move_relative(dx, dy, x_range, y_range);
+    if (cur_drv && cur_drv->drv->move_relative)
+	cur_drv->drv->move_relative(dx, dy, x_range, y_range, cur_drv->udata);
 }
 
 void mouse_move_mickeys(int dx, int dy)
 {
-    if (cur_drv && cur_drv->move_mickeys)
-	cur_drv->move_mickeys(dx, dy);
+    if (cur_drv && cur_drv->drv->move_mickeys)
+	cur_drv->drv->move_mickeys(dx, dy, cur_drv->udata);
 }
 
 void mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->move_absolute)
-	cur_drv->move_absolute(x, y, x_range, y_range);
+    if (cur_drv && cur_drv->drv->move_absolute)
+	cur_drv->drv->move_absolute(x, y, x_range, y_range, cur_drv->udata);
 }
 
 void mouse_drag_to_corner(int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->drag_to_corner)
-	cur_drv->drag_to_corner(x_range, y_range);
+    if (cur_drv && cur_drv->drv->drag_to_corner)
+	cur_drv->drv->drag_to_corner(x_range, y_range, cur_drv->udata);
 }
 
 void mouse_sync_coords(int x, int y, int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->sync_coords)
-	cur_drv->sync_coords(x, y, x_range, y_range);
+    if (cur_drv && cur_drv->drv->sync_coords)
+	cur_drv->drv->sync_coords(x, y, x_range, y_range, cur_drv->udata);
 }
 
 void mouse_enable_native_cursor(int flag)
 {
-    if (cur_drv && cur_drv->enable_native_cursor)
-	cur_drv->enable_native_cursor(flag);
+    if (cur_drv && cur_drv->drv->enable_native_cursor)
+	cur_drv->drv->enable_native_cursor(flag, cur_drv->udata);
 }

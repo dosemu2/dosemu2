@@ -181,19 +181,24 @@ extern void do_mouse_irq(void);
 extern void mouse_io_callback(void *);
 
 struct mouse_drv {
-  int  (*init)(void);
-  void (*move_buttons)(int lbutton, int mbutton, int rbutton);
-  void (*move_relative)(int dx, int dy, int x_range, int y_range);
-  void (*move_mickeys)(int dx, int dy);
-  void (*move_absolute)(int x, int y, int x_range, int y_range);
-  void (*drag_to_corner)(int x_range, int y_range);
-  void (*sync_coords)(int x, int y, int x_range, int y_range);
-  void (*enable_native_cursor)(int flag);
+  int  (*init)(void *udata);
+  void (*move_buttons)(int lbutton, int mbutton, int rbutton, void *udata);
+  void (*move_relative)(int dx, int dy, int x_range, int y_range, void *udata);
+  void (*move_mickeys)(int dx, int dy, void *udata);
+  void (*move_absolute)(int x, int y, int x_range, int y_range, void *udata);
+  void (*drag_to_corner)(int x_range, int y_range, void *udata);
+  void (*sync_coords)(int x, int y, int x_range, int y_range, void *udata);
+  void (*enable_native_cursor)(int flag, void *udata);
   char *name;
-  struct mouse_drv *next;
 };
 
-void register_mouse_driver(struct mouse_drv *mouse);
+struct mouse_drv_wrp {
+  struct mouse_drv *drv;
+  struct mouse_drv_wrp *next;
+  void *udata;
+};
+
+void register_mouse_driver(struct mouse_drv *mouse, void *udata);
 
 void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
 void mouse_move_relative(int dx, int dy, int x_range, int y_range);

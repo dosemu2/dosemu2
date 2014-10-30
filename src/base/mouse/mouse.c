@@ -84,13 +84,13 @@ static void mouse_reset(void);
 static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 static void mouse_reset_to_current_video_mode(int mode);
 
-static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton);
-static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range);
-static void int33_mouse_move_mickeys(int dx, int dy);
-static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range);
-static void int33_mouse_drag_to_corner(int x_range, int y_range);
-static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range);
-static void int33_mouse_enable_native_cursor(int flag);
+static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata);
+static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range, void *udata);
+static void int33_mouse_move_mickeys(int dx, int dy, void *udata);
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range, void *udata);
+static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata);
+static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range, void *udata);
+static void int33_mouse_enable_native_cursor(int flag, void *udata);
 
 /* graphics cursor */
 void graph_cursor(void), text_cursor(void);
@@ -1079,7 +1079,7 @@ mouse_reset_to_current_video_mode(int mode)
   last_mouse_call_read_mickeys = 0;
 }
 
-static void int33_mouse_enable_native_cursor(int flag)
+static void int33_mouse_enable_native_cursor(int flag, void *udata)
 {
   mice->native_cursor = flag;
   mouse_do_cur(1);
@@ -1483,8 +1483,8 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	if (state.l) {
 		dx -= 1;
 	}
-	int33_mouse_move_mickeys(dx, dy);
-	int33_mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
+	mouse_move_mickeys(dx, dy);
+	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
 }
 
 static int mouse_round_coords(void)
@@ -1617,7 +1617,7 @@ static void mouse_rb(void)
   }
 }
 
-static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton)
+static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton, void *udata)
 {
 	/* Provide 3 button emulation on 2 button mice,
 	   But only when PC Mouse Mode is set, otherwise
@@ -1651,7 +1651,8 @@ static void int33_mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 	   mouse_rb();
 }
 
-static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range)
+static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range,
+	void *udata)
 {
 	add_px(dx, dy, x_range, y_range);
 	mouse.x_delta = mouse.y_delta = 0;
@@ -1666,7 +1667,7 @@ static void int33_mouse_move_relative(int dx, int dy, int x_range, int y_range)
 	   mouse_move(0);
 }
 
-static void int33_mouse_move_mickeys(int dx, int dy)
+static void int33_mouse_move_mickeys(int dx, int dy, void *udata)
 {
 	add_mk(dx, dy);
 
@@ -1680,7 +1681,8 @@ static void int33_mouse_move_mickeys(int dx, int dy)
 	   mouse_move(0);
 }
 
-static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range)
+static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range,
+	void *udata)
 {
 	int dx, dy, new_x, new_y, mx_range, my_range, clipped;
 	mx_range = mouse.maxx - mouse.minx +1;
@@ -1716,7 +1718,8 @@ static void int33_mouse_move_absolute(int x, int y, int x_range, int y_range)
 	   mouse_move(0);
 }
 
-static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range)
+static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range,
+	void *udata)
 {
 	int mx_range, my_range;
 	mx_range = mouse.maxx - mouse.minx +1;
@@ -1732,10 +1735,11 @@ static void int33_mouse_sync_coords(int x, int y, int x_range, int y_range)
 		mouse.x, mouse.mickeyx, mouse.y, mouse.mickeyy);
 }
 
-static void int33_mouse_drag_to_corner(int x_range, int y_range)
+static void int33_mouse_drag_to_corner(int x_range, int y_range, void *udata)
 {
 	m_printf("MOUSE: drag to corner\n");
-	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range);
+	int33_mouse_move_relative(-3 * x_range, -3 * y_range, x_range, y_range,
+		udata);
 	dragged = 1;
 	mouse.abs_x = mouse.x;
 	mouse.abs_y = mouse.y;
@@ -1998,7 +2002,7 @@ void dosemu_mouse_reset(void)
  *
  * DANG_END_FUNCTION
  */
-static int int33_mouse_init(void)
+static int int33_mouse_init(void *udata)
 {
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
 #if 1 /* BUG CATCHER */
@@ -2107,5 +2111,5 @@ struct mouse_drv int33_mouse = {
 
 CONSTRUCTOR(static void int33_mouse_register(void))
 {
-  register_mouse_driver(&int33_mouse);
+  register_mouse_driver(&int33_mouse, NULL);
 }
