@@ -2002,7 +2002,7 @@ void dosemu_mouse_reset(void)
  *
  * DANG_END_FUNCTION
  */
-static int int33_mouse_init(void *udata)
+static int int33_mouse_init(void)
 {
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
 #if 1 /* BUG CATCHER */
@@ -2111,5 +2111,5 @@ struct mouse_drv int33_mouse = {
 
 CONSTRUCTOR(static void int33_mouse_register(void))
 {
-  register_mouse_driver(&int33_mouse, NULL);
+  register_mouse_driver(&int33_mouse);
 }

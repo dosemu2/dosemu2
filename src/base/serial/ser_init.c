@@ -43,6 +43,7 @@
 #include "serial.h"
 #include "ser_defs.h"
 #include "tty_io.h"
+#include "sermouse.h"
 #include "utilities.h"	/* due to getpwnam */
 #include "iodev.h"
 
@@ -264,7 +265,7 @@ static void do_ser_init(int num)
     com_cfg[num].base_port = default_com[com_cfg[num].real_comport-1].base_port;
   }
 
-  if (!com_cfg[num].dev || !com_cfg[num].dev[0]) {	/* Is the device file undef? */
+  if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {	/* Is the device file undef? */
     /* Define it using std devs */
     com_cfg[num].dev = default_com[com_cfg[num].real_comport-1].dev;
   }
@@ -365,7 +366,7 @@ void serial_init(void)
     com[i].fd = -1;
     com[i].opened = FALSE;
     com[i].dev_locked = FALSE;
-    com[i].drv = &tty_drv;
+    com[i].drv = com_cfg[i].mouse ? &serm_drv : &tty_drv;
 
     /* Serial port init is skipped if the port is used for a mouse, and
      * dosemu is running in Xwindows, or not at the console.  This is due

@@ -1362,8 +1362,7 @@ ttylocks_flag	: DIRECTORY string_expr	{ free(config.tty_lockdir); config.tty_loc
 serial_flags	: serial_flag
 		| serial_flags serial_flag
 		;
-serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2;
-					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1; }
+serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2; }
 		| VIRTUAL		  {
 					   if (isatty(0)) {
 					     sptr->virtual = TRUE;
@@ -1880,13 +1879,11 @@ static void start_serial(void)
 
 static void stop_serial(void)
 {
-  if (sptr->dev[0] == '\0')
-    return;
   if (c_ser >= MAX_SER) {
     c_printf("SER: too many ports, ignoring %s\n", sptr->dev);
     return;
   }
-  c_printf("SER%d: %s", c_ser, sptr->dev);
+  c_printf("SER%d: %s", c_ser, sptr->dev ?: "none");
   if (sptr->base_port)
     c_printf(" port %x", sptr->base_port);
   if (sptr->irq)

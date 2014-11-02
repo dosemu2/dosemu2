@@ -20,6 +20,7 @@
  * Author: Stas Sergeev
  */
 #include <stdlib.h>
+#include <string.h>
 #include "emu.h"
 #include "serial.h"
 #include "utilities.h"
@@ -43,18 +44,29 @@ void register_mouse_client(struct mouse_client *mouse)
 	}
 }
 
-void register_mouse_driver(struct mouse_drv *mouse, void *udata)
+void register_mouse_driver(struct mouse_drv *mouse)
 {
 	struct mouse_drv_wrp *m, *ms;
 	ms = malloc(sizeof(*ms));
 	ms->drv = mouse;
-	ms->udata = udata;
+	ms->udata = NULL;
 	ms->next = NULL;
 	if (mdrv == NULL)
 		mdrv = ms;
 	else {
 		for (m = mdrv; m->next; m = m->next);
 		m->next = ms;
+	}
+}
+
+void mousedrv_set_udata(const char *name, void *udata)
+{
+	struct mouse_drv_wrp *m;
+	for (m = mdrv; m->next; m = m->next) {
+		if (strcmp(name, m->drv->name) == 0) {
+			m->udata = udata;
+			break;
+		}
 	}
 }
 
@@ -128,7 +140,7 @@ void dosemu_mouse_init(void)
 {
   struct mouse_drv_wrp *m;
   for (m = mdrv; m; m = m->next) {
-    if (m->drv->init(m->udata)) {
+    if (m->drv->init()) {
       cur_drv = m;
       break;
     }
