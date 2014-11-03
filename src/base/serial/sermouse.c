@@ -165,6 +165,7 @@ static ssize_t serm_write(com_t *com, char *buf, size_t len)
 static int serm_dtr(com_t *com, int flag)
 {
   serm.enabled = flag;
+  modstat_engine(com->num);	// update DSR
   return 0;
 }
 
@@ -175,6 +176,7 @@ static int serm_rts(com_t *com, int flag)
     add_buf(com, id, strlen(id));
   }
   serm.nrst = flag;
+  modstat_engine(com->num);	// update DSR
   return 0;
 }
 
@@ -204,7 +206,7 @@ static int serm_get_cts(com_t *com)
 
 static int serm_get_dsr(com_t *com)
 {
-  return 0;
+  return (serm.enabled && serm.nrst);
 }
 
 static int serm_get_rng(com_t *com)
