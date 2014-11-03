@@ -269,7 +269,8 @@ static void do_ser_init(int num)
     /* Define it using std devs */
     com_cfg[num].dev = default_com[com_cfg[num].real_comport-1].dev;
   }
-  iodev_add_device(com_cfg[num].dev);
+  if (com_cfg[num].dev && com_cfg[num].dev[0])
+    iodev_add_device(com_cfg[num].dev);
 
   /* FOSSIL emulation is inactive at startup. */
   com[num].fossil_active = FALSE;
