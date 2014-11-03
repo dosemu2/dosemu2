@@ -444,34 +444,17 @@ static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 
 static void raw_mouse_getevent(void)
 {
-/* We define a large buffer, because of high overheads with other processes */
-#define MOUSE_BUFFER 1024
-	static unsigned char rBuf[MOUSE_BUFFER];
-	static int qBeg = 0, qEnd = 0;
-        mouse_t *mice = &config.mouse;
+	#define MOUSE_BUFFER 8
+	unsigned char rBuf[MOUSE_BUFFER];
+	mouse_t *mice = &config.mouse;
+	int nBytes;
 
-	int nBytes, nBytesProc;
-
-        nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
-          sizeof(rBuf)-qEnd));
-	if (nBytes>0)
-	  qEnd += nBytes;
-	if (!mouse.enabled)
+	nBytes = RPT_SYSCALL(read(mice->fd, rBuf, MOUSE_BUFFER));
+	if (!mouse.enabled || nBytes <= 0)
 	  return;
-	if (qBeg < qEnd) {
-	  m_printf("MOUSE: Read %d bytes. %d bytes in queue\n",
-	    nBytes>0 ? nBytes : 0, qEnd-qBeg);
-	  nBytesProc = DOSEMUMouseProtocol(rBuf+qBeg, qEnd-qBeg);
-	  qBeg += nBytesProc;
-	  m_printf("MOUSE: Processed %d bytes. %d bytes still in queue\n",
-	    nBytesProc, qEnd-qBeg);
-	  if (qBeg >= qEnd)
-	    qBeg = qEnd = 0;
-	}
-	if (qBeg < qEnd) {
-	  m_printf("MOUSE: Requesting for the next event\n");
-	  pic_request(PIC_IMOUSE);
-	}
+	m_printf("MOUSE: Read %d bytes.\n", nBytes);
+	DOSEMUMouseProtocol(rBuf, nBytes);
+	pic_request(PIC_IMOUSE);
 }
 
 static void parent_close_mouse (void)
