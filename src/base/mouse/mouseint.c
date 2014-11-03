@@ -164,7 +164,7 @@ static void DOSEMUSetupMouse(void)
 #endif
 }
 
-static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
+int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type)
 {
   int                  i, buttons=0, dx=0, dy=0;
   mouse_t             *mice = &config.mouse;
@@ -191,9 +191,9 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	/*
 	 * check, if we have a usable data byte
 	 */
-	if (pBufP != 0 && mice->type != MOUSE_PS2 &&
-	    mice->type != MOUSE_IMPS2 &&
-	    ((rBuf[i] & proto[mice->type][2]) != proto[mice->type][3]
+	if (pBufP != 0 && type != MOUSE_PS2 &&
+	    type != MOUSE_IMPS2 &&
+	    ((rBuf[i] & proto[type][2]) != proto[type][3]
 	     || rBuf[i] == 0x80)) {
 	   m_printf("MOUSEINT: Skipping package, pBufP = %d\n",pBufP);
 	   pBufP = 0;          /* skip package */
@@ -204,18 +204,18 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	 * if not, skip it
 	 */
 	if (pBufP == 0 &&
-	    (rBuf[i] & proto[mice->type][0]) != proto[mice->type][1]) {
+	    (rBuf[i] & proto[type][0]) != proto[type][1]) {
 	   m_printf("MOUSEINT: Skipping byte %02x\n",rBuf[i]);
 	   continue;
 	}
 
 	pBuf[pBufP++] = rBuf[i];
-	if (pBufP != proto[mice->type][4]) continue;
+	if (pBufP != proto[type][4]) continue;
 	m_printf("MOUSEINT: package %02x %02x %02x\n",pBuf[0],pBuf[1],pBuf[2]);
 	/*
 	 * assembly full package
 	 */
-	switch(mice->type) {
+	switch(type) {
 
 	case MOUSE_MICROSOFT:	    /* The ms protocol, unextended. */
 	   buttons = ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
@@ -347,11 +347,12 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	}
 
 	/*
-	 * calculate the new values for buttons, dx and dy
-  	 * Ensuring that speed is calculated from current values.
+	 * talk to int33 explicitly as we dont want to talk
+	 * to for example sermouse.c
 	 */
-	mouse_move_buttons(buttons & 0x04, buttons & 0x02, buttons & 0x01);
-	mouse_move_mickeys(dx, dy);
+	mouse_move_buttons_id(buttons & 0x04, buttons & 0x02, buttons & 0x01,
+		"int33 mouse");
+	mouse_move_mickeys_id(dx, dy, "int33 mouse");
 
 	pBufP = 0;
 	return (i + 1);
@@ -453,7 +454,7 @@ static void raw_mouse_getevent(void)
 	if (!mouse.enabled || nBytes <= 0)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);
-	DOSEMUMouseProtocol(rBuf, nBytes);
+	DOSEMUMouseProtocol(rBuf, nBytes, mice->type);
 	pic_request(PIC_IMOUSE);
 }
 

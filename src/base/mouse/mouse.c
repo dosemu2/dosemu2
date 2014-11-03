@@ -2049,6 +2049,10 @@ static int int33_mouse_init(void)
 
 static int int33_mouse_accepts(void *udata)
 {
+  /* if sermouse.c accepts events, we only accept events
+   * that are explicitly sent to int33 (they ignore .accepts member) */
+  if (mice->com != -1 && mousedrv_accepts("serial mouse"))
+    return 0;
   return mice->intdrv;
 }
 
@@ -2073,6 +2077,8 @@ void mouse_post_boot(void)
   m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",READ_WORD(ptr),READ_WORD(ptr+2));
   /* Otherwise this isn't safe */
   SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
+
+  com_mouse_post_init();
 }
 
 void mouse_io_callback(void *arg)

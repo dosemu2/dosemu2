@@ -71,31 +71,6 @@ void mousedrv_set_udata(const char *name, void *udata)
 	}
 }
 
-static int serial_mouse_init(void)
-{
-  int x;
-  serial_t *sptr=NULL;
-  for (x=0;x<config.num_ser;x++){
-    sptr = &com_cfg[x];
-    if (sptr->mouse) break;
-  }
-  if (!sptr || !(sptr->mouse)) {
-    m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
-    return FALSE;
-  }
-  m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
-  config.mouse.intdrv = FALSE;
-  return TRUE;
-}
-
-static struct mouse_client Mouse_serial =  {
-  "Serial Mouse",   /* name */
-  serial_mouse_init,	/* init */
-  NULL,		/* close */
-  NULL,		/* run */
-  NULL
-};
-
 static int none_init(void)
 {
   return TRUE;
@@ -117,7 +92,6 @@ static void mouse_client_init(void)
   if (Mouse == NULL)
     load_plugin("gpm");
 #endif
-  register_mouse_client(&Mouse_serial);
   register_mouse_client(&Mouse_raw);
   register_mouse_client(&Mouse_none);
   while(TRUE) {
@@ -161,6 +135,23 @@ void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
   }
 }
 
+void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,
+	const char *id)
+{
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (strcmp(d->name, id) != 0)
+      continue;
+    /* not checking for .accpets */
+    if (d->move_buttons)
+	d->move_buttons(lbutton, mbutton, rbutton, m->udata);
+  }
+}
+
 void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 {
   struct mouse_drv_wrp *m;
@@ -183,6 +174,22 @@ void mouse_move_mickeys(int dx, int dy)
       continue;
     d = m->drv;
     if (d->move_mickeys && d->accepts(m->udata))
+	d->move_mickeys(dx, dy, m->udata);
+  }
+}
+
+void mouse_move_mickeys_id(int dx, int dy, const char *id)
+{
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (strcmp(d->name, id) != 0)
+      continue;
+    /* not checking for .accpets */
+    if (d->move_mickeys)
 	d->move_mickeys(dx, dy, m->udata);
   }
 }
@@ -237,4 +244,20 @@ void mouse_enable_native_cursor(int flag)
     if (d->enable_native_cursor && d->accepts(m->udata))
 	d->enable_native_cursor(flag, m->udata);
   }
+}
+
+int mousedrv_accepts(const char *id)
+{
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (strcmp(d->name, id) != 0)
+      continue;
+    if (d->accepts)
+	return d->accepts(m->udata);
+  }
+  return 0;
 }

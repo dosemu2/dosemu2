@@ -6,7 +6,8 @@ include $(top_builddir)/Makefile.conf
 # Please read the code in this directory for more information.
 
 #The C files, include files and dependancies here.
-CFILES = ser_init.c ser_irq.c ser_ports.c int14.c fossil.c tty_io.c sermouse.c
+CFILES = ser_init.c ser_irq.c ser_ports.c int14.c fossil.c tty_io.c \
+	sermouse.c commouse.c
 DEPENDS=$(CFILES:.c=.d)
 HFILES = ser_defs.h
 

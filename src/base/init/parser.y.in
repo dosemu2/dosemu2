@@ -1740,10 +1740,17 @@ static void start_mouse(void)
 {
   mptr = &config.mouse;
   mptr->fd = -1;
+  mptr->com = -1;
 }
 
 static void stop_mouse(void)
 {
+  if (mptr->dev && strncmp(mptr->dev, "com", 3) == 0 && strlen(mptr->dev) > 3) {
+    mptr->com = atoi(mptr->dev + 3);
+    free(mptr->dev);
+    mptr->dev = NULL;
+    c_printf("MOUSE: using COM%i\n", mptr->com);
+  }
   c_printf("MOUSE: %s, type %x using internaldriver: %s, emulate3buttons: %s baudrate: %d\n", 
         mptr->dev && mptr->dev[0] ? mptr->dev : "no device specified",
         mptr->type, mptr->intdrv ? "yes" : "no", 

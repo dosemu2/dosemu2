@@ -45,6 +45,7 @@
 
 typedef struct  {
   char *dev;
+  int com;
   int fd;
   int type;
   int flags;
@@ -173,9 +174,11 @@ extern void dosemu_mouse_close(void);
 extern void freeze_mouse(void);
 extern void unfreeze_mouse(void);
 extern void mouse_post_boot(void);
+extern int com_mouse_post_init(void);
 extern void int74(void);
 
 extern int DOSEMUMouseEvents(int);
+int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type);
 
 extern void do_mouse_irq(void);
 extern void mouse_io_callback(void *);
@@ -210,5 +213,10 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range);
 void mouse_drag_to_corner(int x_range, int y_range);
 void mouse_sync_coords(int x, int y, int x_range, int y_range);
 void mouse_enable_native_cursor(int flag);
+
+void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,
+	const char *id);
+void mouse_move_mickeys_id(int dx, int dy, const char *id);
+int mousedrv_accepts(const char *id);
 
 #endif /* MOUSE_H */
