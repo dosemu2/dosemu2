@@ -217,8 +217,6 @@ void fossil_int14(int num)
      * affects anything, but it seems to work :-).
      */
     write_FCR(num, UART_FCR_ENABLE_FIFO|UART_FCR_TRIGGER_14);
-    uart_clear_fifo(num, UART_FCR_CLEAR_CMD);
-    com[num].rx_fifo_size = RX_BUFFER_SIZE/2;
     /* init IRQs, set disabled */
     write_MCR(num, com[num].MCR | UART_MCR_OUT2);
     write_IER(num, 0);
