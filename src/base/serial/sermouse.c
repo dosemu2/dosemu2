@@ -49,9 +49,10 @@ static int limit_delta(int delta, int min, int max)
           delta < min ? min : delta;
 }
 
-static int ser_mouse_init(void)
+static int ser_mouse_accepts(void *udata)
 {
-  return !config.mouse.intdrv;
+  com_t *com = udata;
+  return com->cfg->mouse;
 }
 
 static int add_buf(com_t *com, const char *buf, int len)
@@ -114,7 +115,8 @@ static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
 }
 
 struct mouse_drv ser_mouse = {
-  ser_mouse_init,
+  NULL, /* init */
+  ser_mouse_accepts,
   ser_mouse_move_buttons,
   ser_mouse_move_relative,
   NULL, /* ser_mouse_move_mickeys */

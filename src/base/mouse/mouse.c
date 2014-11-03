@@ -110,7 +110,7 @@ static int dragged;
 static mouse_erase_t mouse_erase;
 static int sent_mouse_esc = FALSE;
 
-static mouse_t *mice = &config.mouse;
+#define mice (&config.mouse)
 struct mouse_struct mouse;
 
 static inline int mouse_roundx(int x)
@@ -2047,6 +2047,11 @@ static int int33_mouse_init(void)
   return 1;
 }
 
+static int int33_mouse_accepts(void *udata)
+{
+  return mice->intdrv;
+}
+
 void mouse_post_boot(void)
 {
   unsigned int ptr;
@@ -2099,6 +2104,7 @@ int DOSEMUMouseEvents(int ilevel)
 
 struct mouse_drv int33_mouse = {
   int33_mouse_init,
+  int33_mouse_accepts,
   int33_mouse_move_buttons,
   int33_mouse_move_relative,
   int33_mouse_move_mickeys,

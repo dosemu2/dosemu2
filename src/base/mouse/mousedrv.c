@@ -26,7 +26,7 @@
 #include "utilities.h"
 #include "mouse.h"
 
-static struct mouse_drv_wrp *mdrv, *cur_drv;
+static struct mouse_drv_wrp *mdrv;
 
 struct mouse_client *Mouse = NULL;
 
@@ -50,6 +50,7 @@ void register_mouse_driver(struct mouse_drv *mouse)
 	ms = malloc(sizeof(*ms));
 	ms->drv = mouse;
 	ms->udata = NULL;
+	ms->initialized = 0;
 	ms->next = NULL;
 	if (mdrv == NULL)
 		mdrv = ms;
@@ -140,10 +141,8 @@ void dosemu_mouse_init(void)
 {
   struct mouse_drv_wrp *m;
   for (m = mdrv; m; m = m->next) {
-    if (m->drv->init()) {
-      cur_drv = m;
-      break;
-    }
+    if (!m->drv->init || m->drv->init())
+      m->initialized = 1;
   }
 
   mouse_client_init();
@@ -151,42 +150,91 @@ void dosemu_mouse_init(void)
 
 void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
 {
-    if (cur_drv && cur_drv->drv->move_buttons)
-	cur_drv->drv->move_buttons(lbutton, mbutton, rbutton, cur_drv->udata);
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (d->move_buttons && d->accepts(m->udata))
+	d->move_buttons(lbutton, mbutton, rbutton, m->udata);
+  }
 }
 
 void mouse_move_relative(int dx, int dy, int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->drv->move_relative)
-	cur_drv->drv->move_relative(dx, dy, x_range, y_range, cur_drv->udata);
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (d->move_relative && d->accepts(m->udata))
+	d->move_relative(dx, dy, x_range, y_range, m->udata);
+  }
 }
 
 void mouse_move_mickeys(int dx, int dy)
 {
-    if (cur_drv && cur_drv->drv->move_mickeys)
-	cur_drv->drv->move_mickeys(dx, dy, cur_drv->udata);
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (d->move_mickeys && d->accepts(m->udata))
+	d->move_mickeys(dx, dy, m->udata);
+  }
 }
 
 void mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->drv->move_absolute)
-	cur_drv->drv->move_absolute(x, y, x_range, y_range, cur_drv->udata);
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (d->move_absolute && d->accepts(m->udata))
+	d->move_absolute(x, y, x_range, y_range, m->udata);
+  }
 }
 
 void mouse_drag_to_corner(int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->drv->drag_to_corner)
-	cur_drv->drv->drag_to_corner(x_range, y_range, cur_drv->udata);
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (d->drag_to_corner && d->accepts(m->udata))
+	d->drag_to_corner(x_range, y_range, m->udata);
+  }
 }
 
 void mouse_sync_coords(int x, int y, int x_range, int y_range)
 {
-    if (cur_drv && cur_drv->drv->sync_coords)
-	cur_drv->drv->sync_coords(x, y, x_range, y_range, cur_drv->udata);
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (d->sync_coords && d->accepts(m->udata))
+	d->sync_coords(x, y, x_range, y_range, m->udata);
+  }
 }
 
 void mouse_enable_native_cursor(int flag)
 {
-    if (cur_drv && cur_drv->drv->enable_native_cursor)
-	cur_drv->drv->enable_native_cursor(flag, cur_drv->udata);
+  struct mouse_drv_wrp *m;
+  for (m = mdrv; m; m = m->next) {
+    struct mouse_drv *d;
+    if (!m->initialized)
+      continue;
+    d = m->drv;
+    if (d->enable_native_cursor && d->accepts(m->udata))
+	d->enable_native_cursor(flag, m->udata);
+  }
 }

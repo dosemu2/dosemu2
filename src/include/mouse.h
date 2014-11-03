@@ -182,6 +182,7 @@ extern void mouse_io_callback(void *);
 
 struct mouse_drv {
   int  (*init)(void);
+  int  (*accepts)(void *udata);
   void (*move_buttons)(int lbutton, int mbutton, int rbutton, void *udata);
   void (*move_relative)(int dx, int dy, int x_range, int y_range, void *udata);
   void (*move_mickeys)(int dx, int dy, void *udata);
@@ -196,6 +197,7 @@ struct mouse_drv_wrp {
   struct mouse_drv *drv;
   struct mouse_drv_wrp *next;
   void *udata;
+  int initialized;
 };
 
 void register_mouse_driver(struct mouse_drv *mouse);
