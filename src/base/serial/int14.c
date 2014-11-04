@@ -181,12 +181,12 @@ int int14(void)
       break;
     }
 
-    s_printf("SER%d: INT14 0x1: Read char 0x%x\n",num,LO(ax));
+    s_printf("SER%d: INT14 0x2: Read char\n", num);
 #if 1
     while (GETtickTIME(0) < end_time) {
       if (read_LSR(num) & UART_LSR_DR)
         break;
-      s_printf("SER%d: INT14 0x1: Wait for recv, %i\n", num, i);
+      s_printf("SER%d: INT14 0x2: Wait for recv, %i\n", num, i);
       i++;
       _set_IF();
       coopth_wait();

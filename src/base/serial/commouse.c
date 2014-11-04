@@ -27,7 +27,6 @@
 #include "hlt.h"
 #include "int.h"
 #include "port.h"
-#include "timers.h"
 #include "coopth.h"
 #include "ser_defs.h"
 
@@ -94,69 +93,78 @@ static void com_irq(Bit32u idx, void *arg)
 
 static int get_char(int num)
 {
-  const int timeout = 10;
-  const int scale = 0x10000;
-  hitimer_t end_time = GETtickTIME(0) + timeout * scale;
-  int i = 1;
-  while (GETtickTIME(0) < end_time) {
-    if (read_LSR(num) & UART_LSR_DR)
-      break;
-    s_printf("COMMOUSE: Wait for recv, %i\n", i);
-    i++;
-    _set_IF();
-    coopth_wait();
-    clear_IF();
-  }
-  if (!(read_LSR(num) & UART_LSR_DR)) {
-    s_printf("COMMOUSE: timeout, returning\n");
+  LWORD(edx) = com_cfg[com_num].real_comport - 1;
+  HI(ax) = 2;
+  LO(ax) = 0;
+  do_int_call_back(0x14);
+  if (HI(ax) & 0x80)
     return -1;
-  }
-  return read_char(num);
+  return LO(ax);
 }
 
 int com_mouse_post_init(void)
 {
-  int num = com_num, ch, i;
+  #define MAX_RD 20
+  int ch, i;
   uint8_t imr, imr1;
   char buf[2];
+  struct vm86_regs saved_regs;
 
   if (com_num == -1)
     return 0;
 
-  write_IER(num, 0);
+  write_IER(com_num, 0);
 
-  /* 1200, 8N1 */
-  write_LCR(num, UART_LCR_DLAB);
-  write_DLL(num, DIV_1200 & 0xff);
-  write_DLM(num, DIV_1200 >> 8);
-  write_LCR(num, UART_LCR_WLEN8);
+  saved_regs = REGS;
+  LWORD(edx) = com_cfg[com_num].real_comport - 1;
+  HI(ax) = 0;	// init port
+  LO(ax) = 0x80 | UART_LCR_WLEN8;	// 1200, 8N1
+  do_int_call_back(0x14);
 
-  write_MCR(num, UART_MCR_DTR);
-  _set_IF();
-  coopth_wait();
-  clear_IF();
-  write_MCR(num, UART_MCR_DTR | UART_MCR_RTS);
+  write_MCR(com_num, UART_MCR_DTR);
+  for (i = 0; i < MAX_RD; i++) {
+    _set_IF();
+    coopth_wait();
+    clear_IF();
+    LWORD(edx) = com_cfg[com_num].real_comport - 1;
+    HI(ax) = 3;
+    LO(ax) = 0;
+    do_int_call_back(0x14);
+    if (!(HI(ax) & UART_LSR_DR))
+      break;
+    get_char(com_num);	// read out everything
+  }
+  if (i == MAX_RD) {
+    s_printf("COMMOUSE: error, reading junk\n");
+    goto out_err;
+  }
+  write_MCR(com_num, UART_MCR_DTR | UART_MCR_RTS);
   for (i = 0; i < 2; i++) {
-    ch = get_char(num);
+    ch = get_char(com_num);
     if (ch == -1)
-      return 0;
+      goto out_err;
     buf[i] = ch;
   }
+  REGS = saved_regs;
   if (strncmp(buf, "M3", 2) != 0) {
     s_printf("COMMOUSE: unsupported ID %s\n", buf);
     return 0;
   }
 
-  com[num].ivec.segment = ISEG(com[num].interrupt);
-  com[num].ivec.offset = IOFF(com[num].interrupt);
-  SETIVEC(com[num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
-  write_MCR(num, com[num].MCR | UART_MCR_OUT2);
+  com[com_num].ivec.segment = ISEG(com[com_num].interrupt);
+  com[com_num].ivec.offset = IOFF(com[com_num].interrupt);
+  SETIVEC(com[com_num].interrupt, BIOS_HLT_BLK_SEG, irq_hlt);
+  write_MCR(com_num, com[com_num].MCR | UART_MCR_OUT2);
   imr = imr1 = port_inb(0x21);
-  imr &= ~(1 << com_cfg[num].irq);
+  imr &= ~(1 << com_cfg[com_num].irq);
   if (imr != imr1)
     port_outb(0x21, imr);
-  write_IER(num, UART_IER_RDI);
+  write_IER(com_num, UART_IER_RDI);
   return 1;
+
+out_err:
+  REGS = saved_regs;
+  return 0;
 }
 
 static struct mouse_client com_mouse =  {
