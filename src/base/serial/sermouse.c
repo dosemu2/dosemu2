@@ -25,6 +25,7 @@
 #include <string.h>
 #include "emu.h"
 #include "init.h"
+#include "utilities.h"
 #include "ser_defs.h"
 #include "sermouse.h"
 
@@ -52,6 +53,12 @@ static int limit_delta(int delta, int min, int max)
 static int ser_mouse_accepts(void *udata)
 {
   com_t *com = udata;
+  if (!serm.opened)
+    return 0;
+  if (!com) {
+    dosemu_error("sermouse NULL udata\n");
+    return 0;
+  }
   return com->cfg->mouse;
 }
 
