@@ -17,9 +17,6 @@
 /*
  * Serial mouse, with some help from gpm code
  *
- * FIXME: MS-DOS's mouse.com doesn't work for some reason, but
- * other drivers, like gmouse/lmouse work fine.
- *
  * Author: Stas Sergeev
  */
 #include <string.h>
@@ -180,6 +177,19 @@ static int serm_rts(com_t *com, int flag)
 {
   if (flag && !serm.nrst) {
     const char *id = "M3";
+    /* Many mouse drivers require this, they detect for Framing Errors
+     * coming from the mouse, during initialization, usually right after
+     * the LCR register is set, so this is why this line of code is here
+     */
+    com->LSR |= UART_LSR_FE; 		/* Set framing error */
+    if(s3_printf) s_printf("SERM: framing error\n");
+    rx_buffer_slide(com->num);
+    if (com->rx_buf_end >= com->rx_fifo_size) {
+      error("SERM: fifo overflow\n");
+      return 0;
+    }
+    com->rx_buf[com->rx_buf_end++] = 0;
+    serial_int_engine(com->num, LS_INTR);		/* Update interrupt status */
     add_buf(com, id, strlen(id));
   }
   serm.nrst = flag;

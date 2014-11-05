@@ -208,17 +208,6 @@ static void tty_termios(com_t *com)
 	    com->newset.c_cflag, com->newset.c_lflag);
   }
   tcsetattr(com->fd, TCSANOW, &com->newset);
-#if 0
-  /* Many mouse drivers require this, they detect for Framing Errors
-   * coming from the mouse, during initialization, usually right after
-   * the LCR register is set, so this is why this line of code is here
-   */
-  if (com->mouse) {
-    com->LSR |= UART_LSR_FE; 		/* Set framing error */
-    if(s3_printf) s_printf("SER%d: Func ser_termios requesting LS_INTR\n",com->num);
-    serial_int_engine(com->num, LS_INTR);		/* Update interrupt status */
-  }
-#endif
 }
 
 static int tty_brkctl(com_t *com, int brkflg)
