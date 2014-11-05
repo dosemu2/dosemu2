@@ -139,6 +139,15 @@ int com_mouse_post_init(void)
     goto out_err;
   }
   write_MCR(com_num, UART_MCR_DTR | UART_MCR_RTS);
+  _set_IF();
+  coopth_wait();
+  clear_IF();
+  LWORD(edx) = com_cfg[com_num].real_comport - 1;
+  HI(ax) = 3;
+  LO(ax) = 0;
+  do_int_call_back(0x14);
+  if (HI(ax) & UART_LSR_FE)
+    get_char(com_num);
   for (i = 0; i < 2; i++) {
     ch = get_char(com_num);
     if (ch == -1)
