@@ -35,9 +35,10 @@
 #include "coopth.h"
 
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,
-	COOPTH_DONE, COOPTH_ATTACH, COOPTH_DETACH };
+	COOPTH_DONE, COOPTH_ATTACH, COOPTH_DETACH, COOPTH_LEAVE };
 enum CoopthState { COOPTHS_NONE, COOPTHS_STARTING, COOPTHS_RUNNING,
-	COOPTHS_SLEEPING, COOPTHS_AWAKEN, COOPTHS_DETACH, COOPTHS_DELETE };
+	COOPTHS_SLEEPING, COOPTHS_AWAKEN, COOPTHS_DETACH, COOPTHS_LEAVE,
+	COOPTHS_DELETE };
 enum CoopthJmp { COOPTH_JMP_NONE, COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
 
 struct coopth_thrfunc_t {
@@ -76,6 +77,7 @@ struct coopth_per_thread_t {
     coroutine_t thread;
     enum CoopthState state;
     int set_sleep;
+    int left;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     char *stack;
@@ -144,6 +146,9 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	break;
     case COOPTH_DETACH:
 	pth->state = COOPTHS_DETACH;
+	break;
+    case COOPTH_LEAVE:
+	pth->state = COOPTHS_LEAVE;
 	break;
     case COOPTH_DONE:
 	if (pth->data.attached)
@@ -328,6 +333,13 @@ again:
 	pth->state = COOPTHS_RUNNING;
 	/* cannot goto again here - entry point should change */
 	break;
+    case COOPTHS_LEAVE:
+	coopth_retf(thr, pth);
+	pth->left = 1;
+	pth->state = COOPTHS_RUNNING;
+	/* leaving operation is atomic, without a separate entry point
+	 * but without a DOS context also.  */
+	goto again;
     case COOPTHS_DELETE:
 	assert(pth->data.attached);
 	coopth_retf(thr, pth);
@@ -487,6 +499,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
     pth->set_sleep = thr->set_sleep;
+    pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
     if (!pth->stack)
 	pth->stack = malloc(COOP_STK_SIZE);
@@ -597,6 +610,10 @@ void coopth_run(void)
 	/* only run detached threads here */
 	if (pth->data.attached)
 	    continue;
+	if (pth->left) {
+	    error("coopth: switching to left thread?\n");
+	    continue;
+	}
 	thread_run(thr, pth);
     }
 }
@@ -820,13 +837,23 @@ void coopth_detach(void)
     switch_state(COOPTH_DETACH);
 }
 
-/* same as coopth_detach(), but is allowed to be called from main thr
- * (in which case it just returns) */
+/* for some time coopth_leave() was implemented on top of coopth_detach().
+ * This appeared not the best implementation. In particular, the commit
+ * 551371689 was needed to make leaving operation atomic, but this is
+ * not needed for detached threads at all. While the detached threads
+ * has a separate entry point (via coopth_run()), the left thread must
+ * not have a separate entry point. So it appeared better to return the
+ * special type "left" threads. */
 void coopth_leave(void)
 {
+    struct coopth_thrdata_t *thdata;
     if (!_coopth_is_in_thread_nowarn())
        return;
-    coopth_detach();
+    thdata = co_get_data(co_current());
+    ensure_single(thdata);
+    if (!thdata->attached)
+	return;
+    switch_state(COOPTH_LEAVE);
 }
 
 static void do_awake(struct coopth_per_thread_t *pth)
