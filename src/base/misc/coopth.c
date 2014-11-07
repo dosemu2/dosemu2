@@ -282,7 +282,7 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
 
 static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-again:
+  do {
     switch (pth->state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
@@ -290,7 +290,6 @@ again:
 	break;
     case COOPTHS_STARTING:
 	pth->state = COOPTHS_RUNNING;
-	goto again;
 	break;
     case COOPTHS_RUNNING: {
 	int jr;
@@ -361,9 +360,7 @@ again:
 	pth->switch_fn(thr, pth);
 	break;
     }
-
-    if (pth->state == COOPTHS_RUNNING)
-	goto again;
+  } while (pth->state == COOPTHS_RUNNING);
 }
 
 static void coopth_hlt(Bit32u offs, void *arg)
