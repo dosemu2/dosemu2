@@ -167,6 +167,12 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
+    if (pth->set_sleep) {
+	pth->set_sleep = 0;
+	pth->state = COOPTHS_SLEEPING;
+	return COOPTH_SLEEP;
+    }
+
     co_call(pth->thread);
     ret = pth->data.ret;
     switch (ret) {
@@ -289,12 +295,6 @@ again:
     case COOPTHS_RUNNING: {
 	int jr;
 	enum CoopthRet tret;
-	if (pth->set_sleep) {
-	    pth->set_sleep = 0;
-	    pth->state = COOPTHS_SLEEPING;
-	    goto again;
-	}
-
 	/* We have 2 kinds of recursion:
 	 *
 	 * 1. (call it recursive thread invocation)
