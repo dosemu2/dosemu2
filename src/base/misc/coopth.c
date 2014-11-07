@@ -77,7 +77,7 @@ struct coopth_t;
 struct coopth_per_thread_t {
     coroutine_t thread;
     enum CoopthState state;
-    int (*switch_fn)(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+    void (*switch_fn)(struct coopth_t *thr, struct coopth_per_thread_t *pth);
     int set_sleep;
     int left;
     struct coopth_thrdata_t data;
@@ -128,38 +128,39 @@ void coopth_init(void)
     co_thread_init();
 }
 
-static int sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void sw_SCHED(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    coopth_retf(thr, pth);
     pth->state = COOPTHS_RUNNING;
-    /* entry point should change */
-    return 0;
 }
 
-static int sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+{
+    coopth_retf(thr, pth);
+    /* entry point should change - do the second switch */
+    pth->switch_fn = sw_SCHED;
+}
+
+static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     coopth_retf(thr, pth);
     pth->left = 1;
-    pth->state = COOPTHS_RUNNING;
     /* leaving operation is atomic, without a separate entry point
      * but without a DOS context also.  */
-    return 1;
+    pth->state = COOPTHS_RUNNING;
 }
 
-static int sw_DONE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void sw_DONE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     assert(pth->data.attached);
     coopth_retf(thr, pth);
     do_del_thread(thr, pth);
-    return 0;
 }
 
-static int sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     if (thr->sleeph.post)
 	thr->sleeph.post(thr->tid);
     pth->state = COOPTHS_RUNNING;
-    return 1;
 }
 
 static enum CoopthRet do_run_thread(struct coopth_t *thr,
@@ -177,13 +178,12 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     case COOPTH_SLEEP:
 	pth->state = COOPTHS_SLEEPING;
 	break;
-    case COOPTH_SCHED:
-	break;
 #define DO_SWITCH(x) \
     case COOPTH_##x: \
 	pth->state = COOPTHS_SWITCH; \
 	pth->switch_fn = sw_##x; \
 	break
+    DO_SWITCH(SCHED);
     DO_SWITCH(DETACH);
     DO_SWITCH(LEAVE);
     case COOPTH_DONE:
@@ -351,8 +351,6 @@ again:
 	    if (thr->sleeph.pre)
 		thr->sleeph.pre(thr->tid);
 	}
-	/* even if the state is still RUNNING, need to break away
-	 * as the entry point might change */
 	break;
     }
     case COOPTHS_SLEEPING:
@@ -360,10 +358,12 @@ again:
 	    dosemu_sleep();
 	break;
     case COOPTHS_SWITCH:
-	if (pth->switch_fn(thr, pth))
-	    goto again;
+	pth->switch_fn(thr, pth);
 	break;
     }
+
+    if (pth->state == COOPTHS_RUNNING)
+	goto again;
 }
 
 static void coopth_hlt(Bit32u offs, void *arg)
