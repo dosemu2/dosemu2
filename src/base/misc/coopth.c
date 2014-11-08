@@ -36,8 +36,8 @@
 
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,
 	COOPTH_DONE, COOPTH_ATTACH, COOPTH_DETACH, COOPTH_LEAVE };
-enum CoopthState { COOPTHS_NONE, COOPTHS_STARTING, COOPTHS_RUNNING,
-	COOPTHS_SLEEPING, COOPTHS_SWITCH };
+enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
+	COOPTHS_SWITCH };
 enum CoopthJmp { COOPTH_JMP_NONE, COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
 
 struct coopth_thrfunc_t {
@@ -292,9 +292,6 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	error("Coopthreads error switch to inactive thread, exiting\n");
 	leavedos(2);
 	break;
-    case COOPTHS_STARTING:
-	pth->st = ST(RUNNING);
-	break;
     case COOPTHS_RUNNING: {
 	int jr;
 	enum CoopthRet tret;
@@ -528,7 +525,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	error("Thread create failure\n");
 	leavedos(2);
     }
-    pth->st = ST(STARTING);
+    pth->st = ST(RUNNING);
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
 	active_tids[threads_active++] = tid;
