@@ -35,7 +35,8 @@
 #include "coopth.h"
 
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,
-	COOPTH_DONE, COOPTH_ATTACH, COOPTH_DETACH, COOPTH_LEAVE };
+	COOPTH_DONE, COOPTH_ATTACH, COOPTH_DETACH, COOPTH_LEAVE,
+	COOPTH_DELETE };
 enum CoopthState { COOPTHS_NONE, COOPTHS_RUNNING, COOPTHS_SLEEPING,
 	COOPTHS_SWITCH };
 enum CoopthJmp { COOPTH_JMP_NONE, COOPTH_JMP_CANCEL, COOPTH_JMP_EXIT };
@@ -173,22 +174,28 @@ static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 #define sw_YIELD sw_AWAKEN
 #define sw_WAIT sw_AWAKEN
 
-static enum CoopthRet do_run_thread(struct coopth_t *thr,
-	struct coopth_per_thread_t *pth)
+static enum CoopthRet do_call(struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
     if (pth->set_sleep) {
 	pth->set_sleep = 0;
-	pth->st = ST(SLEEPING);
 	return COOPTH_SLEEP;
     }
-
     co_call(pth->thread);
     ret = pth->data.ret;
+    if (ret == COOPTH_DONE && !pth->data.attached) {
+	/* delete detached thread ASAP or leavedos() will complain */
+	return COOPTH_DELETE;
+    }
+    return ret;
+}
+
+static enum CoopthRet do_run_thread(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth)
+{
+    enum CoopthRet ret;
+    ret = do_call(pth);
     switch (ret) {
-    case COOPTH_SLEEP:
-	pth->st = ST(SLEEPING);
-	break;
 #define DO_SWITCH(x) \
     case COOPTH_##x: \
 	pth->st = SW_ST(x); \
@@ -198,11 +205,13 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     DO_SWITCH(SCHED);
     DO_SWITCH(DETACH);
     DO_SWITCH(LEAVE);
-    case COOPTH_DONE:
-	if (pth->data.attached)
-	    pth->st = SW_ST(DONE);
-	else
-	    do_del_thread(thr, pth);
+    DO_SWITCH(DONE);
+
+    case COOPTH_SLEEP:
+	pth->st = ST(SLEEPING);
+	break;
+    case COOPTH_DELETE:
+	do_del_thread(thr, pth);
 	break;
     case COOPTH_ATTACH:
 	coopth_callf(thr, pth);
@@ -916,7 +925,7 @@ static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	 * It will reach the cancellation point and exit with COOPTH_DONE,
 	 * after which, do_run_thread() will delete it. */
 	enum CoopthRet tret = do_run_thread(thr, pth);
-	assert(tret == COOPTH_DONE);
+	assert(tret == COOPTH_DELETE);
     }
 }
 
