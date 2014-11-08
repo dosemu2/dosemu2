@@ -110,11 +110,6 @@ EXTERN void loopstep_run_vm86(void);
 EXTERN void do_call_back(Bit16u cs, Bit16u ip);
 EXTERN void do_int_call_back(int intno);
 
-#define NOWAIT  0
-#define WAIT    1
-#define TEST    2
-#define POLL    3
-
 void getKeys(void);
 
 #include "dosemu_debug.h"

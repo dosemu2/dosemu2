@@ -107,6 +107,11 @@ extern void set_vc_screen_page(void);
 extern void init_get_video_ram(int);
 extern void set_process_control(void);
 
+#define NOWAIT  0
+#define WAIT    1
+#define TEST    2
+#define POLL    3
+
 extern int get_perm(void);
 extern int set_regs(unsigned char regs[], int seq_gfx_only);
 

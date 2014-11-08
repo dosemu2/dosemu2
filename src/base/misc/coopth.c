@@ -170,6 +170,8 @@ static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	thr->sleeph.post(thr->tid);
     pth->st = ST(RUNNING);
 }
+#define sw_YIELD sw_AWAKEN
+#define sw_WAIT sw_AWAKEN
 
 static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
@@ -184,10 +186,6 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     co_call(pth->thread);
     ret = pth->data.ret;
     switch (ret) {
-    case COOPTH_YIELD:
-    case COOPTH_WAIT:
-	pth->st = SW_ST(AWAKEN);
-	break;
     case COOPTH_SLEEP:
 	pth->st = ST(SLEEPING);
 	break;
@@ -195,6 +193,8 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     case COOPTH_##x: \
 	pth->st = SW_ST(x); \
 	break
+    DO_SWITCH(YIELD);
+    DO_SWITCH(WAIT);
     DO_SWITCH(SCHED);
     DO_SWITCH(DETACH);
     DO_SWITCH(LEAVE);
