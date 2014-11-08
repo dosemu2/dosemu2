@@ -73,11 +73,16 @@ struct coopth_starter_args_t {
 };
 
 struct coopth_t;
+struct coopth_per_thread_t;
+
+struct coopth_state_t {
+    enum CoopthState state;
+    void (*switch_fn)(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+};
 
 struct coopth_per_thread_t {
     coroutine_t thread;
-    enum CoopthState state;
-    void (*switch_fn)(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+    struct coopth_state_t st;
     int set_sleep;
     int left;
     struct coopth_thrdata_t data;
@@ -128,16 +133,19 @@ void coopth_init(void)
     co_thread_init();
 }
 
+#define SW_ST(x) (struct coopth_state_t){ COOPTHS_SWITCH, sw_##x }
+#define ST(x) (struct coopth_state_t){ COOPTHS_##x, NULL }
+
 static void sw_SCHED(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    pth->state = COOPTHS_RUNNING;
+    pth->st = ST(RUNNING);
 }
 
 static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     coopth_retf(thr, pth);
     /* entry point should change - do the second switch */
-    pth->switch_fn = sw_SCHED;
+    pth->st.switch_fn = sw_SCHED;
 }
 
 static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -146,7 +154,7 @@ static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     pth->left = 1;
     /* leaving operation is atomic, without a separate entry point
      * but without a DOS context also.  */
-    pth->state = COOPTHS_RUNNING;
+    pth->st = ST(RUNNING);
 }
 
 static void sw_DONE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -160,7 +168,7 @@ static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     if (thr->sleeph.post)
 	thr->sleeph.post(thr->tid);
-    pth->state = COOPTHS_RUNNING;
+    pth->st = ST(RUNNING);
 }
 
 static enum CoopthRet do_run_thread(struct coopth_t *thr,
@@ -169,7 +177,7 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     enum CoopthRet ret;
     if (pth->set_sleep) {
 	pth->set_sleep = 0;
-	pth->state = COOPTHS_SLEEPING;
+	pth->st = ST(SLEEPING);
 	return COOPTH_SLEEP;
     }
 
@@ -178,27 +186,23 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     switch (ret) {
     case COOPTH_YIELD:
     case COOPTH_WAIT:
-	pth->state = COOPTHS_SWITCH;
-	pth->switch_fn = sw_AWAKEN;
+	pth->st = SW_ST(AWAKEN);
 	break;
     case COOPTH_SLEEP:
-	pth->state = COOPTHS_SLEEPING;
+	pth->st = ST(SLEEPING);
 	break;
 #define DO_SWITCH(x) \
     case COOPTH_##x: \
-	pth->state = COOPTHS_SWITCH; \
-	pth->switch_fn = sw_##x; \
+	pth->st = SW_ST(x); \
 	break
     DO_SWITCH(SCHED);
     DO_SWITCH(DETACH);
     DO_SWITCH(LEAVE);
     case COOPTH_DONE:
-	if (pth->data.attached) {
-	    pth->state = COOPTHS_SWITCH;
-	    pth->switch_fn = sw_DONE;
-	} else {
+	if (pth->data.attached)
+	    pth->st = SW_ST(DONE);
+	else
 	    do_del_thread(thr, pth);
-	}
 	break;
     case COOPTH_ATTACH:
 	coopth_callf(thr, pth);
@@ -211,7 +215,7 @@ static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
     int i;
-    pth->state = COOPTHS_NONE;
+    pth->st = ST(NONE);
     co_delete(pth->thread);
     thr->cur_thr--;
     if (thr->cur_thr == 0) {
@@ -276,20 +280,20 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
     assert(thr - coopthreads < MAX_COOPTHREADS);
     pth = get_pth(thr, thr->cur_thr - 1);
     /* it must be running */
-    assert(pth->state > COOPTHS_NONE);
+    assert(pth->st.state > COOPTHS_NONE);
     return pth;
 }
 
 static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
   do {
-    switch (pth->state) {
+    switch (pth->st.state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
 	leavedos(2);
 	break;
     case COOPTHS_STARTING:
-	pth->state = COOPTHS_RUNNING;
+	pth->st = ST(RUNNING);
 	break;
     case COOPTHS_RUNNING: {
 	int jr;
@@ -357,10 +361,10 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	    dosemu_sleep();
 	break;
     case COOPTHS_SWITCH:
-	pth->switch_fn(thr, pth);
+	pth->st.switch_fn(thr, pth);
 	break;
     }
-  } while (pth->state == COOPTHS_RUNNING);
+  } while (pth->st.state == COOPTHS_RUNNING);
 }
 
 static void coopth_hlt(Bit32u offs, void *arg)
@@ -478,7 +482,7 @@ void coopth_ensure_sleeping(int tid)
     check_tid(tid);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
-    assert(pth->state == COOPTHS_SLEEPING);
+    assert(pth->st.state == COOPTHS_SLEEPING);
 }
 
 int coopth_start(int tid, coopth_func_t func, void *arg)
@@ -495,7 +499,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 		thr->name, thr->off);
 	for (i = 0; i < thr->cur_thr; i++) {
 	    error("\tthread %i state %i dbg %#x\n",
-		    i, thr->pth[i].state, thr->pth[i].dbg);
+		    i, thr->pth[i].st.state, thr->pth[i].dbg);
 	}
 	leavedos(2);
     }
@@ -524,7 +528,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	error("Thread create failure\n");
 	leavedos(2);
     }
-    pth->state = COOPTHS_STARTING;
+    pth->st = ST(STARTING);
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
 	active_tids[threads_active++] = tid;
@@ -873,9 +877,8 @@ void coopth_leave(void)
 
 static void do_awake(struct coopth_per_thread_t *pth)
 {
-    assert(pth->state == COOPTHS_SLEEPING);
-    pth->state = COOPTHS_SWITCH;
-    pth->switch_fn = sw_AWAKEN;
+    assert(pth->st.state == COOPTHS_SLEEPING);
+    pth->st = SW_ST(AWAKEN);
 }
 
 void coopth_wake_up(int tid)
@@ -909,7 +912,7 @@ static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     pth->data.cancelled = 1;
     if (pth->data.attached) {
-	if (pth->state == COOPTHS_SLEEPING)
+	if (pth->st.state == COOPTHS_SLEEPING)
 	    do_awake(pth);
     } else {
 	/* ignore current state and run the thread.
@@ -934,7 +937,7 @@ void coopth_cancel(int tid)
 
 static void do_join(struct coopth_per_thread_t *pth, void (*helper)(void))
 {
-    while (pth->state != COOPTHS_NONE)
+    while (pth->st.state != COOPTHS_NONE)
 	helper();
 }
 
@@ -999,14 +1002,14 @@ again:
 	if (thdata && *thdata->tid == tid)
 	    continue;
 	if (!pth->data.attached) {
-	    error("\ttid=%i state=%i name=\"%s\" off=%#x\n", tid, pth->state,
+	    error("\ttid=%i state=%i name=\"%s\" off=%#x\n", tid, pth->st.state,
 		    thr->name, thr->off);
 	    do_cancel(thr, pth);
 	    assert(threads_total == tt - 1);
 	    /* retry the loop as the array changed */
 	    goto again;
 	} else {
-	    g_printf("\ttid=%i state=%i name=%s off=%#x\n", tid, pth->state,
+	    g_printf("\ttid=%i state=%i name=%s off=%#x\n", tid, pth->st.state,
 		    thr->name, thr->off);
 	}
     }
@@ -1039,5 +1042,5 @@ int coopth_wants_sleep(void)
     if (!thr)
 	return 0;
     pth = current_thr(thr);
-    return (pth->state == COOPTHS_SLEEPING || pth->state == COOPTHS_SWITCH);
+    return (pth->st.state == COOPTHS_SLEEPING || pth->st.state == COOPTHS_SWITCH);
 }
