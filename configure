@@ -650,8 +650,8 @@ SLANGLIB
 SLANGINC
 USE_PTHREADS
 USE_PIXMAN
-PIXMAN_LIBS
-PIXMAN_CFLAGS
+pixman_LIBS
+pixman_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
@@ -777,8 +777,8 @@ YFLAGS
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
-PIXMAN_CFLAGS
-PIXMAN_LIBS
+pixman_CFLAGS
+pixman_LIBS
 XMKMF'
 
 
@@ -1447,9 +1447,9 @@ Some influential environment variables:
               directories to add to pkg-config's search path
   PKG_CONFIG_LIBDIR
               path overriding pkg-config's built-in search path
-  PIXMAN_CFLAGS
-              C compiler flags for PIXMAN, overriding pkg-config
-  PIXMAN_LIBS linker flags for PIXMAN, overriding pkg-config
+  pixman_CFLAGS
+              C compiler flags for pixman, overriding pkg-config
+  pixman_LIBS linker flags for pixman, overriding pkg-config
   XMKMF       Path to xmkmf, Makefile generator for X Window System
 
 Use these variables to override the choices made by `configure' or to help
@@ -4930,11 +4930,11 @@ $as_echo "no" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PIXMAN" >&5
-$as_echo_n "checking for PIXMAN... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pixman" >&5
+$as_echo_n "checking for pixman... " >&6; }
 
-if test -n "$PIXMAN_CFLAGS"; then
-    pkg_cv_PIXMAN_CFLAGS="$PIXMAN_CFLAGS"
+if test -n "$pixman_CFLAGS"; then
+    pkg_cv_pixman_CFLAGS="$pixman_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
     { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"pixman-1\""; } >&5
@@ -4942,7 +4942,7 @@ if test -n "$PIXMAN_CFLAGS"; then
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_PIXMAN_CFLAGS=`$PKG_CONFIG --cflags "pixman-1" 2>/dev/null`
+  pkg_cv_pixman_CFLAGS=`$PKG_CONFIG --cflags "pixman-1" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -4950,8 +4950,8 @@ fi
  else
     pkg_failed=untried
 fi
-if test -n "$PIXMAN_LIBS"; then
-    pkg_cv_PIXMAN_LIBS="$PIXMAN_LIBS"
+if test -n "$pixman_LIBS"; then
+    pkg_cv_pixman_LIBS="$pixman_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
     { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"pixman-1\""; } >&5
@@ -4959,7 +4959,7 @@ if test -n "$PIXMAN_LIBS"; then
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_PIXMAN_LIBS=`$PKG_CONFIG --libs "pixman-1" 2>/dev/null`
+  pkg_cv_pixman_LIBS=`$PKG_CONFIG --libs "pixman-1" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -4980,22 +4980,22 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        PIXMAN_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "pixman-1" 2>&1`
+	        pixman_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "pixman-1" 2>&1`
         else
-	        PIXMAN_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "pixman-1" 2>&1`
+	        pixman_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "pixman-1" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
-	echo "$PIXMAN_PKG_ERRORS" >&5
+	echo "$pixman_PKG_ERRORS" >&5
 
 	as_fn_error $? "Package requirements (pixman-1) were not met:
 
-$PIXMAN_PKG_ERRORS
+$pixman_PKG_ERRORS
 
 Consider adjusting the PKG_CONFIG_PATH environment variable if you
 installed software in a non-standard prefix.
 
-Alternatively, you may set the environment variables PIXMAN_CFLAGS
-and PIXMAN_LIBS to avoid the need to call pkg-config.
+Alternatively, you may set the environment variables pixman_CFLAGS
+and pixman_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
      	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -5006,15 +5006,15 @@ as_fn_error $? "The pkg-config script could not be found or is too old.  Make su
 is in your PATH or set the PKG_CONFIG environment variable to the full
 path to pkg-config.
 
-Alternatively, you may set the environment variables PIXMAN_CFLAGS
-and PIXMAN_LIBS to avoid the need to call pkg-config.
+Alternatively, you may set the environment variables pixman_CFLAGS
+and pixman_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 
 To get pkg-config, see <http://pkg-config.freedesktop.org/>.
 See \`config.log' for more details" "$LINENO" 5; }
 else
-	PIXMAN_CFLAGS=$pkg_cv_PIXMAN_CFLAGS
-	PIXMAN_LIBS=$pkg_cv_PIXMAN_LIBS
+	pixman_CFLAGS=$pkg_cv_pixman_CFLAGS
+	pixman_LIBS=$pkg_cv_pixman_LIBS
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
@@ -5022,6 +5022,7 @@ $as_echo "yes" >&6; }
 $as_echo "#define USE_PIXMAN 1" >>confdefs.h
 
     USE_PIXMAN="USE_PIXMAN=1"
+
 
 
 

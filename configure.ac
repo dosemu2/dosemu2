@@ -262,13 +262,13 @@ else
 fi
 
 dnl check for libpixman
-PKG_CHECK_MODULES([PIXMAN], [pixman-1],
+PKG_CHECK_MODULES([pixman], [pixman-1],
   [
     AC_DEFINE([USE_PIXMAN], [1], [Use pixman])
     USE_PIXMAN="USE_PIXMAN=1"
     AC_SUBST(USE_PIXMAN)
-    AC_SUBST(PIXMAN_CFLAGS)
-    AC_SUBST(PIXMAN_LIBS)
+    AC_SUBST(pixman_CFLAGS)
+    AC_SUBST(pixman_LIBS)
   ])
 
 dnl Check whether we have pthreads and whether to use it
