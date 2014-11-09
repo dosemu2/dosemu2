@@ -13,7 +13,7 @@ ASOBJS  = remap_asm.o vesabios_pm.o vesabios.o
 
 CFILES = miscemu.c text.c render.c video.c $(ASOBJS) \
          vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c \
-         hercemu.c instremu.c remap.c remap_pent.c vgafonts.c
+         hercemu.c instremu.c remap.c remap_pent.c vgafonts.c detach.c
 
 all: lib
 

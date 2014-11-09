@@ -27,10 +27,10 @@ endif
 
 REQUIRED += $(MIDID)
 
-_LIBSUBDIRS=env/video base base/async \
+_LIBSUBDIRS=base/video base base/async \
 	arch/linux/async arch/linux/mapping \
 	base/misc base/misc/libpcl base/dev/misc\
-	emu-i386 $(XCPUEMU) env base/speaker \
+	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/mouse\
 	base/dev/dma \
