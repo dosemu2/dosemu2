@@ -27,19 +27,21 @@ endif
 
 REQUIRED += $(MIDID)
 
-LIBSUBDIRS=env/video base base/async \
+_LIBSUBDIRS=env/video base base/async \
 	arch/linux/async arch/linux/mapping \
 	base/misc base/misc/libpcl base/dev/misc\
 	emu-i386 $(XCPUEMU) env base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/mouse\
 	base/dev/dma \
-	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios \
-	$(ST_PLUGINSUBDIRS)
+	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
+
+LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
+ST_LIBSUBDIRS=$(_LIBSUBDIRS) $(ST_PLUGINSUBDIRS)
 
 
 # call all libraries the name of the directory
-LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(LIBSUBDIRS))}}
+LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(ST_LIBSUBDIRS))}}
 
 DOCS= ../man
 
