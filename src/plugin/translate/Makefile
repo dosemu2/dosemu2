@@ -23,7 +23,7 @@ CFILES = $(CHARSET_CFILES) translate.c \
 
 DEPENDS= $(CFILES:.c=.d)
 OBJS   = $(CFILES:.c=.o)
-HFILES = 
+HFILES =
 
 # Insert all source- and header-files here.
 

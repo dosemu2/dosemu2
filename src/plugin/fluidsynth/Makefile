@@ -20,5 +20,4 @@ include $(REALTOPDIR)/src/Makefile.common
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_fluidsynth.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(FLUSLIB)
-	$(AR) crs $(LIB)
 endif

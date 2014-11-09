@@ -424,7 +424,14 @@ if test -x $srcdir/mkpluginhooks; then
   $srcdir/mkpluginhooks
   if test -f plugin_libdirs; then
     PLUGINSUBDIRS=`cat plugin_libdirs`
-    AC_MSG_NOTICE(Including plugins: $PLUGINSUBDIRS...);
+    AC_MSG_NOTICE(Including plugins: $PLUGINSUBDIRS);
+    cd src
+    for i in $PLUGINSUBDIRS; do
+      if ! grep USE_DL_PLUGINS $i/Makefile >/dev/null ; then
+        ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
+      fi
+    done
+    cd ..
     if test -f plugin_incdirs; then
       cd src
       for i in `cat ../plugin_incdirs`; do
@@ -486,6 +493,7 @@ dnl DPMI requirements
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
+AC_SUBST(ST_PLUGINSUBDIRS)
 
 dnl Now CFLAGS and INCLUDES
 

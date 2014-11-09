@@ -33,7 +33,6 @@ include $(REALTOPDIR)/src/Makefile.common
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
-	$(AR) crs $(LIB)
 endif
 
 install: all

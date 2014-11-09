@@ -20,5 +20,4 @@ include $(REALTOPDIR)/src/Makefile.common
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_alsa.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(ALSALIB)
-	$(AR) crs $(LIB)
 endif

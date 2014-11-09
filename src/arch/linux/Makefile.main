@@ -35,7 +35,7 @@ LIBSUBDIRS=env/video base base/async \
 	base/init base/serial base/mouse\
 	base/dev/dma \
 	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios \
-	$(PLUGINSUBDIRS)
+	$(ST_PLUGINSUBDIRS)
 
 
 # call all libraries the name of the directory
