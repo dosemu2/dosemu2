@@ -22,7 +22,7 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#include "../../env/video/remap.h"
+#include "remap.h"
 #if SDL_VERSION_ATLEAST(1,2,10) && !defined(SDL_VIDEO_DRIVER_X11)
 #undef X_SUPPORT
 #endif
