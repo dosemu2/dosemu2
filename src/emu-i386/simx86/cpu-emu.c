@@ -1099,8 +1099,7 @@ static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 	_CS = segoffs >> 16;
 	_SP -= 6;
 	_IP = segoffs & 0xffff;
-	REG(eflags) &= ~(TF|RF|AC);
-	eVEFLAGS &= ~VIF_MASK;
+	REG(eflags) &= ~(TF|RF|AC|NT|VIF);
 
 	/* see config.c: int21 goes here when debug_level('D')==0 ... */
 	if (i!=0x16) {
