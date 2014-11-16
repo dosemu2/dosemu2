@@ -141,6 +141,7 @@ static void sw_SCHED(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     pth->st = ST(RUNNING);
 }
+#define sw_ATTACH sw_SCHED
 
 static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
@@ -193,11 +194,15 @@ static enum CoopthRet do_call(struct coopth_per_thread_t *pth)
 static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
-    enum CoopthRet ret;
-    ret = do_call(pth);
+    enum CoopthRet ret = do_call(pth);
     switch (ret) {
 #define DO_SWITCH(x) \
     case COOPTH_##x: \
+	pth->st = SW_ST(x); \
+	break
+#define DO_SWITCH2(x, c) \
+    case COOPTH_##x: \
+	c; \
 	pth->st = SW_ST(x); \
 	break
     DO_SWITCH(YIELD);
@@ -206,15 +211,13 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     DO_SWITCH(DETACH);
     DO_SWITCH(LEAVE);
     DO_SWITCH(DONE);
+    DO_SWITCH2(ATTACH, coopth_callf(thr, pth));
 
     case COOPTH_SLEEP:
 	pth->st = ST(SLEEPING);
 	break;
     case COOPTH_DELETE:
 	do_del_thread(thr, pth);
-	break;
-    case COOPTH_ATTACH:
-	coopth_callf(thr, pth);
 	break;
     }
     return ret;
