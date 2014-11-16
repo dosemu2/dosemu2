@@ -363,6 +363,10 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	    if (thr->sleeph.pre)
 		thr->sleeph.pre(thr->tid);
 	}
+	/* normally we don't exit with RUNNING state any longer.
+	 * this was happening in prev implementations though, so
+	 * remove that assert if it ever hurts. */
+	assert(pth->st.state != COOPTHS_RUNNING);
 	break;
     }
     case COOPTHS_SLEEPING:
