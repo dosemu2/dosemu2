@@ -284,7 +284,7 @@ void low_mem_init(void)
       if(dbg_fd)
         fprintf(stderr, "For more information, see %s.\n", config.debugout);
     }
-#ifdef EXPERIMENTAL
+#if 1
     result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
 #else
