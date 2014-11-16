@@ -526,7 +526,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->set_sleep = thr->set_sleep;
+    pth->set_sleep = 0;
     pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
     if (!pth->stack)
@@ -537,7 +537,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	error("Thread create failure\n");
 	leavedos(2);
     }
-    pth->st = ST(RUNNING);
+    pth->st = thr->set_sleep ? ST(SLEEPING) : ST(RUNNING);
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
 	active_tids[threads_active++] = tid;
