@@ -31,6 +31,7 @@
 #include "iodev.h"
 #include "serial.h"
 #include "debug.h"
+#include "mhpdbg.h"
 #include "utilities.h"
 #include "userhook.h"
 #include "dosemu_config.h"
@@ -653,6 +654,9 @@ void
 signal_init(void)
 {
   sh_tid = coopth_create("signal handling");
+  /* normally we don't need ctx handlers because the thread is detached.
+   * But some crazy code (vbe.c) can call coopth_attach() on it, so we
+   * set up the handlers just in case. */
   coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
 	handle_signals_force_leave);
@@ -993,4 +997,20 @@ static void sigquit(struct sigcontext_struct *scp)
   WRITE_BYTE(BIOS_KEYBOARD_FLAGS, 0x80);	/* ctrl-break flag */
 
   do_soft_int(0x1b);
+}
+
+void do_periodic_stuff(void)
+{
+    if (in_crit_section)
+	return;
+
+    handle_signals();
+    coopth_run();
+
+#ifdef USE_MHPDBG
+    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
+#endif
+
+    if (Video->change_config)
+	update_xtitle();
 }

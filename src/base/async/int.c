@@ -2409,7 +2409,7 @@ void int_vector_setup(void)
 
 }
 
-static void update_xtitle(void)
+void update_xtitle(void)
 {
   char cmdname[9];
   char *cmd_ptr, *tmp_ptr;
@@ -2452,22 +2452,6 @@ static void update_xtitle(void)
       can_change_title = 1;
     }
   }
-}
-
-void do_periodic_stuff(void)
-{
-    if (in_crit_section)
-	return;
-
-    handle_signals();
-    coopth_run();
-
-#ifdef USE_MHPDBG
-    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
-#endif
-
-    if (Video->change_config)
-	update_xtitle();
 }
 
 void set_io_buffer(char *ptr, unsigned int size)

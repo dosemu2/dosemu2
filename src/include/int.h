@@ -40,7 +40,7 @@ extern void set_int21_revectored(int);
 
 int dos_helper(void);
 
-void do_periodic_stuff(void);
+void update_xtitle(void);
 
 void set_io_buffer(char *ptr, unsigned int size);
 void unset_io_buffer(void);

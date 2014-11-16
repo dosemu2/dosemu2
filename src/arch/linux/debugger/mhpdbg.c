@@ -26,6 +26,7 @@
 #include "emu.h"
 #include "cpu.h"
 #include "bios.h"
+#include "coopth.h"
 #include "dpmi.h"
 #include "timers.h"
 
@@ -216,6 +217,7 @@ static void mhp_poll_loop(void)
    in_poll_loop++;
    for (;;) {
       handle_signals();
+      coopth_run();
       /* NOTE: if there is input on mhpdbg.fdin, as result of handle_signals
        *       io_select() is called and this then calls mhp_input.
        *       ( all clear ? )

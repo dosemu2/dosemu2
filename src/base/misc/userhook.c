@@ -453,7 +453,7 @@ void uhook_poll(void)
 				memcpy(recvbuf, recvbuf+i, nbytes);
 			}
 		}
-		handle_signals();
+		do_periodic_stuff();
 		/* NOTE: if there is input on fdin, as result of handle_signals
 		 *	 io_select() is called and this then calls uhook_input,
 		 *	 which then sets nbytes ( all clear ? )

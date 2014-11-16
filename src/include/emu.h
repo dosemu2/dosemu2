@@ -398,6 +398,7 @@ EXTERN void SIG_close(void);
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
 	const char *name );
 extern void handle_signals(void);
+extern void do_periodic_stuff(void);
 extern void sig_ctx_prepare(int tid);
 extern void sig_ctx_restore(int tid);
 

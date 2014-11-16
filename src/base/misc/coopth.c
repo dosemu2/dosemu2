@@ -545,8 +545,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     threads_total++;
     if (!thr->detached)
 	coopth_callf(thr, pth);
-    else
-	thread_run(thr, pth);
     return 0;
 }
 
