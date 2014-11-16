@@ -84,8 +84,6 @@ static int can_change_title = 0;
 static u_short hlt_off, iret_hlt_off;
 static int int_tid, int_rvc_tid;
 
-static u_short Mouse_HLT_OFF;
-
 u_short INT_OFF(u_char i)
 {
     return (0xc000 + i + hlt_off);
@@ -1966,7 +1964,7 @@ static int int33(void) {
  * after it returns the hogthreshold code can do its job.
  */
   if (IS_REDIRECTED(0x33)) {
-    fake_int_to(BIOS_HLT_BLK_SEG, Mouse_HLT_OFF);
+    int33_check_hog();
     return 0;
   }
   mouse_int();
@@ -2003,13 +2001,6 @@ static void int33_check_hog(void)
   /* Ok now we test to see if the mouse has been taking a break and we can let the
    * system get on with some real work. :-) */
   idle(200, 20, 20, "mouse");
-}
-
-/* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
-static void int33_post(Bit32u off, void *arg)
-{
-  set_iret();
-  int33_check_hog();
 }
 
 /* mfs FCB call */
@@ -2294,7 +2285,6 @@ void setup_interrupts(void) {
   int i;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
   emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
-  emu_hlt_t hlt_hdlr3 = HLT_INITIALIZER;
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
@@ -2352,10 +2342,6 @@ void setup_interrupts(void) {
   int_tid = coopth_create_multi("ints thread non-revect", 256);
   int_rvc_tid = coopth_create_multi("ints thread revect", 256);
   coopth_set_ctx_handlers(int_rvc_tid, rvc_int_pre, rvc_int_post);
-
-  hlt_hdlr3.name       = "mouse post";
-  hlt_hdlr3.func       = int33_post;
-  Mouse_HLT_OFF = hlt_register_handler(hlt_hdlr3);
 }
 
 
