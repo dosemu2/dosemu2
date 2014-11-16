@@ -1555,7 +1555,7 @@ static void mhp_print_ldt(int argc, char * argv[])
               (type & 2)?((type & 8)?'R':'W'):' ',
               (type & 1)?'A':' ',
               (lp_[1] &Abit)?'a':' ',
-	      &mem_base[base_addr],
+	      MEM_BASE32(base_addr),
               cache_mismatch ?" (cache mismatch)":"");
         else
            mhp_printf ("%04x: %08x %08x System(%02x)%s\n",
