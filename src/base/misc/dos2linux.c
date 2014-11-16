@@ -444,7 +444,7 @@ static int dos2tty_open(void)
     pts_fd = open(ptsname(pty_fd), O_RDWR);
     if (pts_fd == -1) {
 	error("pts open failed: %s\n", strerror(errno));
-	return err;
+	return -1;
     }
     return pts_fd;
 }
@@ -489,6 +489,12 @@ int run_unix_command(char *buffer)
 #if 0
     dos2tty_init();
 #endif
+    /* open pts in parent to avoid reading it before child opens */
+    pts_fd = dos2tty_open();
+    if (pts_fd == -1) {
+	error("run_unix_command(): open pts failed %s\n", strerror(errno));
+	return -1;
+    }
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
@@ -500,13 +506,10 @@ int run_unix_command(char *buffer)
 	close(0);
 	close(1);
 	close(2);
-	pts_fd = dos2tty_open();
-	if (pts_fd != 0) {
-	    g_printf("run_unix_command(): open pts failed %s\n", strerror(errno));
-	    exit(EXIT_FAILURE);
-	}
-	dup(0);
-	dup(0);
+	dup(pts_fd);
+	dup(pts_fd);
+	dup(pts_fd);
+	close(pts_fd);
 
 	setenv("LC_ALL", "C", 1);	// disable i18n
 	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
@@ -514,6 +517,7 @@ int run_unix_command(char *buffer)
 	exit(retval);
 	break;
     }
+    close(pts_fd);
 
     assert(!isset_IF());
     dos2tty_start();
