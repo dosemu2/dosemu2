@@ -348,27 +348,16 @@ int find_drive (char **plinux_path_resolved)
 }
 
 static int pty_fd;
-static int pty_tid;
-static int unx_tid = COOPTH_TID_INVALID;
 static int pty_done;
 static int cbrk;
 
-static void pty_thr(void *arg)
+static void pty_thr(void)
 {
     char buf[128];
     fd_set rfds;
     struct timeval tv;
     int retval, rd, wr;
     while (1) {
-	if (pty_done) {
-	    coopth_detach();
-	    if (unx_tid != COOPTH_TID_INVALID) {
-		coopth_wake_up(unx_tid);
-		unx_tid = COOPTH_TID_INVALID;
-	    }
-	    coopth_yield();
-	    continue;
-	}
 	rd = wr = 0;
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
@@ -399,15 +388,14 @@ static void pty_thr(void *arg)
 	    break;
 	}
 	if (pty_done)
-	    continue;
+	    return;
 
 	wr = com_dosreadcon(buf, sizeof(buf));
 	if (wr > 0)
 	    write(pty_fd, buf, wr);
 
-	/* this is a detached thread, not allowed to do coopth_wait() */
 	if (!rd && !wr)
-	    coopth_yield();
+	    coopth_wait();
     }
 }
 
@@ -420,16 +408,11 @@ int dos2tty_init(void)
         return -1;
     }
     unlockpt(pty_fd);
-    pty_tid = coopth_create("dos2tty");
-    coopth_set_detached(pty_tid);
-    coopth_init_sleeping(pty_tid);
-    coopth_start(pty_tid, pty_thr, NULL);
     return 0;
 }
 
 void dos2tty_done(void)
 {
-    coopth_cancel(pty_tid);
     close(pty_fd);
 }
 
@@ -459,20 +442,14 @@ static void dos2tty_start(void)
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
     pty_done = 0;
-    coopth_attach_to_cur(pty_tid);
     /* must run with interrupts enabled to read keypresses */
     _set_IF();
-    coopth_wake_up(pty_tid);
+    pty_thr();
 }
 
 static void dos2tty_stop(void)
 {
-    /* first we sleep to allow reader thread to finish */
-    unx_tid = coopth_get_tid();
-    coopth_sleep();
     clear_IF();
-    /* then we put reader thread to sleep */
-    coopth_asleep(pty_tid);
     com_setcbreak(cbrk);
 }
 
