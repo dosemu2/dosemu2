@@ -84,7 +84,6 @@ struct coopth_state_t {
 struct coopth_per_thread_t {
     coroutine_t thread;
     struct coopth_state_t st;
-    int set_sleep:1;
     int left:1;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
@@ -104,7 +103,6 @@ struct coopth_t {
     int cur_thr;
     int max_thr;
     int detached:1;
-    int set_sleep:1;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     coopth_hndl_t post;
@@ -178,11 +176,6 @@ static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 static enum CoopthRet do_call(struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
-    if (pth->set_sleep) {
-	pth->set_sleep = 0;
-	assert(!pth->data.attached);
-	return COOPTH_SLEEP;
-    }
     co_call(pth->thread);
     ret = pth->data.ret;
     if (ret == COOPTH_DONE && !pth->data.attached) {
@@ -537,7 +530,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->set_sleep = 0;
     pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
     if (!pth->stack)
@@ -548,7 +540,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	error("Thread create failure\n");
 	leavedos(2);
     }
-    pth->st = thr->set_sleep ? ST(SLEEPING) : ST(RUNNING);
+    pth->st = ST(RUNNING);
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
 	active_tids[threads_active++] = tid;
@@ -618,15 +610,6 @@ int coopth_unsafe_detach(int tid)
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
     pth->data.attached = 0;
-    return 0;
-}
-
-int coopth_init_sleeping(int tid)
-{
-    struct coopth_t *thr;
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    thr->set_sleep = 1;
     return 0;
 }
 
@@ -918,23 +901,6 @@ void coopth_wake_up(int tid)
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     do_awake(pth);
-}
-
-void coopth_asleep(int tid)
-{
-    struct coopth_t *thr;
-    struct coopth_per_thread_t *pth;
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    /* only support detached threads: I don't see the need for
-     * "asynchronously" putting to sleep normal threads. */
-    assert(thr->detached);
-    pth = current_thr(thr);
-    assert(!pth->data.attached);
-    /* since we dont know the current state,
-     * we cant just change it to SLEEPING here
-     * the way we do in coopth_wake_up(). */
-    pth->set_sleep = 1;
 }
 
 static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
