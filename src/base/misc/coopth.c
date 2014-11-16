@@ -84,8 +84,8 @@ struct coopth_state_t {
 struct coopth_per_thread_t {
     coroutine_t thread;
     struct coopth_state_t st;
-    int set_sleep;
-    int left;
+    int set_sleep:1;
+    int left:1;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     char *stack;
@@ -103,8 +103,8 @@ struct coopth_t {
     int len;
     int cur_thr;
     int max_thr;
-    int detached;
-    int set_sleep;
+    int detached:1;
+    int set_sleep:1;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     coopth_hndl_t post;
@@ -122,7 +122,7 @@ static int threads_total;
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
 
-static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+static void coopth_callf_chk(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
@@ -180,6 +180,7 @@ static enum CoopthRet do_call(struct coopth_per_thread_t *pth)
     enum CoopthRet ret;
     if (pth->set_sleep) {
 	pth->set_sleep = 0;
+	assert(!pth->data.attached);
 	return COOPTH_SLEEP;
     }
     co_call(pth->thread);
@@ -211,7 +212,7 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     DO_SWITCH(DETACH);
     DO_SWITCH(LEAVE);
     DO_SWITCH(DONE);
-    DO_SWITCH2(ATTACH, coopth_callf(thr, pth));
+    DO_SWITCH2(ATTACH, coopth_callf_chk(thr, pth));
 
     case COOPTH_SLEEP:
 	pth->st = ST(SLEEPING);
@@ -256,8 +257,7 @@ static void do_del_thread(struct coopth_t *thr,
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    if (!pth->data.attached)
-	return;
+    assert(pth->data.attached);
     threads_joinable--;
     REG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
@@ -268,8 +268,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 
 static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    if (pth->data.attached)
-	return;
+    assert(!pth->data.attached);
     if (thr->ctxh.pre)
 	thr->ctxh.pre(thr->tid);
     pth->ret_cs = REG(cs);
@@ -278,6 +277,14 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     LWORD(eip) = thr->hlt_off;
     threads_joinable++;
     pth->data.attached = 1;
+}
+
+static void coopth_callf_chk(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth)
+{
+    if (!thr->ctxh.pre)
+	dosemu_error("coopth: unsafe attach\n");
+    coopth_callf(thr, pth);
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -835,6 +842,17 @@ static void ensure_single(struct coopth_thrdata_t *thdata)
     struct coopth_t *thr = &coopthreads[*thdata->tid];
     if (thr->cur_thr != 1)
 	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
+}
+
+void coopth_attach_to_cur(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    assert(!pth->data.attached);
+    coopth_callf(thr, pth);
 }
 
 void coopth_attach(void)

@@ -361,6 +361,7 @@ static void pty_thr(void *arg)
     int retval, rd, wr;
     while (1) {
 	if (pty_done) {
+	    coopth_detach();
 	    if (unx_tid != COOPTH_TID_INVALID) {
 		coopth_wake_up(unx_tid);
 		unx_tid = COOPTH_TID_INVALID;
@@ -392,9 +393,7 @@ static void pty_thr(void *arg)
 		pty_done++;
 		break;
 	    default:
-		coopth_attach();
 		com_doswritecon(buf, rd);
-		coopth_detach();
 		break;
 	    }
 	    break;
@@ -402,9 +401,7 @@ static void pty_thr(void *arg)
 	if (pty_done)
 	    continue;
 
-	coopth_attach();
 	wr = com_dosreadcon(buf, sizeof(buf));
-	coopth_detach();
 	if (wr > 0)
 	    write(pty_fd, buf, wr);
 
@@ -462,8 +459,9 @@ static void dos2tty_start(void)
 	rd = com_dosreadcon(&a, 1);
     } while (rd > 0);
     pty_done = 0;
+    coopth_attach_to_cur(pty_tid);
     /* must run with interrupts enabled to read keypresses */
-    assert(isset_IF());
+    _set_IF();
     coopth_wake_up(pty_tid);
 }
 
@@ -471,7 +469,6 @@ static void dos2tty_stop(void)
 {
     /* first we sleep to allow reader thread to finish */
     unx_tid = coopth_get_tid();
-    _set_IF();
     coopth_sleep();
     clear_IF();
     /* then we put reader thread to sleep */
@@ -519,11 +516,9 @@ int run_unix_command(char *buffer)
     }
 
     assert(!isset_IF());
-    _set_IF();
     dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
-    clear_IF();
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
     dos2tty_stop();
