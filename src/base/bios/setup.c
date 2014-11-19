@@ -61,6 +61,7 @@ static inline void bios_mem_setup(void)
   int b;
 
   video_mem_setup();
+  serial_mem_setup();
   printer_mem_setup();
 
   /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the

@@ -315,31 +315,13 @@ static void do_ser_init(int num)
 
   if (com_cfg[num].dmx_port)
     add_dmx(com_cfg[num].dmx_port, com_cfg[num].dmx_val);
-
-  ser_reset_dev(num);
 }
 
 void serial_reset(void)
 {
   int num;
-  /* Clean the BIOS data area at 0040:0000 for serial ports */
-  WRITE_WORD(0x400, 0);
-  WRITE_WORD(0x402, 0);
-  WRITE_WORD(0x404, 0);
-  WRITE_WORD(0x406, 0);
-  /* Write serial port information into BIOS data area 0040:0000
-   * This is for DOS and many programs to recognize ports automatically
-   */
-  for (num = 0; num < config.num_ser; num++) {
-    if ((com_cfg[num].real_comport >= 1) && (com_cfg[num].real_comport <= 4)) {
-      WRITE_WORD(0x400 + (com_cfg[num].real_comport-1)*2, com_cfg[num].base_port);
-
-      /* Debugging to determine whether memory location was written properly */
-      s_printf("SER%d: BIOS memory location %p has value of %#x\n", num,
-	       ((u_short *) (0x400) + (com_cfg[num].real_comport-1))
-	       ,READ_WORD(0x400 + 2*(com_cfg[num].real_comport-1)));
-    }
-  }
+  for (num = 0; num < config.num_ser; num++)
+    ser_reset_dev(num);
 }
 
 /* DANG_BEGIN_FUNCTION serial_init

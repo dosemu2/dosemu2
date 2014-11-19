@@ -60,7 +60,6 @@ extern void serial_run(void);
 extern int do_serial_in(int, ioport_t);
 extern int do_serial_out(int, ioport_t, int);
 extern void serial_helper(void);
-extern void child_close_mouse(void);
-extern void child_open_mouse(void);
+void serial_mem_setup(void);
 
 #endif /* SERIAL_H */
