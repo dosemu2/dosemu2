@@ -207,14 +207,20 @@ void *lowmemp(const unsigned char *ptr);
 */
 extern unsigned char *mem_base;
 
-typedef unsigned int dosaddr_t;
-static inline void *MEM_BASE32(dosaddr_t off) {
-    return (void *)(((uintptr_t)mem_base + (off)) & 0xffffffff);
+#define LINP(a) ((unsigned char *)0 + a)
+typedef uint32_t dosaddr_t;
+static inline void *MEM_BASE32(dosaddr_t a)
+{
+    union {
+	uint32_t off;
+	unsigned char *ptr;
+    } u = { .ptr = mem_base + a };
+    return LINP(u.off);
 }
-static inline dosaddr_t DOSADDR_REL(const unsigned char *a) {
+static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
+{
     return (a - mem_base);
 }
-#define LINP(a) ((unsigned char *)0 + a)
 
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.
    It does not have any holes or mapping for video RAM etc.
