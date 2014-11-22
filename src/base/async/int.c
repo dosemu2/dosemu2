@@ -2413,7 +2413,7 @@ void update_xtitle(void)
     return;
   force_update = !title_hint[0];
 
-  MEMCPY_P2UNIX(cmdname, mcb->name, 8);
+  MEMCPY_P2UNIX(cmdname, (unsigned char *)mcb->name, 8);
   cmdname[8] = 0;
   cmd_ptr = tmp_ptr = cmdname + strspn(cmdname, " \t");
   while (*tmp_ptr) {	/* Check whether the name is valid */

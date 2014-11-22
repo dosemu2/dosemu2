@@ -329,8 +329,8 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
    int rc;
    int i;
    char *p, *p1;
-   unsigned int code;
-   unsigned int org2;
+   dosaddr_t code;
+   dosaddr_t org2;
    unsigned int segbase;
    unsigned int ref;
 
@@ -338,7 +338,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
      segbase = GetSegmentBase(refseg);
    else
      segbase = refseg * 16;
-   code = org - mem_base;
+   code = DOSADDR_REL(org);
    org2 = code - segbase;
 
    rc = dis_8086(code, frmtbuf, is32, &ref, segbase);
@@ -367,15 +367,15 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
    int rc;
    int i;
    unsigned char *p, *pb, *org2;
-   unsigned int org, csp2, seg;
-   unsigned int refseg;
+   dosaddr_t org, csp2;
+   unsigned int refseg, seg;
    unsigned int ref;
 
    *buf = 0;
    seg = _cs;
    refseg = seg;
    if (!(seg & 0x0004)) {
-      csp2 = org = (unsigned char *)_rip - mem_base; /* XXX bogus for x86_64 */
+      csp2 = org = DOSADDR_REL(LINP(_rip)); /* XXX bogus for x86_64 */
    }
    else {
       csp2 = 0;

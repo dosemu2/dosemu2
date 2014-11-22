@@ -193,9 +193,9 @@ void memcheck_dump(void)
   c_printf("CONF:  End dump\n");
 }
 
-void *lowmemp(const void *ptr)
+void *lowmemp(const unsigned char *ptr)
 {
-  uintptr_t addr = (unsigned char *)ptr - mem_base;
+  dosaddr_t addr = DOSADDR_REL(ptr);
 #ifdef __x86_64__
   if (addr > 0xffffffff)
     return (void *)ptr;

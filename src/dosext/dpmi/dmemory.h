@@ -11,7 +11,7 @@ typedef struct dpmi_pm_block_stuct {
   struct   dpmi_pm_block_stuct *next;
   unsigned int handle;
   unsigned int size;
-  unsigned int base;
+  dosaddr_t base;
   u_short  *attrs;
   int linear;
 } dpmi_pm_block;

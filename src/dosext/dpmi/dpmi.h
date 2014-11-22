@@ -108,7 +108,7 @@ struct DPMIclient_struct {
   dpmi_pm_block_root *pm_block_root;
   unsigned short private_data_segment;
   int in_dpmi_rm_stack;
-  char *pm_stack;
+  unsigned char *pm_stack;
   int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
@@ -213,7 +213,7 @@ extern void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc);
 extern void save_pm_regs(struct sigcontext_struct *);
 extern void restore_pm_regs(struct sigcontext_struct *);
 extern unsigned short AllocateDescriptors(int);
-extern int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
+extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int FreeDescriptor(unsigned short selector);

@@ -904,14 +904,15 @@ void vga_memsetw(unsigned dst, unsigned short val, size_t len)
 int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
 {
   int i, j;
-  unsigned page_fault, vga_page = 0, u, lin_addr;
+  dosaddr_t lin_addr;
+  unsigned page_fault, vga_page = 0, u;
 #if DEBUG_MAP >= 1
   unsigned char *cs_ip = SEG_ADR((unsigned char *), cs, ip);
   static char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
   unsigned access_type = (scp->err >> 1) & 1;
 #endif
-
-  page_fault = (lin_addr = (unsigned char *) scp->cr2 - mem_base) >> 12;
+  lin_addr = DOSADDR_REL(LINP(scp->cr2));
+  page_fault = lin_addr >> 12;
 
 #if DEBUG_MAP >= 4
   if(my_fault && lin_addr == 0xa0077) {
@@ -1622,7 +1623,7 @@ int vga_emu_pre_init(void)
   vga.mem.bank = vga.mem.bank_pages = 0;
 
   if(vga.mem.lfb_base != NULL) {
-    unsigned int lfb_base = vga.mem.lfb_base - mem_base;
+    dosaddr_t lfb_base = DOSADDR_REL(vga.mem.lfb_base);
     vga.mem.lfb_base_page = lfb_base >> 12;
     memcheck_addtype('e', "VGAEMU LFB");
     register_hardware_ram('e', lfb_base, vga.mem.size);

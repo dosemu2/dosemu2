@@ -3384,7 +3384,7 @@ dos_fs_redirect(state_t *state)
     {
       size_t len = strlen(filename1);
       if (len > 3 && filename1[len-1] == '\\') {
-        WRITE_BYTEP(&filename1[len-1], '\0');
+        WRITE_BYTEP((unsigned char *)&filename1[len-1], '\0');
       }
     }
     Debug0((dbg_fd, "New CWD is %s\n", filename1));

@@ -198,7 +198,7 @@ extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(unsigned int addr);
 void *physaddr_to_unixaddr(unsigned int addr);
-void *lowmemp(const void *ptr);
+void *lowmemp(const unsigned char *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
    to this base. It is normally set to 0 but with mmap_min_addr
@@ -207,7 +207,14 @@ void *lowmemp(const void *ptr);
 */
 extern unsigned char *mem_base;
 
-#define MEM_BASE32(off) (void*)(((uintptr_t)mem_base + (off)) & 0xffffffff)
+typedef unsigned int dosaddr_t;
+static inline void *MEM_BASE32(dosaddr_t off) {
+    return (void *)(((uintptr_t)mem_base + (off)) & 0xffffffff);
+}
+static inline dosaddr_t DOSADDR_REL(const unsigned char *a) {
+    return (a - mem_base);
+}
+#define LINP(a) ((unsigned char *)0 + a)
 
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.
    It does not have any holes or mapping for video RAM etc.

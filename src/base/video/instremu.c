@@ -399,7 +399,7 @@ unsigned arg_len(unsigned char *p)
 unsigned char instr_read_byte(const unsigned char *address)
 {
   unsigned char u;
-  unsigned addr = address - mem_base;
+  dosaddr_t addr = DOSADDR_REL(address);
 
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
@@ -424,7 +424,7 @@ unsigned instr_read_word(const unsigned char *address)
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here
    */
-  unsigned addr = address - mem_base;
+  dosaddr_t addr = DOSADDR_REL(address);
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
     u = 0;
@@ -448,7 +448,7 @@ unsigned instr_read_dword(const unsigned char *address)
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here
    */
-  unsigned addr = address - mem_base;
+  dosaddr_t addr = DOSADDR_REL(address);
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
     R_LO(u) = vga_read(addr);
@@ -467,7 +467,7 @@ unsigned instr_read_dword(const unsigned char *address)
 
 void instr_write_byte(unsigned char *address, unsigned char u)
 {
-  unsigned addr = address - mem_base;
+  dosaddr_t addr = DOSADDR_REL(address);
 
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
@@ -488,7 +488,7 @@ void instr_write_byte(unsigned char *address, unsigned char u)
 
 void instr_write_word(unsigned char *address, unsigned u)
 {
-  unsigned dst = address - mem_base;
+  dosaddr_t dst = DOSADDR_REL(address);
   /*
    * segment wrap-arounds within a data word are not allowed since
    * at least i286, so no problems here.
@@ -515,7 +515,7 @@ void instr_write_word(unsigned char *address, unsigned u)
 
 void instr_write_dword(unsigned char *address, unsigned u)
 {
-  unsigned dst = address - mem_base;
+  dosaddr_t dst = DOSADDR_REL(address);
 
   /*
    * segment wrap-arounds within a data word are not allowed since
