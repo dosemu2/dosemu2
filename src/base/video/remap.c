@@ -77,7 +77,7 @@ static void do_nothing(void) {};
 static void do_nothing_remap(struct RemapObjectStruct *a) {};
 static int do_nearly_nothing(RemapObject *a, unsigned b, unsigned c, unsigned d, unsigned e, unsigned f) { return 0; };
 static RectArea do_nearly_something_rect(RemapObject *ro, int x0, int y0, int width, int height) { RectArea ra = {0, 0, 0, 0}; return ra; };
-static RectArea do_nearly_something_mem(RemapObject *ro, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
+static RectArea do_nearly_something_mem(RemapObject *ro, unsigned dst_offset, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
 
 static unsigned u_pow(unsigned, unsigned);
 static unsigned gamma_fix(unsigned, unsigned);
@@ -105,9 +105,9 @@ static RemapFuncDesc *find_remap_func(unsigned, int, int, RemapFuncDesc *);
 static RemapFuncDesc *find_best_remap_func(unsigned, int, int, RemapFuncDesc *);
 static void install_remap_funcs(RemapObject *, int);
 
-static RectArea remap_mem_1(RemapObject *, int, int);
+static RectArea remap_mem_1(RemapObject *, unsigned, int, int);
 static RectArea remap_rect_1(RemapObject *, int, int, int, int);
-static RectArea remap_mem_2(RemapObject *, int, int);
+static RectArea remap_mem_2(RemapObject *, unsigned, int, int);
 
 /*
  * set file handle for debug messages
@@ -162,6 +162,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   ro.src_x0 = ro.src_y0 = ro.src_x1 = ro.src_y1 =
   ro.dst_x0 = ro.dst_y0 = ro.dst_x1 = ro.dst_y1 =
   ro.src_offset = ro.dst_offset = 0;
+  ro.src_start = ro.dst_start = 0;
   ro.bre_x = ro.bre_y = NULL;
   ro.true_color_lut = NULL;
   ro.bit_lut = NULL;
@@ -942,10 +943,12 @@ static void remap_area_debug_func(RemapObject *ro)
 #define REMAP_AREA_DEBUG_FUNC(_ro_)
 #endif
 
-static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
+static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
+	int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
+  int i1_, i2_, j1_, j2_;
   int pixel_size = 1;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
@@ -972,6 +975,10 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   i2 = offset % ro->src_scan_len;
   j1 = (offset + len) / ro->src_scan_len;
   j2 = (offset + len) % ro->src_scan_len;
+  i1_ = (offset + dst_offset) / ro->src_scan_len;
+  i2_ = (offset + dst_offset) % ro->src_scan_len;
+  j1_ = (offset + dst_offset + len) / ro->src_scan_len;
+  j2_ = (offset + dst_offset + len) % ro->src_scan_len;
 
   /* make sure it's all visible */
   if(i2 >= ro->src_width) i1++, i2 = 0, offset = i1 * ro->src_scan_len;
@@ -997,10 +1004,10 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
       ro->src_x1 = ro->src_width;
       ro->src_y0 = i1;
       ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = bre_d_0(ro->src_x0, ro->src_width, ro->dst_width);
+      ro->dst_x0 = bre_d_0(i2_, ro->src_width, ro->dst_width);
       ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+      ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(i1_ + 1, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
       ra.y = ro->dst_y0;
       ra.height = ro->dst_y1 - ra.y;
@@ -1020,8 +1027,8 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
       ro->src_y1 = j1;
       ro->dst_x0 = 0;
       ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+      ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
       ra.height = ro->dst_y1 - ra.y;
       REMAP_AREA_DEBUG_FUNC(ro);
@@ -1036,9 +1043,9 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
       ro->src_y0 = j1;
       ro->src_y1 = ro->src_y0 + 1;
       ro->dst_x0 = 0;
-      ro->dst_x1 = bre_d_0(ro->src_x1, ro->src_width, ro->dst_width);
-      ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+      ro->dst_x1 = bre_d_0(j2_, ro->src_width, ro->dst_width);
+      ro->dst_y0 = bre_d_0(j1_, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(j1_ + 1, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
       ra.height = ro->dst_y1 - ra.y;
       REMAP_AREA_DEBUG_FUNC(ro);
@@ -1050,11 +1057,14 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   else if(ro->remap_func_flags & RFF_REMAP_LINES) {
     ro->src_offset = i1 * ro->src_scan_len;
     ro->src_x0 = ro->dst_x0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1065,9 +1075,11 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   }
   else {
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
@@ -1165,10 +1177,12 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
 /*
  * for CGA/Hercules-like modes
  */
-static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
+static RectArea remap_mem_2(RemapObject *ro, unsigned dst_offset,
+	int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
+  int i1_, j1_, j2_;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
   if(ro->remap_func == NULL) return ra;
@@ -1194,6 +1208,10 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   i2 = offset % ro->src_scan_len;
   j1 = (offset + len) / ro->src_scan_len;
   j2 = (offset + len) % ro->src_scan_len;
+  i1_ = (offset + dst_offset) / ro->src_scan_len;
+//  i2_ = (offset + dst_offset) % ro->src_scan_len;
+  j1_ = (offset + dst_offset + len) / ro->src_scan_len;
+  j2_ = (offset + dst_offset + len) % ro->src_scan_len;
 
   if(ro->src_mode == MODE_HERC) {
     i1 <<= 2;
@@ -1223,9 +1241,11 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     ro->src_x0 = ro->dst_x0 = 0;
     ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1236,9 +1256,11 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   }
   else {
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
@@ -1840,8 +1862,8 @@ void gen_8to8p_1(RemapObject *ro)
   int i;
   unsigned char *src, *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width);
@@ -1865,8 +1887,8 @@ void gen_8to8p_all(RemapObject *ro)
 
   unsigned char *src, *src0, *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -1888,8 +1910,8 @@ void gen_8to8_1(RemapObject *ro)
   unsigned char *src, *dst;
   unsigned char *lut = (unsigned char*) ro->true_color_lut;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   l = ro->src_x1 - ro->src_x0;
 
@@ -1919,8 +1941,8 @@ void gen_8to8_all(RemapObject *ro)
   unsigned char *src, *src0, *dst;
   unsigned char *lut = (unsigned char*) ro->true_color_lut;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -1949,8 +1971,8 @@ void gen_8to16_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -1979,8 +2001,8 @@ void gen_8to24_all(RemapObject *ro)
   unsigned char *dst;
   unsigned long long color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2005,8 +2027,8 @@ void gen_8to32_1(RemapObject *ro)
   unsigned char *src;
   unsigned *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   l = (ro->src_x1 - ro->src_x0);
 
   for(j = ro->src_y0; j < ro->src_y1; j++) {
@@ -2034,8 +2056,8 @@ void gen_8to32_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2065,8 +2087,8 @@ void gen_8to32_bilin(RemapObject *ro)
   unsigned *dst;
   unsigned *lut = ro->true_color_lut;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2161,8 +2183,8 @@ void gen_8to16_bilin(RemapObject *ro)
   unsigned short *dst;
   unsigned *lut = ro->true_color_lut;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2255,8 +2277,8 @@ void gen_8to32_lin(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2296,8 +2318,8 @@ void gen_8to16_lin(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2338,8 +2360,8 @@ void gen_4to8p_all(RemapObject *ro)
   unsigned char *src, *src0, *dst, *src1, *src_last;
   unsigned *dst1, *lut;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2388,8 +2410,8 @@ void gen_4to8_all(RemapObject *ro)
   unsigned char *clut = (unsigned char*) ro->true_color_lut;
   unsigned *dst1, *lut;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2438,8 +2460,8 @@ void gen_4to16_all(RemapObject *ro)
   unsigned short *dst;
   unsigned *dst1, *lut;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2487,8 +2509,8 @@ void gen_4to24_all(RemapObject *ro)
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2540,8 +2562,8 @@ void gen_4to32_all(RemapObject *ro)
   unsigned char *src, *src0, *src1, *src_last;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2581,8 +2603,8 @@ void gen_16to16_1(RemapObject *ro)
   int i;
   unsigned char *src, *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width << 1);
@@ -2600,8 +2622,8 @@ void gen_24to24_1(RemapObject *ro)
   int i;
   unsigned char *src, *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width * 3);
@@ -2619,8 +2641,8 @@ void gen_32to32_1(RemapObject *ro)
   int i;
   unsigned char *src, *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width << 2);
@@ -2640,8 +2662,8 @@ void gen_24to32_1(RemapObject *ro)
   unsigned char *src, *dst, *src_1;
   unsigned *dst_4;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     src_1 = src;
@@ -2668,8 +2690,8 @@ void gen_15to32_1(RemapObject *ro)
   unsigned short *src_2;
   unsigned *dst_4;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     src_2 = (unsigned short *)src;
@@ -2710,8 +2732,8 @@ void gen_16to32_1(RemapObject *ro)
   unsigned short *src_2;
   unsigned *dst_4;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     src_2 = (unsigned short *)src;
@@ -2759,8 +2781,8 @@ void gen_1to8p_all(RemapObject *ro)
 
   unsigned char *src, *src0, *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2795,8 +2817,8 @@ void gen_1to8_all(RemapObject *ro)
   unsigned char c0;
   int i;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2830,8 +2852,8 @@ void gen_1to16_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2864,8 +2886,8 @@ void gen_1to24_all(RemapObject *ro)
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2899,8 +2921,8 @@ void gen_1to32_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2933,8 +2955,8 @@ void gen_2to8p_all(RemapObject *ro)
 
   unsigned char *src, *src0, *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2972,8 +2994,8 @@ void gen_2to8_all(RemapObject *ro)
   unsigned char c0, c1;
   int i;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3012,8 +3034,8 @@ void gen_2to16_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3053,8 +3075,8 @@ void gen_2to24_all(RemapObject *ro)
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3096,8 +3118,8 @@ void gen_2to32_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3134,8 +3156,8 @@ void gen_c2to8p_all(RemapObject *ro)
 
   unsigned char *src, *src0, *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3170,8 +3192,8 @@ void gen_c2to8_all(RemapObject *ro)
   unsigned char c0;
   int i;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3205,8 +3227,8 @@ void gen_c2to16_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3239,8 +3261,8 @@ void gen_c2to24_all(RemapObject *ro)
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width*3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3274,8 +3296,8 @@ void gen_c2to32_all(RemapObject *ro)
   unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3312,9 +3334,11 @@ RectArea remap_remap_rect(struct RemapObjectStruct *ro, int x0, int y0,
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
-RectArea remap_remap_mem(struct RemapObjectStruct *ro, int offset, int len)
+RectArea remap_remap_mem(struct RemapObjectStruct *ro, unsigned src_start,
+	unsigned dst_start, int offset, int len)
 {
-  return ro->remap_mem(ro, offset, len);
+  ro->src_start = src_start;
+  return ro->remap_mem(ro, dst_start, offset, len);
 }
 
 

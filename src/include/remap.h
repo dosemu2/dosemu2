@@ -104,7 +104,7 @@ typedef struct RemapObjectStruct {
   void (*src_resize)(struct RemapObjectStruct *, int, int, int);
   void (*dst_resize)(struct RemapObjectStruct *, int, int, int);
   RectArea (*remap_rect)(struct RemapObjectStruct *, int, int, int, int);
-  RectArea (*remap_mem)(struct RemapObjectStruct *, int, int);
+  RectArea (*remap_mem)(struct RemapObjectStruct *, unsigned, int, int);
   int state;
   int src_mode, dst_mode;
   ColorSpaceDesc *src_color_space, *dst_color_space;
@@ -117,6 +117,7 @@ typedef struct RemapObjectStruct {
   int src_x0, src_y0, src_x1, src_y1;
   int dst_x0, dst_y0, dst_x1, dst_y1;
   int src_offset, dst_offset;
+  unsigned int src_start, dst_start;
   int *bre_x, *bre_y;
   unsigned *true_color_lut;
   unsigned *bit_lut;
@@ -157,7 +158,8 @@ void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
 	int scan_len);
 RectArea remap_remap_rect(struct RemapObjectStruct *ro, int x0, int y0,
 	int width, int height);
-RectArea remap_remap_mem(struct RemapObjectStruct *ro, int offset, int len);
+RectArea remap_remap_mem(struct RemapObjectStruct *ro, unsigned src_start,
+	unsigned dst_start, int offset, int len);
 
 CodeObj code_init(void);
 void code_done(CodeObj *);
