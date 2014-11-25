@@ -813,7 +813,8 @@ void X_close()
 
   if(graphics_cmap) XFreeColormap(display, graphics_cmap);
 
-  XFreeGC(display, gc);
+  if (gc)
+    XFreeGC(display, gc);
 
   if(X_csd.pixel_lut != NULL) { free(X_csd.pixel_lut); X_csd.pixel_lut = NULL; }
 
