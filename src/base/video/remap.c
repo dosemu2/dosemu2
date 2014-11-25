@@ -104,7 +104,6 @@ void bre_bilin_filt_update(RemapObject *);
 static RemapFuncDesc *find_remap_func(unsigned, int, int, RemapFuncDesc *);
 static RemapFuncDesc *find_best_remap_func(unsigned, int, int, RemapFuncDesc *);
 static void install_remap_funcs(RemapObject *, int);
-static void find_supported_modes(RemapObject *);
 
 static RectArea remap_mem_1(RemapObject *, int, int);
 static RectArea remap_rect_1(RemapObject *, int, int, int, int);
@@ -1336,20 +1335,24 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
   if(ro->func_1 != NULL) ro->state |= ROS_SCALE_1;
   if(ro->func_2 != NULL) ro->state |= ROS_SCALE_2;
 
-  find_supported_modes(ro);
+  ro->supported_src_modes = find_supported_modes(ro->dst_mode);
 }
 
 
-static void find_supported_modes(RemapObject *ro)
+int find_supported_modes(unsigned dst_mode)
 {
-  RemapFuncDesc *rfd = remap_list;
-
-  ro->supported_src_modes = 0;
-
+  int modes = 0;
+  RemapFuncDesc *rfd;
+  if(!base_init) {
+    do_base_init();
+    base_init = 1;
+  }
+  rfd = remap_list;
   while(rfd != NULL) {
-    if(rfd->dst_mode & ro->dst_mode) ro->supported_src_modes |= rfd->src_mode;
+    if(rfd->dst_mode & dst_mode) modes |= rfd->src_mode;
     rfd = rfd->next;
   }
+  return modes;
 }
 
 

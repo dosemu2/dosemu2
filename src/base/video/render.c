@@ -97,9 +97,7 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
   if(config.X_lin_filt) remap_features |= RFF_LIN_FILT;
   if(config.X_bilin_filt) remap_features |= RFF_BILIN_FILT;
 
-  remap_obj = remap_init(0, ximage_mode, 0);
-  remap_src_modes = remap_obj.supported_src_modes;
-  remap_done(&remap_obj);
+  remap_src_modes = find_supported_modes(ximage_mode);
   *image_mode = ximage_mode;
   return remap_src_modes;
 }

@@ -148,6 +148,7 @@ RGBColor int_2rgb_color(ColorSpaceDesc *, unsigned, unsigned);
 void color_space_complete(ColorSpaceDesc *);
 void adjust_gamma(RemapObject *, unsigned);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
+int find_supported_modes(unsigned dst_mode);
 
 CodeObj code_init(void);
 void code_done(CodeObj *);
