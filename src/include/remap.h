@@ -149,6 +149,15 @@ void color_space_complete(ColorSpaceDesc *);
 void adjust_gamma(RemapObject *, unsigned);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
 int find_supported_modes(unsigned dst_mode);
+int remap_palette_update(struct RemapObjectStruct *ro, unsigned i,
+	unsigned bits, unsigned r, unsigned g, unsigned b);
+void remap_src_resize(struct RemapObjectStruct *ro, int width, int height,
+	int scan_len);
+void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
+	int scan_len);
+RectArea remap_remap_rect(struct RemapObjectStruct *ro, int x0, int y0,
+	int width, int height);
+RectArea remap_remap_mem(struct RemapObjectStruct *ro, int offset, int len);
 
 CodeObj code_init(void);
 void code_done(CodeObj *);

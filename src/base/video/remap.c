@@ -3288,6 +3288,34 @@ void gen_c2to32_all(RemapObject *ro)
   }
 }
 
+int remap_palette_update(struct RemapObjectStruct *ro, unsigned i,
+	unsigned bits, unsigned r, unsigned g, unsigned b)
+{
+  return ro->palette_update(ro, i, bits, r, g, b);
+}
+
+void remap_src_resize(struct RemapObjectStruct *ro, int width, int height,
+	int scan_len)
+{
+  ro->src_resize(ro, width, height, scan_len);
+}
+
+void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
+	int scan_len)
+{
+  ro->dst_resize(ro, width, height, scan_len);
+}
+
+RectArea remap_remap_rect(struct RemapObjectStruct *ro, int x0, int y0,
+	int width, int height)
+{
+  return ro->remap_rect(ro, x0, y0, width, height);
+}
+
+RectArea remap_remap_mem(struct RemapObjectStruct *ro, int offset, int len)
+{
+  return ro->remap_mem(ro, offset, len);
+}
 
 
 /*

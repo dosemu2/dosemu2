@@ -117,7 +117,7 @@ void remapper_done(void)
  */
 static void refresh_truecolor(DAC_entry *col, int index)
 {
-  remap_obj.palette_update(&remap_obj, index, vga.dac.bits, col->r, col->g, col->b);
+  remap_palette_update(&remap_obj, index, vga.dac.bits, col->r, col->g, col->b);
 }
 
 /* returns True if the screen needs to be redrawn */
@@ -233,7 +233,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   veut->update_gran = 0;
   veut->update_pos = veut->display_start;
 
-  remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+  remap_src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
 
   *wx_res = w_x_res;
   *wy_res = w_y_res;
@@ -256,8 +256,8 @@ static void modify_mode(vga_emu_update_type *veut)
 	tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 : MODE_VGA_X, remap_obj.dst_mode, remap_features);
       *tmp_ro.dst_color_space = *remap_obj.dst_color_space;
       tmp_ro.dst_image = remap_obj.dst_image;
-      tmp_ro.src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);
-      tmp_ro.dst_resize(&tmp_ro, remap_obj.dst_width, remap_obj.dst_height, remap_obj.dst_scan_len);
+      remap_src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);
+      remap_dst_resize(&tmp_ro, remap_obj.dst_width, remap_obj.dst_height, remap_obj.dst_scan_len);
 
       if(!(tmp_ro.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
         v_printf("modify_mode: no memory config change of current graphics mode supported\n");
@@ -283,7 +283,7 @@ static void modify_mode(vga_emu_update_type *veut)
   }
 
   if(vga.reconfig.display) {
-    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+    remap_src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
     v_printf(
       "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
       vga.width, vga.height, vga.scan_len
@@ -340,7 +340,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 
   while((update_ret = vga_emu_update(veut)) > 0) {
     remap_obj.src_image = veut->base + veut->display_start - update_offset;
-    ra = remap_obj.remap_mem(&remap_obj, update_offset + veut->update_start -
+    ra = remap_remap_mem(&remap_obj, update_offset + veut->update_start -
                              veut->display_start, veut->update_len);
 
 #ifdef DEBUG_SHOW_UPDATE_AREA
@@ -441,7 +441,7 @@ int update_screen(vga_emu_update_type *veut)
 void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
 	int scan_len)
 {
-  remap_obj.dst_resize(&remap_obj, width, height, scan_len);
+  remap_dst_resize(&remap_obj, width, height, scan_len);
   remap_obj.dst_image = img;
   *remap_obj.dst_color_space = *csd;
 }
