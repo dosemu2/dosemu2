@@ -391,7 +391,8 @@ void resize_text_mapper(int image_mode)
   remap_done(&remap_obj);
 
   /* linear 1 byte per pixel */
-  remap_obj = remap_init(MODE_PSEUDO_8, image_mode, remap_features);
+  remap_obj = remap_init(MODE_PSEUDO_8, image_mode, remap_features,
+	NULL, NULL);
   adjust_gamma(&remap_obj, config.X_gamma);
 
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);

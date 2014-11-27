@@ -18,6 +18,8 @@
 RemapObject remap_obj;
 int remap_features;
 static struct render_system *Render;
+static const ColorSpaceDesc *color_space;
+static unsigned char *dst_image;
 
 /*
  * Draw a text string for bitmap fonts.
@@ -200,7 +202,8 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   v_printf("setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
 	   mode_type, ximage_mode, remap_features);
 
-  remap_obj = remap_init(mode_type, ximage_mode, remap_features);
+  remap_obj = remap_init(mode_type, ximage_mode, remap_features,
+	dst_image, color_space);
   cap = remap_get_cap(&remap_obj);
   if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
@@ -253,12 +256,13 @@ static void modify_mode(vga_emu_update_type *veut)
   if(vga.reconfig.mem) {
     if(remap_obj.src_mode == MODE_PSEUDO_8 || remap_obj.src_mode == MODE_VGA_X || remap_obj.src_mode == MODE_VGA_4) {
       if (remap_obj.src_mode == MODE_VGA_4)
-	tmp_ro = remap_init(MODE_VGA_4, remap_obj.dst_mode, remap_features);
+	tmp_ro = remap_init(MODE_VGA_4, remap_obj.dst_mode, remap_features,
+		dst_image, color_space);
       else
-	tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 : MODE_VGA_X, remap_obj.dst_mode, remap_features);
+	tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 :
+		MODE_VGA_X, remap_obj.dst_mode, remap_features,
+		dst_image, color_space);
       cap = remap_get_cap(&tmp_ro);
-      *tmp_ro.dst_color_space = *remap_obj.dst_color_space;
-      tmp_ro.dst_image = remap_obj.dst_image;
       remap_src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);
       remap_dst_resize(&tmp_ro, remap_obj.dst_width, remap_obj.dst_height, remap_obj.dst_scan_len);
 
@@ -446,6 +450,8 @@ void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
 	int scan_len)
 {
   remap_dst_resize(&remap_obj, width, height, scan_len);
-  remap_obj.dst_image = img;
-  *remap_obj.dst_color_space = *csd;
+  dst_image = img;
+  remap_obj.dst_image = dst_image;
+  color_space = csd;
+  remap_obj.dst_color_space = color_space;
 }

@@ -107,7 +107,8 @@ typedef struct RemapObjectStruct {
   RectArea (*remap_mem)(struct RemapObjectStruct *, unsigned, int, int);
   int state;
   int src_mode, dst_mode;
-  ColorSpaceDesc *src_color_space, *dst_color_space;
+  ColorSpaceDesc *src_color_space;
+  const ColorSpaceDesc *dst_color_space;
   unsigned gamma;		/* 4 byte !! */
   unsigned char *gamma_lut;
   const unsigned char *src_image;
@@ -142,11 +143,11 @@ typedef struct RemapObjectStruct {
 
 void set_remap_debug_msg(FILE *);
 
-RemapObject remap_init(int, int, int);
+RemapObject remap_init(int, int, int, unsigned char *, const ColorSpaceDesc *);
 void remap_done(RemapObject *);
 
-unsigned rgb_color_2int(ColorSpaceDesc *, unsigned, RGBColor);
-RGBColor int_2rgb_color(ColorSpaceDesc *, unsigned, unsigned);
+unsigned rgb_color_2int(const ColorSpaceDesc *, unsigned, RGBColor);
+RGBColor int_2rgb_color(const ColorSpaceDesc *, unsigned, unsigned);
 void color_space_complete(ColorSpaceDesc *);
 void adjust_gamma(RemapObject *, unsigned);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
