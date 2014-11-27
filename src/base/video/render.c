@@ -339,10 +339,10 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 #endif
 
   while((update_ret = vga_emu_update(veut)) > 0) {
-    remap_obj.src_image = veut->base - update_offset;
-    ra = remap_remap_mem(&remap_obj, veut->display_start, 0,
-                             update_offset + veut->update_start -
-                             veut->display_start, veut->update_len);
+    ra = remap_remap_mem(&remap_obj, veut->base, veut->display_start,
+                             update_offset,
+                             veut->update_start - veut->display_start,
+                             veut->update_len);
 
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);

@@ -110,14 +110,15 @@ typedef struct RemapObjectStruct {
   ColorSpaceDesc *src_color_space, *dst_color_space;
   unsigned gamma;		/* 4 byte !! */
   unsigned char *gamma_lut;
-  unsigned char *src_image, *dst_image;
+  const unsigned char *src_image;
+  unsigned char *dst_image;
   unsigned char *src_tmp_line;
   unsigned src_width, src_height, src_scan_len;
   unsigned dst_width, dst_height, dst_scan_len;
   int src_x0, src_y0, src_x1, src_y1;
   int dst_x0, dst_y0, dst_x1, dst_y1;
   int src_offset, dst_offset;
-  unsigned int src_start, dst_start;
+  int src_start, dst_start;
   int *bre_x, *bre_y;
   unsigned *true_color_lut;
   unsigned *bit_lut;
@@ -158,7 +159,9 @@ void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
 	int scan_len);
 RectArea remap_remap_rect(struct RemapObjectStruct *ro, int x0, int y0,
 	int width, int height);
-RectArea remap_remap_mem(struct RemapObjectStruct *ro, unsigned src_start,
+RectArea remap_remap_mem(struct RemapObjectStruct *ro,
+	const unsigned char *src_img,
+	unsigned src_start,
 	unsigned dst_start, int offset, int len);
 
 CodeObj code_init(void);
