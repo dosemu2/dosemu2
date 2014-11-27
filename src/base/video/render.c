@@ -139,7 +139,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 			 vga_emu_update_type *veut)
 {
   int x_res, y_res, w_x_res, w_y_res;
-  int mode_type;
+  int mode_type, cap;
 
   w_x_res = x_res = vga.width;
   w_y_res = y_res = vga.height;
@@ -201,7 +201,8 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 	   mode_type, ximage_mode, remap_features);
 
   remap_obj = remap_init(mode_type, ximage_mode, remap_features);
-  if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
+  cap = remap_get_cap(&remap_obj);
+  if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
     /* why do we need a blank screen? */
     /* Because many games use 16bpp only for the trailer, so not quitting
@@ -212,8 +213,8 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   }
   adjust_gamma(&remap_obj, config.X_gamma);
 
-  if(!(remap_obj.state & ROS_SCALE_ALL)) {
-    if((remap_obj.state & ROS_SCALE_2) && !(remap_obj.state & ROS_SCALE_1)) {
+  if(!(cap & ROS_SCALE_ALL)) {
+    if((cap & ROS_SCALE_2) && !(cap & ROS_SCALE_1)) {
       w_x_res = x_res << 1;
       w_y_res = y_res << 1;
     }
@@ -247,6 +248,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 static void modify_mode(vga_emu_update_type *veut)
 {
   RemapObject tmp_ro;
+  int cap;
 
   if(vga.reconfig.mem) {
     if(remap_obj.src_mode == MODE_PSEUDO_8 || remap_obj.src_mode == MODE_VGA_X || remap_obj.src_mode == MODE_VGA_4) {
@@ -254,12 +256,13 @@ static void modify_mode(vga_emu_update_type *veut)
 	tmp_ro = remap_init(MODE_VGA_4, remap_obj.dst_mode, remap_features);
       else
 	tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 : MODE_VGA_X, remap_obj.dst_mode, remap_features);
+      cap = remap_get_cap(&tmp_ro);
       *tmp_ro.dst_color_space = *remap_obj.dst_color_space;
       tmp_ro.dst_image = remap_obj.dst_image;
       remap_src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);
       remap_dst_resize(&tmp_ro, remap_obj.dst_width, remap_obj.dst_height, remap_obj.dst_scan_len);
 
-      if(!(tmp_ro.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
+      if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
         v_printf("modify_mode: no memory config change of current graphics mode supported\n");
         remap_done(&tmp_ro);
       }

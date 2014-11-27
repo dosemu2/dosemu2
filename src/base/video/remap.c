@@ -3367,6 +3367,10 @@ RectArea remap_remap_mem(struct RemapObjectStruct *ro,
   return ro->remap_mem(ro, dst_start, offset, len);
 }
 
+int remap_get_cap(struct RemapObjectStruct *ro)
+{
+  return ro->state;
+}
 
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

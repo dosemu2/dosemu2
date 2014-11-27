@@ -163,6 +163,7 @@ RectArea remap_remap_mem(struct RemapObjectStruct *ro,
 	const unsigned char *src_img,
 	unsigned src_start,
 	unsigned dst_start, int offset, int len);
+int remap_get_cap(struct RemapObjectStruct *ro);
 
 CodeObj code_init(void);
 void code_done(CodeObj *);
