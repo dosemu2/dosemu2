@@ -215,7 +215,8 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
     for (j = 0; j < vga.char_width; j ++)
       *deb++ = fg;
   }
-  return remap_remap_rect(&remap_obj, vga.char_width * x, vga.char_height * y,
+  return remap_remap_rect(&remap_obj, text_canvas,
+			      vga.char_width * x, vga.char_height * y,
 			      vga.char_width, vga.char_height);
 }
 
@@ -238,7 +239,7 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
 
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_remap_rect(&remap_obj, x, y, linelen, 1);
+  return remap_remap_rect(&remap_obj, text_canvas, x, y, linelen, 1);
 }
 
 void reset_redraw_text_screen(void)
@@ -398,7 +399,6 @@ void resize_text_mapper(int image_mode)
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
-  remap_obj.src_image = text_canvas;
   remap_src_resize(&remap_obj, vga.width, vga.height, 1 * vga.width);
 
   dirty_all_video_pages();
@@ -500,7 +500,8 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
     src++;  /* globally shift to the next font row!!! */
   }
 
-  return remap_remap_rect(&remap_obj, vga.char_width * x, height * y,
+  return remap_remap_rect(&remap_obj, text_canvas,
+			      vga.char_width * x, height * y,
 			      vga.char_width * len, height);
 }
 

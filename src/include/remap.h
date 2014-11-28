@@ -158,7 +158,9 @@ void remap_src_resize(struct RemapObjectStruct *ro, int width, int height,
 	int scan_len);
 void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
 	int scan_len);
-RectArea remap_remap_rect(struct RemapObjectStruct *ro, int x0, int y0,
+RectArea remap_remap_rect(struct RemapObjectStruct *ro,
+	const unsigned char *src_img,
+	int x0, int y0,
 	int width, int height);
 RectArea remap_remap_mem(struct RemapObjectStruct *ro,
 	const unsigned char *src_img,

@@ -3345,9 +3345,12 @@ void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
   ro->dst_resize(ro, width, height, scan_len);
 }
 
-RectArea remap_remap_rect(struct RemapObjectStruct *ro, int x0, int y0,
+RectArea remap_remap_rect(struct RemapObjectStruct *ro,
+	const unsigned char *src_img,
+	int x0, int y0,
 	int width, int height)
 {
+  ro->src_image = src_img;
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
@@ -3355,7 +3358,7 @@ RectArea remap_remap_mem(struct RemapObjectStruct *ro,
 	const unsigned char *src_img, unsigned src_start,
 	unsigned dst_start, int offset, int len)
 {
-  remap_obj.src_image = src_img;
+  ro->src_image = src_img;
   ro->src_start = src_start;
   if (dst_start) {
    /* unfortunately dst_start doesn't work and is untrivial to implement
