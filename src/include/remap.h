@@ -143,7 +143,7 @@ typedef struct RemapObjectStruct {
 
 void set_remap_debug_msg(FILE *);
 
-RemapObject remap_init(int, int, int, unsigned char *, const ColorSpaceDesc *);
+RemapObject *remap_init(int, int, int, unsigned char *, const ColorSpaceDesc *);
 void remap_done(RemapObject *);
 
 unsigned rgb_color_2int(const ColorSpaceDesc *, unsigned, RGBColor);

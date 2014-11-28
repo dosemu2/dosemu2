@@ -215,7 +215,7 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
     for (j = 0; j < vga.char_width; j ++)
       *deb++ = fg;
   }
-  return remap_remap_rect(&remap_obj, text_canvas,
+  return remap_remap_rect(remap_obj, text_canvas,
 			      vga.char_width * x, vga.char_height * y,
 			      vga.char_width, vga.char_height);
 }
@@ -239,7 +239,7 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
 
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_remap_rect(&remap_obj, text_canvas, x, y, linelen, 1);
+  return remap_remap_rect(remap_obj, text_canvas, x, y, linelen, 1);
 }
 
 void reset_redraw_text_screen(void)
@@ -388,18 +388,18 @@ void resize_text_mapper(int image_mode)
 {
   /* need a remap obj for the font system even in text mode! */
   x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");
-
-  remap_done(&remap_obj);
+  if (remap_obj)
+    remap_done(remap_obj);
 
   /* linear 1 byte per pixel */
   remap_obj = remap_init(MODE_PSEUDO_8, image_mode, remap_features,
 	NULL, NULL);
-  adjust_gamma(&remap_obj, config.X_gamma);
+  adjust_gamma(remap_obj, config.X_gamma);
 
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
-  remap_src_resize(&remap_obj, vga.width, vga.height, 1 * vga.width);
+  remap_src_resize(remap_obj, vga.width, vga.height, 1 * vga.width);
 
   dirty_all_video_pages();
   /*
@@ -500,7 +500,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
     src++;  /* globally shift to the next font row!!! */
   }
 
-  return remap_remap_rect(&remap_obj, text_canvas,
+  return remap_remap_rect(remap_obj, text_canvas,
 			      vga.char_width * x, height * y,
 			      vga.char_width * len, height);
 }
@@ -526,7 +526,7 @@ int update_text_screen(void)
 
   if(vga.reconfig.mem) {
     if (use_bitmap_font)
-      remap_src_resize(&remap_obj, vga.width, vga.height, vga.width);
+      remap_src_resize(remap_obj, vga.width, vga.height, vga.width);
     redraw_text_screen();
     vga.reconfig.mem = 0;
   }

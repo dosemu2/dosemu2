@@ -15,7 +15,7 @@
 #include "video.h"
 #include "render_priv.h"
 
-RemapObject remap_obj;
+RemapObject *remap_obj;
 int remap_features;
 static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
@@ -111,7 +111,7 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
  */
 void remapper_done(void)
 {
-  remap_done(&remap_obj);
+  remap_done(remap_obj);
 }
 
 /*
@@ -120,7 +120,7 @@ void remapper_done(void)
  */
 static void refresh_truecolor(DAC_entry *col, int index)
 {
-  remap_palette_update(&remap_obj, index, vga.dac.bits, col->r, col->g, col->b);
+  remap_palette_update(remap_obj, index, vga.dac.bits, col->r, col->g, col->b);
 }
 
 /* returns True if the screen needs to be redrawn */
@@ -174,7 +174,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
     w_y_res = (w_x_res * 3) >> 2;
   }
 
-  remap_done(&remap_obj);
+  remap_done(remap_obj);
   switch(vga.mode_type) {
   case CGA:
     mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
@@ -206,7 +206,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   dst_mode = ximage_mode;
   remap_obj = remap_init(mode_type, dst_mode, remap_features,
 	dst_image, color_space);
-  cap = remap_get_cap(&remap_obj);
+  cap = remap_get_cap(remap_obj);
   if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
     /* why do we need a blank screen? */
@@ -216,7 +216,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
     leavedos(24);
 #endif
   }
-  adjust_gamma(&remap_obj, config.X_gamma);
+  adjust_gamma(remap_obj, config.X_gamma);
 
   if(!(cap & ROS_SCALE_ALL)) {
     if((cap & ROS_SCALE_2) && !(cap & ROS_SCALE_1)) {
@@ -239,7 +239,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   veut->update_gran = 0;
   veut->update_pos = veut->display_start;
 
-  remap_src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+  remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
 
   *wx_res = w_x_res;
   *wy_res = w_y_res;
@@ -252,7 +252,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
  */
 static void modify_mode(vga_emu_update_type *veut)
 {
-  RemapObject tmp_ro;
+  RemapObject *tmp_ro;
   int cap;
 
   if(vga.reconfig.mem) {
@@ -264,17 +264,17 @@ static void modify_mode(vga_emu_update_type *veut)
 	tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 :
 		MODE_VGA_X, dst_mode, remap_features,
 		dst_image, color_space);
-      cap = remap_get_cap(&tmp_ro);
-      remap_src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);
-      remap_dst_resize(&tmp_ro, dst_width, dst_height, dst_scan_len);
+      cap = remap_get_cap(tmp_ro);
+      remap_src_resize(tmp_ro, vga.width, vga.height, vga.scan_len);
+      remap_dst_resize(tmp_ro, dst_width, dst_height, dst_scan_len);
 
       if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
         v_printf("modify_mode: no memory config change of current graphics mode supported\n");
-        remap_done(&tmp_ro);
+        remap_done(tmp_ro);
       }
       else {
         v_printf("modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
-        remap_done(&remap_obj);
+        remap_done(remap_obj);
         remap_obj = tmp_ro;
       }
 
@@ -292,7 +292,7 @@ static void modify_mode(vga_emu_update_type *veut)
   }
 
   if(vga.reconfig.display) {
-    remap_src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+    remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
     v_printf(
       "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
       vga.width, vga.height, vga.scan_len
@@ -348,7 +348,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 #endif
 
   while((update_ret = vga_emu_update(veut)) > 0) {
-    ra = remap_remap_mem(&remap_obj, veut->base, veut->display_start,
+    ra = remap_remap_mem(remap_obj, veut->base, veut->display_start,
                              update_offset,
                              veut->update_start - veut->display_start,
                              veut->update_len);
@@ -361,8 +361,8 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 
-    v_printf("update_graphics_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
-      remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
+    v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
+      vga.display_start, vga.mem.write_plane,
       veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
     );
   }
@@ -451,12 +451,12 @@ int update_screen(vga_emu_update_type *veut)
 void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
 	int scan_len)
 {
-  remap_dst_resize(&remap_obj, width, height, scan_len);
+  remap_dst_resize(remap_obj, width, height, scan_len);
   dst_image = img;
   dst_width = width;
   dst_height = height;
   dst_scan_len = scan_len;
-  remap_obj.dst_image = dst_image;
+  remap_obj->dst_image = dst_image;
   color_space = csd;
-  remap_obj.dst_color_space = color_space;
+  remap_obj->dst_color_space = color_space;
 }

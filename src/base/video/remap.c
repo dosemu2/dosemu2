@@ -141,108 +141,108 @@ static void do_base_init(void)
 /*
  * initialize a remap object
  */
-RemapObject remap_init(int src_mode, int dst_mode, int features,
+RemapObject *remap_init(int src_mode, int dst_mode, int features,
 	unsigned char *dst_image, const ColorSpaceDesc *color_space)
 {
-  RemapObject ro;
+  RemapObject *ro = malloc(sizeof(*ro));
   int color_lut_size = 256;
   unsigned u, u0, u1;
 
-  ro.palette_update = do_nearly_nothing;
-  ro.src_resize = src_resize_update;
-  ro.dst_resize = dst_resize_update;
-  ro.remap_rect = do_nearly_something_rect;
-  ro.remap_mem = do_nearly_something_mem;
-  ro.state = 0;
-  ro.src_mode = src_mode;
-  ro.dst_mode = dst_mode;
-  ro.src_tmp_line = NULL;
-  ro.src_width = ro.src_height = ro.src_scan_len =
-  ro.dst_width = ro.dst_height = ro.dst_scan_len =
-  ro.src_x0 = ro.src_y0 = ro.src_x1 = ro.src_y1 =
-  ro.dst_x0 = ro.dst_y0 = ro.dst_x1 = ro.dst_y1 =
-  ro.src_offset = ro.dst_offset = 0;
-  ro.src_start = ro.dst_start = 0;
-  ro.bre_x = ro.bre_y = NULL;
-  ro.true_color_lut = NULL;
-  ro.bit_lut = NULL;
-  ro.gamma_lut = NULL;
-  adjust_gamma(&ro, 100);
-  ro.remap_func = ro.remap_func_init = NULL;
-  ro.remap_func_flags = 0;
-  ro.remap_func_name = "no_func";
-  ro.co = malloc(sizeof(*ro.co));
-  if(ro.co == NULL) {
-    ro.state |= ROS_MALLOC_FAIL;
+  ro->palette_update = do_nearly_nothing;
+  ro->src_resize = src_resize_update;
+  ro->dst_resize = dst_resize_update;
+  ro->remap_rect = do_nearly_something_rect;
+  ro->remap_mem = do_nearly_something_mem;
+  ro->state = 0;
+  ro->src_mode = src_mode;
+  ro->dst_mode = dst_mode;
+  ro->src_tmp_line = NULL;
+  ro->src_width = ro->src_height = ro->src_scan_len =
+  ro->dst_width = ro->dst_height = ro->dst_scan_len =
+  ro->src_x0 = ro->src_y0 = ro->src_x1 = ro->src_y1 =
+  ro->dst_x0 = ro->dst_y0 = ro->dst_x1 = ro->dst_y1 =
+  ro->src_offset = ro->dst_offset = 0;
+  ro->src_start = ro->dst_start = 0;
+  ro->bre_x = ro->bre_y = NULL;
+  ro->true_color_lut = NULL;
+  ro->bit_lut = NULL;
+  ro->gamma_lut = NULL;
+  adjust_gamma(ro, 100);
+  ro->remap_func = ro->remap_func_init = NULL;
+  ro->remap_func_flags = 0;
+  ro->remap_func_name = "no_func";
+  ro->co = malloc(sizeof(*ro->co));
+  if(ro->co == NULL) {
+    ro->state |= ROS_MALLOC_FAIL;
   }
   else {
-    *ro.co = code_init();
+    *ro->co = code_init();
   }
-  ro.remap_line = NULL;
-  ro.func_all = ro.func_1 = ro.func_2 = NULL;
+  ro->remap_line = NULL;
+  ro->func_all = ro->func_1 = ro->func_2 = NULL;
 
   if(!base_init) {
     do_base_init();
     base_init = 1;
   }
 
-  ro.src_color_space = calloc(1, sizeof(*ro.src_color_space));
-  if(ro.src_color_space == NULL) ro.state |= ROS_MALLOC_FAIL;
+  ro->src_color_space = calloc(1, sizeof(*ro->src_color_space));
+  if(ro->src_color_space == NULL) ro->state |= ROS_MALLOC_FAIL;
 
-  ro.dst_color_space = color_space;
-  ro.dst_image = dst_image;
+  ro->dst_color_space = color_space;
+  ro->dst_image = dst_image;
 
-  ro.bre_x = calloc(1, sizeof(*ro.bre_x));
-  if(ro.bre_x == NULL) ro.state |= ROS_MALLOC_FAIL;
-  ro.bre_y = calloc(1, sizeof(*ro.bre_y));
-  if(ro.bre_y == NULL) ro.state |= ROS_MALLOC_FAIL;
+  ro->bre_x = calloc(1, sizeof(*ro->bre_x));
+  if(ro->bre_x == NULL) ro->state |= ROS_MALLOC_FAIL;
+  ro->bre_y = calloc(1, sizeof(*ro->bre_y));
+  if(ro->bre_y == NULL) ro->state |= ROS_MALLOC_FAIL;
 
-  install_remap_funcs(&ro, features);
+  install_remap_funcs(ro, features);
 
   if(
-    ro.func_all != NULL &&
-   (ro.func_all->flags & RFF_LIN_FILT ||
-    ro.func_1->flags & RFF_LIN_FILT ||
-    ro.func_2->flags & RFF_LIN_FILT)
+    ro->func_all != NULL &&
+   (ro->func_all->flags & RFF_LIN_FILT ||
+    ro->func_1->flags & RFF_LIN_FILT ||
+    ro->func_2->flags & RFF_LIN_FILT)
   ) {
     color_lut_size = 256 * 3;
   }
 
   if(
-    ro.func_all != NULL &&
-   (ro.func_all->flags & RFF_BILIN_FILT ||
-    ro.func_1->flags & RFF_BILIN_FILT ||
-    ro.func_2->flags & RFF_BILIN_FILT)
+    ro->func_all != NULL &&
+   (ro->func_all->flags & RFF_BILIN_FILT ||
+    ro->func_1->flags & RFF_BILIN_FILT ||
+    ro->func_2->flags & RFF_BILIN_FILT)
   ) {
     color_lut_size = 256 * 6;
   }
 
   if(
     (
-      ro.src_mode & (
+      ro->src_mode & (
         MODE_PSEUDO_8 | MODE_VGA_X |
         MODE_VGA_1 | MODE_VGA_2 | MODE_VGA_4 |
         MODE_CGA_1 | MODE_CGA_2 | MODE_HERC
       )
-    ) == ro.src_mode
+    ) == ro->src_mode
   ) {
-    if((ro.dst_mode & MODE_PSEUDO_8) == ro.dst_mode) {
-      ro.palette_update = do_nearly_nothing;
+    if((ro->dst_mode & MODE_PSEUDO_8) == ro->dst_mode) {
+      ro->palette_update = do_nearly_nothing;
     }
-    if((ro.dst_mode & MODE_TRUE_8) == ro.dst_mode) {
-      ro.true_color_lut = calloc(color_lut_size * 1, sizeof(*ro.true_color_lut));
-      if(ro.true_color_lut == NULL) ro.state |= ROS_MALLOC_FAIL;
-      ro.palette_update = pseudo_col_palette_update;
+    if((ro->dst_mode & MODE_TRUE_8) == ro->dst_mode) {
+      ro->true_color_lut = calloc(color_lut_size * 1, sizeof(*ro->true_color_lut));
+      if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
+      ro->palette_update = pseudo_col_palette_update;
     }
-    else if((ro.dst_mode & MODE_TRUE_COL) == ro.dst_mode) {
+    else if((ro->dst_mode & MODE_TRUE_COL) == ro->dst_mode) {
       /* **** really too much for now...  **** */
-      ro.true_color_lut = calloc(color_lut_size * 3, sizeof(*ro.true_color_lut));
-      if(ro.true_color_lut == NULL) ro.state |= ROS_MALLOC_FAIL;
-      ro.palette_update = true_col_palette_update;
+      ro->true_color_lut = calloc(color_lut_size * 3, sizeof(*ro->true_color_lut));
+      if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
+      ro->palette_update = true_col_palette_update;
     }
-    ro.bit_lut = calloc(8*4*256, 1);
-    if(ro.bit_lut == NULL) {
-      ro.state |= ROS_MALLOC_FAIL;
+    ro->bit_lut = calloc(8*4*256, 1);
+    if(ro->bit_lut == NULL) {
+      ro->state |= ROS_MALLOC_FAIL;
     }
     else {
       for(u = 0; u < 0x100; u++) {
@@ -255,35 +255,35 @@ RemapObject remap_init(int src_mode, int dst_mode, int features,
         if((u & 0x04)) u1 |= 1 <<  8;
         if((u & 0x02)) u1 |= 1 << 16;
         if((u & 0x01)) u1 |= 1 << 24;
-        ro.bit_lut[2 * u            ] = u0;
-        ro.bit_lut[2 * u + 1        ] = u1;
-        ro.bit_lut[2 * u     + 0x200] = u0 << 1;
-        ro.bit_lut[2 * u + 1 + 0x200] = u1 << 1;
-        ro.bit_lut[2 * u     + 0x400] = u0 << 2;
-        ro.bit_lut[2 * u + 1 + 0x400] = u1 << 2;
-        ro.bit_lut[2 * u     + 0x600] = u0 << 3;
-        ro.bit_lut[2 * u + 1 + 0x600] = u1 << 3;
+        ro->bit_lut[2 * u            ] = u0;
+        ro->bit_lut[2 * u + 1        ] = u1;
+        ro->bit_lut[2 * u     + 0x200] = u0 << 1;
+        ro->bit_lut[2 * u + 1 + 0x200] = u1 << 1;
+        ro->bit_lut[2 * u     + 0x400] = u0 << 2;
+        ro->bit_lut[2 * u + 1 + 0x400] = u1 << 2;
+        ro->bit_lut[2 * u     + 0x600] = u0 << 3;
+        ro->bit_lut[2 * u + 1 + 0x600] = u1 << 3;
       }
     }
   }
 
   if(
-    (ro.src_mode &
+    (ro->src_mode &
       (
         MODE_TRUE_COL | MODE_PSEUDO_8 | MODE_VGA_X |
         MODE_VGA_1 | MODE_VGA_2 | MODE_VGA_4
       )
     ) &&
-    (ro.dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro.dst_mode
+    (ro->dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro->dst_mode
   ) {
-    ro.remap_mem = remap_mem_1;
-    ro.remap_rect = remap_rect_1;
+    ro->remap_mem = remap_mem_1;
+    ro->remap_rect = remap_rect_1;
   }
 
-  if((ro.src_mode & (MODE_CGA_1 | MODE_CGA_2 | MODE_HERC)) &&
-    (ro.dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro.dst_mode
+  if((ro->src_mode & (MODE_CGA_1 | MODE_CGA_2 | MODE_HERC)) &&
+    (ro->dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro->dst_mode
   ) {
-    ro.remap_mem = remap_mem_2;
+    ro->remap_mem = remap_mem_2;
   }
 
   return ro;
@@ -308,6 +308,7 @@ void remap_done(RemapObject *ro)
     free(ro->co);
     ro->co = NULL;
   }
+  free(ro);
 }
 #undef FreeIt
 
