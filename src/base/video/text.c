@@ -459,18 +459,18 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 
   if ( ((y+1) * height) > vga.height ) {
     v_printf("Tried to print below scanline %d (row %d)\n",
-	     remap_obj.src_height, y);
+	     vga.height, y);
     return ra;
   }
   if ( ((x+len) * vga.char_width) > vga.width ) {
     v_printf("Tried to print past right margin\n");
     v_printf("x=%d len=%d vga.char_width=%d width=%d\n",
-	     x, len, vga.char_width, remap_obj.src_width);
+	     x, len, vga.char_width, vga.width);
     len = vga.width / vga.char_width - x;
   }
 
   /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
-  srcp = remap_obj.src_scan_len * y * height;
+  srcp = vga.width * y * height;
   srcp += x * vga.char_width;
 
   /* vgaemu -> vgaemu_put_char would edit the vga.mem.base[...] */
@@ -496,7 +496,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 	srcp2 += (vga.char_width - 9);
       }   /* (pixel-x has reached on next char now) */
     }
-    srcp += remap_obj.src_scan_len;      /* next line */
+    srcp += vga.width;      /* next line */
     src++;  /* globally shift to the next font row!!! */
   }
 
