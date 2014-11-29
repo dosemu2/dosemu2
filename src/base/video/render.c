@@ -111,7 +111,8 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
  */
 void remapper_done(void)
 {
-  remap_done(remap_obj);
+  if (remap_obj)
+    remap_done(remap_obj);
 }
 
 /*
@@ -174,7 +175,8 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
     w_y_res = (w_x_res * 3) >> 2;
   }
 
-  remap_done(remap_obj);
+  if (remap_obj)
+    remap_done(remap_obj);
   switch(vga.mode_type) {
   case CGA:
     mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;

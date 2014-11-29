@@ -434,12 +434,12 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
   ro->true_color_lut[i] = u;
 
   if(
-    ro->func_all->flags & RFF_LIN_FILT ||
-    ro->func_1->flags & RFF_LIN_FILT ||
-    ro->func_2->flags & RFF_LIN_FILT ||
-    ro->func_all->flags & RFF_BILIN_FILT ||
-    ro->func_1->flags & RFF_BILIN_FILT ||
-    ro->func_2->flags & RFF_BILIN_FILT
+    (ro->func_all && (ro->func_all->flags & RFF_LIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_LIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_LIN_FILT)) ||
+    (ro->func_all && (ro->func_all->flags & RFF_BILIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_BILIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_BILIN_FILT))
   ) {
     rgb_color_reduce(ro->dst_color_space, bits, &c);
     rgb_lin_filt(c, &c1, &c2);
@@ -448,9 +448,9 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
   }
 
   if(
-    ro->func_all->flags & RFF_BILIN_FILT ||
-    ro->func_1->flags & RFF_BILIN_FILT ||
-    ro->func_2->flags & RFF_BILIN_FILT
+    (ro->func_all && (ro->func_all->flags & RFF_BILIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_BILIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_BILIN_FILT))
   ) {
     rgb_bilin_filt(c, &c1, &c2, &c3);
     ro->true_color_lut[i + LUT_OFS_11] = rgb_color_reduced_2int(ro->dst_color_space, c1);
