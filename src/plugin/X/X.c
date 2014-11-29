@@ -1353,8 +1353,8 @@ static void toggle_fullscreen_mode(int init)
     X_vidmode(x_res, y_res, &resize_width, &resize_height);
     mainwindow = fullscreenwindow;
     if (vga.mode_class == GRAPH || use_bitmap_font) {
-      XResizeWindow(display, mainwindow, resize_width+1, resize_height+1);
-      XResizeWindow(display, drawwindow, resize_width+1, resize_height+1);
+      XResizeWindow(display, mainwindow, resize_width, resize_height);
+      XResizeWindow(display, drawwindow, resize_width, resize_height);
     } else {
       shift_x = (resize_width - w_x_res) / 2;
       shift_y = (resize_height - w_y_res) / 2;
@@ -1378,8 +1378,8 @@ static void toggle_fullscreen_mode(int init)
     mainwindow = normalwindow;
     X_vidmode(-1, -1, &resize_width, &resize_height);
     if (vga.mode_class == GRAPH || use_bitmap_font) {
-      XResizeWindow(display, mainwindow, resize_width+1, resize_height+1);
-      XResizeWindow(display, drawwindow, resize_width+1, resize_height+1);
+      XResizeWindow(display, mainwindow, resize_width, resize_height);
+      XResizeWindow(display, drawwindow, resize_width, resize_height);
     }
     XMapWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
@@ -1701,7 +1701,7 @@ static void X_handle_events(void)
     }
 
     if(resize_event && mainwindow == normalwindow) {
-      XResizeWindow(display, drawwindow, resize_width+1, resize_height+1);
+      XResizeWindow(display, drawwindow, resize_width, resize_height);
       resize_ximage(resize_width, resize_height);
       dirty_all_video_pages();
       if (vga.mode_class == TEXT)
@@ -2034,14 +2034,14 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   if (mainwindow == fullscreenwindow)
     X_vidmode(x_res, y_res, &x_fill, &y_fill);
 
-  XResizeWindow(display, mainwindow, x_fill+1, y_fill+1);
+  XResizeWindow(display, mainwindow, x_fill, y_fill);
 
   if(vga.mode_class == TEXT && !use_bitmap_font) {
     x_fill = w_x_res;
     y_fill = w_y_res;
   }
 
-  XResizeWindow(display, drawwindow, x_fill+1, y_fill+1);
+  XResizeWindow(display, drawwindow, x_fill, y_fill);
   X_printf("Resizing our window to %dx%d image\n", x_fill, y_fill);
 
   if (use_bitmap_font) {
@@ -2196,8 +2196,8 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
 
     XSetNormalHints(display, normalwindow, &sh);
-    XResizeWindow(display, mainwindow, w_x_res+1, w_y_res+1);
-    XResizeWindow(display, drawwindow, w_x_res+1, w_y_res+1);
+    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    XResizeWindow(display, drawwindow, w_x_res, w_y_res);
   }
 
   /* unconditionally update the palette */
