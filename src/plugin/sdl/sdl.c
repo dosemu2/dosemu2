@@ -351,8 +351,6 @@ static void SDL_redraw_resize_image(unsigned width, unsigned height)
 
 int SDL_set_text_mode(int tw, int th, int w ,int h)
 {
-  if (use_bitmap_font)
-    resize_text_mapper(SDL_image_mode);
   SDL_resize_image(w, h);
   SDL_set_mouse_text_cursor();
   /* that's all */
@@ -418,9 +416,7 @@ static void SDL_change_mode(int *x_res, int *y_res)
     return;
   }
   SDL_ShowCursor(SDL_DISABLE);
-  if (use_bitmap_font || vga.mode_class == GRAPH) {
-    render_init(surface->pixels, &SDL_csd, *x_res, *y_res, surface->pitch);
-  }
+  render_init(surface->pixels, &SDL_csd, *x_res, *y_res, surface->pitch);
 #ifdef X_SUPPORT
   {
     static int first = 1;

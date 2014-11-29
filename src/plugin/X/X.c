@@ -1696,11 +1696,12 @@ static void X_handle_events(void)
       keyrel_pending = 0;
     }
 
-    if(ximage != NULL && resize_event) {
-      if(ximage->width == resize_width && ximage->height == resize_height) resize_event = 0;
-    }
+    if(ximage && resize_event && ximage->width == resize_width &&
+	ximage->height == resize_height)
+      resize_event = 0;
 
     if(resize_event && mainwindow == normalwindow) {
+      resize_event = 0;
       XResizeWindow(display, drawwindow, resize_width, resize_height);
       resize_ximage(resize_width, resize_height);
       dirty_all_video_pages();
@@ -1996,7 +1997,9 @@ void resize_ximage(unsigned width, unsigned height)
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  render_init((unsigned char *)ximage->data, &X_csd, width, height, ximage->bytes_per_line);
+  if (vga.mode_class == GRAPH || use_bitmap_font)
+    render_init((unsigned char *)ximage->data, &X_csd, width,
+	height, ximage->bytes_per_line);
 }
 
 /*
@@ -2045,7 +2048,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   X_printf("Resizing our window to %dx%d image\n", x_fill, y_fill);
 
   if (use_bitmap_font) {
-    resize_text_mapper(ximage_mode);
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
   }
 }

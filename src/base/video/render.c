@@ -21,6 +21,7 @@ static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
 static unsigned char *dst_image;
 static int dst_mode, dst_width, dst_height, dst_scan_len;
+static unsigned ximage_mode;
 
 /*
  * Draw a text string for bitmap fonts.
@@ -75,7 +76,6 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
 		  int have_true_color, int have_shmap)
 {
   int remap_src_modes;
-  unsigned ximage_mode;
 
   set_remap_debug_msg(stderr);
 
@@ -207,7 +207,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 
   dst_mode = ximage_mode;
   remap_obj = remap_init(mode_type, dst_mode, remap_features,
-	dst_image, color_space);
+	color_space);
   cap = remap_get_cap(remap_obj);
   if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
@@ -261,11 +261,11 @@ static void modify_mode(vga_emu_update_type *veut)
     if(vga.mode_type == P8 || vga.mode_type == PL4) {
       if (vga.mode_type == PL4)
 	tmp_ro = remap_init(MODE_VGA_4, dst_mode, remap_features,
-		dst_image, color_space);
+		color_space);
       else
 	tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 :
 		MODE_VGA_X, dst_mode, remap_features,
-		dst_image, color_space);
+		color_space);
       cap = remap_get_cap(tmp_ro);
       remap_src_resize(tmp_ro, vga.width, vga.height, vga.scan_len);
       remap_dst_resize(tmp_ro, dst_width, dst_height, dst_scan_len);
@@ -353,7 +353,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
     ra = remap_remap_mem(remap_obj, veut->base, veut->display_start,
                              update_offset,
                              veut->update_start - veut->display_start,
-                             veut->update_len);
+                             veut->update_len, dst_image);
 
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
@@ -453,12 +453,13 @@ int update_screen(vga_emu_update_type *veut)
 void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
 	int scan_len)
 {
+  if (vga.mode_class == TEXT)		// temporary HACK
+    resize_text_mapper(ximage_mode, csd, img);
   remap_dst_resize(remap_obj, width, height, scan_len);
   dst_image = img;
   dst_width = width;
   dst_height = height;
   dst_scan_len = scan_len;
-  remap_obj->dst_image = dst_image;
   color_space = csd;
   remap_obj->dst_color_space = color_space;
 }

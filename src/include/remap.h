@@ -4,6 +4,8 @@
  * Copyright (c) 1997 Steffen Winterfeldt
  *
  */
+#ifndef REMAP_H
+#define REMAP_H
 
 /*
  * print listing of generated code
@@ -143,7 +145,7 @@ typedef struct RemapObjectStruct {
 
 void set_remap_debug_msg(FILE *);
 
-RemapObject *remap_init(int, int, int, unsigned char *, const ColorSpaceDesc *);
+RemapObject *remap_init(int, int, int, const ColorSpaceDesc *);
 void remap_done(RemapObject *);
 
 unsigned rgb_color_2int(const ColorSpaceDesc *, unsigned, RGBColor);
@@ -161,11 +163,11 @@ void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
 RectArea remap_remap_rect(struct RemapObjectStruct *ro,
 	const unsigned char *src_img,
 	int x0, int y0,
-	int width, int height);
+	int width, int height, unsigned char *dst_img);
 RectArea remap_remap_mem(struct RemapObjectStruct *ro,
 	const unsigned char *src_img,
 	unsigned src_start,
-	unsigned dst_start, int offset, int len);
+	unsigned dst_start, int offset, int len, unsigned char *dst_img);
 int remap_get_cap(struct RemapObjectStruct *ro);
 
 CodeObj code_init(void);
@@ -231,3 +233,4 @@ RemapFuncDesc *remap_opt(void);
 
 #endif /* __ASSEMBLER__ */
 
+#endif

@@ -7,6 +7,7 @@
 /* definitions for updating text modes */
 
 #include "translate.h"
+#include "remap.h"
 #define CONFIG_SELECTION 1
 
 /********************************************/
@@ -35,7 +36,8 @@ struct RectArea draw_bitmap_line(int x, int y, int len);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void update_cursor(void);
-void resize_text_mapper(int image_mode);
+void resize_text_mapper(int image_mode, ColorSpaceDesc *csd,
+	unsigned char *dst_img);
 struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
 				      int len, Bit8u attr);
 int update_text_screen(void);

@@ -142,7 +142,7 @@ static void do_base_init(void)
  * initialize a remap object
  */
 RemapObject *remap_init(int src_mode, int dst_mode, int features,
-	unsigned char *dst_image, const ColorSpaceDesc *color_space)
+	const ColorSpaceDesc *color_space)
 {
   RemapObject *ro = malloc(sizeof(*ro));
   int color_lut_size = 256;
@@ -190,7 +190,7 @@ RemapObject *remap_init(int src_mode, int dst_mode, int features,
   if(ro->src_color_space == NULL) ro->state |= ROS_MALLOC_FAIL;
 
   ro->dst_color_space = color_space;
-  ro->dst_image = dst_image;
+  ro->dst_image = NULL;
 
   ro->bre_x = calloc(1, sizeof(*ro->bre_x));
   if(ro->bre_x == NULL) ro->state |= ROS_MALLOC_FAIL;
@@ -3349,18 +3349,20 @@ void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
 RectArea remap_remap_rect(struct RemapObjectStruct *ro,
 	const unsigned char *src_img,
 	int x0, int y0,
-	int width, int height)
+	int width, int height, unsigned char *dst_img)
 {
   ro->src_image = src_img;
+  ro->dst_image = dst_img;
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
 RectArea remap_remap_mem(struct RemapObjectStruct *ro,
 	const unsigned char *src_img, unsigned src_start,
-	unsigned dst_start, int offset, int len)
+	unsigned dst_start, int offset, int len, unsigned char *dst_img)
 {
   ro->src_image = src_img;
   ro->src_start = src_start;
+  ro->dst_image = dst_img;
   if (dst_start) {
    /* unfortunately dst_start doesn't work and is untrivial to implement
     * within the current code. So we deal with it here and pass 0 down. */

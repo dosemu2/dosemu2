@@ -52,6 +52,7 @@ static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 static unsigned char *text_canvas;
+static unsigned char *dst_image;
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
@@ -217,7 +218,7 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
   }
   return remap_remap_rect(remap_obj, text_canvas,
 			      vga.char_width * x, vga.char_height * y,
-			      vga.char_width, vga.char_height);
+			      vga.char_width, vga.char_height, dst_image);
 }
 
 /*
@@ -239,7 +240,7 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
 
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_remap_rect(remap_obj, text_canvas, x, y, linelen, 1);
+  return remap_remap_rect(remap_obj, text_canvas, x, y, linelen, 1, dst_image);
 }
 
 void reset_redraw_text_screen(void)
@@ -384,16 +385,19 @@ void blink_cursor()
 /*
  * Resize everything according to vga.*
  */
-void resize_text_mapper(int image_mode)
+void resize_text_mapper(int image_mode, ColorSpaceDesc *csd,
+	unsigned char *dst_img)
 {
+  if(vga.mode_class == GRAPH || !use_bitmap_font)
+    return;
   /* need a remap obj for the font system even in text mode! */
   x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");
   if (remap_obj)
     remap_done(remap_obj);
 
   /* linear 1 byte per pixel */
-  remap_obj = remap_init(MODE_PSEUDO_8, image_mode, remap_features,
-	NULL, NULL);
+  remap_obj = remap_init(MODE_PSEUDO_8, image_mode, remap_features, csd);
+  dst_image = dst_img;
   adjust_gamma(remap_obj, config.X_gamma);
 
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
@@ -502,7 +506,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 
   return remap_remap_rect(remap_obj, text_canvas,
 			      vga.char_width * x, height * y,
-			      vga.char_width * len, height);
+			      vga.char_width * len, height, dst_image);
 }
 
 /*
