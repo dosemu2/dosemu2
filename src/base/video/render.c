@@ -15,7 +15,7 @@
 #include "video.h"
 #include "render_priv.h"
 
-RemapObject *remap_obj;
+static RemapObject *remap_obj;
 int remap_features;
 static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
@@ -119,15 +119,16 @@ void remapper_done(void)
  * Update the displayed image to match the current DAC entries.
  * Will redraw the *entire* screen if at least one color has changed.
  */
-static void refresh_truecolor(DAC_entry *col, int index)
+static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 {
-  remap_palette_update(remap_obj, index, vga.dac.bits, col->r, col->g, col->b);
+  RemapObject *ro = udata;
+  remap_palette_update(ro, index, vga.dac.bits, col->r, col->g, col->b);
 }
 
 /* returns True if the screen needs to be redrawn */
-Boolean refresh_palette(void)
+Boolean refresh_palette(void *udata)
 {
-  return changed_vga_colors(refresh_truecolor);
+  return changed_vga_colors(refresh_truecolor, udata);
 }
 
 /*
@@ -135,7 +136,7 @@ Boolean refresh_palette(void)
  */
 static void refresh_graphics_palette(void)
 {
-  if (refresh_palette())
+  if (refresh_palette(remap_obj))
     dirty_all_video_pages();
 }
 
@@ -453,8 +454,10 @@ int update_screen(vga_emu_update_type *veut)
 void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
 	int scan_len)
 {
-  if (vga.mode_class == TEXT)		// temporary HACK
-    resize_text_mapper(ximage_mode, csd, img);
+  if (vga.mode_class == TEXT) {		// temporary HACK
+    resize_text_mapper(ximage_mode, csd, img, width, height, scan_len);
+    return;
+  }
   remap_dst_resize(remap_obj, width, height, scan_len);
   dst_image = img;
   dst_width = width;
