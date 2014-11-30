@@ -13,11 +13,10 @@ struct render_system
 };
 
 int register_render_system(struct render_system *render_system);
-int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
+int remapper_init(unsigned *image_mode,
 		  int have_true_color, int have_shmap, ColorSpaceDesc *csd);
 void remapper_done(void);
 void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
 			 vga_emu_update_type *veut);
 int update_screen(vga_emu_update_type *veut);
-void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
-	int scan_len);
+void render_init(uint8_t *img, int width, int height, int scan_len);

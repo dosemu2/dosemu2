@@ -72,7 +72,7 @@ int register_render_system(struct render_system *render_system)
  * Initialize the interface between the VGA emulator and X.
  * Check if X's color depth is supported.
  */
-int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
+int remapper_init(unsigned *image_mode,
 		  int have_true_color, int have_shmap, ColorSpaceDesc *csd)
 {
   int remap_src_modes;
@@ -80,7 +80,7 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
   set_remap_debug_msg(stderr);
 
   if(have_true_color) {
-    switch(bits_per_pixel) {
+    switch(csd->bits) {
       case  1: ximage_mode = MODE_TRUE_1_MSB; break;
       case 15: ximage_mode = MODE_TRUE_15; break;
       case 16: ximage_mode = MODE_TRUE_16; break;
@@ -90,7 +90,7 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
     }
   }
   else {
-    switch(bits_per_pixel) {
+    switch(csd->bits) {
       case  8: ximage_mode = have_shmap ? MODE_TRUE_8 : MODE_PSEUDO_8; break;
       default: ximage_mode = MODE_UNSUP;
     }
@@ -102,6 +102,7 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   *image_mode = ximage_mode;
+  color_space = csd;
   init_text_mapper(ximage_mode, csd);
   return remap_src_modes;
 }
@@ -453,8 +454,7 @@ int update_screen(vga_emu_update_type *veut)
     update_graphics_screen(veut);
 }
 
-void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
-	int scan_len)
+void render_init(uint8_t *img, int width, int height, int scan_len)
 {
   if (vga.mode_class == TEXT) {		// temporary HACK
     resize_text_mapper(img, width, height, scan_len);
@@ -465,6 +465,4 @@ void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
   dst_width = width;
   dst_height = height;
   dst_scan_len = scan_len;
-  color_space = csd;
-  remap_obj->dst_color_space = color_space;
 }

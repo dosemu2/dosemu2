@@ -596,7 +596,7 @@ int X_init()
   graphics_cmap_init();				/* graphics modes are more sophisticated */
 
   /* init graphics mode support */
-  remap_src_modes = remapper_init(&ximage_mode, ximage_bits_per_pixel,
+  remap_src_modes = remapper_init(&ximage_mode,
 				  have_true_color, have_shmap, &X_csd);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
@@ -1998,7 +1998,7 @@ void resize_ximage(unsigned width, unsigned height)
   w_y_res = height;
   create_ximage();
   if (vga.mode_class == GRAPH || use_bitmap_font)
-    render_init((unsigned char *)ximage->data, &X_csd, width,
+    render_init((unsigned char *)ximage->data, width,
 	height, ximage->bytes_per_line);
 }
 
@@ -2180,7 +2180,8 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-    render_init((unsigned char *)ximage->data, &X_csd, w_x_res, w_y_res, ximage->bytes_per_line);
+    render_init((unsigned char *)ximage->data, w_x_res, w_y_res,
+	ximage->bytes_per_line);
 
     sh.width = w_x_res;
     sh.height = w_y_res;

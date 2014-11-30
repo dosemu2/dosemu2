@@ -213,7 +213,7 @@ int SDL_init(void)
 
   set_remap_debug_msg(stderr);
   have_true_color = (video_info->vfmt->palette == NULL);
-  remap_src_modes = remapper_init(&SDL_image_mode, SDL_csd.bits,
+  remap_src_modes = remapper_init(&SDL_image_mode,
 	have_true_color, 0, &SDL_csd);
 
   register_render_system(&Render_SDL);
@@ -417,7 +417,7 @@ static void SDL_change_mode(int *x_res, int *y_res)
     return;
   }
   SDL_ShowCursor(SDL_DISABLE);
-  render_init(surface->pixels, &SDL_csd, *x_res, *y_res, surface->pitch);
+  render_init(surface->pixels, *x_res, *y_res, surface->pitch);
 #ifdef X_SUPPORT
   {
     static int first = 1;
