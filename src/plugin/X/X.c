@@ -1998,7 +1998,7 @@ void resize_ximage(unsigned width, unsigned height)
   w_y_res = height;
   create_ximage();
   if (vga.mode_class == GRAPH || use_bitmap_font)
-    render_init((unsigned char *)ximage->data, width,
+    render_resize((unsigned char *)ximage->data, width,
 	height, ximage->bytes_per_line);
 }
 
@@ -2172,7 +2172,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     x_res = vga.width;
     y_res = vga.height;
 
-    get_mode_parameters(&w_x_res, &w_y_res, ximage_mode, &veut);
+    get_mode_parameters(&w_x_res, &w_y_res, &veut);
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;

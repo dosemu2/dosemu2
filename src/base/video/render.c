@@ -103,6 +103,7 @@ int remapper_init(unsigned *image_mode,
   remap_src_modes = find_supported_modes(ximage_mode);
   *image_mode = ximage_mode;
   color_space = csd;
+  dst_mode = ximage_mode;
   init_text_mapper(ximage_mode, csd);
   return remap_src_modes;
 }
@@ -143,11 +144,10 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
-void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
+void get_mode_parameters(int *wx_res, int *wy_res,
 			 vga_emu_update_type *veut)
 {
   int x_res, y_res, w_x_res, w_y_res;
-  int mode_type, cap;
 
   w_x_res = x_res = vga.width;
   w_y_res = y_res = vga.height;
@@ -178,40 +178,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   if(config.X_aspect_43) {
     w_y_res = (w_x_res * 3) >> 2;
   }
-
-  if (remap_obj)
-    remap_done(remap_obj);
-  switch(vga.mode_type) {
-  case CGA:
-    mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
-  case HERC:
-    mode_type = MODE_HERC; break;
-  case PL1:
-    mode_type = MODE_VGA_1; break;
-  case PL2:
-    mode_type = MODE_VGA_2; break;
-  case PL4:
-    mode_type = MODE_VGA_4; break;
-  case P8:
-    mode_type = MODE_PSEUDO_8; break;
-  case P15:
-    mode_type = MODE_TRUE_15; break;
-  case P16:
-    mode_type = MODE_TRUE_16; break;
-  case P24:
-    mode_type = MODE_TRUE_24; break;
-  case P32:
-    mode_type = MODE_TRUE_32; break;
-  default:
-    mode_type = 0;
-  }
-
-  v_printf("setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
-	   mode_type, ximage_mode, remap_features);
-
-  dst_mode = ximage_mode;
-  remap_obj = remap_init(mode_type, dst_mode, remap_features,
-	color_space);
+#if 0
   cap = remap_get_cap(remap_obj);
   if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
@@ -222,7 +189,6 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
     leavedos(24);
 #endif
   }
-  adjust_gamma(remap_obj, config.X_gamma);
 
   if(!(cap & ROS_SCALE_ALL)) {
     if((cap & ROS_SCALE_2) && !(cap & ROS_SCALE_1)) {
@@ -234,7 +200,7 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
       w_y_res = y_res;
     }
   }
-
+#endif
   veut->base = vga.mem.base;
   veut->max_max_len = 0;
   veut->max_len = 0;
@@ -244,8 +210,6 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
     veut->display_end = vga.scan_len * vga.height;
   veut->update_gran = 0;
   veut->update_pos = veut->display_start;
-
-  remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
 
   *wx_res = w_x_res;
   *wy_res = w_y_res;
@@ -454,7 +418,7 @@ int update_screen(vga_emu_update_type *veut)
     update_graphics_screen(veut);
 }
 
-void render_init(uint8_t *img, int width, int height, int scan_len)
+void render_resize(uint8_t *img, int width, int height, int scan_len)
 {
   if (vga.mode_class == TEXT) {		// temporary HACK
     resize_text_mapper(img, width, height, scan_len);
@@ -465,4 +429,53 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
   dst_width = width;
   dst_height = height;
   dst_scan_len = scan_len;
+
+  dirty_all_video_pages();
+  /*
+   * The new remap object does not yet know about our colors.
+   * So we have to force an update. -- sw
+   */
+  dirty_all_vga_colors();
+}
+
+void render_init(uint8_t *img, int width, int height, int scan_len)
+{
+  int mode_type;
+
+  if (remap_obj)
+    remap_done(remap_obj);
+  switch(vga.mode_type) {
+  case CGA:
+    mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
+  case HERC:
+    mode_type = MODE_HERC; break;
+  case PL1:
+    mode_type = MODE_VGA_1; break;
+  case PL2:
+    mode_type = MODE_VGA_2; break;
+  case PL4:
+    mode_type = MODE_VGA_4; break;
+  case P8:
+    mode_type = MODE_PSEUDO_8; break;
+  case P15:
+    mode_type = MODE_TRUE_15; break;
+  case P16:
+    mode_type = MODE_TRUE_16; break;
+  case P24:
+    mode_type = MODE_TRUE_24; break;
+  case P32:
+    mode_type = MODE_TRUE_32; break;
+  default:
+    mode_type = 0;
+  }
+
+  v_printf("setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
+	   mode_type, ximage_mode, remap_features);
+
+  remap_obj = remap_init(mode_type, dst_mode, remap_features,
+	color_space);
+  adjust_gamma(remap_obj, config.X_gamma);
+
+  remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
+  render_resize(img, width, height, scan_len);
 }

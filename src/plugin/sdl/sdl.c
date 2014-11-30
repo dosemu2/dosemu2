@@ -325,7 +325,7 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
     if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
-    get_mode_parameters(&w_x_res, &w_y_res, SDL_image_mode, &veut);
+    get_mode_parameters(&w_x_res, &w_y_res, &veut);
     SDL_change_mode(&w_x_res, &w_y_res);
   }
   return 1;
