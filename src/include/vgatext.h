@@ -46,6 +46,7 @@ int update_text_screen(void);
 void redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
+void text_blit(int x, int y, int width, int height);
 
 #ifdef CONFIG_SELECTION
 /* for selections */

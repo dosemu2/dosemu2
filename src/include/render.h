@@ -23,3 +23,5 @@ int update_screen(vga_emu_update_type *veut);
 void render_init(uint8_t *img, int width, int height, int scan_len);
 void render_resize(uint8_t *img, int width, int height, int scan_len);
 void color_space_complete(ColorSpaceDesc *color_space);
+void render_blit(vga_emu_update_type *veut,
+	int x, int y, int width, int height);

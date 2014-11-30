@@ -344,10 +344,7 @@ static void SDL_redraw_resize_image(unsigned width, unsigned height)
   SDL_resize_image(width, height);
   /* forget about those rectangles */
   sdl_rects.num = 0;
-  dirty_all_video_pages();
-  if (vga.mode_class == TEXT)
-    vga.reconfig.mem = 1;
-  SDL_update_screen();
+  render_blit(&veut, 0, 0, width, height);
 }
 
 int SDL_set_text_mode(int tw, int th, int w ,int h)
@@ -452,13 +449,6 @@ int SDL_update_screen(void)
 {
   if (init_failed)
     return 1;
-  if(vga.reconfig.re_init) {
-    vga.reconfig.re_init = 0;
-    sdl_rects.num = 0;
-    dirty_all_video_pages();
-    dirty_all_vga_colors();
-    SDL_set_videomode(-1, 0, 0);
-  }
   if (is_mapped) {
     int ret;
 #ifdef X_SUPPORT

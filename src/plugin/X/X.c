@@ -1392,8 +1392,7 @@ static void toggle_fullscreen_mode(int init)
     X_resize_text_screen();
   } else {	/* GRAPH or builtin font */
     resize_ximage(resize_width, resize_height);
-    dirty_all_video_pages();
-    X_update_screen();
+    render_blit(&veut, 0, 0, resize_width, resize_height);
   }
 }
 
@@ -1704,10 +1703,7 @@ static void X_handle_events(void)
       resize_event = 0;
       XResizeWindow(display, drawwindow, resize_width, resize_height);
       resize_ximage(resize_width, resize_height);
-      dirty_all_video_pages();
-      if (vga.mode_class == TEXT)
-	vga.reconfig.mem = 1;
-      X_update_screen();
+      render_blit(&veut, 0, 0, resize_width, resize_height);
     }
 
 #if CONFIG_X_MOUSE
@@ -2343,12 +2339,6 @@ void X_redraw_text_screen()
 
 int X_update_screen()
 {
-  if(vga.reconfig.re_init) {
-    vga.reconfig.re_init = 0;
-    dirty_all_video_pages();
-    dirty_all_vga_colors();
-    X_set_videomode(-1, 0, 0);
-  }
   return is_mapped ? update_screen(&veut) : 0;
 }
 

@@ -430,13 +430,6 @@ void render_resize(uint8_t *img, int width, int height, int scan_len)
   dst_width = width;
   dst_height = height;
   dst_scan_len = scan_len;
-
-  dirty_all_video_pages();
-  /*
-   * The new remap object does not yet know about our colors.
-   * So we have to force an update. -- sw
-   */
-  dirty_all_vga_colors();
 }
 
 void render_init(uint8_t *img, int width, int height, int scan_len)
@@ -479,6 +472,22 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 
   remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
   render_resize(img, width, height, scan_len);
+  /*
+   * The new remap object does not yet know about our colors.
+   * So we have to force an update. -- sw
+   */
+  dirty_all_vga_colors();
+}
+
+void render_blit(vga_emu_update_type *veut, int x, int y, int width,
+	int height)
+{
+  if (vga.mode_class == TEXT)
+    text_blit(x, y, width, height);
+  else
+    remap_remap_rect(remap_obj, veut->base + veut->display_start,
+	x, y, width, height, dst_image);
+  Render->refresh_rect(x, y, width, height);
 }
 
 int register_remapper(struct remap_calls *calls)

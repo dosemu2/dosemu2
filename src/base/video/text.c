@@ -291,6 +291,13 @@ static void refresh_text_palette(void)
   if(j) redraw_text_screen();
 }
 
+void text_blit(int x, int y, int width, int height)
+{
+  if (!use_bitmap_font)
+    return;
+  remap_remap_rect(text_remap, text_canvas, x, y, width, height, dst_image);
+}
+
 /*
  * Redraw the entire screen (in text modes). Used only for expose events.
  * It's graphics mode counterpart is a simple put_ximage() call
