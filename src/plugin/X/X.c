@@ -597,7 +597,7 @@ int X_init()
 
   /* init graphics mode support */
   remap_src_modes = remapper_init(&ximage_mode, ximage_bits_per_pixel,
-				  have_true_color, have_shmap);
+				  have_true_color, have_shmap, &X_csd);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
     /* why do we need a blank screen? */

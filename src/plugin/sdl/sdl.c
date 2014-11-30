@@ -213,7 +213,8 @@ int SDL_init(void)
 
   set_remap_debug_msg(stderr);
   have_true_color = (video_info->vfmt->palette == NULL);
-  remap_src_modes = remapper_init(&SDL_image_mode, SDL_csd.bits, have_true_color, 0);
+  remap_src_modes = remapper_init(&SDL_image_mode, SDL_csd.bits,
+	have_true_color, 0, &SDL_csd);
 
   register_render_system(&Render_SDL);
 

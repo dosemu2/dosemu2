@@ -73,7 +73,7 @@ int register_render_system(struct render_system *render_system)
  * Check if X's color depth is supported.
  */
 int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
-		  int have_true_color, int have_shmap)
+		  int have_true_color, int have_shmap, ColorSpaceDesc *csd)
 {
   int remap_src_modes;
 
@@ -102,6 +102,7 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   *image_mode = ximage_mode;
+  init_text_mapper(ximage_mode, csd);
   return remap_src_modes;
 }
 
@@ -111,6 +112,7 @@ int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
  */
 void remapper_done(void)
 {
+  done_text_mapper();
   if (remap_obj)
     remap_done(remap_obj);
 }
@@ -455,7 +457,7 @@ void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
 	int scan_len)
 {
   if (vga.mode_class == TEXT) {		// temporary HACK
-    resize_text_mapper(ximage_mode, csd, img, width, height, scan_len);
+    resize_text_mapper(img, width, height, scan_len);
     return;
   }
   remap_dst_resize(remap_obj, width, height, scan_len);

@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <assert.h>
 
 #include "emu.h"
 #include "bios.h"
@@ -391,27 +392,17 @@ void blink_cursor()
 /*
  * Resize everything according to vga.*
  */
-void resize_text_mapper(int image_mode, ColorSpaceDesc *csd,
-	unsigned char *dst_img, int width, int height,
+void resize_text_mapper(unsigned char *dst_img, int width, int height,
 	int scan_len)
 {
   if(vga.mode_class == GRAPH || !use_bitmap_font)
     return;
-  /* need a remap obj for the font system even in text mode! */
-  x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");
-  if (text_remap)
-    remap_done(text_remap);
-
-  /* linear 1 byte per pixel */
-  text_remap = remap_init(MODE_PSEUDO_8, image_mode, remap_features, csd);
-  remap_dst_resize(text_remap, width, height, scan_len);
-  dst_image = dst_img;
-  adjust_gamma(text_remap, config.X_gamma);
-
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
   remap_src_resize(text_remap, vga.width, vga.height, 1 * vga.width);
+  remap_dst_resize(text_remap, width, height, scan_len);
+  dst_image = dst_img;
 
   dirty_all_video_pages();
   /*
@@ -423,6 +414,24 @@ void resize_text_mapper(int image_mode, ColorSpaceDesc *csd,
   vga.reconfig.mem =
     vga.reconfig.display =
     vga.reconfig.dac = 0;
+}
+
+void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
+{
+  if(!use_bitmap_font)
+    return;
+  assert(!text_remap);
+
+  /* linear 1 byte per pixel */
+  text_remap = remap_init(MODE_PSEUDO_8, image_mode, remap_features, csd);
+  adjust_gamma(text_remap, config.X_gamma);
+}
+
+void done_text_mapper(void)
+{
+  if (text_remap)
+    remap_done(text_remap);
+  free(text_canvas);
 }
 
 RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,

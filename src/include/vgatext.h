@@ -36,8 +36,9 @@ struct RectArea draw_bitmap_line(int x, int y, int len);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void update_cursor(void);
-void resize_text_mapper(int image_mode, ColorSpaceDesc *csd,
-	unsigned char *dst_img, int width, int height,
+void init_text_mapper(int image_mode, ColorSpaceDesc *csd);
+void done_text_mapper(void);
+void resize_text_mapper(unsigned char *dst_img, int width, int height,
 	int scan_len);
 struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
 				      int len, Bit8u attr);
