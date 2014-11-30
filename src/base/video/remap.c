@@ -39,8 +39,11 @@
 
 #include "remap.h"
 #include "vgaemu.h"
-#include "render_priv.h"
 #include "mapping.h"
+#include "init.h"
+#include "render.h"
+#include "render_priv.h"
+#include "remap_priv.h"
 
 #define LUT_OFS_33  256 * 3
 #define LUT_OFS_67  256 * 4
@@ -78,6 +81,7 @@ static void do_nothing_remap(struct RemapObjectStruct *a) {};
 static int do_nearly_nothing(RemapObject *a, unsigned b, unsigned c, unsigned d, unsigned e, unsigned f) { return 0; };
 static RectArea do_nearly_something_rect(RemapObject *ro, int x0, int y0, int width, int height) { RectArea ra = {0, 0, 0, 0}; return ra; };
 static RectArea do_nearly_something_mem(RemapObject *ro, unsigned dst_offset, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
+static void adjust_gamma(RemapObject *ro, unsigned gamma);
 
 static unsigned u_pow(unsigned, unsigned);
 static unsigned gamma_fix(unsigned, unsigned);
@@ -141,7 +145,7 @@ static void do_base_init(void)
 /*
  * initialize a remap object
  */
-RemapObject *remap_init(int src_mode, int dst_mode, int features,
+static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
 	const ColorSpaceDesc *color_space)
 {
   RemapObject *ro = malloc(sizeof(*ro));
@@ -294,7 +298,7 @@ RemapObject *remap_init(int src_mode, int dst_mode, int features,
  * destroy a remap object
  */
 #define FreeIt(_p_) if(_p_ != NULL) { free(_p_); _p_ = NULL; }
-void remap_done(RemapObject *ro)
+static void _remap_done(RemapObject *ro)
 {
   FreeIt(ro->src_color_space)
   FreeIt(ro->gamma_lut)
@@ -353,7 +357,7 @@ unsigned u_pow(unsigned a, unsigned b)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-void adjust_gamma(RemapObject *ro, unsigned gamma)
+static void adjust_gamma(RemapObject *ro, unsigned gamma)
 {
   int i;
 
@@ -626,7 +630,7 @@ RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
   return c;
 }
 
-void color_space_complete(ColorSpaceDesc *csd)
+static void _color_space_complete(ColorSpaceDesc *csd)
 {
   unsigned ui;
 
@@ -1362,7 +1366,7 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
 }
 
 
-int find_supported_modes(unsigned dst_mode)
+static int _find_supported_modes(unsigned dst_mode)
 {
   int modes = 0;
   RemapFuncDesc *rfd;
@@ -3328,38 +3332,39 @@ void gen_c2to32_all(RemapObject *ro)
   }
 }
 
-int remap_palette_update(struct RemapObjectStruct *ro, unsigned i,
+static int _remap_palette_update(void *ros, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b)
 {
+  RemapObject *ro = ros;
   return ro->palette_update(ro, i, bits, r, g, b);
 }
 
-void remap_src_resize(struct RemapObjectStruct *ro, int width, int height,
-	int scan_len)
+static void _remap_src_resize(void *ros, int width, int height, int scan_len)
 {
+  RemapObject *ro = ros;
   ro->src_resize(ro, width, height, scan_len);
 }
 
-void remap_dst_resize(struct RemapObjectStruct *ro, int width, int height,
-	int scan_len)
+static void _remap_dst_resize(void *ros, int width, int height, int scan_len)
 {
+  RemapObject *ro = ros;
   ro->dst_resize(ro, width, height, scan_len);
 }
 
-RectArea remap_remap_rect(struct RemapObjectStruct *ro,
-	const unsigned char *src_img,
-	int x0, int y0,
-	int width, int height, unsigned char *dst_img)
+static RectArea _remap_remap_rect(void *ros, const unsigned char *src_img,
+	int x0, int y0, int width, int height, unsigned char *dst_img)
 {
+  RemapObject *ro = ros;
   ro->src_image = src_img;
   ro->dst_image = dst_img;
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
-RectArea remap_remap_mem(struct RemapObjectStruct *ro,
+static RectArea _remap_remap_mem(void *ros,
 	const unsigned char *src_img, unsigned src_start,
 	unsigned dst_start, int offset, int len, unsigned char *dst_img)
 {
+  RemapObject *ro = ros;
   ro->src_image = src_img;
   ro->src_start = src_start;
   ro->dst_image = dst_img;
@@ -3373,9 +3378,45 @@ RectArea remap_remap_mem(struct RemapObjectStruct *ro,
   return ro->remap_mem(ro, dst_start, offset, len);
 }
 
-int remap_get_cap(struct RemapObjectStruct *ro)
+static int _remap_get_cap(void *ros)
 {
+  RemapObject *ro = ros;
   return ro->state;
+}
+
+static void _remap_adjust_gamma(void *ro, unsigned gamma)
+{
+  adjust_gamma(ro, gamma);
+}
+
+static void *_remap_remap_init(int src_mode, int dst_mode, int features,
+        const ColorSpaceDesc *color_space)
+{
+  return _remap_init(src_mode, dst_mode, features, color_space);
+}
+
+static void _remap_remap_done(void *ro)
+{
+  _remap_done(ro);
+}
+
+struct remap_calls rmcalls = {
+  _remap_remap_init,
+  _remap_remap_done,
+  _find_supported_modes,
+  _color_space_complete,
+  _remap_adjust_gamma,
+  _remap_palette_update,
+  _remap_src_resize,
+  _remap_dst_resize,
+  _remap_remap_rect,
+  _remap_remap_mem,
+  _remap_get_cap,
+};
+
+CONSTRUCTOR(static void initialize(void))
+{
+  register_remapper(&rmcalls);
 }
 
 /*

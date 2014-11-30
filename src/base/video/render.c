@@ -15,7 +15,8 @@
 #include "video.h"
 #include "render_priv.h"
 
-static RemapObject *remap_obj;
+static struct remap_object *remap_obj;
+static struct remap_calls *rmcalls;
 int remap_features;
 static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
@@ -77,7 +78,7 @@ int remapper_init(unsigned *image_mode,
 {
   int remap_src_modes;
 
-  set_remap_debug_msg(stderr);
+//  set_remap_debug_msg(stderr);
 
   if(have_true_color) {
     switch(csd->bits) {
@@ -125,7 +126,7 @@ void remapper_done(void)
  */
 static void refresh_truecolor(DAC_entry *col, int index, void *udata)
 {
-  RemapObject *ro = udata;
+  struct remap_object *ro = udata;
   remap_palette_update(ro, index, vga.dac.bits, col->r, col->g, col->b);
 }
 
@@ -222,7 +223,7 @@ void get_mode_parameters(int *wx_res, int *wy_res,
  */
 static void modify_mode(vga_emu_update_type *veut)
 {
-  RemapObject *tmp_ro;
+  struct remap_object *tmp_ro;
   int cap;
 
   if(vga.reconfig.mem) {
@@ -420,7 +421,7 @@ int update_screen(vga_emu_update_type *veut)
 
 void render_resize(uint8_t *img, int width, int height, int scan_len)
 {
-  if (vga.mode_class == TEXT) {		// temporary HACK
+  if (vga.mode_class == TEXT) {
     resize_text_mapper(img, width, height, scan_len);
     return;
   }
@@ -474,8 +475,79 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 
   remap_obj = remap_init(mode_type, dst_mode, remap_features,
 	color_space);
-  adjust_gamma(remap_obj, config.X_gamma);
+  remap_adjust_gamma(remap_obj, config.X_gamma);
 
   remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
   render_resize(img, width, height, scan_len);
+}
+
+int register_remapper(struct remap_calls *calls)
+{
+  if (rmcalls)
+    return -1;
+  rmcalls = calls;
+  return 0;
+}
+
+struct remap_object *remap_init(int src_mode, int dst_mode, int features,
+        const ColorSpaceDesc *color_space)
+{
+  struct remap_object *ro = malloc(sizeof(*ro));
+  ro->calls = rmcalls;
+  ro->priv = ro->calls->init(src_mode, dst_mode, features, color_space);
+  return ro;
+}
+
+void remap_done(struct remap_object *ro)
+{
+  ro->calls->done(ro->priv);
+  free(ro);
+}
+
+#define REMAP_CALL0(r, x) \
+r remap_##x(struct remap_object *ro) \
+{ \
+  return ro->calls->x(ro->priv); \
+}
+#define REMAP_CALL1(r, x, t, a) \
+r remap_##x(struct remap_object *ro, t a) \
+{ \
+  return ro->calls->x(ro->priv, a); \
+}
+#define REMAP_CALL3(r, x, t1, a1, t2, a2, t3, a3) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3); \
+}
+#define REMAP_CALL5(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5); \
+}
+#define REMAP_CALL6(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6); \
+}
+
+REMAP_CALL1(void, adjust_gamma, unsigned, gamma)
+REMAP_CALL5(int, palette_update, unsigned, i,
+	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
+REMAP_CALL3(void, src_resize, int, width, int, height, int, scan_len)
+REMAP_CALL3(void, dst_resize, int, width, int, height, int, scan_len)
+REMAP_CALL6(RectArea, remap_rect, const unsigned char *, src_img,
+	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
+REMAP_CALL6(RectArea, remap_mem, const unsigned char *, src_img,
+	unsigned, src_start, unsigned, dst_start, int, offset, int, len,
+	unsigned char *, dst_img)
+REMAP_CALL0(int, get_cap)
+
+void color_space_complete(ColorSpaceDesc *color_space)
+{
+  rmcalls->color_space_complete(color_space);
+}
+
+int find_supported_modes(unsigned dst_mode)
+{
+  return rmcalls->find_supported_modes(dst_mode);
 }

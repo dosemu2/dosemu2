@@ -211,7 +211,7 @@ int SDL_init(void)
   SDL_csd.b_mask = video_info->vfmt->Bmask;
   color_space_complete(&SDL_csd);
 
-  set_remap_debug_msg(stderr);
+//  set_remap_debug_msg(stderr);
   have_true_color = (video_info->vfmt->palette == NULL);
   remap_src_modes = remapper_init(&SDL_image_mode,
 	have_true_color, 0, &SDL_csd);

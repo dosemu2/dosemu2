@@ -54,7 +54,7 @@ static int blink_state = 1;
 static int blink_count = 8;
 static unsigned char *text_canvas;
 static unsigned char *dst_image;
-static RemapObject *text_remap;
+static struct remap_object *text_remap;
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
@@ -424,7 +424,7 @@ void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
 
   /* linear 1 byte per pixel */
   text_remap = remap_init(MODE_PSEUDO_8, image_mode, remap_features, csd);
-  adjust_gamma(text_remap, config.X_gamma);
+  remap_adjust_gamma(text_remap, config.X_gamma);
 }
 
 void done_text_mapper(void)
