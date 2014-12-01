@@ -25,6 +25,10 @@ RectArea remap_remap_rect(struct remap_object *ro,
 	const unsigned char *src_img,
 	int x0, int y0,
 	int width, int height, unsigned char *dst_img);
+RectArea remap_remap_rect_dst(struct remap_object *ro,
+	const unsigned char *src_img,
+	int x0, int y0,
+	int width, int height, unsigned char *dst_img);
 RectArea remap_remap_mem(struct remap_object *ro,
 	const unsigned char *src_img,
 	unsigned src_start,

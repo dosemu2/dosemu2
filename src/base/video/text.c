@@ -295,7 +295,8 @@ void text_blit(int x, int y, int width, int height)
 {
   if (!use_bitmap_font)
     return;
-  remap_remap_rect(text_remap, text_canvas, x, y, width, height, dst_image);
+  remap_remap_rect_dst(text_remap, text_canvas, x, y, width,
+	height, dst_image);
 }
 
 /*

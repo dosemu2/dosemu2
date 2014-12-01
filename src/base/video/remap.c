@@ -3360,6 +3360,20 @@ static RectArea _remap_remap_rect(void *ros, const unsigned char *src_img,
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
+static RectArea _remap_remap_rect_dst(void *ros, const unsigned char *src_img,
+	int x0, int y0, int width, int height, unsigned char *dst_img)
+{
+  RemapObject *ro = ros;
+  int s_x0, s_y0, s_width, s_height;
+  ro->src_image = src_img;
+  ro->dst_image = dst_img;
+  s_x0 = bre_s(x0, ro->src_width, ro->dst_width);
+  s_y0 = bre_s(y0, ro->src_height, ro->dst_height);
+  s_width = bre_s(width, ro->src_width, ro->dst_width);
+  s_height = bre_s(height, ro->src_height, ro->dst_height);
+  return ro->remap_rect(ro, s_x0, s_y0, s_width, s_height);
+}
+
 static RectArea _remap_remap_mem(void *ros,
 	const unsigned char *src_img, unsigned src_start,
 	unsigned dst_start, int offset, int len, unsigned char *dst_img)
@@ -3410,6 +3424,7 @@ struct remap_calls rmcalls = {
   _remap_src_resize,
   _remap_dst_resize,
   _remap_remap_rect,
+  _remap_remap_rect_dst,
   _remap_remap_mem,
   _remap_get_cap,
 };

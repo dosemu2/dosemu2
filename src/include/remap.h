@@ -33,6 +33,8 @@ struct remap_calls {
 	int scan_len);
   RectArea (*remap_rect)(void *ro, const unsigned char *src_img,
 	int x0, int y0, int width, int height, unsigned char *dst_img);
+  RectArea (*remap_rect_dst)(void *ro, const unsigned char *src_img,
+	int x0, int y0, int width, int height, unsigned char *dst_img);
   RectArea (*remap_mem)(void *ro, const unsigned char *src_img,
 	unsigned src_start, unsigned dst_start, int offset, int len,
 	unsigned char *dst_img);

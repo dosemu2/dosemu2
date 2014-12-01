@@ -485,7 +485,7 @@ void render_blit(vga_emu_update_type *veut, int x, int y, int width,
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height);
   else
-    remap_remap_rect(remap_obj, veut->base + veut->display_start,
+    remap_remap_rect_dst(remap_obj, veut->base + veut->display_start,
 	x, y, width, height, dst_image);
   Render->refresh_rect(x, y, width, height);
 }
@@ -545,6 +545,8 @@ REMAP_CALL5(int, palette_update, unsigned, i,
 REMAP_CALL3(void, src_resize, int, width, int, height, int, scan_len)
 REMAP_CALL3(void, dst_resize, int, width, int, height, int, scan_len)
 REMAP_CALL6(RectArea, remap_rect, const unsigned char *, src_img,
+	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
+REMAP_CALL6(RectArea, remap_rect_dst, const unsigned char *, src_img,
 	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
 REMAP_CALL6(RectArea, remap_mem, const unsigned char *, src_img,
 	unsigned, src_start, unsigned, dst_start, int, offset, int, len,
