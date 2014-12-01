@@ -111,6 +111,7 @@ static void install_remap_funcs(RemapObject *, int);
 
 static RectArea remap_mem_1(RemapObject *, unsigned, int, int);
 static RectArea remap_rect_1(RemapObject *, int, int, int, int);
+static RectArea remap_rect_dst_1(RemapObject *, int, int, int, int);
 static RectArea remap_mem_2(RemapObject *, unsigned, int, int);
 
 /*
@@ -156,6 +157,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   ro->src_resize = src_resize_update;
   ro->dst_resize = dst_resize_update;
   ro->remap_rect = do_nearly_something_rect;
+  ro->remap_rect_dst = do_nearly_something_rect;
   ro->remap_mem = do_nearly_something_mem;
   ro->state = 0;
   ro->src_mode = src_mode;
@@ -282,6 +284,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   ) {
     ro->remap_mem = remap_mem_1;
     ro->remap_rect = remap_rect_1;
+    ro->remap_rect_dst = remap_rect_dst_1;
   }
 
   if((ro->src_mode & (MODE_CGA_1 | MODE_CGA_2 | MODE_HERC)) &&
@@ -1171,6 +1174,86 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
     ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
     ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
     ro->src_y1 = ro->src_height; ro->dst_y1 = ro->dst_height;
+    REMAP_AREA_DEBUG_FUNC(ro);
+    ro->remap_func(ro);
+  }
+
+  return ra;
+}
+
+static RectArea remap_rect_dst_1(RemapObject *ro, int x0, int y0, int width, int height)
+{
+  RectArea ra = {0, 0, 0, 0};
+  int x1, y1;
+  int pixel_size = 1;
+
+  if(ro->state & ROS_REMAP_IGNORE) return ra;
+  if(ro->remap_func == NULL) return ra;
+
+  if(x0 < 0) width -= x0, x0 = 0;
+  if(y0 < 0) height -= y0, y0 = 0;
+
+  if(x0 >= ro->dst_width || y0 >= ro->dst_height) return ra;
+  if(width <= 0 || height <= 0) return ra;
+
+  x1 = x0 + width;
+  y1 = y0 + height;
+
+  if(x1 > ro->dst_width) x1 = ro->dst_width, width = x1 - x0;
+  if(y1 > ro->dst_height) y1 = ro->dst_height, height = y1 - y0;
+
+  ra.x = x0;
+  ra.y = y0;
+  ra.width = width;
+  ra.height = height;
+
+  if(!(ra.width && ra.height)) return ra;
+
+  switch(ro->dst_mode) {
+    case MODE_TRUE_15:
+    case MODE_TRUE_16: pixel_size = 2; break;
+    case MODE_TRUE_24: pixel_size = 3; break;
+    case MODE_TRUE_32: pixel_size = 4; break;
+    case MODE_TRUE_8:
+    case MODE_PSEUDO_8:
+    default: pixel_size = 1;
+  }
+
+  if(ro->remap_func_flags & RFF_REMAP_RECT) {
+    ro->src_x0 = bre_s(x0, ro->src_width, ro->dst_width);
+    ro->src_x1 = bre_s(x1, ro->src_width, ro->dst_width);
+    ro->src_y0 = bre_s(y0, ro->src_height, ro->dst_height);
+    ro->src_y1 = bre_s(y1, ro->src_height, ro->dst_height);
+    ro->src_offset = ro->src_y0 * ro->src_scan_len + ro->src_x0;
+    ro->dst_x0 = x0;
+    ro->dst_x1 = x1;
+    ro->dst_y0 = y0;
+    ro->dst_y1 = y1;
+    ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
+    REMAP_AREA_DEBUG_FUNC(ro);
+    ro->remap_func(ro);
+  }
+  else if(ro->remap_func_flags & RFF_REMAP_LINES) {
+    ro->src_x0 = 0;
+    ro->src_x1 = ro->src_width;
+    ro->src_y0 = bre_s(y0, ro->src_height, ro->dst_height);
+    ro->src_y1 = bre_s(y1, ro->src_height, ro->dst_height);
+    ro->src_offset = ro->src_y0 * ro->src_scan_len;
+    ro->dst_x0 = 0;
+    ro->dst_x1 = ro->dst_width;
+    ro->dst_y0 = y0;
+    ro->dst_y1 = y1;
+    ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
+    REMAP_AREA_DEBUG_FUNC(ro);
+    ro->remap_func(ro);
+  }
+  else {
+    ro->src_offset = ro->dst_offset = 0;
+    ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
   }
@@ -3364,14 +3447,9 @@ static RectArea _remap_remap_rect_dst(void *ros, const unsigned char *src_img,
 	int x0, int y0, int width, int height, unsigned char *dst_img)
 {
   RemapObject *ro = ros;
-  int s_x0, s_y0, s_width, s_height;
   ro->src_image = src_img;
   ro->dst_image = dst_img;
-  s_x0 = bre_s(x0, ro->src_width, ro->dst_width);
-  s_y0 = bre_s(y0, ro->src_height, ro->dst_height);
-  s_width = bre_s(width, ro->src_width, ro->dst_width);
-  s_height = bre_s(height, ro->src_height, ro->dst_height);
-  return ro->remap_rect(ro, s_x0, s_y0, s_width, s_height);
+  return ro->remap_rect_dst(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_mem(void *ros,
