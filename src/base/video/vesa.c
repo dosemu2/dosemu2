@@ -346,7 +346,7 @@ static int vbe_info(unsigned int vbeinfo)
 {
   int vbe2 = 0;
   int i;
-  struct VBE_vi vbei;
+  struct VBE_vi *vbei = LINEAR2UNIX(vbeinfo);
   size_t size;
 
 #ifdef DEBUG_VBE
@@ -356,38 +356,37 @@ static int vbe_info(unsigned int vbeinfo)
   );
 #endif
 
-  if(vbei.VBESig == 0x32454256 /* "VBE2" */) vbe2 = 1;
+  if(vbei->VBESig == 0x32454256 /* "VBE2" */) vbe2 = 1;
 
 #ifdef DEBUG_VBE
   if(vbe2) v_printf("VBE: [0x%02x] vbe_info: VBE2 info requested\n", (unsigned) _AL);
 #endif
 
-  size = vbe2 ? sizeof(vbei) : offsetof(struct VBE_vi, OEMData);
-  memset(&vbei, 0, size);
+  size = vbe2 ? sizeof(*vbei) : offsetof(struct VBE_vi, OEMData);
+  memset(vbei, 0, size);
 
-  vbei.VBESig = 0x41534556;		/* "VESA" */
-  vbei.VESAVersion = 0x200;		/* 2.0 */
-  vbei.OEMID = MK_FP16(0xc000, vgaemu_bios.prod_name);
-  vbei.Capabilities = 1;		/* 6/8 bit switchable DAC */
-  vbei.ModeList = MK_FP16(0xc000, vgaemu_bios.vbe_mode_list);
-  vbei.Memory = vga.mem.pages >> 4;	/* multiples of 64 kbyte */
+  vbei->VBESig = 0x41534556;		/* "VESA" */
+  vbei->VESAVersion = 0x200;		/* 2.0 */
+  vbei->OEMID = MK_FP16(0xc000, vgaemu_bios.prod_name);
+  vbei->Capabilities = 1;		/* 6/8 bit switchable DAC */
+  vbei->ModeList = MK_FP16(0xc000, vgaemu_bios.vbe_mode_list);
+  vbei->Memory = vga.mem.pages >> 4;	/* multiples of 64 kbyte */
 
   if(vbe2) {
     i = 0;
-    vbei.OEMSoftRev = VBE_OEMSoftRev;
+    vbei->OEMSoftRev = VBE_OEMSoftRev;
 
-    memcpy(&vbei.OEMData[i], VBE_OEMVendorName, sizeof(VBE_OEMVendorName));
-    vbei.OEMVendorName = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
+    memcpy(&vbei->OEMData[i], VBE_OEMVendorName, sizeof(VBE_OEMVendorName));
+    vbei->OEMVendorName = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
     i += sizeof(VBE_OEMVendorName);
 
-    memcpy(&vbei.OEMData[i], VBE_OEMProdName, sizeof(VBE_OEMProdName));
-    vbei.OEMProdName = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
+    memcpy(&vbei->OEMData[i], VBE_OEMProdName, sizeof(VBE_OEMProdName));
+    vbei->OEMProdName = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
     i += sizeof(VBE_OEMProdName);
 
-    memcpy(&vbei.OEMData[i], VBE_OEMProductRev, sizeof(VBE_OEMProductRev));
-    vbei.OEMProductRev = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
+    memcpy(&vbei->OEMData[i], VBE_OEMProductRev, sizeof(VBE_OEMProductRev));
+    vbei->OEMProductRev = MK_FP16(_ES, _DI + offsetof(struct VBE_vi, OEMData) + i);
   }
-  MEMCPY_2DOS(vbeinfo, &vbei, size);
 
 #ifdef DEBUG_VBE
   v_printf("VBE: [0x%02x] vbe_info: return value 0\n", (unsigned) _AL);
