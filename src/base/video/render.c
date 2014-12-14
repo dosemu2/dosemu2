@@ -7,6 +7,7 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <assert.h>
 #include "emu.h"
 #include "vgaemu.h"
 #include "remap.h"
@@ -16,7 +17,13 @@
 #include "render_priv.h"
 
 static struct remap_object *remap_obj;
-static struct remap_calls *rmcalls;
+struct rmcalls_wrp {
+  struct remap_calls *calls;
+  int prio;
+};
+#define MAX_REMAPS 5
+static struct rmcalls_wrp rmcalls[MAX_REMAPS];
+static int num_remaps;
 int remap_features;
 static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
@@ -490,12 +497,29 @@ void render_blit(vga_emu_update_type *veut, int x, int y, int width,
   Render->refresh_rect(x, y, width, height);
 }
 
-int register_remapper(struct remap_calls *calls)
+int register_remapper(struct remap_calls *calls, int prio)
 {
-  if (rmcalls)
-    return -1;
-  rmcalls = calls;
+  struct rmcalls_wrp *rm;
+  assert(num_remaps < MAX_REMAPS);
+  rm = &rmcalls[num_remaps++];
+  rm->calls = calls;
+  rm->prio = prio;
   return 0;
+}
+
+static int find_rmcalls(int sidx)
+{
+  int i, idx = -1, max1 = -1, max = -1;
+  if (sidx >= 0)
+    max = rmcalls[sidx].prio;
+  for (i = 0; i < num_remaps; i++) {
+    int p = rmcalls[i].prio;
+    if (p > max1 && (p < max || max == -1)) {
+      max1 = p;
+      idx = i;
+    }
+  }
+  return idx;
 }
 
 struct remap_object *remap_init(int src_mode, int dst_mode, int features,
@@ -503,14 +527,25 @@ struct remap_object *remap_init(int src_mode, int dst_mode, int features,
 {
   void *rm;
   struct remap_object *ro;
-  rm = rmcalls->init(src_mode, dst_mode, features, color_space);
+  struct remap_calls *calls;
+  int i = -1;
+  do {
+    i = find_rmcalls(i);
+    if (i == -1)
+      break;
+    calls = rmcalls[i].calls;
+    rm = calls->init(src_mode, dst_mode, features, color_space);
+    if (!rm)
+      v_printf("remapper %i \"%s\" failed for mode %i --> %x\n",
+          i, rmcalls[i].calls->name, src_mode, dst_mode);
+  } while (!rm);
   if (!rm) {
     error("gfx remapper failure\n");
     leavedos(3);
     return NULL;
   }
   ro = malloc(sizeof(*ro));
-  ro->calls = rmcalls;
+  ro->calls = calls;
   ro->priv = rm;
   return ro;
 }

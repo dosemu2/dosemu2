@@ -3491,11 +3491,12 @@ static struct remap_calls rmcalls = {
   _remap_remap_rect_dst,
   _remap_remap_mem,
   _remap_get_cap,
+  "dosemu gfx remapper"
 };
 
 CONSTRUCTOR(static void initialize(void))
 {
-  register_remapper(&rmcalls);
+  register_remapper(&rmcalls, REMAP_DOSEMU);
 }
 
 /*

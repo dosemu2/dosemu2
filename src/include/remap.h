@@ -37,6 +37,7 @@ struct remap_calls {
 	unsigned src_start, unsigned dst_start, int offset, int len,
 	unsigned char *dst_img);
   int (*get_cap)(void *ro);
+  const char *name;
 };
 
 #define MODE_PSEUDO_8	(1 << 0)
