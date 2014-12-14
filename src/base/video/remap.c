@@ -3492,7 +3492,7 @@ static void _remap_remap_done(void *ro)
   _remap_done(ro);
 }
 
-struct remap_calls rmcalls = {
+static struct remap_calls rmcalls = {
   _remap_remap_init,
   _remap_remap_done,
   _find_supported_modes,

@@ -501,9 +501,17 @@ int register_remapper(struct remap_calls *calls)
 struct remap_object *remap_init(int src_mode, int dst_mode, int features,
         const ColorSpaceDesc *color_space)
 {
-  struct remap_object *ro = malloc(sizeof(*ro));
+  void *rm;
+  struct remap_object *ro;
+  rm = rmcalls->init(src_mode, dst_mode, features, color_space);
+  if (!rm) {
+    error("gfx remapper failure\n");
+    leavedos(3);
+    return NULL;
+  }
+  ro = malloc(sizeof(*ro));
   ro->calls = rmcalls;
-  ro->priv = ro->calls->init(src_mode, dst_mode, features, color_space);
+  ro->priv = rm;
   return ro;
 }
 
