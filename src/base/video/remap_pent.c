@@ -12,7 +12,7 @@
 #include "config.h"
 #include <stdio.h>
 
-#include "remap.h"
+#include "remap_priv.h"
 
 void _a_ret(CodeObj *);
 void _a_movb_dl_dh(CodeObj *);
