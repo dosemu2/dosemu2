@@ -12,6 +12,7 @@
 #include "config.h"
 #include <stdio.h>
 
+#include "remap.h"
 #include "remap_priv.h"
 
 void _a_ret(CodeObj *);
