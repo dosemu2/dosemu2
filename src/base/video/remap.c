@@ -633,18 +633,6 @@ RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
   return c;
 }
 
-static void _color_space_complete(ColorSpaceDesc *csd)
-{
-  unsigned ui;
-
-  if((ui = csd->r_mask)) for(csd->r_shift = 0; !(ui & 1); ui >>= 1, csd->r_shift++);
-  if(ui) for(; ui; ui >>= 1, csd->r_bits++);
-  if((ui = csd->g_mask)) for(csd->g_shift = 0; !(ui & 1); ui >>= 1, csd->g_shift++);
-  if(ui) for(; ui; ui >>= 1, csd->g_bits++);
-  if((ui = csd->b_mask)) for(csd->b_shift = 0; !(ui & 1); ui >>= 1, csd->b_shift++);
-  if(ui) for(; ui; ui >>= 1, csd->b_bits++);
-}
-
 
 void rgb_lin_filt(RGBColor c, RGBColor *c1, RGBColor *c2)
 {
@@ -1448,7 +1436,7 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
   ro->supported_src_modes = find_supported_modes(ro->dst_mode);
 }
 
-
+#if 0
 static int _find_supported_modes(unsigned dst_mode)
 {
   int modes = 0;
@@ -1464,7 +1452,7 @@ static int _find_supported_modes(unsigned dst_mode)
   }
   return modes;
 }
-
+#endif
 
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -3495,8 +3483,6 @@ static void _remap_remap_done(void *ro)
 static struct remap_calls rmcalls = {
   _remap_remap_init,
   _remap_remap_done,
-  _find_supported_modes,
-  _color_space_complete,
   _remap_adjust_gamma,
   _remap_palette_update,
   _remap_src_resize,
@@ -3546,5 +3532,3 @@ RemapFuncDesc *remap_test(void)
 
 
 #endif
-
-

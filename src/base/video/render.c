@@ -561,12 +561,19 @@ REMAP_CALL6(RectArea, remap_mem, const unsigned char *, src_img,
 	unsigned char *, dst_img)
 REMAP_CALL0(int, get_cap)
 
-void color_space_complete(ColorSpaceDesc *color_space)
+void color_space_complete(ColorSpaceDesc *csd)
 {
-  rmcalls->color_space_complete(color_space);
+  unsigned ui;
+
+  if((ui = csd->r_mask)) for(csd->r_shift = 0; !(ui & 1); ui >>= 1, csd->r_shift++);
+  if(ui) for(; ui; ui >>= 1, csd->r_bits++);
+  if((ui = csd->g_mask)) for(csd->g_shift = 0; !(ui & 1); ui >>= 1, csd->g_shift++);
+  if(ui) for(; ui; ui >>= 1, csd->g_bits++);
+  if((ui = csd->b_mask)) for(csd->b_shift = 0; !(ui & 1); ui >>= 1, csd->b_shift++);
+  if(ui) for(; ui; ui >>= 1, csd->b_bits++);
 }
 
 int find_supported_modes(unsigned dst_mode)
 {
-  return rmcalls->find_supported_modes(dst_mode);
+  return ~0;
 }

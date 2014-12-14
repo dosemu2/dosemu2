@@ -22,8 +22,6 @@ typedef struct ColorSpaceDesc {
 struct remap_calls {
   void *(*init)(int, int, int, const ColorSpaceDesc *);
   void (*done)(void *ro);
-  int (*find_supported_modes)(unsigned dst_mode);
-  void (*color_space_complete)(ColorSpaceDesc *color_space);
   void (*adjust_gamma)(void *ro, unsigned);
   int (*palette_update)(void *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
