@@ -734,6 +734,8 @@ int X_init()
     );
   }
 
+  lock_window_size(w_x_res, w_y_res);
+
   /* don't map window if set */
   if(getenv("DOSEMU_HIDE_WINDOW") == NULL) {
     if (config.X_fullscreen) {
