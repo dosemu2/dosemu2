@@ -2024,22 +2024,22 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
     sh.width_inc = 1;
     sh.height_inc = 1;
   }
-  sh.min_aspect.x = w_x_res;
-  sh.min_aspect.y = w_y_res;
+  sh.min_aspect.x = wx_res;
+  sh.min_aspect.y = wy_res;
   sh.max_aspect = sh.min_aspect;
   XSetNormalHints(display, normalwindow, &sh);
   XSync(display, False);
 
-  x_fill = w_x_res;
-  y_fill = w_y_res;
+  x_fill = wx_res;
+  y_fill = wy_res;
   if (mainwindow == fullscreenwindow)
     X_vidmode(x_res, y_res, &x_fill, &y_fill);
 
   XResizeWindow(display, mainwindow, x_fill, y_fill);
 
   if(vga.mode_class == TEXT && !use_bitmap_font) {
-    x_fill = w_x_res;
-    y_fill = w_y_res;
+    x_fill = wx_res;
+    y_fill = wy_res;
   }
 
   XResizeWindow(display, drawwindow, x_fill, y_fill);
