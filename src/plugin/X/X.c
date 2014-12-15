@@ -2010,10 +2010,10 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   XSizeHints sh;
   int x_fill, y_fill;
 
-  sh.width = sh.min_width = sh.max_width = wx_res;
-  sh.height = sh.min_height = sh.max_height = wy_res;
+  sh.base_width = sh.width = sh.min_width = sh.max_width = wx_res;
+  sh.base_height = sh.height = sh.min_height = sh.max_height = wy_res;
 
-  sh.flags = PSize  | PMinSize | PMaxSize;
+  sh.flags = PSize  | PMinSize | PMaxSize | PBaseSize;
   if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
   if (use_bitmap_font) {
     sh.flags |= PResizeInc;
