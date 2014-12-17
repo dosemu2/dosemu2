@@ -2539,7 +2539,7 @@ void dirty_all_vga_colors()
  *
  */
 
-int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
+int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg)
 {
   DAC_entry de;
   int i, j, k;
@@ -2564,7 +2564,7 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
         m = vga.dac.pel_mask;
         de.r &= m; de.g &= m; de.b &= m;
         if (upd_func)
-          upd_func(&de, i);
+          upd_func(&de, i, arg);
         j++;
         vga.dac.rgb[i].dirty = False;
         vga_deb_col("changed_vga_colors: color 0x%02x\n", i);
@@ -2604,7 +2604,7 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
         m = vga.dac.pel_mask;
         de.r &= m; de.g &= m; de.b &= m;
         if (upd_func)
-          upd_func(&de, i);
+          upd_func(&de, i, arg);
         vga.dac.rgb[a].dirty = False;
         j++;
         vga_deb_col(

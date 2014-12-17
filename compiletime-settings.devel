@@ -24,6 +24,7 @@ config {
   plugin_translate on
   plugin_commands on
   plugin_console on
+  plugin_pixman on
   plugin_demo on
   target_bits auto
   target_cpu auto

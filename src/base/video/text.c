@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <assert.h>
 
 #include "emu.h"
 #include "bios.h"
@@ -51,6 +52,9 @@ static unsigned prev_cursor_location = -1;
 static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
+static unsigned char *text_canvas;
+static unsigned char *dst_image;
+static struct remap_object *text_remap;
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
@@ -191,7 +195,7 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
   int len = vga.scan_len / 2 * vga.char_width;
   unsigned char *  deb;
 
-  deb = remap_obj.src_image + vga.char_width * x + len *(vga.char_height*  y);
+  deb = text_canvas + vga.char_width * x + len *(vga.char_height*  y);
   if (focus) {
     deb += len * start;
     for (i = 0; i < end - start + 1; i++) {
@@ -214,8 +218,9 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
     for (j = 0; j < vga.char_width; j ++)
       *deb++ = fg;
   }
-  return remap_obj.remap_rect(&remap_obj, vga.char_width * x, vga.char_height * y,
-			      vga.char_width, vga.char_height);
+  return remap_remap_rect(text_remap, text_canvas,
+			      vga.char_width * x, vga.char_height * y,
+			      vga.char_width, vga.char_height, dst_image);
 }
 
 /*
@@ -235,9 +240,9 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
   y = vga.char_height * y + ul;
   linelen *= vga.char_width;
 
-  deb = remap_obj.src_image + len * y + x;
+  deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_obj.remap_rect(&remap_obj, x, y, linelen, 1);
+  return remap_remap_rect(text_remap, text_canvas, x, y, linelen, 1, dst_image);
 }
 
 void reset_redraw_text_screen(void)
@@ -256,6 +261,11 @@ void reset_redraw_text_screen(void)
 	 vga.scan_len * vga.text_height);
 }
 
+static void refresh_text_pal(DAC_entry *col, int index, void *udata)
+{
+  Text->SetPalette(col, index);
+}
+
 /*
  * Reallocate color cells if a text color has changed. If no
  * free color cell is left, choose an approximate color.
@@ -272,13 +282,21 @@ static void refresh_text_palette(void)
   }
 
   if(use_bitmap_font) {
-    if(refresh_palette())
+    if(refresh_palette(text_remap))
       redraw_text_screen();
     return;
   }
 
-  j = changed_vga_colors(Text->SetPalette);
+  j = changed_vga_colors(refresh_text_pal, NULL);
   if(j) redraw_text_screen();
+}
+
+void text_blit(int x, int y, int width, int height)
+{
+  if (!use_bitmap_font)
+    return;
+  remap_remap_rect_dst(text_remap, text_canvas, x, y, width,
+	height, dst_image);
 }
 
 /*
@@ -382,23 +400,17 @@ void blink_cursor()
 /*
  * Resize everything according to vga.*
  */
-void resize_text_mapper(int image_mode)
+void resize_text_mapper(unsigned char *dst_img, int width, int height,
+	int scan_len)
 {
-  static unsigned char *text_canvas = NULL;
-
-  /* need a remap obj for the font system even in text mode! */
-  x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");
-
-  remap_done(&remap_obj);
-
-  /* linear 1 byte per pixel */
-  remap_obj = remap_init(MODE_PSEUDO_8, image_mode, remap_features);
-  adjust_gamma(&remap_obj, config.X_gamma);
-
-  text_canvas = remap_obj.src_image = realloc(text_canvas, 1 * vga.width * vga.height);
-  if (remap_obj.src_image == NULL)
+  if(vga.mode_class == GRAPH || !use_bitmap_font)
+    return;
+  text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
+  if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
-  remap_obj.src_resize(&remap_obj, vga.width, vga.height, 1 * vga.width);
+  remap_src_resize(text_remap, vga.width, vga.height, 1 * vga.width);
+  remap_dst_resize(text_remap, width, height, scan_len);
+  dst_image = dst_img;
 
   dirty_all_video_pages();
   /*
@@ -410,6 +422,24 @@ void resize_text_mapper(int image_mode)
   vga.reconfig.mem =
     vga.reconfig.display =
     vga.reconfig.dac = 0;
+}
+
+void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
+{
+  if(!use_bitmap_font)
+    return;
+  assert(!text_remap);
+
+  /* linear 1 byte per pixel */
+  text_remap = remap_init(MODE_PSEUDO_8, image_mode, remap_features, csd);
+  remap_adjust_gamma(text_remap, config.X_gamma);
+}
+
+void done_text_mapper(void)
+{
+  if (text_remap)
+    remap_done(text_remap);
+  free(text_canvas);
 }
 
 RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
@@ -440,7 +470,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
   /* colors for the bright-or-blinking background, although the  */
   /* official blink would be the foreground, not the background. */
 
-  /* Eric: What type is our remap_obj.src_mode at this moment??? */
+  /* Eric: What type is our text_remap.src_mode at this moment??? */
   /* not sure if I use the remap object at least roughly correct */
   /* basically, it is like two Ximages, linked by remapping...   */
 
@@ -458,18 +488,18 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 
   if ( ((y+1) * height) > vga.height ) {
     v_printf("Tried to print below scanline %d (row %d)\n",
-	     remap_obj.src_height, y);
+	     vga.height, y);
     return ra;
   }
   if ( ((x+len) * vga.char_width) > vga.width ) {
     v_printf("Tried to print past right margin\n");
     v_printf("x=%d len=%d vga.char_width=%d width=%d\n",
-	     x, len, vga.char_width, remap_obj.src_width);
+	     x, len, vga.char_width, vga.width);
     len = vga.width / vga.char_width - x;
   }
 
   /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
-  srcp = remap_obj.src_scan_len * y * height;
+  srcp = vga.width * y * height;
   srcp += x * vga.char_width;
 
   /* vgaemu -> vgaemu_put_char would edit the vga.mem.base[...] */
@@ -479,7 +509,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
     for (cc = 0; cc < len; cc++) {
       bits = vga.mem.base[0x20000 + src + (32 * (unsigned char)text[cc])];
       for (xx = 0; xx < 8; xx++) {
-	remap_obj.src_image[srcp2++]
+	text_canvas[srcp2++]
 	  = (bits & 0x80) ? fgX : bgX;
 	bits <<= 1;
       }
@@ -487,20 +517,21 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 	/* (only if enabled by bit... */
 	if ( (vga.attr.data[0x10] & 0x04) &&
 	     ((text[cc] & 0xc0) == 0xc0) ) {
-	  remap_obj.src_image[srcp2] = remap_obj.src_image[srcp2-1];
+	  text_canvas[srcp2] = text_canvas[srcp2-1];
 	  srcp2++;
 	} else {             /* ...or fill with background */
-	  remap_obj.src_image[srcp2++] = bgX;
+	  text_canvas[srcp2++] = bgX;
 	}
 	srcp2 += (vga.char_width - 9);
       }   /* (pixel-x has reached on next char now) */
     }
-    srcp += remap_obj.src_scan_len;      /* next line */
+    srcp += vga.width;      /* next line */
     src++;  /* globally shift to the next font row!!! */
   }
 
-  return remap_obj.remap_rect(&remap_obj, vga.char_width * x, height * y,
-			      vga.char_width * len, height);
+  return remap_remap_rect(text_remap, text_canvas,
+			      vga.char_width * x, height * y,
+			      vga.char_width * len, height, dst_image);
 }
 
 /*
@@ -524,7 +555,7 @@ int update_text_screen(void)
 
   if(vga.reconfig.mem) {
     if (use_bitmap_font)
-      remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
+      remap_src_resize(text_remap, vga.width, vga.height, vga.width);
     redraw_text_screen();
     vga.reconfig.mem = 0;
   }

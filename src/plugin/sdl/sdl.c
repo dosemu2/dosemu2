@@ -212,9 +212,10 @@ int SDL_init(void)
   SDL_csd.b_mask = video_info->vfmt->Bmask;
   color_space_complete(&SDL_csd);
 
-  set_remap_debug_msg(stderr);
+//  set_remap_debug_msg(stderr);
   have_true_color = (video_info->vfmt->palette == NULL);
-  remap_src_modes = remapper_init(&SDL_image_mode, SDL_csd.bits, have_true_color, 0);
+  remap_src_modes = remapper_init(&SDL_image_mode,
+	have_true_color, 0, &SDL_csd);
 
   register_render_system(&Render_SDL);
 
@@ -325,7 +326,7 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
     if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
-    get_mode_parameters(&w_x_res, &w_y_res, SDL_image_mode, &veut);
+    get_mode_parameters(&w_x_res, &w_y_res, &veut);
     SDL_change_mode(&w_x_res, &w_y_res);
   }
 
@@ -347,16 +348,11 @@ static void SDL_redraw_resize_image(unsigned width, unsigned height)
   SDL_resize_image(width, height);
   /* forget about those rectangles */
   sdl_rects.num = 0;
-  dirty_all_video_pages();
-  if (vga.mode_class == TEXT)
-    vga.reconfig.mem = 1;
-  SDL_update_screen();
+  render_blit(&veut, 0, 0, width, height);
 }
 
 int SDL_set_text_mode(int tw, int th, int w ,int h)
 {
-  if (use_bitmap_font)
-    resize_text_mapper(SDL_image_mode);
   SDL_resize_image(w, h);
   SDL_set_mouse_text_cursor();
   /* that's all */
@@ -422,9 +418,7 @@ static void SDL_change_mode(int *x_res, int *y_res)
     return;
   }
   SDL_ShowCursor(SDL_DISABLE);
-  if (use_bitmap_font || vga.mode_class == GRAPH) {
-    render_init(surface->pixels, &SDL_csd, *x_res, *y_res, surface->pitch);
-  }
+  render_init(surface->pixels, *x_res, *y_res, surface->pitch);
 #ifdef X_SUPPORT
   {
     static int first = 1;
@@ -459,13 +453,6 @@ int SDL_update_screen(void)
 {
   if (init_failed)
     return 1;
-  if(vga.reconfig.re_init) {
-    vga.reconfig.re_init = 0;
-    sdl_rects.num = 0;
-    dirty_all_video_pages();
-    dirty_all_vga_colors();
-    SDL_set_videomode(-1, 0, 0);
-  }
   if (is_mapped) {
     int ret;
 #ifdef X_SUPPORT

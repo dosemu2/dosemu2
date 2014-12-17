@@ -597,8 +597,8 @@ int X_init()
   graphics_cmap_init();				/* graphics modes are more sophisticated */
 
   /* init graphics mode support */
-  remap_src_modes = remapper_init(&ximage_mode, ximage_bits_per_pixel,
-				  have_true_color, have_shmap);
+  remap_src_modes = remapper_init(&ximage_mode,
+				  have_true_color, have_shmap, &X_csd);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
     /* why do we need a blank screen? */
@@ -735,6 +735,8 @@ int X_init()
     );
   }
 
+  lock_window_size(w_x_res, w_y_res);
+
   /* don't map window if set */
   if(getenv("DOSEMU_HIDE_WINDOW") == NULL) {
     if (config.X_fullscreen) {
@@ -814,7 +816,8 @@ void X_close()
 
   if(graphics_cmap) XFreeColormap(display, graphics_cmap);
 
-  XFreeGC(display, gc);
+  if (gc)
+    XFreeGC(display, gc);
 
   if(X_csd.pixel_lut != NULL) { free(X_csd.pixel_lut); X_csd.pixel_lut = NULL; }
 
@@ -1353,8 +1356,8 @@ static void toggle_fullscreen_mode(int init)
     X_vidmode(x_res, y_res, &resize_width, &resize_height);
     mainwindow = fullscreenwindow;
     if (vga.mode_class == GRAPH || use_bitmap_font) {
-      XResizeWindow(display, mainwindow, resize_width+1, resize_height+1);
-      XResizeWindow(display, drawwindow, resize_width+1, resize_height+1);
+      XResizeWindow(display, mainwindow, resize_width, resize_height);
+      XResizeWindow(display, drawwindow, resize_width, resize_height);
     } else {
       shift_x = (resize_width - w_x_res) / 2;
       shift_y = (resize_height - w_y_res) / 2;
@@ -1378,8 +1381,8 @@ static void toggle_fullscreen_mode(int init)
     mainwindow = normalwindow;
     X_vidmode(-1, -1, &resize_width, &resize_height);
     if (vga.mode_class == GRAPH || use_bitmap_font) {
-      XResizeWindow(display, mainwindow, resize_width+1, resize_height+1);
-      XResizeWindow(display, drawwindow, resize_width+1, resize_height+1);
+      XResizeWindow(display, mainwindow, resize_width, resize_height);
+      XResizeWindow(display, drawwindow, resize_width, resize_height);
     }
     XMapWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
@@ -1392,8 +1395,7 @@ static void toggle_fullscreen_mode(int init)
     X_resize_text_screen();
   } else {	/* GRAPH or builtin font */
     resize_ximage(resize_width, resize_height);
-    dirty_all_video_pages();
-    X_update_screen();
+    render_blit(&veut, 0, 0, resize_width, resize_height);
   }
 }
 
@@ -1699,17 +1701,15 @@ static void X_handle_events(void)
       keyrel_pending = 0;
     }
 
-    if(ximage != NULL && resize_event) {
-      if(ximage->width == resize_width && ximage->height == resize_height) resize_event = 0;
-    }
+    if(ximage && resize_event && ximage->width == resize_width &&
+	ximage->height == resize_height)
+      resize_event = 0;
 
     if(resize_event && mainwindow == normalwindow) {
-      XResizeWindow(display, drawwindow, resize_width+1, resize_height+1);
+      resize_event = 0;
+      XResizeWindow(display, drawwindow, resize_width, resize_height);
       resize_ximage(resize_width, resize_height);
-      dirty_all_video_pages();
-      if (vga.mode_class == TEXT)
-	vga.reconfig.mem = 1;
-      X_update_screen();
+      render_blit(&veut, 0, 0, resize_width, resize_height);
     }
 
 #if CONFIG_X_MOUSE
@@ -1999,7 +1999,9 @@ void resize_ximage(unsigned width, unsigned height)
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  render_init((unsigned char *)ximage->data, &X_csd, width, height, ximage->bytes_per_line);
+  if (vga.mode_class == GRAPH || use_bitmap_font)
+    render_resize((unsigned char *)ximage->data, width,
+	height, ximage->bytes_per_line);
 }
 
 /*
@@ -2012,12 +2014,19 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   XSizeHints sh;
   int x_fill, y_fill;
 
-  sh.width = sh.min_width = sh.max_width = wx_res;
-  sh.height = sh.min_height = sh.max_height = wy_res;
+  sh.base_width = sh.width = sh.min_width = sh.max_width = wx_res;
+  sh.base_height = sh.height = sh.min_height = sh.max_height = wy_res;
 
-  sh.flags = PSize  | PMinSize | PMaxSize;
+  sh.flags = PSize  | PMinSize | PMaxSize | PBaseSize;
   if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
   if (use_bitmap_font) {
+#if 1
+    /* mutter-3.14 has a bug: it calculates aspect-based size constraints
+     * for the entire window with decorators instead of for client area.
+     * https://bugzilla.gnome.org/show_bug.cgi?id=739573
+     * So for now we disable PAspect... */
+    sh.flags &= ~PAspect;
+#endif
     sh.flags |= PResizeInc;
     sh.max_width = 32767;
     sh.max_height = 32767;
@@ -2026,29 +2035,28 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
     sh.width_inc = 1;
     sh.height_inc = 1;
   }
-  sh.min_aspect.x = w_x_res;
-  sh.min_aspect.y = w_y_res;
+  sh.min_aspect.x = wx_res;
+  sh.min_aspect.y = wy_res;
   sh.max_aspect = sh.min_aspect;
   XSetNormalHints(display, normalwindow, &sh);
   XSync(display, False);
 
-  x_fill = w_x_res;
-  y_fill = w_y_res;
+  x_fill = wx_res;
+  y_fill = wy_res;
   if (mainwindow == fullscreenwindow)
     X_vidmode(x_res, y_res, &x_fill, &y_fill);
 
-  XResizeWindow(display, mainwindow, x_fill+1, y_fill+1);
+  XResizeWindow(display, mainwindow, x_fill, y_fill);
 
   if(vga.mode_class == TEXT && !use_bitmap_font) {
-    x_fill = w_x_res;
-    y_fill = w_y_res;
+    x_fill = wx_res;
+    y_fill = wy_res;
   }
 
-  XResizeWindow(display, drawwindow, x_fill+1, y_fill+1);
+  XResizeWindow(display, drawwindow, x_fill, y_fill);
   X_printf("Resizing our window to %dx%d image\n", x_fill, y_fill);
 
   if (use_bitmap_font) {
-    resize_text_mapper(ximage_mode);
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
   }
 }
@@ -2173,7 +2181,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     x_res = vga.width;
     y_res = vga.height;
 
-    get_mode_parameters(&w_x_res, &w_y_res, ximage_mode, &veut);
+    get_mode_parameters(&w_x_res, &w_y_res, &veut);
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;
@@ -2181,7 +2189,8 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-    render_init((unsigned char *)ximage->data, &X_csd, w_x_res, w_y_res, ximage->bytes_per_line);
+    render_init((unsigned char *)ximage->data, w_x_res, w_y_res,
+	ximage->bytes_per_line);
 
     sh.width = w_x_res;
     sh.height = w_y_res;
@@ -2199,8 +2208,8 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
 
     XSetNormalHints(display, normalwindow, &sh);
-    XResizeWindow(display, mainwindow, w_x_res+1, w_y_res+1);
-    XResizeWindow(display, drawwindow, w_x_res+1, w_y_res+1);
+    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    XResizeWindow(display, drawwindow, w_x_res, w_y_res);
   }
 
   /* unconditionally update the palette */
@@ -2345,12 +2354,6 @@ void X_redraw_text_screen()
 
 int X_update_screen()
 {
-  if(vga.reconfig.re_init) {
-    vga.reconfig.re_init = 0;
-    dirty_all_video_pages();
-    dirty_all_vga_colors();
-    X_set_videomode(-1, 0, 0);
-  }
   return is_mapped ? update_screen(&veut) : 0;
 }
 
