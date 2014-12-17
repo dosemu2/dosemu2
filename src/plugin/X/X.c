@@ -1999,8 +1999,7 @@ void resize_ximage(unsigned width, unsigned height)
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  if (vga.mode_class == GRAPH)
-    render_init((unsigned char *)ximage->data, &X_csd, width, height, ximage->bytes_per_line);
+  render_init((unsigned char *)ximage->data, &X_csd, width, height, ximage->bytes_per_line);
 }
 
 /*
