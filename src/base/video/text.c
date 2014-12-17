@@ -263,7 +263,8 @@ void reset_redraw_text_screen(void)
 
 static void refresh_text_pal(DAC_entry *col, int index, void *udata)
 {
-  Text->SetPalette(col, index);
+  if (Text->SetPalette)
+    Text->SetPalette(col, index);
 }
 
 /*
