@@ -86,6 +86,7 @@ static int font_width, font_height;
 
 static int w_x_res, w_y_res;			/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
+static int initialized;
 
 /* For graphics mode */
 static vga_emu_update_type veut;
@@ -327,6 +328,9 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     get_mode_parameters(&w_x_res, &w_y_res, SDL_image_mode, &veut);
     SDL_change_mode(&w_x_res, &w_y_res);
   }
+
+  initialized = 1;
+
   return 1;
 }
 
@@ -651,11 +655,9 @@ static void SDL_handle_selection(XEvent *e)
 
 static void SDL_handle_events(void)
 {
-   static int busy = 0;
    SDL_Event event;
-
-   if (busy) return;
-   busy = 1;
+   if (!initialized)
+     return;
    while (SDL_PollEvent(&event)) {
      switch (event.type) {
      case SDL_ACTIVEEVENT: {
@@ -795,7 +797,6 @@ static void SDL_handle_events(void)
      /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
      SDL_redraw_text_screen();
 #endif
-   busy = 0;
    do_mouse_irq();
 }
 
