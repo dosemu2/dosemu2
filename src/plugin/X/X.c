@@ -323,6 +323,7 @@ static XF86VidModeModeInfo **vidmode_modes;
 Display *display;		/* used in plugin/?/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
+static int initialized;
 /*
   rootwindow: RootWindow(display, DefaultScreen(display));
   parentwindow: parent: was used with kdos
@@ -1410,6 +1411,9 @@ static void X_handle_events(void)
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
    int keyrel_pending = 0;
 
+   if (!initialized)
+     return;
+
 #if CONFIG_X_MOUSE
    {
      static int lastingraphics = 0;
@@ -2206,6 +2210,8 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     XMapWindow(display, drawwindow);
     X_map_mode = -1;
   }
+
+  initialized = 1;
 
   return 1;
 }
