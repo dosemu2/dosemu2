@@ -3412,12 +3412,6 @@ static int _remap_palette_update(void *ros, unsigned i,
   return ro->palette_update(ro, i, bits, r, g, b);
 }
 
-static void _remap_src_resize(void *ros, int width, int height, int scan_len)
-{
-  RemapObject *ro = ros;
-  ro->src_resize(ro, width, height, scan_len);
-}
-
 static void _remap_dst_resize(void *ros, int width, int height, int scan_len)
 {
   RemapObject *ro = ros;
@@ -3425,25 +3419,31 @@ static void _remap_dst_resize(void *ros, int width, int height, int scan_len)
 }
 
 static RectArea _remap_remap_rect(void *ros, const unsigned char *src_img,
-	int x0, int y0, int width, int height, unsigned char *dst_img)
+	int src_width, int src_height, int scan_len,
+	int x0, int y0, int width, int height,
+	unsigned char *dst_img)
 {
   RemapObject *ro = ros;
   ro->src_image = src_img;
   ro->dst_image = dst_img;
+  ro->src_resize(ro, src_width, src_height, scan_len);
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_rect_dst(void *ros, const unsigned char *src_img,
+	int src_width, int src_height, int scan_len,
 	int x0, int y0, int width, int height, unsigned char *dst_img)
 {
   RemapObject *ro = ros;
   ro->src_image = src_img;
   ro->dst_image = dst_img;
+  ro->src_resize(ro, src_width, src_height, scan_len);
   return ro->remap_rect_dst(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_mem(void *ros,
 	const unsigned char *src_img, unsigned src_start,
+	int src_width, int src_height, int scan_len,
 	unsigned dst_start, int offset, int len, unsigned char *dst_img)
 {
   RemapObject *ro = ros;
@@ -3457,6 +3457,7 @@ static RectArea _remap_remap_mem(void *ros,
     offset += dst_start;
     dst_start = 0;
   }
+  ro->src_resize(ro, src_width, src_height, scan_len);
   return ro->remap_mem(ro, dst_start, offset, len);
 }
 
@@ -3487,7 +3488,6 @@ static struct remap_calls rmcalls = {
   _remap_remap_done,
   _remap_adjust_gamma,
   _remap_palette_update,
-  _remap_src_resize,
   _remap_dst_resize,
   _remap_remap_rect,
   _remap_remap_rect_dst,

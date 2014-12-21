@@ -243,7 +243,6 @@ static void modify_mode(vga_emu_update_type *veut)
 		MODE_VGA_X, dst_mode, remap_features,
 		color_space);
       cap = remap_get_cap(tmp_ro);
-      remap_src_resize(tmp_ro, vga.width, vga.height, vga.scan_len);
       remap_dst_resize(tmp_ro, dst_width, dst_height, dst_scan_len);
 
       if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
@@ -270,7 +269,6 @@ static void modify_mode(vga_emu_update_type *veut)
   }
 
   if(vga.reconfig.display) {
-    remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
     v_printf(
       "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
       vga.width, vga.height, vga.scan_len
@@ -327,6 +325,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 
   while((update_ret = vga_emu_update(veut)) > 0) {
     ra = remap_remap_mem(remap_obj, veut->base, veut->display_start,
+                             vga.width, vga.height, vga.scan_len,
                              update_offset,
                              veut->update_start - veut->display_start,
                              veut->update_len, dst_image);
@@ -476,8 +475,6 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
   remap_obj = remap_init(mode_type, dst_mode, remap_features,
 	color_space);
   remap_adjust_gamma(remap_obj, config.X_gamma);
-
-  remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
   render_resize(img, width, height, scan_len);
   /*
    * The new remap object does not yet know about our colors.
@@ -493,6 +490,7 @@ void render_blit(vga_emu_update_type *veut, int x, int y, int width,
     text_blit(x, y, width, height);
   else
     remap_remap_rect_dst(remap_obj, veut->base + veut->display_start,
+	vga.width, vga.height, vga.scan_len,
 	x, y, width, height, dst_image);
   Render->refresh_rect(x, y, width, height);
 }
@@ -581,18 +579,36 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
 { \
   return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6); \
 }
+#define REMAP_CALL7(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7); \
+}
+#define REMAP_CALL8(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8); \
+}
+#define REMAP_CALL9(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8, t9, a9) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8, t9 a9) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8, a9); \
+}
 
 REMAP_CALL1(void, adjust_gamma, unsigned, gamma)
 REMAP_CALL5(int, palette_update, unsigned, i,
 	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
-REMAP_CALL3(void, src_resize, int, width, int, height, int, scan_len)
 REMAP_CALL3(void, dst_resize, int, width, int, height, int, scan_len)
-REMAP_CALL6(RectArea, remap_rect, const unsigned char *, src_img,
+REMAP_CALL9(RectArea, remap_rect, const unsigned char *, src_img,
+	int, src_width, int, src_height, int, scan_len,
 	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
-REMAP_CALL6(RectArea, remap_rect_dst, const unsigned char *, src_img,
+REMAP_CALL9(RectArea, remap_rect_dst, const unsigned char *, src_img,
+	int, src_width, int, src_height, int, scan_len,
 	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
-REMAP_CALL6(RectArea, remap_mem, const unsigned char *, src_img,
-	unsigned, src_start, unsigned, dst_start, int, offset, int, len,
+REMAP_CALL9(RectArea, remap_mem, const unsigned char *, src_img,
+	unsigned, src_start,
+	int, src_width, int, src_height, int, scan_len,
+	unsigned, dst_start, int, offset, int, len,
 	unsigned char *, dst_img)
 REMAP_CALL0(int, get_cap)
 

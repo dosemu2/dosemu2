@@ -20,22 +20,23 @@ typedef struct ColorSpaceDesc {
 } ColorSpaceDesc;
 
 struct remap_calls {
-  void *(*init)(int, int, int, const ColorSpaceDesc *);
+  void *(*init)(int src_mode, int dst_mode, int features,
+    const ColorSpaceDesc *csd);
   void (*done)(void *ro);
-  void (*adjust_gamma)(void *ro, unsigned);
+  void (*adjust_gamma)(void *ro, unsigned gamma);
   int (*palette_update)(void *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
-  void (*src_resize)(void *ro, int width, int height,
-	int scan_len);
   void (*dst_resize)(void *ro, int width, int height,
 	int scan_len);
   RectArea (*remap_rect)(void *ro, const unsigned char *src_img,
+	int src_width, int src_height, int scan_len,
 	int x0, int y0, int width, int height, unsigned char *dst_img);
   RectArea (*remap_rect_dst)(void *ro, const unsigned char *src_img,
+	int src_width, int src_height, int scan_len,
 	int x0, int y0, int width, int height, unsigned char *dst_img);
   RectArea (*remap_mem)(void *ro, const unsigned char *src_img,
-	unsigned src_start, unsigned dst_start, int offset, int len,
-	unsigned char *dst_img);
+	unsigned src_start, int src_width, int src_height, int scan_len,
+	unsigned dst_start, int offset, int len, unsigned char *dst_img);
   int (*get_cap)(void *ro);
   const char *name;
 };

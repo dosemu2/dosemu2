@@ -219,8 +219,10 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
       *deb++ = fg;
   }
   return remap_remap_rect(text_remap, text_canvas,
+			      vga.width, vga.height, vga.width,
 			      vga.char_width * x, vga.char_height * y,
-			      vga.char_width, vga.char_height, dst_image);
+			      vga.char_width, vga.char_height,
+			      dst_image);
 }
 
 /*
@@ -242,7 +244,9 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
 
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_remap_rect(text_remap, text_canvas, x, y, linelen, 1, dst_image);
+  return remap_remap_rect(text_remap, text_canvas,
+    vga.width, vga.height, vga.width,
+    x, y, linelen, 1, dst_image);
 }
 
 void reset_redraw_text_screen(void)
@@ -295,8 +299,9 @@ void text_blit(int x, int y, int width, int height)
 {
   if (!use_bitmap_font)
     return;
-  remap_remap_rect_dst(text_remap, text_canvas, x, y, width,
-	height, dst_image);
+  remap_remap_rect_dst(text_remap, text_canvas,
+	vga.width, vga.height, vga.width,
+	x, y, width, height, dst_image);
 }
 
 /*
@@ -408,7 +413,6 @@ void resize_text_mapper(unsigned char *dst_img, int width, int height,
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
-  remap_src_resize(text_remap, vga.width, vga.height, 1 * vga.width);
   remap_dst_resize(text_remap, width, height, scan_len);
   dst_image = dst_img;
 
@@ -530,6 +534,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
   }
 
   return remap_remap_rect(text_remap, text_canvas,
+			      vga.width, vga.height, vga.width,
 			      vga.char_width * x, height * y,
 			      vga.char_width * len, height, dst_image);
 }
@@ -554,8 +559,6 @@ int update_text_screen(void)
   refresh_text_palette();
 
   if(vga.reconfig.mem) {
-    if (use_bitmap_font)
-      remap_src_resize(text_remap, vga.width, vga.height, vga.width);
     redraw_text_screen();
     vga.reconfig.mem = 0;
   }
