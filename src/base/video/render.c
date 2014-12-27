@@ -324,9 +324,9 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 #endif
 
   while((update_ret = vga_emu_update(veut)) > 0) {
-    ra = remap_remap_mem(remap_obj, veut->base, veut->display_start,
-                             vga.width, vga.height, vga.scan_len,
-                             update_offset,
+    ra = remap_remap_mem(remap_obj, BMP(veut->base,
+                             vga.width, vga.height, vga.scan_len),
+                             veut->display_start, update_offset,
                              veut->update_start - veut->display_start,
                              veut->update_len, dst_image);
 
@@ -489,8 +489,8 @@ void render_blit(vga_emu_update_type *veut, int x, int y, int width,
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height);
   else
-    remap_remap_rect_dst(remap_obj, veut->base + veut->display_start,
-	vga.width, vga.height, vga.scan_len,
+    remap_remap_rect_dst(remap_obj, BMP(veut->base + veut->display_start,
+	vga.width, vga.height, vga.scan_len),
 	x, y, width, height, dst_image);
   Render->refresh_rect(x, y, width, height);
 }
@@ -599,15 +599,12 @@ REMAP_CALL1(void, adjust_gamma, unsigned, gamma)
 REMAP_CALL5(int, palette_update, unsigned, i,
 	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
 REMAP_CALL3(void, dst_resize, int, width, int, height, int, scan_len)
-REMAP_CALL9(RectArea, remap_rect, const unsigned char *, src_img,
-	int, src_width, int, src_height, int, scan_len,
+REMAP_CALL6(RectArea, remap_rect, const struct bitmap_desc, src_img,
 	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
-REMAP_CALL9(RectArea, remap_rect_dst, const unsigned char *, src_img,
-	int, src_width, int, src_height, int, scan_len,
+REMAP_CALL6(RectArea, remap_rect_dst, const struct bitmap_desc, src_img,
 	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
-REMAP_CALL9(RectArea, remap_mem, const unsigned char *, src_img,
+REMAP_CALL6(RectArea, remap_mem, const struct bitmap_desc, src_img,
 	unsigned, src_start,
-	int, src_width, int, src_height, int, scan_len,
 	unsigned, dst_start, int, offset, int, len,
 	unsigned char *, dst_img)
 REMAP_CALL0(int, get_cap)

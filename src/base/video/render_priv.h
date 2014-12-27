@@ -20,18 +20,15 @@ int remap_palette_update(struct remap_object *ro, unsigned i,
 void remap_dst_resize(struct remap_object *ro, int width, int height,
 	int scan_len);
 RectArea remap_remap_rect(struct remap_object *ro,
-	const unsigned char *src_img,
-	int src_width, int src_height, int scan_len,
+	const struct bitmap_desc src_img,
 	int x0, int y0, int width, int height,
 	unsigned char *dst_img);
 RectArea remap_remap_rect_dst(struct remap_object *ro,
-	const unsigned char *src_img,
-	int src_width, int src_height, int scan_len,
+	const struct bitmap_desc src_img,
 	int x0, int y0, int width, int height, unsigned char *dst_img);
 RectArea remap_remap_mem(struct remap_object *ro,
-	const unsigned char *src_img,
+	const struct bitmap_desc src_img,
 	unsigned src_start,
-	int src_width, int src_height, int scan_len,
 	unsigned dst_start, int offset, int len,
 	unsigned char *dst_img);
 int remap_get_cap(struct remap_object *ro);

@@ -218,8 +218,8 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
     for (j = 0; j < vga.char_width; j ++)
       *deb++ = fg;
   }
-  return remap_remap_rect(text_remap, text_canvas,
-			      vga.width, vga.height, vga.width,
+  return remap_remap_rect(text_remap, BMP(text_canvas,
+			      vga.width, vga.height, vga.width),
 			      vga.char_width * x, vga.char_height * y,
 			      vga.char_width, vga.char_height,
 			      dst_image);
@@ -244,8 +244,8 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
 
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_remap_rect(text_remap, text_canvas,
-    vga.width, vga.height, vga.width,
+  return remap_remap_rect(text_remap, BMP(text_canvas,
+    vga.width, vga.height, vga.width),
     x, y, linelen, 1, dst_image);
 }
 
@@ -299,8 +299,8 @@ void text_blit(int x, int y, int width, int height)
 {
   if (!use_bitmap_font)
     return;
-  remap_remap_rect_dst(text_remap, text_canvas,
-	vga.width, vga.height, vga.width,
+  remap_remap_rect_dst(text_remap, BMP(text_canvas,
+	vga.width, vga.height, vga.width),
 	x, y, width, height, dst_image);
 }
 
@@ -533,8 +533,8 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
     src++;  /* globally shift to the next font row!!! */
   }
 
-  return remap_remap_rect(text_remap, text_canvas,
-			      vga.width, vga.height, vga.width,
+  return remap_remap_rect(text_remap, BMP(text_canvas,
+			      vga.width, vga.height, vga.width),
 			      vga.char_width * x, height * y,
 			      vga.char_width * len, height, dst_image);
 }
