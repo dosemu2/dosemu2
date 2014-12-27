@@ -30,6 +30,7 @@ static const ColorSpaceDesc *color_space;
 static struct bitmap_desc dst_image;
 static int dst_mode;
 static unsigned ximage_mode;
+static vga_emu_update_type veut;
 
 /*
  * Draw a text string for bitmap fonts.
@@ -152,8 +153,7 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
-void get_mode_parameters(int *wx_res, int *wy_res,
-			 vga_emu_update_type *veut)
+void get_mode_parameters(int *wx_res, int *wy_res)
 {
   int x_res, y_res, w_x_res, w_y_res;
 
@@ -209,15 +209,16 @@ void get_mode_parameters(int *wx_res, int *wy_res,
     }
   }
 #endif
-  veut->base = vga.mem.base;
-  veut->max_max_len = 0;
-  veut->max_len = 0;
-  veut->display_start = 0;
-  veut->display_end = vga.scan_len * vga.line_compare;
+
+  veut.base = vga.mem.base;
+  veut.max_max_len = 0;
+  veut.max_len = 0;
+  veut.display_start = 0;
+  veut.display_end = vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
-    veut->display_end = vga.scan_len * vga.height;
-  veut->update_gran = 0;
-  veut->update_pos = veut->display_start;
+    veut.display_end = vga.scan_len * vga.height;
+  veut.update_gran = 0;
+  veut.update_pos = veut.display_start;
 
   *wx_res = w_x_res;
   *wy_res = w_y_res;
@@ -228,7 +229,7 @@ void get_mode_parameters(int *wx_res, int *wy_res,
  * Currently used to turn on/off chain4 addressing, change
  * the VGA screen size, change the DAC size.
  */
-static void modify_mode(vga_emu_update_type *veut)
+static void modify_mode(void)
 {
   struct remap_object *tmp_ro;
   int cap;
@@ -280,10 +281,10 @@ static void modify_mode(vga_emu_update_type *veut)
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
   }
 
-  veut->display_start = vga.display_start;
-  veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
+  veut.display_start = vga.display_start;
+  veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
-    veut->display_end = veut->display_start + vga.scan_len * vga.height;
+    veut.display_end = veut.display_start + vga.scan_len * vga.height;
 
   if(vga.reconfig.mem || vga.reconfig.display) {
     v_printf("modify_mode: failed to modify current graphics mode\n");
@@ -313,7 +314,7 @@ static void modify_mode(vga_emu_update_type *veut)
  * too messy. -- sw
  */
 
-static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
+static int update_graphics_loop(int update_offset)
 {
   RectArea ra;
   int update_ret;
@@ -321,12 +322,12 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
   static int dsua_fg_color = 0;
 #endif
 
-  while((update_ret = vga_emu_update(veut)) > 0) {
-    ra = remap_remap_mem(remap_obj, BMP(veut->base,
+  while((update_ret = vga_emu_update(&veut)) > 0) {
+    ra = remap_remap_mem(remap_obj, BMP(veut.base,
                              vga.width, vga.height, vga.scan_len),
-                             veut->display_start, update_offset,
-                             veut->update_start - veut->display_start,
-                             veut->update_len, dst_image);
+                             veut.display_start, update_offset,
+                             veut.update_start - veut.display_start,
+                             veut.update_len, dst_image);
 
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
@@ -338,34 +339,34 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       vga.display_start, vga.mem.write_plane,
-      veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
+      veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
     );
   }
   return update_ret;
 }
 
-static int update_graphics_screen(vga_emu_update_type *veut)
+static int update_graphics_screen(void)
 {
   int update_ret;
   unsigned wrap;
 
   if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac)
-    modify_mode(veut);
+    modify_mode();
 
   refresh_graphics_palette();
 
-  if(vga.display_start != veut->display_start) {
-    veut->display_start = vga.display_start;
-    veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
+  if(vga.display_start != veut.display_start) {
+    veut.display_start = vga.display_start;
+    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
     if (vga.line_compare > vga.height)
-      veut->display_end = veut->display_start + vga.scan_len * vga.height;
+      veut.display_end = veut.display_start + vga.scan_len * vga.height;
     dirty_all_video_pages();
   }
 
   wrap = 0;
-  if (veut->display_end > vga.mem.wrap) {
-    wrap = veut->display_end - vga.mem.wrap;
-    veut->display_end = vga.mem.wrap;
+  if (veut.display_end > vga.mem.wrap) {
+    wrap = veut.display_end - vga.mem.wrap;
+    veut.display_end = vga.mem.wrap;
   }
 
   /*
@@ -379,40 +380,40 @@ static int update_graphics_screen(vga_emu_update_type *veut)
    * example).
    */
 
-  veut->max_len = veut->max_max_len;
+  veut.max_len = veut.max_max_len;
 
-  update_ret = update_graphics_loop(0, veut);
+  update_ret = update_graphics_loop(0);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
        display_start close to the end of the video memory, and
        we need to wrap at 0xb0000
     */
-    veut->display_end = wrap;
-    wrap = veut->display_start;
-    veut->display_start = 0;
-    veut->max_len = veut->max_max_len;
-    update_ret = update_graphics_loop(vga.mem.wrap - wrap, veut);
-    veut->display_start = wrap;
-    veut->display_end += vga.mem.wrap;
+    veut.display_end = wrap;
+    wrap = veut.display_start;
+    veut.display_start = 0;
+    veut.max_len = veut.max_max_len;
+    update_ret = update_graphics_loop(vga.mem.wrap - wrap);
+    veut.display_start = wrap;
+    veut.display_end += vga.mem.wrap;
   }
 
   if (vga.line_compare < vga.height) {
 
-    veut->display_start = 0;
-    veut->display_end = vga.scan_len * (vga.height - vga.line_compare);
-    veut->max_len = veut->max_max_len;
+    veut.display_start = 0;
+    veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
+    veut.max_len = veut.max_max_len;
 
-    update_ret = update_graphics_loop(vga.scan_len * vga.line_compare, veut);
+    update_ret = update_graphics_loop(vga.scan_len * vga.line_compare);
 
-    veut->display_start = vga.display_start;
-    veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
+    veut.display_start = vga.display_start;
+    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
 
   return update_ret < 0 ? 2 : 1;
 }
 
-int update_screen(vga_emu_update_type *veut)
+int update_screen(void)
 {
   if(vga.config.video_off) {
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
@@ -420,7 +421,7 @@ int update_screen(vga_emu_update_type *veut)
   }
 
   return vga.mode_class == TEXT ? update_text_screen() :
-    update_graphics_screen(veut);
+    update_graphics_screen();
 }
 
 void render_resize(uint8_t *img, int width, int height, int scan_len)
@@ -477,13 +478,12 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
   dirty_all_vga_colors();
 }
 
-void render_blit(vga_emu_update_type *veut, int x, int y, int width,
-	int height)
+void render_blit(int x, int y, int width, int height)
 {
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height);
   else
-    remap_remap_rect_dst(remap_obj, BMP(veut->base + veut->display_start,
+    remap_remap_rect_dst(remap_obj, BMP(veut.base + veut.display_start,
 	vga.width, vga.height, vga.scan_len),
 	x, y, width, height, dst_image);
   Render->refresh_rect(x, y, width, height);
