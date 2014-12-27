@@ -53,7 +53,7 @@ static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 static unsigned char *text_canvas;
-static unsigned char *dst_image;
+static struct bitmap_desc dst_image;
 static struct remap_object *text_remap;
 
 #if CONFIG_SELECTION
@@ -413,8 +413,7 @@ void resize_text_mapper(unsigned char *dst_img, int width, int height,
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
-  remap_dst_resize(text_remap, width, height, scan_len);
-  dst_image = dst_img;
+  dst_image = BMP(dst_img, width, height, scan_len);
 }
 
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)

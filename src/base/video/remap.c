@@ -3412,44 +3412,40 @@ static int _remap_palette_update(void *ros, unsigned i,
   return ro->palette_update(ro, i, bits, r, g, b);
 }
 
-static void _remap_dst_resize(void *ros, int width, int height, int scan_len)
-{
-  RemapObject *ro = ros;
-  ro->dst_resize(ro, width, height, scan_len);
-}
-
 static RectArea _remap_remap_rect(void *ros, const struct bitmap_desc src_img,
 	int x0, int y0, int width, int height,
-	unsigned char *dst_img)
+	struct bitmap_desc dst_img)
 {
   RemapObject *ro = ros;
   ro->src_image = src_img.img;
   ro->src_start = 0;
-  ro->dst_image = dst_img;
+  ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
+  ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_rect_dst(void *ros,
 	const struct bitmap_desc src_img,
-	int x0, int y0, int width, int height, unsigned char *dst_img)
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img)
 {
   RemapObject *ro = ros;
   ro->src_image = src_img.img;
   ro->src_start = 0;
-  ro->dst_image = dst_img;
+  ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
+  ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
   return ro->remap_rect_dst(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_mem(void *ros,
 	const struct bitmap_desc src_img, unsigned src_start,
-	unsigned dst_start, int offset, int len, unsigned char *dst_img)
+	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img)
 {
   RemapObject *ro = ros;
   ro->src_image = src_img.img;
   ro->src_start = src_start;
-  ro->dst_image = dst_img;
+  ro->dst_image = dst_img.img;
   if (dst_start) {
    /* unfortunately dst_start doesn't work and is untrivial to implement
     * within the current code. So we deal with it here and pass 0 down. */
@@ -3458,6 +3454,7 @@ static RectArea _remap_remap_mem(void *ros,
     dst_start = 0;
   }
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
+  ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
   return ro->remap_mem(ro, dst_start, offset, len);
 }
 
@@ -3488,7 +3485,6 @@ static struct remap_calls rmcalls = {
   _remap_remap_done,
   _remap_adjust_gamma,
   _remap_palette_update,
-  _remap_dst_resize,
   _remap_remap_rect,
   _remap_remap_rect_dst,
   _remap_remap_mem,

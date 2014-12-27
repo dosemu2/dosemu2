@@ -27,8 +27,8 @@ static int num_remaps;
 int remap_features;
 static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
-static unsigned char *dst_image;
-static int dst_mode, dst_width, dst_height, dst_scan_len;
+static struct bitmap_desc dst_image;
+static int dst_mode;
 static unsigned ximage_mode;
 
 /*
@@ -243,8 +243,6 @@ static void modify_mode(vga_emu_update_type *veut)
 		MODE_VGA_X, dst_mode, remap_features,
 		color_space);
       cap = remap_get_cap(tmp_ro);
-      remap_dst_resize(tmp_ro, dst_width, dst_height, dst_scan_len);
-
       if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
         v_printf("modify_mode: no memory config change of current graphics mode supported\n");
         remap_done(tmp_ro);
@@ -431,11 +429,7 @@ void render_resize(uint8_t *img, int width, int height, int scan_len)
     resize_text_mapper(img, width, height, scan_len);
     return;
   }
-  remap_dst_resize(remap_obj, width, height, scan_len);
-  dst_image = img;
-  dst_width = width;
-  dst_height = height;
-  dst_scan_len = scan_len;
+  dst_image = BMP(img, width, height, scan_len);
 }
 
 void render_init(uint8_t *img, int width, int height, int scan_len)
@@ -598,15 +592,14 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t
 REMAP_CALL1(void, adjust_gamma, unsigned, gamma)
 REMAP_CALL5(int, palette_update, unsigned, i,
 	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
-REMAP_CALL3(void, dst_resize, int, width, int, height, int, scan_len)
 REMAP_CALL6(RectArea, remap_rect, const struct bitmap_desc, src_img,
-	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
+	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img)
 REMAP_CALL6(RectArea, remap_rect_dst, const struct bitmap_desc, src_img,
-	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
+	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img)
 REMAP_CALL6(RectArea, remap_mem, const struct bitmap_desc, src_img,
 	unsigned, src_start,
 	unsigned, dst_start, int, offset, int, len,
-	unsigned char *, dst_img)
+	struct bitmap_desc, dst_img)
 REMAP_CALL0(int, get_cap)
 
 void color_space_complete(ColorSpaceDesc *csd)

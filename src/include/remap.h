@@ -20,7 +20,7 @@ typedef struct ColorSpaceDesc {
 } ColorSpaceDesc;
 
 struct bitmap_desc {
-  const unsigned char *img;
+  unsigned char *img;
   int width;
   int height;
   int scan_len;
@@ -34,15 +34,13 @@ struct remap_calls {
   void (*adjust_gamma)(void *ro, unsigned gamma);
   int (*palette_update)(void *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
-  void (*dst_resize)(void *ro, int width, int height,
-	int scan_len);
   RectArea (*remap_rect)(void *ro, const struct bitmap_desc src_img,
-	int x0, int y0, int width, int height, unsigned char *dst_img);
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img);
   RectArea (*remap_rect_dst)(void *ro, const struct bitmap_desc src_img,
-	int x0, int y0, int width, int height, unsigned char *dst_img);
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img);
   RectArea (*remap_mem)(void *ro, const struct bitmap_desc src_img,
 	unsigned src_start,
-	unsigned dst_start, int offset, int len, unsigned char *dst_img);
+	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img);
   int (*get_cap)(void *ro);
   const char *name;
 };
