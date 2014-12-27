@@ -415,17 +415,6 @@ void resize_text_mapper(unsigned char *dst_img, int width, int height,
     error("X: cannot allocate text mode canvas for font simulation\n");
   remap_dst_resize(text_remap, width, height, scan_len);
   dst_image = dst_img;
-
-  dirty_all_video_pages();
-  /*
-   * The new remap object does not yet know about our colors.
-   * So we have to force an update. -- sw
-   */
-  dirty_all_vga_colors();
-
-  vga.reconfig.mem =
-    vga.reconfig.display =
-    vga.reconfig.dac = 0;
 }
 
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
