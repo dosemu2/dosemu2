@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "emu.h"
+#include "utilities.h"
 #include "vgaemu.h"
 #include "remap.h"
 #include "vgatext.h"
@@ -31,6 +32,25 @@ static struct bitmap_desc dst_image;
 static int dst_mode;
 static unsigned ximage_mode;
 static vga_emu_update_type veut;
+static int render_locked;
+
+static void render_lock(void)
+{
+  Render->lock();
+  render_locked++;
+}
+
+static void render_unlock(void)
+{
+  Render->unlock();
+  render_locked--;
+}
+
+static void check_locked(void)
+{
+  if (!render_locked)
+    dosemu_error("render not locked!\n");
+}
 
 /*
  * Draw a text string for bitmap fonts.
@@ -39,9 +59,9 @@ static vga_emu_update_type veut;
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
   RectArea ra;
-  Render->lock();
+  render_lock();
   ra = convert_bitmap_string(x, y, text, len, attr);
-  Render->unlock();
+  render_unlock();
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
@@ -51,9 +71,9 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
 static void bitmap_draw_line(int x, int y, int len)
 {
   RectArea ra;
-  Render->lock();
+  render_lock();
   ra = draw_bitmap_line(x, y, len);
-  Render->unlock();
+  render_unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -61,9 +81,9 @@ static void bitmap_draw_line(int x, int y, int len)
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
 {
   RectArea ra;
-  Render->lock();
+  render_lock();
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus);
-  Render->unlock();
+  render_unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -328,13 +348,13 @@ static int update_graphics_loop(int update_offset)
 #endif
 
   while((update_ret = vga_emu_update(&veut)) > 0) {
-    Render->lock();
+    render_lock();
     ra = remap_remap_mem(remap_obj, BMP(veut.base,
                              vga.width, vga.height, vga.scan_len),
                              veut.display_start, update_offset,
                              veut.update_start - veut.display_start,
                              veut.update_len, dst_image);
-    Render->unlock();
+    render_unlock();
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
     XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
@@ -486,14 +506,14 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 
 void render_blit(int x, int y, int width, int height)
 {
-  Render->lock();
+  render_lock();
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height);
   else
     remap_remap_rect_dst(remap_obj, BMP(veut.base + veut.display_start,
 	vga.width, vga.height, vga.scan_len),
 	x, y, width, height, dst_image);
-  Render->unlock();
+  render_unlock();
   Render->refresh_rect(x, y, width, height);
 }
 
@@ -559,43 +579,58 @@ void remap_done(struct remap_object *ro)
 #define REMAP_CALL0(r, x) \
 r remap_##x(struct remap_object *ro) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv); \
 }
 #define REMAP_CALL1(r, x, t, a) \
 r remap_##x(struct remap_object *ro, t a) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv, a); \
 }
 #define REMAP_CALL3(r, x, t1, a1, t2, a2, t3, a3) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv, a1, a2, a3); \
 }
 #define REMAP_CALL5(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv, a1, a2, a3, a4, a5); \
 }
 #define REMAP_CALL6(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6); \
 }
 #define REMAP_CALL7(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7); \
 }
 #define REMAP_CALL8(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8); \
 }
 #define REMAP_CALL9(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8, t9, a9) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8, t9 a9) \
 { \
+  CHECK_##x(); \
   return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8, a9); \
 }
+
+#define CHECK_get_cap()
+#define CHECK_remap_mem() check_locked()
+#define CHECK_remap_rect() check_locked()
+#define CHECK_remap_rect_dst() check_locked()
+#define CHECK_palette_update()
+#define CHECK_adjust_gamma()
 
 REMAP_CALL1(void, adjust_gamma, unsigned, gamma)
 REMAP_CALL5(int, palette_update, unsigned, i,
