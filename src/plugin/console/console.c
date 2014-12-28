@@ -64,6 +64,12 @@ static void console_update_cursor(void)
   oldx = xpos; oldy = ypos; oldblink = blinkflag;
 }
 
+static int console_update_screen(void)
+{
+  console_update_cursor();
+  return 1;
+}
+
 static int console_post_init(void)
 {
   int kdmode;
@@ -167,11 +173,10 @@ static struct video_system Video_console = {
    console_post_init,
    console_close,
    console_setmode,
-   NULL,             /* update_screen */
-   console_update_cursor,
+   console_update_screen,
    NULL,
    NULL,              /* handle_events */
-   .name = "console"
+   "console"
 };
 
 CONSTRUCTOR(static void init(void))

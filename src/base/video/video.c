@@ -56,10 +56,9 @@ static struct video_system Video_none = {
   v_empty_void,	/* close */
   NULL,		/* setmode */
   NULL,	        /* update_screen */
-  v_empty_void,	/* update_cursor */
   NULL,         /* change_config */
   NULL,         /* handle_events */
-  .name = "none"
+  "none"
 };
 
 static int no_real_terminal(void)

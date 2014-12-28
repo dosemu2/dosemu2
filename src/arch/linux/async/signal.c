@@ -808,10 +808,6 @@ static void SIGALRM_call(void *arg)
        vm86s.screen_bitmap=0;
 #endif
     }
-    else if (Video->update_cursor) {
-       v_printf("update cursor\n");
-       Video->update_cursor();
-    }
   }
   else if (running > 0) {
     running--;

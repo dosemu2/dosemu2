@@ -441,9 +441,6 @@ static int X_update_screen(void);
 static void load_cursor_shapes(void);
 static Cursor create_invisible_cursor(void);
 
-/* text mode cursor manipulation stuff */
-static void X_update_cursor(void);
-
 #if CONFIG_X_MOUSE
 /* mouse related code */
 static void set_mouse_position(int, int);
@@ -470,10 +467,9 @@ struct video_system Video_X =
    X_close,
    X_set_videomode,
    X_update_screen,
-   X_update_cursor,
    X_change_config,
    X_handle_events,
-   .name = "X"
+   "X"
 };
 
 struct render_system Render_X =
@@ -2404,19 +2400,6 @@ Cursor create_invisible_cursor()
   XFreePixmap(display, mask);
   return cursor;
 }
-
-
-/*
- * Redraw the cursor if it's necessary.
- * Do nothing in graphics modes.
- */
-void X_update_cursor()
-{
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-  update_cursor();
-}
-
 
 #if CONFIG_X_MOUSE
 /*

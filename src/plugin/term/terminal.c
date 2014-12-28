@@ -853,10 +853,9 @@ static struct video_system Video_term = {
    terminal_close,
    term_setmode,
    slang_update,
-   term_update_cursor,
    NULL,
    NULL,
-   .name = "term"
+   "term"
 };
 
 struct text_system Text_term =

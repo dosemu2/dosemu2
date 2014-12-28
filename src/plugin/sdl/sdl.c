@@ -43,7 +43,6 @@ static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
-static void SDL_update_cursor(void);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int *x_res, int *y_res);
@@ -63,10 +62,9 @@ struct video_system Video_SDL =
   SDL_close,
   SDL_set_videomode,
   SDL_update_screen,
-  SDL_update_cursor,
   SDL_change_config,
   SDL_handle_events,
-  .name = "sdl"
+  "sdl"
 };
 
 struct render_system Render_SDL =
@@ -427,25 +425,6 @@ static void SDL_change_mode(int *x_res, int *y_res)
     }
   }
 #endif
-}
-
-void SDL_update_cursor(void)
-{
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-   else if (is_mapped) {
-#ifdef X_SUPPORT
-     if (!use_bitmap_font) {
-       update_cursor();
-       return;
-     }
-#endif
-     if (surface==NULL) return;
-     SDL_LockSurface(surface);
-     update_cursor();
-     SDL_UnlockSurface(surface);
-     SDL_update();
-   }
 }
 
 int SDL_update_screen(void)
