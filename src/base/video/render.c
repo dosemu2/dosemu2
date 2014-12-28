@@ -38,7 +38,10 @@ static vga_emu_update_type veut;
  */
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
-  RectArea ra = convert_bitmap_string(x, y, text, len, attr);
+  RectArea ra;
+  Render->lock();
+  ra = convert_bitmap_string(x, y, text, len, attr);
+  Render->unlock();
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
@@ -48,8 +51,9 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
 static void bitmap_draw_line(int x, int y, int len)
 {
   RectArea ra;
-
+  Render->lock();
   ra = draw_bitmap_line(x, y, len);
+  Render->unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -57,8 +61,9 @@ static void bitmap_draw_line(int x, int y, int len)
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
 {
   RectArea ra;
-
+  Render->lock();
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus);
+  Render->unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -323,12 +328,13 @@ static int update_graphics_loop(int update_offset)
 #endif
 
   while((update_ret = vga_emu_update(&veut)) > 0) {
+    Render->lock();
     ra = remap_remap_mem(remap_obj, BMP(veut.base,
                              vga.width, vga.height, vga.scan_len),
                              veut.display_start, update_offset,
                              veut.update_start - veut.display_start,
                              veut.update_len, dst_image);
-
+    Render->unlock();
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
     XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
@@ -480,12 +486,14 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 
 void render_blit(int x, int y, int width, int height)
 {
+  Render->lock();
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height);
   else
     remap_remap_rect_dst(remap_obj, BMP(veut.base + veut.display_start,
 	vga.width, vga.height, vga.scan_len),
 	x, y, width, height, dst_image);
+  Render->unlock();
   Render->refresh_rect(x, y, width, height);
 }
 

@@ -54,6 +54,8 @@ static int SDL_set_text_mode(int tw, int th, int w ,int h);
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
 static void toggle_grab(void);
+static void lock_surface(void);
+static void unlock_surface(void);
 
 struct video_system Video_SDL =
 {
@@ -70,6 +72,8 @@ struct video_system Video_SDL =
 struct render_system Render_SDL =
 {
    SDL_put_image,
+   lock_surface,
+   unlock_surface,
 };
 
 static const SDL_VideoInfo *video_info;
@@ -267,6 +271,16 @@ static void SDL_update(void)
   sdl_rects.num = 0;
 }
 
+static void lock_surface(void)
+{
+  SDL_LockSurface(surface);
+}
+
+static void unlock_surface(void)
+{
+  SDL_UnlockSurface(surface);
+}
+
 /*
  * Sync prev_screen & screen_adr.
  */
@@ -286,10 +300,7 @@ static void SDL_redraw_text_screen(void)
   }
 #endif
   if (surface==NULL) return;
-  SDL_LockSurface(surface);
   redraw_text_screen();
-  SDL_UnlockSurface(surface);
-  SDL_update();
 }
 
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
@@ -438,9 +449,7 @@ int SDL_update_screen(void)
       return update_screen();
 #endif
     if (surface==NULL) return 1;
-    SDL_LockSurface(surface);
     ret = update_screen();
-    SDL_UnlockSurface(surface);
     SDL_update();
     return ret;
   }

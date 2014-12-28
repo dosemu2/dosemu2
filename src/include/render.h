@@ -10,6 +10,8 @@
 struct render_system
 {
   void (*refresh_rect)(int x, int y, unsigned width, unsigned height);
+  void (*lock)(void);
+  void (*unlock)(void);
 };
 
 int register_render_system(struct render_system *render_system);

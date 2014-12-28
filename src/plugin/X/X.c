@@ -449,6 +449,8 @@ static void toggle_mouse_grab(void);
 #endif
 static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
+static void X_lock(void);
+static void X_unlock(void);
 
 void kdos_recv_msg(char *);
 void kdos_send_msg(char *);
@@ -475,6 +477,8 @@ struct video_system Video_X =
 struct render_system Render_X =
 {
    put_ximage,
+   X_lock,
+   X_unlock
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1318,6 +1322,16 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 		mouse_warped = 1;
 	}
 #endif /* CONFIG_X_MOUSE */
+}
+
+static void X_lock(void)
+{
+  XLockDisplay(display);
+}
+
+static void X_unlock(void)
+{
+  XUnlockDisplay(display);
 }
 
 /* From SDL: Called after unmapping a window - waits until the window is unmapped */
