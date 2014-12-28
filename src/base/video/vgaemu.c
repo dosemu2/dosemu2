@@ -1550,16 +1550,6 @@ int vga_emu_pre_init(void)
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
 
-  if (!Video->update_screen) {
-    vga_emu_setup_mode_table();
-    if (Video->update_cursor) {
-      vgaemu_register_ports();
-      MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
-      for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
-    }
-    return 0;
-  }
-
   open_mapping(MAPPING_VGAEMU);
 
   if(config.vgaemu_memsize)
