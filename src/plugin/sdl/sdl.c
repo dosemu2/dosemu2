@@ -89,7 +89,6 @@ static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static int initialized;
 
 /* For graphics mode */
-static vga_emu_update_type veut;
 static ColorSpaceDesc SDL_csd;
 
 static struct {
@@ -326,7 +325,7 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
     if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
-    get_mode_parameters(&w_x_res, &w_y_res, &veut);
+    get_mode_parameters(&w_x_res, &w_y_res);
     SDL_change_mode(&w_x_res, &w_y_res);
   }
 
@@ -348,7 +347,7 @@ static void SDL_redraw_resize_image(unsigned width, unsigned height)
   SDL_resize_image(width, height);
   /* forget about those rectangles */
   sdl_rects.num = 0;
-  render_blit(&veut, 0, 0, width, height);
+  render_blit(0, 0, width, height);
 }
 
 int SDL_set_text_mode(int tw, int th, int w ,int h)
@@ -457,11 +456,11 @@ int SDL_update_screen(void)
     int ret;
 #ifdef X_SUPPORT
     if (!use_bitmap_font && vga.mode_class == TEXT)
-      return update_screen(&veut);
+      return update_screen();
 #endif
     if (surface==NULL) return 1;
     SDL_LockSurface(surface);
-    ret = update_screen(&veut);
+    ret = update_screen();
     SDL_UnlockSurface(surface);
     SDL_update();
     return ret;

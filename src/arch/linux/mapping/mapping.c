@@ -188,21 +188,23 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 
 void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
 {
-  void *target = MEM_BASE32(targ), *addr;
+  void *target = NULL, *addr;
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
-  if (targ != -1)
+  if (targ != -1) {
+    target = MEM_BASE32(targ);
     cap |= MAPPING_FIXED;
-  if (cap & MAPPING_COPYBACK) {
-    if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-      memcpy(source, target, mapsize);
-    } else {
-      error("COPYBACK is not supported for mapping type %#x\n", cap);
-      return MAP_FAILED;
+    if (cap & MAPPING_COPYBACK) {
+      if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
+        memcpy(source, target, mapsize);
+      } else {
+        error("COPYBACK is not supported for mapping type %#x\n", cap);
+        return MAP_FAILED;
+      }
     }
+    kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
   }
-  kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
 #ifdef __x86_64__
   /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
   if (!(cap & MAPPING_FIXED) && (cap &

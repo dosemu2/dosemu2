@@ -27,9 +27,10 @@ static int num_remaps;
 int remap_features;
 static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
-static unsigned char *dst_image;
-static int dst_mode, dst_width, dst_height, dst_scan_len;
+static struct bitmap_desc dst_image;
+static int dst_mode;
 static unsigned ximage_mode;
+static vga_emu_update_type veut;
 
 /*
  * Draw a text string for bitmap fonts.
@@ -152,8 +153,7 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
-void get_mode_parameters(int *wx_res, int *wy_res,
-			 vga_emu_update_type *veut)
+void get_mode_parameters(int *wx_res, int *wy_res)
 {
   int x_res, y_res, w_x_res, w_y_res;
 
@@ -209,15 +209,16 @@ void get_mode_parameters(int *wx_res, int *wy_res,
     }
   }
 #endif
-  veut->base = vga.mem.base;
-  veut->max_max_len = 0;
-  veut->max_len = 0;
-  veut->display_start = 0;
-  veut->display_end = vga.scan_len * vga.line_compare;
+
+  veut.base = vga.mem.base;
+  veut.max_max_len = 0;
+  veut.max_len = 0;
+  veut.display_start = 0;
+  veut.display_end = vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
-    veut->display_end = vga.scan_len * vga.height;
-  veut->update_gran = 0;
-  veut->update_pos = veut->display_start;
+    veut.display_end = vga.scan_len * vga.height;
+  veut.update_gran = 0;
+  veut.update_pos = veut.display_start;
 
   *wx_res = w_x_res;
   *wy_res = w_y_res;
@@ -228,7 +229,7 @@ void get_mode_parameters(int *wx_res, int *wy_res,
  * Currently used to turn on/off chain4 addressing, change
  * the VGA screen size, change the DAC size.
  */
-static void modify_mode(vga_emu_update_type *veut)
+static void modify_mode(void)
 {
   struct remap_object *tmp_ro;
   int cap;
@@ -243,9 +244,6 @@ static void modify_mode(vga_emu_update_type *veut)
 		MODE_VGA_X, dst_mode, remap_features,
 		color_space);
       cap = remap_get_cap(tmp_ro);
-      remap_src_resize(tmp_ro, vga.width, vga.height, vga.scan_len);
-      remap_dst_resize(tmp_ro, dst_width, dst_height, dst_scan_len);
-
       if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
         v_printf("modify_mode: no memory config change of current graphics mode supported\n");
         remap_done(tmp_ro);
@@ -270,7 +268,6 @@ static void modify_mode(vga_emu_update_type *veut)
   }
 
   if(vga.reconfig.display) {
-    remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
     v_printf(
       "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
       vga.width, vga.height, vga.scan_len
@@ -284,10 +281,10 @@ static void modify_mode(vga_emu_update_type *veut)
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
   }
 
-  veut->display_start = vga.display_start;
-  veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
+  veut.display_start = vga.display_start;
+  veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
-    veut->display_end = veut->display_start + vga.scan_len * vga.height;
+    veut.display_end = veut.display_start + vga.scan_len * vga.height;
 
   if(vga.reconfig.mem || vga.reconfig.display) {
     v_printf("modify_mode: failed to modify current graphics mode\n");
@@ -317,7 +314,7 @@ static void modify_mode(vga_emu_update_type *veut)
  * too messy. -- sw
  */
 
-static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
+static int update_graphics_loop(int update_offset)
 {
   RectArea ra;
   int update_ret;
@@ -325,11 +322,12 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
   static int dsua_fg_color = 0;
 #endif
 
-  while((update_ret = vga_emu_update(veut)) > 0) {
-    ra = remap_remap_mem(remap_obj, veut->base, veut->display_start,
-                             update_offset,
-                             veut->update_start - veut->display_start,
-                             veut->update_len, dst_image);
+  while((update_ret = vga_emu_update(&veut)) > 0) {
+    ra = remap_remap_mem(remap_obj, BMP(veut.base,
+                             vga.width, vga.height, vga.scan_len),
+                             veut.display_start, update_offset,
+                             veut.update_start - veut.display_start,
+                             veut.update_len, dst_image);
 
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
@@ -341,34 +339,34 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       vga.display_start, vga.mem.write_plane,
-      veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
+      veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
     );
   }
   return update_ret;
 }
 
-static int update_graphics_screen(vga_emu_update_type *veut)
+static int update_graphics_screen(void)
 {
   int update_ret;
   unsigned wrap;
 
   if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac)
-    modify_mode(veut);
+    modify_mode();
 
   refresh_graphics_palette();
 
-  if(vga.display_start != veut->display_start) {
-    veut->display_start = vga.display_start;
-    veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
+  if(vga.display_start != veut.display_start) {
+    veut.display_start = vga.display_start;
+    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
     if (vga.line_compare > vga.height)
-      veut->display_end = veut->display_start + vga.scan_len * vga.height;
+      veut.display_end = veut.display_start + vga.scan_len * vga.height;
     dirty_all_video_pages();
   }
 
   wrap = 0;
-  if (veut->display_end > vga.mem.wrap) {
-    wrap = veut->display_end - vga.mem.wrap;
-    veut->display_end = vga.mem.wrap;
+  if (veut.display_end > vga.mem.wrap) {
+    wrap = veut.display_end - vga.mem.wrap;
+    veut.display_end = vga.mem.wrap;
   }
 
   /*
@@ -382,40 +380,40 @@ static int update_graphics_screen(vga_emu_update_type *veut)
    * example).
    */
 
-  veut->max_len = veut->max_max_len;
+  veut.max_len = veut.max_max_len;
 
-  update_ret = update_graphics_loop(0, veut);
+  update_ret = update_graphics_loop(0);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
        display_start close to the end of the video memory, and
        we need to wrap at 0xb0000
     */
-    veut->display_end = wrap;
-    wrap = veut->display_start;
-    veut->display_start = 0;
-    veut->max_len = veut->max_max_len;
-    update_ret = update_graphics_loop(vga.mem.wrap - wrap, veut);
-    veut->display_start = wrap;
-    veut->display_end += vga.mem.wrap;
+    veut.display_end = wrap;
+    wrap = veut.display_start;
+    veut.display_start = 0;
+    veut.max_len = veut.max_max_len;
+    update_ret = update_graphics_loop(vga.mem.wrap - wrap);
+    veut.display_start = wrap;
+    veut.display_end += vga.mem.wrap;
   }
 
   if (vga.line_compare < vga.height) {
 
-    veut->display_start = 0;
-    veut->display_end = vga.scan_len * (vga.height - vga.line_compare);
-    veut->max_len = veut->max_max_len;
+    veut.display_start = 0;
+    veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
+    veut.max_len = veut.max_max_len;
 
-    update_ret = update_graphics_loop(vga.scan_len * vga.line_compare, veut);
+    update_ret = update_graphics_loop(vga.scan_len * vga.line_compare);
 
-    veut->display_start = vga.display_start;
-    veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
+    veut.display_start = vga.display_start;
+    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
 
   return update_ret < 0 ? 2 : 1;
 }
 
-int update_screen(vga_emu_update_type *veut)
+int update_screen(void)
 {
   if(vga.config.video_off) {
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
@@ -423,7 +421,7 @@ int update_screen(vga_emu_update_type *veut)
   }
 
   return vga.mode_class == TEXT ? update_text_screen() :
-    update_graphics_screen(veut);
+    update_graphics_screen();
 }
 
 void render_resize(uint8_t *img, int width, int height, int scan_len)
@@ -432,11 +430,7 @@ void render_resize(uint8_t *img, int width, int height, int scan_len)
     resize_text_mapper(img, width, height, scan_len);
     return;
   }
-  remap_dst_resize(remap_obj, width, height, scan_len);
-  dst_image = img;
-  dst_width = width;
-  dst_height = height;
-  dst_scan_len = scan_len;
+  dst_image = BMP(img, width, height, scan_len);
 }
 
 void render_init(uint8_t *img, int width, int height, int scan_len)
@@ -476,8 +470,6 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
   remap_obj = remap_init(mode_type, dst_mode, remap_features,
 	color_space);
   remap_adjust_gamma(remap_obj, config.X_gamma);
-
-  remap_src_resize(remap_obj, vga.width, vga.height, vga.scan_len);
   render_resize(img, width, height, scan_len);
   /*
    * The new remap object does not yet know about our colors.
@@ -486,13 +478,13 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
   dirty_all_vga_colors();
 }
 
-void render_blit(vga_emu_update_type *veut, int x, int y, int width,
-	int height)
+void render_blit(int x, int y, int width, int height)
 {
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height);
   else
-    remap_remap_rect_dst(remap_obj, veut->base + veut->display_start,
+    remap_remap_rect_dst(remap_obj, BMP(veut.base + veut.display_start,
+	vga.width, vga.height, vga.scan_len),
 	x, y, width, height, dst_image);
   Render->refresh_rect(x, y, width, height);
 }
@@ -581,19 +573,33 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
 { \
   return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6); \
 }
+#define REMAP_CALL7(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7); \
+}
+#define REMAP_CALL8(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8); \
+}
+#define REMAP_CALL9(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8, t9, a9) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8, t9 a9) \
+{ \
+  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8, a9); \
+}
 
 REMAP_CALL1(void, adjust_gamma, unsigned, gamma)
 REMAP_CALL5(int, palette_update, unsigned, i,
 	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
-REMAP_CALL3(void, src_resize, int, width, int, height, int, scan_len)
-REMAP_CALL3(void, dst_resize, int, width, int, height, int, scan_len)
-REMAP_CALL6(RectArea, remap_rect, const unsigned char *, src_img,
-	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
-REMAP_CALL6(RectArea, remap_rect_dst, const unsigned char *, src_img,
-	int, x0, int, y0, int, width, int, height, unsigned char *, dst_img)
-REMAP_CALL6(RectArea, remap_mem, const unsigned char *, src_img,
-	unsigned, src_start, unsigned, dst_start, int, offset, int, len,
-	unsigned char *, dst_img)
+REMAP_CALL6(RectArea, remap_rect, const struct bitmap_desc, src_img,
+	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img)
+REMAP_CALL6(RectArea, remap_rect_dst, const struct bitmap_desc, src_img,
+	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img)
+REMAP_CALL6(RectArea, remap_mem, const struct bitmap_desc, src_img,
+	unsigned, src_start,
+	unsigned, dst_start, int, offset, int, len,
+	struct bitmap_desc, dst_img)
 REMAP_CALL0(int, get_cap)
 
 void color_space_complete(ColorSpaceDesc *csd)

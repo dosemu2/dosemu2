@@ -53,7 +53,7 @@ static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 static unsigned char *text_canvas;
-static unsigned char *dst_image;
+static struct bitmap_desc dst_image;
 static struct remap_object *text_remap;
 
 #if CONFIG_SELECTION
@@ -218,9 +218,11 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
     for (j = 0; j < vga.char_width; j ++)
       *deb++ = fg;
   }
-  return remap_remap_rect(text_remap, text_canvas,
+  return remap_remap_rect(text_remap, BMP(text_canvas,
+			      vga.width, vga.height, vga.width),
 			      vga.char_width * x, vga.char_height * y,
-			      vga.char_width, vga.char_height, dst_image);
+			      vga.char_width, vga.char_height,
+			      dst_image);
 }
 
 /*
@@ -242,7 +244,9 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
 
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
-  return remap_remap_rect(text_remap, text_canvas, x, y, linelen, 1, dst_image);
+  return remap_remap_rect(text_remap, BMP(text_canvas,
+    vga.width, vga.height, vga.width),
+    x, y, linelen, 1, dst_image);
 }
 
 void reset_redraw_text_screen(void)
@@ -296,8 +300,9 @@ void text_blit(int x, int y, int width, int height)
 {
   if (!use_bitmap_font)
     return;
-  remap_remap_rect_dst(text_remap, text_canvas, x, y, width,
-	height, dst_image);
+  remap_remap_rect_dst(text_remap, BMP(text_canvas,
+	vga.width, vga.height, vga.width),
+	x, y, width, height, dst_image);
 }
 
 /*
@@ -409,20 +414,7 @@ void resize_text_mapper(unsigned char *dst_img, int width, int height,
   text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
   if (text_canvas == NULL)
     error("X: cannot allocate text mode canvas for font simulation\n");
-  remap_src_resize(text_remap, vga.width, vga.height, 1 * vga.width);
-  remap_dst_resize(text_remap, width, height, scan_len);
-  dst_image = dst_img;
-
-  dirty_all_video_pages();
-  /*
-   * The new remap object does not yet know about our colors.
-   * So we have to force an update. -- sw
-   */
-  dirty_all_vga_colors();
-
-  vga.reconfig.mem =
-    vga.reconfig.display =
-    vga.reconfig.dac = 0;
+  dst_image = BMP(dst_img, width, height, scan_len);
 }
 
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
@@ -530,7 +522,8 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
     src++;  /* globally shift to the next font row!!! */
   }
 
-  return remap_remap_rect(text_remap, text_canvas,
+  return remap_remap_rect(text_remap, BMP(text_canvas,
+			      vga.width, vga.height, vga.width),
 			      vga.char_width * x, height * y,
 			      vga.char_width * len, height, dst_image);
 }
@@ -555,8 +548,6 @@ int update_text_screen(void)
   refresh_text_palette();
 
   if(vga.reconfig.mem) {
-    if (use_bitmap_font)
-      remap_src_resize(text_remap, vga.width, vga.height, vga.width);
     redraw_text_screen();
     vga.reconfig.mem = 0;
   }

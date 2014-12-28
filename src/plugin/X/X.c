@@ -368,7 +368,6 @@ static int w_x_res, w_y_res;		/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
-static vga_emu_update_type veut;
 
 static int grab_active = 0, kbd_grab_active = 0;
 #if CONFIG_X_MOUSE
@@ -1395,7 +1394,7 @@ static void toggle_fullscreen_mode(int init)
     X_resize_text_screen();
   } else {	/* GRAPH or builtin font */
     resize_ximage(resize_width, resize_height);
-    render_blit(&veut, 0, 0, resize_width, resize_height);
+    render_blit(0, 0, resize_width, resize_height);
   }
 }
 
@@ -1709,7 +1708,7 @@ static void X_handle_events(void)
       resize_event = 0;
       XResizeWindow(display, drawwindow, resize_width, resize_height);
       resize_ximage(resize_width, resize_height);
-      render_blit(&veut, 0, 0, resize_width, resize_height);
+      render_blit(0, 0, resize_width, resize_height);
     }
 
 #if CONFIG_X_MOUSE
@@ -2181,7 +2180,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     x_res = vga.width;
     y_res = vga.height;
 
-    get_mode_parameters(&w_x_res, &w_y_res, &veut);
+    get_mode_parameters(&w_x_res, &w_y_res);
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;
@@ -2354,7 +2353,7 @@ void X_redraw_text_screen()
 
 int X_update_screen()
 {
-  return is_mapped ? update_screen(&veut) : 0;
+  return is_mapped ? update_screen() : 0;
 }
 
 

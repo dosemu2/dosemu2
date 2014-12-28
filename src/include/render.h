@@ -18,11 +18,9 @@ int register_remapper(struct remap_calls *calls, int prio);
 int remapper_init(unsigned *image_mode,
 		  int have_true_color, int have_shmap, ColorSpaceDesc *csd);
 void remapper_done(void);
-void get_mode_parameters(int *wx_res, int *wy_res,
-			 vga_emu_update_type *veut);
-int update_screen(vga_emu_update_type *veut);
+void get_mode_parameters(int *wx_res, int *wy_res);
+int update_screen(void);
 void render_init(uint8_t *img, int width, int height, int scan_len);
 void render_resize(uint8_t *img, int width, int height, int scan_len);
 void color_space_complete(ColorSpaceDesc *color_space);
-void render_blit(vga_emu_update_type *veut,
-	int x, int y, int width, int height);
+void render_blit(int x, int y, int width, int height);

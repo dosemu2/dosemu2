@@ -40,7 +40,7 @@ static void do_debug(void)
 {
   char *cmd1 = "info registers\n";
 //  char *cmd2 = "backtrace\n";
-  char *cmd3 = "backtrace full\n";
+  char *cmd3 = "thread apply all backtrace full\n";
 
   gdb_command(cmd1);
 //  gdb_command(cmd2);
