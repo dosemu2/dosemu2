@@ -7,6 +7,8 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <assert.h>
 #include "emu.h"
 #include "utilities.h"
@@ -31,8 +33,11 @@ static const ColorSpaceDesc *color_space;
 static struct bitmap_desc dst_image;
 static int dst_mode;
 static unsigned ximage_mode;
-static vga_emu_update_type veut;
 static int render_locked;
+static pthread_t render_thr;
+static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
+static sem_t render_sem;
+static void *render_thread(void *arg);
 
 static void render_lock(void)
 {
@@ -109,7 +114,7 @@ int register_render_system(struct render_system *render_system)
 int remapper_init(unsigned *image_mode,
 		  int have_true_color, int have_shmap, ColorSpaceDesc *csd)
 {
-  int remap_src_modes;
+  int remap_src_modes, err;
 
 //  set_remap_debug_msg(stderr);
 
@@ -139,6 +144,12 @@ int remapper_init(unsigned *image_mode,
   color_space = csd;
   dst_mode = ximage_mode;
   init_text_mapper(ximage_mode, csd);
+
+  err = sem_init(&render_sem, 0, 0);
+  assert(!err);
+  err = pthread_create(&render_thr, NULL, render_thread, NULL);
+  assert(!err);
+
   return remap_src_modes;
 }
 
@@ -148,6 +159,8 @@ int remapper_init(unsigned *image_mode,
  */
 void remapper_done(void)
 {
+  pthread_cancel(render_thr);
+  pthread_join(render_thr, NULL);
   done_text_mapper();
   if (remap_obj)
     remap_done(remap_obj);
@@ -235,16 +248,6 @@ void get_mode_parameters(int *wx_res, int *wy_res)
   }
 #endif
 
-  veut.base = vga.mem.base;
-  veut.max_max_len = 0;
-  veut.max_len = 0;
-  veut.display_start = 0;
-  veut.display_end = vga.scan_len * vga.line_compare;
-  if (vga.line_compare > vga.height)
-    veut.display_end = vga.scan_len * vga.height;
-  veut.update_gran = 0;
-  veut.update_pos = veut.display_start;
-
   *wx_res = w_x_res;
   *wy_res = w_y_res;
 }
@@ -254,7 +257,7 @@ void get_mode_parameters(int *wx_res, int *wy_res)
  * Currently used to turn on/off chain4 addressing, change
  * the VGA screen size, change the DAC size.
  */
-static void modify_mode(void)
+static void modify_mode(vga_emu_update_type *veut)
 {
   struct remap_object *tmp_ro;
   int cap;
@@ -275,8 +278,10 @@ static void modify_mode(void)
       }
       else {
         v_printf("modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
+        pthread_mutex_lock(&render_mtx);
         remap_done(remap_obj);
         remap_obj = tmp_ro;
+        pthread_mutex_unlock(&render_mtx);
       }
 
       dirty_all_video_pages();
@@ -306,10 +311,10 @@ static void modify_mode(void)
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
   }
 
-  veut.display_start = vga.display_start;
-  veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
+  veut->display_start = vga.display_start;
+  veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
-    veut.display_end = veut.display_start + vga.scan_len * vga.height;
+    veut->display_end = veut->display_start + vga.scan_len * vga.height;
 
   if(vga.reconfig.mem || vga.reconfig.display) {
     v_printf("modify_mode: failed to modify current graphics mode\n");
@@ -339,7 +344,7 @@ static void modify_mode(void)
  * too messy. -- sw
  */
 
-static int update_graphics_loop(int update_offset)
+static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 {
   RectArea ra;
   int update_ret;
@@ -347,13 +352,13 @@ static int update_graphics_loop(int update_offset)
   static int dsua_fg_color = 0;
 #endif
 
-  while((update_ret = vga_emu_update(&veut)) > 0) {
+  while((update_ret = vga_emu_update(veut)) > 0) {
     render_lock();
-    ra = remap_remap_mem(remap_obj, BMP(veut.base,
+    ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
-                             veut.display_start, update_offset,
-                             veut.update_start - veut.display_start,
-                             veut.update_len, dst_image);
+                             veut->display_start, update_offset,
+                             veut->update_start - veut->display_start,
+                             veut->update_len, dst_image);
     render_unlock();
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
@@ -365,7 +370,7 @@ static int update_graphics_loop(int update_offset)
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       vga.display_start, vga.mem.write_plane,
-      veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
+      veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
     );
   }
   return update_ret;
@@ -373,11 +378,22 @@ static int update_graphics_loop(int update_offset)
 
 static int update_graphics_screen(void)
 {
+  vga_emu_update_type veut;
   int update_ret;
   unsigned wrap;
 
+  veut.base = vga.mem.base;
+  veut.max_max_len = 0;
+  veut.max_len = 0;
+  veut.display_start = 0;
+  veut.display_end = vga.scan_len * vga.line_compare;
+  if (vga.line_compare > vga.height)
+    veut.display_end = vga.scan_len * vga.height;
+  veut.update_gran = 0;
+  veut.update_pos = veut.display_start;
+
   if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac)
-    modify_mode();
+    modify_mode(&veut);
 
   refresh_graphics_palette();
 
@@ -408,7 +424,7 @@ static int update_graphics_screen(void)
 
   veut.max_len = veut.max_max_len;
 
-  update_ret = update_graphics_loop(0);
+  update_ret = update_graphics_loop(0, &veut);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
@@ -419,7 +435,7 @@ static int update_graphics_screen(void)
     wrap = veut.display_start;
     veut.display_start = 0;
     veut.max_len = veut.max_max_len;
-    update_ret = update_graphics_loop(vga.mem.wrap - wrap);
+    update_ret = update_graphics_loop(vga.mem.wrap - wrap, &veut);
     veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
   }
@@ -430,7 +446,7 @@ static int update_graphics_screen(void)
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut.max_len = veut.max_max_len;
 
-    update_ret = update_graphics_loop(vga.scan_len * vga.line_compare);
+    update_ret = update_graphics_loop(vga.scan_len * vga.line_compare, &veut);
 
     veut.display_start = vga.display_start;
     veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
@@ -439,15 +455,27 @@ static int update_graphics_screen(void)
   return update_ret < 0 ? 2 : 1;
 }
 
+static void *render_thread(void *arg)
+{
+  while (1) {
+    sem_wait(&render_sem);
+    if (vga.mode_class == TEXT) {
+      update_text_screen();
+    } else {
+      update_graphics_screen();
+    }
+  }
+  return NULL;
+}
+
 int update_screen(void)
 {
   if(vga.config.video_off) {
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
     return 1;
   }
-
-  return vga.mode_class == TEXT ? update_text_screen() :
-    update_graphics_screen();
+  sem_post(&render_sem);
+  return 1;
 }
 
 void render_resize(uint8_t *img, int width, int height, int scan_len)
@@ -463,6 +491,7 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 {
   int mode_type;
 
+  pthread_mutex_lock(&render_mtx);
   if (remap_obj)
     remap_done(remap_obj);
   switch(vga.mode_type) {
@@ -495,6 +524,7 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 
   remap_obj = remap_init(mode_type, dst_mode, remap_features,
 	color_space);
+  pthread_mutex_unlock(&render_mtx);
   remap_adjust_gamma(remap_obj, config.X_gamma);
   render_resize(img, width, height, scan_len);
   /*
@@ -510,7 +540,7 @@ void render_blit(int x, int y, int width, int height)
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height);
   else
-    remap_remap_rect_dst(remap_obj, BMP(veut.base + veut.display_start,
+    remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len),
 	x, y, width, height, dst_image);
   render_unlock();
@@ -579,50 +609,52 @@ void remap_done(struct remap_object *ro)
 #define REMAP_CALL0(r, x) \
 r remap_##x(struct remap_object *ro) \
 { \
+  r ret; \
   CHECK_##x(); \
-  return ro->calls->x(ro->priv); \
+  pthread_mutex_lock(&render_mtx); \
+  ret = ro->calls->x(ro->priv); \
+  pthread_mutex_unlock(&render_mtx); \
+  return ret; \
 }
 #define REMAP_CALL1(r, x, t, a) \
 r remap_##x(struct remap_object *ro, t a) \
 { \
+  r ret; \
   CHECK_##x(); \
-  return ro->calls->x(ro->priv, a); \
+  pthread_mutex_lock(&render_mtx); \
+  ret = ro->calls->x(ro->priv, a); \
+  pthread_mutex_unlock(&render_mtx); \
+  return ret; \
 }
 #define REMAP_CALL3(r, x, t1, a1, t2, a2, t3, a3) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3) \
 { \
+  r ret; \
   CHECK_##x(); \
-  return ro->calls->x(ro->priv, a1, a2, a3); \
+  pthread_mutex_lock(&render_mtx); \
+  ret = ro->calls->x(ro->priv, a1, a2, a3); \
+  pthread_mutex_unlock(&render_mtx); \
+  return ret; \
 }
 #define REMAP_CALL5(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
 { \
+  r ret; \
   CHECK_##x(); \
-  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5); \
+  pthread_mutex_lock(&render_mtx); \
+  ret = ro->calls->x(ro->priv, a1, a2, a3, a4, a5); \
+  pthread_mutex_unlock(&render_mtx); \
+  return ret; \
 }
 #define REMAP_CALL6(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6) \
 r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
 { \
+  r ret; \
   CHECK_##x(); \
-  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6); \
-}
-#define REMAP_CALL7(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7) \
-r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7) \
-{ \
-  CHECK_##x(); \
-  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7); \
-}
-#define REMAP_CALL8(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8) \
-r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8) \
-{ \
-  CHECK_##x(); \
-  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8); \
-}
-#define REMAP_CALL9(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8, t9, a9) \
-r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8, t9 a9) \
-{ \
-  CHECK_##x(); \
-  return ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8, a9); \
+  pthread_mutex_lock(&render_mtx); \
+  ret = ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6); \
+  pthread_mutex_unlock(&render_mtx); \
+  return ret; \
 }
 
 #define CHECK_get_cap()
@@ -632,7 +664,7 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t
 #define CHECK_palette_update()
 #define CHECK_adjust_gamma()
 
-REMAP_CALL1(void, adjust_gamma, unsigned, gamma)
+REMAP_CALL1(int, adjust_gamma, unsigned, gamma)
 REMAP_CALL5(int, palette_update, unsigned, i,
 	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
 REMAP_CALL6(RectArea, remap_rect, const struct bitmap_desc, src_img,

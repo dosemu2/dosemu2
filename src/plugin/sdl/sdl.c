@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <SDL.h>
 #include <SDL_syswm.h>
 
@@ -97,6 +98,7 @@ static struct {
   int num, max;
   SDL_Rect *rects;
 } sdl_rects;
+pthread_mutex_t rect_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 int grab_active = 0;
@@ -266,9 +268,14 @@ void SDL_close(void)
 
 static void SDL_update(void)
 {
-  if (sdl_rects.num == 0) return;
+  pthread_mutex_lock(&rect_mtx);
+  if (sdl_rects.num == 0) {
+    pthread_mutex_unlock(&rect_mtx);
+    return;
+  }
   SDL_UpdateRects(surface, sdl_rects.num, sdl_rects.rects);
   sdl_rects.num = 0;
+  pthread_mutex_unlock(&rect_mtx);
 }
 
 static void lock_surface(void)
@@ -354,8 +361,10 @@ void SDL_resize_image(unsigned width, unsigned height)
 static void SDL_redraw_resize_image(unsigned width, unsigned height)
 {
   SDL_resize_image(width, height);
+  pthread_mutex_lock(&rect_mtx);
   /* forget about those rectangles */
   sdl_rects.num = 0;
+  pthread_mutex_unlock(&rect_mtx);
   render_blit(0, 0, width, height);
 }
 
@@ -457,10 +466,10 @@ int SDL_update_screen(void)
 }
 
 /* this only pushes the rectangle on a stack; updating is done later */
-void SDL_put_image(int x, int y, unsigned width, unsigned height)
+static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
   SDL_Rect *rect;
-
+  pthread_mutex_lock(&rect_mtx);
   if (sdl_rects.num >= sdl_rects.max) {
     sdl_rects.rects = realloc(sdl_rects.rects, (sdl_rects.max + 10) *
 			      sizeof(*sdl_rects.rects));
@@ -472,6 +481,7 @@ void SDL_put_image(int x, int y, unsigned width, unsigned height)
   rect->w = width;
   rect->h = height;
   sdl_rects.num++;
+  pthread_mutex_unlock(&rect_mtx);
 }
 
 static void toggle_grab(void)

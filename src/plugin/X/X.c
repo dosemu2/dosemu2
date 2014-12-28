@@ -543,6 +543,7 @@ int X_init()
 
   X_printf("X: X_init\n");
 
+  XInitThreads();
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XKBOpenDisplay(display_name);
