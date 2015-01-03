@@ -99,6 +99,7 @@ static struct {
   SDL_Rect *rects;
 } sdl_rects;
 pthread_mutex_t rect_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 int grab_active = 0;
@@ -301,12 +302,14 @@ static void SDL_update(void)
 
 static void lock_surface(void)
 {
+  pthread_mutex_lock(&mode_mtx);
   SDL_LockSurface(surface);
 }
 
 static void unlock_surface(void)
 {
   SDL_UnlockSurface(surface);
+  pthread_mutex_unlock(&mode_mtx);
 }
 
 /*
@@ -363,7 +366,9 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
     get_mode_parameters(&w_x_res, &w_y_res);
+    pthread_mutex_lock(&mode_mtx);
     SDL_change_mode(&w_x_res, &w_y_res);
+    pthread_mutex_unlock(&mode_mtx);
   }
 
   initialized = 1;
@@ -376,7 +381,9 @@ void SDL_resize_image(unsigned width, unsigned height)
   v_printf("SDL: resize_image %d x %d\n", width, height);
   w_x_res = width;
   w_y_res = height;
+  pthread_mutex_lock(&mode_mtx);
   SDL_change_mode(&w_x_res, &w_y_res);
+  pthread_mutex_unlock(&mode_mtx);
 }
 
 static void SDL_redraw_resize_image(unsigned width, unsigned height)
