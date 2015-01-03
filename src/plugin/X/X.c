@@ -521,6 +521,11 @@ static Display *XKBOpenDisplay(char *display_name)
 	return dpy;
 }
 
+void X_pre_init(void)
+{
+  XInitThreads();
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -543,7 +548,7 @@ int X_init()
 
   X_printf("X: X_init\n");
 
-  XInitThreads();
+  X_pre_init();
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XKBOpenDisplay(display_name);
@@ -803,7 +808,6 @@ void X_close()
   X_xf86vm_done();
 #endif
 
-  X_load_text_font(display, 0, drawwindow, NULL, NULL, NULL);
   if(our_window) {
     XDestroyWindow(display, drawwindow);
     XDestroyWindow(display, normalwindow);

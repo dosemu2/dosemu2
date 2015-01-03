@@ -111,6 +111,14 @@ static void (*X_load_text_font)(Display *display, int private_dpy,
 				Window window, const char *p,  int *w, int *h);
 #define X_handle_text_expose pX_handle_text_expose
 static int (*X_handle_text_expose)(void);
+#define X_close_text_display pX_close_text_display
+static int (*X_close_text_display)(void);
+#define X_pre_init pX_pre_init
+static int (*X_pre_init)(void);
+#define X_speaker_on pX_speaker_on
+static void (*X_speaker_on)(void *, unsigned, unsigned short);
+#define X_speaker_off pX_speaker_off
+static void (*X_speaker_off)(void *);
 #endif
 
 #ifdef CONFIG_SELECTION
@@ -129,23 +137,28 @@ static struct {
   void (*unlock_func)(void);
 } x11;
 
+static void preinit_x11_support(void)
+{
+#ifdef USE_DL_PLUGINS
+  void *handle = load_plugin("X");
+  X_speaker_on = dlsym(handle, "X_speaker_on");
+  X_speaker_off = dlsym(handle, "X_speaker_off");
+  X_load_text_font = dlsym(handle, "X_load_text_font");
+  X_pre_init = dlsym(handle, "X_pre_init");
+  X_close_text_display = dlsym(handle, "X_close_text_display");
+  X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
+#ifdef CONFIG_SDL_SELECTION
+  X_handle_selection = dlsym(handle, "X_handle_selection");
+#endif
+  X_pre_init();
+#endif
+}
+
 static void init_x11_support(void)
 {
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
-#ifdef USE_DL_PLUGINS
-    void (*X_speaker_on)(void *, unsigned, unsigned short);
-    void (*X_speaker_off)(void *);
-    void *handle = load_plugin("X");
-    X_speaker_on = dlsym(handle, "X_speaker_on");
-    X_speaker_off = dlsym(handle, "X_speaker_off");
-    X_load_text_font = dlsym(handle, "X_load_text_font");
-    X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
-#ifdef CONFIG_SDL_SELECTION
-    X_handle_selection = dlsym(handle, "X_handle_selection");
-#endif
-#endif
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
     x11.display = info.info.x11.display;
     x11.lock_func = info.info.x11.lock_func;
@@ -173,6 +186,9 @@ int SDL_priv_init(void)
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
   int ret;
+#ifdef X_SUPPORT
+  preinit_x11_support();
+#endif
   enter_priv_on();
   ret = SDL_Init(SDL_INIT_VIDEO| SDL_INIT_NOPARACHUTE);
   leave_priv_setting();
@@ -194,7 +210,6 @@ int SDL_init(void)
   if (init_failed)
     return -1;
 
-  use_bitmap_font = 1;
   SDL_EnableUNICODE(1);
   SDL_VideoDriverName(driver, 8);
   v_printf("SDL: Using driver: %s\n", driver);
@@ -261,7 +276,7 @@ void SDL_close(void)
   vga_emu_done();
 #ifdef X_SUPPORT
   if (x11.display && x11.window != None)
-    X_load_text_font(x11.display, 1, x11.window, NULL, NULL, NULL);
+    X_close_text_display();
 #endif
   SDL_Quit();
 }
