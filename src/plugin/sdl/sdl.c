@@ -167,14 +167,20 @@ static void init_x11_support(void)
   }
 }
 
-static void init_x11_window_font(void)
+static void init_x11_window_font(int *x_res, int *y_res)
 {
+  int font_width, font_height;
   /* called as soon as the window is active (first set video mode) */
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
     x11.window = info.info.x11.window;
-    SDL_change_config(CHG_FONT, config.X_font);
+    x11.lock_func();
+    X_load_text_font(x11.display, 1, x11.window, config.X_font,
+		       &font_width, &font_height);
+    x11.unlock_func();
+    *x_res = vga.text_width * font_width;
+    *y_res = vga.text_height * font_height;
   }
 }
 #endif /* X_SUPPORT */
@@ -407,6 +413,9 @@ static void SDL_change_mode(int *x_res, int *y_res)
     if (modes == (SDL_Rect **) 0) {
       modes=SDL_ListModes(NULL, SDL_FULLSCREEN);
     }
+#ifdef X_SUPPORT
+    init_x11_window_font(x_res, y_res);
+#endif
     if (modes != (SDL_Rect **) -1) {
       unsigned mw = 0;
       i = 0;
@@ -451,15 +460,6 @@ static void SDL_change_mode(int *x_res, int *y_res)
   }
   SDL_ShowCursor(SDL_DISABLE);
   render_init(surface->pixels, *x_res, *y_res, surface->pitch);
-#ifdef X_SUPPORT
-  {
-    static int first = 1;
-    if (first == 1) {
-      first = 0;
-      init_x11_window_font();
-    }
-  }
-#endif
 }
 
 int SDL_update_screen(void)
@@ -599,7 +599,6 @@ static int SDL_change_config(unsigned item, void *buf)
 		       &font_width, &font_height);
       x11.unlock_func();
       if (use_bitmap_font) {
-        register_render_system(&Render_SDL);
         if(vga.mode_class == TEXT)
 	  SDL_set_text_mode(vga.text_width, vga.text_height,
 			    vga.width, vga.height);
