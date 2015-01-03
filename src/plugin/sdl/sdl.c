@@ -389,10 +389,6 @@ void SDL_resize_image(unsigned width, unsigned height)
 static void SDL_redraw_resize_image(unsigned width, unsigned height)
 {
   SDL_resize_image(width, height);
-  pthread_mutex_lock(&rect_mtx);
-  /* forget about those rectangles */
-  sdl_rects.num = 0;
-  pthread_mutex_unlock(&rect_mtx);
   render_blit(0, 0, width, height);
 }
 
@@ -467,6 +463,10 @@ static void SDL_change_mode(int *x_res, int *y_res)
   }
   SDL_ShowCursor(SDL_DISABLE);
   render_init(surface->pixels, *x_res, *y_res, surface->pitch);
+  pthread_mutex_lock(&rect_mtx);
+  /* forget about those rectangles */
+  sdl_rects.num = 0;
+  pthread_mutex_unlock(&rect_mtx);
 }
 
 int SDL_update_screen(void)
