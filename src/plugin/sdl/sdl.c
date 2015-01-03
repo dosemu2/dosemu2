@@ -792,9 +792,13 @@ static void SDL_handle_events(void)
      }
    }
 #ifdef X_SUPPORT
-   if (!use_bitmap_font && X_handle_text_expose())
-     /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
-     SDL_redraw_text_screen();
+   if (!use_bitmap_font) {
+      x11.lock_func();
+      X_handle_text_expose();
+      x11.unlock_func();
+      /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
+      SDL_redraw_text_screen();
+   }
 #endif
    do_mouse_irq();
 }
