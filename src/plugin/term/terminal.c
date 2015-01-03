@@ -590,7 +590,7 @@ static void show_help (void)
 	  }
 	i++;
      }
-   memset ((char *) prev_screen, 0xFF, 2 * Rows * Columns);
+   dirty_text_screen();
    SLsmg_refresh ();
 }
 
@@ -671,8 +671,7 @@ static int slang_update (void)
 	     last_col = strlen (DOSemu_Keyboard_Keymap_Prompt);
 	     SLsmg_set_color (0);
 	     SLsmg_write_nchars ((char *)DOSemu_Keyboard_Keymap_Prompt, last_col);
-	     memset ((char *) (prev_screen + (last_row * Columns)),
-		     Columns * 2, 0xFF);
+	     dirty_text_screen();
 
 	     if (*DOSemu_Keyboard_Keymap_Prompt == '[')
 	       {
@@ -833,10 +832,7 @@ void dos_slang_smart_set_mono (void)
 
    SLtt_set_mono (1, NULL, SLTT_REV_MASK);
    SLtt_set_mono (0, NULL, 0);
-
-   memset ((unsigned char *) prev_screen, 0xFF,
-	   2 * SLtt_Screen_Rows * SLtt_Screen_Cols);
-
+   dirty_text_screen();
    set_char_set ();
 }
 

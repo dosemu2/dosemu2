@@ -55,6 +55,7 @@ static int blink_count = 8;
 static unsigned char *text_canvas;
 static struct bitmap_desc dst_image;
 static struct remap_object *text_remap;
+static ushort *prev_screen;  /* pointer to currently displayed screen   */
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
@@ -372,8 +373,11 @@ void redraw_text_screen()
     sp += vga.scan_len / 2 - vga.text_width;
     oldsp += vga.scan_len / 2 - vga.text_width;
   }
+}
 
-  reset_redraw_text_screen();
+void dirty_text_screen(void)
+{
+  memset(prev_screen, 0xff, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 }
 
 /*
@@ -435,6 +439,13 @@ void resize_text_mapper(unsigned char *dst_img, int width, int height,
 
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
 {
+  /* allocate screen buffer for non-console video compare speedup */
+  prev_screen = (ushort *)malloc(MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+  if (prev_screen==NULL) {
+    error("could not malloc prev_screen\n");
+    leavedos(99);
+  }
+  v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
   if(!use_bitmap_font)
     return;
   assert(!text_remap);

@@ -241,13 +241,6 @@ static int video_init(void)
       Video->priv_init();          /* call the specific init routine */
 
   if (Video->update_screen) {
-     /* allocate screen buffer for non-console video compare speedup */
-     prev_screen = (ushort *)malloc(MAX_COLUMNS * MAX_LINES * sizeof(ushort));
-     if (prev_screen==NULL) {
-        error("could not malloc prev_screen\n");
-        leavedos(99);
-     }
-     v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 /*
  * DANG_BEGIN_REMARK
  * Here the sleeping lion will be awoken and eat much of CPU time !!!
