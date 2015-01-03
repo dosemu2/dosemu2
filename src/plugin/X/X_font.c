@@ -35,6 +35,16 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
+static void X_text_lock(void)
+{
+  XLockDisplay(text_display);
+}
+
+static void X_text_unlock(void)
+{
+  XUnlockDisplay(text_display);
+}
+
 /*
  * Change color values in our graphics context 'gc'.
  */
@@ -209,6 +219,8 @@ static struct text_system Text_X =
    X_draw_line,
    X_draw_text_cursor,
    X_set_text_palette,
+   X_text_lock,
+   X_text_unlock,
 };
 
 /* Runs xset to load X fonts */

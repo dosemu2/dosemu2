@@ -100,6 +100,18 @@ int register_text_system(struct text_system *text_system)
   return 1;
 }
 
+static void text_lock(void)
+{
+  if (Text->lock)
+    Text->lock();
+}
+
+static void text_unlock(void)
+{
+  if (Text->unlock)
+    Text->unlock();
+}
+
 /*
  * Draw a text string.
  * The attribute is the VGA color/mono text attribute.
@@ -110,11 +122,12 @@ static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
     "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
     len, x, y, (unsigned) attr
   );
-
+  text_lock();
   Text->Draw_string(x, y, text, len, attr);
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
     Text->Draw_line(x, y, len);
   }
+  text_unlock();
 }
 
 
@@ -166,9 +179,11 @@ static void draw_cursor(void)
   if(check_cursor_location(vga.crtc.cursor_location - vga.display_start, &x, &y) &&
      (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
+    text_lock();
     Text->Draw_cursor(x, y, XATTR(cursor),
 		      CURSOR_START(vga.crtc.cursor_shape), CURSOR_END(vga.crtc.cursor_shape),
 		      have_focus);
+    text_unlock();
   }
 }
 
@@ -267,8 +282,11 @@ void reset_redraw_text_screen(void)
 
 static void refresh_text_pal(DAC_entry *col, int index, void *udata)
 {
-  if (Text->SetPalette)
+  if (Text->SetPalette) {
+    text_lock();
     Text->SetPalette(col, index);
+    text_unlock();
+  }
 }
 
 /*

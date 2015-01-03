@@ -25,6 +25,8 @@ struct text_system
    void (*Draw_line)(int x, int y , int len);
    void (*Draw_cursor)(int x, int y, Bit8u attr, int first, int last, Boolean focus);
    void (*SetPalette) (DAC_entry *color, int index);
+   void (*lock)(void);
+   void (*unlock)(void);
 };
 
 struct RemapObjectStruct;
