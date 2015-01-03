@@ -277,23 +277,20 @@ static void refresh_text_pal(DAC_entry *col, int index, void *udata)
  *
  * Note: Redraws the *entire* screen if at least one color has changed.
  */
-static void refresh_text_palette(void)
+static int refresh_text_palette(void)
 {
   int j;
 
   if(vga.pixel_size > 4) {
     X_printf("X: refresh_text_palette: invalid color size - no updates made\n");
-    return;
+    return -1;
   }
 
-  if(use_bitmap_font) {
-    if(refresh_palette(text_remap))
-      redraw_text_screen();
-    return;
-  }
-
-  j = changed_vga_colors(refresh_text_pal, NULL);
-  if(j) redraw_text_screen();
+  if(use_bitmap_font)
+    j = refresh_palette(text_remap);
+  else
+    j = changed_vga_colors(refresh_text_pal, NULL);
+  return j;
 }
 
 void text_blit(int x, int y, int width, int height)
@@ -327,6 +324,7 @@ void redraw_text_screen()
   x_msg("X_redraw_text_screen: all\n");
 
   vga.reconfig.mem = 0;
+  refresh_text_palette();
 
   if(vga.text_width > MAX_COLUMNS) {
     x_msg("X_redraw_text_screen: unable to handle %d colums\n", vga.text_width);
@@ -545,11 +543,11 @@ int update_text_screen(void)
   int numscan = 0;         /* Number of lines scanned. */
   int numdone = 0;         /* Number of lines actually updated. */
 
-  refresh_text_palette();
-
   if(vga.reconfig.mem) {
     redraw_text_screen();
     vga.reconfig.mem = 0;
+  } else {
+    refresh_text_palette();
   }
 
   /* The following determines how many lines it should scan at once,
