@@ -161,6 +161,7 @@ void remapper_done(void)
 {
   pthread_cancel(render_thr);
   pthread_join(render_thr, NULL);
+  sem_destroy(&render_sem);
   done_text_mapper();
   if (remap_obj)
     remap_done(remap_obj);
