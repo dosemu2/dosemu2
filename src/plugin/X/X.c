@@ -814,6 +814,7 @@ void X_close()
     XDestroyWindow(display, fullscreenwindow);
   }
 
+  X_lock();
   destroy_ximage();
 
   vga_emu_done();
@@ -826,6 +827,7 @@ void X_close()
   if(X_csd.pixel_lut != NULL) { free(X_csd.pixel_lut); X_csd.pixel_lut = NULL; }
 
   remapper_done();
+  X_unlock();
 
 #ifdef HAVE_DGA
   X_dga_done();
@@ -2009,6 +2011,7 @@ void put_ximage(int x, int y, unsigned width, unsigned height)
 void resize_ximage(unsigned width, unsigned height)
 {
   X_printf("X: resize_ximage %d x %d --> %d x %d\n", w_x_res, w_y_res, width, height);
+  X_lock();
   destroy_ximage();
   w_x_res = width;
   w_y_res = height;
@@ -2016,6 +2019,7 @@ void resize_ximage(unsigned width, unsigned height)
   if (vga.mode_class == GRAPH || use_bitmap_font)
     render_resize((unsigned char *)ximage->data, width,
 	height, ximage->bytes_per_line);
+  X_unlock();
 }
 
 /*
@@ -2122,6 +2126,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     X_unmap_mode = -1;
   }
 
+  X_lock();
   destroy_ximage();
 
   mouse_x = mouse_y = 0;
@@ -2233,6 +2238,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     XMapWindow(display, drawwindow);
     X_map_mode = -1;
   }
+  X_unlock();
 
   initialized = 1;
 
