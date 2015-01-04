@@ -37,7 +37,7 @@ typedef union {
 
 typedef u_int64_u hitimer_u;
 
-typedef unsigned char      Boolean;
+typedef int                Boolean;
 typedef uint8_t            Bit8u;   /* type of 8 bit unsigned quantity */
 typedef  int8_t            Bit8s;   /* type of 8 bit signed quantity */
 typedef uint16_t           Bit16u;  /* type of 16 bit unsigned quantity */
