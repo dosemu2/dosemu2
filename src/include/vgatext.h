@@ -25,6 +25,8 @@ struct text_system
    void (*Draw_line)(int x, int y , int len);
    void (*Draw_cursor)(int x, int y, Bit8u attr, int first, int last, Boolean focus);
    void (*SetPalette) (DAC_entry *color, int index);
+   void (*lock)(void);
+   void (*unlock)(void);
 };
 
 struct RemapObjectStruct;
@@ -35,6 +37,7 @@ struct RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end,
 struct RectArea draw_bitmap_line(int x, int y, int len);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
+void dirty_text_screen(void);
 void update_cursor(void);
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd);
 void done_text_mapper(void);

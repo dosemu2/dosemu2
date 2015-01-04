@@ -84,10 +84,6 @@ struct video_system {
 };
 
 extern struct video_system *Video;
-
-EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
-                             /* used&updated by Video->update_screen    */
-
 EXTERN int video_mode INIT(0);
 EXTERN int video_combo INIT(0);
 

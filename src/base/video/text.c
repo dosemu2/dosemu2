@@ -55,6 +55,7 @@ static int blink_count = 8;
 static unsigned char *text_canvas;
 static struct bitmap_desc dst_image;
 static struct remap_object *text_remap;
+static ushort *prev_screen;  /* pointer to currently displayed screen   */
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
@@ -100,6 +101,18 @@ int register_text_system(struct text_system *text_system)
   return 1;
 }
 
+static void text_lock(void)
+{
+  if (Text->lock)
+    Text->lock();
+}
+
+static void text_unlock(void)
+{
+  if (Text->unlock)
+    Text->unlock();
+}
+
 /*
  * Draw a text string.
  * The attribute is the VGA color/mono text attribute.
@@ -110,11 +123,12 @@ static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
     "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
     len, x, y, (unsigned) attr
   );
-
+  text_lock();
   Text->Draw_string(x, y, text, len, attr);
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
     Text->Draw_line(x, y, len);
   }
+  text_unlock();
 }
 
 
@@ -166,9 +180,11 @@ static void draw_cursor(void)
   if(check_cursor_location(vga.crtc.cursor_location - vga.display_start, &x, &y) &&
      (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
+    text_lock();
     Text->Draw_cursor(x, y, XATTR(cursor),
 		      CURSOR_START(vga.crtc.cursor_shape), CURSOR_END(vga.crtc.cursor_shape),
 		      have_focus);
+    text_unlock();
   }
 }
 
@@ -267,8 +283,11 @@ void reset_redraw_text_screen(void)
 
 static void refresh_text_pal(DAC_entry *col, int index, void *udata)
 {
-  if (Text->SetPalette)
+  if (Text->SetPalette) {
+    text_lock();
     Text->SetPalette(col, index);
+    text_unlock();
+  }
 }
 
 /*
@@ -277,23 +296,20 @@ static void refresh_text_pal(DAC_entry *col, int index, void *udata)
  *
  * Note: Redraws the *entire* screen if at least one color has changed.
  */
-static void refresh_text_palette(void)
+static int refresh_text_palette(void)
 {
   int j;
 
   if(vga.pixel_size > 4) {
     X_printf("X: refresh_text_palette: invalid color size - no updates made\n");
-    return;
+    return -1;
   }
 
-  if(use_bitmap_font) {
-    if(refresh_palette(text_remap))
-      redraw_text_screen();
-    return;
-  }
-
-  j = changed_vga_colors(refresh_text_pal, NULL);
-  if(j) redraw_text_screen();
+  if(use_bitmap_font)
+    j = refresh_palette(text_remap);
+  else
+    j = changed_vga_colors(refresh_text_pal, NULL);
+  return j;
 }
 
 void text_blit(int x, int y, int width, int height)
@@ -327,6 +343,7 @@ void redraw_text_screen()
   x_msg("X_redraw_text_screen: all\n");
 
   vga.reconfig.mem = 0;
+  refresh_text_palette();
 
   if(vga.text_width > MAX_COLUMNS) {
     x_msg("X_redraw_text_screen: unable to handle %d colums\n", vga.text_width);
@@ -356,8 +373,11 @@ void redraw_text_screen()
     sp += vga.scan_len / 2 - vga.text_width;
     oldsp += vga.scan_len / 2 - vga.text_width;
   }
+}
 
-  reset_redraw_text_screen();
+void dirty_text_screen(void)
+{
+  memset(prev_screen, 0xff, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 }
 
 /*
@@ -419,6 +439,13 @@ void resize_text_mapper(unsigned char *dst_img, int width, int height,
 
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
 {
+  /* allocate screen buffer for non-console video compare speedup */
+  prev_screen = (ushort *)malloc(MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+  if (prev_screen==NULL) {
+    error("could not malloc prev_screen\n");
+    leavedos(99);
+  }
+  v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
   if(!use_bitmap_font)
     return;
   assert(!text_remap);
@@ -545,11 +572,11 @@ int update_text_screen(void)
   int numscan = 0;         /* Number of lines scanned. */
   int numdone = 0;         /* Number of lines actually updated. */
 
-  refresh_text_palette();
-
   if(vga.reconfig.mem) {
     redraw_text_screen();
     vga.reconfig.mem = 0;
+  } else {
+    refresh_text_palette();
   }
 
   /* The following determines how many lines it should scan at once,

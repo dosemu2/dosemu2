@@ -3464,9 +3464,10 @@ static int _remap_get_cap(void *ros)
   return ro->state;
 }
 
-static void _remap_adjust_gamma(void *ro, unsigned gamma)
+static int _remap_adjust_gamma(void *ro, unsigned gamma)
 {
   adjust_gamma(ro, gamma);
+  return 0;
 }
 
 static void *_remap_remap_init(int src_mode, int dst_mode, int features,

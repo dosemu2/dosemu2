@@ -31,7 +31,7 @@ struct remap_calls {
   void *(*init)(int src_mode, int dst_mode, int features,
     const ColorSpaceDesc *csd);
   void (*done)(void *ro);
-  void (*adjust_gamma)(void *ro, unsigned gamma);
+  int (*adjust_gamma)(void *ro, unsigned gamma);
   int (*palette_update)(void *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
   RectArea (*remap_rect)(void *ro, const struct bitmap_desc src_img,
