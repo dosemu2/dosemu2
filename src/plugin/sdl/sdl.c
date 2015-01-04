@@ -83,9 +83,6 @@ static unsigned int SDL_image_mode;
 
 static Boolean is_mapped = FALSE;
 static int exposure;
-/* volatile gives memory barrier and int gives atomicity - enough to
- * avoid extra mutex. */
-static volatile int is_locked;
 
 static int font_width, font_height;
 
@@ -302,13 +299,11 @@ static struct bitmap_desc lock_surface(void)
 {
   pthread_mutex_lock(&mode_mtx);
   SDL_LockSurface(surface);
-  is_locked++;
   return BMP(surface->pixels, w_x_res, w_y_res, surface->pitch);
 }
 
 static void unlock_surface(void)
 {
-  is_locked--;
   SDL_UnlockSurface(surface);
   pthread_mutex_unlock(&mode_mtx);
 }
@@ -476,9 +471,11 @@ int SDL_update_screen(void)
     return 1;
   if (!is_mapped)
     return 0;
-  SDL_update();
-  if (is_locked)
+  if (render_is_updating())
     return 0;
+  /* if render is idle we start async blit (as of SDL_SYNCBLIT) and
+   * then start the renderer. It will wait till async blit to finish. */
+  SDL_update();
 #ifdef X_SUPPORT
   if (!use_bitmap_font && vga.mode_class == TEXT)
     return update_screen();
@@ -664,7 +661,7 @@ static void SDL_handle_events(void)
    SDL_Event event;
    if (!initialized)
      return;
-   if (is_locked)
+  if (render_is_updating())
      return;
    while (SDL_PollEvent(&event)) {
      switch (event.type) {

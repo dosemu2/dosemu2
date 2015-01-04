@@ -355,9 +355,6 @@ static Atom proto_atom = None, delete_atom = None;
 static int font_width, font_height;
 
 static Boolean is_mapped = FALSE;
-/* volatile gives memory barrier and int gives atomicity - enough to
- * avoid extra mutex. */
-static volatile int is_locked;
 
 static int cmap_colors = 0;		/* entries in colormaps: {text,graphics}_cmap */
 static Colormap text_cmap = 0, graphics_cmap = 0;
@@ -1343,7 +1340,6 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 static void X_lock(void)
 {
   XLockDisplay(display);
-  is_locked++;
 }
 
 static struct bitmap_desc X_lock_canvas(void)
@@ -1355,7 +1351,6 @@ static struct bitmap_desc X_lock_canvas(void)
 
 static void X_unlock(void)
 {
-  is_locked--;
   XUnlockDisplay(display);
 }
 
@@ -1752,18 +1747,13 @@ static void X_handle_events(void)
 {
   if (!initialized)
     return;
-  if (is_locked)
+  if (render_is_updating())
     return;
-  /* for performance reasons we don't want this function to wait for
-   * the lock, so we check and quickly grab the lock. Unfortunately
-   * there is a small race here, and if other thread grabs the lock
-   * in between, we'll still end up waiting.
-   * If we don't grab the lock here then another thread can interrupt
+  /* If we don't grab the lock here then another thread can interrupt
    * the event handling loop and cause it to wait for the lock inside
    * the Xlib function. All xlib functions grab the lock themselves
    * (because of XInitThreads()), so it is still safe, but we don't
-   * want the event loop to be "paused". The lock is recursive.
-   * This technique gives very noticeable speedup. */
+   * want the event loop to be "paused". The lock is recursive. */
   XLockDisplay(display);
   __X_handle_events();
   XUnlockDisplay(display);
@@ -2406,7 +2396,7 @@ int X_update_screen()
 {
   if (!is_mapped)
     return 0;
-  if (is_locked)
+  if (render_is_updating())
     return 0;
   return update_screen();
 }

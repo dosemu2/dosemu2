@@ -34,6 +34,7 @@ static int dst_mode;
 static unsigned ximage_mode;
 static int vga_mode = -1;
 static int render_locked;
+static int is_updating;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
@@ -462,10 +463,17 @@ static int update_graphics_screen(void)
   return update_ret < 0 ? 2 : 1;
 }
 
+int render_is_updating(void)
+{
+  return is_updating;
+}
+
 static void *render_thread(void *arg)
 {
   while (1) {
+    is_updating = 0;
     sem_wait(&render_sem);
+    is_updating = 1;
     if (vga.mode_class == TEXT) {
       update_text_screen();
     } else {
