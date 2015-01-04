@@ -38,7 +38,6 @@
 #include "keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
-#include "speaker.h"
 
 static int SDL_priv_init(void);
 static int SDL_init(void);
@@ -116,10 +115,8 @@ static int (*X_handle_text_expose)(void);
 static int (*X_close_text_display)(void);
 #define X_pre_init pX_pre_init
 static int (*X_pre_init)(void);
-#define X_speaker_on pX_speaker_on
-static void (*X_speaker_on)(void *, unsigned, unsigned short);
-#define X_speaker_off pX_speaker_off
-static void (*X_speaker_off)(void *);
+#define X_register_speaker pX_register_speaker
+static void (*X_register_speaker)(Display *display);
 #endif
 
 #ifdef CONFIG_SELECTION
@@ -142,8 +139,7 @@ static void preinit_x11_support(void)
 {
 #ifdef USE_DL_PLUGINS
   void *handle = load_plugin("X");
-  X_speaker_on = dlsym(handle, "X_speaker_on");
-  X_speaker_off = dlsym(handle, "X_speaker_off");
+  X_register_speaker = dlsym(handle, "X_register_speaker");
   X_load_text_font = dlsym(handle, "X_load_text_font");
   X_pre_init = dlsym(handle, "X_pre_init");
   X_close_text_display = dlsym(handle, "X_close_text_display");
@@ -164,7 +160,6 @@ static void init_x11_support(void)
     x11.display = info.info.x11.display;
     x11.lock_func = info.info.x11.lock_func;
     x11.unlock_func = info.info.x11.unlock_func;
-    register_speaker(x11.display, X_speaker_on, X_speaker_off);
   }
 }
 

@@ -17,6 +17,7 @@ void X_draw_cursor(int x,int y);
 void X_restore_cell(int x,int y);
 void X_init_videomode(void);
 void X_pre_init(void);
+void X_register_speaker(Display *display);
 
 void X_process_key(XKeyEvent *);
 void X_process_keys(XKeymapEvent *);

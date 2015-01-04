@@ -526,6 +526,13 @@ void X_pre_init(void)
   XInitThreads();
 }
 
+void X_register_speaker(Display *display)
+{
+#if CONFIG_X_SPEAKER
+  register_speaker(display, X_speaker_on, X_speaker_off);
+#endif
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -774,9 +781,7 @@ int X_init()
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
 
-#if CONFIG_X_SPEAKER
-  register_speaker(display, X_speaker_on, X_speaker_off);
-#endif
+  X_register_speaker(display);
 
   return 0;
 }
