@@ -482,11 +482,6 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
   /* colors for the bright-or-blinking background, although the  */
   /* official blink would be the foreground, not the background. */
 
-  /* Eric: What type is our text_remap.src_mode at this moment??? */
-  /* not sure if I use the remap object at least roughly correct */
-  /* basically, it is like two Ximages, linked by remapping...   */
-
-
   height = vga.char_height; /* not font_height - should start to */
                             /* remove font_height completely. It */
                             /* holds the X font's size...        */

@@ -10,7 +10,7 @@
 struct render_system
 {
   void (*refresh_rect)(int x, int y, unsigned width, unsigned height);
-  void (*lock)(void);
+  struct bitmap_desc (*lock)(void);
   void (*unlock)(void);
 };
 
@@ -22,7 +22,6 @@ int remapper_init(unsigned *image_mode,
 void remapper_done(void);
 void get_mode_parameters(int *wx_res, int *wy_res);
 int update_screen(void);
-void render_init(uint8_t *img, int width, int height, int scan_len);
-void render_resize(uint8_t *img, int width, int height, int scan_len);
+void render_init(void);
 void color_space_complete(ColorSpaceDesc *color_space);
 void render_blit(int x, int y, int width, int height);

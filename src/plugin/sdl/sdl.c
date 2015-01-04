@@ -54,7 +54,7 @@ static int SDL_set_text_mode(int tw, int th, int w ,int h);
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
 static void toggle_grab(void);
-static void lock_surface(void);
+static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
 
 struct video_system Video_SDL =
@@ -295,10 +295,11 @@ static void SDL_update(void)
   pthread_mutex_unlock(&rect_mtx);
 }
 
-static void lock_surface(void)
+static struct bitmap_desc lock_surface(void)
 {
   pthread_mutex_lock(&mode_mtx);
   SDL_LockSurface(surface);
+  return BMP(surface->pixels, w_x_res, w_y_res, surface->pitch);
 }
 
 static void unlock_surface(void)
@@ -457,7 +458,7 @@ static void SDL_change_mode(int *x_res, int *y_res)
     return;
   }
   SDL_ShowCursor(SDL_DISABLE);
-  render_init(surface->pixels, *x_res, *y_res, surface->pitch);
+  render_init();
   pthread_mutex_lock(&rect_mtx);
   /* forget about those rectangles */
   sdl_rects.num = 0;

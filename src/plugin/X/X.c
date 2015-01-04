@@ -449,6 +449,7 @@ static void toggle_mouse_grab(void);
 #endif
 static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
+static struct bitmap_desc X_lock_canvas(void);
 static void X_lock(void);
 static void X_unlock(void);
 
@@ -477,7 +478,7 @@ struct video_system Video_X =
 struct render_system Render_X =
 {
    put_ximage,
-   X_lock,
+   X_lock_canvas,
    X_unlock
 };
 
@@ -1341,6 +1342,13 @@ static void X_lock(void)
   XLockDisplay(display);
 }
 
+static struct bitmap_desc X_lock_canvas(void)
+{
+  X_lock();
+  return BMP((unsigned char *)ximage->data, w_x_res,
+        w_y_res, ximage->bytes_per_line);
+}
+
 static void X_unlock(void)
 {
   XUnlockDisplay(display);
@@ -2021,9 +2029,6 @@ void resize_ximage(unsigned width, unsigned height)
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  if (vga.mode_class == GRAPH || use_bitmap_font)
-    render_resize((unsigned char *)ximage->data, width,
-	height, ximage->bytes_per_line);
   X_unlock();
 }
 
@@ -2213,8 +2218,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-    render_init((unsigned char *)ximage->data, w_x_res, w_y_res,
-	ximage->bytes_per_line);
+    render_init();
 
     sh.width = w_x_res;
     sh.height = w_y_res;

@@ -30,7 +30,6 @@ static int num_remaps;
 int remap_features;
 static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
-static struct bitmap_desc dst_image;
 static int dst_mode;
 static unsigned ximage_mode;
 static int render_locked;
@@ -39,10 +38,11 @@ static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
 static void *render_thread(void *arg);
 
-static void render_lock(void)
+static struct bitmap_desc render_lock(void)
 {
-  Render->lock();
+  struct bitmap_desc dst_image = Render->lock();
   render_locked++;
+  return dst_image;
 }
 
 static void render_unlock(void)
@@ -64,7 +64,7 @@ static void check_locked(void)
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
   RectArea ra;
-  render_lock();
+  struct bitmap_desc dst_image = render_lock();
   ra = convert_bitmap_string(x, y, text, len, attr, dst_image);
   render_unlock();
   /* put_ximage uses display, mainwindow, gc, ximage       */
@@ -76,7 +76,7 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
 static void bitmap_draw_line(int x, int y, int len)
 {
   RectArea ra;
-  render_lock();
+  struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_line(x, y, len, dst_image);
   render_unlock();
   if (ra.width)
@@ -86,7 +86,7 @@ static void bitmap_draw_line(int x, int y, int len)
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
 {
   RectArea ra;
-  render_lock();
+  struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus, dst_image);
   render_unlock();
   if (ra.width)
@@ -354,7 +354,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 #endif
 
   while((update_ret = vga_emu_update(veut)) > 0) {
-    render_lock();
+    struct bitmap_desc dst_image = render_lock();
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              veut->display_start, update_offset,
@@ -479,12 +479,7 @@ int update_screen(void)
   return 1;
 }
 
-void render_resize(uint8_t *img, int width, int height, int scan_len)
-{
-  dst_image = BMP(img, width, height, scan_len);
-}
-
-void render_init(uint8_t *img, int width, int height, int scan_len)
+void render_init(void)
 {
   int mode_type;
 
@@ -523,7 +518,6 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 	color_space);
   pthread_mutex_unlock(&render_mtx);
   remap_adjust_gamma(remap_obj, config.X_gamma);
-  render_resize(img, width, height, scan_len);
   /*
    * The new remap object does not yet know about our colors.
    * So we have to force an update. -- sw
@@ -533,7 +527,7 @@ void render_init(uint8_t *img, int width, int height, int scan_len)
 
 void render_blit(int x, int y, int width, int height)
 {
-  render_lock();
+  struct bitmap_desc dst_image = render_lock();
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height, dst_image);
   else
