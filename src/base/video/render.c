@@ -32,23 +32,29 @@ static struct render_system *Render;
 static const ColorSpaceDesc *color_space;
 static int dst_mode;
 static unsigned ximage_mode;
+static int vga_mode = -1;
 static int render_locked;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
 static void *render_thread(void *arg);
+static void render_init(int vga_mode_type);
 
 static struct bitmap_desc render_lock(void)
 {
   struct bitmap_desc dst_image = Render->lock();
   render_locked++;
+  if (vga_mode != vga.mode_type) {
+    render_init(vga.mode_type);
+    vga_mode = vga.mode_type;
+  }
   return dst_image;
 }
 
 static void render_unlock(void)
 {
-  Render->unlock();
   render_locked--;
+  Render->unlock();
 }
 
 static void check_locked(void)
@@ -479,14 +485,14 @@ int update_screen(void)
   return 1;
 }
 
-void render_init(void)
+static void render_init(int vga_mode_type)
 {
   int mode_type;
 
   pthread_mutex_lock(&render_mtx);
   if (remap_obj)
     remap_done(remap_obj);
-  switch(vga.mode_type) {
+  switch(vga_mode_type) {
   case CGA:
     mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
   case HERC:

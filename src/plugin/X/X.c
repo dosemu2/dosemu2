@@ -2218,7 +2218,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-    render_init();
 
     sh.width = w_x_res;
     sh.height = w_y_res;

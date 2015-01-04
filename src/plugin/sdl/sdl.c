@@ -458,7 +458,6 @@ static void SDL_change_mode(int *x_res, int *y_res)
     return;
   }
   SDL_ShowCursor(SDL_DISABLE);
-  render_init();
   pthread_mutex_lock(&rect_mtx);
   /* forget about those rectangles */
   sdl_rects.num = 0;

@@ -22,6 +22,5 @@ int remapper_init(unsigned *image_mode,
 void remapper_done(void);
 void get_mode_parameters(int *wx_res, int *wy_res);
 int update_screen(void);
-void render_init(void);
 void color_space_complete(ColorSpaceDesc *color_space);
 void render_blit(int x, int y, int width, int height);
