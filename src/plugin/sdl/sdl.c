@@ -403,7 +403,7 @@ int SDL_set_text_mode(int tw, int th, int w ,int h)
 
 static void SDL_change_mode(int *x_res, int *y_res)
 {
-  Uint32 flags = SDL_HWPALETTE | SDL_HWSURFACE;
+  Uint32 flags = SDL_HWPALETTE | SDL_HWSURFACE | SDL_ASYNCBLIT;
   saved_w_x_res = *x_res;
   saved_w_y_res = *y_res;
   if (!use_bitmap_font && vga.mode_class == TEXT) {
