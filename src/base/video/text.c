@@ -53,7 +53,6 @@ static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 static unsigned char *text_canvas;
-static struct bitmap_desc dst_image;
 static struct remap_object *text_remap;
 static ushort *prev_screen;  /* pointer to currently displayed screen   */
 
@@ -204,7 +203,8 @@ static void redraw_cursor(void)
   prev_cursor_shape = vga.crtc.cursor_shape.w;
 }
 
-RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
+RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end,
+    Boolean focus, struct bitmap_desc dst_image)
 {
   int i,j;
   int fg = ATTR_FG(attr);
@@ -245,7 +245,8 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-RectArea draw_bitmap_line(int x, int y, int linelen)
+RectArea draw_bitmap_line(int x, int y, int linelen,
+    struct bitmap_desc dst_image)
 {
   Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start +
 				  y * vga.scan_len + x * 2);
@@ -312,7 +313,8 @@ static int refresh_text_palette(void)
   return j;
 }
 
-void text_blit(int x, int y, int width, int height)
+void text_blit(int x, int y, int width, int height,
+    struct bitmap_desc dst_image)
 {
   if (!use_bitmap_font)
     return;
@@ -423,20 +425,6 @@ void blink_cursor()
   }
 }
 
-/*
- * Resize everything according to vga.*
- */
-void resize_text_mapper(unsigned char *dst_img, int width, int height,
-	int scan_len)
-{
-  if(vga.mode_class == GRAPH || !use_bitmap_font)
-    return;
-  text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
-  if (text_canvas == NULL)
-    error("X: cannot allocate text mode canvas for font simulation\n");
-  dst_image = BMP(dst_img, width, height, scan_len);
-}
-
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
 {
   /* allocate screen buffer for non-console video compare speedup */
@@ -448,6 +436,10 @@ void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
   v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
   if(!use_bitmap_font)
     return;
+  /* think 9x32 is maximum */
+  text_canvas = malloc(MAX_COLUMNS * 9 * MAX_LINES * 32);
+  if (text_canvas == NULL)
+    error("X: cannot allocate text mode canvas for font simulation\n");
   assert(!text_remap);
 
   /* linear 1 byte per pixel */
@@ -463,7 +455,7 @@ void done_text_mapper(void)
 }
 
 RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
-			       Bit8u attr)
+			       Bit8u attr, struct bitmap_desc dst_image)
 {
   unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
   unsigned long fgX;
