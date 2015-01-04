@@ -472,7 +472,9 @@ static void *render_thread(void *arg)
 {
   while (1) {
     is_updating = 0;
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     sem_wait(&render_sem);
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     is_updating = 1;
     if (vga.mode_class == TEXT) {
       update_text_screen();
