@@ -82,7 +82,10 @@ static SDL_Surface* surface = NULL;
 static unsigned int SDL_image_mode;
 
 static Boolean is_mapped = FALSE;
-static int exposure = 0;
+static int exposure;
+/* volatile gives memory barrier and int gives atomicity - enough to
+ * avoid extra mutex. */
+static volatile int is_locked;
 
 static int font_width, font_height;
 
@@ -299,11 +302,13 @@ static struct bitmap_desc lock_surface(void)
 {
   pthread_mutex_lock(&mode_mtx);
   SDL_LockSurface(surface);
+  is_locked++;
   return BMP(surface->pixels, w_x_res, w_y_res, surface->pitch);
 }
 
 static void unlock_surface(void)
 {
+  is_locked--;
   SDL_UnlockSurface(surface);
   pthread_mutex_unlock(&mode_mtx);
 }
@@ -466,20 +471,21 @@ static void SDL_change_mode(int *x_res, int *y_res)
 
 int SDL_update_screen(void)
 {
+  int ret;
   if (init_failed)
     return 1;
-  if (is_mapped) {
-    int ret;
+  if (!is_mapped)
+    return 0;
+  SDL_update();
+  if (is_locked)
+    return 0;
 #ifdef X_SUPPORT
-    if (!use_bitmap_font && vga.mode_class == TEXT)
-      return update_screen();
+  if (!use_bitmap_font && vga.mode_class == TEXT)
+    return update_screen();
 #endif
-    if (surface==NULL) return 1;
-    ret = update_screen();
-    SDL_update();
-    return ret;
-  }
-  return 0;
+  if (surface==NULL) return 1;
+  ret = update_screen();
+  return ret;
 }
 
 /* this only pushes the rectangle on a stack; updating is done later */
@@ -657,6 +663,8 @@ static void SDL_handle_events(void)
 {
    SDL_Event event;
    if (!initialized)
+     return;
+   if (is_locked)
      return;
    while (SDL_PollEvent(&event)) {
      switch (event.type) {

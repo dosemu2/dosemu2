@@ -562,6 +562,7 @@ int update_text_screen(void)
   if(vga.reconfig.mem) {
     redraw_text_screen();
     vga.reconfig.mem = 0;
+    return 0;
   } else {
     refresh_text_palette();
   }
