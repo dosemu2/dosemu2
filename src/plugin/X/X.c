@@ -1441,16 +1441,11 @@ static void toggle_fullscreen_mode(int init)
  *
  * DANG_END_FUNCTION
  */
-static void X_handle_events(void)
+static void __X_handle_events(void)
 {
    XEvent e, rel_evt;
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
    int keyrel_pending = 0;
-
-   if (!initialized)
-     return;
-   if (is_locked)
-     return;
 
 #if CONFIG_X_MOUSE
    {
@@ -1753,6 +1748,26 @@ static void X_handle_events(void)
 #endif
 }
 
+static void X_handle_events(void)
+{
+  if (!initialized)
+    return;
+  if (is_locked)
+    return;
+  /* for performance reasons we don't want this function to wait for
+   * the lock, so we check and quickly grab the lock. Unfortunately
+   * there is a small race here, and if other thread grabs the lock
+   * in between, we'll still end up waiting.
+   * If we don't grab the lock here then another thread can interrupt
+   * the event handling loop and cause it to wait for the lock inside
+   * the Xlib function. All xlib functions grab the lock themselves
+   * (because of XInitThreads()), so it is still safe, but we don't
+   * want the event loop to be "paused". The lock is recursive.
+   * This technique gives very noticeable speedup. */
+  XLockDisplay(display);
+  __X_handle_events();
+  XUnlockDisplay(display);
+}
 
 /*
  * DANG_BEGIN_FUNCTION graphics_cmap_init
