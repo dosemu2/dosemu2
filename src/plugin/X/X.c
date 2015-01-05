@@ -800,6 +800,8 @@ void X_close()
   X_printf("X: X_close\n");
 
   if(display == NULL) return;
+  /* terminate remapper early so that render thread is cancelled */
+  remapper_done();
 
 #if CONFIG_X_SPEAKER
   /* turn off the sound, and */
@@ -820,9 +822,7 @@ void X_close()
     XDestroyWindow(display, fullscreenwindow);
   }
 
-  X_lock();
   destroy_ximage();
-
   vga_emu_done();
 
   if(graphics_cmap) XFreeColormap(display, graphics_cmap);
@@ -831,9 +831,6 @@ void X_close()
     XFreeGC(display, gc);
 
   if(X_csd.pixel_lut != NULL) { free(X_csd.pixel_lut); X_csd.pixel_lut = NULL; }
-
-  remapper_done();
-  X_unlock();
 
 #ifdef HAVE_DGA
   X_dga_done();
@@ -1436,7 +1433,7 @@ static void toggle_fullscreen_mode(int init)
  *
  * DANG_END_FUNCTION
  */
-static void __X_handle_events(void)
+static int __X_handle_events(void)
 {
    XEvent e, rel_evt;
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
@@ -1525,8 +1522,7 @@ static void __X_handle_events(void)
 
 	case DestroyNotify:
 	  X_printf("X: window got destroyed\n");
-	  leavedos(99);
-	  break;
+	  return -1;
 
 	case ClientMessage:
 	  /* If we get a client message which has the value of the delete
@@ -1535,8 +1531,7 @@ static void __X_handle_events(void)
 	  if(e.xclient.message_type == proto_atom && *e.xclient.data.l == delete_atom) {
 	    X_printf("X: got window delete message\n");
 	    /* XXX - Is it ok to call this from a SIGALRM handler? */
-	    leavedos(0);
-	    break;
+	    return -1;
 	  }
 
 	  if(e.xclient.message_type == comm_atom) {
@@ -1741,10 +1736,12 @@ static void __X_handle_events(void)
 #if CONFIG_X_MOUSE
   do_mouse_irq();
 #endif
+  return 0;
 }
 
 static void X_handle_events(void)
 {
+  int ret;
   if (!initialized)
     return;
   if (render_is_updating())
@@ -1755,8 +1752,10 @@ static void X_handle_events(void)
    * (because of XInitThreads()), so it is still safe, but we don't
    * want the event loop to be "paused". The lock is recursive. */
   XLockDisplay(display);
-  __X_handle_events();
+  ret = __X_handle_events();
   XUnlockDisplay(display);
+  if (ret < 0)
+    leavedos(0);
 }
 
 /*
