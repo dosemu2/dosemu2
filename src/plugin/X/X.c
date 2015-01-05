@@ -367,7 +367,6 @@ static int x_res, y_res;		/* emulated window size in pixels */
 static int w_x_res, w_y_res;		/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static unsigned ximage_bits_per_pixel;
-static unsigned ximage_mode;
 
 static int grab_active = 0, kbd_grab_active = 0;
 #if CONFIG_X_MOUSE
@@ -610,8 +609,7 @@ int X_init()
   graphics_cmap_init();				/* graphics modes are more sophisticated */
 
   /* init graphics mode support */
-  remap_src_modes = remapper_init(&ximage_mode,
-				  have_true_color, have_shmap, &X_csd);
+  remap_src_modes = remapper_init(have_true_color, have_shmap, &X_csd);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
     /* why do we need a blank screen? */

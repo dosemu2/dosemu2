@@ -79,7 +79,6 @@ struct render_system Render_SDL =
 static const SDL_VideoInfo *video_info;
 static int remap_src_modes = 0;
 static SDL_Surface* surface = NULL;
-static unsigned int SDL_image_mode;
 
 static Boolean is_mapped = FALSE;
 static int exposure;
@@ -234,8 +233,7 @@ int SDL_init(void)
 
 //  set_remap_debug_msg(stderr);
   have_true_color = (video_info->vfmt->palette == NULL);
-  remap_src_modes = remapper_init(&SDL_image_mode,
-	have_true_color, 0, &SDL_csd);
+  remap_src_modes = remapper_init(have_true_color, 0, &SDL_csd);
 
   register_render_system(&Render_SDL);
 

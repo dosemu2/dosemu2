@@ -110,8 +110,7 @@ int register_render_system(struct render_system *render_system)
  * Initialize the interface between the VGA emulator and X.
  * Check if X's color depth is supported.
  */
-int remapper_init(unsigned *image_mode,
-		  int have_true_color, int have_shmap, ColorSpaceDesc *csd)
+int remapper_init(int have_true_color, int have_shmap, ColorSpaceDesc *csd)
 {
   int remap_src_modes, err, ximage_mode;
 
@@ -139,7 +138,6 @@ int remapper_init(unsigned *image_mode,
   if(config.X_bilin_filt) remap_features |= RFF_BILIN_FILT;
 
   remap_src_modes = find_supported_modes(ximage_mode);
-  *image_mode = ximage_mode;
   remap_obj = remap_init(remap_mode(), ximage_mode, remap_features, csd);
   init_text_mapper(ximage_mode, csd);
 
