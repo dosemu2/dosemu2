@@ -258,7 +258,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-
+#include <pthread.h>
 #include "cpu.h"		/* root@sjoerd: for context structure */
 #include "emu.h"
 #include "int.h"
@@ -297,6 +297,7 @@ static void vga_emu_setup_mode_table(void);
 
 static Bit32u rasterop(Bit32u value);
 static void vgaemu_reset_mapping(void);
+static pthread_mutex_t prot_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*
@@ -746,10 +747,12 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
   if(MapMask) {
     // not optimal, but works better with update function -- sw
+    pthread_mutex_lock(&prot_mtx);
     vga.mem.dirty_map[vga_page] = 1;
     vga.mem.dirty_map[vga_page + 0x10] = 1;
     vga.mem.dirty_map[vga_page + 0x20] = 1;
     vga.mem.dirty_map[vga_page + 0x30] = 1;
+    pthread_mutex_unlock(&prot_mtx);
   }
 
 }
@@ -1010,6 +1013,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   }
 
   if(vga_page < vga.mem.pages) {
+    pthread_mutex_lock(&prot_mtx);
     vga.mem.dirty_map[vga_page] = 1;
 #ifdef X86_EMULATOR
     if (config.cpuemu>1 && !DPMIValidSelector(_cs)) {
@@ -1021,7 +1025,8 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
       /* Normal: make the display page writeable after marking it dirty */
       vga_emu_adjust_protection(vga_page, page_fault);
     }
-    else {
+    pthread_mutex_unlock(&prot_mtx);
+    if(vga.inst_emu) {
 #if 1
       /* XXX Hack: dosemu touched the protected page of video mem, which is
        * a bug. However for the video modes that do not require instremu, we
@@ -1370,7 +1375,9 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
   for(u = 0; u < vmt->pages; u++) {
     /* page is writable by default */
+    pthread_mutex_lock(&prot_mtx);
     if(!vga.mem.dirty_map[vmt->first_page + u]) vga_emu_adjust_protection(vmt->first_page + u, 0);
+    pthread_mutex_unlock(&prot_mtx);
   }
 
   return 0;
@@ -1784,7 +1791,7 @@ static void print_prot_map()
  *
  */
 
-int vga_emu_update(vga_emu_update_type *veut)
+static int __vga_emu_update(vga_emu_update_type *veut)
 {
   int i, j;
   unsigned start_page, end_page;
@@ -1875,6 +1882,14 @@ int vga_emu_update(vga_emu_update_type *veut)
   return j - i;
 }
 
+int vga_emu_update(vga_emu_update_type *veut)
+{
+  int ret;
+  pthread_mutex_lock(&prot_mtx);
+  ret = __vga_emu_update(veut);
+  pthread_mutex_unlock(&prot_mtx);
+  return ret;
+}
 
 /*
  * DANG_BEGIN_FUNCTION vgaemu_switch_plane
@@ -2482,8 +2497,10 @@ int vga_emu_set_textsize(int width, int height)
 
 void dirty_all_video_pages()
 {
+  pthread_mutex_lock(&prot_mtx);
   if (vga.mem.dirty_map)
     memset(vga.mem.dirty_map, 1, vga.mem.pages);
+  pthread_mutex_unlock(&prot_mtx);
 }
 
 /*
