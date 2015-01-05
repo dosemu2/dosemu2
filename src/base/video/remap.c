@@ -194,9 +194,6 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
     base_init = 1;
   }
 
-  ro->src_color_space = calloc(1, sizeof(*ro->src_color_space));
-  if(ro->src_color_space == NULL) ro->state |= ROS_MALLOC_FAIL;
-
   ro->dst_color_space = color_space;
   ro->dst_image = NULL;
 
@@ -305,7 +302,6 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
 #define FreeIt(_p_) if(_p_ != NULL) { free(_p_); _p_ = NULL; }
 static void _remap_done(RemapObject *ro)
 {
-  FreeIt(ro->src_color_space)
   FreeIt(ro->gamma_lut)
   FreeIt(ro->bre_x)
   FreeIt(ro->bre_y)
