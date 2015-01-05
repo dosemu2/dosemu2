@@ -173,6 +173,7 @@ vga2vgal:
   }
 }
 
+#if 0
 static int jitx86_instr_len(const unsigned char *rip)
 {
   const unsigned char *p = rip;
@@ -460,6 +461,7 @@ badrw:
   leavedos(0x5643);
   return 0;
 }
+#endif
 
 /* ======================================================================= */
 /*
@@ -510,8 +512,14 @@ int e_emu_fault(struct sigcontext_struct *scp)
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
 		if (!DPMIValidSelector(_cs)) {
+#if 0
 			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
 			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+#else
+			/* e_vgaemu_fault misses mutex and I don't
+			 * see the need for such code duplication */
+			if (vga_emu_fault(scp, 0) == True) return 1;
+#endif
 		} else {
 			if(VGA_EMU_FAULT(scp,code,1)==True) {
 				dpmi_check_return(scp);

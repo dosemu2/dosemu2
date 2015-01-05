@@ -1015,12 +1015,6 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   if(vga_page < vga.mem.pages) {
     pthread_mutex_lock(&prot_mtx);
     vga.mem.dirty_map[vga_page] = 1;
-#ifdef X86_EMULATOR
-    if (config.cpuemu>1 && !DPMIValidSelector(_cs)) {
-	error("VGAEmu: CPU emulation collision, should not be here\n");
-	leavedos(0x4945);
-    }
-#endif
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       vga_emu_adjust_protection(vga_page, page_fault);
