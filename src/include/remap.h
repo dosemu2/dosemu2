@@ -31,16 +31,21 @@ struct remap_calls {
   void *(*init)(int src_mode, int dst_mode, int features,
     const ColorSpaceDesc *csd);
   void (*done)(void *ro);
-  int (*adjust_gamma)(void *ro, unsigned gamma);
   int (*palette_update)(void *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
   RectArea (*remap_rect)(void *ro, const struct bitmap_desc src_img,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img);
+	int src_mode,
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
+	int gamma);
   RectArea (*remap_rect_dst)(void *ro, const struct bitmap_desc src_img,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img);
+	int src_mode,
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
+	int gamma);
   RectArea (*remap_mem)(void *ro, const struct bitmap_desc src_img,
+	int src_mode,
 	unsigned src_start,
-	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img);
+	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img,
+	int gamma);
   int (*get_cap)(void *ro);
   const char *name;
 };

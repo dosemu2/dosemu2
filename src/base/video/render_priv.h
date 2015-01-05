@@ -14,21 +14,26 @@ struct remap_object {
 struct remap_object *remap_init(int src_mode, int dst_mode, int features,
         const ColorSpaceDesc *color_space);
 void remap_done(struct remap_object *ro);
-int remap_adjust_gamma(struct remap_object *ro, unsigned gamma);
 int remap_palette_update(struct remap_object *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
 RectArea remap_remap_rect(struct remap_object *ro,
 	const struct bitmap_desc src_img,
+	int src_mode,
 	int x0, int y0, int width, int height,
-	struct bitmap_desc dst_img);
+	struct bitmap_desc dst_img,
+	int gamma);
 RectArea remap_remap_rect_dst(struct remap_object *ro,
 	const struct bitmap_desc src_img,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img);
+	int src_mode,
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
+	int gamma);
 RectArea remap_remap_mem(struct remap_object *ro,
 	const struct bitmap_desc src_img,
+	int src_mode,
 	unsigned src_start,
 	unsigned dst_start, int offset, int len,
-	struct bitmap_desc dst_img);
+	struct bitmap_desc dst_img,
+	int gamma);
 int remap_get_cap(struct remap_object *ro);
 
 #endif

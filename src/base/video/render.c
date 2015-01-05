@@ -29,26 +29,18 @@ static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 int remap_features;
 static struct render_system *Render;
-static const ColorSpaceDesc *color_space;
-static int dst_mode;
-static unsigned ximage_mode;
-static int vga_mode = -1;
 static int render_locked;
 static int is_updating;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
 static void *render_thread(void *arg);
-static void render_init(int vga_mode_type);
+static int remap_mode(void);
 
 static struct bitmap_desc render_lock(void)
 {
   struct bitmap_desc dst_image = Render->lock();
   render_locked++;
-  if (vga_mode != vga.mode_type) {
-    render_init(vga.mode_type);
-    vga_mode = vga.mode_type;
-  }
   return dst_image;
 }
 
@@ -121,7 +113,7 @@ int register_render_system(struct render_system *render_system)
 int remapper_init(unsigned *image_mode,
 		  int have_true_color, int have_shmap, ColorSpaceDesc *csd)
 {
-  int remap_src_modes, err;
+  int remap_src_modes, err, ximage_mode;
 
 //  set_remap_debug_msg(stderr);
 
@@ -148,8 +140,7 @@ int remapper_init(unsigned *image_mode,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   *image_mode = ximage_mode;
-  color_space = csd;
-  dst_mode = ximage_mode;
+  remap_obj = remap_init(remap_mode(), ximage_mode, remap_features, csd);
   init_text_mapper(ximage_mode, csd);
 
   err = sem_init(&render_sem, 0, 0);
@@ -267,41 +258,10 @@ void get_mode_parameters(int *wx_res, int *wy_res)
  */
 static void modify_mode(vga_emu_update_type *veut)
 {
-  struct remap_object *tmp_ro;
-  int cap;
-
   if(vga.reconfig.mem) {
-    if(vga.mode_type == P8 || vga.mode_type == PL4) {
-      if (vga.mode_type == PL4)
-	tmp_ro = remap_init(MODE_VGA_4, dst_mode, remap_features,
-		color_space);
-      else
-	tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 :
-		MODE_VGA_X, dst_mode, remap_features,
-		color_space);
-      cap = remap_get_cap(tmp_ro);
-      if(!(cap & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
-        v_printf("modify_mode: no memory config change of current graphics mode supported\n");
-        remap_done(tmp_ro);
-      }
-      else {
-        v_printf("modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
-        pthread_mutex_lock(&render_mtx);
-        remap_done(remap_obj);
-        remap_obj = tmp_ro;
-        pthread_mutex_unlock(&render_mtx);
-      }
-
-      dirty_all_video_pages();
-      /*
-       * The new remap object does not yet know about our colors.
-       * So we have to force an update. -- sw
-       */
-      dirty_all_vga_colors();
-
-      vga.reconfig.display =
-      vga.reconfig.dac = 0;
-    }
+    dirty_all_video_pages();
+    vga.reconfig.display = 0;
+    vga.reconfig.dac = 0;
     vga.reconfig.mem = 0;
   }
 
@@ -364,9 +324,10 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
     struct bitmap_desc dst_image = render_lock();
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
+                             remap_mode(),
                              veut->display_start, update_offset,
                              veut->update_start - veut->display_start,
-                             veut->update_len, dst_image);
+                             veut->update_len, dst_image, config.X_gamma);
     render_unlock();
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
@@ -495,14 +456,10 @@ int update_screen(void)
   return 1;
 }
 
-static void render_init(int vga_mode_type)
+static int remap_mode(void)
 {
   int mode_type;
-
-  pthread_mutex_lock(&render_mtx);
-  if (remap_obj)
-    remap_done(remap_obj);
-  switch(vga_mode_type) {
+  switch(vga.mode_type) {
   case CGA:
     mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
   case HERC:
@@ -526,19 +483,7 @@ static void render_init(int vga_mode_type)
   default:
     mode_type = 0;
   }
-
-  v_printf("setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
-	   mode_type, ximage_mode, remap_features);
-
-  remap_obj = remap_init(mode_type, dst_mode, remap_features,
-	color_space);
-  pthread_mutex_unlock(&render_mtx);
-  remap_adjust_gamma(remap_obj, config.X_gamma);
-  /*
-   * The new remap object does not yet know about our colors.
-   * So we have to force an update. -- sw
-   */
-  dirty_all_vga_colors();
+  return mode_type;
 }
 
 void render_blit(int x, int y, int width, int height)
@@ -548,8 +493,8 @@ void render_blit(int x, int y, int width, int height)
     text_blit(x, y, width, height, dst_image);
   else
     remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
-	vga.width, vga.height, vga.scan_len),
-	x, y, width, height, dst_image);
+	vga.width, vga.height, vga.scan_len), remap_mode(),
+	x, y, width, height, dst_image, config.X_gamma);
   render_unlock();
   Render->refresh_rect(x, y, width, height);
 }
@@ -653,13 +598,13 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) \
   pthread_mutex_unlock(&render_mtx); \
   return ret; \
 }
-#define REMAP_CALL6(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6) \
-r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
+#define REMAP_CALL8(r, x, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6, t7, a7, t8, a8) \
+r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6, t7 a7, t8 a8) \
 { \
   r ret; \
   CHECK_##x(); \
   pthread_mutex_lock(&render_mtx); \
-  ret = ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6); \
+  ret = ro->calls->x(ro->priv, a1, a2, a3, a4, a5, a6, a7, a8); \
   pthread_mutex_unlock(&render_mtx); \
   return ret; \
 }
@@ -671,17 +616,22 @@ r remap_##x(struct remap_object *ro, t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6) \
 #define CHECK_palette_update()
 #define CHECK_adjust_gamma()
 
-REMAP_CALL1(int, adjust_gamma, unsigned, gamma)
 REMAP_CALL5(int, palette_update, unsigned, i,
 	unsigned, bits, unsigned, r, unsigned, g, unsigned, b)
-REMAP_CALL6(RectArea, remap_rect, const struct bitmap_desc, src_img,
-	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img)
-REMAP_CALL6(RectArea, remap_rect_dst, const struct bitmap_desc, src_img,
-	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img)
-REMAP_CALL6(RectArea, remap_mem, const struct bitmap_desc, src_img,
+REMAP_CALL8(RectArea, remap_rect, const struct bitmap_desc, src_img,
+	int, src_mode,
+	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img,
+	int, gamma)
+REMAP_CALL8(RectArea, remap_rect_dst, const struct bitmap_desc, src_img,
+	int, src_mode,
+	int, x0, int, y0, int, width, int, height, struct bitmap_desc, dst_img,
+	int, gamma)
+REMAP_CALL8(RectArea, remap_mem, const struct bitmap_desc, src_img,
+	int, src_mode,
 	unsigned, src_start,
 	unsigned, dst_start, int, offset, int, len,
-	struct bitmap_desc, dst_img)
+	struct bitmap_desc, dst_img,
+	int, gamma)
 REMAP_CALL0(int, get_cap)
 
 void color_space_complete(ColorSpaceDesc *csd)
