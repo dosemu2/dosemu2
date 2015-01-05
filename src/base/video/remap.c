@@ -3405,10 +3405,13 @@ void gen_c2to32_all(RemapObject *ro)
   }
 }
 
+
+#define RO(p) (*(RemapObject **)p)
+
 static int _remap_palette_update(void *ros, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
   return ro->palette_update(ro, i, bits, r, g, b);
 }
 
@@ -3416,7 +3419,7 @@ static RectArea _remap_remap_rect(void *ros, const struct bitmap_desc src_img,
 	int x0, int y0, int width, int height,
 	struct bitmap_desc dst_img)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
   ro->src_image = src_img.img;
   ro->src_start = 0;
   ro->dst_image = dst_img.img;
@@ -3429,7 +3432,7 @@ static RectArea _remap_remap_rect_dst(void *ros,
 	const struct bitmap_desc src_img,
 	int x0, int y0, int width, int height, struct bitmap_desc dst_img)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
   ro->src_image = src_img.img;
   ro->src_start = 0;
   ro->dst_image = dst_img.img;
@@ -3442,7 +3445,7 @@ static RectArea _remap_remap_mem(void *ros,
 	const struct bitmap_desc src_img, unsigned src_start,
 	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
   ro->src_image = src_img.img;
   ro->src_start = src_start;
   ro->dst_image = dst_img.img;
@@ -3460,12 +3463,13 @@ static RectArea _remap_remap_mem(void *ros,
 
 static int _remap_get_cap(void *ros)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
   return ro->state;
 }
 
-static int _remap_adjust_gamma(void *ro, unsigned gamma)
+static int _remap_adjust_gamma(void *ros, unsigned gamma)
 {
+  RemapObject *ro = RO(ros);
   adjust_gamma(ro, gamma);
   return 0;
 }
@@ -3473,12 +3477,20 @@ static int _remap_adjust_gamma(void *ro, unsigned gamma)
 static void *_remap_remap_init(int src_mode, int dst_mode, int features,
         const ColorSpaceDesc *color_space)
 {
-  return _remap_init(src_mode, dst_mode, features, color_space);
+  RemapObject *o, **p;
+  o = _remap_init(src_mode, dst_mode, features, color_space);
+  if (!o)
+    return NULL;
+  p = malloc(sizeof(*p));
+  *p = o;
+  return p;
 }
 
-static void _remap_remap_done(void *ro)
+static void _remap_remap_done(void *ros)
 {
+  RemapObject *ro = RO(ros);
   _remap_done(ro);
+  free(ros);
 }
 
 static struct remap_calls rmcalls = {
