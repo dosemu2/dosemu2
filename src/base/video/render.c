@@ -471,7 +471,7 @@ static int remap_mode(void)
   case PL4:
     mode_type = MODE_VGA_4; break;
   case P8:
-    mode_type = MODE_PSEUDO_8; break;
+    mode_type = vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 : MODE_VGA_X; break;
   case P15:
     mode_type = MODE_TRUE_15; break;
   case P16:
