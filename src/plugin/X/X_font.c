@@ -35,6 +35,16 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
+static void X_text_lock(void)
+{
+  XLockDisplay(text_display);
+}
+
+static void X_text_unlock(void)
+{
+  XUnlockDisplay(text_display);
+}
+
 /*
  * Change color values in our graphics context 'gc'.
  */
@@ -209,6 +219,8 @@ static struct text_system Text_X =
    X_draw_line,
    X_draw_text_cursor,
    X_set_text_palette,
+   X_text_lock,
+   X_text_unlock,
 };
 
 /* Runs xset to load X fonts */
@@ -307,11 +319,6 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
   use_bitmap_font = (font == NULL);
   dirty_all_vga_colors();
   if (use_bitmap_font) {
-    if (p == NULL) {
-      if (private_dpy && text_display)
-	XCloseDisplay(text_display);
-      return;
-    }
     X_printf("X: X_change_config: font \"%s\" not found, "
 	     "using builtin\n", p);
     X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
@@ -348,6 +355,12 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
     XGetWindowAttributes(dpy, w, &xwa);
     XSelectInput(dpy, w, xwa.your_event_mask & ~ExposureMask);
   }
+}
+
+void X_close_text_display(void)
+{
+  if (text_display)
+    XCloseDisplay(text_display);
 }
 
 /*

@@ -441,9 +441,6 @@ static int X_update_screen(void);
 static void load_cursor_shapes(void);
 static Cursor create_invisible_cursor(void);
 
-/* text mode cursor manipulation stuff */
-static void X_update_cursor(void);
-
 #if CONFIG_X_MOUSE
 /* mouse related code */
 static void set_mouse_position(int, int);
@@ -452,6 +449,9 @@ static void toggle_mouse_grab(void);
 #endif
 static void X_show_mouse_cursor(int yes);
 static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
+static struct bitmap_desc X_lock_canvas(void);
+static void X_lock(void);
+static void X_unlock(void);
 
 void kdos_recv_msg(char *);
 void kdos_send_msg(char *);
@@ -470,15 +470,16 @@ struct video_system Video_X =
    X_close,
    X_set_videomode,
    X_update_screen,
-   X_update_cursor,
    X_change_config,
    X_handle_events,
-   .name = "X"
+   "X"
 };
 
 struct render_system Render_X =
 {
    put_ximage,
+   X_lock_canvas,
+   X_unlock
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -521,6 +522,18 @@ static Display *XKBOpenDisplay(char *display_name)
 	return dpy;
 }
 
+void X_pre_init(void)
+{
+  XInitThreads();
+}
+
+void X_register_speaker(Display *display)
+{
+#if CONFIG_X_SPEAKER
+  register_speaker(display, X_speaker_on, X_speaker_off);
+#endif
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -543,6 +556,7 @@ int X_init()
 
   X_printf("X: X_init\n");
 
+  X_pre_init();
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XKBOpenDisplay(display_name);
@@ -768,9 +782,7 @@ int X_init()
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
 
-#if CONFIG_X_SPEAKER
-  register_speaker(display, X_speaker_on, X_speaker_off);
-#endif
+  X_register_speaker(display);
 
   return 0;
 }
@@ -788,6 +800,8 @@ void X_close()
   X_printf("X: X_close\n");
 
   if(display == NULL) return;
+  /* terminate remapper early so that render thread is cancelled */
+  remapper_done();
 
 #if CONFIG_X_SPEAKER
   /* turn off the sound, and */
@@ -802,7 +816,6 @@ void X_close()
   X_xf86vm_done();
 #endif
 
-  X_load_text_font(display, 0, drawwindow, NULL, NULL, NULL);
   if(our_window) {
     XDestroyWindow(display, drawwindow);
     XDestroyWindow(display, normalwindow);
@@ -810,7 +823,6 @@ void X_close()
   }
 
   destroy_ximage();
-
   vga_emu_done();
 
   if(graphics_cmap) XFreeColormap(display, graphics_cmap);
@@ -819,8 +831,6 @@ void X_close()
     XFreeGC(display, gc);
 
   if(X_csd.pixel_lut != NULL) { free(X_csd.pixel_lut); X_csd.pixel_lut = NULL; }
-
-  remapper_done();
 
 #ifdef HAVE_DGA
   X_dga_done();
@@ -1324,6 +1334,23 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 #endif /* CONFIG_X_MOUSE */
 }
 
+static void X_lock(void)
+{
+  XLockDisplay(display);
+}
+
+static struct bitmap_desc X_lock_canvas(void)
+{
+  X_lock();
+  return BMP((unsigned char *)ximage->data, w_x_res,
+        w_y_res, ximage->bytes_per_line);
+}
+
+static void X_unlock(void)
+{
+  XUnlockDisplay(display);
+}
+
 /* From SDL: Called after unmapping a window - waits until the window is unmapped */
 static void X_wait_unmapped(Window win)
 {
@@ -1406,14 +1433,11 @@ static void toggle_fullscreen_mode(int init)
  *
  * DANG_END_FUNCTION
  */
-static void X_handle_events(void)
+static int __X_handle_events(void)
 {
    XEvent e, rel_evt;
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
    int keyrel_pending = 0;
-
-   if (!initialized)
-     return;
 
 #if CONFIG_X_MOUSE
    {
@@ -1498,8 +1522,7 @@ static void X_handle_events(void)
 
 	case DestroyNotify:
 	  X_printf("X: window got destroyed\n");
-	  leavedos(99);
-	  break;
+	  return -1;
 
 	case ClientMessage:
 	  /* If we get a client message which has the value of the delete
@@ -1508,8 +1531,7 @@ static void X_handle_events(void)
 	  if(e.xclient.message_type == proto_atom && *e.xclient.data.l == delete_atom) {
 	    X_printf("X: got window delete message\n");
 	    /* XXX - Is it ok to call this from a SIGALRM handler? */
-	    leavedos(0);
-	    break;
+	    return -1;
 	  }
 
 	  if(e.xclient.message_type == comm_atom) {
@@ -1714,8 +1736,27 @@ static void X_handle_events(void)
 #if CONFIG_X_MOUSE
   do_mouse_irq();
 #endif
+  return 0;
 }
 
+static void X_handle_events(void)
+{
+  int ret;
+  if (!initialized)
+    return;
+  if (render_is_updating())
+    return;
+  /* If we don't grab the lock here then another thread can interrupt
+   * the event handling loop and cause it to wait for the lock inside
+   * the Xlib function. All xlib functions grab the lock themselves
+   * (because of XInitThreads()), so it is still safe, but we don't
+   * want the event loop to be "paused". The lock is recursive. */
+  XLockDisplay(display);
+  ret = __X_handle_events();
+  XUnlockDisplay(display);
+  if (ret < 0)
+    leavedos(0);
+}
 
 /*
  * DANG_BEGIN_FUNCTION graphics_cmap_init
@@ -1994,13 +2035,12 @@ void put_ximage(int x, int y, unsigned width, unsigned height)
 void resize_ximage(unsigned width, unsigned height)
 {
   X_printf("X: resize_ximage %d x %d --> %d x %d\n", w_x_res, w_y_res, width, height);
+  X_lock();
   destroy_ximage();
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  if (vga.mode_class == GRAPH || use_bitmap_font)
-    render_resize((unsigned char *)ximage->data, width,
-	height, ximage->bytes_per_line);
+  X_unlock();
 }
 
 /*
@@ -2107,6 +2147,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     X_unmap_mode = -1;
   }
 
+  X_lock();
   destroy_ximage();
 
   mouse_x = mouse_y = 0;
@@ -2188,8 +2229,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-    render_init((unsigned char *)ximage->data, w_x_res, w_y_res,
-	ximage->bytes_per_line);
 
     sh.width = w_x_res;
     sh.height = w_y_res;
@@ -2218,6 +2257,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     XMapWindow(display, drawwindow);
     X_map_mode = -1;
   }
+  X_unlock();
 
   initialized = 1;
 
@@ -2353,7 +2393,11 @@ void X_redraw_text_screen()
 
 int X_update_screen()
 {
-  return is_mapped ? update_screen() : 0;
+  if (!is_mapped)
+    return 0;
+  if (render_is_updating())
+    return 0;
+  return update_screen();
 }
 
 
@@ -2404,19 +2448,6 @@ Cursor create_invisible_cursor()
   XFreePixmap(display, mask);
   return cursor;
 }
-
-
-/*
- * Redraw the cursor if it's necessary.
- * Do nothing in graphics modes.
- */
-void X_update_cursor()
-{
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-  update_cursor();
-}
-
 
 #if CONFIG_X_MOUSE
 /*

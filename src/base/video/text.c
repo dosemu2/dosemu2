@@ -53,8 +53,8 @@ static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 static unsigned char *text_canvas;
-static struct bitmap_desc dst_image;
 static struct remap_object *text_remap;
+static ushort *prev_screen;  /* pointer to currently displayed screen   */
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
@@ -100,6 +100,18 @@ int register_text_system(struct text_system *text_system)
   return 1;
 }
 
+static void text_lock(void)
+{
+  if (Text->lock)
+    Text->lock();
+}
+
+static void text_unlock(void)
+{
+  if (Text->unlock)
+    Text->unlock();
+}
+
 /*
  * Draw a text string.
  * The attribute is the VGA color/mono text attribute.
@@ -110,11 +122,12 @@ static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
     "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
     len, x, y, (unsigned) attr
   );
-
+  text_lock();
   Text->Draw_string(x, y, text, len, attr);
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
     Text->Draw_line(x, y, len);
   }
+  text_unlock();
 }
 
 
@@ -166,9 +179,11 @@ static void draw_cursor(void)
   if(check_cursor_location(vga.crtc.cursor_location - vga.display_start, &x, &y) &&
      (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
+    text_lock();
     Text->Draw_cursor(x, y, XATTR(cursor),
 		      CURSOR_START(vga.crtc.cursor_shape), CURSOR_END(vga.crtc.cursor_shape),
 		      have_focus);
+    text_unlock();
   }
 }
 
@@ -188,7 +203,8 @@ static void redraw_cursor(void)
   prev_cursor_shape = vga.crtc.cursor_shape.w;
 }
 
-RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
+RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end,
+    Boolean focus, struct bitmap_desc dst_image)
 {
   int i,j;
   int fg = ATTR_FG(attr);
@@ -219,17 +235,18 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
       *deb++ = fg;
   }
   return remap_remap_rect(text_remap, BMP(text_canvas,
-			      vga.width, vga.height, vga.width),
+			      vga.width, vga.height, vga.width), MODE_PSEUDO_8,
 			      vga.char_width * x, vga.char_height * y,
 			      vga.char_width, vga.char_height,
-			      dst_image);
+			      dst_image, config.X_gamma);
 }
 
 /*
  * Draw a horizontal line (for text modes)
  * The attribute is the VGA color/mono text attribute.
  */
-RectArea draw_bitmap_line(int x, int y, int linelen)
+RectArea draw_bitmap_line(int x, int y, int linelen,
+    struct bitmap_desc dst_image)
 {
   Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start +
 				  y * vga.scan_len + x * 2);
@@ -245,8 +262,8 @@ RectArea draw_bitmap_line(int x, int y, int linelen)
   deb = text_canvas + len * y + x;
   memset(deb, fg, linelen);
   return remap_remap_rect(text_remap, BMP(text_canvas,
-    vga.width, vga.height, vga.width),
-    x, y, linelen, 1, dst_image);
+    vga.width, vga.height, vga.width), MODE_PSEUDO_8,
+    x, y, linelen, 1, dst_image, config.X_gamma);
 }
 
 void reset_redraw_text_screen(void)
@@ -267,8 +284,11 @@ void reset_redraw_text_screen(void)
 
 static void refresh_text_pal(DAC_entry *col, int index, void *udata)
 {
-  if (Text->SetPalette)
+  if (Text->SetPalette) {
+    text_lock();
     Text->SetPalette(col, index);
+    text_unlock();
+  }
 }
 
 /*
@@ -277,32 +297,30 @@ static void refresh_text_pal(DAC_entry *col, int index, void *udata)
  *
  * Note: Redraws the *entire* screen if at least one color has changed.
  */
-static void refresh_text_palette(void)
+static int refresh_text_palette(void)
 {
   int j;
 
   if(vga.pixel_size > 4) {
     X_printf("X: refresh_text_palette: invalid color size - no updates made\n");
-    return;
+    return -1;
   }
 
-  if(use_bitmap_font) {
-    if(refresh_palette(text_remap))
-      redraw_text_screen();
-    return;
-  }
-
-  j = changed_vga_colors(refresh_text_pal, NULL);
-  if(j) redraw_text_screen();
+  if(use_bitmap_font)
+    j = refresh_palette(text_remap);
+  else
+    j = changed_vga_colors(refresh_text_pal, NULL);
+  return j;
 }
 
-void text_blit(int x, int y, int width, int height)
+void text_blit(int x, int y, int width, int height,
+    struct bitmap_desc dst_image)
 {
   if (!use_bitmap_font)
     return;
   remap_remap_rect_dst(text_remap, BMP(text_canvas,
-	vga.width, vga.height, vga.width),
-	x, y, width, height, dst_image);
+	vga.width, vga.height, vga.width), MODE_PSEUDO_8,
+	x, y, width, height, dst_image, config.X_gamma);
 }
 
 /*
@@ -327,6 +345,7 @@ void redraw_text_screen()
   x_msg("X_redraw_text_screen: all\n");
 
   vga.reconfig.mem = 0;
+  refresh_text_palette();
 
   if(vga.text_width > MAX_COLUMNS) {
     x_msg("X_redraw_text_screen: unable to handle %d colums\n", vga.text_width);
@@ -356,8 +375,11 @@ void redraw_text_screen()
     sp += vga.scan_len / 2 - vga.text_width;
     oldsp += vga.scan_len / 2 - vga.text_width;
   }
+}
 
-  reset_redraw_text_screen();
+void dirty_text_screen(void)
+{
+  memset(prev_screen, 0xff, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 }
 
 /*
@@ -403,29 +425,25 @@ void blink_cursor()
   }
 }
 
-/*
- * Resize everything according to vga.*
- */
-void resize_text_mapper(unsigned char *dst_img, int width, int height,
-	int scan_len)
-{
-  if(vga.mode_class == GRAPH || !use_bitmap_font)
-    return;
-  text_canvas = realloc(text_canvas, 1 * vga.width * vga.height);
-  if (text_canvas == NULL)
-    error("X: cannot allocate text mode canvas for font simulation\n");
-  dst_image = BMP(dst_img, width, height, scan_len);
-}
-
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
 {
+  /* allocate screen buffer for non-console video compare speedup */
+  prev_screen = (ushort *)malloc(MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+  if (prev_screen==NULL) {
+    error("could not malloc prev_screen\n");
+    leavedos(99);
+  }
+  v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
   if(!use_bitmap_font)
     return;
+  /* think 9x32 is maximum */
+  text_canvas = malloc(MAX_COLUMNS * 9 * MAX_LINES * 32);
+  if (text_canvas == NULL)
+    error("X: cannot allocate text mode canvas for font simulation\n");
   assert(!text_remap);
 
   /* linear 1 byte per pixel */
   text_remap = remap_init(MODE_PSEUDO_8, image_mode, remap_features, csd);
-  remap_adjust_gamma(text_remap, config.X_gamma);
 }
 
 void done_text_mapper(void)
@@ -436,7 +454,7 @@ void done_text_mapper(void)
 }
 
 RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
-			       Bit8u attr)
+			       Bit8u attr, struct bitmap_desc dst_image)
 {
   unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
   unsigned long fgX;
@@ -462,11 +480,6 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
   /* An IDEA would be to have palette animation and use special  */
   /* colors for the bright-or-blinking background, although the  */
   /* official blink would be the foreground, not the background. */
-
-  /* Eric: What type is our text_remap.src_mode at this moment??? */
-  /* not sure if I use the remap object at least roughly correct */
-  /* basically, it is like two Ximages, linked by remapping...   */
-
 
   height = vga.char_height; /* not font_height - should start to */
                             /* remove font_height completely. It */
@@ -523,9 +536,10 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
   }
 
   return remap_remap_rect(text_remap, BMP(text_canvas,
-			      vga.width, vga.height, vga.width),
+			      vga.width, vga.height, vga.width), MODE_PSEUDO_8,
 			      vga.char_width * x, height * y,
-			      vga.char_width * len, height, dst_image);
+			      vga.char_width * len, height, dst_image,
+			      config.X_gamma);
 }
 
 /*
@@ -545,11 +559,12 @@ int update_text_screen(void)
   int numscan = 0;         /* Number of lines scanned. */
   int numdone = 0;         /* Number of lines actually updated. */
 
-  refresh_text_palette();
-
   if(vga.reconfig.mem) {
     redraw_text_screen();
     vga.reconfig.mem = 0;
+    return 0;
+  } else {
+    refresh_text_palette();
   }
 
   /* The following determines how many lines it should scan at once,

@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <SDL.h>
 #include <SDL_syswm.h>
 
@@ -37,13 +38,11 @@
 #include "keyb_clients.h"
 #include "dos2linux.h"
 #include "utilities.h"
-#include "speaker.h"
 
 static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
-static void SDL_update_cursor(void);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int *x_res, int *y_res);
@@ -55,6 +54,8 @@ static int SDL_set_text_mode(int tw, int th, int w ,int h);
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
 static void toggle_grab(void);
+static struct bitmap_desc lock_surface(void);
+static void unlock_surface(void);
 
 struct video_system Video_SDL =
 {
@@ -63,15 +64,16 @@ struct video_system Video_SDL =
   SDL_close,
   SDL_set_videomode,
   SDL_update_screen,
-  SDL_update_cursor,
   SDL_change_config,
   SDL_handle_events,
-  .name = "sdl"
+  "sdl"
 };
 
 struct render_system Render_SDL =
 {
    SDL_put_image,
+   lock_surface,
+   unlock_surface,
 };
 
 static const SDL_VideoInfo *video_info;
@@ -80,7 +82,7 @@ static SDL_Surface* surface = NULL;
 static unsigned int SDL_image_mode;
 
 static Boolean is_mapped = FALSE;
-static int exposure = 0;
+static int exposure;
 
 static int font_width, font_height;
 
@@ -95,6 +97,8 @@ static struct {
   int num, max;
   SDL_Rect *rects;
 } sdl_rects;
+pthread_mutex_t rect_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 int grab_active = 0;
@@ -107,6 +111,12 @@ static void (*X_load_text_font)(Display *display, int private_dpy,
 				Window window, const char *p,  int *w, int *h);
 #define X_handle_text_expose pX_handle_text_expose
 static int (*X_handle_text_expose)(void);
+#define X_close_text_display pX_close_text_display
+static int (*X_close_text_display)(void);
+#define X_pre_init pX_pre_init
+static int (*X_pre_init)(void);
+#define X_register_speaker pX_register_speaker
+static void (*X_register_speaker)(Display *display);
 #endif
 
 #ifdef CONFIG_SELECTION
@@ -125,39 +135,48 @@ static struct {
   void (*unlock_func)(void);
 } x11;
 
+static void preinit_x11_support(void)
+{
+#ifdef USE_DL_PLUGINS
+  void *handle = load_plugin("X");
+  X_register_speaker = dlsym(handle, "X_register_speaker");
+  X_load_text_font = dlsym(handle, "X_load_text_font");
+  X_pre_init = dlsym(handle, "X_pre_init");
+  X_close_text_display = dlsym(handle, "X_close_text_display");
+  X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
+#ifdef CONFIG_SDL_SELECTION
+  X_handle_selection = dlsym(handle, "X_handle_selection");
+#endif
+  X_pre_init();
+#endif
+}
+
 static void init_x11_support(void)
 {
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
-#ifdef USE_DL_PLUGINS
-    void (*X_speaker_on)(void *, unsigned, unsigned short);
-    void (*X_speaker_off)(void *);
-    void *handle = load_plugin("X");
-    X_speaker_on = dlsym(handle, "X_speaker_on");
-    X_speaker_off = dlsym(handle, "X_speaker_off");
-    X_load_text_font = dlsym(handle, "X_load_text_font");
-    X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
-#ifdef CONFIG_SDL_SELECTION
-    X_handle_selection = dlsym(handle, "X_handle_selection");
-#endif
-#endif
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
     x11.display = info.info.x11.display;
     x11.lock_func = info.info.x11.lock_func;
     x11.unlock_func = info.info.x11.unlock_func;
-    register_speaker(x11.display, X_speaker_on, X_speaker_off);
   }
 }
 
-static void init_x11_window_font(void)
+static void init_x11_window_font(int *x_res, int *y_res)
 {
+  int font_width, font_height;
   /* called as soon as the window is active (first set video mode) */
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
     x11.window = info.info.x11.window;
-    SDL_change_config(CHG_FONT, config.X_font);
+    x11.lock_func();
+    X_load_text_font(x11.display, 1, x11.window, config.X_font,
+		       &font_width, &font_height);
+    x11.unlock_func();
+    *x_res = vga.text_width * font_width;
+    *y_res = vga.text_height * font_height;
   }
 }
 #endif /* X_SUPPORT */
@@ -169,6 +188,9 @@ int SDL_priv_init(void)
    * Also, as a bonus, /dev/fb0 can be opened with privs. */
   PRIV_SAVE_AREA
   int ret;
+#ifdef X_SUPPORT
+  preinit_x11_support();
+#endif
   enter_priv_on();
   ret = SDL_Init(SDL_INIT_VIDEO| SDL_INIT_NOPARACHUTE);
   leave_priv_setting();
@@ -190,7 +212,6 @@ int SDL_init(void)
   if (init_failed)
     return -1;
 
-  use_bitmap_font = 1;
   SDL_EnableUNICODE(1);
   SDL_VideoDriverName(driver, 8);
   v_printf("SDL: Using driver: %s\n", driver);
@@ -257,16 +278,34 @@ void SDL_close(void)
   vga_emu_done();
 #ifdef X_SUPPORT
   if (x11.display && x11.window != None)
-    X_load_text_font(x11.display, 1, x11.window, NULL, NULL, NULL);
+    X_close_text_display();
 #endif
   SDL_Quit();
 }
 
 static void SDL_update(void)
 {
-  if (sdl_rects.num == 0) return;
+  pthread_mutex_lock(&rect_mtx);
+  if (sdl_rects.num == 0) {
+    pthread_mutex_unlock(&rect_mtx);
+    return;
+  }
   SDL_UpdateRects(surface, sdl_rects.num, sdl_rects.rects);
   sdl_rects.num = 0;
+  pthread_mutex_unlock(&rect_mtx);
+}
+
+static struct bitmap_desc lock_surface(void)
+{
+  pthread_mutex_lock(&mode_mtx);
+  SDL_LockSurface(surface);
+  return BMP(surface->pixels, w_x_res, w_y_res, surface->pitch);
+}
+
+static void unlock_surface(void)
+{
+  SDL_UnlockSurface(surface);
+  pthread_mutex_unlock(&mode_mtx);
 }
 
 /*
@@ -288,10 +327,7 @@ static void SDL_redraw_text_screen(void)
   }
 #endif
   if (surface==NULL) return;
-  SDL_LockSurface(surface);
   redraw_text_screen();
-  SDL_UnlockSurface(surface);
-  SDL_update();
 }
 
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
@@ -326,7 +362,9 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     if (is_mapped) SDL_reset_redraw_text_screen();
   } else {
     get_mode_parameters(&w_x_res, &w_y_res);
+    pthread_mutex_lock(&mode_mtx);
     SDL_change_mode(&w_x_res, &w_y_res);
+    pthread_mutex_unlock(&mode_mtx);
   }
 
   initialized = 1;
@@ -339,14 +377,14 @@ void SDL_resize_image(unsigned width, unsigned height)
   v_printf("SDL: resize_image %d x %d\n", width, height);
   w_x_res = width;
   w_y_res = height;
+  pthread_mutex_lock(&mode_mtx);
   SDL_change_mode(&w_x_res, &w_y_res);
+  pthread_mutex_unlock(&mode_mtx);
 }
 
 static void SDL_redraw_resize_image(unsigned width, unsigned height)
 {
   SDL_resize_image(width, height);
-  /* forget about those rectangles */
-  sdl_rects.num = 0;
   render_blit(0, 0, width, height);
 }
 
@@ -360,7 +398,7 @@ int SDL_set_text_mode(int tw, int th, int w ,int h)
 
 static void SDL_change_mode(int *x_res, int *y_res)
 {
-  Uint32 flags = SDL_HWPALETTE | SDL_HWSURFACE;
+  Uint32 flags = SDL_HWPALETTE | SDL_HWSURFACE | SDL_ASYNCBLIT;
   saved_w_x_res = *x_res;
   saved_w_y_res = *y_res;
   if (!use_bitmap_font && vga.mode_class == TEXT) {
@@ -374,6 +412,9 @@ static void SDL_change_mode(int *x_res, int *y_res)
     if (modes == (SDL_Rect **) 0) {
       modes=SDL_ListModes(NULL, SDL_FULLSCREEN);
     }
+#ifdef X_SUPPORT
+    init_x11_window_font(x_res, y_res);
+#endif
     if (modes != (SDL_Rect **) -1) {
       unsigned mw = 0;
       i = 0;
@@ -417,62 +458,38 @@ static void SDL_change_mode(int *x_res, int *y_res)
     return;
   }
   SDL_ShowCursor(SDL_DISABLE);
-  render_init(surface->pixels, *x_res, *y_res, surface->pitch);
-#ifdef X_SUPPORT
-  {
-    static int first = 1;
-    if (first == 1) {
-      first = 0;
-      init_x11_window_font();
-    }
-  }
-#endif
-}
-
-void SDL_update_cursor(void)
-{
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-   else if (is_mapped) {
-#ifdef X_SUPPORT
-     if (!use_bitmap_font) {
-       update_cursor();
-       return;
-     }
-#endif
-     if (surface==NULL) return;
-     SDL_LockSurface(surface);
-     update_cursor();
-     SDL_UnlockSurface(surface);
-     SDL_update();
-   }
+  pthread_mutex_lock(&rect_mtx);
+  /* forget about those rectangles */
+  sdl_rects.num = 0;
+  pthread_mutex_unlock(&rect_mtx);
 }
 
 int SDL_update_screen(void)
 {
+  int ret;
   if (init_failed)
     return 1;
-  if (is_mapped) {
-    int ret;
+  if (!is_mapped)
+    return 0;
+  if (render_is_updating())
+    return 0;
+  /* if render is idle we start async blit (as of SDL_SYNCBLIT) and
+   * then start the renderer. It will wait till async blit to finish. */
+  SDL_update();
 #ifdef X_SUPPORT
-    if (!use_bitmap_font && vga.mode_class == TEXT)
-      return update_screen();
+  if (!use_bitmap_font && vga.mode_class == TEXT)
+    return update_screen();
 #endif
-    if (surface==NULL) return 1;
-    SDL_LockSurface(surface);
-    ret = update_screen();
-    SDL_UnlockSurface(surface);
-    SDL_update();
-    return ret;
-  }
-  return 0;
+  if (surface==NULL) return 1;
+  ret = update_screen();
+  return ret;
 }
 
 /* this only pushes the rectangle on a stack; updating is done later */
-void SDL_put_image(int x, int y, unsigned width, unsigned height)
+static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
   SDL_Rect *rect;
-
+  pthread_mutex_lock(&rect_mtx);
   if (sdl_rects.num >= sdl_rects.max) {
     sdl_rects.rects = realloc(sdl_rects.rects, (sdl_rects.max + 10) *
 			      sizeof(*sdl_rects.rects));
@@ -484,6 +501,7 @@ void SDL_put_image(int x, int y, unsigned width, unsigned height)
   rect->w = width;
   rect->h = height;
   sdl_rects.num++;
+  pthread_mutex_unlock(&rect_mtx);
 }
 
 static void toggle_grab(void)
@@ -586,7 +604,6 @@ static int SDL_change_config(unsigned item, void *buf)
 		       &font_width, &font_height);
       x11.unlock_func();
       if (use_bitmap_font) {
-        register_render_system(&Render_SDL);
         if(vga.mode_class == TEXT)
 	  SDL_set_text_mode(vga.text_width, vga.text_height,
 			    vga.width, vga.height);
@@ -644,6 +661,8 @@ static void SDL_handle_events(void)
    SDL_Event event;
    if (!initialized)
      return;
+  if (render_is_updating())
+     return;
    while (SDL_PollEvent(&event)) {
      switch (event.type) {
      case SDL_ACTIVEEVENT: {
@@ -689,6 +708,14 @@ static void SDL_handle_events(void)
        break;
      case SDL_VIDEOEXPOSE:
        v_printf("SDL: videoexpose event\n");
+#ifdef X_SUPPORT
+       if (!use_bitmap_font) {
+          x11.lock_func();
+          X_handle_text_expose();
+          x11.unlock_func();
+          SDL_redraw_text_screen();
+       }
+#endif
        break;
      case SDL_KEYDOWN:
        {
@@ -778,11 +805,6 @@ static void SDL_handle_events(void)
        break;
      }
    }
-#ifdef X_SUPPORT
-   if (!use_bitmap_font && X_handle_text_expose())
-     /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
-     SDL_redraw_text_screen();
-#endif
    do_mouse_irq();
 }
 

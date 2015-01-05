@@ -327,6 +327,7 @@ static int dualmon_setmode(int type, int xsize,int ysize)
   return 0;
 }
 
+#if 0
 static void dualmon_update_cursor(void)
 {
 static int old=-1;
@@ -338,6 +339,7 @@ if (old != READ_WORD(BIOS_CONFIGURATION)) {
       Video_default->update_cursor)
     Video_default->update_cursor();
 }
+#endif
 
 struct video_system Video_dualmon = {
    dualmon_init,
@@ -345,8 +347,9 @@ struct video_system Video_dualmon = {
    dualmon_close,
    dualmon_setmode,
    NULL,                  /* will be overwritten by parent Video system */
-   dualmon_update_cursor,
-   .name = "dualmon"
+   NULL,
+   NULL,
+   "dualmon"
 };
 
 static void init_dualmon(void)
@@ -361,7 +364,6 @@ static void init_dualmon(void)
       if (config.dualmon == 2) {
         /* we are on a graphics console, need neither screen- nor cursor-update  */
         Video->update_screen=0;
-        Video->update_cursor=0;
       }
     }
   }

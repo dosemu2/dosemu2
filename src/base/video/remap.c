@@ -155,6 +155,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   int color_lut_size = 256;
   unsigned u, u0, u1;
 
+  ro->features = features;
   ro->palette_update = do_nearly_nothing;
   ro->src_resize = src_resize_update;
   ro->dst_resize = dst_resize_update;
@@ -193,9 +194,6 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
     do_base_init();
     base_init = 1;
   }
-
-  ro->src_color_space = calloc(1, sizeof(*ro->src_color_space));
-  if(ro->src_color_space == NULL) ro->state |= ROS_MALLOC_FAIL;
 
   ro->dst_color_space = color_space;
   ro->dst_image = NULL;
@@ -238,16 +236,18 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
       ro->palette_update = do_nearly_nothing;
     }
     if((ro->dst_mode & MODE_TRUE_8) == ro->dst_mode) {
-      ro->true_color_lut = calloc(color_lut_size * 1, sizeof(*ro->true_color_lut));
+      ro->true_color_lut = calloc(color_lut_size, sizeof(*ro->true_color_lut));
       if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
       ro->palette_update = pseudo_col_palette_update;
     }
     else if((ro->dst_mode & MODE_TRUE_COL) == ro->dst_mode) {
       /* **** really too much for now...  **** */
-      ro->true_color_lut = calloc(color_lut_size * 3, sizeof(*ro->true_color_lut));
+      color_lut_size *= 3;
+      ro->true_color_lut = calloc(color_lut_size, sizeof(*ro->true_color_lut));
       if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
       ro->palette_update = true_col_palette_update;
     }
+    ro->color_lut_size = color_lut_size;
     ro->bit_lut = calloc(8*4*256, 1);
     if(ro->bit_lut == NULL) {
       ro->state |= ROS_MALLOC_FAIL;
@@ -305,7 +305,6 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
 #define FreeIt(_p_) if(_p_ != NULL) { free(_p_); _p_ = NULL; }
 static void _remap_done(RemapObject *ro)
 {
-  FreeIt(ro->src_color_space)
   FreeIt(ro->gamma_lut)
   FreeIt(ro->bre_x)
   FreeIt(ro->bre_y)
@@ -365,6 +364,9 @@ unsigned u_pow(unsigned a, unsigned b)
 static void adjust_gamma(RemapObject *ro, unsigned gamma)
 {
   int i;
+
+  if (ro->gamma == gamma)
+    return;
 
   if(gamma == 100 || gamma == 0) {
     gamma = 100;
@@ -3405,44 +3407,75 @@ void gen_c2to32_all(RemapObject *ro)
   }
 }
 
+
+#define RO(p) (*(RemapObject **)p)
+
+static RemapObject *re_create_obj(RemapObject *old, int new_mode)
+{
+  RemapObject *dst = _remap_init(new_mode, old->dst_mode,
+    old->features, old->dst_color_space);
+  if (dst->color_lut_size == old->color_lut_size) {
+    memcpy(dst->true_color_lut, old->true_color_lut, dst->color_lut_size);
+  } else {
+    error("remap: color lut size mismatch, %i %i\n",
+      dst->color_lut_size, old->color_lut_size);
+  }
+  _remap_done(old);
+  return dst;
+}
+
 static int _remap_palette_update(void *ros, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
   return ro->palette_update(ro, i, bits, r, g, b);
 }
 
 static RectArea _remap_remap_rect(void *ros, const struct bitmap_desc src_img,
+	int src_mode,
 	int x0, int y0, int width, int height,
-	struct bitmap_desc dst_img)
+	struct bitmap_desc dst_img, int gamma)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
+  if (src_mode != ro->src_mode)
+    RO(ros) = ro = re_create_obj(ro, src_mode);
   ro->src_image = src_img.img;
   ro->src_start = 0;
   ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
+  adjust_gamma(ro, gamma);
   return ro->remap_rect(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_rect_dst(void *ros,
 	const struct bitmap_desc src_img,
-	int x0, int y0, int width, int height, struct bitmap_desc dst_img)
+	int src_mode,
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
+	int gamma)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
+  if (src_mode != ro->src_mode)
+    RO(ros) = ro = re_create_obj(ro, src_mode);
   ro->src_image = src_img.img;
   ro->src_start = 0;
   ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
+  adjust_gamma(ro, gamma);
   return ro->remap_rect_dst(ro, x0, y0, width, height);
 }
 
 static RectArea _remap_remap_mem(void *ros,
-	const struct bitmap_desc src_img, unsigned src_start,
-	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img)
+	const struct bitmap_desc src_img,
+	int src_mode,
+	unsigned src_start,
+	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img,
+	int gamma)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
+  if (src_mode != ro->src_mode)
+    RO(ros) = ro = re_create_obj(ro, src_mode);
   ro->src_image = src_img.img;
   ro->src_start = src_start;
   ro->dst_image = dst_img.img;
@@ -3455,35 +3488,38 @@ static RectArea _remap_remap_mem(void *ros,
   }
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
+  adjust_gamma(ro, gamma);
   return ro->remap_mem(ro, dst_start, offset, len);
 }
 
 static int _remap_get_cap(void *ros)
 {
-  RemapObject *ro = ros;
+  RemapObject *ro = RO(ros);
   return ro->state;
-}
-
-static void _remap_adjust_gamma(void *ro, unsigned gamma)
-{
-  adjust_gamma(ro, gamma);
 }
 
 static void *_remap_remap_init(int src_mode, int dst_mode, int features,
         const ColorSpaceDesc *color_space)
 {
-  return _remap_init(src_mode, dst_mode, features, color_space);
+  RemapObject *o, **p;
+  o = _remap_init(src_mode, dst_mode, features, color_space);
+  if (!o)
+    return NULL;
+  p = malloc(sizeof(*p));
+  *p = o;
+  return p;
 }
 
-static void _remap_remap_done(void *ro)
+static void _remap_remap_done(void *ros)
 {
+  RemapObject *ro = RO(ros);
   _remap_done(ro);
+  free(ros);
 }
 
 static struct remap_calls rmcalls = {
   _remap_remap_init,
   _remap_remap_done,
-  _remap_adjust_gamma,
   _remap_palette_update,
   _remap_remap_rect,
   _remap_remap_rect_dst,

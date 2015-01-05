@@ -76,10 +76,6 @@ struct video_system {
 
    int (*update_screen)(void);     /* (partially) update screen and cursor from the
                                   video memory. called from sigalrm handler */
-
-   void (*update_cursor)(void);    /* update cursor position&shape. Called by sigalrm
-                                  handler *only* if update_screen does not exist
-                                  or is not done because the video mem is clean */
    int (*change_config)(unsigned item, void *buf); /* change configuration
                                   e.g. window title (optional) */
    void (*handle_events)(void);    /* event handler (not strictly video but
@@ -88,10 +84,6 @@ struct video_system {
 };
 
 extern struct video_system *Video;
-
-EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
-                             /* used&updated by Video->update_screen    */
-
 EXTERN int video_mode INIT(0);
 EXTERN int video_combo INIT(0);
 

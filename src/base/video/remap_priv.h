@@ -66,7 +66,7 @@ typedef struct RemapObjectStruct {
   RectArea (*remap_mem)(struct RemapObjectStruct *, unsigned, int, int);
   int state;
   int src_mode, dst_mode;
-  ColorSpaceDesc *src_color_space;
+  int features;
   const ColorSpaceDesc *dst_color_space;
   unsigned gamma;		/* 4 byte !! */
   unsigned char *gamma_lut;
@@ -81,6 +81,7 @@ typedef struct RemapObjectStruct {
   int src_start, dst_start;
   int *bre_x, *bre_y;
   unsigned *true_color_lut;
+  int color_lut_size;
   unsigned *bit_lut;
   int supported_src_modes;
   void (*remap_func)(struct RemapObjectStruct *);
@@ -128,7 +129,6 @@ RemapFuncDesc *remap_opt(void);
 		RO_Struct ro_state
 		RO_Struct ro_src_mode
 		RO_Struct ro_src_mode
-		RO_Struct ro_src_color_space
 		RO_Struct ro_dst_color_space
 		RO_Struct ro_gamma
 		RO_Struct ro_gamma_lut

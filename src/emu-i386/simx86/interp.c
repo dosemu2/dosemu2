@@ -2117,7 +2117,7 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if ((Video->update_cursor || Video->update_screen) &&
+			if (Video->update_screen &&
 			    (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
 			    // [012.456789a.c.ef....45....a.....]
@@ -2269,7 +2269,7 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if ((Video->update_cursor || Video->update_screen) &&
+			if (Video->update_screen &&
 			    (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
 			    // [0.2.456789....e.....45...9a.....]
@@ -2320,7 +2320,7 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if ((Video->update_cursor || Video->update_screen) &&
+			if (Video->update_screen &&
 			    (a>=0x3c0) && (a<=0x3de) && (mode & DATA16)) {
 			    switch(a&0x1f) {
 			      // [....456789..........45..........]
