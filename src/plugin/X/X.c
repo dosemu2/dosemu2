@@ -2122,15 +2122,9 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
   XSetWindowAttributes xwa;
 #endif
 
-  if(mode_class != -1) {	/* tell vgaemu we're going to another mode */
-    if(!vga_emu_setmode(mode, text_width, text_height)) {
-      v_printf("vga_emu_setmode(%d, %d, %d) failed\n",
-               mode, text_width, text_height);
-      return 0;
-    } else if (use_bitmap_font) {
-      font_width = vga.char_width;
-      font_height = vga.char_height;
-    }
+  if (use_bitmap_font) {
+    font_width = vga.char_width;
+    font_height = vga.char_height;
   }
 
   X_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
