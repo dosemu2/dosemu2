@@ -79,7 +79,7 @@ static SDL_Texture *texture;
 static SDL_Renderer *renderer;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
-static const Uint32 pix_fmt = SDL_PIXELFORMAT_RGB24;
+static Uint32 pix_fmt;
 static int font_width, font_height;
 static int w_x_res, w_y_res;			/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
@@ -233,6 +233,11 @@ int SDL_init(void)
   if (config.X_fullscreen)
     toggle_grab();
 
+  pix_fmt = SDL_GetWindowPixelFormat(window);
+  if (pix_fmt == SDL_PIXELFORMAT_UNKNOWN) {
+    error("SDL: unable to get pixel format\n");
+    pix_fmt = SDL_PIXELFORMAT_RGB888;
+  }
   SDL_PixelFormatEnumToMasks(pix_fmt, &bpp, &rm, &gm, &bm, &am);
   SDL_csd.bits = bpp;
   SDL_csd.bytes = (bpp + 7) >> 3;
