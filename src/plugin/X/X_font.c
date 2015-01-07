@@ -324,6 +324,10 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
     X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
     X_printf("X: EGA/VGA font size is %d x %d\n",
 	     vga.char_width, vga.char_height);
+    if (width)
+      *width = vga.char_width;
+    if (height)
+      *height = vga.char_height;
     return;
   }
 
