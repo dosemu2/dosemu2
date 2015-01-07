@@ -65,11 +65,11 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
   RectArea ra;
   struct bitmap_desc dst_image = render_lock();
   ra = convert_bitmap_string(x, y, text, len, attr, dst_image);
-  render_unlock();
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+  render_unlock();
 }
 
 static void bitmap_draw_line(int x, int y, int len)
@@ -77,9 +77,9 @@ static void bitmap_draw_line(int x, int y, int len)
   RectArea ra;
   struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_line(x, y, len, dst_image);
-  render_unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+  render_unlock();
 }
 
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
@@ -87,9 +87,9 @@ static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end
   RectArea ra;
   struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus, dst_image);
-  render_unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+  render_unlock();
 }
 
 static struct text_system Text_bitmap =
@@ -326,14 +326,13 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
                              veut->display_start, update_offset,
                              veut->update_start - veut->display_start,
                              veut->update_len, dst_image, config.X_gamma);
-    render_unlock();
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
     XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
     XSync(display, False);
 #endif
-
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+    render_unlock();
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       vga.display_start, vga.mem.write_plane,
@@ -493,8 +492,8 @@ void render_blit(int x, int y, int width, int height)
     remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
 	x, y, width, height, dst_image, config.X_gamma);
-  render_unlock();
   Render->refresh_rect(x, y, width, height);
+  render_unlock();
 }
 
 int register_remapper(struct remap_calls *calls, int prio)
