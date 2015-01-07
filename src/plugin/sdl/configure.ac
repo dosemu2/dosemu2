@@ -5,16 +5,13 @@ AC_CONFIG_HEADER([include/_sdl_config.h])
 AC_CONFIG_AUX_DIR([../../..])
 
 dnl Check for SDL
-SDL_VERSION=1.2.0
-AM_PATH_SDL($SDL_VERSION,
-	    [saveLIBS=$LIBS
+SDL_VERSION=2.0.3
+AM_PATH_SDL2($SDL_VERSION,
+	    [
 	    LIBS="$LIBS $SDL_LIBS"
-	    AC_TRY_LINK([],[int main(void){return 0;}],
-	    	    [CFLAGS="$CFLAGS $SDL_CFLAGS"
-		    AC_DEFINE(SDL_SUPPORT)
-		    SDL_SUPPORT="SDL_SUPPORT=1"],
-		    [LIBS=$saveLIBS
-		    AC_MSG_WARN([*** SDL version $SDL_VERSION can't be linked!])])],
+	    CFLAGS="$CFLAGS $SDL_CFLAGS"
+	    AC_DEFINE(SDL_SUPPORT)
+	    SDL_SUPPORT="SDL_SUPPORT=1"],
 	    AC_MSG_WARN([*** SDL version $SDL_VERSION not found!])
 )
 
