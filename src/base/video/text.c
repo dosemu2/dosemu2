@@ -552,6 +552,9 @@ int update_text_screen(void)
   int numscan = 0;         /* Number of lines scanned. */
   int numdone = 0;         /* Number of lines actually updated. */
 
+  if (!vga.scan_len)	// not yet inited
+    return 0;
+
   if(vga.reconfig.mem) {
     redraw_text_screen();
     vga.reconfig.mem = 0;

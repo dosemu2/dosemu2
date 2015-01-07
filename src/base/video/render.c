@@ -7,6 +7,7 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <assert.h>
@@ -432,6 +433,8 @@ static void *render_thread(void *arg)
     is_updating = 0;
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     sem_wait(&render_sem);
+    /* small delay til we have a controlled framerate */
+    usleep(5000);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     is_updating = 1;
     if (vga.mode_class == TEXT) {
