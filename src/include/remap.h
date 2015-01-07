@@ -18,10 +18,6 @@ typedef struct ColorSpaceDesc {
   unsigned r_bits, g_bits, b_bits;
   unsigned char *pixel_lut;
 } ColorSpaceDesc;
-#define CS_RGB888 { .bits = 24, .bytes = 3, .r_mask = 0xff0000, \
-  .g_mask = 0x00ff00, .b_mask = 0x0000ff }
-#define CS_ARGB888 { .bits = 32, .bytes = 4, .r_mask = 0xff0000, \
-  .g_mask = 0x00ff00, .b_mask = 0x0000ff }
 
 struct bitmap_desc {
   unsigned char *img;

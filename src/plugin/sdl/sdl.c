@@ -78,8 +78,8 @@ struct render_system Render_SDL =
 static SDL_Texture *texture;
 static SDL_Renderer *renderer;
 static SDL_Window *window;
-static ColorSpaceDesc SDL_csd = CS_RGB888;
-static const Uint32 pix_fmt = SDL_PIXELFORMAT_RGB888;
+static ColorSpaceDesc SDL_csd;
+static const Uint32 pix_fmt = SDL_PIXELFORMAT_RGB24;
 static int font_width, font_height;
 static int w_x_res, w_y_res;			/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
@@ -205,7 +205,8 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  int remap_src_modes;
+  int remap_src_modes, bpp;
+  Uint32 rm, gm, bm, am;
 
   if (init_failed)
     return -1;
@@ -232,6 +233,12 @@ int SDL_init(void)
   if (config.X_fullscreen)
     toggle_grab();
 
+  SDL_PixelFormatEnumToMasks(pix_fmt, &bpp, &rm, &gm, &bm, &am);
+  SDL_csd.bits = bpp;
+  SDL_csd.bytes = (bpp + 7) >> 3;
+  SDL_csd.r_mask = rm;
+  SDL_csd.g_mask = gm;
+  SDL_csd.b_mask = bm;
   color_space_complete(&SDL_csd);
   remap_src_modes = remapper_init(1, 1, &SDL_csd);
   register_render_system(&Render_SDL);
