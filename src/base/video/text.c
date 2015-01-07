@@ -54,7 +54,7 @@ static int blink_state = 1;
 static int blink_count = 8;
 static unsigned char *text_canvas;
 static struct remap_object *text_remap;
-static ushort *prev_screen;  /* pointer to currently displayed screen   */
+static ushort prev_screen[MAX_COLUMNS * MAX_LINES];  /* pointer to currently displayed screen   */
 
 #if CONFIG_SELECTION
 static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
@@ -427,13 +427,6 @@ void blink_cursor()
 
 void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
 {
-  /* allocate screen buffer for non-console video compare speedup */
-  prev_screen = (ushort *)malloc(MAX_COLUMNS * MAX_LINES * sizeof(ushort));
-  if (prev_screen==NULL) {
-    error("could not malloc prev_screen\n");
-    leavedos(99);
-  }
-  v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
   if(!use_bitmap_font)
     return;
   /* think 9x32 is maximum */
