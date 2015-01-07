@@ -1730,10 +1730,6 @@ static int __X_handle_events(void)
       resize_ximage(resize_width, resize_height);
       render_blit(0, 0, resize_width, resize_height);
     }
-
-#if CONFIG_X_MOUSE
-  do_mouse_irq();
-#endif
   return 0;
 }
 

@@ -678,7 +678,6 @@ static void SDL_handle_events(void)
        break;
      }
    }
-   do_mouse_irq();
 }
 
 CONSTRUCTOR(static void init(void))

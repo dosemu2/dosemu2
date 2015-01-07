@@ -1882,14 +1882,6 @@ static void call_mouse_event_handler(void)
   mouse_events = 0;
 }
 
-void
-do_mouse_irq()
-{
-  /* function called for xterm, X and SDL. Others do it directly */
-  if (mouse_events)
-    pic_request(PIC_IMOUSE);
-}
-
 /* unconditional mouse cursor update */
 static void mouse_do_cur(int callback)
 {
