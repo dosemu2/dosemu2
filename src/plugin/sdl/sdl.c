@@ -385,7 +385,7 @@ static void SDL_change_mode(int x_res, int y_res)
 {
   saved_w_x_res = w_x_res;
   saved_w_y_res = w_y_res;
-  if (!use_bitmap_font && vga.mode_class == TEXT) {
+  if (vga.mode_class == TEXT) {
 #ifdef X_SUPPORT
     init_x11_window_font(window, &x_res, &y_res);
 #endif
@@ -401,13 +401,12 @@ static void SDL_change_mode(int x_res, int y_res)
   }
   SDL_SetWindowSize(window, x_res, y_res);
   SDL_ShowWindow(window);
-#ifdef X_SUPPORT
-  if (!x11.display) /* SDL may crash otherwise.. */
-#endif
+  if (vga.mode_class == TEXT && !grab_active)
     SDL_ShowCursor(SDL_ENABLE);
+  else
+    SDL_ShowCursor(SDL_DISABLE);
   w_x_res = x_res;
   w_y_res = y_res;
-  SDL_ShowCursor(SDL_DISABLE);
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
   sdl_rects_num = 0;
@@ -417,17 +416,17 @@ static void SDL_change_mode(int x_res, int y_res)
 int SDL_update_screen(void)
 {
   int ret;
-  if (init_failed)
+  if (init_failed || !initialized)
     return 1;
   if (render_is_updating())
     return 0;
-  /* if render is idle we start async blit (as of SDL_SYNCBLIT) and
-   * then start the renderer. It will wait till async blit to finish. */
-  SDL_update();
 #ifdef X_SUPPORT
   if (!use_bitmap_font && vga.mode_class == TEXT)
     return update_screen();
 #endif
+  /* if render is idle we start async blit (as of SDL_SYNCBLIT) and
+   * then start the renderer. It will wait till async blit to finish. */
+  SDL_update();
   ret = update_screen();
   return ret;
 }

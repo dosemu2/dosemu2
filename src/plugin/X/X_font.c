@@ -42,6 +42,7 @@ static void X_text_lock(void)
 
 static void X_text_unlock(void)
 {
+  XFlush(text_display);
   XUnlockDisplay(text_display);
 }
 
