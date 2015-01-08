@@ -261,16 +261,6 @@ else
   $srcdir/mkpluginhooks enable fluidsynth no
 fi
 
-dnl check for libpixman
-PKG_CHECK_MODULES([pixman], [pixman-1],
-  [
-    AC_DEFINE([USE_PIXMAN], [1], [Use pixman])
-    USE_PIXMAN="USE_PIXMAN=1"
-    AC_SUBST(USE_PIXMAN)
-    AC_SUBST(pixman_CFLAGS)
-    AC_SUBST(pixman_LIBS)
-  ])
-
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create, with_pthreads="yes")
 if test "$with_pthreads" = "yes"; then
