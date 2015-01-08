@@ -468,20 +468,14 @@ void redraw_text_screen(void)
 
 void render_gain_focus(void)
 {
-  if (vga.mode_class == TEXT) {
-    dst_image = render_lock();
+  if (vga.mode_class == TEXT)
     text_gain_focus();
-    render_unlock();
-  }
 }
 
 void render_lose_focus(void)
 {
-  if (vga.mode_class == TEXT) {
-    dst_image = render_lock();
+  if (vga.mode_class == TEXT)
     text_lose_focus();
-    render_unlock();
-  }
 }
 
 static int remap_mode(void)

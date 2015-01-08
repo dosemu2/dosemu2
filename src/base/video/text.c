@@ -52,6 +52,7 @@ static unsigned prev_cursor_location = -1;
 static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
+static int need_redraw_cursor;
 static unsigned char *text_canvas;
 static struct remap_object *text_remap;
 static ushort prev_screen[MAX_COLUMNS * MAX_LINES];  /* pointer to currently displayed screen   */
@@ -385,7 +386,7 @@ void dirty_text_screen(void)
 int text_is_dirty(void)
 {
   unsigned char *sp;
-  if (blink_count == 0)
+  if (blink_count == 0 || need_redraw_cursor)
     return 1;
   sp = vga.mem.base + vga.display_start;
   return memcmp(prev_screen, sp, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
@@ -397,6 +398,10 @@ int text_is_dirty(void)
  */
 void update_cursor(void)
 {
+  if (need_redraw_cursor) {
+    need_redraw_cursor = FALSE;
+    redraw_cursor();
+  }
   if (blink_count)
     return;
 
@@ -722,16 +727,20 @@ chk_cursor:
 
 void text_lose_focus()
 {
+  if (!have_focus)
+    return;
   have_focus = FALSE;
   blink_state = TRUE;
   blink_count = config.X_blinkrate;
-  redraw_cursor();
+  need_redraw_cursor = TRUE;
 }
 
 void text_gain_focus()
 {
+  if (have_focus)
+    return;
   have_focus = TRUE;
-  redraw_cursor();
+  need_redraw_cursor = TRUE;
 }
 
 #if CONFIG_SELECTION
