@@ -391,7 +391,6 @@ static void SDL_change_mode(int x_res, int y_res)
   /* forget about those rectangles */
   sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
-  render_gain_focus();
   if (vga.mode_class == GRAPH)
     SDL_ShowCursor(SDL_DISABLE);
   else
@@ -572,8 +571,24 @@ static void SDL_handle_events(void)
      return;
   if (render_is_updating())
      return;
-   while (SDL_PollEvent(&event)) {
-     switch (event.type) {
+  while (SDL_PollEvent(&event)) {
+    switch (event.type) {
+
+    case SDL_WINDOWEVENT:
+      switch (event.window.event) {
+      case SDL_WINDOWEVENT_FOCUS_GAINED:
+        v_printf("SDL: focus in\n");
+        render_gain_focus();
+        if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
+        break;
+      case SDL_WINDOWEVENT_FOCUS_LOST:
+        v_printf("SDL: focus out\n");
+        render_lose_focus();
+        if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
+        break;
+    }
+    break;
+
      case SDL_KEYDOWN:
        {
 	 SDL_Keysym keysym = event.key.keysym;
