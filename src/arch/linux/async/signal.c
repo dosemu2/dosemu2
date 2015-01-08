@@ -786,9 +786,6 @@ static void SIGALRM_call(void *arg)
     *
     * note that update_screen also updates the cursor.
     */
-  if (Video->update_screen && config.X_blinkrate) {
-     blink_cursor();
-  }
   if (!running) {
     if (Video->update_screen
 #if VIDEO_CHECK_DIRTY

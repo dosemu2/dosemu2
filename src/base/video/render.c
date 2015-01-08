@@ -432,12 +432,13 @@ static void *render_thread(void *arg)
   while (1) {
     is_updating = 0;
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    sem_wait(&render_sem);
     /* small delay til we have a controlled framerate */
     usleep(5000);
+    sem_wait(&render_sem);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     is_updating = 1;
     if (vga.mode_class == TEXT) {
+      blink_cursor();
       update_text_screen();
     } else {
       update_graphics_screen();
