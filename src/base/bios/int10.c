@@ -508,7 +508,6 @@ boolean set_video_mode(int mode) {
   if (mode > 0x13) /* VESA modes have their own scanlines */
     text_scanlines = vmi->height;
   if (Video->update_screen == NULL) {
-    int type=0;
     set_text_scanlines(400);
     if (mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a)) {
       co = vmi->text_width;
@@ -516,7 +515,6 @@ boolean set_video_mode(int mode) {
       vga_font_height = text_scanlines / li;
 #if USE_DUALMON
       if (mode == 7 && config.dualmon) {
-	type=7;
 	vga_font_height = 16;
       }
 #endif
@@ -527,7 +525,7 @@ boolean set_video_mode(int mode) {
     set_cursor_shape(mode == 7 ? 0x0b0d : 0x0607);
     WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
     WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
-    Video->setmode(type,co,li);
+    vga_emu_setmode(mode,co,li);
     /* mode change clears screen unless bit7 of AL set */
     if (clear_mem)
       clear_screen();
@@ -566,12 +564,12 @@ boolean set_video_mode(int mode) {
    * If we have config.dualmon, this happens legally.
    */
   if(mode == 7 && config.dualmon)
-    Video->setmode(7, co, li);
+    vga_emu_setmode(7, co, li);
   else
 #endif
 
   /* setmode needs video_mode to _still have_ the memory-clear bit -- sw */
-  Video->setmode(vmi->mode_class, co, li);
+  vga_emu_setmode(mode, co, li);
 
   /*
    * video_mode is expected to be the mode number _without_ the

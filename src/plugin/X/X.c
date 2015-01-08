@@ -551,7 +551,7 @@ int X_init()
   XTextProperty prop;
   char *display_name;
   char *s;
-  int i, remap_src_modes;
+  int i, remap_src_modes, features;
 
   X_printf("X: X_init\n");
 
@@ -609,7 +609,11 @@ int X_init()
   graphics_cmap_init();				/* graphics modes are more sophisticated */
 
   /* init graphics mode support */
-  remap_src_modes = remapper_init(have_true_color, have_shmap, &X_csd);
+  features = 0;
+  if(config.X_lin_filt) features |= RFF_LIN_FILT;
+  if(config.X_bilin_filt) features |= RFF_BILIN_FILT;
+  remap_src_modes = remapper_init(have_true_color, have_shmap, features,
+	&X_csd);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
     /* why do we need a blank screen? */
@@ -1504,7 +1508,7 @@ static int __X_handle_events(void)
 
 	case FocusIn:
 	  X_printf("X: focus in\n");
-	  if (vga.mode_class == TEXT) text_gain_focus();
+	  render_gain_focus();
 	  if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
 	  have_focus = TRUE;
 	  break;
@@ -1512,7 +1516,7 @@ static int __X_handle_events(void)
 	case FocusOut:
 	  X_printf("X: focus out\n");
 	  if (mainwindow == fullscreenwindow) break;
-	  if (vga.mode_class == TEXT) text_lose_focus();
+	  render_lose_focus();
 	  output_byte_8042(port60_buffer | 0x80);
 	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	  have_focus = FALSE;
@@ -1730,10 +1734,6 @@ static int __X_handle_events(void)
       resize_ximage(resize_width, resize_height);
       render_blit(0, 0, resize_width, resize_height);
     }
-
-#if CONFIG_X_MOUSE
-  do_mouse_irq();
-#endif
   return 0;
 }
 
@@ -2122,15 +2122,9 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
   XSetWindowAttributes xwa;
 #endif
 
-  if(mode_class != -1) {	/* tell vgaemu we're going to another mode */
-    if(!vga_emu_setmode(mode, text_width, text_height)) {
-      v_printf("vga_emu_setmode(%d, %d, %d) failed\n",
-               mode, text_width, text_height);
-      return 0;
-    } else if (use_bitmap_font) {
-      font_width = vga.char_width;
-      font_height = vga.char_height;
-    }
+  if (use_bitmap_font) {
+    font_width = vga.char_width;
+    font_height = vga.char_height;
   }
 
   X_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",

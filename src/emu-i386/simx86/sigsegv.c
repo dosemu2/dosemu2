@@ -37,6 +37,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <setjmp.h>
+#include "utilities.h"
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "trees.h"
@@ -173,7 +174,7 @@ vga2vgal:
   }
 }
 
-#if 0
+#if 1
 static int jitx86_instr_len(const unsigned char *rip)
 {
   const unsigned char *p = rip;
@@ -247,12 +248,11 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
     unsigned char *p;
     unsigned long cxrep;
     int w16, mode;
-
-    vga.mem.dirty_map[vga_page] = 1;
-
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
+      dosemu_error("simx86: should not be here\n");
       vga_emu_adjust_protection(vga_page, page_fault);
+      vgaemu_dirty_page(vga_page);
       return 1;
     }
 
@@ -448,6 +448,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		goto unimp;
     }
 /**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
+    vgaemu_dirty_page(vga_page);
   }
   return 1;
 
@@ -512,14 +513,15 @@ int e_emu_fault(struct sigcontext_struct *scp)
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
 		if (!DPMIValidSelector(_cs)) {
-#if 0
-			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
-			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
-#else
-			/* e_vgaemu_fault misses mutex and I don't
-			 * see the need for such code duplication */
-			if (vga_emu_fault(scp, 0) == True) return 1;
-#endif
+			/* in vga.inst_emu mode, vga_emu_fault() can handle
+			 * only faults from DOS code, and here we are with
+			 * the fault from jit-compiled code */
+			if (!vga.inst_emu) {
+				if (vga_emu_fault(scp, 0) == True) return 1;
+			} else {
+				dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
+				if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+			}
 		} else {
 			if(VGA_EMU_FAULT(scp,code,1)==True) {
 				dpmi_check_return(scp);

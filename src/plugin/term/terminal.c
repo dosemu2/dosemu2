@@ -72,6 +72,7 @@
 #include "dosemu_charset.h"
 #include "vgaemu.h"
 #include "vgatext.h"
+#include "render.h"
 #include "dos2linux.h"
 
 struct text_system Text_term;

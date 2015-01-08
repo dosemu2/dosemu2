@@ -7,6 +7,7 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <assert.h>
@@ -27,10 +28,10 @@ struct rmcalls_wrp {
 #define MAX_REMAPS 5
 static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
-int remap_features;
 static struct render_system *Render;
 static int render_locked;
 static int is_updating;
+static struct bitmap_desc dst_image;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
@@ -39,9 +40,9 @@ static int remap_mode(void);
 
 static struct bitmap_desc render_lock(void)
 {
-  struct bitmap_desc dst_image = Render->lock();
+  struct bitmap_desc img = Render->lock();
   render_locked++;
-  return dst_image;
+  return img;
 }
 
 static void render_unlock(void)
@@ -63,9 +64,7 @@ static void check_locked(void)
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
   RectArea ra;
-  struct bitmap_desc dst_image = render_lock();
   ra = convert_bitmap_string(x, y, text, len, attr, dst_image);
-  render_unlock();
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
@@ -75,9 +74,7 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
 static void bitmap_draw_line(int x, int y, int len)
 {
   RectArea ra;
-  struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_line(x, y, len, dst_image);
-  render_unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -85,9 +82,7 @@ static void bitmap_draw_line(int x, int y, int len)
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
 {
   RectArea ra;
-  struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus, dst_image);
-  render_unlock();
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 }
@@ -110,7 +105,8 @@ int register_render_system(struct render_system *render_system)
  * Initialize the interface between the VGA emulator and X.
  * Check if X's color depth is supported.
  */
-int remapper_init(int have_true_color, int have_shmap, ColorSpaceDesc *csd)
+int remapper_init(int have_true_color, int have_shmap, int features,
+    ColorSpaceDesc *csd)
 {
   int remap_src_modes, err, ximage_mode;
 
@@ -133,13 +129,9 @@ int remapper_init(int have_true_color, int have_shmap, ColorSpaceDesc *csd)
     }
   }
 
-  remap_features = 0;
-  if(config.X_lin_filt) remap_features |= RFF_LIN_FILT;
-  if(config.X_bilin_filt) remap_features |= RFF_BILIN_FILT;
-
   remap_src_modes = find_supported_modes(ximage_mode);
-  remap_obj = remap_init(remap_mode(), ximage_mode, remap_features, csd);
-  init_text_mapper(ximage_mode, csd);
+  remap_obj = remap_init(remap_mode(), ximage_mode, features, csd);
+  init_text_mapper(ximage_mode, features, csd);
 
   err = sem_init(&render_sem, 0, 0);
   assert(!err);
@@ -319,20 +311,17 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 #endif
 
   while((update_ret = vga_emu_update(veut)) > 0) {
-    struct bitmap_desc dst_image = render_lock();
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
                              veut->display_start, update_offset,
                              veut->update_start - veut->display_start,
                              veut->update_len, dst_image, config.X_gamma);
-    render_unlock();
 #ifdef DEBUG_SHOW_UPDATE_AREA
     XSetForeground(display, gc, dsua_fg_color++);
     XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
     XSync(display, False);
 #endif
-
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
@@ -432,13 +421,25 @@ static void *render_thread(void *arg)
   while (1) {
     is_updating = 0;
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    /* small delay til we have a controlled framerate */
+    usleep(5000);
     sem_wait(&render_sem);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     is_updating = 1;
     if (vga.mode_class == TEXT) {
-      update_text_screen();
+      blink_cursor();
+      if (text_is_dirty()) {
+        dst_image = render_lock();
+        update_cursor();
+        update_text_screen();
+        render_unlock();
+      }
     } else {
-      update_graphics_screen();
+      if (vgaemu_is_dirty()) {
+        dst_image = render_lock();
+        update_graphics_screen();
+        render_unlock();
+      }
     }
   }
   return NULL;
@@ -452,6 +453,25 @@ int update_screen(void)
   }
   sem_post(&render_sem);
   return 1;
+}
+
+void redraw_text_screen(void)
+{
+  dst_image = render_lock();
+  text_redraw_text_screen();
+  render_unlock();
+}
+
+void render_gain_focus(void)
+{
+  if (vga.mode_class == TEXT)
+    text_gain_focus();
+}
+
+void render_lose_focus(void)
+{
+  if (vga.mode_class == TEXT)
+    text_lose_focus();
 }
 
 static int remap_mode(void)
@@ -486,15 +506,15 @@ static int remap_mode(void)
 
 void render_blit(int x, int y, int width, int height)
 {
-  struct bitmap_desc dst_image = render_lock();
+  struct bitmap_desc img = render_lock();
   if (vga.mode_class == TEXT)
-    text_blit(x, y, width, height, dst_image);
+    text_blit(x, y, width, height, img);
   else
     remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
-	x, y, width, height, dst_image, config.X_gamma);
-  render_unlock();
+	x, y, width, height, img, config.X_gamma);
   Render->refresh_rect(x, y, width, height);
+  render_unlock();
 }
 
 int register_remapper(struct remap_calls *calls, int prio)

@@ -1013,13 +1013,15 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   }
 
   if(vga_page < vga.mem.pages) {
-    pthread_mutex_lock(&prot_mtx);
-    vga.mem.dirty_map[vga_page] = 1;
     if(!vga.inst_emu) {
-      /* Normal: make the display page writeable after marking it dirty */
+      /* Normal: make the display page writeable then mark it dirty */
       vga_emu_adjust_protection(vga_page, page_fault);
+      /* mark page dirty after adjusting the protection, but it
+       * is still too early: render thread may clean it before
+       * the app manages to write the data. In this case we'll fault
+       * again... */
+      vgaemu_dirty_page(vga_page);
     }
-    pthread_mutex_unlock(&prot_mtx);
     if(vga.inst_emu) {
 #if 1
       /* XXX Hack: dosemu touched the protected page of video mem, which is
@@ -1036,7 +1038,8 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
-        instr_emu(scp, pmode, 0);
+      instr_emu(scp, pmode, 0);
+      vgaemu_dirty_page(vga_page);
     }
   }
   return True;
@@ -2374,6 +2377,9 @@ int vga_emu_setmode(int mode, int width, int height)
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
 
+  if (Video->setmode)
+    Video->setmode(vmi->mode_class, width, height);
+
   vga_msg("vga_emu_setmode: mode initialized\n");
 
   return True;
@@ -2495,6 +2501,33 @@ void dirty_all_video_pages()
   if (vga.mem.dirty_map)
     memset(vga.mem.dirty_map, 1, vga.mem.pages);
   pthread_mutex_unlock(&prot_mtx);
+}
+
+void vgaemu_dirty_page(int page)
+{
+  if (page >= vga.mem.pages) {
+    dosemu_error("vgaemu: page out of range, %i (%i)\n", page, vga.mem.pages);
+    return;
+  }
+  pthread_mutex_lock(&prot_mtx);
+  vga.mem.dirty_map[page] = 1;
+  pthread_mutex_unlock(&prot_mtx);
+}
+
+int vgaemu_is_dirty(void)
+{
+  int i, ret = 0;
+  pthread_mutex_lock(&prot_mtx);
+  if (vga.mem.dirty_map) {
+    for (i = 0; i < vga.mem.pages; i++) {
+      if (vga.mem.dirty_map[i]) {
+        ret = 1;
+        break;
+      }
+    }
+  }
+  pthread_mutex_unlock(&prot_mtx);
+  return ret;
 }
 
 /*

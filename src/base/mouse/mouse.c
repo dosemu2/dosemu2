@@ -1882,14 +1882,6 @@ static void call_mouse_event_handler(void)
   mouse_events = 0;
 }
 
-void
-do_mouse_irq()
-{
-  /* function called for xterm, X and SDL. Others do it directly */
-  if (mouse_events)
-    pic_request(PIC_IMOUSE);
-}
-
 /* unconditional mouse cursor update */
 static void mouse_do_cur(int callback)
 {
@@ -1936,7 +1928,7 @@ text_cursor(void)
   cx = MOUSE_RX >> mouse.xshift;
   cy = MOUSE_RY >> mouse.yshift;
 
-  if (mouse_erase.drawn && mice->native_cursor) {
+  if (mouse_erase.drawn) {
   	/* only erase the mouse cursor if it's the same thing we
   		drew; some applications seem to reset the mouse
   		*after* clearing the screen and we end up leaving
