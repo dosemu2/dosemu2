@@ -349,7 +349,6 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
 			vga.text_width * font_width,
 			vga.text_height * font_height);
     }
-    if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
     SDL_reset_redraw_text_screen();
   } else {
     get_mode_parameters(&x_res, &y_res);
@@ -403,10 +402,6 @@ static void SDL_change_mode(int x_res, int y_res)
   }
   SDL_SetWindowSize(window, x_res, y_res);
   SDL_ShowWindow(window);
-  if (vga.mode_class == TEXT && !grab_active)
-    SDL_ShowCursor(SDL_ENABLE);
-  else
-    SDL_ShowCursor(SDL_DISABLE);
   w_x_res = x_res;
   w_y_res = y_res;
   pthread_mutex_lock(&update_mtx);
@@ -458,8 +453,7 @@ static void toggle_grab(void)
     v_printf("SDL: grab released\n");
     if (!config.X_fullscreen)
       SDL_SetWindowGrab(window, SDL_FALSE);
-    if(vga.mode_class == TEXT)
-      SDL_ShowCursor(SDL_ENABLE);
+    SDL_ShowCursor(SDL_ENABLE);
     mouse_enable_native_cursor(0);
   }
   SDL_change_config(CHG_TITLE, NULL);
@@ -543,7 +537,6 @@ static int SDL_change_config(unsigned item, void *buf)
 			      vga.text_width * font_width,
 			      vga.text_height * font_height);
       }
-      if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
       break;
     }
 #endif
