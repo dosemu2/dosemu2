@@ -1591,11 +1591,12 @@ static void slang_keyb_close(void)
 static int slang_keyb_probe(void)
 {
 	struct termios buf;
-	int result = TRUE;
+	if (config.X)
+	  return FALSE;
 	if (tcgetattr(STDIN_FILENO, &buf) >= 0
 	    || errno == EINVAL || errno == ENOTTY)
-		result = TRUE;
-	return result;
+		return TRUE;
+	return FALSE;
 }
 
 struct keyboard_client Keyboard_slang =  {
