@@ -87,7 +87,6 @@ static int initialized;
 static int sdl_rects_num;
 static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t texture_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 int grab_active = 0;
@@ -275,17 +274,19 @@ void SDL_close(void)
 static void SDL_update(void)
 {
   int upd;
+  pthread_mutex_lock(&mode_mtx);
   pthread_mutex_lock(&update_mtx);
   upd = sdl_rects_num;
   sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
-  if (!upd)
+  if (!upd) {
+    pthread_mutex_unlock(&mode_mtx);
     return;
+  }
   SDL_RenderClear(renderer);
-  pthread_mutex_lock(&texture_mtx);
   SDL_RenderCopy(renderer, texture, NULL, NULL);
-  pthread_mutex_unlock(&texture_mtx);
   SDL_RenderPresent(renderer);
+  pthread_mutex_unlock(&mode_mtx);
 }
 
 static struct bitmap_desc lock_surface(void)
@@ -293,7 +294,6 @@ static struct bitmap_desc lock_surface(void)
   void *pixels;
   int pitch;
   pthread_mutex_lock(&mode_mtx);
-  pthread_mutex_lock(&texture_mtx);
   SDL_LockTexture(texture, NULL /* TODO: RECT */, &pixels, &pitch);
   return BMP(pixels, w_x_res, w_y_res, pitch);
 }
@@ -301,7 +301,6 @@ static struct bitmap_desc lock_surface(void)
 static void unlock_surface(void)
 {
   SDL_UnlockTexture(texture);
-  pthread_mutex_unlock(&texture_mtx);
   pthread_mutex_unlock(&mode_mtx);
 }
 
