@@ -602,9 +602,8 @@ static void SDL_handle_events(void)
 	if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	break;
      case SDL_KEYDOWN:
-#if 0
        {
-	 SDL_keysym keysym = event.key.keysym;
+	 SDL_Keysym keysym = event.key.keysym;
 	 if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
 	   if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
 	     force_grab = 0;
@@ -626,7 +625,6 @@ static void SDL_handle_events(void)
        clear_if_in_selection();
 #endif
        SDL_process_key(event.key);
-#endif
        break;
      case SDL_MOUSEBUTTONDOWN:
        {
@@ -696,6 +694,6 @@ static void SDL_handle_events(void)
 CONSTRUCTOR(static void init(void))
 {
    register_video_client(&Video_SDL);
-//   register_keyboard_client(&Keyboard_SDL);
+   register_keyboard_client(&Keyboard_SDL);
    register_mouse_client(&Mouse_SDL);
 }
