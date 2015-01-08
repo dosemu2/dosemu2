@@ -331,7 +331,7 @@ void text_blit(int x, int y, int width, int height,
  *
  * Note: It redraws the *entire* screen.
  */
-void redraw_text_screen()
+void text_redraw_text_screen()
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
@@ -382,31 +382,23 @@ void dirty_text_screen(void)
   memset(prev_screen, 0xff, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 }
 
+int text_is_dirty(void)
+{
+  unsigned char *sp;
+  if (blink_count == 0)
+    return 1;
+  sp = vga.mem.base + vga.display_start;
+  return memcmp(prev_screen, sp, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+}
+
 /*
  * Redraw the cursor if it's necessary.
  * Do nothing in graphics modes.
  */
 void update_cursor(void)
 {
-  if(
-    vga.crtc.cursor_location - vga.display_start != prev_cursor_location ||
-    vga.crtc.cursor_shape.w != prev_cursor_shape
-  ) {
-    redraw_cursor();
-  }
-}
-
-/*
- * Blink the cursor. Called from SIGALRM handler.
- * Do nothing in graphics modes.
- */
-void blink_cursor()
-{
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-  if(Text->Draw_cursor == NULL) return;
-
-  if(!have_focus || --blink_count) return;
+  if (blink_count)
+    return;
 
   blink_count = config.X_blinkrate;
   blink_state = !blink_state;
@@ -422,6 +414,19 @@ void blink_cursor()
       draw_cursor();
     else
       restore_cell(vga.crtc.cursor_location - vga.display_start);
+  }
+}
+
+/*
+ * Blink the cursor. Called from SIGALRM handler.
+ * Do nothing in graphics modes.
+ */
+void blink_cursor()
+{
+  if(!have_focus) return;
+  if (blink_count) {
+    blink_count--;
+    return;
   }
 }
 
@@ -556,7 +561,7 @@ int update_text_screen(void)
     return 0;
 
   if(vga.reconfig.mem) {
-    redraw_text_screen();
+    text_redraw_text_screen();
     vga.reconfig.mem = 0;
     return 0;
   } else {
@@ -687,8 +692,11 @@ chk_cursor:
 /* update the cursor. We do this here to avoid the cursor 'running behind'
        when using a fast key-repeat.
 */
-	    if (y == cursor_row)
-	      update_cursor();
+	    if (y == cursor_row) {
+	      if(vga.crtc.cursor_location - vga.display_start != prev_cursor_location ||
+	          vga.crtc.cursor_shape.w != prev_cursor_shape)
+	        redraw_cursor();
+	    }
 	  }
 
 /*	X_printf("X: X_update_screen: %d lines updated\n",numdone);*/

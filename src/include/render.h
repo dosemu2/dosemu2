@@ -24,3 +24,6 @@ int update_screen(void);
 void color_space_complete(ColorSpaceDesc *color_space);
 void render_blit(int x, int y, int width, int height);
 int render_is_updating(void);
+void redraw_text_screen(void);
+void render_gain_focus(void);
+void render_lose_focus(void);

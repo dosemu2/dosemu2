@@ -591,12 +591,12 @@ static void SDL_handle_events(void)
      switch (event.type) {
      case SDL_WINDOWEVENT_FOCUS_GAINED:
 	v_printf("SDL: focus in\n");
-	if (vga.mode_class == TEXT) text_gain_focus();
+	render_gain_focus();
 	if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
 	break;
      case SDL_WINDOWEVENT_FOCUS_LOST:
 	v_printf("SDL: focus out\n");
-	if (vga.mode_class == TEXT) text_lose_focus();
+	render_lose_focus();
 	if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	break;
      case SDL_KEYDOWN:

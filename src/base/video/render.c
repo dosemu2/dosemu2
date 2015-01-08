@@ -32,6 +32,7 @@ int remap_features;
 static struct render_system *Render;
 static int render_locked;
 static int is_updating;
+static struct bitmap_desc dst_image;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
@@ -40,9 +41,9 @@ static int remap_mode(void);
 
 static struct bitmap_desc render_lock(void)
 {
-  struct bitmap_desc dst_image = Render->lock();
+  struct bitmap_desc img = Render->lock();
   render_locked++;
-  return dst_image;
+  return img;
 }
 
 static void render_unlock(void)
@@ -64,33 +65,27 @@ static void check_locked(void)
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
   RectArea ra;
-  struct bitmap_desc dst_image = render_lock();
   ra = convert_bitmap_string(x, y, text, len, attr, dst_image);
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
-  render_unlock();
 }
 
 static void bitmap_draw_line(int x, int y, int len)
 {
   RectArea ra;
-  struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_line(x, y, len, dst_image);
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
-  render_unlock();
 }
 
 static void bitmap_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
 {
   RectArea ra;
-  struct bitmap_desc dst_image = render_lock();
   ra = draw_bitmap_cursor(x, y, attr, start, end, focus, dst_image);
   if (ra.width)
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
-  render_unlock();
 }
 
 static struct text_system Text_bitmap =
@@ -439,7 +434,12 @@ static void *render_thread(void *arg)
     is_updating = 1;
     if (vga.mode_class == TEXT) {
       blink_cursor();
-      update_text_screen();
+      if (text_is_dirty()) {
+        dst_image = render_lock();
+        update_cursor();
+        update_text_screen();
+        render_unlock();
+      }
     } else {
       update_graphics_screen();
     }
@@ -455,6 +455,31 @@ int update_screen(void)
   }
   sem_post(&render_sem);
   return 1;
+}
+
+void redraw_text_screen(void)
+{
+  dst_image = render_lock();
+  text_redraw_text_screen();
+  render_unlock();
+}
+
+void render_gain_focus(void)
+{
+  if (vga.mode_class == TEXT) {
+    dst_image = render_lock();
+    text_gain_focus();
+    render_unlock();
+  }
+}
+
+void render_lose_focus(void)
+{
+  if (vga.mode_class == TEXT) {
+    dst_image = render_lock();
+    text_lose_focus();
+    render_unlock();
+  }
 }
 
 static int remap_mode(void)

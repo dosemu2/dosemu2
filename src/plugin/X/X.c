@@ -1504,7 +1504,7 @@ static int __X_handle_events(void)
 
 	case FocusIn:
 	  X_printf("X: focus in\n");
-	  if (vga.mode_class == TEXT) text_gain_focus();
+	  render_gain_focus();
 	  if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
 	  have_focus = TRUE;
 	  break;
@@ -1512,7 +1512,7 @@ static int __X_handle_events(void)
 	case FocusOut:
 	  X_printf("X: focus out\n");
 	  if (mainwindow == fullscreenwindow) break;
-	  if (vga.mode_class == TEXT) text_lose_focus();
+	  render_lose_focus();
 	  output_byte_8042(port60_buffer | 0x80);
 	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	  have_focus = FALSE;
