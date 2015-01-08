@@ -2500,6 +2500,22 @@ void dirty_all_video_pages()
   pthread_mutex_unlock(&prot_mtx);
 }
 
+int vgaemu_is_dirty(void)
+{
+  int i, ret = 0;
+  pthread_mutex_lock(&prot_mtx);
+  if (vga.mem.dirty_map) {
+    for (i = 0; i < vga.mem.pages; i++) {
+      if (vga.mem.dirty_map[i]) {
+        ret = 1;
+        break;
+      }
+    }
+  }
+  pthread_mutex_unlock(&prot_mtx);
+  return ret;
+}
+
 /*
  * DANG_BEGIN_FUNCTION dirty_all_vga_colors
  *

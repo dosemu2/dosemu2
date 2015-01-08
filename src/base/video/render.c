@@ -315,7 +315,6 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 #endif
 
   while((update_ret = vga_emu_update(veut)) > 0) {
-    struct bitmap_desc dst_image = render_lock();
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
@@ -328,7 +327,6 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
     XSync(display, False);
 #endif
     Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
-    render_unlock();
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       vga.display_start, vga.mem.write_plane,
@@ -441,7 +439,11 @@ static void *render_thread(void *arg)
         render_unlock();
       }
     } else {
-      update_graphics_screen();
+      if (vgaemu_is_dirty()) {
+        dst_image = render_lock();
+        update_graphics_screen();
+        render_unlock();
+      }
     }
   }
   return NULL;
@@ -514,13 +516,13 @@ static int remap_mode(void)
 
 void render_blit(int x, int y, int width, int height)
 {
-  struct bitmap_desc dst_image = render_lock();
+  struct bitmap_desc img = render_lock();
   if (vga.mode_class == TEXT)
-    text_blit(x, y, width, height, dst_image);
+    text_blit(x, y, width, height, img);
   else
     remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
-	x, y, width, height, dst_image, config.X_gamma);
+	x, y, width, height, img, config.X_gamma);
   Render->refresh_rect(x, y, width, height);
   render_unlock();
 }
