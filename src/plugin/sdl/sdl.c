@@ -78,7 +78,8 @@ static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static Uint32 pix_fmt;
 static int font_width, font_height;
-static int w_x_res, w_y_res;			/* actual window size */
+static int w_x_res, w_y_res;
+static int m_x_res, m_y_res;
 static int initialized;
 static int sdl_rects_num;
 static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -385,8 +386,8 @@ static void SDL_change_mode(int x_res, int y_res)
   }
   SDL_SetWindowSize(window, x_res, y_res);
   SDL_ShowWindow(window);
-  w_x_res = x_res;
-  w_y_res = y_res;
+  m_x_res = w_x_res = x_res;
+  m_y_res = w_y_res = y_res;
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
   sdl_rects_num = 0;
@@ -586,6 +587,16 @@ static void SDL_handle_events(void)
         render_lose_focus();
         if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
         break;
+      case SDL_WINDOWEVENT_RESIZED:
+        /* very strange things happen: if renderer size was explicitly
+         * set, SDL reports mouse coords relative to that. Otherwise
+         * it reports mouse coords relative to the window. */
+        SDL_RenderGetLogicalSize(renderer, &m_x_res, &m_y_res);
+        if (!m_x_res || !m_y_res) {
+          m_x_res = event.window.data1;
+          m_y_res = event.window.data2;
+        }
+        break;
     }
     break;
 
@@ -620,21 +631,21 @@ static void SDL_handle_events(void)
 #if CONFIG_SDL_SELECTION
 	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   if (event.button.button == SDL_BUTTON_LEFT)
-	     start_selection(x_to_col(event.button.x, w_x_res),
-			     y_to_row(event.button.y, w_y_res));
+	     start_selection(x_to_col(event.button.x, m_x_res),
+			     y_to_row(event.button.y, m_y_res));
 	   else if (event.button.button == SDL_BUTTON_RIGHT)
-	     start_extend_selection(x_to_col(event.button.x, w_x_res),
-				    y_to_row(event.button.y, w_y_res));
+	     start_extend_selection(x_to_col(event.button.x, m_x_res),
+				    y_to_row(event.button.y, m_y_res));
 	 }
 #endif /* CONFIG_SDL_SELECTION */
-	 mouse_move_absolute(event.button.x, event.button.y, w_x_res, w_y_res);
+	 mouse_move_absolute(event.button.x, event.button.y, m_x_res, m_y_res);
 	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
 	 break;
        }
      case SDL_MOUSEBUTTONUP:
        {
 	 int buttons = SDL_GetMouseState(NULL, NULL);
-	 mouse_move_absolute(event.button.x, event.button.y, w_x_res, w_y_res);
+	 mouse_move_absolute(event.button.x, event.button.y, m_x_res, m_y_res);
 #if CONFIG_SDL_SELECTION
 	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   XEvent e;
@@ -657,10 +668,10 @@ static void SDL_handle_events(void)
      case SDL_MOUSEMOTION:
 #if CONFIG_SDL_SELECTION
        if (x11.display && x11.window != None)
-	 extend_selection(x_to_col(event.button.x, w_x_res),
-			  y_to_row(event.button.y, w_y_res));
+	 extend_selection(x_to_col(event.button.x, m_x_res),
+			  y_to_row(event.button.y, m_y_res));
 #endif /* CONFIG_SDL_SELECTION */
-       mouse_move_absolute(event.button.x, event.button.y, w_x_res, w_y_res);
+       mouse_move_absolute(event.button.x, event.button.y, m_x_res, m_y_res);
        break;
      case SDL_QUIT:
        leavedos(0);
