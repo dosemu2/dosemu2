@@ -244,7 +244,7 @@ int SDL_init(void)
   SDL_csd.g_mask = gm;
   SDL_csd.b_mask = bm;
   color_space_complete(&SDL_csd);
-  remap_src_modes = remapper_init(1, 1, &SDL_csd);
+  remap_src_modes = remapper_init(1, 1, 0, &SDL_csd);
   register_render_system(&Render_SDL);
 
   if(vga_emu_init(remap_src_modes, &SDL_csd)) {
@@ -394,6 +394,14 @@ static void SDL_change_mode(int x_res, int y_res)
   v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
   if (texture)
     SDL_DestroyTexture(texture);
+  if (config.X_fixed_aspect)
+    SDL_RenderSetLogicalSize(renderer, x_res, y_res);
+  /* render hint needs to be set before creating texture,
+   * otherwise it doesn't work, strange */
+  if(config.X_lin_filt || config.X_bilin_filt) {
+    v_printf("SDL: enabling scaling filter\n");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+  }
   texture = SDL_CreateTexture(renderer, pix_fmt, SDL_TEXTUREACCESS_STREAMING,
     x_res, y_res);
   if (!texture) {

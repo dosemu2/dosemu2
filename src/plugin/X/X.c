@@ -551,7 +551,7 @@ int X_init()
   XTextProperty prop;
   char *display_name;
   char *s;
-  int i, remap_src_modes;
+  int i, remap_src_modes, features;
 
   X_printf("X: X_init\n");
 
@@ -609,7 +609,11 @@ int X_init()
   graphics_cmap_init();				/* graphics modes are more sophisticated */
 
   /* init graphics mode support */
-  remap_src_modes = remapper_init(have_true_color, have_shmap, &X_csd);
+  features = 0;
+  if(config.X_lin_filt) features |= RFF_LIN_FILT;
+  if(config.X_bilin_filt) features |= RFF_BILIN_FILT;
+  remap_src_modes = remapper_init(have_true_color, have_shmap, features,
+	&X_csd);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
     /* why do we need a blank screen? */

@@ -435,7 +435,7 @@ void blink_cursor()
   }
 }
 
-void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
+void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd)
 {
   if(!use_bitmap_font)
     return;
@@ -446,7 +446,7 @@ void init_text_mapper(int image_mode, ColorSpaceDesc *csd)
   assert(!text_remap);
 
   /* linear 1 byte per pixel */
-  text_remap = remap_init(MODE_PSEUDO_8, image_mode, remap_features, csd);
+  text_remap = remap_init(MODE_PSEUDO_8, image_mode, features, csd);
 }
 
 void done_text_mapper(void)

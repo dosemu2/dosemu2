@@ -42,7 +42,7 @@ void reset_redraw_text_screen(void);
 void dirty_text_screen(void);
 int text_is_dirty(void);
 void update_cursor(void);
-void init_text_mapper(int image_mode, ColorSpaceDesc *csd);
+void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd);
 void done_text_mapper(void);
 struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
       int len, Bit8u attr, struct bitmap_desc dst_image);

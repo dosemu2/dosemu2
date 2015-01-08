@@ -28,7 +28,6 @@ struct rmcalls_wrp {
 #define MAX_REMAPS 5
 static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
-int remap_features;
 static struct render_system *Render;
 static int render_locked;
 static int is_updating;
@@ -106,7 +105,8 @@ int register_render_system(struct render_system *render_system)
  * Initialize the interface between the VGA emulator and X.
  * Check if X's color depth is supported.
  */
-int remapper_init(int have_true_color, int have_shmap, ColorSpaceDesc *csd)
+int remapper_init(int have_true_color, int have_shmap, int features,
+    ColorSpaceDesc *csd)
 {
   int remap_src_modes, err, ximage_mode;
 
@@ -129,13 +129,9 @@ int remapper_init(int have_true_color, int have_shmap, ColorSpaceDesc *csd)
     }
   }
 
-  remap_features = 0;
-  if(config.X_lin_filt) remap_features |= RFF_LIN_FILT;
-  if(config.X_bilin_filt) remap_features |= RFF_BILIN_FILT;
-
   remap_src_modes = find_supported_modes(ximage_mode);
-  remap_obj = remap_init(remap_mode(), ximage_mode, remap_features, csd);
-  init_text_mapper(ximage_mode, csd);
+  remap_obj = remap_init(remap_mode(), ximage_mode, features, csd);
+  init_text_mapper(ximage_mode, features, csd);
 
   err = sem_init(&render_sem, 0, 0);
   assert(!err);

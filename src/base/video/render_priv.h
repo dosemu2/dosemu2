@@ -1,8 +1,6 @@
 #ifndef RENDER_PRIV_H
 #define RENDER_PRIV_H
 
-extern int remap_features;
-
 Boolean refresh_palette(void *udata);
 int find_supported_modes(unsigned dst_mode);
 

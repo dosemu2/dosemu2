@@ -17,7 +17,8 @@ struct render_system
 int register_render_system(struct render_system *render_system);
 enum { REMAP_DOSEMU, REMAP_PIXMAN };
 int register_remapper(struct remap_calls *calls, int prio);
-int remapper_init(int have_true_color, int have_shmap, ColorSpaceDesc *csd);
+int remapper_init(int have_true_color, int have_shmap, int features,
+	ColorSpaceDesc *csd);
 void remapper_done(void);
 void get_mode_parameters(int *wx_res, int *wy_res);
 int update_screen(void);
