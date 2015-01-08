@@ -37,6 +37,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <setjmp.h>
+#include "utilities.h"
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "trees.h"
@@ -247,12 +248,11 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
     unsigned char *p;
     unsigned long cxrep;
     int w16, mode;
-
-    vga.mem.dirty_map[vga_page] = 1;
-
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
+      dosemu_error("simx86: should not be here\n");
       vga_emu_adjust_protection(vga_page, page_fault);
+      vgaemu_dirty_page(vga_page);
       return 1;
     }
 
@@ -448,6 +448,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		goto unimp;
     }
 /**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
+    vgaemu_dirty_page(vga_page);
   }
   return 1;
 
