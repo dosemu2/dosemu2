@@ -392,6 +392,10 @@ static void SDL_change_mode(int x_res, int y_res)
   sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
   render_gain_focus();
+  if (vga.mode_class == GRAPH)
+    SDL_ShowCursor(SDL_DISABLE);
+  else
+    SDL_ShowCursor(SDL_ENABLE);
 }
 
 int SDL_update_screen(void)
@@ -608,14 +612,14 @@ static void SDL_handle_events(void)
 				    y_to_row(event.button.y, w_y_res));
 	 }
 #endif /* CONFIG_SDL_SELECTION */
-	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
+	 mouse_move_absolute(event.button.x, event.button.y, w_x_res, w_y_res);
 	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
 	 break;
        }
      case SDL_MOUSEBUTTONUP:
        {
 	 int buttons = SDL_GetMouseState(NULL, NULL);
-	 SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
+	 mouse_move_absolute(event.button.x, event.button.y, w_x_res, w_y_res);
 #if CONFIG_SDL_SELECTION
 	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   XEvent e;
@@ -641,7 +645,7 @@ static void SDL_handle_events(void)
 	 extend_selection(x_to_col(event.button.x, w_x_res),
 			  y_to_row(event.button.y, w_y_res));
 #endif /* CONFIG_SDL_SELECTION */
-       SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
+       mouse_move_absolute(event.button.x, event.button.y, w_x_res, w_y_res);
        break;
      case SDL_QUIT:
        leavedos(0);
@@ -659,6 +663,43 @@ static void SDL_handle_events(void)
      }
    }
 }
+
+static int SDL_mouse_init(void)
+{
+  mouse_t *mice = &config.mouse;
+  if (Video != &Video_SDL)
+    return FALSE;
+
+  mice->type = MOUSE_SDL;
+  mice->use_absolute = 1;
+  mice->native_cursor = config.X_fullscreen;
+  /* we have the X cursor, but if we start fullscreen, grab by default */
+  m_printf("MOUSE: SDL Mouse being set\n");
+  return TRUE;
+}
+
+static void SDL_show_mouse_cursor(int yes)
+{
+  if(vga.mode_class != GRAPH) {
+    return;
+  }
+  SDL_ShowCursor((yes && !grab_active) ? SDL_ENABLE : SDL_DISABLE);
+}
+
+static void SDL_set_mouse_cursor(int action, int mx, int my, int x_range,
+    int y_range)
+{
+  if (action & 2)
+    SDL_show_mouse_cursor(action >> 1);
+}
+
+struct mouse_client Mouse_SDL =  {
+  "SDL",          /* name */
+  SDL_mouse_init, /* init */
+  NULL,         /* close */
+  NULL,         /* run */
+  SDL_set_mouse_cursor /* set_cursor */
+};
 
 CONSTRUCTOR(static void init(void))
 {
