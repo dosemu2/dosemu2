@@ -46,10 +46,7 @@ static int SDL_set_videomode(int mode_class, int text_width, int text_height);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int x_res, int y_res);
-
 static void SDL_handle_events(void);
-static int SDL_set_text_mode(int tw, int th, int w ,int h);
-
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
 static void toggle_grab(void);
@@ -82,7 +79,6 @@ static ColorSpaceDesc SDL_csd;
 static Uint32 pix_fmt;
 static int font_width, font_height;
 static int w_x_res, w_y_res;			/* actual window size */
-static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static int initialized;
 static int sdl_rects_num;
 static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -342,13 +338,14 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
 
 
   if(vga.mode_class == TEXT) {
+    pthread_mutex_lock(&mode_mtx);
     if (use_bitmap_font) {
-      SDL_set_text_mode(vga.text_width, vga.text_height, vga.width, vga.height);
+      SDL_change_mode(vga.width, vga.height);
     } else {
-      SDL_set_text_mode(vga.text_width, vga.text_height,
-			vga.text_width * font_width,
+      SDL_change_mode(vga.text_width * font_width,
 			vga.text_height * font_height);
     }
+    pthread_mutex_unlock(&mode_mtx);
     SDL_reset_redraw_text_screen();
   } else {
     get_mode_parameters(&x_res, &y_res);
@@ -362,30 +359,8 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
   return 1;
 }
 
-static void SDL_redraw_resize_image(unsigned width, unsigned height)
-{
-#if 0
-  pthread_mutex_lock(&mode_mtx);
-  SDL_change_mode(width, height);
-  pthread_mutex_unlock(&mode_mtx);
-  render_blit(0, 0, width, height);
-#endif
-}
-
-int SDL_set_text_mode(int tw, int th, int w ,int h)
-{
-  pthread_mutex_lock(&mode_mtx);
-  SDL_change_mode(w, h);
-  pthread_mutex_unlock(&mode_mtx);
-  SDL_set_mouse_text_cursor();
-  /* that's all */
-  return 0;
-}
-
 static void SDL_change_mode(int x_res, int y_res)
 {
-  saved_w_x_res = w_x_res;
-  saved_w_y_res = w_y_res;
   if (vga.mode_class == TEXT) {
 #ifdef X_SUPPORT
     init_x11_window_font(window, &x_res, &y_res);
@@ -476,10 +451,10 @@ static void toggle_fullscreen_mode(void)
       toggle_grab();
       force_grab = 1;
     }
-    SDL_redraw_resize_image(w_x_res, w_y_res);
+    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
   } else {
     v_printf("SDL: entering windowed mode!\n");
-    SDL_redraw_resize_image(saved_w_x_res, saved_w_y_res);
+    SDL_SetWindowFullscreen(window, 0);
     if (force_grab && grab_active) {
       toggle_grab();
     }
@@ -540,10 +515,12 @@ static int SDL_change_config(unsigned item, void *buf)
       x11.unlock_func();
       if (w_x_res != vga.text_width * font_width ||
             w_y_res != vga.text_height * font_height) {
-	  if(vga.mode_class == TEXT)
-	    SDL_set_text_mode(vga.text_width, vga.text_height,
-			      vga.text_width * font_width,
-			      vga.text_height * font_height);
+	  if(vga.mode_class == TEXT) {
+	    pthread_mutex_lock(&mode_mtx);
+	    SDL_change_mode(vga.text_width * font_width,
+		vga.text_height * font_height);
+	    pthread_mutex_unlock(&mode_mtx);
+	  }
       }
       break;
     }
