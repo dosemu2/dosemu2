@@ -81,7 +81,14 @@ static int font_width, font_height;
 static int w_x_res, w_y_res;
 static int m_x_res, m_y_res;
 static int initialized;
-static int sdl_rects_num;
+#define UPDATE_BY_RECTS 0
+static struct {
+  int num;
+#if UPDATE_BY_RECTS
+  int max;
+  SDL_Rect *rects;
+#endif
+} sdl_rects;
 static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -273,19 +280,41 @@ void SDL_close(void)
 
 static void SDL_update(void)
 {
-  int upd;
+  int i;
   pthread_mutex_lock(&mode_mtx);
   pthread_mutex_lock(&update_mtx);
-  upd = sdl_rects_num;
-  sdl_rects_num = 0;
-  pthread_mutex_unlock(&update_mtx);
-  if (!upd) {
-    pthread_mutex_unlock(&mode_mtx);
-    return;
+  /* sdl manual says:
+  ---
+    The backbuffer should be considered invalidated after each present;
+    do not assume that previous contents will exist between frames.
+    You are strongly encouraged to call SDL_RenderClear() to initialize
+    the backbuffer before starting each new frame's drawing, even if
+    you plan to overwrite every pixel.
+  ---
+   * So by default we define it to 0. But it seems it works fine also
+   * without clearing so we can as well try the update with rects, as
+   * was in the old sdl1 code. If there are many rects to update, it
+   * can easily be faster to just update the entire screen though. */
+#if UPDATE_BY_RECTS
+  if (sdl_rects.num > 0) {
+    for (i = 0; i < sdl_rects.num; i++) {
+      const SDL_Rect *rec = &sdl_rects.rects[i];
+      SDL_RenderCopy(renderer, texture, rec, rec);
+    }
+    SDL_RenderPresent(renderer);
+    sdl_rects.num = 0;
   }
-  SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, NULL);
-  SDL_RenderPresent(renderer);
+  pthread_mutex_unlock(&update_mtx);
+#else
+  i = sdl_rects.num;
+  sdl_rects.num = 0;
+  pthread_mutex_unlock(&update_mtx);
+  if (i > 0) {
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+  }
+#endif
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -390,7 +419,7 @@ static void SDL_change_mode(int x_res, int y_res)
   m_y_res = w_y_res = y_res;
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
-  sdl_rects_num = 0;
+  sdl_rects.num = 0;
   pthread_mutex_unlock(&update_mtx);
   if (vga.mode_class == GRAPH)
     SDL_ShowCursor(SDL_DISABLE);
@@ -419,8 +448,23 @@ int SDL_update_screen(void)
 /* this only pushes the rectangle on a stack; updating is done later */
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
+#if UPDATE_BY_RECTS
+  SDL_Rect *rect;
   pthread_mutex_lock(&update_mtx);
-  sdl_rects_num++;
+  if (sdl_rects.num >= sdl_rects.max) {
+    sdl_rects.rects = realloc(sdl_rects.rects, (sdl_rects.max + 10) *
+			      sizeof(*sdl_rects.rects));
+    sdl_rects.max += 10;
+  }
+  rect = &sdl_rects.rects[sdl_rects.num];
+  rect->x = x;
+  rect->y = y;
+  rect->w = width;
+  rect->h = height;
+#else
+  pthread_mutex_lock(&update_mtx);
+#endif
+  sdl_rects.num++;
   pthread_mutex_unlock(&update_mtx);
 }
 
