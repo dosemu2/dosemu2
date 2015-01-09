@@ -73,12 +73,7 @@ static int sdlsnd_open(void *arg)
 
 static void sdlsnd_close(void *arg)
 {
-    /* DISABLED because of this:
-     * http://bugzilla.libsdl.org/show_bug.cgi?id=1449
-     * Please re-enable once fixed. */
-#if 0
     SDL_CloseAudio();
-#endif
 }
 
 CONSTRUCTOR(static void sdlsnd_init(void))
