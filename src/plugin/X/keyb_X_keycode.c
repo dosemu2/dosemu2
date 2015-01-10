@@ -13,8 +13,9 @@
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "emu.h"
+#include "utilities.h"
 #include "keyb_X.h"
-#include "../kbd_unicode/keynum.h"
+#include "keynum.h"
 #include "translate.h"
 #include "X.h"
 #ifdef HAVE_XKB
@@ -457,6 +458,24 @@ static t_keynum k2kn(KeyCode xcode)
 	return keynum_from_keycode[idx].keynum;
 }
 
+KeyCode keynum_to_keycode(t_keynum keynum)
+{
+	int i, j;
+	for (i = 0; i < ARRAY_SIZE(keynum_from_keycode); i++) {
+		if (keynum_from_keycode[i].keynum == keynum)
+			break;
+	}
+	if (i == ARRAY_SIZE(keynum_from_keycode))
+		return 0;
+	for (j = 0; j < MAX_X_KEYCODES; j++) {
+		if (keycode_to_keynum[j] == i)
+			break;
+	}
+	if (j == MAX_X_KEYCODES)
+		return 0;
+	return j;
+}
+
 static Boolean setup_keycode_to_keynum_mapping(Display *display)
 {
 #if HAVE_XKB
@@ -539,12 +558,13 @@ static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym,
 }
 
 static int X_keycode_initialized = 0;
-static void X_keycode_initialize(Display *display)
+void X_keycode_initialize(Display *display)
 {
 	int i;
 	Boolean worked;
+	if (X_keycode_initialized)
+		return;
 	X_keycode_initialized = 1;
-
 
 	for(i = 0; i < MAX_X_KEYCODES; i++) {
 		keycode_to_keynum[i] = -1;
@@ -609,7 +629,10 @@ void X_keycode_process_keys(XKeymapEvent *e)
 
 void X_keycode_process_key(XKeyEvent *e)
 {
+	t_unicode key;
+#ifndef HAVE_XKB
 	struct mapped_X_event event;
+#endif
 	Boolean make;
 	if (!X_keycode_initialized) {
 		X_keycode_initialize(display);
@@ -620,7 +643,12 @@ void X_keycode_process_key(XKeyEvent *e)
 #endif
 	make = e->type == KeyPress;
 	X_sync_shiftstate(make, e->keycode, e->state);
+#ifdef HAVE_XKB
+	key = Xkb_lookup_key(display, e->keycode, e->state);
+#else
 	map_X_event(display, e, &event);
-	put_keycode(make, e->keycode, event.key);
+	key = event.key;
+#endif
+	put_keycode(make, e->keycode, key);
 	return;
 }

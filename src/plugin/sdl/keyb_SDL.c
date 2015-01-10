@@ -9,13 +9,40 @@
 #include <SDL.h>
 #include <langinfo.h>
 #include <string.h>
+#ifdef X_SUPPORT
+#include <X11/Xlib.h>
+#include <dlfcn.h>
+#endif
 
 #include "emu.h"
 #include "keyb_clients.h"
 #include "keyboard.h"
 #include "keysym_attributes.h"
+#ifdef X_SUPPORT
+#include "keyb_X.h"
+#include "keynum.h"
+#include "sdl2-keymap.h"
+#endif
 #include "video.h"
 #include "sdl.h"
+
+#ifdef X_SUPPORT
+#ifdef USE_DL_PLUGINS
+#define X_get_modifier_info pX_get_modifier_info
+static struct modifier_info (*X_get_modifier_info)(void);
+#define Xkb_lookup_key pXkb_lookup_key
+static t_unicode (*Xkb_lookup_key)(Display *display, KeyCode keycode,
+	unsigned int state);
+#define X_keycode_initialize pX_keycode_initialize
+static void (*X_keycode_initialize)(Display *display);
+#define keyb_X_init pkeyb_X_init
+static void (*keyb_X_init)(Display *display);
+#define keynum_to_keycode pkeynum_to_keycode
+static KeyCode (*keynum_to_keycode)(t_keynum keynum);
+#define Xkb_get_group pXkb_get_group
+static int (*Xkb_get_group)(Display *display);
+#endif
+#endif
 
 static int use_move_key(t_keysym key)
 {
@@ -104,17 +131,49 @@ static void SDL_sync_shiftstate(Boolean make, SDL_Keycode kc, SDL_Keymod e_state
 	set_shiftstate(shiftstate);
 }
 
+#ifdef X_SUPPORT
+static unsigned int SDL_to_X_mod(SDL_Keymod smod, int grp)
+{
+	/* try to reconstruct X event keyboard state */
+	unsigned int xmod = 0;
+	struct modifier_info X_mi = X_get_modifier_info();
+	if (smod & KMOD_SHIFT)
+		xmod |= ShiftMask;
+	if (smod & KMOD_CTRL)
+		xmod |= ControlMask;
+	if (smod & KMOD_LALT)
+		xmod |= X_mi.AltMask;
+	if (smod & KMOD_RALT)
+		xmod |= X_mi.AltGrMask;
+	if (smod & KMOD_CAPS)
+		xmod |= X_mi.CapsLockMask;
+	if (smod & KMOD_NUM)
+		xmod |= X_mi.NumLockMask;
+	if (grp)
+		xmod |= 1 << (grp + 12);
+	return xmod;
+}
+
+void SDL_process_key_xkb(Display *display, SDL_KeyboardEvent keyevent)
+{
+	SDL_Keysym keysym = keyevent.keysym;
+	SDL_Scancode scan = keysym.scancode;
+	t_keynum keynum = sdl2_scancode_to_keynum[scan];
+	KeyCode keycode = keynum_to_keycode(keynum);
+	int grp = Xkb_get_group(display);
+	unsigned int xmod = SDL_to_X_mod(keysym.mod, grp);
+	t_unicode key = Xkb_lookup_key(display, keycode, xmod);
+	int make = (keyevent.state == SDL_PRESSED);
+	SDL_sync_shiftstate(make, keysym.sym, keysym.mod);
+	move_keynum(make, keynum, key);
+}
+#endif
+
 void SDL_process_key(SDL_KeyboardEvent keyevent)
 {
 	SDL_Keysym keysym = keyevent.keysym;
-#if 0
-	t_unicode key = keysym.unicode;
-#else
-	/* FIXME: no i18n for now! */
 	t_unicode key = KEY_VOID;
-#endif
 	t_modifiers modifiers = map_SDL_modifiers(keysym.mod);
-
 	switch (keysym.sym) {
 	  case SDLK_UNKNOWN:
 		/* workaround for X11+SDL bug with AltGR (from QEMU) */
@@ -277,10 +336,8 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 		if (keysym.sym > 255)
 			key = KEY_VOID;
 		break;
-	 }
-
+	}
 	SDL_sync_shiftstate(keyevent.state==SDL_PRESSED, keysym.sym, keysym.mod);
-
         if (!use_move_key(key) || (move_key(keyevent.state == SDL_PRESSED, key) < 0)) {
                 put_modified_symbol(keyevent.state==SDL_PRESSED, modifiers, key);
         }
@@ -294,6 +351,21 @@ static int probe_SDL_keyb(void)
 	}
 	return result;
 }
+
+#ifdef X_SUPPORT
+int init_SDL_keyb(void *handle, Display *display)
+{
+	X_get_modifier_info = dlsym(handle, "X_get_modifier_info");
+	Xkb_lookup_key = dlsym(handle, "Xkb_lookup_key");
+	X_keycode_initialize = dlsym(handle, "X_keycode_initialize");
+	keyb_X_init = dlsym(handle, "keyb_X_init");
+	keynum_to_keycode = dlsym(handle, "keynum_to_keycode");
+	Xkb_get_group = dlsym(handle, "Xkb_get_group");
+	X_keycode_initialize(display);
+	keyb_X_init(display);
+	return 0;
+}
+#endif
 
 struct keyboard_client Keyboard_SDL =  {
 	"SDL",                  /* name */

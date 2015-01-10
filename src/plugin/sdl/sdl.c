@@ -98,6 +98,7 @@ static int init_failed;
 
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
+void *X_handle;
 #define X_load_text_font pX_load_text_font
 static void (*X_load_text_font)(Display *display, int private_dpy,
 				Window window, const char *p,  int *w, int *h);
@@ -144,6 +145,7 @@ static void preinit_x11_support(void)
   X_handle_selection = dlsym(handle, "X_handle_selection");
 #endif
   X_pre_init();
+  X_handle = handle;
 #endif
 }
 
@@ -167,6 +169,7 @@ static void init_x11_support(SDL_Window *win)
     x11.window = info.info.x11.window;
     x11.lock_func = X_lock_display;
     x11.unlock_func = X_unlock_display;
+    init_SDL_keyb(X_handle, x11.display);
   }
 }
 
@@ -663,11 +666,21 @@ static void SDL_handle_events(void)
 #if CONFIG_SDL_SELECTION
        clear_if_in_selection();
 #endif
+#ifdef X_SUPPORT
+       if (x11.display)
+         SDL_process_key_xkb(x11.display, event.key);
+       else
+#endif
        SDL_process_key(event.key);
        break;
      case SDL_KEYUP:
 #if CONFIG_SDL_SELECTION
        clear_if_in_selection();
+#endif
+#ifdef X_SUPPORT
+       if (x11.display)
+         SDL_process_key_xkb(x11.display, event.key);
+       else
 #endif
        SDL_process_key(event.key);
        break;
