@@ -101,10 +101,10 @@ static void midoflus_write(unsigned char val)
 {
     fluid_midi_event_t* event;
 
+    pthread_mutex_lock(&synth_mtx);
     if (!output_running)
 	midoflus_start();
 
-    pthread_mutex_lock(&synth_mtx);
     event = fluid_midi_parser_parse(parser, val);
     if (event != NULL) {
 	int ret;
@@ -168,10 +168,12 @@ static void midoflus_stop(void)
     now = GETusTIME(0);
     msec = (now - mf_time_base) / 1000;
     S_printf("MIDI: stopping fluidsynth at msec=%i\n", msec);
+    pthread_mutex_lock(&synth_mtx);
     /* advance past last event */
     fluid_sequencer_process(sequencer, msec);
     /* shut down all active notes */
     fluid_synth_system_reset(synth);
+    pthread_mutex_unlock(&synth_mtx);
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
