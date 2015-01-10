@@ -27,3 +27,5 @@ void X_load_text_font(Display *dpy, int private_dpy,
 		      Window, const char *p, int *w, int *h);
 void X_close_text_display(void);
 int X_handle_text_expose(void);
+void X_set_resizable(Display *display, Window window, int on,
+	int x_res, int y_res);

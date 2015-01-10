@@ -2040,6 +2040,26 @@ void resize_ximage(unsigned width, unsigned height)
   X_unlock();
 }
 
+void X_set_resizable(Display *display, Window window, int on,
+	int x_res, int y_res)
+{
+  XSizeHints sh;
+  sh.flags = PMinSize | PMaxSize;
+  if (on) {
+    sh.min_width = 0;
+    sh.min_height = 0;
+    sh.max_width = 32767;
+    sh.max_height = 32767;
+  } else {
+    /* min == max means non-resizable */
+    sh.min_width = x_res;
+    sh.min_height = y_res;
+    sh.max_width = x_res;
+    sh.max_height = y_res;
+  }
+  XSetNormalHints(display, window, &sh);
+}
+
 /*
  * Resize the window to given (*) size and lock it at that size
  * In text mode, you have to resize the mapper, too

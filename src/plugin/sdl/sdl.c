@@ -109,6 +109,9 @@ static int (*X_close_text_display)(void);
 static int (*X_pre_init)(void);
 #define X_register_speaker pX_register_speaker
 static void (*X_register_speaker)(Display *display);
+#define X_set_resizable pX_set_resizable
+static void (*X_set_resizable)(Display *display, Window window, int on,
+	int x_res, int y_res);
 #endif
 
 #ifdef CONFIG_SELECTION
@@ -136,6 +139,7 @@ static void preinit_x11_support(void)
   X_pre_init = dlsym(handle, "X_pre_init");
   X_close_text_display = dlsym(handle, "X_close_text_display");
   X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
+  X_set_resizable = dlsym(handle, "X_set_resizable");
 #ifdef CONFIG_SDL_SELECTION
   X_handle_selection = dlsym(handle, "X_handle_selection");
 #endif
@@ -160,6 +164,7 @@ static void init_x11_support(SDL_Window *win)
   if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
     x11.display = info.info.x11.display;
+    x11.window = info.info.x11.window;
     x11.lock_func = X_lock_display;
     x11.unlock_func = X_unlock_display;
   }
@@ -168,18 +173,12 @@ static void init_x11_support(SDL_Window *win)
 static void init_x11_window_font(SDL_Window *win, int *x_res, int *y_res)
 {
   int font_width, font_height;
-  /* called as soon as the window is active (first set video mode) */
-  SDL_SysWMinfo info;
-  SDL_VERSION(&info.version);
-  if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
-    x11.window = info.info.x11.window;
-    x11.lock_func();
-    X_load_text_font(x11.display, 1, x11.window, config.X_font,
+  x11.lock_func();
+  X_load_text_font(x11.display, 1, x11.window, config.X_font,
 		       &font_width, &font_height);
-    x11.unlock_func();
-    *x_res = vga.text_width * font_width;
-    *y_res = vga.text_height * font_height;
-  }
+  x11.unlock_func();
+  *x_res = vga.text_width * font_width;
+  *y_res = vga.text_height * font_height;
 }
 #endif /* X_SUPPORT */
 
@@ -367,11 +366,25 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
   return 1;
 }
 
+static void set_resizable(int on, int x_res, int y_res)
+{
+#if 0
+  /* no such api :( */
+  SDL_SetWindowResizable(window, on ? SDL_ENABLE : SDL_DISABLE);
+#else
+#ifdef X_SUPPORT
+  if (x11.display)
+    X_set_resizable(x11.display, x11.window, on, x_res, y_res);
+#endif
+#endif
+}
+
 static void SDL_change_mode(int x_res, int y_res)
 {
   if (vga.mode_class == TEXT) {
 #ifdef X_SUPPORT
-    init_x11_window_font(window, &x_res, &y_res);
+    if (x11.display)
+      init_x11_window_font(window, &x_res, &y_res);
 #endif
   }
   v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
@@ -392,6 +405,7 @@ static void SDL_change_mode(int x_res, int y_res)
     leavedos(99);
   }
   SDL_SetWindowSize(window, x_res, y_res);
+  set_resizable(use_bitmap_font || vga.mode_class == GRAPH, x_res, y_res);
   SDL_ShowWindow(window);
   m_x_res = w_x_res = x_res;
   m_y_res = w_y_res = y_res;
