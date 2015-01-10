@@ -30,6 +30,7 @@ static struct rmcalls_wrp rmcalls[MAX_REMAPS];
 static int num_remaps;
 static struct render_system *Render;
 static int render_locked;
+static int render_text;
 static int is_updating;
 static struct bitmap_desc dst_image;
 static pthread_t render_thr;
@@ -55,6 +56,44 @@ static void check_locked(void)
 {
   if (!render_locked)
     dosemu_error("render not locked!\n");
+}
+
+static void render_text_begin(void)
+{
+  render_text++;
+}
+
+static void render_text_end(void)
+{
+  render_text--;
+  if (render_text) {
+    render_unlock();
+    render_text--;
+  }
+  assert(!render_text);
+}
+
+static void render_text_lock(void)
+{
+  if (!render_text) {
+    dosemu_error("render not in text mode!\n");
+    leavedos(95);
+    return;
+  }
+  if (render_text == 1) {
+    dst_image = render_lock();
+    render_text++;
+  }
+}
+
+static void render_text_unlock(void)
+{
+#if 1
+  /* nothing: we coalesce multiple locks */
+#else
+  render_text--;
+  render_unlock();
+#endif
 }
 
 /*
@@ -92,6 +131,9 @@ static struct text_system Text_bitmap =
   bitmap_draw_string,
   bitmap_draw_line,
   bitmap_draw_text_cursor,
+  NULL,
+  render_text_lock,
+  render_text_unlock,
 };
 
 int register_render_system(struct render_system *render_system)
@@ -429,10 +471,10 @@ static void *render_thread(void *arg)
     if (vga.mode_class == TEXT) {
       blink_cursor();
       if (text_is_dirty()) {
-        dst_image = render_lock();
+        render_text_begin();
         update_cursor();
         update_text_screen();
-        render_unlock();
+        render_text_end();
       }
     } else {
       if (vgaemu_is_dirty()) {
@@ -457,9 +499,9 @@ int update_screen(void)
 
 void redraw_text_screen(void)
 {
-  dst_image = render_lock();
+  render_text_begin();
   text_redraw_text_screen();
-  render_unlock();
+  render_text_end();
 }
 
 void render_gain_focus(void)
