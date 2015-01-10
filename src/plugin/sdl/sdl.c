@@ -333,27 +333,6 @@ static void unlock_surface(void)
   pthread_mutex_unlock(&mode_mtx);
 }
 
-/*
- * Sync prev_screen & screen_adr.
- */
-static void SDL_reset_redraw_text_screen(void)
-{
-  reset_redraw_text_screen();
-}
-
-#if 0
-static void SDL_redraw_text_screen(void)
-{
-#ifdef X_SUPPORT
-  if (x11.display && !use_bitmap_font) {
-    redraw_text_screen();
-    return;
-  }
-#endif
-  redraw_text_screen();
-}
-#endif
-
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
 int SDL_set_videomode(int mode_class, int text_width, int text_height)
 {
@@ -376,7 +355,6 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
 			vga.text_height * font_height);
     }
     pthread_mutex_unlock(&mode_mtx);
-    SDL_reset_redraw_text_screen();
   } else {
     get_mode_parameters(&x_res, &y_res);
     pthread_mutex_lock(&mode_mtx);

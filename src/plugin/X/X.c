@@ -432,7 +432,6 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height);
 static void lock_window_size(unsigned wx_res, unsigned wy_res);
 
 /* screen update/redraw functions */
-static void X_reset_redraw_text_screen(void);
 static void X_redraw_text_screen(void);
 static int X_update_screen(void);
 
@@ -2165,9 +2164,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
   if(vga.mode_class == TEXT) {
     XSetWindowColormap(display, drawwindow, text_cmap);
-
-    X_reset_redraw_text_screen();
-
     dac_bits = vga.dac.bits;
 
     if (!use_bitmap_font) {
@@ -2366,15 +2362,6 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     XWarpPointer(display, None, drawwindow, 0, 0, 0, 0, mx, my);
   *new_width = nw;
   *new_height = nh;
-}
-
-/*
- * Sync prev_screen & screen_adr.
- */
-void X_reset_redraw_text_screen()
-{
-  if(!is_mapped) return;
-  reset_redraw_text_screen();
 }
 
 void X_redraw_text_screen()
