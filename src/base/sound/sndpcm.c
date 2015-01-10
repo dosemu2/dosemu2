@@ -579,12 +579,12 @@ user_tstamp:
 	    if (delta > MIN_BUFFER_DELAY) {
 		error("PCM: too large delta on stream %s\n",
 			pcm.stream[strm_idx].name);
-		return now;
+		pcm.stream[strm_idx].start_time = time = now - MIN_BUFFER_DELAY;
 	    }
 	    return time;
 	}
 	S_printf("PCM: ERROR: not prepared %s\n", pcm.stream[strm_idx].name);
-	return now;
+	return now - MIN_BUFFER_DELAY;
 
     case SNDBUF_STATE_STALLED:
 	pcm.stream[strm_idx].stretch_per = now - MIN_BUFFER_DELAY -
