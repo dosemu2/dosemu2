@@ -317,6 +317,15 @@ static void SDL_update(void)
   pthread_mutex_unlock(&mode_mtx);
 }
 
+static void SDL_redraw(void)
+{
+  pthread_mutex_lock(&mode_mtx);
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture, NULL, NULL);
+  SDL_RenderPresent(renderer);
+  pthread_mutex_unlock(&mode_mtx);
+}
+
 static struct bitmap_desc lock_surface(void)
 {
   void *pixels;
@@ -632,6 +641,7 @@ static void SDL_handle_events(void)
           m_x_res = event.window.data1;
           m_y_res = event.window.data2;
         }
+        SDL_redraw();
         break;
     }
     break;
