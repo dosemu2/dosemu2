@@ -482,6 +482,7 @@ static void toggle_grab(void)
     config.mouse.use_absolute = 0;
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
     mouse_enable_native_cursor(1);
   }
   else {
@@ -491,6 +492,7 @@ static void toggle_grab(void)
       SDL_SetWindowGrab(window, SDL_FALSE);
     if (m_cursor_visible)
       SDL_ShowCursor(SDL_ENABLE);
+    SDL_SetRelativeMouseMode(SDL_FALSE);
     mouse_enable_native_cursor(0);
   }
   SDL_change_config(CHG_TITLE, NULL);
@@ -699,14 +701,12 @@ static void SDL_handle_events(void)
 				    y_to_row(event.button.y, m_y_res));
 	 }
 #endif /* CONFIG_SDL_SELECTION */
-	 mouse_move_absolute(event.button.x, event.button.y, m_x_res, m_y_res);
 	 mouse_move_buttons(buttons & SDL_BUTTON(1), buttons & SDL_BUTTON(2), buttons & SDL_BUTTON(3));
 	 break;
        }
      case SDL_MOUSEBUTTONUP:
        {
 	 int buttons = SDL_GetMouseState(NULL, NULL);
-	 mouse_move_absolute(event.button.x, event.button.y, m_x_res, m_y_res);
 #if CONFIG_SDL_SELECTION
 	 if (x11.display && vga.mode_class == TEXT && !grab_active) {
 	   XEvent e;
@@ -729,10 +729,14 @@ static void SDL_handle_events(void)
      case SDL_MOUSEMOTION:
 #if CONFIG_SDL_SELECTION
        if (x11.display && x11.window != None)
-	 extend_selection(x_to_col(event.button.x, m_x_res),
-			  y_to_row(event.button.y, m_y_res));
+	 extend_selection(x_to_col(event.motion.x, m_x_res),
+			  y_to_row(event.motion.y, m_y_res));
 #endif /* CONFIG_SDL_SELECTION */
-       mouse_move_absolute(event.button.x, event.button.y, m_x_res, m_y_res);
+       if (grab_active)
+         mouse_move_relative(event.motion.xrel, event.motion.yrel,
+            m_x_res, m_y_res);
+       else
+         mouse_move_absolute(event.motion.x, event.motion.y, m_x_res, m_y_res);
        break;
      case SDL_QUIT:
        leavedos(0);
