@@ -1396,6 +1396,7 @@ static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst
   int features = 6;
   int i;
 
+  flags &= (RFF_LIN_FILT | RFF_BILIN_FILT);
   if(flags & RFF_BILIN_FILT) flags &= ~RFF_LIN_FILT;
 
   f_list[0] = flags | RFF_OPT_PENTIUM | RFF_REMAP_RECT;
