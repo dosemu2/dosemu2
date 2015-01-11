@@ -296,7 +296,7 @@ int X_load_text_font(Display *dpy, int private_dpy, Window w,
       "remote X. You need to install the %s font on your _local_ Xserver.\n"
       "Look at the readme for details. For now we start with the bitmapped\n"
       "built-in font instead, which may be slower.\n",
-      ((memcmp(p, "vga", 3) == 0) ? "DOSEMU" : ""), p, p);
+      ((strncmp(p, "vga", 3) == 0) ? "DOSEMU" : ""), p, p);
     } else if (xfont->min_bounds.width != xfont->max_bounds.width) {
       error("X: Font \"%s\" isn't monospaced, using builtin\n", p);
       XFreeFont(text_display, xfont);
