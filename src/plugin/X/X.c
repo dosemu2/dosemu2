@@ -1747,16 +1747,11 @@ static void X_handle_events(void)
   int ret;
   if (!initialized)
     return;
+  /* speed-up: if render is working we don't want to sit
+   * watitng on mutexes, so just go away */
   if (render_is_updating())
     return;
-  /* If we don't grab the lock here then another thread can interrupt
-   * the event handling loop and cause it to wait for the lock inside
-   * the Xlib function. All xlib functions grab the lock themselves
-   * (because of XInitThreads()), so it is still safe, but we don't
-   * want the event loop to be "paused". The lock is recursive. */
-  XLockDisplay(display);
   ret = __X_handle_events();
-  XUnlockDisplay(display);
   if (ret < 0)
     leavedos(0);
 }
