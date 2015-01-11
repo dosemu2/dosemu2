@@ -95,6 +95,7 @@ static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 int grab_active = 0;
+static int m_cursor_visible;
 static int init_failed;
 
 #ifdef X_SUPPORT
@@ -422,10 +423,13 @@ static void SDL_change_mode(int x_res, int y_res)
   /* forget about those rectangles */
   sdl_rects.num = 0;
   pthread_mutex_unlock(&update_mtx);
-  if (vga.mode_class == GRAPH)
+  if (vga.mode_class == GRAPH) {
     SDL_ShowCursor(SDL_DISABLE);
-  else
+    m_cursor_visible = 0;
+  } else {
     SDL_ShowCursor(SDL_ENABLE);
+    m_cursor_visible = 1;
+  }
 }
 
 int SDL_update_screen(void)
@@ -485,7 +489,8 @@ static void toggle_grab(void)
     v_printf("SDL: grab released\n");
     if (!config.X_fullscreen)
       SDL_SetWindowGrab(window, SDL_FALSE);
-    SDL_ShowCursor(SDL_ENABLE);
+    if (m_cursor_visible)
+      SDL_ShowCursor(SDL_ENABLE);
     mouse_enable_native_cursor(0);
   }
   SDL_change_config(CHG_TITLE, NULL);
@@ -762,9 +767,7 @@ static int SDL_mouse_init(void)
 
 static void SDL_show_mouse_cursor(int yes)
 {
-  if(vga.mode_class != GRAPH) {
-    return;
-  }
+  m_cursor_visible = yes;
   SDL_ShowCursor((yes && !grab_active) ? SDL_ENABLE : SDL_DISABLE);
 }
 
