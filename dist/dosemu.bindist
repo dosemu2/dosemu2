@@ -50,7 +50,10 @@ get_binary() {
     #older situation
     BOOT_DIR_PATH=`cd $HOME/.dosemu/drives && ls -l c | sed 's/.* -> //'`/..
   fi
-  BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
+  BINARY=`dirname $1`/dosemu.bin
+  if [ ! -f "$BINARY" ]; then
+    BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
+  fi
 
   if [ -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
     if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
