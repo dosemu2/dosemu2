@@ -505,9 +505,7 @@ int update_screen(void)
 
 void redraw_text_screen(void)
 {
-  render_text_begin();
-  text_redraw_text_screen();
-  render_text_end();
+  dirty_text_screen();
 }
 
 void render_gain_focus(void)
