@@ -53,6 +53,23 @@
 #define MIN_READ_GUARD_PERIOD (1000000 * MIN_GUARD_SIZE / (2 * 44100))
 #define WR_BUFFER_LW (BUFFER_DELAY / 2)
 #define MIN_READ_DELAY (MIN_BUFFER_DELAY + MIN_READ_GUARD_PERIOD)
+#define WRITE_AREA_SIZE MIN_BUFFER_DELAY
+#define WRITE_INIT_POS (WRITE_AREA_SIZE / 2)
+
+/*    Layout of our buffer is as follows:
+ *
+ *                  |              |
+ * WRITE_INIT_POS ->+  write area  +<---------------------- <-WR_BUFFER_LW (GC)
+ *                  |              |                       \
+ * WRITE_AREA_SIZE->+--------------+->MIN_BUFFER_DELAY     |
+ *                  |              |                       |
+ *                  +  read area   +->INIT_BUFFER_DELAY    |
+ *                  |              |                       |
+ *                  +--------------+->MAX_BUFFER_DELAY     |
+ *                  |              |                       |
+ *                  |   GC area    +---------------------->
+ *                  \_____________/
+ */
 
 enum {
     SNDBUF_STATE_INACTIVE,
@@ -576,20 +593,20 @@ static double get_stream_time(int strm_idx)
     case SNDBUF_STATE_INACTIVE:
 	if (pcm.stream[strm_idx].prepared) {
 user_tstamp:
-	    if (delta > MIN_BUFFER_DELAY) {
+	    if (delta > WRITE_AREA_SIZE) {
 		error("PCM: too large delta on stream %s\n",
 			pcm.stream[strm_idx].name);
-		pcm.stream[strm_idx].start_time = time = now - MIN_BUFFER_DELAY;
+		pcm.stream[strm_idx].start_time = time = now - WRITE_INIT_POS;
 	    }
 	    return time;
 	}
 	S_printf("PCM: ERROR: not prepared %s\n", pcm.stream[strm_idx].name);
-	return now - MIN_BUFFER_DELAY;
+	return now - WRITE_INIT_POS;
 
     case SNDBUF_STATE_STALLED:
-	pcm.stream[strm_idx].stretch_per = now - MIN_BUFFER_DELAY -
+	pcm.stream[strm_idx].stretch_per = now - WRITE_AREA_SIZE -
 		pcm.stream[strm_idx].stop_time;
-	return now - MIN_BUFFER_DELAY;
+	return now - WRITE_AREA_SIZE;
 
     case SNDBUF_STATE_FLUSHING:
 	if (pcm.stream[strm_idx].stretch)
