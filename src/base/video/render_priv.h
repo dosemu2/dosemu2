@@ -1,6 +1,7 @@
 #ifndef RENDER_PRIV_H
 #define RENDER_PRIV_H
 
+extern int use_bitmap_font;
 Boolean refresh_palette(void *udata);
 int find_supported_modes(unsigned dst_mode);
 

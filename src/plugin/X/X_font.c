@@ -253,7 +253,7 @@ static int run_xset(const char *path)
  * vga, then 9x15 and finally fixed. If none of these exists and
  * is monospaced, give up (shouldn't happen).
  */
-void X_load_text_font(Display *dpy, int private_dpy, Window w,
+int X_load_text_font(Display *dpy, int private_dpy, Window w,
 		      const char *p, int *width, int *height)
 {
   XFontStruct *xfont;
@@ -317,9 +317,7 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
   }
 
   font = xfont;
-  use_bitmap_font = (font == NULL);
-  dirty_all_vga_colors();
-  if (use_bitmap_font) {
+  if (!font) {
     X_printf("X: X_change_config: font \"%s\" not found, "
 	     "using builtin\n", p);
     X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
@@ -329,7 +327,7 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
       *width = vga.char_width;
     if (height)
       *height = vga.char_height;
-    return;
+    return 0;
   }
 
   depth = DefaultDepth(text_display, DefaultScreen(text_display));
@@ -360,6 +358,8 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
     XGetWindowAttributes(dpy, w, &xwa);
     XSelectInput(dpy, w, xwa.your_event_mask & ~ExposureMask);
   }
+
+  return 1;
 }
 
 void X_close_text_display(void)

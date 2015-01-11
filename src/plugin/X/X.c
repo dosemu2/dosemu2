@@ -324,6 +324,7 @@ Display *display;		/* used in plugin/?/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
 static int initialized;
+static int use_bitmap_font;
 /*
   rootwindow: RootWindow(display, DefaultScreen(display));
   parentwindow: parent: was used with kdos
@@ -550,7 +551,7 @@ int X_init()
   XTextProperty prop;
   char *display_name;
   char *s;
-  int i, remap_src_modes, features;
+  int i, remap_src_modes, features, ret;
 
   X_printf("X: X_init\n");
 
@@ -606,18 +607,6 @@ int X_init()
 
   text_cmap = DefaultColormap(display, screen);		/* always use the global palette */
   graphics_cmap_init();				/* graphics modes are more sophisticated */
-
-  /* init graphics mode support */
-  features = 0;
-  if(config.X_lin_filt) features |= RFF_LIN_FILT;
-  if(config.X_bilin_filt) features |= RFF_BILIN_FILT;
-  remap_src_modes = remapper_init(have_true_color, have_shmap, features,
-	&X_csd);
-  if(!remap_src_modes) {
-    error("X: No graphics modes supported on this type of screen!\n");
-    /* why do we need a blank screen? */
-    leavedos(24);
-  }
 
   if (!vga.char_width) {
     /* set to default init values */
@@ -763,8 +752,24 @@ int X_init()
   }
 
   register_render_system(&Render_X);
-  X_load_text_font(display, 0, drawwindow, config.X_font,
+  ret = X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
+  use_bitmap_font = !ret;
+  /* init graphics mode support */
+  features = 0;
+  if (config.X_lin_filt)
+    features |= RFF_LIN_FILT;
+  if (config.X_bilin_filt)
+    features |= RFF_BILIN_FILT;
+  if (use_bitmap_font)
+    features |= RFF_BITMAP_FONT;
+  remap_src_modes = remapper_init(have_true_color, have_shmap, features,
+	&X_csd);
+  if(!remap_src_modes) {
+    error("X: No graphics modes supported on this type of screen!\n");
+    /* why do we need a blank screen? */
+    leavedos(24);
+  }
   if(!use_bitmap_font)
     X_resize_text_screen();
 
@@ -1082,7 +1087,7 @@ static void X_keymap_init()
  */
 static int X_change_config(unsigned item, void *buf)
 {
-  int err = 0;
+  int err = 0, ret;
 
   X_printf("X: X_change_config: item = %d, buffer = %p\n", item, buf);
 
@@ -1126,8 +1131,9 @@ static int X_change_config(unsigned item, void *buf)
       break;
 
     case CHG_FONT:
-      X_load_text_font(display, 0, drawwindow, buf,
+      ret = X_load_text_font(display, 0, drawwindow, buf,
 		       &font_width, &font_height);
+      use_bitmap_font = !ret;
       if (use_bitmap_font) {
         register_render_system(&Render_X);
         font_width = vga.char_width;

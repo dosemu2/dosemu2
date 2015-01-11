@@ -141,8 +141,11 @@ static struct text_system Text_bitmap =
 
 int register_render_system(struct render_system *render_system)
 {
+  if (Render) {
+    dosemu_error("multiple gfx renderers not supported, please report a bug!\n");
+    return 0;
+  }
   Render = render_system;
-  register_text_system(&Text_bitmap);
   return 1;
 }
 
@@ -176,8 +179,11 @@ int remapper_init(int have_true_color, int have_shmap, int features,
 
   remap_src_modes = find_supported_modes(ximage_mode);
   remap_obj = remap_init(remap_mode(), ximage_mode, features, csd);
-  init_text_mapper(ximage_mode, features, csd);
-
+  if (features & RFF_BITMAP_FONT) {
+    use_bitmap_font = 1;
+    register_text_system(&Text_bitmap);
+    init_text_mapper(ximage_mode, features, csd);
+  }
   err = sem_init(&render_sem, 0, 0);
   assert(!err);
   err = pthread_create(&render_thr, NULL, render_thread, NULL);

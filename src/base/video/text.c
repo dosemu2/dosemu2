@@ -35,6 +35,7 @@
 #include <assert.h>
 
 #include "emu.h"
+#include "utilities.h"
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
@@ -45,7 +46,7 @@
 #include "translate.h"
 
 static struct text_system * Text = NULL;
-int use_bitmap_font = TRUE;
+int use_bitmap_font;
 Boolean have_focus = FALSE;
 
 static unsigned prev_cursor_location = -1;
@@ -97,6 +98,10 @@ static inline Bit8u sel_attr(Bit8u a)
 
 int register_text_system(struct text_system *text_system)
 {
+  if (Text) {
+    dosemu_error("multiple text renderers not supported, please report a bug!\n");
+    return 0;
+  }
   Text = text_system;
   return 1;
 }
@@ -437,8 +442,6 @@ void blink_cursor()
 
 void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd)
 {
-  if(!use_bitmap_font)
-    return;
   /* think 9x32 is maximum */
   text_canvas = malloc(MAX_COLUMNS * 9 * MAX_LINES * 32);
   if (text_canvas == NULL)

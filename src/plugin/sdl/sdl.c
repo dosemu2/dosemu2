@@ -81,6 +81,7 @@ static int font_width, font_height;
 static int w_x_res, w_y_res;
 static int m_x_res, m_y_res;
 static int initialized;
+static int use_bitmap_font;
 #define UPDATE_BY_RECTS 0
 static struct {
   int num;
@@ -100,7 +101,7 @@ static int init_failed;
 #ifdef USE_DL_PLUGINS
 void *X_handle;
 #define X_load_text_font pX_load_text_font
-static void (*X_load_text_font)(Display *display, int private_dpy,
+static int (*X_load_text_font)(Display *display, int private_dpy,
 				Window window, const char *p,  int *w, int *h);
 #define X_handle_text_expose pX_handle_text_expose
 static int (*X_handle_text_expose)(void);
@@ -161,27 +162,24 @@ static void X_unlock_display(void)
 
 static void init_x11_support(SDL_Window *win)
 {
+  int ret;
   SDL_SysWMinfo info;
   SDL_VERSION(&info.version);
   if (SDL_GetWindowWMInfo(win, &info) && info.subsystem == SDL_SYSWM_X11) {
+#if CONFIG_SDL_SELECTION
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+#endif
     x11.display = info.info.x11.display;
     x11.window = info.info.x11.window;
     x11.lock_func = X_lock_display;
     x11.unlock_func = X_unlock_display;
     init_SDL_keyb(X_handle, x11.display);
-  }
-}
-
-static void init_x11_window_font(SDL_Window *win, int *x_res, int *y_res)
-{
-  int font_width, font_height;
-  x11.lock_func();
-  X_load_text_font(x11.display, 1, x11.window, config.X_font,
+    x11.lock_func();
+    ret = X_load_text_font(x11.display, 1, x11.window, config.X_font,
 		       &font_width, &font_height);
-  x11.unlock_func();
-  *x_res = vga.text_width * font_width;
-  *y_res = vga.text_height * font_height;
+    x11.unlock_func();
+    use_bitmap_font = !ret;
+  }
 }
 #endif /* X_SUPPORT */
 
@@ -210,7 +208,7 @@ int SDL_priv_init(void)
 int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
-  int remap_src_modes, bpp;
+  int remap_src_modes, bpp, features;
   Uint32 rm, gm, bm, am;
 
   if (init_failed)
@@ -235,6 +233,12 @@ int SDL_init(void)
     return -1;
   }
 
+#ifdef X_SUPPORT
+  init_x11_support(window);
+#else
+  use_bitmap_font = 1;
+#endif
+
   if (config.X_fullscreen)
     toggle_grab();
 
@@ -250,7 +254,10 @@ int SDL_init(void)
   SDL_csd.g_mask = gm;
   SDL_csd.b_mask = bm;
   color_space_complete(&SDL_csd);
-  remap_src_modes = remapper_init(1, 1, 0, &SDL_csd);
+  features = 0;
+  if (use_bitmap_font)
+    features |= RFF_BITMAP_FONT;
+  remap_src_modes = remapper_init(1, 1, features, &SDL_csd);
   register_render_system(&Render_SDL);
 
   if(vga_emu_init(remap_src_modes, &SDL_csd)) {
@@ -258,10 +265,6 @@ int SDL_init(void)
     config.exitearly = 1;
     return -1;
   }
-
-#ifdef X_SUPPORT
-  init_x11_support(window);
-#endif
 
   return 0;
 }
@@ -393,12 +396,6 @@ static void set_resizable(int on, int x_res, int y_res)
 
 static void SDL_change_mode(int x_res, int y_res)
 {
-  if (vga.mode_class == TEXT) {
-#ifdef X_SUPPORT
-    if (x11.display)
-      init_x11_window_font(window, &x_res, &y_res);
-#endif
-  }
   v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
   if (texture)
     SDL_DestroyTexture(texture);

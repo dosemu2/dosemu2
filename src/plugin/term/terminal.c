@@ -427,7 +427,6 @@ static int terminal_initialize(void)
      "Non-ASCII characters (\"extended ASCII\") are not displayed correctly.\n");
 
    /* initialize VGA emulator */
-   use_bitmap_font = FALSE;
    config.X_updatelines = Rows;
    vga.text_width = Columns;
    vga.scan_len = 2 * Columns;

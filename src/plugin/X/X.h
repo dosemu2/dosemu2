@@ -22,8 +22,7 @@ void X_register_speaker(Display *display);
 void X_process_key(XKeyEvent *);
 void X_process_keys(XKeymapEvent *);
 
-void load_text_font(void);
-void X_load_text_font(Display *dpy, int private_dpy,
+int X_load_text_font(Display *dpy, int private_dpy,
 		      Window, const char *p, int *w, int *h);
 void X_close_text_display(void);
 int X_handle_text_expose(void);

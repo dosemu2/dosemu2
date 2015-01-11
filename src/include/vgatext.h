@@ -16,7 +16,6 @@
 #define ATTR_BG(attrib) (attrib >> 4)
 
 extern Boolean have_focus;
-extern int use_bitmap_font;
 
 struct text_system
 {
