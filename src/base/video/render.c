@@ -35,7 +35,6 @@ static int is_updating;
 static struct bitmap_desc dst_image;
 static pthread_t render_thr;
 static pthread_mutex_t render_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t text_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t render_sem;
 static void *render_thread(void *arg);
 static int remap_mode(void);
@@ -61,7 +60,6 @@ static void check_locked(void)
 
 static void render_text_begin(void)
 {
-  pthread_mutex_lock(&text_mtx);
   render_text++;
 }
 
@@ -73,7 +71,6 @@ static void render_text_end(void)
     render_text--;
   }
   assert(!render_text);
-  pthread_mutex_unlock(&text_mtx);
 }
 
 static void render_text_lock(void)
