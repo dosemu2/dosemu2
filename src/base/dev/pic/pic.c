@@ -711,9 +711,6 @@ static void do_irq(int ilevel)
 
     intr=pic_iinfo[ilevel].ivec;
 
-    if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
-      if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
-
      if (test_bit(ilevel, &pic_irqall)) {
        pic_push(ilevel);
        set_bit(ilevel, &pic_irqs_active);
