@@ -75,21 +75,13 @@ static void midopipe_write(unsigned char val)
 	    return;
 	}
     }
-    int retry = 0;
-    do {
-	if (write(pipe_fd, &val, 1) == -1) {
-	    switch (errno) {
-		case EAGAIN:
-		case EINTR:
-		    retry = 1;
-		default: /* all other errors incl. EPIPE */
-		    close(pipe_fd);
-		    pipe_fd = -1;
-		    retry = 0;
-		    break;
-	    }
-	}
-    } while (retry);
+    int ret;
+    while ((ret = write(pipe_fd, &val, 1)) == -1 && errno == EAGAIN);
+    if (ret < 0) {
+	/* all other errors incl. EPIPE */
+	close(pipe_fd);
+	pipe_fd = -1;
+    }
 }
 
 CONSTRUCTOR(static int midopipe_register(void))
