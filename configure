@@ -749,6 +749,7 @@ with_slangdir
 with_x
 enable_mitshm
 enable_vidmode
+enable_xrandr
 enable_experimental
 enable_debug
 enable_aspi
@@ -1387,6 +1388,7 @@ Optional Features:
   --disable-dlplugins     do NOT use dynamically loaded plugins
   --disable-mitshm        do NOT use the MITSHM X extension
   --enable-vidmode        use XF86 vidmode extension
+{  --disable-xrandr        do NOT use the XRandR extension]
   --enable-experimental   enable configuration of EXPERIMENTAL stuff
   --enable-debug          compile with debug info
   --disable-aspi          do NOT compile with ASPI support
@@ -5903,6 +5905,72 @@ fi
 
     fi
 
+    # Check whether --enable-xrandr was given.
+if test "${enable_xrandr+set}" = set; then :
+  enableval=$enable_xrandr;
+fi
+
+    if test "$enable_xrandr" != "no" ; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for XRRQueryVersion in -lXrandr" >&5
+$as_echo_n "checking for XRRQueryVersion in -lXrandr... " >&6; }
+if ${ac_cv_lib_Xrandr_XRRQueryVersion+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lXrandr  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XRRQueryVersion ();
+int
+main ()
+{
+return XRRQueryVersion ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_Xrandr_XRRQueryVersion=yes
+else
+  ac_cv_lib_Xrandr_XRRQueryVersion=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_Xrandr_XRRQueryVersion" >&5
+$as_echo "$ac_cv_lib_Xrandr_XRRQueryVersion" >&6; }
+if test "x$ac_cv_lib_Xrandr_XRRQueryVersion" = xyes; then :
+  enable_xrandr="yes"
+else
+  enable_xrandr="no"
+fi
+
+    fi
+    if test "$enable_xrandr" = "no" ; then
+               { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling without the XRandR extension" >&5
+$as_echo "$as_me: Compiling without the XRandR extension" >&6;}
+    else
+         ac_fn_c_check_header_compile "$LINENO" "X11/extensions/Xrandr.h" "ac_cv_header_X11_extensions_Xrandr_h" "#include <X11/Xlib.h>
+"
+if test "x$ac_cv_header_X11_extensions_Xrandr_h" = xyes; then :
+  $as_echo "#define HAVE_XRANDR 1" >>confdefs.h
+ X_LIBS="-lXrandr $X_LIBS"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling without the XRandR extension" >&5
+$as_echo "$as_me: Compiling without the XRandR extension" >&6;}
+fi
+
+
+    fi
+
     LIBS=$SLIBS
     unset SLIBS
 
@@ -6296,6 +6364,8 @@ ac_config_files="$ac_config_files Makefile.conf"
 
 
 ac_config_commands="$ac_config_commands Makefile"
+
+
 
 
 
