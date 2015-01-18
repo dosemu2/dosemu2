@@ -171,7 +171,7 @@ static unsigned int pic_icount;       /* iret counter (to avoid filling stack) *
 static unsigned long pic_irqall = 0xfffe;       /* bits for all IRQs set. */
 
 static unsigned long pic0_imr = 0xf800;  /* interrupt mask register, pic0 */
-static unsigned long pic1_imr = 0x0670;         /* interrupt mask register, pic1 */
+static unsigned long pic1_imr = 0x0660;         /* interrupt mask register, pic1 */
 static unsigned long pic_imr = 0xfff8;          /* interrupt mask register */
 static unsigned int pic_stack[32];     /* list of active irqd */
 static unsigned int pic_sp = 0;	       /* pointer to pic_stack */
