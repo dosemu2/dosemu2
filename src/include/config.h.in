@@ -128,6 +128,9 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Define this if you want to use the XRandR extension */
+#undef HAVE_XRANDR
+
 /* Define this if you want to use the XF86 video mode extension */
 #undef HAVE_XVIDMODE
 
