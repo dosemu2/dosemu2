@@ -737,7 +737,7 @@ void handle_signals(void) {
  * counter here.
  * ============================================================== */
 
-static void SIGALRM_call(void *arg)
+void SIGALRM_call(void *arg)
 {
   static int first = 0;
   static hitimer_t cnt200 = 0;
@@ -895,6 +895,9 @@ static void SIGALRM_call(void *arg)
   }
 
 }
+
+/* For symbol hunting only. */
+void SIGALRM_call_end(void) {}
 
 /* DANG_BEGIN_FUNCTION SIGNAL_save
  *

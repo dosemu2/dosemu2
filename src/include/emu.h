@@ -105,6 +105,7 @@ void dos_ctrl_alt_del(void);	/* disabled */
 extern sigjmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
+EXTERN void run_vm86_end(void);
 EXTERN void vm86_helper(void);
 EXTERN void loopstep_run_vm86(void);
 EXTERN void do_call_back(Bit16u cs, Bit16u ip);
@@ -406,6 +407,8 @@ extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
 extern int sigchld_enable_handler(pid_t pid, int on);
 extern void addset_signals_that_queue(sigset_t *x);
 extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));
+extern void SIGALRM_call(void *arg);
+extern void SIGALRM_call_end(void);
 extern void init_handler(struct sigcontext_struct *scp);
 #ifdef __x86_64__
 extern int check_fix_fs_gs_base(unsigned char prefix);

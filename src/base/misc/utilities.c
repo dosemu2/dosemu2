@@ -40,6 +40,14 @@
  *                                     --Hans 990213
  */
 #define SHOW_TIME	0		/* 0 or 1 */
+#define LOG_CSIP	0
+#define LOG_CALLER	0 
+
+#ifdef LOG_CALLER 
+#include <pthread.h>
+#include <execinfo.h>
+#endif
+
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -166,6 +174,43 @@ int vlog_printf(int flg, const char *fmt, va_list args)
     char *q;
 
     q = (is_cr? timestamp(logptr) : logptr);
+
+#ifdef LOG_CSIP
+    boolean_t vm86_called = FALSE;
+    boolean_t dpmi_called = FALSE;
+    static pthread_mutex_t mut;
+
+#ifdef LOG_CALLER
+    pthread_mutex_lock(&mut);
+    /* Stack trace should include run_vm86 or run_dpmi if DOS prog is caller. */
+    void *bt_buf[100];
+    int bt_len;
+    if ((bt_len = backtrace((void**)&bt_buf, sizeof(bt_buf))) != 0) {
+      /* Search through return addresses. */
+      int i;
+      for (i = 0; i < bt_len; i++) {
+	if (bt_buf[i] >= (void*)&run_vm86 && bt_buf[i] < (void*)&run_vm86_end) {
+	  vm86_called = TRUE;
+	} else if (bt_buf[i] >= (void*)&run_dpmi && bt_buf[i] < (void*)&run_dpmi_end) {
+	  dpmi_called = TRUE; 
+	} else if (bt_buf[i] >= (void*)&SIGALRM_call && bt_buf[i] < (void*)&SIGALRM_call_end) {
+	  /* Host timer happened while executing DOS code. */
+	  vm86_called = dpmi_called = FALSE;
+	  break;
+	}
+      }
+    }
+    pthread_mutex_unlock(&mut);
+#endif /* LOG_CALLER */
+
+    char *caller = (vm86_called) ? " (caller)" : "";
+    if (dpmi_called) {
+      q += snprintf(q, MAX_LINE_SIZE, "@ 0x%08X%s ", _EIP, caller);
+    } else {
+      q += snprintf(q, MAX_LINE_SIZE, "@ %04X:%04X%s ", _CS, _IP, caller);
+    }
+#endif /* LOG_CSIP */
+
     i = vsnprintf(q, MAX_LINE_SIZE, fmt, args);
     if (i < 0) {	/* truncated for buffer overflow */
       i = MAX_LINE_SIZE-2;
