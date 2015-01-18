@@ -1,9 +1,13 @@
 #!/bin/sh
 set -e
 srcdir=`realpath "$(dirname $0)"`
-for dir in . src/plugin/kbd_unicode src/plugin/sdl; do
+cd $srcdir
+autoreconf --install --force --warnings=all
+sh ./default-configure
+# plugin_configure is created by top-level configure
+echo "Regenerating plugin configure scripts..."
+for dir in `cat plugin_configure`; do
 	cd "${srcdir}/${dir}"
 	autoreconf --install --force --warnings=all
+	./configure
 done
-cd $srcdir
-sh ./default-configure
