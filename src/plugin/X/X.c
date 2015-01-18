@@ -235,6 +235,10 @@
 #include <X11/extensions/xf86vmode.h>
 #endif
 
+#ifdef HAVE_XRANDR
+#include <X11/extensions/Xrandr.h>
+#endif
+
 #include "emu.h"
 #include "timers.h"
 #include "bios.h"
@@ -320,6 +324,13 @@ static int modecount;
 static XF86VidModeModeInfo **vidmode_modes;
 #endif
 
+#ifdef HAVE_XRANDR
+static int xrandr_ok = 0;
+static RRMode xrandr_win_mode = None;
+static RRCrtc xrandr_win_crtc = None;
+static int xrandr_win_xpos, xrandr_win_ypos;
+#endif
+
 Display *display;		/* used in plugin/?/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
@@ -369,7 +380,7 @@ static int w_x_res, w_y_res;		/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static unsigned ximage_bits_per_pixel;
 
-static int grab_active = 0, kbd_grab_active = 0;
+static int grab_active = 0, kbd_grab_active = 0, force_kbd_grab = 0;
 #if CONFIG_X_MOUSE
 static char *grab_keystring = "Home";
 static KeySym grab_keysym = NoSymbol;
@@ -402,6 +413,10 @@ static void X_dga_done(void);
 static void X_xf86vm_init(void);
 static void X_xf86vm_done(void);
 #endif
+#ifdef HAVE_XRANDR
+static void X_randr_init(void);
+static void X_randr_done(void);
+#endif
 
 static void X_keymap_init(void);
 
@@ -429,7 +444,7 @@ static void resize_ximage(unsigned, unsigned);
 static int X_set_videomode(int, int, int);
 static void X_resize_text_screen(void);
 static void toggle_fullscreen_mode(int);
-static void X_vidmode(int w, int h, int *new_width, int *new_height);
+static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int *new_height);
 static void lock_window_size(unsigned wx_res, unsigned wy_res);
 
 /* screen update/redraw functions */
@@ -440,6 +455,7 @@ static int X_update_screen(void);
 static void load_cursor_shapes(void);
 static Cursor create_invisible_cursor(void);
 
+static void toggle_kbd_grab(void);
 #if CONFIG_X_MOUSE
 /* mouse related code */
 static void set_mouse_position(int, int);
@@ -600,6 +616,10 @@ int X_init()
 
 #ifdef HAVE_XVIDMODE
   X_xf86vm_init();
+#endif
+
+#ifdef HAVE_XRANDR
+  X_randr_init();
 #endif
 
   /* see if we find out something useful about our X server... -- sw */
@@ -822,6 +842,10 @@ void X_close()
   X_xf86vm_done();
 #endif
 
+#ifdef HAVE_XRANDR
+  X_randr_done();
+#endif
+
   if(our_window) {
     XDestroyWindow(display, drawwindow);
     XDestroyWindow(display, normalwindow);
@@ -1039,11 +1063,50 @@ static void X_xf86vm_init(void)
 static void X_xf86vm_done(void)
 {
   if (mainwindow == fullscreenwindow)
-    X_vidmode(-1, -1, &w_x_res, &w_y_res);
+    X_vidmode(-1, -1, NULL, NULL, &w_x_res, &w_y_res);
   xf86vm_ok = 0;
 }
 
 #endif
+
+#ifdef HAVE_XRANDR
+static void X_randr_init(void)
+{
+  int param1, param2;
+  if (XRRQueryExtension(display, &param1, &param2) &&
+      XRRQueryVersion(display, &param1, &param2))
+  {
+    X_printf("X: RandR Extension version %d.%d\n", param1, param2);
+    if (param1 <= 1 && param2 < 2) {
+      X_printf("X: RandR version doesn't support stretched desktop or multihead!\n");
+      /* continue anyway, as it should work for single head */
+    }
+    xrandr_ok = 1;
+  }
+}
+
+static void X_randr_exit_fullscreen(void)
+{
+  if (xrandr_win_crtc != None && xrandr_win_mode != None) {
+    X_printf("X: RandR restoring old mode %d crtc %d\n", (int)xrandr_win_mode, (int)xrandr_win_crtc);
+    XRRScreenResources *sr = XRRGetScreenResourcesCurrent(display, mainwindow);
+    XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, xrandr_win_crtc);
+    XRRSetCrtcConfig(display, sr, xrandr_win_crtc, CurrentTime, ci->x, ci->y, xrandr_win_mode, ci->rotation, ci->outputs, ci->noutput);
+    XRRFreeCrtcInfo(ci);
+    XRRFreeScreenResources(sr);
+    xrandr_win_crtc = xrandr_win_mode = None;
+  }
+}
+
+static void X_randr_done(void)
+{
+  if (mainwindow == fullscreenwindow) {
+    X_printf("X: RandR leaving fullscreen mode\n");
+    X_randr_exit_fullscreen();
+  }
+  xrandr_ok = 0;
+}
+#endif /* HAVE_XRANDR */
 
 /*
  * Handle 'auto'-entries in dosemu.conf, namely
@@ -1243,15 +1306,15 @@ static void toggle_kbd_grab(void)
 {
   if(kbd_grab_active ^= 1) {
     X_printf("X: keyboard grab activated\n");
-    if (mainwindow != fullscreenwindow) {
-      XGrabKeyboard(display, drawwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-    }
-  }
-  else {
+    XGrabKeyboard(display, drawwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+  } else {
     X_printf("X: keyboard grab released\n");
-    if (mainwindow != fullscreenwindow) {
-      XUngrabKeyboard(display, CurrentTime);
-    }
+    XUngrabKeyboard(display, CurrentTime);
+    /* In fullscreen, keyboard must always be grabbed if mouse is grabbed.
+     * If mouse is grabbed but keyboard is ungrabbed, there will be no way
+     * to refocus the fullscreen dosemu if it loses focus. */
+    if (mainwindow == fullscreenwindow && grab_active)
+      toggle_mouse_grab();
   }
   X_change_config(CHG_TITLE, NULL);
 }
@@ -1261,19 +1324,15 @@ static void toggle_mouse_grab(void)
   if(grab_active ^= 1) {
     config.mouse.use_absolute = 0;
     X_printf("X: mouse grab activated\n");
-    if (mainwindow != fullscreenwindow) {
-      XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                   GrabModeAsync, GrabModeAsync, drawwindow,  None, CurrentTime);
-    }
+    XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+		 GrabModeAsync, GrabModeAsync, drawwindow,  None, CurrentTime);
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(1);
   }
   else {
     config.mouse.use_absolute = 1;
     X_printf("X: mouse grab released\n");
-    if (mainwindow != fullscreenwindow) {
-      XUngrabPointer(display, CurrentTime);
-    }
+    XUngrabPointer(display, CurrentTime);
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_sync_coords(mouse_x, mouse_y, w_x_res, w_y_res);
     mouse_enable_native_cursor(0);
@@ -1369,7 +1428,7 @@ static void X_wait_unmapped(Window win)
 
 static void toggle_fullscreen_mode(int init)
 {
-  int resize_height, resize_width;
+  int reloc_x, reloc_y, resize_height, resize_width;
 
   if (!init) {
     XUnmapWindow(display, mainwindow);
@@ -1382,15 +1441,12 @@ static void toggle_fullscreen_mode(int init)
     toggling_fullscreen = 2;
     saved_w_x_res = w_x_res;
     saved_w_y_res = w_y_res;
-    if (!grab_active) {
-      toggle_mouse_grab();
-      force_grab = 1;
-    }
-    X_vidmode(x_res, y_res, &resize_width, &resize_height);
+    X_vidmode(x_res, y_res, &reloc_x, &reloc_y, &resize_width, &resize_height);
     mainwindow = fullscreenwindow;
     if (vga.mode_class == GRAPH || use_bitmap_font) {
-      XResizeWindow(display, mainwindow, resize_width, resize_height);
-      XResizeWindow(display, drawwindow, resize_width, resize_height);
+      X_printf("X: relocating window to %d,%d\n", reloc_x, reloc_y);
+      XMoveResizeWindow(display, mainwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
+      XMoveResizeWindow(display, drawwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
     } else {
       shift_x = (resize_width - w_x_res) / 2;
       shift_y = (resize_height - w_y_res) / 2;
@@ -1399,30 +1455,35 @@ static void toggle_fullscreen_mode(int init)
     XMapWindow(display, mainwindow);
     XRaiseWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, shift_x, shift_y);
-    XGrabPointer(display, drawwindow, True,
-                 PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                 GrabModeAsync, GrabModeAsync, drawwindow,  None,
-                 CurrentTime);
-    XGrabKeyboard(display, drawwindow, True, GrabModeAsync,
-                  GrabModeAsync, CurrentTime);
+    if (!grab_active) {
+      toggle_mouse_grab();
+      force_grab = 1;
+    }
+    if (!kbd_grab_active) {
+      toggle_kbd_grab();
+      force_kbd_grab = 1;
+    }
   } else {
     X_printf("X: entering windowed mode!\n");
     w_x_res = saved_w_x_res;
     w_y_res = saved_w_y_res;
-    XUngrabKeyboard(display, CurrentTime);
-    XUngrabPointer(display, CurrentTime);
     mainwindow = normalwindow;
-    X_vidmode(-1, -1, &resize_width, &resize_height);
+    X_vidmode(-1, -1, &reloc_x, &reloc_y, &resize_width, &resize_height);
     if (vga.mode_class == GRAPH || use_bitmap_font) {
-      XResizeWindow(display, mainwindow, resize_width, resize_height);
-      XResizeWindow(display, drawwindow, resize_width, resize_height);
+      X_printf("X: relocating dosemu window to %d,%d\n", reloc_x, reloc_y);
+      XMoveResizeWindow(display, mainwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
+      XMoveResizeWindow(display, drawwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
     }
     XMapWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
     if (force_grab && grab_active) {
       toggle_mouse_grab();
+      force_grab = 0;
     }
-    force_grab = 0;
+    if (force_kbd_grab && kbd_grab_active) {
+      toggle_kbd_grab();
+      force_kbd_grab = 0;
+    }
   }
   if(vga.mode_class == TEXT && !use_bitmap_font) {
     X_resize_text_screen();
@@ -1578,6 +1639,7 @@ static int __X_handle_events(void)
               toggle_mouse_grab();
               break;
             } else if (keysym == XK_k) {
+              force_kbd_grab = 0;
               toggle_kbd_grab();
               break;
             } else if (keysym == XK_f) {
@@ -1680,6 +1742,12 @@ static int __X_handle_events(void)
 	    }
 	    set_mouse_buttons(e.xcrossing.state);
 	    mouse_really_left_window = 0;
+	    /* Grab keyboard if fullscreen (i.e., entering window from another
+	     * CRTC in a multihead system.  Otherwise we can't type.*/
+	    if (mainwindow == fullscreenwindow && !kbd_grab_active) {
+	      toggle_kbd_grab();
+	      force_kbd_grab = 1;
+	    }
           }
 	  break;
 
@@ -1694,6 +1762,12 @@ static int __X_handle_events(void)
             X_printf("X: bogus LeaveNotify event\n");
             mouse_really_left_window = 0;
           }
+	  /* Release keyboard if fullscreen, mouse leaves window, and the
+	   * current grab had been forced by dosemu. */
+	  if (mainwindow == fullscreenwindow && kbd_grab_active && force_kbd_grab) {
+	    toggle_kbd_grab();
+	    force_kbd_grab = 0;
+	  }
 	  break;
 
         case ConfigureNotify:
@@ -2074,7 +2148,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   sh.base_width = sh.width = sh.min_width = sh.max_width = wx_res;
   sh.base_height = sh.height = sh.min_height = sh.max_height = wy_res;
 
-  sh.flags = PSize  | PMinSize | PMaxSize | PBaseSize;
+  sh.flags = PPosition | PSize | PMinSize | PMaxSize;
   if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
   if (use_bitmap_font) {
 #if 1
@@ -2101,7 +2175,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   x_fill = wx_res;
   y_fill = wy_res;
   if (mainwindow == fullscreenwindow)
-    X_vidmode(x_res, y_res, &x_fill, &y_fill);
+    X_vidmode(x_res, y_res, NULL, NULL, &x_fill, &y_fill);
 
   XResizeWindow(display, mainwindow, x_fill, y_fill);
 
@@ -2211,8 +2285,9 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     saved_w_x_res = w_x_res;
     saved_w_y_res = w_y_res;
     lock_window_size(w_x_res, w_y_res);
+    /* lock_window_size() already did this, but there must be a reason ... */
     if(mainwindow == fullscreenwindow) {
-      X_vidmode(x_res, y_res, &w_x_res, &w_y_res);
+      X_vidmode(x_res, y_res, NULL, NULL, &w_x_res, &w_y_res);
     }
     if (!use_bitmap_font) {
       w_x_res = saved_w_x_res;
@@ -2234,7 +2309,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;
-      X_vidmode(x_res, y_res, &w_x_res, &w_y_res);
+      X_vidmode(x_res, y_res, NULL, NULL, &w_x_res, &w_y_res);
     }
 
     create_ximage();
@@ -2300,12 +2375,127 @@ void X_resize_text_screen()
 /*
  * Change to requested video mode or the closest greater one.
  */
-static void X_vidmode(int w, int h, int *new_width, int *new_height)
+static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int *new_height)
 {
   int nw, nh, mx, my, shift_x, shift_y;
 
   nw = DisplayWidth(display, screen);
   nh = DisplayHeight(display, screen);
+
+  int dosemu_x = -1, dosemu_y = -1;
+  XWindowAttributes attr;
+  if (XGetWindowAttributes(display, rootwindow, &attr)) {
+    X_printf("X: X_vidmode: root window size (%d,%d)\n",
+        attr.width, attr.height);
+
+    Window child;
+    if (XTranslateCoordinates(display, normalwindow, rootwindow, 0, 0, &dosemu_x, &dosemu_y, &child)
+        && XGetWindowAttributes(display, normalwindow, &attr)) {
+      X_printf("X: X_vidmode: dosemu window loc (%d,%d) size (%d,%d)\n",
+          dosemu_x, dosemu_y, attr.width, attr.height);
+    }
+  }
+
+#ifdef HAVE_XRANDR
+  if (xrandr_ok) {
+    if (w == -1 && h == -1) {
+      /* Return to window. */
+      X_printf("X: RandR leaving fullscreen mode\n");
+      X_randr_exit_fullscreen();
+			dosemu_x = xrandr_win_xpos;
+			dosemu_y = xrandr_win_ypos;
+    } else if (mainwindow != fullscreenwindow) {
+      X_printf("X: RandR entering fullscreen mode\n");
+      /* Find which CRTC 'window' dosemu's upper left corner is within. */
+      XRRScreenResources *sr = XRRGetScreenResourcesCurrent(display, mainwindow);
+      RRCrtc crtc = None;
+			int i;
+      for (i = 0; i < sr->ncrtc; i++) {
+        XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, sr->crtcs[i]);
+        if (ci->mode == None) {
+          /* crtc disabled, try another */
+          XRRFreeCrtcInfo(ci);
+          continue;
+        }
+        X_printf("X: RandR considering CRTC (%d+%d,%d+%d)\n", ci->x, ci->width, ci->y, ci->height);
+        if (dosemu_x >= ci->x && dosemu_x < ci->x + ci->width &&
+            dosemu_y >= ci->y && dosemu_y < ci->y + ci->height)
+        {
+          X_printf("X: RandR using this CRTC\n");
+          crtc = sr->crtcs[i];
+          XRRFreeCrtcInfo(ci);
+          break;
+        }
+        XRRFreeCrtcInfo(ci);
+      }
+      if (crtc == None) {
+        error("X: RandR found no suitable CRTC!\n");
+        *new_width = w;
+        *new_height = h;
+        return;
+      }
+      XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, crtc);
+
+      /* XXX: Use the first CRTC output always.  In what display configuration
+       * could this break? */
+      int output_idx = 0;
+      XRROutputInfo *oi = XRRGetOutputInfo(display, sr, ci->outputs[output_idx]);
+
+      /* Find the best mode supported by this CRTC by first finding the
+       * closest fit that is at least as large as the DOS screen, then the
+       * best refresh rate at that size.  To do this we have to find every mode
+       * available in the output, then search the screen modes for its ID. */
+      int mode_id = -1;
+      int best_rate = 0;
+      for (i = 0; i < oi->nmode; i++) {
+        RRMode output_mode = oi->modes[i];
+				int j;
+        for (j = 0; j < sr->nmode; j++) {
+          const XRRModeInfo *mi = &sr->modes[j];
+          if (mi->id != output_mode)
+            continue;
+          int width = mi->width;
+          int height = mi->height;
+          X_printf("X: RandR considering mode (%d,%d)\n", width, height);
+          if (width >= w && height >= h && width <= nw && height <= nh) {
+            if (width != nw || height != nh)
+              best_rate = 0; /* geometry changed, start over rate search */
+            nw = width;
+            nh = height;
+            int rate = mi->dotClock / (mi->hTotal * mi->vTotal);
+            if (rate > best_rate) {
+              best_rate = rate;
+              mode_id = mi->id;
+            }
+          }
+        }
+      }
+      if (mode_id == -1) {
+        error("X: RandR found no suitable mode for CRTC output %d!\n", output_idx);
+        *new_width = w;
+        *new_height = h;
+        return;
+      }
+      XRRFreeOutputInfo(oi);
+
+      /* Change to fullscreen; save window config first. */
+      X_printf("X: RandR mode asking for (%d,%d); setting %dx%d@%d mode %d\n", w, h, nw, nh, best_rate, mode_id);
+      X_printf("X: RandR saving old mode %d crtc %d\n", (int)ci->mode, (int)crtc);
+      xrandr_win_mode = ci->mode;
+      xrandr_win_crtc = crtc;
+			xrandr_win_xpos = dosemu_x;
+			xrandr_win_ypos = dosemu_y;
+			/* Position window at (0,0) on *this* CRTC. */
+			dosemu_x = ci->x;
+			dosemu_y = ci->y;
+      XRRSetCrtcConfig(display, sr, crtc, CurrentTime, ci->x, ci->y, mode_id, ci->rotation, ci->outputs, ci->noutput);
+      XRRFreeCrtcInfo(ci);
+      XRRFreeScreenResources(sr);
+      /* Callers always set this themselves, but anyway... */
+      mainwindow = fullscreenwindow;
+    }
+  } else /* Only attempt VidMode or non-modechange fullscreen if RandR is disabled. */
+#endif /* HAVE_XRANDR */
 
 #ifdef HAVE_XVIDMODE
   if (xf86vm_ok) {
@@ -2383,6 +2573,10 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     XWarpPointer(display, None, drawwindow, 0, 0, 0, 0, mx, my);
   *new_width = nw;
   *new_height = nh;
+  if (new_x != NULL)
+    *new_x = dosemu_x;
+  if (new_y != NULL)
+    *new_y = dosemu_y;
 }
 
 void X_redraw_text_screen()
