@@ -3,7 +3,7 @@ set -e
 srcdir=`realpath "$(dirname $0)"`
 cd $srcdir
 autoreconf --install --force --warnings=all
-sh ./default-configure
+./default-configure
 # plugin_configure is created by top-level configure
 echo "Regenerating plugin configure scripts..."
 for dir in `cat plugin_configure`; do
