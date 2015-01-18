@@ -1445,8 +1445,8 @@ static void toggle_fullscreen_mode(int init)
     mainwindow = fullscreenwindow;
     if (vga.mode_class == GRAPH || use_bitmap_font) {
       X_printf("X: relocating window to %d,%d\n", reloc_x, reloc_y);
-      XMoveResizeWindow(display, mainwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
-      XMoveResizeWindow(display, drawwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
+      XMoveResizeWindow(display, mainwindow, reloc_x, reloc_y, resize_width, resize_height);
+      XMoveResizeWindow(display, drawwindow, reloc_x, reloc_y, resize_width, resize_height);
     } else {
       shift_x = (resize_width - w_x_res) / 2;
       shift_y = (resize_height - w_y_res) / 2;
@@ -1471,8 +1471,8 @@ static void toggle_fullscreen_mode(int init)
     X_vidmode(-1, -1, &reloc_x, &reloc_y, &resize_width, &resize_height);
     if (vga.mode_class == GRAPH || use_bitmap_font) {
       X_printf("X: relocating dosemu window to %d,%d\n", reloc_x, reloc_y);
-      XMoveResizeWindow(display, mainwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
-      XMoveResizeWindow(display, drawwindow, reloc_x, reloc_y, resize_width+1, resize_height+1);
+      XMoveResizeWindow(display, mainwindow, reloc_x, reloc_y, resize_width, resize_height);
+      XMoveResizeWindow(display, drawwindow, reloc_x, reloc_y, resize_width, resize_height);
     }
     XMapWindow(display, mainwindow);
     XReparentWindow(display, drawwindow, mainwindow, 0, 0);
