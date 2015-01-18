@@ -451,6 +451,9 @@ void vm86_helper(void)
   _do_vm86();
 }
 
+/* For symbol hunting only. */
+void run_vm86_end(void) {}
+
 /*
  * DANG_BEGIN_FUNCTION loopstep_run_vm86
  *

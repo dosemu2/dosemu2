@@ -3024,6 +3024,9 @@ err2:
     config.dpmi = 0;
 }
 
+/* For symbol hunting only. */
+void run_dpmi_end(void) {}
+
 void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */

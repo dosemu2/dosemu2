@@ -200,6 +200,7 @@ int ValidAndUsedSelector(unsigned short selector);
 extern char *DPMI_show_state(struct sigcontext_struct *scp);
 extern void dpmi_sigio(struct sigcontext_struct *scp);
 extern void run_dpmi(void);
+extern void run_dpmi_end(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
 extern int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit);
