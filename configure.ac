@@ -376,6 +376,20 @@ if test "$have_x" = "yes" ; then
                  [#include <X11/Xlib.h>])
     fi
 
+    AC_ARG_ENABLE(xrandr,
+              {  --disable-xrandr        do NOT use the XRandR extension])
+    if test "$enable_xrandr" != "no" ; then
+      AC_CHECK_LIB(Xrandr, XRRQueryVersion, enable_xrandr="yes", enable_xrandr="no")
+    fi
+    if test "$enable_xrandr" = "no" ; then
+               AC_MSG_NOTICE(Compiling without the XRandR extension)
+    else
+         AC_CHECK_HEADER(X11/extensions/Xrandr.h,
+     [AC_DEFINE(HAVE_XRANDR,1) X_LIBS="-lXrandr $X_LIBS"],
+                 AC_MSG_NOTICE(Compiling without the XRandR extension),
+                 [#include <X11/Xlib.h>])
+    fi
+
     LIBS=$SLIBS
     unset SLIBS
 
@@ -769,6 +783,9 @@ AH_TEMPLATE([HAVE_MITSHM],
 
 AH_TEMPLATE([HAVE_XVIDMODE],
 [ Define this if you want to use the XF86 video mode extension ])
+
+AH_TEMPLATE([HAVE_XRANDR],
+[ Define this if you want to use the XRandR extension ])
 
 AH_TEMPLATE([ASPI_SUPPORT],
 [ Define this for ASPI (generic SCSI) support ])
