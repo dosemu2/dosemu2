@@ -3,6 +3,7 @@ config {
   sbemu on
   mitshm on
   vidmode off
+  xrandr on
   x on
   net on
   debug off
