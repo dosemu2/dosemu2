@@ -191,11 +191,11 @@ sgleave:
 		}
 #endif
 
- 		 show_regs(__FILE__, __LINE__);
+		 show_regs(__FILE__, __LINE__);
 		 if (debug_level('n'))		/* XXX */
 		     abort();
 		 flush_log();
- 		 leavedos(4);
+		 leavedos_from_sig(4);
     }
   }
 #define VGA_ACCESS_HACK 1
@@ -371,7 +371,7 @@ bad:
     show_regs(__FILE__, __LINE__);
 
     fatalerr = 4;
-    leavedos(fatalerr);		/* shouldn't return */
+    leavedos_from_sig(fatalerr);		/* shouldn't return */
     return 0;
     }
   }
