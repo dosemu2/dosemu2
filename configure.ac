@@ -809,6 +809,11 @@ for i in `touch ./plugin_configure; cat ./plugin_configure`; do
     abs_i=`cd $srcdir && pwd`/$i
   fi
   cd $i
+  if ! test -f "$abs_i/configure" ; then
+    echo "skipping plugin `basename $i`"
+    cd $popdir
+    continue
+  fi
   echo "=== configuring in $i"
   echo "Running $SHELL $abs_i/configure $ac_configure_args ..."
   eval ${SHELL} $abs_i/configure --disable-option-checking $ac_configure_args
