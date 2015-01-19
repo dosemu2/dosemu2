@@ -41,10 +41,16 @@ static int midopipe_init(void)
     pipe_fd =
 	RPT_SYSCALL(open(name, O_WRONLY | O_CREAT | O_NONBLOCK, 0666));
     if (pipe_fd == -1) {
-	S_printf("%s: unable to open %s for writing: %s\n",
-		 midopipe_name, name, strerror(errno));
-	return 0;
+	int err = errno;
+	S_printf("%s: unable to open %s for writing (%s)%s\n", midopipe_name, name,
+	    strerror(errno), errno == ENXIO ? ", will continue trying" : "");
+	if (err == ENXIO) { /* no FIFO readers */
+	    return 1;
+	} else { /* some other problem */
+	   return 0;
+	}
     }
+    /* open ok */
     return 1;
 }
 
@@ -62,9 +68,18 @@ static void midopipe_reset(void)
 
 static void midopipe_write(unsigned char val)
 {
-    if (pipe_fd == -1)
-	return;
-    write(pipe_fd, &val, 1);
+    /* Try again to open FIFO on each write in case some readers showed up. */
+    if (pipe_fd == -1) {
+	pipe_fd = RPT_SYSCALL(open(DOSEMU_MIDI_PATH, O_WRONLY | O_CREAT | O_NONBLOCK, 0666));
+	if (pipe_fd == -1) {
+	    return;
+	}
+    }
+    if (write(pipe_fd, &val, 1) == -1) {
+	error("MIDI: Error writing to %s, resetting: %s\n", midopipe_name, strerror(errno));
+	close(pipe_fd);
+	pipe_fd = -1;
+    }
 }
 
 CONSTRUCTOR(static int midopipe_register(void))
