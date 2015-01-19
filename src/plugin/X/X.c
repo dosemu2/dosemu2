@@ -1308,13 +1308,36 @@ static void toggle_kbd_grab(void)
     X_printf("X: keyboard grab activated\n");
     XGrabKeyboard(display, drawwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
   } else {
-    X_printf("X: keyboard grab released\n");
-    XUngrabKeyboard(display, CurrentTime);
-    /* In fullscreen, keyboard must always be grabbed if mouse is grabbed.
-     * If mouse is grabbed but keyboard is ungrabbed, there will be no way
-     * to refocus the fullscreen dosemu if it loses focus. */
-    if (mainwindow == fullscreenwindow && grab_active)
-      toggle_mouse_grab();
+    if (mainwindow == fullscreenwindow) {
+#if HAVE_XRANDR
+      /* Check for >1 active outputs. Disallow removing keyboard grab */
+      XRRScreenResources *sr = XRRGetScreenResourcesCurrent(display, mainwindow);
+      int i, num_crtcs = 0;
+      for (i = 0; i < sr->ncrtc; i++) {
+        XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, sr->crtcs[i]);
+        if (ci->mode == None) {
+          /* crtc disabled, try another */
+          XRRFreeCrtcInfo(ci);
+          continue;
+        }
+	num_crtcs++;
+      }
+      if (num_crtcs < 2) {
+#endif
+	X_printf("Disallowing unsafe fullscreen keyboard ungrab.\n");
+	kbd_grab_active = 1;
+#if HAVE_XRANDR
+      } else {
+	X_printf("X: keyboard grab released\n");
+	XUngrabKeyboard(display, CurrentTime);
+	/* In fullscreen, keyboard must always be grabbed if mouse is grabbed.
+	 * If mouse is grabbed but keyboard is ungrabbed, there will be no way
+	 * to refocus the fullscreen dosemu if it loses focus. */
+	if (mainwindow == fullscreenwindow && grab_active)
+	  toggle_mouse_grab();
+      }
+#endif
+    }
   }
   X_change_config(CHG_TITLE, NULL);
 }
