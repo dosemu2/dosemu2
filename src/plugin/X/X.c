@@ -2511,7 +2511,7 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
 #endif /* HAVE_XRANDR */
 
 #ifdef HAVE_XVIDMODE
-  if (xf86vm_ok) {
+  if (config.X_fullscreen_switch && xf86vm_ok) {
     static XF86VidModeModeLine vidmode_modeline;
     static int viewport_x, viewport_y, dotclock;
     int i, j, restore_dotclock = 0;
