@@ -125,7 +125,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
 
-#define COOP_STK_SIZE (65536*2)
+#define COOP_STK_SIZE (512 * 1024)
 
 void coopth_init(void)
 {
