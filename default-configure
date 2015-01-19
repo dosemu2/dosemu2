@@ -59,6 +59,9 @@ while [ "$1" != "" ]; do
     vidmode)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-vidmode"; fi
       ;;
+    xrandr)
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-xrandr"; fi
+      ;;
     sbemu)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-sbemu"; fi
       ;;
