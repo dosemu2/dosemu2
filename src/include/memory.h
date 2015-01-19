@@ -77,6 +77,11 @@
 #define INT70_OFF	0x63f0
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
 
+/* IRQ9->IRQ2 default redirector */
+#define INT71_SEG	ROMBIOSSEG
+#define INT71_OFF	0x7ee7
+#define INT71_ADD	((INT71_SEG << 4) + INT71_OFF)
+
 #define INT75_SEG	ROMBIOSSEG
 #define INT75_OFF	0x7e98
 #define INT75_ADD	((INT75_SEG << 4) + INT75_OFF)

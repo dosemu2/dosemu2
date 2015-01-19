@@ -171,7 +171,7 @@ static unsigned int pic_icount;       /* iret counter (to avoid filling stack) *
 static unsigned long pic_irqall = 0xfffe;       /* bits for all IRQs set. */
 
 static unsigned long pic0_imr = 0xf800;  /* interrupt mask register, pic0 */
-static unsigned long pic1_imr = 0x0670;         /* interrupt mask register, pic1 */
+static unsigned long pic1_imr = 0x0660;         /* interrupt mask register, pic1 */
 static unsigned long pic_imr = 0xfff8;          /* interrupt mask register */
 static unsigned int pic_stack[32];     /* list of active irqd */
 static unsigned int pic_sp = 0;	       /* pointer to pic_stack */
@@ -710,9 +710,6 @@ static void do_irq(int ilevel)
     pic1_isr &= pic_isr & pic1_mask;         /* isolate pic1 irqs */
 
     intr=pic_iinfo[ilevel].ivec;
-
-    if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
-      if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
 
      if (test_bit(ilevel, &pic_irqall)) {
        pic_push(ilevel);
