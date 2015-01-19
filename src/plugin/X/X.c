@@ -1761,12 +1761,13 @@ static int __X_handle_events(void)
               e.xcrossing.y >= 0 && e.xcrossing.y < w_y_res) {
             X_printf("X: bogus LeaveNotify event\n");
             mouse_really_left_window = 0;
-          }
-	  /* Release keyboard if fullscreen, mouse leaves window, and the
-	   * current grab had been forced by dosemu. */
-	  if (mainwindow == fullscreenwindow && kbd_grab_active && force_kbd_grab) {
-	    toggle_kbd_grab();
-	    force_kbd_grab = 0;
+          } else {
+	    /* Release keyboard if fullscreen, mouse leaves window, and the
+	     * current grab had been forced by dosemu. */
+	    if (mainwindow == fullscreenwindow && kbd_grab_active && force_kbd_grab) {
+	      toggle_kbd_grab();
+	      force_kbd_grab = 0;
+	    }
 	  }
 	  break;
 
