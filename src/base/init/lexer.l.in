@@ -616,6 +616,7 @@ pm_interface		RETURN(X_PM_INTERFACE);
 mgrab_key		RETURN(X_MGRAB_KEY);
 background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
+fullscreen_hw_switch		RETURN(X_FULLSCREEN_HW_SWITCH);
 
         /* Sound stuff */
 
