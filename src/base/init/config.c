@@ -192,11 +192,11 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.X_fixed_aspect, config.X_aspect_43, config.X_lin_filt);
     (*print)("X_bilin_filt %d\nX_mode13fact %d\nX_winsize_x %d\n",
         config.X_bilin_filt, config.X_mode13fact, config.X_winsize_x);
-    (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
+    (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nX_fullscreen_hw_switch %d\n",
         config.X_winsize_y, config.X_gamma, config.X_fullscreen,
-	     config.vgaemu_memsize);
-    (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
-        config.vesamode_list, config.X_lfb, config.X_pm_interface);
+				config.X_fullscreen_hw_switch);
+    (*print)("vgaemu_memsize 0x%x\nvesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
+        config.vgaemu_memsize, config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_keycode %d\nX_font \"%s\"\n",
         config.X_keycode, config.X_font);
     (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
