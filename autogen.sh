@@ -1,13 +1,23 @@
 #!/bin/sh
-set -e
+
 srcdir=`realpath "$(dirname $0)"`
 cd $srcdir
-autoreconf --install --force --warnings=all
-./default-configure
-# plugin_configure is created by top-level configure
+echo "Regenerating toplevel configure script..."
+if ! autoreconf --install --force --warnings=all ; then
+	echo "Failure!"
+	exit 1
+fi
+./mkpluginhooks
 echo "Regenerating plugin configure scripts..."
 for dir in `cat plugin_configure`; do
+	echo "Regenerating configure script for $dir..."
 	cd "${srcdir}/${dir}"
-	autoreconf --install --force --warnings=all
-	./configure
+	if ! autoreconf --install --force --warnings=all ; then
+		rm -f ./configure
+		cd $srcdir
+		echo "Failed generating configure for $dir"
+	fi
 done
+
+cd $srcdir
+./default-configure
