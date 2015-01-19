@@ -2445,61 +2445,63 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
       int output_idx = 0;
       XRROutputInfo *oi = XRRGetOutputInfo(display, sr, ci->outputs[output_idx]);
 
-#ifdef HW_MODE_SWITCH
-      /* Find the best mode supported by this CRTC by first finding the
-       * closest fit that is at least as large as the DOS screen, then the
-       * best refresh rate at that size.  To do this we have to find every mode
-       * available in the output, then search the screen modes for its ID. */
-      int mode_id = -1;
-      int best_rate = 0;
-      for (i = 0; i < oi->nmode; i++) {
-        RRMode output_mode = oi->modes[i];
-				int j;
-        for (j = 0; j < sr->nmode; j++) {
-          const XRRModeInfo *mi = &sr->modes[j];
-          if (mi->id != output_mode)
-            continue;
-          int width = mi->width;
-          int height = mi->height;
-          X_printf("X: RandR considering mode (%d,%d)\n", width, height);
-          if (width >= w && height >= h && width <= nw && height <= nh) {
-            if (width != nw || height != nh)
-              best_rate = 0; /* geometry changed, start over rate search */
-            nw = width;
-            nh = height;
-            int rate = mi->dotClock / (mi->hTotal * mi->vTotal);
-            if (rate > best_rate) {
-              best_rate = rate;
-              mode_id = mi->id;
+      int best_mode_id = -1;
+      if (config.X_fullscreen_hw_switch) {
+        /* Find the best mode supported by this CRTC by first finding the
+         * closest fit that is at least as large as the DOS screen, then the
+         * best refresh rate at that size.  To do this we have to find every mode
+         * available in the output, then search the screen modes for its ID. */
+        int best_rate = 0;
+        for (i = 0; i < oi->nmode; i++) {
+          RRMode output_mode = oi->modes[i];
+          int j;
+          for (j = 0; j < sr->nmode; j++) {
+            const XRRModeInfo *mi = &sr->modes[j];
+            if (mi->id != output_mode)
+              continue;
+            int width = mi->width;
+            int height = mi->height;
+            X_printf("X: RandR considering mode (%d,%d)\n", width, height);
+            if (width >= w && height >= h && width <= nw && height <= nh) {
+              if (width != nw || height != nh)
+                best_rate = 0; /* geometry changed, start over rate search */
+              nw = width;
+              nh = height;
+              int rate = mi->dotClock / (mi->hTotal * mi->vTotal);
+              if (rate > best_rate) {
+                best_rate = rate;
+                best_mode_id = mi->id;
+              }
             }
           }
         }
+        if (best_mode_id == -1) {
+          error("X: RandR found no suitable mode for CRTC output %d!\n", output_idx);
+          *new_width = w;
+          *new_height = h;
+          return;
+        }
+        X_printf("X: RandR mode asking for (%d,%d); setting %dx%d@%d mode %d\n",
+                 w, h, nw, nh, best_rate, best_mode_id);
+      } else { /* !X_fullscreen_hw_switch */
+        nw = ci->width;
+        nh = ci->height;
       }
-      if (mode_id == -1) {
-        error("X: RandR found no suitable mode for CRTC output %d!\n", output_idx);
-        *new_width = w;
-        *new_height = h;
-        return;
-      }
-      X_printf("X: RandR mode asking for (%d,%d); setting %dx%d@%d mode %d\n", w, h, nw, nh, best_rate, mode_id);
-#else
-			nw = ci->width;
-			nh = ci->height;
-#endif /* HW_MODE_SWITCH */
       XRRFreeOutputInfo(oi);
 
       /* Change to fullscreen; save window config first. */
       X_printf("X: RandR saving old mode %d crtc %d\n", (int)ci->mode, (int)crtc);
       xrandr_win_mode = ci->mode;
       xrandr_win_crtc = crtc;
-			xrandr_win_xpos = dosemu_x;
-			xrandr_win_ypos = dosemu_y;
-			/* Position window at (0,0) on *this* CRTC. */
-			dosemu_x = ci->x;
-			dosemu_y = ci->y;
-#ifdef HW_MODE_SWITCH
-      XRRSetCrtcConfig(display, sr, crtc, CurrentTime, ci->x, ci->y, mode_id, ci->rotation, ci->outputs, ci->noutput);
-#endif
+      xrandr_win_xpos = dosemu_x;
+      xrandr_win_ypos = dosemu_y;
+      /* Position window at (0,0) on *this* CRTC. */
+      dosemu_x = ci->x;
+      dosemu_y = ci->y;
+      if (config.X_fullscreen_hw_switch) {
+        XRRSetCrtcConfig(display, sr, crtc, CurrentTime, ci->x, ci->y, best_mode_id,
+                         ci->rotation, ci->outputs, ci->noutput);
+      }
       XRRFreeCrtcInfo(ci);
       XRRFreeScreenResources(sr);
       /* Callers always set this themselves, but anyway ... */
