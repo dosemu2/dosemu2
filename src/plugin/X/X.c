@@ -2374,7 +2374,10 @@ void X_resize_text_screen()
 }
 
 /*
- * Change to requested video mode or the closest greater one.
+ * With XVidMode, this used to change to requested video mode or the closest
+ * greater one.
+ * With XRandR, it will just find the current size of the output that the DOSEMU
+ * window is running on, and let the caller size the window appropriately.
  */
 static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int *new_height)
 {
@@ -2437,11 +2440,12 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
       }
       XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, crtc);
 
-      /* XXX: Use the first CRTC output always.  In what display configuration
-       * could this break? */
+			/* XXX: Use the first Output attached to this CRTC always.  In what
+ 			 * display configurations could this break? */
       int output_idx = 0;
       XRROutputInfo *oi = XRRGetOutputInfo(display, sr, ci->outputs[output_idx]);
 
+#ifdef HW_MODE_SWITCH
       /* Find the best mode supported by this CRTC by first finding the
        * closest fit that is at least as large as the DOS screen, then the
        * best refresh rate at that size.  To do this we have to find every mode
@@ -2477,10 +2481,14 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
         *new_height = h;
         return;
       }
+      X_printf("X: RandR mode asking for (%d,%d); setting %dx%d@%d mode %d\n", w, h, nw, nh, best_rate, mode_id);
+#else
+			nw = ci->width;
+			nh = ci->height;
+#endif /* HW_MODE_SWITCH */
       XRRFreeOutputInfo(oi);
 
       /* Change to fullscreen; save window config first. */
-      X_printf("X: RandR mode asking for (%d,%d); setting %dx%d@%d mode %d\n", w, h, nw, nh, best_rate, mode_id);
       X_printf("X: RandR saving old mode %d crtc %d\n", (int)ci->mode, (int)crtc);
       xrandr_win_mode = ci->mode;
       xrandr_win_crtc = crtc;
@@ -2489,10 +2497,12 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
 			/* Position window at (0,0) on *this* CRTC. */
 			dosemu_x = ci->x;
 			dosemu_y = ci->y;
+#ifdef HW_MODE_SWITCH
       XRRSetCrtcConfig(display, sr, crtc, CurrentTime, ci->x, ci->y, mode_id, ci->rotation, ci->outputs, ci->noutput);
+#endif
       XRRFreeCrtcInfo(ci);
       XRRFreeScreenResources(sr);
-      /* Callers always set this themselves, but anyway... */
+      /* Callers always set this themselves, but anyway ... */
       mainwindow = fullscreenwindow;
     }
   } else /* Only attempt VidMode or non-modechange fullscreen if RandR is disabled. */
