@@ -75,10 +75,8 @@ static void midopipe_write(unsigned char val)
 	    return;
 	}
     }
-    int ret, lifeboat = 10;
-    while ((ret = write(pipe_fd, &val, 1)) == -1 && errno == EAGAIN && lifeboat--);
-    if (ret < 0) {
-	/* Lifeboat ran out, or all other errors incl. EPIPE */
+    if (write(pipe_fd, &val, 1) == -1) {
+	error("MIDI: Error writing to %s, resetting: %s\n", midopipe_name, strerror(errno));
 	close(pipe_fd);
 	pipe_fd = -1;
     }
