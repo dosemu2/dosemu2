@@ -75,10 +75,10 @@ static void midopipe_write(unsigned char val)
 	    return;
 	}
     }
-    int ret;
-    while ((ret = write(pipe_fd, &val, 1)) == -1 && errno == EAGAIN);
+    int ret, lifeboat = 10;
+    while ((ret = write(pipe_fd, &val, 1)) == -1 && errno == EAGAIN && lifeboat--);
     if (ret < 0) {
-	/* all other errors incl. EPIPE */
+	/* Lifeboat ran out, or all other errors incl. EPIPE */
 	close(pipe_fd);
 	pipe_fd = -1;
     }
