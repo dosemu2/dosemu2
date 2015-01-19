@@ -1743,7 +1743,7 @@ static int __X_handle_events(void)
 	    set_mouse_buttons(e.xcrossing.state);
 	    mouse_really_left_window = 0;
 	    /* Grab keyboard if fullscreen (i.e., entering window from another
-	     * CRTC in a multihead system.  Otherwise we can't type.*/
+	     * CRTC in a multihead system.  Otherwise we can't type. */
 	    if (mainwindow == fullscreenwindow && !kbd_grab_active) {
 	      toggle_kbd_grab();
 	      force_kbd_grab = 1;
@@ -2406,14 +2406,14 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
       /* Return to window. */
       X_printf("X: RandR leaving fullscreen mode\n");
       X_randr_exit_fullscreen();
-			dosemu_x = xrandr_win_xpos;
-			dosemu_y = xrandr_win_ypos;
+      dosemu_x = xrandr_win_xpos;
+      dosemu_y = xrandr_win_ypos;
     } else if (mainwindow != fullscreenwindow) {
       X_printf("X: RandR entering fullscreen mode\n");
       /* Find which CRTC 'window' dosemu's upper left corner is within. */
       XRRScreenResources *sr = XRRGetScreenResourcesCurrent(display, mainwindow);
       RRCrtc crtc = None;
-			int i;
+      int i;
       for (i = 0; i < sr->ncrtc; i++) {
         XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, sr->crtcs[i]);
         if (ci->mode == None) {
@@ -2440,8 +2440,8 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
       }
       XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, crtc);
 
-			/* XXX: Use the first Output attached to this CRTC always.  In what
- 			 * display configurations could this break? */
+      /* XXX: Use the first Output attached to this CRTC always.  In what
+       * display configurations could this break? */
       int output_idx = 0;
       XRROutputInfo *oi = XRRGetOutputInfo(display, sr, ci->outputs[output_idx]);
 
@@ -2506,6 +2506,13 @@ static void X_vidmode(int w, int h, int *new_x, int *new_y, int *new_width, int 
       XRRFreeScreenResources(sr);
       /* Callers always set this themselves, but anyway ... */
       mainwindow = fullscreenwindow;
+    } else { /* Just changing gfx mode. */
+      XRRScreenResources *sr = XRRGetScreenResourcesCurrent(display, mainwindow);
+      XRRCrtcInfo *ci = XRRGetCrtcInfo(display, sr, xrandr_win_crtc);
+      nw = ci->width;
+      nh = ci->height;
+      XRRFreeCrtcInfo(ci);
+      XRRFreeScreenResources(sr);
     }
   } else /* Only attempt VidMode or non-modechange fullscreen if RandR is disabled. */
 #endif /* HAVE_XRANDR */
