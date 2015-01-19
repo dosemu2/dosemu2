@@ -3,7 +3,7 @@
 
 SHELL=/bin/bash
 
-all: default configure src/include/config.h.in
+all: default configure src/include/config.h
 
 srcdir=.
 top_builddir=.
