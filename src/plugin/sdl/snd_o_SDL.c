@@ -34,6 +34,7 @@
 
 static const char *sdlsnd_name = "Sound Output: SDL device";
 static struct player_params params;
+static SDL_AudioDeviceID dev;
 
 static void sdlsnd_callback(void *userdata, Uint8 * stream, int len)
 {
@@ -42,25 +43,34 @@ static void sdlsnd_callback(void *userdata, Uint8 * stream, int len)
 
 static void sdlsnd_start(void *arg)
 {
-    SDL_PauseAudio(0);
+    SDL_PauseAudioDevice(dev, 0);
 }
 
 static void sdlsnd_stop(void *arg)
 {
-    SDL_PauseAudio(1);
+    SDL_PauseAudioDevice(dev, 1);
 }
 
 static int sdlsnd_open(void *arg)
 {
     SDL_AudioSpec spec, spec1;
+    int err;
     S_printf("Initializing SDL sound output\n");
+    err = SDL_InitSubSystem(SDL_INIT_AUDIO);
+    if (err) {
+	error("SDL audio init failed, %s\n", SDL_GetError());
+	return 0;
+    }
     spec.freq = 44100;
     spec.format = AUDIO_S16LSB;
     spec.channels = 2;
     spec.samples = 1024;
     spec.callback = sdlsnd_callback;
     spec.userdata = NULL;
-    if (SDL_OpenAudio(&spec, &spec1) < 0) {
+    dev = SDL_OpenAudioDevice(NULL, 0, &spec, &spec1,
+	    SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+    if (!dev) {
+	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 	error("SDL sound init failed: %s\n", SDL_GetError());
 	return 0;
     }
@@ -73,7 +83,8 @@ static int sdlsnd_open(void *arg)
 
 static void sdlsnd_close(void *arg)
 {
-    SDL_CloseAudio();
+    SDL_CloseAudioDevice(dev);
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
 CONSTRUCTOR(static void sdlsnd_init(void))
