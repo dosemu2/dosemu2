@@ -5,7 +5,7 @@ AC_CONFIG_HEADER([include/_sdl_config.h])
 AC_CONFIG_AUX_DIR([../../..])
 
 dnl Check for SDL
-SDL_VERSION=2.0.3
+SDL_VERSION=2.0.2
 AM_PATH_SDL2($SDL_VERSION,
 	    [
 	    LIBS="$LIBS $SDL_LIBS"
