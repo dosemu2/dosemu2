@@ -67,7 +67,7 @@ int com_msetenv(char *variable, char *value, int parent_p)
     while (*env2) {
         if ((strncmp(var,env2,l) == 0) && (env2[l] == '=')) {
             cp = env2 + strlen(env2) + 1;
-            memcpy(env2,cp,size-(cp-env1));
+            memmove(env2,cp,size-(cp-env1));
         }
         else {
             env2 += strlen(env2) + 1;
