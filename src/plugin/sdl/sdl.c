@@ -195,7 +195,12 @@ int SDL_priv_init(void)
   preinit_x11_support();
 #endif
   enter_priv_on();
-  ret = SDL_Init(SDL_INIT_VIDEO);
+  if (config.sdl_use_gl)
+    ret = SDL_VideoInit(NULL);
+  else {
+    v_printf("Using x11 video driver for SDL\n");
+    ret = SDL_VideoInit("x11");
+  }
   leave_priv_setting();
   if (ret < 0) {
     error("SDL: %s\n", SDL_GetError());

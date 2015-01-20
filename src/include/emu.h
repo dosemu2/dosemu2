@@ -200,6 +200,7 @@ typedef struct vesamode_type_struct {
        int     X_lfb;			/* support VESA LFB modes */
        int     X_pm_interface;		/* support protected mode interface */
        int     X_background_pause;	/* pause xdosemu if it loses focus */
+       boolean sdl_use_gl;              /* Use 3D driver for SDL, X11 if unset */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
