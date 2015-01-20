@@ -194,7 +194,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
         config.X_bilin_filt, config.X_mode13fact, config.X_winsize_x);
     (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nX_fullscreen_hw_switch %d\n",
         config.X_winsize_y, config.X_gamma, config.X_fullscreen,
-				config.X_fullscreen_hw_switch);
+        config.X_fullscreen_hw_switch);
     (*print)("vgaemu_memsize 0x%x\nvesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vgaemu_memsize, config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_keycode %d\nX_font \"%s\"\n",

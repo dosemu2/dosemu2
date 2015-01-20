@@ -1039,8 +1039,8 @@ x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
                      config.X_winsize_y = $4;
                    }
 		| X_GAMMA expression  { config.X_gamma = $2; }
-		| X_FULLSCREEN bool   { config.X_fullscreen = $2; }
-		| X_FULLSCREEN_HW_SWITCH bool   { config.X_fullscreen_hw_switch = $2; }
+		| X_FULLSCREEN bool   { config.X_fullscreen = ($2!=0); }
+		| X_FULLSCREEN_HW_SWITCH bool   { config.X_fullscreen_hw_switch = ($2!=0); }
 		| VGAEMU_MEMSIZE expression	{ config.vgaemu_memsize = $2; }
 		| VESAMODE INTEGER INTEGER { set_vesamodes($2,$3,0);}
 		| VESAMODE INTEGER INTEGER INTEGER { set_vesamodes($2,$3,$4);}
