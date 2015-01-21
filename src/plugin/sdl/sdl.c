@@ -195,18 +195,17 @@ int SDL_priv_init(void)
   preinit_x11_support();
 #endif
   enter_priv_on();
-  if (config.sdl_use_gl)
-    ret = SDL_VideoInit(NULL);
-  else {
-    v_printf("Using x11 video driver for SDL\n");
-    ret = SDL_VideoInit("x11");
-  }
+  ret = SDL_Init(SDL_INIT_VIDEO);
   leave_priv_setting();
   if (ret < 0) {
     error("SDL: %s\n", SDL_GetError());
     config.exitearly = 1;
     init_failed = 1;
     return -1;
+  }
+  if (!config.sdl_use_gl) {
+    v_printf("SDL: Disabling OpenGL framebuffer acceleration\n");
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
   }
   return 0;
 }
