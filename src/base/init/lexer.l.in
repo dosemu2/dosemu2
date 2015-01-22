@@ -619,7 +619,7 @@ background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
 
 	/* SDL stuff */
-use_gl			RETURN(SDL_USE_GL);
+nogl			RETURN(SDL_NOGL);
 
         /* Sound stuff */
 
