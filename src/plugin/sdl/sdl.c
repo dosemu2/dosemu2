@@ -203,6 +203,10 @@ int SDL_priv_init(void)
     init_failed = 1;
     return -1;
   }
+  if (config.sdl_nogl) {
+    v_printf("SDL: Disabling OpenGL framebuffer acceleration\n");
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+  }
   return 0;
 }
 

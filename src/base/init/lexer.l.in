@@ -337,6 +337,7 @@ feature			RETURN(FEATURE);
 abort			RETURN(ABORT);
 warn			RETURN(WARN);
 x			RETURN(L_X);
+sdl			RETURN(L_SDL);
 dosbanner		RETURN(DOSBANNER);
 fastfloppy		RETURN(FASTFLOPPY);
 timer			RETURN(TIMER);
@@ -616,6 +617,9 @@ pm_interface		RETURN(X_PM_INTERFACE);
 mgrab_key		RETURN(X_MGRAB_KEY);
 background_pause	RETURN(X_BACKGROUND_PAUSE);
 fullscreen		RETURN(X_FULLSCREEN);
+
+	/* SDL stuff */
+nogl			RETURN(SDL_NOGL);
 
         /* Sound stuff */
 
