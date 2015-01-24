@@ -58,7 +58,7 @@ void print_exception_info(struct sigcontext_struct *scp);
  */
 
 __attribute__((no_instrument_function))
-int dosemu_fault1(
+static int dosemu_fault1(
 #ifdef __linux__
 int signal, struct sigcontext_struct *scp
 #endif /* __linux__ */
@@ -73,8 +73,8 @@ int signal, struct sigcontext_struct *scp
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
       signal, _trapno);
     if (!in_vm86 && !DPMIValidSelector(_cs)) {
-      /* TODO - we can start gdb here */
-      /* start_gdb() */
+      gdb_debug();
+      _exit(43);
     } else {
       error("BUG: Fault handler re-entered not within dosemu code! in_vm86=%i\n",
         in_vm86);
@@ -376,6 +376,15 @@ bad:
     return 0;
     }
   }
+}
+
+int _dosemu_fault(int signal, struct sigcontext_struct *scp)
+{
+  int ret;
+  fault_cnt++;
+  ret = dosemu_fault1(signal, scp);
+  fault_cnt--;
+  return ret;
 }
 
 __attribute__((no_instrument_function))
