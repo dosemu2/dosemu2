@@ -83,6 +83,8 @@ static struct {
 #endif
 } eflags_fs_gs;
 
+pid_t dosemu_tid;
+
 static void (*sighandlers[NSIG])(struct sigcontext *);
 
 static void sigquit(struct sigcontext *);
@@ -410,6 +412,10 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 void leavedos_from_sig(int sig)
 {
   dbug_printf("Terminating on signal %i\n", sig);
+  if (ld_sig) {
+    error("leavedos re-entered, exiting\n");
+    _exit(3);
+  }
   ld_sig = sig;
   SIGNAL_save(leavedos_call, &sig, sizeof(sig), __func__);
   /* abort current sighandlers */
@@ -657,6 +663,7 @@ signal_pre_init(void)
 void
 signal_init(void)
 {
+  dosemu_tid = gettid();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we

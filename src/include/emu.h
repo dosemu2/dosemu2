@@ -12,6 +12,8 @@
 #include <sys/ioctl.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "types.h"
 #include "extern.h"
@@ -482,5 +484,12 @@ EXTERN void HMA_MAP(int HMA);
 EXTERN void hardware_run(void);
 
 extern char *Path_cdrom[];
+
+static inline pid_t gettid(void)
+{
+  return syscall(SYS_gettid);
+}
+
+EXTERN pid_t dosemu_tid;
 
 #endif /* EMU_H */

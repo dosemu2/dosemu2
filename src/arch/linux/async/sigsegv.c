@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "emu.h"
+#include "utilities.h"
 #include "int.h"
 
 #include "video.h"
@@ -381,6 +382,7 @@ __attribute__((no_instrument_function))
 static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 {
   int retcode;
+  pid_t tid;
   fault_cnt++;
   if (fault_cnt > 2) {
    /*
@@ -392,6 +394,13 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
   }
 
   init_handler(scp);
+
+  tid = gettid();
+  if (tid != dosemu_tid) {
+    dosemu_error("thread %i got signal %i\n", tid, signal);
+    _exit(23);
+    return;
+  }
 
   if (kernel_version_code < 0x20600+14) {
     sigset_t set;

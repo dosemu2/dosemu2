@@ -3,6 +3,8 @@
 #include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -128,8 +130,10 @@ void gdb_debug(void)
       _exit(0);
       break;
     case -1:
+      error("fork failed, %s\n", strerror(errno));
       return;
     default:
       waitpid(dbg_pid, &status, 0);
+      dbug_printf("done backtrace\n");
   }
 }
