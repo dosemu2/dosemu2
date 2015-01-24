@@ -402,16 +402,25 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     _exit(255);
   }
 
-  init_handler1(scp);
-  /* signals still blocked */
+  init_handler(scp);
+
   tid = gettid();
   if (tid != dosemu_tid) {
     dosemu_error("thread %i got signal %i\n", tid, signal);
     _exit(23);
     return;
   }
-  init_handler2();
-  /* signals now unblocked */
+
+  if (kernel_version_code < 0x20600+14) {
+    sigset_t set;
+
+    /* this emulates SA_NODEFER, so that we can double fault.
+       SA_NODEFER only works as documented in Linux kernels >= 2.6.14.
+    */
+    sigemptyset(&set);
+    sigaddset(&set, signal);
+    sigprocmask(SIG_UNBLOCK, &set, NULL);
+  }
 
 #if defined(__x86_64__) || defined(X86_EMULATOR)
   if (fault_cnt > 1 && _trapno == 0xe && !DPMIValidSelector(_cs)) {
