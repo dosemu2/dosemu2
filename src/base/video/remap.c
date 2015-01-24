@@ -1391,8 +1391,8 @@ static RemapFuncDesc *find_remap_func(unsigned flags, int src_mode, int dst_mode
 static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst_mode, RemapFuncDesc *rfd)
 {
   RemapFuncDesc *rfd1 = NULL;
-
-  unsigned f_list[6 * 3];
+  #define REMAB_COMBS 4
+  unsigned f_list[6 * REMAB_COMBS];
   int features = 6;
   int i;
 
@@ -1407,11 +1407,12 @@ static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst
   f_list[5] = flags;
 
   for(i = 0; i < 6; i++) {
-    f_list[features     + i] = (f_list[           i] & ~RFF_BILIN_FILT) | RFF_LIN_FILT;
-    f_list[features * 2 + i] = f_list[features + i] & ~RFF_LIN_FILT;
+    f_list[features     + i] = (f_list[i] & ~RFF_LIN_FILT) | RFF_BILIN_FILT;
+    f_list[features * 2 + i] = (f_list[i] & ~RFF_BILIN_FILT) | RFF_LIN_FILT;
+    f_list[features * 3 + i] =  f_list[i] & ~(RFF_LIN_FILT | RFF_BILIN_FILT);
   }
 
-  features *= 3;
+  features *= REMAB_COMBS;
 
   for(i = 0; i < features; i++) {
     if((rfd1 = find_remap_func(f_list[i], src_mode, dst_mode, rfd)) != NULL) break;
@@ -1437,6 +1438,8 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
   if(ro->func_all != NULL) ro->state |= ROS_SCALE_ALL;
   if(ro->func_1 != NULL) ro->state |= ROS_SCALE_1;
   if(ro->func_2 != NULL) ro->state |= ROS_SCALE_2;
+  if (!ro->state)
+    error("remap function not found for mode %i\n", ro->src_mode);
 
   ro->supported_src_modes = find_supported_modes(ro->dst_mode);
 }
