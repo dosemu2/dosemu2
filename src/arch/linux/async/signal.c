@@ -157,8 +157,6 @@ static void setsig(int sig, void *fun)
 static void newsetsig(int sig, void *fun)
 {
 	int flags = SA_RESTART|SA_ONSTACK;
-	if (kernel_version_code >= 0x20600+14)
-		flags |= SA_NODEFER;
 	dosemu_sigaction_wrapper(sig, fun, flags);
 }
 
@@ -247,7 +245,7 @@ int check_fix_fs_gs_base(unsigned char prefix)
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 __attribute__((no_instrument_function))
-static void __init_handler(struct sigcontext_struct *scp)
+void init_handler1(struct sigcontext_struct *scp)
 {
   /*
    * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
@@ -329,6 +327,15 @@ static void __init_handler(struct sigcontext_struct *scp)
 }
 
 __attribute__((no_instrument_function))
+void init_handler2(void)
+{
+  sigset_t mask;
+  sigemptyset(&mask);
+  addset_signals_that_queue(&mask);
+  sigprocmask(SIG_SETMASK, &mask, NULL);
+}
+
+__attribute__((no_instrument_function))
 void init_handler(struct sigcontext_struct *scp)
 {
   /* All signals are initially blocked.
@@ -340,11 +347,8 @@ void init_handler(struct sigcontext_struct *scp)
    * restored by the signal dispatching code in kernel, so we have
    * to restore them by hands.
    */
-  sigset_t mask;
-  __init_handler(scp);
-  sigemptyset(&mask);
-  addset_signals_that_queue(&mask);
-  sigprocmask(SIG_SETMASK, &mask, NULL);
+  init_handler1(scp);
+  init_handler2();
 }
 
 static int ld_sig;

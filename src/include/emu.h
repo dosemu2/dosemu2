@@ -411,6 +411,8 @@ extern int sigchld_enable_handler(pid_t pid, int on);
 extern void addset_signals_that_queue(sigset_t *x);
 extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));
 extern void init_handler(struct sigcontext_struct *scp);
+extern void init_handler1(struct sigcontext_struct *scp);
+extern void init_handler2(void);
 #ifdef __x86_64__
 extern int check_fix_fs_gs_base(unsigned char prefix);
 #endif
