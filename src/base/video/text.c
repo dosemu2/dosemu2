@@ -573,7 +573,9 @@ int update_text_screen(void)
     vga.reconfig.mem = 0;
     return 0;
   } else {
-    refresh_text_palette();
+    int refr = refresh_text_palette();
+    if (refr)
+      dirty_text_screen();
   }
 
   /* The following determines how many lines it should scan at once,
