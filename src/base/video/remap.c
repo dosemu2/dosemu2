@@ -3415,7 +3415,7 @@ static RemapObject *re_create_obj(RemapObject *old, int new_mode)
 {
   RemapObject *dst = _remap_init(new_mode, old->dst_mode,
     old->features, old->dst_color_space);
-  if (dst->color_lut_size == old->color_lut_size)
+  if (old->color_lut_size && dst->color_lut_size == old->color_lut_size)
     memcpy(dst->true_color_lut, old->true_color_lut, dst->color_lut_size);
   else
     dirty_all_vga_colors();
@@ -3497,14 +3497,18 @@ static int _remap_get_cap(void *ros)
   return ro->state;
 }
 
-static void *_remap_remap_init(int src_mode, int dst_mode, int features,
+static void *_remap_remap_init(int dst_mode, int features,
         const ColorSpaceDesc *color_space)
 {
-  RemapObject *o, **p;
-  o = _remap_init(src_mode, dst_mode, features, color_space);
-  if (!o)
-    return NULL;
+  RemapObject **p, *o;
   p = malloc(sizeof(*p));
+  o = malloc(sizeof(*o));
+  /* create dummy remap. init properly later, when src mode is known */
+  memset(o, 0, sizeof(*o));
+  o->dst_mode = dst_mode;
+  o->features = features;
+  o->dst_color_space = color_space;
+  o->palette_update = do_nearly_nothing;
   *p = o;
   return p;
 }

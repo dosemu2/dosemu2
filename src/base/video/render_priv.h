@@ -10,7 +10,7 @@ struct remap_object {
   void *priv;
 };
 
-struct remap_object *remap_init(int src_mode, int dst_mode, int features,
+struct remap_object *remap_init(int dst_mode, int features,
         const ColorSpaceDesc *color_space);
 void remap_done(struct remap_object *ro);
 int remap_palette_update(struct remap_object *ro, unsigned i,

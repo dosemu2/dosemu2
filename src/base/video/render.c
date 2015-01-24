@@ -175,7 +175,7 @@ int remapper_init(int have_true_color, int have_shmap, int features,
   }
 
   remap_src_modes = find_supported_modes(ximage_mode);
-  remap_obj = remap_init(remap_mode(), ximage_mode, features, csd);
+  remap_obj = remap_init(ximage_mode, features, csd);
   if (features & RFF_BITMAP_FONT) {
     use_bitmap_font = 1;
     register_text_system(&Text_bitmap);
@@ -594,7 +594,7 @@ static int find_rmcalls(int sidx)
   return idx;
 }
 
-struct remap_object *remap_init(int src_mode, int dst_mode, int features,
+struct remap_object *remap_init(int dst_mode, int features,
         const ColorSpaceDesc *color_space)
 {
   void *rm;
@@ -606,10 +606,10 @@ struct remap_object *remap_init(int src_mode, int dst_mode, int features,
     if (i == -1)
       break;
     calls = rmcalls[i].calls;
-    rm = calls->init(src_mode, dst_mode, features, color_space);
+    rm = calls->init(dst_mode, features, color_space);
     if (!rm)
-      v_printf("remapper %i \"%s\" failed for mode %i --> %x\n",
-          i, rmcalls[i].calls->name, src_mode, dst_mode);
+      v_printf("remapper %i \"%s\" failed for mode %x\n",
+          i, rmcalls[i].calls->name, dst_mode);
   } while (!rm);
   if (!rm) {
     error("gfx remapper failure\n");

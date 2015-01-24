@@ -449,7 +449,7 @@ void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd)
   assert(!text_remap);
 
   /* linear 1 byte per pixel */
-  text_remap = remap_init(MODE_PSEUDO_8, image_mode, features, csd);
+  text_remap = remap_init(image_mode, features, csd);
 }
 
 void done_text_mapper(void)

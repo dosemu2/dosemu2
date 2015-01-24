@@ -28,8 +28,7 @@ struct bitmap_desc {
 #define BMP(i, w, h, s) (struct bitmap_desc){ i, w, h, s }
 
 struct remap_calls {
-  void *(*init)(int src_mode, int dst_mode, int features,
-    const ColorSpaceDesc *csd);
+  void *(*init)(int dst_mode, int features, const ColorSpaceDesc *csd);
   void (*done)(void *ro);
   int (*palette_update)(void *ro, unsigned i,
 	unsigned bits, unsigned r, unsigned g, unsigned b);
