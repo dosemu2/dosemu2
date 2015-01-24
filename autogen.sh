@@ -18,6 +18,3 @@ for dir in `cat plugin_configure`; do
 		echo "Failed generating configure for $dir"
 	fi
 done
-
-cd $srcdir
-./default-configure
