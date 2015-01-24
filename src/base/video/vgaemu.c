@@ -1547,6 +1547,7 @@ int vga_emu_pre_init(void)
   memset(&vga, 0, sizeof vga);
 
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
+  vga.mode_class = -1;
   vga.config.video_off = 1;
   vga.config.standard = 1;
   vga.mem.plane_pages = 0x10;	/* 16 pages = 64k */

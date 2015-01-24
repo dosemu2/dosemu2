@@ -474,7 +474,8 @@ static void *render_thread(void *arg)
     sem_wait(&render_sem);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     is_updating = 1;
-    if (vga.mode_class == TEXT) {
+    switch (vga.mode_class) {
+    case TEXT:
       blink_cursor();
       if (text_is_dirty()) {
         render_text_begin();
@@ -482,12 +483,17 @@ static void *render_thread(void *arg)
         update_text_screen();
         render_text_end();
       }
-    } else {
+      break;
+    case GRAPH:
       if (vgaemu_is_dirty()) {
         dst_image = render_lock();
         update_graphics_screen();
         render_unlock();
       }
+      break;
+    default:
+      v_printf("VGA not yet initialized\n");
+      break;
     }
   }
   return NULL;
