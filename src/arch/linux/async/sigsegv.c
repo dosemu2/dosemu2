@@ -392,6 +392,13 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 {
   int retcode;
   pid_t tid;
+
+  /* need to call init_handler() before any syscall.
+   * Additionally, because fault_cnt is per-thread, it also can
+   * be accessed only after init_handler() so that the segment
+   * register for TLS is restored. */
+  init_handler(scp);
+
   fault_cnt++;
   if (fault_cnt > 2) {
    /*
@@ -401,8 +408,6 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     */
     _exit(255);
   }
-
-  init_handler(scp);
 
   tid = gettid();
   if (tid != dosemu_tid) {
@@ -453,13 +458,13 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
       signal, _trapno);
 
   retcode = dosemu_fault1 (signal, scp);
+  fault_cnt--;
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
   if(retcode)
     _eax = retcode;
   dpmi_iret_setup(scp);
-  fault_cnt--;
 }
 
 #ifdef __linux__

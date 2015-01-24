@@ -59,7 +59,7 @@ EXTERN union vm86plus_union vm86u INIT ( {{
 #define vm86s (vm86u.vm86ps)
 
 int signal_pending(void);
-EXTERN volatile int fault_cnt INIT(0);
+EXTERN volatile __thread int fault_cnt INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
 EXTERN int running_kversion INIT(0);
