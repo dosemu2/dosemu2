@@ -3996,12 +3996,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
         D_printf("DPMI: sti\n");
       _eip += 1;
       set_IF();
-      /* break; */
-      /* break is not good here. The interrupts are not enabled
-       * _immediately_ after sti, at least one insn must be executed
-       * before. So we return right to client. */
-      return ret;
-
+      break;
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
         D_printf("DPMI: insb\n");
@@ -4253,6 +4248,9 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
   if (in_dpmi_dos_int || (isset_IF() && pic_pending()) || return_requested) {
     return_requested = 0;
+    if (debug_level('M') >= 8)
+      D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+        _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
     Return_to_dosemu_code(scp, ORIG_CTXP);
     return -1;
   }
