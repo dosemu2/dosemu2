@@ -198,7 +198,7 @@ int SDL_priv_init(void)
   ret = SDL_Init(SDL_INIT_VIDEO);
   leave_priv_setting();
   if (ret < 0) {
-    error("SDL: %s\n", SDL_GetError());
+    error("SDL init: %s\n", SDL_GetError());
     config.exitearly = 1;
     init_failed = 1;
     return -1;
@@ -279,6 +279,8 @@ int SDL_init(void)
 
 void SDL_close(void)
 {
+  if (!initialized)
+    return;
   remapper_done();
   vga_emu_done();
 #ifdef X_SUPPORT
