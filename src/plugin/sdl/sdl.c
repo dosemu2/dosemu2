@@ -412,14 +412,16 @@ static void SDL_change_mode(int x_res, int y_res)
   v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
   if (surface)
     SDL_FreeSurface(surface);
-  if (config.X_fixed_aspect)
-    SDL_RenderSetLogicalSize(renderer, x_res, y_res);
   surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
 	SDL_csd.r_mask, SDL_csd.g_mask, SDL_csd.b_mask, 0);
   if (!surface) {
     error("SDL surface failed\n");
     leavedos(99);
   }
+  SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 0, 0));
+
+  if (config.X_fixed_aspect)
+    SDL_RenderSetLogicalSize(renderer, x_res, y_res);
   SDL_SetWindowSize(window, x_res, y_res);
   set_resizable(use_bitmap_font || vga.mode_class == GRAPH, x_res, y_res);
   SDL_ShowWindow(window);
@@ -654,6 +656,9 @@ static void SDL_handle_events(void)
           m_x_res = event.window.data1;
           m_y_res = event.window.data2;
         }
+        SDL_redraw();
+        break;
+      case SDL_WINDOWEVENT_EXPOSED:
         SDL_redraw();
         break;
     }
