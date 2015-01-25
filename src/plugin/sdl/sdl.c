@@ -764,6 +764,14 @@ static void SDL_handle_events(void)
        break;
      }
    }
+
+#ifdef X_SUPPORT
+  if (x11.display && !use_bitmap_font && vga.mode_class == TEXT &&
+	X_handle_text_expose()) {
+    /* need to check separately because SDL_VIDEOEXPOSE is eaten by SDL */
+    redraw_text_screen();
+  }
+#endif
 }
 
 static int SDL_mouse_init(void)
