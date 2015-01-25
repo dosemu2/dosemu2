@@ -437,8 +437,11 @@ static void pcm_stop_output(int id)
 	struct pcm_player_wr *p = &pcm.players[i];
 	if (id != PCM_ID_MAX && p->player.id != id)
 	    continue;
-	if (p->opened)
+	if (p->opened) {
+	    pthread_mutex_unlock(&pcm.strm_mtx);
 	    p->player.stop(p->player.arg);
+	    pthread_mutex_lock(&pcm.strm_mtx);
+	}
     }
     pcm.playing &= ~(1 << id);
     S_printf("PCM: output stopped\n");
