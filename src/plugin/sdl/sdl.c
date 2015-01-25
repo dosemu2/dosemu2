@@ -72,7 +72,7 @@ struct render_system Render_SDL =
    unlock_surface,
 };
 
-static SDL_Texture *texture;
+static SDL_Surface *surface;
 static SDL_Renderer *renderer;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
@@ -219,6 +219,10 @@ int SDL_init(void)
   if (init_failed)
     return -1;
 
+  if(config.X_lin_filt || config.X_bilin_filt) {
+    v_printf("SDL: enabling scaling filter\n");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+  }
   if (config.X_fullscreen)
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
   else
@@ -230,8 +234,7 @@ int SDL_init(void)
     init_failed = 1;
     return -1;
   }
-  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED |
-    SDL_RENDERER_TARGETTEXTURE);
+  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   if (!renderer) {
     error("SDL renderer failed\n");
     init_failed = 1;
@@ -283,7 +286,7 @@ void SDL_close(void)
     X_close_text_display();
 #endif
   SDL_DestroyRenderer(renderer);
-  SDL_DestroyTexture(texture);
+  SDL_FreeSurface(surface);
   SDL_DestroyWindow(window);
   SDL_Quit();
 }
@@ -307,11 +310,13 @@ static void SDL_update(void)
    * can easily be faster to just update the entire screen though. */
 #if UPDATE_BY_RECTS
   if (sdl_rects.num > 0) {
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
     for (i = 0; i < sdl_rects.num; i++) {
       const SDL_Rect *rec = &sdl_rects.rects[i];
       SDL_RenderCopy(renderer, texture, rec, rec);
     }
     SDL_RenderPresent(renderer);
+    SDL_DestroyTexture(texture);
     sdl_rects.num = 0;
   }
   pthread_mutex_unlock(&update_mtx);
@@ -320,9 +325,11 @@ static void SDL_update(void)
   sdl_rects.num = 0;
   pthread_mutex_unlock(&update_mtx);
   if (i > 0) {
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
+    SDL_DestroyTexture(texture);
   }
 #endif
   pthread_mutex_unlock(&mode_mtx);
@@ -330,25 +337,26 @@ static void SDL_update(void)
 
 static void SDL_redraw(void)
 {
+  SDL_Texture *texture;
   pthread_mutex_lock(&mode_mtx);
+  texture  = SDL_CreateTextureFromSurface(renderer, surface);
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, NULL, NULL);
   SDL_RenderPresent(renderer);
+  SDL_DestroyTexture(texture);
   pthread_mutex_unlock(&mode_mtx);
 }
 
 static struct bitmap_desc lock_surface(void)
 {
-  void *pixels;
-  int pitch;
   pthread_mutex_lock(&mode_mtx);
-  SDL_LockTexture(texture, NULL /* TODO: RECT */, &pixels, &pitch);
-  return BMP(pixels, w_x_res, w_y_res, pitch);
+  SDL_LockSurface(surface);
+  return BMP(surface->pixels, w_x_res, w_y_res, surface->pitch);
 }
 
 static void unlock_surface(void)
 {
-  SDL_UnlockTexture(texture);
+  SDL_UnlockSurface(surface);
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -402,20 +410,14 @@ static void set_resizable(int on, int x_res, int y_res)
 static void SDL_change_mode(int x_res, int y_res)
 {
   v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
-  if (texture)
-    SDL_DestroyTexture(texture);
+  if (surface)
+    SDL_FreeSurface(surface);
   if (config.X_fixed_aspect)
     SDL_RenderSetLogicalSize(renderer, x_res, y_res);
-  /* render hint needs to be set before creating texture,
-   * otherwise it doesn't work, strange */
-  if(config.X_lin_filt || config.X_bilin_filt) {
-    v_printf("SDL: enabling scaling filter\n");
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-  }
-  texture = SDL_CreateTexture(renderer, pix_fmt, SDL_TEXTUREACCESS_STREAMING,
-    x_res, y_res);
-  if (!texture) {
-    error("SDL texture failed\n");
+  surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
+	SDL_csd.r_mask, SDL_csd.g_mask, SDL_csd.b_mask, 0);
+  if (!surface) {
+    error("SDL surface failed\n");
     leavedos(99);
   }
   SDL_SetWindowSize(window, x_res, y_res);
