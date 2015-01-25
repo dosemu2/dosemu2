@@ -338,6 +338,12 @@ static void SDL_update(void)
 static void SDL_redraw(void)
 {
   SDL_Texture *texture;
+#ifdef X_SUPPORT
+  if (x11.display && !use_bitmap_font && vga.mode_class == TEXT) {
+    redraw_text_screen();
+    return;
+  }
+#endif
   pthread_mutex_lock(&mode_mtx);
   texture  = SDL_CreateTextureFromSurface(renderer, surface);
   SDL_RenderClear(renderer);
@@ -373,7 +379,7 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
   );
 
 
-  if(vga.mode_class == TEXT) {
+  if (vga.mode_class == TEXT) {
     pthread_mutex_lock(&mode_mtx);
     if (use_bitmap_font) {
       SDL_change_mode(vga.width, vga.height);
