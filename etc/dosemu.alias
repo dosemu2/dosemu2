@@ -7,3 +7,5 @@ vgacyr       -dosemu-vga-medium-r-normal--17-160-75-75-c-80-ibm-cp866
 vga10x20     -dosemu-vga-medium-r-normal--20-200-75-75-c-100-ibm-cp866
 vga-ua       -dosemu-vga-medium-r-normal--17-160-75-75-c-80-ibm-cp1125
 vga10x20-ua  -dosemu-vga-medium-r-normal--20-200-75-75-c-100-ibm-cp1125
+vga8x14-cp850  -xos4-Terminus-Bold-R-Normal--14-140-72-72-C-80-IBM-CP850
+vga10x20-cp850 -xos4-Terminus-Bold-R-Normal--20-200-72-72-C-100-IBM-CP850
