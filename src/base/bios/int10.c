@@ -355,6 +355,7 @@ static void clear_screen(void)
   }
 }
 
+#if 0
 /* return number of vertical scanlines based on the bytes at
    40:88 and 40:89 */
 static int get_text_scanlines(void)
@@ -369,6 +370,7 @@ static int get_text_scanlines(void)
     return 400;
   return 480;
 }
+#endif
 
 /* set number of vertical scanlines at the bytes at
    40:88 and 40:89 */
@@ -449,7 +451,7 @@ boolean set_video_mode(int mode) {
   vga_mode_info *vmi;
   int clear_mem = 1;
   unsigned u;
-  int co, li, text_scanlines, vga_font_height, orig_mode;
+  int co, li, vga_font_height, orig_mode;
   ioport_t port;
 
   if (config.cardtype == CARD_NONE) {
@@ -504,37 +506,6 @@ boolean set_video_mode(int mode) {
   }
   WRITE_WORD(BIOS_VIDEO_PORT, port);
 
-  text_scanlines = get_text_scanlines();
-  if (mode > 0x13) /* VESA modes have their own scanlines */
-    text_scanlines = vmi->height;
-  if (Video->update_screen == NULL) {
-    set_text_scanlines(400);
-    if (mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a)) {
-      co = vmi->text_width;
-      li = vmi->text_height;
-      vga_font_height = text_scanlines / li;
-#if USE_DUALMON
-      if (mode == 7 && config.dualmon) {
-	vga_font_height = 16;
-      }
-#endif
-    } else
-      return 0;
-    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
-    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-    set_cursor_shape(mode == 7 ? 0x0b0d : 0x0607);
-    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
-    vga_emu_setmode(mode,co,li);
-    /* mode change clears screen unless bit7 of AL set */
-    if (clear_mem)
-      clear_screen();
-    if ( config.cardtype == CARD_MDA )
-      mode = 7;
-    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode);
-    return 1;
-  }
-
   /*
    * We store the SVGA mode number (if possible) even when setting
    * a VESA mode.
@@ -588,20 +559,17 @@ boolean set_video_mode(int mode) {
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x30);
 
   vga_font_height = vmi->char_height;
-  if (using_text_mode() && mode <= 0x13)
-    vga_font_height = text_scanlines / li;
-
   if (li <= MAX_LINES) {
     if(using_text_mode()) {
       port_outb(port, 9);
       port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
       /* adjust number of scanlines in the CRT; setmode set it at 400 */
-      if (text_scanlines == 200) {
+      if (vmi->height == 200) {
 	/* just set doublescan */
 	port_outb(port + 1, 0x80 | port_inb(port + 1));
-      } else if (text_scanlines != 400) {
+      } else if (vmi->height != 400) {
 	/* adjust display end */
-	port_outw(port, 0x12 | (((text_scanlines-1) & 0xff) << 8));
+	port_outw(port, 0x12 | (((vmi->height-1) & 0xff) << 8));
       }
       WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co, li));
     } else {
@@ -637,7 +605,7 @@ boolean set_video_mode(int mode) {
 
   SETIVEC(0x43, 0xc000, u);
 
-  set_text_scanlines(400);
+  set_text_scanlines(vmi->height);
   return 1;
 }
 
