@@ -76,7 +76,6 @@ static SDL_Surface *surface;
 static SDL_Renderer *renderer;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
-static Uint32 pix_fmt;
 static int font_width, font_height;
 static int w_x_res, w_y_res;
 static int m_x_res, m_y_res;
@@ -214,7 +213,7 @@ int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
   int remap_src_modes, bpp, features;
-  Uint32 rm, gm, bm, am;
+  Uint32 rm, gm, bm, am, pix_fmt;
 
   if (init_failed)
     return -1;
@@ -293,6 +292,15 @@ void SDL_close(void)
   SDL_Quit();
 }
 
+static void do_redraw(void)
+{
+  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture, NULL, NULL);
+  SDL_RenderPresent(renderer);
+  SDL_DestroyTexture(texture);
+}
+
 static void SDL_update(void)
 {
   int i;
@@ -326,20 +334,14 @@ static void SDL_update(void)
   i = sdl_rects.num;
   sdl_rects.num = 0;
   pthread_mutex_unlock(&update_mtx);
-  if (i > 0) {
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
-    SDL_DestroyTexture(texture);
-  }
+  if (i > 0)
+    do_redraw();
 #endif
   pthread_mutex_unlock(&mode_mtx);
 }
 
 static void SDL_redraw(void)
 {
-  SDL_Texture *texture;
 #ifdef X_SUPPORT
   if (x11.display && !use_bitmap_font && vga.mode_class == TEXT) {
     redraw_text_screen();
@@ -347,11 +349,7 @@ static void SDL_redraw(void)
   }
 #endif
   pthread_mutex_lock(&mode_mtx);
-  texture  = SDL_CreateTextureFromSurface(renderer, surface);
-  SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, NULL);
-  SDL_RenderPresent(renderer);
-  SDL_DestroyTexture(texture);
+  do_redraw();
   pthread_mutex_unlock(&mode_mtx);
 }
 
