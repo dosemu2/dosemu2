@@ -422,7 +422,9 @@ static void pcm_start_output(int id)
 	    continue;
 	if (p->opened) {
 	    pcm_reset_player(i);
+	    pthread_mutex_unlock(&pcm.strm_mtx);
 	    p->player.start(p->player.arg);
+	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
     pcm.time = now - MAX_BUFFER_DELAY;
