@@ -47,6 +47,7 @@ extern void pit_outp(ioport_t, Bit8u);
 #define INT15_IDLE_USECS	(JIFFIE_TIME*8)
 #define INT28_IDLE_USECS	(JIFFIE_TIME/2)
 void reset_idle(int val);
+void reset_idle_mt(int val);
 void alarm_idle(void);
 void trigger_idle(void);
 int idle(int threshold1, int threshold, int threshold2, const char *who);
