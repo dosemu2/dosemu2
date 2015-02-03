@@ -89,6 +89,7 @@ int cpu_time_stop = 0;
 static int freeze_tid;
 static hitimer_t cached_time;
 static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static hitimer_t do_gettime(void)
 {
@@ -374,20 +375,26 @@ static int trigger1 = 0;
 void reset_idle(int val)
 {
   val *= config.hogthreshold;
+  pthread_mutex_lock(&trigger_mtx);
   if (-val < trigger1)
     trigger1 = -val;
+  pthread_mutex_unlock(&trigger_mtx);
 }
 
 void alarm_idle(void)
 {
+  pthread_mutex_lock(&trigger_mtx);
   if (trigger1 < 0)
     trigger1++;
+  pthread_mutex_unlock(&trigger_mtx);
 }
 
 void trigger_idle(void)
 {
+  pthread_mutex_lock(&trigger_mtx);
   if (trigger1 >= 0)
     trigger1++;
+  pthread_mutex_unlock(&trigger_mtx);
 }
 
 void dosemu_sleep(void)
@@ -407,21 +414,26 @@ void dosemu_sleep(void)
 int idle(int threshold1, int threshold, int threshold2, const char *who)
 {
   static int trigger = 0;
+  int ret = 0;
   if (config.hogthreshold && CAN_SLEEP()) {
+    pthread_mutex_lock(&trigger_mtx);
     if(trigger1 >= config.hogthreshold * threshold1) {
       if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
 	if (debug_level('g') > 5)
 	    g_printf("sleep requested by %s\n", who);
+	pthread_mutex_unlock(&trigger_mtx);
         _set_IF();
 	coopth_wait();
 	clear_IF();
+	pthread_mutex_lock(&trigger_mtx);
 	trigger = 0;
       }
       if (trigger1 > 0)
 	trigger1--;
       if (trigger == 0)
-	return 1;
+	ret = 1;
     }
+    pthread_mutex_unlock(&trigger_mtx);
   }
-  return 0;
+  return ret;
 }
