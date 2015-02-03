@@ -83,8 +83,6 @@ static struct {
 #endif
 } eflags_fs_gs;
 
-pid_t dosemu_tid;
-
 static void (*sighandlers[NSIG])(struct sigcontext *);
 
 static void sigquit(struct sigcontext *);
