@@ -47,7 +47,7 @@ DOCS= ../man
 
 ###################################################################
 
-default: version include/version.h include/confpath.h ../dosemu.spec doslib \
+default: version include/version.h include/confpath.h ../dosemu2.spec doslib \
 	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
 
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
@@ -109,7 +109,7 @@ docsubdirs:	$(DOCS)
 $(DIRLIST):
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
-version:	versetup
+version: versetup
 
 versetup:
 	@mkdir -p lib
@@ -120,20 +120,15 @@ versetup:
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
 
-.PHONY: include/version.h
-include/version.h:
-	@if ! test -f include/version.h || test \"$(PACKAGE_VERSION)\" != \
-	      `echo VERSTR | $(CC) -E -include include/version.h - | tail -n 1`; \
-	      then \
-	  echo "Updating version.h"; \
-	  echo "#ifndef	VERSION_H" > $@; \
-	  echo "#define	VERSION_H" >> $@; \
-	  echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
-	  echo "#define	VERSION	$(VERSION)" >> $@; \
-	  echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
-	  echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
-	  echo "#endif /* VERSION_H */" >> $@; \
-	fi
+include/version.h: ../Makefile.conf
+	echo "Updating version.h"; \
+	echo "#ifndef	VERSION_H" > $@; \
+	echo "#define	VERSION_H" >> $@; \
+	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
+	echo "#define	VERSION	$(VERSION)" >> $@; \
+	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
+	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
+	echo "#endif /* VERSION_H */" >> $@; \
 
 include/confpath.h: ../Makefile.conf
 	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@
@@ -142,7 +137,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
-../dosemu.spec: ../dosemu.spec.in
+../dosemu2.spec: ../dosemu2.spec.in
 	sed -e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
