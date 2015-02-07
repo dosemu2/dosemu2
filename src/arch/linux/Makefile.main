@@ -311,13 +311,12 @@ newhd:  tools/periph/bootsect
 	@echo "You now have a hdimage file called 'newhd'"
 
 local_clean:
-	-rm -f $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/xdos \
-	  $(BINPATH)/bin/dos $(BINPATH)/bin/*.so *.s core \
-	  *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug
+	rm -f ../bin ../commands
 
 clean:: local_clean
 
-realclean::   local_clean
+realclean:: local_clean
+	rm -rf $(BINPATH)
 
 CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
 REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
