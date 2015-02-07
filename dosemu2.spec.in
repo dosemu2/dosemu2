@@ -1,8 +1,6 @@
 #
 # spec file for package Dosemu2
 #
-# This file is used on the SUSE build platform to create DOSEMU2 packages.
-#
 # Written by Mateusz Viste for the DOSEMU2 project.
 #
 
@@ -17,11 +15,14 @@ License: GPL-2.0+
 URL: www.dosemu.org
 Source0: %{name}-%{version}.tar.gz
 
-BuildRequires:  SDL-devel
-BuildRequires:  bison
-BuildRequires:  flex
-BuildRequires:  bdftopcf
-BuildRequires:  mkfontdir
+BuildRequires: SDL2-devel
+BuildRequires: bison
+BuildRequires: flex
+BuildRequires: autoconf
+BuildRequires: automake
+BuildRequires: bdftopcf
+BuildRequires: mkfontdir
+BuildRequires: slang-devel
 
 %description
 DOSEMU stands for DOS Emulation, and allows you to run DOS and many DOS programs, including many DPMI applications such as DOOM and Windows 3.1, under Linux.
@@ -30,7 +31,9 @@ DOSEMU stands for DOS Emulation, and allows you to run DOS and many DOS programs
 %setup
 
 %build
+./autogen.sh
 %configure --sysconfdir=%{_sysconfdir}/dosemu --with-docdir=%{_docdir}/dosemu
+make clean
 make
 
 %check
