@@ -195,7 +195,8 @@ static int video_init(void)
   }
 
 #if defined(USE_DL_PLUGINS)
-  load_plugin("console");
+  if (!config.X)
+    load_plugin("console");
 #endif
   /* figure out which video front end we are to use */
   if (no_real_terminal() || config.cardtype == CARD_NONE) {
