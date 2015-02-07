@@ -194,8 +194,6 @@ install:
 	ln -sf drive_z/dosemu $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.users.example $(DESTDIR)$(sysconfdir)/dosemu.users; \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/global.conf $(DESTDIR)$(sysconfdir); \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/keymap
 	for i in $(REALTOPDIR)/etc/keymap/*; do \
