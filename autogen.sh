@@ -1,7 +1,6 @@
 #!/bin/sh
 
-srcdir=`realpath "$(dirname $0)"`
-cd $srcdir
+srcdir=`pwd`
 echo "Regenerating toplevel configure script..."
 if ! autoreconf --install --force --warnings=all ; then
 	echo "Failure!"
@@ -14,7 +13,7 @@ for dir in `cat plugin_configure`; do
 	cd "${srcdir}/${dir}"
 	if ! autoreconf --install --force --warnings=all ; then
 		rm -f ./configure
-		cd $srcdir
 		echo "Failed generating configure for $dir"
 	fi
 done
+cd $srcdir
