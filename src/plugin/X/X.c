@@ -738,19 +738,6 @@ int X_init()
     );
   }
 
-  lock_window_size(w_x_res, w_y_res);
-
-  /* don't map window if set */
-  if(getenv("DOSEMU_HIDE_WINDOW") == NULL) {
-    if (config.X_fullscreen) {
-      toggle_fullscreen_mode(1);
-      have_focus = TRUE;
-    } else {
-      XMapWindow(display, mainwindow);
-      XMapWindow(display, drawwindow);
-    }
-  }
-
   register_render_system(&Render_X);
   ret = X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
@@ -770,8 +757,18 @@ int X_init()
     /* why do we need a blank screen? */
     leavedos(24);
   }
-  if(!use_bitmap_font)
-    X_resize_text_screen();
+
+  lock_window_size(w_x_res, w_y_res);
+  /* don't map window if set */
+  if(getenv("DOSEMU_HIDE_WINDOW") == NULL) {
+    if (config.X_fullscreen) {
+      toggle_fullscreen_mode(1);
+      have_focus = TRUE;
+    } else {
+      XMapWindow(display, mainwindow);
+      XMapWindow(display, drawwindow);
+    }
+  }
 
   /* initialize VGA emulator */
   if(vga_emu_init(remap_src_modes, &X_csd)) {
