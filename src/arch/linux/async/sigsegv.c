@@ -372,7 +372,7 @@ bad:
     show_regs(__FILE__, __LINE__);
 
     fatalerr = 4;
-    leavedos_from_sig(fatalerr);		/* shouldn't return */
+    exit(fatalerr);		/* shouldn't return */
     return 0;
     }
   }
