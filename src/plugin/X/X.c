@@ -1428,7 +1428,8 @@ static void toggle_fullscreen_mode(int init)
     X_resize_text_screen();
   } else {	/* GRAPH or builtin font */
     resize_ximage(resize_width, resize_height);
-    render_blit(0, 0, resize_width, resize_height);
+    if (!init)
+      render_blit(0, 0, resize_width, resize_height);
   }
 }
 
