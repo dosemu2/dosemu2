@@ -77,7 +77,6 @@ static SDL_Renderer *renderer;
 static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
-static int w_x_res, w_y_res;
 static int m_x_res, m_y_res;
 static int initialized;
 static int use_bitmap_font;
@@ -357,7 +356,7 @@ static struct bitmap_desc lock_surface(void)
 {
   pthread_mutex_lock(&mode_mtx);
   SDL_LockSurface(surface);
-  return BMP(surface->pixels, w_x_res, w_y_res, surface->pitch);
+  return BMP(surface->pixels, surface->w, surface->h, surface->pitch);
 }
 
 static void unlock_surface(void)
@@ -431,8 +430,8 @@ static void SDL_change_mode(int x_res, int y_res)
   SDL_SetWindowSize(window, x_res, y_res);
   set_resizable(use_bitmap_font || vga.mode_class == GRAPH, x_res, y_res);
   SDL_ShowWindow(window);
-  m_x_res = w_x_res = x_res;
-  m_y_res = w_y_res = y_res;
+  m_x_res = x_res;
+  m_y_res = y_res;
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
   sdl_rects.num = 0;
@@ -583,8 +582,8 @@ static int SDL_change_config(unsigned item, void *buf)
       X_load_text_font(x11.display, 1, x11.window, buf,
 		       &font_width, &font_height);
       x11.unlock_func();
-      if (w_x_res != vga.text_width * font_width ||
-            w_y_res != vga.text_height * font_height) {
+      if (surface->w != vga.text_width * font_width ||
+            surface->h != vga.text_height * font_height) {
 	  if(vga.mode_class == TEXT) {
 	    pthread_mutex_lock(&mode_mtx);
 	    SDL_change_mode(vga.text_width * font_width,
