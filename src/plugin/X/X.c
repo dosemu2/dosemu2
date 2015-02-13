@@ -2224,11 +2224,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     dac_bits = vga.dac.bits;
-
-    x_res = vga.width;
-    y_res = vga.height;
-
-    get_mode_parameters(&w_x_res, &w_y_res);
+    get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;

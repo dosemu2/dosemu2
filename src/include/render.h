@@ -20,7 +20,7 @@ int register_remapper(struct remap_calls *calls, int prio);
 int remapper_init(int have_true_color, int have_shmap, int features,
 	ColorSpaceDesc *csd);
 void remapper_done(void);
-void get_mode_parameters(int *wx_res, int *wy_res);
+void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res);
 int update_screen(void);
 void color_space_complete(ColorSpaceDesc *color_space);
 void render_blit(int x, int y, int width, int height);

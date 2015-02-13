@@ -45,7 +45,7 @@ static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
-static void SDL_change_mode(int x_res, int y_res);
+static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res);
 static void SDL_handle_events(void);
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
@@ -369,7 +369,7 @@ static void unlock_surface(void)
 int SDL_set_videomode(int mode_class, int text_width, int text_height)
 {
   int mode = video_mode;
-  int x_res, y_res;
+  int x_res, y_res, wx_res, wy_res;
 
   v_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
     mode_class != -1 ? "" : "re-init ",
@@ -377,20 +377,19 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
     vga.text_width, vga.text_height, vga.width, vga.height
   );
 
-
+  get_mode_parameters(&x_res, &y_res, &wx_res, &wy_res);
   if (vga.mode_class == TEXT) {
     pthread_mutex_lock(&mode_mtx);
     if (use_bitmap_font) {
-      SDL_change_mode(vga.width, vga.height);
+      SDL_change_mode(x_res, y_res, wx_res, wy_res);
     } else {
-      SDL_change_mode(vga.text_width * font_width,
+      SDL_change_mode(0, 0, vga.text_width * font_width,
 			vga.text_height * font_height);
     }
     pthread_mutex_unlock(&mode_mtx);
   } else {
-    get_mode_parameters(&x_res, &y_res);
     pthread_mutex_lock(&mode_mtx);
-    SDL_change_mode(x_res, y_res);
+    SDL_change_mode(x_res, y_res, wx_res, wy_res);
     pthread_mutex_unlock(&mode_mtx);
   }
 
@@ -412,26 +411,31 @@ static void set_resizable(int on, int x_res, int y_res)
 #endif
 }
 
-static void SDL_change_mode(int x_res, int y_res)
+static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 {
-  v_printf("SDL: using mode %d %d %d\n", x_res, y_res, SDL_csd.bits);
+  v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res, w_y_res,
+    SDL_csd.bits);
   if (surface)
     SDL_FreeSurface(surface);
-  surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
+  if (x_res > 0 && y_res > 0) {
+    surface = SDL_CreateRGBSurface(0, x_res, y_res, SDL_csd.bits,
 	SDL_csd.r_mask, SDL_csd.g_mask, SDL_csd.b_mask, 0);
-  if (!surface) {
-    error("SDL surface failed\n");
-    leavedos(99);
+    if (!surface) {
+      error("SDL surface failed\n");
+      leavedos(99);
+    }
+    SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 0, 0));
+  } else {
+    surface = NULL;
   }
-  SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 0, 0));
 
   if (config.X_fixed_aspect)
-    SDL_RenderSetLogicalSize(renderer, x_res, y_res);
-  SDL_SetWindowSize(window, x_res, y_res);
-  set_resizable(use_bitmap_font || vga.mode_class == GRAPH, x_res, y_res);
+    SDL_RenderSetLogicalSize(renderer, w_x_res, w_y_res);
+  SDL_SetWindowSize(window, w_x_res, w_y_res);
+  set_resizable(use_bitmap_font || vga.mode_class == GRAPH, w_x_res, w_y_res);
   SDL_ShowWindow(window);
-  m_x_res = x_res;
-  m_y_res = y_res;
+  m_x_res = w_x_res;
+  m_y_res = w_y_res;
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
   sdl_rects.num = 0;
@@ -586,7 +590,7 @@ static int SDL_change_config(unsigned item, void *buf)
             surface->h != vga.text_height * font_height) {
 	  if(vga.mode_class == TEXT) {
 	    pthread_mutex_lock(&mode_mtx);
-	    SDL_change_mode(vga.text_width * font_width,
+	    SDL_change_mode(0, 0, vga.text_width * font_width,
 		vga.text_height * font_height);
 	    pthread_mutex_unlock(&mode_mtx);
 	  }

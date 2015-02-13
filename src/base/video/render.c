@@ -228,7 +228,7 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
-void get_mode_parameters(int *wx_res, int *wy_res)
+void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res)
 {
   int x_res, y_res, w_x_res, w_y_res;
 
@@ -287,6 +287,8 @@ void get_mode_parameters(int *wx_res, int *wy_res)
 
   *wx_res = w_x_res;
   *wy_res = w_y_res;
+  *x_res_p = x_res;
+  *y_res_p = y_res;
 }
 
 /*
