@@ -40,8 +40,13 @@ Since this code has been totally rewritten the pcemu license no longer applies
 #include "keyb_X.h"
 #include "translate.h"
 
-struct modifier_info X_mi;
+static struct modifier_info X_mi;
 static struct char_set_state X_charset;
+
+struct modifier_info X_get_modifier_info(void)
+{
+  return X_mi;
+}
 
 static int get_modifier_mask(XModifierKeymap *map, int keycode)
 {
@@ -121,7 +126,7 @@ static void X_modifier_info_init(Display *display)
 	XFreeModifiermap(map);
 }
 
-static void keyb_X_init(Display *display)
+void keyb_X_init(Display *display)
 {
 	X_modifier_info_init(display);
 	init_charset_state(&X_charset, lookup_charset("X_keysym"));
@@ -302,6 +307,26 @@ void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 		result->key,
 		result->modifiers);
 }
+
+#if HAVE_XKB
+t_unicode Xkb_lookup_key(Display *display, KeyCode keycode, unsigned int state)
+{
+	t_unicode key;
+	KeySym xkey = XK_VoidSymbol;
+	unsigned int modifiers = 0;
+	XkbLookupKeySym(display, keycode, state, &modifiers, &xkey);
+	charset_to_unicode(&X_charset, &key,
+		(const unsigned char *)&xkey, sizeof(xkey));
+	return key;
+}
+
+int Xkb_get_group(Display *display)
+{
+	XkbStateRec r;
+	XkbGetState(display, XkbUseCoreKbd, &r);
+	return r.group;
+}
+#endif
 
 void X_process_key(XKeyEvent *e)
 {

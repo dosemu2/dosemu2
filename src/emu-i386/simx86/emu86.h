@@ -691,8 +691,8 @@ void init_emu_npu_x86(void);
 #endif
 void init_emu_npu(void);
 
-unsigned e_VgaRead(unsigned offs, int mode);
-void e_VgaWrite(unsigned offs, unsigned u, int mode);
+unsigned e_VgaRead(unsigned char *ptr, int mode);
+void e_VgaWrite(unsigned char *ptr, unsigned u, int mode);
 void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp);
 int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault);
 

@@ -61,6 +61,7 @@ static inline void bios_mem_setup(void)
   int b;
 
   video_mem_setup();
+  serial_mem_setup();
   printer_mem_setup();
 
   /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the
@@ -173,6 +174,7 @@ static void bios_setup(void)
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
   SETIVEC(0x70, INT70_SEG, INT70_OFF);
+  SETIVEC(0x71, INT71_SEG, INT71_OFF);
   SETIVEC(0x1e, INT1E_SEG, INT1E_OFF);
   SETIVEC(0x41, INT41_SEG, INT41_OFF);
   SETIVEC(0x46, INT46_SEG, INT46_OFF);

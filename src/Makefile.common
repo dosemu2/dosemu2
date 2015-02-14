@@ -37,12 +37,6 @@ dist:: $(ALL) Makefile
 %.o:	%.S
 	$(CC) -c $(ALL_CPPFLAGS) $(ASFLAGS) -o $@ $<
 
-%.d:	%.c
-	$(CPP) -c $(ALL_CPPFLAGS) $< > /dev/null
-
-%.d:	%.S
-	$(CPP) -c $(ALL_CPPFLAGS) $< > /dev/null
-
 ifndef CLEANING
 ifneq "$(wildcard *.d)" ""
 -include $(DEPENDS)

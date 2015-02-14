@@ -122,12 +122,12 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	unsigned char *paddr = stack->edi;
 	unsigned int ecx = stack->ecx;
 	unsigned char *eip = stack->eip;
-	unsigned int addr;
+	dosaddr_t addr;
 	unsigned int len = ecx;
 	unsigned char *edi;
 	unsigned char op;
 
-	addr = paddr - mem_base;
+	addr = DOSADDR_REL(paddr);
 	if (*eip == 0xf3) /* skip rep */
 		eip++;
 	op = eip[0];
@@ -140,7 +140,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	r_munprotect(addr, len, eip);
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
-		unsigned int source = stack->esi - mem_base;
+		dosaddr_t source = DOSADDR_REL(stack->esi);
 		unsigned char *esi = LINEAR2UNIX(source);
 		if (ecx == len) {
 			if (EFLAGS & EFLAGS_DF) repmovs(std,b,cld);
@@ -183,7 +183,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 
 asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 {
-	unsigned int addr = paddr - mem_base;
+	dosaddr_t addr = DOSADDR_REL(paddr);
 	int ret = s_munprotect(addr, 2);
 	WRITE_WORD(addr, value);
 	if (ret & 1)
@@ -192,7 +192,7 @@ asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 
 asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 {
-	unsigned int addr = paddr - mem_base;
+	dosaddr_t addr = DOSADDR_REL(paddr);
 	int ret = s_munprotect(addr, 4);
 	WRITE_DWORD(addr, value);
 	if (ret & 1)
@@ -201,7 +201,7 @@ asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 
 asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
-	unsigned int addr = paddr - mem_base;
+	dosaddr_t addr = DOSADDR_REL(paddr);
 	int ret;
 	Bit8u *p;
 	ret = m_munprotect(addr, 1, eip);
@@ -216,7 +216,7 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
-	unsigned int addr = paddr - mem_base;
+	dosaddr_t addr = DOSADDR_REL(paddr);
 	int ret;
 	Bit16u *p;
 	ret = m_munprotect(addr, 2, eip);
@@ -228,7 +228,7 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
-	unsigned int addr = paddr - mem_base;
+	dosaddr_t addr = DOSADDR_REL(paddr);
 	int ret;
 	Bit32u *p;
 	ret = m_munprotect(addr, 4, eip);

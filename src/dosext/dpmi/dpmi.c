@@ -637,7 +637,7 @@ void dpmi_get_entry_point(void)
 	    LWORD(esi), LWORD(esi) << 4);
 }
 
-int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
+int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
@@ -652,7 +652,7 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
       D_printf("DPMI: set_ldt_entry() failed\n");
       return -1;
     }
-    D_printf("DPMI: SetSelector: 0x%04x base=0x%lx "
+    D_printf("DPMI: SetSelector: 0x%04x base=0x%x "
       "limit=0x%x big=%hhi type=%hhi np=%hhi\n",
       selector, base_addr, limit, is_big, type, seg_not_present);
   }
@@ -776,7 +776,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
     if ((limit = GetSegmentLimit(DPMI_CLIENT.LDT_ALIAS)) <
         (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_alias - mem_base,
+      SetSelector(DPMI_CLIENT.LDT_ALIAS, DOSADDR_REL(ldt_alias),
         limit + (number_of_descriptors / (DPMI_page_size /
         LDT_ENTRY_SIZE) + 1) * DPMI_page_size,
         0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
@@ -1161,8 +1161,10 @@ int GetDescriptor(us selector, unsigned int *lp)
 	*type_ptr=typebyte;
   }
 #endif
-  MEMCPY_2DOSP(lp, &ldt_buffer[selector & 0xfff8], 8);
-  D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n", selector>>3, selector, READ_DWORDP(lp+1), READ_DWORDP(lp));
+  MEMCPY_2DOSP((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], 8);
+  D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n",
+    selector>>3, selector, READ_DWORDP((unsigned char *)(lp+1)),
+    READ_DWORDP((unsigned char *)lp));
   return 0;
 }
 
@@ -2998,7 +3000,7 @@ void dpmi_setup(void)
 
     if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
-    if (SetSelector(dpmi_sel16, DPMI_sel_code_start - mem_base,
+    if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
       if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
@@ -3008,7 +3010,7 @@ void dpmi_setup(void)
       }
       goto err2;
     }
-    if (SetSelector(dpmi_sel32, DPMI_sel_code_start - mem_base,
+    if (SetSelector(dpmi_sel32, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
@@ -3065,12 +3067,12 @@ void dpmi_init(void)
   }
 
   if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.LDT_ALIAS, ldt_alias - mem_base,
+  if (SetSelector(DPMI_CLIENT.LDT_ALIAS, DOSADDR_REL(ldt_alias),
         LDT_INIT_LIMIT, 0,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
   if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, (unsigned char *)DPMI_CLIENT.pm_stack - mem_base,
+  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, DOSADDR_REL(DPMI_CLIENT.pm_stack),
         DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
@@ -3427,7 +3429,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   /* Extended exception stack frame - DPMI 1.0 */
   *--ssp = 0;	/* PTE */
-  *--ssp = (unsigned char *)_cr2 - mem_base;
+  *--ssp = DOSADDR_REL(LINP(_cr2));
   *--ssp = _gs;
   *--ssp = _fs;
   *--ssp = _ds;
@@ -3994,12 +3996,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
         D_printf("DPMI: sti\n");
       _eip += 1;
       set_IF();
-      /* break; */
-      /* break is not good here. The interrupts are not enabled
-       * _immediately_ after sti, at least one insn must be executed
-       * before. So we return right to client. */
-      return ret;
-
+      break;
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
         D_printf("DPMI: insb\n");
@@ -4251,6 +4248,9 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
   if (in_dpmi_dos_int || (isset_IF() && pic_pending()) || return_requested) {
     return_requested = 0;
+    if (debug_level('M') >= 8)
+      D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+        _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
     Return_to_dosemu_code(scp, ORIG_CTXP);
     return -1;
   }

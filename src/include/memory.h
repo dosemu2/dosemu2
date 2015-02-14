@@ -77,6 +77,11 @@
 #define INT70_OFF	0x63f0
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
 
+/* IRQ9->IRQ2 default redirector */
+#define INT71_SEG	ROMBIOSSEG
+#define INT71_OFF	0x7ee7
+#define INT71_ADD	((INT71_SEG << 4) + INT71_OFF)
+
 #define INT75_SEG	ROMBIOSSEG
 #define INT75_OFF	0x7e98
 #define INT75_ADD	((INT75_SEG << 4) + INT75_OFF)
@@ -198,7 +203,7 @@ extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(unsigned int addr);
 void *physaddr_to_unixaddr(unsigned int addr);
-void *lowmemp(const void *ptr);
+void *lowmemp(const unsigned char *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
    to this base. It is normally set to 0 but with mmap_min_addr
@@ -207,7 +212,20 @@ void *lowmemp(const void *ptr);
 */
 extern unsigned char *mem_base;
 
-#define MEM_BASE32(off) (void*)(((uintptr_t)mem_base + (off)) & 0xffffffff)
+#define LINP(a) ((unsigned char *)0 + a)
+typedef uint32_t dosaddr_t;
+static inline void *MEM_BASE32(dosaddr_t a)
+{
+    union {
+	uint32_t off;
+	unsigned char *ptr;
+    } u = { .ptr = mem_base + a };
+    return LINP(u.off);
+}
+static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
+{
+    return (a - mem_base);
+}
 
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.
    It does not have any holes or mapping for video RAM etc.

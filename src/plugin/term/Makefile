@@ -42,7 +42,6 @@ endif
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_term.so: $(OBJS) $(MAPS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
-	$(AR) crs $(LIB)
 endif
 
 install: all

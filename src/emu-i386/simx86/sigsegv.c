@@ -37,6 +37,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <setjmp.h>
+#include "utilities.h"
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "trees.h"
@@ -52,10 +53,10 @@ int TryMemRef = 0;
 
 /* ======================================================================= */
 
-unsigned e_VgaRead(unsigned a, int mode)
+unsigned e_VgaRead(unsigned char *a, int mode)
 {
   unsigned u;
-  unsigned int addr = (unsigned char *)(uintptr_t)a - mem_base;
+  dosaddr_t addr = DOSADDR_REL(a);
   if (mode&(MBYTE|MBYTX))
     u = vga_read(addr);
   else {
@@ -69,9 +70,9 @@ unsigned e_VgaRead(unsigned a, int mode)
   return u;
 }
 
-void e_VgaWrite(unsigned a, unsigned u, int mode)
+void e_VgaWrite(unsigned char *a, unsigned u, int mode)
 {
-  unsigned addr = (unsigned char *)(uintptr_t)a - mem_base;
+  dosaddr_t addr = DOSADDR_REL(a);
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: VGA write %08x at %08x mode %x\n",u,addr,mode);
 #endif
@@ -96,7 +97,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	if (op&1) {		/* byte move */
 	    if (op&4) goto vga2vgab;
 	    while (rep--) {
-		e_VgaWrite(_edi,READ_BYTE(_rsi - (ptrdiff_t)mem_base),MBYTE);
+		e_VgaWrite(LINP(_edi),READ_BYTE(DOSADDR_REL(LINP(_rsi))),MBYTE);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -105,7 +106,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	else if (w16&1) {	/* word move */
 	    if (op&4) goto vga2vgaw;
 	    while (rep--) {
-		e_VgaWrite(_edi,READ_WORD(_rsi - (ptrdiff_t)mem_base),DATA16);
+		e_VgaWrite(LINP(_edi),READ_WORD(DOSADDR_REL(LINP(_rsi))),DATA16);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -115,7 +116,7 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	    dp *= 2;
 	    if (op&4) goto vga2vgal;
 	    while (rep--) {
-		e_VgaWrite(_edi,READ_DWORD(_rsi - (ptrdiff_t)mem_base),DATA32);
+		e_VgaWrite(LINP(_edi),READ_DWORD(DOSADDR_REL(LINP(_rsi))),DATA32);
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -128,12 +129,12 @@ void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 	    if (op&4) {		/* vga2vga */
 vga2vgab:
 	        while (rep--) {
-		  e_VgaWrite(_edi,e_VgaRead(_esi,MBYTE),MBYTE);
+		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),MBYTE),MBYTE);
 		  _esi+=dp,_edi+=dp;
 	        }
 	    }
 	    else while (rep--) {
-		WRITE_BYTE(_rdi - (ptrdiff_t)mem_base, e_VgaRead(_esi,MBYTE));
+		WRITE_BYTE(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),MBYTE));
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -143,12 +144,12 @@ vga2vgab:
 	    if (op&4) {		/* vga2vga */
 vga2vgaw:
 	        while (rep--) {
-		  e_VgaWrite(_edi,e_VgaRead(_esi,DATA16),DATA16);
+		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),DATA16),DATA16);
 		  _esi+=dp,_edi+=dp;
 	        }
 	    }
 	    else while (rep--) {
-		WRITE_WORD(_rdi - (ptrdiff_t)mem_base, e_VgaRead(_esi,DATA16));
+		WRITE_WORD(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),DATA16));
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -159,12 +160,12 @@ vga2vgaw:
 	    if (op&4) {		/* vga2vga */
 vga2vgal:
 	        while (rep--) {
-		  e_VgaWrite(_edi,e_VgaRead(_esi,DATA32),DATA32);
+		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),DATA32),DATA32);
 		  _esi+=dp,_edi+=dp;
 	        }
 	    }
 	    else while (rep--) {
-		WRITE_DWORD(_rdi - (ptrdiff_t)mem_base, e_VgaRead(_esi,DATA32));
+		WRITE_DWORD(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),DATA32));
 		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
@@ -173,6 +174,7 @@ vga2vgal:
   }
 }
 
+#if 1
 static int jitx86_instr_len(const unsigned char *rip)
 {
   const unsigned char *p = rip;
@@ -246,12 +248,11 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
     unsigned char *p;
     unsigned long cxrep;
     int w16, mode;
-
-    vga.mem.dirty_map[vga_page] = 1;
-
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
+      dosemu_error("simx86: should not be here\n");
       vga_emu_adjust_protection(vga_page, page_fault);
+      vgaemu_dirty_page(vga_page);
       return 1;
     }
 
@@ -271,28 +272,28 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 /*88*/	case MOVbfrm:
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
-		e_VgaWrite(_edi,_eax,MBYTE);
+		e_VgaWrite(LINP(_edi),_eax,MBYTE);
 		_rip = (long)(p+2); break;
 /*89*/	case MOVwfrm:
 		if ((_err&2)==0) goto badrw;
 		if (p[1]!=0x07) goto unimp;
-		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32));
+		e_VgaWrite(LINP(_edi),_eax,(w16? DATA16:DATA32));
 		_rip = (long)(p+2); break;
 /*8a*/	case MOVbtrm:
 		if (_err&2) goto badrw;
 		if (p[1]==0x07)
-		    LO_BYTE(_eax) = e_VgaRead(_edi,MBYTE);
+		    LO_BYTE(_eax) = e_VgaRead(LINP(_edi),MBYTE);
 		else if (p[1]==0x17)
-		    LO_BYTE(_edx) = e_VgaRead(_edi,MBYTE);
+		    LO_BYTE(_edx) = e_VgaRead(LINP(_edi),MBYTE);
 		else goto unimp;
 		_rip = (long)(p+2); break;
 /*8b*/	case MOVwtrm:
 		if (_err&2) goto badrw;
 		if (p[1]!=0x07) goto unimp;
 		if (w16)
-			LO_WORD(_eax) = e_VgaRead(_edi,DATA16);
+			LO_WORD(_eax) = e_VgaRead(LINP(_edi),DATA16);
 		else
-			_eax = e_VgaRead(_edi,DATA32);
+			_eax = e_VgaRead(LINP(_edi),DATA32);
 		_rip = (long)(p+2); break;
 /*a4*/	case MOVSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
@@ -321,19 +322,19 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 /*aa*/	case STOSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if ((_err&2)==0) goto badrw;
-		e_VgaWrite(_edi,_eax,MBYTE);
+		e_VgaWrite(LINP(_edi),_eax,MBYTE);
 		_edi+=d;
 		_rip = (long)(p+1); } break;
 /*ab*/	case STOSw: {
 		int d = (_eflags & EFLAGS_DF? -4:4);
 		if ((_err&2)==0) goto badrw;
 		if (w16) d>>=1;
-		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32)); _edi+=d;
+		e_VgaWrite(LINP(_edi),_eax,(w16? DATA16:DATA32)); _edi+=d;
 		_rip = (long)(p+1); } break;
 /*ac*/	case LODSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;
-		LO_BYTE(_eax) = e_VgaRead(_esi,MBYTE);
+		LO_BYTE(_eax) = e_VgaRead(LINP(_esi),MBYTE);
 		_esi+=d;
 		_rip = (long)(p+1); } break;
 /*ad*/	case LODSw: {
@@ -341,10 +342,10 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		if (_err&2) goto badrw;
 		if (w16) {
 		    d >>= 1;
-		    LO_WORD(_eax) = e_VgaRead(_esi,DATA16);
+		    LO_WORD(_eax) = e_VgaRead(LINP(_esi),DATA16);
 		}
 		else
-		    _eax = e_VgaRead(_esi,DATA32);
+		    _eax = e_VgaRead(LINP(_esi),DATA32);
 		_esi+=d;
 		_rip = (long)(p+1); } break;
 /*ae*/	case SCASb:
@@ -372,7 +373,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		    if ((_err&2)==0) goto badrw;
 		    cxrep = _ecx;
 		    while (cxrep--) {
-			e_VgaWrite(_edi,_eax,MBYTE);
+			e_VgaWrite(LINP(_edi),_eax,MBYTE);
 			_edi+=d;
 		    }
 		    _ecx = 0;
@@ -386,7 +387,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		      d *= 2;
 		      cxrep = _ecx;
 		      while (cxrep--) {
-			e_VgaWrite(_edi,_eax,DATA16);
+			e_VgaWrite(LINP(_edi),_eax,DATA16);
 			_edi+=d;
 		      }
 		      _ecx = 0;
@@ -395,7 +396,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		      d *= 4;
 		      cxrep = _ecx;
 		      while (cxrep--) {
-			e_VgaWrite(_edi,_eax,DATA32);
+			e_VgaWrite(LINP(_edi),_eax,DATA32);
 			_edi+=d;
 		      }
 		      _ecx = 0;
@@ -447,6 +448,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		goto unimp;
     }
 /**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
+    vgaemu_dirty_page(vga_page);
   }
   return 1;
 
@@ -460,6 +462,7 @@ badrw:
   leavedos(0x5643);
   return 0;
 }
+#endif
 
 /* ======================================================================= */
 /*
@@ -510,8 +513,15 @@ int e_emu_fault(struct sigcontext_struct *scp)
   if (_trapno==0x0e) {
 	if (Video->update_screen) {
 		if (!DPMIValidSelector(_cs)) {
-			unsigned pf = (unsigned char *)_cr2 - mem_base;
-			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+			/* in vga.inst_emu mode, vga_emu_fault() can handle
+			 * only faults from DOS code, and here we are with
+			 * the fault from jit-compiled code */
+			if (!vga.inst_emu) {
+				if (vga_emu_fault(scp, 0) == True) return 1;
+			} else {
+				dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
+				if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+			}
 		} else {
 			if(VGA_EMU_FAULT(scp,code,1)==True) {
 				dpmi_check_return(scp);

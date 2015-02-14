@@ -3,6 +3,8 @@
 #include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -40,7 +42,7 @@ static void do_debug(void)
 {
   char *cmd1 = "info registers\n";
 //  char *cmd2 = "backtrace\n";
-  char *cmd3 = "backtrace full\n";
+  char *cmd3 = "thread apply all backtrace full\n";
 
   gdb_command(cmd1);
 //  gdb_command(cmd2);
@@ -128,8 +130,10 @@ void gdb_debug(void)
       _exit(0);
       break;
     case -1:
+      error("fork failed, %s\n", strerror(errno));
       return;
     default:
       waitpid(dbg_pid, &status, 0);
+      dbug_printf("done backtrace\n");
   }
 }

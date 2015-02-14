@@ -3,7 +3,7 @@
 
 SHELL=/bin/bash
 
-all: default configure src/include/config.h.in
+all: default configure src/include/config.h
 
 srcdir=.
 top_builddir=.
@@ -40,7 +40,7 @@ dosemu_script:
 
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
-	rm -f Makefile.conf dosemu.spec
+	rm -f Makefile.conf dosemu2.spec
 	rm -f core `find . -name config.cache`
 	rm -f core `find . -name config.status`
 	rm -f core `find . -name config.log`

@@ -139,7 +139,7 @@ void dpmi_alloc_pool(void)
 			       dpmi_base, memsize, PROT_EXEC, 0);
       /* some DPMI clients don't like negative memory pointers ... */
       if (mpool_ptr != MAP_FAILED &&
-	  (unsigned)((unsigned char *)mpool_ptr + memsize - mem_base) >=
+	  DOSADDR_REL((unsigned char *)mpool_ptr + memsize) >=
 	  0x80000000) {
 	/* try 128MB after heap */
 	munmap_mapping(MAPPING_DPMI, dpmi_base, memsize);
@@ -301,7 +301,7 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
 	free_pm_block(root, block);
 	return NULL;
     }
-    block->base = realbase - mem_base;
+    block->base = DOSADDR_REL(realbase);
     block->linear = 0;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = 9;
@@ -344,7 +344,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	free_pm_block(root, block);
 	return NULL;
     }
-    block->base = realbase - mem_base;
+    block->base = DOSADDR_REL(realbase);
     block->linear = 1;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
@@ -428,7 +428,7 @@ dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
 	return NULL;
 
     finish_realloc(block, newsize, 1);
-    block->base = ptr - mem_base;
+    block->base = DOSADDR_REL(ptr);
     block->size = newsize;
     restore_page_protection(block);
     return block;
@@ -474,7 +474,7 @@ dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
     }
 
     finish_realloc(block, newsize, committed);
-    block->base = ptr - mem_base;
+    block->base = DOSADDR_REL(ptr);
     block->size = newsize;
     restore_page_protection(block);
     return block;

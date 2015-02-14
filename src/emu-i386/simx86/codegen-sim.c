@@ -559,7 +559,7 @@ void Gen_sim(int op, int mode, ...)
 		if (vga_write_access(AR1.d)) {
 			GTRACE0("S_DI_IMM_VGA");
 			if (!vga_access(AR1.d)) break;
-			e_VgaWrite(AR1.d, v, mode); break;
+			e_VgaWrite(AR1.pu, v, mode); break;
 		}
 		if (mode&MBYTE) {
 			GTRACE3("S_DI_IMM_B",0xff,0xff,v);
@@ -652,7 +652,7 @@ void Gen_sim(int op, int mode, ...)
 	case L_VGAREAD:
 		if (vga_read_access(AR1.d)) {
 			GTRACE0("L_VGAREAD");
-			DR1.d = e_VgaRead(AR1.d, mode);
+			DR1.d = e_VgaRead(AR1.pu, mode);
 			break;
 		}
 		GTRACE0("L_DI");
@@ -671,7 +671,7 @@ void Gen_sim(int op, int mode, ...)
 		if (vga_write_access(AR1.d)) {
 			GTRACE0("L_VGAWRITE");
 			if (!vga_access(AR1.d)) break;
-			e_VgaWrite(AR1.d, DR1.d, mode); break;
+			e_VgaWrite(AR1.pu, DR1.d, mode); break;
 		}
 		GTRACE0("S_DI");
 		if (mode&MBYTE) {
@@ -2489,7 +2489,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		if (vga_read_access(AR2.d)) {
 		    while (i--) {
-			DR1.d = e_VgaRead(AR2.d, mode);
+			DR1.d = e_VgaRead(AR2.pu, mode);
 			AR2.pu += df;
 			if (!(mode&MBYTE)) {
 			    AR2.pu += df;
@@ -2518,7 +2518,7 @@ void Gen_sim(int op, int mode, ...)
 		if (vga_write_access(AR1.d)) {
 		    while (i--) {
 		        if (vga_access(AR1.d))
-			    e_VgaWrite(AR1.d, DR1.d, mode);
+			    e_VgaWrite(AR1.pu, DR1.d, mode);
 			AR1.pu += df;
 			if (!(mode&MBYTE)) {
 			    AR1.pu += df;
@@ -2581,7 +2581,7 @@ void Gen_sim(int op, int mode, ...)
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
 		if (vga_read_access(AR1.d)) while (i && (z==k)) {
-		    DR2.d = e_VgaRead(AR1.d, mode);
+		    DR2.d = e_VgaRead(AR1.pu, mode);
 		    if (mode&MBYTE) {
 			RFL.RES.d = (S1=DR1.b.bl) - (S2=DR2.b.bl);
 			FlagHandleSub(S1, S2, RFL.RES.d, 8);
@@ -2640,7 +2640,7 @@ void Gen_sim(int op, int mode, ...)
 		if (vga_read_access(AR1.d) || vga_read_access(AR2.d))
 		while (i && (z==k)) {
 		    if (vga_read_access(AR1.d))
-			DR1.d = e_VgaRead(AR1.d, mode);
+			DR1.d = e_VgaRead(AR1.pu, mode);
 		    else if (mode&MBYTE)
 			DR1.b.bl = *AR1.pu;
 		    else if (mode&DATA16)
@@ -2648,7 +2648,7 @@ void Gen_sim(int op, int mode, ...)
 		    else
 			DR1.d = *AR1.pdu;
 		    if (vga_read_access(AR2.d))
-			DR2.d = e_VgaRead(AR2.d, mode);
+			DR2.d = e_VgaRead(AR2.pu, mode);
 		    else if (mode&MBYTE)
 			DR2.b.bl = *AR2.pu;
 		    else if (mode&DATA16)

@@ -348,26 +348,16 @@ int find_drive (char **plinux_path_resolved)
 }
 
 static int pty_fd;
-static int pty_tid;
-static int unx_tid = COOPTH_TID_INVALID;
 static int pty_done;
 static int cbrk;
 
-static void pty_thr(void *arg)
+static void pty_thr(void)
 {
     char buf[128];
     fd_set rfds;
     struct timeval tv;
     int retval, rd, wr;
     while (1) {
-	if (pty_done) {
-	    if (unx_tid != COOPTH_TID_INVALID) {
-		coopth_wake_up(unx_tid);
-		unx_tid = COOPTH_TID_INVALID;
-	    }
-	    coopth_yield();
-	    continue;
-	}
 	rd = wr = 0;
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
@@ -392,25 +382,20 @@ static void pty_thr(void *arg)
 		pty_done++;
 		break;
 	    default:
-		coopth_attach();
 		com_doswritecon(buf, rd);
-		coopth_detach();
 		break;
 	    }
 	    break;
 	}
 	if (pty_done)
-	    continue;
+	    return;
 
-	coopth_attach();
 	wr = com_dosreadcon(buf, sizeof(buf));
-	coopth_detach();
 	if (wr > 0)
 	    write(pty_fd, buf, wr);
 
-	/* this is a detached thread, not allowed to do coopth_wait() */
 	if (!rd && !wr)
-	    coopth_yield();
+	    coopth_wait();
     }
 }
 
@@ -423,16 +408,11 @@ int dos2tty_init(void)
         return -1;
     }
     unlockpt(pty_fd);
-    pty_tid = coopth_create("dos2tty");
-    coopth_set_detached(pty_tid);
-    coopth_init_sleeping(pty_tid);
-    coopth_start(pty_tid, pty_thr, NULL);
     return 0;
 }
 
 void dos2tty_done(void)
 {
-    coopth_cancel(pty_tid);
     close(pty_fd);
 }
 
@@ -447,7 +427,7 @@ static int dos2tty_open(void)
     pts_fd = open(ptsname(pty_fd), O_RDWR);
     if (pts_fd == -1) {
 	error("pts open failed: %s\n", strerror(errno));
-	return err;
+	return -1;
     }
     return pts_fd;
 }
@@ -463,19 +443,13 @@ static void dos2tty_start(void)
     } while (rd > 0);
     pty_done = 0;
     /* must run with interrupts enabled to read keypresses */
-    assert(isset_IF());
-    coopth_wake_up(pty_tid);
+    _set_IF();
+    pty_thr();
 }
 
 static void dos2tty_stop(void)
 {
-    /* first we sleep to allow reader thread to finish */
-    unx_tid = coopth_get_tid();
-    _set_IF();
-    coopth_sleep();
     clear_IF();
-    /* then we put reader thread to sleep */
-    coopth_asleep(pty_tid);
     com_setcbreak(cbrk);
 }
 
@@ -492,6 +466,12 @@ int run_unix_command(char *buffer)
 #if 0
     dos2tty_init();
 #endif
+    /* open pts in parent to avoid reading it before child opens */
+    pts_fd = dos2tty_open();
+    if (pts_fd == -1) {
+	error("run_unix_command(): open pts failed %s\n", strerror(errno));
+	return -1;
+    }
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
@@ -503,13 +483,10 @@ int run_unix_command(char *buffer)
 	close(0);
 	close(1);
 	close(2);
-	pts_fd = dos2tty_open();
-	if (pts_fd != 0) {
-	    g_printf("run_unix_command(): open pts failed %s\n", strerror(errno));
-	    exit(EXIT_FAILURE);
-	}
-	dup(0);
-	dup(0);
+	dup(pts_fd);
+	dup(pts_fd);
+	dup(pts_fd);
+	close(pts_fd);
 
 	setenv("LC_ALL", "C", 1);	// disable i18n
 	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
@@ -517,13 +494,12 @@ int run_unix_command(char *buffer)
 	exit(retval);
 	break;
     }
+    close(pts_fd);
 
     assert(!isset_IF());
-    _set_IF();
     dos2tty_start();
     while ((retval = waitpid(pid, &status, WNOHANG)) == 0)
 	coopth_wait();
-    clear_IF();
     if (retval == -1)
 	error("waitpid: %s\n", strerror(errno));
     dos2tty_stop();

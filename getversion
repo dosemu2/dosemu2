@@ -8,12 +8,15 @@ if test "$1" = "-d"; then
   fi
 else
   if test -d .git; then
-    s=`git describe --match "dosemu2-[0-9]*" HEAD 2>/dev/null | sed -e 's/^dosemu2-//'`
+    s=`git describe --tags --match "dosemu2-[0-9]*" HEAD 2>/dev/null | sed -e 's/^dosemu2-//' -e 's/-.\+-/-/'`
     if [ -z "$s" ]; then
       s=`cat VERSION`
     fi
   else
-    s=`cat VERSION`
+    s=`./git-describe-remote.awk https://github.com/stsp/dosemu2.git | sed -e 's/^dosemu2-//'`
+    if [ -z "$s" ]; then
+      s=`cat VERSION`
+    fi
   fi
   echo $s
 fi

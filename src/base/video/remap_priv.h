@@ -8,6 +8,9 @@
 /*
  * print listing of generated code
  */
+#ifndef REMAP_PRIV_H
+#define REMAP_PRIV_H
+
 #undef	REMAP_CODE_DEBUG
 
 #undef	REMAP_RESIZE_DEBUG
@@ -28,46 +31,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 
-#define MODE_PSEUDO_8	(1 << 0)
-#define MODE_TRUE_1_LSB	(1 << 2)
-#define MODE_TRUE_1_MSB	(1 << 3)
-#define MODE_TRUE_8	(1 << 4)
-#define MODE_TRUE_15	(1 << 5)
-#define MODE_TRUE_16	(1 << 6)
-#define MODE_TRUE_24	(1 << 7)
-#define MODE_TRUE_32	(1 << 8)
-#define MODE_VGA_1	(1 << 9)
-#define MODE_VGA_2	(1 << 10)
-#define MODE_VGA_4	(1 << 11)
-#define MODE_VGA_X	(1 << 12)
-#define MODE_CGA_1	(1 << 13)
-#define MODE_CGA_2	(1 << 14)
-#define MODE_HERC	(1 << 15)
-#define MODE_UNSUP	(1 << 31)
-
 #define MODE_TRUE_COL	(MODE_TRUE_8 | MODE_TRUE_15 | MODE_TRUE_16 | MODE_TRUE_24 | MODE_TRUE_32)
 
-#define RFF_SCALE_ALL	(1 << 0)
-#define RFF_SCALE_1	(1 << 1)
-#define RFF_SCALE_2	(1 << 2)
-#define RFF_REMAP_RECT	(1 << 3)
-#define RFF_REMAP_LINES	(1 << 4)
-#define RFF_LIN_FILT	(1 << 5)
-#define RFF_BILIN_FILT	(1 << 6)
-#define RFF_OPT_PENTIUM	(1 << 7)
-
-#define ROS_SCALE_ALL		(1 << 0)
-#define ROS_SCALE_1		(1 << 1)
-#define ROS_SCALE_2		(1 << 2)
-#define ROS_MALLOC_FAIL		(1 << 3)
-#define ROS_REMAP_FUNC_OK	(1 << 4)
-#define ROS_REMAP_IGNORE	(1 << 5)
-
 #define REMAP_DESC(FL, SRC, DST, F, INI) {FL, SRC, DST, F, #F, INI, NULL}
-
-typedef struct RectArea {
-  int x, y, width, height;
-} RectArea;
 
 typedef struct {
   void (*exec)(void);
@@ -78,14 +44,6 @@ typedef struct {
 typedef struct {
   unsigned r, g, b;
 } RGBColor;
-
-typedef struct ColorSpaceDesc {
-  unsigned bits, bytes;
-  unsigned r_mask, g_mask, b_mask;
-  unsigned r_shift, g_shift, b_shift;
-  unsigned r_bits, g_bits, b_bits;
-  unsigned char *pixel_lut;
-} ColorSpaceDesc;
 
 struct RemapObjectStruct;
 
@@ -104,21 +62,26 @@ typedef struct RemapObjectStruct {
   void (*src_resize)(struct RemapObjectStruct *, int, int, int);
   void (*dst_resize)(struct RemapObjectStruct *, int, int, int);
   RectArea (*remap_rect)(struct RemapObjectStruct *, int, int, int, int);
-  RectArea (*remap_mem)(struct RemapObjectStruct *, int, int);
+  RectArea (*remap_rect_dst)(struct RemapObjectStruct *, int, int, int, int);
+  RectArea (*remap_mem)(struct RemapObjectStruct *, unsigned, int, int);
   int state;
   int src_mode, dst_mode;
-  ColorSpaceDesc *src_color_space, *dst_color_space;
+  int features;
+  const ColorSpaceDesc *dst_color_space;
   unsigned gamma;		/* 4 byte !! */
   unsigned char *gamma_lut;
-  unsigned char *src_image, *dst_image;
+  const unsigned char *src_image;
+  unsigned char *dst_image;
   unsigned char *src_tmp_line;
   unsigned src_width, src_height, src_scan_len;
   unsigned dst_width, dst_height, dst_scan_len;
   int src_x0, src_y0, src_x1, src_y1;
   int dst_x0, dst_y0, dst_x1, dst_y1;
   int src_offset, dst_offset;
+  int src_start, dst_start;
   int *bre_x, *bre_y;
   unsigned *true_color_lut;
+  int color_lut_size;
   unsigned *bit_lut;
   int supported_src_modes;
   void (*remap_func)(struct RemapObjectStruct *);
@@ -139,14 +102,8 @@ typedef struct RemapObjectStruct {
  */
 
 void set_remap_debug_msg(FILE *);
-
-RemapObject remap_init(int, int, int);
-void remap_done(RemapObject *);
-
-unsigned rgb_color_2int(ColorSpaceDesc *, unsigned, RGBColor);
-RGBColor int_2rgb_color(ColorSpaceDesc *, unsigned, unsigned);
-void color_space_complete(ColorSpaceDesc *);
-void adjust_gamma(RemapObject *, unsigned);
+unsigned rgb_color_2int(const ColorSpaceDesc *, unsigned, RGBColor);
+RGBColor int_2rgb_color(const ColorSpaceDesc *, unsigned, unsigned);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
 
 CodeObj code_init(void);
@@ -172,7 +129,6 @@ RemapFuncDesc *remap_opt(void);
 		RO_Struct ro_state
 		RO_Struct ro_src_mode
 		RO_Struct ro_src_mode
-		RO_Struct ro_src_color_space
 		RO_Struct ro_dst_color_space
 		RO_Struct ro_gamma
 		RO_Struct ro_gamma_lut
@@ -212,3 +168,4 @@ RemapFuncDesc *remap_opt(void);
 
 #endif /* __ASSEMBLER__ */
 
+#endif

@@ -122,129 +122,31 @@ void dosemu_mouse_init(void)
   mouse_client_init();
 }
 
-void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (d->move_buttons && d->accepts(m->udata))
-	d->move_buttons(lbutton, mbutton, rbutton, m->udata);
-  }
+#define AR(...) (__VA_ARGS__, m->udata)
+#define MOUSE_DO(n, DEF, ARGS) \
+void mouse_##n DEF \
+{ \
+  struct mouse_drv_wrp *m; \
+  for (m = mdrv; m; m = m->next) { \
+    struct mouse_drv *d; \
+    if (!m->initialized) \
+      continue; \
+    d = m->drv; \
+    if (d->n && d->accepts(m->udata)) \
+	d->n AR ARGS; \
+  } \
 }
-
-void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,
-	const char *id)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (strcmp(d->name, id) != 0)
-      continue;
-    /* not checking for .accpets */
-    if (d->move_buttons)
-	d->move_buttons(lbutton, mbutton, rbutton, m->udata);
-  }
-}
-
-void mouse_move_relative(int dx, int dy, int x_range, int y_range)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (d->move_relative && d->accepts(m->udata))
-	d->move_relative(dx, dy, x_range, y_range, m->udata);
-  }
-}
-
-void mouse_move_mickeys(int dx, int dy)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (d->move_mickeys && d->accepts(m->udata))
-	d->move_mickeys(dx, dy, m->udata);
-  }
-}
-
-void mouse_move_mickeys_id(int dx, int dy, const char *id)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (strcmp(d->name, id) != 0)
-      continue;
-    /* not checking for .accpets */
-    if (d->move_mickeys)
-	d->move_mickeys(dx, dy, m->udata);
-  }
-}
-
-void mouse_move_absolute(int x, int y, int x_range, int y_range)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (d->move_absolute && d->accepts(m->udata))
-	d->move_absolute(x, y, x_range, y_range, m->udata);
-  }
-}
-
-void mouse_drag_to_corner(int x_range, int y_range)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (d->drag_to_corner && d->accepts(m->udata))
-	d->drag_to_corner(x_range, y_range, m->udata);
-  }
-}
-
-void mouse_sync_coords(int x, int y, int x_range, int y_range)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (d->sync_coords && d->accepts(m->udata))
-	d->sync_coords(x, y, x_range, y_range, m->udata);
-  }
-}
-
-void mouse_enable_native_cursor(int flag)
-{
-  struct mouse_drv_wrp *m;
-  for (m = mdrv; m; m = m->next) {
-    struct mouse_drv *d;
-    if (!m->initialized)
-      continue;
-    d = m->drv;
-    if (d->enable_native_cursor && d->accepts(m->udata))
-	d->enable_native_cursor(flag, m->udata);
-  }
-}
+MOUSE_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
+	(lbutton, mbutton, rbutton))
+MOUSE_DO(move_relative, (int dx, int dy, int x_range, int y_range),
+	(dx, dy, x_range, y_range))
+MOUSE_DO(move_mickeys, (int dx, int dy), (dx, dy))
+MOUSE_DO(move_absolute, (int x, int y, int x_range, int y_range),
+	(x, y, x_range, y_range))
+MOUSE_DO(drag_to_corner, (int x_range, int y_range), (x_range, y_range))
+MOUSE_DO(sync_coords, (int x, int y, int x_range, int y_range),
+	(x, y, x_range, y_range))
+MOUSE_DO(enable_native_cursor, (int flag), (flag))
 
 int mousedrv_accepts(const char *id)
 {
@@ -261,3 +163,24 @@ int mousedrv_accepts(const char *id)
   }
   return 0;
 }
+
+#define DID(...) (__VA_ARGS__, const char *id)
+#define MOUSE_ID_DO(n, DEF, ARGS) \
+void mouse_##n##_id DID DEF \
+{ \
+  struct mouse_drv_wrp *m; \
+  for (m = mdrv; m; m = m->next) { \
+    struct mouse_drv *d; \
+    if (!m->initialized) \
+      continue; \
+    d = m->drv; \
+    if (strcmp(d->name, id) != 0) \
+      continue; \
+    /* not checking for .accpets */ \
+    if (d->n) \
+	d->n AR ARGS; \
+  } \
+}
+MOUSE_ID_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
+	(lbutton, mbutton, rbutton))
+MOUSE_ID_DO(move_mickeys, (int dx, int dy), (dx, dy))

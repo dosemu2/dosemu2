@@ -258,7 +258,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-
+#include <pthread.h>
 #include "cpu.h"		/* root@sjoerd: for context structure */
 #include "emu.h"
 #include "int.h"
@@ -297,6 +297,8 @@ static void vga_emu_setup_mode_table(void);
 
 static Bit32u rasterop(Bit32u value);
 static void vgaemu_reset_mapping(void);
+static pthread_mutex_t prot_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*
@@ -378,7 +380,9 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
       break;
 
     case SEQUENCER_DATA:		/* 0x3c5 */
+      pthread_mutex_lock(&mode_mtx);
       Seq_write_value(value);
+      pthread_mutex_unlock(&mode_mtx);
       break;
 
     case DAC_PEL_MASK:			/* 0x3c6 */
@@ -422,7 +426,9 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
       break;
 
     case CRTC_DATA:			/* 0x3d5 */
+      pthread_mutex_lock(&mode_mtx);
       if(!vga.config.mono_port) CRTC_write_value(value);
+      pthread_mutex_unlock(&mode_mtx);
       break;
 
     case COLOR_SELECT:			/* 0x3d9 */
@@ -746,10 +752,12 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
   if(MapMask) {
     // not optimal, but works better with update function -- sw
+    pthread_mutex_lock(&prot_mtx);
     vga.mem.dirty_map[vga_page] = 1;
     vga.mem.dirty_map[vga_page + 0x10] = 1;
     vga.mem.dirty_map[vga_page + 0x20] = 1;
     vga.mem.dirty_map[vga_page + 0x30] = 1;
+    pthread_mutex_unlock(&prot_mtx);
   }
 
 }
@@ -904,14 +912,15 @@ void vga_memsetw(unsigned dst, unsigned short val, size_t len)
 int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
 {
   int i, j;
-  unsigned page_fault, vga_page = 0, u, lin_addr;
+  dosaddr_t lin_addr;
+  unsigned page_fault, vga_page = 0, u;
 #if DEBUG_MAP >= 1
   unsigned char *cs_ip = SEG_ADR((unsigned char *), cs, ip);
   static char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
   unsigned access_type = (scp->err >> 1) & 1;
 #endif
-
-  page_fault = (lin_addr = (unsigned char *) scp->cr2 - mem_base) >> 12;
+  lin_addr = DOSADDR_REL(LINP(scp->cr2));
+  page_fault = lin_addr >> 12;
 
 #if DEBUG_MAP >= 4
   if(my_fault && lin_addr == 0xa0077) {
@@ -1009,18 +1018,16 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   }
 
   if(vga_page < vga.mem.pages) {
-    vga.mem.dirty_map[vga_page] = 1;
-#ifdef X86_EMULATOR
-    if (config.cpuemu>1 && !DPMIValidSelector(_cs)) {
-	error("VGAEmu: CPU emulation collision, should not be here\n");
-	leavedos(0x4945);
-    }
-#endif
     if(!vga.inst_emu) {
-      /* Normal: make the display page writeable after marking it dirty */
+      /* Normal: make the display page writeable then mark it dirty */
       vga_emu_adjust_protection(vga_page, page_fault);
+      /* mark page dirty after adjusting the protection, but it
+       * is still too early: render thread may clean it before
+       * the app manages to write the data. In this case we'll fault
+       * again... */
+      vgaemu_dirty_page(vga_page);
     }
-    else {
+    if(vga.inst_emu) {
 #if 1
       /* XXX Hack: dosemu touched the protected page of video mem, which is
        * a bug. However for the video modes that do not require instremu, we
@@ -1036,7 +1043,8 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
-        instr_emu(scp, pmode, 0);
+      instr_emu(scp, pmode, 0);
+      vgaemu_dirty_page(vga_page);
     }
   }
   return True;
@@ -1369,7 +1377,9 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
   for(u = 0; u < vmt->pages; u++) {
     /* page is writable by default */
+    pthread_mutex_lock(&prot_mtx);
     if(!vga.mem.dirty_map[vmt->first_page + u]) vga_emu_adjust_protection(vmt->first_page + u, 0);
+    pthread_mutex_unlock(&prot_mtx);
   }
 
   return 0;
@@ -1542,22 +1552,13 @@ int vga_emu_pre_init(void)
   memset(&vga, 0, sizeof vga);
 
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
+  vga.mode_class = -1;
   vga.config.video_off = 1;
   vga.config.standard = 1;
   vga.mem.plane_pages = 0x10;	/* 16 pages = 64k */
   vga.dac.bits = 6;
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
-
-  if (!Video->update_screen) {
-    vga_emu_setup_mode_table();
-    if (Video->update_cursor) {
-      vgaemu_register_ports();
-      MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
-      for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
-    }
-    return 0;
-  }
 
   open_mapping(MAPPING_VGAEMU);
 
@@ -1622,7 +1623,7 @@ int vga_emu_pre_init(void)
   vga.mem.bank = vga.mem.bank_pages = 0;
 
   if(vga.mem.lfb_base != NULL) {
-    unsigned int lfb_base = vga.mem.lfb_base - mem_base;
+    dosaddr_t lfb_base = DOSADDR_REL(vga.mem.lfb_base);
     vga.mem.lfb_base_page = lfb_base >> 12;
     memcheck_addtype('e', "VGAEMU LFB");
     register_hardware_ram('e', lfb_base, vga.mem.size);
@@ -1793,7 +1794,7 @@ static void print_prot_map()
  *
  */
 
-int vga_emu_update(vga_emu_update_type *veut)
+static int __vga_emu_update(vga_emu_update_type *veut)
 {
   int i, j;
   unsigned start_page, end_page;
@@ -1884,6 +1885,24 @@ int vga_emu_update(vga_emu_update_type *veut)
   return j - i;
 }
 
+int vga_emu_update(vga_emu_update_type *veut)
+{
+  int ret;
+  pthread_mutex_lock(&prot_mtx);
+  ret = __vga_emu_update(veut);
+  pthread_mutex_unlock(&prot_mtx);
+  return ret;
+}
+
+void vga_emu_update_lock(void)
+{
+  pthread_mutex_lock(&mode_mtx);
+}
+
+void vga_emu_update_unlock(void)
+{
+  pthread_mutex_unlock(&mode_mtx);
+}
 
 /*
  * DANG_BEGIN_FUNCTION vgaemu_switch_plane
@@ -2203,7 +2222,7 @@ vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
  *
  */
 
-int vga_emu_setmode(int mode, int width, int height)
+static int __vga_emu_setmode(int mode, int width, int height)
 {
   unsigned u = -1;
   int i;
@@ -2374,11 +2393,22 @@ int vga_emu_setmode(int mode, int width, int height)
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
 
+  if (Video->setmode)
+    Video->setmode(vmi->mode_class, width, height);
+
   vga_msg("vga_emu_setmode: mode initialized\n");
 
   return True;
 }
 
+int vga_emu_setmode(int mode, int width, int height)
+{
+  int ret;
+  pthread_mutex_lock(&mode_mtx);
+  ret = __vga_emu_setmode(mode, width, height);
+  pthread_mutex_unlock(&mode_mtx);
+  return ret;
+}
 
 int vgaemu_map_bank()
 {
@@ -2491,8 +2521,37 @@ int vga_emu_set_textsize(int width, int height)
 
 void dirty_all_video_pages()
 {
+  pthread_mutex_lock(&prot_mtx);
   if (vga.mem.dirty_map)
     memset(vga.mem.dirty_map, 1, vga.mem.pages);
+  pthread_mutex_unlock(&prot_mtx);
+}
+
+void vgaemu_dirty_page(int page)
+{
+  if (page >= vga.mem.pages) {
+    dosemu_error("vgaemu: page out of range, %i (%i)\n", page, vga.mem.pages);
+    return;
+  }
+  pthread_mutex_lock(&prot_mtx);
+  vga.mem.dirty_map[page] = 1;
+  pthread_mutex_unlock(&prot_mtx);
+}
+
+int vgaemu_is_dirty(void)
+{
+  int i, ret = 0;
+  pthread_mutex_lock(&prot_mtx);
+  if (vga.mem.dirty_map) {
+    for (i = 0; i < vga.mem.pages; i++) {
+      if (vga.mem.dirty_map[i]) {
+        ret = 1;
+        break;
+      }
+    }
+  }
+  pthread_mutex_unlock(&prot_mtx);
+  return ret;
 }
 
 /*
@@ -2538,7 +2597,7 @@ void dirty_all_vga_colors()
  *
  */
 
-int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
+int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg)
 {
   DAC_entry de;
   int i, j, k;
@@ -2563,7 +2622,7 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
         m = vga.dac.pel_mask;
         de.r &= m; de.g &= m; de.b &= m;
         if (upd_func)
-          upd_func(&de, i);
+          upd_func(&de, i, arg);
         j++;
         vga.dac.rgb[i].dirty = False;
         vga_deb_col("changed_vga_colors: color 0x%02x\n", i);
@@ -2603,7 +2662,7 @@ int changed_vga_colors(void (*upd_func)(DAC_entry *, int))
         m = vga.dac.pel_mask;
         de.r &= m; de.g &= m; de.b &= m;
         if (upd_func)
-          upd_func(&de, i);
+          upd_func(&de, i, arg);
         vga.dac.rgb[a].dirty = False;
         j++;
         vga_deb_col(

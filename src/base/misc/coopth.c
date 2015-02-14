@@ -84,8 +84,7 @@ struct coopth_state_t {
 struct coopth_per_thread_t {
     coroutine_t thread;
     struct coopth_state_t st;
-    int set_sleep;
-    int left;
+    int left:1;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     char *stack;
@@ -103,8 +102,7 @@ struct coopth_t {
     int len;
     int cur_thr;
     int max_thr;
-    int detached;
-    int set_sleep;
+    int detached:1;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     coopth_hndl_t post;
@@ -122,12 +120,12 @@ static int threads_total;
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
 
-static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+static void coopth_callf_chk(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
 
-#define COOP_STK_SIZE (65536*2)
+#define COOP_STK_SIZE (512 * 1024)
 
 void coopth_init(void)
 {
@@ -141,6 +139,7 @@ static void sw_SCHED(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     pth->st = ST(RUNNING);
 }
+#define sw_ATTACH sw_SCHED
 
 static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
@@ -177,10 +176,6 @@ static void sw_AWAKEN(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 static enum CoopthRet do_call(struct coopth_per_thread_t *pth)
 {
     enum CoopthRet ret;
-    if (pth->set_sleep) {
-	pth->set_sleep = 0;
-	return COOPTH_SLEEP;
-    }
     co_call(pth->thread);
     ret = pth->data.ret;
     if (ret == COOPTH_DONE && !pth->data.attached) {
@@ -193,11 +188,15 @@ static enum CoopthRet do_call(struct coopth_per_thread_t *pth)
 static enum CoopthRet do_run_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
-    enum CoopthRet ret;
-    ret = do_call(pth);
+    enum CoopthRet ret = do_call(pth);
     switch (ret) {
 #define DO_SWITCH(x) \
     case COOPTH_##x: \
+	pth->st = SW_ST(x); \
+	break
+#define DO_SWITCH2(x, c) \
+    case COOPTH_##x: \
+	c; \
 	pth->st = SW_ST(x); \
 	break
     DO_SWITCH(YIELD);
@@ -206,15 +205,13 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     DO_SWITCH(DETACH);
     DO_SWITCH(LEAVE);
     DO_SWITCH(DONE);
+    DO_SWITCH2(ATTACH, coopth_callf_chk(thr, pth));
 
     case COOPTH_SLEEP:
 	pth->st = ST(SLEEPING);
 	break;
     case COOPTH_DELETE:
 	do_del_thread(thr, pth);
-	break;
-    case COOPTH_ATTACH:
-	coopth_callf(thr, pth);
 	break;
     }
     return ret;
@@ -253,8 +250,7 @@ static void do_del_thread(struct coopth_t *thr,
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    if (!pth->data.attached)
-	return;
+    assert(pth->data.attached);
     threads_joinable--;
     REG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
@@ -265,8 +261,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 
 static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    if (pth->data.attached)
-	return;
+    assert(!pth->data.attached);
     if (thr->ctxh.pre)
 	thr->ctxh.pre(thr->tid);
     pth->ret_cs = REG(cs);
@@ -275,6 +270,14 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     LWORD(eip) = thr->hlt_off;
     threads_joinable++;
     pth->data.attached = 1;
+}
+
+static void coopth_callf_chk(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth)
+{
+    if (!thr->ctxh.pre)
+	dosemu_error("coopth: unsafe attach\n");
+    coopth_callf(thr, pth);
 }
 
 static struct coopth_per_thread_t *get_pth(struct coopth_t *thr, int idx)
@@ -360,6 +363,10 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	    if (thr->sleeph.pre)
 		thr->sleeph.pre(thr->tid);
 	}
+	/* normally we don't exit with RUNNING state any longer.
+	 * this was happening in prev implementations though, so
+	 * remove that assert if it ever hurts. */
+	assert(pth->st.state != COOPTHS_RUNNING);
 	break;
     }
     case COOPTHS_SLEEPING:
@@ -523,7 +530,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->set_sleep = thr->set_sleep;
     pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
     if (!pth->stack)
@@ -542,8 +548,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     threads_total++;
     if (!thr->detached)
 	coopth_callf(thr, pth);
-    else
-	thread_run(thr, pth);
     return 0;
 }
 
@@ -606,15 +610,6 @@ int coopth_unsafe_detach(int tid)
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
     pth->data.attached = 0;
-    return 0;
-}
-
-int coopth_init_sleeping(int tid)
-{
-    struct coopth_t *thr;
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    thr->set_sleep = 1;
     return 0;
 }
 
@@ -832,6 +827,17 @@ static void ensure_single(struct coopth_thrdata_t *thdata)
 	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
 }
 
+void coopth_attach_to_cur(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    assert(!pth->data.attached);
+    coopth_callf(thr, pth);
+}
+
 void coopth_attach(void)
 {
     struct coopth_thrdata_t *thdata;
@@ -895,23 +901,6 @@ void coopth_wake_up(int tid)
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     do_awake(pth);
-}
-
-void coopth_asleep(int tid)
-{
-    struct coopth_t *thr;
-    struct coopth_per_thread_t *pth;
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    /* only support detached threads: I don't see the need for
-     * "asynchronously" putting to sleep normal threads. */
-    assert(thr->detached);
-    pth = current_thr(thr);
-    assert(!pth->data.attached);
-    /* since we dont know the current state,
-     * we cant just change it to SLEEPING here
-     * the way we do in coopth_wake_up(). */
-    pth->set_sleep = 1;
 }
 
 static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)

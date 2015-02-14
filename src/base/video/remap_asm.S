@@ -24,7 +24,7 @@
 
 #ifdef __i386__
 
-#include "remap.h"
+#include "remap_priv.h"
 
 		.globl pent_8to16_test
 		.globl pent_8to16_1

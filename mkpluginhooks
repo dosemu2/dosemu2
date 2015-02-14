@@ -9,7 +9,7 @@ DESTDIR=src/$PLUG
 INC=$DESTDIR/include
 PREF=plugin_
 CONF=config
-CONFIGURE=configure
+CONFIGURE=configure.ac
 LIB=plugin_libdirs
 PINC=plugin_incdirs
 PCONF=plugin_configure
@@ -110,6 +110,10 @@ if [ "$PDIRS" != " " ]; then
     else
       enable=no
     fi
+    # Plugin configure directories
+    if [ -f $SRCDIR/$d/$CONFIGURE ]; then
+      echo -n " $DESTDIR/$d" >> $PCONF
+    fi
     if [ "$enable" = "yes" ]; then
       if [ "$1" = "" ]; then
         # Plugin library direcories
@@ -133,10 +137,6 @@ if [ "$PDIRS" != " " ]; then
               echo -n " $PLUG/$d/$i" >>$PINC
             fi
           done
-        fi
-        # Plugin configure directories
-        if [ -f $SRCDIR/$d/$CONFIGURE ]; then
-          echo -n " $DESTDIR/$d" >> $PCONF
         fi
         # Plugin special headers...
         for h in $HEADERS; do

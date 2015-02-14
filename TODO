@@ -1,8 +1,7 @@
 TODO items for the next release:
 
 - revisit COPYING.DOSEMU and solve its problems
-
-- merge "devel" branch
+    DONE
 
 - decide what to do with slirp and the respective branch
     DONE: added vde support.
@@ -19,5 +18,7 @@ TODO items for the next release:
 - look into bug 517 which discusses the regressions added by
   allowing non-fixed lowmem mappings, cpuemu updates, sound updates
   and the other recently added regressions
+    DONE
 
 - resurrect irqpassing on x86-64
+    Unlikely to happen before release

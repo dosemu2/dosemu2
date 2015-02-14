@@ -280,11 +280,13 @@ void low_mem_init(void)
       config.cpuemu = 3;
       init_emu_cpu();
       c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", vm86s.cpu_type);
-      fprintf(stderr, "Using CPU emulation because vm.mmap_min_addr > 0.\n");
-      if(dbg_fd)
-        fprintf(stderr, "For more information, see %s.\n", config.debugout);
+      error("Using CPU emulation because vm.mmap_min_addr > 0.\n"
+	      "You can most likely avoid this problem by running\n"
+	      "sysctl -w vm.mmap_min_addr=0\n"
+	      "as root, or by changing the vm.mmap_min_addr setting in\n"
+	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
     }
-#ifdef EXPERIMENTAL
+#if 1
     result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
 #else

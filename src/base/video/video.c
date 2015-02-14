@@ -56,10 +56,9 @@ static struct video_system Video_none = {
   v_empty_void,	/* close */
   NULL,		/* setmode */
   NULL,	        /* update_screen */
-  v_empty_void,	/* update_cursor */
   NULL,         /* change_config */
   NULL,         /* handle_events */
-  .name = "none"
+  "none"
 };
 
 static int no_real_terminal(void)
@@ -196,7 +195,8 @@ static int video_init(void)
   }
 
 #if defined(USE_DL_PLUGINS)
-  load_plugin("console");
+  if (!config.X)
+    load_plugin("console");
 #endif
   /* figure out which video front end we are to use */
   if (no_real_terminal() || config.cardtype == CARD_NONE) {
@@ -242,13 +242,6 @@ static int video_init(void)
       Video->priv_init();          /* call the specific init routine */
 
   if (Video->update_screen) {
-     /* allocate screen buffer for non-console video compare speedup */
-     prev_screen = (ushort *)malloc(MAX_COLUMNS * MAX_LINES * sizeof(ushort));
-     if (prev_screen==NULL) {
-        error("could not malloc prev_screen\n");
-        leavedos(99);
-     }
-     v_printf("SCREEN saves at: %p of %zu size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 /*
  * DANG_BEGIN_REMARK
  * Here the sleeping lion will be awoken and eat much of CPU time !!!

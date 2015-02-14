@@ -1,0 +1,57 @@
+#
+# spec file for package Dosemu2
+#
+# Written by Mateusz Viste for the DOSEMU2 project.
+#
+
+Name: dosemu2
+Version: @PACKAGE_VERSION@
+Release: 1%{?dist}
+Summary: The DOS emulator for Linux
+
+Group: System/Emulator
+
+License: GPL-2.0+
+URL: www.dosemu.org
+Source0: %{name}-%{version}.tar.gz
+
+BuildRequires: SDL2-devel
+BuildRequires: bison
+BuildRequires: flex
+BuildRequires: autoconf
+BuildRequires: automake
+BuildRequires: bdftopcf
+BuildRequires: mkfontdir
+BuildRequires: slang-devel
+
+%description
+DOSEMU stands for DOS Emulation, and allows you to run DOS and many DOS programs, including many DPMI applications such as DOOM and Windows 3.1, under Linux.
+
+%prep
+%setup
+
+%build
+./autogen.sh
+%configure --sysconfdir=%{_sysconfdir}/dosemu --with-docdir=%{_docdir}/dosemu
+make clean
+make
+
+%check
+
+%install
+make DESTDIR=%{buildroot} sysconfdir=%{_sysconfdir}/dosemu install
+
+%files
+%defattr(-,root,root)
+%{_bindir}/*
+%{_mandir}/man1/*
+%lang(ru) %dir %{_mandir}/ru
+%lang(ru) %dir %{_mandir}/ru/man1
+%lang(ru) %{_mandir}/ru/man1/*
+%{_libdir}/dosemu
+%{_datadir}/dosemu
+%doc %{_docdir}/dosemu
+%dir %{_sysconfdir}/dosemu
+%config %{_sysconfdir}/dosemu/dosemu.conf
+
+%changelog

@@ -180,7 +180,6 @@ extern void int74(void);
 extern int DOSEMUMouseEvents(int);
 int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type);
 
-extern void do_mouse_irq(void);
 extern void mouse_io_callback(void *);
 
 struct mouse_drv {

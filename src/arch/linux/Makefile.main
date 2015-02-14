@@ -27,25 +27,27 @@ endif
 
 REQUIRED += $(MIDID)
 
-LIBSUBDIRS=env/video base base/async \
+_LIBSUBDIRS=base/video base base/async \
 	arch/linux/async arch/linux/mapping \
 	base/misc base/misc/libpcl base/dev/misc\
-	emu-i386 $(XCPUEMU) env base/speaker \
+	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/mouse\
 	base/dev/dma \
-	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios \
-	$(PLUGINSUBDIRS)
+	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
+
+LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
+ST_LIBSUBDIRS=$(_LIBSUBDIRS) $(ST_PLUGINSUBDIRS)
 
 
 # call all libraries the name of the directory
-LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(LIBSUBDIRS))}}
+LIBS_ := ${addsuffix .a,${addprefix lib/lib,$(subst /,_,$(ST_LIBSUBDIRS))}}
 
 DOCS= ../man
 
 ###################################################################
 
-default: version include/version.h include/confpath.h ../dosemu.spec doslib \
+default: version include/version.h include/confpath.h ../dosemu2.spec doslib \
 	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
 
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
@@ -107,7 +109,7 @@ docsubdirs:	$(DOCS)
 $(DIRLIST):
 	@($(MAKE) SUBDIR:=$@ -C $@)
 
-version:	versetup
+version: versetup
 
 versetup:
 	@mkdir -p lib
@@ -118,20 +120,15 @@ versetup:
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
 
-.PHONY: include/version.h
-include/version.h:
-	@if ! test -f include/version.h || test \"$(PACKAGE_VERSION)\" != \
-	      `echo VERSTR | $(CC) -E -include include/version.h - | tail -n 1`; \
-	      then \
-	  echo "Updating version.h"; \
-	  echo "#ifndef	VERSION_H" > $@; \
-	  echo "#define	VERSION_H" >> $@; \
-	  echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
-	  echo "#define	VERSION	$(VERSION)" >> $@; \
-	  echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
-	  echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
-	  echo "#endif /* VERSION_H */" >> $@; \
-	fi
+include/version.h: ../Makefile.conf
+	echo "Updating version.h"; \
+	echo "#ifndef	VERSION_H" > $@; \
+	echo "#define	VERSION_H" >> $@; \
+	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
+	echo "#define	VERSION	$(VERSION)" >> $@; \
+	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
+	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
+	echo "#endif /* VERSION_H */" >> $@; \
 
 include/confpath.h: ../Makefile.conf
 	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@
@@ -140,7 +137,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
-../dosemu.spec: ../dosemu.spec.in
+../dosemu2.spec: ../dosemu2.spec.in
 	sed -e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
@@ -197,8 +194,6 @@ install:
 	ln -sf drive_z/dosemu $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.users.example $(DESTDIR)$(sysconfdir)/dosemu.users; \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/global.conf $(DESTDIR)$(sysconfdir); \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/keymap
 	for i in $(REALTOPDIR)/etc/keymap/*; do \
@@ -314,13 +309,12 @@ newhd:  tools/periph/bootsect
 	@echo "You now have a hdimage file called 'newhd'"
 
 local_clean:
-	-rm -f $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/xdos \
-	  $(BINPATH)/bin/dos $(BINPATH)/bin/*.so *.s core \
-	  *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug
+	rm -f ../bin ../commands
 
 clean:: local_clean
 
-realclean::   local_clean
+realclean:: local_clean
+	rm -rf $(BINPATH)
 
 CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
 REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))

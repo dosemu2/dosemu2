@@ -91,7 +91,7 @@ void *dosaddr_to_unixaddr(unsigned int addr)
 {
   if (addr < LOWMEM_SIZE + HMASIZE)
     return aliasmap[addr >> PAGE_SHIFT] + (addr & (PAGE_SIZE - 1));
-  return &mem_base[addr];
+  return MEM_BASE32(addr);
 }
 
 void *physaddr_to_unixaddr(unsigned int addr)
@@ -188,21 +188,23 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 
 void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
 {
-  void *target = &mem_base[targ], *addr;
+  void *target = NULL, *addr;
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
-  if (targ != -1)
+  if (targ != -1) {
+    target = MEM_BASE32(targ);
     cap |= MAPPING_FIXED;
-  if (cap & MAPPING_COPYBACK) {
-    if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-      memcpy(source, target, mapsize);
-    } else {
-      error("COPYBACK is not supported for mapping type %#x\n", cap);
-      return MAP_FAILED;
+    if (cap & MAPPING_COPYBACK) {
+      if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
+        memcpy(source, target, mapsize);
+      } else {
+        error("COPYBACK is not supported for mapping type %#x\n", cap);
+        return MAP_FAILED;
+      }
     }
+    kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
   }
-  kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
 #ifdef __x86_64__
   /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
   if (!(cap & MAPPING_FIXED) && (cap &
@@ -504,7 +506,7 @@ void map_hardware_ram(void)
     if (hw->base < LOWMEM_SIZE)
       hw->vbase = hw->base;
     alloc_mapping(cap, hw->size, hw->base);
-    p = hw->vbase == -1 ? (void *)-1 : &mem_base[hw->vbase];
+    p = hw->vbase == -1 ? (void *)-1 : MEM_BASE32(hw->vbase);
     p = mmap_mapping(cap, p, hw->size, PROT_READ | PROT_WRITE,
 		     hw->base);
     if (p == MAP_FAILED) {

@@ -874,7 +874,7 @@ void aspi_helper(int mode)
    srb = MK_FP32(arg_s, arg_o);
 
    srb->common.SRB_Status = 255;
-   ret = SendASPICommand16((FARPTR16)((unsigned char *)srb - mem_base));
+   ret = SendASPICommand16((FARPTR16)DOSADDR_REL((unsigned char *)srb));
    if ( srb->common.SRB_Status == 255 )
      srb->common.SRB_Status = ret; /* set status from return code */
 

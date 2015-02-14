@@ -10,14 +10,21 @@
 struct render_system
 {
   void (*refresh_rect)(int x, int y, unsigned width, unsigned height);
+  struct bitmap_desc (*lock)(void);
+  void (*unlock)(void);
 };
 
 int register_render_system(struct render_system *render_system);
-int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
-		  int have_true_color, int have_shmap);
+enum { REMAP_DOSEMU, REMAP_PIXMAN };
+int register_remapper(struct remap_calls *calls, int prio);
+int remapper_init(int have_true_color, int have_shmap, int features,
+	ColorSpaceDesc *csd);
 void remapper_done(void);
-void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
-			 vga_emu_update_type *veut);
-int update_screen(vga_emu_update_type *veut);
-void render_init(uint8_t *img, ColorSpaceDesc *csd, int width, int height,
-	int scan_len);
+void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res);
+int update_screen(void);
+void color_space_complete(ColorSpaceDesc *color_space);
+void render_blit(int x, int y, int width, int height);
+int render_is_updating(void);
+void redraw_text_screen(void);
+void render_gain_focus(void);
+void render_lose_focus(void);

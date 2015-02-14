@@ -432,7 +432,7 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
 	return -1;
     }
     post_msdos();
-    f = get_fat_fs_by_serial(READ_DWORDP(&di->serial));
+    f = get_fat_fs_by_serial(READ_DWORDP((unsigned char *)&di->serial));
     lowmem_free((void *)di, sizeof(struct DINFO));
     if (!f || !(dir = f->dir)) {
 	printf("error identifying FAT volume\n");

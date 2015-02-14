@@ -29,5 +29,4 @@ include $(REALTOPDIR)/src/Makefile.common
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_X.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
-	$(AR) crs $(LIB)
 endif

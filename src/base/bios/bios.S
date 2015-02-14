@@ -901,6 +901,23 @@ INT08_L2:
 	.globl  INT08_dummy_end
 INT08_dummy_end:
 
+/* ----------------------------------------------------------------- */   
+	.org  ((INT71_SEG-BIOSSEG) << 4)+INT71_OFF
+
+	.globl  INT71_dummy_start
+/* ======================= Addr = F800:7EE7 (FFEE7) */
+INT71_dummy_start:   /* PC/AT IRQ9->IRQ2 REVECTOR ROUTINE  */
+	push %ax
+	/* EOI to PIC2 */
+	movb $0x20, %al
+	outb %al, $0xa0
+	pop %ax
+	/* Then invoke IRQ2 */
+	int $0x0a
+	iret        /* return to interrupted code */
+	.globl  INT71_dummy_end
+INT71_dummy_end:
+
 /* COMPAS FFEF3		vector table for INT08-INT1F */
 /* COMPAS FFF23		vector table for INT70-INT77 */
 /* COMPAS FFF33-FFF53	reserved */

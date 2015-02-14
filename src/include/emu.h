@@ -12,6 +12,8 @@
 #include <sys/ioctl.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "types.h"
 #include "extern.h"
@@ -57,7 +59,7 @@ EXTERN union vm86plus_union vm86u INIT ( {{
 #define vm86s (vm86u.vm86ps)
 
 int signal_pending(void);
-EXTERN volatile int fault_cnt INIT(0);
+EXTERN volatile __thread int fault_cnt INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
 EXTERN int running_kversion INIT(0);
@@ -200,6 +202,7 @@ typedef struct vesamode_type_struct {
        int     X_lfb;			/* support VESA LFB modes */
        int     X_pm_interface;		/* support protected mode interface */
        int     X_background_pause;	/* pause xdosemu if it loses focus */
+       boolean sdl_nogl;		/* Don't accelerate SDL with OpenGL */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
@@ -384,6 +387,7 @@ EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void __leavedos(int sig, const char *s, int num);
 #define leavedos(n) __leavedos(n, __func__, __LINE__)
+EXTERN void leavedos_from_sig(int sig);
 EXTERN void add_to_io_select(int, void(*)(void *), void *);
 EXTERN void remove_from_io_select(int);
 #ifdef __linux__
@@ -398,6 +402,7 @@ EXTERN void SIG_close(void);
 extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
 	const char *name );
 extern void handle_signals(void);
+extern void do_periodic_stuff(void);
 extern void sig_ctx_prepare(int tid);
 extern void sig_ctx_restore(int tid);
 
@@ -479,5 +484,12 @@ EXTERN void HMA_MAP(int HMA);
 EXTERN void hardware_run(void);
 
 extern char *Path_cdrom[];
+
+static inline pid_t gettid(void)
+{
+  return syscall(SYS_gettid);
+}
+
+EXTERN pid_t dosemu_tid;
 
 #endif /* EMU_H */

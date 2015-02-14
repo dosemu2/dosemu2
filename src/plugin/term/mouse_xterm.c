@@ -67,8 +67,6 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 		}
 		*kbcount -= 3;	/* update count */
 		*kbp += 3;
-
-		do_mouse_irq();
 	}
 }
 

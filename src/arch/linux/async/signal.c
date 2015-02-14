@@ -31,6 +31,7 @@
 #include "iodev.h"
 #include "serial.h"
 #include "debug.h"
+#include "mhpdbg.h"
 #include "utilities.h"
 #include "userhook.h"
 #include "dosemu_config.h"
@@ -406,6 +407,22 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
   dpmi_iret_setup(scp);
 }
 
+void leavedos_from_sig(int sig)
+{
+  dbug_printf("Terminating on signal %i\n", sig);
+  if (ld_sig) {
+    error("leavedos re-entered, exiting\n");
+    _exit(3);
+  }
+  ld_sig = sig;
+  SIGNAL_save(leavedos_call, &sig, sizeof(sig), __func__);
+  /* abort current sighandlers */
+  if (in_handle_signals) {
+    g_printf("Interrupting active signal handlers\n");
+    in_handle_signals = 0;
+  }
+}
+
 __attribute__((no_instrument_function))
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
@@ -416,15 +433,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
     _exit(sig);
   }
-  dbug_printf("Terminating on signal %i\n", sig);
-  ld_sig = sig;
-  SIGNAL_save(leavedos_call, &sig, sizeof(sig), __func__);
-  /* abort current sighandlers */
-  if (in_handle_signals) {
-    g_printf("Interrupting active signal handlers\n");
-    in_handle_signals = 0;
-  }
-  /* process it now */
+  leavedos_from_sig(sig);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
   dpmi_iret_setup(scp);
@@ -652,7 +661,11 @@ signal_pre_init(void)
 void
 signal_init(void)
 {
+  dosemu_tid = gettid();
   sh_tid = coopth_create("signal handling");
+  /* normally we don't need ctx handlers because the thread is detached.
+   * But some crazy code (vbe.c) can call coopth_attach() on it, so we
+   * set up the handlers just in case. */
   coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
 	handle_signals_force_leave);
@@ -782,9 +795,6 @@ static void SIGALRM_call(void *arg)
     *
     * note that update_screen also updates the cursor.
     */
-  if (Video->update_screen && config.X_blinkrate) {
-     blink_cursor();
-  }
   if (!running) {
     if (Video->update_screen
 #if VIDEO_CHECK_DIRTY
@@ -803,10 +813,6 @@ static void SIGALRM_call(void *arg)
        update_pending=(retval==2);
        vm86s.screen_bitmap=0;
 #endif
-    }
-    else if (Video->update_cursor) {
-       v_printf("update cursor\n");
-       Video->update_cursor();
     }
   }
   else if (running > 0) {
@@ -993,4 +999,20 @@ static void sigquit(struct sigcontext_struct *scp)
   WRITE_BYTE(BIOS_KEYBOARD_FLAGS, 0x80);	/* ctrl-break flag */
 
   do_soft_int(0x1b);
+}
+
+void do_periodic_stuff(void)
+{
+    if (in_crit_section)
+	return;
+
+    handle_signals();
+    coopth_run();
+
+#ifdef USE_MHPDBG
+    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
+#endif
+
+    if (Video->change_config)
+	update_xtitle();
 }

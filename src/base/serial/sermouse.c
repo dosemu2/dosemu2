@@ -15,9 +15,9 @@
  */
 
 /*
- * Serial mouse, with some help from gpm code
+ * Serial mouse
  *
- * Author: Stas Sergeev
+ * Author: Stas Sergeev, with some help from gpm code
  */
 #include <string.h>
 #include "emu.h"

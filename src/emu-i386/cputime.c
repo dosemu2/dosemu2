@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/eventfd.h>
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
@@ -79,6 +80,7 @@
  */
 
 static hitimer_t (*RAWcpuTIME)(void);
+static void async_awake(void *arg);
 
 hitimer_u ZeroTimeBase = { 0 };
 static hitimer_u ZeroTSCBase = { 0 };
@@ -89,6 +91,8 @@ int cpu_time_stop = 0;
 static int freeze_tid;
 static hitimer_t cached_time;
 static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
+static int event_fd;
 
 static hitimer_t do_gettime(void)
 {
@@ -220,6 +224,9 @@ void get_time_init (void)
     GETcpuTIME = getC4time;		/* in usecs */
     g_printf("TIMER: using clock_gettime(CLOCK_MONOTONIC)\n");
   }
+
+  event_fd = eventfd(0, EFD_CLOEXEC | EFD_SEMAPHORE);
+  add_to_io_select(event_fd, async_awake, NULL);
 }
 
 void cputime_late_init(void)
@@ -374,20 +381,39 @@ static int trigger1 = 0;
 void reset_idle(int val)
 {
   val *= config.hogthreshold;
+  pthread_mutex_lock(&trigger_mtx);
   if (-val < trigger1)
     trigger1 = -val;
+  pthread_mutex_unlock(&trigger_mtx);
+}
+
+void reset_idle_mt(int val)
+{
+  reset_idle(val);
+  eventfd_write(event_fd, 1);
+}
+
+static void async_awake(void *arg)
+{
+  eventfd_t val;
+  eventfd_read(event_fd, &val);
+  /* TODO: user-specified cross-thread callback */
 }
 
 void alarm_idle(void)
 {
+  pthread_mutex_lock(&trigger_mtx);
   if (trigger1 < 0)
     trigger1++;
+  pthread_mutex_unlock(&trigger_mtx);
 }
 
 void trigger_idle(void)
 {
+  pthread_mutex_lock(&trigger_mtx);
   if (trigger1 >= 0)
     trigger1++;
+  pthread_mutex_unlock(&trigger_mtx);
 }
 
 void dosemu_sleep(void)
@@ -407,21 +433,26 @@ void dosemu_sleep(void)
 int idle(int threshold1, int threshold, int threshold2, const char *who)
 {
   static int trigger = 0;
+  int ret = 0;
   if (config.hogthreshold && CAN_SLEEP()) {
+    pthread_mutex_lock(&trigger_mtx);
     if(trigger1 >= config.hogthreshold * threshold1) {
       if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
 	if (debug_level('g') > 5)
 	    g_printf("sleep requested by %s\n", who);
+	pthread_mutex_unlock(&trigger_mtx);
         _set_IF();
 	coopth_wait();
 	clear_IF();
+	pthread_mutex_lock(&trigger_mtx);
 	trigger = 0;
       }
       if (trigger1 > 0)
 	trigger1--;
       if (trigger == 0)
-	return 1;
+	ret = 1;
     }
+    pthread_mutex_unlock(&trigger_mtx);
   }
-  return 0;
+  return ret;
 }

@@ -107,7 +107,7 @@ if [ -f $BPATH_FILE ]; then
   test -z "$INSTALL" && INSTALL="-i"
 fi
 
-get_binary
+get_binary $0
 
 unset XFLAG
 if [ "`basename $ARG0`" = "xdosemu" ]; then

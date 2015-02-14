@@ -35,6 +35,17 @@ static unsigned long text_colors[16];
 static GC text_gc;
 static int text_cmap_colors;
 
+static void X_text_lock(void)
+{
+  XLockDisplay(text_display);
+}
+
+static void X_text_unlock(void)
+{
+  XFlush(text_display);
+  XUnlockDisplay(text_display);
+}
+
 /*
  * Change color values in our graphics context 'gc'.
  */
@@ -209,6 +220,8 @@ static struct text_system Text_X =
    X_draw_line,
    X_draw_text_cursor,
    X_set_text_palette,
+   X_text_lock,
+   X_text_unlock,
 };
 
 /* Runs xset to load X fonts */
@@ -240,7 +253,7 @@ static int run_xset(const char *path)
  * vga, then 9x15 and finally fixed. If none of these exists and
  * is monospaced, give up (shouldn't happen).
  */
-void X_load_text_font(Display *dpy, int private_dpy, Window w,
+int X_load_text_font(Display *dpy, int private_dpy, Window w,
 		      const char *p, int *width, int *height)
 {
   XFontStruct *xfont;
@@ -283,7 +296,7 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
       "remote X. You need to install the %s font on your _local_ Xserver.\n"
       "Look at the readme for details. For now we start with the bitmapped\n"
       "built-in font instead, which may be slower.\n",
-      ((memcmp(p, "vga", 3) == 0) ? "DOSEMU" : ""), p, p);
+      ((strncmp(p, "vga", 3) == 0) ? "DOSEMU" : ""), p, p);
     } else if (xfont->min_bounds.width != xfont->max_bounds.width) {
       error("X: Font \"%s\" isn't monospaced, using builtin\n", p);
       XFreeFont(text_display, xfont);
@@ -304,20 +317,17 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
   }
 
   font = xfont;
-  use_bitmap_font = (font == NULL);
-  dirty_all_vga_colors();
-  if (use_bitmap_font) {
-    if (p == NULL) {
-      if (private_dpy && text_display)
-	XCloseDisplay(text_display);
-      return;
-    }
+  if (!font) {
     X_printf("X: X_change_config: font \"%s\" not found, "
 	     "using builtin\n", p);
     X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
     X_printf("X: EGA/VGA font size is %d x %d\n",
 	     vga.char_width, vga.char_height);
-    return;
+    if (width)
+      *width = vga.char_width;
+    if (height)
+      *height = vga.char_height;
+    return 0;
   }
 
   depth = DefaultDepth(text_display, DefaultScreen(text_display));
@@ -348,6 +358,14 @@ void X_load_text_font(Display *dpy, int private_dpy, Window w,
     XGetWindowAttributes(dpy, w, &xwa);
     XSelectInput(dpy, w, xwa.your_event_mask & ~ExposureMask);
   }
+
+  return 1;
+}
+
+void X_close_text_display(void)
+{
+  if (text_display)
+    XCloseDisplay(text_display);
 }
 
 /*

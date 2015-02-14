@@ -59,7 +59,7 @@ static time_t win_to_unix_time(unsigned long long wt)
 */
 static char *handle_to_filename(int handle, int *fd)
 {
-	struct PSP *p = MK_FP32(READ_WORDP(&sda_cur_psp(sda)), 0);
+	struct PSP *p = MK_FP32(READ_WORDP((unsigned char *)&sda_cur_psp(sda)), 0);
 	unsigned int filetab;
 	unsigned int sp;
 	unsigned char *sft;
@@ -73,10 +73,10 @@ static char *handle_to_filename(int handle, int *fd)
 
 	/* Look up the handle via the PSP */
 	*fd = HANDLE_INVALID;
-	if (handle >= READ_WORDP(&p->max_open_files))
+	if (handle >= READ_WORDP((unsigned char *)&p->max_open_files))
 		return NULL;
 
-	filetab = rFAR_PTR(unsigned int, READ_DWORDP(&p->file_handles_ptr));
+	filetab = rFAR_PTR(unsigned int, READ_DWORDP((unsigned char *)&p->file_handles_ptr));
 	idx = READ_BYTE(filetab + handle);
 	if (idx == 0xff)
 		return NULL;
@@ -86,21 +86,21 @@ static char *handle_to_filename(int handle, int *fd)
 	sft = NULL;
 	while (sp != 0xffffffff) {
 		spp = LINEAR2UNIX(rFAR_PTR(unsigned int, sp));
-		if (idx < READ_WORDP(&spp->sftt_count)) {
+		if (idx < READ_WORDP((unsigned char *)&spp->sftt_count)) {
 			/* finally, point to the right entry            */
 			sft = &spp->sftt_table[idx * sft_size];
 			break;
 		}
-		idx -= READ_WORDP(&spp->sftt_count);
-		sp = READ_DWORDP(&spp->sftt_next);
+		idx -= READ_WORDP((unsigned char *)&spp->sftt_count);
+		sp = READ_DWORDP((unsigned char *)&spp->sftt_next);
 	}
 	if (sp == 0xffffffff)
 		return NULL;
 
 	/* do we "own" the drive? */
 	*fd = 0;
-	dd = READ_WORDP(&sft_device_info(sft)) & 0x0d1f;
-	if (dd == 0 && (READ_WORDP(&sft_device_info(sft)) & 0x8000))
+	dd = READ_WORDP((unsigned char *)&sft_device_info(sft)) & 0x0d1f;
+	if (dd == 0 && (READ_WORDP((unsigned char *)&sft_device_info(sft)) & 0x8000))
 		dd = MAX_DRIVE - 1;
 	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
 		return NULL;
@@ -550,7 +550,7 @@ static inline int build_ufs_path(char *ufs, const char *path, int drive)
 static int lfn_error(int errorcode)
 {
 	_AX = errorcode;
-	WRITE_WORDP(&sda_error_code(sda), errorcode);
+	WRITE_WORDP((unsigned char *)&sda_error_code(sda), errorcode);
 	CARRY;
 	return 1;
 }

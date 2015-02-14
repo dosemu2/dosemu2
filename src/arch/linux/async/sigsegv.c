@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "emu.h"
+#include "utilities.h"
 #include "int.h"
 
 #include "video.h"
@@ -57,7 +58,7 @@ void print_exception_info(struct sigcontext_struct *scp);
  */
 
 __attribute__((no_instrument_function))
-int dosemu_fault1(
+static int dosemu_fault1(
 #ifdef __linux__
 int signal, struct sigcontext_struct *scp
 #endif /* __linux__ */
@@ -72,8 +73,8 @@ int signal, struct sigcontext_struct *scp
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
       signal, _trapno);
     if (!in_vm86 && !DPMIValidSelector(_cs)) {
-      /* TODO - we can start gdb here */
-      /* start_gdb() */
+      gdb_debug();
+      _exit(43);
     } else {
       error("BUG: Fault handler re-entered not within dosemu code! in_vm86=%i\n",
         in_vm86);
@@ -191,11 +192,11 @@ sgleave:
 		}
 #endif
 
- 		 show_regs(__FILE__, __LINE__);
+		 show_regs(__FILE__, __LINE__);
 		 if (debug_level('n'))		/* XXX */
 		     abort();
 		 flush_log();
- 		 leavedos(4);
+		 leavedos_from_sig(4);
     }
   }
 #define VGA_ACCESS_HACK 1
@@ -371,16 +372,33 @@ bad:
     show_regs(__FILE__, __LINE__);
 
     fatalerr = 4;
-    leavedos(fatalerr);		/* shouldn't return */
+    exit(fatalerr);		/* shouldn't return */
     return 0;
     }
   }
+}
+
+int _dosemu_fault(int signal, struct sigcontext_struct *scp)
+{
+  int ret;
+  fault_cnt++;
+  ret = dosemu_fault1(signal, scp);
+  fault_cnt--;
+  return ret;
 }
 
 __attribute__((no_instrument_function))
 static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 {
   int retcode;
+  pid_t tid;
+
+  /* need to call init_handler() before any syscall.
+   * Additionally, because fault_cnt is per-thread, it also can
+   * be accessed only after init_handler() so that the segment
+   * register for TLS is restored. */
+  init_handler(scp);
+
   fault_cnt++;
   if (fault_cnt > 2) {
    /*
@@ -391,7 +409,12 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     _exit(255);
   }
 
-  init_handler(scp);
+  tid = gettid();
+  if (tid != dosemu_tid) {
+    dosemu_error("thread %i got signal %i\n", tid, signal);
+    _exit(23);
+    return;
+  }
 
   if (kernel_version_code < 0x20600+14) {
     sigset_t set;
@@ -435,13 +458,13 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
       signal, _trapno);
 
   retcode = dosemu_fault1 (signal, scp);
+  fault_cnt--;
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
   if(retcode)
     _eax = retcode;
   dpmi_iret_setup(scp);
-  fault_cnt--;
 }
 
 #ifdef __linux__

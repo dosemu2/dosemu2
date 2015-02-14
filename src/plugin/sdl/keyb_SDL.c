@@ -9,13 +9,40 @@
 #include <SDL.h>
 #include <langinfo.h>
 #include <string.h>
+#ifdef X_SUPPORT
+#include <X11/Xlib.h>
+#include <dlfcn.h>
+#endif
 
 #include "emu.h"
 #include "keyb_clients.h"
 #include "keyboard.h"
 #include "keysym_attributes.h"
+#ifdef X_SUPPORT
+#include "keyb_X.h"
+#include "keynum.h"
+#include "sdl2-keymap.h"
+#endif
 #include "video.h"
 #include "sdl.h"
+
+#ifdef X_SUPPORT
+#ifdef USE_DL_PLUGINS
+#define X_get_modifier_info pX_get_modifier_info
+static struct modifier_info (*X_get_modifier_info)(void);
+#define Xkb_lookup_key pXkb_lookup_key
+static t_unicode (*Xkb_lookup_key)(Display *display, KeyCode keycode,
+	unsigned int state);
+#define X_keycode_initialize pX_keycode_initialize
+static void (*X_keycode_initialize)(Display *display);
+#define keyb_X_init pkeyb_X_init
+static void (*keyb_X_init)(Display *display);
+#define keynum_to_keycode pkeynum_to_keycode
+static KeyCode (*keynum_to_keycode)(t_keynum keynum);
+#define Xkb_get_group pXkb_get_group
+static int (*Xkb_get_group)(Display *display);
+#endif
+#endif
 
 static int use_move_key(t_keysym key)
 {
@@ -34,7 +61,7 @@ static int use_move_key(t_keysym key)
 	return result;
 }
 
-static t_modifiers map_SDL_modifiers(SDLMod e_state)
+static t_modifiers map_SDL_modifiers(SDL_Keymod e_state)
 {
         t_modifiers modifiers = 0;
         if (e_state & KMOD_SHIFT) {
@@ -66,7 +93,7 @@ static t_modifiers map_SDL_modifiers(SDLMod e_state)
         return modifiers;
 }
 
-static void SDL_sync_shiftstate(Boolean make, SDLKey kc, SDLMod e_state)
+static void SDL_sync_shiftstate(Boolean make, SDL_Keycode kc, SDL_Keymod e_state)
 {
 	t_modifiers shiftstate = get_shiftstate();
 
@@ -89,7 +116,7 @@ static void SDL_sync_shiftstate(Boolean make, SDLKey kc, SDLMod e_state)
 		shiftstate ^= MODIFIER_CAPS;
 	}
 	if (!!(shiftstate & MODIFIER_NUM) != !!(e_state & KMOD_NUM)
-		&& (make || (kc != SDLK_NUMLOCK))) {
+		&& (make || (kc != SDLK_NUMLOCKCLEAR))) {
 		shiftstate ^= MODIFIER_NUM;
 	}
 #if 0
@@ -104,12 +131,49 @@ static void SDL_sync_shiftstate(Boolean make, SDLKey kc, SDLMod e_state)
 	set_shiftstate(shiftstate);
 }
 
+#ifdef X_SUPPORT
+static unsigned int SDL_to_X_mod(SDL_Keymod smod, int grp)
+{
+	/* try to reconstruct X event keyboard state */
+	unsigned int xmod = 0;
+	struct modifier_info X_mi = X_get_modifier_info();
+	if (smod & KMOD_SHIFT)
+		xmod |= ShiftMask;
+	if (smod & KMOD_CTRL)
+		xmod |= ControlMask;
+	if (smod & KMOD_LALT)
+		xmod |= X_mi.AltMask;
+	if (smod & KMOD_RALT)
+		xmod |= X_mi.AltGrMask;
+	if (smod & KMOD_CAPS)
+		xmod |= X_mi.CapsLockMask;
+	if (smod & KMOD_NUM)
+		xmod |= X_mi.NumLockMask;
+	if (grp)
+		xmod |= 1 << (grp + 12);
+	return xmod;
+}
+
+void SDL_process_key_xkb(Display *display, SDL_KeyboardEvent keyevent)
+{
+	SDL_Keysym keysym = keyevent.keysym;
+	SDL_Scancode scan = keysym.scancode;
+	t_keynum keynum = sdl2_scancode_to_keynum[scan];
+	KeyCode keycode = keynum_to_keycode(keynum);
+	int grp = Xkb_get_group(display);
+	unsigned int xmod = SDL_to_X_mod(keysym.mod, grp);
+	t_unicode key = Xkb_lookup_key(display, keycode, xmod);
+	int make = (keyevent.state == SDL_PRESSED);
+	SDL_sync_shiftstate(make, keysym.sym, keysym.mod);
+	move_keynum(make, keynum, key);
+}
+#endif
+
 void SDL_process_key(SDL_KeyboardEvent keyevent)
 {
-	SDL_keysym keysym = keyevent.keysym;
-	t_unicode key = keysym.unicode;
+	SDL_Keysym keysym = keyevent.keysym;
+	t_unicode key = KEY_VOID;
 	t_modifiers modifiers = map_SDL_modifiers(keysym.mod);
-
 	switch (keysym.sym) {
 	  case SDLK_UNKNOWN:
 		/* workaround for X11+SDL bug with AltGR (from QEMU) */
@@ -120,7 +184,7 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  case SDLK_SPACE ... SDLK_z: /* ASCII range 32..122 */
 		key = keysym.sym;
 		break;
-
+#if 0
 	  case SDLK_WORLD_0 ... SDLK_WORLD_95:
 		/* workaround for older SDLs; harmless for newer;
 		   this just fixes the iso-8859-1 subset of utf-8; other
@@ -129,22 +193,30 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 		if (key < 0x100 && strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
 			key = keysym.sym;
 		break;
-
+#endif
 	  case SDLK_CAPSLOCK:
 		key = KEY_CAPS;
 		break;
 
-	  case SDLK_NUMLOCK:
+	  case SDLK_NUMLOCKCLEAR:
 		key = KEY_NUM;
 		break;
 
-	  case SDLK_SCROLLOCK:
+	  case SDLK_SCROLLLOCK:
 		key = KEY_SCROLL;
 		break;
 
-	  case SDLK_KP0 ... SDLK_KP9:
-		key = (keysym.sym - SDLK_KP0) + KEY_PAD_0;
-		break;
+#define DOKP(x) case SDLK_KP_##x: key = KEY_PAD_##x; break;
+	  DOKP(0);
+	  DOKP(1);
+	  DOKP(2);
+	  DOKP(3);
+	  DOKP(4);
+	  DOKP(5);
+	  DOKP(6);
+	  DOKP(7);
+	  DOKP(8);
+	  DOKP(9);
 
 	  case SDLK_KP_PERIOD:
 		key = KEY_PAD_DECIMAL;
@@ -186,7 +258,7 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  DOKEY(RETURN)
 	  DOKEY(TAB)
 	  DOKEY(PAUSE)
-	  DOKEY(BREAK)
+//	  DOKEY(BREAK)
 	  DOKEY(HOME)
 	  DOKEY(LEFT)
 	  DOKEY(UP)
@@ -222,12 +294,12 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  case SDLK_CLEAR:
 		key = KEY_DOSEMU_CLEAR;
 		break;
-
+#if 0
 	  case SDLK_COMPOSE:
 		key = KEY_MULTI_KEY;
 		break;
-
-	  case SDLK_PRINT:
+#endif
+	  case SDLK_PRINTSCREEN:
 		key = KEY_PRTSCR;
 		break;
 
@@ -238,11 +310,11 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  case SDLK_HELP:
 		key = KEY_DOSEMU_HELP;
 		break;
-
+#if 0
 	  case SDLK_EURO:
 		key = U_EURO_SIGN;
 		break;
-
+#endif
 	  case SDLK_UNDO:
 		key = KEY_DOSEMU_UNDO;
 		break;
@@ -251,23 +323,21 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 	  case SDLK_LSHIFT: key = KEY_L_SHIFT ; break;
 	  case SDLK_RCTRL: key = KEY_R_CTRL ; break;
 	  case SDLK_LCTRL: key = KEY_L_CTRL ; break;
-	  case SDLK_RMETA: key = KEY_R_META ; break;
+//	  case SDLK_RMETA: key = KEY_R_META ; break;
 	  case SDLK_MODE: key = KEY_MODE_SWITCH ; break;
 	  case SDLK_RALT: key = KEY_R_ALT ; break;
-	  case SDLK_RSUPER: key = KEY_R_SUPER ; break;
-	  case SDLK_LMETA: key = KEY_L_META ; break;
+//	  case SDLK_RSUPER: key = KEY_R_SUPER ; break;
+//	  case SDLK_LMETA: key = KEY_L_META ; break;
 	  case SDLK_LALT: key = KEY_L_ALT ; break;
-	  case SDLK_LSUPER: key = KEY_L_SUPER ; break;
+//	  case SDLK_LSUPER: key = KEY_L_SUPER ; break;
 
 	  /* case SDLK_POWER: */
 	  default:
 		if (keysym.sym > 255)
 			key = KEY_VOID;
 		break;
-	 }
-
+	}
 	SDL_sync_shiftstate(keyevent.state==SDL_PRESSED, keysym.sym, keysym.mod);
-
         if (!use_move_key(key) || (move_key(keyevent.state == SDL_PRESSED, key) < 0)) {
                 put_modified_symbol(keyevent.state==SDL_PRESSED, modifiers, key);
         }
@@ -281,6 +351,21 @@ static int probe_SDL_keyb(void)
 	}
 	return result;
 }
+
+#ifdef X_SUPPORT
+int init_SDL_keyb(void *handle, Display *display)
+{
+	X_get_modifier_info = dlsym(handle, "X_get_modifier_info");
+	Xkb_lookup_key = dlsym(handle, "Xkb_lookup_key");
+	X_keycode_initialize = dlsym(handle, "X_keycode_initialize");
+	keyb_X_init = dlsym(handle, "keyb_X_init");
+	keynum_to_keycode = dlsym(handle, "keynum_to_keycode");
+	Xkb_get_group = dlsym(handle, "Xkb_get_group");
+	X_keycode_initialize(display);
+	keyb_X_init(display);
+	return 0;
+}
+#endif
 
 struct keyboard_client Keyboard_SDL =  {
 	"SDL",                  /* name */

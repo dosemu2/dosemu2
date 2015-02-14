@@ -4,14 +4,13 @@ DOSEMU installation instructions (from source)
 -> REQUIREMENTS for DOSEMU:
     - gcc >= 3.3
     - glibc >= 2.3.3
-    - Linux >= 2.6.0; kernels <= 2.6.5 can be problematic
+    - Linux >= 3.16 (with older version there may be some problems on x86_64)
     - x86 (i386/x86-64) target CPU
     - bison (not just yacc) and flex
+    - SDL >= 2.0.3 is strongly recommended.
     - development libraries: X and S-Lang are strongly recommended.
-      For full-screen use with X.org 7 or newer you may also
-      need the libXxf86vm development libraries.
-      GPM, SDL (>= 1.2), SVGALIB (>= 1.9.21), ALSA libraries, and
-      libsndfile can be used when available.
+      GPM, SVGALIB (>= 1.9.21), ALSA libraries, and libsndfile can
+      be used when available.
 
 --------------------------------------------------------------------------
 1. Compile
@@ -21,7 +20,9 @@ DOSEMU installation instructions (from source)
   for help.
 
 - make
+
 or
+
 - create a seperate directory and run
     $SRCDIR/configure (or $SRCDIR/default-configure; see below)
     make
@@ -98,34 +99,6 @@ The configure script causes compilation of the native 64-bit
 version by default. If you want a 32-bit version, then you need to
 set target_bits to 32 in compiletime-settings or use the
 --with-target-bits=32 configure option.
-
-When compiling a 32-bit DOSEMU on a 64-bit system, the configure script
-(depending on the distribution) may not find the correct libraries.
-Try something like
---x-libraries=/usr/X11R6/lib
-as a configure option to explicitly give the location of the 32-bit
-X libraries.
-On Fedora Core 3 AMD64 the following was necessary:
- ln -s /usr/lib/libslang-utf8.so.1 libslang.so
- ln -s /usr/lib/libSDL-1.2.so.0 libSDL.so
- LIBS=-L$PWD ./configure --x-libraries=/usr/X11R6/lib
-Your mileage may vary. Other distributions may use other directories
-for the 32-bit libraries.
-
-Optimizations: 
-BIG NOTE: do _not_ use -O3 in CFLAGS, because it forces _inline_ at
-places where we don't want it !
-
----- NOTE: the setup tool is temporarily disabled! ----
-Or (if you have Tcl/Tk installed) alternatively, you can use the menu
-driven configuration tool:
-
-- ./setup-dosemu
-
-then choose "Compile configuration / compilation", when you have
-finished toggling the configuration switches, click < Ok> and choose
-the appropriate action ...
-... well it should be self descriptive.
 
 
 --------------------------------------------------------------------------

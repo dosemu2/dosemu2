@@ -39,8 +39,11 @@
 
 #include "remap.h"
 #include "vgaemu.h"
-#include "render_priv.h"
 #include "mapping.h"
+#include "init.h"
+#include "render.h"
+#include "render_priv.h"
+#include "remap_priv.h"
 
 #define LUT_OFS_33  256 * 3
 #define LUT_OFS_67  256 * 4
@@ -55,8 +58,10 @@ RemapFuncDesc *remap_gen(void);
 
 RemapFuncDesc *(*remap_list_funcs[])(void) = {
   remap_gen,
+#if 0
 #if defined(__i386__) && !defined(__clang__)
   remap_opt,
+#endif
 #endif
 #ifdef REMAP_TEST
   remap_test,
@@ -77,15 +82,16 @@ static void do_nothing(void) {};
 static void do_nothing_remap(struct RemapObjectStruct *a) {};
 static int do_nearly_nothing(RemapObject *a, unsigned b, unsigned c, unsigned d, unsigned e, unsigned f) { return 0; };
 static RectArea do_nearly_something_rect(RemapObject *ro, int x0, int y0, int width, int height) { RectArea ra = {0, 0, 0, 0}; return ra; };
-static RectArea do_nearly_something_mem(RemapObject *ro, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
+static RectArea do_nearly_something_mem(RemapObject *ro, unsigned dst_offset, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
+static void adjust_gamma(RemapObject *ro, unsigned gamma);
 
 static unsigned u_pow(unsigned, unsigned);
 static unsigned gamma_fix(unsigned, unsigned);
 static int true_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 static int pseudo_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 
-void rgb_color_reduce(ColorSpaceDesc *, unsigned, RGBColor *);
-unsigned rgb_color_reduced_2int(ColorSpaceDesc *, RGBColor);
+void rgb_color_reduce(const ColorSpaceDesc *, unsigned, RGBColor *);
+unsigned rgb_color_reduced_2int(const ColorSpaceDesc *, RGBColor);
 void rgb_lin_filt(RGBColor, RGBColor *, RGBColor *);
 void rgb_bilin_filt(RGBColor, RGBColor *, RGBColor *, RGBColor *);
 
@@ -104,11 +110,11 @@ void bre_bilin_filt_update(RemapObject *);
 static RemapFuncDesc *find_remap_func(unsigned, int, int, RemapFuncDesc *);
 static RemapFuncDesc *find_best_remap_func(unsigned, int, int, RemapFuncDesc *);
 static void install_remap_funcs(RemapObject *, int);
-static void find_supported_modes(RemapObject *);
 
-static RectArea remap_mem_1(RemapObject *, int, int);
+static RectArea remap_mem_1(RemapObject *, unsigned, int, int);
 static RectArea remap_rect_1(RemapObject *, int, int, int, int);
-static RectArea remap_mem_2(RemapObject *, int, int);
+static RectArea remap_rect_dst_1(RemapObject *, int, int, int, int);
+static RectArea remap_mem_2(RemapObject *, unsigned, int, int);
 
 /*
  * set file handle for debug messages
@@ -142,106 +148,109 @@ static void do_base_init(void)
 /*
  * initialize a remap object
  */
-RemapObject remap_init(int src_mode, int dst_mode, int features)
+static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
+	const ColorSpaceDesc *color_space)
 {
-  RemapObject ro;
+  RemapObject *ro = malloc(sizeof(*ro));
   int color_lut_size = 256;
   unsigned u, u0, u1;
 
-  ro.palette_update = do_nearly_nothing;
-  ro.src_resize = src_resize_update;
-  ro.dst_resize = dst_resize_update;
-  ro.remap_rect = do_nearly_something_rect;
-  ro.remap_mem = do_nearly_something_mem;
-  ro.state = 0;
-  ro.src_mode = src_mode;
-  ro.dst_mode = dst_mode;
-  ro.src_color_space = ro.dst_color_space = NULL;
-  ro.src_image = ro.dst_image = ro.src_tmp_line = NULL;
-  ro.src_width = ro.src_height = ro.src_scan_len =
-  ro.dst_width = ro.dst_height = ro.dst_scan_len =
-  ro.src_x0 = ro.src_y0 = ro.src_x1 = ro.src_y1 =
-  ro.dst_x0 = ro.dst_y0 = ro.dst_x1 = ro.dst_y1 =
-  ro.src_offset = ro.dst_offset = 0;
-  ro.bre_x = ro.bre_y = NULL;
-  ro.true_color_lut = NULL;
-  ro.bit_lut = NULL;
-  ro.gamma_lut = NULL;
-  adjust_gamma(&ro, 100);
-  ro.remap_func = ro.remap_func_init = NULL;
-  ro.remap_func_flags = 0;
-  ro.remap_func_name = "no_func";
-  ro.co = malloc(sizeof(*ro.co));
-  if(ro.co == NULL) {
-    ro.state |= ROS_MALLOC_FAIL;
+  ro->features = features;
+  ro->palette_update = do_nearly_nothing;
+  ro->src_resize = src_resize_update;
+  ro->dst_resize = dst_resize_update;
+  ro->remap_rect = do_nearly_something_rect;
+  ro->remap_rect_dst = do_nearly_something_rect;
+  ro->remap_mem = do_nearly_something_mem;
+  ro->state = 0;
+  ro->src_mode = src_mode;
+  ro->dst_mode = dst_mode;
+  ro->src_tmp_line = NULL;
+  ro->src_width = ro->src_height = ro->src_scan_len =
+  ro->dst_width = ro->dst_height = ro->dst_scan_len =
+  ro->src_x0 = ro->src_y0 = ro->src_x1 = ro->src_y1 =
+  ro->dst_x0 = ro->dst_y0 = ro->dst_x1 = ro->dst_y1 =
+  ro->src_offset = ro->dst_offset = 0;
+  ro->src_start = ro->dst_start = 0;
+  ro->bre_x = ro->bre_y = NULL;
+  ro->true_color_lut = NULL;
+  ro->bit_lut = NULL;
+  ro->gamma_lut = NULL;
+  adjust_gamma(ro, 100);
+  ro->remap_func = ro->remap_func_init = NULL;
+  ro->remap_func_flags = 0;
+  ro->remap_func_name = "no_func";
+  ro->co = malloc(sizeof(*ro->co));
+  if(ro->co == NULL) {
+    ro->state |= ROS_MALLOC_FAIL;
   }
   else {
-    *ro.co = code_init();
+    *ro->co = code_init();
   }
-  ro.remap_line = NULL;
-  ro.func_all = ro.func_1 = ro.func_2 = NULL;
+  ro->remap_line = NULL;
+  ro->func_all = ro->func_1 = ro->func_2 = NULL;
 
   if(!base_init) {
     do_base_init();
     base_init = 1;
   }
 
-  ro.src_color_space = calloc(1, sizeof(*ro.src_color_space));
-  if(ro.src_color_space == NULL) ro.state |= ROS_MALLOC_FAIL;
-  ro.dst_color_space = calloc(1, sizeof(*ro.dst_color_space));
-  if(ro.dst_color_space == NULL) ro.state |= ROS_MALLOC_FAIL;
+  ro->dst_color_space = color_space;
+  ro->dst_image = NULL;
 
-  ro.bre_x = calloc(1, sizeof(*ro.bre_x));
-  if(ro.bre_x == NULL) ro.state |= ROS_MALLOC_FAIL;
-  ro.bre_y = calloc(1, sizeof(*ro.bre_y));
-  if(ro.bre_y == NULL) ro.state |= ROS_MALLOC_FAIL;
+  ro->bre_x = calloc(1, sizeof(*ro->bre_x));
+  if(ro->bre_x == NULL) ro->state |= ROS_MALLOC_FAIL;
+  ro->bre_y = calloc(1, sizeof(*ro->bre_y));
+  if(ro->bre_y == NULL) ro->state |= ROS_MALLOC_FAIL;
 
-  install_remap_funcs(&ro, features);
+  install_remap_funcs(ro, features);
 
   if(
-    ro.func_all != NULL &&
-   (ro.func_all->flags & RFF_LIN_FILT ||
-    ro.func_1->flags & RFF_LIN_FILT ||
-    ro.func_2->flags & RFF_LIN_FILT)
+    ro->func_all != NULL &&
+   (ro->func_all->flags & RFF_LIN_FILT ||
+    ro->func_1->flags & RFF_LIN_FILT ||
+    ro->func_2->flags & RFF_LIN_FILT)
   ) {
     color_lut_size = 256 * 3;
   }
 
   if(
-    ro.func_all != NULL &&
-   (ro.func_all->flags & RFF_BILIN_FILT ||
-    ro.func_1->flags & RFF_BILIN_FILT ||
-    ro.func_2->flags & RFF_BILIN_FILT)
+    ro->func_all != NULL &&
+   (ro->func_all->flags & RFF_BILIN_FILT ||
+    ro->func_1->flags & RFF_BILIN_FILT ||
+    ro->func_2->flags & RFF_BILIN_FILT)
   ) {
     color_lut_size = 256 * 6;
   }
 
   if(
     (
-      ro.src_mode & (
+      ro->src_mode & (
         MODE_PSEUDO_8 | MODE_VGA_X |
         MODE_VGA_1 | MODE_VGA_2 | MODE_VGA_4 |
         MODE_CGA_1 | MODE_CGA_2 | MODE_HERC
       )
-    ) == ro.src_mode
+    ) == ro->src_mode
   ) {
-    if((ro.dst_mode & MODE_PSEUDO_8) == ro.dst_mode) {
-      ro.palette_update = do_nearly_nothing;
+    if((ro->dst_mode & MODE_PSEUDO_8) == ro->dst_mode) {
+      ro->palette_update = do_nearly_nothing;
     }
-    if((ro.dst_mode & MODE_TRUE_8) == ro.dst_mode) {
-      ro.true_color_lut = calloc(color_lut_size * 1, sizeof(*ro.true_color_lut));
-      if(ro.true_color_lut == NULL) ro.state |= ROS_MALLOC_FAIL;
-      ro.palette_update = pseudo_col_palette_update;
+    if((ro->dst_mode & MODE_TRUE_8) == ro->dst_mode) {
+      ro->true_color_lut = calloc(color_lut_size, sizeof(*ro->true_color_lut));
+      if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
+      ro->palette_update = pseudo_col_palette_update;
     }
-    else if((ro.dst_mode & MODE_TRUE_COL) == ro.dst_mode) {
+    else if((ro->dst_mode & MODE_TRUE_COL) == ro->dst_mode) {
       /* **** really too much for now...  **** */
-      ro.true_color_lut = calloc(color_lut_size * 3, sizeof(*ro.true_color_lut));
-      if(ro.true_color_lut == NULL) ro.state |= ROS_MALLOC_FAIL;
-      ro.palette_update = true_col_palette_update;
+      color_lut_size *= 3;
+      ro->true_color_lut = calloc(color_lut_size, sizeof(*ro->true_color_lut));
+      if(ro->true_color_lut == NULL) ro->state |= ROS_MALLOC_FAIL;
+      ro->palette_update = true_col_palette_update;
     }
-    ro.bit_lut = calloc(8*4*256, 1);
-    if(ro.bit_lut == NULL) {
-      ro.state |= ROS_MALLOC_FAIL;
+    ro->color_lut_size = color_lut_size;
+    ro->bit_lut = calloc(8*4*256, 1);
+    if(ro->bit_lut == NULL) {
+      ro->state |= ROS_MALLOC_FAIL;
     }
     else {
       for(u = 0; u < 0x100; u++) {
@@ -254,35 +263,36 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
         if((u & 0x04)) u1 |= 1 <<  8;
         if((u & 0x02)) u1 |= 1 << 16;
         if((u & 0x01)) u1 |= 1 << 24;
-        ro.bit_lut[2 * u            ] = u0;
-        ro.bit_lut[2 * u + 1        ] = u1;
-        ro.bit_lut[2 * u     + 0x200] = u0 << 1;
-        ro.bit_lut[2 * u + 1 + 0x200] = u1 << 1;
-        ro.bit_lut[2 * u     + 0x400] = u0 << 2;
-        ro.bit_lut[2 * u + 1 + 0x400] = u1 << 2;
-        ro.bit_lut[2 * u     + 0x600] = u0 << 3;
-        ro.bit_lut[2 * u + 1 + 0x600] = u1 << 3;
+        ro->bit_lut[2 * u            ] = u0;
+        ro->bit_lut[2 * u + 1        ] = u1;
+        ro->bit_lut[2 * u     + 0x200] = u0 << 1;
+        ro->bit_lut[2 * u + 1 + 0x200] = u1 << 1;
+        ro->bit_lut[2 * u     + 0x400] = u0 << 2;
+        ro->bit_lut[2 * u + 1 + 0x400] = u1 << 2;
+        ro->bit_lut[2 * u     + 0x600] = u0 << 3;
+        ro->bit_lut[2 * u + 1 + 0x600] = u1 << 3;
       }
     }
   }
 
   if(
-    (ro.src_mode &
+    (ro->src_mode &
       (
         MODE_TRUE_COL | MODE_PSEUDO_8 | MODE_VGA_X |
         MODE_VGA_1 | MODE_VGA_2 | MODE_VGA_4
       )
     ) &&
-    (ro.dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro.dst_mode
+    (ro->dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro->dst_mode
   ) {
-    ro.remap_mem = remap_mem_1;
-    ro.remap_rect = remap_rect_1;
+    ro->remap_mem = remap_mem_1;
+    ro->remap_rect = remap_rect_1;
+    ro->remap_rect_dst = remap_rect_dst_1;
   }
 
-  if((ro.src_mode & (MODE_CGA_1 | MODE_CGA_2 | MODE_HERC)) &&
-    (ro.dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro.dst_mode
+  if((ro->src_mode & (MODE_CGA_1 | MODE_CGA_2 | MODE_HERC)) &&
+    (ro->dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro->dst_mode
   ) {
-    ro.remap_mem = remap_mem_2;
+    ro->remap_mem = remap_mem_2;
   }
 
   return ro;
@@ -293,10 +303,8 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
  * destroy a remap object
  */
 #define FreeIt(_p_) if(_p_ != NULL) { free(_p_); _p_ = NULL; }
-void remap_done(RemapObject *ro)
+static void _remap_done(RemapObject *ro)
 {
-  FreeIt(ro->src_color_space)
-  FreeIt(ro->dst_color_space)
   FreeIt(ro->gamma_lut)
   FreeIt(ro->bre_x)
   FreeIt(ro->bre_y)
@@ -308,6 +316,7 @@ void remap_done(RemapObject *ro)
     free(ro->co);
     ro->co = NULL;
   }
+  free(ro);
 }
 #undef FreeIt
 
@@ -352,9 +361,12 @@ unsigned u_pow(unsigned a, unsigned b)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-void adjust_gamma(RemapObject *ro, unsigned gamma)
+static void adjust_gamma(RemapObject *ro, unsigned gamma)
 {
   int i;
+
+  if (ro->gamma == gamma)
+    return;
 
   if(gamma == 100 || gamma == 0) {
     gamma = 100;
@@ -433,12 +445,12 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
   ro->true_color_lut[i] = u;
 
   if(
-    ro->func_all->flags & RFF_LIN_FILT ||
-    ro->func_1->flags & RFF_LIN_FILT ||
-    ro->func_2->flags & RFF_LIN_FILT ||
-    ro->func_all->flags & RFF_BILIN_FILT ||
-    ro->func_1->flags & RFF_BILIN_FILT ||
-    ro->func_2->flags & RFF_BILIN_FILT
+    (ro->func_all && (ro->func_all->flags & RFF_LIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_LIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_LIN_FILT)) ||
+    (ro->func_all && (ro->func_all->flags & RFF_BILIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_BILIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_BILIN_FILT))
   ) {
     rgb_color_reduce(ro->dst_color_space, bits, &c);
     rgb_lin_filt(c, &c1, &c2);
@@ -447,9 +459,9 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
   }
 
   if(
-    ro->func_all->flags & RFF_BILIN_FILT ||
-    ro->func_1->flags & RFF_BILIN_FILT ||
-    ro->func_2->flags & RFF_BILIN_FILT
+    (ro->func_all && (ro->func_all->flags & RFF_BILIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_BILIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_BILIN_FILT))
   ) {
     rgb_bilin_filt(c, &c1, &c2, &c3);
     ro->true_color_lut[i + LUT_OFS_11] = rgb_color_reduced_2int(ro->dst_color_space, c1);
@@ -507,7 +519,7 @@ static unsigned dit_col(int s_c, int d_c, int col, int dit, int lim)
   return kr <= lim ? k0 : k1;		/* or < ? */
 }
 
-void rgb_color_reduce(ColorSpaceDesc *csd, unsigned bits, RGBColor *c)
+void rgb_color_reduce(const ColorSpaceDesc *csd, unsigned bits, RGBColor *c)
 {
   c->r &= (1 << bits) - 1;
   c->g &= (1 << bits) - 1;
@@ -520,7 +532,7 @@ void rgb_color_reduce(ColorSpaceDesc *csd, unsigned bits, RGBColor *c)
   }
 }
 
-unsigned rgb_color_reduced_2int(ColorSpaceDesc *csd, RGBColor c)
+unsigned rgb_color_reduced_2int(const ColorSpaceDesc *csd, RGBColor c)
 {
   c.r <<= csd->r_shift;
   c.g <<= csd->g_shift;
@@ -528,7 +540,7 @@ unsigned rgb_color_reduced_2int(ColorSpaceDesc *csd, RGBColor c)
   return c.r | c.g | c.b;
 }
 
-unsigned rgb_color_2int(ColorSpaceDesc *csd, unsigned bits, RGBColor c)
+unsigned rgb_color_2int(const ColorSpaceDesc *csd, unsigned bits, RGBColor c)
 {
   unsigned r, g, b;
   unsigned i0, i1, i2, i3;
@@ -605,7 +617,7 @@ unsigned rgb_color_2int(ColorSpaceDesc *csd, unsigned bits, RGBColor c)
   return 0;
 }
 
-RGBColor int_2rgb_color(ColorSpaceDesc *csd, unsigned bits, unsigned u)
+RGBColor int_2rgb_color(const ColorSpaceDesc *csd, unsigned bits, unsigned u)
 {
   RGBColor c = {0, 0, 0};
   unsigned nr = u & csd->r_mask, ng = u & csd->g_mask, nb = u & csd->b_mask;
@@ -623,18 +635,6 @@ RGBColor int_2rgb_color(ColorSpaceDesc *csd, unsigned bits, unsigned u)
   }
 
   return c;
-}
-
-void color_space_complete(ColorSpaceDesc *csd)
-{
-  unsigned ui;
-
-  if((ui = csd->r_mask)) for(csd->r_shift = 0; !(ui & 1); ui >>= 1, csd->r_shift++);
-  if(ui) for(; ui; ui >>= 1, csd->r_bits++);
-  if((ui = csd->g_mask)) for(csd->g_shift = 0; !(ui & 1); ui >>= 1, csd->g_shift++);
-  if(ui) for(; ui; ui >>= 1, csd->g_bits++);
-  if((ui = csd->b_mask)) for(csd->b_shift = 0; !(ui & 1); ui >>= 1, csd->b_shift++);
-  if(ui) for(; ui; ui >>= 1, csd->b_bits++);
 }
 
 
@@ -943,10 +943,12 @@ static void remap_area_debug_func(RemapObject *ro)
 #define REMAP_AREA_DEBUG_FUNC(_ro_)
 #endif
 
-static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
+static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
+	int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
+  int i1_, i2_, j1_, j2_;
   int pixel_size = 1;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
@@ -973,6 +975,10 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   i2 = offset % ro->src_scan_len;
   j1 = (offset + len) / ro->src_scan_len;
   j2 = (offset + len) % ro->src_scan_len;
+  i1_ = (offset + dst_offset) / ro->src_scan_len;
+  i2_ = (offset + dst_offset) % ro->src_scan_len;
+  j1_ = (offset + dst_offset + len) / ro->src_scan_len;
+  j2_ = (offset + dst_offset + len) % ro->src_scan_len;
 
   /* make sure it's all visible */
   if(i2 >= ro->src_width) i1++, i2 = 0, offset = i1 * ro->src_scan_len;
@@ -998,10 +1004,10 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
       ro->src_x1 = ro->src_width;
       ro->src_y0 = i1;
       ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = bre_d_0(ro->src_x0, ro->src_width, ro->dst_width);
+      ro->dst_x0 = bre_d_0(i2_, ro->src_width, ro->dst_width);
       ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+      ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(i1_ + 1, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
       ra.y = ro->dst_y0;
       ra.height = ro->dst_y1 - ra.y;
@@ -1021,8 +1027,8 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
       ro->src_y1 = j1;
       ro->dst_x0 = 0;
       ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+      ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
       ra.height = ro->dst_y1 - ra.y;
       REMAP_AREA_DEBUG_FUNC(ro);
@@ -1037,9 +1043,9 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
       ro->src_y0 = j1;
       ro->src_y1 = ro->src_y0 + 1;
       ro->dst_x0 = 0;
-      ro->dst_x1 = bre_d_0(ro->src_x1, ro->src_width, ro->dst_width);
-      ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+      ro->dst_x1 = bre_d_0(j2_, ro->src_width, ro->dst_width);
+      ro->dst_y0 = bre_d_0(j1_, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(j1_ + 1, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
       ra.height = ro->dst_y1 - ra.y;
       REMAP_AREA_DEBUG_FUNC(ro);
@@ -1051,11 +1057,14 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   else if(ro->remap_func_flags & RFF_REMAP_LINES) {
     ro->src_offset = i1 * ro->src_scan_len;
     ro->src_x0 = ro->dst_x0 = 0;
-    ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1066,9 +1075,11 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   }
   else {
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
@@ -1162,14 +1173,96 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
   return ra;
 }
 
+static RectArea remap_rect_dst_1(RemapObject *ro, int x0, int y0, int width, int height)
+{
+  RectArea ra = {0, 0, 0, 0};
+  int x1, y1;
+  int pixel_size = 1;
+
+  if(ro->state & ROS_REMAP_IGNORE) return ra;
+  if(ro->remap_func == NULL) return ra;
+
+  if(x0 < 0) width -= x0, x0 = 0;
+  if(y0 < 0) height -= y0, y0 = 0;
+
+  if(x0 >= ro->dst_width || y0 >= ro->dst_height) return ra;
+  if(width <= 0 || height <= 0) return ra;
+
+  x1 = x0 + width;
+  y1 = y0 + height;
+
+  if(x1 > ro->dst_width) x1 = ro->dst_width, width = x1 - x0;
+  if(y1 > ro->dst_height) y1 = ro->dst_height, height = y1 - y0;
+
+  ra.x = x0;
+  ra.y = y0;
+  ra.width = width;
+  ra.height = height;
+
+  if(!(ra.width && ra.height)) return ra;
+
+  switch(ro->dst_mode) {
+    case MODE_TRUE_15:
+    case MODE_TRUE_16: pixel_size = 2; break;
+    case MODE_TRUE_24: pixel_size = 3; break;
+    case MODE_TRUE_32: pixel_size = 4; break;
+    case MODE_TRUE_8:
+    case MODE_PSEUDO_8:
+    default: pixel_size = 1;
+  }
+
+  if(ro->remap_func_flags & RFF_REMAP_RECT) {
+    ro->src_x0 = bre_s(x0, ro->src_width, ro->dst_width);
+    ro->src_x1 = bre_s(x1, ro->src_width, ro->dst_width);
+    ro->src_y0 = bre_s(y0, ro->src_height, ro->dst_height);
+    ro->src_y1 = bre_s(y1, ro->src_height, ro->dst_height);
+    ro->src_offset = ro->src_y0 * ro->src_scan_len + ro->src_x0;
+    ro->dst_x0 = x0;
+    ro->dst_x1 = x1;
+    ro->dst_y0 = y0;
+    ro->dst_y1 = y1;
+    ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
+    REMAP_AREA_DEBUG_FUNC(ro);
+    ro->remap_func(ro);
+  }
+  else if(ro->remap_func_flags & RFF_REMAP_LINES) {
+    ro->src_x0 = 0;
+    ro->src_x1 = ro->src_width;
+    ro->src_y0 = bre_s(y0, ro->src_height, ro->dst_height);
+    ro->src_y1 = bre_s(y1, ro->src_height, ro->dst_height);
+    ro->src_offset = ro->src_y0 * ro->src_scan_len;
+    ro->dst_x0 = 0;
+    ro->dst_x1 = ro->dst_width;
+    ro->dst_y0 = y0;
+    ro->dst_y1 = y1;
+    ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
+    REMAP_AREA_DEBUG_FUNC(ro);
+    ro->remap_func(ro);
+  }
+  else {
+    ro->src_offset = ro->dst_offset = 0;
+    ro->src_x0 = ro->dst_x0 = ro->src_y0 = ro->dst_y0 = 0;
+    ro->src_x1 = ro->src_width;
+    ro->dst_x1 = ro->dst_width;
+    ro->src_y1 = ro->src_height;
+    ro->dst_y1 = ro->dst_height;
+    REMAP_AREA_DEBUG_FUNC(ro);
+    ro->remap_func(ro);
+  }
+
+  return ra;
+}
+
 
 /*
  * for CGA/Hercules-like modes
  */
-static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
+static RectArea remap_mem_2(RemapObject *ro, unsigned dst_offset,
+	int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
+  int i1_, j1_, j2_;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
   if(ro->remap_func == NULL) return ra;
@@ -1195,6 +1288,10 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   i2 = offset % ro->src_scan_len;
   j1 = (offset + len) / ro->src_scan_len;
   j2 = (offset + len) % ro->src_scan_len;
+  i1_ = (offset + dst_offset) / ro->src_scan_len;
+//  i2_ = (offset + dst_offset) % ro->src_scan_len;
+  j1_ = (offset + dst_offset + len) / ro->src_scan_len;
+  j2_ = (offset + dst_offset + len) % ro->src_scan_len;
 
   if(ro->src_mode == MODE_HERC) {
     i1 <<= 2;
@@ -1224,9 +1321,11 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     ro->src_x0 = ro->dst_x0 = 0;
     ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1237,9 +1336,11 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   }
   else {
     ro->src_y0 = i1;
-    ro->src_y1 = j1; if(j2) ro->src_y1++;
-    ro->dst_y0 = bre_d_0(ro->src_y0, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(ro->src_y1, ro->src_height, ro->dst_height);
+    ro->src_y1 = j1;
+    if(j2) ro->src_y1++;
+    if(j2_) j1_++;
+    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
@@ -1290,11 +1391,12 @@ static RemapFuncDesc *find_remap_func(unsigned flags, int src_mode, int dst_mode
 static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst_mode, RemapFuncDesc *rfd)
 {
   RemapFuncDesc *rfd1 = NULL;
-
-  unsigned f_list[6 * 3];
+  #define REMAB_COMBS 4
+  unsigned f_list[6 * REMAB_COMBS];
   int features = 6;
   int i;
 
+  flags &= (RFF_LIN_FILT | RFF_BILIN_FILT | RFF_SCALE_ALL | RFF_SCALE_1 | RFF_SCALE_2);
   if(flags & RFF_BILIN_FILT) flags &= ~RFF_LIN_FILT;
 
   f_list[0] = flags | RFF_OPT_PENTIUM | RFF_REMAP_RECT;
@@ -1305,11 +1407,12 @@ static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst
   f_list[5] = flags;
 
   for(i = 0; i < 6; i++) {
-    f_list[features     + i] = (f_list[           i] & ~RFF_BILIN_FILT) | RFF_LIN_FILT;
-    f_list[features * 2 + i] = f_list[features + i] & ~RFF_LIN_FILT;
+    f_list[features     + i] = (f_list[i] & ~RFF_LIN_FILT) | RFF_BILIN_FILT;
+    f_list[features * 2 + i] = (f_list[i] & ~RFF_BILIN_FILT) | RFF_LIN_FILT;
+    f_list[features * 3 + i] =  f_list[i] & ~(RFF_LIN_FILT | RFF_BILIN_FILT);
   }
 
-  features *= 3;
+  features *= REMAB_COMBS;
 
   for(i = 0; i < features; i++) {
     if((rfd1 = find_remap_func(f_list[i], src_mode, dst_mode, rfd)) != NULL) break;
@@ -1335,23 +1438,29 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
   if(ro->func_all != NULL) ro->state |= ROS_SCALE_ALL;
   if(ro->func_1 != NULL) ro->state |= ROS_SCALE_1;
   if(ro->func_2 != NULL) ro->state |= ROS_SCALE_2;
+  if (!ro->state)
+    error("remap function not found for mode %i\n", ro->src_mode);
 
-  find_supported_modes(ro);
+  ro->supported_src_modes = find_supported_modes(ro->dst_mode);
 }
 
-
-static void find_supported_modes(RemapObject *ro)
+#if 0
+static int _find_supported_modes(unsigned dst_mode)
 {
-  RemapFuncDesc *rfd = remap_list;
-
-  ro->supported_src_modes = 0;
-
+  int modes = 0;
+  RemapFuncDesc *rfd;
+  if(!base_init) {
+    do_base_init();
+    base_init = 1;
+  }
+  rfd = remap_list;
   while(rfd != NULL) {
-    if(rfd->dst_mode & ro->dst_mode) ro->supported_src_modes |= rfd->src_mode;
+    if(rfd->dst_mode & dst_mode) modes |= rfd->src_mode;
     rfd = rfd->next;
   }
+  return modes;
 }
-
+#endif
 
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1835,10 +1944,11 @@ RemapFuncDesc *remap_gen(void)
 void gen_8to8p_1(RemapObject *ro)
 {
   int i;
-  unsigned char *src, *dst;
+  const unsigned char *src;
+  unsigned char *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width);
@@ -1860,10 +1970,11 @@ void gen_8to8p_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -1882,11 +1993,12 @@ void gen_8to8p_all(RemapObject *ro)
 void gen_8to8_1(RemapObject *ro)
 {
   int i, j, l, k;
-  unsigned char *src, *dst;
+  const unsigned char *src;
+  unsigned char *dst;
   unsigned char *lut = (unsigned char*) ro->true_color_lut;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   l = ro->src_x1 - ro->src_x0;
 
@@ -1913,11 +2025,12 @@ void gen_8to8_all(RemapObject *ro)
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
   unsigned char *lut = (unsigned char*) ro->true_color_lut;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -1943,11 +2056,11 @@ void gen_8to16_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -1972,12 +2085,12 @@ void gen_8to24_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned char *dst;
   unsigned long long color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -1999,11 +2112,11 @@ void gen_8to24_all(RemapObject *ro)
 void gen_8to32_1(RemapObject *ro)
 {
   int i, j, l;
-  unsigned char *src;
+  const unsigned char *src;
   unsigned *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   l = (ro->src_x1 - ro->src_x0);
 
   for(j = ro->src_y0; j < ro->src_y1; j++) {
@@ -2028,11 +2141,11 @@ void gen_8to32_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2058,12 +2171,12 @@ void gen_8to32_bilin(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned *dst;
   unsigned *lut = ro->true_color_lut;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2154,12 +2267,12 @@ void gen_8to16_bilin(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned short *dst;
   unsigned *lut = ro->true_color_lut;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2249,11 +2362,11 @@ void gen_8to32_lin(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2290,11 +2403,11 @@ void gen_8to16_lin(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2332,11 +2445,12 @@ void gen_4to8p_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0, *dst, *src1, *src_last;
+  const unsigned char *src, *src0, *src1, *src_last;
+  unsigned char *dst;
   unsigned *dst1, *lut;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2381,12 +2495,12 @@ void gen_4to8_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0, *dst, *src1, *src_last;
-  unsigned char *clut = (unsigned char*) ro->true_color_lut;
+  const unsigned char *src, *src0, *src1, *src_last;
+  unsigned char *clut = (unsigned char*) ro->true_color_lut, *dst;
   unsigned *dst1, *lut;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2431,12 +2545,12 @@ void gen_4to16_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned char *src, *src0, *src1, *src_last;
+  const unsigned char *src, *src0, *src1, *src_last;
   unsigned short *dst;
   unsigned *dst1, *lut;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2480,12 +2594,12 @@ void gen_4to24_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
 
   unsigned *dst1, *lut;
-  unsigned char *src, *src0, *src1, *src_last;
+  const unsigned char *src, *src0, *src1, *src_last;
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2534,11 +2648,11 @@ void gen_4to32_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
 
   unsigned *dst1, *lut;
-  unsigned char *src, *src0, *src1, *src_last;
+  const unsigned char *src, *src0, *src1, *src_last;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
   s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
@@ -2576,10 +2690,11 @@ void gen_4to32_all(RemapObject *ro)
 void gen_16to16_1(RemapObject *ro)
 {
   int i;
-  unsigned char *src, *dst;
+  const unsigned char *src;
+  unsigned char *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width << 1);
@@ -2595,10 +2710,11 @@ void gen_16to16_1(RemapObject *ro)
 void gen_24to24_1(RemapObject *ro)
 {
   int i;
-  unsigned char *src, *dst;
+  const unsigned char *src;
+  unsigned char *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width * 3);
@@ -2614,10 +2730,11 @@ void gen_24to24_1(RemapObject *ro)
 void gen_32to32_1(RemapObject *ro)
 {
   int i;
-  unsigned char *src, *dst;
+  const unsigned char *src;
+  unsigned char *dst;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     memcpy(dst, src, ro->src_width << 2);
@@ -2634,11 +2751,12 @@ void gen_32to32_1(RemapObject *ro)
 void gen_24to32_1(RemapObject *ro)
 {
   int i, j;
-  unsigned char *src, *dst, *src_1;
+  const unsigned char *src, *src_1;
+  unsigned char *dst;
   unsigned *dst_4;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     src_1 = src;
@@ -2661,12 +2779,13 @@ void gen_24to32_1(RemapObject *ro)
 void gen_15to32_1(RemapObject *ro)
 {
   int i, j;
-  unsigned char *src, *dst;
+  const unsigned char *src;
+  unsigned char *dst;
   unsigned short *src_2;
   unsigned *dst_4;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     src_2 = (unsigned short *)src;
@@ -2703,12 +2822,13 @@ void gen_15to32_1(RemapObject *ro)
 void gen_16to32_1(RemapObject *ro)
 {
   int i, j;
-  unsigned char *src, *dst;
+  const unsigned char *src;
+  unsigned char *dst;
   unsigned short *src_2;
   unsigned *dst_4;
 
-  src = ro->src_image + ro->src_offset;
-  dst = ro->dst_image + ro->dst_offset;
+  src = ro->src_image + ro->src_start + ro->src_offset;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
 
   for(i = ro->src_y0; i < ro->src_y1; i++) {
     src_2 = (unsigned short *)src;
@@ -2754,10 +2874,11 @@ void gen_1to8p_all(RemapObject *ro)
   unsigned char c0;
   int i;
 
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2787,13 +2908,14 @@ void gen_1to8_all(RemapObject *ro)
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
   unsigned char *lut = (unsigned char*) ro->true_color_lut;
   unsigned char c0;
   int i;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2824,11 +2946,11 @@ void gen_1to16_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
   unsigned char c0;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2857,12 +2979,12 @@ void gen_1to24_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
   unsigned char c0;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2893,11 +3015,11 @@ void gen_1to32_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
   unsigned char c0;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2928,10 +3050,11 @@ void gen_2to8p_all(RemapObject *ro)
   unsigned char c0, c1;
   int i;
 
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2964,13 +3087,14 @@ void gen_2to8_all(RemapObject *ro)
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
   unsigned char *lut = (unsigned char*) ro->true_color_lut;
   unsigned char c0, c1;
   int i;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3006,11 +3130,11 @@ void gen_2to16_all(RemapObject *ro)
   unsigned char c0, c1;
   int i;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3046,12 +3170,12 @@ void gen_2to24_all(RemapObject *ro)
   int i;
 
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3090,11 +3214,11 @@ void gen_2to32_all(RemapObject *ro)
   int i;
 
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3129,10 +3253,11 @@ void gen_c2to8p_all(RemapObject *ro)
   unsigned char c0;
   int i;
 
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3162,13 +3287,14 @@ void gen_c2to8_all(RemapObject *ro)
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char *src, *src0, *dst;
+  const unsigned char *src, *src0;
+  unsigned char *dst;
   unsigned char *lut = (unsigned char*) ro->true_color_lut;
   unsigned char c0;
   int i;
 
-  src0 = ro->src_image;
-  dst = ro->dst_image + ro->dst_offset;
+  src0 = ro->src_image + ro->src_start;
+  dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3199,11 +3325,11 @@ void gen_c2to16_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
   unsigned char c0;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned short *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3232,12 +3358,12 @@ void gen_c2to24_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
   unsigned char c0;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned char *dst;
   unsigned color;
 
-  src0 = ro->src_image;
-  dst = (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width*3;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3268,11 +3394,11 @@ void gen_c2to32_all(RemapObject *ro)
   int *bre_y = ro->bre_y;
   unsigned char c0;
 
-  unsigned char *src, *src0;
+  const unsigned char *src, *src0;
   unsigned *dst;
 
-  src0 = ro->src_image;
-  dst = (unsigned *) (ro->dst_image + ro->dst_offset);
+  src0 = ro->src_image + ro->src_start;
+  dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -3286,6 +3412,132 @@ void gen_c2to32_all(RemapObject *ro)
 }
 
 
+#define RO(p) (*(RemapObject **)p)
+
+static RemapObject *re_create_obj(RemapObject *old, int new_mode)
+{
+  RemapObject *dst = _remap_init(new_mode, old->dst_mode,
+    old->features, old->dst_color_space);
+  if (old->color_lut_size && dst->color_lut_size == old->color_lut_size)
+    memcpy(dst->true_color_lut, old->true_color_lut, dst->color_lut_size);
+  else
+    dirty_all_vga_colors();
+  _remap_done(old);
+  return dst;
+}
+
+static int _remap_palette_update(void *ros, unsigned i,
+	unsigned bits, unsigned r, unsigned g, unsigned b)
+{
+  RemapObject *ro = RO(ros);
+  return ro->palette_update(ro, i, bits, r, g, b);
+}
+
+static RectArea _remap_remap_rect(void *ros, const struct bitmap_desc src_img,
+	int src_mode,
+	int x0, int y0, int width, int height,
+	struct bitmap_desc dst_img, int gamma)
+{
+  RemapObject *ro = RO(ros);
+  if (src_mode != ro->src_mode)
+    RO(ros) = ro = re_create_obj(ro, src_mode);
+  ro->src_image = src_img.img;
+  ro->src_start = 0;
+  ro->dst_image = dst_img.img;
+  ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
+  ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
+  adjust_gamma(ro, gamma);
+  return ro->remap_rect(ro, x0, y0, width, height);
+}
+
+static RectArea _remap_remap_rect_dst(void *ros,
+	const struct bitmap_desc src_img,
+	int src_mode,
+	int x0, int y0, int width, int height, struct bitmap_desc dst_img,
+	int gamma)
+{
+  RemapObject *ro = RO(ros);
+  if (src_mode != ro->src_mode)
+    RO(ros) = ro = re_create_obj(ro, src_mode);
+  ro->src_image = src_img.img;
+  ro->src_start = 0;
+  ro->dst_image = dst_img.img;
+  ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
+  ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
+  adjust_gamma(ro, gamma);
+  return ro->remap_rect_dst(ro, x0, y0, width, height);
+}
+
+static RectArea _remap_remap_mem(void *ros,
+	const struct bitmap_desc src_img,
+	int src_mode,
+	unsigned src_start,
+	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img,
+	int gamma)
+{
+  RemapObject *ro = RO(ros);
+  if (src_mode != ro->src_mode)
+    RO(ros) = ro = re_create_obj(ro, src_mode);
+  ro->src_image = src_img.img;
+  ro->src_start = src_start;
+  ro->dst_image = dst_img.img;
+  if (dst_start) {
+   /* unfortunately dst_start doesn't work and is untrivial to implement
+    * within the current code. So we deal with it here and pass 0 down. */
+    ro->src_start -= dst_start;
+    offset += dst_start;
+    dst_start = 0;
+  }
+  ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
+  ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
+  adjust_gamma(ro, gamma);
+  return ro->remap_mem(ro, dst_start, offset, len);
+}
+
+static int _remap_get_cap(void *ros)
+{
+  RemapObject *ro = RO(ros);
+  return ro->state;
+}
+
+static void *_remap_remap_init(int dst_mode, int features,
+        const ColorSpaceDesc *color_space)
+{
+  RemapObject **p, *o;
+  p = malloc(sizeof(*p));
+  o = malloc(sizeof(*o));
+  /* create dummy remap. init properly later, when src mode is known */
+  memset(o, 0, sizeof(*o));
+  o->dst_mode = dst_mode;
+  o->features = features;
+  o->dst_color_space = color_space;
+  o->palette_update = do_nearly_nothing;
+  *p = o;
+  return p;
+}
+
+static void _remap_remap_done(void *ros)
+{
+  RemapObject *ro = RO(ros);
+  _remap_done(ro);
+  free(ros);
+}
+
+static struct remap_calls rmcalls = {
+  _remap_remap_init,
+  _remap_remap_done,
+  _remap_palette_update,
+  _remap_remap_rect,
+  _remap_remap_rect_dst,
+  _remap_remap_mem,
+  _remap_get_cap,
+  "dosemu gfx remapper"
+};
+
+CONSTRUCTOR(static void initialize(void))
+{
+  register_remapper(&rmcalls, REMAP_DOSEMU);
+}
 
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -3321,5 +3573,3 @@ RemapFuncDesc *remap_test(void)
 
 
 #endif
-
-
