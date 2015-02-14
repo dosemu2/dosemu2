@@ -298,6 +298,7 @@ static void vga_emu_setup_mode_table(void);
 static Bit32u rasterop(Bit32u value);
 static void vgaemu_reset_mapping(void);
 static pthread_mutex_t prot_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*
@@ -379,7 +380,9 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
       break;
 
     case SEQUENCER_DATA:		/* 0x3c5 */
+      pthread_mutex_lock(&mode_mtx);
       Seq_write_value(value);
+      pthread_mutex_unlock(&mode_mtx);
       break;
 
     case DAC_PEL_MASK:			/* 0x3c6 */
@@ -423,7 +426,9 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
       break;
 
     case CRTC_DATA:			/* 0x3d5 */
+      pthread_mutex_lock(&mode_mtx);
       if(!vga.config.mono_port) CRTC_write_value(value);
+      pthread_mutex_unlock(&mode_mtx);
       break;
 
     case COLOR_SELECT:			/* 0x3d9 */
@@ -1889,6 +1894,16 @@ int vga_emu_update(vga_emu_update_type *veut)
   return ret;
 }
 
+void vga_emu_update_lock(void)
+{
+  pthread_mutex_lock(&mode_mtx);
+}
+
+void vga_emu_update_unlock(void)
+{
+  pthread_mutex_unlock(&mode_mtx);
+}
+
 /*
  * DANG_BEGIN_FUNCTION vgaemu_switch_plane
  *
@@ -2207,7 +2222,7 @@ vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
  *
  */
 
-int vga_emu_setmode(int mode, int width, int height)
+static int __vga_emu_setmode(int mode, int width, int height)
 {
   unsigned u = -1;
   int i;
@@ -2386,6 +2401,14 @@ int vga_emu_setmode(int mode, int width, int height)
   return True;
 }
 
+int vga_emu_setmode(int mode, int width, int height)
+{
+  int ret;
+  pthread_mutex_lock(&mode_mtx);
+  ret = __vga_emu_setmode(mode, width, height);
+  pthread_mutex_unlock(&mode_mtx);
+  return ret;
+}
 
 int vgaemu_map_bank()
 {

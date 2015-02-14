@@ -491,6 +491,8 @@ int vga_emu_pre_init(void);
 int vga_emu_init(int src_modes, struct ColorSpaceDesc *);
 void vga_emu_done(void);
 int vga_emu_update(vga_emu_update_type *);
+void vga_emu_update_lock(void);
+void vga_emu_update_unlock(void);
 int vgaemu_switch_plane(unsigned);
 int vga_emu_switch_bank(unsigned);
 vga_mode_info *vga_emu_find_mode(int, vga_mode_info *);
