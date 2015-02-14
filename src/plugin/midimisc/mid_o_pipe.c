@@ -38,8 +38,7 @@ static int midopipe_init(void)
 {
     char *name = DOSEMU_MIDI_PATH;
     mkfifo(name, 0666);
-    pipe_fd =
-	RPT_SYSCALL(open(name, O_WRONLY | O_CREAT | O_NONBLOCK, 0666));
+    pipe_fd = RPT_SYSCALL(open(name, O_WRONLY | O_NONBLOCK));
     if (pipe_fd == -1) {
 	int err = errno;
 	S_printf("%s: unable to open %s for writing (%s)%s\n", midopipe_name, name,
