@@ -105,7 +105,9 @@ if [ "$PDIRS" != " " ]; then
   if [ "$1" = "" ]; then rm -f $LIB; fi
   for d in $PDIRS; do
     # Test if this plugin is enabled
-    if [ -f $DESTDIR/$d/$CONF/${PREF}enable -a -f $DESTDIR/$d/Makefile ]; then
+    if [ -f $DESTDIR/$d/$CONF/${PREF}enable ] && \
+	[ -f $DESTDIR/$d/Makefile ] && ([ ! -f $DESTDIR/$d/configure.ac ] || \
+	[ -f $DESTDIR/$d/configure ]); then
       enable=`cat $DESTDIR/$d/$CONF/${PREF}enable`
     else
       enable=no
