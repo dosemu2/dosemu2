@@ -35,7 +35,7 @@ struct midi_in_plugin_wr {
   int initialized;
 };
 
-#define MAX_OUT_PLUGINS 5
+#define MAX_OUT_PLUGINS 15
 /* support only 1 input plugin for now to avoid the concurrent writes */
 #define MAX_IN_PLUGINS 1
 static struct midi_out_plugin_wr out[MAX_OUT_PLUGINS];
@@ -65,12 +65,20 @@ void midi_init(void)
 void midi_done(void)
 {
   int i;
-  for (i = 0; i < out_registered; i++)
-    if (out[i].initialized)
+  for (i = 0; i < out_registered; i++) {
+    if (out[i].initialized) {
+      if (out[i].plugin.stop)
+        out[i].plugin.stop();
       out[i].plugin.done();
-  for (i = 0; i < in_registered; i++)
-    if (in[i].initialized)
+    }
+  }
+  for (i = 0; i < in_registered; i++) {
+    if (in[i].initialized) {
+      if (in[i].plugin.stop)
+        in[i].plugin.stop();
       in[i].plugin.done();
+    }
+  }
   rng_destroy(&midi_in);
 }
 
@@ -78,10 +86,10 @@ void midi_reset(void)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (out[i].initialized)
+    if (out[i].initialized && out[i].plugin.reset)
       out[i].plugin.reset();
   for (i = 0; i < in_registered; i++)
-    if (in[i].initialized)
+    if (in[i].initialized && in[i].plugin.reset)
       in[i].plugin.reset();
 }
 

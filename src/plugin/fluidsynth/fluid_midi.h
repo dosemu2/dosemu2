@@ -30,6 +30,35 @@ fluid_midi_parser_t* new_fluid_midi_parser(void);
 int delete_fluid_midi_parser(fluid_midi_parser_t* parser);
 fluid_midi_event_t* fluid_midi_parser_parse(fluid_midi_parser_t* parser, unsigned char c);
 
+enum fluid_midi_event_type {
+  /* channel messages */
+  NOTE_OFF = 0x80,
+  NOTE_ON = 0x90,
+  KEY_PRESSURE = 0xa0,
+  CONTROL_CHANGE = 0xb0,
+  PROGRAM_CHANGE = 0xc0,
+  CHANNEL_PRESSURE = 0xd0,
+  PITCH_BEND = 0xe0,
+  /* system exclusive */
+  MIDI_SYSEX = 0xf0,
+  /* system common - never in midi files */
+  MIDI_TIME_CODE = 0xf1,
+  MIDI_SONG_POSITION = 0xf2,
+  MIDI_SONG_SELECT = 0xf3,
+  MIDI_TUNE_REQUEST = 0xf6,
+  MIDI_EOX = 0xf7,
+  /* system real-time - never in midi files */
+  MIDI_SYNC = 0xf8,
+  MIDI_TICK = 0xf9,
+  MIDI_START = 0xfa,
+  MIDI_CONTINUE = 0xfb,
+  MIDI_STOP = 0xfc,
+  MIDI_ACTIVE_SENSING = 0xfe,
+  MIDI_SYSTEM_RESET = 0xff,
+  /* meta event - for midi files only */
+  MIDI_META_EVENT = 0xff
+};
+
 /*
  * fluid_midi_event_t
  */

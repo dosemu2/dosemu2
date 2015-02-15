@@ -25,7 +25,8 @@ ifdef X86_EMULATOR
 XCPUEMU=emu-i386/simx86
 endif
 
-REQUIRED += $(MIDID)
+# No longer need midid
+#REQUIRED += $(MIDID)
 
 _LIBSUBDIRS=base/video base base/async \
 	arch/linux/async arch/linux/mapping \
@@ -206,9 +207,9 @@ install:
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
-ifdef USE_SBEMU
-	$(INSTALL) -m 0755 ../bin/midid $(DESTDIR)$(bindir)
-endif
+#ifdef USE_SBEMU
+#	$(INSTALL) -m 0755 ../bin/midid $(DESTDIR)$(bindir)
+#endif
 ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 endif
