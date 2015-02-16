@@ -83,17 +83,22 @@ static void wavsnd_timer(double dtime, void *arg)
 {
     #define BUF_SIZE 4096
     char buf[BUF_SIZE];
-    ssize_t size;
+    ssize_t size, total;
     if (!started)
 	return;
-    size = pcm_frag_size(dtime, &params);
-    if (size < BUF_SIZE)
+    total = pcm_frag_size(dtime, &params);
+    if (total < BUF_SIZE)
 	return;
-    if (size > BUF_SIZE)
-	size = BUF_SIZE;
-    size = pcm_data_get(buf, size, &params);
-    if (size > 0)
+    while (total) {
+	size = total;
+	if (size > BUF_SIZE)
+	    size = BUF_SIZE;
+	size = pcm_data_get(buf, size, &params);
+	if (!size)
+	    break;
 	wavsnd_write(buf, size);
+	total -= size;
+    }
 }
 
 CONSTRUCTOR(static void wavsnd_init(void))
