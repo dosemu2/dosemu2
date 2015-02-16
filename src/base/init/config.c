@@ -678,9 +678,12 @@ static void config_post_process(const char *usedoptions)
     keymap_load_base_path = NULL;
     dexe_load_path = NULL;
 
-    if (config.sound == -1) {
+    if (config.sound == -1 || config.sound == 2) {
 #ifdef SDL_SUPPORT
-      config.sound = load_plugin("sdl") ? 2 : 1;
+      if (config.sdl || load_plugin("sdl"))
+        config.sound = 2;
+      else
+        config.sound = 1;
 #else
       config.sound = 1;
 #endif
@@ -1029,6 +1032,7 @@ config_init(int argc, char **argv)
 	    Video = video_get("sdl");
 	    if (Video)
 		config.X = 1;
+	    config.sdl = 1;
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;

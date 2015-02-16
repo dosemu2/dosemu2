@@ -136,8 +136,11 @@ int pcm_init(void)
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
 #ifdef USE_DL_PLUGINS
+#if 0
+    /* SDL is loaded in config.h, not here */
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
+#endif
 #endif
 #ifdef USE_ALSA
     load_plugin("alsa");
