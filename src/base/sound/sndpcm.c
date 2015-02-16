@@ -45,9 +45,10 @@
 #define SND_BUFFER_SIZE 100000	/* enough to hold 1.1s of 44100/stereo */
 #define BUFFER_DELAY 40000.0
 
-#define MAX_BUFFER_DELAY (BUFFER_DELAY * 10)
-#define INIT_BUFFER_DELAY (BUFFER_DELAY * 2)
 #define MIN_BUFFER_DELAY (BUFFER_DELAY)
+#define NORM_BUFFER_DELAY (BUFFER_DELAY * 2)
+#define INIT_BUFFER_DELAY (BUFFER_DELAY * 4)
+#define MAX_BUFFER_DELAY (BUFFER_DELAY * 10)
 #define MAX_BUFFER_PERIOD (MAX_BUFFER_DELAY - MIN_BUFFER_DELAY)
 #define MIN_GUARD_SIZE 1024
 #define MIN_READ_GUARD_PERIOD (1000000 * MIN_GUARD_SIZE / (2 * 44100))
@@ -468,7 +469,7 @@ static void pcm_handle_get(int strm_idx, double time)
 #if 1
 	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 #define ADJ_PERIOD 2000000
-	    double raw_delay = INIT_BUFFER_DELAY;
+	    double raw_delay = NORM_BUFFER_DELAY;
 	    double delta = (fillup - raw_delay) / (raw_delay * 320);
 	    if (time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
 		/* of course this heuristic doesnt work, but we have to try... */
@@ -959,7 +960,7 @@ void pcm_timer(void)
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_player_wr *p = &pcm.players[i];
 	if (p->opened && p->player.timer) {
-	    double delta = now - INIT_BUFFER_DELAY - pcm.players[i].time;
+	    double delta = now - NORM_BUFFER_DELAY - pcm.players[i].time;
 	    p->player.timer(delta, p->player.arg);
 	}
     }
