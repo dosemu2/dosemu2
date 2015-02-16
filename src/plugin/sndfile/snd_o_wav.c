@@ -37,7 +37,7 @@
 
 static const char *wavsnd_name = "Sound Output: WAV file writer";
 static SNDFILE *wav;
-struct player_params params;
+static struct player_params params;
 static int started;
 
 static int wavsnd_open(void *arg)

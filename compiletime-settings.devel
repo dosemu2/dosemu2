@@ -12,6 +12,7 @@ config {
   gpm on
   alsa on
   sndfile on
+  libao on
   vde on
   dlplugins on
   plugin_kbd_unicode on
