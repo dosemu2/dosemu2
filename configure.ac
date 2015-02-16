@@ -154,7 +154,7 @@ if test "$with_svgalib" = "yes"; then
         AC_MSG_WARN([Your svgalib is too old.])
       fi
     ], AC_MSG_WARN(svgalib headers not found.))
-  ], AC_MSG_WARN(svgalib not found.))
+  ])
 
   if test "$use_svgalib" = "yes"; then
     AC_MSG_NOTICE(Compiling with svgalib support)

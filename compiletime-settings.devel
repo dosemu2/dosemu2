@@ -8,7 +8,7 @@ config {
   debug on
   cpuemu on
   aspi on
-  svgalib on
+  svgalib off
   gpm on
   alsa on
   sndfile on
