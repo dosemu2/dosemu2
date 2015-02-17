@@ -296,7 +296,7 @@ void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res)
  * Currently used to turn on/off chain4 addressing, change
  * the VGA screen size, change the DAC size.
  */
-static void modify_mode(vga_emu_update_type *veut)
+static void modify_mode(void)
 {
   if(vga.reconfig.mem) {
     dirty_all_video_pages();
@@ -318,11 +318,6 @@ static void modify_mode(vga_emu_update_type *veut)
     vga.reconfig.dac = 0;
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
   }
-
-  veut->display_start = vga.display_start;
-  veut->display_end = veut->display_start + vga.scan_len * vga.line_compare;
-  if (vga.line_compare > vga.height)
-    veut->display_end = veut->display_start + vga.scan_len * vga.height;
 
   if(vga.reconfig.mem || vga.reconfig.display) {
     v_printf("modify_mode: failed to modify current graphics mode\n");
@@ -391,15 +386,12 @@ static int update_graphics_screen(void)
   veut.base = vga.mem.base;
   veut.max_max_len = 0;
   veut.max_len = 0;
-  veut.display_start = 0;
-  veut.display_end = vga.scan_len * vga.line_compare;
+  veut.display_start = vga.display_start;
+  veut.display_end = vga.display_start + vga.scan_len * vga.line_compare;
   if (vga.line_compare > vga.height)
-    veut.display_end = vga.scan_len * vga.height;
+    veut.display_end = vga.display_start + vga.scan_len * vga.height;
   veut.update_gran = 0;
-  veut.update_pos = veut.display_start;
-
-  if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac)
-    modify_mode(&veut);
+  veut.update_pos = 0;
 
   refresh_graphics_palette();
 
@@ -508,6 +500,11 @@ int update_screen(void)
   if(vga.config.video_off) {
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
     return 1;
+  }
+  if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) {
+    vga_emu_update_lock();
+    modify_mode();
+    vga_emu_update_unlock();
   }
   sem_post(&render_sem);
   return 1;
