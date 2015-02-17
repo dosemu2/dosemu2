@@ -36,9 +36,15 @@
 #include <stdio.h>
 #include <ao/ao.h>
 
+#define ENABLED 0
+
 static const char *aosndf_name = "Sound Output: libao wav writer";
 static ao_device *ao;
+#if ENABLED
 static const char *ao_drv_manual_name = "wav";
+#else
+static const char *ao_drv_manual_name = "null";
+#endif
 static const char *file_name = "/tmp/ao.wav";
 static struct player_params params;
 static int started;
@@ -59,7 +65,9 @@ static int aosndf_open(void *arg)
 	return 0;
     ao = ao_open_file(id, file_name, 1, &info, NULL);
     if (!ao) {
+#if ENABLED
 	error("libao: opening %s failed\n", file_name);
+#endif
 	return 0;
     }
     return 1;
