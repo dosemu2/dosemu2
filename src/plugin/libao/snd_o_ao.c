@@ -50,16 +50,12 @@ static int stopped;
 static pthread_mutex_t stop_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t stop_cnd = PTHREAD_COND_INITIALIZER;
 static pthread_t write_thr;
-/* libao is not only lame but also its pulseaudio backend produces clicks.
- * So we manually select alsa driver, which gets re-routed to pulseaudio
- * if your /etc/asound.conf specifies that (usually the case). */
-static const int ao_drv_manual = 1;
-static const char *ao_drv_manual_name = "alsa";
 static void *aosnd_write(void *arg);
 
 static int aosnd_open(void *arg)
 {
     ao_sample_format info = {};
+    ao_option opt = {};
     int id;
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
@@ -68,11 +64,14 @@ static int aosnd_open(void *arg)
     info.rate = params.rate;
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
-    id = ao_drv_manual ? ao_driver_id(ao_drv_manual_name) :
-	    ao_default_driver_id();
+    id = ao_default_driver_id();
     if (id == -1)
 	return 0;
-    ao = ao_open_live(id, &info, NULL);
+    /* for alsa the default settings are fine, but for pulse we
+     * need to manually increase buffer_time to avoid clicks... */
+    opt.key = "buffer_time";
+    opt.value = "40";
+    ao = ao_open_live(id, &info, &opt);
     if (!ao)
 	return 0;
     sem_init(&start_sem, 0, 0);
