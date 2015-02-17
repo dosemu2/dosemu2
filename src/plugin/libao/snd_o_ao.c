@@ -22,28 +22,39 @@
  */
 
 /*
- * Purpose: libao sound output plugin.
+ * Purpose: libao sound output interface to "live" targets (pulseaudio).
+ *
+ * File-based targets are handled elsewhere.
+ * libao only pretends to provide the unification. The fact is, the
+ * entirely different code is needed to handle the file-based targets.
  *
  * Author: Stas Sergeev.
  */
 
 #include "emu.h"
 #include "init.h"
-#include "ringbuf.h"
 #include "sound/sound.h"
 #include <stdio.h>
+#include <unistd.h>
 #include <ao/ao.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 static const char *aosnd_name = "Sound Output: libao";
 static ao_device *ao;
 static struct player_params params;
 static int started;
-#define SND_BUF_SZ (1*44100*2*2)
-static struct rng_s sndbuf;
-static pthread_mutex_t buf_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t data_cnd = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t start_mtx = PTHREAD_MUTEX_INITIALIZER;
+static sem_t start_sem;
+static int stopped;
+static pthread_mutex_t stop_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t stop_cnd = PTHREAD_COND_INITIALIZER;
 static pthread_t write_thr;
+/* libao is not only lame but also its pulseaudio backend produces clicks.
+ * So we manually select alsa driver, which gets re-routed to pulseaudio
+ * if your /etc/asound.conf specifies that (usually the case). */
+static const int ao_drv_manual = 1;
+static const char *ao_drv_manual_name = "alsa";
 static void *aosnd_write(void *arg);
 
 static int aosnd_open(void *arg)
@@ -58,7 +69,8 @@ static int aosnd_open(void *arg)
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
     ao_initialize();
-    id = ao_default_driver_id();
+    id = ao_drv_manual ? ao_driver_id(ao_drv_manual_name) :
+	    ao_default_driver_id();
     if (id == -1) {
 	ao_shutdown();
 	return 0;
@@ -68,7 +80,7 @@ static int aosnd_open(void *arg)
 	ao_shutdown();
 	return 0;
     }
-    rng_init(&sndbuf, SND_BUF_SZ, 1);
+    sem_init(&start_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);
     return 1;
 }
@@ -77,9 +89,9 @@ static void aosnd_close(void *arg)
 {
     pthread_cancel(write_thr);
     pthread_join(write_thr, NULL);
+    sem_destroy(&start_sem);
     ao_close(ao);
     ao_shutdown();
-    rng_destroy(&sndbuf);
 }
 
 static void *aosnd_write(void *arg)
@@ -87,19 +99,31 @@ static void *aosnd_write(void *arg)
     #define BUF_SIZE 4096
     char buf[BUF_SIZE];
     uint32_t size;
+    int l_started;
     while (1) {
-	pthread_mutex_lock(&buf_mtx);
 	while (1) {
-	    size = rng_count(&sndbuf);
-	    if (!size)
-		pthread_cond_wait(&data_cnd, &buf_mtx);
-	    else
+	    pthread_mutex_lock(&start_mtx);
+	    l_started = started;
+	    pthread_mutex_unlock(&start_mtx);
+	    if (!l_started) {
+		pthread_mutex_lock(&stop_mtx);
+		stopped = 1;
+		pthread_cond_signal(&stop_cnd);
+		pthread_mutex_unlock(&stop_mtx);
+		sem_wait(&start_sem);
+	    } else {
+		pthread_mutex_lock(&stop_mtx);
+		stopped = 0;
+		pthread_mutex_unlock(&stop_mtx);
 		break;
+	    }
 	}
-	if (size > BUF_SIZE)
-	    size = BUF_SIZE;
-	rng_remove(&sndbuf, size, buf);
-	pthread_mutex_unlock(&buf_mtx);
+	/* if we are here, stop() will wait for us on stop_cnd */
+	size = pcm_data_get(buf, sizeof(buf), &params);
+	if (!size) {
+	    usleep(10000);
+	    continue;
+	}
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	ao_play(ao, buf, size);
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -110,37 +134,21 @@ static void *aosnd_write(void *arg)
 
 static void aosnd_start(void *arg)
 {
+    pthread_mutex_lock(&start_mtx);
     started = 1;
+    pthread_mutex_unlock(&start_mtx);
+    sem_post(&start_sem);
 }
 
 static void aosnd_stop(void *arg)
 {
+    pthread_mutex_lock(&start_mtx);
     started = 0;
-}
-
-static void aosnd_timer(double dtime, void *arg)
-{
-    #define BUF2_SIZE 1024
-    char buf[BUF2_SIZE];
-    ssize_t size, total;
-    if (!started)
-	return;
-    total = pcm_frag_size(dtime, &params);
-    if (total < BUF2_SIZE)
-	return;
-    while (total) {
-	size = total;
-	if (size > BUF2_SIZE)
-	    size = BUF2_SIZE;
-	size = pcm_data_get(buf, size, &params);
-	if (!size)
-	    break;
-	pthread_mutex_lock(&buf_mtx);
-	rng_add(&sndbuf, size, buf);
-	pthread_mutex_unlock(&buf_mtx);
-	pthread_cond_signal(&data_cnd);
-	total -= size;
-    }
+    pthread_mutex_unlock(&start_mtx);
+    pthread_mutex_lock(&stop_mtx);
+    while (!stopped)
+	pthread_cond_wait(&stop_cnd, &stop_mtx);
+    pthread_mutex_unlock(&stop_mtx);
 }
 
 CONSTRUCTOR(static void aosnd_init(void))
@@ -151,7 +159,7 @@ CONSTRUCTOR(static void aosnd_init(void))
     player.close = aosnd_close;
     player.start = aosnd_start;
     player.stop = aosnd_stop;
-    player.timer = aosnd_timer;
+    player.timer = NULL;
     player.id = PCM_ID_P;
     params.handle = pcm_register_player(player);
 }
