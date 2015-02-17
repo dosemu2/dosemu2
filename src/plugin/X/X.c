@@ -2181,6 +2181,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
   XChangeWindowAttributes(display, drawwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
 #endif
 
+  get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
   if(vga.mode_class == TEXT) {
     XSetWindowColormap(display, drawwindow, text_cmap);
     dac_bits = vga.dac.bits;
@@ -2191,19 +2192,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     } else {
       font_width = vga.char_width;
       font_height = vga.char_height;
-      x_res = vga.width;
-      w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
-      y_res = vga.height;
-      w_y_res = (y_res <= 240) ? (2 * y_res) : y_res;
-
-      if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
-	w_x_res = config.X_winsize_x;
-	w_y_res = config.X_winsize_y;
-      }
-
-      if(config.X_aspect_43) {
-	w_y_res = (w_x_res * 3) >> 2;
-      }
     }
 
     saved_w_x_res = w_x_res;
@@ -2224,7 +2212,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     dac_bits = vga.dac.bits;
-    get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;
