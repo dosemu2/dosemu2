@@ -680,7 +680,7 @@ static void config_post_process(const char *usedoptions)
 
     if (config.sound == -1 || config.sound == 2) {
 #ifdef SDL_SUPPORT
-      if (config.sdl || load_plugin("sdl"))
+      if (config.sdl || load_plugin("libao") || load_plugin("sdl"))
         config.sound = 2;
       else
         config.sound = 1;
