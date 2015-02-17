@@ -300,8 +300,6 @@ static void modify_mode(void)
 {
   if(vga.reconfig.mem) {
     dirty_all_video_pages();
-    vga.reconfig.display = 0;
-    vga.reconfig.dac = 0;
     vga.reconfig.mem = 0;
   }
 
@@ -311,10 +309,13 @@ static void modify_mode(void)
       vga.width, vga.height, vga.scan_len
     );
     dirty_all_video_pages();
+    if (Video->setmode)
+      Video->setmode(vga.mode_class, vga.width, vga.height);
     vga.reconfig.display = 0;
   }
 
   if(vga.reconfig.dac) {
+    dirty_all_vga_colors();
     vga.reconfig.dac = 0;
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
   }
