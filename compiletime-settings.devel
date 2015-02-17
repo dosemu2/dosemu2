@@ -11,7 +11,7 @@ config {
   svgalib off
   gpm on
   alsa on
-  sndfile on
+  sndfile off
   libao on
   vde on
   dlplugins on

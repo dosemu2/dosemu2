@@ -33,8 +33,6 @@
 #include <stdio.h>
 #include <sndfile.h>
 
-#define ENABLED 0
-
 static const char *wavsnd_name = "Sound Output: WAV file writer";
 static SNDFILE *wav;
 static struct player_params params;
@@ -42,21 +40,15 @@ static int started;
 
 static int wavsnd_open(void *arg)
 {
-#if ENABLED
     SF_INFO info;
-#endif
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
-#if ENABLED
     info.samplerate = params.rate;
     info.channels = params.channels;
     info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
     wav = sf_open("/tmp/a.wav", SFM_WRITE, &info);
     return !!wav;
-#else
-    return 0;
-#endif
 }
 
 static void wavsnd_close(void *arg)
