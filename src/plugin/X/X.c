@@ -2265,10 +2265,7 @@ void X_resize_text_screen()
   } else {
     font_width = vga.char_width;
     font_height = vga.char_height;
-    x_res = vga.width;
-    w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
-    y_res = vga.height;
-    w_y_res = (y_res <= 240) ? (2 * y_res) : y_res;
+    get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
   }
   saved_w_x_res = w_x_res;
   saved_w_y_res = w_y_res;
