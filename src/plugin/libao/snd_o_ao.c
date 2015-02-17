@@ -68,18 +68,13 @@ static int aosnd_open(void *arg)
     info.rate = params.rate;
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
-    ao_initialize();
     id = ao_drv_manual ? ao_driver_id(ao_drv_manual_name) :
 	    ao_default_driver_id();
-    if (id == -1) {
-	ao_shutdown();
+    if (id == -1)
 	return 0;
-    }
     ao = ao_open_live(id, &info, NULL);
-    if (!ao) {
-	ao_shutdown();
+    if (!ao)
 	return 0;
-    }
     sem_init(&start_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);
     return 1;
@@ -91,7 +86,6 @@ static void aosnd_close(void *arg)
     pthread_join(write_thr, NULL);
     sem_destroy(&start_sem);
     ao_close(ao);
-    ao_shutdown();
 }
 
 static void *aosnd_write(void *arg)

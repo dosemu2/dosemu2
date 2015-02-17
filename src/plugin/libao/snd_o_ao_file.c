@@ -54,16 +54,12 @@ static int aosndf_open(void *arg)
     info.rate = params.rate;
     info.byte_format = AO_FMT_LITTLE;
     info.bits = 16;
-    ao_initialize();
     id = ao_driver_id(ao_drv_manual_name);
-    if (id == -1) {
-	ao_shutdown();
+    if (id == -1)
 	return 0;
-    }
     ao = ao_open_file(id, file_name, 1, &info, NULL);
     if (!ao) {
 	error("libao: opening %s failed\n", file_name);
-	ao_shutdown();
 	return 0;
     }
     return 1;
@@ -72,7 +68,6 @@ static int aosndf_open(void *arg)
 static void aosndf_close(void *arg)
 {
     ao_close(ao);
-    ao_shutdown();
 }
 
 static void aosndf_start(void *arg)
