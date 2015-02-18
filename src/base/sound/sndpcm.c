@@ -841,16 +841,15 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	stop_time = start_time + frag_period;
     }
     if (start_time > now - MIN_READ_DELAY) {
-	error("PCM: \"%s\" too small delay, stop=%f max=%f d=%f\n",
+	S_printf("PCM: \"%s\" too small start delay, stop=%f max=%f d=%f\n",
 		  pcm.players[handle].player.name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
-	start_time = now - INIT_BUFFER_DELAY;
-	stop_time = start_time + frag_period;
+	return 0;
     }
     if (stop_time > now - MIN_BUFFER_DELAY) {
 	size_t new_nf;
-	S_printf("PCM: \"%s\" too small delay, stop=%f max=%f d=%f\n",
+	S_printf("PCM: \"%s\" too small stop delay, stop=%f max=%f d=%f\n",
 		  pcm.players[handle].player.name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
