@@ -766,6 +766,9 @@ AH_TEMPLATE([USE_ALSA],
 AH_TEMPLATE([USE_SNDFILE],
 [ DEFINE this, if you want wav file output support ])
 
+AH_TEMPLATE([USE_LIBAO],
+[ DEFINE this, if you want libao sound output support ])
+
 AH_TEMPLATE([USE_FLUIDSYNTH],
 [ DEFINE this, if you want fluidsynth support ])
 
