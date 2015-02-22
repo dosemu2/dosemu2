@@ -1124,11 +1124,7 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos)
   }
   if(pos >= o->size) return 0;
 
-  if(!(s = full_name(f, o->parent, o->name))) {
-    fatfs_deb("fatfs: qualifying %s failed\n", o->name);
-    return -1;
-  }
-
+  s = o->full_name;
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
   if(f->fd_obj == 0) {
