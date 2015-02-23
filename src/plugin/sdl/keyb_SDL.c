@@ -26,8 +26,13 @@
 #include "video.h"
 #include "sdl.h"
 
-/* at startup SDL does not detect numlock and capslock status
- * so we get them from xkb */
+/*
+ * at startup SDL does not detect numlock and capslock status
+ * so we get them from xkb.
+ *
+ * The fix is targeted for 2.0.4:
+ * https://bugzilla.libsdl.org/show_bug.cgi?id=2736
+ */
 #define SDL_BROKEN_MODS 1
 
 #ifdef X_SUPPORT
