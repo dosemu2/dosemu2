@@ -26,7 +26,9 @@
 #include "video.h"
 #include "sdl.h"
 
-#define SDL_BROKEN_NUMLOCK 1
+/* at startup SDL does not detect numlock and capslock status
+ * so we get them from xkb */
+#define SDL_BROKEN_MODS 1
 
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
@@ -149,9 +151,9 @@ static unsigned int SDL_to_X_mod(SDL_Keymod smod, int grp)
 		xmod |= X_mi.AltMask;
 	if (smod & KMOD_RALT)
 		xmod |= X_mi.AltGrMask;
+#if !SDL_BROKEN_MODS
 	if (smod & KMOD_CAPS)
 		xmod |= X_mi.CapsLockMask;
-#if !SDL_BROKEN_NUMLOCK
 	if (smod & KMOD_NUM)
 		xmod |= X_mi.NumLockMask;
 #endif
@@ -171,7 +173,7 @@ void SDL_process_key_xkb(Display *display, SDL_KeyboardEvent keyevent)
 	unsigned int xmod = SDL_to_X_mod(keysym.mod, grp);
 	t_unicode key;
 	int make;
-#if SDL_BROKEN_NUMLOCK
+#if SDL_BROKEN_MODS
 	xmod |= xm;
 #endif
 	key = Xkb_lookup_key(display, keycode, xmod);
