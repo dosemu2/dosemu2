@@ -92,7 +92,7 @@ static void aosndf_timer(double dtime, void *arg)
 {
     #define BUF_SIZE 1024
     char buf[BUF_SIZE];
-    ssize_t size, total;
+    ssize_t size, size1, total;
     if (!started)
 	return;
     total = pcm_frag_size(dtime, &params);
@@ -102,11 +102,13 @@ static void aosndf_timer(double dtime, void *arg)
 	size = total;
 	if (size > BUF_SIZE)
 	    size = BUF_SIZE;
-	size = pcm_data_get(buf, size, &params);
-	if (!size)
+	size1 = pcm_data_get(buf, size, &params);
+	if (!size1)
 	    break;
-	ao_play(ao, buf, size);
-	total -= size;
+	ao_play(ao, buf, size1);
+	if (size1 < size)
+	    break;
+	total -= size1;
     }
 }
 
