@@ -457,8 +457,6 @@ int SDL_update_screen(void)
   if (!use_bitmap_font && vga.mode_class == TEXT)
     return update_screen();
 #endif
-  /* if render is idle we start async blit (as of SDL_SYNCBLIT) and
-   * then start the renderer. It will wait till async blit to finish. */
   SDL_update();
   ret = update_screen();
   return ret;
@@ -509,7 +507,6 @@ static void toggle_grab(void)
     SDL_SetRelativeMouseMode(SDL_FALSE);
     mouse_enable_native_cursor(0);
   }
-  SDL_change_config(CHG_TITLE, NULL);
 }
 
 static void toggle_fullscreen_mode(void)
