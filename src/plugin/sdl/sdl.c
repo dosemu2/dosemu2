@@ -50,6 +50,7 @@ static void SDL_handle_events(void);
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
 static void toggle_grab(void);
+static void window_grab(int on);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
 
@@ -92,7 +93,7 @@ static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
-int grab_active = 0;
+static int grab_active = 0;
 static int m_cursor_visible;
 static int init_failed;
 
@@ -243,7 +244,7 @@ int SDL_init(void)
 #endif
 
   if (config.X_fullscreen)
-    toggle_grab();
+    window_grab(1);
 
   pix_fmt = SDL_GetWindowPixelFormat(window);
   if (pix_fmt == SDL_PIXELFORMAT_UNKNOWN) {
@@ -485,26 +486,29 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   pthread_mutex_unlock(&update_mtx);
 }
 
-static void toggle_grab(void)
+static void window_grab(int on)
 {
-  if(grab_active ^= 1) {
+  if (on) {
     v_printf("SDL: grab activated\n");
-    if (!config.X_fullscreen)
-      SDL_SetWindowGrab(window, SDL_TRUE);
+    SDL_SetWindowGrab(window, SDL_TRUE);
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
     mouse_enable_native_cursor(1);
-  }
-  else {
+  } else {
     v_printf("SDL: grab released\n");
-    if (!config.X_fullscreen)
-      SDL_SetWindowGrab(window, SDL_FALSE);
+    SDL_SetWindowGrab(window, SDL_FALSE);
     if (m_cursor_visible)
       SDL_ShowCursor(SDL_ENABLE);
     SDL_SetRelativeMouseMode(SDL_FALSE);
     mouse_enable_native_cursor(0);
   }
+  grab_active = on;
+}
+
+static void toggle_grab(void)
+{
+  window_grab(grab_active ^ 1);
 }
 
 static void toggle_fullscreen_mode(void)
@@ -513,7 +517,7 @@ static void toggle_fullscreen_mode(void)
   if (config.X_fullscreen) {
     v_printf("SDL: entering fullscreen mode\n");
     if (!grab_active) {
-      toggle_grab();
+      window_grab(1);
       force_grab = 1;
     }
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -521,7 +525,7 @@ static void toggle_fullscreen_mode(void)
     v_printf("SDL: entering windowed mode!\n");
     SDL_SetWindowFullscreen(window, 0);
     if (force_grab && grab_active) {
-      toggle_grab();
+      window_grab(0);
     }
     force_grab = 0;
   }
