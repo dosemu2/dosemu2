@@ -491,14 +491,12 @@ static void toggle_grab(void)
     v_printf("SDL: grab activated\n");
     if (!config.X_fullscreen)
       SDL_SetWindowGrab(window, SDL_TRUE);
-    config.mouse.use_absolute = 0;
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
     mouse_enable_native_cursor(1);
   }
   else {
-    config.mouse.use_absolute = 1;
     v_printf("SDL: grab released\n");
     if (!config.X_fullscreen)
       SDL_SetWindowGrab(window, SDL_FALSE);
@@ -784,7 +782,6 @@ static int SDL_mouse_init(void)
     return FALSE;
 
   mice->type = MOUSE_SDL;
-  mice->use_absolute = 1;
   mice->native_cursor = config.X_fullscreen;
   /* we have the X cursor, but if we start fullscreen, grab by default */
   m_printf("MOUSE: SDL Mouse being set\n");

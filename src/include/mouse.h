@@ -52,7 +52,6 @@ typedef struct  {
   boolean intdrv;
   /* whether we use the native DOS cursor, or the system cursor (X, GPM) */
   boolean native_cursor;
-  boolean use_absolute; /* use absolute mouse addressing */
   boolean emulate3buttons;
   boolean has3buttons;
   boolean cleardtr;

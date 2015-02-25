@@ -1256,7 +1256,6 @@ static void toggle_kbd_grab(void)
 static void toggle_mouse_grab(void)
 {
   if(grab_active ^= 1) {
-    config.mouse.use_absolute = 0;
     X_printf("X: mouse grab activated\n");
     if (mainwindow != fullscreenwindow) {
       XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
@@ -1266,7 +1265,6 @@ static void toggle_mouse_grab(void)
     mouse_enable_native_cursor(1);
   }
   else {
-    config.mouse.use_absolute = 1;
     X_printf("X: mouse grab released\n");
     if (mainwindow != fullscreenwindow) {
       XUngrabPointer(display, CurrentTime);
@@ -2487,7 +2485,6 @@ static int X_mouse_init(void)
   if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
-  mice->use_absolute = 1;
   mice->native_cursor = 0;	/* we have the X cursor */
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;

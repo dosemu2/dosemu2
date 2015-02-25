@@ -103,7 +103,6 @@ static int gpm_init(void)
 
 	mice->fd = fd;
 	mice->type = MOUSE_GPM;
-	mice->use_absolute = 1;
 	fcntl(mice->fd, F_SETFL, fcntl(mice->fd, F_GETFL) | O_NONBLOCK);
 	add_to_io_select(mice->fd, mouse_io_callback, NULL);
 	m_printf("GPM MOUSE: Using GPM Mouse\n");

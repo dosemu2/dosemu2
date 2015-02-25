@@ -87,7 +87,6 @@ static int xterm_mouse_init(void)
 		return FALSE;
 
 	mice->type = MOUSE_XTERM;
-	mice->use_absolute = 1;
 	mice->native_cursor = 0;      /* we have the xterm cursor */
 	SLtt_set_mouse_mode(0, 0);
 
