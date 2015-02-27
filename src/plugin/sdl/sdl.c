@@ -202,10 +202,6 @@ int SDL_priv_init(void)
     init_failed = 1;
     return -1;
   }
-  if (config.sdl_nogl) {
-    v_printf("SDL: Disabling OpenGL framebuffer acceleration\n");
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
-  }
   return 0;
 }
 
@@ -222,23 +218,24 @@ int SDL_init(void)
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   }
+  if (config.sdl_nogl) {
+    v_printf("SDL: Disabling OpenGL framebuffer acceleration\n");
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+  }
   if (config.X_fullscreen)
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
   else
     flags |= SDL_WINDOW_RESIZABLE;
-  window = SDL_CreateWindow(config.X_title, SDL_WINDOWPOS_UNDEFINED,
-    SDL_WINDOWPOS_UNDEFINED, 0, 0, flags);
-  if (!window) {
+  /* it is better to create window and renderer at once. They have
+   * internal cyclic dependencies, so if you create renderer after
+   * creating window, SDL will destroy and re-create the window. */
+  SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
+  if (!window || !renderer) {
     error("SDL window failed\n");
     init_failed = 1;
     return -1;
   }
-  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-  if (!renderer) {
-    error("SDL renderer failed\n");
-    init_failed = 1;
-    return -1;
-  }
+  SDL_SetWindowTitle(window, config.X_title);
 
 #ifdef X_SUPPORT
   init_x11_support(window);
