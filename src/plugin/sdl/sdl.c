@@ -243,8 +243,10 @@ int SDL_init(void)
   use_bitmap_font = 1;
 #endif
 
-  if (config.X_fullscreen)
+  if (config.X_fullscreen) {
     window_grab(1);
+    force_grab = 1;
+  }
 
   pix_fmt = SDL_GetWindowPixelFormat(window);
   if (pix_fmt == SDL_PIXELFORMAT_UNKNOWN) {
