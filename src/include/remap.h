@@ -43,7 +43,7 @@ struct remap_calls {
   RectArea (*remap_mem)(void *ro, const struct bitmap_desc src_img,
 	int src_mode,
 	unsigned src_start,
-	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img,
+	int offset, int len, struct bitmap_desc dst_img,
 	int gamma);
   int (*get_cap)(void *ro);
   const char *name;
