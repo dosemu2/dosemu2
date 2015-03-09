@@ -654,11 +654,15 @@ void pcm_time_unlock(int strm_idx)
 static double pcm_calc_tstamp(int strm_idx)
 {
     double tstamp = get_stream_time(strm_idx);
+/* disable below to allow speed adjust heuristic to work.
+ * Can use some period thresholds in the future. */
+#if 0
     if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 	long long now = GETusTIME(0);
 	if (tstamp < now)
 	    tstamp = now;
     }
+#endif
     return tstamp;
 }
 
