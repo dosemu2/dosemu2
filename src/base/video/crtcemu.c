@@ -235,12 +235,14 @@ void CRTC_write_value(unsigned char data)
          depending on mode control bit 5 */
       vga.display_start = (vga.crtc.data[0x0d] + (u << 8)) << vga.crtc.addr_mode;
       crtc_deb("CRTC_write_value: Start Address = 0x%04x, high changed\n", vga.display_start);
+      vga.reconfig.display = 1;
       break;
 
     case 0x0d:		/* Start Address Low */
       vga.display_start = (u + (vga.crtc.data[0x0c] << 8)) << vga.crtc.addr_mode;
       /* this shift should really be a rotation, depending on mode control bit 5 */
       crtc_deb("CRTC_write_value: Start Address = 0x%04x, low changed\n", vga.display_start);
+      vga.reconfig.display = 1;
       break;
 
     case 0x0e:		/* Cursor Location High */

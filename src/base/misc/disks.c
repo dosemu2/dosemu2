@@ -795,7 +795,7 @@ disk_open(struct disk *dp)
     return;
 
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR));
-  if (dp->type == IMAGE)
+  if (dp->type == IMAGE || dp->type == DIR_TYPE)
     return;
 
   /* FIXME:

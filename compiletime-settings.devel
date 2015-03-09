@@ -8,10 +8,11 @@ config {
   debug on
   cpuemu on
   aspi on
-  svgalib on
+  svgalib off
   gpm on
   alsa on
-  sndfile on
+  sndfile off
+  libao on
   vde on
   dlplugins on
   plugin_kbd_unicode on

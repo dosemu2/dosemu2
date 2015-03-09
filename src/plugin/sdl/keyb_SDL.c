@@ -26,6 +26,15 @@
 #include "video.h"
 #include "sdl.h"
 
+/*
+ * at startup SDL does not detect numlock and capslock status
+ * so we get them from xkb.
+ *
+ * The fix is targeted for 2.0.4:
+ * https://bugzilla.libsdl.org/show_bug.cgi?id=2736
+ */
+#define SDL_BROKEN_MODS 1
+
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
 #define X_get_modifier_info pX_get_modifier_info
@@ -40,7 +49,9 @@ static void (*keyb_X_init)(Display *display);
 #define keynum_to_keycode pkeynum_to_keycode
 static KeyCode (*keynum_to_keycode)(t_keynum keynum);
 #define Xkb_get_group pXkb_get_group
-static int (*Xkb_get_group)(Display *display);
+static int (*Xkb_get_group)(Display *display, unsigned int *mods);
+#define X_sync_shiftstate pX_sync_shiftstate
+static void (*X_sync_shiftstate)(Boolean make, KeyCode kc, unsigned int e_state);
 #endif
 #endif
 
@@ -145,10 +156,12 @@ static unsigned int SDL_to_X_mod(SDL_Keymod smod, int grp)
 		xmod |= X_mi.AltMask;
 	if (smod & KMOD_RALT)
 		xmod |= X_mi.AltGrMask;
+#if !SDL_BROKEN_MODS
 	if (smod & KMOD_CAPS)
 		xmod |= X_mi.CapsLockMask;
 	if (smod & KMOD_NUM)
 		xmod |= X_mi.NumLockMask;
+#endif
 	if (grp)
 		xmod |= 1 << (grp + 12);
 	return xmod;
@@ -160,11 +173,17 @@ void SDL_process_key_xkb(Display *display, SDL_KeyboardEvent keyevent)
 	SDL_Scancode scan = keysym.scancode;
 	t_keynum keynum = sdl2_scancode_to_keynum[scan];
 	KeyCode keycode = keynum_to_keycode(keynum);
-	int grp = Xkb_get_group(display);
+	unsigned int xm;
+	int grp = Xkb_get_group(display, &xm);
 	unsigned int xmod = SDL_to_X_mod(keysym.mod, grp);
-	t_unicode key = Xkb_lookup_key(display, keycode, xmod);
-	int make = (keyevent.state == SDL_PRESSED);
-	SDL_sync_shiftstate(make, keysym.sym, keysym.mod);
+	t_unicode key;
+	int make;
+#if SDL_BROKEN_MODS
+	xmod |= xm;
+#endif
+	key = Xkb_lookup_key(display, keycode, xmod);
+	make = (keyevent.state == SDL_PRESSED);
+	X_sync_shiftstate(make, keycode, xmod);
 	move_keynum(make, keynum, key);
 }
 #endif
@@ -361,6 +380,7 @@ int init_SDL_keyb(void *handle, Display *display)
 	keyb_X_init = dlsym(handle, "keyb_X_init");
 	keynum_to_keycode = dlsym(handle, "keynum_to_keycode");
 	Xkb_get_group = dlsym(handle, "Xkb_get_group");
+	X_sync_shiftstate = dlsym(handle, "X_sync_shiftstate");
 	X_keycode_initialize(display);
 	keyb_X_init(display);
 	return 0;

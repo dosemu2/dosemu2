@@ -38,7 +38,10 @@ static SDL_AudioDeviceID dev;
 
 static void sdlsnd_callback(void *userdata, Uint8 * stream, int len)
 {
-    pcm_data_get(stream, len, &params);
+    size_t sz = pcm_data_get(stream, len, &params);
+    /* obey to SDL2 migration guide and init reminder */
+    if (sz < len)
+	SDL_memset(stream + sz, 0, len - sz);
 }
 
 static void sdlsnd_start(void *arg)

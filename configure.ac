@@ -154,7 +154,7 @@ if test "$with_svgalib" = "yes"; then
         AC_MSG_WARN([Your svgalib is too old.])
       fi
     ], AC_MSG_WARN(svgalib headers not found.))
-  ], AC_MSG_WARN(svgalib not found.))
+  ])
 
   if test "$use_svgalib" = "yes"; then
     AC_MSG_NOTICE(Compiling with svgalib support)
@@ -241,6 +241,24 @@ if test "$with_sndfile" != "no"; then
 else
   AC_MSG_NOTICE(Compiling without sndfile support...)
   $srcdir/mkpluginhooks enable sndfile no
+fi
+
+AC_ARG_WITH(ao,
+	[  --without-libao       don't use libao even if available])
+if test "$with_ao" != "no"; then
+  AC_CHECK_LIB(ao, ao_initialize, with_libao="yes", with_libao="no")
+fi
+if test "$with_libao" != "no"; then
+  AC_MSG_NOTICE(Compiling with libao support...)
+  AC_DEFINE(USE_LIBAO)
+  USE_LIBAO="USE_LIBAO=1"
+  AC_SUBST(USE_LIBAO)
+  LIBAOLIB="-lao"
+  AC_SUBST(LIBAOLIB)
+  $srcdir/mkpluginhooks enable libao yes
+else
+  AC_MSG_NOTICE(Compiling without libao support...)
+  $srcdir/mkpluginhooks enable libao no
 fi
 
 AC_ARG_WITH(fluidsynth,
@@ -747,6 +765,9 @@ AH_TEMPLATE([USE_ALSA],
 
 AH_TEMPLATE([USE_SNDFILE],
 [ DEFINE this, if you want wav file output support ])
+
+AH_TEMPLATE([USE_LIBAO],
+[ DEFINE this, if you want libao sound output support ])
 
 AH_TEMPLATE([USE_FLUIDSYNTH],
 [ DEFINE this, if you want fluidsynth support ])

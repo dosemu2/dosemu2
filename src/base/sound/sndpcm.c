@@ -45,9 +45,10 @@
 #define SND_BUFFER_SIZE 100000	/* enough to hold 1.1s of 44100/stereo */
 #define BUFFER_DELAY 40000.0
 
-#define MAX_BUFFER_DELAY (BUFFER_DELAY * 10)
-#define INIT_BUFFER_DELAY (BUFFER_DELAY * 2)
 #define MIN_BUFFER_DELAY (BUFFER_DELAY)
+#define NORM_BUFFER_DELAY (BUFFER_DELAY * 2)
+#define INIT_BUFFER_DELAY (BUFFER_DELAY * 4)
+#define MAX_BUFFER_DELAY (BUFFER_DELAY * 10)
 #define MAX_BUFFER_PERIOD (MAX_BUFFER_DELAY - MIN_BUFFER_DELAY)
 #define MIN_GUARD_SIZE 1024
 #define MIN_READ_GUARD_PERIOD (1000000 * MIN_GUARD_SIZE / (2 * 44100))
@@ -136,8 +137,11 @@ int pcm_init(void)
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
 #ifdef USE_DL_PLUGINS
+#if 0
+    /* SDL is loaded in config.h, not here */
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
+#endif
 #endif
 #ifdef USE_ALSA
     load_plugin("alsa");
@@ -465,7 +469,7 @@ static void pcm_handle_get(int strm_idx, double time)
 #if 1
 	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
 #define ADJ_PERIOD 2000000
-	    double raw_delay = INIT_BUFFER_DELAY;
+	    double raw_delay = NORM_BUFFER_DELAY;
 	    double delta = (fillup - raw_delay) / (raw_delay * 320);
 	    if (time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
 		/* of course this heuristic doesnt work, but we have to try... */
@@ -837,16 +841,15 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	stop_time = start_time + frag_period;
     }
     if (start_time > now - MIN_READ_DELAY) {
-	error("PCM: \"%s\" too small delay, stop=%f max=%f d=%f\n",
+	S_printf("PCM: \"%s\" too small start delay, stop=%f max=%f d=%f\n",
 		  pcm.players[handle].player.name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
-	start_time = now - INIT_BUFFER_DELAY;
-	stop_time = start_time + frag_period;
+	return 0;
     }
     if (stop_time > now - MIN_BUFFER_DELAY) {
 	size_t new_nf;
-	S_printf("PCM: \"%s\" too small delay, stop=%f max=%f d=%f\n",
+	S_printf("PCM: \"%s\" too small stop delay, stop=%f max=%f d=%f\n",
 		  pcm.players[handle].player.name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
@@ -956,7 +959,7 @@ void pcm_timer(void)
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_player_wr *p = &pcm.players[i];
 	if (p->opened && p->player.timer) {
-	    double delta = now - INIT_BUFFER_DELAY - pcm.players[i].time;
+	    double delta = now - NORM_BUFFER_DELAY - pcm.players[i].time;
 	    p->player.timer(delta, p->player.arg);
 	}
     }

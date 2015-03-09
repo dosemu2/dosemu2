@@ -22,7 +22,7 @@ extern void map_X_event(Display *, XKeyEvent *, struct mapped_X_event *);
 extern int using_xkb;
 #define USING_XKB (using_xkb)
 t_unicode Xkb_lookup_key(Display *display, KeyCode keycode, unsigned int state);
-int Xkb_get_group(Display *display);
+int Xkb_get_group(Display *display, unsigned int *mods);
 #else
 #define USING_XKB 0
 #endif

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Stas Sergeev <stsp@users.sourceforge.net>
+ *  Copyright (C) 2015 Stas Sergeev <stsp@users.sourceforge.net>
  *
  * The below copyright strings have to be distributed unchanged together
  * with this file. This prefix can not be modified or separated.
@@ -22,7 +22,10 @@
  */
 
 /*
- * Purpose: WAV file sound output plugin.
+ * Purpose: libao file writer output plugin.
+ *
+ * libao is so lame that we need a completely different handling
+ * of the file writing interface.
  *
  * Author: Stas Sergeev.
  */
@@ -31,49 +34,63 @@
 #include "init.h"
 #include "sound/sound.h"
 #include <stdio.h>
-#include <sndfile.h>
+#include <ao/ao.h>
 
-static const char *wavsnd_name = "Sound Output: WAV file writer";
-static SNDFILE *wav;
+#define ENABLED 0
+
+static const char *aosndf_name = "Sound Output: libao wav writer";
+static ao_device *ao;
+#if ENABLED
+static const char *ao_drv_manual_name = "wav";
+#else
+static const char *ao_drv_manual_name = "null";
+#endif
+static const char *file_name = "/tmp/ao.wav";
 static struct player_params params;
 static int started;
 
-static int wavsnd_open(void *arg)
+static int aosndf_open(void *arg)
 {
-    SF_INFO info;
+    ao_sample_format info = {};
+    int id;
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
-    info.samplerate = params.rate;
     info.channels = params.channels;
-    info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
-    wav = sf_open("/tmp/a.wav", SFM_WRITE, &info);
-    return !!wav;
+    info.rate = params.rate;
+    info.byte_format = AO_FMT_LITTLE;
+    info.bits = 16;
+    id = ao_driver_id(ao_drv_manual_name);
+    if (id == -1)
+	return 0;
+    ao = ao_open_file(id, file_name, 1, &info, NULL);
+    if (!ao) {
+#if ENABLED
+	error("libao: opening %s failed\n", file_name);
+#endif
+	return 0;
+    }
+    return 1;
 }
 
-static void wavsnd_close(void *arg)
+static void aosndf_close(void *arg)
 {
-    sf_close(wav);
+    ao_close(ao);
 }
 
-static size_t wavsnd_write(void *data, size_t size)
-{
-    return sf_write_raw(wav, data, size);
-}
-
-static void wavsnd_start(void *arg)
+static void aosndf_start(void *arg)
 {
     started = 1;
 }
 
-static void wavsnd_stop(void *arg)
+static void aosndf_stop(void *arg)
 {
     started = 0;
 }
 
-static void wavsnd_timer(double dtime, void *arg)
+static void aosndf_timer(double dtime, void *arg)
 {
-    #define BUF_SIZE 4096
+    #define BUF_SIZE 1024
     char buf[BUF_SIZE];
     ssize_t size, size1, total;
     if (!started)
@@ -88,22 +105,22 @@ static void wavsnd_timer(double dtime, void *arg)
 	size1 = pcm_data_get(buf, size, &params);
 	if (!size1)
 	    break;
-	wavsnd_write(buf, size1);
+	ao_play(ao, buf, size1);
 	if (size1 < size)
 	    break;
 	total -= size1;
     }
 }
 
-CONSTRUCTOR(static void wavsnd_init(void))
+CONSTRUCTOR(static void aosndf_init(void))
 {
     struct pcm_player player = {};
-    player.name = wavsnd_name;
-    player.open = wavsnd_open;
-    player.close = wavsnd_close;
-    player.start = wavsnd_start;
-    player.stop = wavsnd_stop;
-    player.timer = wavsnd_timer;
+    player.name = aosndf_name;
+    player.open = aosndf_open;
+    player.close = aosndf_close;
+    player.start = aosndf_start;
+    player.stop = aosndf_stop;
+    player.timer = aosndf_timer;
     player.id = PCM_ID_P;
     params.handle = pcm_register_player(player);
 }

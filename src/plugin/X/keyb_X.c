@@ -320,10 +320,12 @@ t_unicode Xkb_lookup_key(Display *display, KeyCode keycode, unsigned int state)
 	return key;
 }
 
-int Xkb_get_group(Display *display)
+int Xkb_get_group(Display *display, unsigned int *mods)
 {
 	XkbStateRec r;
 	XkbGetState(display, XkbUseCoreKbd, &r);
+	if (mods)
+		*mods = r.mods;
 	return r.group;
 }
 #endif

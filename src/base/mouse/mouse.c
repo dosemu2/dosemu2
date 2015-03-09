@@ -102,7 +102,6 @@ static void mouse_delta(int);
 /* Internal mouse helper functions */
 static int mouse_round_coords(void);
 static void mouse_hide_on_exclusion(void);
-static int last_mouse_call_read_mickeys = 0;
 
 static void call_mouse_event_handler(void);
 static int mouse_events = 0;
@@ -1076,7 +1075,6 @@ mouse_reset_to_current_video_mode(int mode)
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n",
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y, mouse.ignorexy,
 	   mice->type);
-  last_mouse_call_read_mickeys = 0;
 }
 
 static void int33_mouse_enable_native_cursor(int flag, void *udata)
@@ -1175,13 +1173,14 @@ mouse_pos(void)
   LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
-  last_mouse_call_read_mickeys = 0;
 }
 
 /* Set mouse position */
 void
 mouse_setpos(void)
 {
+  /* disable the hack below, it is likely no longer needed. -stsp */
+#if 0
   /* WP reads mickeys, and then sets the cursor position to make certain
    * it doesn't loose any mickeys.  This will catch that case, and keeps
    * us from breaking all apps under X that set the mouse position.
@@ -1190,6 +1189,7 @@ mouse_setpos(void)
     m_printf("MOUSE: ignoring 'set cursor pos' in X with no grab active\n");
     return;
   }
+#endif
   mouse.x = LWORD(ecx);
   mouse.y = LWORD(edx);
   reset_unscaled();
@@ -1374,7 +1374,6 @@ mouse_mickeys(void)
 
   /* counters get reset after read */
   mouse.mickeyx = mouse.mickeyy = 0;
-  last_mouse_call_read_mickeys = 1;
   dragged = 0;
 }
 

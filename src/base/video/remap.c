@@ -82,7 +82,7 @@ static void do_nothing(void) {};
 static void do_nothing_remap(struct RemapObjectStruct *a) {};
 static int do_nearly_nothing(RemapObject *a, unsigned b, unsigned c, unsigned d, unsigned e, unsigned f) { return 0; };
 static RectArea do_nearly_something_rect(RemapObject *ro, int x0, int y0, int width, int height) { RectArea ra = {0, 0, 0, 0}; return ra; };
-static RectArea do_nearly_something_mem(RemapObject *ro, unsigned dst_offset, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
+static RectArea do_nearly_something_mem(RemapObject *ro, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
 static void adjust_gamma(RemapObject *ro, unsigned gamma);
 
 static unsigned u_pow(unsigned, unsigned);
@@ -111,10 +111,10 @@ static RemapFuncDesc *find_remap_func(unsigned, int, int, RemapFuncDesc *);
 static RemapFuncDesc *find_best_remap_func(unsigned, int, int, RemapFuncDesc *);
 static void install_remap_funcs(RemapObject *, int);
 
-static RectArea remap_mem_1(RemapObject *, unsigned, int, int);
+static RectArea remap_mem_1(RemapObject *, int, int);
 static RectArea remap_rect_1(RemapObject *, int, int, int, int);
 static RectArea remap_rect_dst_1(RemapObject *, int, int, int, int);
-static RectArea remap_mem_2(RemapObject *, unsigned, int, int);
+static RectArea remap_mem_2(RemapObject *, int, int);
 
 /*
  * set file handle for debug messages
@@ -943,12 +943,10 @@ static void remap_area_debug_func(RemapObject *ro)
 #define REMAP_AREA_DEBUG_FUNC(_ro_)
 #endif
 
-static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
-	int offset, int len)
+static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
-  int i1_, i2_, j1_, j2_;
   int pixel_size = 1;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
@@ -975,10 +973,6 @@ static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
   i2 = offset % ro->src_scan_len;
   j1 = (offset + len) / ro->src_scan_len;
   j2 = (offset + len) % ro->src_scan_len;
-  i1_ = (offset + dst_offset) / ro->src_scan_len;
-  i2_ = (offset + dst_offset) % ro->src_scan_len;
-  j1_ = (offset + dst_offset + len) / ro->src_scan_len;
-  j2_ = (offset + dst_offset + len) % ro->src_scan_len;
 
   /* make sure it's all visible */
   if(i2 >= ro->src_width) i1++, i2 = 0, offset = i1 * ro->src_scan_len;
@@ -999,15 +993,14 @@ static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
   if(ro->remap_func_flags & RFF_REMAP_RECT) {
     if(i2) {
       ro->src_offset = offset;
-      offset += ro->src_scan_len - i2;
       ro->src_x0 = i2;
       ro->src_x1 = ro->src_width;
       ro->src_y0 = i1;
       ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = bre_d_0(i2_, ro->src_width, ro->dst_width);
+      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
       ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(i1_ + 1, ro->src_height, ro->dst_height);
+      ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(i1 + 1, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
       ra.y = ro->dst_y0;
       ra.height = ro->dst_y1 - ra.y;
@@ -1015,26 +1008,27 @@ static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
       if(ro->dst_y0 != ro->dst_y1 && ro->dst_x1 != ro->dst_x0) {
         ro->remap_func(ro);
       }
+      offset += ro->src_scan_len - i2;
       i2 = 0;
       i1++;
     }
     if(i1 < j1) {
       ro->src_offset = offset;
-      offset += ro->src_scan_len * (j1 - i1);
-      ro->src_x0 = ro->dst_x0 = 0;
+      ro->src_x0 = 0;
       ro->src_x1 = ro->src_width;
       ro->src_y0 = i1;
       ro->src_y1 = j1;
-      ro->dst_x0 = 0;
+      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
       ro->dst_x1 = ro->dst_width;
-      ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
+      ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
       ra.height = ro->dst_y1 - ra.y;
       REMAP_AREA_DEBUG_FUNC(ro);
       if(ro->dst_y0 != ro->dst_y1) {
         ro->remap_func(ro);
       }
+      offset += ro->src_scan_len * (j1 - i1);
     }
     if(j2) {
       ro->src_offset = offset;
@@ -1042,10 +1036,10 @@ static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
       ro->src_x1 = j2;
       ro->src_y0 = j1;
       ro->src_y1 = ro->src_y0 + 1;
-      ro->dst_x0 = 0;
-      ro->dst_x1 = bre_d_0(j2_, ro->src_width, ro->dst_width);
-      ro->dst_y0 = bre_d_0(j1_, ro->src_height, ro->dst_height);
-      ro->dst_y1 = bre_d_0(j1_ + 1, ro->src_height, ro->dst_height);
+      ro->dst_x0 = bre_d_0(i2, ro->src_width, ro->dst_width);
+      ro->dst_x1 = bre_d_0(j2, ro->src_width, ro->dst_width);
+      ro->dst_y0 = bre_d_0(j1, ro->src_height, ro->dst_height);
+      ro->dst_y1 = bre_d_0(j1 + 1, ro->src_height, ro->dst_height);
       ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
       ra.height = ro->dst_y1 - ra.y;
       REMAP_AREA_DEBUG_FUNC(ro);
@@ -1062,9 +1056,8 @@ static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    if(j2_) j1_++;
-    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1077,9 +1070,8 @@ static RectArea remap_mem_1(RemapObject *ro, unsigned dst_offset,
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    if(j2_) j1_++;
-    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
@@ -1257,12 +1249,10 @@ static RectArea remap_rect_dst_1(RemapObject *ro, int x0, int y0, int width, int
 /*
  * for CGA/Hercules-like modes
  */
-static RectArea remap_mem_2(RemapObject *ro, unsigned dst_offset,
-	int offset, int len)
+static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
 {
   RectArea ra = {0, 0, 0, 0};
   int i1, i2, j1, j2;
-  int i1_, j1_, j2_;
 
   if(ro->state & ROS_REMAP_IGNORE) return ra;
   if(ro->remap_func == NULL) return ra;
@@ -1288,10 +1278,6 @@ static RectArea remap_mem_2(RemapObject *ro, unsigned dst_offset,
   i2 = offset % ro->src_scan_len;
   j1 = (offset + len) / ro->src_scan_len;
   j2 = (offset + len) % ro->src_scan_len;
-  i1_ = (offset + dst_offset) / ro->src_scan_len;
-//  i2_ = (offset + dst_offset) % ro->src_scan_len;
-  j1_ = (offset + dst_offset + len) / ro->src_scan_len;
-  j2_ = (offset + dst_offset + len) % ro->src_scan_len;
 
   if(ro->src_mode == MODE_HERC) {
     i1 <<= 2;
@@ -1323,9 +1309,8 @@ static RectArea remap_mem_2(RemapObject *ro, unsigned dst_offset,
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    if(j2_) j1_++;
-    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
     ro->dst_offset = ro->dst_y0 * ro->dst_scan_len;
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
@@ -1338,9 +1323,8 @@ static RectArea remap_mem_2(RemapObject *ro, unsigned dst_offset,
     ro->src_y0 = i1;
     ro->src_y1 = j1;
     if(j2) ro->src_y1++;
-    if(j2_) j1_++;
-    ro->dst_y0 = bre_d_0(i1_, ro->src_height, ro->dst_height);
-    ro->dst_y1 = bre_d_0(j1_, ro->src_height, ro->dst_height);
+    ro->dst_y0 = bre_d_0(i1, ro->src_height, ro->dst_height);
+    ro->dst_y1 = bre_d_0(j1, ro->src_height, ro->dst_height);
     ra.y = ro->dst_y0;
     ra.height = ro->dst_y1 - ro->dst_y0;
     ro->src_offset = ro->dst_offset = 0;
@@ -3471,8 +3455,7 @@ static RectArea _remap_remap_rect_dst(void *ros,
 static RectArea _remap_remap_mem(void *ros,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	unsigned src_start,
-	unsigned dst_start, int offset, int len, struct bitmap_desc dst_img,
+	unsigned src_start, int offset, int len, struct bitmap_desc dst_img,
 	int gamma)
 {
   RemapObject *ro = RO(ros);
@@ -3481,17 +3464,10 @@ static RectArea _remap_remap_mem(void *ros,
   ro->src_image = src_img.img;
   ro->src_start = src_start;
   ro->dst_image = dst_img.img;
-  if (dst_start) {
-   /* unfortunately dst_start doesn't work and is untrivial to implement
-    * within the current code. So we deal with it here and pass 0 down. */
-    ro->src_start -= dst_start;
-    offset += dst_start;
-    dst_start = 0;
-  }
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);
   adjust_gamma(ro, gamma);
-  return ro->remap_mem(ro, dst_start, offset, len);
+  return ro->remap_mem(ro, offset, len);
 }
 
 static int _remap_get_cap(void *ros)

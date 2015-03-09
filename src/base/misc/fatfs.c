@@ -91,7 +91,6 @@ static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsign
 
 static int sys_type;
 static int sys_done;
-static int fd_added;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
@@ -608,7 +607,7 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 
 static int try_add_fdos(fatfs_t *f, unsigned oi)
 {
-    if (!fd_added) {
+	int fd_added = 0;
 	/* try preinstalled freedos */
 	char *libdir = getenv("DOSEMU_LIB_DIR");
 	if (libdir) {
@@ -631,8 +630,7 @@ static int try_add_fdos(fatfs_t *f, unsigned oi)
 	    if (fd_added)
 		return 1;
 	}
-    }
-    return 0;
+	return 0;
 }
 
 static void set_vol_and_len(fatfs_t *f, unsigned oi)
@@ -1126,11 +1124,7 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos)
   }
   if(pos >= o->size) return 0;
 
-  if(!(s = full_name(f, o->parent, o->name))) {
-    fatfs_deb("fatfs: qualifying %s failed\n", o->name);
-    return -1;
-  }
-
+  s = o->full_name;
   fatfs_deb2("going to read 0x200 bytes from file \"%s\", ofs 0x%x \n", s, pos);
 
   if(f->fd_obj == 0) {

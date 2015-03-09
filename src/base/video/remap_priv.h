@@ -63,7 +63,7 @@ typedef struct RemapObjectStruct {
   void (*dst_resize)(struct RemapObjectStruct *, int, int, int);
   RectArea (*remap_rect)(struct RemapObjectStruct *, int, int, int, int);
   RectArea (*remap_rect_dst)(struct RemapObjectStruct *, int, int, int, int);
-  RectArea (*remap_mem)(struct RemapObjectStruct *, unsigned, int, int);
+  RectArea (*remap_mem)(struct RemapObjectStruct *, int, int);
   int state;
   int src_mode, dst_mode;
   int features;

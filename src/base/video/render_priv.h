@@ -29,8 +29,7 @@ RectArea remap_remap_rect_dst(struct remap_object *ro,
 RectArea remap_remap_mem(struct remap_object *ro,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	unsigned src_start,
-	unsigned dst_start, int offset, int len,
+	unsigned src_start, int offset, int len,
 	struct bitmap_desc dst_img,
 	int gamma);
 int remap_get_cap(struct remap_object *ro);

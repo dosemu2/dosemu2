@@ -50,6 +50,7 @@ static void SDL_handle_events(void);
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
 static void toggle_grab(void);
+static void window_grab(int on);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
 
@@ -92,7 +93,7 @@ static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
-int grab_active = 0;
+static int grab_active = 0;
 static int m_cursor_visible;
 static int init_failed;
 
@@ -201,10 +202,6 @@ int SDL_priv_init(void)
     init_failed = 1;
     return -1;
   }
-  if (config.sdl_nogl) {
-    v_printf("SDL: Disabling OpenGL framebuffer acceleration\n");
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
-  }
   return 0;
 }
 
@@ -221,23 +218,24 @@ int SDL_init(void)
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   }
+  if (config.sdl_nogl) {
+    v_printf("SDL: Disabling OpenGL framebuffer acceleration\n");
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+  }
   if (config.X_fullscreen)
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
   else
     flags |= SDL_WINDOW_RESIZABLE;
-  window = SDL_CreateWindow(config.X_title, SDL_WINDOWPOS_UNDEFINED,
-    SDL_WINDOWPOS_UNDEFINED, 0, 0, flags);
-  if (!window) {
+  /* it is better to create window and renderer at once. They have
+   * internal cyclic dependencies, so if you create renderer after
+   * creating window, SDL will destroy and re-create the window. */
+  SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
+  if (!window || !renderer) {
     error("SDL window failed\n");
     init_failed = 1;
     return -1;
   }
-  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-  if (!renderer) {
-    error("SDL renderer failed\n");
-    init_failed = 1;
-    return -1;
-  }
+  SDL_SetWindowTitle(window, config.X_title);
 
 #ifdef X_SUPPORT
   init_x11_support(window);
@@ -245,8 +243,10 @@ int SDL_init(void)
   use_bitmap_font = 1;
 #endif
 
-  if (config.X_fullscreen)
-    toggle_grab();
+  if (config.X_fullscreen) {
+    window_grab(1);
+    force_grab = 1;
+  }
 
   pix_fmt = SDL_GetWindowPixelFormat(window);
   if (pix_fmt == SDL_PIXELFORMAT_UNKNOWN) {
@@ -490,29 +490,31 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   pthread_mutex_unlock(&update_mtx);
 }
 
-static void toggle_grab(void)
+static void window_grab(int on)
 {
-  if(grab_active ^= 1) {
+  if (on) {
     v_printf("SDL: grab activated\n");
-    if (!config.X_fullscreen)
-      SDL_SetWindowGrab(window, SDL_TRUE);
-    config.mouse.use_absolute = 0;
+    SDL_SetWindowGrab(window, SDL_TRUE);
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
     SDL_SetRelativeMouseMode(SDL_TRUE);
     mouse_enable_native_cursor(1);
-  }
-  else {
-    config.mouse.use_absolute = 1;
+  } else {
     v_printf("SDL: grab released\n");
-    if (!config.X_fullscreen)
-      SDL_SetWindowGrab(window, SDL_FALSE);
+    SDL_SetWindowGrab(window, SDL_FALSE);
     if (m_cursor_visible)
       SDL_ShowCursor(SDL_ENABLE);
     SDL_SetRelativeMouseMode(SDL_FALSE);
     mouse_enable_native_cursor(0);
   }
+  grab_active = on;
+  /* update title with grab info */
   SDL_change_config(CHG_TITLE, NULL);
+}
+
+static void toggle_grab(void)
+{
+  window_grab(grab_active ^ 1);
 }
 
 static void toggle_fullscreen_mode(void)
@@ -521,7 +523,7 @@ static void toggle_fullscreen_mode(void)
   if (config.X_fullscreen) {
     v_printf("SDL: entering fullscreen mode\n");
     if (!grab_active) {
-      toggle_grab();
+      window_grab(1);
       force_grab = 1;
     }
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -529,7 +531,7 @@ static void toggle_fullscreen_mode(void)
     v_printf("SDL: entering windowed mode!\n");
     SDL_SetWindowFullscreen(window, 0);
     if (force_grab && grab_active) {
-      toggle_grab();
+      window_grab(0);
     }
     force_grab = 0;
   }
@@ -790,7 +792,6 @@ static int SDL_mouse_init(void)
     return FALSE;
 
   mice->type = MOUSE_SDL;
-  mice->use_absolute = 1;
   mice->native_cursor = config.X_fullscreen;
   /* we have the X cursor, but if we start fullscreen, grab by default */
   m_printf("MOUSE: SDL Mouse being set\n");

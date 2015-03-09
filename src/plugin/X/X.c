@@ -1256,7 +1256,6 @@ static void toggle_kbd_grab(void)
 static void toggle_mouse_grab(void)
 {
   if(grab_active ^= 1) {
-    config.mouse.use_absolute = 0;
     X_printf("X: mouse grab activated\n");
     if (mainwindow != fullscreenwindow) {
       XGrabPointer(display, drawwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
@@ -1266,7 +1265,6 @@ static void toggle_mouse_grab(void)
     mouse_enable_native_cursor(1);
   }
   else {
-    config.mouse.use_absolute = 1;
     X_printf("X: mouse grab released\n");
     if (mainwindow != fullscreenwindow) {
       XUngrabPointer(display, CurrentTime);
@@ -2181,6 +2179,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
   XChangeWindowAttributes(display, drawwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
 #endif
 
+  get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
   if(vga.mode_class == TEXT) {
     XSetWindowColormap(display, drawwindow, text_cmap);
     dac_bits = vga.dac.bits;
@@ -2191,19 +2190,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     } else {
       font_width = vga.char_width;
       font_height = vga.char_height;
-      x_res = vga.width;
-      w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
-      y_res = vga.height;
-      w_y_res = (y_res <= 240) ? (2 * y_res) : y_res;
-
-      if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
-	w_x_res = config.X_winsize_x;
-	w_y_res = config.X_winsize_y;
-      }
-
-      if(config.X_aspect_43) {
-	w_y_res = (w_x_res * 3) >> 2;
-      }
     }
 
     saved_w_x_res = w_x_res;
@@ -2224,7 +2210,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     dac_bits = vga.dac.bits;
-    get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;
@@ -2278,10 +2263,7 @@ void X_resize_text_screen()
   } else {
     font_width = vga.char_width;
     font_height = vga.char_height;
-    x_res = vga.width;
-    w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
-    y_res = vga.height;
-    w_y_res = (y_res <= 240) ? (2 * y_res) : y_res;
+    get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
   }
   saved_w_x_res = w_x_res;
   saved_w_y_res = w_y_res;
@@ -2503,7 +2485,6 @@ static int X_mouse_init(void)
   if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
-  mice->use_absolute = 1;
   mice->native_cursor = 0;	/* we have the X cursor */
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;
