@@ -242,13 +242,13 @@ void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res)
   if(w_y_res <= 120 && w_y_res > 0)
     w_y_res = (240 / w_y_res) * w_y_res;
   /* 320x200-style modes */
-  if(w_x_res <= 320 && w_y_res <= 240) {
+  if(w_x_res <= 360 && w_y_res <= 240) {
     w_x_res *= config.X_mode13fact;
     w_y_res *= config.X_mode13fact;
   } else if(w_y_res <= 240) {
     /* 640x200-style modes */
     w_y_res *= 2;
-  } else if(w_x_res <= 320) {
+  } else if(w_x_res <= 360) {
     /* 320x480-style modes */
     w_x_res *= 2;
   }
