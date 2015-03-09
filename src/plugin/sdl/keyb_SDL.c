@@ -4,6 +4,11 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+/*
+ * Authors: Emmanuel Jeandel, Bart Oldeman
+ * SDL2 and XKB support by Stas Sergeev
+ */
+
 #include "config.h"
 
 #include <SDL.h>
