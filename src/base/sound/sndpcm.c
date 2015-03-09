@@ -453,6 +453,34 @@ static void pcm_stop_output(int id)
     S_printf("PCM: output stopped\n");
 }
 
+static void handle_raw_adj(int strm_idx, double fillup, double time)
+{
+#define ADJ_PERIOD 2000000
+    double raw_delay = INIT_BUFFER_DELAY;
+    double delta = (fillup - raw_delay) / (raw_delay * 320);
+    if (fillup == 0) {
+	delta *= 10;
+	if (pcm.stream[strm_idx].last_fillup == 0)
+	    delta *= 10;
+    }
+    if (time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
+	/* of course this heuristic doesnt work, but we have to try... */
+	if ((fillup > raw_delay * 2 &&
+	     fillup >= pcm.stream[strm_idx].last_fillup) ||
+	    (fillup < raw_delay / 1.5 &&
+	     fillup <= pcm.stream[strm_idx].last_fillup)) {
+	    pcm.stream[strm_idx].raw_speed_adj -= delta;
+	    if (pcm.stream[strm_idx].raw_speed_adj > 5)
+		pcm.stream[strm_idx].raw_speed_adj = 5;
+	    if (pcm.stream[strm_idx].raw_speed_adj < 0.2)
+		pcm.stream[strm_idx].raw_speed_adj = 0.2;
+//          error("speed %f\n", pcm.stream[strm_idx].raw_speed_adj);
+	}
+	pcm.stream[strm_idx].last_fillup = fillup;
+	pcm.stream[strm_idx].last_adj_time = time;
+    }
+}
+
 static void pcm_handle_get(int strm_idx, double time)
 {
     double fillup = calc_buffer_fillup(strm_idx, time);
@@ -466,34 +494,8 @@ static void pcm_handle_get(int strm_idx, double time)
 	break;
 
     case SNDBUF_STATE_PLAYING:
-#if 1
-	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
-#define ADJ_PERIOD 2000000
-	    double raw_delay = NORM_BUFFER_DELAY;
-	    double delta = (fillup - raw_delay) / (raw_delay * 320);
-	    if (fillup == 0) {
-		delta *= 10;
-		if (pcm.stream[strm_idx].last_fillup == 0)
-		    delta *= 10;
-	    }
-	    if (time - pcm.stream[strm_idx].last_adj_time > ADJ_PERIOD) {
-		/* of course this heuristic doesnt work, but we have to try... */
-		if ((fillup > raw_delay * 2 &&
-		     fillup >= pcm.stream[strm_idx].last_fillup) ||
-		    (fillup < raw_delay / 1.5 &&
-		     fillup <= pcm.stream[strm_idx].last_fillup)) {
-		    pcm.stream[strm_idx].raw_speed_adj -= delta;
-		    if (pcm.stream[strm_idx].raw_speed_adj > 5)
-			pcm.stream[strm_idx].raw_speed_adj = 5;
-		    if (pcm.stream[strm_idx].raw_speed_adj < 0.2)
-			pcm.stream[strm_idx].raw_speed_adj = 0.2;
-//          error("speed %f\n", pcm.stream[strm_idx].raw_speed_adj);
-		}
-		pcm.stream[strm_idx].last_fillup = fillup;
-		pcm.stream[strm_idx].last_adj_time = time;
-	    }
-	}
-#endif
+	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
+	    handle_raw_adj(strm_idx, fillup, time);
 	if (rng_count(&pcm.stream[strm_idx].buffer) <
 	    pcm.stream[strm_idx].channels * 2 && fillup == 0) {
 	    S_printf("PCM: ERROR: buffer on stream %i exhausted (%s)\n",
@@ -529,6 +531,14 @@ static void pcm_handle_get(int strm_idx, double time)
 	break;
 
     case SNDBUF_STATE_STALLED:
+	if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
+	    if (fillup == 0 && pcm.stream[strm_idx].last_fillup == 0) {
+		pcm_reset_stream(strm_idx);
+		pcm.stream[strm_idx].raw_speed_adj = 1;
+	    } else {
+		handle_raw_adj(strm_idx, fillup, time);
+	    }
+	}
 	break;
     }
 }
