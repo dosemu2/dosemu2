@@ -669,15 +669,12 @@ void pcm_time_unlock(int strm_idx)
 static double pcm_calc_tstamp(int strm_idx)
 {
     double tstamp = get_stream_time(strm_idx);
-/* disable below to allow speed adjust heuristic to work.
- * Can use some period thresholds in the future. */
-#if 0
-    if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW) {
+    if ((pcm.stream[strm_idx].flags & PCM_FLAG_RAW) &&
+	    pcm.stream[strm_idx].state == SNDBUF_STATE_STALLED) {
 	long long now = GETusTIME(0);
-	if (tstamp < now)
-	    tstamp = now;
+	if (tstamp < now - WRITE_INIT_POS)
+	    tstamp = now - WRITE_INIT_POS;
     }
-#endif
     return tstamp;
 }
 
