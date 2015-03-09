@@ -361,7 +361,7 @@ static int update_graphics_loop(int src_offset, int update_offset,
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
-                             veut->display_start + src_offset, update_offset +
+                             src_offset, update_offset +
                              veut->update_start - veut->display_start,
                              veut->update_len, dst_image, config.X_gamma);
 #ifdef DEBUG_SHOW_UPDATE_AREA
@@ -416,7 +416,7 @@ static int update_graphics_screen(void)
 
   veut.max_len = veut.max_max_len;
 
-  update_ret = update_graphics_loop(0, 0, &veut);
+  update_ret = update_graphics_loop(veut.display_start, 0, &veut);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
@@ -424,17 +424,22 @@ static int update_graphics_screen(void)
        we need to wrap at 0xb0000
     */
     veut.display_end = wrap;
+    wrap = veut.display_start;
+    veut.display_start = 0;
     veut.max_len = veut.max_max_len;
-    update_ret = update_graphics_loop(-veut.display_start,
-	    vga.mem.wrap - veut.display_start, &veut);
+    update_ret = update_graphics_loop(-(vga.mem.wrap - wrap),
+           vga.mem.wrap - wrap, &veut);
+    veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
   }
 
   if (vga.line_compare < vga.height) {
+    veut.display_start = 0;
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut.max_len = veut.max_max_len;
-    update_ret = update_graphics_loop(-veut.display_start,
-	    vga.scan_len * vga.line_compare - veut.display_start, &veut);
+    update_ret = update_graphics_loop(-vga.scan_len * vga.line_compare,
+	    vga.scan_len * vga.line_compare, &veut);
+    veut.display_start = vga.display_start;
     veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
 
