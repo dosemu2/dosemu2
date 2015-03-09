@@ -235,7 +235,8 @@ void CRTC_write_value(unsigned char data)
          depending on mode control bit 5 */
       vga.display_start = (vga.crtc.data[0x0d] + (u << 8)) << vga.crtc.addr_mode;
       crtc_deb("CRTC_write_value: Start Address = 0x%04x, high changed\n", vga.display_start);
-      vga.reconfig.display = 1;
+      /* high byte is written first, so schedule redraw only on low byte */
+//      vga.reconfig.display = 1;
       break;
 
     case 0x0d:		/* Start Address Low */
