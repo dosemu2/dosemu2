@@ -14,7 +14,7 @@ TODO items for the next release:
 
 - bring the new sound code to the state where it can replace
   the old sound code
-    Mostly done, still needs recording support and proper prebuffering.
+    Mostly done, still needs recording support from microphone.
 
 - look into bug 517 which discusses the regressions added by
   allowing non-fixed lowmem mappings, cpuemu updates, sound updates
@@ -22,6 +22,9 @@ TODO items for the next release:
     DONE
 
 - resurrect irqpassing on x86-64
+    Unlikely to happen before 2.0 release
+
+- implement parport support via ppdev (steal from wine)
     Unlikely to happen before 2.0 release
 
 - Look into SDL_ttf if it can render the bdf fonts
