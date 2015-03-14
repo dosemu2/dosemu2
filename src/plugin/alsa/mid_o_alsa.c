@@ -64,13 +64,12 @@ static void midoalsa_write(unsigned char val)
 
 CONSTRUCTOR(static int midoalsa_register(void))
 {
-    struct midi_out_plugin midoalsa;
+    struct midi_out_plugin midoalsa = {};
     midoalsa.name = midoalsa_name;
     midoalsa.init = midoalsa_init;
     midoalsa.done = midoalsa_done;
     midoalsa.reset = midoalsa_reset;
     midoalsa.write = midoalsa_write;
-    midoalsa.stop = NULL;
-    midoalsa.timer = NULL;
+    midoalsa.weight = MIDI_W_PREFERRED;
     return midi_register_output_plugin(midoalsa);
 }

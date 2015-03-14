@@ -20,7 +20,12 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
 /*
+ * Purpose: midi file writer
+ *
+ * Author: Stas Sergeev
+ *
  * This code is a mix of fluidsynth output plugin and the file output
  * plugin from timidity. The timidity file output plugin, in turn, is
  * a port of dosemu's midid file output code by Rob Komar and Stas Sergeev.
@@ -386,17 +391,12 @@ static void midofile_stop(void)
 
 CONSTRUCTOR(static int midofile_register(void))
 {
-    struct midi_out_plugin midofile;
+    struct midi_out_plugin midofile = {};
     midofile.name = midofile_name;
     midofile.init = midofile_init;
     midofile.done = midofile_done;
     midofile.reset = NULL;
     midofile.write = midofile_write;
     midofile.stop = midofile_stop;
-    midofile.timer = NULL;
-#if 1
     return midi_register_output_plugin(midofile);
-#else
-    return 0;
-#endif
 }

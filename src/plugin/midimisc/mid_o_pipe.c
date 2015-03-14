@@ -83,13 +83,12 @@ static void midopipe_write(unsigned char val)
 
 CONSTRUCTOR(static int midopipe_register(void))
 {
-    struct midi_out_plugin midopipe;
+    struct midi_out_plugin midopipe = {};
     midopipe.name = midopipe_name;
     midopipe.init = midopipe_init;
     midopipe.done = midopipe_done;
     midopipe.reset = midopipe_reset;
     midopipe.write = midopipe_write;
-    midopipe.stop = NULL;
-    midopipe.timer = NULL;
+    midopipe.flags = MIDI_F_PASSTHRU;
     return midi_register_output_plugin(midopipe);
 }

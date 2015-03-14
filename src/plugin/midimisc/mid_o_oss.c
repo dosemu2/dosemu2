@@ -78,13 +78,11 @@ static void midooss_write(unsigned char val)
 
 CONSTRUCTOR(static int midooss_register(void))
 {
-    struct midi_out_plugin midooss;
+    struct midi_out_plugin midooss = {};
     midooss.name = midooss_name;
     midooss.init = midooss_init;
     midooss.done = midooss_done;
     midooss.reset = midooss_reset;
     midooss.write = midooss_write;
-    midooss.stop = NULL;
-    midooss.timer = NULL;
     return midi_register_output_plugin(midooss);
 }

@@ -28,11 +28,12 @@
 
 struct midi_out_plugin_wr {
   struct midi_out_plugin plugin;
-  int initialized;
+  int initialized:1;
+  int failed:1;
 };
 struct midi_in_plugin_wr {
   struct midi_in_plugin plugin;
-  int initialized;
+  int initialized:1;
 };
 
 #define MAX_OUT_PLUGINS 15
@@ -54,12 +55,62 @@ void midi_write(unsigned char val)
 
 void midi_init(void)
 {
-  int i;
+  int i, sel, max_w, max_i;
   rng_init(&midi_in, 64, 1);
-  for (i = 0; i < out_registered; i++)
-    out[i].initialized = out[i].plugin.init();
-  for (i = 0; i < in_registered; i++)
-    in[i].initialized = in[i].plugin.init();
+
+  sel = 0;
+  for (i = 0; i < out_registered; i++) {
+    if (out[i].plugin.selected) {
+      out[i].initialized = out[i].plugin.init();
+      S_printf("MIDI: Initializing output plugin: %s: %s\n",
+	  out[i].plugin.name, out[i].initialized ? "OK" : "Failed");
+      sel++;
+    }
+  }
+  if (!sel) do {
+    max_w = 0;
+    max_i = -1;
+    for (i = 0; i < out_registered; i++) {
+      if (out[i].initialized || out[i].failed)
+        continue;
+      if (out[i].plugin.flags & MIDI_F_PASSTHRU) {
+        out[i].initialized = out[i].plugin.init();
+        S_printf("MIDI: Initializing pass-through output plugin: %s: %s\n",
+	    out[i].plugin.name, out[i].initialized ? "OK" : "Failed");
+        if (!out[i].initialized)
+          out[i].failed = 1;
+      }
+      if (out[i].plugin.weight > max_w) {
+        max_w = out[i].plugin.weight;
+        max_i = i;
+      }
+    }
+    if (max_i != -1) {
+      out[max_i].initialized = out[max_i].plugin.init();
+      S_printf("MIDI: Initializing output plugin: %s (w=%i): %s\n",
+	  out[max_i].plugin.name, max_w,
+	  out[max_i].initialized ? "OK" : "Failed");
+      if (!out[max_i].initialized)
+        out[max_i].failed = 1;
+    }
+  } while(max_i != -1 && !out[max_i].initialized);
+
+  sel = 0;
+  for (i = 0; i < in_registered; i++) {
+    if (in[i].plugin.selected) {
+      in[i].initialized = in[i].plugin.init();
+      S_printf("MIDI: Initializing input plugin: %s: %s\n",
+	  in[i].plugin.name, in[i].initialized ? "OK" : "Failed");
+      sel++;
+    }
+  }
+  if (!sel) {
+    for (i = 0; i < in_registered; i++) {
+      in[i].initialized = in[i].plugin.init();
+      S_printf("MIDI: Initializing input plugin: %s: %s\n",
+	  in[i].plugin.name, in[i].initialized ? "OK" : "Failed");
+    }
+  }
 }
 
 void midi_done(void)
@@ -129,7 +180,6 @@ int midi_get_data_byte(unsigned char *buf)
 int midi_register_output_plugin(struct midi_out_plugin plugin)
 {
   int index;
-  S_printf("MIDI: Registering output plugin: %s\n", plugin.name);
   if (out_registered >= MAX_OUT_PLUGINS) {
     error("Cannot register midi plugin %s\n", plugin.name);
     return 0;
@@ -143,7 +193,6 @@ int midi_register_output_plugin(struct midi_out_plugin plugin)
 int midi_register_input_plugin(struct midi_in_plugin plugin)
 {
   int index;
-  S_printf("MIDI: Registering input plugin: %s\n", plugin.name);
   if (in_registered >= MAX_IN_PLUGINS) {
     error("Cannot register midi plugin %s\n", plugin.name);
     return 0;
