@@ -388,20 +388,22 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
   int mode = video_mode;
   int x_res, y_res, wx_res, wy_res;
 
-  v_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
-    mode_class != -1 ? "" : "re-init ",
-    (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
-    vga.text_width, vga.text_height, vga.width, vga.height
-  );
-
   get_mode_parameters(&x_res, &y_res, &wx_res, &wy_res);
-  if (vga.mode_class == TEXT) {
+  v_printf("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
+    (int) mode, mode_class ? "GRAPH" : "TEXT",
+    text_width, text_height, x_res, y_res
+  );
+  if (surface && surface->w == x_res && surface->h == y_res) {
+    v_printf("SDL: same mode, not changing\n");
+    return 1;
+  }
+  if (mode_class == TEXT) {
     pthread_mutex_lock(&mode_mtx);
     if (use_bitmap_font) {
       SDL_change_mode(x_res, y_res, wx_res, wy_res);
     } else {
-      SDL_change_mode(0, 0, vga.text_width * font_width,
-			vga.text_height * font_height);
+      SDL_change_mode(0, 0, text_width * font_width,
+			text_height * font_height);
     }
     pthread_mutex_unlock(&mode_mtx);
   } else {
