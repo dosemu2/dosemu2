@@ -68,10 +68,11 @@ void midi_init(void)
     }
   }
   if (!sel) do {
-    max_w = 0;
+    max_w = -1;
     max_i = -1;
     for (i = 0; i < out_registered; i++) {
-      if (out[i].initialized || out[i].failed)
+      if (out[i].initialized || out[i].failed ||
+	    (out[i].plugin.flags & MIDI_F_EXPLICIT))
         continue;
       if (out[i].plugin.flags & MIDI_F_PASSTHRU) {
         out[i].initialized = out[i].plugin.init();

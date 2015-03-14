@@ -398,5 +398,6 @@ CONSTRUCTOR(static int midofile_register(void))
     midofile.reset = NULL;
     midofile.write = midofile_write;
     midofile.stop = midofile_stop;
+    midofile.flags = MIDI_F_EXPLICIT;
     return midi_register_output_plugin(midofile);
 }

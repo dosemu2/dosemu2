@@ -22,6 +22,7 @@
  */
 
 #define MIDI_F_PASSTHRU 1
+#define MIDI_F_EXPLICIT 2
 
 #define MIDI_W_PREFERRED 1
 #define MIDI_W_PCM 2
