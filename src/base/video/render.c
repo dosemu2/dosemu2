@@ -556,6 +556,10 @@ void render_blit(int x, int y, int width, int height)
   if (vga.mode_class == TEXT)
     text_blit(x, y, width, height, img);
   else
+    /* unfortunately this does not handle mem wrap, so keen4 will
+     * have artifacts. Don't use this blit too much... SDL plugin
+     * doesn't use it but an X plugin does. Wrap should really be
+     * handled by remapper. */
     remap_remap_rect_dst(remap_obj, BMP(vga.mem.base + vga.display_start,
 	vga.width, vga.height, vga.scan_len), remap_mode(),
 	x, y, width, height, img, config.X_gamma);

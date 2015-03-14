@@ -2092,7 +2092,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   sh.min_aspect.y = wy_res;
   sh.max_aspect = sh.min_aspect;
   XSetNormalHints(display, normalwindow, &sh);
-  XSync(display, False);
 
   x_fill = wx_res;
   y_fill = wy_res;
@@ -2109,9 +2108,8 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   XResizeWindow(display, drawwindow, x_fill, y_fill);
   X_printf("Resizing our window to %dx%d image\n", x_fill, y_fill);
 
-  if (use_bitmap_font) {
+  if (use_bitmap_font || vga.mode_class == GRAPH)
     resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
-  }
 }
 
 /*
@@ -2133,7 +2131,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
 int X_set_videomode(int mode_class, int text_width, int text_height)
 {
   int mode = video_mode;
-  XSizeHints sh; /* for graphics modes, text size locking is above */
 #ifdef X_USE_BACKING_STORE
   XSetWindowAttributes xwa;
 #endif
@@ -2217,25 +2214,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     }
 
     create_ximage();
-
-    sh.width = w_x_res;
-    sh.height = w_y_res;
-    sh.width_inc = 1;
-    sh.height_inc = 1;
-    sh.min_aspect.x = w_x_res;
-    sh.min_aspect.y = w_y_res;
-    sh.max_aspect = sh.min_aspect;
-    sh.min_width = 0;
-    sh.min_height = 0;
-    sh.max_width = 32767;
-    sh.max_height = 32767;
-
-    sh.flags = PResizeInc | PSize  | PMinSize | PMaxSize;
-    if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
-
-    XSetNormalHints(display, normalwindow, &sh);
-    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
-    XResizeWindow(display, drawwindow, w_x_res, w_y_res);
+    lock_window_size(w_x_res, w_y_res);
   }
 
   /* unconditionally update the palette */
