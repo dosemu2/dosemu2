@@ -185,17 +185,12 @@ static void midomidid_stop(void)
 
 CONSTRUCTOR(static int midomidid_register(void))
 {
-    struct midi_out_plugin midomidid;
+    struct midi_out_plugin midomidid = {};
     midomidid.name = midomidid_name;
     midomidid.init = midomidid_init;
     midomidid.done = midomidid_done;
     midomidid.reset = midomidid_reset;
     midomidid.write = midomidid_write;
     midomidid.stop = midomidid_stop;
-    midomidid.timer = NULL;
-#if 0
     return midi_register_output_plugin(midomidid);
-#else
-    return 0;
-#endif
 }

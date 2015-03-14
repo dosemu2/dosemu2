@@ -21,6 +21,11 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define MIDI_F_PASSTHRU 1
+
+#define MIDI_W_PREFERRED 1
+#define MIDI_W_PCM 2
+
 struct midi_out_plugin {
   const char *name;
   int (*init)(void);
@@ -29,6 +34,9 @@ struct midi_out_plugin {
   void (*write)(unsigned char);
   void (*stop)(void);
   void (*timer)(void);
+  int selected:1;
+  int flags;
+  int weight;
 };
 
 struct midi_in_plugin {
@@ -37,6 +45,7 @@ struct midi_in_plugin {
   void (*done)(void);
   void (*reset)(void);
   void (*stop)(void);
+  int selected:1;
 };
 
 extern void midi_write(unsigned char val);

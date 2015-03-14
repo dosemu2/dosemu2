@@ -382,17 +382,13 @@ static void midotmdty_stop(void)
 
 CONSTRUCTOR(static int midotmdty_register(void))
 {
-    struct midi_out_plugin midotmdty;
+    struct midi_out_plugin midotmdty = {};
     midotmdty.name = midotmdty_name;
     midotmdty.init = midotmdty_init;
     midotmdty.done = midotmdty_done;
     midotmdty.reset = midotmdty_reset;
     midotmdty.write = midotmdty_write;
     midotmdty.stop = midotmdty_stop;
-    midotmdty.timer = NULL;
-#if 1
+    midotmdty.weight = MIDI_W_PCM;
     return midi_register_output_plugin(midotmdty);
-#else
-    return 0;
-#endif
 }

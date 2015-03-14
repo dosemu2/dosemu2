@@ -20,6 +20,13 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
+/*
+ * Purpose: fluidsynth midi synth
+ *
+ * Author: Stas Sergeev
+ *
+ */
 #include <pthread.h>
 #include <fluidsynth.h>
 #include "fluid_midi.h"
@@ -189,7 +196,7 @@ static void midoflus_timer(void)
 
 CONSTRUCTOR(static int midoflus_register(void))
 {
-    struct midi_out_plugin midoflus;
+    struct midi_out_plugin midoflus = {};
     midoflus.name = midoflus_name;
     midoflus.init = midoflus_init;
     midoflus.done = midoflus_done;
@@ -197,9 +204,6 @@ CONSTRUCTOR(static int midoflus_register(void))
     midoflus.write = midoflus_write;
     midoflus.stop = midoflus_stop;
     midoflus.timer = midoflus_timer;
-#if 1
+    midoflus.weight = MIDI_W_PCM | MIDI_W_PREFERRED;
     return midi_register_output_plugin(midoflus);
-#else
-    return 0;
-#endif
 }
