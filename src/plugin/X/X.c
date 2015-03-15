@@ -615,8 +615,8 @@ int X_init()
     vga.text_width = CO;
     vga.text_height = LI;
   }
-  saved_w_x_res = w_x_res = x_res = CO * font_width;
-  saved_w_y_res = w_y_res = y_res = LI * font_height;
+  saved_w_x_res = w_x_res = CO * font_width;
+  saved_w_y_res = w_y_res = LI * font_height;
 
   s = getenv("DOSEMU_WINDOW_ID");
   if(s && (i = strtol(s, NULL, 0)) > 0) {
@@ -2130,20 +2130,25 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
  */
 int X_set_videomode(int mode_class, int text_width, int text_height)
 {
-  int mode = video_mode;
+  int rx_res, ry_res, wx_res, wy_res;
 #ifdef X_USE_BACKING_STORE
   XSetWindowAttributes xwa;
 #endif
 
-  if (use_bitmap_font) {
-    font_width = vga.char_width;
-    font_height = vga.char_height;
+  get_mode_parameters(&rx_res, &ry_res, &wx_res, &wy_res);
+  if (x_res == rx_res && y_res == ry_res) {
+    X_printf("X: same mode, not changing\n");
+    return 1;
   }
+  x_res = rx_res;
+  y_res = ry_res;
+  w_x_res = wx_res;
+  w_y_res = wy_res;
 
   X_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
     mode_class != -1 ? "" : "re-init ",
-    (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
-    vga.text_width, vga.text_height, vga.width, vga.height
+    video_mode, mode_class ? "GRAPH" : "TEXT",
+    text_width, text_height, x_res, y_res
   );
 
   if(X_unmap_mode != -1 && (X_unmap_mode == vga.mode || X_unmap_mode == vga.VESA_mode)) {
@@ -2162,7 +2167,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
    * We use it only in text modes; in graphics modes we are fast enough and
    * it would likely only slow down the whole thing. -- sw
    */
-  if(vga.mode_class == TEXT && !use_bitmap_font) {
+  if(mode_class == TEXT && !use_bitmap_font) {
     xwa.backing_store = Always;
     xwa.backing_planes = -1;
     xwa.save_under = True;
@@ -2175,15 +2180,13 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
   XChangeWindowAttributes(display, drawwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
 #endif
-
-  get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
-  if(vga.mode_class == TEXT) {
+  if(mode_class == TEXT) {
     XSetWindowColormap(display, drawwindow, text_cmap);
     dac_bits = vga.dac.bits;
 
     if (!use_bitmap_font) {
-      w_x_res = x_res = vga.text_width * font_width;
-      w_y_res = y_res = vga.text_height * font_height;
+      w_x_res = x_res = text_width * font_width;
+      w_y_res = y_res = text_height * font_height;
     } else {
       font_width = vga.char_width;
       font_height = vga.char_height;
