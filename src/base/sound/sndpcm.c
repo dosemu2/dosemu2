@@ -138,10 +138,16 @@ int pcm_init(void)
     pthread_mutex_init(&pcm.time_mtx, NULL);
 #ifdef USE_DL_PLUGINS
 #if 0
-    /* SDL is loaded in config.h, not here */
+    /* SDL is loaded in config.c, not here */
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
 #endif
+#endif
+#ifdef USE_LIBAO
+    /* if libao is not configured for sound, still need to load it
+     * for wav writing */
+    if (!config.libao_sound)
+	load_plugin("libao");
 #endif
 #ifdef USE_ALSA
     load_plugin("alsa");

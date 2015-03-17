@@ -57,6 +57,8 @@ static int aosnd_open(void *arg)
     ao_sample_format info = {};
     ao_option opt = {};
     int id;
+    if (!config.libao_sound)
+	return 0;
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;

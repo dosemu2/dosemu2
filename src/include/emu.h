@@ -166,6 +166,8 @@ typedef struct vesamode_type_struct {
        boolean X;
        boolean X_fullscreen;
        boolean sdl;
+       boolean sdl_sound;
+       boolean libao_sound;
        u_short cardtype;
        u_short chipset;
        boolean pci;
