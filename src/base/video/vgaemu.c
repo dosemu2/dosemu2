@@ -176,7 +176,7 @@
  * large log files.
  */
 #define	DEBUG_IO	0	/* (<= 2) port emulation */
-#define	DEBUG_MAP	0	/* (<= 4) VGA memory mapping */
+#define	DEBUG_MAP	3	/* (<= 4) VGA memory mapping */
 #define	DEBUG_UPDATE	0	/* (<= 1) screen update process */
 #define	DEBUG_BANK	0	/* (<= 2) bank switching */
 #define	DEBUG_COL	0	/* (<= 1) color interpretation changes */
@@ -313,27 +313,6 @@ vga_type vga;
 vgaemu_bios_type vgaemu_bios;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-#if DEBUG_MAP >= 4
-/* check if the VGA page *really* is RO */
-volatile static int my_fault = 0;
-
-static void chk_ro()
-{
-#ifdef X86_EMULATOR
-  if (config.cpuemu<1)
-#endif
-  {
-    volatile char *p = (char *) &mem_base[0xa0077];
-    my_fault = 1;
-    *p = 0x99;
-    if(my_fault) {
-      vga_deb_map("vga_emu_fault: IS WRITABLE\n");
-    }
-  }
-  my_fault = 0;
-}
-#endif
 
 /*
  * DANG_BEGIN_FUNCTION VGA_emulate_outb
@@ -921,15 +900,6 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
 #endif
   lin_addr = DOSADDR_REL(LINP(scp->cr2));
   page_fault = lin_addr >> 12;
-
-#if DEBUG_MAP >= 4
-  if(my_fault && lin_addr == 0xa0077) {
-    vga_deb_map("vga_emu_fault: IS READ ONLY\n");
-    my_fault = 0;
-    scp->eip += 7;
-    return True;
-  }
-#endif
 
   for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
     j = page_fault - vga.mem.map[i].base_page;
@@ -1758,10 +1728,6 @@ static void print_prot_map()
     }
     v_printf("\n");
   }
-
-#if DEBUG_MAP >= 4
-  chk_ro();
-#endif
 }
 #endif
 
@@ -2533,6 +2499,7 @@ void vgaemu_dirty_page(int page)
     dosemu_error("vgaemu: page out of range, %i (%i)\n", page, vga.mem.pages);
     return;
   }
+  v_printf("vgaemu: set page %i dirty\n", page);
   pthread_mutex_lock(&prot_mtx);
   vga.mem.dirty_map[page] = 1;
   pthread_mutex_unlock(&prot_mtx);
