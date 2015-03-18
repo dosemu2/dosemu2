@@ -526,7 +526,10 @@ void vga_memset(unsigned dst, unsigned char val, size_t len);
 void vga_memsetw(unsigned dst, unsigned short val, size_t len);
 /* for cpuemu: */
 int vga_emu_protect_page(unsigned, int);
-int vga_emu_adjust_protection(unsigned, unsigned);
+int vga_emu_adjust_protection(unsigned, unsigned, int);
+#define VGA_PROT_RW 2
+#define VGA_PROT_RO 1
+#define VGA_PROT_NONE 0
 
 /*
  * Functions defined in env/video/vesa.c.

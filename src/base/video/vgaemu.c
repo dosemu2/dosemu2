@@ -187,9 +187,10 @@
 #define True 1
 #endif
 
-#define RW	2
-#define RO	1
-#define NONE	0
+#define RW	VGA_PROT_RW
+#define RO	VGA_PROT_RO
+#define NONE	VGA_PROT_NONE
+#define DEF_PROT (vga.inst_emu==EMU_ALL_INST ? NONE : RO)
 
 /*
  * We add PROT_EXEC just because pages should be executable. Of course
@@ -990,7 +991,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   if(vga_page < vga.mem.pages) {
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable then mark it dirty */
-      vga_emu_adjust_protection(vga_page, page_fault);
+      vga_emu_adjust_protection(vga_page, page_fault, RW);
       /* mark page dirty after adjusting the protection, but it
        * is still too early: render thread may clean it before
        * the app manages to write the data. In this case we'll fault
@@ -1180,20 +1181,13 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
  *
  */
 
-int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
+int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot)
 {
-  int prot;
   int i, err, j, k;
 
   if(page > vga.mem.pages) {
     vga_deb_map("vga_emu_adjust_protection: invalid page number; page = 0x%x\n", page);
     return 1;
-  }
-
-  prot = (vga.inst_emu==EMU_ALL_INST ? NONE : RO);
-
-  if(!vga.inst_emu) {
-    if(vga.mem.dirty_map[page]) prot = RW;
   }
 
   i = vga_emu_protect(page, mapped_page, prot);
@@ -1348,7 +1342,8 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   for(u = 0; u < vmt->pages; u++) {
     /* page is writable by default */
     pthread_mutex_lock(&prot_mtx);
-    if(!vga.mem.dirty_map[vmt->first_page + u]) vga_emu_adjust_protection(vmt->first_page + u, 0);
+    if(!vga.mem.dirty_map[vmt->first_page + u])
+      vga_emu_adjust_protection(vmt->first_page + u, 0, prot);
     pthread_mutex_unlock(&prot_mtx);
   }
 
@@ -1817,7 +1812,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
     j++
   ) {
     vga.mem.dirty_map[j] = 0;
-    vga_emu_adjust_protection(j, 0);
+    vga_emu_adjust_protection(j, 0, DEF_PROT);
     if(veut->max_max_len) veut->max_len -= 1 << 12;
   }
 
