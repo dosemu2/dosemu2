@@ -70,6 +70,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <getopt.h>
 #include <assert.h>
 #include <locale.h>
+#include <pthread.h>
 
 #ifdef __linux__
 #include <sys/vt.h>
@@ -131,6 +132,9 @@ __asm__("___START___: jmp _emulate\n");
 sigjmp_buf NotJEnv;
 static int ld_tid;
 static int can_leavedos;
+static int leavedos_code;
+static int leavedos_called;
+static pthread_mutex_t ld_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 void
 boot(void)
@@ -608,39 +612,25 @@ void __leavedos(int sig, const char *s, int num)
     exit(sig);
 }
 
-#if 0
-/* check the fd for data ready for reading */
-int
-d_ready(int fd)
+void leavedos_from_thread(int code)
 {
-    int selrtn;
-    struct timeval  w_time;
-    fd_set          checkset;
-
-    w_time.tv_sec = 0;
-    w_time.tv_usec = 200000;
-
-    FD_ZERO(&checkset);
-    FD_SET(fd, &checkset);
-
-    do {
-        selrtn = select(fd + 1, &checkset, NULL, NULL, &w_time);
-    } while(selrtn == -1 && errno == EINTR);
-
-    if (selrtn == 1) {
-	if (FD_ISSET(fd, &checkset))
-	    return (1);
-	else
-	    return (0);
-    } else
-	return (0);
+    pthread_mutex_lock(&ld_mtx);
+    leavedos_code = code;
+    leavedos_called++;
+    pthread_mutex_unlock(&ld_mtx);
 }
 
-void activate(int con_num)
+void check_leavedos(void)
 {
-    ioctl(kbd_fd, VT_ACTIVATE, con_num);
+    int ld_code, ld_called;
+    pthread_mutex_lock(&ld_mtx);
+    ld_code = leavedos_code;
+    ld_called = leavedos_called;
+    leavedos_called = 0;
+    pthread_mutex_unlock(&ld_mtx);
+    if (ld_called)
+        leavedos(ld_code);
 }
-#endif
 
 void hardware_run(void)
 {

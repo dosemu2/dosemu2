@@ -951,6 +951,7 @@ void do_periodic_stuff(void)
     if (in_crit_section)
 	return;
 
+    check_leavedos();
     handle_signals();
     coopth_run();
 
