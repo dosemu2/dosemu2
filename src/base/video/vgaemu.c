@@ -1343,7 +1343,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
     /* page is writable by default */
     pthread_mutex_lock(&prot_mtx);
     if(!vga.mem.dirty_map[vmt->first_page + u])
-      vga_emu_adjust_protection(vmt->first_page + u, 0, prot);
+      vga_emu_adjust_protection(vmt->first_page + u, 0, VGA_PROT_RO);
     pthread_mutex_unlock(&prot_mtx);
   }
 
