@@ -221,6 +221,7 @@
 #include <termios.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <X11/X.h>
@@ -325,6 +326,8 @@ static int screen;
 static Visual *visual;
 static int initialized;
 static int use_bitmap_font;
+static pthread_t event_thr;
+
 /*
   rootwindow: RootWindow(display, DefaultScreen(display));
   parentwindow: parent: was used with kdos
@@ -408,7 +411,7 @@ static void X_keymap_init(void);
 /* error/event handler */
 static int NewXErrorHandler(Display *, XErrorEvent *);
 static int NewXIOErrorHandler(Display *);
-static void X_handle_events(void);
+static void *X_handle_events(void *arg);
 
 /* interface to xmode.exe */
 static int X_change_config(unsigned, void *);	/* modify X config data from DOS */
@@ -470,7 +473,7 @@ struct video_system Video_X =
    X_set_videomode,
    X_update_screen,
    X_change_config,
-   X_handle_events,
+   NULL,
    "X"
 };
 
@@ -787,6 +790,8 @@ int X_init()
 
   X_register_speaker(display);
 
+  pthread_create(&event_thr, NULL, X_handle_events, NULL);
+
   return 0;
 }
 
@@ -803,6 +808,9 @@ void X_close()
   X_printf("X: X_close\n");
 
   if(display == NULL) return;
+  pthread_cancel(event_thr);
+  pthread_join(event_thr, NULL);
+
   /* terminate remapper early so that render thread is cancelled */
   remapper_done();
 
@@ -1675,24 +1683,40 @@ static int __X_handle_events(XEvent *e)
     return 0;
 }
 
-static void X_handle_events(void)
+/* all X function, even the "non-blocking" ones like XPending(),
+ * actually do a send/receive cycle with X server. If X server lags
+ * or remote (or both), these queries takes a lot. So I handle the
+ * events in a separate thread so that the main thread is never
+ * slowed down.
+ * It looks like SDL does not have this problem and an SDL plugin
+ * doesn't seem to need a separate event-handling thread. */
+static void *X_handle_events(void *arg)
 {
   XEvent e;
-  int ret;
-  if (!initialized)
-    return;
-  /* speed-up: if render is working we don't want to sit
-   * watitng on mutexes, so just go away */
-  if (render_is_updating())
-    return;
-
-  while (XPending(display) > 0)
+  int ret, pend;
+  while (1)
   {
+    if (!initialized) {
+      usleep(100000);
+      continue;
+    }
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    /* XNextEvent() is blocking and can therefore be used in a thread
+     * without XPending()? No because it locks the display while waiting,
+     * so other threads will be blocked too. We still need a manual polling. */
+    pend = XPending(display);
+    if (!pend) {
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+      usleep(10000);
+      continue;
+    }
     XNextEvent(display, &e);
     ret = __X_handle_events(&e);
     if (ret < 0)
-      leavedos(0);
+      leavedos_from_thread(0);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   }
+  return NULL;
 }
 
 /*
