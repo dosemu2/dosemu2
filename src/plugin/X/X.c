@@ -1442,24 +1442,6 @@ static int __X_handle_events(void)
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
    int keyrel_pending = 0;
 
-#if CONFIG_X_MOUSE
-   {
-     static int lastingraphics = 0;
-     if(vga.mode_class == GRAPH) {
-       if(! lastingraphics) {
-         lastingraphics = 1;
-         X_show_mouse_cursor(0);
-       }
-     }
-     else {
-       if(lastingraphics) {
-         lastingraphics = 0;
-         X_show_mouse_cursor(1);
-       }
-     }
-   }
-#endif	/* CONFIG_X_MOUSE */
-
   while (XPending(display) > 0)
     {
       XNextEvent(display,&e);
@@ -2205,9 +2187,9 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
       w_x_res = saved_w_x_res;
       w_y_res = saved_w_y_res;
     }
+    X_show_mouse_cursor(1);
   }
   else {	/* GRAPH */
-
     if(!have_true_color) {
       XSetWindowColormap(display, drawwindow, graphics_cmap);
     }
@@ -2221,6 +2203,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
     create_ximage();
     lock_window_size(w_x_res, w_y_res);
+    X_show_mouse_cursor(0);
   }
 
   /* unconditionally update the palette */
