@@ -1438,9 +1438,8 @@ static void toggle_fullscreen_mode(int init)
  */
 static int __X_handle_events(void)
 {
-   XEvent e, rel_evt;
-   unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
-   int keyrel_pending = 0;
+  XEvent e;
+  unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
 
   while (XPending(display) > 0)
     {
@@ -1536,15 +1535,6 @@ static int __X_handle_events(void)
     /* Keyboard events */
 
 	case KeyPress:
-	  /* Autorepeat generates the unwanted release events, we filter
-	   * them here. */
-	  if (keyrel_pending && e.xkey.keycode == rel_evt.xkey.keycode &&
-		e.xkey.time == rel_evt.xkey.time) {
-	    X_printf("X_KBD: Ignoring fake release event, keycode=%#x\n",
-		rel_evt.xkey.keycode);
-	    keyrel_pending = 0;
-	  }
-
           if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask)) {
             int keysyms_per_keycode;
             KeySym *sym = XGetKeyboardMapping (display, e.xkey.keycode, 1,
@@ -1573,12 +1563,10 @@ static int __X_handle_events(void)
 	  break;
 
 	case KeyRelease:
-	  if (keyrel_pending) {
-	    X_printf("X: duplicate KeyRelease event???\n");
-	    X_process_key(&rel_evt.xkey);
-	  }
-	  rel_evt = e;
-	  keyrel_pending = 1;
+#if CONFIG_X_SELECTION
+	  clear_if_in_selection();
+#endif
+	  X_process_key(&e.xkey);
 	  break;
 
 #if 0
@@ -1700,14 +1688,6 @@ static int __X_handle_events(void)
 	  X_printf("X: unknown event %i\n", e.type);
 	  break;
 	}
-    }
-
-    if (keyrel_pending) {
-#if CONFIG_X_SELECTION
-      clear_if_in_selection();
-#endif
-      X_process_key(&rel_evt.xkey);
-      keyrel_pending = 0;
     }
 
     if(ximage && resize_event && ximage->width == resize_width &&
