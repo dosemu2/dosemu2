@@ -1714,6 +1714,9 @@ static int __X_handle_events(void)
 
 #endif /* CONFIG_X_MOUSE */
 /* some weirder things... */
+	default:
+	  X_printf("X: unknown event %i\n", e.type);
+	  break;
 	}
     }
 
