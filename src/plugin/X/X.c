@@ -1439,30 +1439,16 @@ static void toggle_fullscreen_mode(int init)
 static int __X_handle_events(void)
 {
   XEvent e;
-  unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
 
   while (XPending(display) > 0)
-    {
+  {
       XNextEvent(display,&e);
 
       switch(e.type)
-	{
+      {
        case Expose:
           /*
            * Well, if we're exposed we are most certainly mapped, too. :-)
-           *
-           * This is actually a kludge to work around some strange
-           * effect related to the DOSEMU_WINDOW_ID stuff.
-           *
-           * The problem arises that, when the window is not created
-           * by DOSEmu, it is typically already mapped. For some really
-           * strange reason however, you cannot simply set is_mapped to TRUE.
-           * Apparently there is some (black) magic going on somewhere in
-           * DOSEmu that assumes that some initialisation should be
-           * done while is_mapped is FALSE. I couldn't locate the
-           * exact position, though.
-           *
-           * -- 1998/08/09 sw
            */
           is_mapped = TRUE;
 
@@ -1471,7 +1457,7 @@ static int __X_handle_events(void)
 	    if(e.xexpose.count == 0) X_redraw_text_screen();
 	  }
 	  else {	/* GRAPH */
-	    if(!resize_event) put_ximage(
+	    put_ximage(
 	      e.xexpose.x, e.xexpose.y,
 	      e.xexpose.width, e.xexpose.height
 	    );
@@ -1664,21 +1650,25 @@ static int __X_handle_events(void)
 
         case ConfigureNotify:
           /* printf("X: configure event: width = %d, height = %d\n", e.xconfigure.width, e.xconfigure.height); */
- 	/* DANG_BEGIN_REMARK
- 	 * DO NOT REMOVE THIS TEST!!!
- 	 * It is magic, without it EMS fails on my machine under X.
- 	 * Perhaps someday when we don't use a buggy /proc/self/mem..
- 	 * -- EB 18 May 1998
+	/* DANG_BEGIN_REMARK
+	 * DO NOT REMOVE THIS TEST!!!
+	 * It is magic, without it EMS fails on my machine under X.
+	 * Perhaps someday when we don't use a buggy /proc/self/mem..
+	 * -- EB 18 May 1998
 	 * A slightly further look says it's not the test so much as
 	 * suppressing noop resize events...
 	 * -- EB 1 June 1998
- 	 * DANG_END_REMARK
- 	 */
-          if ((e.xconfigure.width != resize_width)
-                       || (e.xconfigure.height != resize_height)) {
-            resize_event = 1;
-            resize_width = e.xconfigure.width;
-            resize_height = e.xconfigure.height;
+	 * DANG_END_REMARK
+	 */
+	  if ((e.xconfigure.width != w_x_res
+	               || e.xconfigure.height != w_y_res) &&
+	                   mainwindow == normalwindow) {
+	    unsigned resize_width, resize_height;
+	    resize_width = e.xconfigure.width;
+	    resize_height = e.xconfigure.height;
+	    XResizeWindow(display, drawwindow, resize_width, resize_height);
+	    resize_ximage(resize_width, resize_height);
+	    render_blit(0, 0, resize_width, resize_height);
           }
           break;
 
@@ -1687,19 +1677,8 @@ static int __X_handle_events(void)
 	default:
 	  X_printf("X: unknown event %i\n", e.type);
 	  break;
-	}
-    }
-
-    if(ximage && resize_event && ximage->width == resize_width &&
-	ximage->height == resize_height)
-      resize_event = 0;
-
-    if(resize_event && mainwindow == normalwindow) {
-      resize_event = 0;
-      XResizeWindow(display, drawwindow, resize_width, resize_height);
-      resize_ximage(resize_width, resize_height);
-      render_blit(0, 0, resize_width, resize_height);
-    }
+      }
+  }
   return 0;
 }
 
