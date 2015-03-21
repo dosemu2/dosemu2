@@ -1436,16 +1436,10 @@ static void toggle_fullscreen_mode(int init)
  *
  * DANG_END_FUNCTION
  */
-static int __X_handle_events(void)
+static int __X_handle_events(XEvent *e)
 {
-  XEvent e;
-
-  while (XPending(display) > 0)
-  {
-      XNextEvent(display,&e);
-
-      switch(e.type)
-      {
+    switch(e->type)
+    {
        case Expose:
           /*
            * Well, if we're exposed we are most certainly mapped, too. :-)
@@ -1454,12 +1448,12 @@ static int __X_handle_events(void)
 
 	  X_printf("X: expose event\n");
 	  if(vga.mode_class == TEXT) {
-	    if(e.xexpose.count == 0) X_redraw_text_screen();
+	    if(e->xexpose.count == 0) X_redraw_text_screen();
 	  }
 	  else {	/* GRAPH */
 	    put_ximage(
-	      e.xexpose.x, e.xexpose.y,
-	      e.xexpose.width, e.xexpose.height
+	      e->xexpose.x, e->xexpose.y,
+	      e->xexpose.width, e->xexpose.height
 	    );
 	  }
 	  break;
@@ -1496,16 +1490,16 @@ static int __X_handle_events(void)
 
 	case ClientMessage:
 	  /* If we get a client message which has the value of the delete
-	   * atom, it means the window manager wants us to die.
+	   * atom, it means the window manager wants us to die->
 	   */
-	  if(e.xclient.message_type == proto_atom && *e.xclient.data.l == delete_atom) {
+	  if(e->xclient.message_type == proto_atom && *e->xclient.data.l == delete_atom) {
 	    X_printf("X: got window delete message\n");
 	    /* XXX - Is it ok to call this from a SIGALRM handler? */
 	    return -1;
 	  }
 
-	  if(e.xclient.message_type == comm_atom) {
-	    kdos_recv_msg(e.xclient.data.b);
+	  if(e->xclient.message_type == comm_atom) {
+	    kdos_recv_msg(e->xclient.data.b);
 	  }
 	  break;
 
@@ -1514,16 +1508,16 @@ static int __X_handle_events(void)
 	case SelectionClear:
 	case SelectionNotify:
 	case SelectionRequest:
-	  X_handle_selection(display, drawwindow, &e);
+	  X_handle_selection(display, drawwindow, e);
 	  break;
 #endif /* CONFIG_X_SELECTION */
 
     /* Keyboard events */
 
 	case KeyPress:
-          if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask)) {
+          if((e->xkey.state & ControlMask) && (e->xkey.state & Mod1Mask)) {
             int keysyms_per_keycode;
-            KeySym *sym = XGetKeyboardMapping (display, e.xkey.keycode, 1,
+            KeySym *sym = XGetKeyboardMapping (display, e->xkey.keycode, 1,
 					       &keysyms_per_keycode);
             KeySym keysym = *sym;
             XFree(sym);
@@ -1545,14 +1539,14 @@ static int __X_handle_events(void)
 #if CONFIG_X_SELECTION
 	  clear_if_in_selection();
 #endif
-	  X_process_key(&e.xkey);
+	  X_process_key(&e->xkey);
 	  break;
 
 	case KeyRelease:
 #if CONFIG_X_SELECTION
 	  clear_if_in_selection();
 #endif
-	  X_process_key(&e.xkey);
+	  X_process_key(&e->xkey);
 	  break;
 
 #if 0
@@ -1560,21 +1554,21 @@ static int __X_handle_events(void)
           X_printf("X: KeymapNotify event\n");
           /* don't process keys when doing fullscreen switching (this generates
              two events for fullscreen and one back to windowed mode )*/
-          X_process_keys(&e.xkeymap);
+          X_process_keys(&e->xkeymap);
 	  break;
 #endif
 
     /* A keyboard mapping has been changed (e.g., with xmodmap). */
 	case MappingNotify:
 	  X_printf("X: MappingNotify event\n");
-	  XRefreshKeyboardMapping(&e.xmapping);
+	  XRefreshKeyboardMapping(&e->xmapping);
 	  break;
 
 /* Mouse events */
 #if CONFIG_X_MOUSE
 	case ButtonPress:
 #if 0 /* *** special debug code *** --sw */
-        if(e.xbutton.button == Button1) {
+        if(e->xbutton.button == Button1) {
           static unsigned flup = 0;
           v_printf("------: %u\n", ++flup);
         }
@@ -1582,36 +1576,36 @@ static int __X_handle_events(void)
 
 #if CONFIG_X_SELECTION
 	if (vga.mode_class == TEXT && !grab_active) {
-	  if (e.xbutton.button == Button1)
-	    start_selection(x_to_col(e.xbutton.x, w_x_res),
-			    y_to_row(e.xbutton.y, w_y_res));
-	  else if (e.xbutton.button == Button3)
-	    start_extend_selection(x_to_col(e.xbutton.x, w_x_res),
-				   y_to_row(e.xbutton.y, w_y_res));
+	  if (e->xbutton.button == Button1)
+	    start_selection(x_to_col(e->xbutton.x, w_x_res),
+			    y_to_row(e->xbutton.y, w_y_res));
+	  else if (e->xbutton.button == Button3)
+	    start_extend_selection(x_to_col(e->xbutton.x, w_x_res),
+				   y_to_row(e->xbutton.y, w_y_res));
 	}
 #endif /* CONFIG_X_SELECTION */
-	  set_mouse_position(e.xmotion.x,e.xmotion.y); /*root@sjoerd*/
-	  set_mouse_buttons(e.xbutton.state|(0x80<<e.xbutton.button));
+	  set_mouse_position(e->xmotion.x,e->xmotion.y); /*root@sjoerd*/
+	  set_mouse_buttons(e->xbutton.state|(0x80<<e->xbutton.button));
 	  break;
 
 	case ButtonRelease:
-	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
+	  set_mouse_position(e->xmotion.x,e->xmotion.y);  /*root@sjoerd*/
 #if CONFIG_X_SELECTION
 	  if (vga.mode_class == TEXT && !grab_active)
-	    X_handle_selection(display, drawwindow, &e);
+	    X_handle_selection(display, drawwindow, e);
 #endif /* CONFIG_X_SELECTION */
-	  set_mouse_buttons(e.xbutton.state&~(0x80<<e.xbutton.button));
+	  set_mouse_buttons(e->xbutton.state&~(0x80<<e->xbutton.button));
 	  break;
 
 	case MotionNotify:
 #if CONFIG_X_SELECTION
-	  extend_selection(x_to_col(e.xmotion.x, w_x_res),
-			   y_to_row(e.xmotion.y, w_y_res));
+	  extend_selection(x_to_col(e->xmotion.x, w_x_res),
+			   y_to_row(e->xmotion.y, w_y_res));
 #endif /* CONFIG_X_SELECTION */
 	  if (ignore_move)
 	    ignore_move--;
 	  else
-	    set_mouse_position(e.xmotion.x, e.xmotion.y);
+	    set_mouse_position(e->xmotion.x, e->xmotion.y);
 	  break;
 
 	case EnterNotify:
@@ -1628,28 +1622,28 @@ static int __X_handle_events(void)
 	      mouse_drag_to_corner(w_x_res, w_y_res);
 	      ignore_move = 1;
             } else {
-	      set_mouse_position(e.xcrossing.x, e.xcrossing.y);
+	      set_mouse_position(e->xcrossing.x, e->xcrossing.y);
 	    }
-	    set_mouse_buttons(e.xcrossing.state);
+	    set_mouse_buttons(e->xcrossing.state);
 	    mouse_really_left_window = 0;
           }
 	  break;
 
 	case LeaveNotify:                   /* Should this do anything? */
-	  X_printf("X: Mouse leaving window, coordinates %d %d\n", e.xcrossing.x, e.xcrossing.y);
+	  X_printf("X: Mouse leaving window, coordinates %d %d\n", e->xcrossing.x, e->xcrossing.y);
           /* some stupid window managers send this event if you click a
              mouse button when the mouse is in the window. Let's ignore the
              next "EnterNotify" if the mouse doesn't really leave the window */
           mouse_really_left_window = 1;
-          if (e.xcrossing.x >= 0 && e.xcrossing.x < w_x_res &&
-              e.xcrossing.y >= 0 && e.xcrossing.y < w_y_res) {
+          if (e->xcrossing.x >= 0 && e->xcrossing.x < w_x_res &&
+              e->xcrossing.y >= 0 && e->xcrossing.y < w_y_res) {
             X_printf("X: bogus LeaveNotify event\n");
             mouse_really_left_window = 0;
           }
 	  break;
 
         case ConfigureNotify:
-          /* printf("X: configure event: width = %d, height = %d\n", e.xconfigure.width, e.xconfigure.height); */
+          /* printf("X: configure event: width = %d, height = %d\n", e->xconfigure->width, e->xconfigure->height); */
 	/* DANG_BEGIN_REMARK
 	 * DO NOT REMOVE THIS TEST!!!
 	 * It is magic, without it EMS fails on my machine under X.
@@ -1660,12 +1654,12 @@ static int __X_handle_events(void)
 	 * -- EB 1 June 1998
 	 * DANG_END_REMARK
 	 */
-	  if ((e.xconfigure.width != w_x_res
-	               || e.xconfigure.height != w_y_res) &&
+	  if ((e->xconfigure.width != w_x_res
+	               || e->xconfigure.height != w_y_res) &&
 	                   mainwindow == normalwindow) {
 	    unsigned resize_width, resize_height;
-	    resize_width = e.xconfigure.width;
-	    resize_height = e.xconfigure.height;
+	    resize_width = e->xconfigure.width;
+	    resize_height = e->xconfigure.height;
 	    XResizeWindow(display, drawwindow, resize_width, resize_height);
 	    resize_ximage(resize_width, resize_height);
 	    render_blit(0, 0, resize_width, resize_height);
@@ -1675,15 +1669,15 @@ static int __X_handle_events(void)
 #endif /* CONFIG_X_MOUSE */
 /* some weirder things... */
 	default:
-	  X_printf("X: unknown event %i\n", e.type);
+	  X_printf("X: unknown event %i\n", e->type);
 	  break;
-      }
-  }
-  return 0;
+    }
+    return 0;
 }
 
 static void X_handle_events(void)
 {
+  XEvent e;
   int ret;
   if (!initialized)
     return;
@@ -1691,9 +1685,14 @@ static void X_handle_events(void)
    * watitng on mutexes, so just go away */
   if (render_is_updating())
     return;
-  ret = __X_handle_events();
-  if (ret < 0)
-    leavedos(0);
+
+  while (XPending(display) > 0)
+  {
+    XNextEvent(display, &e);
+    ret = __X_handle_events(&e);
+    if (ret < 0)
+      leavedos(0);
+  }
 }
 
 /*
