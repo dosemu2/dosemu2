@@ -348,16 +348,15 @@ static void modify_mode(void)
  * too messy. -- sw
  */
 
-static int update_graphics_loop(int src_offset, int update_offset,
+static void update_graphics_loop(int src_offset, int update_offset,
 	vga_emu_update_type *veut)
 {
   RectArea ra;
-  int update_ret;
 #ifdef DEBUG_SHOW_UPDATE_AREA
   static int dsua_fg_color = 0;
 #endif
 
-  while((update_ret = vga_emu_update(veut)) > 0) {
+  while (vga_emu_update(veut) > 0) {
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
@@ -376,13 +375,11 @@ static int update_graphics_loop(int src_offset, int update_offset,
       veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
     );
   }
-  return update_ret;
 }
 
-static int update_graphics_screen(void)
+static void update_graphics_screen(void)
 {
   vga_emu_update_type veut;
-  int update_ret;
   unsigned wrap;
 
   veut.base = vga.mem.base;
@@ -416,7 +413,7 @@ static int update_graphics_screen(void)
 
   veut.max_len = veut.max_max_len;
 
-  update_ret = update_graphics_loop(veut.display_start, 0, &veut);
+  update_graphics_loop(veut.display_start, 0, &veut);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
@@ -427,8 +424,7 @@ static int update_graphics_screen(void)
     wrap = veut.display_start;
     veut.display_start = 0;
     veut.max_len = veut.max_max_len;
-    update_ret = update_graphics_loop(-(vga.mem.wrap - wrap),
-           vga.mem.wrap - wrap, &veut);
+    update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
     veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
   }
@@ -437,13 +433,11 @@ static int update_graphics_screen(void)
     veut.display_start = 0;
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut.max_len = veut.max_max_len;
-    update_ret = update_graphics_loop(-vga.scan_len * vga.line_compare,
+    update_graphics_loop(-vga.scan_len * vga.line_compare,
 	    vga.scan_len * vga.line_compare, &veut);
     veut.display_start = vga.display_start;
     veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
-
-  return update_ret < 0 ? 2 : 1;
 }
 
 int render_is_updating(void)
