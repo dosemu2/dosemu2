@@ -1432,10 +1432,8 @@ static void toggle_fullscreen_mode(int init)
   } else {	/* GRAPH or builtin font */
     X_lock();
     resize_ximage(resize_width, resize_height);
-    if (!init) {
+    if (!init)
       render_blit(0, 0, resize_width, resize_height);
-      put_ximage(0, 0, resize_width, resize_height);
-    }
     X_unlock();
   }
 }
@@ -1676,7 +1674,6 @@ static int __X_handle_events(XEvent *e)
 	    X_lock();
 	    resize_ximage(resize_width, resize_height);
 	    render_blit(0, 0, resize_width, resize_height);
-	    put_ximage(0, 0, resize_width, resize_height);
 	    X_unlock();
           }
           break;
