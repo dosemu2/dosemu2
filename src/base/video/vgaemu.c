@@ -991,12 +991,14 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   if(vga_page < vga.mem.pages) {
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable then mark it dirty */
+      vga_emu_prot_lock();
       vga_emu_adjust_protection(vga_page, page_fault, RW);
       /* mark page dirty after adjusting the protection, but it
        * is still too early: render thread may clean it before
        * the app manages to write the data. In this case we'll fault
        * again... */
       vgaemu_dirty_page(vga_page);
+      vga_emu_prot_unlock();
     }
     if(vga.inst_emu) {
 #if 1
@@ -1015,7 +1017,9 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * so that each instruction that accesses it can be trapped and
        * simulated. */
       instr_emu(scp, pmode, 0);
+      vga_emu_prot_lock();
       vgaemu_dirty_page(vga_page);
+      vga_emu_prot_unlock();
     }
   }
   return True;
@@ -1878,6 +1882,16 @@ void vga_emu_update_unlock(void)
   pthread_mutex_unlock(&mode_mtx);
 }
 
+void vga_emu_prot_lock(void)
+{
+  pthread_mutex_lock(&prot_mtx);
+}
+
+void vga_emu_prot_unlock(void)
+{
+  pthread_mutex_unlock(&prot_mtx);
+}
+
 /*
  * DANG_BEGIN_FUNCTION vgaemu_switch_plane
  *
@@ -2508,9 +2522,8 @@ void vgaemu_dirty_page(int page)
     return;
   }
   v_printf("vgaemu: set page %i dirty\n", page);
-  pthread_mutex_lock(&prot_mtx);
+  /* prot_mtx should be locked by caller */
   vga.mem.dirty_map[page] = 1;
-  pthread_mutex_unlock(&prot_mtx);
 }
 
 int vgaemu_is_dirty(void)
