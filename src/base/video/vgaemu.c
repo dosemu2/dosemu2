@@ -1754,22 +1754,31 @@ static void print_prot_map()
  * DANG_END_FUNCTION
  *
  */
-
+/* for threaded rendering we need to disable cycling as it can lead
+ * to lock starvations */
+#define CYCLIC_UPDATE 0
 static int __vga_emu_update(vga_emu_update_type *veut)
 {
   int i, j;
-  unsigned start_page, end_page;
+#if CYCLIC_UPDATE
+  unsigned start_page;
+#endif
+  unsigned end_page;
 
   if(veut->display_end > vga.mem.size) veut->display_end = vga.mem.size;
   if(
     veut->update_pos < veut->display_start ||
+#if CYCLIC_UPDATE
     veut->update_pos >= veut->display_end ||
+#endif
     vga.mode_type == CGA || vga.mode_type == HERC	/* These are special. :-) */
   ) {
     veut->update_pos = veut->display_start;
   }
 
+#if CYCLIC_UPDATE
   start_page = (veut->display_start >> 12);
+#endif
   end_page = (veut->display_end - 1) >> 12;
 
   vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d, max_len = %d (max_max_len = %d)\n",
@@ -1793,6 +1802,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
   for(i = j = veut->update_pos >> 12; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
+#if CYCLIC_UPDATE
     for(i = start_page; i < j && vga.mem.dirty_map[i] == 0; i++);
 
     if(i == j) {	/* no dirty pages */
@@ -1804,6 +1814,9 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
       return 0;
     }
+#else
+    return 0;
+#endif
   }
 
   for(
