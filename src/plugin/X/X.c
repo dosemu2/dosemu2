@@ -1430,9 +1430,13 @@ static void toggle_fullscreen_mode(int init)
   if(vga.mode_class == TEXT && !use_bitmap_font) {
     X_resize_text_screen();
   } else {	/* GRAPH or builtin font */
+    X_lock();
     resize_ximage(resize_width, resize_height);
-    if (!init)
+    if (!init) {
       render_blit(0, 0, resize_width, resize_height);
+      put_ximage(0, 0, resize_width, resize_height);
+    }
+    X_unlock();
   }
 }
 
@@ -1669,8 +1673,11 @@ static int __X_handle_events(XEvent *e)
 	    resize_width = e->xconfigure.width;
 	    resize_height = e->xconfigure.height;
 	    XResizeWindow(display, drawwindow, resize_width, resize_height);
+	    X_lock();
 	    resize_ximage(resize_width, resize_height);
 	    render_blit(0, 0, resize_width, resize_height);
+	    put_ximage(0, 0, resize_width, resize_height);
+	    X_unlock();
           }
           break;
 
@@ -1996,12 +2003,10 @@ void put_ximage(int x, int y, unsigned width, unsigned height)
 void resize_ximage(unsigned width, unsigned height)
 {
   X_printf("X: resize_ximage %d x %d --> %d x %d\n", w_x_res, w_y_res, width, height);
-  X_lock();
   destroy_ximage();
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  X_unlock();
 }
 
 void X_set_resizable(Display *display, Window window, int on,
