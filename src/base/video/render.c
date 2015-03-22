@@ -348,10 +348,11 @@ static void modify_mode(void)
  * too messy. -- sw
  */
 
-static void update_graphics_loop(int src_offset, int update_offset,
+static int update_graphics_loop(int src_offset, int update_offset,
 	vga_emu_update_type *veut)
 {
-  RectArea ra;
+  RectArea ra, ra_all;
+  int updated = 0;
 #ifdef DEBUG_SHOW_UPDATE_AREA
   static int dsua_fg_color = 0;
 #endif
@@ -368,13 +369,40 @@ static void update_graphics_loop(int src_offset, int update_offset,
     XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
     XSync(display, False);
 #endif
-    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+    if (!updated) {
+      ra_all = ra;
+    } else {
+      int x1, y1, xx1, yy1;
+      if (ra_all.x > ra.x) {
+        ra_all.width += ra_all.x - ra.x;
+        ra_all.x = ra.x;
+      }
+      if (ra_all.y > ra.y) {
+        ra_all.height += ra_all.y - ra.y;
+        ra_all.y = ra.y;
+      }
+      x1 = ra.x + ra.width;
+      y1 = ra.y + ra.height;
+      xx1 = ra_all.x + ra_all.width;
+      yy1 = ra_all.y + ra_all.height;
+      if (xx1 < x1)
+        ra_all.width += x1 - xx1;
+      if (yy1 < y1)
+        ra_all.height += y1 - yy1;
+    }
+    updated++;
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       vga.display_start, vga.mem.write_plane,
       veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
     );
   }
+  if (updated) {
+    v_printf("update region (%i,%i) (%i,%i)\n", ra_all.x, ra_all.y,
+	ra_all.width, ra_all.height);
+    Render->refresh_rect(ra_all.x, ra_all.y, ra_all.width, ra_all.height);
+  }
+  return updated;
 }
 
 static void update_graphics_screen(void)
