@@ -221,6 +221,7 @@
 #include <termios.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <X11/X.h>
@@ -325,6 +326,8 @@ static int screen;
 static Visual *visual;
 static int initialized;
 static int use_bitmap_font;
+static pthread_t event_thr;
+
 /*
   rootwindow: RootWindow(display, DefaultScreen(display));
   parentwindow: parent: was used with kdos
@@ -408,7 +411,7 @@ static void X_keymap_init(void);
 /* error/event handler */
 static int NewXErrorHandler(Display *, XErrorEvent *);
 static int NewXIOErrorHandler(Display *);
-static void X_handle_events(void);
+static void *X_handle_events(void *arg);
 
 /* interface to xmode.exe */
 static int X_change_config(unsigned, void *);	/* modify X config data from DOS */
@@ -470,7 +473,7 @@ struct video_system Video_X =
    X_set_videomode,
    X_update_screen,
    X_change_config,
-   X_handle_events,
+   NULL,
    "X"
 };
 
@@ -615,8 +618,8 @@ int X_init()
     vga.text_width = CO;
     vga.text_height = LI;
   }
-  saved_w_x_res = w_x_res = x_res = CO * font_width;
-  saved_w_y_res = w_y_res = y_res = LI * font_height;
+  saved_w_x_res = w_x_res = CO * font_width;
+  saved_w_y_res = w_y_res = LI * font_height;
 
   s = getenv("DOSEMU_WINDOW_ID");
   if(s && (i = strtol(s, NULL, 0)) > 0) {
@@ -787,6 +790,8 @@ int X_init()
 
   X_register_speaker(display);
 
+  pthread_create(&event_thr, NULL, X_handle_events, NULL);
+
   return 0;
 }
 
@@ -803,6 +808,9 @@ void X_close()
   X_printf("X: X_close\n");
 
   if(display == NULL) return;
+  pthread_cancel(event_thr);
+  pthread_join(event_thr, NULL);
+
   /* terminate remapper early so that render thread is cancelled */
   remapper_done();
 
@@ -1422,9 +1430,11 @@ static void toggle_fullscreen_mode(int init)
   if(vga.mode_class == TEXT && !use_bitmap_font) {
     X_resize_text_screen();
   } else {	/* GRAPH or builtin font */
+    X_lock();
     resize_ximage(resize_width, resize_height);
     if (!init)
       render_blit(0, 0, resize_width, resize_height);
+    X_unlock();
   }
 }
 
@@ -1436,63 +1446,24 @@ static void toggle_fullscreen_mode(int init)
  *
  * DANG_END_FUNCTION
  */
-static int __X_handle_events(void)
+static int __X_handle_events(XEvent *e)
 {
-   XEvent e, rel_evt;
-   unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
-   int keyrel_pending = 0;
-
-#if CONFIG_X_MOUSE
-   {
-     static int lastingraphics = 0;
-     if(vga.mode_class == GRAPH) {
-       if(! lastingraphics) {
-         lastingraphics = 1;
-         X_show_mouse_cursor(0);
-       }
-     }
-     else {
-       if(lastingraphics) {
-         lastingraphics = 0;
-         X_show_mouse_cursor(1);
-       }
-     }
-   }
-#endif	/* CONFIG_X_MOUSE */
-
-  while (XPending(display) > 0)
+    switch(e->type)
     {
-      XNextEvent(display,&e);
-
-      switch(e.type)
-	{
        case Expose:
           /*
            * Well, if we're exposed we are most certainly mapped, too. :-)
-           *
-           * This is actually a kludge to work around some strange
-           * effect related to the DOSEMU_WINDOW_ID stuff.
-           *
-           * The problem arises that, when the window is not created
-           * by DOSEmu, it is typically already mapped. For some really
-           * strange reason however, you cannot simply set is_mapped to TRUE.
-           * Apparently there is some (black) magic going on somewhere in
-           * DOSEmu that assumes that some initialisation should be
-           * done while is_mapped is FALSE. I couldn't locate the
-           * exact position, though.
-           *
-           * -- 1998/08/09 sw
            */
           is_mapped = TRUE;
 
 	  X_printf("X: expose event\n");
 	  if(vga.mode_class == TEXT) {
-	    if(e.xexpose.count == 0) X_redraw_text_screen();
+	    if(e->xexpose.count == 0) X_redraw_text_screen();
 	  }
 	  else {	/* GRAPH */
-	    if(!resize_event) put_ximage(
-	      e.xexpose.x, e.xexpose.y,
-	      e.xexpose.width, e.xexpose.height
+	    put_ximage(
+	      e->xexpose.x, e->xexpose.y,
+	      e->xexpose.width, e->xexpose.height
 	    );
 	  }
 	  break;
@@ -1529,16 +1500,16 @@ static int __X_handle_events(void)
 
 	case ClientMessage:
 	  /* If we get a client message which has the value of the delete
-	   * atom, it means the window manager wants us to die.
+	   * atom, it means the window manager wants us to die->
 	   */
-	  if(e.xclient.message_type == proto_atom && *e.xclient.data.l == delete_atom) {
+	  if(e->xclient.message_type == proto_atom && *e->xclient.data.l == delete_atom) {
 	    X_printf("X: got window delete message\n");
 	    /* XXX - Is it ok to call this from a SIGALRM handler? */
 	    return -1;
 	  }
 
-	  if(e.xclient.message_type == comm_atom) {
-	    kdos_recv_msg(e.xclient.data.b);
+	  if(e->xclient.message_type == comm_atom) {
+	    kdos_recv_msg(e->xclient.data.b);
 	  }
 	  break;
 
@@ -1547,25 +1518,16 @@ static int __X_handle_events(void)
 	case SelectionClear:
 	case SelectionNotify:
 	case SelectionRequest:
-	  X_handle_selection(display, drawwindow, &e);
+	  X_handle_selection(display, drawwindow, e);
 	  break;
 #endif /* CONFIG_X_SELECTION */
 
     /* Keyboard events */
 
 	case KeyPress:
-	  /* Autorepeat generates the unwanted release events, we filter
-	   * them here. */
-	  if (keyrel_pending && e.xkey.keycode == rel_evt.xkey.keycode &&
-		e.xkey.time == rel_evt.xkey.time) {
-	    X_printf("X_KBD: Ignoring fake release event, keycode=%#x\n",
-		rel_evt.xkey.keycode);
-	    keyrel_pending = 0;
-	  }
-
-          if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask)) {
+          if((e->xkey.state & ControlMask) && (e->xkey.state & Mod1Mask)) {
             int keysyms_per_keycode;
-            KeySym *sym = XGetKeyboardMapping (display, e.xkey.keycode, 1,
+            KeySym *sym = XGetKeyboardMapping (display, e->xkey.keycode, 1,
 					       &keysyms_per_keycode);
             KeySym keysym = *sym;
             XFree(sym);
@@ -1587,16 +1549,14 @@ static int __X_handle_events(void)
 #if CONFIG_X_SELECTION
 	  clear_if_in_selection();
 #endif
-	  X_process_key(&e.xkey);
+	  X_process_key(&e->xkey);
 	  break;
 
 	case KeyRelease:
-	  if (keyrel_pending) {
-	    X_printf("X: duplicate KeyRelease event???\n");
-	    X_process_key(&rel_evt.xkey);
-	  }
-	  rel_evt = e;
-	  keyrel_pending = 1;
+#if CONFIG_X_SELECTION
+	  clear_if_in_selection();
+#endif
+	  X_process_key(&e->xkey);
 	  break;
 
 #if 0
@@ -1604,21 +1564,21 @@ static int __X_handle_events(void)
           X_printf("X: KeymapNotify event\n");
           /* don't process keys when doing fullscreen switching (this generates
              two events for fullscreen and one back to windowed mode )*/
-          X_process_keys(&e.xkeymap);
+          X_process_keys(&e->xkeymap);
 	  break;
 #endif
 
     /* A keyboard mapping has been changed (e.g., with xmodmap). */
 	case MappingNotify:
 	  X_printf("X: MappingNotify event\n");
-	  XRefreshKeyboardMapping(&e.xmapping);
+	  XRefreshKeyboardMapping(&e->xmapping);
 	  break;
 
 /* Mouse events */
 #if CONFIG_X_MOUSE
 	case ButtonPress:
 #if 0 /* *** special debug code *** --sw */
-        if(e.xbutton.button == Button1) {
+        if(e->xbutton.button == Button1) {
           static unsigned flup = 0;
           v_printf("------: %u\n", ++flup);
         }
@@ -1626,36 +1586,36 @@ static int __X_handle_events(void)
 
 #if CONFIG_X_SELECTION
 	if (vga.mode_class == TEXT && !grab_active) {
-	  if (e.xbutton.button == Button1)
-	    start_selection(x_to_col(e.xbutton.x, w_x_res),
-			    y_to_row(e.xbutton.y, w_y_res));
-	  else if (e.xbutton.button == Button3)
-	    start_extend_selection(x_to_col(e.xbutton.x, w_x_res),
-				   y_to_row(e.xbutton.y, w_y_res));
+	  if (e->xbutton.button == Button1)
+	    start_selection(x_to_col(e->xbutton.x, w_x_res),
+			    y_to_row(e->xbutton.y, w_y_res));
+	  else if (e->xbutton.button == Button3)
+	    start_extend_selection(x_to_col(e->xbutton.x, w_x_res),
+				   y_to_row(e->xbutton.y, w_y_res));
 	}
 #endif /* CONFIG_X_SELECTION */
-	  set_mouse_position(e.xmotion.x,e.xmotion.y); /*root@sjoerd*/
-	  set_mouse_buttons(e.xbutton.state|(0x80<<e.xbutton.button));
+	  set_mouse_position(e->xmotion.x,e->xmotion.y); /*root@sjoerd*/
+	  set_mouse_buttons(e->xbutton.state|(0x80<<e->xbutton.button));
 	  break;
 
 	case ButtonRelease:
-	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
+	  set_mouse_position(e->xmotion.x,e->xmotion.y);  /*root@sjoerd*/
 #if CONFIG_X_SELECTION
 	  if (vga.mode_class == TEXT && !grab_active)
-	    X_handle_selection(display, drawwindow, &e);
+	    X_handle_selection(display, drawwindow, e);
 #endif /* CONFIG_X_SELECTION */
-	  set_mouse_buttons(e.xbutton.state&~(0x80<<e.xbutton.button));
+	  set_mouse_buttons(e->xbutton.state&~(0x80<<e->xbutton.button));
 	  break;
 
 	case MotionNotify:
 #if CONFIG_X_SELECTION
-	  extend_selection(x_to_col(e.xmotion.x, w_x_res),
-			   y_to_row(e.xmotion.y, w_y_res));
+	  extend_selection(x_to_col(e->xmotion.x, w_x_res),
+			   y_to_row(e->xmotion.y, w_y_res));
 #endif /* CONFIG_X_SELECTION */
 	  if (ignore_move)
 	    ignore_move--;
 	  else
-	    set_mouse_position(e.xmotion.x, e.xmotion.y);
+	    set_mouse_position(e->xmotion.x, e->xmotion.y);
 	  break;
 
 	case EnterNotify:
@@ -1672,84 +1632,95 @@ static int __X_handle_events(void)
 	      mouse_drag_to_corner(w_x_res, w_y_res);
 	      ignore_move = 1;
             } else {
-	      set_mouse_position(e.xcrossing.x, e.xcrossing.y);
+	      set_mouse_position(e->xcrossing.x, e->xcrossing.y);
 	    }
-	    set_mouse_buttons(e.xcrossing.state);
+	    set_mouse_buttons(e->xcrossing.state);
 	    mouse_really_left_window = 0;
           }
 	  break;
 
 	case LeaveNotify:                   /* Should this do anything? */
-	  X_printf("X: Mouse leaving window, coordinates %d %d\n", e.xcrossing.x, e.xcrossing.y);
+	  X_printf("X: Mouse leaving window, coordinates %d %d\n", e->xcrossing.x, e->xcrossing.y);
           /* some stupid window managers send this event if you click a
              mouse button when the mouse is in the window. Let's ignore the
              next "EnterNotify" if the mouse doesn't really leave the window */
           mouse_really_left_window = 1;
-          if (e.xcrossing.x >= 0 && e.xcrossing.x < w_x_res &&
-              e.xcrossing.y >= 0 && e.xcrossing.y < w_y_res) {
+          if (e->xcrossing.x >= 0 && e->xcrossing.x < w_x_res &&
+              e->xcrossing.y >= 0 && e->xcrossing.y < w_y_res) {
             X_printf("X: bogus LeaveNotify event\n");
             mouse_really_left_window = 0;
           }
 	  break;
 
         case ConfigureNotify:
-          /* printf("X: configure event: width = %d, height = %d\n", e.xconfigure.width, e.xconfigure.height); */
- 	/* DANG_BEGIN_REMARK
- 	 * DO NOT REMOVE THIS TEST!!!
- 	 * It is magic, without it EMS fails on my machine under X.
- 	 * Perhaps someday when we don't use a buggy /proc/self/mem..
- 	 * -- EB 18 May 1998
+          /* printf("X: configure event: width = %d, height = %d\n", e->xconfigure->width, e->xconfigure->height); */
+	/* DANG_BEGIN_REMARK
+	 * DO NOT REMOVE THIS TEST!!!
+	 * It is magic, without it EMS fails on my machine under X.
+	 * Perhaps someday when we don't use a buggy /proc/self/mem..
+	 * -- EB 18 May 1998
 	 * A slightly further look says it's not the test so much as
 	 * suppressing noop resize events...
 	 * -- EB 1 June 1998
- 	 * DANG_END_REMARK
- 	 */
-          if ((e.xconfigure.width != resize_width)
-                       || (e.xconfigure.height != resize_height)) {
-            resize_event = 1;
-            resize_width = e.xconfigure.width;
-            resize_height = e.xconfigure.height;
+	 * DANG_END_REMARK
+	 */
+	  if ((e->xconfigure.width != w_x_res
+	               || e->xconfigure.height != w_y_res) &&
+	                   mainwindow == normalwindow) {
+	    unsigned resize_width, resize_height;
+	    resize_width = e->xconfigure.width;
+	    resize_height = e->xconfigure.height;
+	    XResizeWindow(display, drawwindow, resize_width, resize_height);
+	    X_lock();
+	    resize_ximage(resize_width, resize_height);
+	    render_blit(0, 0, resize_width, resize_height);
+	    X_unlock();
           }
           break;
 
 #endif /* CONFIG_X_MOUSE */
 /* some weirder things... */
-	}
+	default:
+	  X_printf("X: unknown event %i\n", e->type);
+	  break;
     }
-
-    if (keyrel_pending) {
-#if CONFIG_X_SELECTION
-      clear_if_in_selection();
-#endif
-      X_process_key(&rel_evt.xkey);
-      keyrel_pending = 0;
-    }
-
-    if(ximage && resize_event && ximage->width == resize_width &&
-	ximage->height == resize_height)
-      resize_event = 0;
-
-    if(resize_event && mainwindow == normalwindow) {
-      resize_event = 0;
-      XResizeWindow(display, drawwindow, resize_width, resize_height);
-      resize_ximage(resize_width, resize_height);
-      render_blit(0, 0, resize_width, resize_height);
-    }
-  return 0;
+    return 0;
 }
 
-static void X_handle_events(void)
+/* all X function, even the "non-blocking" ones like XPending(),
+ * actually do a send/receive cycle with X server. If X server lags
+ * or remote (or both), these queries takes a lot. So I handle the
+ * events in a separate thread so that the main thread is never
+ * slowed down.
+ * It looks like SDL does not have this problem and an SDL plugin
+ * doesn't seem to need a separate event-handling thread. */
+static void *X_handle_events(void *arg)
 {
-  int ret;
-  if (!initialized)
-    return;
-  /* speed-up: if render is working we don't want to sit
-   * watitng on mutexes, so just go away */
-  if (render_is_updating())
-    return;
-  ret = __X_handle_events();
-  if (ret < 0)
-    leavedos(0);
+  XEvent e;
+  int ret, pend;
+  while (1)
+  {
+    if (!initialized) {
+      usleep(100000);
+      continue;
+    }
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    /* XNextEvent() is blocking and can therefore be used in a thread
+     * without XPending()? No because it locks the display while waiting,
+     * so other threads will be blocked too. We still need a manual polling. */
+    pend = XPending(display);
+    if (!pend) {
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+      usleep(10000);
+      continue;
+    }
+    XNextEvent(display, &e);
+    ret = __X_handle_events(&e);
+    if (ret < 0)
+      leavedos_from_thread(0);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+  }
+  return NULL;
 }
 
 /*
@@ -2029,12 +2000,10 @@ void put_ximage(int x, int y, unsigned width, unsigned height)
 void resize_ximage(unsigned width, unsigned height)
 {
   X_printf("X: resize_ximage %d x %d --> %d x %d\n", w_x_res, w_y_res, width, height);
-  X_lock();
   destroy_ximage();
   w_x_res = width;
   w_y_res = height;
   create_ximage();
-  X_unlock();
 }
 
 void X_set_resizable(Display *display, Window window, int on,
@@ -2130,20 +2099,25 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
  */
 int X_set_videomode(int mode_class, int text_width, int text_height)
 {
-  int mode = video_mode;
+  int rx_res, ry_res, wx_res, wy_res;
 #ifdef X_USE_BACKING_STORE
   XSetWindowAttributes xwa;
 #endif
 
-  if (use_bitmap_font) {
-    font_width = vga.char_width;
-    font_height = vga.char_height;
+  get_mode_parameters(&rx_res, &ry_res, &wx_res, &wy_res);
+  if (x_res == rx_res && y_res == ry_res) {
+    X_printf("X: same mode, not changing\n");
+    return 1;
   }
+  x_res = rx_res;
+  y_res = ry_res;
+  w_x_res = wx_res;
+  w_y_res = wy_res;
 
   X_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
     mode_class != -1 ? "" : "re-init ",
-    (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
-    vga.text_width, vga.text_height, vga.width, vga.height
+    video_mode, mode_class ? "GRAPH" : "TEXT",
+    text_width, text_height, x_res, y_res
   );
 
   if(X_unmap_mode != -1 && (X_unmap_mode == vga.mode || X_unmap_mode == vga.VESA_mode)) {
@@ -2162,7 +2136,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
    * We use it only in text modes; in graphics modes we are fast enough and
    * it would likely only slow down the whole thing. -- sw
    */
-  if(vga.mode_class == TEXT && !use_bitmap_font) {
+  if(mode_class == TEXT && !use_bitmap_font) {
     xwa.backing_store = Always;
     xwa.backing_planes = -1;
     xwa.save_under = True;
@@ -2175,15 +2149,13 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
   XChangeWindowAttributes(display, drawwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
 #endif
-
-  get_mode_parameters(&x_res, &y_res, &w_x_res, &w_y_res);
-  if(vga.mode_class == TEXT) {
+  if(mode_class == TEXT) {
     XSetWindowColormap(display, drawwindow, text_cmap);
     dac_bits = vga.dac.bits;
 
     if (!use_bitmap_font) {
-      w_x_res = x_res = vga.text_width * font_width;
-      w_y_res = y_res = vga.text_height * font_height;
+      w_x_res = x_res = text_width * font_width;
+      w_y_res = y_res = text_height * font_height;
     } else {
       font_width = vga.char_width;
       font_height = vga.char_height;
@@ -2199,9 +2171,9 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
       w_x_res = saved_w_x_res;
       w_y_res = saved_w_y_res;
     }
+    X_show_mouse_cursor(1);
   }
   else {	/* GRAPH */
-
     if(!have_true_color) {
       XSetWindowColormap(display, drawwindow, graphics_cmap);
     }
@@ -2215,6 +2187,7 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
     create_ximage();
     lock_window_size(w_x_res, w_y_res);
+    X_show_mouse_cursor(0);
   }
 
   /* unconditionally update the palette */

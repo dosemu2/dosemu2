@@ -303,25 +303,10 @@ static void modify_mode(void)
     vga.reconfig.mem = 0;
   }
 
-  if(vga.reconfig.display) {
-    v_printf(
-      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
-      vga.width, vga.height, vga.scan_len
-    );
-    dirty_all_video_pages();
-    if (Video->setmode)
-      Video->setmode(vga.mode_class, vga.width, vga.height);
-    vga.reconfig.display = 0;
-  }
-
   if(vga.reconfig.dac) {
     dirty_all_vga_colors();
     vga.reconfig.dac = 0;
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
-  }
-
-  if(vga.reconfig.mem || vga.reconfig.display) {
-    v_printf("modify_mode: failed to modify current graphics mode\n");
   }
 }
 
@@ -351,13 +336,13 @@ static void modify_mode(void)
 static int update_graphics_loop(int src_offset, int update_offset,
 	vga_emu_update_type *veut)
 {
-  RectArea ra;
-  int update_ret;
+  RectArea ra, ra_all;
+  int updated = 0;
 #ifdef DEBUG_SHOW_UPDATE_AREA
   static int dsua_fg_color = 0;
 #endif
 
-  while((update_ret = vga_emu_update(veut)) > 0) {
+  while (vga_emu_update(veut) > 0) {
     ra = remap_remap_mem(remap_obj, BMP(veut->base,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
@@ -369,20 +354,45 @@ static int update_graphics_loop(int src_offset, int update_offset,
     XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
     XSync(display, False);
 #endif
-    Render->refresh_rect(ra.x, ra.y, ra.width, ra.height);
+    if (!updated) {
+      ra_all = ra;
+    } else {
+      int x1, y1, xx1, yy1;
+      if (ra_all.x > ra.x) {
+        ra_all.width += ra_all.x - ra.x;
+        ra_all.x = ra.x;
+      }
+      if (ra_all.y > ra.y) {
+        ra_all.height += ra_all.y - ra.y;
+        ra_all.y = ra.y;
+      }
+      x1 = ra.x + ra.width;
+      y1 = ra.y + ra.height;
+      xx1 = ra_all.x + ra_all.width;
+      yy1 = ra_all.y + ra_all.height;
+      if (xx1 < x1)
+        ra_all.width += x1 - xx1;
+      if (yy1 < y1)
+        ra_all.height += y1 - yy1;
+    }
+    updated++;
 
     v_printf("update_graphics_screen: display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
       vga.display_start, vga.mem.write_plane,
       veut->update_start, veut->update_len, ra.x, ra.y, ra.width, ra.height
     );
   }
-  return update_ret;
+  if (updated) {
+    v_printf("update region (%i,%i) (%i,%i)\n", ra_all.x, ra_all.y,
+	ra_all.width, ra_all.height);
+    Render->refresh_rect(ra_all.x, ra_all.y, ra_all.width, ra_all.height);
+  }
+  return updated;
 }
 
-static int update_graphics_screen(void)
+static void update_graphics_screen(void)
 {
   vga_emu_update_type veut;
-  int update_ret;
   unsigned wrap;
 
   veut.base = vga.mem.base;
@@ -416,7 +426,7 @@ static int update_graphics_screen(void)
 
   veut.max_len = veut.max_max_len;
 
-  update_ret = update_graphics_loop(veut.display_start, 0, &veut);
+  update_graphics_loop(veut.display_start, 0, &veut);
 
   if (wrap > 0) {
     /* This is for programs such as Commander Keen 4 that set the
@@ -427,8 +437,7 @@ static int update_graphics_screen(void)
     wrap = veut.display_start;
     veut.display_start = 0;
     veut.max_len = veut.max_max_len;
-    update_ret = update_graphics_loop(-(vga.mem.wrap - wrap),
-           vga.mem.wrap - wrap, &veut);
+    update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
     veut.display_start = wrap;
     veut.display_end += vga.mem.wrap;
   }
@@ -437,13 +446,11 @@ static int update_graphics_screen(void)
     veut.display_start = 0;
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut.max_len = veut.max_max_len;
-    update_ret = update_graphics_loop(-vga.scan_len * vga.line_compare,
+    update_graphics_loop(-vga.scan_len * vga.line_compare,
 	    vga.scan_len * vga.line_compare, &veut);
     veut.display_start = vga.display_start;
     veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
-
-  return update_ret < 0 ? 2 : 1;
 }
 
 int render_is_updating(void)
@@ -457,6 +464,8 @@ static void *render_thread(void *arg)
     sem_wait(&render_sem);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     vga_emu_update_lock();
+    if(vga.reconfig.mem || vga.reconfig.dac)
+      modify_mode();
     is_updating = 1;
     switch (vga.mode_class) {
     case TEXT:
@@ -494,9 +503,20 @@ int update_screen(void)
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
     return 1;
   }
-  if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) {
+  if (is_updating)
+    return 1;
+  /* unfortunately SDL is not thread-safe, so display mode updates
+   * need to be done from main thread. */
+  if(vga.reconfig.display) {
+    v_printf(
+      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
+      vga.width, vga.height, vga.scan_len
+    );
     vga_emu_update_lock();
-    modify_mode();
+    if (Video->setmode)
+      Video->setmode(vga.mode_class, vga.width, vga.height);
+    dirty_all_video_pages();
+    vga.reconfig.display = 0;
     vga_emu_update_unlock();
   }
   sem_post(&render_sem);

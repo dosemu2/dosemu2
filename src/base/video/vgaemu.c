@@ -176,7 +176,7 @@
  * large log files.
  */
 #define	DEBUG_IO	0	/* (<= 2) port emulation */
-#define	DEBUG_MAP	0	/* (<= 4) VGA memory mapping */
+#define	DEBUG_MAP	3	/* (<= 4) VGA memory mapping */
 #define	DEBUG_UPDATE	0	/* (<= 1) screen update process */
 #define	DEBUG_BANK	0	/* (<= 2) bank switching */
 #define	DEBUG_COL	0	/* (<= 1) color interpretation changes */
@@ -187,9 +187,10 @@
 #define True 1
 #endif
 
-#define RW	2
-#define RO	1
-#define NONE	0
+#define RW	VGA_PROT_RW
+#define RO	VGA_PROT_RO
+#define NONE	VGA_PROT_NONE
+#define DEF_PROT (vga.inst_emu==EMU_ALL_INST ? NONE : RO)
 
 /*
  * We add PROT_EXEC just because pages should be executable. Of course
@@ -313,27 +314,6 @@ vga_type vga;
 vgaemu_bios_type vgaemu_bios;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-#if DEBUG_MAP >= 4
-/* check if the VGA page *really* is RO */
-volatile static int my_fault = 0;
-
-static void chk_ro()
-{
-#ifdef X86_EMULATOR
-  if (config.cpuemu<1)
-#endif
-  {
-    volatile char *p = (char *) &mem_base[0xa0077];
-    my_fault = 1;
-    *p = 0x99;
-    if(my_fault) {
-      vga_deb_map("vga_emu_fault: IS WRITABLE\n");
-    }
-  }
-  my_fault = 0;
-}
-#endif
 
 /*
  * DANG_BEGIN_FUNCTION VGA_emulate_outb
@@ -922,15 +902,6 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   lin_addr = DOSADDR_REL(LINP(scp->cr2));
   page_fault = lin_addr >> 12;
 
-#if DEBUG_MAP >= 4
-  if(my_fault && lin_addr == 0xa0077) {
-    vga_deb_map("vga_emu_fault: IS READ ONLY\n");
-    my_fault = 0;
-    scp->eip += 7;
-    return True;
-  }
-#endif
-
   for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
     j = page_fault - vga.mem.map[i].base_page;
     if(j >= 0 && j < vga.mem.map[i].pages) {
@@ -1020,12 +991,14 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   if(vga_page < vga.mem.pages) {
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable then mark it dirty */
-      vga_emu_adjust_protection(vga_page, page_fault);
+      vga_emu_prot_lock();
+      vga_emu_adjust_protection(vga_page, page_fault, RW);
       /* mark page dirty after adjusting the protection, but it
        * is still too early: render thread may clean it before
        * the app manages to write the data. In this case we'll fault
        * again... */
       vgaemu_dirty_page(vga_page);
+      vga_emu_prot_unlock();
     }
     if(vga.inst_emu) {
 #if 1
@@ -1044,7 +1017,9 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * so that each instruction that accesses it can be trapped and
        * simulated. */
       instr_emu(scp, pmode, 0);
+      vga_emu_prot_lock();
       vgaemu_dirty_page(vga_page);
+      vga_emu_prot_unlock();
     }
   }
   return True;
@@ -1210,20 +1185,13 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
  *
  */
 
-int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
+int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot)
 {
-  int prot;
   int i, err, j, k;
 
   if(page > vga.mem.pages) {
     vga_deb_map("vga_emu_adjust_protection: invalid page number; page = 0x%x\n", page);
     return 1;
-  }
-
-  prot = (vga.inst_emu==EMU_ALL_INST ? NONE : RO);
-
-  if(!vga.inst_emu) {
-    if(vga.mem.dirty_map[page]) prot = RW;
   }
 
   i = vga_emu_protect(page, mapped_page, prot);
@@ -1378,7 +1346,8 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   for(u = 0; u < vmt->pages; u++) {
     /* page is writable by default */
     pthread_mutex_lock(&prot_mtx);
-    if(!vga.mem.dirty_map[vmt->first_page + u]) vga_emu_adjust_protection(vmt->first_page + u, 0);
+    if(!vga.mem.dirty_map[vmt->first_page + u])
+      vga_emu_adjust_protection(vmt->first_page + u, 0, VGA_PROT_RO);
     pthread_mutex_unlock(&prot_mtx);
   }
 
@@ -1758,10 +1727,6 @@ static void print_prot_map()
     }
     v_printf("\n");
   }
-
-#if DEBUG_MAP >= 4
-  chk_ro();
-#endif
 }
 #endif
 
@@ -1793,22 +1758,31 @@ static void print_prot_map()
  * DANG_END_FUNCTION
  *
  */
-
+/* for threaded rendering we need to disable cycling as it can lead
+ * to lock starvations */
+#define CYCLIC_UPDATE 0
 static int __vga_emu_update(vga_emu_update_type *veut)
 {
   int i, j;
-  unsigned start_page, end_page;
+#if CYCLIC_UPDATE
+  unsigned start_page;
+#endif
+  unsigned end_page;
 
   if(veut->display_end > vga.mem.size) veut->display_end = vga.mem.size;
   if(
     veut->update_pos < veut->display_start ||
+#if CYCLIC_UPDATE
     veut->update_pos >= veut->display_end ||
+#endif
     vga.mode_type == CGA || vga.mode_type == HERC	/* These are special. :-) */
   ) {
     veut->update_pos = veut->display_start;
   }
 
+#if CYCLIC_UPDATE
   start_page = (veut->display_start >> 12);
+#endif
   end_page = (veut->display_end - 1) >> 12;
 
   vga_deb_update("vga_emu_update: display = %d (page = %u) - %d (page = %u), update_pos = %d, max_len = %d (max_max_len = %d)\n",
@@ -1832,6 +1806,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
   for(i = j = veut->update_pos >> 12; i <= end_page && ! vga.mem.dirty_map[i]; i++);
   if(i == end_page + 1) {
+#if CYCLIC_UPDATE
     for(i = start_page; i < j && vga.mem.dirty_map[i] == 0; i++);
 
     if(i == j) {	/* no dirty pages */
@@ -1843,6 +1818,9 @@ static int __vga_emu_update(vga_emu_update_type *veut)
 
       return 0;
     }
+#else
+    return 0;
+#endif
   }
 
   for(
@@ -1851,7 +1829,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
     j++
   ) {
     vga.mem.dirty_map[j] = 0;
-    vga_emu_adjust_protection(j, 0);
+    vga_emu_adjust_protection(j, 0, DEF_PROT);
     if(veut->max_max_len) veut->max_len -= 1 << 12;
   }
 
@@ -1902,6 +1880,16 @@ void vga_emu_update_lock(void)
 void vga_emu_update_unlock(void)
 {
   pthread_mutex_unlock(&mode_mtx);
+}
+
+void vga_emu_prot_lock(void)
+{
+  pthread_mutex_lock(&prot_mtx);
+}
+
+void vga_emu_prot_unlock(void)
+{
+  pthread_mutex_unlock(&prot_mtx);
 }
 
 /*
@@ -2533,9 +2521,9 @@ void vgaemu_dirty_page(int page)
     dosemu_error("vgaemu: page out of range, %i (%i)\n", page, vga.mem.pages);
     return;
   }
-  pthread_mutex_lock(&prot_mtx);
+  v_printf("vgaemu: set page %i dirty\n", page);
+  /* prot_mtx should be locked by caller */
   vga.mem.dirty_map[page] = 1;
-  pthread_mutex_unlock(&prot_mtx);
 }
 
 int vgaemu_is_dirty(void)

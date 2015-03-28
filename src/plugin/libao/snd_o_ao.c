@@ -46,9 +46,7 @@ static struct player_params params;
 static int started;
 static pthread_mutex_t start_mtx = PTHREAD_MUTEX_INITIALIZER;
 static sem_t start_sem;
-static int stopped;
-static pthread_mutex_t stop_mtx = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t stop_cnd = PTHREAD_COND_INITIALIZER;
+static sem_t stop_sem;
 static pthread_t write_thr;
 static void *aosnd_write(void *arg);
 
@@ -57,6 +55,8 @@ static int aosnd_open(void *arg)
     ao_sample_format info = {};
     ao_option opt = {};
     int id;
+    if (!config.libao_sound)
+	return 0;
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
@@ -75,6 +75,7 @@ static int aosnd_open(void *arg)
     if (!ao)
 	return 0;
     sem_init(&start_sem, 0, 0);
+    sem_init(&stop_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);
     return 1;
 }
@@ -84,6 +85,7 @@ static void aosnd_close(void *arg)
     pthread_cancel(write_thr);
     pthread_join(write_thr, NULL);
     sem_destroy(&start_sem);
+    sem_destroy(&stop_sem);
     ao_close(ao);
 }
 
@@ -94,33 +96,24 @@ static void *aosnd_write(void *arg)
     uint32_t size;
     int l_started;
     while (1) {
+	sem_wait(&start_sem);
 	while (1) {
 	    pthread_mutex_lock(&start_mtx);
 	    l_started = started;
 	    pthread_mutex_unlock(&start_mtx);
-	    if (!l_started) {
-		pthread_mutex_lock(&stop_mtx);
-		stopped = 1;
-		pthread_cond_signal(&stop_cnd);
-		pthread_mutex_unlock(&stop_mtx);
-		sem_wait(&start_sem);
-	    } else {
-		pthread_mutex_lock(&stop_mtx);
-		stopped = 0;
-		pthread_mutex_unlock(&stop_mtx);
+	    if (!l_started)
 		break;
+	    size = pcm_data_get(buf, sizeof(buf), &params);
+	    if (!size) {
+		usleep(10000);
+		continue;
 	    }
+	    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	    ao_play(ao, buf, size);
+	    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	    pthread_testcancel();
 	}
-	/* if we are here, stop() will wait for us on stop_cnd */
-	size = pcm_data_get(buf, sizeof(buf), &params);
-	if (!size) {
-	    usleep(10000);
-	    continue;
-	}
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	ao_play(ao, buf, size);
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-	pthread_testcancel();
+	sem_post(&stop_sem);
     }
     return NULL;
 }
@@ -129,8 +122,8 @@ static void aosnd_start(void *arg)
 {
     pthread_mutex_lock(&start_mtx);
     started = 1;
-    pthread_mutex_unlock(&start_mtx);
     sem_post(&start_sem);
+    pthread_mutex_unlock(&start_mtx);
 }
 
 static void aosnd_stop(void *arg)
@@ -138,10 +131,7 @@ static void aosnd_stop(void *arg)
     pthread_mutex_lock(&start_mtx);
     started = 0;
     pthread_mutex_unlock(&start_mtx);
-    pthread_mutex_lock(&stop_mtx);
-    while (!stopped)
-	pthread_cond_wait(&stop_cnd, &stop_mtx);
-    pthread_mutex_unlock(&stop_mtx);
+    sem_wait(&stop_sem);
 }
 
 CONSTRUCTOR(static void aosnd_init(void))

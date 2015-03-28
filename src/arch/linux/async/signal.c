@@ -751,11 +751,6 @@ static void SIGALRM_call(void *arg)
   static int first = 0;
   static hitimer_t cnt200 = 0;
   static hitimer_t cnt1000 = 0;
-  static volatile int running = 0;
-#if VIDEO_CHECK_DIRTY
-  static int update_pending = 0;
-#endif
-  int retval;
 
   if (first==0) {
     cnt200 =
@@ -767,60 +762,10 @@ static void SIGALRM_call(void *arg)
   /* update mouse cursor before updating the screen */
   mouse_curtick();
 
-  /* If it is running in termcap mode, then update the screen.
-   * First it sets a running flag, so as to avoid re-entrancy of
-   * update_screen while it is in use.  After update_screen is done,
-   * it returns a nonzero value if there was any updates to the screen.
-   * If there were any updates to the screen, then set a countdown value
-   * in order to give DOSEMU more CPU time, between screen updates.
-   * This increases the DOSEMU-to-termcap update efficiency greatly.
-   * The countdown counter is currently at a value of 2.
-   */
-
-   /* This now (again) tests screen_bitmap, i.e. checks if the screen
-    * was written to at all. This doesn't seem to achieve much for now,
-    * but it will be helpful when implementing X graphics.
-    * It's a bit tricky, however, because previous calls of update_screen
-    * might not have updated the entire screen. Therefore update_pending
-    * is set to 1 if only part of the screen was updated (update_screen
-    * returns 2), meaning that update_screen will in any case be called
-    * next time.
-    * (*** this only applies if VIDEO_CHECK_DIRTY is set, which is
-    *      currently not the default! ***)
-    *
-    * return vales for update_screen are now:
-    *       0 nothing changed
-    *       1 changed, entire screen updated
-    *       2 changed, only partially updated
-    *
-    * note that update_screen also updates the cursor.
-    */
-  if (!running) {
-    if (Video->update_screen
-#if VIDEO_CHECK_DIRTY
-       && (update_pending || vm86s.screen_bitmap&screen_mask)
-#endif
-       )
-    {
-       running = -1;
-       retval = Video->update_screen();
-#if 0
-       v_printf("update_screen returned %d\n",retval);
-#endif
-       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq)
-                        : 0;
-#if VIDEO_CHECK_DIRTY
-       update_pending=(retval==2);
-       vm86s.screen_bitmap=0;
-#endif
-    }
-  }
-  else if (running > 0) {
-    running--;
-  }
-
+  if (Video->update_screen)
+    Video->update_screen();
   if (Video->handle_events)
-     Video->handle_events();
+    Video->handle_events();
 
   /* for the SLang terminal we'll delay the release of shift, ctrl, ...
      keystrokes a bit */
@@ -1006,6 +951,7 @@ void do_periodic_stuff(void)
     if (in_crit_section)
 	return;
 
+    check_leavedos();
     handle_signals();
     coopth_run();
 

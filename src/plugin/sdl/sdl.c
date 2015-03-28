@@ -385,12 +385,11 @@ static void unlock_surface(void)
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
 int SDL_set_videomode(int mode_class, int text_width, int text_height)
 {
-  int mode = video_mode;
   int x_res, y_res, wx_res, wy_res;
 
   get_mode_parameters(&x_res, &y_res, &wx_res, &wy_res);
   v_printf("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
-    (int) mode, mode_class ? "GRAPH" : "TEXT",
+    video_mode, mode_class ? "GRAPH" : "TEXT",
     text_width, text_height, x_res, y_res
   );
   if (surface && surface->w == x_res && surface->h == y_res) {

@@ -679,11 +679,21 @@ static void config_post_process(const char *usedoptions)
     dexe_load_path = NULL;
 
     if (config.sound == -1 || config.sound == 2) {
-      if (config.sdl || load_plugin("libao") || load_plugin("sdl"))
-        config.sound = 2;
-      else
-        config.sound = 1;
+	if (!config.sdl_sound && !config.libao_sound) {
+	    void *p = load_plugin("libao");
+	    if (p) {
+		config.libao_sound = 1;
+	    } else {
+		p = load_plugin("sdl");
+		if (p)
+		    config.sdl_sound = 1;
+	    }
+	}
+	if (config.sdl_sound || config.libao_sound)
+	    config.sound = 2;
     }
+    if (config.sound == -1)
+	config.sound = 1;
 }
 
 static config_scrub_t config_scrub_func[100];
@@ -1029,6 +1039,7 @@ config_init(int argc, char **argv)
 	    if (Video)
 		config.X = 1;
 	    config.sdl = 1;
+	    config.sdl_sound = 1;
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;

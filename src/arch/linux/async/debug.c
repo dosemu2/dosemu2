@@ -63,6 +63,8 @@ static void stop_gdb(void)
   fflush(stdout);
 }
 
+/* disable as this crashes under DPMI trying to trace through DOS stack */
+#if 0
 /* Obtain a backtrace and print it to `stdout'.
    (derived from 'info libc')
  */
@@ -83,6 +85,7 @@ static void print_trace (void)
 
   free (strings);
 }
+#endif
 
 static void collect_info(pid_t pid)
 {
@@ -102,7 +105,7 @@ static void collect_info(pid_t pid)
   asprintf(&tmp, cmd3, pid);
   system(tmp);
   free(tmp);
-  print_trace();
+//  print_trace();
   fflush(stdout);
 }
 
