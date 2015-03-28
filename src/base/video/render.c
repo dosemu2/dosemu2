@@ -303,25 +303,10 @@ static void modify_mode(void)
     vga.reconfig.mem = 0;
   }
 
-  if(vga.reconfig.display) {
-    v_printf(
-      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
-      vga.width, vga.height, vga.scan_len
-    );
-    dirty_all_video_pages();
-    if (Video->setmode)
-      Video->setmode(vga.mode_class, vga.width, vga.height);
-    vga.reconfig.display = 0;
-  }
-
   if(vga.reconfig.dac) {
     dirty_all_vga_colors();
     vga.reconfig.dac = 0;
     v_printf("modify_mode: DAC bits = %d\n", vga.dac.bits);
-  }
-
-  if(vga.reconfig.mem || vga.reconfig.display) {
-    v_printf("modify_mode: failed to modify current graphics mode\n");
   }
 }
 
@@ -479,6 +464,8 @@ static void *render_thread(void *arg)
     sem_wait(&render_sem);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     vga_emu_update_lock();
+    if(vga.reconfig.mem || vga.reconfig.dac)
+      modify_mode();
     is_updating = 1;
     switch (vga.mode_class) {
     case TEXT:
@@ -516,9 +503,20 @@ int update_screen(void)
     v_printf("update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
     return 1;
   }
-  if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) {
+  if (is_updating)
+    return 1;
+  /* unfortunately SDL is not thread-safe, so display mode updates
+   * need to be done from main thread. */
+  if(vga.reconfig.display) {
+    v_printf(
+      "modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
+      vga.width, vga.height, vga.scan_len
+    );
     vga_emu_update_lock();
-    modify_mode();
+    if (Video->setmode)
+      Video->setmode(vga.mode_class, vga.width, vga.height);
+    dirty_all_video_pages();
+    vga.reconfig.display = 0;
     vga_emu_update_unlock();
   }
   sem_post(&render_sem);
