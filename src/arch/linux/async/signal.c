@@ -20,6 +20,7 @@
 #include "video.h"
 #include "vgaemu.h"
 #include "vgatext.h"
+#include "render.h"
 #include "timers.h"
 #include "int.h"
 #include "lowmem.h"
@@ -766,6 +767,7 @@ static void SIGALRM_call(void *arg)
     Video->update_screen();
   if (Video->handle_events)
     Video->handle_events();
+  update_screen();
 
   /* for the SLang terminal we'll delay the release of shift, ctrl, ...
      keystrokes a bit */

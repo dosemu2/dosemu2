@@ -437,7 +437,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res);
 
 /* screen update/redraw functions */
 static void X_redraw_text_screen(void);
-static int X_update_screen(void);
 
 /* text mode init stuff (font/cursor) */
 static void load_cursor_shapes(void);
@@ -471,7 +470,7 @@ struct video_system Video_X =
    X_init,
    X_close,
    X_set_videomode,
-   X_update_screen,
+   NULL,
    X_change_config,
    NULL,
    "X"
@@ -2318,16 +2317,6 @@ void X_redraw_text_screen()
   if(!is_mapped) return;
   redraw_text_screen();
 }
-
-int X_update_screen()
-{
-  if (!is_mapped)
-    return 0;
-  if (render_is_updating())
-    return 0;
-  return update_screen();
-}
-
 
 /*
  * Load the mouse cursor shapes.

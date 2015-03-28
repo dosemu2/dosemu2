@@ -157,11 +157,8 @@ int signal, struct sigcontext_struct *scp
 		}
       /* We want to protect the video memory and the VGA BIOS */
       case 0x0e:
-                if(Video->update_screen)
-                  {
-                    if(VGA_EMU_FAULT(scp,code,0)==True)
-                      return 0;
-                  }
+		if(VGA_EMU_FAULT(scp,code,0)==True)
+			return 0;
                 /* fall into default case if not X */
 
 
@@ -264,7 +261,7 @@ sgleave:
        return 0;
      }
 
-      if(_trapno==0x0e && Video->update_screen) {
+      if(_trapno==0x0e) {
         if(VGA_EMU_FAULT(scp,code,1)==True) {
           return dpmi_check_return(scp);
 	}

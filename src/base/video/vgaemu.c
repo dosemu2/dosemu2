@@ -1391,7 +1391,6 @@ void vgaemu_reset_mapping()
   void *i;
   int prot, page, startpage;
 
-  if (!Video->update_screen) return;
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
 
   prot = VGA_EMU_RO_PROT;
@@ -2405,7 +2404,6 @@ int vgaemu_map_bank()
   int j, k0, k1;
 #endif
 
-  if(!Video->update_screen) return False;
   if((vga.mem.bank + 1) * vga.mem.bank_pages > vga.mem.pages) {
     vga_msg("vgaemu_map_bank: invalid bank %d\n", vga.mem.bank);
     return False;
