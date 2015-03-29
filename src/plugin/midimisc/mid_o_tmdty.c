@@ -56,7 +56,6 @@ static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
-static struct sockaddr_in data_adr;
 static int pcm_stream, pcm_running;
 
 static void midotmdty_io(void *arg)
@@ -255,8 +254,8 @@ static int midotmdty_init(void)
     const char *cmd1 = "OPEN %s\n";
     char buf[255];
     char *pbuf;
-    int n, i, data_port;
-    struct hostent *serv;
+    int n, i, data_port, err;
+    struct addrinfo hints, *addrinfo, *ai;
 
     if (!midotmdty_detect())
 	return FALSE;
@@ -278,33 +277,39 @@ static int midotmdty_init(void)
     pbuf = strrchr(buf, ' ');
     if (!pbuf)
 	return FALSE;
-    data_port = atoi(pbuf + 1);
+    pbuf++;
+    data_port = atoi(pbuf);
     if (!data_port) {
 	error("Can't determine the data port number!\n");
 	close(ctrl_sock_out);
 	return FALSE;
     }
     S_printf("\tUsing port %d for data\n", data_port);
-
-    serv = gethostbyname(TMDTY_HOST);
-    if (!serv) {
-	error("Can't determine the data host addr!\n");
-	close(ctrl_sock_out);
-	return FALSE;
-    }
     if ((data_sock = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
 	close(ctrl_sock_out);
 	return FALSE;
     }
-    data_adr.sin_family = AF_INET;
-    memcpy(&data_adr.sin_addr.s_addr, serv->h_addr,
-	   sizeof(data_adr.sin_addr.s_addr));
-
     i = 1;
     setsockopt(data_sock, SOL_TCP, TCP_NODELAY, &i, sizeof(i));
-    data_adr.sin_port = htons(data_port);
-    if (connect(data_sock, &data_adr, sizeof(data_adr))
-	!= 0) {
+
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = 0;
+    err = getaddrinfo(TMDTY_HOST, pbuf, &hints, &addrinfo);
+    if (err) {
+	error("Can't determine the data host addr!\n");
+	close(data_sock);
+	close(ctrl_sock_out);
+	return FALSE;
+    }
+    for (ai = addrinfo; ai; ai = ai->ai_next) {
+	err = connect(data_sock, ai->ai_addr, ai->ai_addrlen);
+	if (!err)
+	    break;
+    }
+    freeaddrinfo(addrinfo);
+    if (err) {
 	error("Can't open data connection!\n");
 	close(data_sock);
 	close(ctrl_sock_out);
