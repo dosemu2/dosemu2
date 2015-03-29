@@ -680,11 +680,16 @@ static void config_post_process(const char *usedoptions)
 
     if (config.sound == -1 || config.sound == 2) {
 	if (!config.sdl_sound && !config.libao_sound) {
-	    void *p = load_plugin("libao");
+	    void *p = NULL;
+#ifdef USE_LIBAO
+	    p = load_plugin("libao");
+#endif
 	    if (p) {
 		config.libao_sound = 1;
 	    } else {
+#ifdef SDL_SUPPORT
 		p = load_plugin("sdl");
+#endif
 		if (p)
 		    config.sdl_sound = 1;
 	    }
