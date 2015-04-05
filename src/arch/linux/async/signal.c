@@ -167,30 +167,6 @@ static int dosemu_arch_prctl(int code, void *addr)
   return syscall(SYS_arch_prctl, code, addr);
 }
 
-/* Check if fs or gs point to the base without always needing a syscall
-   (12 vs. 800 CPU cycles last time I measured).
-   The DPMI client code may have changed fs/gs and then restored it to
-   0, and that way the long base is gone (its base is still equal to
-   the fs/gs base used by the DPMI client; 64bit code doesn't trap
-   NULL selector references).
-   There is a very small chance that the mov from %fs:0 page faults.
-   In that case we fix it up in dosemu_fault0->check_fix_fs_gs_base.
- */
-
-#define getfs0(byte) asm volatile ("movb %%fs:0, %0" : "=r"(byte))
-#define getgs0(byte) asm volatile ("movb %%gs:0, %0" : "=r"(byte))
-
-#define fix_fs_gs_base(seg,SEG)						\
-  static void fix_##seg##base(void)					\
-  {									\
-    /* always fix fsbase/gsbase the DPMI client changed fs or gs */	\
-    dosemu_arch_prctl(ARCH_SET_##SEG, eflags_fs_gs.seg##base);		\
-    D_printf("DPMI: Set " #seg "base in signal handler\n");		\
-  }
-
-fix_fs_gs_base(fs,FS);
-fix_fs_gs_base(gs,GS);
-
 /* this function is called from dosemu_fault0 to check if
    fsbase/gsbase need to be fixed up, if the above asm codes
    cause a page fault.
@@ -285,21 +261,19 @@ static void __init_handler(struct sigcontext_struct *scp)
   /* else interrupting DPMI code with an LDT %cs */
 
   /* restore %fs and %gs for compatibility with NPTL. */
-#ifdef __x86_64__
-  if (eflags_fs_gs.fsbase)
-    fix_fsbase();
-  else
-#endif
   if (getsegment(fs) != eflags_fs_gs.fs)
     loadregister(fs, eflags_fs_gs.fs);
-
-#ifdef __x86_64__
-  if (eflags_fs_gs.gsbase)
-    fix_gsbase();
-  else
-#endif
   if (getsegment(gs) != eflags_fs_gs.gs)
     loadregister(gs, eflags_fs_gs.gs);
+#ifdef __x86_64__
+  /* kernel has the following rule: non-zero selector means 32bit base
+   * in GDT. Zero selector means 64bit base, set via msr.
+   * So if we set selector to 0, need to use also prctl(ARCH_SET_xS). */
+  if (!eflags_fs_gs.fs)
+    dosemu_arch_prctl(ARCH_SET_FS, eflags_fs_gs.fsbase);
+  if (!eflags_fs_gs.gs)
+    dosemu_arch_prctl(ARCH_SET_GS, eflags_fs_gs.gsbase);
+#endif
 }
 
 __attribute__((no_instrument_function))
