@@ -183,25 +183,7 @@ static int dosemu_arch_prctl(int code, void *addr)
 #define fix_fs_gs_base(seg,SEG)						\
   static void fix_##seg##base(void)					\
   {									\
-    unsigned char segbyte, basebyte;					\
-									\
     /* always fix fsbase/gsbase the DPMI client changed fs or gs */	\
-    if (getsegment(seg) == eflags_fs_gs.seg) {				\
-      volatile unsigned char *base = eflags_fs_gs.seg##base;		\
-									\
-      /* if the two locations have different bytes they must be different */ \
-      get##seg##0(segbyte);						\
-      basebyte = *base;							\
-      if (segbyte == basebyte) {					\
-									\
-	/* else we must modify one to make sure it's ok */		\
-	*base = basebyte + 1;						\
-	get##seg##0(segbyte);						\
-	*base = basebyte;						\
-	if (segbyte != basebyte)					\
-	  return;							\
-      }									\
-    }									\
     dosemu_arch_prctl(ARCH_SET_##SEG, eflags_fs_gs.seg##base);		\
     D_printf("DPMI: Set " #seg "base in signal handler\n");		\
   }
