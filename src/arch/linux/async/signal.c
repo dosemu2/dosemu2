@@ -287,11 +287,7 @@ static void __init_handler(struct sigcontext_struct *scp)
   /* restore %fs and %gs for compatibility with NPTL. */
 #ifdef __x86_64__
   if (eflags_fs_gs.fsbase)
-    if (mem_base)
-      /* too many faults in fix_fsbase() with the 0-page unmapped... */
-      dosemu_arch_prctl(ARCH_SET_FS, eflags_fs_gs.fsbase);
-    else
-      fix_fsbase();
+    fix_fsbase();
   else
 #endif
   if (getsegment(fs) != eflags_fs_gs.fs)
@@ -299,10 +295,7 @@ static void __init_handler(struct sigcontext_struct *scp)
 
 #ifdef __x86_64__
   if (eflags_fs_gs.gsbase)
-    if (mem_base)
-      dosemu_arch_prctl(ARCH_SET_GS, eflags_fs_gs.gsbase);
-    else
-      fix_gsbase();
+    fix_gsbase();
   else
 #endif
   if (getsegment(gs) != eflags_fs_gs.gs)
