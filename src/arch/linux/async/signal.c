@@ -202,7 +202,7 @@ static int dosemu_arch_prctl(int code, void *addr)
 	  return;							\
       }									\
     }									\
-    dosemu_arch_prctl(ARCH_SET_##SEG, eflags_fs_gs.fsbase);		\
+    dosemu_arch_prctl(ARCH_SET_##SEG, eflags_fs_gs.seg##base);		\
     D_printf("DPMI: Set " #seg "base in signal handler\n");		\
   }
 
