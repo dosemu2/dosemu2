@@ -131,8 +131,25 @@ if test -n "$DOSEMU_APBUILD"; then
   CPP="apgcc -E"
 fi
 
-dnl Check whether we have svgalib and whether to use it
+dnl check for stack protector and abort
+AC_MSG_CHECKING([for stack protector disabled])
+AS_IF([[(
+    ${CC} ${CFLAGS} -S -x c -o - - << _EOF_
+    int foo(int);
+    int foo(int i)
+    {
+      char a[2];
+      a[i]=0;
+      return a[i+1];
+    }
+_EOF_
+    ) | grep "%fs:" >/dev/null]],
+    [
+	AC_MSG_RESULT([no])
+	AC_MSG_ERROR([Cannot compile dosemu with stack protector enabled])
+    ], AC_MSG_RESULT([yes]))
 
+dnl Check whether we have svgalib and whether to use it
 AC_ARG_WITH(svgalib,
 	[  --with-svgalib          use svgalib if available])
 if test "$with_svgalib" = "yes"; then
