@@ -472,7 +472,7 @@ static inline int vga_read_access(unsigned int m)
 static inline int vga_write_access(unsigned int m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a planar mode */
-	if ((TheCPU.mode&RM_REG) || !Video->update_screen) return 0;
+	if (TheCPU.mode&RM_REG) return 0;
 	m -= TheCPU.mem_base;
 	return ((unsigned)(m - vga.mem.graph_base) <
 		vga.mem.graph_size + (vgaemu_bios.pages<<12) &&

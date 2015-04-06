@@ -515,22 +515,20 @@ int e_emu_fault(struct sigcontext_struct *scp)
   if (_trapno!=0x0e && _trapno != 0x00) return 0;
 
   if (_trapno==0x0e) {
-	if (Video->update_screen) {
-		if (!DPMIValidSelector(_cs)) {
-			/* in vga.inst_emu mode, vga_emu_fault() can handle
-			 * only faults from DOS code, and here we are with
-			 * the fault from jit-compiled code */
-			if (!vga.inst_emu) {
-				if (vga_emu_fault(scp, 0) == True) return 1;
-			} else {
-				dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
-				if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
-			}
+	if (!DPMIValidSelector(_cs)) {
+		/* in vga.inst_emu mode, vga_emu_fault() can handle
+		 * only faults from DOS code, and here we are with
+		 * the fault from jit-compiled code */
+		if (!vga.inst_emu) {
+			if (vga_emu_fault(scp, 0) == True) return 1;
 		} else {
-			if(VGA_EMU_FAULT(scp,code,1)==True) {
-				dpmi_check_return(scp);
-				return 1;
-			}
+			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
+			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+		}
+	} else {
+		if(VGA_EMU_FAULT(scp,code,1)==True) {
+			dpmi_check_return(scp);
+			return 1;
 		}
 	}
 

@@ -86,6 +86,9 @@ while [ "$1" != "" ]; do
     sndfile)
       if [ "$2" = "off" ]; then STRING="$STRING --without-sndfile"; fi
       ;;
+    libao)
+      if [ "$2" = "off" ]; then STRING="$STRING --without-libao"; fi
+      ;;
     docdir|x11fontdir|syshdimagedir|fdtarball)
       STRING="$STRING --with-$1=$2"
       ;;

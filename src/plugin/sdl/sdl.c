@@ -469,20 +469,16 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
 int SDL_update_screen(void)
 {
-  int ret;
   if (init_failed || !initialized)
     return 1;
   if (render_is_updating())
     return 0;
 #ifdef X_SUPPORT
   if (!use_bitmap_font && vga.mode_class == TEXT)
-    return update_screen();
+    return 0;
 #endif
-  /* if render is idle we start async blit (as of SDL_SYNCBLIT) and
-   * then start the renderer. It will wait till async blit to finish. */
   SDL_update();
-  ret = update_screen();
-  return ret;
+  return 0;
 }
 
 /* this only pushes the rectangle on a stack; updating is done later */

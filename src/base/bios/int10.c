@@ -273,7 +273,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
   ypos = get_bios_cursor_y_position(s);
 
   /* check for gfx mode */
-  if(Video->update_screen && !using_text_mode()) gfx_mode = 1;
+  if(!using_text_mode()) gfx_mode = 1;
 
   switch (ch) {
   case '\r':         /* Carriage return */
@@ -1572,7 +1572,7 @@ int int10(void) /* with dualmon */
 
 
     case 0x4f:		/* vesa interrupt */
-      if(Video->update_screen) do_vesa_int();
+      do_vesa_int();
       break;
 
 

@@ -56,7 +56,6 @@ static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
-static struct sockaddr_in ctrl_adr, data_adr;
 static int pcm_stream, pcm_running;
 
 static void midotmdty_io(void *arg)
@@ -89,7 +88,6 @@ static void midotmdty_io(void *arg)
 
 static int midotmdty_preinit(void)
 {
-    struct hostent *serv;
     sigset_t sigs;
     int tmdty_pipe_in[2], tmdty_pipe_out[2];
     const char *tmdty_capt = "-Or -o -";
@@ -100,16 +98,6 @@ static int midotmdty_preinit(void)
     char *tmdty_args[T_MAX_ARGS];
     char *ptr;
     int i;
-
-    serv = gethostbyname(TMDTY_HOST);
-    if (!serv)
-	return FALSE;
-    if ((data_sock = socket(PF_INET, SOCK_STREAM, 0)) == -1)
-	return FALSE;
-    data_adr.sin_family = AF_INET;
-    memcpy(&ctrl_adr.sin_addr.s_addr, serv->h_addr,
-	   sizeof(ctrl_adr.sin_addr.s_addr));
-    data_adr.sin_addr.s_addr = ctrl_adr.sin_addr.s_addr;
 
     /* the socketpair is used as a bidirectional pipe: older versions
        (current as of 2008 :( ) of timidity write to stdin and we can
@@ -188,7 +176,6 @@ static int midotmdty_preinit(void)
     return TRUE;
 
   err_ds:
-    close(data_sock);
     return FALSE;
 }
 
@@ -255,7 +242,6 @@ static int midotmdty_detect(void)
 
     if (!ret) {
 	sigchld_enable_handler(tmdty_pid, 0);
-	close(data_sock);
 	close(ctrl_sock_out);
 	waitpid(tmdty_pid, &status, 0);
     }
@@ -268,7 +254,8 @@ static int midotmdty_init(void)
     const char *cmd1 = "OPEN %s\n";
     char buf[255];
     char *pbuf;
-    int n, i, data_port;
+    int n, i, data_port, err;
+    struct addrinfo hints, *addrinfo, *ai;
 
     if (!midotmdty_detect())
 	return FALSE;
@@ -290,19 +277,39 @@ static int midotmdty_init(void)
     pbuf = strrchr(buf, ' ');
     if (!pbuf)
 	return FALSE;
-    data_port = atoi(pbuf + 1);
+    pbuf++;
+    data_port = atoi(pbuf);
     if (!data_port) {
 	error("Can't determine the data port number!\n");
-	close(data_sock);
 	close(ctrl_sock_out);
 	return FALSE;
     }
     S_printf("\tUsing port %d for data\n", data_port);
+    if ((data_sock = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
+	close(ctrl_sock_out);
+	return FALSE;
+    }
     i = 1;
     setsockopt(data_sock, SOL_TCP, TCP_NODELAY, &i, sizeof(i));
-    data_adr.sin_port = htons(data_port);
-    if (connect(data_sock, &data_adr, sizeof(data_adr))
-	!= 0) {
+
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = 0;
+    err = getaddrinfo(TMDTY_HOST, pbuf, &hints, &addrinfo);
+    if (err) {
+	error("Can't determine the data host addr!\n");
+	close(data_sock);
+	close(ctrl_sock_out);
+	return FALSE;
+    }
+    for (ai = addrinfo; ai; ai = ai->ai_next) {
+	err = connect(data_sock, ai->ai_addr, ai->ai_addrlen);
+	if (!err)
+	    break;
+    }
+    freeaddrinfo(addrinfo);
+    if (err) {
 	error("Can't open data connection!\n");
 	close(data_sock);
 	close(ctrl_sock_out);
