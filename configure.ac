@@ -123,14 +123,6 @@ else
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi
 
-# set DOSEMU_APBUILD to use apgcc
-if test -n "$DOSEMU_APBUILD"; then
-  USE_APBUILD="USE_APBUILD=1"
-  AC_SUBST(USE_APBUILD)
-  CC=apgcc
-  CPP="apgcc -E"
-fi
-
 dnl check for stack protector and abort
 AC_MSG_CHECKING([for stack protector disabled])
 AS_IF([[(
@@ -597,47 +589,6 @@ if test "$with_target_cpu" = ""; then
 else
   AC_MSG_NOTICE(Compiling with specified target CPU...)
   target_cpu=$with_target_cpu
-fi
-
-
-OPT=""
-if test "$GCC" = "yes" ; then
-  AC_MSG_CHECKING(for the version of gcc...)
-  minor=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC_MINOR__/{print $3}'`
-  major=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC__/{print $3}'`
-  GCC_VERSION_CODE=$((($major * 1000) + $minor))
-  AC_MSG_RESULT($GCC_VERSION_CODE)
-  if test "$GCC_VERSION_CODE" -lt 3003 ; then
-     AC_MSG_ERROR([Sorry, you need gcc-3.3 or newer or clang.])
-  fi
-  AC_MSG_RESULT([using -fno-strict-aliasing to work around bugs])
-  OPT="$OPT -fno-strict-aliasing"
-  DOSEMU_CPPFLAGS="$DOSEMU_CPPFLAGS -MP"
-
-  # gcc-3.3 wants -mcpu=i486
-  # but gcc-3.4 wants -mtune=i486 instead
-  # let the compiler options be dependent of the _target_
-  # where dosemu is compiled for, not the host
-  if test -z "$target_cpu" ; then
-     true
-  elif test "$GCC_VERSION_CODE" -ge 3004 ; then
-     OPT="$OPT -mtune=$target_cpu"
-  else
-     OPT="$OPT -mcpu=$target_cpu"
-  fi
-  if test "$target_cpu" = "athlon"; then
-     OPT="$OPT -malign-functions=4 -fexpensive-optimizations"
-  elif test "$target_cpu" = "i486"; then
-     OPT="$OPT -malign-loops=2 -malign-jumps=2 -malign-functions=2"
-  fi
-
-  AC_MSG_CHECKING(for glibc...)
-  set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2}'`
-  if test "$1" = "__GLIBC__"; then
-    AC_MSG_ERROR([Sorry, you need glibc.])
-  else
-    AC_MSG_RESULT([yes])
-  fi
 fi
 
 AC_MSG_CHECKING(for $CC actually being clang...)
