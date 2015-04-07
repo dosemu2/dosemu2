@@ -77,6 +77,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#define USE_PTHREADS 1
+
 #ifdef USE_PTHREADS
 	#include <pthread.h>
 #endif

@@ -289,16 +289,9 @@ else
 fi
 
 dnl Check whether we have pthreads and whether to use it
-AC_CHECK_LIB(pthread, pthread_create, with_pthreads="yes")
-if test "$with_pthreads" = "yes"; then
-  AC_MSG_NOTICE(Compiling with pthreads support...)
-  AC_DEFINE(USE_PTHREADS)
-  USE_PTHREADS="USE_PTHREADS=1"
-  AC_SUBST(USE_PTHREADS)
-  LIBS="$LIBS -lpthread"
-else
-  AC_MSG_NOTICE(Compiling without pthreads support...)
-fi
+AC_CHECK_LIB(pthread, pthread_create,,[
+  AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
+])
 
 #S-Lang directory checking -- thanks to mutt's configure script.
 AC_ARG_WITH(slangdir, [  --with-slangdir=dir     specify S-Lang directory])
@@ -739,9 +732,6 @@ AH_TEMPLATE([USE_LIBAO],
 
 AH_TEMPLATE([USE_FLUIDSYNTH],
 [ DEFINE this, if you want fluidsynth support ])
-
-AH_TEMPLATE([USE_PTHREADS],
-[ DEFINE this, if you want pthreads support ])
 
 AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
