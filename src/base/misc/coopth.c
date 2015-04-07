@@ -26,6 +26,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <setjmp.h>
+#include <unistd.h>
+#include <sys/mman.h>
 #include <assert.h>
 #include "emu.h"
 #include "utilities.h"
@@ -87,7 +89,8 @@ struct coopth_per_thread_t {
     int left:1;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
-    char *stack;
+    void *stack;
+    size_t stk_size;
     Bit16u ret_cs, ret_ip;
     int dbg;
 };
@@ -125,7 +128,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
 
-#define COOP_STK_SIZE (512 * 1024)
+#define COOP_STK_SIZE() (512 * getpagesize())
 
 void coopth_init(void)
 {
@@ -503,6 +506,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     int tn;
+    size_t stk_size = COOP_STK_SIZE();
+
     check_tid(tid);
     thr = &coopthreads[tid];
     assert(thr->tid == tid);
@@ -532,10 +537,19 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thrdata = &pth->data;
     pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
     if (!pth->stack)
-	pth->stack = malloc(COOP_STK_SIZE);
-    pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
-	    COOP_STK_SIZE);
+	pth->stack = mmap(NULL, stk_size, PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    if (pth->stack == MAP_FAILED) {
+	error("Unable to allocate stack\n");
+	leavedos(21);
+	return 1;
+    }
+    pth->stk_size = stk_size;
+    pth->thread = co_create(coopth_thread, &pth->args, pth->stack, stk_size);
     if (!pth->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
@@ -1017,7 +1031,7 @@ again:
 	int j;
 	for (j = thr->cur_thr; j < thr->max_thr; j++) {
 	    struct coopth_per_thread_t *pth = &thr->pth[j];
-	    free(pth->stack);
+	    munmap(pth->stack, pth->stk_size);
 	}
     }
     co_thread_cleanup();
