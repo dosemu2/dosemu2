@@ -39,7 +39,6 @@ PLUGIN=""
 
 while [ "$1" != "" ]; do
 #  echo "$1 $2"
-
   case "$1" in
     experimental)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-experimental"; fi
@@ -49,15 +48,6 @@ while [ "$1" != "" ]; do
       ;;
     net)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-net"; fi
-      ;;
-    x)
-      if [ "$2" = "off" ]; then STRING="$STRING --without-x"; fi
-      ;;
-    mitshm)
-      if [ "$2" = "off" ]; then STRING="$STRING --disable-mitshm"; fi
-      ;;
-    vidmode)
-      if [ "$2" = "off" ]; then STRING="$STRING --disable-vidmode"; fi
       ;;
     sbemu)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-sbemu"; fi

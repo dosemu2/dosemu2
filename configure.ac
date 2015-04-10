@@ -99,7 +99,6 @@ dnl Check for static and then also use it for tests
 
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 LIBS="$LIBS -ldl -lm"
-X_LIBS=""
 
 AC_ARG_ENABLE(linkstatic,
               [  --enable-linkstatic     make statically linked binaries])
@@ -345,73 +344,6 @@ CPPFLAGS="$save_CPPFLAGS"
 AC_SUBST(SLANGINC)
 AC_SUBST(SLANGLIB)
 
-AC_PATH_XTRA
-if test "$have_x" = "yes" ; then
-  SLIBS=$LIBS
-  LIBS="$LIBS $X_LIBS"
-  AC_CHECK_LIB(X11, XOpenDisplay, X_LIBS="$X_LIBS -lX11",
-   AC_CHECK_LIB(X11, XCloseDisplay, X_LIBS="$X_LIBS -lX11",
-     AC_CHECK_LIB(Xwindow, main, , have_x="no" )))
-  LIBS=$SLIBS
-  unset SLIBS
-fi
-
-if test "$have_x" = "yes" ; then
-
-    SLIBS=$LIBS
-    LIBS="$LIBS $X_LIBS"
-
-    AC_MSG_NOTICE(Compiling with X support...)
-    AC_DEFINE(X_SUPPORT) 
-    X_SUPPORT="X_SUPPORT=1"
-    AC_SUBST(X_SUPPORT)
-
-  dnl Check for the MITSHM extention to speed up VGAemu
-
-    AC_ARG_ENABLE(mitshm,
-              [  --disable-mitshm        do NOT use the MITSHM X extension])
-
-    if test "$enable_mitshm" != "no" ; then
-      AC_CHECK_LIB(Xext, XShmPutImage, enable_mitshm="yes", enable_mitshm="no")
-    fi
-    if test "$enable_mitshm" != "no" ; then
-      AC_CHECK_HEADER(X11/extensions/XShm.h,
-         [AC_DEFINE(HAVE_MITSHM,1) X_LIBS="-lXext $X_LIBS"],
-         AC_MSG_NOTICE(Compiling without the MITSHM X extension),
-         [#include <X11/Xlib.h>])
-    fi
-    LIBS="-lXext $LIBS"
-
-    AC_ARG_ENABLE(vidmode,
-              [  --enable-vidmode        use XF86 vidmode extension])
-    if test "$enable_vidmode" = "yes" ; then
-      AC_CHECK_LIB(Xxf86vm, XF86VidModeSwitchToMode, enable_vidmode="yes", enable_vidmode="no")
-    fi
-    if test "$enable_vidmode" != "yes"; then
-               AC_MSG_NOTICE(Compiling without the XF86 video mode extension)
-    else
-	       AC_CHECK_HEADER(X11/extensions/xf86vmode.h,
-		 [AC_DEFINE(HAVE_XVIDMODE,1) X_LIBS="-lXxf86vm $X_LIBS"],
-                 AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
-                 [#include <X11/Xlib.h>])
-    fi
-
-    LIBS=$SLIBS
-    unset SLIBS
-
-    AC_CHECK_PROG([BDFTOPCF], [bdftopcf], ["yes"], ["no"])
-    AC_CHECK_PROG([MKFONTDIR], [mkfontdir], ["yes"], ["no"])
-    if test "$MKFONTDIR" = "no" -o "$BDFTOPCF" = "no"; then
-        AC_MSG_ERROR([
-Your system doesn't seem to have bdftopcf or mkfontdir available.
-Please install these packages or a package named like 'xorg-x11-font-utils'
-or 'xfonts-utils' and retry.])
-     fi
-
-else
-  AC_MSG_NOTICE(Compiling without X support...)
-fi
-
 CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
@@ -607,8 +539,6 @@ AC_SUBST(DOSEMU_CFLAGS)
 AC_SUBST(DOSEMU_CPPFLAGS)
 AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
-AC_SUBST(X_LIBS)
-AC_SUBST(X_CFLAGS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
@@ -736,18 +666,9 @@ AH_TEMPLATE([USE_FLUIDSYNTH],
 AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
 
-AH_TEMPLATE([X_SUPPORT],
-[ Define this, if you want X support ])
-
 AH_TEMPLATE([USE_SBEMU],
 [ This is DEFINED when SB emulation is required. Just changing this is not
   enough - you must reconfigure. ])
-
-AH_TEMPLATE([HAVE_MITSHM],
-[ Define this if you want to use MITSHM ])
-
-AH_TEMPLATE([HAVE_XVIDMODE],
-[ Define this if you want to use the XF86 video mode extension ])
 
 AH_TEMPLATE([ASPI_SUPPORT],
 [ Define this for ASPI (generic SCSI) support ])

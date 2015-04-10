@@ -1210,9 +1210,7 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
        so we call leavedos() here */
     leavedos(99);
   }
-#ifdef HAVE_MITSHM
   return 0;
-#endif
 }
 
 /*

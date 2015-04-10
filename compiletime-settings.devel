@@ -3,7 +3,6 @@ config {
   sbemu on
   mitshm on
   vidmode off
-  x on
   net on
   debug on
   cpuemu on
