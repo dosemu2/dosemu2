@@ -38,5 +38,5 @@ endif
 install: all
 
 realclean::
-	rm -f Makefile.conf config.log config.status include/sdl_config.h
+	rm -f Makefile.conf config.log config.status
 	rm -rf autom4te*.cache

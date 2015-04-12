@@ -27,3 +27,8 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_X.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
+
+realclean::
+	rm -f Makefile.conf config.log config.status include/x_config.h \
+		 include/_x_config.*
+	rm -rf autom4te*.cache
