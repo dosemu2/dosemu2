@@ -7,7 +7,6 @@ config {
   debug on
   cpuemu on
   aspi on
-  svgalib off
   vde on
   dlplugins on
   plugin_libao on
@@ -23,6 +22,7 @@ config {
   plugin_translate on
   plugin_commands on
   plugin_console on
+  plugin_svgalib off
   plugin_slang on
   plugin_vde on
   plugin_demo on

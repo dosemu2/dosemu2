@@ -29,7 +29,7 @@
 #include "svgalib.h"
 #include "priv.h"
 #include "vc.h"
-#include "vga.h"
+#include "../console/vga.h"
 
 /*
  * svgalibSave --
@@ -37,7 +37,7 @@
  */
 /* Read and save chipset-specific registers */
 
-void svgalib_save_ext_regs(u_char xregs[], u_short xregs16[])
+static void svgalib_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
     vga_chipset_saveregs(xregs);
 }
@@ -46,12 +46,12 @@ void svgalib_save_ext_regs(u_char xregs[], u_short xregs16[])
  * svgalibRestore --
  *      restore a video mode
  */
-void svgalib_restore_ext_regs(u_char xregs[], u_short xregs16[])
+static void svgalib_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
     vga_chipset_setregs(xregs);
 }
 
-void svgalib_setbank(unsigned char bank)
+static void svgalib_setbank(unsigned char bank)
 {
     vga_setpage(bank);
 }

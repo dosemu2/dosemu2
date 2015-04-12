@@ -36,8 +36,10 @@
 #include "vbe.h"
 #include "pci.h"
 #include "mapping.h"
+#include "utilities.h"
 #ifdef USE_SVGALIB
-#include "svgalib.h"
+#include <dlfcn.h>
+#include "../svgalib/svgalib.h"
 #endif
 
 #define PLANE_SIZE (64*1024)
@@ -640,8 +642,18 @@ static int vga_initialize(void)
     break;
   case SVGALIB:
 #ifdef USE_SVGALIB
-    vga_init_svgalib();
+  {
+    void *handle = load_plugin("svgalib");
+    void (*init_svgalib)(void);
+    if (!handle) {
+	error("svgalib unavailable\n");
+	config.exitearly = 1;
+	break;
+    }
+    init_svgalib = dlsym(handle, "vga_init_svgalib");
+    init_svgalib();
     v_printf("svgalib handles the graphics\n");
+  }
 #else
     error("svgalib support is not compiled in, \"plainvga\" will be used.\n");
 #endif

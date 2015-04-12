@@ -140,41 +140,6 @@ _EOF_
 	AC_MSG_ERROR([Cannot compile dosemu with stack protector enabled])
     ], AC_MSG_RESULT([yes]))
 
-dnl Check whether we have svgalib and whether to use it
-AC_ARG_WITH(svgalib,
-	[  --with-svgalib          use svgalib if available])
-if test "$with_svgalib" = "yes"; then
-  AC_MSG_NOTICE(Checking for svgalib... )
-  AC_CHECK_LIB(vga, vga_simple_init,
-  [ AC_CHECK_HEADER(vga.h,
-    [ AC_MSG_CHECKING(for svgalib version >= 1.9.21)
-      svgalib_ver=`printf '%b\n' '#include <vga.h>\nXXAaZZ SVGALIB_VER'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2}' | cut -dx -f2`
-      svgalib_ver_a=`expr $svgalib_ver / 10000`
-      svgalib_ver_b=`expr $svgalib_ver / 100 % 100`
-      svgalib_ver_c=`expr $svgalib_ver % 100`
-      if test $svgalib_ver -ge 010921; then
-        use_svgalib="yes"
-      else
-        use_svgalib="no"
-      fi
-      AC_MSG_RESULT([$use_svgalib, found ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c}])
-      if test "$use_svgalib" = "no"; then
-        AC_MSG_WARN([Your svgalib is too old.])
-      fi
-    ], AC_MSG_WARN(svgalib headers not found.))
-  ])
-
-  if test "$use_svgalib" = "yes"; then
-    AC_MSG_NOTICE(Compiling with svgalib support)
-    AC_DEFINE(USE_SVGALIB)
-    USE_SVGALIB="USE_SVGALIB=1"
-    AC_SUBST(USE_SVGALIB)
-    LIBS="-lvga $LIBS"
-  else
-    AC_MSG_NOTICE(Compiling without svgalib support)
-  fi
-fi
-
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
   AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
@@ -483,9 +448,6 @@ AH_TEMPLATE(HAVE_XKB,
 
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
-
-AH_TEMPLATE([USE_SVGALIB],
-[ DEFINE this, if you want svgalib support ])
 
 AH_TEMPLATE([USE_GPM],
 [ DEFINE this, if you want GPM support ])
