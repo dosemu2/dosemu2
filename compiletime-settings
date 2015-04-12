@@ -10,7 +10,6 @@ config {
   svgalib off
   gpm on
   alsa on
-  sndfile off
   libao on
   dlplugins on
   plugin_kbd_unicode on

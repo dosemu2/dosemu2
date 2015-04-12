@@ -233,24 +233,6 @@ else
   $srcdir/mkpluginhooks enable alsa no
 fi
 
-AC_ARG_WITH(sndfile,
-	[  --without-sndfile       don't use sndfile even if available])
-if test "$with_sndfile" != "no"; then
-  AC_CHECK_LIB(sndfile, sf_open, with_sndfile="yes", with_sndfile="no")
-fi
-if test "$with_sndfile" != "no"; then
-  AC_MSG_NOTICE(Compiling with sndfile support...)
-  AC_DEFINE(USE_SNDFILE)
-  USE_SNDFILE="USE_SNDFILE=1"
-  AC_SUBST(USE_SNDFILE)
-  SNDFLIB="-lsndfile"
-  AC_SUBST(SNDFLIB)
-  $srcdir/mkpluginhooks enable sndfile yes
-else
-  AC_MSG_NOTICE(Compiling without sndfile support...)
-  $srcdir/mkpluginhooks enable sndfile no
-fi
-
 AC_ARG_WITH(ao,
 	[  --without-libao       don't use libao even if available])
 if test "$with_ao" != "no"; then
@@ -659,9 +641,6 @@ AH_TEMPLATE([USE_GPM],
 
 AH_TEMPLATE([USE_ALSA],
 [ DEFINE this, if you want alsa support ])
-
-AH_TEMPLATE([USE_SNDFILE],
-[ DEFINE this, if you want wav file output support ])
 
 AH_TEMPLATE([USE_LIBAO],
 [ DEFINE this, if you want libao sound output support ])

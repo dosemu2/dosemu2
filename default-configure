@@ -73,9 +73,6 @@ while [ "$1" != "" ]; do
     alsa)
       if [ "$2" = "off" ]; then STRING="$STRING --without-alsa"; fi
       ;;
-    sndfile)
-      if [ "$2" = "off" ]; then STRING="$STRING --without-sndfile"; fi
-      ;;
     libao)
       if [ "$2" = "off" ]; then STRING="$STRING --without-libao"; fi
       ;;
