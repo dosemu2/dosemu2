@@ -220,17 +220,6 @@ dnl Do compilation for GDB
    AC_MSG_NOTICE(Compiling without debug info...);
   fi
 
-dnl Compile with ASPI support
- AC_ARG_ENABLE(aspi,
-               [  --disable-aspi          do NOT compile with ASPI support])
-  if test "$enable_aspi" != "no"; then
-   AC_MSG_NOTICE(Compiling with ASPI support...);
-   AC_DEFINE(ASPI_SUPPORT)
-   AC_SUBST(ASPI_SUPPORT,"ASPI_SUPPORT=1")
-  else
-   AC_MSG_NOTICE(Compiling without ASPI support...);
-  fi
-
 dnl Do SB emulation
  AC_ARG_ENABLE(sbemu,
                [  --disable-sbemu         do NOT use SoundBlaster emulator])
@@ -458,9 +447,6 @@ AH_TEMPLATE([USE_MHPDBG],
 AH_TEMPLATE([USE_SBEMU],
 [ This is DEFINED when SB emulation is required. Just changing this is not
   enough - you must reconfigure. ])
-
-AH_TEMPLATE([ASPI_SUPPORT],
-[ Define this for ASPI (generic SCSI) support ])
 
 AH_TEMPLATE([X86_EMULATOR],
 [ Define this to use the X86 CPU emulator ])

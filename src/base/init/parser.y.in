@@ -714,14 +714,12 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
                 | ASPI '{' string_expr DEVICETYPE string_expr TARGET expression '}'
                     {
-#ifdef ASPI_SUPPORT
 		    char *s = aspi_add_device($3, $5, $7);
 		    if (s) {
 			c_printf("CONF: aspi available for %s\n", s);
 			free(s);
 		    }
 		    else c_printf("CONF: aspi device %s not available\n", $3);
-#endif
 		    free($3);
 		    free($5);
 		    }

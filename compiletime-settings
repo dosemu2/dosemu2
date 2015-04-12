@@ -4,7 +4,6 @@ config {
   net on
   debug off
   cpuemu on
-  aspi on
   dlplugins on
   plugin_libao on
   plugin_gpm on
