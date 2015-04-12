@@ -22,6 +22,7 @@ config {
   plugin_translate on
   plugin_commands on
   plugin_console on
+  plugin_slang on
   plugin_vde off
   plugin_demo off
   target_bits auto

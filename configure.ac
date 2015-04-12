@@ -180,58 +180,6 @@ AC_CHECK_LIB(pthread, pthread_create,,[
   AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
 ])
 
-#S-Lang directory checking -- thanks to mutt's configure script.
-AC_ARG_WITH(slangdir, [  --with-slangdir=dir     specify S-Lang directory])
-AC_MSG_CHECKING(for S-Lang)
-SLANGINC=""
-SLANGLIB=""
-if test "$with_slangdir" = ""; then
-  if test -d $srcdir/../slang; then
-    SLANGINC="-I ${srcdir}/../slang/src"
-    SLANGLIB="-L ${srcdir}/../slang/src/objs"
-  else
-    if test -d $prefix/include/slang; then
-      SLANGINC="-I${prefix}/include/slang"
-    elif test -d /usr/include/slang; then
-      SLANGINC="-I/usr/include/slang"
-    fi
-  fi
-else
-  dnl ---Check to see if $withval is a source directory
-  if test -f $with_slangdir/src/slang.h; then
-    SLANGINC="-I${with_slangdir}/src"
-    SLANGLIB="-L${with_slangdir}/src/objs"
-  else
-    dnl ---Must be installed somewhere
-    if test -d $with_slangdir/include/slang; then
-      SLANGINC="-I${with_slangdir}/include/slang"
-    elif test -d $with_slangdir/include; then
-      SLANGINC="-I${with_slangdir}/include"
-    fi
-    SLANGLIB="-L${with_slangdir}/lib"
-  fi
-fi
-dnl --- now that we've found it, check the link
-save_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $SLANGINC"
-AC_MSG_RESULT($SLANGINC $SLANGLIB)
-have_slang="no"
-AC_CHECK_HEADER(slang.h,
-  AC_CHECK_LIB(slang, SLtt_get_terminfo,
-    AC_MSG_NOTICE(Compiling with S-Lang support...)
-    have_slang="yes"
-    AC_DEFINE(USE_SLANG)
-    SLANGLIB="$SLANGLIB -lslang",
-    [AC_MSG_WARN([No S-Lang library found.])]
-    $srcdir/mkpluginhooks enable term no
-  ),
-  [AC_MSG_WARN([No S-Lang header file found.])]
-  $srcdir/mkpluginhooks enable term no
-)
-CPPFLAGS="$save_CPPFLAGS"
-AC_SUBST(SLANGINC)
-AC_SUBST(SLANGLIB)
-
 dnl Check for the XKB extension to get reliable keyboard handling
 AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
 
@@ -536,9 +484,6 @@ AH_TEMPLATE(HAVE_XKB,
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
 
-AH_TEMPLATE([USE_SLANG],
-[ DEFINE this, if you want S-Lang support ])
-
 AH_TEMPLATE([USE_SVGALIB],
 [ DEFINE this, if you want svgalib support ])
 
@@ -592,15 +537,3 @@ if test "$GCC" != "yes" ; then
   AC_MSG_WARN(Of course you could also include the gcc bin directory in)
   AC_MSG_WARN(your path.)
 fi
-
-if test "$have_x" = "no" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Compiling without X support.)
-  AC_MSG_WARN(Install the X development libraries if you want support for X.)
-fi
-if test "$have_slang" = "no" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Compiling without terminal support.)
-  AC_MSG_WARN(Install the slang development libraries if you want to run in a terminal.)
-fi
-echo ""

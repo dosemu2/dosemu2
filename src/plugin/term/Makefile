@@ -6,6 +6,7 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
 ALL_CPPFLAGS+=$(SLANGINC)
@@ -19,7 +20,7 @@ OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
 ifdef USE_DL_PLUGINS
-all: $(BINPATH)/bin/libplugin_term.so $(LIB)
+all: $(BINPATH)/bin/libplugin_term.so
 endif
 
 include $(REALTOPDIR)/src/Makefile.common
@@ -48,3 +49,5 @@ install: all
 
 clean::
 	rm -f partial.map libslang*.stub.*
+realclean::
+	rm -rf Makefile.conf autom4te.cache configure *.log *.m4 config.status
