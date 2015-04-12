@@ -1,2 +1,1 @@
-#include "../plugin/kbd_unicode/include/kbd_unicode_config.h"
-
+#define HAVE_UNICODE_KEYB 2
