@@ -1,13 +1,10 @@
 config {
   experimental on
   sbemu on
-  mitshm on
-  vidmode off
   net on
   debug on
   cpuemu on
   aspi on
-  vde on
   dlplugins on
   plugin_libao on
   plugin_gpm on
