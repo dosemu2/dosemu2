@@ -49,7 +49,6 @@ ALL_LDFLAGS:=@DOSEMU_LDFLAGS@ ${LDFLAGS}
 DOSBIN_LDFLAGS:=@DOSBIN_LDFLAGS@
 LIBS:=@LIBS@
 SLANGLIB:=@SLANGLIB@
-VDELIB:=@VDELIB@
 CC:=@CC@
 CPP:=@CPP@
 LD:=@CC@
@@ -76,7 +75,6 @@ RANLIB:=@RANLIB@
 @ASPI_SUPPORT@
 @USE_DL_PLUGINS@
 @USE_SVGALIB@
-@USE_VDE@
 @X86_EMULATOR@
 
 INSTALL:=@INSTALL@
@@ -113,6 +111,6 @@ RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
 ifdef USE_DL_PLUGINS
 DL_CFLAGS:=-fPIC
 else
-LIBS:=$(LIBS) $(SLANGLIB) $(VDELIB)
+LIBS:=$(LIBS) $(SLANGLIB)
 -include $(top_builddir)/src/plugin/*/Makefile.conf
 endif

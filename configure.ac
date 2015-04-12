@@ -175,27 +175,6 @@ if test "$with_svgalib" = "yes"; then
   fi
 fi
 
-dnl Check whether we have vde and whether to use it
-AC_ARG_WITH(vde,
-	[  --with-vde              use VDE if available])
-if test "$with_vde" = "yes"; then
-  AC_MSG_NOTICE(Checking for VDE... )
-  AC_CHECK_LIB(vdeplug, vde_close,
-    [ AC_CHECK_HEADER(libvdeplug.h, use_vde="yes", use_vde="no") ]
-  )
-fi
-if test "$use_vde" = "yes"; then
-  AC_MSG_NOTICE(Compiling with VDE support)
-  AC_DEFINE([USE_VDE], [1], [Define this to use VDE for networking])
-  USE_VDE="USE_VDE=1"
-  AC_SUBST(USE_VDE)
-  $srcdir/mkpluginhooks enable vde yes
-  VDELIB="-lvdeplug"
-  AC_SUBST(VDELIB)
-else
-  $srcdir/mkpluginhooks enable vde no
-fi
-
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
   AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
