@@ -6,13 +6,12 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
-ifdef USE_ALSA
 CFILES=mid_o_alsa.c
 ifdef USE_DL_PLUGINS
-all: $(BINPATH)/bin/libplugin_alsa.so $(LIB)
-endif
+all: $(BINPATH)/bin/libplugin_alsa.so
 endif
 
 include $(REALTOPDIR)/src/Makefile.common

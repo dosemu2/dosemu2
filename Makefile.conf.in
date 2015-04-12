@@ -79,8 +79,6 @@ RANLIB:=@RANLIB@
 @USE_SVGALIB@
 @USE_VDE@
 @USE_GPM@
-@USE_ALSA@
-ALSALIB:=@ALSALIB@
 @USE_LIBAO@
 LIBAOLIB:=@LIBAOLIB@
 @USE_FLUIDSYNTH@
@@ -121,6 +119,6 @@ RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
 ifdef USE_DL_PLUGINS
 DL_CFLAGS:=-fPIC
 else
-LIBS:=$(LIBS) $(SLANGLIB) $(X_LIBS) $(GPMLIB) $(VDELIB) $(ALSALIB) $(SNDFLIB)
+LIBS:=$(LIBS) $(SLANGLIB) $(X_LIBS) $(GPMLIB) $(VDELIB)
 -include $(top_builddir)/src/plugin/*/Makefile.conf
 endif

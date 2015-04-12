@@ -215,24 +215,6 @@ else
   $srcdir/mkpluginhooks enable gpm no
 fi
 
-AC_ARG_WITH(alsa,
-	[  --without-alsa          don't use alsa even if available])
-if test "$with_alsa" != "no"; then
-  AC_CHECK_LIB(asound, snd_rawmidi_open, with_alsa="yes", with_alsa="no")
-fi
-if test "$with_alsa" != "no"; then
-  AC_MSG_NOTICE(Compiling with alsa support...)
-  AC_DEFINE(USE_ALSA)
-  USE_ALSA="USE_ALSA=1"
-  AC_SUBST(USE_ALSA)
-  ALSALIB="-lasound"
-  AC_SUBST(ALSALIB)
-  $srcdir/mkpluginhooks enable alsa yes
-else
-  AC_MSG_NOTICE(Compiling without alsa support...)
-  $srcdir/mkpluginhooks enable alsa no
-fi
-
 AC_ARG_WITH(ao,
 	[  --without-libao       don't use libao even if available])
 if test "$with_ao" != "no"; then
@@ -638,9 +620,6 @@ AH_TEMPLATE([USE_SVGALIB],
 
 AH_TEMPLATE([USE_GPM],
 [ DEFINE this, if you want GPM support ])
-
-AH_TEMPLATE([USE_ALSA],
-[ DEFINE this, if you want alsa support ])
 
 AH_TEMPLATE([USE_LIBAO],
 [ DEFINE this, if you want libao sound output support ])
