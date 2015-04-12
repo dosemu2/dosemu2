@@ -24,7 +24,7 @@ DEPENDS=$(CFILES:.c=.d)
 
 ifdef USE_DL_PLUGINS
 ifdef SDL_SUPPORT
-all: $(BINPATH)/bin/libplugin_sdl.so $(LIB)
+all: $(BINPATH)/bin/libplugin_sdl.so
 endif
 endif
 
