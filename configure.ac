@@ -344,6 +344,9 @@ CPPFLAGS="$save_CPPFLAGS"
 AC_SUBST(SLANGINC)
 AC_SUBST(SLANGLIB)
 
+dnl Check for the XKB extension to get reliable keyboard handling
+AC_CHECK_HEADER(X11/XKBlib.h, AC_DEFINE(HAVE_XKB,1))
+
 CONFIG_TIME=`date +"%F %T %z"`
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
@@ -638,6 +641,9 @@ AH_TEMPLATE([CONFIG_HOST],
 
 AH_TEMPLATE([CONFIG_TIME],
 [ Define the configure time ])
+
+AH_TEMPLATE(HAVE_XKB,
+[Define this if you have the XKB extension])
 
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])

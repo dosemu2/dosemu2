@@ -1061,7 +1061,7 @@ static void X_keymap_init()
 
   if(s) X_printf("X: X_keymap_init: X server vendor is \"%s\"\n", s);
   if(config.X_keycode == 2 && s) {	/* auto */
-#if defined(HAVE_XKB)
+#ifdef HAVE_XKB
     /* All I need to know is that I'm using the X keyboard extension */
     config.X_keycode = using_xkb;
 #else
@@ -1076,7 +1076,7 @@ static void X_keymap_init()
       strstr(s, "The XFree86 Project") ||
       strstr(s, "Xi Graphics")
     ) config.X_keycode = 1;
-#endif /* HAVE_UNICODE_KEYB && HAVE_XKB */
+#endif /* HAVE_XKB */
   }
   X_printf(
     "X: X_keymap_init: %susing DOSEMU's internal keycode translation\n",
