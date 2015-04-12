@@ -361,7 +361,7 @@ dnl enable EXPERIMENTAL stuff
   fi
 
 if test "$CONFIG_HOST" = "linux"; then
-dnl Do vm86plus 
+dnl Do vm86plus
 dnl Starting wth dosemu-1.0 we nolonger support the old vm86 interface
 dnl but only vm86plus
    AC_DEFINE_UNQUOTED(USE_MHPDBG)
@@ -395,7 +395,7 @@ if test -x $srcdir/mkpluginhooks; then
 	  abssrcdir=`cd .. && cd $srcdir && pwd`
           for j in $abssrcdir/src/$i/*.h; do
             ln -sf $j plugin/include/`basename $j`
-          done 
+          done
         fi
       done
       cd ..
@@ -426,7 +426,7 @@ dnl Compile with ASPI support
   else
    AC_MSG_NOTICE(Compiling without ASPI support...);
   fi
- 
+
 dnl Do SB emulation
  AC_ARG_ENABLE(sbemu,
                [  --disable-sbemu         do NOT use SoundBlaster emulator])
@@ -544,8 +544,8 @@ dnl Create output files. If you add new ones, please do it in order.
 
 AC_CONFIG_FILES([Makefile.conf])
 
-AC_CONFIG_COMMANDS([Makefile], 
-[ if ! test -f configure.ac; then 
+AC_CONFIG_COMMANDS([Makefile],
+[ if ! test -f configure.ac; then
     abssrcdir=`cd $srcdir && pwd`
     mkdir -p `(cd $abssrcdir; find . -name .git -prune -o -name .svn -prune -o -name CVS -prune -o -type d -print)`
     for i in `(cd $abssrcdir; find . -name Makefile)`; do
@@ -733,7 +733,7 @@ if test "$GCC" != "yes" ; then
   AC_MSG_WARN(Of course you could also include the gcc bin directory in)
   AC_MSG_WARN(your path.)
 fi
-  
+
 if test "$have_x" = "no" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Compiling without X support.)
