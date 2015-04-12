@@ -6,13 +6,12 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
-ifdef USE_GPM
 CFILES=mouse_gpm.c
 ifdef USE_DL_PLUGINS
-all: $(BINPATH)/bin/libplugin_gpm.so $(LIB)
-endif
+all: $(BINPATH)/bin/libplugin_gpm.so
 endif
 
 include $(REALTOPDIR)/src/Makefile.common

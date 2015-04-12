@@ -196,25 +196,6 @@ else
   $srcdir/mkpluginhooks enable vde no
 fi
 
-dnl Check whether we have gpm and whether to use it
-AC_ARG_WITH(gpm,
-	[  --without-gpm           don't use gpm])
-if test "$with_gpm" != "no"; then
-  AC_CHECK_LIB(gpm, Gpm_Open, with_gpm="yes", with_gpm="no")
-fi
-if test "$with_gpm" != "no"; then
-  AC_MSG_NOTICE(Compiling with GPM support...)
-  AC_DEFINE(USE_GPM)
-  USE_GPM="USE_GPM=1"
-  AC_SUBST(USE_GPM)
-  GPMLIB="-lgpm"
-  AC_SUBST(GPMLIB)
-  $srcdir/mkpluginhooks enable gpm yes
-else
-  AC_MSG_NOTICE(Compiling without GPM support...)
-  $srcdir/mkpluginhooks enable gpm no
-fi
-
 AC_ARG_WITH(ao,
 	[  --without-libao       don't use libao even if available])
 if test "$with_ao" != "no"; then

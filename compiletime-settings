@@ -8,9 +8,9 @@ config {
   cpuemu on
   aspi on
   svgalib off
-  gpm on
   libao on
   dlplugins on
+  plugin_gpm on
   plugin_alsa on
   plugin_kbd_unicode on
   plugin_extra_charsets on
