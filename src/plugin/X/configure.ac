@@ -9,7 +9,6 @@ AC_CONFIG_FILES([Makefile.conf])
 AC_CHECK_LIB(X11, XOpenDisplay,, have_x=no)
 if test "$have_x" != "no" ; then
     AC_MSG_NOTICE(Compiling with X support...)
-    AC_DEFINE(X_SUPPORT)
     X_SUPPORT="X_SUPPORT=1"
     AC_SUBST(X_SUPPORT)
 
@@ -51,9 +50,6 @@ fi
 AC_SUBST(LIBS)
 
 AC_OUTPUT
-
-AH_TEMPLATE([X_SUPPORT],
-[ DEFINE this, if you want X support ])
 
 AH_TEMPLATE([HAVE_MITSHM],
 [ Define this if you want to use MITSHM ])
