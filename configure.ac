@@ -196,24 +196,6 @@ else
   $srcdir/mkpluginhooks enable vde no
 fi
 
-AC_ARG_WITH(ao,
-	[  --without-libao       don't use libao even if available])
-if test "$with_ao" != "no"; then
-  AC_CHECK_LIB(ao, ao_initialize, with_libao="yes", with_libao="no")
-fi
-if test "$with_libao" != "no"; then
-  AC_MSG_NOTICE(Compiling with libao support...)
-  AC_DEFINE(USE_LIBAO)
-  USE_LIBAO="USE_LIBAO=1"
-  AC_SUBST(USE_LIBAO)
-  LIBAOLIB="-lao"
-  AC_SUBST(LIBAOLIB)
-  $srcdir/mkpluginhooks enable libao yes
-else
-  AC_MSG_NOTICE(Compiling without libao support...)
-  $srcdir/mkpluginhooks enable libao no
-fi
-
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
   AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
@@ -583,9 +565,6 @@ AH_TEMPLATE([USE_SVGALIB],
 
 AH_TEMPLATE([USE_GPM],
 [ DEFINE this, if you want GPM support ])
-
-AH_TEMPLATE([USE_LIBAO],
-[ DEFINE this, if you want libao sound output support ])
 
 AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
