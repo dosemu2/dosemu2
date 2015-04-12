@@ -9,8 +9,6 @@ AC_CONFIG_FILES([Makefile.conf])
 AC_CHECK_LIB(X11, XOpenDisplay,,
     AC_MSG_ERROR([X development libraries not installed]))
 AC_MSG_NOTICE(Compiling with X support...)
-X_SUPPORT="X_SUPPORT=1"
-AC_SUBST(X_SUPPORT)
 
 dnl Check for the MITSHM extention to speed up VGAemu
 AC_CHECK_LIB(Xext, XShmQueryExtension,, have_mitshm=no)

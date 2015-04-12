@@ -10,10 +10,8 @@ include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS) -Iinclude
 CFILES =
-ifdef X_SUPPORT
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_keysyms.c X_keymaps.c \
 	X_speaker.c X_font.c
-endif
 
 ifdef USE_DL_PLUGINS
 ifdef X_SUPPORT
