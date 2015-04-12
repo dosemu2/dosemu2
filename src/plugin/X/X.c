@@ -249,6 +249,7 @@
 #include "keyb_clients.h"
 #include "X.h"
 #include "dosemu_config.h"
+#include "x_config.h"
 #include "utilities.h"
 #include "dos2linux.h"
 

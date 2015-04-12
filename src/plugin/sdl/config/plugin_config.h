@@ -1,2 +1,1 @@
-#include "../plugin/sdl/include/sdl_config.h"
-
+#define SDL_SUPPORT 1

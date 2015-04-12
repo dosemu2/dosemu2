@@ -1,2 +1,1 @@
-#include "../plugin/X/include/x_config.h"
-
+#define X_SUPPORT 1
