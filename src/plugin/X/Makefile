@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS) -Iinclude
 CFILES =
 ifdef X_SUPPORT
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_keysyms.c X_keymaps.c \
@@ -25,7 +25,7 @@ include $(REALTOPDIR)/src/Makefile.common
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_X.so: $(OBJS)
-	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
+	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
 
 realclean::
