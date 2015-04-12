@@ -233,24 +233,6 @@ else
   $srcdir/mkpluginhooks enable libao no
 fi
 
-AC_ARG_WITH(fluidsynth,
-	[  --without-fluidsynth       don't use fluidsynth even if available])
-if test "$with_fluidsynth" != "no"; then
-  AC_CHECK_LIB(fluidsynth, new_fluid_synth, with_fluidsynth="yes", with_fluidsynth="no")
-fi
-if test "$with_fluidsynth" != "no"; then
-  AC_MSG_NOTICE(Compiling with fluidsynth support...)
-  AC_DEFINE(USE_FLUIDSYNTH)
-  USE_FLUIDSYNTH="USE_FLUIDSYNTH=1"
-  AC_SUBST(USE_FLUIDSYNTH)
-  FLUSLIB="-lfluidsynth"
-  AC_SUBST(FLUSLIB)
-  $srcdir/mkpluginhooks enable fluidsynth yes
-else
-  AC_MSG_NOTICE(Compiling without fluidsynth support...)
-  $srcdir/mkpluginhooks enable fluidsynth no
-fi
-
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
   AC_MSG_ERROR([No libpthread found, please install glibc-devel package])
@@ -623,9 +605,6 @@ AH_TEMPLATE([USE_GPM],
 
 AH_TEMPLATE([USE_LIBAO],
 [ DEFINE this, if you want libao sound output support ])
-
-AH_TEMPLATE([USE_FLUIDSYNTH],
-[ DEFINE this, if you want fluidsynth support ])
 
 AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
