@@ -46,7 +46,7 @@ if [ "$1" = 'enable' ]; then
 		on=$2
 		shift
 		shift
-		if [ "$on" = "yes" -a -f $DESTDIR/$dir/configure ]; then
+		if [ "$on" = "yes" -a -f $DESTDIR/$dir/$CONFIGURE ]; then
 			wd=`pwd`
 			cd $DESTDIR/$dir
 			echo "=== configuring in $dir"
