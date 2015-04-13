@@ -7,4 +7,5 @@
 #
 # This file is included by all Makefiles
 
-ALSALIB:=@LIBS@
+ALSACFLAGS:=@ALSA_CFLAGS@
+ALSALIB:=@ALSA_LIBS@
