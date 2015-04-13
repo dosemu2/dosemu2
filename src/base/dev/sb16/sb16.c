@@ -967,7 +967,10 @@ static void sb_dsp_write(Bit8u value)
 
 	/* 0xFB: DSP Status - SB16 */
 	/* 0xFC: DSP Auxiliary Status - SB16 */
-	/* 0xFD: DSP Command Status - SB16 */
+    case 0xfd: /* DSP Command Status - SB16, from SoundFX */
+	S_printf("SB: Undocumented 0xfd\n");
+	dsp_write_output(sb.command[0]);
+	break;
 
     default:
 	S_printf("SB: ERROR: Unsupported command\n");
