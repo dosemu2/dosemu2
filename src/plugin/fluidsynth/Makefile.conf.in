@@ -7,4 +7,5 @@
 #
 # This file is included by all Makefiles
 
-FLUSLIB:=@LIBS@
+FLUSCFLAGS:=@FLUS_CFLAGS@
+FLUSLIB:=@FLUS_LIBS@
