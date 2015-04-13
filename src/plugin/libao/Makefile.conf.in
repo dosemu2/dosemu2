@@ -7,4 +7,5 @@
 #
 # This file is included by all Makefiles
 
-LIBAOLIB:=@LIBS@
+LIBAOCFL:=@AO_CFLAGS@
+LIBAOLIB:=@AO_LIBS@
