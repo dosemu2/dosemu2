@@ -60,13 +60,13 @@ struct sb_struct {
   uint16_t rate;		/* The current sample rate for input */
   uint8_t  test;		/* Storage for the test value */
   uint8_t  reset_val;
-  int      paused;		/* is DMA transfer paused? */
-  int      reset;
-  int      mpu401_uart;
+  int      paused:1;		/* is DMA transfer paused? */
+  int      reset:1;
+  int      mpu401_uart:1;
   uint8_t  midi_cmd;
   uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  dma_mode;		/* Information we need on the DMA transfer */
-  int      dma_exit_ai;		/* exit DMA autoinit */
+  int      dma_exit_ai:1;	/* exit DMA autoinit */
   enum { DMA_RESTART_NONE, DMA_RESTART_CHECK, DMA_RESTART_AUTOINIT }
            dma_restart;		/* DMA restart on IRQ ACK */
   uint8_t  new_dma_cmd;		/* Information we need on the DMA transfer */
