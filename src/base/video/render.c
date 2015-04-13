@@ -31,6 +31,8 @@ static int num_remaps;
 static struct render_system *Render;
 static int render_locked;
 static int render_text;
+static int text_locked;
+static int text_really_locked;
 static int is_updating;
 static struct bitmap_desc dst_image;
 static pthread_t render_thr;
@@ -66,33 +68,35 @@ static void render_text_begin(void)
 static void render_text_end(void)
 {
   render_text--;
-  if (render_text) {
+  if (text_really_locked) {
     render_unlock();
-    render_text--;
+    text_really_locked = 0;
   }
-  assert(!render_text);
+  assert(!text_locked);
 }
 
 static void render_text_lock(void)
 {
-  if (!render_text) {
+  if (!render_text || text_locked) {
     dosemu_error("render not in text mode!\n");
     leavedos(95);
     return;
   }
-  if (render_text == 1) {
+  text_locked++;
+  if (!text_really_locked) {
     dst_image = render_lock();
-    render_text++;
+    text_really_locked = 1;
   }
 }
 
 static void render_text_unlock(void)
 {
+  text_locked--;
 #if 1
   /* nothing: we coalesce multiple locks */
 #else
-  render_text--;
   render_unlock();
+  text_really_locked = 0;
 #endif
 }
 
