@@ -6,16 +6,20 @@ AC_CONFIG_AUX_DIR([../../..])
 
 AC_CONFIG_FILES([Makefile.conf])
 
-AC_CHECK_LIB(X11, XOpenDisplay,,
+PKG_CHECK_MODULES([X11], [x11],,
     AC_MSG_ERROR([X development libraries not installed]))
 AC_MSG_NOTICE(Compiling with X support...)
+AC_SUBST(X11_CFLAGS)
+AC_SUBST(X11_LIBS)
 
 dnl Check for the MITSHM extention to speed up VGAemu
 PKG_CHECK_MODULES([XEXT], [xext],
-  AC_CHECK_HEADER(X11/extensions/XShm.h,
-     [AC_DEFINE(HAVE_MITSHM,1)],
-     AC_MSG_NOTICE(Compiling without the MITSHM X extension),
-     [#include <X11/Xlib.h>]))
+     [
+       AC_DEFINE(HAVE_MITSHM,1)
+       AC_SUBST(XEXT_CFLAGS)
+       AC_SUBST(XEXT_LIBS)
+     ],
+     AC_MSG_NOTICE(Compiling without the MITSHM X extension))
 
 AC_ARG_ENABLE(vidmode,
           [  --enable-vidmode        use XF86 vidmode extension])
@@ -43,10 +47,6 @@ Your system doesn't seem to have bdftopcf or mkfontdir available.
 Please install these packages or a package named like 'xorg-x11-font-utils'
 or 'xfonts-utils' and retry.])
 fi
-
-AC_SUBST(XEXT_CFLAGS)
-AC_SUBST(XEXT_LIBS)
-AC_SUBST(LIBS)
 
 AC_OUTPUT
 
