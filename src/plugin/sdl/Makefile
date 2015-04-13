@@ -11,9 +11,7 @@ include Makefile.conf
 ALL_CFLAGS+=$(DL_CFLAGS)
 ALL_CPPFLAGS+=$(SDL_CFLAGS)
 CFILES=
-ifdef SDL_SUPPORT
 CFILES=sdl.c keyb_SDL.c snd_o_SDL.c
-endif
 
 SFILES=
 ALL=$(CFILES) $(SFILES)
