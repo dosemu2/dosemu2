@@ -136,12 +136,6 @@ typedef int onoff_t;
 #define UNCHANGED	2
 #define	REDIRECT	3
 
-#if	_DEBUG_
-#define	private
-#else
-#define	private static
-#endif /* _DEBUG_ */
-
 /* extern char *malloc(); */
 
 #endif /* _BASE_H */
