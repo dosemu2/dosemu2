@@ -7,4 +7,5 @@
 #
 # This file is included by all Makefiles
 
-X_LIBS:=@LIBS@
+X_CFLAGS:=@XEXT_CFLAGS@
+X_LIBS:=@LIBS@ @XEXT_LIBS@

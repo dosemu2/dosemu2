@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS) -Iinclude
+ALL_CFLAGS+=$(DL_CFLAGS) -Iinclude $(X_CFLAGS)
 CFILES =
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_keysyms.c X_keymaps.c \
 	X_speaker.c X_font.c

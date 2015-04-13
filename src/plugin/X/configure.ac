@@ -11,13 +11,11 @@ AC_CHECK_LIB(X11, XOpenDisplay,,
 AC_MSG_NOTICE(Compiling with X support...)
 
 dnl Check for the MITSHM extention to speed up VGAemu
-AC_CHECK_LIB(Xext, XShmQueryExtension,, have_mitshm=no)
-if test "$have_mitshm" != "no" ; then
+PKG_CHECK_MODULES([XEXT], [xext],
   AC_CHECK_HEADER(X11/extensions/XShm.h,
      [AC_DEFINE(HAVE_MITSHM,1)],
      AC_MSG_NOTICE(Compiling without the MITSHM X extension),
-     [#include <X11/Xlib.h>])
-fi
+     [#include <X11/Xlib.h>]))
 
 AC_ARG_ENABLE(vidmode,
           [  --enable-vidmode        use XF86 vidmode extension])
@@ -42,6 +40,8 @@ Please install these packages or a package named like 'xorg-x11-font-utils'
 or 'xfonts-utils' and retry.])
 fi
 
+AC_SUBST(XEXT_CFLAGS)
+AC_SUBST(XEXT_LIBS)
 AC_SUBST(LIBS)
 
 AC_OUTPUT
