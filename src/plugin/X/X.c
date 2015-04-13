@@ -232,10 +232,6 @@
 #include <X11/keysym.h>
 #include <sys/mman.h>           /* root@sjoerd:for mprotect*/
 
-#ifdef HAVE_XVIDMODE
-#include <X11/extensions/xf86vmode.h>
-#endif
-
 #include "emu.h"
 #include "timers.h"
 #include "bios.h"
@@ -257,6 +253,10 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <X11/extensions/XShm.h>
+#endif
+
+#ifdef HAVE_XVIDMODE
+#include <X11/extensions/xf86vmode.h>
 #endif
 
 #ifdef HAVE_DGA

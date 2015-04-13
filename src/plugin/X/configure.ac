@@ -20,13 +20,17 @@ PKG_CHECK_MODULES([XEXT], [xext],
 AC_ARG_ENABLE(vidmode,
           [  --enable-vidmode        use XF86 vidmode extension])
 if test "$enable_vidmode" = "yes" ; then
-  AC_CHECK_LIB(Xxf86vm, XF86VidModeSwitchToMode,, enable_vidmode="no")
+  PKG_CHECK_MODULES([XVM], [xxf86vm],, enable_vidmode="no")
 fi
 if test "$enable_vidmode" != "yes"; then
     AC_MSG_NOTICE(Compiling without the XF86 video mode extension)
 else
     AC_CHECK_HEADER(X11/extensions/xf86vmode.h,
-     [AC_DEFINE(HAVE_XVIDMODE,1)],
+     [
+       AC_DEFINE(HAVE_XVIDMODE,1)
+       AC_SUBST(XVM_CFLAGS)
+       AC_SUBST(XVM_LIBS)
+     ],
       AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
      [#include <X11/Xlib.h>])
 fi
