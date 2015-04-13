@@ -39,14 +39,7 @@ else
      [#include <X11/Xlib.h>])
 fi
 
-AC_CHECK_PROG([BDFTOPCF], [bdftopcf], ["yes"], ["no"])
-AC_CHECK_PROG([MKFONTDIR], [mkfontdir], ["yes"], ["no"])
-if test "$MKFONTDIR" = "no" -o "$BDFTOPCF" = "no"; then
-    AC_MSG_ERROR([
-Your system doesn't seem to have bdftopcf or mkfontdir available.
-Please install these packages or a package named like 'xorg-x11-font-utils'
-or 'xfonts-utils' and retry.])
-fi
+XORG_FONT_BDF_UTILS
 
 AC_OUTPUT
 
