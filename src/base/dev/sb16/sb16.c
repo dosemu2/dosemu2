@@ -966,6 +966,12 @@ static void sb_dsp_write(Bit8u value)
 	}
 	break;
 
+    case 0xfa: // Undoc'd SBPro II, from SoundFX
+	// SB16 puts 0xfb in output buffer but no ready status
+	S_printf("SB: Undocumented 0xfa\n");
+	sb.last_data = 0xfb;
+	break;
+
 	/* 0xFB: DSP Status - SB16 */
 	/* 0xFC: DSP Auxiliary Status - SB16 */
     case 0xfd: /* DSP Command Status - SB16, from SoundFX */
