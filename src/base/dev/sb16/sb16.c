@@ -453,6 +453,7 @@ static void sb_dsp_reset(void)
     sb.dma_count = 0;
     sb.command_idx = 0;
     sb.E2Count = 0;
+    sb.last_data = 0;
     sb.reset_val = 0xaa;
     sb.rate = 32000;	// NFS in sbpro mode needs this rate
 /* the following must not be zeroed out */
@@ -1121,7 +1122,6 @@ static void sb_io_write(ioport_t port, Bit8u value)
 static Bit8u sb_io_read(ioport_t port)
 {
     ioport_t addr;
-    uint8_t value;
     Bit8u result = 0;
 
     addr = port - config.sb_base;
@@ -1152,9 +1152,10 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
 
     case 0x0A:			/* DSP Read Data - SB */
-	rng_get(&sb.dsp_queue, &value);
-	S_printf("SB: Read 0x%x from SB DSP\n", value);
-	result = value;
+	if (rng_count(&sb.dsp_queue))
+	    rng_get(&sb.dsp_queue, &sb.last_data);
+	result = sb.last_data;
+	S_printf("SB: Read 0x%x from SB DSP\n", result);
 	if (sb_midi_int()) {
 	    if (!rng_count(&sb.dsp_queue))
 		sb_deactivate_irq(SB_IRQ_MIDI);

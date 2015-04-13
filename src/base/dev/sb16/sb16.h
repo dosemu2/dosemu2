@@ -77,6 +77,7 @@ struct sb_struct {
   uint8_t  mixer_regs[256];
   uint8_t  mixer_index;
   uint8_t  E2Count;
+  uint8_t  last_data;
   int      busy;
 /* All values are imperical! */
 #define SB_DSP_CMD_BUF_SZ 8
