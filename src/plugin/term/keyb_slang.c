@@ -1567,6 +1567,7 @@ static int slang_keyb_init(void)
 
 static void slang_keyb_close(void)
 {
+	remove_from_io_select(keyb_state.kbd_fd);
 	exit_pc_scancode_mode();
 	if (tcsetattr(keyb_state.kbd_fd, TCSAFLUSH, &keyb_state.save_termios) < 0
 	    && errno != EINVAL && errno != ENOTTY) {

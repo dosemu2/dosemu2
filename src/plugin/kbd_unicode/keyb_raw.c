@@ -184,6 +184,7 @@ static void raw_keyboard_close(void)
 {
   if (kbd_fd != -1) {
     k_printf("KBD(raw): raw_keyboard_close: resetting keyboard to original mode\n");
+    remove_from_io_select(kbd_fd);
     ioctl(kbd_fd, KDSKBMODE, save_mode);
 
     k_printf("KBD(raw): resetting LEDs to normal mode\n");

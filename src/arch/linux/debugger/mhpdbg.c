@@ -103,6 +103,7 @@ void mhp_close(void)
      mhp_putc(1); /* tell debugger terminal to also quit */
      mhp_send();
    }
+   remove_from_io_select(mhpdbg.fdin);
    unlink(pipename_in);
    free(pipename_in);
    unlink(pipename_out);

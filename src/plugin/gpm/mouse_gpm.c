@@ -111,6 +111,8 @@ static int gpm_init(void)
 
 static void gpm_close(void)
 {
+	mouse_t *mice = &config.mouse;
+	remove_from_io_select(mice->fd);
 	Gpm_Close();
 	m_printf("GPM MOUSE: Mouse tracking deinitialized\n");
 }
