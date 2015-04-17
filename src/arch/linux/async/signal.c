@@ -498,7 +498,6 @@ signal_pre_init(void)
 {
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
-  sigset_t set;
   struct sigaction oldact;
   stack_t ss;
   void *cstack;
@@ -600,12 +599,6 @@ signal_pre_init(void)
   newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
   newsetqsig(SIGCHLD, sig_child);
-  /* unblock SIGIO, SIG_ACQUIRE, SIG_RELEASE */
-  sigemptyset(&set);
-  addset_signals_that_queue(&set);
-  /* dont unblock SIGALRM for now */
-  sigdelset(&set, SIGALRM);
-  sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
 void
@@ -626,9 +619,9 @@ signal_init(void)
 void signal_late_init(void)
 {
   sigset_t set;
-  /* unblock SIGALRM */
+  /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
   sigemptyset(&set);
-  sigaddset(&set, SIGALRM);
+  addset_signals_that_queue(&set);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
