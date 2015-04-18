@@ -478,15 +478,14 @@ void mouse_priv_init(void)
       mice->type == MOUSE_SDL)
     return;
 
-      if (!mice->dev || !strlen(mice->dev))
+      /* in non-graphics mode don't steal the device from gpm */
+      if (!mice->dev || !strlen(mice->dev) || !config.vga)
         return;
       stat(mice->dev, &buf);
       if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
 	/* no write permission is necessary for FIFO's (eg., gpm) */
         mode = O_RDONLY | O_NONBLOCK;
       }
-      /* gpm + non-graphics mode doesn't work */
-      if ((!S_ISFIFO(buf.st_mode) || config.vga) && mice->dev)
       {
         PRIV_SAVE_AREA
         enter_priv_on();
