@@ -604,6 +604,13 @@ signal_pre_init(void)
 void
 signal_init(void)
 {
+  /* once, signal_pre_init() was called much earlier and signal_late_init()
+   * was called from coopth handlers. I don't remember why this was needed...
+   * So lets gather them here again and see if fomething breaks.
+   * At least I made sure threads are created before signal_init(),
+   * and install_dos() needs to be double-checked. */
+  signal_pre_init();
+
   dosemu_tid = gettid();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
@@ -614,6 +621,8 @@ signal_init(void)
 	handle_signals_force_leave);
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
+
+  signal_late_init();
 }
 
 void signal_late_init(void)

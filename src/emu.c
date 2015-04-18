@@ -380,7 +380,7 @@ emulate(int argc, char **argv)
     pci_setup();
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
-    signal_pre_init();          /* initialize sig's & sig handlers */
+//    signal_pre_init();          /* initialize sig's & sig handlers */
     SIG_init();			/* Silly Interrupt Generator */
     pkt_priv_init();            /* initialize the packet driver interface */
 
