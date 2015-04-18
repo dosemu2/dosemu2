@@ -547,6 +547,23 @@ static void pcivga_init(void)
   }
 }
 
+static int vga_ioperm(unsigned base, int len)
+{
+  emu_iodev_t io_device;
+  int err;
+  err = set_ioperm(base, len, 1);
+  if (err)
+    error("ioperm() %x,%i failed\n", base, len);
+  /* even if ioperm failed, we register handler that will forward
+   * the requests to portserver */
+  io_device.irq = EMU_NO_IRQ;
+  io_device.fd = -1;
+  io_device.handler_name = "std port io";
+  io_device.start_addr = base;
+  io_device.end_addr = base + len - 1;
+  return port_register_handler(io_device, PORT_FAST);
+}
+
 static void set_console_video(void)
 {
   /* warning! this must come first! the VT_ACTIVATES which some below
@@ -555,24 +572,24 @@ static void set_console_video(void)
      */
   int permtest;
 
-  permtest = set_ioperm(0x3d4, 2, 1);	/* get 0x3d4 and 0x3d5 */
-  permtest |= set_ioperm(0x3da, 1, 1);
-  permtest |= set_ioperm(0x3c0, 4, 1);	/* get 0x3c0 - 0x3c3 */
+  permtest = vga_ioperm(0x3d4, 2);	/* get 0x3d4 and 0x3d5 */
+  permtest |= vga_ioperm(0x3da, 1);
+  permtest |= vga_ioperm(0x3c0, 4);	/* get 0x3c0 - 0x3c3 */
   if ((config.chipset == S3) ||
       (config.chipset == CIRRUS) ||
       (config.chipset == WDVGA) ||
       (config.chipset == MATROX)) {
-    permtest |= set_ioperm(0x102, 2, 1);
-    permtest |= set_ioperm(0x2ea, 4, 1);
+    permtest |= vga_ioperm(0x102, 2);
+    permtest |= vga_ioperm(0x2ea, 4);
   }
   if (config.chipset == ATI) {
-    permtest |= set_ioperm(0x102, 1, 1);
-    permtest |= set_ioperm(0x1ce, 2, 1);
-    permtest |= set_ioperm(0x2ec, 4, 1);
+    permtest |= vga_ioperm(0x102, 1);
+    permtest |= vga_ioperm(0x1ce, 2);
+    permtest |= vga_ioperm(0x2ec, 4);
   }
   if ((config.chipset == MATROX) ||
       (config.chipset == WDVGA)) {
-    permtest |= set_ioperm(0x3de, 2, 1);
+    permtest |= vga_ioperm(0x3de, 2);
   }
 }
 
