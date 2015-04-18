@@ -505,6 +505,13 @@ void __leavedos(int sig, const char *s, int num)
 
     in_leavedos++;
     registersig(SIGALRM, NULL);
+    if (fault_cnt > 0)
+      dosemu_error("leavedos() called from within a signal context!\n");
+
+#ifdef USE_MHPDBG
+    /* try to notify dosdebug */
+    mhp_exit_intercept(sig);
+#endif
 
     /* abandon current thread if any */
     coopth_leave();
@@ -525,16 +532,11 @@ void __leavedos(int sig, const char *s, int num)
 void leavedos_main(int sig)
 {
     struct itimerval itv;
-    /* try to notify dosdebug */
+
 #ifdef USE_MHPDBG
-    if (fault_cnt > 0)
-      dbug_printf("leavedos() called from within a signal context!\n");
-    else
-      mhp_exit_intercept(sig);
     g_printf("closing debugger pipes\n");
     mhp_close();
 #endif
-
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
