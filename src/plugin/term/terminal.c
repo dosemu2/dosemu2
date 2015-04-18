@@ -514,6 +514,7 @@ static void terminal_close (void)
    if (Slsmg_is_not_initialized == 0)
      {
 	SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
+	SLtt_set_cursor_visibility(1);
 	SLsmg_refresh ();
 	SLsmg_reset_smg ();
 	putc ('\n', stdout);
