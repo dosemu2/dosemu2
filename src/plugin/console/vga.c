@@ -557,7 +557,7 @@ static void set_console_video(void)
 
   permtest = set_ioperm(0x3d4, 2, 1);	/* get 0x3d4 and 0x3d5 */
   permtest |= set_ioperm(0x3da, 1, 1);
-  permtest |= set_ioperm(0x3c0, 2, 1);	/* get 0x3c0 and 0x3c1 */
+  permtest |= set_ioperm(0x3c0, 4, 1);	/* get 0x3c0 - 0x3c3 */
   if ((config.chipset == S3) ||
       (config.chipset == CIRRUS) ||
       (config.chipset == WDVGA) ||
