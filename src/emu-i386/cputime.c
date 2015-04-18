@@ -89,6 +89,7 @@ static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
 static int freeze_tid;
+static int coopth_frozen;
 static hitimer_t cached_time;
 static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -267,9 +268,11 @@ int dosemu_user_froze = 0;
 
 static void freeze_thr(void *arg)
 {
+  coopth_frozen++;
   _set_IF();
   coopth_sleep();
   clear_IF();
+  coopth_frozen--;
 }
 
 static void freeze_start(void *arg)
@@ -314,7 +317,12 @@ void unfreeze_dosemu(void)
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
 
-  coopth_wake_up(freeze_tid);
+  if (coopth_frozen) {
+    coopth_wake_up(freeze_tid);
+  } else {
+    coopth_cancel(freeze_tid);
+    coopth_frozen = 0;
+  }
 }
 
 
