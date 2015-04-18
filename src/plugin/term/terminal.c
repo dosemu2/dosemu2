@@ -390,6 +390,7 @@ static int terminal_initialize(void)
    struct termios buf;
 
    v_printf("VID: terminal_initialize() called \n");
+   vga_emu_pre_init();
 
    /* This maps (r,g,b) --> (b,g,r) */
    rotate[0] = 0; rotate[1] = 4;
