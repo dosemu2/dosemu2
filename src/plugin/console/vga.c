@@ -44,6 +44,7 @@
 
 #define PLANE_SIZE (64*1024)
 
+static int vga_init(void);
 static int vga_post_init(void);
 static struct video_system *Video_console;
 
@@ -707,6 +708,7 @@ static void vga_close(void)
 
 static struct video_system Video_graphics = {
    vga_initialize,
+   vga_init,
    vga_post_init,
    vga_close,
    NULL,
@@ -815,13 +817,17 @@ static void dump_video_regs(void)
 
 /* init_vga_card - Initialize a VGA-card */
 
-static int vga_post_init(void)
+static int vga_init(void)
 {
   sem_init(&cpy_sem, 0, 0);
   pthread_create(&cpy_thr, NULL, vmemcpy_thread, &vmem_chunk_thr);
+  return 0;
+}
 
+static int vga_post_init(void)
+{
   /* this function initialises vc switch routines */
-  Video_console->init();
+  Video_console->late_init();
 
   if (!config.mapped_bios) {
     error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");

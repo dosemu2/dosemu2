@@ -343,6 +343,7 @@ if (old != READ_WORD(BIOS_CONFIGURATION)) {
 
 struct video_system Video_dualmon = {
    dualmon_init,
+   NULL,
    dualmon_post_init,
    dualmon_close,
    dualmon_setmode,

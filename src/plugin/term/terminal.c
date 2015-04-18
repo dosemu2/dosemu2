@@ -846,6 +846,7 @@ static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last,
 static struct video_system Video_term = {
    NULL,
    terminal_initialize,
+   NULL,
    terminal_close,
    term_setmode,
    slang_update,

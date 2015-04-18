@@ -70,6 +70,7 @@ struct video_system {
    int (*init)(void);              /* does all frontend-specific setup,
                                   like mapping video memory, opening XWindow,
                                   etc. */
+   int (*late_init)(void);     /* init with vm86() available (vbe) */
    void (*close)(void);
 
    int (*setmode)(int type, int xsize,int ysize);   /* type=0 currently (text mode) */

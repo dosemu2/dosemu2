@@ -435,6 +435,7 @@ static void hga_close(void)
 
 static struct video_system Video_hgc = {
    hgc_init,
+   NULL,
    hgc_post_init,
    hga_close,
    hgc_setmode,

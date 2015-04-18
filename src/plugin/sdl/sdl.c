@@ -75,6 +75,7 @@ struct video_system Video_SDL =
 {
   SDL_priv_init,
   SDL_init,
+  NULL,
   SDL_close,
   SDL_set_videomode,
   SDL_update_screen,

@@ -469,6 +469,7 @@ struct video_system Video_X =
 {
    NULL,
    X_init,
+   NULL,
    X_close,
    X_set_videomode,
    NULL,
