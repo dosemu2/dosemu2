@@ -265,7 +265,7 @@ static void *vmemcpy_thread(void *arg)
       MEMCPY_2DOS(vmc->vmem, vmc->mem, vmc->len);
     else
       MEMCPY_2UNIX(vmc->mem, vmc->vmem, vmc->len);
-    coopth_wake_up(vmc->ctid);
+    coopth_wake_up_mt(vmc->ctid);
   }
   return NULL;
 }

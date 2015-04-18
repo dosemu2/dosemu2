@@ -43,6 +43,7 @@ void coopth_attach(void);
 void coopth_leave(void);
 void coopth_exit(void);
 void coopth_wake_up(int tid);
+void coopth_wake_up_mt(int tid);
 void coopth_cancel(int tid);
 void coopth_done(void);
 void coopth_run(void);

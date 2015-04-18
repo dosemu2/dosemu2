@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <setjmp.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <assert.h>
 #include "emu.h"
@@ -86,6 +87,7 @@ struct coopth_state_t {
 struct coopth_per_thread_t {
     coroutine_t thread;
     struct coopth_state_t st;
+    pthread_mutex_t state_mtx;
     int left:1;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
@@ -299,9 +301,8 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
     return pth;
 }
 
-static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-  do {
     switch (pth->st.state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
@@ -380,7 +381,17 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	pth->st.switch_fn(thr, pth);
 	break;
     }
-  } while (pth->st.state == COOPTHS_RUNNING);
+}
+
+static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+{
+    enum CoopthState state;
+    do {
+	pthread_mutex_lock(&pth->state_mtx);
+	__thread_run(thr, pth);
+	state = pth->st.state;
+	pthread_mutex_unlock(&pth->state_mtx);
+    } while (state == COOPTHS_RUNNING);
 }
 
 static void coopth_hlt(Bit32u offs, void *arg)
@@ -506,7 +517,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     int tn;
-    size_t stk_size = COOP_STK_SIZE();
 
     check_tid(tid);
     thr = &coopthreads[tid];
@@ -523,8 +533,22 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
-    if (thr->cur_thr > thr->max_thr)
+    if (thr->cur_thr > thr->max_thr) {
+	size_t stk_size = COOP_STK_SIZE();
 	thr->max_thr = thr->cur_thr;
+	pthread_mutex_init(&pth->state_mtx, NULL);
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
+	pth->stack = mmap(NULL, stk_size, PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+	if (pth->stack == MAP_FAILED) {
+	    error("Unable to allocate stack\n");
+	    leavedos(21);
+	    return 1;
+	}
+	pth->stk_size = stk_size;
+    }
     pth->data.tid = &thr->tid;
     pth->data.attached = 0;
     pth->data.posth_num = 0;
@@ -537,19 +561,8 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->args.thrdata = &pth->data;
     pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
-    if (!pth->stack)
-	pth->stack = mmap(NULL, stk_size, PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
-    if (pth->stack == MAP_FAILED) {
-	error("Unable to allocate stack\n");
-	leavedos(21);
-	return 1;
-    }
-    pth->stk_size = stk_size;
-    pth->thread = co_create(coopth_thread, &pth->args, pth->stack, stk_size);
+    pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
+	    pth->stk_size);
     if (!pth->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
@@ -841,6 +854,7 @@ static void ensure_single(struct coopth_thrdata_t *thdata)
 	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
 }
 
+/* attach some thread to current context */
 void coopth_attach_to_cur(int tid)
 {
     struct coopth_t *thr;
@@ -915,6 +929,25 @@ void coopth_wake_up(int tid)
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     do_awake(pth);
+}
+
+static void do_awake_mt(struct coopth_per_thread_t *pth)
+{
+    pthread_mutex_lock(&pth->state_mtx);
+    assert(pth->st.state == COOPTHS_SLEEPING);
+    pth->st = SW_ST(AWAKEN);
+    pthread_mutex_unlock(&pth->state_mtx);
+}
+
+/* the only function allowed to be called from different thread */
+void coopth_wake_up_mt(int tid)
+{
+    struct coopth_t *thr;
+    struct coopth_per_thread_t *pth;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    pth = current_thr(thr);
+    do_awake_mt(pth);
 }
 
 static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -1032,6 +1065,7 @@ again:
 	for (j = thr->cur_thr; j < thr->max_thr; j++) {
 	    struct coopth_per_thread_t *pth = &thr->pth[j];
 	    munmap(pth->stack, pth->stk_size);
+	    pthread_mutex_destroy(&pth->state_mtx);
 	}
     }
     co_thread_cleanup();
