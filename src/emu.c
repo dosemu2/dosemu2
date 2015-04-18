@@ -490,7 +490,6 @@ static void leavedos_thr(void *arg)
 /* "graceful" shutdown */
 void __leavedos(int sig, const char *s, int num)
 {
-    struct itimerval itv;
     int tmp;
     dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
     if (in_leavedos)
@@ -520,6 +519,12 @@ void __leavedos(int sig, const char *s, int num)
     coopth_join(ld_tid, vm86_helper);
     coopth_done();
 
+    leavedos_main(sig);
+}
+
+void leavedos_main(int sig)
+{
+    struct itimerval itv;
     /* try to notify dosdebug */
 #ifdef USE_MHPDBG
     if (fault_cnt > 0)

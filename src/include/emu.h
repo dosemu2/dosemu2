@@ -392,6 +392,7 @@ EXTERN void __leavedos(int sig, const char *s, int num);
 #define leavedos(n) __leavedos(n, __func__, __LINE__)
 EXTERN void leavedos_from_sig(int sig);
 EXTERN void leavedos_from_thread(int code);
+EXTERN void leavedos_main(int sig);
 EXTERN void check_leavedos(void);
 EXTERN void add_to_io_select(int, void(*)(void *), void *);
 EXTERN void remove_from_io_select(int);

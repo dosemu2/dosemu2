@@ -369,7 +369,7 @@ bad:
     show_regs(__FILE__, __LINE__);
 
     fatalerr = 4;
-    exit(fatalerr);		/* shouldn't return */
+    leavedos_main(fatalerr);		/* shouldn't return */
     return 0;
     }
   }
