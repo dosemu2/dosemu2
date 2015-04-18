@@ -1002,20 +1002,6 @@ int extra_port_init(void)
 			SET_HANDLE_COND(i+1,HANDLE_STD_IO);
 		}
 	}
-	if (config.chipset && config.mapped_bios) {
-		for (i=0x3b4; i<0x3bc; i++)
-			SET_HANDLE_COND(i,HANDLE_VID_IO);
-		for (i=0x3c0; i<0x3df; i++)
-			SET_HANDLE_COND(i,HANDLE_VID_IO);
-	}
-	if (config.vga) {
-	  SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
-	  SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
-	  SET_HANDLE_COND(0x3c0,HANDLE_SPECIAL);	/* W */
-	  SET_HANDLE_COND(0x3ba,HANDLE_SPECIAL);		/* R */
-	  SET_HANDLE_COND(0x3da,HANDLE_SPECIAL);		/* R */
-	  SET_HANDLE_COND(0x3db,HANDLE_SPECIAL);		/* R */
-	}
 
 	if (portlog_map) {
 	    /* switch off ioperm for $_ports that are traced and not forced fast */
