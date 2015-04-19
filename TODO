@@ -29,3 +29,7 @@ TODO items for the next release:
 
 - Look into SDL_ttf if it can render the bdf fonts
     Unlikely to happen before 2.0 release
+
+- look into directfb support
+
+- look into gstreamer support
