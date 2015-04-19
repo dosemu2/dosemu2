@@ -64,11 +64,7 @@
 #endif
 
 #define MAX_FD 1024
-struct io_callback_s {
-  void (*func)(void *);
-  void *arg;
-};
-struct io_callback_s io_callback_func[MAX_FD];
+static struct callback_s io_callback_func[MAX_FD];
 static fd_set fds_sigio;
 
 #if defined(SIG)

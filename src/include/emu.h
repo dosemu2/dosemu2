@@ -69,6 +69,11 @@ EXTERN int screen_mode;
 /* number of highest vid page - 1 */
 EXTERN int max_page INIT(7);
 
+struct callback_s {
+  void (*func)(void *);
+  void *arg;
+};
+
 #if 0
 /*
  * 1) this stuff is unused

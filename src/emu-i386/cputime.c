@@ -24,6 +24,7 @@
 #include "pic.h"
 #include "int.h"
 #include "coopth.h"
+#include "ringbuf.h"
 #include "speaker.h"
 #include "dosemu_config.h"
 
@@ -94,6 +95,9 @@ static hitimer_t cached_time;
 static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int event_fd;
+static struct rng_s cbks;
+#define MAX_CBKS 5
+static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static hitimer_t do_gettime(void)
 {
@@ -228,6 +232,7 @@ void get_time_init (void)
 
   event_fd = eventfd(0, EFD_CLOEXEC | EFD_SEMAPHORE);
   add_to_io_select(event_fd, async_awake, NULL);
+  rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }
 
 void cputime_late_init(void)
@@ -395,17 +400,35 @@ void reset_idle(int val)
   pthread_mutex_unlock(&trigger_mtx);
 }
 
-void reset_idle_mt(int val)
+
+void reset_idle_mt(int val, void (*cb)(void *), void *arg)
 {
+  if (cb) {
+    struct callback_s cbk;
+    int i;
+    cbk.func = cb;
+    cbk.arg = arg;
+    pthread_mutex_lock(&cbk_mtx);
+    i = rng_put(&cbks, &cbk);
+    pthread_mutex_unlock(&cbk_mtx);
+    if (!i)
+      error("callback queue overflow\n");
+  }
   reset_idle(val);
   eventfd_write(event_fd, 1);
 }
 
 static void async_awake(void *arg)
 {
+  struct callback_s cbk;
+  int i;
   eventfd_t val;
   eventfd_read(event_fd, &val);
-  /* TODO: user-specified cross-thread callback */
+  pthread_mutex_lock(&cbk_mtx);
+  i = rng_get(&cbks, &cbk);
+  pthread_mutex_unlock(&cbk_mtx);
+  if (i)
+    cbk.func(cbk.arg);
 }
 
 void alarm_idle(void)
