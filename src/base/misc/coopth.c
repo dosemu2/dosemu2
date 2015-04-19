@@ -117,6 +117,8 @@ static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
 static int thread_running;
 static int joinable_running;
+static int left_running;
+#define DETACHED_RUNNING (thread_running - joinable_running - left_running)
 static int threads_joinable;
 static int threads_total;
 #define MAX_ACT_THRS 10
@@ -307,7 +309,7 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	leavedos(2);
 	break;
     case COOPTHS_RUNNING: {
-	int jr;
+	int jr, lr;
 	enum CoopthRet tret;
 	/* We have 2 kinds of recursion:
 	 *
@@ -349,9 +351,15 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	jr = joinable_running;
 	if (pth->data.attached)
 	    joinable_running++;
+	lr = left_running;
+	if (pth->data.left) {
+	    assert(!pth->data.attached);
+	    left_running++;
+	}
 	thread_running++;
 	tret = do_run_thread(thr, pth);
 	thread_running--;
+	left_running = lr;
 	joinable_running = jr;
 	if (tret == COOPTH_WAIT && pth->data.attached)
 	    dosemu_sleep();
@@ -635,17 +643,11 @@ int coopth_unsafe_detach(int tid)
     return 0;
 }
 
-static int is_main_thr(void)
-{
-    struct coopth_thrdata_t *thdata;
-    thdata = co_get_data(co_current());
-    return (!thdata || thdata->left);
-}
-
 void coopth_run(void)
 {
     int i;
-    if (!is_main_thr())
+    assert(DETACHED_RUNNING >= 0);
+    if (DETACHED_RUNNING)
 	return;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
@@ -655,7 +657,7 @@ void coopth_run(void)
 	if (pth->data.attached)
 	    continue;
 	if (pth->data.left) {
-	    if (!thread_running)
+	    if (!left_running)
 		error("coopth: switching to left thread?\n");
 	    continue;
 	}
