@@ -54,7 +54,6 @@ struct coopth_thrfunc_t {
 
 struct coopth_thrdata_t {
     int *tid;
-    int attached;
     enum CoopthRet ret;
     void *udata[MAX_UDATA];
     int udata_num;
@@ -63,7 +62,9 @@ struct coopth_thrdata_t {
     struct coopth_thrfunc_t sleep;
     struct coopth_thrfunc_t clnup;
     jmp_buf exit_jmp;
-    int cancelled;
+    int attached:1;
+    int cancelled:1;
+    int left:1;
 };
 
 struct coopth_ctx_handlers_t {
@@ -88,7 +89,6 @@ struct coopth_per_thread_t {
     coroutine_t thread;
     struct coopth_state_t st;
     pthread_mutex_t state_mtx;
-    int left:1;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     void *stack;
@@ -156,7 +156,7 @@ static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     coopth_retf(thr, pth);
-    pth->left = 1;
+    pth->data.left = 1;
     /* leaving operation is atomic, without a separate entry point
      * but without a DOS context also.  */
     pth->st = ST(RUNNING);
@@ -556,10 +556,10 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->data.clnup.func = NULL;
     pth->data.udata_num = 0;
     pth->data.cancelled = 0;
+    pth->data.left = 0;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
 	    pth->stk_size);
@@ -642,13 +642,15 @@ int coopth_unsafe_detach(int tid)
 
 static int is_main_thr(void)
 {
-    return (co_get_data(co_current()) == NULL);
+    struct coopth_thrdata_t *thdata;
+    thdata = co_get_data(co_current());
+    return (!thdata || thdata->left);
 }
 
 void coopth_run(void)
 {
     int i;
-    if (!is_main_thr() || thread_running)
+    if (!is_main_thr())
 	return;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
@@ -657,8 +659,9 @@ void coopth_run(void)
 	/* only run detached threads here */
 	if (pth->data.attached)
 	    continue;
-	if (pth->left) {
-	    error("coopth: switching to left thread?\n");
+	if (pth->data.left) {
+	    if (!thread_running)
+		error("coopth: switching to left thread?\n");
 	    continue;
 	}
 	thread_run(thr, pth);
