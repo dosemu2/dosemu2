@@ -504,7 +504,6 @@ void __leavedos(int sig, const char *s, int num)
     }
 
     in_leavedos++;
-    registersig(SIGALRM, NULL);
     if (fault_cnt > 0)
       dosemu_error("leavedos() called from within a signal context!\n");
 
@@ -542,6 +541,7 @@ void leavedos_main(int sig)
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     }
+    registersig(SIGALRM, NULL);
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"
