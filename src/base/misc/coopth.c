@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <setjmp.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <sys/mman.h>
 #include <assert.h>
 #include "emu.h"
@@ -88,7 +87,6 @@ struct coopth_state_t {
 struct coopth_per_thread_t {
     coroutine_t thread;
     struct coopth_state_t st;
-    pthread_mutex_t state_mtx;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
     void *stack;
@@ -387,10 +385,8 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     enum CoopthState state;
     do {
-	pthread_mutex_lock(&pth->state_mtx);
 	__thread_run(thr, pth);
 	state = pth->st.state;
-	pthread_mutex_unlock(&pth->state_mtx);
     } while (state == COOPTHS_RUNNING);
 }
 
@@ -536,7 +532,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     if (thr->cur_thr > thr->max_thr) {
 	size_t stk_size = COOP_STK_SIZE();
 	thr->max_thr = thr->cur_thr;
-	pthread_mutex_init(&pth->state_mtx, NULL);
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
@@ -934,25 +929,6 @@ void coopth_wake_up(int tid)
     do_awake(pth);
 }
 
-static void do_awake_mt(struct coopth_per_thread_t *pth)
-{
-    pthread_mutex_lock(&pth->state_mtx);
-    assert(pth->st.state == COOPTHS_SLEEPING);
-    pth->st = SW_ST(AWAKEN);
-    pthread_mutex_unlock(&pth->state_mtx);
-}
-
-/* the only function allowed to be called from different thread */
-void coopth_wake_up_mt(int tid)
-{
-    struct coopth_t *thr;
-    struct coopth_per_thread_t *pth;
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    pth = current_thr(thr);
-    do_awake_mt(pth);
-}
-
 static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     pth->data.cancelled = 1;
@@ -1068,7 +1044,6 @@ again:
 	for (j = thr->cur_thr; j < thr->max_thr; j++) {
 	    struct coopth_per_thread_t *pth = &thr->pth[j];
 	    munmap(pth->stack, pth->stk_size);
-	    pthread_mutex_destroy(&pth->state_mtx);
 	}
     }
     co_thread_cleanup();
