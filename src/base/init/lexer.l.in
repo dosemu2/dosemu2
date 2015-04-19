@@ -577,17 +577,6 @@ dualmon			RETURN(DUALMON);
 forcevtswitch		RETURN(FORCE_VT_SWITCH);
 pci			RETURN(PCI);
 plainvga		MAY_BE { yylval->i_value = PLAINVGA; return(CHIPSET_TYPE); }
-trident			MAY_BE { yylval->i_value = TRIDENT; return(CHIPSET_TYPE); }
-et4000			MAY_BE { yylval->i_value = ET4000; return(CHIPSET_TYPE); }
-diamond			MAY_BE { yylval->i_value = DIAMOND; return(CHIPSET_TYPE); }
-s3			MAY_BE { yylval->i_value = S3; return(CHIPSET_TYPE); }
-avance			MAY_BE { yylval->i_value = AVANCE; return(CHIPSET_TYPE); }
-ati			MAY_BE { yylval->i_value = ATI; return(CHIPSET_TYPE); }
-cirrus			MAY_BE { yylval->i_value = CIRRUS; return(CHIPSET_TYPE); }
-matrox			MAY_BE { yylval->i_value = MATROX; return(CHIPSET_TYPE); }
-wdvga			MAY_BE { yylval->i_value = WDVGA; return(CHIPSET_TYPE); }
-paradise		MAY_BE { yylval->i_value = WDVGA; return(CHIPSET_TYPE); }
-sis                     MAY_BE { yylval->i_value = SIS; return(CHIPSET_TYPE); }
 svgalib			MAY_BE { yylval->i_value = SVGALIB; return(CHIPSET_TYPE); }
 vesa			MAY_BE { yylval->i_value = VESA; return(CHIPSET_TYPE); }
 

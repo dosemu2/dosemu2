@@ -101,7 +101,6 @@ extern unsigned screen_adr(int page);
 
 EXTERN unsigned virt_text_base INIT(0);
 EXTERN int phys_text_base INIT(0);
-EXTERN int v_8514_base INIT(0);
 
 /* Various defines for all common video adapters */
 
@@ -138,16 +137,6 @@ EXTERN int v_8514_base INIT(0);
 
 enum {
     PLAINVGA,
-    TRIDENT,
-    ET4000,
-    DIAMOND,
-    S3,
-    AVANCE,
-    ATI,
-    CIRRUS,
-    MATROX,
-    WDVGA,
-    SIS,
     SVGALIB,
     VESA,
 };

@@ -24,15 +24,6 @@
 #include "vga.h"
 #include "termio.h"
 
-#include "et4000.h"
-#include "s3.h"
-#include "ati.h"
-#include "trident.h"
-#include "avance.h"
-#include "cirrus.h"
-#include "matrox.h"
-#include "wdvga.h"
-#include "sis.h"
 #include "vbe.h"
 #include "pci.h"
 #include "mapping.h"
@@ -285,19 +276,6 @@ static void store_vga_mem(u_char * mem, int banks)
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
-  else if (config.chipset == ET4000) {
-/*
- * The following is from the X files
- * we need this here , cause we MUST disable the ROM SYNC feature
-*/
-    u_char temp1;
-
-    port_out(0x34, CRT_I);
-    temp1 = port_in(CRT_D);
-    port_out(temp1 & 0x0F, CRT_D);
-    port_in(0x3cd);
-    port_out(0x00, 0x3cd);
-  }
   planar = 1;
   if (vmem != GRAPH_BASE) {
     planar = 0;
@@ -347,9 +325,6 @@ static void store_vga_mem(u_char * mem, int banks)
     }
   }
   v_printf("GRAPH_BASE to mem complete!\n");
-  if (config.chipset == ET4000) {
-    port_out(0x00, 0x3cd);
-  }
 }
 
 /* Restore EGA/VGA display planes (4) */
@@ -361,8 +336,6 @@ static void restore_vga_mem(u_char * mem, int banks)
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
-  else if (config.chipset == ET4000)
-    port_out(0x00, 0x3cd);
   planar = 1;
   if (vmem != GRAPH_BASE) {
     planar = 0;
@@ -572,22 +545,6 @@ static void set_console_video(void)
      */
   int permtest = 0;
 
-  if ((config.chipset == S3) ||
-      (config.chipset == CIRRUS) ||
-      (config.chipset == WDVGA) ||
-      (config.chipset == MATROX)) {
-    permtest |= vga_ioperm(0x102, 2);
-    permtest |= vga_ioperm(0x2ea, 4);
-  }
-  if (config.chipset == ATI) {
-    permtest |= vga_ioperm(0x102, 1);
-    permtest |= vga_ioperm(0x1ce, 2);
-    permtest |= vga_ioperm(0x2ec, 4);
-  }
-  if ((config.chipset == MATROX) ||
-      (config.chipset == WDVGA)) {
-    permtest |= vga_ioperm(0x3de, 2);
-  }
   if (config.mapped_bios) {
 	permtest |= vga_ioperm(0x3b4, 0x3bc - 0x3b4 + 1);
 	permtest |= vga_ioperm(0x3c0, 0x3df - 0x3c0 + 1);
@@ -623,42 +580,6 @@ static int vga_initialize(void)
   case PLAINVGA:
     v_printf("Plain VGA in use\n");
     /* no special init here */
-    break;
-  case TRIDENT:
-    vga_init_trident();
-    v_printf("Trident CARD in use\n");
-    break;
-  case ET4000:
-    vga_init_et4000();
-    v_printf("ET4000 CARD in use\n");
-    break;
-  case S3:
-    vga_init_s3();
-    v_printf("S3 CARD in use\n");
-    break;
-  case AVANCE:
-    vga_init_avance();
-    v_printf("Avance Logic CARD in use\n");
-    break;
-  case ATI:
-    vga_init_ati();
-    v_printf("ATI CARD in use\n");
-    break;
-  case CIRRUS:
-    vga_init_cirrus();
-    v_printf("Cirrus CARD in use\n");
-    break;
-  case MATROX:
-    vga_init_matrox();
-    v_printf("Matrox CARD in use\n");
-    break;
-  case WDVGA:
-    vga_init_wd();
-    v_printf("Paradise CARD in use\n");
-    break;
-  case SIS:
-    vga_init_sis();
-    v_printf("SIS CARD in use\n");
     break;
   case SVGALIB:
 #ifdef USE_SVGALIB

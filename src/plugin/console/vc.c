@@ -53,9 +53,6 @@
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
-#include "s3.h"
-#include "trident.h"
-#include "et4000.h"
 #include "priv.h"
 #include "mapping.h"
 #include "timers.h"
@@ -486,31 +483,6 @@ get_perm (void)
 	  v_printf ("VGA: can't get I/O permissions \n");
 	  exit (-1);
 	}
-      if ((config.chipset == S3) &&
-	(set_ioperm(0x102, 1, 1) || set_ioperm(0x2ea, 4, 1))) {
-	  v_printf("S3: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == CIRRUS) &&
-	(set_ioperm(0x102, 2, 1) || set_ioperm(0x2ea, 4, 1))) {
-	  v_printf("CIRRUS: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == ATI) &&
-	(set_ioperm(0x102, 1, 1) || set_ioperm(0x1ce, 2, 1) || set_ioperm(0x2ec, 4, 1))) {
-	  v_printf("ATI: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == MATROX) &&
-	(set_ioperm(0x102, 2, 1) || set_ioperm(0x2ea, 4, 1) || set_ioperm(0x3de, 2, 1))) {
-	  v_printf("MATROX: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == WDVGA) &&
-	(set_ioperm(0x102, 2, 1) || set_ioperm(0x3de, 2, 1))) {
-	  v_printf("WDVGA: can't get I/O permissions");
-	  exit (-1);
-	}
       /* color or monochrome text emulation? */
       color_text = port_in (MIS_R) & 0x01;
 
@@ -563,31 +535,6 @@ static int release_perm (void)
 	  if (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 0))
 	    {
 	      v_printf ("VGA: can't release I/O permissions \n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == S3) &&
-		(set_ioperm(0x102, 1, 0) || set_ioperm(0x2ea, 4, 0))) {
-	      v_printf ("S3: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == CIRRUS) &&
-		(set_ioperm(0x102, 2, 0) || set_ioperm(0x2ea, 4, 0))) {
-	      v_printf ("CIRRUS: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == ATI) &&
-		(set_ioperm(0x102, 1, 0) || set_ioperm(0x1ce, 2, 0) || set_ioperm(0x2ec, 4, 0))) {
-	      v_printf ("ATI: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == MATROX) &&
-		(set_ioperm(0x102, 2, 0) || set_ioperm(0x2ea, 4, 0) || set_ioperm(0x3de, 2, 0))) {
-	      v_printf ("MATROX: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == WDVGA) &&
-		(set_ioperm(0x102, 2, 0) || set_ioperm(0x3de, 2, 0))) {
-	      v_printf ("WDVGA: can't release I/O permissions\n");
 	      leavedos (-1);
 	    }
 	}
