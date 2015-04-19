@@ -23,7 +23,7 @@
 #include "vc.h"
 #include "vga.h"
 #include "termio.h"
-
+#include "timers.h"
 #include "vbe.h"
 #include "pci.h"
 #include "mapping.h"
@@ -247,6 +247,12 @@ struct vmem_chunk {
 };
 static struct vmem_chunk vmem_chunk_thr;
 
+static void vmemcpy_done(void *arg)
+{
+  int tid = (long)arg;
+  coopth_wake_up(tid);
+}
+
 static void *vmemcpy_thread(void *arg)
 {
   struct vmem_chunk *vmc = arg;
@@ -256,7 +262,7 @@ static void *vmemcpy_thread(void *arg)
       MEMCPY_2DOS(vmc->vmem, vmc->mem, vmc->len);
     else
       MEMCPY_2UNIX(vmc->mem, vmc->vmem, vmc->len);
-    coopth_wake_up_mt(vmc->ctid);
+    reset_idle_mt(0, vmemcpy_done, (void*)(long)vmc->ctid);
   }
   return NULL;
 }
