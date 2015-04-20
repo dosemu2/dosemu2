@@ -109,6 +109,7 @@ struct coopth_t {
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     coopth_hndl_t post;
+    coopth_hndl_t leaveh;
     struct coopth_per_thread_t pth[MAX_COOP_RECUR_DEPTH];
 };
 
@@ -155,8 +156,11 @@ static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 
 static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    coopth_retf(thr, pth);
+    if (pth->data.attached)
+	coopth_retf(thr, pth);
     pth->data.left = 1;
+    if (thr->leaveh)
+	thr->leaveh(thr->tid);
     /* leaving operation is atomic, without a separate entry point
      * but without a DOS context also.  */
     pth->st = ST(RUNNING);
@@ -619,6 +623,18 @@ int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func)
     return 0;
 }
 
+int coopth_set_leave_handler(int tid, coopth_hndl_t func)
+{
+    struct coopth_t *thr;
+    int i;
+    check_tid(tid);
+    for (i = 0; i < coopthreads[tid].len; i++) {
+	thr = &coopthreads[tid + i];
+	thr->leaveh = func;
+    }
+    return 0;
+}
+
 int coopth_set_detached(int tid)
 {
     struct coopth_t *thr;
@@ -910,7 +926,7 @@ void coopth_leave(void)
        return;
     thdata = co_get_data(co_current());
     ensure_single(thdata);
-    if (!thdata->attached)
+    if (thdata->left)
 	return;
     switch_state(COOPTH_LEAVE);
 }
