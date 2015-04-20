@@ -19,7 +19,6 @@ int coopth_start(int tid, coopth_func_t func, void *arg);
 int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func);
 int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post);
 int coopth_set_sleep_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post);
-int coopth_set_leave_handler(int tid, coopth_hndl_t func);
 int coopth_set_post_handler(coopth_func_t func, void *arg);
 void coopth_join(int tid, void (*helper)(void));
 int coopth_flush(void (*helper)(void));
