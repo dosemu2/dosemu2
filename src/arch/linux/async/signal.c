@@ -619,7 +619,6 @@ signal_init(void)
   coopth_set_ctx_handlers(sh_tid, sig_ctx_prepare, sig_ctx_restore);
   coopth_set_sleep_handlers(sh_tid, handle_signals_force_enter,
 	handle_signals_force_leave);
-  coopth_set_leave_handler(sh_tid, handle_signals_force_enter);
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
 

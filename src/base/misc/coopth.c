@@ -126,9 +126,12 @@ static int threads_total;
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
 
-static void coopth_callf_chk(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+static void coopth_callf_chk(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void do_del_thread(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth);
+static void do_call_post(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
 
 #define COOP_STK_SIZE() (512 * getpagesize())
@@ -161,6 +164,7 @@ static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     pth->data.left = 1;
     if (thr->leaveh)
 	thr->leaveh(thr->tid);
+    do_call_post(thr, pth);
     /* leaving operation is atomic, without a separate entry point
      * but without a DOS context also.  */
     pth->st = ST(RUNNING);
@@ -226,6 +230,15 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     return ret;
 }
 
+static void do_call_post(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+{
+    int i;
+    for (i = 0; i < pth->data.posth_num; i++)
+	pth->data.post[i].func(pth->data.post[i].arg);
+    if (thr->post)
+	thr->post(thr->tid);
+}
+
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
@@ -249,12 +262,8 @@ static void do_del_thread(struct coopth_t *thr,
     }
     threads_total--;
 
-    if (!pth->data.cancelled) {
-	for (i = 0; i < pth->data.posth_num; i++)
-	    pth->data.post[i].func(pth->data.post[i].arg);
-	if (thr->post)
-	    thr->post(thr->tid);
-    }
+    if (!pth->data.cancelled && !pth->data.left)
+	do_call_post(thr, pth);
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -918,7 +927,8 @@ void coopth_detach(void)
  * not needed for detached threads at all. While the detached threads
  * has a separate entry point (via coopth_run()), the left thread must
  * not have a separate entry point. So it appeared better to return the
- * special type "left" threads. */
+ * special type "left" threads.
+ * Additionally the leave operation now calls the post handler immediately. */
 void coopth_leave(void)
 {
     struct coopth_thrdata_t *thdata;
