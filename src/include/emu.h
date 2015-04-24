@@ -72,6 +72,7 @@ EXTERN int max_page INIT(7);
 struct callback_s {
   void (*func)(void *);
   void *arg;
+  const char *name;
 };
 
 #if 0
@@ -399,7 +400,10 @@ EXTERN void leavedos_from_sig(int sig);
 EXTERN void leavedos_from_thread(int code);
 EXTERN void leavedos_main(int sig);
 EXTERN void check_leavedos(void);
-EXTERN void add_to_io_select(int, void(*)(void *), void *);
+EXTERN void add_to_io_select_new(int, void(*)(void *), void *,
+	const char *name);
+#define add_to_io_select(fd, func, arg) \
+	add_to_io_select_new(fd, func, arg, #func)
 EXTERN void remove_from_io_select(int);
 #ifdef __linux__
 EXTERN void SIG_init(void);

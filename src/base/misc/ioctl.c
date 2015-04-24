@@ -137,7 +137,8 @@ io_select(void)
     default:			/* has at least 1 descriptor ready */
       for(i = 0; i < numselectfd; i++) {
         if (FD_ISSET(i, &fds) && io_callback_func[i].func) {
-	  g_printf("GEN: fd %i has data\n", i);
+	  g_printf("GEN: fd %i has data for %s\n", i,
+		io_callback_func[i].name);
 	  io_callback_func[i].func(io_callback_func[i].arg);
 	}
       }
@@ -186,7 +187,8 @@ int i;
  * DANG_END_FUNCTION
  */
 void
-add_to_io_select(int new_fd, void (*func)(void *), void *arg)
+add_to_io_select_new(int new_fd, void (*func)(void *), void *arg,
+	const char *name)
 {
     int flags;
     if ((new_fd+1) > numselectfd) numselectfd = new_fd+1;
@@ -198,9 +200,10 @@ add_to_io_select(int new_fd, void (*func)(void *), void *arg)
     fcntl(new_fd, F_SETOWN, getpid());
     fcntl(new_fd, F_SETFL, flags | O_ASYNC);
     FD_SET(new_fd, &fds_sigio);
-    g_printf("GEN: fd=%d gets SIGIO\n", new_fd);
+    g_printf("GEN: fd=%d gets SIGIO for %s\n", new_fd, name);
     io_callback_func[new_fd].func = func;
     io_callback_func[new_fd].arg = arg;
+    io_callback_func[new_fd].name = name;
 }
 
 /*

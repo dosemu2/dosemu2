@@ -401,13 +401,14 @@ void reset_idle(int val)
 }
 
 
-void reset_idle_mt(int val, void (*cb)(void *), void *arg)
+void reset_idle_mt(int val, void (*cb)(void *), void *arg, const char *name)
 {
   if (cb) {
     struct callback_s cbk;
     int i;
     cbk.func = cb;
     cbk.arg = arg;
+    cbk.name = name;
     pthread_mutex_lock(&cbk_mtx);
     i = rng_put(&cbks, &cbk);
     pthread_mutex_unlock(&cbk_mtx);
