@@ -584,6 +584,19 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
 	active_tids[threads_active++] = tid;
+    } else if (thr->pth[tn - 1].st.state == COOPTHS_SLEEPING) {
+	static int logged;
+	/* will have problems with wake-up by tid. It is possible
+	 * to do a wakeup-specific lookup, but this is nasty, and
+	 * the recursion itself is nasty too. Lets just print an
+	 * error to force the caller to create a separate thread.
+	 * vc.c does this to not sleep in the sighandling thread.
+	 */
+	if (!logged) {
+	    dosemu_error("thread %s recursed (%i) over sleep\n",
+		    thr->name, thr->cur_thr);
+	    logged = 1;
+	}
     }
     threads_total++;
     if (!thr->detached)
@@ -928,7 +941,10 @@ void coopth_leave(void)
 
 static void do_awake(struct coopth_per_thread_t *pth)
 {
-    assert(pth->st.state == COOPTHS_SLEEPING);
+    if (pth->st.state != COOPTHS_SLEEPING) {
+	dosemu_error("wakeup on non-sleeping thread %i\n", *pth->data.tid);
+	return;
+    }
     pth->st = SW_ST(AWAKEN);
 }
 
