@@ -522,11 +522,8 @@ static int raw_mouse_init(void)
   struct stat buf;
 
   m_printf("Opening internal mouse: %s\n", mice->dev);
-  if (mice->fd == -1) {
-	mice->intdrv = FALSE;
-	mice->type = MOUSE_NONE;
+  if (mice->fd == -1)
 	return FALSE;
-  }
   add_to_io_select(mice->fd, mouse_io_callback, NULL);
 
   fstat(mice->fd, &buf);
