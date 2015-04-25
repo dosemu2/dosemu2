@@ -63,7 +63,7 @@ t mouse_client_##f(void) \
 }
 mouse_client_f(void, run)
 mouse_client_f(void, close)
-//mouse_client_f(void, post_init)
+mouse_client_f(void, post_init)
 void mouse_client_set_cursor(int action, int mx, int my, int x_range,
 	int y_range)
 {

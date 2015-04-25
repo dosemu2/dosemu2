@@ -150,6 +150,7 @@ struct mouse_client {
   void   (*close)(void);
   void   (*run)(void);         /* handle mouse events */
   void   (*set_cursor)(int action, int mx, int my, int x_range, int y_range);
+  void   (*post_init)(void);
 };
 
 void register_mouse_client(struct mouse_client *mouse);
@@ -157,7 +158,7 @@ void mouse_client_set_cursor(int action, int mx, int my, int x_range,
 	int y_range);
 void mouse_client_run(void);
 void mouse_client_close(void);
-//void mouse_client_post_init(void);
+void mouse_client_post_init(void);
 
 extern struct mouse_client Mouse_raw;
 
@@ -176,7 +177,6 @@ extern void dosemu_mouse_close(void);
 extern void freeze_mouse(void);
 extern void unfreeze_mouse(void);
 extern void mouse_post_boot(void);
-extern int com_mouse_post_init(void);
 extern void int74(void);
 
 int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,

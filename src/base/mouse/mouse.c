@@ -2069,7 +2069,7 @@ void mouse_post_boot(void)
   /* Otherwise this isn't safe */
   SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 
-  com_mouse_post_init();
+  mouse_client_post_init();
 }
 
 void mouse_io_callback(void *arg)
