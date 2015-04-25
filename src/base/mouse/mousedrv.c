@@ -21,26 +21,57 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "emu.h"
 #include "serial.h"
 #include "utilities.h"
 #include "mouse.h"
 
+
+struct mouse_drv_wrp {
+  struct mouse_drv *drv;
+  struct mouse_drv_wrp *next;
+  void *udata;
+  int initialized;
+};
 static struct mouse_drv_wrp *mdrv;
 
-struct mouse_client *Mouse = NULL;
+struct mouse_client_wrp {
+  struct mouse_client *clnt;
+  int initialized;
+};
+#define MAX_MOUSE_CLIENTS 20
+static struct mouse_client_wrp Mouse[MAX_MOUSE_CLIENTS];
+static int mclnt_num;
 
 /* register mouse at the back of the linked list */
 void register_mouse_client(struct mouse_client *mouse)
 {
-	struct mouse_client *m;
+	assert(mclnt_num < MAX_MOUSE_CLIENTS);
+	Mouse[mclnt_num++].clnt = mouse;
+}
 
-	mouse->next = NULL;
-	if (Mouse == NULL)
-		Mouse = mouse;
-	else {
-		for (m = Mouse; m->next; m = m->next);
-		m->next = mouse;
+#define mouse_client_f(t, f) \
+t mouse_client_##f(void) \
+{ \
+	int i; \
+	for (i = 0; i < mclnt_num; i++) { \
+		if (!Mouse[i].initialized || !Mouse[i].clnt->f) \
+			continue; \
+		Mouse[i].clnt->f(); \
+	} \
+}
+mouse_client_f(void, run)
+mouse_client_f(void, close)
+//mouse_client_f(void, post_init)
+void mouse_client_set_cursor(int action, int mx, int my, int x_range,
+	int y_range)
+{
+	int i;
+	for (i = 0; i < mclnt_num; i++) {
+		if (!Mouse[i].initialized || !Mouse[i].clnt->set_cursor)
+			continue;
+		Mouse[i].clnt->set_cursor(action, mx, my, x_range, y_range);
 	}
 }
 
@@ -86,7 +117,7 @@ static struct mouse_client Mouse_none =  {
 
 static void mouse_client_init(void)
 {
-  int ok;
+  int i;
 
 #ifdef USE_GPM
   if (Mouse == NULL)
@@ -94,20 +125,18 @@ static void mouse_client_init(void)
 #endif
   register_mouse_client(&Mouse_raw);
   register_mouse_client(&Mouse_none);
-  while(TRUE) {
+  for (i = 0; i < mclnt_num; i++) {
     m_printf("MOUSE: initialising '%s' mode mouse client\n",
-             Mouse->name);
+             Mouse[i].clnt->name);
 
-    ok = Mouse->init?Mouse->init():TRUE;
-    if (ok) {
-      m_printf("MOUSE: Mouse init ok, '%s' mode\n", Mouse->name);
-      break;
+    Mouse[i].initialized = Mouse[i].clnt->init ? Mouse[i].clnt->init() : TRUE;
+    if (Mouse[i].initialized) {
+      m_printf("MOUSE: Mouse init ok, '%s' mode\n", Mouse[i].clnt->name);
     }
     else {
       m_printf("MOUSE: Mouse init ***failed***, '%s' mode\n",
-               Mouse->name);
+               Mouse[i].clnt->name);
     }
-    Mouse = Mouse->next;
   }
 }
 

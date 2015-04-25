@@ -367,12 +367,12 @@ mouse_int(void)
 
   case 0x01:			/* Show Mouse Cursor */
     mouse_cursor(1);
-    if (Mouse->set_cursor) Mouse->set_cursor(3, -1, -1, -1, -1);
+    mouse_client_set_cursor(3, -1, -1, -1, -1);
     break;
 
   case 0x02:			/* Hide Mouse Cursor */
     mouse_cursor(-1);
-    if (Mouse->set_cursor) Mouse->set_cursor(2, -1, -1, -1, -1);
+    mouse_client_set_cursor(2, -1, -1, -1, -1);
     break;
 
   case 0x03:			/* Get Mouse Position and Button Status */
@@ -1891,12 +1891,12 @@ static void mouse_do_cur(int callback)
     text_cursor();
   }
 
-  if (mice->native_cursor || !Mouse->set_cursor || !callback)
+  if (mice->native_cursor || !callback)
     return;
 
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
      requested it to be moved */
-  Mouse->set_cursor(mouse.cursor_on == 0?1: 0,
+  mouse_client_set_cursor(mouse.cursor_on == 0?1: 0,
 		    mouse.x - mouse.x_delta - mouse.minx,
 		    mouse.y - mouse.y_delta - mouse.miny,
 		    mouse.maxx - mouse.minx +1, mouse.maxy - mouse.miny +1);
@@ -1969,7 +1969,7 @@ graph_cursor(void)
 void
 mouse_curtick(void)
 {
-  if (!mice->intdrv || mouse.cursor_on != 0 || Mouse->set_cursor)
+  if (!mice->intdrv || mouse.cursor_on != 0)
     return;
 
   m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
@@ -2076,7 +2076,7 @@ void mouse_io_callback(void *arg)
 {
   if (mice->fd >= 0) {
     m_printf("MOUSE: We have data\n");
-    if (Mouse->run) Mouse->run();
+    mouse_client_run();
   }
 }
 
@@ -2085,7 +2085,7 @@ dosemu_mouse_close(void)
 {
   if (mice->type == MOUSE_XTERM && !sent_mouse_esc)
     return;
-  if (Mouse && Mouse->close) Mouse->close();
+  mouse_client_close();
   sent_mouse_esc = FALSE;
 }
 

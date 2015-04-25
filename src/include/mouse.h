@@ -150,12 +150,15 @@ struct mouse_client {
   void   (*close)(void);
   void   (*run)(void);         /* handle mouse events */
   void   (*set_cursor)(int action, int mx, int my, int x_range, int y_range);
-  struct mouse_client *next;
 };
 
 void register_mouse_client(struct mouse_client *mouse);
+void mouse_client_set_cursor(int action, int mx, int my, int x_range,
+	int y_range);
+void mouse_client_run(void);
+void mouse_client_close(void);
+//void mouse_client_post_init(void);
 
-extern struct mouse_client *Mouse;
 extern struct mouse_client Mouse_raw;
 
 #include "keyboard.h"
@@ -192,13 +195,6 @@ struct mouse_drv {
   void (*sync_coords)(int x, int y, int x_range, int y_range, void *udata);
   void (*enable_native_cursor)(int flag, void *udata);
   char *name;
-};
-
-struct mouse_drv_wrp {
-  struct mouse_drv *drv;
-  struct mouse_drv_wrp *next;
-  void *udata;
-  int initialized;
 };
 
 void register_mouse_driver(struct mouse_drv *mouse);
