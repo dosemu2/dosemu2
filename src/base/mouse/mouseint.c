@@ -164,7 +164,8 @@ static void DOSEMUSetupMouse(void)
 #endif
 }
 
-int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type)
+int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
+	const char *id)
 {
   int                  i, buttons=0, dx=0, dy=0;
   mouse_t             *mice = &config.mouse;
@@ -346,14 +347,15 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type)
 	   break;
 	}
 
-	/*
-	 * talk to int33 explicitly as we dont want to talk
-	 * to for example sermouse.c
-	 */
-	mouse_move_buttons_id(buttons & 0x04, buttons & 0x02, buttons & 0x01,
-		"int33 mouse");
-	mouse_move_mickeys_id(dx, dy, "int33 mouse");
-
+	if (id) {
+	    mouse_move_buttons_id(buttons & 0x04, buttons & 0x02,
+		buttons & 0x01, id);
+	    mouse_move_mickeys_id(dx, dy, id);
+	} else {
+	    mouse_move_buttons(buttons & 0x04, buttons & 0x02,
+		buttons & 0x01);
+	    mouse_move_mickeys(dx, dy);
+	}
 	pBufP = 0;
 	return (i + 1);
      }	/* assembly full package */
@@ -454,7 +456,7 @@ static void raw_mouse_getevent(void)
 	if (nBytes <= 0)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);
-	DOSEMUMouseProtocol(rBuf, nBytes, mice->type);
+	DOSEMUMouseProtocol(rBuf, nBytes, mice->type, NULL);
 }
 
 static void parent_close_mouse (void)
