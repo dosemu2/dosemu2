@@ -455,7 +455,6 @@ static void raw_mouse_getevent(void)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);
 	DOSEMUMouseProtocol(rBuf, nBytes, mice->type);
-	pic_request(PIC_IMOUSE);
 }
 
 static void parent_close_mouse (void)

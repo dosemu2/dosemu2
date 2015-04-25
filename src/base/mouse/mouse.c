@@ -2032,7 +2032,7 @@ static int int33_mouse_init(void)
   mouse.speed_y = mice->init_speed_y;
 
   memcpy(p,mouse_ver,sizeof(mouse_ver));
-  pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, NULL);
+  pic_seti(PIC_IMOUSE, NULL, 0, NULL);
 
   m_printf("MOUSE: INIT complete\n");
   return 1;
@@ -2076,7 +2076,7 @@ void mouse_io_callback(void *arg)
 {
   if (mice->fd >= 0) {
     m_printf("MOUSE: We have data\n");
-    pic_request(PIC_IMOUSE);
+    if (Mouse->run) Mouse->run();
   }
 }
 
@@ -2087,12 +2087,6 @@ dosemu_mouse_close(void)
     return;
   if (Mouse && Mouse->close) Mouse->close();
   sent_mouse_esc = FALSE;
-}
-
-int DOSEMUMouseEvents(int ilevel)
-{
-  if (Mouse->run) Mouse->run();
-  return 1;
 }
 
 /* TO DO LIST: (in no particular order)

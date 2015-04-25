@@ -176,7 +176,6 @@ extern void mouse_post_boot(void);
 extern int com_mouse_post_init(void);
 extern void int74(void);
 
-extern int DOSEMUMouseEvents(int);
 int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type);
 
 extern void mouse_io_callback(void *);
