@@ -2074,7 +2074,7 @@ void mouse_post_boot(void)
 
 void mouse_io_callback(void *arg)
 {
-  if (mice->intdrv && mice->fd >= 0) {
+  if (mice->fd >= 0) {
     m_printf("MOUSE: We have data\n");
     pic_request(PIC_IMOUSE);
   }

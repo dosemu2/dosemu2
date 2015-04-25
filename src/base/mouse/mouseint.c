@@ -451,7 +451,7 @@ static void raw_mouse_getevent(void)
 	int nBytes;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, rBuf, MOUSE_BUFFER));
-	if (!mouse.enabled || nBytes <= 0)
+	if (nBytes <= 0)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);
 	DOSEMUMouseProtocol(rBuf, nBytes, mice->type);
@@ -497,18 +497,6 @@ void mouse_priv_init(void)
       }
 }
 
-static int parent_open_mouse (void)
-{
-  mouse_t *mice = &config.mouse;
-  if (mice->fd == -1) {
-	mice->intdrv = FALSE;
-	mice->type = MOUSE_NONE;
-	return 0;
-  }
-  add_to_io_select(mice->fd, mouse_io_callback, NULL);
-  return 1;
-}
-
 void freeze_mouse(void)
 {
   mouse_t *mice = &config.mouse;
@@ -532,12 +520,13 @@ static int raw_mouse_init(void)
   mouse_t *mice = &config.mouse;
   struct stat buf;
 
-  if (!mice->intdrv)
-    return FALSE;
-
   m_printf("Opening internal mouse: %s\n", mice->dev);
-  if (!parent_open_mouse())
-    return FALSE;
+  if (mice->fd == -1) {
+	mice->intdrv = FALSE;
+	mice->type = MOUSE_NONE;
+	return FALSE;
+  }
+  add_to_io_select(mice->fd, mouse_io_callback, NULL);
 
   fstat(mice->fd, &buf);
   if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
