@@ -100,8 +100,7 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
   add_buf(com, buf, sizeof(buf));
 }
 
-static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
-	void *udata)
+static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
 {
   com_t *com = udata;
   char buf[3] = {0x40, 0, 0};
@@ -118,12 +117,19 @@ static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
   add_buf(com, buf, sizeof(buf));
 }
 
+static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
+	void *udata)
+{
+  /* oops, ignore ranges */
+  ser_mouse_move_mickeys(dx, dy, udata);
+}
+
 struct mouse_drv ser_mouse = {
   NULL, /* init */
   ser_mouse_accepts,
   ser_mouse_move_buttons,
   ser_mouse_move_relative,
-  NULL, /* ser_mouse_move_mickeys */
+  ser_mouse_move_mickeys,
   NULL, /* ser_mouse_move_absolute */
   NULL, /* ser_mouse_drag_to_corner */
   NULL, /* ser_mouse_sync_coords */
