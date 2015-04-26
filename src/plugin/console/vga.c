@@ -262,7 +262,7 @@ static void *vmemcpy_thread(void *arg)
       MEMCPY_2DOS(vmc->vmem, vmc->mem, vmc->len);
     else
       MEMCPY_2UNIX(vmc->mem, vmc->vmem, vmc->len);
-    reset_idle_mt(0, vmemcpy_done, (void*)(long)vmc->ctid, "vmemcpy");
+    add_thread_callback(vmemcpy_done, (void*)(long)vmc->ctid, "vmemcpy");
   }
   return NULL;
 }

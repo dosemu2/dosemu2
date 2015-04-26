@@ -1723,7 +1723,7 @@ static void *X_handle_events(void *arg)
     }
     e = malloc(sizeof(*e));
     XNextEvent(display, e);
-    reset_idle_mt(0, _X_handle_events, e, "X events");
+    add_thread_callback(_X_handle_events, e, "X events");
   }
   return NULL;
 }

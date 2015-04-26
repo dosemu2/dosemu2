@@ -405,6 +405,7 @@ EXTERN void add_to_io_select_new(int, void(*)(void *), void *,
 #define add_to_io_select(fd, func, arg) \
 	add_to_io_select_new(fd, func, arg, #func)
 EXTERN void remove_from_io_select(int);
+EXTERN void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
 #ifdef __linux__
 EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);

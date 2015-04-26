@@ -401,7 +401,7 @@ void reset_idle(int val)
 }
 
 
-void reset_idle_mt(int val, void (*cb)(void *), void *arg, const char *name)
+void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
 {
   if (cb) {
     struct callback_s cbk;
@@ -415,7 +415,7 @@ void reset_idle_mt(int val, void (*cb)(void *), void *arg, const char *name)
     if (!i)
       error("callback queue overflow, %s\n", name);
   }
-  reset_idle(val);
+  reset_idle(0);
   eventfd_write(event_fd, 1);
 }
 
