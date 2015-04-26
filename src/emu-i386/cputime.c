@@ -230,7 +230,7 @@ void get_time_init (void)
     g_printf("TIMER: using clock_gettime(CLOCK_MONOTONIC)\n");
   }
 
-  event_fd = eventfd(0, EFD_CLOEXEC | EFD_SEMAPHORE);
+  event_fd = eventfd(0, EFD_CLOEXEC);
   add_to_io_select(event_fd, async_awake, NULL);
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }
@@ -411,6 +411,7 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
     cbk.name = name;
     pthread_mutex_lock(&cbk_mtx);
     i = rng_put(&cbks, &cbk);
+    g_printf("callback %s added, %i queued\n", name, rng_count(&cbks));
     pthread_mutex_unlock(&cbk_mtx);
     if (!i)
       error("callback queue overflow, %s\n", name);
@@ -425,6 +426,7 @@ static void async_awake(void *arg)
   int i;
   eventfd_t val;
   eventfd_read(event_fd, &val);
+  g_printf("processing %zi callbacks\n", val);
   do {
     pthread_mutex_lock(&cbk_mtx);
     i = rng_get(&cbks, &cbk);
