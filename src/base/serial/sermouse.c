@@ -31,6 +31,7 @@ struct serm_state {
   int nrst;
   int opened;
   int div;
+  char but;
 };
 static struct serm_state serm;
 
@@ -91,10 +92,12 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
   char buf[3] = {0x40, 0, 0};
 
   s_printf("SERM: buttons %i %i %i\n", lbutton, mbutton, rbutton);
+  serm.but = 0;
   if (lbutton)
-    buf[0] |= 0x20;
+    serm.but |= 0x20;
   if (rbutton)
-    buf[0] |= 0x10;
+    serm.but |= 0x10;
+  buf[0] |= serm.but;
   /* change in mbutton is signalled by sending the prev state */
 
   add_buf(com, buf, sizeof(buf));
@@ -106,6 +109,7 @@ static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
   char buf[3] = {0x40, 0, 0};
 
   s_printf("SERM: movement %i %i\n", dx, dy);
+  buf[0] |= serm.but;
   dx = limit_delta(dx, -128, 127);
   buf[1]   = dx & ~0xC0;
   buf[0]  |= (dx & 0xC0) >> 6;
@@ -208,6 +212,7 @@ static int serm_open(com_t *com)
   s_printf("SERM: open for port %i\n", com->num);
   mousedrv_set_udata(ser_mouse.name, com);
   serm.opened = 1;
+  serm.but = 0;
   return 1;
 }
 
