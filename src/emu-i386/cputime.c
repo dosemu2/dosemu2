@@ -96,7 +96,7 @@ static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int event_fd;
 static struct rng_s cbks;
-#define MAX_CBKS 5
+#define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static hitimer_t do_gettime(void)
@@ -413,7 +413,7 @@ void reset_idle_mt(int val, void (*cb)(void *), void *arg, const char *name)
     i = rng_put(&cbks, &cbk);
     pthread_mutex_unlock(&cbk_mtx);
     if (!i)
-      error("callback queue overflow\n");
+      error("callback queue overflow, %s\n", name);
   }
   reset_idle(val);
   eventfd_write(event_fd, 1);
@@ -425,11 +425,13 @@ static void async_awake(void *arg)
   int i;
   eventfd_t val;
   eventfd_read(event_fd, &val);
-  pthread_mutex_lock(&cbk_mtx);
-  i = rng_get(&cbks, &cbk);
-  pthread_mutex_unlock(&cbk_mtx);
-  if (i)
-    cbk.func(cbk.arg);
+  do {
+    pthread_mutex_lock(&cbk_mtx);
+    i = rng_get(&cbks, &cbk);
+    pthread_mutex_unlock(&cbk_mtx);
+    if (i)
+      cbk.func(cbk.arg);
+  } while (i);
 }
 
 void alarm_idle(void)
