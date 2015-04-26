@@ -459,11 +459,12 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 unimp:
   error("eVGAEmuFault: unimplemented decode instr at %08lx: %08x\n",
 	_rip, *((int *)_rip));
-  leavedos(0x5643);
+  leavedos_from_sig(0x5643);
+  return 0;
 badrw:
   error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
 	_rip, _err);
-  leavedos(0x5643);
+  leavedos_from_sig(0x5643);
   return 0;
 }
 #endif

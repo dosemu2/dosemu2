@@ -359,6 +359,12 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 
 void leavedos_from_sig(int sig)
 {
+  /* anything more sophisticated? */
+  leavedos_main(sig);
+}
+
+static void leavedos_sig(int sig)
+{
   dbug_printf("Terminating on signal %i\n", sig);
   if (ld_sig) {
     error("leavedos re-entered, exiting\n");
@@ -383,7 +389,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
     _exit(sig);
   }
-  leavedos_from_sig(sig);
+  leavedos_sig(sig);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
   dpmi_iret_setup(scp);
