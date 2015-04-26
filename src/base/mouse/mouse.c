@@ -2074,10 +2074,8 @@ void mouse_post_boot(void)
 
 void mouse_io_callback(void *arg)
 {
-  if (mice->fd >= 0) {
-    m_printf("MOUSE: We have data\n");
-    mouse_client_run();
-  }
+  m_printf("MOUSE: We have data\n");
+  mouse_client_run();
 }
 
 void

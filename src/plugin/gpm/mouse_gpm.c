@@ -50,8 +50,8 @@ static void gpm_getevent(void)
 	int type;
 
 	FD_ZERO(&mfds);
-	FD_SET(config.mouse.fd, &mfds);
-	if (select(config.mouse.fd + 1, &mfds, NULL, NULL, NULL) <= 0)
+	FD_SET(gpm_fd, &mfds);
+	if (select(gpm_fd + 1, &mfds, NULL, NULL, NULL) <= 0)
 		return;
 	Gpm_GetEvent((void*)&ev);
 	type = GPM_BARE_EVENTS(ev.tail.gpm_w1.type);
@@ -101,18 +101,16 @@ static int gpm_init(void)
 	if (fd < 0)
 		return FALSE;
 
-	mice->fd = fd;
 	mice->type = MOUSE_GPM;
-	fcntl(mice->fd, F_SETFL, fcntl(mice->fd, F_GETFL) | O_NONBLOCK);
-	add_to_io_select(mice->fd, mouse_io_callback, NULL);
+	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+	add_to_io_select(fd, mouse_io_callback, NULL);
 	m_printf("GPM MOUSE: Using GPM Mouse\n");
 	return TRUE;
 }
 
 static void gpm_close(void)
 {
-	mouse_t *mice = &config.mouse;
-	remove_from_io_select(mice->fd);
+	remove_from_io_select(gpm_fd);
 	Gpm_Close();
 	m_printf("GPM MOUSE: Mouse tracking deinitialized\n");
 }
