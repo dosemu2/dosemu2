@@ -211,6 +211,7 @@ void mouse_enable_native_cursor(int flag);
 void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,
 	const char *id);
 void mouse_move_mickeys_id(int dx, int dy, const char *id);
+void mouse_enable_native_cursor_id(int flag, const char *id);
 int mousedrv_accepts(const char *id);
 
 #endif /* MOUSE_H */

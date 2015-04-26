@@ -125,6 +125,7 @@ static void com_mouse_post_init(void)
 
   if (com_num == -1)
     return;
+  mouse_enable_native_cursor_id(1, "int33 mouse");
 
   write_IER(com_num, 0);
 

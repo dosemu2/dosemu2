@@ -2427,7 +2427,7 @@ static int X_mouse_init(void)
   if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
-  mice->native_cursor = 0;	/* we have the X cursor */
+  mouse_enable_native_cursor(0);
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;
 }

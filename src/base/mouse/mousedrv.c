@@ -213,3 +213,4 @@ void mouse_##n##_id DID DEF \
 MOUSE_ID_DO(move_buttons, (int lbutton, int mbutton, int rbutton),
 	(lbutton, mbutton, rbutton))
 MOUSE_ID_DO(move_mickeys, (int dx, int dy), (dx, dy))
+MOUSE_ID_DO(enable_native_cursor, (int flag), (flag))

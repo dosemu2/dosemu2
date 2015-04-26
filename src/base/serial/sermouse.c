@@ -137,7 +137,7 @@ struct mouse_drv ser_mouse = {
   "serial mouse"
 };
 
-CONSTRUCTOR(static void int33_mouse_register(void))
+CONSTRUCTOR(static void serial_mouse_register(void))
 {
   register_mouse_driver(&ser_mouse);
 }
