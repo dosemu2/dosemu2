@@ -1754,10 +1754,17 @@ static void start_mouse(void)
 
 static void stop_mouse(void)
 {
-  if (mptr->dev && strncmp(mptr->dev, "com", 3) == 0 && strlen(mptr->dev) > 3) {
-    mptr->com = atoi(mptr->dev + 3);
-    free(mptr->dev);
-    mptr->dev = NULL;
+  char *p, *p1;
+  if (mptr->dev && (p = strstr(mptr->dev, "com")) && strlen(p) > 3) {
+    mptr->com = atoi(p + 3);
+    if (p > mptr->dev) {
+      p[-1] = 0;
+    } else if ((p1 = strchr(p, ','))) {
+      mptr->dev = p1 + 1;
+    } else {
+      free(mptr->dev);
+      mptr->dev = NULL;
+    }
     c_printf("MOUSE: using COM%i\n", mptr->com);
   }
   c_printf("MOUSE: %s, type %x using internaldriver: %s, emulate3buttons: %s baudrate: %d\n", 
