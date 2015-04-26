@@ -1687,6 +1687,15 @@ static int __X_handle_events(XEvent *e)
     return 0;
 }
 
+static void _X_handle_events(void *arg)
+{
+    XEvent *e = arg;
+    int ret = __X_handle_events(e);
+    free(e);
+    if (ret < 0)
+      leavedos(0);
+}
+
 /* all X function, even the "non-blocking" ones like XPending(),
  * actually do a send/receive cycle with X server. If X server lags
  * or remote (or both), these queries takes a lot. So I handle the
@@ -1696,29 +1705,25 @@ static int __X_handle_events(XEvent *e)
  * doesn't seem to need a separate event-handling thread. */
 static void *X_handle_events(void *arg)
 {
-  XEvent e;
-  int ret, pend;
+  XEvent *e;
+  int pend;
   while (1)
   {
     if (!initialized) {
       usleep(100000);
       continue;
     }
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     /* XNextEvent() is blocking and can therefore be used in a thread
      * without XPending()? No because it locks the display while waiting,
      * so other threads will be blocked too. We still need a manual polling. */
     pend = XPending(display);
     if (!pend) {
-      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
       usleep(10000);
       continue;
     }
-    XNextEvent(display, &e);
-    ret = __X_handle_events(&e);
-    if (ret < 0)
-      leavedos_from_thread(0);
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    e = malloc(sizeof(*e));
+    XNextEvent(display, e);
+    reset_idle_mt(0, _X_handle_events, e, "X events");
   }
   return NULL;
 }
