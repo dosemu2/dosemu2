@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include <sys/eventfd.h>
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
@@ -24,7 +23,6 @@
 #include "pic.h"
 #include "int.h"
 #include "coopth.h"
-#include "ringbuf.h"
 #include "speaker.h"
 #include "dosemu_config.h"
 
@@ -81,7 +79,6 @@
  */
 
 static hitimer_t (*RAWcpuTIME)(void);
-static void async_awake(void *arg);
 
 hitimer_u ZeroTimeBase = { 0 };
 static hitimer_u ZeroTSCBase = { 0 };
@@ -94,10 +91,6 @@ static int coopth_frozen;
 static hitimer_t cached_time;
 static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
-static int event_fd;
-static struct rng_s cbks;
-#define MAX_CBKS 1000
-static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static hitimer_t do_gettime(void)
 {
@@ -229,10 +222,6 @@ void get_time_init (void)
     GETcpuTIME = getC4time;		/* in usecs */
     g_printf("TIMER: using clock_gettime(CLOCK_MONOTONIC)\n");
   }
-
-  event_fd = eventfd(0, EFD_CLOEXEC);
-  add_to_io_select(event_fd, async_awake, NULL);
-  rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 }
 
 void cputime_late_init(void)
@@ -398,44 +387,6 @@ void reset_idle(int val)
   if (-val < trigger1)
     trigger1 = -val;
   pthread_mutex_unlock(&trigger_mtx);
-}
-
-
-void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
-{
-  if (cb) {
-    struct callback_s cbk;
-    int i;
-    cbk.func = cb;
-    cbk.arg = arg;
-    cbk.name = name;
-    pthread_mutex_lock(&cbk_mtx);
-    i = rng_put(&cbks, &cbk);
-    g_printf("callback %s added, %i queued\n", name, rng_count(&cbks));
-    pthread_mutex_unlock(&cbk_mtx);
-    if (!i)
-      error("callback queue overflow, %s\n", name);
-  }
-  reset_idle(0);
-  eventfd_write(event_fd, 1);
-  /* unfortunately eventfd does not support SIGIO :( So we kill ourself. */
-  kill(0, SIGIO);
-}
-
-static void async_awake(void *arg)
-{
-  struct callback_s cbk;
-  int i;
-  eventfd_t val;
-  eventfd_read(event_fd, &val);
-  g_printf("processing %zi callbacks\n", val);
-  do {
-    pthread_mutex_lock(&cbk_mtx);
-    i = rng_get(&cbks, &cbk);
-    pthread_mutex_unlock(&cbk_mtx);
-    if (i)
-      cbk.func(cbk.arg);
-  } while (i);
 }
 
 void alarm_idle(void)

@@ -7,6 +7,8 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
+#include <sys/eventfd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
@@ -35,6 +37,7 @@
 #include "mhpdbg.h"
 #include "utilities.h"
 #include "userhook.h"
+#include "ringbuf.h"
 #include "dosemu_config.h"
 
 #include "keyb_clients.h"
@@ -71,6 +74,11 @@ static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid);
 static void handle_signals_force_leave(int tid);
+static void async_awake(void *arg);
+static int event_fd;
+static struct rng_s cbks;
+#define MAX_CBKS 1000
+static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static struct {
   unsigned long eflags;
@@ -628,6 +636,10 @@ signal_init(void)
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
 
+  event_fd = eventfd(0, EFD_CLOEXEC);
+  add_to_io_select(event_fd, async_awake, NULL);
+  rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
+
   signal_late_init();
 }
 
@@ -918,4 +930,40 @@ void do_periodic_stuff(void)
 
     if (Video->change_config)
 	update_xtitle();
+}
+
+void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
+{
+  if (cb) {
+    struct callback_s cbk;
+    int i;
+    cbk.func = cb;
+    cbk.arg = arg;
+    cbk.name = name;
+    pthread_mutex_lock(&cbk_mtx);
+    i = rng_put(&cbks, &cbk);
+    g_printf("callback %s added, %i queued\n", name, rng_count(&cbks));
+    pthread_mutex_unlock(&cbk_mtx);
+    if (!i)
+      error("callback queue overflow, %s\n", name);
+  }
+  eventfd_write(event_fd, 1);
+  /* unfortunately eventfd does not support SIGIO :( So we kill ourself. */
+  kill(0, SIGIO);
+}
+
+static void async_awake(void *arg)
+{
+  struct callback_s cbk;
+  int i;
+  eventfd_t val;
+  eventfd_read(event_fd, &val);
+  g_printf("processing %zi callbacks\n", val);
+  do {
+    pthread_mutex_lock(&cbk_mtx);
+    i = rng_get(&cbks, &cbk);
+    pthread_mutex_unlock(&cbk_mtx);
+    if (i)
+      cbk.func(cbk.arg);
+  } while (i);
 }
