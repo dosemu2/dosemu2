@@ -1760,7 +1760,8 @@ static void do_int31(struct sigcontext_struct *scp)
   if (debug_level('M')) {
     D_printf("DPMI: int31, ax=%04x, ebx=%08x, ecx=%08x, edx=%08x\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
-    D_printf("        edi=%08x, esi=%08x, ebp=%08x, esp=%08x, eip=%08x, eflags=%08lx\n",
+    D_printf("        edi=%08x, esi=%08x, ebp=%08x, esp=%08x\n"
+	     "        eip=%08x, eflags=%08lx\n",
 	_edi,_esi,_ebp,_esp,_eip,eflags_VIF(_eflags));
     D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
 	_cs,_ds,_ss,_es,_fs,_gs);
