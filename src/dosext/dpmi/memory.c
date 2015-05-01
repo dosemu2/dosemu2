@@ -242,12 +242,12 @@ static int SetAttribsForPage(unsigned int ptr, us attr, us old_attr)
 
     if (change) {
       if (com) {
-        if (mprotect_mapping(MAPPING_DPMI, mem_base+ptr, PAGE_SIZE, prot) == -1) {
+        if (mprotect_mapping(MAPPING_DPMI, MEM_BASE32(ptr), PAGE_SIZE, prot) == -1) {
           D_printf("mprotect() failed: %s\n", strerror(errno));
           return 0;
         }
       } else {
-	if (!uncommit(mem_base+ptr, PAGE_SIZE)) {
+	if (!uncommit(MEM_BASE32(ptr), PAGE_SIZE)) {
           D_printf("mmap() failed: %s\n", strerror(errno));
           return 0;
         }
@@ -326,7 +326,7 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     if (base == 0)
 	ptr = (void *)-1;
     else
-	ptr = mem_base+base;
+	ptr = MEM_BASE32(base);
     if (committed && size > dpmi_free_memory)
 	return NULL;
     if ((block = alloc_pm_block(root, size)) == NULL)
