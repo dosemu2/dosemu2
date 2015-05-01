@@ -251,8 +251,8 @@ char *e_print_regs(void)
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
 	if (debug_level('e')>4) {
 		int i;
-		unsigned char *st = &mem_base[LONG_SS+TheCPU.esp];
-		if ((st >= mem_base && st < &mem_base[0x110000]) ||
+		unsigned char *st = MEM_BASE32(LONG_SS+TheCPU.esp);
+		if ((st >= mem_base && st < (unsigned char *)MEM_BASE32(0x110000)) ||
 		    (st > (unsigned char *)config.dpmi_base &&
 		     st <= (unsigned char *)config.dpmi_base +
 		     config.dpmi * 1024)) {
@@ -390,14 +390,14 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
    	&ref, (pmode? csp2 : refseg * 16));
 
    pb = buf;
-   org2 = &mem_base[org];
+   org2 = MEM_BASE32(org);
    while ((*org2&0xfc)==0x64) org2++;	/* skip most prefixes */
    if ((debug_level('t')>3)||(InterOps[*org2]&2))
 	pb += sprintf(pb,"%s",e_print_scp_regs(scp,pmode));
 
    p = pb + sprintf(pb,"  %08x: ",org);
    for (i=0; i<rc && i<8; i++) {
-           p += sprintf(p, "%02x", mem_base[org+i]);
+           p += sprintf(p, "%02x", READ_BYTE(org+i));
    }
    sprintf(p,"%20s", " ");
    if (pmode&&IsSegment32(seg))

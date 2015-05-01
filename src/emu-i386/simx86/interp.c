@@ -1504,7 +1504,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				sp -= ds*level;
 				while (--level) {
 					bp -= ds;
-					PUSH(mode, &mem_base[bp]);
+					PUSH(mode, MEM_BASE32(bp));
 				}
 				PUSH(mode, &frm);
 			}
@@ -2844,7 +2844,7 @@ repag0:
 					goto illegal_op;
 				PC++; PC += ModRMSim(PC, mode);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
-				m = *(uint64_t*)&mem_base[TheCPU.mem_ref];
+				m = *(uint64_t*)MEM_BASE32(TheCPU.mem_ref);
 				if (edxeax == m)
 				{
 					EFLAGS |= EFLAGS_ZF;
@@ -2854,7 +2854,7 @@ repag0:
 					rEDX = m >> 32;
 					rEAX = m & 0xffffffff;
 				}
-				*(uint64_t*)&mem_base[TheCPU.mem_ref] = m;
+				*(uint64_t*)MEM_BASE32(TheCPU.mem_ref) = m;
 				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}
@@ -2919,7 +2919,7 @@ repag0:
 #else
 		if (debug_level('e')>2) {
 #endif
-		    char *ds = e_emu_disasm(&mem_base[P0],(~basemode&3),ocs);
+		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
 		    ocs = TheCPU.cs;
 #ifdef ASM_DUMP
 		    fprintf(aLog,"%s\n",ds);
