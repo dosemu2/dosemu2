@@ -3308,7 +3308,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 
     mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
 
-    if ((_trapno != 0xe && _trapno != 0x3 && _trapno != 0x1)
+    if ((_trapno != 0x3 && _trapno != 0x1)
 #ifdef X86_EMULATOR
       || debug_level('e')
 #endif
@@ -3416,16 +3416,8 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
-#if 0
-  if (_trapno == 0xe) {
-      set_debug_level('M', 9);
-      error("DPMI: page fault. in dosemu?\n");
-      /* why should we let dpmi continue after this point and crash
-       * the system? */
-      flush_log();
-      leavedos(0x5046);
-  }
-#endif
+  if (debug_level('M') > 5)
+    D_printf("DPMI: %s\n", DPMI_show_state(scp));
 
   if (DPMI_CLIENT.Exception_Table[_trapno].selector == dpmi_sel()) {
     do_default_cpu_exception(scp, _trapno);
