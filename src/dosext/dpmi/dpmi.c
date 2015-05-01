@@ -344,6 +344,14 @@ static void print_ldt(void)
   _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
+int dpmi_is_valid_range(dosaddr_t addr, int len)
+{
+  dpmi_pm_block *blk = lookup_pm_block_by_addr(DPMI_CLIENT.pm_block_root, addr);
+  if (!blk)
+    return 0;
+  return (blk->base + blk->size >= addr + len);
+}
+
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
 /* get esp from scp, otherwise get esp from dpmi_stack_frame         */
 static inline unsigned long client_esp(struct sigcontext_struct *scp)

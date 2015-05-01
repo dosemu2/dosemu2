@@ -96,11 +96,21 @@ static int free_pm_block(dpmi_pm_block_root *root, dpmi_pm_block *p)
 }
 
 /* lookup_pm_block returns a dpmi_pm_block struct from its handle */
-dpmi_pm_block * lookup_pm_block(dpmi_pm_block_root *root, unsigned long h)
+dpmi_pm_block *lookup_pm_block(dpmi_pm_block_root *root, unsigned long h)
 {
     dpmi_pm_block *tmp;
     for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
 	if (tmp -> handle == h)
+	    return tmp;
+    return 0;
+}
+
+dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
+	dosaddr_t addr)
+{
+    dpmi_pm_block *tmp;
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
+	if (addr >= tmp->base && addr < tmp->base + tmp->size)
 	    return tmp;
     return 0;
 }

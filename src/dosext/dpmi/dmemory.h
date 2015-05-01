@@ -21,6 +21,8 @@ typedef struct dpmi_pm_block_root_struc {
 } dpmi_pm_block_root;
 
 dpmi_pm_block *lookup_pm_block(dpmi_pm_block_root *root, unsigned long h);
+dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
+	dosaddr_t addr);
 void dpmi_alloc_pool(void);
 void dpmi_free_pool(void);
 dpmi_pm_block *DPMI_malloc(dpmi_pm_block_root *root, unsigned int size);
