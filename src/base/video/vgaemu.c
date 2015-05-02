@@ -949,11 +949,12 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
     if ((unsigned)((page_fault << 12) - vga.mem.graph_base) <
 	vga.mem.graph_size) {	/* unmapped VGA area */
       if (pmode) {
-        u = instr_len((unsigned char *)SEL_ADR(_cs, _eip));
+        u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
+	    dpmi_mhp_get_selector_size(_cs));
         _eip += u;
       }
       else {
-        u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+        u = instr_len(SEG_ADR((unsigned char *), cs, ip), 0);
         LWORD(eip) += u;
       }
       if(u) {
@@ -967,11 +968,12 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
     }
     else if(page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
       if (pmode) {
-        u = instr_len((unsigned char *)SEL_ADR(_cs, _eip));
+        u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
+	    dpmi_mhp_get_selector_size(_cs));
         _eip += u;
       }
       else {
-        u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+        u = instr_len(SEG_ADR((unsigned char *), cs, ip), 0);
         LWORD(eip) += u;
       }
       if(u) {

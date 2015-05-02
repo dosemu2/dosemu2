@@ -639,7 +639,7 @@ unsigned char Herc_get_mode_ctrl(void);
  * Functions defined in env/video/instremu.c.
  */
 
-unsigned instr_len(unsigned char *);
+unsigned instr_len(unsigned char *, int);
 void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt);
 int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
     unsigned int *new_val);

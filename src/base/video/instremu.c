@@ -187,11 +187,11 @@ static unsigned char it[0x100] = {
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-static unsigned seg, osp, asp, lock, rep;
+static unsigned seg, lock, rep;
 static int count;
 static unsigned vga_base, vga_end;
 
-static unsigned arg_len(unsigned char *);
+static unsigned arg_len(unsigned char *, int);
 
 static unsigned char instr_read_byte(const unsigned char *addr);
 static unsigned instr_read_word(const unsigned char *addr);
@@ -241,15 +241,16 @@ static void dump_x86_regs(x86_regs *x86)
  *
  */
 
-unsigned instr_len(unsigned char *p)
+unsigned instr_len(unsigned char *p, int is_32)
 {
-  unsigned u;
+  unsigned u, osp, asp;
   unsigned char *p0 = p;
 #if DEBUG_INSTR >= 1
   unsigned char *p1 = p;
 #endif
 
-  seg = osp = asp = lock = rep = 0;
+  seg = lock = rep = 0;
+  osp = asp = is_32;
 
   for(u = 1; u && p - p0 < 17;) switch(*p++) {		/* get prefixes */
     case 0x26:	/* es: */
@@ -311,19 +312,19 @@ unsigned instr_len(unsigned char *p)
 
     case 7:	/* op-code + mod + ... */
       p++;
-      p += (u = arg_len(p));
+      p += (u = arg_len(p, asp));
       if(!u) p = p0;
       break;
 
     case 8:	/* op-code + mod + ... + byte */
       p++;
-      p += (u = arg_len(p)) + 1;
+      p += (u = arg_len(p, asp)) + 1;
       if(!u) p = p0;
       break;
 
     case 9:	/* op-code + mod + ... + word/dword */
       p++;
-      p += (u = arg_len(p)) + (osp ? 4 : 2);
+      p += (u = arg_len(p, asp)) + (osp ? 4 : 2);
       if(!u) p = p0;
       break;
 
@@ -349,7 +350,7 @@ unsigned instr_len(unsigned char *p)
 }
 
 
-unsigned arg_len(unsigned char *p)
+unsigned arg_len(unsigned char *p, int asp)
 {
   unsigned u = 0, m, s = 0;
 
@@ -2505,7 +2506,7 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
   }
 #endif
   if (i == 0 && !signal_pending()) { /* really an unknown instruction from the beginning */
-    x86.eip += instr_len(MEM_BASE32(x86.cs_base + x86.eip));
+    x86.eip += instr_len(MEM_BASE32(x86.cs_base + x86.eip), x86._32bit);
     if(!x86._32bit)
       x86.eip &= 0xffff;
   }
