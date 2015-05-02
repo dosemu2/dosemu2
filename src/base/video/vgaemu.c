@@ -922,10 +922,14 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   );
 
   if(pmode) {
-#if DEBUG_MAP >= 1
+    dosaddr_t daddr = GetSegmentBase(_cs) + _eip;
     cs_ip = SEL_ADR_CLNT(_cs, _eip);
-#endif
-    vga_deb_map(
+    if (
+	  (cs_ip >= &mem_base[0] && cs_ip < &mem_base[0x110000]) ||
+	  ((uintptr_t)cs_ip > config.dpmi_base &&
+	   (uintptr_t)cs_ip + 20 < config.dpmi_base + config.dpmi * 1024 &&
+	   dpmi_is_valid_range(daddr, 15)))
+     vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
       (unsigned) _cs, (unsigned) _eip,
       cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
