@@ -186,7 +186,11 @@ static Keymap_Scan_Type CTRL[] =
   {"^L", KEY_L | CTRL_MASK },
   {"^Z", KEY_Z | CTRL_MASK },
   {"^X", KEY_X | CTRL_MASK },
+#if 0
   {"^C", KEY_BREAK },
+#else
+  {"^C", KEY_C | CTRL_MASK },
+#endif
   {"^V", KEY_V | CTRL_MASK },
   {"^B", KEY_B | CTRL_MASK },
   {"^N", KEY_N | CTRL_MASK },
