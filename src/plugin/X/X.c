@@ -1713,16 +1713,19 @@ static void *X_handle_events(void *arg)
       usleep(100000);
       continue;
     }
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     /* XNextEvent() is blocking and can therefore be used in a thread
      * without XPending()? No because it locks the display while waiting,
      * so other threads will be blocked too. We still need a manual polling. */
     pend = XPending(display);
     if (!pend) {
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
       usleep(10000);
       continue;
     }
     e = malloc(sizeof(*e));
     XNextEvent(display, e);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     add_thread_callback(_X_handle_events, e, "X events");
   }
   return NULL;
