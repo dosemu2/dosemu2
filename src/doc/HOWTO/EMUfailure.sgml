@@ -268,8 +268,8 @@ that experience a random crashes due to this CPU bug.
 </para>
 
 <para>
-The reliable work-around was developed and added into linux-2.6.12,
-but only for 32-bit systems.
+The reliable work-around was developed and added into linux-2.6.12
+for 32-bit systems, and into linux-3.16 for 64-bit systems.
 </para>
 
 </sect3>
