@@ -198,10 +198,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 /* x386 */
-#define GetSWord(w)	memcpy((w), &mem_base[LONG_SS+sp], 2)
-#define GetSLong(l)	memcpy((l), &mem_base[LONG_SS+sp], 4)
-#define PutSWord(w)	memcpy(&mem_base[LONG_SS+sp], (w), 2)
-#define PutSLong(l)	memcpy(&mem_base[LONG_SS+sp], (w), 4)
+#define GetSWord(w)	memcpy((w), MEM_BASE32(LONG_SS+sp), 2)
+#define GetSLong(l)	memcpy((l), MEM_BASE32(LONG_SS+sp), 4)
+#define PutSWord(w)	memcpy(MEM_BASE32(LONG_SS+sp), (w), 2)
+#define PutSLong(l)	memcpy(MEM_BASE32(LONG_SS+sp), (w), 4)
 
 // returns 1(16 bit), 0(32 bit)
 #define BTA(bpos, mode) (((mode) >> (bpos)) & 1)

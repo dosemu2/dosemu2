@@ -53,6 +53,7 @@ static int video_none_init(void)
 static struct video_system Video_none = {
   i_empty_void,	/* priv_init */
   video_none_init,	/* init */
+  NULL,		/* late_init */
   v_empty_void,	/* close */
   NULL,		/* setmode */
   NULL,	        /* update_screen */
@@ -456,13 +457,14 @@ video_config_init(void) {
 void video_post_init(void)
 {
   scr_state_init();
-  vga_emu_pre_init();
+  if (Video && Video->init)
+    Video->init();
 }
 
 void video_late_init(void)
 {
-  if (Video && Video->init)
-    Video->init();
+  if (Video && Video->late_init)
+    Video->late_init();
 }
 
 /* check whether we are running on the console; initialise

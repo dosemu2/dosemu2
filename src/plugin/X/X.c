@@ -232,10 +232,6 @@
 #include <X11/keysym.h>
 #include <sys/mman.h>           /* root@sjoerd:for mprotect*/
 
-#ifdef HAVE_XVIDMODE
-#include <X11/extensions/xf86vmode.h>
-#endif
-
 #include "emu.h"
 #include "timers.h"
 #include "bios.h"
@@ -249,6 +245,7 @@
 #include "keyb_clients.h"
 #include "X.h"
 #include "dosemu_config.h"
+#include "x_config.h"
 #include "utilities.h"
 #include "dos2linux.h"
 
@@ -256,6 +253,10 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <X11/extensions/XShm.h>
+#endif
+
+#ifdef HAVE_XVIDMODE
+#include <X11/extensions/xf86vmode.h>
 #endif
 
 #ifdef HAVE_DGA
@@ -468,6 +469,7 @@ struct video_system Video_X =
 {
    NULL,
    X_init,
+   NULL,
    X_close,
    X_set_videomode,
    NULL,
@@ -740,6 +742,7 @@ int X_init()
     );
   }
 
+  vga_emu_pre_init();
   register_render_system(&Render_X);
   ret = X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);
@@ -1060,7 +1063,7 @@ static void X_keymap_init()
 
   if(s) X_printf("X: X_keymap_init: X server vendor is \"%s\"\n", s);
   if(config.X_keycode == 2 && s) {	/* auto */
-#if defined(HAVE_XKB)
+#ifdef HAVE_XKB
     /* All I need to know is that I'm using the X keyboard extension */
     config.X_keycode = using_xkb;
 #else
@@ -1075,7 +1078,7 @@ static void X_keymap_init()
       strstr(s, "The XFree86 Project") ||
       strstr(s, "Xi Graphics")
     ) config.X_keycode = 1;
-#endif /* HAVE_UNICODE_KEYB && HAVE_XKB */
+#endif /* HAVE_XKB */
   }
   X_printf(
     "X: X_keymap_init: %susing DOSEMU's internal keycode translation\n",
@@ -1210,9 +1213,7 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
        so we call leavedos() here */
     leavedos(99);
   }
-#ifdef HAVE_MITSHM
   return 0;
-#endif
 }
 
 /*
@@ -1686,6 +1687,15 @@ static int __X_handle_events(XEvent *e)
     return 0;
 }
 
+static void _X_handle_events(void *arg)
+{
+    XEvent *e = arg;
+    int ret = __X_handle_events(e);
+    free(e);
+    if (ret < 0)
+      leavedos(0);
+}
+
 /* all X function, even the "non-blocking" ones like XPending(),
  * actually do a send/receive cycle with X server. If X server lags
  * or remote (or both), these queries takes a lot. So I handle the
@@ -1695,8 +1705,8 @@ static int __X_handle_events(XEvent *e)
  * doesn't seem to need a separate event-handling thread. */
 static void *X_handle_events(void *arg)
 {
-  XEvent e;
-  int ret, pend;
+  XEvent *e;
+  int pend;
   while (1)
   {
     if (!initialized) {
@@ -1713,11 +1723,10 @@ static void *X_handle_events(void *arg)
       usleep(10000);
       continue;
     }
-    XNextEvent(display, &e);
-    ret = __X_handle_events(&e);
-    if (ret < 0)
-      leavedos_from_thread(0);
+    e = malloc(sizeof(*e));
+    XNextEvent(display, e);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    add_thread_callback(_X_handle_events, e, "X events");
   }
   return NULL;
 }
@@ -2426,7 +2435,7 @@ static int X_mouse_init(void)
   if (Video != &Video_X)
     return FALSE;
   mice->type = MOUSE_X;
-  mice->native_cursor = 0;	/* we have the X cursor */
+  mouse_enable_native_cursor(0);
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;
 }

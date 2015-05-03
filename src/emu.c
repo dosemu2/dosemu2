@@ -271,7 +271,9 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
   if (prompt) {
     if (dosboot) {
       p_dos_str("%s", text2);
+      _set_IF();
       com_biosread(buf, sizeof(buf)-2);
+      clear_IF();
     } else {
       fputs(text2, stdout);
       fgets(buf, sizeof(buf), stdin);
@@ -380,7 +382,7 @@ emulate(int argc, char **argv)
     pci_setup();
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
-    signal_pre_init();          /* initialize sig's & sig handlers */
+//    signal_pre_init();          /* initialize sig's & sig handlers */
     SIG_init();			/* Silly Interrupt Generator */
     pkt_priv_init();            /* initialize the packet driver interface */
 
@@ -396,16 +398,6 @@ emulate(int argc, char **argv)
     map_hardware_ram();         /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
-
-    /*
-     * Do the 'liability disclaimer' stuff we need to avoid problems
-     * with laws in some countries.
-     *
-     * show it at the beginning only for terminals and direct console
-     * else the banner code in int.c does it.
-     */
-    if (!config.X)
-	install_dos(0);
 
     /* the following duo have to be done before others who use hlt or coopth */
     hlt_init();
@@ -490,7 +482,6 @@ static void leavedos_thr(void *arg)
 /* "graceful" shutdown */
 void __leavedos(int sig, const char *s, int num)
 {
-    struct itimerval itv;
     int tmp;
     dbug_printf("leavedos(%s:%i|%i) called - shutting down\n", s, num, sig);
     if (in_leavedos)
@@ -505,7 +496,13 @@ void __leavedos(int sig, const char *s, int num)
     }
 
     in_leavedos++;
-    registersig(SIGALRM, NULL);
+    if (fault_cnt > 0)
+      dosemu_error("leavedos() called from within a signal context!\n");
+
+#ifdef USE_MHPDBG
+    /* try to notify dosdebug */
+    mhp_exit_intercept(sig);
+#endif
 
     /* abandon current thread if any */
     coopth_leave();
@@ -520,21 +517,23 @@ void __leavedos(int sig, const char *s, int num)
     coopth_join(ld_tid, vm86_helper);
     coopth_done();
 
-    /* try to notify dosdebug */
+    leavedos_main(sig);
+}
+
+void leavedos_main(int sig)
+{
+    struct itimerval itv;
+
 #ifdef USE_MHPDBG
-    if (fault_cnt > 0)
-      dbug_printf("leavedos() called from within a signal context!\n");
-    else
-      mhp_exit_intercept(sig);
     g_printf("closing debugger pipes\n");
     mhp_close();
 #endif
-
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     }
+    registersig(SIGALRM, NULL);
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"

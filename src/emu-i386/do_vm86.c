@@ -449,6 +449,8 @@ void vm86_helper(void)
 {
   assert(in_dpmi_dos_int);
   _do_vm86();
+  handle_signals();
+  coopth_run();
 }
 
 /*

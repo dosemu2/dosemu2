@@ -164,7 +164,8 @@ static void DOSEMUSetupMouse(void)
 #endif
 }
 
-int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type)
+int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
+	const char *id)
 {
   int                  i, buttons=0, dx=0, dy=0;
   mouse_t             *mice = &config.mouse;
@@ -346,14 +347,17 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type)
 	   break;
 	}
 
-	/*
-	 * talk to int33 explicitly as we dont want to talk
-	 * to for example sermouse.c
-	 */
-	mouse_move_buttons_id(buttons & 0x04, buttons & 0x02, buttons & 0x01,
-		"int33 mouse");
-	mouse_move_mickeys_id(dx, dy, "int33 mouse");
-
+	if (id) {
+	    mouse_move_buttons_id(buttons & 0x04, buttons & 0x02,
+		buttons & 0x01, id);
+	    if (dx || dy)
+		mouse_move_mickeys_id(dx, dy, id);
+	} else {
+	    mouse_move_buttons(buttons & 0x04, buttons & 0x02,
+		buttons & 0x01);
+	    if (dx || dy)
+		mouse_move_mickeys(dx, dy);
+	}
 	pBufP = 0;
 	return (i + 1);
      }	/* assembly full package */
@@ -451,11 +455,10 @@ static void raw_mouse_getevent(void)
 	int nBytes;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, rBuf, MOUSE_BUFFER));
-	if (!mouse.enabled || nBytes <= 0)
+	if (nBytes <= 0)
 	  return;
 	m_printf("MOUSE: Read %d bytes.\n", nBytes);
-	DOSEMUMouseProtocol(rBuf, nBytes, mice->type);
-	pic_request(PIC_IMOUSE);
+	DOSEMUMouseProtocol(rBuf, nBytes, mice->type, NULL);
 }
 
 static void parent_close_mouse (void)
@@ -478,15 +481,14 @@ void mouse_priv_init(void)
       mice->type == MOUSE_SDL)
     return;
 
-      if (!mice->dev || !strlen(mice->dev))
+      /* in non-graphics mode don't steal the device from gpm */
+      if (!mice->dev || !strlen(mice->dev) || !config.vga)
         return;
       stat(mice->dev, &buf);
       if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
 	/* no write permission is necessary for FIFO's (eg., gpm) */
         mode = O_RDONLY | O_NONBLOCK;
       }
-      /* gpm + non-graphics mode doesn't work */
-      if ((!S_ISFIFO(buf.st_mode) || config.vga) && mice->dev)
       {
         PRIV_SAVE_AREA
         enter_priv_on();
@@ -496,18 +498,6 @@ void mouse_priv_init(void)
           error("Cannot open internal mouse device %s\n",mice->dev);
         }
       }
-}
-
-static int parent_open_mouse (void)
-{
-  mouse_t *mice = &config.mouse;
-  if (mice->fd == -1) {
-	mice->intdrv = FALSE;
-	mice->type = MOUSE_NONE;
-	return 0;
-  }
-  add_to_io_select(mice->fd, mouse_io_callback, NULL);
-  return 1;
 }
 
 void freeze_mouse(void)
@@ -533,12 +523,10 @@ static int raw_mouse_init(void)
   mouse_t *mice = &config.mouse;
   struct stat buf;
 
-  if (!mice->intdrv)
-    return FALSE;
-
   m_printf("Opening internal mouse: %s\n", mice->dev);
-  if (!parent_open_mouse())
-    return FALSE;
+  if (mice->fd == -1)
+	return FALSE;
+  add_to_io_select(mice->fd, mouse_io_callback, NULL);
 
   fstat(mice->fd, &buf);
   if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)

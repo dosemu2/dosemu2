@@ -52,7 +52,7 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 	case KEY_DOSEMU_EXIT:
 		if (make) {
 			k_printf("KBD: Ctrl-Alt-PgDn: bye bye!\n");
-			leavedos(0);
+			leavedos_once(0);
 		}
 		break;
 

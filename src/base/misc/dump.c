@@ -157,14 +157,16 @@ show_ints(int min, int max)
 char *DPMI_show_state(struct sigcontext_struct *scp)
 {
     static char buf[4096];
+    int pos = 0;
     unsigned char *csp2, *ssp2;
-    sprintf(buf, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08lx\n"
+    dosaddr_t daddr, saddr;
+    pos += sprintf(buf + pos, "eip: 0x%08x  esp: 0x%08x  eflags: 0x%08lx\n"
 	     "\ttrapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
 	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
-    sprintf(buf, "%sEAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n", buf,
+    pos += sprintf(buf + pos, "EAX: %08x  EBX: %08x  ECX: %08x  EDX: %08x\n",
 	     _eax, _ebx, _ecx, _edx);
-    sprintf(buf, "%sESI: %08x  EDI: %08x  EBP: %08x\n", buf,
+    pos += sprintf(buf + pos, "ESI: %08x  EDI: %08x  EBP: %08x\n",
 	     _esi, _edi, _ebp);
     /* display the 10 bytes before and after CS:EIP.  the -> points
      * to the byte at address CS:EIP
@@ -172,10 +174,12 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
     if (!((_cs) & 0x0004)) {
       /* GTD */
       csp2 = (unsigned char *) _rip - 10;
+      daddr = 0;
     }
     else {
       /* LDT */
       csp2 = SEL_ADR(_cs, _eip) - 10;
+      daddr = GetSegmentBase(_cs) + _eip;
     }
     /* We have a problem here, if we get a page fault or any kind of
      * 'not present' error and then we try accessing the code/stack
@@ -186,41 +190,45 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
 #endif
     {
       int i;
-      sprintf(buf, "%sOPS  : ", buf);
+      pos += sprintf(buf + pos, "OPS  : ");
       if (!(_cs & 0x0004) ||
-	  (csp2 >= &mem_base[0] && csp2 < &mem_base[0x110000]) ||
+	  (csp2 >= &mem_base[0] && csp2 + 20 < &mem_base[0x110000]) ||
 	  ((uintptr_t)csp2 > config.dpmi_base &&
-	   (uintptr_t)csp2 < config.dpmi_base + config.dpmi * 1024)) {
+	   (uintptr_t)csp2 + 20 < config.dpmi_base + config.dpmi * 1024 &&
+	   dpmi_is_valid_range(daddr - 10, 20))) {
 	for (i = 0; i < 10; i++)
-	  sprintf(buf, "%s%02x ", buf, *csp2++);
-	sprintf(buf, "%s-> ", buf);
+	  pos += sprintf(buf + pos, "%02x ", *csp2++);
+	pos += sprintf(buf + pos, "-> ");
 	for (i = 0; i < 10; i++)
-	  sprintf(buf, "%s%02x ", buf, *csp2++);
-	sprintf(buf, "%s\n", buf);
+	  pos += sprintf(buf + pos, "%02x ", *csp2++);
+	pos += sprintf(buf + pos, "\n");
       } else {
-	sprintf(buf, "%sCS:EIP points to invalid memory\n", buf);
+	pos += sprintf(buf + pos, "CS:EIP points to invalid memory\n");
       }
       if (!((_ss) & 0x0004)) {
         /* GDT */
         ssp2 = (unsigned char *) _rsp - 10;
+        saddr = 0;
       }
       else {
         /* LDT */
 	ssp2 = SEL_ADR(_ss, _esp) - 10;
+	saddr = GetSegmentBase(_ss) + _esp;
       }
-      sprintf(buf, "%sSTACK: ", buf);
+      pos += sprintf(buf + pos, "STACK: ");
       if (!(_ss & 0x0004) ||
-	  (ssp2 >= &mem_base[0] && ssp2 < &mem_base[0x110000]) ||
+	  (ssp2 >= &mem_base[0] && ssp2 + 20 < &mem_base[0x110000]) ||
 	  ((uintptr_t)ssp2 > config.dpmi_base &&
-	   (uintptr_t)ssp2 < config.dpmi_base + config.dpmi * 1024)) {
+	   (uintptr_t)ssp2 + 20 < config.dpmi_base + config.dpmi * 1024 &&
+	   dpmi_is_valid_range(saddr - 10, 20))) {
 	for (i = 0; i < 10; i++)
-	  sprintf(buf, "%s%02x ", buf, *ssp2++);
-	sprintf(buf, "%s-> ", buf);
+	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
+	pos += sprintf(buf + pos, "-> ");
 	for (i = 0; i < 10; i++)
-	  sprintf(buf, "%s%02x ", buf, *ssp2++);
-	sprintf(buf, "%s\n", buf);
+	  pos += sprintf(buf + pos, "%02x ", *ssp2++);
+	pos += sprintf(buf + pos, "\n");
       } else {
-	sprintf(buf, "%sSS:ESP points to invalid memory\n", buf);
+	pos += sprintf(buf + pos, "SS:ESP points to invalid memory\n");
       }
     }
 

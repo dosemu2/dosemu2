@@ -205,16 +205,6 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 
     switch (config.chipset) {
       case PLAINVGA: s = "plainvga"; break;
-      case TRIDENT: s = "trident"; break;
-      case ET4000: s = "et4000"; break;
-      case DIAMOND: s = "diamond"; break;
-      case S3: s = "s3"; break;
-      case AVANCE: s = "avance"; break;
-      case ATI: s = "ati"; break;
-      case CIRRUS: s = "cirrus"; break;
-      case MATROX: s = "matrox"; break;
-      case WDVGA: s = "wdvga"; break;
-      case SIS: s = "sis"; break;
 #ifdef USE_SVGALIB
       case SVGALIB: s = "svgalib"; break;
 #endif

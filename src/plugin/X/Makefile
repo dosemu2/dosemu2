@@ -6,22 +6,15 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS)
+ALL_CFLAGS+=$(DL_CFLAGS) -Iinclude $(X_CFLAGS)
 CFILES =
-ifdef X_SUPPORT
 CFILES = X.c screen.c keyb_X.c keyb_X_keycode.c X_keysyms.c X_keymaps.c \
 	X_speaker.c X_font.c
-endif
-
-ALL_CPPFLAGS += $(X_CPPFLAGS) -I$(top_srcdir)/src/env/video
-
-SUBDIR=X
 
 ifdef USE_DL_PLUGINS
-ifdef X_SUPPORT
-all: $(BINPATH)/bin/libplugin_X.so $(LIB)
-endif
+all: $(BINPATH)/bin/libplugin_X.so
 endif
 
 include $(REALTOPDIR)/src/Makefile.common
@@ -30,3 +23,8 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_X.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
+
+realclean::
+	rm -f Makefile.conf config.log config.status include/x_config.h \
+		 include/_x_config.*
+	rm -rf autom4te*.cache

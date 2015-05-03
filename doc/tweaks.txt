@@ -1,0 +1,33 @@
+Known tweaks needed to run programs under dosemu
+     __________________________________________________________________
+
+     * Millenium
+          + Millenium game fails to detect Sound Blaster, unless the SB
+            IRQ is 5
+            Solution: set $_sb_irq=(5). Fortunately this is a default
+            setting, so in most cases you won't care.
+          + Millenium game crashes when entering space combat
+            Solution: to the file 2200gx.exe apply the following patch:
+
+    000030B2: AA 47
+
+     * Screamer
+          + Screamer crashes at startup
+            Solution: you need do update dos4gw that comes with the game,
+            to version 1.97. Or you can use dos32a like this:
+
+    dos32a.exe starth.exe
+
+     * Need For Speed Special Edition
+          + Problems with video clips.
+            Solution: to file nfs.exe apply the following patch:
+
+    000607E6: 00 08
+
+            see here for details
+          + Installer crashes or unstable.
+            Solution: to file infsd.exe apply the following patch:
+
+    0002873E: 7C EB
+
+            see here for details

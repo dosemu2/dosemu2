@@ -1,0 +1,102 @@
+<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+
+<!-- This is the dosemu tweaks SGML source -->
+
+<article>
+
+<artheader>
+
+<title>Known tweaks needed to run programs under dosemu</title>
+
+<para>
+This file lists programs that needs specific tweaks in order to
+run them under dosemu.
+</para>
+
+</abstract>
+
+</artheader>
+
+<itemizedlist>
+<listitem>
+<title>Millenium</title>
+
+<itemizedlist>
+<listitem>
+<para>
+Millenium game fails to detect Sound Blaster, unless the SB IRQ is 5
+</para>
+<para>
+Solution: set $_sb_irq=(5). Fortunately this is a default setting, so
+in most cases you won't care.
+</para>
+</listitem>
+<listitem>
+<para>
+Millenium game crashes when entering space combat
+</para>
+<para>
+Solution: to the file 2200gx.exe apply the following patch:
+<screen>
+000030B2: AA 47
+</screen>
+</para>
+</listitem>
+</itemizedlist>
+
+</listitem>
+<listitem>
+
+<title>Screamer</title>
+<itemizedlist>
+<listitem>
+<para>
+Screamer crashes at startup
+</para>
+<para>
+Solution: you need do update dos4gw that comes with the game, to version 1.97.
+Or you can use dos32a like this:
+<screen>
+dos32a.exe starth.exe
+</screen>
+</para>
+</listitem>
+</itemizedlist>
+
+</listitem>
+<listitem>
+<title>Need For Speed Special Edition</title>
+<itemizedlist>
+<listitem>
+<para>
+Problems with video clips.
+</para>
+<para>
+Solution: to file nfs.exe apply the following patch:
+<screen>
+000607E6: 00 08
+</screen>
+<ulink url="http://www.os2museum.com/wp/need-for-speed-se-video-glitch/">
+see here for details
+</ulink>
+</para>
+</listitem>
+<listitem>
+<para>
+Installer crashes or unstable.
+</para>
+<para>
+Solution: to file infsd.exe apply the following patch:
+<screen>
+0002873E: 7C EB
+</screen>
+<ulink url="https://github.com/stsp/dosemu2/issues/26#issuecomment-98486498">
+see here for details
+</ulink>
+</para>
+</listitem>
+</itemizedlist>
+</listitem>
+
+</itemizedlist>
+</article>

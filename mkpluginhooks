@@ -40,12 +40,22 @@ function restore_enable {
 }
 
 if [ "$1" = 'enable' ]; then
-	shift 
+	shift
 	while [ $# -ge 2 ]; do
 		dir=$1
 		on=$2
 		shift
 		shift
+		if [ "$on" = "yes" -a -f $DESTDIR/$dir/$CONFIGURE ]; then
+			wd=`pwd`
+			cd $DESTDIR/$dir
+			echo "=== configuring in $dir"
+			if ! ./configure ; then
+				echo "Configuration for $dir failed, disabling"
+				on="no"
+			fi
+			cd $wd
+		fi
 		if test -d $SRCDIR/$dir ; then
 			mkdir -p $DESTDIR/$dir/config
 			echo $on > $DESTDIR/$dir/config/plugin_enable

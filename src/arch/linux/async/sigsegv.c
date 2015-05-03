@@ -350,28 +350,11 @@ bad:
     PFLAG(AC);
     dbug_printf("  IOPL: %u\n", (unsigned) ((_eflags & IOPL_MASK) >> 12));
 
-    /* display the 10 bytes before and after CS:EIP.  the -> points
-     * to the byte at address CS:EIP
-     */
-    {
-    unsigned char *csp;
-    int i;
-
-    dbug_printf("OOPS : ");
-    csp = (unsigned char *) _rip - 10;
-    for (i = 0; i < 10; i++)
-      dbug_printf("%02x ", *csp++);
-    dbug_printf("-> ");
-    for (i = 0; i < 10; i++)
-      dbug_printf("%02x ", *csp++);
-    dbug_printf("\n");
-
     show_regs(__FILE__, __LINE__);
 
     fatalerr = 4;
-    exit(fatalerr);		/* shouldn't return */
+    leavedos_main(fatalerr);		/* shouldn't return */
     return 0;
-    }
   }
 }
 
@@ -486,7 +469,6 @@ __attribute__((no_instrument_function))
 void print_exception_info(struct sigcontext_struct *scp)
 {
   int i;
-  unsigned char *csp;
 
   switch(_trapno)
     {
@@ -515,18 +497,27 @@ void print_exception_info(struct sigcontext_struct *scp)
       break;
 
 
-    case 6:
+    case 6: {
+      unsigned char *csp;
+      int ps = getpagesize();
+      unsigned pa = _rip & (ps - 1);
+      int sub = min(pa, 10);
+      int sup = min(ps - pa, 10);
       error("@Invalid opcode\n");
       error("@Opcodes: ");
-      csp = (unsigned char *) _rip - 10;
-      for (i = 0; i < 10; i++)
+      csp = (unsigned char *) _rip - sub;
+      for (i = 0; i < 10 - sub; i++)
+        error("@XX ");
+      for (i = 0; i < sub; i++)
 	error("@%02x ", *csp++);
       error("@-> ");
-      for (i = 0; i < 10; i++)
+      for (i = 0; i < sup; i++)
 	error("@%02x ", *csp++);
+      for (i = 0; i < 10 - sup; i++)
+        error("@XX ");
       error("@\n");
       break;
-
+    }
 
     case 7:
       error("@Coprocessor exception (coprocessor not available)\n");

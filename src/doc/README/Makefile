@@ -1,7 +1,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-DOCSOURCES := README.sgml README-tech.sgml configuration.sgml sound-usage.sgml
+DOCSOURCES := README.sgml
 TXT = $(DOCSOURCES:.sgml=.txt)
 DVI = $(DOCSOURCES:.sgml=.dvi)
 HTML = $(DOCSOURCES:.sgml=.html)

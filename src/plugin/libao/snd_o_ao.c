@@ -66,6 +66,8 @@ static int aosnd_open(void *arg)
     info.bits = 16;
     id = ao_default_driver_id();
     if (id == -1)
+	id = ao_driver_id("alsa");
+    if (id == -1)
 	return 0;
     /* for alsa the default settings are fine, but for pulse we
      * need to manually increase buffer_time to avoid clicks... */

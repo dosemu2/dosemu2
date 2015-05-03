@@ -7,6 +7,8 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
+#include <sys/eventfd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
@@ -35,6 +37,7 @@
 #include "mhpdbg.h"
 #include "utilities.h"
 #include "userhook.h"
+#include "ringbuf.h"
 #include "dosemu_config.h"
 
 #include "keyb_clients.h"
@@ -71,6 +74,11 @@ static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid);
 static void handle_signals_force_leave(int tid);
+static void async_awake(void *arg);
+static int event_fd;
+static struct rng_s cbks;
+#define MAX_CBKS 1000
+static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static struct {
   unsigned long eflags;
@@ -359,6 +367,12 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 
 void leavedos_from_sig(int sig)
 {
+  /* anything more sophisticated? */
+  leavedos_main(sig);
+}
+
+static void leavedos_sig(int sig)
+{
   dbug_printf("Terminating on signal %i\n", sig);
   if (ld_sig) {
     error("leavedos re-entered, exiting\n");
@@ -383,7 +397,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
     _exit(sig);
   }
-  leavedos_from_sig(sig);
+  leavedos_sig(sig);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
   dpmi_iret_setup(scp);
@@ -498,7 +512,6 @@ signal_pre_init(void)
 {
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
-  sigset_t set;
   struct sigaction oldact;
   stack_t ss;
   void *cstack;
@@ -600,17 +613,18 @@ signal_pre_init(void)
   newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
   newsetqsig(SIGCHLD, sig_child);
-  /* unblock SIGIO, SIG_ACQUIRE, SIG_RELEASE */
-  sigemptyset(&set);
-  addset_signals_that_queue(&set);
-  /* dont unblock SIGALRM for now */
-  sigdelset(&set, SIGALRM);
-  sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
 void
 signal_init(void)
 {
+  /* once, signal_pre_init() was called much earlier and signal_late_init()
+   * was called from coopth handlers. I don't remember why this was needed...
+   * So lets gather them here again and see if fomething breaks.
+   * At least I made sure threads are created before signal_init(),
+   * and install_dos() needs to be double-checked. */
+  signal_pre_init();
+
   dosemu_tid = gettid();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
@@ -621,14 +635,20 @@ signal_init(void)
 	handle_signals_force_leave);
   coopth_set_permanent_post_handler(sh_tid, signal_thr_post);
   coopth_set_detached(sh_tid);
+
+  event_fd = eventfd(0, EFD_CLOEXEC);
+  add_to_io_select(event_fd, async_awake, NULL);
+  rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
+
+  signal_late_init();
 }
 
 void signal_late_init(void)
 {
   sigset_t set;
-  /* unblock SIGALRM */
+  /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
   sigemptyset(&set);
-  sigaddset(&set, SIGALRM);
+  addset_signals_that_queue(&set);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
@@ -851,6 +871,7 @@ static void SIGIO_call(void *arg){
 #ifdef __linux__
 static void sigio(struct sigcontext_struct *scp)
 {
+  g_printf("got SIGIO\n");
   e_gen_sigalrm(scp);
   SIGNAL_save(SIGIO_call, NULL, 0, __func__);
   if (in_dpmi && !in_vm86)
@@ -899,9 +920,6 @@ static void sigquit(struct sigcontext_struct *scp)
 
 void do_periodic_stuff(void)
 {
-    if (in_crit_section)
-	return;
-
     check_leavedos();
     handle_signals();
     coopth_run();
@@ -912,4 +930,40 @@ void do_periodic_stuff(void)
 
     if (Video->change_config)
 	update_xtitle();
+}
+
+void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
+{
+  if (cb) {
+    struct callback_s cbk;
+    int i;
+    cbk.func = cb;
+    cbk.arg = arg;
+    cbk.name = name;
+    pthread_mutex_lock(&cbk_mtx);
+    i = rng_put(&cbks, &cbk);
+    g_printf("callback %s added, %i queued\n", name, rng_count(&cbks));
+    pthread_mutex_unlock(&cbk_mtx);
+    if (!i)
+      error("callback queue overflow, %s\n", name);
+  }
+  eventfd_write(event_fd, 1);
+  /* unfortunately eventfd does not support SIGIO :( So we kill ourself. */
+  kill(0, SIGIO);
+}
+
+static void async_awake(void *arg)
+{
+  struct callback_s cbk;
+  int i;
+  eventfd_t val;
+  eventfd_read(event_fd, &val);
+  g_printf("processing %zi callbacks\n", val);
+  do {
+    pthread_mutex_lock(&cbk_mtx);
+    i = rng_get(&cbks, &cbk);
+    pthread_mutex_unlock(&cbk_mtx);
+    if (i)
+      cbk.func(cbk.arg);
+  } while (i);
 }

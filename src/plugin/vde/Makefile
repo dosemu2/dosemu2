@@ -6,13 +6,12 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
-ifdef USE_VDE
 CFILES=vde.c
 ifdef USE_DL_PLUGINS
-all: $(BINPATH)/bin/libplugin_vde.so $(LIB)
-endif
+all: $(BINPATH)/bin/libplugin_vde.so
 endif
 
 include $(REALTOPDIR)/src/Makefile.common

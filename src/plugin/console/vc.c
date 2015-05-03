@@ -53,9 +53,6 @@
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
-#include "s3.h"
-#include "trident.h"
-#include "et4000.h"
 #include "priv.h"
 #include "mapping.h"
 #include "timers.h"
@@ -70,8 +67,8 @@ static int release_perm (void);
 static void SIGRELEASE_call (void *);
 static void SIGACQUIRE_call (void *);
 static int in_vc_call;
-
-static int  color_text;
+static int vc_tid;
+static int color_text;
 
 #define MAXDOSINTS 032
 #define MAXMODES 34
@@ -89,12 +86,17 @@ allow_switch (void)
   scr_state.vt_allow = 1;
 }
 
-static void __SIGACQUIRE_call(void)
+static void __SIGACQUIRE_call(void *arg)
 {
   get_video_ram (WAIT);
   set_dos_video ();
   /*      if (config.vga) dos_unpause(); */
   unfreeze_mouse();
+}
+
+static void vc_switch_done(int tid)
+{
+  in_vc_call--;
 }
 
 static void SIGACQUIRE_call(void *arg)
@@ -108,8 +110,7 @@ static void SIGACQUIRE_call(void *arg)
     coopth_yield();
   }
   in_vc_call++;
-  __SIGACQUIRE_call();
-  in_vc_call--;
+  coopth_start(vc_tid, __SIGACQUIRE_call, NULL);
 }
 
 int dos_has_vt = 1;
@@ -171,7 +172,7 @@ static void set_linux_video (void)
     }
 }
 
-static void __SIGRELEASE_call(void)
+static void __SIGRELEASE_call(void *arg)
 {
   if (scr_state.current == 1)
     {
@@ -219,8 +220,7 @@ static void SIGRELEASE_call(void *arg)
     coopth_yield();
   }
   in_vc_call++;
-  __SIGRELEASE_call();
-  in_vc_call--;
+  coopth_start(vc_tid, __SIGRELEASE_call, NULL);
 }
 
 static int wait_vc_active (void)
@@ -458,6 +458,8 @@ vc_active (void)
 
 void set_vc_screen_page (void)
 {
+  vc_tid = coopth_create("vc switch");
+  coopth_set_permanent_post_handler(vc_tid, vc_switch_done);
   /* okay, if we have the current console, and video ram is mapped.
    * this has to be "atomic," or there is a "race condition": the
    * user may change consoles between our check and our remapping
@@ -484,31 +486,6 @@ get_perm (void)
       if (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 1))
 	{
 	  v_printf ("VGA: can't get I/O permissions \n");
-	  exit (-1);
-	}
-      if ((config.chipset == S3) &&
-	(set_ioperm(0x102, 1, 1) || set_ioperm(0x2ea, 4, 1))) {
-	  v_printf("S3: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == CIRRUS) &&
-	(set_ioperm(0x102, 2, 1) || set_ioperm(0x2ea, 4, 1))) {
-	  v_printf("CIRRUS: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == ATI) &&
-	(set_ioperm(0x102, 1, 1) || set_ioperm(0x1ce, 2, 1) || set_ioperm(0x2ec, 4, 1))) {
-	  v_printf("ATI: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == MATROX) &&
-	(set_ioperm(0x102, 2, 1) || set_ioperm(0x2ea, 4, 1) || set_ioperm(0x3de, 2, 1))) {
-	  v_printf("MATROX: can't get I/O permissions");
-	  exit (-1);
-	}
-      if ((config.chipset == WDVGA) &&
-	(set_ioperm(0x102, 2, 1) || set_ioperm(0x3de, 2, 1))) {
-	  v_printf("WDVGA: can't get I/O permissions");
 	  exit (-1);
 	}
       /* color or monochrome text emulation? */
@@ -563,31 +540,6 @@ static int release_perm (void)
 	  if (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 0))
 	    {
 	      v_printf ("VGA: can't release I/O permissions \n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == S3) &&
-		(set_ioperm(0x102, 1, 0) || set_ioperm(0x2ea, 4, 0))) {
-	      v_printf ("S3: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == CIRRUS) &&
-		(set_ioperm(0x102, 2, 0) || set_ioperm(0x2ea, 4, 0))) {
-	      v_printf ("CIRRUS: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == ATI) &&
-		(set_ioperm(0x102, 1, 0) || set_ioperm(0x1ce, 2, 0) || set_ioperm(0x2ec, 4, 0))) {
-	      v_printf ("ATI: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == MATROX) &&
-		(set_ioperm(0x102, 2, 0) || set_ioperm(0x2ea, 4, 0) || set_ioperm(0x3de, 2, 0))) {
-	      v_printf ("MATROX: can't release I/O permissions\n");
-	      leavedos (-1);
-	    }
-	  if ((config.chipset == WDVGA) &&
-		(set_ioperm(0x102, 2, 0) || set_ioperm(0x3de, 2, 0))) {
-	      v_printf ("WDVGA: can't release I/O permissions\n");
 	      leavedos (-1);
 	    }
 	}

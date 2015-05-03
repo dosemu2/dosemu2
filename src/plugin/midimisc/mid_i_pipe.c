@@ -75,6 +75,7 @@ static void midipipe_done(void)
 {
     if (pipe_fd == -1)
 	return;
+    remove_from_io_select(pipe_fd);
     close(pipe_fd);
     pipe_fd = -1;
 }

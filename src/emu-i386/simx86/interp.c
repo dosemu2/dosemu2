@@ -1504,7 +1504,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				sp -= ds*level;
 				while (--level) {
 					bp -= ds;
-					PUSH(mode, &mem_base[bp]);
+					PUSH(mode, MEM_BASE32(bp));
 				}
 				PUSH(mode, &frm);
 			}
@@ -2117,34 +2117,6 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if ((a>=0x3c0) && (a<=0x3df)) {
-			  switch(a&0x1f) {
-			    // [012.456789a.c.ef....45....a.....]
-			    case 0x00:	/*ATTRIBUTE_INDEX*/
-			    case 0x01:	/*ATTRIBUTE_DATA*/
-			    case 0x02:	/*INPUT_STATUS_0*/
-			    case 0x04:	/*SEQUENCER_INDEX*/
-			    case 0x05:	/*SEQUENCER_DATA*/
-			    case 0x06:	/*DAC_PEL_MASK*/
-			    case 0x07:	/*DAC_STATE*/
-			    case 0x08:	/*DAC_WRITE_INDEX*/
-			    case 0x09:	/*DAC_DATA*/
-			    case 0x0a:	/*FEATURE_CONTROL_R*/
-			    case 0x0c:	/*MISC_OUTPUT_R*/
-			    case 0x0e:	/*GFX_INDEX*/
-			    case 0x0f:	/*GFX_DATA*/
-			    case 0x14:	/*CRTC_INDEX*/
-			    case 0x15:	/*CRTC_DATA*/
-			    case 0x1a:	/*INPUT_STATUS_1*/
-				rAL = VGA_emulate_inb(a);
-				break;
-			    default:
-				e_printf("Bad read from port %x, returning FF\n",a);
-				rAL = 0xFF;
-				break;
-		  	  }
-	  		  PC++; break;
-			}
 #ifdef TRAP_RETRACE
 			if (a==0x3da) {		// video retrace bits
 			    /* bit 0 = DE  bit 3 = VR
@@ -2268,31 +2240,6 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if ((a>=0x3c0) && (a<=0x3df)) {
-			  switch(a&0x1f) {
-			    // [0.2.456789....e.....45...9a.....]
-			    case 0x00:	/*ATTRIBUTE_INDEX*/
-			    case 0x02:	/*MISC_OUTPUT_W*/
-			    case 0x04:	/*SEQUENCER_INDEX*/
-			    case 0x05:	/*SEQUENCER_DATA*/
-			    case 0x06:	/*DAC_PEL_MASK*/
-			    case 0x07:	/*DAC_READ_INDEX*/
-			    case 0x08:	/*DAC_WRITE_INDEX*/
-			    case 0x09:	/*DAC_DATA*/
-			    case 0x0e:	/*GFX_INDEX*/
-			    case 0x0f:	/*GFX_DATA*/
-			    case 0x14:	/*CRTC_INDEX*/
-			    case 0x15:	/*CRTC_DATA*/
-			    case 0x19:  /*COLOR_SELECT*/
-			    case 0x1a:  /*FEATURE_CONTROL_W*/
-				VGA_emulate_outb(a,rAL);
-				break;
-			    default:
-				e_printf("Ignoring write to port %x\n",a);
-				break;
-			  }
-	  		  PC++; break;
-			}
 			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, mode|MBYTE); NewNode=1;
@@ -2318,20 +2265,6 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-			if ((a>=0x3c0) && (a<=0x3de) && (mode & DATA16)) {
-			    switch(a&0x1f) {
-			      // [....456789..........45..........]
-			      case 0x04:	/*SEQUENCER_INDEX*/
-			      case 0x06:	/*DAC_PEL_MASK*/
-			      case 0x08:	/*DAC_WRITE_INDEX*/
-			      case 0x0e:	/*GFX_INDEX*/
-			      case 0x14:	/*CRTC_INDEX*/
-				VGA_emulate_outw(a,rAX);
-				break;
-			      default: e_printf("not emulated EF %x\n",a);
-			    }
-	  		  PC++; break;
-			}
 			if (!test_ioperm(a)) goto not_permitted;
 #ifdef CPUEMU_DIRECT_IO
 			Gen(O_OUTPDX, mode); NewNode=1;
@@ -2911,7 +2844,7 @@ repag0:
 					goto illegal_op;
 				PC++; PC += ModRMSim(PC, mode);
 				edxeax = ((uint64_t)rEDX << 32) | rEAX;
-				m = *(uint64_t*)&mem_base[TheCPU.mem_ref];
+				m = *(uint64_t*)MEM_BASE32(TheCPU.mem_ref);
 				if (edxeax == m)
 				{
 					EFLAGS |= EFLAGS_ZF;
@@ -2921,7 +2854,7 @@ repag0:
 					rEDX = m >> 32;
 					rEAX = m & 0xffffffff;
 				}
-				*(uint64_t*)&mem_base[TheCPU.mem_ref] = m;
+				*(uint64_t*)MEM_BASE32(TheCPU.mem_ref) = m;
 				if (CONFIG_CPUSIM) RFL.valid = V_INVALID;
 				break;
 				}
@@ -2986,7 +2919,7 @@ repag0:
 #else
 		if (debug_level('e')>2) {
 #endif
-		    char *ds = e_emu_disasm(&mem_base[P0],(~basemode&3),ocs);
+		    char *ds = e_emu_disasm(MEM_BASE32(P0),(~basemode&3),ocs);
 		    ocs = TheCPU.cs;
 #ifdef ASM_DUMP
 		    fprintf(aLog,"%s\n",ds);

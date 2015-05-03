@@ -69,6 +69,12 @@ EXTERN int screen_mode;
 /* number of highest vid page - 1 */
 EXTERN int max_page INIT(7);
 
+struct callback_s {
+  void (*func)(void *);
+  void *arg;
+  const char *name;
+};
+
 #if 0
 /*
  * 1) this stuff is unused
@@ -390,11 +396,23 @@ EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void __leavedos(int sig, const char *s, int num);
 #define leavedos(n) __leavedos(n, __func__, __LINE__)
+#define leavedos_once(n) { \
+  static int __left; \
+  if (!__left) { \
+    __left = 1; \
+    leavedos(n); \
+  } \
+}
 EXTERN void leavedos_from_sig(int sig);
 EXTERN void leavedos_from_thread(int code);
+EXTERN void leavedos_main(int sig);
 EXTERN void check_leavedos(void);
-EXTERN void add_to_io_select(int, void(*)(void *), void *);
+EXTERN void add_to_io_select_new(int, void(*)(void *), void *,
+	const char *name);
+#define add_to_io_select(fd, func, arg) \
+	add_to_io_select_new(fd, func, arg, #func)
 EXTERN void remove_from_io_select(int);
+EXTERN void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
 #ifdef __linux__
 EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);

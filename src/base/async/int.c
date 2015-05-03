@@ -400,13 +400,9 @@ int dos_helper(void)
     }
 
   case DOS_HELPER_ASPI_HELPER: {
-#ifdef ASPI_SUPPORT
       A_printf("ASPI: in 0x41 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
            "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
       aspi_helper(HI(ax));
-#else
-      LWORD(eax) = 0;
-#endif
       break;
   }
 

@@ -6,13 +6,12 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS)
-ifdef USE_FLUIDSYNTH
+ALL_CFLAGS+=$(DL_CFLAGS) $(FLUSCFLAGS)
 CFILES = mid_o_flus.c mid_o_file.c
 ifdef USE_DL_PLUGINS
-all: $(BINPATH)/bin/libplugin_fluidsynth.so $(LIB)
-endif
+all: $(BINPATH)/bin/libplugin_fluidsynth.so
 endif
 
 include $(REALTOPDIR)/src/Makefile.common

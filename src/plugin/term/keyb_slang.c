@@ -186,7 +186,11 @@ static Keymap_Scan_Type CTRL[] =
   {"^L", KEY_L | CTRL_MASK },
   {"^Z", KEY_Z | CTRL_MASK },
   {"^X", KEY_X | CTRL_MASK },
+#if 0
   {"^C", KEY_BREAK },
+#else
+  {"^C", KEY_C | CTRL_MASK },
+#endif
   {"^V", KEY_V | CTRL_MASK },
   {"^B", KEY_B | CTRL_MASK },
   {"^N", KEY_N | CTRL_MASK },
@@ -1567,6 +1571,7 @@ static int slang_keyb_init(void)
 
 static void slang_keyb_close(void)
 {
+	remove_from_io_select(keyb_state.kbd_fd);
 	exit_pc_scancode_mode();
 	if (tcsetattr(keyb_state.kbd_fd, TCSAFLUSH, &keyb_state.save_termios) < 0
 	    && errno != EINVAL && errno != ENOTTY) {

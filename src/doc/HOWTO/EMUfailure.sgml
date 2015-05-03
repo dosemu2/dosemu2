@@ -6,17 +6,7 @@
 
 <artheader>
 
-<title>EMUfailure.txt</title>
-
-<author>
-<firstname>Uwe Bonnes (original author), <emphasis remap="bf"><ulink
-url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
->bon@elektron.ikp.physik.th-darmstadt.de</ulink
-></emphasis> </firstname>
-</author>
-
-<pubdate> May 20, 2005 for dosemu 1.3.2 (and possibly earlier
-versions) </pubdate>
+<title>Known dosemu problems</title>
 
 <abstract>
 
@@ -268,8 +258,8 @@ that experience a random crashes due to this CPU bug.
 </para>
 
 <para>
-The reliable work-around was developed and added into linux-2.6.12,
-but only for 32-bit systems.
+The reliable work-around was developed and added into linux-2.6.12
+for 32-bit systems, and into linux-3.16 for 64-bit systems.
 </para>
 
 </sect3>

@@ -170,6 +170,7 @@ static void console_close(void)
 
 static struct video_system Video_console = {
    console_init,
+   NULL,
    console_post_init,
    console_close,
    console_setmode,

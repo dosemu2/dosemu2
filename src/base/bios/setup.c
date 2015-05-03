@@ -116,8 +116,11 @@ static void late_init_post(int tid)
   bios_reset();
   if (initialized)
     return;
+  /* I don't remember why signals should have been initialized so late */
+#if 0
   /* signals should be initialized after everything else */
   signal_late_init();
+#endif
   initialized = 1;
 }
 

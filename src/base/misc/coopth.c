@@ -26,6 +26,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <setjmp.h>
+#include <unistd.h>
+#include <sys/mman.h>
 #include <assert.h>
 #include "emu.h"
 #include "utilities.h"
@@ -51,7 +53,6 @@ struct coopth_thrfunc_t {
 
 struct coopth_thrdata_t {
     int *tid;
-    int attached;
     enum CoopthRet ret;
     void *udata[MAX_UDATA];
     int udata_num;
@@ -60,7 +61,9 @@ struct coopth_thrdata_t {
     struct coopth_thrfunc_t sleep;
     struct coopth_thrfunc_t clnup;
     jmp_buf exit_jmp;
-    int cancelled;
+    int attached:1;
+    int cancelled:1;
+    int left:1;
 };
 
 struct coopth_ctx_handlers_t {
@@ -84,10 +87,10 @@ struct coopth_state_t {
 struct coopth_per_thread_t {
     coroutine_t thread;
     struct coopth_state_t st;
-    int left:1;
     struct coopth_thrdata_t data;
     struct coopth_starter_args_t args;
-    char *stack;
+    void *stack;
+    size_t stk_size;
     Bit16u ret_cs, ret_ip;
     int dbg;
 };
@@ -114,18 +117,23 @@ static struct coopth_t coopthreads[MAX_COOPTHREADS];
 static int coopth_num;
 static int thread_running;
 static int joinable_running;
+static int left_running;
+#define DETACHED_RUNNING (thread_running - joinable_running - left_running)
 static int threads_joinable;
 static int threads_total;
 #define MAX_ACT_THRS 10
 static int threads_active;
 static int active_tids[MAX_ACT_THRS];
 
-static void coopth_callf_chk(struct coopth_t *thr, struct coopth_per_thread_t *pth);
+static void coopth_callf_chk(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth);
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth);
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth);
+static void do_call_post(struct coopth_t *thr,
+	struct coopth_per_thread_t *pth);
 
-#define COOP_STK_SIZE (512 * 1024)
+#define COOP_STK_SIZE() (512 * getpagesize())
 
 void coopth_init(void)
 {
@@ -150,8 +158,10 @@ static void sw_DETACH(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 
 static void sw_LEAVE(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-    coopth_retf(thr, pth);
-    pth->left = 1;
+    if (pth->data.attached)
+	coopth_retf(thr, pth);
+    pth->data.left = 1;
+    do_call_post(thr, pth);
     /* leaving operation is atomic, without a separate entry point
      * but without a DOS context also.  */
     pth->st = ST(RUNNING);
@@ -217,6 +227,15 @@ static enum CoopthRet do_run_thread(struct coopth_t *thr,
     return ret;
 }
 
+static void do_call_post(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+{
+    int i;
+    for (i = 0; i < pth->data.posth_num; i++)
+	pth->data.post[i].func(pth->data.post[i].arg);
+    if (thr->post)
+	thr->post(thr->tid);
+}
+
 static void do_del_thread(struct coopth_t *thr,
 	struct coopth_per_thread_t *pth)
 {
@@ -240,12 +259,8 @@ static void do_del_thread(struct coopth_t *thr,
     }
     threads_total--;
 
-    if (!pth->data.cancelled) {
-	for (i = 0; i < pth->data.posth_num; i++)
-	    pth->data.post[i].func(pth->data.post[i].arg);
-	if (thr->post)
-	    thr->post(thr->tid);
-    }
+    if (!pth->data.cancelled && !pth->data.left)
+	do_call_post(thr, pth);
 }
 
 static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
@@ -296,16 +311,15 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
     return pth;
 }
 
-static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
-  do {
     switch (pth->st.state) {
     case COOPTHS_NONE:
 	error("Coopthreads error switch to inactive thread, exiting\n");
 	leavedos(2);
 	break;
     case COOPTHS_RUNNING: {
-	int jr;
+	int jr, lr;
 	enum CoopthRet tret;
 	/* We have 2 kinds of recursion:
 	 *
@@ -347,9 +361,15 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	jr = joinable_running;
 	if (pth->data.attached)
 	    joinable_running++;
+	lr = left_running;
+	if (pth->data.left) {
+	    assert(!pth->data.attached);
+	    left_running++;
+	}
 	thread_running++;
 	tret = do_run_thread(thr, pth);
 	thread_running--;
+	left_running = lr;
 	joinable_running = jr;
 	if (tret == COOPTH_WAIT && pth->data.attached)
 	    dosemu_sleep();
@@ -377,7 +397,15 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	pth->st.switch_fn(thr, pth);
 	break;
     }
-  } while (pth->st.state == COOPTHS_RUNNING);
+}
+
+static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
+{
+    enum CoopthState state;
+    do {
+	__thread_run(thr, pth);
+	state = pth->st.state;
+    } while (state == COOPTHS_RUNNING);
 }
 
 static void coopth_hlt(Bit32u offs, void *arg)
@@ -503,6 +531,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     int tn;
+
     check_tid(tid);
     thr = &coopthreads[tid];
     assert(thr->tid == tid);
@@ -518,8 +547,21 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     }
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
-    if (thr->cur_thr > thr->max_thr)
+    if (thr->cur_thr > thr->max_thr) {
+	size_t stk_size = COOP_STK_SIZE();
 	thr->max_thr = thr->cur_thr;
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
+	pth->stack = mmap(NULL, stk_size, PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+	if (pth->stack == MAP_FAILED) {
+	    error("Unable to allocate stack\n");
+	    leavedos(21);
+	    return 1;
+	}
+	pth->stk_size = stk_size;
+    }
     pth->data.tid = &thr->tid;
     pth->data.attached = 0;
     pth->data.posth_num = 0;
@@ -527,15 +569,13 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->data.clnup.func = NULL;
     pth->data.udata_num = 0;
     pth->data.cancelled = 0;
+    pth->data.left = 0;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
-    pth->left = 0;
     pth->dbg = LWORD(eax);	// for debug
-    if (!pth->stack)
-	pth->stack = malloc(COOP_STK_SIZE);
     pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
-	    COOP_STK_SIZE);
+	    pth->stk_size);
     if (!pth->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
@@ -544,6 +584,19 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
 	active_tids[threads_active++] = tid;
+    } else if (thr->pth[tn - 1].st.state == COOPTHS_SLEEPING) {
+	static int logged;
+	/* will have problems with wake-up by tid. It is possible
+	 * to do a wakeup-specific lookup, but this is nasty, and
+	 * the recursion itself is nasty too. Lets just print an
+	 * error to force the caller to create a separate thread.
+	 * vc.c does this to not sleep in the sighandling thread.
+	 */
+	if (!logged) {
+	    dosemu_error("thread %s recursed (%i) over sleep\n",
+		    thr->name, thr->cur_thr);
+	    logged = 1;
+	}
     }
     threads_total++;
     if (!thr->detached)
@@ -613,15 +666,11 @@ int coopth_unsafe_detach(int tid)
     return 0;
 }
 
-static int is_main_thr(void)
-{
-    return (co_get_data(co_current()) == NULL);
-}
-
 void coopth_run(void)
 {
     int i;
-    if (!is_main_thr() || thread_running)
+    assert(DETACHED_RUNNING >= 0);
+    if (DETACHED_RUNNING)
 	return;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
@@ -630,8 +679,9 @@ void coopth_run(void)
 	/* only run detached threads here */
 	if (pth->data.attached)
 	    continue;
-	if (pth->left) {
-	    error("coopth: switching to left thread?\n");
+	if (pth->data.left) {
+	    if (!left_running)
+		error("coopth: switching to left thread?\n");
 	    continue;
 	}
 	thread_run(thr, pth);
@@ -827,6 +877,7 @@ static void ensure_single(struct coopth_thrdata_t *thdata)
 	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
 }
 
+/* attach some thread to current context */
 void coopth_attach_to_cur(int tid)
 {
     struct coopth_t *thr;
@@ -874,7 +925,8 @@ void coopth_detach(void)
  * not needed for detached threads at all. While the detached threads
  * has a separate entry point (via coopth_run()), the left thread must
  * not have a separate entry point. So it appeared better to return the
- * special type "left" threads. */
+ * special type "left" threads.
+ * Additionally the leave operation now calls the post handler immediately. */
 void coopth_leave(void)
 {
     struct coopth_thrdata_t *thdata;
@@ -882,14 +934,17 @@ void coopth_leave(void)
        return;
     thdata = co_get_data(co_current());
     ensure_single(thdata);
-    if (!thdata->attached)
+    if (thdata->left)
 	return;
     switch_state(COOPTH_LEAVE);
 }
 
 static void do_awake(struct coopth_per_thread_t *pth)
 {
-    assert(pth->st.state == COOPTHS_SLEEPING);
+    if (pth->st.state != COOPTHS_SLEEPING) {
+	dosemu_error("wakeup on non-sleeping thread %i\n", *pth->data.tid);
+	return;
+    }
     pth->st = SW_ST(AWAKEN);
 }
 
@@ -1017,7 +1072,7 @@ again:
 	int j;
 	for (j = thr->cur_thr; j < thr->max_thr; j++) {
 	    struct coopth_per_thread_t *pth = &thr->pth[j];
-	    free(pth->stack);
+	    munmap(pth->stack, pth->stk_size);
 	}
     }
     co_thread_cleanup();

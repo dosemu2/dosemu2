@@ -75,6 +75,7 @@ struct video_system Video_SDL =
 {
   SDL_priv_init,
   SDL_init,
+  NULL,
   SDL_close,
   SDL_set_videomode,
   SDL_update_screen,
@@ -265,6 +266,7 @@ int SDL_init(void)
     force_grab = 1;
   }
 
+  vga_emu_pre_init();
   pix_fmt = SDL_GetWindowPixelFormat(window);
   if (pix_fmt == SDL_PIXELFORMAT_UNKNOWN) {
     error("SDL: unable to get pixel format\n");
@@ -806,7 +808,7 @@ static int SDL_mouse_init(void)
     return FALSE;
 
   mice->type = MOUSE_SDL;
-  mice->native_cursor = config.X_fullscreen;
+  mouse_enable_native_cursor(config.X_fullscreen);
   /* we have the X cursor, but if we start fullscreen, grab by default */
   m_printf("MOUSE: SDL Mouse being set\n");
   return TRUE;

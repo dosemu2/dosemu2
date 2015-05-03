@@ -148,12 +148,13 @@ if [ -n "$SUDO_GID" ] ; then
 fi
 if [ -n "$USE_SUDO" ] ; then
   SUDO=sudo
+  SUDOOPTS=-E
   # we should not ignore dosemu.conf if invoked via sudo
   IGNORE_DOSEMU_CONF=""
 fi
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG"
+COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then

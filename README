@@ -1,7 +1,4 @@
-DOSEMU2 is a program that allows you to run DOS software under linux.
-
-Please refer to the NEWS file to read about recent user-visible
-changes.
+DOSEMU2 is a virtual machine that allows you to run DOS software under linux.
 
 How to set up DOSEMU2:
 * Installation from source:
@@ -9,54 +6,5 @@ How to set up DOSEMU2:
 * Installation of the ready to use binary distribution (stable versions only):
   please refer to the file README.bindist
 
-Something's not right!!!
---------------------------------------------------------------------------
-
 - Please send bug reports to
   https://github.com/stsp/dosemu2/issues
-  Don't forget to attach the needed logs (see "man dosemu.bin" for
-  logging option).
-
-  For general discussion on dosemu use the mailing list
-  linux-msdos@vger.kernel.org
-
-Available documentation -- mostly somewhat outdated :(
---------------------------------------------------------------------------
-
-You can just execute ./ViewDocs to read the docs.
-                     ==========
-
-./README.bindist
-	Describes the ready-to-use DOSEMU binary distribution, which
-	frees you from all bothering about compilation, installation
-	and configuration ... just _use_ it.
-./doc/dosemu-HOWTO.txt
-	This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
-	but still very helpful.  (Read this file first, however.)
-./ChangeLog
-	This is a log file of progress that have been done on
-	DOSEMU since previous versions.
-./doc/DANG.txt
-	The Dosemu Alterer Novice's Guide, for interested hackers
-	and programmers alike, if they want to look at the internals
-	of DOSEMU and how it works.
-./man/dosemu.bin.1
-	This is the 'lowlevel' DOSEMU man page.
-./man/dosemu.1
-	This is the DOSEMU man page of the wrapper script.
-./man/mkfatimage16.1
-	This describes how to create (empty) hdimages of various sizes.
-./doc/announce
-	The announcement textfile for DOSEMU.
-./doc/README.txt
-	Readme file for various applications and general purpose settings.
-./doc/README-tech.txt
-	Readme file for various technical details and settings.
-./doc/configuration.txt
-	How to use the menu driven configuration tools
-
-
-----------
-
-Many thanks to all involved, including all those who submitted debug
-output for our viewing pleasure, keep it coming.

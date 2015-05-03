@@ -150,12 +150,16 @@ struct mouse_client {
   void   (*close)(void);
   void   (*run)(void);         /* handle mouse events */
   void   (*set_cursor)(int action, int mx, int my, int x_range, int y_range);
-  struct mouse_client *next;
+  void   (*post_init)(void);
 };
 
 void register_mouse_client(struct mouse_client *mouse);
+void mouse_client_set_cursor(int action, int mx, int my, int x_range,
+	int y_range);
+void mouse_client_run(void);
+void mouse_client_close(void);
+void mouse_client_post_init(void);
 
-extern struct mouse_client *Mouse;
 extern struct mouse_client Mouse_raw;
 
 #include "keyboard.h"
@@ -173,11 +177,10 @@ extern void dosemu_mouse_close(void);
 extern void freeze_mouse(void);
 extern void unfreeze_mouse(void);
 extern void mouse_post_boot(void);
-extern int com_mouse_post_init(void);
 extern void int74(void);
 
-extern int DOSEMUMouseEvents(int);
-int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type);
+int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
+	const char *id);
 
 extern void mouse_io_callback(void *);
 
@@ -194,13 +197,6 @@ struct mouse_drv {
   char *name;
 };
 
-struct mouse_drv_wrp {
-  struct mouse_drv *drv;
-  struct mouse_drv_wrp *next;
-  void *udata;
-  int initialized;
-};
-
 void register_mouse_driver(struct mouse_drv *mouse);
 void mousedrv_set_udata(const char *name, void *udata);
 
@@ -215,6 +211,7 @@ void mouse_enable_native_cursor(int flag);
 void mouse_move_buttons_id(int lbutton, int mbutton, int rbutton,
 	const char *id);
 void mouse_move_mickeys_id(int dx, int dy, const char *id);
+void mouse_enable_native_cursor_id(int flag, const char *id);
 int mousedrv_accepts(const char *id);
 
 #endif /* MOUSE_H */

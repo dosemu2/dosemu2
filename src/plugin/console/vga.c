@@ -23,25 +23,19 @@
 #include "vc.h"
 #include "vga.h"
 #include "termio.h"
-
-#include "et4000.h"
-#include "s3.h"
-#include "ati.h"
-#include "trident.h"
-#include "avance.h"
-#include "cirrus.h"
-#include "matrox.h"
-#include "wdvga.h"
-#include "sis.h"
+#include "timers.h"
 #include "vbe.h"
 #include "pci.h"
 #include "mapping.h"
+#include "utilities.h"
 #ifdef USE_SVGALIB
-#include "svgalib.h"
+#include <dlfcn.h>
+#include "../svgalib/svgalib.h"
 #endif
 
 #define PLANE_SIZE (64*1024)
 
+static int vga_init(void);
 static int vga_post_init(void);
 static struct video_system *Video_console;
 
@@ -253,6 +247,12 @@ struct vmem_chunk {
 };
 static struct vmem_chunk vmem_chunk_thr;
 
+static void vmemcpy_done(void *arg)
+{
+  int tid = (long)arg;
+  coopth_wake_up(tid);
+}
+
 static void *vmemcpy_thread(void *arg)
 {
   struct vmem_chunk *vmc = arg;
@@ -262,7 +262,7 @@ static void *vmemcpy_thread(void *arg)
       MEMCPY_2DOS(vmc->vmem, vmc->mem, vmc->len);
     else
       MEMCPY_2UNIX(vmc->mem, vmc->vmem, vmc->len);
-    coopth_wake_up(vmc->ctid);
+    add_thread_callback(vmemcpy_done, (void*)(long)vmc->ctid, "vmemcpy");
   }
   return NULL;
 }
@@ -282,19 +282,6 @@ static void store_vga_mem(u_char * mem, int banks)
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
-  else if (config.chipset == ET4000) {
-/*
- * The following is from the X files
- * we need this here , cause we MUST disable the ROM SYNC feature
-*/
-    u_char temp1;
-
-    port_out(0x34, CRT_I);
-    temp1 = port_in(CRT_D);
-    port_out(temp1 & 0x0F, CRT_D);
-    port_in(0x3cd);
-    port_out(0x00, 0x3cd);
-  }
   planar = 1;
   if (vmem != GRAPH_BASE) {
     planar = 0;
@@ -344,9 +331,6 @@ static void store_vga_mem(u_char * mem, int banks)
     }
   }
   v_printf("GRAPH_BASE to mem complete!\n");
-  if (config.chipset == ET4000) {
-    port_out(0x00, 0x3cd);
-  }
 }
 
 /* Restore EGA/VGA display planes (4) */
@@ -358,8 +342,6 @@ static void restore_vga_mem(u_char * mem, int banks)
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
-  else if (config.chipset == ET4000)
-    port_out(0x00, 0x3cd);
   planar = 1;
   if (vmem != GRAPH_BASE) {
     planar = 0;
@@ -544,33 +526,36 @@ static void pcivga_init(void)
   }
 }
 
+static int vga_ioperm(unsigned base, int len)
+{
+  emu_iodev_t io_device;
+  int err;
+  err = set_ioperm(base, len, 1);
+  if (err)
+    error("ioperm() %x,%i failed\n", base, len);
+  /* even if ioperm failed, we register handler that will forward
+   * the requests to portserver */
+  io_device.irq = EMU_NO_IRQ;
+  io_device.fd = -1;
+  io_device.handler_name = "std port io";
+  io_device.start_addr = base;
+  io_device.end_addr = base + len - 1;
+  return port_register_handler(io_device, PORT_FAST);
+}
+
 static void set_console_video(void)
 {
   /* warning! this must come first! the VT_ACTIVATES which some below
      * cause set_dos_video() and set_linux_video() to use the modecr
      * settings.  We have to first find them here.
      */
-  int permtest;
+  int permtest = 0;
 
-  permtest = set_ioperm(0x3d4, 2, 1);	/* get 0x3d4 and 0x3d5 */
-  permtest |= set_ioperm(0x3da, 1, 1);
-  permtest |= set_ioperm(0x3c0, 2, 1);	/* get 0x3c0 and 0x3c1 */
-  if ((config.chipset == S3) ||
-      (config.chipset == CIRRUS) ||
-      (config.chipset == WDVGA) ||
-      (config.chipset == MATROX)) {
-    permtest |= set_ioperm(0x102, 2, 1);
-    permtest |= set_ioperm(0x2ea, 4, 1);
+  if (config.mapped_bios) {
+	permtest |= vga_ioperm(0x3b4, 0x3bc - 0x3b4 + 1);
+	permtest |= vga_ioperm(0x3c0, 0x3df - 0x3c0 + 1);
   }
-  if (config.chipset == ATI) {
-    permtest |= set_ioperm(0x102, 1, 1);
-    permtest |= set_ioperm(0x1ce, 2, 1);
-    permtest |= set_ioperm(0x2ec, 4, 1);
-  }
-  if ((config.chipset == MATROX) ||
-      (config.chipset == WDVGA)) {
-    permtest |= set_ioperm(0x3de, 2, 1);
-  }
+  permtest |= vga_ioperm(0x3bf, 1);
 }
 
 static int vga_initialize(void)
@@ -602,46 +587,20 @@ static int vga_initialize(void)
     v_printf("Plain VGA in use\n");
     /* no special init here */
     break;
-  case TRIDENT:
-    vga_init_trident();
-    v_printf("Trident CARD in use\n");
-    break;
-  case ET4000:
-    vga_init_et4000();
-    v_printf("ET4000 CARD in use\n");
-    break;
-  case S3:
-    vga_init_s3();
-    v_printf("S3 CARD in use\n");
-    break;
-  case AVANCE:
-    vga_init_avance();
-    v_printf("Avance Logic CARD in use\n");
-    break;
-  case ATI:
-    vga_init_ati();
-    v_printf("ATI CARD in use\n");
-    break;
-  case CIRRUS:
-    vga_init_cirrus();
-    v_printf("Cirrus CARD in use\n");
-    break;
-  case MATROX:
-    vga_init_matrox();
-    v_printf("Matrox CARD in use\n");
-    break;
-  case WDVGA:
-    vga_init_wd();
-    v_printf("Paradise CARD in use\n");
-    break;
-  case SIS:
-    vga_init_sis();
-    v_printf("SIS CARD in use\n");
-    break;
   case SVGALIB:
 #ifdef USE_SVGALIB
-    vga_init_svgalib();
+  {
+    void *handle = load_plugin("svgalib");
+    void (*init_svgalib)(void);
+    if (!handle) {
+	error("svgalib unavailable\n");
+	config.exitearly = 1;
+	break;
+    }
+    init_svgalib = dlsym(handle, "vga_init_svgalib");
+    init_svgalib();
     v_printf("svgalib handles the graphics\n");
+  }
 #else
     error("svgalib support is not compiled in, \"plainvga\" will be used.\n");
 #endif
@@ -695,6 +654,7 @@ static void vga_close(void)
 
 static struct video_system Video_graphics = {
    vga_initialize,
+   vga_init,
    vga_post_init,
    vga_close,
    NULL,
@@ -705,111 +665,18 @@ static struct video_system Video_graphics = {
    .name = "graphics"
 };
 
-#if 0
-/* Store current actuall EGA/VGA regs */
-static void dump_video_regs(void)
-{
-  int i;
-
-  emu_video_retrace_off();
-  /* save VGA registers */
-  v_printf("CRT=");
-  for (i = 0; i < CRT_C; i++) {
-    port_out(i, CRT_I);
-    v_printf("%02x ", (u_char) port_in(CRT_D));
-  }
-  v_printf("\n");
-  v_printf("ATT=");
-  for (i = 0; i < ATT_C; i++) {
-    port_in(IS1_R);
-    port_out(i, ATT_IW);
-    v_printf("%02x ", (u_char) port_in(ATT_R));
-  }
-  v_printf("\n");
-  v_printf("GRA=");
-  for (i = 0; i < GRA_C; i++) {
-    port_out(i, GRA_I);
-    v_printf("%02x ", (u_char) port_in(GRA_D));
-  }
-  v_printf("\n");
-  v_printf("SEQ=");
-  for (i = 0; i < SEQ_C; i++) {
-    port_out(i, SEQ_I);
-    v_printf("%02x ", (u_char) port_in(SEQ_D));
-  }
-  v_printf("\n");
-  v_printf("MIS=0x%02x\n", (u_char) port_in(MIS_R));
-
-  /* et4000 regs should be added here .... :-) */
-  if (config.chipset == TRIDENT) {
-    trident_set_old_regs();
-    port_out(0x0c, SEQ_I);
-    v_printf("0C=0x%02x ", (u_char) port_in(SEQ_D));
-    port_out(0x0d, SEQ_I);
-    v_printf("0D=0x%02x ", (u_char) port_in(SEQ_D));
-    port_out(0x0e, SEQ_I);
-    v_printf("0E=0x%02x ", (u_char) port_in(SEQ_D));
-    trident_set_new_regs();
-    port_out(0x0d, SEQ_I);
-    v_printf("0D=0x%02x ", (u_char) port_in(SEQ_D));
-    port_out(0x0e, SEQ_I);
-    v_printf("0E=0x%02x ", (u_char) port_in(SEQ_D));
-    port_out(0x0f, SEQ_I);
-    v_printf("0F=0x%02x ", (u_char) port_in(SEQ_D));
-    port_out(0x1e, CRT_I);
-    v_printf("CRT 1E=0x%02x ", (u_char) port_in(CRT_D));
-    port_out(0x1f, CRT_I);
-    v_printf("CRT 1F=0x%02x ", (u_char) port_in(CRT_D));
-    port_out(0x0f, GRA_I);
-    v_printf("GRA 0F=0x%02x\n", (u_char) port_in(GRA_D));
-  }
-  else if (config.chipset == ET4000) {
-    v_printf("ET4000 port 0x3c3=0x%02x\n", (u_char) port_in(0x3c3));
-    v_printf("ET4000 port 0x3cd=0x%02x\n", (u_char) port_in(0x3cd));
-    port_out(0x24, CRT_I);
-    v_printf("ET4000 CRT 0x24  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x32, CRT_I);
-    v_printf("ET4000 CRT 0x32  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x33, CRT_I);
-    v_printf("ET4000 CRT 0x33  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x34, CRT_I);
-    v_printf("ET4000 CRT 0x34  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x35, CRT_I);
-    v_printf("ET4000 CRT 0x35  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x36, CRT_I);
-    v_printf("ET4000 CRT 0x36  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x37, CRT_I);
-    v_printf("ET4000 CRT 0x37  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x3f, CRT_I);
-    v_printf("ET4000 CRT 0x3f  =0x%02x\n", (u_char) port_in(CRT_D));
-    port_out(0x6, SEQ_I);
-    v_printf("ET4000 SEQ 0x06  =0x%02x\n", (u_char) port_in(SEQ_D));
-    port_out(0x7, SEQ_I);
-    v_printf("ET4000 SEQ 0x07  =0x%02x\n", (u_char) port_in(SEQ_D));
-    port_in(IS1_R);
-    port_out(0x16, ATT_IW);
-    v_printf("ET4000 ATT 0x16  =0x%02x\n", (u_char) port_in(ATT_R));
-    v_printf("ET4000 port 0x3cb=0x%02x\n", (u_char) port_in(0x3cb));
-    v_printf("ET4000 port 0x3d8=0x%02x\n", (u_char) port_in(0x3d8));
-    v_printf("ET4000 port 0x3bf=0x%02x\n", (u_char) port_in(0x3bf));
-    port_out(0xd, GRA_I);
-    v_printf("ET4000 GRA 0x0d  =0x%02x\n", (u_char) port_in(GRA_D));
-    port_out(0xe, GRA_I);
-    v_printf("ET4000 GRA 0x0e  =0x%02x\n", (u_char) port_in(GRA_D));
-  }
-  emu_video_retrace_on();
-}
-#endif
-
 /* init_vga_card - Initialize a VGA-card */
-
-static int vga_post_init(void)
+static int vga_init(void)
 {
   sem_init(&cpy_sem, 0, 0);
   pthread_create(&cpy_thr, NULL, vmemcpy_thread, &vmem_chunk_thr);
+  return 0;
+}
 
+static int vga_post_init(void)
+{
   /* this function initialises vc switch routines */
-  Video_console->init();
+  Video_console->late_init();
 
   if (!config.mapped_bios) {
     error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");

@@ -88,7 +88,7 @@ static void r_munprotect(unsigned int addr, unsigned int len, unsigned char *eip
 	if (debug_level('e')>3)
 	    dbug_printf("\tR_MUNPROT %08x:%08x %s\n",
 		addr,addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
-	if (LINEAR2UNIX(addr) != &mem_base[addr] && !e_querymark(addr, len))
+	if (LINEAR2UNIX(addr) != MEM_BASE32(addr) && !e_querymark(addr, len))
 		return;
 	InvalidateNodePage(addr,len,eip,NULL);
 	e_resetpagemarks(addr,len);
@@ -156,7 +156,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 		}
 		if (EFLAGS & EFLAGS_DF) source -= len;
 		else source += len;
-		stack->esi = &mem_base[source];
+		stack->esi = MEM_BASE32(source);
 	}
 	else { /* stos */
 		unsigned int eax = stack->eax;
@@ -175,7 +175,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	}
 	if (EFLAGS & EFLAGS_DF) addr -= len;
 	else addr += len;
-	stack->edi = &mem_base[addr];
+	stack->edi = MEM_BASE32(addr);
 	stack->ecx = ecx;
 }
 

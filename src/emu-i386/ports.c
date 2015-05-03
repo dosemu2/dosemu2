@@ -69,18 +69,6 @@ static const char *crit_sect_caller;
 #define EMU_HANDLER(port)	port_handler[port_handle_table[(Bit16u)(port)]]
 enum{TYPE_INB, TYPE_OUTB, TYPE_INW, TYPE_OUTW, TYPE_IND, TYPE_OUTD, TYPE_PCI, TYPE_EXIT};
 
-/* any user or system device which creates a new handle can't be later
- * remapped by extra_port_init()
- */
-static void SET_HANDLE_COND(int p, int h)
-{
-  if (port_handle_table[(p)] < STD_HANDLES)
-	port_handle_table[(p)]=(h);
-  else
-	i_printf("PORT: %#x can't be mapped to handle %#x(%#x)\n",
-	  p,h,port_handle_table[(p)]);
-}
-
 /* ---------------------------------------------------------------------- */
 /* PORT TRACING								  */
 
@@ -954,69 +942,10 @@ static void port_server(void)
  */
 int extra_port_init(void)
 {
-  int i, j;
+  int i;
 /*
  * DANG_FIXTHIS This stuff should be moved to video code!!
  */
-	if (config.chipset == ATI) {	/* taken literally! */
-		SET_HANDLE(0x46e8,HANDLE_STD_IO);
-		for (i=0x400; i<0x10000; i+=0x400) {
-			SET_HANDLE(i+0x102,HANDLE_STD_IO);
-			SET_HANDLE(i+0x1ce,HANDLE_STD_IO);
-			SET_HANDLE(i+0x1cf,HANDLE_STD_IO);
-			for (j=0; j<4; j++)
-				SET_HANDLE(i+j+0x2ec,HANDLE_STD_IO);
-			SET_HANDLE(i+0x3b4,HANDLE_STD_IO);
-			SET_HANDLE(i+0x3b5,HANDLE_STD_IO);
-			for (j=0; j<4; j++)
-				SET_HANDLE(i+j+0x3b8,HANDLE_STD_IO);
-			for (j=0; j<11; j++)
-				SET_HANDLE(i+j+0x3c0,HANDLE_STD_IO);
-			SET_HANDLE(i+0x3cc,HANDLE_STD_IO);
-			SET_HANDLE(i+0x3ce,HANDLE_STD_IO);
-			SET_HANDLE(i+0x3cf,HANDLE_STD_IO);
-			SET_HANDLE(i+0x3d4,HANDLE_STD_IO);
-			SET_HANDLE(i+0x3d5,HANDLE_STD_IO);
-			for (j=0; j<5; j++)
-				SET_HANDLE(i+j+0x3d8,HANDLE_STD_IO);
-		}
-	}
-	if (config.chipset == WDVGA) {
-		SET_HANDLE(0x46e8,HANDLE_STD_IO);
-		SET_HANDLE(0x4ae8,HANDLE_STD_IO);
-		SET_HANDLE(0xe92,HANDLE_STD_IO);	/* ??? */
-		SET_HANDLE(0xef2,HANDLE_STD_IO);	/* ??? */
-		SET_HANDLE(0xa875,HANDLE_STD_IO);	/* ??? */
-		for (i=0x2df0; i<0x2df4; i++)
-			SET_HANDLE(i,HANDLE_STD_IO);
-	}
-	if ((config.chipset == DIAMOND) ||	/* the DIAMOND bug */
-	    (config.chipset == WDVGA)) {
-		for (i=0x23c0; i<0x23d0; i++)
-			SET_HANDLE(i,HANDLE_STD_IO);
-	}
-
-	if (v_8514_base) {
-		for (i=v_8514_base+0x400; i<0x10000; i+=0x400) {
-			SET_HANDLE_COND(i,HANDLE_STD_IO);
-			SET_HANDLE_COND(i+1,HANDLE_STD_IO);
-		}
-	}
-	if (config.chipset && config.mapped_bios) {
-		for (i=0x3b4; i<0x3bc; i++)
-			SET_HANDLE_COND(i,HANDLE_VID_IO);
-		for (i=0x3c0; i<0x3df; i++)
-			SET_HANDLE_COND(i,HANDLE_VID_IO);
-	}
-	if (config.vga) {
-	  SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
-	  SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
-	  SET_HANDLE_COND(0x3c0,HANDLE_SPECIAL);	/* W */
-	  SET_HANDLE_COND(0x3ba,HANDLE_SPECIAL);		/* R */
-	  SET_HANDLE_COND(0x3da,HANDLE_SPECIAL);		/* R */
-	  SET_HANDLE_COND(0x3db,HANDLE_SPECIAL);		/* R */
-	}
-
 	if (portlog_map) {
 	    /* switch off ioperm for $_ports that are traced and not forced fast */
 	    for (i = 0; i < sizeof(port_handle_table); i++) {

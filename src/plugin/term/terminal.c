@@ -390,6 +390,7 @@ static int terminal_initialize(void)
    struct termios buf;
 
    v_printf("VID: terminal_initialize() called \n");
+   vga_emu_pre_init();
 
    /* This maps (r,g,b) --> (b,g,r) */
    rotate[0] = 0; rotate[1] = 4;
@@ -513,6 +514,7 @@ static void terminal_close (void)
    if (Slsmg_is_not_initialized == 0)
      {
 	SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
+	SLtt_set_cursor_visibility(1);
 	SLsmg_refresh ();
 	SLsmg_reset_smg ();
 	putc ('\n', stdout);
@@ -846,6 +848,7 @@ static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last,
 static struct video_system Video_term = {
    NULL,
    terminal_initialize,
+   NULL,
    terminal_close,
    term_setmode,
    slang_update,

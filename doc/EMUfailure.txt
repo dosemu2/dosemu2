@@ -1,17 +1,12 @@
-
-EMUfailure.txt
-
-Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
-
-   May 20, 2005 for dosemu 1.3.2 (and possibly earlier versions)
+Known dosemu problems
 
    This file lists programs and groups of programs not running or running
    only partially under dosemu. The most up-to-date version of this file
    may be found on: http://www.dosemu.org/. Please report about possible
    additions to linux-msdos@vger.kernel.org or the SourceForge BTS at
-   http://www.dosemu.org/. Perhaps your program can be made going with
-   the help of others. Have a look at the dosemu-howto how to do so.
-     _________________________________________________________________
+   http://www.dosemu.org/. Perhaps your program can be made going with the
+   help of others. Have a look at the dosemu-howto how to do so.
+     __________________________________________________________________
 
    Table of Contents
    1. Fundamental problems
@@ -43,27 +38,27 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    problems result in these programs not being runnable on
    Win3.x/Win95/WinNT and under OS/2 DOS box either. These programs are
    characterized by using any of these features:
-     _________________________________________________________________
+     __________________________________________________________________
 
 1.1. Virtual Control Program Interface (VCPI)
 
-   VCPI allows programs to run in ring 0. This is kernel mode in Linux
-   and not sensible.
+   VCPI allows programs to run in ring 0. This is kernel mode in Linux and
+   not sensible.
 
    Example: sim2181.exe from Analog Devices DSP Kit
-     _________________________________________________________________
+     __________________________________________________________________
 
 1.2. Programs using older versions of the Pharlap Extender
 
    Older versions of the Pharlap Extender (run286) need ring-0 access
    under DOSEMU to install their own DPMI server. The use of proprietary
-   undocumented extensions to the DPMI protocol makes DOSEMU's DPMI
-   server unsuitable for this extender.
+   undocumented extensions to the DPMI protocol makes DOSEMU's DPMI server
+   unsuitable for this extender.
 
    Example: Autocad Version 12c1 For DOS
 
    Example: the game BioForge by Origin Systems.
-     _________________________________________________________________
+     __________________________________________________________________
 
 1.3. Programs using the JEMM memory manager
 
@@ -71,13 +66,13 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    protocol. These are not supported by DOSEMU.
 
    Example: Wing Commander Privateer by Origin Systems
-     _________________________________________________________________
+     __________________________________________________________________
 
 1.4. Does my failing program belong to these groups?
 
    Check with "strings <program.exe> | less" if the program contains some
    of these keywords: vcpi, RUN286.
-     _________________________________________________________________
+     __________________________________________________________________
 
 1.5. Fundamental problem with the Linux kernel
 
@@ -86,9 +81,9 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    100Hz (2.6 kernels can set it to 1KHz) and doesn't allow the software
    to change that. This limits the minimal interval between subsequent
    SIGALRM notifications for software that uses the setitimer(2) syscall.
-   To emulate the PIT frequencies that are higher than the frequency
-   Linux sets the PIT to, dosemu uses "interrupt bursts": on every
-   SIGALRM reception dosemu triggers the timer interrupt as many times as
+   To emulate the PIT frequencies that are higher than the frequency Linux
+   sets the PIT to, dosemu uses "interrupt bursts": on every SIGALRM
+   reception dosemu triggers the timer interrupt as many times as
    necessary to compensate the gap since the previous SIGALRM reception.
    This allows to keep a precise timing but causes problems for some
    programs. When the timer interrupt handler is invoked more than once
@@ -103,24 +98,24 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    a real system.
 
    Possibly a workaround may be found in future DOSEMU versions.
-     _________________________________________________________________
+     __________________________________________________________________
 
 1.6. Fundamental problems with the CPU
 
-   There are several defects in Intel's x86 CPUs that are causing
-   problems for some software. Below is a description of the defects that
-   are known to cause problems for software running under dosemu.
-     _________________________________________________________________
+   There are several defects in Intel's x86 CPUs that are causing problems
+   for some software. Below is a description of the defects that are known
+   to cause problems for software running under dosemu.
+     __________________________________________________________________
 
 1.6.1. Problem with the virtualization of the IF flag
 
    Intel's manual
    http://www.intel.com/design/intarch/techinfo/pentium/inout.htm says:
 
-   " A procedure may use the POPF instruction to change the setting of
-   the IF flag only if the CPL is less than or equal to the current IOPL.
-   An attempt by a less privileged procedure to change the IF flag does
-   not result in an exception; the IF flag simply remains unchanged. "
+   " A procedure may use the POPF instruction to change the setting of the
+   IF flag only if the CPL is less than or equal to the current IOPL. An
+   attempt by a less privileged procedure to change the IF flag does not
+   result in an exception; the IF flag simply remains unchanged. "
 
    The fact that the exception is not being generated, prevents dosemu
    from catching and properly simulating the POPF instruction executed in
@@ -143,12 +138,12 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    disabled for too long in protected mode. Additionally the address of
    the instruction that disabled the interrupts, is added to a black-list
    and this instruction is ignored for subsequent passes so that it can't
-   disable the interrupts any more. This is potentially unsafe, but if
-   the timeout is long enough, no harm was observed so far. The timeout
-   is configured via the $_cli_timeout option, which is measured in a
-   10ms timer ticks. Setting that option to 0 disables the workaround
+   disable the interrupts any more. This is potentially unsafe, but if the
+   timeout is long enough, no harm was observed so far. The timeout is
+   configured via the $_cli_timeout option, which is measured in a 10ms
+   timer ticks. Setting that option to 0 disables the workaround
    completely, making Doom2 unplayable with sound enabled.
-     _________________________________________________________________
+     __________________________________________________________________
 
 1.6.2. ESP register corruption
 
@@ -159,8 +154,8 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
    "ISSUE: When a 32-bit IRET is used to return to another privilege
    level, and the old level uses a 4G stack (D/B bit in the segment
-   register = 1), while the new level uses a 64k stack (D/B bit = 0),
-   then only the lower word of ESP is updated. The upper word remains
+   register = 1), while the new level uses a 64k stack (D/B bit = 0), then
+   only the lower word of ESP is updated. The upper word remains
    unchanged. This is fine for pure 16-bit code, as well as pure 32-bit
    code. However, when 32-bit interrupt handlers are present, 16-bit code
    should avoid any dependence on the upper word of ESP. No changes are
@@ -185,9 +180,9 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    difficult to detect reliably, so there may be many more programs that
    experience a random crashes due to this CPU bug.
 
-   The reliable work-around was developed and added into linux-2.6.12. If
-   you hit that problem, consider upgrading your linux kernel.
-     _________________________________________________________________
+   The reliable work-around was developed and added into linux-2.6.12 for
+   32-bit systems, and into linux-3.16 for 64-bit systems.
+     __________________________________________________________________
 
 2. Known bugs
 
@@ -196,30 +191,30 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 2.1.1. List of currently known bugs in Dosemu 1.2.2.
 
      * Some documentation is known to be well out of date.
-     * OPL3 FM is not implemented yet (but Midi, SB8 and SB16 work)
-     * Some database programs (Clipper, FoxPro) have problems with
-       locking in certain configurations. smbfs doesn't support locking.
+     * Some database programs (Clipper, FoxPro) have problems with locking
+       in certain configurations. smbfs doesn't support locking.
        $_full_file_locks=(on) may or may not help.
      * Mortal Kombat 1 and 2 are not producing any sound for unknown
        reasons.
      * X-COM Apocalypse (DEMO version) locks up at startup if configured
        with sound.
-     _________________________________________________________________
+     __________________________________________________________________
 
 3. Programs exhibiting graphical problems in xdosemu
 
    The following programs work perfectly on the Linux console
    (suid/sudo/root) with graphics enabled but exhibit minor or major
    glitches in xdosemu.
-     _________________________________________________________________
+     __________________________________________________________________
 
 3.1. Games with graphical problems
 
    The following games exhibit glitches or don't work at all in xdosemu.
-   Please let us know when any problems are solved or even better, help
-   us solving!
+   Please let us know when any problems are solved or even better, help us
+   solving!
 
      * Commander Keen 1 wobbles like jelly and the window shakes every
        time it scrolls.
      * Pinball Dreams 2 takes a long time to start. Once it's past the
        startup screen it runs fine though.
+     * Goblins 3 have graphical artifacts related to mouse cursor.

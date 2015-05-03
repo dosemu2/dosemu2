@@ -244,7 +244,7 @@ int e_mprotect(unsigned int addr, size_t len)
 		if (abeg1 == (unsigned)-1)
 		    abeg1 = a;
 	    } else if (abeg1 != (unsigned)-1) {
-		e = mprotect(&mem_base[abeg1], a-abeg1, PROT_READ|PROT_EXEC);
+		e = mprotect(MEM_BASE32(abeg1), a-abeg1, PROT_READ|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPMAP: %s\n",strerror(errno));
 		    return -1;
@@ -277,7 +277,7 @@ int e_munprotect(unsigned int addr, size_t len)
 		if (abeg1 == (unsigned)-1)
 		    abeg1 = a;
 	    } else if (abeg1 != (unsigned)-1) {
-		e = mprotect(&mem_base[abeg1], a-abeg1,
+		e = mprotect(MEM_BASE32(abeg1), a-abeg1,
 			     PROT_READ|PROT_WRITE|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPUNMAP: %s\n",strerror(errno));
@@ -294,7 +294,7 @@ int e_munprotect(unsigned int addr, size_t len)
    do not try to unprotect it */
 int e_check_munprotect(unsigned int addr, size_t len)
 {
-	if (LINEAR2UNIX(addr) != &mem_base[addr])
+	if (LINEAR2UNIX(addr) != MEM_BASE32(addr))
 		return 0;
 	return e_munprotect(addr, len);
 }
@@ -398,7 +398,7 @@ void mprot_end(void)
 		    if (b & 1) {
 			if (debug_level('e')>1)
 			    dbug_printf("MP_END %08x = RWX\n",addr);
-			(void)mprotect(&mem_base[addr], PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
+			(void)mprotect(MEM_BASE32(addr), PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
 		    }
 		    addr += PAGE_SIZE;
 	 	    b >>= 1;

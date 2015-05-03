@@ -196,6 +196,7 @@ unsigned int GetSegmentBase(unsigned short);
 unsigned int GetSegmentLimit(unsigned short);
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu);
 int ValidAndUsedSelector(unsigned short selector);
+int dpmi_is_valid_range(dosaddr_t addr, int len);
 
 extern char *DPMI_show_state(struct sigcontext_struct *scp);
 extern void dpmi_sigio(struct sigcontext_struct *scp);

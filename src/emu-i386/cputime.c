@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include <sys/eventfd.h>
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
@@ -80,7 +79,6 @@
  */
 
 static hitimer_t (*RAWcpuTIME)(void);
-static void async_awake(void *arg);
 
 hitimer_u ZeroTimeBase = { 0 };
 static hitimer_u ZeroTSCBase = { 0 };
@@ -89,10 +87,10 @@ static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
 static int freeze_tid;
+static int coopth_frozen;
 static hitimer_t cached_time;
 static pthread_mutex_t ctime_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t trigger_mtx = PTHREAD_MUTEX_INITIALIZER;
-static int event_fd;
 
 static hitimer_t do_gettime(void)
 {
@@ -224,9 +222,6 @@ void get_time_init (void)
     GETcpuTIME = getC4time;		/* in usecs */
     g_printf("TIMER: using clock_gettime(CLOCK_MONOTONIC)\n");
   }
-
-  event_fd = eventfd(0, EFD_CLOEXEC | EFD_SEMAPHORE);
-  add_to_io_select(event_fd, async_awake, NULL);
 }
 
 void cputime_late_init(void)
@@ -267,9 +262,11 @@ int dosemu_user_froze = 0;
 
 static void freeze_thr(void *arg)
 {
+  coopth_frozen++;
   _set_IF();
   coopth_sleep();
   clear_IF();
+  coopth_frozen--;
 }
 
 static void freeze_start(void *arg)
@@ -314,7 +311,12 @@ void unfreeze_dosemu(void)
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
 
-  coopth_wake_up(freeze_tid);
+  if (coopth_frozen) {
+    coopth_wake_up(freeze_tid);
+  } else {
+    coopth_cancel(freeze_tid);
+    coopth_frozen = 0;
+  }
 }
 
 
@@ -385,19 +387,6 @@ void reset_idle(int val)
   if (-val < trigger1)
     trigger1 = -val;
   pthread_mutex_unlock(&trigger_mtx);
-}
-
-void reset_idle_mt(int val)
-{
-  reset_idle(val);
-  eventfd_write(event_fd, 1);
-}
-
-static void async_awake(void *arg)
-{
-  eventfd_t val;
-  eventfd_read(event_fd, &val);
-  /* TODO: user-specified cross-thread callback */
 }
 
 void alarm_idle(void)

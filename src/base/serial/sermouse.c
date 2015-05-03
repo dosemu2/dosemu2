@@ -31,6 +31,7 @@ struct serm_state {
   int nrst;
   int opened;
   int div;
+  char but;
 };
 static struct serm_state serm;
 
@@ -91,22 +92,24 @@ static void ser_mouse_move_buttons(int lbutton, int mbutton, int rbutton,
   char buf[3] = {0x40, 0, 0};
 
   s_printf("SERM: buttons %i %i %i\n", lbutton, mbutton, rbutton);
+  serm.but = 0;
   if (lbutton)
-    buf[0] |= 0x20;
+    serm.but |= 0x20;
   if (rbutton)
-    buf[0] |= 0x10;
+    serm.but |= 0x10;
+  buf[0] |= serm.but;
   /* change in mbutton is signalled by sending the prev state */
 
   add_buf(com, buf, sizeof(buf));
 }
 
-static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
-	void *udata)
+static void ser_mouse_move_mickeys(int dx, int dy, void *udata)
 {
   com_t *com = udata;
   char buf[3] = {0x40, 0, 0};
 
   s_printf("SERM: movement %i %i\n", dx, dy);
+  buf[0] |= serm.but;
   dx = limit_delta(dx, -128, 127);
   buf[1]   = dx & ~0xC0;
   buf[0]  |= (dx & 0xC0) >> 6;
@@ -118,12 +121,19 @@ static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
   add_buf(com, buf, sizeof(buf));
 }
 
+static void ser_mouse_move_relative(int dx, int dy, int x_range, int y_range,
+	void *udata)
+{
+  /* oops, ignore ranges */
+  ser_mouse_move_mickeys(dx, dy, udata);
+}
+
 struct mouse_drv ser_mouse = {
   NULL, /* init */
   ser_mouse_accepts,
   ser_mouse_move_buttons,
   ser_mouse_move_relative,
-  NULL, /* ser_mouse_move_mickeys */
+  ser_mouse_move_mickeys,
   NULL, /* ser_mouse_move_absolute */
   NULL, /* ser_mouse_drag_to_corner */
   NULL, /* ser_mouse_sync_coords */
@@ -131,7 +141,7 @@ struct mouse_drv ser_mouse = {
   "serial mouse"
 };
 
-CONSTRUCTOR(static void int33_mouse_register(void))
+CONSTRUCTOR(static void serial_mouse_register(void))
 {
   register_mouse_driver(&ser_mouse);
 }
@@ -202,6 +212,7 @@ static int serm_open(com_t *com)
   s_printf("SERM: open for port %i\n", com->num);
   mousedrv_set_udata(ser_mouse.name, com);
   serm.opened = 1;
+  serm.but = 0;
   return 1;
 }
 

@@ -344,6 +344,14 @@ static void print_ldt(void)
   _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
+int dpmi_is_valid_range(dosaddr_t addr, int len)
+{
+  dpmi_pm_block *blk = lookup_pm_block_by_addr(DPMI_CLIENT.pm_block_root, addr);
+  if (!blk)
+    return 0;
+  return (blk->base + blk->size >= addr + len);
+}
+
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
 /* get esp from scp, otherwise get esp from dpmi_stack_frame         */
 static inline unsigned long client_esp(struct sigcontext_struct *scp)
@@ -1760,8 +1768,9 @@ static void do_int31(struct sigcontext_struct *scp)
   if (debug_level('M')) {
     D_printf("DPMI: int31, ax=%04x, ebx=%08x, ecx=%08x, edx=%08x\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
-    D_printf("        edi=%08x, esi=%08x, ebp=%08x, esp=%08x, eflags=%08lx\n",
-	_edi,_esi,_ebp,_esp,eflags_VIF(_eflags));
+    D_printf("        edi=%08x, esi=%08x, ebp=%08x, esp=%08x\n"
+	     "        eip=%08x, eflags=%08lx\n",
+	_edi,_esi,_ebp,_esp,_eip,eflags_VIF(_eflags));
     D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
 	_cs,_ds,_ss,_es,_fs,_gs);
   }
@@ -3299,7 +3308,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 
     mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
 
-    if ((_trapno != 0xe && _trapno != 0x3 && _trapno != 0x1)
+    if ((_trapno != 0x3 && _trapno != 0x1)
 #ifdef X86_EMULATOR
       || debug_level('e')
 #endif
@@ -3405,18 +3414,12 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   }
 #endif
 
+  if (debug_level('M') > 5)
+    mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#lx, err=%#lx\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
-#if 0
-  if (_trapno == 0xe) {
-      set_debug_level('M', 9);
-      error("DPMI: page fault. in dosemu?\n");
-      /* why should we let dpmi continue after this point and crash
-       * the system? */
-      flush_log();
-      leavedos(0x5046);
-  }
-#endif
+  if (debug_level('M') > 5)
+    D_printf("DPMI: %s\n", DPMI_show_state(scp));
 
   if (DPMI_CLIENT.Exception_Table[_trapno].selector == dpmi_sel()) {
     do_default_cpu_exception(scp, _trapno);
@@ -4561,7 +4564,7 @@ int dpmi_mhp_getcsdefault(void)
 
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned int *lp)
 {
-  GetDescriptor(selector, lp);
+  memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 }
 
 int dpmi_mhp_getselbase(unsigned short selector)
