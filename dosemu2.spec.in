@@ -2,6 +2,7 @@
 # spec file for package Dosemu2
 #
 # Written by Mateusz Viste for the DOSEMU2 project.
+# updated by stsp
 #
 
 Name: dosemu2
@@ -12,28 +13,37 @@ Summary: The DOS emulator for Linux
 Group: System/Emulator
 
 License: GPL-2.0+
-URL: www.dosemu.org
+URL: www.github.com/stsp/dosemu2
 Source0: %{name}-%{version}.tar.gz
 
 BuildRequires: SDL2-devel
+BuildRequires: libXext-devel
+BuildRequires: alsa-lib-devel
+BuildRequires: fluidsynth-devel
+BuildRequires: gpm-devel
+BuildRequires: libao-devel
+BuildRequires: slang-devel
 BuildRequires: bison
 BuildRequires: flex
 BuildRequires: autoconf
 BuildRequires: automake
 BuildRequires: bdftopcf
 BuildRequires: mkfontdir
-BuildRequires: slang-devel
+BuildRequires: sed
 
 %description
-DOSEMU stands for DOS Emulation, and allows you to run DOS and many DOS programs, including many DPMI applications such as DOOM and Windows 3.1, under Linux.
+DOSEMU2 stands for DOS Emulation, and allows you to run DOS and many
+DOS programs, including many DPMI applications such as DOOM and Windows 3.1,
+under Linux.
 
 %prep
 %setup
 
 %build
 ./autogen.sh
-%configure --sysconfdir=%{_sysconfdir}/dosemu --with-docdir=%{_docdir}/dosemu
-make clean
+./default-configure --sysconfdir=%{_sysconfdir}/dosemu --prefix=/usr \
+	--libdir=%{_libdir} \
+	--with-fdtarball=%{_sourcedir}/dosemu-freedos-bin.tgz
 make
 
 %check
