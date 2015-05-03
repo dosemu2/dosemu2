@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <dlfcn.h>
+#include <pthread.h>
 
 #include "machcompat.h"
 #include "bios.h"
@@ -50,6 +51,8 @@
 #ifndef INITIAL_LOGBUFLIMIT
 #define INITIAL_LOGFILELIMIT	(500*1024*1024)
 #endif
+
+static pthread_mutex_t log_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 #ifdef CIRCULAR_LOGBUFFER
 #define NUM_CIRC_LINES	32768
@@ -257,7 +260,9 @@ int log_printf(int flg, const char *fmt, ...)
 	}
 	in_log_printf = 1;
 	va_start(args, fmt);
+	pthread_mutex_lock(&log_mtx);
 	ret = vlog_printf(flg, fmt, args);
+	pthread_mutex_unlock(&log_mtx);
 	va_end(args);
 	in_log_printf = 0;
 	return ret;
@@ -270,14 +275,18 @@ void verror(const char *fmt, va_list args)
 	__va_copy(orig_args, args);
 
 	if (fmt[0] == '@') {
+		pthread_mutex_lock(&log_mtx);
 		vlog_printf(10, fmt+1, args);
 		vfprintf(stderr, fmt+1, orig_args);
+		pthread_mutex_unlock(&log_mtx);
 	}
 	else {
 		fmtbuf[sizeof(fmtbuf)-1] = 0;
 		snprintf(fmtbuf, sizeof(fmtbuf)-1, "ERROR: %s", fmt);
+		pthread_mutex_lock(&log_mtx);
 		vlog_printf(10, fmtbuf, args);
 		vfprintf(stderr, fmtbuf, orig_args);
+		pthread_mutex_unlock(&log_mtx);
 	}
 	va_end(orig_args);
 }
