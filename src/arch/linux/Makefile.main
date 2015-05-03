@@ -139,7 +139,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
 ../dosemu2.spec: ../dosemu2.spec.in
-	sed -e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' $< > $@
+	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
 	@echo ""

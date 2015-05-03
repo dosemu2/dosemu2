@@ -101,8 +101,9 @@ else
   PACKETNAME:=dosemu2-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 endif
 PACKETNAME:=$(subst .pre,pre,$(PACKETNAME))
-THISVERSION:=$(VERSION).$(SUBLEVEL_).$(PATCHLEVEL1)
-THISVERSION:=$(subst .pre,-pre,$(THISVERSION))
+THISVERSION_:=$(VERSION).$(SUBLEVEL_).$(PATCHLEVEL1)
+THISVERSION:=$(subst .pre,-pre,$(THISVERSION_))
+PACKVERSION:=$(subst .pre,pre,$(THISVERSION_))
 BINPATH:=$(top_builddir)/$(THISVERSION)
 RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
 
