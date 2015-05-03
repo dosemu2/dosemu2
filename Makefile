@@ -29,6 +29,9 @@ docsinstall:
 docsclean:
 	@$(MAKE) SUBDIR:=doc -C src/doc clean
 
+dist:
+	git archive -o $(PACKETNAME).tar.gz --prefix=$(PACKETNAME)/ HEAD
+
 midid:
 	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid
 

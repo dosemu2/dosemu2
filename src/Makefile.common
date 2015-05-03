@@ -19,17 +19,13 @@ $(LIB):	$(OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 
-.PHONY:	clean realclean dist lib echo all install default
+.PHONY:	clean realclean lib echo all install default
 
 clean::
 	-rm -f $(OBJS) $(LIB) *~
 
 realclean::	clean
 	rm -f *.d
-
-dist:: $(ALL) Makefile
-	install -d $(DISTPATH)/$(SUBDIR)
-	cp -a $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
 
 %.o:	%.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
