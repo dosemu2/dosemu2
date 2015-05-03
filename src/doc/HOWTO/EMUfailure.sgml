@@ -6,17 +6,7 @@
 
 <artheader>
 
-<title>EMUfailure.txt</title>
-
-<author>
-<firstname>Uwe Bonnes (original author), <emphasis remap="bf"><ulink
-url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
->bon@elektron.ikp.physik.th-darmstadt.de</ulink
-></emphasis> </firstname>
-</author>
-
-<pubdate> May 20, 2005 for dosemu 1.3.2 (and possibly earlier
-versions) </pubdate>
+<title>Known dosemu problems</title>
 
 <abstract>
 
