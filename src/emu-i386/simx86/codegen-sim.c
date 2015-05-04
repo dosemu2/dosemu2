@@ -469,16 +469,20 @@ static inline int vga_read_access(unsigned int m)
 	return vga_access(m);
 }
 
-static inline int vga_write_access(unsigned int m)
+static int vga_write_access(unsigned int m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a planar mode */
 	if (TheCPU.mode&RM_REG) return 0;
 	m -= TheCPU.mem_base;
-	return ((unsigned)(m - vga.mem.graph_base) <
-		vga.mem.graph_size + (vgaemu_bios.pages<<12) &&
-		((unsigned)(m - vga.mem.bank_base) >= vga.mem.bank_len ||
-		 m >= 0xc0000 ||
-		 vga.inst_emu));
+	if (m >= vga.mem.bank_base + vga.mem.bank_len &&
+			m < vga.mem.graph_base + vga.mem.graph_size)
+		return 1;
+	if (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages<<12))
+		return 1;
+	if (m >= vga.mem.bank_base && m < vga.mem.bank_base +
+			vga.mem.bank_len && vga.inst_emu)
+		return 1;
+	return 0;
 }
 
 void Gen_sim(int op, int mode, ...)

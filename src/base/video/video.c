@@ -340,70 +340,18 @@ load_file(char *name, int foffset, unsigned char *mstart, int msize)
 static inline void
 reserve_video_memory(void)
 {
-  int graph_base = GRAPH_BASE, graph_size = GRAPH_SIZE;
-
-/*
- * DANG_BEGIN_REMARK
- * reserve_video_memory()
- *
- * This procedure is trying to eke out all the UMB blocks possible to
- * maximize your memory under DOSEMU.  If you know about dual monitor
- * setups, you can contribute by putting in the correct graphics page
- * address values.
- * DANG_END_REMARK
- */
-  if (config.max_umb && !config.dualmon) {
-
-    /* Okay, the usual procedure would be to reserve 128K of memory for
-       video unconditionally.  Clearly this is insane.  If you're running
-       in an x-term or across the network, you're wasting memory. */
-
-    c_printf("CONF: Trying to set minimum video memory to maximize UMB's\n");
-
-    if (!config.console_video) {
-      graph_base = 0xB0000;
-      graph_size = 64*1024;
-      c_printf("CONF: remote session.  Assuming %uKB video memory @ 0x%5.5X\n",
-	       graph_size/1024, graph_base);
+  if (config.umb_b0 && !config.dualmon) {
+    if (config.vga) {
+      register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
+      register_hardware_ram('v', VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
     }
-    else {
-      switch (config.cardtype) {
-      case CARD_MDA:
-	graph_base = 0xB0000;
-	graph_size = 64*1024;
-	c_printf("CONF: MDA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      case CARD_CGA:
-	graph_base = 0xB8000;
-	graph_size = 32*1024;
-	c_printf("CONF: CGA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      case CARD_EGA:
-	graph_base = 0xB0000;
-	graph_size = 64*1024;
-	c_printf("CONF: EGA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      case CARD_VGA:
-	graph_base = 0xA0000;
-	graph_size = 128*1024;
-	c_printf("CONF: VGA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      default:
-	graph_base = 0xA0000;
-	graph_size = 128*1024;
-	c_printf("CONF: default video, guessing %uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      }
-    }
+    memcheck_reserve('v', GRAPH_BASE, GRAPH_SIZE);
+    memcheck_reserve('v', VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
+  } else {
+    if (config.vga)
+      register_hardware_ram('v', VMEM_BASE, VMEM_SIZE);
+    memcheck_reserve('v', VMEM_BASE, VMEM_SIZE);
   }
-  if (config.vga)
-    register_hardware_ram('v', graph_base, graph_size);
-  memcheck_reserve('v', graph_base, graph_size);
 }
 
 void

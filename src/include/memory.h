@@ -168,13 +168,16 @@
 
 #define VGA_PHYS_TEXT_BASE  0xB8000
 #define VGA_VIRT_TEXT_BASE  0xB8000
+#define VGA_TEXT_SIZE       0x8000
 
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */
 #define TEXT_SIZE(co,li) (((co*li*2)|0xff)+1)
 
+#define VMEM_BASE 0xA0000
+#define VMEM_SIZE 0x20000
 #define GRAPH_BASE 0xA0000
-#define GRAPH_SIZE 0x20000
+#define GRAPH_SIZE 0x10000
 
 #define BIOS_DATA_SEG   (0x400)	/* for absolute adressing */
 

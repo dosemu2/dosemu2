@@ -1395,32 +1395,36 @@ static int vgaemu_unmap(unsigned page)
 void vgaemu_reset_mapping()
 {
   void *i;
-  int prot, page, startpage;
+  int prot, page, startpage, endpage;
 
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
 
   prot = VGA_EMU_RO_PROT;
   startpage = 0xa0;
+  endpage = (config.umb_b0 ? 0xb0 : 0xb8);
   vga.mem.graph_base = startpage << 12;
-  vga.mem.graph_size = 0xc0000 - vga.mem.graph_base;
+  vga.mem.graph_size = (endpage << 12) - vga.mem.graph_base;
   i = NULL;
-  for(page = startpage; page < 0xc0; page++) {
+  for(page = startpage; page < endpage; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
       prot, vga.mem.scratch_page
     );
-  }
-
-  if(i == MAP_FAILED) {
-    prot = 0xfe;
-    switch(errno) {
-      case EINVAL: prot = 0xfd; break;
-      case EFAULT: prot = 0xfc; break;
-      case EACCES: prot = 0xfb; break;
+    if (i == MAP_FAILED) {
+      error("VGA: map failed at page %x\n", page);
+      return;
     }
+    vgaemu_update_prot_cache(page, prot);
   }
-
-  for(page = startpage; page < 0xc0; page++) {
+  for(page = 0xb8; page < 0xc0; page++) {
+    i = alias_mapping(MAPPING_VGAEMU,
+      page << 12, 1 << 12,
+      prot, vga.mem.scratch_page
+    );
+    if (i == MAP_FAILED) {
+      error("VGA: map failed at page %x\n", page);
+      return;
+    }
     vgaemu_update_prot_cache(page, prot);
   }
 }
