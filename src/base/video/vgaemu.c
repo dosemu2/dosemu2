@@ -1400,7 +1400,7 @@ void vgaemu_reset_mapping()
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
 
   prot = VGA_EMU_RO_PROT;
-  startpage = config.mem_size > 640 ? (config.mem_size + 3) / 4: 0xa0;
+  startpage = 0xa0;
   vga.mem.graph_base = startpage << 12;
   vga.mem.graph_size = 0xc0000 - vga.mem.graph_base;
   i = NULL;

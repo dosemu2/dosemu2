@@ -352,20 +352,7 @@ reserve_video_memory(void)
  * address values.
  * DANG_END_REMARK
  */
-
-#if USE_DUALMON
-  if (!config.max_umb || config.dualmon) {
-#else
-  if (!config.max_umb) {
-#endif
-    if (config.dualmon)
-      c_printf("CONF: Unable to maximize UMB's due to dual monitor setup\n");
-    if (config.mem_size > 640) {
-      int addr_start = config.mem_size * 1024;
-      graph_base = addr_start;
-      graph_size = 0xC0000 - addr_start;
-    }
-  } else {
+  if (config.max_umb && !config.dualmon) {
 
     /* Okay, the usual procedure would be to reserve 128K of memory for
        video unconditionally.  Clearly this is insane.  If you're running
