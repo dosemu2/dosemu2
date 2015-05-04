@@ -43,20 +43,16 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .B \-D
 .I flags
 ]
-[ 
-.B \-M 
-.I size
-]
-[ 
-.B \-e 
-.I size
-]
-[ 
-.B \-x 
+[
+.B \-e
 .I size
 ]
 [
-.B \-P 
+.B \-x
+.I size
+]
+[
+.B \-P
 .I file
 ]
 [
@@ -255,9 +251,6 @@ with \-H1 and then start dosdebug.
 DOSEMU will then lock before jumping into the loaded bootsector waiting
 for dosdebug to connect. Once connected you are in `stopped' state
 and can set breakpoints or single-step through the bootstrap code.
-.TP
-.I -M
-set base memory to SIZE Kilobytes
 .TP
 .I -m
 toggle internal mouse-support

@@ -39,13 +39,6 @@
 #include "mapping.h"
 
 /*
- * XXX - the mem size of 734 is much more dangerous than 704. 704 is the
- * bottom of 0xb0000 memory.  use that instead?
- */
-#define MAX_MEM_SIZE    640
-
-
-/*
  * Options used in config_init().
  *
  * Please keep "getopt_string", secure_option_preparse(), config_init(),
@@ -1039,13 +1032,6 @@ config_init(int argc, char **argv)
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;
 	    break;
-	case 'M':{
-		int             max_mem = config.vga ? 640 : MAX_MEM_SIZE;
-		config.mem_size = atoi(optarg);
-		if (config.mem_size > max_mem)
-		    config.mem_size = max_mem;
-		break;
-	    }
 	case 'D':
 	    parse_debugflags(optarg, 1);
 	    break;
