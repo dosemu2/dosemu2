@@ -29,19 +29,22 @@ docsinstall:
 docsclean:
 	@$(MAKE) SUBDIR:=doc -C src/doc clean
 
-$(PACKAGE_NAME).spec:
+$(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in
 	@$(MAKE) -C src ../$@
 
-dist: $(PACKAGE_NAME).spec
+GIT_REV := .git/$(shell git rev-parse --symbolic-full-name HEAD)
+
+$(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
 	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
 	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
 	gzip $(PACKETNAME).tar
 
-$(PACKETNAME).tar.gz: dist
+dist: $(PACKETNAME).tar.gz
 
 rpm: $(PACKETNAME).tar.gz
 	rpmbuild -tb $(PACKETNAME).tar.gz
+	rm -f $(PACKETNAME).tar.gz
 
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
