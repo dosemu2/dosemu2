@@ -43,15 +43,6 @@ $(PACKETNAME).tar.gz: dist
 rpm: $(PACKETNAME).tar.gz
 	rpmbuild -tb $(PACKETNAME).tar.gz
 
-midid:
-	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid
-
-mididclean:
-	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid cleanall
-
-dosemu_script:
-	@$(MAKE) -C src dosemu_script
-
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf $(PACKAGE_NAME).spec
