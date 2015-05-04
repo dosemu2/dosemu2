@@ -5,6 +5,7 @@
 DOSBIN = dosemu.bin
 
 prefix:=@prefix@
+exec_prefix=@exec_prefix@
 bindir:=@bindir@
 sysconfdir:=@sysconfdir@
 libdir:=@libdir@
@@ -70,6 +71,8 @@ REQUIRED:=@REQUIRED@
 OS=@CONFIG_HOST@
 RANLIB:=@RANLIB@
 
+PACKAGE_NAME:=@PACKAGE_TARNAME@
+
 @USE_DL_PLUGINS@
 @X86_EMULATOR@
 
@@ -95,12 +98,14 @@ ifeq (5,$(words $(PACKAGE_VERSION_SPACES)))
 endif
 PATCHLEVEL:=$(PATCHLEVEL1).$(PATCHLEVEL2)
 ifeq "$(PATCHLEVEL2)" "0"
-  PACKETNAME:=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL1)
+  PACKETNAME:=$(PACKAGE_NAME)-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL1)
 else
-  PACKETNAME:=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+  PACKETNAME:=$(PACKAGE_NAME)-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 endif
-THISVERSION:=$(VERSION).$(SUBLEVEL_).$(PATCHLEVEL1)
-THISVERSION:=$(subst .pre,-pre,$(THISVERSION))
+PACKETNAME:=$(subst .pre,pre,$(PACKETNAME))
+THISVERSION_:=$(VERSION).$(SUBLEVEL_).$(PATCHLEVEL1)
+THISVERSION:=$(subst .pre,-pre,$(THISVERSION_))
+PACKVERSION:=$(subst .pre,pre,$(THISVERSION_))
 BINPATH:=$(top_builddir)/$(THISVERSION)
 RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
 

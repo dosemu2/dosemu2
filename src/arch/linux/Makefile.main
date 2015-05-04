@@ -48,7 +48,7 @@ DOCS= ../man
 
 ###################################################################
 
-default: version include/version.h include/confpath.h ../dosemu2.spec doslib \
+default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec doslib \
 	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
 
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
@@ -85,10 +85,10 @@ ifdef X_SUPPORT
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
 endif
 
-$(BINPATH)/bin/dosemu: $(REALTOPDIR)/dist/dosemu.systemwide $(REALTOPDIR)/dist/dosemu
+$(BINPATH)/bin/dosemu: $(SRCPATH)/bindist/dosemu.systemwide $(SRCPATH)/bindist/dosemu
 	sed -e "s|SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE|SYSTEM_BIN_PATH=$(bindir)|" \
 		      $< > $(BINPATH)/bin/dosemu
-	tail -n +9 $(REALTOPDIR)/dist/dosemu >> $(BINPATH)/bin/dosemu
+	tail -n +9 $(SRCPATH)/bindist/dosemu >> $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
 
 bin: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
@@ -138,8 +138,8 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
-../dosemu2.spec: ../dosemu2.spec.in
-	sed -e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' $< > $@
+../$(PACKAGE_NAME).spec: ../$(PACKAGE_NAME).spec.in
+	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu
 	@echo ""
@@ -170,10 +170,10 @@ install:
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 dist/config.sys $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 dist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 dist/config.emu $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 dist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/config.emu $(DESTDIR)$(dosemudir)/drive_z; \
+	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z; \
 	  $(INSTALL) -d $(DESTDIR)$(sysconfdir)/drives; \
 	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/c ]; then \
 	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/c; \

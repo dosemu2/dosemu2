@@ -24,13 +24,7 @@ config {
   target_bits auto
   target_cpu auto
   prefix /usr/local
-  bindir ${prefix}/bin
   sysconfdir /etc/dosemu
-  libdir ${prefix}/lib
-  datadir ${prefix}/share
-  mandir ${prefix}/man
-  docdir ${datadir}/doc/dosemu
-  syshdimagedir /var/lib/dosemu
   x11fontdir ${datadir}/dosemu/Xfonts
   fdtarball dosemu-freedos-bin.tgz
 }

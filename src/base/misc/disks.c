@@ -830,6 +830,9 @@ disk_open(struct disk *dp)
    * ( 19 May 1996, Hans Lermen ) */
   int res=0;
   if (dp->default_cmos == ATAPI_FLOPPY) {
+/* the below generates compilation warning and I don't think we
+ * need atapi floppy, so disable */
+#if 0
 	unsigned long tns;
 	if (ATAPI_buf0[0] || unix_read(dp->fdesc, ATAPI_buf0, 512) > 0) {
 	      fl.sect = *((unsigned char *)&ATAPI_buf0[0x18]);
@@ -838,7 +841,9 @@ disk_open(struct disk *dp)
 	      if (tns==0) tns = *((uint32_t *)&ATAPI_buf0[0x20]);
 	      fl.track = tns/(fl.sect*fl.head);
 	}
-	else {	/* no disk available */
+	else
+#endif
+	{	/* no disk available */
 	      dp->sectors = 0;
 	      dp->heads = 0;
 	      dp->tracks = 0;

@@ -55,7 +55,7 @@ static void GenerateDosnetID(void)
 {
 	DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
 	memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
-	*(unsigned short int *)&(local_eth_addr[2]) = DosnetID;
+	memcpy(&local_eth_addr[2], &DosnetID, sizeof(DosnetID));
 	pd_printf("Assigned DosnetID=%x\n", DosnetID);
 }
 

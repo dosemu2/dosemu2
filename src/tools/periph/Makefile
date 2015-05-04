@@ -41,9 +41,4 @@ clean::
 
 realclean:: clean
 
-dist:: $(SRC) $(SCRIPT)
-	install -d $(DISTPATH)/periph
-	install -m 0644 Makefile keyboard.c.diff $(SRC) $(DISTPATH)/periph
-	install -m 0755 $(SCRIPT) $(DISTPATH)/periph
-
 include $(REALTOPDIR)/src/Makefile.common

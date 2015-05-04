@@ -29,18 +29,27 @@ docsinstall:
 docsclean:
 	@$(MAKE) SUBDIR:=doc -C src/doc clean
 
-midid:
-	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid
+$(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in
+	@$(MAKE) -C src ../$@
 
-mididclean:
-	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid cleanall
+GIT_REV := .git/$(shell git rev-parse --symbolic-full-name HEAD)
 
-dosemu_script:
-	@$(MAKE) -C src dosemu_script
+$(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec
+	rm -f $(PACKETNAME).tar.gz
+	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
+	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
+	gzip $(PACKETNAME).tar
+
+dist: $(PACKETNAME).tar.gz
+
+rpm: $(PACKETNAME).tar.gz
+	rpmbuild -tb $(PACKETNAME).tar.gz
+	rm -f $(PACKETNAME).tar.gz
 
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
-	rm -f Makefile.conf dosemu2.spec
+	rm -f Makefile.conf $(PACKAGE_NAME).spec
+	rm -f $(PACKETNAME).tar.gz
 	rm -f core `find . -name config.cache`
 	rm -f core `find . -name config.status`
 	rm -f core `find . -name config.log`
@@ -57,7 +66,6 @@ pristine distclean mrproper:  docsclean mididclean
 	rm -f core gen*.log
 	(cd setup/demudialog; make clean)
 	(cd setup/parser; make clean)
-	rm -rf ./dist/tmp
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
 	rm -rf autom4te*.cache
 	$(srcdir)/mkpluginhooks clean
