@@ -62,6 +62,6 @@ make DESTDIR=%{buildroot} sysconfdir=%{_sysconfdir}/dosemu install
 %{_datadir}/dosemu
 %doc %{_docdir}/dosemu
 %dir %{_sysconfdir}/dosemu
-%config %{_sysconfdir}/dosemu/dosemu.conf
+%config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 
 %changelog
