@@ -48,7 +48,7 @@ DOCS= ../man
 
 ###################################################################
 
-default: version include/version.h include/confpath.h ../dosemu2.spec doslib \
+default: version include/version.h include/confpath.h ../$(PACKAGE_NAME).spec doslib \
 	../etc/xtermdos ../etc/xinstallvgafont ../etc/vga10x24.pcf.gz
 
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
@@ -138,7 +138,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
-../dosemu2.spec: ../dosemu2.spec.in
+../$(PACKAGE_NAME).spec: ../$(PACKAGE_NAME).spec.in
 	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu

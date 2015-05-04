@@ -29,8 +29,19 @@ docsinstall:
 docsclean:
 	@$(MAKE) SUBDIR:=doc -C src/doc clean
 
-dist:
-	git archive -o $(PACKETNAME).tar.gz --prefix=$(PACKETNAME)/ HEAD
+$(PACKAGE_NAME).spec:
+	@$(MAKE) -C src ../$@
+
+dist: $(PACKAGE_NAME).spec
+	rm -f $(PACKETNAME).tar.gz
+	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
+	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
+	gzip $(PACKETNAME).tar
+
+$(PACKETNAME).tar.gz: dist
+
+rpm: $(PACKETNAME).tar.gz
+	rpmbuild -tb $(PACKETNAME).tar.gz
 
 midid:
 	@$(MAKE) SUBDIR:=arch/linux/dosext/sound/midid -C src/arch/linux/dosext/sound/midid
@@ -43,7 +54,8 @@ dosemu_script:
 
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
-	rm -f Makefile.conf dosemu2.spec
+	rm -f Makefile.conf $(PACKAGE_NAME).spec
+	rm -f $(PACKETNAME).tar.gz
 	rm -f core `find . -name config.cache`
 	rm -f core `find . -name config.status`
 	rm -f core `find . -name config.log`
