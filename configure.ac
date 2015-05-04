@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT([DOSEMU2], m4_esyscmd([tr -d '\n' < VERSION]),
     [https://github.com/stsp/dosemu2/issues], dosemu2)
-AC_CONFIG_SRCDIR(src/dos.c)
+AC_CONFIG_SRCDIR(src/emu.c)
 AC_PREREQ(2.59)
 
 # first check if we are called from default-configure and if not,
