@@ -158,8 +158,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 	config.mem_size, config.ext_mem);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
-    (*print)("umb_b0 0x%x\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
-        config.umb_b0, config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
+    (*print)("umb_a0 %i\numb_b0 %i\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
+        config.umb_a0, config.umb_b0, config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
@@ -618,6 +618,8 @@ static void config_post_process(const char *usedoptions)
               "restricting to 640K\n", config.mem_size);
         config.mem_size = 640;
     }
+    if (config.umb_a0 == -1)
+	config.umb_a0 = !(config.console_video || config.X);
     if (!config.dpmi)
 	config.pm_dos_api = 0;
 

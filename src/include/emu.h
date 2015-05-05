@@ -264,7 +264,7 @@ typedef struct vesamode_type_struct {
 
        int hogthreshold;
 
-       int mem_size, ext_mem, xms_size, ems_size, umb_b0;
+       int mem_size, ext_mem, xms_size, ems_size, umb_a0, umb_b0;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;

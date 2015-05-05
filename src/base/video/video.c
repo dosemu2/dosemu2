@@ -342,15 +342,24 @@ reserve_video_memory(void)
 {
   if (config.umb_b0 && !config.dualmon) {
     if (config.vga) {
-      register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
+      if (!config.umb_a0)
+        register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
       register_hardware_ram('v', VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
     }
-    memcheck_reserve('v', GRAPH_BASE, GRAPH_SIZE);
+    if (!config.umb_a0)
+      memcheck_reserve('v', GRAPH_BASE, GRAPH_SIZE);
     memcheck_reserve('v', VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
   } else {
-    if (config.vga)
-      register_hardware_ram('v', VMEM_BASE, VMEM_SIZE);
-    memcheck_reserve('v', VMEM_BASE, VMEM_SIZE);
+    if (config.vga) {
+      if (!config.umb_a0)
+        register_hardware_ram('v', VMEM_BASE, VMEM_SIZE);
+      else
+        register_hardware_ram('v', VMEM_BASE + 0x10000, VMEM_SIZE - 0x10000);
+    }
+    if (!config.umb_a0)
+      memcheck_reserve('v', VMEM_BASE, VMEM_SIZE);
+    else
+      memcheck_reserve('v', VMEM_BASE + 0x10000, VMEM_SIZE - 0x10000);
   }
 }
 

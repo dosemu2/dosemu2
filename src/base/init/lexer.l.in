@@ -361,6 +361,7 @@ rdtsc			RETURN(RDTSC);
 bootA			RETURN(BOOTA);
 bootC			RETURN(BOOTC);
 xms			RETURN(L_XMS);
+umb_a0			RETURN(UMB_A0);
 umb_b0			RETURN(UMB_B0);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
