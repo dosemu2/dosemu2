@@ -1007,6 +1007,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
       vga_emu_prot_unlock();
     }
     if(vga.inst_emu) {
+      int ret;
 #if 1
       /* XXX Hack: dosemu touched the protected page of video mem, which is
        * a bug. However for the video modes that do not require instremu, we
@@ -1022,8 +1023,12 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
-      instr_emu(scp, pmode, 0);
+      ret = instr_emu(scp, pmode, 0);
       vga_emu_prot_lock();
+      if (!ret) {
+        error_once("instruction simulation failure\n%s\n", DPMI_show_state(scp));
+        vga_emu_adjust_protection(vga_page, page_fault, RW);
+      }
       vgaemu_dirty_page(vga_page);
       vga_emu_prot_unlock();
     }

@@ -2455,7 +2455,7 @@ static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pm
  * DANG_END_FUNCTION
  */
 
-void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
+int instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
 {
 #if DEBUG_INSTR >= 1
   unsigned int ref;
@@ -2505,14 +2505,11 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
     dump_x86_regs(&x86);
   }
 #endif
-  if (i == 0 && !signal_pending()) { /* really an unknown instruction from the beginning */
-    x86.eip += instr_len(MEM_BASE32(x86.cs_base + x86.eip), x86._32bit);
-    if(!x86._32bit)
-      x86.eip &= 0xffff;
-  }
-
+  if (i == 0 && !signal_pending()) /* really an unknown instruction from the beginning */
+    return False;
 
   x86_regs_to_scp(&x86, scp, pmode);
+  return True;
 }
 
 int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,

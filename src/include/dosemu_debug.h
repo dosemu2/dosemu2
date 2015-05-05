@@ -82,6 +82,13 @@ EXTERN int shut_debug INIT(0);
 
 /* unconditional message into debug log and stderr */
 void error(const char *fmt, ...) FORMAT(printf, 1, 2);
+#define error_once(s, ... ) { \
+    static int __warned; \
+    if (!__warned) { \
+	__warned = 1; \
+	error(s, __VA_ARGS__); \
+    } \
+}
 void verror(const char *fmt, va_list args);
 
 #define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
