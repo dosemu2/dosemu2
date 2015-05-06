@@ -1326,6 +1326,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       break;
     default:
       prot = VGA_EMU_RW_PROT;
+      break;
   }
 
   i = 0;
@@ -1339,26 +1340,17 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       i = MAP_FAILED;
 
   if(i == MAP_FAILED) {
-    prot = 0xfe;
-    switch(errno) {
-      case EINVAL: prot = 0xfd; break;
-      case EFAULT: prot = 0xfc; break;
-      case EACCES: prot = 0xfb; break;
-    }
+    error("VGA: protect page failed\n");
+    return 3;
   }
-
-  for(u = 0; u < vmt->pages; u++) {
-    vgaemu_update_prot_cache(vmt->base_page + u, prot);
-  }
-
-  if(i == MAP_FAILED) return 3;
 
   vmt->first_page = first_page;
 
   for(u = 0; u < vmt->pages; u++) {
-    /* page is writable by default */
     pthread_mutex_lock(&prot_mtx);
-    if(!vga.mem.dirty_map[vmt->first_page + u])
+    vgaemu_update_prot_cache(vmt->base_page + u, prot);
+    /* need to fix up protection for clean pages */
+    if(!vga.mem.dirty_map[vmt->first_page + u] && prot == VGA_EMU_RW_PROT)
       vga_emu_adjust_protection(vmt->first_page + u, 0, VGA_PROT_RO);
     pthread_mutex_unlock(&prot_mtx);
   }
@@ -2715,6 +2707,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
           v_printf("Seq_write_value: instemu off\n");
           vga.inst_emu = 0;
         }
+        vgaemu_map_bank();	// update page protection
       }
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
       if (vga.mode_class == TEXT && vga.width < 2048) {
