@@ -894,8 +894,8 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   int i, j;
   dosaddr_t lin_addr;
   unsigned page_fault, vga_page = 0, u;
+  unsigned char *cs_ip;
 #if DEBUG_MAP >= 1
-  unsigned char *cs_ip = SEG_ADR((unsigned char *), cs, ip);
   static char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
   unsigned access_type = (scp->err >> 1) & 1;
 #endif
@@ -937,6 +937,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
     );
   }
   else {
+    cs_ip = SEG_ADR((unsigned char *), cs, ip);
     vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
       (unsigned) REG(cs), (unsigned) REG(eip),
