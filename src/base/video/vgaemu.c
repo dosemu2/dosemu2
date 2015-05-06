@@ -2708,6 +2708,13 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if(u1 != vga.mem.planes) {
         vga.mem.planes = u1; vga.reconfig.mem = 1;
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
+        if (vga.mem.planes) {
+          v_printf("Seq_write_value: instemu on\n");
+          vga.inst_emu = 2;
+        } else {
+          v_printf("Seq_write_value: instemu off\n");
+          vga.inst_emu = 0;
+        }
       }
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
       if (vga.mode_class == TEXT && vga.width < 2048) {
