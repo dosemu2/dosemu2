@@ -1108,7 +1108,7 @@ int vga_emu_protect_page(unsigned page, int prot)
     p = &vga.mem.lfb_base[(page - vga.mem.lfb_base_page) << 12];
   }
   else {
-    p = &mem_base[page << 12];
+    p = MEM_BASE32(page << 12);
   }
   i = mprotect_mapping(MAPPING_VGAEMU, p, 1 << 12, sys_prot);
 
@@ -1335,7 +1335,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       vmt->base_page << 12, vmt->pages << 12,
       prot, vga.mem.base + (first_page << 12));
   else /* LFB: mapped at init, just need to set protection */
-    if (mprotect_mapping(MAPPING_VGAEMU, &mem_base[vmt->base_page << 12],
+    if (mprotect_mapping(MAPPING_VGAEMU, MEM_BASE32(vmt->base_page << 12),
 			 vmt->pages << 12, prot) == -1)
       i = MAP_FAILED;
 
