@@ -343,13 +343,13 @@ static void do_event(fluid_midi_event_t *ev, int32_t time)
     }
 }
 
-static int midofile_init(void)
+static int midofile_init(void *arg)
 {
     parser = new_fluid_midi_parser();
     return 1;
 }
 
-static void midofile_done(void)
+static void midofile_done(void *arg)
 {
     delete_fluid_midi_parser(parser);
 }

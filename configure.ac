@@ -245,7 +245,8 @@ dnl Now CFLAGS and INCLUDES
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
-DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
+DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
+ -Wnested-externs -fms-extensions"
 if test -z "$CFLAGS"; then
   if test "$enable_debug" = "yes"; then
     CFLAGS="$CFLAGS -g -O"

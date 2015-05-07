@@ -251,7 +251,7 @@ static int midotmdty_detect(void)
     return ret;
 }
 
-static int midotmdty_init(void)
+static int midotmdty_init(void *arg)
 {
     const char *cmd1 = "OPEN %s\n";
     char buf[255];
@@ -331,7 +331,7 @@ static int midotmdty_init(void)
     return TRUE;
 }
 
-static void midotmdty_done(void)
+static void midotmdty_done(void *arg)
 {
     const char *cmd1 = "CLOSE\n";
     const char *cmd2 = "QUIT\n";

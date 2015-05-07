@@ -21,6 +21,8 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "sound/sound.h"
+
 #define MIDI_F_PASSTHRU 1
 #define MIDI_F_EXPLICIT 2
 
@@ -28,9 +30,7 @@
 #define MIDI_W_PCM 2
 
 struct midi_out_plugin {
-  const char *name;
-  int (*open)(void);
-  void (*close)(void);
+  pcm_base;
   void (*write)(unsigned char);
   void (*stop)(void);
   void (*run)(void);
@@ -40,9 +40,7 @@ struct midi_out_plugin {
 };
 
 struct midi_in_plugin {
-  const char *name;
-  int (*open)(void);
-  void (*close)(void);
+  pcm_base;
   void (*stop)(void);
   int selected:1;
 };

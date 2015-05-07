@@ -34,7 +34,7 @@
 static int pipe_fd = -1;
 static const char *midopipe_name = "MIDI Output: named pipe";
 
-static int midopipe_init(void)
+static int midopipe_init(void *arg)
 {
     char *name = DOSEMU_MIDI_PATH;
     mkfifo(name, 0666);
@@ -53,7 +53,7 @@ static int midopipe_init(void)
     return 1;
 }
 
-static void midopipe_done(void)
+static void midopipe_done(void *arg)
 {
     if (pipe_fd == -1)
 	return;

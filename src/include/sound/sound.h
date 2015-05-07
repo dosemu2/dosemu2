@@ -38,14 +38,18 @@ struct player_params {
   int handle;
 };
 
-struct pcm_player {
+typedef struct {
   const char *name;
   int (*open)(void *);
   void (*close)(void *);
+  void *arg;
+} pcm_base;
+
+struct pcm_player {
+  pcm_base;
   void (*start)(void *);
   void (*stop)(void *);
   void (*timer)(double, void *);
-  void *arg;
   int id;
 };
 

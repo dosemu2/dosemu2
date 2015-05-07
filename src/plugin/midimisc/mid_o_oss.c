@@ -46,7 +46,7 @@ static void seqbuf_dump(void)
     }
 }
 
-static int midooss_init(void)
+static int midooss_init(void *arg)
 {
     char *name = "/dev/sequencer";
     seq_fd = RPT_SYSCALL(open(name, O_WRONLY));
@@ -58,7 +58,7 @@ static int midooss_init(void)
     return 1;
 }
 
-static void midooss_done(void)
+static void midooss_done(void *arg)
 {
     if (seq_fd == -1)
 	return;

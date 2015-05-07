@@ -58,7 +58,7 @@ static void midipipe_io(void *arg)
     }
 }
 
-static int midipipe_init(void)
+static int midipipe_init(void *arg)
 {
     char *name = DOSEMU_MIDI_IN_PATH;
     pipe_fd = RPT_SYSCALL(open(name, O_RDONLY | O_NONBLOCK));
@@ -71,7 +71,7 @@ static int midipipe_init(void)
     return 1;
 }
 
-static void midipipe_done(void)
+static void midipipe_done(void *arg)
 {
     if (pipe_fd == -1)
 	return;

@@ -30,7 +30,7 @@ static snd_rawmidi_t *handle = NULL;
 static const char *midoalsa_name = "MIDI Output: ALSA device";
 static const char *device = "default";
 
-static int midoalsa_init(void)
+static int midoalsa_init(void *arg)
 {
     int err;
     err = snd_rawmidi_open(NULL, &handle, device,
@@ -43,7 +43,7 @@ static int midoalsa_init(void)
     return 1;
 }
 
-static void midoalsa_done(void)
+static void midoalsa_done(void *arg)
 {
     if (!handle)
 	return;

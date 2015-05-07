@@ -57,7 +57,7 @@ static double mf_time_base;
 
 static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static int midoflus_init(void)
+static int midoflus_init(void *arg)
 {
     int ret;
     settings = new_fluid_settings();
@@ -83,7 +83,7 @@ static int midoflus_init(void)
     return 1;
 }
 
-static void midoflus_done(void)
+static void midoflus_done(void *arg)
 {
     delete_fluid_midi_parser(parser);
     delete_fluid_sequencer(sequencer);
