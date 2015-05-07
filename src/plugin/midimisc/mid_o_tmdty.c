@@ -52,7 +52,7 @@
 
 #define TMDTY_CHANS 2
 
-static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
+#define midotmdty_name "MIDI Output: TiMidity++ plugin"
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
@@ -391,14 +391,16 @@ static void midotmdty_stop(void)
     pcm_running = 0;
 }
 
-CONSTRUCTOR(static int midotmdty_register(void))
+static const struct midi_out_plugin midotmdty = {
+    .name = midotmdty_name,
+    .open = midotmdty_init,
+    .close = midotmdty_done,
+    .write = midotmdty_write,
+    .stop = midotmdty_stop,
+    .weight = MIDI_W_PCM,
+};
+
+CONSTRUCTOR(static void midotmdty_register(void))
 {
-    struct midi_out_plugin midotmdty = {};
-    midotmdty.name = midotmdty_name;
-    midotmdty.open = midotmdty_init;
-    midotmdty.close = midotmdty_done;
-    midotmdty.write = midotmdty_write;
-    midotmdty.stop = midotmdty_stop;
-    midotmdty.weight = MIDI_W_PCM;
-    return midi_register_output_plugin(midotmdty);
+    midi_register_output_plugin(&midotmdty);
 }

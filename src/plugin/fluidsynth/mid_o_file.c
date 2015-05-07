@@ -46,7 +46,7 @@
 #include "sound/midi.h"
 
 
-static const char *midofile_name = "MIDI Output: midi file";
+#define midofile_name "MIDI Output: midi file"
 static const char *mfile_name = "/tmp/a.mid";
 static fluid_midi_parser_t* parser;
 static int output_running;
@@ -389,14 +389,16 @@ static void midofile_stop(void)
     output_running = 0;
 }
 
-CONSTRUCTOR(static int midofile_register(void))
+static const struct midi_out_plugin midofile = {
+    .name = midofile_name,
+    .open = midofile_init,
+    .close = midofile_done,
+    .write = midofile_write,
+    .stop = midofile_stop,
+    .flags = MIDI_F_PASSTHRU | MIDI_F_EXPLICIT,
+};
+
+CONSTRUCTOR(static void midofile_register(void))
 {
-    struct midi_out_plugin midofile = {};
-    midofile.name = midofile_name;
-    midofile.open = midofile_init;
-    midofile.close = midofile_done;
-    midofile.write = midofile_write;
-    midofile.stop = midofile_stop;
-    midofile.flags = MIDI_F_PASSTHRU | MIDI_F_EXPLICIT;
-    return midi_register_output_plugin(midofile);
+    midi_register_output_plugin(&midofile);
 }

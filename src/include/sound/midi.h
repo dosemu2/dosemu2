@@ -53,5 +53,5 @@ extern void midi_stop(void);
 extern void midi_timer(void);
 extern void midi_put_data(unsigned char *buf, size_t size);
 extern int midi_get_data_byte(unsigned char *buf);
-extern int midi_register_output_plugin(struct midi_out_plugin plugin);
-extern int midi_register_input_plugin(struct midi_in_plugin plugin);
+extern int midi_register_output_plugin(const struct midi_out_plugin *plugin);
+extern int midi_register_input_plugin(const struct midi_in_plugin *plugin);

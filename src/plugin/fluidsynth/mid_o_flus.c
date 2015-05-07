@@ -37,7 +37,7 @@
 #include "sound/sound.h"
 
 
-static const char *midoflus_name = "MIDI Output: FluidSynth device";
+#define midoflus_name "MIDI Output: FluidSynth device"
 static const float flus_srate = 44100;
 static const int flus_format = PCM_FORMAT_S16_LE;
 static const char *sfont = "/usr/share/soundfonts/default.sf2";
@@ -190,15 +190,17 @@ static void midoflus_timer(void)
     process_samples(GETusTIME(0), FLUS_MIN_BUF);
 }
 
-CONSTRUCTOR(static int midoflus_register(void))
+static const struct midi_out_plugin midoflus = {
+    .name = midoflus_name,
+    .open = midoflus_init,
+    .close = midoflus_done,
+    .write = midoflus_write,
+    .stop = midoflus_stop,
+    .run = midoflus_timer,
+    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
+};
+
+CONSTRUCTOR(static void midoflus_register(void))
 {
-    struct midi_out_plugin midoflus = {};
-    midoflus.name = midoflus_name;
-    midoflus.open = midoflus_init;
-    midoflus.close = midoflus_done;
-    midoflus.write = midoflus_write;
-    midoflus.stop = midoflus_stop;
-    midoflus.run = midoflus_timer;
-    midoflus.weight = MIDI_W_PCM | MIDI_W_PREFERRED;
-    return midi_register_output_plugin(midoflus);
+    midi_register_output_plugin(&midoflus);
 }

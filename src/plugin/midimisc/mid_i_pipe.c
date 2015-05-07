@@ -32,7 +32,7 @@
 
 
 static int pipe_fd = -1;
-static const char *midipipe_name = "MIDI Input: named pipe";
+#define midipipe_name "MIDI Input: named pipe"
 
 static void midipipe_io(void *arg)
 {
@@ -80,11 +80,13 @@ static void midipipe_done(void *arg)
     pipe_fd = -1;
 }
 
-CONSTRUCTOR(static int midipipe_register(void))
+static const struct midi_in_plugin midipipe = {
+    .name = midipipe_name,
+    .open = midipipe_init,
+    .close = midipipe_done,
+};
+
+CONSTRUCTOR(static void midipipe_register(void))
 {
-    struct midi_in_plugin midipipe = {};
-    midipipe.name = midipipe_name;
-    midipipe.open = midipipe_init;
-    midipipe.close = midipipe_done;
-    return midi_register_input_plugin(midipipe);
+    midi_register_input_plugin(&midipipe);
 }
