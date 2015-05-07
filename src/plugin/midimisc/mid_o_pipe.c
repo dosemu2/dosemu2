@@ -85,8 +85,8 @@ CONSTRUCTOR(static int midopipe_register(void))
 {
     struct midi_out_plugin midopipe = {};
     midopipe.name = midopipe_name;
-    midopipe.init = midopipe_init;
-    midopipe.done = midopipe_done;
+    midopipe.open = midopipe_init;
+    midopipe.close = midopipe_done;
     midopipe.reset = midopipe_reset;
     midopipe.write = midopipe_write;
     midopipe.flags = MIDI_F_PASSTHRU;

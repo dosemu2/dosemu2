@@ -29,8 +29,8 @@
 
 struct midi_out_plugin {
   const char *name;
-  int (*init)(void);
-  void (*done)(void);
+  int (*open)(void);
+  void (*close)(void);
   void (*reset)(void);
   void (*write)(unsigned char);
   void (*stop)(void);
@@ -42,8 +42,8 @@ struct midi_out_plugin {
 
 struct midi_in_plugin {
   const char *name;
-  int (*init)(void);
-  void (*done)(void);
+  int (*open)(void);
+  void (*close)(void);
   void (*reset)(void);
   void (*stop)(void);
   int selected:1;

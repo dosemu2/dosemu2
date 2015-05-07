@@ -393,8 +393,8 @@ CONSTRUCTOR(static int midofile_register(void))
 {
     struct midi_out_plugin midofile = {};
     midofile.name = midofile_name;
-    midofile.init = midofile_init;
-    midofile.done = midofile_done;
+    midofile.open = midofile_init;
+    midofile.close = midofile_done;
     midofile.reset = NULL;
     midofile.write = midofile_write;
     midofile.stop = midofile_stop;

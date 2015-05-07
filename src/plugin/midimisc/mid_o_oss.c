@@ -80,8 +80,8 @@ CONSTRUCTOR(static int midooss_register(void))
 {
     struct midi_out_plugin midooss = {};
     midooss.name = midooss_name;
-    midooss.init = midooss_init;
-    midooss.done = midooss_done;
+    midooss.open = midooss_init;
+    midooss.close = midooss_done;
     midooss.reset = midooss_reset;
     midooss.write = midooss_write;
     return midi_register_output_plugin(midooss);

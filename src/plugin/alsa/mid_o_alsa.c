@@ -66,8 +66,8 @@ CONSTRUCTOR(static int midoalsa_register(void))
 {
     struct midi_out_plugin midoalsa = {};
     midoalsa.name = midoalsa_name;
-    midoalsa.init = midoalsa_init;
-    midoalsa.done = midoalsa_done;
+    midoalsa.open = midoalsa_init;
+    midoalsa.close = midoalsa_done;
     midoalsa.reset = midoalsa_reset;
     midoalsa.write = midoalsa_write;
     midoalsa.weight = MIDI_W_PREFERRED;

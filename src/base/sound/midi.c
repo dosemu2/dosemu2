@@ -61,7 +61,7 @@ void midi_init(void)
   sel = 0;
   for (i = 0; i < out_registered; i++) {
     if (out[i].plugin.selected) {
-      out[i].initialized = out[i].plugin.init();
+      out[i].initialized = out[i].plugin.open();
       S_printf("MIDI: Initializing output plugin: %s: %s\n",
 	  out[i].plugin.name, out[i].initialized ? "OK" : "Failed");
       sel++;
@@ -75,7 +75,7 @@ void midi_init(void)
 	    (out[i].plugin.flags & MIDI_F_EXPLICIT))
         continue;
       if (out[i].plugin.flags & MIDI_F_PASSTHRU) {
-        out[i].initialized = out[i].plugin.init();
+        out[i].initialized = out[i].plugin.open();
         S_printf("MIDI: Initializing pass-through output plugin: %s: %s\n",
 	    out[i].plugin.name, out[i].initialized ? "OK" : "Failed");
         if (!out[i].initialized)
@@ -87,7 +87,7 @@ void midi_init(void)
       }
     }
     if (max_i != -1) {
-      out[max_i].initialized = out[max_i].plugin.init();
+      out[max_i].initialized = out[max_i].plugin.open();
       S_printf("MIDI: Initializing output plugin: %s (w=%i): %s\n",
 	  out[max_i].plugin.name, max_w,
 	  out[max_i].initialized ? "OK" : "Failed");
@@ -99,7 +99,7 @@ void midi_init(void)
   sel = 0;
   for (i = 0; i < in_registered; i++) {
     if (in[i].plugin.selected) {
-      in[i].initialized = in[i].plugin.init();
+      in[i].initialized = in[i].plugin.open();
       S_printf("MIDI: Initializing input plugin: %s: %s\n",
 	  in[i].plugin.name, in[i].initialized ? "OK" : "Failed");
       sel++;
@@ -107,7 +107,7 @@ void midi_init(void)
   }
   if (!sel) {
     for (i = 0; i < in_registered; i++) {
-      in[i].initialized = in[i].plugin.init();
+      in[i].initialized = in[i].plugin.open();
       S_printf("MIDI: Initializing input plugin: %s: %s\n",
 	  in[i].plugin.name, in[i].initialized ? "OK" : "Failed");
     }
@@ -121,14 +121,14 @@ void midi_done(void)
     if (out[i].initialized) {
       if (out[i].plugin.stop)
         out[i].plugin.stop();
-      out[i].plugin.done();
+      out[i].plugin.close();
     }
   }
   for (i = 0; i < in_registered; i++) {
     if (in[i].initialized) {
       if (in[i].plugin.stop)
         in[i].plugin.stop();
-      in[i].plugin.done();
+      in[i].plugin.close();
     }
   }
   rng_destroy(&midi_in);

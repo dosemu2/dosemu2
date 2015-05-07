@@ -391,8 +391,8 @@ CONSTRUCTOR(static int midotmdty_register(void))
 {
     struct midi_out_plugin midotmdty = {};
     midotmdty.name = midotmdty_name;
-    midotmdty.init = midotmdty_init;
-    midotmdty.done = midotmdty_done;
+    midotmdty.open = midotmdty_init;
+    midotmdty.close = midotmdty_done;
     midotmdty.reset = midotmdty_reset;
     midotmdty.write = midotmdty_write;
     midotmdty.stop = midotmdty_stop;

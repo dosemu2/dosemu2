@@ -198,8 +198,8 @@ CONSTRUCTOR(static int midoflus_register(void))
 {
     struct midi_out_plugin midoflus = {};
     midoflus.name = midoflus_name;
-    midoflus.init = midoflus_init;
-    midoflus.done = midoflus_done;
+    midoflus.open = midoflus_init;
+    midoflus.close = midoflus_done;
     midoflus.reset = midoflus_reset;
     midoflus.write = midoflus_write;
     midoflus.stop = midoflus_stop;

@@ -88,8 +88,8 @@ CONSTRUCTOR(static int midipipe_register(void))
 {
     struct midi_in_plugin midipipe = {};
     midipipe.name = midipipe_name;
-    midipipe.init = midipipe_init;
-    midipipe.done = midipipe_done;
+    midipipe.open = midipipe_init;
+    midipipe.close = midipipe_done;
     midipipe.reset = midipipe_reset;
     return midi_register_input_plugin(midipipe);
 }
