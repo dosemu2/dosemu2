@@ -45,62 +45,11 @@ void midi_write(unsigned char val)
 //  idle(0, 0, 0, "midi");
 }
 
-static const char *plu_type(struct pcm_holder *plu)
-{
-  if (plu->id == PCM_ID_P)
-    return "output";
-  return "input";
-}
-
-static void init_plugins(struct pcm_holder *plu, int num)
-{
-  int i, sel, max_w, max_i;
-  sel = 0;
-  for (i = 0; i < num; i++) {
-    if (plu[i].plugin->selected) {
-      plu[i].initialized = plu[i].plugin->open(plu[i].plugin->arg);
-      S_printf("MIDI: Initializing %s plugin: %s: %s\n", plu_type(&plu[i]),
-	  plu[i].plugin->name, plu[i].initialized ? "OK" : "Failed");
-      sel++;
-    }
-  }
-  if (!sel) do {
-    max_w = -1;
-    max_i = -1;
-    for (i = 0; i < num; i++) {
-      if (plu[i].initialized || plu[i].failed ||
-	    (plu[i].plugin->flags & MIDI_F_EXPLICIT))
-        continue;
-      if (plu[i].plugin->flags & MIDI_F_PASSTHRU) {
-        plu[i].initialized = plu[i].plugin->open(plu[i].plugin->arg);
-        S_printf("MIDI: Initializing pass-through %s plugin: %s: %s\n",
-	    plu_type(&plu[i]),
-	    plu[i].plugin->name, plu[i].initialized ? "OK" : "Failed");
-        if (!plu[i].initialized)
-          plu[i].failed = 1;
-      }
-      if (plu[i].plugin->weight > max_w) {
-        max_w = plu[i].plugin->weight;
-        max_i = i;
-      }
-    }
-    if (max_i != -1) {
-      out[max_i].initialized = out[max_i].plugin->open(out[max_i].plugin->arg);
-      S_printf("MIDI: Initializing %s plugin: %s (w=%i): %s\n",
-	    plu_type(&plu[i]),
-	    out[max_i].plugin->name, max_w,
-	    out[max_i].initialized ? "OK" : "Failed");
-      if (!out[max_i].initialized)
-        out[max_i].failed = 1;
-    }
-  } while(max_i != -1 && !out[max_i].initialized);
-}
-
 void midi_init(void)
 {
   rng_init(&midi_in, 64, 1);
-  init_plugins(out, out_registered);
-  init_plugins(in, in_registered);
+  pcm_init_plugins(out, out_registered);
+  pcm_init_plugins(in, in_registered);
 }
 
 void midi_done(void)

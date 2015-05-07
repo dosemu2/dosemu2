@@ -38,6 +38,9 @@ struct player_params {
   int handle;
 };
 
+#define PCM_F_PASSTHRU 1
+#define PCM_F_EXPLICIT 2
+
 typedef struct {
   const char *name;
   int (*open)(void *);
@@ -66,6 +69,7 @@ struct pcm_player {
 
 extern int pcm_register_player(struct pcm_player player);
 extern void pcm_reset_player(int handle);
+extern void pcm_init_plugins(struct pcm_holder *plu, int num);
 
 /** PCM sample format */
 enum _PCM_format {

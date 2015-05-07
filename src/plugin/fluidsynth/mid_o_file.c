@@ -395,7 +395,7 @@ static const struct midi_out_plugin midofile = {
     .close = midofile_done,
     .write = midofile_write,
     .stop = midofile_stop,
-    .flags = MIDI_F_PASSTHRU | MIDI_F_EXPLICIT,
+    .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 
 CONSTRUCTOR(static void midofile_register(void))
