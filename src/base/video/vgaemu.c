@@ -2702,7 +2702,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
         if (vga.mem.planes) {
           v_printf("Seq_write_value: instemu on\n");
-          vga.inst_emu = 2;
+          vga.inst_emu = EMU_ALL_INST;
         } else {
           v_printf("Seq_write_value: instemu off\n");
           vga.inst_emu = 0;

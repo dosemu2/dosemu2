@@ -649,6 +649,7 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
  * (0 -> no instruction emulation, the 'normal' case)
  * cf. vga.inst_emu
  */
+/* "only writes" mode seems unused?? */
 #define EMU_WRITE_INST	1
 #define EMU_ALL_INST	2
 
