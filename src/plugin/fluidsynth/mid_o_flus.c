@@ -198,7 +198,7 @@ CONSTRUCTOR(static int midoflus_register(void))
     midoflus.close = midoflus_done;
     midoflus.write = midoflus_write;
     midoflus.stop = midoflus_stop;
-    midoflus.timer = midoflus_timer;
+    midoflus.run = midoflus_timer;
     midoflus.weight = MIDI_W_PCM | MIDI_W_PREFERRED;
     return midi_register_output_plugin(midoflus);
 }

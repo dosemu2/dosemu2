@@ -33,7 +33,7 @@ struct midi_out_plugin {
   void (*close)(void);
   void (*write)(unsigned char);
   void (*stop)(void);
-  void (*timer)(void);
+  void (*run)(void);
   int selected:1;
   int flags;
   int weight;

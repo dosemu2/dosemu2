@@ -153,8 +153,8 @@ void midi_timer(void)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (out[i].plugin.timer && out[i].initialized)
-      out[i].plugin.timer();
+    if (out[i].plugin.run && out[i].initialized)
+      out[i].plugin.run();
 }
 
 void midi_put_data(unsigned char *buf, size_t size)
