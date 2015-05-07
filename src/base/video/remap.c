@@ -206,19 +206,17 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   install_remap_funcs(ro, features);
 
   if(
-    ro->func_all != NULL &&
-   (ro->func_all->flags & RFF_LIN_FILT ||
-    ro->func_1->flags & RFF_LIN_FILT ||
-    ro->func_2->flags & RFF_LIN_FILT)
+    (ro->func_all && (ro->func_all->flags & RFF_LIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_LIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_LIN_FILT))
   ) {
     color_lut_size = 256 * 3;
   }
 
   if(
-    ro->func_all != NULL &&
-   (ro->func_all->flags & RFF_BILIN_FILT ||
-    ro->func_1->flags & RFF_BILIN_FILT ||
-    ro->func_2->flags & RFF_BILIN_FILT)
+    (ro->func_all && (ro->func_all->flags & RFF_BILIN_FILT)) ||
+    (ro->func_1 && (ro->func_1->flags & RFF_BILIN_FILT)) ||
+    (ro->func_2 && (ro->func_2->flags & RFF_BILIN_FILT))
   ) {
     color_lut_size = 256 * 6;
   }
@@ -1381,7 +1379,6 @@ static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst
   int i;
 
   flags &= (RFF_LIN_FILT | RFF_BILIN_FILT | RFF_SCALE_ALL | RFF_SCALE_1 | RFF_SCALE_2);
-  if(flags & RFF_BILIN_FILT) flags &= ~RFF_LIN_FILT;
 
   f_list[0] = flags | RFF_OPT_PENTIUM | RFF_REMAP_RECT;
   f_list[1] = flags | RFF_OPT_PENTIUM | RFF_REMAP_LINES;
@@ -1412,16 +1409,23 @@ static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst
  */
 static void install_remap_funcs(RemapObject *ro, int remap_features)
 {
+  if (remap_features & RFF_BILIN_FILT)
+    remap_features &= ~RFF_LIN_FILT;
   ro->func_all = find_best_remap_func(remap_features | RFF_SCALE_ALL, ro->src_mode, ro->dst_mode, remap_list);
   ro->func_1   = find_best_remap_func(remap_features | RFF_SCALE_1  , ro->src_mode, ro->dst_mode, remap_list);
   ro->func_2   = find_best_remap_func(remap_features | RFF_SCALE_2  , ro->src_mode, ro->dst_mode, remap_list);
 
-  if(ro->func_1 == NULL) ro->func_1 = ro->func_all;
-  if(ro->func_2 == NULL) ro->func_2 = ro->func_all;
-
-  if(ro->func_all != NULL) ro->state |= ROS_SCALE_ALL;
-  if(ro->func_1 != NULL) ro->state |= ROS_SCALE_1;
-  if(ro->func_2 != NULL) ro->state |= ROS_SCALE_2;
+  if (ro->func_all)
+    ro->state |= ROS_SCALE_ALL;
+  /* accept partial scalers only if filtering matches or no full scaler */
+  if (ro->func_1 && (((ro->func_1->flags &
+      (remap_features | RFF_BILIN_FILT | RFF_LIN_FILT)) == remap_features)
+      || !ro->func_all))
+    ro->state |= ROS_SCALE_1;
+  if (ro->func_2 && (((ro->func_2->flags &
+      (remap_features | RFF_BILIN_FILT | RFF_LIN_FILT)) == remap_features)
+      || !ro->func_all))
+    ro->state |= ROS_SCALE_2;
   if (!ro->state)
     error("remap function not found for mode %i\n", ro->src_mode);
 
