@@ -1834,8 +1834,16 @@ static int __vga_emu_update(vga_emu_update_type *veut)
     j <= end_page && vga.mem.dirty_map[j] && (veut->max_max_len == 0 || veut->max_len > 0);
     j++
   ) {
-    vga.mem.dirty_map[j] = 0;
-    vga_emu_adjust_protection(j, 0, DEF_PROT);
+    /* if display_start points to the middle of the page, dont clear
+     * it immediately: it may still have dirty segments in the beginning,
+     * which will be processed after mem wrap. */
+    if (j == (veut->display_start >> 12) && (veut->display_start &
+	(PAGE_SIZE - 1)) > 0 && vga.mem.dirty_map[j] == 1)
+      vga.mem.dirty_map[j] = 2;
+    else
+      vga.mem.dirty_map[j] = 0;
+    if (!vga.mem.dirty_map[j])
+      vga_emu_adjust_protection(j, 0, DEF_PROT);
     if(veut->max_max_len) veut->max_len -= 1 << 12;
   }
 
