@@ -110,5 +110,25 @@ see here for details
 </itemizedlist>
 </listitem>
 
+<listitem>
+
+<title>Gobliiins</title>
+<itemizedlist>
+<listitem>
+<para>
+Goblins halts at startup with "Divide Error" message
+</para>
+<para>
+Solution: apply the following patch to gobega.exe:
+<screen>
+00004A19: F7 90
+00004A1A: F3 90
+</screen>
+</para>
+</listitem>
+</itemizedlist>
+
+</listitem>
+
 </itemizedlist>
 </article>

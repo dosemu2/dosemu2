@@ -37,3 +37,9 @@ Known tweaks needed to run programs under dosemu
     0002873E: 7C EB
 
             see here for details
+     * Gobliiins
+          + Goblins halts at startup with "Divide Error" message
+            Solution: apply the following patch to gobega.exe:
+
+    00004A19: F7 90
+    00004A1A: F3 90
