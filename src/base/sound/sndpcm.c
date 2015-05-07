@@ -1045,7 +1045,7 @@ void pcm_init_plugins(struct pcm_holder *plu, int num)
   for (i = 0; i < num; i++) {
     if (plu[i].plugin->selected) {
       plu[i].initialized = plu[i].plugin->open(plu[i].plugin->arg);
-      S_printf("MIDI: Initializing %s plugin: %s: %s\n", plu_type(&plu[i]),
+      S_printf("PCM: Initializing %s plugin: %s: %s\n", plu_type(&plu[i]),
 	  plu[i].plugin->name, plu[i].initialized ? "OK" : "Failed");
       sel++;
     }
@@ -1059,21 +1059,26 @@ void pcm_init_plugins(struct pcm_holder *plu, int num)
         continue;
       if (plu[i].plugin->flags & PCM_F_PASSTHRU) {
         plu[i].initialized = plu[i].plugin->open(plu[i].plugin->arg);
-        S_printf("MIDI: Initializing pass-through %s plugin: %s: %s\n",
+        S_printf("PCM: Initializing pass-through %s plugin: %s: %s\n",
 	    plu_type(&plu[i]),
 	    plu[i].plugin->name, plu[i].initialized ? "OK" : "Failed");
         if (!plu[i].initialized)
           plu[i].failed = 1;
+        continue;
       }
       if (plu[i].plugin->weight > max_w) {
+        if (max_i != -1)
+          S_printf("PCM: Bypassing %s plugin: %s: (%i < %i)\n",
+		plu_type(&plu[max_i]), plu[max_i].plugin->name, max_w,
+		plu[i].plugin->weight);
         max_w = plu[i].plugin->weight;
         max_i = i;
       }
     }
     if (max_i != -1) {
       plu[max_i].initialized = plu[max_i].plugin->open(plu[max_i].plugin->arg);
-      S_printf("MIDI: Initializing %s plugin: %s (w=%i): %s\n",
-	    plu_type(&plu[i]),
+      S_printf("PCM: Initializing %s plugin: %s (w=%i): %s\n",
+	    plu_type(&plu[max_i]),
 	    plu[max_i].plugin->name, max_w,
 	    plu[max_i].initialized ? "OK" : "Failed");
       if (!plu[max_i].initialized)
