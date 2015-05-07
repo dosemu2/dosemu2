@@ -66,10 +66,6 @@ static void midooss_done(void)
     seq_fd = -1;
 }
 
-static void midooss_reset(void)
-{
-}
-
 static void midooss_write(unsigned char val)
 {
     SEQ_MIDIOUT(0, val);
@@ -82,7 +78,6 @@ CONSTRUCTOR(static int midooss_register(void))
     midooss.name = midooss_name;
     midooss.open = midooss_init;
     midooss.close = midooss_done;
-    midooss.reset = midooss_reset;
     midooss.write = midooss_write;
     return midi_register_output_plugin(midooss);
 }

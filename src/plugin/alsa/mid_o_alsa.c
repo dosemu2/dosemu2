@@ -51,10 +51,6 @@ static void midoalsa_done(void)
     handle = NULL;
 }
 
-static void midoalsa_reset(void)
-{
-}
-
 static void midoalsa_write(unsigned char val)
 {
     if (!handle)
@@ -68,7 +64,6 @@ CONSTRUCTOR(static int midoalsa_register(void))
     midoalsa.name = midoalsa_name;
     midoalsa.open = midoalsa_init;
     midoalsa.close = midoalsa_done;
-    midoalsa.reset = midoalsa_reset;
     midoalsa.write = midoalsa_write;
     midoalsa.weight = MIDI_W_PREFERRED;
     return midi_register_output_plugin(midoalsa);

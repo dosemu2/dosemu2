@@ -61,10 +61,6 @@ static void midopipe_done(void)
     pipe_fd = -1;
 }
 
-static void midopipe_reset(void)
-{
-}
-
 static void midopipe_write(unsigned char val)
 {
     /* Try again to open FIFO on each write in case some readers showed up. */
@@ -87,7 +83,6 @@ CONSTRUCTOR(static int midopipe_register(void))
     midopipe.name = midopipe_name;
     midopipe.open = midopipe_init;
     midopipe.close = midopipe_done;
-    midopipe.reset = midopipe_reset;
     midopipe.write = midopipe_write;
     midopipe.flags = MIDI_F_PASSTHRU;
     return midi_register_output_plugin(midopipe);

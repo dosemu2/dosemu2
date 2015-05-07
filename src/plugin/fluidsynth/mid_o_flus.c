@@ -91,10 +91,6 @@ static void midoflus_done(void)
     delete_fluid_settings(settings);
 }
 
-static void midoflus_reset(void)
-{
-}
-
 static void midoflus_start(void)
 {
     S_printf("MIDI: starting fluidsynth\n");
@@ -200,7 +196,6 @@ CONSTRUCTOR(static int midoflus_register(void))
     midoflus.name = midoflus_name;
     midoflus.open = midoflus_init;
     midoflus.close = midoflus_done;
-    midoflus.reset = midoflus_reset;
     midoflus.write = midoflus_write;
     midoflus.stop = midoflus_stop;
     midoflus.timer = midoflus_timer;

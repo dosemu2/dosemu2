@@ -58,6 +58,8 @@ static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
 static int pcm_stream, pcm_running;
 
+static void midotmdty_reset(void);
+
 static void midotmdty_io(void *arg)
 {
     sndbuf_t buf[16384][SNDBUF_CHANS];
@@ -324,6 +326,8 @@ static int midotmdty_init(void)
 	pcm_stream = pcm_allocate_stream(TMDTY_CHANS, "MIDI", PCM_ID_P);
     }
 
+    midotmdty_reset();
+
     return TRUE;
 }
 
@@ -393,7 +397,6 @@ CONSTRUCTOR(static int midotmdty_register(void))
     midotmdty.name = midotmdty_name;
     midotmdty.open = midotmdty_init;
     midotmdty.close = midotmdty_done;
-    midotmdty.reset = midotmdty_reset;
     midotmdty.write = midotmdty_write;
     midotmdty.stop = midotmdty_stop;
     midotmdty.weight = MIDI_W_PCM;

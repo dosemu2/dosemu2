@@ -136,13 +136,6 @@ void midi_done(void)
 
 void midi_reset(void)
 {
-  int i;
-  for (i = 0; i < out_registered; i++)
-    if (out[i].initialized && out[i].plugin.reset)
-      out[i].plugin.reset();
-  for (i = 0; i < in_registered; i++)
-    if (in[i].initialized && in[i].plugin.reset)
-      in[i].plugin.reset();
 }
 
 void midi_stop(void)

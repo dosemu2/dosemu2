@@ -395,7 +395,6 @@ CONSTRUCTOR(static int midofile_register(void))
     midofile.name = midofile_name;
     midofile.open = midofile_init;
     midofile.close = midofile_done;
-    midofile.reset = NULL;
     midofile.write = midofile_write;
     midofile.stop = midofile_stop;
     midofile.flags = MIDI_F_PASSTHRU | MIDI_F_EXPLICIT;
