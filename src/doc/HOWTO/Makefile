@@ -1,7 +1,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-DOCSOURCES := $(notdir $(wildcard $(srcdir)/*.sgml))
+DOCSOURCES := EMUfailure.sgml tweaks.sgml
 TXT = $(DOCSOURCES:.sgml=.txt)
 HTML = $(DOCSOURCES:.sgml=.html)
 
