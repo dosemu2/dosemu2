@@ -45,6 +45,13 @@ void midi_write(unsigned char val)
 //  idle(0, 0, 0, "midi");
 }
 
+static const char *plu_type(struct pcm_holder *plu)
+{
+  if (plu->id == PCM_ID_P)
+    return "output";
+  return "input";
+}
+
 static void init_plugins(struct pcm_holder *plu, int num)
 {
   int i, sel, max_w, max_i;
@@ -52,7 +59,7 @@ static void init_plugins(struct pcm_holder *plu, int num)
   for (i = 0; i < num; i++) {
     if (plu[i].plugin->selected) {
       plu[i].initialized = plu[i].plugin->open(plu[i].plugin->arg);
-      S_printf("MIDI: Initializing output plugin: %s: %s\n",
+      S_printf("MIDI: Initializing %s plugin: %s: %s\n", plu_type(&plu[i]),
 	  plu[i].plugin->name, plu[i].initialized ? "OK" : "Failed");
       sel++;
     }
@@ -66,7 +73,8 @@ static void init_plugins(struct pcm_holder *plu, int num)
         continue;
       if (plu[i].plugin->flags & MIDI_F_PASSTHRU) {
         plu[i].initialized = plu[i].plugin->open(plu[i].plugin->arg);
-        S_printf("MIDI: Initializing pass-through output plugin: %s: %s\n",
+        S_printf("MIDI: Initializing pass-through %s plugin: %s: %s\n",
+	    plu_type(&plu[i]),
 	    plu[i].plugin->name, plu[i].initialized ? "OK" : "Failed");
         if (!plu[i].initialized)
           plu[i].failed = 1;
@@ -78,9 +86,10 @@ static void init_plugins(struct pcm_holder *plu, int num)
     }
     if (max_i != -1) {
       out[max_i].initialized = out[max_i].plugin->open(out[max_i].plugin->arg);
-      S_printf("MIDI: Initializing output plugin: %s (w=%i): %s\n",
-	  out[max_i].plugin->name, max_w,
-	  out[max_i].initialized ? "OK" : "Failed");
+      S_printf("MIDI: Initializing %s plugin: %s (w=%i): %s\n",
+	    plu_type(&plu[i]),
+	    out[max_i].plugin->name, max_w,
+	    out[max_i].initialized ? "OK" : "Failed");
       if (!out[max_i].initialized)
         out[max_i].failed = 1;
     }
@@ -160,6 +169,7 @@ int midi_register_output_plugin(const struct midi_out_plugin *plugin)
   }
   index = out_registered++;
   out[index].plugin = plugin;
+  out[index].id = PCM_ID_P;
   out[index].initialized = 0;
   return 1;
 }
@@ -173,6 +183,7 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
   }
   index = in_registered++;
   in[index].plugin = plugin;
+  in[index].id = PCM_ID_R;
   in[index].initialized = 0;
   return 1;
 }
