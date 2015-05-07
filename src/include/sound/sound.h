@@ -43,6 +43,10 @@ typedef struct {
   int (*open)(void *);
   void (*close)(void *);
   void *arg;
+
+  int selected:1;
+  int flags;
+  int weight;
 } pcm_base;
 
 struct pcm_holder {

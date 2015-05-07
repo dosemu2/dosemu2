@@ -34,15 +34,11 @@ struct midi_out_plugin {
   void (*write)(unsigned char);
   void (*stop)(void);
   void (*run)(void);
-  int selected:1;
-  int flags;
-  int weight;
 };
 
 struct midi_in_plugin {
   pcm_base;
   void (*stop)(void);
-  int selected:1;
 };
 
 extern void midi_write(unsigned char val);
