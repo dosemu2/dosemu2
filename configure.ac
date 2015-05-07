@@ -246,7 +246,7 @@ INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions"
+ -Wnested-externs -fms-extensions -fplan9-extensions"
 if test -z "$CFLAGS"; then
   if test "$enable_debug" = "yes"; then
     CFLAGS="$CFLAGS -g -O"

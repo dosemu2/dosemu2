@@ -45,6 +45,12 @@ typedef struct {
   void *arg;
 } pcm_base;
 
+struct pcm_holder {
+  const pcm_base *plugin;
+  int initialized:1;
+  int failed:1;
+};
+
 struct pcm_player {
   pcm_base;
   void (*start)(void *);

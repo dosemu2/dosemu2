@@ -26,21 +26,13 @@
 #include "sound/sound.h"
 #include "sound/midi.h"
 
-struct midi_out_plugin_wr {
-  const struct midi_out_plugin *plugin;
-  int initialized:1;
-  int failed:1;
-};
-struct midi_in_plugin_wr {
-  const struct midi_in_plugin *plugin;
-  int initialized:1;
-};
-
 #define MAX_OUT_PLUGINS 15
 /* support only 1 input plugin for now to avoid the concurrent writes */
 #define MAX_IN_PLUGINS 1
-static struct midi_out_plugin_wr out[MAX_OUT_PLUGINS];
-static struct midi_in_plugin_wr in[MAX_IN_PLUGINS];
+static struct pcm_holder out[MAX_OUT_PLUGINS];
+static struct pcm_holder in[MAX_IN_PLUGINS];
+#define OUT_PLUGIN(i) ((struct midi_out_plugin *)out[i].plugin)
+#define IN_PLUGIN(i) ((struct midi_in_plugin *)in[i].plugin)
 static int out_registered = 0, in_registered = 0;
 static struct rng_s midi_in;
 
@@ -49,7 +41,7 @@ void midi_write(unsigned char val)
   int i;
   for (i = 0; i < out_registered; i++)
     if (out[i].initialized)
-      out[i].plugin->write(val);
+      OUT_PLUGIN(i)->write(val);
 //  idle(0, 0, 0, "midi");
 }
 
@@ -60,10 +52,10 @@ void midi_init(void)
 
   sel = 0;
   for (i = 0; i < out_registered; i++) {
-    if (out[i].plugin->selected) {
-      out[i].initialized = out[i].plugin->open(out[i].plugin->arg);
+    if (OUT_PLUGIN(i)->selected) {
+      out[i].initialized = OUT_PLUGIN(i)->open(OUT_PLUGIN(i)->arg);
       S_printf("MIDI: Initializing output plugin: %s: %s\n",
-	  out[i].plugin->name, out[i].initialized ? "OK" : "Failed");
+	  OUT_PLUGIN(i)->name, out[i].initialized ? "OK" : "Failed");
       sel++;
     }
   }
@@ -72,17 +64,17 @@ void midi_init(void)
     max_i = -1;
     for (i = 0; i < out_registered; i++) {
       if (out[i].initialized || out[i].failed ||
-	    (out[i].plugin->flags & MIDI_F_EXPLICIT))
+	    (OUT_PLUGIN(i)->flags & MIDI_F_EXPLICIT))
         continue;
-      if (out[i].plugin->flags & MIDI_F_PASSTHRU) {
-        out[i].initialized = out[i].plugin->open(out[i].plugin->arg);
+      if (OUT_PLUGIN(i)->flags & MIDI_F_PASSTHRU) {
+        out[i].initialized = OUT_PLUGIN(i)->open(OUT_PLUGIN(i)->arg);
         S_printf("MIDI: Initializing pass-through output plugin: %s: %s\n",
-	    out[i].plugin->name, out[i].initialized ? "OK" : "Failed");
+	    OUT_PLUGIN(i)->name, out[i].initialized ? "OK" : "Failed");
         if (!out[i].initialized)
           out[i].failed = 1;
       }
-      if (out[i].plugin->weight > max_w) {
-        max_w = out[i].plugin->weight;
+      if (OUT_PLUGIN(i)->weight > max_w) {
+        max_w = OUT_PLUGIN(i)->weight;
         max_i = i;
       }
     }
@@ -98,18 +90,18 @@ void midi_init(void)
 
   sel = 0;
   for (i = 0; i < in_registered; i++) {
-    if (in[i].plugin->selected) {
-      in[i].initialized = in[i].plugin->open(in[i].plugin->arg);
+    if (IN_PLUGIN(i)->selected) {
+      in[i].initialized = IN_PLUGIN(i)->open(IN_PLUGIN(i)->arg);
       S_printf("MIDI: Initializing input plugin: %s: %s\n",
-	  in[i].plugin->name, in[i].initialized ? "OK" : "Failed");
+	  IN_PLUGIN(i)->name, in[i].initialized ? "OK" : "Failed");
       sel++;
     }
   }
   if (!sel) {
     for (i = 0; i < in_registered; i++) {
-      in[i].initialized = in[i].plugin->open(in[i].plugin->arg);
+      in[i].initialized = IN_PLUGIN(i)->open(IN_PLUGIN(i)->arg);
       S_printf("MIDI: Initializing input plugin: %s: %s\n",
-	  in[i].plugin->name, in[i].initialized ? "OK" : "Failed");
+	  IN_PLUGIN(i)->name, in[i].initialized ? "OK" : "Failed");
     }
   }
 }
@@ -119,16 +111,16 @@ void midi_done(void)
   int i;
   for (i = 0; i < out_registered; i++) {
     if (out[i].initialized) {
-      if (out[i].plugin->stop)
-        out[i].plugin->stop();
-      out[i].plugin->close(out[i].plugin->arg);
+      if (OUT_PLUGIN(i)->stop)
+        OUT_PLUGIN(i)->stop();
+      OUT_PLUGIN(i)->close(OUT_PLUGIN(i)->arg);
     }
   }
   for (i = 0; i < in_registered; i++) {
     if (in[i].initialized) {
-      if (in[i].plugin->stop)
-        in[i].plugin->stop();
-      in[i].plugin->close(in[i].plugin->arg);
+      if (IN_PLUGIN(i)->stop)
+        IN_PLUGIN(i)->stop();
+      IN_PLUGIN(i)->close(IN_PLUGIN(i)->arg);
     }
   }
   rng_destroy(&midi_in);
@@ -142,19 +134,19 @@ void midi_stop(void)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (out[i].plugin->stop && out[i].initialized)
-      out[i].plugin->stop();
+    if (OUT_PLUGIN(i)->stop && out[i].initialized)
+      OUT_PLUGIN(i)->stop();
   for (i = 0; i < in_registered; i++)
-    if (in[i].plugin->stop && in[i].initialized)
-      in[i].plugin->stop();
+    if (IN_PLUGIN(i)->stop && in[i].initialized)
+      IN_PLUGIN(i)->stop();
 }
 
 void midi_timer(void)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (out[i].plugin->run && out[i].initialized)
-      out[i].plugin->run();
+    if (OUT_PLUGIN(i)->run && out[i].initialized)
+      OUT_PLUGIN(i)->run();
 }
 
 void midi_put_data(unsigned char *buf, size_t size)
