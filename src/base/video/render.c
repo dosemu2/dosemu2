@@ -440,6 +440,7 @@ static void update_graphics_screen(void)
     veut.display_end = wrap;
     wrap = veut.display_start;
     veut.display_start = 0;
+    veut.update_pos = 0;
     veut.max_len = veut.max_max_len;
     update_graphics_loop(-(vga.mem.wrap - wrap), vga.mem.wrap - wrap, &veut);
     veut.display_start = wrap;
@@ -448,6 +449,7 @@ static void update_graphics_screen(void)
 
   if (vga.line_compare < vga.height) {
     veut.display_start = 0;
+    veut.update_pos = 0;
     veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
     veut.max_len = veut.max_max_len;
     update_graphics_loop(-vga.scan_len * vga.line_compare,
