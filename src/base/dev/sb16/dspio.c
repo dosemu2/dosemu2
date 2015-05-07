@@ -267,10 +267,16 @@ static void dspio_i_stop(void *arg)
     state->i_started = 0;
 }
 
+static const struct pcm_player player = {
+    .name = "SB REC",
+    .start = dspio_i_start,
+    .stop = dspio_i_stop,
+    .id = PCM_ID_R,
+};
+
 void *dspio_init(void)
 {
     struct dspio_state *state;
-    struct pcm_player player = {};
     state = malloc(sizeof(struct dspio_state));
     if (!state)
 	return NULL;
@@ -278,13 +284,7 @@ void *dspio_init(void)
     state->input_running =
 	state->output_running = state->dac_running = state->speaker = 0;
     state->dma.dsp_fifo_enabled = 1;
-
-    player.name = "SB REC";
-    player.start = dspio_i_start;
-    player.stop = dspio_i_stop;
-    player.arg = state;
-    player.id = PCM_ID_R;
-    state->i_handle = pcm_register_player(player);
+    state->i_handle = pcm_register_player(&player, state);
     pcm_init();
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);

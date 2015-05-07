@@ -59,14 +59,14 @@ void midi_done(void)
     if (out[i].initialized) {
       if (OUT_PLUGIN(i)->stop)
         OUT_PLUGIN(i)->stop();
-      out[i].plugin->close(out[i].plugin->arg);
+      out[i].plugin->close(out[i].arg);
     }
   }
   for (i = 0; i < in_registered; i++) {
     if (in[i].initialized) {
       if (IN_PLUGIN(i)->stop)
         IN_PLUGIN(i)->stop();
-      in[i].plugin->close(in[i].plugin->arg);
+      in[i].plugin->close(in[i].arg);
     }
   }
   rng_destroy(&midi_in);

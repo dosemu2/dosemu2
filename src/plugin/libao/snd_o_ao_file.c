@@ -38,7 +38,7 @@
 
 #define ENABLED 0
 
-static const char *aosndf_name = "Sound Output: libao wav writer";
+#define aosndf_name "Sound Output: libao wav writer"
 static ao_device *ao;
 #if ENABLED
 static const char *ao_drv_manual_name = "wav";
@@ -112,15 +112,17 @@ static void aosndf_timer(double dtime, void *arg)
     }
 }
 
+static const struct pcm_player player = {
+    .name = aosndf_name,
+    .open = aosndf_open,
+    .close = aosndf_close,
+    .start = aosndf_start,
+    .stop = aosndf_stop,
+    .timer = aosndf_timer,
+    .id = PCM_ID_P,
+};
+
 CONSTRUCTOR(static void aosndf_init(void))
 {
-    struct pcm_player player = {};
-    player.name = aosndf_name;
-    player.open = aosndf_open;
-    player.close = aosndf_close;
-    player.start = aosndf_start;
-    player.stop = aosndf_stop;
-    player.timer = aosndf_timer;
-    player.id = PCM_ID_P;
-    params.handle = pcm_register_player(player);
+    params.handle = pcm_register_player(&player, NULL);
 }

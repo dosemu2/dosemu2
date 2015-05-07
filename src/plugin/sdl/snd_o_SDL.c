@@ -32,7 +32,7 @@
 #include "sound/sound.h"
 #include <SDL.h>
 
-static const char *sdlsnd_name = "Sound Output: SDL device";
+#define sdlsnd_name "Sound Output: SDL device"
 static struct player_params params;
 static SDL_AudioDeviceID dev;
 
@@ -90,16 +90,18 @@ static void sdlsnd_close(void *arg)
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
+static const struct pcm_player player = {
+    .name = sdlsnd_name,
+    .start = sdlsnd_start,
+    .stop = sdlsnd_stop,
+    .open = sdlsnd_open,
+    .close = sdlsnd_close,
+//    .lock = SDL_LockAudio,
+//    .unlock = SDL_UnlockAudio,
+    .id = PCM_ID_P,
+};
+
 CONSTRUCTOR(static void sdlsnd_init(void))
 {
-    struct pcm_player player = {};
-    player.name = sdlsnd_name;
-    player.start = sdlsnd_start;
-    player.stop = sdlsnd_stop;
-    player.open = sdlsnd_open;
-    player.close = sdlsnd_close;
-//    player.lock = SDL_LockAudio;
-//    player.unlock = SDL_UnlockAudio;
-    player.id = PCM_ID_P;
-    params.handle = pcm_register_player(player);
+    params.handle = pcm_register_player(&player, NULL);
 }

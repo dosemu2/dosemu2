@@ -40,7 +40,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-static const char *aosnd_name = "Sound Output: libao";
+#define aosnd_name "Sound Output: libao"
 static ao_device *ao;
 static struct player_params params;
 static int started;
@@ -136,15 +136,16 @@ static void aosnd_stop(void *arg)
     sem_wait(&stop_sem);
 }
 
+static const struct pcm_player player = {
+    .name = aosnd_name,
+    .open = aosnd_open,
+    .close = aosnd_close,
+    .start = aosnd_start,
+    .stop = aosnd_stop,
+    .id = PCM_ID_P,
+};
+
 CONSTRUCTOR(static void aosnd_init(void))
 {
-    struct pcm_player player = {};
-    player.name = aosnd_name;
-    player.open = aosnd_open;
-    player.close = aosnd_close;
-    player.start = aosnd_start;
-    player.stop = aosnd_stop;
-    player.timer = NULL;
-    player.id = PCM_ID_P;
-    params.handle = pcm_register_player(player);
+    params.handle = pcm_register_player(&player, NULL);
 }

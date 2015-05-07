@@ -45,7 +45,6 @@ typedef struct {
   const char *name;
   int (*open)(void *);
   void (*close)(void *);
-  void *arg;
 
   int selected:1;
   int flags;
@@ -54,6 +53,7 @@ typedef struct {
 
 struct pcm_holder {
   const pcm_base *plugin;
+  void *arg;
   int id;
   int initialized:1;
   int failed:1;
@@ -67,7 +67,7 @@ struct pcm_player {
   int id;
 };
 
-extern int pcm_register_player(struct pcm_player player);
+extern int pcm_register_player(const struct pcm_player *player, void *arg);
 extern void pcm_reset_player(int handle);
 extern void pcm_init_plugins(struct pcm_holder *plu, int num);
 
