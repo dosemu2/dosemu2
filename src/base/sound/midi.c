@@ -118,7 +118,6 @@ int midi_register_output_plugin(const struct midi_out_plugin *plugin)
   }
   index = out_registered++;
   out[index].plugin = plugin;
-  out[index].id = PCM_ID_P;
   out[index].opened = 0;
   return 1;
 }
@@ -132,7 +131,6 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
   }
   index = in_registered++;
   in[index].plugin = plugin;
-  in[index].id = PCM_ID_R;
   in[index].opened = 0;
   return 1;
 }

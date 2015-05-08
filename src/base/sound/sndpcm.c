@@ -1033,13 +1033,6 @@ void pcm_done(void)
     pthread_mutex_destroy(&pcm.time_mtx);
 }
 
-static const char *plu_type(struct pcm_holder *plu)
-{
-  if (plu->id == PCM_ID_P)
-    return "output";
-  return "input";
-}
-
 void pcm_init_plugins(struct pcm_holder *plu, int num)
 {
   int i, sel, max_w, max_i;
@@ -1047,7 +1040,7 @@ void pcm_init_plugins(struct pcm_holder *plu, int num)
   for (i = 0; i < num; i++) {
     if (plu[i].plugin->selected) {
       plu[i].opened = plu[i].plugin->open(plu[i].arg);
-      S_printf("PCM: Initializing %s plugin: %s: %s\n", plu_type(&plu[i]),
+      S_printf("PCM: Initializing plugin: %s: %s\n",
 	  plu[i].plugin->name, plu[i].opened ? "OK" : "Failed");
       sel++;
     }
@@ -1061,8 +1054,7 @@ void pcm_init_plugins(struct pcm_holder *plu, int num)
         continue;
       if (plu[i].plugin->flags & PCM_F_PASSTHRU) {
         plu[i].opened = plu[i].plugin->open(plu[i].arg);
-        S_printf("PCM: Initializing pass-through %s plugin: %s: %s\n",
-	    plu_type(&plu[i]),
+        S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
 	    plu[i].plugin->name, plu[i].opened ? "OK" : "Failed");
         if (!plu[i].opened)
           plu[i].failed = 1;
@@ -1070,8 +1062,8 @@ void pcm_init_plugins(struct pcm_holder *plu, int num)
       }
       if (plu[i].plugin->weight > max_w) {
         if (max_i != -1)
-          S_printf("PCM: Bypassing %s plugin: %s: (%i < %i)\n",
-		plu_type(&plu[max_i]), plu[max_i].plugin->name, max_w,
+          S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
+		plu[max_i].plugin->name, max_w,
 		plu[i].plugin->weight);
         max_w = plu[i].plugin->weight;
         max_i = i;
@@ -1079,8 +1071,7 @@ void pcm_init_plugins(struct pcm_holder *plu, int num)
     }
     if (max_i != -1) {
       plu[max_i].opened = plu[max_i].plugin->open(plu[max_i].arg);
-      S_printf("PCM: Initializing %s plugin: %s (w=%i): %s\n",
-	    plu_type(&plu[max_i]),
+      S_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
 	    plu[max_i].plugin->name, max_w,
 	    plu[max_i].opened ? "OK" : "Failed");
       if (!plu[max_i].opened)

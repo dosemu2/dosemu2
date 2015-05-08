@@ -54,7 +54,6 @@ typedef struct {
 struct pcm_holder {
   const pcm_base *plugin;
   void *arg;
-  int id;
   int opened:1;
   int failed:1;
 };
