@@ -133,7 +133,6 @@ struct pcm_struct {
 
 int pcm_init(void)
 {
-    int i;
     S_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
@@ -160,17 +159,8 @@ int pcm_init(void)
     load_plugin("fluidsynth");
 #endif
 #endif
-    for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_holder *p = &pcm.players[i];
-	if (p->plugin->open)
-	    p->opened = p->plugin->open(p->arg);
-	else
-	    p->opened = 1;
-	if (!p->opened) {
-	    S_printf("PCM: \"%s\" failed to open\n",
-		  p->plugin->name);
-	}
-    }
+    if (!pcm_init_plugins(pcm.players, pcm.num_players))
+      S_printf("ERROR: no PCM plugins initialized\n");
     return 1;
 }
 
@@ -958,10 +948,9 @@ static void pcm_advance_time(double stop_time)
 int pcm_register_player(const struct pcm_player *player, void *arg)
 {
     struct pcm_holder *p;
-    S_printf("PCM: registering clocked player: %s\n", player->name);
+    S_printf("PCM: registering player: %s\n", player->name);
     if (pcm.num_players >= MAX_PLAYERS) {
-	error("PCM: attempt to register more than %i clocked player\n",
-	      MAX_PLAYERS);
+	error("PCM: attempt to register more than %i player\n", MAX_PLAYERS);
 	return 0;
     }
     p = &pcm.players[pcm.num_players];
@@ -1040,49 +1029,60 @@ void pcm_done(void)
     pthread_mutex_destroy(&pcm.time_mtx);
 }
 
-void pcm_init_plugins(struct pcm_holder *plu, int num)
+int pcm_init_plugins(struct pcm_holder *plu, int num)
 {
-  int i, sel, max_w, max_i;
+#define SAFE_OPEN(p) (p->plugin->open ? p->plugin->open(p->arg) : 1)
+  int i, sel, max_w, max_i, cnt;
+  cnt = 0;
   sel = 0;
   for (i = 0; i < num; i++) {
-    if (plu[i].plugin->selected) {
-      plu[i].opened = plu[i].plugin->open(plu[i].arg);
+    struct pcm_holder *p = &plu[i];
+    if (p->plugin->selected) {
+      p->opened = SAFE_OPEN(p);
       S_printf("PCM: Initializing plugin: %s: %s\n",
-	  plu[i].plugin->name, plu[i].opened ? "OK" : "Failed");
+	  p->plugin->name, p->opened ? "OK" : "Failed");
       sel++;
+      if (p->opened)
+        cnt++;
     }
   }
   if (!sel) do {
     max_w = -1;
     max_i = -1;
     for (i = 0; i < num; i++) {
-      if (plu[i].opened || plu[i].failed ||
-	    (plu[i].plugin->flags & PCM_F_EXPLICIT))
+      struct pcm_holder *p = &plu[i];
+      if (p->opened || p->failed ||
+	    (p->plugin->flags & PCM_F_EXPLICIT))
         continue;
-      if (plu[i].plugin->flags & PCM_F_PASSTHRU) {
-        plu[i].opened = plu[i].plugin->open(plu[i].arg);
+      if (p->plugin->flags & PCM_F_PASSTHRU) {
+        p->opened = SAFE_OPEN(p);
         S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
-	    plu[i].plugin->name, plu[i].opened ? "OK" : "Failed");
-        if (!plu[i].opened)
-          plu[i].failed = 1;
+	    p->plugin->name, p->opened ? "OK" : "Failed");
+        if (!p->opened)
+          p->failed = 1;
+        else
+          cnt++;
         continue;
       }
-      if (plu[i].plugin->weight > max_w) {
+      if (p->plugin->weight > max_w) {
         if (max_i != -1)
           S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
 		plu[max_i].plugin->name, max_w,
-		plu[i].plugin->weight);
-        max_w = plu[i].plugin->weight;
+		p->plugin->weight);
+        max_w = p->plugin->weight;
         max_i = i;
       }
     }
     if (max_i != -1) {
-      plu[max_i].opened = plu[max_i].plugin->open(plu[max_i].arg);
+      struct pcm_holder *p = &plu[max_i];
+      p->opened = SAFE_OPEN(p);
       S_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
-	    plu[max_i].plugin->name, max_w,
-	    plu[max_i].opened ? "OK" : "Failed");
-      if (!plu[max_i].opened)
-        plu[max_i].failed = 1;
+	    p->plugin->name, max_w, p->opened ? "OK" : "Failed");
+      if (!p->opened)
+        p->failed = 1;
+      else
+        cnt++;
     }
-  } while(max_i != -1 && !plu[max_i].opened);
+  } while (max_i != -1 && !plu[max_i].opened);
+  return cnt;
 }

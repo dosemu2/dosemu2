@@ -272,6 +272,7 @@ static const struct pcm_player player = {
     .start = dspio_i_start,
     .stop = dspio_i_stop,
     .id = PCM_ID_R,
+    .flags = PCM_F_PASSTHRU,
 };
 
 void *dspio_init(void)

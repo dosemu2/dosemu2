@@ -120,6 +120,7 @@ static const struct pcm_player player = {
     .stop = aosndf_stop,
     .timer = aosndf_timer,
     .id = PCM_ID_P,
+    .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 
 CONSTRUCTOR(static void aosndf_init(void))

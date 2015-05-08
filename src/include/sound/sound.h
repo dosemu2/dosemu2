@@ -69,7 +69,7 @@ struct pcm_player {
 
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
 extern void pcm_reset_player(int handle);
-extern void pcm_init_plugins(struct pcm_holder *plu, int num);
+extern int pcm_init_plugins(struct pcm_holder *plu, int num);
 
 /** PCM sample format */
 enum _PCM_format {
