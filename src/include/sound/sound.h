@@ -56,6 +56,7 @@ struct pcm_holder {
   void *arg;
   int opened:1;
   int failed:1;
+  void *priv;
 };
 
 struct pcm_player {

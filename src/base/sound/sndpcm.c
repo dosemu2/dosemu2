@@ -111,7 +111,6 @@ struct stream {
 #define MAX_STREAMS 10
 #define MAX_PLAYERS 10
 struct pcm_player_wr {
-    struct pcm_holder;
     double time;
     int last_cnt[MAX_STREAMS];
     int last_idx[MAX_STREAMS];
@@ -119,13 +118,14 @@ struct pcm_player_wr {
 };
 
 #define PLAYER(p) ((struct pcm_player *)p->plugin)
+#define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
 
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
     int num_streams;
     pthread_mutex_t strm_mtx;
     pthread_mutex_t time_mtx;
-    struct pcm_player_wr players[MAX_PLAYERS];
+    struct pcm_holder players[MAX_PLAYERS];
     int num_players;
     int playing;
     double time;
@@ -161,7 +161,7 @@ int pcm_init(void)
 #endif
 #endif
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
+	struct pcm_holder *p = &pcm.players[i];
 	if (p->plugin->open)
 	    p->opened = p->plugin->open(p->arg);
 	else
@@ -428,7 +428,7 @@ static void pcm_start_output(int id)
     int i;
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
+	struct pcm_holder *p = &pcm.players[i];
 	if (PLAYER(p)->id != id)
 	    continue;
 	if (p->opened) {
@@ -447,7 +447,7 @@ static void pcm_stop_output(int id)
 {
     int i;
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
+	struct pcm_holder *p = &pcm.players[i];
 	if (id != PCM_ID_MAX && PLAYER(p)->id != id)
 	    continue;
 	if (p->opened) {
@@ -849,23 +849,25 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
+    struct pcm_holder *p;
 
     now = GETusTIME(0);
     handle = params->handle;
-    id = PLAYER((&pcm.players[handle]))->id;
-    start_time = pcm.players[handle].time;
+    p = &pcm.players[handle];
+    id = PLAYER(p)->id;
+    start_time = PL_PRIV(p)->time;
     frag_period = nframes * pcm_frame_period_us(params->rate);
     stop_time = start_time + frag_period;
     if (start_time < now - MAX_BUFFER_DELAY) {
 	error("PCM: \"%s\" too large delay, start=%f min=%f d=%f\n",
-		  pcm.players[handle].plugin->name, start_time,
+		  p->plugin->name, start_time,
 		  now - MAX_BUFFER_DELAY, now - MAX_BUFFER_DELAY - start_time);
 	start_time = now - INIT_BUFFER_DELAY;
 	stop_time = start_time + frag_period;
     }
     if (start_time > now - MIN_READ_DELAY) {
 	S_printf("PCM: \"%s\" too small start delay, stop=%f max=%f d=%f\n",
-		  pcm.players[handle].plugin->name, stop_time,
+		  p->plugin->name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
 	return 0;
@@ -873,7 +875,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     if (stop_time > now - MIN_BUFFER_DELAY) {
 	size_t new_nf;
 	S_printf("PCM: \"%s\" too small stop delay, stop=%f max=%f d=%f\n",
-		  pcm.players[handle].plugin->name, stop_time,
+		  p->plugin->name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
 	stop_time = now - MIN_BUFFER_DELAY;
@@ -883,19 +885,19 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	nframes = new_nf;
     }
     S_printf("PCM: going to process %i samps for %s (st=%f stp=%f d=%f)\n",
-	 nframes, pcm.players[handle].plugin->name, start_time,
+	 nframes, p->plugin->name, start_time,
 	 stop_time, now - start_time);
 
     pthread_mutex_lock(&pcm.strm_mtx);
-    if (!pcm.players[handle].opened) {
+    if (!p->opened) {
 	S_printf("PCM: player %s already closed\n",
-		pcm.players[handle].plugin->name);
+		p->plugin->name);
 	pthread_mutex_unlock(&pcm.strm_mtx);
 	return 0;
     }
     frame_period = pcm_frame_period_us(params->rate);
     time = start_time;
-    calc_idxs(&pcm.players[handle], idxs);
+    calc_idxs(PL_PRIV(p), idxs);
 
     for (out_idx = 0; out_idx < nframes; out_idx++) {
 	pcm_get_samples(time, samp, idxs, params->channels, id);
@@ -905,8 +907,8 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     if (fabs(time - stop_time) > frame_period)
 	error("PCM: time=%f stop_time=%f p=%f\n",
 		    time, stop_time, frame_period);
-    pcm.players[handle].time = stop_time;
-    save_idxs(&pcm.players[handle], idxs);
+    PL_PRIV(p)->time = stop_time;
+    save_idxs(PL_PRIV(p), idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
     if (out_idx != nframes)
@@ -955,25 +957,29 @@ static void pcm_advance_time(double stop_time)
 
 int pcm_register_player(const struct pcm_player *player, void *arg)
 {
+    struct pcm_holder *p;
     S_printf("PCM: registering clocked player: %s\n", player->name);
     if (pcm.num_players >= MAX_PLAYERS) {
 	error("PCM: attempt to register more than %i clocked player\n",
 	      MAX_PLAYERS);
 	return 0;
     }
-    pcm.players[pcm.num_players].plugin = player;
-    pcm.players[pcm.num_players].arg = arg;
+    p = &pcm.players[pcm.num_players];
+    p->plugin = player;
+    p->arg = arg;
+    p->priv = malloc(sizeof(struct pcm_player_wr));
+    memset(p->priv, 0, sizeof(struct pcm_player_wr));
     return pcm.num_players++;
 }
 
 void pcm_reset_player(int handle)
 {
     long long now = GETusTIME(0);
-    pcm.players[handle].time = now - INIT_BUFFER_DELAY;
-    memset(pcm.players[handle].last_idx, 0,
-	    sizeof(pcm.players[handle].last_idx));
-    memset(pcm.players[handle].last_cnt, 0,
-	    sizeof(pcm.players[handle].last_cnt));
+    struct pcm_holder *p = &pcm.players[handle];
+    struct pcm_player_wr *pl = PL_PRIV(p);
+    pl->time = now - INIT_BUFFER_DELAY;
+    memset(pl->last_idx, 0, sizeof(pl->last_idx));
+    memset(pl->last_cnt, 0, sizeof(pl->last_cnt));
 }
 
 void pcm_timer(void)
@@ -981,9 +987,10 @@ void pcm_timer(void)
     int i;
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
+	struct pcm_holder *p = &pcm.players[i];
+	struct pcm_player_wr *pl = PL_PRIV(p);
 	if (p->opened && PLAYER(p)->timer) {
-	    double delta = now - NORM_BUFFER_DELAY - pcm.players[i].time;
+	    double delta = now - NORM_BUFFER_DELAY - pl->time;
 	    PLAYER(p)->timer(delta, p->arg);
 	}
     }
@@ -1016,7 +1023,7 @@ void pcm_done(void)
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_MAX);
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
+	struct pcm_holder *p = &pcm.players[i];
 	if (p->opened) {
 	    if (p->plugin->close) {
 		pthread_mutex_unlock(&pcm.strm_mtx);
