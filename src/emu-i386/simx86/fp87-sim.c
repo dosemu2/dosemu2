@@ -582,7 +582,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 		   case 0:		/* FCHS */
 			WFR0 = -WFR0; break;
 		   case 1:		/* FABS */
-			WFR0 = fabs(WFR0); break;
+			WFR0 = fabsl(WFR0); break;
 		   case 4:		/* FTST */
 		   	TheCPU.fpus &= (~0x4500);
 			if (WFR0 < 0.0) TheCPU.fpus |= 0x100;

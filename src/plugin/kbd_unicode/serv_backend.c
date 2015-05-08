@@ -185,6 +185,7 @@ void clear_bios_keybuf()
    MEMSET_DOS(BIOS_KEYBOARD_BUFFER,0,32);
 }
 
+#if 0
 static inline Boolean bios_keybuf_full(void)
 {
    int start,end,head,tail;
@@ -220,6 +221,7 @@ static inline void put_bios_keybuf(Bit16u scancode)
 
    WRITE_WORD(BIOS_KEYBOARD_BUFFER_TAIL,tail);
 }
+#endif
 
 /*
  * update the seg 0x40 keyboard flags from dosemu's internal 'shiftstate'

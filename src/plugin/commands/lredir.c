@@ -472,7 +472,7 @@ static uint16 CheckForDosc(void)
 
 int lredir_main(int argc, char **argv)
 {
-    uint16 ccode;
+    uint16 ccode = 0;
     uint16 deviceParam;
     uint8 deviceType = REDIR_DISK_TYPE;
     int carg;
