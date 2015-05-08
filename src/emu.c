@@ -496,8 +496,11 @@ void __leavedos(int sig, const char *s, int num)
     }
 
     in_leavedos++;
-    if (fault_cnt > 0)
+    if (fault_cnt > 0) {
       dosemu_error("leavedos() called from within a signal context!\n");
+      leavedos_main(sig);
+      return;
+    }
 
 #ifdef USE_MHPDBG
     /* try to notify dosdebug */
