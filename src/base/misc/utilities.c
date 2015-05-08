@@ -74,6 +74,7 @@ int log_written = 0;
 
 static char hxtab[16]="0123456789abcdef";
 
+#if 0
 static inline char *prhex8 (char *p, unsigned long v)
 {
   int i;
@@ -81,7 +82,7 @@ static inline char *prhex8 (char *p, unsigned long v)
   p[8]=' ';
   return p+9;
 }
-
+#endif
 #if SHOW_TIME
 static char *timestamp (char *p)
 {

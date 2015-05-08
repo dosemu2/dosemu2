@@ -830,7 +830,7 @@ static int sltermio_input_pending(void)
 	scr_tv.tv_usec = 0;
 
 	selrt = select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv);
-	switch(selrt < 0) {
+	switch(selrt) {
 	case -1:
 		k_printf("ERROR: select failed, %s\n", strerror(errno));
 		return -1;

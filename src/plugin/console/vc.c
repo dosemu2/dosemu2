@@ -627,7 +627,7 @@ v_printf("SEQI=0x%02x\n",dosemu_regs.regs[SEQI]); */
   return (0);
 }
 
-
+#if 0
 /* Reset Attribute registers */
 static inline void
 reset_att (void)
@@ -636,7 +636,7 @@ reset_att (void)
   port_in (IS1_R);
   emu_video_retrace_on();
 }
-
+#endif
 
 /* Attempt to virtualize calls to video ports */
 

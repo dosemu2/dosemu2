@@ -1509,17 +1509,17 @@ port_flag	: INTEGER
 		   c_printf("CONF: I/O port 0x%04x\n", (unsigned short)$1);
 	           allow_io($1, 1, ports_permission, ports_ormask,
 	                    ports_andmask, portspeed, (char*)dev_name);
-		   if (abs(portspeed)) portspeed += ((portspeed>0) ? 1 : -1);
+		   if (portspeed) portspeed += ((portspeed>0) ? 1 : -1);
 	           }
 		| '(' expression ')'
 	           {
 	           allow_io($2, 1, ports_permission, ports_ormask,
 	                    ports_andmask, portspeed, (char*)dev_name);
-		   if (abs(portspeed)) portspeed += ((portspeed>0) ? 1 : -1);
+		   if (portspeed) portspeed += ((portspeed>0) ? 1 : -1);
 	           }
 		| RANGE INTEGER INTEGER
 		   {
-		   if (abs(portspeed) > 1) portspeed = 0;
+		   if (portspeed > 1) portspeed = 0;
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$3);
 		   allow_io($2, $3 - $2 + 1, ports_permission, ports_ormask,
@@ -1529,7 +1529,7 @@ port_flag	: INTEGER
 		   }
 		| RANGE expression ',' expression
 		   {
-		   if (abs(portspeed) > 1) portspeed = 0;
+		   if (portspeed > 1) portspeed = 0;
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$4);
 		   allow_io($2, $4 - $2 + 1, ports_permission, ports_ormask,
