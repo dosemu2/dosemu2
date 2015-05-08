@@ -6,10 +6,6 @@ include $(top_builddir)/Makefile.conf
 
 D:=$(BINPATH)/commands
 
-COM1=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
-	$(D)/bootoff.com $(D)/booton.com \
-	$(D)/ecpuon.com $(D)/ecpuoff.com \
-	$(D)/uchdir.com $(D)/speed.com $(D)/ugetcwd.com
 COM2=$(D)/isemu.com $(D)/mgarrot.com $(D)/fossil.com
 SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys $(D)/aspi.sys
 OBJS=$(subst $(D)/,,$(COM2:.com=.o) $(SYS:.sys=.o))
@@ -44,8 +40,6 @@ PD=precompiled
 # --------------- end 'tcc via dosemu' --------------------
 
 all: $(COM2) $(SYS)
-
-dosbin: $(COM1) $(COM2) $(SYS)
 
 $(D)/%.sys: %.o
 	$(LD) $(ALL_LDFLAGS) -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
