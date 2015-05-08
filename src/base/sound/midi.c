@@ -40,7 +40,7 @@ void midi_write(unsigned char val)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (out[i].initialized)
+    if (out[i].opened)
       OUT_PLUGIN(i)->write(val);
 //  idle(0, 0, 0, "midi");
 }
@@ -56,14 +56,14 @@ void midi_done(void)
 {
   int i;
   for (i = 0; i < out_registered; i++) {
-    if (out[i].initialized) {
+    if (out[i].opened) {
       if (OUT_PLUGIN(i)->stop)
         OUT_PLUGIN(i)->stop();
       out[i].plugin->close(out[i].arg);
     }
   }
   for (i = 0; i < in_registered; i++) {
-    if (in[i].initialized) {
+    if (in[i].opened) {
       if (IN_PLUGIN(i)->stop)
         IN_PLUGIN(i)->stop();
       in[i].plugin->close(in[i].arg);
@@ -80,10 +80,10 @@ void midi_stop(void)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (OUT_PLUGIN(i)->stop && out[i].initialized)
+    if (OUT_PLUGIN(i)->stop && out[i].opened)
       OUT_PLUGIN(i)->stop();
   for (i = 0; i < in_registered; i++)
-    if (IN_PLUGIN(i)->stop && in[i].initialized)
+    if (IN_PLUGIN(i)->stop && in[i].opened)
       IN_PLUGIN(i)->stop();
 }
 
@@ -91,7 +91,7 @@ void midi_timer(void)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (OUT_PLUGIN(i)->run && out[i].initialized)
+    if (OUT_PLUGIN(i)->run && out[i].opened)
       OUT_PLUGIN(i)->run();
 }
 
@@ -119,7 +119,7 @@ int midi_register_output_plugin(const struct midi_out_plugin *plugin)
   index = out_registered++;
   out[index].plugin = plugin;
   out[index].id = PCM_ID_P;
-  out[index].initialized = 0;
+  out[index].opened = 0;
   return 1;
 }
 
@@ -133,6 +133,6 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
   index = in_registered++;
   in[index].plugin = plugin;
   in[index].id = PCM_ID_R;
-  in[index].initialized = 0;
+  in[index].opened = 0;
   return 1;
 }

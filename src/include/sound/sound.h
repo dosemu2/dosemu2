@@ -55,7 +55,7 @@ struct pcm_holder {
   const pcm_base *plugin;
   void *arg;
   int id;
-  int initialized:1;
+  int opened:1;
   int failed:1;
 };
 
