@@ -246,7 +246,7 @@ INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions -fplan9-extensions"
+ -Wnested-externs -fms-extensions"
 if test -z "$CFLAGS"; then
   if test "$enable_debug" = "yes"; then
     CFLAGS="$CFLAGS -g -O"
@@ -318,8 +318,10 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     ASFLAGS="$ASFLAGS -no-integrated-as"
     AC_MSG_RESULT([yes, using -no-integrated-as for assembly language files.])
   fi
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft"
 else
   CCAS="$CC"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
   AC_MSG_RESULT([no])
 fi
 
