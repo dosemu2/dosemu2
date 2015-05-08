@@ -549,7 +549,6 @@ static void avltr_reinit(void)
   }
   G->link[0] = TNodePool;
 
-  if (InstrMeta==NULL) leavedos(993);
   memset(&InstrMeta, 0, sizeof(IMeta));
  }
 #endif
@@ -1053,7 +1052,6 @@ TNode *Move2Tree(void)
   CheckLinks();
 #endif
   CurrIMeta = -1;
-  if (InstrMeta==NULL) leavedos(993);
   memset(&InstrMeta[0],0,sizeof(IMeta));
 #ifdef PROFILE
   if (debug_level('e')) AddTime += (GETTSC() - t0);
@@ -1348,7 +1346,6 @@ static void CleanIMeta(void)
 
 	if (debug_level('e')) t0 = GETTSC();
 #endif
-	if (InstrMeta==NULL) leavedos(993);
 	memset(&InstrMeta,0,sizeof(IMeta));
 #ifdef PROFILE
 	if (debug_level('e')) CleanupTime += (GETTSC() - t0);

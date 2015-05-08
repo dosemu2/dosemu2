@@ -661,7 +661,6 @@ static struct video_system Video_graphics = {
    NULL,             /* update_screen */
    NULL,
    NULL,
-   NULL,
    .name = "graphics"
 };
 

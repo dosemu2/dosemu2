@@ -101,13 +101,13 @@ flgtmp RFL;
 //	if ((m>0x40000000) && (m<mMaxMem)) return 1;
 //	return 0;
 //}
-
+#if 0
 static inline void MARK(void)	// oops...objdump shows all the code at the
 				// END of a switch statement(!)
 {
 	__asm__ __volatile__ ("cmc; cmc");
 }
-
+#endif
 /////////////////////////////////////////////////////////////////////////////
 
 static inline int is_zf_set(void)
