@@ -1041,12 +1041,14 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
       p->opened = SAFE_OPEN(p);
       S_printf("PCM: Initializing plugin: %s: %s\n",
 	  p->plugin->name, p->opened ? "OK" : "Failed");
-      sel++;
-      if (p->opened)
+      if (p->opened) {
         cnt++;
+        if (!(p->plugin->flags & PCM_F_PASSTHRU))
+          sel++;
+      }
     }
   }
-  if (!sel) do {
+  do {
     max_w = -1;
     max_i = -1;
     for (i = 0; i < num; i++) {
@@ -1064,6 +1066,8 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
           cnt++;
         continue;
       }
+      if (sel)
+        continue;
       if (p->plugin->weight > max_w) {
         if (max_i != -1)
           S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
