@@ -50,13 +50,22 @@ static sem_t stop_sem;
 static pthread_t write_thr;
 static void *aosnd_write(void *arg);
 
+static int aosnd_cfg(void *arg)
+{
+    switch (config.libao_sound) {
+    case -1:
+	return PCM_CF_DISABLED;
+    case 1:
+	return PCM_CF_ENABLED;
+    }
+    return 0;
+}
+
 static int aosnd_open(void *arg)
 {
     ao_sample_format info = {};
     ao_option opt = {};
     int id;
-    if (!config.libao_sound)
-	return 0;
     params.rate = 44100;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = 2;
@@ -142,6 +151,7 @@ static const struct pcm_player player = {
     .close = aosnd_close,
     .start = aosnd_start,
     .stop = aosnd_stop,
+    .get_cfg = aosnd_cfg,
     .id = PCM_ID_P,
 };
 

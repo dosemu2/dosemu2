@@ -45,17 +45,21 @@ typedef struct {
   const char *name;
   int (*open)(void *);
   void (*close)(void *);
+  int (*get_cfg)(void *);
 
-  int selected:1;
   int flags;
   int weight;
 } pcm_base;
+
+#define PCM_CF_ENABLED 1
+#define PCM_CF_DISABLED 2
 
 struct pcm_holder {
   const pcm_base *plugin;
   void *arg;
   int opened:1;
   int failed:1;
+  int cfg_flags;
   void *priv;
 };
 

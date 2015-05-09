@@ -54,6 +54,17 @@ static void sdlsnd_stop(void *arg)
     SDL_PauseAudioDevice(dev, 1);
 }
 
+static int sndsdl_cfg(void *arg)
+{
+    switch (config.sdl_sound) {
+    case -1:
+	return PCM_CF_DISABLED;
+    case 1:
+	return PCM_CF_ENABLED;
+    }
+    return 0;
+}
+
 static int sdlsnd_open(void *arg)
 {
     SDL_AudioSpec spec, spec1;
@@ -96,6 +107,7 @@ static const struct pcm_player player = {
     .stop = sdlsnd_stop,
     .open = sdlsnd_open,
     .close = sdlsnd_close,
+    .get_cfg = sndsdl_cfg,
 //    .lock = SDL_LockAudio,
 //    .unlock = SDL_UnlockAudio,
     .id = PCM_ID_P,

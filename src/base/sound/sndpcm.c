@@ -1037,9 +1037,10 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
   sel = 0;
   for (i = 0; i < num; i++) {
     struct pcm_holder *p = &plu[i];
-    if (p->plugin->selected) {
+    p->cfg_flags = (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
+    if (p->cfg_flags & PCM_CF_ENABLED) {
       p->opened = SAFE_OPEN(p);
-      S_printf("PCM: Initializing plugin: %s: %s\n",
+      S_printf("PCM: Initializing selected plugin: %s: %s\n",
 	  p->plugin->name, p->opened ? "OK" : "Failed");
       if (p->opened) {
         cnt++;
@@ -1054,7 +1055,8 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     for (i = 0; i < num; i++) {
       struct pcm_holder *p = &plu[i];
       if (p->opened || p->failed ||
-	    (p->plugin->flags & PCM_F_EXPLICIT))
+	    (p->plugin->flags & PCM_F_EXPLICIT) ||
+	    (p->cfg_flags & PCM_CF_DISABLED))
         continue;
       if (p->plugin->flags & PCM_F_PASSTHRU) {
         p->opened = SAFE_OPEN(p);
