@@ -28,6 +28,7 @@
  *
  */
 #include <pthread.h>
+#include <semaphore.h>
 #include <fluidsynth.h>
 #include "fluid_midi.h"
 #include "emu.h"
@@ -56,6 +57,10 @@ static int output_running, pcm_running;
 static double mf_time_base;
 
 static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t syn_thr;
+static sem_t syn_sem;
+static void *synth_thread(void *arg);
 
 static int midoflus_init(void *arg)
 {
@@ -80,11 +85,18 @@ static int midoflus_init(void *arg)
 
     pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI", PCM_ID_P);
 
+    sem_init(&syn_sem, 0, 0);
+    pthread_create(&syn_thr, NULL, synth_thread, NULL);
+
     return 1;
 }
 
 static void midoflus_done(void *arg)
 {
+    pthread_cancel(syn_thr);
+    pthread_join(syn_thr, NULL);
+    sem_destroy(&syn_sem);
+
     delete_fluid_midi_parser(parser);
     delete_fluid_sequencer(sequencer);
     delete_fluid_synth(synth);
@@ -96,18 +108,26 @@ static void midoflus_start(void)
     S_printf("MIDI: starting fluidsynth\n");
     mf_time_base = GETusTIME(0);
     pcm_prepare_stream(pcm_stream);
+    pthread_mutex_lock(&synth_mtx);
     fluid_sequencer_process(sequencer, 0);
+    pthread_mutex_unlock(&synth_mtx);
+    pthread_mutex_lock(&run_mtx);
     output_running = 1;
+    pthread_mutex_unlock(&run_mtx);
 }
 
 static void midoflus_write(unsigned char val)
 {
     fluid_midi_event_t* event;
+    int o_run;
 
-    pthread_mutex_lock(&synth_mtx);
-    if (!output_running)
+    pthread_mutex_lock(&run_mtx);
+    o_run = output_running;
+    pthread_mutex_unlock(&run_mtx);
+    if (!o_run)
 	midoflus_start();
 
+    pthread_mutex_lock(&synth_mtx);
     event = fluid_midi_parser_parse(parser, val);
     if (event != NULL) {
 	int ret;
@@ -143,8 +163,6 @@ static void process_samples(long long now, int min_buf)
 {
     int nframes, retry;
     double period, mf_time_cur;
-    if (!output_running)
-	return;
     mf_time_cur = pcm_time_lock(pcm_stream);
     do {
 	retry = 0;
@@ -180,14 +198,31 @@ static void midoflus_stop(void)
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
+    pthread_mutex_lock(&run_mtx);
     output_running = 0;
+    pthread_mutex_unlock(&run_mtx);
 }
 
-static void midoflus_timer(void)
+static void *synth_thread(void *arg)
 {
-    if (!output_running)
-	return;
-    process_samples(GETusTIME(0), FLUS_MIN_BUF);
+    int o_run;
+    while (1) {
+	sem_wait(&syn_sem);
+	pthread_mutex_lock(&run_mtx);
+	o_run = output_running;
+	pthread_mutex_unlock(&run_mtx);
+	if (!o_run)
+	    continue;
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	process_samples(GETusTIME(0), FLUS_MIN_BUF);
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    }
+    return NULL;
+}
+
+static void midoflus_run(void)
+{
+    sem_post(&syn_sem);
 }
 
 static const struct midi_out_plugin midoflus = {
@@ -196,7 +231,7 @@ static const struct midi_out_plugin midoflus = {
     .close = midoflus_done,
     .write = midoflus_write,
     .stop = midoflus_stop,
-    .run = midoflus_timer,
+    .run = midoflus_run,
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
 
