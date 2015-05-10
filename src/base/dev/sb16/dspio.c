@@ -41,11 +41,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <semaphore.h>
-#include <pthread.h>
-
-static sem_t syn_sem;
-static pthread_t syn_thr;
 
 #define DAC_BASE_FREQ 5625
 #define PCM_MAX_BUF 512
@@ -81,8 +76,6 @@ struct dspio_state {
 };
 
 #define DSPIO ((struct dspio_state *)dspio)
-
-static void *synth_thread(void *arg);
 
 static void dma_get_silence(int is_signed, int is16bit, void *ptr)
 {
@@ -299,10 +292,6 @@ void *dspio_init(void)
 
     adlib_init();
     midi_init();
-
-    sem_init(&syn_sem, 0, 0);
-    pthread_create(&syn_thr, NULL, synth_thread, NULL);
-
     return state;
 }
 
@@ -314,10 +303,6 @@ void dspio_reset(void *dspio)
 
 void dspio_done(void *dspio)
 {
-    pthread_cancel(syn_thr);
-    pthread_join(syn_thr, NULL);
-    sem_destroy(&syn_sem);
-
     pcm_done();
     midi_done();
 
@@ -675,21 +660,10 @@ static void dspio_process_midi(struct dspio_state *state)
     }
 }
 
-static void *synth_thread(void *arg)
-{
-    while (1) {
-	sem_wait(&syn_sem);
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	adlib_timer();
-	midi_timer();
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    }
-    return NULL;
-}
-
 void dspio_run_synth(void)
 {
-    sem_post(&syn_sem);
+    adlib_timer();
+    midi_timer();
 }
 
 void dspio_timer(void *dspio)
