@@ -36,6 +36,7 @@
 #include "dbadlib.h"
 #include <limits.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 #define ADLIB_BASE 0x388
 #define OPL3_INTERNAL_FREQ    14400000	// The OPL3 operates at 14.4MHz
@@ -63,6 +64,10 @@ static const int opl3_format = PCM_FORMAT_S8;
 static const int opl3_rate = 44100;
 
 static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t syn_thr;
+static sem_t syn_sem;
+static void *synth_thread(void *arg);
 
 Bit8u adlib_io_read_base(ioport_t port)
 {
@@ -100,12 +105,22 @@ static void adlib_io_write(ioport_t port, Bit8u value)
     adlib_io_write_base(port - ADLIB_BASE, value);
 }
 
+static void adlib_start(void)
+{
+    pcm_prepare_stream(adlib_strm);
+    pthread_mutex_lock(&run_mtx);
+    adlib_running = 1;
+    pthread_mutex_unlock(&run_mtx);
+}
+
 static void opl3_update(void)
 {
-    if (!adlib_running) {
-	pcm_prepare_stream(adlib_strm);
-	adlib_running = 1;
-    }
+    int a_run;
+    pthread_mutex_lock(&run_mtx);
+    a_run = adlib_running;
+    pthread_mutex_unlock(&run_mtx);
+    if (!a_run)
+	adlib_start();
     run_new_sb();
 }
 
@@ -132,6 +147,9 @@ void opl3_init(void)
     }
 
     dbadlib_init(opl3_timers, opl3_rate);
+
+    sem_init(&syn_sem, 0, 0);
+    pthread_create(&syn_thr, NULL, synth_thread, NULL);
 }
 
 void adlib_init(void)
@@ -146,6 +164,9 @@ void adlib_reset(void)
 
 void adlib_done(void)
 {
+    pthread_cancel(syn_thr);
+    pthread_join(syn_thr, NULL);
+    sem_destroy(&syn_sem);
 }
 
 static void adlib_process_samples(int nframes)
@@ -160,7 +181,7 @@ static void adlib_process_samples(int nframes)
 
 /* we know that timer updates do not affect synth, so disable that code */
 #define UPDATE_TIMERS 0
-void adlib_timer(void)
+static void adlib_run(void)
 {
 #if UPDATE_TIMERS
     int i;
@@ -170,13 +191,13 @@ void adlib_timer(void)
     long long now;
     int time_adj;
 
-    if (!adlib_running)
-	return;
     adlib_time_cur = pcm_time_lock(adlib_strm);
     if (adlib_time_cur - adlib_time_last > ADLIB_THRESHOLD) {
 	pcm_flush(adlib_strm);
-	adlib_running = 0;
 	pcm_time_unlock(adlib_strm);
+	pthread_mutex_lock(&run_mtx);
+	adlib_running = 0;
+	pthread_mutex_unlock(&run_mtx);
 	return;
     }
     if (adlib_running) do {
@@ -214,4 +235,26 @@ void adlib_timer(void)
 #endif
     } while (time_adj);
     pcm_time_unlock(adlib_strm);
+}
+
+static void *synth_thread(void *arg)
+{
+    int a_run;
+    while (1) {
+	sem_wait(&syn_sem);
+	pthread_mutex_lock(&run_mtx);
+	a_run = adlib_running;
+	pthread_mutex_unlock(&run_mtx);
+	if (!a_run)
+	    continue;
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	adlib_run();
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    }
+    return NULL;
+}
+
+void adlib_timer(void)
+{
+    sem_post(&syn_sem);
 }
