@@ -254,7 +254,9 @@ ems_helper(void) {
             "Please update your ems.sys from the latest dosemu package.\n"
             "\nPress any key!\n");
       LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
+      _set_IF();
       com_biosgetch();
+      clear_IF();
       return;
     }
     break;
