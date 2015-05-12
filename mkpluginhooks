@@ -47,14 +47,18 @@ if [ "$1" = 'enable' ]; then
 		shift
 		shift
 		if [ "$on" = "yes" -a -f $DESTDIR/$dir/$CONFIGURE ]; then
-			wd=`pwd`
-			cd $DESTDIR/$dir
-			echo "=== configuring in $dir"
-			if ! ./configure ; then
-				echo "Configuration for $dir failed, disabling"
+			if [ ! -f $DESTDIR/$dir/configure ]; then
 				on="no"
+			else
+				wd=`pwd`
+				cd $DESTDIR/$dir
+				echo "=== configuring in $dir"
+				if ! ./configure ; then
+					echo "Configuration for $dir failed, disabling"
+					on="no"
+				fi
+				cd $wd
 			fi
-			cd $wd
 		fi
 		if test -d $SRCDIR/$dir ; then
 			mkdir -p $DESTDIR/$dir/config
