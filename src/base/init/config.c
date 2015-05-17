@@ -28,6 +28,7 @@
 #include "userhook.h"
 #include "pktdrvr.h"
 #include "speaker.h"
+#include "sound/sound.h"
 
 #include "dos2linux.h"
 #include "utilities.h"
@@ -664,21 +665,25 @@ static void config_post_process(const char *usedoptions)
     dexe_load_path = NULL;
 
     if (config.sound == -1 || config.sound == 2) {
-	if (!config.sdl_sound && !config.libao_sound) {
-	    void *p = NULL;
+	void *pa = NULL, *ps = NULL;
+	int ca = 0, cs = 0;
 #ifdef USE_LIBAO
-	    p = load_plugin("libao");
+	pa = load_plugin("libao");
+	ca = pcm_get_cfg("ao");
 #endif
-	    if (p) {
-		config.libao_sound = 1;
-	    } else {
 #ifdef SDL_SUPPORT
-		p = load_plugin("sdl");
+	ps = load_plugin("sdl");
+	cs = pcm_get_cfg("sdl");
 #endif
-		if (p)
-		    config.sdl_sound = 1;
-	    }
-	}
+	if (!ca && !cs) {
+	    if (pa)
+		config.libao_sound = 1;
+	    else if (ps)
+		config.sdl_sound = 1;
+	} else if (ca == PCM_CF_ENABLED)
+	    config.libao_sound = 1;
+	else if (cs == PCM_CF_ENABLED)
+	    config.sdl_sound = 1;
 	if (config.sdl_sound || config.libao_sound)
 	    config.sound = 2;
     }

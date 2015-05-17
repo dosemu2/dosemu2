@@ -30,9 +30,11 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
+#include <string.h>
 #include <SDL.h>
 
-#define sdlsnd_name "Sound Output: SDL device"
+#define sdlsnd_name "sdl"
+#define sdlsnd_longname "Sound Output: SDL device"
 static struct player_params params;
 static SDL_AudioDeviceID dev;
 
@@ -56,11 +58,17 @@ static void sdlsnd_stop(void *arg)
 
 static int sndsdl_cfg(void *arg)
 {
-    switch (config.sdl_sound) {
-    case -1:
-	return PCM_CF_DISABLED;
-    case 1:
+    char *p;
+    if (config.sdl_sound == 1)
 	return PCM_CF_ENABLED;
+    p = strstr(config.sound_driver, "sdl");
+    if (p && (p == config.sound_driver || p[-1] == ',') &&
+	    (p[3] == 0 || p[3] == ',')) {
+	S_printf("PCM: Enabling sdl driver\n");
+	return PCM_CF_ENABLED;
+    } else if (strlen(config.sound_driver)) {
+	S_printf("PCM: Disabling sdl driver\n");
+	return PCM_CF_DISABLED;
     }
     return 0;
 }
@@ -103,6 +111,7 @@ static void sdlsnd_close(void *arg)
 
 static const struct pcm_player player = {
     .name = sdlsnd_name,
+    .longname = sdlsnd_longname,
     .start = sdlsnd_start,
     .stop = sdlsnd_stop,
     .open = sdlsnd_open,

@@ -35,12 +35,14 @@
 #include "init.h"
 #include "sound/sound.h"
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <ao/ao.h>
 #include <pthread.h>
 #include <semaphore.h>
 
-#define aosnd_name "Sound Output: libao"
+#define aosnd_name "ao"
+#define aosnd_longname "Sound Output: libao"
 static ao_device *ao;
 static struct player_params params;
 static int started;
@@ -52,11 +54,17 @@ static void *aosnd_write(void *arg);
 
 static int aosnd_cfg(void *arg)
 {
-    switch (config.libao_sound) {
-    case -1:
-	return PCM_CF_DISABLED;
-    case 1:
+    char *p;
+    if (config.libao_sound == 1)
 	return PCM_CF_ENABLED;
+    p = strstr(config.sound_driver, "ao");
+    if (p && (p == config.sound_driver || p[-1] == ',') &&
+	    (p[2] == 0 || p[2] == ',')) {
+	S_printf("PCM: Enabling ao driver\n");
+	return PCM_CF_ENABLED;
+    } else if (strlen(config.sound_driver)) {
+	S_printf("PCM: Disabling ao driver\n");
+	return PCM_CF_DISABLED;
     }
     return 0;
 }
@@ -147,6 +155,7 @@ static void aosnd_stop(void *arg)
 
 static const struct pcm_player player = {
     .name = aosnd_name,
+    .longname = aosnd_longname,
     .open = aosnd_open,
     .close = aosnd_close,
     .start = aosnd_start,

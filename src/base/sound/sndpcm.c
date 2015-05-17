@@ -119,6 +119,7 @@ struct pcm_player_wr {
 
 #define PLAYER(p) ((struct pcm_player *)p->plugin)
 #define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
+#define PL_LNAME(p) (p->longname ?: p->name)
 
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
@@ -948,7 +949,7 @@ static void pcm_advance_time(double stop_time)
 int pcm_register_player(const struct pcm_player *player, void *arg)
 {
     struct pcm_holder *p;
-    S_printf("PCM: registering player: %s\n", player->name);
+    S_printf("PCM: registering player: %s\n", PL_LNAME(player));
     if (pcm.num_players >= MAX_PLAYERS) {
 	error("PCM: attempt to register more than %i player\n", MAX_PLAYERS);
 	return 0;
@@ -1041,7 +1042,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     if (p->cfg_flags & PCM_CF_ENABLED) {
       p->opened = SAFE_OPEN(p);
       S_printf("PCM: Initializing selected plugin: %s: %s\n",
-	  p->plugin->name, p->opened ? "OK" : "Failed");
+	  PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
       if (p->opened) {
         cnt++;
         if (!(p->plugin->flags & PCM_F_PASSTHRU))
@@ -1061,7 +1062,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
       if (p->plugin->flags & PCM_F_PASSTHRU) {
         p->opened = SAFE_OPEN(p);
         S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
-	    p->plugin->name, p->opened ? "OK" : "Failed");
+	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
         if (!p->opened)
           p->failed = 1;
         else
@@ -1073,7 +1074,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
       if (p->plugin->weight > max_w) {
         if (max_i != -1)
           S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
-		plu[max_i].plugin->name, max_w,
+		PL_LNAME(plu[max_i].plugin), max_w,
 		p->plugin->weight);
         max_w = p->plugin->weight;
         max_i = i;
@@ -1083,7 +1084,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
       struct pcm_holder *p = &plu[max_i];
       p->opened = SAFE_OPEN(p);
       S_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
-	    p->plugin->name, max_w, p->opened ? "OK" : "Failed");
+	    PL_LNAME(p->plugin), max_w, p->opened ? "OK" : "Failed");
       if (!p->opened)
         p->failed = 1;
       else
@@ -1091,4 +1092,15 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     }
   } while (max_i != -1 && !plu[max_i].opened);
   return cnt;
+}
+
+int pcm_get_cfg(const char *name)
+{
+  int i;
+  for (i = 0; i < pcm.num_players; i++) {
+    struct pcm_holder *p = &pcm.players[i];
+    if (!strcmp(p->plugin->name, name))
+      return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
+  }
+  return PCM_CF_DISABLED;
 }
