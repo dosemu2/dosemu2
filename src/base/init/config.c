@@ -665,25 +665,27 @@ static void config_post_process(const char *usedoptions)
     dexe_load_path = NULL;
 
     if (config.sound == -1 || config.sound == 2) {
-	void *pa = NULL, *ps = NULL;
 	int ca = 0, cs = 0;
 #ifdef USE_LIBAO
-	pa = load_plugin("libao");
+	load_plugin("libao");
 	ca = pcm_get_cfg("ao");
 #endif
 #ifdef SDL_SUPPORT
-	ps = load_plugin("sdl");
+	load_plugin("sdl");
 	cs = pcm_get_cfg("sdl");
 #endif
-	if (!ca && !cs) {
-	    if (pa)
-		config.libao_sound = 1;
-	    else if (ps)
-		config.sdl_sound = 1;
-	} else if (ca == PCM_CF_ENABLED)
+	if (!ca && !cs)		// auto. use ao for now
+	    config.libao_sound = 1;
+	else if (ca == PCM_CF_ENABLED)
 	    config.libao_sound = 1;
 	else if (cs == PCM_CF_ENABLED)
 	    config.sdl_sound = 1;
+	else if (cs != ca) {
+	    if (!ca)
+		config.libao_sound = 1;
+	    else
+		config.sdl_sound = 1;
+	}
 	if (config.sdl_sound || config.libao_sound)
 	    config.sound = 2;
     }
