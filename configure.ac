@@ -247,19 +247,6 @@ AC_SUBST(INCDIR)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
  -Wnested-externs -fms-extensions"
-if test -z "$CFLAGS"; then
-  if test "$enable_debug" = "yes"; then
-    CFLAGS="$CFLAGS -g -O"
-  else
-              # BIG NOTE: do _not_ use -O3,
-              # because in forces _inline_ at places where we don't want it !
-              # If we want _inline_, well then we 'code' it.
-    CFLAGS="-O2 -fomit-frame-pointer"  # never omit the frame pointer when debugging!
-  fi
-fi
-if test "$enable_debug" = "yes"; then
-  AC_DEFINE(_DEBUG)
-fi
 
 dnl CPU emulator
  AC_ARG_ENABLE(cpuemu,
@@ -319,10 +306,25 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes, using -no-integrated-as for assembly language files.])
   fi
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft"
+  # unfortunately clang is too buggy even on -O1
+  CFLAGS="$CFLAGS -O0"
+  use_clang="yes"
 else
   CCAS="$CC"
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fplan9-extensions"
   AC_MSG_RESULT([no])
+  use_clang="no"
+fi
+
+if test -z "$CFLAGS"; then
+  if test "$enable_debug" = "yes" ; then
+    CFLAGS="$CFLAGS -g"
+  elif test "$use_clang" = "no" ; then
+    CFLAGS="$CFLAGS -O2"
+  fi
+fi
+if test "$enable_debug" = "yes"; then
+  AC_DEFINE(_DEBUG)
 fi
 
 AC_DEFINE(_GNU_SOURCE)
