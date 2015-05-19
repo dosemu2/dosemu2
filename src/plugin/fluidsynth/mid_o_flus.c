@@ -39,9 +39,7 @@
 
 
 #define midoflus_name "MIDI Output: FluidSynth device"
-static const float flus_srate = 44100;
 static const int flus_format = PCM_FORMAT_S16_LE;
-static const char *sfont = "/usr/share/soundfonts/default.sf2";
 static const float flus_gain = 1;
 #define FLUS_CHANNELS 2
 #define FLUS_MAX_BUF 512
@@ -55,6 +53,7 @@ static fluid_midi_parser_t* parser;
 static int pcm_stream;
 static int output_running, pcm_running;
 static double mf_time_base;
+static double flus_srate;
 
 static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -65,18 +64,27 @@ static void *synth_thread(void *arg);
 static int midoflus_init(void *arg)
 {
     int ret;
+    char *sfont;
+
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
-    fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
+    ret = fluid_settings_getnum(settings, "synth.sample-rate", &flus_srate);
+    if (ret == FLUID_FAILED) {
+	warn("fluidsynth: cannot get samplerate\n");
+	goto err1;
+    }
+    ret = fluid_settings_getstr(settings, "synth.default-soundfont", &sfont);
+    if (ret == FLUID_FAILED) {
+	warn("fluidsynth: cannot find soundfont\n");
+	goto err1;
+    }
 
     synth = new_fluid_synth(settings);
     ret = fluid_synth_sfload(synth, sfont, TRUE);
     if (ret == FLUID_FAILED) {
 	warn("fluidsynth: cannot load soundfont %s\n", sfont);
-	delete_fluid_synth(synth);
-	delete_fluid_settings(settings);
-	return 0;
+	goto err2;
     }
     S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
     sequencer = new_fluid_sequencer2(0);
@@ -89,6 +97,12 @@ static int midoflus_init(void *arg)
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
 
     return 1;
+
+err2:
+    delete_fluid_synth(synth);
+err1:
+    delete_fluid_settings(settings);
+    return 0;
 }
 
 static void midoflus_done(void *arg)
