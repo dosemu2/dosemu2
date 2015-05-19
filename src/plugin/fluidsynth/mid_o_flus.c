@@ -86,6 +86,7 @@ static int midoflus_init(void *arg)
 	warn("fluidsynth: cannot load soundfont %s\n", sfont);
 	goto err2;
     }
+    fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
     S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
     sequencer = new_fluid_sequencer2(0);
     synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
