@@ -55,7 +55,6 @@ static int output_running, pcm_running;
 static double mf_time_base;
 static double flus_srate;
 
-static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t run_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t syn_thr;
 static sem_t syn_sem;
@@ -69,6 +68,11 @@ static int midoflus_init(void *arg)
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
+    ret = fluid_settings_setint(settings, "synth.threadsafe-api", 1);
+    if (ret == FLUID_FAILED) {
+	warn("fluidsynth: no threadsafe API\n");
+	goto err1;
+    }
     ret = fluid_settings_getnum(settings, "synth.sample-rate", &flus_srate);
     if (ret == FLUID_FAILED) {
 	warn("fluidsynth: cannot get samplerate\n");
@@ -123,9 +127,7 @@ static void midoflus_start(void)
     S_printf("MIDI: starting fluidsynth\n");
     mf_time_base = GETusTIME(0);
     pcm_prepare_stream(pcm_stream);
-    pthread_mutex_lock(&synth_mtx);
     fluid_sequencer_process(sequencer, 0);
-    pthread_mutex_unlock(&synth_mtx);
     pthread_mutex_lock(&run_mtx);
     output_running = 1;
     pthread_mutex_unlock(&run_mtx);
@@ -142,7 +144,6 @@ static void midoflus_write(unsigned char val)
     if (!o_run)
 	midoflus_start();
 
-    pthread_mutex_lock(&synth_mtx);
     event = fluid_midi_parser_parse(parser, val);
     if (event != NULL) {
 	int ret;
@@ -155,16 +156,13 @@ static void midoflus_write(unsigned char val)
 	if (ret != FLUID_OK)
 	    S_printf("MIDI: failed sending midi event\n");
     }
-    pthread_mutex_unlock(&synth_mtx);
 }
 
 static void mf_process_samples(int nframes)
 {
     sndbuf_t buf[FLUS_MAX_BUF][FLUS_CHANNELS];
     int ret;
-    pthread_mutex_lock(&synth_mtx);
     ret = fluid_synth_write_s16(synth, nframes, buf, 0, 2, buf, 1, 2);
-    pthread_mutex_unlock(&synth_mtx);
     if (ret != FLUID_OK) {
 	error("MIDI: fluidsynth failed\n");
 	return;
@@ -204,12 +202,10 @@ static void midoflus_stop(void)
     now = GETusTIME(0);
     msec = (now - mf_time_base) / 1000;
     S_printf("MIDI: stopping fluidsynth at msec=%i\n", msec);
-    pthread_mutex_lock(&synth_mtx);
     /* advance past last event */
     fluid_sequencer_process(sequencer, msec);
     /* shut down all active notes */
     fluid_synth_system_reset(synth);
-    pthread_mutex_unlock(&synth_mtx);
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
