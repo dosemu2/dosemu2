@@ -64,30 +64,35 @@ static int midoflus_init(void *arg)
 {
     int ret;
     char *sfont;
+    char *def_sfont = "/usr/share/soundfonts/default.sf2";
+    int use_defsf = 0;
 
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
     ret = fluid_settings_setint(settings, "synth.threadsafe-api", 1);
-    if (ret == FLUID_FAILED) {
+    if (ret == 0) {
 	warn("fluidsynth: no threadsafe API\n");
 	goto err1;
     }
     ret = fluid_settings_getnum(settings, "synth.sample-rate", &flus_srate);
-    if (ret == FLUID_FAILED) {
+    if (ret == 0) {
 	warn("fluidsynth: cannot get samplerate\n");
 	goto err1;
     }
     ret = fluid_settings_getstr(settings, "synth.default-soundfont", &sfont);
-    if (ret == FLUID_FAILED) {
-	warn("fluidsynth: cannot find soundfont\n");
-	goto err1;
+    if (ret == 0) {
+	warn("Your fluidsynth is too old\n");
+	sfont = def_sfont;
+	use_defsf = 1;
     }
 
     synth = new_fluid_synth(settings);
     ret = fluid_synth_sfload(synth, sfont, TRUE);
     if (ret == FLUID_FAILED) {
 	warn("fluidsynth: cannot load soundfont %s\n", sfont);
+	if (use_defsf)
+	    error("Your fluidsynth is too old\n");
 	goto err2;
     }
     fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
