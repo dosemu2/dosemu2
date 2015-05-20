@@ -23,6 +23,9 @@ $(BINPATH)/bin/libplugin_X.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(X_LIBS)
 endif
 
+include/x_config.h: include/_x_config.h.in
+	configure
+
 realclean::
 	rm -f Makefile.conf config.log config.status include/x_config.h \
 		 include/_x_config.* configure
