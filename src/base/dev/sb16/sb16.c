@@ -1296,12 +1296,15 @@ static void mpu401_io_write(ioport_t port, Bit8u value)
 	/* Write command port */
 	S_printf("MPU401: Write 0x%02x to command port\n", value);
 	dspio_clear_midi_in_fifo(sb.dspio);
-	if (value == 0x3f) {	// no ACK for this
-	    sb.mpu401_uart = 1;
-	    break;
-	}
+	/* the following doc:
+	 * http://www.piclist.com/techref/io/serial/midi/mpu.html
+	 * says 3f does not need ACK. But dosbox sources say that
+	 * it does. Someone please try on a real HW? */
 	dspio_put_midi_in_byte(sb.dspio, 0xfe);	/* A command is sent: MPU_ACK it next time */
 	switch (value) {
+	case 0x3f:		// 0x3F = UART mode
+	    sb.mpu401_uart = 1;
+	    break;
 	case 0xff:		// 0xFF = reset MPU
 	    sb.mpu401_uart = 0;
 	    dspio_stop_midi(sb.dspio);
