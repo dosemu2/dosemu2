@@ -36,6 +36,7 @@
 #include "timers.h"
 #include "sound/sound.h"
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
 #include <limits.h>
 #include <pthread.h>
