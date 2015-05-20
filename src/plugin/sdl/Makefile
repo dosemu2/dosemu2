@@ -34,5 +34,5 @@ endif
 install: all
 
 realclean::
-	rm -f Makefile.conf config.log config.status
+	rm -f Makefile.conf config.log config.status configure
 	rm -rf autom4te*.cache

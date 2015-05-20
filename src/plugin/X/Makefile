@@ -25,5 +25,5 @@ endif
 
 realclean::
 	rm -f Makefile.conf config.log config.status include/x_config.h \
-		 include/_x_config.*
+		 include/_x_config.* configure
 	rm -rf autom4te*.cache
