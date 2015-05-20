@@ -47,22 +47,20 @@ if [ "$1" = 'enable' ]; then
 		shift
 		shift
 		if [ "$on" = "yes" -a -f $DESTDIR/$dir/$CONFIGURE ]; then
-			if [ ! -f $DESTDIR/$dir/configure ]; then
+			wd=`pwd`
+			cd $DESTDIR/$dir
+			echo "=== configuring in $dir"
+			trap "echo ; exit 130" INT
+			if [ ! -f ./configure ] && ! autoreconf -v ; then
 				on="no"
 			else
-				wd=`pwd`
-				cd $DESTDIR/$dir
-				echo "=== configuring in $dir"
-				trap "echo ; exit 130" INT
-				./configure
-				RC=$?
-				trap - INT
-				if [ $RC -ne 0 ]; then
+				if ! ./configure ; then
 					echo "Configuration for $dir failed, disabling"
 					on="no"
 				fi
-				cd $wd
 			fi
+			trap - INT
+			cd $wd
 		fi
 		if test -d $SRCDIR/$dir ; then
 			mkdir -p $DESTDIR/$dir/config
