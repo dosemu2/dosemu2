@@ -1296,11 +1296,12 @@ static void mpu401_io_write(ioport_t port, Bit8u value)
 	/* Write command port */
 	S_printf("MPU401: Write 0x%02x to command port\n", value);
 	dspio_clear_midi_in_fifo(sb.dspio);
-	dspio_put_midi_in_byte(sb.dspio, 0xfe);	/* A command is sent: MPU_ACK it next time */
-	switch (value) {
-	case 0x3f:		// 0x3F = UART mode
+	if (value == 0x3f) {	// no ACK for this
 	    sb.mpu401_uart = 1;
 	    break;
+	}
+	dspio_put_midi_in_byte(sb.dspio, 0xfe);	/* A command is sent: MPU_ACK it next time */
+	switch (value) {
 	case 0xff:		// 0xFF = reset MPU
 	    sb.mpu401_uart = 0;
 	    dspio_stop_midi(sb.dspio);
