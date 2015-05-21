@@ -27,6 +27,7 @@
  * Author: Stas Sergeev
  *
  */
+#include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <fluidsynth.h>
@@ -64,7 +65,9 @@ static int midoflus_init(void *arg)
 {
     int ret;
     char *sfont;
-    char *def_sfont = "/usr/share/soundfonts/default.sf2";
+    char *def_sfonts[] = { "/usr/share/soundfonts/default.sf2",
+			   "/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",
+			   NULL };
     int use_defsf = 0;
 
     settings = new_fluid_settings();
@@ -82,9 +85,20 @@ static int midoflus_init(void *arg)
     }
     ret = fluid_settings_getstr(settings, "synth.default-soundfont", &sfont);
     if (ret == 0) {
+	int i = 0;
 	warn("Your fluidsynth is too old\n");
-	sfont = def_sfont;
-	use_defsf = 1;
+	while (def_sfonts[i]) {
+	    if (access(def_sfonts[i], R_OK) == 0) {
+		sfont = def_sfonts[i];
+		use_defsf = 1;
+		break;
+	    }
+	    i++;
+	}
+	if (!use_defsf) {
+	    error("Your fluidsynth is too old and soundfonts not found\n");
+	    goto err1;
+	}
     }
 
     synth = new_fluid_synth(settings);
