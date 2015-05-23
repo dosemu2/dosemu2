@@ -38,6 +38,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <fluidsynth.h>
 #include "fluid_midi.h"
 #include "emu.h"
@@ -47,7 +48,6 @@
 
 
 #define midofile_name "MIDI Output: midi file"
-static const char *mfile_name = "/tmp/a.mid";
 static fluid_midi_parser_t* parser;
 static int output_running;
 static long long mf_time_base;
@@ -217,11 +217,15 @@ static void close_output(void)
     finalize_midi_header();
 
     fclose(fp);
-    fd = open(mfile_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd != -1) {
-	write(fd, midibuf, midi_pos);
-	close(fd);
+    fd = open(config.midi_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) {
+	error("MIDI: failed to open %s: %s\n", config.midi_file,
+		strerror(errno));
+	goto out;
     }
+    write(fd, midibuf, midi_pos);
+    close(fd);
+out:
     free(midibuf);
 }
 
@@ -389,12 +393,20 @@ static void midofile_stop(void)
     output_running = 0;
 }
 
+static int midofile_get_cfg(void *arg)
+{
+    if (config.midi_file && config.midi_file[0])
+	return PCM_CF_ENABLED;
+    return PCM_CF_DISABLED;
+}
+
 static const struct midi_out_plugin midofile = {
     .name = midofile_name,
     .open = midofile_init,
     .close = midofile_done,
     .write = midofile_write,
     .stop = midofile_stop,
+    .get_cfg = midofile_get_cfg,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 
