@@ -38,6 +38,7 @@ char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);
 void dosemu_error(char *fmt, ...) FORMAT(printf, 1, 2);
 void *load_plugin(const char *plugin_name);
+void close_plugin(void *handle);
 
 /* returns y = sqrt(x), for y*y beeing a power of 2 below x
  */

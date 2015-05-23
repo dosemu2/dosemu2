@@ -23,6 +23,7 @@
 #include "emu.h"
 #include "ringbuf.h"
 #include "timers.h"
+#include "utilities.h"
 #include "sound/sound.h"
 #include "sound/midi.h"
 
@@ -35,6 +36,9 @@ static struct pcm_holder in[MAX_IN_PLUGINS];
 #define IN_PLUGIN(i) ((struct midi_in_plugin *)in[i].plugin)
 static int out_registered = 0, in_registered = 0;
 static struct rng_s midi_in;
+#define MAX_DL_HANDLES 10
+static void *dl_handles[MAX_DL_HANDLES];
+static int num_dl_handles;
 
 void midi_write(unsigned char val)
 {
@@ -47,6 +51,14 @@ void midi_write(unsigned char val)
 
 void midi_init(void)
 {
+#ifdef USE_DL_PLUGINS
+#ifdef USE_FLUIDSYNTH
+  dl_handles[num_dl_handles++] = load_plugin("fluidsynth");
+#endif
+#ifdef USE_ALSA
+  dl_handles[num_dl_handles++] = load_plugin("alsa");
+#endif
+#endif
   rng_init(&midi_in, 64, 1);
   pcm_init_plugins(out, out_registered);
   pcm_init_plugins(in, in_registered);
@@ -70,6 +82,8 @@ void midi_done(void)
     }
   }
   rng_destroy(&midi_in);
+  for (i = 0; i < num_dl_handles; i++)
+    close_plugin(dl_handles[i]);
 }
 
 void midi_reset(void)

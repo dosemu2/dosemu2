@@ -133,6 +133,10 @@ struct pcm_struct {
     double time;
 } pcm;
 
+#define MAX_DL_HANDLES 10
+static void *dl_handles[MAX_DL_HANDLES];
+static int num_dl_handles;
+
 int pcm_init(void)
 {
     S_printf("PCM: init\n");
@@ -142,23 +146,14 @@ int pcm_init(void)
 #if 0
     /* SDL is loaded in config.c, not here */
 #ifdef SDL_SUPPORT
-    load_plugin("sdl");
+    dl_handles[num_dl_handles++] = load_plugin("sdl");
 #endif
 #endif
 #ifdef USE_LIBAO
     /* if libao is not configured for sound, still need to load it
      * for wav writing */
     if (!config.libao_sound)
-	load_plugin("libao");
-#endif
-#ifdef USE_ALSA
-    load_plugin("alsa");
-#endif
-#ifdef USE_SNDFILE
-    load_plugin("sndfile");
-#endif
-#ifdef USE_FLUIDSYNTH
-    load_plugin("fluidsynth");
+	dl_handles[num_dl_handles++] = load_plugin("libao");
 #endif
 #endif
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
@@ -1029,6 +1024,8 @@ void pcm_done(void)
     pthread_mutex_unlock(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.time_mtx);
+    for (i = 0; i < num_dl_handles; i++)
+	close_plugin(dl_handles[i]);
 }
 
 int pcm_init_plugins(struct pcm_holder *plu, int num)
