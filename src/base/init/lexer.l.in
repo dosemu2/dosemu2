@@ -622,6 +622,7 @@ sb_mixer                RETURN(SB_MIXER);
 mpu_base                RETURN(MPU_BASE);
 sound_driver		RETURN(SOUND_DRIVER);
 midi_file		RETURN(MIDI_FILE);
+wav_file		RETURN(WAV_FILE);
 
 	/* OSS sound stuff */
 oss_min_frags		RETURN(OSS_MIN_FRAGS);

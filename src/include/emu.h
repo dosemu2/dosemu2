@@ -320,6 +320,7 @@ typedef struct vesamode_type_struct {
        uint16_t mpu401_base;
        char *sound_driver;
        char *midi_file;
+       char *wav_file;
        /* OSS-specific options */
        int oss_min_frags;
        int oss_max_frags;

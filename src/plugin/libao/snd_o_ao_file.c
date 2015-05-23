@@ -39,7 +39,6 @@
 #define aosndf_name "Sound Output: libao wav writer"
 static ao_device *ao;
 static const char *ao_drv_manual_name = "wav";
-static const char *file_name = "/tmp/ao.wav";
 static struct player_params params;
 static int started;
 
@@ -57,9 +56,9 @@ static int aosndf_open(void *arg)
     id = ao_driver_id(ao_drv_manual_name);
     if (id == -1)
 	return 0;
-    ao = ao_open_file(id, file_name, 1, &info, NULL);
+    ao = ao_open_file(id, config.wav_file, 1, &info, NULL);
     if (!ao) {
-	error("libao: opening %s failed\n", file_name);
+	error("libao: opening %s failed\n", config.wav_file);
 	return 0;
     }
     return 1;
@@ -104,6 +103,13 @@ static void aosndf_timer(double dtime, void *arg)
     }
 }
 
+static int aosndf_get_cfg(void *arg)
+{
+    if (config.wav_file && config.wav_file[0])
+	return PCM_CF_ENABLED;
+    return PCM_CF_DISABLED;
+}
+
 static const struct pcm_player player = {
     .name = aosndf_name,
     .open = aosndf_open,
@@ -111,6 +117,7 @@ static const struct pcm_player player = {
     .start = aosndf_start,
     .stop = aosndf_stop,
     .timer = aosndf_timer,
+    .get_cfg = aosndf_get_cfg,
     .id = PCM_ID_P,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
