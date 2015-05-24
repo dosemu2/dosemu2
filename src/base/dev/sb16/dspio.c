@@ -644,7 +644,7 @@ static void dspio_process_dma(struct dspio_state *state)
 		dma_cnt++;
 	    }
 	}
-	if (j != state->dma.stereo + 1)
+	if (!state->input_running || (j != state->dma.stereo + 1))
 	    break;
     }
     if (in_fifo_cnt) {
