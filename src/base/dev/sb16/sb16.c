@@ -294,7 +294,7 @@ static void stop_dma(void)
 
 static void sb_dma_start(void)
 {
-    sb.dma_restart = DMA_RESTART_NONE;
+    sb.dma_restart.val = DMA_RESTART_NONE;
     if (sb_dma_active()) {
 	sb.dma_count = sb.dma_init_count;
 	S_printf("SB: DMA transfer started, count=%i\n",
@@ -369,11 +369,10 @@ static void sb_run_irq(int type)
 static void sb_dma_activate(void)
 {
     S_printf("SB: starting DMA transfer\n");
-    if (sb.dma_restart == DMA_RESTART_CHECK) {
+    if (sb.dma_restart.val == DMA_RESTART_CHECK) {
 	if (sb_irq_active(SB_IRQ_DSP))
 	    sb_deactivate_irq(SB_IRQ_DSP);
-	sb.dma_restart = DMA_RESTART_NONE;
-	sb.dma_cmd = 0;
+	sb.dma_restart.val = DMA_RESTART_NONE;
     }
     sb.new_dma_cmd = sb.command[0];
     sb.new_dma_mode = sb.command[1];
@@ -399,15 +398,15 @@ void sb_handle_dma(void)
 	if (!sb_dma_autoinit()) {
 	    S_printf("SB: DMA transfer completed\n");
 	    if (!sb_dma_internal()) {
-		sb.dma_restart = DMA_RESTART_CHECK;
-		stop_dma_clock();
-	    } else {
-		stop_dma();
+		sb.dma_restart.val = DMA_RESTART_CHECK;
+		sb.dma_restart.is_16 = sb_dma_16bit();
 	    }
+	    stop_dma();
 	} else if (sb_fifo_enabled()) {
 	    /* remember autoinit state here coz it may change
 	     * before the ACK code to check it */
-	    sb.dma_restart = DMA_RESTART_AUTOINIT;
+	    sb.dma_restart.val = DMA_RESTART_AUTOINIT;
+	    sb.dma_restart.is_16 = sb_dma_16bit();
 	    /* auto-init & FIFO - stop till IRQ-ACK */
 	    stop_dma_clock();
 	} else {
@@ -453,7 +452,7 @@ static void sb_dsp_reset(void)
     sb.new_dma_cmd = 0;
     sb.new_dma_mode = 0;
     sb.dma_exit_ai = 0;
-    sb.dma_restart = DMA_RESTART_NONE;
+    sb.dma_restart.val = DMA_RESTART_NONE;
     sb.dma_init_count = 0;
     sb.new_dma_init_count = 0;
     sb.dma_count = 0;
@@ -1197,9 +1196,7 @@ static Bit8u sb_io_read(ioport_t port)
 	S_printf("SB: 8-bit IRQ Ack: %x\n", result);
 	if (sb_irq_active(SB_IRQ_8BIT))
 	    sb_deactivate_irq(SB_IRQ_8BIT);
-	if (sb.dma_restart && !sb_dma_16bit()) {
-	    if (sb.dma_restart != DMA_RESTART_AUTOINIT)
-		sb.dma_cmd = 0;	// disable DMA
+	if (sb.dma_restart.val && !sb.dma_restart.is_16) {
 	    sb_dma_actualize();
 	    sb_dma_start();
 	}
@@ -1209,9 +1206,7 @@ static Bit8u sb_io_read(ioport_t port)
 	S_printf("SB: 16-bit IRQ Ack: %x\n", result);
 	if (sb_irq_active(SB_IRQ_16BIT))
 	    sb_deactivate_irq(SB_IRQ_16BIT);
-	if (sb.dma_restart && sb_dma_16bit()) {
-	    if (sb.dma_restart != DMA_RESTART_AUTOINIT)
-		sb.dma_cmd = 0;	// disable DMA
+	if (sb.dma_restart.val && sb.dma_restart.is_16) {
 	    sb_dma_actualize();
 	    sb_dma_start();
 	}

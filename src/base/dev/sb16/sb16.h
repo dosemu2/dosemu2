@@ -67,8 +67,10 @@ struct sb_struct {
   uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  dma_mode;		/* Information we need on the DMA transfer */
   int      dma_exit_ai:1;	/* exit DMA autoinit */
-  enum { DMA_RESTART_NONE, DMA_RESTART_CHECK, DMA_RESTART_AUTOINIT }
-           dma_restart;		/* DMA restart on IRQ ACK */
+  struct {
+    enum { DMA_RESTART_NONE, DMA_RESTART_CHECK, DMA_RESTART_AUTOINIT } val;
+    int    is_16:1;
+  }        dma_restart;		/* DMA restart on IRQ ACK */
   uint8_t  new_dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  new_dma_mode;	/* Information we need on the DMA transfer */
   uint16_t dma_init_count;
