@@ -1032,17 +1032,8 @@ void pcm_done(void)
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_MAX);
-    for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_holder *p = &pcm.players[i];
-	if (p->opened) {
-	    if (p->plugin->close) {
-		pthread_mutex_unlock(&pcm.strm_mtx);
-		p->plugin->close(p->arg);
-		pthread_mutex_lock(&pcm.strm_mtx);
-	    }
-	    p->opened = 0;
-	}
-    }
+    pcm_deinit_plugins(pcm.players, pcm.num_players);
+    pcm_deinit_plugins(pcm.recorders, pcm.num_recorders);
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
     pthread_mutex_unlock(&pcm.strm_mtx);
@@ -1050,6 +1041,8 @@ void pcm_done(void)
     pthread_mutex_destroy(&pcm.time_mtx);
     for (i = 0; i < num_dl_handles; i++)
 	close_plugin(dl_handles[i]);
+    for (i = 0; i < pcm.num_players; i++)
+	free(pcm.players[i].priv);
 }
 
 int pcm_init_plugins(struct pcm_holder *plu, int num)
@@ -1114,6 +1107,22 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     }
   } while (max_i != -1 && !plu[max_i].opened);
   return cnt;
+}
+
+void pcm_deinit_plugins(struct pcm_holder *plu, int num)
+{
+    int i;
+    for (i = 0; i < num; i++) {
+	struct pcm_holder *p = &plu[i];
+	if (p->opened) {
+	    if (p->plugin->close) {
+		pthread_mutex_unlock(&pcm.strm_mtx);
+		p->plugin->close(p->arg);
+		pthread_mutex_lock(&pcm.strm_mtx);
+	    }
+	    p->opened = 0;
+	}
+    }
 }
 
 int pcm_get_cfg(const char *name)

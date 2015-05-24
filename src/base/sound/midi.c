@@ -67,20 +67,9 @@ void midi_init(void)
 void midi_done(void)
 {
   int i;
-  for (i = 0; i < out_registered; i++) {
-    if (out[i].opened) {
-      if (OUT_PLUGIN(i)->stop)
-        OUT_PLUGIN(i)->stop(out[i].arg);
-      out[i].plugin->close(out[i].arg);
-    }
-  }
-  for (i = 0; i < in_registered; i++) {
-    if (in[i].opened) {
-      if (IN_PLUGIN(i)->stop)
-        IN_PLUGIN(i)->stop(in[i].arg);
-      in[i].plugin->close(in[i].arg);
-    }
-  }
+  midi_stop();
+  pcm_deinit_plugins(out, out_registered);
+  pcm_deinit_plugins(in, in_registered);
   rng_destroy(&midi_in);
   for (i = 0; i < num_dl_handles; i++)
     close_plugin(dl_handles[i]);

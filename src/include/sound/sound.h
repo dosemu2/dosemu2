@@ -80,6 +80,7 @@ extern int pcm_register_player(const struct pcm_player *player, void *arg);
 extern int pcm_register_recorder(const struct pcm_recorder *player, void *arg);
 extern void pcm_reset_player(int handle);
 extern int pcm_init_plugins(struct pcm_holder *plu, int num);
+extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
 extern int pcm_get_cfg(const char *name);
 
 /** PCM sample format */
