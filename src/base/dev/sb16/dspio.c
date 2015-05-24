@@ -62,7 +62,8 @@ struct dspio_dma {
 struct dspio_state {
     double input_time_cur, midi_time_cur;
     int dma_strm, dac_strm;
-    int input_running, output_running, dac_running, speaker;
+    int input_running:1, output_running:1, dac_running:1, speaker:1;
+    int pcm_input_running:1;
     int i_handle, i_started;
 #define DSP_FIFO_SIZE 64
     struct rng_s fifo_in;
@@ -275,7 +276,7 @@ void *dspio_init(void)
     if (!state)
 	return NULL;
     memset(&state->dma, 0, sizeof(struct dspio_dma));
-    state->input_running =
+    state->input_running = state->pcm_input_running =
 	state->output_running = state->dac_running = state->speaker = 0;
     state->dma.dsp_fifo_enabled = 1;
     state->i_handle = pcm_register_player(&player, state);
@@ -350,10 +351,16 @@ static void dspio_start_input(struct dspio_state *state)
     if (state->input_running)
 	return;
     S_printf("SB: starting input\n");
-    pcm_reset_player(state->i_handle);
-    pcm_start_input();
     state->input_time_cur = GETusTIME(0);
     state->input_running = 1;
+    if (!state->dma.rate) {
+	S_printf("SB: not starting recorder\n");
+	return;
+    }
+    if (!state->pcm_input_running)
+	pcm_reset_player(state->i_handle);
+    pcm_start_input();
+    state->pcm_input_running = 1;
 }
 
 static void dspio_stop_input(struct dspio_state *state)
@@ -361,8 +368,15 @@ static void dspio_stop_input(struct dspio_state *state)
     if (!state->input_running)
 	return;
     S_printf("SB: stopping input\n");
-    pcm_stop_input();
     state->input_running = 0;
+    if (!state->dma.rate) {
+	S_printf("SB: not stopping recorder\n");
+	return;
+    }
+    if (state->pcm_input_running && !sb_dma_active()) {
+	pcm_stop_input();
+	state->pcm_input_running = 0;
+    }
 }
 
 static int do_run_dma(struct dspio_state *state)

@@ -143,6 +143,7 @@ static void alsain_start(void *arg)
 	add_to_io_select(pfds[i].fd, alsain_async, NULL);
 
     pcm_prepare_stream(pcm_stream);
+    S_printf("ALSA: input started\n");
 }
 
 static void alsain_stop(void *arg)
@@ -155,6 +156,7 @@ static void alsain_stop(void *arg)
       remove_from_io_select(pfds[i].fd);
     snd_pcm_close (capture_handle);
     free(pfds);
+    S_printf("ALSA: input stopped\n");
 }
 
 static const struct pcm_recorder recorder = {

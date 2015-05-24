@@ -1140,6 +1140,8 @@ int pcm_get_cfg(const char *name)
 int pcm_start_input(void)
 {
     int i, ret = 0;
+    if (pcm.recording)
+	return ret;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
 	if (p->opened) {
