@@ -150,6 +150,10 @@ static void aosnd_start(void *arg)
 static void aosnd_stop(void *arg)
 {
     pthread_mutex_lock(&start_mtx);
+    if (!started) {
+	pthread_mutex_unlock(&start_mtx);
+	return;
+    }
     started = 0;
     pthread_mutex_unlock(&start_mtx);
     sem_wait(&stop_sem);
