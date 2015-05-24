@@ -141,6 +141,8 @@ static void alsain_start(void *arg)
     num_pfds = snd_pcm_poll_descriptors (capture_handle, pfds, cnt);
     for (i = 0; i < num_pfds; i++)
 	add_to_io_select(pfds[i].fd, alsain_async, NULL);
+
+    pcm_prepare_stream(pcm_stream);
 }
 
 static void alsain_stop(void *arg)
