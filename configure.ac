@@ -319,6 +319,10 @@ fi
 if test -z "$CFLAGS"; then
   if test "$enable_debug" = "yes" ; then
     CFLAGS="$CFLAGS -g"
+    # simx86 is too slow on gcc without -O
+    if test "$use_clang" = "no" ; then
+      CFLAGS="$CFLAGS -O"
+    fi
   elif test "$use_clang" = "no" ; then
     CFLAGS="$CFLAGS -O2"
   fi
