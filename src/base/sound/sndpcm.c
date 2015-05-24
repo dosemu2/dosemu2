@@ -987,6 +987,7 @@ void pcm_timer(void)
 
 void pcm_reset(void)
 {
+#if 0
     int i;
     S_printf("PCM: reset\n");
     pthread_mutex_lock(&pcm.strm_mtx);
@@ -995,6 +996,7 @@ void pcm_reset(void)
     for (i = 0; i < pcm.num_streams; i++)
 	pcm_reset_stream(i);
     pthread_mutex_unlock(&pcm.strm_mtx);
+#endif
 }
 
 void pcm_done(void)
