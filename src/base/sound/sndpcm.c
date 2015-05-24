@@ -111,6 +111,7 @@ struct stream {
 
 #define MAX_STREAMS 10
 #define MAX_PLAYERS 10
+#define MAX_RECORDERS 10
 struct pcm_player_wr {
     double time;
     int last_cnt[MAX_STREAMS];
@@ -130,6 +131,8 @@ struct pcm_struct {
     struct pcm_holder players[MAX_PLAYERS];
     int num_players;
     int playing;
+    struct pcm_holder recorders[MAX_RECORDERS];
+    int num_recorders;
     double time;
 } pcm;
 
@@ -155,9 +158,14 @@ int pcm_init(void)
     if (!config.libao_sound)
 	dl_handles[num_dl_handles++] = load_plugin("libao");
 #endif
+#ifdef USE_ALSA
+    dl_handles[num_dl_handles++] = load_plugin("alsa");
+#endif
 #endif
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
-      S_printf("ERROR: no PCM plugins initialized\n");
+      S_printf("ERROR: no PCM output plugins initialized\n");
+    if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
+      S_printf("ERROR: no PCM input plugins initialized\n");
     return 1;
 }
 
@@ -956,6 +964,20 @@ int pcm_register_player(const struct pcm_player *player, void *arg)
     p->priv = malloc(sizeof(struct pcm_player_wr));
     memset(p->priv, 0, sizeof(struct pcm_player_wr));
     return pcm.num_players++;
+}
+
+int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
+{
+    struct pcm_holder *p;
+    S_printf("PCM: registering recorder: %s\n", PL_LNAME(recorder));
+    if (pcm.num_recorders >= MAX_RECORDERS) {
+	error("PCM: attempt to register more than %i recorder\n", MAX_RECORDERS);
+	return 0;
+    }
+    p = &pcm.recorders[pcm.num_recorders];
+    p->plugin = recorder;
+    p->arg = arg;
+    return pcm.num_recorders++;
 }
 
 void pcm_reset_player(int handle)
