@@ -351,6 +351,7 @@ static void dspio_start_input(struct dspio_state *state)
 	return;
     S_printf("SB: starting input\n");
     pcm_reset_player(state->i_handle);
+    pcm_start_input();
     state->input_time_cur = GETusTIME(0);
     state->input_running = 1;
 }
@@ -360,6 +361,7 @@ static void dspio_stop_input(struct dspio_state *state)
     if (!state->input_running)
 	return;
     S_printf("SB: stopping input\n");
+    pcm_stop_input();
     state->input_running = 0;
 }
 
