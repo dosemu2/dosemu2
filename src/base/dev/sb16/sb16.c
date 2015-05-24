@@ -390,18 +390,18 @@ void sb_handle_dma(void)
 	    sb_activate_irq(sb_dma_16bit()? SB_IRQ_16BIT : SB_IRQ_8BIT);
 	}
 	if (!sb_dma_autoinit()) {
-	    stop_dma_clock();
 	    S_printf("SB: DMA transfer completed\n");
 	    if (!sb_dma_internal())
 		sb.dma_restart = DMA_RESTART_CHECK;
 	    else
 		sb.dma_cmd = 0;	// disable DMA
-	} else if (sb_fifo_enabled()) {
-	    /* auto-init & FIFO - stop till IRQ-ACK */
 	    stop_dma_clock();
+	} else if (sb_fifo_enabled()) {
 	    /* remember autoinit state here coz it may change
 	     * before the ACK code to check it */
 	    sb.dma_restart = DMA_RESTART_AUTOINIT;
+	    /* auto-init & FIFO - stop till IRQ-ACK */
+	    stop_dma_clock();
 	} else {
 	    /* auto-init & !FIFO - apply new parameters and continue */
 	    S_printf("SB: FIFO not enabled, continuing transfer\n");
@@ -418,8 +418,8 @@ void sb_dma_processing(void)
 
 void sb_handle_dma_timeout(void)
 {
-    stop_dma_clock();
     sb.dma_cmd = 0;	// disable DMA
+    stop_dma_clock();
     sb.busy = 1;
 }
 
@@ -436,13 +436,13 @@ static void sb_dsp_reset(void)
 {
     S_printf("SB: Resetting SB DSP\n");
 
+    sb.dma_cmd = 0;
     stop_dma_clock();
     dspio_toggle_speaker(sb.dspio, 0);
     dspio_clear_fifos(sb.dspio);
     rng_clear(&sb.dsp_queue);
     sb.paused = 0;
     sb.midi_cmd = 0;
-    sb.dma_cmd = 0;
     sb.dma_mode = 0;
     sb.new_dma_cmd = 0;
     sb.new_dma_mode = 0;
@@ -467,13 +467,13 @@ static void sb_dsp_soft_reset(unsigned char value)
     if (value & 1) {
 	if (!sb.reset) {
 	    sb_deactivate_irq(SB_IRQ_ALL);
-	    stop_dma_clock();
 	    sb.reset = 1;
 
 	    if (sb_dma_active() && sb_dma_high_speed()) {
 		/* for High-Speed mode reset means only exit High-Speed */
 		S_printf("SB: Reset called, exiting High-Speed DMA mode\n");
 		sb.dma_cmd = 0;
+		stop_dma_clock();
 	    } else if (sb_midi_uart()) {
 		S_printf("SB: Reset called, exiting UART midi mode\n");
 		sb.midi_cmd = 0;
