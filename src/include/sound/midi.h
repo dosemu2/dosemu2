@@ -29,13 +29,11 @@
 struct midi_out_plugin {
   pcm_base;
   void (*write)(unsigned char);
-  void (*stop)(void);
   void (*run)(void);
 };
 
 struct midi_in_plugin {
   pcm_base;
-  void (*stop)(void);
 };
 
 extern void midi_write(unsigned char val);

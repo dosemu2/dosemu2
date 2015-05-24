@@ -382,7 +382,7 @@ static void midotmdty_write(Bit8u val)
     send(data_sock, &val, 1, MSG_DONTWAIT);
 }
 
-static void midotmdty_stop(void)
+static void midotmdty_stop(void *arg)
 {
     S_printf("\tStop\n");
     midotmdty_write(0xfc);

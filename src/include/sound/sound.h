@@ -44,9 +44,11 @@ struct player_params {
 typedef struct {
   const char *name;
   const char *longname;
+  int (*get_cfg)(void *);
   int (*open)(void *);
   void (*close)(void *);
-  int (*get_cfg)(void *);
+  void (*start)(void *);
+  void (*stop)(void *);
 
   int flags;
   int weight;
@@ -66,15 +68,19 @@ struct pcm_holder {
 
 struct pcm_player {
   pcm_base;
-  void (*start)(void *);
-  void (*stop)(void *);
   void (*timer)(double, void *);
   int id;
 };
 
+struct pcm_recorder {
+  pcm_base;
+};
+
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
+extern int pcm_register_recorder(const struct pcm_recorder *player, void *arg);
 extern void pcm_reset_player(int handle);
 extern int pcm_init_plugins(struct pcm_holder *plu, int num);
+extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
 extern int pcm_get_cfg(const char *name);
 
 /** PCM sample format */
@@ -123,6 +129,8 @@ extern void pcm_prepare_stream(int strm_idx);
 extern double pcm_time_lock(int strm_idx);
 extern void pcm_time_unlock(int strm_idx);
 extern double pcm_get_stream_time(int strm_idx);
+extern int pcm_start_input(void);
+extern void pcm_stop_input(void);
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,

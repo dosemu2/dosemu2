@@ -217,7 +217,7 @@ static void process_samples(long long now, int min_buf)
     pcm_time_unlock(pcm_stream);
 }
 
-static void midoflus_stop(void)
+static void midoflus_stop(void *arg)
 {
     long long now;
     int msec;

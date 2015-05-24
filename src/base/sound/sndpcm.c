@@ -111,6 +111,7 @@ struct stream {
 
 #define MAX_STREAMS 10
 #define MAX_PLAYERS 10
+#define MAX_RECORDERS 10
 struct pcm_player_wr {
     double time;
     int last_cnt[MAX_STREAMS];
@@ -130,6 +131,9 @@ struct pcm_struct {
     struct pcm_holder players[MAX_PLAYERS];
     int num_players;
     int playing;
+    struct pcm_holder recorders[MAX_RECORDERS];
+    int num_recorders;
+    int recording;
     double time;
 } pcm;
 
@@ -155,9 +159,14 @@ int pcm_init(void)
     if (!config.libao_sound)
 	dl_handles[num_dl_handles++] = load_plugin("libao");
 #endif
+#ifdef USE_ALSA
+    dl_handles[num_dl_handles++] = load_plugin("alsa");
+#endif
 #endif
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
-      S_printf("ERROR: no PCM plugins initialized\n");
+      S_printf("ERROR: no PCM output plugins initialized\n");
+    if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
+      S_printf("ERROR: no PCM input plugins initialized\n");
     return 1;
 }
 
@@ -421,7 +430,7 @@ static void pcm_start_output(int id)
 	if (p->opened) {
 	    pcm_reset_player(i);
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    PLAYER(p)->start(p->arg);
+	    p->plugin->start(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -439,7 +448,7 @@ static void pcm_stop_output(int id)
 	    continue;
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    PLAYER(p)->stop(p->arg);
+	    p->plugin->stop(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -958,6 +967,20 @@ int pcm_register_player(const struct pcm_player *player, void *arg)
     return pcm.num_players++;
 }
 
+int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
+{
+    struct pcm_holder *p;
+    S_printf("PCM: registering recorder: %s\n", PL_LNAME(recorder));
+    if (pcm.num_recorders >= MAX_RECORDERS) {
+	error("PCM: attempt to register more than %i recorder\n", MAX_RECORDERS);
+	return 0;
+    }
+    p = &pcm.recorders[pcm.num_recorders];
+    p->plugin = recorder;
+    p->arg = arg;
+    return pcm.num_recorders++;
+}
+
 void pcm_reset_player(int handle)
 {
     long long now = GETusTIME(0);
@@ -1010,17 +1033,8 @@ void pcm_done(void)
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_MAX);
-    for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_holder *p = &pcm.players[i];
-	if (p->opened) {
-	    if (p->plugin->close) {
-		pthread_mutex_unlock(&pcm.strm_mtx);
-		p->plugin->close(p->arg);
-		pthread_mutex_lock(&pcm.strm_mtx);
-	    }
-	    p->opened = 0;
-	}
-    }
+    pcm_deinit_plugins(pcm.players, pcm.num_players);
+    pcm_deinit_plugins(pcm.recorders, pcm.num_recorders);
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
     pthread_mutex_unlock(&pcm.strm_mtx);
@@ -1028,6 +1042,8 @@ void pcm_done(void)
     pthread_mutex_destroy(&pcm.time_mtx);
     for (i = 0; i < num_dl_handles; i++)
 	close_plugin(dl_handles[i]);
+    for (i = 0; i < pcm.num_players; i++)
+	free(pcm.players[i].priv);
 }
 
 int pcm_init_plugins(struct pcm_holder *plu, int num)
@@ -1094,6 +1110,22 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
   return cnt;
 }
 
+void pcm_deinit_plugins(struct pcm_holder *plu, int num)
+{
+    int i;
+    for (i = 0; i < num; i++) {
+	struct pcm_holder *p = &plu[i];
+	if (p->opened) {
+	    if (p->plugin->close) {
+		pthread_mutex_unlock(&pcm.strm_mtx);
+		p->plugin->close(p->arg);
+		pthread_mutex_lock(&pcm.strm_mtx);
+	    }
+	    p->opened = 0;
+	}
+    }
+}
+
 int pcm_get_cfg(const char *name)
 {
   int i;
@@ -1103,4 +1135,35 @@ int pcm_get_cfg(const char *name)
       return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
   }
   return PCM_CF_DISABLED;
+}
+
+int pcm_start_input(void)
+{
+    int i, ret = 0;
+    if (pcm.recording)
+	return ret;
+    for (i = 0; i < pcm.num_recorders; i++) {
+	struct pcm_holder *p = &pcm.recorders[i];
+	if (p->opened) {
+	    p->plugin->start(p->arg);
+	    ret++;
+	}
+    }
+    pcm.recording = 1;
+    S_printf("PCM: input started, %i\n", ret);
+    return ret;
+}
+
+void pcm_stop_input(void)
+{
+    int i;
+    if (!pcm.recording)
+	return;
+    for (i = 0; i < pcm.num_recorders; i++) {
+	struct pcm_holder *p = &pcm.recorders[i];
+	if (p->opened)
+	    p->plugin->stop(p->arg);
+    }
+    pcm.recording = 0;
+    S_printf("PCM: input stopped\n");
 }
