@@ -285,6 +285,13 @@ static void stop_dma_clock(void)
     dspio_stop_dma(sb.dspio);
 }
 
+static void stop_dma(void)
+{
+    /* first reset dma_cmd, as dspio may query it from dspio_stop_dma() */
+    sb.dma_cmd = 0;
+    dspio_stop_dma(sb.dspio);
+}
+
 static void sb_dma_start(void)
 {
     sb.dma_restart = DMA_RESTART_NONE;
@@ -391,11 +398,12 @@ void sb_handle_dma(void)
 	}
 	if (!sb_dma_autoinit()) {
 	    S_printf("SB: DMA transfer completed\n");
-	    if (!sb_dma_internal())
+	    if (!sb_dma_internal()) {
 		sb.dma_restart = DMA_RESTART_CHECK;
-	    else
-		sb.dma_cmd = 0;	// disable DMA
-	    stop_dma_clock();
+		stop_dma_clock();
+	    } else {
+		stop_dma();
+	    }
 	} else if (sb_fifo_enabled()) {
 	    /* remember autoinit state here coz it may change
 	     * before the ACK code to check it */
@@ -418,8 +426,7 @@ void sb_dma_processing(void)
 
 void sb_handle_dma_timeout(void)
 {
-    sb.dma_cmd = 0;	// disable DMA
-    stop_dma_clock();
+    stop_dma();
     sb.busy = 1;
 }
 
@@ -436,8 +443,7 @@ static void sb_dsp_reset(void)
 {
     S_printf("SB: Resetting SB DSP\n");
 
-    sb.dma_cmd = 0;
-    stop_dma_clock();
+    stop_dma();
     dspio_toggle_speaker(sb.dspio, 0);
     dspio_clear_fifos(sb.dspio);
     rng_clear(&sb.dsp_queue);
@@ -472,8 +478,7 @@ static void sb_dsp_soft_reset(unsigned char value)
 	    if (sb_dma_active() && sb_dma_high_speed()) {
 		/* for High-Speed mode reset means only exit High-Speed */
 		S_printf("SB: Reset called, exiting High-Speed DMA mode\n");
-		sb.dma_cmd = 0;
-		stop_dma_clock();
+		stop_dma();
 	    } else if (sb_midi_uart()) {
 		S_printf("SB: Reset called, exiting UART midi mode\n");
 		sb.midi_cmd = 0;
