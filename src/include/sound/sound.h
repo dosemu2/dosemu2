@@ -44,9 +44,11 @@ struct player_params {
 typedef struct {
   const char *name;
   const char *longname;
+  int (*get_cfg)(void *);
   int (*open)(void *);
   void (*close)(void *);
-  int (*get_cfg)(void *);
+  void (*start)(void *);
+  void (*stop)(void *);
 
   int flags;
   int weight;
@@ -66,8 +68,6 @@ struct pcm_holder {
 
 struct pcm_player {
   pcm_base;
-  void (*start)(void *);
-  void (*stop)(void *);
   void (*timer)(double, void *);
   int id;
 };

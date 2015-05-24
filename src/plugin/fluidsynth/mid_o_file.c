@@ -384,7 +384,7 @@ static void midofile_write(unsigned char val)
     }
 }
 
-static void midofile_stop(void)
+static void midofile_stop(void *arg)
 {
     if (!output_running)
 	return;

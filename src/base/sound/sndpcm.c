@@ -421,7 +421,7 @@ static void pcm_start_output(int id)
 	if (p->opened) {
 	    pcm_reset_player(i);
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    PLAYER(p)->start(p->arg);
+	    p->plugin->start(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -439,7 +439,7 @@ static void pcm_stop_output(int id)
 	    continue;
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    PLAYER(p)->stop(p->arg);
+	    p->plugin->stop(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
