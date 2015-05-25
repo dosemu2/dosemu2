@@ -627,7 +627,7 @@ user_tstamp:
 	    }
 	    return time;
 	}
-	S_printf("PCM: ERROR: not prepared %s\n", pcm.stream[strm_idx].name);
+	S_printf("PCM: stream not prepared: %s\n", pcm.stream[strm_idx].name);
 	return now - WRITE_INIT_POS;
 
     case SNDBUF_STATE_STALLED:
