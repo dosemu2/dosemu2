@@ -272,7 +272,7 @@ void low_mem_init(void)
 	      "sysctl -w vm.mmap_min_addr=0\n"
 	      "as root, or by changing the vm.mmap_min_addr setting in\n"
 	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
-    leavedos(99);
+    exit(EXIT_FAILURE);
 #else
     if (config.cpuemu < 3)
     {
@@ -300,7 +300,7 @@ void low_mem_init(void)
 
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
-    leavedos(99);
+    exit(EXIT_FAILURE);
   }
 
 #ifdef X86_EMULATOR
