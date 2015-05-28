@@ -1376,7 +1376,12 @@ static void mpu401_init(void)
     io_device.handler_name = "Midi Emulation";
     io_device.start_addr = config.mpu401_base;
     io_device.end_addr = config.mpu401_base + 0x001;
-    io_device.irq = CONFIG_MPU401_IRQ;
+    if (CONFIG_MPU401_IRQ == config.sb_irq) {
+	S_printf("SB: same irq for DSP and MPU401\n");
+	io_device.irq = EMU_NO_IRQ;
+    } else {
+	io_device.irq = CONFIG_MPU401_IRQ;
+    }
     io_device.fd = -1;
     if (port_register_handler(io_device, 0) != 0)
 	error("MPU-401: Cannot registering port handler\n");
