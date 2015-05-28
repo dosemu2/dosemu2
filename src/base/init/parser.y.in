@@ -298,7 +298,7 @@ while (0)
 	/* hardware ram mapping */
 %token HARDWARE_RAM
         /* Sound Emulation */
-%token SB_BASE SB_IRQ SB_DMA SB_HDMA SB_MIXER SB_DSP MPU_BASE
+%token SB_BASE SB_IRQ SB_DMA SB_HDMA SB_MIXER SB_DSP MPU_BASE MPU_IRQ
 %token SOUND_DRIVER MIDI_FILE WAV_FILE
 %token OSS_MIN_FRAGS OSS_MAX_FRAGS OSS_STALLED_FRAGS OSS_DO_POST OSS_MIN_EXTRA_FRAGS
 %token OSS_DAC_FREQ
@@ -1097,6 +1097,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
                 | SB_MIXER string_expr       { free(config.sb_mixer); config.sb_mixer = $2; }
                 | SB_DSP string_expr         { free(config.sb_dsp); config.sb_dsp = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
+		| MPU_IRQ expression	{ config.mpu401_irq = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
 		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = $2; }
 		| WAV_FILE string_expr	{ free(config.wav_file); config.wav_file = $2; }

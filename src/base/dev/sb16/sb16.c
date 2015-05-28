@@ -41,7 +41,7 @@
 #include "sound/sound.h"
 #include <string.h>
 
-#define CONFIG_MPU401_IRQ 2
+#define CONFIG_MPU401_IRQ config.mpu401_irq
 static int sb_irq_tab[] = { 2, 5, 7, 10 };
 static int sb_dma_tab[] = { 0, 1, 3 };
 static int sb_hdma_tab[] = { 5, 6, 7 };
