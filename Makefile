@@ -46,7 +46,7 @@ rpm: $(PACKETNAME).tar.gz
 	rpmbuild -tb $(PACKETNAME).tar.gz
 	rm -f $(PACKETNAME).tar.gz
 
-pristine distclean mrproper:  docsclean mididclean
+pristine distclean mrproper:  docsclean
 	@$(MAKE) -C src pristine
 	rm -f Makefile.conf $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
@@ -64,8 +64,6 @@ pristine distclean mrproper:  docsclean mididclean
 	rm -f core `find . -name '*[\.]orig'`
 	rm -f core `find . -name '*[\.]rej'`
 	rm -f core gen*.log
-	(cd setup/demudialog; make clean)
-	(cd setup/parser; make clean)
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
 	rm -rf autom4te*.cache
 	$(srcdir)/mkpluginhooks clean
