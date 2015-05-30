@@ -131,6 +131,7 @@ extern void pcm_time_unlock(int strm_idx);
 extern double pcm_get_stream_time(int strm_idx);
 extern int pcm_start_input(void);
 extern void pcm_stop_input(void);
+extern void pcm_set_volume(int strm_idx, double (*get_vol)(void *), void *arg);
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,

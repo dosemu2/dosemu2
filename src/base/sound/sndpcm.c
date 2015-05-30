@@ -83,10 +83,11 @@ enum {
 struct sample {
     int format;
     double tstamp;
+    double volume;
     unsigned char data[2];
 };
 
-static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, {0, 0} };
+static const struct sample mute_samp = { PCM_FORMAT_NONE, 0, 0, {0, 0} };
 
 struct stream {
     int channels;
@@ -96,6 +97,8 @@ struct stream {
     int flags;
     int stretch:1;
     int prepared:1;
+    double (*get_volume)(void*);
+    void *vol_arg;
     double start_time;
     double stop_time;
     double stretch_per;
@@ -186,6 +189,11 @@ static void pcm_reset_stream(int strm_idx)
     pcm.stream[strm_idx].prepared = 0;
 }
 
+static double get_vol_dummy(void *arg)
+{
+    return 1;
+}
+
 int pcm_allocate_stream(int channels, char *name, int id)
 {
     int index;
@@ -196,10 +204,11 @@ int pcm_allocate_stream(int channels, char *name, int id)
     index = pcm.num_streams++;
     rng_init(&pcm.stream[index].buffer, SND_BUFFER_SIZE,
 	     sizeof(struct sample));
-    pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].channels = channels;
     pcm.stream[index].name = name;
     pcm.stream[index].id = id;
+    pcm.stream[index].buf_cnt = 0;
+    pcm.stream[index].get_volume = get_vol_dummy;
     pcm_reset_stream(index);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;
@@ -685,39 +694,42 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
 {
     int i, j;
     struct sample samp;
-    double frame_per;
-    assert(nchans <= pcm.stream[strm_idx].channels);
-    if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
-	rate /= pcm.stream[strm_idx].raw_speed_adj;
+    double frame_per, volume;
+    struct stream *strm = &pcm.stream[strm_idx];
+    assert(nchans <= strm->channels);
+    if (strm->flags & PCM_FLAG_RAW)
+	rate /= strm->raw_speed_adj;
 
     samp.format = format;
     samp.tstamp = 0;
     frame_per = pcm_frame_period_us(rate);
+    volume = strm->get_volume(strm->vol_arg);
     pthread_mutex_lock(&pcm.strm_mtx);
     for (i = 0; i < frames; i++) {
 	int l;
 	struct sample s2;
 retry:
 	samp.tstamp = pcm_calc_tstamp(strm_idx);
+	samp.volume = volume;
 	l = peek_last_sample(strm_idx, &s2);
 	assert(!(l && samp.tstamp < s2.tstamp));
-	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
+	for (j = 0; j < strm->channels; j++) {
 	    int ch = j % nchans;
 	    memcpy(samp.data, &ptr[i][ch], pcm_format_size(format));
-	    l = rng_put(&pcm.stream[strm_idx].buffer, &samp);
+	    l = rng_put(&strm->buffer, &samp);
 	    if (!l) {
 		error("Sound buffer %i overflowed (%s)\n", strm_idx,
-		    pcm.stream[strm_idx].name);
+		    strm->name);
 		pcm_reset_stream(strm_idx);
 		goto retry;
 	    }
 	}
 	pcm_handle_write(strm_idx, samp.tstamp);
-	pcm.stream[strm_idx].stop_time = samp.tstamp + frame_per;
+	strm->stop_time = samp.tstamp + frame_per;
     }
 
-    if (!(pcm.playing & (1 << pcm.stream[strm_idx].id)))
-	pcm_start_output(pcm.stream[strm_idx].id);
+    if (!(pcm.playing & (1 << strm->id)))
+	pcm_start_output(strm->id);
     pthread_mutex_unlock(&pcm.strm_mtx);
 }
 
@@ -793,7 +805,8 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
 	for (i = 0; i < pcm.num_streams; i++) {
 	    if (in[i][j].format == PCM_FORMAT_NONE)
 		continue;
-	    value[j] += sample_to_S16(in[i][j].data, in[i][j].format);
+	    value[j] += sample_to_S16(in[i][j].data, in[i][j].format) *
+		    in[i][j].volume;
 	}
 	S16_to_sample(pcm_samp_cutoff(value[j], PCM_FORMAT_S16_LE),
 		&out[j], format);
@@ -1165,4 +1178,10 @@ void pcm_stop_input(void)
     }
     pcm.recording = 0;
     S_printf("PCM: input stopped\n");
+}
+
+void pcm_set_volume(int strm_idx, double (*get_vol)(void *), void *arg)
+{
+    pcm.stream[strm_idx].get_volume = get_vol;
+    pcm.stream[strm_idx].vol_arg = arg;
 }
