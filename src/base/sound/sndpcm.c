@@ -179,12 +179,11 @@ static void pcm_clear_stream(int strm_idx)
 static void pcm_reset_stream(int strm_idx)
 {
     pcm_clear_stream(strm_idx);
-    if (pcm.stream[strm_idx].state != SNDBUF_STATE_FLUSHING)
-	pcm.stream[strm_idx].prepared = 0;
     pcm.stream[strm_idx].state = SNDBUF_STATE_INACTIVE;
     pcm.stream[strm_idx].stretch = 0;
     pcm.stream[strm_idx].stretch_per = 0;
     pcm.stream[strm_idx].stretch_tot = 0;
+    pcm.stream[strm_idx].prepared = 0;
 }
 
 int pcm_allocate_stream(int channels, char *name, int id)
