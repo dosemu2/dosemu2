@@ -52,6 +52,7 @@
 #define new_utsname utsname
 
 #include "emu.h"
+#include "cpu-emu.h"
 #include "memory.h"
 #include "machcompat.h"
 #include "mapping.h"
@@ -404,6 +405,7 @@ static void _do_map_page(unsigned int dst, caddr_t src, int size)
     E_printf("EMS: mmap() failed: %s\n",strerror(errno));
     leavedos(2);
   }
+  e_invalidate(dst, size);
 }
 
 static void _do_unmap_page(unsigned int base, int size)
@@ -412,6 +414,7 @@ static void _do_unmap_page(unsigned int base, int size)
   /* don't unmap, just overmap with the LOWMEM page */
   alias_mapping(MAPPING_LOWMEM, base, size,
 	PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(base));
+  e_invalidate(base, size);
 }
 
 static boolean_t
