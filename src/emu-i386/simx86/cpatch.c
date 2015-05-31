@@ -185,14 +185,12 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
-	e_invalidate(addr, 2);
 	WRITE_WORD(addr, value);
 }
 
 asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
-	e_invalidate(addr, 4);
 	WRITE_DWORD(addr, value);
 }
 

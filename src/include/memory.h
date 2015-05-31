@@ -191,6 +191,7 @@
 #ifndef __ASSEMBLER__
 
 #include "types.h"
+#include "cpu-emu.h"		// for e_invalidate()
 
 u_short INT_OFF(u_char i);
 
@@ -261,29 +262,46 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 }
 
 #define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))
-#define WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LINEAR2UNIX(addr), val)
+#define WRITE_BYTE(addr, val) do { \
+	UNIX_WRITE_BYTE(LINEAR2UNIX(addr), val); \
+	e_invalidate(addr, 1); \
+} while (0)
 #define READ_WORD(addr)		UNIX_READ_WORD(LINEAR2UNIX(addr))
-#define WRITE_WORD(addr, val)	UNIX_WRITE_WORD(LINEAR2UNIX(addr), val)
+#define WRITE_WORD(addr, val) do { \
+	UNIX_WRITE_WORD(LINEAR2UNIX(addr), val); \
+	e_invalidate(addr, 2); \
+} while (0)
 #define READ_DWORD(addr)	UNIX_READ_DWORD(LINEAR2UNIX(addr))
-#define WRITE_DWORD(addr, val)	UNIX_WRITE_DWORD(LINEAR2UNIX(addr), val)
+#define WRITE_DWORD(addr, val) do { \
+	UNIX_WRITE_DWORD(LINEAR2UNIX(addr), val); \
+	e_invalidate(addr, 4); \
+} while (0)
 
 #define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
 	memcpy((unix_addr), LINEAR2UNIX(dos_addr), (n))
 
-#define MEMCPY_2DOS(dos_addr, unix_addr, n) \
-	memcpy(LINEAR2UNIX(dos_addr), (unix_addr), (n))
+#define MEMCPY_2DOS(dos_addr, unix_addr, n) do { \
+	memcpy(LINEAR2UNIX(dos_addr), (unix_addr), (n)); \
+	e_invalidate(dos_addr, n); \
+} while (0)
 
-#define MEMCPY_DOS2DOS(dos_addr1, dos_addr2, n) \
-	memcpy(LINEAR2UNIX(dos_addr1), LINEAR2UNIX(dos_addr2), (n))
+#define MEMCPY_DOS2DOS(dos_addr1, dos_addr2, n) do { \
+	memcpy(LINEAR2UNIX(dos_addr1), LINEAR2UNIX(dos_addr2), (n)); \
+	e_invalidate(dos_addr1, n); \
+} while (0)
 
-#define MEMMOVE_DOS2DOS(dos_addr1, dos_addr2, n) \
-        memmove(LINEAR2UNIX(dos_addr1), LINEAR2UNIX(dos_addr2), (n))
+#define MEMMOVE_DOS2DOS(dos_addr1, dos_addr2, n) do { \
+        memmove(LINEAR2UNIX(dos_addr1), LINEAR2UNIX(dos_addr2), (n)); \
+	e_invalidate(dos_addr1, n); \
+} while (0)
 
 #define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
 	memcmp(LINEAR2UNIX(dos_addr), (unix_addr), (n))
 
-#define MEMSET_DOS(dos_addr, val, n) \
-        memset(LINEAR2UNIX(dos_addr), (val), (n))
+#define MEMSET_DOS(dos_addr, val, n) do { \
+        memset(LINEAR2UNIX(dos_addr), (val), (n)); \
+	e_invalidate(dos_addr, n); \
+} while (0)
 
 /* The "P" macros all take valid pointer addresses; the pointers are
    aliased from mem_base to lowmem_base if possible.

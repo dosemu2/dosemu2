@@ -50,7 +50,7 @@
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
 #define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c)))
-#define WRITE_ENV_SEL(sel) (WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c), sel))
+#define WRITE_ENV_SEL(sel) WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c), sel)
 
 static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];

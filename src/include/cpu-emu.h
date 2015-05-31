@@ -55,6 +55,9 @@ extern void e_priv_iopl(int);
 #define CONFIG_CPUSIM 1
 #endif
 
+#ifndef sigcontext_struct
+#define sigcontext_struct sigcontext
+#endif
 /* ----------------------------------------------------------------------- */
 
 /* Cpuemu status register - pack as much info as possible here, so to

@@ -114,7 +114,6 @@ void extmem_copy(unsigned dst, unsigned src, unsigned len)
 	memmove_dos2dos(d, s, clen);
       else
 	memcpy_2dos(d, ps, clen);
-      e_invalidate(d, clen);
     } else {
       unsigned char *pd = &ext_mem_base[d - edge];
       if (s < edge)
