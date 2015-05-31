@@ -1325,6 +1325,8 @@ void e_invalidate(unsigned data, int cnt)
 {
 	if (config.cpuemu <= 1)
 		return;
+	if (!e_querymark(data, cnt))
+		return;
 	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)
