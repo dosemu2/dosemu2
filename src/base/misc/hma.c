@@ -39,6 +39,7 @@ void HMA_MAP(int HMA)
 	       HMAAREA, strerror(errno));
     leavedos(47);
   }
+  e_invalidate(HMAAREA, HMASIZE);
   x_printf("HMA: mapped to %p\n", ipc_return);
 }
 
