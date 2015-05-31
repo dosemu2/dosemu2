@@ -236,6 +236,7 @@ int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len)
   while(l) {
     if((i = read_sec(f, pos))) return i;
     MEMCPY_2DOS(buf, f->sec, 0x200);
+    e_invalidate(buf, 0x200);
     buf += 0x200; pos++; l--;
   }
 
