@@ -32,13 +32,6 @@ void HMA_MAP(int HMA)
   /* Note: MAPPING_HMA is magic, dont be confused by src==dst==HMAAREA here */
   off_t src = HMA ? HMAAREA : 0;
   x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
-
-  if (munmap_mapping(MAPPING_HMA, &mem_base[HMAAREA], HMASIZE) < 0) {
-    x_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
-    leavedos(48);
-  }
-  x_printf("HMA: detached at %#x\n", HMAAREA);
-
   ipc_return = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(src));
   if (ipc_return == MAP_FAILED) {
