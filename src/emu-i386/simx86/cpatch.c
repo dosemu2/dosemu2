@@ -55,7 +55,7 @@ int s_mprotect(unsigned int addr, size_t len)
 }
 
 #ifdef HOST_ARCH_X86
-
+#if 0
 static int m_mprotect(unsigned int addr, size_t len)
 {
 	if (debug_level('e')>3)
@@ -94,6 +94,7 @@ static void r_munprotect(unsigned int addr, unsigned int len, unsigned char *eip
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
 }
+#endif
 
 #define repmovs(std,letter,cld)			       \
 	asm volatile(#std" ; rep ; movs"#letter ";" #cld"\n\t" \
@@ -137,7 +138,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	}
 	else if (*eip & 1)
 		len *= 4;
-	r_munprotect(addr, len, eip);
+	e_invalidate(addr, len);
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);
@@ -184,58 +185,45 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 asmlinkage void stk_16(unsigned char *paddr, Bit16u value)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
-	int ret = s_munprotect(addr, 2);
+	e_invalidate(addr, 2);
 	WRITE_WORD(addr, value);
-	if (ret & 1)
-		s_mprotect(addr, 2);
 }
 
 asmlinkage void stk_32(unsigned char *paddr, Bit32u value)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
-	int ret = s_munprotect(addr, 4);
+	e_invalidate(addr, 4);
 	WRITE_DWORD(addr, value);
-	if (ret & 1)
-		s_mprotect(addr, 4);
 }
 
 asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
-	int ret;
 	Bit8u *p;
-	ret = m_munprotect(addr, 1, eip);
+	e_invalidate(addr, 1);
 	p = LINEAR2UNIX(addr);
 	/* there is a slight chance that this stub hits VGA memory.
 	   For that case there is a simple instruction decoder but
 	   we must use mov %al,(%edi) (%rdi for x86_64) */
 	asm("movb %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
-	if (ret & 1)
-		m_mprotect(addr, 1);
 }
 
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
-	int ret;
 	Bit16u *p;
-	ret = m_munprotect(addr, 2, eip);
+	e_invalidate(addr, 2);
 	p = LINEAR2UNIX(addr);
 	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
-	if (ret & 1)
-		m_mprotect(addr, 2);
 }
 
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
-	int ret;
 	Bit32u *p;
-	ret = m_munprotect(addr, 4, eip);
+	e_invalidate(addr, 4);
 	p = LINEAR2UNIX(addr);
 	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
-	if (ret & 1)
-		m_mprotect(addr, 4);
 }
 
 #ifdef __i386__
