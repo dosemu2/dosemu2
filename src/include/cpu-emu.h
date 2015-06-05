@@ -90,6 +90,7 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode);
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_EMULATOR
 void e_invalidate(unsigned data, int cnt);
+void e_invalidate_full(unsigned data, int cnt);
 #else
 #define e_invalidate(x,y)
 #endif

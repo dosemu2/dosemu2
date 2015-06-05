@@ -397,24 +397,25 @@ emm_deallocate_handle(int handle)
 
 static void _do_map_page(unsigned int dst, caddr_t src, int size)
 {
+  /* destroy simx86 memory protections first */
+  e_invalidate_full(dst, size);
   E_printf("EMS: mmap()ing from %p to %#x\n", src, dst);
-
   if (MAP_FAILED == alias_mapping(MAPPING_EMS, dst, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  src)) {
     E_printf("EMS: mmap() failed: %s\n",strerror(errno));
     leavedos(2);
   }
-  e_invalidate(dst, size);
 }
 
 static void _do_unmap_page(unsigned int base, int size)
 {
+  /* destroy simx86 memory protections first */
+  e_invalidate_full(base, size);
   E_printf("EMS: unmmap()ing from %#x\n", base);
   /* don't unmap, just overmap with the LOWMEM page */
   alias_mapping(MAPPING_LOWMEM, base, size,
 	PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(base));
-  e_invalidate(base, size);
 }
 
 static boolean_t
