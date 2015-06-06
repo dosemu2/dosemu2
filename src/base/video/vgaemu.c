@@ -772,21 +772,21 @@ int vga_access(dosaddr_t r, dosaddr_t w)
 	return (vga_read_access(r) | (vga_write_access(w) << 1));
 }
 
-unsigned char vga_read(unsigned addr)
+unsigned char vga_read(dosaddr_t addr)
 {
   if (!vga.inst_emu || !vga_read_access(addr))
     return READ_BYTE(addr);
   return Logical_VGA_read(addr - vga.mem.bank_base);
 }
 
-unsigned short vga_read_word(unsigned addr)
+unsigned short vga_read_word(dosaddr_t addr)
 {
   if (!vga.inst_emu)
     return READ_WORD(addr);
   return vga_read(addr) | vga_read(addr + 1) << 8;
 }
 
-void vga_write(unsigned addr, unsigned char val)
+void vga_write(dosaddr_t addr, unsigned char val)
 {
   int b = vga_bank_access(addr);
   if (vga_write_access(addr) && !b)
@@ -807,7 +807,7 @@ void vga_write(unsigned addr, unsigned char val)
   Logical_VGA_write(addr - vga.mem.bank_base, val);
 }
 
-void vga_write_word(unsigned addr, unsigned short val)
+void vga_write_word(dosaddr_t addr, unsigned short val)
 {
   if (!vga.inst_emu) {
     WRITE_WORD(addr, val);
@@ -817,7 +817,7 @@ void vga_write_word(unsigned addr, unsigned short val)
   vga_write(addr + 1, val >> 8);
 }
 
-void memcpy_to_vga(unsigned dst, const void *src, size_t len)
+void memcpy_to_vga(dosaddr_t dst, const void *src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
@@ -828,7 +828,7 @@ void memcpy_to_vga(unsigned dst, const void *src, size_t len)
     vga_write(dst + i, ((unsigned char *)src)[i]);
 }
 
-void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len)
+void memcpy_dos_to_vga(dosaddr_t dst, dosaddr_t src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
@@ -839,7 +839,7 @@ void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len)
     vga_write(dst + i, READ_BYTE(src + i));
 }
 
-void memcpy_from_vga(void *dst, unsigned src, size_t len)
+void memcpy_from_vga(void *dst, dosaddr_t src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
@@ -851,7 +851,7 @@ void memcpy_from_vga(void *dst, unsigned src, size_t len)
   }
 }
 
-void memcpy_dos_from_vga(unsigned dst, unsigned src, size_t len)
+void memcpy_dos_from_vga(dosaddr_t dst, dosaddr_t src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
@@ -863,7 +863,7 @@ void memcpy_dos_from_vga(unsigned dst, unsigned src, size_t len)
   }
 }
 
-void vga_memcpy(unsigned dst, unsigned src, size_t len)
+void vga_memcpy(dosaddr_t dst, dosaddr_t src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
@@ -874,7 +874,7 @@ void vga_memcpy(unsigned dst, unsigned src, size_t len)
     vga_write(dst + i, vga_read(src + i));
 }
 
-void vga_memset(unsigned dst, unsigned char val, size_t len)
+void vga_memset(dosaddr_t dst, unsigned char val, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
@@ -885,7 +885,7 @@ void vga_memset(unsigned dst, unsigned char val, size_t len)
     vga_write(dst + i, val);
 }
 
-void vga_memsetw(unsigned dst, unsigned short val, size_t len)
+void vga_memsetw(dosaddr_t dst, unsigned short val, size_t len)
 {
   if (!vga.inst_emu) {
     while (len--) {
