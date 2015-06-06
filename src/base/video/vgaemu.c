@@ -742,6 +742,36 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
 }
 
+int vga_bank_access(dosaddr_t m)
+{
+	return (unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len;
+}
+
+int vga_read_access(dosaddr_t m)
+{
+	/* Using a planar mode */
+	return vga_bank_access(m);
+}
+
+int vga_write_access(dosaddr_t m)
+{
+	/* unmapped VGA memory, VGA BIOS, or a planar mode */
+	if (m >= vga.mem.bank_base + vga.mem.bank_len &&
+			m < vga.mem.graph_base + vga.mem.graph_size)
+		return 1;
+	if (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages<<12))
+		return 1;
+	if (m >= vga.mem.bank_base && m < vga.mem.bank_base +
+			vga.mem.bank_len && vga.inst_emu)
+		return 1;
+	return 0;
+}
+
+int vga_access(dosaddr_t r, dosaddr_t w)
+{
+	return (vga_read_access(r) | (vga_write_access(w) << 1));
+}
+
 unsigned char vga_read(unsigned addr)
 {
   if (!vga.inst_emu || addr < vga.mem.bank_base ||

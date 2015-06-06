@@ -525,6 +525,10 @@ void vga_memcpy(unsigned dst, unsigned src, size_t len);
 void vga_memset(unsigned dst, unsigned char val, size_t len);
 void vga_memsetw(unsigned dst, unsigned short val, size_t len);
 /* for cpuemu: */
+int vga_bank_access(dosaddr_t m);
+int vga_read_access(dosaddr_t m);
+int vga_write_access(dosaddr_t m);
+int vga_access(dosaddr_t r, dosaddr_t w);
 int vga_emu_protect_page(unsigned, int);
 int vga_emu_adjust_protection(unsigned, unsigned, int);
 void vga_emu_prot_lock(void);
