@@ -148,6 +148,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 				vga_memcpy(addr - len, source - len, len);
 			else
 				vga_memcpy(addr, source, len);
+			ecx = 0;
 			goto done;
 		}
 		esi = LINEAR2UNIX(source);
@@ -171,29 +172,35 @@ done:
 	else { /* stos */
 		unsigned int eax = stack->eax;
 		if (ecx == len) {
-			if (vga_write_access(addr))
+			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
 					vga_memset(addr - len, eax, ecx);
 				else
 					vga_memset(addr, eax, ecx);
+				ecx = 0;
+			}
 			else if (EFLAGS & EFLAGS_DF) repstos(std,b,cld);
 			else repstos(,b,);
 		}
 		else if (ecx*2 == len) {
-			if (vga_write_access(addr))
+			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
 					vga_memsetw(addr - len, eax, ecx);
 				else
 					vga_memsetw(addr, eax, ecx);
+				ecx = 0;
+			}
 			else if (EFLAGS & EFLAGS_DF) repstos(std,w,cld);
 			else repstos(,w,);
 		}
 		else {
-			if (vga_write_access(addr))
+			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
 					vga_memsetl(addr - len, eax, ecx);
 				else
 					vga_memsetl(addr, eax, ecx);
+				ecx = 0;
+			}
 			else if (EFLAGS & EFLAGS_DF) repstos(std,l,cld);
 			else repstos(,l,);
 		}
