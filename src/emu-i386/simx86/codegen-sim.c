@@ -455,36 +455,6 @@ void AddrGen_sim(int op, int mode, ...)
 #endif
 }
 
-static inline int vga_access(unsigned int m)
-{
-	if (!vga.inst_emu) return 0;
-	return (unsigned)(m - TheCPU.mem_base - vga.mem.bank_base) <
-		vga.mem.bank_len;
-}
-
-static inline int vga_read_access(unsigned int m)
-{
-	/* Using a planar mode */
-	if (TheCPU.mode&RM_REG) return 0;
-	return vga_access(m);
-}
-
-static int vga_write_access(unsigned int m)
-{
-	/* unmapped VGA memory, VGA BIOS, or a planar mode */
-	if (TheCPU.mode&RM_REG) return 0;
-	m -= TheCPU.mem_base;
-	if (m >= vga.mem.bank_base + vga.mem.bank_len &&
-			m < vga.mem.graph_base + vga.mem.graph_size)
-		return 1;
-	if (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages<<12))
-		return 1;
-	if (m >= vga.mem.bank_base && m < vga.mem.bank_base +
-			vga.mem.bank_len && vga.inst_emu)
-		return 1;
-	return 0;
-}
-
 void Gen_sim(int op, int mode, ...)
 {
 	va_list	ap;
@@ -560,9 +530,9 @@ void Gen_sim(int op, int mode, ...)
 		break;
 	case S_DI_IMM: {
 		int v = va_arg(ap,int);
-		if (vga_write_access(AR1.d)) {
+		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
 			GTRACE0("S_DI_IMM_VGA");
-			if (!vga_access(AR1.d)) break;
+			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
 			e_VgaWrite(AR1.pu, v, mode); break;
 		}
 		if (mode&MBYTE) {
@@ -654,7 +624,7 @@ void Gen_sim(int op, int mode, ...)
 		break;
 
 	case L_VGAREAD:
-		if (vga_read_access(AR1.d)) {
+		if (vga_read_access(DOSADDR_REL(AR1.pu))) {
 			GTRACE0("L_VGAREAD");
 			DR1.d = e_VgaRead(AR1.pu, mode);
 			break;
@@ -672,9 +642,9 @@ void Gen_sim(int op, int mode, ...)
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
 	case L_VGAWRITE:
-		if (vga_write_access(AR1.d)) {
+		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
 			GTRACE0("L_VGAWRITE");
-			if (!vga_access(AR1.d)) break;
+			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
 			e_VgaWrite(AR1.pu, DR1.d, mode); break;
 		}
 		GTRACE0("S_DI");
@@ -2397,7 +2367,7 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
 		if(i == 0)
 		    break;
-		v = vga_read_access(AR2.d) | (vga_write_access(AR1.d) << 1);
+		v = vga_access(DOSADDR_REL(AR2.pu), DOSADDR_REL(AR1.pu));
 		if (v) {
 		    int op;
 		    struct sigcontext_struct s, *scp = &s;
@@ -2491,7 +2461,7 @@ void Gen_sim(int op, int mode, ...)
 		if (mode&(MREP|MREPNE))	{
 		    dbug_printf("odd: REP LODS %d\n",i);
 		}
-		if (vga_read_access(AR2.d)) {
+		if (vga_read_access(DOSADDR_REL(AR2.pu))) {
 		    while (i--) {
 			DR1.d = e_VgaRead(AR2.pu, mode);
 			AR2.pu += df;
@@ -2519,9 +2489,9 @@ void Gen_sim(int op, int mode, ...)
 		register unsigned int i;
 		i = TR1.d;
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
-		if (vga_write_access(AR1.d)) {
+		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
 		    while (i--) {
-		        if (vga_access(AR1.d))
+		        if (vga_bank_access(DOSADDR_REL(AR1.pu)))
 			    e_VgaWrite(AR1.pu, DR1.d, mode);
 			AR1.pu += df;
 			if (!(mode&MBYTE)) {
@@ -2584,7 +2554,7 @@ void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
-		if (vga_read_access(AR1.d)) while (i && (z==k)) {
+		if (vga_read_access(DOSADDR_REL(AR1.pu))) while (i && (z==k)) {
 		    DR2.d = e_VgaRead(AR1.pu, mode);
 		    if (mode&MBYTE) {
 			RFL.RES.d = (S1=DR1.b.bl) - (S2=DR2.b.bl);
@@ -2641,9 +2611,10 @@ void Gen_sim(int op, int mode, ...)
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
 		z = k = (mode&MREP? 1:0);
-		if (vga_read_access(AR1.d) || vga_read_access(AR2.d))
+		if (vga_read_access(DOSADDR_REL(AR1.pu)) ||
+				vga_read_access(DOSADDR_REL(AR2.pu)))
 		while (i && (z==k)) {
-		    if (vga_read_access(AR1.d))
+		    if (vga_read_access(DOSADDR_REL(AR1.pu)))
 			DR1.d = e_VgaRead(AR1.pu, mode);
 		    else if (mode&MBYTE)
 			DR1.b.bl = *AR1.pu;
@@ -2651,7 +2622,7 @@ void Gen_sim(int op, int mode, ...)
 			DR1.w.l = *AR1.pwu;
 		    else
 			DR1.d = *AR1.pdu;
-		    if (vga_read_access(AR2.d))
+		    if (vga_read_access(DOSADDR_REL(AR2.pu)))
 			DR2.d = e_VgaRead(AR2.pu, mode);
 		    else if (mode&MBYTE)
 			DR2.b.bl = *AR2.pu;
