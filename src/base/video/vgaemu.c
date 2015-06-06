@@ -788,8 +788,20 @@ unsigned short vga_read_word(unsigned addr)
 
 void vga_write(unsigned addr, unsigned char val)
 {
-  if (!vga.inst_emu || !vga_bank_access(addr)) {
+  int b = vga_bank_access(addr);
+  if (vga_write_access(addr) && !b)
+    return;
+  if (!b) {
     WRITE_BYTE(addr, val);
+    return;
+  }
+  if (!vga.inst_emu) {
+    unsigned vga_page = addr >> PAGE_SHIFT;
+    WRITE_BYTE(addr, val);
+    vga_emu_prot_lock();
+    vga_emu_adjust_protection(vga_page, 0, VGA_PROT_RW);
+    vgaemu_dirty_page(vga_page);
+    vga_emu_prot_unlock();
     return;
   }
   Logical_VGA_write(addr - vga.mem.bank_base, val);
