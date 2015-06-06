@@ -339,7 +339,7 @@ static int count_active_streams(int id)
 {
     int i, ret = 0;
     for (i = 0; i < pcm.num_streams; i++) {
-	if (id != PCM_ID_MAX && pcm.stream[i].id != id)
+	if (id != PCM_ID_ANY && !(pcm.stream[i].id & id))
 	    continue;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
@@ -433,7 +433,7 @@ static void pcm_start_output(int id)
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_holder *p = &pcm.players[i];
-	if (PLAYER(p)->id != id)
+	if (!(PLAYER(p)->id & id))
 	    continue;
 	if (p->opened) {
 	    pcm_reset_player(i);
@@ -443,8 +443,8 @@ static void pcm_start_output(int id)
 	}
     }
     pcm.time = now - MAX_BUFFER_DELAY;
-    pcm.playing |= (1 << id);
-    S_printf("PCM: output started\n");
+    pcm.playing |= id;
+    S_printf("PCM: output started, %i\n", pcm.playing);
 }
 
 static void pcm_stop_output(int id)
@@ -452,7 +452,7 @@ static void pcm_stop_output(int id)
     int i;
     for (i = 0; i < pcm.num_players; i++) {
 	struct pcm_holder *p = &pcm.players[i];
-	if (id != PCM_ID_MAX && PLAYER(p)->id != id)
+	if (id != PCM_ID_ANY && !(PLAYER(p)->id & id))
 	    continue;
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
@@ -460,8 +460,8 @@ static void pcm_stop_output(int id)
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
-    pcm.playing &= ~(1 << id);
-    S_printf("PCM: output stopped\n");
+    pcm.playing &= ~id;
+    S_printf("PCM: output stopped, %i\n", pcm.playing);
 }
 
 static void handle_raw_adj(int strm_idx, double fillup, double time)
@@ -728,8 +728,13 @@ retry:
 	strm->stop_time = samp.tstamp + frame_per;
     }
 
-    if (!(pcm.playing & (1 << strm->id)))
-	pcm_start_output(strm->id);
+    for (i = 0; i < PCM_ID_MAX; i++) {
+	int id = 1 << i;
+	if (!(id & strm->id))
+	    continue;
+	if (!(id & pcm.playing))
+	    pcm_start_output(id);
+    }
     pthread_mutex_unlock(&pcm.strm_mtx);
 }
 
@@ -765,7 +770,7 @@ static void pcm_get_samples(double time,
 	for (j = 0; j < out_channels; j++)
 	    samp[i][j] = mute_samp;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
-		pcm.stream[i].id != id)
+		!(pcm.stream[i].id & id))
 	    continue;
 
 //    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
@@ -853,7 +858,7 @@ static void save_idxs(struct pcm_player_wr *pl, int idxs[MAX_STREAMS])
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 			   struct player_params *params)
 {
-    int idxs[MAX_STREAMS], out_idx, handle, id;
+    int idxs[MAX_STREAMS], out_idx, handle;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
@@ -862,7 +867,6 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     now = GETusTIME(0);
     handle = params->handle;
     p = &pcm.players[handle];
-    id = PLAYER(p)->id;
     start_time = PL_PRIV(p)->time;
     frag_period = nframes * pcm_frame_period_us(params->rate);
     stop_time = start_time + frag_period;
@@ -908,7 +912,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     calc_idxs(PL_PRIV(p), idxs);
 
     for (out_idx = 0; out_idx < nframes; out_idx++) {
-	pcm_get_samples(time, samp, idxs, params->channels, id);
+	pcm_get_samples(time, samp, idxs, params->channels, PLAYER(p)->id);
 	pcm_mix_samples(samp, buf[out_idx], params->channels, params->format);
 	time += frame_period;
     }
@@ -957,8 +961,8 @@ static void pcm_advance_time(double stop_time)
     }
 
     for (i = 0; i < PCM_ID_MAX; i++) {
-	if (!count_active_streams(i) && (pcm.playing & (1 << i)))
-	    pcm_stop_output(i);
+	if (!count_active_streams(1 << i) && (pcm.playing & (1 << i)))
+	    pcm_stop_output(1 << i);
     }
     pthread_mutex_unlock(&pcm.strm_mtx);
 }
@@ -1027,7 +1031,7 @@ void pcm_reset(void)
     S_printf("PCM: reset\n");
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
-	pcm_stop_output(PCM_ID_MAX);
+	pcm_stop_output(PCM_ID_ANY);
     for (i = 0; i < pcm.num_streams; i++)
 	pcm_reset_stream(i);
     pthread_mutex_unlock(&pcm.strm_mtx);
@@ -1044,7 +1048,7 @@ void pcm_done(void)
     }
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
-	pcm_stop_output(PCM_ID_MAX);
+	pcm_stop_output(PCM_ID_ANY);
     pcm_deinit_plugins(pcm.players, pcm.num_players);
     pcm_deinit_plugins(pcm.recorders, pcm.num_recorders);
     for (i = 0; i < pcm.num_streams; i++)

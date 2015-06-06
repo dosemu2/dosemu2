@@ -104,7 +104,10 @@ enum _PCM_format {
 	PCM_FORMAT_IMA_ADPCM,
 };
 
-enum { PCM_ID_P, PCM_ID_R, PCM_ID_MAX };
+#define PCM_ID_P (1 << 0)
+#define PCM_ID_R (1 << 1)
+#define PCM_ID_MAX     2
+#define PCM_ID_ANY 0xff
 
 typedef int16_t sndbuf_t;
 #define SNDBUF_CHANS 2
