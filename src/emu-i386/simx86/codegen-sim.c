@@ -457,7 +457,6 @@ void AddrGen_sim(int op, int mode, ...)
 
 static inline int vga_bank_access(dosaddr_t m)
 {
-	if (!vga.inst_emu) return 0;
 	return (unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len;
 }
 
