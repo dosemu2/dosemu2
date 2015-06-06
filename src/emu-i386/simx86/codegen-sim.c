@@ -464,14 +464,12 @@ static inline int vga_bank_access(dosaddr_t m)
 static int vga_read_access(dosaddr_t m)
 {
 	/* Using a planar mode */
-	if (TheCPU.mode&RM_REG) return 0;
 	return vga_bank_access(m);
 }
 
 static int vga_write_access(dosaddr_t m)
 {
 	/* unmapped VGA memory, VGA BIOS, or a planar mode */
-	if (TheCPU.mode&RM_REG) return 0;
 	if (m >= vga.mem.bank_base + vga.mem.bank_len &&
 			m < vga.mem.graph_base + vga.mem.graph_size)
 		return 1;
