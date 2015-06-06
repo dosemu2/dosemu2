@@ -455,18 +455,18 @@ void AddrGen_sim(int op, int mode, ...)
 #endif
 }
 
-static inline int vga_access(unsigned int m)
+static inline int vga_bank_access(unsigned int m)
 {
 	if (!vga.inst_emu) return 0;
 	return (unsigned)(m - TheCPU.mem_base - vga.mem.bank_base) <
 		vga.mem.bank_len;
 }
 
-static inline int vga_read_access(unsigned int m)
+static int vga_read_access(unsigned int m)
 {
 	/* Using a planar mode */
 	if (TheCPU.mode&RM_REG) return 0;
-	return vga_access(m);
+	return vga_bank_access(m);
 }
 
 static int vga_write_access(unsigned int m)
@@ -483,6 +483,11 @@ static int vga_write_access(unsigned int m)
 			vga.mem.bank_len && vga.inst_emu)
 		return 1;
 	return 0;
+}
+
+static int vga_access(unsigned int r, unsigned int w)
+{
+	return (vga_read_access(r) | (vga_write_access(w) << 1));
 }
 
 void Gen_sim(int op, int mode, ...)
@@ -562,7 +567,7 @@ void Gen_sim(int op, int mode, ...)
 		int v = va_arg(ap,int);
 		if (vga_write_access(AR1.d)) {
 			GTRACE0("S_DI_IMM_VGA");
-			if (!vga_access(AR1.d)) break;
+			if (!vga_bank_access(AR1.d)) break;
 			e_VgaWrite(AR1.pu, v, mode); break;
 		}
 		if (mode&MBYTE) {
@@ -674,7 +679,7 @@ void Gen_sim(int op, int mode, ...)
 	case L_VGAWRITE:
 		if (vga_write_access(AR1.d)) {
 			GTRACE0("L_VGAWRITE");
-			if (!vga_access(AR1.d)) break;
+			if (!vga_bank_access(AR1.d)) break;
 			e_VgaWrite(AR1.pu, DR1.d, mode); break;
 		}
 		GTRACE0("S_DI");
@@ -2397,7 +2402,7 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE4("O_MOVS_MovD",0xff,0xff,df,i);
 		if(i == 0)
 		    break;
-		v = vga_read_access(AR2.d) | (vga_write_access(AR1.d) << 1);
+		v = vga_access(AR2.d, AR1.d);
 		if (v) {
 		    int op;
 		    struct sigcontext_struct s, *scp = &s;
@@ -2521,7 +2526,7 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE4("O_MOVS_StoD",0xff,0xff,df,i);
 		if (vga_write_access(AR1.d)) {
 		    while (i--) {
-		        if (vga_access(AR1.d))
+		        if (vga_bank_access(AR1.d))
 			    e_VgaWrite(AR1.pu, DR1.d, mode);
 			AR1.pu += df;
 			if (!(mode&MBYTE)) {
