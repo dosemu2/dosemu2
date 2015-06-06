@@ -992,58 +992,42 @@ static void sb_dsp_write(Bit8u value)
 
 static void sb_mixer_write(Bit8u value)
 {
+    S_printf("SB: write mixer reg %#x val=%#x\n", sb.mixer_index, value);
+    sb.mixer_regs[sb.mixer_index] = value;
     switch (sb.mixer_index) {
     case 0:
 	sb_mixer_reset();
 	break;
 
     case 0x04:
-//      sb_write_mixer(SB_MIXER_PCM, value);
+	sb.mixer_regs[0x32] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x33] = (value << 4) | 8;
 	break;
 
     case 0x0A:
-//      sb_write_mixer(SB_MIXER_MIC, value);
-	break;
-
-    case 0x0C:
-	/* 0x0C is ignored - sets record source and a filter */
-	if (!(value & 32)) {
-	    S_printf("SB: Warning: Input filter is not supported!\n");
-//	    value |= 32;
-	}
-	break;
-
-    case 0x0E:
-	if (!(value & 32)) {
-	    S_printf("SB: Warning: Output filter is not supported!\n");
-//	    value |= 32;
-	}
+	sb.mixer_regs[0x3A] = (value << 5) | 0x18;
 	break;
 
     case 0x22:
-//      sb_write_mixer(SB_MIXER_VOLUME, value);
+	sb.mixer_regs[0x30] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x31] = (value << 4) | 8;
 	break;
 
     case 0x26:
-//      sb_write_mixer(SB_MIXER_SYNTH, value);
+	sb.mixer_regs[0x34] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x35] = (value << 4) | 8;
 	break;
 
     case 0x28:
-//      sb_write_mixer(SB_MIXER_CD, value);
+	sb.mixer_regs[0x36] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x37] = (value << 4) | 8;
 	break;
 
     case 0x2E:
-//      sb_write_mixer(SB_MIXER_LINE, value);
-	break;
-
-    default:
-	S_printf("SB: Unknown index 0x%x in Mixer Write\n",
-		 sb.mixer_index);
+	sb.mixer_regs[0x38] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x39] = (value << 4) | 8;
 	break;
     }
-
-    S_printf("SB: write mixer reg %#x val=%#x\n", sb.mixer_index, value);
-    sb.mixer_regs[sb.mixer_index] = value;
 }
 
 /*
