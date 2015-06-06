@@ -774,8 +774,7 @@ int vga_access(dosaddr_t r, dosaddr_t w)
 
 unsigned char vga_read(unsigned addr)
 {
-  if (!vga.inst_emu || addr < vga.mem.bank_base ||
-	addr >= vga.mem.bank_base + vga.mem.bank_len)
+  if (!vga.inst_emu || !vga_read_access(addr))
     return READ_BYTE(addr);
   return Logical_VGA_read(addr - vga.mem.bank_base);
 }
@@ -789,8 +788,7 @@ unsigned short vga_read_word(unsigned addr)
 
 void vga_write(unsigned addr, unsigned char val)
 {
-  if (!vga.inst_emu || addr < vga.mem.bank_base ||
-	addr >= vga.mem.bank_base + vga.mem.bank_len) {
+  if (!vga.inst_emu || !vga_bank_access(addr)) {
     WRITE_BYTE(addr, val);
     return;
   }
