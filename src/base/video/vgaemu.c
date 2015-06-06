@@ -809,7 +809,9 @@ void vga_write(dosaddr_t addr, unsigned char val)
 
 void vga_write_word(dosaddr_t addr, unsigned short val)
 {
-  if (!vga.inst_emu) {
+  /* even in non-inst_emu mode we need to check write area to
+   * properly invalidate pages */
+  if (!vga.inst_emu && !vga_write_access(addr)) {
     WRITE_WORD(addr, val);
     return;
   }
@@ -819,7 +821,9 @@ void vga_write_word(dosaddr_t addr, unsigned short val)
 
 void vga_write_dword(dosaddr_t addr, unsigned val)
 {
-  if (!vga.inst_emu) {
+  /* even in non-inst_emu mode we need to check write area to
+   * properly invalidate pages */
+  if (!vga.inst_emu && !vga_write_access(addr)) {
     WRITE_DWORD(addr, val);
     return;
   }
@@ -830,7 +834,9 @@ void vga_write_dword(dosaddr_t addr, unsigned val)
 void memcpy_to_vga(dosaddr_t dst, const void *src, size_t len)
 {
   int i;
-  if (!vga.inst_emu) {
+  /* even in non-inst_emu mode we need to check write area to
+   * properly invalidate pages */
+  if (!vga.inst_emu && !vga_write_access(dst)) {
     MEMCPY_2DOS(dst, src, len);
     return;
   }
@@ -841,7 +847,9 @@ void memcpy_to_vga(dosaddr_t dst, const void *src, size_t len)
 void memcpy_dos_to_vga(dosaddr_t dst, dosaddr_t src, size_t len)
 {
   int i;
-  if (!vga.inst_emu) {
+  /* even in non-inst_emu mode we need to check write area to
+   * properly invalidate pages */
+  if (!vga.inst_emu && !vga_write_access(dst)) {
     MEMCPY_DOS2DOS(dst, src, len);
     return;
   }
@@ -876,7 +884,9 @@ void memcpy_dos_from_vga(dosaddr_t dst, dosaddr_t src, size_t len)
 void vga_memcpy(dosaddr_t dst, dosaddr_t src, size_t len)
 {
   int i;
-  if (!vga.inst_emu) {
+  /* even in non-inst_emu mode we need to check write area to
+   * properly invalidate pages */
+  if (!vga.inst_emu && !vga_write_access(dst)) {
     MEMMOVE_DOS2DOS(dst, src, len);
     return;
   }
