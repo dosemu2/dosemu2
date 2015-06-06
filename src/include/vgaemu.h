@@ -517,6 +517,7 @@ unsigned char vga_read(unsigned addr);
 void vga_write(unsigned addr, unsigned char val);
 unsigned short vga_read_word(unsigned addr);
 void vga_write_word(unsigned addr, unsigned short val);
+void vga_write_dword(dosaddr_t addr, unsigned val);
 void memcpy_to_vga(unsigned dst, const void *src, size_t len);
 void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len);
 void memcpy_from_vga(void *dst, unsigned src, size_t len);
@@ -524,6 +525,7 @@ void memcpy_dos_from_vga(unsigned dst, unsigned src, size_t len);
 void vga_memcpy(unsigned dst, unsigned src, size_t len);
 void vga_memset(unsigned dst, unsigned char val, size_t len);
 void vga_memsetw(unsigned dst, unsigned short val, size_t len);
+void vga_memsetl(unsigned dst, unsigned val, size_t len);
 /* for cpuemu: */
 int vga_bank_access(dosaddr_t m);
 int vga_read_access(dosaddr_t m);

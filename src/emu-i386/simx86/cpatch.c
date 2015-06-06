@@ -142,7 +142,15 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);
-		unsigned char *esi = LINEAR2UNIX(source);
+		unsigned char *esi;
+		if (vga_access(source, addr)) {
+			if (EFLAGS & EFLAGS_DF)
+				vga_memcpy(addr - len, source - len, len);
+			else
+				vga_memcpy(addr, source, len);
+			goto done;
+		}
+		esi = LINEAR2UNIX(source);
 		if (ecx == len) {
 			if (EFLAGS & EFLAGS_DF) repmovs(std,b,cld);
 			else repmovs(,b,);
@@ -155,6 +163,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 			if (EFLAGS & EFLAGS_DF) repmovs(std,l,cld);
 			else repmovs(,l,);
 		}
+done:
 		if (EFLAGS & EFLAGS_DF) source -= len;
 		else source += len;
 		stack->esi = MEM_BASE32(source);
@@ -162,15 +171,30 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	else { /* stos */
 		unsigned int eax = stack->eax;
 		if (ecx == len) {
-			if (EFLAGS & EFLAGS_DF) repstos(std,b,cld);
+			if (vga_write_access(addr))
+				if (EFLAGS & EFLAGS_DF)
+					vga_memset(addr - len, eax, ecx);
+				else
+					vga_memset(addr, eax, ecx);
+			else if (EFLAGS & EFLAGS_DF) repstos(std,b,cld);
 			else repstos(,b,);
 		}
 		else if (ecx*2 == len) {
-			if (EFLAGS & EFLAGS_DF) repstos(std,w,cld);
+			if (vga_write_access(addr))
+				if (EFLAGS & EFLAGS_DF)
+					vga_memsetw(addr - len, eax, ecx);
+				else
+					vga_memsetw(addr, eax, ecx);
+			else if (EFLAGS & EFLAGS_DF) repstos(std,w,cld);
 			else repstos(,w,);
 		}
 		else {
-			if (EFLAGS & EFLAGS_DF) repstos(std,l,cld);
+			if (vga_write_access(addr))
+				if (EFLAGS & EFLAGS_DF)
+					vga_memsetl(addr - len, eax, ecx);
+				else
+					vga_memsetl(addr, eax, ecx);
+			else if (EFLAGS & EFLAGS_DF) repstos(std,l,cld);
 			else repstos(,l,);
 		}
 	}

@@ -817,6 +817,16 @@ void vga_write_word(dosaddr_t addr, unsigned short val)
   vga_write(addr + 1, val >> 8);
 }
 
+void vga_write_dword(dosaddr_t addr, unsigned val)
+{
+  if (!vga.inst_emu) {
+    WRITE_DWORD(addr, val);
+    return;
+  }
+  vga_write_word(addr, val & 0xffff);
+  vga_write_word(addr + 2, val >> 16);
+}
+
 void memcpy_to_vga(dosaddr_t dst, const void *src, size_t len)
 {
   int i;
@@ -897,6 +907,21 @@ void vga_memsetw(dosaddr_t dst, unsigned short val, size_t len)
   while (len--) {
     vga_write_word(dst, val);
     dst += 2;
+  }
+}
+
+void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
+{
+  if (!vga.inst_emu) {
+    while (len--) {
+      WRITE_DWORD(dst, val);
+      dst += 4;
+    }
+    return;
+  }
+  while (len--) {
+    vga_write_dword(dst, val);
+    dst += 4;
   }
 }
 
