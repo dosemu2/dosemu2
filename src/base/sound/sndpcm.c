@@ -802,17 +802,21 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
 	double volume[][SNDBUF_CHANS])
 {
     int i, j;
-    int value[2] = { 0, 0 };
+    int value[SNDBUF_CHANS] = { 0 };
 
-    for (j = 0; j < channels; j++) {
+    for (j = 0; j < SNDBUF_CHANS; j++) {
 	for (i = 0; i < pcm.num_streams; i++) {
 	    if (in[i][j].format == PCM_FORMAT_NONE)
 		continue;
 	    value[j] += sample_to_S16(in[i][j].data, in[i][j].format) *
 		    volume[i][j];
 	}
-	S16_to_sample(pcm_samp_cutoff(value[j], PCM_FORMAT_S16_LE),
-		&out[j], format);
+    }
+    for (i = channels; i < SNDBUF_CHANS; i++)
+	value[0] += value[i];
+    for (i = 0; i < channels; i++) {
+	S16_to_sample(pcm_samp_cutoff(value[i], PCM_FORMAT_S16_LE),
+		&out[i], format);
     }
 }
 
