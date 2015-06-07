@@ -1030,6 +1030,42 @@ static void sb_mixer_write(Bit8u value)
     }
 }
 
+static Bit8u sb_mixer_read(void)
+{
+    Bit8u val;
+    S_printf("SB: Reading Mixer register %#x\n", sb.mixer_index);
+    switch (sb.mixer_index) {
+    case 0x04:
+	val = (sb.mixer_regs[0x32] & 0xf0) | (sb.mixer_regs[0x33] >> 4);
+	break;
+
+    case 0x0A:
+	val = (sb.mixer_regs[0x3A] >> 5);
+	break;
+
+    case 0x22:
+	val = (sb.mixer_regs[0x30] & 0xf0) | (sb.mixer_regs[0x31] >> 4);
+	break;
+
+    case 0x26:
+	val = (sb.mixer_regs[0x34] & 0xf0) | (sb.mixer_regs[0x35] >> 4);
+	break;
+
+    case 0x28:
+	val = (sb.mixer_regs[0x36] & 0xf0) | (sb.mixer_regs[0x37] >> 4);
+	break;
+
+    case 0x2E:
+	val = (sb.mixer_regs[0x38] & 0xf0) | (sb.mixer_regs[0x39] >> 4);
+	break;
+
+    default:
+	val = sb.mixer_regs[sb.mixer_index];
+	break;
+    }
+    return val;
+}
+
 /*
  * DANG_BEGIN_FUNCTION sb_io_write
  *
@@ -1136,8 +1172,7 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
 
     case 0x05:			/* Mixer Data Register */
-	S_printf("SB: Reading Mixer register %#x\n", sb.mixer_index);
-	result = sb.mixer_regs[sb.mixer_index];
+	result = sb_mixer_read();
 	break;
 
     case 0x06:			/* Reset ? */
