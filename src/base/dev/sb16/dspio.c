@@ -558,10 +558,13 @@ static void dspio_process_dma(struct dspio_state *state)
 	    if (!dspio_get_output_sample(state, &buf[i][j],
 		    state->dma.is16bit))
 		break;
+#if 0
 	    /* if speaker disabled, overwrite DMA data with silence */
+	    /* on SB16 is not used */
 	    if (!state->speaker)
 		dma_get_silence(state->dma.samp_signed,
 			state->dma.is16bit, &buf[i][j]);
+#endif
 	}
 	if (j != state->dma.stereo + 1)
 	    break;
@@ -620,7 +623,7 @@ static void dspio_process_dma(struct dspio_state *state)
     }
     /* the input data may be overwritten with silence below.
      * We still need to get it from PCM buffers to stay in sync. */
-    if (state->speaker || !state->i_started) {
+    if (!state->i_started) {
 	for (i = 0; i < nfr; i++) {
 	    for (j = 0; j < state->dma.stereo + 1; j++)
 		dma_get_silence(state->dma.samp_signed,
@@ -690,11 +693,14 @@ void dspio_timer(void *dspio)
 
 void dspio_write_dac(void *dspio, Bit8u samp)
 {
-    if (DSPIO->speaker) {
-	sndbuf_t buf[1][SNDBUF_CHANS];
-	buf[0][0] = samp;
-	DSPIO->dac_running = 1;
-	pcm_write_interleaved(buf, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
+    sndbuf_t buf[1][SNDBUF_CHANS];
+#if 0
+    /* on SB16 speaker control does not exist */
+    if (!DSPIO->speaker)
+	return;
+#endif
+    buf[0][0] = samp;
+    DSPIO->dac_running = 1;
+    pcm_write_interleaved(buf, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
 			  1, DSPIO->dac_strm);
-    }
 }
