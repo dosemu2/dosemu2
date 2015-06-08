@@ -1086,7 +1086,7 @@ static double vol3l(int reg)
     if (!(sb.mixer_regs[r] & (1 << (b)))) \
 	return MR_DISABLED
 
-enum MixRet sb_get_input_volume(enum MixChan ch, enum MixSubChan sc,
+enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol)
 {
     double vol;
@@ -1193,7 +1193,7 @@ enum MixRet sb_get_input_volume(enum MixChan ch, enum MixSubChan sc,
     return MR_OK;
 }
 
-enum MixRet sb_get_output_volume(enum MixChan ch, enum MixSubChan sc,
+enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol)
 {
     double vol;
@@ -1291,6 +1291,17 @@ enum MixRet sb_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 
     *r_vol = vol;
     return MR_OK;
+}
+
+int sb_mixer_get_chan_num(enum MixChan ch)
+{
+    switch (ch) {
+    case MC_MIC:
+    case MC_PCSP:
+	return 1;
+    default:
+	return 2;
+    }
 }
 
 /*

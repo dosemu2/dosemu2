@@ -108,9 +108,10 @@ extern void sb_handle_dma_timeout(void);
 extern int sb_input_enabled(void);
 extern void sb_handle_midi_data(void);
 
-enum MixRet sb_get_input_volume(enum MixChan ch, enum MixSubChan sc,
+enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol);
-enum MixRet sb_get_output_volume(enum MixChan ch, enum MixSubChan sc,
+enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol);
+int sb_mixer_get_chan_num(enum MixChan ch);
 
 #endif
