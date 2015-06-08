@@ -1066,6 +1066,205 @@ static Bit8u sb_mixer_read(void)
     return val;
 }
 
+static double vol5h(int reg)
+{
+    /* not right of course */
+    return ((sb.mixer_regs[reg] >> 3) / 31.0);
+}
+
+static double vol2h(int reg)
+{
+    return ((sb.mixer_regs[reg] >> 6) / 3.0);
+}
+
+static double vol3l(int reg)
+{
+    return ((sb.mixer_regs[reg] & 7) / 7.0);
+}
+
+#define ENAB(r, b) \
+    if (!(sb.mixer_regs[r] & (1 << (b)))) \
+	return MR_DISABLED
+
+enum MixRet sb_get_input_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol)
+{
+    double vol;
+    switch (ch) {
+    case MC_MIDI:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3d, 6);
+	    vol = vol5h(0x34);
+	    break;
+	case MSC_R:
+	    ENAB(0x3e, 5);
+	    vol = vol5h(0x35);
+	    break;
+	case MSC_LR:
+	    ENAB(0x3e, 6);
+	    vol = vol5h(0x34);
+	    break;
+	case MSC_RL:
+	    ENAB(0x3d, 5);
+	    vol = vol5h(0x35);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_CD:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3d, 2);
+	    vol = vol5h(0x36);
+	    break;
+	case MSC_R:
+	    ENAB(0x3e, 1);
+	    vol = vol5h(0x37);
+	    break;
+	case MSC_LR:
+	    ENAB(0x3e, 2);
+	    vol = vol5h(0x36);
+	    break;
+	case MSC_RL:
+	    ENAB(0x3d, 1);
+	    vol = vol5h(0x37);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_LINE:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3d, 4);
+	    vol = vol5h(0x38);
+	    break;
+	case MSC_R:
+	    ENAB(0x3e, 3);
+	    vol = vol5h(0x39);
+	    break;
+	case MSC_LR:
+	    ENAB(0x3e, 4);
+	    vol = vol5h(0x38);
+	    break;
+	case MSC_RL:
+	    ENAB(0x3d, 3);
+	    vol = vol5h(0x39);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_MIC:
+	switch (sc) {
+	case MSC_MONO_L:
+	    ENAB(0x3d, 0);
+	    vol = vol3l(0x3a);
+	    break;
+	case MSC_MONO_R:
+	    ENAB(0x3e, 0);
+	    vol = vol3l(0x3a);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    default:
+	return MR_UNSUP;
+    }
+
+    *r_vol = vol;
+    return MR_OK;
+}
+
+enum MixRet sb_get_output_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol)
+{
+    double vol;
+    switch (ch) {
+    case MC_MIDI:
+	switch (sc) {
+	case MSC_L:
+	    vol = vol5h(0x34);
+	    break;
+	case MSC_R:
+	    vol = vol5h(0x35);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_CD:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3c, 2);
+	    vol = vol5h(0x36);
+	    break;
+	case MSC_R:
+	    ENAB(0x3c, 1);
+	    vol = vol5h(0x37);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_LINE:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3c, 4);
+	    vol = vol5h(0x38);
+	    break;
+	case MSC_R:
+	    ENAB(0x3c, 3);
+	    vol = vol5h(0x39);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_MIC:
+	switch (sc) {
+	case MSC_MONO_L:
+	case MSC_MONO_R:
+	    ENAB(0x3c, 0);
+	    vol = vol3l(0x3a);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_VOICE:
+	switch (sc) {
+	case MSC_L:
+	    vol = vol5h(0x32);
+	    break;
+	case MSC_R:
+	    vol = vol5h(0x33);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_PCSP:
+	switch (sc) {
+	case MSC_MONO_L:
+	case MSC_MONO_R:
+	    vol = vol2h(0x3b);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    default:
+	return MR_UNSUP;
+    }
+
+    *r_vol = vol;
+    return MR_OK;
+}
+
 /*
  * DANG_BEGIN_FUNCTION sb_io_write
  *
