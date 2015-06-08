@@ -1175,6 +1175,20 @@ enum MixRet sb_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	return MR_UNSUP;
     }
 
+    vol /= 4;
+    switch (sc) {
+    case MSC_L:
+    case MSC_RL:
+    case MSC_MONO_L:
+	vol *= (sb.mixer_regs[0x3f] >> 6) + 1;
+	break;
+    case MSC_R:
+    case MSC_LR:
+    case MSC_MONO_R:
+	vol *= (sb.mixer_regs[0x40] >> 6) + 1;
+	break;
+    }
+
     *r_vol = vol;
     return MR_OK;
 }
@@ -1259,6 +1273,20 @@ enum MixRet sb_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	break;
     default:
 	return MR_UNSUP;
+    }
+
+    vol /= 4;
+    switch (sc) {
+    case MSC_L:
+    case MSC_RL:
+    case MSC_MONO_L:
+	vol *= (sb.mixer_regs[0x41] >> 6) + 1;
+	break;
+    case MSC_R:
+    case MSC_LR:
+    case MSC_MONO_R:
+	vol *= (sb.mixer_regs[0x42] >> 6) + 1;
+	break;
     }
 
     *r_vol = vol;
