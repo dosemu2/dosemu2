@@ -190,7 +190,7 @@ static void pcm_reset_stream(int strm_idx)
 
 static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
 {
-    return (chan_src == chan_dst);
+    return (chan_src == chan_dst ? 1.0 : 0.0);
 }
 
 int pcm_allocate_stream(int channels, char *name, int id)

@@ -46,4 +46,6 @@ enum MixChan { MC_MASTER, MC_VOICE, MC_MIDI, MC_CD, MC_LINE, MC_MIC, MC_PCSP };
 enum MixSubChan { MSC_L, MSC_R, MSC_LR, MSC_RL, MSC_MONO_L, MSC_MONO_R };
 enum MixRet { MR_UNSUP, MR_DISABLED, MR_OK };
 
+int dspio_register_stream(int strm_idx, enum MixChan mc);
+
 #endif

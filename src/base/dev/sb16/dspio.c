@@ -704,3 +704,61 @@ void dspio_write_dac(void *dspio, Bit8u samp)
     pcm_write_interleaved(buf, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
 			  1, DSPIO->dac_strm);
 }
+
+static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
+{
+    double vol;
+    enum MixSubChan msc;
+    enum MixRet mr = MR_UNSUP;
+    enum MixChan mc = (long)arg;
+    int chans = sb_mixer_get_chan_num(mc);
+    if (chan_src >= chans)
+	return 0;
+    switch (chan_dst) {
+    case SB_CHAN_L:
+	switch (chan_src) {
+	case SB_CHAN_L:
+	    msc = (chans == 1 ? MSC_MONO_L : MSC_L);
+	    break;
+	case SB_CHAN_R:
+	    msc = MSC_RL;
+	    break;
+	default:
+	    return 0;
+	}
+	break;
+    case SB_CHAN_R:
+	switch (chan_src) {
+	case SB_CHAN_L:
+	    msc = (chans == 1 ? MSC_MONO_R : MSC_LR);
+	    break;
+	case SB_CHAN_R:
+	    msc = MSC_R;
+	    break;
+	default:
+	    return 0;
+	}
+	break;
+    default:
+	return 0;
+    }
+
+    switch (id) {
+    case PCM_ID_P:
+	mr = sb_mixer_get_output_volume(mc, msc, &vol);
+	break;
+    case PCM_ID_R:
+	mr = sb_mixer_get_input_volume(mc, msc, &vol);
+	break;
+    }
+
+    if (mr != MR_OK)
+	return 0;
+    return vol;
+}
+
+int dspio_register_stream(int strm_idx, enum MixChan mc)
+{
+    pcm_set_volume(strm_idx, dspio_get_volume, (void *)mc);
+    return 1;
+}

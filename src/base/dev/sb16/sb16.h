@@ -114,4 +114,7 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol);
 int sb_mixer_get_chan_num(enum MixChan ch);
 
+#define SB_CHAN_L 0
+#define SB_CHAN_R 1
+
 #endif
