@@ -71,7 +71,8 @@ static void alsain_async(void *arg)
 
 static int alsain_open(void *arg)
 {
-    pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "PCM IN", PCM_ID_R);
+    pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "PCM LINE IN",
+	    PCM_ID_R | PCM_ID_P);
     dspio_register_stream(pcm_stream, MC_LINE);
     return 1;
 }
