@@ -614,7 +614,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	nfr = calc_nframes(state, state->input_time_cur, time_dst);
     else
 	nfr = 0;
-    if (nfr && state->i_started) {
+    if (nfr && state->i_started && sb_input_enabled()) {
 	struct player_params params;
 	params.rate = state->dma.rate;
 	params.channels = state->dma.stereo + 1;
