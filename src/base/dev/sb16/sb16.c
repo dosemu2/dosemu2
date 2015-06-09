@@ -1175,7 +1175,6 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	return MR_UNSUP;
     }
 
-    vol /= 4;
     switch (sc) {
     case MSC_L:
     case MSC_RL:
@@ -1275,16 +1274,19 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	return MR_UNSUP;
     }
 
-    vol /= 4;
+    /* below we handle master and gain. After multiplying by gain, the
+     * volume may exceed 1. Whether it is good or bad, remains to be seen. */
     switch (sc) {
     case MSC_L:
     case MSC_RL:
     case MSC_MONO_L:
+	vol *= vol5h(0x30);		// master
 	vol *= (sb.mixer_regs[0x41] >> 6) + 1;
 	break;
     case MSC_R:
     case MSC_LR:
     case MSC_MONO_R:
+	vol *= vol5h(0x31);		// master
 	vol *= (sb.mixer_regs[0x42] >> 6) + 1;
 	break;
     }
