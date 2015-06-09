@@ -499,21 +499,21 @@ static void sb_mixer_reset(void)
 {
     memset(sb.mixer_regs, 0, 0x48);
     /* Restore values as per Creative specs */
-    sb.mixer_regs[0x0a] = 0;	/* -46 dB */
+    sb.mixer_regs[0x0a] = 0;	/* -48 dB */
     sb.mixer_regs[0x0c] = 0;	/* mic, low-pass input filter */
     sb.mixer_regs[0x0e] = 0;	/* mono, output filter */
     sb.mixer_regs[0x04] =
     sb.mixer_regs[0x22] =
-    sb.mixer_regs[0x26] = 4;	/* -11 dB */
+    sb.mixer_regs[0x26] = 0xcc;	/* -12 dB */
     sb.mixer_regs[0x28] =
-    sb.mixer_regs[0x2e] = 0;	/* -46 dB */
+    sb.mixer_regs[0x2e] = 0;	/* -60 dB */
 
     sb.mixer_regs[0x30] =
     sb.mixer_regs[0x31] =
     sb.mixer_regs[0x32] =
     sb.mixer_regs[0x33] =
     sb.mixer_regs[0x34] =
-    sb.mixer_regs[0x35] = 24;	/* -14 dB */
+    sb.mixer_regs[0x35] = 24 << 3;	/* -14 dB */
 
     sb.mixer_regs[0x36] =
     sb.mixer_regs[0x37] =
@@ -535,7 +535,7 @@ static void sb_mixer_reset(void)
     sb.mixer_regs[0x44] =
     sb.mixer_regs[0x45] =
     sb.mixer_regs[0x46] =
-    sb.mixer_regs[0x47] = 8;	/* 0 dB */
+    sb.mixer_regs[0x47] = 8 << 4;	/* 0 dB */
 }
 
 static int num_to_idx(int num, int arr[], int len)
