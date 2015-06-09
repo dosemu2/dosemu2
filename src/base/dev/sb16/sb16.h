@@ -24,7 +24,7 @@
 #define __SB16_H__
 
 #include "ringbuf.h"		// for rng_s
-#include "dspio.h"
+#include "sound/sound.h"
 
 #define SB_NONE  0x000
 #define SB_ID	 0x105

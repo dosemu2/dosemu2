@@ -80,6 +80,7 @@ void sndpipe_plugin_init(void)
     if (pipe_in == -1)
 	return;
     pcm_stream = pcm_allocate_stream(PIPE_CHANS, "PCM IN", PCM_ID_R);
+    dspio_register_stream(pcm_stream, MC_MIC);
     add_to_io_select(pipe_in, pipe_async, NULL);
 }
 
