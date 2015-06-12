@@ -34,6 +34,7 @@
 #include "timers.h"
 #include "sound/sound.h"
 #include "sound/midi.h"
+#include "sound.h"
 #include "adlib.h"
 #include "dmanew.h"
 #include "sb16.h"
@@ -111,7 +112,13 @@ void dspio_write_midi(void *dspio, Bit8u value)
 {
     rng_put(&DSPIO->midi_fifo_out, &value);
 
-    run_new_sb();
+    run_sb();
+}
+
+void run_sound(void)
+{
+    dspio_run_synth();
+    pcm_timer();
 }
 
 static int dspio_out_fifo_len(struct dspio_dma *dma)

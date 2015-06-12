@@ -36,6 +36,7 @@
 #include "bitops.h"
 #include "port.h"
 #include "sound/sound.h"
+#include "sound.h"
 #include "dspio.h"
 #include "adlib.h"
 #include "sb16.h"
@@ -1655,14 +1656,9 @@ void sb_handle_midi_data(void)
     }
 }
 
-void run_new_sb(void)
+void run_sb(void)
 {
     dspio_timer(sb.dspio);
-}
-
-void run_new_sound(void)
-{
-    dspio_run_synth();
 }
 
 static void mpu401_init(void)
@@ -1758,7 +1754,7 @@ static void sb_done(void)
     mpu401_done();
 }
 
-void sound_new_init(void)
+void sound_init(void)
 {
     if (config.sound) {
 	sb_init();
@@ -1771,7 +1767,7 @@ void sound_new_init(void)
     }
 }
 
-void sound_new_reset(void)
+void sound_reset(void)
 {
     if (config.sound) {
 	dspio_reset(sb.dspio);
@@ -1779,7 +1775,7 @@ void sound_new_reset(void)
     }
 }
 
-void sound_new_done(void)
+void sound_done(void)
 {
     if (config.sound) {
 	sb_done();
