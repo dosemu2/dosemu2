@@ -35,10 +35,10 @@
 #include "utilities.h"
 #include "bitops.h"
 #include "port.h"
+#include "sound/sound.h"
 #include "dspio.h"
 #include "adlib.h"
 #include "sb16.h"
-#include "sound/sound.h"
 #include <string.h>
 
 #define CONFIG_MPU401_IRQ config.mpu401_irq
@@ -990,8 +990,21 @@ static void sb_dsp_write(Bit8u value)
     sb.command_idx = 0;
 }
 
+static int line_enabled(void)
+{
+    return ((sb.mixer_regs[0x3c] | sb.mixer_regs[0x3d] |
+	    sb.mixer_regs[0x3e]) & 0x18);
+}
+
+static int mic_enabled(void)
+{
+    return ((sb.mixer_regs[0x3c] | sb.mixer_regs[0x3d] |
+	    sb.mixer_regs[0x3e]) & 0x1);
+}
+
 static void sb_mixer_write(Bit8u value)
 {
+    Bit8u delta = sb.mixer_regs[sb.mixer_index] ^ value;
     S_printf("SB: write mixer reg %#x val=%#x\n", sb.mixer_index, value);
     sb.mixer_regs[sb.mixer_index] = value;
     switch (sb.mixer_index) {
@@ -1026,6 +1039,39 @@ static void sb_mixer_write(Bit8u value)
     case 0x2E:
 	sb.mixer_regs[0x38] = (value & 0xf0) | 8;
 	sb.mixer_regs[0x39] = (value << 4) | 8;
+	break;
+
+    case 0x38:
+    case 0x39:
+	if (line_enabled() && (sb.mixer_regs[0x38] || sb.mixer_regs[0x39]))
+	    dspio_input_enable(sb.dspio, MC_LINE);
+	else
+	    dspio_input_disable(sb.dspio, MC_LINE);
+	break;
+
+    case 0x3a:
+	if (mic_enabled() && sb.mixer_regs[0x3a])
+	    dspio_input_enable(sb.dspio, MC_MIC);
+	else
+	    dspio_input_disable(sb.dspio, MC_MIC);
+	break;
+
+    case 0x3c:
+    case 0x3d:
+    case 0x3e:
+	if (delta & 0x18) {
+	    if (line_enabled() && (sb.mixer_regs[0x38] || sb.mixer_regs[0x39]))
+		dspio_input_enable(sb.dspio, MC_LINE);
+	    else
+		dspio_input_disable(sb.dspio, MC_LINE);
+	}
+
+	if (delta & 0x1) {
+	    if (mic_enabled() && sb.mixer_regs[0x3a])
+		dspio_input_enable(sb.dspio, MC_MIC);
+	    else
+		dspio_input_disable(sb.dspio, MC_MIC);
+	}
 	break;
     }
 }

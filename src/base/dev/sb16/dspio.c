@@ -63,7 +63,7 @@ struct dspio_state {
     double input_time_cur, midi_time_cur;
     int dma_strm, dac_strm, lin_strm, mic_strm;
     int input_running:1, output_running:1, dac_running:1, speaker:1;
-    int pcm_input_running:1, lin_input_running:1;
+    int pcm_input_running:1, lin_input_running:1, mic_input_running:1;
     int i_handle, i_started;
 #define DSP_FIFO_SIZE 64
     struct rng_s fifo_in;
@@ -277,7 +277,7 @@ void *dspio_init(void)
 	return NULL;
     memset(&state->dma, 0, sizeof(struct dspio_dma));
     state->input_running = state->pcm_input_running =
-	state->lin_input_running =
+	state->lin_input_running = state->mic_input_running =
 	state->output_running = state->dac_running = state->speaker = 0;
     state->dma.dsp_fifo_enabled = 1;
 
@@ -369,10 +369,6 @@ static void dspio_start_input(struct dspio_state *state)
 	pcm_reset_player(state->i_handle);
 	state->pcm_input_running = 1;
     }
-    if (!state->lin_input_running) {
-	pcm_start_input(state->lin_strm);
-	state->lin_input_running = 1;
-    }
 }
 
 static void dspio_stop_input(struct dspio_state *state)
@@ -385,13 +381,56 @@ static void dspio_stop_input(struct dspio_state *state)
 	S_printf("SB: not stopping recorder\n");
 	return;
     }
-    if (!sb_dma_active()) {
-	if (state->lin_input_running) {
-	    pcm_stop_input(state->lin_strm);
-	    state->lin_input_running = 0;
-	}
+    if (!sb_dma_active())
 	state->pcm_input_running = 0;
+}
+
+int dspio_input_enable(void *dspio, enum MixChan mc)
+{
+    struct dspio_state *state = dspio;
+    switch (mc) {
+    case MC_LINE:
+	if (state->lin_input_running)
+	    return 0;
+	pcm_start_input(state->lin_strm);
+	state->lin_input_running = 1;
+	S_printf("SB: enabled LINE\n");
+	break;
+    case MC_MIC:
+	if (state->mic_input_running)
+	    return 0;
+	pcm_start_input(state->mic_strm);
+	state->mic_input_running = 1;
+	S_printf("SB: enabled MIC\n");
+	break;
+    default:
+	return 0;
     }
+    return 1;
+}
+
+int dspio_input_disable(void *dspio, enum MixChan mc)
+{
+    struct dspio_state *state = dspio;
+    switch (mc) {
+    case MC_LINE:
+	if (!state->lin_input_running)
+	    return 0;
+	pcm_stop_input(state->lin_strm);
+	state->lin_input_running = 0;
+	S_printf("SB: disabled LINE\n");
+	break;
+    case MC_MIC:
+	if (!state->mic_input_running)
+	    return 0;
+	pcm_stop_input(state->mic_strm);
+	state->mic_input_running = 0;
+	S_printf("SB: disabled MIC\n");
+	break;
+    default:
+	return 0;
+    }
+    return 1;
 }
 
 static int do_run_dma(struct dspio_state *state)
