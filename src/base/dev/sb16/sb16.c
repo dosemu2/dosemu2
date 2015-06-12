@@ -1658,6 +1658,8 @@ void sb_handle_midi_data(void)
 
 void run_sb(void)
 {
+    if (!config.sound)
+	return;
     dspio_timer(sb.dspio);
 }
 

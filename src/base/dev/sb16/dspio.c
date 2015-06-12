@@ -117,6 +117,8 @@ void dspio_write_midi(void *dspio, Bit8u value)
 
 void run_sound(void)
 {
+    if (!config.sound)
+	return;
     dspio_run_synth();
     pcm_timer();
 }
