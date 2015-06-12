@@ -298,10 +298,8 @@ while (0)
 	/* hardware ram mapping */
 %token HARDWARE_RAM
         /* Sound Emulation */
-%token SB_BASE SB_IRQ SB_DMA SB_HDMA SB_MIXER SB_DSP MPU_BASE MPU_IRQ
+%token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ
 %token SOUND_DRIVER MIDI_FILE WAV_FILE
-%token OSS_MIN_FRAGS OSS_MAX_FRAGS OSS_STALLED_FRAGS OSS_DO_POST OSS_MIN_EXTRA_FRAGS
-%token OSS_DAC_FREQ
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -735,9 +733,8 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { stop_printer(); }
 		| L_X '{' x_flags '}'
 		| L_SDL '{' sdl_flags '}'
-		| L_SOUND int_bool	{ config.sound = $2; }
+		| L_SOUND bool	{ config.sound = ($2!=0); }
                 | L_SOUND { config.sound = -1; } '{' sound_flags '}'
-                | L_SND_OSS '{' snd_oss_flags '}'
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = NULL; } }
                 | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
@@ -1094,23 +1091,11 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| SB_DMA expression	{ config.sb_dma = $2; }
 		| SB_HDMA expression { config.sb_hdma = $2; }
 		| SB_IRQ expression	{ config.sb_irq = $2; }
-                | SB_MIXER string_expr       { free(config.sb_mixer); config.sb_mixer = $2; }
-                | SB_DSP string_expr         { free(config.sb_dsp); config.sb_dsp = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
 		| MPU_IRQ expression	{ config.mpu401_irq = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
 		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = $2; }
 		| WAV_FILE string_expr	{ free(config.wav_file); config.wav_file = $2; }
-		;
-snd_oss_flags	: snd_oss_flag
-		| snd_oss_flags snd_oss_flag
-		;
-snd_oss_flag	: OSS_MIN_FRAGS expression	{ config.oss_min_frags = $2; }
-		| OSS_MAX_FRAGS expression	{ config.oss_max_frags = $2; }
-		| OSS_STALLED_FRAGS expression	{ config.oss_stalled_frags = $2; }
-		| OSS_DO_POST bool		{ config.oss_do_post = $2; }
-                | OSS_MIN_EXTRA_FRAGS expression { config.oss_min_extra_frags = $2; }
-                | OSS_DAC_FREQ expression        { config.oss_dac_freq = $2; }
 		;
 
 	/* joystick emulation */

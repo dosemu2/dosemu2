@@ -23,14 +23,6 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
-/* This is the correct way to run an SB timer tick */
-extern void run_new_sb(void);
-extern void run_new_sound(void);
-
-extern void sound_new_init(void);
-extern void sound_new_reset(void);
-extern void sound_new_done(void);
-
 struct player_params {
   int rate;
   int format;

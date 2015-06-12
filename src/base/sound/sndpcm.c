@@ -145,26 +145,38 @@ static int num_dl_handles;
 
 int pcm_init(void)
 {
+    int ca = 0, cs = 0;
     S_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
+
 #ifdef USE_DL_PLUGINS
-#if 0
-    /* SDL is loaded in config.c, not here */
+#ifdef USE_LIBAO
+    dl_handles[num_dl_handles++] = load_plugin("libao");
+    ca = pcm_get_cfg("ao");
+#endif
 #ifdef SDL_SUPPORT
     dl_handles[num_dl_handles++] = load_plugin("sdl");
+    cs = pcm_get_cfg("sdl");
 #endif
-#endif
-#ifdef USE_LIBAO
-    /* if libao is not configured for sound, still need to load it
-     * for wav writing */
-    if (!config.libao_sound)
-	dl_handles[num_dl_handles++] = load_plugin("libao");
-#endif
+    if (!ca && !cs)		// auto. use ao for now
+	config.libao_sound = 1;
+    else if (ca == PCM_CF_ENABLED)
+	config.libao_sound = 1;
+    else if (cs == PCM_CF_ENABLED)
+	config.sdl_sound = 1;
+    else if (cs != ca) {
+	if (!ca)
+	    config.libao_sound = 1;
+	else
+	    config.sdl_sound = 1;
+    }
+
 #ifdef USE_ALSA
     dl_handles[num_dl_handles++] = load_plugin("alsa");
 #endif
 #endif
+    assert(num_dl_handles <= MAX_DL_HANDLES);
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
       S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))

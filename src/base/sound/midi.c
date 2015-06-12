@@ -25,6 +25,7 @@
 #include "timers.h"
 #include "utilities.h"
 #include "sound/sound.h"
+#include "sound.h"
 #include "sound/midi.h"
 
 #define MAX_OUT_PLUGINS 15
@@ -102,7 +103,7 @@ void midi_put_data(unsigned char *buf, size_t size)
 {
   rng_add(&midi_in, size, buf);
 
-  run_new_sb();
+  run_sb();
 }
 
 int midi_get_data_byte(unsigned char *buf)

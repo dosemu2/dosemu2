@@ -32,6 +32,7 @@
 #include "timers.h"
 #include "utilities.h"
 #include "sound/sound.h"
+#include "sound.h"
 #include "adlib.h"
 #include "dbadlib.h"
 #include <limits.h>
@@ -121,7 +122,7 @@ static void opl3_update(void)
     pthread_mutex_unlock(&run_mtx);
     if (!a_run)
 	adlib_start();
-    run_new_sb();
+    run_sb();
 }
 
 void opl3_init(void)

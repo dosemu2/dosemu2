@@ -283,14 +283,9 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     }
 
     (*print)("\nSOUND:\nengine %d\nsb_base 0x%x\nsb_dma %d\nsb_hdma %d\nsb_irq %d\n"
-	"mpu401_base 0x%x\nmpu401_irq %i\nsb_dsp \"%s\"\nsb_mixer \"%s\"\nsound_driver \"%s\"\n",
+	"mpu401_base 0x%x\nmpu401_irq %i\nsound_driver \"%s\"\n",
         config.sound, config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq,
-	config.mpu401_base, config.mpu401_irq, config.sb_dsp, config.sb_mixer, config.sound_driver);
-    (*print)("\nSOUND_OSS:\noss_min_frags 0x%x\noss_max_frags 0x%x\n"
-	     "oss_stalled_frags 0x%x\noss_do_post %d\noss_min_extra_frags 0x%x\n"
-	     "oss_dac_freq %i\n",
-        config.oss_min_frags, config.oss_max_frags, config.oss_stalled_frags,
-	config.oss_do_post, config.oss_min_extra_frags, config.oss_dac_freq);
+	config.mpu401_base, config.mpu401_irq, config.sound_driver);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
@@ -663,34 +658,6 @@ static void config_post_process(const char *usedoptions)
         free(keymap_load_base_path);
     keymap_load_base_path = NULL;
     dexe_load_path = NULL;
-
-    if (config.sound == -1 || config.sound == 2) {
-	int ca = 0, cs = 0;
-#ifdef USE_LIBAO
-	load_plugin("libao");
-	ca = pcm_get_cfg("ao");
-#endif
-#ifdef SDL_SUPPORT
-	load_plugin("sdl");
-	cs = pcm_get_cfg("sdl");
-#endif
-	if (!ca && !cs)		// auto. use ao for now
-	    config.libao_sound = 1;
-	else if (ca == PCM_CF_ENABLED)
-	    config.libao_sound = 1;
-	else if (cs == PCM_CF_ENABLED)
-	    config.sdl_sound = 1;
-	else if (cs != ca) {
-	    if (!ca)
-		config.libao_sound = 1;
-	    else
-		config.sdl_sound = 1;
-	}
-	if (config.sdl_sound || config.libao_sound)
-	    config.sound = 2;
-    }
-    if (config.sound == -1)
-	config.sound = 1;
 }
 
 static config_scrub_t config_scrub_func[100];

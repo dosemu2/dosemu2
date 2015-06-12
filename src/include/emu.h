@@ -315,20 +315,11 @@ typedef struct vesamode_type_struct {
        uint8_t sb_dma;
        uint8_t sb_hdma;
        uint8_t sb_irq;
-       char *sb_dsp;
-       char *sb_mixer;
        uint16_t mpu401_base;
        int mpu401_irq;
        char *sound_driver;
        char *midi_file;
        char *wav_file;
-       /* OSS-specific options */
-       int oss_min_frags;
-       int oss_max_frags;
-       int oss_stalled_frags;
-       int oss_do_post;
-       int oss_min_extra_frags;
-       int oss_dac_freq;
 
        /* joystick */
        char *joy_device[2];

@@ -75,6 +75,8 @@ static void pipe_async(void *arg)
 
 void sndpipe_plugin_init(void)
 {
+    if (!config.sound)
+	return;
     mkfifo(PIPE_NAME, 0666);
     pipe_in = open(PIPE_NAME, O_RDONLY | O_NONBLOCK);
     if (pipe_in == -1)
