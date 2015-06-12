@@ -663,34 +663,6 @@ static void config_post_process(const char *usedoptions)
         free(keymap_load_base_path);
     keymap_load_base_path = NULL;
     dexe_load_path = NULL;
-
-    if (config.sound == -1 || config.sound == 2) {
-	int ca = 0, cs = 0;
-#ifdef USE_LIBAO
-	load_plugin("libao");
-	ca = pcm_get_cfg("ao");
-#endif
-#ifdef SDL_SUPPORT
-	load_plugin("sdl");
-	cs = pcm_get_cfg("sdl");
-#endif
-	if (!ca && !cs)		// auto. use ao for now
-	    config.libao_sound = 1;
-	else if (ca == PCM_CF_ENABLED)
-	    config.libao_sound = 1;
-	else if (cs == PCM_CF_ENABLED)
-	    config.sdl_sound = 1;
-	else if (cs != ca) {
-	    if (!ca)
-		config.libao_sound = 1;
-	    else
-		config.sdl_sound = 1;
-	}
-	if (config.sdl_sound || config.libao_sound)
-	    config.sound = 2;
-    }
-    if (config.sound == -1)
-	config.sound = 1;
 }
 
 static config_scrub_t config_scrub_func[100];
