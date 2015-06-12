@@ -35,10 +35,10 @@
 #include "utilities.h"
 #include "bitops.h"
 #include "port.h"
+#include "sound/sound.h"
 #include "dspio.h"
 #include "adlib.h"
 #include "sb16.h"
-#include "sound/sound.h"
 #include <string.h>
 
 #define CONFIG_MPU401_IRQ config.mpu401_irq
@@ -499,21 +499,21 @@ static void sb_mixer_reset(void)
 {
     memset(sb.mixer_regs, 0, 0x48);
     /* Restore values as per Creative specs */
-    sb.mixer_regs[0x0a] = 0;	/* -46 dB */
+    sb.mixer_regs[0x0a] = 0;	/* -48 dB */
     sb.mixer_regs[0x0c] = 0;	/* mic, low-pass input filter */
     sb.mixer_regs[0x0e] = 0;	/* mono, output filter */
     sb.mixer_regs[0x04] =
     sb.mixer_regs[0x22] =
-    sb.mixer_regs[0x26] = 4;	/* -11 dB */
+    sb.mixer_regs[0x26] = 0xcc;	/* -12 dB */
     sb.mixer_regs[0x28] =
-    sb.mixer_regs[0x2e] = 0;	/* -46 dB */
+    sb.mixer_regs[0x2e] = 0;	/* -60 dB */
 
     sb.mixer_regs[0x30] =
     sb.mixer_regs[0x31] =
     sb.mixer_regs[0x32] =
     sb.mixer_regs[0x33] =
     sb.mixer_regs[0x34] =
-    sb.mixer_regs[0x35] = 24;	/* -14 dB */
+    sb.mixer_regs[0x35] = 24 << 3;	/* -14 dB */
 
     sb.mixer_regs[0x36] =
     sb.mixer_regs[0x37] =
@@ -535,7 +535,7 @@ static void sb_mixer_reset(void)
     sb.mixer_regs[0x44] =
     sb.mixer_regs[0x45] =
     sb.mixer_regs[0x46] =
-    sb.mixer_regs[0x47] = 8;	/* 0 dB */
+    sb.mixer_regs[0x47] = 8 << 4;	/* 0 dB */
 }
 
 static int num_to_idx(int num, int arr[], int len)
@@ -990,60 +990,366 @@ static void sb_dsp_write(Bit8u value)
     sb.command_idx = 0;
 }
 
+static int line_enabled(void)
+{
+    return ((sb.mixer_regs[0x3c] | sb.mixer_regs[0x3d] |
+	    sb.mixer_regs[0x3e]) & 0x18);
+}
+
+static int mic_enabled(void)
+{
+    return ((sb.mixer_regs[0x3c] | sb.mixer_regs[0x3d] |
+	    sb.mixer_regs[0x3e]) & 0x1);
+}
+
 static void sb_mixer_write(Bit8u value)
 {
+    Bit8u delta = sb.mixer_regs[sb.mixer_index] ^ value;
+    S_printf("SB: write mixer reg %#x val=%#x\n", sb.mixer_index, value);
+    sb.mixer_regs[sb.mixer_index] = value;
     switch (sb.mixer_index) {
     case 0:
 	sb_mixer_reset();
 	break;
 
     case 0x04:
-//      sb_write_mixer(SB_MIXER_PCM, value);
+	sb.mixer_regs[0x32] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x33] = (value << 4) | 8;
 	break;
 
     case 0x0A:
-//      sb_write_mixer(SB_MIXER_MIC, value);
-	break;
-
-    case 0x0C:
-	/* 0x0C is ignored - sets record source and a filter */
-	if (!(value & 32)) {
-	    S_printf("SB: Warning: Input filter is not supported!\n");
-//	    value |= 32;
-	}
-	break;
-
-    case 0x0E:
-	if (!(value & 32)) {
-	    S_printf("SB: Warning: Output filter is not supported!\n");
-//	    value |= 32;
-	}
+	sb.mixer_regs[0x3A] = (value << 5) | 0x18;
 	break;
 
     case 0x22:
-//      sb_write_mixer(SB_MIXER_VOLUME, value);
+	sb.mixer_regs[0x30] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x31] = (value << 4) | 8;
 	break;
 
     case 0x26:
-//      sb_write_mixer(SB_MIXER_SYNTH, value);
+	sb.mixer_regs[0x34] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x35] = (value << 4) | 8;
 	break;
 
     case 0x28:
-//      sb_write_mixer(SB_MIXER_CD, value);
+	sb.mixer_regs[0x36] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x37] = (value << 4) | 8;
 	break;
 
     case 0x2E:
-//      sb_write_mixer(SB_MIXER_LINE, value);
+	sb.mixer_regs[0x38] = (value & 0xf0) | 8;
+	sb.mixer_regs[0x39] = (value << 4) | 8;
+	break;
+
+    case 0x38:
+    case 0x39:
+	if (line_enabled() && (sb.mixer_regs[0x38] || sb.mixer_regs[0x39]))
+	    dspio_input_enable(sb.dspio, MC_LINE);
+	else
+	    dspio_input_disable(sb.dspio, MC_LINE);
+	break;
+
+    case 0x3a:
+	if (mic_enabled() && sb.mixer_regs[0x3a])
+	    dspio_input_enable(sb.dspio, MC_MIC);
+	else
+	    dspio_input_disable(sb.dspio, MC_MIC);
+	break;
+
+    case 0x3c:
+    case 0x3d:
+    case 0x3e:
+	if (delta & 0x18) {
+	    if (line_enabled() && (sb.mixer_regs[0x38] || sb.mixer_regs[0x39]))
+		dspio_input_enable(sb.dspio, MC_LINE);
+	    else
+		dspio_input_disable(sb.dspio, MC_LINE);
+	}
+
+	if (delta & 0x1) {
+	    if (mic_enabled() && sb.mixer_regs[0x3a])
+		dspio_input_enable(sb.dspio, MC_MIC);
+	    else
+		dspio_input_disable(sb.dspio, MC_MIC);
+	}
+	break;
+    }
+}
+
+static Bit8u sb_mixer_read(void)
+{
+    Bit8u val;
+    S_printf("SB: Reading Mixer register %#x\n", sb.mixer_index);
+    switch (sb.mixer_index) {
+    case 0x04:
+	val = (sb.mixer_regs[0x32] & 0xf0) | (sb.mixer_regs[0x33] >> 4);
+	break;
+
+    case 0x0A:
+	val = (sb.mixer_regs[0x3A] >> 5);
+	break;
+
+    case 0x22:
+	val = (sb.mixer_regs[0x30] & 0xf0) | (sb.mixer_regs[0x31] >> 4);
+	break;
+
+    case 0x26:
+	val = (sb.mixer_regs[0x34] & 0xf0) | (sb.mixer_regs[0x35] >> 4);
+	break;
+
+    case 0x28:
+	val = (sb.mixer_regs[0x36] & 0xf0) | (sb.mixer_regs[0x37] >> 4);
+	break;
+
+    case 0x2E:
+	val = (sb.mixer_regs[0x38] & 0xf0) | (sb.mixer_regs[0x39] >> 4);
 	break;
 
     default:
-	S_printf("SB: Unknown index 0x%x in Mixer Write\n",
-		 sb.mixer_index);
+	val = sb.mixer_regs[sb.mixer_index];
+	break;
+    }
+    return val;
+}
+
+static double vol5h(int reg)
+{
+    /* not right of course */
+    return ((sb.mixer_regs[reg] >> 3) / 31.0);
+}
+
+static double vol2h(int reg)
+{
+    return ((sb.mixer_regs[reg] >> 6) / 3.0);
+}
+
+static double vol3l(int reg)
+{
+    return ((sb.mixer_regs[reg] & 7) / 7.0);
+}
+
+#define ENAB(r, b) \
+    if (!(sb.mixer_regs[r] & (1 << (b)))) \
+	return MR_DISABLED
+
+enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol)
+{
+    double vol;
+    switch (ch) {
+    case MC_MIDI:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3d, 6);
+	    vol = vol5h(0x34);
+	    break;
+	case MSC_R:
+	    ENAB(0x3e, 5);
+	    vol = vol5h(0x35);
+	    break;
+	case MSC_LR:
+	    ENAB(0x3e, 6);
+	    vol = vol5h(0x34);
+	    break;
+	case MSC_RL:
+	    ENAB(0x3d, 5);
+	    vol = vol5h(0x35);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_CD:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3d, 2);
+	    vol = vol5h(0x36);
+	    break;
+	case MSC_R:
+	    ENAB(0x3e, 1);
+	    vol = vol5h(0x37);
+	    break;
+	case MSC_LR:
+	    ENAB(0x3e, 2);
+	    vol = vol5h(0x36);
+	    break;
+	case MSC_RL:
+	    ENAB(0x3d, 1);
+	    vol = vol5h(0x37);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_LINE:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3d, 4);
+	    vol = vol5h(0x38);
+	    break;
+	case MSC_R:
+	    ENAB(0x3e, 3);
+	    vol = vol5h(0x39);
+	    break;
+	case MSC_LR:
+	    ENAB(0x3e, 4);
+	    vol = vol5h(0x38);
+	    break;
+	case MSC_RL:
+	    ENAB(0x3d, 3);
+	    vol = vol5h(0x39);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_MIC:
+	switch (sc) {
+	case MSC_MONO_L:
+	    ENAB(0x3d, 0);
+	    vol = vol3l(0x3a);
+	    break;
+	case MSC_MONO_R:
+	    ENAB(0x3e, 0);
+	    vol = vol3l(0x3a);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    default:
+	return MR_UNSUP;
+    }
+
+    switch (sc) {
+    case MSC_L:
+    case MSC_RL:
+    case MSC_MONO_L:
+	vol *= (sb.mixer_regs[0x3f] >> 6) + 1;
+	break;
+    case MSC_R:
+    case MSC_LR:
+    case MSC_MONO_R:
+	vol *= (sb.mixer_regs[0x40] >> 6) + 1;
 	break;
     }
 
-    S_printf("SB: write mixer reg %#x val=%#x\n", sb.mixer_index, value);
-    sb.mixer_regs[sb.mixer_index] = value;
+    *r_vol = vol;
+    return MR_OK;
+}
+
+enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol)
+{
+    double vol;
+    switch (ch) {
+    case MC_MIDI:
+	switch (sc) {
+	case MSC_L:
+	    vol = vol5h(0x34);
+	    break;
+	case MSC_R:
+	    vol = vol5h(0x35);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_CD:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3c, 2);
+	    vol = vol5h(0x36);
+	    break;
+	case MSC_R:
+	    ENAB(0x3c, 1);
+	    vol = vol5h(0x37);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_LINE:
+	switch (sc) {
+	case MSC_L:
+	    ENAB(0x3c, 4);
+	    vol = vol5h(0x38);
+	    break;
+	case MSC_R:
+	    ENAB(0x3c, 3);
+	    vol = vol5h(0x39);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_MIC:
+	switch (sc) {
+	case MSC_MONO_L:
+	case MSC_MONO_R:
+	    ENAB(0x3c, 0);
+	    vol = vol3l(0x3a);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_VOICE:
+	switch (sc) {
+	case MSC_L:
+	    vol = vol5h(0x32);
+	    break;
+	case MSC_R:
+	    vol = vol5h(0x33);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    case MC_PCSP:
+	switch (sc) {
+	case MSC_MONO_L:
+	case MSC_MONO_R:
+	    vol = vol2h(0x3b);
+	    break;
+	default:
+	    return MR_UNSUP;
+	}
+	break;
+    default:
+	return MR_UNSUP;
+    }
+
+    /* below we handle master and gain. After multiplying by gain, the
+     * volume may exceed 1. Whether it is good or bad, remains to be seen. */
+    switch (sc) {
+    case MSC_L:
+    case MSC_RL:
+    case MSC_MONO_L:
+	vol *= vol5h(0x30);		// master
+	vol *= (sb.mixer_regs[0x41] >> 6) + 1;
+	break;
+    case MSC_R:
+    case MSC_LR:
+    case MSC_MONO_R:
+	vol *= vol5h(0x31);		// master
+	vol *= (sb.mixer_regs[0x42] >> 6) + 1;
+	break;
+    }
+
+    *r_vol = vol;
+    return MR_OK;
+}
+
+int sb_mixer_get_chan_num(enum MixChan ch)
+{
+    switch (ch) {
+    case MC_MIC:
+    case MC_PCSP:
+	return 1;
+    default:
+	return 2;
+    }
 }
 
 /*
@@ -1152,8 +1458,7 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
 
     case 0x05:			/* Mixer Data Register */
-	S_printf("SB: Reading Mixer register %#x\n", sb.mixer_index);
-	result = sb.mixer_regs[sb.mixer_index];
+	result = sb_mixer_read();
 	break;
 
     case 0x06:			/* Reset ? */
@@ -1407,6 +1712,11 @@ static void sb_dsp_done(void)
     rng_destroy(&sb.dsp_queue);
 }
 
+void *sb_get_dsp(void)
+{
+    return sb.dspio;
+}
+
 /*
  * Sound Initialisation
  * ====================
@@ -1457,6 +1767,7 @@ void sound_new_init(void)
 	    error("dspio faild\n");
 	    leavedos(93);
 	}
+	dspio_post_init(sb.dspio);
     }
 }
 

@@ -71,7 +71,9 @@ static void alsain_async(void *arg)
 
 static int alsain_open(void *arg)
 {
-    pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "PCM IN", PCM_ID_R);
+    pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "PCM LINE IN",
+	    PCM_ID_R | PCM_ID_P);
+    dspio_register_stream(pcm_stream, MC_LINE);
     return 1;
 }
 
@@ -157,12 +159,18 @@ static void alsain_stop(void *arg)
     S_printf("ALSA: input stopped\n");
 }
 
+static int alsain_owns(int strm_idx)
+{
+    return (strm_idx == pcm_stream);
+}
+
 static const struct pcm_recorder recorder = {
     .name = alsain_name,
     .longname = alsain_longname,
     .open = alsain_open,
     .start = alsain_start,
     .stop = alsain_stop,
+    .owns = alsain_owns,
 };
 
 CONSTRUCTOR(static void alsain_init(void))

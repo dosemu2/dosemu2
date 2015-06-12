@@ -61,9 +61,9 @@ struct dspio_dma {
 
 struct dspio_state {
     double input_time_cur, midi_time_cur;
-    int dma_strm, dac_strm;
+    int dma_strm, dac_strm, lin_strm, mic_strm;
     int input_running:1, output_running:1, dac_running:1, speaker:1;
-    int pcm_input_running:1;
+    int pcm_input_running:1, lin_input_running:1, mic_input_running:1;
     int i_handle, i_started;
 #define DSP_FIFO_SIZE 64
     struct rng_s fifo_in;
@@ -277,23 +277,31 @@ void *dspio_init(void)
 	return NULL;
     memset(&state->dma, 0, sizeof(struct dspio_dma));
     state->input_running = state->pcm_input_running =
+	state->lin_input_running = state->mic_input_running =
 	state->output_running = state->dac_running = state->speaker = 0;
     state->dma.dsp_fifo_enabled = 1;
-    state->i_handle = pcm_register_player(&player, state);
-    pcm_init();
-    state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
-    pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
-    state->dma_strm = pcm_allocate_stream(2, "SB DMA", PCM_ID_P);
-    pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
     rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
     rng_init(&state->midi_fifo_in, MIDI_FIFO_SIZE, 1);
     rng_init(&state->midi_fifo_out, MIDI_FIFO_SIZE, 1);
+    return state;
+}
+
+void dspio_post_init(void *dspio)
+{
+    struct dspio_state *state = dspio;
+    state->i_handle = pcm_register_player(&player, state);
+    pcm_init();
+    state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
+    dspio_register_stream(state->dac_strm, MC_VOICE);
+    pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
+    state->dma_strm = pcm_allocate_stream(2, "SB DMA", PCM_ID_P);
+    dspio_register_stream(state->dma_strm, MC_VOICE);
+    pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     adlib_init();
     midi_init();
-    return state;
 }
 
 void dspio_reset(void *dspio)
@@ -357,10 +365,10 @@ static void dspio_start_input(struct dspio_state *state)
 	S_printf("SB: not starting recorder\n");
 	return;
     }
-    if (!state->pcm_input_running)
+    if (!state->pcm_input_running) {
 	pcm_reset_player(state->i_handle);
-    pcm_start_input();
-    state->pcm_input_running = 1;
+	state->pcm_input_running = 1;
+    }
 }
 
 static void dspio_stop_input(struct dspio_state *state)
@@ -373,10 +381,56 @@ static void dspio_stop_input(struct dspio_state *state)
 	S_printf("SB: not stopping recorder\n");
 	return;
     }
-    if (state->pcm_input_running && !sb_dma_active()) {
-	pcm_stop_input();
+    if (!sb_dma_active())
 	state->pcm_input_running = 0;
+}
+
+int dspio_input_enable(void *dspio, enum MixChan mc)
+{
+    struct dspio_state *state = dspio;
+    switch (mc) {
+    case MC_LINE:
+	if (state->lin_input_running)
+	    return 0;
+	pcm_start_input(state->lin_strm);
+	state->lin_input_running = 1;
+	S_printf("SB: enabled LINE\n");
+	break;
+    case MC_MIC:
+	if (state->mic_input_running)
+	    return 0;
+	pcm_start_input(state->mic_strm);
+	state->mic_input_running = 1;
+	S_printf("SB: enabled MIC\n");
+	break;
+    default:
+	return 0;
     }
+    return 1;
+}
+
+int dspio_input_disable(void *dspio, enum MixChan mc)
+{
+    struct dspio_state *state = dspio;
+    switch (mc) {
+    case MC_LINE:
+	if (!state->lin_input_running)
+	    return 0;
+	pcm_stop_input(state->lin_strm);
+	state->lin_input_running = 0;
+	S_printf("SB: disabled LINE\n");
+	break;
+    case MC_MIC:
+	if (!state->mic_input_running)
+	    return 0;
+	pcm_stop_input(state->mic_strm);
+	state->mic_input_running = 0;
+	S_printf("SB: disabled MIC\n");
+	break;
+    default:
+	return 0;
+    }
+    return 1;
 }
 
 static int do_run_dma(struct dspio_state *state)
@@ -558,10 +612,13 @@ static void dspio_process_dma(struct dspio_state *state)
 	    if (!dspio_get_output_sample(state, &buf[i][j],
 		    state->dma.is16bit))
 		break;
+#if 0
 	    /* if speaker disabled, overwrite DMA data with silence */
+	    /* on SB16 is not used */
 	    if (!state->speaker)
 		dma_get_silence(state->dma.samp_signed,
 			state->dma.is16bit, &buf[i][j]);
+#endif
 	}
 	if (j != state->dma.stereo + 1)
 	    break;
@@ -609,7 +666,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	nfr = calc_nframes(state, state->input_time_cur, time_dst);
     else
 	nfr = 0;
-    if (nfr && state->i_started) {
+    if (nfr && state->i_started && sb_input_enabled()) {
 	struct player_params params;
 	params.rate = state->dma.rate;
 	params.channels = state->dma.stereo + 1;
@@ -620,7 +677,7 @@ static void dspio_process_dma(struct dspio_state *state)
     }
     /* the input data may be overwritten with silence below.
      * We still need to get it from PCM buffers to stay in sync. */
-    if (state->speaker || !state->i_started) {
+    if (!state->i_started) {
 	for (i = 0; i < nfr; i++) {
 	    for (j = 0; j < state->dma.stereo + 1; j++)
 		dma_get_silence(state->dma.samp_signed,
@@ -690,11 +747,83 @@ void dspio_timer(void *dspio)
 
 void dspio_write_dac(void *dspio, Bit8u samp)
 {
-    if (DSPIO->speaker) {
-	sndbuf_t buf[1][SNDBUF_CHANS];
-	buf[0][0] = samp;
-	DSPIO->dac_running = 1;
-	pcm_write_interleaved(buf, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
+    sndbuf_t buf[1][SNDBUF_CHANS];
+#if 0
+    /* on SB16 speaker control does not exist */
+    if (!DSPIO->speaker)
+	return;
+#endif
+    buf[0][0] = samp;
+    DSPIO->dac_running = 1;
+    pcm_write_interleaved(buf, 1, DAC_BASE_FREQ, PCM_FORMAT_U8,
 			  1, DSPIO->dac_strm);
+}
+
+static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
+{
+    double vol;
+    enum MixSubChan msc;
+    enum MixRet mr = MR_UNSUP;
+    enum MixChan mc = (long)arg;
+    int chans = sb_mixer_get_chan_num(mc);
+    if (chan_src >= chans)
+	return 0;
+    switch (chan_dst) {
+    case SB_CHAN_L:
+	switch (chan_src) {
+	case SB_CHAN_L:
+	    msc = (chans == 1 ? MSC_MONO_L : MSC_L);
+	    break;
+	case SB_CHAN_R:
+	    msc = MSC_RL;
+	    break;
+	default:
+	    return 0;
+	}
+	break;
+    case SB_CHAN_R:
+	switch (chan_src) {
+	case SB_CHAN_L:
+	    msc = (chans == 1 ? MSC_MONO_R : MSC_LR);
+	    break;
+	case SB_CHAN_R:
+	    msc = MSC_R;
+	    break;
+	default:
+	    return 0;
+	}
+	break;
+    default:
+	return 0;
     }
+
+    switch (id) {
+    case PCM_ID_P:
+	mr = sb_mixer_get_output_volume(mc, msc, &vol);
+	break;
+    case PCM_ID_R:
+	mr = sb_mixer_get_input_volume(mc, msc, &vol);
+	break;
+    }
+
+    if (mr != MR_OK)
+	return 0;
+    return vol;
+}
+
+int dspio_register_stream(int strm_idx, enum MixChan mc)
+{
+    struct dspio_state *state = sb_get_dsp();
+    pcm_set_volume(strm_idx, dspio_get_volume, (void *)mc);
+    switch (mc) {
+    case MC_MIC:
+	state->mic_strm = strm_idx;
+	break;
+    case MC_LINE:
+	state->lin_strm = strm_idx;
+	break;
+    default:
+	break;
+    }
+    return 1;
 }

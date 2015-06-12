@@ -24,6 +24,7 @@
 #define __DSPIO_H__
 
 extern void *dspio_init(void);
+extern void dspio_post_init(void *dspio);
 extern void dspio_reset(void *dspio);
 extern void dspio_done(void *dspio);
 extern void dspio_start_dma(void *dspio);
@@ -41,5 +42,7 @@ extern Bit8u dspio_get_midi_in_byte(void *dspio);
 extern void dspio_put_midi_in_byte(void *dspio, Bit8u val);
 extern int dspio_get_midi_in_fillup(void *dspio);
 extern void dspio_clear_midi_in_fifo(void *dspio);
+extern int dspio_input_enable(void *dspio, enum MixChan mc);
+extern int dspio_input_disable(void *dspio, enum MixChan mc);
 
 #endif

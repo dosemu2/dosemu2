@@ -24,6 +24,7 @@
 #define __SB16_H__
 
 #include "ringbuf.h"		// for rng_s
+#include "sound/sound.h"
 
 #define SB_NONE  0x000
 #define SB_ID	 0x105
@@ -106,5 +107,15 @@ extern void sb_dma_processing(void);
 extern void sb_handle_dma_timeout(void);
 extern int sb_input_enabled(void);
 extern void sb_handle_midi_data(void);
+extern void *sb_get_dsp(void);
+
+enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol);
+enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol);
+int sb_mixer_get_chan_num(enum MixChan ch);
+
+#define SB_CHAN_L 0
+#define SB_CHAN_R 1
 
 #endif

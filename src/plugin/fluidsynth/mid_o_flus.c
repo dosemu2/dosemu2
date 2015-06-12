@@ -117,7 +117,11 @@ static int midoflus_init(void *arg)
     synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
     parser = new_fluid_midi_parser();
 
-    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI", PCM_ID_P);
+    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
+	    PCM_ID_P | PCM_ID_R);
+    /* mpu401 interface was on both gameport and a waveblaster's connector.
+     * waveblaster's midi is routed to the mixer. */
+    dspio_register_stream(pcm_stream, MC_MIDI);
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
