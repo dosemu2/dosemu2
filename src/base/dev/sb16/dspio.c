@@ -36,7 +36,7 @@
 #include "sound/midi.h"
 #include "sound.h"
 #include "adlib.h"
-#include "dmanew.h"
+#include "dma.h"
 #include "sb16.h"
 #include "dspio.h"
 #include <string.h>

@@ -640,7 +640,6 @@ void check_leavedos(void)
 
 void hardware_run(void)
 {
-	dma_run ();
 #ifdef USE_SBEMU
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
 #endif
