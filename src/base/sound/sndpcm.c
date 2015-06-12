@@ -124,6 +124,7 @@ struct pcm_player_wr {
 #define PLAYER(p) ((struct pcm_player *)p->plugin)
 #define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
 #define PL_LNAME(p) (p->longname ?: p->name)
+#define RECORDER(p) ((struct pcm_recorder *)p->plugin)
 
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
@@ -135,7 +136,6 @@ struct pcm_struct {
     int playing;
     struct pcm_holder recorders[MAX_RECORDERS];
     int num_recorders;
-    int recording;
     double time;
 } pcm;
 
@@ -1174,34 +1174,28 @@ int pcm_get_cfg(const char *name)
   return PCM_CF_DISABLED;
 }
 
-int pcm_start_input(void)
+int pcm_start_input(int strm_idx)
 {
     int i, ret = 0;
-    if (pcm.recording)
-	return ret;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened) {
+	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx))) {
 	    p->plugin->start(p->arg);
 	    ret++;
 	}
     }
-    pcm.recording = 1;
     S_printf("PCM: input started, %i\n", ret);
     return ret;
 }
 
-void pcm_stop_input(void)
+void pcm_stop_input(int strm_idx)
 {
     int i;
-    if (!pcm.recording)
-	return;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened)
+	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx)))
 	    p->plugin->stop(p->arg);
     }
-    pcm.recording = 0;
     S_printf("PCM: input stopped\n");
 }
 

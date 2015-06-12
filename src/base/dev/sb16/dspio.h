@@ -24,6 +24,7 @@
 #define __DSPIO_H__
 
 extern void *dspio_init(void);
+extern void dspio_post_init(void *dspio);
 extern void dspio_reset(void *dspio);
 extern void dspio_done(void *dspio);
 extern void dspio_start_dma(void *dspio);

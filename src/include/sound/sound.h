@@ -74,6 +74,7 @@ struct pcm_player {
 
 struct pcm_recorder {
   pcm_base;
+  int (*owns)(int strm_idx);
 };
 
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
@@ -132,8 +133,8 @@ extern void pcm_prepare_stream(int strm_idx);
 extern double pcm_time_lock(int strm_idx);
 extern void pcm_time_unlock(int strm_idx);
 extern double pcm_get_stream_time(int strm_idx);
-extern int pcm_start_input(void);
-extern void pcm_stop_input(void);
+extern int pcm_start_input(int strm_idx);
+extern void pcm_stop_input(int strm_idx);
 extern void pcm_set_volume(int strm_idx,
 	double (*get_vol)(int, int, int, void *), void *arg);
 

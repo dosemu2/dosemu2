@@ -1666,6 +1666,11 @@ static void sb_dsp_done(void)
     rng_destroy(&sb.dsp_queue);
 }
 
+void *sb_get_dsp(void)
+{
+    return sb.dspio;
+}
+
 /*
  * Sound Initialisation
  * ====================
@@ -1716,6 +1721,7 @@ void sound_new_init(void)
 	    error("dspio faild\n");
 	    leavedos(93);
 	}
+	dspio_post_init(sb.dspio);
     }
 }
 

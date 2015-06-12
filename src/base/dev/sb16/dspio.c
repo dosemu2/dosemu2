@@ -61,9 +61,9 @@ struct dspio_dma {
 
 struct dspio_state {
     double input_time_cur, midi_time_cur;
-    int dma_strm, dac_strm;
+    int dma_strm, dac_strm, lin_strm, mic_strm;
     int input_running:1, output_running:1, dac_running:1, speaker:1;
-    int pcm_input_running:1;
+    int pcm_input_running:1, lin_input_running:1;
     int i_handle, i_started;
 #define DSP_FIFO_SIZE 64
     struct rng_s fifo_in;
@@ -277,8 +277,20 @@ void *dspio_init(void)
 	return NULL;
     memset(&state->dma, 0, sizeof(struct dspio_dma));
     state->input_running = state->pcm_input_running =
+	state->lin_input_running =
 	state->output_running = state->dac_running = state->speaker = 0;
     state->dma.dsp_fifo_enabled = 1;
+
+    rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
+    rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
+    rng_init(&state->midi_fifo_in, MIDI_FIFO_SIZE, 1);
+    rng_init(&state->midi_fifo_out, MIDI_FIFO_SIZE, 1);
+    return state;
+}
+
+void dspio_post_init(void *dspio)
+{
+    struct dspio_state *state = dspio;
     state->i_handle = pcm_register_player(&player, state);
     pcm_init();
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
@@ -288,14 +300,8 @@ void *dspio_init(void)
     dspio_register_stream(state->dma_strm, MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
-    rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
-    rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
-    rng_init(&state->midi_fifo_in, MIDI_FIFO_SIZE, 1);
-    rng_init(&state->midi_fifo_out, MIDI_FIFO_SIZE, 1);
-
     adlib_init();
     midi_init();
-    return state;
 }
 
 void dspio_reset(void *dspio)
@@ -359,10 +365,14 @@ static void dspio_start_input(struct dspio_state *state)
 	S_printf("SB: not starting recorder\n");
 	return;
     }
-    if (!state->pcm_input_running)
+    if (!state->pcm_input_running) {
 	pcm_reset_player(state->i_handle);
-    pcm_start_input();
-    state->pcm_input_running = 1;
+	state->pcm_input_running = 1;
+    }
+    if (!state->lin_input_running) {
+	pcm_start_input(state->lin_strm);
+	state->lin_input_running = 1;
+    }
 }
 
 static void dspio_stop_input(struct dspio_state *state)
@@ -375,8 +385,11 @@ static void dspio_stop_input(struct dspio_state *state)
 	S_printf("SB: not stopping recorder\n");
 	return;
     }
-    if (state->pcm_input_running && !sb_dma_active()) {
-	pcm_stop_input();
+    if (!sb_dma_active()) {
+	if (state->lin_input_running) {
+	    pcm_stop_input(state->lin_strm);
+	    state->lin_input_running = 0;
+	}
 	state->pcm_input_running = 0;
     }
 }
@@ -761,6 +774,17 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
 
 int dspio_register_stream(int strm_idx, enum MixChan mc)
 {
+    struct dspio_state *state = sb_get_dsp();
     pcm_set_volume(strm_idx, dspio_get_volume, (void *)mc);
+    switch (mc) {
+    case MC_MIC:
+	state->mic_strm = strm_idx;
+	break;
+    case MC_LINE:
+	state->lin_strm = strm_idx;
+	break;
+    default:
+	break;
+    }
     return 1;
 }
