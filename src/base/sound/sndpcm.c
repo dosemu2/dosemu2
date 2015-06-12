@@ -764,7 +764,7 @@ static void pcm_get_samples(double time,
     struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
 
     for (i = 0; i < pcm.num_streams; i++) {
-	for (j = 0; j < out_channels; j++)
+	for (j = 0; j < SNDBUF_CHANS; j++)
 	    samp[i][j] = mute_samp;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
 		!(pcm.stream[i].id & id))
