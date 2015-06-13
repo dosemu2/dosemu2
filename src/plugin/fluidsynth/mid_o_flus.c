@@ -53,6 +53,7 @@ static short synthSeqID;
 static fluid_midi_parser_t* parser;
 static int pcm_stream;
 static int output_running, pcm_running;
+static int initialized;
 static double mf_time_base;
 static double flus_srate;
 
@@ -117,12 +118,6 @@ static int midoflus_init(void *arg)
     synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
     parser = new_fluid_midi_parser();
 
-    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
-	    PCM_ID_P | PCM_ID_R);
-    /* mpu401 interface was on both gameport and a waveblaster's connector.
-     * waveblaster's midi is routed to the mixer. */
-    dspio_register_stream(pcm_stream, MC_MIDI);
-
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
 
@@ -133,6 +128,22 @@ err2:
 err1:
     delete_fluid_settings(settings);
     return 0;
+}
+
+static int midoflus_setup(void *arg)
+{
+    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
+	    PCM_ID_P | PCM_ID_R);
+    /* mpu401 interface was on both gameport and a waveblaster's connector.
+     * waveblaster's midi is routed to the mixer. */
+    dspio_register_stream(pcm_stream, MC_MIDI);
+    initialized = 1;
+    return 1;
+}
+
+static int midoflus_owns(int strm_idx)
+{
+    return (strm_idx == pcm_stream);
 }
 
 static void midoflus_done(void *arg)
@@ -160,6 +171,8 @@ static void midoflus_write(unsigned char val)
 {
     fluid_midi_event_t* event;
 
+    if (!initialized)
+	return;
     if (!output_running)
 	midoflus_start();
 
@@ -261,7 +274,15 @@ static const struct midi_out_plugin midoflus = {
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
 
+static const struct pcm_recorder recorder = {
+    .name = midoflus_name,
+    .setup = midoflus_setup,
+    .owns = midoflus_owns,
+    .flags = PCM_F_PASSTHRU,
+};
+
 CONSTRUCTOR(static void midoflus_register(void))
 {
+    pcm_register_recorder(&recorder, NULL);
     midi_register_output_plugin(&midoflus);
 }

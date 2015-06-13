@@ -66,7 +66,8 @@ struct pcm_player {
 
 struct pcm_recorder {
   pcm_base;
-  int (*owns)(int strm_idx);
+  int (*setup)(void *);
+  int (*owns)(int);
 };
 
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
@@ -106,6 +107,7 @@ typedef int16_t sndbuf_t;
 #define SNDBUF_CHANS 2
 
 extern int pcm_init(void);
+extern int pcm_post_init(void);
 extern void pcm_done(void);
 extern void pcm_reset(void);
 extern int pcm_allocate_stream(int channels, char *name, int id);

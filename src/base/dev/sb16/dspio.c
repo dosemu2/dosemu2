@@ -311,6 +311,7 @@ void dspio_post_init(void *dspio)
 
     adlib_init();
     midi_init();
+    pcm_post_init();
 }
 
 void dspio_reset(void *dspio)

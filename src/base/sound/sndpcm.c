@@ -177,10 +177,21 @@ int pcm_init(void)
 #endif
 #endif
     assert(num_dl_handles <= MAX_DL_HANDLES);
+    return 1;
+}
+
+int pcm_post_init(void)
+{
+    int i;
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
       S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
       S_printf("ERROR: no PCM input plugins initialized\n");
+    for (i = 0; i < pcm.num_recorders; i++) {
+	struct pcm_holder *r = &pcm.recorders[i];
+	if (r->opened && RECORDER(r)->setup)
+	    RECORDER(r)->setup(r->arg);
+    }
     return 1;
 }
 
