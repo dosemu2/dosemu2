@@ -180,7 +180,7 @@ int pcm_init(void)
     return 1;
 }
 
-int pcm_post_init(void)
+int pcm_post_init(void *caller)
 {
     int i;
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
@@ -190,7 +190,7 @@ int pcm_post_init(void)
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *r = &pcm.recorders[i];
 	if (r->opened && RECORDER(r)->setup)
-	    RECORDER(r)->setup(r->arg);
+	    RECORDER(r)->setup(caller, r->arg);
     }
     return 1;
 }

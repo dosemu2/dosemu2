@@ -66,7 +66,7 @@ struct pcm_player {
 
 struct pcm_recorder {
   pcm_base;
-  int (*setup)(void *);
+  int (*setup)(void *, void *);
   int (*owns)(int);
 };
 
@@ -107,7 +107,7 @@ typedef int16_t sndbuf_t;
 #define SNDBUF_CHANS 2
 
 extern int pcm_init(void);
-extern int pcm_post_init(void);
+extern int pcm_post_init(void *caller);
 extern void pcm_done(void);
 extern void pcm_reset(void);
 extern int pcm_allocate_stream(int channels, char *name, int id);
@@ -144,6 +144,6 @@ enum MixChan { MC_MASTER, MC_VOICE, MC_MIDI, MC_CD, MC_LINE, MC_MIC, MC_PCSP };
 enum MixSubChan { MSC_L, MSC_R, MSC_LR, MSC_RL, MSC_MONO_L, MSC_MONO_R };
 enum MixRet { MR_UNSUP, MR_DISABLED, MR_OK };
 
-int dspio_register_stream(int strm_idx, enum MixChan mc);
+int dspio_register_stream(void *caller, int strm_idx, enum MixChan mc);
 
 #endif

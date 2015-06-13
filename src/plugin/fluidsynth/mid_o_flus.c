@@ -130,13 +130,13 @@ err1:
     return 0;
 }
 
-static int midoflus_setup(void *arg)
+static int midoflus_setup(void *caller, void *arg)
 {
     pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
 	    PCM_ID_P | PCM_ID_R);
     /* mpu401 interface was on both gameport and a waveblaster's connector.
      * waveblaster's midi is routed to the mixer. */
-    dspio_register_stream(pcm_stream, MC_MIDI);
+    dspio_register_stream(caller, pcm_stream, MC_MIDI);
     initialized = 1;
     return 1;
 }

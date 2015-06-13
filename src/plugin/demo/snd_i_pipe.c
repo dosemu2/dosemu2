@@ -83,7 +83,7 @@ void sndpipe_plugin_init(void)
 	return;
     pcm_stream = pcm_allocate_stream(PIPE_CHANS, "PCM MIC IN",
 	    PCM_ID_R | PCM_ID_P);
-    dspio_register_stream(pcm_stream, MC_MIC);
+//    dspio_register_stream(pcm_stream, MC_MIC);
     add_to_io_select(pipe_in, pipe_async, NULL);
 }
 

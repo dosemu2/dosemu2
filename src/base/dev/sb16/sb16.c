@@ -1710,11 +1710,6 @@ static void sb_dsp_done(void)
     rng_destroy(&sb.dsp_queue);
 }
 
-void *sb_get_dsp(void)
-{
-    return sb.dspio;
-}
-
 /*
  * Sound Initialisation
  * ====================
