@@ -1325,6 +1325,18 @@ void e_invalidate(unsigned data, int cnt)
 {
 	if (config.cpuemu <= 1)
 		return;
+	if (!e_querymark(data, cnt))
+		return;
+	e_invalidate_full(data, cnt);
+}
+
+/* invalidate and unprotect even if we hit only data.
+ * Needed if we are about to destroy the page protection by other means.
+ * Otherwise use e_invalidate() */
+void e_invalidate_full(unsigned data, int cnt)
+{
+	if (config.cpuemu <= 1)
+		return;
 	e_munprotect(data, cnt);
 #ifdef HOST_ARCH_X86
 	if (!CONFIG_CPUSIM)
@@ -1332,7 +1344,6 @@ void e_invalidate(unsigned data, int cnt)
 #endif
 	e_resetpagemarks(data, cnt);
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 

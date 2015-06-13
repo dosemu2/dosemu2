@@ -30,9 +30,11 @@
 #include "emu.h"
 #include "init.h"
 #include "sound/sound.h"
+#include <string.h>
 #include <SDL.h>
 
-static const char *sdlsnd_name = "Sound Output: SDL device";
+#define sdlsnd_name "sdl"
+#define sdlsnd_longname "Sound Output: SDL device"
 static struct player_params params;
 static SDL_AudioDeviceID dev;
 
@@ -52,6 +54,25 @@ static void sdlsnd_start(void *arg)
 static void sdlsnd_stop(void *arg)
 {
     SDL_PauseAudioDevice(dev, 1);
+}
+
+static int sndsdl_cfg(void *arg)
+{
+    char *p;
+    int l;
+    if (config.sdl_sound == 1)
+	return PCM_CF_ENABLED;
+    l = strlen(sdlsnd_name);
+    p = strstr(config.sound_driver, sdlsnd_name);
+    if (p && (p == config.sound_driver || p[-1] == ',') &&
+	    (p[l] == 0 || p[l] == ',')) {
+	S_printf("PCM: Enabling sdl driver\n");
+	return PCM_CF_ENABLED;
+    } else if (strlen(config.sound_driver)) {
+	S_printf("PCM: Disabling sdl driver\n");
+	return PCM_CF_DISABLED;
+    }
+    return 0;
 }
 
 static int sdlsnd_open(void *arg)
@@ -90,16 +111,20 @@ static void sdlsnd_close(void *arg)
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
+static const struct pcm_player player = {
+    .name = sdlsnd_name,
+    .longname = sdlsnd_longname,
+    .start = sdlsnd_start,
+    .stop = sdlsnd_stop,
+    .open = sdlsnd_open,
+    .close = sdlsnd_close,
+    .get_cfg = sndsdl_cfg,
+//    .lock = SDL_LockAudio,
+//    .unlock = SDL_UnlockAudio,
+    .id = PCM_ID_P,
+};
+
 CONSTRUCTOR(static void sdlsnd_init(void))
 {
-    struct pcm_player player = {};
-    player.name = sdlsnd_name;
-    player.start = sdlsnd_start;
-    player.stop = sdlsnd_stop;
-    player.open = sdlsnd_open;
-    player.close = sdlsnd_close;
-//    player.lock = SDL_LockAudio;
-//    player.unlock = SDL_UnlockAudio;
-    player.id = PCM_ID_P;
-    params.handle = pcm_register_player(player);
+    params.handle = pcm_register_player(&player, NULL);
 }

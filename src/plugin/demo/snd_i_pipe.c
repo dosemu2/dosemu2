@@ -75,11 +75,15 @@ static void pipe_async(void *arg)
 
 void sndpipe_plugin_init(void)
 {
+    if (!config.sound)
+	return;
     mkfifo(PIPE_NAME, 0666);
     pipe_in = open(PIPE_NAME, O_RDONLY | O_NONBLOCK);
     if (pipe_in == -1)
 	return;
-    pcm_stream = pcm_allocate_stream(2, "PCM IN", PCM_ID_R);
+    pcm_stream = pcm_allocate_stream(PIPE_CHANS, "PCM MIC IN",
+	    PCM_ID_R | PCM_ID_P);
+//    dspio_register_stream(pcm_stream, MC_MIC);
     add_to_io_select(pipe_in, pipe_async, NULL);
 }
 

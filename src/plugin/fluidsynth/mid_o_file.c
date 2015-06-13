@@ -38,6 +38,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <fluidsynth.h>
 #include "fluid_midi.h"
 #include "emu.h"
@@ -46,8 +47,7 @@
 #include "sound/midi.h"
 
 
-static const char *midofile_name = "MIDI Output: midi file";
-static const char *mfile_name = "/tmp/a.mid";
+#define midofile_name "MIDI Output: midi file"
 static fluid_midi_parser_t* parser;
 static int output_running;
 static long long mf_time_base;
@@ -217,11 +217,15 @@ static void close_output(void)
     finalize_midi_header();
 
     fclose(fp);
-    fd = open(mfile_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd != -1) {
-	write(fd, midibuf, midi_pos);
-	close(fd);
+    fd = open(config.midi_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) {
+	error("MIDI: failed to open %s: %s\n", config.midi_file,
+		strerror(errno));
+	goto out;
     }
+    write(fd, midibuf, midi_pos);
+    close(fd);
+out:
     free(midibuf);
 }
 
@@ -343,13 +347,13 @@ static void do_event(fluid_midi_event_t *ev, int32_t time)
     }
 }
 
-static int midofile_init(void)
+static int midofile_init(void *arg)
 {
     parser = new_fluid_midi_parser();
     return 1;
 }
 
-static void midofile_done(void)
+static void midofile_done(void *arg)
 {
     delete_fluid_midi_parser(parser);
 }
@@ -380,7 +384,7 @@ static void midofile_write(unsigned char val)
     }
 }
 
-static void midofile_stop(void)
+static void midofile_stop(void *arg)
 {
     if (!output_running)
 	return;
@@ -389,15 +393,24 @@ static void midofile_stop(void)
     output_running = 0;
 }
 
-CONSTRUCTOR(static int midofile_register(void))
+static int midofile_get_cfg(void *arg)
 {
-    struct midi_out_plugin midofile = {};
-    midofile.name = midofile_name;
-    midofile.init = midofile_init;
-    midofile.done = midofile_done;
-    midofile.reset = NULL;
-    midofile.write = midofile_write;
-    midofile.stop = midofile_stop;
-    midofile.flags = MIDI_F_PASSTHRU | MIDI_F_EXPLICIT;
-    return midi_register_output_plugin(midofile);
+    if (config.midi_file && config.midi_file[0])
+	return PCM_CF_ENABLED;
+    return PCM_CF_DISABLED;
+}
+
+static const struct midi_out_plugin midofile = {
+    .name = midofile_name,
+    .open = midofile_init,
+    .close = midofile_done,
+    .write = midofile_write,
+    .stop = midofile_stop,
+    .get_cfg = midofile_get_cfg,
+    .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
+};
+
+CONSTRUCTOR(static void midofile_register(void))
+{
+    midi_register_output_plugin(&midofile);
 }

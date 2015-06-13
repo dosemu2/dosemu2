@@ -50,10 +50,16 @@ if [ "$1" = 'enable' ]; then
 			wd=`pwd`
 			cd $DESTDIR/$dir
 			echo "=== configuring in $dir"
-			if ! ./configure ; then
-				echo "Configuration for $dir failed, disabling"
+			trap "echo ; exit 130" INT
+			if [ ! -f ./configure ] && ! autoreconf -v ; then
 				on="no"
+			else
+				if ! ./configure ; then
+					echo "Configuration for $dir failed, disabling"
+					on="no"
+				fi
 			fi
+			trap - INT
 			cd $wd
 		fi
 		if test -d $SRCDIR/$dir ; then

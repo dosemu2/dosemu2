@@ -27,7 +27,9 @@
  * Author: Stas Sergeev
  *
  */
+#include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <fluidsynth.h>
 #include "fluid_midi.h"
 #include "emu.h"
@@ -37,10 +39,8 @@
 #include "sound/sound.h"
 
 
-static const char *midoflus_name = "MIDI Output: FluidSynth device";
-static const float flus_srate = 44100;
+#define midoflus_name "MIDI Output: FluidSynth device"
 static const int flus_format = PCM_FORMAT_S16_LE;
-static const char *sfont = "/usr/share/soundfonts/default.sf2";
 static const float flus_gain = 1;
 #define FLUS_CHANNELS 2
 #define FLUS_MAX_BUF 512
@@ -53,46 +53,109 @@ static short synthSeqID;
 static fluid_midi_parser_t* parser;
 static int pcm_stream;
 static int output_running, pcm_running;
+static int initialized;
 static double mf_time_base;
+static double flus_srate;
 
-static pthread_mutex_t synth_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t syn_thr;
+static sem_t syn_sem;
+static void *synth_thread(void *arg);
 
-static int midoflus_init(void)
+static int midoflus_init(void *arg)
 {
     int ret;
+    char *sfont;
+    char *def_sfonts[] = {
+	"/usr/share/soundfonts/default.sf2",		// fedora
+	"/usr/share/soundfonts/FluidR3_GM.sf2",		// fedora
+	"/usr/share/sounds/sf2/FluidR3_GM.sf2.flac",	// ubuntu
+	"/usr/share/sounds/sf2/FluidR3_GM.sf2",		// debian
+	NULL };
+    int use_defsf = 0;
+
     settings = new_fluid_settings();
     fluid_settings_setint(settings, "synth.lock-memory", 0);
-    fluid_settings_setnum(settings, "synth.sample-rate", flus_srate);
     fluid_settings_setnum(settings, "synth.gain", flus_gain);
+    ret = fluid_settings_setint(settings, "synth.threadsafe-api", 1);
+    if (ret == 0) {
+	warn("fluidsynth: no threadsafe API\n");
+	goto err1;
+    }
+    ret = fluid_settings_getnum(settings, "synth.sample-rate", &flus_srate);
+    if (ret == 0) {
+	warn("fluidsynth: cannot get samplerate\n");
+	goto err1;
+    }
+    ret = fluid_settings_getstr(settings, "synth.default-soundfont", &sfont);
+    if (ret == 0) {
+	int i = 0;
+	warn("Your fluidsynth is too old\n");
+	while (def_sfonts[i]) {
+	    if (access(def_sfonts[i], R_OK) == 0) {
+		sfont = def_sfonts[i];
+		use_defsf = 1;
+		break;
+	    }
+	    i++;
+	}
+	if (!use_defsf) {
+	    error("Your fluidsynth is too old and soundfonts not found\n");
+	    goto err1;
+	}
+    }
 
     synth = new_fluid_synth(settings);
     ret = fluid_synth_sfload(synth, sfont, TRUE);
     if (ret == FLUID_FAILED) {
 	warn("fluidsynth: cannot load soundfont %s\n", sfont);
-	delete_fluid_synth(synth);
-	delete_fluid_settings(settings);
-	return 0;
+	if (use_defsf)
+	    error("Your fluidsynth is too old\n");
+	goto err2;
     }
+    fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
     S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
     sequencer = new_fluid_sequencer2(0);
     synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
     parser = new_fluid_midi_parser();
 
-    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI", PCM_ID_P);
+    sem_init(&syn_sem, 0, 0);
+    pthread_create(&syn_thr, NULL, synth_thread, NULL);
 
+    return 1;
+
+err2:
+    delete_fluid_synth(synth);
+err1:
+    delete_fluid_settings(settings);
+    return 0;
+}
+
+static int midoflus_setup(void *caller, void *arg)
+{
+    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
+	    PCM_ID_P | PCM_ID_R);
+    /* mpu401 interface was on both gameport and a waveblaster's connector.
+     * waveblaster's midi is routed to the mixer. */
+    dspio_register_stream(caller, pcm_stream, MC_MIDI);
+    initialized = 1;
     return 1;
 }
 
-static void midoflus_done(void)
+static int midoflus_owns(int strm_idx)
 {
+    return (strm_idx == pcm_stream);
+}
+
+static void midoflus_done(void *arg)
+{
+    pthread_cancel(syn_thr);
+    pthread_join(syn_thr, NULL);
+    sem_destroy(&syn_sem);
+
     delete_fluid_midi_parser(parser);
     delete_fluid_sequencer(sequencer);
     delete_fluid_synth(synth);
     delete_fluid_settings(settings);
-}
-
-static void midoflus_reset(void)
-{
 }
 
 static void midoflus_start(void)
@@ -108,7 +171,8 @@ static void midoflus_write(unsigned char val)
 {
     fluid_midi_event_t* event;
 
-    pthread_mutex_lock(&synth_mtx);
+    if (!initialized)
+	return;
     if (!output_running)
 	midoflus_start();
 
@@ -124,16 +188,13 @@ static void midoflus_write(unsigned char val)
 	if (ret != FLUID_OK)
 	    S_printf("MIDI: failed sending midi event\n");
     }
-    pthread_mutex_unlock(&synth_mtx);
 }
 
 static void mf_process_samples(int nframes)
 {
     sndbuf_t buf[FLUS_MAX_BUF][FLUS_CHANNELS];
     int ret;
-    pthread_mutex_lock(&synth_mtx);
     ret = fluid_synth_write_s16(synth, nframes, buf, 0, 2, buf, 1, 2);
-    pthread_mutex_unlock(&synth_mtx);
     if (ret != FLUID_OK) {
 	error("MIDI: fluidsynth failed\n");
 	return;
@@ -147,8 +208,6 @@ static void process_samples(long long now, int min_buf)
 {
     int nframes, retry;
     double period, mf_time_cur;
-    if (!output_running)
-	return;
     mf_time_cur = pcm_time_lock(pcm_stream);
     do {
 	retry = 0;
@@ -168,42 +227,62 @@ static void process_samples(long long now, int min_buf)
     pcm_time_unlock(pcm_stream);
 }
 
-static void midoflus_stop(void)
+static void midoflus_stop(void *arg)
 {
     long long now;
     int msec;
+    if (!output_running)
+	return;
     now = GETusTIME(0);
     msec = (now - mf_time_base) / 1000;
     S_printf("MIDI: stopping fluidsynth at msec=%i\n", msec);
-    pthread_mutex_lock(&synth_mtx);
     /* advance past last event */
     fluid_sequencer_process(sequencer, msec);
     /* shut down all active notes */
     fluid_synth_system_reset(synth);
-    pthread_mutex_unlock(&synth_mtx);
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
     output_running = 0;
 }
 
-static void midoflus_timer(void)
+static void *synth_thread(void *arg)
+{
+    while (1) {
+	sem_wait(&syn_sem);
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	process_samples(GETusTIME(0), FLUS_MIN_BUF);
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    }
+    return NULL;
+}
+
+static void midoflus_run(void)
 {
     if (!output_running)
 	return;
-    process_samples(GETusTIME(0), FLUS_MIN_BUF);
+    sem_post(&syn_sem);
 }
 
-CONSTRUCTOR(static int midoflus_register(void))
+static const struct midi_out_plugin midoflus = {
+    .name = midoflus_name,
+    .open = midoflus_init,
+    .close = midoflus_done,
+    .write = midoflus_write,
+    .stop = midoflus_stop,
+    .run = midoflus_run,
+    .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
+};
+
+static const struct pcm_recorder recorder = {
+    .name = midoflus_name,
+    .setup = midoflus_setup,
+    .owns = midoflus_owns,
+    .flags = PCM_F_PASSTHRU,
+};
+
+CONSTRUCTOR(static void midoflus_register(void))
 {
-    struct midi_out_plugin midoflus = {};
-    midoflus.name = midoflus_name;
-    midoflus.init = midoflus_init;
-    midoflus.done = midoflus_done;
-    midoflus.reset = midoflus_reset;
-    midoflus.write = midoflus_write;
-    midoflus.stop = midoflus_stop;
-    midoflus.timer = midoflus_timer;
-    midoflus.weight = MIDI_W_PCM | MIDI_W_PREFERRED;
-    return midi_register_output_plugin(midoflus);
+    pcm_register_recorder(&recorder, NULL);
+    midi_register_output_plugin(&midoflus);
 }

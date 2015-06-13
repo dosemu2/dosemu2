@@ -361,7 +361,8 @@ rdtsc			RETURN(RDTSC);
 bootA			RETURN(BOOTA);
 bootC			RETURN(BOOTC);
 xms			RETURN(L_XMS);
-umb_max			RETURN(L_UMB);
+umb_a0			RETURN(UMB_A0);
+umb_b0			RETURN(UMB_B0);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
 dpmi_base		RETURN(DPMI_BASE);
@@ -616,18 +617,11 @@ sb_base                 RETURN(SB_BASE);
 sb_irq                  RETURN(SB_IRQ);
 sb_dma                  RETURN(SB_DMA);
 sb_hdma                 RETURN(SB_HDMA);
-sb_dsp                  RETURN(SB_DSP);
-sb_mixer                RETURN(SB_MIXER);
 mpu_base                RETURN(MPU_BASE);
+mpu_irq                 RETURN(MPU_IRQ);
 sound_driver		RETURN(SOUND_DRIVER);
-
-	/* OSS sound stuff */
-oss_min_frags		RETURN(OSS_MIN_FRAGS);
-oss_max_frags		RETURN(OSS_MAX_FRAGS);
-oss_stalled_frags	RETURN(OSS_STALLED_FRAGS);
-oss_do_post		RETURN(OSS_DO_POST);
-oss_min_extra_frags	RETURN(OSS_MIN_EXTRA_FRAGS);
-oss_dac_freq		RETURN(OSS_DAC_FREQ);
+midi_file		RETURN(MIDI_FILE);
+wav_file		RETURN(WAV_FILE);
 
         /* Joystick stuff */
 

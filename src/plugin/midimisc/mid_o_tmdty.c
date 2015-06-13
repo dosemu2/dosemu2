@@ -52,11 +52,13 @@
 
 #define TMDTY_CHANS 2
 
-static const char *midotmdty_name = "MIDI Output: TiMidity++ plugin";
+#define midotmdty_name "MIDI Output: TiMidity++ plugin"
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
 static int pcm_stream, pcm_running;
+
+static void midotmdty_reset(void);
 
 static void midotmdty_io(void *arg)
 {
@@ -249,7 +251,7 @@ static int midotmdty_detect(void)
     return ret;
 }
 
-static int midotmdty_init(void)
+static int midotmdty_init(void *arg)
 {
     const char *cmd1 = "OPEN %s\n";
     char buf[255];
@@ -324,10 +326,12 @@ static int midotmdty_init(void)
 	pcm_stream = pcm_allocate_stream(TMDTY_CHANS, "MIDI", PCM_ID_P);
     }
 
+    midotmdty_reset();
+
     return TRUE;
 }
 
-static void midotmdty_done(void)
+static void midotmdty_done(void *arg)
 {
     const char *cmd1 = "CLOSE\n";
     const char *cmd2 = "QUIT\n";
@@ -378,7 +382,7 @@ static void midotmdty_write(Bit8u val)
     send(data_sock, &val, 1, MSG_DONTWAIT);
 }
 
-static void midotmdty_stop(void)
+static void midotmdty_stop(void *arg)
 {
     S_printf("\tStop\n");
     midotmdty_write(0xfc);
@@ -387,15 +391,16 @@ static void midotmdty_stop(void)
     pcm_running = 0;
 }
 
-CONSTRUCTOR(static int midotmdty_register(void))
+static const struct midi_out_plugin midotmdty = {
+    .name = midotmdty_name,
+    .open = midotmdty_init,
+    .close = midotmdty_done,
+    .write = midotmdty_write,
+    .stop = midotmdty_stop,
+    .weight = MIDI_W_PCM,
+};
+
+CONSTRUCTOR(static void midotmdty_register(void))
 {
-    struct midi_out_plugin midotmdty = {};
-    midotmdty.name = midotmdty_name;
-    midotmdty.init = midotmdty_init;
-    midotmdty.done = midotmdty_done;
-    midotmdty.reset = midotmdty_reset;
-    midotmdty.write = midotmdty_write;
-    midotmdty.stop = midotmdty_stop;
-    midotmdty.weight = MIDI_W_PCM;
-    return midi_register_output_plugin(midotmdty);
+    midi_register_output_plugin(&midotmdty);
 }

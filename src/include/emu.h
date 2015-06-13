@@ -172,8 +172,8 @@ typedef struct vesamode_type_struct {
        boolean X;
        boolean X_fullscreen;
        boolean sdl;
-       boolean sdl_sound;
-       boolean libao_sound;
+       int sdl_sound;
+       int libao_sound;
        u_short cardtype;
        u_short chipset;
        boolean pci;
@@ -264,7 +264,7 @@ typedef struct vesamode_type_struct {
 
        int hogthreshold;
 
-       int mem_size, ext_mem, xms_size, ems_size, max_umb;
+       int mem_size, ext_mem, xms_size, ems_size, umb_a0, umb_b0;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
@@ -315,17 +315,11 @@ typedef struct vesamode_type_struct {
        uint8_t sb_dma;
        uint8_t sb_hdma;
        uint8_t sb_irq;
-       char *sb_dsp;
-       char *sb_mixer;
        uint16_t mpu401_base;
+       int mpu401_irq;
        char *sound_driver;
-       /* OSS-specific options */
-       int oss_min_frags;
-       int oss_max_frags;
-       int oss_stalled_frags;
-       int oss_do_post;
-       int oss_min_extra_frags;
-       int oss_dac_freq;
+       char *midi_file;
+       char *wav_file;
 
        /* joystick */
        char *joy_device[2];

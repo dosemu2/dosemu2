@@ -36,6 +36,7 @@
 #include "timers.h"
 #include "sound/sound.h"
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
 #include <limits.h>
 #include <pthread.h>
@@ -95,6 +96,8 @@ struct stream {
     int flags;
     int stretch:1;
     int prepared:1;
+    double (*get_volume)(int id, int chan_dst, int chan_src, void*);
+    void *vol_arg;
     double start_time;
     double stop_time;
     double stretch_per;
@@ -110,65 +113,84 @@ struct stream {
 
 #define MAX_STREAMS 10
 #define MAX_PLAYERS 10
+#define MAX_RECORDERS 10
 struct pcm_player_wr {
-    struct pcm_player player;
     double time;
-    int opened:1;
     int last_cnt[MAX_STREAMS];
     int last_idx[MAX_STREAMS];
     double last_tstamp[MAX_STREAMS];
 };
+
+#define PLAYER(p) ((struct pcm_player *)p->plugin)
+#define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
+#define PL_LNAME(p) (p->longname ?: p->name)
+#define RECORDER(p) ((struct pcm_recorder *)p->plugin)
 
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
     int num_streams;
     pthread_mutex_t strm_mtx;
     pthread_mutex_t time_mtx;
-    struct pcm_player_wr players[MAX_PLAYERS];
+    struct pcm_holder players[MAX_PLAYERS];
     int num_players;
     int playing;
+    struct pcm_holder recorders[MAX_RECORDERS];
+    int num_recorders;
     double time;
 } pcm;
 
+#define MAX_DL_HANDLES 10
+static void *dl_handles[MAX_DL_HANDLES];
+static int num_dl_handles;
+
 int pcm_init(void)
 {
-    int i;
+    int ca = 0, cs = 0;
     S_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
+
 #ifdef USE_DL_PLUGINS
-#if 0
-    /* SDL is loaded in config.c, not here */
-#ifdef SDL_SUPPORT
-    load_plugin("sdl");
-#endif
-#endif
 #ifdef USE_LIBAO
-    /* if libao is not configured for sound, still need to load it
-     * for wav writing */
-    if (!config.libao_sound)
-	load_plugin("libao");
+    dl_handles[num_dl_handles++] = load_plugin("libao");
+    ca = pcm_get_cfg("ao");
 #endif
-#ifdef USE_ALSA
-    load_plugin("alsa");
+#ifdef SDL_SUPPORT
+    dl_handles[num_dl_handles++] = load_plugin("sdl");
+    cs = pcm_get_cfg("sdl");
 #endif
-#ifdef USE_SNDFILE
-    load_plugin("sndfile");
-#endif
-#ifdef USE_FLUIDSYNTH
-    load_plugin("fluidsynth");
-#endif
-#endif
-    for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
-	if (p->player.open)
-	    p->opened = p->player.open(p->player.arg);
+    if (!ca && !cs)		// auto. use ao for now
+	config.libao_sound = 1;
+    else if (ca == PCM_CF_ENABLED)
+	config.libao_sound = 1;
+    else if (cs == PCM_CF_ENABLED)
+	config.sdl_sound = 1;
+    else if (cs != ca) {
+	if (!ca)
+	    config.libao_sound = 1;
 	else
-	    p->opened = 1;
-	if (!p->opened) {
-	    S_printf("PCM: \"%s\" failed to open\n",
-		  p->player.name);
-	}
+	    config.sdl_sound = 1;
+    }
+
+#ifdef USE_ALSA
+    dl_handles[num_dl_handles++] = load_plugin("alsa");
+#endif
+#endif
+    assert(num_dl_handles <= MAX_DL_HANDLES);
+    return 1;
+}
+
+int pcm_post_init(void *caller)
+{
+    int i;
+    if (!pcm_init_plugins(pcm.players, pcm.num_players))
+      S_printf("ERROR: no PCM output plugins initialized\n");
+    if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
+      S_printf("ERROR: no PCM input plugins initialized\n");
+    for (i = 0; i < pcm.num_recorders; i++) {
+	struct pcm_holder *r = &pcm.recorders[i];
+	if (r->opened && RECORDER(r)->setup)
+	    RECORDER(r)->setup(caller, r->arg);
     }
     return 1;
 }
@@ -182,12 +204,16 @@ static void pcm_clear_stream(int strm_idx)
 static void pcm_reset_stream(int strm_idx)
 {
     pcm_clear_stream(strm_idx);
-    if (pcm.stream[strm_idx].state != SNDBUF_STATE_FLUSHING)
-	pcm.stream[strm_idx].prepared = 0;
     pcm.stream[strm_idx].state = SNDBUF_STATE_INACTIVE;
     pcm.stream[strm_idx].stretch = 0;
     pcm.stream[strm_idx].stretch_per = 0;
     pcm.stream[strm_idx].stretch_tot = 0;
+    pcm.stream[strm_idx].prepared = 0;
+}
+
+static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
+{
+    return (chan_src == chan_dst ? 1.0 : 0.0);
 }
 
 int pcm_allocate_stream(int channels, char *name, int id)
@@ -200,10 +226,11 @@ int pcm_allocate_stream(int channels, char *name, int id)
     index = pcm.num_streams++;
     rng_init(&pcm.stream[index].buffer, SND_BUFFER_SIZE,
 	     sizeof(struct sample));
-    pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].channels = channels;
     pcm.stream[index].name = name;
     pcm.stream[index].id = id;
+    pcm.stream[index].buf_cnt = 0;
+    pcm.stream[index].get_volume = get_vol_dummy;
     pcm_reset_stream(index);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;
@@ -334,7 +361,7 @@ static int count_active_streams(int id)
 {
     int i, ret = 0;
     for (i = 0; i < pcm.num_streams; i++) {
-	if (id != PCM_ID_MAX && pcm.stream[i].id != id)
+	if (id != PCM_ID_ANY && !(pcm.stream[i].id & id))
 	    continue;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
@@ -427,36 +454,36 @@ static void pcm_start_output(int id)
     int i;
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
-	if (p->player.id != id)
+	struct pcm_holder *p = &pcm.players[i];
+	if (!(PLAYER(p)->id & id))
 	    continue;
 	if (p->opened) {
 	    pcm_reset_player(i);
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    p->player.start(p->player.arg);
+	    p->plugin->start(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
     pcm.time = now - MAX_BUFFER_DELAY;
-    pcm.playing |= (1 << id);
-    S_printf("PCM: output started\n");
+    pcm.playing |= id;
+    S_printf("PCM: output started, %i\n", pcm.playing);
 }
 
 static void pcm_stop_output(int id)
 {
     int i;
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
-	if (id != PCM_ID_MAX && p->player.id != id)
+	struct pcm_holder *p = &pcm.players[i];
+	if (id != PCM_ID_ANY && !(PLAYER(p)->id & id))
 	    continue;
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    p->player.stop(p->player.arg);
+	    p->plugin->stop(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
-    pcm.playing &= ~(1 << id);
-    S_printf("PCM: output stopped\n");
+    pcm.playing &= ~id;
+    S_printf("PCM: output stopped, %i\n", pcm.playing);
 }
 
 static void handle_raw_adj(int strm_idx, double fillup, double time)
@@ -630,7 +657,7 @@ user_tstamp:
 	    }
 	    return time;
 	}
-	S_printf("PCM: ERROR: not prepared %s\n", pcm.stream[strm_idx].name);
+	S_printf("PCM: stream not prepared: %s\n", pcm.stream[strm_idx].name);
 	return now - WRITE_INIT_POS;
 
     case SNDBUF_STATE_STALLED:
@@ -690,9 +717,10 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     int i, j;
     struct sample samp;
     double frame_per;
-    assert(nchans <= pcm.stream[strm_idx].channels);
-    if (pcm.stream[strm_idx].flags & PCM_FLAG_RAW)
-	rate /= pcm.stream[strm_idx].raw_speed_adj;
+    struct stream *strm = &pcm.stream[strm_idx];
+    assert(nchans <= strm->channels);
+    if (strm->flags & PCM_FLAG_RAW)
+	rate /= strm->raw_speed_adj;
 
     samp.format = format;
     samp.tstamp = 0;
@@ -705,23 +733,28 @@ retry:
 	samp.tstamp = pcm_calc_tstamp(strm_idx);
 	l = peek_last_sample(strm_idx, &s2);
 	assert(!(l && samp.tstamp < s2.tstamp));
-	for (j = 0; j < pcm.stream[strm_idx].channels; j++) {
+	for (j = 0; j < strm->channels; j++) {
 	    int ch = j % nchans;
 	    memcpy(samp.data, &ptr[i][ch], pcm_format_size(format));
-	    l = rng_put(&pcm.stream[strm_idx].buffer, &samp);
+	    l = rng_put(&strm->buffer, &samp);
 	    if (!l) {
 		error("Sound buffer %i overflowed (%s)\n", strm_idx,
-		    pcm.stream[strm_idx].name);
+		    strm->name);
 		pcm_reset_stream(strm_idx);
 		goto retry;
 	    }
 	}
 	pcm_handle_write(strm_idx, samp.tstamp);
-	pcm.stream[strm_idx].stop_time = samp.tstamp + frame_per;
+	strm->stop_time = samp.tstamp + frame_per;
     }
 
-    if (!(pcm.playing & (1 << pcm.stream[strm_idx].id)))
-	pcm_start_output(pcm.stream[strm_idx].id);
+    for (i = 0; i < PCM_ID_MAX; i++) {
+	int id = 1 << i;
+	if (!(id & strm->id))
+	    continue;
+	if (!(id & pcm.playing))
+	    pcm_start_output(id);
+    }
     pthread_mutex_unlock(&pcm.strm_mtx);
 }
 
@@ -754,10 +787,10 @@ static void pcm_get_samples(double time,
     struct sample s[SNDBUF_CHANS], prev_s[SNDBUF_CHANS];
 
     for (i = 0; i < pcm.num_streams; i++) {
-	for (j = 0; j < out_channels; j++)
+	for (j = 0; j < SNDBUF_CHANS; j++)
 	    samp[i][j] = mute_samp;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
-		pcm.stream[i].id != id)
+		!(pcm.stream[i].id & id))
 	    continue;
 
 //    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
@@ -788,19 +821,27 @@ static void pcm_get_samples(double time,
 }
 
 static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
-	sndbuf_t out[SNDBUF_CHANS], int channels, int format)
+	sndbuf_t out[SNDBUF_CHANS], int channels, int format,
+	double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
 {
-    int i, j;
-    int value[2] = { 0, 0 };
+    int i, j, k;
+    int value[SNDBUF_CHANS] = { 0 };
 
-    for (j = 0; j < channels; j++) {
+    for (j = 0; j < SNDBUF_CHANS; j++) {
 	for (i = 0; i < pcm.num_streams; i++) {
-	    if (in[i][j].format == PCM_FORMAT_NONE)
-		continue;
-	    value[j] += sample_to_S16(in[i][j].data, in[i][j].format);
+	    for (k = 0; k < SNDBUF_CHANS; k++) {
+		if (volume[i][j][k] == 0 || in[i][k].format == PCM_FORMAT_NONE)
+		    continue;
+		value[j] += sample_to_S16(in[i][k].data, in[i][k].format) *
+			volume[i][j][k];
+	    }
 	}
-	S16_to_sample(pcm_samp_cutoff(value[j], PCM_FORMAT_S16_LE),
-		&out[j], format);
+    }
+    for (i = channels; i < SNDBUF_CHANS; i++)
+	value[0] += value[i];
+    for (i = 0; i < channels; i++) {
+	S16_to_sample(pcm_samp_cutoff(value[i], PCM_FORMAT_S16_LE),
+		&out[i], format);
     }
 }
 
@@ -841,30 +882,47 @@ static void save_idxs(struct pcm_player_wr *pl, int idxs[MAX_STREAMS])
     }
 }
 
+static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
+{
+    int i, j, k;
+    for (i = 0; i < pcm.num_streams; i++) {
+	struct stream *strm = &pcm.stream[i];
+	if (id != PCM_ID_ANY && !(strm->id & id))
+	    continue;
+	if (strm->state == SNDBUF_STATE_INACTIVE)
+	    continue;
+	for (j = 0; j < SNDBUF_CHANS; j++)
+	    for (k = 0; k < SNDBUF_CHANS; k++)
+		volume[i][j][k] = strm->get_volume(id, j, k, strm->vol_arg);
+    }
+}
+
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 			   struct player_params *params)
 {
-    int idxs[MAX_STREAMS], out_idx, handle, id;
+    int idxs[MAX_STREAMS], out_idx, handle;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
+    double volume[MAX_STREAMS][SNDBUF_CHANS][SNDBUF_CHANS];
+    struct pcm_holder *p;
 
     now = GETusTIME(0);
     handle = params->handle;
-    id = pcm.players[handle].player.id;
-    start_time = pcm.players[handle].time;
+    p = &pcm.players[handle];
+    start_time = PL_PRIV(p)->time;
     frag_period = nframes * pcm_frame_period_us(params->rate);
     stop_time = start_time + frag_period;
     if (start_time < now - MAX_BUFFER_DELAY) {
 	error("PCM: \"%s\" too large delay, start=%f min=%f d=%f\n",
-		  pcm.players[handle].player.name, start_time,
+		  p->plugin->name, start_time,
 		  now - MAX_BUFFER_DELAY, now - MAX_BUFFER_DELAY - start_time);
 	start_time = now - INIT_BUFFER_DELAY;
 	stop_time = start_time + frag_period;
     }
     if (start_time > now - MIN_READ_DELAY) {
 	S_printf("PCM: \"%s\" too small start delay, stop=%f max=%f d=%f\n",
-		  pcm.players[handle].player.name, stop_time,
+		  p->plugin->name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
 	return 0;
@@ -872,7 +930,7 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     if (stop_time > now - MIN_BUFFER_DELAY) {
 	size_t new_nf;
 	S_printf("PCM: \"%s\" too small stop delay, stop=%f max=%f d=%f\n",
-		  pcm.players[handle].player.name, stop_time,
+		  p->plugin->name, stop_time,
 		  now - MIN_BUFFER_DELAY, stop_time -
 		  (now - MIN_BUFFER_DELAY));
 	stop_time = now - MIN_BUFFER_DELAY;
@@ -882,30 +940,31 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 	nframes = new_nf;
     }
     S_printf("PCM: going to process %i samps for %s (st=%f stp=%f d=%f)\n",
-	 nframes, pcm.players[handle].player.name, start_time,
+	 nframes, p->plugin->name, start_time,
 	 stop_time, now - start_time);
 
     pthread_mutex_lock(&pcm.strm_mtx);
-    if (!pcm.players[handle].opened) {
+    if (!p->opened) {
 	S_printf("PCM: player %s already closed\n",
-		pcm.players[handle].player.name);
+		p->plugin->name);
 	pthread_mutex_unlock(&pcm.strm_mtx);
 	return 0;
     }
     frame_period = pcm_frame_period_us(params->rate);
     time = start_time;
-    calc_idxs(&pcm.players[handle], idxs);
-
+    calc_idxs(PL_PRIV(p), idxs);
+    get_volumes(PLAYER(p)->id, volume);
     for (out_idx = 0; out_idx < nframes; out_idx++) {
-	pcm_get_samples(time, samp, idxs, params->channels, id);
-	pcm_mix_samples(samp, buf[out_idx], params->channels, params->format);
+	pcm_get_samples(time, samp, idxs, params->channels, PLAYER(p)->id);
+	pcm_mix_samples(samp, buf[out_idx], params->channels, params->format,
+		volume);
 	time += frame_period;
     }
     if (fabs(time - stop_time) > frame_period)
 	error("PCM: time=%f stop_time=%f p=%f\n",
 		    time, stop_time, frame_period);
-    pcm.players[handle].time = stop_time;
-    save_idxs(&pcm.players[handle], idxs);
+    PL_PRIV(p)->time = stop_time;
+    save_idxs(PL_PRIV(p), idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
     if (out_idx != nframes)
@@ -946,32 +1005,50 @@ static void pcm_advance_time(double stop_time)
     }
 
     for (i = 0; i < PCM_ID_MAX; i++) {
-	if (!count_active_streams(i) && (pcm.playing & (1 << i)))
-	    pcm_stop_output(i);
+	if (!count_active_streams(1 << i) && (pcm.playing & (1 << i)))
+	    pcm_stop_output(1 << i);
     }
     pthread_mutex_unlock(&pcm.strm_mtx);
 }
 
-int pcm_register_player(struct pcm_player player)
+int pcm_register_player(const struct pcm_player *player, void *arg)
 {
-    S_printf("PCM: registering clocked player: %s\n", player.name);
+    struct pcm_holder *p;
+    S_printf("PCM: registering player: %s\n", PL_LNAME(player));
     if (pcm.num_players >= MAX_PLAYERS) {
-	error("PCM: attempt to register more than %i clocked player\n",
-	      MAX_PLAYERS);
+	error("PCM: attempt to register more than %i player\n", MAX_PLAYERS);
 	return 0;
     }
-    pcm.players[pcm.num_players].player = player;
+    p = &pcm.players[pcm.num_players];
+    p->plugin = player;
+    p->arg = arg;
+    p->priv = malloc(sizeof(struct pcm_player_wr));
+    memset(p->priv, 0, sizeof(struct pcm_player_wr));
     return pcm.num_players++;
+}
+
+int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
+{
+    struct pcm_holder *p;
+    S_printf("PCM: registering recorder: %s\n", PL_LNAME(recorder));
+    if (pcm.num_recorders >= MAX_RECORDERS) {
+	error("PCM: attempt to register more than %i recorder\n", MAX_RECORDERS);
+	return 0;
+    }
+    p = &pcm.recorders[pcm.num_recorders];
+    p->plugin = recorder;
+    p->arg = arg;
+    return pcm.num_recorders++;
 }
 
 void pcm_reset_player(int handle)
 {
     long long now = GETusTIME(0);
-    pcm.players[handle].time = now - INIT_BUFFER_DELAY;
-    memset(pcm.players[handle].last_idx, 0,
-	    sizeof(pcm.players[handle].last_idx));
-    memset(pcm.players[handle].last_cnt, 0,
-	    sizeof(pcm.players[handle].last_cnt));
+    struct pcm_holder *p = &pcm.players[handle];
+    struct pcm_player_wr *pl = PL_PRIV(p);
+    pl->time = now - INIT_BUFFER_DELAY;
+    memset(pl->last_idx, 0, sizeof(pl->last_idx));
+    memset(pl->last_cnt, 0, sizeof(pl->last_cnt));
 }
 
 void pcm_timer(void)
@@ -979,10 +1056,11 @@ void pcm_timer(void)
     int i;
     long long now = GETusTIME(0);
     for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
-	if (p->opened && p->player.timer) {
-	    double delta = now - NORM_BUFFER_DELAY - pcm.players[i].time;
-	    p->player.timer(delta, p->player.arg);
+	struct pcm_holder *p = &pcm.players[i];
+	struct pcm_player_wr *pl = PL_PRIV(p);
+	if (p->opened && PLAYER(p)->timer) {
+	    double delta = now - NORM_BUFFER_DELAY - pl->time;
+	    PLAYER(p)->timer(delta, p->arg);
 	}
     }
     pthread_mutex_lock(&pcm.time_mtx);
@@ -992,14 +1070,16 @@ void pcm_timer(void)
 
 void pcm_reset(void)
 {
+#if 0
     int i;
     S_printf("PCM: reset\n");
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
-	pcm_stop_output(PCM_ID_MAX);
+	pcm_stop_output(PCM_ID_ANY);
     for (i = 0; i < pcm.num_streams; i++)
 	pcm_reset_stream(i);
     pthread_mutex_unlock(&pcm.strm_mtx);
+#endif
 }
 
 void pcm_done(void)
@@ -1012,21 +1092,139 @@ void pcm_done(void)
     }
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
-	pcm_stop_output(PCM_ID_MAX);
-    for (i = 0; i < pcm.num_players; i++) {
-	struct pcm_player_wr *p = &pcm.players[i];
-	if (p->opened) {
-	    if (p->player.close) {
-		pthread_mutex_unlock(&pcm.strm_mtx);
-		p->player.close(p->player.arg);
-		pthread_mutex_lock(&pcm.strm_mtx);
-	    }
-	    p->opened = 0;
-	}
-    }
+	pcm_stop_output(PCM_ID_ANY);
+    pcm_deinit_plugins(pcm.players, pcm.num_players);
+    pcm_deinit_plugins(pcm.recorders, pcm.num_recorders);
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
     pthread_mutex_unlock(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.time_mtx);
+    for (i = 0; i < num_dl_handles; i++)
+	close_plugin(dl_handles[i]);
+    for (i = 0; i < pcm.num_players; i++)
+	free(pcm.players[i].priv);
+}
+
+int pcm_init_plugins(struct pcm_holder *plu, int num)
+{
+#define SAFE_OPEN(p) (p->plugin->open ? p->plugin->open(p->arg) : 1)
+  int i, sel, max_w, max_i, cnt;
+  cnt = 0;
+  sel = 0;
+  for (i = 0; i < num; i++) {
+    struct pcm_holder *p = &plu[i];
+    p->cfg_flags = (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
+    if (p->cfg_flags & PCM_CF_ENABLED) {
+      p->opened = SAFE_OPEN(p);
+      S_printf("PCM: Initializing selected plugin: %s: %s\n",
+	  PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
+      if (p->opened) {
+        cnt++;
+        if (!(p->plugin->flags & PCM_F_PASSTHRU))
+          sel++;
+      }
+    }
+  }
+  do {
+    max_w = -1;
+    max_i = -1;
+    for (i = 0; i < num; i++) {
+      struct pcm_holder *p = &plu[i];
+      if (p->opened || p->failed ||
+	    (p->plugin->flags & PCM_F_EXPLICIT) ||
+	    (p->cfg_flags & PCM_CF_DISABLED))
+        continue;
+      if (p->plugin->flags & PCM_F_PASSTHRU) {
+        p->opened = SAFE_OPEN(p);
+        S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
+	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
+        if (!p->opened)
+          p->failed = 1;
+        else
+          cnt++;
+        continue;
+      }
+      if (sel)
+        continue;
+      if (p->plugin->weight > max_w) {
+        if (max_i != -1)
+          S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
+		PL_LNAME(plu[max_i].plugin), max_w,
+		p->plugin->weight);
+        max_w = p->plugin->weight;
+        max_i = i;
+      }
+    }
+    if (max_i != -1) {
+      struct pcm_holder *p = &plu[max_i];
+      p->opened = SAFE_OPEN(p);
+      S_printf("PCM: Initializing plugin: %s (w=%i): %s\n",
+	    PL_LNAME(p->plugin), max_w, p->opened ? "OK" : "Failed");
+      if (!p->opened)
+        p->failed = 1;
+      else
+        cnt++;
+    }
+  } while (max_i != -1 && !plu[max_i].opened);
+  return cnt;
+}
+
+void pcm_deinit_plugins(struct pcm_holder *plu, int num)
+{
+    int i;
+    for (i = 0; i < num; i++) {
+	struct pcm_holder *p = &plu[i];
+	if (p->opened) {
+	    if (p->plugin->close) {
+		pthread_mutex_unlock(&pcm.strm_mtx);
+		p->plugin->close(p->arg);
+		pthread_mutex_lock(&pcm.strm_mtx);
+	    }
+	    p->opened = 0;
+	}
+    }
+}
+
+int pcm_get_cfg(const char *name)
+{
+  int i;
+  for (i = 0; i < pcm.num_players; i++) {
+    struct pcm_holder *p = &pcm.players[i];
+    if (!strcmp(p->plugin->name, name))
+      return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
+  }
+  return PCM_CF_DISABLED;
+}
+
+int pcm_start_input(int strm_idx)
+{
+    int i, ret = 0;
+    for (i = 0; i < pcm.num_recorders; i++) {
+	struct pcm_holder *p = &pcm.recorders[i];
+	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx))) {
+	    p->plugin->start(p->arg);
+	    ret++;
+	}
+    }
+    S_printf("PCM: input started, %i\n", ret);
+    return ret;
+}
+
+void pcm_stop_input(int strm_idx)
+{
+    int i;
+    for (i = 0; i < pcm.num_recorders; i++) {
+	struct pcm_holder *p = &pcm.recorders[i];
+	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx)))
+	    p->plugin->stop(p->arg);
+    }
+    S_printf("PCM: input stopped\n");
+}
+
+void pcm_set_volume(int strm_idx, double (*get_vol)(int, int, int, void *),
+	void *arg)
+{
+    pcm.stream[strm_idx].get_volume = get_vol;
+    pcm.stream[strm_idx].vol_arg = arg;
 }

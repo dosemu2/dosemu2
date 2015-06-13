@@ -337,86 +337,25 @@ load_file(char *name, int foffset, unsigned char *mstart, int msize)
   return 0;
 }
 
-static inline void
-reserve_video_memory(void)
+static void do_reserve_vmem(dosaddr_t base, int len)
 {
-  int graph_base = GRAPH_BASE, graph_size = GRAPH_SIZE;
-
-/*
- * DANG_BEGIN_REMARK
- * reserve_video_memory()
- *
- * This procedure is trying to eke out all the UMB blocks possible to
- * maximize your memory under DOSEMU.  If you know about dual monitor
- * setups, you can contribute by putting in the correct graphics page
- * address values.
- * DANG_END_REMARK
- */
-
-#if USE_DUALMON
-  if (!config.max_umb || config.dualmon) {
-#else
-  if (!config.max_umb) {
-#endif
-    if (config.dualmon)
-      c_printf("CONF: Unable to maximize UMB's due to dual monitor setup\n");
-    if (config.mem_size > 640) {
-      int addr_start = config.mem_size * 1024;
-      graph_base = addr_start;
-      graph_size = 0xC0000 - addr_start;
-    }
-  } else {
-
-    /* Okay, the usual procedure would be to reserve 128K of memory for
-       video unconditionally.  Clearly this is insane.  If you're running
-       in an x-term or across the network, you're wasting memory. */
-
-    c_printf("CONF: Trying to set minimum video memory to maximize UMB's\n");
-
-    if (!config.console_video) {
-      graph_base = 0xB0000;
-      graph_size = 64*1024;
-      c_printf("CONF: remote session.  Assuming %uKB video memory @ 0x%5.5X\n",
-	       graph_size/1024, graph_base);
-    }
-    else {
-      switch (config.cardtype) {
-      case CARD_MDA:
-	graph_base = 0xB0000;
-	graph_size = 64*1024;
-	c_printf("CONF: MDA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      case CARD_CGA:
-	graph_base = 0xB8000;
-	graph_size = 32*1024;
-	c_printf("CONF: CGA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      case CARD_EGA:
-	graph_base = 0xB0000;
-	graph_size = 64*1024;
-	c_printf("CONF: EGA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      case CARD_VGA:
-	graph_base = 0xA0000;
-	graph_size = 128*1024;
-	c_printf("CONF: VGA video card w/%uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      default:
-	graph_base = 0xA0000;
-	graph_size = 128*1024;
-	c_printf("CONF: default video, guessing %uKB video memory @ 0x%5.5X\n",
-		 graph_size/1024, graph_base);
-	break;
-      }
-    }
-  }
   if (config.vga)
-    register_hardware_ram('v', graph_base, graph_size);
-  memcheck_reserve('v', graph_base, graph_size);
+    register_hardware_ram('v', base, len);
+  memcheck_reserve('v', base, len);
+}
+
+static void reserve_video_memory(void)
+{
+  if (config.umb_b0 && !config.dualmon) {
+    if (!config.umb_a0)
+      do_reserve_vmem(GRAPH_BASE, GRAPH_SIZE);
+    do_reserve_vmem(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
+  } else {
+    if (!config.umb_a0)
+      do_reserve_vmem(VMEM_BASE, VMEM_SIZE);
+    else
+      do_reserve_vmem(VMEM_BASE + 0x10000, VMEM_SIZE - 0x10000);
+  }
 }
 
 void

@@ -261,8 +261,8 @@ static void release_vt (struct sigcontext_struct *scp)
 
 static void unmap_video_ram(int copyback)
 {
-  unsigned base = GRAPH_BASE;
-  size_t size = GRAPH_SIZE;
+  unsigned base = VMEM_BASE;
+  size_t size = VMEM_SIZE;
   int cap = MAPPING_VC | MAPPING_LOWMEM;
 
   if (!config.vga) {
@@ -277,9 +277,9 @@ static void unmap_video_ram(int copyback)
 static void map_video_ram(void)
 {
   void *graph_mem;
-  off_t pbase = GRAPH_BASE;
+  off_t pbase = VMEM_BASE;
   unsigned int vbase = pbase;
-  size_t ssize = GRAPH_SIZE;
+  size_t ssize = VMEM_SIZE;
   int cap = MAPPING_VC | MAPPING_KMEM;
 
   if (!config.vga) {

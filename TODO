@@ -14,7 +14,7 @@ TODO items for the next release:
 
 - bring the new sound code to the state where it can replace
   the old sound code
-    Mostly done, still needs recording support from microphone.
+    DONE! Yeah!!!!
 
 - look into bug 517 which discusses the regressions added by
   allowing non-fixed lowmem mappings, cpuemu updates, sound updates

@@ -13,8 +13,7 @@ NET=dosext/net
 # rather than just change this.
 #
 ifdef USE_SBEMU
-SBEMU=dosext/sound arch/linux/dosext/sound base/dev/sb16 base/sound
-MIDID=arch/linux/dosext/sound/midid
+SBEMU=base/dev/sb16 base/sound
 endif
 
 #

@@ -27,10 +27,10 @@
 
 
 static snd_rawmidi_t *handle = NULL;
-static const char *midoalsa_name = "MIDI Output: ALSA device";
+#define midoalsa_name "MIDI Output: ALSA device"
 static const char *device = "default";
 
-static int midoalsa_init(void)
+static int midoalsa_init(void *arg)
 {
     int err;
     err = snd_rawmidi_open(NULL, &handle, device,
@@ -43,16 +43,12 @@ static int midoalsa_init(void)
     return 1;
 }
 
-static void midoalsa_done(void)
+static void midoalsa_done(void *arg)
 {
     if (!handle)
 	return;
     snd_rawmidi_close(handle);
     handle = NULL;
-}
-
-static void midoalsa_reset(void)
-{
 }
 
 static void midoalsa_write(unsigned char val)
@@ -62,14 +58,15 @@ static void midoalsa_write(unsigned char val)
     snd_rawmidi_write(handle, &val, 1);
 }
 
+static const struct midi_out_plugin midoalsa = {
+    .name = midoalsa_name,
+    .open = midoalsa_init,
+    .close = midoalsa_done,
+    .write = midoalsa_write,
+    .weight = MIDI_W_PREFERRED,
+};
+
 CONSTRUCTOR(static int midoalsa_register(void))
 {
-    struct midi_out_plugin midoalsa = {};
-    midoalsa.name = midoalsa_name;
-    midoalsa.init = midoalsa_init;
-    midoalsa.done = midoalsa_done;
-    midoalsa.reset = midoalsa_reset;
-    midoalsa.write = midoalsa_write;
-    midoalsa.weight = MIDI_W_PREFERRED;
-    return midi_register_output_plugin(midoalsa);
+    return midi_register_output_plugin(&midoalsa);
 }

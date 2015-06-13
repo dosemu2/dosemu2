@@ -518,7 +518,6 @@ void __leavedos(int sig, const char *s, int num)
     coopth_start(ld_tid, leavedos_thr, NULL);
     /* vc switch may require vm86() so call it while waiting for thread */
     coopth_join(ld_tid, vm86_helper);
-    coopth_done();
 
     leavedos_main(sig);
 }
@@ -536,7 +535,12 @@ void leavedos_main(int sig)
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     }
+    /* async signals must be disabled after coopthreads are joined, but
+     * before coopth_done(). */
     registersig(SIGALRM, NULL);
+    registersig(SIGIO, NULL);
+    /* now it is safe to shut down coopth. Can be done any later, if need be */
+    coopth_done();
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"
@@ -636,7 +640,6 @@ void check_leavedos(void)
 
 void hardware_run(void)
 {
-	dma_run ();
 #ifdef USE_SBEMU
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
 #endif

@@ -729,10 +729,18 @@ void *load_plugin(const char *plugin_name)
     error("%s\n", dlerror());
     return handle;
 }
+
+void close_plugin(void *handle)
+{
+    dlclose(handle);
+}
 #else
 void *load_plugin(const char *plugin_name)
 {
     return NULL;
+}
+void close_plugin(void *handle)
+{
 }
 #endif
 

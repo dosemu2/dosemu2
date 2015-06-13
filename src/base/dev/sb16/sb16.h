@@ -24,6 +24,7 @@
 #define __SB16_H__
 
 #include "ringbuf.h"		// for rng_s
+#include "sound/sound.h"
 
 #define SB_NONE  0x000
 #define SB_ID	 0x105
@@ -67,8 +68,10 @@ struct sb_struct {
   uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  dma_mode;		/* Information we need on the DMA transfer */
   int      dma_exit_ai:1;	/* exit DMA autoinit */
-  enum { DMA_RESTART_NONE, DMA_RESTART_CHECK, DMA_RESTART_AUTOINIT }
-           dma_restart;		/* DMA restart on IRQ ACK */
+  struct {
+    enum { DMA_RESTART_NONE, DMA_RESTART_CHECK, DMA_RESTART_AUTOINIT } val;
+    int    is_16:1;
+  }        dma_restart;		/* DMA restart on IRQ ACK */
   uint8_t  new_dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  new_dma_mode;	/* Information we need on the DMA transfer */
   uint16_t dma_init_count;
@@ -104,5 +107,14 @@ extern void sb_dma_processing(void);
 extern void sb_handle_dma_timeout(void);
 extern int sb_input_enabled(void);
 extern void sb_handle_midi_data(void);
+
+enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol);
+enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
+	double *r_vol);
+int sb_mixer_get_chan_num(enum MixChan ch);
+
+#define SB_CHAN_L 0
+#define SB_CHAN_R 1
 
 #endif

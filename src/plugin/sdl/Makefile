@@ -31,8 +31,11 @@ $(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 endif
 
+include/sdl_config.h: include/_sdl_config.h.in
+	configure
+
 install: all
 
 realclean::
-	rm -f Makefile.conf config.log config.status
+	rm -f Makefile.conf config.log config.status configure
 	rm -rf autom4te*.cache

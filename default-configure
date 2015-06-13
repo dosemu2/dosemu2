@@ -95,8 +95,10 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
+[ -f `dirname $0`/configure ] || `dirname $0`/autogen.sh
+
 echo `dirname $0`/mkpluginhooks enable $PLUGIN
-`dirname $0`/mkpluginhooks enable $PLUGIN
+`dirname $0`/mkpluginhooks enable $PLUGIN || exit $?
 
 eval "set -- $SUFFIX"
 export DOSEMU_DEFAULT_CONFIGURE=1

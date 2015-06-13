@@ -279,32 +279,6 @@ void Seq_write_value(unsigned char data)
       if (vga.color_bits != 8)
         u &= 0xf;
       vga.seq.map_mask = u;
-      u1 = 0;
-      if(u) while(!(u & 1)) u >>= 1, u1++;
-      seq_deb("Seq_write_value: map mask = 0x%x, write plane = %u\n",
-        (unsigned) vga.seq.map_mask, u1
-      );
-      if(vga.color_bits == 8) {	// experimental: just for 8bpp modes
-        if (((vga.seq.map_mask | 0xf8) & (vga.seq.map_mask - 1)) == 0
-        ) {      /* test for power of 2: 1,2,4,8 match */
-          if(vga.inst_emu) {
-            vga.inst_emu = 0;
-            vgaemu_map_bank();
-            seq_deb("Seq_write_value: instemu off\n");
-          }
-        } else {
-          if(vga.inst_emu != 2) {	// EMU_ALL_INST; cf. vgaemu.c
-            vga.inst_emu = 2;
-            seq_deb("Seq_write_value: instemu on\n");
-            vgaemu_map_bank();
-          }
-        }
-      }
-      // ##### FIXME: drop this altogether and always use
-      // the gfx.read_map_select reg? -- sw
-      if(!vga.inst_emu) {
-        vgaemu_switch_plane(u1);
-      }
       break;
 
     case 0x03:		/* Character Map Select */

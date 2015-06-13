@@ -38,9 +38,6 @@
 #include "codegen.h"
 #include "vgaemu.h"
 
-#define TAILSIZE	7
-#define TAILFIX		1
-
 /* If you undefine this, in 16-bit stack mode the high 16 bits of ESP
  * will be zeroed after every push/pop operation. There's a small
  * possibility of breaking some code, you can easily figure out how.

@@ -39,6 +39,11 @@ ifneq "$(wildcard *.d)" ""
 endif
 endif
 
+Makefile.conf: configure
+	./configure
+configure: configure.ac
+	autoreconf -v
+
 # this is mainly for debugging the makefile
 echo::
 	@echo REALTOPDIR=$(REALTOPDIR)

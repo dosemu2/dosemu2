@@ -52,6 +52,7 @@
 #define new_utsname utsname
 
 #include "emu.h"
+#include "cpu-emu.h"
 #include "memory.h"
 #include "machcompat.h"
 #include "mapping.h"
@@ -254,7 +255,9 @@ ems_helper(void) {
             "Please update your ems.sys from the latest dosemu package.\n"
             "\nPress any key!\n");
       LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
+      _set_IF();
       com_biosgetch();
+      clear_IF();
       return;
     }
     break;
@@ -394,8 +397,9 @@ emm_deallocate_handle(int handle)
 
 static void _do_map_page(unsigned int dst, caddr_t src, int size)
 {
+  /* destroy simx86 memory protections first */
+  e_invalidate_full(dst, size);
   E_printf("EMS: mmap()ing from %p to %#x\n", src, dst);
-
   if (MAP_FAILED == alias_mapping(MAPPING_EMS, dst, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  src)) {
@@ -406,6 +410,8 @@ static void _do_map_page(unsigned int dst, caddr_t src, int size)
 
 static void _do_unmap_page(unsigned int base, int size)
 {
+  /* destroy simx86 memory protections first */
+  e_invalidate_full(base, size);
   E_printf("EMS: unmmap()ing from %#x\n", base);
   /* don't unmap, just overmap with the LOWMEM page */
   alias_mapping(MAPPING_LOWMEM, base, size,

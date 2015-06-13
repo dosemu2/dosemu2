@@ -502,6 +502,7 @@ int vga_emu_set_textsize(int, int);
 void dirty_all_video_pages(void);
 void vgaemu_dirty_page(int page);
 int vgaemu_is_dirty(void);
+int vga_mark_dirty(dosaddr_t addr);
 void dirty_all_vga_colors(void);
 int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg);
 void vgaemu_adj_cfg(unsigned, unsigned);
@@ -517,6 +518,7 @@ unsigned char vga_read(unsigned addr);
 void vga_write(unsigned addr, unsigned char val);
 unsigned short vga_read_word(unsigned addr);
 void vga_write_word(unsigned addr, unsigned short val);
+void vga_write_dword(dosaddr_t addr, unsigned val);
 void memcpy_to_vga(unsigned dst, const void *src, size_t len);
 void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len);
 void memcpy_from_vga(void *dst, unsigned src, size_t len);
@@ -524,7 +526,12 @@ void memcpy_dos_from_vga(unsigned dst, unsigned src, size_t len);
 void vga_memcpy(unsigned dst, unsigned src, size_t len);
 void vga_memset(unsigned dst, unsigned char val, size_t len);
 void vga_memsetw(unsigned dst, unsigned short val, size_t len);
+void vga_memsetl(unsigned dst, unsigned val, size_t len);
 /* for cpuemu: */
+int vga_bank_access(dosaddr_t m);
+int vga_read_access(dosaddr_t m);
+int vga_write_access(dosaddr_t m);
+int vga_access(dosaddr_t r, dosaddr_t w);
 int vga_emu_protect_page(unsigned, int);
 int vga_emu_adjust_protection(unsigned, unsigned, int);
 void vga_emu_prot_lock(void);
@@ -640,7 +647,7 @@ unsigned char Herc_get_mode_ctrl(void);
  */
 
 unsigned instr_len(unsigned char *, int);
-void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt);
+int instr_emu(struct sigcontext_struct *scp, int pmode, int cnt);
 int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
     unsigned int *new_val);
 
@@ -649,6 +656,7 @@ int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
  * (0 -> no instruction emulation, the 'normal' case)
  * cf. vga.inst_emu
  */
+/* "only writes" mode seems unused?? */
 #define EMU_WRITE_INST	1
 #define EMU_ALL_INST	2
 

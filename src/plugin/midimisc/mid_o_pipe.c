@@ -32,9 +32,9 @@
 
 
 static int pipe_fd = -1;
-static const char *midopipe_name = "MIDI Output: named pipe";
+#define midopipe_name "MIDI Output: named pipe"
 
-static int midopipe_init(void)
+static int midopipe_init(void *arg)
 {
     char *name = DOSEMU_MIDI_PATH;
     mkfifo(name, 0666);
@@ -53,16 +53,12 @@ static int midopipe_init(void)
     return 1;
 }
 
-static void midopipe_done(void)
+static void midopipe_done(void *arg)
 {
     if (pipe_fd == -1)
 	return;
     close(pipe_fd);
     pipe_fd = -1;
-}
-
-static void midopipe_reset(void)
-{
 }
 
 static void midopipe_write(unsigned char val)
@@ -81,14 +77,15 @@ static void midopipe_write(unsigned char val)
     }
 }
 
-CONSTRUCTOR(static int midopipe_register(void))
+static const struct midi_out_plugin midopipe = {
+    .name = midopipe_name,
+    .open = midopipe_init,
+    .close = midopipe_done,
+    .write = midopipe_write,
+    .flags = PCM_F_PASSTHRU,
+};
+
+CONSTRUCTOR(static void midopipe_register(void))
 {
-    struct midi_out_plugin midopipe = {};
-    midopipe.name = midopipe_name;
-    midopipe.init = midopipe_init;
-    midopipe.done = midopipe_done;
-    midopipe.reset = midopipe_reset;
-    midopipe.write = midopipe_write;
-    midopipe.flags = MIDI_F_PASSTHRU;
-    return midi_register_output_plugin(midopipe);
+    midi_register_output_plugin(&midopipe);
 }

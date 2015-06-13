@@ -69,7 +69,7 @@ dos32a.exe starth.exe
 <itemizedlist>
 <listitem>
 <para>
-Problems with video clips.
+Wrong colors in video clips.
 </para>
 <para>
 Solution: to file nfs.exe apply the following patch:
@@ -79,6 +79,18 @@ Solution: to file nfs.exe apply the following patch:
 <ulink url="http://www.os2museum.com/wp/need-for-speed-se-video-glitch/">
 see here for details
 </ulink>
+</para>
+</listitem>
+<listitem>
+<para>
+Hangs or glitches in video clips.
+</para>
+<para>
+Solution: to file nfs.exe apply the following patch:
+<screen>
+000B8E5A: 78 EB
+000B8E72: 78 EB
+</screen>
 </para>
 </listitem>
 <listitem>
@@ -96,6 +108,26 @@ see here for details
 </para>
 </listitem>
 </itemizedlist>
+</listitem>
+
+<listitem>
+
+<title>Gobliiins</title>
+<itemizedlist>
+<listitem>
+<para>
+Goblins halts at startup with "Divide Error" message
+</para>
+<para>
+Solution: apply the following patch to gobega.exe:
+<screen>
+00004A19: F7 90
+00004A1A: F3 90
+</screen>
+</para>
+</listitem>
+</itemizedlist>
+
 </listitem>
 
 </itemizedlist>

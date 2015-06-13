@@ -28,6 +28,7 @@
 #include "userhook.h"
 #include "pktdrvr.h"
 #include "speaker.h"
+#include "sound/sound.h"
 
 #include "dos2linux.h"
 #include "utilities.h"
@@ -158,8 +159,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 	config.mem_size, config.ext_mem);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
-    (*print)("max_umb 0x%x\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
-        config.max_umb, config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
+    (*print)("umb_a0 %i\numb_b0 %i\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
+        config.umb_a0, config.umb_b0, config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
@@ -282,14 +283,9 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     }
 
     (*print)("\nSOUND:\nengine %d\nsb_base 0x%x\nsb_dma %d\nsb_hdma %d\nsb_irq %d\n"
-	"mpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\nsound_driver \"%s\"\n",
+	"mpu401_base 0x%x\nmpu401_irq %i\nsound_driver \"%s\"\n",
         config.sound, config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq,
-	config.mpu401_base, config.sb_dsp, config.sb_mixer, config.sound_driver);
-    (*print)("\nSOUND_OSS:\noss_min_frags 0x%x\noss_max_frags 0x%x\n"
-	     "oss_stalled_frags 0x%x\noss_do_post %d\noss_min_extra_frags 0x%x\n"
-	     "oss_dac_freq %i\n",
-        config.oss_min_frags, config.oss_max_frags, config.oss_stalled_frags,
-	config.oss_do_post, config.oss_min_extra_frags, config.oss_dac_freq);
+	config.mpu401_base, config.mpu401_irq, config.sound_driver);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
@@ -618,6 +614,8 @@ static void config_post_process(const char *usedoptions)
               "restricting to 640K\n", config.mem_size);
         config.mem_size = 640;
     }
+    if (config.umb_a0 == -1)
+	config.umb_a0 = !(config.console_video || config.X);
     if (!config.dpmi)
 	config.pm_dos_api = 0;
 
@@ -660,28 +658,6 @@ static void config_post_process(const char *usedoptions)
         free(keymap_load_base_path);
     keymap_load_base_path = NULL;
     dexe_load_path = NULL;
-
-    if (config.sound == -1 || config.sound == 2) {
-	if (!config.sdl_sound && !config.libao_sound) {
-	    void *p = NULL;
-#ifdef USE_LIBAO
-	    p = load_plugin("libao");
-#endif
-	    if (p) {
-		config.libao_sound = 1;
-	    } else {
-#ifdef SDL_SUPPORT
-		p = load_plugin("sdl");
-#endif
-		if (p)
-		    config.sdl_sound = 1;
-	    }
-	}
-	if (config.sdl_sound || config.libao_sound)
-	    config.sound = 2;
-    }
-    if (config.sound == -1)
-	config.sound = 1;
 }
 
 static config_scrub_t config_scrub_func[100];

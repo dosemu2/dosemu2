@@ -32,7 +32,7 @@
 
 
 static int pipe_fd = -1;
-static const char *midipipe_name = "MIDI Input: named pipe";
+#define midipipe_name "MIDI Input: named pipe"
 
 static void midipipe_io(void *arg)
 {
@@ -58,7 +58,7 @@ static void midipipe_io(void *arg)
     }
 }
 
-static int midipipe_init(void)
+static int midipipe_init(void *arg)
 {
     char *name = DOSEMU_MIDI_IN_PATH;
     pipe_fd = RPT_SYSCALL(open(name, O_RDONLY | O_NONBLOCK));
@@ -71,7 +71,7 @@ static int midipipe_init(void)
     return 1;
 }
 
-static void midipipe_done(void)
+static void midipipe_done(void *arg)
 {
     if (pipe_fd == -1)
 	return;
@@ -80,16 +80,13 @@ static void midipipe_done(void)
     pipe_fd = -1;
 }
 
-static void midipipe_reset(void)
-{
-}
+static const struct midi_in_plugin midipipe = {
+    .name = midipipe_name,
+    .open = midipipe_init,
+    .close = midipipe_done,
+};
 
-CONSTRUCTOR(static int midipipe_register(void))
+CONSTRUCTOR(static void midipipe_register(void))
 {
-    struct midi_in_plugin midipipe = {};
-    midipipe.name = midipipe_name;
-    midipipe.init = midipipe_init;
-    midipipe.done = midipipe_done;
-    midipipe.reset = midipipe_reset;
-    return midi_register_input_plugin(midipipe);
+    midi_register_input_plugin(&midipipe);
 }

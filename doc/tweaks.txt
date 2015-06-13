@@ -19,15 +19,27 @@ Known tweaks needed to run programs under dosemu
     dos32a.exe starth.exe
 
      * Need For Speed Special Edition
-          + Problems with video clips.
+          + Wrong colors in video clips.
             Solution: to file nfs.exe apply the following patch:
 
     000607E6: 00 08
 
             see here for details
+          + Hangs or glitches in video clips.
+            Solution: to file nfs.exe apply the following patch:
+
+    000B8E5A: 78 EB
+    000B8E72: 78 EB
+
           + Installer crashes or unstable.
             Solution: to file infsd.exe apply the following patch:
 
     0002873E: 7C EB
 
             see here for details
+     * Gobliiins
+          + Goblins halts at startup with "Divide Error" message
+            Solution: apply the following patch to gobega.exe:
+
+    00004A19: F7 90
+    00004A1A: F3 90

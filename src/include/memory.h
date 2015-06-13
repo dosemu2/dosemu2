@@ -168,13 +168,16 @@
 
 #define VGA_PHYS_TEXT_BASE  0xB8000
 #define VGA_VIRT_TEXT_BASE  0xB8000
+#define VGA_TEXT_SIZE       0x8000
 
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */
 #define TEXT_SIZE(co,li) (((co*li*2)|0xff)+1)
 
+#define VMEM_BASE 0xA0000
+#define VMEM_SIZE 0x20000
 #define GRAPH_BASE 0xA0000
-#define GRAPH_SIZE 0x20000
+#define GRAPH_SIZE 0x10000
 
 #define BIOS_DATA_SEG   (0x400)	/* for absolute adressing */
 
@@ -203,7 +206,7 @@ extern struct system_memory_map *system_memory_map;
 extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(unsigned int addr);
 void *physaddr_to_unixaddr(unsigned int addr);
-void *lowmemp(const unsigned char *ptr);
+//void *lowmemp(const unsigned char *ptr);
 
 /* This is the global mem_base pointer: *all* memory is with respect
    to this base. It is normally set to 0 but with mmap_min_addr
@@ -212,15 +215,12 @@ void *lowmemp(const unsigned char *ptr);
 */
 extern unsigned char *mem_base;
 
-#define LINP(a) ((unsigned char *)0 + a)
+#define LINP(a) ((unsigned char *)0 + (a))
 typedef uint32_t dosaddr_t;
-static inline void *MEM_BASE32(dosaddr_t a)
+static inline unsigned char *MEM_BASE32(dosaddr_t a)
 {
-    union {
-	uint32_t off;
-	unsigned char *ptr;
-    } u = { .ptr = mem_base + a };
-    return LINP(u.off);
+    uint32_t off = (uint32_t)(ptrdiff_t)(mem_base + a);
+    return LINP(off);
 }
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
 {
@@ -291,18 +291,18 @@ static inline void *LINEAR2UNIX(unsigned int addr)
    Usually its easiest to deal with integers but some functions accept both
    pointers into DOSEMU data and pointers into DOS space.
  */
-#define READ_BYTEP(addr)	UNIX_READ_BYTE(lowmemp(addr))
-#define WRITE_BYTEP(addr, val)	UNIX_WRITE_BYTE(lowmemp(addr), val)
-#define READ_WORDP(addr)	UNIX_READ_WORD(lowmemp(addr))
-#define WRITE_WORDP(addr, val)	UNIX_WRITE_WORD(lowmemp(addr), val)
-#define READ_DWORDP(addr)	UNIX_READ_DWORD(lowmemp(addr))
-#define WRITE_DWORDP(addr, val)	UNIX_WRITE_DWORD(lowmemp(addr), val)
+#define READ_BYTEP(addr)	READ_BYTE(DOSADDR_REL(addr))
+#define WRITE_BYTEP(addr, val)	WRITE_BYTE(DOSADDR_REL(addr), val)
+#define READ_WORDP(addr)	READ_WORD(DOSADDR_REL(addr))
+#define WRITE_WORDP(addr, val)	WRITE_WORD(DOSADDR_REL(addr), val)
+#define READ_DWORDP(addr)	READ_DWORD(DOSADDR_REL(addr))
+#define WRITE_DWORDP(addr, val)	WRITE_DWORD(DOSADDR_REL(addr), val)
 
 #define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
-	memcpy((unix_addr), lowmemp(dos_addr), (n))
+	MEMCPY_2UNIX((unix_addr), DOSADDR_REL(dos_addr), (n))
 
 #define MEMCPY_2DOSP(dos_addr, unix_addr, n) \
-	memcpy(lowmemp(dos_addr), (unix_addr), (n))
+	MEMCPY_2DOS(DOSADDR_REL(dos_addr), (unix_addr), (n))
 
 #endif
 

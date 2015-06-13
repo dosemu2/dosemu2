@@ -23,14 +23,6 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
-/* This is the correct way to run an SB timer tick */
-extern void run_new_sb(void);
-extern void run_new_sound(void);
-
-extern void sound_new_init(void);
-extern void sound_new_reset(void);
-extern void sound_new_done(void);
-
 struct player_params {
   int rate;
   int format;
@@ -38,19 +30,52 @@ struct player_params {
   int handle;
 };
 
-struct pcm_player {
+#define PCM_F_PASSTHRU 1
+#define PCM_F_EXPLICIT 2
+
+typedef struct {
   const char *name;
+  const char *longname;
+  int (*get_cfg)(void *);
   int (*open)(void *);
   void (*close)(void *);
   void (*start)(void *);
   void (*stop)(void *);
-  void (*timer)(double, void *);
+
+  int flags;
+  int weight;
+} pcm_base;
+
+#define PCM_CF_ENABLED 1
+#define PCM_CF_DISABLED 2
+
+struct pcm_holder {
+  const pcm_base *plugin;
   void *arg;
+  int opened:1;
+  int failed:1;
+  int cfg_flags;
+  void *priv;
+};
+
+struct pcm_player {
+  pcm_base;
+  void (*timer)(double, void *);
   int id;
 };
 
-extern int pcm_register_player(struct pcm_player player);
+struct pcm_recorder {
+  pcm_base;
+  int (*setup)(void *, void *);
+  int (*owns)(int);
+};
+
+extern int pcm_register_player(const struct pcm_player *player, void *arg);
+extern int pcm_register_recorder(const struct pcm_recorder *player, void *arg);
 extern void pcm_reset_player(int handle);
+extern int pcm_init_plugins(struct pcm_holder *plu, int num);
+extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
+extern int pcm_get_cfg(const char *name);
 
 /** PCM sample format */
 enum _PCM_format {
@@ -73,12 +98,16 @@ enum _PCM_format {
 	PCM_FORMAT_IMA_ADPCM,
 };
 
-enum { PCM_ID_P, PCM_ID_R, PCM_ID_MAX };
+#define PCM_ID_P (1 << 0)
+#define PCM_ID_R (1 << 1)
+#define PCM_ID_MAX     2
+#define PCM_ID_ANY 0xff
 
 typedef int16_t sndbuf_t;
 #define SNDBUF_CHANS 2
 
 extern int pcm_init(void);
+extern int pcm_post_init(void *caller);
 extern void pcm_done(void);
 extern void pcm_reset(void);
 extern int pcm_allocate_stream(int channels, char *name, int id);
@@ -98,6 +127,10 @@ extern void pcm_prepare_stream(int strm_idx);
 extern double pcm_time_lock(int strm_idx);
 extern void pcm_time_unlock(int strm_idx);
 extern double pcm_get_stream_time(int strm_idx);
+extern int pcm_start_input(int strm_idx);
+extern void pcm_stop_input(int strm_idx);
+extern void pcm_set_volume(int strm_idx,
+	double (*get_vol)(int, int, int, void *), void *arg);
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
@@ -106,5 +139,11 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 #define PCM_FLAG_RAW 1
 #define PCM_FLAG_POST 2
 #define PCM_FLAG_SLTS 4
+
+enum MixChan { MC_MASTER, MC_VOICE, MC_MIDI, MC_CD, MC_LINE, MC_MIC, MC_PCSP };
+enum MixSubChan { MSC_L, MSC_R, MSC_LR, MSC_RL, MSC_MONO_L, MSC_MONO_R };
+enum MixRet { MR_UNSUP, MR_DISABLED, MR_OK };
+
+int dspio_register_stream(void *caller, int strm_idx, enum MixChan mc);
 
 #endif

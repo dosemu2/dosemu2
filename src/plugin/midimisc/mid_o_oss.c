@@ -35,7 +35,7 @@ static void seqbuf_dump(void);
 SEQ_DEFINEBUF(128);
 
 static int seq_fd = -1;
-static const char *midooss_name = "MIDI Output: OSS sequencer";
+#define midooss_name "MIDI Output: OSS sequencer"
 
 static void seqbuf_dump(void)
 {
@@ -46,7 +46,7 @@ static void seqbuf_dump(void)
     }
 }
 
-static int midooss_init(void)
+static int midooss_init(void *arg)
 {
     char *name = "/dev/sequencer";
     seq_fd = RPT_SYSCALL(open(name, O_WRONLY));
@@ -58,16 +58,12 @@ static int midooss_init(void)
     return 1;
 }
 
-static void midooss_done(void)
+static void midooss_done(void *arg)
 {
     if (seq_fd == -1)
 	return;
     close(seq_fd);
     seq_fd = -1;
-}
-
-static void midooss_reset(void)
-{
 }
 
 static void midooss_write(unsigned char val)
@@ -76,13 +72,14 @@ static void midooss_write(unsigned char val)
     SEQ_DUMPBUF();
 }
 
-CONSTRUCTOR(static int midooss_register(void))
+static const struct midi_out_plugin midooss = {
+    .name = midooss_name,
+    .open = midooss_init,
+    .close = midooss_done,
+    .write = midooss_write,
+};
+
+CONSTRUCTOR(static void midooss_register(void))
 {
-    struct midi_out_plugin midooss = {};
-    midooss.name = midooss_name;
-    midooss.init = midooss_init;
-    midooss.done = midooss_done;
-    midooss.reset = midooss_reset;
-    midooss.write = midooss_write;
-    return midi_register_output_plugin(midooss);
+    midi_register_output_plugin(&midooss);
 }

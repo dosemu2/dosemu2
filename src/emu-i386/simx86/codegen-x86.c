@@ -2821,6 +2821,11 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    L->t_undo = *lp;
 		    // b8 [npc] -> e9/eb reladr
 		    ra = G->addr - (unsigned char *)L->t_link.abs;
+#if 1
+		    /* HACK - disallow backward jumps to avoid infinite loops */
+		    if (ra < 0)
+			return;
+#endif
 		    if ((ra > -127) && (ra < 128)) {
 			ra -= 1; ((char *)lp)[-1] = 0xeb;
 		    }
@@ -2871,6 +2876,11 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			L->nt_undo = *lp;
 			// b8 [npc] -> e9/eb reladr
 			ra = G->addr - (unsigned char *)L->nt_link.abs;
+#if 1
+			/* HACK - disallow backward jumps to avoid infinite loops */
+			if (ra < 0)
+			    return;
+#endif
 			if ((ra > -127) && (ra < 128)) {
 			    ra -= 1; ((char *)lp)[-1] = 0xeb;
 			}

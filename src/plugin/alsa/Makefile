@@ -9,7 +9,7 @@ include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS) $(ALSACFLAGS)
-CFILES=mid_o_alsa.c
+CFILES=mid_o_alsa.c snd_i_alsa.c
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_alsa.so
 endif
@@ -20,3 +20,7 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_alsa.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(ALSALIB)
 endif
+
+realclean::
+	rm -f Makefile.conf config.log config.status configure
+	rm -rf autom4te*.cache
