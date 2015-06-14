@@ -11,7 +11,8 @@ else
   if test -d .git; then
     DATE=`echo "$DATE" | sed -e 's/-//g'`
     s=`git describe --tags --match "dosemu2-[0-9]*" HEAD 2>/dev/null | sed -e 's/^dosemu2-//' -e "s/-.\+-/-$DATE-/"`
-  else
+  fi
+  if test -z "$s"; then
     s=`cat VERSION`
   fi
   echo $s
