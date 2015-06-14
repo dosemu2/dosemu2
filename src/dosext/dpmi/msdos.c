@@ -92,7 +92,7 @@ void msdos_init(int is_32, unsigned short mseg)
 
 void msdos_done(void)
 {
-  if (CURRENT_ENV_SEL)
+    if (CURRENT_ENV_SEL)
       WRITE_ENV_SEL(GetSegmentBase(CURRENT_ENV_SEL) >> 4);
     msdos_client_num--;
     D_printf("MSDOS: done, %i\n", msdos_client_num);
