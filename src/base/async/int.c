@@ -103,6 +103,12 @@ static void set_iret(void)
   REG(eflags) = ((REG(eflags) & mask) | (flgs & ~mask));
 }
 
+static void jmp_to(int cs, int ip)
+{
+  REG(cs) = cs;
+  REG(eip) = ip;
+}
+
 static void change_window_title(char *title)
 {
    if (Video->change_config)
@@ -1179,7 +1185,7 @@ static void int21_post_boot(void)
 static int int21lfnhook(void)
 {
   if (!(HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57) || !mfs_lfn())
-    fake_int_to(int21seg, int21off);
+    jmp_to(int21seg, int21off);
   return 1;
 }
 
@@ -1378,8 +1384,7 @@ static int int21(void)
 void int42_hook(void)
 {
   /* see comments in bios.S:INT42HOOK_OFF */
-  set_iret();
-  fake_int_to(BIOSSEG, INT_OFF(0x42));
+  jmp_to(BIOSSEG, INT_OFF(0x42));
 }
 
 /* ========================================================================= */
