@@ -805,7 +805,7 @@ int vga_mark_dirty(dosaddr_t addr)
 
 void vga_write(dosaddr_t addr, unsigned char val)
 {
-  if (!vga.inst_emu) {
+  if (!vga.inst_emu || !vga_bank_access(addr)) {
     WRITE_BYTE(addr, val);
     if (vga_bank_access(addr))
       vga_mark_dirty(addr);
