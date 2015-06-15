@@ -666,9 +666,12 @@ INT09_dummy_end:
 	.byte	0xf6	/* format filler byte */
 	.byte	0x0f	/* head settle time (ms) */
 	.byte	0x08	/* motor start time (1/8") */
+	.byte	0xff	/* maximum track number */
+	.byte	0xff	/* data transfer rate */
+	.byte	0	/* drive type */
 
 /* COMPAS FEFD2		jmp to INT17 */
-	.org	0xefd5
+	.org	((INT1E_SEG - BIOSSEG) << 4) + INT1E_OFF + 14
 /* COMPAS FEFD5-FF064	reserved */
 	.byte	0xdf
 	.byte	0x02
@@ -681,6 +684,9 @@ INT09_dummy_end:
 	.byte	0xf6
 	.byte	0x0f
 	.byte	0x08
+	.byte	0xff	/* maximum track number */
+	.byte	0xff	/* data transfer rate */
+	.byte	0	/* drive type */
 
 /* ----------------------------------------------------------------- */
 	.org	((INT42HOOK_SEG - BIOSSEG) << 4) + INT42HOOK_OFF
