@@ -304,7 +304,7 @@ bad:
 
     error("Please update from git, compile with debug information and "
 	"report the contents of ~/.dosemu/boot.log at\n"
-"http://sourceforge.net/tracker/?atid=457447&group_id=49784\n"
+"https://github.com/stsp/dosemu2/issues\n"
 #ifndef _DEBUG
 "It would be even more helpful if would recompile DOSEMU and reproduce this\n"
 "bug with \"debug on\" in compiletime-settings.\n"
