@@ -1,7 +1,5 @@
 config {
   experimental on
-  sbemu on
-  net on
   debug on
   dlplugins on
   plugin_libao on
