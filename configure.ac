@@ -398,9 +398,6 @@ AH_TEMPLATE(HAVE_XKB,
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
 
-AH_TEMPLATE([USE_GPM],
-[ DEFINE this, if you want GPM support ])
-
 AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
 
