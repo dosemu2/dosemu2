@@ -211,6 +211,10 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
 	(MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM))) {
     target = mmap(NULL, mapsize, protect,
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+    if (target == MAP_FAILED) {
+      error("mmap MAP_32BIT failed, %s\n", strerror(errno));
+      return target;
+    }
     cap |= MAPPING_FIXED;
   }
 #endif
