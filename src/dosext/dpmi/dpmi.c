@@ -40,9 +40,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "memory.h"
 #include "dos2linux.h"
 #include "timers.h"
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif
 
 #if 0
 #define SHOWREGS

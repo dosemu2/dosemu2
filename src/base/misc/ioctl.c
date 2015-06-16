@@ -30,10 +30,7 @@
 #include "config.h"
 #include "memory.h"
 
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif
-
 #include "emu.h"
 #include "vm86plus.h"
 

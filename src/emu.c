@@ -82,10 +82,7 @@ __asm__("___START___: jmp _emulate\n");
 
 #include "version.h"
 #include "memory.h"
-
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif
 #include "debug.h"
 
 #include "emu.h"

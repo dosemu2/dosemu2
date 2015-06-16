@@ -1,8 +1,5 @@
 #include "config.h"
-
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif /* USE_MHPDBG */
 #include "debug.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */

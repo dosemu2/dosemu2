@@ -43,11 +43,7 @@
 #include "vgaemu.h"
 #include "hlt.h"
 #include "coopth.h"
-
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif
-
 #include "ipx.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"

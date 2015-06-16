@@ -415,12 +415,8 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| DOSEMUMAP string_expr
 		    {
-#ifdef USE_MHPDBG
 		    DOSEMU_MAP_PATH = $2;
 		    c_printf("CONF: dosemu.map path = '%s'\n", $2);
-#else
-		    free($2);
-#endif
 		    }
 		| MAPPINGDRIVER string_expr
 		    {

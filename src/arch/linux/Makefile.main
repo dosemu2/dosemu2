@@ -30,7 +30,8 @@ _LIBSUBDIRS=base/video base base/async \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/mouse\
 	base/dev/dma \
-	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
+	arch/linux/debugger \
+	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
 
 LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
 ST_LIBSUBDIRS=$(_LIBSUBDIRS) $(ST_PLUGINSUBDIRS)
@@ -202,12 +203,7 @@ install:
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
-#ifdef USE_SBEMU
-#	$(INSTALL) -m 0755 ../bin/midid $(DESTDIR)$(bindir)
-#endif
-ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
-endif
 	$(INSTALL) -d $(DESTDIR)$(libdir)/dosemu
 	for i in ../bin/*.so; do \
 	  if [ -f $$i ]; then \

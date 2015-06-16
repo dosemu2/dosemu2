@@ -8,6 +8,7 @@
 
 #include "config.h"
 #define X86_EMULATOR
+#define USE_MHPDBG
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

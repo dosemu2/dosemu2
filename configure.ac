@@ -164,17 +164,6 @@ dnl enable EXPERIMENTAL stuff
    AC_MSG_NOTICE(EXPERIMENTAL stuff disabled...);
   fi
 
-if test "$CONFIG_HOST" = "linux"; then
-dnl Do vm86plus
-dnl Starting wth dosemu-1.0 we nolonger support the old vm86 interface
-dnl but only vm86plus
-   AC_DEFINE_UNQUOTED(USE_MHPDBG)
-   USE_MHPDBG="USE_MHPDBG=1"
-   AC_SUBST(USE_MHPDBG)
-   DEBUGGER="arch/$CONFIG_HOST/debugger"
-fi
-AC_SUBST(DEBUGGER)
-
 dnl try to hook in available plug-ins
 if test -x $srcdir/mkpluginhooks; then
   $srcdir/mkpluginhooks
@@ -397,9 +386,6 @@ AH_TEMPLATE(HAVE_XKB,
 
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
-
-AH_TEMPLATE([USE_MHPDBG],
-[ DEFINE this, if you want the dosdebugger (mhpdbg) ])
 
 AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])
