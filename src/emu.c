@@ -595,11 +595,6 @@ void leavedos_main(int sig)
     g_printf("calling mapping_close()\n");
     mapping_close();
 
-    if (config.detach) {
-	restore_vt(config.detach);
-	disallocate_vt();
-    }
-
 #ifdef IPX
     ipx_close();
 #endif

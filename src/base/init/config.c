@@ -851,9 +851,7 @@ config_init(int argc, char **argv)
 		config.install = "";
 	    break;
 	case 'd':
-	    if (config.detach)
-		break;
-	    config.detach = (unsigned short) detach();
+	    config.detach = 1;
 	    break;
 	case 'D':
 	    parse_debugflags(optarg, 1);
