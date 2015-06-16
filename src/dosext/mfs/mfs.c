@@ -1029,16 +1029,21 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
   size_t len;
 
   len = 8;
-  while (mname[len - 1] == ' ')
+  while (len && mname[len - 1] == ' ')
     len--;
+  if (!len)
+    return;
   memcpy(filename, mname, len);
-  filename[len++] = '.';
+  if (filename[len - 1] != '.')
+    filename[len++] = '.';
   memcpy(filename + len, mext, 3);
   len += 3;
   while (filename[len - 1] == ' ')
     len--;
-  while (filename[len - 1] == '.')
+  while (len && filename[len - 1] == '.')
     len--;
+  if (!len)
+    return;
   filename[len] = '\0';
   path_to_ufs(name, 0, filename, 0, 1);
 }
