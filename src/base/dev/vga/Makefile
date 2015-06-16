@@ -1,4 +1,4 @@
-top_builddir=../../..
+top_builddir=../../../..
 include $(top_builddir)/Makefile.conf
 
 #
@@ -11,9 +11,9 @@ endif
 
 ASOBJS  = vesabios_pm.o vesabios.o
 
-CFILES = miscemu.c text.c render.c video.c $(ASOBJS) \
+CFILES = miscemu.c $(ASOBJS) \
          vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c \
-         hercemu.c instremu.c remap.c vgafonts.c detach.c
+         hercemu.c vgafonts.c
 
 all: lib
 
