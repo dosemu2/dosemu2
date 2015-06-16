@@ -250,18 +250,6 @@ AC_SUBST(INCDIR)
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
  -Wnested-externs -fms-extensions"
 
-dnl CPU emulator
- AC_ARG_ENABLE(cpuemu,
-               [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
-  if test "$enable_cpuemu" != "no"; then
-   AC_MSG_NOTICE(Compiling with optional 386 emulation code...);
-   AC_DEFINE_UNQUOTED(X86_EMULATOR)
-   X86_EMULATOR="X86_EMULATOR=1"
-   AC_SUBST(X86_EMULATOR)
-  else
-   AC_MSG_NOTICE(Compiling for native x86...);
-  fi
-
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
@@ -434,9 +422,6 @@ AH_TEMPLATE([USE_MHPDBG],
 AH_TEMPLATE([USE_SBEMU],
 [ This is DEFINED when SB emulation is required. Just changing this is not
   enough - you must reconfigure. ])
-
-AH_TEMPLATE([X86_EMULATOR],
-[ Define this to use the X86 CPU emulator ])
 
 AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])

@@ -3,7 +3,6 @@ config {
   sbemu on
   net on
   debug on
-  cpuemu on
   dlplugins on
   plugin_libao on
   plugin_gpm on

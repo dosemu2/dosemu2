@@ -7,6 +7,7 @@
 #define EMU_H
 
 #include "config.h"
+#define X86_EMULATOR
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
