@@ -46,6 +46,9 @@ while [ "$1" != "" ]; do
     debug)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-debug"; fi
       ;;
+    asan)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-asan"; fi
+      ;;
     net)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-net"; fi
       ;;

@@ -212,13 +212,15 @@ else
 fi
 
 dnl Do compilation for GDB
- AC_ARG_ENABLE(debug,
+AC_ARG_ENABLE(debug,
                [  --enable-debug          compile with debug info])
   if test "$enable_debug" = "yes"; then
    AC_MSG_NOTICE(Compiling with debug info...);
   else
    AC_MSG_NOTICE(Compiling without debug info...);
   fi
+
+AC_ARG_ENABLE(asan, [AC_HELP_STRING(--enable-asan, [enable address sanitizer])])
 
 dnl Do SB emulation
  AC_ARG_ENABLE(sbemu,
@@ -328,6 +330,10 @@ if test -z "$CFLAGS"; then
   fi
 fi
 if test "$enable_debug" = "yes"; then
+  if test "$enable_asan" = "yes"; then
+    CFLAGS="$CFLAGS -fsanitize=address"
+    LDFLAGS="$LDFLAGS -fsanitize=address"
+  fi
   AC_DEFINE(_DEBUG)
 fi
 
