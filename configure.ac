@@ -222,21 +222,6 @@ AC_ARG_ENABLE(debug,
 
 AC_ARG_ENABLE(asan, [AC_HELP_STRING(--enable-asan, [enable address sanitizer])])
 
-dnl Do SB emulation
- AC_ARG_ENABLE(sbemu,
-               [  --disable-sbemu         do NOT use SoundBlaster emulator])
- if test "$enable_sbemu" = "no"; then
-                AC_MSG_NOTICE(Compiling without SB Emulation...)
- else
-                AC_MSG_NOTICE(Compiling with SB Emulation...)
-                AC_DEFINE(USE_SBEMU)
-                USE_SBEMU="USE_SBEMU=1"
-                AC_SUBST(USE_SBEMU)
- fi
-
-
-dnl DPMI requirements
-
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
@@ -418,10 +403,6 @@ AH_TEMPLATE([USE_GPM],
 
 AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
-
-AH_TEMPLATE([USE_SBEMU],
-[ This is DEFINED when SB emulation is required. Just changing this is not
-  enough - you must reconfigure. ])
 
 AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])

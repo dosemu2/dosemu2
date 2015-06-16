@@ -42,11 +42,7 @@
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
-
-#ifdef USE_SBEMU
 #include "sound.h"
-#endif
-
 #include "cpu-emu.h"
 
 /* Variables for keeping track of signals */
@@ -746,10 +742,7 @@ static void SIGALRM_call(void *arg)
   if (!config.console_keyb)
     keyb_client_run();
 
-#ifdef USE_SBEMU
-  /* This is a macro */
   run_sound();
-#endif
 
   serial_run();
 
