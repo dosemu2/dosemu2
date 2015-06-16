@@ -30,7 +30,7 @@ _LIBSUBDIRS=base/video base base/async \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/mouse\
 	base/dev/dma \
-	arch/linux/debugger \
+	tools/debugger \
 	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
 
 LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
