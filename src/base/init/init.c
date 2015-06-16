@@ -23,10 +23,8 @@
 #include "mouse.h"
 #include "port.h"
 #include "joystick.h"
-#ifdef USING_NET
 #include "pktdrvr.h"
 #include "ipx.h"
-#endif
 #include "bitops.h"
 #include "pic.h"
 #include "cmos.h"

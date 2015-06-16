@@ -262,34 +262,6 @@ dnl CPU emulator
    AC_MSG_NOTICE(Compiling for native x86...);
   fi
 
-
-if ! echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
-  echo ''
-  echo '*** error:'
-  echo '*** Your system has no complete code16 functional gas,'
-  echo '*** you must upgrade to at least binutils-2.9.5'
-  echo '*** in order to compile DOSEMU ... giving up'
-  echo ''
-  exit 1
-fi
-rm -f dummy.o
-
-# OPT=-fno-inline
-if test "$CONFIG_HOST" = "linux"; then
- AC_MSG_NOTICE(Linux Specific build options...)
- dnl Linux net code
-  AC_ARG_ENABLE(net,
-               [  --disable-net           do NOT use Linux net code])
-  if test "$enable_net" = "no"; then
-    AC_MSG_NOTICE(Compiling without network support...);
-  else
-    AC_MSG_NOTICE(Compiling with network support...);
-    AC_DEFINE(USING_NET)
-  fi
- PIPE=-pipe
-fi
-
-
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
@@ -471,9 +443,6 @@ AH_TEMPLATE([_DEBUG],
 
 AH_TEMPLATE([_GNU_SOURCE],
 [ Define this if the GNU_SOURCE macro is necessary ])
-
-AH_TEMPLATE([USING_NET],
-[ Define if compiling with network support ])
 
 AH_BOTTOM([
 #ifndef __ASM__
