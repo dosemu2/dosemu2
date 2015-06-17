@@ -154,7 +154,7 @@ if [ -n "$USE_SUDO" ] ; then
 fi
 
 # for address sanitizer
-export ASAN_OPTIONS=handle_segv=0
+export ASAN_OPTIONS=handle_segv=0:abort_on_error=1
 
 eval "set -- $SUFFIX"
 COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG"
