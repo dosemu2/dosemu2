@@ -787,9 +787,9 @@ char *full_name(fatfs_t *f, unsigned oi, const char *name)
 
   if(!s || !name || oi >= f->objs) return NULL;
 
-#if 0
   j = strlen(name);
   if(j > MAX_FILE_NAME_LEN) return NULL;
+#if 0
   do {
     s[i + j] = tolowerDOS(name[j]);
   } while (--j >= 0);
