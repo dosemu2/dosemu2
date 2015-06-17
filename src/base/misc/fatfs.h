@@ -8,7 +8,7 @@
 #define FATFS_H
 
 #define MAX_DIR_NAME_LEN	256	/* max size of fully qualified path */
-#define MAX_FILE_NAME_LEN	63	/* max size of a file name */
+#define MAX_FILE_NAME_LEN	256	/* max size of a file name */
 
 typedef struct {
   struct {
