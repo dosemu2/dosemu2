@@ -12,8 +12,15 @@ else
     DATE=`echo "$DATE" | sed -e 's/-//g'`
     s=`git describe --tags --match "dosemu2-[0-9]*" HEAD 2>/dev/null | sed -e 's/^dosemu2-//' -e "s/-.\+-/-$DATE-/"`
   fi
+  v1=`cat VERSION`
   if test -z "$s"; then
-    s=`cat VERSION`
+    s=$v1
+  else
+    v=`echo $s | cut -d - -f 1`
+  fi
+  if [ -n "$v" -a "$v" != "$v1" ]; then
+    echo "Update VERSION $v1 -> $v"
+    echo $v > VERSION
   fi
   echo $s
 fi
