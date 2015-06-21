@@ -1475,7 +1475,7 @@ void real_run_int(int i)
 static int run_caller_func(int i, int revect)
 {
 	interrupt_function_t *caller_function;
-	g_printf("Do INT0x%02x: Using caller_function()\n", i);
+//	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
 	caller_function = interrupt_function[i][revect];
 	if (caller_function) {

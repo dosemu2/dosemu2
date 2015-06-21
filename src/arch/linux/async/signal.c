@@ -490,7 +490,8 @@ static void signal_thr(void *arg)
     memcpy(sig_c.arg, sig->arg, sig->arg_size);
   sig_c.name = sig->name;
   SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
-  g_printf("Processing signal %s\n", sig_c.name);
+  if (debug_level('g') > 5)
+    g_printf("Processing signal %s\n", sig_c.name);
   sig_c.signal_handler(sig_c.arg);
 }
 
