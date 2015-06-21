@@ -283,23 +283,24 @@ sgleave:
 bad:
 /* All recovery attempts failed, going to die :( */
 
-#if 0
-  csp = (char *) _eip;
-  /* This was added temporarily as most illegal sigsegv's are attempt
-     to call Linux int routines */
-  if (!(csp[-2] == 0xcd && csp[-1] == 0x80 && csp[0] == 0x85)) {
-#else
   {
-#endif /* 0 */
+#ifdef __x86_64__
+    unsigned char *fsbase, *gsbase;
+#endif
     error("cpu exception in dosemu code outside of %s!\n"
 	  "trapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
-	  "fs: 0x%04x  gs: 0x%04x\n"
-	  "\n",
+	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi ? "DPMI client" : "VM86()"),
 	  _trapno, _err, _cr2,
 	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss, _fs, _gs);
+#ifdef __x86_64__
+    dosemu_arch_prctl(ARCH_GET_FS, &fsbase);
+    dosemu_arch_prctl(ARCH_GET_GS, &gsbase);
+    error("@fsbase: %p gsbase: %p\n", fsbase, gsbase);
+#endif
+    error("@\n");
 
     error("Please update from git, compile with debug information and "
 	"report the contents of ~/.dosemu/boot.log at\n"

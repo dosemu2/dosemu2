@@ -26,6 +26,17 @@
 
 #include "extern.h"
 
+#ifdef __x86_64__
+#define ARCH_SET_GS 0x1001
+#define ARCH_SET_FS 0x1002
+#define ARCH_GET_FS 0x1003
+#define ARCH_GET_GS 0x1004
+static inline int dosemu_arch_prctl(int code, void *addr)
+{
+  return syscall(SYS_arch_prctl, code, addr);
+}
+#endif
+
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #ifdef __i386__
 #define SIG 1

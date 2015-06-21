@@ -81,10 +81,6 @@ static struct {
   unsigned short fs, gs;
 #ifdef __x86_64__
   unsigned char *fsbase, *gsbase;
-#define ARCH_SET_GS 0x1001
-#define ARCH_SET_FS 0x1002
-#define ARCH_GET_FS 0x1003
-#define ARCH_GET_GS 0x1004
 #endif
 } eflags_fs_gs;
 
@@ -166,11 +162,6 @@ static void newsetsig(int sig, void *fun)
 }
 
 #ifdef __x86_64__
-static int dosemu_arch_prctl(int code, void *addr)
-{
-  return syscall(SYS_arch_prctl, code, addr);
-}
-
 /* this function is called from dosemu_fault0 to check if
    fsbase/gsbase need to be fixed up, if the above asm codes
    cause a page fault.
@@ -534,7 +525,7 @@ signal_pre_init(void)
   eflags_fs_gs.fs = getsegment(fs);
   eflags_fs_gs.gs = getsegment(gs);
   eflags_fs_gs.eflags = getflags();
-  g_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
+  dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
     eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
 #ifdef __x86_64__
   /* get long fs and gs bases. If they are in the first 32 bits
@@ -546,7 +537,7 @@ signal_pre_init(void)
   dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
   if ((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff)
     eflags_fs_gs.gsbase = 0;
-  g_printf("initial segment bases: fs: %p  gs: %p\n",
+  dbug_printf("initial segment bases: fs: %p  gs: %p\n",
     eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
 #endif
 
