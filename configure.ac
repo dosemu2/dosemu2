@@ -252,11 +252,6 @@ else
   use_clang="no"
 fi
 
-if test -z "$CFLAGS"; then
-  #disable SSE4.1/2 for now as it is not yet portable across existing CPUs
-  CFLAGS="$CFLAGS -mno-sse4.1 -mno-sse4.2"
-fi
-
 if test "$enable_debug" = "yes" ; then
   CFLAGS="$CFLAGS -ggdb3"
   # simx86 is too slow on gcc without -O
