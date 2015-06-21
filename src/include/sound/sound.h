@@ -39,8 +39,6 @@ typedef struct {
   int (*get_cfg)(void *);
   int (*open)(void *);
   void (*close)(void *);
-  void (*start)(void *);
-  void (*stop)(void *);
 
   int flags;
   int weight;
@@ -48,6 +46,12 @@ typedef struct {
 
 #define PCM_CF_ENABLED 1
 #define PCM_CF_DISABLED 2
+
+typedef struct {
+  pcm_base;
+  void (*start)(void *);
+  void (*stop)(void *);
+} pcm_plugin_base;
 
 struct pcm_holder {
   const pcm_base *plugin;
@@ -59,13 +63,13 @@ struct pcm_holder {
 };
 
 struct pcm_player {
-  pcm_base;
+  pcm_plugin_base;
   void (*timer)(double, void *);
   int id;
 };
 
 struct pcm_recorder {
-  pcm_base;
+  pcm_plugin_base;
   int (*setup)(void *, void *);
   int (*owns)(int);
 };

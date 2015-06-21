@@ -84,11 +84,11 @@ void midi_stop(void)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (out[i].plugin->stop && out[i].opened)
-      out[i].plugin->stop(out[i].arg);
+    if (OUT_PLUGIN(i)->stop && out[i].opened)
+      OUT_PLUGIN(i)->stop(out[i].arg);
   for (i = 0; i < in_registered; i++)
-    if (in[i].plugin->stop && in[i].opened)
-      in[i].plugin->stop(in[i].arg);
+    if (IN_PLUGIN(i)->stop && in[i].opened)
+      IN_PLUGIN(i)->stop(in[i].arg);
 }
 
 void midi_timer(void)

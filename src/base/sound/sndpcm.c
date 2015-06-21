@@ -460,7 +460,7 @@ static void pcm_start_output(int id)
 	if (p->opened) {
 	    pcm_reset_player(i);
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    p->plugin->start(p->arg);
+	    PLAYER(p)->start(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -478,7 +478,7 @@ static void pcm_stop_output(int id)
 	    continue;
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    p->plugin->stop(p->arg);
+	    PLAYER(p)->stop(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -1203,7 +1203,7 @@ int pcm_start_input(int strm_idx)
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
 	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx))) {
-	    p->plugin->start(p->arg);
+	    RECORDER(p)->start(p->arg);
 	    ret++;
 	}
     }
@@ -1217,7 +1217,7 @@ void pcm_stop_input(int strm_idx)
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
 	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx)))
-	    p->plugin->stop(p->arg);
+	    RECORDER(p)->stop(p->arg);
     }
     S_printf("PCM: input stopped\n");
 }
