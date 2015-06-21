@@ -253,19 +253,20 @@ else
 fi
 
 if test -z "$CFLAGS"; then
-  if test "$enable_debug" = "yes" ; then
-    CFLAGS="$CFLAGS -g"
-    # simx86 is too slow on gcc without -O
-    if test "$use_clang" = "no" ; then
-      CFLAGS="$CFLAGS -O"
-    fi
-  elif test "$use_clang" = "no" ; then
-    CFLAGS="$CFLAGS -O2"
-  fi
-
-  #disable SSE4 for now as it is not yet portable across existing CPUs
-  CFLAGS="$CFLAGS -mno-sse4"
+  #disable SSE4.1/2 for now as it is not yet portable across existing CPUs
+  CFLAGS="$CFLAGS -mno-sse4.1 -mno-sse4.2"
 fi
+
+if test "$enable_debug" = "yes" ; then
+  CFLAGS="$CFLAGS -ggdb3"
+  # simx86 is too slow on gcc without -O
+  if test "$use_clang" = "no" ; then
+    CFLAGS="$CFLAGS -O"
+  fi
+elif test "$use_clang" = "no" ; then
+  CFLAGS="$CFLAGS -O2"
+fi
+
 if test "$enable_debug" = "yes"; then
   if test "$enable_asan" = "yes"; then
     CFLAGS="$CFLAGS -fsanitize=address"
