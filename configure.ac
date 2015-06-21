@@ -263,8 +263,8 @@ if test -z "$CFLAGS"; then
     CFLAGS="$CFLAGS -O2"
   fi
 
-  #disable SSE4.1/2 for now as they are not yet portable across existing CPUs
-  CFLAGS="$CFLAGS -mno-sse4.1 -mno-sse4.2"
+  #disable SSE4 for now as it is not yet portable across existing CPUs
+  CFLAGS="$CFLAGS -mno-sse4"
 fi
 if test "$enable_debug" = "yes"; then
   if test "$enable_asan" = "yes"; then
@@ -277,7 +277,7 @@ fi
 AC_DEFINE(_GNU_SOURCE)
 
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
-DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD"
+DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$CFLAGS $DOSEMU_CFLAGS\""
 AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(DOSEMU_CFLAGS)
