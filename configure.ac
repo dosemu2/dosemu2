@@ -262,6 +262,9 @@ if test -z "$CFLAGS"; then
   elif test "$use_clang" = "no" ; then
     CFLAGS="$CFLAGS -O2"
   fi
+
+  #disable SSE4.1/2 for now as they are not yet portable across existing CPUs
+  CFLAGS="$CFLAGS -mno-sse4.1 -mno-sse4.2"
 fi
 if test "$enable_debug" = "yes"; then
   if test "$enable_asan" = "yes"; then
