@@ -533,6 +533,8 @@ signal_pre_init(void)
   eflags_fs_gs.fs = getsegment(fs);
   eflags_fs_gs.gs = getsegment(gs);
   eflags_fs_gs.eflags = getflags();
+  g_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
+    eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
 #ifdef __x86_64__
   /* get long fs and gs bases. If they are in the first 32 bits
      normal 386-style fs/gs switching can happen so we can ignore
@@ -543,6 +545,8 @@ signal_pre_init(void)
   dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
   if ((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff)
     eflags_fs_gs.gsbase = 0;
+  g_printf("initial segment bases: fs: %p  gs: %p\n",
+    eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
 #endif
 
   /* init signal handlers - these are the defined signals:
