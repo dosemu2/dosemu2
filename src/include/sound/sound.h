@@ -23,6 +23,9 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
+typedef int16_t sndbuf_t;
+#define SNDBUF_CHANS 2
+
 struct player_params {
   int rate;
   int format;
@@ -74,8 +77,15 @@ struct pcm_recorder {
   int (*owns)(int);
 };
 
+struct pcm_efp {
+  pcm_base;
+  int (*process)(sndbuf_t buf[][SNDBUF_CHANS], int nframes, int channels,
+	int format);
+};
+
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
 extern int pcm_register_recorder(const struct pcm_recorder *player, void *arg);
+extern int pcm_register_efp(const struct pcm_efp *efp, void *arg);
 extern void pcm_reset_player(int handle);
 extern int pcm_init_plugins(struct pcm_holder *plu, int num);
 extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
@@ -106,9 +116,6 @@ enum _PCM_format {
 #define PCM_ID_R (1 << 1)
 #define PCM_ID_MAX     2
 #define PCM_ID_ANY 0xff
-
-typedef int16_t sndbuf_t;
-#define SNDBUF_CHANS 2
 
 extern int pcm_init(void);
 extern int pcm_post_init(void *caller);

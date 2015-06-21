@@ -114,6 +114,8 @@ struct stream {
 #define MAX_STREAMS 10
 #define MAX_PLAYERS 10
 #define MAX_RECORDERS 10
+#define MAX_EFPS 5
+
 struct pcm_player_wr {
     double time;
     int last_cnt[MAX_STREAMS];
@@ -125,6 +127,7 @@ struct pcm_player_wr {
 #define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
 #define PL_LNAME(p) (p->longname ?: p->name)
 #define RECORDER(p) ((struct pcm_recorder *)p->plugin)
+#define EFPR(p) ((struct pcm_efp *)p->plugin)
 
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
@@ -136,6 +139,8 @@ struct pcm_struct {
     int playing;
     struct pcm_holder recorders[MAX_RECORDERS];
     int num_recorders;
+    struct pcm_holder efps[MAX_EFPS];
+    int num_efps;
     double time;
 } pcm;
 
@@ -187,6 +192,9 @@ int pcm_post_init(void *caller)
       S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
       S_printf("ERROR: no PCM input plugins initialized\n");
+    if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
+      S_printf("no PCM effect processors initialized\n");
+
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *r = &pcm.recorders[i];
 	if (r->opened && RECORDER(r)->setup)
@@ -845,6 +853,18 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
     }
 }
 
+static void pcm_apply_effects(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
+	int channels, int format)
+{
+    int i;
+    for (i = 0; i < pcm.num_efps; i++) {
+	struct pcm_holder *p = &pcm.efps[i];
+	if (!p->opened)
+	    continue;
+	EFPR(p)->process(buf, nframes, channels, format);
+    }
+}
+
 static void calc_idxs(struct pcm_player_wr *pl, int idxs[MAX_STREAMS])
 {
     int i;
@@ -967,8 +987,11 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     save_idxs(PL_PRIV(p), idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
+    pcm_apply_effects(buf, nframes, params->channels, params->format);
+
     if (out_idx != nframes)
 	error("PCM: requested=%i prepared=%i\n", nframes, out_idx);
+
     return out_idx;
 }
 
@@ -1039,6 +1062,20 @@ int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
     p->plugin = recorder;
     p->arg = arg;
     return pcm.num_recorders++;
+}
+
+int pcm_register_efp(const struct pcm_efp *efp, void *arg)
+{
+    struct pcm_holder *p;
+    S_printf("PCM: registering efp: %s\n", PL_LNAME(efp));
+    if (pcm.num_efps >= MAX_EFPS) {
+	error("PCM: attempt to register more than %i efps\n", MAX_EFPS);
+	return 0;
+    }
+    p = &pcm.efps[pcm.num_efps];
+    p->plugin = efp;
+    p->arg = arg;
+    return pcm.num_efps++;
 }
 
 void pcm_reset_player(int handle)
