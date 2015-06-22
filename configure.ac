@@ -241,9 +241,8 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     ASFLAGS="$ASFLAGS -no-integrated-as"
     AC_MSG_RESULT([yes, using -no-integrated-as for assembly language files.])
   fi
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft"
   # unfortunately clang is too buggy even on -O1
-  CFLAGS="$CFLAGS -O0"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -O0"
   use_clang="yes"
 else
   CCAS="$CC"
@@ -253,18 +252,18 @@ else
 fi
 
 if test "$enable_debug" = "yes" ; then
-  CFLAGS="$CFLAGS -ggdb3"
-  # simx86 is too slow on gcc without -O
-  if test "$use_clang" = "no" ; then
-    CFLAGS="$CFLAGS -O"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
+  if test -z "$CFLAGS" -a "$use_clang" = "no" ; then
+    # simx86 is too slow on gcc without -O
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O"
   fi
-elif test "$use_clang" = "no" ; then
-  CFLAGS="$CFLAGS -O2"
+elif test -z "$CFLAGS" -a "$use_clang" = "no" ; then
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
 
 if test "$enable_debug" = "yes"; then
   if test "$enable_asan" = "yes"; then
-    CFLAGS="$CFLAGS -fsanitize=address"
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
     LDFLAGS="$LDFLAGS -fsanitize=address"
   fi
   AC_DEFINE(_DEBUG)
@@ -273,7 +272,7 @@ fi
 AC_DEFINE(_GNU_SOURCE)
 
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
-DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$CFLAGS $DOSEMU_CFLAGS\""
+DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(DOSEMU_CFLAGS)
