@@ -374,12 +374,9 @@ static void leavedos_sig(int sig)
   }
 }
 
-__attribute__((no_instrument_function))
-static void leavedos_signal(int sig, siginfo_t *si, void *uc)
+__attribute__((noinline))
+static void _leavedos_signal(int sig, struct sigcontext_struct *scp)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
   if (ld_sig) {
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
     _exit(sig);
@@ -388,6 +385,15 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
   dpmi_iret_setup(scp);
+}
+
+__attribute__((no_instrument_function))
+static void leavedos_signal(int sig, siginfo_t *si, void *uc)
+{
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp);
+  _leavedos_signal(sig, scp);
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */

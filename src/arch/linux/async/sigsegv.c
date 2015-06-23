@@ -367,17 +367,12 @@ int _dosemu_fault(int signal, struct sigcontext_struct *scp)
   return ret;
 }
 
-__attribute__((no_instrument_function))
+/* noinline is to prevent gcc from moving TLS access around init_handler() */
+__attribute__((noinline))
 static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 {
   int retcode;
   pid_t tid;
-
-  /* need to call init_handler() before any syscall.
-   * Additionally, because fault_cnt is per-thread, it also can
-   * be accessed only after init_handler() so that the segment
-   * register for TLS is restored. */
-  init_handler(scp);
 
   fault_cnt++;
   if (fault_cnt > 2) {
@@ -451,8 +446,13 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
-  dosemu_fault0(signal, (struct sigcontext_struct *)
-		&((ucontext_t *)uc)->uc_mcontext);
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  /* need to call init_handler() before any syscall.
+   * Additionally, TLS access should be done in a separate no-inline
+   * function, so that gcc not to move the TLS access around init_handler(). */
+  init_handler(scp);
+  dosemu_fault0(signal, scp);
 }
 #endif /* __linux__ */
 
