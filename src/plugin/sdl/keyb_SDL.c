@@ -379,6 +379,8 @@ static int probe_SDL_keyb(void)
 #ifdef X_SUPPORT
 int init_SDL_keyb(void *handle, Display *display)
 {
+	if (!config.X_keycode)
+		return 0;
 	X_get_modifier_info = dlsym(handle, "X_get_modifier_info");
 	Xkb_lookup_key = dlsym(handle, "Xkb_lookup_key");
 	X_keycode_initialize = dlsym(handle, "X_keycode_initialize");

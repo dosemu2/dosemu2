@@ -709,7 +709,7 @@ static void SDL_handle_events(void)
        clear_if_in_selection();
 #endif
 #ifdef X_SUPPORT
-       if (x11.display)
+       if (x11.display && config.X_keycode)
          SDL_process_key_xkb(x11.display, event.key);
        else
 #endif
@@ -720,7 +720,7 @@ static void SDL_handle_events(void)
        clear_if_in_selection();
 #endif
 #ifdef X_SUPPORT
-       if (x11.display)
+       if (x11.display && config.X_keycode)
          SDL_process_key_xkb(x11.display, event.key);
        else
 #endif
