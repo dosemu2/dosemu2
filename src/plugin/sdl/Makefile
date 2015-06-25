@@ -10,14 +10,8 @@ include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
 ALL_CPPFLAGS+=$(SDL_CFLAGS)
-CFILES=
 CFILES=sdl.c keyb_SDL.c snd_o_SDL.c
-
-SFILES=
-ALL=$(CFILES) $(SFILES)
-
 OBJS=$(CFILES:.c=.o)
-OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
 ifdef USE_DL_PLUGINS
@@ -30,9 +24,6 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 endif
-
-include/sdl_config.h: include/_sdl_config.h.in
-	configure
 
 install: all
 
