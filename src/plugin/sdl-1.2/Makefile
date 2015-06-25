@@ -10,10 +10,7 @@ include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS)
 ALL_CPPFLAGS+=$(SDL_CFLAGS)
-CFILES=
-ifdef SDL_SUPPORT
 CFILES=sdl.c keyb_SDL.c mouse_SDL.c snd_o_SDL.c
-endif
 
 SFILES=
 ALL=$(CFILES) $(SFILES)
@@ -23,9 +20,7 @@ OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
 ifdef USE_DL_PLUGINS
-ifdef SDL_SUPPORT
-all: $(BINPATH)/bin/libplugin_sdl1.so $(LIB)
-endif
+all: $(BINPATH)/bin/libplugin_sdl1.so
 endif
 
 include $(REALTOPDIR)/src/Makefile.common
@@ -38,5 +33,5 @@ endif
 install: all
 
 realclean::
-	rm -f Makefile.conf config.log config.status include/sdl_config.h
+	rm -f Makefile.conf config.log config.status
 	rm -rf autom4te*.cache
