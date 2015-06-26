@@ -396,6 +396,16 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
   _leavedos_signal(sig, scp);
 }
 
+__attribute__((no_instrument_function))
+static void abort_signal(int sig, siginfo_t *si, void *uc)
+{
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp);
+  gdb_debug();
+  _exit(sig);
+}
+
 /* Silly Interrupt Generator Initialization/Closedown */
 
 #ifdef SIG
@@ -593,6 +603,7 @@ signal_pre_init(void)
   newsetsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
   newsetsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetsig(SIGTERM, leavedos_signal);
+  newsetsig(SIGABRT, abort_signal);
   newsetsig(SIGQUIT, sigasync);
   registersig(SIGQUIT, sigquit);
   setsig(SIGPIPE, SIG_IGN);
