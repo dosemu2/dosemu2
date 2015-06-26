@@ -232,6 +232,7 @@ int SDL_init(void)
   if (init_failed)
     return -1;
 
+  SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "1");
   if (config.X_lin_filt || config.X_bilin_filt) {
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
