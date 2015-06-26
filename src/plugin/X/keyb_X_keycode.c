@@ -627,7 +627,7 @@ void X_keycode_process_keys(XKeymapEvent *e)
 }
 #endif
 
-void X_keycode_process_key(XKeyEvent *e)
+void X_keycode_process_key(Display *display, XKeyEvent *e)
 {
 	t_unicode key;
 #ifndef HAVE_XKB

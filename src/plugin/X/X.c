@@ -1549,14 +1549,14 @@ static int __X_handle_events(XEvent *e)
 #if CONFIG_X_SELECTION
 	  clear_if_in_selection();
 #endif
-	  X_process_key(&e->xkey);
+	  X_process_key(display, &e->xkey);
 	  break;
 
 	case KeyRelease:
 #if CONFIG_X_SELECTION
 	  clear_if_in_selection();
 #endif
-	  X_process_key(&e->xkey);
+	  X_process_key(display, &e->xkey);
 	  break;
 
 #if 0

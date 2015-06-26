@@ -133,6 +133,8 @@ static void (*X_register_speaker) (Display * display);
 #define X_set_resizable pX_set_resizable
 static void (*X_set_resizable) (Display * display, Window window, int on,
 				int x_res, int y_res);
+#define X_process_key pX_process_key
+static void (*X_process_key)(Display *display, XKeyEvent *e);
 #endif
 
 #ifdef CONFIG_SELECTION
@@ -161,6 +163,7 @@ static void preinit_x11_support(void)
   X_close_text_display = dlsym(handle, "X_close_text_display");
   X_handle_text_expose = dlsym(handle, "X_handle_text_expose");
   X_set_resizable = dlsym(handle, "X_set_resizable");
+  X_process_key = dlsym(handle, "X_process_key");
 #ifdef CONFIG_SDL_SELECTION
   X_handle_selection = dlsym(handle, "X_handle_selection");
 #endif
@@ -731,6 +734,7 @@ static void SDL_handle_events(void)
 #endif
 	SDL_process_key(event.key);
       break;
+
     case SDL_MOUSEBUTTONDOWN:
       {
 	int buttons = SDL_GetMouseState(NULL, NULL);
@@ -789,12 +793,27 @@ static void SDL_handle_events(void)
     case SDL_QUIT:
       leavedos(0);
       break;
-#if CONFIG_SDL_SELECTION
+#ifdef X_SUPPORT
     case SDL_SYSWMEVENT:
-      if (x11.display)
-	SDL_handle_selection(&event.syswm.msg->msg.x11.event);
-      break;
+      if (x11.display) {
+	switch (event.syswm.msg->msg.x11.event.type) {
+#if CONFIG_SDL_SELECTION
+	case SelectionClear:
+	case SelectionNotify:
+	case SelectionRequest:
+	  SDL_handle_selection(&event.syswm.msg->msg.x11.event);
+	  break;
 #endif				/* CONFIG_SDL_SELECTION */
+#if 0
+	case KeyPress:
+	case KeyRelease:
+	  X_process_key(x11.display, &event.syswm.msg->msg.x11.event.xkey);
+	  break;
+#endif
+	}
+      }
+      break;
+#endif
     default:
       v_printf("PAS ENCORE TRAITE %x\n", event.type);
       /* TODO */
