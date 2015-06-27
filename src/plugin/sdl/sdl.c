@@ -68,8 +68,8 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res,
 static void SDL_handle_events(void);
 /* interface to xmode.exe */
 static int SDL_change_config(unsigned, void *);
-static void toggle_grab(void);
-static void window_grab(int on);
+static void toggle_grab(int kbd);
+static void window_grab(int on, int kbd);
 static struct bitmap_desc lock_surface(void);
 static void unlock_surface(void);
 
@@ -112,6 +112,7 @@ static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int force_grab = 0;
 static int grab_active = 0;
+static int kbd_grab_active = 0;
 static int m_cursor_visible;
 static int init_failed;
 
@@ -235,7 +236,6 @@ int SDL_init(void)
   if (init_failed)
     return -1;
 
-  SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "1");
   if (config.X_lin_filt || config.X_bilin_filt) {
     v_printf("SDL: enabling scaling filter\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
@@ -266,7 +266,7 @@ int SDL_init(void)
 #endif
 
   if (config.X_fullscreen) {
-    window_grab(1);
+    window_grab(1, 1);
     force_grab = 1;
   }
 
@@ -512,10 +512,15 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   pthread_mutex_unlock(&update_mtx);
 }
 
-static void window_grab(int on)
+static void window_grab(int on, int kbd)
 {
   if (on) {
-    v_printf("SDL: grab activated\n");
+    if (kbd) {
+      SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "1");
+      v_printf("SDL: keyboard grab activated\n");
+    } else {
+      SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "0");
+    }
     SDL_SetWindowGrab(window, SDL_TRUE);
     v_printf("SDL: mouse grab activated\n");
     SDL_ShowCursor(SDL_DISABLE);
@@ -530,13 +535,14 @@ static void window_grab(int on)
     mouse_enable_native_cursor(0);
   }
   grab_active = on;
+  kbd_grab_active = kbd;
   /* update title with grab info */
   SDL_change_config(CHG_TITLE, NULL);
 }
 
-static void toggle_grab(void)
+static void toggle_grab(int kbd)
 {
-  window_grab(grab_active ^ 1);
+  window_grab(grab_active ^ 1, kbd);
 }
 
 static void toggle_fullscreen_mode(void)
@@ -545,7 +551,7 @@ static void toggle_fullscreen_mode(void)
   if (config.X_fullscreen) {
     v_printf("SDL: entering fullscreen mode\n");
     if (!grab_active) {
-      window_grab(1);
+      window_grab(1, 1);
       force_grab = 1;
     }
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -553,7 +559,7 @@ static void toggle_fullscreen_mode(void)
     v_printf("SDL: entering windowed mode!\n");
     SDL_SetWindowFullscreen(window, 0);
     if (force_grab && grab_active) {
-      window_grab(0);
+      window_grab(0, 0);
     }
     force_grab = 0;
   }
@@ -599,7 +605,7 @@ static int SDL_change_config(unsigned item, void *buf)
   case CHG_WINSIZE:
   case CHG_BACKGROUND_PAUSE:
   case GET_TITLE_APPNAME:
-    change_config(item, buf, grab_active, grab_active);
+    change_config(item, buf, grab_active, kbd_grab_active);
     break;
 
 #ifdef X_SUPPORT
@@ -705,7 +711,7 @@ static void SDL_handle_events(void)
 	if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
 	  if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
 	    force_grab = 0;
-	    toggle_grab();
+	    toggle_grab(keysym.sym == SDLK_k);
 	    break;
 	  } else if (keysym.sym == SDLK_f) {
 	    toggle_fullscreen_mode();
