@@ -11,7 +11,7 @@ include Makefile.conf
 ALL_CFLAGS+=$(DL_CFLAGS)
 ALL_CPPFLAGS+=$(GLIB_CFLAGS)
 
-CFILES=load.c
+CFILES = load.c ladspa.c
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
 

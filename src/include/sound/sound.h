@@ -23,6 +23,9 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
+#include <inttypes.h>
+#include <stddef.h>
+
 typedef int16_t sndbuf_t;
 #define SNDBUF_CHANS 2
 
