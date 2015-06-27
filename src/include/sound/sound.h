@@ -83,7 +83,7 @@ struct pcm_recorder {
 struct pcm_efp {
   pcm_base;
   int (*process)(sndbuf_t buf[][SNDBUF_CHANS], int nframes, int channels,
-	int format);
+	int format, int srate);
 };
 
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
