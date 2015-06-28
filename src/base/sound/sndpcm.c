@@ -187,6 +187,9 @@ int pcm_init(void)
 #ifdef USE_ALSA
     dl_handles[num_dl_handles++] = load_plugin("alsa");
 #endif
+#ifdef LADSPA_SUPPORT
+    dl_handles[num_dl_handles++] = load_plugin("ladspa");
+#endif
 #endif
     assert(num_dl_handles <= MAX_DL_HANDLES);
     return 1;
@@ -195,12 +198,13 @@ int pcm_init(void)
 int pcm_post_init(void *caller)
 {
     int i;
+    /* init efps before players because players init code refers to efps */
+    if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
+      S_printf("no PCM effect processors initialized\n");
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
       S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
       S_printf("ERROR: no PCM input plugins initialized\n");
-    if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
-      S_printf("no PCM effect processors initialized\n");
 
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *r = &pcm.recorders[i];

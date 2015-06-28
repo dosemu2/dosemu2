@@ -52,6 +52,8 @@ static sem_t stop_sem;
 static pthread_t write_thr;
 static void *aosnd_write(void *arg);
 
+#define HPF_CTL 10
+
 static int aosnd_cfg(void *arg)
 {
     char *p;
@@ -95,6 +97,10 @@ static int aosnd_open(void *arg)
     ao = ao_open_live(id, &info, &opt);
     if (!ao)
 	return 0;
+
+    pcm_setup_efp(params.handle, EFP_HPF, params.rate, params.channels,
+	    HPF_CTL);
+
     sem_init(&start_sem, 0, 0);
     sem_init(&stop_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);

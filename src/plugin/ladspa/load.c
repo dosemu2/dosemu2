@@ -62,7 +62,8 @@ dlopenLADSPA (const char *pcFilename, int iFlag)
      * I'm appending logical values for LADSPA_PATH here
      */
 
-    pcLADSPAPath = g_strdup_printf ("%s:/usr/lib/ladspa:/usr/local/lib/ladspa",
+    pcLADSPAPath = g_strdup_printf ("%s:/usr/lib/ladspa:"
+        "/usr/lib64/ladspa:/usr/local/lib/ladspa",
         getenv ("LADSPA_PATH"));
 
     if (pcLADSPAPath) {
@@ -135,7 +136,7 @@ loadLADSPAPluginLibrary (const char *pcPluginFilename)
   if (!pvPluginHandle) {
     fprintf (stderr,
         "Failed to load plugin \"%s\": %s\n", pcPluginFilename, dlerror ());
-    exit (1);
+//    exit (1);
   }
 
   return pvPluginHandle;

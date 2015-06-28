@@ -121,7 +121,7 @@ static int ladspa_open(void *arg)
     assert(plu->plugin && plu->name);
     dl_handle = loadLADSPAPluginLibrary(plu->plugin);
     if (!dl_handle) {
-	error("ladspa: failed to load %s: %s\n", plu->plugin, dlerror());
+	error("ladspa: failed to load %s\n", plu->plugin);
 	return 0;
     }
     pfDescriptorFunction = (LADSPA_Descriptor_Function)
@@ -167,7 +167,7 @@ out_err:
 static void ladspa_close(void *arg)
 {
     struct lads *lad = find_lad(arg);
-    dlclose(lad->dl_handle);
+    unloadLADSPAPluginLibrary(lad->dl_handle);
 }
 
 static void ladspa_start(int h)

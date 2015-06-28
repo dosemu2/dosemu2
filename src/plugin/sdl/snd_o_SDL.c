@@ -38,6 +38,8 @@
 static struct player_params params;
 static SDL_AudioDeviceID dev;
 
+#define HPF_CTL 10
+
 static void sdlsnd_callback(void *userdata, Uint8 * stream, int len)
 {
     size_t sz = pcm_data_get(stream, len, &params);
@@ -102,6 +104,10 @@ static int sdlsnd_open(void *arg)
     params.rate = spec1.freq;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = spec1.channels;
+
+    pcm_setup_efp(params.handle, EFP_HPF, params.rate, params.channels,
+	    HPF_CTL);
+
     return 1;
 }
 
