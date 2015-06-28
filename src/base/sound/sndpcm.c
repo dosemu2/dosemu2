@@ -1165,6 +1165,8 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
         cnt++;
         if (!(p->plugin->flags & PCM_F_PASSTHRU))
           sel++;
+      } else {
+        p->failed = 1;
       }
     }
   }
