@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 AC_CONFIG_SRCDIR([X.c])
-AC_CONFIG_HEADER([include/_x_config.h])
+AC_CONFIG_HEADER([_x_config.h])
 AC_CONFIG_AUX_DIR([../../..])
 
 AC_CONFIG_FILES([Makefile.conf])
@@ -52,4 +52,4 @@ AH_BOTTOM([
 #endif /* X_CONFIG_H */
 ])
 
-sed 's/#define PACKAGE_.\+//' include/_x_config.h >include/x_config.h
+sed 's/#define PACKAGE_.\+//' _x_config.h >x_config.h
