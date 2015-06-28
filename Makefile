@@ -10,6 +10,9 @@ top_builddir=.
 SUBDIR:=.
 -include Makefile.conf
 
+configure: configure.ac
+	autoreconf -v
+
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
 	@echo "Running $(srcdir)/default-configure ..."
 	$(srcdir)/default-configure
