@@ -18,6 +18,12 @@
  * Purpose: ladspa support.
  *
  * Author: Stas Sergeev
+ *
+ * Linux Audio Developers Simple Plugin API...
+ * What did they mean? Simple API for plugins, or horrible API
+ * for simple plugins? I guess the later.
+ * Well, maybe for Linux Audio Developers this API is simple, but
+ * for dosemu developer its just a royal pita.
  */
 #include <assert.h>
 #include <dlfcn.h>
@@ -34,11 +40,12 @@
 struct lp {
     const char *plugin;
     const char *name;
+    const enum EfpType type;
 };
-static struct lp plugins[] = { { "filter.so", "hpf" }, { NULL, NULL } };
-
-/* what to do with sample rate??? */
-#define LAD_SRATE 44100
+static struct lp plugins[] = {
+    { "filter.so", "hpf", EFP_HPF },
+    { NULL, NULL, EFP_NONE }
+};
 
 #define MAX_LADSPAS 5
 struct lads {
@@ -57,6 +64,7 @@ struct la_h {
     LADSPA_Handle handle;
     struct lads *lad;
     LADSPA_Data control;
+    int srate;
 };
 static struct la_h handles[MAX_HANDLES];
 static int num_handles;
@@ -90,6 +98,7 @@ static int ladspa_setup(int srate, float control, void *arg)
     lah->handle = handle;
     lah->lad = lad;
     lah->control = control;
+    lah->srate = srate;
     return num_handles++;
 }
 
@@ -158,10 +167,11 @@ static int ladspa_cfg(void *arg)
     return PCM_CF_ENABLED;
 }
 
-static int ladspa_process(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
-	int channels, int format, int srate)
+static int ladspa_process(int handle, sndbuf_t buf[][SNDBUF_CHANS],
+	int nframes, int channels, int format, int srate)
 {
-    if (srate != LAD_SRATE) {
+    struct la_h *lah = &handles[handle];
+    if (srate != lah->srate) {
 	error("ladspa: wrong sampling rate\n");
 	return 0;
     }
@@ -183,5 +193,5 @@ CONSTRUCTOR(static void ladspa_init(void))
 {
     struct lp *p;
     for (p = plugins; p->plugin; p++)
-	pcm_register_efp(&ladspa, p);
+	pcm_register_efp(&ladspa, p->type, p);
 }

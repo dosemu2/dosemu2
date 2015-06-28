@@ -80,20 +80,27 @@ struct pcm_recorder {
   int (*owns)(int);
 };
 
+typedef int (*efp_process)(int handle, sndbuf_t buf[][SNDBUF_CHANS],
+	int nframes, int channels, int format, int srate);
+
 struct pcm_efp {
   pcm_base;
   int (*setup)(int, float, void *);
-  int (*process)(sndbuf_t buf[][SNDBUF_CHANS], int nframes, int channels,
-	int format, int srate);
+  efp_process process;
 };
+
+enum EfpType { EFP_NONE, EFP_HPF };
 
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
 extern int pcm_register_recorder(const struct pcm_recorder *player, void *arg);
-extern int pcm_register_efp(const struct pcm_efp *efp, void *arg);
+extern int pcm_register_efp(const struct pcm_efp *efp, enum EfpType type,
+	void *arg);
 extern void pcm_reset_player(int handle);
 extern int pcm_init_plugins(struct pcm_holder *plu, int num);
 extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
 extern int pcm_get_cfg(const char *name);
+extern int pcm_setup_efp(int handle, enum EfpType type, int param1,
+	float param2);
 
 /** PCM sample format */
 enum _PCM_format {

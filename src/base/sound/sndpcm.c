@@ -121,6 +121,12 @@ struct pcm_player_wr {
     int last_cnt[MAX_STREAMS];
     int last_idx[MAX_STREAMS];
     double last_tstamp[MAX_STREAMS];
+    int efp_handle;
+    struct pcm_holder *efp;
+};
+
+struct efp_wr {
+    enum EfpType type;
 };
 
 #define PLAYER(p) ((struct pcm_player *)p->plugin)
@@ -128,6 +134,7 @@ struct pcm_player_wr {
 #define PL_LNAME(p) (p->longname ?: p->name)
 #define RECORDER(p) ((struct pcm_recorder *)p->plugin)
 #define EFPR(p) ((struct pcm_efp *)p->plugin)
+#define EF_PRIV(p) ((struct efp_wr *)p->priv)
 
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
@@ -853,18 +860,6 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
     }
 }
 
-static void pcm_apply_effects(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
-	int channels, int format, int srate)
-{
-    int i;
-    for (i = 0; i < pcm.num_efps; i++) {
-	struct pcm_holder *p = &pcm.efps[i];
-	if (!p->opened)
-	    continue;
-	EFPR(p)->process(buf, nframes, channels, format, srate);
-    }
-}
-
 static void calc_idxs(struct pcm_player_wr *pl, int idxs[MAX_STREAMS])
 {
     int i;
@@ -987,8 +982,9 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     save_idxs(PL_PRIV(p), idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
-    pcm_apply_effects(buf, nframes, params->channels, params->format,
-	    params->rate);
+    if (PL_PRIV(p)->efp_handle != -1)
+	EFPR(PL_PRIV(p)->efp)->process(PL_PRIV(p)->efp_handle, buf, nframes,
+		params->channels, params->format, params->rate);
 
     if (out_idx != nframes)
 	error("PCM: requested=%i prepared=%i\n", nframes, out_idx);
@@ -1048,6 +1044,7 @@ int pcm_register_player(const struct pcm_player *player, void *arg)
     p->arg = arg;
     p->priv = malloc(sizeof(struct pcm_player_wr));
     memset(p->priv, 0, sizeof(struct pcm_player_wr));
+    PL_PRIV(p)->efp_handle = -1;
     return pcm.num_players++;
 }
 
@@ -1065,7 +1062,7 @@ int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
     return pcm.num_recorders++;
 }
 
-int pcm_register_efp(const struct pcm_efp *efp, void *arg)
+int pcm_register_efp(const struct pcm_efp *efp, enum EfpType type, void *arg)
 {
     struct pcm_holder *p;
     S_printf("PCM: registering efp: %s\n", PL_LNAME(efp));
@@ -1076,6 +1073,9 @@ int pcm_register_efp(const struct pcm_efp *efp, void *arg)
     p = &pcm.efps[pcm.num_efps];
     p->plugin = efp;
     p->arg = arg;
+    p->priv = malloc(sizeof(struct efp_wr));
+    memset(p->priv, 0, sizeof(struct efp_wr));
+    EF_PRIV(p)->type = type;
     return pcm.num_efps++;
 }
 
@@ -1265,4 +1265,21 @@ void pcm_set_volume(int strm_idx, double (*get_vol)(int, int, int, void *),
 {
     pcm.stream[strm_idx].get_volume = get_vol;
     pcm.stream[strm_idx].vol_arg = arg;
+}
+
+int pcm_setup_efp(int handle, enum EfpType type, int param1, float param2)
+{
+    struct pcm_holder *p;
+    int i;
+
+    p = &pcm.players[handle];
+    for (i = 0; i < pcm.num_efps; i++) {
+	struct pcm_holder *e = &pcm.efps[i];
+	if (e->opened && EF_PRIV(e)->type == type) {
+	    PL_PRIV(p)->efp_handle = EFPR(e)->setup(param1, param2, e->arg);
+	    PL_PRIV(p)->efp = e;
+	    return 1;
+	}
+    }
+    return 0;
 }
