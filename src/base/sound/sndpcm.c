@@ -1290,6 +1290,8 @@ int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
 	    PL_PRIV(p)->efp_handle = EFPR(e)->setup(param1, param2, param3,
 		    e->arg);
 	    PL_PRIV(p)->efp = e;
+	    S_printf("PCM: connected efp \"%s\" to player \"%s\"\n",
+		    e->plugin->name, p->plugin->name);
 	    return 1;
 	}
     }

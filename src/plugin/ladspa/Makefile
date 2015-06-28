@@ -8,8 +8,9 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
-ALL_CFLAGS+=$(DL_CFLAGS)
-ALL_CPPFLAGS+=$(GLIB_CFLAGS)
+ALL_CFLAGS   += $(DL_CFLAGS)
+ALL_CPPFLAGS += $(GLIB_CFLAGS)
+ALL_LDFLAGS  += -lm -ldl
 
 CFILES = load.c ladspa.c
 OBJS=$(CFILES:.c=.o)
@@ -23,7 +24,7 @@ include $(REALTOPDIR)/src/Makefile.common
 
 ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_ladspa.so: $(OBJS)
-	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(GLIB_LIBS) -lm
+	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(GLIB_LIBS)
 endif
 
 install: all
