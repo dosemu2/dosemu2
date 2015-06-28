@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <string.h>
+#include <math.h>
 #include <ladspa.h>
 #include "dosemu_debug.h"
 #include "utils.h"
@@ -52,9 +53,9 @@ struct lads {
     struct lp *link;
     void *dl_handle;
     const LADSPA_Descriptor *descriptor;
-    const LADSPA_PortDescriptor *in;
-    const LADSPA_PortDescriptor *out;
-    const LADSPA_PortDescriptor *ctrl;
+    int in;
+    int out;
+    int ctrl;
 };
 static struct lads ladspas[MAX_LADSPAS];
 static int num_ladspas;
@@ -94,6 +95,10 @@ static int ladspa_setup(int srate, float control, void *arg)
 	error("ladspa: failed to instantiate %s\n", lad->link->name);
 	return -1;
     }
+    if (lad->descriptor->activate)
+	lad->descriptor->activate(handle);
+    lad->descriptor->connect_port(handle, lad->ctrl, &lah->control);
+
     assert(num_handles < MAX_HANDLES);
     lah->handle = handle;
     lah->lad = lad;
@@ -138,12 +143,12 @@ static int ladspa_open(void *arg)
     for (i = 0; i < psDescriptor->PortCount; i++) {
 	if (LADSPA_IS_PORT_INPUT(psDescriptor->PortDescriptors[i]) &&
 		LADSPA_IS_PORT_AUDIO(psDescriptor->PortDescriptors[i]))
-	    lad->in = &psDescriptor->PortDescriptors[i];
+	    lad->in = i;
 	else if (LADSPA_IS_PORT_OUTPUT(psDescriptor->PortDescriptors[i]) &&
 		LADSPA_IS_PORT_AUDIO(psDescriptor->PortDescriptors[i]))
-	    lad->out = &psDescriptor->PortDescriptors[i];
+	    lad->out = i;
 	else if (LADSPA_IS_PORT_CONTROL(psDescriptor->PortDescriptors[i]))
-	    lad->ctrl = &psDescriptor->PortDescriptors[i];
+	    lad->ctrl = i;
     }
     lad->descriptor = psDescriptor;
     lad->dl_handle = dl_handle;
@@ -167,13 +172,72 @@ static int ladspa_cfg(void *arg)
     return PCM_CF_ENABLED;
 }
 
-static int ladspa_process(int handle, sndbuf_t buf[][SNDBUF_CHANS],
+#define UC2F(v) ((*(unsigned char *)(v) - 128) / 128.0)
+#define SC2F(v) ((*(signed char *)(v)) / 128.0)
+#define US2F(v) ((*(unsigned short *)(v) - 32768) / 32768.0)
+#define SS2F(v) ((*(unsigned short *)(v)) / 32768.0)
+#define F2UC(v) ((unsigned char)(lrintf((v) * 127) + 128))
+#define F2SC(v) ((signed char)(lrintf((v) * 127)))
+#define F2US(v) ((unsigned short)(lrintf((v) * 32767) + 32768))
+#define F2SS(v) ((unsigned short)(lrintf((v) * 32767)))
+
+static float sample_to_float(void *data, int format)
+{
+    switch (format) {
+    case PCM_FORMAT_U8:
+	return UC2F(data);
+    case PCM_FORMAT_S8:
+	return SC2F(data);
+    case PCM_FORMAT_U16_LE:
+	return US2F(data);
+    case PCM_FORMAT_S16_LE:
+	return SS2F(data);
+    default:
+	error("PCM: format %i is not supported\n", format);
+	return 0;
+    }
+}
+
+static void float_to_sample(float sample, sndbuf_t *buf, int format)
+{
+    switch (format) {
+    case PCM_FORMAT_U8:
+	*buf = F2UC(sample);
+	break;
+    case PCM_FORMAT_S8:
+	*buf = F2SC(sample);
+	break;
+    case PCM_FORMAT_U16_LE:
+	*buf = F2US(sample);
+	break;
+    case PCM_FORMAT_S16_LE:
+	*buf = F2SS(sample);
+	break;
+    default:
+	error("PCM: format1 %i is not supported\n", format);
+    }
+}
+
+static int ladspa_process(int h, sndbuf_t buf[][SNDBUF_CHANS],
 	int nframes, int channels, int format, int srate)
 {
-    struct la_h *lah = &handles[handle];
+    struct la_h *lah = &handles[h];
+    struct lads *lad = lah->lad;
+    LADSPA_Handle handle = lah->handle;
+    LADSPA_Data tmp_in[nframes], tmp_out[nframes];
+    int i, j;
     if (srate != lah->srate) {
 	error("ladspa: wrong sampling rate\n");
 	return 0;
+    }
+    lad->descriptor->connect_port(handle, lad->in, tmp_in);
+    lad->descriptor->connect_port(handle, lad->out, tmp_out);
+    for (i = 0; i < channels; i++) {
+	for (j = 0; j < nframes; j++)
+	    tmp_in[j] = sample_to_float(&buf[j][i], format);
+	lad->descriptor->run(handle, nframes);
+	for (j = 0; j < nframes; j++)
+	    float_to_sample(tmp_out[j], &buf[j][i], format);
     }
     return nframes;
 }
