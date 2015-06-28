@@ -31,66 +31,114 @@
 #define ladspa_name "ladspa"
 #define ladspa_longname "Sound Effect Processor: ladspa"
 
+struct lp {
+    const char *plugin;
+    const char *name;
+};
+static struct lp plugins[] = { { "filter.so", "hpf" }, { NULL, NULL } };
+
 /* what to do with sample rate??? */
 #define LAD_SRATE 44100
 
 #define MAX_LADSPAS 5
 struct lads {
+    struct lp *link;
     void *dl_handle;
-    LADSPA_Handle handle;
+    const LADSPA_Descriptor *descriptor;
+    const LADSPA_PortDescriptor *in;
+    const LADSPA_PortDescriptor *out;
+    const LADSPA_PortDescriptor *ctrl;
 };
 static struct lads ladspas[MAX_LADSPAS];
 static int num_ladspas;
 
-static int ladspa_setup(char *lname, char *pname, int srate)
-{
-    void *dl_handle;
+#define MAX_HANDLES 5
+struct la_h {
     LADSPA_Handle handle;
+    struct lads *lad;
+    LADSPA_Data control;
+};
+static struct la_h handles[MAX_HANDLES];
+static int num_handles;
+
+static struct lads *find_lad(void *arg)
+{
+    struct lp *plu;
+    int i;
+    for (i = 0; i < MAX_LADSPAS && (plu = ladspas[i].link); i++) {
+	if (plu == arg)
+	    return &ladspas[i];
+    }
+    return NULL;
+}
+
+static int ladspa_setup(int srate, float control, void *arg)
+{
+    LADSPA_Handle handle;
+    struct la_h *lah = &handles[num_handles];
+    struct lads *lad = find_lad(arg);
+    if (!lad) {
+	error("ladspa: setup failed\n");
+	return -1;
+    }
+    handle = lad->descriptor->instantiate(lad->descriptor, srate);
+    if (!handle) {
+	error("ladspa: failed to instantiate %s\n", lad->link->name);
+	return -1;
+    }
+    assert(num_handles < MAX_HANDLES);
+    lah->handle = handle;
+    lah->lad = lad;
+    lah->control = control;
+    return num_handles++;
+}
+
+static int ladspa_open(void *arg)
+{
+    struct lp *plu = arg;
+    void *dl_handle;
     LADSPA_Descriptor_Function pfDescriptorFunction;
     const LADSPA_Descriptor *psDescriptor;
     int i;
     struct lads *lad = &ladspas[num_ladspas];
-    dl_handle = loadLADSPAPluginLibrary(lname);
+    assert(plu->plugin && plu->name);
+    dl_handle = loadLADSPAPluginLibrary(plu->plugin);
     if (!dl_handle) {
-	error("ladspa: failed to load %s: %s\n", lname, dlerror());
+	error("ladspa: failed to load %s: %s\n", plu->plugin, dlerror());
 	return 0;
     }
     pfDescriptorFunction = (LADSPA_Descriptor_Function)
 	dlsym(dl_handle, "ladspa_descriptor");
     if (!pfDescriptorFunction) {
-	error("ladspa: %s: %s\n", lname, dlerror());
+	error("ladspa: %s: %s\n", plu->plugin, dlerror());
 	goto out_err;
     }
     for (i = 0;; i++) {
 	psDescriptor = pfDescriptorFunction(i);
 	if (!psDescriptor)
 	    break;
-	if (strcmp(pname, psDescriptor->Label) == 0)
+	if (strcmp(plu->name, psDescriptor->Label) == 0)
 	    break;
     }
     if (!psDescriptor) {
-	error("ladspa: failed to find %s\n", pname);
+	error("ladspa: failed to find %s\n", plu->name);
 	goto out_err;
     }
-    handle = psDescriptor->instantiate(psDescriptor, srate);
-    if (!handle) {
-	error("ladspa: failed to instantiate %s\n", pname);
-	goto out_err;
-    }
+
+    assert(num_ladspas < MAX_LADSPAS);
     for (i = 0; i < psDescriptor->PortCount; i++) {
 	if (LADSPA_IS_PORT_INPUT(psDescriptor->PortDescriptors[i]) &&
-		LADSPA_IS_PORT_AUDIO(psDescriptor->PortDescriptors[i])) {
-	    /* TODO */
-	} else if (LADSPA_IS_PORT_OUTPUT(psDescriptor->PortDescriptors[i]) &&
-		LADSPA_IS_PORT_AUDIO(psDescriptor->PortDescriptors[i])) {
-	    /* TODO */
-	} else if (LADSPA_IS_PORT_CONTROL(psDescriptor->PortDescriptors[i])) {
-	    /* TODO */
-	}
+		LADSPA_IS_PORT_AUDIO(psDescriptor->PortDescriptors[i]))
+	    lad->in = &psDescriptor->PortDescriptors[i];
+	else if (LADSPA_IS_PORT_OUTPUT(psDescriptor->PortDescriptors[i]) &&
+		LADSPA_IS_PORT_AUDIO(psDescriptor->PortDescriptors[i]))
+	    lad->out = &psDescriptor->PortDescriptors[i];
+	else if (LADSPA_IS_PORT_CONTROL(psDescriptor->PortDescriptors[i]))
+	    lad->ctrl = &psDescriptor->PortDescriptors[i];
     }
-    assert(num_ladspas < MAX_LADSPAS);
+    lad->descriptor = psDescriptor;
     lad->dl_handle = dl_handle;
-    lad->handle = handle;
+    lad->link = arg;
     num_ladspas++;
     return 1;
 
@@ -99,9 +147,10 @@ out_err:
     return 0;
 }
 
-static int ladspa_open(void *arg)
+static void ladspa_close(void *arg)
 {
-    return ladspa_setup("filter.so", "hpf", LAD_SRATE);
+    struct lads *lad = find_lad(arg);
+    dlclose(lad->dl_handle);
 }
 
 static int ladspa_cfg(void *arg)
@@ -123,6 +172,8 @@ static struct pcm_efp ladspa = {
     .name = ladspa_name,
     .longname = ladspa_longname,
     .open = ladspa_open,
+    .close = ladspa_close,
+    .setup = ladspa_setup,
     .get_cfg = ladspa_cfg,
     .process = ladspa_process,
     .flags = PCM_F_PASSTHRU,
@@ -130,5 +181,7 @@ static struct pcm_efp ladspa = {
 
 CONSTRUCTOR(static void ladspa_init(void))
 {
-    pcm_register_efp(&ladspa, NULL);
+    struct lp *p;
+    for (p = plugins; p->plugin; p++)
+	pcm_register_efp(&ladspa, p);
 }

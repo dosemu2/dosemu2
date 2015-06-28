@@ -854,14 +854,14 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
 }
 
 static void pcm_apply_effects(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
-	int channels, int format)
+	int channels, int format, int srate)
 {
     int i;
     for (i = 0; i < pcm.num_efps; i++) {
 	struct pcm_holder *p = &pcm.efps[i];
 	if (!p->opened)
 	    continue;
-	EFPR(p)->process(buf, nframes, channels, format);
+	EFPR(p)->process(buf, nframes, channels, format, srate);
     }
 }
 
@@ -987,7 +987,8 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     save_idxs(PL_PRIV(p), idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
-    pcm_apply_effects(buf, nframes, params->channels, params->format);
+    pcm_apply_effects(buf, nframes, params->channels, params->format,
+	    params->rate);
 
     if (out_idx != nframes)
 	error("PCM: requested=%i prepared=%i\n", nframes, out_idx);
