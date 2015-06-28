@@ -87,7 +87,7 @@ struct pcm_efp {
   pcm_base;
   void (*start)(int);
   void (*stop)(int);
-  int (*setup)(int, float, void *);
+  int (*setup)(int, int, float, void *);
   efp_process process;
 };
 
@@ -101,8 +101,8 @@ extern void pcm_reset_player(int handle);
 extern int pcm_init_plugins(struct pcm_holder *plu, int num);
 extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
 extern int pcm_get_cfg(const char *name);
-extern int pcm_setup_efp(int handle, enum EfpType type, int param1,
-	float param2);
+extern int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
+	float param3);
 
 /** PCM sample format */
 enum _PCM_format {

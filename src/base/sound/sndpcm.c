@@ -1271,7 +1271,8 @@ void pcm_set_volume(int strm_idx, double (*get_vol)(int, int, int, void *),
     pcm.stream[strm_idx].vol_arg = arg;
 }
 
-int pcm_setup_efp(int handle, enum EfpType type, int param1, float param2)
+int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
+	float param3)
 {
     struct pcm_holder *p;
     int i;
@@ -1280,7 +1281,8 @@ int pcm_setup_efp(int handle, enum EfpType type, int param1, float param2)
     for (i = 0; i < pcm.num_efps; i++) {
 	struct pcm_holder *e = &pcm.efps[i];
 	if (e->opened && EF_PRIV(e)->type == type) {
-	    PL_PRIV(p)->efp_handle = EFPR(e)->setup(param1, param2, e->arg);
+	    PL_PRIV(p)->efp_handle = EFPR(e)->setup(param1, param2, param3,
+		    e->arg);
 	    PL_PRIV(p)->efp = e;
 	    return 1;
 	}

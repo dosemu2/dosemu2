@@ -61,11 +61,13 @@ static struct lads ladspas[MAX_LADSPAS];
 static int num_ladspas;
 
 #define MAX_HANDLES 5
+#define MAX_CHANS SNDBUF_CHANS
 struct la_h {
-    LADSPA_Handle handle;
     struct lads *lad;
-    LADSPA_Data control;
     int srate;
+    LADSPA_Data control;
+    LADSPA_Handle handle[MAX_CHANS];
+    int num_chans;
 };
 static struct la_h handles[MAX_HANDLES];
 static int num_handles;
@@ -81,27 +83,30 @@ static struct lads *find_lad(void *arg)
     return NULL;
 }
 
-static int ladspa_setup(int srate, float control, void *arg)
+static int ladspa_setup(int srate, int channels, float control, void *arg)
 {
-    LADSPA_Handle handle;
     struct la_h *lah = &handles[num_handles];
     struct lads *lad = find_lad(arg);
+    int i;
     if (!lad) {
 	error("ladspa: setup failed\n");
 	return -1;
     }
-    handle = lad->descriptor->instantiate(lad->descriptor, srate);
-    if (!handle) {
-	error("ladspa: failed to instantiate %s\n", lad->link->name);
-	return -1;
-    }
-    lad->descriptor->connect_port(handle, lad->ctrl, &lah->control);
-
     assert(num_handles < MAX_HANDLES);
-    lah->handle = handle;
     lah->lad = lad;
     lah->control = control;
     lah->srate = srate;
+    lah->num_chans = channels;
+    for (i = 0; i < channels; i++) {
+	lah->handle[i] = lad->descriptor->instantiate(lad->descriptor, srate);
+	if (!lah->handle[i]) {
+	    error("ladspa: failed to instantiate %s:%i\n", lad->link->name, i);
+	    return -1;
+	}
+	lad->descriptor->connect_port(lah->handle[i], lad->ctrl,
+		&lah->control);
+
+    }
     return num_handles++;
 }
 
@@ -169,20 +174,24 @@ static void ladspa_start(int h)
 {
     struct la_h *lah = &handles[h];
     struct lads *lad = lah->lad;
-    LADSPA_Handle handle = lah->handle;
+    int i;
 
-    if (lad->descriptor->activate)
-	lad->descriptor->activate(handle);
+    if (lad->descriptor->activate) {
+	for (i = 0; i < lah->num_chans; i++)
+	    lad->descriptor->activate(lah->handle[i]);
+    }
 }
 
 static void ladspa_stop(int h)
 {
     struct la_h *lah = &handles[h];
     struct lads *lad = lah->lad;
-    LADSPA_Handle handle = lah->handle;
+    int i;
 
-    if (lad->descriptor->deactivate)
-	lad->descriptor->deactivate(handle);
+    if (lad->descriptor->deactivate) {
+	for (i = 0; i < lah->num_chans; i++)
+	    lad->descriptor->deactivate(lah->handle[i]);
+    }
 }
 
 static int ladspa_cfg(void *arg)
@@ -241,19 +250,18 @@ static int ladspa_process(int h, sndbuf_t buf[][SNDBUF_CHANS],
 {
     struct la_h *lah = &handles[h];
     struct lads *lad = lah->lad;
-    LADSPA_Handle handle = lah->handle;
     LADSPA_Data tmp_in[nframes], tmp_out[nframes];
     int i, j;
     if (srate != lah->srate) {
 	error("ladspa: wrong sampling rate\n");
 	return 0;
     }
-    lad->descriptor->connect_port(handle, lad->in, tmp_in);
-    lad->descriptor->connect_port(handle, lad->out, tmp_out);
     for (i = 0; i < channels; i++) {
+	lad->descriptor->connect_port(lah->handle[i], lad->in, tmp_in);
+	lad->descriptor->connect_port(lah->handle[i], lad->out, tmp_out);
 	for (j = 0; j < nframes; j++)
 	    tmp_in[j] = sample_to_float(&buf[j][i], format);
-	lad->descriptor->run(handle, nframes);
+	lad->descriptor->run(lah->handle[i], nframes);
 	for (j = 0; j < nframes; j++)
 	    float_to_sample(tmp_out[j], &buf[j][i], format);
     }
