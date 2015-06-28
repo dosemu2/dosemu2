@@ -475,6 +475,8 @@ static void pcm_start_output(int id)
 	if (p->opened) {
 	    pcm_reset_player(i);
 	    pthread_mutex_unlock(&pcm.strm_mtx);
+	    if (PL_PRIV(p)->efp_handle != -1)
+		EFPR(PL_PRIV(p)->efp)->start(PL_PRIV(p)->efp_handle);
 	    PLAYER(p)->start(p->arg);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
@@ -494,6 +496,8 @@ static void pcm_stop_output(int id)
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
 	    PLAYER(p)->stop(p->arg);
+	    if (PL_PRIV(p)->efp_handle != -1)
+		EFPR(PL_PRIV(p)->efp)->stop(PL_PRIV(p)->efp_handle);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }

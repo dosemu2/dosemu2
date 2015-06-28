@@ -85,6 +85,8 @@ typedef int (*efp_process)(int handle, sndbuf_t buf[][SNDBUF_CHANS],
 
 struct pcm_efp {
   pcm_base;
+  void (*start)(int);
+  void (*stop)(int);
   int (*setup)(int, float, void *);
   efp_process process;
 };

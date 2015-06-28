@@ -95,8 +95,6 @@ static int ladspa_setup(int srate, float control, void *arg)
 	error("ladspa: failed to instantiate %s\n", lad->link->name);
 	return -1;
     }
-    if (lad->descriptor->activate)
-	lad->descriptor->activate(handle);
     lad->descriptor->connect_port(handle, lad->ctrl, &lah->control);
 
     assert(num_handles < MAX_HANDLES);
@@ -165,6 +163,26 @@ static void ladspa_close(void *arg)
 {
     struct lads *lad = find_lad(arg);
     dlclose(lad->dl_handle);
+}
+
+static void ladspa_start(int h)
+{
+    struct la_h *lah = &handles[h];
+    struct lads *lad = lah->lad;
+    LADSPA_Handle handle = lah->handle;
+
+    if (lad->descriptor->activate)
+	lad->descriptor->activate(handle);
+}
+
+static void ladspa_stop(int h)
+{
+    struct la_h *lah = &handles[h];
+    struct lads *lad = lah->lad;
+    LADSPA_Handle handle = lah->handle;
+
+    if (lad->descriptor->deactivate)
+	lad->descriptor->deactivate(handle);
 }
 
 static int ladspa_cfg(void *arg)
@@ -247,6 +265,8 @@ static struct pcm_efp ladspa = {
     .longname = ladspa_longname,
     .open = ladspa_open,
     .close = ladspa_close,
+    .start = ladspa_start,
+    .stop = ladspa_stop,
     .setup = ladspa_setup,
     .get_cfg = ladspa_cfg,
     .process = ladspa_process,
