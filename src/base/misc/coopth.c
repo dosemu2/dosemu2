@@ -305,6 +305,11 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
 {
     struct coopth_per_thread_t *pth;
     assert(thr - coopthreads < MAX_COOPTHREADS);
+    if (!thr->cur_thr) {
+	error("coopth: schedule to inactive thread\n");
+	leavedos(2);
+	return NULL;
+    }
     pth = get_pth(thr, thr->cur_thr - 1);
     /* it must be running */
     assert(pth->st.state > COOPTHS_NONE);
@@ -416,6 +421,7 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	/* someone used coopth_unsafe_detach()? */
 	error("HLT on detached thread\n");
 	leavedos(2);
+	return;
     }
     thread_run(thr, pth);
 }
@@ -544,6 +550,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 		    i, thr->pth[i].st.state, thr->pth[i].dbg);
 	}
 	leavedos(2);
+	return -1;
     }
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
@@ -579,6 +586,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     if (!pth->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
+	return -1;
     }
     pth->st = ST(RUNNING);
     if (tn == 0) {
