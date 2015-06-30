@@ -30,8 +30,9 @@
 #include <string.h>
 #include <math.h>
 #include <ladspa.h>
-#include "dosemu_debug.h"
 #include "utils.h"
+#include "emu.h"
+#include "dosemu_debug.h"
 #include "init.h"
 #include "sound/sound.h"
 
@@ -196,7 +197,14 @@ static void ladspa_stop(int h)
 
 static int ladspa_cfg(void *arg)
 {
-    return PCM_CF_ENABLED;
+    struct lp *plu = arg;
+    switch (plu->type) {
+    case EFP_NONE:
+	return PCM_CF_DISABLED;
+    case EFP_HPF:
+	return (config.pcm_hpf ? PCM_CF_ENABLED : PCM_CF_DISABLED);
+    }
+    return 0;
 }
 
 #define UC2F(v) ((*(unsigned char *)(v) - 128) / 128.0)

@@ -286,6 +286,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 	"mpu401_base 0x%x\nmpu401_irq %i\nsound_driver \"%s\"\n",
         config.sound, config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq,
 	config.mpu401_base, config.mpu401_irq, config.sound_driver);
+    (*print)("pcm_hpf %i\nmidi_file %s\nwav_file %s\n",
+	config.pcm_hpf, config.midi_file, config.wav_file);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
