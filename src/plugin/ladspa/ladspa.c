@@ -202,11 +202,11 @@ static int ladspa_cfg(void *arg)
 #define UC2F(v) ((*(unsigned char *)(v) - 128) / 128.0)
 #define SC2F(v) ((*(signed char *)(v)) / 128.0)
 #define US2F(v) ((*(unsigned short *)(v) - 32768) / 32768.0)
-#define SS2F(v) ((*(unsigned short *)(v)) / 32768.0)
+#define SS2F(v) ((*(signed short *)(v)) / 32768.0)
 #define F2UC(v) ((unsigned char)(lrintf((v) * 127) + 128))
 #define F2SC(v) ((signed char)(lrintf((v) * 127)))
 #define F2US(v) ((unsigned short)(lrintf((v) * 32767) + 32768))
-#define F2SS(v) ((unsigned short)(lrintf((v) * 32767)))
+#define F2SS(v) ((signed short)(lrintf((v) * 32767)))
 
 static float sample_to_float(void *data, int format)
 {
