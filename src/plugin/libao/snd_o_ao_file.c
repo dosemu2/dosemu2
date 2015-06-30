@@ -42,6 +42,8 @@ static const char *ao_drv_manual_name = "wav";
 static struct player_params params;
 static int started;
 
+#define HPF_CTL 10
+
 static int aosndf_open(void *arg)
 {
     ao_sample_format info = {};
@@ -61,6 +63,10 @@ static int aosndf_open(void *arg)
 	error("libao: opening %s failed\n", config.wav_file);
 	return 0;
     }
+
+    pcm_setup_efp(params.handle, EFP_HPF, params.rate, params.channels,
+	    HPF_CTL);
+
     return 1;
 }
 
