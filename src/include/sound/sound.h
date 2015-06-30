@@ -103,6 +103,7 @@ extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
 extern int pcm_get_cfg(const char *name);
 extern int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
 	float param3);
+extern int pcm_setup_hpf(struct player_params *params);
 
 /** PCM sample format */
 enum _PCM_format {

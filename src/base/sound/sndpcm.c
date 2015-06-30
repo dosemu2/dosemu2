@@ -125,6 +125,9 @@ struct pcm_player_wr {
     struct pcm_holder *efp;
 };
 
+
+#define HPF_CTL 10
+
 struct efp_wr {
     enum EfpType type;
 };
@@ -1296,4 +1299,10 @@ int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
 	}
     }
     return 0;
+}
+
+int pcm_setup_hpf(struct player_params *params)
+{
+    return pcm_setup_efp(params->handle, EFP_HPF, params->rate,
+	    params->channels, HPF_CTL);
 }
