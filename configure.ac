@@ -169,7 +169,8 @@ if test -x $srcdir/mkpluginhooks; then
   $srcdir/mkpluginhooks
   if test -f plugin_libdirs; then
     PLUGINSUBDIRS=`cat plugin_libdirs`
-    AC_MSG_NOTICE(Including plugins: $PLUGINSUBDIRS);
+    PLUGINS=`echo $PLUGINSUBDIRS | sed 's/plugin\///g'`
+    AC_MSG_NOTICE(Including plugins: $PLUGINS);
     cd src
     for i in $PLUGINSUBDIRS; do
       if ! grep USE_DL_PLUGINS $i/Makefile >/dev/null ; then
