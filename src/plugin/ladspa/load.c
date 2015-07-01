@@ -4,16 +4,11 @@
    warranty. */
 
 /*****************************************************************************/
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+#define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <glib.h>
 
 /*****************************************************************************/
 
@@ -31,7 +26,7 @@ dlopenLADSPA (const char *pcFilename, int iFlag)
 
   char *pcBuffer;
   const char *pcEnd;
-  const char *pcLADSPAPath;
+  char *pcLADSPAPath;
   const char *pcStart;
   int iEndsInSO;
   int iNeedSlash;
@@ -58,11 +53,7 @@ dlopenLADSPA (const char *pcFilename, int iFlag)
        LD_LIBRARY_PATH, whereas the LADSPA_PATH is the correct place
        to search. */
 
-    /* thomasvs: I'm sorry, but I'm going to add glib stuff here.
-     * I'm appending logical values for LADSPA_PATH here
-     */
-
-    pcLADSPAPath = g_strdup_printf ("%s:/usr/lib/ladspa:"
+    asprintf(&pcLADSPAPath, "%s:/usr/lib/ladspa:"
         "/usr/lib64/ladspa:/usr/local/lib/ladspa",
         getenv ("LADSPA_PATH"));
 
@@ -95,6 +86,7 @@ dlopenLADSPA (const char *pcFilename, int iFlag)
         if (*pcStart == ':')
           pcStart++;
       }
+      free(pcLADSPAPath);
     }
   }
 
