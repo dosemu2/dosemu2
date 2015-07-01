@@ -299,7 +299,7 @@ while (0)
 %token HARDWARE_RAM
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ
-%token SOUND_DRIVER MIDI_FILE WAV_FILE
+%token SOUND_DRIVER PCM_HPF MIDI_FILE WAV_FILE
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -1090,6 +1090,7 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
 		| MPU_IRQ expression	{ config.mpu401_irq = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
+		| PCM_HPF bool		{ config.pcm_hpf = ($2!=0); }
 		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = $2; }
 		| WAV_FILE string_expr	{ free(config.wav_file); config.wav_file = $2; }
 		;
