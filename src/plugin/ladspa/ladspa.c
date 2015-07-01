@@ -286,7 +286,7 @@ static struct pcm_efp ladspa = {
     .setup = ladspa_setup,
     .get_cfg = ladspa_cfg,
     .process = ladspa_process,
-    .flags = PCM_F_PASSTHRU,
+    .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 
 CONSTRUCTOR(static void ladspa_init(void))
