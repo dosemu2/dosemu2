@@ -115,14 +115,20 @@ struct stream {
 #define MAX_PLAYERS 10
 #define MAX_RECORDERS 10
 #define MAX_EFPS 5
+#define MAX_EFP_LINKS 5
+
+struct efp_link {
+    int handle;
+    struct pcm_holder *efp;
+};
 
 struct pcm_player_wr {
     double time;
     int last_cnt[MAX_STREAMS];
     int last_idx[MAX_STREAMS];
     double last_tstamp[MAX_STREAMS];
-    int efp_handle;
-    struct pcm_holder *efp;
+    struct efp_link efpl[MAX_EFP_LINKS];
+    int num_efp_links;
 };
 
 
@@ -471,6 +477,26 @@ static double calc_buffer_fillup(int strm_idx, double time)
     return s->stop_time > time ? s->stop_time - time : 0;
 }
 
+static void start_player(struct pcm_holder *p)
+{
+    int i;
+    for (i = 0; i < PL_PRIV(p)->num_efp_links; i++) {
+	struct efp_link *l = &PL_PRIV(p)->efpl[i];
+	EFPR(l->efp)->start(l->handle);
+    }
+    PLAYER(p)->start(p->arg);
+}
+
+static void stop_player(struct pcm_holder *p)
+{
+    int i;
+    PLAYER(p)->stop(p->arg);
+    for (i = 0; i < PL_PRIV(p)->num_efp_links; i++) {
+	struct efp_link *l = &PL_PRIV(p)->efpl[i];
+	EFPR(l->efp)->stop(l->handle);
+    }
+}
+
 static void pcm_start_output(int id)
 {
     int i;
@@ -482,9 +508,7 @@ static void pcm_start_output(int id)
 	if (p->opened) {
 	    pcm_reset_player(i);
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    if (PL_PRIV(p)->efp_handle != -1)
-		EFPR(PL_PRIV(p)->efp)->start(PL_PRIV(p)->efp_handle);
-	    PLAYER(p)->start(p->arg);
+	    start_player(p);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -502,9 +526,7 @@ static void pcm_stop_output(int id)
 	    continue;
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    PLAYER(p)->stop(p->arg);
-	    if (PL_PRIV(p)->efp_handle != -1)
-		EFPR(PL_PRIV(p)->efp)->stop(PL_PRIV(p)->efp_handle);
+	    stop_player(p);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -926,7 +948,7 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 			   struct player_params *params)
 {
-    int idxs[MAX_STREAMS], out_idx, handle;
+    int idxs[MAX_STREAMS], out_idx, handle, i;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
@@ -993,9 +1015,11 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     save_idxs(PL_PRIV(p), idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
-    if (PL_PRIV(p)->efp_handle != -1)
-	EFPR(PL_PRIV(p)->efp)->process(PL_PRIV(p)->efp_handle, buf, nframes,
+    for (i = 0; i < PL_PRIV(p)->num_efp_links; i++) {
+	struct efp_link *l = &PL_PRIV(p)->efpl[i];
+	EFPR(l->efp)->process(l->handle, buf, nframes,
 		params->channels, params->format, params->rate);
+    }
 
     if (out_idx != nframes)
 	error("PCM: requested=%i prepared=%i\n", nframes, out_idx);
@@ -1055,7 +1079,6 @@ int pcm_register_player(const struct pcm_player *player, void *arg)
     p->arg = arg;
     p->priv = malloc(sizeof(struct pcm_player_wr));
     memset(p->priv, 0, sizeof(struct pcm_player_wr));
-    PL_PRIV(p)->efp_handle = -1;
     return pcm.num_players++;
 }
 
@@ -1290,9 +1313,11 @@ int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
     for (i = 0; i < pcm.num_efps; i++) {
 	struct pcm_holder *e = &pcm.efps[i];
 	if (e->opened && EF_PRIV(e)->type == type) {
-	    PL_PRIV(p)->efp_handle = EFPR(e)->setup(param1, param2, param3,
-		    e->arg);
-	    PL_PRIV(p)->efp = e;
+	    struct efp_link *l =
+		    &PL_PRIV(p)->efpl[PL_PRIV(p)->num_efp_links++];
+	    assert(PL_PRIV(p)->num_efp_links <= MAX_EFP_LINKS);
+	    l->handle = EFPR(e)->setup(param1, param2, param3, e->arg);
+	    l->efp = e;
 	    S_printf("PCM: connected efp \"%s\" to player \"%s\"\n",
 		    e->plugin->name, p->plugin->name);
 	    return 1;
