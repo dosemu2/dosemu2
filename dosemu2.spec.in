@@ -22,6 +22,7 @@ BuildRequires: alsa-lib-devel
 BuildRequires: fluidsynth-devel
 BuildRequires: gpm-devel
 BuildRequires: libao-devel
+BuildRequires: ladspa-devel
 BuildRequires: slang-devel
 BuildRequires: bison
 BuildRequires: flex
@@ -39,6 +40,7 @@ Requires: alsa-lib
 Requires: fluidsynth
 Requires: gpm-libs
 Requires: libao
+Requires: ladspa
 Requires: slang
 
 %description
