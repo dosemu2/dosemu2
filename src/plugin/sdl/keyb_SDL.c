@@ -31,6 +31,10 @@
 #include "video.h"
 #include "sdl.h"
 
+#ifndef USE_DL_PLUGINS
+#undef X_SUPPORT
+#endif
+
 /*
  * at startup SDL does not detect numlock and capslock status
  * so we get them from xkb.

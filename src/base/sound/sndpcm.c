@@ -166,7 +166,9 @@ static int num_dl_handles;
 
 int pcm_init(void)
 {
+#ifdef USE_DL_PLUGINS
     int ca = 0, cs = 0;
+#endif
     S_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);

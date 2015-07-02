@@ -98,17 +98,18 @@ AC_SUBST(CONFIG_HOST)
 dnl Check for static and then also use it for tests
 
 DOSEMU_LDFLAGS="-Wl,-warn-common"
-LIBS="$LIBS -ldl -lm"
+AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
-              [  --disable-dlplugins     do NOT use dynamically loaded plugins])
+              AS_HELP_STRING([--disable-dlplugins], [do NOT use dynamically loaded plugins]))
 if test "$enable_dlplugins" != "no"; then
-	      AC_MSG_NOTICE(Using dynamically loaded plugins...)
+              AC_MSG_NOTICE(Using dynamically loaded plugins...)
               AC_DEFINE(USE_DL_PLUGINS)
               USE_DL_PLUGINS="USE_DL_PLUGINS=1"
               AC_SUBST(USE_DL_PLUGINS)
               DOSBIN_LDFLAGS="-rdynamic"
               AC_SUBST(DOSBIN_LDFLAGS)
+              AC_CHECK_LIB(dl, dlopen)
 else
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi

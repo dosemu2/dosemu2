@@ -116,6 +116,10 @@ static int kbd_grab_active = 0;
 static int m_cursor_visible;
 static int init_failed;
 
+#ifndef USE_DL_PLUGINS
+#undef X_SUPPORT
+#endif
+
 #ifdef X_SUPPORT
 #ifdef USE_DL_PLUGINS
 void *X_handle;
