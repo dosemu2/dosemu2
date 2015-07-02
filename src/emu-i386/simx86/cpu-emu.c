@@ -33,8 +33,6 @@
  ***************************************************************************/
 
 #include "config.h"
-
-#ifdef X86_EMULATOR
 #include <stdlib.h>
 #include <string.h>		/* for memset */
 #include <setjmp.h>
@@ -1504,8 +1502,3 @@ int e_debug_check(unsigned int PC)
     }
     return 0;
 }
-
-
-/* ======================================================================= */
-
-#endif	/* X86_EMULATOR */

@@ -53,11 +53,6 @@ static inline int do_vm86(struct vm86plus_struct *x)
 #endif
 }
 
-#if defined(USE_MHPDBG) && 0
-/* ...hmm, this one seems not to work properly (Hans) */
-  #define DO_VM86(x) (WRITE_FLAGS((READ_FLAGS() & ~TF) | mhpdbg.flags), do_vm86(x))
-#else
-  #define DO_VM86(x) do_vm86(x)
-#endif
+#define DO_VM86(x) do_vm86(x)
 
 #endif

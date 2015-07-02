@@ -1,8 +1,5 @@
 #include "config.h"
-
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
@@ -63,9 +60,7 @@
 #include "dpmi.h"
 #include "hlt.h"
 
-#ifdef USING_NET
 #include "ipx.h"
-#endif
 
 /* Needed for DIAMOND define */
 #include "vc.h"

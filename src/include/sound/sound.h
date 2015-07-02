@@ -23,6 +23,12 @@
 #ifndef __SOUND_H__
 #define __SOUND_H__
 
+#include <inttypes.h>
+#include <stddef.h>
+
+typedef int16_t sndbuf_t;
+#define SNDBUF_CHANS 2
+
 struct player_params {
   int rate;
   int format;
@@ -39,8 +45,6 @@ typedef struct {
   int (*get_cfg)(void *);
   int (*open)(void *);
   void (*close)(void *);
-  void (*start)(void *);
-  void (*stop)(void *);
 
   int flags;
   int weight;
@@ -48,6 +52,12 @@ typedef struct {
 
 #define PCM_CF_ENABLED 1
 #define PCM_CF_DISABLED 2
+
+typedef struct {
+  pcm_base;
+  void (*start)(void *);
+  void (*stop)(void *);
+} pcm_plugin_base;
 
 struct pcm_holder {
   const pcm_base *plugin;
@@ -59,23 +69,41 @@ struct pcm_holder {
 };
 
 struct pcm_player {
-  pcm_base;
+  pcm_plugin_base;
   void (*timer)(double, void *);
   int id;
 };
 
 struct pcm_recorder {
-  pcm_base;
+  pcm_plugin_base;
   int (*setup)(void *, void *);
   int (*owns)(int);
 };
 
+typedef int (*efp_process)(int handle, sndbuf_t buf[][SNDBUF_CHANS],
+	int nframes, int channels, int format, int srate);
+
+struct pcm_efp {
+  pcm_base;
+  void (*start)(int);
+  void (*stop)(int);
+  int (*setup)(int, int, float, void *);
+  efp_process process;
+};
+
+enum EfpType { EFP_NONE, EFP_HPF };
+
 extern int pcm_register_player(const struct pcm_player *player, void *arg);
 extern int pcm_register_recorder(const struct pcm_recorder *player, void *arg);
+extern int pcm_register_efp(const struct pcm_efp *efp, enum EfpType type,
+	void *arg);
 extern void pcm_reset_player(int handle);
 extern int pcm_init_plugins(struct pcm_holder *plu, int num);
 extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
 extern int pcm_get_cfg(const char *name);
+extern int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
+	float param3);
+extern int pcm_setup_hpf(struct player_params *params);
 
 /** PCM sample format */
 enum _PCM_format {
@@ -102,9 +130,6 @@ enum _PCM_format {
 #define PCM_ID_R (1 << 1)
 #define PCM_ID_MAX     2
 #define PCM_ID_ANY 0xff
-
-typedef int16_t sndbuf_t;
-#define SNDBUF_CHANS 2
 
 extern int pcm_init(void);
 extern int pcm_post_init(void *caller);

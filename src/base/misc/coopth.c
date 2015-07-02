@@ -305,6 +305,11 @@ static struct coopth_per_thread_t *current_thr(struct coopth_t *thr)
 {
     struct coopth_per_thread_t *pth;
     assert(thr - coopthreads < MAX_COOPTHREADS);
+    if (!thr->cur_thr) {
+	error("coopth: schedule to inactive thread\n");
+	leavedos(2);
+	return NULL;
+    }
     pth = get_pth(thr, thr->cur_thr - 1);
     /* it must be running */
     assert(pth->st.state > COOPTHS_NONE);
@@ -416,6 +421,7 @@ static void coopth_hlt(Bit32u offs, void *arg)
 	/* someone used coopth_unsafe_detach()? */
 	error("HLT on detached thread\n");
 	leavedos(2);
+	return;
     }
     thread_run(thr, pth);
 }
@@ -544,6 +550,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 		    i, thr->pth[i].st.state, thr->pth[i].dbg);
 	}
 	leavedos(2);
+	return -1;
     }
     tn = thr->cur_thr++;
     pth = &thr->pth[tn];
@@ -579,6 +586,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     if (!pth->thread) {
 	error("Thread create failure\n");
 	leavedos(2);
+	return -1;
     }
     pth->st = ST(RUNNING);
     if (tn == 0) {
@@ -1030,17 +1038,23 @@ int coopth_flush(void (*helper)(void))
 
 void coopth_done(void)
 {
-    int i, tt, it;
+    int i, tt, itd, it;
     struct coopth_thrdata_t *thdata = NULL;
     it = _coopth_is_in_thread_nowarn();
-    assert(!it || is_detached());
+    itd = it;
+//    assert(!it || is_detached());
     if (it) {
 	thdata = co_get_data(co_current());
 	assert(thdata);
+	/* unfortunately the shutdown can run from signal handler -
+	 * in this case we can be in a joinable thread interrupted
+	 * by signal, and there is no way to leave that thread. */
+	if (!is_detached())
+	    itd = 0;
     }
     /* there is no safe way to delete joinable threads without joining,
      * so print error only if there are also detached threads left */
-    if (threads_total > threads_joinable + it)
+    if (threads_total > threads_joinable + itd)
 	error("Coopth: not all detached threads properly shut down\n");
 again:
     tt = threads_total;
@@ -1065,17 +1079,23 @@ again:
     }
     /* at this point all detached threads should be killed,
      * except perhaps current one */
-    assert(threads_total == threads_joinable + it);
+    assert(threads_total == threads_joinable + itd);
 
     for (i = 0; i < coopth_num; i++) {
 	struct coopth_t *thr = &coopthreads[i];
 	int j;
+	/* dont free own thread */
+	if (thdata && *thdata->tid == i)
+	    continue;
 	for (j = thr->cur_thr; j < thr->max_thr; j++) {
 	    struct coopth_per_thread_t *pth = &thr->pth[j];
 	    munmap(pth->stack, pth->stk_size);
 	}
     }
-    co_thread_cleanup();
+    if (!threads_total)
+	co_thread_cleanup();
+    else
+	g_printf("coopth: leaked %i threads\n", threads_total);
 }
 
 int coopth_get_scheduled(void)

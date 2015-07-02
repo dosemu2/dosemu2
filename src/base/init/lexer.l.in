@@ -620,6 +620,7 @@ sb_hdma                 RETURN(SB_HDMA);
 mpu_base                RETURN(MPU_BASE);
 mpu_irq                 RETURN(MPU_IRQ);
 sound_driver		RETURN(SOUND_DRIVER);
+pcm_hpf			RETURN(PCM_HPF);
 midi_file		RETURN(MIDI_FILE);
 wav_file		RETURN(WAV_FILE);
 

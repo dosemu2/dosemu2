@@ -114,17 +114,36 @@ struct stream {
 #define MAX_STREAMS 10
 #define MAX_PLAYERS 10
 #define MAX_RECORDERS 10
+#define MAX_EFPS 5
+#define MAX_EFP_LINKS 5
+
+struct efp_link {
+    int handle;
+    struct pcm_holder *efp;
+};
+
 struct pcm_player_wr {
     double time;
     int last_cnt[MAX_STREAMS];
     int last_idx[MAX_STREAMS];
     double last_tstamp[MAX_STREAMS];
+    struct efp_link efpl[MAX_EFP_LINKS];
+    int num_efp_links;
+};
+
+
+#define HPF_CTL 10
+
+struct efp_wr {
+    enum EfpType type;
 };
 
 #define PLAYER(p) ((struct pcm_player *)p->plugin)
 #define PL_PRIV(p) ((struct pcm_player_wr *)p->priv)
 #define PL_LNAME(p) (p->longname ?: p->name)
 #define RECORDER(p) ((struct pcm_recorder *)p->plugin)
+#define EFPR(p) ((struct pcm_efp *)p->plugin)
+#define EF_PRIV(p) ((struct efp_wr *)p->priv)
 
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
@@ -136,6 +155,8 @@ struct pcm_struct {
     int playing;
     struct pcm_holder recorders[MAX_RECORDERS];
     int num_recorders;
+    struct pcm_holder efps[MAX_EFPS];
+    int num_efps;
     double time;
 } pcm;
 
@@ -145,7 +166,9 @@ static int num_dl_handles;
 
 int pcm_init(void)
 {
+#ifdef USE_DL_PLUGINS
     int ca = 0, cs = 0;
+#endif
     S_printf("PCM: init\n");
     pthread_mutex_init(&pcm.strm_mtx, NULL);
     pthread_mutex_init(&pcm.time_mtx, NULL);
@@ -175,6 +198,9 @@ int pcm_init(void)
 #ifdef USE_ALSA
     dl_handles[num_dl_handles++] = load_plugin("alsa");
 #endif
+#ifdef LADSPA_SUPPORT
+    dl_handles[num_dl_handles++] = load_plugin("ladspa");
+#endif
 #endif
     assert(num_dl_handles <= MAX_DL_HANDLES);
     return 1;
@@ -183,10 +209,14 @@ int pcm_init(void)
 int pcm_post_init(void *caller)
 {
     int i;
+    /* init efps before players because players init code refers to efps */
+    if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
+      S_printf("no PCM effect processors initialized\n");
     if (!pcm_init_plugins(pcm.players, pcm.num_players))
       S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
       S_printf("ERROR: no PCM input plugins initialized\n");
+
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *r = &pcm.recorders[i];
 	if (r->opened && RECORDER(r)->setup)
@@ -449,6 +479,26 @@ static double calc_buffer_fillup(int strm_idx, double time)
     return s->stop_time > time ? s->stop_time - time : 0;
 }
 
+static void start_player(struct pcm_holder *p)
+{
+    int i;
+    for (i = 0; i < PL_PRIV(p)->num_efp_links; i++) {
+	struct efp_link *l = &PL_PRIV(p)->efpl[i];
+	EFPR(l->efp)->start(l->handle);
+    }
+    PLAYER(p)->start(p->arg);
+}
+
+static void stop_player(struct pcm_holder *p)
+{
+    int i;
+    PLAYER(p)->stop(p->arg);
+    for (i = 0; i < PL_PRIV(p)->num_efp_links; i++) {
+	struct efp_link *l = &PL_PRIV(p)->efpl[i];
+	EFPR(l->efp)->stop(l->handle);
+    }
+}
+
 static void pcm_start_output(int id)
 {
     int i;
@@ -460,7 +510,7 @@ static void pcm_start_output(int id)
 	if (p->opened) {
 	    pcm_reset_player(i);
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    p->plugin->start(p->arg);
+	    start_player(p);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -478,7 +528,7 @@ static void pcm_stop_output(int id)
 	    continue;
 	if (p->opened) {
 	    pthread_mutex_unlock(&pcm.strm_mtx);
-	    p->plugin->stop(p->arg);
+	    stop_player(p);
 	    pthread_mutex_lock(&pcm.strm_mtx);
 	}
     }
@@ -900,7 +950,7 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 			   struct player_params *params)
 {
-    int idxs[MAX_STREAMS], out_idx, handle;
+    int idxs[MAX_STREAMS], out_idx, handle, i;
     long long now;
     double start_time, stop_time, frame_period, frag_period, time;
     struct sample samp[MAX_STREAMS][SNDBUF_CHANS];
@@ -967,8 +1017,15 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     save_idxs(PL_PRIV(p), idxs);
     pthread_mutex_unlock(&pcm.strm_mtx);
 
+    for (i = 0; i < PL_PRIV(p)->num_efp_links; i++) {
+	struct efp_link *l = &PL_PRIV(p)->efpl[i];
+	EFPR(l->efp)->process(l->handle, buf, nframes,
+		params->channels, params->format, params->rate);
+    }
+
     if (out_idx != nframes)
 	error("PCM: requested=%i prepared=%i\n", nframes, out_idx);
+
     return out_idx;
 }
 
@@ -1039,6 +1096,23 @@ int pcm_register_recorder(const struct pcm_recorder *recorder, void *arg)
     p->plugin = recorder;
     p->arg = arg;
     return pcm.num_recorders++;
+}
+
+int pcm_register_efp(const struct pcm_efp *efp, enum EfpType type, void *arg)
+{
+    struct pcm_holder *p;
+    S_printf("PCM: registering efp: %s\n", PL_LNAME(efp));
+    if (pcm.num_efps >= MAX_EFPS) {
+	error("PCM: attempt to register more than %i efps\n", MAX_EFPS);
+	return 0;
+    }
+    p = &pcm.efps[pcm.num_efps];
+    p->plugin = efp;
+    p->arg = arg;
+    p->priv = malloc(sizeof(struct efp_wr));
+    memset(p->priv, 0, sizeof(struct efp_wr));
+    EF_PRIV(p)->type = type;
+    return pcm.num_efps++;
 }
 
 void pcm_reset_player(int handle)
@@ -1123,6 +1197,8 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
         cnt++;
         if (!(p->plugin->flags & PCM_F_PASSTHRU))
           sel++;
+      } else {
+        p->failed = 1;
       }
     }
   }
@@ -1203,7 +1279,7 @@ int pcm_start_input(int strm_idx)
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
 	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx))) {
-	    p->plugin->start(p->arg);
+	    RECORDER(p)->start(p->arg);
 	    ret++;
 	}
     }
@@ -1217,7 +1293,7 @@ void pcm_stop_input(int strm_idx)
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
 	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx)))
-	    p->plugin->stop(p->arg);
+	    RECORDER(p)->stop(p->arg);
     }
     S_printf("PCM: input stopped\n");
 }
@@ -1227,4 +1303,33 @@ void pcm_set_volume(int strm_idx, double (*get_vol)(int, int, int, void *),
 {
     pcm.stream[strm_idx].get_volume = get_vol;
     pcm.stream[strm_idx].vol_arg = arg;
+}
+
+int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
+	float param3)
+{
+    struct pcm_holder *p;
+    int i;
+
+    p = &pcm.players[handle];
+    for (i = 0; i < pcm.num_efps; i++) {
+	struct pcm_holder *e = &pcm.efps[i];
+	if (e->opened && EF_PRIV(e)->type == type) {
+	    struct efp_link *l =
+		    &PL_PRIV(p)->efpl[PL_PRIV(p)->num_efp_links++];
+	    assert(PL_PRIV(p)->num_efp_links <= MAX_EFP_LINKS);
+	    l->handle = EFPR(e)->setup(param1, param2, param3, e->arg);
+	    l->efp = e;
+	    S_printf("PCM: connected efp \"%s\" to player \"%s\"\n",
+		    e->plugin->name, p->plugin->name);
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+int pcm_setup_hpf(struct player_params *params)
+{
+    return pcm_setup_efp(params->handle, EFP_HPF, params->rate,
+	    params->channels, HPF_CTL);
 }

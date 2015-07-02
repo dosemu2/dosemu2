@@ -145,6 +145,7 @@ static int console_post_init(void)
 }
 
 static int consolesize;
+static int consolenum;
 
 int console_size(void)
 {
@@ -157,11 +158,18 @@ static int console_init(void)
   gettermcap(0, &co, &li);
   consolesize = TEXT_SIZE(co,li);
   register_hardware_ram('v', VGA_PHYS_TEXT_BASE, TEXT_SIZE(co,li));
+
+  if (config.detach)
+    consolenum = detach();
   return 0;
 }
 
 static void console_close(void)
 {
+  if (config.detach) {
+    restore_vt(consolenum);
+    disallocate_vt();
+  }
   clear_console_video();
   fprintf(stdout,"\033[?25h\r");      /* Turn on the cursor */
 }

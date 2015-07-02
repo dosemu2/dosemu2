@@ -38,11 +38,7 @@
 #include "dosemu_debug.h"
 #include "pktdrvr.h"
 #include "ipx.h"
-
-#ifdef USE_SBEMU
 #include "sound.h"
-#endif
-
 #include "joystick.h"
 
 struct io_dev_struct {
@@ -79,16 +75,12 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "hdisk",   hdisk_init,   hdisk_reset,   NULL },
 #endif
   { "disks",   disk_init,    disk_reset,    NULL },
-#ifdef USE_SBEMU
   { "sound",   sound_init,   sound_reset,   sound_done },
-#endif
   { "joystick", joy_init,    joy_reset,     joy_term },
 #ifdef IPX
   { "ipx",      ipx_init,    NULL,          NULL },
 #endif
-#ifdef USING_NET
   { "packet driver", pkt_init, pkt_reset,   pkt_term },
-#endif
   { NULL,      NULL,         NULL,          NULL }
 };
 

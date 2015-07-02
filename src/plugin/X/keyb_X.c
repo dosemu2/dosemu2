@@ -42,6 +42,7 @@ Since this code has been totally rewritten the pcemu license no longer applies
 
 static struct modifier_info X_mi;
 static struct char_set_state X_charset;
+static int initialized;
 
 struct modifier_info X_get_modifier_info(void)
 {
@@ -130,6 +131,7 @@ void keyb_X_init(Display *display)
 {
 	X_modifier_info_init(display);
 	init_charset_state(&X_charset, lookup_charset("X_keysym"));
+	initialized = 1;
 }
 
 static int use_move_key(t_keysym key)
@@ -247,14 +249,11 @@ void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state)
 	set_shiftstate(shiftstate);
 }
 
-static int initialized= 0;
 #if 0
 void X_process_keys(XKeymapEvent *e)
 {
-	if (!initialized) {
+	if (!initialized)
 		keyb_X_init(display);
-		initialized = 1;
-	}
 	if (config.X_keycode) {
 		X_keycode_process_keys(e);
 		return;
@@ -330,7 +329,7 @@ int Xkb_get_group(Display *display, unsigned int *mods)
 }
 #endif
 
-void X_process_key(XKeyEvent *e)
+void X_process_key(Display *display, XKeyEvent *e)
 {
 	struct mapped_X_event event;
 
@@ -339,7 +338,7 @@ void X_process_key(XKeyEvent *e)
 		initialized = 1;
 	}
 	if (config.X_keycode) {
-		X_keycode_process_key(e);
+		X_keycode_process_key(display, e);
 		return;
 	}
 	map_X_event(display, e, &event);

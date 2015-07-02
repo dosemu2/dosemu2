@@ -1,8 +1,5 @@
 #include "config.h"
-
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif /* USE_MHPDBG */
 #include "debug.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
@@ -286,25 +283,28 @@ sgleave:
 bad:
 /* All recovery attempts failed, going to die :( */
 
-#if 0
-  csp = (char *) _eip;
-  /* This was added temporarily as most illegal sigsegv's are attempt
-     to call Linux int routines */
-  if (!(csp[-2] == 0xcd && csp[-1] == 0x80 && csp[0] == 0x85)) {
-#else
   {
-#endif /* 0 */
+#ifdef __x86_64__
+    unsigned char *fsbase, *gsbase;
+#endif
     error("cpu exception in dosemu code outside of %s!\n"
 	  "trapno: 0x%02x  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
-	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n\n",
+	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
+	  "fs: 0x%04x  gs: 0x%04x\n",
 	  (in_dpmi ? "DPMI client" : "VM86()"),
 	  _trapno, _err, _cr2,
-	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss);
+	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss, _fs, _gs);
+#ifdef __x86_64__
+    dosemu_arch_prctl(ARCH_GET_FS, &fsbase);
+    dosemu_arch_prctl(ARCH_GET_GS, &gsbase);
+    error("@fsbase: %p gsbase: %p\n", fsbase, gsbase);
+#endif
+    error("@\n");
 
     error("Please update from git, compile with debug information and "
 	"report the contents of ~/.dosemu/boot.log at\n"
-"http://sourceforge.net/tracker/?atid=457447&group_id=49784\n"
+"https://github.com/stsp/dosemu2/issues\n"
 #ifndef _DEBUG
 "It would be even more helpful if would recompile DOSEMU and reproduce this\n"
 "bug with \"debug on\" in compiletime-settings.\n"
@@ -367,17 +367,12 @@ int _dosemu_fault(int signal, struct sigcontext_struct *scp)
   return ret;
 }
 
-__attribute__((no_instrument_function))
+/* noinline is to prevent gcc from moving TLS access around init_handler() */
+__attribute__((noinline))
 static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 {
   int retcode;
   pid_t tid;
-
-  /* need to call init_handler() before any syscall.
-   * Additionally, because fault_cnt is per-thread, it also can
-   * be accessed only after init_handler() so that the segment
-   * register for TLS is restored. */
-  init_handler(scp);
 
   fault_cnt++;
   if (fault_cnt > 2) {
@@ -451,8 +446,13 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
-  dosemu_fault0(signal, (struct sigcontext_struct *)
-		&((ucontext_t *)uc)->uc_mcontext);
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  /* need to call init_handler() before any syscall.
+   * Additionally, TLS access should be done in a separate no-inline
+   * function, so that gcc not to move the TLS access around init_handler(). */
+  init_handler(scp);
+  dosemu_fault0(signal, scp);
 }
 #endif /* __linux__ */
 

@@ -98,26 +98,18 @@ AC_SUBST(CONFIG_HOST)
 dnl Check for static and then also use it for tests
 
 DOSEMU_LDFLAGS="-Wl,-warn-common"
-LIBS="$LIBS -ldl -lm"
-
-AC_ARG_ENABLE(linkstatic,
-              [  --enable-linkstatic     make statically linked binaries])
-if test "$enable_linkstatic" = "yes"; then
-              AC_MSG_NOTICE(Linking statically...)
-              LDFLAGS="${LDFLAGS} -static"
-else
-	      AC_MSG_NOTICE(Linking for shared libraries...)
-fi
+AC_CHECK_LIB(m, pow)
 
 AC_ARG_ENABLE(dlplugins,
-              [  --disable-dlplugins     do NOT use dynamically loaded plugins])
+              AS_HELP_STRING([--disable-dlplugins], [do NOT use dynamically loaded plugins]))
 if test "$enable_dlplugins" != "no"; then
-	      AC_MSG_NOTICE(Using dynamically loaded plugins...)
+              AC_MSG_NOTICE(Using dynamically loaded plugins...)
               AC_DEFINE(USE_DL_PLUGINS)
               USE_DL_PLUGINS="USE_DL_PLUGINS=1"
               AC_SUBST(USE_DL_PLUGINS)
               DOSBIN_LDFLAGS="-rdynamic"
               AC_SUBST(DOSBIN_LDFLAGS)
+              AC_CHECK_LIB(dl, dlopen)
 else
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi
@@ -156,7 +148,7 @@ REQUIRED="commands tools/periph"
 
 dnl enable EXPERIMENTAL stuff
  AC_ARG_ENABLE(experimental,
-               [  --enable-experimental   enable configuration of EXPERIMENTAL stuff])
+               AS_HELP_STRING([--enable-experimental], [enable configuration of EXPERIMENTAL stuff]))
   if test "$enable_experimental" = "yes"; then
    AC_MSG_NOTICE(Allowing EXPERIMENTAL stuff to be configured...);
    AC_DEFINE([EXPERIMENTAL], 1, [ Define this to enable experimental stuff ])
@@ -164,23 +156,13 @@ dnl enable EXPERIMENTAL stuff
    AC_MSG_NOTICE(EXPERIMENTAL stuff disabled...);
   fi
 
-if test "$CONFIG_HOST" = "linux"; then
-dnl Do vm86plus
-dnl Starting wth dosemu-1.0 we nolonger support the old vm86 interface
-dnl but only vm86plus
-   AC_DEFINE_UNQUOTED(USE_MHPDBG)
-   USE_MHPDBG="USE_MHPDBG=1"
-   AC_SUBST(USE_MHPDBG)
-   DEBUGGER="arch/$CONFIG_HOST/debugger"
-fi
-AC_SUBST(DEBUGGER)
-
 dnl try to hook in available plug-ins
 if test -x $srcdir/mkpluginhooks; then
   $srcdir/mkpluginhooks
   if test -f plugin_libdirs; then
     PLUGINSUBDIRS=`cat plugin_libdirs`
-    AC_MSG_NOTICE(Including plugins: $PLUGINSUBDIRS);
+    PLUGINS=`echo $PLUGINSUBDIRS | sed 's/plugin\///g'`
+    AC_MSG_NOTICE(Including plugins: $PLUGINS);
     cd src
     for i in $PLUGINSUBDIRS; do
       if ! grep USE_DL_PLUGINS $i/Makefile >/dev/null ; then
@@ -212,28 +194,15 @@ else
 fi
 
 dnl Do compilation for GDB
- AC_ARG_ENABLE(debug,
-               [  --enable-debug          compile with debug info])
+AC_ARG_ENABLE(debug,
+               AS_HELP_STRING([--enable-debug], [compile with debug info]))
   if test "$enable_debug" = "yes"; then
    AC_MSG_NOTICE(Compiling with debug info...);
   else
    AC_MSG_NOTICE(Compiling without debug info...);
   fi
 
-dnl Do SB emulation
- AC_ARG_ENABLE(sbemu,
-               [  --disable-sbemu         do NOT use SoundBlaster emulator])
- if test "$enable_sbemu" = "no"; then
-                AC_MSG_NOTICE(Compiling without SB Emulation...)
- else
-                AC_MSG_NOTICE(Compiling with SB Emulation...)
-                AC_DEFINE(USE_SBEMU)
-                USE_SBEMU="USE_SBEMU=1"
-                AC_SUBST(USE_SBEMU)
- fi
-
-
-dnl DPMI requirements
+AC_ARG_ENABLE(asan, [AS_HELP_STRING(--enable-asan, [enable address sanitizer])])
 
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
@@ -247,46 +216,6 @@ AC_SUBST(INCDIR)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
  -Wnested-externs -fms-extensions"
-
-dnl CPU emulator
- AC_ARG_ENABLE(cpuemu,
-               [  --disable-cpuemu        do NOT compile with optional x86 emulation code])
-  if test "$enable_cpuemu" != "no"; then
-   AC_MSG_NOTICE(Compiling with optional 386 emulation code...);
-   AC_DEFINE_UNQUOTED(X86_EMULATOR)
-   X86_EMULATOR="X86_EMULATOR=1"
-   AC_SUBST(X86_EMULATOR)
-  else
-   AC_MSG_NOTICE(Compiling for native x86...);
-  fi
-
-
-if ! echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
-  echo ''
-  echo '*** error:'
-  echo '*** Your system has no complete code16 functional gas,'
-  echo '*** you must upgrade to at least binutils-2.9.5'
-  echo '*** in order to compile DOSEMU ... giving up'
-  echo ''
-  exit 1
-fi
-rm -f dummy.o
-
-# OPT=-fno-inline
-if test "$CONFIG_HOST" = "linux"; then
- AC_MSG_NOTICE(Linux Specific build options...)
- dnl Linux net code
-  AC_ARG_ENABLE(net,
-               [  --disable-net           do NOT use Linux net code])
-  if test "$enable_net" = "no"; then
-    AC_MSG_NOTICE(Compiling without network support...);
-  else
-    AC_MSG_NOTICE(Compiling with network support...);
-    AC_DEFINE(USING_NET)
-  fi
- PIPE=-pipe
-fi
-
 
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
@@ -305,9 +234,8 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     ASFLAGS="$ASFLAGS -no-integrated-as"
     AC_MSG_RESULT([yes, using -no-integrated-as for assembly language files.])
   fi
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft"
   # unfortunately clang is too buggy even on -O1
-  CFLAGS="$CFLAGS -O0"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -O0"
   use_clang="yes"
 else
   CCAS="$CC"
@@ -316,25 +244,28 @@ else
   use_clang="no"
 fi
 
-if test -z "$CFLAGS"; then
-  if test "$enable_debug" = "yes" ; then
-    CFLAGS="$CFLAGS -g"
+if test "$enable_debug" = "yes" ; then
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
+  if test -z "$CFLAGS" -a "$use_clang" = "no" ; then
     # simx86 is too slow on gcc without -O
-    if test "$use_clang" = "no" ; then
-      CFLAGS="$CFLAGS -O"
-    fi
-  elif test "$use_clang" = "no" ; then
-    CFLAGS="$CFLAGS -O2"
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O"
   fi
+elif test -z "$CFLAGS" -a "$use_clang" = "no" ; then
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
+
 if test "$enable_debug" = "yes"; then
+  if test "$enable_asan" = "yes"; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
+    LDFLAGS="$LDFLAGS -fsanitize=address"
+  fi
   AC_DEFINE(_DEBUG)
 fi
 
 AC_DEFINE(_GNU_SOURCE)
 
 DOSEMU_CFLAGS="${DOSEMU_CFLAGS} ${OPT} ${PIPE}"
-DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD"
+DOSEMU_CPPFLAGS="${DOSEMU_CPPFLAGS} -MMD -DCFLAGS_STR=\"$DOSEMU_CFLAGS $CFLAGS\""
 AC_SUBST(ASFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(DOSEMU_CFLAGS)
@@ -447,27 +378,11 @@ AH_TEMPLATE(HAVE_XKB,
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
 
-AH_TEMPLATE([USE_GPM],
-[ DEFINE this, if you want GPM support ])
-
-AH_TEMPLATE([USE_MHPDBG],
-[ DEFINE this, if you want the dosdebugger (mhpdbg) ])
-
-AH_TEMPLATE([USE_SBEMU],
-[ This is DEFINED when SB emulation is required. Just changing this is not
-  enough - you must reconfigure. ])
-
-AH_TEMPLATE([X86_EMULATOR],
-[ Define this to use the X86 CPU emulator ])
-
 AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])
 
 AH_TEMPLATE([_GNU_SOURCE],
 [ Define this if the GNU_SOURCE macro is necessary ])
-
-AH_TEMPLATE([USING_NET],
-[ Define if compiling with network support ])
 
 AH_BOTTOM([
 #ifndef __ASM__

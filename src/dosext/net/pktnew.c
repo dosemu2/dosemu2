@@ -705,6 +705,18 @@ static int pkt_receive(void)
 		*--p = (char)(ETH_P_IPX >> 8);
 	    }
 #endif
+
+	    /* The TAP driver can send ethernet frames shorter than 60 bytes
+	     * that may be dropped for the DOS
+	     * stack implementation. This will fix the packet size
+	     * adding a trailer at the end. by almauri@cs.com.uy
+	     */
+	    if (size < ETH_ZLEN) {
+		pd_printf("Fixing packet padding. Actual length: %d\n", size);
+		memset(pkt_buf + size, '0', ETH_ZLEN - size);
+		size = ETH_ZLEN;
+	    }
+
 	    p_stats->packets_in++;
 	    p_stats->bytes_in += size;
 

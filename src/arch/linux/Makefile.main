@@ -12,29 +12,26 @@ NET=dosext/net
 # This is defined when the SB Emulation is required. You should re-configure,
 # rather than just change this.
 #
-ifdef USE_SBEMU
 SBEMU=base/dev/sb16 base/sound
-endif
 
 #
 # This is defined when the CPU emulator is required. You should
 # re-configure, rather than just change this.
 #
-ifdef X86_EMULATOR
 XCPUEMU=emu-i386/simx86
-endif
 
 # No longer need midid
 #REQUIRED += $(MIDID)
 
-_LIBSUBDIRS=base/video base base/async \
+_LIBSUBDIRS=base/video base/dev/vga base base/async \
 	arch/linux/async arch/linux/mapping \
 	base/misc base/misc/libpcl base/dev/misc\
 	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/mouse\
 	base/dev/dma \
-	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
+	tools/debugger \
+	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
 
 LIBSUBDIRS=$(_LIBSUBDIRS) $(PLUGINSUBDIRS)
 ST_LIBSUBDIRS=$(_LIBSUBDIRS) $(ST_PLUGINSUBDIRS)
@@ -206,12 +203,7 @@ install:
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
-#ifdef USE_SBEMU
-#	$(INSTALL) -m 0755 ../bin/midid $(DESTDIR)$(bindir)
-#endif
-ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
-endif
 	$(INSTALL) -d $(DESTDIR)$(libdir)/dosemu
 	for i in ../bin/*.so; do \
 	  if [ -f $$i ]; then \

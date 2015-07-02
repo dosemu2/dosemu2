@@ -153,6 +153,9 @@ if [ -n "$USE_SUDO" ] ; then
   IGNORE_DOSEMU_CONF=""
 fi
 
+# for address sanitizer
+export ASAN_OPTIONS=handle_segv=0:abort_on_error=1
+
 eval "set -- $SUFFIX"
 COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG"
 DOSEMU_INVOKED_NAME="$0"

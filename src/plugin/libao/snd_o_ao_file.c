@@ -61,6 +61,9 @@ static int aosndf_open(void *arg)
 	error("libao: opening %s failed\n", config.wav_file);
 	return 0;
     }
+
+    pcm_setup_hpf(&params);
+
     return 1;
 }
 

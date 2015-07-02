@@ -23,10 +23,8 @@
 #include "mouse.h"
 #include "port.h"
 #include "joystick.h"
-#ifdef USING_NET
 #include "pktdrvr.h"
 #include "ipx.h"
-#endif
 #include "bitops.h"
 #include "pic.h"
 #include "cmos.h"
@@ -364,6 +362,8 @@ void version_init(void) {
 
 }
 
+#define __S(x) #x
+#define _S(x) __S(x)
 void print_version(void)
 {
   struct utsname unames;
@@ -379,5 +379,8 @@ void print_version(void)
   warn(" -m32\n");
 #else
   warn(" -m64\n");
+#endif
+#ifdef CFLAGS_STR
+  warn("CFLAGS: %s\n", _S(CFLAGS_STR));
 #endif
 }

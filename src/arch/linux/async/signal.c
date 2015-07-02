@@ -42,11 +42,7 @@
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
-
-#ifdef USE_SBEMU
 #include "sound.h"
-#endif
-
 #include "cpu-emu.h"
 
 /* Variables for keeping track of signals */
@@ -85,10 +81,6 @@ static struct {
   unsigned short fs, gs;
 #ifdef __x86_64__
   unsigned char *fsbase, *gsbase;
-#define ARCH_SET_GS 0x1001
-#define ARCH_SET_FS 0x1002
-#define ARCH_GET_FS 0x1003
-#define ARCH_GET_GS 0x1004
 #endif
 } eflags_fs_gs;
 
@@ -170,11 +162,6 @@ static void newsetsig(int sig, void *fun)
 }
 
 #ifdef __x86_64__
-static int dosemu_arch_prctl(int code, void *addr)
-{
-  return syscall(SYS_arch_prctl, code, addr);
-}
-
 /* this function is called from dosemu_fault0 to check if
    fsbase/gsbase need to be fixed up, if the above asm codes
    cause a page fault.
@@ -387,12 +374,9 @@ static void leavedos_sig(int sig)
   }
 }
 
-__attribute__((no_instrument_function))
-static void leavedos_signal(int sig, siginfo_t *si, void *uc)
+__attribute__((noinline))
+static void _leavedos_signal(int sig, struct sigcontext_struct *scp)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
   if (ld_sig) {
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
     _exit(sig);
@@ -401,6 +385,25 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
   if (in_dpmi && !in_vm86)
     dpmi_sigio(scp);
   dpmi_iret_setup(scp);
+}
+
+__attribute__((no_instrument_function))
+static void leavedos_signal(int sig, siginfo_t *si, void *uc)
+{
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp);
+  _leavedos_signal(sig, scp);
+}
+
+__attribute__((no_instrument_function))
+static void abort_signal(int sig, siginfo_t *si, void *uc)
+{
+  struct sigcontext_struct *scp =
+	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp);
+  gdb_debug();
+  _exit(sig);
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */
@@ -494,7 +497,8 @@ static void signal_thr(void *arg)
     memcpy(sig_c.arg, sig->arg, sig->arg_size);
   sig_c.name = sig->name;
   SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
-  g_printf("Processing signal %s\n", sig_c.name);
+  if (debug_level('g') > 5)
+    g_printf("Processing signal %s\n", sig_c.name);
   sig_c.signal_handler(sig_c.arg);
 }
 
@@ -537,6 +541,8 @@ signal_pre_init(void)
   eflags_fs_gs.fs = getsegment(fs);
   eflags_fs_gs.gs = getsegment(gs);
   eflags_fs_gs.eflags = getflags();
+  dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
+    eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
 #ifdef __x86_64__
   /* get long fs and gs bases. If they are in the first 32 bits
      normal 386-style fs/gs switching can happen so we can ignore
@@ -547,6 +553,8 @@ signal_pre_init(void)
   dosemu_arch_prctl(ARCH_GET_GS, &eflags_fs_gs.gsbase);
   if ((unsigned long)eflags_fs_gs.gsbase <= 0xffffffff)
     eflags_fs_gs.gsbase = 0;
+  dbug_printf("initial segment bases: fs: %p  gs: %p\n",
+    eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
 #endif
 
   /* init signal handlers - these are the defined signals:
@@ -595,6 +603,7 @@ signal_pre_init(void)
   newsetsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
   newsetsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetsig(SIGTERM, leavedos_signal);
+  newsetsig(SIGABRT, abort_signal);
   newsetsig(SIGQUIT, sigasync);
   registersig(SIGQUIT, sigquit);
   setsig(SIGPIPE, SIG_IGN);
@@ -746,10 +755,7 @@ static void SIGALRM_call(void *arg)
   if (!config.console_keyb)
     keyb_client_run();
 
-#ifdef USE_SBEMU
-  /* This is a macro */
   run_sound();
-#endif
 
   serial_run();
 
@@ -871,7 +877,10 @@ static void SIGIO_call(void *arg){
 #ifdef __linux__
 static void sigio(struct sigcontext_struct *scp)
 {
+  /* prints non reentrant! dont do! */
+#if 0
   g_printf("got SIGIO\n");
+#endif
   e_gen_sigalrm(scp);
   SIGNAL_save(SIGIO_call, NULL, 0, __func__);
   if (in_dpmi && !in_vm86)

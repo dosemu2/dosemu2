@@ -1,4 +1,4 @@
-top_builddir=../../../..
+top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 # This is the Makefile for the debugger-subdirectory of DOSEMU.
@@ -19,9 +19,10 @@ OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
 
 all: lib $(BINPATH)/bin/dosdebug
 
-$(BINPATH)/bin/dosdebug: dosdebug.c
+dosdebug: dosdebug.c
 	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) $(ALL_CPPFLAGS) $< -o $@
-
+$(BINPATH)/bin/dosdebug: dosdebug
+	cp $< $@
 
 install:
 

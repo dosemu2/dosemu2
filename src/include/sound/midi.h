@@ -27,13 +27,13 @@
 #define MIDI_W_PCM 2
 
 struct midi_out_plugin {
-  pcm_base;
+  pcm_plugin_base;
   void (*write)(unsigned char);
   void (*run)(void);
 };
 
 struct midi_in_plugin {
-  pcm_base;
+  pcm_plugin_base;
 };
 
 extern void midi_write(unsigned char val);

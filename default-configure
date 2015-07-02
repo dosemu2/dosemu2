@@ -46,14 +46,8 @@ while [ "$1" != "" ]; do
     debug)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-debug"; fi
       ;;
-    net)
-      if [ "$2" = "off" ]; then STRING="$STRING --disable-net"; fi
-      ;;
-    sbemu)
-      if [ "$2" = "off" ]; then STRING="$STRING --disable-sbemu"; fi
-      ;;
-    cpuemu)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
+    asan)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-asan"; fi
       ;;
     dlplugins)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-dlplugins"; fi

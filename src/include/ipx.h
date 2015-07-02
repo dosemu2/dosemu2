@@ -2,10 +2,9 @@
  * 		Tim Bird, tbird@novell.com
  */
 
-#include "config.h"
-#ifdef USING_NET
 #ifndef IPXDMU_H
 #define IPXDMU_H
+#include "config.h"
 
 /* commment out the next line to turn off IPX emulation */
 #if 1
@@ -134,4 +133,3 @@ extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 extern void ipx_close(void);
 
 #endif /* IPX_H */
-#endif /* USING_NET */

@@ -95,6 +95,9 @@ static int aosnd_open(void *arg)
     ao = ao_open_live(id, &info, &opt);
     if (!ao)
 	return 0;
+
+    pcm_setup_hpf(&params);
+
     sem_init(&start_sem, 0, 0);
     sem_init(&stop_sem, 0, 0);
     pthread_create(&write_thr, NULL, aosnd_write, NULL);

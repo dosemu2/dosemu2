@@ -501,8 +501,6 @@ static void sb_mixer_reset(void)
     memset(sb.mixer_regs, 0, 0x48);
     /* Restore values as per Creative specs */
     sb.mixer_regs[0x0a] = 0;	/* -48 dB */
-    sb.mixer_regs[0x0c] = 0;	/* mic, low-pass input filter */
-    sb.mixer_regs[0x0e] = 0;	/* mono, output filter */
     sb.mixer_regs[0x04] =
     sb.mixer_regs[0x22] =
     sb.mixer_regs[0x26] = 0xcc;	/* -12 dB */

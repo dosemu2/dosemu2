@@ -1,13 +1,11 @@
 config {
   experimental off
-  sbemu on
-  net on
   debug off
-  cpuemu on
   dlplugins on
   plugin_libao on
   plugin_gpm on
   plugin_alsa on
+  plugin_ladspa on
   plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on

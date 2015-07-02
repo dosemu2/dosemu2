@@ -82,10 +82,7 @@ __asm__("___START___: jmp _emulate\n");
 
 #include "version.h"
 #include "memory.h"
-
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif
 #include "debug.h"
 
 #include "emu.h"
@@ -122,9 +119,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "keyb_server.h"
 #include "keyb_clients.h"
 
-#ifdef USE_SBEMU
 #include "sound.h"
-#endif
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -600,11 +595,6 @@ void leavedos_main(int sig)
     g_printf("calling mapping_close()\n");
     mapping_close();
 
-    if (config.detach) {
-	restore_vt(config.detach);
-	disallocate_vt();
-    }
-
 #ifdef IPX
     ipx_close();
 #endif
@@ -640,9 +630,7 @@ void check_leavedos(void)
 
 void hardware_run(void)
 {
-#ifdef USE_SBEMU
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
-#endif
 	keyb_server_run();
 	rtc_run();
 }

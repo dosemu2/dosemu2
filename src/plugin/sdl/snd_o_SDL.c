@@ -102,6 +102,9 @@ static int sdlsnd_open(void *arg)
     params.rate = spec1.freq;
     params.format = PCM_FORMAT_S16_LE;
     params.channels = spec1.channels;
+
+    pcm_setup_hpf(&params);
+
     return 1;
 }
 

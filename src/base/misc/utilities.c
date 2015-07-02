@@ -28,9 +28,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "dosemu_config.h"
-#ifdef USE_MHPDBG
 #include "mhpdbg.h"
-#endif
 
 /*
  * NOTE: SHOW_TIME _only_ should be enabled for

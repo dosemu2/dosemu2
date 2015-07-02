@@ -19,7 +19,7 @@ void X_init_videomode(void);
 void X_pre_init(void);
 void X_register_speaker(Display *display);
 
-void X_process_key(XKeyEvent *);
+void X_process_key(Display *display, XKeyEvent *);
 void X_process_keys(XKeymapEvent *);
 
 int X_load_text_font(Display *dpy, int private_dpy,
