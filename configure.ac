@@ -100,15 +100,6 @@ dnl Check for static and then also use it for tests
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 LIBS="$LIBS -ldl -lm"
 
-AC_ARG_ENABLE(linkstatic,
-              [  --enable-linkstatic     make statically linked binaries])
-if test "$enable_linkstatic" = "yes"; then
-              AC_MSG_NOTICE(Linking statically...)
-              LDFLAGS="${LDFLAGS} -static"
-else
-	      AC_MSG_NOTICE(Linking for shared libraries...)
-fi
-
 AC_ARG_ENABLE(dlplugins,
               [  --disable-dlplugins     do NOT use dynamically loaded plugins])
 if test "$enable_dlplugins" != "no"; then
