@@ -148,7 +148,7 @@ REQUIRED="commands tools/periph"
 
 dnl enable EXPERIMENTAL stuff
  AC_ARG_ENABLE(experimental,
-               [  --enable-experimental   enable configuration of EXPERIMENTAL stuff])
+               AS_HELP_STRING([--enable-experimental], [enable configuration of EXPERIMENTAL stuff]))
   if test "$enable_experimental" = "yes"; then
    AC_MSG_NOTICE(Allowing EXPERIMENTAL stuff to be configured...);
    AC_DEFINE([EXPERIMENTAL], 1, [ Define this to enable experimental stuff ])
@@ -195,14 +195,14 @@ fi
 
 dnl Do compilation for GDB
 AC_ARG_ENABLE(debug,
-               [  --enable-debug          compile with debug info])
+               AS_HELP_STRING([--enable-debug], [compile with debug info]))
   if test "$enable_debug" = "yes"; then
    AC_MSG_NOTICE(Compiling with debug info...);
   else
    AC_MSG_NOTICE(Compiling without debug info...);
   fi
 
-AC_ARG_ENABLE(asan, [AC_HELP_STRING(--enable-asan, [enable address sanitizer])])
+AC_ARG_ENABLE(asan, [AS_HELP_STRING(--enable-asan, [enable address sanitizer])])
 
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
