@@ -316,8 +316,6 @@ void dspio_post_init(void *dspio)
 
 void dspio_reset(void *dspio)
 {
-    pcm_reset();
-    midi_reset();
 }
 
 void dspio_done(void *dspio)

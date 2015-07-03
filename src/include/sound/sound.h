@@ -134,7 +134,6 @@ enum _PCM_format {
 extern int pcm_init(void);
 extern int pcm_post_init(void *caller);
 extern void pcm_done(void);
-extern void pcm_reset(void);
 extern int pcm_allocate_stream(int channels, char *name, int id);
 extern void pcm_set_flag(int strm_idx, int flag);
 extern void pcm_clear_flag(int strm_idx, int flag);

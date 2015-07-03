@@ -76,10 +76,6 @@ void midi_done(void)
     close_plugin(dl_handles[i]);
 }
 
-void midi_reset(void)
-{
-}
-
 void midi_stop(void)
 {
   int i;
