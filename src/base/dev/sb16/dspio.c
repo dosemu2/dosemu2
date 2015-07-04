@@ -683,8 +683,6 @@ static void dspio_process_dma(struct dspio_state *state)
 	params.handle = state->i_handle;
 	nfr = pcm_data_get_interleaved(buf, nfr, &params);
     }
-    /* the input data may be overwritten with silence below.
-     * We still need to get it from PCM buffers to stay in sync. */
     if (!state->i_started) {
 	for (i = 0; i < nfr; i++) {
 	    for (j = 0; j < state->dma.stereo + 1; j++)
