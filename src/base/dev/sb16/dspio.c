@@ -844,6 +844,8 @@ int dspio_is_connected(int id, void *arg)
 {
     enum MixChan mc = (long)arg;
 
+    if (mc == MC_NONE)
+	return 1;
     switch (id) {
     case PCM_ID_P:
 	return sb_is_output_connected(mc);

@@ -107,7 +107,6 @@ struct stream {
     double last_fillup;
     /* --- */
     char *name;
-    int id;
 };
 
 #define MAX_STREAMS 10
@@ -268,7 +267,6 @@ int pcm_allocate_stream(int channels, char *name, int id, void *vol_arg)
 	     sizeof(struct sample));
     pcm.stream[index].channels = channels;
     pcm.stream[index].name = name;
-    pcm.stream[index].id = id;
     pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
@@ -401,7 +399,7 @@ static int count_active_streams(int id)
 {
     int i, ret = 0;
     for (i = 0; i < pcm.num_streams; i++) {
-	if (id != PCM_ID_ANY && !(pcm.stream[i].id & id))
+	if (id != PCM_ID_ANY && !pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
@@ -810,7 +808,7 @@ retry:
 
     for (i = 0; i < PCM_ID_MAX; i++) {
 	int id = 1 << i;
-	if (!(id & strm->id))
+	if (!pcm.is_connected(id, strm->vol_arg))
 	    continue;
 	if (!(id & pcm.playing))
 	    pcm_start_output(id);
@@ -850,7 +848,7 @@ static void pcm_get_samples(double time,
 	for (j = 0; j < SNDBUF_CHANS; j++)
 	    samp[i][j] = mute_samp;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
-		!(pcm.stream[i].id & id))
+		!pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
 
 //    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
@@ -947,7 +945,7 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
     int i, j, k;
     for (i = 0; i < pcm.num_streams; i++) {
 	struct stream *strm = &pcm.stream[i];
-	if (id != PCM_ID_ANY && !(strm->id & id))
+	if (id != PCM_ID_ANY && !pcm.is_connected(id, strm->vol_arg))
 	    continue;
 	if (strm->state == SNDBUF_STATE_INACTIVE)
 	    continue;

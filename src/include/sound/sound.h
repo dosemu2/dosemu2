@@ -164,7 +164,8 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 #define PCM_FLAG_POST 2
 #define PCM_FLAG_SLTS 4
 
-enum MixChan { MC_MASTER, MC_VOICE, MC_MIDI, MC_CD, MC_LINE, MC_MIC, MC_PCSP };
+enum MixChan { MC_NONE, MC_MASTER, MC_VOICE, MC_MIDI, MC_CD, MC_LINE,
+	MC_MIC, MC_PCSP };
 enum MixSubChan { MSC_L, MSC_R, MSC_LR, MSC_RL, MSC_MONO_L, MSC_MONO_R };
 enum MixRet { MR_UNSUP, MR_DISABLED, MR_OK };
 
