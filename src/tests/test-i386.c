@@ -2072,7 +2072,7 @@ void test_exceptions(void)
     printf("lock nop exception:\n");
     if (setjmp(jmp_env) == 0) {
         /* now execute an invalid instruction */
-        asm volatile("lock nop");
+        asm volatile(".byte 0xf0; nop");
     }
 
     printf("INT exception:\n");
