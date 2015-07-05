@@ -62,7 +62,7 @@ struct dspio_dma {
 
 struct dspio_state {
     double input_time_cur, midi_time_cur;
-    int dma_strm, dac_strm, lin_strm, mic_strm;
+    int dma_strm, dac_strm;
     int input_running:1, output_running:1, dac_running:1, speaker:1;
     int pcm_input_running:1, lin_input_running:1, mic_input_running:1;
     int i_handle, i_started;
@@ -306,10 +306,8 @@ void dspio_post_init(void *dspio)
     state->i_handle = pcm_register_player(&player, state);
     pcm_init();
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", (void*)MC_VOICE);
-    dspio_register_stream(dspio, state->dac_strm, MC_VOICE);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
     state->dma_strm = pcm_allocate_stream(2, "SB DMA", (void*)MC_VOICE);
-    dspio_register_stream(dspio, state->dma_strm, MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     adlib_init(dspio);
@@ -820,22 +818,6 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     if (mr != MR_OK)
 	return 0;
     return vol;
-}
-
-int dspio_register_stream(void *dspio, int strm_idx, enum MixChan mc)
-{
-    struct dspio_state *state = dspio;
-    switch (mc) {
-    case MC_MIC:
-	state->mic_strm = strm_idx;
-	break;
-    case MC_LINE:
-	state->lin_strm = strm_idx;
-	break;
-    default:
-	break;
-    }
-    return 1;
 }
 
 int dspio_is_connected(int id, void *arg)

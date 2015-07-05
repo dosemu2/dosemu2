@@ -136,7 +136,6 @@ static int midoflus_setup(void *caller, void *arg)
 	    (void*)MC_MIDI);
     /* mpu401 interface was on both gameport and a waveblaster's connector.
      * waveblaster's midi is routed to the mixer. */
-    dspio_register_stream(caller, pcm_stream, MC_MIDI);
     initialized = 1;
     return 1;
 }
