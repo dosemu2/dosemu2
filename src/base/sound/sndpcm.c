@@ -1267,12 +1267,13 @@ int pcm_get_cfg(const char *name)
   return PCM_CF_DISABLED;
 }
 
-int pcm_start_input(int strm_idx)
+int pcm_start_input(void *arg)
 {
     int i, ret = 0;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx))) {
+	if (p->opened && (!RECORDER(p)->owns ||
+		RECORDER(p)->owns(arg, p->arg))) {
 	    RECORDER(p)->start(p->arg);
 	    ret++;
 	}
@@ -1281,12 +1282,13 @@ int pcm_start_input(int strm_idx)
     return ret;
 }
 
-void pcm_stop_input(int strm_idx)
+void pcm_stop_input(void *arg)
 {
     int i;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx)))
+	if (p->opened && (!RECORDER(p)->owns ||
+		RECORDER(p)->owns(arg, p->arg)))
 	    RECORDER(p)->stop(p->arg);
     }
     S_printf("PCM: input stopped\n");

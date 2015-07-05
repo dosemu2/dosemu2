@@ -159,9 +159,9 @@ static void alsain_stop(void *arg)
     S_printf("ALSA: input stopped\n");
 }
 
-static int alsain_owns(int strm_idx)
+static int alsain_owns(void *id, void *arg)
 {
-    return (strm_idx == pcm_stream);
+    return ((enum MixChan)id == MC_LINE);;
 }
 
 static const struct pcm_recorder recorder = {

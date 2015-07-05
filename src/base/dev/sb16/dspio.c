@@ -405,14 +405,14 @@ int dspio_input_enable(void *dspio, enum MixChan mc)
     case MC_LINE:
 	if (state->lin_input_running)
 	    return 0;
-	pcm_start_input(state->lin_strm);
+	pcm_start_input((void *)MC_LINE);
 	state->lin_input_running = 1;
 	S_printf("SB: enabled LINE\n");
 	break;
     case MC_MIC:
 	if (state->mic_input_running)
 	    return 0;
-	pcm_start_input(state->mic_strm);
+	pcm_start_input((void *)MC_MIC);
 	state->mic_input_running = 1;
 	S_printf("SB: enabled MIC\n");
 	break;
@@ -429,14 +429,14 @@ int dspio_input_disable(void *dspio, enum MixChan mc)
     case MC_LINE:
 	if (!state->lin_input_running)
 	    return 0;
-	pcm_stop_input(state->lin_strm);
+	pcm_stop_input((void *)MC_LINE);
 	state->lin_input_running = 0;
 	S_printf("SB: disabled LINE\n");
 	break;
     case MC_MIC:
 	if (!state->mic_input_running)
 	    return 0;
-	pcm_stop_input(state->mic_strm);
+	pcm_stop_input((void *)MC_MIC);
 	state->mic_input_running = 0;
 	S_printf("SB: disabled MIC\n");
 	break;

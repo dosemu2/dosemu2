@@ -141,9 +141,9 @@ static int midoflus_setup(void *caller, void *arg)
     return 1;
 }
 
-static int midoflus_owns(int strm_idx)
+static int midoflus_owns(void *id, void *arg)
 {
-    return (strm_idx == pcm_stream);
+    return ((enum MixChan)id == MC_MIDI);
 }
 
 static void midoflus_done(void *arg)
