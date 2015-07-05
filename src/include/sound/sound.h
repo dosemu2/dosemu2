@@ -76,7 +76,6 @@ struct pcm_player {
 
 struct pcm_recorder {
   pcm_plugin_base;
-  int (*setup)(void *, void *);
   int (*owns)(void *, void *);
 };
 

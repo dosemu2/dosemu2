@@ -310,7 +310,6 @@ void dspio_post_init(void *dspio)
     state->dma_strm = pcm_allocate_stream(2, "SB DMA", (void*)MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
-    adlib_init(dspio);
     midi_init();
     pcm_post_init(dspio);
     pcm_set_volume_cb(dspio_get_volume);

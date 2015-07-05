@@ -151,10 +151,6 @@ void opl3_init(void)
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
-}
-
-void adlib_init(void *caller)
-{
     adlib_strm = pcm_allocate_stream(ADLIB_CHANNELS, "Adlib", (void*)MC_MIDI);
 }
 

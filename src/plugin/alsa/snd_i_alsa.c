@@ -69,7 +69,7 @@ static void alsain_async(void *arg)
 	error("ALSA: poll returned %i, %s\n", pollret, strerror(errno));
 }
 
-static int alsain_setup(void *caller, void *arg)
+static int alsain_open(void *arg)
 {
     pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "PCM LINE IN",
 	    (void*)MC_LINE);
@@ -160,13 +160,13 @@ static void alsain_stop(void *arg)
 
 static int alsain_owns(void *id, void *arg)
 {
-    return ((enum MixChan)id == MC_LINE);;
+    return ((enum MixChan)id == MC_LINE);
 }
 
 static const struct pcm_recorder recorder = {
     .name = alsain_name,
     .longname = alsain_longname,
-    .setup = alsain_setup,
+    .open = alsain_open,
     .start = alsain_start,
     .stop = alsain_stop,
     .owns = alsain_owns,

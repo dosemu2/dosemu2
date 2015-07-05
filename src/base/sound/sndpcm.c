@@ -218,8 +218,6 @@ int pcm_init(void)
 
 int pcm_post_init(void *caller)
 {
-    int i;
-
     pcm.get_volume = get_vol_dummy;
     pcm.is_connected = is_connected_dummy;
 
@@ -230,12 +228,6 @@ int pcm_post_init(void *caller)
       S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
       S_printf("ERROR: no PCM input plugins initialized\n");
-
-    for (i = 0; i < pcm.num_recorders; i++) {
-	struct pcm_holder *r = &pcm.recorders[i];
-	if (r->opened && RECORDER(r)->setup)
-	    RECORDER(r)->setup(caller, r->arg);
-    }
     return 1;
 }
 

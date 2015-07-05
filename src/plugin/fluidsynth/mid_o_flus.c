@@ -53,7 +53,6 @@ static short synthSeqID;
 static fluid_midi_parser_t* parser;
 static int pcm_stream;
 static int output_running, pcm_running;
-static int initialized;
 static double mf_time_base;
 static double flus_srate;
 
@@ -121,6 +120,9 @@ static int midoflus_init(void *arg)
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
 
+    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
+	    (void*)MC_MIDI);
+
     return 1;
 
 err2:
@@ -128,16 +130,6 @@ err2:
 err1:
     delete_fluid_settings(settings);
     return 0;
-}
-
-static int midoflus_setup(void *caller, void *arg)
-{
-    pcm_stream = pcm_allocate_stream(FLUS_CHANNELS, "MIDI",
-	    (void*)MC_MIDI);
-    /* mpu401 interface was on both gameport and a waveblaster's connector.
-     * waveblaster's midi is routed to the mixer. */
-    initialized = 1;
-    return 1;
 }
 
 static int midoflus_owns(void *id, void *arg)
@@ -170,8 +162,6 @@ static void midoflus_write(unsigned char val)
 {
     fluid_midi_event_t* event;
 
-    if (!initialized)
-	return;
     if (!output_running)
 	midoflus_start();
 
@@ -275,7 +265,6 @@ static const struct midi_out_plugin midoflus = {
 
 static const struct pcm_recorder recorder = {
     .name = midoflus_name,
-    .setup = midoflus_setup,
     .owns = midoflus_owns,
     .flags = PCM_F_PASSTHRU,
 };
