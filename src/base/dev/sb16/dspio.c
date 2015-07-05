@@ -297,6 +297,8 @@ void *dspio_init(void)
     return state;
 }
 
+static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
+
 void dspio_post_init(void *dspio)
 {
     struct dspio_state *state = dspio;
@@ -314,6 +316,7 @@ void dspio_post_init(void *dspio)
     adlib_init(dspio);
     midi_init();
     pcm_post_init(dspio);
+    pcm_set_volume_cb(dspio_get_volume);
 }
 
 void dspio_reset(void *dspio)
@@ -822,7 +825,6 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
 int dspio_register_stream(void *dspio, int strm_idx, enum MixChan mc)
 {
     struct dspio_state *state = dspio;
-    pcm_set_volume(strm_idx, dspio_get_volume, (void *)mc);
     switch (mc) {
     case MC_MIC:
 	state->mic_strm = strm_idx;

@@ -96,7 +96,6 @@ struct stream {
     int flags;
     int stretch:1;
     int prepared:1;
-    double (*get_volume)(int id, int chan_dst, int chan_src, void*);
     void *vol_arg;
     double start_time;
     double stop_time;
@@ -148,6 +147,7 @@ struct efp_wr {
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
     int num_streams;
+    double (*get_volume)(int id, int chan_dst, int chan_src, void*);
     pthread_mutex_t strm_mtx;
     pthread_mutex_t time_mtx;
     struct pcm_holder players[MAX_PLAYERS];
@@ -163,6 +163,11 @@ struct pcm_struct {
 #define MAX_DL_HANDLES 10
 static void *dl_handles[MAX_DL_HANDLES];
 static int num_dl_handles;
+
+static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
+{
+    return (chan_src == chan_dst ? 1.0 : 0.0);
+}
 
 int pcm_init(void)
 {
@@ -209,6 +214,9 @@ int pcm_init(void)
 int pcm_post_init(void *caller)
 {
     int i;
+
+    pcm.get_volume = get_vol_dummy;
+
     /* init efps before players because players init code refers to efps */
     if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
       S_printf("no PCM effect processors initialized\n");
@@ -241,11 +249,6 @@ static void pcm_reset_stream(int strm_idx)
     pcm.stream[strm_idx].prepared = 0;
 }
 
-static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
-{
-    return (chan_src == chan_dst ? 1.0 : 0.0);
-}
-
 int pcm_allocate_stream(int channels, char *name, int id, void *vol_arg)
 {
     int index;
@@ -260,7 +263,6 @@ int pcm_allocate_stream(int channels, char *name, int id, void *vol_arg)
     pcm.stream[index].name = name;
     pcm.stream[index].id = id;
     pcm.stream[index].buf_cnt = 0;
-    pcm.stream[index].get_volume = get_vol_dummy;
     pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
@@ -944,7 +946,7 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
 	    continue;
 	for (j = 0; j < SNDBUF_CHANS; j++)
 	    for (k = 0; k < SNDBUF_CHANS; k++)
-		volume[i][j][k] = strm->get_volume(id, j, k, strm->vol_arg);
+		volume[i][j][k] = pcm.get_volume(id, j, k, strm->vol_arg);
     }
 }
 
@@ -1285,11 +1287,9 @@ void pcm_stop_input(int strm_idx)
     S_printf("PCM: input stopped\n");
 }
 
-void pcm_set_volume(int strm_idx, double (*get_vol)(int, int, int, void *),
-	void *arg)
+void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *))
 {
-    pcm.stream[strm_idx].get_volume = get_vol;
-    pcm.stream[strm_idx].vol_arg = arg;
+    pcm.get_volume = get_vol;
 }
 
 int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
