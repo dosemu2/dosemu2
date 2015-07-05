@@ -302,10 +302,12 @@ void dspio_post_init(void *dspio)
     struct dspio_state *state = dspio;
     state->i_handle = pcm_register_player(&player, state);
     pcm_init();
-    state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
+    state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P,
+	    (void*)MC_VOICE);
     dspio_register_stream(dspio, state->dac_strm, MC_VOICE);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
-    state->dma_strm = pcm_allocate_stream(2, "SB DMA", PCM_ID_P);
+    state->dma_strm = pcm_allocate_stream(2, "SB DMA", PCM_ID_P,
+	    (void*)MC_VOICE);
     dspio_register_stream(dspio, state->dma_strm, MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 

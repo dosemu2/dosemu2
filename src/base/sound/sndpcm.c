@@ -246,7 +246,7 @@ static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
     return (chan_src == chan_dst ? 1.0 : 0.0);
 }
 
-int pcm_allocate_stream(int channels, char *name, int id)
+int pcm_allocate_stream(int channels, char *name, int id, void *vol_arg)
 {
     int index;
     if (pcm.num_streams >= MAX_STREAMS) {
@@ -261,6 +261,7 @@ int pcm_allocate_stream(int channels, char *name, int id)
     pcm.stream[index].id = id;
     pcm.stream[index].buf_cnt = 0;
     pcm.stream[index].get_volume = get_vol_dummy;
+    pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;

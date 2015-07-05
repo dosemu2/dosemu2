@@ -156,7 +156,7 @@ void opl3_init(void)
 void adlib_init(void *caller)
 {
     adlib_strm = pcm_allocate_stream(ADLIB_CHANNELS, "Adlib",
-	    PCM_ID_P | PCM_ID_R);
+	    PCM_ID_P | PCM_ID_R, (void*)MC_MIDI);
     dspio_register_stream(caller, adlib_strm, MC_MIDI);
 }
 
