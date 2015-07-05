@@ -113,6 +113,8 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol);
 int sb_mixer_get_chan_num(enum MixChan ch);
+int sb_is_input_connected(enum MixChan ch);
+int sb_is_output_connected(enum MixChan ch);
 
 #define SB_CHAN_L 0
 #define SB_CHAN_R 1
