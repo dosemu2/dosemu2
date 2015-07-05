@@ -147,7 +147,8 @@ struct efp_wr {
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
     int num_streams;
-    double (*get_volume)(int id, int chan_dst, int chan_src, void*);
+    double (*get_volume)(int id, int chan_dst, int chan_src, void *);
+    int (*is_connected)(int id, void *arg);
     pthread_mutex_t strm_mtx;
     pthread_mutex_t time_mtx;
     struct pcm_holder players[MAX_PLAYERS];
@@ -167,6 +168,11 @@ static int num_dl_handles;
 static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
 {
     return (chan_src == chan_dst ? 1.0 : 0.0);
+}
+
+static int is_connected_dummy(int id, void *arg)
+{
+    return 1;
 }
 
 int pcm_init(void)
@@ -216,6 +222,7 @@ int pcm_post_init(void *caller)
     int i;
 
     pcm.get_volume = get_vol_dummy;
+    pcm.is_connected = is_connected_dummy;
 
     /* init efps before players because players init code refers to efps */
     if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
@@ -1290,6 +1297,11 @@ void pcm_stop_input(int strm_idx)
 void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *))
 {
     pcm.get_volume = get_vol;
+}
+
+void pcm_set_connected_cb(int (*is_connected)(int, void *))
+{
+    pcm.is_connected = is_connected;
 }
 
 int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,

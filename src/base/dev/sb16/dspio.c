@@ -298,6 +298,7 @@ void *dspio_init(void)
 }
 
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
+int dspio_is_connected(int id, void *arg);
 
 void dspio_post_init(void *dspio)
 {
@@ -317,6 +318,7 @@ void dspio_post_init(void *dspio)
     midi_init();
     pcm_post_init(dspio);
     pcm_set_volume_cb(dspio_get_volume);
+    pcm_set_connected_cb(dspio_is_connected);
 }
 
 void dspio_reset(void *dspio)
@@ -836,4 +838,17 @@ int dspio_register_stream(void *dspio, int strm_idx, enum MixChan mc)
 	break;
     }
     return 1;
+}
+
+int dspio_is_connected(int id, void *arg)
+{
+    enum MixChan mc = (long)arg;
+
+    switch (id) {
+    case PCM_ID_P:
+	return sb_is_output_connected(mc);
+    case PCM_ID_R:
+	return sb_is_input_connected(mc);
+    }
+    return 0;
 }
