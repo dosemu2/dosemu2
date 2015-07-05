@@ -213,11 +213,7 @@ int pcm_init(void)
 #endif
 #endif
     assert(num_dl_handles <= MAX_DL_HANDLES);
-    return 1;
-}
 
-int pcm_post_init(void *caller)
-{
     pcm.get_volume = get_vol_dummy;
     pcm.is_connected = is_connected_dummy;
 

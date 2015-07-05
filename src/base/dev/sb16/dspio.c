@@ -305,15 +305,15 @@ void dspio_post_init(void *dspio)
     struct dspio_state *state = dspio;
     state->i_handle = pcm_register_player(&player, state);
     pcm_init();
+
+    pcm_set_volume_cb(dspio_get_volume);
+    pcm_set_connected_cb(dspio_is_connected);
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", (void*)MC_VOICE);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
     state->dma_strm = pcm_allocate_stream(2, "SB DMA", (void*)MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     midi_init();
-    pcm_post_init(dspio);
-    pcm_set_volume_cb(dspio_get_volume);
-    pcm_set_connected_cb(dspio_is_connected);
 }
 
 void dspio_reset(void *dspio)
