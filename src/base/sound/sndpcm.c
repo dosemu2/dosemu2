@@ -255,7 +255,7 @@ static void pcm_reset_stream(int strm_idx)
     pcm.stream[strm_idx].prepared = 0;
 }
 
-int pcm_allocate_stream(int channels, char *name, int id, void *vol_arg)
+int pcm_allocate_stream(int channels, char *name, void *vol_arg)
 {
     int index;
     if (pcm.num_streams >= MAX_STREAMS) {
