@@ -278,6 +278,9 @@ static const struct pcm_player player = {
     .flags = PCM_F_PASSTHRU,
 };
 
+static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
+int dspio_is_connected(int id, void *arg);
+
 void *dspio_init(void)
 {
     struct dspio_state *state;
@@ -294,15 +297,7 @@ void *dspio_init(void)
     rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
     rng_init(&state->midi_fifo_in, MIDI_FIFO_SIZE, 1);
     rng_init(&state->midi_fifo_out, MIDI_FIFO_SIZE, 1);
-    return state;
-}
 
-static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
-int dspio_is_connected(int id, void *arg);
-
-void dspio_post_init(void *dspio)
-{
-    struct dspio_state *state = dspio;
     state->i_handle = pcm_register_player(&player, state);
     pcm_init();
 
@@ -314,6 +309,7 @@ void dspio_post_init(void *dspio)
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     midi_init();
+    return state;
 }
 
 void dspio_reset(void *dspio)

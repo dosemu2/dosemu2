@@ -1795,7 +1795,6 @@ void sound_init(void)
 	    error("dspio faild\n");
 	    leavedos(93);
 	}
-	dspio_post_init(sb.dspio);
     }
 }
 
