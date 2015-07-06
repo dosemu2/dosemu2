@@ -97,6 +97,7 @@ void e_invalidate_full(unsigned data, int cnt);
 
 /* called from cpu.c */
 void init_emu_cpu (void);
+void reset_emu_cpu (void);
 
 /* called/used from dpmi.c */
 int e_dpmi(struct sigcontext_struct *scp);
