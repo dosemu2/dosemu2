@@ -770,8 +770,11 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     enum MixRet mr = MR_UNSUP;
     enum MixChan mc = (long)arg;
     int chans = sb_mixer_get_chan_num(mc);
+
     if (chan_src >= chans)
 	return 0;
+    if (mc == MC_NONE)
+	return 1.0;
     switch (chan_dst) {
     case SB_CHAN_L:
 	switch (chan_src) {
@@ -819,8 +822,8 @@ int dspio_is_connected(int id, void *arg)
 {
     enum MixChan mc = (long)arg;
 
-    if (mc == MC_NONE)
-	return 1;
+    if (mc == MC_NONE)	// connect anonymous streams only to playback (P)
+	return (id == PCM_ID_P);
     switch (id) {
     case PCM_ID_P:
 	return sb_is_output_connected(mc);
