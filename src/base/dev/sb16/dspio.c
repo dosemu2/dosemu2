@@ -62,7 +62,7 @@ struct dspio_dma {
 
 struct dspio_state {
     double input_time_cur, midi_time_cur;
-    int dma_strm, dac_strm, lin_strm, mic_strm;
+    int dma_strm, dac_strm;
     int input_running:1, output_running:1, dac_running:1, speaker:1;
     int pcm_input_running:1, lin_input_running:1, mic_input_running:1;
     int i_handle, i_started;
@@ -278,6 +278,9 @@ static const struct pcm_player player = {
     .flags = PCM_F_PASSTHRU,
 };
 
+static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
+int dspio_is_connected(int id, void *arg);
+
 void *dspio_init(void)
 {
     struct dspio_state *state;
@@ -294,30 +297,23 @@ void *dspio_init(void)
     rng_init(&state->fifo_out, DSP_FIFO_SIZE, 2);
     rng_init(&state->midi_fifo_in, MIDI_FIFO_SIZE, 1);
     rng_init(&state->midi_fifo_out, MIDI_FIFO_SIZE, 1);
-    return state;
-}
 
-void dspio_post_init(void *dspio)
-{
-    struct dspio_state *state = dspio;
     state->i_handle = pcm_register_player(&player, state);
     pcm_init();
-    state->dac_strm = pcm_allocate_stream(1, "SB DAC", PCM_ID_P);
-    dspio_register_stream(dspio, state->dac_strm, MC_VOICE);
+
+    pcm_set_volume_cb(dspio_get_volume);
+    pcm_set_connected_cb(dspio_is_connected);
+    state->dac_strm = pcm_allocate_stream(1, "SB DAC", (void*)MC_VOICE);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
-    state->dma_strm = pcm_allocate_stream(2, "SB DMA", PCM_ID_P);
-    dspio_register_stream(dspio, state->dma_strm, MC_VOICE);
+    state->dma_strm = pcm_allocate_stream(2, "SB DMA", (void*)MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
-    adlib_init(dspio);
     midi_init();
-    pcm_post_init(dspio);
+    return state;
 }
 
 void dspio_reset(void *dspio)
 {
-    pcm_reset();
-    midi_reset();
 }
 
 void dspio_done(void *dspio)
@@ -402,14 +398,14 @@ int dspio_input_enable(void *dspio, enum MixChan mc)
     case MC_LINE:
 	if (state->lin_input_running)
 	    return 0;
-	pcm_start_input(state->lin_strm);
+	pcm_start_input((void *)MC_LINE);
 	state->lin_input_running = 1;
 	S_printf("SB: enabled LINE\n");
 	break;
     case MC_MIC:
 	if (state->mic_input_running)
 	    return 0;
-	pcm_start_input(state->mic_strm);
+	pcm_start_input((void *)MC_MIC);
 	state->mic_input_running = 1;
 	S_printf("SB: enabled MIC\n");
 	break;
@@ -426,14 +422,14 @@ int dspio_input_disable(void *dspio, enum MixChan mc)
     case MC_LINE:
 	if (!state->lin_input_running)
 	    return 0;
-	pcm_stop_input(state->lin_strm);
+	pcm_stop_input((void *)MC_LINE);
 	state->lin_input_running = 0;
 	S_printf("SB: disabled LINE\n");
 	break;
     case MC_MIC:
 	if (!state->mic_input_running)
 	    return 0;
-	pcm_stop_input(state->mic_strm);
+	pcm_stop_input((void *)MC_MIC);
 	state->mic_input_running = 0;
 	S_printf("SB: disabled MIC\n");
 	break;
@@ -685,8 +681,6 @@ static void dspio_process_dma(struct dspio_state *state)
 	params.handle = state->i_handle;
 	nfr = pcm_data_get_interleaved(buf, nfr, &params);
     }
-    /* the input data may be overwritten with silence below.
-     * We still need to get it from PCM buffers to stay in sync. */
     if (!state->i_started) {
 	for (i = 0; i < nfr; i++) {
 	    for (j = 0; j < state->dma.stereo + 1; j++)
@@ -776,8 +770,11 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     enum MixRet mr = MR_UNSUP;
     enum MixChan mc = (long)arg;
     int chans = sb_mixer_get_chan_num(mc);
+
     if (chan_src >= chans)
 	return 0;
+    if (mc == MC_NONE)
+	return 1.0;
     switch (chan_dst) {
     case SB_CHAN_L:
 	switch (chan_src) {
@@ -821,19 +818,17 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     return vol;
 }
 
-int dspio_register_stream(void *dspio, int strm_idx, enum MixChan mc)
+int dspio_is_connected(int id, void *arg)
 {
-    struct dspio_state *state = dspio;
-    pcm_set_volume(strm_idx, dspio_get_volume, (void *)mc);
-    switch (mc) {
-    case MC_MIC:
-	state->mic_strm = strm_idx;
-	break;
-    case MC_LINE:
-	state->lin_strm = strm_idx;
-	break;
-    default:
-	break;
+    enum MixChan mc = (long)arg;
+
+    if (mc == MC_NONE)	// connect anonymous streams only to playback (P)
+	return (id == PCM_ID_P);
+    switch (id) {
+    case PCM_ID_P:
+	return sb_is_output_connected(mc);
+    case PCM_ID_R:
+	return sb_is_input_connected(mc);
     }
-    return 1;
+    return 0;
 }

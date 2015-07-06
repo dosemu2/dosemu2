@@ -2329,12 +2329,24 @@ repag0:
 				unsigned char opm = D_MO(Fetch(PC+2));
 				switch (opm) {
 				case 0: /* SLDT */
+				    CODE_FLUSH();
+				    if (REALMODE()) goto illegal_op;
+				    PC += ModRMSim(PC+1, mode) + 1;
+				    error("SLDT not implemented\n");
+				    break;
 				case 1: /* STR */
 				    /* Store Task Register */
+				    CODE_FLUSH();
+				    if (REALMODE()) goto illegal_op;
+				    PC += ModRMSim(PC+1, mode) + 1;
+				    error("STR not implemented\n");
+				    break;
 				case 2: /* LLDT */
 				    /* Load Local Descriptor Table Register */
 				case 3: /* LTR */
 				    /* Load Task Register */
+				    CODE_FLUSH();
+				    goto not_permitted;
 				case 4: { /* VERR */
 				    unsigned short sv; int tmp;
 				    CODE_FLUSH();
@@ -2380,12 +2392,20 @@ repag0:
 				switch (opm) {
 				case 0: /* SGDT */
 				    /* Store Global Descriptor Table Register */
+				    PC++; PC += ModRM(opc, PC, mode|DATA16|MSTORE);
+				    error("SGDT not implemented\n");
+				    break;
 				case 1: /* SIDT */
 				    /* Store Interrupt Descriptor Table Register */
+				    PC++; PC += ModRM(opc, PC, mode|DATA16|MSTORE);
+				    error("SIDT not implemented\n");
+				    break;
 				case 2: /* LGDT */ /* PM privileged AND real mode */
 				    /* Load Global Descriptor Table Register */
 				case 3: /* LIDT */ /* PM privileged AND real mode */
 				    /* Load Interrupt Descriptor Table Register */
+				    CODE_FLUSH();
+				    goto not_permitted;
 				case 4: /* SMSW, 80286 compatibility */
 				    /* Store Machine Status Word */
 				    Gen(L_CR0, mode);

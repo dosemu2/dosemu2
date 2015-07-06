@@ -323,7 +323,7 @@ static int midotmdty_init(void *arg)
 
     if (TMDTY_CAPT) {
 	add_to_io_select(data_sock, midotmdty_io, NULL);
-	pcm_stream = pcm_allocate_stream(TMDTY_CHANS, "MIDI", PCM_ID_P);
+	pcm_stream = pcm_allocate_stream(TMDTY_CHANS, "MIDI", 0);
     }
 
     midotmdty_reset();

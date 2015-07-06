@@ -782,23 +782,8 @@ erseg:
 /* ======================================================================= */
 
 
-void init_emu_cpu (void)
+void reset_emu_cpu(void)
 {
-  eTimeCorrect = 0;		// full backtime stretch
-#ifdef HOST_ARCH_X86
-  if (!CONFIG_CPUSIM)
-    eTimeCorrect = 1;		// 1/2 backtime stretch
-#endif
-  if (!config.rdtsc)
-    eTimeCorrect = -1;		// if we can't trust the TSC for time keeping
-				// then don't use it to stretch either
-  if (config.cpuemu == 3)
-    vm86only = 1;
-  if (Ofs_END > 128) {
-    error("CPUEMU: Ofs_END is too large, %i\n", Ofs_END);
-    config.exitearly = 1;
-  }
-  memset(&TheCPU, 0, sizeof(SynCPU));
   TheCPU.cr[0] = 0x13;	/* valid bits: 0xe005003f */
   TheCPU.dr[4] = 0xffff1ff0;
   TheCPU.dr[5] = 0x400;
@@ -820,6 +805,24 @@ void init_emu_cpu (void)
 
   Reg2Cpu(ADDR16|DATA16);
   TheCPU.StackMask = 0x0000ffff;
+}
+
+void init_emu_cpu(void)
+{
+  eTimeCorrect = 0;		// full backtime stretch
+#ifdef HOST_ARCH_X86
+  if (!CONFIG_CPUSIM)
+    eTimeCorrect = 1;		// 1/2 backtime stretch
+#endif
+  if (!config.rdtsc)
+    eTimeCorrect = -1;		// if we can't trust the TSC for time keeping
+				// then don't use it to stretch either
+  if (config.cpuemu == 3)
+    vm86only = 1;
+  if (Ofs_END > 128) {
+    error("CPUEMU: Ofs_END is too large, %i\n", Ofs_END);
+    config.exitearly = 1;
+  }
   init_emu_npu();
 
   switch (vm86s.cpu_type) {

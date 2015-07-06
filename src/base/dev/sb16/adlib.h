@@ -28,7 +28,6 @@
 #endif
 
 void opl3_init(void);
-void adlib_init(void *caller);
 void adlib_done(void);
 void adlib_reset(void);
 void adlib_timer(void);

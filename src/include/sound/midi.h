@@ -39,7 +39,6 @@ struct midi_in_plugin {
 extern void midi_write(unsigned char val);
 extern void midi_init(void);
 extern void midi_done(void);
-extern void midi_reset(void);
 extern void midi_stop(void);
 extern void midi_timer(void);
 extern void midi_put_data(unsigned char *buf, size_t size);

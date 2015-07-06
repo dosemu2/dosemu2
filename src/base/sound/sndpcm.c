@@ -96,7 +96,6 @@ struct stream {
     int flags;
     int stretch:1;
     int prepared:1;
-    double (*get_volume)(int id, int chan_dst, int chan_src, void*);
     void *vol_arg;
     double start_time;
     double stop_time;
@@ -108,7 +107,6 @@ struct stream {
     double last_fillup;
     /* --- */
     char *name;
-    int id;
 };
 
 #define MAX_STREAMS 10
@@ -148,6 +146,8 @@ struct efp_wr {
 struct pcm_struct {
     struct stream stream[MAX_STREAMS];
     int num_streams;
+    double (*get_volume)(int id, int chan_dst, int chan_src, void *);
+    int (*is_connected)(int id, void *arg);
     pthread_mutex_t strm_mtx;
     pthread_mutex_t time_mtx;
     struct pcm_holder players[MAX_PLAYERS];
@@ -163,6 +163,16 @@ struct pcm_struct {
 #define MAX_DL_HANDLES 10
 static void *dl_handles[MAX_DL_HANDLES];
 static int num_dl_handles;
+
+static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
+{
+    return (chan_src == chan_dst ? 1.0 : 0.0);
+}
+
+static int is_connected_dummy(int id, void *arg)
+{
+    return 1;
+}
 
 int pcm_init(void)
 {
@@ -203,12 +213,10 @@ int pcm_init(void)
 #endif
 #endif
     assert(num_dl_handles <= MAX_DL_HANDLES);
-    return 1;
-}
 
-int pcm_post_init(void *caller)
-{
-    int i;
+    pcm.get_volume = get_vol_dummy;
+    pcm.is_connected = is_connected_dummy;
+
     /* init efps before players because players init code refers to efps */
     if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
       S_printf("no PCM effect processors initialized\n");
@@ -216,12 +224,6 @@ int pcm_post_init(void *caller)
       S_printf("ERROR: no PCM output plugins initialized\n");
     if (!pcm_init_plugins(pcm.recorders, pcm.num_recorders))
       S_printf("ERROR: no PCM input plugins initialized\n");
-
-    for (i = 0; i < pcm.num_recorders; i++) {
-	struct pcm_holder *r = &pcm.recorders[i];
-	if (r->opened && RECORDER(r)->setup)
-	    RECORDER(r)->setup(caller, r->arg);
-    }
     return 1;
 }
 
@@ -241,12 +243,7 @@ static void pcm_reset_stream(int strm_idx)
     pcm.stream[strm_idx].prepared = 0;
 }
 
-static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
-{
-    return (chan_src == chan_dst ? 1.0 : 0.0);
-}
-
-int pcm_allocate_stream(int channels, char *name, int id)
+int pcm_allocate_stream(int channels, char *name, void *vol_arg)
 {
     int index;
     if (pcm.num_streams >= MAX_STREAMS) {
@@ -258,9 +255,8 @@ int pcm_allocate_stream(int channels, char *name, int id)
 	     sizeof(struct sample));
     pcm.stream[index].channels = channels;
     pcm.stream[index].name = name;
-    pcm.stream[index].id = id;
     pcm.stream[index].buf_cnt = 0;
-    pcm.stream[index].get_volume = get_vol_dummy;
+    pcm.stream[index].vol_arg = vol_arg;
     pcm_reset_stream(index);
     S_printf("PCM: Stream %i allocated for \"%s\"\n", index, name);
     return index;
@@ -391,7 +387,7 @@ static int count_active_streams(int id)
 {
     int i, ret = 0;
     for (i = 0; i < pcm.num_streams; i++) {
-	if (id != PCM_ID_ANY && !(pcm.stream[i].id & id))
+	if (id != PCM_ID_ANY && !pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
 	    continue;
@@ -800,7 +796,7 @@ retry:
 
     for (i = 0; i < PCM_ID_MAX; i++) {
 	int id = 1 << i;
-	if (!(id & strm->id))
+	if (!pcm.is_connected(id, strm->vol_arg))
 	    continue;
 	if (!(id & pcm.playing))
 	    pcm_start_output(id);
@@ -840,7 +836,7 @@ static void pcm_get_samples(double time,
 	for (j = 0; j < SNDBUF_CHANS; j++)
 	    samp[i][j] = mute_samp;
 	if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE ||
-		!(pcm.stream[i].id & id))
+		!pcm.is_connected(id, pcm.stream[i].vol_arg))
 	    continue;
 
 //    S_printf("PCM: stream %i fillup: %i\n", i, rng_count(&pcm.stream[i].buffer));
@@ -937,13 +933,13 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
     int i, j, k;
     for (i = 0; i < pcm.num_streams; i++) {
 	struct stream *strm = &pcm.stream[i];
-	if (id != PCM_ID_ANY && !(strm->id & id))
+	if (id != PCM_ID_ANY && !pcm.is_connected(id, strm->vol_arg))
 	    continue;
 	if (strm->state == SNDBUF_STATE_INACTIVE)
 	    continue;
 	for (j = 0; j < SNDBUF_CHANS; j++)
 	    for (k = 0; k < SNDBUF_CHANS; k++)
-		volume[i][j][k] = strm->get_volume(id, j, k, strm->vol_arg);
+		volume[i][j][k] = pcm.get_volume(id, j, k, strm->vol_arg);
     }
 }
 
@@ -1142,20 +1138,6 @@ void pcm_timer(void)
     pthread_mutex_unlock(&pcm.time_mtx);
 }
 
-void pcm_reset(void)
-{
-#if 0
-    int i;
-    S_printf("PCM: reset\n");
-    pthread_mutex_lock(&pcm.strm_mtx);
-    if (pcm.playing)
-	pcm_stop_output(PCM_ID_ANY);
-    for (i = 0; i < pcm.num_streams; i++)
-	pcm_reset_stream(i);
-    pthread_mutex_unlock(&pcm.strm_mtx);
-#endif
-}
-
 void pcm_done(void)
 {
     int i;
@@ -1273,12 +1255,13 @@ int pcm_get_cfg(const char *name)
   return PCM_CF_DISABLED;
 }
 
-int pcm_start_input(int strm_idx)
+int pcm_start_input(void *arg)
 {
     int i, ret = 0;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx))) {
+	if (p->opened && (!RECORDER(p)->owns ||
+		RECORDER(p)->owns(arg, p->arg))) {
 	    RECORDER(p)->start(p->arg);
 	    ret++;
 	}
@@ -1287,22 +1270,26 @@ int pcm_start_input(int strm_idx)
     return ret;
 }
 
-void pcm_stop_input(int strm_idx)
+void pcm_stop_input(void *arg)
 {
     int i;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns || RECORDER(p)->owns(strm_idx)))
+	if (p->opened && (!RECORDER(p)->owns ||
+		RECORDER(p)->owns(arg, p->arg)))
 	    RECORDER(p)->stop(p->arg);
     }
     S_printf("PCM: input stopped\n");
 }
 
-void pcm_set_volume(int strm_idx, double (*get_vol)(int, int, int, void *),
-	void *arg)
+void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *))
 {
-    pcm.stream[strm_idx].get_volume = get_vol;
-    pcm.stream[strm_idx].vol_arg = arg;
+    pcm.get_volume = get_vol;
+}
+
+void pcm_set_connected_cb(int (*is_connected)(int, void *))
+{
+    pcm.is_connected = is_connected;
 }
 
 int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,

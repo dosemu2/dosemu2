@@ -46,7 +46,7 @@
 /* Extra CPU registers. Note that GDTR,LDTR,IDTR are internal
  * to the cpuemu and are defined in emu-ldt.c:
  */
-unsigned int CRs[5] =
+static unsigned int CRs[5] =
 {
 	0x00000013,	/* valid bits: 0xe005003f */
 	0x00000000,	/* invalid */
@@ -73,7 +73,7 @@ unsigned int CRs[5] =
  *	b24-27= LLRW bp#2
  *	b28-31= LLRW bp#3
  */
-unsigned int DRs[8] =
+static unsigned int DRs[8] =
 {
 	0x00000000,
 	0x00000000,
@@ -85,7 +85,7 @@ unsigned int DRs[8] =
 	0x00000400
 };
 
-unsigned int TRs[2] =
+static unsigned int TRs[2] =
 {
 	0x00000000,
 	0x00000000
@@ -210,6 +210,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 
 void cpu_reset(void)
 {
+  reset_emu_cpu();
   /* ax,bx,cx,dx,si,di,bp,fs,gs can probably can be anything */
   REG(eax) = 0;
   REG(ebx) = 0;

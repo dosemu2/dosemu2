@@ -3,6 +3,7 @@
 /* Rehash so we aren't changing the code all of the time. Eric Biederman */
 #include "config.h"
 #include <string.h>
+#include "emu.h"
 #include "dosemu_debug.h"
 #include "dosemu_config.h"
 #include "init.h"

@@ -138,7 +138,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	}
 	else if (*eip & 1)
 		len *= 4;
-	e_invalidate(addr, len);
+	e_invalidate(addr - ((EFLAGS & EFLAGS_DF) ? len : 0), len);
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);

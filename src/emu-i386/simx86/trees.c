@@ -1325,8 +1325,10 @@ void e_invalidate(unsigned data, int cnt)
 {
 	if (config.cpuemu <= 1)
 		return;
-	if (!e_querymark(data, cnt))
+	if (!e_querymark(data, cnt)) {
+		e_check_munprotect(data, cnt);
 		return;
+	}
 	e_invalidate_full(data, cnt);
 }
 

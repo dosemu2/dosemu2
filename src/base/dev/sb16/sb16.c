@@ -1340,6 +1340,43 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
     return MR_OK;
 }
 
+
+#define EN(r, b) (sb.mixer_regs[r] & (1 << (b)))
+
+int sb_is_input_connected(enum MixChan ch)
+{
+    switch (ch) {
+    case MC_MIDI:
+	return (EN(0x3d, 6) || EN(0x3e, 5) || EN(0x3e, 6) || EN(0x3d, 5));
+    case MC_CD:
+	return (EN(0x3d, 2) || EN(0x3e, 1) || EN(0x3e, 2) || EN(0x3d, 1));
+    case MC_LINE:
+	return (EN(0x3d, 4) || EN(0x3e, 3) || EN(0x3e, 4) || EN(0x3d, 3));
+    case MC_MIC:
+	return (EN(0x3d, 0) || EN(0x3e, 0));
+    default:
+	return 0;
+    }
+}
+
+int sb_is_output_connected(enum MixChan ch)
+{
+    switch (ch) {
+    case MC_CD:
+	return (EN(0x3c, 2) || EN(0x3c, 1));
+    case MC_LINE:
+	return (EN(0x3c, 4) || EN(0x3c, 3));
+    case MC_MIC:
+	return EN(0x3c, 0);
+    case MC_VOICE:
+    case MC_PCSP:
+    case MC_MIDI:
+	return 1;
+    default:
+	return 0;
+    }
+}
+
 int sb_mixer_get_chan_num(enum MixChan ch)
 {
     switch (ch) {
@@ -1758,7 +1795,6 @@ void sound_init(void)
 	    error("dspio faild\n");
 	    leavedos(93);
 	}
-	dspio_post_init(sb.dspio);
     }
 }
 

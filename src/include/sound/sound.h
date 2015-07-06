@@ -76,8 +76,7 @@ struct pcm_player {
 
 struct pcm_recorder {
   pcm_plugin_base;
-  int (*setup)(void *, void *);
-  int (*owns)(int);
+  int (*owns)(void *, void *);
 };
 
 typedef int (*efp_process)(int handle, sndbuf_t buf[][SNDBUF_CHANS],
@@ -132,10 +131,8 @@ enum _PCM_format {
 #define PCM_ID_ANY 0xff
 
 extern int pcm_init(void);
-extern int pcm_post_init(void *caller);
 extern void pcm_done(void);
-extern void pcm_reset(void);
-extern int pcm_allocate_stream(int channels, char *name, int id);
+extern int pcm_allocate_stream(int channels, char *name, void *vol_arg);
 extern void pcm_set_flag(int strm_idx, int flag);
 extern void pcm_clear_flag(int strm_idx, int flag);
 extern int pcm_flush(int strm_idx);
@@ -152,10 +149,10 @@ extern void pcm_prepare_stream(int strm_idx);
 extern double pcm_time_lock(int strm_idx);
 extern void pcm_time_unlock(int strm_idx);
 extern double pcm_get_stream_time(int strm_idx);
-extern int pcm_start_input(int strm_idx);
-extern void pcm_stop_input(int strm_idx);
-extern void pcm_set_volume(int strm_idx,
-	double (*get_vol)(int, int, int, void *), void *arg);
+extern int pcm_start_input(void *id);
+extern void pcm_stop_input(void *id);
+extern void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *));
+extern void pcm_set_connected_cb(int (*is_connected)(int, void *));
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
@@ -165,10 +162,9 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
 #define PCM_FLAG_POST 2
 #define PCM_FLAG_SLTS 4
 
-enum MixChan { MC_MASTER, MC_VOICE, MC_MIDI, MC_CD, MC_LINE, MC_MIC, MC_PCSP };
+enum MixChan { MC_NONE, MC_MASTER, MC_VOICE, MC_MIDI, MC_CD, MC_LINE,
+	MC_MIC, MC_PCSP };
 enum MixSubChan { MSC_L, MSC_R, MSC_LR, MSC_RL, MSC_MONO_L, MSC_MONO_R };
 enum MixRet { MR_UNSUP, MR_DISABLED, MR_OK };
-
-int dspio_register_stream(void *caller, int strm_idx, enum MixChan mc);
 
 #endif
