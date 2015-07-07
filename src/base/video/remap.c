@@ -174,6 +174,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   ro->src_start = ro->dst_start = 0;
   ro->bre_x = ro->bre_y = NULL;
   ro->true_color_lut = NULL;
+  ro->color_lut_size = 0;
   ro->bit_lut = NULL;
   ro->gamma_lut = NULL;
   adjust_gamma(ro, 100);
