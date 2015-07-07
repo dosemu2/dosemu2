@@ -3407,7 +3407,8 @@ static RemapObject *re_create_obj(RemapObject *old, int new_mode)
   RemapObject *dst = _remap_init(new_mode, old->dst_mode,
     old->features, old->dst_color_space);
   if (old->color_lut_size && dst->color_lut_size == old->color_lut_size)
-    memcpy(dst->true_color_lut, old->true_color_lut, dst->color_lut_size);
+    memcpy(dst->true_color_lut, old->true_color_lut, dst->color_lut_size *
+	sizeof(*dst->true_color_lut));
   else
     dirty_all_vga_colors();
   _remap_done(old);
