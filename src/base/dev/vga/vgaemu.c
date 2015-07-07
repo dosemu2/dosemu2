@@ -755,14 +755,14 @@ int vga_read_access(dosaddr_t m)
 
 int vga_write_access(dosaddr_t m)
 {
-	/* unmapped VGA memory, VGA BIOS, or a planar mode */
+	/* unmapped VGA memory, VGA BIOS, or a bank. Note that
+	 * the bank can be write-protected even in non-planar mode. */
 	if (m >= vga.mem.bank_base + vga.mem.bank_len &&
 			m < vga.mem.graph_base + vga.mem.graph_size)
 		return 1;
 	if (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages<<12))
 		return 1;
-	if (m >= vga.mem.bank_base && m < vga.mem.bank_base +
-			vga.mem.bank_len && vga.inst_emu)
+	if (m >= vga.mem.bank_base && m < vga.mem.bank_base + vga.mem.bank_len)
 		return 1;
 	return 0;
 }
@@ -790,25 +790,28 @@ int vga_mark_dirty(dosaddr_t addr)
 {
   int ret = 0;
   unsigned vga_page;
+  if (!vga_write_access(addr))
+    return ret;
+  vga_page = (addr >> PAGE_SHIFT) -
+	vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page +
+	vga.mem.map[VGAEMU_MAP_BANK_MODE].first_page;
+  vga_emu_adjust_protection(vga_page, 0, VGA_PROT_RW);
   if (!vga_bank_access(addr))
     return ret;
-  vga_page = addr >> PAGE_SHIFT;
-  vga_emu_prot_lock();
   if (!vga.mem.dirty_map[vga_page]) {
-    vga_emu_adjust_protection(vga_page, 0, VGA_PROT_RW);
     vgaemu_dirty_page(vga_page);
     ret = 1;
   }
-  vga_emu_prot_unlock();
   return ret;
 }
 
 void vga_write(dosaddr_t addr, unsigned char val)
 {
   if (!vga.inst_emu || !vga_bank_access(addr)) {
+    vga_emu_prot_lock();
+    vga_mark_dirty(addr);
     WRITE_BYTE(addr, val);
-    if (vga_bank_access(addr))
-      vga_mark_dirty(addr);
+    vga_emu_prot_unlock();
     return;
   }
   Logical_VGA_write(addr - vga.mem.bank_base, val);
@@ -816,10 +819,12 @@ void vga_write(dosaddr_t addr, unsigned char val)
 
 void vga_write_word(dosaddr_t addr, unsigned short val)
 {
-  if (!vga.inst_emu) {
+  if (!vga.inst_emu || !vga_bank_access(addr)) {
+    vga_emu_prot_lock();
+    vga_mark_dirty(addr);
+    vga_mark_dirty(addr+1);
     WRITE_WORD(addr, val);
-    if (vga_bank_access(addr))
-      vga_mark_dirty(addr);
+    vga_emu_prot_unlock();
     return;
   }
   vga_write(addr, val & 0xff);
@@ -828,10 +833,14 @@ void vga_write_word(dosaddr_t addr, unsigned short val)
 
 void vga_write_dword(dosaddr_t addr, unsigned val)
 {
-  if (!vga.inst_emu) {
+  if (!vga.inst_emu || !vga_bank_access(addr)) {
+    vga_emu_prot_lock();
+    vga_mark_dirty(addr);
+    vga_mark_dirty(addr+1);
+    vga_mark_dirty(addr+2);
+    vga_mark_dirty(addr+3);
     WRITE_DWORD(addr, val);
-    if (vga_bank_access(addr))
-      vga_mark_dirty(addr);
+    vga_emu_prot_unlock();
     return;
   }
   vga_write_word(addr, val & 0xffff);
@@ -842,9 +851,11 @@ void memcpy_to_vga(dosaddr_t dst, const void *src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMCPY_2DOS(dst, src, len);
+    vga_emu_prot_lock();
     if (vga_bank_access(dst))
       vga_mark_dirty(dst);
+    MEMCPY_2DOS(dst, src, len);
+    vga_emu_prot_unlock();
     return;
   }
   for (i = 0; i < len; i++)
@@ -855,9 +866,11 @@ void memcpy_dos_to_vga(dosaddr_t dst, dosaddr_t src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMCPY_DOS2DOS(dst, src, len);
+    vga_emu_prot_lock();
     if (vga_bank_access(dst))
       vga_mark_dirty(dst);
+    MEMCPY_DOS2DOS(dst, src, len);
+    vga_emu_prot_unlock();
     return;
   }
   for (i = 0; i < len; i++)
@@ -892,9 +905,11 @@ void vga_memcpy(dosaddr_t dst, dosaddr_t src, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMMOVE_DOS2DOS(dst, src, len);
+    vga_emu_prot_lock();
     if (vga_bank_access(dst))
       vga_mark_dirty(dst);
+    MEMMOVE_DOS2DOS(dst, src, len);
+    vga_emu_prot_unlock();
     return;
   }
   for (i = 0; i < len; i++)
@@ -905,9 +920,11 @@ void vga_memset(dosaddr_t dst, unsigned char val, size_t len)
 {
   int i;
   if (!vga.inst_emu) {
-    MEMSET_DOS(dst, val, len);
+    vga_emu_prot_lock();
     if (vga_bank_access(dst))
       vga_mark_dirty(dst);
+    MEMSET_DOS(dst, val, len);
+    vga_emu_prot_unlock();
     return;
   }
   for (i = 0; i < len; i++)
@@ -917,12 +934,14 @@ void vga_memset(dosaddr_t dst, unsigned char val, size_t len)
 void vga_memsetw(dosaddr_t dst, unsigned short val, size_t len)
 {
   if (!vga.inst_emu) {
+    vga_emu_prot_lock();
+    if (vga_bank_access(dst))
+      vga_mark_dirty(dst);
     while (len--) {
       WRITE_WORD(dst, val);
       dst += 2;
     }
-    if (vga_bank_access(dst))
-      vga_mark_dirty(dst);
+    vga_emu_prot_unlock();
     return;
   }
   while (len--) {
@@ -934,12 +953,14 @@ void vga_memsetw(dosaddr_t dst, unsigned short val, size_t len)
 void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
 {
   if (!vga.inst_emu) {
+    vga_emu_prot_lock();
+    if (vga_bank_access(dst))
+      vga_mark_dirty(dst);
     while (len--) {
       WRITE_DWORD(dst, val);
       dst += 4;
     }
-    if (vga_bank_access(dst))
-      vga_mark_dirty(dst);
+    vga_emu_prot_unlock();
     return;
   }
   while (len--) {
