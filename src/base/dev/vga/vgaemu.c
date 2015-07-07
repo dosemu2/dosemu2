@@ -1522,6 +1522,7 @@ void vgaemu_reset_mapping()
     }
     vgaemu_update_prot_cache(page, prot);
   }
+  prot = VGA_EMU_RW_PROT;
   for(page = 0xb8; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
