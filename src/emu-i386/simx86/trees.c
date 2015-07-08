@@ -1425,6 +1425,10 @@ quit:
 	if (CurrIMeta==0) {		// no open code sequences
 		if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
 	}
+	if (CurrIMeta >= MAXINODES) {
+		*rc = -1;
+		return -1;
+	}
 	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0;
 	return CurrIMeta;
 }
