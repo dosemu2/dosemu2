@@ -1506,7 +1506,7 @@ void vgaemu_reset_mapping()
 
   memset(vga.mem.scratch_page, 0xff, 1 << 12);
 
-  prot = VGA_EMU_RO_PROT;
+  prot = VGA_EMU_RW_PROT;
   startpage = (config.umb_a0 ? 0xb0 : 0xa0);
   endpage = (config.umb_b0 ? 0xb0 : 0xb8);
   vga.mem.graph_base = startpage << 12;
@@ -1522,7 +1522,6 @@ void vgaemu_reset_mapping()
     }
     vgaemu_update_prot_cache(page, prot);
   }
-  prot = VGA_EMU_RW_PROT;
   for(page = 0xb8; page < 0xc0; page++) {
     i = alias_mapping(MAPPING_VGAEMU,
       page << 12, 1 << 12,
