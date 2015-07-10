@@ -76,10 +76,6 @@ $(BINPATH)/bin/$(DOSBIN): emu.o $(LIBS_)
 	   -Wl,--whole-archive $(LIBS_) -Wl,--no-whole-archive $(LIBS)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
-	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
-ifdef X_SUPPORT
-	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
-endif
 
 $(BINPATH)/bin/dosemu: $(SRCPATH)/bindist/dosemu.systemwide $(SRCPATH)/bindist/dosemu
 	sed -e "s|SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE|SYSTEM_BIN_PATH=$(bindir)|" \

@@ -6,7 +6,7 @@
 
 all: default
 
-CFILES  = emu.c dos.c dosstatic.c
+CFILES  = emu.c
 OBJS    = emu.o
 
 top_builddir=..
