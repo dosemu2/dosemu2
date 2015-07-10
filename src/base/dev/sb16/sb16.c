@@ -1629,9 +1629,11 @@ static void mpu401_io_write(ioport_t port, Bit8u value)
     switch (addr) {
     case 0:
 	/* Write data port */
-	S_printf("MPU401: Write 0x%02x to data port\n", value);
-	if (sb.mpu401_uart)
-	    dspio_write_midi(sb.dspio, value);
+	if (debug_level('S') > 5)
+		S_printf("MPU401: Write 0x%02x to data port\n", value);
+	dspio_write_midi(sb.dspio, value);
+	if (!sb.mpu401_uart && debug_level('S') > 5)
+		S_printf("MPU401: intelligent mode write unhandled\n");
 	break;
     case 1:
 	/* Write command port */
