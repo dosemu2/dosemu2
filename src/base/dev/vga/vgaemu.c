@@ -297,7 +297,6 @@ static int vga_emu_setup_mode(vga_mode_info *, int, unsigned, unsigned, unsigned
 static void vga_emu_setup_mode_table(void);
 
 static Bit32u rasterop(Bit32u value);
-static void vgaemu_reset_mapping(void);
 static pthread_mutex_t prot_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
