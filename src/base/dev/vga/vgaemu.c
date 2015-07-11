@@ -3052,10 +3052,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       }
       old_color_bits = vga.color_bits;
       vga.color_bits = vga.pixel_size;
-      vga.inst_emu = (vga.mode_type==PL4 || vga.mode_type==PL2 ||
-	(vga.color_bits == 8 &&
-	 ((vga.seq.map_mask | 0xf8) & (vga.seq.map_mask - 1))))
+      vga.inst_emu = (vga.mode_type==PL4 || vga.mode_type==PL2)
 	? EMU_ALL_INST : 0;
+      vgaemu_map_bank();      // update page protection
       if (oldclass != vga.mode_class) {
 	vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 0);
 	vgaemu_adj_cfg(CFG_CRTC_WIDTH, 0);
