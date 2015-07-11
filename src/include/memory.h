@@ -198,6 +198,8 @@ void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size);
 void memcheck_init(void);
 int  memcheck_isfree(size_t addr_start, size_t size);
 int  memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size);
+int memcheck_is_reserved(size_t addr_start, size_t size,
+	unsigned char map_char);
 void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;

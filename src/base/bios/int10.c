@@ -465,6 +465,11 @@ boolean set_video_mode(int mode) {
     i10_msg("set_video_mode: undefined video mode\n");
     return 0;
   }
+  if (!memcheck_is_reserved(vmi->buffer_start << 4, 0x8000, 'v')) {
+    error("VGA: cannot set mode %i because of UMB at 0x%x\n",
+	    mode, vmi->buffer_start);
+    return 0;
+  }
 
   orig_mode = mode;
 
