@@ -503,7 +503,7 @@ int vga_emu_set_textsize(int, int);
 void dirty_all_video_pages(void);
 void vgaemu_dirty_page(int page);
 int vgaemu_is_dirty(void);
-int vga_mark_dirty(dosaddr_t addr);
+void vga_mark_dirty(dosaddr_t addr, int len);
 void dirty_all_vga_colors(void);
 int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg);
 void vgaemu_adj_cfg(unsigned, unsigned);
