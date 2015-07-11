@@ -1616,7 +1616,7 @@ void video_mem_setup(void)
   WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co,li));   /* size of video regen area in bytes */
 
   WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
-
+#if 0
   /* This is needed in the video stuff. Grabbed from boot(). */
   if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE) {
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
@@ -1632,7 +1632,7 @@ void video_mem_setup(void)
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
 
   WRITE_WORD(BIOS_FONT_HEIGHT, 16);
-
+#endif
   /* XXX - these are the values for VGA color!
      should reflect the real display hardware. */
   WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);

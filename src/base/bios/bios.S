@@ -289,7 +289,7 @@ LFN_string:
 /* Post-less video init
  */
 no_vbios_post:
-	movb	BIOS_VIDEO_MODE,%al
+	movb	$3,%al
 	int	$0x10
 video_init_done:
 	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
