@@ -709,7 +709,7 @@ INT09_dummy_end:
 	iret
 
 	.org	EOI2_OFF
-/* ======================= Addr = F000:F100 (FF100) */
+/* ======================= Addr = F000:F110 (FF110) */
 	pushw	%ax
 	movb    $0x20,%al
 	outb    %al,$0xa0
@@ -720,7 +720,7 @@ INT09_dummy_end:
 /* ----------------------------------------------------------------- */
 	/* pause cycle */
 	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
-/* ======================= Addr = F000:F110 (FF110) */
+/* ======================= Addr = F000:F120 (FF120) */
 	pushf
 	pushw 	%ds
 	pushw 	%ax
@@ -739,7 +739,7 @@ idle_cycle:
 /* ----------------------------------------------------------------- */
 	/* the packet driver */
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
-/* ======================= Addr = F000:F130 (FF130) */
+/* ======================= Addr = F000:F140 (FF140) */
 
 	.globl	PKTDRV_start
 PKTDRV_start:
