@@ -1544,18 +1544,18 @@ static int ResizeDescriptorBlock(struct sigcontext_struct *scp,
     return 1;
 }
 
-INTDESC dpmi_get_interrupt_vector(unsigned char num)
+DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num)
 {
-    INTDESC desc;
+    DPMI_INTDESC desc;
     desc.selector = DPMI_CLIENT.Interrupt_Table[num].selector;
-    desc.offset = DPMI_CLIENT.Interrupt_Table[num].offset;
+    desc.offset32 = DPMI_CLIENT.Interrupt_Table[num].offset;
     return desc;
 }
 
-void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc)
+void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
 {
     DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
-    DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset;
+    DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset32;
 }
 
 dpmi_pm_block DPMImalloc(unsigned long size)
@@ -1985,9 +1985,9 @@ err:
     DPMI_CLIENT.Exception_Table[_LO(bx)].offset = API_16_32(_edx);
     break;
   case 0x0204: {	/* Get Protected Mode Interrupt vector */
-      INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
+      DPMI_INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
       _LWORD(ecx) = desc.selector;
-      _edx = desc.offset;
+      _edx = desc.offset32;
       D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx), _LWORD(ecx), _edx);
     }
     break;

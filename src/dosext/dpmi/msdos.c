@@ -406,18 +406,18 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
 	case 0x25: {		/* set vector */
-	      INTDESC desc;
+	      DPMI_INTDESC desc;
 	      desc.selector = _ds;
-	      desc.offset = D_16_32(_edx);
+	      desc.offset32 = D_16_32(_edx);
 	      dpmi_set_interrupt_vector(_LO(ax), desc);
 	      D_printf("MSDOS: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
 		     _LWORD(eax), _ds, _LWORD(edx));
 	    }
 	    return MSDOS_DONE;
 	case 0x35: {	/* Get Interrupt Vector */
-	      INTDESC desc = dpmi_get_interrupt_vector(_LO(ax));
+	      DPMI_INTDESC desc = dpmi_get_interrupt_vector(_LO(ax));
 	      _es = desc.selector;
-	      _ebx = desc.offset;
+	      _ebx = desc.offset32;
 	      D_printf("MSDOS: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
 		     _LWORD(eax), _es, _LWORD(ebx));
 	    }
@@ -596,7 +596,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)), 0);
 #endif
 	    /* now the tail of the command line */
-    	    off = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2));
+	    off = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2));
 	    sel = READ_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4));
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4), segment);
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2), 0);

@@ -50,6 +50,11 @@ typedef struct pmaddr_s
     unsigned int	offset;
     unsigned short	selector;
 } INTDESC;
+typedef struct
+{
+    unsigned int	offset32;
+    unsigned short	selector;
+} DPMI_INTDESC;
 
 typedef struct segment_descriptor_s
 {
@@ -209,8 +214,8 @@ extern int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned l
 extern int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
 extern int SetSegmentLimit(unsigned short, unsigned int);
-extern INTDESC dpmi_get_interrupt_vector(unsigned char num);
-extern void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc);
+extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
+extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
 extern void save_pm_regs(struct sigcontext_struct *);
 extern void restore_pm_regs(struct sigcontext_struct *);
 extern unsigned short AllocateDescriptors(int);
