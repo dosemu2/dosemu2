@@ -233,6 +233,7 @@ pkt_init(void)
 void
 pkt_reset(void)
 {
+    int handle;
     if (!config.pktdrv || !pktdrvr_installed)
       return;
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
@@ -241,6 +242,10 @@ pkt_reset(void)
 	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOS_HLT_BLK_SEG);
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
+
+    max_pkt_type_array = 0;
+    for (handle = 0; handle < MAX_HANDLE; handle++)
+        pg.handle[handle].in_use = 0;
 }
 
 void pkt_term(void)
