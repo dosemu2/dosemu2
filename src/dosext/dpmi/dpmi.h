@@ -37,7 +37,7 @@ void direct_ldt_write(int offset, int length, char *buffer);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 void *SEL_ADR(unsigned short sel, unsigned int reg);
-void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg);
+void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32);
 
 #define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
 

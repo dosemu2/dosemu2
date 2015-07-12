@@ -172,14 +172,14 @@ void *SEL_ADR(unsigned short sel, unsigned int reg)
   return SEL_ADR_LDT(sel, reg, Segments[sel>>3].is_32);
 }
 
-void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg)
+void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32)
 {
   if (!(sel & 0x0004)) {
     /* GDT */
     dosemu_error("GDT not allowed\n");
     return (void *)(uintptr_t)reg;
   }
-  return SEL_ADR_LDT(sel, reg, DPMI_CLIENT.is_32);
+  return SEL_ADR_LDT(sel, reg, is_32);
 }
 
 int get_ldt(void *buffer)
@@ -1329,7 +1329,7 @@ static void *enter_lpms(struct sigcontext_struct *scp)
   _esp = D_16_32(pmstack_esp);
   DPMI_CLIENT.in_dpmi_pm_stack++;
 
-  return SEL_ADR_CLNT(pmstack_sel, pmstack_esp);
+  return SEL_ADR_CLNT(pmstack_sel, pmstack_esp, DPMI_CLIENT.is_32);
 }
 
 static void leave_lpms(struct sigcontext_struct *scp)
@@ -1467,7 +1467,7 @@ void fake_pm_int(void)
 
 static void get_ext_API(struct sigcontext_struct *scp)
 {
-      char *ptr = SEL_ADR_CLNT(_ds, _esi);
+      char *ptr = SEL_ADR_CLNT(_ds, _esi, DPMI_CLIENT.is_32);
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
       if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
         if (config.pm_dos_api) {
@@ -3797,7 +3797,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 	  struct RealModeCallStructure *rmreg;
 
-	  rmreg = SEL_ADR_CLNT(_es, _edi);
+	  rmreg = SEL_ADR_CLNT(_es, _edi, DPMI_CLIENT.is_32);
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from client realmode callback procedure, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);

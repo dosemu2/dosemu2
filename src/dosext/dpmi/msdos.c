@@ -21,20 +21,28 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdint.h>
 
+#ifdef DJGPP_PORT
+#include "wrapper.h"
+#define SUPPORT_DOSEMU_HELPERS 0
+#else
 #include "emu.h"
 #include "emu-ldt.h"
 #include "int.h"
 #include "bios.h"
-#include "emm.h"
 #include "dpmi.h"
 #include "dpmisel.h"
-#include "msdos.h"
 #include "vgaemu.h"
 #include "utilities.h"
 #include "dos2linux.h"
-
 #define SUPPORT_DOSEMU_HELPERS 1
+#endif
+#include "emm.h"
+#include "msdos.h"
+
 #if SUPPORT_DOSEMU_HELPERS
 #include "doshelpers.h"
 #endif
@@ -490,7 +498,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(ds) = TRANS_BUFFER_SEG;
 		REG(edx) = 0;
 		d = SEG2LINEAR(REG(ds));
-		s = SEL_ADR_CLNT(_ds, _edx);
+		s = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 		for(i=0; i<0xffff; i++, d++, s++) {
 		    *d = *s;
 		    if( *s == '$')
@@ -530,7 +538,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
 	    MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(edx)),
-			SEL_ADR_CLNT(_ds, _edx),
+			SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 			0x50);
 	    return 0;
 	case 0x29:		/* Parse a file name for FCB */
@@ -540,13 +548,13 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(ds) = seg;
 		REG(esi) = 0;
 		MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(esi)),
-			    SEL_ADR_CLNT(_ds, _esi),
+			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			    0x100);
 		seg += 0x10;
 		REG(es) = seg;
 		REG(edi) = 0;
 		MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(edi)),
-			    SEL_ADR_CLNT(_es, _edi),
+			    SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			    0x50);
 	    }
 	    return 0;
@@ -566,7 +574,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    /* must copy command line */
 	    REG(ds) = segment;
 	    REG(edx) = 0;
-	    p = SEL_ADR_CLNT(_ds, _edx);
+	    p = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 	    snprintf((char *)SEG2LINEAR(REG(ds)), MAX_DOS_PATH, "%s", p);
 	    segment += (MAX_DOS_PATH + 0x0f) >> 4;
 
@@ -574,7 +582,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(es) = segment;
 	    REG(ebx) = 0;
 	    MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(ebx)),
-	       SEL_ADR_CLNT(_es, _ebx), 0x20);
+	       SEL_ADR_CLNT(_es, _ebx, MSDOS_CLIENT.is_32), 0x20);
 	    segment += 2;
 #if 0
 	    /* now the envrionment segment */
@@ -593,7 +601,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+4), segment);
 	    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+2), 0);
 	    MEMCPY_2DOS(SEGOFF2LINEAR(segment, 0),
-		SEL_ADR_CLNT(sel, off),
+		SEL_ADR_CLNT(sel, off, MSDOS_CLIENT.is_32),
 		0x80);
 	    segment += 8;
 
@@ -663,7 +671,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		prepare_ems_frame();
 		REG(ds) = TRANS_BUFFER_SEG;
 		REG(edx) = 0;
-		src = SEL_ADR_CLNT(_ds, _edx);
+		src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 		dst = SEG_ADR((char *), ds, dx);
 		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
 		D_printf("%p: '%s'\n", src, src);
@@ -678,7 +686,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    break;
 	case 0x3f:		/* dos read */
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx),
+	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		D_16_32(_ecx));
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
@@ -687,7 +695,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    fake_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF);
 	    return MSDOS_ALT_ENT;
 	case 0x40:		/* DOS Write */
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx),
+	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		D_16_32(_ecx));
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
@@ -702,14 +710,14 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(ds) = seg;
 		REG(esi) = 0;
 		MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(esi)),
-			    SEL_ADR_CLNT(_ds, _esi),
+			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			    0x30);
 		seg += 3;
 
 		REG(es) = seg;
 		REG(ebp) = 0;
 		MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(ebp)),
-			    SEL_ADR_CLNT(_es, _ebp),
+			    SEL_ADR_CLNT(_es, _ebp, MSDOS_CLIENT.is_32),
 			    0x60);
 	    }
 	    return 0;
@@ -720,13 +728,13 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(ds) = seg;
 		REG(edx) = 0;
 		snprintf(SEG2LINEAR(REG(ds)), MAX_DOS_PATH, "%s",
-			     (char *)SEL_ADR_CLNT(_ds, _edx));
+			     (char *)SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32));
 		seg += 0x20;
 
 		REG(es) = seg;
 		REG(edi) = 0;
 		snprintf(SEG2LINEAR(REG(es)), MAX_DOS_PATH, "%s",
-			     (char *)SEL_ADR_CLNT(_es, _edi));
+			     (char *)SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32));
 	    }
 	    return 0;
 	case 0x5f:		/* redirection */
@@ -740,13 +748,13 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(ds) = seg;
 		REG(esi) = 0;
 		MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(esi)),
-			SEL_ADR_CLNT(_ds, _esi),
+			SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			0x100);
 		seg += 0x10;
 		REG(es) = seg;
 		REG(edi) = 0;
 		MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(edi)),
-			SEL_ADR_CLNT(_es, _edi),
+			SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			0x100);
 		return 0;
 	    }
@@ -757,7 +765,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(ds) = seg;
 		REG(esi) = 0;
 		MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(esi)),
-		    SEL_ADR_CLNT(_ds, _esi),
+		    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 		    0x100);
 		seg += 0x10;
 		REG(es) = seg;
@@ -770,7 +778,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		prepare_ems_frame();
 		REG(ds) = TRANS_BUFFER_SEG;
 		REG(esi) = 0;
-		src = SEL_ADR_CLNT(_ds, _esi);
+		src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
 		dst = SEG_ADR((char *), ds, si);
 		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
 		D_printf("%p: '%s'\n", src, src);
@@ -784,7 +792,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    REG(es) = TRANS_BUFFER_SEG;
 		    REG(edi) = 0;
 		    MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(edi)),
-			SEL_ADR_CLNT(_es, _edi),
+			SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			_LWORD(ecx));
 		    break;
 		case 1 ... 7:
@@ -798,7 +806,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    REG(ds) = TRANS_BUFFER_SEG;
 		    REG(edx) = 0;
 		    MEMCPY_2DOS(SEGOFF2LINEAR(REG(ds), LWORD(edx)),
-			SEL_ADR_CLNT(_ds, _edx),
+			SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 			_LWORD(ecx));
 		    break;
 		case 0x22:
@@ -807,7 +815,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    REG(ds) = TRANS_BUFFER_SEG;
 		    REG(edx) = 0;
 		    strcpy(SEG_ADR((void *), ds, dx),
-			SEL_ADR_CLNT(_ds, _edx));
+			SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32));
 		    break;
 	    }
             return 0;
@@ -821,7 +829,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    prepare_ems_frame();
             REG(ds) = TRANS_BUFFER_SEG;
             REG(edx) = 0;
-            src = SEL_ADR_CLNT(_ds, _edx);
+            src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
             dst = SEG_ADR((char *), ds, dx);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
@@ -831,7 +839,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             REG(edx) = 0;
             REG(es) = TRANS_BUFFER_SEG;
             REG(edi) = MAX_DOS_PATH;
-            src = SEL_ADR_CLNT(_ds, _edx);
+            src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
             dst = SEG_ADR((char *), ds, dx);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
@@ -840,7 +848,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             REG(es) = TRANS_BUFFER_SEG;
             REG(edi) = 0;
             MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(edi)),
-			   SEL_ADR_CLNT(_es, _edi),
+			   SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			   0x13e);
             return 0;
         case 0x47: /* get cur dir */
@@ -854,7 +862,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(esi) = 0;
 	    REG(es) = TRANS_BUFFER_SEG;
 	    REG(edi) = MAX_DOS_PATH;
-	    src = SEL_ADR_CLNT(_ds, _esi);
+	    src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
 	    dst = SEG_ADR((char *), ds, si);
 	    snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    return 0;
@@ -862,7 +870,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    prepare_ems_frame();
             REG(ds) = TRANS_BUFFER_SEG;
             REG(esi) = 0;
-            src = SEL_ADR_CLNT(_ds, _esi);
+            src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
             dst = SEG_ADR((char *), ds, si);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
@@ -872,7 +880,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             REG(edx) = 0;
             REG(es) = TRANS_BUFFER_SEG;
             REG(edi) = MAX_DOS_PATH;
-            src = SEL_ADR_CLNT(_ds, _edx);
+            src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
             dst = SEG_ADR((char *), ds, dx);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
@@ -900,7 +908,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(es) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
 	    MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), LWORD(edx)),
-		    SEL_ADR_CLNT(_es, _edx),
+		    SEL_ADR_CLNT(_es, _edx, MSDOS_CLIENT.is_32),
 		    16);
 	    return 0;
 	case 0x0c:		/* set call back */
@@ -1051,17 +1059,17 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
  	case 0x16:		/* Create usring FCB */
  	case 0x17:		/* rename using FCB */
  	    PRESERVE1(edx);
-	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx),
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 			SEGOFF2LINEAR(REG(ds), LWORD(edx)), 0x50);
 	    break;
 
 	case 0x29:		/* Parse a file name for FCB */
 	    PRESERVE2(esi, edi);
-	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi),
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 		/* Warning: SI altered, assume old value = 0, don't touch. */
 			    SEGOFF2LINEAR(REG(ds), 0), 0x100);
 	    SET_REG(esi, _esi + LWORD(esi));
-	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi),
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			    SEGOFF2LINEAR(REG(es), LWORD(edi)),  0x50);
 	    break;
 
@@ -1131,7 +1139,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 		if (LWORD(eflags) & CF)
 		    break;
 		/* FreeDOS copies only 0x18 bytes */
-		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx),
+		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 			SEGOFF2LINEAR(REG(ds), LWORD(edx)), 0x18);
 	    }
 	    break;
@@ -1139,9 +1147,9 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    PRESERVE1(esi);
 	    if (LWORD(eflags) & CF)
 		break;
-	    snprintf(SEL_ADR_CLNT(_ds, _esi), 0x40, "%s",
+	    snprintf(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32), 0x40, "%s",
 		        SEG_ADR((char *), ds, si));
-	    D_printf("MSDOS: CWD: %s\n",(char *)SEL_ADR_CLNT(_ds, _esi));
+	    D_printf("MSDOS: CWD: %s\n",(char *)SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32));
 	    break;
 #if 0
 	case 0x48:		/* allocate memory */
@@ -1168,7 +1176,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    break;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    PRESERVE2(esi, ebp);
-	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _ebp),
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _ebp, MSDOS_CLIENT.is_32),
 			    SEGOFF2LINEAR(REG(es), LWORD(ebp)),
 			    0x60);
 	    break ;
@@ -1200,17 +1208,17 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 		break ;
 	    case 2 ... 6:
 		PRESERVE2(esi, edi);
-		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi),
+		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			SEGOFF2LINEAR(REG(ds), LWORD(esi)),
 			0x100);
-		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi),
+		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			SEGOFF2LINEAR(REG(es), LWORD(edi)),
 			0x100);
 	    }
 	    break;
 	case 0x60:		/* Canonicalize file name */
 	    PRESERVE2(esi, edi);
-	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi),
+	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			SEGOFF2LINEAR(REG(es), LWORD(edi)),
 			0x80);
 	    break;
@@ -1220,19 +1228,19 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 		break;
     	    switch (_LO(ax)) {
 		case 1 ... 7:
-		    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi),
+		    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			SEGOFF2LINEAR(REG(es), LWORD(edi)),
 			LWORD(ecx));
 		    break;
 		case 0x21:
 		case 0xa1:
-		    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx),
+		    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 			SEGOFF2LINEAR(REG(ds), LWORD(edx)),
 			_LWORD(ecx));
 		    break;
 		case 0x22:
 		case 0xa2:
-		    strcpy(SEL_ADR_CLNT(_ds, _edx),
+		    strcpy(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 			SEG_ADR((void *), ds, dx));
 		    break;
 	    }
@@ -1251,7 +1259,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    PRESERVE1(edi);
             if (LWORD(eflags) & CF)
                 break;
-            MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi),
+            MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
                      SEGOFF2LINEAR(REG(es), LWORD(edi)),
                         0x13E);
             break;
@@ -1259,14 +1267,14 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    PRESERVE1(esi);
             if (LWORD(eflags) & CF)
                 break;
-	    snprintf(SEL_ADR_CLNT(_ds, _esi), MAX_DOS_PATH, "%s",
+	    snprintf(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32), MAX_DOS_PATH, "%s",
 		        SEG_ADR((char *), ds, si));
             break;
 	case 0x60:
 	    PRESERVE2(esi, edi);
 	    if (LWORD(eflags) & CF)
 		break;
-	    snprintf(SEL_ADR_CLNT(_es, _edi), MAX_DOS_PATH, "%s",
+	    snprintf(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32), MAX_DOS_PATH, "%s",
 		SEG_ADR((char *), es, di));
 	    break;
         case 0x6c:
@@ -1276,15 +1284,15 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
             PRESERVE2(edx, edi);
             if (LWORD(eflags) & CF)
                 break;
-            snprintf(SEL_ADR_CLNT(_es, _edi), _LWORD(ecx), "%s",
+            snprintf(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32), _LWORD(ecx), "%s",
                      SEG_ADR((char *), es, di));
             break;
         case 0xA6:
             PRESERVE1(edx);
             if (LWORD(eflags) & CF)
                 break;
-            MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx),
-        	    SEGOFF2LINEAR(REG(ds), LWORD(edx)), 0x34);
+            MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
+		    SEGOFF2LINEAR(REG(ds), LWORD(edx)), 0x34);
             break;
         };
 
@@ -1297,10 +1305,10 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	/* the flags should be pushed to stack */
 	if (MSDOS_CLIENT.is_32) {
 	    _esp -= 4;
-	    *(uint32_t *)(SEL_ADR_CLNT(_ss, _esp - 4)) = REG(eflags);
+	    *(uint32_t *)(SEL_ADR_CLNT(_ss, _esp - 4, MSDOS_CLIENT.is_32)) = REG(eflags);
 	} else {
 	    _esp -= 2;
-	    *(uint16_t *)(SEL_ADR_CLNT(_ss, _LWORD(esp) - 2)) = LWORD(eflags);
+	    *(uint16_t *)(SEL_ADR_CLNT(_ss, _LWORD(esp) - 2, MSDOS_CLIENT.is_32)) = LWORD(eflags);
 	}
 	break;
     case 0x33:			/* mouse */
@@ -1324,7 +1332,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 int msdos_pre_rm(struct sigcontext_struct *scp)
 {
   unsigned int lina = SEGOFF2LINEAR(_CS, _IP) - 1;
-  void *sp = SEL_ADR_CLNT(_ss, _esp);
+  void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
 
   if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback)) {
     if (!ValidAndUsedSelector(MSDOS_CLIENT.mouseCallBack.selector)) {
