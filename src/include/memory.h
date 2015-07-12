@@ -298,6 +298,10 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 #define READ_DWORDP(addr)	READ_DWORD(DOSADDR_REL(addr))
 #define WRITE_DWORDP(addr, val)	WRITE_DWORD(DOSADDR_REL(addr), val)
 
+#define READ_BYTE_S(b, s, m)	READ_BYTE(b + offsetof(s, m))
+#define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))
+#define READ_DWORD_S(b, s, m)	READ_DWORD(b + offsetof(s, m))
+
 #define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
 	MEMCPY_2UNIX((unix_addr), DOSADDR_REL(dos_addr), (n))
 

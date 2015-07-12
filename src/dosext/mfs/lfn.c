@@ -64,12 +64,13 @@ static char *handle_to_filename(int handle, int *fd)
 	unsigned int sp;
 	unsigned char *sft;
 	int dd, idx;
+	dosaddr_t spp;
 
 	struct sfttbl {
 		FAR_PTR sftt_next;
 		unsigned short sftt_count;
 		unsigned char sftt_table[1];
-	} *spp;
+	};
 
 	/* Look up the handle via the PSP */
 	*fd = HANDLE_INVALID;
@@ -85,22 +86,23 @@ static char *handle_to_filename(int handle, int *fd)
 	sp = READ_DWORD(lol + 4);
 	sft = NULL;
 	while (sp != 0xffffffff) {
-		spp = LINEAR2UNIX(rFAR_PTR(unsigned int, sp));
-		if (idx < READ_WORDP((unsigned char *)&spp->sftt_count)) {
+		spp = rFAR_PTR(dosaddr_t, sp);
+		if (idx < READ_WORD_S(spp, struct sfttbl, sftt_count)) {
 			/* finally, point to the right entry            */
-			sft = &spp->sftt_table[idx * sft_size];
+			sft = LINEAR2UNIX(READ_WORD_S(spp, struct sfttbl,
+				sftt_table[idx * sft_size]));
 			break;
 		}
-		idx -= READ_WORDP((unsigned char *)&spp->sftt_count);
-		sp = READ_DWORDP((unsigned char *)&spp->sftt_next);
+		idx -= READ_WORD_S(spp, struct sfttbl, sftt_count);
+		sp = READ_WORD_S(spp, struct sfttbl, sftt_next);
 	}
 	if (sp == 0xffffffff)
 		return NULL;
 
 	/* do we "own" the drive? */
 	*fd = 0;
-	dd = READ_WORDP((unsigned char *)&sft_device_info(sft)) & 0x0d1f;
-	if (dd == 0 && (READ_WORDP((unsigned char *)&sft_device_info(sft)) & 0x8000))
+	dd = sft_device_info(sft) & 0x0d1f;
+	if (dd == 0 && (sft_device_info(sft) & 0x8000))
 		dd = MAX_DRIVE - 1;
 	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
 		return NULL;
