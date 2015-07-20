@@ -35,12 +35,13 @@
 #include "bios.h"
 #include "dpmi.h"
 #include "dpmisel.h"
-#include "vgaemu.h"
+//#include "vgaemu.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS 1
 #endif
 #include "emm.h"
+#include "segreg.h"
 #include "msdos.h"
 
 #if SUPPORT_DOSEMU_HELPERS
@@ -1427,7 +1428,6 @@ void msdos_post_pm(struct sigcontext_struct *scp)
   rm_to_pm_regs(scp, ~0);
 }
 
-
 int msdos_fault(struct sigcontext_struct *scp)
 {
     struct sigcontext_struct new_sct;
@@ -1537,13 +1537,17 @@ int msdos_fault(struct sigcontext_struct *scp)
 	(segment != 0xf800) && (segment != 0xff00) &&
 	(segment != 0x38))
 	return 0;
-#endif
 
+    copy_context(&new_sct, scp, 0);
+    reg = decode_segreg(&new_sct);
+    if (reg == -1)
+      return 0;
+#else
     copy_context(&new_sct, scp, 0);
     reg = decode_modify_segreg_insn(&new_sct, 1, &segment);
     if (reg == -1)
       return 0;
-#if ALL_GDTS
+
     if (ValidAndUsedSelector(segment)) {
 	/*
 	 * The selector itself is OK, but the descriptor (type) is not.
@@ -1554,6 +1558,7 @@ int msdos_fault(struct sigcontext_struct *scp)
 	return 0;
     }
 #endif
+
     D_printf("MSDOS: try mov to a invalid selector 0x%04x\n", segment);
 
     switch (segment) {
