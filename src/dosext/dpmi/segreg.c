@@ -25,7 +25,6 @@
  * in the appropriate segreg.
  */
 
-#include "emu.h"
 #include "cpu.h"
 #include "dpmi.h"
 #ifdef DJGPP_PORT
