@@ -2687,18 +2687,13 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 {
   int msdos_ret = 0;
 
+  D_printf("DPMI: int 0x%04x, AX=0x%04x\n", i, _LWORD(eax));
   switch (i) {
     case 0x2f:
       switch (_LWORD(eax)) {
 	case 0x1684:
 	  D_printf("DPMI: Get VxD entry point, BX = 0x%04x\n", _LWORD(ebx));
-#if 1
 	  get_VXD_entry(scp);
-#else
-	  D_printf("DPMI: VxD not supported\n");
-	  /* no entry point */
-	  _es = _edi = 0;
-#endif
 	  return;
 	case 0x1686:
           D_printf("DPMI: CPU mode check in protected mode.\n");
