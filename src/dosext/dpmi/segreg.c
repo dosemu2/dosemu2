@@ -29,6 +29,8 @@
 #include "dpmi.h"
 #ifdef DJGPP_PORT
 #include "wrapper.h"
+#else
+#include "dosemu_debug.h"
 #endif
 #include "segreg.h"
 
@@ -264,6 +266,7 @@ static unsigned instr_len(unsigned char *p, int is_32)
 
   if(*p == 0x0f) {
     /* not yet */
+    error("msdos: unsupported instr_len %x %x\n", p[0], p[1]);
     return 0;
   }
 
@@ -327,21 +330,20 @@ static unsigned instr_len(unsigned char *p, int is_32)
 
 int decode_segreg(struct sigcontext *scp)
 {
-  unsigned cs;
+  unsigned cs, eip;
   unsigned char *csp;
-  int prefixes, ret = -1;
+  int ret = -1;
   x86_regs x86;
 
   x86._32bit = dpmi_mhp_get_selector_size(_cs);
   x86.address_size = x86.operand_size = (x86._32bit + 1) * 2;
   cs = GetSegmentBase(_cs);
   csp = (unsigned char *)MEM_BASE32(cs + _eip);
-  prefixes = handle_prefixes(scp, cs, &x86);
-  _eip += prefixes;
+  eip = _eip + handle_prefixes(scp, cs, &x86);
 
   switch(*csp) {
     case 0x8e:		/* mov segreg,r/m16 */
-      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + _eip + 1) >> 3);
+      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip + 1) >> 3);
       _eip += instr_len(csp, x86._32bit);
       break;
 
@@ -353,9 +355,9 @@ int decode_segreg(struct sigcontext *scp)
       pop(&tmp_eip, scp, &x86);
       pop(NULL, scp, &x86);
       ret = cs_INDEX;
-      switch (*(unsigned char *)MEM_BASE32(cs + _eip)) {
+      switch (*(unsigned char *)MEM_BASE32(cs + eip)) {
         case 0xca: /*retf imm 16*/
-	  _esp += ((unsigned short *) (MEM_BASE32(cs + _eip + 1)))[0];
+	  _esp += ((unsigned short *) (MEM_BASE32(cs + eip + 1)))[0];
 	  break;
         case 0xcf: /*iret*/
 	{
@@ -372,8 +374,8 @@ int decode_segreg(struct sigcontext *scp)
     case 0xea:			/* jmp seg:off16/off32 */
     {
       unsigned tmp_eip;
-      tmp_eip = x86.operand_size == 4 ? READ_DWORDP(MEM_BASE32(cs + _eip + 1)) :
-		READ_WORDP(MEM_BASE32(cs + _eip + 1));
+      tmp_eip = x86.operand_size == 4 ? READ_DWORDP(MEM_BASE32(cs + eip + 1)) :
+		READ_WORDP(MEM_BASE32(cs + eip + 1));
       ret = cs_INDEX;
       _eip = tmp_eip;
     }
@@ -392,19 +394,19 @@ int decode_segreg(struct sigcontext *scp)
     case 0x07:	/* pop es */
     case 0x17:	/* pop ss */
     case 0x1f:	/* pop ds */
-      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + _eip) >> 3);
+      ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip) >> 3);
       pop(NULL, scp, &x86);
-      _eip++;
+      _eip = eip + 1;
       break;
 
     case 0x0f:
-      _eip++;
-      switch (*(unsigned char *)MEM_BASE32(cs + _eip)) {
+      eip++;
+      switch (*(unsigned char *)MEM_BASE32(cs + eip)) {
         case 0xa1:	/* pop fs */
         case 0xa9:	/* pop gs */
 	  pop(NULL, scp, &x86);
-	  ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + _eip) >> 3);
-	  _eip++;
+	  ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip) >> 3);
+	  _eip = eip + 1;
 	  break;
 
 	case 0xb2:	/* lss */
