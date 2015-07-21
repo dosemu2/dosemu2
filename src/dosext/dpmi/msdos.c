@@ -35,12 +35,13 @@
 #include "bios.h"
 #include "dpmi.h"
 #include "dpmisel.h"
-#include "vgaemu.h"
+//#include "vgaemu.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS 1
 #endif
 #include "emm.h"
+#include "segreg.h"
 #include "msdos.h"
 
 #if SUPPORT_DOSEMU_HELPERS
@@ -1427,7 +1428,6 @@ void msdos_post_pm(struct sigcontext_struct *scp)
   rm_to_pm_regs(scp, ~0);
 }
 
-
 int msdos_fault(struct sigcontext_struct *scp)
 {
     struct sigcontext_struct new_sct;
@@ -1526,6 +1526,23 @@ int msdos_fault(struct sigcontext_struct *scp)
     /* now it is a invalid selector error, try to fix it if it is */
     /* caused by an instruction such as mov Sreg,r/m16            */
 
+#define ALL_GDTS 0
+#if !ALL_GDTS
+    segment = _err & 0xfff8;
+    /* only allow using some special GTDs */
+    if ((segment != 0x0040) && (segment != 0xa000) &&
+	(segment != 0xb000) && (segment != 0xb800) &&
+	(segment != 0xc000) && (segment != 0xe000) &&
+	(segment != 0xf000) && (segment != 0xbf8) &&
+	(segment != 0xf800) && (segment != 0xff00) &&
+	(segment != 0x38))
+	return 0;
+
+    copy_context(&new_sct, scp, 0);
+    reg = decode_segreg(&new_sct);
+    if (reg == -1)
+      return 0;
+#else
     copy_context(&new_sct, scp, 0);
     reg = decode_modify_segreg_insn(&new_sct, 1, &segment);
     if (reg == -1)
@@ -1540,19 +1557,9 @@ int msdos_fault(struct sigcontext_struct *scp)
 	D_printf("MSDOS: msdos_fault: Illegal use of selector %#x\n", segment);
 	return 0;
     }
+#endif
 
     D_printf("MSDOS: try mov to a invalid selector 0x%04x\n", segment);
-
-#if 1
-    /* only allow using some special GTD\'s */
-    if ((segment != 0x0040) && (segment != 0xa000) &&
-	(segment != 0xb000) && (segment != 0xb800) &&
-	(segment != 0xc000) && (segment != 0xe000) &&
-	(segment != 0xf000) && (segment != 0xbf8) &&
-	(segment != 0xf800) && (segment != 0xff00) &&
-	(segment != 0x38))
-	return 0;
-#endif
 
     switch (segment) {
 	case 0x38:

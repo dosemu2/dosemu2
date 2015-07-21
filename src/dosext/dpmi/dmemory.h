@@ -33,8 +33,8 @@ dpmi_pm_block *DPMI_reallocLinear(dpmi_pm_block_root *root, unsigned long handle
 void DPMI_freeAll(dpmi_pm_block_root *root);
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,
   unsigned long offset, unsigned long low_addr, unsigned long cnt);
-int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, us attrs[], int count);
-int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, us attrs[], int count);
+int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
+int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, u_short attrs[], int count);
 
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 /* to align the pointer to the (next) page boundary */
