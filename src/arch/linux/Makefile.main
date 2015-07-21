@@ -150,7 +150,7 @@ install:
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
-	cd $(REALTOPDIR); if [ -f $(fdtarball) ]; then \
+	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
 	  if [ -h $(DESTDIR)$(dosemudir)/freedos ]; then \
 	    rm -f $(DESTDIR)$(dosemudir)/freedos; \
 	  fi; \
@@ -158,7 +158,7 @@ install:
 	    mv $(DESTDIR)$(dosemudir)/drive_z $(DESTDIR)$(dosemudir)/freedos; \
 	  fi; \
 	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
-	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
+	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
