@@ -27,11 +27,7 @@
 
 #include "cpu.h"
 #include "dpmi.h"
-#ifdef DJGPP_PORT
-#include "wrapper.h"
-#else
 #include "dosemu_debug.h"
-#endif
 #include "segreg.h"
 
 typedef struct x86_regs {
