@@ -168,6 +168,7 @@ void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void run_pm_dos_int(int);
 void fake_pm_int(void);
+u_short DPMI_ldt_alias(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);

@@ -1509,13 +1509,6 @@ static void get_ext_API(struct sigcontext_struct *scp)
 {
       char *ptr = SEL_ADR_CLNT(_ds, _esi, DPMI_CLIENT.is_32);
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
-      if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
-        if (config.pm_dos_api) {
-	  _LO(ax) = 0;
-	  _es = dpmi_sel();
-	  _edi = DPMI_SEL_OFF(DPMI_API_extension);
-	}
-      } else
       if (!strcmp("VIRTUAL SUPPORT", ptr)) {
 	_LO(ax) = 0;
       } else
@@ -2722,7 +2715,10 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
           _eax = 0;
           return;
         case 0x168a:
-          return get_ext_API(scp);
+          get_ext_API(scp);
+          if (!(_eflags & CF))
+            return;
+          break;
       }
       break;
     case 0x31:
@@ -3494,6 +3490,11 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   _eflags &= ~(TF | NT | AC);
 }
 
+u_short DPMI_ldt_alias(void)
+{
+  return DPMI_CLIENT.LDT_ALIAS;
+}
+
 /*
  * DANG_BEGIN_FUNCTION dpmi_fault
  *
@@ -3923,6 +3924,11 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	    break;
 	  }
 	  in_dpmi_dos_int = 1;
+
+	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
+		(_eip<1+DPMI_SEL_OFF(MSDOS_pmc_end))) {
+	  D_printf("DPMI: Starting MSDOS pm call\n");
+	  msdos_pm_call(scp);
 
 	} else
 	  return ret;

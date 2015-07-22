@@ -196,6 +196,20 @@ static void restore_ems_frame(void)
     ems_frame_mapped = 0;
 }
 
+static void get_ext_API(struct sigcontext_struct *scp)
+{
+      char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
+      D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
+      if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
+	 _LO(ax) = 0;
+	 _es = dpmi_sel();
+	 _edi = DPMI_SEL_OFF(MSDOS_API_call);
+	_eflags &= ~CF;
+      } else {
+	_eflags |= CF;
+      }
+}
+
 static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
 {
     switch (intr) {
@@ -920,6 +934,13 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    break;
 	}
 	break;
+    case 0x2f:
+	switch (_LWORD(eax)) {
+	    case 0x168a:
+	        get_ext_API(scp);
+	        return MSDOS_DONE;
+	}
+	break;
     case 0x33:			/* mouse */
 	switch (_LWORD(eax)) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
@@ -1459,6 +1480,21 @@ int msdos_pre_pm(struct sigcontext_struct *scp)
 void msdos_post_pm(struct sigcontext_struct *scp)
 {
   rm_to_pm_regs(scp, ~0);
+}
+
+void msdos_pm_call(struct sigcontext_struct *scp)
+{
+  if (_eip==1+DPMI_SEL_OFF(MSDOS_API_call)) {
+    D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
+    if (_LWORD(eax) == 0x0100) {
+      _eax = DPMI_ldt_alias();  /* simulate direct ldt access */
+      _eflags &= ~CF;
+    } else {
+      _eflags |= CF;
+    }
+  } else {
+    error("MSDOS: unknown pm call %#x\n", _eip);
+  }
 }
 
 int msdos_fault(struct sigcontext_struct *scp)

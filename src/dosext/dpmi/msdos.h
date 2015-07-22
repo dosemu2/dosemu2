@@ -41,6 +41,7 @@ extern int msdos_pre_rm(struct sigcontext_struct *scp);
 extern void msdos_post_rm(struct sigcontext_struct *scp);
 extern int msdos_pre_pm(struct sigcontext_struct *scp);
 extern void msdos_post_pm(struct sigcontext_struct *scp);
+extern void msdos_pm_call(struct sigcontext_struct *scp);
 
 #define MSDOS_DONE 1
 #define MSDOS_ALT_ENT 2
