@@ -104,7 +104,7 @@ static unsigned int *iret_frame;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
-struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
+struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
 
 #define DPMI_max_rec_pm_func 16
@@ -1433,7 +1433,7 @@ static void save_rm_regs(void)
     REG(eflags) &= ~IF;
   else
     REG(eflags) |= IF;
-  DPMI_rm_stack[DPMI_rm_procedure_running++] = REGS;
+  DPMI_save_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running++]);
   if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
       DPMI_CLIENT.in_dpmi_rm_stack);
@@ -1452,7 +1452,7 @@ static void restore_rm_regs(void)
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  REGS = DPMI_rm_stack[--DPMI_rm_procedure_running];
+  DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running]);
   DPMI_CLIENT.in_dpmi_rm_stack--;
   if (!(REG(eflags) & IF) && !is_cli) {
     is_cli = 1;
