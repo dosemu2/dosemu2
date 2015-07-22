@@ -1381,6 +1381,46 @@ void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
     _ebp = REG(ebp);
 }
 
+static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
+{
+    rmreg->edi = REG(edi);
+    rmreg->esi = REG(esi);
+    rmreg->ebp = REG(ebp);
+    rmreg->ebx = REG(ebx);
+    rmreg->edx = REG(edx);
+    rmreg->ecx = REG(ecx);
+    rmreg->eax = REG(eax);
+    rmreg->flags = LWORD(eflags);
+    rmreg->es = REG(es);
+    rmreg->ds = REG(ds);
+    rmreg->fs = REG(fs);
+    rmreg->gs = REG(gs);
+    rmreg->cs = REG(cs);
+    rmreg->ip = LWORD(eip);
+    rmreg->ss = REG(ss);
+    rmreg->sp = LWORD(esp);
+}
+
+static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg)
+{
+    REG(edi) = rmreg->edi;
+    REG(esi) = rmreg->esi;
+    REG(ebp) = rmreg->ebp;
+    REG(ebx) = rmreg->ebx;
+    REG(edx) = rmreg->edx;
+    REG(ecx) = rmreg->ecx;
+    REG(eax) = rmreg->eax;
+    LWORD(eflags) = rmreg->flags;
+    REG(es) = rmreg->es;
+    REG(ds) = rmreg->ds;
+    REG(fs) = rmreg->fs;
+    REG(gs) = rmreg->gs;
+    LWORD(eip) = rmreg->ip;
+    REG(cs) = rmreg->cs;
+    LWORD(esp) = rmreg->sp;
+    REG(ss) = rmreg->ss;
+}
+
 static void save_rm_regs(void)
 {
   if (DPMI_rm_procedure_running >= DPMI_max_rec_rm_func) {
@@ -2495,32 +2535,14 @@ int lookup_realmode_callback(unsigned int lina, int *num)
 void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
-    struct RealModeCallStructure *rmreg;
     struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
 
     if (rmcb_client > current_client || num >= 0x10)
       return;
-    rmreg = DPMIclient[rmcb_client].realModeCallBack[num].rmreg;
 
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
       num, rmcb_client, current_client);
-
-    rmreg->edi = REG(edi);
-    rmreg->esi = REG(esi);
-    rmreg->ebp = REG(ebp);
-    rmreg->ebx = REG(ebx);
-    rmreg->edx = REG(edx);
-    rmreg->ecx = REG(ecx);
-    rmreg->eax = REG(eax);
-    rmreg->flags = read_FLAGS();
-    rmreg->es = REG(es);
-    rmreg->ds = REG(ds);
-    rmreg->fs = REG(fs);
-    rmreg->gs = REG(gs);
-    rmreg->cs = REG(cs);
-    rmreg->ip = LWORD(eip);
-    rmreg->ss = REG(ss);
-    rmreg->sp = LWORD(esp);
+    DPMI_save_rm_regs(DPMIclient[rmcb_client].realModeCallBack[num].rmreg);
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     sp = enter_lpms(&DPMI_CLIENT.stack_frame);
 
@@ -3789,30 +3811,11 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_rm_callback)) {
 
-	  struct RealModeCallStructure *rmreg;
-
-	  rmreg = SEL_ADR_CLNT(_es, _edi, DPMI_CLIENT.is_32);
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from client realmode callback procedure, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 
-	  REG(edi) = rmreg->edi;
-	  REG(esi) = rmreg->esi;
-	  REG(ebp) = rmreg->ebp;
-	  REG(ebx) = rmreg->ebx;
-	  REG(edx) = rmreg->edx;
-	  REG(ecx) = rmreg->ecx;
-	  REG(eax) = rmreg->eax;
-	  REG(eflags) = get_EFLAGS(rmreg->flags);
-	  REG(es) = rmreg->es;
-	  REG(ds) = rmreg->ds;
-	  REG(fs) = rmreg->fs;
-	  REG(gs) = rmreg->gs;
-	  REG(cs) = rmreg->cs;
-	  REG(eip) = (long) rmreg->ip;
-	  REG(ss) = rmreg->ss;
-	  REG(esp) = (long) rmreg->sp;
-
+	  DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi));
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -4305,25 +4308,12 @@ void dpmi_realmode_hlt(unsigned int lina)
     in_dpmi_dos_int = 0;
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_realmode)) {
-    struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
 
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
-    rmreg->edi = REG(edi);
-    rmreg->esi = REG(esi);
-    rmreg->ebp = REG(ebp);
-    rmreg->ebx = REG(ebx);
-    rmreg->edx = REG(edx);
-    rmreg->ecx = REG(ecx);
-    rmreg->eax = REG(eax);
-    rmreg->flags = get_vFLAGS(REG(eflags));
-    rmreg->es = REG(es);
-    rmreg->ds = REG(ds);
-    rmreg->fs = REG(fs);
-    rmreg->gs = REG(gs);
-
+    DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
