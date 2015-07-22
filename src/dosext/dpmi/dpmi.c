@@ -2152,7 +2152,7 @@ err:
       _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_save_restore_rm);
       _LWORD(esi) = dpmi_sel();
       _edi = DPMI_SEL_OFF(DPMI_save_restore_pm);
-      _LWORD(eax) = 52;		/* size to hold all registers */
+      _LWORD(eax) = max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
     break;
   case 0x0306:	/* Get Raw Mode Switch Adresses */
       _LWORD(ebx) = DPMI_SEG;
@@ -3705,51 +3705,12 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
-	  unsigned short *buffer = SEL_ADR_X(_es, _edi);
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
-	    *(unsigned long *)buffer = REG(eflags), buffer += 2;
-	    *(unsigned long *)buffer = REG(eax), buffer += 2;
-	    *(unsigned long *)buffer = REG(ebx), buffer += 2;
-	    *(unsigned long *)buffer = REG(ecx), buffer += 2;
-	    *(unsigned long *)buffer = REG(edx), buffer += 2;
-	    *(unsigned long *)buffer = REG(esi), buffer += 2;
-	    *(unsigned long *)buffer = REG(edi), buffer += 2;
-	    *(unsigned long *)buffer = REG(esp), buffer += 2;
-	    *(unsigned long *)buffer = REG(ebp), buffer += 2;
-	    *(unsigned long *)buffer = REG(eip), buffer += 2;
-	    /* 10 regs, 40 bytes */
-	    *buffer++ = REG(cs);
-	    *buffer++ = REG(ds);
-	    *buffer++ = REG(ss);
-	    *buffer++ = REG(es);
-	    *buffer++ = REG(fs);
-	    *buffer++ = REG(gs);
-	    /* 6 more regs, +12 bytes, 52 bytes total.
-	     * note that the buffer should not exceed 60 bytes
-	     * so the segment regs are saved as 2-bytes. */
+            DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
 	  } else {
             D_printf("DPMI: restore real mode registers\n");
-	    REG(eflags) = *(unsigned long *)buffer, buffer += 2;
-	    REG(eax) = *(unsigned long *)buffer, buffer += 2;
-	    REG(ebx) = *(unsigned long *)buffer, buffer += 2;
-	    REG(ecx) = *(unsigned long *)buffer, buffer += 2;
-	    REG(edx) = *(unsigned long *)buffer, buffer += 2;
-	    REG(esi) = *(unsigned long *)buffer, buffer += 2;
-	    REG(edi) = *(unsigned long *)buffer, buffer += 2;
-	    REG(esp) = *(unsigned long *)buffer, buffer += 2;
-	    REG(ebp) = *(unsigned long *)buffer, buffer += 2;
-	    REG(eip) = *(unsigned long *)buffer, buffer += 2;
-	    /* 10 regs, 40 bytes */
-	    REG(cs) =  *buffer++;
-	    REG(ds) =  *buffer++;
-	    REG(ss) =  *buffer++;
-	    REG(es) =  *buffer++;
-	    REG(fs) =  *buffer++;
-	    REG(gs) =  *buffer++;
-	    /* 6 more regs, +12 bytes, 52 bytes total.
-	     * note that the buffer should not exceed 60 bytes
-	     * so the segment regs are saved as 2-bytes. */
+            DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi));
           }/* _eip point to FAR RET */
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
