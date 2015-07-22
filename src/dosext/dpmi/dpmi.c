@@ -2740,7 +2740,6 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     restore_rm_regs();
     return;
   }
-  save_pm_regs(scp);
   in_dpmi_dos_int = 1;
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
 
@@ -4300,7 +4299,6 @@ void dpmi_realmode_hlt(unsigned int lina)
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
 
-    restore_pm_regs(&DPMI_CLIENT.stack_frame);
     if (config.pm_dos_api)
 	update_mask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr);
 

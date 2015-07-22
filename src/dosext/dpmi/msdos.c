@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <assert.h>
 
 #ifdef DJGPP_PORT
 #include "wrapper.h"
@@ -68,6 +69,23 @@ static int ems_frame_mapped;
 static void *ems_map_buffer = NULL;
 static u_short ems_frame_unmap[EMM_UMA_STD_PHYS*2];
 static u_short ems_frame_segs[EMM_UMA_STD_PHYS+1];
+
+/* stack for AX values, needed for exec that can corrupt pm regs */
+#define V_STK_LEN 16
+static u_short v_stk[V_STK_LEN];
+static int v_num;
+
+static void push_v(u_short v)
+{
+    assert(v_num < V_STK_LEN);
+    v_stk[v_num++] = v;
+}
+
+static u_short pop_v(void)
+{
+    assert(v_num > 0);
+    return v_stk[--v_num];
+}
 
 void msdos_setup(void)
 {
@@ -357,7 +375,7 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
  * DANG_END_FUNCTION
  */
 
-int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
+static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
     D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
     if (MSDOS_CLIENT.user_dta_sel && intr == 0x21) {
@@ -967,6 +985,14 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     return 0;
 }
 
+int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
+{
+    int ret = _msdos_pre_extender(scp, intr);
+    if (!(ret & MSDOS_DONE))
+	push_v(_LWORD(eax));
+    return ret;
+}
+
 /*
  * DANG_BEGIN_FUNCTION msdos_post_extender
  *
@@ -978,16 +1004,17 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
  * DANG_END_FUNCTION
  */
 
-int msdos_post_extender(struct sigcontext_struct *scp, int intr)
+static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
+	u_short ax)
 {
     int update_mask = ~0;
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
 #define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_REG(rg, val) (PRESERVE1(rg), _##rg = (val))
-    D_printf("MSDOS: post_extender: int 0x%x ax=0x%04x\n", intr, _LWORD(eax));
+    D_printf("MSDOS: post_extender: int 0x%x ax=0x%04x\n", intr, ax);
 
     if (MSDOS_CLIENT.user_dta_sel && intr == 0x21 ) {
-	switch (_HI(ax)) {	/* functions use DTA */
+	switch (HI_BYTE(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
 	    MEMCPY_2UNIX(DTA_over_1MB, DTA_under_1MB, 0x80);
@@ -1023,21 +1050,21 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 
     switch (intr) {
     case 0x10:			/* video */
-	if (_LWORD(eax) == 0x1130) {
+	if (ax == 0x1130) {
 	    /* get current character generator infor */
 	    SET_REG(es,	ConvertSegmentToDescriptor(REG(es)));
 	}
 	break;
     case 0x15:
 	/* we need to save regs at int15 because AH has the return value */
-	if (_HI(ax) == 0xc0) { /* Get Configuration */
+	if (HI_BYTE(ax) == 0xc0) { /* Get Configuration */
                 if (REG(eflags)&CF)
                         break;
                 SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
         }
 	break;
     case 0x2f:
-	switch (_LWORD(eax)) {
+	switch (ax) {
 	    case 0x4310:
                 MSDOS_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
                 SET_REG(es, dpmi_sel());
@@ -1047,7 +1074,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	break;
 
     case 0x21:
-	switch (_HI(ax)) {
+	switch (HI_BYTE(ax)) {
 	case 0x00:		/* psp kill */
 	    PRESERVE1(eax);
 	    break;
@@ -1313,7 +1340,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	}
 	break;
     case 0x33:			/* mouse */
-	switch (_LWORD(eax)) {
+	switch (ax) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
 	case 0x14:		/* swap call back */
 	    PRESERVE1(edx);
@@ -1328,6 +1355,11 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
     }
     restore_ems_frame();
     return update_mask;
+}
+
+int msdos_post_extender(struct sigcontext_struct *scp, int intr)
+{
+    return _msdos_post_extender(scp, intr, pop_v());
 }
 
 int msdos_pre_rm(struct sigcontext_struct *scp)
