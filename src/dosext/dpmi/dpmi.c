@@ -4295,14 +4295,12 @@ void dpmi_realmode_hlt(unsigned int lina)
   } else if ((lina>=DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)) &&
 	     (lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256) ) {
     int intr = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_dosint));
-    int update_mask = ~0;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
 
     if (config.pm_dos_api)
-	update_mask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr);
+	msdos_post_extender(&DPMI_CLIENT.stack_frame, intr);
 
-    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, update_mask);
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 

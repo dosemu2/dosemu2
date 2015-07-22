@@ -1357,9 +1357,10 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
     return update_mask;
 }
 
-int msdos_post_extender(struct sigcontext_struct *scp, int intr)
+void msdos_post_extender(struct sigcontext_struct *scp, int intr)
 {
-    return _msdos_post_extender(scp, intr, pop_v());
+    int ret = _msdos_post_extender(scp, intr, pop_v());
+    rm_to_pm_regs(scp, ret);
 }
 
 int msdos_pre_rm(struct sigcontext_struct *scp)
