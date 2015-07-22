@@ -94,7 +94,7 @@ struct RealModeCallStructure {
   unsigned short cs;
   unsigned short sp;
   unsigned short ss;
-};
+} __attribute__((packed));
 
 typedef struct {
     unsigned short selector;
