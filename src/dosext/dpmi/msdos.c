@@ -210,26 +210,26 @@ static void get_ext_API(struct sigcontext_struct *scp)
       }
 }
 
-static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
+static int need_copy_dseg(int intr, u_short ax)
 {
     switch (intr) {
 	case 0x21:
-	    switch (_HI(ax)) {
+	    switch (HI_BYTE(ax)) {
 		case 0x0a:		/* buffered keyboard input */
 		case 0x5a:		/* mktemp */
 		case 0x69:
 		    return 1;
 		case 0x44:		/* IOCTL */
-		    switch (_LO(ax)) {
+		    switch (LO_BYTE(ax)) {
 			case 0x02 ... 0x05:
 			case 0x0c: case 0x0d:
 			    return 1;
 		    }
 		    break;
 		case 0x5d:		/* Critical Error Information  */
-		    return (_LO(ax) != 0x06 && _LO(ax) != 0x0b);
+		    return (LO_BYTE(ax) != 0x06 && LO_BYTE(ax) != 0x0b);
 		case 0x5e:
-		    return (_LO(ax) != 0x03);
+		    return (LO_BYTE(ax) != 0x03);
 	    }
 	    break;
 	case 0x25:			/* Absolute Disk Read */
@@ -240,13 +240,13 @@ static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
     return 0;
 }
 
-static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
+static int need_copy_eseg(int intr, u_short ax)
 {
     switch (intr) {
 	case 0x10:			/* video */
-	    switch (_HI(ax)) {
+	    switch (HI_BYTE(ax)) {
 		case 0x10:		/* Set/Get Palette Registers (EGA/VGA) */
-		    switch(_LO(ax)) {
+		    switch(LO_BYTE(ax)) {
 			case 0x2:		/* set all palette registers and border */
 			case 0x09:		/* ead palette registers and border (PS/2) */
 			case 0x12:		/* set block of DAC color registers */
@@ -255,7 +255,7 @@ static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
 		    }
 		    break;
 		case 0x11:		/* Character Generator Routine (EGA/VGA) */
-		    switch (_LO(ax)) {
+		    switch (LO_BYTE(ax)) {
 			case 0x0:		/* user character load */
 			case 0x10:		/* user specified character definition table */
 			case 0x20: case 0x21:
@@ -267,24 +267,24 @@ static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
 		case 0x1b:
 		    return 1;
 		case 0x1c:
-		    if (_LO(ax) == 1 || _LO(ax) == 2)
+		    if (LO_BYTE(ax) == 1 || LO_BYTE(ax) == 2)
 			return 1;
 		    break;
 	}
 	break;
 	case 0x21:
-	    switch (_HI(ax)) {
+	    switch (HI_BYTE(ax)) {
 		case 0x57:		/* Get/Set File Date and Time Using Handle */
-		    if ((_LO(ax) == 0) || (_LO(ax) == 1)) {
+		    if ((LO_BYTE(ax) == 0) || (LO_BYTE(ax) == 1)) {
 			return 0;
 		    }
 		    return 1;
 		case 0x5e:
-		    return (_LO(ax) == 0x03);
+		    return (LO_BYTE(ax) == 0x03);
 	    }
 	    break;
 	case 0x33:
-	    switch (_HI(ax)) {
+	    switch (HI_BYTE(ax)) {
 		case 0x16:		/* save state */
 		case 0x17:		/* restore */
 		    return 1;
@@ -292,7 +292,7 @@ static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
 	    break;
 #if SUPPORT_DOSEMU_HELPERS
 	case DOS_HELPER_INT:			/* dosemu helpers */
-	    switch (_LO(ax)) {
+	    switch (LO_BYTE(ax)) {
 		case DOS_HELPER_PRINT_STRING:		/* print string to dosemu log */
 		    return 1;
 	    }
@@ -655,6 +655,12 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			segment, segment - EXEC_SEG, EXEC_Para_SIZE);
 	    if (ems_frame_mapped)
 		error("DPMI: exec: EMS frame should not be mapped here\n");
+
+	    /* execed client can use raw mode switch and expects not to
+	     * corrupt the registers of its parent, so we need to save
+	     * them explicitly.
+	     * Either that or create a new DPMI client here. */
+	    save_pm_regs(scp);
 	  }
 	  return 0;
 
@@ -978,7 +984,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	break;
     }
 
-    if (need_copy_dseg(scp, intr)) {
+    if (need_copy_dseg(intr, _LWORD(eax))) {
 	unsigned int src, dst;
 	int len;
 	prepare_ems_frame();
@@ -991,7 +997,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	MEMCPY_DOS2DOS(dst, src, len);
     }
 
-    if (need_copy_eseg(scp, intr)) {
+    if (need_copy_eseg(intr, _LWORD(eax))) {
 	unsigned int  src, dst;
 	int len;
 	prepare_ems_frame();
@@ -1043,7 +1049,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	}
     }
 
-    if (need_copy_dseg(scp, intr)) {
+    if (need_copy_dseg(intr, ax)) {
 	unsigned short my_ds;
 	unsigned int src, dst;
 	int len;
@@ -1056,7 +1062,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	MEMCPY_DOS2DOS(dst, src, len);
     }
 
-    if (need_copy_eseg(scp, intr)) {
+    if (need_copy_eseg(intr, ax)) {
 	unsigned short my_es;
 	unsigned int src, dst;
 	int len;
@@ -1208,6 +1214,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	    break;
 #endif
 	case 0x4b:		/* EXEC */
+	    restore_pm_regs(scp);
 	    if (CURRENT_ENV_SEL)
 		WRITE_ENV_SEL(ConvertSegmentToDescriptor(CURRENT_ENV_SEL));
 	    D_printf("DPMI: Return from DOS exec\n");
