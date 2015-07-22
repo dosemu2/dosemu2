@@ -3683,7 +3683,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
-	  unsigned short *buffer = SEL_ADR_LDT(_es, _edi, Segments[_es>>3].is_32);
+	  unsigned short *buffer = SEL_ADR_X(_es, _edi);
 	  if (_LO(ax)==0) {
             D_printf("DPMI: save real mode registers\n");
 	    *(unsigned long *)buffer = REG(eflags), buffer += 2;
