@@ -2750,8 +2750,12 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
 
-  if (config.pm_dos_api)
-    msdos_ret = msdos_pre_extender(scp, i);
+  if (config.pm_dos_api) {
+    struct RealModeCallStructure rmreg;
+    DPMI_save_rm_regs(&rmreg);
+    msdos_ret = msdos_pre_extender(scp, i, &rmreg);
+    DPMI_restore_rm_regs(&rmreg);
+  }
 
   /* If the API Translator handled the request itself, return to PM */
   if (msdos_ret & MSDOS_DONE) {

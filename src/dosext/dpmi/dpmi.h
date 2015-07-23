@@ -80,7 +80,7 @@ struct RealModeCallStructure {
   unsigned int edi;
   unsigned int esi;
   unsigned int ebp;
-  unsigned int esp;
+  unsigned int esp_reserved;
   unsigned int ebx;
   unsigned int edx;
   unsigned int ecx;
