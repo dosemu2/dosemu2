@@ -2751,24 +2751,29 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
       break;
   }
 
-  save_rm_regs();
-  pm_to_rm_regs(scp, ~0);
-  REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
-
   if (config.pm_dos_api) {
     struct RealModeCallStructure rmreg;
     int rm_mask;
     DPMI_save_rm_regs(&rmreg);
+    rmreg.cs = DPMI_SEG;
+    rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
+    rmreg.ss = DPMI_CLIENT.private_data_segment;
+    rmreg.sp = DPMI_rm_stack_size * (DPMI_CLIENT.in_dpmi_rm_stack + 1);
     msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask);
-    DPMI_restore_rm_regs(&rmreg, rm_mask);
+    /* If the API Translator handled the request itself, return to PM */
+    if (msdos_ret & MSDOS_DONE)
+      return;
+    save_rm_regs();
+    pm_to_rm_regs(scp, ~0);
+    DPMI_restore_rm_regs(&rmreg, rm_mask | (1 << cs_INDEX) |
+	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX));
+  } else {
+    save_rm_regs();
+    pm_to_rm_regs(scp, ~0);
+    REG(cs) = DPMI_SEG;
+    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
   }
 
-  /* If the API Translator handled the request itself, return to PM */
-  if (msdos_ret & MSDOS_DONE) {
-    restore_rm_regs();
-    return;
-  }
   in_dpmi_dos_int = 1;
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
 
