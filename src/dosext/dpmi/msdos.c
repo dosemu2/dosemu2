@@ -1155,7 +1155,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 
 static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 				u_short ax,
-				struct RealModeCallStructure *rmreg)
+				const struct RealModeCallStructure *rmreg)
 {
     int update_mask = ~0;
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
@@ -1516,11 +1516,10 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
     return update_mask;
 }
 
-void msdos_post_extender(struct sigcontext_struct *scp, int intr,
-			 struct RealModeCallStructure *rmreg)
+int msdos_post_extender(struct sigcontext_struct *scp, int intr,
+			 const struct RealModeCallStructure *rmreg)
 {
-    int ret = _msdos_post_extender(scp, intr, pop_v(), rmreg);
-    rm_to_pm_regs(scp, ret);
+    return _msdos_post_extender(scp, intr, pop_v(), rmreg);
 }
 
 int msdos_pre_rm(struct sigcontext_struct *scp,

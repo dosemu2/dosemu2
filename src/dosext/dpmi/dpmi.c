@@ -4292,9 +4292,11 @@ void dpmi_realmode_hlt(unsigned int lina)
 
     if (config.pm_dos_api) {
 	struct RealModeCallStructure rmreg;
+	int rmask;
 	DPMI_save_rm_regs(&rmreg);
-	msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
-	DPMI_restore_rm_regs(&rmreg, ~0);
+	rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
+	/* post_extender does not modify rmregs so not restoring */
+	rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
     }
 
     restore_rm_regs();
@@ -4467,6 +4469,7 @@ done:
     enter_lpms(&DPMI_CLIENT.stack_frame);
     DPMI_save_rm_regs(&rmreg);
     ret = msdos_pre_rm(&DPMI_CLIENT.stack_frame, &rmreg);
+    /* pre_pm does not modify rmregs so not restoring */
     if (!ret) {
 	leave_lpms(&DPMI_CLIENT.stack_frame);
 	restore_pm_regs(&DPMI_CLIENT.stack_frame);
