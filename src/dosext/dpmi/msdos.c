@@ -36,7 +36,7 @@
 #include "bios.h"
 #include "dpmi.h"
 #include "dpmisel.h"
-//#include "vgaemu.h"
+#include "hlt.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS 1
@@ -69,6 +69,10 @@ static int ems_frame_mapped;
 static void *ems_map_buffer = NULL;
 static u_short ems_frame_unmap[EMM_UMA_STD_PHYS * 2];
 static u_short ems_frame_segs[EMM_UMA_STD_PHYS + 1];
+static void lr_hlt(Bit32u idx, void *arg);
+static void lw_hlt(Bit32u idx, void *arg);
+static char *io_buffer;
+static int io_buffer_size;
 
 /* stack for AX values, needed for exec that can corrupt pm regs */
 #define V_STK_LEN 16
@@ -89,7 +93,11 @@ static u_short pop_v(void)
 
 void msdos_setup(void)
 {
+#define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
+#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
     int i;
+    emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+    u_short lr_off, lw_off;
 
     ems_map_buffer =
 	malloc(emm_get_size_for_partial_page_map(EMM_UMA_STD_PHYS));
@@ -100,6 +108,27 @@ void msdos_setup(void)
 	ems_frame_unmap[i * 2] = 0xffff;
 	ems_frame_unmap[i * 2 + 1] = i;
     }
+
+    hlt_hdlr.name = "msdos longread";
+    hlt_hdlr.func = lr_hlt;
+    lr_off = hlt_register_handler(hlt_hdlr);
+    hlt_hdlr.name = "msdos longwrite";
+    hlt_hdlr.func = lw_hlt;
+    lw_off = hlt_register_handler(hlt_hdlr);
+
+    WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+			     MK_LR_OFS(MSDOS_lr_entry_ip)), lr_off);
+    WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+			     MK_LR_OFS(MSDOS_lr_entry_cs)),
+	       BIOS_HLT_BLK_SEG);
+    WRITE_WORD(SEGOFF2LINEAR
+	       (DOS_LONG_WRITE_SEG,
+		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_ip)),
+	       lw_off);
+    WRITE_WORD(SEGOFF2LINEAR
+	       (DOS_LONG_WRITE_SEG,
+		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
+	       BIOS_HLT_BLK_SEG);
 }
 
 void msdos_init(int is_32, unsigned short mseg)
@@ -752,8 +781,8 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    break;
 	case 0x3f:		/* dos read */
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
-			  D_16_32(_ecx));
+	    io_buffer = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
+	    io_buffer_size = D_16_32(_ecx);
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
@@ -761,8 +790,8 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    fake_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF);
 	    return MSDOS_ALT_ENT;
 	case 0x40:		/* DOS Write */
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
-			  D_16_32(_ecx));
+	    io_buffer = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
+	    io_buffer_size = D_16_32(_ecx);
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
@@ -1287,11 +1316,11 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	    break;
 
 	case 0x3f:
-	    unset_io_buffer();
+	    io_buffer_size = 0;
 	    PRESERVE2(edx, ecx);
 	    break;
 	case 0x40:
-	    unset_io_buffer();
+	    io_buffer_size = 0;
 	    PRESERVE2(edx, ecx);
 	    break;
 	case 0x5f:		/* redirection */
@@ -1631,4 +1660,22 @@ int msdos_fault(struct sigcontext_struct *scp)
 
     /* let's hope we fixed the thing, and return */
     return 1;
+}
+
+static void lr_hlt(Bit32u idx, void *arg)
+{
+    unsigned int offs = REG(edi);
+    unsigned int size = REG(ecx);
+    unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
+    if (offs + size <= io_buffer_size)
+	MEMCPY_2UNIX(io_buffer + offs, dos_ptr, size);
+}
+
+static void lw_hlt(Bit32u idx, void *arg)
+{
+    unsigned int offs = REG(edi);
+    unsigned int size = REG(ecx);
+    unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
+    if (offs + size <= io_buffer_size)
+	MEMCPY_2DOS(dos_ptr, io_buffer + offs, size);
 }

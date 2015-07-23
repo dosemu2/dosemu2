@@ -129,6 +129,8 @@ DPMI_dummy_end:
 
 /* ======================= Addr = F800:4B00 (FCB00) */
 	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
+	.globl MSDOS_lr_start
+MSDOS_lr_start:
 	pushl	%esi
 	pushl	%edi
 	pushl	%ecx
@@ -147,8 +149,7 @@ do_read:
 	pushl	%ecx
 	pushl	%eax
 	movl	%eax, %ecx
-	movb	$DOS_HELPER_PUT_DATA, %al
-	int	$DOS_HELPER_INT
+	lcall   *%cs:MSDOS_lr_entry-bios_f000
 	popl	%eax
 	popl	%ecx
 	addl	%eax, %edi
@@ -163,9 +164,19 @@ done_read:
 	popl	%edi
 	popl	%esi
 	lret
+        .align 4,0
+MSDOS_lr_entry:
+        .globl  MSDOS_lr_entry_ip
+MSDOS_lr_entry_ip:
+        .word 0
+        .globl  MSDOS_lr_entry_cs
+MSDOS_lr_entry_cs:
+        .word 0
 
 /* ======================= Addr = F800:4BA0 (FCBA0) */
 	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
+	.globl MSDOS_lw_start
+MSDOS_lw_start:
 	pushl	%esi
 	pushl	%edi
 	pushl	%ecx
@@ -177,8 +188,7 @@ start_write:
 	xorl	%ecx, %ecx
 	decw	%cx
 do_write:
-	movb	$DOS_HELPER_GET_DATA, %al
-	int	$DOS_HELPER_INT
+	lcall   *%cs:MSDOS_lw_entry-bios_f000
 	movb	$0x40, %ah
 	int	$0x21
 	jc	done_write
@@ -195,6 +205,14 @@ done_write:
 	popl	%edi
 	popl	%esi
 	lret
+        .align 4,0
+MSDOS_lw_entry:
+        .globl  MSDOS_lw_entry_ip
+MSDOS_lw_entry_ip:
+        .word 0
+        .globl  MSDOS_lw_entry_cs
+MSDOS_lw_entry_cs:
+        .word 0
 
 /* ----------------------------------------------------------------- */
 	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
