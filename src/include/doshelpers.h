@@ -93,9 +93,6 @@
 #define DOS_HELPER_CHDIR            0x81
 #define DOS_HELPER_GETPID           0x82
 
-#define DOS_HELPER_PUT_DATA         0x85
-#define DOS_HELPER_GET_DATA         0x86
-
 #define DOS_HELPER_CPUEMUON         0x90
 #define DOS_HELPER_CPUEMUOFF        0x91
 

@@ -42,9 +42,6 @@ int dos_helper(void);
 
 void update_xtitle(void);
 
-void set_io_buffer(char *ptr, unsigned int size);
-void unset_io_buffer(void);
-
 void int42_hook(void);
 
 #endif
