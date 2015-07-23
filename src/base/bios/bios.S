@@ -127,92 +127,6 @@ MSDOS_rpm_end:
 	.globl	DPMI_dummy_end
 DPMI_dummy_end:
 
-/* ======================= Addr = F800:4B00 (FCB00) */
-	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
-	.globl MSDOS_lr_start
-MSDOS_lr_start:
-	pushl	%esi
-	pushl	%edi
-	pushl	%ecx
-	xorl	%edi, %edi
-start_read:
-	movl	%ecx, %esi
-	cmpl	$0x10000, %esi
-	jb	do_read
-	xorl	%ecx, %ecx
-	decw	%cx
-do_read:
-	movb	$0x3f, %ah
-	int	$0x21
-	jc	done_read
-	movzwl	%ax, %eax
-	pushl	%ecx
-	pushl	%eax
-	movl	%eax, %ecx
-	lcall   *%cs:MSDOS_lr_entry-bios_f000
-	popl	%eax
-	popl	%ecx
-	addl	%eax, %edi
-	cmpw	%ax, %cx
-	jnz	done_read
-	movl	%esi, %ecx
-	subl	%eax, %ecx
-	jnz	start_read
-done_read:
-	movl	%edi, %eax
-	popl	%ecx
-	popl	%edi
-	popl	%esi
-	lret
-        .align 4,0
-MSDOS_lr_entry:
-        .globl  MSDOS_lr_entry_ip
-MSDOS_lr_entry_ip:
-        .word 0
-        .globl  MSDOS_lr_entry_cs
-MSDOS_lr_entry_cs:
-        .word 0
-
-/* ======================= Addr = F800:4BA0 (FCBA0) */
-	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
-	.globl MSDOS_lw_start
-MSDOS_lw_start:
-	pushl	%esi
-	pushl	%edi
-	pushl	%ecx
-	xorl	%edi, %edi
-start_write:
-	movl	%ecx, %esi
-	cmpl	$0x10000, %esi
-	jb	do_write
-	xorl	%ecx, %ecx
-	decw	%cx
-do_write:
-	lcall   *%cs:MSDOS_lw_entry-bios_f000
-	movb	$0x40, %ah
-	int	$0x21
-	jc	done_write
-	movzwl	%ax, %eax
-	addl	%eax, %edi
-	cmpw	%ax, %cx
-	jnz	done_write
-	movl	%esi, %ecx
-	subl	%eax, %ecx
-	jnz	start_write
-done_write:
-	movl	%edi, %eax
-	popl	%ecx
-	popl	%edi
-	popl	%esi
-	lret
-        .align 4,0
-MSDOS_lw_entry:
-        .globl  MSDOS_lw_entry_ip
-MSDOS_lw_entry_ip:
-        .word 0
-        .globl  MSDOS_lw_entry_cs
-MSDOS_lw_entry_cs:
-        .word 0
 
 /* ----------------------------------------------------------------- */
 	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
@@ -844,6 +758,93 @@ DBGload:
 	sti
 	ljmp	*%cs:DBGload_CSIP-bios_f000
 				/* and give control to the program */
+
+/* ======================= Addr = F000:F400 (FF400) */
+	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
+	.globl MSDOS_lr_start
+MSDOS_lr_start:
+	pushl	%esi
+	pushl	%edi
+	pushl	%ecx
+	xorl	%edi, %edi
+start_read:
+	movl	%ecx, %esi
+	cmpl	$0x10000, %esi
+	jb	do_read
+	xorl	%ecx, %ecx
+	decw	%cx
+do_read:
+	movb	$0x3f, %ah
+	int	$0x21
+	jc	done_read
+	movzwl	%ax, %eax
+	pushl	%ecx
+	pushl	%eax
+	movl	%eax, %ecx
+	lcall   *%cs:MSDOS_lr_entry-bios_f000
+	popl	%eax
+	popl	%ecx
+	addl	%eax, %edi
+	cmpw	%ax, %cx
+	jnz	done_read
+	movl	%esi, %ecx
+	subl	%eax, %ecx
+	jnz	start_read
+done_read:
+	movl	%edi, %eax
+	popl	%ecx
+	popl	%edi
+	popl	%esi
+	lret
+        .align 4,0
+MSDOS_lr_entry:
+        .globl  MSDOS_lr_entry_ip
+MSDOS_lr_entry_ip:
+        .word 0
+        .globl  MSDOS_lr_entry_cs
+MSDOS_lr_entry_cs:
+        .word 0
+
+/* ======================= Addr = F000:F4A0 (FF4A0) */
+	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
+	.globl MSDOS_lw_start
+MSDOS_lw_start:
+	pushl	%esi
+	pushl	%edi
+	pushl	%ecx
+	xorl	%edi, %edi
+start_write:
+	movl	%ecx, %esi
+	cmpl	$0x10000, %esi
+	jb	do_write
+	xorl	%ecx, %ecx
+	decw	%cx
+do_write:
+	lcall   *%cs:MSDOS_lw_entry-bios_f000
+	movb	$0x40, %ah
+	int	$0x21
+	jc	done_write
+	movzwl	%ax, %eax
+	addl	%eax, %edi
+	cmpw	%ax, %cx
+	jnz	done_write
+	movl	%esi, %ecx
+	subl	%eax, %ecx
+	jnz	start_write
+done_write:
+	movl	%edi, %eax
+	popl	%ecx
+	popl	%edi
+	popl	%esi
+	lret
+        .align 4,0
+MSDOS_lw_entry:
+        .globl  MSDOS_lw_entry_ip
+MSDOS_lw_entry_ip:
+        .word 0
+        .globl  MSDOS_lw_entry_cs
+MSDOS_lw_entry_cs:
+        .word 0
 
 	.globl  bios_f000_endpart1
 bios_f000_endpart1:

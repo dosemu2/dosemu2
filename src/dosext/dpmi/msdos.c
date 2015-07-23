@@ -32,10 +32,10 @@
 #else
 #include "emu.h"
 #include "emu-ldt.h"
-#include "int.h"
 #include "bios.h"
 #include "dpmi.h"
 #include "dpmisel.h"
+#include "int.h"
 #include "hlt.h"
 #include "utilities.h"
 #include "dos2linux.h"
@@ -352,6 +352,18 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 	return 0;
     } else
 	return 1;
+}
+
+static void do_retf(void)
+{
+  unsigned int ssp, sp;
+
+  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  sp = LWORD(esp);
+
+  _IP = popw(ssp, sp);
+  _CS = popw(ssp, sp);
+  _SP += 4/* + 2 * pop_count*/;
 }
 
 static void old_dos_terminate(struct sigcontext_struct *scp, int i)
@@ -1669,6 +1681,7 @@ static void lr_hlt(Bit32u idx, void *arg)
     unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
     if (offs + size <= io_buffer_size)
 	MEMCPY_2UNIX(io_buffer + offs, dos_ptr, size);
+    do_retf();
 }
 
 static void lw_hlt(Bit32u idx, void *arg)
@@ -1678,4 +1691,5 @@ static void lw_hlt(Bit32u idx, void *arg)
     unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
     if (offs + size <= io_buffer_size)
 	MEMCPY_2DOS(dos_ptr, io_buffer + offs, size);
+    do_retf();
 }
