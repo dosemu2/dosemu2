@@ -32,7 +32,6 @@
 #else
 #include "emu.h"
 #include "emu-ldt.h"
-#include "int.h"
 #include "bios.h"
 #include "dpmi.h"
 #include "dpmisel.h"
@@ -1505,9 +1504,10 @@ void msdos_post_extender(struct sigcontext_struct *scp, int intr,
     rm_to_pm_regs(scp, ret);
 }
 
-int msdos_pre_rm(struct sigcontext_struct *scp)
+int msdos_pre_rm(struct sigcontext_struct *scp,
+		 struct RealModeCallStructure *rmreg)
 {
-    unsigned int lina = SEGOFF2LINEAR(_CS, _IP) - 1;
+    unsigned int lina = SEGOFF2LINEAR(RMREG(cs), RMREG(ip)) - 1;
     void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
 
     if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback)) {
@@ -1517,7 +1517,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
 	}
 	D_printf("MSDOS: starting mouse callback\n");
 	rm_to_pm_regs(scp, ~0);
-	_ds = ConvertSegmentToDescriptor(REG(ds));
+	_ds = ConvertSegmentToDescriptor(RMREG(ds));
 	_cs = MSDOS_CLIENT.mouseCallBack.selector;
 	_eip = MSDOS_CLIENT.mouseCallBack.offset;
 
@@ -1545,7 +1545,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
 	_cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
 	_eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
 
-	rm_ssp = MK_FP32(REG(ss), LWORD(esp) + 4 + 8);
+	rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
 
 	if (MSDOS_CLIENT.is_32) {
 	    unsigned int *ssp = sp;
@@ -1583,17 +1583,18 @@ void msdos_post_rm(struct sigcontext_struct *scp)
     pm_to_rm_regs(scp, ~0);
 }
 
-int msdos_pre_pm(struct sigcontext_struct *scp)
+int msdos_pre_pm(struct sigcontext_struct *scp,
+		 struct RealModeCallStructure *rmreg)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
 	D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 		 MSDOS_CLIENT.XMS_call.segment,
 		 MSDOS_CLIENT.XMS_call.offset);
 	pm_to_rm_regs(scp, ~0);
-	REG(cs) = DPMI_SEG;
-	REG(eip) = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
-	fake_call_to(MSDOS_CLIENT.XMS_call.segment,
-		     MSDOS_CLIENT.XMS_call.offset);
+	RMREG(cs) = DPMI_SEG;
+	RMREG(ip) = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
+	do_call_to(MSDOS_CLIENT.XMS_call.segment,
+		     MSDOS_CLIENT.XMS_call.offset, rmreg);
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
 	return 0;

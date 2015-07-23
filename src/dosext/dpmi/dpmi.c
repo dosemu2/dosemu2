@@ -3921,12 +3921,18 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_spm_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_spm_end))) {
+	  struct RealModeCallStructure rmreg;
+	  int ret;
+
 	  D_printf("DPMI: Starting MSDOS pm callback\n");
 	  save_rm_regs();
-	  if (!msdos_pre_pm(scp)) {
+	  DPMI_save_rm_regs(&rmreg);
+	  ret = msdos_pre_pm(scp, &rmreg);
+	  if (!ret) {
 	    restore_rm_regs();
 	    break;
 	  }
+	  DPMI_restore_rm_regs(&rmreg);
 	  in_dpmi_dos_int = 1;
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
@@ -4440,16 +4446,22 @@ done:
 
   } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_srm_start)) &&
 	     (lina < DPMI_ADD + HLT_OFF(MSDOS_srm_end))) {
+    struct RealModeCallStructure rmreg;
+    int ret;
+
     REG(eip) += 1;            /* skip halt to point to FAR RET */
     D_printf("DPMI: Starting MSDOS rm callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     enter_lpms(&DPMI_CLIENT.stack_frame);
-    if (!msdos_pre_rm(&DPMI_CLIENT.stack_frame)) {
+    DPMI_save_rm_regs(&rmreg);
+    ret = msdos_pre_rm(&DPMI_CLIENT.stack_frame, &rmreg);
+    if (!ret) {
 	leave_lpms(&DPMI_CLIENT.stack_frame);
 	restore_pm_regs(&DPMI_CLIENT.stack_frame);
 	CARRY;
 	return;
     }
+    DPMI_restore_rm_regs(&rmreg);
     _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
     clear_IF();
     in_dpmi_dos_int = 0;
