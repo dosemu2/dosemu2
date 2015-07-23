@@ -469,7 +469,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
 			       int *r_mask)
 {
-    int rm_mask = 0;
+    int rm_mask = 0, ret = 0;
 #define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
@@ -841,7 +841,10 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    do_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF, rmreg);
-	    return MSDOS_ALT_ENT;
+	    RMPRESERVE2(cs, ip);
+	    RMPRESERVE2(ss, esp);
+	    ret = MSDOS_ALT_ENT;
+	    break;
 	case 0x40:		/* DOS Write */
 	    io_buffer = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 	    io_buffer_size = D_16_32(_ecx);
@@ -850,7 +853,10 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    do_call_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF, rmreg);
-	    return MSDOS_ALT_ENT;
+	    RMPRESERVE2(cs, ip);
+	    RMPRESERVE2(ss, esp);
+	    ret = MSDOS_ALT_ENT;
+	    break;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
 		unsigned short seg = TRANS_BUFFER_SEG;
@@ -1045,7 +1051,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		default:	/* all other subfuntions currently not supported */
 		    _eflags |= CF;
 		    _eax = _eax & 0xFFFFFF00;
-		    return 1;
+		    return MSDOS_DONE;
 		}
 	    }
 	default:
@@ -1124,7 +1130,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
     }
 
     *r_mask = rm_mask;
-    return 0;
+    return ret;
 }
 
 int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
