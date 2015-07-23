@@ -4272,8 +4272,12 @@ void dpmi_realmode_hlt(unsigned int lina)
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
 
-    if (config.pm_dos_api)
-	msdos_post_extender(&DPMI_CLIENT.stack_frame, intr);
+    if (config.pm_dos_api) {
+	struct RealModeCallStructure rmreg;
+	DPMI_save_rm_regs(&rmreg);
+	msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
+	DPMI_restore_rm_regs(&rmreg);
+    }
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;

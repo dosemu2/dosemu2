@@ -1136,7 +1136,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
  */
 
 static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
-				u_short ax)
+				u_short ax,
+				struct RealModeCallStructure *rmreg)
 {
     int update_mask = ~0;
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
@@ -1185,21 +1186,21 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
     case 0x10:			/* video */
 	if (ax == 0x1130) {
 	    /* get current character generator infor */
-	    SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+	    SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
 	}
 	break;
     case 0x15:
 	/* we need to save regs at int15 because AH has the return value */
 	if (HI_BYTE(ax) == 0xc0) {	/* Get Configuration */
-	    if (REG(eflags) & CF)
+	    if (RMREG(flags) & CF)
 		break;
-	    SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+	    SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
 	}
 	break;
     case 0x2f:
 	switch (ax) {
 	case 0x4310:
-	    MSDOS_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
+	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(ebx));
 	    SET_REG(es, dpmi_sel());
 	    SET_REG(ebx, DPMI_SEL_OFF(MSDOS_XMS_call));
 	    break;
@@ -1222,38 +1223,38 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	case 0x17:		/* rename using FCB */
 	    PRESERVE1(edx);
 	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
-			 SEGOFF2LINEAR(REG(ds), LWORD(edx)), 0x50);
+			 SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)), 0x50);
 	    break;
 
 	case 0x29:		/* Parse a file name for FCB */
 	    PRESERVE2(esi, edi);
 	    MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			 /* Warning: SI altered, assume old value = 0, don't touch. */
-			 SEGOFF2LINEAR(REG(ds), 0), 0x100);
-	    SET_REG(esi, _esi + LWORD(esi));
+			 SEGOFF2LINEAR(RMREG(ds), 0), 0x100);
+	    SET_REG(esi, _esi + RMLWORD(esi));
 	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			 SEGOFF2LINEAR(REG(es), LWORD(edi)), 0x50);
+			 SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)), 0x50);
 	    break;
 
 	case 0x2f:		/* GET DTA */
-	    if (SEGOFF2LINEAR(REG(es), LWORD(ebx)) == DTA_under_1MB) {
+	    if (SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx)) == DTA_under_1MB) {
 		if (!MSDOS_CLIENT.user_dta_sel)
 		    error("Selector is not set for the translated DTA\n");
 		SET_REG(es, MSDOS_CLIENT.user_dta_sel);
 		SET_REG(ebx, MSDOS_CLIENT.user_dta_off);
 	    } else {
-		SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+		SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
 		/* it is important to copy only the lower word of ebx
 		 * and make the higher word zero, so do it here instead
 		 * of relying on dpmi.c */
-		SET_REG(ebx, LWORD(ebx));
+		SET_REG(ebx, RMLWORD(ebx));
 	    }
 	    break;
 
 	case 0x34:		/* Get Address of InDOS Flag */
 	case 0x35:		/* GET Vector */
 	case 0x52:		/* Get List of List */
-	    SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+	    SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
 	    break;
 
 	case 0x39:		/* mkdir */
@@ -1280,45 +1281,45 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	    PRESERVE1(edx);
 	    if (!in_dos_space(_LWORD(edx), 0)) {
 		MEMCPY_DOS2DOS(GetSegmentBase(_LWORD(edx)),
-			       SEGOFF2LINEAR(LWORD(edx), 0), 0x100);
+			       SEGOFF2LINEAR(RMLWORD(edx), 0), 0x100);
 	    }
 	    break;
 
 	case 0x26:		/* create PSP */
 	    PRESERVE1(edx);
 	    MEMCPY_DOS2DOS(GetSegmentBase(_LWORD(edx)),
-			   SEGOFF2LINEAR(LWORD(edx), 0), 0x100);
+			   SEGOFF2LINEAR(RMLWORD(edx), 0), 0x100);
 	    break;
 
 	case 0x59:		/* Get EXTENDED ERROR INFORMATION */
-	    if (LWORD(eax) == 0x22) {	/* only this code has a pointer */
-		SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+	    if (RMLWORD(eax) == 0x22) {	/* only this code has a pointer */
+		SET_REG(es, ConvertSegmentToDescriptor(RMREG(es)));
 	    }
 	    break;
 	case 0x38:
 	    if (_LWORD(edx) != 0xffff) {	/* get country info */
 		PRESERVE1(edx);
-		if (LWORD(eflags) & CF)
+		if (RMLWORD(flags) & CF)
 		    break;
 		/* FreeDOS copies only 0x18 bytes */
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
-			     SEGOFF2LINEAR(REG(ds), LWORD(edx)), 0x18);
+			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)), 0x18);
 	    }
 	    break;
 	case 0x47:		/* get CWD */
 	    PRESERVE1(esi);
-	    if (LWORD(eflags) & CF)
+	    if (RMLWORD(flags) & CF)
 		break;
 	    snprintf(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32), 0x40,
-		     "%s", SEG_ADR((char *), ds, si));
+		     "%s", RMSEG_ADR((char *), ds, si));
 	    D_printf("MSDOS: CWD: %s\n",
 		     (char *) SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32));
 	    break;
 #if 0
 	case 0x48:		/* allocate memory */
-	    if (LWORD(eflags) & CF)
+	    if (RMLWORD(eflags) & CF)
 		break;
-	    SET_REG(eax, ConvertSegmentToDescriptor(LWORD(eax)));
+	    SET_REG(eax, ConvertSegmentToDescriptor(RMLWORD(eax)));
 	    break;
 #endif
 	case 0x4b:		/* EXEC */
@@ -1330,7 +1331,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	case 0x51:		/* get PSP */
 	case 0x62:
 	    {			/* convert environment pointer to a descriptor */
-		unsigned short psp = LWORD(ebx);
+		unsigned short psp = RMLWORD(ebx);
 		if (psp == CURRENT_PSP && MSDOS_CLIENT.user_psp_sel) {
 		    SET_REG(ebx, MSDOS_CLIENT.user_psp_sel);
 		} else {
@@ -1342,7 +1343,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    PRESERVE2(esi, ebp);
 	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _ebp, MSDOS_CLIENT.is_32),
-			 SEGOFF2LINEAR(REG(es), LWORD(ebp)), 0x60);
+			 SEGOFF2LINEAR(RMREG(es), RMLWORD(ebp)), 0x60);
 	    break;
 	case 0x56:		/* rename */
 	    PRESERVE2(edx, edi);
@@ -1351,12 +1352,12 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	    if (_LO(ax) == 0x06 || _LO(ax) == 0x0b)
 		/* get address of DOS swappable area */
 		/*        -> DS:SI                     */
-		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
+		SET_REG(ds, ConvertSegmentToDescriptor(RMREG(ds)));
 	    break;
 	case 0x63:		/* Get Lead Byte Table Address */
-	    /* _LO(ax)==0 is to test for 6300 on input, LO(ax)==0 for success */
-	    if (_LO(ax) == 0 && LO(ax) == 0)
-		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
+	    /* _LO(ax)==0 is to test for 6300 on input, RM_LO(ax)==0 for success */
+	    if (_LO(ax) == 0 && RM_LO(ax) == 0)
+		SET_REG(ds, ConvertSegmentToDescriptor(RMREG(ds)));
 	    break;
 
 	case 0x3f:
@@ -1375,36 +1376,38 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	    case 2 ... 6:
 		PRESERVE2(esi, edi);
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
-			     SEGOFF2LINEAR(REG(ds), LWORD(esi)), 0x100);
+			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(esi)),
+			     0x100);
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			     SEGOFF2LINEAR(REG(es), LWORD(edi)), 0x100);
+			     SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
+			     0x100);
 	    }
 	    break;
 	case 0x60:		/* Canonicalize file name */
 	    PRESERVE2(esi, edi);
 	    MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			 SEGOFF2LINEAR(REG(es), LWORD(edi)), 0x80);
+			 SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)), 0x80);
 	    break;
 	case 0x65:		/* internationalization */
 	    PRESERVE2(edi, edx);
-	    if (LWORD(eflags) & CF)
+	    if (RMLWORD(flags) & CF)
 		break;
 	    switch (_LO(ax)) {
 	    case 1 ... 7:
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			     SEGOFF2LINEAR(REG(es), LWORD(edi)),
-			     LWORD(ecx));
+			     SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
+			     RMLWORD(ecx));
 		break;
 	    case 0x21:
 	    case 0xa1:
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
-			     SEGOFF2LINEAR(REG(ds), LWORD(edx)),
+			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)),
 			     _LWORD(ecx));
 		break;
 	    case 0x22:
 	    case 0xa2:
 		strcpy(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
-		       SEG_ADR((void *), ds, dx));
+		       RMSEG_ADR((void *), ds, dx));
 		break;
 	    }
 	    break;
@@ -1420,41 +1423,42 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 		/* fall thru */
 	    case 0x4F:
 		PRESERVE1(edi);
-		if (LWORD(eflags) & CF)
+		if (RMLWORD(flags) & CF)
 		    break;
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			     SEGOFF2LINEAR(REG(es), LWORD(edi)), 0x13E);
+			     SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
+			     0x13E);
 		break;
 	    case 0x47:
 		PRESERVE1(esi);
-		if (LWORD(eflags) & CF)
+		if (RMLWORD(flags) & CF)
 		    break;
 		snprintf(SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
-			 MAX_DOS_PATH, "%s", SEG_ADR((char *), ds, si));
+			 MAX_DOS_PATH, "%s", RMSEG_ADR((char *), ds, si));
 		break;
 	    case 0x60:
 		PRESERVE2(esi, edi);
-		if (LWORD(eflags) & CF)
+		if (RMLWORD(flags) & CF)
 		    break;
 		snprintf(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			 MAX_DOS_PATH, "%s", SEG_ADR((char *), es, di));
+			 MAX_DOS_PATH, "%s", RMSEG_ADR((char *), es, di));
 		break;
 	    case 0x6c:
 		PRESERVE1(esi);
 		break;
 	    case 0xA0:
 		PRESERVE2(edx, edi);
-		if (LWORD(eflags) & CF)
+		if (RMLWORD(flags) & CF)
 		    break;
 		snprintf(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
-			 _LWORD(ecx), "%s", SEG_ADR((char *), es, di));
+			 _LWORD(ecx), "%s", RMSEG_ADR((char *), es, di));
 		break;
 	    case 0xA6:
 		PRESERVE1(edx);
-		if (LWORD(eflags) & CF)
+		if (RMLWORD(flags) & CF)
 		    break;
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
-			     SEGOFF2LINEAR(REG(ds), LWORD(edx)), 0x34);
+			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)), 0x34);
 		break;
 	    };
 
@@ -1468,12 +1472,12 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	if (MSDOS_CLIENT.is_32) {
 	    _esp -= 4;
 	    *(uint32_t *) (SEL_ADR_CLNT(_ss, _esp - 4, MSDOS_CLIENT.is_32))
-		= REG(eflags);
+		= RMREG(flags);
 	} else {
 	    _esp -= 2;
 	    *(uint16_t
 	      *) (SEL_ADR_CLNT(_ss, _LWORD(esp) - 2, MSDOS_CLIENT.is_32)) =
-       LWORD(eflags);
+       RMLWORD(flags);
 	}
 	break;
     case 0x33:			/* mouse */
@@ -1483,7 +1487,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	    PRESERVE1(edx);
 	    break;
 	case 0x19:		/* Get User Alternate Interrupt Address */
-	    SET_REG(ebx, ConvertSegmentToDescriptor(LWORD(ebx)));
+	    SET_REG(ebx, ConvertSegmentToDescriptor(RMLWORD(ebx)));
 	    break;
 	default:
 	    break;
@@ -1494,9 +1498,10 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
     return update_mask;
 }
 
-void msdos_post_extender(struct sigcontext_struct *scp, int intr)
+void msdos_post_extender(struct sigcontext_struct *scp, int intr,
+			 struct RealModeCallStructure *rmreg)
 {
-    int ret = _msdos_post_extender(scp, intr, pop_v());
+    int ret = _msdos_post_extender(scp, intr, pop_v(), rmreg);
     rm_to_pm_regs(scp, ret);
 }
 
