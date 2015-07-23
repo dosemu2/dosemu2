@@ -4461,7 +4461,6 @@ done:
 	CARRY;
 	return;
     }
-    DPMI_restore_rm_regs(&rmreg);
     _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
     clear_IF();
     in_dpmi_dos_int = 0;

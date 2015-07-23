@@ -1505,7 +1505,7 @@ void msdos_post_extender(struct sigcontext_struct *scp, int intr,
 }
 
 int msdos_pre_rm(struct sigcontext_struct *scp,
-		 struct RealModeCallStructure *rmreg)
+		 const struct RealModeCallStructure *rmreg)
 {
     unsigned int lina = SEGOFF2LINEAR(RMREG(cs), RMREG(ip)) - 1;
     void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
