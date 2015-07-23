@@ -391,15 +391,13 @@ static void do_call_to(int cs, int ip, struct RealModeCallStructure *rmreg)
   RMREG(ip) = ip;
 }
 
-static void old_dos_terminate(struct sigcontext_struct *scp, int i)
+static void old_dos_terminate(struct sigcontext_struct *scp, int i,
+			      struct RealModeCallStructure *rmreg)
 {
     unsigned short psp_seg_sel, parent_psp = 0;
     unsigned short psp_sig;
 
     D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
-
-    REG(cs) = CURRENT_PSP;
-    REG(eip) = 0x100;
 
 #if 0
     _eip = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa));
@@ -410,9 +408,11 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 #endif
 
     /* put our return address there */
-    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa),
-	       DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i);
-    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa + 2), DPMI_SEG);
+    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa), RMREG(ip));
+    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa + 2), RMREG(cs));
+    /* cs should point to PSP, ip doesn't matter */
+    RMREG(cs) = CURRENT_PSP;
+    RMREG(ip) = 0x100;
 
     psp_seg_sel = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x16));
     /* try segment */
@@ -515,7 +515,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    return 0;
 	}
     case 0x20:			/* DOS terminate */
-	old_dos_terminate(scp, intr);
+	old_dos_terminate(scp, intr, rmreg);
 	return 0;
     case 0x21:
 	switch (_HI(ax)) {
@@ -606,7 +606,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	case 0xF8:		/* OEM SET vector */
 	    return 0;
 	case 0x00:		/* DOS terminate */
-	    old_dos_terminate(scp, intr);
+	    old_dos_terminate(scp, intr, rmreg);
 	    RMLWORD(eax) = 0x4c00;
 	    return 0;
 	case 0x09:		/* Print String */
