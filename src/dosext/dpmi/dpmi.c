@@ -2044,26 +2044,15 @@ err:
       struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
       us *ssp;
       unsigned int rm_ssp, rm_sp;
-      int i;
+      int i, rmask = ~((1 << cs_INDEX) | (1 << eip_INDEX));
 
       D_printf("DPMI: RealModeCallStructure at %p\n", rmreg);
+      if (rmreg->ss == 0 && rmreg->sp == 0)
+        rmask &= ~((1 << esp_INDEX) | (1 << ss_INDEX));
+      DPMI_restore_rm_regs(rmreg, rmask);
+      REG(eflags) |= dpmi_mhp_TF;
+
       ssp = (us *) SEL_ADR(_ss, _esp);
-      REG(edi) = rmreg->edi;
-      REG(esi) = rmreg->esi;
-      REG(ebp) = rmreg->ebp;
-      REG(ebx) = rmreg->ebx;
-      REG(edx) = rmreg->edx;
-      REG(ecx) = rmreg->ecx;
-      REG(eax) = rmreg->eax;
-      REG(eflags) = get_EFLAGS(rmreg->flags) | dpmi_mhp_TF;
-      REG(es) = rmreg->es;
-      REG(ds) = rmreg->ds;
-      REG(fs) = rmreg->fs;
-      REG(gs) = rmreg->gs;
-      if (!(rmreg->ss==0 && rmreg->sp==0)) {
-	REG(ss) = rmreg->ss;
-	REG(esp) = (long) rmreg->sp;
-      }
       rm_ssp = SEGOFF2LINEAR(REG(ss), 0);
       rm_sp = LWORD(esp);
       for (i=0;i<(_LWORD(ecx)); i++)
