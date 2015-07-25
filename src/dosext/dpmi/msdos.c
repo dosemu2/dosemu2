@@ -820,7 +820,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		SET_RMREG(ds, TRANS_BUFFER_SEG);
 		SET_RMREG(edx, 0);
 		src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
-		dst = RMSEG_ADR((char *), ds, dx);
+		dst = SEG2LINEAR(TRANS_BUFFER_SEG);
 		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
 		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
@@ -936,7 +936,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		SET_RMREG(ds, TRANS_BUFFER_SEG);
 		SET_RMREG(esi, 0);
 		src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
-		dst = RMSEG_ADR((char *), ds, si);
+		dst = SEG2LINEAR(TRANS_BUFFER_SEG);
 		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %p\n", dst);
 		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
@@ -971,7 +971,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(ds, TRANS_BUFFER_SEG);
 		SET_RMREG(edx, 0);
-		strcpy(RMSEG_ADR((void *), ds, dx),
+		strcpy(SEG2LINEAR(TRANS_BUFFER_SEG),
 		       SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32));
 		break;
 	    }
@@ -987,7 +987,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    SET_RMREG(ds, TRANS_BUFFER_SEG);
 		    SET_RMREG(edx, 0);
 		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
-		    dst = RMSEG_ADR((char *), ds, dx);
+		    dst = SEG2LINEAR(TRANS_BUFFER_SEG);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0x4E:	/* find first file */
@@ -997,7 +997,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    SET_RMREG(es, TRANS_BUFFER_SEG);
 		    SET_RMREG(edi, MAX_DOS_PATH);
 		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
-		    dst = RMSEG_ADR((char *), ds, dx);
+		    dst = SEG2LINEAR(TRANS_BUFFER_SEG);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0x4F:	/* find next file */
@@ -1020,7 +1020,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    SET_RMREG(es, TRANS_BUFFER_SEG);
 		    SET_RMREG(edi, MAX_DOS_PATH);
 		    src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
-		    dst = RMSEG_ADR((char *), ds, si);
+		    dst = SEG2LINEAR(TRANS_BUFFER_SEG);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0x6c:	/* extended open/create */
@@ -1028,7 +1028,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    SET_RMREG(ds, TRANS_BUFFER_SEG);
 		    SET_RMREG(esi, 0);
 		    src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
-		    dst = RMSEG_ADR((char *), ds, si);
+		    dst = SEG2LINEAR(TRANS_BUFFER_SEG);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0xA0:	/* get volume info */
@@ -1038,7 +1038,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    SET_RMREG(es, TRANS_BUFFER_SEG);
 		    SET_RMREG(edi, MAX_DOS_PATH);
 		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
-		    dst = RMSEG_ADR((char *), ds, dx);
+		    dst = SEG2LINEAR(TRANS_BUFFER_SEG);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
 		    break;
 		case 0xA1:	/* close find */
