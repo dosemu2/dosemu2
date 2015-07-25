@@ -2743,7 +2743,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
   if (config.pm_dos_api) {
     struct RealModeCallStructure rmreg;
     int rm_mask;
-    DPMI_save_rm_regs(&rmreg);
+
     rmreg.cs = DPMI_SEG;
     rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
     rmreg.ss = DPMI_CLIENT.private_data_segment;

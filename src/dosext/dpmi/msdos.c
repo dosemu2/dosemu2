@@ -627,7 +627,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(ds, TRANS_BUFFER_SEG);
 		SET_RMREG(edx, 0);
-		d = SEG2LINEAR(RMREG(ds));
+		d = SEG2LINEAR(TRANS_BUFFER_SEG);
 		s = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 		for (i = 0; i < 0xffff; i++, d++, s++) {
 		    *d = *s;
@@ -671,7 +671,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    prepare_ems_frame();
 	    SET_RMREG(ds, TRANS_BUFFER_SEG);
 	    SET_RMREG(edx, 0);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)),
+	    MEMCPY_2DOS(SEGOFF2LINEAR(TRANS_BUFFER_SEG, 0),
 			SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32), 0x50);
 	    break;
 	case 0x29:		/* Parse a file name for FCB */
@@ -680,13 +680,13 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(ds, seg);
 		SET_RMREG(esi, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(ds), RMLWORD(esi)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			    0x100);
 		seg += 0x10;
 		SET_RMREG(es, seg);
 		SET_RMREG(edi, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			    0x50);
 	    }
@@ -699,7 +699,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	case 0x4b:		/* EXEC */
 	    {
 		/* we must copy all data from higher 1MB to lower 1MB */
-		unsigned short segment = EXEC_SEG;
+		unsigned short segment = EXEC_SEG, par_seg;
 		char *p;
 		unsigned short sel, off;
 
@@ -708,49 +708,44 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		SET_RMREG(ds, segment);
 		SET_RMREG(edx, 0);
 		p = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
-		snprintf((char *) SEG2LINEAR(RMREG(ds)), MAX_DOS_PATH,
+		snprintf((char *) SEG2LINEAR(segment), MAX_DOS_PATH,
 			 "%s", p);
 		segment += (MAX_DOS_PATH + 0x0f) >> 4;
 
 		/* must copy parameter block */
 		SET_RMREG(es, segment);
 		SET_RMREG(ebx, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(segment, 0),
 			    SEL_ADR_CLNT(_es, _ebx, MSDOS_CLIENT.is_32),
 			    0x20);
+		par_seg = segment;
 		segment += 2;
 #if 0
 		/* now the envrionment segment */
-		sel = READ_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx)));
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx)),
-			   segment);
+		sel = READ_WORD(SEGOFF2LINEAR(par_seg, 0));
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 0), segment);
 		MEMCPY_2DOS(SEGOFF2LINEAR(segment, 0),	/* 4K envr. */
 			    GetSegmentBase(sel), 0x1000);
 		segment += 0x100;
 #else
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx)), 0);
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 0), 0);
 #endif
 		/* now the tail of the command line */
-		off =
-		    READ_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 2));
-		sel =
-		    READ_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 4));
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 4),
-			   segment);
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 2), 0);
+		off = READ_WORD(SEGOFF2LINEAR(par_seg, 2));
+		sel = READ_WORD(SEGOFF2LINEAR(par_seg, 4));
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 4), segment);
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 2), 0);
 		MEMCPY_2DOS(SEGOFF2LINEAR(segment, 0),
 			    SEL_ADR_CLNT(sel, off, MSDOS_CLIENT.is_32),
 			    0x80);
 		segment += 8;
 
 		/* set the FCB pointers to something reasonable */
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 6), 0);
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 8),
-			   segment);
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 0xA),
-			   0);
-		WRITE_WORD(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebx) + 0xC),
-			   segment);
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 6), 0);
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 8), segment);
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 0xA), 0);
+		WRITE_WORD(SEGOFF2LINEAR(par_seg, 0xC), segment);
+		/* zero out fcbs */
 		MEMSET_DOS(SEGOFF2LINEAR(segment, 0), 0, 0x30);
 		segment += 3;
 
@@ -863,14 +858,14 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(ds, seg);
 		SET_RMREG(esi, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(ds), RMLWORD(esi)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			    0x30);
 		seg += 3;
 
 		SET_RMREG(es, seg);
 		SET_RMREG(ebp, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(ebp)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_es, _ebp, MSDOS_CLIENT.is_32),
 			    0x60);
 	    }
@@ -881,14 +876,14 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(ds, seg);
 		SET_RMREG(edx, 0);
-		snprintf(SEG2LINEAR(RMREG(ds)), MAX_DOS_PATH, "%s",
+		snprintf(SEG2LINEAR(seg), MAX_DOS_PATH, "%s",
 			 (char *) SEL_ADR_CLNT(_ds, _edx,
 					       MSDOS_CLIENT.is_32));
 		seg += 0x20;
 
 		SET_RMREG(es, seg);
 		SET_RMREG(edi, 0);
-		snprintf(SEG2LINEAR(RMREG(es)), MAX_DOS_PATH, "%s",
+		snprintf(SEG2LINEAR(seg), MAX_DOS_PATH, "%s",
 			 (char *) SEL_ADR_CLNT(_es, _edi,
 					       MSDOS_CLIENT.is_32));
 	    }
@@ -904,13 +899,13 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		seg = TRANS_BUFFER_SEG;
 		SET_RMREG(ds, seg);
 		SET_RMREG(esi, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(ds), RMLWORD(esi)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			    0x100);
 		seg += 0x10;
 		SET_RMREG(es, seg);
 		SET_RMREG(edi, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			    0x100);
 		break;
@@ -921,7 +916,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(ds, seg);
 		SET_RMREG(esi, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(ds), RMLWORD(esi)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(seg, 0),
 			    SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32),
 			    0x100);
 		seg += 0x10;
@@ -948,7 +943,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(es, TRANS_BUFFER_SEG);
 		SET_RMREG(edi, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(TRANS_BUFFER_SEG, 0),
 			    SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			    _LWORD(ecx));
 		break;
@@ -962,7 +957,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		prepare_ems_frame();
 		SET_RMREG(ds, TRANS_BUFFER_SEG);
 		SET_RMREG(edx, 0);
-		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)),
+		MEMCPY_2DOS(SEGOFF2LINEAR(TRANS_BUFFER_SEG, 0),
 			    SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 			    _LWORD(ecx));
 		break;
@@ -1004,7 +999,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    prepare_ems_frame();
 		    SET_RMREG(es, TRANS_BUFFER_SEG);
 		    SET_RMREG(edi, 0);
-		    MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
+		    MEMCPY_2DOS(SEGOFF2LINEAR(TRANS_BUFFER_SEG, 0),
 				SEL_ADR_CLNT(_es, _edi,
 					     MSDOS_CLIENT.is_32), 0x13e);
 		    break;
@@ -1071,7 +1066,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    prepare_ems_frame();
 	    SET_RMREG(es, TRANS_BUFFER_SEG);
 	    SET_RMREG(edx, 0);
-	    MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edx)),
+	    MEMCPY_2DOS(SEGOFF2LINEAR(TRANS_BUFFER_SEG, 0),
 			SEL_ADR_CLNT(_es, _edx, MSDOS_CLIENT.is_32), 16);
 	    break;
 	case 0x0c:		/* set call back */
@@ -1107,7 +1102,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	prepare_ems_frame();
 	SET_RMREG(ds, TRANS_BUFFER_SEG);
 	src = GetSegmentBase(_ds);
-	dst = SEGOFF2LINEAR(RMREG(ds), 0);
+	dst = SEGOFF2LINEAR(TRANS_BUFFER_SEG, 0);
 	len = min((int) (GetSegmentLimit(_ds) + 1), 0x10000);
 	D_printf
 	    ("MSDOS: whole segment of DS at %x copy to DOS at %x for %#x\n",
@@ -1121,7 +1116,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	prepare_ems_frame();
 	SET_RMREG(es, TRANS_BUFFER_SEG);
 	src = GetSegmentBase(_es);
-	dst = SEGOFF2LINEAR(RMREG(es), 0);
+	dst = SEGOFF2LINEAR(TRANS_BUFFER_SEG, 0);
 	len = min((int) (GetSegmentLimit(_es) + 1), 0x10000);
 	D_printf
 	    ("MSDOS: whole segment of ES at %x copy to DOS at %x for %#x\n",
