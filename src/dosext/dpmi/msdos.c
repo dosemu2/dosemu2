@@ -506,18 +506,18 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    RMREG(es) = 0;
 		    RMREG(ebx) = 0;
 		}
-		return 0;
+		break;
 	    default:
-		return 0;
+		break;
 	    }
 	    break;
 	default:
-	    return 0;
+	    break;
 	}
 	break;
     case 0x20:			/* DOS terminate */
 	old_dos_terminate(scp, intr, rmreg);
-	return 0;
+	break;
     case 0x21:
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
@@ -605,11 +605,11 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	case 0x5c:		/* lock */
 	case 0x66 ... 0x68:
 	case 0xF8:		/* OEM SET vector */
-	    return 0;
+	    break;
 	case 0x00:		/* DOS terminate */
 	    old_dos_terminate(scp, intr, rmreg);
 	    RMLWORD(eax) = 0x4c00;
-	    return 0;
+	    break;
 	case 0x09:		/* Print String */
 	    {
 		int i;
@@ -625,7 +625,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			break;
 		}
 	    }
-	    return 0;
+	    break;
 	case 0x1a:		/* set DTA */
 	    {
 		unsigned long off = D_16_32(_edx);
@@ -640,7 +640,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    MSDOS_CLIENT.user_dta_sel = 0;
 		}
 	    }
-	    return 0;
+	    break;
 
 	    /* FCB functions */
 	case 0x0f:
@@ -663,7 +663,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    RMREG(edx) = 0;
 	    MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)),
 			SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32), 0x50);
-	    return 0;
+	    break;
 	case 0x29:		/* Parse a file name for FCB */
 	    {
 		unsigned short seg = TRANS_BUFFER_SEG;
@@ -680,12 +680,12 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			    SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			    0x50);
 	    }
-	    return 0;
+	    break;
 	case 0x47:		/* GET CWD */
 	    prepare_ems_frame();
 	    RMREG(ds) = TRANS_BUFFER_SEG;
 	    RMREG(esi) = 0;
-	    return 0;
+	    break;
 	case 0x4b:		/* EXEC */
 	    {
 		/* we must copy all data from higher 1MB to lower 1MB */
@@ -761,7 +761,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		 * Either that or create a new DPMI client here. */
 		save_pm_regs(scp);
 	    }
-	    return 0;
+	    break;
 
 	case 0x50:		/* set PSP */
 	    if (!in_dos_space(_LWORD(ebx), 0)) {
@@ -776,12 +776,12 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		RMREG(ebx) = GetSegmentBase(_LWORD(ebx)) >> 4;
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
-	    return 0;
+	    break;
 
 	case 0x26:		/* create PSP */
 	    prepare_ems_frame();
 	    RMREG(edx) = TRANS_BUFFER_SEG;
-	    return 0;
+	    break;
 
 	case 0x55:		/* create & set PSP */
 	    if (!in_dos_space(_LWORD(edx), 0)) {
@@ -791,7 +791,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		RMREG(edx) = GetSegmentBase(_LWORD(edx)) >> 4;
 		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
-	    return 0;
+	    break;
 
 	case 0x39:		/* mkdir */
 	case 0x3a:		/* rmdir */
@@ -815,7 +815,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
-	    return 0;
+	    break;
 	case 0x38:
 	    if (_LWORD(edx) != 0xffff) {	/* get country info */
 		prepare_ems_frame();
@@ -858,7 +858,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			    SEL_ADR_CLNT(_es, _ebp, MSDOS_CLIENT.is_32),
 			    0x60);
 	    }
-	    return 0;
+	    break;
 	case 0x56:		/* rename file */
 	    {
 		unsigned short seg = TRANS_BUFFER_SEG;
@@ -876,13 +876,13 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			 (char *) SEL_ADR_CLNT(_es, _edi,
 					       MSDOS_CLIENT.is_32));
 	    }
-	    return 0;
+	    break;
 	case 0x5f:		/* redirection */
 	    switch (_LO(ax)) {
 		unsigned short seg;
 	    case 0:
 	    case 1:
-		return 0;
+		break;
 	    case 2 ... 6:
 		prepare_ems_frame();
 		seg = TRANS_BUFFER_SEG;
@@ -897,7 +897,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
 			    SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			    0x100);
-		return 0;
+		break;
 	    }
 	case 0x60:		/* Get Fully Qualified File Name */
 	    {
@@ -911,7 +911,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		seg += 0x10;
 		RMREG(es) = seg;
 		RMREG(edi) = 0;
-		return 0;
+		break;
 	    }
 	case 0x6c:		/*  Extended Open/Create */
 	    {
@@ -925,7 +925,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		D_printf("%p: '%s'\n", src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
-	    return 0;
+	    break;
 	case 0x65:		/* internationalization */
 	    switch (_LO(ax)) {
 	    case 0:
@@ -959,7 +959,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		       SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32));
 		break;
 	    }
-	    return 0;
+	    break;
 	case 0x71:		/* LFN functions */
 	    {
 		char *src, *dst;
@@ -973,7 +973,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 		    dst = RMSEG_ADR((char *), ds, dx);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
-		    return 0;
+		    break;
 		case 0x4E:	/* find first file */
 		    prepare_ems_frame();
 		    RMREG(ds) = TRANS_BUFFER_SEG;
@@ -983,7 +983,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 		    dst = RMSEG_ADR((char *), ds, dx);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
-		    return 0;
+		    break;
 		case 0x4F:	/* find next file */
 		    prepare_ems_frame();
 		    RMREG(es) = TRANS_BUFFER_SEG;
@@ -991,12 +991,12 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
 				SEL_ADR_CLNT(_es, _edi,
 					     MSDOS_CLIENT.is_32), 0x13e);
-		    return 0;
+		    break;
 		case 0x47:	/* get cur dir */
 		    prepare_ems_frame();
 		    RMREG(ds) = TRANS_BUFFER_SEG;
 		    RMREG(esi) = 0;
-		    return 0;
+		    break;
 		case 0x60:	/* canonicalize filename */
 		    prepare_ems_frame();
 		    RMREG(ds) = TRANS_BUFFER_SEG;
@@ -1006,7 +1006,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
 		    dst = RMSEG_ADR((char *), ds, si);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
-		    return 0;
+		    break;
 		case 0x6c:	/* extended open/create */
 		    prepare_ems_frame();
 		    RMREG(ds) = TRANS_BUFFER_SEG;
@@ -1014,7 +1014,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    src = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
 		    dst = RMSEG_ADR((char *), ds, si);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
-		    return 0;
+		    break;
 		case 0xA0:	/* get volume info */
 		    prepare_ems_frame();
 		    RMREG(ds) = TRANS_BUFFER_SEG;
@@ -1024,14 +1024,14 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    src = SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32);
 		    dst = RMSEG_ADR((char *), ds, dx);
 		    snprintf(dst, MAX_DOS_PATH, "%s", src);
-		    return 0;
+		    break;
 		case 0xA1:	/* close find */
-		    return 0;
+		    break;
 		case 0xA6:	/* get file info by handle */
 		    prepare_ems_frame();
 		    RMREG(ds) = TRANS_BUFFER_SEG;
 		    RMREG(edx) = 0;
-		    return 0;
+		    break;
 		default:	/* all other subfuntions currently not supported */
 		    _eflags |= CF;
 		    _eax = _eax & 0xFFFFFF00;
@@ -1057,7 +1057,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    RMREG(edx) = 0;
 	    MEMCPY_2DOS(SEGOFF2LINEAR(RMREG(es), RMLWORD(edx)),
 			SEL_ADR_CLNT(_es, _edx, MSDOS_CLIENT.is_32), 16);
-	    return 0;
+	    break;
 	case 0x0c:		/* set call back */
 	case 0x14:{		/* swap call back */
 		struct pmaddr_s old_callback = MSDOS_CLIENT.mouseCallBack;
@@ -1080,7 +1080,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			_LWORD(edx) = old_callback.offset;
 		}
 	    }
-	    return 0;
+	    break;
 	}
 	break;
     }
