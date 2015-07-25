@@ -66,9 +66,6 @@ static int int33(void);
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100][2];
 
-static char *dos_io_buffer;
-static int dos_io_buffer_size = 0;
-
 /* set if some directories are mounted during startup */
 int redir_state = 0;
 
@@ -463,24 +460,6 @@ int dos_helper(void)
 	LWORD(eax) = getpid();
 	LWORD(ebx) = getppid();
 	break;
-
-    case DOS_HELPER_PUT_DATA: {
-	unsigned int offs = REG(edi);
-	unsigned int size = REG(ecx);
-	unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
-	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_2UNIX(dos_io_buffer + offs, dos_ptr, size);
-	break;
-    }
-
-    case DOS_HELPER_GET_DATA: {
-	unsigned int offs = REG(edi);
-	unsigned int size = REG(ecx);
-	unsigned int dos_ptr = SEGOFF2LINEAR(REG(ds), LWORD(edx));
-	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_2DOS(dos_ptr, dos_io_buffer + offs, size);
-	break;
-    }
 
   case DOS_HELPER_CHDIR:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
@@ -2433,15 +2412,4 @@ void update_xtitle(void)
       can_change_title = 1;
     }
   }
-}
-
-void set_io_buffer(char *ptr, unsigned int size)
-{
-  dos_io_buffer = ptr;
-  dos_io_buffer_size = size;
-}
-
-void unset_io_buffer()
-{
-  dos_io_buffer_size = 0;
 }

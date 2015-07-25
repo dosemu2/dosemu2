@@ -43,7 +43,7 @@ void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32);
 
 enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
   eax_INDEX, ebx_INDEX, ecx_INDEX, edx_INDEX, esi_INDEX, edi_INDEX,
-  ebp_INDEX, esp_INDEX };
+  ebp_INDEX, esp_INDEX, eip_INDEX, eflags_INDEX };
 
 typedef struct pmaddr_s
 {
@@ -80,7 +80,7 @@ struct RealModeCallStructure {
   unsigned int edi;
   unsigned int esi;
   unsigned int ebp;
-  unsigned int esp;
+  unsigned int esp_reserved;
   unsigned int ebx;
   unsigned int edx;
   unsigned int ecx;
@@ -94,7 +94,7 @@ struct RealModeCallStructure {
   unsigned short cs;
   unsigned short sp;
   unsigned short ss;
-};
+} __attribute__((packed));
 
 typedef struct {
     unsigned short selector;
@@ -168,6 +168,7 @@ void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void run_pm_dos_int(int);
 void fake_pm_int(void);
+u_short DPMI_ldt_alias(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);
@@ -236,8 +237,8 @@ void dpmi_init(void);
 extern void copy_context(struct sigcontext_struct *d,
     struct sigcontext_struct *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
-extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
-extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
+//extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
+//extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
 
 static inline int DPMIValidSelector(unsigned short selector)
 {

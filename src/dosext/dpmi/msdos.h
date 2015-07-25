@@ -30,17 +30,24 @@ struct msdos_struct {
   dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
 };
 
-extern void msdos_setup(void);
+extern void msdos_setup(u_short emm_s);
 extern void msdos_init(int is_32, unsigned short mseg);
 extern void msdos_done(void);
 extern int msdos_get_lowmem_size(void);
-extern int msdos_pre_extender(struct sigcontext_struct *scp, int intr);
-extern int msdos_post_extender(struct sigcontext_struct *scp, int intr);
+extern int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
+	struct RealModeCallStructure *rmreg, int *r_mask);
+extern int msdos_post_extender(struct sigcontext_struct *scp, int intr,
+	const struct RealModeCallStructure *rmreg);
 extern int msdos_fault(struct sigcontext_struct *scp);
-extern int msdos_pre_rm(struct sigcontext_struct *scp);
-extern void msdos_post_rm(struct sigcontext_struct *scp);
-extern int msdos_pre_pm(struct sigcontext_struct *scp);
-extern void msdos_post_pm(struct sigcontext_struct *scp);
+extern int msdos_pre_rm(struct sigcontext_struct *scp,
+	const struct RealModeCallStructure *rmreg);
+extern void msdos_post_rm(struct sigcontext_struct *scp,
+	struct RealModeCallStructure *rmreg);
+extern int msdos_pre_pm(struct sigcontext_struct *scp,
+	struct RealModeCallStructure *rmreg);
+extern void msdos_post_pm(struct sigcontext_struct *scp,
+	const struct RealModeCallStructure *rmreg);
+extern void msdos_pm_call(struct sigcontext_struct *scp);
 
 #define MSDOS_DONE 1
 #define MSDOS_ALT_ENT 2

@@ -56,5 +56,8 @@ extern unsigned char	MSDOS_spm_end[];
 extern unsigned char	MSDOS_rrm_start[];
 extern unsigned char	MSDOS_return_from_pm[];
 extern unsigned char	MSDOS_rrm_end[];
+extern unsigned char	MSDOS_pmc_start[];
+extern unsigned char	MSDOS_API_call[];
+extern unsigned char	MSDOS_pmc_end[];
 
 extern unsigned char	DPMI_sel_code_end[];

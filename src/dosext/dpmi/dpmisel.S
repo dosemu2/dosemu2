@@ -130,74 +130,84 @@ MSDOS_XMS_call:
 	.globl MSDOS_spm_end
 MSDOS_spm_end:
 
+	.globl MSDOS_pmc_start
+MSDOS_pmc_start:
 /* ======================= Addr = dpmi_sel():0130 */
+	.globl MSDOS_API_call
+MSDOS_API_call:
+	hlt
+	lret
+	.globl MSDOS_pmc_end
+MSDOS_pmc_end:
+
+/* ======================= Addr = dpmi_sel():0132 */
 	.globl	DPMI_VXD_start
 DPMI_VXD_start:
 	.globl	DPMI_VXD_VMM
 DPMI_VXD_VMM:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0132 */
+/* ======================= Addr = dpmi_sel():0134 */
 	.globl	DPMI_VXD_PageFile
 DPMI_VXD_PageFile:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0134 */
+/* ======================= Addr = dpmi_sel():0136 */
 	.globl	DPMI_VXD_Reboot
 DPMI_VXD_Reboot:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0136 */
+/* ======================= Addr = dpmi_sel():0138 */
 	.globl	DPMI_VXD_VDD
 DPMI_VXD_VDD:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0138 */
+/* ======================= Addr = dpmi_sel():013A */
 	.globl	DPMI_VXD_VMD
 DPMI_VXD_VMD:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():013A */
+/* ======================= Addr = dpmi_sel():013C */
 	.globl	DPMI_VXD_VXDLDR
 DPMI_VXD_VXDLDR:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():013C */
+/* ======================= Addr = dpmi_sel():013E */
 	.globl	DPMI_VXD_SHELL
 DPMI_VXD_SHELL:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():013E */
+/* ======================= Addr = dpmi_sel():0140 */
 	.globl	DPMI_VXD_VCD
 DPMI_VXD_VCD:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0140 */
+/* ======================= Addr = dpmi_sel():0142 */
 	.globl	DPMI_VXD_VTD
 DPMI_VXD_VTD:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0142 */
+/* ======================= Addr = dpmi_sel():0144 */
 	.globl	DPMI_VXD_CONFIGMG
 DPMI_VXD_CONFIGMG:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0144 */
+/* ======================= Addr = dpmi_sel():0146 */
 	.globl	DPMI_VXD_ENABLE
 DPMI_VXD_ENABLE:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0146 */
+/* ======================= Addr = dpmi_sel():0148 */
 	.globl	DPMI_VXD_APM
 DPMI_VXD_APM:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():0148 */
+/* ======================= Addr = dpmi_sel():014A */
 	.globl	DPMI_VXD_VTDAPI
 DPMI_VXD_VTDAPI:
 	hlt
 	lret
-/* ======================= Addr = dpmi_sel():014A */
+/* ======================= Addr = dpmi_sel():014C */
 	.globl	DPMI_VXD_end
 DPMI_VXD_end:
 
