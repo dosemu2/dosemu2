@@ -57,6 +57,4 @@ extern void msdos_pm_call(struct sigcontext_struct *scp);
 #define EXEC_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
 #define EXEC_Para_SIZE 30
 
-#define CURRENT_PSP ((u_short)sda_cur_psp(sda))
-
 #endif

@@ -3172,7 +3172,7 @@ void dpmi_init(void)
   if (!(SS = ConvertSegmentToDescriptor(LWORD(ss)))) goto err;
   /* if ds==ss, the selectors will be equal too */
   if (!(DS = ConvertSegmentToDescriptor(LWORD(ds)))) goto err;
-  if (!(ES = ConvertSegmentToDescriptor_lim(CURRENT_PSP, 0xff))) goto err;
+  if (!(ES = ConvertSegmentToDescriptor_lim(dos_get_psp(), 0xff))) goto err;
 
   if (debug_level('M')) {
     print_ldt();

@@ -55,8 +55,8 @@ static unsigned short EMM_SEG;
 
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
-#define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c)))
-#define WRITE_ENV_SEL(sel) WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c), sel)
+#define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c)))
+#define WRITE_ENV_SEL(sel) WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c), sel)
 
 #define _RMREG(x) rmreg->x
 /* pre_extender() is allowed to read only a small set of rmregs, check mask */
@@ -116,7 +116,7 @@ void msdos_init(int is_32, unsigned short mseg)
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
     /* convert environment pointer to a descriptor */
-    envp = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c));
+    envp = READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c));
     if (envp) {
 	WRITE_ENV_SEL(ConvertSegmentToDescriptor(envp));
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
@@ -362,21 +362,21 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i,
     D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
 
 #if 0
-    _eip = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa));
+    _eip = READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0xa));
     _cs =
 	ConvertSegmentToCodeDescriptor(READ_WORD
 				       (SEGOFF2LINEAR
-					(CURRENT_PSP, 0xa + 2)));
+					(dos_get_psp(), 0xa + 2)));
 #endif
 
     /* put our return address there */
-    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa), READ_RMREG(ip, rmask));
-    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa + 2), READ_RMREG(cs, rmask));
+    WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0xa), READ_RMREG(ip, rmask));
+    WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0xa + 2), READ_RMREG(cs, rmask));
     /* cs should point to PSP, ip doesn't matter */
-    _RMREG(cs) = CURRENT_PSP;
+    _RMREG(cs) = dos_get_psp();
     _RMREG(ip) = 0x100;
 
-    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x16));
+    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x16));
     /* try segment */
     psp_sig = READ_WORD(SEGOFF2LINEAR(psp_seg_sel, 0));
     if (psp_sig != 0x20CD) {
@@ -407,12 +407,12 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i,
     if (!parent_psp) {
 	/* no PSP found, use current as the last resort */
 	D_printf("MSDOS: using current PSP as parent!\n");
-	parent_psp = CURRENT_PSP;
+	parent_psp = dos_get_psp();
     }
 
     D_printf("MSDOS: parent PSP seg=%#x\n", parent_psp);
     if (parent_psp != psp_seg_sel)
-	WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x16), parent_psp);
+	WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x16), parent_psp);
 }
 
 /*
@@ -732,12 +732,12 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	case 0x50:		/* set PSP */
 	    if (!in_dos_space(_LWORD(ebx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(ebx);
-		SET_RMLWORD(ebx, CURRENT_PSP);
-		MEMCPY_DOS2DOS(SEGOFF2LINEAR(CURRENT_PSP, 0),
+		SET_RMLWORD(ebx, dos_get_psp());
+		MEMCPY_DOS2DOS(SEGOFF2LINEAR(dos_get_psp(), 0),
 			       GetSegmentBase(_LWORD(ebx)), 0x100);
 		D_printf("MSDOS: PSP moved from %x to %x\n",
 			 GetSegmentBase(_LWORD(ebx)),
-			 SEGOFF2LINEAR(CURRENT_PSP, 0));
+			 SEGOFF2LINEAR(dos_get_psp(), 0));
 	    } else {
 		SET_RMREG(ebx, GetSegmentBase(_LWORD(ebx)) >> 4);
 		MSDOS_CLIENT.user_psp_sel = 0;
@@ -752,7 +752,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	case 0x55:		/* create & set PSP */
 	    if (!in_dos_space(_LWORD(edx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(edx);
-		SET_RMLWORD(edx, CURRENT_PSP);
+		SET_RMLWORD(edx, dos_get_psp());
 	    } else {
 		SET_RMREG(edx, GetSegmentBase(_LWORD(edx)) >> 4);
 		MSDOS_CLIENT.user_psp_sel = 0;
@@ -1313,7 +1313,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	case 0x62:
 	    {			/* convert environment pointer to a descriptor */
 		unsigned short psp = RMLWORD(ebx);
-		if (psp == CURRENT_PSP && MSDOS_CLIENT.user_psp_sel) {
+		if (psp == dos_get_psp() && MSDOS_CLIENT.user_psp_sel) {
 		    SET_REG(ebx, MSDOS_CLIENT.user_psp_sel);
 		} else {
 		    SET_REG(ebx,
