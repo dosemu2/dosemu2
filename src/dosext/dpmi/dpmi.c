@@ -3039,7 +3039,7 @@ void dpmi_setup(void)
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api)
-      msdos_setup();
+      msdos_setup(EMM_SEGMENT);
     return;
 
 err:

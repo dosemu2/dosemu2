@@ -22,25 +22,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <assert.h>
 
 #ifdef DJGPP_PORT
 #include "wrapper.h"
 #define SUPPORT_DOSEMU_HELPERS 0
 #else
-#include "emu.h"
-#include "emu-ldt.h"
-#include "bios.h"
+#include "cpu.h"
 #include "dpmi.h"
 #include "dpmisel.h"
-#include "lrhlp.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS 1
 #endif
 #include "emm.h"
+#include "lrhlp.h"
 #include "segreg.h"
 #include "msdos.h"
 
@@ -48,7 +44,8 @@
 #include "doshelpers.h"
 #endif
 
-#define TRANS_BUFFER_SEG EMM_SEGMENT
+static unsigned short EMM_SEG;
+#define TRANS_BUFFER_SEG EMM_SEG
 #define EXEC_SEG (MSDOS_CLIENT.lowmem_seg + EXEC_Para_ADD)
 
 #define DTA_over_1MB (SEL_ADR(MSDOS_CLIENT.user_dta_sel, MSDOS_CLIENT.user_dta_off))
@@ -92,16 +89,18 @@ static u_short pop_v(void)
     return v_stk[--v_num];
 }
 
-void msdos_setup(void)
+void msdos_setup(u_short emm_s)
 {
     int i;
+
+    EMM_SEG = emm_s;
 
     ems_map_buffer =
 	malloc(emm_get_size_for_partial_page_map(EMM_UMA_STD_PHYS));
     ems_frame_segs[0] = EMM_UMA_STD_PHYS;
     for (i = 0; i < EMM_UMA_STD_PHYS; i++) {
 	ems_frame_segs[i + 1] =
-	    EMM_SEGMENT + i * (0x1000 / EMM_UMA_STD_PHYS);
+	    EMM_SEG + i * (0x1000 / EMM_UMA_STD_PHYS);
 	ems_frame_unmap[i * 2] = 0xffff;
 	ems_frame_unmap[i * 2 + 1] = i;
     }
