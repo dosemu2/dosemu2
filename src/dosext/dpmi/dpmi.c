@@ -1401,24 +1401,30 @@ static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
     rmreg->sp = LWORD(esp);
 }
 
-static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg)
+static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
 {
-    REG(edi) = rmreg->edi;
-    REG(esi) = rmreg->esi;
-    REG(ebp) = rmreg->ebp;
-    REG(ebx) = rmreg->ebx;
-    REG(edx) = rmreg->edx;
-    REG(ecx) = rmreg->ecx;
-    REG(eax) = rmreg->eax;
-    LWORD(eflags) = rmreg->flags;
-    REG(es) = rmreg->es;
-    REG(ds) = rmreg->ds;
-    REG(fs) = rmreg->fs;
-    REG(gs) = rmreg->gs;
-    LWORD(eip) = rmreg->ip;
-    REG(cs) = rmreg->cs;
-    LWORD(esp) = rmreg->sp;
-    REG(ss) = rmreg->ss;
+#define RMR(x) \
+    if (mask & (1 << x##_INDEX)) \
+	REG(x) = rmreg->x
+    RMR(edi);
+    RMR(esi);
+    RMR(ebp);
+    RMR(ebx);
+    RMR(edx);
+    RMR(ecx);
+    RMR(eax);
+    if (mask & (1 << eflags_INDEX))
+	LWORD(eflags) = rmreg->flags;
+    RMR(es);
+    RMR(ds);
+    RMR(fs);
+    RMR(gs);
+    if (mask & (1 << eip_INDEX))
+	LWORD(eip) = rmreg->ip;
+    RMR(cs);
+    if (mask & (1 << esp_INDEX))
+	LWORD(esp) = rmreg->sp;
+    RMR(ss);
 }
 
 static void save_rm_regs(void)
@@ -1452,7 +1458,7 @@ static void restore_rm_regs(void)
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running]);
+  DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running], ~0);
   DPMI_CLIENT.in_dpmi_rm_stack--;
   if (!(REG(eflags) & IF) && !is_cli) {
     is_cli = 1;
@@ -2752,9 +2758,10 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 
   if (config.pm_dos_api) {
     struct RealModeCallStructure rmreg;
+    int rm_mask;
     DPMI_save_rm_regs(&rmreg);
-    msdos_ret = msdos_pre_extender(scp, i, &rmreg);
-    DPMI_restore_rm_regs(&rmreg);
+    msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask);
+    DPMI_restore_rm_regs(&rmreg, rm_mask);
   }
 
   /* If the API Translator handled the request itself, return to PM */
@@ -3715,7 +3722,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
             DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
 	  } else {
             D_printf("DPMI: restore real mode registers\n");
-            DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi));
+            DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi), ~0);
           }/* _eip point to FAR RET */
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
@@ -3781,7 +3788,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  D_printf("DPMI: Return from client realmode callback procedure, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 
-	  DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi));
+	  DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi), ~0);
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -3932,7 +3939,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	    restore_rm_regs();
 	    break;
 	  }
-	  DPMI_restore_rm_regs(&rmreg);
+	  DPMI_restore_rm_regs(&rmreg, ~0);
 	  in_dpmi_dos_int = 1;
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
@@ -4282,7 +4289,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 	struct RealModeCallStructure rmreg;
 	DPMI_save_rm_regs(&rmreg);
 	msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
-	DPMI_restore_rm_regs(&rmreg);
+	DPMI_restore_rm_regs(&rmreg, ~0);
     }
 
     restore_rm_regs();

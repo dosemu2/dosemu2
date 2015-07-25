@@ -35,7 +35,7 @@ extern void msdos_init(int is_32, unsigned short mseg);
 extern void msdos_done(void);
 extern int msdos_get_lowmem_size(void);
 extern int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
-	struct RealModeCallStructure *rmreg);
+	struct RealModeCallStructure *rmreg, int *r_mask);
 extern void msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	struct RealModeCallStructure *rmreg);
 extern int msdos_fault(struct sigcontext_struct *scp);

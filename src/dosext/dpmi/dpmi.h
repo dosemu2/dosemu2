@@ -43,7 +43,7 @@ void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32);
 
 enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
   eax_INDEX, ebx_INDEX, ecx_INDEX, edx_INDEX, esi_INDEX, edi_INDEX,
-  ebp_INDEX, esp_INDEX };
+  ebp_INDEX, esp_INDEX, eip_INDEX, eflags_INDEX };
 
 typedef struct pmaddr_s
 {
