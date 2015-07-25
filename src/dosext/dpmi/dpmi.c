@@ -2742,7 +2742,8 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 
   if (config.pm_dos_api) {
     struct RealModeCallStructure rmreg;
-    int rm_mask;
+    int rm_mask = (1 << cs_INDEX) |
+	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
 
     rmreg.cs = DPMI_SEG;
     rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
@@ -2754,8 +2755,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
       return;
     save_rm_regs();
     pm_to_rm_regs(scp, ~0);
-    DPMI_restore_rm_regs(&rmreg, rm_mask | (1 << cs_INDEX) |
-	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX));
+    DPMI_restore_rm_regs(&rmreg, rm_mask);
   } else {
     save_rm_regs();
     pm_to_rm_regs(scp, ~0);

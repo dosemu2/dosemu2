@@ -58,11 +58,11 @@ static unsigned short EMM_SEG;
 #define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c)))
 #define WRITE_ENV_SEL(sel) WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x2c), sel)
 
-#define RMREG(x) rmreg->x
-#define RMLWORD(x) LO_WORD(rmreg->x)
-#define RM_LO(x) LO_BYTE(rmreg->e##x)
-#define RMSEG_ADR(type, seg, reg)  type(&mem_base[(rmreg->seg << 4) + \
-    (rmreg->e##reg & 0xffff)])
+#define _RMREG(x) rmreg->x
+/* pre_extender() is allowed to read only a small set of rmregs, check mask */
+#define READ_RMREG(r, m) (assert(m & (1 << r##_INDEX)), _RMREG(r))
+#define ip_INDEX eip_INDEX
+#define sp_INDEX esp_INDEX
 
 static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
@@ -331,28 +331,30 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 	return 1;
 }
 
-static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg)
+static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
+	int rmask)
 {
   unsigned int ssp, sp;
 
-  ssp = SEGOFF2LINEAR(RMREG(ss), 0);
-  sp = RMREG(sp);
+  ssp = SEGOFF2LINEAR(READ_RMREG(ss, rmask), 0);
+  sp = READ_RMREG(sp, rmask);
 
   g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
   pushw(ssp, sp, cs);
   pushw(ssp, sp, ip);
-  RMREG(sp) -= 4;
+  _RMREG(sp) -= 4;
 }
 
-static void do_call_to(int cs, int ip, struct RealModeCallStructure *rmreg)
+static void do_call_to(int cs, int ip, struct RealModeCallStructure *rmreg,
+	int rmask)
 {
-  do_call(RMREG(cs), RMREG(ip), rmreg);
-  RMREG(cs) = cs;
-  RMREG(ip) = ip;
+  do_call(READ_RMREG(cs, rmask), READ_RMREG(ip, rmask), rmreg, rmask);
+  _RMREG(cs) = cs;
+  _RMREG(ip) = ip;
 }
 
 static void old_dos_terminate(struct sigcontext_struct *scp, int i,
-			      struct RealModeCallStructure *rmreg)
+			      struct RealModeCallStructure *rmreg, int rmask)
 {
     unsigned short psp_seg_sel, parent_psp = 0;
     unsigned short psp_sig;
@@ -368,11 +370,11 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i,
 #endif
 
     /* put our return address there */
-    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa), RMREG(ip));
-    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa + 2), RMREG(cs));
+    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa), READ_RMREG(ip, rmask));
+    WRITE_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0xa + 2), READ_RMREG(cs, rmask));
     /* cs should point to PSP, ip doesn't matter */
-    RMREG(cs) = CURRENT_PSP;
-    RMREG(ip) = 0x100;
+    _RMREG(cs) = CURRENT_PSP;
+    _RMREG(ip) = 0x100;
 
     psp_seg_sel = READ_WORD(SEGOFF2LINEAR(CURRENT_PSP, 0x16));
     /* try segment */
@@ -429,11 +431,10 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
 			       int *r_mask)
 {
-    int rm_mask = 0, ret = 0;
+    int rm_mask = *r_mask, ret = 0;
 #define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
-#define SET_RMREG(rg, val) (RMPRESERVE1(rg), RMREG(rg) = (val))
-#define ip_INDEX eip_INDEX
+#define SET_RMREG(rg, val) (RMPRESERVE1(rg), _RMREG(rg) = (val))
 #define SET_RMLWORD(rg, val) SET_RMREG(rg, val)
 
     D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr,
@@ -484,7 +485,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	}
 	break;
     case 0x20:			/* DOS terminate */
-	old_dos_terminate(scp, intr, rmreg);
+	old_dos_terminate(scp, intr, rmreg, rm_mask);
 	RMPRESERVE2(cs, ip);
 	break;
     case 0x21:
@@ -576,7 +577,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	case 0xF8:		/* OEM SET vector */
 	    break;
 	case 0x00:		/* DOS terminate */
-	    old_dos_terminate(scp, intr, rmreg);
+	    old_dos_terminate(scp, intr, rmreg, rm_mask);
 	    RMPRESERVE2(cs, ip);
 	    SET_RMLWORD(eax, 0x4c00);
 	    break;
@@ -795,7 +796,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(ds, TRANS_BUFFER_SEG);
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    do_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF, rmreg);
+	    do_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF, rmreg, rm_mask);
 	    RMPRESERVE2(cs, ip);
 	    RMPRESERVE2(ss, esp);
 	    ret = MSDOS_ALT_ENT;
@@ -807,7 +808,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(ds, TRANS_BUFFER_SEG);
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    do_call_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF, rmreg);
+	    do_call_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF, rmreg, rm_mask);
 	    RMPRESERVE2(cs, ip);
 	    RMPRESERVE2(ss, esp);
 	    ret = MSDOS_ALT_ENT;
@@ -1097,6 +1098,12 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	push_v(_LWORD(eax));
     return ret;
 }
+
+#define RMREG(x) _RMREG(x)
+#define RMLWORD(x) LO_WORD(rmreg->x)
+#define RM_LO(x) LO_BYTE(rmreg->e##x)
+#define RMSEG_ADR(type, seg, reg)  type(&mem_base[(rmreg->seg << 4) + \
+    (rmreg->e##reg & 0xffff)])
 
 /*
  * DANG_BEGIN_FUNCTION msdos_post_extender
@@ -1561,6 +1568,8 @@ void msdos_post_rm(struct sigcontext_struct *scp,
 int msdos_pre_pm(struct sigcontext_struct *scp,
 		 struct RealModeCallStructure *rmreg)
 {
+    int rmask = (1 << cs_INDEX) |
+	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
 	D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 		 MSDOS_CLIENT.XMS_call.segment,
@@ -1568,7 +1577,7 @@ int msdos_pre_pm(struct sigcontext_struct *scp,
 	RMREG(cs) = DPMI_SEG;
 	RMREG(ip) = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
 	do_call_to(MSDOS_CLIENT.XMS_call.segment,
-		     MSDOS_CLIENT.XMS_call.offset, rmreg);
+		     MSDOS_CLIENT.XMS_call.offset, rmreg, rmask);
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
 	return 0;
