@@ -104,19 +104,19 @@ static unsigned int *iret_frame;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
-struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
-int DPMI_rm_procedure_running = 0;
+static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
+static int DPMI_rm_procedure_running = 0;
 
 #define DPMI_max_rec_pm_func 16
-struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
-int DPMI_pm_procedure_running = 0;
+static struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
+static int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 unsigned char *ldt_buffer;
 unsigned char *ldt_alias;
 static unsigned short dpmi_sel16, dpmi_sel32;
-inline unsigned short dpmi_sel()
+unsigned short dpmi_sel()
 { return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16; }
 
 static int RSP_num = 0;
