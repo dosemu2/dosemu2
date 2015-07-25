@@ -55,8 +55,6 @@ static unsigned short EMM_SEG;
 
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
-#define CURRENT_ENV_SEL ((u_short)READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c)))
-#define WRITE_ENV_SEL(sel) WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c), sel)
 
 #define _RMREG(x) rmreg->x
 /* pre_extender() is allowed to read only a small set of rmregs, check mask */
@@ -68,7 +66,7 @@ static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 
 static int ems_frame_mapped;
-static void *ems_map_buffer = NULL;
+static void *ems_map_buffer;
 static u_short ems_frame_unmap[EMM_UMA_STD_PHYS * 2];
 static u_short ems_frame_segs[EMM_UMA_STD_PHYS + 1];
 
@@ -87,6 +85,16 @@ static u_short pop_v(void)
 {
     assert(v_num > 0);
     return v_stk[--v_num];
+}
+
+static u_short get_env_sel(void)
+{
+    return READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c));
+}
+
+static void write_env_sel(u_short sel)
+{
+    WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c), sel);
 }
 
 void msdos_setup(u_short emm_s)
@@ -116,19 +124,19 @@ void msdos_init(int is_32, unsigned short mseg)
     MSDOS_CLIENT.is_32 = is_32;
     MSDOS_CLIENT.lowmem_seg = mseg;
     /* convert environment pointer to a descriptor */
-    envp = READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c));
+    envp = get_env_sel();
     if (envp) {
-	WRITE_ENV_SEL(ConvertSegmentToDescriptor(envp));
+	write_env_sel(ConvertSegmentToDescriptor(envp));
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
-		 envp, CURRENT_ENV_SEL);
+		 envp, get_env_sel());
     }
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
 void msdos_done(void)
 {
-    if (CURRENT_ENV_SEL)
-	WRITE_ENV_SEL(GetSegmentBase(CURRENT_ENV_SEL) >> 4);
+    if (get_env_sel())
+	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
     msdos_client_num--;
     D_printf("MSDOS: done, %i\n", msdos_client_num);
 }
@@ -711,8 +719,8 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		segment += 3;
 
 		/* then the enviroment seg */
-		if (CURRENT_ENV_SEL)
-		    WRITE_ENV_SEL(GetSegmentBase(CURRENT_ENV_SEL) >> 4);
+		if (get_env_sel())
+		    write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
 
 		if (segment != EXEC_SEG + EXEC_Para_SIZE)
 		    error("DPMI: exec: seg=%#x (%#x), size=%#x\n",
@@ -1305,8 +1313,8 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 #endif
 	case 0x4b:		/* EXEC */
 	    restore_pm_regs(scp);
-	    if (CURRENT_ENV_SEL)
-		WRITE_ENV_SEL(ConvertSegmentToDescriptor(CURRENT_ENV_SEL));
+	    if (get_env_sel())
+		write_env_sel(ConvertSegmentToDescriptor(get_env_sel()));
 	    D_printf("DPMI: Return from DOS exec\n");
 	    break;
 	case 0x51:		/* get PSP */
