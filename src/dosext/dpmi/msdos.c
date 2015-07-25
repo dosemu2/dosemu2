@@ -514,6 +514,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	default:
 	    return 0;
 	}
+	break;
     case 0x20:			/* DOS terminate */
 	old_dos_terminate(scp, intr, rmreg);
 	return 0;
