@@ -1343,7 +1343,7 @@ static void leave_lpms(struct sigcontext_struct *scp)
   }
 }
 
-void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
+static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
 {
   REG(eflags) = eflags_VIF(_eflags);
   if (mask & (1 << eax_INDEX))
@@ -1362,7 +1362,7 @@ void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
     REG(ebp) = _ebp;
 }
 
-void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
+static void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
 {
   _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
   if (mask & (1 << eax_INDEX))
@@ -3916,7 +3916,8 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from MSDOS rm callback, in_dpmi_pm_stack=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack);
-	  msdos_post_rm(scp);
+//	  msdos_post_rm(scp, &rmreg);
+	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -3927,6 +3928,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 	  D_printf("DPMI: Starting MSDOS pm callback\n");
 	  save_rm_regs();
+	  pm_to_rm_regs(scp, ~0);
 	  DPMI_save_rm_regs(&rmreg);
 	  ret = msdos_pre_pm(scp, &rmreg);
 	  if (!ret) {
@@ -4456,6 +4458,7 @@ done:
     D_printf("DPMI: Starting MSDOS rm callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     enter_lpms(&DPMI_CLIENT.stack_frame);
+    rm_to_pm_regs(scp, ~0);
     DPMI_save_rm_regs(&rmreg);
     ret = msdos_pre_rm(&DPMI_CLIENT.stack_frame, &rmreg);
     /* pre_pm does not modify rmregs so not restoring */
@@ -4472,7 +4475,8 @@ done:
   } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_rpm_start)) &&
 	     (lina < DPMI_ADD + HLT_OFF(MSDOS_rpm_end))) {
     D_printf("DPMI: Return from MSDOS pm callback\n");
-    msdos_post_pm(&DPMI_CLIENT.stack_frame);
+//    msdos_post_pm(&DPMI_CLIENT.stack_frame, &rmreg);
+    rm_to_pm_regs(scp, ~0);
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 

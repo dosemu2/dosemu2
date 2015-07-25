@@ -1489,7 +1489,6 @@ int msdos_pre_rm(struct sigcontext_struct *scp,
 	    return 0;
 	}
 	D_printf("MSDOS: starting mouse callback\n");
-	rm_to_pm_regs(scp, ~0);
 	_ds = ConvertSegmentToDescriptor(RMREG(ds));
 	_cs = MSDOS_CLIENT.mouseCallBack.selector;
 	_eip = MSDOS_CLIENT.mouseCallBack.offset;
@@ -1551,10 +1550,12 @@ int msdos_pre_rm(struct sigcontext_struct *scp,
     return 1;
 }
 
-void msdos_post_rm(struct sigcontext_struct *scp)
+#if 0
+void msdos_post_rm(struct sigcontext_struct *scp,
+		   struct RealModeCallStructure *rmreg)
 {
-    pm_to_rm_regs(scp, ~0);
 }
+#endif
 
 int msdos_pre_pm(struct sigcontext_struct *scp,
 		 struct RealModeCallStructure *rmreg)
@@ -1563,7 +1564,6 @@ int msdos_pre_pm(struct sigcontext_struct *scp,
 	D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 		 MSDOS_CLIENT.XMS_call.segment,
 		 MSDOS_CLIENT.XMS_call.offset);
-	pm_to_rm_regs(scp, ~0);
 	RMREG(cs) = DPMI_SEG;
 	RMREG(ip) = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
 	do_call_to(MSDOS_CLIENT.XMS_call.segment,
@@ -1575,10 +1575,12 @@ int msdos_pre_pm(struct sigcontext_struct *scp,
     return 1;
 }
 
-void msdos_post_pm(struct sigcontext_struct *scp)
+#if 0
+void msdos_post_pm(struct sigcontext_struct *scp,
+		   const struct RealModeCallStructure *rmreg)
 {
-    rm_to_pm_regs(scp, ~0);
 }
+#endif
 
 void msdos_pm_call(struct sigcontext_struct *scp)
 {
