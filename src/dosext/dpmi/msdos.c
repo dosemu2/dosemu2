@@ -1009,6 +1009,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		    return MSDOS_DONE;
 		}
 	    }
+	    break;
 	default:
 	    break;
 	}
@@ -1434,7 +1435,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 			     SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx)), 0x34);
 		break;
 	    };
-
+	    break;
 	default:
 	    break;
 	}
