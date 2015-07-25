@@ -732,11 +732,11 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    if (!in_dos_space(_LWORD(ebx), 0)) {
 		MSDOS_CLIENT.user_psp_sel = _LWORD(ebx);
 		SET_RMLWORD(ebx, CURRENT_PSP);
-		MEMCPY_DOS2DOS(SEGOFF2LINEAR(RMLWORD(ebx), 0),
+		MEMCPY_DOS2DOS(SEGOFF2LINEAR(CURRENT_PSP, 0),
 			       GetSegmentBase(_LWORD(ebx)), 0x100);
 		D_printf("MSDOS: PSP moved from %x to %x\n",
 			 GetSegmentBase(_LWORD(ebx)),
-			 SEGOFF2LINEAR(RMLWORD(ebx), 0));
+			 SEGOFF2LINEAR(CURRENT_PSP, 0));
 	    } else {
 		SET_RMREG(ebx, GetSegmentBase(_LWORD(ebx)) >> 4);
 		MSDOS_CLIENT.user_psp_sel = 0;
