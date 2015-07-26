@@ -926,7 +926,7 @@ void vga_memsetw(dosaddr_t dst, unsigned short val, size_t len)
 {
   if (!vga.inst_emu) {
     vga_emu_prot_lock();
-    vga_mark_dirty(dst, len);
+    vga_mark_dirty(dst, len * 2);
     while (len--) {
       WRITE_WORD(dst, val);
       dst += 2;
@@ -944,7 +944,7 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
 {
   if (!vga.inst_emu) {
     vga_emu_prot_lock();
-    vga_mark_dirty(dst, len);
+    vga_mark_dirty(dst, len * 4);
     while (len--) {
       WRITE_DWORD(dst, val);
       dst += 4;
