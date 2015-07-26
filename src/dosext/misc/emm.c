@@ -322,8 +322,7 @@ static inline void *realloc_memory_object(void *object, size_t oldsize, size_t b
   return addr;
 }
 
-static int
-emm_allocate_handle(int pages_needed)
+int emm_allocate_handle(int pages_needed)
 {
   int i, j;
   void *obj;
@@ -367,8 +366,7 @@ emm_allocate_handle(int pages_needed)
   return (EMM_ERROR);
 }
 
-static boolean_t
-emm_deallocate_handle(int handle)
+int emm_deallocate_handle(int handle)
 {
   int numpages, i;
   void *object;
@@ -532,8 +530,7 @@ handle_pages(int handle)
   return (handle_info[handle].numpages);
 }
 
-static int
-emm_save_handle_state(int handle)
+int emm_save_handle_state(int handle)
 {
   int i;
 
@@ -551,8 +548,7 @@ emm_save_handle_state(int handle)
   return 0;
 }
 
-static int
-emm_restore_handle_state(int handle)
+int emm_restore_handle_state(int handle)
 {
   int i;
 
@@ -624,7 +620,7 @@ SEG_TO_PHYS(int segaddr)
 }
 
 /* EMS 4.0 functions start here */
-int emm_get_partial_map_registers(void *ptr, const u_short *segs)
+static int emm_get_partial_map_registers(void *ptr, const u_short *segs)
 {
   u_short *buf = ptr;
   int pages, i;
@@ -650,7 +646,7 @@ int emm_get_partial_map_registers(void *ptr, const u_short *segs)
   return EMM_NO_ERR;
 }
 
-void emm_set_partial_map_registers(const void *ptr)
+static void emm_set_partial_map_registers(const void *ptr)
 {
   const u_short *buf = ptr;
 
@@ -661,7 +657,7 @@ void emm_set_partial_map_registers(const void *ptr)
   set_map_registers(buf, pages);
 }
 
-int emm_get_size_for_partial_page_map(int pages)
+static int emm_get_size_for_partial_page_map(int pages)
 {
   if (!config.ems_size || pages < 0 || pages > phys_pages)
     return -1;

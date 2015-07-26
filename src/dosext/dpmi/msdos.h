@@ -30,7 +30,8 @@ struct msdos_struct {
   dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
 };
 
-extern void msdos_setup(u_short emm_s);
+extern void msdos_setup(void);
+extern void msdos_reset(u_short emm_s);
 extern void msdos_init(int is_32, unsigned short mseg);
 extern void msdos_done(void);
 extern int msdos_get_lowmem_size(void);

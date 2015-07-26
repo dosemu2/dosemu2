@@ -66,9 +66,8 @@ static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 
 static int ems_frame_mapped;
-static void *ems_map_buffer;
-static u_short ems_frame_unmap[EMM_UMA_STD_PHYS * 2];
-static u_short ems_frame_segs[EMM_UMA_STD_PHYS + 1];
+static int ems_handle;
+#define MSDOS_EMS_PAGES 4
 
 /* stack for AX values, needed for exec that can corrupt pm regs */
 #define V_STK_LEN 16
@@ -97,23 +96,15 @@ static void write_env_sel(u_short sel)
     WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x2c), sel);
 }
 
-void msdos_setup(u_short emm_s)
+void msdos_setup(void)
 {
-    int i;
-
-    EMM_SEG = emm_s;
-
-    ems_map_buffer =
-	malloc(emm_get_size_for_partial_page_map(EMM_UMA_STD_PHYS));
-    ems_frame_segs[0] = EMM_UMA_STD_PHYS;
-    for (i = 0; i < EMM_UMA_STD_PHYS; i++) {
-	ems_frame_segs[i + 1] =
-	    EMM_SEG + i * (0x1000 / EMM_UMA_STD_PHYS);
-	ems_frame_unmap[i * 2] = 0xffff;
-	ems_frame_unmap[i * 2 + 1] = i;
-    }
-
     lrhlp_setup();
+}
+
+void msdos_reset(u_short emm_s)
+{
+    EMM_SEG = emm_s;
+    ems_handle = emm_allocate_handle(MSDOS_EMS_PAGES);
 }
 
 void msdos_init(int is_32, unsigned short mseg)
@@ -196,19 +187,20 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
 
 static void prepare_ems_frame(void)
 {
+    static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
+	    { 0, 0, 1, 1, 2, 2, 3, 3 };
     if (ems_frame_mapped)
 	return;
+    emm_save_handle_state(ems_handle);
+    emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
     ems_frame_mapped = 1;
-    emm_get_partial_map_registers(ems_map_buffer, ems_frame_segs);
-    /* 0 is the special OS_HANDLE */
-    emm_map_unmap_multi(ems_frame_unmap, 0, EMM_UMA_STD_PHYS);
 }
 
 static void restore_ems_frame(void)
 {
     if (!ems_frame_mapped)
 	return;
-    emm_set_partial_map_registers(ems_map_buffer);
+    emm_restore_handle_state(ems_handle);
     ems_frame_mapped = 0;
 }
 

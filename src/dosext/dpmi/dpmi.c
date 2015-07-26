@@ -3039,13 +3039,19 @@ void dpmi_setup(void)
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api)
-      msdos_setup(EMM_SEGMENT);
+      msdos_setup();
     return;
 
 err:
     error("DPMI initialization failed, disabling\n");
 err2:
     config.dpmi = 0;
+}
+
+void dpmi_reset(void)
+{
+    if (config.pm_dos_api)
+      msdos_reset(EMM_SEGMENT);
 }
 
 void dpmi_init(void)

@@ -19,6 +19,7 @@
 #include "emm.h"
 #include "xms.h"
 #include "hma.h"
+#include "dpmi.h"
 #include "ipx.h"
 #include "serial.h"
 #include "utilities.h"
@@ -219,6 +220,7 @@ static void bios_reset(void)
   iodev_reset();		/* reset all i/o devices          */
   ems_reset();
   xms_reset();
+  dpmi_reset();
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
   boot();			/* read the boot sector & get moving */
