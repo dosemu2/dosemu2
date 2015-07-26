@@ -598,9 +598,9 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 	return -1;
     fp1 = &sfiles[idx1];
     fp2 = &sfiles[idx2];
-    if (fp1->prio && (fp1->prio < fp2->prio))
+    if (fp1->prio && (!fp2->prio || fp1->prio < fp2->prio))
 	return -1;
-    if (fp2->prio && (fp2->prio < fp1->prio))
+    if (fp2->prio && (!fp1->prio || fp2->prio < fp1->prio))
 	return 1;
     return alphasort(d1, d2);
 }
