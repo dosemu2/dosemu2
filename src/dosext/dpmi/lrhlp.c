@@ -31,6 +31,7 @@
 
 static char *io_buffer;
 static int io_buffer_size;
+static u_short lr_off, lw_off;
 
 void set_io_buffer(char *ptr, unsigned int size)
 {
@@ -65,10 +66,7 @@ static void lw_hlt(Bit32u idx, void *arg)
 
 void lrhlp_setup(void)
 {
-#define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
-#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
-    u_short lr_off, lw_off;
 
     hlt_hdlr.name = "msdos longread";
     hlt_hdlr.func = lr_hlt;
@@ -76,7 +74,12 @@ void lrhlp_setup(void)
     hlt_hdlr.name = "msdos longwrite";
     hlt_hdlr.func = lw_hlt;
     lw_off = hlt_register_handler(hlt_hdlr);
+}
 
+void lrhlp_reset(void)
+{
+#define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
+#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
     WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
 			     MK_LR_OFS(MSDOS_lr_entry_ip)), lr_off);
     WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +

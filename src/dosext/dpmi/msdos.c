@@ -105,6 +105,7 @@ void msdos_reset(u_short emm_s)
 {
     EMM_SEG = emm_s;
     ems_handle = emm_allocate_handle(MSDOS_EMS_PAGES);
+    lrhlp_reset();
 }
 
 void msdos_init(int is_32, unsigned short mseg)
