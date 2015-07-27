@@ -2516,7 +2516,7 @@ void setup_default_keytable()
 
   /* Now copy parameters for the linux kernel keymap */
   if(read_kbd_table(kt, altkt)) {
-    k_printf("setup_default_keytable: failed\n");
+    k_printf("setup_default_keytable: failed to read kernel console keymap\n");
     kt->name = NULL;
   }
 
