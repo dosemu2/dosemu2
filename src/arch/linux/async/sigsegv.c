@@ -187,8 +187,6 @@ sgleave:
 #endif
 
 		 show_regs(__FILE__, __LINE__);
-		 if (debug_level('n'))		/* XXX */
-		     abort();
 		 flush_log();
 		 leavedos_from_sig(4);
     }
