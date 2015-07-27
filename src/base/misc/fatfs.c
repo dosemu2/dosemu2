@@ -524,11 +524,9 @@ static int get_s_idx(const char *name)
 static int d_filter(const struct dirent *d)
 {
     const char *name, *path;
-    int i, idx, sfs, err;
+    int idx, err;
     struct stat sb;
     struct fs_prio *fp;
-    if (sys_done)
-	return 1;
     name = d->d_name;
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
 	return 0;
@@ -546,6 +544,12 @@ static int d_filter(const struct dirent *d)
 	return 1;
     sys_type |= 1 << idx;
 
+    return 1;
+}
+
+static void init_sfiles(void)
+{
+    int i, sfs;
     if((sys_type & 3) == 3) {
       sys_type = 3;		/* MS-DOS */
       sfiles[IO_IDX].prio = 1;
@@ -578,9 +582,9 @@ static int d_filter(const struct dirent *d)
 		continue;
 	    sfiles[i].prio = sfs++;
 	}
+    } else {
+	sys_type = 0;
     }
-
-    return 1;
 }
 
 static int d_compar(const struct dirent **d1, const struct dirent **d2)
@@ -596,6 +600,8 @@ static int d_compar(const struct dirent **d1, const struct dirent **d2)
 	return 1;
     if (idx2 == -1)
 	return -1;
+    if (sys_type && !sys_done)
+	init_sfiles();
     fp1 = &sfiles[idx1];
     fp2 = &sfiles[idx2];
     if (fp1->prio && (!fp2->prio || fp1->prio < fp2->prio))
