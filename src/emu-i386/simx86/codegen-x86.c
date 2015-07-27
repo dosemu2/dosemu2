@@ -1163,7 +1163,7 @@ shrot0:
 				break;
 			default:
 				error("Unimplemented O_OPAX instruction\n");
-				leavedos(99);
+				leavedos_main(99);
 			}
 #else
 			// get n>0,n<3 bytes from parameter stack
@@ -2367,7 +2367,7 @@ static void AddrGen_x86(int op, int mode, ...)
 		BaseGenBuf=NULL; GenBufSize=0;
 	}
 	I = &InstrMeta[CurrIMeta];
-	if (I->ngen >= NUMGENS) leavedos(0xbac1);
+	if (I->ngen >= NUMGENS) leavedos_main(0xbac1);
 	IG = &(I->gen[I->ngen]);
 	if (debug_level('e')>6) dbug_printf("AGEN: %3d %6x\n",op,mode);
 
@@ -2446,7 +2446,7 @@ static void Gen_x86(int op, int mode, ...)
 		BaseGenBuf=NULL; GenBufSize = 0;
 	}
 	I = &InstrMeta[CurrIMeta];
-	if (I->ngen >= NUMGENS) leavedos(0xbac2);
+	if (I->ngen >= NUMGENS) leavedos_main(0xbac2);
 	IG = &(I->gen[I->ngen]);
 	if (debug_level('e')>6) dbug_printf("CGEN: %3d %6x\n",op,mode);
 
@@ -2697,7 +2697,7 @@ static void ProduceCode(unsigned int PC)
 	    e_printf("---------------------------------------------\n");
 	    e_printf("ProduceCode: CurrIMeta=%d\n",CurrIMeta);
 	}
-	if (CurrIMeta < 0) leavedos(0xbac3);
+	if (CurrIMeta < 0) leavedos_main(0xbac3);
 
 	/* reserve space for auto-ptr and info structures */
 	nap = I0->ncount+1;
@@ -2754,7 +2754,7 @@ static void ProduceCode(unsigned int PC)
 	}
 	if (debug_level('e')>1)
 	    e_printf("Size=%td guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
-/**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos(0x535347);
+/**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos_main(0x535347);
 	if (PC < adr_lo) adr_lo = PC;
 	    else if (PC > adr_hi) adr_hi = PC;
 	InstrMeta[0].seqbase = adr_lo;
@@ -2816,7 +2816,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		if (*lp==G->key && ((unsigned char*)lp)[-1] == 0xb8) {		// points to current node?
 		    if (L->t_ref!=0) {
 			dbug_printf("Linker: t_ref at %08x busy\n",LG->key);
-			leavedos(0x8102);
+			leavedos_main(0x8102);
 		    }
 		    L->t_undo = *lp;
 		    // b8 [npc] -> e9/eb reladr
@@ -2860,7 +2860,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    }
 		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
-			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8108); }
+			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8108); }
 #endif
 			while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
 			bk->ref,*bk->ref); bk=bk->next; }
@@ -2871,7 +2871,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    if (*lp==G->key && ((unsigned char*)lp)[-1] == 0xb8) {		// points to current node?
 			if (L->nt_ref!=0) {
 			    dbug_printf("Linker: nt_ref at %08x busy\n",LG->key);
-			    leavedos(0x8103);
+			    leavedos_main(0x8103);
 			}
 			L->nt_undo = *lp;
 			// b8 [npc] -> e9/eb reladr
@@ -2915,7 +2915,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			}
 			if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
-			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8109); }
+			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos_main(0x8109); }
 #endif
 				while (bk) { dbug_printf("bkref=%c%p->%p\n",bk->branch,
 				bk->ref,*bk->ref); bk=bk->next; }
@@ -2981,7 +2981,7 @@ void NodeUnlinker(TNode *G)
 		if (L->t_undo != G->key) {
 		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
 			L->t_undo, G->key);
-		    leavedos(0x8110);
+		    leavedos_main(0x8110);
 		}
 		lp = L->t_link.abs;
 		((char *)lp)[-1] = 0xb8;
@@ -2997,7 +2997,7 @@ void NodeUnlinker(TNode *G)
 		if (L->nt_undo != G->key) {
 		    dbug_printf("Unlinker: BK ref error u=%08x k=%08x\n",
 			L->nt_undo, G->key);
-		    leavedos(0x8110);
+		    leavedos_main(0x8110);
 		}
 		lp = L->nt_link.abs;
 		((char *)lp)[-1] = 0xb8;
@@ -3008,7 +3008,7 @@ void NodeUnlinker(TNode *G)
 	    else {
 		e_printf("Invalid unlink [%c] ref %p from node ?(?) to %08x\n",
 			B->branch, B->ref, G->key);
-		leavedos(0x8116);
+		leavedos_main(0x8116);
 	    }
 	    B = B->next;
 	    free(b2);
@@ -3017,7 +3017,7 @@ void NodeUnlinker(TNode *G)
 	if (G==LastXNode) LastXNode=NULL;
 	if (T->nrefs) {
 	    dbug_printf("Unlinker: nrefs error\n");
-	    leavedos(0x8115);
+	    leavedos_main(0x8115);
 	}
 
 	// unlink forward references (from the current node to other
@@ -3042,7 +3042,7 @@ void NodeUnlinker(TNode *G)
 	    }
 	    if (Bt==NULL) {	// not found...
 		dbug_printf("Unlinker: FW T ref error\n");
-		leavedos(0x8111);
+		leavedos_main(0x8111);
 	    }
 	    T->t_ref = NULL;
 	}
@@ -3064,7 +3064,7 @@ void NodeUnlinker(TNode *G)
 	    }
 	    if (Bn==NULL) {	// not found...
 		dbug_printf("Unlinker: FW N ref error\n");
-		leavedos(0x8112);
+		leavedos_main(0x8112);
 	    }
 	    T->nt_ref = NULL;
 	}

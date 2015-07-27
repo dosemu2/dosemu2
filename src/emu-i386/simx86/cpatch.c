@@ -77,7 +77,7 @@ static int m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 	 * code was parsed. Ok, undo the patch and clear that code */
 	if (debug_level('e')>1)
 	    e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
-/*	if (UnCpatch((void *)(eip-3))) leavedos(0); */
+/*	if (UnCpatch((void *)(eip-3))) leavedos_main(0); */
 	InvalidateNodePage(addr,len,eip,NULL);
 	return e_check_munprotect(addr, len);
 }

@@ -895,7 +895,7 @@ void enter_cpu_emu(void)
 
 	if (config.realcpu < CPU_586) {
 	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
-	  leavedos(0);
+	  leavedos_main(0);
 	}
 	config.cpuemu=2;	/* for saving CPU flags */
 	IDT = NULL;
@@ -1225,7 +1225,7 @@ int e_vm86(void)
       if (xval < 0) {
         error("EMU86: error %d\n", -xval);
         in_vm86=0;
-        leavedos(1);
+        leavedos_main(1);
       }
       trans_addr = return_addr;
     }
@@ -1338,7 +1338,7 @@ int e_dpmi(struct sigcontext_struct *scp)
       RFL.valid = V_INVALID;
     if (TheCPU.err) {
         error("DPM86: segment error %d\n", TheCPU.err);
-        leavedos(0);
+        leavedos_main(0);
     }
 
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
@@ -1359,7 +1359,7 @@ int e_dpmi(struct sigcontext_struct *scp)
       /* 0 if ok, else exception code+1 or negative if dosemu err */
       if (xval < 0) {
         error("DPM86: error %d\n", -xval);
-        leavedos(0);
+        leavedos_main(0);
       }
       trans_addr = return_addr;
     }
