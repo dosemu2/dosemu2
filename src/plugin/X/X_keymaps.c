@@ -11,6 +11,9 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#ifdef HAVE_XKB
+#include <X11/XKBlib.h>
+#endif
 
 #include "emu.h"
 #include "utilities.h"
@@ -39,6 +42,23 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 	return ch;
 }
 
+/*
+ * This is an analogue to XkbKeycodeToKeysym() but uses the data from
+ * XGetKeyboardMapping() rather than Xkb
+ */
+#ifndef HAVE_XKB
+static KeySym X11_KeycodeToKeysym(KeySym *map, int width, int min, int keycode, int group, int index) {
+	int offset;
+
+	if(group == 0) {	// primary
+		offset = ((keycode - min) * width) + index;
+	} else {		// plain X only supports a single alternate group
+		offset = ((keycode - min) * width) + 2 + index;
+	}
+	return map[offset];
+}
+#endif
+
 /* This function is borrowed from Wine (LGPL'ed)
    http://source.winehq.org/source/dlls/x11drv/keyboard.c
    with adjustments to match dosemu
@@ -56,15 +76,15 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 int X11_DetectLayout (void)
 {
   Display *display;
-  unsigned match, mismatch, seq, i, startsym, alternate;
-  int syms, keysyms_per_keycode, score, keyc, key, pkey, ok = 0;
-  KeySym keysym, *key_mapping;
+  unsigned match, mismatch, seq, i, alternate;
+  int score, keyc, key, pkey, ok = 0;
+  KeySym keysym;
   unsigned max_seq[3] = {0, 0};
   int max_score[3] = {INT_MIN, INT_MIN};
   int ismatch = 0;
   int min_keycode, max_keycode;
-  t_unicode ckey[4] = {0, 0, 0, 0};
-  t_keysym lkey[4] = {0, 0, 0, 0};
+  t_unicode ckey[2] = {0, 0};
+  t_keysym lkey[2] = {0, 0};
   struct keytable_entry *kt;
   struct char_set_state X_charset;
 
@@ -73,32 +93,38 @@ int X11_DetectLayout (void)
   if (display == NULL) return 1;
 
   XDisplayKeycodes(display, &min_keycode, &max_keycode);
+
+#ifndef HAVE_XKB
+  int keysyms_per_keycode;
+  KeySym *key_mapping;
+
   /* get data for keycode from X server */
   key_mapping = XGetKeyboardMapping(display, min_keycode,
-			    max_keycode + 1 - min_keycode, &syms);
-  keysyms_per_keycode = syms;
-  if (syms > 4) {
-    k_printf("%d keysyms per keycode not supported, set to 4\n", syms);
-    syms = 4;
-  }
+			    max_keycode + 1 - min_keycode,
+			    &keysyms_per_keycode);
+#endif
 
   init_charset_state(&X_charset, lookup_charset("X_keysym"));
   for (kt = keytable_list, alternate = 0; kt->name; ) {
     k_printf("Attempting to match against \"%s\"\n", kt->name);
-    startsym = alternate << 1;
     match = 0;
     mismatch = 0;
     score = 0;
     seq = 0;
     pkey = -1;
     for (keyc = min_keycode; keyc <= max_keycode; keyc++) {
-      for (i = startsym; i < syms; i++) {
-        keysym = key_mapping[(keyc - min_keycode) * keysyms_per_keycode + i];
-	charset_to_unicode(&X_charset, &ckey[i - startsym],
+
+      for (i = 0; i < 2; i++) {
+#ifdef HAVE_XKB
+	keysym = XkbKeycodeToKeysym(display, keyc, alternate, i);
+#else
+	keysym = X11_KeycodeToKeysym(key_mapping, keysyms_per_keycode,
+			min_keycode, keyc, alternate, i);
+#endif
+	charset_to_unicode(&X_charset, &ckey[i],
                 (const unsigned char *)&keysym, sizeof(keysym));
       }
-      for (i = 0; i < startsym; i++)
-	ckey[syms - startsym + i] = U_VOID;
+
       if (ckey[0] != U_VOID && (ckey[0] & 0xf000) != 0xe000) {
         /* search for a match in layout table */
         /* right now, we just find an absolute match for defined positions */
@@ -108,9 +134,7 @@ int X11_DetectLayout (void)
         for (key = 0; key < kt->sizemap; key++) {
 	  lkey[0] = keysym_to_unicode(kt->key_map[key]);
 	  lkey[1] = keysym_to_unicode(kt->shift_map[key]);
-	  lkey[2] = keysym_to_unicode(kt->alt_map[key]);
-	  lkey[3] = U_VOID;
-          for (ok = 0, i = 0; (ok >= 0) && (i < syms); i++) {
+          for (ok = 0, i = 0; (ok >= 0) && (i < 2); i++) {
             if (lkey[i] != U_VOID) {
 	      if (lkey[i] == ckey[i])
 		ok++;
@@ -119,10 +143,9 @@ int X11_DetectLayout (void)
 	    }
           }
 	  if (debug_level('k') > 5)
-	    k_printf("key: %d score %d for keycode %d, %x %x %x, "
-		     "got %x %x %x %x\n",
-		     key, ok, keyc, lkey[0], lkey[1], lkey[2],
-		     ckey[0], ckey[1], ckey[2], ckey[3]);
+	    k_printf("key: % 3d score % 2d for keycode % 3d, %04x %04x, "
+		     "got %04x %04x\n",
+		     key, ok, keyc, lkey[0], lkey[1], ckey[0], ckey[1]);
           if (ok > 0) {
             score += ok;
             break;
@@ -138,7 +161,7 @@ int X11_DetectLayout (void)
           /* print spaces instead of \0's */
           for (i = 0; i < ARRAY_SIZE(ckey); i++) if (!ckey[i]) ckey[i] = ' ';
           mismatch++;
-          score -= syms;
+          score -= 2;
         }
       }
     }
@@ -164,7 +187,10 @@ int X11_DetectLayout (void)
       kt++;
   }
   cleanup_charset_state(&X_charset);
+
+#ifndef HAVE_XKB
   XFree(key_mapping);
+#endif
 
   /* we're done, report results if necessary */
   if (!ismatch)
