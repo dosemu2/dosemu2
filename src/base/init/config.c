@@ -573,7 +573,7 @@ static void config_post_process(const char *usedoptions)
 	}
     }
     /* console scrub */
-    if (config.X || usedoptions['X']) {
+    if (config.X || usedoptions['X'] || config.cardtype != CARD_NONE) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 
@@ -783,7 +783,7 @@ config_init(int argc, char **argv)
      * into X-mode. DANG_END_REMARK
      */
     Video = NULL;
-    if (strcmp(basename, "xdos") == 0 || getenv("DISPLAY")) {
+    if (strcmp(basename, "xdos") == 0) {
 	    usedoptions['X'] = 'X';
 	/* called as 'xdos' */
     }
