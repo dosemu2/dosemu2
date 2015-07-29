@@ -199,3 +199,22 @@ Bit16u hlt_register_handler(emu_hlt_t handler)
 
   return start_addr;
 }
+
+int hlt_unregister_handler(Bit16u start_addr)
+{
+  int handle, i;
+  emu_hlt_t *h;
+
+  assert(start_addr < BIOS_HLT_BLK_SIZE);
+  handle = hlt_handler_id[start_addr];
+  if (!handle)
+    return -1;
+  h = &hlt_handler[handle].h;
+  for (i = 0; i < h->len; i++)
+    hlt_handler_id[start_addr + i] = 0;
+  h->func = hlt_default;
+  while (hlt_handler_count &&
+	hlt_handler[hlt_handler_count - 1].h.func == hlt_default)
+    hlt_handler_count--;
+  return 0;
+}
