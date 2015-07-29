@@ -41,7 +41,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dos2linux.h"
 #include "timers.h"
 #include "mhpdbg.h"
-
+#include "hlt.h"
 #if 0
 #define SHOWREGS
 #endif
@@ -637,7 +637,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    LWORD(esi) = DPMI_private_paragraphs + RM_CB_Para_SIZE + msdos_get_lowmem_size();
+    LWORD(esi) = DPMI_private_paragraphs + msdos_get_lowmem_size();
 
     D_printf("DPMI entry returned, needs %#x lowmem paragraphs (%i)\n",
 	    LWORD(esi), LWORD(esi) << 4);
@@ -2097,7 +2097,7 @@ err:
 	 if ((DPMI_CLIENT.realModeCallBack[i].selector == 0)&&
 	     (DPMI_CLIENT.realModeCallBack[i].offset == 0))
 	    break;
-       if ( i>= 0x10) {
+       if (i >= 0x10) {
 	 D_printf("DPMI: Allocate real mode call back address failed.\n");
 	 _eflags |= CF;
 	 break;
@@ -2114,11 +2114,8 @@ err:
        DPMI_CLIENT.realModeCallBack[i].rmreg_selector = _es;
        DPMI_CLIENT.realModeCallBack[i].rmreg_offset = API_16_32(_edi);
        DPMI_CLIENT.realModeCallBack[i].rmreg = SEL_ADR_X(_es, _edi);
-       _LWORD(ecx) = DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD;
-       _LWORD(edx) = i;
-       /* Install the realmode callback, 0xf4=hlt */
-       WRITE_BYTE(SEGOFF2LINEAR(
-         DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD, i), 0xf4);
+       _LWORD(ecx) = DPMI_CLIENT.rmcb_seg;
+       _LWORD(edx) = DPMI_CLIENT.rmcb_off + i;
        D_printf("DPMI: Allocate realmode callback for %#04x:%#08x use #%i callback address, %#4x:%#4x\n",
 		DPMI_CLIENT.realModeCallBack[i].selector,
 		DPMI_CLIENT.realModeCallBack[i].offset,i,
@@ -2126,12 +2123,14 @@ err:
     }
     break;
   case 0x0304: /* free realmode call back address */
-      if ((_LWORD(ecx) == DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD)
-        && (_LWORD(edx) < 0x10)) {
-         D_printf("DPMI: Free realmode callback #%i\n", _LWORD(edx));
-	 DPMI_CLIENT.realModeCallBack[_LWORD(edx)].selector = 0;
-	 DPMI_CLIENT.realModeCallBack[_LWORD(edx)].offset = 0;
-	 FreeDescriptor(DPMI_CLIENT.realModeCallBack[_LWORD(edx)].rm_ss_selector);
+      if ((_LWORD(ecx) == DPMI_CLIENT.rmcb_seg)
+        && (_LWORD(edx) >= DPMI_CLIENT.rmcb_off &&
+	    _LWORD(edx) < DPMI_CLIENT.rmcb_off + 0x10)) {
+	 int i = _LWORD(edx) - DPMI_CLIENT.rmcb_off;
+         D_printf("DPMI: Free realmode callback #%i\n", i);
+	 DPMI_CLIENT.realModeCallBack[i].selector = 0;
+	 DPMI_CLIENT.realModeCallBack[i].offset = 0;
+	 FreeDescriptor(DPMI_CLIENT.realModeCallBack[i].rm_ss_selector);
       } else
 	 _eflags |= CF;
     break;
@@ -2506,21 +2505,7 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-int lookup_realmode_callback(unsigned int lina, int *num)
-{
-  int i;
-  unsigned int base;
-  for (i = 0; i < in_dpmi; i++) {
-    base = SEGOFF2LINEAR(DPMIclient[i].private_data_segment+RM_CB_Para_ADD,0);
-    if ((lina >= base) && (lina < base + 0x10)) {
-      *num = lina - base;
-      return i;
-    }
-  }
-  return -1;
-}
-
-void dpmi_realmode_callback(int rmcb_client, int num)
+static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
     struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
@@ -2565,6 +2550,11 @@ void dpmi_realmode_callback(int rmcb_client, int num)
 
     clear_IF();
     in_dpmi_dos_int = 0;
+}
+
+static void rmcb_hlt(Bit16u off, void *arg)
+{
+    dpmi_realmode_callback((long)arg, off);
 }
 
 static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
@@ -2632,6 +2622,7 @@ void dpmi_cleanup(void)
   FreeAllDescriptors();
   munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
     PAGE_ALIGN(DPMI_pm_stack_size));
+  hlt_unregister_handler(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
@@ -3063,6 +3054,7 @@ void dpmi_init(void)
   unsigned char *cp;
   int inherit_idt;
   struct sigcontext_struct *scp;
+  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
   CARRY;
 
@@ -3134,6 +3126,13 @@ void dpmi_init(void)
       DPMI_CLIENT.Exception_Table[i].selector = dpmi_sel();
     }
   }
+
+  hlt_hdlr.name = "DPMI rm cb";
+  hlt_hdlr.len = 0x10;
+  hlt_hdlr.func = rmcb_hlt;
+  hlt_hdlr.arg = (void *)(long)current_client;
+  DPMI_CLIENT.rmcb_seg = BIOS_HLT_BLK_SEG;
+  DPMI_CLIENT.rmcb_off = hlt_register_handler(hlt_hdlr);
 
   ssp = SEGOFF2LINEAR(REG(ss), 0);
   sp = LWORD(esp);

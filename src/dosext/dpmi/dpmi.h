@@ -23,8 +23,6 @@
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
-#define RM_CB_Para_ADD (DTA_Para_ADD+DTA_Para_SIZE)
-#define RM_CB_Para_SIZE 1
 #define current_client ({ assert(in_dpmi); in_dpmi-1; })
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
@@ -117,6 +115,8 @@ struct DPMIclient_struct {
   int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
+  Bit16u rmcb_seg;
+  Bit16u rmcb_off;
   INTDESC Interrupt_Table[0x100];
   INTDESC Exception_Table[0x20];
   unsigned short LDT_ALIAS;
@@ -228,8 +228,6 @@ extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_cleanup(void);
-extern int lookup_realmode_callback(unsigned int lina, int *num);
-extern void dpmi_realmode_callback(int rmcb_client, int num);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
 void dpmi_return(struct sigcontext_struct *scp);

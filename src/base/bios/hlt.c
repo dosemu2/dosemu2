@@ -87,7 +87,6 @@ void hlt_init(void)
 int hlt_handle(void)
 {
   Bit32u  lina = SEGOFF2LINEAR(_CS, _IP);
-  int rmcb_client, rmcb_num;
   int ret = HLT_RET_NORMAL;
 
 #if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
@@ -130,9 +129,6 @@ int hlt_handle(void)
     h_printf("HLT: dpmi_realmode_hlt\n");
 #endif
     dpmi_realmode_hlt(lina);
-  }
-  else if ((rmcb_client = lookup_realmode_callback(lina, &rmcb_num)) != -1) {
-    dpmi_realmode_callback(rmcb_client, rmcb_num);
   }
   else {
 #if 0
