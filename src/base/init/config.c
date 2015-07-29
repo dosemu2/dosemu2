@@ -50,9 +50,6 @@
  * "--Fusers", "--Flibdir", "--Fimagedir" and "-n" not in "getopt_string"
  * they are eaten by secure_option_preparse().
  */
-static const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSstu:Vv:wXx:U:"
-       "gK"/*NOPs kept for compat (not documented in usage())*/;
 
 
 int kernel_version_code = 0;
@@ -573,7 +570,8 @@ static void config_post_process(const char *usedoptions)
 	}
     }
     /* console scrub */
-    if (config.X || usedoptions['X'] || config.cardtype != CARD_NONE) {
+    if (config.X || usedoptions['X'] ||
+	    (getenv("DISPLAY") && !config.term)) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 
@@ -754,6 +752,9 @@ config_init(int argc, char **argv)
     char           *dexe_name = 0;
     char usedoptions[256];
     int i;
+    const char * const getopt_string =
+       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
+       "gK"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
@@ -864,10 +865,6 @@ config_init(int argc, char **argv)
 	    break;
 	case 'o':
 	    config.debugout = strdup(optarg);
-	    break;
-	case 't':
-	    /* terminal mode */
-	    usedoptions['X'] = 0;
 	    break;
 	case 'u': {
 		char *s=malloc(strlen(optarg)+3);
@@ -993,6 +990,11 @@ config_init(int argc, char **argv)
 	case 't':
 	    /* terminal mode */
 	    config.X = config.console_keyb = config.console_video = 0;
+	    config.term = 1;
+	    if (optarg) {
+		if (optarg[0] =='d')
+		    config.dumb_video = 1;
+	    }
 	    break;
 	case 'X':
 	    /* check usedoptions later */

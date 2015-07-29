@@ -26,8 +26,7 @@ while [ $# -gt 0 ] ; do
   case $1 in
     -dumb)
       DUMBTERM=1
-      OPT_I=-I
-      STRING_I=" video{none}"
+      OPTS="$OPTS -td"
       shift
       ;;
     -home)
@@ -157,7 +156,7 @@ fi
 export ASAN_OPTIONS=handle_segv=0:abort_on_error=1
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG"
+COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then

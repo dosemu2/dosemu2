@@ -20,7 +20,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <limits.h>
-#include <getopt.h>
 
 #ifdef __linux__
 #include <sys/vt.h>

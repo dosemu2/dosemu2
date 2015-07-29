@@ -200,7 +200,7 @@ static int video_init(void)
     load_plugin("console");
 #endif
   /* figure out which video front end we are to use */
-  if (no_real_terminal() || config.cardtype == CARD_NONE) {
+  if (no_real_terminal() || config.dumb_video || config.cardtype == CARD_NONE) {
      v_printf("VID: Video set to Video_none\n");
      config.cardtype = CARD_NONE;
      config.X = config.console_video = config.mapped_bios = config.vga = 0;

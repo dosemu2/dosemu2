@@ -67,7 +67,6 @@ __asm__("___START___: jmp _emulate\n");
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <limits.h>
-#include <getopt.h>
 #include <assert.h>
 #include <locale.h>
 #include <pthread.h>

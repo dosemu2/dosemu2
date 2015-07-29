@@ -181,6 +181,8 @@ typedef struct vesamode_type_struct {
        int CPUSpeedInMhz;
        /* for video */
        int console_video;
+       int term;
+       int dumb_video;
        int vga;
        boolean X;
        boolean X_fullscreen;
