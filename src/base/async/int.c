@@ -2016,7 +2016,7 @@ static void do_int_from_thr(void *arg)
  * DANG_END_FUNCTION
  */
 
-static void do_int_from_hlt(Bit32u i, void *arg)
+static void do_int_from_hlt(Bit16u i, void *arg)
 {
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
@@ -2203,7 +2203,7 @@ void do_eoi2_iret(void)
   _IP = EOI2_OFF;
 }
 
-static void ret_from_int(Bit32u i, void *arg)
+static void ret_from_int(Bit16u i, void *arg)
 {
   unsigned int ssp, sp;
   u_short flgs;

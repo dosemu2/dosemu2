@@ -1198,7 +1198,7 @@ alter_map_and_call(state_t * state)
  * Pushed parameters saved by emm_alter_map_and_call() follow.
  */
 static void
-emm_hlt_handler(Bit32u offs, void *arg)
+emm_hlt_handler(Bit16u offs, void *arg)
 {
   struct alter_map_struct old_map;
   u_short method;

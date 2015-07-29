@@ -44,7 +44,7 @@ void unset_io_buffer()
     io_buffer_size = 0;
 }
 
-static void lr_hlt(Bit32u idx, void *arg)
+static void lr_hlt(Bit16u idx, void *arg)
 {
     unsigned int offs = REG(edi);
     unsigned int size = REG(ecx);
@@ -54,7 +54,7 @@ static void lr_hlt(Bit32u idx, void *arg)
     fake_retf(0);
 }
 
-static void lw_hlt(Bit32u idx, void *arg)
+static void lw_hlt(Bit16u idx, void *arg)
 {
     unsigned int offs = REG(edi);
     unsigned int size = REG(ecx);
