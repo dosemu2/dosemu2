@@ -2534,7 +2534,7 @@ void setup_default_keytable()
   idx = X11_DetectLayout();
 #endif
 #endif
-  if (idx && kt->name == NULL) {
+  if (idx && kt->name == NULL && !config.exitearly) {
     error("Unable to open console or check with X to evaluate the keyboard "
 	  "map.\nPlease specify your keyboard map explicitly via the "
 	  "$_layout option.\n");

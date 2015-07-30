@@ -575,6 +575,7 @@ int X_init()
 	  display_name);
 
       leavedos(99);
+      return -1;
     }
     error(
      "You do not have the DISPLAY variable set, but want to run DOSEMU\n"
@@ -586,6 +587,7 @@ int X_init()
      "\n\nAfter this run xdosemu again.\n"
      );
     leavedos(1);
+    return -1;
   }
 
   /* collect some data about our X server; do it before anything else */
@@ -761,6 +763,7 @@ int X_init()
     error("X: No graphics modes supported on this type of screen!\n");
     /* why do we need a blank screen? */
     leavedos(24);
+    return -1;
   }
 
   lock_window_size(w_x_res, w_y_res);
@@ -779,6 +782,7 @@ int X_init()
   if(vga_emu_init(remap_src_modes, &X_csd)) {
     error("X: X_init: VGAEmu init failed!\n");
     leavedos(99);
+    return -1;
   }
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
@@ -2345,6 +2349,7 @@ void load_cursor_shapes()
   if (!cfont) {
     error("X: Unable to open font \"cursor\", aborting!\n");
     leavedos(99);
+    return;
   }
 
 #if CONFIG_X_MOUSE
