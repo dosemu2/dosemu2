@@ -614,8 +614,13 @@ static void config_post_process(const char *usedoptions)
               "restricting to 640K\n", config.mem_size);
         config.mem_size = 640;
     }
-    if (config.umb_a0 == -1)
+    if (config.umb_a0 == -1) {
 	config.umb_a0 = !(config.console_video || config.X);
+	if (config.umb_a0) {
+	    warn("work around FreeDOS UMB bug\n");
+	    config.umb_a0++;
+	}
+    }
     if (!config.dpmi)
 	config.pm_dos_api = 0;
 

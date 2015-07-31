@@ -122,6 +122,12 @@ umb_setup(void)
     Debug0((dbg_fd, "findhole - from 0x%5.5zX, %dKb\n", addr_start, size/1024));
     memcheck_reserve('U', addr_start, size);
 
+    if (addr_start == 0xa0000 && config.umb_a0 == 2) {
+      // FreeDOS UMB bug, reserve 1 para
+      const int rsv = 16;
+      addr_start += rsv;
+      size -= rsv;
+    }
     umb = umb_find_unused();
     umbs[umb].in_use = TRUE;
     umbs[umb].free = TRUE;
