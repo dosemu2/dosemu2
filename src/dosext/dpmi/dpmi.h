@@ -225,6 +225,10 @@ extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned in
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
+extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
+	int rm_offs);
+extern int DPMI_free_realmode_callback(u_short seg, u_short off);
+
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_cleanup(void);
