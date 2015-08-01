@@ -141,7 +141,7 @@ MSDOS_API_call:
 	.globl MSDOS_rmcb_call
 MSDOS_rmcb_call:
 	hlt
-	lret
+	iret
 	.globl MSDOS_pmc_end
 MSDOS_pmc_end:
 
