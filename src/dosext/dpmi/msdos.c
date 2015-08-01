@@ -36,7 +36,6 @@
 #define SUPPORT_DOSEMU_HELPERS 1
 #endif
 #include "emm.h"
-#include "lrhlp.h"
 #include "segreg.h"
 #include "msdos.h"
 
@@ -99,6 +98,29 @@ static u_short pop_v(void)
     assert(v_num > 0);
     return v_stk[--v_num];
 }
+
+#ifndef DJGPP_PORT
+static void lrhlp_setup(far_t rmcb, int is_w)
+{
+#define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
+#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
+    if (!is_w) {
+	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+		     MK_LR_OFS(MSDOS_lr_entry_ip)), rmcb.offset);
+	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
+    } else {
+	WRITE_WORD(SEGOFF2LINEAR
+	       (DOS_LONG_WRITE_SEG,
+		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_ip)),
+	       rmcb.offset);
+	WRITE_WORD(SEGOFF2LINEAR
+	       (DOS_LONG_WRITE_SEG,
+		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
+	       rmcb.segment);
+    }
+}
+#endif
 
 static u_short get_env_sel(void)
 {
