@@ -156,9 +156,13 @@ void msdos_init(int is_32, unsigned short mseg)
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
 		 envp, get_env_sel());
     }
-    MSDOS_CLIENT.rmcb = DPMI_allocate_realmode_callback(dpmi_sel(),
+    if (msdos_client_num == 1 ||
+	    msdos_client[msdos_client_num - 2].is_32 != is_32)
+	MSDOS_CLIENT.rmcb = DPMI_allocate_realmode_callback(dpmi_sel(),
 	    DPMI_SEL_OFF(MSDOS_rmcb_call), dpmi_data_sel(),
 	    DPMI_DATA_OFF(MSDOS_rmcb_data));
+    else
+	MSDOS_CLIENT.rmcb = msdos_client[msdos_client_num - 2].rmcb;
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
