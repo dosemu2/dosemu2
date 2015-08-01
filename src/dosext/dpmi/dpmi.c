@@ -116,8 +116,15 @@ static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 unsigned char *ldt_buffer;
 unsigned char *ldt_alias;
 static unsigned short dpmi_sel16, dpmi_sel32;
+static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
-{ return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16; }
+{
+  return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16;
+}
+unsigned short dpmi_data_sel()
+{
+  return DPMI_CLIENT.is_32 ? dpmi_data_sel32 : dpmi_data_sel16;
+}
 
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
@@ -3041,6 +3048,8 @@ void dpmi_setup(void)
 
     if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
+    if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
+    if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
@@ -3054,6 +3063,12 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_sel32, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
+    if (SetSelector(dpmi_data_sel16, DOSADDR_REL(DPMI_sel_data_start),
+		    DPMI_SEL_OFF(DPMI_sel_data_end)-1, 0,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
+    if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
+		    DPMI_SEL_OFF(DPMI_sel_data_end)-1, 1,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api)
       msdos_setup();
