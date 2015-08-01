@@ -178,6 +178,8 @@ int printer_open(int prnum)
 {
   int rc;
 
+  if (!lpt[prnum].initialized)
+    return -1;
   if (lpt[prnum].opened) {
     dosemu_error("opening printer %i twice\n", prnum);
     return 0;
@@ -225,6 +227,8 @@ static int pipe_printer_write(int prnum, Bit8u outchar)
 
 int printer_write(int prnum, Bit8u outchar)
 {
+  if (!lpt[prnum].initialized)
+    return -1;
   if (!lpt[prnum].opened)
     printer_open(prnum);
   lpt[prnum].remaining = lpt[prnum].delay;
@@ -270,6 +274,7 @@ printer_init(void)
   io_device.fd           = -1;
 
   for (i = 0; i < NUM_PRINTERS; i++) {
+    lpt[i].initialized = 0;
     lpt[i].opened = 0;
     lpt[i].remaining = 0;	/* mark not accessed yet */
     if (!lpt[i].dev && !lpt[i].prtcmd)
@@ -286,6 +291,7 @@ printer_init(void)
       io_device.start_addr = lpt[i].base_port;
       io_device.end_addr   = lpt[i].base_port + 2;
       port_register_handler(io_device, 0);
+      lpt[i].initialized = 1;
     }
   }
 }
