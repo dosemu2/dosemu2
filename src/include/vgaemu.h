@@ -534,7 +534,7 @@ int vga_read_access(dosaddr_t m);
 int vga_write_access(dosaddr_t m);
 int vga_access(dosaddr_t r, dosaddr_t w);
 int vga_emu_protect_page(unsigned, int);
-int vga_emu_adjust_protection(unsigned, unsigned, int);
+int vga_emu_adjust_protection(unsigned, unsigned, int, int);
 void vga_emu_prot_lock(void);
 void vga_emu_prot_unlock(void);
 #define VGA_PROT_RW 2
