@@ -41,7 +41,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dos2linux.h"
 #include "timers.h"
 #include "mhpdbg.h"
-
+#include "hlt.h"
 #if 0
 #define SHOWREGS
 #endif
@@ -116,8 +116,15 @@ static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 unsigned char *ldt_buffer;
 unsigned char *ldt_alias;
 static unsigned short dpmi_sel16, dpmi_sel32;
+static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
-{ return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16; }
+{
+  return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16;
+}
+unsigned short dpmi_data_sel()
+{
+  return DPMI_CLIENT.is_32 ? dpmi_data_sel32 : dpmi_data_sel16;
+}
 
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
@@ -637,7 +644,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    LWORD(esi) = DPMI_private_paragraphs + RM_CB_Para_SIZE + msdos_get_lowmem_size();
+    LWORD(esi) = DPMI_private_paragraphs + msdos_get_lowmem_size();
 
     D_printf("DPMI entry returned, needs %#x lowmem paragraphs (%i)\n",
 	    LWORD(esi), LWORD(esi) << 4);
@@ -1790,6 +1797,57 @@ static int dpmi_debug_breakpoint(int op, struct sigcontext_struct *scp)
   return err;
 }
 
+far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
+	int rm_offs)
+{
+  int i;
+  far_t ret = {};
+  u_short rm_seg, rm_off;
+  for (i=0; i< 0x10; i++)
+    if ((DPMI_CLIENT.realModeCallBack[i].selector == 0) &&
+        (DPMI_CLIENT.realModeCallBack[i].offset == 0))
+      break;
+  if (i >= 0x10) {
+    D_printf("DPMI: Allocate real mode call back address failed.\n");
+    return ret;
+  }
+  if (!(DPMI_CLIENT.realModeCallBack[i].rm_ss_selector
+	     = AllocateDescriptors(1))) {
+    D_printf("DPMI: Allocate real mode call back address failed.\n");
+    return ret;
+  }
+
+  DPMI_CLIENT.realModeCallBack[i].selector = sel;
+  DPMI_CLIENT.realModeCallBack[i].offset = offs;
+  DPMI_CLIENT.realModeCallBack[i].rmreg_selector = rm_sel;
+  DPMI_CLIENT.realModeCallBack[i].rmreg_offset = rm_offs;
+  DPMI_CLIENT.realModeCallBack[i].rmreg = SEL_ADR(rm_sel, rm_offs);
+  rm_seg = DPMI_CLIENT.rmcb_seg;
+  rm_off = DPMI_CLIENT.rmcb_off + i;
+  D_printf("DPMI: Allocate realmode callback for %#04x:%#08x use #%i callback address, %#4x:%#4x\n",
+		DPMI_CLIENT.realModeCallBack[i].selector,
+		DPMI_CLIENT.realModeCallBack[i].offset,i,
+		rm_seg, rm_off);
+  ret.segment = rm_seg;
+  ret.offset = rm_off;
+  return ret;
+}
+
+int DPMI_free_realmode_callback(u_short seg, u_short off)
+{
+  if ((seg == DPMI_CLIENT.rmcb_seg)
+        && (off >= DPMI_CLIENT.rmcb_off &&
+	    off < DPMI_CLIENT.rmcb_off + 0x10)) {
+    int i = off - DPMI_CLIENT.rmcb_off;
+    D_printf("DPMI: Free realmode callback #%i\n", i);
+    DPMI_CLIENT.realModeCallBack[i].selector = 0;
+    DPMI_CLIENT.realModeCallBack[i].offset = 0;
+    FreeDescriptor(DPMI_CLIENT.realModeCallBack[i].rm_ss_selector);
+    return 0;
+  }
+  return -1;
+}
+
 static void do_int31(struct sigcontext_struct *scp)
 {
 #if 0
@@ -2092,48 +2150,22 @@ err:
     break;
   case 0x0303:	/* Allocate realmode call back address */
     {
-       int i;
-       for (i=0; i< 0x10; i++)
-	 if ((DPMI_CLIENT.realModeCallBack[i].selector == 0)&&
-	     (DPMI_CLIENT.realModeCallBack[i].offset == 0))
-	    break;
-       if ( i>= 0x10) {
-	 D_printf("DPMI: Allocate real mode call back address failed.\n");
-	 _eflags |= CF;
-	 break;
-       }
-       if (!(DPMI_CLIENT.realModeCallBack[i].rm_ss_selector
-	     = AllocateDescriptors(1))) {
-	 D_printf("DPMI: Allocate real mode call back address failed.\n");
-	 _eflags |= CF;
-	 break;
-       }
-
-       DPMI_CLIENT.realModeCallBack[i].selector = _ds;
-       DPMI_CLIENT.realModeCallBack[i].offset = API_16_32(_esi);
-       DPMI_CLIENT.realModeCallBack[i].rmreg_selector = _es;
-       DPMI_CLIENT.realModeCallBack[i].rmreg_offset = API_16_32(_edi);
-       DPMI_CLIENT.realModeCallBack[i].rmreg = SEL_ADR_X(_es, _edi);
-       _LWORD(ecx) = DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD;
-       _LWORD(edx) = i;
-       /* Install the realmode callback, 0xf4=hlt */
-       WRITE_BYTE(SEGOFF2LINEAR(
-         DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD, i), 0xf4);
-       D_printf("DPMI: Allocate realmode callback for %#04x:%#08x use #%i callback address, %#4x:%#4x\n",
-		DPMI_CLIENT.realModeCallBack[i].selector,
-		DPMI_CLIENT.realModeCallBack[i].offset,i,
-		_LWORD(ecx), _LWORD(edx));
+      far_t rmc = DPMI_allocate_realmode_callback(_ds, API_16_32(_esi),
+        _es, API_16_32(_edi));
+      if (rmc.segment == 0 && rmc.offset == 0) {
+        _eflags |= CF;
+      } else {
+        _LWORD(ecx) = rmc.segment;
+        _LWORD(edx) = rmc.offset;
+      }
     }
     break;
   case 0x0304: /* free realmode call back address */
-      if ((_LWORD(ecx) == DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD)
-        && (_LWORD(edx) < 0x10)) {
-         D_printf("DPMI: Free realmode callback #%i\n", _LWORD(edx));
-	 DPMI_CLIENT.realModeCallBack[_LWORD(edx)].selector = 0;
-	 DPMI_CLIENT.realModeCallBack[_LWORD(edx)].offset = 0;
-	 FreeDescriptor(DPMI_CLIENT.realModeCallBack[_LWORD(edx)].rm_ss_selector);
-      } else
-	 _eflags |= CF;
+    {
+      int err = DPMI_free_realmode_callback(_LWORD(ecx), _LWORD(edx));
+      if (err)
+        _eflags |= CF;
+    }
     break;
   case 0x0305:	/* Get State Save/Restore Adresses */
       _LWORD(ebx) = DPMI_SEG;
@@ -2506,21 +2538,7 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-int lookup_realmode_callback(unsigned int lina, int *num)
-{
-  int i;
-  unsigned int base;
-  for (i = 0; i < in_dpmi; i++) {
-    base = SEGOFF2LINEAR(DPMIclient[i].private_data_segment+RM_CB_Para_ADD,0);
-    if ((lina >= base) && (lina < base + 0x10)) {
-      *num = lina - base;
-      return i;
-    }
-  }
-  return -1;
-}
-
-void dpmi_realmode_callback(int rmcb_client, int num)
+static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
     struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
@@ -2565,6 +2583,11 @@ void dpmi_realmode_callback(int rmcb_client, int num)
 
     clear_IF();
     in_dpmi_dos_int = 0;
+}
+
+static void rmcb_hlt(Bit16u off, void *arg)
+{
+    dpmi_realmode_callback((long)arg, off);
 }
 
 static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
@@ -2632,6 +2655,7 @@ void dpmi_cleanup(void)
   FreeAllDescriptors();
   munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
     PAGE_ALIGN(DPMI_pm_stack_size));
+  hlt_unregister_handler(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
@@ -3024,6 +3048,8 @@ void dpmi_setup(void)
 
     if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
+    if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
+    if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
@@ -3037,6 +3063,12 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_sel32, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
+    if (SetSelector(dpmi_data_sel16, DOSADDR_REL(DPMI_sel_data_start),
+		    DPMI_SEL_OFF(DPMI_sel_data_end)-1, 0,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
+    if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
+		    DPMI_SEL_OFF(DPMI_sel_data_end)-1, 1,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api)
       msdos_setup();
@@ -3063,6 +3095,7 @@ void dpmi_init(void)
   unsigned char *cp;
   int inherit_idt;
   struct sigcontext_struct *scp;
+  emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
   CARRY;
 
@@ -3134,6 +3167,13 @@ void dpmi_init(void)
       DPMI_CLIENT.Exception_Table[i].selector = dpmi_sel();
     }
   }
+
+  hlt_hdlr.name = "DPMI rm cb";
+  hlt_hdlr.len = 0x10;
+  hlt_hdlr.func = rmcb_hlt;
+  hlt_hdlr.arg = (void *)(long)current_client;
+  DPMI_CLIENT.rmcb_seg = BIOS_HLT_BLK_SEG;
+  DPMI_CLIENT.rmcb_off = hlt_register_handler(hlt_hdlr);
 
   ssp = SEGOFF2LINEAR(REG(ss), 0);
   sp = LWORD(esp);

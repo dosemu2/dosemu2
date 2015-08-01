@@ -28,6 +28,7 @@ struct msdos_struct {
   unsigned short user_psp_sel;
   unsigned short lowmem_seg;
   dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
+  far_t rmcb;
 };
 
 extern void msdos_setup(void);

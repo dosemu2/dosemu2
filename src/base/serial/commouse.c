@@ -46,7 +46,7 @@
 
 static int com_num = -1;
 static u_short irq_hlt;
-static void com_irq(Bit32u idx, void *arg);
+static void com_irq(Bit16u idx, void *arg);
 
 static int com_mouse_init(void)
 {
@@ -69,7 +69,7 @@ static int com_mouse_init(void)
   return 1;
 }
 
-static void com_irq(Bit32u idx, void *arg)
+static void com_irq(Bit16u idx, void *arg)
 {
   uint8_t iir, val;
   s_printf("COMMOUSE: got irq\n");

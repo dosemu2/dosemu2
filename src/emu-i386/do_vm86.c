@@ -470,7 +470,7 @@ static int callback_level;
 static far_t callback_rets[MAX_CBKS];
 Bit16u CBACK_OFF;
 
-static void callback_return(Bit32u off2, void *arg)
+static void callback_return(Bit16u off2, void *arg)
 {
     far_t ret;
     assert(callback_level > 0);

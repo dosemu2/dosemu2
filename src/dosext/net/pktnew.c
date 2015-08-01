@@ -52,7 +52,7 @@
 
 #define TAP_DEVICE  "tap%d"
 
-static void pkt_hlt(Bit32u idx, void *arg);
+static void pkt_hlt(Bit16u idx, void *arg);
 static int Open_sockets(char *name);
 static int Insert_Type(int, int, char *);
 static int Remove_Type(int);
@@ -551,7 +551,7 @@ static int pkt_int(void)
     return 1;
 }
 
-static void pkt_hlt(Bit32u idx, void *arg)
+static void pkt_hlt(Bit16u idx, void *arg)
 {
     fake_iret();
     pkt_int();
