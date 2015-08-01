@@ -3064,10 +3064,10 @@ void dpmi_setup(void)
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
     if (SetSelector(dpmi_data_sel16, DOSADDR_REL(DPMI_sel_data_start),
-		    DPMI_SEL_OFF(DPMI_sel_data_end)-1, 0,
+		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
     if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
-		    DPMI_SEL_OFF(DPMI_sel_data_end)-1, 1,
+		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 1,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api)
