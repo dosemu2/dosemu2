@@ -781,6 +781,7 @@ do_read:
 	pushl	%ecx
 	pushl	%eax
 	movl	%eax, %ecx
+	movb	$0, %al		/* read */
 	lcall   *%cs:MSDOS_lr_entry-bios_f000
 	popl	%eax
 	popl	%ecx
@@ -820,6 +821,7 @@ start_write:
 	xorl	%ecx, %ecx
 	decw	%cx
 do_write:
+	movb	$1, %al		/* write */
 	lcall   *%cs:MSDOS_lw_entry-bios_f000
 	movb	$0x40, %ah
 	int	$0x21

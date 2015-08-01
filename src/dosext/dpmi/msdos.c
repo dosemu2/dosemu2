@@ -1659,8 +1659,8 @@ void msdos_pm_call(struct sigcontext_struct *scp)
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call)) {
 	struct RealModeCallStructure *rmreg = SEL_ADR_CLNT(_es, _edi,
 		MSDOS_CLIENT.is_32);
-	switch (_HI(ax)) {
-	case 0x3f:	/* read */
+	switch (RM_LO(ax)) {
+	case 0:		/* read */
 	{
 	    unsigned int offs = RMREG(edi);
 	    unsigned int size = RMREG(ecx);
@@ -1673,7 +1673,7 @@ void msdos_pm_call(struct sigcontext_struct *scp)
 			io_buffer_size);
 	    break;
 	}
-	case 0x40:	/* write */
+	case 1:		/* write */
 	{
 	    unsigned int offs = RMREG(edi);
 	    unsigned int size = RMREG(ecx);
