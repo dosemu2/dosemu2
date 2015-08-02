@@ -251,10 +251,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       dosemu_error("simx86: should not be here\n");
-      vga_emu_prot_lock();
       vga_emu_adjust_protection(vga_page, page_fault, VGA_PROT_RW, 1);
-      vgaemu_dirty_page(vga_page);
-      vga_emu_prot_unlock();
       return 1;
     }
 

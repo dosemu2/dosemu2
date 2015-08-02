@@ -284,6 +284,8 @@
 
 static int vga_emu_protect(unsigned, unsigned, int);
 static int vga_emu_map(unsigned, unsigned);
+static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
+	int prot, int dirty);
 #if 0
 static int vgaemu_unmap(unsigned);
 #endif
@@ -796,11 +798,7 @@ void vga_mark_dirty(dosaddr_t s_addr, int len)
     vga_page = (addr >> PAGE_SHIFT) -
 	vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page +
 	vga.mem.map[VGAEMU_MAP_BANK_MODE].first_page;
-    vga_emu_adjust_protection(vga_page, 0, VGA_PROT_RW, 1);
-    if (!vga_bank_access(addr))
-      continue;
-    if (!vga.mem.dirty_map[vga_page])
-      vgaemu_dirty_page(vga_page);
+    _vga_emu_adjust_protection(vga_page, 0, VGA_PROT_RW, 1);
   }
 }
 
@@ -1096,14 +1094,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   if(vga_page < vga.mem.pages) {
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable then mark it dirty */
-      vga_emu_prot_lock();
       vga_emu_adjust_protection(vga_page, page_fault, RW, 1);
-      /* mark page dirty after adjusting the protection, but it
-       * is still too early: render thread may clean it before
-       * the app manages to write the data. In this case we'll fault
-       * again... */
-      vgaemu_dirty_page(vga_page);
-      vga_emu_prot_unlock();
     }
     if(vga.inst_emu) {
       int ret;
@@ -1123,13 +1114,10 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * so that each instruction that accesses it can be trapped and
        * simulated. */
       ret = instr_emu(scp, pmode, 0);
-      vga_emu_prot_lock();
       if (!ret) {
         error_once("instruction simulation failure\n%s\n", DPMI_show_state(scp));
         vga_emu_adjust_protection(vga_page, page_fault, RW, 1);
       }
-      vgaemu_dirty_page(vga_page);
-      vga_emu_prot_unlock();
     }
   }
   return True;
@@ -1295,8 +1283,8 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
  *
  */
 
-int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot,
-	int dirty)
+static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
+	int prot, int dirty)
 {
   int i, err, k;
 
@@ -1320,6 +1308,8 @@ int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot,
       );
     }
   }
+
+  vga.mem.dirty_map[page] = dirty;
 
   if(vga.mem.planes == 4) {	/* MODE_X or PL4 */
     page &= ~0x30;
@@ -1386,6 +1376,15 @@ int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot,
   return i;
 }
 
+int vga_emu_adjust_protection(unsigned page, unsigned mapped_page, int prot,
+	int dirty)
+{
+  int ret;
+  vga_emu_prot_lock();
+  ret = _vga_emu_adjust_protection(page, mapped_page, prot, dirty);
+  vga_emu_prot_unlock();
+  return ret;
+}
 
 /*
  * Map the VGA memory.
@@ -1425,6 +1424,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
 
   i = 0;
+  pthread_mutex_lock(&prot_mtx);
   if(mapping == VGAEMU_MAP_BANK_MODE)
     i = alias_mapping(MAPPING_VGAEMU,
       vmt->base_page << 12, vmt->pages << 12,
@@ -1435,6 +1435,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       i = MAP_FAILED;
 
   if(i == MAP_FAILED) {
+    pthread_mutex_unlock(&prot_mtx);
     error("VGA: protect page failed\n");
     return 3;
   }
@@ -1442,14 +1443,13 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   vmt->first_page = first_page;
 
   for(u = 0; u < vmt->pages; u++) {
-    pthread_mutex_lock(&prot_mtx);
     vgaemu_update_prot_cache(vmt->base_page + u, prot);
     /* need to fix up protection for clean pages */
     if(vga.mode_class == GRAPH && !vga.mem.dirty_map[vmt->first_page + u] &&
 	    prot == VGA_EMU_RW_PROT)
-      vga_emu_adjust_protection(vmt->first_page + u, 0, VGA_PROT_RO, 0);
-    pthread_mutex_unlock(&prot_mtx);
+      _vga_emu_adjust_protection(vmt->first_page + u, 0, VGA_PROT_RO, 0);
   }
+  pthread_mutex_unlock(&prot_mtx);
 
   return 0;
 }
@@ -1939,7 +1939,7 @@ static int __vga_emu_update(vga_emu_update_type *veut)
     else
       vga.mem.dirty_map[j] = 0;
     if (!vga.mem.dirty_map[j])
-      vga_emu_adjust_protection(j, 0, DEF_PROT, 0);
+      _vga_emu_adjust_protection(j, 0, DEF_PROT, 0);
     if(veut->max_max_len) veut->max_len -= 1 << 12;
   }
 
