@@ -447,9 +447,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		goto unimp;
     }
 /**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
-    vga_emu_prot_lock();
-    vgaemu_dirty_page(vga_page);
-    vga_emu_prot_unlock();
+    vgaemu_dirty_page(vga_page, 1);
   }
   return 1;
 

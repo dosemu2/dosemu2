@@ -501,7 +501,7 @@ int vgaemu_map_bank(void);
 void vgaemu_reset_mapping(void);
 int vga_emu_set_textsize(int, int);
 void dirty_all_video_pages(void);
-void vgaemu_dirty_page(int page);
+void vgaemu_dirty_page(int page, int dirty);
 int vgaemu_is_dirty(void);
 void vga_mark_dirty(dosaddr_t addr, int len);
 void dirty_all_vga_colors(void);

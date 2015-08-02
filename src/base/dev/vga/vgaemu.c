@@ -286,6 +286,7 @@ static int vga_emu_protect(unsigned, unsigned, int);
 static int vga_emu_map(unsigned, unsigned);
 static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
 	int prot, int dirty);
+static void _vgaemu_dirty_page(int page, int dirty);
 #if 0
 static int vgaemu_unmap(unsigned);
 #endif
@@ -1309,69 +1310,41 @@ static int _vga_emu_adjust_protection(unsigned page, unsigned mapped_page,
     }
   }
 
-  vga.mem.dirty_map[page] = dirty;
-
   if(vga.mem.planes == 4) {	/* MODE_X or PL4 */
     page &= ~0x30;
-    for(k = 0; k < 4; k++, page += 0x10) {
-      if (dirty != vga.mem.dirty_map[page]) {
-        vga.mem.dirty_map[page] = dirty;
-        vga_emu_protect(page, 0, prot);
-      }
-    }
+    for(k = 0; k < vga.mem.planes; k++, page += 0x10)
+      vga_emu_protect(page, 0, prot);
   }
 
   if(vga.mode_type == PL2) {
     /* it's actually 4 planes, but we let everyone believe it's a 1-plane mode */
     page &= ~0x30;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
     page += 0x20;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
   }
 
   if(vga.mode_type == CGA) {
     /* CGA uses two 8k banks  */
     page &= ~0x2;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
     page += 0x2;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
   }
 
   if(vga.mode_type == HERC) {
     /* Hercules uses four 8k banks  */
     page &= ~0x6;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
     page += 0x2;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
     page += 0x2;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
     page += 0x2;
-    if (dirty != vga.mem.dirty_map[page]) {
-      vga.mem.dirty_map[page] = dirty;
-      vga_emu_protect(page, 0, prot);
-    }
+    vga_emu_protect(page, 0, prot);
   }
+
+  _vgaemu_dirty_page(page, dirty);
 
   return i;
 }
@@ -2624,15 +2597,58 @@ void dirty_all_video_pages()
   pthread_mutex_unlock(&prot_mtx);
 }
 
-void vgaemu_dirty_page(int page)
+static void _vgaemu_dirty_page(int page, int dirty)
 {
+  int k;
+
   if (page >= vga.mem.pages) {
     dosemu_error("vgaemu: page out of range, %i (%i)\n", page, vga.mem.pages);
     return;
   }
   v_printf("vgaemu: set page %i dirty\n", page);
   /* prot_mtx should be locked by caller */
-  vga.mem.dirty_map[page] = 1;
+  vga.mem.dirty_map[page] = dirty;
+
+  if(vga.mem.planes == 4) {	/* MODE_X or PL4 */
+    page &= ~0x30;
+    for(k = 0; k < vga.mem.planes; k++, page += 0x10)
+      vga.mem.dirty_map[page] = dirty;
+  }
+
+  if(vga.mode_type == PL2) {
+    /* it's actually 4 planes, but we let everyone believe it's a 1-plane mode */
+    page &= ~0x30;
+    vga.mem.dirty_map[page] = dirty;
+    page += 0x20;
+    vga.mem.dirty_map[page] = dirty;
+  }
+
+  if(vga.mode_type == CGA) {
+    /* CGA uses two 8k banks  */
+    page &= ~0x2;
+    vga.mem.dirty_map[page] = dirty;
+    page += 0x2;
+    vga.mem.dirty_map[page] = dirty;
+  }
+
+  if(vga.mode_type == HERC) {
+    /* Hercules uses four 8k banks  */
+    page &= ~0x6;
+    vga.mem.dirty_map[page] = dirty;
+    page += 0x2;
+    vga.mem.dirty_map[page] = dirty;
+    page += 0x2;
+    vga.mem.dirty_map[page] = dirty;
+    page += 0x2;
+    vga.mem.dirty_map[page] = dirty;
+  }
+}
+
+void vgaemu_dirty_page(int page, int dirty)
+{
+  pthread_mutex_lock(&prot_mtx);
+  _vgaemu_dirty_page(page, dirty);
+  pthread_mutex_unlock(&prot_mtx);
 }
 
 int vgaemu_is_dirty(void)
