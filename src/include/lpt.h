@@ -19,7 +19,9 @@ struct printer {
   struct popen2 file;
   int dev_fd;
   struct p_fops fops;
-  int opened, remaining;
+  int initialized;
+  int opened;
+  int remaining;
 
   Bit8u data, status, control;
 };

@@ -50,9 +50,6 @@
  * "--Fusers", "--Flibdir", "--Fimagedir" and "-n" not in "getopt_string"
  * they are eaten by secure_option_preparse().
  */
-static const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSstu:Vv:wXx:U:"
-       "gK"/*NOPs kept for compat (not documented in usage())*/;
 
 
 int kernel_version_code = 0;
@@ -573,7 +570,8 @@ static void config_post_process(const char *usedoptions)
 	}
     }
     /* console scrub */
-    if (config.X || usedoptions['X']) {
+    if (config.X || usedoptions['X'] ||
+	    (getenv("DISPLAY") && !config.term)) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 
@@ -616,8 +614,13 @@ static void config_post_process(const char *usedoptions)
               "restricting to 640K\n", config.mem_size);
         config.mem_size = 640;
     }
-    if (config.umb_a0 == -1)
+    if (config.umb_a0 == -1) {
 	config.umb_a0 = !(config.console_video || config.X);
+	if (config.umb_a0) {
+	    warn("work around FreeDOS UMB bug\n");
+	    config.umb_a0++;
+	}
+    }
     if (!config.dpmi)
 	config.pm_dos_api = 0;
 
@@ -754,6 +757,9 @@ config_init(int argc, char **argv)
     char           *dexe_name = 0;
     char usedoptions[256];
     int i;
+    const char * const getopt_string =
+       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
+       "gK"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
@@ -783,7 +789,7 @@ config_init(int argc, char **argv)
      * into X-mode. DANG_END_REMARK
      */
     Video = NULL;
-    if (strcmp(basename, "xdos") == 0 || getenv("DISPLAY")) {
+    if (strcmp(basename, "xdos") == 0) {
 	    usedoptions['X'] = 'X';
 	/* called as 'xdos' */
     }
@@ -864,10 +870,6 @@ config_init(int argc, char **argv)
 	    break;
 	case 'o':
 	    config.debugout = strdup(optarg);
-	    break;
-	case 't':
-	    /* terminal mode */
-	    usedoptions['X'] = 0;
 	    break;
 	case 'u': {
 		char *s=malloc(strlen(optarg)+3);
@@ -993,6 +995,11 @@ config_init(int argc, char **argv)
 	case 't':
 	    /* terminal mode */
 	    config.X = config.console_keyb = config.console_video = 0;
+	    config.term = 1;
+	    if (optarg) {
+		if (optarg[0] =='d')
+		    config.dumb_video = 1;
+	    }
 	    break;
 	case 'X':
 	    /* check usedoptions later */

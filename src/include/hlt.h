@@ -6,7 +6,7 @@
 #endif
 #include "bios.h"
 
-typedef void (* emu_hlt_func)(Bit32u offs, void *arg);
+typedef void (*emu_hlt_func)(Bit16u offs, void *arg);
 
 typedef struct {
   emu_hlt_func  func;
@@ -21,7 +21,8 @@ typedef struct {
 enum { HLT_RET_NONE, HLT_RET_FAIL, HLT_RET_NORMAL, HLT_RET_SPECIAL };
 
 extern void hlt_init(void);
-extern Bit32u hlt_register_handler(emu_hlt_t handler);
+extern Bit16u hlt_register_handler(emu_hlt_t handler);
+extern int hlt_unregister_handler(Bit16u start_addr);
 extern int hlt_handle(void);
 
 #endif /* _EMU_HLT_H */

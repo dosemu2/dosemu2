@@ -219,7 +219,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       if (u==0) {
         e_printf("eVGAEmuFault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
-/**/	leavedos(0x5640);
+/**/	leavedos_main(0x5640);
       }
       return 1;
     }
@@ -233,7 +233,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       if (u==0 || (_err&2)==0) {
         e_printf("eVGAEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
-/**/	leavedos(0x5641);
+/**/	leavedos_main(0x5641);
       }
       return 1;
     }
@@ -251,10 +251,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       dosemu_error("simx86: should not be here\n");
-      vga_emu_prot_lock();
-      vga_emu_adjust_protection(vga_page, page_fault, VGA_PROT_RW);
-      vgaemu_dirty_page(vga_page);
-      vga_emu_prot_unlock();
+      vga_emu_adjust_protection(vga_page, page_fault, VGA_PROT_RW, 1);
       return 1;
     }
 
@@ -450,9 +447,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		goto unimp;
     }
 /**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
-    vga_emu_prot_lock();
-    vgaemu_dirty_page(vga_page);
-    vga_emu_prot_unlock();
+    vgaemu_dirty_page(vga_page, 1);
   }
   return 1;
 

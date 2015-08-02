@@ -52,7 +52,7 @@
 
 #define TAP_DEVICE  "tap%d"
 
-static void pkt_hlt(Bit32u idx, void *arg);
+static void pkt_hlt(Bit16u idx, void *arg);
 static int Open_sockets(char *name);
 static int Insert_Type(int, int, char *);
 static int Remove_Type(int);
@@ -233,6 +233,7 @@ pkt_init(void)
 void
 pkt_reset(void)
 {
+    int handle;
     if (!config.pktdrv || !pktdrvr_installed)
       return;
     WRITE_WORD(SEGOFF2LINEAR(PKTDRV_SEG, PKTDRV_OFF +
@@ -241,6 +242,10 @@ pkt_reset(void)
 	    MK_PKT_OFS(PKTDRV_driver_entry_cs)), BIOS_HLT_BLK_SEG);
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
+
+    max_pkt_type_array = 0;
+    for (handle = 0; handle < MAX_HANDLE; handle++)
+        pg.handle[handle].in_use = 0;
 }
 
 void pkt_term(void)
@@ -546,7 +551,7 @@ static int pkt_int(void)
     return 1;
 }
 
-static void pkt_hlt(Bit32u idx, void *arg)
+static void pkt_hlt(Bit16u idx, void *arg)
 {
     fake_iret();
     pkt_int();

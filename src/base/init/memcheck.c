@@ -136,6 +136,26 @@ int memcheck_isfree(size_t addr_start, size_t size)
   return TRUE;
 }
 
+int memcheck_is_reserved(size_t addr_start, size_t size,
+	unsigned char map_char)
+{
+  int cntr;
+  size_t addr_end;
+
+  round_addr(&addr_start);
+  addr_end = addr_start + size;
+  round_addr(&addr_end);
+
+  for (cntr = addr_start / GRAN_SIZE; cntr < addr_end / GRAN_SIZE; cntr++) {
+    if (mem_map[cntr] != map_char) {
+      error("memcheck type mismatch at 0x%x: %c %c\n",
+	    cntr * GRAN_SIZE, mem_map[cntr], map_char);
+      return FALSE;
+    }
+  }
+  return TRUE;
+}
+
 int memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size)
 {
   int cntr;

@@ -413,7 +413,7 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     } while (state == COOPTHS_RUNNING);
 }
 
-static void coopth_hlt(Bit32u offs, void *arg)
+static void coopth_hlt(Bit16u offs, void *arg)
 {
     struct coopth_t *thr = (struct coopth_t *)arg + offs;
     struct coopth_per_thread_t *pth = current_thr(thr);

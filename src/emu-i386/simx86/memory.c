@@ -111,7 +111,7 @@ static int AddMpMap(unsigned int addr, unsigned int aend, int onoff)
 		  dbug_printf("MPMAP: unprotect page=%08x was %x\n",addr,bs);
 	    }
 	    addr += PAGE_SIZE;
-	} while (addr < aend);
+	} while (addr <= aend);
 	return bs;
 }
 
@@ -226,30 +226,34 @@ void e_resetpagemarks(unsigned int addr, size_t len)
 int e_mprotect(unsigned int addr, size_t len)
 {
 	int e;
-	unsigned int abeg, aend;
+	unsigned int abeg, aend, aend1;
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
 	int ret = 1;
 
 	abeg = addr & PAGE_MASK;
 	if (len==0) {
-	    aend = abeg + PAGE_SIZE;
+	    aend = abeg;
 	}
 	else {
-	    aend = ((addr+len-1) & PAGE_MASK) + PAGE_SIZE;
+	    aend = (addr+len-1) & PAGE_MASK;
 	}
 	/* only protect ranges that were not already protected by e_mprotect */
 	for (a = abeg; a <= aend; a += PAGE_SIZE) {
-	    if (a < aend && !e_querymprot(a)) {
+	    int qp = e_querymprot(a);
+	    if (!qp) {
 		if (abeg1 == (unsigned)-1)
 		    abeg1 = a;
-	    } else if (abeg1 != (unsigned)-1) {
-		e = mprotect(MEM_BASE32(abeg1), a-abeg1, PROT_READ|PROT_EXEC);
+		aend1 = a;
+	    }
+	    if ((a == aend || qp) && abeg1 != (unsigned)-1) {
+		e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
+			    PROT_READ|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPMAP: %s\n",strerror(errno));
 		    return -1;
 		}
-		ret = AddMpMap(abeg1, a, 1);
+		ret = AddMpMap(abeg1, aend1+PAGE_SIZE-1, 1);
 		abeg1 = (unsigned)-1;
 	    }
 	}
@@ -259,31 +263,34 @@ int e_mprotect(unsigned int addr, size_t len)
 int e_munprotect(unsigned int addr, size_t len)
 {
 	int e;
-	unsigned int abeg, aend;
+	unsigned int abeg, aend, aend1;
 	unsigned int abeg1 = (unsigned)-1;
 	unsigned a;
 	int ret = 0;
 
 	abeg = addr & PAGE_MASK;
 	if (len==0) {
-	    aend = abeg + PAGE_SIZE;
+	    aend = abeg;
 	}
 	else {
-	    aend = ((addr+len-1) & PAGE_MASK) + PAGE_SIZE;
+	    aend = (addr+len-1) & PAGE_MASK;
 	}
 	/* only unprotect ranges that were protected by e_mprotect */
 	for (a = abeg; a <= aend; a += PAGE_SIZE) {
-	    if (a < aend && e_querymprot(a)) {
+	    int qp = e_querymprot(a);
+	    if (qp) {
 		if (abeg1 == (unsigned)-1)
 		    abeg1 = a;
-	    } else if (abeg1 != (unsigned)-1) {
-		e = mprotect(MEM_BASE32(abeg1), a-abeg1,
+		aend1 = a;
+	    }
+	    if ((a == aend || !qp) && abeg1 != (unsigned)-1) {
+		e = mprotect(MEM_BASE32(abeg1), aend1-abeg1+PAGE_SIZE,
 			     PROT_READ|PROT_WRITE|PROT_EXEC);
 		if (e<0) {
 		    e_printf("MPUNMAP: %s\n",strerror(errno));
 		    return -1;
 		}
-		ret = AddMpMap(abeg1, a, 0);
+		ret = AddMpMap(abeg1, aend1+PAGE_SIZE-1, 0);
 		abeg1 = (unsigned)-1;
 	    }
 	}

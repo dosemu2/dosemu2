@@ -1102,7 +1102,7 @@ int CAN_SLEEP(void)
     (pic_sys_time > pic_dos_time) || in_leavedos));
 }
 
-static void pic_iret_hlt(Bit32u offs, void *arg)
+static void pic_iret_hlt(Bit16u offs, void *arg)
 {
   pic_iret();
 }

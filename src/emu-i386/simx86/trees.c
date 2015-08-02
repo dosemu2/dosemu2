@@ -99,7 +99,7 @@ static inline TNode *Tmalloc(void)
 {
   TNode *G  = TNodePool->link[0];
   TNode *G1 = G->link[0];
-  if (G1==TNodePool) leavedos(0x4c4c); // return NULL;
+  if (G1==TNodePool) leavedos_main(0x4c4c); // return NULL;
   TNodePool->link[0] = G1; G->link[0]=NULL;
   memset(G, 0, sizeof(TNode));	// "bug covering"
   G->nxkey = -1;
@@ -181,7 +181,7 @@ static TNode *avltr_probe (const int key, int *found)
       if (q->bal != 0) t = p, s = q;
       p = q;
       k++;
-/**/ if (k>=AVL_MAX_HEIGHT) leavedos(0x777);
+/**/ if (k>=AVL_MAX_HEIGHT) leavedos_main(0x777);
 #ifdef PROFILE
       if (debug_level('e')) if (k>MaxDepth) MaxDepth=k;
 #endif
@@ -317,7 +317,7 @@ void avltr_delete (const int key)
 	  p = p->link[1]; a[k] = 1;
       }
       k++;
-/**/ if (k>=AVL_MAX_HEIGHT) leavedos(0x777);
+/**/ if (k>=AVL_MAX_HEIGHT) leavedos_main(0x777);
   }
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
   if (debug_level('e')>2)
@@ -380,7 +380,7 @@ void avltr_delete (const int key)
 	    if (t->mblock) dlfree(t->mblock);
 /* e_printf("<03 node exchange %p->%p>\n",s,t); */
 	    datacopy(t, s);
-/**/	    if (t->addr==NULL) leavedos(0x8130);
+/**/	    if (t->addr==NULL) leavedos_main(0x8130);
 	    /* keep the node reference to itself */
 	    t->mblock->bkptr = t;
 	    s->addr = NULL;
@@ -402,15 +402,15 @@ void avltr_delete (const int key)
 #ifdef DEBUG_LINKER
 	if (p->clink.nrefs) {
 	    dbug_printf("Cannot delete - nrefs=%d\n",p->clink.nrefs);
-	    leavedos(0x9140);
+	    leavedos_main(0x9140);
 	}
 	if (p->clink.bkr.next) {
 	    dbug_printf("Cannot delete - bkr busy\n");
-	    leavedos(0x9141);
+	    leavedos_main(0x9141);
 	}
 	if (p->clink.t_ref || p->clink.nt_ref) {
 	    dbug_printf("Cannot delete - ref busy\n");
-	    leavedos(0x9142);
+	    leavedos_main(0x9142);
 	}
 #endif
   if (p->mblock) dlfree(p->mblock);
@@ -783,7 +783,7 @@ void CheckLinks (void)
     }
   }
 nquit:
-  leavedos(0x9143);
+  leavedos_main(0x9143);
 }
 
 #endif // DEBUG_LINKER
@@ -959,7 +959,7 @@ TNode *Move2Tree(void)
 
   found = 0;
   nG = avltr_probe(key, &found);
-/**/ if (nG==NULL) leavedos(0x8201);
+/**/ if (nG==NULL) leavedos_main(0x8201);
 
   if (found) {
 	if (debug_level('e')>2) {
@@ -1013,7 +1013,7 @@ TNode *Move2Tree(void)
   cp = &nG->mblock->selfptr;
   *cp = cp;
   nG->pmeta = mallmb->meta;
-  if (nG->pmeta==NULL) leavedos(0x504d45);
+  if (nG->pmeta==NULL) leavedos_main(0x504d45);
   nG->addr = (unsigned char *)&mallmb->meta[nap];
 
   /* setup structures for inter-node linking */
@@ -1172,7 +1172,7 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
 
   if (eip==0) {
 	dbug_printf("Cannot break node %08x, eip=%p\n",G->key,eip);
-	leavedos(0x7691);
+	leavedos_main(0x7691);
   }
 
   ebase = eip - G->addr;
@@ -1424,6 +1424,10 @@ quit:
 #endif // HOST_ARCH_X86
 	if (CurrIMeta==0) {		// no open code sequences
 		if (debug_level('e')>2) e_printf("============ Opening sequence at %08x\n",npc);
+	}
+	if (CurrIMeta >= MAXINODES) {
+		*rc = -1;
+		return -1;
 	}
 	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0;
 	return CurrIMeta;

@@ -23,8 +23,6 @@
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
-#define RM_CB_Para_ADD (DTA_Para_ADD+DTA_Para_SIZE)
-#define RM_CB_Para_SIZE 1
 #define current_client ({ assert(in_dpmi); in_dpmi-1; })
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
@@ -37,19 +35,24 @@ void direct_ldt_write(int offset, int length, char *buffer);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 void *SEL_ADR(unsigned short sel, unsigned int reg);
-void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg);
+void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32);
 
 #define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
 
 enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
   eax_INDEX, ebx_INDEX, ecx_INDEX, edx_INDEX, esi_INDEX, edi_INDEX,
-  ebp_INDEX, esp_INDEX };
+  ebp_INDEX, esp_INDEX, eip_INDEX, eflags_INDEX };
 
 typedef struct pmaddr_s
 {
     unsigned int	offset;
     unsigned short	selector;
 } INTDESC;
+typedef struct
+{
+    unsigned int	offset32;
+    unsigned short	selector;
+} DPMI_INTDESC;
 
 typedef struct segment_descriptor_s
 {
@@ -75,7 +78,7 @@ struct RealModeCallStructure {
   unsigned int edi;
   unsigned int esi;
   unsigned int ebp;
-  unsigned int esp;
+  unsigned int esp_reserved;
   unsigned int ebx;
   unsigned int edx;
   unsigned int ecx;
@@ -89,7 +92,7 @@ struct RealModeCallStructure {
   unsigned short cs;
   unsigned short sp;
   unsigned short ss;
-};
+} __attribute__((packed));
 
 typedef struct {
     unsigned short selector;
@@ -112,6 +115,8 @@ struct DPMIclient_struct {
   int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
+  Bit16u rmcb_seg;
+  Bit16u rmcb_off;
   INTDESC Interrupt_Table[0x100];
   INTDESC Exception_Table[0x20];
   unsigned short LDT_ALIAS;
@@ -163,6 +168,7 @@ void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void run_pm_dos_int(int);
 void fake_pm_int(void);
+u_short DPMI_ldt_alias(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);
@@ -188,10 +194,10 @@ dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
 void DPMIfreeAll(void);
 int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
-int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
-int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
+int DPMISetPageAttributes(unsigned long handle, int offs, u_short attrs[], int count);
+int DPMIGetPageAttributes(unsigned long handle, int offs, u_short attrs[], int count);
 void GetFreeMemoryInformation(unsigned int *lp);
-int GetDescriptor(us selector, unsigned int *lp);
+int GetDescriptor(u_short selector, unsigned int *lp);
 unsigned int GetSegmentBase(unsigned short);
 unsigned int GetSegmentLimit(unsigned short);
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu);
@@ -209,8 +215,8 @@ extern int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned l
 extern int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
 extern int SetSegmentLimit(unsigned short, unsigned int);
-extern INTDESC dpmi_get_interrupt_vector(unsigned char num);
-extern void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc);
+extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
+extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
 extern void save_pm_regs(struct sigcontext_struct *);
 extern void restore_pm_regs(struct sigcontext_struct *);
 extern unsigned short AllocateDescriptors(int);
@@ -219,10 +225,13 @@ extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned in
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
+extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
+	int rm_offs);
+extern int DPMI_free_realmode_callback(u_short seg, u_short off);
+
 extern void dpmi_setup(void);
+extern void dpmi_reset(void);
 extern void dpmi_cleanup(void);
-extern int lookup_realmode_callback(unsigned int lina, int *num);
-extern void dpmi_realmode_callback(int rmcb_client, int num);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
 void dpmi_return(struct sigcontext_struct *scp);
@@ -231,8 +240,9 @@ void dpmi_init(void);
 extern void copy_context(struct sigcontext_struct *d,
     struct sigcontext_struct *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
-extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
-extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
+extern unsigned short dpmi_data_sel(void);
+//extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
+//extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
 
 static inline int DPMIValidSelector(unsigned short selector)
 {

@@ -121,10 +121,10 @@
 #define DPMI_OFF	0x4800		/* need at least 512 bytes */
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
-#define DOS_LONG_READ_SEG ROMBIOSSEG
-#define DOS_LONG_READ_OFF 0x4B00
-#define DOS_LONG_WRITE_SEG ROMBIOSSEG
-#define DOS_LONG_WRITE_OFF 0x4BA0
+#define DOS_LONG_READ_SEG BIOSSEG
+#define DOS_LONG_READ_OFF 0xF400
+#define DOS_LONG_WRITE_SEG BIOSSEG
+#define DOS_LONG_WRITE_OFF 0xF4A0
 
 #define XMSControl_SEG  ROMBIOSSEG
 #define XMSControl_OFF  0x4C40
@@ -198,6 +198,8 @@ void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size);
 void memcheck_init(void);
 int  memcheck_isfree(size_t addr_start, size_t size);
 int  memcheck_findhole(size_t *start_addr, size_t min_size, size_t max_size);
+int memcheck_is_reserved(size_t addr_start, size_t size,
+	unsigned char map_char);
 void memcheck_dump(void);
 void memcheck_type_init(void);
 extern struct system_memory_map *system_memory_map;
@@ -295,6 +297,10 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 #define WRITE_WORDP(addr, val)	WRITE_WORD(DOSADDR_REL(addr), val)
 #define READ_DWORDP(addr)	READ_DWORD(DOSADDR_REL(addr))
 #define WRITE_DWORDP(addr, val)	WRITE_DWORD(DOSADDR_REL(addr), val)
+
+#define READ_BYTE_S(b, s, m)	READ_BYTE(b + offsetof(s, m))
+#define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))
+#define READ_DWORD_S(b, s, m)	READ_DWORD(b + offsetof(s, m))
 
 #define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
 	MEMCPY_2UNIX((unix_addr), DOSADDR_REL(dos_addr), (n))

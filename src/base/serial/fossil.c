@@ -82,7 +82,7 @@ static unsigned short fossil_id_offset, fossil_id_segment;
 static boolean fossil_tsr_installed = FALSE;
 
 static u_short irq_hlt;
-static void fossil_irq(Bit32u idx, void *arg);
+static void fossil_irq(Bit16u idx, void *arg);
 
 static void fossil_init(void)
 {
@@ -97,7 +97,7 @@ static void fossil_init(void)
   s_printf("SER: FOSSIL helper 1: TSR install, ES:DI=%04x:%04x\n", fossil_id_segment, fossil_id_offset);
 }
 
-static void fossil_irq(Bit32u idx, void *arg)
+static void fossil_irq(Bit16u idx, void *arg)
 {
   int i;
   uint8_t iir, lsr;

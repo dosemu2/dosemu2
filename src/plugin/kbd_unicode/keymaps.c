@@ -2516,7 +2516,7 @@ void setup_default_keytable()
 
   /* Now copy parameters for the linux kernel keymap */
   if(read_kbd_table(kt, altkt)) {
-    k_printf("setup_default_keytable: failed\n");
+    k_printf("setup_default_keytable: failed to read kernel console keymap\n");
     kt->name = NULL;
   }
 
@@ -2534,7 +2534,7 @@ void setup_default_keytable()
   idx = X11_DetectLayout();
 #endif
 #endif
-  if (idx && kt->name == NULL) {
+  if (idx && kt->name == NULL && !config.exitearly) {
     error("Unable to open console or check with X to evaluate the keyboard "
 	  "map.\nPlease specify your keyboard map explicitly via the "
 	  "$_layout option.\n");

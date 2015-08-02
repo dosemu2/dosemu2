@@ -3013,7 +3013,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	default:
-		leavedos(0x494c4c);
+		leavedos_main(0x494c4c);
 		break;
 
 	}

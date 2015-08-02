@@ -127,74 +127,6 @@ MSDOS_rpm_end:
 	.globl	DPMI_dummy_end
 DPMI_dummy_end:
 
-/* ======================= Addr = F800:4B00 (FCB00) */
-	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
-	pushl	%esi
-	pushl	%edi
-	pushl	%ecx
-	xorl	%edi, %edi
-start_read:
-	movl	%ecx, %esi
-	cmpl	$0x10000, %esi
-	jb	do_read
-	xorl	%ecx, %ecx
-	decw	%cx
-do_read:
-	movb	$0x3f, %ah
-	int	$0x21
-	jc	done_read
-	movzwl	%ax, %eax
-	pushl	%ecx
-	pushl	%eax
-	movl	%eax, %ecx
-	movb	$DOS_HELPER_PUT_DATA, %al
-	int	$DOS_HELPER_INT
-	popl	%eax
-	popl	%ecx
-	addl	%eax, %edi
-	cmpw	%ax, %cx
-	jnz	done_read
-	movl	%esi, %ecx
-	subl	%eax, %ecx
-	jnz	start_read
-done_read:
-	movl	%edi, %eax
-	popl	%ecx
-	popl	%edi
-	popl	%esi
-	lret
-
-/* ======================= Addr = F800:4BA0 (FCBA0) */
-	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
-	pushl	%esi
-	pushl	%edi
-	pushl	%ecx
-	xorl	%edi, %edi
-start_write:
-	movl	%ecx, %esi
-	cmpl	$0x10000, %esi
-	jb	do_write
-	xorl	%ecx, %ecx
-	decw	%cx
-do_write:
-	movb	$DOS_HELPER_GET_DATA, %al
-	int	$DOS_HELPER_INT
-	movb	$0x40, %ah
-	int	$0x21
-	jc	done_write
-	movzwl	%ax, %eax
-	addl	%eax, %edi
-	cmpw	%ax, %cx
-	jnz	done_write
-	movl	%esi, %ecx
-	subl	%eax, %ecx
-	jnz	start_write
-done_write:
-	movl	%edi, %eax
-	popl	%ecx
-	popl	%edi
-	popl	%esi
-	lret
 
 /* ----------------------------------------------------------------- */
 	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
@@ -289,7 +221,7 @@ LFN_string:
 /* Post-less video init
  */
 no_vbios_post:
-	movb	BIOS_VIDEO_MODE,%al
+	movb	$3,%al
 	int	$0x10
 video_init_done:
 	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
@@ -709,7 +641,7 @@ INT09_dummy_end:
 	iret
 
 	.org	EOI2_OFF
-/* ======================= Addr = F000:F100 (FF100) */
+/* ======================= Addr = F000:F110 (FF110) */
 	pushw	%ax
 	movb    $0x20,%al
 	outb    %al,$0xa0
@@ -720,7 +652,7 @@ INT09_dummy_end:
 /* ----------------------------------------------------------------- */
 	/* pause cycle */
 	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
-/* ======================= Addr = F000:F110 (FF110) */
+/* ======================= Addr = F000:F120 (FF120) */
 	pushf
 	pushw 	%ds
 	pushw 	%ax
@@ -739,7 +671,7 @@ idle_cycle:
 /* ----------------------------------------------------------------- */
 	/* the packet driver */
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
-/* ======================= Addr = F000:F130 (FF130) */
+/* ======================= Addr = F000:F140 (FF140) */
 
 	.globl	PKTDRV_start
 PKTDRV_start:
@@ -826,6 +758,95 @@ DBGload:
 	sti
 	ljmp	*%cs:DBGload_CSIP-bios_f000
 				/* and give control to the program */
+
+/* ======================= Addr = F000:F400 (FF400) */
+	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
+	.globl MSDOS_lr_start
+MSDOS_lr_start:
+	pushl	%esi
+	pushl	%edi
+	pushl	%ecx
+	xorl	%edi, %edi
+start_read:
+	movl	%ecx, %esi
+	cmpl	$0x10000, %esi
+	jb	do_read
+	xorl	%ecx, %ecx
+	decw	%cx
+do_read:
+	movb	$0x3f, %ah
+	int	$0x21
+	jc	done_read
+	movzwl	%ax, %eax
+	pushl	%ecx
+	pushl	%eax
+	movl	%eax, %ecx
+	movb	$0, %al		/* read */
+	lcall   *%cs:MSDOS_lr_entry-bios_f000
+	popl	%eax
+	popl	%ecx
+	addl	%eax, %edi
+	cmpw	%ax, %cx
+	jnz	done_read
+	movl	%esi, %ecx
+	subl	%eax, %ecx
+	jnz	start_read
+done_read:
+	movl	%edi, %eax
+	popl	%ecx
+	popl	%edi
+	popl	%esi
+	lret
+        .align 4,0
+MSDOS_lr_entry:
+        .globl  MSDOS_lr_entry_ip
+MSDOS_lr_entry_ip:
+        .word 0
+        .globl  MSDOS_lr_entry_cs
+MSDOS_lr_entry_cs:
+        .word 0
+
+/* ======================= Addr = F000:F4A0 (FF4A0) */
+	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
+	.globl MSDOS_lw_start
+MSDOS_lw_start:
+	pushl	%esi
+	pushl	%edi
+	pushl	%ecx
+	xorl	%edi, %edi
+start_write:
+	movl	%ecx, %esi
+	cmpl	$0x10000, %esi
+	jb	do_write
+	xorl	%ecx, %ecx
+	decw	%cx
+do_write:
+	movb	$1, %al		/* write */
+	lcall   *%cs:MSDOS_lw_entry-bios_f000
+	movb	$0x40, %ah
+	int	$0x21
+	jc	done_write
+	movzwl	%ax, %eax
+	addl	%eax, %edi
+	cmpw	%ax, %cx
+	jnz	done_write
+	movl	%esi, %ecx
+	subl	%eax, %ecx
+	jnz	start_write
+done_write:
+	movl	%edi, %eax
+	popl	%ecx
+	popl	%edi
+	popl	%esi
+	lret
+        .align 4,0
+MSDOS_lw_entry:
+        .globl  MSDOS_lw_entry_ip
+MSDOS_lw_entry_ip:
+        .word 0
+        .globl  MSDOS_lw_entry_cs
+MSDOS_lw_entry_cs:
+        .word 0
 
 	.globl  bios_f000_endpart1
 bios_f000_endpart1:

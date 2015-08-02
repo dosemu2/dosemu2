@@ -40,14 +40,14 @@ struct hlt_handler {
 };
 static struct hlt_handler hlt_handler[MAX_HLT_HANDLERS];
 
-static Bit8u         hlt_handler_id[BIOS_HLT_BLK_SIZE];
-static Bit32u        hlt_handler_count;
+static int        hlt_handler_id[BIOS_HLT_BLK_SIZE];
+static int        hlt_handler_count;
 
 /*
  * This is the default HLT handler for the HLT block -- assume that
  * someone did a CALLF to get to us.
  */
-static void hlt_default(Bit32u addr, void *arg)
+static void hlt_default(Bit16u addr, void *arg)
 {
   /* Assume someone callf'd to get here and do a return far */
   h_printf("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
@@ -87,7 +87,6 @@ void hlt_init(void)
 int hlt_handle(void)
 {
   Bit32u  lina = SEGOFF2LINEAR(_CS, _IP);
-  int rmcb_client, rmcb_num;
   int ret = HLT_RET_NORMAL;
 
 #if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
@@ -99,7 +98,7 @@ int hlt_handle(void)
 #endif
 
   if ((lina >= BIOS_HLT_BLK) && (lina < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
-    Bit32u offs = lina - BIOS_HLT_BLK;
+    Bit16u offs = lina - BIOS_HLT_BLK;
     struct hlt_handler *hlt = &hlt_handler[hlt_handler_id[offs]];
 #if CONFIG_HLT_TRACE > 0
     h_printf("HLT: fcn 0x%04x called in HLT block, handler: %s +%#x\n", offs,
@@ -131,9 +130,6 @@ int hlt_handle(void)
 #endif
     dpmi_realmode_hlt(lina);
   }
-  else if ((rmcb_client = lookup_realmode_callback(lina, &rmcb_num)) != -1) {
-    dpmi_realmode_callback(rmcb_client, rmcb_num);
-  }
   else {
 #if 0
     haltcount++;
@@ -153,10 +149,10 @@ int hlt_handle(void)
 /*
  * Register a HLT handler.
  */
-Bit32u hlt_register_handler(emu_hlt_t handler)
+Bit16u hlt_register_handler(emu_hlt_t handler)
 {
   int handle, i, j;
-  Bit32u start_addr = -1;
+  Bit16u start_addr = -1;
 
   /* initialization check */
   assert(hlt_handler_count);
@@ -179,7 +175,7 @@ Bit32u hlt_register_handler(emu_hlt_t handler)
         break;
       }
   }
-  if (start_addr == (Bit32u)-1) {
+  if (start_addr == (Bit16u)-1) {
       error("HLT: Cannot find free block of len %i\n", handler.len);
       config.exitearly = 1;
       return -1;
@@ -198,4 +194,23 @@ Bit32u hlt_register_handler(emu_hlt_t handler)
       handler.name, start_addr, handler.len);
 
   return start_addr;
+}
+
+int hlt_unregister_handler(Bit16u start_addr)
+{
+  int handle, i;
+  emu_hlt_t *h;
+
+  assert(start_addr < BIOS_HLT_BLK_SIZE);
+  handle = hlt_handler_id[start_addr];
+  if (!handle)
+    return -1;
+  h = &hlt_handler[handle].h;
+  for (i = 0; i < h->len; i++)
+    hlt_handler_id[start_addr + i] = 0;
+  h->func = hlt_default;
+  while (hlt_handler_count &&
+	hlt_handler[hlt_handler_count - 1].h.func == hlt_default)
+    hlt_handler_count--;
+  return 0;
 }

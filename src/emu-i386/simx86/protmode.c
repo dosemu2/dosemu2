@@ -227,7 +227,7 @@ void ValidateAddr(unsigned char *addr, unsigned short sel)
 	}
 	else
 	    dbug_printf("selector %#x not present\n",sel);
-	leavedos(0);
+	leavedos_main(0);
 }
 #endif
 

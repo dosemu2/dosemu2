@@ -243,7 +243,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 	case 0x10:
 		if (dsp==0) {	// eb fe
 		    dbug_printf("!Forever loop!\n");
-		    leavedos(0xebfe);
+		    leavedos_main(0xebfe);
 		}
 #ifdef HOST_ARCH_X86
 		/* note: nojumps is disabled by default -- while it seems

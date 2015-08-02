@@ -288,6 +288,7 @@ unsigned instr_len(unsigned char *p, int is_32)
 
   if(*p == 0x0f) {
     /* not yet */
+    error("unsupported instr_len %x %x\n", p[0], p[1]);
     return 0;
   }
 
