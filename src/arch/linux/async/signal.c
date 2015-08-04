@@ -14,6 +14,7 @@
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <linux/version.h>
 
 #include "emu.h"
 #include "vm86plus.h"
@@ -156,7 +157,7 @@ static void setsig(int sig, void *fun)
 static void newsetsig(int sig, void *fun)
 {
 	int flags = SA_RESTART|SA_ONSTACK;
-	if (kernel_version_code >= 0x20600+14)
+	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
 		flags |= SA_NODEFER;
 	dosemu_sigaction_wrapper(sig, fun, flags);
 }
@@ -230,7 +231,7 @@ static void __init_handler(struct sigcontext_struct *scp)
     } else if (_cs == 0) {
       if (config.dpmi) {
 	fprintf(stderr, "Cannot run DPMI code natively ");
-	if (kernel_version_code < 0x20600 + 15)
+	if (kernel_version_code < KERNEL_VERSION(2, 6, 15))
 	  fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
 	else
 	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
