@@ -52,7 +52,6 @@
  */
 
 
-int kernel_version_code = 0;
 int config_check_only = 0;
 
 int dosemu_argc;
@@ -310,8 +309,6 @@ open_terminal_pipe(char *path)
 
 static void our_envs_init(char *usedoptions)
 {
-    struct utsname unames;
-    char *s;
     char buf[256];
     int i,j;
 
@@ -326,10 +323,7 @@ static void our_envs_init(char *usedoptions)
         setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
         return;
     }
-    uname(&unames);
-    kernel_version_code = strtol(unames.release, &s,0) << 16;
-    kernel_version_code += strtol(s+1, &s,0) << 8;
-    kernel_version_code += strtol(s+1, &s,0);
+
     sprintf(buf, "%d", kernel_version_code);
     setenv("KERNEL_VERSION_CODE", buf, 1);
     sprintf(buf, "%d", DOSEMU_VERSION_CODE);
