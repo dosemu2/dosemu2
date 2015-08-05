@@ -21,6 +21,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <assert.h>
 
 #include "bitops.h"
 #include "emu.h"
@@ -147,10 +148,14 @@ static void mhp_init(void)
   vm86s.vm86plus.vm86dbg_TFpendig = 0;
   memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
 
-  asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
+  retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
+  assert(retval != -1);
+
+  retval = asprintf(&pipename_out, "%s/dosemu.dbgout.%d", RUNDIR, getpid());
+  assert(retval != -1);
+
   retval = mkfifo(pipename_in, S_IFIFO | 0600);
   if (!retval) {
-    asprintf(&pipename_out, "%s/dosemu.dbgout.%d", RUNDIR, getpid());
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
     if (!retval) {
       mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);

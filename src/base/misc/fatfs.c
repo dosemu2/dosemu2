@@ -58,6 +58,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "disks.h"
 #include "fatfs.h"
@@ -1291,16 +1292,21 @@ void build_boot_blk(fatfs_t *f)
 "Press any key to return to Linux...\r\n";
   char *msg, *msg1;
 
-  int i;
+  int i, ret;
   size_t msgsize;
   unsigned r_o, d_o, t_o;
   unsigned char *b;
   unsigned char *d0, *d1;
 
-  if(!(f->boot_sec = malloc(0x200))) return;
+  f->boot_sec = malloc(0x200);
+  assert(f->boot_sec != NULL);
 
-  asprintf(&msg, msg_f, f->dir);
-  asprintf(&msg1, msg1_f, f->dir);
+  ret = asprintf(&msg, msg_f, f->dir);
+  assert(ret != -1);
+
+  ret = asprintf(&msg1, msg1_f, f->dir);
+  assert(ret != -1);
+
   b = f->boot_sec;
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */

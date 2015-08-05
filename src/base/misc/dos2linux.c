@@ -301,7 +301,7 @@ int find_drive (char **plinux_path_resolved)
 
   for (drive = 0; drive < 26; drive++) {
     char *drive_linux_root = NULL;
-    int drive_ro;
+    int drive_ro, ret;
     char *drive_linux_root_resolved;
 
     if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
@@ -323,9 +323,11 @@ int find_drive (char **plinux_path_resolved)
        *     - can we just strlwr() both paths before comparing them? */
       if (strstr (linux_path_resolved, drive_linux_root_resolved) == linux_path_resolved) {
         j_printf ("\tFound drive!\n");
-        asprintf (plinux_path_resolved, "%s%s",
+        ret = asprintf (plinux_path_resolved, "%s%s",
                   drive_linux_root/*unresolved*/,
                   linux_path_resolved + strlen (drive_linux_root_resolved));
+        assert(ret != -1);
+
         j_printf ("\t\tModified root; linux path='%s'\n", *plinux_path_resolved);
 	free (linux_path_resolved);
 
