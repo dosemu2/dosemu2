@@ -186,8 +186,12 @@ static int open_mapping_file(int cap)
 static int open_mapping_pshm(int cap)
 {
   char *name;
+
   if (tmpfile_fd < 0) {
-    asprintf(&name, "%s%d", "dosemu_", getpid());
+    if(asprintf(&name, "%s%d", "dosemu_", getpid()) < 0) {
+      Q_printf("MAPPING: malloc failed\n");
+      return 0;
+    }
     tmpfile_fd = shm_open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (tmpfile_fd == -1) {
       free(name);

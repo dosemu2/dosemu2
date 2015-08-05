@@ -701,15 +701,19 @@ void dosemu_error(char *fmt, ...)
 #ifdef USE_DL_PLUGINS
 void *load_plugin(const char *plugin_name)
 {
-    char *fullname = malloc(strlen(dosemu_proc_self_exe) +
-			    strlen(plugin_name) + 20);
+    char *fullname;
     void *handle;
     char *slash;
 
+    fullname = malloc(strlen(dosemu_proc_self_exe) + strlen(plugin_name) + 20);
+    if(fullname == NULL) {
+      error("malloc error\n");
+      return NULL;
+    }
     strcpy(fullname, dosemu_proc_self_exe);
     slash = strrchr(fullname, '/');
     if (slash == NULL) {
-      free (fullname);
+      free(fullname);
       return NULL;
     }
     sprintf(slash + 1, "libplugin_%s.so", plugin_name);
@@ -717,8 +721,12 @@ void *load_plugin(const char *plugin_name)
     free(fullname);
     if (handle != NULL)
 	return handle;
-    asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
-	     LIB_DEFAULT, plugin_name);
+
+    if(asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
+	     LIB_DEFAULT, plugin_name) < 0) {
+      error("malloc error\n");
+      return NULL;
+    }
     handle = dlopen(fullname, RTLD_LAZY);
     free(fullname);
     if (handle != NULL)

@@ -323,9 +323,14 @@ int find_drive (char **plinux_path_resolved)
        *     - can we just strlwr() both paths before comparing them? */
       if (strstr (linux_path_resolved, drive_linux_root_resolved) == linux_path_resolved) {
         j_printf ("\tFound drive!\n");
-        asprintf (plinux_path_resolved, "%s%s",
+        if(asprintf (plinux_path_resolved, "%s%s",
                   drive_linux_root/*unresolved*/,
-                  linux_path_resolved + strlen (drive_linux_root_resolved));
+                  linux_path_resolved + strlen (drive_linux_root_resolved)) < 0) {
+          com_fprintf (com_stderr, "ERROR: malloc failed\n");
+          free (drive_linux_root_resolved);
+          free (drive_linux_root);
+          return -27;
+        }
         j_printf ("\t\tModified root; linux path='%s'\n", *plinux_path_resolved);
 	free (linux_path_resolved);
 

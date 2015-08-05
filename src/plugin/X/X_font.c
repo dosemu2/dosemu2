@@ -234,17 +234,29 @@ static int run_xset(const char *path)
   stat(path, &buf);
   if (!S_ISDIR(buf.st_mode))
     return 0;
-  asprintf(&command, "xset +fp %s 2>/dev/null", path);
+
+  if(asprintf(&command, "xset +fp %s 2>/dev/null", path) < 0) {
+    X_printf("X: malloc error\n");
+    return 0;
+  }
+
   X_printf("X: running %s\n", command);
   status = system(command);
   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
     /* messed up font path -- last resort */
     X_printf("X: running xset fp default\n");
-    system("xset fp default");
-    system(command);
+    if(system("xset fp default")) {
+      X_printf("X: 'xset fp default' failed\n");
+    }
+    if(system(command)) {
+      X_printf("X: command '%s' failed\n", command);
+    }
   }
   free(command);
-  system("xset fp rehash");
+
+  if(system("xset fp rehash")) {
+    X_printf("X: 'xset fp rehash' failed\n");
+  }
   return 1;
 }
 

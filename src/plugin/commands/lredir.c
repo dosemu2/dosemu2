@@ -287,10 +287,17 @@ static int getCWD(char **presourceStr)
 	return preg.r_ax ?: -1;
     }
     dl = ((drive & 0x80) ? 'C' + (drive & 0x7f) : 'A' + drive);
-    if (cwd[0])
-	asprintf(presourceStr, "%c:\\%s", dl, cwd);
-    else
-	asprintf(presourceStr, "%c:", dl);
+    if (cwd[0]) {
+        if(asprintf(presourceStr, "%c:\\%s", dl, cwd) < 0) {
+            printf("Error: malloc failed\n");
+            return -1;
+        }
+    } else {
+        if(asprintf(presourceStr, "%c:", dl) < 0) {
+            printf("Error: malloc failed\n");
+            return -1;
+        }
+    }
     lowmem_free(cwd, 64);
     return 0;
 }
@@ -438,7 +445,10 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
 	printf("error identifying FAT volume\n");
 	return -1;
     }
-    asprintf(presourceStr, "LINUX\\FS%s", dir);
+    if(asprintf(presourceStr, "LINUX\\FS%s", dir) < 0) {
+        printf("Error: malloc failed\n");
+        return -1;
+    }
     return CC_SUCCESS;
 }
 
@@ -537,7 +547,11 @@ int lredir_main(int argc, char **argv)
           printf("Error: unable to get CWD\n");
           goto MainExit;
         }
-        asprintf(&argv2, "%s\\%s", tmp, argv[2] + 2);
+        if(asprintf(&argv2, "%s\\%s", tmp, argv[2] + 2) < 0) {
+          printf("Error: malloc failed\n");
+          free(tmp);
+          goto MainExit;
+        }
         free(tmp);
       } else {
         argv2 = strdup(argv[2]);
@@ -558,7 +572,12 @@ int lredir_main(int argc, char **argv)
 	}
       }
       if (strlen(argv2) > 3) {
-        asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3);
+        if(asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3) < 0) {
+          printf("Error: malloc failed\n");
+          free(resourceStr2);
+          free(argv2);
+          goto MainExit;
+        }
         free(resourceStr2);
       } else {
         resourceStr = resourceStr2;
@@ -606,7 +625,11 @@ int lredir_main(int argc, char **argv)
         deviceParam = 1 + cdrom;
       } else if (toupperDOS(argv[carg][0]) == 'P') {
         char *old_rs = resourceStr;
-        asprintf(&resourceStr, "%s\\%s", "LINUX\\PRN", old_rs);
+        if(asprintf(&resourceStr, "%s\\%s", "LINUX\\PRN", old_rs) < 0) {
+          printf("Error: malloc failed\n");
+          free(old_rs);
+          goto MainExit;
+        }
         free(old_rs);
         deviceType = REDIR_PRINTER_TYPE;
       } else {

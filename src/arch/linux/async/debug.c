@@ -26,15 +26,30 @@ static int start_gdb(pid_t dosemu_pid)
 
   printf("Debug info:\n");
   fflush(stdout);
-  asprintf(&buf, "gdb %s", dosemu_proc_self_exe);
-  printf("%s", buf);
-  putchar('\n');
-  fflush(stdout);
-  if (!(gdb_f = popen(buf, "w")))
+
+  if(asprintf(&buf, "gdb %s", dosemu_proc_self_exe) < 0) {
+    printf("malloc failed\n");
     return 0;
-  sprintf(buf, "attach %i\n", dosemu_pid);
-  gdb_command(buf);
-  free(buf);
+  } else {
+    printf("%s", buf);
+    putchar('\n');
+    fflush(stdout);
+
+    if (!(gdb_f = popen(buf, "w"))) {
+      free(buf);
+      return 0;
+    }
+    free(buf);
+
+    if(asprintf(&buf, "attach %i\n", dosemu_pid) < 0) {
+      printf("malloc failed\n");
+      return 0;
+    } else {
+      gdb_command(buf);
+      free(buf);
+    }
+  }
+
   return 1;
 }
 
@@ -97,14 +112,28 @@ static void collect_info(pid_t pid)
 
   printf("System info:\n");
   fflush(stdout);
-  asprintf(&tmp, cmd0, dosemu_proc_self_exe);
-  system(tmp);
-  free(tmp);
-  system(cmd1);
-  system(cmd2);
-  asprintf(&tmp, cmd3, pid);
-  system(tmp);
-  free(tmp);
+  if(asprintf(&tmp, cmd0, dosemu_proc_self_exe) < 0) {
+    printf("malloc failed\n");
+  } else {
+    if(system(tmp)) {
+      printf("command '%s' failed\n", tmp);
+    }
+    free(tmp);
+  }
+  if(system(cmd1)) {
+    printf("command '%s' failed\n", cmd1);
+  }
+  if(system(cmd2)) {
+    printf("command '%s' failed\n", cmd2);
+  }
+  if(asprintf(&tmp, cmd3, pid) < 0) {
+    printf("malloc failed\n");
+  } else {
+    if(system(tmp)) {
+      printf("command '%s' failed\n", tmp);
+    }
+    free(tmp);
+  }
 //  print_trace();
   fflush(stdout);
 }

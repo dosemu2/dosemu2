@@ -1297,10 +1297,22 @@ void build_boot_blk(fatfs_t *f)
   unsigned char *b;
   unsigned char *d0, *d1;
 
-  if(!(f->boot_sec = malloc(0x200))) return;
+  if(!(f->boot_sec = malloc(0x200))) {
+    fatfs_msg("malloc error\n");
+    return;
+  }
 
-  asprintf(&msg, msg_f, f->dir);
-  asprintf(&msg1, msg1_f, f->dir);
+  if(asprintf(&msg, msg_f, f->dir) < 0) {
+    fatfs_msg("malloc error\n");
+    free(f->boot_sec);
+    return;
+  }
+  if(asprintf(&msg1, msg1_f, f->dir) < 0) {
+    fatfs_msg("malloc error\n");
+    free(f->boot_sec);
+    free(msg);
+    return;
+  }
   b = f->boot_sec;
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */

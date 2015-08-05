@@ -147,10 +147,18 @@ static void mhp_init(void)
   vm86s.vm86plus.vm86dbg_TFpendig = 0;
   memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
 
-  asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
+  if(asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid()) < 0) {
+    fprintf(stderr, "malloc error: dosdebug not available\n");
+    return;
+  }
+  if(asprintf(&pipename_out, "%s/dosemu.dbgout.%d", RUNDIR, getpid()) < 0) {
+    fprintf(stderr, "malloc error: dosdebug not available\n");
+    free(pipename_in);
+    return;
+  }
+
   retval = mkfifo(pipename_in, S_IFIFO | 0600);
   if (!retval) {
-    asprintf(&pipename_out, "%s/dosemu.dbgout.%d", RUNDIR, getpid());
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
     if (!retval) {
       mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
