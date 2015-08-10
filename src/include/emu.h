@@ -482,6 +482,7 @@ EXTERN void dump_config_status(void (*printfunc)(const char *, ...));
 EXTERN void signal_pre_init(void);
 EXTERN void signal_init(void);
 EXTERN void signal_late_init(void);
+EXTERN void signal_done(void);
 EXTERN void device_init(void);
 EXTERN void memory_init(void);
 EXTERN void map_video_bios(void);

@@ -531,10 +531,10 @@ void leavedos_main(int sig)
     }
     /* async signals must be disabled after coopthreads are joined, but
      * before coopth_done(). */
-    registersig(SIGALRM, NULL);
-    registersig(SIGIO, NULL);
+    signal_done();
     /* now it is safe to shut down coopth. Can be done any later, if need be */
     coopth_done();
+    dbug_printf("coopthreads stopped\n");
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"

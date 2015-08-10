@@ -661,6 +661,13 @@ void signal_late_init(void)
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
+void signal_done(void)
+{
+    registersig(SIGALRM, NULL);
+    registersig(SIGIO, NULL);
+    SIGNAL_head = SIGNAL_tail;
+}
+
 static void handle_signals_force_enter(int tid)
 {
   if (!in_handle_signals) {
