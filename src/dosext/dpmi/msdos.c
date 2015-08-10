@@ -1687,8 +1687,6 @@ int msdos_pre_pm(struct sigcontext_struct *scp,
 	D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 		 MSDOS_CLIENT.XMS_call.segment,
 		 MSDOS_CLIENT.XMS_call.offset);
-	RMREG(cs) = DPMI_SEG;
-	RMREG(ip) = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
 	do_call_to(MSDOS_CLIENT.XMS_call.segment,
 		     MSDOS_CLIENT.XMS_call.offset, rmreg, rmask);
     } else {
