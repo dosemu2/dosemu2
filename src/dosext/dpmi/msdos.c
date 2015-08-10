@@ -74,7 +74,11 @@ static char *io_buffer;
 static int io_buffer_size;
 
 static void rmcb_handler(struct RealModeCallStructure *rmreg);
-static void msdos_api_call(struct sigcontext_struct *scp);
+static void msdos_api_call(struct sigcontext *scp);
+static int mouse_callback(struct sigcontext *scp,
+		 const struct RealModeCallStructure *rmreg);
+static int ps2_mouse_callback(struct sigcontext *scp,
+		 const struct RealModeCallStructure *rmreg);
 
 static void set_io_buffer(char *ptr, unsigned int size)
 {
@@ -133,6 +137,22 @@ static struct pmaddr_s register_api_call(void (*handler)(struct sigcontext *))
 {
     return (struct pmaddr_s){ .selector = dpmi_sel(),
 	    .offset = DPMI_SEL_OFF(MSDOS_API_call) };
+}
+
+static far_t get_rm_handler(int (*handler)(struct sigcontext *,
+	const struct RealModeCallStructure *))
+{
+    far_t ret = {};
+    if (handler == mouse_callback) {
+	ret.segment = DPMI_SEG;
+	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_mouse_callback);
+    } else if (handler == ps2_mouse_callback) {
+	ret.segment = DPMI_SEG;
+	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_PS2_mouse_callback);
+    } else {
+	dosemu_error("unknown rm handler\n");
+    }
+    return ret;
 }
 #endif
 
@@ -532,14 +552,15 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    switch (_LO(ax)) {
 	    case 0x07:		/* set handler addr */
 		if (_es && D_16_32(_ebx)) {
+		    far_t rma;
 		    D_printf
 			("MSDOS: PS2MOUSE: set handler addr 0x%x:0x%x\n",
 			 _es, D_16_32(_ebx));
 		    MSDOS_CLIENT.PS2mouseCallBack.selector = _es;
 		    MSDOS_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx);
-		    SET_RMREG(es, DPMI_SEG);
-		    SET_RMREG(ebx,
-			DPMI_OFF + HLT_OFF(MSDOS_PS2_mouse_callback));
+		    rma = get_rm_handler(ps2_mouse_callback);
+		    SET_RMREG(es, rma.segment);
+		    SET_RMREG(ebx, rma.offset);
 		} else {
 		    D_printf("MSDOS: PS2MOUSE: reset handler addr\n");
 		    SET_RMREG(es, 0);
@@ -1109,9 +1130,11 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 		MSDOS_CLIENT.mouseCallBack.selector = _es;
 		MSDOS_CLIENT.mouseCallBack.offset = D_16_32(_edx);
 		if (_es) {
+		    far_t rma;
 		    D_printf("MSDOS: set mouse callback\n");
-		    SET_RMREG(es, DPMI_SEG);
-		    SET_RMREG(edx, DPMI_OFF + HLT_OFF(MSDOS_mouse_callback));
+		    rma = get_rm_handler(mouse_callback);
+		    SET_RMREG(es, rma.segment);
+		    SET_RMREG(edx, rma.offset);
 		} else {
 		    D_printf("MSDOS: reset mouse callback\n");
 		    SET_RMREG(es, 0);
@@ -1632,6 +1655,7 @@ static int ps2_mouse_callback(struct sigcontext_struct *scp,
     return 1;
 }
 
+#ifdef DOSEMU
 int msdos_pre_rm(struct sigcontext_struct *scp,
 		 const struct RealModeCallStructure *rmreg)
 {
@@ -1645,6 +1669,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp,
 
     return ret;
 }
+#endif
 
 #if 0
 void msdos_post_rm(struct sigcontext_struct *scp,
