@@ -24,16 +24,16 @@
 #include <stdio.h>
 #include <assert.h>
 
-#ifdef DJGPP_PORT
-#include "wrapper.h"
-#define SUPPORT_DOSEMU_HELPERS 0
-#else
+#ifdef DOSEMU
 #include "cpu.h"
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #define SUPPORT_DOSEMU_HELPERS 1
+#else
+#include "wrapper.h"
+#define SUPPORT_DOSEMU_HELPERS 0
 #endif
 #include "emm.h"
 #include "segreg.h"
@@ -101,7 +101,7 @@ static u_short pop_v(void)
     return v_stk[--v_num];
 }
 
-#ifndef DJGPP_PORT
+#ifdef DOSEMU
 static void lrhlp_setup(far_t rmcb, int is_w)
 {
 #define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
