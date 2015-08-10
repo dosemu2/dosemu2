@@ -4504,6 +4504,8 @@ done:
     D_printf("DPMI: Starting MSDOS rm callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     enter_lpms(&DPMI_CLIENT.stack_frame);
+    _cs = dpmi_sel();
+    _eip = DPMI_SEL_OFF(MSDOS_return_from_pm);
     rm_to_pm_regs(scp, ~0);
     DPMI_save_rm_regs(&rmreg);
     ret = msdos_pre_rm(&DPMI_CLIENT.stack_frame, &rmreg);

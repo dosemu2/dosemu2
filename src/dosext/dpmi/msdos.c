@@ -1566,21 +1566,23 @@ static int mouse_callback(struct sigcontext_struct *scp,
 	return 0;
     }
     D_printf("MSDOS: starting mouse callback\n");
+
+    if (MSDOS_CLIENT.is_32) {
+	unsigned int *ssp = sp;
+	*--ssp = _cs;
+	*--ssp = _eip;
+	_esp -= 8;
+    } else {
+	unsigned short *ssp = sp;
+	*--ssp = _cs;
+	*--ssp = _LWORD(eip);
+	_LWORD(esp) -= 4;
+    }
+
     _ds = ConvertSegmentToDescriptor(RMREG(ds));
     _cs = MSDOS_CLIENT.mouseCallBack.selector;
     _eip = MSDOS_CLIENT.mouseCallBack.offset;
 
-    if (MSDOS_CLIENT.is_32) {
-	unsigned int *ssp = sp;
-	*--ssp = dpmi_sel();
-	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
-	_esp -= 8;
-    } else {
-	unsigned short *ssp = sp;
-	*--ssp = dpmi_sel();
-	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
-	_LWORD(esp) -= 4;
-    }
     return 1;
 }
 
@@ -1595,11 +1597,7 @@ static int ps2_mouse_callback(struct sigcontext_struct *scp,
     }
     D_printf("MSDOS: starting PS2 mouse callback\n");
 
-    _cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
-    _eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
-
     rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
-
     if (MSDOS_CLIENT.is_32) {
 	unsigned int *ssp = sp;
 	*--ssp = *--rm_ssp;
@@ -1610,8 +1608,8 @@ static int ps2_mouse_callback(struct sigcontext_struct *scp,
 	D_printf("0x%x ", *ssp);
 	*--ssp = *--rm_ssp;
 	D_printf("0x%x\n", *ssp);
-	*--ssp = dpmi_sel();
-	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
+	*--ssp = _cs;
+	*--ssp = _eip;
 	_esp -= 24;
     } else {
 	unsigned short *ssp = sp;
@@ -1623,10 +1621,14 @@ static int ps2_mouse_callback(struct sigcontext_struct *scp,
 	D_printf("0x%x ", *ssp);
 	*--ssp = *--rm_ssp;
 	D_printf("0x%x\n", *ssp);
-	*--ssp = dpmi_sel();
-	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
+	*--ssp = _cs;
+	*--ssp = _LWORD(eip);
 	_LWORD(esp) -= 12;
     }
+
+    _cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
+    _eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
+
     return 1;
 }
 
