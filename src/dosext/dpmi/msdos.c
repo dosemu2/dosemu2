@@ -74,6 +74,7 @@ static char *io_buffer;
 static int io_buffer_size;
 
 static void rmcb_handler(struct RealModeCallStructure *rmreg);
+static void msdos_api_call(struct sigcontext_struct *scp);
 
 static void set_io_buffer(char *ptr, unsigned int size)
 {
@@ -126,6 +127,12 @@ static far_t allocate_realmode_callback(void (*handler)(
     return DPMI_allocate_realmode_callback(dpmi_sel(),
 	    DPMI_SEL_OFF(MSDOS_rmcb_call), dpmi_data_sel(),
 	    DPMI_DATA_OFF(MSDOS_rmcb_data));
+}
+
+static struct pmaddr_s register_api_call(void (*handler)(struct sigcontext *))
+{
+    return (struct pmaddr_s){ .selector = dpmi_sel(),
+	    .offset = DPMI_SEL_OFF(MSDOS_API_call) };
 }
 #endif
 
@@ -255,12 +262,14 @@ static void restore_ems_frame(void)
 
 static void get_ext_API(struct sigcontext_struct *scp)
 {
+    struct pmaddr_s pma;
     char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
     if ((!strcmp("WINOS2", ptr)) || (!strcmp("MS-DOS", ptr))) {
 	_LO(ax) = 0;
-	_es = dpmi_sel();
-	_edi = DPMI_SEL_OFF(MSDOS_API_call);
+	pma = register_api_call(msdos_api_call);
+	_es = pma.selector;
+	_edi = pma.offset;
 	_eflags &= ~CF;
     } else {
 	_eflags |= CF;
@@ -1688,27 +1697,35 @@ static void rmcb_handler(struct RealModeCallStructure *rmreg)
 	error("MSDOS: unknown rmcb 0x%x\n", RM_LO(ax));
 	break;
     }
+
+    do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
+static void msdos_api_call(struct sigcontext_struct *scp)
+{
+    D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
+    if (_LWORD(eax) == 0x0100) {
+	_eax = DPMI_ldt_alias();	/* simulate direct ldt access */
+	_eflags &= ~CF;
+    } else {
+	_eflags |= CF;
+    }
+}
+
+#ifdef DOSEMU
 void msdos_pm_call(struct sigcontext_struct *scp)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
-	D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
-	if (_LWORD(eax) == 0x0100) {
-	    _eax = DPMI_ldt_alias();	/* simulate direct ldt access */
-	    _eflags &= ~CF;
-	} else {
-	    _eflags |= CF;
-	}
+	msdos_api_call(scp);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call)) {
 	struct RealModeCallStructure *rmreg = SEL_ADR_CLNT(_es, _edi,
 		MSDOS_CLIENT.is_32);
 	rmcb_handler(rmreg);
-	do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
     }
 }
+#endif
 
 int msdos_fault(struct sigcontext_struct *scp)
 {
