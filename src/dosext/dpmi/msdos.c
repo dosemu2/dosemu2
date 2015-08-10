@@ -79,6 +79,7 @@ static int mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static int ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
+static void xms_call(struct RealModeCallStructure *rmreg);
 
 static void set_io_buffer(char *ptr, unsigned int size)
 {
@@ -133,10 +134,29 @@ static far_t allocate_realmode_callback(void (*handler)(
 	    DPMI_DATA_OFF(MSDOS_rmcb_data));
 }
 
-static struct pmaddr_s register_api_call(void (*handler)(struct sigcontext *))
+static struct pmaddr_s get_pm_handler(void (*handler)(struct sigcontext *))
 {
-    return (struct pmaddr_s){ .selector = dpmi_sel(),
-	    .offset = DPMI_SEL_OFF(MSDOS_API_call) };
+    struct pmaddr_s ret = {};
+    if (handler == msdos_api_call) {
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_API_call);
+    } else {
+	dosemu_error("unknown pm handler\n");
+    }
+    return ret;
+}
+
+static struct pmaddr_s get_pmrm_handler(void (*handler)(
+	struct RealModeCallStructure *))
+{
+    struct pmaddr_s ret = {};
+    if (handler == xms_call) {
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_XMS_call);
+    } else {
+	dosemu_error("unknown pmrm handler\n");
+    }
+    return ret;
 }
 
 static far_t get_rm_handler(int (*handler)(struct sigcontext *,
@@ -287,7 +307,7 @@ static void get_ext_API(struct sigcontext_struct *scp)
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
     if ((!strcmp("WINOS2", ptr)) || (!strcmp("MS-DOS", ptr))) {
 	_LO(ax) = 0;
-	pma = register_api_call(msdos_api_call);
+	pma = get_pm_handler(msdos_api_call);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
@@ -1275,11 +1295,14 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	break;
     case 0x2f:
 	switch (ax) {
-	case 0x4310:
+	case 0x4310: {
+	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(ebx));
-	    SET_REG(es, dpmi_sel());
-	    SET_REG(ebx, DPMI_SEL_OFF(MSDOS_XMS_call));
+	    pma = get_pmrm_handler(xms_call);
+	    SET_REG(es, pma.selector);
+	    SET_REG(ebx, pma.offset);
 	    break;
+	}
 	}
 	break;
 
@@ -1678,23 +1701,30 @@ void msdos_post_rm(struct sigcontext_struct *scp,
 }
 #endif
 
-int msdos_pre_pm(struct sigcontext_struct *scp,
-		 struct RealModeCallStructure *rmreg)
+static void xms_call(struct RealModeCallStructure *rmreg)
 {
     int rmask = (1 << cs_INDEX) |
 	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
-    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
-	D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
+    D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
 		 MSDOS_CLIENT.XMS_call.segment,
 		 MSDOS_CLIENT.XMS_call.offset);
-	do_call_to(MSDOS_CLIENT.XMS_call.segment,
+    do_call_to(MSDOS_CLIENT.XMS_call.segment,
 		     MSDOS_CLIENT.XMS_call.offset, rmreg, rmask);
+}
+
+#ifdef DOSEMU
+int msdos_pre_pm(struct sigcontext_struct *scp,
+		 struct RealModeCallStructure *rmreg)
+{
+    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
+	xms_call(rmreg);
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
 	return 0;
     }
     return 1;
 }
+#endif
 
 #if 0
 void msdos_post_pm(struct sigcontext_struct *scp,
