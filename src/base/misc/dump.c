@@ -216,8 +216,7 @@ char *DPMI_show_state(struct sigcontext_struct *scp)
 	saddr = GetSegmentBase(_ss) + _esp;
       }
       pos += sprintf(buf + pos, "STACK: ");
-      if (!(_ss & 0x0004) ||
-	  (ssp2 >= &mem_base[0] && ssp2 + 20 < &mem_base[0x110000]) ||
+      if ((ssp2 >= &mem_base[0] && ssp2 + 20 < &mem_base[0x110000]) ||
 	  ((uintptr_t)ssp2 > config.dpmi_base &&
 	   (uintptr_t)ssp2 + 20 < config.dpmi_base + config.dpmi * 1024 &&
 	   dpmi_is_valid_range(saddr - 10, 20))) {
