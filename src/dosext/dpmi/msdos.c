@@ -76,6 +76,8 @@ static int v_num;
 static char *io_buffer;
 static int io_buffer_size;
 
+static void rmcb_handler(struct RealModeCallStructure *rmreg);
+
 static void set_io_buffer(char *ptr, unsigned int size)
 {
     io_buffer = ptr;
@@ -120,6 +122,14 @@ static void lrhlp_setup(far_t rmcb, int is_w)
 	       rmcb.segment);
     }
 }
+
+static far_t allocate_realmode_callback(void (*handler)(
+	struct RealModeCallStructure *))
+{
+    return DPMI_allocate_realmode_callback(dpmi_sel(),
+	    DPMI_SEL_OFF(MSDOS_rmcb_call), dpmi_data_sel(),
+	    DPMI_DATA_OFF(MSDOS_rmcb_data));
+}
 #endif
 
 static u_short get_env_sel(void)
@@ -158,9 +168,7 @@ void msdos_init(int is_32, unsigned short mseg)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32)
-	MSDOS_CLIENT.rmcb = DPMI_allocate_realmode_callback(dpmi_sel(),
-	    DPMI_SEL_OFF(MSDOS_rmcb_call), dpmi_data_sel(),
-	    DPMI_DATA_OFF(MSDOS_rmcb_data));
+	MSDOS_CLIENT.rmcb = allocate_realmode_callback(rmcb_handler);
     else
 	MSDOS_CLIENT.rmcb = msdos_client[msdos_client_num - 2].rmcb;
     D_printf("MSDOS: init, %i\n", msdos_client_num);
@@ -1650,6 +1658,41 @@ void msdos_post_pm(struct sigcontext_struct *scp,
 }
 #endif
 
+static void rmcb_handler(struct RealModeCallStructure *rmreg)
+{
+    switch (RM_LO(ax)) {
+    case 0:		/* read */
+    {
+	unsigned int offs = RMREG(edi);
+	unsigned int size = RMREG(ecx);
+	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx));
+	D_printf("MSDOS: read %x %x\n", offs, size);
+	if (offs + size <= io_buffer_size)
+	    MEMCPY_2UNIX(io_buffer + offs, dos_ptr, size);
+	else
+	    error("MSDOS: bad read (%x %x %x)\n", offs, size,
+			io_buffer_size);
+	break;
+    }
+    case 1:		/* write */
+    {
+	unsigned int offs = RMREG(edi);
+	unsigned int size = RMREG(ecx);
+	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx));
+	D_printf("MSDOS: write %x %x\n", offs, size);
+	if (offs + size <= io_buffer_size)
+	    MEMCPY_2DOS(dos_ptr, io_buffer + offs, size);
+	else
+	    error("MSDOS: bad write (%x %x %x)\n", offs, size,
+			io_buffer_size);
+	break;
+    }
+    default:
+	error("MSDOS: unknown rmcb 0x%x\n", RM_LO(ax));
+	break;
+    }
+}
+
 void msdos_pm_call(struct sigcontext_struct *scp)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
@@ -1663,37 +1706,7 @@ void msdos_pm_call(struct sigcontext_struct *scp)
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call)) {
 	struct RealModeCallStructure *rmreg = SEL_ADR_CLNT(_es, _edi,
 		MSDOS_CLIENT.is_32);
-	switch (RM_LO(ax)) {
-	case 0:		/* read */
-	{
-	    unsigned int offs = RMREG(edi);
-	    unsigned int size = RMREG(ecx);
-	    unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx));
-	    D_printf("MSDOS: read %x %x\n", offs, size);
-	    if (offs + size <= io_buffer_size)
-		MEMCPY_2UNIX(io_buffer + offs, dos_ptr, size);
-	    else
-		error("MSDOS: bad read (%x %x %x)\n", offs, size,
-			io_buffer_size);
-	    break;
-	}
-	case 1:		/* write */
-	{
-	    unsigned int offs = RMREG(edi);
-	    unsigned int size = RMREG(ecx);
-	    unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(edx));
-	    D_printf("MSDOS: write %x %x\n", offs, size);
-	    if (offs + size <= io_buffer_size)
-		MEMCPY_2DOS(dos_ptr, io_buffer + offs, size);
-	    else
-		error("MSDOS: bad write (%x %x %x)\n", offs, size,
-			io_buffer_size);
-	    break;
-	}
-	default:
-	    error("MSDOS: unknown rmcb 0x%x\n", _HI(ax));
-	    break;
-	}
+	rmcb_handler(rmreg);
 	do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
