@@ -16,6 +16,7 @@
  * DANG_END_MODULE
  *
  * First Attempted by Dong Liu,  dliu@rice.njit.edu
+ * Mostly rewritten by Stas Sergeev
  *
  */
 
@@ -80,6 +81,16 @@ static int mouse_callback(struct sigcontext *scp,
 static int ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static void xms_call(struct RealModeCallStructure *rmreg);
+#ifdef DOSEMU
+static far_t allocate_realmode_callback(void (*handler)(
+	struct RealModeCallStructure *));
+static struct pmaddr_s get_pm_handler(void (*handler)(struct sigcontext *));
+static far_t get_rm_handler(int (*handler)(struct sigcontext *,
+	const struct RealModeCallStructure *));
+static void lrhlp_setup(far_t rmcb, int is_w);
+static struct pmaddr_s get_pmrm_handler(void (*handler)(
+	struct RealModeCallStructure *));
+#endif
 
 static void set_io_buffer(char *ptr, unsigned int size)
 {
@@ -103,78 +114,6 @@ static u_short pop_v(void)
     assert(v_num > 0);
     return v_stk[--v_num];
 }
-
-#ifdef DOSEMU
-static void lrhlp_setup(far_t rmcb, int is_w)
-{
-#define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
-#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
-    if (!is_w) {
-	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
-		     MK_LR_OFS(MSDOS_lr_entry_ip)), rmcb.offset);
-	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
-		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
-    } else {
-	WRITE_WORD(SEGOFF2LINEAR
-	       (DOS_LONG_WRITE_SEG,
-		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_ip)),
-	       rmcb.offset);
-	WRITE_WORD(SEGOFF2LINEAR
-	       (DOS_LONG_WRITE_SEG,
-		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
-	       rmcb.segment);
-    }
-}
-
-static far_t allocate_realmode_callback(void (*handler)(
-	struct RealModeCallStructure *))
-{
-    return DPMI_allocate_realmode_callback(dpmi_sel(),
-	    DPMI_SEL_OFF(MSDOS_rmcb_call), dpmi_data_sel(),
-	    DPMI_DATA_OFF(MSDOS_rmcb_data));
-}
-
-static struct pmaddr_s get_pm_handler(void (*handler)(struct sigcontext *))
-{
-    struct pmaddr_s ret = {};
-    if (handler == msdos_api_call) {
-	ret.selector = dpmi_sel();
-	ret.offset = DPMI_SEL_OFF(MSDOS_API_call);
-    } else {
-	dosemu_error("unknown pm handler\n");
-    }
-    return ret;
-}
-
-static struct pmaddr_s get_pmrm_handler(void (*handler)(
-	struct RealModeCallStructure *))
-{
-    struct pmaddr_s ret = {};
-    if (handler == xms_call) {
-	ret.selector = dpmi_sel();
-	ret.offset = DPMI_SEL_OFF(MSDOS_XMS_call);
-    } else {
-	dosemu_error("unknown pmrm handler\n");
-    }
-    return ret;
-}
-
-static far_t get_rm_handler(int (*handler)(struct sigcontext *,
-	const struct RealModeCallStructure *))
-{
-    far_t ret = {};
-    if (handler == mouse_callback) {
-	ret.segment = DPMI_SEG;
-	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_mouse_callback);
-    } else if (handler == ps2_mouse_callback) {
-	ret.segment = DPMI_SEG;
-	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_PS2_mouse_callback);
-    } else {
-	dosemu_error("unknown rm handler\n");
-    }
-    return ret;
-}
-#endif
 
 static u_short get_env_sel(void)
 {
@@ -1678,29 +1617,6 @@ static int ps2_mouse_callback(struct sigcontext_struct *scp,
     return 1;
 }
 
-#ifdef DOSEMU
-int msdos_pre_rm(struct sigcontext_struct *scp,
-		 const struct RealModeCallStructure *rmreg)
-{
-    int ret = 0;
-    unsigned int lina = SEGOFF2LINEAR(RMREG(cs), RMREG(ip)) - 1;
-
-    if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback))
-	ret = mouse_callback(scp, rmreg);
-    else if (lina == DPMI_ADD + HLT_OFF(MSDOS_PS2_mouse_callback))
-	ret = ps2_mouse_callback(scp, rmreg);
-
-    return ret;
-}
-#endif
-
-#if 0
-void msdos_post_rm(struct sigcontext_struct *scp,
-		   struct RealModeCallStructure *rmreg)
-{
-}
-#endif
-
 static void xms_call(struct RealModeCallStructure *rmreg)
 {
     int rmask = (1 << cs_INDEX) |
@@ -1711,27 +1627,6 @@ static void xms_call(struct RealModeCallStructure *rmreg)
     do_call_to(MSDOS_CLIENT.XMS_call.segment,
 		     MSDOS_CLIENT.XMS_call.offset, rmreg, rmask);
 }
-
-#ifdef DOSEMU
-int msdos_pre_pm(struct sigcontext_struct *scp,
-		 struct RealModeCallStructure *rmreg)
-{
-    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
-	xms_call(rmreg);
-    } else {
-	error("MSDOS: unknown pm call %#x\n", _eip);
-	return 0;
-    }
-    return 1;
-}
-#endif
-
-#if 0
-void msdos_post_pm(struct sigcontext_struct *scp,
-		   const struct RealModeCallStructure *rmreg)
-{
-}
-#endif
 
 static void rmcb_handler(struct RealModeCallStructure *rmreg)
 {
@@ -1780,21 +1675,6 @@ static void msdos_api_call(struct sigcontext_struct *scp)
 	_eflags |= CF;
     }
 }
-
-#ifdef DOSEMU
-void msdos_pm_call(struct sigcontext_struct *scp)
-{
-    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
-	msdos_api_call(scp);
-    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call)) {
-	struct RealModeCallStructure *rmreg = SEL_ADR_CLNT(_es, _edi,
-		MSDOS_CLIENT.is_32);
-	rmcb_handler(rmreg);
-    } else {
-	error("MSDOS: unknown pm call %#x\n", _eip);
-    }
-}
-#endif
 
 int msdos_fault(struct sigcontext_struct *scp)
 {
@@ -1885,3 +1765,121 @@ int msdos_fault(struct sigcontext_struct *scp)
     /* let's hope we fixed the thing, and return */
     return 1;
 }
+
+
+#ifdef DOSEMU
+
+/* the code below is too dosemu-specific and is unclear how to
+ * make portable. But it represents a simple and portable API
+ * that can be re-implemented by other ports. */
+
+static void lrhlp_setup(far_t rmcb, int is_w)
+{
+#define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
+#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
+    if (!is_w) {
+	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+		     MK_LR_OFS(MSDOS_lr_entry_ip)), rmcb.offset);
+	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
+    } else {
+	WRITE_WORD(SEGOFF2LINEAR
+	       (DOS_LONG_WRITE_SEG,
+		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_ip)),
+	       rmcb.offset);
+	WRITE_WORD(SEGOFF2LINEAR
+	       (DOS_LONG_WRITE_SEG,
+		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
+	       rmcb.segment);
+    }
+}
+
+static far_t allocate_realmode_callback(void (*handler)(
+	struct RealModeCallStructure *))
+{
+    return DPMI_allocate_realmode_callback(dpmi_sel(),
+	    DPMI_SEL_OFF(MSDOS_rmcb_call), dpmi_data_sel(),
+	    DPMI_DATA_OFF(MSDOS_rmcb_data));
+}
+
+static struct pmaddr_s get_pm_handler(void (*handler)(struct sigcontext *))
+{
+    struct pmaddr_s ret = {};
+    if (handler == msdos_api_call) {
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_API_call);
+    } else {
+	dosemu_error("unknown pm handler\n");
+    }
+    return ret;
+}
+
+static struct pmaddr_s get_pmrm_handler(void (*handler)(
+	struct RealModeCallStructure *))
+{
+    struct pmaddr_s ret = {};
+    if (handler == xms_call) {
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_XMS_call);
+    } else {
+	dosemu_error("unknown pmrm handler\n");
+    }
+    return ret;
+}
+
+static far_t get_rm_handler(int (*handler)(struct sigcontext *,
+	const struct RealModeCallStructure *))
+{
+    far_t ret = {};
+    if (handler == mouse_callback) {
+	ret.segment = DPMI_SEG;
+	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_mouse_callback);
+    } else if (handler == ps2_mouse_callback) {
+	ret.segment = DPMI_SEG;
+	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_PS2_mouse_callback);
+    } else {
+	dosemu_error("unknown rm handler\n");
+    }
+    return ret;
+}
+
+void msdos_pm_call(struct sigcontext_struct *scp)
+{
+    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
+	msdos_api_call(scp);
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call)) {
+	struct RealModeCallStructure *rmreg = SEL_ADR_CLNT(_es, _edi,
+		MSDOS_CLIENT.is_32);
+	rmcb_handler(rmreg);
+    } else {
+	error("MSDOS: unknown pm call %#x\n", _eip);
+    }
+}
+
+int msdos_pre_pm(struct sigcontext_struct *scp,
+		 struct RealModeCallStructure *rmreg)
+{
+    if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
+	xms_call(rmreg);
+    } else {
+	error("MSDOS: unknown pm call %#x\n", _eip);
+	return 0;
+    }
+    return 1;
+}
+
+int msdos_pre_rm(struct sigcontext_struct *scp,
+		 const struct RealModeCallStructure *rmreg)
+{
+    int ret = 0;
+    unsigned int lina = SEGOFF2LINEAR(RMREG(cs), RMREG(ip)) - 1;
+
+    if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback))
+	ret = mouse_callback(scp, rmreg);
+    else if (lina == DPMI_ADD + HLT_OFF(MSDOS_PS2_mouse_callback))
+	ret = ps2_mouse_callback(scp, rmreg);
+
+    return ret;
+}
+
+#endif
