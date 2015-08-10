@@ -1557,77 +1557,91 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr,
     return _msdos_post_extender(scp, intr, pop_v(), rmreg);
 }
 
+static int mouse_callback(struct sigcontext_struct *scp,
+		 const struct RealModeCallStructure *rmreg)
+{
+    void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
+    if (!ValidAndUsedSelector(MSDOS_CLIENT.mouseCallBack.selector)) {
+	D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
+	return 0;
+    }
+    D_printf("MSDOS: starting mouse callback\n");
+    _ds = ConvertSegmentToDescriptor(RMREG(ds));
+    _cs = MSDOS_CLIENT.mouseCallBack.selector;
+    _eip = MSDOS_CLIENT.mouseCallBack.offset;
+
+    if (MSDOS_CLIENT.is_32) {
+	unsigned int *ssp = sp;
+	*--ssp = dpmi_sel();
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
+	_esp -= 8;
+    } else {
+	unsigned short *ssp = sp;
+	*--ssp = dpmi_sel();
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
+	_LWORD(esp) -= 4;
+    }
+    return 1;
+}
+
+static int ps2_mouse_callback(struct sigcontext_struct *scp,
+		 const struct RealModeCallStructure *rmreg)
+{
+    unsigned short *rm_ssp;
+    void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
+    if (!ValidAndUsedSelector(MSDOS_CLIENT.PS2mouseCallBack.selector)) {
+	D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
+	return 0;
+    }
+    D_printf("MSDOS: starting PS2 mouse callback\n");
+
+    _cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
+    _eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
+
+    rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
+
+    if (MSDOS_CLIENT.is_32) {
+	unsigned int *ssp = sp;
+	*--ssp = *--rm_ssp;
+	D_printf("data: 0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x\n", *ssp);
+	*--ssp = dpmi_sel();
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
+	_esp -= 24;
+    } else {
+	unsigned short *ssp = sp;
+	*--ssp = *--rm_ssp;
+	D_printf("data: 0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x\n", *ssp);
+	*--ssp = dpmi_sel();
+	*--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
+	_LWORD(esp) -= 12;
+    }
+    return 1;
+}
+
 int msdos_pre_rm(struct sigcontext_struct *scp,
 		 const struct RealModeCallStructure *rmreg)
 {
+    int ret = 0;
     unsigned int lina = SEGOFF2LINEAR(RMREG(cs), RMREG(ip)) - 1;
-    void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
 
-    if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback)) {
-	if (!ValidAndUsedSelector(MSDOS_CLIENT.mouseCallBack.selector)) {
-	    D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
-	    return 0;
-	}
-	D_printf("MSDOS: starting mouse callback\n");
-	_ds = ConvertSegmentToDescriptor(RMREG(ds));
-	_cs = MSDOS_CLIENT.mouseCallBack.selector;
-	_eip = MSDOS_CLIENT.mouseCallBack.offset;
+    if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback))
+	ret = mouse_callback(scp, rmreg);
+    else if (lina == DPMI_ADD + HLT_OFF(MSDOS_PS2_mouse_callback))
+	ret = ps2_mouse_callback(scp, rmreg);
 
-	if (MSDOS_CLIENT.is_32) {
-	    unsigned int *ssp = sp;
-	    *--ssp = dpmi_sel();
-	    *--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
-	    _esp -= 8;
-	} else {
-	    unsigned short *ssp = sp;
-	    *--ssp = dpmi_sel();
-	    *--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
-	    _LWORD(esp) -= 4;
-	}
-
-    } else if (lina == DPMI_ADD + HLT_OFF(MSDOS_PS2_mouse_callback)) {
-	unsigned short *rm_ssp;
-	if (!ValidAndUsedSelector(MSDOS_CLIENT.PS2mouseCallBack.selector)) {
-	    D_printf
-		("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
-	    return 0;
-	}
-	D_printf("MSDOS: starting PS2 mouse callback\n");
-
-	_cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
-	_eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
-
-	rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
-
-	if (MSDOS_CLIENT.is_32) {
-	    unsigned int *ssp = sp;
-	    *--ssp = *--rm_ssp;
-	    D_printf("data: 0x%x ", *ssp);
-	    *--ssp = *--rm_ssp;
-	    D_printf("0x%x ", *ssp);
-	    *--ssp = *--rm_ssp;
-	    D_printf("0x%x ", *ssp);
-	    *--ssp = *--rm_ssp;
-	    D_printf("0x%x\n", *ssp);
-	    *--ssp = dpmi_sel();
-	    *--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
-	    _esp -= 24;
-	} else {
-	    unsigned short *ssp = sp;
-	    *--ssp = *--rm_ssp;
-	    D_printf("data: 0x%x ", *ssp);
-	    *--ssp = *--rm_ssp;
-	    D_printf("0x%x ", *ssp);
-	    *--ssp = *--rm_ssp;
-	    D_printf("0x%x ", *ssp);
-	    *--ssp = *--rm_ssp;
-	    D_printf("0x%x\n", *ssp);
-	    *--ssp = dpmi_sel();
-	    *--ssp = DPMI_SEL_OFF(MSDOS_return_from_pm);
-	    _LWORD(esp) -= 12;
-	}
-    }
-    return 1;
+    return ret;
 }
 
 #if 0
