@@ -26,20 +26,17 @@
 
 #ifdef DOSEMU
 #include "cpu.h"
-#include "dpmi.h"
 #include "dpmisel.h"
 #include "utilities.h"
 #include "dos2linux.h"
-#define SUPPORT_DOSEMU_HELPERS 1
-#else
-#include "wrapper.h"
-#define SUPPORT_DOSEMU_HELPERS 0
+#define SUPPORT_DOSEMU_HELPERS
 #endif
+#include "dpmi.h"
 #include "emm.h"
 #include "segreg.h"
 #include "msdos.h"
 
-#if SUPPORT_DOSEMU_HELPERS
+#ifdef SUPPORT_DOSEMU_HELPERS
 #include "doshelpers.h"
 #endif
 
@@ -352,7 +349,7 @@ static int need_copy_eseg(int intr, u_short ax)
 	    return 1;
 	}
 	break;
-#if SUPPORT_DOSEMU_HELPERS
+#ifdef SUPPORT_DOSEMU_HELPERS
     case DOS_HELPER_INT:	/* dosemu helpers */
 	switch (LO_BYTE(ax)) {
 	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
