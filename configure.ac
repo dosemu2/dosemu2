@@ -99,8 +99,7 @@ AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
-CONFIG_HOST=`uname -s`
-if test "$CONFIG_HOST" = "Linux"; then
+if test "$build_os" = "linux-gnu"; then
   CONFIG_HOST='linux'
 fi
 AC_SUBST(CONFIG_HOST)
