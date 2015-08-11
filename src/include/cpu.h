@@ -366,9 +366,17 @@ EXTERN struct vec_t *ivecs;
 */
 
 #ifdef __linux__
-#define _gs     (scp->gs)
-#define _fs     (scp->fs)
 #ifdef __x86_64__
+#ifdef HAVE_SIGCONTEXT_GS
+#define _gs     (scp->gs)
+#else
+#define _gs     (scp->__pad2)
+#endif
+#ifdef HAVE_SIGCONTEXT_FS
+#define _fs     (scp->fs)
+#else
+#define _fs     (scp->__pad1)
+#endif
 #define _es     HI_WORD(scp->trapno)
 #define _ds     (((union dword *)&(scp->trapno))->w.w2)
 #define _rdi    (scp->rdi)
@@ -386,6 +394,8 @@ EXTERN struct vec_t *ivecs;
 #define _ss     (scp->__pad0)
 #endif
 #else
+#define _gs     (scp->gs)
+#define _fs     (scp->fs)
 #define _es     (scp->es)
 #define _ds     (scp->ds)
 #define _rdi    (scp->edi)
