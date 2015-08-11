@@ -53,6 +53,10 @@ dnl Checks for libraries.
 
 dnl Checks for header files.
 AC_SYS_LARGEFILE
+if test "$build_cpu" = "x86_64"; then
+  AC_CHECK_MEMBER([struct sigcontext.ss],[AC_DEFINE(HAVE_SIGCONTEXT_SS)],,
+    [[#include <signal.h>]])
+fi
 
 dnl Checks for library functions.
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
@@ -384,6 +388,9 @@ AH_TEMPLATE([_DEBUG],
 [ Define this for DEBUG info ])
 
 AH_TEMPLATE([_GNU_SOURCE],
+[ Define this if the GNU_SOURCE macro is necessary ])
+
+AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if the GNU_SOURCE macro is necessary ])
 
 AH_BOTTOM([

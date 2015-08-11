@@ -380,7 +380,11 @@ EXTERN struct vec_t *ivecs;
 #define _rcx    (scp->rcx)
 #define _rax    (scp->rax)
 #define _rip    (scp->rip)
-#define _ss     (((union dword *)&(scp->trapno))->w.w3)
+#ifdef HAVE_SIGCONTEXT_SS
+#define _ss     (scp->ss)
+#else
+#define _ss     (scp->__pad0)
+#endif
 #else
 #define _es     (scp->es)
 #define _ds     (scp->ds)
