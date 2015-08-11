@@ -13,6 +13,8 @@ fi
 
 AC_CONFIG_HEADER(src/include/config.h)
 
+AC_CANONICAL_BUILD
+
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC

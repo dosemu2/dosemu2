@@ -69,6 +69,7 @@ pristine distclean mrproper:  docsclean
 	rm -f core gen*.log
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
 	rm -rf autom4te*.cache
+	rm -f config.sub config.guess
 	$(srcdir)/mkpluginhooks clean
 
 tar: distclean
