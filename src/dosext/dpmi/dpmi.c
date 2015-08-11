@@ -3976,6 +3976,8 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  save_rm_regs();
 	  pm_to_rm_regs(scp, ~0);
 	  DPMI_save_rm_regs(&rmreg);
+	  rmreg.cs = DPMI_SEG;
+	  rmreg.ip = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
 	  ret = msdos_pre_pm(scp, &rmreg);
 	  if (!ret) {
 	    restore_rm_regs();
@@ -4504,10 +4506,12 @@ done:
     D_printf("DPMI: Starting MSDOS rm callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     enter_lpms(&DPMI_CLIENT.stack_frame);
+    _cs = dpmi_sel();
+    _eip = DPMI_SEL_OFF(MSDOS_return_from_pm);
     rm_to_pm_regs(scp, ~0);
     DPMI_save_rm_regs(&rmreg);
     ret = msdos_pre_rm(&DPMI_CLIENT.stack_frame, &rmreg);
-    /* pre_pm does not modify rmregs so not restoring */
+    /* pre_rm does not modify rmregs so not restoring */
     if (!ret) {
 	leave_lpms(&DPMI_CLIENT.stack_frame);
 	restore_pm_regs(&DPMI_CLIENT.stack_frame);

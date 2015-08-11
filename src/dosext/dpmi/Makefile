@@ -4,6 +4,7 @@ include $(top_builddir)/Makefile.conf
 
 CFILES = dpmi.c memory.c msdos.c vxd.c emu-ldt.c segreg.c
 SFILES = dpmisel.S
+ALL_CPPFLAGS += -DDOSEMU
 
 all:  lib
 
