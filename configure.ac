@@ -13,6 +13,8 @@ fi
 
 AC_CONFIG_HEADER(src/include/config.h)
 
+AC_CANONICAL_BUILD
+
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
@@ -51,6 +53,14 @@ dnl Checks for libraries.
 
 dnl Checks for header files.
 AC_SYS_LARGEFILE
+if test "$build_cpu" = "x86_64"; then
+  AC_CHECK_MEMBER([struct sigcontext.ss],[AC_DEFINE(HAVE_SIGCONTEXT_SS)],,
+    [[#include <signal.h>]])
+  AC_CHECK_MEMBER([struct sigcontext.fs],[AC_DEFINE(HAVE_SIGCONTEXT_FS)],,
+    [[#include <signal.h>]])
+  AC_CHECK_MEMBER([struct sigcontext.gs],[AC_DEFINE(HAVE_SIGCONTEXT_GS)],,
+    [[#include <signal.h>]])
+fi
 
 dnl Checks for library functions.
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
@@ -383,6 +393,13 @@ AH_TEMPLATE([_DEBUG],
 
 AH_TEMPLATE([_GNU_SOURCE],
 [ Define this if the GNU_SOURCE macro is necessary ])
+
+AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
+[ Define this if struct sigcontext has .ss field ])
+AH_TEMPLATE([HAVE_SIGCONTEXT_FS],
+[ Define this if struct sigcontext has .fs field ])
+AH_TEMPLATE([HAVE_SIGCONTEXT_GS],
+[ Define this if struct sigcontext has .gs field ])
 
 AH_BOTTOM([
 #ifndef __ASM__

@@ -214,9 +214,15 @@ static void __init_handler(struct sigcontext_struct *scp)
      fs and gs are set to 0 in the sigcontext, so we also need
      to save those ourselves */
   if (scp) {
+    unsigned short ss;
     _ds = getsegment(ds);
     _es = getsegment(es);
-    _ss = getsegment(ss);
+    /* some kernels save and switch ss, some do not... The simplest
+     * thing is to assume that if the ss is from GDT, then it is already
+     * saved. */
+    ss = getsegment(ss);
+    if (ss & 4)
+      _ss = ss;
     _fs = getsegment(fs);
     _gs = getsegment(gs);
     if (config.cpuemu > 3) {
