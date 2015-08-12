@@ -955,8 +955,6 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    lrhlp_setup(MSDOS_CLIENT.rmcb, 0);
 	    rm_do_int_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF,
 		    rmreg, rm_mask);
-	    RMPRESERVE2(cs, ip);
-	    RMPRESERVE2(ss, esp);
 	    ret = MSDOS_ALT_ENT;
 	    break;
 	case 0x40:		/* DOS Write */
@@ -968,8 +966,6 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    lrhlp_setup(MSDOS_CLIENT.rmcb, 1);
 	    rm_do_int_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF,
 		    rmreg, rm_mask);
-	    RMPRESERVE2(cs, ip);
-	    RMPRESERVE2(ss, esp);
 	    ret = MSDOS_ALT_ENT;
 	    break;
 	case 0x53:		/* Generate Drive Parameter Table  */
