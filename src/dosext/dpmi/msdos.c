@@ -89,7 +89,8 @@ static far_t allocate_realmode_callback(void (*handler)(
 static struct pmaddr_s get_pm_handler(void (*handler)(struct sigcontext *));
 static far_t get_rm_handler(int (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *));
-static void lrhlp_setup(far_t rmcb, int is_w);
+static void lrhlp_setup(far_t rmcb);
+static void lwhlp_setup(far_t rmcb);
 static struct pmaddr_s get_pmrm_handler(void (*handler)(
 	struct RealModeCallStructure *));
 #endif
@@ -955,7 +956,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    lrhlp_setup(MSDOS_CLIENT.rmcb, 0);
+	    lrhlp_setup(MSDOS_CLIENT.rmcb);
 	    rm_do_int_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF,
 		    rmreg, rm_mask);
 	    ret = MSDOS_ALT_ENT;
@@ -966,7 +967,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    lrhlp_setup(MSDOS_CLIENT.rmcb, 1);
+	    lwhlp_setup(MSDOS_CLIENT.rmcb);
 	    rm_do_int_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF,
 		    rmreg, rm_mask);
 	    ret = MSDOS_ALT_ENT;
@@ -1874,25 +1875,26 @@ int msdos_fault(struct sigcontext_struct *scp)
  * make portable. But it represents a simple and portable API
  * that can be re-implemented by other ports. */
 
-static void lrhlp_setup(far_t rmcb, int is_w)
+static void lrhlp_setup(far_t rmcb)
 {
 #define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
-#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
-    if (!is_w) {
-	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+    WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
 		     MK_LR_OFS(MSDOS_lr_entry_ip)), rmcb.offset);
-	WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
+    WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
 		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
-    } else {
-	WRITE_WORD(SEGOFF2LINEAR
+}
+
+static void lwhlp_setup(far_t rmcb)
+{
+#define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
+    WRITE_WORD(SEGOFF2LINEAR
 	       (DOS_LONG_WRITE_SEG,
 		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_ip)),
 	       rmcb.offset);
-	WRITE_WORD(SEGOFF2LINEAR
+    WRITE_WORD(SEGOFF2LINEAR
 	       (DOS_LONG_WRITE_SEG,
 		DOS_LONG_WRITE_OFF + MK_LW_OFS(MSDOS_lw_entry_cs)),
 	       rmcb.segment);
-    }
 }
 
 static far_t allocate_realmode_callback(void (*handler)(
