@@ -1352,7 +1352,8 @@ static void leave_lpms(struct sigcontext_struct *scp)
 
 static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
 {
-  REG(eflags) = eflags_VIF(_eflags);
+  if (mask & (1 << eflags_INDEX))
+    REG(eflags) = eflags_VIF(_eflags);
   if (mask & (1 << eax_INDEX))
     REG(eax) = _eax;
   if (mask & (1 << ebx_INDEX))
@@ -1371,7 +1372,8 @@ static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
 
 static void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
 {
-  _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
+  if (mask & (1 << eflags_INDEX))
+    _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
   if (mask & (1 << eax_INDEX))
     _eax = REG(eax);
   if (mask & (1 << ebx_INDEX))
