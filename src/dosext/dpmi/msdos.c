@@ -1483,12 +1483,9 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 	    break;
 
 	case 0x3f:
-	    unset_io_buffer();
-	    PRESERVE2(edx, ecx);
-	    break;
 	case 0x40:
 	    unset_io_buffer();
-	    PRESERVE2(edx, ecx);
+	    PRESERVE1(edx);
 	    break;
 	case 0x5f:		/* redirection */
 	    switch (_LO(ax)) {
