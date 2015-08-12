@@ -998,6 +998,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 			    0x100);
 		break;
 	    }
+	    break;
 	case 0x60:		/* Get Fully Qualified File Name */
 	    {
 		unsigned short seg = trans_buffer_seg();
@@ -1477,6 +1478,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 		MEMCPY_2UNIX(SEL_ADR_CLNT(_es, _edi, MSDOS_CLIENT.is_32),
 			     SEGOFF2LINEAR(RMREG(es), RMLWORD(edi)),
 			     0x100);
+		break;
 	    }
 	    break;
 	case 0x60:		/* Canonicalize file name */
