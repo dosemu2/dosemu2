@@ -818,8 +818,6 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	case 0x43:		/* change attr */
 	case 0x4e:		/* find first */
 	case 0x5b:		/* Create */
-	    if ((_HI(ax) == 0x4e) && (_ecx & 0x8))
-		D_printf("MSDOS: MS-DOS try to find volume label\n");
 	    {
 		char *src, *dst;
 		prepare_ems_frame();
@@ -833,11 +831,9 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    }
 	    break;
 	case 0x38:
-	    if (_LWORD(edx) != 0xffff) {	/* get country info */
-		prepare_ems_frame();
-		SET_RMREG(ds, TRANS_BUFFER_SEG);
-		SET_RMREG(edx, 0);
-	    }
+	    prepare_ems_frame();
+	    SET_RMREG(ds, TRANS_BUFFER_SEG);
+	    SET_RMREG(edx, 0);
 	    break;
 	case 0x3f:		/* dos read */
 	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
