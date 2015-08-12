@@ -776,7 +776,7 @@ start_read:
 do_read:
 	movb	$0x3f, %ah
 	int	$0x21
-	jc	done_read
+	jc	read_set_cf
 	movzwl	%ax, %eax
 	pushl	%ecx
 	pushl	%eax
@@ -791,12 +791,23 @@ do_read:
 	movl	%esi, %ecx
 	subl	%eax, %ecx
 	jnz	start_read
-done_read:
 	movl	%edi, %eax
+	jmp done_read
+read_set_cf:
+	orl	%edi, %edi
+	jz 1f
+	movl	%edi, %eax
+	jmp	done_read
+1:
+	movl	%eax, %ecx
+	movb	$2, %al		/* set CF */
+	lcall   *%cs:MSDOS_lr_entry-bios_f000
+#	jmp	done_read
+done_read:
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	lret $2
+	iret
 
         .align 4,0
 MSDOS_lr_entry:
@@ -826,7 +837,7 @@ do_write:
 	lcall   *%cs:MSDOS_lw_entry-bios_f000
 	movb	$0x40, %ah
 	int	$0x21
-	jc	done_write
+	jc	write_set_cf
 	movzwl	%ax, %eax
 	addl	%eax, %edi
 	cmpw	%ax, %cx
@@ -834,12 +845,23 @@ do_write:
 	movl	%esi, %ecx
 	subl	%eax, %ecx
 	jnz	start_write
-done_write:
 	movl	%edi, %eax
+	jmp	done_write
+write_set_cf:
+	orl	%edi, %edi
+	jz 1f
+	movl	%edi, %eax
+	jmp	done_write
+1:
+	movl	%eax, %ecx
+	movb	$2, %al		/* set CF */
+	lcall   *%cs:MSDOS_lw_entry-bios_f000
+#	jmp	done_write
+done_write:
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	lret $2
+	iret
 
         .align 4,0
 MSDOS_lw_entry:

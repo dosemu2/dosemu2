@@ -73,6 +73,8 @@ static int v_num;
 
 static char *io_buffer;
 static int io_buffer_size;
+static int io_error;
+static uint16_t io_error_code;
 
 static void rmcb_handler(struct RealModeCallStructure *rmreg);
 static void msdos_api_call(struct sigcontext *scp);
@@ -96,6 +98,7 @@ static void set_io_buffer(char *ptr, unsigned int size)
 {
     io_buffer = ptr;
     io_buffer_size = size;
+    io_error = 0;
 }
 
 static void unset_io_buffer(void)
@@ -1484,6 +1487,12 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
 
 	case 0x3f:
 	case 0x40:
+	    if (io_error) {
+		SET_REG(eflags, _eflags | CF);
+		SET_REG(eax, io_error_code);
+	    } else {
+		SET_REG(eflags, _eflags & ~CF);
+	    }
 	    unset_io_buffer();
 	    PRESERVE1(edx);
 	    break;
@@ -1744,6 +1753,11 @@ static void rmcb_handler(struct RealModeCallStructure *rmreg)
 			io_buffer_size);
 	break;
     }
+    case 2:		/* error */
+	io_error = 1;
+	io_error_code = RMREG(ecx);
+	D_printf("MSDOS: set I/O error %x\n", io_error_code);
+	break;
     default:
 	error("MSDOS: unknown rmcb 0x%x\n", RM_LO(ax));
 	break;
