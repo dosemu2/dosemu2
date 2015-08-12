@@ -231,8 +231,10 @@ static void prepare_ems_frame(void)
 {
     static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
 	    { 0, 0, 1, 1, 2, 2, 3, 3 };
-    if (ems_frame_mapped)
+    if (ems_frame_mapped) {
+	dosemu_error("mapping already mapped EMS frame\n");
 	return;
+    }
     emm_save_handle_state(ems_handle);
     emm_map_unmap_multi(ems_map_simple, ems_handle, MSDOS_EMS_PAGES);
     ems_frame_mapped = 1;
