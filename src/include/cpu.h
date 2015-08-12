@@ -320,6 +320,10 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
   int __flgs = flags; \
   (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
 })
+#define get_FLAGS(flags) ({ \
+  int __flgs = flags; \
+  (((__flgs & VIF) ? __flgs | IF : __flgs & ~IF)); \
+})
 #define get_vFLAGS(flags) ({ \
   int __flgs = flags; \
   ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \

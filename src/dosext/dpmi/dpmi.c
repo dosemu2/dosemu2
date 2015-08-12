@@ -2766,13 +2766,14 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 
   if (config.pm_dos_api) {
     struct RealModeCallStructure rmreg;
-    int rm_mask = (1 << cs_INDEX) |
+    int rm_mask = (1 << eflags_INDEX) | (1 << cs_INDEX) |
 	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
 
     rmreg.cs = DPMI_SEG;
     rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
     rmreg.ss = DPMI_CLIENT.private_data_segment;
     rmreg.sp = DPMI_rm_stack_size * (DPMI_CLIENT.in_dpmi_rm_stack + 1);
+    rmreg.flags = get_FLAGS(_eflags);
     msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask);
     /* If the API Translator handled the request itself, return to PM */
     if (msdos_ret & MSDOS_DONE)

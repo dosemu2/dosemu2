@@ -796,7 +796,8 @@ done_read:
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	lret
+	lret $2
+
         .align 4,0
 MSDOS_lr_entry:
         .globl  MSDOS_lr_entry_ip
@@ -838,7 +839,8 @@ done_write:
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	lret
+	lret $2
+
         .align 4,0
 MSDOS_lw_entry:
         .globl  MSDOS_lw_entry_ip

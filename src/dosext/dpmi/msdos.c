@@ -57,6 +57,7 @@ static unsigned short EMM_SEG;
 #define READ_RMREG(r, m) (assert(m & (1 << r##_INDEX)), _RMREG(r))
 #define ip_INDEX eip_INDEX
 #define sp_INDEX esp_INDEX
+#define flags_INDEX eflags_INDEX
 
 static int msdos_client_num = 0;
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
@@ -454,6 +455,30 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 	return 0;
     } else
 	return 1;
+}
+
+static void rm_do_int(int cs, int ip, struct RealModeCallStructure *rmreg,
+	int rmask)
+{
+  unsigned int ssp, sp;
+
+  ssp = SEGOFF2LINEAR(READ_RMREG(ss, rmask), 0);
+  sp = READ_RMREG(sp, rmask);
+
+  g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
+  pushw(ssp, sp, READ_RMREG(flags, rmask));
+  pushw(ssp, sp, cs);
+  pushw(ssp, sp, ip);
+  _RMREG(sp) -= 6;
+  _RMREG(flags) = READ_RMREG(flags, rmask) & ~(AC|VM|TF|NT|VIF);
+}
+
+static void rm_do_int_to(int cs, int ip, struct RealModeCallStructure *rmreg,
+	int rmask)
+{
+  rm_do_int(READ_RMREG(cs, rmask), READ_RMREG(ip, rmask), rmreg, rmask);
+  _RMREG(cs) = cs;
+  _RMREG(ip) = ip;
 }
 
 static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
@@ -926,7 +951,8 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    lrhlp_setup(MSDOS_CLIENT.rmcb, 0);
-	    do_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF, rmreg, rm_mask);
+	    rm_do_int_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF,
+		    rmreg, rm_mask);
 	    RMPRESERVE2(cs, ip);
 	    RMPRESERVE2(ss, esp);
 	    ret = MSDOS_ALT_ENT;
@@ -938,7 +964,8 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    lrhlp_setup(MSDOS_CLIENT.rmcb, 1);
-	    do_call_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF, rmreg, rm_mask);
+	    rm_do_int_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF,
+		    rmreg, rm_mask);
 	    RMPRESERVE2(cs, ip);
 	    RMPRESERVE2(ss, esp);
 	    ret = MSDOS_ALT_ENT;
