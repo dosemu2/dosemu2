@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <linux/version.h>
 
 #include "emu.h"
 #include "utilities.h"
@@ -389,7 +390,7 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     return;
   }
 
-  if (kernel_version_code < 0x20600+14) {
+  if (kernel_version_code < KERNEL_VERSION(2, 6, 14)) {
     sigset_t set;
 
     /* this emulates SA_NODEFER, so that we can double fault.

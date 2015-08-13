@@ -75,7 +75,7 @@ int signal_pending(void);
 EXTERN volatile __thread int fault_cnt INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
-EXTERN int running_kversion INIT(0);
+EXTERN int kernel_version_code INIT(0);
 
 EXTERN int screen_mode;
 

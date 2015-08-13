@@ -25,7 +25,6 @@ extern int dosemu_argc;
 extern char **dosemu_argv;
 extern char *commandline_statements;
 extern int config_check_only;
-extern int kernel_version_code;
 extern int dexe_running;
 
 #endif
