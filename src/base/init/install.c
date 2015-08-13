@@ -94,15 +94,23 @@ static void create_symlink(const char *path, int number)
 
 static char *dosreadline(void)
 {
-	char *line = malloc(129);
-	int size = read_string(line, 128);
+	char *line;
+	int size;
+
+	line = malloc(129);
+	if(!line) {
+		printf_("Error: malloc failed\n");
+		return NULL;
+	}
+
+	size = read_string(line, 128);
 	line[size] = '\0';
 	return line;
 }
 
 static void install_dosemu_freedos (int choice)
 {
-	char *boot_dir_path, *system_str;
+	char *boot_dir_path, *system_str, *tmp;
 
 	/*
 	 * boot_dir_path = path to install to
@@ -112,29 +120,48 @@ static void install_dosemu_freedos (int choice)
 	if (choice == 3) {
 		printf_("Please enter the name of the directory for your private "
 			   "DOSEMU-FreeDOS files\n");
+
 		boot_dir_path = dosreadline();
+		if (!boot_dir_path) // malloc error
+			return;
+
 		if (boot_dir_path[0] == '/') {
-			char *boot_dir_path2;
 			printf_("You gave an absolute path, "
 				   "type ENTER to confirm or another path\n");
-			boot_dir_path2 = dosreadline();
-			if (boot_dir_path2[0] == '\0')
-				free(boot_dir_path2);
+
+			tmp = dosreadline();
+			if (!tmp) { // malloc error
+				free(boot_dir_path);
+				return;
+			}
+			if (tmp[0] == '\0')
+				free(tmp);
 			else {
 				free(boot_dir_path);
-				boot_dir_path = boot_dir_path2;
+				boot_dir_path = tmp;
 			}
-		} else {
-			char *tmp;
-			asprintf(&tmp, "%s/%s", getenv("PWD"), boot_dir_path);
+		}
+
+		if (boot_dir_path[0] != '/') {
+			if (asprintf(&tmp, "%s/%s", getenv("PWD"),
+					boot_dir_path) < 0) {
+				printf_("Error: malloc failed\n");
+				return;
+			}
 			free(boot_dir_path);
 			boot_dir_path = tmp;
 		}
+
 		printf_("Installing to %s ...\n", boot_dir_path);
 	}
 	else
 		boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
-	asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
+
+	if (asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path) < 0) {
+		printf_("Error: malloc failed\n");
+		free(boot_dir_path);
+		return;
+	}
 	if (system(system_str)) {
 		printf_("  unable to create $BOOT_DIR_PATH, giving up\n");
 		free(system_str);
@@ -142,12 +169,23 @@ static void install_dosemu_freedos (int choice)
 		return;
 	}
 	free(system_str);
-	asprintf(&system_str,
-		 "cp -p %s/drive_z/config.sys "
-		 "%s/drive_z/autoexec.bat \"%s\"",
-		 dosemu_lib_dir, dosemu_lib_dir, boot_dir_path);
-	system(system_str);
+
+	if (asprintf(&system_str,
+			"cp -p %s/drive_z/config.sys "
+			"%s/drive_z/autoexec.bat \"%s\"",
+			dosemu_lib_dir, dosemu_lib_dir, boot_dir_path) < 0) {
+		printf_("Error: malloc failed\n");
+		free(boot_dir_path);
+		return;
+	}
+	if (system(system_str)) {
+		printf_("Error: unable to copy startup files\n");
+		free(system_str);
+		free(boot_dir_path);
+		return;
+	}
 	free(system_str);
+
 	create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
 	unix_e_welcome = 1;
@@ -192,6 +230,8 @@ static void install_no_dosemu_freedos(const char *path)
 "press [ENTER] to quit if you suspect an error after manual installation.\n\n"
 );
 		p = dosreadline();
+		if (!p)  // malloc failed
+			return;
 		if (p[0] == '\0')
 			return;
 		if (p[0] == 3)
@@ -271,7 +311,10 @@ static void install_dos_(char *kernelsyspath)
 	if (choice == 4) {
 		printf_(
 "Please enter the name of a directory which contains a bootable DOS\n");
-		install_proprietary(dosreadline(), 1);
+		char *p = dosreadline();
+		if (!p)  // malloc failed
+			return;
+		install_proprietary(p, 1);
 		return;
 	}
 	install_dosemu_freedos(choice);
