@@ -452,6 +452,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp);
   dosemu_fault0(signal, scp);
+  deinit_handler(scp);
 }
 #endif /* __linux__ */
 

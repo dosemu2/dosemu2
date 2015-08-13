@@ -297,6 +297,23 @@ void init_handler(struct sigcontext_struct *scp)
   sigprocmask(SIG_SETMASK, &mask, NULL);
 }
 
+__attribute__((no_instrument_function))
+void deinit_handler(struct sigcontext_struct *scp)
+{
+  /* need to check _ss because dpmi_iret_setup() could clobber _cs */
+  if (!DPMIValidSelector(_ss)) return;
+
+  if (_fs != getsegment(fs))
+    loadregister(fs, _fs);
+  if (_gs != getsegment(gs))
+    loadregister(gs, _gs);
+
+#ifdef __x86_64__
+  loadregister(ds, _ds);
+  loadregister(es, _es);
+#endif
+}
+
 static int ld_sig;
 static void leavedos_call(void *arg)
 {
@@ -357,6 +374,7 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
   init_handler(scp);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
   dpmi_iret_setup(scp);
+  deinit_handler(scp);
 }
 
 void leavedos_from_sig(int sig)
@@ -401,6 +419,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
   _leavedos_signal(sig, scp);
+  deinit_handler(scp);
 }
 
 __attribute__((no_instrument_function))
@@ -925,6 +944,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 	   &((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
   sigasync0(sig, scp);
+  deinit_handler(scp);
 }
 #endif
 
