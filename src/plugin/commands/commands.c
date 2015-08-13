@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include "config.h"
 #include "emu.h"
@@ -190,7 +191,7 @@ int uchdir_main(int argc, char **argv)
 	memcpy(c, psp->cmdline, psp->cmdline_len);
 	c[psp->cmdline_len] = 0;
 	if(chdir(skip_white_and_delim(c, ' ')) != 0) {
-		com_printf("Chdir failed\n");
+		com_printf("Chdir failed - \"%s\"\n", strerror(errno));
 		return 1;
 	}
 	return 0;
@@ -201,6 +202,7 @@ int ugetcwd_main(int argc, char **argv)
 	char s[256];
 
 	if(getcwd(s, sizeof(s)) == NULL) {
+		com_printf("Getcwd failed - \"%s\"\n", strerror(errno));
 		return 1;
 	}
 	com_printf("%s\n", s);
