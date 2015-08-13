@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <X11/X.h>
@@ -228,23 +229,33 @@ static struct text_system Text_X =
 static int run_xset(const char *path)
 {
   char *command;
-  int status;
+  int status, ret;
   struct stat buf;
 
   stat(path, &buf);
   if (!S_ISDIR(buf.st_mode))
     return 0;
-  asprintf(&command, "xset +fp %s 2>/dev/null", path);
+
+  ret = asprintf(&command, "xset +fp %s 2>/dev/null", path);
+  assert(ret != -1);
+
   X_printf("X: running %s\n", command);
   status = system(command);
   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
     /* messed up font path -- last resort */
     X_printf("X: running xset fp default\n");
-    system("xset fp default");
-    system(command);
+    if(system("xset fp default")) {
+      X_printf("X: 'xset fp default' failed\n");
+    }
+    if(system(command)) {
+      X_printf("X: command '%s' failed\n", command);
+    }
   }
   free(command);
-  system("xset fp rehash");
+
+  if(system("xset fp rehash")) {
+    X_printf("X: 'xset fp rehash' failed\n");
+  }
   return 1;
 }
 

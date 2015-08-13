@@ -41,6 +41,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <assert.h>
 
 #define TMDTY_HOST "localhost"
 #define TMDTY_FREQ 44100
@@ -99,7 +100,7 @@ static int midotmdty_preinit(void)
 #define T_MAX_ARGS 255
     char *tmdty_args[T_MAX_ARGS];
     char *ptr;
-    int i;
+    int i, ret;
 
     /* the socketpair is used as a bidirectional pipe: older versions
        (current as of 2008 :( ) of timidity write to stdin and we can
@@ -137,8 +138,9 @@ static int midotmdty_preinit(void)
 	    strcat(tmdty_sound_spec, " ");
 	    strcat(tmdty_sound_spec, tmdty_capt);
 	}
-	asprintf(&tmdty_cmd, "%s %s %s",
+	ret = asprintf(&tmdty_cmd, "%s %s %s",
 		 TMDTY_BIN, TMDTY_ARGS, tmdty_sound_spec);
+	assert(ret != -1);
 	ptr = tmdty_cmd;
 	for (i = 0; i < T_MAX_ARGS; i++) {
 	    do

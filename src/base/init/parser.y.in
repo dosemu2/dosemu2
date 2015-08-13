@@ -41,6 +41,7 @@
 #include <syslog.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #ifdef __linux__
 #include <mntent.h>
 #endif
@@ -988,10 +989,14 @@ strarglist:	strarglist_item
 
 strarglist_item: string_expr
 		| '(' typed_expr ')' {
-			if ($2.type == TYPE_REAL)
-				asprintf(&$$, "%g", $2.value.r);
-			else
-				asprintf(&$$, "%d", $2.value.i);
+			int ret;
+			if ($2.type == TYPE_REAL) {
+				ret = asprintf(&$$, "%g", $2.value.r);
+				assert(ret != -1);
+			} else {
+				ret = asprintf(&$$, "%d", $2.value.i);
+				assert(ret != -1);
+			}
 		}
 		;
 

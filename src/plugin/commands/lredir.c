@@ -54,6 +54,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "emu.h"
 #include "memory.h"
@@ -276,6 +277,8 @@ static int getCWD(char **presourceStr)
     struct REGPACK preg = REGPACK_INIT;
     uint8_t drive = sda_cur_drive(sda);
     char dl;
+    int ret;
+
     cwd = lowmem_alloc(64);
     preg.r_ax = DOS_GET_CWD;
     preg.r_dx = 0;
@@ -287,10 +290,13 @@ static int getCWD(char **presourceStr)
 	return preg.r_ax ?: -1;
     }
     dl = ((drive & 0x80) ? 'C' + (drive & 0x7f) : 'A' + drive);
-    if (cwd[0])
-	asprintf(presourceStr, "%c:\\%s", dl, cwd);
-    else
-	asprintf(presourceStr, "%c:", dl);
+    if (cwd[0]) {
+        ret = asprintf(presourceStr, "%c:\\%s", dl, cwd);
+        assert(ret != -1);
+    } else {
+        ret = asprintf(presourceStr, "%c:", dl);
+        assert(ret != -1);
+    }
     lowmem_free(cwd, 64);
     return 0;
 }
@@ -417,6 +423,8 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
     struct DINFO *di;
     char *dir;
     fatfs_t *f;
+    int ret;
+
     if (!(di = (struct DINFO *)lowmem_alloc(sizeof(struct DINFO))))
 	return 0;
     pre_msdos();
@@ -438,7 +446,10 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
 	printf("error identifying FAT volume\n");
 	return -1;
     }
-    asprintf(presourceStr, "LINUX\\FS%s", dir);
+
+    ret = asprintf(presourceStr, "LINUX\\FS%s", dir);
+    assert(ret != -1);
+
     return CC_SUCCESS;
 }
 
@@ -475,7 +486,7 @@ int lredir_main(int argc, char **argv)
     uint16 ccode = 0;
     uint16 deviceParam;
     uint8 deviceType = REDIR_DISK_TYPE;
-    int carg;
+    int carg, ret;
 #if 0
     unsigned long dversion;
 #endif
@@ -537,7 +548,8 @@ int lredir_main(int argc, char **argv)
           printf("Error: unable to get CWD\n");
           goto MainExit;
         }
-        asprintf(&argv2, "%s\\%s", tmp, argv[2] + 2);
+        ret = asprintf(&argv2, "%s\\%s", tmp, argv[2] + 2);
+        assert(ret != -1);
         free(tmp);
       } else {
         argv2 = strdup(argv[2]);
@@ -558,7 +570,8 @@ int lredir_main(int argc, char **argv)
 	}
       }
       if (strlen(argv2) > 3) {
-        asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3);
+        ret = asprintf(&resourceStr, "%s%s", resourceStr2, argv2 + 3);
+        assert(ret != -1);
         free(resourceStr2);
       } else {
         resourceStr = resourceStr2;
@@ -606,7 +619,8 @@ int lredir_main(int argc, char **argv)
         deviceParam = 1 + cdrom;
       } else if (toupperDOS(argv[carg][0]) == 'P') {
         char *old_rs = resourceStr;
-        asprintf(&resourceStr, "%s\\%s", "LINUX\\PRN", old_rs);
+        ret = asprintf(&resourceStr, "%s\\%s", "LINUX\\PRN", old_rs);
+        assert(ret != -1);
         free(old_rs);
         deviceType = REDIR_PRINTER_TYPE;
       } else {
