@@ -189,7 +189,10 @@ int uchdir_main(int argc, char **argv)
 	}
 	memcpy(c, psp->cmdline, psp->cmdline_len);
 	c[psp->cmdline_len] = 0;
-	chdir(skip_white_and_delim(c, ' '));
+	if(chdir(skip_white_and_delim(c, ' ')) != 0) {
+		com_printf("Chdir failed\n");
+		return 1;
+	}
 	return 0;
 }
 
@@ -197,7 +200,9 @@ int ugetcwd_main(int argc, char **argv)
 {
 	char s[256];
 
-	getcwd(s, sizeof(s));
+	if(getcwd(s, sizeof(s)) == NULL) {
+		return 1;
+	}
 	com_printf("%s\n", s);
 	return 0;
 }
