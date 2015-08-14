@@ -56,10 +56,6 @@ AC_SYS_LARGEFILE
 if test "$build_cpu" = "x86_64"; then
   AC_CHECK_MEMBER([struct sigcontext.ss],[AC_DEFINE(HAVE_SIGCONTEXT_SS)],,
     [[#include <signal.h>]])
-  AC_CHECK_MEMBER([struct sigcontext.fs],[AC_DEFINE(HAVE_SIGCONTEXT_FS)],,
-    [[#include <signal.h>]])
-  AC_CHECK_MEMBER([struct sigcontext.gs],[AC_DEFINE(HAVE_SIGCONTEXT_GS)],,
-    [[#include <signal.h>]])
 fi
 
 dnl Checks for library functions.
@@ -395,10 +391,6 @@ AH_TEMPLATE([_GNU_SOURCE],
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])
-AH_TEMPLATE([HAVE_SIGCONTEXT_FS],
-[ Define this if struct sigcontext has .fs field ])
-AH_TEMPLATE([HAVE_SIGCONTEXT_GS],
-[ Define this if struct sigcontext has .gs field ])
 
 AH_BOTTOM([
 #ifndef __ASM__
