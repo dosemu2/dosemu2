@@ -432,26 +432,41 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
 "	push	%%rbp\n"
 "	push	%%rbx\n"
 "	movq	%%rsp,%2\n"
+
+"	pushf\n"
+"	push	$dpmi_xfr_return\n"
+"	mov	%%rdx,%%rsp\n"		/* rsp=scp */
+"	add	$8*8,%%rsp\n"		/* skip r8-r15 */
+"	pop	%%rdi\n"
+"	pop	%%rsi\n"
+"	pop	%%rbp\n"
+"	pop	%%rbx\n"
+"	pop	%%rdx\n"
+"	pop	%%rax\n"
+"	pop	%%rcx\n"
+"	pop	%%rsp\n"		/* => iret_frame */
+"	iretl\n"
 #else
 "	pushl	%%ebp\n"
 "	pushl	%%ebx\n"
 "	movl	%%esp,%2\n"
-#endif
 "	pushf\n"
 "	call	*%3\n"
+#endif
     /* the signal return returns here */
 #ifdef __x86_64__
+"dpmi_xfr_return:\n"
 "	pop	%%rbx\n"
 "	pop	%%rbp\n"
+    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
+    : "1"(scp)
+    : "cx", "si", "di", "cc", "memory", "r8"
 #else
 "	popl	%%ebx\n"
 "	popl	%%ebp\n"
-#endif
     : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
     : "r"(xfr), "1"(scp)
     : "cx", "si", "di", "cc", "memory"
-#ifdef __x86_64__
-       ,"r8"
 #endif
   );
   return ret;
@@ -504,7 +519,11 @@ static int direct_dpmi_switch(struct sigcontext_struct *scp)
 #endif
 
   loadfpstate(*scp->fpstate);
+#ifdef __i386__
   return dpmi_transfer(direct_dpmi_transfer_p, scp);
+#else
+  return dpmi_transfer(NULL, scp);
+#endif
 }
 
 #endif

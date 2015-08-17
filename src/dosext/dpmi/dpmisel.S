@@ -10,21 +10,6 @@
 	.section .text
 
 #ifdef __x86_64__
-	.globl DPMI_direct_transfer
-	.type DPMI_direct_transfer,@function
-DPMI_direct_transfer:
-	mov	%rdx,%rsp	/* rsp=scp */
-	add	$8*8,%rsp       /* skip r8-r15 */
-	pop	%rdi
-	pop	%rsi
-	pop	%rbp
-	pop	%rbx
-	pop	%rdx
-	pop	%rax
-	pop	%rcx
-	pop	%rsp		/* => iret_frame */
-	iretl
-
 	.globl DPMI_iret
 	.type DPMI_iret,@function
 DPMI_iret:	
