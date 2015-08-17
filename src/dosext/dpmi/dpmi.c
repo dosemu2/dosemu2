@@ -472,6 +472,31 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
   return ret;
 }
 
+#ifdef __i386__
+static int indirect_dpmi_transfer(struct sigcontext_struct *scp)
+{
+  int ret;
+  long dx;
+  /* save registers that GCC does not allow to be clobbered
+     (in reality ebp is only necessary with frame pointers and ebx
+      with PIC; eflags is saved for TF) */
+  asm volatile (
+"	pushl	%%ebp\n"
+"	pushl	%%ebx\n"
+"	movl	%%esp,%2\n"
+"	pushf\n"
+"	call	*%3\n"
+    /* the signal return returns here */
+"	popl	%%ebx\n"
+"	popl	%%ebp\n"
+    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
+    : "r"(DPMI_indirect_transfer), "1"(scp)
+    : "cx", "si", "di", "cc", "memory"
+  );
+  return ret;
+}
+#endif
+
 #if DIRECT_DPMI_CONTEXT_SWITCH
 /* --------------------------------------------------------------
  * 00	unsigned short gs, __gsh;	00 -> dpmi_context
@@ -638,7 +663,7 @@ static int dpmi_control(void)
 #endif
 #ifdef __i386__
     /* Note: for i386 we can't set TF with our speedup code */
-    return dpmi_transfer(DPMI_indirect_transfer, scp);
+    return indirect_dpmi_transfer(scp);
 #endif
 }
 
