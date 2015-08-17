@@ -30,7 +30,6 @@ DPMI_direct_transfer:
 DPMI_iret:	
 	iretl
 
-	.code32
 #else
 	movl	%edx,%esp	/* esp=scp */
 	pop	%gs
