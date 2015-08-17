@@ -420,7 +420,7 @@ void dpmi_iret_setup(struct sigcontext_struct *scp)
 }
 #endif
 
-static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
+static int dpmi_transfer(struct sigcontext *scp)
 {
   int ret;
   long dx;
@@ -465,7 +465,7 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
 "	popl	%%ebx\n"
 "	popl	%%ebp\n"
     : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "r"(xfr), "1"(scp)
+    : "r"(direct_dpmi_transfer_p), "1"(scp)
     : "cx", "si", "di", "cc", "memory"
 #endif
   );
@@ -544,11 +544,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *scp)
 #endif
 
   loadfpstate(*scp->fpstate);
-#ifdef __i386__
-  return dpmi_transfer(direct_dpmi_transfer_p, scp);
-#else
-  return dpmi_transfer(NULL, scp);
-#endif
+  return dpmi_transfer(scp);
 }
 
 #endif
