@@ -77,13 +77,7 @@ static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static struct {
-  unsigned long eflags;
-  unsigned short fs, gs;
-#ifdef __x86_64__
-  unsigned char *fsbase, *gsbase;
-#endif
-} eflags_fs_gs;
+struct eflags_fs_gs eflags_fs_gs;
 
 static void (*sighandlers[NSIG])(struct sigcontext *);
 
@@ -300,8 +294,17 @@ void init_handler(struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 void deinit_handler(struct sigcontext_struct *scp)
 {
-  /* need to check _ss because dpmi_iret_setup() could clobber _cs */
-  if (!DPMIValidSelector(_ss)) return;
+  /* no need to restore anything when returning to dosemu, but
+   * can't check _cs because dpmi_iret_setup() could clobber it.
+   * So just restore segregs unconditionally to stay safe.
+   * It would also be a bit disturbing to return to dosemu with
+   * DOS ds/es/ss, which is what the signal handler work with
+   * in 64bit mode.
+   * Note: ss in 64bit mode is reset by a syscall (sigreturn()),
+   * so we don't need to restore it manually when returning to
+   * dosemu at least (when returning to DPMI, dpmi_iret_setup()
+   * takes care of ss).
+   */
 
   if (_fs != getsegment(fs))
     loadregister(fs, _fs);
@@ -570,6 +573,9 @@ signal_pre_init(void)
   dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
     eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
 #ifdef __x86_64__
+  eflags_fs_gs.ds = getsegment(ds);
+  eflags_fs_gs.es = getsegment(es);
+  eflags_fs_gs.ss = getsegment(ss);
   /* get long fs and gs bases. If they are in the first 32 bits
      normal 386-style fs/gs switching can happen so we can ignore
      fsbase/gsbase */

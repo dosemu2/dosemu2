@@ -37,6 +37,17 @@ static inline int dosemu_arch_prctl(int code, void *addr)
 }
 #endif
 
+struct eflags_fs_gs {
+  unsigned long eflags;
+  unsigned short fs, gs;
+#ifdef __x86_64__
+  unsigned char *fsbase, *gsbase;
+  unsigned short ds, es, ss;
+#endif
+};
+
+extern struct eflags_fs_gs eflags_fs_gs;
+
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #ifdef __i386__
 #define SIG 1

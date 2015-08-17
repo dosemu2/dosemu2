@@ -1296,11 +1296,18 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
   _eflags = emu_stack_ptr[-1];
   _rsp = (unsigned long)emu_stack_ptr;
   _cs = getsegment(cs);
+#ifdef __x86_64__
+  /* in 64bit mode the signal handler is running with DOS ds/es/ss */
+  _ds = eflags_fs_gs.ds;
+  _es = eflags_fs_gs.es;
+  _ss = eflags_fs_gs.ss;
+#else
   _ds = getsegment(ds);
   _es = getsegment(es);
-  _fs = getsegment(fs);
-  _gs = getsegment(gs);
   _ss = getsegment(ss);
+#endif
+  _fs = eflags_fs_gs.fs;
+  _gs = eflags_fs_gs.gs;
   scp->fpstate = NULL;
 }
 
