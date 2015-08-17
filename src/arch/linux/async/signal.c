@@ -291,6 +291,7 @@ void init_handler(struct sigcontext_struct *scp)
   sigprocmask(SIG_SETMASK, &mask, NULL);
 }
 
+#ifdef __x86_64__
 __attribute__((no_instrument_function))
 void deinit_handler(struct sigcontext_struct *scp)
 {
@@ -311,11 +312,10 @@ void deinit_handler(struct sigcontext_struct *scp)
   if (_gs != getsegment(gs))
     loadregister(gs, _gs);
 
-#ifdef __x86_64__
   loadregister(ds, _ds);
   loadregister(es, _es);
-#endif
 }
+#endif
 
 static int ld_sig;
 static void leavedos_call(void *arg)
