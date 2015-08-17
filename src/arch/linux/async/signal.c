@@ -910,10 +910,9 @@ static void sigalrm(struct sigcontext_struct *scp)
   }
 }
 
-__attribute__((no_instrument_function))
+__attribute__((noinline))
 static void sigasync0(int sig, struct sigcontext_struct *scp)
 {
-  init_handler(scp);
   if (sighandlers[sig])
 	  sighandlers[sig](scp);
   dpmi_iret_setup(scp);
@@ -922,8 +921,10 @@ static void sigasync0(int sig, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  sigasync0(sig, (struct sigcontext_struct *)
-	   &((ucontext_t *)uc)->uc_mcontext);
+  struct sigcontext *scp = (struct sigcontext_struct *)
+	   &((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp);
+  sigasync0(sig, scp);
 }
 #endif
 
