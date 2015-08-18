@@ -392,7 +392,7 @@ static void dpmi_restore_segregs(struct sigcontext_struct *scp)
     loadregister(gs, _gs);
 }
 
-static void _dpmi_iret_setup(struct sigcontext_struct *scp)
+static void iret_frame_setup(struct sigcontext_struct *scp)
 {
   /* set up a frame to get back to DPMI via iret. The kernel does not save
      %ss, and the SYSCALL instruction in sigreturn() destroys it.
@@ -410,17 +410,17 @@ static void _dpmi_iret_setup(struct sigcontext_struct *scp)
   iret_frame[2] = _eflags;
   iret_frame[3] = _esp;
   iret_frame[4] = _ss;
-  _eflags &= ~TF;
-  _rip = (unsigned long)DPMI_iret;
   _rsp = (unsigned long)iret_frame;
-  _cs = getsegment(cs);
 }
 
 void dpmi_iret_setup(struct sigcontext_struct *scp)
 {
   if (!DPMIValidSelector(_cs)) return;
 
-  _dpmi_iret_setup(scp);
+  iret_frame_setup(scp);
+  _eflags &= ~TF;
+  _rip = (unsigned long)DPMI_iret;
+  _cs = getsegment(cs);
 }
 #endif
 
@@ -559,7 +559,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *scp)
   scp->esp_at_signal = _esp;
 #else
   dpmi_restore_segregs(scp);
-  _dpmi_iret_setup(scp);
+  iret_frame_setup(scp);
 #endif
 
   loadfpstate(*scp->fpstate);
