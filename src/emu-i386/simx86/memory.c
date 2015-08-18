@@ -308,7 +308,7 @@ int e_check_munprotect(unsigned int addr, size_t len)
 
 
 #ifdef HOST_ARCH_X86
-int e_handle_pagefault(struct sigcontext_struct *scp)
+int e_handle_pagefault(struct sigcontext *scp)
 {
 	int codehit;
 	register int v;

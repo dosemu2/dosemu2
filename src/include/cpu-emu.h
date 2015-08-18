@@ -55,9 +55,6 @@ extern void e_priv_iopl(int);
 #define CONFIG_CPUSIM 1
 #endif
 
-#ifndef sigcontext_struct
-#define sigcontext_struct sigcontext
-#endif
 /* ----------------------------------------------------------------------- */
 
 /* Cpuemu status register - pack as much info as possible here, so to
@@ -85,7 +82,7 @@ void avltr_destroy(void);
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);
-char *e_scp_disasm(struct sigcontext_struct *scp, int pmode);
+char *e_scp_disasm(struct sigcontext *scp, int pmode);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_EMULATOR
@@ -100,16 +97,16 @@ void init_emu_cpu (void);
 void reset_emu_cpu (void);
 
 /* called/used from dpmi.c */
-int e_dpmi(struct sigcontext_struct *scp);
-void e_dpmi_b0x(int op,struct sigcontext_struct *scp);
+int e_dpmi(struct sigcontext *scp);
+void e_dpmi_b0x(int op,struct sigcontext *scp);
 extern int in_dpmi_emu;
 
 /* called from sigsegv.c */
-int e_emu_fault(struct sigcontext_struct *scp);
+int e_emu_fault(struct sigcontext *scp);
 
 /* called from signal.c */
 #ifdef X86_EMULATOR
-int e_gen_sigalrm(struct sigcontext_struct *scp);
+int e_gen_sigalrm(struct sigcontext *scp);
 #else
 #define e_gen_sigalrm(x) 1
 #endif

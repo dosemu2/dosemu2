@@ -439,7 +439,7 @@ asm (
 /*
  * enters here only from a fault
  */
-int Cpatch(struct sigcontext_struct *scp)
+int Cpatch(struct sigcontext *scp)
 {
     unsigned char *p;
     int w16;

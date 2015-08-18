@@ -194,7 +194,7 @@ int check_fix_fs_gs_base(unsigned char prefix)
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 __attribute__((no_instrument_function))
-static void __init_handler(struct sigcontext_struct *scp)
+static void __init_handler(struct sigcontext *scp)
 {
   /*
    * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
@@ -271,7 +271,7 @@ static void __init_handler(struct sigcontext_struct *scp)
 }
 
 __attribute__((no_instrument_function))
-void init_handler(struct sigcontext_struct *scp)
+void init_handler(struct sigcontext *scp)
 {
   /* All signals are initially blocked.
    * We need to restore registers before unblocking signals.
@@ -291,7 +291,7 @@ void init_handler(struct sigcontext_struct *scp)
 
 #ifdef __x86_64__
 __attribute__((no_instrument_function))
-void deinit_handler(struct sigcontext_struct *scp)
+void deinit_handler(struct sigcontext *scp)
 {
   /* no need to restore anything when returning to dosemu, but
    * can't check _cs because dpmi_iret_setup() could clobber it.
@@ -370,8 +370,8 @@ static void cleanup_child(void *arg)
 __attribute__((no_instrument_function))
 static void sig_child(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
   dpmi_iret_setup(scp);
@@ -401,7 +401,7 @@ static void leavedos_sig(int sig)
 }
 
 __attribute__((noinline))
-static void _leavedos_signal(int sig, struct sigcontext_struct *scp)
+static void _leavedos_signal(int sig, struct sigcontext *scp)
 {
   if (ld_sig) {
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
@@ -416,8 +416,8 @@ static void _leavedos_signal(int sig, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
   _leavedos_signal(sig, scp);
   deinit_handler(scp);
@@ -426,8 +426,8 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 __attribute__((no_instrument_function))
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
   gdb_debug();
   _exit(sig);
@@ -912,7 +912,7 @@ static void SIGIO_call(void *arg){
 }
 
 #ifdef __linux__
-static void sigio(struct sigcontext_struct *scp)
+static void sigio(struct sigcontext *scp)
 {
   /* prints non reentrant! dont do! */
 #if 0
@@ -924,7 +924,7 @@ static void sigio(struct sigcontext_struct *scp)
     dpmi_sigio(scp);
 }
 
-static void sigalrm(struct sigcontext_struct *scp)
+static void sigalrm(struct sigcontext *scp)
 {
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
@@ -934,7 +934,7 @@ static void sigalrm(struct sigcontext_struct *scp)
 }
 
 __attribute__((noinline))
-static void sigasync0(int sig, struct sigcontext_struct *scp)
+static void sigasync0(int sig, struct sigcontext *scp)
 {
   if (sighandlers[sig])
 	  sighandlers[sig](scp);
@@ -944,7 +944,7 @@ static void sigasync0(int sig, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext *scp = (struct sigcontext_struct *)
+  struct sigcontext *scp = (struct sigcontext *)
 	   &((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp);
   sigasync0(sig, scp);
@@ -953,7 +953,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 #endif
 
 
-static void sigquit(struct sigcontext_struct *scp)
+static void sigquit(struct sigcontext *scp)
 {
   in_vm86 = 0;
 

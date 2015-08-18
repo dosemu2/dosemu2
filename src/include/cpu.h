@@ -22,9 +22,6 @@
 #ifdef __linux__
 #define _regs vm86s.regs
 #endif
-#ifndef sigcontext_struct
-#define sigcontext_struct sigcontext
-#endif
 
 #include "extern.h"
 
@@ -421,13 +418,13 @@ EXTERN struct vec_t *ivecs;
 #define _cr2	(scp->cr2)
 
 void dosemu_fault(int, siginfo_t *, void *);
-int _dosemu_fault(int signal, struct sigcontext_struct *scp);
+int _dosemu_fault(int signal, struct sigcontext *scp);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);
 char *emu_disasm(unsigned int ip);
 
-int cpu_trap_0f (unsigned char *, struct sigcontext_struct *);
+int cpu_trap_0f (unsigned char *, struct sigcontext *);
 
 extern unsigned int read_port_w(unsigned short port);
 extern int write_port_w(unsigned int value,unsigned short port);

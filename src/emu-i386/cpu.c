@@ -106,7 +106,7 @@ struct _fpstate vm86_fpu_state __attribute__ ((aligned(16)));
  * DANG_END_FUNCTION
  *
  */
-int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
+int cpu_trap_0f (unsigned char *csp, struct sigcontext *scp)
 {
 	int increment_ip = 0;
 	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);

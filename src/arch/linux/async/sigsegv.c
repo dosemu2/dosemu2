@@ -25,7 +25,7 @@
 
 
 /* Function prototypes */
-void print_exception_info(struct sigcontext_struct *scp);
+void print_exception_info(struct sigcontext *scp);
 
 
 /*
@@ -47,7 +47,7 @@ void print_exception_info(struct sigcontext_struct *scp);
 
 
 /*
- * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext_struct);
+ * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext);
  *
  * All CPU exceptions (except 13=general_protection from V86 mode,
  * which is directly scanned by the kernel) are handled here.
@@ -58,7 +58,7 @@ void print_exception_info(struct sigcontext_struct *scp);
 __attribute__((no_instrument_function))
 static int dosemu_fault1(
 #ifdef __linux__
-int signal, struct sigcontext_struct *scp
+int signal, struct sigcontext *scp
 #endif /* __linux__ */
 )
 {
@@ -357,7 +357,7 @@ bad:
   }
 }
 
-int _dosemu_fault(int signal, struct sigcontext_struct *scp)
+int _dosemu_fault(int signal, struct sigcontext *scp)
 {
   int ret;
   fault_cnt++;
@@ -368,7 +368,7 @@ int _dosemu_fault(int signal, struct sigcontext_struct *scp)
 
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
-static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
+static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
   int retcode;
   pid_t tid;
@@ -445,8 +445,8 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
@@ -466,7 +466,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
  *
  */
 __attribute__((no_instrument_function))
-void print_exception_info(struct sigcontext_struct *scp)
+void print_exception_info(struct sigcontext *scp)
 {
   int i;
 

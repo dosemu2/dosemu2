@@ -839,7 +839,6 @@ Arguments are:
 <Para>
 vga_emu_fault() is used to catch video access, and handle it.
 This function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
-The sigcontext_struct is defined in include/cpu.h.
 Now it catches only changes in a 4K page, but maybe it is useful to
 catch each video access. The problem when you do that is, you have to 
 simulate each instruction which could write to the video memory.
@@ -868,7 +867,7 @@ Arguments are:
 <ListItem>
 
 <Para>
-  scp - A pointer to a struct sigcontext_struct holding some relevant data.
+  scp - A pointer to a struct sigcontext holding some relevant data.
 </Para>
 </ListItem>
 
@@ -1633,7 +1632,6 @@ Arguments are:
 <Para>
 vga_emu_fault() is used to catch video access, and handle it.
 This function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
-The sigcontext_struct is defined in include/cpu.h.
 Now it catches only changes in a 4K page, but maybe it is useful to
 catch each video access. The problem when you do that is, you have to 
 simulate each instruction which could write to the video memory.
@@ -1662,7 +1660,7 @@ Arguments are:
 <ListItem>
 
 <Para>
-  scp - A pointer to a struct sigcontext_struct holding some relevant data.
+  scp - A pointer to a struct sigcontext holding some relevant data.
 </Para>
 </ListItem>
 
@@ -2076,7 +2074,7 @@ Arguments are:
 <ListItem>
 
 <Para>
-  scp - A pointer to a struct sigcontext_struct holding some relevant data.
+  scp - A pointer to a struct sigcontext holding some relevant data.
 </Para>
 </ListItem>
 <ListItem>
@@ -2687,7 +2685,7 @@ These are the functions defined in arch/linux/async/sigsegv.c.
 </Para>
 
 <Sect3>
-<Title>dosemu_fault(int, struct sigcontext_struct);</Title>
+<Title>dosemu_fault(int, struct sigcontext);</Title>
 
 <Para>
 All CPU exceptions (except 13=general_protection from V86 mode,
@@ -3999,7 +3997,7 @@ These are the functions defined in emu-i386/simx86/sigsegv.c.
 </Para>
 
 <Sect3>
-<Title>dosemu_fault(int, struct sigcontext_struct);</Title>
+<Title>dosemu_fault(int, struct sigcontext);</Title>
 
 <Para>
 All CPU exceptions (except 13=general_protection from V86 mode,

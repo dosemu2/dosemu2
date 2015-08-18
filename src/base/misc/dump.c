@@ -154,7 +154,7 @@ show_ints(int min, int max)
 
 #define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
-char *DPMI_show_state(struct sigcontext_struct *scp)
+char *DPMI_show_state(struct sigcontext *scp)
 {
     static char buf[4096];
     int pos = 0;
