@@ -2775,9 +2775,8 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     RSP_callbacks[RSP_num].pm_block_root = DPMI_CLIENT.pm_block_root;
     RSP_num++;
   }
-  if (in_dpmi_dos_int) {
+  if (in_dpmi_dos_int)
     dpmi_cleanup();
-  }
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
@@ -3311,7 +3310,7 @@ void dpmi_init(void)
   }
   /* set int 23 to "iret" so that DOS doesn't terminate the program
      behind our back */
-  SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
+  SETIVEC(0x23, IRET_SEG, IRET_OFF);
 
   return; /* return immediately to the main loop */
 
