@@ -31,6 +31,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <setjmp.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <linux/version.h>
@@ -105,6 +106,8 @@ static unsigned long *emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 #endif
+static jmp_buf dpmi_ret_jmp;
+static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
@@ -422,9 +425,9 @@ void dpmi_iret_setup(struct sigcontext_struct *scp)
   _rip = (unsigned long)DPMI_iret;
   _cs = getsegment(cs);
 }
-#endif
 
-#ifdef __i386__
+#else
+
 static int indirect_dpmi_transfer(struct sigcontext *scp)
 {
   int ret;
@@ -656,7 +659,9 @@ static int dpmi_control(void)
  *
  */
 
-  struct sigcontext_struct *scp=&DPMI_CLIENT.stack_frame;
+    struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+    if (setjmp(dpmi_ret_jmp))
+      return dpmi_ret_val;
 #if DIRECT_DPMI_CONTEXT_SWITCH
 #ifdef TRACE_DPMI
     if (debug_level('t')) _eflags |= TF;
@@ -1329,8 +1334,13 @@ void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
   }
 }
 
+static void dpmi_return_to_dosemu(void)
+{
+  longjmp(dpmi_ret_jmp, 1);
+}
+
 static void Return_to_dosemu_code(struct sigcontext_struct *scp,
-    struct sigcontext_struct *dpmi_ctx)
+    struct sigcontext_struct *dpmi_ctx, int retcode)
 {
 #ifdef X86_EMULATOR
   if (config.cpuemu>=4) /* 0=off 1=on-inactive 2=on-first time
@@ -1347,10 +1357,12 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
     }
     copy_context(dpmi_ctx, scp, 1);
   }
-  /* preset return code to 0 */
-  _eax = 0;
-  /* simulate the "ret" from "call *%3" in dpmi_transfer() */
-  _rip = emu_stack_ptr[-2];
+  dpmi_ret_val = retcode;
+  /* TODO: we can as well do siglongjmp() here when SS is restored
+   * by kernel on signal delivery (currently not the case, some versions
+   * of 4.1 did so). When adding siglongjmp(), don't forget to restore
+   * ds/es by hands. */
+  _rip = (unsigned long)dpmi_return_to_dosemu;
   /* Don't inherit TF from DPMI! */
   _eflags = emu_stack_ptr[-1];
   _rsp = (unsigned long)emu_stack_ptr;
@@ -1373,7 +1385,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
 #ifdef __i386__
 int indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
-    if (_rip != (long)DPMI_indirect_transfer)
+    if (_rip != (unsigned long)DPMI_indirect_transfer)
 	return 0;
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
@@ -3341,14 +3353,13 @@ void dpmi_sigio(struct sigcontext_struct *scp)
    Because IF is not set by popf and because dosemu have to do some background
    job (like DMA transfer) regardless whether IF is set or not.
 */
-    dpmi_return(scp);
-    _eax = -1;
+    dpmi_return(scp, -1);
   }
 }
 
-void dpmi_return(struct sigcontext_struct *scp)
+void dpmi_return(struct sigcontext_struct *scp, int retval)
 {
-  Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame);
+  Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame, retval);
 }
 
 static void return_from_exception(struct sigcontext_struct *scp)
@@ -3652,7 +3663,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3) {
-       Return_to_dosemu_code(scp, ORIG_CTXP);
+       Return_to_dosemu_code(scp, ORIG_CTXP, 3);
        return 3;
     }
     if (dpmi_mhp_TF && (_trapno == 1)) {
@@ -3669,7 +3680,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      Return_to_dosemu_code(scp, ORIG_CTXP);
+      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
       return 1;
     }
   }
@@ -3742,7 +3753,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
         if (dpmi_mhp_intxxtab[*csp]) {
           ret=dpmi_mhp_intxx_check(scp, *csp);
           if (ret) {
-            Return_to_dosemu_code(scp, ORIG_CTXP);
+            Return_to_dosemu_code(scp, ORIG_CTXP, ret);
             return ret;
           }
         }
@@ -4312,7 +4323,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
   if (dpmi_mhp_TF) {
       dpmi_mhp_TF=0;
       _eflags &= ~TF;
-      Return_to_dosemu_code(scp, ORIG_CTXP);
+      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
       return 1;
   }
 
@@ -4324,7 +4335,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
         _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
-    Return_to_dosemu_code(scp, ORIG_CTXP);
+    Return_to_dosemu_code(scp, ORIG_CTXP, -1);
     return -1;
   }
 
@@ -4792,7 +4803,7 @@ void dpmi_return_request(void)
 int dpmi_check_return(struct sigcontext_struct *scp)
 {
   if (return_requested) {
-    dpmi_return(scp);
+    dpmi_return(scp, 0);
     return -1;
   }
   return 0;
