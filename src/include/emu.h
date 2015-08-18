@@ -12,7 +12,6 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <setjmp.h>
 #include <signal.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -134,7 +133,6 @@ EXTERN volatile int in_vm86 INIT(0);
 EXTERN int scanseq;
 
 void dos_ctrl_alt_del(void);	/* disabled */
-extern sigjmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
 EXTERN void vm86_helper(void);

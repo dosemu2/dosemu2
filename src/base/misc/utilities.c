@@ -460,10 +460,7 @@ char *assemble_path(char *dir, char *file, int append_pid)
 	char pid[32] = "";
 	if (append_pid) sprintf(pid, "%d", getpid());
 	s = malloc(strlen(dir)+1+strlen(file)+strlen(pid)+1);
-	if (!s) {
-		fprintf(stderr, "out of memory, giving up\n");
-		siglongjmp(NotJEnv, 0x4d);
-	}
+	assert(s);
 	sprintf(s, "%s/%s%s", dir, file, pid);
 	return s;
 }

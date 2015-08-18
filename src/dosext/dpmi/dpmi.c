@@ -13,9 +13,13 @@
  *
  */
 
-#define DPMI_C
-
+#if defined(__i386__) && (defined(__PIE__) || defined(__PIC__))
+#warning Disabling direct DPMI context switch due to PIC
+#warning Please remove -fpic and/or -fpie from CFLAGS
+#define DIRECT_DPMI_CONTEXT_SWITCH 0
+#else
 #define DIRECT_DPMI_CONTEXT_SWITCH 1
+#endif
 
 #include "config.h"
 #include <stdio.h>
@@ -27,6 +31,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <setjmp.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <linux/version.h>
@@ -101,6 +106,8 @@ static unsigned long *emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 #endif
+static jmp_buf dpmi_ret_jmp;
+static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
@@ -388,7 +395,7 @@ static void dpmi_restore_segregs(struct sigcontext_struct *scp)
     loadregister(gs, _gs);
 }
 
-static void _dpmi_iret_setup(struct sigcontext_struct *scp)
+static void iret_frame_setup(struct sigcontext_struct *scp)
 {
   /* set up a frame to get back to DPMI via iret. The kernel does not save
      %ss, and the SYSCALL instruction in sigreturn() destroys it.
@@ -406,58 +413,85 @@ static void _dpmi_iret_setup(struct sigcontext_struct *scp)
   iret_frame[2] = _eflags;
   iret_frame[3] = _esp;
   iret_frame[4] = _ss;
-  _eflags &= ~TF;
-  _rip = (unsigned long)DPMI_iret;
   _rsp = (unsigned long)iret_frame;
-  _cs = getsegment(cs);
 }
 
 void dpmi_iret_setup(struct sigcontext_struct *scp)
 {
   if (!DPMIValidSelector(_cs)) return;
 
-  _dpmi_iret_setup(scp);
+  iret_frame_setup(scp);
+  _eflags &= ~TF;
+  _rip = (unsigned long)DPMI_iret;
+  _cs = getsegment(cs);
 }
-#endif
 
-static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
+#else
+
+__attribute__((noreturn))
+static void indirect_dpmi_transfer(void)
 {
-  int ret;
-  long dx;
-  /* save registers that GCC does not allow to be clobbered
-     (in reality ebp is only necessary with frame pointers and ebx
-      with PIC; eflags is saved for TF) */
+  /* eflags is saved for TF */
   asm volatile (
-#ifdef __x86_64__
-"	push	%%rbp\n"
-"	push	%%rbx\n"
-"	movq	%%rsp,%2\n"
-#else
-"	pushl	%%ebp\n"
-"	pushl	%%ebx\n"
-"	movl	%%esp,%2\n"
-#endif
+"	movl	%%esp,%0\n"
 "	pushf\n"
-"	call	*%3\n"
-    /* the signal return returns here */
-#ifdef __x86_64__
-"	pop	%%rbx\n"
-"	pop	%%rbp\n"
-#else
-"	popl	%%ebx\n"
-"	popl	%%ebp\n"
-#endif
-    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "r"(xfr), "1"(scp)
-    : "cx", "si", "di", "cc", "memory"
-#ifdef __x86_64__
-       ,"r8"
-#endif
+"	.globl DPMI_indirect_transfer\n"
+"DPMI_indirect_transfer:\n"
+"	hlt\n"
+    : "=m"(emu_stack_ptr)
   );
-  return ret;
+  __builtin_unreachable();
 }
+
+extern int DPMI_indirect_transfer(void);
+#endif
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
+#ifdef __i386__
+static struct pmaddr_s dpmi_switch_jmp;
+#endif
+
+__attribute__((noreturn))
+static void dpmi_transfer(struct sigcontext *scp)
+{
+  /* eflags is saved for TF */
+  asm volatile (
+#ifdef __x86_64__
+"	movq	%%rsp,%0\n"
+"	pushf\n"
+"	mov	%1,%%rsp\n"		/* rsp=scp */
+"	add	$8*8,%%rsp\n"		/* skip r8-r15 */
+"	pop	%%rdi\n"
+"	pop	%%rsi\n"
+"	pop	%%rbp\n"
+"	pop	%%rbx\n"
+"	pop	%%rdx\n"
+"	pop	%%rax\n"
+"	pop	%%rcx\n"
+"	pop	%%rsp\n"		/* => iret_frame */
+"	iretl\n"
+    : "=m"(emu_stack_ptr)
+    : "r"(scp)
+#else
+"	movl	%%esp,%0\n"
+"	pushf\n"
+"	movl	%1,%%esp\n"	/* esp=scp */
+"	pop	%%gs\n"
+"	pop	%%fs\n"
+"	pop	%%es\n"
+"	pop	%%ds\n"
+"	popa\n"
+"	addl	$4*4,%%esp\n"
+"	popfl\n"
+"	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
+"	ljmp	*%%cs:%2\n"
+    : "=m"(emu_stack_ptr)
+    : "r"(scp), "m"(dpmi_switch_jmp)
+#endif
+  );
+  __builtin_unreachable();
+}
+
 /* --------------------------------------------------------------
  * 00	unsigned short gs, __gsh;	00 -> dpmi_context
  * 01	unsigned short fs, __fsh;	04
@@ -484,27 +518,20 @@ static int dpmi_transfer(int(*xfr)(void), struct sigcontext_struct *scp)
  * 21	unsigned long cr2;		84 dirty -- ignored
  * --------------------------------------------------------------
  */
-#ifdef __i386__
-static struct pmaddr_s *dpmi_switch_jmp;
-typedef int (*direct_dpmi_transfer_t)(void);
-static direct_dpmi_transfer_t direct_dpmi_transfer_p;
-#else
-#define direct_dpmi_transfer_p DPMI_direct_transfer
-#endif
-
-static int direct_dpmi_switch(struct sigcontext_struct *scp)
+__attribute__((noreturn))
+static void direct_dpmi_switch(struct sigcontext_struct *scp)
 {
 #ifdef __i386__
-  dpmi_switch_jmp->offset = _eip;
-  dpmi_switch_jmp->selector = _cs;
+  dpmi_switch_jmp.offset = _eip;
+  dpmi_switch_jmp.selector = _cs;
   scp->esp_at_signal = _esp;
 #else
   dpmi_restore_segregs(scp);
-  _dpmi_iret_setup(scp);
+  iret_frame_setup(scp);
 #endif
 
   loadfpstate(*scp->fpstate);
-  return dpmi_transfer(direct_dpmi_transfer_p, scp);
+  dpmi_transfer(scp);
 }
 
 #endif
@@ -597,7 +624,9 @@ static int dpmi_control(void)
  *
  */
 
-  struct sigcontext_struct *scp=&DPMI_CLIENT.stack_frame;
+    struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+    if (setjmp(dpmi_ret_jmp))
+      return dpmi_ret_val;
 #if DIRECT_DPMI_CONTEXT_SWITCH
 #ifdef TRACE_DPMI
     if (debug_level('t')) _eflags |= TF;
@@ -614,12 +643,12 @@ static int dpmi_control(void)
 	  D_printf("DPMI SWITCH to 0x%x:0x%08x (%p), Stack 0x%x:0x%08x (%p) flags=%#lx\n",
 	    _cs, _eip, SEL_ADR(_cs,_eip), _ss, _esp, SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
 	}
-	return direct_dpmi_switch(scp);
+	direct_dpmi_switch(scp);
     }
 #endif
 #ifdef __i386__
     /* Note: for i386 we can't set TF with our speedup code */
-    return dpmi_transfer(DPMI_indirect_transfer, scp);
+    indirect_dpmi_transfer();
 #endif
 }
 
@@ -1270,8 +1299,13 @@ void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
   }
 }
 
+static void dpmi_return_to_dosemu(void)
+{
+  longjmp(dpmi_ret_jmp, 1);
+}
+
 static void Return_to_dosemu_code(struct sigcontext_struct *scp,
-    struct sigcontext_struct *dpmi_ctx)
+    struct sigcontext_struct *dpmi_ctx, int retcode)
 {
 #ifdef X86_EMULATOR
   if (config.cpuemu>=4) /* 0=off 1=on-inactive 2=on-first time
@@ -1288,10 +1322,12 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
     }
     copy_context(dpmi_ctx, scp, 1);
   }
-  /* preset return code to 0 */
-  _eax = 0;
-  /* simulate the "ret" from "call *%3" in dpmi_transfer() */
-  _rip = emu_stack_ptr[-2];
+  dpmi_ret_val = retcode;
+  /* TODO: we can as well do siglongjmp() here when SS is restored
+   * by kernel on signal delivery (currently not the case, some versions
+   * of 4.1 did so). When adding siglongjmp(), don't forget to restore
+   * ds/es by hands. */
+  _rip = (unsigned long)dpmi_return_to_dosemu;
   /* Don't inherit TF from DPMI! */
   _eflags = emu_stack_ptr[-1];
   _rsp = (unsigned long)emu_stack_ptr;
@@ -1314,8 +1350,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
 #ifdef __i386__
 int indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
-    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _rip);
-    if (*csp != 0xf4 || csp != (unsigned char *)DPMI_indirect_transfer)
+    if (_rip != (unsigned long)DPMI_indirect_transfer)
 	return 0;
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
@@ -2717,9 +2752,8 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     RSP_callbacks[RSP_num].pm_block_root = DPMI_CLIENT.pm_block_root;
     RSP_num++;
   }
-  if (in_dpmi_dos_int) {
+  if (in_dpmi_dos_int)
     dpmi_cleanup();
-  }
 
   if (dos_exit) {
     if (!have_tsr || !tsr_para) {
@@ -2983,35 +3017,7 @@ void dpmi_setup(void)
     unsigned int base_addr, limit, *lp;
 
     if (!config.dpmi) return;
-#ifdef __i386__
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    /* Allocate special buffer that is used for direct jumping to
-       DPMI code. The first half is code, the next half data.
-       A modified ljmp pointer is used because it needs to be a constant
-       value and there is no way to obtain that at compile-time in general
-       circumstances including -fpie/-fpic.
-       The data-part is marked RWX (for now) to make sure that exec-shield
-       doesn't put it beyond the cs limit.
-    */
-    {
-    unsigned char *dpmi_xfr_buffer;
-    dpmi_xfr_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-      2*PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
-    if (dpmi_xfr_buffer == MAP_FAILED) {
-      error("DPMI: can't allocate memory for dpmi_sel_buffer\n");
-      goto err;
-    }
-    memcpy(dpmi_xfr_buffer, DPMI_direct_transfer,
-	   DPMI_direct_transfer_end-DPMI_direct_transfer);
-    dpmi_switch_jmp = (struct pmaddr_s *)(dpmi_xfr_buffer + PAGE_SIZE);
-    memcpy(dpmi_xfr_buffer + (DPMI_direct_transfer_end - DPMI_direct_transfer)
-	   - sizeof(dpmi_switch_jmp),
-	   &dpmi_switch_jmp, sizeof(dpmi_switch_jmp));
-    direct_dpmi_transfer_p = (direct_dpmi_transfer_t)dpmi_xfr_buffer;
-    mprotect(dpmi_xfr_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
-    }
-#endif
-#else
+#ifdef __x86_64__
     {
       unsigned int i, j;
       void *addr;
@@ -3281,7 +3287,7 @@ void dpmi_init(void)
   }
   /* set int 23 to "iret" so that DOS doesn't terminate the program
      behind our back */
-  SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
+  SETIVEC(0x23, IRET_SEG, IRET_OFF);
 
   return; /* return immediately to the main loop */
 
@@ -3312,14 +3318,13 @@ void dpmi_sigio(struct sigcontext_struct *scp)
    Because IF is not set by popf and because dosemu have to do some background
    job (like DMA transfer) regardless whether IF is set or not.
 */
-    dpmi_return(scp);
-    _eax = -1;
+    dpmi_return(scp, -1);
   }
 }
 
-void dpmi_return(struct sigcontext_struct *scp)
+void dpmi_return(struct sigcontext_struct *scp, int retval)
 {
-  Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame);
+  Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame, retval);
 }
 
 static void return_from_exception(struct sigcontext_struct *scp)
@@ -3623,7 +3628,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3) {
-       Return_to_dosemu_code(scp, ORIG_CTXP);
+       Return_to_dosemu_code(scp, ORIG_CTXP, 3);
        return 3;
     }
     if (dpmi_mhp_TF && (_trapno == 1)) {
@@ -3640,7 +3645,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      Return_to_dosemu_code(scp, ORIG_CTXP);
+      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
       return 1;
     }
   }
@@ -3713,7 +3718,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
         if (dpmi_mhp_intxxtab[*csp]) {
           ret=dpmi_mhp_intxx_check(scp, *csp);
           if (ret) {
-            Return_to_dosemu_code(scp, ORIG_CTXP);
+            Return_to_dosemu_code(scp, ORIG_CTXP, ret);
             return ret;
           }
         }
@@ -4283,7 +4288,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
   if (dpmi_mhp_TF) {
       dpmi_mhp_TF=0;
       _eflags &= ~TF;
-      Return_to_dosemu_code(scp, ORIG_CTXP);
+      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
       return 1;
   }
 
@@ -4295,7 +4300,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
         _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
-    Return_to_dosemu_code(scp, ORIG_CTXP);
+    Return_to_dosemu_code(scp, ORIG_CTXP, -1);
     return -1;
   }
 
@@ -4744,7 +4749,7 @@ void add_cli_to_blacklist(void)
 
 static int find_cli_in_blacklist(unsigned char * cur_cli)
 {
-int i;
+  int i;
   if (debug_level('M') > 8)
     D_printf("DPMI: searching blacklist (%d elements) for cli (lina=%p)\n",
       cli_blacklisted, cur_cli);
@@ -4763,10 +4768,8 @@ void dpmi_return_request(void)
 int dpmi_check_return(struct sigcontext_struct *scp)
 {
   if (return_requested) {
-    dpmi_return(scp);
+    dpmi_return(scp, 0);
     return -1;
   }
   return 0;
 }
-
-#undef DPMI_C

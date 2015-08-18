@@ -123,7 +123,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "cpu-emu.h"
 #endif
 
-sigjmp_buf NotJEnv;
 static int ld_tid;
 static int can_leavedos;
 static int leavedos_code;
@@ -309,29 +308,10 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
  * DANG_END_FUNCTION
  *
  */
-#ifdef __ELF__
-int
-main(int argc, char **argv)
-#else
-int
-emulate(int argc, char **argv)
-#endif
+int main(int argc, char **argv)
 {
-    int e;
-
-    srand(time(NULL));
+    setlocale(LC_ALL,"");
     memset(&config, 0, sizeof(config));
-
-    if ((e=sigsetjmp(NotJEnv, 1))) {
-        flush_log();
-    	fprintf(stderr,"EMERGENCY JUMP %x!!!\n",e);
-    	/* there's no other way to stop a signal 11 from hanging dosemu
-    	 * but politely ask the kernel to terminate ourselves */
-	kill(0, SIGKILL);
-	_exit(1);		/* just in case */
-    }
-
-		setlocale(LC_ALL,"");
 
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */

@@ -243,7 +243,7 @@ sgleave:
     if (_trapno == 0x10) {
       g_printf("coprocessor exception, calling IRQ13\n");
       pic_request(PIC_IRQ13);
-      dpmi_return(scp);
+      dpmi_return(scp, -1);
       return -1;
     }
 
@@ -271,7 +271,7 @@ sgleave:
       }
 
       if (CheckSelectors(scp, 0) == 0) {
-        dpmi_return(scp);
+        dpmi_return(scp, -1);
 	return -1;
       }
       /* now we are safe */
