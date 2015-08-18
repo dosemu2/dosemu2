@@ -30,11 +30,6 @@ DPMI_direct_transfer:
 	ljmp	*%cs:0
 	.globl DPMI_direct_transfer_end
 DPMI_direct_transfer_end:
-
-	.globl DPMI_indirect_transfer
-	.type DPMI_indirect_transfer,@function
-DPMI_indirect_transfer:
-	hlt
 #endif
 
 	.globl DPMI_sel_code_start

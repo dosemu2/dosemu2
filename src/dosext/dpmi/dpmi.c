@@ -420,6 +420,14 @@ void dpmi_iret_setup(struct sigcontext_struct *scp)
 }
 #endif
 
+#ifdef __i386__
+static struct pmaddr_s *dpmi_switch_jmp;
+typedef int (*direct_dpmi_transfer_t)(void);
+static direct_dpmi_transfer_t direct_dpmi_transfer_p;
+#else
+#define direct_dpmi_transfer_p DPMI_direct_transfer
+#endif
+
 static int dpmi_transfer(struct sigcontext *scp)
 {
   int ret;
@@ -473,7 +481,7 @@ static int dpmi_transfer(struct sigcontext *scp)
 }
 
 #ifdef __i386__
-static int indirect_dpmi_transfer(struct sigcontext_struct *scp)
+static int indirect_dpmi_transfer(struct sigcontext *scp)
 {
   int ret;
   long dx;
@@ -485,16 +493,22 @@ static int indirect_dpmi_transfer(struct sigcontext_struct *scp)
 "	pushl	%%ebx\n"
 "	movl	%%esp,%2\n"
 "	pushf\n"
-"	call	*%3\n"
+"	push	$dpmi_xfr_return\n"
+"	.globl DPMI_indirect_transfer\n"
+"DPMI_indirect_transfer:\n"
+"	hlt\n"
     /* the signal return returns here */
+"dpmi_xfr_return:\n"
 "	popl	%%ebx\n"
 "	popl	%%ebp\n"
     : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "r"(DPMI_indirect_transfer), "1"(scp)
+    : "1"(scp)
     : "cx", "si", "di", "cc", "memory"
   );
   return ret;
 }
+
+extern int DPMI_indirect_transfer(void);
 #endif
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
@@ -524,13 +538,6 @@ static int indirect_dpmi_transfer(struct sigcontext_struct *scp)
  * 21	unsigned long cr2;		84 dirty -- ignored
  * --------------------------------------------------------------
  */
-#ifdef __i386__
-static struct pmaddr_s *dpmi_switch_jmp;
-typedef int (*direct_dpmi_transfer_t)(void);
-static direct_dpmi_transfer_t direct_dpmi_transfer_p;
-#else
-#define direct_dpmi_transfer_p DPMI_direct_transfer
-#endif
 
 static int direct_dpmi_switch(struct sigcontext_struct *scp)
 {
@@ -1354,8 +1361,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
 #ifdef __i386__
 int indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
-    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _rip);
-    if (*csp != 0xf4 || csp != (unsigned char *)DPMI_indirect_transfer)
+    if (_rip != (long)DPMI_indirect_transfer)
 	return 0;
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;

@@ -11,7 +11,6 @@
 extern void		DPMI_iret(void);
 #else
 extern unsigned char	DPMI_direct_transfer[];
-extern int		DPMI_indirect_transfer(void);
 #endif
 extern unsigned char	DPMI_direct_transfer_end[];
 
