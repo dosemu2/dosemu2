@@ -428,31 +428,19 @@ void dpmi_iret_setup(struct sigcontext_struct *scp)
 
 #else
 
-static int indirect_dpmi_transfer(struct sigcontext *scp)
+__attribute__((noreturn))
+static void indirect_dpmi_transfer(void)
 {
-  int ret;
-  long dx;
-  /* save registers that GCC does not allow to be clobbered
-     (in reality ebp is only necessary with frame pointers and ebx
-      with PIC; eflags is saved for TF) */
+  /* eflags is saved for TF */
   asm volatile (
-"	pushl	%%ebp\n"
-"	pushl	%%ebx\n"
-"	movl	%%esp,%2\n"
+"	movl	%%esp,%0\n"
 "	pushf\n"
-"	push	$1f\n"
 "	.globl DPMI_indirect_transfer\n"
 "DPMI_indirect_transfer:\n"
 "	hlt\n"
-    /* the signal return returns here */
-"1:\n"
-"	popl	%%ebx\n"
-"	popl	%%ebp\n"
-    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "1"(scp)
-    : "cx", "si", "di", "cc", "memory"
+    : "=m"(emu_stack_ptr)
   );
-  return ret;
+  __builtin_unreachable();
 }
 
 extern int DPMI_indirect_transfer(void);
@@ -463,22 +451,15 @@ extern int DPMI_indirect_transfer(void);
 static struct pmaddr_s dpmi_switch_jmp;
 #endif
 
-static int dpmi_transfer(struct sigcontext *scp)
+__attribute__((noreturn))
+static void dpmi_transfer(struct sigcontext *scp)
 {
-  int ret;
-  long dx;
-  /* save registers that GCC does not allow to be clobbered
-     (in reality ebp is only necessary with frame pointers and ebx
-      with PIC; eflags is saved for TF) */
+  /* eflags is saved for TF */
   asm volatile (
 #ifdef __x86_64__
-"	push	%%rbp\n"
-"	push	%%rbx\n"
-"	movq	%%rsp,%2\n"
-
+"	movq	%%rsp,%0\n"
 "	pushf\n"
-"	push	$1f\n"
-"	mov	%%rdx,%%rsp\n"		/* rsp=scp */
+"	mov	%1,%%rsp\n"		/* rsp=scp */
 "	add	$8*8,%%rsp\n"		/* skip r8-r15 */
 "	pop	%%rdi\n"
 "	pop	%%rsi\n"
@@ -489,22 +470,12 @@ static int dpmi_transfer(struct sigcontext *scp)
 "	pop	%%rcx\n"
 "	pop	%%rsp\n"		/* => iret_frame */
 "	iretl\n"
-
-    /* the signal return returns here */
-"1:\n"
-"	pop	%%rbx\n"
-"	pop	%%rbp\n"
-    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "1"(scp)
-    : "cx", "si", "di", "cc", "memory", "r8"
+    : "=m"(emu_stack_ptr)
+    : "r"(scp)
 #else
-"	pushl	%%ebp\n"
-"	pushl	%%ebx\n"
-"	movl	%%esp,%2\n"
-
+"	movl	%%esp,%0\n"
 "	pushf\n"
-"	push	$1f\n"
-"	movl	%%edx,%%esp\n"	/* esp=scp */
+"	movl	%1,%%esp\n"	/* esp=scp */
 "	pop	%%gs\n"
 "	pop	%%fs\n"
 "	pop	%%es\n"
@@ -513,18 +484,12 @@ static int dpmi_transfer(struct sigcontext *scp)
 "	addl	$4*4,%%esp\n"
 "	popfl\n"
 "	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-"	ljmp	*%%cs:%3\n"
-
-    /* the signal return returns here */
-"1:\n"
-"	popl	%%ebx\n"
-"	popl	%%ebp\n"
-    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "m"(dpmi_switch_jmp), "1"(scp)
-    : "cx", "si", "di", "cc", "memory"
+"	ljmp	*%%cs:%2\n"
+    : "=m"(emu_stack_ptr)
+    : "r"(scp), "m"(dpmi_switch_jmp)
 #endif
   );
-  return ret;
+  __builtin_unreachable();
 }
 
 /* --------------------------------------------------------------
@@ -553,8 +518,8 @@ static int dpmi_transfer(struct sigcontext *scp)
  * 21	unsigned long cr2;		84 dirty -- ignored
  * --------------------------------------------------------------
  */
-
-static int direct_dpmi_switch(struct sigcontext_struct *scp)
+__attribute__((noreturn))
+static void direct_dpmi_switch(struct sigcontext_struct *scp)
 {
 #ifdef __i386__
   dpmi_switch_jmp.offset = _eip;
@@ -566,7 +531,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *scp)
 #endif
 
   loadfpstate(*scp->fpstate);
-  return dpmi_transfer(scp);
+  dpmi_transfer(scp);
 }
 
 #endif
@@ -678,12 +643,12 @@ static int dpmi_control(void)
 	  D_printf("DPMI SWITCH to 0x%x:0x%08x (%p), Stack 0x%x:0x%08x (%p) flags=%#lx\n",
 	    _cs, _eip, SEL_ADR(_cs,_eip), _ss, _esp, SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
 	}
-	return direct_dpmi_switch(scp);
+	direct_dpmi_switch(scp);
     }
 #endif
 #ifdef __i386__
     /* Note: for i386 we can't set TF with our speedup code */
-    return indirect_dpmi_transfer(scp);
+    indirect_dpmi_transfer();
 #endif
 }
 
