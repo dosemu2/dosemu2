@@ -9,10 +9,7 @@
 
 #ifdef __x86_64__
 extern void		DPMI_iret(void);
-#else
-extern unsigned char	DPMI_direct_transfer[];
 #endif
-extern unsigned char	DPMI_direct_transfer_end[];
 
 extern unsigned char	DPMI_sel_code_start[];
 extern unsigned char	DPMI_sel_data_start[];

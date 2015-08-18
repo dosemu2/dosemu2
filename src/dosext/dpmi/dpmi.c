@@ -15,7 +15,13 @@
 
 #define DPMI_C
 
+#if defined(__i386__) && (defined(__PIE__) || defined(__PIC__))
+#warning Disabling direct DPMI context switch due to PIC
+#warning Please remove -fpic and/or -fpie from CFLAGS
+#define DIRECT_DPMI_CONTEXT_SWITCH 0
+#else
 #define DIRECT_DPMI_CONTEXT_SWITCH 1
+#endif
 
 #include "config.h"
 #include <stdio.h>
@@ -421,11 +427,39 @@ void dpmi_iret_setup(struct sigcontext_struct *scp)
 #endif
 
 #ifdef __i386__
-static struct pmaddr_s *dpmi_switch_jmp;
-typedef int (*direct_dpmi_transfer_t)(void);
-static direct_dpmi_transfer_t direct_dpmi_transfer_p;
-#else
-#define direct_dpmi_transfer_p DPMI_direct_transfer
+static int indirect_dpmi_transfer(struct sigcontext *scp)
+{
+  int ret;
+  long dx;
+  /* save registers that GCC does not allow to be clobbered
+     (in reality ebp is only necessary with frame pointers and ebx
+      with PIC; eflags is saved for TF) */
+  asm volatile (
+"	pushl	%%ebp\n"
+"	pushl	%%ebx\n"
+"	movl	%%esp,%2\n"
+"	pushf\n"
+"	push	$1f\n"
+"	.globl DPMI_indirect_transfer\n"
+"DPMI_indirect_transfer:\n"
+"	hlt\n"
+    /* the signal return returns here */
+"1:\n"
+"	popl	%%ebx\n"
+"	popl	%%ebp\n"
+    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
+    : "1"(scp)
+    : "cx", "si", "di", "cc", "memory"
+  );
+  return ret;
+}
+
+extern int DPMI_indirect_transfer(void);
+#endif
+
+#if DIRECT_DPMI_CONTEXT_SWITCH
+#ifdef __i386__
+static struct pmaddr_s dpmi_switch_jmp;
 #endif
 
 static int dpmi_transfer(struct sigcontext *scp)
@@ -442,7 +476,7 @@ static int dpmi_transfer(struct sigcontext *scp)
 "	movq	%%rsp,%2\n"
 
 "	pushf\n"
-"	push	$dpmi_xfr_return\n"
+"	push	$1f\n"
 "	mov	%%rdx,%%rsp\n"		/* rsp=scp */
 "	add	$8*8,%%rsp\n"		/* skip r8-r15 */
 "	pop	%%rdi\n"
@@ -454,64 +488,44 @@ static int dpmi_transfer(struct sigcontext *scp)
 "	pop	%%rcx\n"
 "	pop	%%rsp\n"		/* => iret_frame */
 "	iretl\n"
-#else
-"	pushl	%%ebp\n"
-"	pushl	%%ebx\n"
-"	movl	%%esp,%2\n"
-"	pushf\n"
-"	call	*%3\n"
-#endif
+
     /* the signal return returns here */
-#ifdef __x86_64__
-"dpmi_xfr_return:\n"
+"1:\n"
 "	pop	%%rbx\n"
 "	pop	%%rbp\n"
     : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
     : "1"(scp)
     : "cx", "si", "di", "cc", "memory", "r8"
 #else
-"	popl	%%ebx\n"
-"	popl	%%ebp\n"
-    : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "r"(direct_dpmi_transfer_p), "1"(scp)
-    : "cx", "si", "di", "cc", "memory"
-#endif
-  );
-  return ret;
-}
-
-#ifdef __i386__
-static int indirect_dpmi_transfer(struct sigcontext *scp)
-{
-  int ret;
-  long dx;
-  /* save registers that GCC does not allow to be clobbered
-     (in reality ebp is only necessary with frame pointers and ebx
-      with PIC; eflags is saved for TF) */
-  asm volatile (
 "	pushl	%%ebp\n"
 "	pushl	%%ebx\n"
 "	movl	%%esp,%2\n"
+
 "	pushf\n"
-"	push	$dpmi_xfr_return\n"
-"	.globl DPMI_indirect_transfer\n"
-"DPMI_indirect_transfer:\n"
-"	hlt\n"
+"	push	$1f\n"
+"	movl	%%edx,%%esp\n"	/* esp=scp */
+"	pop	%%gs\n"
+"	pop	%%fs\n"
+"	pop	%%es\n"
+"	pop	%%ds\n"
+"	popa\n"
+"	addl	$4*4,%%esp\n"
+"	popfl\n"
+"	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
+"	ljmp	*%%cs:%3\n"
+
     /* the signal return returns here */
-"dpmi_xfr_return:\n"
+"1:\n"
 "	popl	%%ebx\n"
 "	popl	%%ebp\n"
     : "=a"(ret), "=&d"(dx), "=m"(emu_stack_ptr)
-    : "1"(scp)
+    : "m"(dpmi_switch_jmp), "1"(scp)
     : "cx", "si", "di", "cc", "memory"
+#endif
   );
   return ret;
 }
 
-extern int DPMI_indirect_transfer(void);
-#endif
-
-#if DIRECT_DPMI_CONTEXT_SWITCH
 /* --------------------------------------------------------------
  * 00	unsigned short gs, __gsh;	00 -> dpmi_context
  * 01	unsigned short fs, __fsh;	04
@@ -542,8 +556,8 @@ extern int DPMI_indirect_transfer(void);
 static int direct_dpmi_switch(struct sigcontext_struct *scp)
 {
 #ifdef __i386__
-  dpmi_switch_jmp->offset = _eip;
-  dpmi_switch_jmp->selector = _cs;
+  dpmi_switch_jmp.offset = _eip;
+  dpmi_switch_jmp.selector = _cs;
   scp->esp_at_signal = _esp;
 #else
   dpmi_restore_segregs(scp);
@@ -3029,35 +3043,7 @@ void dpmi_setup(void)
     unsigned int base_addr, limit, *lp;
 
     if (!config.dpmi) return;
-#ifdef __i386__
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    /* Allocate special buffer that is used for direct jumping to
-       DPMI code. The first half is code, the next half data.
-       A modified ljmp pointer is used because it needs to be a constant
-       value and there is no way to obtain that at compile-time in general
-       circumstances including -fpie/-fpic.
-       The data-part is marked RWX (for now) to make sure that exec-shield
-       doesn't put it beyond the cs limit.
-    */
-    {
-    unsigned char *dpmi_xfr_buffer;
-    dpmi_xfr_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-      2*PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
-    if (dpmi_xfr_buffer == MAP_FAILED) {
-      error("DPMI: can't allocate memory for dpmi_sel_buffer\n");
-      goto err;
-    }
-    memcpy(dpmi_xfr_buffer, DPMI_direct_transfer,
-	   DPMI_direct_transfer_end-DPMI_direct_transfer);
-    dpmi_switch_jmp = (struct pmaddr_s *)(dpmi_xfr_buffer + PAGE_SIZE);
-    memcpy(dpmi_xfr_buffer + (DPMI_direct_transfer_end - DPMI_direct_transfer)
-	   - sizeof(dpmi_switch_jmp),
-	   &dpmi_switch_jmp, sizeof(dpmi_switch_jmp));
-    direct_dpmi_transfer_p = (direct_dpmi_transfer_t)dpmi_xfr_buffer;
-    mprotect(dpmi_xfr_buffer, PAGE_SIZE, PROT_READ | PROT_EXEC);
-    }
-#endif
-#else
+#ifdef __x86_64__
     {
       unsigned int i, j;
       void *addr;

@@ -14,22 +14,6 @@
 	.type DPMI_iret,@function
 DPMI_iret:	
 	iretl
-
-#else
-	.globl DPMI_direct_transfer
-DPMI_direct_transfer:
-	movl	%edx,%esp	/* esp=scp */
-	pop	%gs
-	pop	%fs
-	pop	%es
-	pop	%ds
-	popa
-	addl	$4*4,%esp
-	popfl
-	lss	(%esp),%esp		/* this is: pop ss; pop esp */
-	ljmp	*%cs:0
-	.globl DPMI_direct_transfer_end
-DPMI_direct_transfer_end:
 #endif
 
 	.globl DPMI_sel_code_start
