@@ -13,8 +13,6 @@
  *
  */
 
-#define DPMI_C
-
 #if defined(__i386__) && (defined(__PIE__) || defined(__PIC__))
 #warning Disabling direct DPMI context switch due to PIC
 #warning Please remove -fpic and/or -fpie from CFLAGS
@@ -4776,7 +4774,7 @@ void add_cli_to_blacklist(void)
 
 static int find_cli_in_blacklist(unsigned char * cur_cli)
 {
-int i;
+  int i;
   if (debug_level('M') > 8)
     D_printf("DPMI: searching blacklist (%d elements) for cli (lina=%p)\n",
       cli_blacklisted, cur_cli);
@@ -4800,5 +4798,3 @@ int dpmi_check_return(struct sigcontext_struct *scp)
   }
   return 0;
 }
-
-#undef DPMI_C
