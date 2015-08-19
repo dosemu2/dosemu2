@@ -434,10 +434,8 @@ __attribute__((noreturn))
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
-  /* eflags is saved for TF */
   asm volatile (
 "	movl	%%esp,%0\n"
-"	pushf\n"
 "	hlt\n"
     : "=m"(emu_stack_ptr)
   );
@@ -453,11 +451,9 @@ static struct pmaddr_s dpmi_switch_jmp;
 __attribute__((noreturn))
 static void dpmi_transfer(struct sigcontext *scp)
 {
-  /* eflags is saved for TF */
   asm volatile (
 #ifdef __x86_64__
 "	movq	%%rsp,%0\n"
-"	pushf\n"
 "	mov	%1,%%rsp\n"		/* rsp=scp */
 "	add	$8*8,%%rsp\n"		/* skip r8-r15 */
 "	pop	%%rdi\n"
@@ -473,7 +469,6 @@ static void dpmi_transfer(struct sigcontext *scp)
     : "r"(scp)
 #else
 "	movl	%%esp,%0\n"
-"	pushf\n"
 "	movl	%1,%%esp\n"	/* esp=scp */
 "	pop	%%gs\n"
 "	pop	%%fs\n"
@@ -1327,8 +1322,8 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
    * of 4.1 did so). When adding siglongjmp(), don't forget to restore
    * ds/es by hands. */
   _rip = (unsigned long)dpmi_return_to_dosemu;
-  /* Don't inherit TF from DPMI! */
-  _eflags = emu_stack_ptr[-1];
+  /* Don't inherit TF from DPMI, put dosemu's flags */
+  _eflags = eflags_fs_gs.eflags;
   _rsp = (unsigned long)emu_stack_ptr;
   _cs = getsegment(cs);
 #ifdef __x86_64__
