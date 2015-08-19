@@ -220,7 +220,7 @@ INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions"
+ -Wnested-externs -fms-extensions -fno-stack-protector"
 
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
