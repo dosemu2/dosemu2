@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <sys/eventfd.h>
 #include <sys/types.h>
@@ -1006,7 +1007,7 @@ static void async_awake(void *arg)
   int i;
   eventfd_t val;
   eventfd_read(event_fd, &val);
-  g_printf("processing %zi callbacks\n", val);
+  g_printf("processing %"PRId64" callbacks\n", val);
   do {
     pthread_mutex_lock(&cbk_mtx);
     i = rng_get(&cbks, &cbk);
