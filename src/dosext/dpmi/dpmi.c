@@ -428,22 +428,21 @@ void dpmi_iret_setup(struct sigcontext *scp)
 
 #else
 
+static int in_indirect_dpmi_transfer;
+
 __attribute__((noreturn))
 static void indirect_dpmi_transfer(void)
 {
+  in_indirect_dpmi_transfer++;
   /* eflags is saved for TF */
   asm volatile (
 "	movl	%%esp,%0\n"
 "	pushf\n"
-"	.globl DPMI_indirect_transfer\n"
-"DPMI_indirect_transfer:\n"
 "	hlt\n"
     : "=m"(emu_stack_ptr)
   );
   __builtin_unreachable();
 }
-
-extern int DPMI_indirect_transfer(void);
 #endif
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
@@ -1350,8 +1349,9 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
 #ifdef __i386__
 int indirect_dpmi_switch(struct sigcontext *scp)
 {
-    if (_rip != (unsigned long)DPMI_indirect_transfer)
+    if (!in_indirect_dpmi_transfer)
 	return 0;
+    in_indirect_dpmi_transfer--;
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
 }
