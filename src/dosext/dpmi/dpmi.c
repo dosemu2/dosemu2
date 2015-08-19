@@ -102,7 +102,6 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static unsigned long *emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 #endif
@@ -434,11 +433,7 @@ __attribute__((noreturn))
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
-  asm volatile (
-"	movl	%%esp,%0\n"
-"	hlt\n"
-    : "=m"(emu_stack_ptr)
-  );
+  asm volatile ("hlt\n");
   __builtin_unreachable();
 }
 #endif
@@ -453,8 +448,7 @@ static void dpmi_transfer(struct sigcontext *scp)
 {
   asm volatile (
 #ifdef __x86_64__
-"	movq	%%rsp,%0\n"
-"	mov	%1,%%rsp\n"		/* rsp=scp */
+"	mov	%0,%%rsp\n"		/* rsp=scp */
 "	add	$8*8,%%rsp\n"		/* skip r8-r15 */
 "	pop	%%rdi\n"
 "	pop	%%rsi\n"
@@ -465,11 +459,10 @@ static void dpmi_transfer(struct sigcontext *scp)
 "	pop	%%rcx\n"
 "	pop	%%rsp\n"		/* => iret_frame */
 "	iretl\n"
-    : "=m"(emu_stack_ptr)
+    :
     : "r"(scp)
 #else
-"	movl	%%esp,%0\n"
-"	movl	%1,%%esp\n"	/* esp=scp */
+"	movl	%0,%%esp\n"	/* esp=scp */
 "	pop	%%gs\n"
 "	pop	%%fs\n"
 "	pop	%%es\n"
@@ -478,8 +471,8 @@ static void dpmi_transfer(struct sigcontext *scp)
 "	addl	$4*4,%%esp\n"
 "	popfl\n"
 "	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-"	ljmp	*%%cs:%2\n"
-    : "=m"(emu_stack_ptr)
+"	ljmp	*%%cs:%1\n"
+    :
     : "r"(scp), "m"(dpmi_switch_jmp)
 #endif
   );
@@ -1301,6 +1294,7 @@ static void dpmi_return_to_dosemu(void)
 static void Return_to_dosemu_code(struct sigcontext *scp,
     struct sigcontext *dpmi_ctx, int retcode)
 {
+  static uint8_t ret_stk[1024];
 #ifdef X86_EMULATOR
   if (config.cpuemu>=4) /* 0=off 1=on-inactive 2=on-first time
 			   3=vm86 only, 4=all active */
@@ -1322,9 +1316,11 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
    * of 4.1 did so). When adding siglongjmp(), don't forget to restore
    * ds/es by hands. */
   _rip = (unsigned long)dpmi_return_to_dosemu;
+  /* small stack for longjmp()... how small? */
+  _rsp = (unsigned long)(ret_stk + sizeof(ret_stk));
+
   /* Don't inherit TF from DPMI, put dosemu's flags */
   _eflags = eflags_fs_gs.eflags;
-  _rsp = (unsigned long)emu_stack_ptr;
   _cs = getsegment(cs);
 #ifdef __x86_64__
   /* in 64bit mode the signal handler is running with DOS ds/es/ss */
