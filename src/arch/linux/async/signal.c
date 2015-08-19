@@ -157,40 +157,6 @@ static void newsetsig(int sig, void *fun)
 	dosemu_sigaction_wrapper(sig, fun, flags);
 }
 
-#ifdef __x86_64__
-/* this function is called from dosemu_fault0 to check if
-   fsbase/gsbase need to be fixed up, if the above asm codes
-   cause a page fault.
- */
-int check_fix_fs_gs_base(unsigned char prefix)
-{
-  unsigned char *addr, *base;
-  int getcode, setcode;
-
-  if (prefix == 0x65) { /* gs: */
-    getcode = ARCH_GET_GS;
-    setcode = ARCH_SET_GS;
-    base = eflags_fs_gs.gsbase;
-  } else {
-    getcode = ARCH_GET_FS;
-    setcode = ARCH_SET_FS;
-    base = eflags_fs_gs.fsbase;
-  }
-
-  if (dosemu_arch_prctl(getcode, &addr) != 0)
-    return 0;
-
-  /* already fine, not fixing it up, but then the dosemu fault is fatal */
-  if (addr == base)
-    return 0;
-
-  dosemu_arch_prctl(setcode, base);
-  D_printf("DPMI: Fixed up %csbase in fault handler\n", prefix + 2);
-  return 1;
-}
-
-#endif
-
 /* init_handler puts the handler in a sane state that glibc
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */

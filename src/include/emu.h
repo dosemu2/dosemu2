@@ -455,7 +455,6 @@ extern void registersig(int sig, void (*handler)(struct sigcontext *));
 extern void init_handler(struct sigcontext *scp);
 #ifdef __x86_64__
 extern void deinit_handler(struct sigcontext *scp);
-extern int check_fix_fs_gs_base(unsigned char prefix);
 #else
 #define deinit_handler(scp)
 #endif
