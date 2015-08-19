@@ -14,7 +14,7 @@
 #endif
 #include <signal.h>
 #ifdef __linux__
-#include "Asm/vm86.h"
+#include "vm86_compat.h"
 #endif
 #ifndef BIOSSEG
 #define BIOSSEG 0xf000
@@ -29,7 +29,7 @@
 #ifdef __linux__
 #define REGS  vm86s.regs
 /* this is used like: REG(eax) = 0xFFFFFFF */
-#define REG(reg) (REGS.reg)
+#define REG(reg) (*(uint32_t *)&REGS.reg)
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif

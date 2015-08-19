@@ -3,7 +3,7 @@
 
 #ifdef __linux__
 #include "emu.h"
-#include <Asm/vm86.h>
+#include "vm86_compat.h"
 #include <unistd.h>
 #include <sys/syscall.h>
 #endif /* __linux__ */

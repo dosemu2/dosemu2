@@ -1598,7 +1598,7 @@ dos_fs_dev(state_t *state)
   u_char drive_to_redirect;
   int dos_ver;
 
-  Debug0((dbg_fd, "emufs operation: 0x%08x\n", state->ebx));
+  Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
   if (WORD(state->ebx) == 0x500) {
     init_all_drives();

@@ -535,32 +535,32 @@ static void Reg2Cpu (int mode)
   }
 
   if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
-  TheCPU.eax     = vm86s.regs.eax;	/* 2c -> 18 */
-  TheCPU.ebx     = vm86s.regs.ebx;	/* 20 -> 00 */
-  TheCPU.ecx     = vm86s.regs.ecx;	/* 28 -> 04 */
-  TheCPU.edx     = vm86s.regs.edx;	/* 24 -> 08 */
-  TheCPU.esi     = vm86s.regs.esi;	/* 14 -> 0c */
-  TheCPU.edi     = vm86s.regs.edi;	/* 10 -> 10 */
-  TheCPU.ebp     = vm86s.regs.ebp;	/* 18 -> 14 */
-  TheCPU.esp     = vm86s.regs.esp;	/* 1c -> 3c */
+	REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+  TheCPU.eax     = REG(eax);	/* 2c -> 18 */
+  TheCPU.ebx     = REG(ebx);	/* 20 -> 00 */
+  TheCPU.ecx     = REG(ecx);	/* 28 -> 04 */
+  TheCPU.edx     = REG(edx);	/* 24 -> 08 */
+  TheCPU.esi     = REG(esi);	/* 14 -> 0c */
+  TheCPU.edi     = REG(edi);	/* 10 -> 10 */
+  TheCPU.ebp     = REG(ebp);	/* 18 -> 14 */
+  TheCPU.esp     = REG(esp);	/* 1c -> 3c */
   TheCPU.err     = 0;
   TheCPU.eip     = vm86s.regs.eip&0xffff;
 
-  SetSegReal(vm86s.regs.cs,Ofs_CS);
-  SetSegReal(vm86s.regs.ss,Ofs_SS);
-  SetSegReal(vm86s.regs.ds,Ofs_DS);
-  SetSegReal(vm86s.regs.es,Ofs_ES);
-  SetSegReal(vm86s.regs.fs,Ofs_FS);
-  SetSegReal(vm86s.regs.gs,Ofs_GS);
+  SetSegReal(REG(cs),Ofs_CS);
+  SetSegReal(REG(ss),Ofs_SS);
+  SetSegReal(REG(ds),Ofs_DS);
+  SetSegReal(REG(es),Ofs_ES);
+  SetSegReal(REG(fs),Ofs_FS);
+  SetSegReal(REG(gs),Ofs_GS);
   trans_addr     = LONG_CS + TheCPU.eip;
 
   if (debug_level('e')>1) {
 	if (debug_level('e')==3) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x evf=%08x\n%s\n",
-		vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags,
+		REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags,
 		e_print_regs());
 	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-		vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+		REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
   }
 }
 
@@ -571,33 +571,33 @@ void Cpu2Reg (void)
 {
   int mask;
   if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
-  vm86s.regs.eax = TheCPU.eax;
-  vm86s.regs.ebx = TheCPU.ebx;
-  vm86s.regs.ecx = TheCPU.ecx;
-  vm86s.regs.edx = TheCPU.edx;
-  vm86s.regs.esi = TheCPU.esi;
-  vm86s.regs.edi = TheCPU.edi;
-  vm86s.regs.ebp = TheCPU.ebp;
-  vm86s.regs.esp = TheCPU.esp;
-  vm86s.regs.ds  = TheCPU.ds;
-  vm86s.regs.es  = TheCPU.es;
-  vm86s.regs.ss  = TheCPU.ss;
-  vm86s.regs.fs  = TheCPU.fs;
-  vm86s.regs.gs  = TheCPU.gs;
-  vm86s.regs.cs  = TheCPU.cs;
-  vm86s.regs.eip = return_addr - LONG_CS;
+	REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+  REG(eax) = TheCPU.eax;
+  REG(ebx) = TheCPU.ebx;
+  REG(ecx) = TheCPU.ecx;
+  REG(edx) = TheCPU.edx;
+  REG(esi) = TheCPU.esi;
+  REG(edi) = TheCPU.edi;
+  REG(ebp) = TheCPU.ebp;
+  REG(esp) = TheCPU.esp;
+  REG(ds)  = TheCPU.ds;
+  REG(es)  = TheCPU.es;
+  REG(ss)  = TheCPU.ss;
+  REG(fs)  = TheCPU.fs;
+  REG(gs)  = TheCPU.gs;
+  REG(cs)  = TheCPU.cs;
+  REG(eip) = return_addr - LONG_CS;
   /*
    * move (VIF|TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
    * from the emulated ones.
    * The cpuemu should not change VIP, the good one is always in vm86s.
    */
   mask = VIF | eTSSMASK;
-  vm86s.regs.eflags = (vm86s.regs.eflags & VIP) |
+  REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+	REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
 }
 
 
@@ -719,12 +719,12 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
     _eip = return_addr & 0xffff;
     /* rebuild running flags */
     mask = VIF | eTSSMASK;
-    vm86s.regs.eflags = (vm86s.regs.eflags & VIP) |
+    REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-    _eflags = vm86s.regs.eflags & ~VM;
+    _eflags = REG(eflags) & ~VM;
   }
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
-	_eflags,vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+	_eflags,REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
 
 
