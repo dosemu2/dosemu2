@@ -463,7 +463,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 #ifdef X86_EMULATOR
 			config.cpuemu = 1;
 			c_printf("CONF: CPUEMU set to %d for %d86\n",
-				config.cpuemu, vm86s.cpu_type);
+				config.cpuemu, (int)vm86s.cpu_type);
 #endif
 			}
 		| CPUEMU cpuemu
@@ -478,7 +478,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			}
 			c_printf("CONF: %s CPUEMU set to %d for %d86\n",
 				CONFIG_CPUSIM ? "simulated" : "JIT",
-				config.cpuemu, vm86s.cpu_type);
+				config.cpuemu, (int)vm86s.cpu_type);
 #endif
 			}
 		| CPUSPEED real_expression
