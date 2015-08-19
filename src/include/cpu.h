@@ -29,7 +29,12 @@
 #ifdef __linux__
 #define REGS  vm86s.regs
 /* this is used like: REG(eax) = 0xFFFFFFF */
+#ifdef __i386__
+/* unfortunately the regs are defined as long (not even unsigned) in vm86.h */
 #define REG(reg) (*(uint32_t *)&REGS.reg)
+#else
+#define REG(reg) (REGS.reg)
+#endif
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif
