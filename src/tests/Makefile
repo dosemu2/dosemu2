@@ -8,7 +8,7 @@ all: test-i386 test-i386.exe
 
 # i386/x86_64 emulation test (test various opcodes) */
 test-i386: $(ALL_SRC)
-	$(CC) -m32 $(CFLAGS) $(LDFLAGS) -lm -o $@ $(SOURCES)
+	$(CC) -m32 $(CFLAGS) $(LDFLAGS) -o $@ $(SOURCES) -lm
 
 test-i386.exe: $(ALL_SRC)
 	$(DJGPP) $(CFLAGS) $(LDFLAGS) -lm -o $@ $(SOURCES)
