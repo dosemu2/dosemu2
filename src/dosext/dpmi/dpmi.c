@@ -227,7 +227,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
    * We initialize this explicitly in order to pacify valgrind.
    * Otherwise, there would be some uninitialized padding bits at the end.
    */
-  struct modify_ldt_ldt_s ldt_info = {};
+  struct user_desc ldt_info = {};
 
   int __retval;
   ldt_info.entry_number = entry;

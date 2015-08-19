@@ -3,8 +3,8 @@
  *
  * Definitions of structures used with the modify_ldt system call.
  */
-#ifndef _LINUX_LDT_H
-#define _LINUX_LDT_H
+#ifndef _ASM_LDT_H
+#define _ASM_LDT_H
 
 /* Maximum number of LDT entries supported. */
 #define LDT_ENTRIES	8192
@@ -12,7 +12,12 @@
 #define LDT_ENTRY_SIZE	8
 
 #ifndef __ASSEMBLY__
-struct modify_ldt_ldt_s {
+/*
+ * Note on 64bit base and limit is ignored and you cannot set DS/ES/CS
+ * not to the default values if you still want to do syscalls. This
+ * call is more for 32bit mode therefore.
+ */
+struct user_desc {
 	unsigned int  entry_number;
 	unsigned int  base_addr;
 	unsigned int  limit;
@@ -22,6 +27,16 @@ struct modify_ldt_ldt_s {
 	unsigned int  limit_in_pages:1;
 	unsigned int  seg_not_present:1;
 	unsigned int  useable:1;
+#ifdef __x86_64__
+	/*
+	 * Because this bit is not present in 32-bit user code, user
+	 * programs can pass uninitialized values here.  Therefore, in
+	 * any context in which a user_desc comes from a 32-bit program,
+	 * the kernel must act as though lm == 0, regardless of the
+	 * actual value.
+	 */
+	unsigned int  lm:1;
+#endif
 };
 
 #define MODIFY_LDT_CONTENTS_DATA	0
@@ -29,4 +44,4 @@ struct modify_ldt_ldt_s {
 #define MODIFY_LDT_CONTENTS_CODE	2
 
 #endif /* !__ASSEMBLY__ */
-#endif
+#endif /* _ASM_LDT_H */
