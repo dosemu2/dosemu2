@@ -14,7 +14,7 @@
 #endif
 #include <signal.h>
 #ifdef __linux__
-#include "Asm/vm86.h"
+#include "vm86_compat.h"
 #endif
 #ifndef BIOSSEG
 #define BIOSSEG 0xf000
