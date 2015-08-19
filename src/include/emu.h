@@ -451,10 +451,10 @@ extern void sig_ctx_restore(int tid);
 extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
 extern int sigchld_enable_handler(pid_t pid, int on);
 extern void addset_signals_that_queue(sigset_t *x);
-extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));
-extern void init_handler(struct sigcontext_struct *scp);
+extern void registersig(int sig, void (*handler)(struct sigcontext *));
+extern void init_handler(struct sigcontext *scp);
 #ifdef __x86_64__
-extern void deinit_handler(struct sigcontext_struct *scp);
+extern void deinit_handler(struct sigcontext *scp);
 extern int check_fix_fs_gs_base(unsigned char prefix);
 #else
 #define deinit_handler(scp)

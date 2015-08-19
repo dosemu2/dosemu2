@@ -109,13 +109,13 @@ static unsigned int *iret_frame;
 static jmp_buf dpmi_ret_jmp;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
-static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
+static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 static int DPMI_rm_procedure_running = 0;
 
 #define DPMI_max_rec_pm_func 16
-static struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
+static struct sigcontext DPMI_pm_stack[DPMI_max_rec_pm_func];
 static int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
@@ -154,7 +154,7 @@ static int dpmi_not_supported;
     } \
 }
 
-static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
+static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit);
 
 #ifdef __linux__
@@ -366,7 +366,7 @@ int dpmi_is_valid_range(dosaddr_t addr, int len)
 
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
 /* get esp from scp, otherwise get esp from dpmi_stack_frame         */
-static inline unsigned long client_esp(struct sigcontext_struct *scp)
+static inline unsigned long client_esp(struct sigcontext *scp)
 {
     if (scp == NULL)
 	scp = &DPMI_CLIENT.stack_frame;
@@ -377,7 +377,7 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
 }
 
 #ifdef __x86_64__
-static void dpmi_restore_segregs(struct sigcontext_struct *scp)
+static void dpmi_restore_segregs(struct sigcontext *scp)
 {
   loadregister(ds, _ds);
   loadregister(es, _es);
@@ -395,7 +395,7 @@ static void dpmi_restore_segregs(struct sigcontext_struct *scp)
     loadregister(gs, _gs);
 }
 
-static void iret_frame_setup(struct sigcontext_struct *scp)
+static void iret_frame_setup(struct sigcontext *scp)
 {
   /* set up a frame to get back to DPMI via iret. The kernel does not save
      %ss, and the SYSCALL instruction in sigreturn() destroys it.
@@ -416,7 +416,7 @@ static void iret_frame_setup(struct sigcontext_struct *scp)
   _rsp = (unsigned long)iret_frame;
 }
 
-void dpmi_iret_setup(struct sigcontext_struct *scp)
+void dpmi_iret_setup(struct sigcontext *scp)
 {
   if (!DPMIValidSelector(_cs)) return;
 
@@ -519,7 +519,7 @@ static void dpmi_transfer(struct sigcontext *scp)
  * --------------------------------------------------------------
  */
 __attribute__((noreturn))
-static void direct_dpmi_switch(struct sigcontext_struct *scp)
+static void direct_dpmi_switch(struct sigcontext *scp)
 {
 #ifdef __i386__
   dpmi_switch_jmp.offset = _eip;
@@ -624,7 +624,7 @@ static int dpmi_control(void)
  *
  */
 
-    struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
     if (setjmp(dpmi_ret_jmp))
       return dpmi_ret_val;
 #if DIRECT_DPMI_CONTEXT_SWITCH
@@ -836,7 +836,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
   return selector;
 }
 
-void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
+void FreeSegRegs(struct sigcontext *scp, unsigned short selector)
 {
     if ((_ds | 7) == (selector | 7)) _ds = 0;
     if ((_es | 7) == (selector | 7)) _es = 0;
@@ -983,7 +983,7 @@ THEN
    Clear descriptor valid bit;
 FI;
 */
-static inline int CheckDataSelector(struct sigcontext_struct *scp,
+static inline int CheckDataSelector(struct sigcontext *scp,
 				    unsigned short selector,
 				    char letter, int in_dosemu)
 {
@@ -1011,7 +1011,7 @@ static inline int CheckDataSelector(struct sigcontext_struct *scp,
   return 1;
 }
 
-int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
+int CheckSelectors(struct sigcontext *scp, int in_dosemu)
 {
 #ifdef TRACE_DPMI
   if (debug_level('t') == 0 || _trapno!=1)
@@ -1282,7 +1282,7 @@ void GetFreeMemoryInformation(unsigned int *lp)
   /*2ch*/	*++lp = 0xffffffff;
 }
 
-void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
+void copy_context(struct sigcontext *d, struct sigcontext *s,
     int copy_fpu)
 {
   struct _fpstate *fptr = d->fpstate;
@@ -1304,8 +1304,8 @@ static void dpmi_return_to_dosemu(void)
   longjmp(dpmi_ret_jmp, 1);
 }
 
-static void Return_to_dosemu_code(struct sigcontext_struct *scp,
-    struct sigcontext_struct *dpmi_ctx, int retcode)
+static void Return_to_dosemu_code(struct sigcontext *scp,
+    struct sigcontext *dpmi_ctx, int retcode)
 {
 #ifdef X86_EMULATOR
   if (config.cpuemu>=4) /* 0=off 1=on-inactive 2=on-first time
@@ -1348,7 +1348,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp,
 }
 
 #ifdef __i386__
-int indirect_dpmi_switch(struct sigcontext_struct *scp)
+int indirect_dpmi_switch(struct sigcontext *scp)
 {
     if (_rip != (unsigned long)DPMI_indirect_transfer)
 	return 0;
@@ -1357,7 +1357,7 @@ int indirect_dpmi_switch(struct sigcontext_struct *scp)
 }
 #endif
 
-static void *enter_lpms(struct sigcontext_struct *scp)
+static void *enter_lpms(struct sigcontext *scp)
 {
   unsigned short pmstack_sel;
   unsigned long pmstack_esp;
@@ -1390,7 +1390,7 @@ static void *enter_lpms(struct sigcontext_struct *scp)
   return SEL_ADR_CLNT(pmstack_sel, pmstack_esp, DPMI_CLIENT.is_32);
 }
 
-static void leave_lpms(struct sigcontext_struct *scp)
+static void leave_lpms(struct sigcontext *scp)
 {
   if (DPMI_CLIENT.in_dpmi_pm_stack) {
     DPMI_CLIENT.in_dpmi_pm_stack--;
@@ -1401,7 +1401,7 @@ static void leave_lpms(struct sigcontext_struct *scp)
   }
 }
 
-static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
+static void pm_to_rm_regs(struct sigcontext *scp, unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
     REG(eflags) = eflags_VIF(_eflags);
@@ -1421,7 +1421,7 @@ static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
     REG(ebp) = _ebp;
 }
 
-static void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
+static void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask)
 {
   if (mask & (1 << eflags_INDEX))
     _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
@@ -1525,7 +1525,7 @@ static void restore_rm_regs(void)
   }
 }
 
-void save_pm_regs(struct sigcontext_struct *scp)
+void save_pm_regs(struct sigcontext *scp)
 {
   if (DPMI_pm_procedure_running >= DPMI_max_rec_pm_func) {
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
@@ -1535,7 +1535,7 @@ void save_pm_regs(struct sigcontext_struct *scp)
   copy_context(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp, 0);
 }
 
-void restore_pm_regs(struct sigcontext_struct *scp)
+void restore_pm_regs(struct sigcontext *scp)
 {
   if (DPMI_pm_procedure_running > DPMI_max_rec_pm_func ||
     DPMI_pm_procedure_running < 1) {
@@ -1554,7 +1554,7 @@ void restore_pm_regs(struct sigcontext_struct *scp)
   }
 }
 
-static void __fake_pm_int(struct sigcontext_struct *scp)
+static void __fake_pm_int(struct sigcontext *scp)
 {
   D_printf("DPMI: fake_pm_int() called, in_dpmi_dos_int=0x%02x\n",in_dpmi_dos_int);
   save_rm_regs();
@@ -1571,7 +1571,7 @@ void fake_pm_int(void)
   __fake_pm_int(&DPMI_CLIENT.stack_frame);
 }
 
-static void get_ext_API(struct sigcontext_struct *scp)
+static void get_ext_API(struct sigcontext *scp)
 {
       char *ptr = SEL_ADR_CLNT(_ds, _esi, DPMI_CLIENT.is_32);
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
@@ -1587,7 +1587,7 @@ static void get_ext_API(struct sigcontext_struct *scp)
       }
 }
 
-static int ResizeDescriptorBlock(struct sigcontext_struct *scp,
+static int ResizeDescriptorBlock(struct sigcontext *scp,
  unsigned short begin_selector, unsigned long length)
 {
     unsigned short num_descs, old_num_descs;
@@ -1735,7 +1735,7 @@ static int set_dr(pid_t pid, int i, unsigned long dri)
   return r == 0;
 }
 
-static int dpmi_debug_breakpoint(int op, struct sigcontext_struct *scp)
+static int dpmi_debug_breakpoint(int op, struct sigcontext *scp)
 {
   pid_t pid, vpid;
   int err, r, status;
@@ -1901,7 +1901,7 @@ int DPMI_free_realmode_callback(u_short seg, u_short off)
   return -1;
 }
 
-static void do_int31(struct sigcontext_struct *scp)
+static void do_int31(struct sigcontext *scp)
 {
 #if 0
 /* old way to use DPMI API, as per specs */
@@ -2594,7 +2594,7 @@ err:
 static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
-    struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
     if (rmcb_client > current_client || num >= 0x10)
       return;
@@ -2723,7 +2723,7 @@ void dpmi_cleanup(void)
   in_dpmi--;
 }
 
-static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
+static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit)
 {
   int i;
@@ -2769,7 +2769,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
   }
 }
 
-static void do_dpmi_int(struct sigcontext_struct *scp, int i)
+static void do_dpmi_int(struct sigcontext *scp, int i)
 {
   int msdos_ret = 0;
 
@@ -2873,7 +2873,7 @@ void run_pm_int(int i)
   void *sp;
   unsigned short old_ss;
   unsigned int old_esp;
-  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+  struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
 
@@ -2939,7 +2939,7 @@ void run_pm_dos_int(int i)
 {
   void  *sp;
   unsigned long ret_eip;
-  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+  struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_dos_int(0x%02x) called\n",i);
 
@@ -3119,7 +3119,7 @@ void dpmi_init(void)
   unsigned int my_ip, i;
   unsigned char *cp;
   int inherit_idt;
-  struct sigcontext_struct *scp;
+  struct sigcontext *scp;
   emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
 
   CARRY;
@@ -3310,7 +3310,7 @@ err:
   in_dpmi--;
 }
 
-void dpmi_sigio(struct sigcontext_struct *scp)
+void dpmi_sigio(struct sigcontext *scp)
 {
   if (DPMIValidSelector(_cs)) {
 /* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
@@ -3322,12 +3322,12 @@ void dpmi_sigio(struct sigcontext_struct *scp)
   }
 }
 
-void dpmi_return(struct sigcontext_struct *scp, int retval)
+void dpmi_return(struct sigcontext *scp, int retval)
 {
   Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame, retval);
 }
 
-static void return_from_exception(struct sigcontext_struct *scp)
+static void return_from_exception(struct sigcontext *scp)
 {
   void *sp;
   unsigned short saved_ss = _ss;
@@ -3378,7 +3378,7 @@ static void return_from_exception(struct sigcontext_struct *scp)
  * DANG_END_FUNCTION
  */
 
-static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
+static void do_default_cpu_exception(struct sigcontext *scp, int trapno)
 {
     void * sp;
     sp = (us *)SEL_ADR(_ss,_esp);
@@ -3478,7 +3478,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
  */
 
 #ifdef __linux__
-static void do_cpu_exception(struct sigcontext_struct *scp)
+static void do_cpu_exception(struct sigcontext *scp)
 #endif
 {
   unsigned int *ssp;
@@ -3589,7 +3589,7 @@ u_short DPMI_ldt_alias(void)
  */
 
 #ifdef __linux__
-int dpmi_fault(struct sigcontext_struct *scp)
+int dpmi_fault(struct sigcontext *scp)
 #endif
 {
 
@@ -3866,7 +3866,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_23)) {
-	  struct sigcontext_struct old_ctx, *curscp;
+	  struct sigcontext old_ctx, *curscp;
 	  unsigned int old_esp;
 	  unsigned short *ssp;
 	  int esp_delta;
@@ -4313,7 +4313,7 @@ int dpmi_fault(struct sigcontext_struct *scp)
 
 void dpmi_realmode_hlt(unsigned int lina)
 {
-  struct sigcontext_struct *scp;
+  struct sigcontext *scp;
   if (!in_dpmi) {
     D_printf("ERROR: DPMI call while not in dpmi!\n");
     LWORD(eip)++;
@@ -4563,7 +4563,7 @@ done:
 
 int dpmi_mhp_regs(void)
 {
-  struct sigcontext_struct *scp;
+  struct sigcontext *scp;
   if (!in_dpmi || in_dpmi_dos_int) return 0;
   scp=&DPMI_CLIENT.stack_frame;
   mhp_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx eflags: %08lx",
@@ -4576,7 +4576,7 @@ int dpmi_mhp_regs(void)
 
 void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off)
 {
-  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+  struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
   *seg = _cs;
   *off = _eip;
@@ -4584,13 +4584,13 @@ void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off)
 
 void dpmi_mhp_modify_eip(int delta)
 {
-  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+  struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
   _eip +=delta;
 }
 
 void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
 {
-  struct sigcontext_struct *scp = &DPMI_CLIENT.stack_frame;
+  struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
   *seg = _ss;
   *off = _esp;
@@ -4626,7 +4626,7 @@ enum {
 
 unsigned long dpmi_mhp_getreg(int regnum)
 {
-  struct sigcontext_struct *scp;
+  struct sigcontext *scp;
   if (!in_dpmi || in_dpmi_dos_int) return 0;
   scp=&DPMI_CLIENT.stack_frame;
   switch (regnum) {
@@ -4661,7 +4661,7 @@ unsigned long dpmi_mhp_getreg(int regnum)
 
 void dpmi_mhp_setreg(int regnum, unsigned long val)
 {
-  struct sigcontext_struct *scp;
+  struct sigcontext *scp;
   if (!in_dpmi || in_dpmi_dos_int) return;
   scp=&DPMI_CLIENT.stack_frame;
   switch (regnum) {
@@ -4693,7 +4693,7 @@ void dpmi_mhp_setreg(int regnum, unsigned long val)
   }
 }
 
-static int dpmi_mhp_intxx_pending(struct sigcontext_struct *scp, int intno)
+static int dpmi_mhp_intxx_pending(struct sigcontext *scp, int intno)
 {
   if (dpmi_mhp_intxxtab[intno] & 1) {
     if (dpmi_mhp_intxxtab[intno] & 0x80) {
@@ -4704,7 +4704,7 @@ static int dpmi_mhp_intxx_pending(struct sigcontext_struct *scp, int intno)
   return 0;
 }
 
-static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno)
+static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno)
 {
   switch (dpmi_mhp_intxx_pending(scp,intno)) {
     case -1: return 0;
@@ -4719,7 +4719,7 @@ static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno)
 
 int dpmi_mhp_setTF(int on)
 {
-  struct sigcontext_struct *scp;
+  struct sigcontext *scp;
   if (!in_dpmi) return 0;
   scp=&DPMI_CLIENT.stack_frame;
   if (on) _eflags |=TF;
@@ -4765,7 +4765,7 @@ void dpmi_return_request(void)
   return_requested = 1;
 }
 
-int dpmi_check_return(struct sigcontext_struct *scp)
+int dpmi_check_return(struct sigcontext *scp)
 {
   if (return_requested) {
     dpmi_return(scp, 0);

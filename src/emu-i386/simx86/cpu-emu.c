@@ -154,7 +154,7 @@ FILE *aLog = NULL;
  * 20	unsigned short gs, __gsh;
  * --------------------------------------------------------------
  */
-struct sigcontext_struct e_scp; /* initialized to 0 */
+struct sigcontext e_scp; /* initialized to 0 */
 
 unsigned long io_bitmap[IO_BITMAP_SIZE+1];
 
@@ -272,7 +272,7 @@ char *e_print_regs(void)
 #define GetSegmentBaseAddress(s)	((unsigned long)Segments[(s) >> 3].base_addr)
 #define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
-char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
+char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 {
 	static char buf[300];
 	char *p = buf;
@@ -356,7 +356,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 }
 
 #ifdef TRACE_DPMI
-char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
+char *e_scp_disasm(struct sigcontext *scp, int pmode)
 {
    static char insrep = 0;
    static unsigned char buf[1024];
@@ -603,7 +603,7 @@ void Cpu2Reg (void)
 
 /* ======================================================================= */
 
-static void Scp2Cpu (struct sigcontext_struct *scp)
+static void Scp2Cpu (struct sigcontext *scp)
 {
 #ifdef __x86_64__
   TheCPU.eax = _eax;
@@ -627,7 +627,7 @@ static void Scp2Cpu (struct sigcontext_struct *scp)
 
   TheCPU.scp_err = _err;
 #else
-  memcpy(&TheCPU.gs,scp,offsetof(struct sigcontext_struct,esp_at_signal));
+  memcpy(&TheCPU.gs,scp,offsetof(struct sigcontext,esp_at_signal));
 #endif
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
@@ -640,7 +640,7 @@ static void Scp2Cpu (struct sigcontext_struct *scp)
 /*
  * Return back from fault handling to VM86
  */
-static void Scp2CpuR (struct sigcontext_struct *scp)
+static void Scp2CpuR (struct sigcontext *scp)
 {
   if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
@@ -660,7 +660,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
 /*
  * Build a sigcontext structure to enter fault handling from VM86 or DPMI
  */
-static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
+static void Cpu2Scp (struct sigcontext *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
@@ -688,7 +688,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 
   _err = TheCPU.scp_err;
 #else
-  memcpy(scp,&TheCPU.gs,offsetof(struct sigcontext_struct,esp_at_signal));
+  memcpy(scp,&TheCPU.gs,offsetof(struct sigcontext,esp_at_signal));
 #endif
   _ss = TheCPU.ss;
   _cr2 = TheCPU.cr2;
@@ -737,7 +737,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 /*
  * Enter emulator in DPMI mode (context_switch)
  */
-static int Scp2CpuD (struct sigcontext_struct *scp)
+static int Scp2CpuD (struct sigcontext *scp)
 {
   unsigned char big; int mode=0, amask, oldfl;
 
@@ -849,7 +849,7 @@ void init_emu_cpu(void)
  * asynchronous signals because without it any badly-behaved pgm
  * can stop us forever.
  */
-int e_gen_sigalrm(struct sigcontext_struct *scp)
+int e_gen_sigalrm(struct sigcontext *scp)
 {
 	if(config.cpuemu < 2)
 	    return 1;
@@ -881,7 +881,7 @@ int e_gen_sigalrm(struct sigcontext_struct *scp)
 	return 0;
 }
 
-static void e_gen_sigprof(struct sigcontext_struct *scp)
+static void e_gen_sigprof(struct sigcontext *scp)
 {
 	e_sigpa_count -= sigEMUdelta;
 	TheCPU.sigprof_pending += 1;
@@ -1271,7 +1271,7 @@ int e_vm86(void)
 	      }
 	      break;
 	    default: {
-		struct sigcontext_struct scp;
+		struct sigcontext scp;
 		struct _fpstate fps;
 		scp.fpstate = &fps;
 		Cpu2Scp (&scp, xval-1);
@@ -1310,7 +1310,7 @@ int e_vm86(void)
 /* ======================================================================= */
 
 
-int e_dpmi(struct sigcontext_struct *scp)
+int e_dpmi(struct sigcontext *scp)
 {
   volatile hitimer_t tt0 = 0;
   int xval,retval,mode;
@@ -1413,7 +1413,7 @@ int e_dpmi(struct sigcontext_struct *scp)
 /* ======================================================================= */
 /* file: src/cwsdpmi/exphdlr.c */
 
-void e_dpmi_b0x(int op,struct sigcontext_struct *scp)
+void e_dpmi_b0x(int op,struct sigcontext *scp)
 {
   switch (op) {
     case 0: {	/* set */

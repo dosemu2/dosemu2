@@ -254,7 +254,7 @@ static void restore_ems_frame(void)
     ems_frame_mapped = 0;
 }
 
-static void get_ext_API(struct sigcontext_struct *scp)
+static void get_ext_API(struct sigcontext *scp)
 {
     struct pmaddr_s pma;
     char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
@@ -521,7 +521,7 @@ static void do_retf(struct RealModeCallStructure *rmreg, int rmask)
   _RMREG(sp) += 4;
 }
 
-static void old_dos_terminate(struct sigcontext_struct *scp, int i,
+static void old_dos_terminate(struct sigcontext *scp, int i,
 			      struct RealModeCallStructure *rmreg, int rmask)
 {
     unsigned short psp_seg_sel, parent_psp = 0;
@@ -595,7 +595,7 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i,
  * DANG_END_FUNCTION
  */
 
-static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
+static int _msdos_pre_extender(struct sigcontext *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
 			       int *r_mask)
 {
@@ -1232,7 +1232,7 @@ static int _msdos_pre_extender(struct sigcontext_struct *scp, int intr,
     return ret;
 }
 
-int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
+int msdos_pre_extender(struct sigcontext *scp, int intr,
 		       struct RealModeCallStructure *rmreg, int *r_mask)
 {
     int ret = _msdos_pre_extender(scp, intr, rmreg, r_mask);
@@ -1258,7 +1258,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr,
  * DANG_END_FUNCTION
  */
 
-static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
+static int _msdos_post_extender(struct sigcontext *scp, int intr,
 				u_short ax,
 				const struct RealModeCallStructure *rmreg)
 {
@@ -1630,7 +1630,7 @@ static int _msdos_post_extender(struct sigcontext_struct *scp, int intr,
     return update_mask;
 }
 
-int msdos_post_extender(struct sigcontext_struct *scp, int intr,
+int msdos_post_extender(struct sigcontext *scp, int intr,
 			 const struct RealModeCallStructure *rmreg)
 {
     int ret = _msdos_post_extender(scp, intr, pop_v(), rmreg);
@@ -1639,7 +1639,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr,
     return ret;
 }
 
-static int mouse_callback(struct sigcontext_struct *scp,
+static int mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg)
 {
     void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
@@ -1668,7 +1668,7 @@ static int mouse_callback(struct sigcontext_struct *scp,
     return 1;
 }
 
-static int ps2_mouse_callback(struct sigcontext_struct *scp,
+static int ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg)
 {
     unsigned short *rm_ssp;
@@ -1767,7 +1767,7 @@ static void rmcb_handler(struct RealModeCallStructure *rmreg)
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
-static void msdos_api_call(struct sigcontext_struct *scp)
+static void msdos_api_call(struct sigcontext *scp)
 {
     D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
     if (_LWORD(eax) == 0x0100) {
@@ -1778,9 +1778,9 @@ static void msdos_api_call(struct sigcontext_struct *scp)
     }
 }
 
-int msdos_fault(struct sigcontext_struct *scp)
+int msdos_fault(struct sigcontext *scp)
 {
-    struct sigcontext_struct new_sct;
+    struct sigcontext new_sct;
     int reg;
     unsigned int segment;
     unsigned short desc;
@@ -1946,7 +1946,7 @@ static far_t get_rm_handler(int (*handler)(struct sigcontext *,
     return ret;
 }
 
-void msdos_pm_call(struct sigcontext_struct *scp)
+void msdos_pm_call(struct sigcontext *scp)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
 	msdos_api_call(scp);
@@ -1959,7 +1959,7 @@ void msdos_pm_call(struct sigcontext_struct *scp)
     }
 }
 
-int msdos_pre_pm(struct sigcontext_struct *scp,
+int msdos_pre_pm(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
@@ -1971,7 +1971,7 @@ int msdos_pre_pm(struct sigcontext_struct *scp,
     return 1;
 }
 
-int msdos_pre_rm(struct sigcontext_struct *scp,
+int msdos_pre_rm(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg)
 {
     int ret = 0;

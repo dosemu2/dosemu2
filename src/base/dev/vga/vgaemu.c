@@ -963,7 +963,6 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
  * description:
  * vga_emu_fault() is used to catch video access, and handle it.
  * This function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
- * The sigcontext_struct is defined in include/cpu.h.
  * Now it catches only changes in a 4K page, but maybe it is useful to
  * catch each video access. The problem when you do that is, you have to
  * simulate each instruction which could write to the video memory.
@@ -980,13 +979,13 @@ void vga_memsetl(dosaddr_t dst, unsigned val, size_t len)
  * simulated.
  *
  * arguments:
- * scp - A pointer to a struct sigcontext_struct holding some relevant data.
+ * scp - A pointer to a struct sigcontext holding some relevant data.
  *
  * DANG_END_FUNCTION
  *
  */
 
-int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
+int vga_emu_fault(struct sigcontext *scp, int pmode)
 {
   int i, j;
   dosaddr_t lin_addr;
