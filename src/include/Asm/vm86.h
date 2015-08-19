@@ -1,5 +1,8 @@
-#ifndef _LINUX_VM86_H
-#define _LINUX_VM86_H
+#ifdef __i386__
+#include <asm/vm86.h>
+#else
+#ifndef _VM86_COMPAT_H
+#define _VM86_COMPAT_H
 
 /*
  * I'm guessing at the VIF/VIP flag usage, but hope that this is how
@@ -132,4 +135,5 @@ struct vm86plus_struct {
 	struct vm86plus_info_struct vm86plus;
 };
 
+#endif
 #endif
