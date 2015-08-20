@@ -47,12 +47,12 @@ typedef struct pmaddr_s
 {
     unsigned int	offset;
     unsigned short	selector;
-} INTDESC;
+} __attribute__((packed)) INTDESC;
 typedef struct
 {
     unsigned int	offset32;
     unsigned short	selector;
-} DPMI_INTDESC;
+} __attribute__((packed)) DPMI_INTDESC;
 
 typedef struct segment_descriptor_s
 {
