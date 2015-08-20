@@ -22,8 +22,9 @@
 #include <errno.h>
 #include <string.h>
 #include <pwd.h>
+#include <linux/serial.h>
+
 #include "emu.h"
-#include "Linux/serial.h"
 #include "ser_defs.h"
 #include "tty_io.h"
 
