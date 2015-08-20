@@ -13,13 +13,7 @@
  *
  */
 
-#if defined(__i386__) && (defined(__PIE__) || defined(__PIC__))
-#warning Disabling direct DPMI context switch due to PIC
-#warning Please remove -fpic and/or -fpie from CFLAGS
-#define DIRECT_DPMI_CONTEXT_SWITCH 0
-#else
 #define DIRECT_DPMI_CONTEXT_SWITCH 1
-#endif
 
 #include "config.h"
 #include <stdio.h>
@@ -440,7 +434,15 @@ static void indirect_dpmi_transfer(void)
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
 #ifdef __i386__
+#if defined(__PIE__) || defined(__PIC__)
+extern struct {
+    const uint8_t opc;
+    uint32_t offset;
+    uint16_t selector;
+} __attribute__((packed)) dpmi_switch_jmp;
+#else
 static struct pmaddr_s dpmi_switch_jmp;
+#endif
 #endif
 
 __attribute__((noreturn))
@@ -471,9 +473,20 @@ static void dpmi_transfer(struct sigcontext *scp)
 "	addl	$4*4,%%esp\n"
 "	popfl\n"
 "	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
+#if defined(__PIE__) || defined(__PIC__)
+"	jmp	dpmi_switch_jmp\n"
+"	.section ._pictr,\"awx\"\n"
+"	.globl dpmi_switch_jmp\n"
+"dpmi_switch_jmp:\n"
+"	ljmp $0,$0\n"
+"	.previous\n"
+    :
+    : "r"(scp)
+#else
 "	ljmp	*%%cs:%1\n"
     :
     : "r"(scp), "m"(dpmi_switch_jmp)
+#endif
 #endif
   );
   __builtin_unreachable();
@@ -610,11 +623,13 @@ static int dpmi_control(void)
  * run_dpmi() <-
  *
  */
-
-    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
+#if DIRECT_DPMI_CONTEXT_SWITCH
+    struct sigcontext *scp;
+#endif
     if (setjmp(dpmi_ret_jmp))
       return dpmi_ret_val;
 #if DIRECT_DPMI_CONTEXT_SWITCH
+    scp = &DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI
     if (debug_level('t')) _eflags |= TF;
 #endif
