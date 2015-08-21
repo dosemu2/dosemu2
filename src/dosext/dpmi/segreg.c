@@ -18,6 +18,7 @@
  * Purpose: decode segreg access
  *
  * Author: Stas Sergeev <stsp@users.sourceforge.net>
+ * Based on instremu.c code by Bart Oldeman
  *
  * Normally DPMI reserved some GDT entries for the API translator,
  * like 0x40, to span some important DOS areas. We can only allocate
