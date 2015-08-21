@@ -102,6 +102,8 @@ AC_SUBST(CONFIG_HOST)
 
 dnl Check for static and then also use it for tests
 
+DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
+ -Wnested-externs -fms-extensions -fno-stack-protector"
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 AC_CHECK_LIB(m, pow)
 
@@ -122,7 +124,7 @@ fi
 dnl check for stack protector and abort
 AC_MSG_CHECKING([for stack protector disabled])
 AS_IF([[(
-    ${CC} ${CFLAGS} -S -x c -o - - << _EOF_
+    ${CC} ${CFLAGS} ${DOSEMU_CFLAGS} -S -x c -o - - << _EOF_
     int foo(int);
     int foo(int i)
     {
@@ -218,9 +220,6 @@ dnl Now CFLAGS and INCLUDES
 
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
-
-DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions -fno-stack-protector"
 
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
