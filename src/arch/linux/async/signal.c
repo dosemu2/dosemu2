@@ -93,13 +93,11 @@ static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 {
   struct sigaction sa;
-  sigset_t mask;
 
   sa.sa_flags = flags;
-  /* initially block all signals. The handler will unblock some
+  /* initially block all async signals. The handler will unblock some
    * when it is safe (after segment registers are restored) */
-  sigfillset(&mask);
-  sa.sa_mask = mask;
+  sa.sa_mask = q_mask;
 
   if (sa.sa_flags & SA_ONSTACK) {
     sa.sa_flags |= SA_SIGINFO;
@@ -248,8 +246,10 @@ void init_handler(struct sigcontext *scp)
   sigset_t mask;
   __init_handler(scp);
   sigemptyset(&mask);
-  addset_signals_that_queue(&mask);
-  sigprocmask(SIG_SETMASK, &mask, NULL);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGHUP);
+  sigaddset(&mask, SIGTERM);
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 #ifdef __x86_64__
