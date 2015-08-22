@@ -155,7 +155,7 @@ static void newsetsig(int sig, void *fun)
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 __attribute__((no_instrument_function))
-static void __init_handler(struct sigcontext *scp)
+static void __init_handler(struct sigcontext *scp, int async)
 {
   unsigned short __ss;
   /*
@@ -209,10 +209,11 @@ static void __init_handler(struct sigcontext *scp)
     return;
   }
 
-  if (!DPMIValidSelector(_cs))
+  /* for async signals need to restore fs/gs even if dosemu code
+   * was interrupted because it can be interrupted in a switching
+   * routine when fs or gs are already switched */
+  if (!DPMIValidSelector(_cs) && !async)
     return;
-
-  /* else interrupting DPMI code with an LDT %cs */
 
   /* restore %fs and %gs for compatibility with NPTL. */
   if (getsegment(fs) != eflags_fs_gs.fs)
@@ -231,7 +232,7 @@ static void __init_handler(struct sigcontext *scp)
 }
 
 __attribute__((no_instrument_function))
-void init_handler(struct sigcontext *scp)
+void init_handler(struct sigcontext *scp, int async)
 {
   /* All signals are initially blocked.
    * We need to restore registers before unblocking signals.
@@ -243,7 +244,7 @@ void init_handler(struct sigcontext *scp)
    * to restore them by hands.
    */
   sigset_t mask;
-  __init_handler(scp);
+  __init_handler(scp, async);
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
   sigaddset(&mask, SIGHUP);
@@ -334,7 +335,7 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
+  init_handler(scp, 1);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
   dpmi_iret_setup(scp);
   deinit_handler(scp);
@@ -380,7 +381,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
+  init_handler(scp, 1);
   _leavedos_signal(sig, scp);
   deinit_handler(scp);
 }
@@ -390,7 +391,7 @@ static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
+  init_handler(scp, 0);
   gdb_debug();
   _exit(sig);
 }
@@ -857,7 +858,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp = (struct sigcontext *)
 	   &((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
+  init_handler(scp, 1);
   sigasync0(sig, scp);
   deinit_handler(scp);
 }

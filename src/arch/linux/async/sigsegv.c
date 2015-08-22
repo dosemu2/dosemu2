@@ -437,7 +437,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
-  init_handler(scp);
+  init_handler(scp, 0);
   dosemu_fault0(signal, scp);
   deinit_handler(scp);
 }
