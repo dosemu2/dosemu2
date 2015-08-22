@@ -506,7 +506,6 @@ signal_pre_init(void)
 {
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
-  struct sigaction oldact;
   stack_t ss;
   void *cstack;
 
@@ -551,57 +550,18 @@ signal_pre_init(void)
 #endif
 
   sigemptyset(&q_mask);
-  /* init signal handlers - these are the defined signals:
-   ---------------------------------------------
-   SIGHUP		 1	S	leavedos
-   SIGINT		 2	S	leavedos
-   SIGQUIT		 3	N	sigquit
-   SIGILL		 4	N	dosemu_fault
-   SIGTRAP		 5	N	dosemu_fault
-   SIGABRT		 6	S	leavedos
-   SIGBUS		 7	N	dosemu_fault
-   SIGFPE		 8	N	dosemu_fault
-   SIGKILL		 9	na
-   SIGUSR1		10	NQ	(SIG_RELEASE)sigasync
-   SIGSEGV		11	N	dosemu_fault
-   SIGUSR2		12	NQ	(SIG_ACQUIRE)sigasync
-   SIGPIPE		13      S	SIG_IGN
-   SIGALRM		14	NQ	(SIG_TIME)sigasync
-   SIGTERM		15	S	leavedos
-   SIGSTKFLT		16
-   SIGCHLD		17	NQ       sig_child
-   SIGCONT		18
-   SIGSTOP		19
-   SIGTSTP		20
-   SIGTTIN		21	unused	was SIG_SER??
-   SIGTTOU		22
-   SIGURG		23
-   SIGXCPU		24
-   SIGXFSZ		25
-   SIGVTALRM		26
-   SIGPROF		27	NQ	(cpuemu,sigprof)sigasync
-   SIGWINCH		28	NQ	(sigwinch)sigasync
-   SIGIO		29	NQ	(sigio)sigasync
-   SIGPWR		30
-   SIGUNUSED		31	na
-  ------------------------------------------------ */
   newsetsig(SIGILL, dosemu_fault);
   registersig(SIGALRM, sigalrm);
   newsetsig(SIGFPE, dosemu_fault);
   newsetsig(SIGTRAP, dosemu_fault);
-
-#ifdef SIGBUS /* for newer kernels */
   newsetsig(SIGBUS, dosemu_fault);
-#endif
-  newsetsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
-  newsetsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
-  newsetsig(SIGTERM, leavedos_signal);
+  newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
+  newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
+  newsetqsig(SIGTERM, leavedos_signal);
   newsetsig(SIGABRT, abort_signal);
   registersig(SIGQUIT, sigquit);
   signal(SIGPIPE, SIG_IGN);
-
   registersig(SIGIO, sigio);
-  sigaction(SIGPROF, NULL, &oldact);
   newsetsig(SIGSEGV, dosemu_fault);
   newsetqsig(SIGCHLD, sig_child);
   /* below ones are initialized by other subsystems */
