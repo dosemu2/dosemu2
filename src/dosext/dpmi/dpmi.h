@@ -247,9 +247,6 @@ extern unsigned short dpmi_data_sel(void);
 static inline int DPMIValidSelector(unsigned short selector)
 {
   /* does this selector refer to the LDT? */
-#if MAX_SELECTORS < 8192
-  if (selector < (MAX_SELECTORS << 3)) return 0;
-#endif
   return Segments[selector >> 3].used != 0xfe && (selector & 4);
 }
 

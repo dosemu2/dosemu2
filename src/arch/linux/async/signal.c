@@ -183,7 +183,7 @@ static void __init_handler(struct sigcontext *scp)
      * thing is to assume that if the ss is from GDT, then it is already
      * saved. */
     __ss = getsegment(ss);
-    if (__ss & 4)
+    if (DPMIValidSelector(__ss))
       _ss = __ss;
     _fs = getsegment(fs);
     _gs = getsegment(gs);
