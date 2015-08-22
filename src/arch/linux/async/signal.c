@@ -157,6 +157,7 @@ static void newsetsig(int sig, void *fun)
 __attribute__((no_instrument_function))
 static void __init_handler(struct sigcontext *scp)
 {
+  unsigned short __ss;
   /*
    * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
    * forever, we must restore the eflags.
@@ -169,19 +170,17 @@ static void __init_handler(struct sigcontext *scp)
      (using the 3 high words of the trapno field).
      fs and gs are set to 0 in the sigcontext, so we also need
      to save those ourselves */
-  if (scp) {
-    unsigned short __ss;
-    _ds = getsegment(ds);
-    _es = getsegment(es);
-    /* some kernels save and switch ss, some do not... The simplest
-     * thing is to assume that if the ss is from GDT, then it is already
-     * saved. */
-    __ss = getsegment(ss);
-    if (DPMIValidSelector(__ss))
-      _ss = __ss;
-    _fs = getsegment(fs);
-    _gs = getsegment(gs);
-    if (_cs == 0) {
+  _ds = getsegment(ds);
+  _es = getsegment(es);
+  /* some kernels save and switch ss, some do not... The simplest
+   * thing is to assume that if the ss is from GDT, then it is already
+   * saved. */
+  __ss = getsegment(ss);
+  if (DPMIValidSelector(__ss))
+    _ss = __ss;
+  _fs = getsegment(fs);
+  _gs = getsegment(gs);
+  if (_cs == 0) {
       if (config.dpmi && config.cpuemu < 4) {
 	fprintf(stderr, "Cannot run DPMI code natively ");
 	if (kernel_version_code < KERNEL_VERSION(2, 6, 15))
@@ -192,7 +191,6 @@ static void __init_handler(struct sigcontext *scp)
       }
       config.cpuemu = 4;
       _cs = getsegment(cs);
-    }
   }
 #endif
 
@@ -211,7 +209,8 @@ static void __init_handler(struct sigcontext *scp)
     return;
   }
 
-  if (scp && !DPMIValidSelector(_cs)) return;
+  if (!DPMIValidSelector(_cs))
+    return;
 
   /* else interrupting DPMI code with an LDT %cs */
 
