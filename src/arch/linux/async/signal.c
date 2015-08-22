@@ -68,6 +68,8 @@ struct sigchld_hndl {
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
+static sigset_t q_mask;
+
 static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid);
@@ -126,16 +128,14 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
  */
 void addset_signals_that_queue(sigset_t *x)
 {
-       sigaddset(x, SIGIO);
-       sigaddset(x, SIGALRM);
-       sigaddset(x, SIGPROF);
-       sigaddset(x, SIGWINCH);
-       sigaddset(x, SIG_RELEASE);
-       sigaddset(x, SIG_ACQUIRE);
+	sigset_t res;
+	sigorset(&res, x, &q_mask);
+	*x = res;
 }
 
 static void newsetqsig(int sig, void *fun)
 {
+	sigaddset(&q_mask, sig);
 	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_ONSTACK);
 }
 
@@ -549,6 +549,7 @@ signal_pre_init(void)
     eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
 #endif
 
+  sigemptyset(&q_mask);
   /* init signal handlers - these are the defined signals:
    ---------------------------------------------
    SIGHUP		 1	S	leavedos
@@ -611,6 +612,10 @@ signal_pre_init(void)
   newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
   newsetqsig(SIGCHLD, sig_child);
+  /* below ones are initialized by other subsystems */
+  sigaddset(&q_mask, SIGPROF);
+  sigaddset(&q_mask, SIG_ACQUIRE);
+  sigaddset(&q_mask, SIG_RELEASE);
 }
 
 void
