@@ -591,16 +591,8 @@ signal_init(void)
   add_to_io_select(event_fd, async_awake, NULL);
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 
-  signal_late_init();
-}
-
-void signal_late_init(void)
-{
-  sigset_t set;
   /* unblock async signals in main thread */
-  sigemptyset(&set);
-  addset_signals_that_queue(&set);
-  pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+  pthread_sigmask(SIG_UNBLOCK, &q_mask, NULL);
 }
 
 void signal_done(void)

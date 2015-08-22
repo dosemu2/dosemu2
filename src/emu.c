@@ -333,7 +333,6 @@ int main(int argc, char **argv)
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 
-    io_select_init();
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
     config_init(argc, argv);	/* parse the commands & config file(s) */
@@ -387,7 +386,7 @@ int main(int argc, char **argv)
     /* iodev_init() can load plugins, like SDL, that can spawn a thread.
      * This must be done before initializing signals, or problems ensue.
      * This also must be done when the signals are blocked, so after
-     * the io_select_init(), which right now blocks the signals. */
+     * the signal_pre_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
     dos2tty_init();
     signal_init();              /* initialize sig's & sig handlers */
