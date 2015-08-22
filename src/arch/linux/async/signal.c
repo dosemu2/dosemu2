@@ -567,18 +567,14 @@ signal_pre_init(void)
   sigaddset(&q_mask, SIGPROF);
   sigaddset(&q_mask, SIG_ACQUIRE);
   sigaddset(&q_mask, SIG_RELEASE);
+
+  /* block async signals so that threads inherit the blockage */
+  sigprocmask(SIG_BLOCK, &q_mask, NULL);
 }
 
 void
 signal_init(void)
 {
-  /* once, signal_pre_init() was called much earlier and signal_late_init()
-   * was called from coopth handlers. I don't remember why this was needed...
-   * So lets gather them here again and see if fomething breaks.
-   * At least I made sure threads are created before signal_init(),
-   * and install_dos() needs to be double-checked. */
-  signal_pre_init();
-
   dosemu_tid = gettid();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
@@ -600,10 +596,10 @@ signal_init(void)
 void signal_late_init(void)
 {
   sigset_t set;
-  /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
+  /* unblock async signals in main thread */
   sigemptyset(&set);
   addset_signals_that_queue(&set);
-  sigprocmask(SIG_UNBLOCK, &set, NULL);
+  pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
 void signal_done(void)
