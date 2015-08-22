@@ -144,11 +144,6 @@ void registersig(int sig, void (*fun)(struct sigcontext *))
 	sighandlers[sig] = fun;
 }
 
-static void setsig(int sig, void *fun)
-{
-	dosemu_sigaction_wrapper(sig, fun, SA_RESTART);
-}
-
 static void newsetsig(int sig, void *fun)
 {
 	int flags = SA_RESTART|SA_ONSTACK;
@@ -603,11 +598,8 @@ signal_pre_init(void)
   newsetsig(SIGABRT, abort_signal);
   newsetsig(SIGQUIT, sigasync);
   registersig(SIGQUIT, sigquit);
-  setsig(SIGPIPE, SIG_IGN);
+  signal(SIGPIPE, SIG_IGN);
 
-/*
-  setsig(SIGUNUSED, timint);
-*/
   newsetqsig(SIGIO, sigasync);
   registersig(SIGIO, sigio);
   newsetqsig(SIGUSR1, sigasync);
