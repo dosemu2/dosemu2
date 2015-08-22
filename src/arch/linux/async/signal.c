@@ -87,7 +87,6 @@ static void (*sighandlers[NSIG])(struct sigcontext *);
 static void sigquit(struct sigcontext *);
 static void sigalrm(struct sigcontext *);
 static void sigio(struct sigcontext *);
-
 static void sigasync(int sig, siginfo_t *si, void *uc);
 
 static void
@@ -141,6 +140,8 @@ static void newsetqsig(int sig, void *fun)
 
 void registersig(int sig, void (*fun)(struct sigcontext *))
 {
+	if (fun)
+		newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
 }
 
@@ -585,7 +586,6 @@ signal_pre_init(void)
    SIGUNUSED		31	na
   ------------------------------------------------ */
   newsetsig(SIGILL, dosemu_fault);
-  newsetqsig(SIGALRM, sigasync);
   registersig(SIGALRM, sigalrm);
   newsetsig(SIGFPE, dosemu_fault);
   newsetsig(SIGTRAP, dosemu_fault);
@@ -597,19 +597,11 @@ signal_pre_init(void)
   newsetsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetsig(SIGTERM, leavedos_signal);
   newsetsig(SIGABRT, abort_signal);
-  newsetsig(SIGQUIT, sigasync);
   registersig(SIGQUIT, sigquit);
   signal(SIGPIPE, SIG_IGN);
 
-  newsetqsig(SIGIO, sigasync);
   registersig(SIGIO, sigio);
-  newsetqsig(SIGUSR1, sigasync);
-  newsetqsig(SIGUSR2, sigasync);
   sigaction(SIGPROF, NULL, &oldact);
-  /* don't set SIGPROF if already used via -pg */
-  if (oldact.sa_handler == SIG_DFL)
-    newsetqsig(SIGPROF, sigasync);
-  newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
   newsetqsig(SIGCHLD, sig_child);
   /* below ones are initialized by other subsystems */
