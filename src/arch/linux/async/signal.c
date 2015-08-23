@@ -83,6 +83,7 @@ static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 struct eflags_fs_gs eflags_fs_gs;
 
 static void (*sighandlers[NSIG])(struct sigcontext *);
+static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 
 static void sigquit(struct sigcontext *);
 static void sigalrm(struct sigcontext *);
@@ -109,14 +110,27 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 
 static void newsetqsig(int sig, void *fun)
 {
+	if (qsighandlers[sig])
+		return;
+	/* first need to collect the mask, then register all handlers
+	 * because the same mask is used for every handler */
 	sigaddset(&q_mask, sig);
-	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_ONSTACK);
+	qsighandlers[sig] = fun;
+}
+
+static void qsig_init(void)
+{
+	int i;
+	for (i = 0; i < NSIG; i++) {
+		if (qsighandlers[i])
+			dosemu_sigaction_wrapper(i, qsighandlers[i],
+					SA_RESTART|SA_ONSTACK);
+	}
 }
 
 void registersig(int sig, void (*fun)(struct sigcontext *))
 {
-	if (fun)
-		newsetqsig(sig, sigasync);
+	newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
 }
 
@@ -526,28 +540,33 @@ signal_pre_init(void)
     eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
 #endif
 
+  /* first set up the blocking mask: registersig() and newsetqsig()
+   * adds to it */
   sigemptyset(&q_mask);
-  newsetsig(SIGILL, dosemu_fault);
   registersig(SIGALRM, sigalrm);
-  newsetsig(SIGFPE, dosemu_fault);
-  newsetsig(SIGTRAP, dosemu_fault);
-  newsetsig(SIGBUS, dosemu_fault);
+  registersig(SIGQUIT, sigquit);
+  registersig(SIGIO, sigio);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
   newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetqsig(SIGTERM, leavedos_signal);
-  newsetsig(SIGABRT, abort_signal);
-  registersig(SIGQUIT, sigquit);
-  signal(SIGPIPE, SIG_IGN);
-  registersig(SIGIO, sigio);
-  newsetsig(SIGSEGV, dosemu_fault);
   newsetqsig(SIGCHLD, sig_child);
   /* below ones are initialized by other subsystems */
-  sigaddset(&q_mask, SIGPROF);
-  sigaddset(&q_mask, SIG_ACQUIRE);
-  sigaddset(&q_mask, SIG_RELEASE);
+  registersig(SIGPROF, NULL);
+  registersig(SIG_ACQUIRE, NULL);
+  registersig(SIG_RELEASE, NULL);
+  /* mask is set up, now start using it */
+  qsig_init();
+  newsetsig(SIGILL, dosemu_fault);
+  newsetsig(SIGFPE, dosemu_fault);
+  newsetsig(SIGTRAP, dosemu_fault);
+  newsetsig(SIGBUS, dosemu_fault);
+  newsetsig(SIGABRT, abort_signal);
+  newsetsig(SIGSEGV, dosemu_fault);
 
   /* block async signals so that threads inherit the blockage */
   sigprocmask(SIG_BLOCK, &q_mask, NULL);
+
+  signal(SIGPIPE, SIG_IGN);
 }
 
 void
