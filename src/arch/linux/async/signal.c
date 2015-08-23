@@ -840,6 +840,8 @@ static void sigalrm(struct sigcontext *scp)
 __attribute__((noinline))
 static void sigasync0(int sig, struct sigcontext *scp)
 {
+  if (gettid() != dosemu_tid)
+    dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])
 	  sighandlers[sig](scp);
   dpmi_iret_setup(scp);
