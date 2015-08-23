@@ -1332,14 +1332,20 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
     copy_context(dpmi_ctx, scp, 1);
   }
   dpmi_ret_val = retcode;
-  /* TODO: we can as well do siglongjmp() here when SS is restored
-   * by kernel on signal delivery (currently not the case, some versions
-   * of 4.1 did so). When adding siglongjmp(), don't forget to restore
-   * ds/es by hands. */
+  /* Note: we can't use siglongjmp() for 2 reasons:
+   * 1. SS is not restored by kernel on signal delivery, and certainly
+   *    not by siglongjmp() (may be fixed in kernel, some of 4.1 did so).
+   * 2. both siglongjmp() and longjmp() do stack unwinds (invoke pthread
+   *    cleanup handlers etc) so the stack switching is not possible:
+   *    http://linux-ia64.vger.kernel.narkive.com/dVL1zzUm/sigaltstack-siglongjmp-breakage
+   *    And as such, you can't siglongjmp() out of sigaltstack.
+   * So we need to sigreturn() to the trampoline code that does longjmp()
+   * from emu stack.
+   */
   _rip = (unsigned long)dpmi_return_to_dosemu;
+  _rsp = (unsigned long)emu_stack_ptr;
   /* Don't inherit TF from DPMI, put dosemu's flags */
   _eflags = eflags_fs_gs.eflags;
-  _rsp = (unsigned long)emu_stack_ptr;
   _cs = getsegment(cs);
 #ifdef __x86_64__
   /* in 64bit mode the signal handler is running with DOS ds/es/ss */
