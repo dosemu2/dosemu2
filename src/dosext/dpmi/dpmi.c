@@ -15,6 +15,22 @@
 
 #define DIRECT_DPMI_CONTEXT_SWITCH 1
 
+#define WANT_PURE_PIC 0
+#if WANT_PURE_PIC
+#if defined(__PIE__) || defined(__PIC__)
+/* avoid dynamic relocs in PIC code. Since dynamic relocs in PIC code
+ * work perfectly, I am leaving this code just as an example. Not sure
+ * why dosemu1 had so much of convoluted code just to avoid the dynamic
+ * reloc: the dynamic reloc can either be safely used or trivially avoided. */
+#define PURE_PIC 1
+#else
+#define PURE_PIC 0
+#endif
+#else
+/* dynamic reloc will be used regardless of PIC */
+#define PURE_PIC 0
+#endif
+
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -435,7 +451,7 @@ static void indirect_dpmi_transfer(void)
 
 #if DIRECT_DPMI_CONTEXT_SWITCH
 #ifdef __i386__
-#if defined(__PIE__) || defined(__PIC__)
+#if PURE_PIC
 extern struct {
     const uint8_t opc;
     uint32_t offset;
@@ -462,8 +478,6 @@ static void dpmi_transfer(struct sigcontext *scp)
 "	pop	%%rcx\n"
 "	pop	%%rsp\n"		/* => iret_frame */
 "	iretl\n"
-    :
-    : "r"(scp)
 #else
 "	movl	%0,%%esp\n"	/* esp=scp */
 "	pop	%%gs\n"
@@ -474,21 +488,29 @@ static void dpmi_transfer(struct sigcontext *scp)
 "	addl	$4*4,%%esp\n"
 "	popfl\n"
 "	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-#if defined(__PIE__) || defined(__PIC__)
+#if PURE_PIC
+	/* use relative jump, no dynamic reloc needed */
 "	jmp	dpmi_switch_jmp\n"
 "	.section ._pictr,\"awx\"\n"
 "	.globl dpmi_switch_jmp\n"
 "dpmi_switch_jmp:\n"
 "	ljmp $0,$0\n"
 "	.previous\n"
+#else
+	/* use indirect jump, dynamic reloc is built.
+	 * Originally the dpmi_switch_jmp was passed as an asm argument
+	 * with mem ref constraint "m", which with PIC was translated
+	 * into ljmp *%cs:dpmi_switch_jmp(%eax). But if we hardcode it,
+	 * we get an old good dynamic reloc even in PIC mode.
+	 * In fact, it is exceptionally difficult to even get a warning
+	 * about a dynamic reloc's presence. Perhaps with this patch:
+	 * https://sourceware.org/ml/binutils/2015-02/msg00091.html
+	 * and with -Wl,-z -Wl,text it will be possible. */
+"	ljmp	*%%cs:dpmi_switch_jmp\n"
+#endif
+#endif
     :
     : "r"(scp)
-#else
-"	ljmp	*%%cs:%1\n"
-    :
-    : "r"(scp), "m"(dpmi_switch_jmp)
-#endif
-#endif
   );
   __builtin_unreachable();
 }
