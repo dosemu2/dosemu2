@@ -161,7 +161,7 @@ static int ladspa_open(void *arg)
     return 1;
 
 out_err:
-    dlclose(dl_handle);
+    unloadLADSPAPluginLibrary(dl_handle);
     return 0;
 }
 
