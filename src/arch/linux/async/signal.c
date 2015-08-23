@@ -90,25 +90,7 @@ static void sigalrm(struct sigcontext *);
 static void sigio(struct sigcontext *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
 
-static void
-dosemu_sigaction_wrapper(int sig, void *fun, int flags)
-{
-  struct sigaction sa;
-
-  sa.sa_flags = flags;
-  /* initially block all async signals. The handler will unblock some
-   * when it is safe (after segment registers are restored) */
-  sa.sa_mask = q_mask;
-
-  if (sa.sa_flags & SA_ONSTACK) {
-    sa.sa_flags |= SA_SIGINFO;
-    sa.sa_sigaction = fun;
-  } else
-    sa.sa_handler = fun;
-  sigaction(sig, &sa, NULL);
-}
-
-static void newsetqsig(int sig, void *fun)
+static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	if (qsighandlers[sig])
 		return;
@@ -120,11 +102,18 @@ static void newsetqsig(int sig, void *fun)
 
 static void qsig_init(void)
 {
+	struct sigaction sa;
 	int i;
+
+	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
+	/* initially block all async signals. The handler will unblock some
+	 * when it is safe (after segment registers are restored) */
+	sa.sa_mask = q_mask;
 	for (i = 0; i < NSIG; i++) {
-		if (qsighandlers[i])
-			dosemu_sigaction_wrapper(i, qsighandlers[i],
-					SA_RESTART|SA_ONSTACK);
+		if (qsighandlers[i]) {
+			sa.sa_sigaction = qsighandlers[i];
+			sigaction(i, &sa, NULL);
+		}
 	}
 }
 
@@ -134,12 +123,16 @@ void registersig(int sig, void (*fun)(struct sigcontext *))
 	sighandlers[sig] = fun;
 }
 
-static void newsetsig(int sig, void *fun)
+static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
-	int flags = SA_RESTART|SA_ONSTACK;
+	struct sigaction sa;
+
+	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
-		flags |= SA_NODEFER;
-	dosemu_sigaction_wrapper(sig, fun, flags);
+		sa.sa_flags |= SA_NODEFER;
+	sa.sa_mask = q_mask;
+	sa.sa_sigaction = fun;
+	sigaction(sig, &sa, NULL);
 }
 
 /* init_handler puts the handler in a sane state that glibc
