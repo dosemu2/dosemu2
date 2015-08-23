@@ -107,29 +107,6 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
   sigaction(sig, &sa, NULL);
 }
 
-/* DANG_BEGIN_FUNCTION NEWSETQSIG
- *
- * arguments:
- * sig - the signal to have a handler installed to.
- * fun - the signal handler function to install
- *
- * description:
- *  All signals that wish to be handled properly in context with the
- * execution of vm86() mode, and signals that wish to use non-reentrant
- * functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE define
- * and use SETQSIG(). To that end they will also need to be set up in an
- * order such as SIGIO.
- *
- * DANG_END_FUNCTION
- *
- */
-void addset_signals_that_queue(sigset_t *x)
-{
-	sigset_t res;
-	sigorset(&res, x, &q_mask);
-	*x = res;
-}
-
 static void newsetqsig(int sig, void *fun)
 {
 	sigaddset(&q_mask, sig);
