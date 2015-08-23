@@ -141,7 +141,9 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 __attribute__((no_instrument_function))
 static void __init_handler(struct sigcontext *scp, int async)
 {
+#ifdef __x86_64__
   unsigned short __ss;
+#endif
   /*
    * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
    * forever, we must restore the eflags.

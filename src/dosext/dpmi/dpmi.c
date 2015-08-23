@@ -96,7 +96,7 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static unsigned long *emu_stack_ptr;
+static unsigned long emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 #endif
@@ -428,11 +428,7 @@ __attribute__((noreturn))
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
-  asm volatile (
-"	movl	%%esp,%0\n"
-"	hlt\n"
-    : "=m"(emu_stack_ptr)
-  );
+  asm volatile ("\t hlt\n");
   __builtin_unreachable();
 }
 #endif
@@ -455,8 +451,7 @@ static void dpmi_transfer(struct sigcontext *scp)
 {
   asm volatile (
 #ifdef __x86_64__
-"	movq	%%rsp,%0\n"
-"	mov	%1,%%rsp\n"		/* rsp=scp */
+"	mov	%0,%%rsp\n"		/* rsp=scp */
 "	add	$8*8,%%rsp\n"		/* skip r8-r15 */
 "	pop	%%rdi\n"
 "	pop	%%rsi\n"
@@ -467,11 +462,10 @@ static void dpmi_transfer(struct sigcontext *scp)
 "	pop	%%rcx\n"
 "	pop	%%rsp\n"		/* => iret_frame */
 "	iretl\n"
-    : "=m"(emu_stack_ptr)
+    :
     : "r"(scp)
 #else
-"	movl	%%esp,%0\n"
-"	movl	%1,%%esp\n"	/* esp=scp */
+"	movl	%0,%%esp\n"	/* esp=scp */
 "	pop	%%gs\n"
 "	pop	%%fs\n"
 "	pop	%%es\n"
@@ -487,11 +481,11 @@ static void dpmi_transfer(struct sigcontext *scp)
 "dpmi_switch_jmp:\n"
 "	ljmp $0,$0\n"
 "	.previous\n"
-    : "=m"(emu_stack_ptr)
+    :
     : "r"(scp)
 #else
-"	ljmp	*%%cs:%2\n"
-    : "=m"(emu_stack_ptr)
+"	ljmp	*%%cs:%1\n"
+    :
     : "r"(scp), "m"(dpmi_switch_jmp)
 #endif
 #endif
@@ -633,8 +627,14 @@ static int dpmi_control(void)
 #if DIRECT_DPMI_CONTEXT_SWITCH
     struct sigcontext *scp;
 #endif
+    register unsigned long sp asm("sp");
     if (setjmp(dpmi_ret_jmp))
       return dpmi_ret_val;
+    /* Note: longjmp() follows the stack upwards, doing unwinds.
+     * It therefore can't jump out of sigaltstack or some trampoline stack.
+     * So, to get longjmp() working, we need to save the stack for it
+     * in addition to what setjmp() saves. */
+    emu_stack_ptr = sp;
 #if DIRECT_DPMI_CONTEXT_SWITCH
     scp = &DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI
@@ -1343,7 +1343,7 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
    * from emu stack.
    */
   _rip = (unsigned long)dpmi_return_to_dosemu;
-  _rsp = (unsigned long)emu_stack_ptr;
+  _rsp = emu_stack_ptr;
   /* Don't inherit TF from DPMI, put dosemu's flags */
   _eflags = eflags_fs_gs.eflags;
   _cs = getsegment(cs);
