@@ -1,4 +1,3 @@
-
 SHELL=/bin/bash
 
 top_builddir=../..
@@ -41,12 +40,14 @@ PD=precompiled
 
 all: $(COM2) $(SYS)
 
-$(D)/%.sys: %.o
-	$(LD) $(ALL_LDFLAGS) -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
-	chmod -x $@ 
+%.sys.elf: %.o
+	ld -Ttext=0 -e _start16 -o $@ $<
 
-$(D)/%.com: %.o
-	$(LD) $(ALL_LDFLAGS) -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+%.com.elf: %.o
+	ld -Ttext=100 -e _start16 -o $@ $<
+
+$(D)/%: %.elf
+	objcopy -j .text -O binary $< $@
 	chmod -x $@
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
