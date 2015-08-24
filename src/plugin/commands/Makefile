@@ -55,7 +55,7 @@ $(STUBFULL): $(D)/generic.com ./mkcomstub
 	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
 
 %.com.elf: %.o
-	ld -Ttext=100 -e _start16 -o $@ $<
+	ld --section-start=.text=0x100 -e _start16 -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@

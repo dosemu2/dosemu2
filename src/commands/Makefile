@@ -41,10 +41,10 @@ PD=precompiled
 all: $(COM2) $(SYS)
 
 %.sys.elf: %.o
-	ld -Ttext=0 -e _start16 -o $@ $<
+	ld --section-start=.text=0 -e _start16 -o $@ $<
 
 %.com.elf: %.o
-	ld -Ttext=100 -e _start16 -o $@ $<
+	ld --section-start=.text=0x100 -e _start16 -o $@ $<
 
 $(D)/%: %.elf
 	objcopy -j .text -O binary $< $@
