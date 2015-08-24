@@ -54,8 +54,11 @@ $(STUBSYMLINK): $(D)/generic.com
 $(STUBFULL): $(D)/generic.com ./mkcomstub
 	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
 
-$(D)/%.com: %.o
-	$(LD) $(ALL_LDFLAGS) -Wl,-Ttext,0x100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+%.com.elf: %.o
+	ld --section-start=.text=0x100 -e _start16 -o $@ $<
+
+$(D)/%: %.elf
+	objcopy -j .text -O binary $< $@
 	chmod -x $@
 
 install: all
