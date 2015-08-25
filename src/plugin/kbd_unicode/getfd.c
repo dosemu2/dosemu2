@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <sys/kd.h>
 #include <sys/ioctl.h>
+#include "priv.h"
 #include "getfd.h"
 
 /*
@@ -22,6 +23,8 @@
  * We try several things because opening /dev/console will fail
  * if someone else used X (which does a chown on /dev/console).
  */
+
+static int cons_fd;
 
 static int
 is_a_console(int fd) {
@@ -35,10 +38,13 @@ is_a_console(int fd) {
 static int
 open_a_console(char *fnam) {
     int fd;
+    PRIV_SAVE_AREA;
 
+    enter_priv_on();
     fd = open(fnam, O_RDONLY);
     if (fd < 0 && errno == EACCES)
       fd = open(fnam, O_WRONLY);
+    leave_priv_setting();
     if (fd < 0)
       return -1;
     if (!is_a_console(fd)) {
@@ -48,7 +54,7 @@ open_a_console(char *fnam) {
     return fd;
 }
 
-int getfd() {
+static int _getfd(void) {
     int fd;
 
     fd = open_a_console("/dev/tty");
@@ -72,4 +78,15 @@ int getfd() {
 	return fd;
 
     return -1;
+}
+
+int open_console(void)
+{
+    cons_fd = _getfd();
+    return cons_fd;
+}
+
+int getfd()
+{
+    return cons_fd;
 }
