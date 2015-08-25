@@ -409,21 +409,20 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 
 static int do_set_dosenv (int argc, char **argv)
 {
-  char data[256];
-  char* dosvar;
+  char* data;
+  char* varname;
 
   if (argc == 0) return usage();
 
   if (argc == 1) {
-    dosvar = argv[0];
+    varname = argv[0];
   } else {
-    dosvar = argv[1];
+    varname = argv[1];
   }
   
-  strcpy (data, argv[0]);
-
-  if (! misc_e6_envvar(data)) {
-    if (msetenv(dosvar,data))
+  data = getenv(argv[0]);
+  if (data) {
+    if (msetenv(varname, data))
       return (0);
   }
   return (1);
