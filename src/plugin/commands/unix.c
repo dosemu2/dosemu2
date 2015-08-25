@@ -102,7 +102,7 @@ static int usage (void)
   com_printf (" Linux path (ends in\n  .com, .exe or .bat, and exists or");
   com_printf (" contains slashes) or \"UNIX -r\" otherwise.\n\n");
 #endif
-  com_printf ("UNIX -s ENVVAR\n");
+  com_printf ("UNIX -s ENVVAR [DOSVAR]\n");
   com_printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
   com_printf ("UNIX command [arg1 ...]\n");
   com_printf ("  Execute the Linux command with the arguments given.\n\n");
@@ -410,13 +410,20 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 static int do_set_dosenv (int argc, char **argv)
 {
   char data[256];
+  char* dosvar;
 
   if (argc == 0) return usage();
 
+  if (argc == 1) {
+    dosvar = argv[0];
+  } else {
+    dosvar = argv[1];
+  }
+  
   strcpy (data, argv[0]);
 
   if (! misc_e6_envvar(data)) {
-    if (msetenv(argv[0],data))
+    if (msetenv(dosvar,data))
       return (0);
   }
   return (1);
