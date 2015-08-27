@@ -481,6 +481,24 @@ static uint16 CheckForDosc(void)
 }
 #endif
 
+/********************************************
+ * Return 1 if the argument is a valid help
+ * parameter:  HELP ? or /?
+ * ON ENTRY:
+ *  nothing
+ * ON EXIT:
+ *  returns 1 if arg was a help param
+ *
+ ********************************************/
+static
+int ArgIsHelp(char *arg)
+{
+    /* Help can be HELP ? or /? */
+    return 1 ^ strncmpi(arg, KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) &
+        strncmpi(arg, "/?", 2) &
+        strncmpi(arg, "?", 1);
+}
+
 int lredir_main(int argc, char **argv)
 {
     uint16 ccode = 0;
@@ -507,7 +525,7 @@ int lredir_main(int argc, char **argv)
     }
 
     /* tej one parm is either error or HELP/-help etc */
-    if (argc == 2 && strncmpi(argv[1], KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) == 0) {
+    if (argc == 2 && ArgIsHelp(argv[1])) {
       printf("Usage: LREDIR [[drive:] LINUX\\FS\\path [R] | [C [n]] | HELP]\n");
       printf("Redirect a drive to the Linux file system.\n\n");
       printf("LREDIR X: LINUX\\FS\\tmp\n");
