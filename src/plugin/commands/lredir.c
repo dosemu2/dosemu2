@@ -494,7 +494,7 @@ static
 int ArgIsHelp(char *arg)
 {
   /* Help can be HELP ? or /? */
-  return (1 ^ strncmpi(arg, KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) &
+  return ! ( strncmpi(arg, KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) &
     strncmp(arg, "/?", 2) &
     strncmp(arg, "?", 1));
 }
