@@ -1563,7 +1563,7 @@ static void restore_rm_regs(void)
   }
 }
 
-void save_pm_regs(struct sigcontext *scp)
+static void save_pm_regs(struct sigcontext *scp)
 {
   if (DPMI_pm_procedure_running >= DPMI_max_rec_pm_func) {
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
@@ -1573,7 +1573,7 @@ void save_pm_regs(struct sigcontext *scp)
   copy_context(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp, 0);
 }
 
-void restore_pm_regs(struct sigcontext *scp)
+static void restore_pm_regs(struct sigcontext *scp)
 {
   if (DPMI_pm_procedure_running > DPMI_max_rec_pm_func ||
     DPMI_pm_procedure_running < 1) {

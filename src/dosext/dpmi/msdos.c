@@ -91,8 +91,10 @@ static far_t get_rm_handler(int (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *));
 static far_t get_lr_helper(void);
 static far_t get_lw_helper(void);
+static far_t get_exec_helper(void);
 static void lrhlp_setup(far_t rmcb);
 static void lwhlp_setup(far_t rmcb);
+static void exechlp_setup(void);
 static struct pmaddr_s get_pmrm_handler(void (*handler)(
 	struct RealModeCallStructure *));
 #endif
@@ -167,6 +169,7 @@ void msdos_init(int is_32, unsigned short mseg)
 	MSDOS_CLIENT.rmcb = allocate_realmode_callback(rmcb_handler);
     else
 	MSDOS_CLIENT.rmcb = msdos_client[msdos_client_num - 2].rmcb;
+    exechlp_setup();
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
@@ -833,6 +836,7 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
 		unsigned short segment = EXEC_SEG, par_seg;
 		char *p;
 		unsigned short sel, off;
+		far_t rma = get_exec_helper();
 
 		D_printf("BCC: call dos exec\n");
 		/* must copy command line */
@@ -890,12 +894,19 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
 		if (ems_frame_mapped)
 		    error
 			("DPMI: exec: EMS frame should not be mapped here\n");
-
-		/* execed client can use raw mode switch and expects not to
-		 * corrupt the registers of its parent, so we need to save
-		 * them explicitly.
-		 * Either that or create a new DPMI client here. */
-		save_pm_regs(scp);
+		/* the new client may do the raw mode switches and we need
+		 * to preserve at least current client's eip. In fact, DOS
+		 * preserves most registers, so, if the child is not polite,
+		 * we also need to preserve all segregs and stack regs too
+		 * (rest will be translated from realmode).
+		 * The problem is that DOS stores the registers in the stack
+		 * so we can't replace the already saved regs with PM ones
+		 * and extract them in post_extender() as we usually do.
+		 * Additionally PM eax will be trashed, so we need to
+		 * preserve also that for post_extender() to work at all.
+		 * This is the task for the realmode helper. */
+		rm_do_int_to(rma.segment, rma.offset, rmreg, rm_mask);
+		ret = MSDOS_ALT_ENT;
 	    }
 	    break;
 
@@ -1453,7 +1464,6 @@ static int _msdos_post_extender(struct sigcontext *scp, int intr,
 	    break;
 #endif
 	case 0x4b:		/* EXEC */
-	    restore_pm_regs(scp);
 	    if (get_env_sel())
 		write_env_sel(ConvertSegmentToDescriptor(get_env_sel()));
 	    D_printf("DPMI: Return from DOS exec\n");
@@ -1901,6 +1911,20 @@ static void lwhlp_setup(far_t rmcb)
 	       rmcb.segment);
 }
 
+static void exechlp_setup(void)
+{
+#define MK_EX_OFS(ofs) ((long)(ofs)-(long)MSDOS_exec_start)
+    far_t rma;
+    struct pmaddr_s pma;
+    int len = DPMI_get_save_restore_address(&rma, &pma);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
+	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_entry_ip)), rma.offset);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
+	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_entry_cs)), rma.segment);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
+	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_buf_sz)), len);
+}
+
 static far_t allocate_realmode_callback(void (*handler)(
 	struct RealModeCallStructure *))
 {
@@ -1960,6 +1984,12 @@ static far_t get_lw_helper(void)
 {
     return (far_t){ .segment = DOS_LONG_WRITE_SEG,
 	    .offset = DOS_LONG_WRITE_OFF };
+}
+
+static far_t get_exec_helper(void)
+{
+    return (far_t){ .segment = BIOSSEG,
+	    .offset = DOS_EXEC_OFF };
 }
 
 void msdos_pm_call(struct sigcontext *scp)
