@@ -89,6 +89,8 @@ static far_t allocate_realmode_callback(void (*handler)(
 static struct pmaddr_s get_pm_handler(void (*handler)(struct sigcontext *));
 static far_t get_rm_handler(int (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *));
+static far_t get_lr_helper(void);
+static far_t get_lw_helper(void);
 static void lrhlp_setup(far_t rmcb);
 static void lwhlp_setup(far_t rmcb);
 static struct pmaddr_s get_pmrm_handler(void (*handler)(
@@ -950,28 +952,30 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    break;
-	case 0x3f:		/* dos read */
+	case 0x3f: {		/* dos read */
+	    far_t rma = get_lr_helper();
 	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    lrhlp_setup(MSDOS_CLIENT.rmcb);
-	    rm_do_int_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF,
-		    rmreg, rm_mask);
+	    rm_do_int_to(rma.segment, rma.offset, rmreg, rm_mask);
 	    ret = MSDOS_ALT_ENT;
 	    break;
-	case 0x40:		/* DOS Write */
+	}
+	case 0x40: {		/* DOS Write */
+	    far_t rma = get_lw_helper();
 	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    lwhlp_setup(MSDOS_CLIENT.rmcb);
-	    rm_do_int_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF,
-		    rmreg, rm_mask);
+	    rm_do_int_to(rma.segment, rma.offset, rmreg, rm_mask);
 	    ret = MSDOS_ALT_ENT;
 	    break;
+	}
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
 		unsigned short seg = trans_buffer_seg();
@@ -1944,6 +1948,18 @@ static far_t get_rm_handler(int (*handler)(struct sigcontext *,
 	dosemu_error("unknown rm handler\n");
     }
     return ret;
+}
+
+static far_t get_lr_helper(void)
+{
+    return (far_t){ .segment = DOS_LONG_READ_SEG,
+	    .offset = DOS_LONG_READ_OFF };
+}
+
+static far_t get_lw_helper(void)
+{
+    return (far_t){ .segment = DOS_LONG_WRITE_SEG,
+	    .offset = DOS_LONG_WRITE_OFF };
 }
 
 void msdos_pm_call(struct sigcontext *scp)
