@@ -160,6 +160,12 @@ extern struct _fpstate vm86_fpu_state;
 		WRITE_BYTE((base) + ptr, val); \
 	} while(0)
 
+#define pushl(base, ptr, val) \
+	do { \
+		pushw(base, ptr, (Bit16u)((val) >> 16)); \
+		pushw(base, ptr, (Bit16u)(val)); \
+	} while(0)
+
 #define popb(base, ptr) \
 	({ \
 		Bit8u __res = READ_BYTE((base) + ptr); \
