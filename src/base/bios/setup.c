@@ -173,12 +173,16 @@ static void bios_setup(void)
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
   SETIVEC(0x0a, BIOSSEG, EOI_OFF);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
+  /* 0x30 and 0x31 are not vectors, they are the 5-byte long jump.
+   * While 0x30 is overwritten entirely, only one byte is overwritten
+   * in 0x31. We need to zero it out so that it at least does not
+   * point into random bios location. */
+  SETIVEC(0x31, 0, 0);
   SETIVEC(0x70, INT70_SEG, INT70_OFF);
   SETIVEC(0x71, INT71_SEG, INT71_OFF);
   SETIVEC(0x1e, INT1E_SEG, INT1E_OFF);
   SETIVEC(0x41, INT41_SEG, INT41_OFF);
   SETIVEC(0x46, INT46_SEG, INT46_OFF);
-
   SETIVEC(0x75, INT75_SEG, INT75_OFF);
 
 #ifdef IPX
