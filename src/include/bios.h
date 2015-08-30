@@ -163,6 +163,10 @@ void		MSDOS_lr_entry_cs(void);
 void		MSDOS_lw_start(void);
 void		MSDOS_lw_entry_ip(void);
 void		MSDOS_lw_entry_cs(void);
+void		MSDOS_exec_start(void);
+void		MSDOS_exec_entry_ip(void);
+void		MSDOS_exec_entry_cs(void);
+void		MSDOS_exec_buf_sz(void);
 
 /* various declarations for interfacing with the packet driver code in
    bios.S */

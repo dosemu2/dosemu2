@@ -217,8 +217,6 @@ extern int SetSegmentBaseAddress(unsigned short selector,
 extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
-extern void save_pm_regs(struct sigcontext *);
-extern void restore_pm_regs(struct sigcontext *);
 extern unsigned short AllocateDescriptors(int);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
@@ -228,6 +226,7 @@ extern void FreeSegRegs(struct sigcontext *scp, unsigned short selector);
 extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
 	int rm_offs);
 extern int DPMI_free_realmode_callback(u_short seg, u_short off);
+extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
 
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);

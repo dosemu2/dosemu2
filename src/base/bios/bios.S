@@ -872,6 +872,64 @@ MSDOS_lw_entry_ip:
 MSDOS_lw_entry_cs:
         .word 0
 
+/* ======================= Addr = F000:F540 (FF540) */
+	.org	DOS_EXEC_OFF
+	.globl MSDOS_exec_start
+MSDOS_exec_start:
+	pushw %bp
+	movw %sp, %bp
+	pushw %ax
+	/* get flags and check IF */
+	movw 3*2(%bp), %ax
+	testw $0x200, %ax
+	jz 1f
+	sti
+1:
+	subw %cs:MSDOS_exec_buf_sz-bios_f000, %sp
+	movw %sp, %cs:s_r_buf_addr-bios_f000
+	pushw %di
+	push %es
+	push %ss
+	pop %es
+	movw %cs:s_r_buf_addr-bios_f000, %di
+	movb $0, %al
+	lcall *%cs:s_r_addr-bios_f000
+	pop %es
+	popw %di
+	movw -2(%bp), %ax
+	int $0x21
+	pushfw
+	pushw %ax
+	pushw %di
+	push %es
+	push %ss
+	pop %es
+	movw %cs:s_r_buf_addr-bios_f000, %di
+	movb $1, %al
+	lcall *%cs:s_r_addr-bios_f000
+	pop %es
+	popw %di
+	popw %ax
+	popfw
+	addw %cs:MSDOS_exec_buf_sz-bios_f000, %sp
+	addw $2, %sp
+	popw %bp
+	lret $2
+
+        .align 4,0
+s_r_addr:
+	.globl MSDOS_exec_entry_ip
+MSDOS_exec_entry_ip:
+	.word 0
+	.globl MSDOS_exec_entry_cs
+MSDOS_exec_entry_cs:
+	.word 0
+        .globl MSDOS_exec_buf_sz
+MSDOS_exec_buf_sz:
+	.word 0
+s_r_buf_addr:
+	.word 0
+
 	.globl  bios_f000_endpart1
 bios_f000_endpart1:
 

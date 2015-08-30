@@ -66,11 +66,6 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
-/* stack for AX values, needed for exec that can corrupt pm regs */
-#define V_STK_LEN 16
-static u_short v_stk[V_STK_LEN];
-static int v_num;
-
 static char *io_buffer;
 static int io_buffer_size;
 static int io_error;
@@ -91,8 +86,10 @@ static far_t get_rm_handler(int (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *));
 static far_t get_lr_helper(void);
 static far_t get_lw_helper(void);
+static far_t get_exec_helper(void);
 static void lrhlp_setup(far_t rmcb);
 static void lwhlp_setup(far_t rmcb);
+static void exechlp_setup(void);
 static struct pmaddr_s get_pmrm_handler(void (*handler)(
 	struct RealModeCallStructure *));
 #endif
@@ -107,18 +104,6 @@ static void set_io_buffer(char *ptr, unsigned int size)
 static void unset_io_buffer(void)
 {
     io_buffer_size = 0;
-}
-
-static void push_v(u_short v)
-{
-    assert(v_num < V_STK_LEN);
-    v_stk[v_num++] = v;
-}
-
-static u_short pop_v(void)
-{
-    assert(v_num > 0);
-    return v_stk[--v_num];
 }
 
 static u_short get_env_sel(void)
@@ -167,6 +152,7 @@ void msdos_init(int is_32, unsigned short mseg)
 	MSDOS_CLIENT.rmcb = allocate_realmode_callback(rmcb_handler);
     else
 	MSDOS_CLIENT.rmcb = msdos_client[msdos_client_num - 2].rmcb;
+    exechlp_setup();
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
@@ -597,7 +583,7 @@ static void old_dos_terminate(struct sigcontext *scp, int i,
  * DANG_END_FUNCTION
  */
 
-static int _msdos_pre_extender(struct sigcontext *scp, int intr,
+int msdos_pre_extender(struct sigcontext *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
 			       int *r_mask)
 {
@@ -833,6 +819,7 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
 		unsigned short segment = EXEC_SEG, par_seg;
 		char *p;
 		unsigned short sel, off;
+		far_t rma = get_exec_helper();
 
 		D_printf("BCC: call dos exec\n");
 		/* must copy command line */
@@ -890,12 +877,22 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
 		if (ems_frame_mapped)
 		    error
 			("DPMI: exec: EMS frame should not be mapped here\n");
-
-		/* execed client can use raw mode switch and expects not to
-		 * corrupt the registers of its parent, so we need to save
-		 * them explicitly.
-		 * Either that or create a new DPMI client here. */
-		save_pm_regs(scp);
+		/* the new client may do the raw mode switches and we need
+		 * to preserve at least current client's eip. In fact, DOS
+		 * preserves most registers, so, if the child is not polite,
+		 * we also need to preserve all segregs and stack regs too
+		 * (rest will be translated from realmode).
+		 * The problem is that DOS stores the registers in the stack
+		 * so we can't replace the already saved regs with PM ones
+		 * and extract them in post_extender() as we usually do.
+		 * Additionally PM eax will be trashed, so we need to
+		 * preserve also that for post_extender() to work at all.
+		 * This is the task for the realmode helper.
+		 * The alternative implementation was to do save_pm_regs()
+		 * here and use the AX stack for post_extender(), which
+		 * is both unportable and ugly. */
+		rm_do_int_to(rma.segment, rma.offset, rmreg, rm_mask);
+		ret = MSDOS_ALT_ENT;
 	    }
 	    break;
 
@@ -1236,15 +1233,6 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
     return ret;
 }
 
-int msdos_pre_extender(struct sigcontext *scp, int intr,
-		       struct RealModeCallStructure *rmreg, int *r_mask)
-{
-    int ret = _msdos_pre_extender(scp, intr, rmreg, r_mask);
-    if (!(ret & MSDOS_DONE))
-	push_v(_LWORD(eax));
-    return ret;
-}
-
 #define RMREG(x) _RMREG(x)
 #define RMLWORD(x) LO_WORD(rmreg->x)
 #define RM_LO(x) LO_BYTE(rmreg->e##x)
@@ -1262,10 +1250,10 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
  * DANG_END_FUNCTION
  */
 
-static int _msdos_post_extender(struct sigcontext *scp, int intr,
-				u_short ax,
+int msdos_post_extender(struct sigcontext *scp, int intr,
 				const struct RealModeCallStructure *rmreg)
 {
+    u_short ax = _LWORD(eax);
     int update_mask = ~0;
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
 #define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
@@ -1453,7 +1441,6 @@ static int _msdos_post_extender(struct sigcontext *scp, int intr,
 	    break;
 #endif
 	case 0x4b:		/* EXEC */
-	    restore_pm_regs(scp);
 	    if (get_env_sel())
 		write_env_sel(ConvertSegmentToDescriptor(get_env_sel()));
 	    D_printf("DPMI: Return from DOS exec\n");
@@ -1632,15 +1619,6 @@ static int _msdos_post_extender(struct sigcontext *scp, int intr,
     if (need_xbuf(intr, ax))
 	restore_ems_frame();
     return update_mask;
-}
-
-int msdos_post_extender(struct sigcontext *scp, int intr,
-			 const struct RealModeCallStructure *rmreg)
-{
-    int ret = _msdos_post_extender(scp, intr, pop_v(), rmreg);
-    if (!v_num && ems_frame_mapped)
-	dosemu_error("EMS frame inconsistency\n");
-    return ret;
 }
 
 static int mouse_callback(struct sigcontext *scp,
@@ -1901,6 +1879,20 @@ static void lwhlp_setup(far_t rmcb)
 	       rmcb.segment);
 }
 
+static void exechlp_setup(void)
+{
+#define MK_EX_OFS(ofs) ((long)(ofs)-(long)MSDOS_exec_start)
+    far_t rma;
+    struct pmaddr_s pma;
+    int len = DPMI_get_save_restore_address(&rma, &pma);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
+	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_entry_ip)), rma.offset);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
+	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_entry_cs)), rma.segment);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
+	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_buf_sz)), len);
+}
+
 static far_t allocate_realmode_callback(void (*handler)(
 	struct RealModeCallStructure *))
 {
@@ -1960,6 +1952,12 @@ static far_t get_lw_helper(void)
 {
     return (far_t){ .segment = DOS_LONG_WRITE_SEG,
 	    .offset = DOS_LONG_WRITE_OFF };
+}
+
+static far_t get_exec_helper(void)
+{
+    return (far_t){ .segment = BIOSSEG,
+	    .offset = DOS_EXEC_OFF };
 }
 
 void msdos_pm_call(struct sigcontext *scp)
