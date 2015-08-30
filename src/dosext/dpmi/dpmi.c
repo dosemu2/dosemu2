@@ -1939,6 +1939,15 @@ int DPMI_free_realmode_callback(u_short seg, u_short off)
   return -1;
 }
 
+int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr)
+{
+      raddr->segment = DPMI_SEG;
+      raddr->offset = DPMI_OFF + HLT_OFF(DPMI_save_restore_rm);
+      paddr->selector = dpmi_sel();
+      paddr->offset = DPMI_SEL_OFF(DPMI_save_restore_pm);
+      return max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
+}
+
 static void do_int31(struct sigcontext *scp)
 {
 #if 0
@@ -2258,13 +2267,16 @@ err:
         _eflags |= CF;
     }
     break;
-  case 0x0305:	/* Get State Save/Restore Adresses */
-      _LWORD(ebx) = DPMI_SEG;
-      _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_save_restore_rm);
-      _LWORD(esi) = dpmi_sel();
-      _edi = DPMI_SEL_OFF(DPMI_save_restore_pm);
-      _LWORD(eax) = max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
+  case 0x0305: {	/* Get State Save/Restore Adresses */
+      far_t raddr;
+      struct pmaddr_s paddr;
+      _LWORD(eax) = DPMI_get_save_restore_address(&raddr, &paddr);
+      _LWORD(ebx) = raddr.segment;
+      _LWORD(ecx) = raddr.offset;
+      _LWORD(esi) = paddr.selector;
+      _edi = paddr.offset;
     break;
+  }
   case 0x0306:	/* Get Raw Mode Switch Adresses */
       _LWORD(ebx) = DPMI_SEG;
       _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_raw_mode_switch_rm);
