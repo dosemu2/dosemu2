@@ -66,11 +66,6 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
-/* stack for AX values, needed for exec that can corrupt pm regs */
-#define V_STK_LEN 16
-static u_short v_stk[V_STK_LEN];
-static int v_num;
-
 static char *io_buffer;
 static int io_buffer_size;
 static int io_error;
@@ -109,18 +104,6 @@ static void set_io_buffer(char *ptr, unsigned int size)
 static void unset_io_buffer(void)
 {
     io_buffer_size = 0;
-}
-
-static void push_v(u_short v)
-{
-    assert(v_num < V_STK_LEN);
-    v_stk[v_num++] = v;
-}
-
-static u_short pop_v(void)
-{
-    assert(v_num > 0);
-    return v_stk[--v_num];
 }
 
 static u_short get_env_sel(void)
@@ -600,7 +583,7 @@ static void old_dos_terminate(struct sigcontext *scp, int i,
  * DANG_END_FUNCTION
  */
 
-static int _msdos_pre_extender(struct sigcontext *scp, int intr,
+int msdos_pre_extender(struct sigcontext *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
 			       int *r_mask)
 {
@@ -904,7 +887,10 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
 		 * and extract them in post_extender() as we usually do.
 		 * Additionally PM eax will be trashed, so we need to
 		 * preserve also that for post_extender() to work at all.
-		 * This is the task for the realmode helper. */
+		 * This is the task for the realmode helper.
+		 * The alternative implementation was to do save_pm_regs()
+		 * here and use the AX stack for post_extender(), which
+		 * is both unportable and ugly. */
 		rm_do_int_to(rma.segment, rma.offset, rmreg, rm_mask);
 		ret = MSDOS_ALT_ENT;
 	    }
@@ -1247,15 +1233,6 @@ static int _msdos_pre_extender(struct sigcontext *scp, int intr,
     return ret;
 }
 
-int msdos_pre_extender(struct sigcontext *scp, int intr,
-		       struct RealModeCallStructure *rmreg, int *r_mask)
-{
-    int ret = _msdos_pre_extender(scp, intr, rmreg, r_mask);
-    if (!(ret & MSDOS_DONE))
-	push_v(_LWORD(eax));
-    return ret;
-}
-
 #define RMREG(x) _RMREG(x)
 #define RMLWORD(x) LO_WORD(rmreg->x)
 #define RM_LO(x) LO_BYTE(rmreg->e##x)
@@ -1273,10 +1250,10 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
  * DANG_END_FUNCTION
  */
 
-static int _msdos_post_extender(struct sigcontext *scp, int intr,
-				u_short ax,
+int msdos_post_extender(struct sigcontext *scp, int intr,
 				const struct RealModeCallStructure *rmreg)
 {
+    u_short ax = _LWORD(eax);
     int update_mask = ~0;
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
 #define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
@@ -1642,15 +1619,6 @@ static int _msdos_post_extender(struct sigcontext *scp, int intr,
     if (need_xbuf(intr, ax))
 	restore_ems_frame();
     return update_mask;
-}
-
-int msdos_post_extender(struct sigcontext *scp, int intr,
-			 const struct RealModeCallStructure *rmreg)
-{
-    int ret = _msdos_post_extender(scp, intr, pop_v(), rmreg);
-    if (!v_num && ems_frame_mapped)
-	dosemu_error("EMS frame inconsistency\n");
-    return ret;
 }
 
 static int mouse_callback(struct sigcontext *scp,
