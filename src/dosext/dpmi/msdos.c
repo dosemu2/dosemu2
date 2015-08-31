@@ -513,26 +513,27 @@ static void old_dos_terminate(struct sigcontext *scp, int i,
 			      struct RealModeCallStructure *rmreg, int rmask)
 {
     unsigned short psp_seg_sel, parent_psp = 0;
-    unsigned short psp_sig;
+    unsigned short psp_sig, psp;
 
     D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
 
+    psp = dos_get_psp();
 #if 0
-    _eip = READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0xa));
+    _eip = READ_WORD(SEGOFF2LINEAR(psp, 0xa));
     _cs =
 	ConvertSegmentToCodeDescriptor(READ_WORD
 				       (SEGOFF2LINEAR
-					(dos_get_psp(), 0xa + 2)));
+					(psp, 0xa + 2)));
 #endif
 
     /* put our return address there */
-    WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0xa), READ_RMREG(ip, rmask));
-    WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0xa + 2), READ_RMREG(cs, rmask));
+    WRITE_WORD(SEGOFF2LINEAR(psp, 0xa), READ_RMREG(ip, rmask));
+    WRITE_WORD(SEGOFF2LINEAR(psp, 0xa + 2), READ_RMREG(cs, rmask));
     /* cs should point to PSP, ip doesn't matter */
-    _RMREG(cs) = dos_get_psp();
+    _RMREG(cs) = psp;
     _RMREG(ip) = 0x100;
 
-    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x16));
+    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(psp, 0x16));
     /* try segment */
     psp_sig = READ_WORD(SEGOFF2LINEAR(psp_seg_sel, 0));
     if (psp_sig != 0x20CD) {
@@ -563,12 +564,12 @@ static void old_dos_terminate(struct sigcontext *scp, int i,
     if (!parent_psp) {
 	/* no PSP found, use current as the last resort */
 	D_printf("MSDOS: using current PSP as parent!\n");
-	parent_psp = dos_get_psp();
+	parent_psp = psp;
     }
 
     D_printf("MSDOS: parent PSP seg=%#x\n", parent_psp);
     if (parent_psp != psp_seg_sel)
-	WRITE_WORD(SEGOFF2LINEAR(dos_get_psp(), 0x16), parent_psp);
+	WRITE_WORD(SEGOFF2LINEAR(psp, 0x16), parent_psp);
 }
 
 /*
