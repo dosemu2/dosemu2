@@ -879,6 +879,7 @@ MSDOS_exec_start:
 	pushw %bp
 	movw %sp, %bp
 	pushw %ax
+	pushw $0
 	/* get flags and check IF */
 	movw 3*2(%bp), %ax
 	testw $0x200, %ax
@@ -886,12 +887,12 @@ MSDOS_exec_start:
 	sti
 1:
 	subw %cs:MSDOS_exec_buf_sz-bios_f000, %sp
-	movw %sp, %cs:s_r_buf_addr-bios_f000
+	movw %sp, -4(%bp)
 	pushw %di
 	push %es
 	push %ss
 	pop %es
-	movw %cs:s_r_buf_addr-bios_f000, %di
+	movw -4(%bp), %di
 	movb $0, %al
 	lcall *%cs:s_r_addr-bios_f000
 	pop %es
@@ -904,7 +905,7 @@ MSDOS_exec_start:
 	push %es
 	push %ss
 	pop %es
-	movw %cs:s_r_buf_addr-bios_f000, %di
+	movw -4(%bp), %di
 	movb $1, %al
 	lcall *%cs:s_r_addr-bios_f000
 	pop %es
@@ -912,7 +913,7 @@ MSDOS_exec_start:
 	popw %ax
 	popfw
 	addw %cs:MSDOS_exec_buf_sz-bios_f000, %sp
-	addw $2, %sp
+	addw $4, %sp
 	popw %bp
 	lret $2
 
@@ -926,8 +927,6 @@ MSDOS_exec_entry_cs:
 	.word 0
         .globl MSDOS_exec_buf_sz
 MSDOS_exec_buf_sz:
-	.word 0
-s_r_buf_addr:
 	.word 0
 
 	.globl  bios_f000_endpart1
