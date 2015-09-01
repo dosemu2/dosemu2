@@ -338,7 +338,7 @@ void install_dos(int post_boot)
 			assemble_path(dosemu_lib_dir, "drive_z", 0);
 		create_symlink(commands_path, 1);
 		free(commands_path);
-#if 0
+#if 1
 		if(post_boot)
 			disk_reset();
 #else
