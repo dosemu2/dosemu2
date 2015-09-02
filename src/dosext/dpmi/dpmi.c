@@ -2887,7 +2887,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
     save_rm_regs();
     pm_to_rm_regs(scp, ~0);
     REG(cs) = DPMI_SEG;
-    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
+    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
   }
 
   in_dpmi_dos_int = 1;
@@ -4400,18 +4400,20 @@ void dpmi_realmode_hlt(unsigned int lina)
   } else if ((lina>=DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)) &&
 	     (lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256) ) {
     int intr = lina - (DPMI_ADD + HLT_OFF(DPMI_return_from_dosint));
+    struct RealModeCallStructure rmreg;
+    int rmask;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
+    DPMI_save_rm_regs(&rmreg);
+    rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
+    /* post_extender does not modify rmregs so not restoring */
+    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
+    restore_rm_regs();
+    in_dpmi_dos_int = 0;
 
-    if (config.pm_dos_api) {
-	struct RealModeCallStructure rmreg;
-	int rmask;
-	DPMI_save_rm_regs(&rmreg);
-	rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
-	/* post_extender does not modify rmregs so not restoring */
-	rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
-    }
-
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_rmint)) {
+    D_printf("DPMI: Return from RM Interrupt\n");
+    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 

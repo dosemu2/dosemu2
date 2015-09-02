@@ -69,8 +69,8 @@ DPMI_dpmi_init:
 DPMI_return_from_dos:
 	hlt
 /* ======================= Addr = F800:480B (FC80B) */
-	.globl	DPMI_reserved12
-DPMI_reserved12:
+	.globl	DPMI_return_from_rmint
+DPMI_return_from_rmint:
 	hlt
 /* ======================= Addr = F800:480C (FC80C+intno) */
 	.globl	DPMI_return_from_dosint
