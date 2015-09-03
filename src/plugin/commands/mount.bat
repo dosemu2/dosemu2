@@ -99,7 +99,7 @@ echo MOUNT -u Q
 echo   Unmount drive Q:
 echo.
 echo MOUNT d /media/cdrom -t cdrom
-echo   Mount cdrom at /media as cdrom on drive D
+echo   Mount cdrom at /media as cdrom on drive D:
 echo.
 
 
