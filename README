@@ -1,10 +1,4 @@
 DOSEMU2 is a virtual machine that allows you to run DOS software under linux.
 
-How to set up DOSEMU2:
-* Installation from source:
-  please refer to the file INSTALL
-* Installation of the ready to use binary distribution (stable versions only):
-  please refer to the file README.bindist
-
 - Please send bug reports to
   https://github.com/stsp/dosemu2/issues
