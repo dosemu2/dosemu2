@@ -29,11 +29,17 @@ _start16:
 	movb	$DOS_HELPER_COMMANDS, %al
 	movb	$BUILTINS_PLUGIN_VERSION, %ah
 	int	$DOS_HELPER_INT
-				# back, thread deleted
+
+	movb	$0x4d, %ah
+	int	$0x21
+	pushw	%ax
+
 	movb	$DOS_HELPER_COMMANDS_DONE, %al
 	movb	$BUILTINS_PLUGIN_VERSION, %ah
 	int	$DOS_HELPER_INT
 
-	int	$0x20
+	popw	%ax
+	movb	$0x4c, %ah
+	int	$0x21
 
 stack_start:
