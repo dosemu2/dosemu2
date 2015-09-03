@@ -12,7 +12,10 @@ CFILES=commands.c lredir.c xmode.c emumouse.c dosdbg.c msetenv.c \
        unix.c cmdline.c builtins.c blaster.c
 
 SFILES=generic.S
-ALL=$(CFILES) $(SFILES)
+
+BFILES=mount.bat
+
+ALL=$(CFILES) $(SFILES) $(BFILES)
 
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d) $(SFILES:.S=.d)
@@ -25,7 +28,9 @@ STUBSYMLINK = $(D)/bootoff.com $(D)/booton.com $(D)/ecpuon.com $(D)/ecpuoff.com 
   $(D)/vgaoff.com $(D)/vgaon.com $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
   $(D)/unix.com $(D)/blaster.com $(D)/dpmi.com
 
-all: lib $(COM) $(STUBSYMLINK)
+BATCOPYFILE = $(D)/mount.bat
+
+all: lib $(COM) $(STUBSYMLINK) $(BATCOPYFILE)
 
 ifdef REALTOPDIR
 include $(REALTOPDIR)/src/Makefile.common
@@ -33,6 +38,9 @@ endif
 
 $(STUBSYMLINK): $(D)/generic.com
 	ln -sf $(<F) $@
+
+$(BATCOPYFILE): $(BFILES)
+	cp -f $? $D
 
 %.com.elf: %.o
 	ld --section-start=.text=0x100 -e _start16 -o $@ $<
