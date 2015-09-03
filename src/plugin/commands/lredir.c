@@ -55,6 +55,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "emu.h"
 #include "memory.h"
@@ -93,7 +94,7 @@ typedef unsigned int uint16;
 
 #define READ_ONLY_DRIVE_ATTRIBUTE 1  /* same as NetWare Lite */
 
-#define KEYWORD_DEL   "DELETE"
+#define KEYWORD_DEL   "DEL"
 #define KEYWORD_DEL_COMPARE_LENGTH  3
 
 #define KEYWORD_HELP   "HELP"
@@ -269,36 +270,6 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char **presourc
       *presourceStr = strdup(slashedResourceStr + 2);
       return (CC_SUCCESS);
     }
-}
-
-static int getCWD(char **presourceStr)
-{
-    char *cwd;
-    struct REGPACK preg = REGPACK_INIT;
-    uint8_t drive = sda_cur_drive(sda);
-    char dl;
-    int ret;
-
-    cwd = lowmem_alloc(64);
-    preg.r_ax = DOS_GET_CWD;
-    preg.r_dx = 0;
-    preg.r_ds = FP_SEG(cwd);
-    preg.r_si = FP_OFF(cwd);
-    intr(0x21, &preg);
-    if (preg.r_flags & CARRY_FLAG) {
-	lowmem_free(cwd, 64);
-	return preg.r_ax ?: -1;
-    }
-    dl = ((drive & 0x80) ? 'C' + (drive & 0x7f) : 'A' + drive);
-    if (cwd[0]) {
-        ret = asprintf(presourceStr, "%c:\\%s", dl, cwd);
-        assert(ret != -1);
-    } else {
-        ret = asprintf(presourceStr, "%c:", dl);
-        assert(ret != -1);
-    }
-    lowmem_free(cwd, 64);
-    return 0;
 }
 
 /********************************************
@@ -481,6 +452,24 @@ static uint16 CheckForDosc(void)
 }
 #endif
 
+/********************************************
+ * Return 1 if the argument is a valid help
+ * parameter:  HELP ? or /?
+ * ON ENTRY:
+ *  nothing
+ * ON EXIT:
+ *  returns 1 if arg was a help param
+ *
+ ********************************************/
+static
+int ArgIsHelp(char *arg)
+{
+  /* Help can be HELP ? or /? */
+  return ( strncmpi(arg, KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) ||
+    strncmp(arg, "/?", 2) ||
+    strncmp(arg, "?", 1));
+}
+
 int lredir_main(int argc, char **argv)
 {
     uint16 ccode = 0;
@@ -495,6 +484,8 @@ int lredir_main(int argc, char **argv)
     char deviceStr2[MAX_DEVICE_STRING_LENGTH];
     char *resourceStr, *resourceStr2;
 
+    char cwdStr[FILENAME_MAX];
+    char *cwd;
 
     /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
     InitMFS();
@@ -507,7 +498,7 @@ int lredir_main(int argc, char **argv)
     }
 
     /* tej one parm is either error or HELP/-help etc */
-    if (argc == 2 && strncmpi(argv[1], KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) == 0) {
+    if (argc == 2 && ArgIsHelp(argv[1])) {
       printf("Usage: LREDIR [[drive:] LINUX\\FS\\path [R] | [C [n]] | HELP]\n");
       printf("Redirect a drive to the Linux file system.\n\n");
       printf("LREDIR X: LINUX\\FS\\tmp\n");
@@ -515,7 +506,7 @@ int lredir_main(int argc, char **argv)
       printf("  If R is specified, the drive will be read-only\n");
       printf("  If C is specified, (read-only) CDROM n is used (n=1 by default)\n");
       printf("  ${home} represents user's home directory\n\n");
-      printf("  If drive is not specified, the next available drive will be used.");
+      printf("  If drive is not specified, the next available drive will be used.\n\n");
       printf("LREDIR X: Y:\n");
       printf("  Redirect drive X: to where the drive Y: is redirected.\n");
       printf("  If F is specified, the path for Y: is taken from its emulated "
@@ -528,8 +519,8 @@ int lredir_main(int argc, char **argv)
       printf("  show this help screen\n");
       return(0);
     }
-
-    if (strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {
+    
+    if (argc == 3 && strlen(argv[1]) == KEYWORD_DEL_COMPARE_LENGTH && strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {
       DeleteDriveRedirection(argv[2]);
       return(0);
     }
@@ -542,15 +533,13 @@ int lredir_main(int argc, char **argv)
       char *argv2;
       /* lredir c: d: */
       if (argv[2][1] == '\\') {
-        char *tmp;
-        int err = getCWD(&tmp);
-        if (err) {
+        cwd = getcwd(cwdStr, FILENAME_MAX);
+        if (cwd != NULL) {
           printf("Error: unable to get CWD\n");
           goto MainExit;
         }
-        ret = asprintf(&argv2, "%s\\%s", tmp, argv[2] + 2);
+        ret = asprintf(&argv2, "%s\\%s", cwd, argv[2] + 2);
         assert(ret != -1);
-        free(tmp);
       } else {
         argv2 = strdup(argv[2]);
       }
