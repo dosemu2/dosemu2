@@ -437,7 +437,9 @@ int run_unix_command(char *buffer)
     /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
 
     int pts_fd;
-    int pid, status, retval;
+    int pid, status, retval, wt;
+    sigset_t set, oset;
+    struct timespec to = { 0, 0 };
 
     g_printf("UNIX: run '%s'\n",buffer);
 #if 0
@@ -449,9 +451,14 @@ int run_unix_command(char *buffer)
 	error("run_unix_command(): open pts failed %s\n", strerror(errno));
 	return -1;
     }
+    sigemptyset(&set);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    sigprocmask(SIG_BLOCK, &set, &oset);
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
+	sigprocmask(SIG_SETMASK, &oset, NULL);
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
@@ -464,6 +471,14 @@ int run_unix_command(char *buffer)
 	dup(pts_fd);
 	dup(pts_fd);
 	close(pts_fd);
+	/* close signals, then unblock */
+	signal_done();
+	ioselect_done();
+	/* flush pending signals */
+	do {
+	    wt = sigtimedwait(&set, NULL, &to);
+	} while (wt != -1);
+	sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	setenv("LC_ALL", "C", 1);	// disable i18n
 	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
@@ -472,6 +487,7 @@ int run_unix_command(char *buffer)
 	break;
     }
     close(pts_fd);
+    sigprocmask(SIG_SETMASK, &oset, NULL);
 
     assert(!isset_IF());
     dos2tty_start();
