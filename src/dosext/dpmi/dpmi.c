@@ -2819,10 +2819,26 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
   }
 }
 
+static void chain_rm_int(struct sigcontext *scp, int i)
+{
+  save_rm_regs();
+  pm_to_rm_regs(scp, ~0);
+  REG(cs) = DPMI_SEG;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+  switch (i) {
+  case 0x1c:
+  case 0x23:
+  case 0x24:
+    real_run_int(i);
+    break;
+  default:
+    do_int(i);
+    break;
+  }
+}
+
 static void do_dpmi_int(struct sigcontext *scp, int i)
 {
-  int msdos_ret = 0;
-
   D_printf("DPMI: int 0x%04x, AX=0x%04x\n", i, _LWORD(eax));
   switch (i) {
     case 0x2f:
@@ -2867,6 +2883,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
   }
 
   if (config.pm_dos_api) {
+    int msdos_ret;
     struct RealModeCallStructure rmreg;
     int rm_mask = (1 << eflags_INDEX) | (1 << cs_INDEX) |
 	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
@@ -2877,34 +2894,24 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
     rmreg.sp = DPMI_rm_stack_size * (DPMI_CLIENT.in_dpmi_rm_stack + 1);
     rmreg.flags = get_FLAGS(_eflags);
     msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask);
-    /* If the API Translator handled the request itself, return to PM */
-    if (msdos_ret & MSDOS_DONE)
+    switch (msdos_ret) {
+    case MSDOS_NONE:
+      chain_rm_int(scp, i);
+      break;
+    case MSDOS_RM:
+      save_rm_regs();
+      pm_to_rm_regs(scp, ~0);
+      DPMI_restore_rm_regs(&rmreg, rm_mask);
+      break;
+    case MSDOS_DONE:
       return;
-    save_rm_regs();
-    pm_to_rm_regs(scp, ~0);
-    DPMI_restore_rm_regs(&rmreg, rm_mask);
+    }
   } else {
-    save_rm_regs();
-    pm_to_rm_regs(scp, ~0);
-    REG(cs) = DPMI_SEG;
-    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+    chain_rm_int(scp, i);
   }
 
   in_dpmi_dos_int = 1;
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
-
-  switch (i) {
-  case 0x1c:
-  case 0x23:
-  case 0x24:
-    real_run_int(i);
-    break;
-  default:
-    /* If the API Translator didnt install the alt entry point, call interrupt */
-    if (!(msdos_ret & MSDOS_ALT_ENT))
-      do_int(i);
-    break;
-  }
 }
 
 /* DANG_BEGIN_FUNCTION run_pm_int

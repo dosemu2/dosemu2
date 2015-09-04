@@ -53,8 +53,7 @@ extern void msdos_post_pm(struct sigcontext *scp,
 extern void msdos_pm_call(struct sigcontext *scp);
 #endif
 
-#define MSDOS_DONE 1
-#define MSDOS_ALT_ENT 2
+enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE };
 
 #define DTA_Para_ADD 0
 #define DTA_Para_SIZE 8
