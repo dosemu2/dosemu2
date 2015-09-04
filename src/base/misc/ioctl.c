@@ -205,7 +205,13 @@ void remove_from_io_select(int new_fd)
     io_callback_func[new_fd].func = NULL;
 }
 
-/* @@@ MOVE_END @@@ 32768 */
-
-
-
+void ioselect_done(void)
+{
+    int i;
+    for (i = 0; i < MAX_FD; i++) {
+	if (io_callback_func[i].func) {
+	    remove_from_io_select(i);
+	    close(i);
+	}
+    }
+}

@@ -579,6 +579,7 @@ void leavedos_main(int sig)
 
     g_printf("calling close_all_printers\n");
     close_all_printers();
+    ioselect_done();
 
     flush_log();
 
