@@ -29,9 +29,11 @@ _start16:
 	movb	$DOS_HELPER_COMMANDS, %al
 	movb	$BUILTINS_PLUGIN_VERSION, %ah
 	int	$DOS_HELPER_INT
+	jc	1f		// preserve error code
 
 	movb	$0x4d, %ah
 	int	$0x21
+1:
 	pushw	%ax
 
 	movb	$DOS_HELPER_COMMANDS_DONE, %al
