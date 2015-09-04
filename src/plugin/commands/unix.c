@@ -130,8 +130,7 @@ static int send_command(char **argv)
 #if 0
     com_printf("Effective commandline: %s\n", command_line);
 #endif
-    run_unix_command(command_line);
-    return(0);
+    return run_unix_command(command_line);
 }
 
 #if CAN_EXECUTE_DOS
