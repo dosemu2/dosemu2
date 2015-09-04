@@ -246,31 +246,6 @@ void misc_e6_store_command (char *str, int terminate)
   g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 
-
-#ifdef FORK_DEBUG
-#warning USING FORK DEBUG
-/* system to debug through forks...
- * If used, setenv FORKDEBUG to stop child on fork call
- */
-static int fork_debug(void)
-{
-	int retval;
-
-	retval = fork();
-
-	if(retval == 0) {
-		/* child -- maybe stop */
-		if(getenv("FORKDEBUG")) {
-			printf("stopping %d\n", getpid());
-			raise(SIGSTOP);
-		}
-	}
-	return retval;
-}
-#define fork	fork_debug
-#endif
-
-
 static char *make_end_in_backslash (char *s)
 {
   int len = strlen (s);
