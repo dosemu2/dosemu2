@@ -1177,7 +1177,13 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	case 0x168a:
 	    get_ext_API(scp);
 	    return MSDOS_DONE;
-	default:
+	/* need to be careful with 0x2f as it is currently revectored.
+	 * As such, we need to return MSDOS_NONE for what we don't handle,
+	 * but break for what the post_extender is needed.
+	 * Maybe eventually it will be possible to make int2f non-revect. */
+	case 0x4310:	// for post_extender()
+	    break;
+	default:	// for do_int()
 	    if (!act)
 		return MSDOS_NONE;
 	    break;
