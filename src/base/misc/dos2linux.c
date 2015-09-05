@@ -916,16 +916,16 @@ int com_dosprint(char *buf32)
 	u_short int23_seg, int23_off, size;
 	size = strlen(buf32);
 	if (!size) return 0;
-	size++;
 	com_errno = 8;
 	s = lowmem_heap_alloc(size);
 	if (!s) return -1;
 	memcpy(s, buf32, size);
-	s[size - 1] = '$';
 	pre_msdos();
+	LWORD(ebx) = STDOUT_FILENO;
+	LWORD(ecx) = size;
 	LWORD(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
-	HI(ax) = 9;
+	HI(ax) = 0x40;
 	/* write() can be interrupted with ^C. Therefore we set int0x23 here
 	 * so that even in this case it will return to the proper place. */
 	int23_seg = ISEG(0x23);
