@@ -1153,7 +1153,7 @@ static void mhp_bl(int argc, char * argv[])
    }
    mhp_printf( "Interrupts: ");
    for (i1=0; i1 < 256; i1++) {
-      if (test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
+      if (test_bit(i1, mhpdbg.intxxtab)) {
          mhp_printf( "%02x ", i1);
       }
    }
@@ -1207,11 +1207,15 @@ static void mhp_bpint(int argc, char * argv[])
    if (argc <2) return;
    if (!check_for_stopped()) return;
    sscanf(argv[1], "%x", &i1);
-   if (test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
+   if (test_bit(i1, mhpdbg.intxxtab)) {
          mhp_printf( "Duplicate BPINT %02x, nothing done\n", i1);
          return;
    }
-   set_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab);
+   set_bit(i1, mhpdbg.intxxtab);
+   if (!test_bit(i1, &vm86s.int_revectored)) {
+      set_bit(i1, mhpdbgc.intxxalt);
+      set_revectored(i1, &vm86s.int_revectored);
+   }
    if (i1 == 0x21) mhpdbgc.int21_count++;
    return;
 }
@@ -1223,11 +1227,15 @@ static void mhp_bcint(int argc, char * argv[])
    if (argc <2) return;
    if (!check_for_stopped()) return;
    sscanf(argv[1], "%x", &i1);
-   if (!test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
+   if (!test_bit(i1, mhpdbg.intxxtab)) {
          mhp_printf( "No BPINT %02x, nothing done\n", i1);
          return;
    }
-   clear_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab);
+   clear_bit(i1, mhpdbg.intxxtab);
+   if (test_bit(i1, mhpdbgc.intxxalt)) {
+      clear_bit(i1, mhpdbgc.intxxalt);
+      reset_revectored(i1, &vm86s.int_revectored);
+   }
    if (i1 == 0x21) mhpdbgc.int21_count--;
    return;
 }
@@ -1295,7 +1303,11 @@ static void mhp_bpload(int argc, char * argv[])
    mhpdbgc.bpload=1;
    {
      volatile register int i=0x21; /* beware, set_bit-macro has wrong constraints */
-     set_bit(i, vm86s.vm86plus.vm86dbg_intxxtab);
+     set_bit(i, mhpdbg.intxxtab);
+     if (!test_bit(i, &vm86s.int_revectored)) {
+          set_bit(i, mhpdbgc.intxxalt);
+          set_revectored(i, &vm86s.int_revectored);
+     }
    }
    mhpdbgc.int21_count++;
    return;

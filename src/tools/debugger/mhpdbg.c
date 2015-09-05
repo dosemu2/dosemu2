@@ -144,7 +144,8 @@ static void mhp_init(void)
   mhpdbg.sendptr = 0;
 
   mhpdbg.TFpendig = 0;
-  memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
+  memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
+  memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
 
   retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
   assert(retval != -1);
@@ -355,7 +356,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   case DBG_INTx:
 	  if (!mhpdbg.active)
 	     break;
-	  if (test_bit(DBG_ARG(mhpdbgc.currcode), vm86s.vm86plus.vm86dbg_intxxtab)) {
+	  if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 
 	      /* mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip); */
@@ -404,7 +405,11 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	      }
 	      if (!--mhpdbgc.int21_count) {
 	        volatile register int i=0x21; /* beware, set_bit-macro has wrong constraints */
-	        clear_bit(i, vm86s.vm86plus.vm86dbg_intxxtab);
+	        clear_bit(i, mhpdbg.intxxtab);
+	        if (test_bit(i, mhpdbgc.intxxalt)) {
+	          clear_bit(i, mhpdbgc.intxxalt);
+	          reset_revectored(i, &vm86s.int_revectored);
+	        }
 	      }
 	    }
 	    else {
@@ -469,7 +474,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 			  mhp_modify_eip(-1);
 		    }
 		    else {
-		      if ((ok=test_bit(3, vm86s.vm86plus.vm86dbg_intxxtab))) {
+		      if ((ok=test_bit(3, mhpdbg.intxxtab))) {
 		        /* software programmed INT3 */
 		        mhp_modify_eip(-1);
 		        mhp_cmd("r");

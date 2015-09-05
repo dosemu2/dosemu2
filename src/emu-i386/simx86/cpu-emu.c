@@ -1145,7 +1145,7 @@ static int handle_vm86_fault(int *error_code)
 	        int intno=popb(csp, ip);
 		_IP += 2;
 		if (mhpdbg.active) {
-			if ( (1 << (intno &7)) & vm86s.vm86plus.vm86dbg_intxxtab[intno >> 3] ) {
+			if ( (1 << (intno &7)) & mhpdbg.intxxtab[intno >> 3] ) {
 				return (VM86_INTx + (intno << 8));
 			}
 		}
