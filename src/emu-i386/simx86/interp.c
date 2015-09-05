@@ -585,14 +585,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    if (debug_level('e')>1)
 				e_printf("Pushed flags %08x fl=%08x vf=%08x\n",
 		    			temp,EFLAGS,eVEFLAGS);
-checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
-				    (eVEFLAGS & EFLAGS_IFK)) {
-				if (debug_level('e')>1)
-				    e_printf("Return for PIC fl=%08x vf=%08x\n",
-		    			EFLAGS,eVEFLAGS);
-				TheCPU.err=EXCP_PICSIGNAL;
-				return PC+1;
-		    	    }
 			}
 			else {
 				Gen(O_PUSH2F, mode);
@@ -1646,14 +1638,6 @@ stack_return_from_vm86:
 					return PC + (opc==POPF);
 				    }
 				}
-				if (vm86s.vm86plus.force_return_for_pic &&
-					(eVEFLAGS & EFLAGS_IFK)) {
-				    if (debug_level('e')>1)
-					e_printf("Return for PIC fl=%08x vf=%08x\n",
-		    			    EFLAGS,eVEFLAGS);
-				    TheCPU.err=EXCP_PICSIGNAL;
-				    return PC + (opc==POPF);
-				}
 			    }
 			}
 			else {
@@ -1917,7 +1901,6 @@ repag0:
 			    if (V86MODE()) {
 				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
 				eVEFLAGS &= ~EFLAGS_VIF;
-				goto checkpic;
 			    }
 			    else if (in_dpmi) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
