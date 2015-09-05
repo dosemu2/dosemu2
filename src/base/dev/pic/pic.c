@@ -636,6 +636,10 @@ void run_irqs(void)
 
        /* don't allow HW interrupts in force trace mode */
        if (vm86s.vm86plus.vm86dbg_TFpendig) return;
+       if (!isset_IF()) {
+	       set_VIP();
+	       return;                      /* exit if ints are disabled */
+       }
 
        /* check for and find any requested irqs.  Having found one, we atomic-ly
         * clear it and verify it was there when we cleared it.  If it wasn't, we
@@ -646,11 +650,6 @@ void run_irqs(void)
         */
        while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
                int local_pic_ilevel, old_ilevel, ret;
-
-	       if (!isset_IF()) {
-		       set_VIP();
-	    	       return;                      /* exit if ints are disabled */
-	       }
 
                local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
 	       old_ilevel = find_bit(pic_isr);
