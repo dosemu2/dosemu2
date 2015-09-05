@@ -68,17 +68,15 @@ extern SillyG_t *SillyG;
  * DANG_END_REMARK
 */
 
-union vm86plus_union
+union vm86_union
 {
-  struct vm86plus_struct vm86ps;
-  unsigned char b[sizeof(struct vm86plus_struct)];
-  unsigned short w[sizeof(struct vm86plus_struct)/2];
-  unsigned int d[sizeof(struct vm86plus_struct)/4];
+  struct vm86_struct vm86ps;
+  unsigned char b[sizeof(struct vm86_struct)];
+  unsigned short w[sizeof(struct vm86_struct)/2];
+  unsigned int d[sizeof(struct vm86_struct)/4];
 };
 
-EXTERN union vm86plus_union vm86u INIT ( {{
-      {0},0,0,0,{{0}},{{0}}, {0}}
-} );
+EXTERN union vm86_union vm86u INIT ( {0} );
 #define vm86s (vm86u.vm86ps)
 
 int signal_pending(void);

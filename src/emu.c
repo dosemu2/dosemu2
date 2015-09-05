@@ -194,30 +194,26 @@ boot(void)
 static inline void
 vm86plus_init(void)
 {
-#ifdef __i386__
-    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (!syscall(SYS_vm86old, (void *)0xffffff01)) {
-      fprintf(stderr, "your kernel contains an older (interim) vm86plus version\n\r"
-      		      "please upgrade to an newer one\n\r");
-    }
-    else
-#endif
-    {
 #ifdef X86_EMULATOR
-      warn("WARN: vm86plus service not available in your kernel\n");
-      warn("WARN: using CPU emulation for vm86()\n");
-      if (config.cpuemu < 3) {
-	config.cpuemu = 3;
-      }
-      if (config.cpuemu < 3) config.cpuemu = 3;
-      return;
-#else
-      fprintf(stderr, "vm86plus service not available in your kernel\n\r");
+    if (config.cpuemu >= 3)
+	return;
 #endif
-    }
-    fflush(stdout);
-    fflush(stderr);
-    _exit(1);
+#ifdef __i386__
+//    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
+    if (syscall(SYS_vm86old, (void *)0xffffff01) == 0)
+	return;
+#endif
+#ifdef X86_EMULATOR
+#ifdef __i386__
+    error("vm86 service not available in your kernel\n");
+    error("using CPU emulation for vm86()\n");
+#endif
+    if (config.cpuemu < 3)
+	config.cpuemu = 3;
+    return;
+#endif
+    fprintf(stderr, "vm86plus service not available in your kernel\n\r");
+    exit(1);
 }
 
 static inline void

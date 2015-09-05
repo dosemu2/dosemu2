@@ -15,14 +15,15 @@ EXTERN Bit16u CBACK_OFF;
 int vm86_init(void);
 
 #ifdef __i386__
+#define vm86(param) syscall(SYS_vm86old, param)
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
 
-static inline int true_vm86(struct vm86plus_struct *x)
+static inline int true_vm86(struct vm86_struct *x)
 {
     int ret;
     unsigned short fs = getsegment(fs), gs = getsegment(gs);
 
-    ret = vm86_plus(VM86_ENTER, x);
+    ret = vm86(x);
     /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
     loadregister(fs, fs);
     loadregister(gs, gs);
@@ -30,7 +31,7 @@ static inline int true_vm86(struct vm86plus_struct *x)
 }
 #endif
 
-static inline int do_vm86(struct vm86plus_struct *x)
+static inline int do_vm86(struct vm86_struct *x)
 {
 #ifdef __i386__
 #ifdef X86_EMULATOR
