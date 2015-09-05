@@ -191,8 +191,7 @@ boot(void)
     disk_close();
 }
 
-static inline void
-vm86plus_init(void)
+void vm86plus_init(void)
 {
 #ifdef X86_EMULATOR
     if (config.cpuemu >= 3)
@@ -215,14 +214,6 @@ vm86plus_init(void)
     fprintf(stderr, "vm86plus service not available in your kernel\n\r");
     exit(1);
 }
-
-static inline void
-module_init(void)
-{
-    vm86plus_init();		/* emumodule support */
-    memcheck_init();		/* lower 1M memory map support */
-}
-
 
 void do_liability_disclaimer_prompt(int dosboot, int prompt)
 {
@@ -345,7 +336,7 @@ int main(int argc, char **argv)
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
     print_version();            /* log version information */
-    module_init();
+    memcheck_init();
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
     pci_setup();

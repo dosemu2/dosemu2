@@ -530,5 +530,6 @@ int vm86_init(void)
     hlt_hdlr.name = "do_call_back";
     hlt_hdlr.func = callback_return;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
+    vm86plus_init();
     return 0;
 }
