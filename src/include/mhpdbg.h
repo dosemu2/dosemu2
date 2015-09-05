@@ -65,8 +65,10 @@ struct mhpdbg
    int nbytes;
    int active;
    int flags;
-
    int fdin,fdout;
+
+   unsigned int TFpendig:1;
+   unsigned char vm86dbg_intxxtab[32];
 };
 
 EXTERN struct mhpdbg mhpdbg;

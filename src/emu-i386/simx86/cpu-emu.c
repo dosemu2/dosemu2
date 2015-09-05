@@ -42,6 +42,7 @@
 #include "vm86plus.h"
 #include "timers.h"
 #include "pic.h"
+#include "mhpdbg.h"
 #include "cpu-emu.h"
 #include "emu86.h"
 #include "codegen-arch.h"
@@ -1143,7 +1144,7 @@ static int handle_vm86_fault(int *error_code)
 	if (op==0xcd) {
 	        int intno=popb(csp, ip);
 		_IP += 2;
-		if (vm86s.vm86plus.vm86dbg_active) {
+		if (mhpdbg.active) {
 			if ( (1 << (intno &7)) & vm86s.vm86plus.vm86dbg_intxxtab[intno >> 3] ) {
 				return (VM86_INTx + (intno << 8));
 			}

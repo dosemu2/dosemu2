@@ -111,7 +111,6 @@ void mhp_close(void)
    free(pipename_out);
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
-   vm86s.vm86plus.vm86dbg_active = 0;
 }
 
 static int wait_for_debug_terminal = 0;
@@ -144,8 +143,7 @@ static void mhp_init(void)
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
 
-  vm86s.vm86plus.vm86dbg_active = 0;
-  vm86s.vm86plus.vm86dbg_TFpendig = 0;
+  mhpdbg.TFpendig = 0;
   memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
 
   retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
@@ -250,7 +248,6 @@ static void mhp_poll_loop(void)
 	   mhp_send();
 	 }
 	 mhpdbg.active = 0;
-	 vm86s.vm86plus.vm86dbg_active = 0;
 	 mhpdbg.sendptr = 0;
          mhpdbg.nbytes = 0;
          break;
@@ -282,7 +279,6 @@ static void mhp_poll(void)
    if (mhpdbg.active == 1) {
       /* new session has started */
       mhpdbg.active++;
-      vm86s.vm86plus.vm86dbg_active = 1;
 
       mhp_printf ("%s", mhp_banner);
       mhp_cmd("rmapfile");
@@ -414,8 +410,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	    else {
 	      if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload ) {
 	        mhpdbgc.stopped = 1;
-		vm86s.vm86plus.vm86dbg_active = 1;
-		vm86s.vm86plus.vm86dbg_TFpendig = 1;
+		mhpdbg.TFpendig = 1;
 	        mhp_poll();
 	      }
 	    }

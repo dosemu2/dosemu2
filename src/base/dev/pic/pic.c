@@ -127,7 +127,7 @@
 #include "port.h"
 #include "hlt.h"
 #include "bitops.h"
-#include "pic.h"
+#include "mhpdbg.h"
 #include "memory.h"
 #include <sys/time.h>
 #include "cpu.h"
@@ -138,6 +138,7 @@
 #include "serial.h"
 #include "int.h"
 #include "ipx.h"
+#include "pic.h"
 
 #undef us
 #define us unsigned
@@ -635,7 +636,7 @@ void run_irqs(void)
        int int_request;
 
        /* don't allow HW interrupts in force trace mode */
-       if (vm86s.vm86plus.vm86dbg_TFpendig) return;
+       if (mhpdbg.active && mhpdbg.TFpendig) return;
        if (!isset_IF()) {
 	       set_VIP();
 	       return;                      /* exit if ints are disabled */

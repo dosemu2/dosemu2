@@ -38,6 +38,7 @@
 #include "codegen-arch.h"
 #include "port.h"
 #include "dpmi.h"
+#include "mhpdbg.h"
 #include "video.h"
 
 unsigned int P0;
@@ -1620,8 +1621,7 @@ stack_return_from_vm86:
 			    }
 			    else {
 				/* virtual-8086 monitor */
-				if (vm86s.vm86plus.vm86dbg_active &&
-				    vm86s.vm86plus.vm86dbg_TFpendig) {
+				if (mhpdbg.active && mhpdbg.TFpendig) {
 				    temp |= TF;
 				}
 				/* move TSSMASK from pop{e}flags to V{E}FLAGS */
