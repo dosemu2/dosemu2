@@ -1088,8 +1088,6 @@ static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 		goto cannot_handle;
 	if (e_revectored(i, &vm86s.int_revectored))
 		goto cannot_handle;
-	if (i==0x21 && e_revectored(_AH,&vm86s.int21_revectored))
-		goto cannot_handle;
 	intr_ptr = MK_FP32(0, i << 2);
 	segoffs = *intr_ptr;
 	if ((segoffs >> 16) == BIOSSEG)

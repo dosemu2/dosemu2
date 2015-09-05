@@ -1521,40 +1521,12 @@ int can_revector(int i)
   }
 }
 
-static int can_revector_int21(int i)
-{
-  switch (i) {
-  case 0x02:
-  case 0x04:
-  case 0x05:
-  case 0x06:
-  case 0x09:
-  case 0x40:          /* output functions: reset idle */
-  case 0x2c:          /* get time */
-#ifdef INTERNAL_EMS
-  case 0x3e:          /* dos handle close */
-  case 0x44:          /* dos ioctl */
-#endif
-  case 0x4b:          /* program load */
-  case 0x4c:          /* program exit */
-    return REVECT;
-
-  case 0x3d:          /* dos handle open */
-    if (config.emusys)
-      return REVECT;
-    else
-      return NO_REVECT;
-
-  default:
-    return NO_REVECT;      /* don't emulate most int 21h functions */
-  }
-}
-
 static void do_print_screen(void) {
-int x_pos, y_pos;
-int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
-int co = READ_WORD(BIOS_SCREEN_COLUMNS);
-unsigned base=screen_adr(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+    int x_pos, y_pos;
+    int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+    int co = READ_WORD(BIOS_SCREEN_COLUMNS);
+    unsigned base=screen_adr(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+
     g_printf("PrintScreen: base=%x, lines=%i columns=%i\n", base, li, co);
     if (printer_open(0) == -1) return;
     for (y_pos=0; y_pos < li; y_pos++) {
@@ -2321,23 +2293,10 @@ void setup_interrupts(void) {
 
 void set_int21_revectored(int a)
 {
-  static int rv_all = 0;
-  int i;
-
-  ds_printf("INT21: rv_all: %d + %d = ", rv_all, a);
-
-  rv_all += a;
-
-  if(rv_all > 0) {
-    memset(&vm86s.int21_revectored, 0xff, sizeof(vm86s.int21_revectored));
-  }
-  else {
-    memset(&vm86s.int21_revectored, 0x00, sizeof(vm86s.int21_revectored));
-    for(i = 0; i < 0x100; i++)
-      if(can_revector_int21(i) == REVECT) set_revectored(i, &vm86s.int21_revectored);
-  }
-
-  ds_printf("%d\n", rv_all);
+  if(a > 0)
+    set_revectored(0x21, &vm86s.int_revectored);
+  else
+    reset_revectored(0x21, &vm86s.int_revectored);
 }
 
 
@@ -2358,13 +2317,10 @@ void int_vector_setup(void)
   /* set up the redirection arrays */
 #ifdef __linux__
   memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
-  memset(&vm86s.int21_revectored, 0x00, sizeof(vm86s.int21_revectored));
 
   for (i=0; i<0x100; i++)
-    if (can_revector(i)==REVECT && i!=0x21)
+    if (can_revector(i)==REVECT)
       set_revectored(i, &vm86s.int_revectored);
-
-  set_int21_revectored(0);
 #endif
 
 }
