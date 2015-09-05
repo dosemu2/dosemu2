@@ -434,6 +434,8 @@ void run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
 	}
     }
+    if (vm86s.vm86plus.vm86dbg_TFpendig)
+      set_TF();
     _do_vm86();
   }
 }

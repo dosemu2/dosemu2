@@ -1382,10 +1382,7 @@ void real_run_int(int i)
    *       some of our own software (...we all are human beings)
    *       For vm86() 'VIF' is the candidate to reset in order to do CLI !
    */
-  if (vm86s.vm86plus.vm86dbg_TFpendig)
-    set_TF();
-  else
-    clear_TF();
+  clear_TF();
   clear_NT();
   clear_AC();
   clear_IF();
