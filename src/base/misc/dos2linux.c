@@ -914,8 +914,9 @@ int com_dosprint(char *buf32)
 {
 	char *s;
 	u_short int23_seg, int23_off, size;
-	size = strlen(buf32) + 1;
+	size = strlen(buf32);
 	if (!size) return 0;
+	size++;
 	com_errno = 8;
 	s = lowmem_heap_alloc(size);
 	if (!s) return -1;
