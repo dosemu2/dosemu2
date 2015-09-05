@@ -250,7 +250,9 @@ void device_init(void)
 void low_mem_init(void)
 {
   void *lowmem, *result;
+#ifdef __i386__
   PRIV_SAVE_AREA
+#endif
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -260,6 +262,7 @@ void low_mem_init(void)
     leavedos(98);
   }
 
+#ifdef __i386__
   /* we may need root to mmap address 0 */
   enter_priv_on();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
@@ -288,17 +291,20 @@ void low_mem_init(void)
 	      "as root, or by changing the vm.mmap_min_addr setting in\n"
 	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
     }
-#if 1
     result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-#else
-    /* try 1MB+64K as base (may be higher if execshield is active) */
-    result = alias_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE,
-			   LOWMEM_SIZE + HMASIZE,
-			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-#endif
 #endif
   }
+#else
+  result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
+			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
+  if (config.cpuemu < 3) {
+    /* switch on vm86-only JIT CPU emulation to with non-zero base */
+    config.cpuemu = 3;
+    init_emu_cpu();
+    c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
+  }
+#endif
 
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
