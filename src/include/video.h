@@ -73,9 +73,6 @@ extern struct video_system *Video;
 EXTERN int video_mode INIT(0);
 EXTERN int video_combo INIT(0);
 
-/* bit mask for testing vm86s.screen_bitmap */
-EXTERN unsigned int screen_mask;
-
 EXTERN unsigned char video_initialized INIT(0);
 extern boolean set_video_mode(int);
 extern unsigned screen_adr(int page);

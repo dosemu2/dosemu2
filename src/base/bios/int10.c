@@ -542,9 +542,6 @@ boolean set_video_mode(int mode) {
   video_mode = mode;
 
   if(clear_mem && using_text_mode()) clear_screen();
-
-  screen_mask = 0;
-
   if (mode == 0x6)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x3f);
   else if (mode <= 0x7)
@@ -821,7 +818,6 @@ int int10(void) /* with dualmon */
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, address);
-      screen_mask = 1 << page;
       x = get_bios_cursor_x_position(page);
       y = get_bios_cursor_y_position(page);
       set_cursor_pos(page, x, y);

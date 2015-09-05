@@ -377,12 +377,9 @@ gettermcap(int i, int *co, int *li)
     v_printf("VID: Setting windows size to li=%d, co=%d\n", *li, *co);
 }
 
-void
-video_config_init(void) {
-  screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
-
+void video_config_init(void)
+{
   video_init();
-
   reserve_video_memory();
 }
 
