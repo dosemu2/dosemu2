@@ -1177,6 +1177,10 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	case 0x168a:
 	    get_ext_API(scp);
 	    return MSDOS_DONE;
+	default:
+	    if (!act)
+		return MSDOS_NONE;
+	    break;
 	}
 	break;
     case 0x33:			/* mouse */
