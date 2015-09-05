@@ -76,6 +76,7 @@ extern volatile int InCompiledCode;
 void enter_cpu_emu(void);
 void leave_cpu_emu(void);
 void avltr_destroy(void);
+int e_vm86(void);
 
 #define FLUSH_TREE	if (config.cpuemu>1) avltr_destroy()
 
