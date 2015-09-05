@@ -241,13 +241,6 @@ static int video_init(void)
 
   if (Video->priv_init)
       Video->priv_init();          /* call the specific init routine */
-
-#if VIDEO_CHECK_DIRTY
-  if (!config_dualmon) {
-       vm86s.flags |= VM86_SCREEN_BITMAP;
-  }
-#endif
-
   return 0;
 }
 
