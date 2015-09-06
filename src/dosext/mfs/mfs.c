@@ -3837,7 +3837,7 @@ dos_fs_redirect(state_t *state)
         return FALSE;
       fd = bs_pos[1] - '0' - 1;
       if (printer_open(fd) != 0) {
-        Debug0((dbg_fd, "printer %i open failure!\n", fd));
+        error("printer %i open failure!\n", fd);
         return FALSE;
       }
       Debug0((dbg_fd, "printer open succeeds: '%s'\n", filename1));
