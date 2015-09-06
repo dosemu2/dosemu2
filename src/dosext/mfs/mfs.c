@@ -3506,7 +3506,7 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
     if (open_files[sft_fd(sft)].type == TYPE_PRINTER) {
       for (ret = 0; ret < cnt; ret++) {
-        if (printer_write(fd, READ_BYTE(dta + ret)) != 0)
+        if (printer_write(fd, READ_BYTE(dta + ret)) != 1)
           break;
       }
       SETWORD(&(state->ecx), ret);
