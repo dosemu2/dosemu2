@@ -199,12 +199,13 @@ void vm86plus_init(void)
 #endif
 #ifdef __i386__
 //    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (syscall(SYS_vm86old, (void *)0xffffff01) == 0)
+    if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) == -1 &&
+		errno == EFAULT)
 	return;
 #endif
 #ifdef X86_EMULATOR
 #ifdef __i386__
-    error("vm86 service not available in your kernel\n");
+    error("vm86 service not available in your kernel, %s\n", strerror(errno));
     error("using CPU emulation for vm86()\n");
 #endif
     if (config.cpuemu < 3) {
