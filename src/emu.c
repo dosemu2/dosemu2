@@ -207,8 +207,10 @@ void vm86plus_init(void)
     error("vm86 service not available in your kernel\n");
     error("using CPU emulation for vm86()\n");
 #endif
-    if (config.cpuemu < 3)
+    if (config.cpuemu < 3) {
 	config.cpuemu = 3;
+	init_emu_cpu();
+    }
     return;
 #endif
     fprintf(stderr, "vm86plus service not available in your kernel\n\r");
