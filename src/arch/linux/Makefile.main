@@ -130,7 +130,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 	echo '#define  SYSTEM_XFONTS_PATH "$(x11fontdir)"' >> $@
 
-../$(PACKAGE_NAME).spec: ../$(PACKAGE_NAME).spec.in
+../$(PACKAGE_NAME).spec: ../$(PACKAGE_NAME).spec.in ../VERSION
 	sed -e 's,@PACKAGE_VERSION\@,$(PACKVERSION),g' $< > $@
 
 doslib: $(REQUIRED) $(DOCS) dosemu

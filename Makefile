@@ -32,7 +32,7 @@ docsinstall:
 docsclean:
 	@$(MAKE) SUBDIR:=doc -C src/doc clean
 
-$(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in
+$(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in VERSION
 	@$(MAKE) -C src ../$@
 
 GIT_REV := .git/$(shell git rev-parse --symbolic-full-name HEAD)
@@ -45,7 +45,7 @@ $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec
 
 dist: $(PACKETNAME).tar.gz
 
-rpm: $(PACKETNAME).tar.gz
+rpm: $(PACKETNAME).tar.gz $(PACKAGE_NAME).spec
 	rpmbuild -tb $(PACKETNAME).tar.gz
 	rm -f $(PACKETNAME).tar.gz
 
