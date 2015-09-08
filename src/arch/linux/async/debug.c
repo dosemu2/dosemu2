@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <execinfo.h>
@@ -23,18 +24,30 @@ static void gdb_command(char *cmd)
 static int start_gdb(pid_t dosemu_pid)
 {
   char *buf;
+  int ret;
 
   printf("Debug info:\n");
   fflush(stdout);
-  asprintf(&buf, "gdb %s", dosemu_proc_self_exe);
+
+  ret = asprintf(&buf, "gdb %s", dosemu_proc_self_exe);
+  assert(ret != -1);
+
   printf("%s", buf);
   putchar('\n');
   fflush(stdout);
-  if (!(gdb_f = popen(buf, "w")))
+
+  if (!(gdb_f = popen(buf, "w"))) {
+    free(buf);
     return 0;
-  sprintf(buf, "attach %i\n", dosemu_pid);
+  }
+  free(buf);
+
+  ret = asprintf(&buf, "attach %i\n", dosemu_pid);
+  assert(ret != -1);
+
   gdb_command(buf);
   free(buf);
+
   return 1;
 }
 
@@ -94,17 +107,35 @@ static void collect_info(pid_t pid)
   char *cmd2 = "getconf GNU_LIBPTHREAD_VERSION";
   char *cmd3 = "cat /proc/%i/maps";
   char *tmp;
+  int ret;
 
   printf("System info:\n");
   fflush(stdout);
-  asprintf(&tmp, cmd0, dosemu_proc_self_exe);
-  system(tmp);
+
+  ret = asprintf(&tmp, cmd0, dosemu_proc_self_exe);
+  assert(ret != -1);
+
+  if(system(tmp)) {
+    printf("command '%s' failed\n", tmp);
+  }
   free(tmp);
-  system(cmd1);
-  system(cmd2);
-  asprintf(&tmp, cmd3, pid);
-  system(tmp);
+
+  if(system(cmd1)) {
+    printf("command '%s' failed\n", cmd1);
+  }
+
+  if(system(cmd2)) {
+    printf("command '%s' failed\n", cmd2);
+  }
+
+  ret = asprintf(&tmp, cmd3, pid);
+  assert(ret != -1);
+
+  if(system(tmp)) {
+    printf("command '%s' failed\n", tmp);
+  }
   free(tmp);
+
 //  print_trace();
   fflush(stdout);
 }

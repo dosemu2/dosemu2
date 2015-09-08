@@ -9,6 +9,10 @@
 #include <sys/utsname.h>
 #include <errno.h>
 
+#ifdef __linux__
+#include <linux/version.h>
+#endif
+
 #include "config.h"
 #include "version.h"
 #include "emu.h"
@@ -277,7 +281,7 @@ void low_mem_init(void)
       /* switch on vm86-only JIT CPU emulation to with non-zero base */
       config.cpuemu = 3;
       init_emu_cpu();
-      c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", vm86s.cpu_type);
+      c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
       error("Using CPU emulation because vm.mmap_min_addr > 0.\n"
 	      "You can most likely avoid this problem by running\n"
 	      "sysctl -w vm.mmap_min_addr=0\n"
@@ -326,40 +330,25 @@ void low_mem_init(void)
  * DANG_END_FUNCTION
  */
 void version_init(void) {
-  struct utsname unames;
-  char version[80];
 
-  uname((struct utsname *)&unames);
 #ifdef __linux__
-  strcpy(version,unames.release);
-  running_kversion = atoi(strtok(version,".")) *1000000;
-  running_kversion += atoi(strtok(NULL,".")) *1000;
-  {
-    char *c = strtok(NULL, ".");
-    if (c)
-      running_kversion +=atoi(c);
-  }
-#endif
+  struct utsname unames;
+  char *s;
 
-  if (running_kversion < 2006006) {
+  uname(&unames);
+  kernel_version_code = strtol(unames.release, &s,0) << 16;
+  kernel_version_code += strtol(s+1, &s,0) << 8;
+  kernel_version_code += strtol(s+1, &s,0);
+
+  if (kernel_version_code < KERNEL_VERSION(2, 6, 6)) {
     error("You are running a kernel older than 2.6.6.\n"
-	  "This may be very problematic for DOSEMU.\n"
-	  "Please upgrade to a newer Linux kernel before reporting\n"
-	  "problems.\n");
+          "This may be very problematic for DOSEMU.\n"
+          "Please upgrade to a newer Linux kernel before reporting\n"
+          "problems.\n");
   }
-
-#if 0 /* hmm, the below _allway_ has been hit in the past,
-       * because: unames.release[2] > 1 always is true
-       * (unames.release is a string like "2.0.28") --Hans
-       */
-  if (unames.release[0] > 0 ) {
-    if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
-         unames.release[2] > 1 ) {
-    }
-  }
+#else
+  kernel_version_code = 0;
 #endif
-
-
 }
 
 #define __S(x) #x
@@ -368,7 +357,7 @@ void print_version(void)
 {
   struct utsname unames;
 
-  uname((struct utsname *)&unames);
+  uname(&unames);
   warn("DOSEMU-%s is coming up on %s version %s %s %s\n", VERSTR,
        unames.sysname, unames.release, unames.version, unames.machine);
   warn("Compiled with GCC version %d.%d", __GNUC__, __GNUC_MINOR__);

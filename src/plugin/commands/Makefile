@@ -25,40 +25,23 @@ STUBSYMLINK = $(D)/bootoff.com $(D)/booton.com $(D)/ecpuon.com $(D)/ecpuoff.com 
   $(D)/vgaoff.com $(D)/vgaon.com $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
   $(D)/unix.com $(D)/blaster.com $(D)/dpmi.com
 
-#STUBL = $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com $(D)/unix.com
-STUBL =
-#STUBFULL = $(D)/cmdline.com
-STUBFULL =
-
-all: lib $(COM) stubs
-
-stubs: $(STUBL) $(STUBM) $(STUBFULL) stublinks
-
-stublinks: $(STUBSYMLINK)
+all: lib $(COM) $(STUBSYMLINK)
 
 ifdef REALTOPDIR
 include $(REALTOPDIR)/src/Makefile.common
 endif
 
-
-
-$(STUBL): $(D)/generic.com ./mkcomstub
-	./mkcomstub $(D)/generic.com $@ $(basename $(@F)) 512 0x400
-
-$(STUBM): $(D)/generic.com ./mkcomstub
-	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
-
 $(STUBSYMLINK): $(D)/generic.com
 	ln -sf $(<F) $@
 
-$(STUBFULL): $(D)/generic.com ./mkcomstub
-	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
+%.com.elf: %.o
+	ld --section-start=.text=0x100 -e _start16 -o $@ $<
 
-$(D)/%.com: %.o
-	$(LD) $(ALL_LDFLAGS) -Wl,-Ttext,0x100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $<
+$(D)/%: %.elf
+	objcopy -j .text -O binary $< $@
 	chmod -x $@
 
 install: all
 
 clean::
-	rm -f *~ *.o *.s *.out *.d *.com mkcomstub
+	rm -f *~ *.o *.s *.out *.d *.com

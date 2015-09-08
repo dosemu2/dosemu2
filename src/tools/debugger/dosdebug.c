@@ -23,6 +23,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <signal.h>
+#include <assert.h>
 
 #include <sys/vt.h>
 #include <sys/ioctl.h>
@@ -196,7 +197,7 @@ static void handle_dbg_input(void)
 
 int main (int argc, char **argv)
 {
-  int numfds,dospid;
+  int numfds, dospid, ret;
   char *home_p;
 
   FD_ZERO(&readfds);
@@ -207,7 +208,10 @@ int main (int argc, char **argv)
     dospid = -1;
     if (home_p) {
       char *dosemu_tmpfile_pat;
-      asprintf(&dosemu_tmpfile_pat, "%s/" TMPFILE_HOME "dbgin.", home_p);
+
+      ret = asprintf(&dosemu_tmpfile_pat, "%s/" TMPFILE_HOME "dbgin.", home_p);
+      assert(ret != -1);
+
       dospid=find_dosemu_pid(dosemu_tmpfile_pat, 1);
       free(dosemu_tmpfile_pat);
     }
@@ -225,8 +229,12 @@ int main (int argc, char **argv)
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
   fdout = -1;
   if (home_p) {
-    asprintf(&pipename_in, "%s/%sdbgin.%d", home_p, TMPFILE_HOME, dospid);
-    asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
+    ret = asprintf(&pipename_in, "%s/%sdbgin.%d", home_p, TMPFILE_HOME, dospid);
+    assert(ret != -1);
+
+    ret = asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
+    assert(ret != -1);
+
     fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
     if (fdout == -1) {
       free(pipename_in);
@@ -236,8 +244,12 @@ int main (int argc, char **argv)
   if (fdout == -1) {
     /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
        try with /var/run/dosemu directory */
-    asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", dospid);
-    asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", dospid);
+    ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", dospid);
+    assert(ret != -1);
+
+    ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", dospid);
+    assert(ret != -1);
+
     fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
   }
   if (fdout == -1) {

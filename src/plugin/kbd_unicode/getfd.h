@@ -4,4 +4,5 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+extern int open_console(void);
 extern int getfd(void);

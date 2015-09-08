@@ -419,9 +419,17 @@ int commands_plugin_inte6(void)
 
 	com = find_com_program(builtin_name);
 	if (com) {
-		com->program(argc, args);
+		int err = com->program(argc, args);
+		if (!err) {
+			NOCARRY;
+		} else {
+			CARRY;
+			_AL = err;
+		}
 	} else {
 		com_error("inte6: unknown builtin: %s\n",builtin_name);
+		CARRY;
+		_AL = 1;
 	}
 
 	free(args[0]);

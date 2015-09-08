@@ -154,7 +154,7 @@ FILE *aLog = NULL;
  * 20	unsigned short gs, __gsh;
  * --------------------------------------------------------------
  */
-struct sigcontext_struct e_scp; /* initialized to 0 */
+struct sigcontext e_scp; /* initialized to 0 */
 
 unsigned long io_bitmap[IO_BITMAP_SIZE+1];
 
@@ -272,7 +272,7 @@ char *e_print_regs(void)
 #define GetSegmentBaseAddress(s)	((unsigned long)Segments[(s) >> 3].base_addr)
 #define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
-char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
+char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 {
 	static char buf[300];
 	char *p = buf;
@@ -356,7 +356,7 @@ char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg)
 }
 
 #ifdef TRACE_DPMI
-char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
+char *e_scp_disasm(struct sigcontext *scp, int pmode)
 {
    static char insrep = 0;
    static unsigned char buf[1024];
@@ -535,32 +535,32 @@ static void Reg2Cpu (int mode)
   }
 
   if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
-  TheCPU.eax     = vm86s.regs.eax;	/* 2c -> 18 */
-  TheCPU.ebx     = vm86s.regs.ebx;	/* 20 -> 00 */
-  TheCPU.ecx     = vm86s.regs.ecx;	/* 28 -> 04 */
-  TheCPU.edx     = vm86s.regs.edx;	/* 24 -> 08 */
-  TheCPU.esi     = vm86s.regs.esi;	/* 14 -> 0c */
-  TheCPU.edi     = vm86s.regs.edi;	/* 10 -> 10 */
-  TheCPU.ebp     = vm86s.regs.ebp;	/* 18 -> 14 */
-  TheCPU.esp     = vm86s.regs.esp;	/* 1c -> 3c */
+	REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+  TheCPU.eax     = REG(eax);	/* 2c -> 18 */
+  TheCPU.ebx     = REG(ebx);	/* 20 -> 00 */
+  TheCPU.ecx     = REG(ecx);	/* 28 -> 04 */
+  TheCPU.edx     = REG(edx);	/* 24 -> 08 */
+  TheCPU.esi     = REG(esi);	/* 14 -> 0c */
+  TheCPU.edi     = REG(edi);	/* 10 -> 10 */
+  TheCPU.ebp     = REG(ebp);	/* 18 -> 14 */
+  TheCPU.esp     = REG(esp);	/* 1c -> 3c */
   TheCPU.err     = 0;
   TheCPU.eip     = vm86s.regs.eip&0xffff;
 
-  SetSegReal(vm86s.regs.cs,Ofs_CS);
-  SetSegReal(vm86s.regs.ss,Ofs_SS);
-  SetSegReal(vm86s.regs.ds,Ofs_DS);
-  SetSegReal(vm86s.regs.es,Ofs_ES);
-  SetSegReal(vm86s.regs.fs,Ofs_FS);
-  SetSegReal(vm86s.regs.gs,Ofs_GS);
+  SetSegReal(REG(cs),Ofs_CS);
+  SetSegReal(REG(ss),Ofs_SS);
+  SetSegReal(REG(ds),Ofs_DS);
+  SetSegReal(REG(es),Ofs_ES);
+  SetSegReal(REG(fs),Ofs_FS);
+  SetSegReal(REG(gs),Ofs_GS);
   trans_addr     = LONG_CS + TheCPU.eip;
 
   if (debug_level('e')>1) {
 	if (debug_level('e')==3) e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x evf=%08x\n%s\n",
-		vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags,
+		REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags,
 		e_print_regs());
 	else e_printf("Reg2Cpu< vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-		vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+		REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
   }
 }
 
@@ -571,39 +571,39 @@ void Cpu2Reg (void)
 {
   int mask;
   if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
-  vm86s.regs.eax = TheCPU.eax;
-  vm86s.regs.ebx = TheCPU.ebx;
-  vm86s.regs.ecx = TheCPU.ecx;
-  vm86s.regs.edx = TheCPU.edx;
-  vm86s.regs.esi = TheCPU.esi;
-  vm86s.regs.edi = TheCPU.edi;
-  vm86s.regs.ebp = TheCPU.ebp;
-  vm86s.regs.esp = TheCPU.esp;
-  vm86s.regs.ds  = TheCPU.ds;
-  vm86s.regs.es  = TheCPU.es;
-  vm86s.regs.ss  = TheCPU.ss;
-  vm86s.regs.fs  = TheCPU.fs;
-  vm86s.regs.gs  = TheCPU.gs;
-  vm86s.regs.cs  = TheCPU.cs;
-  vm86s.regs.eip = return_addr - LONG_CS;
+	REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+  REG(eax) = TheCPU.eax;
+  REG(ebx) = TheCPU.ebx;
+  REG(ecx) = TheCPU.ecx;
+  REG(edx) = TheCPU.edx;
+  REG(esi) = TheCPU.esi;
+  REG(edi) = TheCPU.edi;
+  REG(ebp) = TheCPU.ebp;
+  REG(esp) = TheCPU.esp;
+  REG(ds)  = TheCPU.ds;
+  REG(es)  = TheCPU.es;
+  REG(ss)  = TheCPU.ss;
+  REG(fs)  = TheCPU.fs;
+  REG(gs)  = TheCPU.gs;
+  REG(cs)  = TheCPU.cs;
+  REG(eip) = return_addr - LONG_CS;
   /*
    * move (VIF|TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
    * from the emulated ones.
    * The cpuemu should not change VIP, the good one is always in vm86s.
    */
   mask = VIF | eTSSMASK;
-  vm86s.regs.eflags = (vm86s.regs.eflags & VIP) |
+  REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08x dpm=%08x emu=%08x evf=%08x\n",
-	vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
+	REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,TheCPU.veflags);
 }
 
 
 /* ======================================================================= */
 
-static void Scp2Cpu (struct sigcontext_struct *scp)
+static void Scp2Cpu (struct sigcontext *scp)
 {
 #ifdef __x86_64__
   TheCPU.eax = _eax;
@@ -627,7 +627,7 @@ static void Scp2Cpu (struct sigcontext_struct *scp)
 
   TheCPU.scp_err = _err;
 #else
-  memcpy(&TheCPU.gs,scp,offsetof(struct sigcontext_struct,esp_at_signal));
+  memcpy(&TheCPU.gs,scp,offsetof(struct sigcontext,esp_at_signal));
 #endif
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
@@ -640,7 +640,7 @@ static void Scp2Cpu (struct sigcontext_struct *scp)
 /*
  * Return back from fault handling to VM86
  */
-static void Scp2CpuR (struct sigcontext_struct *scp)
+static void Scp2CpuR (struct sigcontext *scp)
 {
   if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
@@ -660,7 +660,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
 /*
  * Build a sigcontext structure to enter fault handling from VM86 or DPMI
  */
-static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
+static void Cpu2Scp (struct sigcontext *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
@@ -688,7 +688,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 
   _err = TheCPU.scp_err;
 #else
-  memcpy(scp,&TheCPU.gs,offsetof(struct sigcontext_struct,esp_at_signal));
+  memcpy(scp,&TheCPU.gs,offsetof(struct sigcontext,esp_at_signal));
 #endif
   _ss = TheCPU.ss;
   _cr2 = TheCPU.cr2;
@@ -719,12 +719,12 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
     _eip = return_addr & 0xffff;
     /* rebuild running flags */
     mask = VIF | eTSSMASK;
-    vm86s.regs.eflags = (vm86s.regs.eflags & VIP) |
+    REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-    _eflags = vm86s.regs.eflags & ~VM;
+    _eflags = REG(eflags) & ~VM;
   }
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
-	_eflags,vm86s.regs.eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
+	_eflags,REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
 
 
@@ -737,7 +737,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 /*
  * Enter emulator in DPMI mode (context_switch)
  */
-static int Scp2CpuD (struct sigcontext_struct *scp)
+static int Scp2CpuD (struct sigcontext *scp)
 {
   unsigned char big; int mode=0, amask, oldfl;
 
@@ -849,7 +849,7 @@ void init_emu_cpu(void)
  * asynchronous signals because without it any badly-behaved pgm
  * can stop us forever.
  */
-int e_gen_sigalrm(struct sigcontext_struct *scp)
+int e_gen_sigalrm(struct sigcontext *scp)
 {
 	if(config.cpuemu < 2)
 	    return 1;
@@ -881,7 +881,7 @@ int e_gen_sigalrm(struct sigcontext_struct *scp)
 	return 0;
 }
 
-static void e_gen_sigprof(struct sigcontext_struct *scp)
+static void e_gen_sigprof(struct sigcontext *scp)
 {
 	e_sigpa_count -= sigEMUdelta;
 	TheCPU.sigprof_pending += 1;
@@ -1271,7 +1271,7 @@ int e_vm86(void)
 	      }
 	      break;
 	    default: {
-		struct sigcontext_struct scp;
+		struct sigcontext scp;
 		struct _fpstate fps;
 		scp.fpstate = &fps;
 		Cpu2Scp (&scp, xval-1);
@@ -1310,7 +1310,7 @@ int e_vm86(void)
 /* ======================================================================= */
 
 
-int e_dpmi(struct sigcontext_struct *scp)
+int e_dpmi(struct sigcontext *scp)
 {
   volatile hitimer_t tt0 = 0;
   int xval,retval,mode;
@@ -1413,7 +1413,7 @@ int e_dpmi(struct sigcontext_struct *scp)
 /* ======================================================================= */
 /* file: src/cwsdpmi/exphdlr.c */
 
-void e_dpmi_b0x(int op,struct sigcontext_struct *scp)
+void e_dpmi_b0x(int op,struct sigcontext *scp)
 {
   switch (op) {
     case 0: {	/* set */

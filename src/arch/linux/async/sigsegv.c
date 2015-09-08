@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <linux/version.h>
 
 #include "emu.h"
 #include "utilities.h"
@@ -24,7 +25,7 @@
 
 
 /* Function prototypes */
-void print_exception_info(struct sigcontext_struct *scp);
+void print_exception_info(struct sigcontext *scp);
 
 
 /*
@@ -46,7 +47,7 @@ void print_exception_info(struct sigcontext_struct *scp);
 
 
 /*
- * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext_struct);
+ * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext);
  *
  * All CPU exceptions (except 13=general_protection from V86 mode,
  * which is directly scanned by the kernel) are handled here.
@@ -57,7 +58,7 @@ void print_exception_info(struct sigcontext_struct *scp);
 __attribute__((no_instrument_function))
 static int dosemu_fault1(
 #ifdef __linux__
-int signal, struct sigcontext_struct *scp
+int signal, struct sigcontext *scp
 #endif /* __linux__ */
 )
 {
@@ -242,7 +243,7 @@ sgleave:
     if (_trapno == 0x10) {
       g_printf("coprocessor exception, calling IRQ13\n");
       pic_request(PIC_IRQ13);
-      dpmi_return(scp);
+      dpmi_return(scp, -1);
       return -1;
     }
 
@@ -270,7 +271,7 @@ sgleave:
       }
 
       if (CheckSelectors(scp, 0) == 0) {
-        dpmi_return(scp);
+        dpmi_return(scp, -1);
 	return -1;
       }
       /* now we are safe */
@@ -356,7 +357,7 @@ bad:
   }
 }
 
-int _dosemu_fault(int signal, struct sigcontext_struct *scp)
+int _dosemu_fault(int signal, struct sigcontext *scp)
 {
   int ret;
   fault_cnt++;
@@ -367,7 +368,7 @@ int _dosemu_fault(int signal, struct sigcontext_struct *scp)
 
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
-static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
+static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
   int retcode;
   pid_t tid;
@@ -389,7 +390,7 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     return;
   }
 
-  if (kernel_version_code < 0x20600+14) {
+  if (kernel_version_code < KERNEL_VERSION(2, 6, 14)) {
     sigset_t set;
 
     /* this emulates SA_NODEFER, so that we can double fault.
@@ -400,20 +401,8 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
     sigprocmask(SIG_UNBLOCK, &set, NULL);
   }
 
-#if defined(__x86_64__) || defined(X86_EMULATOR)
-  if (fault_cnt > 1 && _trapno == 0xe && !DPMIValidSelector(_cs)) {
-#ifdef __x86_64__
-    /* see comment in signal.c, fix_fs_gs_base() */
-    unsigned char *rip = (unsigned char *)_rip;
-    /* page fault for fs: or gs: */
-    if (*rip == 0x64 || *rip == 0x65) {
-      if (check_fix_fs_gs_base(*rip)) {
-	fault_cnt--;
-	return;
-      }
-    }
-#endif
 #ifdef X86_EMULATOR
+  if (fault_cnt > 1 && _trapno == 0xe && !DPMIValidSelector(_cs)) {
     /* it may be necessary to fix up a page fault in the DPMI fault handling
        code for $_cpu_emu = "vm86". This really shouldn't happen but not all
        cases have been fixed yet */
@@ -422,7 +411,6 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
       fault_cnt--;
       return;
     }
-#endif
   }
 #endif
 
@@ -444,13 +432,14 @@ static void dosemu_fault0(int signal, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   /* need to call init_handler() before any syscall.
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
-  init_handler(scp);
+  init_handler(scp, 0);
   dosemu_fault0(signal, scp);
+  deinit_handler(scp);
 }
 #endif /* __linux__ */
 
@@ -464,7 +453,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
  *
  */
 __attribute__((no_instrument_function))
-void print_exception_info(struct sigcontext_struct *scp)
+void print_exception_info(struct sigcontext *scp)
 {
   int i;
 

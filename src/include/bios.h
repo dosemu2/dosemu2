@@ -145,6 +145,7 @@ void            DPMI_dummy_end(void);
 void            DPMI_dpmi_init(void);
 void            DPMI_return_from_dos(void);
 void            DPMI_return_from_dosint(void);
+void            DPMI_return_from_rmint(void);
 void            DPMI_return_from_realmode(void);
 void            DPMI_return_from_dos_memory(void);
 void            DPMI_raw_mode_switch_rm(void);
@@ -163,6 +164,10 @@ void		MSDOS_lr_entry_cs(void);
 void		MSDOS_lw_start(void);
 void		MSDOS_lw_entry_ip(void);
 void		MSDOS_lw_entry_cs(void);
+void		MSDOS_exec_start(void);
+void		MSDOS_exec_entry_ip(void);
+void		MSDOS_exec_entry_cs(void);
+void		MSDOS_exec_buf_sz(void);
 
 /* various declarations for interfacing with the packet driver code in
    bios.S */

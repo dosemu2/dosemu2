@@ -484,7 +484,7 @@ int VGA_emulate_outw(ioport_t, Bit16u);
 Bit8u VGA_emulate_inb(ioport_t);
 Bit16u VGA_emulate_inw(ioport_t);
 #ifdef __linux__
-int vga_emu_fault(struct sigcontext_struct *, int pmode);
+int vga_emu_fault(struct sigcontext *, int pmode);
 #define VGA_EMU_FAULT(scp,code,pmode) vga_emu_fault(scp,pmode)
 #endif
 int vga_emu_pre_init(void);
@@ -648,8 +648,8 @@ unsigned char Herc_get_mode_ctrl(void);
  */
 
 unsigned instr_len(unsigned char *, int);
-int instr_emu(struct sigcontext_struct *scp, int pmode, int cnt);
-int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
+int instr_emu(struct sigcontext *scp, int pmode, int cnt);
+int decode_modify_segreg_insn(struct sigcontext *scp, int pmode,
     unsigned int *new_val);
 
 /*

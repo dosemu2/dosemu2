@@ -1,5 +1,9 @@
-#ifndef _LINUX_VM86_H
-#define _LINUX_VM86_H
+#ifndef _VM86_COMPAT_H
+#define _VM86_COMPAT_H
+
+#ifdef __i386__
+#include <asm/vm86.h>
+#else
 
 /*
  * I'm guessing at the VIF/VIP flag usage, but hope that this is how
@@ -12,15 +16,24 @@
  * Linus
  */
 
-#define TF_MASK		0x00000100
-#define IF_MASK		0x00000200
-#define IOPL_MASK	0x00003000
-#define NT_MASK		0x00004000
-#define VM_MASK		0x00020000
-#define AC_MASK		0x00040000
-#define VIF_MASK	0x00080000	/* virtual interrupt flag */
-#define VIP_MASK	0x00100000	/* virtual interrupt pending */
-#define ID_MASK		0x00200000
+#define X86_EFLAGS_CF	0x00000001 /* Carry Flag */
+#define X86_EFLAGS_BIT1	0x00000002 /* Bit 1 - always on */
+#define X86_EFLAGS_PF	0x00000004 /* Parity Flag */
+#define X86_EFLAGS_AF	0x00000010 /* Auxiliary carry Flag */
+#define X86_EFLAGS_ZF	0x00000040 /* Zero Flag */
+#define X86_EFLAGS_SF	0x00000080 /* Sign Flag */
+#define X86_EFLAGS_TF	0x00000100 /* Trap Flag */
+#define X86_EFLAGS_IF	0x00000200 /* Interrupt Flag */
+#define X86_EFLAGS_DF	0x00000400 /* Direction Flag */
+#define X86_EFLAGS_OF	0x00000800 /* Overflow Flag */
+#define X86_EFLAGS_IOPL	0x00003000 /* IOPL mask */
+#define X86_EFLAGS_NT	0x00004000 /* Nested Task */
+#define X86_EFLAGS_RF	0x00010000 /* Resume Flag */
+#define X86_EFLAGS_VM	0x00020000 /* Virtual Mode */
+#define X86_EFLAGS_AC	0x00040000 /* Alignment Check */
+#define X86_EFLAGS_VIF	0x00080000 /* Virtual Interrupt Flag */
+#define X86_EFLAGS_VIP	0x00100000 /* Virtual Interrupt Pending */
+#define X86_EFLAGS_ID	0x00200000 /* CPUID detection flag */
 
 #define BIOSSEG		0x0f000
 
@@ -131,5 +144,19 @@ struct vm86plus_struct {
 	struct revectored_struct int21_revectored;
 	struct vm86plus_info_struct vm86plus;
 };
+
+#endif
+
+#ifndef IF_MASK
+#define TF_MASK		0x00000100
+#define IF_MASK		0x00000200
+#define IOPL_MASK	0x00003000
+#define NT_MASK		0x00004000
+#define VM_MASK		0x00020000
+#define AC_MASK		0x00040000
+#define VIF_MASK	0x00080000	/* virtual interrupt flag */
+#define VIP_MASK	0x00100000	/* virtual interrupt pending */
+#define ID_MASK		0x00200000
+#endif
 
 #endif

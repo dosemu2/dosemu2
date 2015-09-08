@@ -8,13 +8,8 @@
 #define DPMI_DATA_OFF(x) (x-DPMI_sel_data_start)
 
 #ifdef __x86_64__
-extern int		DPMI_direct_transfer(void);
 extern void		DPMI_iret(void);
-#else
-extern unsigned char	DPMI_direct_transfer[];
-extern int		DPMI_indirect_transfer(void);
 #endif
-extern unsigned char	DPMI_direct_transfer_end[];
 
 extern unsigned char	DPMI_sel_code_start[];
 extern unsigned char	DPMI_sel_data_start[];

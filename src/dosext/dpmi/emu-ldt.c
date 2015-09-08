@@ -48,7 +48,7 @@ static int emu_read_ldt(char *ptr, unsigned long bytecount)
 	(info)->seg_not_present == 1	&& \
 	(info)->useable		== 0	)
 
-static int emu_update_LDT (struct modify_ldt_ldt_s *ldt_info, int oldmode)
+static int emu_update_LDT (struct user_desc *ldt_info, int oldmode)
 {
 	static char *xftab[] = { "D16","D32","C16","C32" };
 	Descriptor *lp;
@@ -105,7 +105,7 @@ static int emu_update_LDT (struct modify_ldt_ldt_s *ldt_info, int oldmode)
 static int emu_write_ldt(void *ptr, unsigned long bytecount, int oldmode)
 {
 	int error;
-	struct modify_ldt_ldt_s ldt_info;
+	struct user_desc ldt_info;
 
 	error = -EINVAL;
 	if (bytecount != sizeof(ldt_info)) {

@@ -460,10 +460,7 @@ char *assemble_path(char *dir, char *file, int append_pid)
 	char pid[32] = "";
 	if (append_pid) sprintf(pid, "%d", getpid());
 	s = malloc(strlen(dir)+1+strlen(file)+strlen(pid)+1);
-	if (!s) {
-		fprintf(stderr, "out of memory, giving up\n");
-		siglongjmp(NotJEnv, 0x4d);
-	}
+	assert(s);
 	sprintf(s, "%s/%s%s", dir, file, pid);
 	return s;
 }
@@ -701,10 +698,13 @@ void dosemu_error(char *fmt, ...)
 #ifdef USE_DL_PLUGINS
 void *load_plugin(const char *plugin_name)
 {
-    char *fullname = malloc(strlen(dosemu_proc_self_exe) +
-			    strlen(plugin_name) + 20);
+    char *fullname;
     void *handle;
     char *slash;
+    int ret;
+
+    fullname = malloc(strlen(dosemu_proc_self_exe) + strlen(plugin_name) + 20);
+    assert(fullname != NULL);
 
     strcpy(fullname, dosemu_proc_self_exe);
     slash = strrchr(fullname, '/');
@@ -717,8 +717,11 @@ void *load_plugin(const char *plugin_name)
     free(fullname);
     if (handle != NULL)
 	return handle;
-    asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
+
+    ret = asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
 	     LIB_DEFAULT, plugin_name);
+    assert(ret != -1);
+
     handle = dlopen(fullname, RTLD_LAZY);
     free(fullname);
     if (handle != NULL)
@@ -746,7 +749,9 @@ void close_plugin(void *handle)
 int popen2(const char *cmdline, struct popen2 *childinfo)
 {
     pid_t p;
-    int pipe_stdin[2], pipe_stdout[2];
+    int pipe_stdin[2], pipe_stdout[2], wt;
+    sigset_t set, oset;
+    struct timespec to = { 0, 0 };
 
     if(pipe(pipe_stdin)) return -1;
     if(pipe(pipe_stdout)) return -1;
@@ -754,8 +759,12 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
 //    printf("pipe_stdin[0] = %d, pipe_stdin[1] = %d\n", pipe_stdin[0], pipe_stdin[1]);
 //    printf("pipe_stdout[0] = %d, pipe_stdout[1] = %d\n", pipe_stdout[0], pipe_stdout[1]);
 
+    sigemptyset(&set);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    sigprocmask(SIG_BLOCK, &set, &oset);
     p = fork();
-    if(p < 0) return p; /* Fork failed */
+    assert(p >= 0);
     if(p == 0) { /* child */
         setsid();	// escape ctty
         close(pipe_stdin[1]);
@@ -765,9 +774,20 @@ int popen2(const char *cmdline, struct popen2 *childinfo)
         dup2(pipe_stdout[1], 1);
         dup2(pipe_stdout[1], 2);
         close(pipe_stdout[1]);
+
+	/* close signals, then unblock */
+	signal_done();
+	ioselect_done();
+	/* flush pending signals */
+	do {
+	    wt = sigtimedwait(&set, NULL, &to);
+	} while (wt != -1);
+	sigprocmask(SIG_SETMASK, &oset, NULL);
+
         execl("/bin/sh", "sh", "-c", cmdline, NULL);
         perror("execl"); exit(99);
     }
+    sigprocmask(SIG_SETMASK, &oset, NULL);
     close(pipe_stdin[0]);
     close(pipe_stdout[1]);
     fcntl(pipe_stdin[1], F_SETFD, FD_CLOEXEC);

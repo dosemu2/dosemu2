@@ -9,46 +9,11 @@
 
 	.section .text
 
-	.globl DPMI_direct_transfer
-DPMI_direct_transfer:
-	/* Now put ESP to new context and pop it up */
 #ifdef __x86_64__
-	.type DPMI_direct_transfer,@function
-	mov	%rdx,%rsp	/* rsp=scp */
-	add	$8*8,%rsp       /* skip r8-r15 */
-	pop	%rdi
-	pop	%rsi
-	pop	%rbp
-	pop	%rbx
-	pop	%rdx
-	pop	%rax
-	pop	%rcx
-	pop	%rsp		/* => iret_frame */
-
 	.globl DPMI_iret
 	.type DPMI_iret,@function
 DPMI_iret:	
 	iretl
-
-	.code32
-#else
-	movl	%edx,%esp	/* esp=scp */
-	pop	%gs
-	pop	%fs
-	pop	%es
-	pop	%ds
-	popa
-	addl	$4*4,%esp
-	popfl
-	lss	(%esp),%esp		/* this is: pop ss; pop esp */
-	ljmp	*%cs:0
-	.globl DPMI_direct_transfer_end
-DPMI_direct_transfer_end:
-
-	.globl DPMI_indirect_transfer
-	.type DPMI_indirect_transfer,@function
-DPMI_indirect_transfer:
-	hlt
 #endif
 
 	.globl DPMI_sel_code_start

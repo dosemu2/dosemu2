@@ -144,32 +144,6 @@ io_select(void)
     }
 }
 
-/* @@@ MOVE_END @@@ 24576 */
-
-
-
-/*
- * DANG_BEGIN_FUNCTION io_select_init
- *
- * description:
- * Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
- *
- * DANG_END_FUNCTION
- */
-void
-io_select_init(void) {
-sigset_t set;
-int i;
-    FD_ZERO(&fds_sigio);	/* initialize both fd_sets to 0 */
-    for (i = 0; i < MAX_FD; i++)
-      io_callback_func[i].func = NULL;
-    /* block SIGIO/SIGALRM/SIG_ACQUIRE/SIG_RELEASE until they are set to
-       functions later in signal_init() and device_init() */
-    sigemptyset(&set);
-    addset_signals_that_queue(&set);
-    sigprocmask(SIG_BLOCK, &set, NULL);
-}
-
 /*
  * DANG_BEGIN_FUNCTION add_to_io_select
  *
@@ -231,7 +205,13 @@ void remove_from_io_select(int new_fd)
     io_callback_func[new_fd].func = NULL;
 }
 
-/* @@@ MOVE_END @@@ 32768 */
-
-
-
+void ioselect_done(void)
+{
+    int i;
+    for (i = 0; i < MAX_FD; i++) {
+	if (io_callback_func[i].func) {
+	    remove_from_io_select(i);
+	    close(i);
+	}
+    }
+}

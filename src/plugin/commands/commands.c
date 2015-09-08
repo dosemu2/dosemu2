@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include "config.h"
 #include "emu.h"
@@ -73,7 +74,10 @@ int dpmi_main(int argc, char **argv)
 		com_printf("+--------------------------+-----------+----+---------------------------------+\n");
 		com_printf("|$_dpmi                    |%#6x%s| -m | DPMI memory size in Kbytes      |\n",
 			    config.dpmi, config.dpmi ? "     " : "(off)");
-		com_printf("|$_dpmi_base               |0x%08lx | -b | Address of the DPMI memory pool |\n", config.dpmi_base);
+		if (config.dpmi_base == -1)
+			com_printf("|$_dpmi_base               |    auto   | -b | Address of the DPMI memory pool |\n");
+		else
+			com_printf("|$_dpmi_base               |0x%08lx | -b | Address of the DPMI memory pool |\n", config.dpmi_base);
 		com_printf("|$_pm_dos_api              |    %s    | -p | Protected mode DOS API support  |\n",
 			    config.pm_dos_api ? "on " : "off");
 		com_printf("|$_ignore_djgpp_null_derefs|    %s    | -n | Disable DJGPP NULL-deref protec.|\n",
@@ -189,7 +193,10 @@ int uchdir_main(int argc, char **argv)
 	}
 	memcpy(c, psp->cmdline, psp->cmdline_len);
 	c[psp->cmdline_len] = 0;
-	chdir(skip_white_and_delim(c, ' '));
+	if(chdir(skip_white_and_delim(c, ' ')) != 0) {
+		com_printf("Chdir failed - \"%s\"\n", strerror(errno));
+		return 1;
+	}
 	return 0;
 }
 
@@ -197,7 +204,10 @@ int ugetcwd_main(int argc, char **argv)
 {
 	char s[256];
 
-	getcwd(s, sizeof(s));
+	if(getcwd(s, sizeof(s)) == NULL) {
+		com_printf("Getcwd failed - \"%s\"\n", strerror(errno));
+		return 1;
+	}
 	com_printf("%s\n", s);
 	return 0;
 }

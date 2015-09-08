@@ -47,12 +47,12 @@ typedef struct pmaddr_s
 {
     unsigned int	offset;
     unsigned short	selector;
-} INTDESC;
+} __attribute__((packed)) INTDESC;
 typedef struct
 {
     unsigned int	offset32;
     unsigned short	selector;
-} DPMI_INTDESC;
+} __attribute__((packed)) DPMI_INTDESC;
 
 typedef struct segment_descriptor_s
 {
@@ -104,7 +104,7 @@ typedef struct {
 } RealModeCallBack;
 
 struct DPMIclient_struct {
-  struct sigcontext_struct stack_frame;
+  struct sigcontext stack_frame;
   /* fpu_state needs to be paragraph aligned for fxrstor/fxsave */
   struct _fpstate fpu_state __attribute__ ((aligned(16)));
   int is_32;
@@ -156,13 +156,13 @@ extern unsigned char *ldt_alias;
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
-extern void dpmi_iret_setup(struct sigcontext_struct *);
+extern void dpmi_iret_setup(struct sigcontext *);
 #else
 #define dpmi_iret_setup(x)
 #endif
-int indirect_dpmi_switch(struct sigcontext_struct *);
+int indirect_dpmi_switch(struct sigcontext *);
 #ifdef __linux__
-int dpmi_fault(struct sigcontext_struct *);
+int dpmi_fault(struct sigcontext *);
 #endif
 void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
@@ -200,12 +200,12 @@ void GetFreeMemoryInformation(unsigned int *lp);
 int GetDescriptor(u_short selector, unsigned int *lp);
 unsigned int GetSegmentBase(unsigned short);
 unsigned int GetSegmentLimit(unsigned short);
-int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu);
+int CheckSelectors(struct sigcontext *scp, int in_dosemu);
 int ValidAndUsedSelector(unsigned short selector);
 int dpmi_is_valid_range(dosaddr_t addr, int len);
 
-extern char *DPMI_show_state(struct sigcontext_struct *scp);
-extern void dpmi_sigio(struct sigcontext_struct *scp);
+extern char *DPMI_show_state(struct sigcontext *scp);
+extern void dpmi_sigio(struct sigcontext *scp);
 extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
@@ -217,39 +217,35 @@ extern int SetSegmentBaseAddress(unsigned short selector,
 extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
-extern void save_pm_regs(struct sigcontext_struct *);
-extern void restore_pm_regs(struct sigcontext_struct *);
 extern unsigned short AllocateDescriptors(int);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int FreeDescriptor(unsigned short selector);
-extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
+extern void FreeSegRegs(struct sigcontext *scp, unsigned short selector);
 extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
 	int rm_offs);
 extern int DPMI_free_realmode_callback(u_short seg, u_short off);
+extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
 
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_cleanup(void);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
-void dpmi_return(struct sigcontext_struct *scp);
-int dpmi_check_return(struct sigcontext_struct *scp);
+void dpmi_return(struct sigcontext *scp, int retval);
+int dpmi_check_return(struct sigcontext *scp);
 void dpmi_init(void);
-extern void copy_context(struct sigcontext_struct *d,
-    struct sigcontext_struct *s, int copy_fpu);
+extern void copy_context(struct sigcontext *d,
+    struct sigcontext *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_data_sel(void);
-//extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
-//extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
+//extern void pm_to_rm_regs(struct sigcontext *scp, unsigned int mask);
+//extern void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask);
 
 static inline int DPMIValidSelector(unsigned short selector)
 {
   /* does this selector refer to the LDT? */
-#if MAX_SELECTORS < 8192
-  if (selector < (MAX_SELECTORS << 3)) return 0;
-#endif
   return Segments[selector >> 3].used != 0xfe && (selector & 4);
 }
 

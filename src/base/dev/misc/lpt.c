@@ -291,8 +291,8 @@ printer_init(void)
       io_device.start_addr = lpt[i].base_port;
       io_device.end_addr   = lpt[i].base_port + 2;
       port_register_handler(io_device, 0);
-      lpt[i].initialized = 1;
     }
+    lpt[i].initialized = 1;
   }
 }
 

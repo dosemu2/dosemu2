@@ -246,31 +246,6 @@ void misc_e6_store_command (char *str, int terminate)
   g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 
-
-#ifdef FORK_DEBUG
-#warning USING FORK DEBUG
-/* system to debug through forks...
- * If used, setenv FORKDEBUG to stop child on fork call
- */
-static int fork_debug(void)
-{
-	int retval;
-
-	retval = fork();
-
-	if(retval == 0) {
-		/* child -- maybe stop */
-		if(getenv("FORKDEBUG")) {
-			printf("stopping %d\n", getpid());
-			raise(SIGSTOP);
-		}
-	}
-	return retval;
-}
-#define fork	fork_debug
-#endif
-
-
 static char *make_end_in_backslash (char *s)
 {
   int len = strlen (s);
@@ -301,7 +276,7 @@ int find_drive (char **plinux_path_resolved)
 
   for (drive = 0; drive < 26; drive++) {
     char *drive_linux_root = NULL;
-    int drive_ro;
+    int drive_ro, ret;
     char *drive_linux_root_resolved;
 
     if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
@@ -323,9 +298,11 @@ int find_drive (char **plinux_path_resolved)
        *     - can we just strlwr() both paths before comparing them? */
       if (strstr (linux_path_resolved, drive_linux_root_resolved) == linux_path_resolved) {
         j_printf ("\tFound drive!\n");
-        asprintf (plinux_path_resolved, "%s%s",
+        ret = asprintf (plinux_path_resolved, "%s%s",
                   drive_linux_root/*unresolved*/,
                   linux_path_resolved + strlen (drive_linux_root_resolved));
+        assert(ret != -1);
+
         j_printf ("\t\tModified root; linux path='%s'\n", *plinux_path_resolved);
 	free (linux_path_resolved);
 
@@ -460,7 +437,9 @@ int run_unix_command(char *buffer)
     /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
 
     int pts_fd;
-    int pid, status, retval;
+    int pid, status, retval, wt;
+    sigset_t set, oset;
+    struct timespec to = { 0, 0 };
 
     g_printf("UNIX: run '%s'\n",buffer);
 #if 0
@@ -472,9 +451,14 @@ int run_unix_command(char *buffer)
 	error("run_unix_command(): open pts failed %s\n", strerror(errno));
 	return -1;
     }
+    sigemptyset(&set);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    sigprocmask(SIG_BLOCK, &set, &oset);
     /* fork child */
     switch ((pid = fork())) {
     case -1: /* failed */
+	sigprocmask(SIG_SETMASK, &oset, NULL);
 	g_printf("run_unix_command(): fork() failed\n");
 	return -1;
     case 0: /* child */
@@ -487,6 +471,14 @@ int run_unix_command(char *buffer)
 	dup(pts_fd);
 	dup(pts_fd);
 	close(pts_fd);
+	/* close signals, then unblock */
+	signal_done();
+	ioselect_done();
+	/* flush pending signals */
+	do {
+	    wt = sigtimedwait(&set, NULL, &to);
+	} while (wt != -1);
+	sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	setenv("LC_ALL", "C", 1);	// disable i18n
 	retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
@@ -495,6 +487,7 @@ int run_unix_command(char *buffer)
 	break;
     }
     close(pts_fd);
+    sigprocmask(SIG_SETMASK, &oset, NULL);
 
     assert(!isset_IF());
     dos2tty_start();
@@ -921,17 +914,18 @@ int com_dosprint(char *buf32)
 {
 	char *s;
 	u_short int23_seg, int23_off, size;
-	size = strlen(buf32) + 1;
+	size = strlen(buf32);
 	if (!size) return 0;
 	com_errno = 8;
 	s = lowmem_heap_alloc(size);
 	if (!s) return -1;
 	memcpy(s, buf32, size);
-	s[size - 1] = '$';
 	pre_msdos();
+	LWORD(ebx) = STDOUT_FILENO;
+	LWORD(ecx) = size;
 	LWORD(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(s);
-	HI(ax) = 9;
+	HI(ax) = 0x40;
 	/* write() can be interrupted with ^C. Therefore we set int0x23 here
 	 * so that even in this case it will return to the proper place. */
 	int23_seg = ISEG(0x23);

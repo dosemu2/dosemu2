@@ -123,7 +123,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "cpu-emu.h"
 #endif
 
-sigjmp_buf NotJEnv;
 static int ld_tid;
 static int can_leavedos;
 static int leavedos_code;
@@ -309,29 +308,10 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
  * DANG_END_FUNCTION
  *
  */
-#ifdef __ELF__
-int
-main(int argc, char **argv)
-#else
-int
-emulate(int argc, char **argv)
-#endif
+int main(int argc, char **argv)
 {
-    int e;
-
-    srand(time(NULL));
+    setlocale(LC_ALL,"");
     memset(&config, 0, sizeof(config));
-
-    if ((e=sigsetjmp(NotJEnv, 1))) {
-        flush_log();
-    	fprintf(stderr,"EMERGENCY JUMP %x!!!\n",e);
-    	/* there's no other way to stop a signal 11 from hanging dosemu
-    	 * but politely ask the kernel to terminate ourselves */
-	kill(0, SIGKILL);
-	_exit(1);		/* just in case */
-    }
-
-		setlocale(LC_ALL,"");
 
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */
@@ -353,7 +333,6 @@ emulate(int argc, char **argv)
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 
-    io_select_init();
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
     config_init(argc, argv);	/* parse the commands & config file(s) */
@@ -376,7 +355,7 @@ emulate(int argc, char **argv)
     pci_setup();
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
-//    signal_pre_init();          /* initialize sig's & sig handlers */
+    signal_pre_init();          /* initialize sig's & sig handlers */
     SIG_init();			/* Silly Interrupt Generator */
     pkt_priv_init();            /* initialize the packet driver interface */
 
@@ -407,7 +386,7 @@ emulate(int argc, char **argv)
     /* iodev_init() can load plugins, like SDL, that can spawn a thread.
      * This must be done before initializing signals, or problems ensue.
      * This also must be done when the signals are blocked, so after
-     * the io_select_init(), which right now blocks the signals. */
+     * the signal_pre_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
     dos2tty_init();
     signal_init();              /* initialize sig's & sig handlers */
@@ -531,10 +510,10 @@ void leavedos_main(int sig)
     }
     /* async signals must be disabled after coopthreads are joined, but
      * before coopth_done(). */
-    registersig(SIGALRM, NULL);
-    registersig(SIGIO, NULL);
+    signal_done();
     /* now it is safe to shut down coopth. Can be done any later, if need be */
     coopth_done();
+    dbug_printf("coopthreads stopped\n");
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"
@@ -600,6 +579,7 @@ void leavedos_main(int sig)
 
     g_printf("calling close_all_printers\n");
     close_all_printers();
+    ioselect_done();
 
     flush_log();
 

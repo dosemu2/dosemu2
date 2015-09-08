@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <sys/eventfd.h>
 #include <sys/types.h>
@@ -14,6 +15,7 @@
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <linux/version.h>
 
 #include "emu.h"
 #include "vm86plus.h"
@@ -66,6 +68,8 @@ struct sigchld_hndl {
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
+static sigset_t q_mask;
+
 static int sh_tid;
 static int in_handle_signals;
 static void handle_signals_force_enter(int tid);
@@ -76,131 +80,70 @@ static struct rng_s cbks;
 #define MAX_CBKS 1000
 static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static struct {
-  unsigned long eflags;
-  unsigned short fs, gs;
-#ifdef __x86_64__
-  unsigned char *fsbase, *gsbase;
-#endif
-} eflags_fs_gs;
+struct eflags_fs_gs eflags_fs_gs;
 
 static void (*sighandlers[NSIG])(struct sigcontext *);
+static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 
 static void sigquit(struct sigcontext *);
 static void sigalrm(struct sigcontext *);
 static void sigio(struct sigcontext *);
-
 static void sigasync(int sig, siginfo_t *si, void *uc);
 
-static void
-dosemu_sigaction_wrapper(int sig, void *fun, int flags)
+static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
-  struct sigaction sa;
-  sigset_t mask;
-
-  sa.sa_flags = flags;
-  /* initially block all signals. The handler will unblock some
-   * when it is safe (after segment registers are restored) */
-  sigfillset(&mask);
-  sa.sa_mask = mask;
-
-  if (sa.sa_flags & SA_ONSTACK) {
-    sa.sa_flags |= SA_SIGINFO;
-    sa.sa_sigaction = fun;
-  } else
-    sa.sa_handler = fun;
-  sigaction(sig, &sa, NULL);
+	if (qsighandlers[sig])
+		return;
+	/* first need to collect the mask, then register all handlers
+	 * because the same mask is used for every handler */
+	sigaddset(&q_mask, sig);
+	qsighandlers[sig] = fun;
 }
 
-/* DANG_BEGIN_FUNCTION NEWSETQSIG
- *
- * arguments:
- * sig - the signal to have a handler installed to.
- * fun - the signal handler function to install
- *
- * description:
- *  All signals that wish to be handled properly in context with the
- * execution of vm86() mode, and signals that wish to use non-reentrant
- * functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE define
- * and use SETQSIG(). To that end they will also need to be set up in an
- * order such as SIGIO.
- *
- * DANG_END_FUNCTION
- *
- */
-void addset_signals_that_queue(sigset_t *x)
+static void qsig_init(void)
 {
-       sigaddset(x, SIGIO);
-       sigaddset(x, SIGALRM);
-       sigaddset(x, SIGPROF);
-       sigaddset(x, SIGWINCH);
-       sigaddset(x, SIG_RELEASE);
-       sigaddset(x, SIG_ACQUIRE);
-}
+	struct sigaction sa;
+	int i;
 
-static void newsetqsig(int sig, void *fun)
-{
-	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_ONSTACK);
+	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
+	/* initially block all async signals. The handler will unblock some
+	 * when it is safe (after segment registers are restored) */
+	sa.sa_mask = q_mask;
+	for (i = 0; i < NSIG; i++) {
+		if (qsighandlers[i]) {
+			sa.sa_sigaction = qsighandlers[i];
+			sigaction(i, &sa, NULL);
+		}
+	}
 }
 
 void registersig(int sig, void (*fun)(struct sigcontext *))
 {
+	newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
 }
 
-static void setsig(int sig, void *fun)
+static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
-	dosemu_sigaction_wrapper(sig, fun, SA_RESTART);
+	struct sigaction sa;
+
+	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
+	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
+		sa.sa_flags |= SA_NODEFER;
+	sa.sa_mask = q_mask;
+	sa.sa_sigaction = fun;
+	sigaction(sig, &sa, NULL);
 }
-
-static void newsetsig(int sig, void *fun)
-{
-	int flags = SA_RESTART|SA_ONSTACK;
-	if (kernel_version_code >= 0x20600+14)
-		flags |= SA_NODEFER;
-	dosemu_sigaction_wrapper(sig, fun, flags);
-}
-
-#ifdef __x86_64__
-/* this function is called from dosemu_fault0 to check if
-   fsbase/gsbase need to be fixed up, if the above asm codes
-   cause a page fault.
- */
-int check_fix_fs_gs_base(unsigned char prefix)
-{
-  unsigned char *addr, *base;
-  int getcode, setcode;
-
-  if (prefix == 0x65) { /* gs: */
-    getcode = ARCH_GET_GS;
-    setcode = ARCH_SET_GS;
-    base = eflags_fs_gs.gsbase;
-  } else {
-    getcode = ARCH_GET_FS;
-    setcode = ARCH_SET_FS;
-    base = eflags_fs_gs.fsbase;
-  }
-
-  if (dosemu_arch_prctl(getcode, &addr) != 0)
-    return 0;
-
-  /* already fine, not fixing it up, but then the dosemu fault is fatal */
-  if (addr == base)
-    return 0;
-
-  dosemu_arch_prctl(setcode, base);
-  D_printf("DPMI: Fixed up %csbase in fault handler\n", prefix + 2);
-  return 1;
-}
-
-#endif
 
 /* init_handler puts the handler in a sane state that glibc
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 __attribute__((no_instrument_function))
-static void __init_handler(struct sigcontext_struct *scp)
+static void __init_handler(struct sigcontext *scp, int async)
 {
+#ifdef __x86_64__
+  unsigned short __ss;
+#endif
   /*
    * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
    * forever, we must restore the eflags.
@@ -213,18 +156,20 @@ static void __init_handler(struct sigcontext_struct *scp)
      (using the 3 high words of the trapno field).
      fs and gs are set to 0 in the sigcontext, so we also need
      to save those ourselves */
-  if (scp) {
-    _ds = getsegment(ds);
-    _es = getsegment(es);
-    _ss = getsegment(ss);
-    _fs = getsegment(fs);
-    _gs = getsegment(gs);
-    if (config.cpuemu > 3) {
-      _cs = getsegment(cs);
-    } else if (_cs == 0) {
-      if (config.dpmi) {
+  _ds = getsegment(ds);
+  _es = getsegment(es);
+  /* some kernels save and switch ss, some do not... The simplest
+   * thing is to assume that if the ss is from GDT, then it is already
+   * saved. */
+  __ss = getsegment(ss);
+  if (DPMIValidSelector(__ss))
+    _ss = __ss;
+  _fs = getsegment(fs);
+  _gs = getsegment(gs);
+  if (_cs == 0) {
+      if (config.dpmi && config.cpuemu < 4) {
 	fprintf(stderr, "Cannot run DPMI code natively ");
-	if (kernel_version_code < 0x20600 + 15)
+	if (kernel_version_code < KERNEL_VERSION(2, 6, 15))
 	  fprintf(stderr, "because your Linux kernel is older than version 2.6.15.\n");
 	else
 	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
@@ -232,7 +177,6 @@ static void __init_handler(struct sigcontext_struct *scp)
       }
       config.cpuemu = 4;
       _cs = getsegment(cs);
-    }
   }
 #endif
 
@@ -251,9 +195,11 @@ static void __init_handler(struct sigcontext_struct *scp)
     return;
   }
 
-  if (scp && !DPMIValidSelector(_cs)) return;
-
-  /* else interrupting DPMI code with an LDT %cs */
+  /* for async signals need to restore fs/gs even if dosemu code
+   * was interrupted because it can be interrupted in a switching
+   * routine when fs or gs are already switched */
+  if (!DPMIValidSelector(_cs) && !async)
+    return;
 
   /* restore %fs and %gs for compatibility with NPTL. */
   if (getsegment(fs) != eflags_fs_gs.fs)
@@ -272,7 +218,7 @@ static void __init_handler(struct sigcontext_struct *scp)
 }
 
 __attribute__((no_instrument_function))
-void init_handler(struct sigcontext_struct *scp)
+void init_handler(struct sigcontext *scp, int async)
 {
   /* All signals are initially blocked.
    * We need to restore registers before unblocking signals.
@@ -284,11 +230,39 @@ void init_handler(struct sigcontext_struct *scp)
    * to restore them by hands.
    */
   sigset_t mask;
-  __init_handler(scp);
+  __init_handler(scp, async);
   sigemptyset(&mask);
-  addset_signals_that_queue(&mask);
-  sigprocmask(SIG_SETMASK, &mask, NULL);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGHUP);
+  sigaddset(&mask, SIGTERM);
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
+
+#ifdef __x86_64__
+__attribute__((no_instrument_function))
+void deinit_handler(struct sigcontext *scp)
+{
+  /* no need to restore anything when returning to dosemu, but
+   * can't check _cs because dpmi_iret_setup() could clobber it.
+   * So just restore segregs unconditionally to stay safe.
+   * It would also be a bit disturbing to return to dosemu with
+   * DOS ds/es/ss, which is what the signal handler work with
+   * in 64bit mode.
+   * Note: ss in 64bit mode is reset by a syscall (sigreturn()),
+   * so we don't need to restore it manually when returning to
+   * dosemu at least (when returning to DPMI, dpmi_iret_setup()
+   * takes care of ss).
+   */
+
+  if (_fs != getsegment(fs))
+    loadregister(fs, _fs);
+  if (_gs != getsegment(gs))
+    loadregister(gs, _gs);
+
+  loadregister(ds, _ds);
+  loadregister(es, _es);
+}
+#endif
 
 static int ld_sig;
 static void leavedos_call(void *arg)
@@ -345,11 +319,12 @@ static void cleanup_child(void *arg)
 __attribute__((no_instrument_function))
 static void sig_child(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp, 1);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
   dpmi_iret_setup(scp);
+  deinit_handler(scp);
 }
 
 void leavedos_from_sig(int sig)
@@ -375,7 +350,7 @@ static void leavedos_sig(int sig)
 }
 
 __attribute__((noinline))
-static void _leavedos_signal(int sig, struct sigcontext_struct *scp)
+static void _leavedos_signal(int sig, struct sigcontext *scp)
 {
   if (ld_sig) {
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
@@ -390,18 +365,19 @@ static void _leavedos_signal(int sig, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp, 1);
   _leavedos_signal(sig, scp);
+  deinit_handler(scp);
 }
 
 __attribute__((no_instrument_function))
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext_struct *scp =
-	(struct sigcontext_struct *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp);
+  struct sigcontext *scp =
+	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp, 0);
   gdb_debug();
   _exit(sig);
 }
@@ -516,7 +492,6 @@ signal_pre_init(void)
 {
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
-  struct sigaction oldact;
   stack_t ss;
   void *cstack;
 
@@ -544,6 +519,9 @@ signal_pre_init(void)
   dbug_printf("initial register values: fs: 0x%04x  gs: 0x%04x eflags: 0x%04lx\n",
     eflags_fs_gs.fs, eflags_fs_gs.gs, eflags_fs_gs.eflags);
 #ifdef __x86_64__
+  eflags_fs_gs.ds = getsegment(ds);
+  eflags_fs_gs.es = getsegment(es);
+  eflags_fs_gs.ss = getsegment(ss);
   /* get long fs and gs bases. If they are in the first 32 bits
      normal 386-style fs/gs switching can happen so we can ignore
      fsbase/gsbase */
@@ -557,83 +535,38 @@ signal_pre_init(void)
     eflags_fs_gs.fsbase, eflags_fs_gs.gsbase);
 #endif
 
-  /* init signal handlers - these are the defined signals:
-   ---------------------------------------------
-   SIGHUP		 1	S	leavedos
-   SIGINT		 2	S	leavedos
-   SIGQUIT		 3	N	sigquit
-   SIGILL		 4	N	dosemu_fault
-   SIGTRAP		 5	N	dosemu_fault
-   SIGABRT		 6	S	leavedos
-   SIGBUS		 7	N	dosemu_fault
-   SIGFPE		 8	N	dosemu_fault
-   SIGKILL		 9	na
-   SIGUSR1		10	NQ	(SIG_RELEASE)sigasync
-   SIGSEGV		11	N	dosemu_fault
-   SIGUSR2		12	NQ	(SIG_ACQUIRE)sigasync
-   SIGPIPE		13      S	SIG_IGN
-   SIGALRM		14	NQ	(SIG_TIME)sigasync
-   SIGTERM		15	S	leavedos
-   SIGSTKFLT		16
-   SIGCHLD		17	NQ       sig_child
-   SIGCONT		18
-   SIGSTOP		19
-   SIGTSTP		20
-   SIGTTIN		21	unused	was SIG_SER??
-   SIGTTOU		22
-   SIGURG		23
-   SIGXCPU		24
-   SIGXFSZ		25
-   SIGVTALRM		26
-   SIGPROF		27	NQ	(cpuemu,sigprof)sigasync
-   SIGWINCH		28	NQ	(sigwinch)sigasync
-   SIGIO		29	NQ	(sigio)sigasync
-   SIGPWR		30
-   SIGUNUSED		31	na
-  ------------------------------------------------ */
-  newsetsig(SIGILL, dosemu_fault);
-  newsetqsig(SIGALRM, sigasync);
+  /* first set up the blocking mask: registersig() and newsetqsig()
+   * adds to it */
+  sigemptyset(&q_mask);
   registersig(SIGALRM, sigalrm);
+  registersig(SIGQUIT, sigquit);
+  registersig(SIGIO, sigio);
+  newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
+  newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
+  newsetqsig(SIGTERM, leavedos_signal);
+  newsetqsig(SIGCHLD, sig_child);
+  /* below ones are initialized by other subsystems */
+  registersig(SIGPROF, NULL);
+  registersig(SIG_ACQUIRE, NULL);
+  registersig(SIG_RELEASE, NULL);
+  /* mask is set up, now start using it */
+  qsig_init();
+  newsetsig(SIGILL, dosemu_fault);
   newsetsig(SIGFPE, dosemu_fault);
   newsetsig(SIGTRAP, dosemu_fault);
-
-#ifdef SIGBUS /* for newer kernels */
   newsetsig(SIGBUS, dosemu_fault);
-#endif
-  newsetsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
-  newsetsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
-  newsetsig(SIGTERM, leavedos_signal);
   newsetsig(SIGABRT, abort_signal);
-  newsetsig(SIGQUIT, sigasync);
-  registersig(SIGQUIT, sigquit);
-  setsig(SIGPIPE, SIG_IGN);
-
-/*
-  setsig(SIGUNUSED, timint);
-*/
-  newsetqsig(SIGIO, sigasync);
-  registersig(SIGIO, sigio);
-  newsetqsig(SIGUSR1, sigasync);
-  newsetqsig(SIGUSR2, sigasync);
-  sigaction(SIGPROF, NULL, &oldact);
-  /* don't set SIGPROF if already used via -pg */
-  if (oldact.sa_handler == SIG_DFL)
-    newsetqsig(SIGPROF, sigasync);
-  newsetqsig(SIGWINCH, sigasync);
   newsetsig(SIGSEGV, dosemu_fault);
-  newsetqsig(SIGCHLD, sig_child);
+
+  /* block async signals so that threads inherit the blockage */
+  sigprocmask(SIG_BLOCK, &q_mask, NULL);
+
+  signal(SIGPIPE, SIG_IGN);
 }
 
 void
 signal_init(void)
 {
-  /* once, signal_pre_init() was called much earlier and signal_late_init()
-   * was called from coopth handlers. I don't remember why this was needed...
-   * So lets gather them here again and see if fomething breaks.
-   * At least I made sure threads are created before signal_init(),
-   * and install_dos() needs to be double-checked. */
-  signal_pre_init();
-
   dosemu_tid = gettid();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
@@ -649,16 +582,15 @@ signal_init(void)
   add_to_io_select(event_fd, async_awake, NULL);
   rng_init(&cbks, MAX_CBKS, sizeof(struct callback_s));
 
-  signal_late_init();
+  /* unblock async signals in main thread */
+  pthread_sigmask(SIG_UNBLOCK, &q_mask, NULL);
 }
 
-void signal_late_init(void)
+void signal_done(void)
 {
-  sigset_t set;
-  /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
-  sigemptyset(&set);
-  addset_signals_that_queue(&set);
-  sigprocmask(SIG_UNBLOCK, &set, NULL);
+    registersig(SIGALRM, NULL);
+    registersig(SIGIO, NULL);
+    SIGNAL_head = SIGNAL_tail;
 }
 
 static void handle_signals_force_enter(int tid)
@@ -875,7 +807,7 @@ static void SIGIO_call(void *arg){
 }
 
 #ifdef __linux__
-static void sigio(struct sigcontext_struct *scp)
+static void sigio(struct sigcontext *scp)
 {
   /* prints non reentrant! dont do! */
 #if 0
@@ -887,7 +819,7 @@ static void sigio(struct sigcontext_struct *scp)
     dpmi_sigio(scp);
 }
 
-static void sigalrm(struct sigcontext_struct *scp)
+static void sigalrm(struct sigcontext *scp)
 {
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
@@ -896,10 +828,11 @@ static void sigalrm(struct sigcontext_struct *scp)
   }
 }
 
-__attribute__((no_instrument_function))
-static void sigasync0(int sig, struct sigcontext_struct *scp)
+__attribute__((noinline))
+static void sigasync0(int sig, struct sigcontext *scp)
 {
-  init_handler(scp);
+  if (gettid() != dosemu_tid)
+    dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])
 	  sighandlers[sig](scp);
   dpmi_iret_setup(scp);
@@ -908,13 +841,16 @@ static void sigasync0(int sig, struct sigcontext_struct *scp)
 __attribute__((no_instrument_function))
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  sigasync0(sig, (struct sigcontext_struct *)
-	   &((ucontext_t *)uc)->uc_mcontext);
+  struct sigcontext *scp = (struct sigcontext *)
+	   &((ucontext_t *)uc)->uc_mcontext;
+  init_handler(scp, 1);
+  sigasync0(sig, scp);
+  deinit_handler(scp);
 }
 #endif
 
 
-static void sigquit(struct sigcontext_struct *scp)
+static void sigquit(struct sigcontext *scp)
 {
   in_vm86 = 0;
 
@@ -967,7 +903,7 @@ static void async_awake(void *arg)
   int i;
   eventfd_t val;
   eventfd_read(event_fd, &val);
-  g_printf("processing %zi callbacks\n", val);
+  g_printf("processing %"PRId64" callbacks\n", val);
   do {
     pthread_mutex_lock(&cbk_mtx);
     i = rng_get(&cbks, &cbk);

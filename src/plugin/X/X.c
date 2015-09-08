@@ -814,6 +814,7 @@ void X_close()
   X_printf("X: X_close\n");
 
   if(display == NULL) return;
+  initialized = 0;
   pthread_cancel(event_thr);
   pthread_join(event_thr, NULL);
 
@@ -1694,7 +1695,9 @@ static int __X_handle_events(XEvent *e)
 static void _X_handle_events(void *arg)
 {
     XEvent *e = arg;
-    int ret = __X_handle_events(e);
+    int ret = 0;
+    if (initialized)
+	ret = __X_handle_events(e);
     free(e);
     if (ret < 0)
       leavedos(0);

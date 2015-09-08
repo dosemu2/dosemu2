@@ -52,7 +52,6 @@
  */
 
 
-int kernel_version_code = 0;
 int config_check_only = 0;
 
 int dosemu_argc;
@@ -310,8 +309,6 @@ open_terminal_pipe(char *path)
 
 static void our_envs_init(char *usedoptions)
 {
-    struct utsname unames;
-    char *s;
     char buf[256];
     int i,j;
 
@@ -326,10 +323,7 @@ static void our_envs_init(char *usedoptions)
         setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
         return;
     }
-    uname(&unames);
-    kernel_version_code = strtol(unames.release, &s,0) << 16;
-    kernel_version_code += strtol(s+1, &s,0) << 8;
-    kernel_version_code += strtol(s+1, &s,0);
+
     sprintf(buf, "%d", kernel_version_code);
     setenv("KERNEL_VERSION_CODE", buf, 1);
     sprintf(buf, "%d", DOSEMU_VERSION_CODE);
@@ -557,7 +551,7 @@ static void config_post_process(const char *usedoptions)
 	read_cpu_info();
     if (vm86s.cpu_type > config.realcpu) {
     	vm86s.cpu_type = config.realcpu;
-    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",vm86s.cpu_type);
+    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
     }
     if (config.rdtsc) {
 	if (config.smp) {

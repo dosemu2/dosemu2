@@ -3235,31 +3235,11 @@ unsigned int Exec_x86(TNode *G, int ln)
 "		prefetcht0 %0\n"
 		: : "m"(*ecpu) );
 
-	if (eTimeCorrect >= 0) {
-	__asm__ __volatile__ (
-"		push   "RE_REG(bx)"\n"
-"		call	1f\n"
-"		jmp	2f\n"
-"1:		push	%8\n"		/* push and get TheCPU flags    */
-"		rdtsc\n"
-"		movl	%%eax,%3\n"	/* save time before execution   */
-"		movl	%%edx,%4\n"
-"		mov	%7,"RE_REG(bx)"\n"/* address of TheCPU(+0x80!)  */
-"		jmp	*%9\n"		/* call SeqStart                */
-"2:		mov    "RE_REG(dx)",%0\n"/* save flags			*/
-"		movl	%%eax,%1\n"	/* save PC at block exit	*/
-"		rdtsc\n"
-"		pop    "RE_REG(bx) 	/* restore regs                 */
-		: "=S"(flg),"=c"(ePC),"=D"(mem_ref),
-		  "=m"(TimeStartExec.t.tl),"=m"(TimeStartExec.t.th),
-		  "=&a"(TimeEndExec.t.tl),"=&d"(TimeEndExec.t.th)
-		: "c"(ecpu),"0"(flg),"2"(SeqStart)
-		: "memory", "cc"
-#ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
-		  ,"r8","r9","r10","r11"
-#endif
+	if (eTimeCorrect >= 0)
+		__asm__ __volatile__ (
+"			rdtsc\n"
+			: "=a"(TimeStartExec.t.tl),"=d"(TimeStartExec.t.th)
 		);
-	} else {
 	__asm__ __volatile__ (
 "		push   "RE_REG(bx)"\n"
 "		call	1f\n"
@@ -3276,8 +3256,12 @@ unsigned int Exec_x86(TNode *G, int ln)
 #ifdef __x86_64__ /* Generated code calls C functions which clobber ... */
 		  ,"r8","r9","r10","r11"
 #endif
+	);
+	if (eTimeCorrect >= 0)
+		__asm__ __volatile__ (
+"			rdtsc\n"
+			: "=a"(TimeEndExec.t.tl),"=d"(TimeEndExec.t.th)
 		);
-	}
 
 	InCompiledCode = 0;
 

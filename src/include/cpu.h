@@ -14,16 +14,13 @@
 #endif
 #include <signal.h>
 #ifdef __linux__
-#include "Asm/vm86.h"
+#include "vm86_compat.h"
 #endif
 #ifndef BIOSSEG
 #define BIOSSEG 0xf000
 #endif
 #ifdef __linux__
 #define _regs vm86s.regs
-#endif
-#ifndef sigcontext_struct
-#define sigcontext_struct sigcontext
 #endif
 
 #include "extern.h"
@@ -32,7 +29,12 @@
 #ifdef __linux__
 #define REGS  vm86s.regs
 /* this is used like: REG(eax) = 0xFFFFFFF */
+#ifdef __i386__
+/* unfortunately the regs are defined as long (not even unsigned) in vm86.h */
+#define REG(reg) (*(uint32_t *)&REGS.reg)
+#else
 #define REG(reg) (REGS.reg)
+#endif
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif
@@ -156,6 +158,12 @@ extern struct _fpstate vm86_fpu_state;
 		WRITE_BYTE((base) + ptr, (val) >> 8); \
 		ptr = (Bit16u)(ptr - 1); \
 		WRITE_BYTE((base) + ptr, val); \
+	} while(0)
+
+#define pushl(base, ptr, val) \
+	do { \
+		pushw(base, ptr, (Bit16u)((val) >> 16)); \
+		pushw(base, ptr, (Bit16u)(val)); \
 	} while(0)
 
 #define popb(base, ptr) \
@@ -320,6 +328,10 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
   int __flgs = flags; \
   (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
 })
+#define get_FLAGS(flags) ({ \
+  int __flgs = flags; \
+  (((__flgs & VIF) ? __flgs | IF : __flgs & ~IF)); \
+})
 #define get_vFLAGS(flags) ({ \
   int __flgs = flags; \
   ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
@@ -380,7 +392,11 @@ EXTERN struct vec_t *ivecs;
 #define _rcx    (scp->rcx)
 #define _rax    (scp->rax)
 #define _rip    (scp->rip)
-#define _ss     (((union dword *)&(scp->trapno))->w.w3)
+#ifdef HAVE_SIGCONTEXT_SS
+#define _ss     (scp->ss)
+#else
+#define _ss     (scp->__pad0)
+#endif
 #else
 #define _es     (scp->es)
 #define _ds     (scp->ds)
@@ -413,13 +429,13 @@ EXTERN struct vec_t *ivecs;
 #define _cr2	(scp->cr2)
 
 void dosemu_fault(int, siginfo_t *, void *);
-int _dosemu_fault(int signal, struct sigcontext_struct *scp);
+int _dosemu_fault(int signal, struct sigcontext *scp);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);
 char *emu_disasm(unsigned int ip);
 
-int cpu_trap_0f (unsigned char *, struct sigcontext_struct *);
+int cpu_trap_0f (unsigned char *, struct sigcontext *);
 
 extern unsigned int read_port_w(unsigned short port);
 extern int write_port_w(unsigned int value,unsigned short port);

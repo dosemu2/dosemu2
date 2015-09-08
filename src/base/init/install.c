@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "emu.h"
 #include "disks.h"
@@ -94,15 +95,21 @@ static void create_symlink(const char *path, int number)
 
 static char *dosreadline(void)
 {
-	char *line = malloc(129);
-	int size = read_string(line, 128);
+	char *line;
+	int size;
+
+	line = malloc(129);
+	assert(line != NULL);
+
+	size = read_string(line, 128);
 	line[size] = '\0';
 	return line;
 }
 
 static void install_dosemu_freedos (int choice)
 {
-	char *boot_dir_path, *system_str;
+	char *boot_dir_path, *system_str, *tmp;
+	int ret;
 
 	/*
 	 * boot_dir_path = path to install to
@@ -112,29 +119,36 @@ static void install_dosemu_freedos (int choice)
 	if (choice == 3) {
 		printf_("Please enter the name of the directory for your private "
 			   "DOSEMU-FreeDOS files\n");
+
 		boot_dir_path = dosreadline();
 		if (boot_dir_path[0] == '/') {
-			char *boot_dir_path2;
 			printf_("You gave an absolute path, "
 				   "type ENTER to confirm or another path\n");
-			boot_dir_path2 = dosreadline();
-			if (boot_dir_path2[0] == '\0')
-				free(boot_dir_path2);
+
+			tmp = dosreadline();
+			if (tmp[0] == '\0')
+				free(tmp);
 			else {
 				free(boot_dir_path);
-				boot_dir_path = boot_dir_path2;
+				boot_dir_path = tmp;
 			}
-		} else {
-			char *tmp;
-			asprintf(&tmp, "%s/%s", getenv("PWD"), boot_dir_path);
+		}
+
+		if (boot_dir_path[0] != '/') {
+			ret = asprintf(&tmp, "%s/%s", getenv("PWD"), boot_dir_path);
+			assert(ret != -1);
 			free(boot_dir_path);
 			boot_dir_path = tmp;
 		}
+
 		printf_("Installing to %s ...\n", boot_dir_path);
 	}
 	else
 		boot_dir_path = assemble_path(LOCALDIR, "drive_c", 0);
-	asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
+
+	ret = asprintf(&system_str, "mkdir -p %s/tmp", boot_dir_path);
+	assert(ret != -1);
+
 	if (system(system_str)) {
 		printf_("  unable to create $BOOT_DIR_PATH, giving up\n");
 		free(system_str);
@@ -142,12 +156,21 @@ static void install_dosemu_freedos (int choice)
 		return;
 	}
 	free(system_str);
-	asprintf(&system_str,
-		 "cp -p %s/drive_z/config.sys "
-		 "%s/drive_z/autoexec.bat \"%s\"",
-		 dosemu_lib_dir, dosemu_lib_dir, boot_dir_path);
-	system(system_str);
+
+	ret = asprintf(&system_str,
+			"cp -p %s/drive_z/config.sys "
+			"%s/drive_z/autoexec.bat \"%s\"",
+			dosemu_lib_dir, dosemu_lib_dir, boot_dir_path);
+	assert(ret != -1);
+
+	if (system(system_str)) {
+		printf_("Error: unable to copy startup files\n");
+		free(system_str);
+		free(boot_dir_path);
+		return;
+	}
 	free(system_str);
+
 	create_symlink(boot_dir_path, 0);
 	free(boot_dir_path);
 	unix_e_welcome = 1;
@@ -315,7 +338,7 @@ void install_dos(int post_boot)
 			assemble_path(dosemu_lib_dir, "drive_z", 0);
 		create_symlink(commands_path, 1);
 		free(commands_path);
-#if 0
+#if 1
 		if(post_boot)
 			disk_reset();
 #else

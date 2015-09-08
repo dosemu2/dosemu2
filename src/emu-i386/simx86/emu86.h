@@ -659,7 +659,7 @@ int ModGetReg1(unsigned int PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32, unsigned int refseg);
 char *e_print_regs(void);
-char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode);
+char *e_print_scp_regs(struct sigcontext *scp, int pmode);
 const char *e_trace_fp(void);
 void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
@@ -675,7 +675,7 @@ int e_querymprotrange(unsigned int al, unsigned int ah);
 int e_markpage(unsigned int addr, size_t len);
 int e_querymark(unsigned int addr, size_t len);
 void e_resetpagemarks(unsigned int addr, size_t len);
-int e_handle_pagefault(struct sigcontext_struct *scp);
+int e_handle_pagefault(struct sigcontext *scp);
 void mprot_init(void);
 void mprot_end(void);
 void InvalidateSegs(void);
@@ -693,7 +693,7 @@ void init_emu_npu(void);
 
 unsigned e_VgaRead(unsigned char *ptr, int mode);
 void e_VgaWrite(unsigned char *ptr, unsigned u, int mode);
-void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp);
-int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault);
+void e_VgaMovs(struct sigcontext *scp, char op, int w16, int dp);
+int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault);
 
 #endif // _EMU86_EMU86_H

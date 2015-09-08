@@ -1257,8 +1257,8 @@ static inline int modify_ldt(int func, void * ptr, unsigned long bytecount)
     return syscall(__NR_modify_ldt, func, ptr, bytecount);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 66)
-#define modify_ldt_ldt_s user_desc
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 66)
+#define user_desc modify_ldt_ldt_s
 #endif
 
 #define MK_SEL(n) (((n) << 3) | 7)
@@ -1310,7 +1310,7 @@ uint8_t seg_data2[4096];
 void test_segs(void)
 {
 #ifdef __linux__
-    struct modify_ldt_ldt_s ldt;
+    struct user_desc ldt;
     long long ldt_table[3];
 #endif
     int res, res2;
@@ -1452,7 +1452,7 @@ void test_code16(void)
 {
     int res, res2;
 #ifdef __linux__
-    struct modify_ldt_ldt_s ldt;
+    struct user_desc ldt;
 
     /* build a code segment */
     ldt.entry_number = 1;
@@ -1997,7 +1997,7 @@ void test_exceptions(void)
 
     {
 #ifdef __linux__
-        struct modify_ldt_ldt_s ldt;
+        struct user_desc ldt;
         ldt.entry_number = 1;
         ldt.base_addr = (unsigned long)&seg_data1;
         ldt.limit = (sizeof(seg_data1) + 0xfff) >> 12;

@@ -125,6 +125,7 @@
 #define DOS_LONG_READ_OFF 0xF400
 #define DOS_LONG_WRITE_SEG BIOSSEG
 #define DOS_LONG_WRITE_OFF 0xF4A0
+#define DOS_EXEC_OFF 0xf540
 
 #define XMSControl_SEG  ROMBIOSSEG
 #define XMSControl_OFF  0x4C40

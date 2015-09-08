@@ -12,7 +12,6 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <setjmp.h>
 #include <signal.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -36,6 +35,17 @@ static inline int dosemu_arch_prctl(int code, void *addr)
   return syscall(SYS_arch_prctl, code, addr);
 }
 #endif
+
+struct eflags_fs_gs {
+  unsigned long eflags;
+  unsigned short fs, gs;
+#ifdef __x86_64__
+  unsigned char *fsbase, *gsbase;
+  unsigned short ds, es, ss;
+#endif
+};
+
+extern struct eflags_fs_gs eflags_fs_gs;
 
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #ifdef __i386__
@@ -75,7 +85,7 @@ int signal_pending(void);
 EXTERN volatile __thread int fault_cnt INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
-EXTERN int running_kversion INIT(0);
+EXTERN int kernel_version_code INIT(0);
 
 EXTERN int screen_mode;
 
@@ -123,7 +133,6 @@ EXTERN volatile int in_vm86 INIT(0);
 EXTERN int scanseq;
 
 void dos_ctrl_alt_del(void);	/* disabled */
-extern sigjmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
 EXTERN void vm86_helper(void);
@@ -384,7 +393,6 @@ EXTERN int int13(void);
 EXTERN int int16(void);
 EXTERN int int17(void);
 EXTERN void io_select(void);
-EXTERN void io_select_init(void);
 EXTERN int pd_receive_packet(void);
 EXTERN int printer_tick(u_long);
 EXTERN void floppy_tick(void);
@@ -422,6 +430,7 @@ EXTERN void add_to_io_select_new(int, void(*)(void *), void *,
 #define add_to_io_select(fd, func, arg) \
 	add_to_io_select_new(fd, func, arg, #func)
 EXTERN void remove_from_io_select(int);
+EXTERN void ioselect_done(void);
 EXTERN void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
 #ifdef __linux__
 EXTERN void SIG_init(void);
@@ -441,11 +450,12 @@ extern void sig_ctx_restore(int tid);
 
 extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
 extern int sigchld_enable_handler(pid_t pid, int on);
-extern void addset_signals_that_queue(sigset_t *x);
-extern void registersig(int sig, void (*handler)(struct sigcontext_struct *));
-extern void init_handler(struct sigcontext_struct *scp);
+extern void registersig(int sig, void (*handler)(struct sigcontext *));
+extern void init_handler(struct sigcontext *scp, int async);
 #ifdef __x86_64__
-extern int check_fix_fs_gs_base(unsigned char prefix);
+extern void deinit_handler(struct sigcontext *scp);
+#else
+#define deinit_handler(scp)
 #endif
 
 /*
@@ -481,7 +491,7 @@ EXTERN int dosc_interface(void);
 EXTERN void dump_config_status(void (*printfunc)(const char *, ...));
 EXTERN void signal_pre_init(void);
 EXTERN void signal_init(void);
-EXTERN void signal_late_init(void);
+EXTERN void signal_done(void);
 EXTERN void device_init(void);
 EXTERN void memory_init(void);
 EXTERN void map_video_bios(void);

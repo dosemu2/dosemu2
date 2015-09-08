@@ -42,7 +42,12 @@ endif
 Makefile.conf: configure
 	./configure
 configure: configure.ac
-	autoreconf -v
+	if [ -d m4 ]; then \
+		AC_F="-I m4 -I $(REALTOPDIR)/m4"; \
+	else \
+		AC_F="-I $(REALTOPDIR)/m4"; \
+	fi; \
+	autoreconf -v $$AC_F
 
 # this is mainly for debugging the makefile
 echo::

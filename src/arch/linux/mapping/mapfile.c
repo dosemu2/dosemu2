@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <assert.h>
 #include <sys/mman.h>
 
 
@@ -186,8 +187,12 @@ static int open_mapping_file(int cap)
 static int open_mapping_pshm(int cap)
 {
   char *name;
+  int ret;
+
   if (tmpfile_fd < 0) {
-    asprintf(&name, "%s%d", "dosemu_", getpid());
+    ret = asprintf(&name, "%s%d", "dosemu_", getpid());
+    assert(ret != -1);
+
     tmpfile_fd = shm_open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (tmpfile_fd == -1) {
       free(name);

@@ -1598,7 +1598,7 @@ dos_fs_dev(state_t *state)
   u_char drive_to_redirect;
   int dos_ver;
 
-  Debug0((dbg_fd, "emufs operation: 0x%08x\n", state->ebx));
+  Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
   if (WORD(state->ebx) == 0x500) {
     init_all_drives();
@@ -3506,7 +3506,7 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
     if (open_files[sft_fd(sft)].type == TYPE_PRINTER) {
       for (ret = 0; ret < cnt; ret++) {
-        if (printer_write(fd, READ_BYTE(dta + ret)) != 0)
+        if (printer_write(fd, READ_BYTE(dta + ret)) != 1)
           break;
       }
       SETWORD(&(state->ecx), ret);
@@ -3837,7 +3837,7 @@ dos_fs_redirect(state_t *state)
         return FALSE;
       fd = bs_pos[1] - '0' - 1;
       if (printer_open(fd) != 0) {
-        Debug0((dbg_fd, "printer %i open failure!\n", fd));
+        error("printer %i open failure!\n", fd);
         return FALSE;
       }
       Debug0((dbg_fd, "printer open succeeds: '%s'\n", filename1));

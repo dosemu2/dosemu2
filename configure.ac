@@ -13,6 +13,8 @@ fi
 
 AC_CONFIG_HEADER(src/include/config.h)
 
+AC_CANONICAL_BUILD
+
 dnl Checks for programs.
 : ${CFLAGS=""}
 AC_PROG_CC
@@ -51,6 +53,10 @@ dnl Checks for libraries.
 
 dnl Checks for header files.
 AC_SYS_LARGEFILE
+if test "$build_cpu" = "x86_64"; then
+  AC_CHECK_MEMBER([struct sigcontext.ss],[AC_DEFINE(HAVE_SIGCONTEXT_SS)],,
+    [[#include <signal.h>]])
+fi
 
 dnl Checks for library functions.
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
@@ -89,14 +95,15 @@ AC_SUBST(x11fontdir)
 AC_SUBST(syshdimagedir)
 AC_SUBST(fdtarball)
 
-CONFIG_HOST=`uname -s`
-if test "$CONFIG_HOST" = "Linux"; then
+if test "$build_os" = "linux-gnu"; then
   CONFIG_HOST='linux'
 fi
 AC_SUBST(CONFIG_HOST)
 
 dnl Check for static and then also use it for tests
 
+DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
+ -Wnested-externs -fms-extensions -fno-stack-protector"
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 AC_CHECK_LIB(m, pow)
 
@@ -117,7 +124,7 @@ fi
 dnl check for stack protector and abort
 AC_MSG_CHECKING([for stack protector disabled])
 AS_IF([[(
-    ${CC} ${CFLAGS} -S -x c -o - - << _EOF_
+    ${CC} ${CFLAGS} ${DOSEMU_CFLAGS} -S -x c -o - - << _EOF_
     int foo(int);
     int foo(int i)
     {
@@ -213,9 +220,6 @@ dnl Now CFLAGS and INCLUDES
 
 INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
-
-DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions"
 
 AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
@@ -383,6 +387,9 @@ AH_TEMPLATE([_DEBUG],
 
 AH_TEMPLATE([_GNU_SOURCE],
 [ Define this if the GNU_SOURCE macro is necessary ])
+
+AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
+[ Define this if struct sigcontext has .ss field ])
 
 AH_BOTTOM([
 #ifndef __ASM__
