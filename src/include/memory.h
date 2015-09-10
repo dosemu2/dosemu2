@@ -192,6 +192,8 @@
 #include "types.h"
 
 u_short INT_OFF(u_char i);
+#define CBACK_SEG BIOS_HLT_BLK_SEG
+extern Bit16u CBACK_OFF;
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);

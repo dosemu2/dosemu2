@@ -9,9 +9,6 @@
 #include <sys/syscall.h>
 #endif /* __linux__ */
 
-#define CBACK_SEG BIOS_HLT_BLK_SEG
-EXTERN Bit16u CBACK_OFF;
-
 int vm86_init(void);
 
 #ifdef __i386__
