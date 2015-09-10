@@ -276,7 +276,9 @@ void low_mem_init(void)
 	      "You can most likely avoid this problem by running\n"
 	      "sysctl -w vm.mmap_min_addr=0\n"
 	      "as root, or by changing the vm.mmap_min_addr setting in\n"
-	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
+	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n"
+	      "If this doesn't help, disable selinux in /etc/selinux/config\n"
+	      );
     exit(EXIT_FAILURE);
 #else
     if (config.cpuemu < 3)
@@ -289,7 +291,9 @@ void low_mem_init(void)
 	      "You can most likely avoid this problem by running\n"
 	      "sysctl -w vm.mmap_min_addr=0\n"
 	      "as root, or by changing the vm.mmap_min_addr setting in\n"
-	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n");
+	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n"
+	      "If this doesn't help, disable selinux in /etc/selinux/config\n"
+	      );
     }
     result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
