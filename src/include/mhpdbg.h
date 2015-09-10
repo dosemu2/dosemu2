@@ -65,8 +65,10 @@ struct mhpdbg
    int nbytes;
    int active;
    int flags;
-
    int fdin,fdout;
+
+   unsigned int TFpendig:1;
+   unsigned char intxxtab[32];
 };
 
 EXTERN struct mhpdbg mhpdbg;
@@ -129,7 +131,7 @@ struct mhpdbgc
    struct mhpdbg_4bpar *bpload_par;
    char bpload_cmd[128];
    char bpload_cmdline[132];
-   char intxxtab[256];
+   unsigned char intxxalt[32];
    struct brkentry brktab[MAXBP];
 };
 

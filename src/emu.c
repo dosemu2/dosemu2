@@ -85,7 +85,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "debug.h"
 
 #include "emu.h"
-#include "vm86plus.h"
 
 #include "bios.h"
 #include "termio.h"
@@ -190,43 +189,6 @@ boot(void)
     }
     disk_close();
 }
-
-static inline void
-vm86plus_init(void)
-{
-#ifdef __i386__
-    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (!syscall(SYS_vm86old, (void *)0xffffff01)) {
-      fprintf(stderr, "your kernel contains an older (interim) vm86plus version\n\r"
-      		      "please upgrade to an newer one\n\r");
-    }
-    else
-#endif
-    {
-#ifdef X86_EMULATOR
-      warn("WARN: vm86plus service not available in your kernel\n");
-      warn("WARN: using CPU emulation for vm86()\n");
-      if (config.cpuemu < 3) {
-	config.cpuemu = 3;
-      }
-      if (config.cpuemu < 3) config.cpuemu = 3;
-      return;
-#else
-      fprintf(stderr, "vm86plus service not available in your kernel\n\r");
-#endif
-    }
-    fflush(stdout);
-    fflush(stderr);
-    _exit(1);
-}
-
-static inline void
-module_init(void)
-{
-    vm86plus_init();		/* emumodule support */
-    memcheck_init();		/* lower 1M memory map support */
-}
-
 
 void do_liability_disclaimer_prompt(int dosboot, int prompt)
 {
@@ -349,7 +311,7 @@ int main(int argc, char **argv)
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
     print_version();            /* log version information */
-    module_init();
+    memcheck_init();
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
     pci_setup();

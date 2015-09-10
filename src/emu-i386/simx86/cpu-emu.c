@@ -39,9 +39,9 @@
 #include <sys/time.h>
 #include <fenv.h>
 #include "emu.h"
-#include "vm86plus.h"
 #include "timers.h"
 #include "pic.h"
+#include "mhpdbg.h"
 #include "cpu-emu.h"
 #include "emu86.h"
 #include "codegen-arch.h"
@@ -1088,8 +1088,6 @@ static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 		goto cannot_handle;
 	if (e_revectored(i, &vm86s.int_revectored))
 		goto cannot_handle;
-	if (i==0x21 && e_revectored(_AH,&vm86s.int21_revectored))
-		goto cannot_handle;
 	intr_ptr = MK_FP32(0, i << 2);
 	segoffs = *intr_ptr;
 	if ((segoffs >> 16) == BIOSSEG)
@@ -1145,8 +1143,8 @@ static int handle_vm86_fault(int *error_code)
 	if (op==0xcd) {
 	        int intno=popb(csp, ip);
 		_IP += 2;
-		if (vm86s.vm86plus.vm86dbg_active) {
-			if ( (1 << (intno &7)) & vm86s.vm86plus.vm86dbg_intxxtab[intno >> 3] ) {
+		if (mhpdbg.active) {
+			if ( (1 << (intno &7)) & mhpdbg.intxxtab[intno >> 3] ) {
 				return (VM86_INTx + (intno << 8));
 			}
 		}
@@ -1175,16 +1173,16 @@ int e_vm86(void)
   int errcode;
 
 #ifdef __i386__
+#ifdef SKIP_EMU_VBIOS
   /* skip emulation of video BIOS, as it is too much timing-dependent */
   if ((!IsV86Emu) || (config.cpuemu<2)
-#ifdef SKIP_EMU_VBIOS
    || ((REG(cs)&0xf000)==config.vbios_seg)
-#endif
    ) {
 	s_munprotect(0, 1);
 	InvalidateSegs();
 	return true_vm86(&vm86s);
   }
+#endif
 #endif
   if (iniflag==0) enter_cpu_emu();
 

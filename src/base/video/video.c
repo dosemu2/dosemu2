@@ -241,13 +241,6 @@ static int video_init(void)
 
   if (Video->priv_init)
       Video->priv_init();          /* call the specific init routine */
-
-#if VIDEO_CHECK_DIRTY
-  if (!config_dualmon) {
-       vm86s.flags |= VM86_SCREEN_BITMAP;
-  }
-#endif
-
   return 0;
 }
 
@@ -384,12 +377,9 @@ gettermcap(int i, int *co, int *li)
     v_printf("VID: Setting windows size to li=%d, co=%d\n", *li, *co);
 }
 
-void
-video_config_init(void) {
-  screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
-
+void video_config_init(void)
+{
   video_init();
-
   reserve_video_memory();
 }
 

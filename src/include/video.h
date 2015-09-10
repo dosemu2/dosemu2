@@ -6,12 +6,6 @@
 
 extern void gettermcap(int,int *, int *);
 
-/* if you set this to 1, the video memory dirty bit will be checked
-   before updating the screen.
-   (this affects emu.c and video/int10.c)
-*/
-#define VIDEO_CHECK_DIRTY 0
-
 /* if you set this to 1, then you will be able to use your MDA + monitor
    as second display. This currently is possible together with
    Video_term, Video_console and Video_graphics.
@@ -19,17 +13,8 @@ extern void gettermcap(int,int *, int *);
    of your /etc/dosemu.conf.
    With dualmonitor support you can run CAD-programs, debuggers, or
    simply change your PC-console with "mode mono"
-   NOTE:
-     Currently this can't be used together with VIDEO_CHECK_DIRTY,
-     because the kernel (vm86.c) would remap all video pages
-     from 0xa0000 to 0xbffff.
 */
 #define USE_DUALMON 1
-
-#if USE_DUALMON && VIDEO_CHECK_DIRTY
-  #error "Currently USE_DUALMON can't be used together with VIDEO_CHECK_DIRTY"
-#endif
-
 #define CURSOR_START(c) ((c).b.start)
 #define CURSOR_END(c)   ((c).b.end)
 #define NO_CURSOR 0x2000
@@ -87,9 +72,6 @@ struct video_system {
 extern struct video_system *Video;
 EXTERN int video_mode INIT(0);
 EXTERN int video_combo INIT(0);
-
-/* bit mask for testing vm86s.screen_bitmap */
-EXTERN unsigned int screen_mask;
 
 EXTERN unsigned char video_initialized INIT(0);
 extern boolean set_video_mode(int);

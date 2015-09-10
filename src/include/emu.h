@@ -47,12 +47,13 @@ struct eflags_fs_gs {
 
 extern struct eflags_fs_gs eflags_fs_gs;
 
-#if 1 /* Set to 1 to use Silly Interrupt generator */
 #ifdef __i386__
+int vm86_init(void);
+#define vm86(param) syscall(SYS_vm86old, param)
+#define vm86_plus(function,param) syscall(SYS_vm86, function, param)
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
-#endif
 #endif
 
 #define inline __inline__
@@ -68,17 +69,15 @@ extern SillyG_t *SillyG;
  * DANG_END_REMARK
 */
 
-union vm86plus_union
+union vm86_union
 {
-  struct vm86plus_struct vm86ps;
-  unsigned char b[sizeof(struct vm86plus_struct)];
-  unsigned short w[sizeof(struct vm86plus_struct)/2];
-  unsigned int d[sizeof(struct vm86plus_struct)/4];
+  struct vm86_struct vm86ps;
+  unsigned char b[sizeof(struct vm86_struct)];
+  unsigned short w[sizeof(struct vm86_struct)/2];
+  unsigned int d[sizeof(struct vm86_struct)/4];
 };
 
-EXTERN union vm86plus_union vm86u INIT ( {{
-      {0},0,0,0,{{0}},{{0}}, {0}}
-} );
+EXTERN union vm86_union vm86u INIT ( {0} );
 #define vm86s (vm86u.vm86ps)
 
 int signal_pending(void);
