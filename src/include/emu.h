@@ -47,12 +47,11 @@ struct eflags_fs_gs {
 
 extern struct eflags_fs_gs eflags_fs_gs;
 
-#if 1 /* Set to 1 to use Silly Interrupt generator */
 #ifdef __i386__
+int vm86_init(void);
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
-#endif
 #endif
 
 #define inline __inline__
