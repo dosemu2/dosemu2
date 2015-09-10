@@ -458,7 +458,8 @@ extern struct {
     uint16_t selector;
 } __attribute__((packed)) dpmi_switch_jmp;
 #else
-static struct pmaddr_s dpmi_switch_jmp;
+/* dont mark as static so that it is accessable from asm */
+struct pmaddr_s dpmi_switch_jmp;
 #endif
 #endif
 
