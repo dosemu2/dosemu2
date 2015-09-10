@@ -29,7 +29,6 @@
 #endif
 
 #include "emu.h"
-#include "vm86plus.h"
 #include "bios.h"
 #include "mouse.h"
 #include "serial.h"
@@ -295,13 +294,40 @@ static int handle_GP_hlt(void)
   return HLT_RET_NONE;
 }
 
+#ifdef __i386__
+static int true_vm86(struct vm86_struct *x)
+{
+    int ret;
+    unsigned short fs = getsegment(fs), gs = getsegment(gs);
+
+    ret = vm86(x);
+    /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
+    loadregister(fs, fs);
+    loadregister(gs, gs);
+    return ret;
+}
+#endif
+
+static int do_vm86(struct vm86_struct *x)
+{
+#ifdef __i386__
+#ifdef X86_EMULATOR
+    if (config.cpuemu)
+	return e_vm86();
+#endif
+    return true_vm86(x);
+#else
+    return e_vm86();
+#endif
+}
+
 static void _do_vm86(void)
 {
     int retval;
 
     loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
-    retval = DO_VM86(&vm86s);
+    retval = do_vm86(&vm86s);
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
