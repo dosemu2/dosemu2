@@ -39,7 +39,6 @@
 #include <sys/time.h>
 #include <fenv.h>
 #include "emu.h"
-#include "vm86plus.h"
 #include "timers.h"
 #include "pic.h"
 #include "mhpdbg.h"
@@ -1174,16 +1173,16 @@ int e_vm86(void)
   int errcode;
 
 #ifdef __i386__
+#ifdef SKIP_EMU_VBIOS
   /* skip emulation of video BIOS, as it is too much timing-dependent */
   if ((!IsV86Emu) || (config.cpuemu<2)
-#ifdef SKIP_EMU_VBIOS
    || ((REG(cs)&0xf000)==config.vbios_seg)
-#endif
    ) {
 	s_munprotect(0, 1);
 	InvalidateSegs();
 	return true_vm86(&vm86s);
   }
+#endif
 #endif
   if (iniflag==0) enter_cpu_emu();
 
