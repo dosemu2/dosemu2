@@ -295,6 +295,7 @@ static int handle_GP_hlt(void)
 }
 
 #ifdef __i386__
+#if 0
 static int true_vm86(struct vm86_struct *x)
 {
     int ret;
@@ -306,6 +307,19 @@ static int true_vm86(struct vm86_struct *x)
     loadregister(gs, gs);
     return ret;
 }
+#else
+static int true_vm86(struct vm86_struct *x)
+{
+    static struct vm86plus_struct p;		// static to not do memset
+    int ret;
+
+    /* need to use vm86_plus for now as otherwise dosdebug doesn't work */
+    memcpy(&p, x, sizeof(*x));
+    ret = vm86_plus(VM86_ENTER, &p);
+    memcpy(x, &p, sizeof(*x));
+    return ret;
+}
+#endif
 #endif
 
 static int do_vm86(struct vm86_struct *x)
