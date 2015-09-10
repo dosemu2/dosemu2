@@ -13,7 +13,6 @@
 EXTERN Bit16u CBACK_OFF;
 
 int vm86_init(void);
-void vm86plus_init(void);
 
 #ifdef __i386__
 #define vm86(param) syscall(SYS_vm86old, param)

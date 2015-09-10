@@ -191,33 +191,6 @@ boot(void)
     disk_close();
 }
 
-void vm86plus_init(void)
-{
-#ifdef X86_EMULATOR
-    if (config.cpuemu >= 3)
-	return;
-#endif
-#ifdef __i386__
-//    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) == -1 &&
-		errno == EFAULT)
-	return;
-#endif
-#ifdef X86_EMULATOR
-#ifdef __i386__
-    error("vm86 service not available in your kernel, %s\n", strerror(errno));
-    error("using CPU emulation for vm86()\n");
-#endif
-    if (config.cpuemu < 3) {
-	config.cpuemu = 3;
-	init_emu_cpu();
-    }
-    return;
-#endif
-    fprintf(stderr, "vm86plus service not available in your kernel\n\r");
-    exit(1);
-}
-
 void do_liability_disclaimer_prompt(int dosboot, int prompt)
 {
   FILE *f;
