@@ -1149,8 +1149,9 @@ void pcm_done(void)
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_ANY);
-    pcm_deinit_plugins(pcm.players, pcm.num_players);
     pcm_deinit_plugins(pcm.recorders, pcm.num_recorders);
+    pcm_deinit_plugins(pcm.players, pcm.num_players);
+    pcm_deinit_plugins(pcm.efps, pcm.num_efps);
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
     pthread_mutex_unlock(&pcm.strm_mtx);
@@ -1160,6 +1161,8 @@ void pcm_done(void)
 	close_plugin(dl_handles[i]);
     for (i = 0; i < pcm.num_players; i++)
 	free(pcm.players[i].priv);
+    for (i = 0; i < pcm.num_efps; i++)
+	free(pcm.efps[i].priv);
 }
 
 int pcm_init_plugins(struct pcm_holder *plu, int num)
