@@ -164,7 +164,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
    * If the CTS state is low, then don't start new transmit interrupt!
    */
   if (com_cfg[num].system_rtscts) {
-    int cts = serial_get_cts(num);
+    int cts = (serial_get_msr(num) & UART_MSR_CTS);
     if (!cts)
       return;		/* Return if CTS is low */
   }
@@ -202,15 +202,10 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   com[num].ms_timer += MS_MIN_FREQ;
 #endif
 
-  if(com_cfg[num].pseudo) {
+  if(com_cfg[num].pseudo)
     newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
-  } else {
-    newmsr = (serial_get_cts(num) ? UART_MSR_CTS : 0) |
-             (serial_get_dsr(num) ? UART_MSR_DSR : 0) |
-             (serial_get_rng(num) ? UART_MSR_RI : 0) |
-             (serial_get_car(num) ? UART_MSR_DCD : 0);
-  }
-
+  else
+    newmsr = serial_get_msr(num);
   delta = msr_compute_delta_bits(com[num].MSR, newmsr);
 
   com[num].MSR = (com[num].MSR & UART_MSR_DELTA) | newmsr | delta;

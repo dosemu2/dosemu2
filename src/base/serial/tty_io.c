@@ -620,32 +620,16 @@ static int tty_close(com_t *com)
   return (i);
 }
 
-static int tty_get_cts(com_t *com)
+static int tty_get_msr(com_t *com)
 {
-  int control;
-  ioctl(com->fd, TIOCMGET, &control);
-  return !!(control & TIOCM_CTS);
-}
-
-static int tty_get_dsr(com_t *com)
-{
-  int control;
-  ioctl(com->fd, TIOCMGET, &control);
-  return !!(control & TIOCM_DSR);
-}
-
-static int tty_get_rng(com_t *com)
-{
-  int control;
-  ioctl(com->fd, TIOCMGET, &control);
-  return !!(control & TIOCM_RNG);
-}
-
-static int tty_get_car(com_t *com)
-{
-  int control;
-  ioctl(com->fd, TIOCMGET, &control);
-  return !!(control & TIOCM_CAR);
+  int control, err;
+  err = ioctl(com->fd, TIOCMGET, &control);
+  if (err)
+    return 0;
+  return (((control & TIOCM_CTS) ? UART_MSR_CTS : 0) |
+          ((control & TIOCM_DSR) ? UART_MSR_DSR : 0) |
+          ((control & TIOCM_RNG) ? UART_MSR_RI : 0) |
+          ((control & TIOCM_CAR) ? UART_MSR_DCD : 0));
 }
 
 
@@ -661,9 +645,6 @@ struct serial_drv tty_drv = {
   tty_open,
   tty_close,
   tty_uart_fill,
-  tty_get_cts,
-  tty_get_dsr,
-  tty_get_rng,
-  tty_get_car,
+  tty_get_msr,
   "tty_io"
 };
