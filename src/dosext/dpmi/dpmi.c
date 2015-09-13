@@ -69,6 +69,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "msdos.h"
+#include "msdoshlp.h"
 #include "vxd.h"
 #include "bios.h"
 #include "config.h"
@@ -4071,7 +4072,7 @@ int dpmi_fault(struct sigcontext *scp)
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_pmc_end))) {
 	  D_printf("DPMI: Starting MSDOS pm call\n");
-	  msdos_pm_call(scp);
+	  msdos_pm_call(scp, DPMI_CLIENT.is_32);
 
 	} else
 	  return ret;

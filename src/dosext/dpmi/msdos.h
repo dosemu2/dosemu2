@@ -41,17 +41,6 @@ extern int msdos_pre_extender(struct sigcontext *scp, int intr,
 extern int msdos_post_extender(struct sigcontext *scp, int intr,
 	const struct RealModeCallStructure *rmreg);
 extern int msdos_fault(struct sigcontext *scp);
-#ifdef DOSEMU
-extern int msdos_pre_rm(struct sigcontext *scp,
-	const struct RealModeCallStructure *rmreg);
-extern void msdos_post_rm(struct sigcontext *scp,
-	struct RealModeCallStructure *rmreg);
-extern int msdos_pre_pm(struct sigcontext *scp,
-	struct RealModeCallStructure *rmreg);
-extern void msdos_post_pm(struct sigcontext *scp,
-	const struct RealModeCallStructure *rmreg);
-extern void msdos_pm_call(struct sigcontext *scp);
-#endif
 
 enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE };
 
