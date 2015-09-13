@@ -641,6 +641,7 @@ void run_irqs(void)
 	       set_VIP();
 	       return;                      /* exit if ints are disabled */
        }
+       clear_VIP();
 
        /* check for and find any requested irqs.  Having found one, we atomic-ly
         * clear it and verify it was there when we cleared it.  If it wasn't, we

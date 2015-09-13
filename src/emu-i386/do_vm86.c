@@ -337,11 +337,21 @@ static int do_vm86(struct vm86_struct *x)
 
 static void _do_vm86(void)
 {
-    int retval;
+    int retval, vtype;
 
     loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
+again:
     retval = do_vm86(&vm86s);
+    vtype = VM86_TYPE(retval);
+    /* optimize VM86_STI case that can return with ints disabled
+     * if VIP is set */
+    if (vtype == VM86_STI) {
+	if (!isset_IF())
+	    goto again;
+	else
+	    clear_VIP();
+    }
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
@@ -366,7 +376,7 @@ static void _do_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
-    switch VM86_TYPE(retval) {
+    switch (vtype) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
 	break;
