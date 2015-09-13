@@ -351,15 +351,6 @@ static void _do_vm86(void)
     */
     feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 
-#if 0
-    /* This will protect us from Mr.Norton's bugs */
-    if (_EFLAGS & (AC|ID)) {
-      _EFLAGS &= ~(AC|ID);
-      if (debug_level('g')>3)
-	dbug_printf("BUG: AC,ID set; flags changed to %08x\n",_EFLAGS);
-    }
-#endif
-
     if (
 #ifdef X86_EMULATOR
 	(debug_level('e')>1)||
