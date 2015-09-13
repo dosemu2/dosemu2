@@ -16,22 +16,6 @@
 #ifndef __MSDOS_H__
 #define __MSDOS_H__
 
-#define MSDOS_MAX_MEM_ALLOCS 1024
-
-struct msdos_struct {
-  int is_32;
-  struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-  far_t XMS_call;
-  /* used when passing a DTA higher than 1MB */
-  unsigned short user_dta_sel;
-  unsigned long user_dta_off;
-  unsigned short user_psp_sel;
-  unsigned short lowmem_seg;
-  dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
-  far_t rmcb;
-  int rmcb_alloced;
-};
-
 extern void msdos_setup(void);
 extern void msdos_reset(u_short emm_s);
 extern void msdos_init(int is_32, unsigned short mseg);

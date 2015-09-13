@@ -65,8 +65,22 @@ static unsigned short EMM_SEG;
 #define sp_INDEX esp_INDEX
 #define flags_INDEX eflags_INDEX
 
-static int msdos_client_num = 0;
+#define MSDOS_MAX_MEM_ALLOCS 1024
+struct msdos_struct {
+  int is_32;
+  struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+  far_t XMS_call;
+  /* used when passing a DTA higher than 1MB */
+  unsigned short user_dta_sel;
+  unsigned long user_dta_off;
+  unsigned short user_psp_sel;
+  unsigned short lowmem_seg;
+  dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
+  far_t rmcb;
+  int rmcb_alloced;
+};
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
+static int msdos_client_num = 0;
 
 static int ems_frame_mapped;
 static int ems_handle;
