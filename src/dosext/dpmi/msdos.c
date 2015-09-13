@@ -85,14 +85,6 @@ static int ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static void xms_call(struct RealModeCallStructure *rmreg);
 
-static const struct msdos_ops msdops = {
-    .rmcb_handler = rmcb_handler,
-    .api_call = msdos_api_call,
-    .mouse_callback = mouse_callback,
-    .ps2_mouse_callback = ps2_mouse_callback,
-    .xms_call = xms_call,
-};
-
 static void set_io_buffer(char *ptr, unsigned int size)
 {
     io_buffer = ptr;
@@ -124,7 +116,6 @@ static unsigned short trans_buffer_seg(void)
 
 void msdos_setup(void)
 {
-    doshlp_init(&msdops);
 }
 
 void msdos_reset(u_short emm_s)
@@ -252,7 +243,7 @@ static void get_ext_API(struct sigcontext *scp)
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
     if ((!strcmp("WINOS2", ptr)) || (!strcmp("MS-DOS", ptr))) {
 	_LO(ax) = 0;
-	pma = get_pm_handler(msdos_api_call);
+	pma = get_pm_handler(API_CALL, msdos_api_call);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
@@ -639,7 +630,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 			 _es, D_16_32(_ebx));
 		    MSDOS_CLIENT.PS2mouseCallBack.selector = _es;
 		    MSDOS_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx);
-		    rma = get_rm_handler(ps2_mouse_callback);
+		    rma = get_rm_handler(PS2MOUSE_CB, ps2_mouse_callback);
 		    SET_RMREG(es, rma.segment);
 		    SET_RMREG(ebx, rma.offset);
 		} else {
@@ -1202,7 +1193,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 		if (_es) {
 		    far_t rma;
 		    D_printf("MSDOS: set mouse callback\n");
-		    rma = get_rm_handler(mouse_callback);
+		    rma = get_rm_handler(MOUSE_CB, mouse_callback);
 		    SET_RMREG(es, rma.segment);
 		    SET_RMREG(edx, rma.offset);
 		} else {
@@ -1344,7 +1335,7 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
 	case 0x4310: {
 	    struct pmaddr_s pma;
 	    MSDOS_CLIENT.XMS_call = MK_FARt(RMREG(es), RMLWORD(ebx));
-	    pma = get_pmrm_handler(xms_call);
+	    pma = get_pmrm_handler(XMS_CALL, xms_call);
 	    SET_REG(es, pma.selector);
 	    SET_REG(ebx, pma.offset);
 	    break;
