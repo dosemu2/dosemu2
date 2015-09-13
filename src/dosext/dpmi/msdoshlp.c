@@ -88,6 +88,11 @@ far_t allocate_realmode_callback(void (*handler)(
 	    DPMI_DATA_OFF(MSDOS_rmcb_data));
 }
 
+int free_realmode_callback(u_short seg, u_short off)
+{
+    return DPMI_free_realmode_callback(seg, off);
+}
+
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(struct sigcontext *))
 {

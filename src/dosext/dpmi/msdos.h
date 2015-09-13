@@ -29,6 +29,7 @@ struct msdos_struct {
   unsigned short lowmem_seg;
   dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
   far_t rmcb;
+  int rmcb_alloced;
 };
 
 extern void msdos_setup(void);

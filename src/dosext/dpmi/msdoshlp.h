@@ -15,6 +15,7 @@ extern void msdos_pm_call(struct sigcontext *scp, int is_32);
 
 extern far_t allocate_realmode_callback(void (*handler)(
 	struct RealModeCallStructure *));
+extern int free_realmode_callback(u_short seg, u_short off);
 extern struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	void (*handler)(struct sigcontext *));
 extern struct pmaddr_s get_pmrm_handler(enum MsdOpIds id,

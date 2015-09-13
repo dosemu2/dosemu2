@@ -139,16 +139,19 @@ void msdos_init(int is_32, unsigned short mseg)
 		 envp, get_env_sel());
     }
     if (msdos_client_num == 1 ||
-	    msdos_client[msdos_client_num - 2].is_32 != is_32)
+	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
 	MSDOS_CLIENT.rmcb = allocate_realmode_callback(rmcb_handler);
-    else
+	MSDOS_CLIENT.rmcb_alloced = 1;
+    } else {
 	MSDOS_CLIENT.rmcb = msdos_client[msdos_client_num - 2].rmcb;
+    }
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
 void msdos_done(void)
 {
-    DPMI_free_realmode_callback(MSDOS_CLIENT.rmcb.segment,
+    if (MSDOS_CLIENT.rmcb_alloced)
+	free_realmode_callback(MSDOS_CLIENT.rmcb.segment,
 	    MSDOS_CLIENT.rmcb.offset);
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
