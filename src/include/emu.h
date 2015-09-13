@@ -47,8 +47,8 @@ struct eflags_fs_gs {
 
 extern struct eflags_fs_gs eflags_fs_gs;
 
-#ifdef __i386__
 int vm86_init(void);
+#ifdef __i386__
 #define vm86(param) syscall(SYS_vm86old, param)
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
 #define SIG 1
