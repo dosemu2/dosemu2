@@ -1084,14 +1084,10 @@ static int e_do_int(int i, unsigned int ssp, unsigned int sp)
 {
 	unsigned int *intr_ptr, segoffs;
 
-	if (_CS == BIOSSEG)
-		goto cannot_handle;
 	if (e_revectored(i, &vm86s.int_revectored))
 		goto cannot_handle;
 	intr_ptr = MK_FP32(0, i << 2);
 	segoffs = *intr_ptr;
-	if ((segoffs >> 16) == BIOSSEG)
-		goto cannot_handle;
 	pushw(ssp, sp, e_get_vflags());
 	pushw(ssp, sp, _CS);
 	pushw(ssp, sp, _IP);
