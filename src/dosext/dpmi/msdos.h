@@ -44,9 +44,4 @@ extern int msdos_fault(struct sigcontext *scp);
 
 enum { MSDOS_NONE, MSDOS_RM, MSDOS_DONE };
 
-#define DTA_Para_ADD 0
-#define DTA_Para_SIZE 8
-#define EXEC_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
-#define EXEC_Para_SIZE 30
-
 #endif

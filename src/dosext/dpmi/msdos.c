@@ -50,6 +50,11 @@ static unsigned short EMM_SEG;
 
 #define MAX_DOS_PATH 260
 
+#define DTA_Para_ADD 0
+#define DTA_Para_SIZE 8
+#define EXEC_Para_ADD (DTA_Para_ADD + DTA_Para_SIZE)
+#define EXEC_Para_SIZE 30
+
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
 
@@ -1800,13 +1805,22 @@ int msdos_fault(struct sigcontext *scp)
 #if !ALL_GDTS
     segment = (_err & 0xfff8);
     /* only allow using some special GTDs */
-    if ((segment != 0x0040) && (segment != 0xa000) &&
-	(segment != 0xb000) && (segment != 0xb800) &&
-	(segment != 0xc000) && (segment != 0xe000) &&
-	(segment != 0xf000) && (segment != 0xbf8) &&
-	(segment != 0xf800) && (segment != 0xff00) && (segment != 0x38))
+    switch (segment) {
+    case 0x0040:
+    case 0xa000:
+    case 0xb000:
+    case 0xb800:
+    case 0xc000:
+    case 0xe000:
+    case 0xf000:
+    case 0xbf8:
+    case 0xf800:
+    case 0xff00:
+    case 0x38:		// ShellShock installer
+	break;
+    default:
 	return 0;
-
+    }
     copy_context(&new_sct, scp, 0);
     reg = decode_segreg(&new_sct);
     if (reg == -1)
