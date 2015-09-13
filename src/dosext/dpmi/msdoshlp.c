@@ -39,7 +39,7 @@ void doshlp_init(const struct msdos_ops *ops)
     msdos = ops;
 }
 
-void lrhlp_setup(far_t rmcb)
+static void lrhlp_setup(far_t rmcb)
 {
 #define MK_LR_OFS(ofs) ((long)(ofs)-(long)MSDOS_lr_start)
     WRITE_WORD(SEGOFF2LINEAR(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF +
@@ -48,7 +48,7 @@ void lrhlp_setup(far_t rmcb)
 		     MK_LR_OFS(MSDOS_lr_entry_cs)), rmcb.segment);
 }
 
-void lwhlp_setup(far_t rmcb)
+static void lwhlp_setup(far_t rmcb)
 {
 #define MK_LW_OFS(ofs) ((long)(ofs)-(long)MSDOS_lw_start)
     WRITE_WORD(SEGOFF2LINEAR
@@ -61,7 +61,7 @@ void lwhlp_setup(far_t rmcb)
 	       rmcb.segment);
 }
 
-void exechlp_setup(void)
+static void exechlp_setup(void)
 {
 #define MK_EX_OFS(ofs) ((long)(ofs)-(long)MSDOS_exec_start)
     far_t rma;
@@ -124,20 +124,23 @@ far_t get_rm_handler(int (*handler)(struct sigcontext *,
     return ret;
 }
 
-far_t get_lr_helper(void)
+far_t get_lr_helper(far_t rmcb)
 {
+    lrhlp_setup(rmcb);
     return (far_t){ .segment = DOS_LONG_READ_SEG,
 	    .offset = DOS_LONG_READ_OFF };
 }
 
-far_t get_lw_helper(void)
+far_t get_lw_helper(far_t rmcb)
 {
+    lwhlp_setup(rmcb);
     return (far_t){ .segment = DOS_LONG_WRITE_SEG,
 	    .offset = DOS_LONG_WRITE_OFF };
 }
 
 far_t get_exec_helper(void)
 {
+    exechlp_setup();
     return (far_t){ .segment = BIOSSEG,
 	    .offset = DOS_EXEC_OFF };
 }

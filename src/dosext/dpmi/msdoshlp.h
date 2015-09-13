@@ -28,12 +28,9 @@ extern far_t allocate_realmode_callback(void (*handler)(
 extern struct pmaddr_s get_pm_handler(void (*handler)(struct sigcontext *));
 extern far_t get_rm_handler(int (*handler)(struct sigcontext *,
 	const struct RealModeCallStructure *));
-extern far_t get_lr_helper(void);
-extern far_t get_lw_helper(void);
+extern far_t get_lr_helper(far_t rmcb);
+extern far_t get_lw_helper(far_t rmcb);
 extern far_t get_exec_helper(void);
-extern void lrhlp_setup(far_t rmcb);
-extern void lwhlp_setup(far_t rmcb);
-extern void exechlp_setup(void);
 extern struct pmaddr_s get_pmrm_handler(void (*handler)(
 	struct RealModeCallStructure *));
 

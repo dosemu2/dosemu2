@@ -147,7 +147,6 @@ void msdos_init(int is_32, unsigned short mseg)
 	MSDOS_CLIENT.rmcb = allocate_realmode_callback(rmcb_handler);
     else
 	MSDOS_CLIENT.rmcb = msdos_client[msdos_client_num - 2].rmcb;
-    exechlp_setup();
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
@@ -886,11 +885,11 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 		    error
 			("DPMI: exec: EMS frame should not be mapped here\n");
 		/* the new client may do the raw mode switches and we need
-		 * to preserve at least current client's eip. In fact, DOS
+		 * to preserve at least current client's eip. In fact, DOS exec
 		 * preserves most registers, so, if the child is not polite,
 		 * we also need to preserve all segregs and stack regs too
 		 * (rest will be translated from realmode).
-		 * The problem is that DOS stores the registers in the stack
+		 * The problem is that DOS stores the registers on the stack
 		 * so we can't replace the already saved regs with PM ones
 		 * and extract them in post_extender() as we usually do.
 		 * Additionally PM eax will be trashed, so we need to
@@ -958,25 +957,23 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    SET_RMREG(edx, 0);
 	    break;
 	case 0x3f: {		/* dos read */
-	    far_t rma = get_lr_helper();
+	    far_t rma = get_lr_helper(MSDOS_CLIENT.rmcb);
 	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    lrhlp_setup(MSDOS_CLIENT.rmcb);
 	    rm_do_int_to(rma.segment, rma.offset, rmreg, rm_mask);
 	    alt_ent = 1;
 	    break;
 	}
 	case 0x40: {		/* DOS Write */
-	    far_t rma = get_lw_helper();
+	    far_t rma = get_lw_helper(MSDOS_CLIENT.rmcb);
 	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    lwhlp_setup(MSDOS_CLIENT.rmcb);
 	    rm_do_int_to(rma.segment, rma.offset, rmreg, rm_mask);
 	    alt_ent = 1;
 	    break;
