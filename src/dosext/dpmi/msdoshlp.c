@@ -25,8 +25,12 @@
  * TODO: port bios.S asm helpers to C and put here
  */
 
+#include "emu.h"
 #include "cpu.h"
 #include "utilities.h"
+#include "int.h"
+#include "hlt.h"
+#include "coopth.h"
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "msdoshlp.h"
@@ -42,6 +46,15 @@ struct msdos_ops {
     void (*rmcb_handler)(struct RealModeCallStructure *rmreg);
 };
 static struct msdos_ops msdos;
+
+struct exec_helper_s {
+    int initialized;
+    int tid;
+    far_t entry;
+    far_t s_r;
+    u_char len;
+};
+static struct exec_helper_s exec_helper;
 
 static void lrhlp_setup(far_t rmcb)
 {
@@ -65,18 +78,55 @@ static void lwhlp_setup(far_t rmcb)
 	       rmcb.segment);
 }
 
+static void exechlp_thr(void *arg)
+{
+    struct vm86_regs saved_regs;
+
+    /* straight port of bios.S's DOS_EXEC assembly */
+    saved_regs = REGS;
+    LWORD(esp) -= exec_helper.len;
+    LO(ax) = 0;
+    REG(es) = REG(ss);
+    LWORD(edi) = LWORD(esp);
+    do_call_back(exec_helper.s_r.segment, exec_helper.s_r.offset);
+    REG(eax) = saved_regs.eax;
+    REG(es) = saved_regs.es;
+    REG(edi) = saved_regs.edi;
+    do_int_call_back(0x21);
+    saved_regs.eflags = REG(eflags);
+    saved_regs.eax = REG(eax);
+    saved_regs.es = REG(es);
+    saved_regs.edi = REG(edi);
+    LO(ax) = 1;
+    REG(es) = REG(ss);
+    LWORD(edi) = LWORD(esp);
+    do_call_back(exec_helper.s_r.segment, exec_helper.s_r.offset);
+    REG(eflags) = saved_regs.eflags;
+    REG(eax) = saved_regs.eax;
+    REG(es) = saved_regs.es;
+    REG(edi) = saved_regs.edi;
+    REG(esp) = saved_regs.esp;
+}
+
+static void exechlp_hlt(Bit16u off, void *arg)
+{
+    fake_iret();
+    coopth_start(exec_helper.tid, exechlp_thr, NULL);
+}
+
 static void exechlp_setup(void)
 {
-#define MK_EX_OFS(ofs) ((long)(ofs)-(long)MSDOS_exec_start)
-    far_t rma;
     struct pmaddr_s pma;
-    int len = DPMI_get_save_restore_address(&rma, &pma);
-    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
-	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_entry_ip)), rma.offset);
-    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
-	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_entry_cs)), rma.segment);
-    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG,
-	       DOS_EXEC_OFF + MK_EX_OFS(MSDOS_exec_buf_sz)), len);
+    exec_helper.len = DPMI_get_save_restore_address(&exec_helper.s_r, &pma);
+    if (!exec_helper.initialized) {
+	emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
+	hlt_hdlr.name = "msdos exec";
+	hlt_hdlr.func = exechlp_hlt;
+	exec_helper.entry.offset = hlt_register_handler(hlt_hdlr);
+	exec_helper.entry.segment = BIOS_HLT_BLK_SEG;
+	exec_helper.tid = coopth_create("msdos exec thr");
+	exec_helper.initialized = 1;
+    }
 }
 
 far_t allocate_realmode_callback(void (*handler)(
@@ -169,8 +219,7 @@ far_t get_lw_helper(far_t rmcb)
 far_t get_exec_helper(void)
 {
     exechlp_setup();
-    return (far_t){ .segment = BIOSSEG,
-	    .offset = DOS_EXEC_OFF };
+    return exec_helper.entry;
 }
 
 void msdos_pm_call(struct sigcontext *scp, int is_32)
