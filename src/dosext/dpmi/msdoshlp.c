@@ -34,6 +34,7 @@
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "msdoshlp.h"
+#include <assert.h>
 
 
 struct msdos_ops {
@@ -78,34 +79,31 @@ static void lwhlp_setup(far_t rmcb)
 	       rmcb.segment);
 }
 
+static void s_r_call(u_char al, u_short es, u_short di)
+{
+    u_short saved_ax = LWORD(eax), saved_es = REG(es), saved_di = LWORD(edi);
+
+    LO(ax) = al;
+    REG(es) = es;
+    LWORD(edi) = di;
+    do_call_back(exec_helper.s_r.segment, exec_helper.s_r.offset);
+    LWORD(eax) = saved_ax;
+    REG(es) = saved_es;
+    LWORD(edi) = saved_di;
+}
+
 static void exechlp_thr(void *arg)
 {
-    struct vm86_regs saved_regs;
+    u_short saved_flags;
 
-    /* straight port of bios.S's DOS_EXEC assembly */
-    saved_regs = REGS;
+    assert(LWORD(esp) >= exec_helper.len);
     LWORD(esp) -= exec_helper.len;
-    LO(ax) = 0;
-    REG(es) = REG(ss);
-    LWORD(edi) = LWORD(esp);
-    do_call_back(exec_helper.s_r.segment, exec_helper.s_r.offset);
-    REG(eax) = saved_regs.eax;
-    REG(es) = saved_regs.es;
-    REG(edi) = saved_regs.edi;
+    s_r_call(0, REG(ss), LWORD(esp));
     do_int_call_back(0x21);
-    saved_regs.eflags = REG(eflags);
-    saved_regs.eax = REG(eax);
-    saved_regs.es = REG(es);
-    saved_regs.edi = REG(edi);
-    LO(ax) = 1;
-    REG(es) = REG(ss);
-    LWORD(edi) = LWORD(esp);
-    do_call_back(exec_helper.s_r.segment, exec_helper.s_r.offset);
-    REG(eflags) = saved_regs.eflags;
-    REG(eax) = saved_regs.eax;
-    REG(es) = saved_regs.es;
-    REG(edi) = saved_regs.edi;
-    REG(esp) = saved_regs.esp;
+    saved_flags = LWORD(eflags);
+    s_r_call(1, REG(ss), LWORD(esp));
+    LWORD(eflags) = saved_flags;
+    LWORD(esp) += exec_helper.len;
 }
 
 static void exechlp_hlt(Bit16u off, void *arg)
