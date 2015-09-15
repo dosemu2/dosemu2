@@ -339,6 +339,10 @@ static void _do_vm86(void)
 {
     int retval, vtype;
 
+    if (isset_IF() && isset_VIP()) {
+	error("both IF and VIP set\n");
+	clear_VIP();
+    }
     loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
 again:
