@@ -35,12 +35,8 @@
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
-#if 0
-/* NOTE: the below is already defined with #include "emu.h"
- *       Must NOT redefine it, else vm86plus won't work !!!
- */
-extern struct vm86_struct vm86s;
-#endif
+struct mhpdbg mhpdbg;
+unsigned long dosdebug_flags;
 
 static void vmhp_printf(const char *fmt, va_list args);
 static void mhp_poll(void);
