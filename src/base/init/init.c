@@ -31,7 +31,6 @@
 #include "ipx.h"
 #include "bitops.h"
 #include "pic.h"
-#include "cmos.h"
 #include "dma.h"
 #include "xms.h"
 #include "lowmem.h"

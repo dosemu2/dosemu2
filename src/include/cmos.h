@@ -6,8 +6,6 @@
 #ifndef CMOS_H
 #define CMOS_H
 
-#include "extern.h"
-
 #define CMOS_SEC	0	/* RTC time: seconds */
 #define CMOS_SECALRM	1	/* Alarm time: seconds */
 #define CMOS_MIN	2	/* RTC time: minutes */
@@ -57,7 +55,7 @@ struct CMOS {
   int address;
 };
 
-EXTERN struct CMOS cmos;
+extern struct CMOS cmos;
 
 #define SET_CMOS(byte,val)  do { cmos.subst[byte&63] = (val); cmos.flag[byte&63] = 1; } while(0)
 #define GET_CMOS(byte)		 (cmos.subst[byte&63])

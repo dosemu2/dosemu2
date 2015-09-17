@@ -22,6 +22,7 @@
 
 #define PEXTMEM_SIZE (EXTMEM_SIZE + HMASIZE)
 
+struct CMOS cmos;
 
 static int
 cmos_chksum(void)
