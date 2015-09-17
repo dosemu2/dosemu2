@@ -81,6 +81,7 @@
 static hitimer_t (*RAWcpuTIME)(void);
 
 hitimer_u ZeroTimeBase = { 0 };
+static hitimer_t (*GETcpuTIME)(void);
 static hitimer_u ZeroTSCBase = { 0 };
 static hitimer_t C4Base = 0;
 static hitimer_t LastTimeRead = 0;

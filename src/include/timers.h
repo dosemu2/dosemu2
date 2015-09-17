@@ -3,7 +3,6 @@
 
 #include <unistd.h>
 #include "config.h"
-#include "extern.h"
 #include "types.h"
 
 /* A 'magical' constant used to force the result we want, in this case
@@ -93,8 +92,6 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 extern void update_cputime_TSCBase(void);
 extern hitimer_u ZeroTimeBase;
 extern hitimer_t t_vretrace;
-
-EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);
 
 static inline hitimer_t GETTSC(void) {
 	hitimer_t d;

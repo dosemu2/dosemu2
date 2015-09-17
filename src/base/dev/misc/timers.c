@@ -51,7 +51,6 @@ static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
 static Bit8u port61 = 0x0c;
 
-
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
  *
