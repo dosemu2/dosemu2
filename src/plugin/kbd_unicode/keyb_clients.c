@@ -19,6 +19,7 @@
 
 static t_unicode *paste_buffer = NULL;
 static int paste_len = 0, paste_idx = 0;
+int kbd_fd = -1;
 
 static int paste_unicode_text(const t_unicode *text, int len)
 {
