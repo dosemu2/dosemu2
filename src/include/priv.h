@@ -8,18 +8,18 @@
  * Dos NOT mean, that _have_ that rights already, it needs enter_priv_on
  * anyway.
  */
-EXTERN int can_do_root_stuff INIT(0);
+extern int can_do_root_stuff;
 
 /* set, if dosemu was started from a 'root login',
  * unset, if dosemu was started from a 'user login'
  */
-EXTERN int under_root_login INIT(0);
+extern int under_root_login;
 /* set, if dosemu was started as root via 'sudo'
  */
-EXTERN int using_sudo INIT(0);
+extern int using_sudo;
 /* gives the current i/o privilege level without needing to ask
    the kernel */
-EXTERN int current_iopl INIT(0);
+extern int current_iopl;
 
 typedef int saved_priv_status;
 
