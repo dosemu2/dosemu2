@@ -12,6 +12,20 @@
 
 
 FILE *dbg_fd;
+#ifdef DONT_DEBUG_BOOT
+static struct debug_class debug_save[DEBUG_CLASSES];
+#endif
+static struct debug_class debug[DEBUG_CLASSES];
+int shut_debug;
+
+int debug_level(int letter)
+{
+	if (letter >= DEBUG_CLASSES) {
+		return -1;
+	}
+	return debug[letter].level;
+
+}
 
 #ifndef NO_DEBUGPRINT_AT_ALL
 
