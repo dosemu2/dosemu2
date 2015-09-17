@@ -2,8 +2,6 @@
 #ifndef XMS_H
 #define XMS_H
 
-#include "extern.h"
-
 #define INT2F_XMS_MAGIC		0x0043	/* AH for all int 2f XMS calls */
 #define XMS_VERSION    		0x0300	/* version 3.00 */
 #define XMS_DRIVER_VERSION	0x0301	/* my driver version 3.01 */
