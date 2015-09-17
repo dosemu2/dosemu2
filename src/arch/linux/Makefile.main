@@ -23,7 +23,7 @@ XCPUEMU=emu-i386/simx86
 # No longer need midid
 #REQUIRED += $(MIDID)
 
-_LIBSUBDIRS=base/video base/dev/vga base base/async \
+_LIBSUBDIRS=base/video base/dev/vga base/async \
 	arch/linux/async arch/linux/mapping \
 	base/misc base/misc/libpcl base/dev/misc\
 	emu-i386 $(XCPUEMU) base/speaker \
