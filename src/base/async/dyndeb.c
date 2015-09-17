@@ -11,6 +11,8 @@
 #include "port.h"
 
 
+FILE *dbg_fd;
+
 #ifndef NO_DEBUGPRINT_AT_ALL
 
 int register_debug_class(int letter, void (*change_level)(int level), char *help_text)

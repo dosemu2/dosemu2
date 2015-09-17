@@ -87,9 +87,7 @@ extern int terminal_pipe;
 extern int terminal_fd;
 extern int kernel_version_code;
 
-extern int screen_mode;
-
-/* number of highest vid page - 1 */
+extern FILE *dbg_fd;
 
 struct callback_s {
   void (*func)(void *);
