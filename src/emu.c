@@ -36,20 +36,6 @@
 
 #include "config.h"
 
-#ifndef __ELF__
-/*
- * DANG_BEGIN_FUNCTION jmp_emulate
- *
- * description: This function allows the startup program `dos` to know how to
- * call the emulate function by way of the dll headers. Always make sure
- * that this line is the first of emu.c and link emu.o as the first object
- * file to the lib
- *
- * DANG_END_FUNCTION
- */
-__asm__("___START___: jmp _emulate\n");
-#endif
-
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
