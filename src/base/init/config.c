@@ -166,10 +166,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 #endif
 
     if (config_check_only) mapping_init();
-    if (mappingdriver.name)
-      (*print)("mappingdriver %s\n", mappingdriver.name);
-    else
-      (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
+    (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
     if (config_check_only) mapping_close();
     (*print)("hdiskboot %d\n",
         config.hdiskboot);
