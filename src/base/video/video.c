@@ -244,58 +244,6 @@ static int video_init(void)
   return 0;
 }
 
-static void
-scr_state_init(void) {
-  switch (config.cardtype) {
-  case CARD_MDA:
-    {
-      configuration |= (MDA_CONF_SCREEN_MODE);
-      phys_text_base = MDA_PHYS_TEXT_BASE;
-      virt_text_base = MDA_VIRT_TEXT_BASE;
-      video_combo = MDA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_CGA:
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_EGA:
-    {
-      configuration |= (EGA_CONF_SCREEN_MODE);
-      phys_text_base = EGA_PHYS_TEXT_BASE;
-      virt_text_base = EGA_VIRT_TEXT_BASE;
-      video_combo = EGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_VGA:
-    {
-      configuration |= (VGA_CONF_SCREEN_MODE);
-      phys_text_base = VGA_PHYS_TEXT_BASE;
-      virt_text_base = VGA_VIRT_TEXT_BASE;
-      video_combo = VGA_VIDEO_COMBO;
-      break;
-    }
-  default:			/* or Terminal, is this correct ? */
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  }
-  scr_state.vt_allow = 0;
-  scr_state.mapped = 0;
-  scr_state.pageno = 0;
-  scr_state.virt_address = virt_text_base;
-  /* Assume the screen is initially mapped. */
-  scr_state.current = 1;
-}
-
 void video_close(void) {
   v_printf("VID: video_close() called\n");
   if (Video && Video->close) {
@@ -385,7 +333,6 @@ void video_config_init(void)
 
 void video_post_init(void)
 {
-  scr_state_init();
   if (Video && Video->init)
     Video->init();
 }
@@ -396,12 +343,8 @@ void video_late_init(void)
     Video->late_init();
 }
 
-/* check whether we are running on the console; initialise
- * console_fd and scr_state.console_no
- */
-int on_console(void) {
-
-
+int on_console(void)
+{
 #ifdef __linux__
     struct stat chkbuf;
     int major, minor;
@@ -421,7 +364,6 @@ int on_console(void) {
 	    major, minor);
     /* console major num is 4, minor 64 is the first serial line */
     if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64)) {
-       scr_state.console_no = minor;
        console_fd = STDIN_FILENO;
        return 1;
     }

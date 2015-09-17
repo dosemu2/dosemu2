@@ -181,13 +181,11 @@ extern int vga_dumpregs(void);
 extern unsigned char video_port_in(ioport_t port);
 extern void video_port_out(ioport_t port, unsigned char value);
 
-EXTERN int CRT_I, CRT_D, IS1_R, FCR_W;
-extern u_char att_d_index;
-EXTERN u_char permissions;
-EXTERN struct screen_stat scr_state;
-extern int dos_has_vt;
-
-EXTERN int user_vc_switch INIT(0);
+extern int CRT_I, CRT_D, IS1_R, FCR_W;
+extern u_char permissions;
+extern struct screen_stat scr_state;
+extern int user_vc_switch;
+void scr_state_init(void);
 
 #endif
 /* End of include/vc.h */
