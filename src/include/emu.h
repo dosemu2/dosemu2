@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "priv.h"
 #include "mouse.h"
+#include "dosemu_config.h"
 
 #include "extern.h"
 
@@ -456,15 +457,6 @@ extern void deinit_handler(struct sigcontext *scp);
 #else
 #define deinit_handler(scp)
 #endif
-
-/*
- * DANG_BEGIN_REMARK
- * DOSEMU keeps system wide configuration status in a structure
- * called config.
- * DANG_END_REMARK
- */
-EXTERN struct config_info config;
-
 
 /*
  * DANG_BEGIN_REMARK

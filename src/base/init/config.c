@@ -82,6 +82,7 @@ char *dexe_load_path = dosemuhdimage_default;
 char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
 char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
 char *dosemu_map_file_name;
+struct config_info config;
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override

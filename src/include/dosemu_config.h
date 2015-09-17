@@ -9,6 +9,14 @@
 #ifndef __ASSEMBLER__
 #include "plugin_config.h"
 
+/*
+ * DANG_BEGIN_REMARK
+ * DOSEMU keeps system wide configuration status in a structure
+ * called config.
+ * DANG_END_REMARK
+ */
+extern struct config_info config;
+
 extern void config_init(int argc, char **argv);
 extern void parse_dosemu_users(void);
 extern void secure_option_preparse(int *argc, char **argv);
