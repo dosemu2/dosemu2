@@ -43,7 +43,7 @@ struct keyboard_client {
 
 void register_keyboard_client(struct keyboard_client *keyboard);
 
-EXTERN struct keyboard_client *Keyboard INIT(NULL);
+extern struct keyboard_client *Keyboard;
 extern struct keyboard_client Keyboard_raw;
 extern struct keyboard_client Keyboard_slang;
 extern struct keyboard_client Keyboard_none;
