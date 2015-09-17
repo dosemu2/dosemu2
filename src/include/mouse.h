@@ -166,8 +166,6 @@ extern struct mouse_client Mouse_raw;
 void mouse_keyboard(Boolean make, t_keysym key);
 void mouse_curtick(void);
 
-EXTERN int keyboard_mouse;
-
 extern void mouse_priv_init(void);
 extern void dosemu_mouse_init(void);
 extern void dosemu_mouse_reset(void);
