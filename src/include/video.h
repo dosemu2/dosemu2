@@ -1,7 +1,6 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
-#include "extern.h"
 #include "port.h"
 
 extern void gettermcap(int,int *, int *);
@@ -70,19 +69,12 @@ struct video_system {
 };
 
 extern struct video_system *Video;
-EXTERN int video_mode INIT(0);
-EXTERN int video_combo INIT(0);
+extern int video_mode;
+extern int video_combo;
 
-EXTERN unsigned char video_initialized INIT(0);
+extern unsigned char video_initialized;
 extern boolean set_video_mode(int);
 extern unsigned screen_adr(int page);
-
-/* Values are set by video_config_init depending on video-card defined in config */
-/* Values are set from emu.c depending on video-config */
-
-
-EXTERN unsigned virt_text_base INIT(0);
-EXTERN int phys_text_base INIT(0);
 
 /* Various defines for all common video adapters */
 

@@ -69,6 +69,8 @@
 #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
 
 static const int max_page = 7;
+int video_mode;
+int video_combo;
 
 unsigned screen_adr(int page)
 {

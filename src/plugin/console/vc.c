@@ -72,6 +72,8 @@ int CRT_I, CRT_D, IS1_R, FCR_W;
 u_char permissions;
 struct screen_stat scr_state;
 struct video_save_struct linux_regs, dosemu_regs;
+static unsigned virt_text_base;
+static int phys_text_base;
 
 #define MAXDOSINTS 032
 #define MAXMODES 34
