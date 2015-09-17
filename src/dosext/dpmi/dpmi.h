@@ -140,11 +140,11 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
-EXTERN volatile int in_dpmi INIT(0);/* Set to 1 when running under DPMI */
-EXTERN volatile int in_dpmi_dos_int INIT(1);
-EXTERN volatile int dpmi_mhp_TF INIT(0);
-EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
-EXTERN volatile int is_cli INIT(0);
+extern volatile int in_dpmi;/* Set to 1 when running under DPMI */
+extern volatile int in_dpmi_dos_int;
+extern volatile int dpmi_mhp_TF;
+extern unsigned char dpmi_mhp_intxxtab[256];
+extern int is_cli;
 
 extern SEGDESC Segments[MAX_SELECTORS];
 extern unsigned long dpmi_total_memory; /* total memory  of this session */
