@@ -33,7 +33,7 @@ typedef struct {
   hitimer_u	 time;
 } pit_latch_struct;
 
-EXTERN pit_latch_struct pit[PIT_TIMERS];
+extern pit_latch_struct pit[PIT_TIMERS];
 
 extern void  pit_init(void);
 extern void  pit_reset(void);
