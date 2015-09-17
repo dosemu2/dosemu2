@@ -17,9 +17,6 @@
  * Robert Sanders 12/12/92
  */
 
-#include "extern.h"
-
-
 struct screen_stat {
   int console_no,		/* our console number */
    vt_allow;			/* whether to allow VC switches */

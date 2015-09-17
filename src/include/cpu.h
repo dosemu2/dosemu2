@@ -23,8 +23,6 @@
 #define _regs vm86s.regs
 #endif
 
-#include "extern.h"
-
 /* all registers as a structure */
 #ifdef __linux__
 #define REGS  vm86s.regs

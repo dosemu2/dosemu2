@@ -17,14 +17,11 @@
 #include <sys/syscall.h>
 
 #include "types.h"
-#include "extern.h"
 #include "machcompat.h"
 #include "cpu.h"
 #include "priv.h"
 #include "mouse.h"
 #include "dosemu_config.h"
-
-#include "extern.h"
 
 #ifdef __x86_64__
 #define ARCH_SET_GS 0x1001
