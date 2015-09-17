@@ -2892,14 +2892,14 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
   if (config.pm_dos_api) {
     int msdos_ret;
     struct RealModeCallStructure rmreg;
-    int rm_mask = (1 << cs_INDEX) |
-	    (1 << eip_INDEX) | (1 << ss_INDEX) | (1 << esp_INDEX);
+    int rm_mask = (1 << cs_INDEX) | (1 << eip_INDEX);
+    u_char stk[256];
+    int stk_used;
 
     rmreg.cs = DPMI_SEG;
     rmreg.ip = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
-    rmreg.ss = DPMI_CLIENT.private_data_segment;
-    rmreg.sp = DPMI_rm_stack_size * (DPMI_CLIENT.in_dpmi_rm_stack + 1);
-    msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask);
+    msdos_ret = msdos_pre_extender(scp, i, &rmreg, &rm_mask, stk, sizeof(stk),
+	    &stk_used);
     switch (msdos_ret) {
     case MSDOS_NONE:
       chain_rm_int(scp, i);
@@ -2908,6 +2908,9 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       save_rm_regs();
       pm_to_rm_regs(scp, ~rm_mask);
       DPMI_restore_rm_regs(&rmreg, rm_mask);
+      LWORD(esp) -= stk_used;
+      MEMCPY_2DOS(SEGOFF2LINEAR(REG(ss), LWORD(esp)),
+	    stk + sizeof(stk) - stk_used, stk_used);
       break;
     case MSDOS_DONE:
       return;

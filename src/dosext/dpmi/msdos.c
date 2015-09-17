@@ -464,40 +464,37 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 
 static void rm_do_int(u_short flags, u_short cs, u_short ip,
 	struct RealModeCallStructure *rmreg,
-	int *r_rmask)
+	int *r_rmask, u_char *stk, int stk_len, int *stk_used)
 {
-  unsigned int ssp, sp;
-  int rmask = *r_rmask;
-
-  ssp = SEGOFF2LINEAR(READ_RMREG(ss, rmask), 0);
-  sp = READ_RMREG(sp, rmask);
+  u_short *sp = (u_short *)(stk + stk_len - *stk_used);
 
   g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
-  pushw(ssp, sp, flags);
-  pushw(ssp, sp, cs);
-  pushw(ssp, sp, ip);
-  _RMREG(sp) -= 6;
+  *--sp = flags;
+  *--sp = cs;
+  *--sp = ip;
+  *stk_used += 6;
   _RMREG(flags) = flags & ~(AC|VM|TF|NT|VIF);
   *r_rmask |= 1 << flags_INDEX;
 }
 
 static void rm_do_int_to(u_short flags, u_short cs, u_short ip,
 	struct RealModeCallStructure *rmreg,
-	int *r_rmask)
+	int *r_rmask, u_char *stk, int stk_len, int *stk_used)
 {
   int rmask = *r_rmask;
 
   rm_do_int(flags, READ_RMREG(cs, rmask), READ_RMREG(ip, rmask),
-	rmreg, r_rmask);
+	rmreg, r_rmask, stk, stk_len, stk_used);
   _RMREG(cs) = cs;
   _RMREG(ip) = ip;
 }
 
 static void rm_int(int intno, u_short flags,
 	struct RealModeCallStructure *rmreg,
-	int *r_rmask)
+	int *r_rmask, u_char *stk, int stk_len, int *stk_used)
 {
-  rm_do_int_to(flags, ISEG(intno), IOFF(intno), rmreg, r_rmask);
+  rm_do_int_to(flags, ISEG(intno), IOFF(intno), rmreg, r_rmask,
+	stk, stk_len, stk_used);
 }
 
 static void do_call(int cs, int ip, struct RealModeCallStructure *rmreg,
@@ -611,9 +608,10 @@ static void old_dos_terminate(struct sigcontext *scp, int i,
 
 int msdos_pre_extender(struct sigcontext *scp, int intr,
 			       struct RealModeCallStructure *rmreg,
-			       int *r_mask)
+			       int *r_mask, u_char *stk, int stk_len,
+			       int *r_stk_used)
 {
-    int rm_mask = *r_mask, alt_ent = 0, act = 0;
+    int rm_mask = *r_mask, alt_ent = 0, act = 0, stk_used = 0;
 #define RMPRESERVE1(rg) (rm_mask |= (1 << rg##_INDEX))
 #define RMPRESERVE2(rg1, rg2) (rm_mask |= ((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_RMREG(rg, val) (RMPRESERVE1(rg), _RMREG(rg) = (val))
@@ -920,7 +918,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 		 * here and use the AX stack for post_extender(), which
 		 * is both unportable and ugly. */
 		rm_do_int_to(get_FLAGS(_eflags), rma.segment, rma.offset,
-			rmreg, &rm_mask);
+			rmreg, &rm_mask, stk, stk_len, &stk_used);
 		alt_ent = 1;
 	    }
 	    break;
@@ -986,7 +984,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    rm_do_int_to(get_FLAGS(_eflags), rma.segment, rma.offset,
-		    rmreg, &rm_mask);
+		    rmreg, &rm_mask, stk, stk_len, &stk_used);
 	    alt_ent = 1;
 	    break;
 	}
@@ -998,7 +996,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
 	    rm_do_int_to(get_FLAGS(_eflags), rma.segment, rma.offset,
-		    rmreg, &rm_mask);
+		    rmreg, &rm_mask, stk, stk_len, &stk_used);
 	    alt_ent = 1;
 	    break;
 	}
@@ -1274,8 +1272,10 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
     }
 
     if (!alt_ent)
-	rm_int(intr, get_FLAGS(_eflags), rmreg, &rm_mask);
+	rm_int(intr, get_FLAGS(_eflags), rmreg, &rm_mask,
+		stk, stk_len, &stk_used);
     *r_mask = rm_mask;
+    *r_stk_used = stk_used;
     return MSDOS_RM;
 }
 
