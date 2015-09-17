@@ -151,6 +151,13 @@ static Bit16u cb_cs = 0;
 static Bit16u cb_ip = 0;
 static Bit32u PIC_OFF;
 
+unsigned long pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
+                               PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
+                               PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
+                               PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15};
+hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
+hitimer_t pic_sys_time;     /* system time set by pic_watch */
+
 /*
  * pic_pirr contains a bit set for each interrupt which has attempted to
  * re-trigger.
