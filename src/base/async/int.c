@@ -35,6 +35,7 @@
 #include "vc.h"
 #include "priv.h"
 #include "doshelpers.h"
+#include "plugin_config.h"
 #include "utilities.h"
 #include "redirect.h"
 #include "pci.h"
@@ -334,6 +335,7 @@ int dos_helper(void)
     mfs_inte6();
     return 1;
 
+#if 0
   case DOS_HELPER_DOSC:
     if (HI(ax) == 0xdc) {
       /* install check and notify */
@@ -345,6 +347,7 @@ int dos_helper(void)
       return dosc_interface();
     }
     return 0;
+#endif
 
   case DOS_HELPER_EMS_HELPER:
     ems_helper();

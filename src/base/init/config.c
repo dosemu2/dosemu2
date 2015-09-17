@@ -36,7 +36,6 @@
 #include "cpu-emu.h"
 #endif
 #include "mhpdbg.h"
-
 #include "mapping.h"
 
 /*
@@ -61,6 +60,28 @@ int dosemu_proc_self_maps_fd = -1;
 
 static void     check_for_env_autoexec_or_config(void);
 static void     usage(char *basename);
+
+char *config_script_name = DEFAULT_CONFIG_SCRIPT;
+char *config_script_path = 0;
+char *dosemu_users_file_path = "/etc/" DOSEMU_USERS;
+char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
+char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
+char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
+
+char dosemulib_default[] = DOSEMULIB_DEFAULT;
+char *dosemu_lib_dir_path = dosemulib_default;
+char dosemuhdimage_default[] = DOSEMUHDIMAGE_DEFAULT;
+char *dosemu_hdimage_dir_path = dosemuhdimage_default;
+char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
+char *keymap_load_base_path = keymaploadbase_default;
+char *keymap_dir_path = "keymap/";
+char *owner_tty_locks = "uucp";
+char *tty_locks_dir_path = "/var/lock";
+char *tty_locks_name_path = "LCK..";
+char *dexe_load_path = dosemuhdimage_default;
+char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
+char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
+char *dosemu_map_file_name;
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override

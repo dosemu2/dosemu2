@@ -28,6 +28,7 @@
 #include "utilities.h"
 #include "dos2linux.h"
 #include "dosemu_config.h"
+#include "confpath.h"
 #include "mhpdbg.h"
 
 /*

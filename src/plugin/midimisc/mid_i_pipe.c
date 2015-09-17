@@ -21,6 +21,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #include "emu.h"
+#include "dosemu_config.h"
 #include "init.h"
 #include "sound/midi.h"
 #include <sys/types.h>

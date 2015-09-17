@@ -25,6 +25,7 @@
 #include <linux/serial.h>
 
 #include "emu.h"
+#include "dosemu_config.h"
 #include "ser_defs.h"
 #include "tty_io.h"
 

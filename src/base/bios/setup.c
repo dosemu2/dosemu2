@@ -24,6 +24,7 @@
 #include "serial.h"
 #include "utilities.h"
 #include "doshelpers.h"
+#include "plugin_config.h"
 
 static int li_tid;
 

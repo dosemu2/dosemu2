@@ -30,6 +30,7 @@
 #include "coopth.h"
 #include "dpmi.h"
 #include "timers.h"
+#include "dosemu_config.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"

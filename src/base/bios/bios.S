@@ -7,7 +7,7 @@
 /*************************************************************************/
 
 #define __ASM__
-#include "config.h"
+#include "dosemu_config.h"
 #include "version.h"
 #include "memory.h"
 #include "macros86.h"

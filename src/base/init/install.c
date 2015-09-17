@@ -13,6 +13,7 @@
 #include <assert.h>
 
 #include "emu.h"
+#include "dosemu_config.h"
 #include "disks.h"
 #include "utilities.h"
 #include "dos2linux.h"
