@@ -131,8 +131,8 @@ extern char LFN_string[];
 #define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
 				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
 
-EXTERN unsigned int configuration INIT(0);	/* The virtual
-						 * BIOS-configuration */
+extern unsigned int bios_configuration;	// The virtual
+						 // BIOS-configuration
 
 void            bios_setup_init(void);
 

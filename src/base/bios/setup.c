@@ -27,6 +27,7 @@
 #include "plugin_config.h"
 
 static int li_tid;
+unsigned int bios_configuration;
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
@@ -69,23 +70,23 @@ static inline void bios_mem_setup(void)
   /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the
    * configured number of floppy disks
    */
-  CONF_NFLOP(configuration, config.fdisks);
-  CONF_NSER(configuration, min(config.num_ser, NUM_COMS));
-  CONF_NLPT(configuration, min(config.num_lpt, NUM_LPTS));
+  CONF_NFLOP(bios_configuration, config.fdisks);
+  CONF_NSER(bios_configuration, min(config.num_ser, NUM_COMS));
+  CONF_NLPT(bios_configuration, min(config.num_lpt, NUM_LPTS));
   if (config.mouse.intdrv)
-    configuration |= CONF_MOUSE;
+    bios_configuration |= CONF_MOUSE;
 
-  configuration |= CONF_GAME | CONF_DMA;
+  bios_configuration |= CONF_GAME | CONF_DMA;
 
   if (config.mathco)
-    configuration |= CONF_MATHCO;
+    bios_configuration |= CONF_MATHCO;
 
-  g_printf("CONFIG: 0x%04x    binary: ", configuration);
+  g_printf("CONFIG: 0x%04x    binary: ", bios_configuration);
   for (b = 15; b >= 0; b--)
-    g_printf("%s%s", (configuration & (1 << b)) ? "1" : "0", (b%4) ? "" : " ");
+    g_printf("%s%s", (bios_configuration & (1 << b)) ? "1" : "0", (b%4) ? "" : " ");
   g_printf("\n");
 
-  WRITE_WORD(BIOS_CONFIGURATION, configuration);
+  WRITE_WORD(BIOS_CONFIGURATION, bios_configuration);
   WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 }
 
