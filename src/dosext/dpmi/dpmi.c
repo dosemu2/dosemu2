@@ -2907,7 +2907,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       break;
     case MSDOS_RM:
       save_rm_regs();
-      pm_to_rm_regs(scp, ~0);
+      pm_to_rm_regs(scp, ~rm_mask);
       DPMI_restore_rm_regs(&rmreg, rm_mask);
       break;
     case MSDOS_DONE:
