@@ -78,19 +78,18 @@ union vm86_union
   unsigned int d[sizeof(struct vm86_struct)/4];
 };
 
-EXTERN union vm86_union vm86u INIT ( {0} );
+extern union vm86_union vm86u;
 #define vm86s (vm86u.vm86ps)
 
 int signal_pending(void);
-EXTERN volatile __thread int fault_cnt INIT(0);
-EXTERN int terminal_pipe;
-EXTERN int terminal_fd INIT(-1);
-EXTERN int kernel_version_code INIT(0);
+extern volatile __thread int fault_cnt;
+extern int terminal_pipe;
+extern int terminal_fd;
+extern int kernel_version_code;
 
-EXTERN int screen_mode;
+extern int screen_mode;
 
 /* number of highest vid page - 1 */
-EXTERN int max_page INIT(7);
 
 struct callback_s {
   void (*func)(void *);
@@ -103,7 +102,7 @@ struct callback_s {
  * 1) this stuff is unused
  * 2) it should be FORBIDDEN to use global names less than 4 chars long!
  */
-EXTERN char *cl,		/* clear screen */
+extern char *cl,		/* clear screen */
 *le,				/* cursor left */
 *cm,				/* goto */
 *ce,				/* clear to end */
@@ -122,23 +121,18 @@ EXTERN char *cl,		/* clear screen */
 #endif
 
 /* the fd for the keyboard */
-EXTERN int console_fd INIT(-1);
-
+extern int console_fd;
 /* the file descriptor for /dev/mem mmap'ing */
-EXTERN int mem_fd INIT(-1);
-EXTERN int in_readkeyboard;
-
-EXTERN volatile int in_vm86 INIT(0);
-
-EXTERN int scanseq;
+extern int mem_fd;
+extern volatile int in_vm86;
 
 void dos_ctrl_alt_del(void);	/* disabled */
 
-EXTERN void run_vm86(void);
-EXTERN void vm86_helper(void);
-EXTERN void loopstep_run_vm86(void);
-EXTERN void do_call_back(Bit16u cs, Bit16u ip);
-EXTERN void do_int_call_back(int intno);
+extern void run_vm86(void);
+extern void vm86_helper(void);
+extern void loopstep_run_vm86(void);
+extern void do_call_back(Bit16u cs, Bit16u ip);
+extern void do_int_call_back(int intno);
 
 void getKeys(void);
 
@@ -376,43 +370,43 @@ config_t;
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
 
-EXTERN int port_readable(unsigned short);
-EXTERN int port_writeable(unsigned short);
-EXTERN unsigned char read_port(unsigned short);
-EXTERN int write_port(unsigned int, unsigned short);
-EXTERN void parent_nextscan(void);
-EXTERN void disk_close(void);
-EXTERN void cpu_setup(void);
-EXTERN void cpu_reset(void);
-EXTERN void real_run_int(int);
+extern int port_readable(unsigned short);
+extern int port_writeable(unsigned short);
+extern unsigned char read_port(unsigned short);
+extern int write_port(unsigned int, unsigned short);
+extern void parent_nextscan(void);
+extern void disk_close(void);
+extern void cpu_setup(void);
+extern void cpu_reset(void);
+extern void real_run_int(int);
 #define run_int real_run_int
-EXTERN int mfs_redirector(void);
-EXTERN int mfs_lfn(void);
-EXTERN int int10(void);
-EXTERN int int13(void);
-EXTERN int int16(void);
-EXTERN int int17(void);
-EXTERN void io_select(void);
-EXTERN int pd_receive_packet(void);
-EXTERN int printer_tick(u_long);
-EXTERN void floppy_tick(void);
-EXTERN void open_kmem(void);
-EXTERN void close_kmem(void);
-EXTERN int parse_config(char *, char *);
-EXTERN void prepare_dexe_load(char *name);
-EXTERN void disk_init(void);
-EXTERN void disk_reset(void);
-EXTERN void serial_init(void);
-EXTERN void serial_reset(void);
-EXTERN void close_all_printers(void);
-EXTERN void serial_close(void);
-EXTERN void disk_close_all(void);
-EXTERN void init_all_printers(void);
-EXTERN int mfs_inte6(void);
-EXTERN int mfs_helper(state_t *regs);
-EXTERN void pkt_helper(void);
-EXTERN short pop_word(struct vm86_regs *);
-EXTERN void __leavedos(int sig, const char *s, int num);
+extern int mfs_redirector(void);
+extern int mfs_lfn(void);
+extern int int10(void);
+extern int int13(void);
+extern int int16(void);
+extern int int17(void);
+extern void io_select(void);
+extern int pd_receive_packet(void);
+extern int printer_tick(u_long);
+extern void floppy_tick(void);
+extern void open_kmem(void);
+extern void close_kmem(void);
+extern int parse_config(char *, char *);
+extern void prepare_dexe_load(char *name);
+extern void disk_init(void);
+extern void disk_reset(void);
+extern void serial_init(void);
+extern void serial_reset(void);
+extern void close_all_printers(void);
+extern void serial_close(void);
+extern void disk_close_all(void);
+extern void init_all_printers(void);
+extern int mfs_inte6(void);
+extern int mfs_helper(state_t *regs);
+extern void pkt_helper(void);
+extern short pop_word(struct vm86_regs *);
+extern void __leavedos(int sig, const char *s, int num);
 #define leavedos(n) __leavedos(n, __func__, __LINE__)
 #define leavedos_once(n) { \
   static int __left; \
@@ -421,20 +415,20 @@ EXTERN void __leavedos(int sig, const char *s, int num);
     leavedos(n); \
   } \
 }
-EXTERN void leavedos_from_sig(int sig);
-EXTERN void leavedos_from_thread(int code);
-EXTERN void leavedos_main(int sig);
-EXTERN void check_leavedos(void);
-EXTERN void add_to_io_select_new(int, void(*)(void *), void *,
+extern void leavedos_from_sig(int sig);
+extern void leavedos_from_thread(int code);
+extern void leavedos_main(int sig);
+extern void check_leavedos(void);
+extern void add_to_io_select_new(int, void(*)(void *), void *,
 	const char *name);
 #define add_to_io_select(fd, func, arg) \
 	add_to_io_select_new(fd, func, arg, #func)
-EXTERN void remove_from_io_select(int);
-EXTERN void ioselect_done(void);
-EXTERN void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
+extern void remove_from_io_select(int);
+extern void ioselect_done(void);
+extern void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
 #ifdef __linux__
-EXTERN void SIG_init(void);
-EXTERN void SIG_close(void);
+extern void SIG_init(void);
+extern void SIG_close(void);
 #endif
 
 /* signals for Linux's process control of consoles */
@@ -464,8 +458,8 @@ extern void deinit_handler(struct sigcontext *scp);
  * exit on the next return from vm86 mode.
  * DANG_END_REMARK
  */
-EXTERN int fatalerr INIT(0);
-EXTERN int in_leavedos;
+extern int fatalerr;
+extern int in_leavedos;
 
 /*
  * DANG_BEGIN_REMARK
@@ -476,46 +470,43 @@ EXTERN int in_leavedos;
  * with the contents of BX (which is the internal DosC version).
  * DANG_END_REMARK
  */
-EXTERN int running_DosC INIT(0);
-EXTERN int dosc_interface(void);
-
-EXTERN void dump_config_status(void (*printfunc)(const char *, ...));
-EXTERN void signal_pre_init(void);
-EXTERN void signal_init(void);
-EXTERN void signal_done(void);
-EXTERN void device_init(void);
-EXTERN void memory_init(void);
-EXTERN void map_video_bios(void);
-EXTERN void stdio_init(void);
-EXTERN void time_setting_init(void);
-EXTERN void timer_interrupt_init(void);
-EXTERN void low_mem_init(void);
-EXTERN void print_version(void);
-EXTERN void keyboard_flags_init(void);
-EXTERN void video_config_init(void);
-EXTERN void video_post_init(void);
-EXTERN void video_late_init(void);
-EXTERN void video_mem_setup(void);
-EXTERN void printer_init(void);
-EXTERN void printer_mem_setup(void);
-EXTERN void video_close(void);
-EXTERN void hma_exit(void);
-EXTERN void ems_helper(void);
-EXTERN boolean_t ems_fn(struct vm86_regs *);
-EXTERN void mouse_helper(struct vm86_regs *);
-EXTERN void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
-EXTERN int mscdex(void);
-EXTERN void boot(void);
-EXTERN void do_liability_disclaimer_prompt(int stage, int prompt);
-EXTERN void install_dos(int post_boot);
-EXTERN int ipx_int7a(void);
-EXTERN void read_next_scancode_from_queue (void);
-EXTERN unsigned short detach (void);
-EXTERN void disallocate_vt (void);
-EXTERN void restore_vt (unsigned short vt);
-EXTERN void HMA_init(void);
-EXTERN void HMA_MAP(int HMA);
-EXTERN void hardware_run(void);
+extern void dump_config_status(void (*printfunc)(const char *, ...));
+extern void signal_pre_init(void);
+extern void signal_init(void);
+extern void signal_done(void);
+extern void device_init(void);
+extern void memory_init(void);
+extern void map_video_bios(void);
+extern void stdio_init(void);
+extern void time_setting_init(void);
+extern void timer_interrupt_init(void);
+extern void low_mem_init(void);
+extern void print_version(void);
+extern void keyboard_flags_init(void);
+extern void video_config_init(void);
+extern void video_post_init(void);
+extern void video_late_init(void);
+extern void video_mem_setup(void);
+extern void printer_init(void);
+extern void printer_mem_setup(void);
+extern void video_close(void);
+extern void hma_exit(void);
+extern void ems_helper(void);
+extern boolean_t ems_fn(struct vm86_regs *);
+extern void mouse_helper(struct vm86_regs *);
+extern void cdrom_helper(unsigned char *, unsigned char *, unsigned int);
+extern int mscdex(void);
+extern void boot(void);
+extern void do_liability_disclaimer_prompt(int stage, int prompt);
+extern void install_dos(int post_boot);
+extern int ipx_int7a(void);
+extern void read_next_scancode_from_queue (void);
+extern unsigned short detach (void);
+extern void disallocate_vt (void);
+extern void restore_vt (unsigned short vt);
+extern void HMA_init(void);
+extern void HMA_MAP(int HMA);
+extern void hardware_run(void);
 
 extern char *Path_cdrom[];
 
@@ -524,6 +515,6 @@ static inline pid_t gettid(void)
   return syscall(SYS_gettid);
 }
 
-EXTERN pid_t dosemu_tid;
+extern pid_t dosemu_tid;
 
 #endif /* EMU_H */

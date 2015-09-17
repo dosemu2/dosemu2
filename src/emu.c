@@ -113,9 +113,20 @@ static int can_leavedos;
 static int leavedos_code;
 static int leavedos_called;
 static pthread_mutex_t ld_mtx = PTHREAD_MUTEX_INITIALIZER;
+union vm86_union vm86u;
 
-void
-boot(void)
+volatile __thread int fault_cnt;
+volatile int in_vm86;
+int terminal_pipe;
+int terminal_fd = -1;
+int kernel_version_code;
+int console_fd = -1;
+int mem_fd = -1;
+int fatalerr;
+int in_leavedos;
+pid_t dosemu_tid;
+
+void boot(void)
 {
     unsigned buffer;
     struct disk    *dp = NULL;

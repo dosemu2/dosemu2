@@ -68,6 +68,8 @@
 #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
 #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
 
+static const int max_page = 7;
+
 unsigned screen_adr(int page)
 {
   /* This is the text screen base, the DOS program actually has to use.
