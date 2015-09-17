@@ -833,52 +833,10 @@ video_port_out (ioport_t port, u_char value)
   return;
 }
 
-void scr_state_init(void)
+static void scr_state_init(void)
 {
   struct stat chkbuf;
   int major, minor;
-  switch (config.cardtype) {
-  case CARD_MDA:
-    {
-      bios_configuration |= (MDA_CONF_SCREEN_MODE);
-      phys_text_base = MDA_PHYS_TEXT_BASE;
-      virt_text_base = MDA_VIRT_TEXT_BASE;
-      video_combo = MDA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_CGA:
-    {
-      bios_configuration |= (CGA_CONF_SCREEN_MODE);
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_EGA:
-    {
-      bios_configuration |= (EGA_CONF_SCREEN_MODE);
-      phys_text_base = EGA_PHYS_TEXT_BASE;
-      virt_text_base = EGA_VIRT_TEXT_BASE;
-      video_combo = EGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_VGA:
-    {
-      bios_configuration |= (VGA_CONF_SCREEN_MODE);
-      phys_text_base = VGA_PHYS_TEXT_BASE;
-      virt_text_base = VGA_VIRT_TEXT_BASE;
-      video_combo = VGA_VIDEO_COMBO;
-      break;
-    }
-  default:			/* or Terminal, is this correct ? */
-    {
-      bios_configuration |= (CGA_CONF_SCREEN_MODE);
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  }
   scr_state.vt_allow = 0;
   scr_state.mapped = 0;
   scr_state.pageno = 0;
@@ -897,4 +855,42 @@ void scr_state_init(void)
   /* console major num is 4, minor 64 is the first serial line */
   if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64))
        scr_state.console_no = minor;
+}
+
+void vc_init(void)
+{
+  scr_state_init();
+
+  switch (config.cardtype) {
+  case CARD_MDA:
+    {
+      phys_text_base = MDA_PHYS_TEXT_BASE;
+      virt_text_base = MDA_VIRT_TEXT_BASE;
+      break;
+    }
+  case CARD_CGA:
+    {
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      break;
+    }
+  case CARD_EGA:
+    {
+      phys_text_base = EGA_PHYS_TEXT_BASE;
+      virt_text_base = EGA_VIRT_TEXT_BASE;
+      break;
+    }
+  case CARD_VGA:
+    {
+      phys_text_base = VGA_PHYS_TEXT_BASE;
+      virt_text_base = VGA_VIRT_TEXT_BASE;
+      break;
+    }
+  default:			/* or Terminal, is this correct ? */
+    {
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      break;
+    }
+  }
 }

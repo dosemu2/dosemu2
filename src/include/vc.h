@@ -181,7 +181,7 @@ extern int CRT_I, CRT_D, IS1_R, FCR_W;
 extern u_char permissions;
 extern struct screen_stat scr_state;
 extern int user_vc_switch;
-void scr_state_init(void);
+void vc_init(void);
 
 #endif
 /* End of include/vc.h */

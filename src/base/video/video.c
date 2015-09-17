@@ -333,6 +333,38 @@ void video_config_init(void)
 
 void video_post_init(void)
 {
+  switch (config.cardtype) {
+  case CARD_MDA:
+    {
+      bios_configuration |= (MDA_CONF_SCREEN_MODE);
+      video_combo = MDA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_CGA:
+    {
+      bios_configuration |= (CGA_CONF_SCREEN_MODE);
+      video_combo = CGA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_EGA:
+    {
+      bios_configuration |= (EGA_CONF_SCREEN_MODE);
+      video_combo = EGA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_VGA:
+    {
+      bios_configuration |= (VGA_CONF_SCREEN_MODE);
+      video_combo = VGA_VIDEO_COMBO;
+      break;
+    }
+  default:			/* or Terminal, is this correct ? */
+    {
+      bios_configuration |= (CGA_CONF_SCREEN_MODE);
+      video_combo = CGA_VIDEO_COMBO;
+      break;
+    }
+  }
   if (Video && Video->init)
     Video->init();
 }

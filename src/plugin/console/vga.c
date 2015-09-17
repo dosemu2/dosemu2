@@ -667,7 +667,7 @@ static struct video_system Video_graphics = {
 /* init_vga_card - Initialize a VGA-card */
 static int vga_init(void)
 {
-  scr_state_init();
+  vc_init();
   sem_init(&cpy_sem, 0, 0);
   pthread_create(&cpy_thr, NULL, vmemcpy_thread, &vmem_chunk_thr);
   return 0;
