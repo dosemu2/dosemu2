@@ -14,10 +14,6 @@
 #include "types.h"
 #include "emu.h"
 
-#include "extern.h"
-
-typedef unsigned char uchar;
-
 #define TEXT         0
 #define G320x200x16  1
 #define G640x200x16  2
@@ -131,7 +127,7 @@ struct video_save_struct {
   unsigned char release_video;
   unsigned char xregs[MAX_X_REGS];      /* These are EXT regs */
 };
-EXTERN struct video_save_struct linux_regs, dosemu_regs;
+extern struct video_save_struct linux_regs, dosemu_regs;
 extern void load_vga_font(unsigned char);
 
 extern void vga_blink(unsigned char blink);
