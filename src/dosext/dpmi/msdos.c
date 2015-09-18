@@ -469,7 +469,7 @@ static void rm_do_int(u_short flags, u_short cs, u_short ip,
   u_short *sp = (u_short *)(stk + stk_len - *stk_used);
 
   g_printf("fake_int() CS:IP %04x:%04x\n", cs, ip);
-  *--sp = flags;
+  *--sp = get_FLAGS(flags);
   *--sp = cs;
   *--sp = ip;
   *stk_used += 6;
@@ -917,7 +917,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 		 * The alternative implementation was to do save_pm_regs()
 		 * here and use the AX stack for post_extender(), which
 		 * is both unportable and ugly. */
-		rm_do_int_to(get_FLAGS(_eflags), rma.segment, rma.offset,
+		rm_do_int_to(_eflags, rma.segment, rma.offset,
 			rmreg, &rm_mask, stk, stk_len, &stk_used);
 		alt_ent = 1;
 	    }
@@ -983,7 +983,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    rm_do_int_to(get_FLAGS(_eflags), rma.segment, rma.offset,
+	    rm_do_int_to(_eflags, rma.segment, rma.offset,
 		    rmreg, &rm_mask, stk, stk_len, &stk_used);
 	    alt_ent = 1;
 	    break;
@@ -995,7 +995,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMREG(edx, 0);
 	    SET_RMREG(ecx, D_16_32(_ecx));
-	    rm_do_int_to(get_FLAGS(_eflags), rma.segment, rma.offset,
+	    rm_do_int_to(_eflags, rma.segment, rma.offset,
 		    rmreg, &rm_mask, stk, stk_len, &stk_used);
 	    alt_ent = 1;
 	    break;
@@ -1272,7 +1272,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
     }
 
     if (!alt_ent)
-	rm_int(intr, get_FLAGS(_eflags), rmreg, &rm_mask,
+	rm_int(intr, _eflags, rmreg, &rm_mask,
 		stk, stk_len, &stk_used);
     *r_mask = rm_mask;
     *r_stk_used = stk_used;
