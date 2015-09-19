@@ -75,19 +75,8 @@ DPMI_return_from_int_24:
 DPMI_return_from_RSPcall:
 	hlt
 
-/* ======================= Addr = dpmi_sel():012D */
-	.globl MSDOS_rrm_start
-MSDOS_rrm_start:
-	.globl MSDOS_return_from_pm
-MSDOS_return_from_pm:
-	hlt
-/* ======================= Addr = dpmi_sel():012E */
-	.globl MSDOS_rrm_end
-MSDOS_rrm_end:
-
 	.globl MSDOS_spm_start
 MSDOS_spm_start:
-/* ======================= Addr = dpmi_sel():012E */
 	.globl MSDOS_XMS_call
 MSDOS_XMS_call:
 	hlt
@@ -97,7 +86,6 @@ MSDOS_spm_end:
 
 	.globl MSDOS_pmc_start
 MSDOS_pmc_start:
-/* ======================= Addr = dpmi_sel():0130 */
 	.globl MSDOS_API_call
 MSDOS_API_call:
 	hlt

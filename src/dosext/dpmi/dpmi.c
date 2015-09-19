@@ -4047,16 +4047,6 @@ int dpmi_fault(struct sigcontext *scp)
 	  D_printf("DPMI: VxD call, ax=%#x\n", _LWORD(eax));
 	  vxd_call(scp);
 
-	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_rrm_start)) &&
-		(_eip<1+DPMI_SEL_OFF(MSDOS_rrm_end))) {
-	  leave_lpms(scp);
-	  D_printf("DPMI: Return from MSDOS rm callback, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
-//	  msdos_post_rm(scp, &rmreg);
-	  pm_to_rm_regs(scp, ~0);
-	  restore_pm_regs(scp);
-	  in_dpmi_dos_int = 1;
-
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_spm_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_spm_end))) {
 	  struct RealModeCallStructure rmreg;
