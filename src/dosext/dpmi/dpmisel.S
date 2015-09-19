@@ -103,10 +103,31 @@ MSDOS_API_call:
 	hlt
 	lret
 
-	.globl MSDOS_rmcb_call
-MSDOS_rmcb_call:
+	.globl MSDOS_rmcb_call_start
+MSDOS_rmcb_call_start:
+	.globl MSDOS_rmcb_call0
+MSDOS_rmcb_call0:
+	hlt
+	.globl MSDOS_rmcb_ret0
+MSDOS_rmcb_ret0:
 	hlt
 	iret
+	.globl MSDOS_rmcb_call1
+MSDOS_rmcb_call1:
+	hlt
+	.globl MSDOS_rmcb_ret1
+MSDOS_rmcb_ret1:
+	hlt
+	iret
+	.globl MSDOS_rmcb_call2
+MSDOS_rmcb_call2:
+	hlt
+	.globl MSDOS_rmcb_ret2
+MSDOS_rmcb_ret2:
+	hlt
+	iret
+	.globl MSDOS_rmcb_call_end
+MSDOS_rmcb_call_end:
 	.globl MSDOS_pmc_end
 MSDOS_pmc_end:
 

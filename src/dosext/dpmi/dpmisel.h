@@ -55,7 +55,14 @@ extern unsigned char	MSDOS_return_from_pm[];
 extern unsigned char	MSDOS_rrm_end[];
 extern unsigned char	MSDOS_pmc_start[];
 extern unsigned char	MSDOS_API_call[];
-extern unsigned char	MSDOS_rmcb_call[];
+extern unsigned char	MSDOS_rmcb_call_start[];
+extern unsigned char	MSDOS_rmcb_call0[];
+extern unsigned char	MSDOS_rmcb_call1[];
+extern unsigned char	MSDOS_rmcb_call2[];
+extern unsigned char	MSDOS_rmcb_ret0[];
+extern unsigned char	MSDOS_rmcb_ret1[];
+extern unsigned char	MSDOS_rmcb_ret2[];
+extern unsigned char	MSDOS_rmcb_call_end[];
 extern unsigned char	MSDOS_rmcb_data[];
 extern unsigned char	MSDOS_pmc_end[];
 

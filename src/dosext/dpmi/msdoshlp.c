@@ -40,11 +40,12 @@
 struct msdos_ops {
     void (*api_call)(struct sigcontext *scp);
     void (*xms_call)(struct RealModeCallStructure *rmreg);
-    int (*mouse_callback)(struct sigcontext *scp,
+    void (**rmcb_handler)(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg);
-    int (*ps2_mouse_callback)(struct sigcontext *scp,
-	const struct RealModeCallStructure *rmreg);
-    void (*rmcb_handler)(struct RealModeCallStructure *rmreg);
+    void (**rmcb_ret_handler)(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg);
+    u_short cb_es;
+    u_int cb_edi;
 };
 static struct msdos_ops msdos;
 
@@ -127,18 +128,40 @@ static void exechlp_setup(void)
     }
 }
 
-far_t allocate_realmode_callback(void (*handler)(
-	struct RealModeCallStructure *))
+static int get_cb(int num)
 {
-    msdos.rmcb_handler = handler;
-    return DPMI_allocate_realmode_callback(dpmi_sel(),
-	    DPMI_SEL_OFF(MSDOS_rmcb_call), dpmi_data_sel(),
-	    DPMI_DATA_OFF(MSDOS_rmcb_data));
+    switch (num) {
+    case 0:
+	return DPMI_SEL_OFF(MSDOS_rmcb_call0);
+    case 1:
+	return DPMI_SEL_OFF(MSDOS_rmcb_call1);
+    case 2:
+	return DPMI_SEL_OFF(MSDOS_rmcb_call2);
+    }
+    return 0;
 }
 
-int free_realmode_callback(u_short seg, u_short off)
+int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
+	const struct RealModeCallStructure *),
+	void (*ret_handler[])(const struct sigcontext *,
+	struct RealModeCallStructure *),
+	int num, far_t *r_cbks)
 {
-    return DPMI_free_realmode_callback(seg, off);
+    int i;
+    assert(num <= 3);
+    msdos.rmcb_handler = handler;
+    msdos.rmcb_ret_handler = ret_handler;
+    for (i = 0; i < num; i++)
+	r_cbks[i] = DPMI_allocate_realmode_callback(dpmi_sel(),
+	    get_cb(i), dpmi_data_sel(), DPMI_DATA_OFF(MSDOS_rmcb_data));
+    return num;
+}
+
+void free_realmode_callbacks(far_t *cbks, int num)
+{
+    int i;
+    for (i = 0; i < num; i++)
+	DPMI_free_realmode_callback(cbks[i].segment, cbks[i].offset);
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
@@ -177,29 +200,6 @@ struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
     return ret;
 }
 
-far_t get_rm_handler(enum MsdOpIds id, int (*handler)(struct sigcontext *,
-	const struct RealModeCallStructure *))
-{
-    far_t ret;
-    switch (id) {
-    case MOUSE_CB:
-	msdos.mouse_callback = handler;
-	ret.segment = DPMI_SEG;
-	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_mouse_callback);
-	break;
-    case PS2MOUSE_CB:
-	msdos.ps2_mouse_callback = handler;
-	ret.segment = DPMI_SEG;
-	ret.offset = DPMI_OFF + HLT_OFF(MSDOS_PS2_mouse_callback);
-	break;
-    default:
-	dosemu_error("unknown rm handler\n");
-	ret = (far_t){ 0, 0 };
-	break;
-    }
-    return ret;
-}
-
 far_t get_lr_helper(far_t rmcb)
 {
     lrhlp_setup(rmcb);
@@ -224,9 +224,44 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
 	msdos.api_call(scp);
-    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call)) {
-	struct RealModeCallStructure *rmreg = SEL_ADR_CLNT(_es, _edi, is_32);
-	msdos.rmcb_handler(rmreg);
+    } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&
+	    _eip < 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_end)) {
+	int idx, ret;
+	if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call0)) {
+	    idx = 0;
+	    ret = 0;
+	} else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call1)) {
+	    idx = 1;
+	    ret = 0;
+	} else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_call2)) {
+	    idx = 2;
+	    ret = 0;
+	} else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_ret0)) {
+	    idx = 0;
+	    ret = 1;
+	} else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_ret1)) {
+	    idx = 1;
+	    ret = 1;
+	} else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_rmcb_ret2)) {
+	    idx = 2;
+	    ret = 1;
+	} else {
+	    error("MSDOS: unknown rmcb %#x\n", _eip);
+	    return;
+	}
+	if (ret) {
+	    struct RealModeCallStructure *rmreg =
+		    SEL_ADR_CLNT(msdos.cb_es, msdos.cb_edi, is_32);
+	    msdos.rmcb_ret_handler[idx](scp, rmreg);
+	    _es = msdos.cb_es;
+	    _edi = msdos.cb_edi;
+	} else {
+	    struct RealModeCallStructure *rmreg =
+		    SEL_ADR_CLNT(_es, _edi, is_32);
+	    msdos.cb_es = _es;
+	    msdos.cb_edi = _edi;
+	    msdos.rmcb_handler[idx](scp, rmreg);
+	}
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
     }
@@ -242,18 +277,4 @@ int msdos_pre_pm(struct sigcontext *scp,
 	return 0;
     }
     return 1;
-}
-
-int msdos_pre_rm(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg)
-{
-    int ret = 0;
-    unsigned int lina = SEGOFF2LINEAR(rmreg->cs, rmreg->ip) - 1;
-
-    if (lina == DPMI_ADD + HLT_OFF(MSDOS_mouse_callback))
-	ret = msdos.mouse_callback(scp, rmreg);
-    else if (lina == DPMI_ADD + HLT_OFF(MSDOS_PS2_mouse_callback))
-	ret = msdos.ps2_mouse_callback(scp, rmreg);
-
-    return ret;
 }

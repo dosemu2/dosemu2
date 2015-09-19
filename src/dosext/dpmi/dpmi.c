@@ -4589,31 +4589,6 @@ done:
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
 
-  } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_srm_start)) &&
-	     (lina < DPMI_ADD + HLT_OFF(MSDOS_srm_end))) {
-    struct RealModeCallStructure rmreg;
-    int ret;
-
-    REG(eip) += 1;            /* skip halt to point to FAR RET */
-    D_printf("DPMI: Starting MSDOS rm callback\n");
-    save_pm_regs(&DPMI_CLIENT.stack_frame);
-    enter_lpms(&DPMI_CLIENT.stack_frame);
-    _cs = dpmi_sel();
-    _eip = DPMI_SEL_OFF(MSDOS_return_from_pm);
-    rm_to_pm_regs(scp, ~0);
-    DPMI_save_rm_regs(&rmreg);
-    ret = msdos_pre_rm(&DPMI_CLIENT.stack_frame, &rmreg);
-    /* pre_rm does not modify rmregs so not restoring */
-    if (!ret) {
-	leave_lpms(&DPMI_CLIENT.stack_frame);
-	restore_pm_regs(&DPMI_CLIENT.stack_frame);
-	CARRY;
-	return;
-    }
-    _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
-    clear_IF();
-    in_dpmi_dos_int = 0;
-
   } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_rpm_start)) &&
 	     (lina < DPMI_ADD + HLT_OFF(MSDOS_rpm_end))) {
     D_printf("DPMI: Return from MSDOS pm callback\n");

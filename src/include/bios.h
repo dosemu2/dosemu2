@@ -150,10 +150,6 @@ void            DPMI_return_from_dos_memory(void);
 void            DPMI_raw_mode_switch_rm(void);
 void            DPMI_save_restore_rm(void);
 
-void            MSDOS_srm_start(void);
-void            MSDOS_mouse_callback(void);
-void            MSDOS_PS2_mouse_callback(void);
-void            MSDOS_srm_end(void);
 void            MSDOS_rpm_start(void);
 void            MSDOS_return_from_rm(void);
 void            MSDOS_rpm_end(void);

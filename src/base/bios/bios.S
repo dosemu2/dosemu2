@@ -98,21 +98,15 @@ DPMI_save_restore_rm:
 	hlt
 	lret
 /* ======================= Addr = F800:4913 (FC913) */
-	.globl	MSDOS_srm_start
-MSDOS_srm_start:
-/* ======================= Addr = F800:4913 (FC913) */
-	.globl	MSDOS_mouse_callback
-MSDOS_mouse_callback:
+	.globl	DPMI_reserved1
+DPMI_reserved1:
 	hlt
 	lret
 /* ======================= Addr = F800:4915 (FC915) */
-	.globl	MSDOS_PS2_mouse_callback
-MSDOS_PS2_mouse_callback:
+	.globl	DPMI_reserved2
+DPMI_reserved2:
 	hlt
 	lret
-/* ======================= Addr = F800:4917 (FC917) */
-	.globl	MSDOS_srm_end
-MSDOS_srm_end:
 
 	.globl	MSDOS_rpm_start
 MSDOS_rpm_start:
