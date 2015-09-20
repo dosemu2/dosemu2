@@ -583,8 +583,7 @@ static void config_post_process(const char *usedoptions)
 	}
     }
     /* console scrub */
-    if (config.X || usedoptions['X'] ||
-	    (getenv("DISPLAY") && !config.term)) {
+    if (config.X || (getenv("DISPLAY") && !config.term)) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
 
@@ -991,7 +990,7 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'X':
-	    /* check usedoptions later */
+	    config.X = 1;
 	    break;
 	case 'S':
 	    load_plugin("sdl");
