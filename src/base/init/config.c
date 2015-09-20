@@ -795,17 +795,7 @@ config_init(int argc, char **argv)
     memcheck_type_init();
     our_envs_init(0);
     parse_debugflags("+cw", 1);
-
-    /*
-     * DANG_BEGIN_REMARK For simpler support of X, DOSEMU can be started
-     * by a symbolic link called `xdos` which DOSEMU will use to switch
-     * into X-mode. DANG_END_REMARK
-     */
     Video = NULL;
-    if (strcmp(basename, "xdos") == 0) {
-	    usedoptions['X'] = 'X';
-	/* called as 'xdos' */
-    }
 
     /* options get parsed twice so show our own errors and only once */
     opterr = 0;
