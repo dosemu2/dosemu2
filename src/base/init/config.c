@@ -767,7 +767,6 @@ config_init(int argc, char **argv)
     char           *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;
-    char           *dexe_name = 0;
     char usedoptions[256];
     int i;
     const char * const getopt_string =
@@ -849,9 +848,6 @@ config_init(int argc, char **argv)
 	        dosrcname = optarg;
 	    }
 	    break;
-	case 'L':
-	    dexe_name = optarg;
-	    break;
 	case 'I':
 	    commandline_statements = optarg;
 	    break;
@@ -915,16 +911,6 @@ config_init(int argc, char **argv)
     }
 
     if (config_check_only) set_debug_level('c',1);
-
-    if (dexe_name || !strcmp(basename,"dosexec")) {
-	if (!dexe_name) dexe_name = argv[optind];
-	if (!dexe_name) {
-	  usage(basename);
-	  exit(1);
-	}
-	prepare_dexe_load(dexe_name);
-	usedoptions['L'] = 'L';
-    }
 
     our_envs_init(usedoptions);
     parse_config(confname,dosrcname);
