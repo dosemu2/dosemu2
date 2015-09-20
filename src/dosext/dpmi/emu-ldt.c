@@ -11,7 +11,6 @@
 #include <errno.h>
 
 #include "cpu.h"
-#include "extern.h"
 #include "types.h"
 #include "dpmi.h"
 #include "emu-ldt.h"

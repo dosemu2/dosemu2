@@ -30,16 +30,13 @@
 #include "coopth.h"
 #include "dpmi.h"
 #include "timers.h"
+#include "dosemu_config.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
-#if 0
-/* NOTE: the below is already defined with #include "emu.h"
- *       Must NOT redefine it, else vm86plus won't work !!!
- */
-extern struct vm86_struct vm86s;
-#endif
+struct mhpdbg mhpdbg;
+unsigned long dosdebug_flags;
 
 static void vmhp_printf(const char *fmt, va_list args);
 static void mhp_poll(void);
@@ -111,7 +108,6 @@ void mhp_close(void)
    free(pipename_out);
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
-   vm86s.vm86plus.vm86dbg_active = 0;
 }
 
 static int wait_for_debug_terminal = 0;
@@ -144,9 +140,9 @@ static void mhp_init(void)
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
 
-  vm86s.vm86plus.vm86dbg_active = 0;
-  vm86s.vm86plus.vm86dbg_TFpendig = 0;
-  memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
+  mhpdbg.TFpendig = 0;
+  memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
+  memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
 
   retval = asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
   assert(retval != -1);
@@ -250,7 +246,6 @@ static void mhp_poll_loop(void)
 	   mhp_send();
 	 }
 	 mhpdbg.active = 0;
-	 vm86s.vm86plus.vm86dbg_active = 0;
 	 mhpdbg.sendptr = 0;
          mhpdbg.nbytes = 0;
          break;
@@ -282,7 +277,6 @@ static void mhp_poll(void)
    if (mhpdbg.active == 1) {
       /* new session has started */
       mhpdbg.active++;
-      vm86s.vm86plus.vm86dbg_active = 1;
 
       mhp_printf ("%s", mhp_banner);
       mhp_cmd("rmapfile");
@@ -359,7 +353,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   case DBG_INTx:
 	  if (!mhpdbg.active)
 	     break;
-	  if (test_bit(DBG_ARG(mhpdbgc.currcode), vm86s.vm86plus.vm86dbg_intxxtab)) {
+	  if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 
 	      /* mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip); */
@@ -408,14 +402,17 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	      }
 	      if (!--mhpdbgc.int21_count) {
 	        volatile register int i=0x21; /* beware, set_bit-macro has wrong constraints */
-	        clear_bit(i, vm86s.vm86plus.vm86dbg_intxxtab);
+	        clear_bit(i, mhpdbg.intxxtab);
+	        if (test_bit(i, mhpdbgc.intxxalt)) {
+	          clear_bit(i, mhpdbgc.intxxalt);
+	          reset_revectored(i, &vm86s.int_revectored);
+	        }
 	      }
 	    }
 	    else {
 	      if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload ) {
 	        mhpdbgc.stopped = 1;
-		vm86s.vm86plus.vm86dbg_active = 1;
-		vm86s.vm86plus.vm86dbg_TFpendig = 1;
+		mhpdbg.TFpendig = 1;
 	        mhp_poll();
 	      }
 	    }
@@ -474,7 +471,7 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 			  mhp_modify_eip(-1);
 		    }
 		    else {
-		      if ((ok=test_bit(3, vm86s.vm86plus.vm86dbg_intxxtab))) {
+		      if ((ok=test_bit(3, mhpdbg.intxxtab))) {
 		        /* software programmed INT3 */
 		        mhp_modify_eip(-1);
 		        mhp_cmd("r");

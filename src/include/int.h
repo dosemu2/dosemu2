@@ -1,17 +1,16 @@
 #ifndef INT_H
 #define INT_H
 
-#include "extern.h"
 #include <stdint.h>
 #include <time.h> /* for time_t */
 
 #define WINDOWS_HACKS 1
 #if WINDOWS_HACKS
-EXTERN int win31_mode INIT(0);
+extern int win31_mode;
 #endif
 
-EXTERN unsigned int  check_date INIT(0);
-EXTERN time_t        start_time;
+extern unsigned int  check_date;
+extern time_t        start_time;
 
 extern uint32_t int_bios_area[0x500/sizeof(uint32_t)];
 

@@ -127,7 +127,7 @@
 #include "port.h"
 #include "hlt.h"
 #include "bitops.h"
-#include "pic.h"
+#include "mhpdbg.h"
 #include "memory.h"
 #include <sys/time.h>
 #include "cpu.h"
@@ -138,6 +138,7 @@
 #include "serial.h"
 #include "int.h"
 #include "ipx.h"
+#include "pic.h"
 
 #undef us
 #define us unsigned
@@ -149,6 +150,13 @@ static unsigned long pic_irq2_ivec = 0;
 static Bit16u cb_cs = 0;
 static Bit16u cb_ip = 0;
 static Bit32u PIC_OFF;
+
+unsigned long pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
+                               PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
+                               PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
+                               PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15};
+hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
+hitimer_t pic_sys_time;     /* system time set by pic_watch */
 
 /*
  * pic_pirr contains a bit set for each interrupt which has attempted to
@@ -635,7 +643,13 @@ void run_irqs(void)
        int int_request;
 
        /* don't allow HW interrupts in force trace mode */
-       if (vm86s.vm86plus.vm86dbg_TFpendig) return;
+       if (mhpdbg.active && mhpdbg.TFpendig) return;
+       if (!isset_IF()) {
+		if (pic_irr & ~(pic_isr | pic_imr))
+			set_VIP();
+		return;                      /* exit if ints are disabled */
+       }
+       clear_VIP();
 
        /* check for and find any requested irqs.  Having found one, we atomic-ly
         * clear it and verify it was there when we cleared it.  If it wasn't, we
@@ -646,11 +660,6 @@ void run_irqs(void)
         */
        while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
                int local_pic_ilevel, old_ilevel, ret;
-
-	       if (!isset_IF()) {
-		       set_VIP();
-	    	       return;                      /* exit if ints are disabled */
-	       }
 
                local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
 	       old_ilevel = find_bit(pic_isr);

@@ -13,7 +13,6 @@
 #define _MAPPING_H_
 
 #include <sys/mman.h>
-#include "extern.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
@@ -95,7 +94,6 @@ struct mappingdrivers {
   munmap_mapping_type *munmap;
   alias_mapping_type *alias;
 };
-EXTERN struct mappingdrivers mappingdriver INIT({0});
 char *decode_mapping_cap(int cap);
 
 extern struct mappingdrivers mappingdriver_shm;

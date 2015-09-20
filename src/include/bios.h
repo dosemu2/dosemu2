@@ -4,7 +4,6 @@
 #define BIOS_H
 
 #include "config.h"
-#include "extern.h"
 
 extern void bios_f000(void);		/* BIOS start at 0xf0000 */
 /* these two addresses are needed to avoid overwriting e.g. font
@@ -131,8 +130,8 @@ extern char LFN_string[];
 #define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
 				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
 
-EXTERN unsigned int configuration INIT(0);	/* The virtual
-						 * BIOS-configuration */
+extern unsigned int bios_configuration;	// The virtual
+						 // BIOS-configuration
 
 void            bios_setup_init(void);
 
@@ -151,10 +150,6 @@ void            DPMI_return_from_dos_memory(void);
 void            DPMI_raw_mode_switch_rm(void);
 void            DPMI_save_restore_rm(void);
 
-void            MSDOS_srm_start(void);
-void            MSDOS_mouse_callback(void);
-void            MSDOS_PS2_mouse_callback(void);
-void            MSDOS_srm_end(void);
 void            MSDOS_rpm_start(void);
 void            MSDOS_return_from_rm(void);
 void            MSDOS_rpm_end(void);

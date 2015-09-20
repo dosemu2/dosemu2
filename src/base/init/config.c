@@ -36,7 +36,6 @@
 #include "cpu-emu.h"
 #endif
 #include "mhpdbg.h"
-
 #include "mapping.h"
 
 /*
@@ -61,6 +60,29 @@ int dosemu_proc_self_maps_fd = -1;
 
 static void     check_for_env_autoexec_or_config(void);
 static void     usage(char *basename);
+
+char *config_script_name = DEFAULT_CONFIG_SCRIPT;
+char *config_script_path = 0;
+char *dosemu_users_file_path = "/etc/" DOSEMU_USERS;
+char *dosemu_loglevel_file_path = "/etc/" DOSEMU_LOGLEVEL;
+char *dosemu_rundir_path = "~/" LOCALDIR_BASE_NAME "/run";
+char *dosemu_localdir_path = "~/" LOCALDIR_BASE_NAME;
+
+char dosemulib_default[] = DOSEMULIB_DEFAULT;
+char *dosemu_lib_dir_path = dosemulib_default;
+char dosemuhdimage_default[] = DOSEMUHDIMAGE_DEFAULT;
+char *dosemu_hdimage_dir_path = dosemuhdimage_default;
+char keymaploadbase_default[] = DOSEMULIB_DEFAULT "/";
+char *keymap_load_base_path = keymaploadbase_default;
+char *keymap_dir_path = "keymap/";
+char *owner_tty_locks = "uucp";
+char *tty_locks_dir_path = "/var/lock";
+char *tty_locks_name_path = "LCK..";
+char *dexe_load_path = dosemuhdimage_default;
+char *dosemu_midi_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI;
+char *dosemu_midi_in_path = "~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN;
+char *dosemu_map_file_name;
+struct config_info config;
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override
@@ -144,10 +166,7 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 #endif
 
     if (config_check_only) mapping_init();
-    if (mappingdriver.name)
-      (*print)("mappingdriver %s\n", mappingdriver.name);
-    else
-      (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
+    (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
     if (config_check_only) mapping_close();
     (*print)("hdiskboot %d\n",
         config.hdiskboot);
@@ -307,23 +326,16 @@ open_terminal_pipe(char *path)
 	terminal_pipe = 1;
 }
 
-static void our_envs_init(char *usedoptions)
+static void our_envs_init(void)
 {
+    struct utsname unames;
+    char *s;
     char buf[256];
-    int i,j;
 
-    if (usedoptions) {
-        for (i=0,j=0; i<256; i++) {
-            if (usedoptions[i]) buf[j++] = i;
-        }
-        buf[j] = 0;
-        setenv("DOSEMU_OPTIONS", buf, 1);
-        strcpy(buf, "0");
-        if (!usedoptions['X'] && on_console()) strcpy(buf, "1");
-        setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
-        return;
-    }
-
+    uname(&unames);
+    kernel_version_code = strtol(unames.release, &s,0) << 16;
+    kernel_version_code += strtol(s+1, &s,0) << 8;
+    kernel_version_code += strtol(s+1, &s,0);
     sprintf(buf, "%d", kernel_version_code);
     setenv("KERNEL_VERSION_CODE", buf, 1);
     sprintf(buf, "%d", DOSEMU_VERSION_CODE);
@@ -333,19 +345,6 @@ static void our_envs_init(char *usedoptions)
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());
     setenv("DOSEMU_UID", buf, 1);
-}
-
-
-static void restore_usedoptions(char *usedoptions)
-{
-    char *p = getenv("DOSEMU_OPTIONS");
-    if (p) {
-        memset(usedoptions,0,256);
-        while (*p) {
-	    usedoptions[(unsigned char)*p] = *p;
-	    p++;
-	}
-    }
 }
 
 static int find_option(char *option, int argc, char **argv)
@@ -544,7 +543,7 @@ static void read_cpu_info(void)
     close_proc_scan();
 }
 
-static void config_post_process(const char *usedoptions)
+static void config_post_process(void)
 {
     config.realcpu = CPU_386;
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
@@ -564,20 +563,26 @@ static void config_post_process(const char *usedoptions)
 	}
     }
     /* console scrub */
-    if (config.X || usedoptions['X'] ||
-	    (getenv("DISPLAY") && !config.term)) {
+    if (!Video && getenv("DISPLAY") && !config.X && !config.term) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
-
-	if (!Video) {
+	if (config.X_font && config.X_font[0]) {
 	    load_plugin("X");
 	    Video = video_get("X");
-	    if (Video)
+	    if (Video) {
 		config.X = 1;
-	    else
-		config.X = 0;
+		config.mouse.type = MOUSE_X;
+	    }
+	} else {
+	    load_plugin("sdl");
+	    Video = video_get("sdl");
+	    if (Video) {
+		config.X = 1;
+		config.sdl = 1;
+		config.sdl_sound = 1;
+		config.mouse.type = MOUSE_SDL;
+	    }
 	}
-	config.mouse.type = MOUSE_X;
     }
     if (on_console()) {
 	if (!can_do_root_stuff && config.console_video) {
@@ -748,8 +753,6 @@ config_init(int argc, char **argv)
     char           *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;
-    char           *dexe_name = 0;
-    char usedoptions[256];
     int i;
     const char * const getopt_string =
        "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
@@ -772,28 +775,16 @@ config_init(int argc, char **argv)
     if (dosemu_proc_self_exe == NULL)
 	dosemu_proc_self_exe = dosemu_argv[0];
 
-    memset(usedoptions,0,sizeof(usedoptions));
     memcheck_type_init();
-    our_envs_init(0);
+    our_envs_init();
     parse_debugflags("+cw", 1);
-
-    /*
-     * DANG_BEGIN_REMARK For simpler support of X, DOSEMU can be started
-     * by a symbolic link called `xdos` which DOSEMU will use to switch
-     * into X-mode. DANG_END_REMARK
-     */
     Video = NULL;
-    if (strcmp(basename, "xdos") == 0) {
-	    usedoptions['X'] = 'X';
-	/* called as 'xdos' */
-    }
 
     /* options get parsed twice so show our own errors and only once */
     opterr = 0;
     if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
       confname = config_script_path;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
-	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 's':
 	    if (can_do_root_stuff)
@@ -839,9 +830,6 @@ config_init(int argc, char **argv)
 		fclose(f);
 	        dosrcname = optarg;
 	    }
-	    break;
-	case 'L':
-	    dexe_name = optarg;
 	    break;
 	case 'I':
 	    commandline_statements = optarg;
@@ -907,19 +895,7 @@ config_init(int argc, char **argv)
 
     if (config_check_only) set_debug_level('c',1);
 
-    if (dexe_name || !strcmp(basename,"dosexec")) {
-	if (!dexe_name) dexe_name = argv[optind];
-	if (!dexe_name) {
-	  usage(basename);
-	  exit(1);
-	}
-	prepare_dexe_load(dexe_name);
-	usedoptions['L'] = 'L';
-    }
-
-    our_envs_init(usedoptions);
     parse_config(confname,dosrcname);
-    restore_usedoptions(usedoptions);
 
     if (config.exitearly && !config_check_only)
 	exit(0);
@@ -929,15 +905,7 @@ config_init(int argc, char **argv)
 #endif
     opterr = 0;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
-
-	/* Note: /etc/dosemu.conf may have disallowed some options
-	 *	 ( by removing them from $DOSEMU_OPTIONS ).
-	 *	 We skip them by re-checking 'usedoptions'.
-	 */
-	if (!usedoptions[(unsigned char)c]) {
-	    warn("command line option -%c disabled by dosemu.conf\n", c);
-	}
-	else switch (c) {
+	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'f':
 	case 'h':
@@ -996,15 +964,19 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'X':
-	    /* check usedoptions later */
+	    load_plugin("X");
+	    Video = video_get("X");
+	    if (Video)
+		config.X = 1;
 	    break;
 	case 'S':
 	    load_plugin("sdl");
 	    Video = video_get("sdl");
-	    if (Video)
+	    if (Video) {
 		config.X = 1;
-	    config.sdl = 1;
-	    config.sdl_sound = 1;
+		config.sdl = 1;
+		config.sdl_sound = 1;
+	    }
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;
@@ -1073,7 +1045,7 @@ config_init(int argc, char **argv)
 	misc_e6_store_command(argv[optind],1);
 	optind++;
     }
-    config_post_process(usedoptions);
+    config_post_process();
     config_scrub();
     if (config_check_only) {
 	dump_config_status(0);

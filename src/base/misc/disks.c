@@ -42,6 +42,10 @@
 #endif
 
 static int disks_initiated = 0;
+struct disk disktab[MAX_FDISKS];
+struct disk hdisktab[MAX_HDISKS];
+struct disk bootdisk;
+int use_bootdisk;
 
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks

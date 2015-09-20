@@ -59,6 +59,8 @@ static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_file, /* and then a temp file */
 };
 
+static struct mappingdrivers *mappingdriver;
+
 /* The alias map is used to track alias mappings from the first 1MB + HMA
    to the corresponding addresses in Linux address space (either lowmem
    or EMS). The DOS address (&mem_base[address]) may be r/w
@@ -218,7 +220,7 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
     cap |= MAPPING_FIXED;
   }
 #endif
-  addr = mappingdriver.alias(cap, target, mapsize, protect, source);
+  addr = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (addr == MAP_FAILED)
     return addr;
   if (cap & MAPPING_INIT_LOWRAM)
@@ -318,7 +320,6 @@ void mapping_init(void)
 
   if (init_done) return;
 
-  memset(&mappingdriver, 0, sizeof(struct mappingdrivers));
   if (config.mappingdriver && strcmp(config.mappingdriver, "auto")) {
     /* first try the mapping driver the user wants */
     for (i=0; i < numdrivers; i++) {
@@ -335,8 +336,8 @@ void mapping_init(void)
   if (found < 0) found = 0;
   for (i=found; i < numdrivers; i++) {
     if (mappingdrv[i] && (*mappingdrv[i]->open)(MAPPING_PROBE)) {
-      memcpy(&mappingdriver, mappingdrv[i], sizeof(struct mappingdrivers));
-      Q_printf("MAPPING: using the %s driver\n", mappingdriver.name);
+      mappingdriver = mappingdrv[i];
+      Q_printf("MAPPING: using the %s driver\n", mappingdriver->name);
       init_done = 1;
       return;
     }
@@ -355,7 +356,7 @@ void mapping_init(void)
 /* this gets called on DOSEMU termination cleanup all mapping stuff */
 void mapping_close(void)
 {
-  if (init_done && mappingdriver.close) close_mapping(MAPPING_ALL);
+  if (init_done && mappingdriver->close) close_mapping(MAPPING_ALL);
 }
 
 static char dbuf[256];
@@ -392,12 +393,12 @@ char *decode_mapping_cap(int cap)
 
 int open_mapping(int cap)
 {
-  return mappingdriver.open(cap);
+  return mappingdriver->open(cap);
 }
 
 void close_mapping(int cap)
 {
-  if (mappingdriver.close) mappingdriver.close(cap);
+  if (mappingdriver->close) mappingdriver->close(cap);
 }
 
 void *alloc_mapping(int cap, size_t mapsize, off_t target)
@@ -431,7 +432,7 @@ void *alloc_mapping(int cap, size_t mapsize, off_t target)
     return addr;
   }
 
-  addr = mappingdriver.alloc(cap, mapsize);
+  addr = mappingdriver->alloc(cap, mapsize);
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
@@ -448,7 +449,7 @@ void free_mapping(int cap, void *addr, size_t mapsize)
     return;
   }
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
-  mappingdriver.free(cap, addr, mapsize);
+  mappingdriver->free(cap, addr, mapsize);
 }
 
 void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
@@ -461,7 +462,7 @@ void *realloc_mapping(int cap, void *addr, size_t oldsize, size_t newsize)
   }
   if (!oldsize)
     dosemu_error("realloc_mapping() addr=%p, oldsize=0\n", addr);
-  return mappingdriver.realloc(cap, addr, oldsize, newsize);
+  return mappingdriver->realloc(cap, addr, oldsize, newsize);
 }
 
 int munmap_mapping(int cap, void *addr, size_t mapsize)
@@ -474,7 +475,7 @@ int munmap_mapping(int cap, void *addr, size_t mapsize)
       return 0;
     }
 
-  return mappingdriver.munmap(cap, addr, mapsize);
+  return mappingdriver->munmap(cap, addr, mapsize);
 }
 
 struct hardware_ram {

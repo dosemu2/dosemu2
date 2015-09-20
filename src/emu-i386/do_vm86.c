@@ -29,7 +29,6 @@
 #endif
 
 #include "emu.h"
-#include "vm86plus.h"
 #include "bios.h"
 #include "mouse.h"
 #include "serial.h"
@@ -295,13 +294,68 @@ static int handle_GP_hlt(void)
   return HLT_RET_NONE;
 }
 
+#ifdef __i386__
+#if 0
+static int true_vm86(struct vm86_struct *x)
+{
+    int ret;
+    unsigned short fs = getsegment(fs), gs = getsegment(gs);
+
+    ret = vm86(x);
+    /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
+    loadregister(fs, fs);
+    loadregister(gs, gs);
+    return ret;
+}
+#else
+static int true_vm86(struct vm86_struct *x)
+{
+    static struct vm86plus_struct p;		// static to not do memset
+    int ret;
+
+    /* need to use vm86_plus for now as otherwise dosdebug doesn't work */
+    memcpy(&p, x, sizeof(*x));
+    ret = vm86_plus(VM86_ENTER, &p);
+    memcpy(x, &p, sizeof(*x));
+    return ret;
+}
+#endif
+#endif
+
+static int do_vm86(struct vm86_struct *x)
+{
+#ifdef __i386__
+#ifdef X86_EMULATOR
+    if (config.cpuemu)
+	return e_vm86();
+#endif
+    return true_vm86(x);
+#else
+    return e_vm86();
+#endif
+}
+
 static void _do_vm86(void)
 {
-    int retval;
+    int retval, vtype;
 
+    if (isset_IF() && isset_VIP()) {
+	error("both IF and VIP set\n");
+	clear_VIP();
+    }
     loadfpstate(vm86_fpu_state);
     in_vm86 = 1;
-    retval = DO_VM86(&vm86s);
+again:
+    retval = do_vm86(&vm86s);
+    vtype = VM86_TYPE(retval);
+    /* optimize VM86_STI case that can return with ints disabled
+     * if VIP is set */
+    if (vtype == VM86_STI) {
+	if (!isset_IF())
+	    goto again;
+	else
+	    clear_VIP();
+    }
     in_vm86 = 0;
     savefpstate(vm86_fpu_state);
     /* there is no real need to save and restore the FPU state of the
@@ -310,15 +364,6 @@ static void _do_vm86(void)
        routines.
     */
     feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
-
-#if 0
-    /* This will protect us from Mr.Norton's bugs */
-    if (_EFLAGS & (AC|ID)) {
-      _EFLAGS &= ~(AC|ID);
-      if (debug_level('g')>3)
-	dbug_printf("BUG: AC,ID set; flags changed to %08x\n",_EFLAGS);
-    }
-#endif
 
     if (
 #ifdef X86_EMULATOR
@@ -335,7 +380,7 @@ static void _do_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
-    switch VM86_TYPE(retval) {
+    switch (vtype) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
 	break;
@@ -434,6 +479,8 @@ void run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
 	}
     }
+    if (mhpdbg.TFpendig)
+      set_TF();
     _do_vm86();
   }
 }
@@ -522,11 +569,39 @@ void do_int_call_back(int intno)
     __do_call_back(ISEG(intno), IOFF(intno), 1);
 }
 
+static void vm86plus_init(void)
+{
+#ifdef X86_EMULATOR
+    if (config.cpuemu >= 3)
+	return;
+#endif
+#ifdef __i386__
+//    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
+    if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) == -1 &&
+		errno == EFAULT)
+	return;
+#endif
+#ifdef X86_EMULATOR
+#ifdef __i386__
+    error("vm86 service not available in your kernel, %s\n", strerror(errno));
+    error("using CPU emulation for vm86()\n");
+#endif
+    if (config.cpuemu < 3) {
+	config.cpuemu = 3;
+	init_emu_cpu();
+    }
+    return;
+#endif
+    fprintf(stderr, "vm86plus service not available in your kernel\n\r");
+    exit(1);
+}
+
 int vm86_init(void)
 {
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = "do_call_back";
     hlt_hdlr.func = callback_return;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
+    vm86plus_init();
     return 0;
 }

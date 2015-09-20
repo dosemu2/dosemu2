@@ -27,7 +27,7 @@ int paste_text(const char *text, int len, char *charset);
 void handle_slang_keys(Boolean make, t_keysym key);
 
 /* For the current sigio handler, this still has to be defined here. */
-EXTERN int kbd_fd INIT(-1);
+extern int kbd_fd;
 
 struct keyboard_client {
   const char *name;
@@ -43,7 +43,7 @@ struct keyboard_client {
 
 void register_keyboard_client(struct keyboard_client *keyboard);
 
-EXTERN struct keyboard_client *Keyboard INIT(NULL);
+extern struct keyboard_client *Keyboard;
 extern struct keyboard_client Keyboard_raw;
 extern struct keyboard_client Keyboard_slang;
 extern struct keyboard_client Keyboard_none;

@@ -38,6 +38,7 @@
 #include "codegen-arch.h"
 #include "port.h"
 #include "dpmi.h"
+#include "mhpdbg.h"
 #include "video.h"
 
 unsigned int P0;
@@ -585,14 +586,6 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    if (debug_level('e')>1)
 				e_printf("Pushed flags %08x fl=%08x vf=%08x\n",
 		    			temp,EFLAGS,eVEFLAGS);
-checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
-				    (eVEFLAGS & EFLAGS_IFK)) {
-				if (debug_level('e')>1)
-				    e_printf("Return for PIC fl=%08x vf=%08x\n",
-		    			EFLAGS,eVEFLAGS);
-				TheCPU.err=EXCP_PICSIGNAL;
-				return PC+1;
-		    	    }
 			}
 			else {
 				Gen(O_PUSH2F, mode);
@@ -1628,8 +1621,7 @@ stack_return_from_vm86:
 			    }
 			    else {
 				/* virtual-8086 monitor */
-				if (vm86s.vm86plus.vm86dbg_active &&
-				    vm86s.vm86plus.vm86dbg_TFpendig) {
+				if (mhpdbg.active && mhpdbg.TFpendig) {
 				    temp |= TF;
 				}
 				/* move TSSMASK from pop{e}flags to V{E}FLAGS */
@@ -1645,14 +1637,6 @@ stack_return_from_vm86:
 					TheCPU.err=EXCP_STISIGNAL;
 					return PC + (opc==POPF);
 				    }
-				}
-				if (vm86s.vm86plus.force_return_for_pic &&
-					(eVEFLAGS & EFLAGS_IFK)) {
-				    if (debug_level('e')>1)
-					e_printf("Return for PIC fl=%08x vf=%08x\n",
-		    			    EFLAGS,eVEFLAGS);
-				    TheCPU.err=EXCP_PICSIGNAL;
-				    return PC + (opc==POPF);
 				}
 			    }
 			}
@@ -1917,7 +1901,6 @@ repag0:
 			    if (V86MODE()) {
 				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
 				eVEFLAGS &= ~EFLAGS_VIF;
-				goto checkpic;
 			    }
 			    else if (in_dpmi) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");

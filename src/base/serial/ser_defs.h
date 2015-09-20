@@ -404,10 +404,7 @@ int serial_rts(int num, int flag);
 int ser_open(int num);
 int ser_close(int num);
 int uart_fill(int num);
-int serial_get_cts(int num);
-int serial_get_dsr(int num);
-int serial_get_rng(int num);
-int serial_get_car(int num);
+int serial_get_msr(int num);
 
 struct serial_drv {
   void (*rx_buffer_dump)(com_t *com);
@@ -421,10 +418,7 @@ struct serial_drv {
   int (*ser_open)(com_t *com);
   int (*ser_close)(com_t *com);
   int (*uart_fill)(com_t *com);
-  int (*serial_get_cts)(com_t *com);
-  int (*serial_get_dsr)(com_t *com);
-  int (*serial_get_rng)(com_t *com);
-  int (*serial_get_car)(com_t *com);
+  int (*serial_get_msr)(com_t *com);
   char *name;
 };
 

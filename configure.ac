@@ -292,84 +292,6 @@ AC_CONFIG_COMMANDS([Makefile],
   fi
 ])
 
-dnl autoheader stuff
-AH_TOP([
-/*
- * BIG FAT WARNING:
- *
- * These #defines come from configure.ac.
- * If you edit config.h.in, your efforts will become useless the next
- * time you run autoheader or autoreconf.
- *
- * All lines within AH_TOP and AH_BOTTOM are copied unchanged into
- * config.h.in. Read the GNU autoconf documentation to learn more
- * xabout configure & friends.
- *
- */
-
-#ifndef CONFIG_H
-#define CONFIG_H 1
-
-#define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
-#define DOSEMU_VERSION_CODE VERSION_OF(VERSION,SUBLEVEL,0,0)
-#define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
-#define GCC_VERSION_CODE (__GNUC__ * 1000 + __GNUC_MINOR__)
-
-#ifdef __ASM__
-/* trick to comment out prototypes */
-#define extern #
-#else
-#include "extern.h"
-
-#include "confpath.h"
-/* not overridable file constants */
-#define  DOSEMU_RC          ".dosemurc"       /* per user config file */
-#define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
-#define  LOCALDIR_BASE_NAME ".dosemu"         /* base directory in $HOME */
-#define  DOSEMU_CONF        "dosemu.conf"     /* standard configuration file */
-#define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
-#define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
-#define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
-#define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
-#define  DOSEMU_MIDI_IN     "dosemu-midi_in"  /* fifo for midi input */
-
-EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
-EXTERN char *config_script_path INIT(0);
-EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
-EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
-EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
-EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
-
-EXTERN char dosemulib_default[] INIT(DOSEMULIB_DEFAULT);
-EXTERN char *dosemu_lib_dir_path INIT(dosemulib_default);
-EXTERN char dosemuhdimage_default[] INIT(DOSEMUHDIMAGE_DEFAULT);
-EXTERN char *dosemu_hdimage_dir_path INIT(dosemuhdimage_default);
-EXTERN char keymaploadbase_default[] INIT(DOSEMULIB_DEFAULT "/");
-EXTERN char *keymap_load_base_path INIT(keymaploadbase_default);
-EXTERN char *keymap_dir_path INIT("keymap/");
-EXTERN char *owner_tty_locks INIT("uucp");
-EXTERN char *tty_locks_dir_path INIT("/var/lock");
-EXTERN char *tty_locks_name_path INIT("LCK..");
-EXTERN char *dexe_load_path INIT(dosemuhdimage_default);
-EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
-EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN);
-
-#define    DOSEMU_USERS_FILE     dosemu_users_file_path
-#define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
-#define    RUNDIR                dosemu_rundir_path
-#define    LOCALDIR              dosemu_localdir_path
-#define    KEYMAP_LOAD_BASE_PATH keymap_load_base_path
-#define    KEYMAP_DIR            keymap_dir_path
-#define    OWNER_LOCKS           owner_tty_locks
-#define    PATH_LOCKD            tty_locks_dir_path
-#define    NAME_LOCKF            tty_locks_name_path
-#define    DOSEMU_MAP_PATH       dosemu_map_file_name
-#define    DOSEMU_MIDI_PATH      dosemu_midi_path
-#define    DOSEMU_MIDI_IN_PATH   dosemu_midi_in_path
-
-#endif /* not __ASM__ */
-])
-
 AH_TEMPLATE([CONFIG_HOST],
 [ Define the host for which Dosemu is configured ])
 
@@ -390,16 +312,6 @@ AH_TEMPLATE([_GNU_SOURCE],
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])
-
-AH_BOTTOM([
-#ifndef __ASM__
-EXTERN char *dosemu_map_file_name INIT(0);
-#endif
-
-#include "plugin_config.h"
-
-#endif /* CONFIG_H */
-])
 
 AC_OUTPUT
 

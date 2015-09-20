@@ -125,7 +125,6 @@
 #define DOS_LONG_READ_OFF 0xF400
 #define DOS_LONG_WRITE_SEG BIOSSEG
 #define DOS_LONG_WRITE_OFF 0xF4A0
-#define DOS_EXEC_OFF 0xf540
 
 #define XMSControl_SEG  ROMBIOSSEG
 #define XMSControl_OFF  0x4C40
@@ -192,6 +191,8 @@
 #include "types.h"
 
 u_short INT_OFF(u_char i);
+#define CBACK_SEG BIOS_HLT_BLK_SEG
+extern Bit16u CBACK_OFF;
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);

@@ -48,6 +48,7 @@
 #include "iodev.h"
 
 int no_local_video = 0;
+serial_t com_cfg[MAX_SER];
 com_t com[MAX_SER];
 static u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 struct ser_dmx {
@@ -405,7 +406,4 @@ SER_FN1(int, serial_rts, int, flag)
 SER_FN0(int, ser_open)
 SER_FN0(int, ser_close)
 SER_FN0(int, uart_fill)
-SER_FN0(int, serial_get_cts)
-SER_FN0(int, serial_get_dsr)
-SER_FN0(int, serial_get_rng)
-SER_FN0(int, serial_get_car)
+SER_FN0(int, serial_get_msr)

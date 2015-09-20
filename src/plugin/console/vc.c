@@ -40,7 +40,6 @@
 #endif
 
 #define INIT_C2TRAP
-#define NO_VC_NO_DEBUG 0
 
 #include "emu.h"
 #include "memory.h"
@@ -69,6 +68,12 @@ static void SIGACQUIRE_call (void *);
 static int in_vc_call;
 static int vc_tid;
 static int color_text;
+int CRT_I, CRT_D, IS1_R, FCR_W;
+u_char permissions;
+struct screen_stat scr_state;
+struct video_save_struct linux_regs, dosemu_regs;
+static unsigned virt_text_base;
+static int phys_text_base;
 
 #define MAXDOSINTS 032
 #define MAXMODES 34
@@ -120,9 +125,6 @@ acquire_vt (struct sigcontext *scp)
 {
   dos_has_vt = 1;
 
-#if NO_VC_NO_DEBUG
-  if (user_vc_switch) shut_debug = 0;
-#endif
   flush_log();
 
   v_printf ("VID: Acquiring VC\n");
@@ -203,9 +205,6 @@ static void __SIGRELEASE_call(void *arg)
   else {
    /* we don't want any debug activity while VC is not active */
     flush_log();
-#if NO_VC_NO_DEBUG
-    if (user_vc_switch) shut_debug = 1;
-#endif
   }
 }
 
@@ -832,4 +831,66 @@ video_port_out (ioport_t port, u_char value)
       ext_video_port_out (port, value);
     }
   return;
+}
+
+static void scr_state_init(void)
+{
+  struct stat chkbuf;
+  int major, minor;
+  scr_state.vt_allow = 0;
+  scr_state.mapped = 0;
+  scr_state.pageno = 0;
+  scr_state.virt_address = virt_text_base;
+  /* Assume the screen is initially mapped. */
+  scr_state.current = 1;
+
+  if (fstat(STDIN_FILENO, &chkbuf) != 0)
+	return;
+
+  major = chkbuf.st_rdev >> 8;
+  minor = chkbuf.st_rdev & 0xff;
+
+  c_printf("major = %d minor = %d\n",
+	    major, minor);
+  /* console major num is 4, minor 64 is the first serial line */
+  if (S_ISCHR(chkbuf.st_mode) && (major == 4) && (minor < 64))
+       scr_state.console_no = minor;
+}
+
+void vc_init(void)
+{
+  scr_state_init();
+
+  switch (config.cardtype) {
+  case CARD_MDA:
+    {
+      phys_text_base = MDA_PHYS_TEXT_BASE;
+      virt_text_base = MDA_VIRT_TEXT_BASE;
+      break;
+    }
+  case CARD_CGA:
+    {
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      break;
+    }
+  case CARD_EGA:
+    {
+      phys_text_base = EGA_PHYS_TEXT_BASE;
+      virt_text_base = EGA_VIRT_TEXT_BASE;
+      break;
+    }
+  case CARD_VGA:
+    {
+      phys_text_base = VGA_PHYS_TEXT_BASE;
+      virt_text_base = VGA_VIRT_TEXT_BASE;
+      break;
+    }
+  default:			/* or Terminal, is this correct ? */
+    {
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      break;
+    }
+  }
 }

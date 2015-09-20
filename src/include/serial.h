@@ -25,9 +25,6 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
-#include <termios.h>
-#include "extern.h"
-
 #define MAX_SER 16
 #define NUM_COMS 4
 
@@ -53,7 +50,7 @@ typedef struct {
 
 enum { SER_CUSTOM_NONE, SER_CUSTOM_PCCOM };
 
-EXTERN serial_t com_cfg[MAX_SER];
+extern serial_t com_cfg[MAX_SER];
 
 extern int int14(void);
 extern void serial_run(void);

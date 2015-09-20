@@ -35,7 +35,6 @@
  */
 
 
-#include "extern.h"
 #include "types.h"
 #define NEVER 0x8000000000000000ULL
 #define PIC_NMI   0        /*  non-maskable interrupt 0x02 */
@@ -59,21 +58,9 @@
 #define PIC_IPX_AES 18     /*  IPX AES Signal */
 
 #define PIC_IMOUSE PIC_IRQ12 /*  internal mouse driver       */
-
-/* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
-   by pic routines; it is simply made available for configuration ease */
-EXTERN unsigned long pic_irq_list[] INIT({PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
-                               PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
-                               PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
-                               PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15});
-
-/* pic_level_list translates  pic_ilevels to irq numbers.  This is not used
-   by pic routines; it is simply made available for configuration ease */
-EXTERN unsigned long pic_level_list[] INIT({
-                 -1, 0, 1, 8, 9, 10, 11, 12, 13, 14, 15, 3, 4, 5, 6, 7 });
-
-EXTERN hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
-EXTERN hitimer_t pic_sys_time INIT(NEVER);     /* system time set by pic_watch */
+extern unsigned long pic_irq_list[16];
+extern hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
+extern hitimer_t pic_sys_time;     /* system time set by pic_watch */
 extern hitimer_t pic_itime[33];
 
 /* IRQ definitions.  Each entry specifies the emulator routine to call, and

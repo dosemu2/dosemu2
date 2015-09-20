@@ -9,7 +9,7 @@
  * SDL2 and XKB support by Stas Sergeev
  */
 
-#include "config.h"
+#include "dosemu_config.h"
 
 #include <SDL.h>
 #include <langinfo.h>

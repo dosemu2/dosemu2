@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "config.h"
-#include "extern.h"
 #include "machcompat.h"
 
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
@@ -50,11 +49,6 @@ struct debug_class
 	unsigned char level, letter;
 };
 
-#ifdef DONT_DEBUG_BOOT
-EXTERN struct debug_class debug_save[DEBUG_CLASSES];
-#endif
-EXTERN struct debug_class debug[DEBUG_CLASSES];
-
 int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
 int vlog_printf(int, const char *,va_list);
 
@@ -65,7 +59,7 @@ int p_dos_str(const char *,...) FORMAT(printf, 1, 2);
 #endif
 #undef DEBUG_LITE
 
-EXTERN int shut_debug INIT(0);
+extern int shut_debug;
 
 #ifndef NO_DEBUGPRINT_AT_ALL
 # ifdef DEBUG_LITE
@@ -169,14 +163,7 @@ extern int register_debug_class(
 extern int unregister_debug_class(int letter);
 extern void print_debug_usage(FILE *stream);
 extern int set_debug_level(int letter, int level);
-static inline int debug_level(int letter)
-{
-	if (letter >= DEBUG_CLASSES) {
-		return -1;
-	}
-	return debug[letter].level;
-
-}
+int debug_level(int letter);
 
 #else
 

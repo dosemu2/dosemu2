@@ -65,16 +65,12 @@
  * Activate some debug output.
  */
 #define DEBUG_INT10	0
-
-/* a bit brutal, but enough for now */
-#if VIDEO_CHECK_DIRTY
-#define set_dirty(page) vm86s.screen_bitmap = 0xffffffff
-#else
-#define set_dirty(page)
-#endif
-
 #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
 #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
+
+static const int max_page = 7;
+int video_mode;
+int video_combo;
 
 unsigned screen_adr(int page)
 {
@@ -210,8 +206,6 @@ bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
   if (l >= dy || l <= -dy)
     l = 0;
 
-  set_dirty(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
-
   if (l == 0) {			/* Wipe mode */
     for (y = y0; y <= y1; y++)
       memcpy_to_vga(sadr + 2 * (y * co + x0), tbuf, dx * 2);
@@ -309,7 +303,6 @@ void tty_char_out(unsigned char ch, int s, int attr)
       dst = screen_adr(s) + 2 * (ypos*co + xpos);
       vga_write(dst, ch);
       if(attr != -1) vga_write(dst + 1, attr);
-      set_dirty(s);
     }
     xpos++;
   }
@@ -349,10 +342,8 @@ static void clear_screen(void)
   for (schar = screen_adr(0), lx = 0; lx < 16*1024;
        vga_write_word(schar, blank), lx++, schar+=2);
 
-  for (s = 0; s < 8; s++) {
-    set_dirty(s);
+  for (s = 0; s < 8; s++)
     set_cursor_pos(s, 0, 0);
-  }
 }
 
 #if 0
@@ -555,9 +546,6 @@ boolean set_video_mode(int mode) {
   video_mode = mode;
 
   if(clear_mem && using_text_mode()) clear_screen();
-
-  screen_mask = 0;
-
   if (mode == 0x6)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x3f);
   else if (mode <= 0x7)
@@ -834,8 +822,6 @@ int int10(void) /* with dualmon */
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, address);
-      screen_mask = 1 << page;
-      set_dirty(page);		// ??? evil stuff: what about xdos?
       x = get_bios_cursor_x_position(page);
       y = get_bios_cursor_y_position(page);
       set_cursor_pos(page, x, y);
@@ -1615,10 +1601,10 @@ void video_mem_setup(void)
   WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */
   WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co,li));   /* size of video regen area in bytes */
 
-  WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
+  WRITE_WORD(BIOS_CURSOR_SHAPE, (bios_configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
 #if 0
   /* This is needed in the video stuff. Grabbed from boot(). */
-  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE) {
+  if ((bios_configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE) {
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
     video_mode = 7;
   } else {

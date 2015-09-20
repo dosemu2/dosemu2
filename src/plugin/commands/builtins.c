@@ -36,6 +36,7 @@
 #include "lowmem.h"
 #include "coopth.h"
 #include "smalloc.h"
+#include "plugin_config.h"
 
 /* hope 2K is enough */
 #define LOWMEM_POOL_SIZE 0x800

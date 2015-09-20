@@ -227,25 +227,11 @@ static int serm_uart_fill(com_t *com)
   return 0;
 }
 
-static int serm_get_cts(com_t *com)
+static int serm_get_msr(com_t *com)
 {
-  return 0;
+  return ((serm.enabled && serm.nrst) ? UART_MSR_DSR : 0);
 }
 
-static int serm_get_dsr(com_t *com)
-{
-  return (serm.enabled && serm.nrst);
-}
-
-static int serm_get_rng(com_t *com)
-{
-  return 0;
-}
-
-static int serm_get_car(com_t *com)
-{
-  return 0;
-}
 
 struct serial_drv serm_drv = {
   serm_rx_buffer_dump,
@@ -259,9 +245,6 @@ struct serial_drv serm_drv = {
   serm_open,
   serm_close,
   serm_uart_fill,
-  serm_get_cts,
-  serm_get_dsr,
-  serm_get_rng,
-  serm_get_car,
+  serm_get_msr,
   "serial_mouse_tty"
 };

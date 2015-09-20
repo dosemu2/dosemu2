@@ -5,7 +5,6 @@
 #ifndef DISKS_H
 #define DISKS_H
 
-#include "extern.h"
 #include "fatfs.h"
 #define PART_INFO_START		0x1be	/* offset in MBR for partition table */
 #define PART_INFO_LEN   	0x10	/* size of each partition record */
@@ -118,7 +117,7 @@ struct image_header {
 /*
  * Array of disk structures for floppies...
  */
-EXTERN struct disk disktab[MAX_FDISKS];
+extern struct disk disktab[MAX_FDISKS];
 
 /*
  * Array of disk structures for hard disks...
@@ -126,7 +125,7 @@ EXTERN struct disk disktab[MAX_FDISKS];
  * Can be whole hard disks, dos extended partitions (containing one or
  * more partitions) or their images (files)
  */
-EXTERN struct disk hdisktab[MAX_HDISKS];
+extern struct disk hdisktab[MAX_HDISKS];
 
 /*
  * Special bootdisk which can be temporarily swapped out for drive A,
@@ -134,9 +133,9 @@ EXTERN struct disk hdisktab[MAX_HDISKS];
  * then have the autoexec.bat swap out the boot disk for the "real"
  * drive A.
  */
-EXTERN struct disk bootdisk;
+extern struct disk bootdisk;
 
-EXTERN int use_bootdisk INIT(0);
+extern int use_bootdisk;
 
 #if 1
 #ifdef __linux__

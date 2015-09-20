@@ -12,7 +12,6 @@
 #define MHPDBG_H
 
 #include <stdarg.h>
-#include "extern.h"
 
 #if 0  /* now defined in include/vm86plus */
 #define VM86_TRAP 4	  /* (vm86 return) TRAP */
@@ -28,7 +27,7 @@ enum dosdebug_event {
    DBG_INTxDPMI,
 };
 
-EXTERN unsigned long dosdebug_flags INIT(0);
+extern unsigned long dosdebug_flags;
 #define DBGF_WAIT_ON_STARTUP		0x001
 #define DBGF_INTERCEPT_LOG		0x002
 #define DBGF_DISABLE_LOG_TO_FILE	0x004
@@ -65,11 +64,13 @@ struct mhpdbg
    int nbytes;
    int active;
    int flags;
-
    int fdin,fdout;
+
+   unsigned int TFpendig:1;
+   unsigned char intxxtab[32];
 };
 
-EXTERN struct mhpdbg mhpdbg;
+extern struct mhpdbg mhpdbg;
 
 #ifdef MHP_PRIVATE
 
@@ -129,7 +130,7 @@ struct mhpdbgc
    struct mhpdbg_4bpar *bpload_par;
    char bpload_cmd[128];
    char bpload_cmdline[132];
-   char intxxtab[256];
+   unsigned char intxxalt[32];
    struct brkentry brktab[MAXBP];
 };
 

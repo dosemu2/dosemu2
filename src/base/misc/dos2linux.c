@@ -126,7 +126,6 @@
 #include "emu.h"
 #include "cpu-emu.h"
 #include "int.h"
-#include "vm86plus.h"
 #include "dpmi.h"
 #include "timers.h"
 #include "video.h"

@@ -23,8 +23,6 @@
 #define _regs vm86s.regs
 #endif
 
-#include "extern.h"
-
 /* all registers as a structure */
 #ifdef __linux__
 #define REGS  vm86s.regs
@@ -98,16 +96,16 @@ union dword {
 #define _FLAGS   LWORD(eflags)
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
-#define LO(reg)  vm86u.b[offsetof(struct vm86plus_struct, regs.e##reg)]
-#define HI(reg)  vm86u.b[offsetof(struct vm86plus_struct, regs.e##reg)+1]
+#define LO(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)]
+#define HI(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)+1]
 
 #define _LO(reg) LO_BYTE(_##e##reg)
 #define _HI(reg) HI_BYTE(_##e##reg)
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
-#define LWORD(reg)	vm86u.w[offsetof(struct vm86plus_struct, regs.reg)/2]
-#define HWORD(reg)	vm86u.w[offsetof(struct vm86plus_struct, regs.reg)/2+1]
-#define UDWORD(reg)	vm86u.d[offsetof(struct vm86plus_struct, regs.reg)/4]
+#define LWORD(reg)	vm86u.w[offsetof(struct vm86_struct, regs.reg)/2]
+#define HWORD(reg)	vm86u.w[offsetof(struct vm86_struct, regs.reg)/2+1]
+#define UDWORD(reg)	vm86u.d[offsetof(struct vm86_struct, regs.reg)/4]
 
 #define _LWORD(reg)	LO_WORD(_##reg)
 #define _HWORD(reg)	HI_WORD(_##reg)

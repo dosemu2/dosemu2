@@ -26,6 +26,10 @@ static gid_t cur_gid, cur_egid;
 
 static int skip_priv_setting = 0;
 
+int can_do_root_stuff;
+int under_root_login;
+int using_sudo;
+int current_iopl;
 
 #ifdef __linux__
 

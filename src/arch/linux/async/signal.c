@@ -18,7 +18,6 @@
 #include <linux/version.h>
 
 #include "emu.h"
-#include "vm86plus.h"
 #include "bios.h"
 #include "mouse.h"
 #include "video.h"

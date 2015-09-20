@@ -21,7 +21,6 @@ static int switch_to_console(int vc_num)
 		k_printf("KBD: switching to console #%d\n",vc_num);
 		shiftstate &= ~(MODIFIER_ALT|MODIFIER_CTRL);
 		set_shiftstate(shiftstate);
-		user_vc_switch = 1;
 		vt_activate(vc_num);
 		return TRUE;
 	}
