@@ -520,7 +520,7 @@ int update_screen(void)
     );
     vga_emu_update_lock();
     if (Video->setmode)
-      Video->setmode(vga.mode_class, vga.width, vga.height);
+      Video->setmode(vga.mode_class, vga.text_width, vga.text_height);
     dirty_all_video_pages();
     vga.reconfig.display = 0;
     vga_emu_update_unlock();
