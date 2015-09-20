@@ -563,19 +563,26 @@ static void config_post_process(void)
 	}
     }
     /* console scrub */
-    if (config.X || (getenv("DISPLAY") && !config.term)) {
+    if (!Video && getenv("DISPLAY") && !config.X && !config.term) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
-
-	if (!Video) {
+	if (config.X_font && config.X_font[0]) {
 	    load_plugin("X");
 	    Video = video_get("X");
-	    if (Video)
+	    if (Video) {
 		config.X = 1;
-	    else
-		config.X = 0;
+		config.mouse.type = MOUSE_X;
+	    }
+	} else {
+	    load_plugin("sdl");
+	    Video = video_get("sdl");
+	    if (Video) {
+		config.X = 1;
+		config.sdl = 1;
+		config.sdl_sound = 1;
+		config.mouse.type = MOUSE_SDL;
+	    }
 	}
-	config.mouse.type = MOUSE_X;
     }
     if (on_console()) {
 	if (!can_do_root_stuff && config.console_video) {
@@ -957,15 +964,19 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	case 'X':
-	    config.X = 1;
+	    load_plugin("X");
+	    Video = video_get("X");
+	    if (Video)
+		config.X = 1;
 	    break;
 	case 'S':
 	    load_plugin("sdl");
 	    Video = video_get("sdl");
-	    if (Video)
+	    if (Video) {
 		config.X = 1;
-	    config.sdl = 1;
-	    config.sdl_sound = 1;
+		config.sdl = 1;
+		config.sdl_sound = 1;
+	    }
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;
