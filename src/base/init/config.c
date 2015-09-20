@@ -326,23 +326,16 @@ open_terminal_pipe(char *path)
 	terminal_pipe = 1;
 }
 
-static void our_envs_init(char *usedoptions)
+static void our_envs_init(void)
 {
+    struct utsname unames;
+    char *s;
     char buf[256];
-    int i,j;
 
-    if (usedoptions) {
-        for (i=0,j=0; i<256; i++) {
-            if (usedoptions[i]) buf[j++] = i;
-        }
-        buf[j] = 0;
-        setenv("DOSEMU_OPTIONS", buf, 1);
-        strcpy(buf, "0");
-        if (!usedoptions['X'] && on_console()) strcpy(buf, "1");
-        setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
-        return;
-    }
-
+    uname(&unames);
+    kernel_version_code = strtol(unames.release, &s,0) << 16;
+    kernel_version_code += strtol(s+1, &s,0) << 8;
+    kernel_version_code += strtol(s+1, &s,0);
     sprintf(buf, "%d", kernel_version_code);
     setenv("KERNEL_VERSION_CODE", buf, 1);
     sprintf(buf, "%d", DOSEMU_VERSION_CODE);
@@ -352,19 +345,6 @@ static void our_envs_init(char *usedoptions)
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());
     setenv("DOSEMU_UID", buf, 1);
-}
-
-
-static void restore_usedoptions(char *usedoptions)
-{
-    char *p = getenv("DOSEMU_OPTIONS");
-    if (p) {
-        memset(usedoptions,0,256);
-        while (*p) {
-	    usedoptions[(unsigned char)*p] = *p;
-	    p++;
-	}
-    }
 }
 
 static int find_option(char *option, int argc, char **argv)
@@ -563,7 +543,7 @@ static void read_cpu_info(void)
     close_proc_scan();
 }
 
-static void config_post_process(const char *usedoptions)
+static void config_post_process(void)
 {
     config.realcpu = CPU_386;
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
@@ -766,7 +746,6 @@ config_init(int argc, char **argv)
     char           *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;
-    char usedoptions[256];
     int i;
     const char * const getopt_string =
        "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
@@ -789,9 +768,8 @@ config_init(int argc, char **argv)
     if (dosemu_proc_self_exe == NULL)
 	dosemu_proc_self_exe = dosemu_argv[0];
 
-    memset(usedoptions,0,sizeof(usedoptions));
     memcheck_type_init();
-    our_envs_init(0);
+    our_envs_init();
     parse_debugflags("+cw", 1);
     Video = NULL;
 
@@ -800,7 +778,6 @@ config_init(int argc, char **argv)
     if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
       confname = config_script_path;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
-	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 's':
 	    if (can_do_root_stuff)
@@ -911,9 +888,7 @@ config_init(int argc, char **argv)
 
     if (config_check_only) set_debug_level('c',1);
 
-    our_envs_init(usedoptions);
     parse_config(confname,dosrcname);
-    restore_usedoptions(usedoptions);
 
     if (config.exitearly && !config_check_only)
 	exit(0);
@@ -923,15 +898,7 @@ config_init(int argc, char **argv)
 #endif
     opterr = 0;
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
-
-	/* Note: /etc/dosemu.conf may have disallowed some options
-	 *	 ( by removing them from $DOSEMU_OPTIONS ).
-	 *	 We skip them by re-checking 'usedoptions'.
-	 */
-	if (!usedoptions[(unsigned char)c]) {
-	    warn("command line option -%c disabled by dosemu.conf\n", c);
-	}
-	else switch (c) {
+	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'f':
 	case 'h':
@@ -1067,7 +1034,7 @@ config_init(int argc, char **argv)
 	misc_e6_store_command(argv[optind],1);
 	optind++;
     }
-    config_post_process(usedoptions);
+    config_post_process();
     config_scrub();
     if (config_check_only) {
 	dump_config_status(0);
