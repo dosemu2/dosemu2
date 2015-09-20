@@ -119,7 +119,6 @@ struct DPMIclient_struct {
   Bit16u rmcb_off;
   INTDESC Interrupt_Table[0x100];
   INTDESC Exception_Table[0x20];
-  unsigned short LDT_ALIAS;
   unsigned short PMSTACK_SEL;	/* protected mode stack selector */
   /* used for RSP calls */
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];

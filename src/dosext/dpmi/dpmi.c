@@ -138,6 +138,7 @@ static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 unsigned char *ldt_buffer;
 unsigned char *ldt_alias;
+static unsigned short dpmi_ldt_alias;
 static unsigned short dpmi_sel16, dpmi_sel32;
 static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
@@ -860,16 +861,14 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
-  if (DPMI_CLIENT.LDT_ALIAS) {
-    ldt_entry = selector >> 3;
-    if ((limit = GetSegmentLimit(DPMI_CLIENT.LDT_ALIAS)) <
-        (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
+
+  limit = GetSegmentLimit(dpmi_ldt_alias);
+  if (limit < (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSelector(DPMI_CLIENT.LDT_ALIAS, DOSADDR_REL(ldt_alias),
+      SetSelector(dpmi_ldt_alias, DOSADDR_REL(ldt_alias),
         limit + (number_of_descriptors / (DPMI_page_size /
         LDT_ENTRY_SIZE) + 1) * DPMI_page_size,
         0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
-    }
   }
   return selector;
 }
@@ -3141,6 +3140,7 @@ void dpmi_setup(void)
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
+    if (!(dpmi_ldt_alias = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
@@ -3159,6 +3159,9 @@ void dpmi_setup(void)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
     if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 1,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
+    if (SetSelector(dpmi_ldt_alias, DOSADDR_REL(ldt_alias),
+		    LDT_INIT_LIMIT, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (config.pm_dos_api)
@@ -3219,11 +3222,6 @@ void dpmi_init(void)
     error("DPMI: can't allocate memory for locked protected mode stack\n");
     leavedos(2);
   }
-
-  if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.LDT_ALIAS, DOSADDR_REL(ldt_alias),
-        LDT_INIT_LIMIT, 0,
-        MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
   if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
   if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, DOSADDR_REL(DPMI_CLIENT.pm_stack),
@@ -3313,7 +3311,8 @@ void dpmi_init(void)
 
   if (debug_level('M')) {
     print_ldt();
-    D_printf("LDT_ALIAS=%x dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n", DPMI_CLIENT.LDT_ALIAS, dpmi_sel(), CS, DS, SS, ES);
+    D_printf("LDT_ALIAS=%x dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n",
+	    dpmi_ldt_alias, dpmi_sel(), CS, DS, SS, ES);
   }
 
   in_dpmi_dos_int = 0;
@@ -3633,7 +3632,7 @@ static void do_cpu_exception(struct sigcontext *scp)
 
 u_short DPMI_ldt_alias(void)
 {
-  return DPMI_CLIENT.LDT_ALIAS;
+  return dpmi_ldt_alias;
 }
 
 /*
@@ -3858,7 +3857,7 @@ int dpmi_fault(struct sigcontext *scp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
-            _eax = DPMI_CLIENT.LDT_ALIAS;  /* simulate direct ldt access */
+            _eax = dpmi_ldt_alias;  /* simulate direct ldt access */
 	    _eflags &= ~CF;
 	  } else
             _eflags |= CF;
