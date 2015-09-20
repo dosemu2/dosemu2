@@ -1845,8 +1845,13 @@ static void msdos_api_call(struct sigcontext *scp)
 {
     D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
     if (_LWORD(eax) == 0x0100) {
-	_eax = DPMI_ldt_alias();	/* simulate direct ldt access */
-	_eflags &= ~CF;
+	u_short sel = DPMI_ldt_alias();	/* simulate direct ldt access */
+	if (sel) {
+	    _eax = sel;
+	    _eflags &= ~CF;
+	} else {
+	    _eflags |= CF;
+	}
     } else {
 	_eflags |= CF;
     }
