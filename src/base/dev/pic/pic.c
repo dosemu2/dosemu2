@@ -645,7 +645,7 @@ void run_irqs(void)
        /* don't allow HW interrupts in force trace mode */
        if (mhpdbg.active && mhpdbg.TFpendig) return;
        if (!isset_IF()) {
-		if (pic_irr & ~(pic_isr | pic_imr))
+		if (pic_pending())
 			set_VIP();
 		return;                      /* exit if ints are disabled */
        }
