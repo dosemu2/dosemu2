@@ -566,7 +566,7 @@ static int calc_nframes(struct dspio_state *state,
 {
     int nfr;
     if (state->dma.rate) {
-	nfr = (time_dst - time_beg) / pcm_frame_period_us(state->dma.rate);
+	nfr = (time_dst - time_beg) / pcm_frame_period_us(state->dma.rate) + 1;
 	if (nfr < 0)	// happens because of get_stream_time() hack
 	    nfr = 0;
 	if (nfr > PCM_MAX_BUF)
