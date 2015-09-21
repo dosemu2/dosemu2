@@ -300,9 +300,9 @@ static void sb_dma_start(void)
 	sb.dma_count = sb.dma_init_count;
 	S_printf("SB: DMA transfer started, count=%i\n",
 		 sb.dma_init_count);
-	S_printf("SB: sample params: rate=%i, stereo=%i, signed=%i\n",
+	S_printf("SB: sample params: rate=%i, stereo=%i, signed=%i 16bit=%i\n",
 		 sb_get_dma_sampling_rate(), sb_dma_samp_stereo(),
-		 sb_dma_samp_signed());
+		 sb_dma_samp_signed(), sb_dma_16bit());
 	start_dma_clock();
     }
 }

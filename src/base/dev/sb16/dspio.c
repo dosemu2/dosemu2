@@ -616,8 +616,11 @@ static void dspio_process_dma(struct dspio_state *state)
 		dma_cnt++;
 	    }
 	    if (!dspio_get_output_sample(state, &buf[i][j],
-		    state->dma.is16bit))
+		    state->dma.is16bit)) {
+		if (out_fifo_cnt && debug_level('S') >= 5)
+		    S_printf("SB: no output samples\n");
 		break;
+	    }
 #if 0
 	    /* if speaker disabled, overwrite DMA data with silence */
 	    /* on SB16 is not used */
@@ -646,7 +649,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	if (!sb_dma_active()) {
 	    dspio_stop_output(state);
 	} else {
-	    if (nfr && !warned) {
+	    if (nfr && (!warned || debug_level('S') >= 9)) {
 		S_printf("SB: Output FIFO exhausted while DMA is still active (ol=%f)\n",
 			 time_dst - output_time_cur);
 		warned = 1;
