@@ -232,8 +232,9 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
-void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res)
+struct vid_mode_params get_mode_parameters(void)
 {
+  struct vid_mode_params ret;
   int x_res, y_res, w_x_res, w_y_res;
 
   w_x_res = x_res = vga.width;
@@ -289,10 +290,14 @@ void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res)
   }
 #endif
 
-  *wx_res = w_x_res;
-  *wy_res = w_y_res;
-  *x_res_p = x_res;
-  *y_res_p = y_res;
+  ret.w_x_res = w_x_res;
+  ret.w_y_res = w_y_res;
+  ret.x_res = x_res;
+  ret.y_res = y_res;
+  ret.mode_class = vga.mode_class;
+  ret.text_width = vga.text_width;
+  ret.text_height = vga.text_height;
+  return ret;
 }
 
 /*
@@ -520,7 +525,7 @@ int update_screen(void)
     );
     vga_emu_update_lock();
     if (Video->setmode)
-      Video->setmode(vga.mode_class, vga.text_width, vga.text_height);
+      Video->setmode(get_mode_parameters());
     dirty_all_video_pages();
     vga.reconfig.display = 0;
     vga_emu_update_unlock();

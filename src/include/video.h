@@ -48,6 +48,15 @@ extern void gettermcap(int,int *, int *);
    and (maybe) setmode.
 */
 
+struct vid_mode_params {
+    int mode_class;
+    int x_res;
+    int y_res;
+    int w_x_res;
+    int w_y_res;
+    int text_width;
+    int text_height;
+};
 
 struct video_system {
    int (*priv_init)(void);     /* does setup which needs root privileges */
@@ -57,7 +66,7 @@ struct video_system {
    int (*late_init)(void);     /* init with vm86() available (vbe) */
    void (*close)(void);
 
-   int (*setmode)(int type, int xsize,int ysize);   /* type=0 currently (text mode) */
+   int (*setmode)(struct vid_mode_params);   /* type=0 currently (text mode) */
 
    int (*update_screen)(void);     /* (partially) update screen and cursor from the
                                   video memory. called from sigalrm handler */

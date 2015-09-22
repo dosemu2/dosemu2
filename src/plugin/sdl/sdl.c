@@ -59,8 +59,7 @@
 static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
-static int SDL_set_videomode(int mode_class, int text_width,
-			     int text_height);
+static int SDL_set_videomode(struct vid_mode_params vmp);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int x_res, int y_res, int w_x_res,
@@ -393,31 +392,28 @@ static void unlock_surface(void)
 }
 
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
-int SDL_set_videomode(int mode_class, int text_width, int text_height)
+int SDL_set_videomode(struct vid_mode_params vmp)
 {
-  int x_res, y_res, wx_res, wy_res;
-
-  get_mode_parameters(&x_res, &y_res, &wx_res, &wy_res);
   v_printf
       ("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
-       video_mode, mode_class ? "GRAPH" : "TEXT", text_width, text_height,
-       x_res, y_res);
-  if (surface && surface->w == x_res && surface->h == y_res) {
+       video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
+       vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
+  if (surface && surface->w == vmp.x_res && surface->h == vmp.y_res) {
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  if (mode_class == TEXT) {
+  if (vmp.mode_class == TEXT) {
     pthread_mutex_lock(&mode_mtx);
     if (use_bitmap_font) {
-      SDL_change_mode(x_res, y_res, wx_res, wy_res);
+      SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
     } else {
-      SDL_change_mode(0, 0, text_width * font_width,
-		      text_height * font_height);
+      SDL_change_mode(0, 0, vmp.text_width * font_width,
+		      vmp.text_height * font_height);
     }
     pthread_mutex_unlock(&mode_mtx);
   } else {
     pthread_mutex_lock(&mode_mtx);
-    SDL_change_mode(x_res, y_res, wx_res, wy_res);
+    SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
     pthread_mutex_unlock(&mode_mtx);
   }
 

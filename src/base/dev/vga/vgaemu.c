@@ -269,6 +269,7 @@
 #include "bios.h"
 #include "memory.h"
 #include "remap.h"
+#include "render.h"
 #include "vgaemu.h"
 #include "priv.h"
 #include "mapping.h"
@@ -2464,7 +2465,7 @@ static int __vga_emu_setmode(int mode, int width, int height)
 #endif
 
   if (Video->setmode)
-    Video->setmode(vmi->mode_class, width, height);
+    Video->setmode(get_mode_parameters());
 
   vga_msg("vga_emu_setmode: mode initialized\n");
 
