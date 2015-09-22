@@ -669,7 +669,7 @@ void run_irqs(void)
                if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
                        return;
 
-               if (pic_irqs_active && local_pic_ilevel >= find_bit(pic_irqs_active))
+               if (test_bit(local_pic_ilevel, &pic_irqs_active))
                        return;
 
                clear_bit(local_pic_ilevel, &pic_irr);
