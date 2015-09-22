@@ -658,7 +658,7 @@ void run_irqs(void)
         * irq code actually runs, will reset the bits.  We also reset them here,
         * since dos code won't necessarily run.
         */
-       while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
+       while((int_request = pic_pending()) != 0) { /* while something to do*/
                int local_pic_ilevel, old_ilevel, ret;
 
                local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
