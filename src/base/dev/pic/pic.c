@@ -220,6 +220,7 @@ static struct lvldef pic_iinfo[32] = {
 };
 
 static void do_irq(int ilevel);
+static int pic_get_ilevel(void);
 
 /*
  * run_irq()       checks for and runs any interrupts requested in pic_irr
@@ -597,50 +598,10 @@ void pic_seti(unsigned int level, int (*func)(int), unsigned int ivec,
 }
 
 
-/* DANG_BEGIN_FUNCTION run_irqs
- *
- * run_irqs, which is initiated via the macro pic_run, is the "brains" of
- * the pic.  It is called from the vm86() loop, checks for the highest
- * priority interrupt requested, and executes it.  This function is
- * written in assembly language in order to take advantage of atomic
- * (indivisible) instructions, so that it should be safe for a two
- * process model, even in a multiple CPU machine.  A c language
- * version was started, but it became impossible, even with in-line
- * assembly macros, because such macros can only return a single result.
- * If I find a way to do it in c, I will, but don't hold your breath.
- *
- * I found a way to write it in C --EB 15 Jan 97
- *
- * DANG_END_FUNCTION
- */
-/* DANG_BEGIN_COMMENT
- *   This is my C version of the assembly version of run_irqs.
- *   I believe it is a correct translation of the assembly into C.
- *
- *   I got frustrated with the old incomplete version.  Especially
- *   because of indent problems and I don't believe in changing code I
- *   don't understand.
- *
- *   This code is correct in the single process case.
- *   Except possilby it's handling of special mask mode.
- *   If pic_smm is set to 32 it appears to me that no interrupt is
- *   ever run.
- *
- *   But this code is certainly incorrect in the multiple process
- *   case.  Because it spins without rereading pic_irr, to recalculate
- *   pic_ilevel.  And I think there are other less serious problems as
- *   well.  However it doesn't matter because we aren't doing multiple
- *   processes, or multiple threads. :)
- *
- *   Note Comments taken from the original C version
- *
- *   --EB 5 Jan 97
- *  DANG_END_COMMENT
- */
 void run_irqs(void)
 /* find the highest priority unmasked requested irq and run it */
 {
-       int int_request;
+       int local_pic_ilevel, ret;
 
        /* don't allow HW interrupts in force trace mode */
        if (mhpdbg.active && mhpdbg.TFpendig) return;
@@ -658,14 +619,7 @@ void run_irqs(void)
         * irq code actually runs, will reset the bits.  We also reset them here,
         * since dos code won't necessarily run.
         */
-       while((int_request = pic_pending()) != 0) { /* while something to do*/
-               int local_pic_ilevel, old_ilevel, ret;
-
-               local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
-	       old_ilevel = find_bit(pic_isr);
-               if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
-                       return;
-
+       while((local_pic_ilevel = pic_get_ilevel()) != -1) { /* while something to do*/
                clear_bit(local_pic_ilevel, &pic_irr);
 	       /* pic_isr bit is set in do_irq() */
                ret = (pic_iinfo[local_pic_ilevel].func ?
@@ -963,27 +917,22 @@ unsigned long pic_newirr;
   }
 }
 
-
-/* DANG_BEGIN_FUNCTION pic_pending
- * This function returns a non-zero value if the designated interrupt has
- * been requested and is not masked.  In these circumstances, it is important
- * for a hardware emulation to return a status which does *not* reflect the
- * event(s) which caused the request, until the interrupt actually gets
- * processed.  This, in turn, hides the interrupt latency of pic from the dos
- * software.
- *
- * The single parameter ilevel is the interrupt level (see pic.h) of the
- * interrupt of interest.
- *
- * If the requested interrupt level is currently active, the returned status
- * will depend upon whether the interrupt code has re-requested itself.  If
- * no re-request has occurred, a value of false (zero) will be returned.
- * DANG_END_FUNCTION
- */
+static int pic_get_ilevel(void)
+{
+    int local_pic_ilevel, old_ilevel;
+    int int_req = (pic_irr & ~(pic_isr | pic_imr | pic_irqs_active));
+    if (!int_req)
+	return -1;
+    local_pic_ilevel = find_bit(int_req);    /* find out what it is  */
+    old_ilevel = find_bit(pic_isr);
+    if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
+	return -1;
+    return local_pic_ilevel;
+}
 
 int pic_pending(void)
 {
-    return (pic_irr & ~(pic_isr | pic_imr | pic_irqs_active));
+    return (pic_get_ilevel() != -1);
 }
 
 int pic_irq_active(int num)
