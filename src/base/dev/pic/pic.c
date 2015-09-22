@@ -663,13 +663,7 @@ void run_irqs(void)
 
                local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
 	       old_ilevel = find_bit(pic_isr);
-               /* In case int_request has no bits set */
-               if (local_pic_ilevel == -1)
-                       return;
                if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
-                       return;
-
-               if (test_bit(local_pic_ilevel, &pic_irqs_active))
                        return;
 
                clear_bit(local_pic_ilevel, &pic_irr);
