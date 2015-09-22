@@ -21,6 +21,7 @@ int remapper_init(int have_true_color, int have_shmap, int features,
 	ColorSpaceDesc *csd);
 void remapper_done(void);
 struct vid_mode_params get_mode_parameters(void);
+int render_update_vidmode(void);
 int update_screen(void);
 void color_space_complete(ColorSpaceDesc *color_space);
 void render_blit(int x, int y, int width, int height);

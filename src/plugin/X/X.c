@@ -1147,7 +1147,6 @@ static int X_change_config(unsigned item, void *buf)
 		       &font_width, &font_height);
       use_bitmap_font = !ret;
       if (use_bitmap_font) {
-        register_render_system(&Render_X);
         font_width = vga.char_width;
         font_height = vga.char_height;
         if(vga.mode_class == TEXT) X_resize_text_screen();
@@ -2222,19 +2221,20 @@ int X_set_videomode(struct vid_mode_params vmp)
  */
 void X_resize_text_screen()
 {
-  struct vid_mode_params vmp;
   if (!use_bitmap_font) {
     w_x_res = x_res = vga.text_width * font_width;
     w_y_res = y_res = vga.text_height * font_height;
   } else {
-    font_width = vga.char_width;
-    font_height = vga.char_height;
-    vmp = get_mode_parameters();
+    struct vid_mode_params vmp = get_mode_parameters();
+    x_res = vmp.x_res;
+    y_res = vmp.y_res;
+    w_x_res = vmp.w_x_res;
+    w_y_res = vmp.w_y_res;
   }
-  saved_w_x_res = vmp.w_x_res;
-  saved_w_y_res = vmp.w_y_res;
+  saved_w_x_res = w_x_res;
+  saved_w_y_res = w_y_res;
 
-  lock_window_size(vmp.w_x_res, vmp.w_y_res);
+  lock_window_size(w_x_res, w_y_res);
 
   X_redraw_text_screen();
 }

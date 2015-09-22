@@ -2464,8 +2464,7 @@ static int __vga_emu_setmode(int mode, int width, int height)
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
 
-  if (Video->setmode)
-    Video->setmode(get_mode_parameters());
+  render_update_vidmode();
 
   vga_msg("vga_emu_setmode: mode initialized\n");
 
