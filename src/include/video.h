@@ -81,7 +81,7 @@ extern struct video_system *Video;
 extern int video_mode;
 extern int video_combo;
 
-extern unsigned char video_initialized;
+extern int video_initialized;
 extern boolean set_video_mode(int);
 extern unsigned screen_adr(int page);
 
