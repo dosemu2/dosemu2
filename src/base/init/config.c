@@ -756,7 +756,7 @@ config_init(int argc, char **argv)
     int i;
     const char * const getopt_string =
        "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
-       "gK"/*NOPs kept for compat (not documented in usage())*/;
+       "gK:"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
@@ -933,11 +933,6 @@ config_init(int argc, char **argv)
 	    break;
 	case 'g': /* obsolete "graphics" option */
 	    break;
-	case 'K':
-#if 0 /* now dummy, leave it for compatibility */
-	    warn("Keyboard interrupt enabled...this is still buggy!\n");
-#endif
-	    break;
 	case 'A':
 	    if (!dexe_running) config.hdiskboot = 0;
 	    break;
@@ -1028,7 +1023,11 @@ config_init(int argc, char **argv)
 
 	case 'E':
 	    g_printf("DOS command given on command line\n");
-	    misc_e6_store_command(optarg,0);
+	    misc_e6_store_command(optarg, 0, 0);
+	    break;
+	case 'K':
+	    g_printf("DOS command given via unix path\n");
+	    misc_e6_store_command(optarg, 1, 0);
 	    break;
 
 	case '?':
@@ -1042,7 +1041,7 @@ config_init(int argc, char **argv)
     }
     while (optind < argc) {
 	g_printf("DOS command given on command line\n");
-	misc_e6_store_command(argv[optind],1);
+	misc_e6_store_command(argv[optind], 1, 1);
 	optind++;
     }
     config_post_process();

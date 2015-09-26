@@ -119,7 +119,7 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	return 0;
 }
 
-int com_system(char *command, int quit)
+int com_system(const char *command, int quit)
 {
 	char *program = com_getenv("COMSPEC");
 	char cmdline[256];

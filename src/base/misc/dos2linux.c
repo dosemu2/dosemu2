@@ -152,9 +152,10 @@
 
 #define MAX_DOS_COMMAND_LEN  256
 
-static char *misc_dos_command = NULL;
-static char *misc_dos_options = NULL;
-static int need_terminate = 0;
+static char *misc_dos_command;
+static char *misc_dos_options;
+static int exec_ux_path;
+static int need_terminate;
 int com_errno;
 static struct vm86_regs saved_regs;
 
@@ -185,7 +186,7 @@ int misc_e6_envvar (char *str)
 }
 
 
-int misc_e6_commandline (char *str)
+int misc_e6_commandline (char *str, int *is_ux_path)
 {
 
   g_printf ("Command Line Check : ");
@@ -199,6 +200,7 @@ int misc_e6_commandline (char *str)
     return 1;
   } else {
     strcpy (str, misc_dos_command);
+    *is_ux_path = exec_ux_path;
     g_printf ("%s\n", str);
 
     return 0;
@@ -217,7 +219,7 @@ int misc_e6_need_terminate(void)
   return need_terminate;
 }
 
-void misc_e6_store_command (char *str, int terminate)
+void misc_e6_store_command (char *str, int ux_path, int terminate)
 {
   size_t slen = strlen(str), olen = 0;
   if (slen > MAX_DOS_COMMAND_LEN) {
@@ -226,6 +228,7 @@ void misc_e6_store_command (char *str, int terminate)
   }
   if (misc_dos_command == NULL) {
     misc_dos_command = strdup(str);
+    exec_ux_path = ux_path;
     need_terminate = terminate;
     if (terminate) config.quiet = 1;
 

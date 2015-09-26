@@ -415,11 +415,14 @@ int dos_helper(void)
     run_unix_command(SEG_ADR((char *), es, dx));
     break;
 
-  case DOS_HELPER_GET_USER_COMMAND:
+  case DOS_HELPER_GET_USER_COMMAND: {
+    int is_ux;
     /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
     g_printf("Locating DOS Command\n");
-    LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
+    LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx), &is_ux);
+    LO(bx) = is_ux;
     break;
+  }
 
   case DOS_HELPER_GET_UNIX_ENV:
     /* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
