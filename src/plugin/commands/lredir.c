@@ -63,6 +63,7 @@
 #include "utilities.h"
 #include "lredir.h"
 #include "builtins.h"
+#include "lpt.h"
 #include "disks.h"
 
 #define printf	com_printf
@@ -619,7 +620,7 @@ int lredir_main(int argc, char **argv)
         deviceParam = 1 + cdrom;
       } else if (toupperDOS(argv[carg][0]) == 'P') {
         char *old_rs = resourceStr;
-        ret = asprintf(&resourceStr, "%s\\%s", "LINUX\\PRN", old_rs);
+        ret = asprintf(&resourceStr, "LINUX\\PRN\\%s", old_rs);
         assert(ret != -1);
         free(old_rs);
         deviceType = REDIR_PRINTER_TYPE;
@@ -669,7 +670,24 @@ MainExit:
 
 static int redir_printers(void)
 {
-    /* TODO */
+    uint16_t ccode;
+    char deviceStr[MAX_DEVICE_STRING_LENGTH];
+    char resourceStr[MAX_RESOURCE_STRING_LENGTH];
+    int i;
+    int max = lpt_get_max();
+
+    for (i = NUM_LPTS; i < max; i++) {
+	if (!lpt_is_configured(i))
+	    continue;
+	sprintf(deviceStr, "LPT%i", i + 1);
+	sprintf(resourceStr, "LINUX\\PRN\\%i", i + 1);
+	printf("redirecting %s\n", deviceStr);
+	ccode = RedirectDevice(deviceStr, resourceStr, REDIR_PRINTER_TYPE, 0);
+	if (ccode != CC_SUCCESS) {
+	    printf("failure redirecting LPT%i\n", i);
+	    return 1;
+	}
+    }
     return 0;
 }
 

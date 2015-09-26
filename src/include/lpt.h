@@ -34,6 +34,8 @@ int printer_write(int prnum, Bit8u outchar);
 ioport_t get_lpt_base(int lptnum);
 void printer_config(int prnum, struct printer *pptr);
 void printer_print_config(int prnum, void (*print)(const char *, ...));
+int lpt_get_max(void);
+int lpt_is_configured(int num);
 
 /* status bits */
 #define LPT_STAT_TIMEOUT	0x1

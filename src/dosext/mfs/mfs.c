@@ -1822,6 +1822,10 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
       ufs[len - 1] = EOS;
     return TRUE;
   }
+  if (strncasecmp(path, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+    sprintf(ufs, "LPT%s", &path[strlen(LINUX_PRN_RESOURCE) + 1]);
+    return TRUE;
+  }
 
   Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
           drives[drive].root_len));
@@ -3759,12 +3763,12 @@ dos_fs_redirect(state_t *state)
 
     Debug0((dbg_fd, "Open existing file %s\n", filename1));
 
-  do_open_existing:
     if (drives[drive].read_only && dos_mode != READ_ACC) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
     build_ufs_path(fpath, filename1, drive);
+  do_open_existing:
     auspr(filename1, fname, fext);
     devptr = is_dos_device(fpath);
     if (devptr) {
@@ -3831,6 +3835,8 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
+    build_ufs_path(fpath, filename1, drive);
+    auspr(filename1, fname, fext);
     if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
       bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
       if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
@@ -3846,8 +3852,6 @@ dos_fs_redirect(state_t *state)
       fext[0] = 0;
       ftype = TYPE_PRINTER;
     } else {
-     build_ufs_path(fpath, filename1, drive);
-     auspr(filename1, fname, fext);
      if (find_file(fpath, &st, drive, NULL)) {
       devptr = is_dos_device(fpath);
       if (devptr) {
@@ -4194,6 +4198,13 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));
 
+      if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
+        goto do_open_existing;
+
+      if (drives[drive].read_only && dos_mode != READ_ACC) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return (FALSE);
+      }
       build_ufs_path(fpath, filename1, drive);
       file_exists = find_file(fpath, &st, drive, &doserrno);
       if (file_exists && is_dos_device(fpath))
