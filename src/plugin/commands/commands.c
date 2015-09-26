@@ -266,6 +266,7 @@ void commands_plugin_init(void)
 
 	/* old xxx.c files */
 	register_com_program("LREDIR", lredir_main);
+	register_com_program("LREDIR2", lredir2_main);
 	register_com_program("XMODE", xmode_main);
 	register_com_program("EMUMOUSE", emumouse_main);
 	register_com_program("DOSDBG", dosdbg_main);
