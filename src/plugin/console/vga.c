@@ -521,8 +521,8 @@ static void pcivga_init(void)
       io_device.end_addr = base + size;
       port_register_handler(io_device, PORT_FAST);
     } else if (base >= LOWMEM_SIZE + HMASIZE) {
-      v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n", base, size);
-      register_hardware_ram('v', base, size);
+      v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n", base, size + 1);
+      register_hardware_ram('v', base, size + 1);
     }
   }
 }
