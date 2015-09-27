@@ -489,14 +489,14 @@ struct hardware_ram {
 static struct hardware_ram *hardware_ram;
 
 /*
- * DANG_BEGIN_FUNCTION map_hardware_ram
+ * DANG_BEGIN_FUNCTION init_hardware_ram
  *
  * description:
  *  Initialize the hardware direct-mapped pages
  *
  * DANG_END_FUNCTION
  */
-void map_hardware_ram(void)
+void init_hardware_ram(void)
 {
   struct hardware_ram *hw;
   int cap;
@@ -515,7 +515,7 @@ void map_hardware_ram(void)
     p = mmap_mapping(cap, p, hw->size, PROT_READ | PROT_WRITE,
 		     hw->base);
     if (p == MAP_FAILED) {
-      error("mmap error in map_hardware_ram %s\n", strerror (errno));
+      error("mmap error in init_hardware_ram %s\n", strerror (errno));
       return;
     }
     hw->vbase = p - mem_base;

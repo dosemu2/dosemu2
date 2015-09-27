@@ -327,7 +327,7 @@ int main(int argc, char **argv)
     }
     priv_drop();
 
-    map_hardware_ram();         /* map the direct hardware ram */
+    init_hardware_ram();         /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
 
