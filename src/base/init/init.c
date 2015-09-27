@@ -298,6 +298,11 @@ void low_mem_init(void)
 #endif
   }
 #else
+#if 0
+  result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
+			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
+  if (result == MAP_FAILED && (errno == EPERM || errno == EACCES))
+#endif
   result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (config.cpuemu < 3) {

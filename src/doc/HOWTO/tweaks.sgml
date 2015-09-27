@@ -43,27 +43,8 @@ Solution: to the file 2200gx.exe apply the following patch:
 </para>
 </listitem>
 </itemizedlist>
-
 </listitem>
-<listitem>
 
-<title>Screamer</title>
-<itemizedlist>
-<listitem>
-<para>
-Screamer crashes at startup
-</para>
-<para>
-Solution: you need do update dos4gw that comes with the game, to version 1.97.
-Or you can use dos32a like this:
-<screen>
-dos32a.exe starth.exe
-</screen>
-</para>
-</listitem>
-</itemizedlist>
-
-</listitem>
 <listitem>
 <title>Need For Speed Special Edition</title>
 <itemizedlist>
