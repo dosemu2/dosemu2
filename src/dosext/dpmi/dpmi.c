@@ -1494,7 +1494,7 @@ static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
     rmreg->edx = REG(edx);
     rmreg->ecx = REG(ecx);
     rmreg->eax = REG(eax);
-    rmreg->flags = LWORD(eflags);
+    rmreg->flags = get_FLAGS(REG(eflags));
     rmreg->es = REG(es);
     rmreg->ds = REG(ds);
     rmreg->fs = REG(fs);
@@ -1518,7 +1518,7 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
     RMR(ecx);
     RMR(eax);
     if (mask & (1 << eflags_INDEX))
-	LWORD(eflags) = rmreg->flags;
+	REG(eflags) = get_EFLAGS(rmreg->flags);
     RMR(es);
     RMR(ds);
     RMR(fs);
