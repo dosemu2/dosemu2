@@ -260,17 +260,11 @@ static void release_vt (struct sigcontext *scp)
 
 static void unmap_video_ram(int copyback)
 {
-  unsigned base = VMEM_BASE;
-  size_t size = VMEM_SIZE;
   int cap = MAPPING_VC | MAPPING_LOWMEM;
 
-  if (!config.vga) {
-    size = console_size();
-    base = scr_state.virt_address;
-  }
   if (copyback) cap |= MAPPING_COPYBACK;
-  if (alias_mapping(cap, base, size, PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(GRAPH_BASE)) != MAP_FAILED)
-    scr_state.mapped = 0;
+  unmap_hardware_ram('v', cap);
+  scr_state.mapped = 0;
 }
 
 static void map_video_ram(void)

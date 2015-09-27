@@ -500,7 +500,7 @@ void init_hardware_ram(void)
 {
   struct hardware_ram *hw;
   int cap;
-  unsigned char *p;
+  unsigned char *p, *targ;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (!hw->type || hw->type == 'e') { /* virtual hardware ram, base==vbase */
@@ -508,11 +508,12 @@ void init_hardware_ram(void)
       continue;
     }
     cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-    if (hw->base < LOWMEM_SIZE)
-      hw->vbase = hw->base;
     alloc_mapping(cap, hw->size, hw->base);
-    p = hw->vbase == -1 ? (void *)-1 : MEM_BASE32(hw->vbase);
-    p = mmap_mapping(cap, p, hw->size, PROT_READ | PROT_WRITE,
+    if (hw->base < LOWMEM_SIZE)
+      targ = MEM_BASE32(hw->base);
+    else
+      targ = (void *)-1;
+    p = mmap_mapping(cap, targ, hw->size, PROT_READ | PROT_WRITE,
 		     hw->base);
     if (p == MAP_FAILED) {
       error("mmap error in init_hardware_ram %s\n", strerror (errno));
@@ -527,20 +528,52 @@ void init_hardware_ram(void)
 int map_hardware_ram(char type, int cap)
 {
   struct hardware_ram *hw;
-  unsigned char *p;
+  unsigned char *p, *targ;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (hw->type != type)
       continue;
-    p = hw->vbase == -1 ? (void *)-1 : MEM_BASE32(hw->vbase);
-    p = mmap_mapping(cap, p, hw->size, PROT_READ | PROT_WRITE,
+    if (hw->base < LOWMEM_SIZE)
+      targ = MEM_BASE32(hw->base);
+    else
+      targ = (void *)-1;
+    p = mmap_mapping(cap, targ, hw->size, PROT_READ | PROT_WRITE,
 		     hw->base);
     if (p == MAP_FAILED) {
       error("mmap error in map_hardware_ram %s\n", strerror (errno));
       return -1;
     }
-    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#lx\n",
-	     hw->base, hw->base+hw->size-1, p - mem_base);
+    hw->vbase = p - mem_base;
+    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	     hw->base, hw->base+hw->size-1, hw->vbase);
+  }
+  return 0;
+}
+
+int unmap_hardware_ram(char type, int cap)
+{
+  struct hardware_ram *hw;
+  unsigned char *p;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->type != type || hw->vbase == -1)
+      continue;
+    if (hw->vbase < LOWMEM_SIZE) {
+      p = alias_mapping(cap, hw->vbase, hw->size,
+	PROT_READ | PROT_WRITE, LOWMEM(hw->vbase));
+    } else {
+      cap &= ~MAPPING_COPYBACK; 	//XXX
+      cap |= MAPPING_SCRATCH;
+      p = mmap_mapping(cap, MEM_BASE32(hw->vbase), hw->size,
+	PROT_READ | PROT_WRITE, 0);
+    }
+    if (p == MAP_FAILED) {
+      error("mmap error in unmap_hardware_ram %s\n", strerror (errno));
+      return -1;
+    }
+    g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	     hw->base, hw->base+hw->size-1, hw->vbase);
+    hw->vbase = -1;
   }
   return 0;
 }
