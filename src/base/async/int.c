@@ -32,7 +32,6 @@
 #include "int.h"
 #include "dos2linux.h"
 #include "video.h"
-#include "vc.h"
 #include "priv.h"
 #include "doshelpers.h"
 #include "plugin_config.h"

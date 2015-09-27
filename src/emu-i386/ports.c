@@ -40,7 +40,6 @@
 #include "video.h"
 #include "vgaemu.h"	/* for video retrace */
 #include "bios.h"
-#include "vc.h"
 #include "serial.h"
 #include "bitops.h"
 #include "mapping.h"

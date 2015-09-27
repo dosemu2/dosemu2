@@ -53,15 +53,9 @@
 #include "video.h"
 
 #include "pic.h"
-
 #include "dpmi.h"
 #include "hlt.h"
-
 #include "ipx.h"
-
-/* Needed for DIAMOND define */
-#include "vc.h"
-
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
 /*

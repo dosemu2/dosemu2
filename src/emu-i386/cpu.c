@@ -29,9 +29,6 @@
 #include "emu.h"
 #include "port.h"
 #include "int.h"
-
-#include "vc.h"
-
 #include "dpmi.h"
 #include "priv.h"
 

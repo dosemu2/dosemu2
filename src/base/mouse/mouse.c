@@ -30,7 +30,6 @@
 
 #include "dpmi.h"
 
-#include "vc.h"
 #include "port.h"
 
 #include "keyboard.h"
