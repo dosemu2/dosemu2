@@ -542,9 +542,6 @@ static int int15(void)
 
   if (HI(ax) != 0x4f)
     NOCARRY;
-  /* REG(eflags) |= VIF;
-  WRITE_FLAGSE(READ_FLAGSE() | VIF);
-  */
 
   switch (HI(ax)) {
   case 0x10:			/* TopView/DESQview */
@@ -597,7 +594,7 @@ static int int15(void)
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
     /*k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));*/
-    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (READ_FLAGS() & CF),LWORD(eax));
+    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (_FLAGS & CF),LWORD(eax));
     CARRY;
 /*
     if (LO(ax) & 0x80 )

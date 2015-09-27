@@ -481,7 +481,7 @@ static unsigned long mhp_getreg(char * regn)
     case _BPr: return LWORD(ebp);
     case _SPr: return LWORD(esp);
     case _IPr: return LWORD(eip);
-    case _FLr: return LWORD(eflags);
+    case _FLr: return get_FLAGS(REG(eflags));
     case _EAXr: return REG(eax);
     case _EBXr: return REG(ebx);
     case _ECXr: return REG(ecx);
@@ -518,7 +518,7 @@ static void mhp_setreg(char * regn, unsigned long val)
     case _BPr: LWORD(ebp) = val; break;
     case _SPr: LWORD(esp) = val; break;
     case _IPr: LWORD(eip) = val; break;
-    case _FLr: LWORD(eflags) = val; break;
+    case _FLr: set_FLAGS(val); break;
     case _EAXr: REG(eax) = val; break;
     case _EBXr: REG(ebx) = val; break;
     case _ECXr: REG(ecx) = val; break;
@@ -539,7 +539,7 @@ static void mhp_go(int argc, char * argv[])
       mhp_printf("already in running state\n");
    } else {
       dpmi_mhp_setTF(0);
-      WRITE_FLAGS(READ_FLAGS() & ~TF);
+      clear_TF();
       mhpdbg.TFpendig = 0;
       mhpdbgc.stopped = 0;
       pic_sti();
@@ -572,7 +572,7 @@ static void mhp_trace(int argc, char * argv[])
       if (in_dpmi) {
         dpmi_mhp_setTF(1);
       }
-      WRITE_FLAGS(READ_FLAGS() | TF);
+      set_TF();
 
       if (!strcmp(argv[0], "ti")) {
 	mhpdbgc.trapcmd = 2;
@@ -604,7 +604,7 @@ static void mhp_trace_force(int argc, char * argv[])
       if (in_dpmi) {
         dpmi_mhp_setTF(1);
       }
-      WRITE_FLAGS(READ_FLAGS() | TF);
+      set_TF();
       mhpdbg.TFpendig = 1;
       mhpdbgc.trapcmd = 1;
       /* disable PIC: we want to trace the program, not the HW int handlers */
@@ -1368,8 +1368,8 @@ static void mhp_regs(int argc, char * argv[])
                 LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
     mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
                 LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
-    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%04x",
-                LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), LWORD(eflags));
+    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x",
+                LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), REG(eflags));
     mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
                 LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
   }

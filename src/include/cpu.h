@@ -93,7 +93,7 @@ union dword {
 #define _FS      (vm86s.regs.fs)
 #define _GS      (vm86s.regs.gs)
 #define _EFLAGS  UDWORD(eflags)
-#define _FLAGS   LWORD(eflags)
+#define _FLAGS   REG(eflags)
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
 #define LO(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)]
@@ -138,11 +138,6 @@ static inline far_t rFAR_FARt(FAR_PTR far_ptr) {
 }
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
-
-#define WRITE_FLAGS(val)    LWORD(eflags) = (val)
-#define WRITE_FLAGSE(val)    REG(eflags) = (val)
-#define READ_FLAGS()        LWORD(eflags)
-#define READ_FLAGSE()        REG(eflags)
 
 extern struct _fpstate vm86_fpu_state;
 
@@ -317,9 +312,8 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #define isset_VIP()   ((_EFLAGS & VIP) != 0)
 
 #define set_EFLAGS(flgs, new_flgs) ({ \
-  int __nflgs = (new_flgs); \
-  (flgs)=(__nflgs) | IF | IOPL_MASK; \
-  ((__nflgs & IF) ? set_IF() : clear_IF()); \
+  int __nflgs = (new_flgs) & ~(VIP | VIF); \
+  (flgs) = (__nflgs) | IF | IOPL_MASK | ((__nflgs & IF) ? VIF : 0); \
 })
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
