@@ -275,35 +275,26 @@ static void unmap_video_ram(int copyback)
 
 static void map_video_ram(void)
 {
-  void *graph_mem;
   off_t pbase = VMEM_BASE;
   unsigned int vbase = pbase;
-  size_t ssize = VMEM_SIZE;
   int cap = MAPPING_VC | MAPPING_KMEM;
+  int err;
 
   if (!config.vga) {
     pbase = phys_text_base;         /* physical page address    */
     vbase = scr_state.virt_address; /* new virtual page address */
-    ssize = console_size();
     /* this is used for page switching */
     cap |= MAPPING_COPYBACK;
   }
 
   g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
 
-  graph_mem = mmap_mapping(cap, &mem_base[vbase], ssize, PROT_READ | PROT_WRITE | PROT_EXEC, pbase);
-
-  /* the code below is done by the video save/restore code for config.vga */
-  if (!config.vga) {
-    if (graph_mem == MAP_FAILED) {
-      if (!can_do_root_stuff && mem_fd == -1) return;
-      error("mmap error in get_video_ram (text): %p, errno %d\n",
-	    graph_mem, errno);
+  err = map_hardware_ram('v', cap);
+  if (err) {
+      error("mmap error in get_video_ram (text)\n");
       return;
-    } else
-      v_printf ("CONSOLE VIDEO address: %p %#llx %#x\n", graph_mem,
-		(long long)pbase, vbase);
   }
+  v_printf ("CONSOLE VIDEO address: %#llx %#x\n", (long long)pbase, vbase);
   scr_state.phys_address = pbase;
   scr_state.mapped = 1;
 }

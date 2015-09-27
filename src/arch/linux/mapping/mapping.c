@@ -524,6 +524,27 @@ void init_hardware_ram(void)
   }
 }
 
+int map_hardware_ram(char type, int cap)
+{
+  struct hardware_ram *hw;
+  unsigned char *p;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->type != type)
+      continue;
+    p = hw->vbase == -1 ? (void *)-1 : MEM_BASE32(hw->vbase);
+    p = mmap_mapping(cap, p, hw->size, PROT_READ | PROT_WRITE,
+		     hw->base);
+    if (p == MAP_FAILED) {
+      error("mmap error in map_hardware_ram %s\n", strerror (errno));
+      return -1;
+    }
+    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#lx\n",
+	     hw->base, hw->base+hw->size-1, p - mem_base);
+  }
+  return 0;
+}
+
 int register_hardware_ram(int type, unsigned int base, unsigned int size)
 {
   struct hardware_ram *hw;
