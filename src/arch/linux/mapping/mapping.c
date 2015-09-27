@@ -269,8 +269,12 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 
   if (cap & MAPPING_SCRATCH) {
     int flags = (target != (void *)-1) ? MAP_FIXED : 0;
-    if (cap & MAPPING_NOOVERLAP)
-      flags = 0;	// discard MAP_FIXED
+    if (cap & MAPPING_NOOVERLAP) {
+      if (!flags)
+        cap &= ~MAPPING_NOOVERLAP;
+      else
+        flags &= ~MAP_FIXED;
+    }
     if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__
     if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU)))

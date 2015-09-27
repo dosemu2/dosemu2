@@ -145,11 +145,13 @@ int dpmi_alloc_pool(void)
       /* some DPMI clients don't like negative memory pointers,
        * i.e. over 0x80000000. In fact, Screamer game won't work
        * with anything above 0x40000000 */
-      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, memsize);
-      if (dpmi_base == MAP_FAILED) {
-        error("MAPPING: cannot find mem hole for pool\n");
-        return -1;
-      }
+      dpmi_base = mapping_find_hole((unsigned long)MEM_BASE32(LOWMEM_SIZE),
+	    (unsigned long)MEM_BASE32(0x40000000), memsize);
+      if (dpmi_base == MAP_FAILED)
+        dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, memsize);
+      if (dpmi_base == MAP_FAILED)
+        error("MAPPING: cannot find mem hole for DPMI pool\n");
+      /* try mmap() regardless of whether find_hole() succeeded or not */
       mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH |
 		MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE, 0);
     } else {
