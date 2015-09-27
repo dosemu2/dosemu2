@@ -672,3 +672,37 @@ close_kmem (void)
       v_printf ("Kmem closed successfully\n");
     }
 }
+
+void *mapping_find_hole(unsigned long start, unsigned long stop,
+	unsigned long size)
+{
+    FILE *fp;
+    unsigned long beg, end, pend;
+    int fd, ret;
+    /* find out whether the address request is available */
+    fd = dup(dosemu_proc_self_maps_fd);
+    if ((fp = fdopen(fd, "r")) == NULL) {
+	error("can't open /proc/self/maps\n");
+	return MAP_FAILED;
+    }
+    fseek(fp, 0, SEEK_SET);
+    pend = start;
+    while ((ret = fscanf(fp, "%lx-%lx%*[^\n]", &beg, &end)) == 2) {
+	if (beg <= start) {
+	    if (end > pend)
+		pend = end;
+	    continue;
+	}
+	if (beg - pend >= size)
+	    break;
+	if (end + size > stop) {
+	    fclose(fp);
+	    return MAP_FAILED;
+	}
+	pend = end;
+    }
+    fclose(fp);
+    if (ret != 2)
+	return MAP_FAILED;
+    return (void *)pend;
+}

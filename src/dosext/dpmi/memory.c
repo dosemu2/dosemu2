@@ -140,32 +140,25 @@ int dpmi_alloc_pool(void)
     num_pages = config.dpmi >> 2;
     mpool_numpages = num_pages + 5;  /* 5 extra pages */
     memsize = mpool_numpages << PAGE_SHIFT;
-    dpmi_base = (void *)config.dpmi_base;
 
-    mpool_ptr = MAP_FAILED;
     if (config.dpmi_base == -1) {
-      /* PROT_EXEC is used so exec-shield places it fairly low */
-      mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
-			       dpmi_base, memsize, PROT_EXEC, 0);
-      /* some DPMI clients don't like negative memory pointers ... */
-      if (mpool_ptr != MAP_FAILED &&
-	  DOSADDR_REL((unsigned char *)mpool_ptr + memsize) >=
-	  0x80000000) {
-	/* try 128MB after heap */
-	munmap_mapping(MAPPING_DPMI, dpmi_base, memsize);
-	dpmi_base = (char *)sbrk(0) + 0x08000000;
-	mpool_ptr = MAP_FAILED;
-      } else {
-	mprotect_mapping(MAPPING_DPMI, mpool_ptr, memsize, PROT_NONE);
-	dpmi_base = mpool_ptr;
+      /* some DPMI clients don't like negative memory pointers,
+       * i.e. over 0x80000000. In fact, Screamer game won't work
+       * with anything above 0x40000000 */
+      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, memsize);
+      if (dpmi_base == MAP_FAILED) {
+        error("MAPPING: cannot find mem hole for pool\n");
+        return -1;
       }
-    }
-    if (mpool_ptr == MAP_FAILED) {
+      mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH |
+		MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE, 0);
+    } else {
+      dpmi_base = (void *)config.dpmi_base;
       mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH |
 	MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE, 0);
     }
     if (mpool_ptr == MAP_FAILED) {
-      error("MAPPING: cannot create mem pool for DPMI, %s\n",strerror(errno));
+      error("MAPPING: cannot create mem pool for DPMI\n");
       return -1;
     }
     c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);

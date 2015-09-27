@@ -110,5 +110,7 @@ int unmap_hardware_ram(char type, int cap);
 int register_hardware_ram(int type, unsigned base, unsigned size);
 unsigned get_hardware_ram(unsigned addr);
 void list_hardware_ram(void (*print)(const char *, ...));
+void *mapping_find_hole(unsigned long start, unsigned long stop,
+	unsigned long size);
 
 #endif /* _MAPPING_H_ */
