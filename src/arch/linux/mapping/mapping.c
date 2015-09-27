@@ -271,6 +271,8 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 
   if (cap & MAPPING_SCRATCH) {
     int flags = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
+    if (cap & MAPPING_NOOVERLAP)
+      flags = 0;	// discard MAP_FIXED
     if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__
     if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU)))
@@ -280,6 +282,10 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
 		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED)
       return addr;
+    if ((cap & MAPPING_NOOVERLAP) && addr != target) {
+      munmap(addr, mapsize);
+      return MAP_FAILED;
+    }
     update_aliasmap(addr, mapsize, addr);
   } else {
     dosemu_error("Wrong mapping type %#x\n", cap);

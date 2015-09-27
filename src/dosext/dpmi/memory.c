@@ -161,16 +161,11 @@ int dpmi_alloc_pool(void)
       }
     }
     if (mpool_ptr == MAP_FAILED) {
-      mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, dpmi_base,
-	memsize, PROT_NONE, 0);
+      mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH |
+	MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE, 0);
     }
     if (mpool_ptr == MAP_FAILED) {
       error("MAPPING: cannot create mem pool for DPMI, %s\n",strerror(errno));
-      return -1;
-    }
-    if (mpool_ptr != dpmi_base) {
-      error("Unable to allocate DPMI memory pool of size %#lx at address %p\n",
-        memsize, dpmi_base);
       return -1;
     }
     c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
@@ -345,12 +340,9 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 
     /* base is just a hint here (no MAP_FIXED). If vma-space is
        available the hint will be block->base */
-    realbase = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, ptr,
-	size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE, 0);
-    if (ptr != (void *)-1 && realbase != MAP_FAILED && realbase != ptr) {
-	munmap_mapping(MAPPING_DPMI, realbase, size);
-	realbase = MAP_FAILED;
-    }
+    realbase = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
+	ptr, size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE,
+	0);
     if (realbase == MAP_FAILED) {
 	free_pm_block(root, block);
 	return NULL;
