@@ -332,6 +332,8 @@ static void our_envs_init(void)
     char *s;
     char buf[256];
 
+    strcpy(buf, on_console() ? "1" : "0");
+    setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
     uname(&unames);
     kernel_version_code = strtol(unames.release, &s,0) << 16;
     kernel_version_code += strtol(s+1, &s,0) << 8;
