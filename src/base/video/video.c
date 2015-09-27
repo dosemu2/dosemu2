@@ -27,7 +27,6 @@
 #include "memory.h"
 #include "video.h"
 #include "vgaemu.h"
-#include "termio.h"
 #include "vc.h"
 #include "mapping.h"
 #include "utilities.h"

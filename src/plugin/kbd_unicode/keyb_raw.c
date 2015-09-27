@@ -15,7 +15,6 @@
 #include "emu.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
-#include "termio.h"
 
 #include "keystate.h"
 

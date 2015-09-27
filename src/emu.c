@@ -73,7 +73,6 @@
 #include "emu.h"
 
 #include "bios.h"
-#include "termio.h"
 #include "video.h"
 #include "timers.h"
 #include "cmos.h"

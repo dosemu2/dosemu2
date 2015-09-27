@@ -10,7 +10,6 @@
 
 #include "emu.h"
 #include "init.h"
-#include "termio.h"
 #include "video.h"
 #include "vc.h"
 #include "mapping.h"

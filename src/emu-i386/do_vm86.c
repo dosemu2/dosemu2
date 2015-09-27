@@ -36,7 +36,6 @@
 #include "timers.h"
 #include "cmos.h"
 #include "memory.h"
-#include "termio.h"
 #include "config.h"
 #include "port.h"
 #include "int.h"

@@ -26,7 +26,6 @@
 #include "mouse.h"
 #include "serial.h"
 #include "port.h"
-#include "termio.h"
 #include "utilities.h"
 
 #include "dpmi.h"

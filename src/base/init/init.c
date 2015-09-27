@@ -21,7 +21,6 @@
 #include "bios.h"
 #include "int.h"
 #include "timers.h"
-#include "termio.h"
 #include "video.h"
 #include "vc.h"
 #include "mouse.h"

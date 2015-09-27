@@ -10,7 +10,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "emu.h"
-#include "termio.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "keymaps.h"

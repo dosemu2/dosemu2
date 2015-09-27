@@ -43,7 +43,6 @@
 
 #include "emu.h"
 #include "memory.h"
-#include "termio.h"
 #include "mouse.h"
 #include "machcompat.h"
 #include "bios.h"

@@ -22,7 +22,6 @@
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
-#include "termio.h"
 #include "timers.h"
 #include "vbe.h"
 #include "pci.h"
