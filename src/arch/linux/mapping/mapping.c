@@ -232,7 +232,6 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
 
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source)
 {
-  int fixed = target == (void *)-1 ? 0 : MAP_FIXED;
   void *addr;
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x, source=%#llx\n",
 	cap, target, mapsize, protect, (long long)source);
@@ -271,14 +270,14 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
 
   if (cap & MAPPING_SCRATCH) {
-    fixed = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
-    if (!fixed && target == (void *)-1) target = NULL;
+    int flags = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
+    if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__
-    if (fixed == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU)))
-      fixed = MAP_32BIT;
+    if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU)))
+      flags = MAP_32BIT;
 #endif
     addr = mmap(target, mapsize, protect,
-		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
+		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED)
       return addr;
     update_aliasmap(addr, mapsize, addr);
