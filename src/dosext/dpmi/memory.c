@@ -131,7 +131,7 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
-void dpmi_alloc_pool(void)
+int dpmi_alloc_pool(void)
 {
     int num_pages, mpool_numpages;
     void *dpmi_base;
@@ -166,19 +166,20 @@ void dpmi_alloc_pool(void)
     }
     if (mpool_ptr == MAP_FAILED) {
       error("MAPPING: cannot create mem pool for DPMI, %s\n",strerror(errno));
-      leavedos(2);
+      return -1;
     }
     if (mpool_ptr != dpmi_base) {
       error("Unable to allocate DPMI memory pool of size %#lx at address %p\n",
         memsize, dpmi_base);
-      leavedos(2);
+      return -1;
     }
-    D_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
+    c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
     sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
     dpmi_total_memory = num_pages << PAGE_SHIFT;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory);
     config.dpmi_base = (uintptr_t)mpool_ptr;
+    return 0;
 }
 
 void dpmi_free_pool(void)

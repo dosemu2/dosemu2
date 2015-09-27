@@ -2772,8 +2772,6 @@ void dpmi_cleanup(void)
   }
   if (in_dpmi == 1) {
     win31_mode = 0;
-    if (!RSP_num)
-      dpmi_free_pool();
   }
   cli_blacklisted = 0;
   in_dpmi--;
@@ -3164,6 +3162,9 @@ void dpmi_setup(void)
 		    LDT_INIT_LIMIT, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
+    if (dpmi_alloc_pool())
+	leavedos(2);
+
     if (config.pm_dos_api)
       msdos_setup();
     return;
@@ -3208,7 +3209,6 @@ void dpmi_init(void)
   DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
 
   if (in_dpmi == 1 && !RSP_num) {
-    dpmi_alloc_pool();
     dpmi_free_memory = dpmi_total_memory;
     DPMI_rm_procedure_running = 0;
     pm_block_handle_used = 1;
@@ -3367,10 +3367,6 @@ err:
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
     DPMI_CLIENT.pm_block_root = NULL;
-  }
-  if (in_dpmi == 1) {
-    if (!RSP_num)
-      dpmi_free_pool();
   }
   in_dpmi--;
 }
