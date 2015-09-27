@@ -190,13 +190,13 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 
 void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
 {
-  void *target = NULL, *addr;
+  void *target = (void *)-1, *addr;
+  int fixed = (targ != -1);
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
-  if (targ != -1) {
+  if (fixed) {
     target = MEM_BASE32(targ);
-    cap |= MAPPING_FIXED;
     if (cap & MAPPING_COPYBACK) {
       if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
         memcpy(source, target, mapsize);
@@ -209,15 +209,13 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   }
 #ifdef __x86_64__
   /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
-  if (!(cap & MAPPING_FIXED) && (cap &
-	(MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM))) {
+  if (!fixed && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM))) {
     target = mmap(NULL, mapsize, protect,
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
       return target;
     }
-    cap |= MAPPING_FIXED;
   }
 #endif
   addr = mappingdriver->alias(cap, target, mapsize, protect, source);
@@ -270,7 +268,7 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
 
   if (cap & MAPPING_SCRATCH) {
-    int flags = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
+    int flags = (target != (void *)-1) ? MAP_FIXED : 0;
     if (cap & MAPPING_NOOVERLAP)
       flags = 0;	// discard MAP_FIXED
     if (target == (void *)-1) target = NULL;

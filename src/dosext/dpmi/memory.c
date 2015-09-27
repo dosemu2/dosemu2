@@ -125,7 +125,7 @@ static int commit(void *ptr, size_t size)
 
 static int uncommit(void *ptr, size_t size)
 {
-  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_FIXED,
+  if (mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH,
 	ptr, size, PROT_NONE, 0) == MAP_FAILED)
     return 0;
   return 1;

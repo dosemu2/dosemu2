@@ -27,8 +27,10 @@ static void *alias_mapping_shm(int cap, void *target, size_t mapsize, int protec
    * pages. We need however to take care not to map
    * past the end of the shm area
    */
-  if (cap & MAPPING_FIXED)
+  if (target != (void *)-1)
     flags |= MREMAP_FIXED;
+  else
+    target = NULL;
   target = extended_mremap(source, 0, mapsize, flags, target);
   if (target == MAP_FAILED) return MAP_FAILED;
 
