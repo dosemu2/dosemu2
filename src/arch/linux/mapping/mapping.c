@@ -311,9 +311,13 @@ void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
 
 int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect)
 {
+  int ret;
   Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
-  return mprotect(addr, mapsize, protect);
+  ret = mprotect(addr, mapsize, protect);
+  if (ret)
+    error("mprotect() failed: %s\n", strerror(errno));
+  return ret;
 }
 
 /*
