@@ -95,15 +95,15 @@ static void s_r_call(u_char al, u_short es, u_short di)
 
 static void exechlp_thr(void *arg)
 {
-    u_short saved_flags;
+    uint32_t saved_flags;
 
     assert(LWORD(esp) >= exec_helper.len);
     LWORD(esp) -= exec_helper.len;
     s_r_call(0, REG(ss), LWORD(esp));
     do_int_call_back(0x21);
-    saved_flags = LWORD(eflags);
+    saved_flags = REG(eflags);
     s_r_call(1, REG(ss), LWORD(esp));
-    LWORD(eflags) = saved_flags;
+    REG(eflags) = saved_flags;
     LWORD(esp) += exec_helper.len;
 }
 
