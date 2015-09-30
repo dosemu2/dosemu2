@@ -503,30 +503,13 @@ int lredir_main(int argc, char **argv)
     /* need to parse the command line */
     /* if no parameters, then just show current mappings */
     if (argc == 1) {
-      ShowMyRedirections();
+      printf("lredir is deprecated, use lredir2 instead\n");
       return(0);
     }
 
     /* tej one parm is either error or HELP/-help etc */
     if (argc == 2 && strncmpi(argv[1], KEYWORD_HELP, KEYWORD_HELP_COMPARE_LENGTH) == 0) {
-      printf("Usage: LREDIR [[drive:] LINUX\\FS\\path [R] | [C [n]] | HELP]\n");
-      printf("Redirect a drive to the Linux file system.\n\n");
-      printf("LREDIR X: LINUX\\FS\\tmp\n");
-      printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
-      printf("  If R is specified, the drive will be read-only\n");
-      printf("  If C is specified, (read-only) CDROM n is used (n=1 by default)\n");
-      printf("  ${home} represents user's home directory\n\n");
-      printf("  If drive is not specified, the next available drive will be used.");
-      printf("LREDIR X: Y:\n");
-      printf("  Redirect drive X: to where the drive Y: is redirected.\n");
-      printf("  If F is specified, the path for Y: is taken from its emulated "
-    	     "FAT volume.\n\n");
-      printf("LREDIR DEL drive:\n");
-      printf("  delete a drive redirection\n\n");
-      printf("LREDIR\n");
-      printf("  show current drive redirections\n\n");
-      printf("LREDIR HELP\n");
-      printf("  show this help screen\n");
+      printf("lredir is deprecated, use lredir2 instead\n");
       return(0);
     }
 
