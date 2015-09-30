@@ -2561,6 +2561,22 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   return i;
 }
 
+int RedirectPrinter(char *resourceName)
+{
+    int drive;
+    char *p;
+    if (strncmp(resourceName, LINUX_PRN_RESOURCE,
+             strlen(LINUX_PRN_RESOURCE)) != 0)
+      return FALSE;
+    p = resourceName + strlen(LINUX_PRN_RESOURCE);
+    if (p[0] != '\\' || !isdigit(p[1]))
+      return FALSE;
+    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
+    if (init_drive(drive, p + 1, 0) == 0)
+      return (FALSE);
+    return TRUE;
+}
+
 /*****************************
  * RedirectDevice - redirect a drive to the Linux file system
  * on entry:
@@ -2573,7 +2589,6 @@ RedirectDevice(state_t * state)
 {
   char *resourceName;
   char *deviceName;
-  char *p;
   char path[256];
   int drive;
   cds_t cds;
@@ -2584,21 +2599,12 @@ RedirectDevice(state_t * state)
   path[0] = 0;
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
-  if (strncmp(resourceName, LINUX_PRN_RESOURCE,
-	      strlen(LINUX_PRN_RESOURCE)) == 0) {
+  if (LOW(state->ebx) == 3) {
     if (state->ecx & 7) {
       Debug0((dbg_fd, "Readonly printer redirection\n"));
       return FALSE;
     }
-    p = resourceName + strlen(LINUX_PRN_RESOURCE);
-    if (p[0] != '\\' || !isdigit(p[1]))
-      return FALSE;
-    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-    if (init_drive(drive, p + 1, 0) == 0) {
-      SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
-      return (FALSE);
-    }
-    return (TRUE);
+    return RedirectPrinter(resourceName);
   }
   if (strncmp(resourceName, LINUX_RESOURCE,
 	      strlen(LINUX_RESOURCE)) != 0) {

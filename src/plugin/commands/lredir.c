@@ -668,29 +668,6 @@ MainExit:
     return (ccode);
 }
 
-static int redir_printers(void)
-{
-    uint16_t ccode;
-    char deviceStr[MAX_DEVICE_STRING_LENGTH];
-    char resourceStr[MAX_RESOURCE_STRING_LENGTH];
-    int i;
-    int max = lpt_get_max();
-
-    for (i = NUM_LPTS; i < max; i++) {
-	if (!lpt_is_configured(i))
-	    continue;
-	sprintf(deviceStr, "LPT%i", i + 1);
-	sprintf(resourceStr, "LINUX\\PRN\\%i", i + 1);
-	printf("redirecting %s\n", deviceStr);
-	ccode = RedirectDevice(deviceStr, resourceStr, REDIR_PRINTER_TYPE, 0);
-	if (ccode != CC_SUCCESS) {
-	    printf("failure redirecting LPT%i\n", i);
-	    return 1;
-	}
-    }
-    return 0;
-}
-
 static int do_repl(char *argv, char **resourceStr)
 {
     int is_cwd, is_drv, ret;
@@ -748,7 +725,7 @@ int lredir2_main(int argc, char **argv)
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char *resourceStr;
     char c;
-    const char *getopt_string = "hd:C::pRrn";
+    const char *getopt_string = "hd:C::Rrn";
     int cdrom = 0, ro = 0, repl = 0, nd = 0;
 
     /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
@@ -794,9 +771,6 @@ int lredir2_main(int argc, char **argv)
 	case 'C':
 	    cdrom = (optarg ? atoi(optarg) : 1);
 	    break;
-
-	case 'p':
-	    return redir_printers();
 
 	case 'r':
 	    repl = 1;

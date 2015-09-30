@@ -10,6 +10,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 /* definitions to make mach emu code compatible with dosemu */
 #include "emu.h"
+#include "redirect.h"
 
 #if 0
 typedef unsigned char boolean_t;
@@ -33,9 +34,6 @@ typedef unsigned char boolean_t;
 #ifdef __linux__
 #define VOLUMELABEL "Linux"
 #endif
-
-#define LINUX_RESOURCE "\\\\LINUX\\FS"
-#define LINUX_PRN_RESOURCE "\\\\LINUX\\PRN"
 
 #define FALSE 0
 #define TRUE 1

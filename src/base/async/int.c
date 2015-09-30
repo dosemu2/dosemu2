@@ -1608,6 +1608,25 @@ static int int24(void)
   return 1;
 }
 
+static int redir_printers(void)
+{
+    char resourceStr[128];
+    int i;
+    int max = lpt_get_max();
+
+    for (i = NUM_LPTS; i < max; i++) {
+	if (!lpt_is_configured(i))
+	    continue;
+	sprintf(resourceStr, LINUX_PRN_RESOURCE"\\%i", i + 1);
+	c_printf("redirecting LPT%i\n", i + 1);
+	if (!RedirectPrinter(resourceStr)) {
+	    printf("failure redirecting LPT%i\n", i + 1);
+	    return 1;
+	}
+    }
+    return 0;
+}
+
 /*
  * Turn all simulated FAT devices into network drives.
  */
@@ -1625,6 +1644,7 @@ void redirect_devices(void)
       ds_printf("INT21: redirecting %c: %s (err = %d)\n", i + 'C', j ? "failed" : "ok", j);
     }
   }
+  redir_printers();
 }
 
 /*
