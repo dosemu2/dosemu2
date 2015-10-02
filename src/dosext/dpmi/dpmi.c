@@ -1495,6 +1495,7 @@ static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
     rmreg->ecx = REG(ecx);
     rmreg->eax = REG(eax);
     rmreg->flags = get_FLAGS(REG(eflags));
+    rmreg->esp_reserved = is_cli;	// have some reserve here
     rmreg->es = REG(es);
     rmreg->ds = REG(ds);
     rmreg->fs = REG(fs);
@@ -1517,8 +1518,10 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
     RMR(edx);
     RMR(ecx);
     RMR(eax);
-    if (mask & (1 << eflags_INDEX))
+    if (mask & (1 << eflags_INDEX)) {
 	REG(eflags) = get_EFLAGS(rmreg->flags);
+	is_cli = rmreg->esp_reserved & 1;
+    }
     RMR(es);
     RMR(ds);
     RMR(fs);
@@ -1537,12 +1540,6 @@ static void save_rm_regs(void)
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
-  /* we dont need the IF flag, we use VIF instead. So the IF bit can
-   * be used for something else, like, say, storing the is_cli hack. */
-  if (is_cli)
-    REG(eflags) &= ~IF;
-  else
-    REG(eflags) |= IF;
   DPMI_save_rm_regs(&DPMI_rm_stack[DPMI_rm_procedure_running++]);
   if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
@@ -1564,9 +1561,6 @@ static void restore_rm_regs(void)
   }
   DPMI_restore_rm_regs(&DPMI_rm_stack[--DPMI_rm_procedure_running], ~0);
   DPMI_CLIENT.in_dpmi_rm_stack--;
-  if (!(REG(eflags) & IF) && !is_cli) {
-    is_cli = 1;
-  }
 }
 
 static void save_pm_regs(struct sigcontext *scp)
