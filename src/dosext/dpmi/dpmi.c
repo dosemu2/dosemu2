@@ -865,10 +865,9 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
   limit = GetSegmentLimit(dpmi_ldt_alias);
   if (limit < (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSelector(dpmi_ldt_alias, DOSADDR_REL(ldt_alias),
+      SetSegmentLimit(dpmi_ldt_alias,
         limit + (number_of_descriptors / (DPMI_page_size /
-        LDT_ENTRY_SIZE) + 1) * DPMI_page_size,
-        0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
+        LDT_ENTRY_SIZE) + 1) * DPMI_page_size);
   }
   return selector;
 }
