@@ -847,7 +847,7 @@ static unsigned short allocate_descriptors(int number_of_descriptors)
 
 unsigned short AllocateDescriptors(int number_of_descriptors)
 {
-  int selector, i, ldt_entry, limit;
+  int selector, i, ldt_entry;
   if (!in_dpmi) {
     dosemu_error("AllocDescriptors error\n");
     return 0;
@@ -861,14 +861,6 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
   for (i = 0; i < number_of_descriptors; i++) {
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
-  }
-
-  limit = GetSegmentLimit(dpmi_ldt_alias);
-  if (limit < (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
-      D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSegmentLimit(dpmi_ldt_alias,
-        limit + (number_of_descriptors / (DPMI_page_size /
-        LDT_ENTRY_SIZE) + 1) * DPMI_page_size);
   }
   return selector;
 }
@@ -4230,7 +4222,7 @@ int dpmi_fault(struct sigcontext *scp)
 
     default:
       _eip = org_eip;
-      if (msdos_fault(scp))
+      if (msdos_fault(scp, pref_seg))
 	  break;
 #ifdef __linux__
       do_cpu_exception(scp);

@@ -32,7 +32,7 @@
 #include "segreg.h"
 
 typedef struct x86_regs {
-  unsigned _32bit:1;	/* 16/32 bit code */
+  int _32bit:1;	/* 16/32 bit code */
   unsigned address_size; /* in bytes so either 4 or 2 */
   unsigned operand_size;
 } x86_regs;
@@ -61,32 +61,33 @@ static int handle_prefixes(struct sigcontext *scp, unsigned cs_base,
   unsigned eip = _eip;
   int prefix = 0;
 
+  x86->address_size = x86->operand_size = (x86->_32bit + 1) * 2;
   for (;; eip++) {
     switch(*(unsigned char *)MEM_BASE32(cs_base + eip)) {
     /* handle (some) prefixes */
       case 0x26:
         prefix++;
-//        x86->seg_base = x86->seg_ss_base = x86->es_base;
+//        x86->es = 1;
         break;
       case 0x2e:
         prefix++;
-//        x86->seg_base = x86->seg_ss_base = x86->cs_base;
+//        x86->cs = 1;
         break;
       case 0x36:
         prefix++;
-//        x86->seg_base = x86->seg_ss_base = x86->ss_base;
+//        x86->ss = 1;
         break;
       case 0x3e:
         prefix++;
-//        x86->seg_base = x86->seg_ss_base = x86->ds_base;
+//        x86->ds = 1;
         break;
       case 0x64:
         prefix++;
-//        x86->seg_base = x86->seg_ss_base = x86->fs_base;
+//        x86->fs = 1;
         break;
       case 0x65:
         prefix++;
-//        x86->seg_base = x86->seg_ss_base = x86->gs_base;
+//        x86->gs = 1;
         break;
       case 0x66:
         prefix++;
@@ -333,7 +334,6 @@ static int decode_segreg(struct sigcontext *scp)
   x86_regs x86;
 
   x86._32bit = dpmi_mhp_get_selector_size(_cs);
-  x86.address_size = x86.operand_size = (x86._32bit + 1) * 2;
   cs = GetSegmentBase(_cs);
   csp = (unsigned char *)MEM_BASE32(cs + _eip);
   eip = _eip + handle_prefixes(scp, cs, &x86);
@@ -427,7 +427,7 @@ static int decode_segreg(struct sigcontext *scp)
   return ret;
 }
 
-int msdos_fault(struct sigcontext *scp)
+int msdos_fault(struct sigcontext *scp, int pref_seg)
 {
     struct sigcontext new_sct;
     int reg;
@@ -435,8 +435,18 @@ int msdos_fault(struct sigcontext *scp)
     unsigned short desc;
 
     D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
-    if ((_err & 0xffff) == 0)	/*  not a selector error */
+    if ((_err & 0xffff) == 0) {	/*  not a selector error */
+	if (pref_seg == -1)
+	    pref_seg = _ds;
+	if (pref_seg == DPMI_ldt_alias()) {
+	    unsigned limit = GetSegmentLimit(DPMI_ldt_alias());
+	    D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
+	    SetSegmentLimit(DPMI_ldt_alias(), limit + DPMI_page_size);
+	    return 1;
+	}
+
 	return 0;
+    }
 
     /* now it is a invalid selector error, try to fix it if it is */
     /* caused by an instruction such as mov Sreg,r/m16            */
