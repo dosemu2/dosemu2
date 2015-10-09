@@ -34,7 +34,6 @@
 #endif
 #include "dpmi.h"
 #include "emm.h"
-#include "segreg.h"
 #include "msdoshlp.h"
 #include "msdos.h"
 
@@ -1855,103 +1854,4 @@ static void msdos_api_call(struct sigcontext *scp)
     } else {
 	_eflags |= CF;
     }
-}
-
-int msdos_fault(struct sigcontext *scp)
-{
-    struct sigcontext new_sct;
-    int reg;
-    unsigned int segment;
-    unsigned short desc;
-
-    D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
-    if ((_err & 0xffff) == 0)	/*  not a selector error */
-	return 0;
-
-    /* now it is a invalid selector error, try to fix it if it is */
-    /* caused by an instruction such as mov Sreg,r/m16            */
-
-#define ALL_GDTS 0
-#if !ALL_GDTS
-    segment = (_err & 0xfff8);
-    /* only allow using some special GTDs */
-    switch (segment) {
-    case 0x0040:
-    case 0xa000:
-    case 0xb000:
-    case 0xb800:
-    case 0xc000:
-    case 0xe000:
-    case 0xf000:
-    case 0xbf8:
-    case 0xf800:
-    case 0xff00:
-    case 0x38:		// ShellShock installer
-	break;
-    default:
-	return 0;
-    }
-    copy_context(&new_sct, scp, 0);
-    reg = decode_segreg(&new_sct);
-    if (reg == -1)
-	return 0;
-#else
-    copy_context(&new_sct, scp, 0);
-    reg = decode_modify_segreg_insn(&new_sct, 1, &segment);
-    if (reg == -1)
-	return 0;
-
-    if (ValidAndUsedSelector(segment)) {
-	/*
-	 * The selector itself is OK, but the descriptor (type) is not.
-	 * We cannot fix this! So just give up immediately and dont
-	 * screw up the context.
-	 */
-	D_printf("MSDOS: msdos_fault: Illegal use of selector %#x\n",
-		 segment);
-	return 0;
-    }
-#endif
-
-    D_printf("MSDOS: try mov to a invalid selector 0x%04x\n", segment);
-
-    switch (segment) {
-    case 0x38:
-	/* dos4gw sets VCPI descriptors 0x28, 0x30, 0x38 */
-	/* The 0x38 is the "flat data" segment (0,4G) */
-	desc = ConvertSegmentToDescriptor_lim(0, 0xffffffff);
-	break;
-    default:
-	/* any other special cases? */
-	desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor(segment) :
-		ConvertSegmentToCodeDescriptor(segment));
-    }
-    if (!desc)
-	return 0;
-
-    /* OKay, all the sanity checks passed. Now we go and fix the selector */
-    copy_context(scp, &new_sct, 0);
-    switch (reg) {
-    case es_INDEX:
-	_es = desc;
-	break;
-    case cs_INDEX:
-	_cs = desc;
-	break;
-    case ss_INDEX:
-	_ss = desc;
-	break;
-    case ds_INDEX:
-	_ds = desc;
-	break;
-    case fs_INDEX:
-	_fs = desc;
-	break;
-    case gs_INDEX:
-	_gs = desc;
-	break;
-    }
-
-    /* let's hope we fixed the thing, and return */
-    return 1;
 }

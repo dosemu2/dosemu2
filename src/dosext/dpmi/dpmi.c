@@ -70,6 +70,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dpmisel.h"
 #include "msdos.h"
 #include "msdoshlp.h"
+#include "segreg.h"
 #include "vxd.h"
 #include "bios.h"
 #include "config.h"
