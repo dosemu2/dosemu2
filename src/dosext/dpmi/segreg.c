@@ -427,7 +427,7 @@ static int decode_segreg(struct sigcontext *scp)
   return ret;
 }
 
-int msdos_fault(struct sigcontext *scp, int pref_seg)
+int msdos_fault(struct sigcontext *scp)
 {
     struct sigcontext new_sct;
     int reg;
@@ -435,22 +435,11 @@ int msdos_fault(struct sigcontext *scp, int pref_seg)
     unsigned short desc;
 
     D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
-    if ((_err & 0xffff) == 0) {	/*  not a selector error */
-	if (pref_seg == -1)
-	    pref_seg = _ds;
-	if (pref_seg == DPMI_ldt_alias()) {
-	    unsigned limit = GetSegmentLimit(DPMI_ldt_alias());
-	    D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-	    SetSegmentLimit(DPMI_ldt_alias(), limit + DPMI_page_size);
-	    return 1;
-	}
-
+    if ((_err & 0xffff) == 0)	/*  not a selector error */
 	return 0;
-    }
 
     /* now it is a invalid selector error, try to fix it if it is */
     /* caused by an instruction such as mov Sreg,r/m16            */
-
 #define ALL_GDTS 0
 #if !ALL_GDTS
     segment = (_err & 0xfff8);

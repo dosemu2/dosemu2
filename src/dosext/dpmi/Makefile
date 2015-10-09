@@ -2,7 +2,8 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFILES = dpmi.c memory.c msdos.c vxd.c emu-ldt.c segreg.c msdoshlp.c
+CFILES = dpmi.c memory.c msdos.c vxd.c emu-ldt.c segreg.c msdoshlp.c \
+    msdos_ldt.c
 SFILES = dpmisel.S
 ALL_CPPFLAGS += -DDOSEMU
 

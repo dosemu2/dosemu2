@@ -70,6 +70,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dpmisel.h"
 #include "msdos.h"
 #include "msdoshlp.h"
+#include "msdos_ldt.h"
 #include "segreg.h"
 #include "vxd.h"
 #include "bios.h"
@@ -101,8 +102,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
  * the client is terminated.
  */
 #define EXC_TO_PM_INT 1
-
-#define LDT_INIT_LIMIT 0xfff
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
@@ -138,8 +137,6 @@ static int DPMI_pm_procedure_running = 0;
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 unsigned char *ldt_buffer;
-unsigned char *ldt_alias;
-static unsigned short dpmi_ldt_alias;
 static unsigned short dpmi_sel16, dpmi_sel32;
 static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
@@ -3064,6 +3061,8 @@ void dpmi_setup(void)
 {
     int i, type;
     unsigned int base_addr, limit, *lp;
+    unsigned char *alias;
+    unsigned short alias_sel;
 
     if (!config.dpmi) return;
 #ifdef __x86_64__
@@ -3096,13 +3095,13 @@ void dpmi_setup(void)
       error("DPMI: can't allocate memory for ldt_buffer\n");
       goto err;
     }
-    ldt_alias = alias_mapping(MAPPING_DPMI, -1,
+    alias = alias_mapping(MAPPING_DPMI, -1,
 	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, ldt_buffer);
-    if (ldt_alias == MAP_FAILED) {
+    if (alias == MAP_FAILED) {
       error("DPMI: can't allocate memory for ldt_alias\n");
       goto err;
     }
-    D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, ldt_alias);
+    D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, alias);
 
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
@@ -3124,7 +3123,7 @@ void dpmi_setup(void)
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
-    if (!(dpmi_ldt_alias = allocate_descriptors(1))) goto err;
+    if (!(alias_sel = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
@@ -3144,15 +3143,14 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 1,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_ldt_alias, DOSADDR_REL(ldt_alias),
-		    LDT_INIT_LIMIT, 0,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (dpmi_alloc_pool())
 	leavedos(2);
 
-    if (config.pm_dos_api)
+    if (config.pm_dos_api) {
       msdos_setup();
+      msdos_ldt_setup(alias, alias_sel);
+    }
     return;
 
 err:
@@ -3297,8 +3295,8 @@ void dpmi_init(void)
 
   if (debug_level('M')) {
     print_ldt();
-    D_printf("LDT_ALIAS=%x dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n",
-	    dpmi_ldt_alias, dpmi_sel(), CS, DS, SS, ES);
+    D_printf("dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n",
+	    dpmi_sel(), CS, DS, SS, ES);
   }
 
   in_dpmi_dos_int = 0;
@@ -3610,11 +3608,6 @@ static void do_cpu_exception(struct sigcontext *scp)
   D_printf("DPMI: Exception Table jump to %04x:%08x\n",_cs,_eip);
   clear_IF();
   _eflags &= ~(TF | NT | AC);
-}
-
-u_short DPMI_ldt_alias(void)
-{
-  return dpmi_ldt_alias;
 }
 
 /*
@@ -4222,7 +4215,9 @@ int dpmi_fault(struct sigcontext *scp)
 
     default:
       _eip = org_eip;
-      if (msdos_fault(scp, pref_seg))
+      if (msdos_fault(scp))
+	  break;
+      if (msdos_ldt_fault(scp, pref_seg))
 	  break;
 #ifdef __linux__
       do_cpu_exception(scp);
