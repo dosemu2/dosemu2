@@ -147,18 +147,4 @@ extern int load_file(char *name, int foffset, unsigned char *mstart, int msize);
 extern void register_video_client(struct video_system *vid);
 extern struct video_system *video_get(const char *name);
 
-/* moved here from s3.c --AV  */
-#define BASE_8514_1	0x2e8
-#define BASE_8514_2	0x148
-
-static __inline__ int emu_video_retrace_on(void)
-{
-  return (config.emuretrace>1? set_ioperm(0x3da,1,0):0);
-}
-
-static __inline__ int emu_video_retrace_off(void)
-{
-  return (config.emuretrace>1? set_ioperm(0x3c0,1,1),set_ioperm(0x3da,1,1):0);
-}
-
 #endif

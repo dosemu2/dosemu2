@@ -192,6 +192,16 @@ static inline void enable_vga_card(void)
   /* disable video */
 }
 
+int emu_video_retrace_on(void)
+{
+  return (config.emuretrace>1? set_ioperm(0x3da,1,0):0);
+}
+
+int emu_video_retrace_off(void)
+{
+  return (config.emuretrace>1? set_ioperm(0x3c0,1,1),set_ioperm(0x3da,1,1):0);
+}
+
 /* Store current EGA/VGA regs */
 static void store_vga_regs(u_char regs[])
 {

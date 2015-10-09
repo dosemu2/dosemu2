@@ -15,5 +15,8 @@ extern u_char(*ext_video_port_in) (ioport_t port);
 void save_vga_state(struct video_save_struct *save_regs);
 void restore_vga_state(struct video_save_struct *save_regs);
 
+int emu_video_retrace_on(void);
+int emu_video_retrace_off(void);
+
 #endif
 /* End of video/vga.h */
