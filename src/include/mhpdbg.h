@@ -20,6 +20,7 @@
 // There is also an argument field shifted 8 bits left
 enum dosdebug_event {
    DBG_INIT = 0,
+   DBG_BOOT,
    DBG_INTx,
    DBG_TRAP,
    DBG_POLL,

@@ -269,34 +269,45 @@ static void mhp_poll_loop(void)
 static void mhp_poll(void)
 {
 
-   if (!mhpdbg.active && !wait_for_debug_terminal) {
+  if (!mhpdbg.active) {
      mhpdbg.nbytes = 0;
      return;
-   }
+  }
 
-   if (mhpdbg.active == 1) {
-      /* new session has started */
-      mhpdbg.active++;
+  if (mhpdbg.active == 1) {
+    /* new session has started */
+    mhpdbg.active++;
 
-      mhp_printf ("%s", mhp_banner);
-      mhp_cmd("rmapfile");
-      mhp_send();
-      if (wait_for_debug_terminal) wait_for_debug_terminal =0;
-   }
-
-   if (mhpdbgc.want_to_stop) {
-      mhpdbgc.stopped = 1;
-      mhpdbgc.want_to_stop = 0;
-   }
-   if (mhpdbgc.stopped) {
+    mhp_printf ("%s", mhp_banner);
+    mhp_cmd("rmapfile");
+    mhp_send();
+  }
+  if (mhpdbgc.want_to_stop) {
+    mhpdbgc.stopped = 1;
+    mhpdbgc.want_to_stop = 0;
+  }
+  if (mhpdbgc.stopped) {
       if (dosdebug_flags & DBGF_LOG_TEMPORARY) {
          dosdebug_flags &= ~DBGF_LOG_TEMPORARY;
 	 mhp_cmd("log off");
       }
       mhp_cmd("r0");
       mhp_send();
-   }
-   mhp_poll_loop();
+  }
+  mhp_poll_loop();
+}
+
+static void mhp_boot(void)
+{
+
+  if (!wait_for_debug_terminal) {
+     mhpdbg.nbytes = 0;
+     return;
+  }
+
+  wait_for_debug_terminal = 0;
+  mhp_poll_loop();
+  mhpdbgc.want_to_stop = 1;
 }
 
 void mhp_intercept_log(char *flags, int temporary)
@@ -349,6 +360,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   switch (DBG_TYPE(mhpdbgc.currcode)) {
   case DBG_INIT:
 	  mhp_init();
+	  break;
+  case DBG_BOOT:
+	  mhp_boot();
 	  break;
   case DBG_INTx:
 	  if (!mhpdbg.active)

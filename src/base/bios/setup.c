@@ -24,6 +24,7 @@
 #include "serial.h"
 #include "utilities.h"
 #include "doshelpers.h"
+#include "mhpdbg.h"
 #include "plugin_config.h"
 
 static int li_tid;
@@ -225,6 +226,9 @@ static void bios_reset(void)
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
   boot();			/* read the boot sector & get moving */
+#ifdef USE_MHPDBG
+  mhp_debug(DBG_BOOT, 0, 0);
+#endif
 }
 
 void bios_setup_init(void)
