@@ -25,10 +25,11 @@ XCPUEMU=emu-i386/simx86
 
 _LIBSUBDIRS=base/video base/dev/vga base/async \
 	arch/linux/async arch/linux/mapping \
-	base/misc base/misc/libpcl base/dev/misc\
+	base/misc base/misc/libpcl base/dev/misc \
 	emu-i386 $(XCPUEMU) base/speaker \
-	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
-	base/init base/serial base/mouse\
+	base/dev/pic dosext/dpmi dosext/dpmi/msdos \
+	dosext/mfs dosext/misc \
+	base/init base/serial base/mouse \
 	base/dev/dma \
 	tools/debugger \
 	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
