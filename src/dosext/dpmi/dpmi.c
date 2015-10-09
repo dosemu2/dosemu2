@@ -3839,9 +3839,9 @@ int dpmi_fault(struct sigcontext *scp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
-            _eax = dpmi_ldt_alias;  /* simulate direct ldt access */
-	    _eflags &= ~CF;
-	  } else
+            /* handled properly by int2f */
+            _eflags |= CF;
+          } else
             _eflags |= CF;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
