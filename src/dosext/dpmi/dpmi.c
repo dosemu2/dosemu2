@@ -4308,11 +4308,8 @@ int dpmi_fault(struct sigcontext *scp)
 #endif
       }
     } else if (_trapno == 0x0e) {
-      if ((unsigned char *)_cr2 >= ldt_alias &&
-	  (unsigned char *)_cr2 < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-	instr_emu(scp, 1, 10);
-	return ret;
-      }
+      if (msdos_ldt_pagefault(scp))
+        return ret;
     }
     do_cpu_exception(scp);
   }
