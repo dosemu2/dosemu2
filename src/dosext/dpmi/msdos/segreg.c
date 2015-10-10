@@ -38,7 +38,7 @@
 
 static unsigned wordmask[5] = {0,0xff,0xffff,0xffffff,0xffffffff};
 
-static void pop(unsigned *val, struct sigcontext *scp, x86_ins *x86)
+static uint32_t pop(struct sigcontext *scp, x86_ins *x86)
 {
   unsigned ss_base = GetSegmentBase(_ss);
   unsigned char *mem = MEM_BASE32(ss_base + (_esp & wordmask[(x86->_32bit+1)*2]));
@@ -46,8 +46,7 @@ static void pop(unsigned *val, struct sigcontext *scp, x86_ins *x86)
     _esp += x86->operand_size;
   else
     SP += x86->operand_size;
-  if (val)
-    *val = (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
+  return (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
 }
 
 int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
@@ -339,21 +338,16 @@ static int decode_segreg(struct sigcontext *scp)
     case 0xcb: /*retf*/
     case 0xcf: /*iret*/
     {
-      unsigned tmp_eip;
-      pop(&tmp_eip, scp, &x86);
-      pop(NULL, scp, &x86);
+      unsigned tmp_eip = pop(scp, &x86);
+      pop(scp, &x86);
       ret = cs_INDEX;
       switch (*(unsigned char *)MEM_BASE32(cs + eip)) {
         case 0xca: /*retf imm 16*/
 	  _esp += ((unsigned short *) (MEM_BASE32(cs + eip + 1)))[0];
 	  break;
         case 0xcf: /*iret*/
-	{
-	  unsigned flags;
-          pop(&flags, scp, &x86);
-	  scp->eflags = flags;
+	  scp->eflags = pop(scp, &x86);
 	  break;
-	}
       }
       _eip = tmp_eip;
     }
@@ -383,7 +377,7 @@ static int decode_segreg(struct sigcontext *scp)
     case 0x17:	/* pop ss */
     case 0x1f:	/* pop ds */
       ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip) >> 3);
-      pop(NULL, scp, &x86);
+      pop(scp, &x86);
       _eip = eip + 1;
       break;
 
@@ -392,7 +386,7 @@ static int decode_segreg(struct sigcontext *scp)
       switch (*(unsigned char *)MEM_BASE32(cs + eip)) {
         case 0xa1:	/* pop fs */
         case 0xa9:	/* pop gs */
-	  pop(NULL, scp, &x86);
+	  pop(scp, &x86);
 	  ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip) >> 3);
 	  _eip = eip + 1;
 	  break;
