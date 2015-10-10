@@ -495,11 +495,13 @@ struct fs_prio {
     int prio;
 };
 
-enum { IO_IDX, MSD_IDX, IBMB_IDX, IBMD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
+enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
+	IBMB_IDX, IBMD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
 	CONF_IDX, AUT_IDX };
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
+#define DR_D IX(DRB, DRD)
 #define PC_D IX(IBMB, IBMD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
@@ -510,6 +512,8 @@ enum { IO_IDX, MSD_IDX, IBMB_IDX, IBMD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
 struct fs_prio sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1, 0 },
     [MSD_IDX]  = { "MSDOS.SYS",		1, 0 },
+    [DRB_IDX]  = { "DRBIO.SYS",		1, 0 },
+    [DRD_IDX]  = { "DRDOS.SYS",		1, 0 },
     [IBMB_IDX] = { "IBMBIO.COM",	1, 0 },
     [IBMD_IDX] = { "IBMDOS.COM",	1, 0 },
     [IPL_IDX]  = { "IPL.SYS",		1, 0 },
@@ -564,6 +568,13 @@ static void init_sfiles(void)
       sys_type = MS_D;		/* MS-DOS */
       sfiles[IO_IDX].prio = 1;
       sfiles[MSD_IDX].prio = 2;
+      sfs = 3;
+      sys_done = 1;
+    }
+    if((sys_type & DR_D) == DR_D) {
+      sys_type = DR_D;		/* DR-DOS */
+      sfiles[DRB_IDX].prio = 1;
+      sfiles[DRD_IDX].prio = 2;
       sfs = 3;
       sys_done = 1;
     }
@@ -1261,17 +1272,29 @@ void fdkernel_boot_mimic(void)
 {
   int f, size;
   char *bootfile;
-  unsigned loadaddress = SEGOFF2LINEAR(0x60,0);
+  unsigned loadaddress;
   fatfs_t *fs = get_fat_fs_by_drive(HI(ax));
 
   if (!fs || !fs->obj[1].full_name) {
     error("BOOT-helper requested, but no systemfile available\n");
     leavedos(99);
   }
+  switch (fs->sys_type) {
+  case FD_D:
+    loadaddress = SEGOFF2LINEAR(0x60,0);
+    break;
+  case DR_D:
+    loadaddress = SEGOFF2LINEAR(0x70,0);
+    break;
+  default:
+    error("BOOT-helper requested for system type %#x\n", fs->sys_type);
+    leavedos(99);
+    return;
+  }
   bootfile = fs->obj[1].full_name;
   if ((f = open(bootfile, O_RDONLY)) == -1) {
-      error("cannot open DOS system file %s\n", bootfile);
-      leavedos(99);
+    error("cannot open DOS system file %s\n", bootfile);
+    leavedos(99);
   }
   size = lseek(f, 0, SEEK_END);
   lseek(f, 0, SEEK_SET);
@@ -1434,6 +1457,7 @@ void build_boot_blk(fatfs_t *f)
       break;
 
     case FD_D:			/* FreeDOS, FD maintained kernel */
+    case DR_D:			/* DR-DOS */
 			/* boot loading is done by DOSEMU-HELPER
 			   and above fdkernel_boot_mimic() function */
       b[0x40] = 0xb8;	/* mov ax,0fdh */
