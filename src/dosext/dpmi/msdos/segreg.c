@@ -336,8 +336,8 @@ static int decode_segreg(struct sigcontext *scp)
 
   x86._32bit = dpmi_mhp_get_selector_size(_cs);
   cs = GetSegmentBase(_cs);
-  csp = (unsigned char *)MEM_BASE32(cs + _eip);
   eip = _eip + handle_prefixes(scp, cs, &x86);
+  csp = (unsigned char *)MEM_BASE32(cs + eip);
 
   switch(*csp) {
     case 0x8e:		/* mov segreg,r/m16 */
