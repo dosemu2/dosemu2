@@ -29,6 +29,7 @@
 #include "cpu.h"
 #include "dpmi.h"
 #include "dosemu_debug.h"
+#include "msdos_ldt.h"
 #include "segreg.h"
 
 typedef struct x86_regs {
@@ -436,7 +437,7 @@ int msdos_fault(struct sigcontext *scp)
 
     D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
     if ((_err & 0xffff) == 0)	/*  not a selector error */
-	return 0;
+	return msdos_ldt_fault(scp);
 
     /* now it is a invalid selector error, try to fix it if it is */
     /* caused by an instruction such as mov Sreg,r/m16            */

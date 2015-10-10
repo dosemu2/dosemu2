@@ -47,10 +47,28 @@ u_short DPMI_ldt_alias(void)
   return dpmi_ldt_alias;
 }
 
-int msdos_ldt_fault(struct sigcontext *scp, int pref_seg)
+int msdos_ldt_fault(struct sigcontext *scp)
 {
-    if ((_err & 0xffff) != 0)
-	return 0;
+    int pref_seg = -1, done = 0;
+    unsigned char *csp;
+
+    csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    do {
+      switch (*(csp++)) {
+         case 0x66:      /* operand prefix */  /*prefix66=1;*/ break;
+         case 0x67:      /* address prefix */  /*prefix67=1;*/ break;
+         case 0x2e:      /* CS */              pref_seg=_cs; break;
+         case 0x3e:      /* DS */              pref_seg=_ds; break;
+         case 0x26:      /* ES */              pref_seg=_es; break;
+         case 0x36:      /* SS */              pref_seg=_ss; break;
+         case 0x65:      /* GS */              pref_seg=_gs; break;
+         case 0x64:      /* FS */              pref_seg=_fs; break;
+         case 0xf2:      /* repnz */
+         case 0xf3:      /* rep */             /*is_rep=1;*/ break;
+         default: done=1;
+      }
+    } while (!done);
+
     if (pref_seg == -1)
 	pref_seg = _ds;
     if (pref_seg == dpmi_ldt_alias) {

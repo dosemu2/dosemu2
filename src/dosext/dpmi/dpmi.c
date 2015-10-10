@@ -4217,8 +4217,6 @@ int dpmi_fault(struct sigcontext *scp)
       _eip = org_eip;
       if (msdos_fault(scp))
 	  break;
-      if (msdos_ldt_fault(scp, pref_seg))
-	  break;
 #ifdef __linux__
       do_cpu_exception(scp);
 #endif
