@@ -498,6 +498,15 @@ struct fs_prio {
 enum { IO_IDX, MSD_IDX, IBMB_IDX, IBMD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
 	CONF_IDX, AUT_IDX };
 
+#define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
+#define MS_D IX(IO, MSD)
+#define PC_D IX(IBMB, IBMD)
+#define FDO_D (1 << IPL_IDX)
+#define FD_D (1 << KER_IDX)
+
+#define DRO_D PC_D		/* old DR-DOS has same files as PC-DOS */
+#define REALPCD_D (PC_D | (1 << 24))
+
 struct fs_prio sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1, 0 },
     [MSD_IDX]  = { "MSDOS.SYS",		1, 0 },
@@ -551,28 +560,28 @@ static int d_filter(const struct dirent *d)
 static void init_sfiles(void)
 {
     int i, sfs;
-    if((sys_type & 3) == 3) {
-      sys_type = 3;		/* MS-DOS */
+    if((sys_type & MS_D) == MS_D) {
+      sys_type = MS_D;		/* MS-DOS */
       sfiles[IO_IDX].prio = 1;
       sfiles[MSD_IDX].prio = 2;
       sfs = 3;
       sys_done = 1;
     }
-    if((sys_type & 0x0c) == 0x0c) {
-      sys_type = 0x0c;		/* DR-DOS */
+    if((sys_type & PC_D) == PC_D) {
+      sys_type = PC_D;		/* PC-DOS */
       sfiles[IBMB_IDX].prio = 1;
       sfiles[IBMD_IDX].prio = 2;
       sfs = 3;
       sys_done = 1;
     }
-    if((sys_type & 0x10) == 0x10) {
-      sys_type = 0x10;		/* FreeDOS, orig. Patv kernel */
+    if((sys_type & FDO_D) == FDO_D) {
+      sys_type = FDO_D;		/* FreeDOS, orig. Patv kernel */
       sfiles[IPL_IDX].prio = 1;
       sfs = 2;
       sys_done = 1;
     }
-    if((sys_type & 0x20) == 0x20) {
-      sys_type = 0x20;		/* FreeDOS, FD maintained kernel */
+    if((sys_type & FD_D) == FD_D) {
+      sys_type = FD_D;		/* FreeDOS, FD maintained kernel */
       sfiles[KER_IDX].prio = 1;
       sfs = 2;
       sys_done = 1;
@@ -621,7 +630,7 @@ static int try_add_fdos(fatfs_t *f, unsigned oi)
 	    char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);
 	    if (access(kernelsyspath, R_OK) == 0) {
 		add_object(f, oi, kernelsyspath);
-		f->sys_type |= 0x20;
+		f->sys_type |= FD_D;
 		fd_added++;
 	    }
 	    free(kernelsyspath);
@@ -630,7 +639,7 @@ static int try_add_fdos(fatfs_t *f, unsigned oi)
 	    kernelsyspath = assemble_path(libdir, "freedos/kernel.sys", 0);
 	    if (access(kernelsyspath, R_OK) == 0) {
 		add_object(f, oi, kernelsyspath);
-		f->sys_type |= 0x20;
+		f->sys_type |= FD_D;
 		fd_added++;
 	    }
 	    free(kernelsyspath);
@@ -744,7 +753,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
 	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
             }
     }
-    if (sys_type == 0x0c) {
+    if (sys_type == PC_D) {
 	/* see if it is PC-DOS or DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
         if (s && stat(s, &sb) == 0) {
@@ -758,7 +767,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
 		      buf_ptr += strlen(buf_ptr) + 1;
 		    }
 		    if (buf_ptr < buf + size)
-		      sys_type = 0x40;
+		      sys_type = REALPCD_D;
 		  }
                   free(buf);
                   close(fd);
@@ -1352,26 +1361,9 @@ void build_boot_blk(fatfs_t *f)
   d0[0x13] = f->drive_num;
 
   switch(f->sys_type) {
-    case 0x03:
-    case 0x40:
+    case MS_D:
       i = read_data(f, 0);
-      if(i || f->sec[0] != 'M' || f->sec[1] != 'Z') {
-        /* for IO.SYS, MS-DOS version < 7 */
-        make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0, 0x500);
-        make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, 4, 0, 0x700);
-        d0[0x12] = 2;		/* 2 entries */
-
-        d0[0x02] = 0x70;	/* start seg */
-        d0[0x04] = d_o >> 16;	/* ax */
-        d0[0x05] = d_o >> 24;
-        d0[0x06] = d_o;		/* bx */
-        d0[0x07] = d_o >> 8;
-        d0[0x09] = 0xf8;	/* ch */
-        d0[0x0a] = f->drive_num;	/* dl */
-
-        fatfs_msg("made boot block suitable for MS-DOS, version < 7\n");
-      }
-      else {
+      if(i == 0 && f->sec[0] == 'M' && f->sec[1] == 'Z') {
         /* for IO.SYS, MS-DOS version >= 7 */
         make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, 4, 0, 0x700);
         d0[0x12] = 1;		/* 1 entry */
@@ -1399,13 +1391,29 @@ void build_boot_blk(fatfs_t *f)
          */
         b[0x1ee] = t_o;		/* ofs to error msg */
         b[0x1ef] = t_o >> 8;
-
         fatfs_msg("made boot block suitable for MS-DOS, version >= 7\n");
+        break;
       }
+      /* no break */
+    case REALPCD_D:		/* old MS-DOS, PC-DOS */
+      /* for IO.SYS, MS-DOS version < 7 */
+      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0, 0x500);
+      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, 4, 0, 0x700);
+      d0[0x12] = 2;		/* 2 entries */
+
+      d0[0x02] = 0x70;	/* start seg */
+      d0[0x04] = d_o >> 16;	/* ax */
+      d0[0x05] = d_o >> 24;
+      d0[0x06] = d_o;		/* bx */
+      d0[0x07] = d_o >> 8;
+      d0[0x09] = 0xf8;	/* ch */
+      d0[0x0a] = f->drive_num;	/* dl */
+
+      fatfs_msg("made boot block suitable for MS-DOS, version < 7\n");
       break;
 
-    case 0x0c:			/* PC-DOS */
-      /* for IBMBIO.COM, PC-, DR-, Open-, NOVELL-DOS  */
+    case DRO_D:			/* old DR-DOS */
+      /* for IBMBIO.COM, DR-, Open-, NOVELL-DOS  */
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0, 0x700);
       d0[0x12] = 1;		/* 1 entry */
 
@@ -1415,7 +1423,7 @@ void build_boot_blk(fatfs_t *f)
       fatfs_msg("made boot block suitable for PC-, DR-, Open-, NOVELL-DOS\n");
       break;
 
-    case 0x10:			/* FreeDOS, orig. Patv kernel */
+    case FDO_D:			/* FreeDOS, orig. Patv kernel */
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);
       d0[0x12] = 1;		/* 1 entry */
 
@@ -1425,7 +1433,7 @@ void build_boot_blk(fatfs_t *f)
       fatfs_msg("made boot block suitable for DosC\n");
       break;
 
-    case 0x20:			/* FreeDOS, FD maintained kernel */
+    case FD_D:			/* FreeDOS, FD maintained kernel */
 			/* boot loading is done by DOSEMU-HELPER
 			   and above fdkernel_boot_mimic() function */
       b[0x40] = 0xb8;	/* mov ax,0fdh */
