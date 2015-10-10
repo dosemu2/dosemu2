@@ -53,10 +53,10 @@ int msdos_ldt_fault(struct sigcontext *scp, int pref_seg)
 	return 0;
     if (pref_seg == -1)
 	pref_seg = _ds;
-    if (pref_seg == DPMI_ldt_alias()) {
-	unsigned limit = GetSegmentLimit(DPMI_ldt_alias());
+    if (pref_seg == dpmi_ldt_alias) {
+	unsigned limit = GetSegmentLimit(dpmi_ldt_alias);
 	D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-	SetSegmentLimit(DPMI_ldt_alias(), limit + DPMI_page_size);
+	SetSegmentLimit(dpmi_ldt_alias, limit + DPMI_page_size);
 	return 1;
     }
 
