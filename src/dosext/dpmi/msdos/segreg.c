@@ -228,14 +228,10 @@ static unsigned instr_len(unsigned char *p, int is_32)
 #endif
       break;
     case 0x66:	/* operand size */
-#if DEBUG_INSTR >= 1
       osp ^= 1;
-#endif
       break;
     case 0x67:	/* address size */
-#if DEBUG_INSTR >= 1
       asp ^= 1;
-#endif
       break;
     case 0xf0:	/* lock */
 #if DEBUG_INSTR >= 1
