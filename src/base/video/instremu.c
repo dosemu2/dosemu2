@@ -200,12 +200,6 @@ static void instr_write_byte(unsigned char *addr, unsigned char u);
 static void instr_write_word(unsigned char *addr, unsigned u);
 static void instr_write_dword(unsigned char *addr, unsigned u);
 static void instr_flags(unsigned val, unsigned smask, unsigned long *eflags);
-static unsigned char instr_binary_byte(unsigned char op, unsigned char op1,
-                                       unsigned char op2, unsigned long *eflags);
-static unsigned instr_binary_word(unsigned op, unsigned op1,
-                                  unsigned op2, unsigned long *eflags);
-static unsigned instr_binary_dword(unsigned op, unsigned op1,
-                                   unsigned op2, unsigned long *eflags);
 static unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned long *eflags);
 static unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len);

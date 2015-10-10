@@ -133,6 +133,7 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
     eip = _eip + x86_handle_prefixes(scp, cs, &x86);
     csp = (unsigned char *)MEM_BASE32(cs + eip);
     orig_csp = (unsigned char *)MEM_BASE32(cs + _eip);
+    inst_len = x86_instr_len(orig_csp, x86._32bit);
 
     switch(*csp) {
     case 0x88:		/* mov r/m8,reg8 */
@@ -144,12 +145,10 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	return x86.operand_size;
 
     case 0xc6:		/* mov r/m8,imm8 */
-	inst_len = x86_instr_len(orig_csp, x86._32bit);
 	*op = orig_csp[inst_len - 1];
 	return 1;
 
     case 0xc7:		/* mov r/m,imm */
-	inst_len = x86_instr_len(orig_csp, x86._32bit);
 	switch (x86.operand_size) {
 	case 2:
 	    *op = *(uint16_t *)(orig_csp + inst_len - 2);
@@ -157,9 +156,38 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	case 4:
 	    *op = *(uint32_t *)(orig_csp + inst_len - 4);
 	    return 4;
-	default:
-	    error("unknown op size\n");
-	    return 0;
+	}
+	break;
+
+     case 0x80:		/* logical r/m8,imm8 */
+     case 0x82:
+	*op = instr_binary_byte(csp[1] >> 3, *(unsigned char *)_cr2,
+		orig_csp[inst_len - 1], &_eflags);
+	return 1;
+
+    case 0x81:		/* logical r/m,imm */
+	switch (x86.operand_size) {
+	case 2:
+	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
+		    *(uint16_t *)(orig_csp + inst_len - 2), &_eflags);
+	    return 2;
+	case 4:
+	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
+		    *(uint32_t *)(orig_csp + inst_len - 4), &_eflags);
+	    return 4;
+	}
+	break;
+
+    case 0x83:		/* logical r/m,imm8 */
+	switch (x86.operand_size) {
+	case 2:
+	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
+		    (short)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
+	    return 2;
+	case 4:
+	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
+		    (int)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
+	    return 4;
 	}
 	break;
 
