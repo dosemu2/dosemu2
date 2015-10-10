@@ -32,19 +32,13 @@
 #include "msdos_ldt.h"
 #include "segreg.h"
 
-typedef struct x86_regs {
-  int _32bit:1;	/* 16/32 bit code */
-  unsigned address_size; /* in bytes so either 4 or 2 */
-  unsigned operand_size;
-} x86_regs;
-
 #define R_WORD(a) LO_WORD(a)
 #define SP (R_WORD(_esp))
 #define sreg_idx(reg) (es_INDEX+((reg)&0x7))
 
 static unsigned wordmask[5] = {0,0xff,0xffff,0xffffff,0xffffffff};
 
-static void pop(unsigned *val, struct sigcontext *scp, x86_regs *x86)
+static void pop(unsigned *val, struct sigcontext *scp, x86_ins *x86)
 {
   unsigned ss_base = GetSegmentBase(_ss);
   unsigned char *mem = MEM_BASE32(ss_base + (_esp & wordmask[(x86->_32bit+1)*2]));
@@ -56,8 +50,8 @@ static void pop(unsigned *val, struct sigcontext *scp, x86_regs *x86)
     *val = (x86->operand_size == 4 ? READ_DWORDP(mem) : READ_WORDP(mem));
 }
 
-static int handle_prefixes(struct sigcontext *scp, unsigned cs_base,
-	x86_regs *x86)
+int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
+	x86_ins *x86)
 {
   unsigned eip = _eip;
   int prefix = 0;
@@ -182,7 +176,7 @@ static unsigned arg_len(unsigned char *p, int asp)
   return u;
 }
 
-static unsigned instr_len(unsigned char *p, int is_32)
+int x86_instr_len(unsigned char *p, int is_32)
 {
   unsigned u, osp, asp;
   unsigned char *p0 = p;
@@ -328,17 +322,17 @@ static int decode_segreg(struct sigcontext *scp)
   unsigned cs, eip;
   unsigned char *csp;
   int ret = -1;
-  x86_regs x86;
+  x86_ins x86;
 
   x86._32bit = dpmi_mhp_get_selector_size(_cs);
   cs = GetSegmentBase(_cs);
-  eip = _eip + handle_prefixes(scp, cs, &x86);
+  eip = _eip + x86_handle_prefixes(scp, cs, &x86);
   csp = (unsigned char *)MEM_BASE32(cs + eip);
 
   switch(*csp) {
     case 0x8e:		/* mov segreg,r/m16 */
       ret = sreg_idx(*(unsigned char *)MEM_BASE32(cs + eip + 1) >> 3);
-      _eip += instr_len(csp, x86._32bit);
+      _eip += x86_instr_len(csp, x86._32bit);
       break;
 
     case 0xca: /*retf imm 16*/
@@ -377,12 +371,12 @@ static int decode_segreg(struct sigcontext *scp)
 
     case 0xc4:		/* les */
       ret = es_INDEX;
-      _eip += instr_len(csp, x86._32bit);
+      _eip += x86_instr_len(csp, x86._32bit);
       break;
 
     case 0xc5:		/* lds */
       ret = ds_INDEX;
-      _eip += instr_len(csp, x86._32bit);
+      _eip += x86_instr_len(csp, x86._32bit);
       break;
 
     case 0x07:	/* pop es */
@@ -405,17 +399,17 @@ static int decode_segreg(struct sigcontext *scp)
 
 	case 0xb2:	/* lss */
 	  ret = ss_INDEX;
-	  _eip += instr_len(csp, x86._32bit);
+	  _eip += x86_instr_len(csp, x86._32bit);
 	  break;
 
 	case 0xb4:	/* lfs */
 	  ret = fs_INDEX;
-	  _eip += instr_len(csp, x86._32bit);
+	  _eip += x86_instr_len(csp, x86._32bit);
 	  break;
 
 	case 0xb5:	/* lgs */
 	  ret = gs_INDEX;
-	  _eip += instr_len(csp, x86._32bit);
+	  _eip += x86_instr_len(csp, x86._32bit);
 	  break;
       }
       break;
