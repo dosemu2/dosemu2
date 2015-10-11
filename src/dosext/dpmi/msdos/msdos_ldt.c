@@ -195,6 +195,21 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
       *op = x86_pop(scp, &x86);
       return x86.operand_size;
 
+    case 0xa2:		/* mov moff16,al */
+	*op = _eax & 0xff;
+	return 1;
+
+    case 0xa3:		/* mov moff16,ax */
+	switch (x86.operand_size) {
+	case 2:
+	    *op = _eax & 0xffff;
+	    return 2;
+	case 4:
+	    *op = _eax;
+	    return 4;
+	}
+	break;
+
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
 	break;
