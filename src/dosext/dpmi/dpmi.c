@@ -1236,10 +1236,9 @@ int GetDescriptor(us selector, unsigned int *lp)
 	*type_ptr=typebyte;
   }
 #endif
-  MEMCPY_2DOSP((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], 8);
+  memcpy((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], 8);
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n",
-    selector>>3, selector, READ_DWORDP((unsigned char *)(lp+1)),
-    READ_DWORDP((unsigned char *)lp));
+    selector >> 3, selector, lp[1], lp[0]);
   return 0;
 }
 
