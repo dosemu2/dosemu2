@@ -29,7 +29,7 @@
 
 #define LDT_INIT_LIMIT 0xfff
 
-unsigned char *ldt_alias;
+static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
 
 int msdos_ldt_setup(unsigned char *alias, unsigned short alias_sel)
