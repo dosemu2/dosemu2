@@ -20,6 +20,7 @@
  * Author: Stas Sergeev
  */
 
+#include <string.h>
 #include "cpu.h"
 #include "dpmi.h"
 #include "instremu.h"
@@ -352,6 +353,36 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
   }
 
   return 0;
+}
+
+static void direct_ldt_write(int offset, int length, char *buffer)
+{
+  int ldt_entry = offset / LDT_ENTRY_SIZE;
+  int ldt_offs = offset % LDT_ENTRY_SIZE;
+  int selector = (ldt_entry << 3) | 7;
+  char lp[LDT_ENTRY_SIZE];
+  int i;
+  D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
+    offset, length, ldt_entry, ldt_offs);
+  for (i = 0; i < length; i++)
+    D_printf("0x%02hhx ", buffer[i]);
+  D_printf("\n");
+  if (!Segments[ldt_entry].used)
+    selector = AllocateDescriptorsAt(selector, 1);
+  if (!selector) {
+    error("Descriptor allocation at %#x failed\n", ldt_entry);
+    return;
+  }
+  memcpy(lp, &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+  memcpy(lp + ldt_offs, buffer, length);
+  if (lp[5] & 0x10) {
+    SetDescriptor(selector, (unsigned int *)lp);
+  } else {
+    D_printf("DPMI: Invalid descriptor, freeing\n");
+    FreeDescriptor(selector);
+    Segments[ldt_entry].used = in_dpmi;	/* Prevent of a reuse */
+  }
+  memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 }
 
 int msdos_ldt_pagefault(struct sigcontext *scp)

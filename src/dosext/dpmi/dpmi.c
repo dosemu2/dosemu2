@@ -788,7 +788,7 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
   return number_of_descriptors;
 }
 
-static unsigned short AllocateDescriptorsAt(unsigned short selector,
+unsigned short AllocateDescriptorsAt(unsigned short selector,
     int number_of_descriptors)
 {
   int i, ldt_entry;
@@ -1245,7 +1245,7 @@ int GetDescriptor(us selector, unsigned int *lp)
   return 0;
 }
 
-static int SetDescriptor(unsigned short selector, unsigned int *lp)
+int SetDescriptor(unsigned short selector, unsigned int *lp)
 {
   unsigned int base_addr, limit;
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
@@ -1260,36 +1260,6 @@ static int SetDescriptor(unsigned short selector, unsigned int *lp)
   return SetSelector(selector, base_addr, limit, (*lp >> 22) & 1,
 			(*lp >> 10) & 3, ((*lp >> 9) & 1) ^1,
 			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
-}
-
-void direct_ldt_write(int offset, int length, char *buffer)
-{
-  int ldt_entry = offset / LDT_ENTRY_SIZE;
-  int ldt_offs = offset % LDT_ENTRY_SIZE;
-  int selector = (ldt_entry << 3) | 7;
-  char lp[LDT_ENTRY_SIZE];
-  int i;
-  D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
-    offset, length, ldt_entry, ldt_offs);
-  for (i = 0; i < length; i++)
-    D_printf("0x%02hhx ", buffer[i]);
-  D_printf("\n");
-  if (!Segments[ldt_entry].used)
-    selector = AllocateDescriptorsAt(selector, 1);
-  if (!selector) {
-    error("Descriptor allocation at %#x failed\n", ldt_entry);
-    return;
-  }
-  memcpy(lp, &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
-  memcpy(lp + ldt_offs, buffer, length);
-  if (lp[5] & 0x10) {
-    SetDescriptor(selector, (unsigned int *)lp);
-  } else {
-    D_printf("DPMI: Invalid descriptor, freeing\n");
-    FreeDescriptor(selector);
-    Segments[ldt_entry].used = in_dpmi;	/* Prevent of a reuse */
-  }
-  memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 }
 
 void GetFreeMemoryInformation(unsigned int *lp)
