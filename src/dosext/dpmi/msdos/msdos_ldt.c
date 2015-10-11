@@ -314,6 +314,38 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	}
 	break;
 
+    case 0x00:		/* add r/m8,reg8 */
+    case 0x08:		/* or r/m8,reg8 */
+    case 0x10:		/* adc r/m8,reg8 */
+    case 0x18:		/* sbb r/m8,reg8 */
+    case 0x20:		/* and r/m8,reg8 */
+    case 0x28:		/* sub r/m8,reg8 */
+    case 0x30:		/* xor r/m8,reg8 */
+//    case 0x38:		/* cmp r/m8,reg8 */
+	*op = instr_binary_byte(csp[0] >> 3, *(unsigned char *)_cr2,
+		reg8(scp, csp[1] >> 3), &_eflags);
+	return 1;
+
+    case 0x01:		/* add r/m16,reg16 */
+    case 0x09:		/* or r/m16,reg16 */
+    case 0x11:		/* adc r/m16,reg16 */
+    case 0x19:		/* sbb r/m16,reg16 */
+    case 0x21:		/* and r/m16,reg16 */
+    case 0x29:		/* sub r/m16,reg16 */
+    case 0x31:		/* xor r/m16,reg16 */
+//  case 0x39:		/* cmp r/m16,reg16 */
+	switch (x86.operand_size) {
+	case 2:
+	    *op = instr_binary_word(csp[0] >> 3, *(uint16_t *)_cr2,
+		    reg(scp, csp[1] >> 3), &_eflags);
+	    return 2;
+	case 4:
+	    *op = instr_binary_dword(csp[0] >> 3, *(uint32_t *)_cr2,
+		    reg(scp, csp[1] >> 3), &_eflags);
+	    return 4;
+	}
+	break;
+
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
 	break;
