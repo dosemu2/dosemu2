@@ -1941,11 +1941,10 @@ static void do_int31(struct sigcontext *scp)
     if (FreeDescriptor(_LWORD(ebx))){
       _LWORD(eax) = 0x8022;
       _eflags |= CF;
+      break;
     }
-#if 1
     /* do it dpmi 1.00 host\'s way */
     FreeSegRegs(scp, _LWORD(ebx));
-#endif
     break;
   case 0x0002:
     if (!(_LWORD(eax)=ConvertSegmentToDescriptor(_LWORD(ebx)))) {
@@ -2006,7 +2005,11 @@ static void do_int31(struct sigcontext *scp)
     if (SetDescriptor(_LWORD(ebx), SEL_ADR_X(_es, _edi))) {
       _LWORD(eax) = 0x8022;
       _eflags |= CF;
+      break;
     }
+    /* DPMI-1.0 requires us to reload segregs */
+    if (Segments[_LWORD(ebx) >> 3].not_present)
+      FreeSegRegs(scp, _LWORD(ebx));
     break;
   case 0x000d:
     if (!AllocateDescriptorsAt(_LWORD(ebx), 1)) {
