@@ -365,10 +365,8 @@ int msdos_ldt_pagefault(struct sigcontext *scp)
 	  (unsigned char *)_cr2 >= ldt_alias + LDT_ENTRIES * LDT_ENTRY_SIZE)
 	return 0;
     len = decode_memop(scp, &op);
-    if (!len) {
-	instr_emu(scp, 1, 1);
-	return 1;
-    }
+    if (!len)
+	return 0;
 
     cs = GetSegmentBase(_cs);
     csp = (unsigned char *)MEM_BASE32(cs + _eip);
