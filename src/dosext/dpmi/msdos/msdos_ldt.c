@@ -31,15 +31,18 @@
 
 #define LDT_INIT_LIMIT 0xfff
 
+static unsigned char *ldt_backbuf;
 static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
 
-int msdos_ldt_setup(unsigned char *alias, unsigned short alias_sel)
+int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias,
+	unsigned short alias_sel)
 {
     if (SetSelector(alias_sel, DOSADDR_REL(alias),
 		    LDT_INIT_LIMIT, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0))
 	return 0;
+    ldt_backbuf = backbuf;
     ldt_alias = alias;
     dpmi_ldt_alias = alias_sel;
     return 1;
@@ -381,6 +384,13 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
   return ret;
 }
 
+void msdos_ldt_update(int entry, u_char *buf, int len)
+{
+  if (!ldt_backbuf)
+    return;
+  memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
+}
+
 static void direct_ldt_write(int offset, char *buffer, int length)
 {
   int ldt_entry = offset / LDT_ENTRY_SIZE;
@@ -403,7 +413,15 @@ static void direct_ldt_write(int offset, char *buffer, int length)
     error("Descriptor allocation at %#x failed\n", ldt_entry);
     return;
   }
+  if (!(lp[5] & 0x80)) {
+    D_printf("LDT: NP\n");
+    memcpy(lp, &ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+  }
   memcpy(lp + ldt_offs, buffer, length);
+  D_printf("LDT: ");
+  for (i = 0; i < LDT_ENTRY_SIZE; i++)
+    D_printf("0x%02hhx ", lp[i]);
+  D_printf("\n");
   if (lp[5] & 0x10) {
     SetDescriptor(selector, (unsigned int *)lp);
   } else {
@@ -413,7 +431,7 @@ static void direct_ldt_write(int offset, char *buffer, int length)
     lp1[5] |= 0x70;
     SetDescriptor(selector, (unsigned int *)lp1);
   }
-  memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
+  memcpy(&ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 }
 
 int msdos_ldt_pagefault(struct sigcontext *scp)

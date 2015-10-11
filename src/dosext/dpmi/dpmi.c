@@ -135,7 +135,7 @@ static int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
-unsigned char *ldt_buffer;
+unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static unsigned short dpmi_sel16, dpmi_sel32;
 static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
@@ -285,6 +285,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
  */
 
   __retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+  msdos_ldt_update(entry, &ldt_buffer[entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
   return __retval;
 }
 
@@ -3033,8 +3034,6 @@ void dpmi_setup(void)
 {
     int i, type;
     unsigned int base_addr, limit, *lp;
-    unsigned char *alias;
-    unsigned short alias_sel;
 
     if (!config.dpmi) return;
 #ifdef __x86_64__
@@ -3061,20 +3060,6 @@ void dpmi_setup(void)
     }
 #endif
 
-    ldt_buffer = alloc_mapping(MAPPING_SHARED,
-	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), -1);
-    if (ldt_buffer == MAP_FAILED) {
-      error("DPMI: can't allocate memory for ldt_buffer\n");
-      goto err;
-    }
-    alias = alias_mapping(MAPPING_DPMI, -1,
-	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, ldt_buffer);
-    if (alias == MAP_FAILED) {
-      error("DPMI: can't allocate memory for ldt_alias\n");
-      goto err;
-    }
-    D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, alias);
-
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
     for (i = 0; i < MAX_SELECTORS; i++) {
@@ -3095,7 +3080,6 @@ void dpmi_setup(void)
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
-    if (!(alias_sel = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
@@ -3120,8 +3104,26 @@ void dpmi_setup(void)
 	leavedos(2);
 
     if (config.pm_dos_api) {
+      unsigned char *alias, *lbuf;
+      unsigned short alias_sel;
+
       msdos_setup();
-      msdos_ldt_setup(alias, alias_sel);
+      /* allocate shared buffers for msdos to emulate R/W LDT */
+      if (!(alias_sel = allocate_descriptors(1))) goto err;
+      lbuf = alloc_mapping(MAPPING_SHARED,
+	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), -1);
+      if (lbuf == MAP_FAILED) {
+        error("DPMI: can't allocate memory for ldt_buffer\n");
+        goto err;
+      }
+      alias = alias_mapping(MAPPING_DPMI, -1,
+	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, lbuf);
+      if (alias == MAP_FAILED) {
+        error("DPMI: can't allocate memory for ldt_alias\n");
+        goto err;
+      }
+      memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+      msdos_ldt_setup(lbuf, alias, alias_sel);
     }
     return;
 
