@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include <assert.h>
 #include "cpu.h"
 #include "dpmi.h"
 #include "instremu.h"
@@ -30,18 +31,26 @@
 
 #define LDT_INIT_LIMIT 0xfff
 
+static unsigned char *ldt_backbuf;
 static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
 
-int msdos_ldt_setup(unsigned char *alias, unsigned short alias_sel)
+int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
 {
-    if (SetSelector(alias_sel, DOSADDR_REL(alias),
-		    LDT_INIT_LIMIT, 0,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0))
-	return 0;
+    ldt_backbuf = backbuf;
     ldt_alias = alias;
-    dpmi_ldt_alias = alias_sel;
     return 1;
+}
+
+void msdos_ldt_init(int clnt_num)
+{
+    if (clnt_num != 1)		// one LDT alias for all clients
+	return;
+    dpmi_ldt_alias = AllocateDescriptors(1);
+    if (!dpmi_ldt_alias)
+	return;
+    SetSegmentBaseAddress(dpmi_ldt_alias, DOSADDR_REL(ldt_alias));
+    SetSegmentLimit(dpmi_ldt_alias, LDT_INIT_LIMIT);
 }
 
 u_short DPMI_ldt_alias(void)
@@ -127,7 +136,7 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
     unsigned cs, eip, seg_base;
     unsigned char *csp, *orig_csp;
     x86_ins x86;
-    int inst_len, loop_inc;
+    int inst_len, loop_inc, ret = 0;
 
     x86._32bit = dpmi_mhp_get_selector_size(_cs);
     cs = GetSegmentBase(_cs);
@@ -156,24 +165,29 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
     switch(*csp) {
     case 0x88:		/* mov r/m8,reg8 */
 	*op = reg8(scp, csp[1] >> 3);
-	return 1;
+	ret = 1;
+	break;
 
     case 0x89:		/* mov r/m16,reg */
 	*op = reg(scp, csp[1] >> 3);
-	return x86.operand_size;
+	ret = x86.operand_size;
+	break;
 
     case 0xc6:		/* mov r/m8,imm8 */
 	*op = orig_csp[inst_len - 1];
-	return 1;
+	ret = 1;
+	break;
 
     case 0xc7:		/* mov r/m,imm */
 	switch (x86.operand_size) {
 	case 2:
 	    *op = *(uint16_t *)(orig_csp + inst_len - 2);
-	    return 2;
+	    ret = 2;
+	    break;
 	case 4:
 	    *op = *(uint32_t *)(orig_csp + inst_len - 4);
-	    return 4;
+	    ret = 4;
+	    break;
 	}
 	break;
 
@@ -181,18 +195,21 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
      case 0x82:
 	*op = instr_binary_byte(csp[1] >> 3, *(unsigned char *)_cr2,
 		orig_csp[inst_len - 1], &_eflags);
-	return 1;
+	ret = 1;
+	break;
 
     case 0x81:		/* logical r/m,imm */
 	switch (x86.operand_size) {
 	case 2:
 	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
 		    *(uint16_t *)(orig_csp + inst_len - 2), &_eflags);
-	    return 2;
+	    ret = 2;
+	    break;
 	case 4:
 	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
 		    *(uint32_t *)(orig_csp + inst_len - 4), &_eflags);
-	    return 4;
+	    ret = 4;
+	    break;
 	}
 	break;
 
@@ -201,30 +218,36 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	case 2:
 	    *op = instr_binary_word(csp[1] >> 3, *(uint16_t *)_cr2,
 		    (short)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
-	    return 2;
+	    ret = 2;
+	    break;
 	case 4:
 	    *op = instr_binary_dword(csp[1] >> 3, *(uint32_t *)_cr2,
 		    (int)*(signed char *)(orig_csp + inst_len - 1), &_eflags);
-	    return 4;
+	    ret = 4;
+	    break;
 	}
 	break;
 
     case 0x8f:	/*pop*/
-      *op = x86_pop(scp, &x86);
-      return x86.operand_size;
+	*op = x86_pop(scp, &x86);
+	ret = x86.operand_size;
+	break;
 
     case 0xa2:		/* mov moff16,al */
 	*op = _eax & 0xff;
-	return 1;
+	ret = 1;
+	break;
 
     case 0xa3:		/* mov moff16,ax */
 	switch (x86.operand_size) {
 	case 2:
 	    *op = _eax & 0xffff;
-	    return 2;
+	    ret = 2;
+	    break;
 	case 4:
 	    *op = _eax;
-	    return 4;
+	    ret = 4;
+	    break;
 	}
 	break;
 
@@ -241,7 +264,8 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	    _esi += loop_inc;
 	    break;
 	}
-	return 1;
+	ret = 1;
+	break;
 
     case 0xa5:		/* movsw */
 	switch (x86.operand_size) {
@@ -258,7 +282,8 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 		_esi += loop_inc * 2;
 		break;
 	    }
-	    return 2;
+	    ret = 2;
+	    break;
 	case 4:
 	    switch (x86.address_size) {
 	    case 2:
@@ -272,7 +297,8 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 		_esi += loop_inc * 4;
 		break;
 	    }
-	    return 4;
+	    ret = 4;
+	    break;
 	}
 	break;
 
@@ -286,7 +312,8 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	    _edi += loop_inc;
 	    break;
 	}
-	return 1;
+	ret = 1;
+	break;
 
     case 0xab:		/* stosw */
 	switch (x86.operand_size) {
@@ -300,7 +327,8 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 		_edi += loop_inc * 2;
 		break;
 	    }
-	    return 2;
+	    ret = 2;
+	    break;
 	case 4:
 	    *op = _eax;
 	    switch (x86.address_size) {
@@ -311,7 +339,8 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 		_edi += loop_inc * 4;
 		break;
 	    }
-	    return 4;
+	    ret = 4;
+	    break;
 	}
 	break;
 
@@ -325,7 +354,8 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 //    case 0x38:		/* cmp r/m8,reg8 */
 	*op = instr_binary_byte(csp[0] >> 3, *(unsigned char *)_cr2,
 		reg8(scp, csp[1] >> 3), &_eflags);
-	return 1;
+	ret = 1;
+	break;
 
     case 0x01:		/* add r/m16,reg16 */
     case 0x09:		/* or r/m16,reg16 */
@@ -339,20 +369,31 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	case 2:
 	    *op = instr_binary_word(csp[0] >> 3, *(uint16_t *)_cr2,
 		    reg(scp, csp[1] >> 3), &_eflags);
-	    return 2;
+	    ret = 2;
+	    break;
 	case 4:
 	    *op = instr_binary_dword(csp[0] >> 3, *(uint32_t *)_cr2,
 		    reg(scp, csp[1] >> 3), &_eflags);
-	    return 4;
+	    ret = 4;
+	    break;
 	}
 	break;
 
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
-	break;
+	return 0;
   }
 
-  return 0;
+  assert(ret);
+  _eip += inst_len;
+  return ret;
+}
+
+void msdos_ldt_update(int entry, u_char *buf, int len)
+{
+  if (!ldt_backbuf)
+    return;
+  memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
 }
 
 static void direct_ldt_write(int offset, char *buffer, int length)
@@ -377,7 +418,15 @@ static void direct_ldt_write(int offset, char *buffer, int length)
     error("Descriptor allocation at %#x failed\n", ldt_entry);
     return;
   }
+  if (!(lp[5] & 0x80)) {
+    D_printf("LDT: NP\n");
+    memcpy(lp, &ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+  }
   memcpy(lp + ldt_offs, buffer, length);
+  D_printf("LDT: ");
+  for (i = 0; i < LDT_ENTRY_SIZE; i++)
+    D_printf("0x%02hhx ", lp[i]);
+  D_printf("\n");
   if (lp[5] & 0x10) {
     SetDescriptor(selector, (unsigned int *)lp);
   } else {
@@ -387,15 +436,13 @@ static void direct_ldt_write(int offset, char *buffer, int length)
     lp1[5] |= 0x70;
     SetDescriptor(selector, (unsigned int *)lp1);
   }
-  memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
+  memcpy(&ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 }
 
 int msdos_ldt_pagefault(struct sigcontext *scp)
 {
     uint32_t op;
     int len;
-    unsigned cs;
-    unsigned char *csp;
 
     if ((unsigned char *)_cr2 < ldt_alias ||
 	  (unsigned char *)_cr2 >= ldt_alias + LDT_ENTRIES * LDT_ENTRY_SIZE)
@@ -404,9 +451,6 @@ int msdos_ldt_pagefault(struct sigcontext *scp)
     if (!len)
 	return 0;
 
-    cs = GetSegmentBase(_cs);
-    csp = (unsigned char *)MEM_BASE32(cs + _eip);
     direct_ldt_write(_cr2 - (unsigned long)ldt_alias, (char *)&op, len);
-    _eip += x86_instr_len(csp, dpmi_mhp_get_selector_size(_cs));
     return 1;
 }

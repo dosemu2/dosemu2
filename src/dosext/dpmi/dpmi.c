@@ -135,7 +135,7 @@ static int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
-unsigned char *ldt_buffer;
+unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static unsigned short dpmi_sel16, dpmi_sel32;
 static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
@@ -804,6 +804,8 @@ unsigned short AllocateDescriptorsAt(unsigned short selector,
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE * number_of_descriptors);
   return selector;
 }
 
@@ -857,6 +859,8 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   }
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE * number_of_descriptors);
   return selector;
 }
 
@@ -870,14 +874,16 @@ void FreeSegRegs(struct sigcontext *scp, unsigned short selector)
 
 int FreeDescriptor(unsigned short selector)
 {
-  int ret;
+  int ret, ldt_entry = selector >> 3;
   D_printf("DPMI: Free descriptor, selector=0x%x\n", selector);
   if (SystemSelector(selector)) {
     D_printf("DPMI: Cannot free system descriptor.\n");
     return -1;
   }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
-  Segments[selector >> 3].used = 0;
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE);
+  Segments[ldt_entry].used = 0;
   return ret;
 }
 
@@ -894,7 +900,7 @@ int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
 {
   unsigned long baseaddr = segment << 4;
   unsigned short selector;
-  int i, big = 0;
+  int i, big = 0, ldt_entry;
   if (limit > 0xfffff) {
     if ((limit & 0xfff) != 0xfff)
       dosemu_error("CSD: bad limit %#lx\n", limit);
@@ -918,6 +924,9 @@ int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, big, 0, 0)) return 0;
+  ldt_entry = selector >> 3;
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE);
   return selector;
 }
 
@@ -1121,20 +1130,25 @@ unsigned int GetSegmentLimit(unsigned short selector)
 int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;
+  int ret;
   D_printf("DPMI: SetSegmentBaseAddress[0x%04x;0x%04x] 0x%08lx\n", ldt_entry, selector, baseaddr);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1;
   Segments[ldt_entry].base_addr = baseaddr;
-  return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
+  ret = set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE);
+  return ret;
 }
 
 int SetSegmentLimit(unsigned short selector, unsigned int limit)
 {
   unsigned short ldt_entry = selector >> 3;
+  int ret;
   D_printf("DPMI: SetSegmentLimit[0x%04x;0x%04x] 0x%08x\n", ldt_entry, selector, limit);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1;
@@ -1147,16 +1161,20 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
     Segments[ldt_entry].limit = limit;
     Segments[ldt_entry].is_big = 0;
   }
-  return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
+  ret = set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
 	Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE);
+  return ret;
 }
 
 static int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
 {
   unsigned short ldt_entry = selector >> 3;
+  int ret;
   D_printf("DPMI: SetDescriptorAccessRights[0x%04x;0x%04x] 0x%04x\n", ldt_entry, selector, type_byte);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1; /* invalid value 8021 */
@@ -1171,10 +1189,13 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
   Segments[ldt_entry].readonly = ((type_byte >> 1) & 1) ? 0 : 1;
   Segments[ldt_entry].not_present = ((type_byte >> 7) & 1) ? 0 : 1;
   Segments[ldt_entry].useable = (type_byte >> 12) & 1;
-  return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr, Segments[ldt_entry].limit,
+  ret = set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr, Segments[ldt_entry].limit,
 	Segments[ldt_entry].is_32, Segments[ldt_entry].type,
 	Segments[ldt_entry].readonly, Segments[ldt_entry].is_big,
 	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE);
+  return ret;
 }
 
 static unsigned short CreateCSAlias(unsigned short selector)
@@ -1188,6 +1209,8 @@ static unsigned short CreateCSAlias(unsigned short selector)
 			Segments[cs_ldt].readonly, Segments[cs_ldt].is_big,
 			Segments[cs_ldt].not_present, Segments[cs_ldt].useable))
     return 0;
+  msdos_ldt_update(cs_ldt, &ldt_buffer[cs_ldt * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE);
   return ds_selector;
 }
 
@@ -1243,7 +1266,7 @@ int GetDescriptor(us selector, unsigned int *lp)
 int SetDescriptor(unsigned short selector, unsigned int *lp)
 {
   unsigned int base_addr, limit;
-  int np, ro, type, ld;
+  int np, ro, type, ld, ret, ldt_entry = selector >> 3;
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
   if (!ValidAndUsedSelector(selector) || SystemSelector(selector))
     return -1; /* invalid value 8022 */
@@ -1257,8 +1280,11 @@ int SetDescriptor(unsigned short selector, unsigned int *lp)
   ro = ((lp[1] >> 9) & 1) ^ 1;
   np = ((lp[1] >> 15) & 1) ^ 1;
 
-  return SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
+  ret = SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1, type, ro,
 			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
+  msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
+	LDT_ENTRY_SIZE);
+  return ret;
 }
 
 void GetFreeMemoryInformation(unsigned int *lp)
@@ -3033,8 +3059,6 @@ void dpmi_setup(void)
 {
     int i, type;
     unsigned int base_addr, limit, *lp;
-    unsigned char *alias;
-    unsigned short alias_sel;
 
     if (!config.dpmi) return;
 #ifdef __x86_64__
@@ -3061,20 +3085,6 @@ void dpmi_setup(void)
     }
 #endif
 
-    ldt_buffer = alloc_mapping(MAPPING_SHARED,
-	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), -1);
-    if (ldt_buffer == MAP_FAILED) {
-      error("DPMI: can't allocate memory for ldt_buffer\n");
-      goto err;
-    }
-    alias = alias_mapping(MAPPING_DPMI, -1,
-	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, ldt_buffer);
-    if (alias == MAP_FAILED) {
-      error("DPMI: can't allocate memory for ldt_alias\n");
-      goto err;
-    }
-    D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, alias);
-
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
     for (i = 0; i < MAX_SELECTORS; i++) {
@@ -3095,7 +3105,6 @@ void dpmi_setup(void)
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
-    if (!(alias_sel = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
@@ -3120,8 +3129,24 @@ void dpmi_setup(void)
 	leavedos(2);
 
     if (config.pm_dos_api) {
+      unsigned char *alias, *lbuf;
+
       msdos_setup();
-      msdos_ldt_setup(alias, alias_sel);
+      /* allocate shared buffers for msdos to emulate R/W LDT */
+      lbuf = alloc_mapping(MAPPING_SHARED,
+	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), -1);
+      if (lbuf == MAP_FAILED) {
+        error("DPMI: can't allocate memory for ldt_buffer\n");
+        goto err;
+      }
+      alias = alias_mapping(MAPPING_DPMI, -1,
+	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, lbuf);
+      if (alias == MAP_FAILED) {
+        error("DPMI: can't allocate memory for ldt_alias\n");
+        goto err;
+      }
+      memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+      msdos_ldt_setup(lbuf, alias);
     }
     return;
 
