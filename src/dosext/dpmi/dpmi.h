@@ -31,7 +31,6 @@
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
 #define LDT_WRITE 0x11
 #endif
-void direct_ldt_write(int offset, int length, char *buffer);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 void *SEL_ADR(unsigned short sel, unsigned int reg);
@@ -151,7 +150,6 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern unsigned char *ldt_buffer;
-extern unsigned char *ldt_alias;
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
@@ -167,7 +165,6 @@ void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void run_pm_dos_int(int);
 void fake_pm_int(void);
-u_short DPMI_ldt_alias(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);
@@ -217,9 +214,12 @@ extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
 extern unsigned short AllocateDescriptors(int);
+extern unsigned short AllocateDescriptorsAt(unsigned short selector,
+    int number_of_descriptors);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
+extern int SetDescriptor(unsigned short selector, unsigned int *lp);
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext *scp, unsigned short selector);
 extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,

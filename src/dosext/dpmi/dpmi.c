@@ -70,6 +70,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "dpmisel.h"
 #include "msdos.h"
 #include "msdoshlp.h"
+#include "msdos_ldt.h"
 #include "segreg.h"
 #include "vxd.h"
 #include "bios.h"
@@ -101,8 +102,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
  * the client is terminated.
  */
 #define EXC_TO_PM_INT 1
-
-#define LDT_INIT_LIMIT 0xfff
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
@@ -138,8 +137,6 @@ static int DPMI_pm_procedure_running = 0;
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 unsigned char *ldt_buffer;
-unsigned char *ldt_alias;
-static unsigned short dpmi_ldt_alias;
 static unsigned short dpmi_sel16, dpmi_sel32;
 static unsigned short dpmi_data_sel16, dpmi_data_sel32;
 unsigned short dpmi_sel()
@@ -791,7 +788,7 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
   return number_of_descriptors;
 }
 
-static unsigned short AllocateDescriptorsAt(unsigned short selector,
+unsigned short AllocateDescriptorsAt(unsigned short selector,
     int number_of_descriptors)
 {
   int i, ldt_entry;
@@ -847,7 +844,7 @@ static unsigned short allocate_descriptors(int number_of_descriptors)
 
 unsigned short AllocateDescriptors(int number_of_descriptors)
 {
-  int selector, i, ldt_entry, limit;
+  int selector, i, ldt_entry;
   if (!in_dpmi) {
     dosemu_error("AllocDescriptors error\n");
     return 0;
@@ -861,14 +858,6 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
   for (i = 0; i < number_of_descriptors; i++) {
       if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
-  }
-
-  limit = GetSegmentLimit(dpmi_ldt_alias);
-  if (limit < (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
-      D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-      SetSegmentLimit(dpmi_ldt_alias,
-        limit + (number_of_descriptors / (DPMI_page_size /
-        LDT_ENTRY_SIZE) + 1) * DPMI_page_size);
   }
   return selector;
 }
@@ -1256,7 +1245,7 @@ int GetDescriptor(us selector, unsigned int *lp)
   return 0;
 }
 
-static int SetDescriptor(unsigned short selector, unsigned int *lp)
+int SetDescriptor(unsigned short selector, unsigned int *lp)
 {
   unsigned int base_addr, limit;
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
@@ -1271,36 +1260,6 @@ static int SetDescriptor(unsigned short selector, unsigned int *lp)
   return SetSelector(selector, base_addr, limit, (*lp >> 22) & 1,
 			(*lp >> 10) & 3, ((*lp >> 9) & 1) ^1,
 			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
-}
-
-void direct_ldt_write(int offset, int length, char *buffer)
-{
-  int ldt_entry = offset / LDT_ENTRY_SIZE;
-  int ldt_offs = offset % LDT_ENTRY_SIZE;
-  int selector = (ldt_entry << 3) | 7;
-  char lp[LDT_ENTRY_SIZE];
-  int i;
-  D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
-    offset, length, ldt_entry, ldt_offs);
-  for (i = 0; i < length; i++)
-    D_printf("0x%02hhx ", buffer[i]);
-  D_printf("\n");
-  if (!Segments[ldt_entry].used)
-    selector = AllocateDescriptorsAt(selector, 1);
-  if (!selector) {
-    error("Descriptor allocation at %#x failed\n", ldt_entry);
-    return;
-  }
-  memcpy(lp, &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
-  memcpy(lp + ldt_offs, buffer, length);
-  if (lp[5] & 0x10) {
-    SetDescriptor(selector, (unsigned int *)lp);
-  } else {
-    D_printf("DPMI: Invalid descriptor, freeing\n");
-    FreeDescriptor(selector);
-    Segments[ldt_entry].used = in_dpmi;	/* Prevent of a reuse */
-  }
-  memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 }
 
 void GetFreeMemoryInformation(unsigned int *lp)
@@ -3072,6 +3031,8 @@ void dpmi_setup(void)
 {
     int i, type;
     unsigned int base_addr, limit, *lp;
+    unsigned char *alias;
+    unsigned short alias_sel;
 
     if (!config.dpmi) return;
 #ifdef __x86_64__
@@ -3104,13 +3065,13 @@ void dpmi_setup(void)
       error("DPMI: can't allocate memory for ldt_buffer\n");
       goto err;
     }
-    ldt_alias = alias_mapping(MAPPING_DPMI, -1,
+    alias = alias_mapping(MAPPING_DPMI, -1,
 	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, ldt_buffer);
-    if (ldt_alias == MAP_FAILED) {
+    if (alias == MAP_FAILED) {
       error("DPMI: can't allocate memory for ldt_alias\n");
       goto err;
     }
-    D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, ldt_alias);
+    D_printf("DPMI: ldt_buffer at %p, ldt_alias at %p\n", ldt_buffer, alias);
 
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
@@ -3132,7 +3093,7 @@ void dpmi_setup(void)
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
-    if (!(dpmi_ldt_alias = allocate_descriptors(1))) goto err;
+    if (!(alias_sel = allocate_descriptors(1))) goto err;
     if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
@@ -3152,15 +3113,14 @@ void dpmi_setup(void)
     if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 1,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_ldt_alias, DOSADDR_REL(ldt_alias),
-		    LDT_INIT_LIMIT, 0,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (dpmi_alloc_pool())
 	leavedos(2);
 
-    if (config.pm_dos_api)
+    if (config.pm_dos_api) {
       msdos_setup();
+      msdos_ldt_setup(alias, alias_sel);
+    }
     return;
 
 err:
@@ -3305,8 +3265,8 @@ void dpmi_init(void)
 
   if (debug_level('M')) {
     print_ldt();
-    D_printf("LDT_ALIAS=%x dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n",
-	    dpmi_ldt_alias, dpmi_sel(), CS, DS, SS, ES);
+    D_printf("dpmi_sel()=%x CS=%x DS=%x SS=%x ES=%x\n",
+	    dpmi_sel(), CS, DS, SS, ES);
   }
 
   in_dpmi_dos_int = 0;
@@ -3620,11 +3580,6 @@ static void do_cpu_exception(struct sigcontext *scp)
   _eflags &= ~(TF | NT | AC);
 }
 
-u_short DPMI_ldt_alias(void)
-{
-  return dpmi_ldt_alias;
-}
-
 /*
  * DANG_BEGIN_FUNCTION dpmi_fault
  *
@@ -3847,9 +3802,9 @@ int dpmi_fault(struct sigcontext *scp)
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
-            _eax = dpmi_ldt_alias;  /* simulate direct ldt access */
-	    _eflags &= ~CF;
-	  } else
+            /* handled properly by int2f */
+            _eflags |= CF;
+          } else
             _eflags |= CF;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
@@ -4321,11 +4276,8 @@ int dpmi_fault(struct sigcontext *scp)
 #endif
       }
     } else if (_trapno == 0x0e) {
-      if ((unsigned char *)_cr2 >= ldt_alias &&
-	  (unsigned char *)_cr2 < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-	instr_emu(scp, 1, 10);
-	return ret;
-      }
+      if (msdos_ldt_pagefault(scp))
+        return ret;
     }
     do_cpu_exception(scp);
   }

@@ -274,6 +274,7 @@
 #include "priv.h"
 #include "mapping.h"
 #include "utilities.h"
+#include "instremu.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"

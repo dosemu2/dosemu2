@@ -35,6 +35,7 @@
 #include "dpmi.h"
 #include "emm.h"
 #include "msdoshlp.h"
+#include "msdos_ldt.h"
 #include "msdos.h"
 
 #ifdef SUPPORT_DOSEMU_HELPERS
