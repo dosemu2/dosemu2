@@ -51,6 +51,7 @@
 #include "dpmi.h"
 #include "emu-ldt.h"
 #include "cpu.h"
+#include "instremu.h"
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * some configurable options

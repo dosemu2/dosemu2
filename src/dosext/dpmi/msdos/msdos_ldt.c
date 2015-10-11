@@ -22,7 +22,7 @@
 
 #include "cpu.h"
 #include "dpmi.h"
-#include "vgaemu.h"
+#include "instremu.h"
 #include "segreg.h"
 #include "dosemu_debug.h"
 #include "msdos_ldt.h"
