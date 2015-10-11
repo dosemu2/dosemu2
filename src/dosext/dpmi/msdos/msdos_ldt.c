@@ -35,17 +35,22 @@ static unsigned char *ldt_backbuf;
 static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
 
-int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias,
-	unsigned short alias_sel)
+int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
 {
-    if (SetSelector(alias_sel, DOSADDR_REL(alias),
-		    LDT_INIT_LIMIT, 0,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0))
-	return 0;
     ldt_backbuf = backbuf;
     ldt_alias = alias;
-    dpmi_ldt_alias = alias_sel;
     return 1;
+}
+
+void msdos_ldt_init(int clnt_num)
+{
+    if (clnt_num != 1)		// one LDT alias for all clients
+	return;
+    dpmi_ldt_alias = AllocateDescriptors(1);
+    if (!dpmi_ldt_alias)
+	return;
+    SetSegmentBaseAddress(dpmi_ldt_alias, DOSADDR_REL(ldt_alias));
+    SetSegmentLimit(dpmi_ldt_alias, LDT_INIT_LIMIT);
 }
 
 u_short DPMI_ldt_alias(void)

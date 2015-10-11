@@ -183,6 +183,7 @@ void msdos_init(int is_32, unsigned short mseg)
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
+    msdos_ldt_init(msdos_client_num);
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 

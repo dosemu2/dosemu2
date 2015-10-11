@@ -1,8 +1,8 @@
 #ifndef MSDOS_LDT_H
 #define MSDOS_LDT_H
 
-int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias,
-	unsigned short alias_sel);
+int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias);
+void msdos_ldt_init(int clnt_num);
 u_short DPMI_ldt_alias(void);
 int msdos_ldt_fault(struct sigcontext *scp);
 int msdos_ldt_pagefault(struct sigcontext *scp);

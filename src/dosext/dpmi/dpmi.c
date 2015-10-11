@@ -3130,11 +3130,9 @@ void dpmi_setup(void)
 
     if (config.pm_dos_api) {
       unsigned char *alias, *lbuf;
-      unsigned short alias_sel;
 
       msdos_setup();
       /* allocate shared buffers for msdos to emulate R/W LDT */
-      if (!(alias_sel = allocate_descriptors(1))) goto err;
       lbuf = alloc_mapping(MAPPING_SHARED,
 	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), -1);
       if (lbuf == MAP_FAILED) {
@@ -3148,7 +3146,7 @@ void dpmi_setup(void)
         goto err;
       }
       memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-      msdos_ldt_setup(lbuf, alias, alias_sel);
+      msdos_ldt_setup(lbuf, alias);
     }
     return;
 
