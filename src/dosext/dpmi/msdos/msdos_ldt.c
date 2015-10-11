@@ -355,25 +355,28 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
   return 0;
 }
 
-static void direct_ldt_write(int offset, int length, char *buffer)
+static void direct_ldt_write(int offset, char *buffer, int length)
 {
   int ldt_entry = offset / LDT_ENTRY_SIZE;
   int ldt_offs = offset % LDT_ENTRY_SIZE;
   int selector = (ldt_entry << 3) | 7;
   u_char lp[LDT_ENTRY_SIZE];
-  int i;
+  int i, err;
   D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
     offset, length, ldt_entry, ldt_offs);
   for (i = 0; i < length; i++)
     D_printf("0x%02hhx ", buffer[i]);
   D_printf("\n");
-  if (!Segments[ldt_entry].used)
+  err = GetDescriptor(selector, (unsigned int *)lp);
+  if (err) {
     selector = AllocateDescriptorsAt(selector, 1);
-  if (!selector) {
+    if (selector)
+      err = GetDescriptor(selector, (unsigned int *)lp);
+  }
+  if (err) {
     error("Descriptor allocation at %#x failed\n", ldt_entry);
     return;
   }
-  memcpy(lp, &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
   memcpy(lp + ldt_offs, buffer, length);
   if (lp[5] & 0x10) {
     SetDescriptor(selector, (unsigned int *)lp);
@@ -403,7 +406,7 @@ int msdos_ldt_pagefault(struct sigcontext *scp)
 
     cs = GetSegmentBase(_cs);
     csp = (unsigned char *)MEM_BASE32(cs + _eip);
-    direct_ldt_write(_cr2 - (unsigned long)ldt_alias, len, (char *)&op);
+    direct_ldt_write(_cr2 - (unsigned long)ldt_alias, (char *)&op, len);
     _eip += x86_instr_len(csp, dpmi_mhp_get_selector_size(_cs));
     return 1;
 }
