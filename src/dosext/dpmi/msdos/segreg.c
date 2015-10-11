@@ -36,6 +36,7 @@
 #define SP (R_WORD(_esp))
 #define sreg_idx(reg) (es_INDEX+((reg)&0x7))
 
+enum {REP_NONE, REPZ, REPNZ};
 static unsigned wordmask[5] = {0,0xff,0xffff,0xffffff,0xffffffff};
 
 uint32_t x86_pop(struct sigcontext *scp, x86_ins *x86)
@@ -55,33 +56,34 @@ int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
   unsigned eip = _eip;
   int prefix = 0;
 
+  x86->rep = 0;
   x86->address_size = x86->operand_size = (x86->_32bit + 1) * 2;
   for (;; eip++) {
     switch(*(unsigned char *)MEM_BASE32(cs_base + eip)) {
     /* handle (some) prefixes */
       case 0x26:
         prefix++;
-//        x86->es = 1;
+        x86->es = 1;
         break;
       case 0x2e:
         prefix++;
-//        x86->cs = 1;
+        x86->cs = 1;
         break;
       case 0x36:
         prefix++;
-//        x86->ss = 1;
+        x86->ss = 1;
         break;
       case 0x3e:
         prefix++;
-//        x86->ds = 1;
+        x86->ds = 1;
         break;
       case 0x64:
         prefix++;
-//        x86->fs = 1;
+        x86->fs = 1;
         break;
       case 0x65:
         prefix++;
-//        x86->gs = 1;
+        x86->gs = 1;
         break;
       case 0x66:
         prefix++;
@@ -93,11 +95,11 @@ int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
         break;
       case 0xf2:
         prefix++;
-//        x86->rep = REPNZ;
+        x86->rep = REPNZ;
         break;
       case 0xf3:
         prefix++;
-//        x86->rep = REPZ;
+        x86->rep = REPZ;
         break;
       default:
         return prefix;

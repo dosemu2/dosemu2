@@ -123,17 +123,34 @@ static uint32_t reg(struct sigcontext *scp, int reg)
 
 static int decode_memop(struct sigcontext *scp, uint32_t *op)
 {
-    unsigned cs, eip;
+    unsigned cs, eip, seg_base;
     unsigned char *csp, *orig_csp;
     x86_ins x86;
-    int inst_len;
+    int inst_len, loop_inc;
 
     x86._32bit = dpmi_mhp_get_selector_size(_cs);
     cs = GetSegmentBase(_cs);
     eip = _eip + x86_handle_prefixes(scp, cs, &x86);
+    if (x86.rep) {		// FIXME
+	error("LDT: Unimplemented rep\n");
+	return 0;
+    }
     csp = (unsigned char *)MEM_BASE32(cs + eip);
     orig_csp = (unsigned char *)MEM_BASE32(cs + _eip);
     inst_len = x86_instr_len(orig_csp, x86._32bit);
+    loop_inc = (_eflags & DF) ? -1 : 1;
+    if (x86.es)
+	seg_base = GetSegmentBase(_es);
+    else if (x86.fs)
+	seg_base = GetSegmentBase(_fs);
+    else if (x86.gs)
+	seg_base = GetSegmentBase(_gs);
+    else if (x86.cs)
+	seg_base = GetSegmentBase(_cs);
+    else if (x86.ss)
+	seg_base = GetSegmentBase(_ss);
+    else
+	seg_base = GetSegmentBase(_ds);
 
     switch(*csp) {
     case 0x88:		/* mov r/m8,reg8 */
@@ -206,6 +223,54 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	    return 2;
 	case 4:
 	    *op = _eax;
+	    return 4;
+	}
+	break;
+
+    case 0xa4:		/* movsb */
+	switch (x86.address_size) {
+	case 2:
+	    *op = *(unsigned char *)MEM_BASE32(seg_base + _LWORD(esi));
+	    _LWORD(edi) += loop_inc;
+	    _LWORD(esi) += loop_inc;
+	    break;
+	case 4:
+	    *op = *(unsigned char *)MEM_BASE32(seg_base + _esi);
+	    _edi += loop_inc;
+	    _esi += loop_inc;
+	    break;
+	}
+	return 1;
+
+    case 0xa5:		/* movsw */
+	switch (x86.operand_size) {
+	case 2:
+	    switch (x86.address_size) {
+	    case 2:
+		*op = *(uint16_t *)MEM_BASE32(seg_base + _LWORD(esi));
+		_LWORD(edi) += loop_inc * 2;
+		_LWORD(esi) += loop_inc * 2;
+		break;
+	    case 4:
+		*op = *(uint16_t *)MEM_BASE32(seg_base + _esi);
+		_edi += loop_inc * 2;
+		_esi += loop_inc * 2;
+		break;
+	    }
+	    return 2;
+	case 4:
+	    switch (x86.address_size) {
+	    case 2:
+		*op = *(uint32_t *)MEM_BASE32(seg_base + _LWORD(esi));
+		_LWORD(edi) += loop_inc * 4;
+		_LWORD(esi) += loop_inc * 4;
+		break;
+	    case 4:
+		*op = *(uint32_t *)MEM_BASE32(seg_base + _esi);
+		_edi += loop_inc * 4;
+		_esi += loop_inc * 4;
+		break;
+	    }
 	    return 4;
 	}
 	break;
