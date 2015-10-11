@@ -1247,18 +1247,19 @@ int GetDescriptor(us selector, unsigned int *lp)
 int SetDescriptor(unsigned short selector, unsigned int *lp)
 {
   unsigned int base_addr, limit;
+  int np, ro;
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08x%08x\n", selector>>3, selector, *(lp+1), *lp);
   if (!ValidAndUsedSelector(selector) || SystemSelector(selector))
     return -1; /* invalid value 8021 */
-  base_addr = (*lp >> 16) & 0x0000FFFF;
-  limit = *lp & 0x0000FFFF;
-  lp++;
-  base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
-  limit |= (*lp & 0x000F0000);
+  base_addr = (lp[1] & 0xFF000000) | ((lp[1] << 16) & 0x00FF0000) |
+	((lp[0] >> 16) & 0x0000FFFF);
+  limit = (lp[1] & 0x000F0000) | (lp[0] & 0x0000FFFF);
+  ro = ((lp[1] >> 9) & 1) ^ 1;
+  np = ((lp[1] >> 15) & 1) ^ 1;
 
-  return SetSelector(selector, base_addr, limit, (*lp >> 22) & 1,
-			(*lp >> 10) & 3, ((*lp >> 9) & 1) ^1,
-			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
+  return SetSelector(selector, base_addr, limit, (lp[1] >> 22) & 1,
+			(lp[1] >> 10) & 3, ro,
+			(lp[1] >> 23) & 1, np, (lp[1] >> 20) & 1);
 }
 
 void GetFreeMemoryInformation(unsigned int *lp)
