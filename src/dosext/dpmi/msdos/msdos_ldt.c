@@ -360,7 +360,7 @@ static void direct_ldt_write(int offset, int length, char *buffer)
   int ldt_entry = offset / LDT_ENTRY_SIZE;
   int ldt_offs = offset % LDT_ENTRY_SIZE;
   int selector = (ldt_entry << 3) | 7;
-  char lp[LDT_ENTRY_SIZE];
+  u_char lp[LDT_ENTRY_SIZE];
   int i;
   D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
     offset, length, ldt_entry, ldt_offs);
@@ -378,9 +378,11 @@ static void direct_ldt_write(int offset, int length, char *buffer)
   if (lp[5] & 0x10) {
     SetDescriptor(selector, (unsigned int *)lp);
   } else {
+    u_char lp1[LDT_ENTRY_SIZE];
     D_printf("DPMI: Invalid descriptor, freeing\n");
-    FreeDescriptor(selector);
-    Segments[ldt_entry].used = in_dpmi;	/* Prevent of a reuse */
+    memset(lp1, 0, sizeof(lp1));
+    lp1[5] |= 0x70;
+    SetDescriptor(selector, (unsigned int *)lp1);
   }
   memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
 }
