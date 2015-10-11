@@ -275,6 +275,45 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 	}
 	break;
 
+    case 0xaa:		/* stosb */
+	*op = _eax & 0xff;
+	switch (x86.address_size) {
+	case 2:
+	    _LWORD(edi) += loop_inc;
+	    break;
+	case 4:
+	    _edi += loop_inc;
+	    break;
+	}
+	return 1;
+
+    case 0xab:		/* stosw */
+	switch (x86.operand_size) {
+	case 2:
+	    *op = _LWORD(eax);
+	    switch (x86.address_size) {
+	    case 2:
+		_LWORD(edi) += loop_inc * 2;
+		break;
+	    case 4:
+		_edi += loop_inc * 2;
+		break;
+	    }
+	    return 2;
+	case 4:
+	    *op = _eax;
+	    switch (x86.address_size) {
+	    case 2:
+		_LWORD(edi) += loop_inc * 4;
+		break;
+	    case 4:
+		_edi += loop_inc * 4;
+		break;
+	    }
+	    return 4;
+	}
+	break;
+
     default:
 	error("Unimplemented memop decode %#x\n", *csp);
 	break;
