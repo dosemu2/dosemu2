@@ -37,6 +37,7 @@ static unsigned short dpmi_ldt_alias;
 
 int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
 {
+    /* NULL can be passed as backbuf if you have R/W LDT alias */
     ldt_backbuf = backbuf;
     ldt_alias = alias;
     return 1;
@@ -403,6 +404,15 @@ static void direct_ldt_write(int offset, char *buffer, int length)
   int selector = (ldt_entry << 3) | 7;
   u_char lp[LDT_ENTRY_SIZE];
   int i, err;
+
+  if (!ldt_backbuf) {
+    static int warned;
+    if (!warned) {
+      warned = 1;
+      error("LDT pagefault with no backbuffer provided\n");
+    }
+    return;
+  }
   D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
     offset, length, ldt_entry, ldt_offs);
   for (i = 0; i < length; i++)
