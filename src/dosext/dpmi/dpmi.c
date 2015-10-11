@@ -795,8 +795,7 @@ unsigned short AllocateDescriptorsAt(unsigned short selector,
     dosemu_error("AllocDescriptors error\n");
     return 0;
   }
-  if (allocate_descriptors_at(selector, number_of_descriptors) !=
-	number_of_descriptors)
+  if (!allocate_descriptors_at(selector, number_of_descriptors))
     return 0;
   /* dpmi spec says, the descriptor allocated should be "data" with */
   /* base and limit set to 0 */
@@ -1215,7 +1214,7 @@ int GetDescriptor(us selector, unsigned int *lp)
 {
   int typebyte;
   unsigned char *type_ptr;
-  if (SystemSelector(selector))
+  if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
 #if 0
   modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
