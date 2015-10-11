@@ -82,7 +82,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "utilities.h"
 #include "userhook.h"
 #include "mapping.h"
-#include "vgaemu.h"
 
 #ifdef __linux__
 #include "cpu-emu.h"
@@ -3801,11 +3800,8 @@ int dpmi_fault(struct sigcontext *scp)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
-          if (_LWORD(eax) == 0x0100) {
-            /* handled properly by int2f */
-            _eflags |= CF;
-          } else
-            _eflags |= CF;
+          /* 0x100 (MS-DOS) is handled properly by int2f */
+          _eflags |= CF;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  leave_lpms(scp);
