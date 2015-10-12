@@ -508,6 +508,7 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 
 #define DRO_D PC_D		/* old DR-DOS has same files as PC-DOS */
 #define REALPCD_D (PC_D | (1 << 24))
+#define OLDPCD_D (PC_D | (1 << 25))
 
 struct fs_prio sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1, 0 },
@@ -774,11 +775,17 @@ void scan_dir(fatfs_t *f, unsigned oi)
 		  if (size > 0) {
 		    buf[size] = 0;
 		    buf_ptr = buf;
-		    while (!strstr(buf_ptr, "PC DOS") && buf_ptr < buf + size) {
+		    while (!strstr(buf_ptr, "IBM DOS") &&
+			    !strstr(buf_ptr, "PC-DOS") &&
+			    buf_ptr < buf + size) {
 		      buf_ptr += strlen(buf_ptr) + 1;
 		    }
-		    if (buf_ptr < buf + size)
-		      sys_type = REALPCD_D;
+		    if (buf_ptr < buf + size) {
+		      if (strstr(buf_ptr, "IBM DOS"))
+		        sys_type = REALPCD_D;
+		      else
+		        sys_type = OLDPCD_D;
+		    }
 		  }
                   free(buf);
                   close(fd);
@@ -1284,6 +1291,7 @@ void fdkernel_boot_mimic(void)
     loadaddress = SEGOFF2LINEAR(0x60,0);
     break;
   case DR_D:
+  case OLDPCD_D:		/* old MS-DOS, PC-DOS */
     loadaddress = SEGOFF2LINEAR(0x70,0);
     break;
   default:
@@ -1382,7 +1390,6 @@ void build_boot_blk(fatfs_t *f)
 #endif
 
   d0[0x13] = f->drive_num;
-
   switch(f->sys_type) {
     case MS_D:
       i = read_data(f, 0);
@@ -1456,6 +1463,7 @@ void build_boot_blk(fatfs_t *f)
       fatfs_msg("made boot block suitable for DosC\n");
       break;
 
+    case OLDPCD_D:		/* old MS-DOS, PC-DOS */
     case FD_D:			/* FreeDOS, FD maintained kernel */
     case DR_D:			/* DR-DOS */
 			/* boot loading is done by DOSEMU-HELPER
