@@ -25,14 +25,14 @@
 #include <stdio.h>
 #include <assert.h>
 
-#ifdef DOSEMU
 #include "cpu.h"
+#ifdef DOSEMU
 #include "dpmisel.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "dpmi.h"
 #define SUPPORT_DOSEMU_HELPERS
 #endif
-#include "dpmi.h"
 #include "emm.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
