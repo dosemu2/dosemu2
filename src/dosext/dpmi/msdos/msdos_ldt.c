@@ -61,6 +61,10 @@ u_short DPMI_ldt_alias(void)
 
 int msdos_ldt_fault(struct sigcontext *scp)
 {
+    /* basically on dosemu this code is unused because msdos_ldt_update()
+     * manages the limit too. But it may be good to keep for the cases
+     * where msdos_ldt_update() is not used. For example if the LDT is R/W,
+     * it may be much simpler to not use msdos_ldt_update(). */
     int pref_seg = -1, done = 0;
     unsigned char *csp;
 
@@ -84,7 +88,10 @@ int msdos_ldt_fault(struct sigcontext *scp)
     if (pref_seg == -1)
 	pref_seg = _ds;
     if (pref_seg == dpmi_ldt_alias) {
-	unsigned limit = GetSegmentLimit(dpmi_ldt_alias);
+	unsigned limit;
+	if (ldt_backbuf)
+	    error("LDT fault with backbuffer present\n");
+	limit = GetSegmentLimit(dpmi_ldt_alias);
 	D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
 	SetSegmentLimit(dpmi_ldt_alias, limit + DPMI_page_size);
 	return 1;
@@ -392,9 +399,16 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
 
 void msdos_ldt_update(int entry, u_char *buf, int len)
 {
-  if (!ldt_backbuf)
-    return;
-  memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
+  if (dpmi_ldt_alias) {
+    unsigned limit = GetSegmentLimit(dpmi_ldt_alias);
+    unsigned new_len = (entry + 1) * LDT_ENTRY_SIZE;
+    if (limit < new_len - 1) {
+      D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
+      SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(new_len) - 1);
+    }
+  }
+  if (ldt_backbuf)
+    memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
 }
 
 static void direct_ldt_write(int offset, char *buffer, int length)
