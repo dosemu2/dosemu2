@@ -1239,6 +1239,7 @@ int GetDescriptor(us selector, unsigned int *lp)
   unsigned char *type_ptr;
   if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
+  memcpy((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], 8);
   /* DANG_BEGIN_REMARK
    * Hopefully the below LAR can serve as a replacement for the KERNEL_LDT,
    * which we are abandoning now. Especially the 'accessed-bit' will get
@@ -1251,13 +1252,12 @@ int GetDescriptor(us selector, unsigned int *lp)
    */
   if (!Segments[selector >> 3].not_present) {
     typebyte = do_LAR(selector);
-    type_ptr = ((unsigned char *)(&ldt_buffer[selector & 0xfff8])) + 5;
+    type_ptr = ((unsigned char *)lp) + 5;
     if (typebyte != *type_ptr) {
 	D_printf("DPMI: change type only in local selector\n");
 	*type_ptr=typebyte;
     }
   }
-  memcpy((unsigned char *)lp, &ldt_buffer[selector & 0xfff8], 8);
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08x%08x\n",
     selector >> 3, selector, lp[1], lp[0]);
   return 0;
