@@ -266,7 +266,7 @@ static void mhp_poll_loop(void)
    in_poll_loop--;
 }
 
-static void mhp_pre_poll(void)
+static void mhp_pre_vm86(void)
 {
     if (mhpdbg.TFpendig)
 	set_TF();
@@ -513,8 +513,8 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		  }
 	  }
 	  break;
-  case DBG_PRE_POLL:
-	  mhp_pre_poll();
+  case DBG_PRE_VM86:
+	  mhp_pre_vm86();
 	  break;
   case DBG_POLL:
 	  mhp_poll();

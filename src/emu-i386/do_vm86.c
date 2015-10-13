@@ -474,15 +474,10 @@ void run_vm86(void)
     }
 #ifdef USE_MHPDBG
     if (mhpdbg.active)
-	mhp_debug(DBG_PRE_POLL, 0, 0);
+	mhp_debug(DBG_PRE_VM86, 0, 0);
 #endif
 
     _do_vm86();
-
-#ifdef USE_MHPDBG
-    if (mhpdbg.active)
-	mhp_debug(DBG_POLL, 0, 0);
-#endif
   }
 }
 
