@@ -23,6 +23,7 @@ enum dosdebug_event {
    DBG_BOOT,
    DBG_INTx,
    DBG_TRAP,
+   DBG_PRE_POLL,
    DBG_POLL,
    DBG_GPF,
    DBG_INTxDPMI,

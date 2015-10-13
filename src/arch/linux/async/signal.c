@@ -868,10 +868,6 @@ void do_periodic_stuff(void)
     handle_signals();
     coopth_run();
 
-#ifdef USE_MHPDBG
-    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
-#endif
-
     if (Video->change_config)
 	update_xtitle();
 }

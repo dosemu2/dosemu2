@@ -266,6 +266,12 @@ static void mhp_poll_loop(void)
    in_poll_loop--;
 }
 
+static void mhp_pre_poll(void)
+{
+    if (mhpdbg.TFpendig)
+      set_TF();
+}
+
 static void mhp_poll(void)
 {
 
@@ -500,6 +506,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    mhp_poll();
 		  }
 	  }
+	  break;
+  case DBG_PRE_POLL:
+	  mhp_pre_poll();
 	  break;
   case DBG_POLL:
 	  mhp_poll();
