@@ -269,7 +269,13 @@ static void mhp_poll_loop(void)
 static void mhp_pre_poll(void)
 {
     if (mhpdbg.TFpendig)
-      set_TF();
+	set_TF();
+
+    if (isset_TF() && mhpdbgc.trapip != mhp_getcsip_value()) {
+	mhpdbgc.trapcmd = 0;
+	mhpdbgc.stopped = 1;
+	mhp_poll();
+    }
 }
 
 static void mhp_poll(void)
