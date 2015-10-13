@@ -415,17 +415,9 @@ again:
  *
  * DANG_END_FUNCTION
  */
-void run_vm86(void)
+static void run_vm86(void)
 {
-  int retval, cnt;
-
-  if (in_dpmi && !in_dpmi_dos_int) {
-    run_dpmi();
-  } else {
-    /*
-     * always invoke vm86() with this call.  all the messy stuff will be
-     * in here.
-     */
+    int retval, cnt;
 
     if (
 #ifdef X86_EMULATOR
@@ -478,7 +470,6 @@ void run_vm86(void)
 #endif
 
     _do_vm86();
-  }
 }
 
 /* same as run_vm86(), but avoids any looping in handling GPFs */
@@ -501,7 +492,10 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    run_vm86();
+    if (in_dpmi && !in_dpmi_dos_int)
+	run_dpmi();
+    else
+	run_vm86();
     do_periodic_stuff();
     hardware_run();
     pic_run();		/* trigger any hardware interrupts requested */

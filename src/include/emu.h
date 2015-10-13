@@ -123,7 +123,6 @@ extern volatile int in_vm86;
 
 void dos_ctrl_alt_del(void);	/* disabled */
 
-extern void run_vm86(void);
 extern void vm86_helper(void);
 extern void loopstep_run_vm86(void);
 extern void do_call_back(Bit16u cs, Bit16u ip);
