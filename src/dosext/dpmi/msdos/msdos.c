@@ -83,6 +83,7 @@ struct msdos_struct {
   dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
   far_t rmcbs[MAX_RMCBS];
   int rmcb_alloced;
+  u_short ldt_alias;
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num = 0;
@@ -183,7 +184,7 @@ void msdos_init(int is_32, unsigned short mseg)
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
-    msdos_ldt_init(msdos_client_num);
+    MSDOS_CLIENT.ldt_alias = msdos_ldt_init(msdos_client_num);
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
@@ -1846,7 +1847,7 @@ static void msdos_api_call(struct sigcontext *scp)
 {
     D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
     if (_LWORD(eax) == 0x0100) {
-	u_short sel = DPMI_ldt_alias();	/* simulate direct ldt access */
+	u_short sel = MSDOS_CLIENT.ldt_alias;
 	if (sel) {
 	    _eax = sel;
 	    _eflags &= ~CF;

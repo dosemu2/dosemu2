@@ -43,20 +43,16 @@ int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
     return 1;
 }
 
-void msdos_ldt_init(int clnt_num)
+u_short msdos_ldt_init(int clnt_num)
 {
-    if (clnt_num != 1)		// one LDT alias for all clients
-	return;
+    if (clnt_num > 1)		// one LDT alias for all clients
+	return dpmi_ldt_alias;
     dpmi_ldt_alias = AllocateDescriptors(1);
     if (!dpmi_ldt_alias)
-	return;
+	return 0;
     SetSegmentBaseAddress(dpmi_ldt_alias, DOSADDR_REL(ldt_alias));
     SetSegmentLimit(dpmi_ldt_alias, LDT_INIT_LIMIT);
-}
-
-u_short DPMI_ldt_alias(void)
-{
-  return dpmi_ldt_alias;
+    return dpmi_ldt_alias;
 }
 
 int msdos_ldt_fault(struct sigcontext *scp)
