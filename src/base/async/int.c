@@ -1480,8 +1480,6 @@ int can_revector(int i)
 #endif
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
-  case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
-  case 0xe7:			/* for mfs FCB helper */
     return REVECT;
   /* following 3 vectors must be revectored for DPMI */
   case 0x1c:			/* ROM BIOS timer tick interrupt */
@@ -2285,8 +2283,8 @@ void setup_interrupts(void) {
   if (config.ipxsup)
     interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
 #endif
-  interrupt_function[DOS_HELPER_INT][REVECT] = inte6;
-  interrupt_function[0xe7][REVECT] = inte7;
+  interrupt_function[DOS_HELPER_INT][NO_REVECT] = inte6;
+  interrupt_function[0xe7][NO_REVECT] = inte7;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {
