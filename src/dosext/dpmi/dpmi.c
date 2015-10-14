@@ -1177,11 +1177,10 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
   int ret;
   D_printf("DPMI: SetDescriptorAccessRights[0x%04x;0x%04x] 0x%04x\n", ldt_entry, selector, type_byte);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
-    return -1; /* invalid value 8021 */
+    return -1; /* invalid selector 8022 */
   /* Check DPL and "must be 1" fields, as suggested by specs */
-  if ( ((type_byte >> 5) & 3) != 3 || !(type_byte & 0x10) ||
-      ((type_byte & 0x08) && !(type_byte & 2)) )
-    return -2; /* invalid selector 8022 */
+  if ((type_byte & 7) != 7)
+    return -2; /* invalid value 8021 */
 
   Segments[ldt_entry].type = (type_byte >> 2) & 3;
   Segments[ldt_entry].is_32 = (type_byte >> 14) & 1;
