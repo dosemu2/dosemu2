@@ -216,6 +216,8 @@ extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
 extern unsigned short AllocateDescriptors(int);
 extern unsigned short AllocateDescriptorsAt(unsigned short selector,
     int number_of_descriptors);
+extern unsigned short CreateAliasDescriptor(unsigned short selector);
+extern int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);

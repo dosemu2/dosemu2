@@ -84,6 +84,7 @@ struct msdos_struct {
   far_t rmcbs[MAX_RMCBS];
   int rmcb_alloced;
   u_short ldt_alias;
+  u_short ldt_alias_winos2;
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num = 0;
@@ -102,6 +103,7 @@ static void rmcb_handler(struct sigcontext *scp,
 static void rmcb_ret_handler(const struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg);
 static void msdos_api_call(struct sigcontext *scp);
+static void msdos_api_winos2_call(struct sigcontext *scp);
 static void mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static void ps2_mouse_callback(struct sigcontext *scp,
@@ -185,6 +187,9 @@ void msdos_init(int is_32, unsigned short mseg)
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
     MSDOS_CLIENT.ldt_alias = msdos_ldt_init(msdos_client_num);
+    MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
+	    MSDOS_CLIENT.ldt_alias);
+    SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf);
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
@@ -283,9 +288,15 @@ static void get_ext_API(struct sigcontext *scp)
     struct pmaddr_s pma;
     char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
-    if ((!strcmp("WINOS2", ptr)) || (!strcmp("MS-DOS", ptr))) {
+    if (!strcmp("MS-DOS", ptr)) {
 	_LO(ax) = 0;
 	pma = get_pm_handler(API_CALL, msdos_api_call);
+	_es = pma.selector;
+	_edi = pma.offset;
+	_eflags &= ~CF;
+    } else if (!strcmp("WINOS2", ptr)) {
+	_LO(ax) = 0;
+	pma = get_pm_handler(API_WINOS2_CALL, msdos_api_winos2_call);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
@@ -1848,6 +1859,22 @@ static void msdos_api_call(struct sigcontext *scp)
     D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
     if (_LWORD(eax) == 0x0100) {
 	u_short sel = MSDOS_CLIENT.ldt_alias;
+	if (sel) {
+	    _eax = sel;
+	    _eflags &= ~CF;
+	} else {
+	    _eflags |= CF;
+	}
+    } else {
+	_eflags |= CF;
+    }
+}
+
+static void msdos_api_winos2_call(struct sigcontext *scp)
+{
+    D_printf("MSDOS: WINOS2 extension API call: 0x%04x\n", _LWORD(eax));
+    if (_LWORD(eax) == 0x0100) {
+	u_short sel = MSDOS_CLIENT.ldt_alias_winos2;
 	if (sel) {
 	    _eax = sel;
 	    _eflags &= ~CF;

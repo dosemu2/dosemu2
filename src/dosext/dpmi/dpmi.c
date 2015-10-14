@@ -1171,7 +1171,7 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
   return ret;
 }
 
-static int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
+int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
 {
   unsigned short ldt_entry = selector >> 3;
   int ret;
@@ -1197,7 +1197,7 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
   return ret;
 }
 
-static unsigned short CreateCSAlias(unsigned short selector)
+unsigned short CreateAliasDescriptor(unsigned short selector)
 {
   us ds_selector;
   us cs_ldt= selector >> 3;
@@ -2018,7 +2018,7 @@ static void do_int31(struct sigcontext *scp)
     break;
   case 0x000a:
     CHECK_SELECTOR(_LWORD(ebx));
-    if (!(_LWORD(eax) = CreateCSAlias(_LWORD(ebx)))) {
+    if (!(_LWORD(eax) = CreateAliasDescriptor(_LWORD(ebx)))) {
        _LWORD(eax) = 0x8011;
       _eflags |= CF;
     }

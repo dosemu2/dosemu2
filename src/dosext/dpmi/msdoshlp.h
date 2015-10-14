@@ -1,7 +1,7 @@
 #ifndef MSDOSHLP_H
 #define MSDOSHLP_H
 
-enum MsdOpIds { NONE, API_CALL, XMS_CALL };
+enum MsdOpIds { NONE, API_CALL, API_WINOS2_CALL, XMS_CALL };
 
 extern int msdos_pre_pm(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg);

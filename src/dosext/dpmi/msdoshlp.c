@@ -39,6 +39,7 @@
 
 struct msdos_ops {
     void (*api_call)(struct sigcontext *scp);
+    void (*api_winos2_call)(struct sigcontext *scp);
     void (*xms_call)(struct RealModeCallStructure *rmreg);
     void (**rmcb_handler)(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg);
@@ -174,6 +175,11 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_API_call);
 	break;
+    case API_WINOS2_CALL:
+	msdos.api_winos2_call = handler;
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_API_WINOS2_call);
+	break;
     default:
 	dosemu_error("unknown pm handler\n");
 	ret = (struct pmaddr_s){ 0, 0 };
@@ -224,6 +230,8 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
 	msdos.api_call(scp);
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
+	msdos.api_winos2_call(scp);
     } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&
 	    _eip < 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_end)) {
 	int idx, ret;

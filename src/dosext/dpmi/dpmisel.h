@@ -52,6 +52,7 @@ extern unsigned char	MSDOS_XMS_call[];
 extern unsigned char	MSDOS_spm_end[];
 extern unsigned char	MSDOS_pmc_start[];
 extern unsigned char	MSDOS_API_call[];
+extern unsigned char	MSDOS_API_WINOS2_call[];
 extern unsigned char	MSDOS_rmcb_call_start[];
 extern unsigned char	MSDOS_rmcb_call0[];
 extern unsigned char	MSDOS_rmcb_call1[];
