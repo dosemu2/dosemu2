@@ -317,6 +317,8 @@ static int true_vm86(struct vm86_struct *x)
 
 static int do_vm86(struct vm86_struct *x)
 {
+    if (config.cpuemu == 5)
+	return kvm_vm86();
 #ifdef __i386__
 #ifdef X86_EMULATOR
     if (config.cpuemu)
