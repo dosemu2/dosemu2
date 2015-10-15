@@ -1179,7 +1179,7 @@ int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1; /* invalid selector 8022 */
   /* Check DPL and "must be 1" fields, as suggested by specs */
-  if ((type_byte & 7) != 7)
+  if ((type_byte & 0x70) != 0x70)
     return -2; /* invalid value 8021 */
 
   Segments[ldt_entry].type = (type_byte >> 2) & 3;

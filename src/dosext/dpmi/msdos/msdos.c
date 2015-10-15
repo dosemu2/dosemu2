@@ -189,7 +189,9 @@ void msdos_init(int is_32, unsigned short mseg)
     MSDOS_CLIENT.ldt_alias = msdos_ldt_init(msdos_client_num);
     MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
 	    MSDOS_CLIENT.ldt_alias);
-    SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf);
+    SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
+    SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
+	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
