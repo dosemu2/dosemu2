@@ -98,7 +98,7 @@ static void set_iret(void)
   REG(eflags) = ((REG(eflags) & mask) | (flgs & ~mask));
 }
 
-static void jmp_to(int cs, int ip)
+void jmp_to(int cs, int ip)
 {
   REG(cs) = cs;
   REG(eip) = ip;
@@ -1483,36 +1483,12 @@ int can_revector(int i)
   case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
     return REVECT;
-  /* following 3 vectors must be revectored for DPMI */
-  case 0x1c:			/* ROM BIOS timer tick interrupt */
-  case 0x23:			/* DOS Ctrl+C interrupt */
-  case 0x24:			/* DOS critical error interrupt */
-    return config.dpmi ? REVECT : NO_REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
     /* hogthreshold may be changed using "speed". Easiest to leave it
        permanently enabled for now */
     return REVECT;
 
-#if 0		/* no need to specify all */
-  case 0x10:			/* BIOS video */
-  case 0x13:			/* BIOS disk */
-  case 0x15:
-  case 0x16:			/* BIOS keyboard */
-  case 0x17:			/* BIOS printer */
-  case 0x1b:			/* ctrl-break handler */
-  case 0x1c:			/* user timer tick */
-  case 0x20:			/* exit program */
-  case 0x25:			/* absolute disk read, calls int 13h */
-  case 0x26:			/* absolute disk write, calls int 13h */
-  case 0x27:			/* TSR */
-  case 0x2a:
-  case 0x60:
-  case 0x61:
-  case 0x62:
-  case 0x67:			/* EMS */
-  case 0xfe:			/* Turbo Debugger and others... */
-#endif
   default:
     return NO_REVECT;
   }
@@ -1569,36 +1545,6 @@ static int int18(void) {
 /* LOAD SYSTEM */
 static int int19(void) {
   boot();
-  return 1;
-}
-
-static void do_dpmi_int(void *arg)
-{
-  int i = (long)arg;
-  run_pm_dos_int(i);
-}
-
-static int int1c(void)
-{
-  if (!in_dpmi)
-    return 0;
-  coopth_set_post_handler(do_dpmi_int, (void *)0x1c);
-  return 1;
-}
-
-static int int23(void)
-{
-  if (!in_dpmi)
-    return 0;
-  coopth_set_post_handler(do_dpmi_int, (void *)0x23);
-  return 1;
-}
-
-static int int24(void)
-{
-  if (!in_dpmi)
-    return 0;
-  coopth_set_post_handler(do_dpmi_int, (void *)0x24);
   return 1;
 }
 
@@ -2270,10 +2216,6 @@ void setup_interrupts(void) {
   interrupt_function[0x18][NO_REVECT] = int18;
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
-
-  interrupt_function[0x1c][REVECT] = int1c;
-  interrupt_function[0x23][REVECT] = int23;
-  interrupt_function[0x24][REVECT] = int24;
 
   interrupt_function[0x21][REVECT] = msdos;
   interrupt_function[0x28][REVECT] = int28;
