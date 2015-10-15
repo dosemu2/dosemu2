@@ -122,7 +122,6 @@ struct DPMIclient_struct {
   /* used for RSP calls */
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
   int RSP_state, RSP_installed;
-  far_t s_i1c, s_i23, s_i24;
 };
 
 struct RSPcall_s {

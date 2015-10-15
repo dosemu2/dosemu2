@@ -125,6 +125,7 @@ static jmp_buf dpmi_ret_jmp;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
+static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 static int DPMI_rm_procedure_running = 0;
@@ -2751,11 +2752,11 @@ void dpmi_cleanup(void)
     DPMI_CLIENT.pm_block_root = NULL;
   }
 
-  SETIVEC(0x1c, DPMI_CLIENT.s_i1c.segment, DPMI_CLIENT.s_i1c.offset);
-  SETIVEC(0x23, DPMI_CLIENT.s_i23.segment, DPMI_CLIENT.s_i23.offset);
-  SETIVEC(0x24, DPMI_CLIENT.s_i24.segment, DPMI_CLIENT.s_i24.offset);
-
   if (in_dpmi == 1) {
+    SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
+    SETIVEC(0x23, s_i23.segment, s_i23.offset);
+    SETIVEC(0x24, s_i24.segment, s_i24.offset);
+
     win31_mode = 0;
   }
   cli_blacklisted = 0;
@@ -2818,13 +2819,13 @@ static int chain_rm_int(struct sigcontext *scp, int i)
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
   switch (i) {
   case 0x1c:
-    iaddr = DPMI_CLIENT.s_i1c;
+    iaddr = s_i1c;
     break;
   case 0x23:
-    iaddr = DPMI_CLIENT.s_i23;
+    iaddr = s_i23;
     break;
   case 0x24:
-    iaddr = DPMI_CLIENT.s_i24;
+    iaddr = s_i24;
     break;
   default:
     do_int(i);
@@ -3013,13 +3014,13 @@ void run_pm_dos_int(int i)
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
     switch (i) {
     case 0x1c:
-	iaddr = DPMI_CLIENT.s_i1c;
+	iaddr = s_i1c;
 	break;
     case 0x23:
-	iaddr = DPMI_CLIENT.s_i23;
+	iaddr = s_i23;
 	break;
     case 0x24:
-	iaddr = DPMI_CLIENT.s_i24;
+	iaddr = s_i24;
 	break;
     default:
 	error("run_pm_dos_int with int=%x\n", i);
@@ -3364,20 +3365,22 @@ void dpmi_init(void)
 
   msdos_init(DPMI_CLIENT.is_32,
     DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
+  if (in_dpmi == 1) {
+    s_i1c.segment = ISEG(0x1c);
+    s_i1c.offset  = IOFF(0x1c);
+    s_i23.segment = ISEG(0x23);
+    s_i23.offset  = IOFF(0x23);
+    s_i24.segment = ISEG(0x24);
+    s_i24.offset  = IOFF(0x24);
+    SETIVEC(0x1c, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int1c));
+    SETIVEC(0x23, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int23));
+    SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
+  }
 
   for (i = 0; i < RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
     dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
   }
-  DPMI_CLIENT.s_i1c.segment = ISEG(0x1c);
-  DPMI_CLIENT.s_i1c.offset  = IOFF(0x1c);
-  DPMI_CLIENT.s_i23.segment = ISEG(0x23);
-  DPMI_CLIENT.s_i23.offset  = IOFF(0x23);
-  DPMI_CLIENT.s_i24.segment = ISEG(0x24);
-  DPMI_CLIENT.s_i24.offset  = IOFF(0x24);
-  SETIVEC(0x1c, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int1c));
-  SETIVEC(0x23, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int23));
-  SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
 
   return; /* return immediately to the main loop */
 
