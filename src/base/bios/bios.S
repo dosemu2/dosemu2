@@ -85,26 +85,27 @@ DPMI_return_from_realmode:
 DPMI_return_from_dos_memory:
 	hlt
 /* ======================= Addr = F800:490E (FC90E) */
-DPMI_reserved:
+	.globl DPMI_int1c
+DPMI_int1c:
 	hlt
-	lret
+	iret
 /* ======================= Addr = F800:4910 (FC910) */
+	.globl	DPMI_int23
+DPMI_int23:
+	hlt
+	iret
+/* ======================= Addr = F800:4912 (FC912) */
+	.globl	DPMI_int24
+DPMI_int24:
+	hlt
+	iret
+/* ======================= Addr = F800:4914 (FC914) */
 	.globl	DPMI_raw_mode_switch_rm
 DPMI_raw_mode_switch_rm:
 	hlt
-/* ======================= Addr = F800:4911 (FC911) */
+/* ======================= Addr = F800:4916 (FC916) */
 	.globl	DPMI_save_restore_rm
 DPMI_save_restore_rm:
-	hlt
-	lret
-/* ======================= Addr = F800:4913 (FC913) */
-	.globl	DPMI_reserved1
-DPMI_reserved1:
-	hlt
-	lret
-/* ======================= Addr = F800:4915 (FC915) */
-	.globl	DPMI_reserved2
-DPMI_reserved2:
 	hlt
 	lret
 
