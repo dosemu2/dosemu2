@@ -1482,11 +1482,6 @@ int can_revector(int i)
   case 0x2f:			/* needed for XMS, redirector, and idling */
     return REVECT;
 
-  case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
-    /* hogthreshold may be changed using "speed". Easiest to leave it
-       permanently enabled for now */
-    return REVECT;
-
   default:
     return NO_REVECT;
   }
@@ -1872,10 +1867,6 @@ static int int33(void) {
 /* N.B. This code lets the real mode mouse driver return at a HLT, so
  * after it returns the hogthreshold code can do its job.
  */
-  if (IS_REDIRECTED(0x33)) {
-    int33_check_hog();
-    return 0;
-  }
   mouse_int();
   int33_check_hog();
   return 1;
@@ -2219,8 +2210,7 @@ void setup_interrupts(void) {
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
   interrupt_function[0x2f][REVECT] = int2f;
-  interrupt_function[0x33][NO_REVECT] = mouse_int;
-  interrupt_function[0x33][REVECT] = int33;
+  interrupt_function[0x33][NO_REVECT] = int33;
 #ifdef IPX
   if (config.ipxsup)
     interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
