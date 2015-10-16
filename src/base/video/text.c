@@ -44,6 +44,7 @@
 #include "vgatext.h"
 #include "render_priv.h"
 #include "translate.h"
+#include "timers.h"
 
 static struct text_system * Text = NULL;
 int use_bitmap_font;
@@ -685,6 +686,7 @@ int update_text_screen(void)
                 /* ok, we've got the string now send it to the X server */
 
                 draw_string(start_x, y, charbuff, len, attr);
+                if (len > 0) reset_idle(0);
 
 		if ((prev_cursor_location >= start_off) &&
 		    (prev_cursor_location < start_off + len*2))

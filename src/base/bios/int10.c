@@ -57,6 +57,7 @@
 #include "bios.h"
 #include "int.h"
 #include "speaker.h"
+#include "timers.h"
 #include "utilities.h"
 #include "vgaemu.h"
 #include "vgatext.h"
@@ -254,6 +255,8 @@ void tty_char_out(unsigned char ch, int s, int attr)
   unsigned dst;
 
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
+
+  reset_idle(0);
 
   if (config.cardtype == CARD_NONE) {
      if (!config.quiet) putchar (ch);
