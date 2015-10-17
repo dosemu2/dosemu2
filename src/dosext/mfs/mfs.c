@@ -1601,6 +1601,7 @@ dos_fs_dev(state_t *state)
   Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
   if (WORD(state->ebx) == 0x500) {
+    redirect_devices();
     init_all_drives();
     mach_fs_enabled = TRUE;
 
@@ -3600,7 +3601,7 @@ dos_fs_redirect(state_t *state)
     }
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
-      u_short att = *(u_short *) Addr(state, ss, esp);
+      u_short att = *(u_short *) Addr(state, ss, esp+6);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
       if (drives[drive].read_only || is_long_path(filename1)) {
@@ -3738,11 +3739,11 @@ dos_fs_redirect(state_t *state)
        statement. */
 
     /* get the high byte */
-    dos_mode = *(u_char *) (Addr(state, ss, esp) + 1);
+    dos_mode = *(u_char *) (Addr(state, ss, esp+6) + 1);
     dos_mode <<= 8;
 
     /* and the low one (isn't there a way to do this with one Addr ??) */
-    dos_mode |= *(u_char *)Addr(state, ss, esp);
+    dos_mode |= *(u_char *)Addr(state, ss, esp+6);
 
     /* check for a high bit set indicating an FCB call */
     FCBcall = sft_open_mode(sft) & 0x8000;
@@ -3825,9 +3826,9 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
 
     /* 01 in high byte = create new, 00 s just create truncate */
-    create_file = *(u_char *) (Addr(state, ss, esp) + 1);
+    create_file = *(u_char *) (Addr(state, ss, esp+6) + 1);
 
-    attr = *(u_short *) Addr(state, ss, esp);
+    attr = *(u_short *) Addr(state, ss, esp+6);
     Debug0((dbg_fd, "CHECK attr=0x%x, create=0x%x\n", attr, create_file));
 
     /* make it a byte - we thus ignore the new bit */
@@ -4162,7 +4163,7 @@ dos_fs_redirect(state_t *state)
     return (REDIRECT);
   case CONTROL_REDIRECT:	/* 0x1e */
     /* get low word of parameter, should be one of 2, 3, 4, 5 */
-    subfunc = LOW(*(u_short *) Addr(state, ss, esp));
+    subfunc = LOW(*(u_short *) Addr(state, ss, esp+6));
     Debug0((dbg_fd, "Control redirect, subfunction %d\n",
 	    subfunc));
     switch (subfunc) {
@@ -4199,7 +4200,7 @@ dos_fs_redirect(state_t *state)
 	  u_short mode;
 
       mode = sda_ext_mode(sda) & 0x7f;
-      attr = *(u_short *) Addr(state, ss, esp);
+      attr = *(u_short *) Addr(state, ss, esp+6);
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));
