@@ -1588,9 +1588,14 @@ static void dos_post_boot(void)
 }
 
 /* KEYBOARD BUSY LOOP */
+static void int28hook_thr(void *arg)
+{
+  jmp_to(int28seg, int28off);
+}
+
 static int int28(void) {
   idle(0, 50, 0, "int28");
-  fake_int_to(int28seg, int28off);
+  coopth_set_post_handler(int28hook_thr, NULL);
   return 0;
 }
 
@@ -1599,6 +1604,11 @@ static int int29(void) {
     /* char in AL */
   char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   return 1;
+}
+
+static void int2fhook_thr(void *arg)
+{
+  jmp_to(int2fseg, int2foff);
 }
 
 static int int2f(void)
@@ -1764,7 +1774,7 @@ static int int2f(void)
     return 1;
   }
 
-  fake_int_to(int2fseg, int2foff);
+  coopth_set_post_handler(int2fhook_thr, NULL);
   return 0;
 }
 
