@@ -21,9 +21,6 @@ typedef struct {
     unsigned not_real	:1;		/* entry doesn't need a start cluster */
     unsigned this_dir	:1;		/* is "." entry */
     unsigned parent_dir	:1;		/* is ".." entry */
-#if 0
-    unsigned faked_sys	:1;		/* is faked by config.emusys */
-#endif
   } is;
   unsigned start, len;			/* start cluster, length in clusters */
   unsigned parent;			/* index of parent object */

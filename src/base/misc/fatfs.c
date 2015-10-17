@@ -863,33 +863,6 @@ void add_object(fatfs_t *f, unsigned parent, char *nm)
   struct stat sb;
   obj_t tmp_o = {{0}, 0};
   unsigned u;
-#if 0
-  static int first = 1;
-  static int exxx = 0;
-  static char esys[16] = "";
-
-  if (first) {
-    first = 0;
-    if (config.emusys) {
-      snprintf(esys, 8+1+3+1,"config.%s", config.emusys);
-      esys[12] =0;
-      exxx += 2;
-    }
-  }
-
-  if (!parent && exxx) {
-    if (esys[0] && !strcmp(name, "config.sys")) {
-      fatfs_deb("add_object: ignored real %s in favour of %s\n", name, esys);
-      exxx -= 1;
-      return;
-    }
-    if (esys[0] && !strcmp(name, esys)) {
-      tmp_o.is.faked_sys = 1;
-      fatfs_deb("add_object: faked %s as DOS entry CONFIG.SYS\n", esys);
-      exxx -= 1;
-    }
-  }
-#endif
   if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
 
   if (name[0] == '/') {
