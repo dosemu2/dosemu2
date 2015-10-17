@@ -1475,23 +1475,7 @@ static int run_caller_func(int i, int revect)
 
 int can_revector(int i)
 {
-/* here's sort of a guideline:
- * if we emulate it completely, but there is a good reason to stick
- * something in front of it, and it seems to work, by all means revector it.
- * if we emulate none of it, say yes, as that is a little bit faster.
- * if we emulate it, but things don't seem to work when it's revectored,
- * then don't let it be revectored.
- */
-
-  switch (i) {
-  case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
-    /* hogthreshold may be changed using "speed". Easiest to leave it
-       permanently enabled for now */
-    return REVECT;
-
-  default:
     return NO_REVECT;
-  }
 }
 
 static void do_print_screen(void) {
@@ -1796,10 +1780,6 @@ static int int33(void) {
 /* N.B. This code lets the real mode mouse driver return at a HLT, so
  * after it returns the hogthreshold code can do its job.
  */
-  if (IS_REDIRECTED(0x33)) {
-    int33_check_hog();
-    return 0;
-  }
   mouse_int();
   int33_check_hog();
   return 1;
@@ -2140,8 +2120,7 @@ void setup_interrupts(void) {
   interrupt_function[0x1a][NO_REVECT] = int1a;
 
   interrupt_function[0x29][NO_REVECT] = int29;
-  interrupt_function[0x33][NO_REVECT] = mouse_int;
-  interrupt_function[0x33][REVECT] = int33;
+  interrupt_function[0x33][NO_REVECT] = int33;
 #ifdef IPX
   if (config.ipxsup)
     interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
