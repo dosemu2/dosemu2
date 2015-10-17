@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -1138,14 +1137,14 @@ Return: nothing
 static int redir_it(void);
 static int int21(void);
 
-static unsigned short int21seg, int21off;
+static far_t s_int21;
 
 static void int21_post_boot(void)
 {
   if (int21_hooked)
     return;
-  int21seg = ISEG(0x21);
-  int21off = IOFF(0x21);
+  s_int21.segment = ISEG(0x21);
+  s_int21.offset  = IOFF(0x21);
   SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
   int21_hooked = 1;
   ds_printf("INT21: interrupt hook installed\n");
@@ -1158,11 +1157,11 @@ static void int21_post_boot(void)
 static int int21lfnhook(void)
 {
   if (!(HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57) || !mfs_lfn())
-    jmp_to(int21seg, int21off);
+    jmp_to(s_int21.segment, s_int21.offset);
   return 1;
 }
 
-static void int21lfnhook_thr(void *arg)
+static void int21_post(void *arg)
 {
   int21lfnhook();
 }
@@ -1348,7 +1347,7 @@ static int int21(void)
 {
   int ret = msdos();
   if (ret == 0) {
-    coopth_set_post_handler(int21lfnhook_thr, NULL);
+    coopth_set_post_handler(int21_post, NULL);
     return 1;
   }
   return ret;
