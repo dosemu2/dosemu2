@@ -1853,17 +1853,6 @@ static void call_int33_mouse_event_handler(void)
 /* this function is called from int74 via inte6 */
 static void call_mouse_event_handler(void)
 {
-  unsigned int ssp, sp;
-
-  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
-  sp = LWORD(esp);
-
-  /* first pop bx and ax, which were changed to
-     call this function */
-  LWORD(ebx) = popw(ssp, sp);
-  LWORD(eax) = popw(ssp, sp);
-  LWORD(esp) += 4;
-
   if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
     call_int15_mouse_event_handler();
   } else {

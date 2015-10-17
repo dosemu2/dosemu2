@@ -125,6 +125,7 @@ static jmp_buf dpmi_ret_jmp;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
+static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
 static int DPMI_rm_procedure_running = 0;
@@ -2750,7 +2751,12 @@ void dpmi_cleanup(void)
     free(DPMI_CLIENT.pm_block_root);
     DPMI_CLIENT.pm_block_root = NULL;
   }
+
   if (in_dpmi == 1) {
+    SETIVEC(0x1c, s_i1c.segment, s_i1c.offset);
+    SETIVEC(0x23, s_i23.segment, s_i23.offset);
+    SETIVEC(0x24, s_i24.segment, s_i24.offset);
+
     win31_mode = 0;
   }
   cli_blacklisted = 0;
@@ -2803,22 +2809,37 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
   }
 }
 
-static void chain_rm_int(struct sigcontext *scp, int i)
+static int chain_rm_int(struct sigcontext *scp, int i)
 {
+  far_t iaddr;
+  D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
   switch (i) {
   case 0x1c:
+    iaddr = s_i1c;
+    break;
   case 0x23:
+    iaddr = s_i23;
+    break;
   case 0x24:
-    real_run_int(i);
+    iaddr = s_i24;
     break;
   default:
     do_int(i);
-    break;
+    return 1;
   }
+
+  D_printf("DPMI: Calling real mode handler for int 0x%02x, %04x:%04x\n",
+	i, iaddr.segment, iaddr.offset);
+  if (iaddr.segment == DPMI_SEG) {
+    restore_rm_regs();
+    return 0;
+  }
+  fake_int_to(iaddr.segment, iaddr.offset);
+  return 1;
 }
 
 static void do_dpmi_int(struct sigcontext *scp, int i)
@@ -2866,7 +2887,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       break;
   }
 
-  if (config.pm_dos_api) {
+  if (config.pm_dos_api && i != 0x1c && i != 0x23 && i != 0x24) {
     int msdos_ret;
     struct RealModeCallStructure rmreg;
     int rm_mask = (1 << cs_INDEX) | (1 << eip_INDEX);
@@ -2879,7 +2900,8 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
 	    &stk_used);
     switch (msdos_ret) {
     case MSDOS_NONE:
-      chain_rm_int(scp, i);
+      if (!chain_rm_int(scp, i))
+        return;
       break;
     case MSDOS_RM:
       save_rm_regs();
@@ -2893,7 +2915,8 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       return;
     }
   } else {
-    chain_rm_int(scp, i);
+    if (!chain_rm_int(scp, i))
+      return;
   }
 
   in_dpmi_dos_int = 1;
@@ -2987,8 +3010,25 @@ void run_pm_dos_int(int i)
   D_printf("DPMI: run_pm_dos_int(0x%02x) called\n",i);
 
   if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel()) {
+    far_t iaddr;
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
-    real_run_int(i);
+    switch (i) {
+    case 0x1c:
+	iaddr = s_i1c;
+	break;
+    case 0x23:
+	iaddr = s_i23;
+	break;
+    case 0x24:
+	iaddr = s_i24;
+	break;
+    default:
+	error("run_pm_dos_int with int=%x\n", i);
+	return;
+    }
+    if (iaddr.segment == DPMI_SEG)
+	return;
+    jmp_to(iaddr.segment, iaddr.offset);
     return;
   }
 
@@ -3325,14 +3365,22 @@ void dpmi_init(void)
 
   msdos_init(DPMI_CLIENT.is_32,
     DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs);
+  if (in_dpmi == 1) {
+    s_i1c.segment = ISEG(0x1c);
+    s_i1c.offset  = IOFF(0x1c);
+    s_i23.segment = ISEG(0x23);
+    s_i23.offset  = IOFF(0x23);
+    s_i24.segment = ISEG(0x24);
+    s_i24.offset  = IOFF(0x24);
+    SETIVEC(0x1c, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int1c));
+    SETIVEC(0x23, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int23));
+    SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
+  }
 
   for (i = 0; i < RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
     dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
   }
-  /* set int 23 to "iret" so that DOS doesn't terminate the program
-     behind our back */
-  SETIVEC(0x23, IRET_SEG, IRET_OFF);
 
   return; /* return immediately to the main loop */
 
@@ -4542,6 +4590,16 @@ done:
        * so the segment regs are saved as 2-bytes. */
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
+
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int1c)) {
+    REG(eip) += 1;
+    run_pm_dos_int(0x1c);
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int23)) {
+    REG(eip) += 1;
+    run_pm_dos_int(0x23);
+  } else if (lina == DPMI_ADD + HLT_OFF(DPMI_int24)) {
+    REG(eip) += 1;
+    run_pm_dos_int(0x24);
 
   } else if ((lina >= DPMI_ADD + HLT_OFF(MSDOS_rpm_start)) &&
 	     (lina < DPMI_ADD + HLT_OFF(MSDOS_rpm_end))) {

@@ -241,8 +241,6 @@ extern void copy_context(struct sigcontext *d,
     struct sigcontext *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_data_sel(void);
-//extern void pm_to_rm_regs(struct sigcontext *scp, unsigned int mask);
-//extern void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask);
 
 static inline int DPMIValidSelector(unsigned short selector)
 {
