@@ -1143,7 +1143,6 @@ void disk_reset(void)
   subst_file_ext(NULL);
   for (i = 0; i < 26; i++)
     ResetRedirection(i);
-  set_int21_revectored(redir_state = 1);
   if (config.bootdisk && bootdisk.type == DIR_TYPE) {
     if (bootdisk.fatfs) fatfs_done(&bootdisk);
     fatfs_init(&bootdisk);

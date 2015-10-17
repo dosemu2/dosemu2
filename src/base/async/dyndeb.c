@@ -215,14 +215,7 @@ static void all_change_level(int level)
 		}
 	}
 }
-static void int21_change_level(int level)
-{
-	static int first = 1;
-	if (first) {
-		set_int21_revectored(level?1:0);
-		first = 0;
-	}
-}
+
 static void port_trace_change_level(int level)
 {
 	init_port_traceing();
@@ -241,7 +234,7 @@ CONSTRUCTOR(static void init(void))
 	register_debug_class('d', 0, "disk msgs");
 	register_debug_class('R', 0, "disk READ");
 	register_debug_class('W', 0, "disk WRITE");
-	register_debug_class('D', int21_change_level, "dos int 21h");
+	register_debug_class('D', 0, "dos int 21h");
 	register_debug_class('C', 0, "CDROM");
 	register_debug_class('v', 0, "video");
 	register_debug_class('X', 0, "X support");

@@ -68,7 +68,7 @@ static int int2x_hooked;
 static int int33(void);
 
 typedef int interrupt_function_t(void);
-static interrupt_function_t *interrupt_function[0x100][2];
+static interrupt_function_t *interrupt_function[0x100];
 
 /* set if some directories are mounted during startup */
 int redir_state = 0;
@@ -1151,17 +1151,17 @@ static void int2x_post_boot(void)
   int21seg = ISEG(0x21);
   int21off = IOFF(0x21);
   SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
-  interrupt_function[0x21][NO_REVECT] = int21;
+  interrupt_function[0x21] = int21;
 
   int28seg = ISEG(0x28);
   int28off = IOFF(0x28);
   SETIVEC(0x28, BIOSSEG, INT_OFF(0x28));
-  interrupt_function[0x28][NO_REVECT] = int28;
+  interrupt_function[0x28] = int28;
 
   int2fseg = ISEG(0x2f);
   int2foff = IOFF(0x2f);
   SETIVEC(0x2f, BIOSSEG, INT_OFF(0x2f));
-  interrupt_function[0x2f][NO_REVECT] = int2f;
+  interrupt_function[0x2f] = int2f;
 
   int2x_hooked = 1;
   ds_printf("INT2x: interrupt hooks installed\n");
@@ -1459,23 +1459,18 @@ void real_run_int(int i)
  * DANG_END_FUNCTION
  */
 
-static int run_caller_func(int i, int revect)
+static int run_caller_func(int i)
 {
 	interrupt_function_t *caller_function;
 //	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
-	caller_function = interrupt_function[i][revect];
+	caller_function = interrupt_function[i];
 	if (caller_function) {
 		return caller_function();
 	} else {
-		error("DEFIVEC: int 0x%02x %i\n", i, revect);
+		error("DEFIVEC: int 0x%02x\n", i);
 		return 0;
 	}
-}
-
-int can_revector(int i)
-{
-    return NO_REVECT;
 }
 
 static void do_print_screen(void) {
@@ -1847,7 +1842,7 @@ static void debug_int(const char *s, int i)
 static void do_int_from_thr(void *arg)
 {
     u_char i = (long)arg;
-    run_caller_func(i, NO_REVECT);
+    run_caller_func(i);
     if (debug_level('#') > 2)
 	debug_int("RET", i);
 #ifdef USE_MHPDBG
@@ -1872,32 +1867,11 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
-	if (interrupt_function[i][NO_REVECT]) {
+	if (interrupt_function[i]) {
 	      set_iret();
 	      coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 	} else {
 	      fake_iret();
-	}
-}
-
-static void int_chain_thr(void *arg)
-{
-  int i = (long)arg;
-  real_run_int(i);
-}
-
-static void do_int_thr(void *arg)
-{
-	int i = (long)arg;
-	if (!run_caller_func(i, REVECT)) {
-		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-		if (IS_IRET(i)) {
-			if ((i != 0x2a) && (i != 0x28))
-				g_printf("just an iret 0x%02x\n", i);
-		} else {
-			coopth_set_post_handler(
-				int_chain_thr, (void *)(long)i);
-		}
 	}
 }
 
@@ -1935,16 +1909,12 @@ void do_int(int i)
  	}
 #endif
 
-	if (can_revector(i) == REVECT && interrupt_function[i][REVECT]) {
-		coopth_start(int_rvc_tid + i, do_int_thr, (void *)(long)i);
+	di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+	if (IS_IRET(i)) {
+		if ((i != 0x2a) && (i != 0x28))
+			g_printf("just an iret 0x%02x\n", i);
 	} else {
-		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-		if (IS_IRET(i)) {
-			if ((i != 0x2a) && (i != 0x28))
-				g_printf("just an iret 0x%02x\n", i);
-		} else {
-			real_run_int(i);
-		}
+		real_run_int(i);
 	}
 }
 
@@ -2110,40 +2080,36 @@ void setup_interrupts(void) {
   emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
 
   /* init trapped interrupts called via jump */
-  for (i = 0; i < 256; i++) {
-    interrupt_function[i][NO_REVECT] =
-      interrupt_function[i][REVECT] = NULL;
-  }
+  for (i = 0; i < 256; i++)
+    interrupt_function[i] = NULL;
 
-  interrupt_function[5][NO_REVECT] = int05;
+  interrupt_function[5] = int05;
   /* This is called only when revectoring int10 */
-  interrupt_function[0x10][NO_REVECT] = int10;
-  interrupt_function[0x11][NO_REVECT] = int11;
-  interrupt_function[0x12][NO_REVECT] = int12;
-  interrupt_function[0x13][NO_REVECT] = int13;
-  interrupt_function[0x14][NO_REVECT] = int14;
-  interrupt_function[0x15][NO_REVECT] = int15;
-  interrupt_function[0x16][NO_REVECT] = int16;
-  interrupt_function[0x17][NO_REVECT] = int17;
-  interrupt_function[0x18][NO_REVECT] = int18;
-  interrupt_function[0x19][NO_REVECT] = int19;
-  interrupt_function[0x1a][NO_REVECT] = int1a;
+  interrupt_function[0x10] = int10;
+  interrupt_function[0x11] = int11;
+  interrupt_function[0x12] = int12;
+  interrupt_function[0x13] = int13;
+  interrupt_function[0x14] = int14;
+  interrupt_function[0x15] = int15;
+  interrupt_function[0x16] = int16;
+  interrupt_function[0x17] = int17;
+  interrupt_function[0x18] = int18;
+  interrupt_function[0x19] = int19;
+  interrupt_function[0x1a] = int1a;
 
-  interrupt_function[0x29][NO_REVECT] = int29;
-  interrupt_function[0x33][NO_REVECT] = int33;
+  interrupt_function[0x29] = int29;
+  interrupt_function[0x33] = int33;
 #ifdef IPX
   if (config.ipxsup)
-    interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
+    interrupt_function[0x7a] = ipx_int7a;
 #endif
-  interrupt_function[DOS_HELPER_INT][NO_REVECT] = inte6;
-  interrupt_function[0xe7][NO_REVECT] = inte7;
+  interrupt_function[DOS_HELPER_INT] = inte6;
+  interrupt_function[0xe7] = inte7;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {
-    interrupt_function[0x42][NO_REVECT] = interrupt_function[0x10][NO_REVECT];
+    interrupt_function[0x42] = interrupt_function[0x10];
   }
-
-  set_int21_revectored(redir_state = 1);
 
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.len        = 256;
@@ -2160,15 +2126,6 @@ void setup_interrupts(void) {
 }
 
 
-void set_int21_revectored(int a)
-{
-  if(a > 0)
-    set_revectored(0x21, &vm86s.int_revectored);
-  else
-    reset_revectored(0x21, &vm86s.int_revectored);
-}
-
-
 /*
  * DANG_BEGIN_FUNCTION int_vector_setup
  *
@@ -2181,17 +2138,10 @@ void set_int21_revectored(int a)
 
 void int_vector_setup(void)
 {
-  int i;
-
   /* set up the redirection arrays */
 #ifdef __linux__
   memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
-
-  for (i=0; i<0x100; i++)
-    if (can_revector(i)==REVECT)
-      set_revectored(i, &vm86s.int_revectored);
 #endif
-
 }
 
 void update_xtitle(void)
