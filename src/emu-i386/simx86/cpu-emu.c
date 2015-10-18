@@ -615,7 +615,7 @@ static void Scp2Cpu (struct sigcontext *scp)
   TheCPU.ebp = _ebp;
   TheCPU.esp = _esp;
 
-  TheCPU.eip = _eip;
+  TheCPU.eip = FindPC((unsigned char *)_rip);
   TheCPU.eflags = _eflags;
 
   TheCPU.cs = _cs;
@@ -675,7 +675,7 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   _edi = TheCPU.edi;
   _ebp = TheCPU.ebp;
   _esp = TheCPU.esp;
-  _eip = TheCPU.eip;
+  _rip = PC2Addr(TheCPU.eip);
 
   _cs = TheCPU.cs;
   _fs = TheCPU.fs;
