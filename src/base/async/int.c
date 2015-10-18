@@ -1154,10 +1154,15 @@ static void int21_post_boot(void)
   reset_revectored(0x21, &vm86s.int_revectored);
 }
 
-static void int21_post(void *arg)
+static void nr_int_chain(void *arg)
 {
   far_t *jmp = arg;
   jmp_to(jmp->segment, jmp->offset);
+}
+
+static void chain_int_norevect(far_t *jmp)
+{
+  coopth_set_post_handler(nr_int_chain, jmp);
 }
 
 static int msdos(void)
@@ -1345,7 +1350,7 @@ static int int21(void)
       ret = mfs_lfn();
   }
   if (!ret)
-    coopth_set_post_handler(int21_post, &s_int21);
+    chain_int_norevect(&s_int21);
   return 1;
 }
 
