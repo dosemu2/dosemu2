@@ -1154,16 +1154,10 @@ static void int21_post_boot(void)
   reset_revectored(0x21, &vm86s.int_revectored);
 }
 
-static int int21lfnhook(void)
-{
-  if (!(HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57) || !mfs_lfn())
-    jmp_to(s_int21.segment, s_int21.offset);
-  return 1;
-}
-
 static void int21_post(void *arg)
 {
-  int21lfnhook();
+  far_t *jmp = arg;
+  jmp_to(jmp->segment, jmp->offset);
 }
 
 static int msdos(void)
@@ -1346,11 +1340,13 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (ret == 0) {
-    coopth_set_post_handler(int21_post, NULL);
-    return 1;
+  if (!ret) {
+    if (HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57)
+      ret = mfs_lfn();
   }
-  return ret;
+  if (!ret)
+    coopth_set_post_handler(int21_post, &s_int21);
+  return 1;
 }
 
 void int42_hook(void)
