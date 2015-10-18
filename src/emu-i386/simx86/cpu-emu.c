@@ -586,7 +586,7 @@ void Cpu2Reg (void)
   REG(fs)  = TheCPU.fs;
   REG(gs)  = TheCPU.gs;
   REG(cs)  = TheCPU.cs;
-  REG(eip) = return_addr - LONG_CS;
+  REG(eip) = TheCPU.eip;
   /*
    * move (VIF|TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
    * from the emulated ones.
@@ -615,7 +615,7 @@ static void Scp2Cpu (struct sigcontext *scp)
   TheCPU.ebp = _ebp;
   TheCPU.esp = _esp;
 
-  TheCPU.eip = _eip;
+  TheCPU.eip = FindPC((unsigned char *)_rip);
   TheCPU.eflags = _eflags;
 
   TheCPU.cs = _cs;
@@ -675,9 +675,7 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   _edi = TheCPU.edi;
   _ebp = TheCPU.ebp;
   _esp = TheCPU.esp;
-
-  _eip = TheCPU.eip;
-  _eflags = TheCPU.eflags;
+  _rip = PC2Addr(TheCPU.eip);
 
   _cs = TheCPU.cs;
   _fs = TheCPU.fs;
@@ -708,15 +706,11 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 
   if (in_dpmi) {
-    _cs = TheCPU.cs;
-    _eip = return_addr - LONG_CS;
     /* push running flags - same as eflags, RF is cosmetic */
     _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
   }
   else {
     unsigned long mask;
-    _cs  = return_addr >> 16;
-    _eip = return_addr & 0xffff;
     /* rebuild running flags */
     mask = VIF | eTSSMASK;
     REG(eflags) = (REG(eflags) & VIP) |

@@ -175,7 +175,7 @@ void InitTrees(void);
 
 #ifdef HOST_ARCH_X86
 unsigned int FindPC(unsigned char *addr);
-int  FindCodeNode(int addr);
+unsigned long PC2Addr(unsigned int pc);
 int  InvalidateNodePage(int addr, int len, unsigned char *eip, int *codehit);
 #endif
 

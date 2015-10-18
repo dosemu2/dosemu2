@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -1139,17 +1138,17 @@ static int int21(void);
 static int int28(void);
 static int int2f(void);
 
-static unsigned short int21seg, int21off;
 static unsigned short int28seg, int28off;
 static unsigned short int2fseg, int2foff;
+static far_t s_int21;
 
 static void int2x_post_boot(void)
 {
   if (int2x_hooked)
     return;
 
-  int21seg = ISEG(0x21);
-  int21off = IOFF(0x21);
+  s_int21.segment = ISEG(0x21);
+  s_int21.offset  = IOFF(0x21);
   SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
   interrupt_function[0x21][NO_REVECT] = int21;
 
@@ -1168,16 +1167,15 @@ static void int2x_post_boot(void)
 
 }
 
-static int int21lfnhook(void)
+static void nr_int_chain(void *arg)
 {
-  if (!(HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57) || !mfs_lfn())
-    jmp_to(int21seg, int21off);
-  return 1;
+  far_t *jmp = arg;
+  jmp_to(jmp->segment, jmp->offset);
 }
 
-static void int21lfnhook_thr(void *arg)
+static void chain_int_norevect(far_t *jmp)
 {
-  int21lfnhook();
+  coopth_set_post_handler(nr_int_chain, jmp);
 }
 
 static int msdos(void)
@@ -1358,11 +1356,13 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (ret == 0) {
-    coopth_set_post_handler(int21lfnhook_thr, NULL);
-    return 1;
+  if (!ret) {
+    if (HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57)
+      ret = mfs_lfn();
   }
-  return ret;
+  if (!ret)
+    chain_int_norevect(&s_int21);
+  return 1;
 }
 
 void int42_hook(void)
