@@ -163,6 +163,7 @@ static u_char emm_error;
 
 static int handle_total, emm_allocated;
 static Bit32u EMSControl_OFF;
+static Bit32u EMSAPMAP_ret_OFF;
 #define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 #define phys_pages (config.ems_cnv_pages + config.ems_uma_pages)
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
@@ -260,6 +261,9 @@ ems_helper(void) {
       clear_IF();
       return;
     }
+    LWORD(ebx) = 0;
+    LWORD(ecx) = EMSControl_SEG;
+    LWORD(edx) = EMSControl_OFF;
     break;
   case 3:
     E_printf("EMS IOCTL called!\n");
@@ -1169,7 +1173,7 @@ alter_map_and_call(state_t * state)
      * and save current cs:ip for returning
      * properly from HTL handler
      */
-    fake_call_to(EMSControl_SEG, EMSControl_OFF);
+    fake_call_to(EMSControl_SEG, EMSAPMAP_ret_OFF);
     seg = FP_SEG16(alter_map_call.call_addr);
     off = FP_OFF16(alter_map_call.call_addr);
     Kdebug0((dbg_fd, "call_addr @ %04hX:%04hXh\n", seg, off));
@@ -1190,6 +1194,12 @@ alter_map_and_call(state_t * state)
   }
  }
 
+static void emm_control_hlt(Bit16u offs, void *arg)
+{
+  fake_retf(0);
+  ems_fn(&REGS);
+}
+
 /* hlt handler for EMS
  * Used for finishing the return path of the
  * EMS "alter page map and call" API fn.
@@ -1197,8 +1207,7 @@ alter_map_and_call(state_t * state)
  * On entry, SS:ESP (DOS space stack) points to return address.
  * Pushed parameters saved by emm_alter_map_and_call() follow.
  */
-static void
-emm_hlt_handler(Bit16u offs, void *arg)
+static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
 {
   struct alter_map_struct old_map;
   u_short method;
@@ -2202,6 +2211,10 @@ void ems_init(void)
 
   /* install HLT handler */
   hlt_hdlr.name = "EMS";
-  hlt_hdlr.func = emm_hlt_handler;
+  hlt_hdlr.func = emm_control_hlt;
   EMSControl_OFF = hlt_register_handler(hlt_hdlr);
+
+  hlt_hdlr.name = "EMS APMAP ret";
+  hlt_hdlr.func = emm_apmap_ret_hlt;
+  EMSAPMAP_ret_OFF = hlt_register_handler(hlt_hdlr);
 }

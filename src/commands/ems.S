@@ -82,6 +82,7 @@ RHPtr:		.long 0		# ptr to request header
 
 OldXMSCall:	.long 0
 OldInt2f:	.long 0
+EMSBios:	.long 0
 NoEMS:		.byte 0
 
 Dispatch:
@@ -144,9 +145,7 @@ Dummy:
 Int67:
 	cmpb	$0, %cs:NoEMS
 	jne	10f
-	shll	$16, %eax
-	movw	$DOS_HELPER_EMS_BIOS, %ax
-	int	$DOS_HELPER_INT
+	lcall	*%cs:EMSBios
 10:	iret
 
 Int2f:
@@ -274,6 +273,8 @@ Init:
 	movw	$NoEMSMsg, %dx
 	int	$0x21
 1:
+	movw	%dx, EMSBios
+	movw	%cx, EMSBios+2
 	pushw	%es
 	pushw	%di
 	pushw	%cs
