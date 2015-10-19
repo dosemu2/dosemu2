@@ -248,7 +248,7 @@ ems_helper(void) {
       LWORD(ebx) = EMS_ERROR_DISABLED_IN_CONFIG;
       return;
     }
-    if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
+    if (HI(ax) < DOSEMU_EMS_DRIVER_MIN_VERSION) {
       error("EMS driver version mismatch: got %i, expected %i, disabling.\n"
             "Please update your ems.sys from the latest dosemu package.\n",
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);
@@ -260,6 +260,11 @@ ems_helper(void) {
       com_biosgetch();
       clear_IF();
       return;
+    }
+    if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
+      warn("EMS driver too old, consider updating %i->%i\n",
+        HI(ax), DOSEMU_EMS_DRIVER_VERSION);
+      com_printf("EMS driver too old, consider updating.\n");
     }
     LWORD(ebx) = 0;
     LWORD(ecx) = EMSControl_SEG;
