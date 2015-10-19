@@ -2809,14 +2809,24 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
   }
 }
 
-static int chain_rm_int(struct sigcontext *scp, int i)
+static void chain_rm_int(struct sigcontext *scp, int i)
+{
+  D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
+  save_rm_regs();
+  pm_to_rm_regs(scp, ~0);
+  REG(cs) = DPMI_SEG;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+  do_int(i);
+}
+
+static int chain_hooked_int(struct sigcontext *scp, int i)
 {
   far_t iaddr;
   D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
   REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
   switch (i) {
   case 0x1c:
     iaddr = s_i1c;
@@ -2828,8 +2838,9 @@ static int chain_rm_int(struct sigcontext *scp, int i)
     iaddr = s_i24;
     break;
   default:
-    do_int(i);
-    return 1;
+    error("shouldn't be here, %i\n", i);
+    restore_rm_regs();
+    return 0;
   }
 
   D_printf("DPMI: Calling real mode handler for int 0x%02x, %04x:%04x\n",
@@ -2887,7 +2898,10 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       break;
   }
 
-  if (config.pm_dos_api && i != 0x1c && i != 0x23 && i != 0x24) {
+  if (i == 0x1c || i == 0x23 || i == 0x24) {
+    if (!chain_hooked_int(scp, i))
+      return;
+  } else if (config.pm_dos_api) {
     int msdos_ret;
     struct RealModeCallStructure rmreg;
     int rm_mask = (1 << cs_INDEX) | (1 << eip_INDEX);
@@ -2900,8 +2914,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
 	    &stk_used);
     switch (msdos_ret) {
     case MSDOS_NONE:
-      if (!chain_rm_int(scp, i))
-        return;
+      chain_rm_int(scp, i);
       break;
     case MSDOS_RM:
       save_rm_regs();
@@ -2915,8 +2928,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       return;
     }
   } else {
-    if (!chain_rm_int(scp, i))
-      return;
+    chain_rm_int(scp, i);
   }
 
   in_dpmi_dos_int = 1;
@@ -3001,7 +3013,7 @@ void run_pm_int(int i)
  *
  * DANG_END_FUNCTION
  */
-void run_pm_dos_int(int i)
+static void run_pm_dos_int(int i)
 {
   void  *sp;
   unsigned long ret_eip;
@@ -4422,10 +4434,21 @@ void dpmi_realmode_hlt(unsigned int lina)
     int rmask;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
-    DPMI_save_rm_regs(&rmreg);
-    rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
-    /* post_extender does not modify rmregs so not restoring */
-    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
+    switch (intr) {
+    /* any special handling of the below 3? */
+    case 0x1c:
+      break;
+    case 0x23:
+      break;
+    case 0x24:
+      break;
+    default:
+      DPMI_save_rm_regs(&rmreg);
+      rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
+      /* post_extender does not modify rmregs so not restoring */
+      rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
+      break;
+    }
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 

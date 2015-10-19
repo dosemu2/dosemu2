@@ -163,7 +163,6 @@ int dpmi_fault(struct sigcontext *);
 #endif
 void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
-void run_pm_dos_int(int);
 void fake_pm_int(void);
 
 #ifdef __linux__
