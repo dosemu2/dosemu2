@@ -1601,7 +1601,6 @@ dos_fs_dev(state_t *state)
   Debug0((dbg_fd, "emufs operation: 0x%08x\n", WORD(state->ebx)));
 
   if (WORD(state->ebx) == 0x500) {
-    redirect_devices();
     init_all_drives();
     mach_fs_enabled = TRUE;
 

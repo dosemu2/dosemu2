@@ -1134,6 +1134,7 @@ Return: nothing
 
 /* MS-DOS */
 
+static int redir_it(void);
 static int int21(void);
 static int int28(void);
 static int int2f(void);
@@ -1183,6 +1184,8 @@ static int msdos(void)
   ds_printf("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
        redir_state, LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  if(redir_state && redir_it()) return 0;
 
 #if 1
   if(HI(ax) == 0x3d) {
@@ -1565,6 +1568,84 @@ void redirect_devices(void)
     }
   }
   redir_printers();
+}
+
+/*
+ * Activate the redirector just before the first int 21h file open call.
+ *
+ * To use this feature, set redir_state = 1 and make sure int 21h is
+ * revectored.
+ */
+static int redir_it(void)
+{
+  static unsigned x0, x1, x2, x3, x4;
+  unsigned u;
+
+  /*
+   * To start up the redirector we need (1) the list of list, (2) the DOS version and
+   * (3) the swappable data area. To get these, we reuse the original file open call.
+   */
+  if(HI(ax) != 0x3d)
+    return 0;
+
+        /*
+         * FreeDOS will get confused by the following calling sequence (e.i. it
+         * is not reentrant 'enough'. So we will abort here - it cannot use a
+         * redirector anyway.
+         * -- sw
+         */
+#if 0
+  if (running_DosC) {
+          ds_printf("INT21: FreeDOS detected - no check for redirector\n");
+          redir_state = 0;
+          return 0;
+  }
+#endif
+  pre_msdos();
+  LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
+  call_msdos();
+  ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  x0 = LWORD(ebx);
+  x1 = REG(es);
+  LWORD(eax) = 0x3000;
+  call_msdos();
+  ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  x4 = LWORD(eax);
+  LWORD(eax) = 0x5d06;
+  call_msdos();
+  ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  x2 = LWORD(esi);
+  x3 = REG(ds);
+  redir_state = 0;
+  u = x0 + (x1 << 4);
+  ds_printf("INT21: lol = 0x%x\n", u);
+  ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
+  ds_printf("INT21: ver = 0x%02x\n", x4);
+
+  if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
+        /* Init the redirector. */
+        LWORD(ecx) = x4;
+        LWORD(edx) = x0; REG(es) = x1;
+        LWORD(esi) = x2; REG(ds) = x3;
+        LWORD(ebx) = 0x500;
+        LWORD(eax) = 0x20;
+        mfs_inte6();
+
+        redirect_devices();
+  }
+  else {
+        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
+  }
+
+  post_msdos();
+
+  return 0;
 }
 
 void dos_post_boot_reset(void)
