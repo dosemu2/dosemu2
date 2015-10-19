@@ -30,6 +30,7 @@ void version_init(void);
 void int_vector_setup(void);
 void dos_post_boot_reset(void);
 
+extern void int2x_post_boot(void);
 extern int redir_state;
 
 int dos_helper(void);

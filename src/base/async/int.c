@@ -69,7 +69,12 @@ static int int33(void);
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100];
 
-/* set if some directories are mounted during startup */
+/* set:
+   0 when DOS boots (drives not redirected)
+   1 when the first open/exec call happens via int21 (drives redirected)
+   2 when DOS tries to open config.sys or equivalent (drives not redirected)
+   3 final state: drives redirected
+ */
 int redir_state = 0;
 
 static char title_hint[9] = "";
@@ -1143,9 +1148,9 @@ static far_t s_int21;
 static far_t s_int28;
 static far_t s_int2f;
 
-static void int2x_post_boot(void)
+void int2x_post_boot(void)
 {
-  if (int2x_hooked)
+  if (int2x_hooked && redir_state != 2)
     return;
 
   s_int21.segment = ISEG(0x21);
@@ -1185,7 +1190,7 @@ static int msdos(void)
        redir_state, LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
-  if(redir_state && redir_it()) return 0;
+  if((redir_state&1) == 0 && redir_it()) return 0;
 
 #if 1
   if(HI(ax) == 0x3d) {
@@ -1195,6 +1200,20 @@ static int msdos(void)
     ds_printf("INT21: open file \"");
     for(i = 0; i < 64 && p[i]; i++) ds_printf("%c", p[i]);
     ds_printf("\"\n");
+
+    /* trying to open config.sys (or similar, e.g. dconfig.sys,
+       fdconfig.sys, etc.): disable redirector because many
+       DOSes reset INT2x; it will be enabled again later.
+    */
+    if(redir_state == 1 && strstrDOS(p, "CONFIG.")) {
+      for (i = 0; i < MAX_HDISKS; i++) {
+	if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
+	  int j = CancelDiskRedirection(i + 2);
+	  ds_printf("INT21: undirecting %c: %s (err = %d)\n", i + 'C', j ? "failed" : "ok", j);
+	}
+      }
+      redir_state++;
+    }
   }
 #endif
 
@@ -1557,7 +1576,6 @@ void redirect_devices(void)
   static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
   int i, j;
 
-  dos_post_boot();
   for (i = 0; i < MAX_HDISKS; i++) {
     if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       strncpy(t, hdisktab[i].dev_name, 245);
@@ -1573,8 +1591,7 @@ void redirect_devices(void)
 /*
  * Activate the redirector just before the first int 21h file open call.
  *
- * To use this feature, set redir_state = 1 and make sure int 21h is
- * revectored.
+ * To use this feature, set redir_state = 0.
  */
 static int redir_it(void)
 {
@@ -1585,7 +1602,7 @@ static int redir_it(void)
    * To start up the redirector we need (1) the list of list, (2) the DOS version and
    * (3) the swappable data area. To get these, we reuse the original file open call.
    */
-  if(HI(ax) != 0x3d)
+  if(HI(ax) != 0x3d && HI(ax) != 0x4b)
     return 0;
 
         /*
@@ -1622,7 +1639,7 @@ static int redir_it(void)
 
   x2 = LWORD(esi);
   x3 = REG(ds);
-  redir_state = 0;
+  redir_state++;
   u = x0 + (x1 << 4);
   ds_printf("INT21: lol = 0x%x\n", u);
   ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
@@ -1659,7 +1676,7 @@ static void dos_post_boot(void)
   if (!post_boot) {
     post_boot = 1;
     mouse_post_boot();
-    int2x_post_boot();
+    redir_state = 3;
   }
 }
 
@@ -1709,6 +1726,8 @@ static int int2f(void)
       struct MCB *mcb;
       int len;
       char *ptr, *tmp_ptr;
+
+      dos_post_boot();
 
       if (!Video->change_config)
         break;
@@ -2184,7 +2203,7 @@ void setup_interrupts(void) {
     interrupt_function[0x42] = interrupt_function[0x10];
   }
 
-  redir_state = 1;
+  redir_state = 0;
 
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.len        = 256;

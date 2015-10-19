@@ -66,6 +66,7 @@
 #include "cpu-emu.h"
 #include "dos2linux.h"
 #include "utilities.h"
+#include "int.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -231,6 +232,9 @@ int fatfs_read(fatfs_t *f, unsigned buf, unsigned pos, int len)
   int i, l = len;
 
   fatfs_deb("read: dir %s, sec %u, len %d\n", f->dir, pos, l);
+
+  if ((redir_state&1) == 0 && ISEG(0x21) != BIOSSEG && IOFF(0x21) != INT_OFF(0x21))
+    int2x_post_boot();
 
   if(!f->ok) return -1;
 
