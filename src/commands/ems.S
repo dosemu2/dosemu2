@@ -59,7 +59,6 @@ MaxCmd	=	15
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
-LinuxEMS =	DOS_HELPER_INT	# 0xe6 is Int for Linux EMS server
 EMSint	=	0x67
 
 LEN	=	0
@@ -139,7 +138,7 @@ Intr:
 
 Dummy:
 	movb    $DOS_HELPER_EMS_HELPER, %al
-	int	$LinuxEMS
+	int	$DOS_HELPER_INT
 	ret
 
 Int67:
@@ -147,7 +146,7 @@ Int67:
 	jne	10f
 	shll	$16, %eax
 	movw	$DOS_HELPER_EMS_BIOS, %ax
-	int	$LinuxEMS
+	int	$DOS_HELPER_INT
 10:	iret
 
 Int2f:
@@ -265,7 +264,7 @@ HookHimem:
 Init:
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
-	int	$LinuxEMS
+	int	$DOS_HELPER_INT
 	orb	%al, %al
 	jz	1f
 	cmpb	$EMS_ERROR_DISABLED_IN_CONFIG, %bl
