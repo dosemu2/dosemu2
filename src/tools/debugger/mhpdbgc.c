@@ -607,6 +607,7 @@ static void mhp_trace_force(int argc, char * argv[])
       set_TF();
       mhpdbg.TFpendig = 1;
       mhpdbgc.trapcmd = 1;
+      mhpdbgc.trapip = mhp_getcsip_value();
       /* disable PIC: we want to trace the program, not the HW int handlers */
       pic_cli();
    }

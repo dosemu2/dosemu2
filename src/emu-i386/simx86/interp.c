@@ -365,7 +365,16 @@ static inline void HandleEmuSignals(void)
 	}
 }
 
+static unsigned int _Interp86(unsigned int PC, int mod0);
+
 unsigned int Interp86(unsigned int PC, int mod0)
+{
+    unsigned int ret = _Interp86(PC, mod0);
+    TheCPU.eip = ret - LONG_CS;
+    return ret;
+}
+
+static unsigned int _Interp86(unsigned int PC, int mod0)
 {
 	unsigned char opc;
 	unsigned short ocs = TheCPU.cs;

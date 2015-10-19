@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -1139,27 +1138,27 @@ static int int21(void);
 static int int28(void);
 static int int2f(void);
 
-static unsigned short int21seg, int21off;
-static unsigned short int28seg, int28off;
-static unsigned short int2fseg, int2foff;
+static far_t s_int21;
+static far_t s_int28;
+static far_t s_int2f;
 
 static void int2x_post_boot(void)
 {
   if (int2x_hooked)
     return;
 
-  int21seg = ISEG(0x21);
-  int21off = IOFF(0x21);
+  s_int21.segment = ISEG(0x21);
+  s_int21.offset  = IOFF(0x21);
   SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
   interrupt_function[0x21] = int21;
 
-  int28seg = ISEG(0x28);
-  int28off = IOFF(0x28);
+  s_int28.segment = ISEG(0x28);
+  s_int28.offset  = IOFF(0x28);
   SETIVEC(0x28, BIOSSEG, INT_OFF(0x28));
   interrupt_function[0x28] = int28;
 
-  int2fseg = ISEG(0x2f);
-  int2foff = IOFF(0x2f);
+  s_int2f.segment = ISEG(0x2f);
+  s_int2f.offset  = IOFF(0x2f);
   SETIVEC(0x2f, BIOSSEG, INT_OFF(0x2f));
   interrupt_function[0x2f] = int2f;
 
@@ -1168,16 +1167,15 @@ static void int2x_post_boot(void)
 
 }
 
-static int int21lfnhook(void)
+static void nr_int_chain(void *arg)
 {
-  if (!(HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57) || !mfs_lfn())
-    jmp_to(int21seg, int21off);
-  return 1;
+  far_t *jmp = arg;
+  jmp_to(jmp->segment, jmp->offset);
 }
 
-static void int21lfnhook_thr(void *arg)
+static void chain_int_norevect(far_t *jmp)
 {
-  int21lfnhook();
+  coopth_set_post_handler(nr_int_chain, jmp);
 }
 
 static int msdos(void)
@@ -1358,11 +1356,13 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (ret == 0) {
-    coopth_set_post_handler(int21lfnhook_thr, NULL);
-    return 1;
+  if (!ret) {
+    if (HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57)
+      ret = mfs_lfn();
   }
-  return ret;
+  if (!ret)
+    chain_int_norevect(&s_int21);
+  return 1;
 }
 
 void int42_hook(void)
@@ -1583,27 +1583,19 @@ static void dos_post_boot(void)
 }
 
 /* KEYBOARD BUSY LOOP */
-static void int28hook_thr(void *arg)
+static int int28(void)
 {
-  jmp_to(int28seg, int28off);
-}
-
-static int int28(void) {
   idle(0, 50, 0, "int28");
-  coopth_set_post_handler(int28hook_thr, NULL);
+  chain_int_norevect(&s_int28);
   return 0;
 }
 
 /* FAST CONSOLE OUTPUT */
-static int int29(void) {
+static int int29(void)
+{
     /* char in AL */
   char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   return 1;
-}
-
-static void int2fhook_thr(void *arg)
-{
-  jmp_to(int2fseg, int2foff);
 }
 
 static int int2f(void)
@@ -1769,7 +1761,7 @@ static int int2f(void)
     return 1;
   }
 
-  coopth_set_post_handler(int2fhook_thr, NULL);
+  chain_int_norevect(&s_int2f);
   return 0;
 }
 
