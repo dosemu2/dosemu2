@@ -2184,6 +2184,8 @@ void setup_interrupts(void) {
     interrupt_function[0x42] = interrupt_function[0x10];
   }
 
+  redir_state = 1;
+
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.len        = 256;
   hlt_hdlr.func       = do_int_from_hlt;
