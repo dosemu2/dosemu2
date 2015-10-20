@@ -113,9 +113,9 @@
 #endif
 
 /* This inline interrupt is used for FCB open calls */
-#define INTE7_SEG	ROMBIOSSEG
-#define INTE7_OFF	0x6320
-#define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
+#define FCB_HLP_SEG	ROMBIOSSEG
+#define FCB_HLP_OFF	0x6320
+#define FCB_HLP_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
 #define DPMI_SEG	ROMBIOSSEG
 #define DPMI_OFF	0x4800		/* need at least 512 bytes */

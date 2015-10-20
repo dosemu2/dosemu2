@@ -262,7 +262,7 @@ ipx_handler:
 
 /* ----------------------------------------------------------------- */
 		/* This is an int e7 used for FCB opens */
-	.org	((INTE7_SEG-BIOSSEG) << 4)+INTE7_OFF
+	.org	((FCB_HLP_SEG-BIOSSEG) << 4)+FCB_HLP_OFF
 /* ======================= Addr = F800:6320 (FE320) */
 	pushw	%es
 	pushw	%di
