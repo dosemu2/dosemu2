@@ -1903,12 +1903,6 @@ static void int33_check_hog(void)
   idle(200, 20, 20, "mouse");
 }
 
-/* mfs FCB call */
-static int inte7(void) {
-  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  return 0;
-}
-
 static void debug_int(const char *s, int i)
 {
  	if (((i != 0x28) && (i != 0x2f)) || in_dpmi) {
@@ -2216,7 +2210,6 @@ void setup_interrupts(void) {
     interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
 #endif
   interrupt_function[DOS_HELPER_INT][NO_REVECT] = inte6;
-  interrupt_function[0xe7][NO_REVECT] = inte7;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {

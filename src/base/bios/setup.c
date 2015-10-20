@@ -184,10 +184,6 @@ static void bios_setup(void)
     SETIVEC(0x7a, BIOSSEG, INT_OFF(0x7a));
 #endif
 
-  /* This is an int e7 used for FCB opens */
-  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  /* End of int 0xe7 for FCB opens */
-
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
    * for video initialization at f800:4200
    * If config_vbios_seg=0xe000 -> e000:3, else c000:3
