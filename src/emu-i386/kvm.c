@@ -124,6 +124,7 @@ int kvm_vm86(void)
     newflags |= IF;
   else
     newflags &= ~IF;
+  run->request_interrupt_window = isset_VIP();
   /* avoid syscalls if DOSEMU did not modify the CPU state */
   if (vcpufd == -1 ||
       regs.rip != vm86s.regs.eip ||
@@ -186,6 +187,9 @@ int kvm_vm86(void)
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
       vm86_ret = VM86_UNKNOWN;
+      break;
+    case KVM_EXIT_IRQ_WINDOW_OPEN:
+      vm86_ret = VM86_STI;
       break;
     case KVM_EXIT_IO:
     {

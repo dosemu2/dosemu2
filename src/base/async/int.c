@@ -67,9 +67,14 @@ static int int2x_hooked;
 static int int33(void);
 
 typedef int interrupt_function_t(void);
-static interrupt_function_t *interrupt_function[0x100][2];
+static interrupt_function_t *interrupt_function[0x100];
 
-/* set if some directories are mounted during startup */
+/* set:
+   0 when DOS boots (drives not redirected)
+   1 when the first open/exec call happens via int21 (drives redirected)
+   2 when DOS tries to open config.sys or equivalent (drives not redirected)
+   3 final state: drives redirected
+ */
 int redir_state = 0;
 
 static char title_hint[9] = "";
@@ -1134,6 +1139,7 @@ Return: nothing
 
 /* MS-DOS */
 
+static int redir_it(void);
 static int int21(void);
 static int int28(void);
 static int int2f(void);
@@ -1142,25 +1148,25 @@ static far_t s_int21;
 static far_t s_int28;
 static far_t s_int2f;
 
-static void int2x_post_boot(void)
+void int2x_post_boot(void)
 {
-  if (int2x_hooked)
+  if (int2x_hooked && redir_state != 2)
     return;
 
   s_int21.segment = ISEG(0x21);
   s_int21.offset  = IOFF(0x21);
   SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
-  interrupt_function[0x21][NO_REVECT] = int21;
+  interrupt_function[0x21] = int21;
 
   s_int28.segment = ISEG(0x28);
   s_int28.offset  = IOFF(0x28);
   SETIVEC(0x28, BIOSSEG, INT_OFF(0x28));
-  interrupt_function[0x28][NO_REVECT] = int28;
+  interrupt_function[0x28] = int28;
 
   s_int2f.segment = ISEG(0x2f);
   s_int2f.offset  = IOFF(0x2f);
   SETIVEC(0x2f, BIOSSEG, INT_OFF(0x2f));
-  interrupt_function[0x2f][NO_REVECT] = int2f;
+  interrupt_function[0x2f] = int2f;
 
   int2x_hooked = 1;
   ds_printf("INT2x: interrupt hooks installed\n");
@@ -1184,6 +1190,8 @@ static int msdos(void)
        redir_state, LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
+  if((redir_state&1) == 0 && redir_it()) return 0;
+
 #if 1
   if(HI(ax) == 0x3d) {
     char *p = MK_FP32(REG(ds), LWORD(edx));
@@ -1192,6 +1200,20 @@ static int msdos(void)
     ds_printf("INT21: open file \"");
     for(i = 0; i < 64 && p[i]; i++) ds_printf("%c", p[i]);
     ds_printf("\"\n");
+
+    /* trying to open config.sys (or similar, e.g. dconfig.sys,
+       fdconfig.sys, etc.): disable redirector because many
+       DOSes reset INT2x; it will be enabled again later.
+    */
+    if(redir_state == 1 && strstrDOS(p, "CONFIG.")) {
+      for (i = 0; i < MAX_HDISKS; i++) {
+	if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
+	  int j = CancelDiskRedirection(i + 2);
+	  ds_printf("INT21: undirecting %c: %s (err = %d)\n", i + 'C', j ? "failed" : "ok", j);
+	}
+      }
+      redir_state++;
+    }
   }
 #endif
 
@@ -1459,23 +1481,18 @@ void real_run_int(int i)
  * DANG_END_FUNCTION
  */
 
-static int run_caller_func(int i, int revect)
+static int run_caller_func(int i)
 {
 	interrupt_function_t *caller_function;
 //	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
-	caller_function = interrupt_function[i][revect];
+	caller_function = interrupt_function[i];
 	if (caller_function) {
 		return caller_function();
 	} else {
-		error("DEFIVEC: int 0x%02x %i\n", i, revect);
+		error("DEFIVEC: int 0x%02x\n", i);
 		return 0;
 	}
-}
-
-int can_revector(int i)
-{
-    return NO_REVECT;
 }
 
 static void do_print_screen(void) {
@@ -1559,7 +1576,6 @@ void redirect_devices(void)
   static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
   int i, j;
 
-  dos_post_boot();
   for (i = 0; i < MAX_HDISKS; i++) {
     if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
       strncpy(t, hdisktab[i].dev_name, 245);
@@ -1570,6 +1586,83 @@ void redirect_devices(void)
     }
   }
   redir_printers();
+}
+
+/*
+ * Activate the redirector just before the first int 21h file open call.
+ *
+ * To use this feature, set redir_state = 0.
+ */
+static int redir_it(void)
+{
+  static unsigned x0, x1, x2, x3, x4;
+  unsigned u;
+
+  /*
+   * To start up the redirector we need (1) the list of list, (2) the DOS version and
+   * (3) the swappable data area. To get these, we reuse the original file open call.
+   */
+  if(HI(ax) != 0x3d && HI(ax) != 0x4b)
+    return 0;
+
+        /*
+         * FreeDOS will get confused by the following calling sequence (e.i. it
+         * is not reentrant 'enough'. So we will abort here - it cannot use a
+         * redirector anyway.
+         * -- sw
+         */
+#if 0
+  if (running_DosC) {
+          ds_printf("INT21: FreeDOS detected - no check for redirector\n");
+          redir_state = 0;
+          return 0;
+  }
+#endif
+  pre_msdos();
+  LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
+  call_msdos();
+  ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  x0 = LWORD(ebx);
+  x1 = REG(es);
+  LWORD(eax) = 0x3000;
+  call_msdos();
+  ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  x4 = LWORD(eax);
+  LWORD(eax) = 0x5d06;
+  call_msdos();
+  ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+      redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  x2 = LWORD(esi);
+  x3 = REG(ds);
+  redir_state++;
+  u = x0 + (x1 << 4);
+  ds_printf("INT21: lol = 0x%x\n", u);
+  ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
+  ds_printf("INT21: ver = 0x%02x\n", x4);
+
+  if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
+        /* Init the redirector. */
+        LWORD(ecx) = x4;
+        LWORD(edx) = x0; REG(es) = x1;
+        LWORD(esi) = x2; REG(ds) = x3;
+        LWORD(ebx) = 0x500;
+        LWORD(eax) = 0x20;
+        mfs_inte6();
+
+        redirect_devices();
+  }
+  else {
+        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
+  }
+
+  post_msdos();
+
+  return 0;
 }
 
 void dos_post_boot_reset(void)
@@ -1583,7 +1676,7 @@ static void dos_post_boot(void)
   if (!post_boot) {
     post_boot = 1;
     mouse_post_boot();
-    int2x_post_boot();
+    redir_state = 3;
   }
 }
 
@@ -1633,6 +1726,8 @@ static int int2f(void)
       struct MCB *mcb;
       int len;
       char *ptr, *tmp_ptr;
+
+      dos_post_boot();
 
       if (!Video->change_config)
         break;
@@ -1839,7 +1934,7 @@ static void debug_int(const char *s, int i)
 static void do_int_from_thr(void *arg)
 {
     u_char i = (long)arg;
-    run_caller_func(i, NO_REVECT);
+    run_caller_func(i);
     if (debug_level('#') > 2)
 	debug_int("RET", i);
 #ifdef USE_MHPDBG
@@ -1864,32 +1959,11 @@ static void do_int_from_hlt(Bit16u i, void *arg)
 
 	/* Always use the caller function: I am calling into the
 	   interrupt table at the start of the dosemu bios */
-	if (interrupt_function[i][NO_REVECT]) {
+	if (interrupt_function[i]) {
 	      set_iret();
 	      coopth_start(int_tid + i, do_int_from_thr, (void *)(long)i);
 	} else {
 	      fake_iret();
-	}
-}
-
-static void int_chain_thr(void *arg)
-{
-  int i = (long)arg;
-  real_run_int(i);
-}
-
-static void do_int_thr(void *arg)
-{
-	int i = (long)arg;
-	if (!run_caller_func(i, REVECT)) {
-		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-		if (IS_IRET(i)) {
-			if ((i != 0x2a) && (i != 0x28))
-				g_printf("just an iret 0x%02x\n", i);
-		} else {
-			coopth_set_post_handler(
-				int_chain_thr, (void *)(long)i);
-		}
 	}
 }
 
@@ -1927,16 +2001,12 @@ void do_int(int i)
  	}
 #endif
 
-	if (can_revector(i) == REVECT && interrupt_function[i][REVECT]) {
-		coopth_start(int_rvc_tid + i, do_int_thr, (void *)(long)i);
+	di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+	if (IS_IRET(i)) {
+		if ((i != 0x2a) && (i != 0x28))
+			g_printf("just an iret 0x%02x\n", i);
 	} else {
-		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-		if (IS_IRET(i)) {
-			if ((i != 0x2a) && (i != 0x28))
-				g_printf("just an iret 0x%02x\n", i);
-		} else {
-			real_run_int(i);
-		}
+		real_run_int(i);
 	}
 }
 
@@ -2102,40 +2172,38 @@ void setup_interrupts(void) {
   emu_hlt_t hlt_hdlr2 = HLT_INITIALIZER;
 
   /* init trapped interrupts called via jump */
-  for (i = 0; i < 256; i++) {
-    interrupt_function[i][NO_REVECT] =
-      interrupt_function[i][REVECT] = NULL;
-  }
+  for (i = 0; i < 256; i++)
+    interrupt_function[i] = NULL;
 
-  interrupt_function[5][NO_REVECT] = int05;
+  interrupt_function[5] = int05;
   /* This is called only when revectoring int10 */
-  interrupt_function[0x10][NO_REVECT] = int10;
-  interrupt_function[0x11][NO_REVECT] = int11;
-  interrupt_function[0x12][NO_REVECT] = int12;
-  interrupt_function[0x13][NO_REVECT] = int13;
-  interrupt_function[0x14][NO_REVECT] = int14;
-  interrupt_function[0x15][NO_REVECT] = int15;
-  interrupt_function[0x16][NO_REVECT] = int16;
-  interrupt_function[0x17][NO_REVECT] = int17;
-  interrupt_function[0x18][NO_REVECT] = int18;
-  interrupt_function[0x19][NO_REVECT] = int19;
-  interrupt_function[0x1a][NO_REVECT] = int1a;
+  interrupt_function[0x10] = int10;
+  interrupt_function[0x11] = int11;
+  interrupt_function[0x12] = int12;
+  interrupt_function[0x13] = int13;
+  interrupt_function[0x14] = int14;
+  interrupt_function[0x15] = int15;
+  interrupt_function[0x16] = int16;
+  interrupt_function[0x17] = int17;
+  interrupt_function[0x18] = int18;
+  interrupt_function[0x19] = int19;
+  interrupt_function[0x1a] = int1a;
 
-  interrupt_function[0x29][NO_REVECT] = int29;
-  interrupt_function[0x33][NO_REVECT] = int33;
+  interrupt_function[0x29] = int29;
+  interrupt_function[0x33] = int33;
 #ifdef IPX
   if (config.ipxsup)
-    interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
+    interrupt_function[0x7a] = ipx_int7a;
 #endif
-  interrupt_function[DOS_HELPER_INT][NO_REVECT] = inte6;
-  interrupt_function[0xe7][NO_REVECT] = inte7;
+  interrupt_function[DOS_HELPER_INT] = inte6;
+  interrupt_function[0xe7] = inte7;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {
-    interrupt_function[0x42][NO_REVECT] = interrupt_function[0x10][NO_REVECT];
+    interrupt_function[0x42] = interrupt_function[0x10];
   }
 
-  set_int21_revectored(redir_state = 1);
+  redir_state = 0;
 
   hlt_hdlr.name       = "interrupts";
   hlt_hdlr.len        = 256;
@@ -2152,15 +2220,6 @@ void setup_interrupts(void) {
 }
 
 
-void set_int21_revectored(int a)
-{
-  if(a > 0)
-    set_revectored(0x21, &vm86s.int_revectored);
-  else
-    reset_revectored(0x21, &vm86s.int_revectored);
-}
-
-
 /*
  * DANG_BEGIN_FUNCTION int_vector_setup
  *
@@ -2173,17 +2232,10 @@ void set_int21_revectored(int a)
 
 void int_vector_setup(void)
 {
-  int i;
-
   /* set up the redirection arrays */
 #ifdef __linux__
   memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
-
-  for (i=0; i<0x100; i++)
-    if (can_revector(i)==REVECT)
-      set_revectored(i, &vm86s.int_revectored);
 #endif
-
 }
 
 void update_xtitle(void)
