@@ -282,6 +282,7 @@ void low_mem_init(void)
     if (config.cpuemu < 3)
     {
       /* switch on vm86-only JIT CPU emulation to with non-zero base */
+      config.cpu_vm = CPUVM_EMU;
       config.cpuemu = 3;
       init_emu_cpu();
       c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
@@ -307,6 +308,7 @@ void low_mem_init(void)
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
   if (config.cpuemu < 3) {
     /* switch on vm86-only JIT CPU emulation to with non-zero base */
+    config.cpu_vm = CPUVM_EMU;
     config.cpuemu = 3;
     init_emu_cpu();
     c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);

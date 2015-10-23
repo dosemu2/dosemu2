@@ -321,7 +321,7 @@ static int do_vm86(struct vm86_struct *x)
 	return kvm_vm86();
 #ifdef __i386__
 #ifdef X86_EMULATOR
-    if (config.cpuemu)
+    if (config.cpu_vm == CPUVM_EMU)
 	return e_vm86();
 #endif
     return true_vm86(x);
@@ -579,6 +579,7 @@ static void vm86plus_init(void)
     error("using CPU emulation for vm86()\n");
 #endif
     if (config.cpuemu < 3) {
+	config.cpu_vm = CPUVM_EMU;
 	config.cpuemu = 3;
 	init_emu_cpu();
     }

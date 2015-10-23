@@ -551,9 +551,11 @@ static void config_post_process(void)
 #ifdef __x86_64__
       config.cpu_vm = CPUVM_EMU;	// for now
 #else
-      config.cpu_vm = CPUVM_VM86;
+      config.cpu_vm = config.cpuemu ? CPUVM_EMU : CPUVM_VM86;
 #endif
     }
+    if (config.cpu_vm != CPUVM_EMU)
+      config.cpuemu = 0;
     config.realcpu = CPU_386;
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
 	read_cpu_info();

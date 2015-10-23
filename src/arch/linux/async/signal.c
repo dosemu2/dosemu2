@@ -174,6 +174,7 @@ static void __init_handler(struct sigcontext *scp, int async)
 	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
 	fprintf(stderr, "Set $_cpu_emu=\"full\" or \"fullsim\" to avoid this message.\n");
       }
+      config.cpu_vm = CPUVM_EMU;
       config.cpuemu = 4;
       _cs = getsegment(cs);
   }
@@ -182,7 +183,7 @@ static void __init_handler(struct sigcontext *scp, int async)
   if (in_vm86) {
 #ifdef __i386__
 #ifdef X86_EMULATOR
-    if (!config.cpuemu)
+    if (config.cpu_vm != CPUVM_EMU)
 #endif
       {
 	if (getsegment(fs) != eflags_fs_gs.fs)
