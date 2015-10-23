@@ -251,7 +251,7 @@ while (0)
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
-%token CPUEMU VM86 FULL VM86SIM FULLSIM KVM
+%token CPUEMU CPU_VM VM86 FULL VM86SIM FULLSIM KVM
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
@@ -318,6 +318,7 @@ while (0)
 	/* %expect 1 */
 
 %type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
+%type <i_value> cpu_vm cpu_vm_flags
 
 %%
 
@@ -466,6 +467,11 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 				config.cpuemu, (int)vm86s.cpu_type);
 #endif
 			}
+		| CPU_VM cpu_vm
+			{
+			config.cpu_vm = $2;
+			c_printf("CONF: CPU VM set to %d\n", config.cpu_vm);
+			}
 		| CPUEMU cpuemu
 			{
 #ifdef X86_EMULATOR
@@ -477,7 +483,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 #endif
 			}
 			c_printf("CONF: %s CPUEMU set to %d for %d86\n",
-				config.cpuemu > 4 ? "KVM" : 
 				CONFIG_CPUSIM ? "simulated" : "JIT",
 				config.cpuemu, (int)vm86s.cpu_type);
 #endif
@@ -1704,10 +1709,21 @@ cpuemu		: L_OFF		{ $$ = 0; }
 		| FULL		{ $$ = 4; }
 		| VM86SIM	{ $$ = 5; }
 		| FULLSIM	{ $$ = 6; }
-		| KVM		{ $$ = 7; }
 		| STRING        { yyerror("got '%s', expected 'off', 'vm86' or 'full'", $1);
 				  free($1); }
 		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
+		;
+
+cpu_vm_flags	: L_AUTO	{ $$ = -1; }
+		| VM86		{ $$ = CPUVM_VM86; }
+		| KVM		{ $$ = CPUVM_KVM; }
+		| EMULATED	{ $$ = CPUVM_EMU; }
+		| STRING        { yyerror("got '%s' for cpu_vm", $1);
+				  free($1); }
+		| error         { yyerror("bad value for cpu_vm"); }
+		;
+
+cpu_vm		: '(' cpu_vm_flags ')' { $$ = $2; }
 		;
 
 %%
