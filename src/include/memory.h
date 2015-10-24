@@ -20,9 +20,6 @@
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
 
-#define Pause_SEG	(BIOSSEG)
-#define Pause_OFF	0xf120
-
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
@@ -142,7 +139,6 @@
 #define BIOS_HLT_BLK       (BIOS_HLT_BLK_SEG << 4)
 #define BIOS_HLT_BLK_SIZE  0x00800
 
-#define PIC_SEG         BIOS_HLT_BLK_SEG
 #define EMSControl_SEG  BIOS_HLT_BLK_SEG
 #define IPXEsrEnd_SEG   BIOS_HLT_BLK_SEG
 #define PKTRcvCall_SEG  BIOS_HLT_BLK_SEG

@@ -384,10 +384,6 @@ int dos_helper(void)
     mouse_helper(&vm86s.regs);
     break;
 
-  case DOS_HELPER_PAUSE_KEY:
-    pic_set_callback(Pause_SEG, Pause_OFF);
-    break;
-
   case DOS_HELPER_CDROM_HELPER:{
       E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
 	       "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));

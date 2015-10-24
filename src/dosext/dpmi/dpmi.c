@@ -3912,12 +3912,6 @@ int dpmi_fault(struct sigcontext *scp)
 	  }
 	  set_IF();
 
-	  if (!in_dpmi_dos_int) {
-	    if (debug_level('M') > 3) D_printf("DPMI: returned to PM from hardware "
-		"interrupt at %p\n", lina);
-	    pic_iret_dpmi();
-	  }
-
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);
 
@@ -4127,7 +4121,16 @@ int dpmi_fault(struct sigcontext *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: sti\n");
       _eip += 1;
-      set_IF();
+      /* this is a protection for careless clients that do sti
+       * in the inthandlers. There are plenty of those, unfortunately.
+       * The previous work-around was in a great bunch of hacks in PIC,
+       * requiring dpmi to call pic_iret_dpmi() for re-enabling interrupts.
+       * The alternative is very simple: we can just ignore sti when needed. */
+      if (!DPMI_CLIENT.in_dpmi_pm_stack)
+        set_IF();
+      else
+        D_printf("DPMI: Ignoring sti, in_dpmi_pm_stack=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack);
       break;
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
@@ -4412,20 +4415,6 @@ void dpmi_realmode_hlt(unsigned int lina)
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();
     in_dpmi_dos_int = 0;
-/* we are here at return from:
- * - realmode hardware interrupt handler
- * - realmode mouse callback (fake_pm_int)
- * - default realmode CPU exception handler
- * - other client's termination point
- * As internal mouse driver now uses PIC, all the above cases are apropriate
- * to call pic_iret(). Exception handler does not require pic_iret, but being
- * called without an active interrupt handler, pic_iret() does nothing, and
- * CPU exceptions should not happen inside the interrupt handler under normal
- * conditions.
- *
- * -- Stas Sergeev
- */
-    pic_iret_dpmi();
 
   } else if ((lina>=DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)) &&
 	     (lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256) ) {

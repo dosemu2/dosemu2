@@ -501,6 +501,7 @@ check_special:
         call    store_key
 kbd_done:
 	call	kbd_EOI
+kbd_done2:
 	popw	%ds
 	popw	%bx
 	popw	%ax			/* restore registers		*/
@@ -525,9 +526,15 @@ kbd_do_pause:
 	testb   $PAUSE_MASK,KEYBOARD_FLAGS_2	/* already paused? */
 	jnz     kbd_done			/* do nothing */
 	orb	$PAUSE_MASK,KEYBOARD_FLAGS_2	/* set pause bit */
-	movb	$DOS_HELPER_PAUSE_KEY,%al
-	int	$DOS_HELPER_INT			/* pause program */
-	jmp	kbd_done
+	call	kbd_EOI
+	sti
+1:
+	movw    $0x1680,%ax		/* magic machine idle function  */
+	int     $0x2f
+	testb 	$PAUSE_MASK,KEYBOARD_FLAGS_2 /* is pause bit still set? */
+	jnz 	1b
+	cli
+	jmp	kbd_done2
 
 kbd_do_break:				/* CTRL-BREAK pressed		*/
 	xorw	%ax,%ax
@@ -642,25 +649,6 @@ INT09_dummy_end:
 	outb    %al,$0x20		/* flag interrupt complete	*/
 	popw	%ax
 	iret
-
-/* ----------------------------------------------------------------- */
-	/* pause cycle */
-	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
-/* ======================= Addr = F000:F120 (FF120) */
-	pushf
-	pushw 	%ds
-	pushw 	%ax
-	movw 	$BIOS_DATA,%ax
-	movw 	%ax,%ds
-idle_cycle:
-	movw    $0x1680,%ax		/* magic machine idle function  */
-	int     $0x2f
-	testb 	$PAUSE_MASK,KEYBOARD_FLAGS_2 /* is pause bit still set? */
-	jnz 	idle_cycle
-	popw 	%ax
-	popw	%ds
-	popf
-	lret
 
 /* ----------------------------------------------------------------- */
 	/* the packet driver */
