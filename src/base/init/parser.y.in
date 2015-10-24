@@ -318,7 +318,7 @@ while (0)
 	/* %expect 1 */
 
 %type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
-%type <i_value> cpu_vm cpu_vm_flags
+%type <i_value> cpu_vm
 
 %%
 
@@ -1714,16 +1714,13 @@ cpuemu		: L_OFF		{ $$ = 0; }
 		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
 		;
 
-cpu_vm_flags	: L_AUTO	{ $$ = -1; }
+cpu_vm		: L_AUTO	{ $$ = -1; }
 		| VM86		{ $$ = CPUVM_VM86; }
 		| KVM		{ $$ = CPUVM_KVM; }
 		| EMULATED	{ $$ = CPUVM_EMU; }
 		| STRING        { yyerror("got '%s' for cpu_vm", $1);
 				  free($1); }
 		| error         { yyerror("bad value for cpu_vm"); }
-		;
-
-cpu_vm		: '(' cpu_vm_flags ')' { $$ = $2; }
 		;
 
 %%
