@@ -147,8 +147,6 @@ static void pic_activate(void);
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
 
-static Bit16u cb_cs = 0;
-static Bit16u cb_ip = 0;
 static Bit32u PIC_OFF;
 
 unsigned long pic_irq_list[] = {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
@@ -829,15 +827,6 @@ pic_iret_dpmi(void)
     pic_resched();
     pic_print(2,"IRET in dpmi, loops=",pic_dpmi_count," ");
     pic_dpmi_count=0;
-    if ((cb_cs || cb_ip) && !pic_icount) {
-      r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
-      fake_pm_int();
-     /* we will have an extra pic_iret() after this, but no problems
-      * since pic_icount==0
-      */
-      fake_call_to(cb_cs, cb_ip);
-      cb_cs = cb_ip = 0;
-    }
 }
 
 void
@@ -856,13 +845,7 @@ pic_iret(void)
       pic_dpmi_count : pic_vm86_count," ");
       pic_vm86_count=0;
       pic_dpmi_count=0;
-      if ((cb_cs || cb_ip) && !pic_icount) {
-	r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
-	LWORD(eip) = cb_ip;
-	REG(cs) = cb_cs;
-	cb_cs = cb_ip = 0;
-      }
-      else {
+      {
 	unsigned int ssp, sp;
 	ssp = SEGOFF2LINEAR(LWORD(ss), 0);
 	sp = LWORD(esp);
@@ -1026,14 +1009,6 @@ void pic_sched(int ilevel, int interval)
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);
     pic_print2(2,"pic_itime set to ",pic_itime[ilevel],"");
   }
-}
-
-void pic_set_callback(Bit16u cs, Bit16u ip)
-{
-  r_printf("PIC: setting callback to %x:%x (pic_icount=%u)\n",
-    cs, ip, pic_icount);
-  cb_ip = ip;
-  cb_cs = cs;
 }
 
 void pic_sti(void)

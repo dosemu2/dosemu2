@@ -92,9 +92,6 @@ void run_irqs(void);                                  /* run requested irqs */
 #define PIC_REQ_PEND	(-1)
 int pic_request(int inum);                            /* interrupt trigger */
 void pic_untrigger(int inum);                          /* interrupt untrigger */
-
-void pic_set_callback(Bit16u cs, Bit16u ip);
-
 void pic_iret(void);                         /* interrupt completion notify */
 void pic_iret_dpmi(void);                    /* interrupt completion notify */
 void pic_resched(void);
