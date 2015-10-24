@@ -20,9 +20,6 @@
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
 
-#define Pause_SEG	(BIOSSEG)
-#define Pause_OFF	0xf120
-
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */

@@ -651,25 +651,6 @@ INT09_dummy_end:
 	iret
 
 /* ----------------------------------------------------------------- */
-	/* pause cycle */
-	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
-/* ======================= Addr = F000:F120 (FF120) */
-	pushf
-	pushw 	%ds
-	pushw 	%ax
-	movw 	$BIOS_DATA,%ax
-	movw 	%ax,%ds
-idle_cycle:
-	movw    $0x1680,%ax		/* magic machine idle function  */
-	int     $0x2f
-	testb 	$PAUSE_MASK,KEYBOARD_FLAGS_2 /* is pause bit still set? */
-	jnz 	idle_cycle
-	popw 	%ax
-	popw	%ds
-	popf
-	lret
-
-/* ----------------------------------------------------------------- */
 	/* the packet driver */
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:F140 (FF140) */
