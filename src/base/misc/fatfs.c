@@ -97,7 +97,6 @@ static int sys_done;
 void fatfs_init(struct disk *dp)
 {
   fatfs_t *f;
-  unsigned u;
 
   if(dp->fatfs) fatfs_done(dp);
   fatfs_msg("init: %s\n", dp->dev_name);
@@ -151,20 +150,23 @@ void fatfs_init(struct disk *dp)
   f->total_secs = dp->floppy ? dp->tracks * dp->heads * dp->sectors :
       dp->part_info.num_secs;
   f->fats = 2;
-  for(u = 1; u <= 64; u <<= 1) {
-    if(u * 0xfff0u > f->total_secs) break;
+  if (f->fat_type == FAT_TYPE_FAT12) {
+    f->cluster_secs = 8;
+    f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 3 + 0x3ff) >> 10;
+    f->root_secs = 14;
+  } else {
+    unsigned u;
+    for (u = 4; u <= 512; u <<= 1) {
+      if (u * 0xfff0u > f->total_secs)
+        break;
+    }
+    f->cluster_secs = u;
+    f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 2 + 0x1ff) >> 9;
+    f->root_secs = 32;
   }
-  f->cluster_secs = u;
-  f->fat_secs = f->fat_type == FAT_TYPE_FAT12 ?
-	((f->total_secs / u + 2) * 3 + 0x3ff) >> 10 :
-	((f->total_secs / u + 2) * 2 + 0x1ff) >> 9;
-  f->root_secs = f->fat_type == FAT_TYPE_FAT12 ? 14 : 32;
-
   f->root_entries = f->root_secs << 4;
-
   f->last_cluster = (f->total_secs - f->reserved_secs - f->fats * f->fat_secs
                     - f->root_secs) / f->cluster_secs + 1;
-
   f->drive_num = dp->drive_num;
 
   f->obj = NULL;
