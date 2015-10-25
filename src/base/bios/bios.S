@@ -223,6 +223,8 @@ video_init_done:
 	int	$DOS_HELPER_INT
 	movb	%cs:bios_f000_bootdrive-bios_f000,%dl
 
+	movb	$DOS_HELPER_READ_MBR,%al
+	int	$DOS_HELPER_INT
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
 
 .org	ROM_BIOS_EXIT

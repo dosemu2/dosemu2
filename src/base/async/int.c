@@ -505,6 +505,9 @@ int dos_helper(void)
       coopth_leave();
       fdkernel_boot_mimic();
       break;
+  case DOS_HELPER_READ_MBR:
+      boot();
+      break;
   case DOS_HELPER_MBR:
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();

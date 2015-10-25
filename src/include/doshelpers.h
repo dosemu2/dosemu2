@@ -98,6 +98,7 @@
 
 #define DOS_HELPER_DOSC		    0xdc
 
+#define DOS_HELPER_READ_MBR         0xfc
 #define DOS_HELPER_BOOTSECT         0xfd
 #define DOS_HELPER_MBR              0xfe
 #define DOS_HELPER_EXIT             0xff

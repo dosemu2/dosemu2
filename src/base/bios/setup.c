@@ -211,7 +211,6 @@ static void bios_reset(void)
   dpmi_reset();
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
-  boot();			/* read the boot sector & get moving */
 #ifdef USE_MHPDBG
   mhp_debug(DBG_BOOT, 0, 0);
 #endif
