@@ -1264,7 +1264,6 @@ void fdkernel_boot_mimic(void)
     loadaddress = SEGOFF2LINEAR(0x60,0);
     break;
   case DR_D:
-  case OLDPCD_D:		/* old MS-DOS, PC-DOS */
     loadaddress = SEGOFF2LINEAR(0x70,0);
     break;
   default:
@@ -1399,6 +1398,7 @@ void build_boot_blk(fatfs_t *f)
       }
       /* no break */
     case REALPCD_D:		/* old MS-DOS, PC-DOS */
+    case OLDPCD_D:		/* old MS-DOS, PC-DOS */
       /* for IO.SYS, MS-DOS version < 7 */
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0, 0x500);
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, 4, 0, 0x700);
@@ -1436,7 +1436,6 @@ void build_boot_blk(fatfs_t *f)
       fatfs_msg("made boot block suitable for DosC\n");
       break;
 
-    case OLDPCD_D:		/* old MS-DOS, PC-DOS */
     case FD_D:			/* FreeDOS, FD maintained kernel */
     case DR_D:			/* DR-DOS */
 			/* boot loading is done by DOSEMU-HELPER
