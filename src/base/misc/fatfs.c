@@ -124,22 +124,38 @@ void fatfs_init(struct disk *dp)
   if (dp->floppy) {
     switch (dp->default_cmos) {
       case THREE_INCH_288MFLOP:
+        f->fat_id = 0xf0;
+        f->cluster_secs = 2;
+        break;
       case THREE_INCH_FLOPPY:
         f->fat_id = 0xf0;
-	break;
+        f->cluster_secs = 1;
+        break;
       case FIVE_INCH_FLOPPY:
+        f->fat_id = 0xf9;
+        f->cluster_secs = 1;
+        break;
       case THREE_INCH_720KFLOP:
         f->fat_id = 0xf9;
-	break;
+        f->cluster_secs = 2;
+        break;
       case FIVE_INCH_360KFLOP:
         f->fat_id = 0xfd;
-	break;
-
+        f->cluster_secs = 2;
+        break;
     }
     f->fat_type = FAT_TYPE_FAT12;
+    f->total_secs = dp->tracks * dp->heads * dp->sectors;
   } else {
+    unsigned u;
     f->fat_id = 0xf8;
     f->fat_type = FAT_TYPE_FAT16;
+    f->total_secs = dp->part_info.num_secs;
+    for (u = 1; u <= 512; u <<= 1) {
+      if (u * 0xfff0u > f->total_secs)
+        break;
+    }
+    f->cluster_secs = u;
   }
   f->serial = dp->serial;
   f->secs_track = dp->sectors;
@@ -147,20 +163,13 @@ void fatfs_init(struct disk *dp)
   f->heads = dp->heads;
   f->reserved_secs = 1;
   f->hidden_secs = dp->start;
-  f->total_secs = dp->floppy ? dp->tracks * dp->heads * dp->sectors :
-      dp->part_info.num_secs;
   f->fats = 2;
   if (f->fat_type == FAT_TYPE_FAT12) {
-    f->cluster_secs = 8;
+    if (!dp->floppy)
+      f->cluster_secs = 8;
     f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 3 + 0x3ff) >> 10;
     f->root_secs = 14;
   } else {
-    unsigned u;
-    for (u = 4; u <= 512; u <<= 1) {
-      if (u * 0xfff0u > f->total_secs)
-        break;
-    }
-    f->cluster_secs = u;
     f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 2 + 0x1ff) >> 9;
     f->root_secs = 32;
   }
