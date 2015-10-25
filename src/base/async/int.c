@@ -120,6 +120,17 @@ static void kill_time(long usecs) {
    }
 }
 
+static void mbr_jmp(void *arg)
+{
+   unsigned offs = (long)arg;
+   fake_iret();
+   LWORD(esp) = 0x7c00;
+   LWORD(cs)  = LWORD(ds) = LWORD(es) = LWORD(ss) = 0;
+   LWORD(edi) = 0x7dfe;
+   LWORD(eip) = 0x7c00;
+   LWORD(ebp) = LWORD(esi) = offs;
+}
+
 static void process_master_boot_record(void)
 {
   /* Ok, _we_ do the MBR code in 32-bit C code,
@@ -156,6 +167,7 @@ static void process_master_boot_record(void)
    struct mbr *mbr = LOWMEM(0x600);
    struct mbr *bootrec = LOWMEM(0x7c00);
    int i;
+   unsigned offs;
 
    memcpy(mbr, bootrec, 0x200);	/* move the mbr down */
 
@@ -167,24 +179,21 @@ static void process_master_boot_record(void)
      p_dos_str("\n\rno bootflag set, Leaving DOS...\n\r");
      leavedos(99);
    }
-   LWORD(cs) = LWORD(ds) = LWORD(es) = LWORD(ss) =0;
-   LWORD(esp) = 0x7c00;
    LO(dx) = 0x80;  /* drive C:, DOS boots only from C: */
    HI(dx) = mbr->partition[i].start_head;
    LO(cx) = mbr->partition[i].start_sector;
    HI(cx) = mbr->partition[i].start_track;
    LWORD(eax) = 0x0201;  /* read one sector */
    LWORD(ebx) = 0x7c00;  /* target offset, ES is 0 */
-   int13();   /* we simply call our INT13 routine, hence we will not have
-                 to worry about future changements to this code */
+   do_int_call_back(0x13);
    if ((REG(eflags) & CF) || (bootrec->bootmagic != 0xaa55)) {
      /* error while booting */
      p_dos_str("\n\rerror on reading bootsector, Leaving DOS...\n\r");
      leavedos(99);
    }
-   LWORD(edi)= 0x7dfe;
-   LWORD(eip) = 0x7c00;
-   LWORD(ebp) = LWORD(esi) = 0x600 + offsetof(struct mbr, partition[i]);
+
+   offs = 0x600 + offsetof(struct mbr, partition[i]);
+   coopth_set_post_handler(mbr_jmp, (void *)(long)offs);
 }
 
 static int inte6(void)
@@ -497,7 +506,6 @@ int dos_helper(void)
       fdkernel_boot_mimic();
       break;
   case DOS_HELPER_MBR:
-    coopth_leave();
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();
       break;
