@@ -146,6 +146,12 @@ void fatfs_init(struct disk *dp)
     }
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->tracks * dp->heads * dp->sectors;
+  } else if (dp->part_info.num_secs <= 4078*8) {
+    fatfs_msg("Using FAT12, sectors count=%li\n", dp->part_info.num_secs);
+    f->fat_id = 0xf0;
+    f->cluster_secs = 8;
+    f->fat_type = FAT_TYPE_FAT12;
+    f->total_secs = dp->part_info.num_secs;
   } else {
     unsigned u;
     f->fat_id = 0xf8;
@@ -165,8 +171,6 @@ void fatfs_init(struct disk *dp)
   f->hidden_secs = dp->start;
   f->fats = 2;
   if (f->fat_type == FAT_TYPE_FAT12) {
-    if (!dp->floppy)
-      f->cluster_secs = 8;
     f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 3 + 0x3ff) >> 10;
     f->root_secs = 14;
   } else {
