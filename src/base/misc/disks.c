@@ -542,7 +542,7 @@ void dir_setup(struct disk *dp)
   pi->end_sec = dp->sectors;
   pi->end_cyl = dp->tracks - 1;
   pi->pre_secs = dp->sectors;
-  pi->num_secs = (dp->tracks * dp->heads - 1) * dp->sectors;
+  pi->num_secs = dp->tracks * dp->heads * dp->sectors - dp->start;
   if (pi->num_secs <= 4078*8)
     pi->type = 0x01;
   else if (pi->num_secs < (1 << 16))
