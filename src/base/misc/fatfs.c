@@ -1420,7 +1420,7 @@ void build_boot_blk(fatfs_t *f)
       d0[0x05] = d_o >> 24;
       d0[0x06] = d_o;		/* bx */
       d0[0x07] = d_o >> 8;
-      d0[0x09] = 0xf8;	/* ch */
+      d0[0x09] = f->fat_id;	/* ch */
       d0[0x0a] = f->drive_num;	/* dl */
 
       fatfs_msg("made boot block suitable for MS-DOS, version < 7\n");
