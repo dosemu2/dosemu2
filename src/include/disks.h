@@ -41,6 +41,7 @@ struct partition {
   long num_secs;		/* sectors in partition */
   unsigned char *mbr;		/* fake Master Boot Record */
   int mbr_size;			/* usu. 1 sector */
+  int type;
 };
 
 struct disk {

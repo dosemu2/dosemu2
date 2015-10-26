@@ -146,7 +146,7 @@ void fatfs_init(struct disk *dp)
     }
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->tracks * dp->heads * dp->sectors;
-  } else if (dp->part_info.num_secs <= 4078*8) {
+  } else if (dp->part_info.type == 1) {
     fatfs_msg("Using FAT12, sectors count=%li\n", dp->part_info.num_secs);
     f->fat_id = 0xf0;
     f->cluster_secs = 8;
