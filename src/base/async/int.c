@@ -503,6 +503,7 @@ int dos_helper(void)
         break;
   case DOS_HELPER_BOOTSECT:
       coopth_leave();
+      fake_iret();
       fdkernel_boot_mimic();
       break;
   case DOS_HELPER_READ_MBR:
