@@ -127,6 +127,7 @@ int com_system(const char *command, int quit)
 	snprintf(cmdline, sizeof(cmdline), "/C %s", command);
 	if (!program) program = "\\COMMAND.COM";
 	coopth_leave();
+	fake_iret();
 	return load_and_run_DOS_program(program, cmdline, quit);
 }
 
