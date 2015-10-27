@@ -157,7 +157,7 @@ void fatfs_init(struct disk *dp)
     f->fat_id = 0xf8;
     f->fat_type = FAT_TYPE_FAT16;
     f->total_secs = dp->part_info.num_secs;
-    for (u = 1; u <= 512; u <<= 1) {
+    for (u = 4; u <= 512; u <<= 1) {
       if (u * 0xfff0u > f->total_secs)
         break;
     }
