@@ -1258,6 +1258,10 @@ int e_vm86(void)
 		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
 	      }
 	      break;
+	    case EXCP06_ILLOP:
+		error("CPU-EMU: invalid opcode in vm86\n");
+		leavedos(98);
+		break;
 	    default: {
 		struct sigcontext scp;
 		struct _fpstate fps;
