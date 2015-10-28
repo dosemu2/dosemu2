@@ -125,23 +125,23 @@ void fatfs_init(struct disk *dp)
   if (dp->floppy) {
     switch (dp->default_cmos) {
       case THREE_INCH_288MFLOP:
-        f->fat_id = 0xf0;
+        f->media_id = 0xf0;
         f->cluster_secs = 2;
         break;
       case THREE_INCH_FLOPPY:
-        f->fat_id = 0xf0;
+        f->media_id = 0xf0;
         f->cluster_secs = 1;
         break;
       case FIVE_INCH_FLOPPY:
-        f->fat_id = 0xf9;
+        f->media_id = 0xf9;
         f->cluster_secs = 1;
         break;
       case THREE_INCH_720KFLOP:
-        f->fat_id = 0xf9;
+        f->media_id = 0xf9;
         f->cluster_secs = 2;
         break;
       case FIVE_INCH_360KFLOP:
-        f->fat_id = 0xfd;
+        f->media_id = 0xfd;
         f->cluster_secs = 2;
         break;
     }
@@ -150,14 +150,14 @@ void fatfs_init(struct disk *dp)
     f->root_secs = 14;
   } else if (dp->part_info.type == 1) {
     fatfs_msg("Using FAT12, sectors count=%li\n", dp->part_info.num_secs);
-    f->fat_id = 0xf8;
+    f->media_id = 0xf8;
     f->cluster_secs = 8;
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->part_info.num_secs;
     f->root_secs = 32;
   } else {
     unsigned u;
-    f->fat_id = 0xf8;
+    f->media_id = 0xf8;
     f->fat_type = FAT_TYPE_FAT16;
     f->total_secs = dp->part_info.num_secs;
     f->root_secs = 32;
@@ -393,7 +393,7 @@ static void set_geometry(fatfs_t *f, unsigned char *b)
   else {
     b[0x13] = b[0x14] = 0x00;
   }
-  b[0x15] = f->fat_id;
+  b[0x15] = f->media_id;
   b[0x16] = f->fat_secs;
   b[0x17] = f->fat_secs >> 8;
   b[0x18] = f->secs_track;
@@ -1249,7 +1249,7 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
 
   if(clu < 2) {
     u = 0xffff;
-    if(clu == 0) *(unsigned char *) &u = f->fat_id;
+    if(clu == 0) *(unsigned char *) &u = f->media_id;
     return u;
   }
 
@@ -1431,7 +1431,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
       d0[0x05] = d_o >> 24;
       d0[0x06] = d_o;		/* bx */
       d0[0x07] = d_o >> 8;
-      d0[0x09] = f->fat_id;	/* ch */
+      d0[0x09] = f->media_id;	/* ch */
       d0[0x0a] = f->drive_num;	/* dl */
 
       fatfs_msg("made boot block suitable for MS-DOS, version < 7\n");
