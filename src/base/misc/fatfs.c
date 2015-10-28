@@ -147,22 +147,27 @@ void fatfs_init(struct disk *dp)
     }
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->tracks * dp->heads * dp->sectors;
+    f->root_secs = 14;
   } else if (dp->part_info.type == 1) {
     fatfs_msg("Using FAT12, sectors count=%li\n", dp->part_info.num_secs);
-    f->fat_id = 0xf0;
+    f->fat_id = 0xf8;
     f->cluster_secs = 8;
     f->fat_type = FAT_TYPE_FAT12;
     f->total_secs = dp->part_info.num_secs;
+    f->root_secs = 32;
   } else {
     unsigned u;
     f->fat_id = 0xf8;
     f->fat_type = FAT_TYPE_FAT16;
     f->total_secs = dp->part_info.num_secs;
+    f->root_secs = 32;
     for (u = 4; u <= 512; u <<= 1) {
       if (u * 0xfff0u > f->total_secs)
         break;
     }
     f->cluster_secs = u;
+    fatfs_msg("Using FAT16, sectors count=%i & cluster_size=%d\n",
+		    f->total_secs, f->cluster_secs);
   }
   f->serial = dp->serial;
   f->secs_track = dp->sectors;
@@ -173,10 +178,8 @@ void fatfs_init(struct disk *dp)
   f->fats = 2;
   if (f->fat_type == FAT_TYPE_FAT12) {
     f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 3 + 0x3ff) >> 10;
-    f->root_secs = 14;
   } else {
     f->fat_secs = ((f->total_secs / f->cluster_secs + 2) * 2 + 0x1ff) >> 9;
-    f->root_secs = 32;
   }
   f->root_entries = f->root_secs << 4;
   f->last_cluster = (f->total_secs - f->reserved_secs - f->fats * f->fat_secs
