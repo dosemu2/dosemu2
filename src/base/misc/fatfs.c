@@ -1311,7 +1311,7 @@ void fdkernel_boot_mimic(void)
 /*
  * Build our own boot block (if no "boot.blk" file was found).
  */
-void build_boot_blk(fatfs_t *f, unsigned char *b)
+void build_boot_blk(fatfs_t *f, unsigned char *buf)
 {
   /*
    * Make sure this messages are not too long; they should not extend
@@ -1328,6 +1328,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   int i, ret;
   size_t msgsize;
   unsigned r_o, d_o, t_o;
+  unsigned char b[0x200];
   unsigned char *d0, *d1;
 
   ret = asprintf(&msg, msg_f, f->dir);
@@ -1488,6 +1489,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   }
   free(msg);
   free(msg1);
+  memcpy(buf, b, 0x200);
 }
 
 
