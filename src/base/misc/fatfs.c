@@ -382,9 +382,10 @@ int read_boot(fatfs_t *f)
 
   if(f->boot_sec) {
     memcpy(b, f->boot_sec, 0x200);
-  } else {
-    build_boot_blk(f);
+    return 0;
   }
+
+  build_boot_blk(f);
 
   memcpy(b + 0x03, "DOSEMU10", 8);
   b[0x0b] = f->bytes_per_sect;
