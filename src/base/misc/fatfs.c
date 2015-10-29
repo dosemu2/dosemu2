@@ -87,7 +87,7 @@ static int read_cluster(fatfs_t *, unsigned, unsigned);
 static int read_file(fatfs_t *, unsigned, unsigned, unsigned);
 static int read_dir(fatfs_t *, unsigned, unsigned, unsigned);
 static unsigned next_cluster(fatfs_t *, unsigned);
-static void build_boot_blk(fatfs_t *);
+static void build_boot_blk(fatfs_t *m, unsigned char *b);
 static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsigned blks, unsigned seg, unsigned ofs);
 
 static int sys_type;
@@ -206,9 +206,6 @@ void fatfs_init(struct disk *dp)
   f->obj[0].name = f->dir;
   f->obj[0].is.dir = 1;
   scan_dir(f, 0);	/* set # of root entries accordingly ??? */
-  if(f->boot_sec == NULL) {
-    build_boot_blk(f);
-  }
 }
 
 
@@ -373,21 +370,10 @@ int read_data(fatfs_t *f, unsigned pos)
   return read_cluster(f, pos / f->cluster_secs + 2, pos % f->cluster_secs);
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-int read_boot(fatfs_t *f)
+static void set_geometry(fatfs_t *f, unsigned char *b)
 {
-  unsigned char *b = f->sec;
-
-  fatfs_deb("dir %s, reading boot sector\n", f->dir);
-
-  if(f->boot_sec) {
-    memcpy(b, f->boot_sec, 0x200);
-    return 0;
-  }
-
-  build_boot_blk(f);
-
-  memcpy(b + 0x03, "DOSEMU10", 8);
+  /* set only the part of geometry that is supported by old and
+   * new DOSes */
   b[0x0b] = f->bytes_per_sect;
   b[0x0c] = f->bytes_per_sect >> 8;
   b[0x0d] = f->cluster_secs;
@@ -412,6 +398,25 @@ int read_boot(fatfs_t *f)
   b[0x1b] = f->heads >> 8;
   b[0x1c] = f->hidden_secs;
   b[0x1d] = f->hidden_secs >> 8;
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+int read_boot(fatfs_t *f)
+{
+  unsigned char *b = f->sec;
+
+  fatfs_deb("dir %s, reading boot sector\n", f->dir);
+
+  if(f->boot_sec) {
+    memcpy(b, f->boot_sec, 0x200);
+    set_geometry(f, b);
+    return 0;
+  }
+
+  build_boot_blk(f, b);
+  set_geometry(f, b);
+
+  memcpy(b + 0x03, "DOSEMU10", 8);
   b[0x1e] = f->hidden_secs >> 16;
   b[0x1f] = f->hidden_secs >> 24;
   if(f->total_secs < 1 << 16) {
@@ -1306,7 +1311,7 @@ void fdkernel_boot_mimic(void)
 /*
  * Build our own boot block (if no "boot.blk" file was found).
  */
-void build_boot_blk(fatfs_t *f)
+void build_boot_blk(fatfs_t *f, unsigned char *b)
 {
   /*
    * Make sure this messages are not too long; they should not extend
@@ -1323,11 +1328,7 @@ void build_boot_blk(fatfs_t *f)
   int i, ret;
   size_t msgsize;
   unsigned r_o, d_o, t_o;
-  unsigned char *b;
   unsigned char *d0, *d1;
-
-  f->boot_sec = malloc(0x200);
-  assert(f->boot_sec != NULL);
 
   ret = asprintf(&msg, msg_f, f->dir);
   assert(ret != -1);
@@ -1335,7 +1336,6 @@ void build_boot_blk(fatfs_t *f)
   ret = asprintf(&msg1, msg1_f, f->dir);
   assert(ret != -1);
 
-  b = f->boot_sec;
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
   b[0x01] = 0x3e;
