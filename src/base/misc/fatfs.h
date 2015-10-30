@@ -61,7 +61,7 @@ typedef struct {
   char *ffn, *ffn_ptr;			/* buffer for file names */
   unsigned ffn_obj;
 
-  unsigned char *boot_sec, *sec;
+  unsigned char *boot_sec;
 
   int fd;
   unsigned fd_obj;
