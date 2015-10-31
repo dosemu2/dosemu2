@@ -178,11 +178,6 @@ HookHimem:
 	cmpb	$0x80, %al
 	je	1f
 	/* no XMS driver - try to install internal driver */
-	pushw	$BIOSSEG
-	popw	%es
-        /* version < 1.3.3.1? */
-	cmpl	$0x01030301, %es:(0xffe8)
-	jb	0f
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_XMS_INIT, %ah
 	int	$DOS_HELPER_INT
@@ -240,11 +235,6 @@ HookHimem:
 	jmp	10f
 
 
-0:
-	movb	$9, %ah
-	movw	$NoHimemMsg, %dx
-	int	$0x21
-	jmp	9f
 27:
 	movb	$9, %ah
 	movw	$CantHookMsg, %dx
@@ -260,6 +250,10 @@ HookHimem:
 10:	ret
 
 Init:
+	movb    $DOS_HELPER_DOSEMU_CHECK, %al
+	int	$DOS_HELPER_INT
+	cmpw	$1893, %cx
+	jb	33f
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
 	movw	$0, %bx
@@ -310,6 +304,10 @@ Init:
 	xorw 	%ax, %ax
 	ret
 
+33:
+	movb	$9, %ah
+	movw	$TooOldMsg, %dx
+	int	$0x21
 Error:
 	movb	$0,%es:13(%di)		# No units!!
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
@@ -328,6 +326,9 @@ NoHimemMsg:
 	.ascii	"WARNING: himem.sys was not loaded before ems.sys!\r\n"
 	.ascii  "XMS and UMB services will not be available.\r\n"
 	.ascii	"Please adjust your config.sys.\r\n"
+	.byte	eom
+TooOldMsg:
+	.ascii	"WARNING: Your dosemu is too old, ems.sys not loaded\r\n"
 	.byte	eom
 NoXMSMsg:
 	.ascii	"Note: XMS disabled in the config."
