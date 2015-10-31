@@ -214,7 +214,7 @@ int dos_helper(void)
      * ...we let GCC at compiletime translate it to 0xHHLL, HH=major, LL=minor.
      * This way we avoid usage of float instructions.
      */
-    LWORD(ecx) = 0;//PATCHLEVEL1 * 0x100 + PATCHLEVEL2;
+    LWORD(ecx) = REVISION;
     LWORD(edx) = (config.X)? 0x1:0;  /* Return if running under X */
     g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);

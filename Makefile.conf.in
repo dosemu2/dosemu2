@@ -90,6 +90,7 @@ THISVERSION:=$(VERSION).$(SUBLEVEL)-$(PATCHLEVEL1)
 PACKVERSION:=$(VERSION).$(SUBLEVEL)$(PATCHLEVEL1)
 BINPATH:=$(top_builddir)/$(THISVERSION)
 RELEASE_DATE:=$(shell cd $(top_srcdir) && ./getversion -d)
+REVISION:=$(shell cd $(top_srcdir) && ./getversion -r)
 
 ifdef USE_DL_PLUGINS
 DL_CFLAGS:=-fPIC
