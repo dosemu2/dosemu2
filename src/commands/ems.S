@@ -138,8 +138,7 @@ Intr:
 	lret
 
 Dummy:
-	movb    $DOS_HELPER_EMS_HELPER, %al
-	int	$DOS_HELPER_INT
+	xorw	%ax, %ax	# no error
 	ret
 
 Int67:
@@ -263,6 +262,7 @@ HookHimem:
 Init:
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
+	movw	$0, %bx
 	int	$DOS_HELPER_INT
 	orb	%al, %al
 	jz	1f

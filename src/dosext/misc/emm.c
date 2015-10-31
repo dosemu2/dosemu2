@@ -240,7 +240,6 @@ static u_short os_allow=1;
 
 void
 ems_helper(void) {
-  u_char *rhptr;		/* request header pointer */
   switch (LWORD(ebx)) {
   case 0:
     E_printf("EMS Init called!\n");
@@ -269,38 +268,12 @@ ems_helper(void) {
     LWORD(ebx) = 0;
     LWORD(ecx) = EMSControl_SEG;
     LWORD(edx) = EMSControl_OFF;
-    break;
-  case 3:
-    E_printf("EMS IOCTL called!\n");
-    break;
-  case 4:
-    E_printf("EMS READ called!\n");
-    break;
-  case 8:
-    E_printf("EMS WRITE called!\n");
-    break;
-  case 10:
-    E_printf("EMS Output Status called!\n");
-    break;
-  case 12:
-    E_printf("EMS IOCTL-WRITE called!\n");
-    break;
-  case 13:
-    E_printf("EMS OPENDEV called!\n");
-    break;
-  case 14:
-    E_printf("EMS CLOSEDEV called!\n");
-    break;
-  case 0x20:
-    E_printf("EMS INT 0x67 called!\n");
+    LWORD(eax) = 0;	/* report success */
     break;
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
     return;
   }
-  rhptr = SEG_ADR((u_char *), es, di);
-  E_printf("EMS RHDR: len %d, command %d\n", *rhptr, *(u_short *) (rhptr + 2));
-  LWORD(eax) = 0;	/* report success */
 }
 
 static void *
