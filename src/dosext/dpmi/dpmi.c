@@ -2819,7 +2819,7 @@ static void chain_rm_int(struct sigcontext *scp, int i)
   do_int(i);
 }
 
-static int chain_hooked_int(struct sigcontext *scp, int i)
+static void chain_hooked_int(struct sigcontext *scp, int i)
 {
   far_t iaddr;
   D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
@@ -2837,20 +2837,11 @@ static int chain_hooked_int(struct sigcontext *scp, int i)
   case 0x24:
     iaddr = s_i24;
     break;
-  default:
-    error("shouldn't be here, %i\n", i);
-    restore_rm_regs();
-    return 0;
   }
 
   D_printf("DPMI: Calling real mode handler for int 0x%02x, %04x:%04x\n",
 	i, iaddr.segment, iaddr.offset);
-  if (iaddr.segment == DPMI_SEG) {
-    restore_rm_regs();
-    return 0;
-  }
   fake_int_to(iaddr.segment, iaddr.offset);
-  return 1;
 }
 
 static void do_dpmi_int(struct sigcontext *scp, int i)
@@ -2899,8 +2890,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
   }
 
   if (i == 0x1c || i == 0x23 || i == 0x24) {
-    if (!chain_hooked_int(scp, i))
-      return;
+    chain_hooked_int(scp, i);
   } else if (config.pm_dos_api) {
     int msdos_ret;
     struct RealModeCallStructure rmreg;
