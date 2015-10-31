@@ -63,6 +63,7 @@ typedef struct segment_descriptor_s
     unsigned int	is_big:1;	/* Granularity */
     unsigned int	not_present:1;
     unsigned int	useable:1;
+    unsigned int	cstd:1;		/* from Convert Seg to Desc */
     unsigned int	used;		/* Segment in use by client # */
 					/* or Linux/GLibc (0xfe) */
 					/* or DOSEMU (0xff) */

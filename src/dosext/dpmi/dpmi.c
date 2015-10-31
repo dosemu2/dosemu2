@@ -911,11 +911,8 @@ int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
   D_printf("DPMI: convert seg %#x to desc (lim=%#lx, b=%i)\n",
 	segment, limit, big);
   for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
-	(Segments[i].is_big==big) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) &&
-	(Segments[i].used==in_dpmi) &&
-	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
+    if ((Segments[i].base_addr == baseaddr) && Segments[i].cstd &&
+	(Segments[i].used == in_dpmi)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
       if (debug_level('M') >= 9 && limit != 0xffff)
         D_printf("DPMI: limit=%#lx for converted desc\n", limit);
@@ -926,6 +923,7 @@ int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
   if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, big, 0, 0)) return 0;
   ldt_entry = selector >> 3;
+  Segments[ldt_entry].cstd = 1;
   msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
 	LDT_ENTRY_SIZE);
   return selector;
