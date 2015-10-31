@@ -479,8 +479,7 @@ int msdos_fault(struct sigcontext *scp)
 	break;
     default:
 	/* any other special cases? */
-	desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor(segment) :
-		ConvertSegmentToCodeDescriptor(segment));
+	desc = ConvertSegmentToDescriptor(segment);
     }
     if (!desc)
 	return 0;

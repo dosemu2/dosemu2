@@ -936,42 +936,6 @@ int ConvertSegmentToDescriptor(unsigned short segment)
   return ConvertSegmentToDescriptor_lim(segment, 0xffff);
 }
 
-int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned long limit)
-{
-  unsigned long baseaddr = segment << 4;
-  unsigned short selector;
-  int i, big = 0;
-  if (limit > 0xfffff) {
-    if ((limit & 0xfff) != 0xfff)
-      dosemu_error("CSCD: bad limit %#lx\n", limit);
-    limit >>= 12;
-    big = 1;
-  }
-  D_printf("DPMI: convert seg %#x to *code* desc (lim=%#lx, b=%i)\n",
-	segment, limit, big);
-  for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
-	(Segments[i].is_big==big) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) &&
-	(Segments[i].used==in_dpmi) &&
-	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
-      D_printf("DPMI: found *code* descriptor at %#x\n", (i<<3) | 0x0007);
-      if (debug_level('M') >= 9 && limit != 0xffff)
-        D_printf("DPMI: limit=%#lx for converted desc\n", limit);
-      return (i<<3) | 0x0007;
-    }
-  D_printf("DPMI: Code SEG at base=%#lx not found, allocate a new one\n", baseaddr);
-  if (!(selector = AllocateDescriptors(1))) return 0;
-  if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_CODE, 0, big, 0, 0)) return 0;
-  return selector;
-}
-
-int ConvertSegmentToCodeDescriptor(unsigned short segment)
-{
-  return ConvertSegmentToCodeDescriptor_lim(segment, 0xffff);
-}
-
 static inline unsigned short GetNextSelectorIncrementValue(void)
 {
   return 8;
