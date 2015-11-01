@@ -897,41 +897,27 @@ static void FreeAllDescriptors(void)
     }
 }
 
-int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
+int ConvertSegmentToDescriptor(unsigned short segment)
 {
   unsigned long baseaddr = segment << 4;
   unsigned short selector;
-  int i, big = 0, ldt_entry;
-  if (limit > 0xfffff) {
-    if ((limit & 0xfff) != 0xfff)
-      dosemu_error("CSD: bad limit %#lx\n", limit);
-    limit >>= 12;
-    big = 1;
-  }
-  D_printf("DPMI: convert seg %#x to desc (lim=%#lx, b=%i)\n",
-	segment, limit, big);
+  int i, ldt_entry;
+  D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments[i].base_addr == baseaddr) && Segments[i].cstd &&
 	(Segments[i].used == in_dpmi)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
-      if (debug_level('M') >= 9 && limit != 0xffff)
-        D_printf("DPMI: limit=%#lx for converted desc\n", limit);
       return (i<<3) | 0x0007;
     }
   D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
-  if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, big, 0, 0)) return 0;
+  if (SetSelector(selector, baseaddr, 0xffff, DPMI_CLIENT.is_32,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
   Segments[ldt_entry].cstd = 1;
   msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
 	LDT_ENTRY_SIZE);
   return selector;
-}
-
-int ConvertSegmentToDescriptor(unsigned short segment)
-{
-  return ConvertSegmentToDescriptor_lim(segment, 0xffff);
 }
 
 static inline unsigned short GetNextSelectorIncrementValue(void)
@@ -3291,7 +3277,9 @@ void dpmi_init(void)
   if (!(SS = ConvertSegmentToDescriptor(LWORD(ss)))) goto err;
   /* if ds==ss, the selectors will be equal too */
   if (!(DS = ConvertSegmentToDescriptor(LWORD(ds)))) goto err;
-  if (!(ES = ConvertSegmentToDescriptor_lim(dos_get_psp(), 0xff))) goto err;
+  if (!(ES = AllocateDescriptors(1))) goto err;
+  SetSegmentBaseAddress(ES, dos_get_psp() << 4);
+  SetSegmentLimit(ES, 0xff);
 
   if (debug_level('M')) {
     print_ldt();
