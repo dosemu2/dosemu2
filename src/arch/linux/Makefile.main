@@ -114,7 +114,7 @@ versetup:
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
 
-include/version.h: ../Makefile.conf
+include/version.h: ../Makefile.conf ../VERSION
 	echo "Updating version.h"; \
 	echo "#ifndef	VERSION_H" > $@; \
 	echo "#define	VERSION_H" >> $@; \
