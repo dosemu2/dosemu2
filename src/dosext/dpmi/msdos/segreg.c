@@ -30,6 +30,7 @@
 #include "dpmi.h"
 #include "dosemu_debug.h"
 #include "msdos_ldt.h"
+#include "msdos_priv.h"
 #include "segreg.h"
 
 #define R_WORD(a) LO_WORD(a)
@@ -479,8 +480,7 @@ int msdos_fault(struct sigcontext *scp)
 	break;
     default:
 	/* any other special cases? */
-	desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor(segment) :
-		ConvertSegmentToCodeDescriptor(segment));
+	desc = ConvertSegmentToDescriptor(segment);
     }
     if (!desc)
 	return 0;

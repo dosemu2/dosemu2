@@ -169,11 +169,11 @@ typedef struct vesamode_type_struct {
 } vesamode_type;
 
 
-     typedef struct config_info {
+typedef struct config_info {
        int hdiskboot;
 
 #ifdef X86_EMULATOR
-       boolean cpuemu;
+       int cpuemu;
        boolean cpusim;
 #endif
        int cpu_vm;
@@ -347,10 +347,7 @@ typedef struct vesamode_type_struct {
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
        int cli_timeout;		/* cli timeout hack */
-       int pic_watchdog;        /* pic watchdog reschedule hack */
-     }
-
-config_t;
+} config_t;
 
 
 enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };

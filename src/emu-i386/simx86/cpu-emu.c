@@ -675,7 +675,7 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   _edi = TheCPU.edi;
   _ebp = TheCPU.ebp;
   _esp = TheCPU.esp;
-  _rip = PC2Addr(TheCPU.eip);
+  _rip = PC2Addr(SEGOFF2LINEAR(TheCPU.cs, TheCPU.eip));
 
   _cs = TheCPU.cs;
   _fs = TheCPU.fs;
@@ -1258,6 +1258,10 @@ int e_vm86(void)
 		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
 	      }
 	      break;
+	    case EXCP06_ILLOP:
+		error("CPU-EMU: invalid opcode in vm86\n");
+		leavedos(98);
+		break;
 	    default: {
 		struct sigcontext scp;
 		struct _fpstate fps;

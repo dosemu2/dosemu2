@@ -897,79 +897,27 @@ static void FreeAllDescriptors(void)
     }
 }
 
-int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
+int ConvertSegmentToDescriptor(unsigned short segment)
 {
   unsigned long baseaddr = segment << 4;
   unsigned short selector;
-  int i, big = 0, ldt_entry;
-  if (limit > 0xfffff) {
-    if ((limit & 0xfff) != 0xfff)
-      dosemu_error("CSD: bad limit %#lx\n", limit);
-    limit >>= 12;
-    big = 1;
-  }
-  D_printf("DPMI: convert seg %#x to desc (lim=%#lx, b=%i)\n",
-	segment, limit, big);
+  int i, ldt_entry;
+  D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
-	(Segments[i].is_big==big) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) &&
-	(Segments[i].used==in_dpmi) &&
-	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
+    if ((Segments[i].base_addr == baseaddr) && Segments[i].cstd &&
+	(Segments[i].used == in_dpmi)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
-      if (debug_level('M') >= 9 && limit != 0xffff)
-        D_printf("DPMI: limit=%#lx for converted desc\n", limit);
       return (i<<3) | 0x0007;
     }
   D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
-  if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, big, 0, 0)) return 0;
+  if (SetSelector(selector, baseaddr, 0xffff, DPMI_CLIENT.is_32,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
+  Segments[ldt_entry].cstd = 1;
   msdos_ldt_update(ldt_entry, &ldt_buffer[ldt_entry * LDT_ENTRY_SIZE],
 	LDT_ENTRY_SIZE);
   return selector;
-}
-
-int ConvertSegmentToDescriptor(unsigned short segment)
-{
-  return ConvertSegmentToDescriptor_lim(segment, 0xffff);
-}
-
-int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned long limit)
-{
-  unsigned long baseaddr = segment << 4;
-  unsigned short selector;
-  int i, big = 0;
-  if (limit > 0xfffff) {
-    if ((limit & 0xfff) != 0xfff)
-      dosemu_error("CSCD: bad limit %#lx\n", limit);
-    limit >>= 12;
-    big = 1;
-  }
-  D_printf("DPMI: convert seg %#x to *code* desc (lim=%#lx, b=%i)\n",
-	segment, limit, big);
-  for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
-	(Segments[i].is_big==big) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) &&
-	(Segments[i].used==in_dpmi) &&
-	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
-      D_printf("DPMI: found *code* descriptor at %#x\n", (i<<3) | 0x0007);
-      if (debug_level('M') >= 9 && limit != 0xffff)
-        D_printf("DPMI: limit=%#lx for converted desc\n", limit);
-      return (i<<3) | 0x0007;
-    }
-  D_printf("DPMI: Code SEG at base=%#lx not found, allocate a new one\n", baseaddr);
-  if (!(selector = AllocateDescriptors(1))) return 0;
-  if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_CODE, 0, big, 0, 0)) return 0;
-  return selector;
-}
-
-int ConvertSegmentToCodeDescriptor(unsigned short segment)
-{
-  return ConvertSegmentToCodeDescriptor_lim(segment, 0xffff);
 }
 
 static inline unsigned short GetNextSelectorIncrementValue(void)
@@ -2809,14 +2757,24 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
   }
 }
 
-static int chain_rm_int(struct sigcontext *scp, int i)
+static void chain_rm_int(struct sigcontext *scp, int i)
+{
+  D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
+  save_rm_regs();
+  pm_to_rm_regs(scp, ~0);
+  REG(cs) = DPMI_SEG;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+  do_int(i);
+}
+
+static void chain_hooked_int(struct sigcontext *scp, int i)
 {
   far_t iaddr;
   D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
   REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
   switch (i) {
   case 0x1c:
     iaddr = s_i1c;
@@ -2827,19 +2785,11 @@ static int chain_rm_int(struct sigcontext *scp, int i)
   case 0x24:
     iaddr = s_i24;
     break;
-  default:
-    do_int(i);
-    return 1;
   }
 
   D_printf("DPMI: Calling real mode handler for int 0x%02x, %04x:%04x\n",
 	i, iaddr.segment, iaddr.offset);
-  if (iaddr.segment == DPMI_SEG) {
-    restore_rm_regs();
-    return 0;
-  }
   fake_int_to(iaddr.segment, iaddr.offset);
-  return 1;
 }
 
 static void do_dpmi_int(struct sigcontext *scp, int i)
@@ -2887,7 +2837,9 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       break;
   }
 
-  if (config.pm_dos_api && i != 0x1c && i != 0x23 && i != 0x24) {
+  if (i == 0x1c || i == 0x23 || i == 0x24) {
+    chain_hooked_int(scp, i);
+  } else if (config.pm_dos_api) {
     int msdos_ret;
     struct RealModeCallStructure rmreg;
     int rm_mask = (1 << cs_INDEX) | (1 << eip_INDEX);
@@ -2900,8 +2852,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
 	    &stk_used);
     switch (msdos_ret) {
     case MSDOS_NONE:
-      if (!chain_rm_int(scp, i))
-        return;
+      chain_rm_int(scp, i);
       break;
     case MSDOS_RM:
       save_rm_regs();
@@ -2915,8 +2866,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       return;
     }
   } else {
-    if (!chain_rm_int(scp, i))
-      return;
+    chain_rm_int(scp, i);
   }
 
   in_dpmi_dos_int = 1;
@@ -3001,7 +2951,7 @@ void run_pm_int(int i)
  *
  * DANG_END_FUNCTION
  */
-void run_pm_dos_int(int i)
+static void run_pm_dos_int(int i)
 {
   void  *sp;
   unsigned long ret_eip;
@@ -3327,7 +3277,9 @@ void dpmi_init(void)
   if (!(SS = ConvertSegmentToDescriptor(LWORD(ss)))) goto err;
   /* if ds==ss, the selectors will be equal too */
   if (!(DS = ConvertSegmentToDescriptor(LWORD(ds)))) goto err;
-  if (!(ES = ConvertSegmentToDescriptor_lim(dos_get_psp(), 0xff))) goto err;
+  if (!(ES = AllocateDescriptors(1))) goto err;
+  SetSegmentBaseAddress(ES, dos_get_psp() << 4);
+  SetSegmentLimit(ES, 0xff);
 
   if (debug_level('M')) {
     print_ldt();
@@ -3900,12 +3852,6 @@ int dpmi_fault(struct sigcontext *scp)
 	  }
 	  set_IF();
 
-	  if (!in_dpmi_dos_int) {
-	    if (debug_level('M') > 3) D_printf("DPMI: returned to PM from hardware "
-		"interrupt at %p\n", lina);
-	    pic_iret_dpmi();
-	  }
-
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);
 
@@ -4115,7 +4061,16 @@ int dpmi_fault(struct sigcontext *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: sti\n");
       _eip += 1;
-      set_IF();
+      /* this is a protection for careless clients that do sti
+       * in the inthandlers. There are plenty of those, unfortunately.
+       * The previous work-around was in a great bunch of hacks in PIC,
+       * requiring dpmi to call pic_iret_dpmi() for re-enabling interrupts.
+       * The alternative is very simple: we can just ignore sti when needed. */
+      if (!DPMI_CLIENT.in_dpmi_pm_stack)
+        set_IF();
+      else
+        D_printf("DPMI: Ignoring sti, in_dpmi_pm_stack=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack);
       break;
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
@@ -4400,20 +4355,6 @@ void dpmi_realmode_hlt(unsigned int lina)
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();
     in_dpmi_dos_int = 0;
-/* we are here at return from:
- * - realmode hardware interrupt handler
- * - realmode mouse callback (fake_pm_int)
- * - default realmode CPU exception handler
- * - other client's termination point
- * As internal mouse driver now uses PIC, all the above cases are apropriate
- * to call pic_iret(). Exception handler does not require pic_iret, but being
- * called without an active interrupt handler, pic_iret() does nothing, and
- * CPU exceptions should not happen inside the interrupt handler under normal
- * conditions.
- *
- * -- Stas Sergeev
- */
-    pic_iret_dpmi();
 
   } else if ((lina>=DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)) &&
 	     (lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256) ) {
@@ -4422,10 +4363,21 @@ void dpmi_realmode_hlt(unsigned int lina)
     int rmask;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
-    DPMI_save_rm_regs(&rmreg);
-    rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
-    /* post_extender does not modify rmregs so not restoring */
-    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
+    switch (intr) {
+    /* any special handling of the below 3? */
+    case 0x1c:
+      break;
+    case 0x23:
+      break;
+    case 0x24:
+      break;
+    default:
+      DPMI_save_rm_regs(&rmreg);
+      rmask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr, &rmreg);
+      /* post_extender does not modify rmregs so not restoring */
+      rm_to_pm_regs(&DPMI_CLIENT.stack_frame, rmask);
+      break;
+    }
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 

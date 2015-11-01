@@ -127,6 +127,7 @@ int com_system(const char *command, int quit)
 	snprintf(cmdline, sizeof(cmdline), "/C %s", command);
 	if (!program) program = "\\COMMAND.COM";
 	coopth_leave();
+	fake_iret();
 	return load_and_run_DOS_program(program, cmdline, quit);
 }
 
@@ -414,11 +415,24 @@ int commands_plugin_inte6(void)
 	args[0] = strdup(com_getarg0());
 	strupperDOS(args[0]);
 	argc = com_argparse((char *)&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
+
+	/* DOS 4 and up */
 	strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
 	builtin_name[sizeof(builtin_name) - 1] = 0;
 	strupperDOS(builtin_name);
-
 	com = find_com_program(builtin_name);
+
+	/* DOS 3.0->3.31 construct the program name from the environment */
+	if(!com) {
+		char *p = strrchr(args[0],'\\');
+		strncpy(builtin_name, p+1, sizeof(builtin_name) - 1);
+		builtin_name[sizeof(builtin_name) - 1] = 0;
+		p = strchr(builtin_name, '.');
+		if(p)
+			*p = '\0';
+		com = find_com_program(builtin_name);
+	}
+
 	if (com) {
 		int err = com->program(argc, args);
 		if (!err) {

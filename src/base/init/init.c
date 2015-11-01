@@ -248,9 +248,6 @@ void device_init(void)
 void low_mem_init(void)
 {
   void *lowmem, *result;
-#ifdef __i386__
-  PRIV_SAVE_AREA
-#endif
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -261,11 +258,8 @@ void low_mem_init(void)
   }
 
 #ifdef __i386__
-  /* we may need root to mmap address 0 */
-  enter_priv_on();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  leave_priv_setting();
 
   if (result == MAP_FAILED && (errno == EPERM || errno == EACCES)) {
 #ifndef X86_EMULATOR

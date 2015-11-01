@@ -310,7 +310,7 @@ while (0)
 	/* joystick */
 %token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
 	/* Hacks */
-%token CLI_TIMEOUT PIC_WATCHDOG
+%token CLI_TIMEOUT
 %token TIMEMODE
 
 	/* we know we have 1 shift/reduce conflict :-( 
@@ -762,8 +762,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| CLI_TIMEOUT int_bool
 		    { config.cli_timeout = $2; }
-		| PIC_WATCHDOG int_bool
-		    { config.pic_watchdog = $2; }
 		| TIMEMODE string_expr
 		    {
 		    config.timemode = parse_timemode($2);
