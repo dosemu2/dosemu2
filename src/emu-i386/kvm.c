@@ -36,6 +36,7 @@
 #include "cpu.h"
 #include "dpmi.h"
 #include "port.h"
+#include "mhpdbg.h"
 
 static int vcpufd = -1;
 static struct kvm_run *run = NULL;
@@ -113,6 +114,8 @@ static void kvm_init(void)
 int kvm_vm86(void)
 {
   static struct kvm_regs regs;
+  static struct kvm_guest_debug debug;
+  static int singlestep;
   unsigned int newflags;
   int ret, vm86_ret;
 
@@ -124,6 +127,17 @@ int kvm_vm86(void)
     newflags |= IF;
   else
     newflags &= ~IF;
+  if (mhpdbg.active && mhpdbg.TFpendig) {
+    /* need to do this for every single-step KVM_RUN */
+    debug.control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
+    ioctl(vcpufd, KVM_SET_GUEST_DEBUG, &debug);
+    singlestep = 1;
+  }
+  else if (singlestep) {
+    debug.control &= ~(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP);
+    ioctl(vcpufd, KVM_SET_GUEST_DEBUG, &debug);
+    singlestep = 0;
+  }
   run->request_interrupt_window = isset_VIP();
   /* avoid syscalls if DOSEMU did not modify the CPU state */
   if (vcpufd == -1 ||
@@ -190,6 +204,9 @@ int kvm_vm86(void)
       break;
     case KVM_EXIT_IRQ_WINDOW_OPEN:
       vm86_ret = VM86_STI;
+      break;
+    case KVM_EXIT_DEBUG:
+      vm86_ret = VM86_TRAP | (run->debug.arch.exception << 8);
       break;
     case KVM_EXIT_IO:
     {
