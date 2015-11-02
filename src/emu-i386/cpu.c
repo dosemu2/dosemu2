@@ -309,7 +309,7 @@ void cpu_setup(void)
   fpu_reset();
 
 #ifdef X86_EMULATOR
-  if (config.cpuemu) {
+  if (config.cpuemu > 0) {
     init_emu_cpu();
   }
 #endif

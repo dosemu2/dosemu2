@@ -144,7 +144,7 @@ int priv_iopl(int pl)
   }
   else ret = iopl(pl);
 #ifdef X86_EMULATOR
-  if (config.cpuemu) e_priv_iopl(pl);
+  if (config.cpuemu > 0) e_priv_iopl(pl);
 #endif
   if (ret == 0)
     current_iopl = pl;

@@ -279,7 +279,7 @@ void low_mem_init(void)
 	      );
     exit(EXIT_FAILURE);
 #else
-    if (config.cpuemu < 3)
+    if (config.cpuemu == 0)
     {
       /* switch on vm86-only JIT CPU emulation to with non-zero base */
       config.cpuemu = 3;
@@ -305,7 +305,7 @@ void low_mem_init(void)
 #endif
   result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  if (config.cpuemu < 3) {
+  if (config.cpuemu == 0) {
     /* switch on vm86-only JIT CPU emulation to with non-zero base */
     config.cpuemu = 3;
     init_emu_cpu();

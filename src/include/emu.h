@@ -173,7 +173,7 @@ typedef struct vesamode_type_struct {
        int hdiskboot;
 
 #ifdef X86_EMULATOR
-       boolean cpuemu;
+       int cpuemu;
        boolean cpusim;
 #endif
        int CPUSpeedInMhz;
