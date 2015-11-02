@@ -125,6 +125,17 @@ static void kill_time(long usecs) {
    }
 }
 
+static void mbr_jmp(void *arg)
+{
+   unsigned offs = (long)arg;
+   fake_iret();
+   LWORD(esp) = 0x7c00;
+   LWORD(cs)  = LWORD(ds) = LWORD(es) = LWORD(ss) = 0;
+   LWORD(edi) = 0x7dfe;
+   LWORD(eip) = 0x7c00;
+   LWORD(ebp) = LWORD(esi) = offs;
+}
+
 static void process_master_boot_record(void)
 {
   /* Ok, _we_ do the MBR code in 32-bit C code,
@@ -161,6 +172,7 @@ static void process_master_boot_record(void)
    struct mbr *mbr = LOWMEM(0x600);
    struct mbr *bootrec = LOWMEM(0x7c00);
    int i;
+   unsigned offs;
 
    memcpy(mbr, bootrec, 0x200);	/* move the mbr down */
 
@@ -172,24 +184,21 @@ static void process_master_boot_record(void)
      p_dos_str("\n\rno bootflag set, Leaving DOS...\n\r");
      leavedos(99);
    }
-   LWORD(cs) = LWORD(ds) = LWORD(es) = LWORD(ss) =0;
-   LWORD(esp) = 0x7c00;
    LO(dx) = 0x80;  /* drive C:, DOS boots only from C: */
    HI(dx) = mbr->partition[i].start_head;
    LO(cx) = mbr->partition[i].start_sector;
    HI(cx) = mbr->partition[i].start_track;
    LWORD(eax) = 0x0201;  /* read one sector */
    LWORD(ebx) = 0x7c00;  /* target offset, ES is 0 */
-   int13();   /* we simply call our INT13 routine, hence we will not have
-                 to worry about future changements to this code */
+   do_int_call_back(0x13);
    if ((REG(eflags) & CF) || (bootrec->bootmagic != 0xaa55)) {
      /* error while booting */
      p_dos_str("\n\rerror on reading bootsector, Leaving DOS...\n\r");
      leavedos(99);
    }
-   LWORD(edi)= 0x7dfe;
-   LWORD(eip) = 0x7c00;
-   LWORD(ebp) = LWORD(esi) = 0x600 + offsetof(struct mbr, partition[i]);
+
+   offs = 0x600 + offsetof(struct mbr, partition[i]);
+   coopth_set_post_handler(mbr_jmp, (void *)(long)offs);
 }
 
 static int inte6(void)
@@ -210,7 +219,7 @@ int dos_helper(void)
      * ...we let GCC at compiletime translate it to 0xHHLL, HH=major, LL=minor.
      * This way we avoid usage of float instructions.
      */
-    LWORD(ecx) = 0;//PATCHLEVEL1 * 0x100 + PATCHLEVEL2;
+    LWORD(ecx) = REVISION;
     LWORD(edx) = (config.X)? 0x1:0;  /* Return if running under X */
     g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);
@@ -389,10 +398,6 @@ int dos_helper(void)
     mouse_helper(&vm86s.regs);
     break;
 
-  case DOS_HELPER_PAUSE_KEY:
-    pic_set_callback(Pause_SEG, Pause_OFF);
-    break;
-
   case DOS_HELPER_CDROM_HELPER:{
       E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
 	       "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
@@ -503,10 +508,13 @@ int dos_helper(void)
         break;
   case DOS_HELPER_BOOTSECT:
       coopth_leave();
+      fake_iret();
       fdkernel_boot_mimic();
       break;
+  case DOS_HELPER_READ_MBR:
+      boot();
+      break;
   case DOS_HELPER_MBR:
-    coopth_leave();
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();
       break;
@@ -1913,12 +1921,6 @@ static void int33_check_hog(void)
   idle(200, 20, 20, "mouse");
 }
 
-/* mfs FCB call */
-static int inte7(void) {
-  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  return 0;
-}
-
 static void debug_int(const char *s, int i)
 {
  	if (((i != 0x28) && (i != 0x2f)) || in_dpmi) {
@@ -2196,7 +2198,6 @@ void setup_interrupts(void) {
     interrupt_function[0x7a] = ipx_int7a;
 #endif
   interrupt_function[DOS_HELPER_INT] = inte6;
-  interrupt_function[0xe7] = inte7;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {

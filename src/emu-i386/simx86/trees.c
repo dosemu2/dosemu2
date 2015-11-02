@@ -670,7 +670,7 @@ unsigned long PC2Addr(unsigned int pc)
   unsigned int i, key;
 
   if (!G)
-    return 0;
+    goto err;
   AP = G->pmeta;
   key = G->key;
   e_printf("### PC2Addr: Found node %i->%i", pc, key);
@@ -682,7 +682,9 @@ unsigned long PC2Addr(unsigned int pc)
     }
     AP++;
   }
+err:
   error("CPU-EMU: addr not found for %i\n", pc);
+  leavedos(99);
   return 0;
 }
 

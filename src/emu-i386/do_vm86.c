@@ -317,11 +317,11 @@ static int true_vm86(struct vm86_struct *x)
 
 static int do_vm86(struct vm86_struct *x)
 {
-    if (config.cpuemu < 0)
+    if (config.cpu_vm == CPUVM_KVM)
 	return kvm_vm86();
 #ifdef __i386__
 #ifdef X86_EMULATOR
-    if (config.cpuemu)
+    if (config.cpu_vm == CPUVM_EMU)
 	return e_vm86();
 #endif
     return true_vm86(x);
@@ -564,9 +564,11 @@ void do_int_call_back(int intno)
 static void vm86plus_init(void)
 {
 #ifdef X86_EMULATOR
-    if (config.cpuemu >= 3)
+    if (config.cpu_vm == CPUVM_EMU && config.cpuemu >= 3)
 	return;
 #endif
+    if (config.cpu_vm == CPUVM_KVM)
+	return;
 #ifdef __i386__
 //    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
     if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) == -1 &&
@@ -578,7 +580,8 @@ static void vm86plus_init(void)
     error("vm86 service not available in your kernel, %s\n", strerror(errno));
     error("using CPU emulation for vm86()\n");
 #endif
-    if (config.cpuemu < 3) {
+    if (config.cpu_vm == CPUVM_VM86 && config.cpuemu < 3) {
+	config.cpu_vm = CPUVM_EMU;
 	config.cpuemu = 3;
 	init_emu_cpu();
     }

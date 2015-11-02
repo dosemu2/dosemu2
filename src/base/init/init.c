@@ -248,9 +248,6 @@ void device_init(void)
 void low_mem_init(void)
 {
   void *lowmem, *result;
-#ifdef __i386__
-  PRIV_SAVE_AREA
-#endif
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -261,11 +258,8 @@ void low_mem_init(void)
   }
 
 #ifdef __i386__
-  /* we may need root to mmap address 0 */
-  enter_priv_on();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  leave_priv_setting();
 
   if (result == MAP_FAILED && (errno == EPERM || errno == EACCES)) {
 #ifndef X86_EMULATOR
@@ -279,9 +273,10 @@ void low_mem_init(void)
 	      );
     exit(EXIT_FAILURE);
 #else
-    if (config.cpuemu == 0)
+    if (config.cpu_vm == CPUVM_VM86)
     {
       /* switch on vm86-only JIT CPU emulation to with non-zero base */
+      config.cpu_vm = CPUVM_EMU;
       config.cpuemu = 3;
       init_emu_cpu();
       c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
@@ -305,12 +300,6 @@ void low_mem_init(void)
 #endif
   result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
 			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  if (config.cpuemu == 0) {
-    /* switch on vm86-only JIT CPU emulation to with non-zero base */
-    config.cpuemu = 3;
-    init_emu_cpu();
-    c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
-  }
 #endif
 
   if (result == MAP_FAILED) {

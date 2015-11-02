@@ -63,6 +63,7 @@ typedef struct segment_descriptor_s
     unsigned int	is_big:1;	/* Granularity */
     unsigned int	not_present:1;
     unsigned int	useable:1;
+    unsigned int	cstd:1;		/* from Convert Seg to Desc */
     unsigned int	used;		/* Segment in use by client # */
 					/* or Linux/GLibc (0xfe) */
 					/* or DOSEMU (0xff) */
@@ -163,7 +164,6 @@ int dpmi_fault(struct sigcontext *);
 #endif
 void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
-void run_pm_dos_int(int);
 void fake_pm_int(void);
 
 #ifdef __linux__
@@ -205,9 +205,6 @@ extern void dpmi_sigio(struct sigcontext *scp);
 extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
-extern int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit);
-extern int ConvertSegmentToCodeDescriptor(unsigned short segment);
-extern int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned long limit);
 extern int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
 extern int SetSegmentLimit(unsigned short, unsigned int);

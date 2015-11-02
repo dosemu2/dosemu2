@@ -542,7 +542,13 @@ void dir_setup(struct disk *dp)
   pi->end_sec = dp->sectors;
   pi->end_cyl = dp->tracks - 1;
   pi->pre_secs = dp->sectors;
-  pi->num_secs = (dp->tracks * dp->heads - 1) * dp->sectors;
+  pi->num_secs = dp->tracks * dp->heads * dp->sectors - dp->start;
+  if (pi->num_secs <= 4078*8)
+    pi->type = 0x01;
+  else if (pi->num_secs < (1 << 16))
+    pi->type = 0x04;
+  else
+    pi->type = 0x06;
 
   if (dp->floppy) {
     dp->header = 0;
@@ -568,7 +574,7 @@ void dir_setup(struct disk *dp)
     mbr[PART_INFO_START + 0x01] = pi->beg_head;
     mbr[PART_INFO_START + 0x02] = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);
     mbr[PART_INFO_START + 0x03] = pi->beg_cyl;
-    mbr[PART_INFO_START + 0x04] = pi->num_secs < 1 << 16 ? 0x04 : 0x06;
+    mbr[PART_INFO_START + 0x04] = pi->type;
     mbr[PART_INFO_START + 0x05] = pi->end_head;
     mbr[PART_INFO_START + 0x06] = pi->end_sec + ((pi->end_cyl & 0x300) >> 2);
     mbr[PART_INFO_START + 0x07] = pi->end_cyl;

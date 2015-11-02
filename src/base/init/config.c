@@ -304,7 +304,6 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("pcm_hpf %i\nmidi_file %s\nwav_file %s\n",
 	config.pcm_hpf, config.midi_file, config.wav_file);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
-    (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
         config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
 
@@ -547,6 +546,15 @@ static void read_cpu_info(void)
 
 static void config_post_process(void)
 {
+    if (config.cpu_vm == -1) {
+#ifdef __x86_64__
+      config.cpu_vm = CPUVM_EMU;	// for now
+#else
+      config.cpu_vm = config.cpuemu ? CPUVM_EMU : CPUVM_VM86;
+#endif
+    }
+    if (config.cpu_vm != CPUVM_EMU)
+      config.cpuemu = 0;
     config.realcpu = CPU_386;
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
 	read_cpu_info();

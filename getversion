@@ -1,10 +1,19 @@
 #!/bin/sh
+
 if test -d .git; then
   # need -n 1 for merge commits
   DATE=`git log HEAD^..HEAD -n 1 --format=%cd --date=short`
+  REV=`git rev-list HEAD ^dosemu-1.5.0 --count`
 else
   DATE=`date -r VERSION +%F`
+  REV=`tail -n 1 VERSION`
 fi
+
+if test "$1" = "-r"; then
+  echo "$REV"
+  exit 0
+fi
+
 if test "$1" = "-d"; then
   echo "$DATE"
 else
@@ -12,15 +21,16 @@ else
     DATE=`echo "$DATE" | sed -e 's/-//g'`
     s=`git describe --tags --match "dosemu2-[0-9]*" HEAD 2>/dev/null | sed -e 's/^dosemu2-//' -e "s/-.\+-/-$DATE-/"`
   fi
-  v1=`cat VERSION`
+  v1=`head -n 1 VERSION`
   if test -z "$s"; then
     s=$v1
   else
     v=`echo $s | cut -d - -f 1`
   fi
   if [ -n "$v" -a "$v" != "$v1" ]; then
-    echo "Update VERSION $v1 -> $v"
+    echo "Update VERSION $v1 -> $v" >&2
     echo $v > VERSION
+    echo "$REV" >> VERSION
   fi
   echo $s
 fi

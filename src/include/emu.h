@@ -169,13 +169,14 @@ typedef struct vesamode_type_struct {
 } vesamode_type;
 
 
-     typedef struct config_info {
+typedef struct config_info {
        int hdiskboot;
 
 #ifdef X86_EMULATOR
        int cpuemu;
        boolean cpusim;
 #endif
+       int cpu_vm;
        int CPUSpeedInMhz;
        /* for video */
        int console_video;
@@ -346,15 +347,11 @@ typedef struct vesamode_type_struct {
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
        int cli_timeout;		/* cli timeout hack */
-       int pic_watchdog;        /* pic watchdog reschedule hack */
-     }
-
-config_t;
+} config_t;
 
 
-#define SPKR_OFF	0
-#define SPKR_NATIVE	1
-#define SPKR_EMULATED	2
+enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };
+enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU };
 
 /*
  * Right now, dosemu only supports two serial ports.

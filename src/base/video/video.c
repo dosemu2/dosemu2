@@ -238,6 +238,12 @@ static int video_init(void)
 #endif
   }
 
+  if (!Video) {
+    error("Unable to initialize video subsystem\n");
+    leavedos(32);
+    return -1;
+  }
+
   if (Video->priv_init)
       Video->priv_init();          /* call the specific init routine */
   return 0;

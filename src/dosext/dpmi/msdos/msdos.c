@@ -36,6 +36,7 @@
 #include "emm.h"
 #include "msdoshlp.h"
 #include "msdos_ldt.h"
+#include "msdos_priv.h"
 #include "msdos.h"
 
 #ifdef SUPPORT_DOSEMU_HELPERS
@@ -71,6 +72,12 @@ static unsigned short EMM_SEG;
 
 enum { RMCB_IO, RMCB_MS, RMCB_PS2MS, MAX_RMCBS };
 #define MSDOS_MAX_MEM_ALLOCS 1024
+#define MAX_CNVS 16
+struct seg_sel {
+    unsigned short seg;
+    unsigned short sel;
+    unsigned int lim;
+};
 struct msdos_struct {
   int is_32;
   struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
@@ -85,6 +92,7 @@ struct msdos_struct {
   int rmcb_alloced;
   u_short ldt_alias;
   u_short ldt_alias_winos2;
+  struct seg_sel seg_sel_map[MAX_CNVS];
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num = 0;
@@ -208,6 +216,40 @@ void msdos_done(void)
 int msdos_get_lowmem_size(void)
 {
     return DTA_Para_SIZE + EXEC_Para_SIZE;
+}
+
+unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
+    unsigned int limit)
+{
+    unsigned short sel;
+    int i;
+    struct seg_sel *m = NULL;
+
+    D_printf("MSDOS: convert seg %#x to desc, lim=%#x\n", segment, limit);
+    for (i = 0; i < MAX_CNVS; i++) {
+	m = &MSDOS_CLIENT.seg_sel_map[i];
+	if (!m->sel)
+	    break;
+	if (m->seg == segment && m->lim == limit) {
+	    D_printf("MSDOS: found descriptor %#x\n", m->sel);
+	    return m->sel;
+	}
+    }
+    if (i == MAX_CNVS) {
+	error("segsel map overflow\n");
+	return 0;
+    }
+    D_printf("MSDOS: SEL for segment %#x not found, allocate at %i\n",
+	    segment, i);
+    sel = AllocateDescriptors(1);
+    if (!sel)
+	return 0;
+    SetSegmentBaseAddress(sel, segment << 4);
+    SetSegmentLimit(sel, limit);
+    m->seg = segment;
+    m->lim = limit;
+    m->sel = sel;
+    return sel;
 }
 
 static unsigned int msdos_malloc(unsigned long size)

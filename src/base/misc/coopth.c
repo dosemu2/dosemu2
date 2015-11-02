@@ -857,6 +857,7 @@ void coopth_sched(void)
     /* the check below means that we switch to DOS code, not dosemu code */
     assert(get_scheduled() != coopth_get_tid());
     switch_state(COOPTH_SCHED);
+    check_cancel();
 }
 
 void coopth_wait(void)

@@ -414,6 +414,8 @@ vm86			RETURN(VM86);
 full			RETURN(FULL);
 vm86sim			RETURN(VM86SIM);
 fullsim			RETURN(FULLSIM);
+
+cpu_vm			RETURN(CPU_VM);
 kvm			RETURN(KVM);
 
 	/* disk keywords */
@@ -687,7 +689,6 @@ target			RETURN(TARGET);
 
 	/* hacks */
 cli_timeout		RETURN(CLI_TIMEOUT);
-pic_watchdog		RETURN(PIC_WATCHDOG);
 timemode		RETURN(TIMEMODE);
 
 	/* strings */
