@@ -71,7 +71,6 @@ static void mhp_go      (int, char *[]);
 static void mhp_stop    (int, char *[]);
 static void mhp_trace   (int, char *[]);
 static void mhp_tracec  (int, char *[]);
-static void mhp_trace_force (int, char *[]);
 static void mhp_regs32  (int, char *[]);
 static void mhp_bp      (int, char *[]);
 static void mhp_bc      (int, char *[]);
@@ -135,7 +134,6 @@ static const struct cmd_db cmdtab[] = {
    {"t",             mhp_trace},
    {"ti",            mhp_trace},
    {"tc",            mhp_tracec},
-   {"tf",            mhp_trace_force},
    {"r32",           mhp_regs32},
    {"bp",            mhp_bp},
    {"bc",            mhp_bc},
@@ -178,7 +176,6 @@ static const char help_page[]=
   "t                      single step (not fully debugged!!!)\n"
   "ti                     single step until IP changes\n"
   "tc                     single step, loop forever until key pressed\n"
-  "tf                     single step, force over IRET\n"
   "r32                    dump regs in 32 bit format\n"
   "bp addr                set int3 style breakpoint\n"
   "bc n                   clear breakpoint #n (as listed by bl)\n"
@@ -540,7 +537,6 @@ static void mhp_go(int argc, char * argv[])
    } else {
       dpmi_mhp_setTF(0);
       clear_TF();
-      mhpdbg.TFpendig = 0;
       mhpdbgc.stopped = 0;
       pic_sti();
    }
@@ -592,24 +588,6 @@ static void mhp_tracec(int argc, char * argv[])
      mhp_trace (argc, argv);
      traceloop=1;
      strcpy(loopbuf,"t");
-   }
-}
-
-static void mhp_trace_force(int argc, char * argv[])
-{
-   if (!mhpdbgc.stopped) {
-      mhp_printf("must be in stopped state\n");
-   } else {
-      mhpdbgc.stopped = 0;
-      if (in_dpmi) {
-        dpmi_mhp_setTF(1);
-      }
-      set_TF();
-      mhpdbg.TFpendig = 1;
-      mhpdbgc.trapcmd = 1;
-      mhpdbgc.trapip = mhp_getcsip_value();
-      /* disable PIC: we want to trace the program, not the HW int handlers */
-      pic_cli();
    }
 }
 

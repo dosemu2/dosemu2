@@ -1630,9 +1630,6 @@ stack_return_from_vm86:
 			    }
 			    else {
 				/* virtual-8086 monitor */
-				if (mhpdbg.active && mhpdbg.TFpendig) {
-				    temp |= TF;
-				}
 				/* move TSSMASK from pop{e}flags to V{E}FLAGS */
 				eVEFLAGS = (eVEFLAGS & ~eTSSMASK) | (temp & eTSSMASK);
 				/* move 0xdd5 from pop{e}flags to regs->eflags */

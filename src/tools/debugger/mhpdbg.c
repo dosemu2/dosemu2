@@ -140,7 +140,6 @@ static void mhp_init(void)
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
 
-  mhpdbg.TFpendig = 0;
   memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
   memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
 
@@ -268,9 +267,6 @@ static void mhp_poll_loop(void)
 
 static void mhp_pre_vm86(void)
 {
-    if (mhpdbg.TFpendig)
-	set_TF();
-
     if (isset_TF() && mhpdbgc.trapip != mhp_getcsip_value()) {
 	mhpdbgc.trapcmd = 0;
 	mhpdbgc.stopped = 1;
@@ -438,7 +434,6 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	    else {
 	      if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload ) {
 	        mhpdbgc.stopped = 1;
-		mhpdbg.TFpendig = 1;
 	        mhp_poll();
 	      }
 	    }

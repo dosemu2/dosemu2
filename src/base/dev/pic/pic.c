@@ -554,7 +554,6 @@ void run_irqs(void)
        int local_pic_ilevel, ret;
 
        /* don't allow HW interrupts in force trace mode */
-       if (mhpdbg.active && mhpdbg.TFpendig) return;
        pic_activate();
        if (!isset_IF()) {
 		if (pic_pending())

@@ -68,7 +68,6 @@ struct mhpdbg
    int flags;
    int fdin,fdout;
 
-   unsigned int TFpendig:1;
    unsigned char intxxtab[32];
 };
 
