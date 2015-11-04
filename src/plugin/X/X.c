@@ -2056,7 +2056,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   sh.flags = PSize  | PMinSize | PMaxSize | PBaseSize;
   if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
   if (use_bitmap_font) {
-#if 1
+#if 0
     /* mutter-3.14 has a bug: it calculates aspect-based size constraints
      * for the entire window with decorators instead of for client area.
      * https://bugzilla.gnome.org/show_bug.cgi?id=739573
