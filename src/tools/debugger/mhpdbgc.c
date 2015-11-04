@@ -538,7 +538,6 @@ static void mhp_go(int argc, char * argv[])
       dpmi_mhp_setTF(0);
       clear_TF();
       mhpdbgc.stopped = 0;
-      pic_sti();
    }
 }
 

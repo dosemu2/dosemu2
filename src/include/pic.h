@@ -100,8 +100,6 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pic_iflag)
-void pic_sti(void);
-void pic_cli(void);
 
 int CAN_SLEEP(void);
 

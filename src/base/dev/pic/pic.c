@@ -833,18 +833,6 @@ void pic_sched(int ilevel, int interval)
   }
 }
 
-void pic_sti(void)
-{
-  pic_iflag = 0;
-  pic_set_mask;
-}
-
-void pic_cli(void)
-{
-  pic_iflag = pic_irqall;
-  pic_set_mask;
-}
-
 int CAN_SLEEP(void)
 {
   return (!(pic_isr || (REG(eflags) & VIP) || signal_pending() ||
