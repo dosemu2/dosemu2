@@ -108,6 +108,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 SEGDESC Segments[MAX_SELECTORS];
 int in_dpmi;/* Set to 1 when running under DPMI */
 int in_dpmi_dos_int = 1;
+static int in_dpmi_irq;
 int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 int is_cli;
@@ -2939,6 +2940,7 @@ void run_pm_int(int i)
   _eflags &= ~(TF | NT | AC);
   in_dpmi_dos_int = 0;
   clear_IF();
+  in_dpmi_irq++;
 #ifdef USE_MHPDBG
   mhp_debug(DBG_INTx + (i << 8), 0, 0);
 #endif
@@ -3327,6 +3329,8 @@ void dpmi_init(void)
     SETIVEC(0x1c, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int1c));
     SETIVEC(0x23, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int23));
     SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
+
+    in_dpmi_irq = 0;
   }
 
   for (i = 0; i < RSP_num; i++) {
@@ -3832,7 +3836,7 @@ int dpmi_fault(struct sigcontext *scp)
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	  leave_lpms(scp);
-          D_printf("DPMI: Return from protected mode interrupt handler, "
+          D_printf("DPMI: Return from hardware interrupt handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 	  if (DPMI_CLIENT.is_32) {
 	    unsigned int *ssp = sp;
@@ -3850,6 +3854,7 @@ int dpmi_fault(struct sigcontext *scp)
 	    in_dpmi_dos_int = *ssp++;
 	    _HWORD(esp) = *ssp++;
 	  }
+	  in_dpmi_irq--;
 	  set_IF();
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
@@ -4066,11 +4071,10 @@ int dpmi_fault(struct sigcontext *scp)
        * The previous work-around was in a great bunch of hacks in PIC,
        * requiring dpmi to call pic_iret_dpmi() for re-enabling interrupts.
        * The alternative is very simple: we can just ignore sti when needed. */
-      if (!DPMI_CLIENT.in_dpmi_pm_stack)
+      if (!in_dpmi_irq)
         set_IF();
       else
-        D_printf("DPMI: Ignoring sti, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
+        D_printf("DPMI: Ignoring sti, in_dpmi_irq=%i\n", in_dpmi_irq);
       break;
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
