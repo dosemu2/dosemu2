@@ -347,14 +347,26 @@ static void sb_activate_irq(int type)
 
 static void sb_deactivate_irq(int type)
 {
+    uint32_t act_map;
+
     S_printf("SB: Deactivating irq type %d\n", type);
+    if (!(sb.mixer_regs[0x82] & type)) {
+	S_printf("SB: Warning: Interrupt not active!\n");
+	return;
+    }
     sb.mixer_regs[0x82] &= ~type;
+    /* if dsp and mpu irqs are the same, untrigger only when
+     * both are inactive */
+    act_map = ((!!(sb.mixer_regs[0x82] & SB_IRQ_DSP)) <<
+	    sb_get_dsp_irq_num()) ||
+	    ((!!(sb.mixer_regs[0x82] & SB_IRQ_MPU401)) <<
+	    CONFIG_MPU401_IRQ);
     if (type & SB_IRQ_DSP) {
-	if (!(sb.mixer_regs[0x82] & SB_IRQ_DSP))
+	if (!(act_map & (1 << sb_get_dsp_irq_num())))
 	    pic_untrigger(pic_irq_list[sb_get_dsp_irq_num()]);
     }
     if (type & SB_IRQ_MPU401) {
-	if (!(sb.mixer_regs[0x82] & SB_IRQ_MPU401))
+	if (!(act_map & (1 << CONFIG_MPU401_IRQ)))
 	    pic_untrigger(pic_irq_list[CONFIG_MPU401_IRQ]);
     }
 }
