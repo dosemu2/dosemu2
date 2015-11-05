@@ -139,9 +139,9 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
-extern volatile int in_dpmi;/* Set to 1 when running under DPMI */
-extern volatile int in_dpmi_dos_int;
-extern volatile int dpmi_mhp_TF;
+extern int in_dpmi;/* Set to 1 when running under DPMI */
+extern int in_dpmi_dos_int;
+extern int dpmi_mhp_TF;
 extern unsigned char dpmi_mhp_intxxtab[256];
 extern int is_cli;
 
