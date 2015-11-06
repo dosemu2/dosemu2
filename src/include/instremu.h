@@ -1,7 +1,7 @@
 #ifndef INSTREMU_H
 #define INSTREMU_H
 
-unsigned instr_len(unsigned char *, int);
+int instr_len(unsigned char *, int);
 int instr_emu(struct sigcontext *scp, int pmode, int cnt);
 int decode_modify_segreg_insn(struct sigcontext *scp, int pmode,
     unsigned int *new_val);

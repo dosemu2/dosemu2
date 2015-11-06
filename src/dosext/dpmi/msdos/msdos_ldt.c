@@ -151,7 +151,7 @@ static int decode_memop(struct sigcontext *scp, uint32_t *op)
     }
     csp = (unsigned char *)MEM_BASE32(cs + eip);
     orig_csp = (unsigned char *)MEM_BASE32(cs + _eip);
-    inst_len = x86_instr_len(orig_csp, x86._32bit);
+    inst_len = instr_len(orig_csp, x86._32bit);
     loop_inc = (_eflags & DF) ? -1 : 1;
     if (x86.es)
 	seg_base = GetSegmentBase(_es);

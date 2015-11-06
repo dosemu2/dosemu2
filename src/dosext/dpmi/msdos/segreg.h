@@ -13,7 +13,6 @@ typedef struct x86_ins {
 
 int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
 	x86_ins *x86);
-int x86_instr_len(unsigned char *p, int is_32);
 uint32_t x86_pop(struct sigcontext *scp, x86_ins *x86);
 
 #endif

@@ -236,7 +236,7 @@ static void dump_x86_regs(x86_regs *x86)
  *
  */
 
-unsigned instr_len(unsigned char *p, int is_32)
+int instr_len(unsigned char *p, int is_32)
 {
   unsigned u, osp, asp;
   unsigned char *p0 = p;
