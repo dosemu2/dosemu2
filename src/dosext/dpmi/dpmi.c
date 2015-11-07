@@ -2890,6 +2890,7 @@ void run_pm_int(int i)
   void *sp;
   unsigned short old_ss;
   unsigned int old_esp;
+  unsigned char imr, isr;
   struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
@@ -2907,10 +2908,12 @@ void run_pm_int(int i)
   old_ss = _ss;
   old_esp = _esp;
   sp = enter_lpms(&DPMI_CLIENT.stack_frame);
+  imr = port_inb(0x21);
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
+    *--ssp = imr;
     *--ssp = 0;	/* reserved */
     *--ssp = in_dpmi_dos_int;
     *--ssp = old_ss;
@@ -2920,9 +2923,10 @@ void run_pm_int(int i)
     *--ssp = get_vFLAGS(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    _esp -= 36;
+    _esp -= 40;
   } else {
     unsigned short *ssp = sp;
+    *--ssp = imr;
     /* store the high word of ESP, because CPU corrupts it */
     *--ssp = HI_WORD(old_esp);
     *--ssp = in_dpmi_dos_int;
@@ -2933,7 +2937,7 @@ void run_pm_int(int i)
     *--ssp = (unsigned short) get_vFLAGS(_eflags);
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
-    LO_WORD(_esp) -= 18;
+    LO_WORD(_esp) -= 20;
   }
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -2941,6 +2945,20 @@ void run_pm_int(int i)
   in_dpmi_dos_int = 0;
   clear_IF();
   in_dpmi_irq++;
+
+  /* this is a protection for careless clients that do sti
+   * in the inthandlers. There are plenty of those, unfortunately:
+   * try playing Transport Tycoon without this hack.
+   * The previous work-around was in a great bunch of hacks in PIC,
+   * requiring dpmi to call pic_iret_dpmi() for re-enabling interrupts.
+   * The alternative is to ignore STI while in a sighandler. There
+   * are two problems with that:
+   * - STI can be done also by the chained real-mode handler
+   * - We need to allow processing the different IRQ levels for performance
+   * So simply mask the currently processing IRQ on PIC. */
+  port_outb(0x20, 0xb);
+  isr = port_inb(0x20);
+  port_outb(0x21, imr | isr);
 #ifdef USE_MHPDBG
   mhp_debug(DBG_INTx + (i << 8), 0, 0);
 #endif
@@ -3835,6 +3853,7 @@ int dpmi_fault(struct sigcontext *scp)
           _eflags |= CF;
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_pm)) {
+	  unsigned char imr;
 	  leave_lpms(scp);
           D_printf("DPMI: Return from hardware interrupt handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
@@ -3845,6 +3864,8 @@ int dpmi_fault(struct sigcontext *scp)
 	    _esp = *ssp++;
 	    _ss = *ssp++;
 	    in_dpmi_dos_int = *ssp++;
+	    ssp++;
+	    imr = *ssp++;
 	  } else {
 	    unsigned short *ssp = sp;
 	    _LWORD(eip) = *ssp++;
@@ -3853,8 +3874,10 @@ int dpmi_fault(struct sigcontext *scp)
 	    _ss = *ssp++;
 	    in_dpmi_dos_int = *ssp++;
 	    _HWORD(esp) = *ssp++;
+	    imr = *ssp++;
 	  }
 	  in_dpmi_irq--;
+	  port_outb(0x21, imr);
 	  set_IF();
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_exception)) {
@@ -4066,15 +4089,7 @@ int dpmi_fault(struct sigcontext *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: sti\n");
       _eip += 1;
-      /* this is a protection for careless clients that do sti
-       * in the inthandlers. There are plenty of those, unfortunately.
-       * The previous work-around was in a great bunch of hacks in PIC,
-       * requiring dpmi to call pic_iret_dpmi() for re-enabling interrupts.
-       * The alternative is very simple: we can just ignore sti when needed. */
-      if (!in_dpmi_irq)
-        set_IF();
-      else
-        D_printf("DPMI: Ignoring sti, in_dpmi_irq=%i\n", in_dpmi_irq);
+      set_IF();
       break;
     case 0x6c:                    /* [rep] insb */
       if (debug_level('M')>=9)
