@@ -358,7 +358,7 @@ static void sb_deactivate_irq(int type)
     /* if dsp and mpu irqs are the same, untrigger only when
      * both are inactive */
     act_map = ((!!(sb.mixer_regs[0x82] & SB_IRQ_DSP)) <<
-	    sb_get_dsp_irq_num()) ||
+	    sb_get_dsp_irq_num()) |
 	    ((!!(sb.mixer_regs[0x82] & SB_IRQ_MPU401)) <<
 	    CONFIG_MPU401_IRQ);
     if (type & SB_IRQ_DSP) {
