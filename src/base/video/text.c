@@ -851,6 +851,7 @@ void extend_selection(int col, int row)
   sel_end_row = row;
   X_printf("X:extend selection , start %d %d, end %d %d\n",
 	   sel_start_col,sel_start_row,sel_end_col,sel_end_row);
+  calculate_selection();	// make selection visible
 }
 
 
