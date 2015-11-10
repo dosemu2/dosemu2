@@ -26,6 +26,7 @@
 #include "bitops.h"
 #include "emu.h"
 #include "cpu.h"
+#include "int.h"
 #include "bios.h"
 #include "coopth.h"
 #include "dpmi.h"
@@ -267,10 +268,18 @@ static void mhp_poll_loop(void)
 
 static void mhp_pre_vm86(void)
 {
-    if (isset_TF() && mhpdbgc.trapip != mhp_getcsip_value()) {
-	mhpdbgc.trapcmd = 0;
-	mhpdbgc.stopped = 1;
-	mhp_poll();
+    if (isset_TF()) {
+	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
+	if (csp[0] == 0xcd) {
+	    LWORD(eip) += 2;
+	    do_int(csp[1]);
+	    set_TF();
+	}
+	if (mhpdbgc.trapip != mhp_getcsip_value()) {
+	    mhpdbgc.trapcmd = 0;
+	    mhpdbgc.stopped = 1;
+	    mhp_poll();
+	}
     }
 }
 
