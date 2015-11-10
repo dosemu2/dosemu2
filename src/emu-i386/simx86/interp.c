@@ -303,6 +303,12 @@ static unsigned int FindExecCode(unsigned int PC)
 	int mode = TheCPU.mode;
 	TNode *G;
 
+	if (CurrIMeta > 0) {		// open code?
+		if (debug_level('e') > 2)
+			e_printf("============ Closing open sequence at %08x\n",PC);
+		PC = CloseAndExec(PC, mode, __LINE__);
+		if (TheCPU.err) return PC;
+	}
 	/* for a sequence to be found, it must begin with
 	 * an allowable opcode. Look into table.
 	 * NOTE - this while can loop forever and stop
@@ -313,12 +319,6 @@ static unsigned int FindExecCode(unsigned int PC)
 	       ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC))) {
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
-		if (CurrIMeta>0) {		// open code?
-			if (debug_level('e')>2)
-				e_printf("============ Closing open sequence at %08x\n",PC);
-			PC = CloseAndExec(PC, mode, __LINE__);
-			if (TheCPU.err) return PC;
-		}
 		/* ---- this is the MAIN EXECUTE point ---- */
 		NodesExecd++;
 #ifdef PROFILE
