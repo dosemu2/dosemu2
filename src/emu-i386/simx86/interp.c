@@ -298,7 +298,7 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 /////////////////////////////////////////////////////////////////////////////
 
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
-static inline unsigned int FindExecCode(unsigned int PC)
+static unsigned int FindExecCode(unsigned int PC)
 {
 	int mode = TheCPU.mode;
 	TNode *G;
@@ -331,7 +331,7 @@ static inline unsigned int FindExecCode(unsigned int PC)
 }
 #endif
 
-static inline void HandleEmuSignals(void)
+static void HandleEmuSignals(void)
 {
 #ifdef PROFILE
 	if (debug_level('e')) EmuSignals++;
@@ -1782,7 +1782,7 @@ repag0:
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
 				int rc = 0;
-				(void)NewIMeta(P0, repmod, &rc);
+				NewIMeta(P0, repmod, &rc);
 				CODE_FLUSH();
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
