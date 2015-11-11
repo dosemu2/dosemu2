@@ -41,6 +41,7 @@
 #include "adlib.h"
 #include "sb16.h"
 #include <string.h>
+#include <math.h>
 
 #define CONFIG_MPU401_IRQ config.mpu401_irq
 static int sb_irq_tab[] = { 2, 5, 7, 10 };
@@ -1123,20 +1124,26 @@ static Bit8u sb_mixer_read(void)
     return val;
 }
 
+#define LOG_SCALE 0.02
+
 static double vol5h(int reg)
 {
-    /* not right of course */
-    return ((sb.mixer_regs[reg] >> 3) / 31.0);
+    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] >> 3) * 2 - 62));
 }
 
 static double vol2h(int reg)
 {
-    return ((sb.mixer_regs[reg] >> 6) / 3.0);
+    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] >> 6) * 6 - 18));
 }
 
 static double vol3l(int reg)
 {
-    return ((sb.mixer_regs[reg] & 7) / 7.0);
+    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] & 7) * 6 - 42));
+}
+
+static double gain2h(int reg)
+{
+    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] >> 6) * 6));
 }
 
 #define ENAB(r, b) \
@@ -1146,25 +1153,25 @@ static double vol3l(int reg)
 enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol)
 {
-    double vol;
+    double vol = 1;
     switch (ch) {
     case MC_MIDI:
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3d, 6);
-	    vol = vol5h(0x34);
+	    vol *= vol5h(0x34);
 	    break;
 	case MSC_R:
 	    ENAB(0x3e, 5);
-	    vol = vol5h(0x35);
+	    vol *= vol5h(0x35);
 	    break;
 	case MSC_LR:
 	    ENAB(0x3e, 6);
-	    vol = vol5h(0x34);
+	    vol *= vol5h(0x34);
 	    break;
 	case MSC_RL:
 	    ENAB(0x3d, 5);
-	    vol = vol5h(0x35);
+	    vol *= vol5h(0x35);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1174,19 +1181,19 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3d, 2);
-	    vol = vol5h(0x36);
+	    vol *= vol5h(0x36);
 	    break;
 	case MSC_R:
 	    ENAB(0x3e, 1);
-	    vol = vol5h(0x37);
+	    vol *= vol5h(0x37);
 	    break;
 	case MSC_LR:
 	    ENAB(0x3e, 2);
-	    vol = vol5h(0x36);
+	    vol *= vol5h(0x36);
 	    break;
 	case MSC_RL:
 	    ENAB(0x3d, 1);
-	    vol = vol5h(0x37);
+	    vol *= vol5h(0x37);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1196,19 +1203,19 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3d, 4);
-	    vol = vol5h(0x38);
+	    vol *= vol5h(0x38);
 	    break;
 	case MSC_R:
 	    ENAB(0x3e, 3);
-	    vol = vol5h(0x39);
+	    vol *= vol5h(0x39);
 	    break;
 	case MSC_LR:
 	    ENAB(0x3e, 4);
-	    vol = vol5h(0x38);
+	    vol *= vol5h(0x38);
 	    break;
 	case MSC_RL:
 	    ENAB(0x3d, 3);
-	    vol = vol5h(0x39);
+	    vol *= vol5h(0x39);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1218,11 +1225,11 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_MONO_L:
 	    ENAB(0x3d, 0);
-	    vol = vol3l(0x3a);
+	    vol *= vol3l(0x3a);
 	    break;
 	case MSC_MONO_R:
 	    ENAB(0x3e, 0);
-	    vol = vol3l(0x3a);
+	    vol *= vol3l(0x3a);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1236,12 +1243,12 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
     case MSC_L:
     case MSC_RL:
     case MSC_MONO_L:
-	vol *= (sb.mixer_regs[0x3f] >> 6) + 1;
+	vol *= gain2h(0x3f);
 	break;
     case MSC_R:
     case MSC_LR:
     case MSC_MONO_R:
-	vol *= (sb.mixer_regs[0x40] >> 6) + 1;
+	vol *= gain2h(0x40);
 	break;
     }
 
@@ -1252,15 +1259,15 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol)
 {
-    double vol;
+    double vol = 1;
     switch (ch) {
     case MC_MIDI:
 	switch (sc) {
 	case MSC_L:
-	    vol = vol5h(0x34);
+	    vol *= vol5h(0x34);
 	    break;
 	case MSC_R:
-	    vol = vol5h(0x35);
+	    vol *= vol5h(0x35);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1270,11 +1277,11 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3c, 2);
-	    vol = vol5h(0x36);
+	    vol *= vol5h(0x36);
 	    break;
 	case MSC_R:
 	    ENAB(0x3c, 1);
-	    vol = vol5h(0x37);
+	    vol *= vol5h(0x37);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1284,11 +1291,11 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3c, 4);
-	    vol = vol5h(0x38);
+	    vol *= vol5h(0x38);
 	    break;
 	case MSC_R:
 	    ENAB(0x3c, 3);
-	    vol = vol5h(0x39);
+	    vol *= vol5h(0x39);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1299,7 +1306,7 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	case MSC_MONO_L:
 	case MSC_MONO_R:
 	    ENAB(0x3c, 0);
-	    vol = vol3l(0x3a);
+	    vol *= vol3l(0x3a);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1308,10 +1315,10 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
     case MC_VOICE:
 	switch (sc) {
 	case MSC_L:
-	    vol = vol5h(0x32);
+	    vol *= vol5h(0x32);
 	    break;
 	case MSC_R:
-	    vol = vol5h(0x33);
+	    vol *= vol5h(0x33);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1321,7 +1328,7 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_MONO_L:
 	case MSC_MONO_R:
-	    vol = vol2h(0x3b);
+	    vol *= vol2h(0x3b);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1331,20 +1338,18 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	return MR_UNSUP;
     }
 
-    /* below we handle master and gain. After multiplying by gain, the
-     * volume may exceed 1. Whether it is good or bad, remains to be seen. */
     switch (sc) {
     case MSC_L:
     case MSC_RL:
     case MSC_MONO_L:
 	vol *= vol5h(0x30);		// master
-	vol *= (sb.mixer_regs[0x41] >> 6) + 1;
+	vol *= gain2h(0x41);
 	break;
     case MSC_R:
     case MSC_LR:
     case MSC_MONO_R:
 	vol *= vol5h(0x31);		// master
-	vol *= (sb.mixer_regs[0x42] >> 6) + 1;
+	vol *= gain2h(0x42);
 	break;
     }
 
