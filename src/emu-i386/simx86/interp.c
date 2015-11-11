@@ -325,6 +325,10 @@ static unsigned int FindExecCode(unsigned int PC)
 		TotalNodesExecd++;
 #endif
 		P0 = PC = Exec_x86(G, __LINE__);
+		if (G->seqlen == 0) {
+			error("CPU-EMU: Zero-len code node?\n");
+			break;
+		}
 		if (TheCPU.err) return PC;
 	}
 	return PC;
@@ -1784,6 +1788,8 @@ repag0:
 				int rc = 0;
 				NewIMeta(P0, repmod, &rc);
 				CODE_FLUSH();
+				/* don't cache intermediate nodes */
+				InvalidateNodePage(P0, PC - P0, NULL, NULL);
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;
