@@ -535,6 +535,29 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define NEWMSD_D (MS_D | (1 << 26))
 #define OLDMSD_D (MS_D | (1 << 27))
 
+static char *system_type(unsigned int t) {
+    switch(t) {
+    case MS_D:
+        return "Unknown MS-DOS";
+    case PC_D:
+        return "Unknown PC-DOS";
+    case DR_D:
+        return "DR-DOS";
+/*  case DRO_D:
+	return "Old DR-DOS"; // Duplicate case to PC_D at the moment
+*/
+    case REALPCD_D:
+        return "New PC-DOS (>= v4.0)";
+    case OLDPCD_D:
+        return "Old PC-DOS (< v4.0)";
+    case NEWMSD_D:
+        return "New MS-DOS (>= v4.0)";
+    case OLDMSD_D:
+        return "Old MS-DOS (< v4.0)";
+    }
+
+    return "Unknown System Type";
+}
 
 struct fs_prio sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1, 0 },
@@ -861,7 +884,8 @@ void scan_dir(fatfs_t *f, unsigned oi)
       try_add_fdos(f, oi);
     else
       f->sys_type = sys_type;
-    fatfs_msg("system type is 0x%x\n", f->sys_type);
+    fatfs_msg("system type is \"%s\" (0x%x)\n",
+              system_type(f->sys_type), f->sys_type);
   }
 
   for (i = 0; i < num; i++) {
