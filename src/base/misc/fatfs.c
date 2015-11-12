@@ -860,32 +860,37 @@ void scan_dir(fatfs_t *f, unsigned oi)
     }
 
     if (sys_type == PC_D) {
-	/* see if it is PC-DOS or DR-DOS */
+        /* see if it is PC-DOS or DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
         if (s && stat(s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
-                  buf = malloc(sb.st_size + 1);
-		  size = read(fd, buf, sb.st_size);
-		  if (size > 0) {
-		    buf[size] = 0;
-		    buf_ptr = buf;
-		    while (!strstr(buf_ptr, "IBM DOS") &&
-			    !strstr(buf_ptr, "PC-DOS") &&
-			    buf_ptr < buf + size) {
-		      buf_ptr += strlen(buf_ptr) + 1;
-		    }
-		    if (buf_ptr < buf + size) {
-		      if (strstr(buf_ptr, "IBM DOS"))
-		        sys_type = REALPCD_D;
-		      else
-		        sys_type = OLDPCD_D;
-		    }
-		  }
-                  free(buf);
-                  close(fd);
+                buf = malloc(sb.st_size + 1);
+                size = read(fd, buf, sb.st_size);
+                if (size > 0) {
+                    buf[size] = 0;
+                    buf_ptr = buf;
+                    while (!strstr(buf_ptr, "IBM DOS") &&
+                           !strstr(buf_ptr, "PC-DOS") && buf_ptr < buf + size) {
+                        buf_ptr += strlen(buf_ptr) + 1;
+                    }
+                    if (buf_ptr < buf + size) {
+                        if (strstr(buf_ptr, "IBM DOS"))
+                            sys_type = REALPCD_D;
+                        else
+                            sys_type = OLDPCD_D;
+                    }
+                 }
+                 free(buf);
+                 close(fd);
+            }
+            if ((sys_type == PC_D) && (sb.st_size <= 26*1024)) {
+                sys_type = OLDPCD_D; /* unknown but small enough to be < v4 */
             }
         }
+        if (sys_type == PC_D)
+            sys_type = REALPCD_D;     /* default to v4.x -> v7.x */
     }
+
     if (!sys_done)
       try_add_fdos(f, oi);
     else
