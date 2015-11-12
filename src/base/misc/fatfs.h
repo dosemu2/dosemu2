@@ -43,7 +43,7 @@ typedef struct {
   unsigned serial;
   char label[12];
   unsigned char fat_type;
-  unsigned char fat_id;
+  unsigned char media_id;
   unsigned fat_secs;
   unsigned fats;
   unsigned root_secs;
