@@ -167,7 +167,7 @@ void fatfs_init(struct disk *dp)
     }
     f->cluster_secs = u;
     fatfs_msg("Using FAT16, sectors count=%i & cluster_size=%d\n",
-		    f->total_secs, f->cluster_secs);
+                   f->total_secs, f->cluster_secs);
   }
   f->serial = dp->serial;
   f->secs_track = dp->sectors;
@@ -533,7 +533,8 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 #define REALPCD_D (PC_D | (1 << 24))
 #define OLDPCD_D (PC_D | (1 << 25))
 #define NEWMSD_D (MS_D | (1 << 26))
-#define OLDMSD_D (MS_D | (1 << 27))
+#define MIDMSD_D (MS_D | (1 << 27))
+#define OLDMSD_D (MS_D | (1 << 28))
 
 static char *system_type(unsigned int t) {
     switch(t) {
@@ -544,14 +545,16 @@ static char *system_type(unsigned int t) {
     case DR_D:
         return "DR-DOS";
 /*  case DRO_D:
-	return "Old DR-DOS"; // Duplicate case to PC_D at the moment
+        return "Old DR-DOS"; // Duplicate case to PC_D at the moment
 */
     case REALPCD_D:
         return "New PC-DOS (>= v4.0)";
     case OLDPCD_D:
         return "Old PC-DOS (< v4.0)";
     case NEWMSD_D:
-        return "New MS-DOS (>= v4.0)";
+        return "New MS-DOS (>= v7.0)";
+    case MIDMSD_D:
+        return "Newer MS-DOS (>= v4.0 && < v7.0)";
     case OLDMSD_D:
         return "Old MS-DOS (< v4.0)";
     }
@@ -814,30 +817,33 @@ void scan_dir(fatfs_t *f, unsigned oi)
 	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
             }
     }
+
     if (sys_type == MS_D) {
-	/* see if it is MS-DOS < v4.0 */
         s = full_name(f, oi, dlist[0]->d_name); /* io.sys */
         if (s && stat(s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
                 buf = malloc(sb.st_size + 1);
                 size = read(fd, buf, sb.st_size);
                 if (size > 0) {
-                    buf[size] = 0;
-
-                    for (buf_ptr=buf;buf_ptr < buf + size; buf_ptr++) {
-                        if(strncmp(buf_ptr, "Version ", 8) == 0) {
-                            char *vno = buf_ptr+8;
-                            if(*vno >= '1' && *vno <= '3') {
-                                sys_type = OLDMSD_D;
-                                break;
-			    } else if(*vno >= '4'&& *vno <= '8') {
-                                sys_type = NEWMSD_D;
-                                break;
-                            } else {
-                                char sc[21];
-				strncpy(sc, buf_ptr, sizeof(sc));
-                                sc[sizeof(sc)-1] = '\0';
-	                        fatfs_msg("fatfs: unknown version string \"%s\"\n", sc);
+                    if(buf[0] == 'M' && buf[1] == 'Z') {  /* MS-DOS >= 7 */
+                        sys_type = NEWMSD_D;
+                    } else {           /* see if it has a version string */
+                        buf[size] = 0;
+                        for (buf_ptr=buf;buf_ptr < buf + size; buf_ptr++) {
+                            if(strncmp(buf_ptr, "Version ", 8) == 0) {
+                                char *vno = buf_ptr+8;
+                                if(*vno >= '1' && *vno <= '3') {
+                                    sys_type = OLDMSD_D;
+                                    break;
+                                } else if(*vno >= '4'&& *vno <= '6') {
+                                    sys_type = MIDMSD_D;
+                                    break;
+                                } else {
+                                    char sc[21];
+                                    strncpy(sc, buf_ptr, sizeof(sc));
+                                    sc[sizeof(sc)-1] = '\0';
+                                    fatfs_msg("fatfs: unknown version string \"%s\"\n", sc);
+                                }
                             }
                         }
                     }
@@ -850,36 +856,41 @@ void scan_dir(fatfs_t *f, unsigned oi)
             }
         }
         if (sys_type == MS_D)
-            sys_type = NEWMSD_D;     /* default to new */
+            sys_type = MIDMSD_D;     /* default to v4.x -> v6.x */
     }
 
     if (sys_type == PC_D) {
-	/* see if it is PC-DOS or DR-DOS */
+        /* see if it is PC-DOS or DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
         if (s && stat(s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
-                  buf = malloc(sb.st_size + 1);
-		  size = read(fd, buf, sb.st_size);
-		  if (size > 0) {
-		    buf[size] = 0;
-		    buf_ptr = buf;
-		    while (!strstr(buf_ptr, "IBM DOS") &&
-			    !strstr(buf_ptr, "PC-DOS") &&
-			    buf_ptr < buf + size) {
-		      buf_ptr += strlen(buf_ptr) + 1;
-		    }
-		    if (buf_ptr < buf + size) {
-		      if (strstr(buf_ptr, "IBM DOS"))
-		        sys_type = REALPCD_D;
-		      else
-		        sys_type = OLDPCD_D;
-		    }
-		  }
-                  free(buf);
-                  close(fd);
+                buf = malloc(sb.st_size + 1);
+                size = read(fd, buf, sb.st_size);
+                if (size > 0) {
+                    buf[size] = 0;
+                    buf_ptr = buf;
+                    while (!strstr(buf_ptr, "IBM DOS") &&
+                           !strstr(buf_ptr, "PC-DOS") && buf_ptr < buf + size) {
+                        buf_ptr += strlen(buf_ptr) + 1;
+                    }
+                    if (buf_ptr < buf + size) {
+                        if (strstr(buf_ptr, "IBM DOS"))
+                            sys_type = REALPCD_D;
+                        else
+                            sys_type = OLDPCD_D;
+                    }
+                 }
+                 free(buf);
+                 close(fd);
+            }
+            if ((sys_type == PC_D) && (sb.st_size <= 26*1024)) {
+                sys_type = OLDPCD_D; /* unknown but small enough to be < v4 */
             }
         }
+        if (sys_type == PC_D)
+            sys_type = REALPCD_D;     /* default to v4.x -> v7.x */
     }
+
     if (!sys_done)
       try_add_fdos(f, oi);
     else
@@ -1396,10 +1407,9 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
 "Press any key to return to Linux...\r\n";
   char *msg, *msg1;
 
-  int i, ret;
+  int ret;
   size_t msgsize;
   unsigned r_o, d_o, t_o;
-  unsigned char buf[0x200];
   unsigned char *d0, *d1;
 
   ret = asprintf(&msg, msg_f, f->dir);
@@ -1452,40 +1462,38 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   d0[0x13] = f->drive_num;
   switch(f->sys_type) {
     case NEWMSD_D:
-      i = read_data(f, 0, buf);
-      if(i == 0 && buf[0] == 'M' && buf[1] == 'Z') {
-        /* for IO.SYS, MS-DOS version >= 7 */
-        make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, 4, 0x70, 0);
-        d0[0x12] = 1;		/* 1 entry */
+      /* for IO.SYS, MS-DOS version >= 7 */
+      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, 4, 0x70, 0);
+      d0[0x12] = 1;		/* 1 entry */
 
-        d0[0x01] = 0x02;	/* start ofs */
-        d0[0x02] = 0x70;	/* start seg */
-        d0[0x04] = d_o;		/* ax */
-        d0[0x05] = d_o >> 8;
-        d0[0x0a] = d_o >> 16;	/* dx */
-        d0[0x0b] = d_o >> 24;
-        d0[0x0e] = 0x02;	/* di */
-        d0[0x11] = 0x7c;	/* bp */
+      d0[0x01] = 0x02;	/* start ofs */
+      d0[0x02] = 0x70;	/* start seg */
+      d0[0x04] = d_o;		/* ax */
+      d0[0x05] = d_o >> 8;
+      d0[0x0a] = d_o >> 16;	/* dx */
+      d0[0x0b] = d_o >> 24;
+      d0[0x0e] = 0x02;	/* di */
+      d0[0x11] = 0x7c;	/* bp */
 
-        /*
-         * IO.SYS normally re-uses the boot block's error message. We
-         * could give it a distinct one here (simply have t_o point to it).
-         *
-         * But don't forget, it's not a simple ASCIIZ string!!!
-         *
-         * NOTE: There is a discrepancy between IO.SYS's and the bootblock's
-         * interpretation of this address. IO.SYS expects t_o to be
-         * relative to 0, but the value actually stored is relative to 0x7c00.
-         * (Leading IO.SYS to display no error message.)
-         * I will assume IO.SYS to be correct for now.
-         */
-        b[0x1ee] = t_o;		/* ofs to error msg */
-        b[0x1ef] = t_o >> 8;
-        fatfs_msg("made boot block suitable for MS-DOS, version >= 7\n");
-        break;
-      }
-      /* no break for MS-DOS < 7.0 */
-    case REALPCD_D:		/* MS-DOS, PC-DOS 4.0 -> 6.22 */
+      /*
+       * IO.SYS normally re-uses the boot block's error message. We
+       * could give it a distinct one here (simply have t_o point to it).
+       *
+       * But don't forget, it's not a simple ASCIIZ string!!!
+       *
+       * NOTE: There is a discrepancy between IO.SYS's and the bootblock's
+       * interpretation of this address. IO.SYS expects t_o to be
+       * relative to 0, but the value actually stored is relative to 0x7c00.
+       * (Leading IO.SYS to display no error message.)
+       * I will assume IO.SYS to be correct for now.
+       */
+      b[0x1ee] = t_o;		/* ofs to error msg */
+      b[0x1ef] = t_o >> 8;
+      fatfs_msg("made boot block suitable for MS-DOS, version >= 7\n");
+      break;
+
+    case MIDMSD_D:
+    case REALPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0x50, 0);
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, 4, 0x70, 0);
       d0[0x12] = 2;		/* 2 entries */
@@ -1498,7 +1506,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
       d0[0x09] = f->media_id;	/* ch */
       d0[0x0a] = f->drive_num;	/* dl */
 
-      fatfs_msg("made boot block suitable for MS-DOS & PC-DOS, v4.0 -> v6.22\n");
+      fatfs_msg("made boot block suitable for MS-DOS 4.0 -> 6.22 & PC-DOS v4.0 -> v7.0\n");
       break;
 
     case OLDPCD_D:		/* old MS-DOS & PC-DOS < v4.0 */
