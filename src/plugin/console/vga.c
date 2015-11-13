@@ -330,7 +330,7 @@ static void store_vga_mem(u_char * mem, int banks)
       coopth_set_sleep_handler(sleep_cb, &cpy_sem);
       iflg = isset_IF();
       if (!iflg)
-        _set_IF();
+        set_IF();
       coopth_sleep();
       if (!iflg)
         clear_IF();
@@ -389,7 +389,7 @@ static void restore_vga_mem(u_char * mem, int banks)
       coopth_set_sleep_handler(sleep_cb, &cpy_sem);
       iflg = isset_IF();
       if (!iflg)
-        _set_IF();
+        set_IF();
       coopth_sleep();
       if (!iflg)
         clear_IF();

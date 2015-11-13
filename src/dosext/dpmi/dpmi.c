@@ -4334,6 +4334,9 @@ int dpmi_fault(struct sigcontext *scp)
       return 1;
   }
 
+  if (is_cli && isset_IF())
+    is_cli = 0;
+
   uncache_time();
   hardware_run();
 

@@ -114,7 +114,7 @@ static void kill_time(long usecs) {
 
    t_start = GETusTIME(0);
    while (GETusTIME(0) - t_start < usecs) {
-	_set_IF();
+	set_IF();
 	coopth_wait();
 	clear_IF();
    }
@@ -2144,7 +2144,7 @@ static void ret_from_int(Bit16u i, void *arg)
   _CS = popw(ssp, sp);
   flgs = popw(ssp, sp);
   if (flgs & IF)
-    _set_IF();
+    set_IF();
   else
     clear_IF();
   REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
@@ -2166,7 +2166,7 @@ static void rvc_int_post(int tid)
 {
   u_short flgs = (long)coopth_pop_user_data(tid);
   if (flgs & IF)
-    _set_IF();
+    set_IF();
   else
     clear_IF();
   REG(eflags) |= (flgs & (TF_MASK | NT_MASK));

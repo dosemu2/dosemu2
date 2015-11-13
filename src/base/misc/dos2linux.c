@@ -422,7 +422,7 @@ static void dos2tty_start(void)
     } while (rd > 0);
     pty_done = 0;
     /* must run with interrupts enabled to read keypresses */
-    _set_IF();
+    set_IF();
     pty_thr();
 }
 

@@ -222,7 +222,7 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
   if (prompt) {
     if (dosboot) {
       p_dos_str("%s", text2);
-      _set_IF();
+      set_IF();
       com_biosread(buf, sizeof(buf)-2);
       clear_IF();
     } else {

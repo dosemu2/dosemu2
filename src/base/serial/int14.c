@@ -155,7 +155,7 @@ int int14(void)
         break;
       s_printf("SER%d: INT14 0x1: Wait for xmit, %i\n", num, i);
       i++;
-      _set_IF();
+      set_IF();
       coopth_wait();
       clear_IF();
     }
@@ -188,7 +188,7 @@ int int14(void)
         break;
       s_printf("SER%d: INT14 0x2: Wait for recv, %i\n", num, i);
       i++;
-      _set_IF();
+      set_IF();
       coopth_wait();
       clear_IF();
     }
