@@ -4081,9 +4081,7 @@ int dpmi_fault(struct sigcontext *scp)
 	break;
       }
       current_cli = lina;
-      clear_IF();
-      if (!is_cli)
-	is_cli = 1;
+      clear_IF_timed();
       break;
     case 0xfb:			/* sti */
       if (debug_level('M')>=9)

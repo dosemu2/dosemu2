@@ -147,7 +147,7 @@ void timer_tick(void)
       is_cli = 0;
     } else
     if (is_cli++ >= config.cli_timeout) {
-      D_printf("DPMI: Warning: Interrupts were disabled for too long, "
+      g_printf("Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");
       add_cli_to_blacklist();
       set_IF();

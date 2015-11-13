@@ -402,16 +402,15 @@ if(!port){                          /* icw1, ocw2, ocw3 */
        clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
 #if 1
-	/* XXX horrible hack: to avoid timer interrupt re-entrancy,
+	/* XXX hack: to avoid timer interrupt re-entrancy,
 	 * we try to disable interrupts in a hope IRET will re-enable
 	 * them. This fixes Tetris Classic problem:
 	 * https://github.com/stsp/dosemu2/issues/99
-	 * but can break hell of everything else...
 	 * Need to check also IMR because DPMI uses another hack
 	 * that masks the IRQs. */
        if (ilevel == PIC_IRQ0 && isset_IF() && !(pic_imr & (1 << ilevel))) {
          r_printf("PIC: disabling interrupts to avoid reentrancy\n");
-         clear_IF();
+         clear_IF_timed();
        }
 #endif
        }
