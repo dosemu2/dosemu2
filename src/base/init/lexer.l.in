@@ -438,6 +438,8 @@ offset			RETURN(OFFSET);
 floppy			RETURN(L_FLOPPY);
 cdrom			RETURN(CDROM);
 diskcyl4096		RETURN(DISKCYL4096);
+hdtype1			RETURN(HDTYPE1);
+hdtype2			RETURN(HDTYPE2);
 
 	/* keyboard */
 

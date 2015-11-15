@@ -291,7 +291,7 @@ while (0)
 %token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 ATAPI READONLY LAYOUT
-%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
+%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
@@ -1428,12 +1428,14 @@ disk_flags	: disk_flag
 		;
 disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
-		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_288MFLOP; }		
-		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }		
+		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_288MFLOP; }
+		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| ATAPI		{ dptr->default_cmos = ATAPI_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| FIVEINCH_360	{ dptr->default_cmos = FIVE_INCH_360KFLOP; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
+		| HDTYPE1	{ dptr->hdtype = 1; }
+		| HDTYPE2	{ dptr->hdtype = 2; }
 		| SECTORS expression	{ dptr->sectors = $2; }
 		| CYLINDERS expression	{ dptr->tracks = $2; }
 		| TRACKS expression	{ dptr->tracks = $2; }
@@ -1971,9 +1973,9 @@ static void start_bootdisk(void)
 {
   if (config.bootdisk)           /* Already a bootdisk configured ? */
     yyerror("There is already a bootdisk configured");
-      
+
   dptr = &bootdisk;              /* set pointer do bootdisk-struct */
-      
+
   dptr->diskcyl4096 = 0;
   dptr->sectors = 0;             /* setup default-values           */
   dptr->heads   = 0;
@@ -2018,11 +2020,12 @@ static void start_disk(void)
     }
   else
     dptr = &hdisktab[c_hdisks];
-      
+
   dptr->type    =  NODISK;
   dptr->sectors = -1;
   dptr->heads   = -1;
   dptr->tracks  = -1;
+  dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
   dptr->boot_name = NULL;
@@ -2046,7 +2049,7 @@ static void start_vnet(char *mode) {
   else {
     error("Unknown vnet mode \"%s\"\n", mode);
     config.exitearly = 1;
-  } 
+  }
 }
 
 static void do_part(char *dev)
@@ -2058,9 +2061,9 @@ static void do_part(char *dev)
 #ifdef __linux__
   dptr->part_info.number = atoi(dptr->dev_name+8);
 #endif
-  if (dptr->part_info.number == 0) 
+  if (dptr->part_info.number == 0)
     yyerror("%s must be a PARTITION, can't find number suffix!\n",
-   	    dptr->dev_name);
+	    dptr->dev_name);
 }
 
 static void stop_disk(int token)
