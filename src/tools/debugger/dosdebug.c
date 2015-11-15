@@ -156,12 +156,15 @@ static void handle_console_input(void)
   char buf[MHP_BUFFERSIZE];
   static char sbuf[MHP_BUFFERSIZE]="\n";
   static int sn=1;
-  int n;
+  int n, ret;
 
   n=read(0, buf, sizeof(buf));
   if (n>0) {
-    if (n==1 && buf[0]=='\n') write(fdout, sbuf, sn);
-    else {
+    if (n==1 && buf[0]=='\n') {
+      ret = write(fdout, sbuf, sn);
+      if (ret < 0)
+        perror("write to fdout failed");
+    } else {
       if (!strncmp(buf,"console ",8)) {
         switch_console(buf[8]);
         return;
@@ -169,7 +172,9 @@ static void handle_console_input(void)
       if (!strncmp(buf,"kill",4)) {
         kill_timeout=KILL_TIMEOUT;
       }
-      write(fdout, buf, n);
+      ret = write(fdout, buf, n);
+      if (ret < 0)
+        perror("write to fdout failed");
       memcpy(sbuf, buf, n);
       sn=n;
       if (buf[0] == 'q') exit(1);
@@ -181,13 +186,15 @@ static void handle_console_input(void)
 static void handle_dbg_input(void)
 {
   char buf[MHP_BUFFERSIZE], *p;
-  int n;
+  int n, ret;
   do {
     n=read(fdin, buf, sizeof(buf));
   } while (n < 0 && errno == EAGAIN);
   if (n >0) {
     if ((p=memchr(buf,1,n))!=NULL) n=p-buf;
-    write(1, buf, n);
+    ret = write(1, buf, n);
+    if (ret < 0)
+      perror("write to stdout failed");
     if (p!=NULL) exit(0);
   }
   if (n == 0)
@@ -262,7 +269,10 @@ int main (int argc, char **argv)
     exit(1);
   }
 
-  write(fdout,"r0\n",3);
+  ret = write(fdout,"r0\n",3);
+  if (ret < 0)
+    perror("write to fdout failed");
+
   do {
     FD_SET(fdin, &readfds);
     FD_SET(0, &readfds);   /* stdin */

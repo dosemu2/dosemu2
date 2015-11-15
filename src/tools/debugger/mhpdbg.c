@@ -83,12 +83,15 @@ void mhp_putc(char c1)
 
 void mhp_send(void)
 {
+   int ret;
    if ((mhpdbg.sendptr) && (mhpdbg.fdout == -1)) {
       mhpdbg.sendptr = 0;
       return;
    }
    if ((mhpdbg.sendptr) && (mhpdbg.fdout != -1)) {
-      write (mhpdbg.fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
+      ret = write (mhpdbg.fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
+      if (ret < 0)
+         perror("write to mhpdbg.fdout failed");
       mhpdbg.sendptr = 0;
    }
 }
