@@ -488,9 +488,8 @@ int kvm_vm86(struct vm86_struct *info)
       break;
     case KVM_EXIT_FAIL_ENTRY:
       fprintf(stderr,
-	      "KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx f=0x%lx\n",
-	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason,
-	      regs->eflags);
+	      "KVM_EXIT_FAIL_ENTRY: hardware_entry_failure_reason = 0x%llx\n",
+	      (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
       leavedos(99);
     case KVM_EXIT_INTERNAL_ERROR:
       fprintf(stderr,

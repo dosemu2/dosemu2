@@ -21,6 +21,7 @@
  */
 
 	.section .text
+	.code32
 
 	.globl kvm_mon_start
 kvm_mon_start:
