@@ -186,7 +186,7 @@ char *DPMI_show_state(struct sigcontext *scp)
      * area, we fall into another fault which likely terminates dosemu.
      */
 #ifdef X86_EMULATOR
-    if (!config.cpuemu || (_trapno!=0x0b && _trapno!=0x0c))
+    if (config.cpu_vm != CPUVM_EMU || (_trapno!=0x0b && _trapno!=0x0c))
 #endif
     {
       int i;
