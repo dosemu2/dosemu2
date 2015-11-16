@@ -546,6 +546,13 @@ static void read_cpu_info(void)
 
 static void config_post_process(void)
 {
+    config.realcpu = CPU_386;
+    if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
+	read_cpu_info();
+    if (vm86s.cpu_type > config.realcpu) {
+	vm86s.cpu_type = config.realcpu;
+	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
+    }
     if (config.cpu_vm == -1) {
 #ifdef __x86_64__
       config.cpu_vm = CPUVM_EMU;	// for now
@@ -553,14 +560,12 @@ static void config_post_process(void)
       config.cpu_vm = config.cpuemu ? CPUVM_EMU : CPUVM_VM86;
 #endif
     }
-    if (config.cpu_vm != CPUVM_EMU)
+    if (config.cpu_vm != CPUVM_EMU) {
       config.cpuemu = 0;
-    config.realcpu = CPU_386;
-    if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
-	read_cpu_info();
-    if (vm86s.cpu_type > config.realcpu) {
-    	vm86s.cpu_type = config.realcpu;
-    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
+    } else if (config.cpuemu == 0) {
+	config.cpuemu = 3;
+	init_emu_cpu();
+	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
     }
     if (config.rdtsc) {
 	if (config.smp) {
