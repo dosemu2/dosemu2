@@ -415,6 +415,9 @@ full			RETURN(FULL);
 vm86sim			RETURN(VM86SIM);
 fullsim			RETURN(FULLSIM);
 
+cpu_vm			RETURN(CPU_VM);
+kvm			RETURN(KVM);
+
 	/* disk keywords */
 hdimage			RETURN(HDIMAGE);
 image			RETURN(HDIMAGE);

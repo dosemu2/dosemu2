@@ -550,8 +550,22 @@ static void config_post_process(void)
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
 	read_cpu_info();
     if (vm86s.cpu_type > config.realcpu) {
-    	vm86s.cpu_type = config.realcpu;
-    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
+	vm86s.cpu_type = config.realcpu;
+	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
+    }
+    if (config.cpu_vm == -1) {
+#ifdef __x86_64__
+      config.cpu_vm = CPUVM_EMU;	// for now
+#else
+      config.cpu_vm = config.cpuemu ? CPUVM_EMU : CPUVM_VM86;
+#endif
+    }
+    if (config.cpu_vm != CPUVM_EMU) {
+      config.cpuemu = 0;
+    } else if (config.cpuemu == 0) {
+	config.cpuemu = 3;
+	init_emu_cpu();
+	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
     }
     if (config.rdtsc) {
 	if (config.smp) {
