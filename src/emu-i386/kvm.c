@@ -34,6 +34,7 @@
 
 #include "emu.h"
 #include "emu-ldt.h"
+#include "mapping.h"
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
@@ -70,9 +71,12 @@ extern char kvm_mon_end[];
 #define GDT_ENTRIES 3
 #undef IDT_ENTRIES
 #define IDT_ENTRIES 0x21
-#define CODE_PAGE_SIZE 0x1000
 
-struct monitor {
+#define PG_PRESENT 1
+#define PG_RW 2
+#define PG_USER 4
+
+static struct monitor {
     Task tss;                                /* 0000 */
     /* tss.esp0                                 0004 */
     /* tss.ss0                                  0008 */
@@ -89,22 +93,27 @@ struct monitor {
     Gatedesc idt[IDT_ENTRIES];               /* 2200 */
     unsigned char padding2[0x3000-0x2200
 	-IDT_ENTRIES*sizeof(Gatedesc)
+	-sizeof(unsigned int)
 	-sizeof(struct vm86_regs)];          /* 2308 */
-    struct vm86_regs regs;    /* Fault stack at 2FAC */
-    unsigned char code[CODE_PAGE_SIZE];      /* 3000 */
-    /* 3000 IDT exception 0 code start
-       300A IDT exception 1 code start
+    unsigned int cr2;         /* Fault stack at 2FA8 */
+    struct vm86_regs regs;
+    /* 3000: page directory, 4000: page table */
+    unsigned int pde[PAGE_SIZE/sizeof(unsigned int)];
+    unsigned int pte[PAGE_SIZE/sizeof(unsigned int)];
+    unsigned char code[PAGE_SIZE];           /* 5000 */
+    /* 5000 IDT exception 0 code start
+       500A IDT exception 1 code start
        .... ....
-       3140 IDT exception 0x21 code start
-       314A IDT common code start
-       315F IDT common code end
+       5140 IDT exception 0x21 code start
+       514A IDT common code start
+       5164 IDT common code end
     */
-};
+} *monitor;
 
 /* switches KVM virtual machine to vm86 mode */
 static struct monitor *enter_vm86(int vmfd, int vcpufd)
 {
-  int ret, i;
+  int ret, i, j;
   struct kvm_regs regs;
   struct kvm_sregs sregs;
   struct monitor *monitor;
@@ -182,7 +191,18 @@ static struct monitor *enter_vm86(int vmfd, int vcpufd)
   }
   memcpy(monitor->code, kvm_mon_start, kvm_mon_end - kvm_mon_start);
 
-  sregs.cr0 |= X86_CR0_PE;
+  /* setup paging */
+  sregs.cr3 = sregs.tr.base + offsetof(struct monitor, pde);
+  /* we need one page directory entry */
+  monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
+    | (PG_PRESENT | PG_RW | PG_USER);
+  for (i = 0; i < (LOWMEM_SIZE + HMASIZE) / PAGE_SIZE; i++)
+    monitor->pte[i] = i * PAGE_SIZE | (PG_PRESENT | PG_RW | PG_USER);
+  for (j = 0; j < offsetof(struct monitor, code) / PAGE_SIZE; j++)
+    monitor->pte[i+j] = (i+j) * PAGE_SIZE | PG_PRESENT | PG_RW;
+  monitor->pte[i+j] = ((i+j) * PAGE_SIZE) | PG_PRESENT;
+
+  sregs.cr0 |= X86_CR0_PE | X86_CR0_PG;
   sregs.cr4 |= X86_CR4_VME;
 
   /* setup registers to point to VM86 monitor */
@@ -207,7 +227,7 @@ static struct monitor *enter_vm86(int vmfd, int vcpufd)
   /* just after the HLT */
   regs.rip = sregs.tr.base + offsetof(struct monitor, code) +
     (kvm_mon_hlt - kvm_mon_start) + 1;
-  regs.rsp = sregs.tr.base + offsetof(struct monitor, regs);
+  regs.rsp = sregs.tr.base + offsetof(struct monitor, cr2);
   regs.rflags = X86_EFLAGS_FIXED;
   ret = ioctl(vcpufd, KVM_SET_REGS, &regs);
   if (ret == -1) {
@@ -302,6 +322,26 @@ static int kvm_init(struct kvm_run **prun, struct monitor **pmonitor)
   *prun = run;
   *pmonitor = enter_vm86(vmfd, vcpufd);
   return vcpufd;
+}
+
+void mprotect_kvm(void *addr, size_t mapsize, int protect)
+{
+  size_t pagesize = sysconf(_SC_PAGESIZE);
+  unsigned int start = DOSADDR_REL(addr) / pagesize;
+  unsigned int end = start + mapsize / pagesize;
+  unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
+  unsigned int page;
+
+  if (start >= limit || monitor == NULL) return;
+  if (end > limit) end = limit;
+
+  for (page = start; page < end; page++) {
+    monitor->pte[page] &= ~(PG_PRESENT | PG_RW | PG_USER);
+    if (protect & PROT_WRITE)
+      monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
+    else if (protect & PROT_READ)
+      monitor->pte[page] |= PG_PRESENT | PG_USER;
+  }
 }
 
 /* This function works like handle_vm86_fault in the Linux kernel,
@@ -419,10 +459,9 @@ int kvm_vm86(struct vm86_struct *info)
 {
   struct vm86_regs *regs;
   int ret, vm86_ret;
-  unsigned int exit_reason;
+  unsigned int exit_reason, trapno;
   static int vcpufd = -1;
   static struct kvm_run *run;
-  static struct monitor *monitor;
 
   if (vcpufd == -1) {
     vcpufd = kvm_init(&run, &monitor);
@@ -462,16 +501,12 @@ int kvm_vm86(struct vm86_struct *info)
     case KVM_EXIT_HLT: {
       /* __null_gs = exception number */
       /* orig_eax = error code */
-      unsigned int trapno = regs->__null_gs;
+      trapno = regs->__null_gs;
       vm86_ret = VM86_SIGNAL;
       if (trapno == 1 || trapno == 3)
 	vm86_ret = VM86_TRAP | (trapno << 8);
       else if (trapno == 0xd)
 	vm86_ret = kvm_handle_vm86_fault(regs, info->cpu_type);
-      else if (trapno != 0x20) {
-	fprintf(stderr, "KVM: unhandled exception 0x%x\n", trapno); //TODO
-	leavedos(99);
-      }
       break;
     }
     case KVM_EXIT_IRQ_WINDOW_OPEN:
@@ -503,5 +538,13 @@ int kvm_vm86(struct vm86_struct *info)
   } while (vm86_ret == -1);
 
   info->regs = *regs;
+  trapno = regs->__null_gs;
+  if (vm86_ret == VM86_SIGNAL && trapno != 0x20) {
+    struct sigcontext sc, *scp = &sc;
+    _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
+    _trapno = trapno;
+    _err = regs->orig_eax;
+    _dosemu_fault(SIGSEGV, scp);
+  }
   return vm86_ret;
 }
