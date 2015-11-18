@@ -51,9 +51,12 @@ kvm_mon_main:
         push %edx
         push %ecx
         push %ebx
+        mov %cr2,%eax
+        push %eax
 	.globl kvm_mon_hlt
 kvm_mon_hlt:
         hlt
+        pop %eax
         pop %ebx
         pop %ecx
         pop %edx
