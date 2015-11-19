@@ -79,20 +79,20 @@ struct seg_sel {
     unsigned int lim;
 };
 struct msdos_struct {
-  int is_32;
-  struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-  far_t XMS_call;
-  /* used when passing a DTA higher than 1MB */
-  unsigned short user_dta_sel;
-  unsigned long user_dta_off;
-  unsigned short user_psp_sel;
-  unsigned short lowmem_seg;
-  dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
-  far_t rmcbs[MAX_RMCBS];
-  int rmcb_alloced;
-  u_short ldt_alias;
-  u_short ldt_alias_winos2;
-  struct seg_sel seg_sel_map[MAX_CNVS];
+    int is_32;
+    struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+    far_t XMS_call;
+    /* used when passing a DTA higher than 1MB */
+    unsigned short user_dta_sel;
+    unsigned long user_dta_off;
+    unsigned short user_psp_sel;
+    unsigned short lowmem_seg;
+    dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
+    far_t rmcbs[MAX_RMCBS];
+    int rmcb_alloced;
+    u_short ldt_alias;
+    u_short ldt_alias_winos2;
+    struct seg_sel seg_sel_map[MAX_CNVS];
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num = 0;
@@ -117,7 +117,7 @@ static void mouse_callback(struct sigcontext *scp,
 static void ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static void rmcb_ret_from_ps2(const struct sigcontext *scp,
-	struct RealModeCallStructure *rmreg);
+		 struct RealModeCallStructure *rmreg);
 static void xms_call(struct RealModeCallStructure *rmreg);
 
 static void (*rmcb_handlers[])(struct sigcontext *scp,
@@ -1766,22 +1766,22 @@ static void rm_to_pm_regs(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg,
 	unsigned int mask)
 {
-  if (mask & (1 << eflags_INDEX))
-    _eflags = RMREG(flags);
-  if (mask & (1 << eax_INDEX))
-    _eax = RMLWORD(ax);
-  if (mask & (1 << ebx_INDEX))
-    _ebx = RMLWORD(bx);
-  if (mask & (1 << ecx_INDEX))
-    _ecx = RMLWORD(cx);
-  if (mask & (1 << edx_INDEX))
-    _edx = RMLWORD(dx);
-  if (mask & (1 << esi_INDEX))
-    _esi = RMLWORD(si);
-  if (mask & (1 << edi_INDEX))
-    _edi = RMLWORD(di);
-  if (mask & (1 << ebp_INDEX))
-    _ebp = RMLWORD(bp);
+    if (mask & (1 << eflags_INDEX))
+	_eflags = RMREG(flags);
+    if (mask & (1 << eax_INDEX))
+	_eax = RMLWORD(ax);
+    if (mask & (1 << ebx_INDEX))
+	_ebx = RMLWORD(bx);
+    if (mask & (1 << ecx_INDEX))
+	_ecx = RMLWORD(cx);
+    if (mask & (1 << edx_INDEX))
+	_edx = RMLWORD(dx);
+    if (mask & (1 << esi_INDEX))
+	_esi = RMLWORD(si);
+    if (mask & (1 << edi_INDEX))
+	_edi = RMLWORD(di);
+    if (mask & (1 << ebp_INDEX))
+	_ebp = RMLWORD(bp);
 }
 
 static void mouse_callback(struct sigcontext *scp,
