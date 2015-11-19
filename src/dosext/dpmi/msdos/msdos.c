@@ -116,6 +116,8 @@ static void mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static void ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
+static void rmcb_ret_from_ps2(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg);
 static void xms_call(struct RealModeCallStructure *rmreg);
 
 static void (*rmcb_handlers[])(struct sigcontext *scp,
@@ -129,7 +131,7 @@ static void (*rmcb_ret_handlers[])(const struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg) = {
     rmcb_ret_handler,
     rmcb_ret_handler,
-    rmcb_ret_handler,
+    rmcb_ret_from_ps2,
 };
 
 static void set_io_buffer(char *ptr, unsigned int size)
@@ -1747,6 +1749,16 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
 static void rmcb_ret_handler(const struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg)
 {
+    do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
+}
+
+static void rmcb_ret_from_ps2(const struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg)
+{
+    if (MSDOS_CLIENT.is_32)
+	_esp += 16;
+    else
+	_LWORD(esp) += 8;
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
