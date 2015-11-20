@@ -353,8 +353,6 @@ void version_init(void) {
 #endif
 }
 
-#define __S(x) #x
-#define _S(x) __S(x)
 void print_version(void)
 {
   struct utsname unames;
@@ -372,6 +370,10 @@ void print_version(void)
   warn(" -m64\n");
 #endif
 #ifdef CFLAGS_STR
+#define __S(x) #x+1
+/* extra () is needed if the string has commas: it otherwise expands to
+ * multiple args, giving a compilation error. +1 above removes leading ( */
+#define _S(x) __S((x))
   warn("CFLAGS: %s\n", _S(CFLAGS_STR));
 #endif
 }
