@@ -59,6 +59,12 @@ int x86_handle_prefixes(struct sigcontext *scp, unsigned cs_base,
   int prefix = 0;
 
   x86->rep = 0;
+  x86->cs = 0;
+  x86->ds = 0;
+  x86->es = 0;
+  x86->fs = 0;
+  x86->gs = 0;
+  x86->ss = 0;
   x86->address_size = x86->operand_size = (x86->_32bit + 1) * 2;
   for (;; eip++) {
     switch(*(unsigned char *)MEM_BASE32(cs_base + eip)) {
