@@ -554,11 +554,16 @@ static void config_post_process(void)
 	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
     }
     if (config.cpu_vm == -1) {
+      if (config.cpuemu)
+        config.cpu_vm = CPUVM_EMU;
+      else
+        config.cpu_vm =
 #ifdef __x86_64__
-      config.cpu_vm = CPUVM_EMU;	// for now
+          CPUVM_KVM
 #else
-      config.cpu_vm = config.cpuemu ? CPUVM_EMU : CPUVM_VM86;
+          CPUVM_VM86
 #endif
+          ;
     }
     if (config.cpu_vm != CPUVM_EMU) {
       config.cpuemu = 0;
