@@ -36,14 +36,14 @@ kvm_mon_start:
         /* push fake error code for consistent stack */
         pushl $0
         .endif
-        pushl $i
+        movw $i,2(%esp)
         jmp kvm_mon_main
         i = i + 1
-        .fill kvm_mon_start+10*i-., 1, 0x90
+        .fill kvm_mon_start+16*i-., 1, 0x90
         .endr
 
 kvm_mon_main:
-        sub $0xc,%esp
+        sub $0x10,%esp
         push %eax
         push %ebp
         push %edi
