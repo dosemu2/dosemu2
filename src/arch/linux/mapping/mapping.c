@@ -23,6 +23,7 @@
 #include "utilities.h"
 #include "Linux/mman.h"
 #include "mapping.h"
+#include "kvm.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>

@@ -561,42 +561,11 @@ void do_int_call_back(int intno)
     __do_call_back(ISEG(intno), IOFF(intno), 1);
 }
 
-static void vm86plus_init(void)
-{
-#ifdef X86_EMULATOR
-    if (config.cpu_vm == CPUVM_EMU && config.cpuemu >= 3)
-	return;
-#endif
-    if (config.cpu_vm == CPUVM_KVM)
-	return;
-#ifdef __i386__
-//    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) == -1 &&
-		errno == EFAULT)
-	return;
-#endif
-#ifdef X86_EMULATOR
-#ifdef __i386__
-    error("vm86 service not available in your kernel, %s\n", strerror(errno));
-    error("using CPU emulation for vm86()\n");
-#endif
-    if (config.cpu_vm == CPUVM_VM86 && config.cpuemu < 3) {
-	config.cpu_vm = CPUVM_EMU;
-	config.cpuemu = 3;
-	init_emu_cpu();
-    }
-    return;
-#endif
-    fprintf(stderr, "vm86plus service not available in your kernel\n\r");
-    exit(1);
-}
-
 int vm86_init(void)
 {
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = "do_call_back";
     hlt_hdlr.func = callback_return;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
-    vm86plus_init();
     return 0;
 }
