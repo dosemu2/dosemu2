@@ -545,23 +545,13 @@ static int kvm_handle_vm86_fault(struct vm86_regs *regs, unsigned int cpu_type)
   return ret;
 }
 
-/* Emulate vm86() using KVM */
-int kvm_vm86(struct vm86_struct *info)
+/* Inner loop for KVM, runs until HLT */
+static void kvm_run(struct vm86_regs *regs)
 {
-  struct vm86_regs *regs;
-  int ret, vm86_ret;
-  unsigned int exit_reason, trapno;
-
-  regs = &monitor->regs;
-  *regs = info->regs;
-  monitor->int_revectored = info->int_revectored;
-
-  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
-  regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  unsigned int exit_reason;
 
   do {
-    vm86_ret = -1;
-    ret = ioctl(vcpufd, KVM_RUN, NULL);
+    int ret = ioctl(vcpufd, KVM_RUN, NULL);
 
     /* KVM should only exit for three reasons:
        1. KVM_EXIT_HLT: at the hlt in kvmmon.S.
@@ -592,17 +582,8 @@ int kvm_vm86(struct vm86_struct *info)
     }
 
     switch (exit_reason) {
-    case KVM_EXIT_HLT: {
-      /* __null_gs = exception number */
-      /* orig_eax = error code */
-      trapno = regs->__null_gs;
-      vm86_ret = VM86_SIGNAL;
-      if (trapno == 1 || trapno == 3)
-	vm86_ret = VM86_TRAP | (trapno << 8);
-      else if (trapno == 0xd)
-	vm86_ret = kvm_handle_vm86_fault(regs, info->cpu_type);
+    case KVM_EXIT_HLT:
       break;
-    }
     case KVM_EXIT_IRQ_WINDOW_OPEN:
     case KVM_EXIT_INTR:
       run->request_interrupt_window = !run->ready_for_interrupt_injection;
@@ -628,7 +609,34 @@ int kvm_vm86(struct vm86_struct *info)
       fprintf(stderr, "KVM: exit_reason = 0x%x\n", exit_reason);
       leavedos(99);
     }
+  } while (exit_reason != KVM_EXIT_HLT);
+}
 
+/* Emulate vm86() using KVM */
+int kvm_vm86(struct vm86_struct *info)
+{
+  struct vm86_regs *regs;
+  int vm86_ret;
+  unsigned int trapno;
+
+  regs = &monitor->regs;
+  *regs = info->regs;
+  monitor->int_revectored = info->int_revectored;
+
+  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
+  regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+
+  do {
+    kvm_run(regs);
+
+    /* __null_gs = exception number */
+    /* orig_eax = error code */
+    trapno = regs->__null_gs;
+    vm86_ret = VM86_SIGNAL;
+    if (trapno == 1 || trapno == 3)
+      vm86_ret = VM86_TRAP | (trapno << 8);
+    else if (trapno == 0xd)
+      vm86_ret = kvm_handle_vm86_fault(regs, info->cpu_type);
   } while (vm86_ret == -1);
 
   info->regs = *regs;
