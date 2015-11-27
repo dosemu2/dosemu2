@@ -86,6 +86,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #ifdef __linux__
 #include "cpu-emu.h"
 #include "emu-ldt.h"
+#include "kvm.h"
 #endif
 
 /*
@@ -217,11 +218,9 @@ int get_ldt(void *buffer)
 #ifdef __linux__
   int i, ret;
   struct descriptor *dp;
-#ifdef X86_EMULATOR
-  if (config.cpuemu>3 && LDT)
+  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   else
-#endif
   ret = modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   if (ret != LDT_ENTRIES * LDT_ENTRY_SIZE)
     return ret;
@@ -257,9 +256,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.seg_not_present = seg_not_present;
   ldt_info.useable = useable;
 
-#ifdef X86_EMULATOR
-  if (config.cpuemu<=3)
-#endif
+  if (config.cpu_vm_dpmi == CPUVM_NATIVE)
   {
     /* NOTE: the real LDT in kernel space uses the real addresses, but
        the LDT we emulate, and DOS applications work with,
@@ -1166,11 +1163,9 @@ unsigned short CreateAliasDescriptor(unsigned short selector)
 static inline int do_LAR(us selector)
 {
   int ret;
-#ifdef X86_EMULATOR
-  if (config.cpuemu>3)
+  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
     return emu_do_LAR(selector);
   else
-#endif
     asm volatile(
       "larw %%ax,%%ax\n"
       "jz 1f\n"
@@ -1277,11 +1272,8 @@ static void dpmi_return_to_dosemu(void)
 static void Return_to_dosemu_code(struct sigcontext *scp,
     struct sigcontext *dpmi_ctx, int retcode)
 {
-#ifdef X86_EMULATOR
-  if (config.cpuemu>=4) /* 0=off 1=on-inactive 2=on-first time
-			   3=vm86 only, 4=all active */
+  if (config.cpu_vm_dpmi != CPUVM_NATIVE)
     return;
-#endif
   if (dpmi_ctx) {
     /* If dpmi_ctx is NULL we don't care about _cs. In fact DPMI apps
        such as RBIL's viewintl use _cs:_eip=0:0 on the stack at int21/4c exit,
@@ -3051,6 +3043,8 @@ static void run_pm_dos_int(int i)
 void run_dpmi(void)
 {
     int retcode = (
+	config.cpu_vm_dpmi == CPUVM_KVM ?
+	kvm_dpmi(&DPMI_CLIENT.stack_frame) :
 #ifdef X86_EMULATOR
 	config.cpuemu>3?
 	e_dpmi(&DPMI_CLIENT.stack_frame) :

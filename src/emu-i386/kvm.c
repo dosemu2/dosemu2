@@ -36,6 +36,8 @@
 #include "emu.h"
 #include "emu-ldt.h"
 #include "mapping.h"
+#include "dpmi.h"
+#include "../dosext/dpmi/dpmisel.h"
 
 #define SAFE_MASK (X86_EFLAGS_CF|X86_EFLAGS_PF| \
                    X86_EFLAGS_AF|X86_EFLAGS_ZF|X86_EFLAGS_SF| \
@@ -148,8 +150,19 @@ static void enter_vm86(int vmfd, int vcpufd)
   sregs.tr.db = 0;
   sregs.tr.g = 0;
 
-  monitor->tss.esp0 = sregs.tr.base + offsetof(struct monitor, regs) +
-    sizeof(monitor->regs);
+  sregs.ldt.base = DOSADDR_REL((unsigned char *)ldt_buffer);
+  sregs.ldt.limit = LDT_ENTRIES * LDT_ENTRY_SIZE - 1;
+  sregs.ldt.unusable = 0;
+  sregs.ldt.type = 0x2;
+  sregs.ldt.s = 0;
+  sregs.ldt.dpl = 0;
+  sregs.ldt.present = 1;
+  sregs.ldt.avl = 0;
+  sregs.ldt.l = 0;
+  sregs.ldt.db = 0;
+  sregs.ldt.g = 0;
+  LDT = (Descriptor *)ldt_buffer;
+
   monitor->tss.ss0 = 0x10;
   monitor->tss.IOmapbase = offsetof(struct monitor, io_bitmap);
 
@@ -165,8 +178,9 @@ static void enter_vm86(int vmfd, int vcpufd)
     monitor->gdt[i].DB = 1;
     monitor->gdt[i].gran = 1;
   }
-  // flat data selector (0x10)
+  // based data selector (0x10), to avoid the ESP register corruption bug
   monitor->gdt[GDT_ENTRIES-1].type = 2;
+  MKBASE(&monitor->gdt[GDT_ENTRIES-1], DOSADDR_REL((unsigned char *)monitor));
 
   sregs.idt.base = sregs.tr.base + offsetof(struct monitor, idt);
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
@@ -177,7 +191,7 @@ static void enter_vm86(int vmfd, int vcpufd)
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
     monitor->idt[i].type = 0xe;
-    monitor->idt[i].DPL = 3;
+    monitor->idt[i].DPL = 0;
     monitor->idt[i].present = 1;
   }
   memcpy(monitor->code, kvm_mon_start, kvm_mon_end - kvm_mon_start);
@@ -187,6 +201,13 @@ static void enter_vm86(int vmfd, int vcpufd)
   /* Map and protect monitor */
   mmap_kvm(MAPPING_OTHER, monitor, sizeof(*monitor), PROT_READ|PROT_WRITE);
   mprotect_kvm(MAPPING_OTHER, monitor->code, PAGE_SIZE, PROT_READ|PROT_EXEC);
+  /* Map guest memory: LDT, and helper code/data */
+  mmap_kvm(MAPPING_DPMI, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE,
+	   PROT_READ|PROT_WRITE);
+  mmap_kvm(MAPPING_DPMI, DPMI_sel_code_start, DPMI_SEL_OFF(DPMI_sel_code_end),
+	   PROT_READ|PROT_EXEC);
+  mmap_kvm(MAPPING_DPMI, DPMI_sel_data_start, DPMI_DATA_OFF(DPMI_sel_data_end),
+	   PROT_READ|PROT_WRITE);
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG;
   sregs.cr4 |= X86_CR4_VME;
@@ -198,7 +219,7 @@ static void enter_vm86(int vmfd, int vcpufd)
   sregs.cs.db = 1;
   sregs.cs.g = 1;
 
-  sregs.ss.base = 0;
+  sregs.ss.base = sregs.tr.base;
   sregs.ss.limit = 0xffffffff;
   sregs.ss.selector = 0x10;
   sregs.ss.db = 1;
@@ -213,7 +234,7 @@ static void enter_vm86(int vmfd, int vcpufd)
   /* just after the HLT */
   regs.rip = sregs.tr.base + offsetof(struct monitor, code) +
     (kvm_mon_hlt - kvm_mon_start) + 1;
-  regs.rsp = sregs.tr.base + offsetof(struct monitor, cr2);
+  regs.rsp = offsetof(struct monitor, cr2);
   regs.rflags = X86_EFLAGS_FIXED;
   ret = ioctl(vcpufd, KVM_SET_REGS, &regs);
   if (ret == -1) {
@@ -313,13 +334,13 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
     .userspace_addr = alignaddr,
   };
 
-  if (!(cap & MAPPING_OTHER)) {
+  if (config.cpu_vm_dpmi != CPUVM_KVM && !(cap & MAPPING_OTHER)) {
     if (start >= limit || monitor == NULL) return;
     if (end > limit) end = limit;
   }
 
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
-	       MAPPING_VGAEMU|MAPPING_OTHER)))
+	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_OTHER)))
     return;
 
   if (monitor->pte[start]) {
@@ -362,13 +383,13 @@ void mprotect_kvm(int cap, void *addr, size_t mapsize, int protect)
   unsigned int end = DOSADDR_REL((unsigned char *)alignend) / pagesize;
   unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
 
-  if (!(cap & MAPPING_OTHER)) {
+  if (config.cpu_vm_dpmi != CPUVM_KVM && !(cap & MAPPING_OTHER)) {
     if (start >= limit || monitor == NULL) return;
     if (end > limit) end = limit;
   }
 
   if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|MAPPING_VGAEMU|
-	       MAPPING_OTHER)))
+	       MAPPING_DPMI|MAPPING_OTHER)))
     return;
 
   Q_printf("KVM: protecting %p:%zx to %zx with prot %x\n", addr,
@@ -567,6 +588,7 @@ int kvm_vm86(struct vm86_struct *info)
   regs = &monitor->regs;
   *regs = info->regs;
   monitor->int_revectored = info->int_revectored;
+  monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
 
   regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
   regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
@@ -594,4 +616,73 @@ int kvm_vm86(struct vm86_struct *info)
     _dosemu_fault(SIGSEGV, scp);
   }
   return vm86_ret;
+}
+
+/* Emulate dpmi_control() using KVM */
+int kvm_dpmi(struct sigcontext *scp)
+{
+  struct vm86_regs *regs;
+  int ret;
+  unsigned int trapno;
+
+  monitor->tss.esp0 = offsetof(struct monitor, regs) +
+    offsetof(struct vm86_regs, es);
+
+  regs = &monitor->regs;
+  do {
+    regs->eax = _eax;
+    regs->ebx = _ebx;
+    regs->ecx = _ecx;
+    regs->edx = _edx;
+    regs->esi = _esi;
+    regs->edi = _edi;
+    regs->ebp = _ebp;
+    regs->esp = _esp;
+    regs->eip = _eip;
+
+    regs->cs = _cs;
+    regs->__null_ds = _ds;
+    regs->__null_es = _es;
+    regs->ss = _ss;
+    regs->__null_fs = _fs;
+    regs->__null_gs = _gs;
+
+    regs->eflags = _eflags;
+    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
+    regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_IF;
+
+    kvm_run(regs);
+
+    /* orig_eax >> 16 = exception number */
+    /* orig_eax & 0xffff = error code */
+    trapno = regs->orig_eax >> 16;
+
+    _eax = regs->eax;
+    _ebx = regs->ebx;
+    _ecx = regs->ecx;
+    _edx = regs->edx;
+    _esi = regs->esi;
+    _edi = regs->edi;
+    _ebp = regs->ebp;
+    _esp = regs->esp;
+    _eip = regs->eip;
+
+    _cs = regs->cs;
+    _ds = regs->__null_ds;
+    _es = regs->__null_es;
+    _ss = regs->ss;
+    _fs = regs->__null_fs;
+    _gs = regs->__null_gs;
+
+    _eflags = regs->eflags;
+
+    ret = -1; /* mirroring sigio/sigalrm */
+    if (trapno != 0x20) {
+      _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
+      _trapno = trapno;
+      _err = regs->orig_eax & 0xffff;
+      ret = _dosemu_fault(SIGSEGV, scp);
+    }
+  } while (ret == 0);
+  return ret;
 }
