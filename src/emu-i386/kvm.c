@@ -77,6 +77,11 @@ extern char kvm_mon_end[];
 #define PG_RW 2
 #define PG_USER 4
 
+#ifndef __x86_64__
+#undef MAP_32BIT
+#define MAP_32BIT 0
+#endif
+
 static struct monitor {
     Task tss;                                /* 0000 */
     /* tss.esp0                                 0004 */
@@ -100,8 +105,9 @@ static struct monitor {
     struct vm86_regs regs;
     /* 3000: page directory, 4000: page table */
     unsigned int pde[PAGE_SIZE/sizeof(unsigned int)];
-    unsigned int pte[PAGE_SIZE/sizeof(unsigned int)];
-    unsigned char code[PAGE_SIZE];           /* 5000 */
+    unsigned int pte[PAGE_SIZE/sizeof(unsigned int)*
+		     PAGE_SIZE/sizeof(unsigned int)];
+    unsigned char code[PAGE_SIZE];         /* 405000 */
     /* 5000 IDT exception 0 code start
        500A IDT exception 1 code start
        .... ....
@@ -118,23 +124,8 @@ static int vmfd, vcpufd, kvm_map_slot;
 static void enter_vm86(int vmfd, int vcpufd)
 {
   int ret, i;
-  unsigned int page;
   struct kvm_regs regs;
   struct kvm_sregs sregs;
-
-  struct kvm_userspace_memory_region tss_region = {
-    .slot = kvm_map_slot++,
-    .guest_phys_addr = LOWMEM_SIZE + HMASIZE,
-    .memory_size = sizeof(*monitor),
-    .userspace_addr = (uint64_t)(unsigned long)monitor,
-  };
-
-  /* Map guest memory: TSS */
-  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &tss_region);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
-  }
 
   /* trap all I/O instructions with GPF */
   memset(monitor->io_bitmap, 0xff, TSS_IOPB_SIZE+1);
@@ -145,7 +136,7 @@ static void enter_vm86(int vmfd, int vcpufd)
     leavedos(99);
   }
 
-  sregs.tr.base = LOWMEM_SIZE + HMASIZE;
+  sregs.tr.base = DOSADDR_REL((unsigned char *)monitor);
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE;
   sregs.tr.unusable = 0;
   sregs.tr.type = 0xb;
@@ -193,14 +184,9 @@ static void enter_vm86(int vmfd, int vcpufd)
 
   /* setup paging */
   sregs.cr3 = sregs.tr.base + offsetof(struct monitor, pde);
-  /* we need one page directory entry */
-  monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
-    | (PG_PRESENT | PG_RW | PG_USER);
-  for (page = sregs.tr.base / PAGE_SIZE;
-       page < (sregs.tr.base + offsetof(struct monitor, code)) / PAGE_SIZE;
-       page++)
-    monitor->pte[page] = page * PAGE_SIZE | PG_PRESENT | PG_RW;
-  monitor->pte[page] = (page * PAGE_SIZE) | PG_PRESENT;
+  /* Map and protect monitor */
+  mmap_kvm(MAPPING_OTHER, monitor, sizeof(*monitor), PROT_READ|PROT_WRITE);
+  mprotect_kvm(MAPPING_OTHER, monitor->code, PAGE_SIZE, PROT_READ|PROT_EXEC);
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG;
   sregs.cr4 |= X86_CR4_VME;
@@ -259,8 +245,9 @@ int init_kvm_cpu(void)
      this is only really needed if the vcpu is started in real mode and
      the kernel needs to emulate that using V86 mode, as is necessary
      on Nehalem and earlier Intel CPUs */
-  ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
-	      (unsigned long)(LOWMEM_SIZE + HMASIZE + sizeof(struct monitor)));
+  unsigned char *scratch = mmap(NULL, 3*PAGE_SIZE, PROT_NONE,
+				MAP_ANONYMOUS|MAP_PRIVATE|MAP_32BIT, -1, 0);
+  ret = ioctl(vmfd, KVM_SET_TSS_ADDR, (unsigned long)DOSADDR_REL(scratch));
   if (ret == -1) {
     warn("KVM: KVM_SET_TSS_ADDR: %s\n", strerror(errno));
     return 0;
@@ -311,7 +298,7 @@ int init_kvm_cpu(void)
 
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
-  int ret;
+  int pg_user, ret;
   unsigned int page;
   size_t pagesize = sysconf(_SC_PAGESIZE);
   uintptr_t alignaddr = (uintptr_t)addr & ~(pagesize-1);
@@ -326,11 +313,13 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
     .userspace_addr = alignaddr,
   };
 
-  if (start >= limit || monitor == NULL) return;
-  if (end > limit) end = limit;
+  if (!(cap & MAPPING_OTHER)) {
+    if (start >= limit || monitor == NULL) return;
+    if (end > limit) end = limit;
+  }
 
   if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
-	       MAPPING_VGAEMU)))
+	       MAPPING_VGAEMU|MAPPING_OTHER)))
     return;
 
   if (monitor->pte[start]) {
@@ -348,8 +337,16 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
   }
 
   /* adjust paging structures in VM */
-  for (page = start; page < end; page++)
-    monitor->pte[page] = (page * pagesize) | PG_USER;
+  pg_user = (cap & MAPPING_OTHER) ? 0 : PG_USER;
+  for (page = start; page < end; page++) {
+    int pde_entry = page >> 10;
+    unsigned int pde0 = DOSADDR_REL((unsigned char *)&monitor->pte)
+      | (PG_PRESENT | PG_RW | PG_USER);
+    if (monitor->pde[pde_entry] == 0) {
+      monitor->pde[pde_entry] = pde0 + pde_entry*PAGE_SIZE;
+    }
+    monitor->pte[page] = (page * pagesize) | pg_user;
+  }
   if (cap & MAPPING_INIT_LOWRAM)
     cap |= MAPPING_LOWMEM;
   mprotect_kvm(cap, addr, mapsize, protect);
@@ -365,10 +362,13 @@ void mprotect_kvm(int cap, void *addr, size_t mapsize, int protect)
   unsigned int end = DOSADDR_REL((unsigned char *)alignend) / pagesize;
   unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
 
-  if (start >= limit || monitor == NULL) return;
-  if (end > limit) end = limit;
+  if (!(cap & MAPPING_OTHER)) {
+    if (start >= limit || monitor == NULL) return;
+    if (end > limit) end = limit;
+  }
 
-  if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|MAPPING_VGAEMU)))
+  if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|MAPPING_VGAEMU|
+	       MAPPING_OTHER)))
     return;
 
   Q_printf("KVM: protecting %p:%zx to %zx with prot %x\n", addr,
