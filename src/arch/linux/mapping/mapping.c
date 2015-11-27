@@ -493,6 +493,9 @@ int munmap_mapping(int cap, void *addr, size_t mapsize)
       return 0;
     }
 
+    if (config.cpu_vm == CPUVM_KVM)
+      munmap_kvm(cap, addr);
+
   return mappingdriver->munmap(cap, addr, mapsize);
 }
 

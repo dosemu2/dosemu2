@@ -120,7 +120,8 @@ static struct monitor {
 } *monitor;
 
 static struct kvm_run *run;
-static int vmfd, vcpufd, kvm_map_slot;
+static int vmfd, vcpufd;
+static void *kvm_maps[0x100];
 
 /* switches KVM virtual machine to vm86 mode */
 static void enter_vm86(int vmfd, int vcpufd)
@@ -317,6 +318,18 @@ int init_kvm_cpu(void)
   return 1;
 }
 
+static int kvm_find_map_slot(void)
+{
+  int i;
+  for (i = 0; i < sizeof(kvm_maps)/sizeof(kvm_maps[0]); i++) {
+    if (kvm_maps[i] == NULL)
+      return i;
+  }
+  error("FATAL: ran out of KVM mapping slots\n");
+  leavedos(99);
+  return -1;
+}
+
 void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
   int pg_user, ret;
@@ -328,7 +341,7 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
   unsigned int end = DOSADDR_REL((unsigned char *)alignend) / pagesize;
   unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
   struct kvm_userspace_memory_region region = {
-    .slot = kvm_map_slot++,
+    .slot = kvm_find_map_slot(),
     .guest_phys_addr = start * pagesize,
     .memory_size = alignend - alignaddr,
     .userspace_addr = alignaddr,
@@ -371,6 +384,29 @@ void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
   if (cap & MAPPING_INIT_LOWRAM)
     cap |= MAPPING_LOWMEM;
   mprotect_kvm(cap, addr, mapsize, protect);
+  kvm_maps[region.slot] = addr;
+}
+
+void munmap_kvm(int cap, void *addr)
+{
+  int i;
+
+  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
+	       MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_OTHER)))
+    return;
+
+  for (i = 0; i < sizeof(kvm_maps)/sizeof(kvm_maps[0]); i++) {
+    if (kvm_maps[i] == addr) {
+      struct kvm_userspace_memory_region region = { .slot = i };
+      int ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+      if (ret == -1) {
+	perror("KVM: KVM_SET_USER_MEMORY_REGION");
+	leavedos(99);
+      }
+      kvm_maps[i] = NULL;
+      break;
+    }
+  }
 }
 
 void mprotect_kvm(int cap, void *addr, size_t mapsize, int protect)
