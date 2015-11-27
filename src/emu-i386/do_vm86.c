@@ -49,6 +49,7 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#include "kvm.h"
 
 #include "video.h"
 

@@ -176,6 +176,7 @@ typedef struct config_info {
        boolean cpusim;
 #endif
        int cpu_vm;
+       int cpu_vm_dpmi;
        int CPUSpeedInMhz;
        /* for video */
        int console_video;
@@ -350,7 +351,7 @@ typedef struct config_info {
 
 
 enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };
-enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU };
+enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU, CPUVM_NATIVE };
 
 /*
  * Right now, dosemu only supports two serial ports.
