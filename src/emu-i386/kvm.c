@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 #include <linux/kvm.h>
 
+#include "kvm.h"
 #include "emu.h"
 #include "emu-ldt.h"
 #include "mapping.h"
@@ -110,6 +111,9 @@ static struct monitor {
     */
 } *monitor;
 
+static struct kvm_run *run;
+static int vmfd, vcpufd;
+
 /* switches KVM virtual machine to vm86 mode */
 static struct monitor *enter_vm86(int vmfd, int vcpufd)
 {
@@ -117,6 +121,20 @@ static struct monitor *enter_vm86(int vmfd, int vcpufd)
   struct kvm_regs regs;
   struct kvm_sregs sregs;
   struct monitor *monitor;
+
+  struct kvm_userspace_memory_region region = {
+    .slot = 0,
+    .guest_phys_addr = 0x0,
+    .memory_size = LOWMEM_SIZE + HMASIZE,
+    .userspace_addr = (uint64_t)(unsigned long)mem_base,
+  };
+
+  /* Map guest memory: only conventional memory + HMA for now */
+  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+  if (ret == -1) {
+    perror("KVM: KVM_SET_USER_MEMORY_REGION");
+    leavedos(99);
+  }
 
   /* create monitor structure in memory */
   monitor = mmap(NULL, sizeof(*monitor), PROT_READ | PROT_WRITE,
@@ -239,35 +257,21 @@ static struct monitor *enter_vm86(int vmfd, int vcpufd)
 }
 
 /* Initialize KVM and memory mappings */
-static int kvm_init(struct kvm_run **prun, struct monitor **pmonitor)
+int init_kvm_cpu(void)
 {
-  struct kvm_userspace_memory_region region = {
-    .slot = 0,
-    .guest_phys_addr = 0x0,
-    .memory_size = LOWMEM_SIZE + HMASIZE,
-    .userspace_addr = (uint64_t)(unsigned long)mem_base,
-  };
   struct kvm_cpuid *cpuid;
-  struct kvm_run *run;
-  int kvm, vmfd, vcpufd, ret, mmap_size;
+  int kvm, ret, mmap_size;
 
   kvm = open("/dev/kvm", O_RDWR | O_CLOEXEC);
   if (kvm == -1) {
-    perror("KVM: error opening /dev/kvm");
-    leavedos(99);
+    warn("KVM: error opening /dev/kvm: %s\n", strerror(errno));
+    return 0;
   }
 
   vmfd = ioctl(kvm, KVM_CREATE_VM, (unsigned long)0);
   if (vmfd == -1) {
-    perror("KVM: KVM_CREATE_VM");
-    leavedos(99);
-  }
-
-  /* Map guest memory: only conventional memory + HMA for now */
-  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
+    warn("KVM: KVM_CREATE_VM: %s\n", strerror(errno));
+    return 0;
   }
 
   /* this call is only there to shut up the kernel saying
@@ -278,14 +282,14 @@ static int kvm_init(struct kvm_run **prun, struct monitor **pmonitor)
   ret = ioctl(vmfd, KVM_SET_TSS_ADDR,
 	      (unsigned long)(LOWMEM_SIZE + HMASIZE + sizeof(struct monitor)));
   if (ret == -1) {
-    perror("KVM: KVM_SET_TSS_ADDR");
-    leavedos(99);
+    warn("KVM: KVM_SET_TSS_ADDR: %s\n", strerror(errno));
+    return 0;
   }
 
   vcpufd = ioctl(vmfd, KVM_CREATE_VCPU, (unsigned long)0);
-  if (vmfd == -1) {
-    perror("KVM: KVM_CREATE_VCPU");
-    leavedos(99);
+  if (vcpufd == -1) {
+    warn("KVM: KVM_CREATE_VCPU: %s\n", strerror(errno));
+    return 0;
   }
 
   cpuid = malloc(sizeof(*cpuid) + 2*sizeof(cpuid->entries[0]));
@@ -300,28 +304,26 @@ static int kvm_init(struct kvm_run **prun, struct monitor **pmonitor)
   ret = ioctl(vcpufd, KVM_SET_CPUID, cpuid);
   free(cpuid);
   if (ret == -1) {
-    perror("KVM: KVM_SET_CPUID");
-    leavedos(99);
+    warn("KVM: KVM_SET_CPUID: %s\n", strerror(errno));
+    return 0;
   }
 
   mmap_size = ioctl(kvm, KVM_GET_VCPU_MMAP_SIZE, NULL);
   if (mmap_size == -1) {
-    perror("KVM: KVM_GET_VCPU_MMAP_SIZE");
-    leavedos(99);
+    warn("KVM: KVM_GET_VCPU_MMAP_SIZE: %s\n", strerror(errno));
+    return 0;
   }
   if (mmap_size < sizeof(*run)) {
-    fprintf(stderr, "KVM: KVM_GET_VCPU_MMAP_SIZE unexpectedly small\n");
-    leavedos(99);
+    warn("KVM: KVM_GET_VCPU_MMAP_SIZE unexpectedly small\n");
+    return 0;
   }
   run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, vcpufd, 0);
   if (run == MAP_FAILED) {
-    perror("KVM: mmap vcpu");
-    leavedos(99);
+    warn("KVM: mmap vcpu: %s\n", strerror(errno));
+    return 0;
   }
 
-  *prun = run;
-  *pmonitor = enter_vm86(vmfd, vcpufd);
-  return vcpufd;
+  return 1;
 }
 
 void mprotect_kvm(void *addr, size_t mapsize, int protect)
@@ -460,11 +462,9 @@ int kvm_vm86(struct vm86_struct *info)
   struct vm86_regs *regs;
   int ret, vm86_ret;
   unsigned int exit_reason, trapno;
-  static int vcpufd = -1;
-  static struct kvm_run *run;
 
-  if (vcpufd == -1) {
-    vcpufd = kvm_init(&run, &monitor);
+  if (!monitor) {
+    monitor = enter_vm86(vmfd, vcpufd);
     warn("Using V86 mode inside KVM\n");
   }
 
