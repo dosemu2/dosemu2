@@ -512,9 +512,29 @@ void dir_auto(struct disk *dp)
    * We emulate an entire disk with 1 partition starting at t/h/s 0/1/1.
    * You are free to change the geometry (e.g. to change the partition size).
    */
-    dp->sectors = 63;
-    dp->heads = 255;
-    dp->tracks = 255;
+    switch (dp->hdtype) {
+      case 0:
+        dp->tracks = 255;
+        dp->heads = 255;
+        dp->sectors = 63;
+        break;
+      case 1:
+        dp->tracks = 306;
+        dp->heads = 4;
+        dp->sectors = 17;
+        d_printf("DISK: Forcing IBM disk type 1\n");
+        break;
+      case 2:
+        dp->tracks = 615;
+        dp->heads = 4;
+        dp->sectors = 17;
+        d_printf("DISK: Forcing IBM disk type 2\n");
+        break;
+      default:
+        d_printf("DISK: Invalid disk type (%d)\n", dp->hdtype);
+        config.exitearly = 1;
+        break;
+    }
     dp->start = dp->sectors;
   }
 
