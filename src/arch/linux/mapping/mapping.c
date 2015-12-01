@@ -23,6 +23,7 @@
 #include "utilities.h"
 #include "Linux/mman.h"
 #include "mapping.h"
+#include "kvm.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -225,7 +226,7 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
     mem_base = addr;
   update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
   if (config.cpu_vm == CPUVM_KVM)
-    mprotect_kvm(addr, mapsize, protect);
+    mmap_kvm(cap, addr, mapsize, protect);
   Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
   return addr;
 }
@@ -298,7 +299,7 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
   }
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   if (config.cpu_vm == CPUVM_KVM)
-    mprotect_kvm(addr, mapsize, protect);
+    mmap_kvm(cap, addr, mapsize, protect);
   return addr;
 }
 
@@ -320,7 +321,7 @@ int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect)
 	cap, addr, mapsize, protect);
   ret = mprotect(addr, mapsize, protect);
   if (config.cpu_vm == CPUVM_KVM)
-    mprotect_kvm(addr, mapsize, protect);
+    mprotect_kvm(cap, addr, mapsize, protect);
   if (ret)
     error("mprotect() failed: %s\n", strerror(errno));
   return ret;
@@ -491,6 +492,9 @@ int munmap_mapping(int cap, void *addr, size_t mapsize)
       /* Already done */
       return 0;
     }
+
+    if (config.cpu_vm == CPUVM_KVM)
+      munmap_kvm(cap, addr);
 
   return mappingdriver->munmap(cap, addr, mapsize);
 }

@@ -46,7 +46,6 @@ struct eflags_fs_gs {
 extern struct eflags_fs_gs eflags_fs_gs;
 
 int vm86_init(void);
-int kvm_vm86(struct vm86_struct *info);
 #ifdef __i386__
 #define vm86(param) syscall(SYS_vm86old, param)
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
@@ -177,6 +176,7 @@ typedef struct config_info {
        boolean cpusim;
 #endif
        int cpu_vm;
+       int cpu_vm_dpmi;
        int CPUSpeedInMhz;
        /* for video */
        int console_video;
@@ -351,7 +351,7 @@ typedef struct config_info {
 
 
 enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };
-enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU };
+enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU, CPUVM_NATIVE };
 
 /*
  * Right now, dosemu only supports two serial ports.

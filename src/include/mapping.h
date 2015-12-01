@@ -78,7 +78,6 @@ typedef int munmap_mapping_type(int cap, void *addr, size_t mapsize);
 int munmap_mapping (int cap, void *addr, size_t mapsize);
 
 int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect);
-void mprotect_kvm(void *addr, size_t mapsize, int protect);
 
 void *extended_mremap(void *addr, size_t old_len, size_t new_len,
        int flags, void * new_addr);
