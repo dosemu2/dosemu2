@@ -111,7 +111,7 @@ int in_dpmi_dos_int = 1;
 static int in_dpmi_irq;
 int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
-int is_cli;
+static int dpmi_is_cli;
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
@@ -1428,7 +1428,7 @@ static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
     rmreg->ecx = REG(ecx);
     rmreg->eax = REG(eax);
     rmreg->flags = get_FLAGS(REG(eflags));
-    rmreg->esp_reserved = is_cli;	// have some reserve here
+    rmreg->esp_reserved = dpmi_is_cli;	// have some reserve here
     rmreg->es = REG(es);
     rmreg->ds = REG(ds);
     rmreg->fs = REG(fs);
@@ -1453,7 +1453,7 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
     RMR(eax);
     if (mask & (1 << eflags_INDEX)) {
 	REG(eflags) = get_EFLAGS(rmreg->flags);
-	is_cli = rmreg->esp_reserved & 1;
+	dpmi_is_cli = rmreg->esp_reserved & 1;
     }
     RMR(es);
     RMR(ds);
@@ -4082,6 +4082,7 @@ int dpmi_fault(struct sigcontext *scp)
       }
       current_cli = lina;
       clear_IF_timed();
+      dpmi_is_cli = 1;
       break;
     case 0xfb:			/* sti */
       if (debug_level('M')>=9)
@@ -4332,8 +4333,8 @@ int dpmi_fault(struct sigcontext *scp)
       return 1;
   }
 
-  if (is_cli && isset_IF())
-    is_cli = 0;
+  if (dpmi_is_cli && isset_IF())
+    dpmi_is_cli = 0;
 
   uncache_time();
   hardware_run();
@@ -4760,6 +4761,8 @@ int dpmi_mhp_setTF(int on)
 
 void add_cli_to_blacklist(void)
 {
+  if (!dpmi_is_cli)
+    return;
   if (*current_cli != 0xfa) {
     error("DPMI: add_cli_to_blacklist() called with no cli at %p (0x%x)!\n",
       current_cli, *current_cli);
@@ -4772,6 +4775,7 @@ void add_cli_to_blacklist(void)
   }
   else
     D_printf("DPMI: Warning: cli blacklist is full!\n");
+  dpmi_is_cli = 0;
 }
 
 static int find_cli_in_blacklist(unsigned char * cur_cli)
