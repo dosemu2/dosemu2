@@ -153,6 +153,11 @@ install:
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
+	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.emu $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z
 	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
 	  if [ -h $(DESTDIR)$(dosemudir)/freedos ]; then \
 	    rm -f $(DESTDIR)$(dosemudir)/freedos; \
@@ -165,10 +170,6 @@ install:
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/config.emu $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z; \
 	  $(INSTALL) -d $(DESTDIR)$(sysconfdir)/drives; \
 	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/c ]; then \
 	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/c; \
