@@ -2,11 +2,7 @@
         .globl code16_start
         .globl code16_end
 
-#ifdef __DJGPP__
-CS_SEG = 0x10f
-#else
 CS_SEG = 0xf
-#endif
 
 code16_start:
 

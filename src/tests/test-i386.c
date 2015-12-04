@@ -1261,8 +1261,6 @@ static inline int modify_ldt(int func, void * ptr, unsigned long bytecount)
 #define user_desc modify_ldt_ldt_s
 #endif
 
-#define MK_SEL(n) (((n) << 3) | 7)
-
 #endif
 
 #ifdef __DJGPP__
@@ -1270,9 +1268,9 @@ static inline int modify_ldt(int func, void * ptr, unsigned long bytecount)
 #include <dpmi.h>
 #include <sys/segments.h>
 
-#define MK_SEL(n) (((n+0x20) << 3) | 7)
-
 #endif
+
+#define MK_SEL(n) (((n) << 3) | 7)
 
 uint8_t seg_data1[4096];
 uint8_t seg_data2[4096];
