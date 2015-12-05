@@ -216,15 +216,6 @@ bad:
   }
 }
 
-int _dosemu_fault(int signal, struct sigcontext *scp)
-{
-  int ret;
-  fault_cnt++;
-  ret = dosemu_fault1(signal, scp);
-  fault_cnt--;
-  return ret;
-}
-
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
 static void dosemu_fault0(int signal, struct sigcontext *scp)

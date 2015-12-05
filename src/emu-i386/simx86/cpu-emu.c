@@ -1269,7 +1269,7 @@ int e_vm86(void)
 		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */
 		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
-		_dosemu_fault(xval-1, &scp);
+		vm86_fault(&scp);
 		if (debug_level('e')) tt0 = GETTSC();
 		Scp2CpuR (&scp);
 		in_vm86 = 1;
