@@ -133,45 +133,8 @@ int signal, struct sigcontext *scp
       }
     } /*!DPMIValidSelector(_cs)*/
     else {
-    /* Not in dosemu code */
-
-    int retcode;
-    if (_trapno == 0x10) {
-      g_printf("coprocessor exception, calling IRQ13\n");
-      pic_request(PIC_IRQ13);
-      dpmi_return(scp, -1);
-      return -1;
-    }
-
-    /* If this is an exception 0x11, we have to ignore it. The reason is that
-     * under real DOS the AM bit of CR0 is not set.
-     * Also clear the AC flag to prevent it from re-occuring.
-     */
-     if (_trapno == 0x11) {
-       g_printf("Exception 0x11 occured, clearing AC\n");
-       _eflags &= ~AC;
-       return 0;
-     }
-
-      if(_trapno==0x0e) {
-        if(VGA_EMU_FAULT(scp,code,1)==True) {
-          return dpmi_check_return(scp);
-	}
-      }
-
-      /* dpmi_fault() will handle that */
-      retcode = dpmi_fault(scp);
-      if (retcode) {
-        /* context was switched to dosemu's, return ASAP */
-        return retcode;
-      }
-
-      if (CheckSelectors(scp, 0) == 0) {
-        dpmi_return(scp, -1);
-	return -1;
-      }
-      /* now we are safe */
-      return 0;
+      /* Not in dosemu code: dpmi_fault() will handle that */
+      return dpmi_fault(scp);
     }
   } /*in_dpmi*/
 

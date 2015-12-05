@@ -82,6 +82,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "utilities.h"
 #include "userhook.h"
 #include "mapping.h"
+#include "vgaemu.h"
 
 #ifdef __linux__
 #include "cpu-emu.h"
@@ -126,6 +127,7 @@ static jmp_buf dpmi_ret_jmp;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
+static void dpmi_return(struct sigcontext *scp, int retval);
 static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
@@ -3385,7 +3387,7 @@ void dpmi_sigio(struct sigcontext *scp)
   }
 }
 
-void dpmi_return(struct sigcontext *scp, int retval)
+static void dpmi_return(struct sigcontext *scp, int retval)
 {
   Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame, retval);
 }
@@ -3647,7 +3649,7 @@ static void do_cpu_exception(struct sigcontext *scp)
  */
 
 #ifdef __linux__
-int dpmi_fault(struct sigcontext *scp)
+static int dpmi_fault1(struct sigcontext *scp)
 #endif
 {
 
@@ -4354,6 +4356,46 @@ int dpmi_fault(struct sigcontext *scp)
   return ret;
 }
 
+int dpmi_fault(struct sigcontext *scp)
+{
+  int retcode;
+
+  if (_trapno == 0x10) {
+    g_printf("coprocessor exception, calling IRQ13\n");
+    pic_request(PIC_IRQ13);
+    dpmi_return(scp, -1);
+    return -1;
+  }
+
+  /* If this is an exception 0x11, we have to ignore it. The reason is that
+   * under real DOS the AM bit of CR0 is not set.
+   * Also clear the AC flag to prevent it from re-occuring.
+   */
+  if (_trapno == 0x11) {
+    g_printf("Exception 0x11 occured, clearing AC\n");
+    _eflags &= ~AC;
+    return 0;
+  }
+
+  if(_trapno==0x0e) {
+    if(VGA_EMU_FAULT(scp,code,1)==True) {
+      return dpmi_check_return(scp);
+    }
+  }
+
+  retcode = dpmi_fault1(scp);
+  if (retcode) {
+    /* context was switched to dosemu's, return ASAP */
+    return retcode;
+  }
+
+  if (CheckSelectors(scp, 0) == 0) {
+    dpmi_return(scp, -1);
+    return -1;
+  }
+  /* now we are safe */
+  return 0;
+}
 
 void dpmi_realmode_hlt(unsigned int lina)
 {
