@@ -661,33 +661,6 @@ unsigned int FindPC(unsigned char *addr)
   return 0;
 }
 
-static TNode *FindCodeNode(unsigned int addr);
-
-unsigned long PC2Addr(unsigned int pc)
-{
-  TNode *G = FindCodeNode(pc);
-  Addr2Pc *AP;
-  unsigned int i, key;
-
-  if (!G)
-    goto err;
-  AP = G->pmeta;
-  key = G->key;
-  e_printf("### PC2Addr: Found node %i->%i", pc, key);
-  for (i=0; i<G->seqnum; i++) {
-    e_printf("     %08x", key + AP->dnpc);
-    if (pc == key + AP->dnpc) {
-      e_printf("\nPC2Addr: addr=%p\n", G->addr + AP->daddr);
-      return ((unsigned long)G->addr + AP->daddr);
-    }
-    AP++;
-  }
-err:
-  error("CPU-EMU: addr not found for %i\n", pc);
-  leavedos(99);
-  return 0;
-}
-
 /////////////////////////////////////////////////////////////////////////////
 
 #ifdef DEBUG_LINKER
@@ -1225,47 +1198,6 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
     A++;
   }
   e_printf("============ Node %08x break failed\n",G->key);
-}
-
-
-static TNode *FindCodeNode(unsigned int addr)
-{
-  TNode *G = &CollectTree.root;
-#ifdef PROFILE
-  hitimer_t t0 = 0;
-#endif
-
-  if (debug_level('e')) {
-#ifdef PROFILE
-    t0 = GETTSC();
-#endif
-    if (debug_level('e')>2) e_printf("Find code node for %08x\n",addr);
-  }
-
-  /* find nearest (lesser than) node */
-  G = G->link[0]; if (G == NULL) goto quit;
-  for (;;) {
-      if (G->key > addr) {
-	if (G->link[0]==NULL) break;
-	G = G->link[0];
-      }
-      else if (G->key < addr) {
-	if ((G != &CollectTree.root) && (G->addr != 0) && (G->alive > 0)) {
-		int ahG = G->seqbase + G->seqlen;
-		if (ADDR_IN_RANGE(addr,G->seqbase,ahG))
-		    return G;
-	}
-	if (G->rtag == MINUS) break;
-	G = G->link[1];
-      }
-      else
-        return G;
-  }
-quit:
-#ifdef PROFILE
-  if (debug_level('e')) SearchTime += (GETTSC() - t0);
-#endif
-  return NULL;
 }
 
 
