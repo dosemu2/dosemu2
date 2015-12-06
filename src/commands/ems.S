@@ -1,49 +1,27 @@
-# ems.S for the Linux DOS emulator
-#   provide a V86-mode ISR and device driver for EMS emulation
-#
-# License on original linux.asm:
-#
-# #Mach Operating System
-# #Copyright (c) 1993,1992,1991,1990 Carnegie Mellon University
-# #Copyright (c) 1991 IBM Corporation
-# #All Rights Reserved.
-# #
-# #Permission to use, copy, modify and distribute this software and its
-# #documentation is hereby granted, provided that both the copyright
-# #notice and this permission notice appear in all copies of the
-# #software, derivative works or modified versions, and any portions
-# #thereof, and that both notices appear in supporting documentation,
-# #and that the nema IBM not be used in advertising or publicity
-# #pertaining to distribution of the software without specific, written
-# #prior permission.
-# #
-# #CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
-# #CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
-# #ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
-# #
-# #Carnegie Mellon requests users of this software to return to
-# #
-# # Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
-# # School of Computer Science
-# # Carnegie Mellon University
-# # Pittsburgh PA 15213-3890
-# #
-# #any improvements or extensions that they make and grant Carnegie Mellon
-# #the rights to redistribute these changes.
-# #
-# #MACHFS.ASM  MS-DOS device driver to interface mach file system
-# #with the dos server's monitor.
-# #
-# #Version 1.1
-# #
-# #Gerald Malan (grm) 4/5/1991
-#
-# modified for the linux dos emulator by Andrew Tridgell 13/4/93
-# translated into as86 form by Robert Sanders ('murrcan style date!) 4/13/93
-# (I probably broke something, but it seems to work)
-#
-# copied from emufs.S to make ems.S  -  7/19/93
-#
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+/*
+ * EMM hooks
+ *
+ * Author: Stas Sergeev
+ *
+ * Based on ems.S code by Andrew Tridgell, Robert Sanders and
+ * MACHFS.ASM  MS-DOS device driver to interface mach file system.
+ */
 
 #include "memory.h"
 #include "doshelpers.h"
