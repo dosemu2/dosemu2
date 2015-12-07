@@ -295,7 +295,7 @@ void freeze_dosemu(void)
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
 
-  coopth_set_post_handler(freeze_start, NULL);
+  coopth_add_post_handler(freeze_start, NULL);
 }
 
 void unfreeze_dosemu(void)

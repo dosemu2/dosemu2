@@ -461,7 +461,7 @@ int commands_plugin_inte6_done(void)
 	    lowmem_free((void *)BMEM(pa4), sizeof(struct param4a));
 	    lowmem_free(BMEM(cmdl), 256);
 	    if (BMEM(quit))
-		coopth_set_post_handler(do_exit, NULL);
+		coopth_add_post_handler(do_exit, NULL);
 	}
 	pool_used--;
 	if (!pool_used) {

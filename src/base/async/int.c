@@ -193,7 +193,7 @@ static void process_master_boot_record(void)
    }
 
    offs = 0x600 + offsetof(struct mbr, partition[i]);
-   coopth_set_post_handler(mbr_jmp, (void *)(long)offs);
+   coopth_add_post_handler(mbr_jmp, (void *)(long)offs);
 }
 
 static int inte6(void)
@@ -1170,7 +1170,7 @@ static void nr_int_chain(void *arg)
 
 static void chain_int_norevect(far_t *jmp)
 {
-  coopth_set_post_handler(nr_int_chain, jmp);
+  coopth_add_post_handler(nr_int_chain, jmp);
 }
 
 static int msdos(void)
@@ -1974,7 +1974,7 @@ static void do_int_thr(void *arg)
 			if ((i != 0x2a) && (i != 0x28))
 				g_printf("just an iret 0x%02x\n", i);
 		} else {
-			coopth_set_post_handler(
+			coopth_add_post_handler(
 				int_chain_thr, (void *)(long)i);
 		}
 	}

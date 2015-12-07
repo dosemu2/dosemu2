@@ -719,7 +719,7 @@ int coopth_get_tid(void)
     return *thdata->tid;
 }
 
-int coopth_set_post_handler(coopth_func_t func, void *arg)
+int coopth_add_post_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
