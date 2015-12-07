@@ -73,12 +73,12 @@ struct la_h {
 static struct la_h handles[MAX_HANDLES];
 static int num_handles;
 
-static struct lads *find_lad(void *arg)
+static struct lads *find_lad(struct lp *p)
 {
     struct lp *plu;
     int i;
     for (i = 0; i < MAX_LADSPAS && (plu = ladspas[i].link); i++) {
-	if (plu == arg)
+	if (plu == p)
 	    return &ladspas[i];
     }
     return NULL;
