@@ -231,7 +231,6 @@ extern void dpmi_reset(void);
 extern void dpmi_cleanup(void);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
-int dpmi_check_return(struct sigcontext *scp);
 void dpmi_init(void);
 extern void copy_context(struct sigcontext *d,
     struct sigcontext *s, int copy_fpu);
