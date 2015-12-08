@@ -312,8 +312,9 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #define isset_VIP()   ((_EFLAGS & VIP) != 0)
 
 #define set_EFLAGS(flgs, new_flgs) ({ \
-  int __nflgs = (new_flgs) & ~(VIP | VIF); \
-  (flgs) = (__nflgs) | IF | IOPL_MASK | ((__nflgs & IF) ? VIF : 0); \
+  int __nflgs = (new_flgs); \
+  (flgs)=(__nflgs) | IF | IOPL_MASK; \
+  ((__nflgs & IF) ? set_IF() : clear_IF()); \
 })
 #define set_FLAGS(flags) set_EFLAGS(_FLAGS, flags)
 #define get_EFLAGS(flags) ({ \
