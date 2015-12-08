@@ -101,7 +101,7 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
-static char *io_buffer;
+static dosaddr_t io_buffer;
 static int io_buffer_size;
 static int io_error;
 static uint16_t io_error_code;
@@ -134,7 +134,7 @@ static void (*rmcb_ret_handlers[])(const struct sigcontext *scp,
     rmcb_ret_from_ps2,
 };
 
-static void set_io_buffer(char *ptr, unsigned int size)
+static void set_io_buffer(dosaddr_t ptr, unsigned int size)
 {
     io_buffer = ptr;
     io_buffer_size = size;
@@ -1060,7 +1060,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    break;
 	case 0x3f: {		/* dos read */
 	    far_t rma = get_lr_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
+	    set_io_buffer(DOSADDR_REL(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32)),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
@@ -1072,7 +1072,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	}
 	case 0x40: {		/* DOS Write */
 	    far_t rma = get_lw_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
+	    set_io_buffer(DOSADDR_REL(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32)),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
@@ -1880,7 +1880,7 @@ static void rmcb_handler(struct sigcontext *scp,
 	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
 	D_printf("MSDOS: read %x %x\n", offs, size);
 	if (offs + size <= io_buffer_size)
-	    MEMCPY_2UNIX(io_buffer + offs, dos_ptr, size);
+	    memmove_dos2dos(io_buffer + offs, dos_ptr, size);
 	else
 	    error("MSDOS: bad read (%x %x %x)\n", offs, size,
 			io_buffer_size);
@@ -1893,7 +1893,7 @@ static void rmcb_handler(struct sigcontext *scp,
 	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
 	D_printf("MSDOS: write %x %x\n", offs, size);
 	if (offs + size <= io_buffer_size)
-	    MEMCPY_2DOS(dos_ptr, io_buffer + offs, size);
+	    memmove_dos2dos(dos_ptr, io_buffer + offs, size);
 	else
 	    error("MSDOS: bad write (%x %x %x)\n", offs, size,
 			io_buffer_size);
