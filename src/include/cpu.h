@@ -422,7 +422,6 @@ EXTERN struct vec_t *ivecs;
 #define _cr2	(scp->cr2)
 
 void dosemu_fault(int, siginfo_t *, void *);
-int _dosemu_fault(int signal, struct sigcontext *scp);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);

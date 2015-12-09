@@ -46,6 +46,7 @@ struct eflags_fs_gs {
 extern struct eflags_fs_gs eflags_fs_gs;
 
 int vm86_init(void);
+int vm86_fault(struct sigcontext *scp);
 #ifdef __i386__
 #define vm86(param) syscall(SYS_vm86old, param)
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)

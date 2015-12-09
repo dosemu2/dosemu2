@@ -615,7 +615,7 @@ static void Scp2Cpu (struct sigcontext *scp)
   TheCPU.ebp = _ebp;
   TheCPU.esp = _esp;
 
-  TheCPU.eip = FindPC((unsigned char *)_rip);
+  TheCPU.eip = _eip;
   TheCPU.eflags = _eflags;
 
   TheCPU.cs = _cs;
@@ -675,7 +675,7 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   _edi = TheCPU.edi;
   _ebp = TheCPU.ebp;
   _esp = TheCPU.esp;
-  _rip = PC2Addr(SEGOFF2LINEAR(TheCPU.cs, TheCPU.eip));
+  _eip = TheCPU.eip;
 
   _cs = TheCPU.cs;
   _fs = TheCPU.fs;
@@ -1257,11 +1257,6 @@ int e_vm86(void)
 	    case EXCP03_INT3: {	/* to kernel vm86 */
 		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
 	      }
-	      break;
-	    case EXCP06_ILLOP:
-		error("CPU-EMU: invalid opcode in vm86\n");
-		leavedos(98);
-		break;
 	    default: {
 		struct sigcontext scp;
 		struct _fpstate fps;
@@ -1269,7 +1264,7 @@ int e_vm86(void)
 		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */
 		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
-		_dosemu_fault(xval-1, &scp);
+		vm86_fault(&scp);
 		if (debug_level('e')) tt0 = GETTSC();
 		Scp2CpuR (&scp);
 		in_vm86 = 1;
