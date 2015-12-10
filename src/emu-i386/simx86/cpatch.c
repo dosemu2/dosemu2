@@ -127,25 +127,29 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	unsigned int len = ecx;
 	unsigned char *edi;
 	unsigned char op;
+	unsigned int size;
 
 	addr = DOSADDR_REL(paddr);
 	if (*eip == 0xf3) /* skip rep */
 		eip++;
 	op = eip[0];
+	size = 1;
 	if (*eip == 0x66) {
-		len *= 2;
+		size = 2;
 		op = eip[1];
 	}
 	else if (*eip & 1)
-		len *= 4;
-	e_invalidate(addr - ((EFLAGS & EFLAGS_DF) ? len : 0), len);
+		size = 4;
+	len *= size;
+	e_invalidate(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0), len);
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);
 		unsigned char *esi;
 		if (vga_access(source, addr)) {
 			if (EFLAGS & EFLAGS_DF)
-				vga_memcpy(addr - len, source - len, len);
+				vga_memcpy(addr - len + size,
+					   source - len + size, len);
 			else
 				vga_memcpy(addr, source, len);
 			ecx = 0;
@@ -174,7 +178,7 @@ done:
 		if (ecx == len) {
 			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
-					vga_memset(addr - len, eax, ecx);
+					vga_memset(addr - len + 1, eax, ecx);
 				else
 					vga_memset(addr, eax, ecx);
 				ecx = 0;
@@ -185,7 +189,7 @@ done:
 		else if (ecx*2 == len) {
 			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
-					vga_memsetw(addr - len, eax, ecx);
+					vga_memsetw(addr - len + 2, eax, ecx);
 				else
 					vga_memsetw(addr, eax, ecx);
 				ecx = 0;
@@ -196,7 +200,7 @@ done:
 		else {
 			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
-					vga_memsetl(addr - len, eax, ecx);
+					vga_memsetl(addr - len + 4, eax, ecx);
 				else
 					vga_memsetl(addr, eax, ecx);
 				ecx = 0;
