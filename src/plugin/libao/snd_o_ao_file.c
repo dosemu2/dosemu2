@@ -110,7 +110,7 @@ static int aosndf_get_cfg(void *arg)
 {
     if (config.wav_file && config.wav_file[0])
 	return PCM_CF_ENABLED;
-    return PCM_CF_DISABLED;
+    return 0;
 }
 
 static const struct pcm_player player = {

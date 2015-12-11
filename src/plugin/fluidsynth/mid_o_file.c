@@ -397,7 +397,7 @@ static int midofile_get_cfg(void *arg)
 {
     if (config.midi_file && config.midi_file[0])
 	return PCM_CF_ENABLED;
-    return PCM_CF_DISABLED;
+    return 0;
 }
 
 static const struct midi_out_plugin midofile = {

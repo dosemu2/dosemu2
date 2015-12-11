@@ -51,7 +51,6 @@ typedef struct {
 } pcm_base;
 
 #define PCM_CF_ENABLED 1
-#define PCM_CF_DISABLED 2
 
 typedef struct {
   pcm_base;

@@ -1198,8 +1198,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
     for (i = 0; i < num; i++) {
       struct pcm_holder *p = &plu[i];
       if (p->opened || p->failed ||
-	    (p->plugin->flags & PCM_F_EXPLICIT) ||
-	    (p->cfg_flags & PCM_CF_DISABLED))
+	    (p->plugin->flags & PCM_F_EXPLICIT))
         continue;
       if (p->plugin->flags & PCM_F_PASSTHRU) {
         p->opened = SAFE_OPEN(p);
@@ -1260,7 +1259,7 @@ int pcm_get_cfg(const char *name)
     if (!strcmp(p->plugin->name, name))
       return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
   }
-  return PCM_CF_DISABLED;
+  return -1;
 }
 
 int pcm_start_input(void *arg)

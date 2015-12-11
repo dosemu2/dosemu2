@@ -200,9 +200,9 @@ static int ladspa_cfg(void *arg)
     struct lp *plu = arg;
     switch (plu->type) {
     case EFP_NONE:
-	return PCM_CF_DISABLED;
+	return 0;
     case EFP_HPF:
-	return (config.pcm_hpf ? PCM_CF_ENABLED : PCM_CF_DISABLED);
+	return (config.pcm_hpf ? PCM_CF_ENABLED : 0);
     }
     return 0;
 }
