@@ -23,7 +23,7 @@
 #ifndef __DSPIO_H__
 #define __DSPIO_H__
 
-extern void *dspio_init(void);
+extern void *dspio_init(void (*trigger_mpu_irq)(boolean));
 extern void dspio_reset(void *dspio);
 extern void dspio_done(void *dspio);
 extern void dspio_start_dma(void *dspio);
@@ -43,5 +43,7 @@ extern int dspio_get_midi_in_fillup(void *dspio);
 extern void dspio_clear_midi_in_fifo(void *dspio);
 extern int dspio_input_enable(void *dspio, enum MixChan mc);
 extern int dspio_input_disable(void *dspio, enum MixChan mc);
+extern Bit8u dspio_mpu401_io_read(void *dspio, ioport_t port);
+extern void dspio_mpu401_io_write(void *dspio, ioport_t port, Bit8u value);
 
 #endif
