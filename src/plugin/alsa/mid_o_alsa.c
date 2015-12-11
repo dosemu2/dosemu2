@@ -29,7 +29,7 @@
 static snd_rawmidi_t *handle = NULL;
 #define midoalsa_name "alsa"
 #define midoalsa_longname "MIDI Output: ALSA device"
-static const char *device = "default";
+static const char *device = "virtual";
 
 static int midoalsa_init(void *arg)
 {
