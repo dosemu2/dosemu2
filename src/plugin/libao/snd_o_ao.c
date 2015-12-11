@@ -52,20 +52,12 @@ static sem_t stop_sem;
 static pthread_t write_thr;
 static void *aosnd_write(void *arg);
 
+
 static int aosnd_cfg(void *arg)
 {
-    char *p;
-    int l;
     if (config.libao_sound == 1)
 	return PCM_CF_ENABLED;
-    l = strlen(aosnd_name);
-    p = strstr(config.sound_driver, aosnd_name);
-    if (p && (p == config.sound_driver || p[-1] == ',') &&
-	    (p[l] == 0 || p[l] == ',')) {
-	S_printf("PCM: Enabling ao driver\n");
-	return PCM_CF_ENABLED;
-    }
-    return 0;
+    return pcm_parse_cfg(config.sound_driver, aosnd_name);
 }
 
 static int aosnd_open(void *arg)
