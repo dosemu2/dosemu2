@@ -42,6 +42,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <limits.h>
 
 #define DAC_BASE_FREQ 5625
 #define PCM_MAX_BUF 512
@@ -60,6 +61,82 @@ struct dspio_dma {
     hitimer_t time_cur;
 };
 
+/*
+ * MPU-401 interface state
+ */
+
+#define DEBUG_MPU401 0	/* Deep MPU401 state debug */
+#define TRACE_MPU401 0	/* Trace MPU401 calls */
+#define TIME_MPU401 0   /* Output timing information with all NOTE ON commands */
+
+#define MPU401_VERSION 0x15
+#define MPU401_REVISION 0x01
+#define MPU401_TIMECONSTANT (60000000/1000.0f)
+#define MPU401_RESETBUSY 27.0f
+
+#define MPU401_EVENT_MAX 3
+#define MPU401_EVENT_EOIHANDLER 0
+#define MPU401_EVENT_SEQUENCER 1
+#define MPU401_EVENT_RESETDONE 2
+
+typedef enum { M_UART, M_INTELLIGENT } MpuMode;
+typedef enum { T_OVERFLOW, T_MARK, T_MIDI_SYS, T_MIDI_NORM, T_COMMAND } MpuDataType;
+
+/* Messages sent to MPU-401 from host */
+#define MSG_EOX 0xf7
+#define MSG_OVERFLOW 0xf8
+#define MSG_MARK 0xfc
+
+/* Messages sent to host from MPU-401 */
+#define MSG_MPU_OVERFLOW 0xf8
+#define MSG_MPU_COMMAND_REQ 0xf9
+#define MSG_MPU_END 0xfc
+#define MSG_MPU_CLOCK 0xfd
+#define MSG_MPU_ACK 0xfe
+
+struct mpu {
+    uint8_t newest_data;
+    boolean intelligent;
+    MpuMode mode, prev_mode;
+    uint8_t irq;
+    int deferred_ticks;
+    struct track {
+	uint8_t counter;
+	uint8_t value[8], sys_val;
+	uint8_t vlength, length;
+	MpuDataType type;
+    } playbuf[8], condbuf;
+    struct {
+	boolean conductor, cond_req, cond_set, block_ack;
+	boolean playing, reset;
+	boolean wsd, wsm, wsd_start;
+	boolean run_irq, irq_pending;
+	boolean send_now;
+	boolean eoi_scheduled;
+	int data_onoff;
+	int command_byte, cmd_pending_reset;
+	uint8_t tmask, cmask, amask;
+	uint16_t midi_mask;
+	uint16_t req_mask;
+	uint8_t channel, old_chan;
+	int next_track;
+    } state;
+    struct {
+	uint8_t timebase, old_timebase;
+	uint8_t tempo, old_tempo;
+	uint8_t tempo_rel, old_tempo_rel;
+	uint8_t tempo_grad;
+	uint8_t cth_rate, cth_counter;
+	boolean clock_to_host, cth_active;
+    } clock;
+    struct event {
+	boolean enabled;
+	int us_interval;
+	int us_remaining;
+	int last_tick;
+    } events[MPU401_EVENT_MAX];
+};
+
 struct dspio_state {
     double input_time_cur, midi_time_cur;
     int dma_strm, dac_strm;
@@ -74,10 +151,14 @@ struct dspio_state {
 #define MIDI_FIFO_SIZE 32
     struct rng_s midi_fifo_in;
     struct rng_s midi_fifo_out;
+    struct mpu mpu;
+    void (*trigger_mpu_irq)(boolean);
     struct dspio_dma dma;
 };
 
 #define DSPIO ((struct dspio_state *)dspio)
+
+static void dspio_mpu401_reset(struct dspio_state *dspio);
 
 static void dma_get_silence(int is_signed, int is16bit, void *ptr)
 {
@@ -110,8 +191,12 @@ int dspio_get_speaker_state(void *dspio)
 
 void dspio_write_midi(void *dspio, Bit8u value)
 {
+#if DEBUG_MPU401
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    S_printf("dspio_write_midi(%02x) %d.%d\n", value, tv.tv_sec, tv.tv_usec);
+#endif
     rng_put(&DSPIO->midi_fifo_out, &value);
-
     run_sb();
 }
 
@@ -156,22 +241,22 @@ static int dspio_midi_output_empty(struct dspio_state *state)
 static Bit8u dspio_get_midi_data(struct dspio_state *state)
 {
     Bit8u val;
-    int ret = rng_get(&state->midi_fifo_out, &val);
-    assert(ret == 1);
+    assert(rng_get(&state->midi_fifo_out, &val) == 1);
     return val;
 }
 
 Bit8u dspio_get_midi_in_byte(void *dspio)
 {
     Bit8u val;
-    int ret = rng_get(&DSPIO->midi_fifo_in, &val);
-    assert(ret == 1);
+    assert(rng_get(&DSPIO->midi_fifo_in, &val) == 1);
     return val;
 }
 
 void dspio_put_midi_in_byte(void *dspio, Bit8u val)
 {
+    S_printf("PUT MIDI BYTE %X\n", val);
     rng_put_const(&DSPIO->midi_fifo_in, val);
+    S_printf("FILLUP now %d\n", dspio_get_midi_in_fillup(dspio));
 }
 
 int dspio_get_midi_in_fillup(void *dspio)
@@ -281,7 +366,7 @@ static const struct pcm_player player = {
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
 int dspio_is_connected(int id, void *arg);
 
-void *dspio_init(void)
+void *dspio_init(void (*trigger_mpu_irq)(boolean))
 {
     struct dspio_state *state;
     state = malloc(sizeof(struct dspio_state));
@@ -308,7 +393,14 @@ void *dspio_init(void)
     state->dma_strm = pcm_allocate_stream(2, "SB DMA", (void*)MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
+    state->trigger_mpu_irq = trigger_mpu_irq;
+    /* XXX should these be configurable? */
+    state->mpu.mode = M_UART;
+    state->mpu.intelligent = TRUE;	//Default is on
+    if (state->mpu.intelligent)
+	dspio_mpu401_reset(state);
     midi_init();
+
     return state;
 }
 
@@ -725,18 +817,948 @@ static void dspio_process_dma(struct dspio_state *state)
 	     in_fifo_cnt, out_fifo_cnt, dma_cnt, state->output_running, state->dma.running);
 }
 
-static void dspio_process_midi(struct dspio_state *state)
+static void dspio_mpu401_queue_databyte(struct dspio_state *dspio, Bit8u data)
 {
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_queue_databyte(%02x)\n", data);
+#endif
+    /* Are we blocking the next ACK? */
+    if (dspio->mpu.state.block_ack && data == MSG_MPU_ACK) {
+#if DEBUG_MPU401
+	S_printf("MPU401: Command's ACK blocked due to reset\n");
+#endif
+	dspio->mpu.state.block_ack = FALSE;
+	return;
+    }
+
+    /* Assert IRQ on DSR transition to active. */
+    if (!dspio_get_midi_in_fillup(dspio)) {
+	if (dspio->mpu.intelligent)
+	    dspio->mpu.state.irq_pending = TRUE;
+	DSPIO->trigger_mpu_irq(TRUE);
+    }
+    dspio_put_midi_in_byte(dspio, data);
+    /* Wake up dosemu to process DOS program's ISR. */
+    /* Now this just makes the music play really fast.  Why?
+    kill(0, SIGIO);
+    */
+}
+
+static void dspio_mpu401_intelligentout(struct dspio_state *dspio, Bit8u chan)
+{
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_intelligentout(%02x), %d\n", chan, dspio->mpu.playbuf[chan].type);
+#endif
+    Bitu val;
+    switch (dspio->mpu.playbuf[chan].type) {
+	case T_OVERFLOW:
+	    break;
+	case T_MARK:
+	    val = dspio->mpu.playbuf[chan].sys_val;
+#if 0
+	    if (val == 0xf8) { /* Timing overflow */
+		dspio->mpu.playbuf[chan].counter = 0xf0;
+		dspio->mpu.state.req_mask |= (1 << chan);
+	    } else
+#endif
+	    if (val == 0xfc) {
+		dspio_write_midi(dspio, val);
+		dspio->mpu.state.amask &= ~(1 << chan);
+		dspio->mpu.state.req_mask &= ~(1 << chan);
+	    }
+	    break;
+	case T_MIDI_NORM:
+	{
+#if TIME_MPU401
+	    struct timeval tv;
+	    gettimeofday(&tv, NULL);
+	    boolean is_play = ((dspio->mpu.playbuf[chan].value[0] & 0xF0) == 0x90);
+	    if (is_play)
+		S_printf("MPU401: Track %d Note ON %d %d.%03d\n", chan, dspio->mpu.playbuf[chan].value[1], tv.tv_sec, tv.tv_usec/1000);
+#endif
+	    Bit8u i;
+	    for (i = 0; i < dspio->mpu.playbuf[chan].vlength; i++)
+		dspio_write_midi(dspio, dspio->mpu.playbuf[chan].value[i]);
+	    break;
+	}
+	default:
+	    S_printf("MPU401: Unknown MPU data type %d\n", dspio->mpu.playbuf[chan].type);
+	    break;
+    }
+}
+
+static void dspio_mpu401_resetdone(struct dspio_state *dspio)
+{
+#if DEBUG_MPU401
+    S_printf("MPU401: dspio_mpu401_resetdone\n");
+#endif
+    dspio->mpu.state.reset = FALSE;
+    /* Note: SB16 docs conflict with MPU-401 docs.  SB16 (which is always in
+     * UART mode) docs say ACK is sent on RESET, but MPU-401 docs say no ACK is
+     * sent on RESET issued while in UART mode.  DOSBox follows MPU-401, but
+     * some games seem to rely on behavior from SB16 docs instead (e.g.
+     * Gateway).  Not ACKing leads to delays in some games which wait a very
+     * long time for the ACK.  Real SB16 behavior is worth investigating. */
+    if (dspio->mpu.prev_mode == M_UART) {
+	S_printf("MPU401: ACKing reset from UART mode instead of strict compatibility.\n");
+	dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
+    } else {
+	dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
+    }
+    if (dspio->mpu.state.cmd_pending_reset) {
+	/* Block the ACK of any command issued while we were in RESET. */
+	DSPIO->mpu.state.block_ack = TRUE;
+#if DEBUG_MPU401
+	S_printf("MPU401: Running latched command %X following reset\n", dspio->mpu.state.cmd_pending_reset - 1);
+#endif
+	dspio_mpu401_io_write(dspio, config.mpu401_base + 1, dspio->mpu.state.cmd_pending_reset - 1);
+	dspio->mpu.state.cmd_pending_reset = 0;
+    }
+}
+
+static void dspio_mpu401_reset(struct dspio_state *dspio)
+{
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_reset\n");
+#endif
+    dspio->trigger_mpu_irq(FALSE);
+    dspio->mpu.mode = (dspio->mpu.intelligent ? M_INTELLIGENT : M_UART);
+    dspio->mpu.events[MPU401_EVENT_EOIHANDLER].enabled = FALSE;
+    dspio->mpu.state.eoi_scheduled = FALSE;
+    dspio->mpu.state.wsd = FALSE;
+    dspio->mpu.state.wsm = FALSE;
+    dspio->mpu.state.conductor = FALSE;
+    dspio->mpu.state.cond_req = FALSE;
+    dspio->mpu.state.cond_set = FALSE;
+    dspio->mpu.state.playing = FALSE;
+    dspio->mpu.state.run_irq = FALSE;
+    dspio->mpu.state.irq_pending = FALSE;
+    dspio->mpu.state.cmask = 0xff;
+    dspio->mpu.state.amask = dspio->mpu.state.tmask = 0;
+    dspio->mpu.state.midi_mask = 0xffff;
+    dspio->mpu.state.data_onoff = 0;
+    dspio->mpu.state.command_byte = 0;
+    dspio->mpu.state.block_ack = FALSE;
+    dspio->mpu.clock.tempo = dspio->mpu.clock.old_tempo = 100;
+    dspio->mpu.clock.timebase = dspio->mpu.clock.old_timebase = 120;
+    dspio->mpu.clock.tempo_rel = dspio->mpu.clock.old_tempo_rel = 40;
+    dspio->mpu.clock.tempo_grad = 0;
+    dspio->mpu.clock.clock_to_host = FALSE;
+    dspio->mpu.clock.cth_rate = 60;
+    dspio->mpu.clock.cth_counter = 0;
+    dspio_clear_midi_in_fifo(dspio);
+    dspio->mpu.state.req_mask = 0;
+    dspio->mpu.condbuf.counter = 0;
+    dspio->mpu.condbuf.type = T_OVERFLOW;
+    Bitu i;
+    for (i = 0; i < 8; i++) {
+	dspio->mpu.playbuf[i].type = T_OVERFLOW;
+	dspio->mpu.playbuf[i].counter = 0;
+    }
+    for (i = 0; i < MPU401_EVENT_MAX; i++) {
+	memset(&dspio->mpu.events[i], 0, sizeof(dspio->mpu.events[i]));
+    }
+    dspio->mpu.newest_data = 0;
+    dspio->mpu.state.next_track = 0;
+}
+
+static void dspio_mpu401_updatetrack(struct dspio_state *dspio, Bit8u chan)
+{
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_updatetrack(%02x)\n", chan);
+#endif
+    dspio_mpu401_intelligentout(dspio, chan);
+    if (dspio->mpu.state.amask & (1 << chan)) {
+	dspio->mpu.playbuf[chan].vlength = 0;
+	dspio->mpu.playbuf[chan].type = T_OVERFLOW;
+	dspio->mpu.playbuf[chan].counter = 0xf0;
+	dspio->mpu.state.req_mask |= (1 << chan);
+    } else {
+	if (dspio->mpu.state.amask == 0 && !dspio->mpu.state.conductor)
+	    dspio->mpu.state.req_mask |= (1 << 12);
+    }
+}
+
+static void dspio_mpu401_updateconductor(struct dspio_state *dspio)
+{
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_updateconductor\n");
+#endif
+    if (dspio->mpu.condbuf.value[0] == 0xfc) {
+	dspio->mpu.condbuf.value[0] = 0;
+	dspio->mpu.state.conductor = FALSE;
+	dspio->mpu.state.req_mask &= ~(1 << 9);
+	if (dspio->mpu.state.amask == 0)
+	    dspio->mpu.state.req_mask |= (1 << 12);
+	return;
+    }
+    dspio->mpu.condbuf.vlength = 0;
+    dspio->mpu.condbuf.counter = 0xf0;
+    dspio->mpu.state.req_mask |= (1 << 9);
+}
+
+// Updates counters and requests new data on "End of Input"
+static void dspio_mpu401_eoihandler(struct dspio_state *dspio)
+{
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_eoihandler (%d %d %d %d)\n", dspio->mpu.state.send_now, dspio->mpu.state.cond_req, dspio->mpu.state.playing, dspio->mpu.state.req_mask);
+#endif
+    dspio->mpu.state.eoi_scheduled = FALSE;
+    if (dspio->mpu.state.send_now) {
+	dspio->mpu.state.send_now = FALSE;
+	if (dspio->mpu.state.cond_req)
+	    dspio_mpu401_updateconductor(dspio);
+	else
+	    dspio_mpu401_updatetrack(dspio, dspio->mpu.state.channel);
+    }
+    dspio->mpu.state.irq_pending = FALSE;
+
+    if (!dspio->mpu.state.playing || !dspio->mpu.state.req_mask) {
+	return;
+    }
+
+#define MAX_TRACK 16
+    int i = 0;
+    do {
+	if (dspio->mpu.state.req_mask & (1 << i)) {
+	    dspio->mpu.state.req_mask &= ~(1 << i);
+#if DEBUG_MPU401
+	    S_printf("MPU401: Requesting next data for track #%d\n", i);
+#endif
+	    dspio_mpu401_queue_databyte(dspio, 0xf0 + i);
+	    /* Request only one track at a time. */
+	    break;
+	}
+	i++;
+    } while (i < MAX_TRACK);
+}
+
+static void dspio_mpu401_eoihandlerdispatch(struct dspio_state *dspio)
+{
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_eoihandlerdispatch\n");
+#endif
+    if (dspio->mpu.state.send_now) {
+	dspio->mpu.state.eoi_scheduled = TRUE;
+	dspio->mpu.events[MPU401_EVENT_EOIHANDLER].us_remaining = 60;
+	dspio->mpu.events[MPU401_EVENT_EOIHANDLER].last_tick = GETusTIME(0);
+	dspio->mpu.events[MPU401_EVENT_EOIHANDLER].enabled = TRUE;
+    }
+    else if (!dspio->mpu.state.eoi_scheduled)
+	dspio_mpu401_eoihandler(dspio);
+}
+
+static void dspio_process_midi(struct dspio_state *dspio)
+{
+#if DEBUG_MPU401
+    S_printf("MPU401: dspio_process_midi()\n");
+#endif
+    int sequencer_ticks = 0;
+    int timer_correction = 0;
+#if DEBUG_MPU401
+    int prev_last_tick = dspio->mpu.events[MPU401_EVENT_SEQUENCER].last_tick;
+#endif
+    int i;
+    for (i = 0; i < MPU401_EVENT_MAX; i++) {
+	if (dspio->mpu.events[i].enabled) {
+	    int us_tick = GETusTIME(0);
+	    /* Sequencer is periodic, not one-shot, so ensure that we account
+	     * for any extra events that may have fired while we were scheduled
+	     * out.  Maybe we miss some state transitions this way, but at
+	     * least the track counters stay accurate. */
+	    int delta = us_tick - dspio->mpu.events[i].last_tick;
+	    if (delta < 0) /* rollover */
+		delta = (INT_MAX + delta) + 1;
+
+	    if (dspio->mpu.events[i].us_interval != 0 && delta > dspio->mpu.events[i].us_interval) {
+		/* More than one event, queue extras and adjust delta. */
+		while (delta > dspio->mpu.events[i].us_interval) {
+		    dspio->mpu.events[i].us_remaining -= dspio->mpu.events[i].us_interval;
+		    sequencer_ticks++;
+		    delta -= dspio->mpu.events[i].us_interval;
+		}
+	    }
+	    /* Process a (normal) delta that is less than an interval. */
+	    dspio->mpu.events[i].us_remaining -= delta;
+	    if (dspio->mpu.events[i].us_interval != 0 && dspio->mpu.events[i].us_remaining < 0) {
+		sequencer_ticks++;
+		/* Next event timer already began; add the remainder of
+		 * this interval to next one. */
+		timer_correction = dspio->mpu.events[i].us_remaining;
+	    }
+#if DEBUG_MPU401
+	    S_printf("MPU401 timer: normal tick %d %d %d %d %d %d %d\n", i, sequencer_ticks, dspio->mpu.events[i].us_remaining, delta, dspio->mpu.events[MPU401_EVENT_SEQUENCER].us_interval, us_tick, dspio->mpu.events[MPU401_EVENT_SEQUENCER].last_tick);
+#endif
+	    dspio->mpu.events[i].last_tick = us_tick;
+	}
+    }
+
+    if (dspio->mpu.events[MPU401_EVENT_SEQUENCER].enabled) {
+	/* The following nasty housekeeping tries to make up sequencer
+	 * ticks lost to IRQ latency.  The reason is that an interrupt to
+	 * the DOS program could be delayed 10ms since we wait for the next
+	 * SIGALRM to run its ISR; meanwhile, the sequencer is prevented
+	 * from updating via irq_pending flag, since it's still waiting for
+	 * the input it already requested from the DOS program.
+	 *
+	 * Also process any ticks that were missed due to host OS
+	 * rescheduling. */
+
+	/* Defer any sequencer ticks if an IRQ is still pending reply from
+	 * the DOS program's ISR _and_ some HW counter is active. */
+	if (dspio->mpu.state.irq_pending &&
+		(dspio->mpu.state.amask ||
+		 dspio->mpu.state.conductor ||
+		 dspio->mpu.clock.clock_to_host)) {
+#if DEBUG_MPU401
+	    S_printf("MPU401: Defer %d ticks => %d\n", sequencer_ticks, dspio->mpu.deferred_ticks);
+#endif
+	    dspio->mpu.deferred_ticks += sequencer_ticks;
+	    dspio->mpu.events[MPU401_EVENT_SEQUENCER].enabled = FALSE;
+	    Bitu new_time = dspio->mpu.clock.tempo * dspio->mpu.clock.timebase;
+	    if (new_time != 0) {
+		int interval = 1000.0 * MPU401_TIMECONSTANT / new_time;
+		dspio->mpu.events[MPU401_EVENT_SEQUENCER].us_interval = interval;
+		dspio->mpu.events[MPU401_EVENT_SEQUENCER].us_remaining = interval + timer_correction;
+#if DEBUG_MPU401
+		S_printf("MPU401 timer reset: %d %d %d %d %d\n", new_time, interval, timer_correction, GETusTIME(0), prev_last_tick);
+#endif
+		dspio->mpu.events[MPU401_EVENT_SEQUENCER].enabled = TRUE;
+	    }
+	} else {
+#if DEBUG_MPU401
+	    S_printf("MPU401: Advance Intelligent state, %d %d (%d %d %d %d %d %d %d %d)\n", dspio->mpu.state.irq_pending, dspio->mpu.state.amask,
+		    dspio->mpu.playbuf[0].counter, dspio->mpu.playbuf[1].counter, dspio->mpu.playbuf[2].counter, dspio->mpu.playbuf[3].counter,
+		    dspio->mpu.playbuf[4].counter, dspio->mpu.playbuf[5].counter, dspio->mpu.playbuf[6].counter, dspio->mpu.playbuf[7].counter);
+#endif
+	    /* If we have any ticks, we assume to defer all but one. */
+	    if (sequencer_ticks > 1) {
+		dspio->mpu.deferred_ticks += sequencer_ticks - 1;
+		sequencer_ticks = 1;
+	    }
+
+	    /* Advance as much as possible but drain no sequencer
+	     * counter below 1. */
+	    int max_advance = 255;
+	    for (int i = 0; i < 8; i++) {
+		if (dspio->mpu.state.amask & (1 << i)) {
+		    if (dspio->mpu.playbuf[i].counter - 1 < max_advance) {
+			max_advance = dspio->mpu.playbuf[i].counter - 1;
+		    }
+		}
+	    }
+	    if (dspio->mpu.state.conductor) {
+		if (dspio->mpu.condbuf.counter - 1 < max_advance) {
+		    max_advance = dspio->mpu.condbuf.counter - 1;
+		}
+	    }
+	    if (dspio->mpu.clock.clock_to_host) {
+		int cth_left = dspio->mpu.clock.cth_rate - dspio->mpu.clock.cth_counter;
+		if (cth_left - 1 < max_advance) {
+		    max_advance = cth_left - 1;
+		}
+	    }
+#if DEBUG_MPU401
+	    S_printf("MPU401: sequencer_ticks %d, deferred_ticks %d, max_advance %d\n", sequencer_ticks, dspio->mpu.deferred_ticks, max_advance);
+#endif
+
+	    if (max_advance > 0) {
+		/* Process any extra sequencer ticks from this update or from a
+		 * previous one, if we can. */
+		int extra_ticks = 0;
+		if (extra_ticks + dspio->mpu.deferred_ticks > max_advance) {
+		    dspio->mpu.deferred_ticks -= max_advance - extra_ticks;
+		    extra_ticks = max_advance;
+		} else {
+		    extra_ticks += dspio->mpu.deferred_ticks;
+		    dspio->mpu.deferred_ticks = 0;
+		}
+
+		if (extra_ticks) {
+		    S_printf("MPU401: draining %d ticks deferred due to IRQ latency\n", extra_ticks);
+		}
+
+		while (extra_ticks--) {
+		    for (int i = 0; i < 8; i++) {
+			if (dspio->mpu.state.amask & (1 << i)) {
+			    dspio->mpu.playbuf[i].counter--;
+			}
+		    }
+		    if (dspio->mpu.state.conductor)
+			dspio->mpu.condbuf.counter--;
+
+		    if (dspio->mpu.clock.clock_to_host)
+			dspio->mpu.clock.cth_counter++;
+		}
+	    }
+
+	    if (sequencer_ticks) {
+		dspio->mpu.events[MPU401_EVENT_SEQUENCER].enabled = FALSE;
+
+		/* Process a normal tick and handle counter expiry. */
+		Bitu i;
+		for (i = 0; i < 8; i++) {
+		    if (dspio->mpu.state.amask & (1 << i)) {
+			if (dspio->mpu.playbuf[i].counter > 0)
+			    dspio->mpu.playbuf[i].counter--;
+			if (dspio->mpu.playbuf[i].counter == 0)
+			    dspio_mpu401_updatetrack(dspio, i);
+		    }
+		}
+		if (dspio->mpu.state.conductor) {
+		    if (dspio->mpu.condbuf.counter > 0)
+			dspio->mpu.condbuf.counter--;
+		    if (dspio->mpu.condbuf.counter == 0)
+			dspio_mpu401_updateconductor(dspio);
+		}
+		if (dspio->mpu.clock.clock_to_host) {
+		    dspio->mpu.clock.cth_counter++;
+		    if (dspio->mpu.clock.cth_counter >= dspio->mpu.clock.cth_rate) {
+			dspio->mpu.clock.cth_counter = 0;
+			dspio->mpu.state.req_mask |= (1 << 13);
+		    }
+		}
+		if (!dspio->mpu.state.irq_pending && dspio->mpu.state.req_mask)
+		    dspio_mpu401_eoihandler(dspio);
+
+		/* Sequencer timer had fired, so reset it */
+		Bitu new_time = dspio->mpu.clock.tempo * dspio->mpu.clock.timebase;
+		if (new_time != 0) {
+		    int interval = 1000.0 * MPU401_TIMECONSTANT / new_time;
+		    dspio->mpu.events[MPU401_EVENT_SEQUENCER].us_interval = interval;
+		    dspio->mpu.events[MPU401_EVENT_SEQUENCER].us_remaining = interval + timer_correction;
+#if DEBUG_MPU401
+		    S_printf("MPU401 timer reset: %d %d %d %d %d\n", new_time, interval, timer_correction, GETusTIME(0), prev_last_tick);
+#endif
+		    dspio->mpu.events[MPU401_EVENT_SEQUENCER].enabled = TRUE;
+		}
+	    }
+	}
+    }
+
+    if (dspio->mpu.events[MPU401_EVENT_RESETDONE].enabled &&
+	dspio->mpu.events[MPU401_EVENT_RESETDONE].us_remaining <= 0) {
+	dspio->mpu.events[MPU401_EVENT_RESETDONE].enabled = FALSE;
+	dspio_mpu401_resetdone(dspio);
+    }
+
+    if (dspio->mpu.events[MPU401_EVENT_EOIHANDLER].enabled &&
+	dspio->mpu.events[MPU401_EVENT_EOIHANDLER].us_remaining <= 0) {
+	dspio->mpu.events[MPU401_EVENT_EOIHANDLER].enabled = FALSE;
+	dspio_mpu401_eoihandler(dspio);
+    }
+    /* End hardware state advance.*/
+
     Bit8u data;
-    /* no timing for now */
-    while (!dspio_midi_output_empty(state)) {
-	data = dspio_get_midi_data(state);
+
+    while (!dspio_midi_output_empty(dspio)) {
+	data = dspio_get_midi_data(dspio);
 	midi_write(data);
     }
 
     while (midi_get_data_byte(&data)) {
-	dspio_put_midi_in_byte(state, data);
-	sb_handle_midi_data();
+	dspio_put_midi_in_byte(dspio, data);
+	sb_handle_midi_data(); /* will assert IRQ */
+    }
+}
+
+static void dspio_mpu401_writedata(struct dspio_state *dspio, Bitu val)
+{
+    static Bitu length, cnt, posd;
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_writedata(%02x) %d %d %d %d %d %d %d %d %d\n", val, dspio->mpu.state.command_byte, dspio->mpu.state.wsd, dspio->mpu.state.wsm, dspio->mpu.state.cond_req, dspio->mpu.state.data_onoff, length, cnt, posd, dspio->mpu.state.channel);
+#endif
+    if (dspio->mpu.mode == M_UART) {
+	/* UART mode: just send out the byte. */
+	dspio_write_midi(dspio, val);
+	return;
+    }
+    switch (dspio->mpu.state.command_byte) {	/* 0xe# command data */
+	case 0x00: /* No pending command */
+	    break;
+	case 0xe0:	/* Set tempo */
+	    dspio->mpu.state.command_byte = 0;
+	    dspio->mpu.clock.tempo = val;
+#if DEBUG_MPU401
+	    S_printf("MPU401: Tempo %d\n", dspio->mpu.clock.tempo);
+#endif
+	    return;
+	case 0xe1:	/* Set relative tempo */
+	    dspio->mpu.state.command_byte = 0;
+	    if (val != 0x40) // default value
+		S_printf("MPU401: Relative tempo change not implemented\n");
+	    return;
+	case 0xe7:	/* Set internal clock to host interval */
+	    dspio->mpu.state.command_byte = 0;
+	    dspio->mpu.clock.cth_rate = val >> 2;
+	    return;
+	case 0xec:	/* Set active track mask */
+	    dspio->mpu.state.command_byte = 0;
+	    dspio->mpu.state.tmask = val;
+	    return;
+	case 0xed: /* Set play counter mask */
+	    dspio->mpu.state.command_byte = 0;
+	    dspio->mpu.state.cmask = val;
+	    return;
+	case 0xee: /* Set 1-8 MIDI channel mask */
+	    dspio->mpu.state.command_byte = 0;
+	    dspio->mpu.state.midi_mask &= 0xff00;
+	    dspio->mpu.state.midi_mask |= val;
+	    return;
+	case 0xef: /* Set 9-16 MIDI channel mask */
+	    dspio->mpu.state.command_byte = 0;
+	    dspio->mpu.state.midi_mask &= 0x00ff;
+	    dspio->mpu.state.midi_mask |= ((Bit16u)val) << 8;
+	    return;
+	//case 0xe2:	/* Set graduation for relative tempo */
+	//case 0xe4:	/* Set metronome */
+	//case 0xe6:	/* Set metronome measure length */
+	default:
+	    dspio->mpu.state.command_byte = 0;
+	    return;
+    }
+
+    if (dspio->mpu.state.wsd) {	/* Directly send MIDI message */
+	if (dspio->mpu.state.wsd_start) {
+	    dspio->mpu.state.wsd_start = 0;
+	    cnt = 0;
+	    switch (val & 0xf0) {
+		case 0xc0:
+		case 0xd0:
+		    dspio->mpu.playbuf[dspio->mpu.state.channel].value[0] = val;
+		    length = 2;
+		    break;
+		case 0x80:
+		case 0x90:
+		case 0xa0:
+		case 0xb0:
+		case 0xe0:
+		    dspio->mpu.playbuf[dspio->mpu.state.channel].value[0] = val;
+		    length = 3;
+		    break;
+		case 0xf0:
+		    S_printf("MPU401: Illegal WSD byte\n");
+		    dspio->mpu.state.wsd = 0;
+		    dspio->mpu.state.channel = dspio->mpu.state.old_chan;
+		    return;
+		default: /* MIDI with running status */
+		    cnt++;
+		    dspio_write_midi(dspio, dspio->mpu.playbuf[dspio->mpu.state.channel].value[0]);
+	    }
+	}
+	if (cnt < length) {
+	    dspio_write_midi(dspio, val);
+	    cnt++;
+	}
+	if (cnt == length) {
+	    dspio->mpu.state.wsd = 0;
+	    dspio->mpu.state.channel = dspio->mpu.state.old_chan;
+	}
+	return;
+    }
+    if (dspio->mpu.state.wsm) {	/* Directly send system message */
+	if (val == MSG_EOX) {
+	    dspio_write_midi(dspio, MSG_EOX);
+	    dspio->mpu.state.wsm = 0;
+	    return;
+	}
+	if (dspio->mpu.state.wsd_start) {
+	    dspio->mpu.state.wsd_start = 0;
+	    cnt = 0;
+	    switch (val) {
+		case 0xf2: { length = 3; break; }
+		case 0xf3: { length = 2; break; }
+		case 0xf6: { length = 1; break; }
+		case 0xf0:
+		default: { length = 0; break; }
+	    }
+	}
+	if (!length || cnt < length) {
+	    dspio_write_midi(dspio, val);
+	    cnt++;
+	}
+	if (cnt == length)
+	    dspio->mpu.state.wsm = 0;
+	return;
+    }
+    if (dspio->mpu.state.cond_req) { /* Command */
+	switch (dspio->mpu.state.data_onoff) {
+	    case -1:
+		return;
+	    case 0:
+		dspio->mpu.condbuf.vlength = 0;
+		if (val < 0xf0) /* Timing byte */
+		    dspio->mpu.state.data_onoff++;
+		else {
+		    dspio->mpu.state.data_onoff = -1;
+		    dspio_mpu401_eoihandlerdispatch(dspio);
+		    return;
+		}
+		if (val == 0)
+		    dspio->mpu.state.send_now = TRUE;
+		else
+		    dspio->mpu.state.send_now = FALSE;
+		dspio->mpu.condbuf.counter = val;
+		break;
+	    case 1: /* Command byte #1 */
+		dspio->mpu.condbuf.type = T_COMMAND;
+		if (val == 0xf8 || val == 0xf9)
+		    dspio->mpu.condbuf.type = T_OVERFLOW;
+		dspio->mpu.condbuf.value[dspio->mpu.condbuf.vlength] = val;
+		dspio->mpu.condbuf.vlength++;
+		if ((val & 0xf0) != 0xe0)
+		    dspio_mpu401_eoihandlerdispatch(dspio);
+		else
+		    dspio->mpu.state.data_onoff++;
+		break;
+	    case 2:/* Command byte #2 */
+		dspio->mpu.condbuf.value[dspio->mpu.condbuf.vlength] = val;
+		dspio->mpu.condbuf.vlength++;
+		dspio_mpu401_eoihandlerdispatch(dspio);
+		break;
+	}
+	return;
+    }
+    switch (dspio->mpu.state.data_onoff) { /* Data */
+	case -1:
+	    return;
+	case 0:
+	    if (val < 0xf0) /* Timing byte */
+		dspio->mpu.state.data_onoff = 1;
+	    else {
+		if (val == 0xFE) /* Host to instrument active sense */
+		    dspio_write_midi(DSPIO, val);
+		dspio->mpu.state.data_onoff = -1;
+		dspio_mpu401_eoihandlerdispatch(dspio);
+		return;
+	    }
+	    if (val == 0)
+		dspio->mpu.state.send_now = TRUE;
+	    else
+		dspio->mpu.state.send_now = FALSE;
+	    dspio->mpu.playbuf[dspio->mpu.state.channel].counter = val;
+	    break;
+	case 1: /* MIDI */
+	    posd = ++dspio->mpu.playbuf[dspio->mpu.state.channel].vlength;
+	    if (posd == 1) {
+		switch (val & 0xf0) {
+		    case 0xf0: /* System message or mark */
+			if (val > 0xf7) {
+			    dspio->mpu.playbuf[dspio->mpu.state.channel].type = T_MARK;
+			    dspio->mpu.playbuf[dspio->mpu.state.channel].sys_val = val;
+			    length = 1;
+			} else {
+			    S_printf("MPU401: Illegal message\n");
+			    dspio->mpu.playbuf[dspio->mpu.state.channel].type = T_MIDI_SYS;
+			    dspio->mpu.playbuf[dspio->mpu.state.channel].sys_val = val;
+			    length = 1;
+			}
+			break;
+		    case 0xc0:
+		    case 0xd0: /* MIDI Message */
+			dspio->mpu.playbuf[dspio->mpu.state.channel].type = T_MIDI_NORM;
+			length = dspio->mpu.playbuf[dspio->mpu.state.channel].length = 2;
+			break;
+		    case 0x80:
+		    case 0x90:
+		    case 0xa0:
+		    case 0xb0:
+		    case 0xe0:
+			dspio->mpu.playbuf[dspio->mpu.state.channel].type = T_MIDI_NORM;
+			length = dspio->mpu.playbuf[dspio->mpu.state.channel].length = 3;
+			break;
+		    default: /* MIDI data with running status */
+			posd++;
+			dspio->mpu.playbuf[dspio->mpu.state.channel].vlength++;
+			dspio->mpu.playbuf[dspio->mpu.state.channel].type = T_MIDI_NORM;
+			length = dspio->mpu.playbuf[dspio->mpu.state.channel].length;
+			break;
+		}
+	    }
+	    if (!(posd == 1 && val >= 0xf0))
+		dspio->mpu.playbuf[dspio->mpu.state.channel].value[posd - 1] = val;
+	    if (posd == length)
+		dspio_mpu401_eoihandlerdispatch(dspio);
+	    break;
+	default:
+	    S_printf("MPU401: Illegal MIDI data state %d\n", dspio->mpu.state.data_onoff);
+	    break;
+    }
+}
+
+Bit8u dspio_mpu401_io_read(void *dspio, ioport_t port)
+{
+#if TRACE_MPU401
+    S_printf("MPU401: dspio_mpu401_io_read(0x%x)\n", port);
+#endif
+
+    switch (port - config.mpu401_base) {
+    case 0:
+	/* Read data port */
+	if (dspio_get_midi_in_fillup(DSPIO)) {
+	    DSPIO->mpu.newest_data = dspio_get_midi_in_byte(DSPIO);
+#if DEBUG_MPU401
+	    S_printf("MPU401: Read data port = 0x%02x\n", DSPIO->mpu.newest_data);
+#endif
+	}
+	else {
+	    S_printf("MPU401: ERROR: No data to read, repeating previous data\n");
+	}
+	if (dspio_get_midi_in_fillup(DSPIO)) {
+#if DEBUG_MPU401
+	    S_printf("MPU401: %i bytes still in queue\n", dspio_get_midi_in_fillup(DSPIO));
+#endif
+	}
+
+	if (!DSPIO->mpu.intelligent) {
+	    return DSPIO->mpu.newest_data;
+	}
+
+	if (dspio_get_midi_in_fillup(DSPIO) == 0)
+	    DSPIO->trigger_mpu_irq(FALSE);
+
+	if (DSPIO->mpu.newest_data >= 0xf0 && DSPIO->mpu.newest_data <= 0xf7) { /* MIDI data request */
+	    DSPIO->mpu.state.channel = DSPIO->mpu.newest_data & 7;
+	    DSPIO->mpu.state.data_onoff = 0;
+	    DSPIO->mpu.state.cond_req = FALSE;
+	}
+	if (DSPIO->mpu.newest_data == MSG_MPU_COMMAND_REQ) {
+	    DSPIO->mpu.state.data_onoff = 0;
+	    DSPIO->mpu.state.cond_req = TRUE;
+	    if (DSPIO->mpu.condbuf.type != T_OVERFLOW) {
+		DSPIO->mpu.state.block_ack = TRUE;
+		dspio_mpu401_io_write(DSPIO, config.mpu401_base + 1, DSPIO->mpu.condbuf.value[0]);
+		if (DSPIO->mpu.state.command_byte)
+		    dspio_mpu401_io_write(DSPIO, config.mpu401_base, DSPIO->mpu.condbuf.value[1]);
+	    }
+	    DSPIO->mpu.condbuf.type = T_OVERFLOW;
+	}
+	if (DSPIO->mpu.newest_data == MSG_MPU_END || DSPIO->mpu.newest_data == MSG_MPU_CLOCK || DSPIO->mpu.newest_data == MSG_MPU_ACK) {
+	    DSPIO->mpu.state.data_onoff = -1;
+	    dspio_mpu401_eoihandlerdispatch(DSPIO);
+	}
+
+	return DSPIO->mpu.newest_data;
+    case 1:
+	/* Read status port */
+	/* 0x40=OUTPUT_AVAIL; 0x80=INPUT_AVAIL */
+	{
+	uint8_t ret = 0x3f; /* Bits 6 and 7 clear */
+	if (DSPIO->mpu.state.cmd_pending_reset || DSPIO->mpu.state.reset)
+	    ret |= 0x40;
+	if (!dspio_get_midi_in_fillup(DSPIO))
+	    ret |= 0x80;
+#if DEBUG_MPU401
+	S_printf("MPU401: Read status port = 0x%02x\n", ret);
+#endif
+	return ret;
+	}
+    default:
+	break;
+    }
+
+    S_printf("MPU401: Bogus read port 0x%x\n", port);
+    return 0;
+}
+
+void dspio_mpu401_io_write(void *dspio, ioport_t port, Bit8u value)
+{
+#if TRACE_MPU401
+    char ascii[5];
+    ascii[0] = '\0';
+    if ((char)value >= ' ' && (char)value <= '~') {
+	if (snprintf(ascii, sizeof(ascii), " '%c'", value) < sizeof(ascii))
+	    ascii[sizeof(ascii)-1] = '\0';
+    }
+    S_printf("MPU401: dspio_mpu401_io_write(0x%x) <- $%02X%s\n", port, value, ascii);
+#endif
+    switch (port - config.mpu401_base) {
+    case 0:
+	/* Write data port */
+#if DEBUG_MPU401
+	S_printf("MPU401: Write 0x%02x to data port\n", value);
+#endif
+	dspio_mpu401_writedata(DSPIO, value);
+	break;
+    case 1:
+	/* Write command port */
+#if DEBUG_MPU401
+	S_printf("MPU401: Write 0x%02x to command port\n", value);
+#endif
+
+	if (DSPIO->mpu.state.reset) {
+	    /* Latch the last received command, to run when reset is done. */
+	    if (DSPIO->mpu.state.cmd_pending_reset || (value != 0x3f && value != 0xff)) {
+		DSPIO->mpu.state.cmd_pending_reset = value + 1;
+		return;
+	    }
+	    S_printf("MPU401: Double-reset!\n");
+	    DSPIO->mpu.events[MPU401_EVENT_RESETDONE].enabled = FALSE;
+	    DSPIO->mpu.state.reset = FALSE;
+	}
+
+	/* In UART mode, the only valid command is Reset. */
+	if (value == 0xff) {	/* Reset MPU-401 */
+	    S_printf("MPU401: Reset %X\n", value);
+	    DSPIO->mpu.prev_mode = DSPIO->mpu.mode;
+	    DSPIO->mpu.state.reset = TRUE;
+	    dspio_mpu401_reset(DSPIO);
+	    DSPIO->mpu.events[MPU401_EVENT_RESETDONE].us_remaining = 1000.0 * MPU401_RESETBUSY;
+	    DSPIO->mpu.events[MPU401_EVENT_RESETDONE].last_tick = GETusTIME(0);
+	    DSPIO->mpu.events[MPU401_EVENT_RESETDONE].enabled = TRUE;
+	    return;
+	} else if (DSPIO->mpu.mode != M_UART && value == 0x3f) { /* Enter UART mode */
+	    S_printf("MPU401: Set UART mode %X\n", value);
+	    DSPIO->mpu.mode = M_UART;
+#if DEBUG_MPU401
+	    S_printf("MPU401: Acking command %X\n", value);
+#endif
+	    dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
+	    return;
+	}
+
+	/* Command was neither reset nor UART mode, so run it, but only if
+	 * not in UART mode since no commands below are valid in UART mode. */
+	if (DSPIO->mpu.mode == M_UART) {
+	    return;
+	}
+
+	/* MPU-401 Intelligent mode adapted from DOSBox */
+	if (value <= 0x2f) {
+	    switch (value & 3) {    /* MIDI stop, start, continue */
+		case 1:
+		    dspio_write_midi(DSPIO, 0xfc);
+		    break;
+		case 2:
+		    dspio_write_midi(DSPIO, 0xfa);
+		    break;
+		case 3:
+		    dspio_write_midi(DSPIO, 0xfb);
+		    break;
+	    }
+
+	    if (value & 0x20)
+		S_printf("MPU401: Unhandled Recording Command %x\n", value);
+
+	    switch (value & 0xc) {
+		case 0x4:   /* Stop */
+		    DSPIO->mpu.events[MPU401_EVENT_SEQUENCER].enabled = FALSE;
+		    DSPIO->mpu.state.playing = FALSE;
+		    Bit8u i;
+		    for (i = 0xb0; i < 0xbf; i++) { /* All notes off */
+			dspio_write_midi(DSPIO, i);
+			dspio_write_midi(DSPIO, 0x7b);
+			dspio_write_midi(DSPIO, 0);
+		    }
+		    break;
+		case 0x8:   /* Play */
+		    S_printf("MPU401: Intelligent mode playback started\n");
+		    DSPIO->mpu.state.playing = TRUE;
+		    DSPIO->mpu.events[MPU401_EVENT_SEQUENCER].us_remaining =
+			    DSPIO->mpu.events[MPU401_EVENT_SEQUENCER].us_interval = 1000.0 * (MPU401_TIMECONSTANT / (DSPIO->mpu.clock.tempo * DSPIO->mpu.clock.timebase));
+		    DSPIO->mpu.events[MPU401_EVENT_SEQUENCER].last_tick = GETusTIME(0);
+		    DSPIO->mpu.events[MPU401_EVENT_SEQUENCER].enabled = TRUE;
+		    dspio_clear_midi_in_fifo(DSPIO);
+		    break;
+	    }
+	}
+	else if (value >= 0xa0 && value <= 0xa7) {  /* Request play counter */
+	    if (DSPIO->mpu.state.cmask & (1 << (value & 7)))
+		dspio_mpu401_queue_databyte(DSPIO, DSPIO->mpu.playbuf[value & 7].counter);
+	}
+	else if (value >= 0xd0 && value <= 0xd7) {  /* Send data */
+	    DSPIO->mpu.state.old_chan = DSPIO->mpu.state.channel;
+	    DSPIO->mpu.state.channel = value & 7;
+	    DSPIO->mpu.state.wsd = TRUE;
+	    DSPIO->mpu.state.wsm = FALSE;
+	    DSPIO->mpu.state.wsd_start = TRUE;
+	}
+	else
+	switch (value) {
+	    case 0xdf:	/* Send system message */
+		DSPIO->mpu.state.wsd = FALSE;
+		DSPIO->mpu.state.wsm = TRUE;
+		DSPIO->mpu.state.wsd_start = TRUE;
+		break;
+	    case 0x8e:	/* Conductor */
+		DSPIO->mpu.state.cond_set = FALSE;
+		break;
+	    case 0x8f:
+		DSPIO->mpu.state.cond_set = TRUE;
+		break;
+	    case 0x94: /* Clock to host */
+		DSPIO->mpu.clock.clock_to_host = FALSE;
+		break;
+	    case 0x95:
+		DSPIO->mpu.clock.clock_to_host = TRUE;
+		break;
+	    /* Internal timebase */
+	    case 0xc2: case 0xc3: case 0xc4: case 0xc5:
+	    case 0xc6: case 0xc7: case 0xc8:
+		DSPIO->mpu.clock.timebase = 48 + (24 * (value - 0xc2));
+#if DEBUG_MPU401
+		S_printf("MPU401: Timebase %d\n", DSPIO->mpu.clock.timebase);
+#endif
+		break;
+	    /* Commands with data byte */
+	    case 0xe0: case 0xe1: case 0xe2: case 0xe4: case 0xe6:
+	    case 0xe7: case 0xec: case 0xed: case 0xee: case 0xef:
+		DSPIO->mpu.state.command_byte = value;
+		break;
+	    /* Commands 0xa# returning data */
+	    case 0xab:	/* Request and clear recording counter */
+		dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
+		dspio_mpu401_queue_databyte(DSPIO, 0);
+		return;
+	    case 0xac:	/* Request version */
+		dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
+		dspio_mpu401_queue_databyte(DSPIO, MPU401_VERSION);
+		return;
+	    case 0xad:	/* Request revision */
+		dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
+		dspio_mpu401_queue_databyte(DSPIO, MPU401_REVISION);
+		return;
+	    case 0xaf:	/* Request tempo */
+		dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
+		dspio_mpu401_queue_databyte(DSPIO, DSPIO->mpu.clock.tempo);
+		return;
+	    case 0xb1:	/* Reset relative tempo */
+		DSPIO->mpu.clock.tempo_rel = 40;
+		break;
+	    case 0xb9:	/* Clear play map */
+	    case 0xb8:	/* Clear play counters */
+		{
+		    Bit8u i;
+		    for (i = 0xb0; i < 0xbf; i++) { /* All notes off */
+			dspio_write_midi(DSPIO, i);
+			dspio_write_midi(DSPIO, 0x7b);
+			dspio_write_midi(DSPIO, 0);
+		    }
+		    for (i = 0; i < 8; i++) {
+			DSPIO->mpu.playbuf[i].counter = 0;
+			DSPIO->mpu.playbuf[i].type = T_OVERFLOW;
+		    }
+		    DSPIO->mpu.condbuf.counter = 0;
+		    DSPIO->mpu.condbuf.type = T_OVERFLOW;
+		    if (!(DSPIO->mpu.state.conductor = DSPIO->mpu.state.cond_set))
+			DSPIO->mpu.state.cond_req = FALSE;
+		    DSPIO->mpu.state.amask = DSPIO->mpu.state.tmask;
+		    DSPIO->mpu.state.req_mask = 0;
+		    DSPIO->mpu.state.irq_pending = TRUE;
+		}
+		break;
+	    case 0xff: /* Reset MPU-401 and UART mode already handled */
+	    case 0x3f:
+		break;
+	    default:
+		S_printf("MPU401: Unhandled command %X\n", value);
+	}
+
+	// ACK every MPU-401 command that didn't already _return_ above.
+#if DEBUG_MPU401
+	S_printf("MPU401: Acking command %X\n", value);
+#endif
+	dspio_mpu401_queue_databyte(DSPIO, MSG_MPU_ACK);
     }
 }
 

@@ -1608,78 +1608,21 @@ int sb_get_dma_data(void *ptr, int is16bit)
 
 static Bit8u mpu401_io_read(ioport_t port)
 {
-    ioport_t addr;
-    Bit8u r = 0xff;
-
-    addr = port - config.mpu401_base;
-
-    switch (addr) {
-    case 0:
-	/* Read data port */
-	if (dspio_get_midi_in_fillup(sb.dspio))
-	    r = dspio_get_midi_in_byte(sb.dspio);
-	else
-	    S_printf("MPU401: ERROR: No data to read\n");
-	S_printf("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
-	     r, dspio_get_midi_in_fillup(sb.dspio));
-	if (!dspio_get_midi_in_fillup(sb.dspio))
-	    sb_deactivate_irq(SB_IRQ_MPU401);
-	sb_run_irq(SB_IRQ_MPU401);
-	break;
-    case 1:
-	/* Read status port */
-	/* 0x40=OUTPUT_AVAIL; 0x80=INPUT_AVAIL */
-	r = 0xff & (~0x40);	/* Output is always possible */
-	if (dspio_get_midi_in_fillup(sb.dspio))
-	    r &= (~0x80);
-	S_printf("MPU401: Read status port = 0x%02x\n", r);
-	break;
-    }
-    return r;
+    return dspio_mpu401_io_read(sb.dspio, port);
 }
 
 static void mpu401_io_write(ioport_t port, Bit8u value)
 {
-    uint32_t addr;
-    addr = port - config.mpu401_base;
+    dspio_mpu401_io_write(sb.dspio, port, value);
+}
 
-    switch (addr) {
-    case 0:
-	/* Write data port */
-	if (debug_level('S') > 5)
-		S_printf("MPU401: Write 0x%02x to data port\n", value);
-	dspio_write_midi(sb.dspio, value);
-	if (!sb.mpu401_uart && debug_level('S') > 5)
-		S_printf("MPU401: intelligent mode write unhandled\n");
-	break;
-    case 1:
-	/* Write command port */
-	S_printf("MPU401: Write 0x%02x to command port\n", value);
-	dspio_clear_midi_in_fifo(sb.dspio);
-	/* the following doc:
-	 * http://www.piclist.com/techref/io/serial/midi/mpu.html
-	 * says 3f does not need ACK. But dosbox sources say that
-	 * it does. Someone please try on a real HW? */
-	dspio_put_midi_in_byte(sb.dspio, 0xfe);	/* A command is sent: MPU_ACK it next time */
-	switch (value) {
-	case 0x3f:		// 0x3F = UART mode
-	    sb.mpu401_uart = 1;
-	    break;
-	case 0xff:		// 0xFF = reset MPU
-	    sb.mpu401_uart = 0;
-	    dspio_stop_midi(sb.dspio);
-	    break;
-	case 0x80:		// Clock ??
-	    break;
-	case 0xac:		// Query version
-	    dspio_put_midi_in_byte(sb.dspio, 0x15);
-	    break;
-	case 0xad:		// Query revision
-	    dspio_put_midi_in_byte(sb.dspio, 0x1);
-	    break;
-	}
+static void sb_set_mpu_irq(boolean active)
+{
+    if (active && !sb_irq_active(SB_IRQ_MPU401)) {
 	sb_activate_irq(SB_IRQ_MPU401);
-	break;
+    }
+    else if (!active && sb_irq_active(SB_IRQ_MPU401)) {
+	sb_deactivate_irq(SB_IRQ_MPU401);
     }
 }
 
@@ -1704,7 +1647,7 @@ void sb_handle_midi_data(void)
 	    process_sb_midi_input();
 	if (sb_midi_int())
 	    sb_activate_irq(SB_IRQ_MIDI);
-    } else if (sb.mpu401_uart) {
+    } else { /* SB-MIDI inactive, so MIDI data must be MPU-401 source */
 	if (dspio_get_midi_in_fillup(sb.dspio) == MPU401_IN_FIFO_TRIGGER)
 	    sb_activate_irq(SB_IRQ_MPU401);
     }
@@ -1741,10 +1684,13 @@ static void mpu401_init(void)
     }
     io_device.fd = -1;
     if (port_register_handler(io_device, 0) != 0)
-	error("MPU-401: Cannot registering port handler\n");
+	error("MPU-401: Cannot register port handler\n");
 
-    S_printf("MPU401: MPU-401 Initialisation - Base 0x%03x \n",
+    S_printf("MPU401: MPU-401 Initialisation - Base 0x%03x",
 	     config.mpu401_base);
+    if (config.mpu401_irq)
+	S_printf(", IRQ %d", config.mpu401_irq);
+    S_printf("\n");
 }
 
 static void mpu401_done(void)
@@ -1809,7 +1755,7 @@ void sound_init(void)
 {
     if (config.sound) {
 	sb_init();
-	sb.dspio = dspio_init();
+	sb.dspio = dspio_init(&sb_set_mpu_irq);
 	if (!sb.dspio) {
 	    error("dspio faild\n");
 	    leavedos(93);

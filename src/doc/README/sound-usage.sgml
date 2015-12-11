@@ -84,7 +84,7 @@ but if the audio needs or uses FM you will hear nothing.
 <title> MPU-401</title>
 
 <para>
-This is the MIDI emulation. This should be fairly complete.
+This is the MIDI emulation. This is complete including "intelligent mode".
 For using with OSS you need either an external daemon 'midid'
 (this is supplied), or your sound card must have a Wave Table 
 synthesizer and /dev/midi configured and working.
