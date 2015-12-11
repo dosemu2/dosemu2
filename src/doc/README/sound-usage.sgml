@@ -167,6 +167,7 @@ $_sb_hdma = (5)
 $_sb_dsp = "/dev/dsp"
 $_sb_mixer = ""
 $_mpu_base = (0x330)
+$_mpu_irq = (2)
 </screen>
 
 </para>
