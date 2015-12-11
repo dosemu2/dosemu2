@@ -64,9 +64,6 @@ static int aosnd_cfg(void *arg)
 	    (p[l] == 0 || p[l] == ',')) {
 	S_printf("PCM: Enabling ao driver\n");
 	return PCM_CF_ENABLED;
-    } else if (strlen(config.sound_driver)) {
-	S_printf("PCM: Disabling ao driver\n");
-	return PCM_CF_DISABLED;
     }
     return 0;
 }
