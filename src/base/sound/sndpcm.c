@@ -174,6 +174,17 @@ static int is_connected_dummy(int id, void *arg)
     return 1;
 }
 
+static int pcm_get_cfg(const char *name)
+{
+  int i;
+  for (i = 0; i < pcm.num_players; i++) {
+    struct pcm_holder *p = &pcm.players[i];
+    if (!strcmp(p->plugin->name, name))
+      return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
+  }
+  return -1;
+}
+
 int pcm_init(void)
 {
 #ifdef USE_DL_PLUGINS
@@ -1249,17 +1260,6 @@ void pcm_deinit_plugins(struct pcm_holder *plu, int num)
 	    p->opened = 0;
 	}
     }
-}
-
-int pcm_get_cfg(const char *name)
-{
-  int i;
-  for (i = 0; i < pcm.num_players; i++) {
-    struct pcm_holder *p = &pcm.players[i];
-    if (!strcmp(p->plugin->name, name))
-      return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
-  }
-  return -1;
 }
 
 int pcm_start_input(void *arg)
