@@ -27,7 +27,8 @@
 
 
 static snd_rawmidi_t *handle = NULL;
-#define midoalsa_name "MIDI Output: ALSA device"
+#define midoalsa_name "alsa"
+#define midoalsa_longname "MIDI Output: ALSA device"
 static const char *device = "default";
 
 static int midoalsa_init(void *arg)
@@ -58,11 +59,18 @@ static void midoalsa_write(unsigned char val)
     snd_rawmidi_write(handle, &val, 1);
 }
 
+static int midoalsa_cfg(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midoalsa_name);
+}
+
 static const struct midi_out_plugin midoalsa = {
     .name = midoalsa_name,
+    .longname = midoalsa_longname,
     .open = midoalsa_init,
     .close = midoalsa_done,
     .write = midoalsa_write,
+    .get_cfg = midoalsa_cfg,
     .weight = MIDI_W_PREFERRED,
 };
 

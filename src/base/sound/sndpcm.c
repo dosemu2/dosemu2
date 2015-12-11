@@ -1327,3 +1327,16 @@ int pcm_setup_hpf(struct player_params *params)
     return pcm_setup_efp(params->handle, EFP_HPF, params->rate,
 	    params->channels, HPF_CTL);
 }
+
+int pcm_parse_cfg(char *string, char *name)
+{
+    char *p;
+    int l;
+    l = strlen(name);
+    p = strstr(string, name);
+    if (p && (p == string || p[-1] == ',') && (p[l] == 0 || p[l] == ',')) {
+	S_printf("PCM: Enabling %s driver\n", name);
+	return PCM_CF_ENABLED;
+    }
+    return 0;
+}

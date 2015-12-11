@@ -27,6 +27,7 @@
  * Author: Stas Sergeev
  *
  */
+#include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -39,7 +40,8 @@
 #include "sound/sound.h"
 
 
-#define midoflus_name "MIDI Output: FluidSynth device"
+#define midoflus_name "flus"
+#define midoflus_longname "MIDI Output: FluidSynth device"
 static const int flus_format = PCM_FORMAT_S16_LE;
 static const float flus_gain = 1;
 #define FLUS_CHANNELS 2
@@ -253,18 +255,26 @@ static void midoflus_run(void)
     sem_post(&syn_sem);
 }
 
+static int midoflus_cfg(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midoflus_name);
+}
+
 static const struct midi_out_plugin midoflus = {
     .name = midoflus_name,
+    .longname = midoflus_longname,
     .open = midoflus_init,
     .close = midoflus_done,
     .write = midoflus_write,
     .stop = midoflus_stop,
     .run = midoflus_run,
+    .get_cfg = midoflus_cfg,
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
 
 static const struct pcm_recorder recorder = {
     .name = midoflus_name,
+    .longname = midoflus_longname,
     .owns = midoflus_owns,
     .flags = PCM_F_PASSTHRU,
 };
