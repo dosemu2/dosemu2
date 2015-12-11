@@ -1285,10 +1285,8 @@ void e_invalidate(unsigned data, int cnt)
 {
 	if (config.cpuemu <= 1)
 		return;
-	if (!e_querymark(data, cnt)) {
-		e_check_munprotect(data, cnt);
+	if (LINEAR2UNIX(data) != MEM_BASE32(data) && !e_querymark(data, cnt))
 		return;
-	}
 	e_invalidate_full(data, cnt);
 }
 
