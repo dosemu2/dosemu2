@@ -666,8 +666,6 @@ char *showreg(signed char r);
 char *showmode(unsigned int m);
 void Cpu2Reg (void);
 int e_debug_check(unsigned int PC);
-int s_munprotect(unsigned int addr, size_t len);
-int s_mprotect(unsigned int addr, size_t len);
 int e_mprotect(unsigned int addr, size_t len);
 int e_munprotect(unsigned int addr, size_t len);
 int e_check_munprotect(unsigned int addr, size_t len);

@@ -42,59 +42,29 @@
 #define asmlinkage static __attribute__((used))
 #endif
 
-int s_munprotect(unsigned int addr, size_t len)
-{
-	if (debug_level('e')>3) e_printf("\tS_MUNPROT %08x\n",addr);
-	return e_check_munprotect(addr, len);
-}
-
-int s_mprotect(unsigned int addr, size_t len)
-{
-	if (debug_level('e')>3) e_printf("\tS_MPROT   %08x\n",addr);
-	return e_mprotect(addr, len);
-}
-
 #ifdef HOST_ARCH_X86
-#if 0
-static int m_mprotect(unsigned int addr, size_t len)
-{
-	if (debug_level('e')>3)
-	    e_printf("\tM_MPROT   %08x\n",addr);
-	return e_mprotect(addr, len);
-}
 
 /*
  * Return address of the stub function is passed into eip
  */
-static int m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
+static void m_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
 {
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08x:%p [%08x]\n",
 		addr,eip,*((int *)(eip-3)));
-	/* verify that data, not code, has been hit */
-	if (!e_querymark(addr, len))
-	    return e_check_munprotect(addr, len);
-	/* Oops.. we hit code, maybe the stub was set up before that
-	 * code was parsed. Ok, undo the patch and clear that code */
-	if (debug_level('e')>1)
-	    e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
-/*	if (UnCpatch((void *)(eip-3))) leavedos_main(0); */
-	InvalidateNodePage(addr,len,eip,NULL);
-	return e_check_munprotect(addr, len);
-}
-
-static void r_munprotect(unsigned int addr, unsigned int len, unsigned char *eip)
-{
-	if (EFLAGS & EFLAGS_DF) addr -= len;
-	if (debug_level('e')>3)
-	    dbug_printf("\tR_MUNPROT %08x:%08x %s\n",
-		addr,addr+len,(EFLAGS&EFLAGS_DF?"back":"fwd"));
+	/* if only data in aliased low memory is hit, nothing to do */
 	if (LINEAR2UNIX(addr) != MEM_BASE32(addr) && !e_querymark(addr, len))
 		return;
+	/* Always unprotect and clear all code in the pages
+	 * for either DPMI data or code.
+	 * Maybe the stub was set up before that code was parsed.
+	 * Clear that code */
+	if (debug_level('e')>1 && e_querymark(addr, len))
+	    e_printf("CODE %08x hit in DATA %p patch\n",addr,eip);
+/*	if (UnCpatch((void *)(eip-3))) leavedos_main(0); */
 	InvalidateNodePage(addr,len,eip,NULL);
 	e_resetpagemarks(addr,len);
 	e_munprotect(addr,len);
 }
-#endif
 
 #define repmovs(std,letter,cld)			       \
 	asm volatile(#std" ; rep ; movs"#letter ";" #cld"\n\t" \
@@ -141,7 +111,8 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	else if (*eip & 1)
 		size = 4;
 	len *= size;
-	e_invalidate(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0), len);
+	m_munprotect(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0),
+		     len, eip);
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);
@@ -235,7 +206,7 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit8u *p;
-	e_invalidate(addr, 1);
+	m_munprotect(addr, 1, eip);
 	p = LINEAR2UNIX(addr);
 	/* there is a slight chance that this stub hits VGA memory.
 	   For that case there is a simple instruction decoder but
@@ -247,7 +218,7 @@ asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit16u *p;
-	e_invalidate(addr, 2);
+	m_munprotect(addr, 2, eip);
 	p = LINEAR2UNIX(addr);
 	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 }
@@ -256,7 +227,7 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit32u *p;
-	e_invalidate(addr, 4);
+	m_munprotect(addr, 4, eip);
 	p = LINEAR2UNIX(addr);
 	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
 }
