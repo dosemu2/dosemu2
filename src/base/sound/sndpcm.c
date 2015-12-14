@@ -158,7 +158,6 @@ struct pcm_struct {
     struct pcm_holder efps[MAX_EFPS];
     int num_efps;
     double time;
-    unsigned int terminated:1;
 };
 static struct pcm_struct pcm;
 
@@ -441,8 +440,7 @@ void pcm_prepare_stream(int strm_idx)
 {
     long long now = GETusTIME(0);
     struct stream *s;
-    if (pcm.terminated)
-	return;
+
     s = &pcm.stream[strm_idx];
     switch (s->state) {
 
@@ -696,8 +694,6 @@ static void pcm_handle_flush(int strm_idx)
 
 int pcm_flush(int strm_idx)
 {
-    if (pcm.terminated)
-	return 0;
     S_printf("PCM: flushing stream %i (%s)\n", strm_idx,
 	     pcm.stream[strm_idx].name);
     pcm_handle_flush(strm_idx);
@@ -746,8 +742,6 @@ user_tstamp:
 
 double pcm_get_stream_time(int strm_idx)
 {
-    if (pcm.terminated)
-	return 0;
     /* we allow user to write samples to the future to prevent
      * subsequent underflows */
     return get_stream_time(strm_idx) - pcm.stream[strm_idx].stretch_tot;
@@ -755,8 +749,6 @@ double pcm_get_stream_time(int strm_idx)
 
 double pcm_time_lock(int strm_idx)
 {
-    if (pcm.terminated)
-	return 0;
     /* well, yes, the lock needs to be per-stream... Go get it. :) */
     pthread_mutex_lock(&pcm.time_mtx);
     return pcm_get_stream_time(strm_idx);
@@ -786,8 +778,7 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     struct sample samp;
     double frame_per;
     struct stream *strm;
-    if (pcm.terminated)
-	return;
+
     strm = &pcm.stream[strm_idx];
     assert(nchans <= strm->channels);
     if (strm->flags & PCM_FLAG_RAW)
@@ -978,8 +969,6 @@ int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
     double volume[MAX_STREAMS][SNDBUF_CHANS][SNDBUF_CHANS];
     struct pcm_holder *p;
 
-    if (pcm.terminated)
-	return 0;
     now = GETusTIME(0);
     handle = params->handle;
     p = &pcm.players[handle];
@@ -1060,8 +1049,7 @@ size_t pcm_data_get(void *data, size_t size,
     int ss = pcm_format_size(params->format);
     int fsz = params->channels * ss;
     int nframes = size / fsz;
-    if (pcm.terminated)
-	return 0;
+
     nframes = pcm_data_get_interleaved(buf, nframes, params);
     for (i = 0; i < nframes; i++) {
 	for (j = 0; j < params->channels; j++)
@@ -1178,7 +1166,6 @@ void pcm_done(void)
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_ANY);
-    pcm.terminated = 1;
     pthread_mutex_unlock(&pcm.strm_mtx);
 
     pcm_deinit_plugins(pcm.recorders, pcm.num_recorders);
