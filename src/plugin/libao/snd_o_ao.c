@@ -82,6 +82,13 @@ static int aosnd_open(void *arg)
     opt.key = "buffer_time";
     opt.value = "40";
     ao = ao_open_live(id, &info, &opt);
+    if (!ao) {
+	/* because of this bug:
+	 * https://bugs.launchpad.net/ubuntu/+source/libao/+bug/1525776
+	 * we need to retry without options... libao is so lame, do you
+	 * remember that? */
+	ao = ao_open_live(id, &info, NULL);
+    }
     if (!ao)
 	return 0;
 
