@@ -1921,7 +1921,24 @@ shrot0:
 		break;
 
 	case O_MOVS_SavA:
-		if (mode&ADDR16) {
+		if (!(mode&(MREP|MREPNE))) {
+		    // %%edx set to DF's increment
+		    // movsbl Ofs_DF_INCREMENTS+OPSIZEBIT(mode)(%%ebx),%%edx
+		    G4M(0x0f,0xbe,0x53,Ofs_DF_INCREMENTS+OPSIZEBIT(mode),Cp);
+		    if(mode & MOVSSRC) {
+			if (mode & ADDR16)
+				G1(0x66,Cp);
+			// add{wl} %{e}dx,Ofs_SI(%%ebx)
+			G3M(0x01,0x53,Ofs_SI,Cp);
+		    }
+		    if(mode & MOVSDST) {
+			if (mode & ADDR16)
+				G1(0x66,Cp);
+			// add{wl} %{e}dx,Ofs_DI(%%ebx)
+			G3M(0x01,0x53,Ofs_DI,Cp);
+		    }
+		}
+		else if (mode&ADDR16) {
 		    if(mode & MREPCOND)
 		    {
 			/* it is important to *NOT* destroy the flags here, so

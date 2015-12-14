@@ -417,5 +417,8 @@ char OpIsPush[256] =
 // OpSize[mode & (DATA16|MBYTE)] == size of operand in bytes
 char OpSize[8] = {4,4,2,2,1,1,1,1};
 
+// OpSize[mode & (DATA16|MBYTE)] == bit (2-log) for size of operand in bytes
+char OpSizeBit[8] = {2,2,1,1,0,0,0,0};
+
 /////////////////////////////////////////////////////////////////////////////
 
