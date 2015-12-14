@@ -314,8 +314,10 @@ extern int  GendBytesPerOp[];
 extern char RmIsReg[];
 extern char OpIsPush[];
 extern char OpSize[];
+extern char OpSizeBit[];
 
 #define OPSIZE(m) (OpSize[(m)&(DATA16|MBYTE)])
+#define OPSIZEBIT(m) (OpSizeBit[(m)&(DATA16|MBYTE)])
 
 int Cpatch(struct sigcontext *scp);
 int UnCpatch(unsigned char *eip);
