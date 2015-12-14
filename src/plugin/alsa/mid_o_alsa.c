@@ -41,6 +41,8 @@ static int midoalsa_init(void *arg)
 		 midoalsa_name, device, snd_strerror(err));
 	return 0;
     }
+    /* NONBLOCK flag is needed only so that open() not to block forever */
+    snd_rawmidi_nonblock(handle, 0);
     return 1;
 }
 
