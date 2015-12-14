@@ -318,8 +318,9 @@ void dspio_reset(void *dspio)
 
 void dspio_done(void *dspio)
 {
-    pcm_done();
     midi_done();
+    /* shutdown midi before pcm as midi may use pcm */
+    pcm_done();
 
     rng_destroy(&DSPIO->fifo_in);
     rng_destroy(&DSPIO->fifo_out);
