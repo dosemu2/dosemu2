@@ -509,6 +509,7 @@ static void Reg2Cpu (int mode)
   flg = getflags();
   TheCPU.eflags |= (flg & notSAFE_MASK); // which VIP do we get here?
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
+  TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   if (config.cpuemu==2) {
     /* a vm86 call switch has been detected.
@@ -609,6 +610,7 @@ static void Scp2Cpu (sigcontext_t *scp)
   TheCPU.scp_err = 0;
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
+  TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   /* __fpstate is loaded later on demand for JIT, not used for simulator */
   TheCPU.fpstate = __fpstate;
@@ -705,6 +707,7 @@ erseg:
   amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | (CPL<=IOPL? 0:EFLAGS_IF) |
     (EFLAGS_VM|EFLAGS_RF) | 2;
   TheCPU.eflags = (oldfl & amask) | ((_eflags&(eTSSMASK|0xfd7))&~amask);
+  TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   trans_addr = LONG_CS + _eip;
   if (debug_level('e')>1) {

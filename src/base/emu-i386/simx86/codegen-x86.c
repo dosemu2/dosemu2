@@ -2036,10 +2036,16 @@ shrot0:
 		case CLD:
 			// andb $0xfb,EFLAGS+1(%%ebx)
 			G4M(0x80,0x63,Ofs_EFLAGS+1,0xfbu,Cp);
+			// movl $0x040201,DF_INCREMENTS(%%ebx)
+			G3M(0xc7,0x43,Ofs_DF_INCREMENTS,Cp);
+			G4(0x040201,Cp);
 			break;
 		case STD:
 			// orb $4,EFLAGS+1(%%ebx)
 			G4M(0x80,0x4b,Ofs_EFLAGS+1,0x04,Cp);
+			// movl $0xfcfeff,DF_INCREMENTS(%%ebx)
+			G3M(0xc7,0x43,Ofs_DF_INCREMENTS,Cp);
+			G4(0xfcfeff,Cp);
 			break;
 		} }
 		break;

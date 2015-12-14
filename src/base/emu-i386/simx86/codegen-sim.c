@@ -2742,10 +2742,12 @@ void Gen_sim(int op, int mode, ...)
 		case CLD:
 			GTRACE0("O_CLD");
 			CPUWORD(Ofs_FLAGS) &= 0xfbff;
+			TheCPU.df_increments = 0x040201;
 			break;
 		case STD:
 			GTRACE0("O_STD");
 			CPUWORD(Ofs_FLAGS) |= 0x400;
+			TheCPU.df_increments = 0xfcfeff;
 			break;
 		} }
 		break;

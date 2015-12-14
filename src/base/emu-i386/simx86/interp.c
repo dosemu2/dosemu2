@@ -1664,6 +1664,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    else	/* should use eTSSMASK */
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
+			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_FLAGS(EFLAGS));
 			}
@@ -1722,6 +1723,7 @@ stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
+			TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
 			if (opc==POPF) PC++; }
 			break;
 
@@ -2016,14 +2018,18 @@ repag0:
 			PC++;
 			break;
 /*fc*/	case CLD:	PC++;
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
+			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
 				EFLAGS &= ~EFLAGS_DF;
+				TheCPU.df_increments = 0x040201;
+			}
 			else
 				Gen(O_SETFL, mode, CLD);
 			break;
 /*fd*/	case STD:	PC++;
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
+			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
 				EFLAGS |= EFLAGS_DF;
+				TheCPU.df_increments = 0xfcfeff;
+			}
 			else
 				Gen(O_SETFL, mode, STD);
 			break;
