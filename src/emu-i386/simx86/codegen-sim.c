@@ -2678,7 +2678,23 @@ void Gen_sim(int op, int mode, ...)
 
 	case O_MOVS_SavA:
 		GTRACE0("O_MOVS_SavA");
-		if (mode&ADDR16) {
+		if (!(mode&(MREP|MREPNE))) {
+		    // %%edx set to DF's increment
+		    DR2.d = (char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
+		    if(mode & MOVSSRC) {
+			if (mode & ADDR16)
+			    CPUWORD(Ofs_SI) += DR2.w.l;
+			else
+			    CPULONG(Ofs_SI) += DR2.d;
+		    }
+		    if(mode & MOVSDST) {
+			if (mode & ADDR16)
+			    CPUWORD(Ofs_DI) += DR2.w.l;
+			else
+			    CPULONG(Ofs_DI) += DR2.d;
+		    }
+		}
+		else if (mode&ADDR16) {
 		    if (mode&(MREP|MREPNE)) {
 	    		CPUWORD(Ofs_CX) = TR1.w.l;
 		    }
