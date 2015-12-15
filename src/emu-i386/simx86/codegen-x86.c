@@ -1698,7 +1698,9 @@ shrot0:
 		GNX(Cp, p, sz);
 		} break;
 
-	case O_MOVS_SetA:
+	case O_MOVS_SetA: {
+		/* use edi for loads unless MOVSDST or REP is set */
+		unsigned char modrm = mode&(MREP|MREPNE|MOVSDST) ? 0x73 : 0x7b;
 		if (mode&ADDR16) {
 		    /* The CX load has to be before the address reloads */
 		    if (mode&(MREP|MREPNE)) {
@@ -1707,8 +1709,8 @@ shrot0:
 			rep_retry_ptr = Cp;
 		    }
 		    if (mode&MOVSSRC) {
-			// movzwl Ofs_SI(%%ebx),%%esi
-			G4M(0x0f,0xb7,0x73,Ofs_SI,Cp);
+			// movzwl Ofs_SI(%%ebx),%%e[sd]i
+			G4M(0x0f,0xb7,modrm,Ofs_SI,Cp);
 		    	if(mode & (MREPNE|MREP))
 		    	{
 			    /* EAX: iterations possible until address overflow
@@ -1735,8 +1737,8 @@ shrot0:
 			    G1(INCax,Cp);
 #endif
 			}
-			// addl OVERR_DS(%%ebx),%%esi
-			G3M(0x03,0x73,IG->ovds,Cp);
+			// addl OVERR_DS(%%ebx),%%e[sd]i
+			G3M(0x03,modrm,IG->ovds,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movzwl Ofs_DI(%%ebx),%%edi
@@ -1829,10 +1831,10 @@ shrot0:
 		}
 		else {
 		    if (mode&MOVSSRC) {
-			// movl OVERR_DS(%%ebx),%%esi
-			G2(0x738b,Cp); G1(IG->ovds,Cp);
-			// addl Ofs_ESI(%%ebx),%%esi
-			G3M(0x03,0x73,Ofs_ESI,Cp);
+			// movl OVERR_DS(%%ebx),%%e[sd]i
+			G3M(0x8b,modrm,IG->ovds,Cp);
+			// addl Ofs_ESI(%%ebx),%%e[sd]i
+			G3M(0x03,modrm,Ofs_ESI,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movl Ofs_XES(%%ebx),%%edi
@@ -1844,7 +1846,7 @@ shrot0:
 			// movl Ofs_ECX(%%ebx),%%ecx
 			G3M(0x8b,0x4b,Ofs_ECX,Cp);
 		    }
-		}
+		} }
 		break;
 
 	case O_MOVS_MovD:
