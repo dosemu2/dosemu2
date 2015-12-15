@@ -78,7 +78,9 @@ static int aosnd_open(void *arg)
     if (id == -1)
 	return 0;
     /* for alsa the default settings are fine, but for pulse we
-     * need to manually increase buffer_time to avoid clicks... */
+     * need to manually increase buffer_time to avoid clicks...
+     * https://bugzilla.redhat.com/show_bug.cgi?id=1193688
+     */
     opt.key = "buffer_time";
     opt.value = "40";
     ao = ao_open_live(id, &info, &opt);
