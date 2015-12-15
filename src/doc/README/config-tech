@@ -3503,7 +3503,15 @@ a few that cause problems.
 <term>mpu_base</term>
 <listitem>
 <para>
- base address for the MPU-401 chip (HEX) (Not Implemented)
+ base address for the MPU-401 interface (HEX)
+</para>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>mpu_irq</term>
+<listitem>
+<para>
+ IRQ for the MPU-401 interface
 </para>
 </listitem>
 </varlistentry>

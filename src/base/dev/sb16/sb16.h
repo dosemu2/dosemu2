@@ -67,7 +67,7 @@ struct sb_struct {
   int      paused:1;		/* is DMA transfer paused? */
   int      reset:1;
   int      mpu401_uart:1;
-  uint8_t  midi_cmd;
+  uint8_t  midi_cmd;            /* Last SB-MIDI command */
   uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  dma_mode;		/* Information we need on the DMA transfer */
   int      dma_exit_ai:1;	/* exit DMA autoinit */
