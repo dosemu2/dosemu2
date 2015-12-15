@@ -2358,6 +2358,9 @@ void Gen_sim(int op, int mode, ...)
 		    }
 		    TR1.d = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
 		}
+		if (!(mode&(MREP|MREPNE|MOVSDST))) {
+		    AR1.d = AR2.d; /* single lodsb uses L_DI_R1 */
+		}
 		break;
 
 	case O_MOVS_MovD: {
