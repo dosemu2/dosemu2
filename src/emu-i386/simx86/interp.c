@@ -1269,7 +1269,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} break;
 /*ac*/	case LODSb: {	int m = mode|(MBYTE|MOVSSRC);
 			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_LodD, m);
+			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
@@ -1284,7 +1284,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} break;
 /*ad*/	case LODSw: {	int m = mode|MOVSSRC;
 			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_LodD, m);
+			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
@@ -1709,14 +1709,24 @@ repag0:
 				case LODSb:
 					repmod |= (MBYTE|MOVSSRC);
 					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_LodD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_LodD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+					}
 					Gen(S_REG, repmod, Ofs_AL);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case LODSw:
 					repmod |= MOVSSRC;
 					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_LodD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_LodD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+					}
 					Gen(S_REG, repmod, Ofs_AX);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
