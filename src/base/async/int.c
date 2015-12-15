@@ -1504,8 +1504,12 @@ static void do_print_screen(void) {
     g_printf("PrintScreen: base=%x, lines=%i columns=%i\n", base, li, co);
     if (printer_open(0) == -1) return;
     for (y_pos=0; y_pos < li; y_pos++) {
-	for (x_pos=0; x_pos < co; x_pos++)
-	    printer_write(0, vga_read(base + 2*(y_pos*co + x_pos)));
+	for (x_pos=0; x_pos < co; x_pos++) {
+	    uint8_t val = vga_read(base + 2*(y_pos*co + x_pos));
+	    if (val == 0)
+		val = ' ';
+	    printer_write(0, val);
+	}
 	printer_write(0, 0x0d);
 	printer_write(0, 0x0a);
     }
