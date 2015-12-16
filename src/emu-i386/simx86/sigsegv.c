@@ -166,7 +166,7 @@ void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
   *rdi = MEM_BASE32(edi);
 }
 
-#if 1
+#ifdef HOST_ARCH_X86
 static int jitx86_instr_len(const unsigned char *rip)
 {
   const unsigned char *p = rip;
@@ -202,12 +202,8 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
   if (i == VGAEMU_MAX_MAPPINGS) {
     if ((unsigned)((page_fault << 12) - vga.mem.graph_base) <
 	vga.mem.graph_size) {	/* unmapped VGA area */
-#ifdef HOST_ARCH_X86
-      if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_rip);
-	_rip += u;
-      }
-#endif
+      u = jitx86_instr_len((unsigned char *)_rip);
+      _rip += u;
       if (u==0) {
         e_printf("eVGAEmuFault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
@@ -216,12 +212,8 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
       return 1;
     }
     else if (page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
-#ifdef HOST_ARCH_X86
-      if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_rip);
-	_rip += u;
-      }
-#endif
+      u = jitx86_instr_len((unsigned char *)_rip);
+      _rip += u;
       if (u==0 || (_err&2)==0) {
         e_printf("eVGAEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
@@ -363,9 +355,7 @@ int e_emu_fault(struct sigcontext *scp)
 	/* in vga.inst_emu mode, vga_emu_fault() can handle
 	 * only faults from DOS code, and here we are with
 	 * the fault from jit-compiled code */
-	if (!vga.inst_emu) {
-		if (vga_emu_fault(scp, 0) == True) return 1;
-	} else {
+	if (!CONFIG_CPUSIM && vga.inst_emu) {
 		dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
 		if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
 	}
