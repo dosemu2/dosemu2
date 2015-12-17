@@ -85,6 +85,7 @@ static const struct midi_out_plugin midooss = {
     .close = midooss_done,
     .write = midooss_write,
     .get_cfg = midooss_cfg,
+    .stype = ST_GM,
 };
 
 CONSTRUCTOR(static void midooss_register(void))

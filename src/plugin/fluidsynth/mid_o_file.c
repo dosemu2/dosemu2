@@ -418,6 +418,7 @@ static const struct midi_out_plugin midofile = {
     .write = midofile_write,
     .stop = midofile_stop,
     .get_cfg = midofile_get_cfg,
+    .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 

@@ -407,6 +407,7 @@ static const struct midi_out_plugin midotmdty = {
     .write = midotmdty_write,
     .stop = midotmdty_stop,
     .get_cfg = midotmdty_cfg,
+    .stype = ST_GM,
     .weight = MIDI_W_PCM,
 };
 

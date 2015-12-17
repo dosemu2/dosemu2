@@ -40,12 +40,14 @@ static struct rng_s midi_in;
 #define MAX_DL_HANDLES 10
 static void *dl_handles[MAX_DL_HANDLES];
 static int num_dl_handles;
+static enum SynthType synth_type;
 
 void midi_write(unsigned char val)
 {
   int i;
   for (i = 0; i < out_registered; i++)
-    if (out[i].opened)
+    if (out[i].opened && (OUT_PLUGIN(i)->stype == synth_type ||
+	    OUT_PLUGIN(i)->stype == ST_ANY))
       OUT_PLUGIN(i)->write(val);
 //  idle(0, 0, 0, "midi");
 }
@@ -63,6 +65,8 @@ void midi_init(void)
   rng_init(&midi_in, 64, 1);
   pcm_init_plugins(out, out_registered);
   pcm_init_plugins(in, in_registered);
+
+  synth_type = ST_GM;
 }
 
 void midi_done(void)
@@ -132,5 +136,11 @@ int midi_register_input_plugin(const struct midi_in_plugin *plugin)
   index = in_registered++;
   in[index].plugin = plugin;
   in[index].opened = 0;
+  return 1;
+}
+
+int midi_set_synth_type(enum SynthType st)
+{
+  synth_type = st;
   return 1;
 }

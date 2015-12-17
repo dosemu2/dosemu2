@@ -73,6 +73,7 @@ static const struct midi_out_plugin midoalsa = {
     .close = midoalsa_done,
     .write = midoalsa_write,
     .get_cfg = midoalsa_cfg,
+    .stype = ST_GM,
     .weight = MIDI_W_PREFERRED,
 };
 

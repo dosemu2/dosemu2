@@ -269,6 +269,7 @@ static const struct midi_out_plugin midoflus = {
     .stop = midoflus_stop,
     .run = midoflus_run,
     .get_cfg = midoflus_cfg,
+    .stype = ST_GM,
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
 
