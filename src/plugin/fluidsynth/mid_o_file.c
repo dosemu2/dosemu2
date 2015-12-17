@@ -304,6 +304,14 @@ static void midout_timesig(int chn, int a, int b, int32_t time)
 }
 #endif
 
+static void midout_sysex(void *data, int len, int32_t time)
+{
+    midout_write_delta_time(time);
+    M_FWRITE1(0xf0);
+    m_fwrite(data, len);
+    M_FWRITE1(0xf7);
+}
+
 static void do_event(fluid_midi_event_t *ev, int32_t time)
 {
     int ch = fluid_midi_event_get_channel(ev);
@@ -344,6 +352,9 @@ static void do_event(fluid_midi_event_t *ev, int32_t time)
 	midout_timesig(ch, ev->a, ev->b, time);
 	break;
 #endif
+    case MIDI_SYSEX:
+	midout_sysex(ev->paramptr, ev->param1, time);
+	break;
     }
 }
 
