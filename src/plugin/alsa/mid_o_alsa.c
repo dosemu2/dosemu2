@@ -26,24 +26,32 @@
 #include <alsa/asoundlib.h>
 
 
-static snd_rawmidi_t *handle = NULL;
+static snd_rawmidi_t *handle, *handle_v;
 #define midoalsa_name "alsa"
 #define midoalsa_longname "MIDI Output: ALSA device"
+#define midoalsav_name "alsa_virtual"
+#define midoalsav_longname "MIDI Output: ALSA virtual device (for MT32)"
 static const char *device = "default";
+static const char *device_v = "virtual";
 
-static int midoalsa_init(void *arg)
+static int midoalsa_open(snd_rawmidi_t **handle_p, const char *dev_name)
 {
     int err;
-    err = snd_rawmidi_open(NULL, &handle, device,
+    err = snd_rawmidi_open(NULL, handle_p, dev_name,
 			   SND_RAWMIDI_NONBLOCK | SND_RAWMIDI_SYNC);
     if (err) {
 	S_printf("%s: unable to open %s for writing: %s\n",
-		 midoalsa_name, device, snd_strerror(err));
+		 midoalsa_name, dev_name, snd_strerror(err));
 	return 0;
     }
     /* NONBLOCK flag is needed only so that open() not to block forever */
-    snd_rawmidi_nonblock(handle, 0);
+    snd_rawmidi_nonblock(*handle_p, 0);
     return 1;
+}
+
+static int midoalsa_init(void *arg)
+{
+    return midoalsa_open(&handle, device);
 }
 
 static void midoalsa_done(void *arg)
@@ -77,7 +85,40 @@ static const struct midi_out_plugin midoalsa = {
     .weight = MIDI_W_PREFERRED,
 };
 
+static int midoalsav_init(void *arg)
+{
+    return midoalsa_open(&handle_v, device_v);
+}
+
+static void midoalsav_done(void *arg)
+{
+    if (!handle_v)
+	return;
+    snd_rawmidi_close(handle_v);
+    handle_v = NULL;
+}
+
+static void midoalsav_write(unsigned char val)
+{
+    if (!handle_v)
+	return;
+    snd_rawmidi_write(handle_v, &val, 1);
+}
+
+static const struct midi_out_plugin midoalsa_v = {
+    .name = midoalsav_name,
+    .longname = midoalsav_longname,
+    .open = midoalsav_init,
+    .close = midoalsav_done,
+    .write = midoalsav_write,
+    .get_cfg = midoalsa_cfg,
+    .stype = ST_MT32,
+    .flags = PCM_F_PASSTHRU,
+};
+
 CONSTRUCTOR(static int midoalsa_register(void))
 {
-    return midi_register_output_plugin(&midoalsa);
+    midi_register_output_plugin(&midoalsa);
+    midi_register_output_plugin(&midoalsa_v);
+    return 0;
 }
