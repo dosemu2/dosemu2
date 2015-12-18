@@ -1870,13 +1870,12 @@ shrot0:
 		break;
 	case O_MOVS_StoD:
 		GetDF(Cp);
-		if (mode&(MREP|MREPNE))	{ G3M(NOP,NOP,REP,Cp); }
+		G3M(NOP,NOP,REP,Cp);
 		if (mode&MBYTE)	{ G1(STOSb,Cp); }
 		else {
 			Gen66(mode,Cp);
 			G1(STOSw,Cp);
 		}
-		if (!(mode&(MREP|MREPNE))) { G4(0x90909090,Cp); }
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_ScaD:
