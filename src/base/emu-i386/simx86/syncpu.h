@@ -148,10 +148,6 @@ typedef struct {
 	unsigned short TR_SEL;
 	DTR  TR;
 
-	void (*stub_stosb)(void);
-	void (*stub_stosw)(void);
-	void (*stub_stosl)(void);
-
 	/* if not NULL, points to emulated FPU state
 	   if NULL, emulator uses FPU instructions, so flags that
 	   dosemu needs to restore its own FPU environment. */
@@ -231,9 +227,6 @@ extern union _SynCPU TheCPU_union;
 #define Ofs_stub_wri_32	(unsigned char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
 #define Ofs_stub_stk_16	(unsigned char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
 #define Ofs_stub_stk_32	(unsigned char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
-#define Ofs_stub_stosb	(unsigned int)(offsetof(SynCPU,stub_stosb)-SCBASE)
-#define Ofs_stub_stosw	(unsigned int)(offsetof(SynCPU,stub_stosw)-SCBASE)
-#define Ofs_stub_stosl	(unsigned int)(offsetof(SynCPU,stub_stosl)-SCBASE)
 
 #define rAX		CPUWORD(Ofs_AX)
 #define Ofs_AX		(Ofs_EAX)

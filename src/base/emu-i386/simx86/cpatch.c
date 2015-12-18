@@ -285,19 +285,9 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 "		pushl	%eax\n"		/* value to write */ \
 "		pushl	%edi\n"		/* addr where to write */ \
 "		call	"#cfunc"\n" \
-"		addl	$12,%esp\n"	/* remove parameters */ \
-"		ret\n"
-
-#define STUB_STOS(cfunc,letter) \
-"		pushl	%eax\n"		/* save eax (consecutive stosws) */ \
-"		pushl	4(%esp)\n"	/* return addr = patch point+6 */ \
-"		pushl	%eax\n"		/* value to write         */ \
-"		pushl	%edi\n"		/* push fault address     */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		cld\n" \
-"		call	"#cfunc"\n" \
-"		addl	$12,%esp\n"	/* remove parameters      */ \
-"		popl	%eax\n" 	/* restore eax */ \
+"		popl	%edi\n"		/* restore addr */ \
+"		popl	%eax\n"		/* restore eax */ \
+"		addl	$4,%esp\n"	/* remove parameters */ \
 "		ret\n"
 
 asm (
@@ -347,22 +337,10 @@ asm (
 #define STUB_WRI(cfunc) \
 "		movq	(%rsp),%rdx\n"	/* return addr = patch point+3 */ \
 "		pushq	%rdi\n"		/* save regs */ \
+"		pushq	%rsi\n"	\
+"		pushq	%rax\n"	\
 "		movl	%eax,%esi\n"	/* value to write */ \
 					/* pass addr where to write in %rdi */\
-"		call	"#cfunc"\n" \
-"		popq	%rdi\n"		/* restore regs */ \
-"		ret\n"
-
-#define STUB_STOS(cfunc,letter) \
-"		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
-"		movl	%edi,%ecx\n"	/* save edi to pass */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		pushq	%rdi\n"		/* save regs */ \
-"		pushq	%rsi\n"		/* rax is saved for consecutive */ \
-"		pushq	%rax\n"		/* merged stosws & stack alignment */ \
-"		movl	%eax,%esi\n"	/* value to write         */ \
-"		movl	%ecx,%edi\n"	/* pass fault address in %rdi */ \
-"		cld\n" \
 "		call	"#cfunc"\n" \
 "		popq	%rax\n"		/* restore regs */ \
 "		popq	%rsi\n" \
@@ -401,9 +379,6 @@ asm (
 "stub_wri_8__: .globl stub_wri_8__\n "STUB_WRI(wri_8)
 "stub_wri_16__:.globl stub_wri_16__\n"STUB_WRI(wri_16)
 "stub_wri_32__:.globl stub_wri_32__\n"STUB_WRI(wri_32)
-"stub_stosb__: .globl stub_stosb__\n "STUB_STOS(wri_8,b)
-"stub_stosw__: .globl stub_stosw__\n "STUB_STOS(wri_16,w)
-"stub_stosl__: .globl stub_stosl__\n "STUB_STOS(wri_32,l)
 );
 
 /* call N(%ebx) */
@@ -475,21 +450,6 @@ int Cpatch(sigcontext_t *scp)
 	}
 	return 1;
     }
-    if (v==0x9090ab) {	// stosw
-	if (debug_level('e')>1) e_printf("### stos{wl} patch at %p\n",eip);
-	if (w16) {
-	    p--; JSRPATCHL(p,Ofs_stub_stosw);
-	}
-	else {
-	    JSRPATCHL(p,Ofs_stub_stosl);
-	}
-	return 1;
-    }
-    if (v==0x9090aa) {	// stosb
-	if (debug_level('e')>1) e_printf("### stosb patch at %p\n",eip);
-	JSRPATCHL(p,Ofs_stub_stosb);
-	return 1;
-    }
     if (debug_level('e')>1) e_printf("### Patch unimplemented: %08x\n",*((int *)p));
     return 0;
 }
@@ -504,20 +464,7 @@ int UnCpatch(unsigned char *eip)
     e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
-    if (eip[1] == 0x93) {
-	int *p2 = (int *)(p+2);
-	if (*p2 == Ofs_stub_stosb) {
-	     *((short *)p) = 0x90aa; *p2 = 0xfc909090;
-	}
-	else if (*p2 == Ofs_stub_stosw) {
-	     *((short *)p) = 0xab66; *p2 = 0x90909090;
-	}
-	else if (*p2 == Ofs_stub_stosl) {
-	     *((short *)p) = 0x90ab; *p2 = 0xfc909090;
-	}
-	else return 1;
-    }
-    else if (p[1] == 0x13) {
+    if (p[1] == 0x13) {
 	p[0] = p[1] = 0x90;
     }
     else if (p[1] == 0x53) {

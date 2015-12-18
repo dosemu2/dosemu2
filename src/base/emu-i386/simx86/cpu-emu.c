@@ -816,9 +816,6 @@ void init_emu_cpu(void)
   TheCPU.stub_wri_32 = stub_wri_32;
   TheCPU.stub_stk_16 = stub_stk_16;
   TheCPU.stub_stk_32 = stub_stk_32;
-  TheCPU.stub_stosb = stub_stosb;
-  TheCPU.stub_stosw = stub_stosw;
-  TheCPU.stub_stosl = stub_stosl;
 #endif
 
   Running = 1;

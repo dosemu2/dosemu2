@@ -327,18 +327,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
 		_rip = (long)(p+1);
 		break;
-/*aa*/	case STOSb: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		if ((_err&2)==0) goto badrw;
-		e_VgaWrite(LINP(_edi),_eax,MBYTE);
-		_edi+=d;
-		_rip = (long)(p+1); } break;
-/*ab*/	case STOSw: {
-		int d = (_eflags & EFLAGS_DF? -4:4);
-		if ((_err&2)==0) goto badrw;
-		if (w16) d>>=1;
-		e_VgaWrite(LINP(_edi),_eax,(w16? DATA16:DATA32)); _edi+=d;
-		_rip = (long)(p+1); } break;
 /*ac*/	case LODSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;

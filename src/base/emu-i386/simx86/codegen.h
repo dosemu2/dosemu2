@@ -301,11 +301,5 @@ void stub_stk_32(void) asm ("stub_stk_32__");
 void stub_wri_8 (void) asm ("stub_wri_8__" );
 void stub_wri_16(void) asm ("stub_wri_16__");
 void stub_wri_32(void) asm ("stub_wri_32__");
-void stub_movsb (void) asm ("stub_movsb__" );
-void stub_movsw (void) asm ("stub_movsw__" );
-void stub_movsl (void) asm ("stub_movsl__" );
-void stub_stosb (void) asm ("stub_stosb__" );
-void stub_stosw (void) asm ("stub_stosw__" );
-void stub_stosl (void) asm ("stub_stosl__" );
 
 #endif
