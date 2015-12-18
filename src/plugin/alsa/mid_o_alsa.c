@@ -113,7 +113,6 @@ static const struct midi_out_plugin midoalsa_v = {
     .write = midoalsav_write,
     .get_cfg = midoalsa_cfg,
     .stype = ST_MT32,
-    .flags = PCM_F_PASSTHRU,
 };
 
 CONSTRUCTOR(static int midoalsa_register(void))

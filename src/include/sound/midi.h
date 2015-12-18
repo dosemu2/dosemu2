@@ -26,7 +26,7 @@
 #define MIDI_W_PREFERRED 1
 #define MIDI_W_PCM 2
 
-enum SynthType { ST_ANY, ST_GM, ST_MT32 };
+enum SynthType { ST_ANY, ST_GM, ST_MT32, ST_MAX };
 
 struct midi_out_plugin {
   pcm_plugin_base;
