@@ -111,8 +111,9 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	else if (*eip & 1)
 		size = 4;
 	len *= size;
-	m_munprotect(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0),
-		     len, eip);
+	if (!vga_write_access(addr))
+		m_munprotect(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0),
+			     len, eip);
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);
