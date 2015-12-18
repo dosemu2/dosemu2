@@ -206,30 +206,39 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit8u *p;
+	if (vga_write_access(addr)) {
+		vga_write(addr, value);
+		return;
+	}
 	m_munprotect(addr, 1, eip);
 	p = LINEAR2UNIX(addr);
-	/* there is a slight chance that this stub hits VGA memory.
-	   For that case there is a simple instruction decoder but
-	   we must use mov %al,(%edi) (%rdi for x86_64) */
-	asm("movb %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	*p = value;
 }
 
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit16u *p;
+	if (vga_write_access(addr)) {
+		vga_write_word(addr, value);
+		return;
+	}
 	m_munprotect(addr, 2, eip);
 	p = LINEAR2UNIX(addr);
-	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	*p = value;
 }
 
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit32u *p;
+	if (vga_write_access(addr)) {
+		vga_write_dword(addr, value);
+		return;
+	}
 	m_munprotect(addr, 4, eip);
 	p = LINEAR2UNIX(addr);
-	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	*p = value;
 }
 
 #ifdef __i386__
