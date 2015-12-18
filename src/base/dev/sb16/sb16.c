@@ -43,7 +43,6 @@
 #include <string.h>
 #include <math.h>
 
-#define CONFIG_MPU401_IRQ config.mpu401_irq
 static int sb_irq_tab[] = { 2, 5, 7, 10 };
 static int sb_dma_tab[] = { 0, 1, 3 };
 static int sb_hdma_tab[] = { 5, 6, 7 };
@@ -332,7 +331,7 @@ static void sb_request_irq(int type)
     if (type & SB_IRQ_DSP)
 	pic_request(pic_irq_list[sb_get_dsp_irq_num()]);
     if (type & SB_IRQ_MPU401)
-	pic_request(pic_irq_list[CONFIG_MPU401_IRQ]);
+	pic_request(pic_irq_list[dspio_get_mpu401_irq()]);
 }
 
 static void sb_activate_irq(int type)
@@ -349,6 +348,7 @@ static void sb_activate_irq(int type)
 static void sb_deactivate_irq(int type)
 {
     uint32_t act_map;
+    int mpu_irq = dspio_get_mpu401_irq();
 
     S_printf("SB: Deactivating irq type %d\n", type);
     if (!(sb.mixer_regs[0x82] & type)) {
@@ -360,15 +360,14 @@ static void sb_deactivate_irq(int type)
      * both are inactive */
     act_map = ((!!(sb.mixer_regs[0x82] & SB_IRQ_DSP)) <<
 	    sb_get_dsp_irq_num()) |
-	    ((!!(sb.mixer_regs[0x82] & SB_IRQ_MPU401)) <<
-	    CONFIG_MPU401_IRQ);
+	    ((!!(sb.mixer_regs[0x82] & SB_IRQ_MPU401)) << mpu_irq);
     if (type & SB_IRQ_DSP) {
 	if (!(act_map & (1 << sb_get_dsp_irq_num())))
 	    pic_untrigger(pic_irq_list[sb_get_dsp_irq_num()]);
     }
     if (type & SB_IRQ_MPU401) {
-	if (!(act_map & (1 << CONFIG_MPU401_IRQ)))
-	    pic_untrigger(pic_irq_list[CONFIG_MPU401_IRQ]);
+	if (!(act_map & (1 << mpu_irq)))
+	    pic_untrigger(pic_irq_list[mpu_irq]);
     }
 }
 
@@ -1733,11 +1732,11 @@ static void mpu401_init(void)
     io_device.handler_name = "Midi Emulation";
     io_device.start_addr = config.mpu401_base;
     io_device.end_addr = config.mpu401_base + 0x001;
-    if (CONFIG_MPU401_IRQ == config.sb_irq) {
+    if (dspio_get_mpu401_irq() == config.sb_irq) {
 	S_printf("SB: same irq for DSP and MPU401\n");
-	io_device.irq = EMU_NO_IRQ;
+	io_device.irq = config.mpu401_irq_mt32;
     } else {
-	io_device.irq = CONFIG_MPU401_IRQ;
+	io_device.irq = config.mpu401_irq;
     }
     io_device.fd = -1;
     if (port_register_handler(io_device, 0) != 0)
@@ -1753,7 +1752,6 @@ static void mpu401_done(void)
 
 static void sb_dsp_init(void)
 {
-    memset(&sb, 0, sizeof(sb));
     rng_init(&sb.dsp_queue, DSP_QUEUE_SIZE, 1);
 
     sb.reset_val = 0xaa;
@@ -1813,12 +1811,12 @@ void sound_init(void)
 	config.mpu401_irq = config.sb_irq;
 	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
     }
-    sb_init();
     sb.dspio = dspio_init();
     if (!sb.dspio) {
 	error("dspio faild\n");
 	leavedos(93);
     }
+    sb_init();
 }
 
 void sound_reset(void)

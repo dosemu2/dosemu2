@@ -20,6 +20,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
+#include <string.h>
 #include "emu.h"
 #include "ringbuf.h"
 #include "timers.h"
@@ -71,7 +73,14 @@ void midi_init(void)
 	pcm_init_plugins(out[i], out_registered[i]);
     pcm_init_plugins(in, in_registered);
 
-    synth_type = ST_GM;
+    if (strcmp(config.midi_synth, "gm") == 0) {
+	midi_set_synth_type(ST_GM);
+    } else if (strcmp(config.midi_synth, "mt32") == 0) {
+	midi_set_synth_type(ST_MT32);
+    } else {
+	error("MIDI: unsupported synth mode %s\n", config.midi_synth);
+	midi_set_synth_type(ST_GM);
+    }
 }
 
 void midi_done(void)
@@ -155,4 +164,9 @@ int midi_set_synth_type(enum SynthType st)
 	return 0;
     synth_type = st;
     return 1;
+}
+
+enum SynthType midi_get_synth_type(void)
+{
+    return synth_type;
 }

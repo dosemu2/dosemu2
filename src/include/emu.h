@@ -331,6 +331,8 @@ typedef struct config_info {
        uint8_t sb_irq;
        uint16_t mpu401_base;
        int mpu401_irq;
+       int mpu401_irq_mt32;
+       char *midi_synth;
        char *sound_driver;
        char *midi_driver;
        boolean pcm_hpf;

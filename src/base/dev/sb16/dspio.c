@@ -836,3 +836,15 @@ int dspio_is_connected(int id, void *arg)
     }
     return 0;
 }
+
+int dspio_get_mpu401_irq(void)
+{
+    switch (midi_get_synth_type()) {
+    case ST_GM:
+	return config.mpu401_irq;
+    case ST_MT32:
+	return config.mpu401_irq_mt32;
+    default:
+	return -1;
+    }
+}
