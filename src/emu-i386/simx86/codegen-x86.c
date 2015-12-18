@@ -490,40 +490,7 @@ static void CodeGen(IMeta *I, int j)
 		    G2(0x078b,Cp);
 		}
 		break;
-//	case S_DI:
-	case L_VGAWRITE:
-		if (!(TheCPU.mode&RM_REG) && vga.inst_emu &&
-			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // movl %%edi,%%ecx
-		    G2M(0x89,0xf9,Cp);
-		    // subl VgaBankAbsBase(%%ebx),%%ecx
-		    G2(0x8b2b,Cp);
-		    G4((unsigned char *)&VgaAbsBankBase-CPUOFFS(0),Cp);
-		    // cmpl vga.mem.bank_len(%%ebx),%%ecx
-		    G2(0x8b3b,Cp);
-		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
-		    // jnb normal_write
-		    // pushl mode
-	       	    G3(0x6a1273,Cp); G1(mode,Cp);
-#ifdef __x86_64__
-		    // pop %%rdx; mov %%eax, %%esi; push %%rdi
-		    G4(0x57c6895a,Cp);
-	    	    // lea e_VgaWrite(%%ebx),%%ecx; call %%ecx; pop %%rdi
-		    G3(0x8b8d48,Cp);
-		    G4((unsigned char *)e_VgaWrite-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
-		    // must be the same amount of ins bytes as i386!!
-#else
-		    // pushl %%eax
-		    // pushl %%edi
-		    G3(0xb95750,Cp);
-	    	    // call e_VgaWrite
-		    G4((long)e_VgaWrite,Cp); G2(0xd1ff,Cp);
-	    	    // add $0c,%%esp; nop; nop
-		    G4(0x900cc483,Cp); G1(0x90,Cp);
-#endif
-	    	    // jmp (skip normal write)
-		    G2(0x03eb,Cp);
-		}
+	case S_DI:
 		if (mode&MBYTE) {
 		    STD_WRITE_B;
 		}
@@ -2502,8 +2469,7 @@ static void Gen_x86(int op, int mode, ...)
 	case L_ZXAX:
 //	case L_DI_R1:
 	case L_VGAREAD:
-//	case S_DI:
-	case L_VGAWRITE:
+	case S_DI:
 	case O_NOT:
 	case O_NEG:
 	case O_INC:
