@@ -861,9 +861,6 @@ void init_emu_cpu(void)
   TheCPU.stub_movsb = stub_movsb;
   TheCPU.stub_movsw = stub_movsw;
   TheCPU.stub_movsl = stub_movsl;
-  TheCPU.stub_stosb = stub_stosb;
-  TheCPU.stub_stosw = stub_stosw;
-  TheCPU.stub_stosl = stub_stosl;
 #endif
 
   Running = 1;

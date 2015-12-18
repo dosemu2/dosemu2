@@ -148,9 +148,6 @@ typedef struct {
 	unsigned short TR_SEL;
 	DTR  TR;
 
-	void (*stub_stosb)(void);
-	void (*stub_stosw)(void);
-	void (*stub_stosl)(void);
 	void (*stub_movsb)(void);
 	void (*stub_movsw)(void);
 	void (*stub_movsl)(void);
@@ -231,9 +228,6 @@ extern union SynCPU TheCPU_union;
 #define Ofs_stub_movsb	(int)(offsetof(SynCPU,stub_movsb)-SCBASE)
 #define Ofs_stub_movsw	(int)(offsetof(SynCPU,stub_movsw)-SCBASE)
 #define Ofs_stub_movsl	(int)(offsetof(SynCPU,stub_movsl)-SCBASE)
-#define Ofs_stub_stosb	(int)(offsetof(SynCPU,stub_stosb)-SCBASE)
-#define Ofs_stub_stosw	(int)(offsetof(SynCPU,stub_stosw)-SCBASE)
-#define Ofs_stub_stosl	(int)(offsetof(SynCPU,stub_stosl)-SCBASE)
 
 #define rAX		CPUWORD(Ofs_AX)
 #define Ofs_AX		(Ofs_EAX)
