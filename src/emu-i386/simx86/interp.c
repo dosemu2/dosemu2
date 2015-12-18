@@ -1290,14 +1290,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} break;
 /*ae*/	case SCASb: {	int m = mode|(MBYTE|MOVSDST);
 			Gen(O_MOVS_SetA, m);
-			Gen(L_REG, m, Ofs_AL);
-			Gen(O_MOVS_ScaD, m);
+			Gen(L_DI_R1, m);		// mov al,[edi]
+			Gen(O_CMP_FR, m, Ofs_AL);	// cmp [ebx+reg],al
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
 /*af*/	case SCASw: {	int m = mode|MOVSDST;
 			Gen(O_MOVS_SetA, m);
-			Gen(L_REG, m, Ofs_EAX);
-			Gen(O_MOVS_ScaD, m);
+			Gen(L_DI_R1, m);		// mov ax,[edi]
+			Gen(O_CMP_FR, m, Ofs_EAX);	// cmp [ebx+reg],ax
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
 
@@ -1763,14 +1763,26 @@ repag0:
 					repmod |= (MBYTE|MOVSDST|MREPCOND);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod|MBYTE, Ofs_AL);
-					Gen(O_MOVS_ScaD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_ScaD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+						Gen(O_CMP_FR, repmod, Ofs_AL);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASw:
 					repmod |= MOVSDST|MREPCOND;
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod, Ofs_EAX);
-					Gen(O_MOVS_ScaD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_ScaD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+						Gen(O_CMP_FR, repmod, Ofs_AL);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SEGes:
