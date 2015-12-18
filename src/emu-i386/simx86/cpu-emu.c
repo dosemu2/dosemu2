@@ -919,9 +919,6 @@ void enter_cpu_emu(void)
 	TheCPU.stub_wri_32 = stub_wri_32;
 	TheCPU.stub_stk_16 = stub_stk_16;
 	TheCPU.stub_stk_32 = stub_stk_32;
-	TheCPU.stub_movsb = stub_movsb;
-	TheCPU.stub_movsw = stub_movsw;
-	TheCPU.stub_movsl = stub_movsl;
 #endif
 
 	if (eTimeCorrect >= 0) {
