@@ -238,7 +238,6 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 
   if (vga_page < vga.mem.pages) {
     unsigned char *p;
-    int w16;
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       dosemu_error("simx86: should not be here\n");
@@ -249,7 +248,7 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 /**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
 
     p = (unsigned char *)_rip;
-    if (*p==0x66) w16=1,p++; else w16=0;
+    if (*p==0x66) p++;
 
     /* Decode the faulting instruction.
      * Hopefully, since the compiled code contains a well-defined subset
@@ -272,55 +271,22 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		Cpatch(scp);
 		return 1;
 /*f2*/	case REPNE:
-/*f3*/	case REP: {
-		int repmod;
-		if (p[1]==0x66) w16=1,p++;
+/*f3*/	case REP:
+		if (p[1]==0x66) p++;
 		switch(p[1]) {
 	/*aa*/	case STOSb:
 	/*ab*/	case STOSw:
 	/*a4*/	case MOVSb:
 	/*a5*/	case MOVSw:
+	/*ae*/	case CMPSb:
+	/*af*/	case CMPSw:
+	/*ae*/	case SCASb:
+	/*af*/	case SCASw:
 		    Cpatch(scp);
 		    return 1;
-	/*a6*/	case CMPSb:
-		    repmod = MBYTE;
-		    goto REPCMPS_common;
-	/*a7*/	case CMPSw:
-		    repmod = w16 ? DATA16 : 0;
-		REPCMPS_common:
-		    repmod |= MOVSSRC|MOVSDST|MREPCOND|
-		      (p[0]==REPNE? MREPNE:MREP);
-		    AR1.d = _edi;
-		    AR2.d = _esi;
-		    TR1.d = _ecx;
-		    Gen_sim(O_MOVS_CmpD, repmod);
-		    FlagSync_All();
-		    _edi = AR1.d;
-		    _esi = AR2.d;
-		    _ecx = TR1.d;
-		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		    break;
-	/*ae*/	case SCASb:
-		    repmod = MBYTE;
-		    goto REPSCAS_common;
-	/*af*/	case SCASw:
-		    repmod = w16 ? DATA16 : 0;
-		REPSCAS_common:
-		    repmod |= MOVSDST|MREPCOND|(p[0]==REPNE? MREPNE:MREP);
-		    AR1.d = _edi;
-		    DR1.d = _eax;
-		    TR1.d = _ecx;
-		    Gen_sim(O_MOVS_ScaD, repmod);
-		    FlagSync_All();
-		    _edi = AR1.d;
-		    _ecx = TR1.d;
-		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		    break;
 		default:
 		    goto unimp;
 		}
-		_rip = (long)(p+2); }
-		break;
 	default:
 		goto unimp;
     }
