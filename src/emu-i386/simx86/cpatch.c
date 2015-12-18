@@ -118,14 +118,12 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);
 		unsigned char *esi;
-		if (vga_access(source, addr)) {
-			if (EFLAGS & EFLAGS_DF)
-				vga_memcpy(addr - len + size,
-					   source - len + size, len);
-			else
-				vga_memcpy(addr, source, len);
-			ecx = 0;
-			goto done;
+		unsigned int v = vga_access(source, addr);
+		if (v) {
+			int df = ((EFLAGS & EFLAGS_DF) ? -size:size);
+			e_VgaMovs(&stack->edi, &stack->esi, ecx, df, v);
+			stack->ecx = 0;
+			return;
 		}
 		esi = LINEAR2UNIX(source);
 		if (ecx == len) {
@@ -140,7 +138,6 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 			if (EFLAGS & EFLAGS_DF) repmovs(std,l,cld);
 			else repmovs(,l,);
 		}
-done:
 		if (EFLAGS & EFLAGS_DF) source -= len;
 		else source += len;
 		stack->esi = MEM_BASE32(source);
