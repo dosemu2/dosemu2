@@ -2372,24 +2372,13 @@ void Gen_sim(int op, int mode, ...)
 		    break;
 		v = vga_access(DOSADDR_REL(AR2.pu), DOSADDR_REL(AR1.pu));
 		if (v) {
-		    int op;
-		    struct sigcontext s, *scp = &s;
-		    _err = v;
-		    _rdi = AR1.d;
-		    _rsi = AR2.d;
-		    _rcx = i;
-		    op = 2 | (v == 3 ? 4 : 0);
-		    if (mode & MBYTE) {
-			op |= 1;
-		    } else {
+		    if (!(mode & MBYTE)) {
 			df *= 2;
-			if ((mode & DATA32)) {
+			if (!(mode & DATA16)) {
 			    df *= 2;
 			}
 		    }
-		    e_VgaMovs(scp, op, (mode & DATA16) ? 1 : 0, df);
-		    AR1.d = _edi;
-		    AR2.d = _esi;
+		    e_VgaMovs(&AR1.pu, &AR2.pu, i, df, v);
 		    TR1.d = 0;
 		    break;
 		}
