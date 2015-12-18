@@ -65,7 +65,6 @@
 #define L_ZXAX		20
 #define L_CR0		21
 #define L_DI_R1		22
-#define L_VGAREAD	22
 #define S_DI		23
 
 #define O_ADD_R		30
@@ -326,5 +325,8 @@ void stub_stk_32(void) asm ("stub_stk_32__");
 void stub_wri_8 (void) asm ("stub_wri_8__" );
 void stub_wri_16(void) asm ("stub_wri_16__");
 void stub_wri_32(void) asm ("stub_wri_32__");
+void stub_read_8 (void) asm ("stub_read_8__" );
+void stub_read_16(void) asm ("stub_read_16__");
+void stub_read_32(void) asm ("stub_read_32__");
 
 #endif

@@ -623,9 +623,9 @@ void Gen_sim(int op, int mode, ...)
 		DR1.w.h = 0;
 		break;
 
-	case L_VGAREAD:
+	case L_DI_R1:
 		if (vga_read_access(DOSADDR_REL(AR1.pu))) {
-			GTRACE0("L_VGAREAD");
+			GTRACE0("L_DI_R1");
 			DR1.d = e_VgaRead(AR1.pu, mode);
 			break;
 		}
