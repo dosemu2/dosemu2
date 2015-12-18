@@ -1807,13 +1807,17 @@ static void sb_done(void)
 
 void sound_init(void)
 {
-    if (config.sound) {
-	sb_init();
-	sb.dspio = dspio_init();
-	if (!sb.dspio) {
-	    error("dspio faild\n");
-	    leavedos(93);
-	}
+    if (!config.sound)
+	return;
+    if (config.mpu401_irq == -1) {
+	config.mpu401_irq = config.sb_irq;
+	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
+    }
+    sb_init();
+    sb.dspio = dspio_init();
+    if (!sb.dspio) {
+	error("dspio faild\n");
+	leavedos(93);
     }
 }
 
