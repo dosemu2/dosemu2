@@ -27,6 +27,21 @@
 
 #include "emu.h"
 #include "sound.h"
+#include "sound/midi.h"
+
+static int get_mode_num(void)
+{
+    switch (midi_get_synth_type()) {
+    case ST_GM:
+	return 0;
+/*    case ST_SC:
+	return 1;*/
+    case ST_MT32:
+	return 2;
+    default:
+	return 0;
+    }
+}
 
 static void blaster_setenv(void)
 {
@@ -48,7 +63,7 @@ static void blaster_setenv(void)
 	}
 
 	snprintf(blaster, sizeof(blaster), "SYNTH:%d MAP:%c MODE:%d",
-	    2, 'E', 0);
+	    2, 'E', get_mode_num());
 
 	com_printf("MIDI=%s\n", blaster);
 	if (msetenv("MIDI", blaster) == -1) {
@@ -67,6 +82,7 @@ static void show_settings(void)
 	com_printf(". MPU-401 at 0x%x-0x%x, IRQ=%d.\n",
 			config.mpu401_base, config.mpu401_base+1,
 			config.mpu401_irq);
+	com_printf("MIDI synth mode is %d\n", get_mode_num());
 }
 
 static void show_help(char *name)
@@ -96,6 +112,14 @@ int blaster_main(int argc, char **argv) {
 			break;
 		case 'H':
 			show_help(argv[0]);
+			break;
+		case 'S':
+			if (argc < 3) {
+				com_printf("/S requires parameter\n");
+				return 1;
+			}
+			if (!midi_set_synth_type_from_string(argv[2]))
+				com_printf("%s mode unsupported\n", argv[2]);
 			break;
 		default:
 			com_printf("Unknown option %s\n", argv[1]);

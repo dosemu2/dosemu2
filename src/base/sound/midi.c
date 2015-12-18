@@ -73,14 +73,8 @@ void midi_init(void)
 	pcm_init_plugins(out[i], out_registered[i]);
     pcm_init_plugins(in, in_registered);
 
-    if (strcmp(config.midi_synth, "gm") == 0) {
-	midi_set_synth_type(ST_GM);
-    } else if (strcmp(config.midi_synth, "mt32") == 0) {
-	midi_set_synth_type(ST_MT32);
-    } else {
+    if (!midi_set_synth_type_from_string(config.midi_synth))
 	error("MIDI: unsupported synth mode %s\n", config.midi_synth);
-	midi_set_synth_type(ST_GM);
-    }
 }
 
 void midi_done(void)
@@ -169,4 +163,17 @@ int midi_set_synth_type(enum SynthType st)
 enum SynthType midi_get_synth_type(void)
 {
     return synth_type;
+}
+
+int midi_set_synth_type_from_string(const char *stype)
+{
+    if (strcmp(stype, "gm") == 0) {
+	midi_set_synth_type(ST_GM);
+    } else if (strcmp(stype, "mt32") == 0) {
+	midi_set_synth_type(ST_MT32);
+    } else {
+	midi_set_synth_type(ST_GM);
+	return 0;
+    }
+    return 1;
 }

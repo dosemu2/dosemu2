@@ -50,3 +50,4 @@ extern int midi_register_output_plugin(const struct midi_out_plugin *plugin);
 extern int midi_register_input_plugin(const struct midi_in_plugin *plugin);
 extern int midi_set_synth_type(enum SynthType st);
 extern enum SynthType midi_get_synth_type(void);
+extern int midi_set_synth_type_from_string(const char *stype);
