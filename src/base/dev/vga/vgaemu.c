@@ -794,6 +794,13 @@ unsigned short vga_read_word(dosaddr_t addr)
   return vga_read(addr) | vga_read(addr + 1) << 8;
 }
 
+unsigned vga_read_dword(dosaddr_t addr)
+{
+  if (!vga.inst_emu)
+    return READ_DWORD(addr);
+  return vga_read_word(addr) | vga_read_word(addr + 2) << 16;
+}
+
 void vga_mark_dirty(dosaddr_t s_addr, int len)
 {
   unsigned vga_page, abeg, aend, addr;

@@ -507,6 +507,7 @@ unsigned char vga_read(unsigned addr);
 void vga_write(unsigned addr, unsigned char val);
 unsigned short vga_read_word(unsigned addr);
 void vga_write_word(unsigned addr, unsigned short val);
+unsigned vga_read_dword(unsigned addr);
 void vga_write_dword(dosaddr_t addr, unsigned val);
 void memcpy_to_vga(unsigned dst, const void *src, size_t len);
 void memcpy_dos_to_vga(unsigned dst, unsigned src, size_t len);
