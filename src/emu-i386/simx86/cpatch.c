@@ -260,17 +260,6 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 "		addl	$4,%esp\n"	/* remove parameters */ \
 "		ret\n"
 
-#define STUB_MOVS(cfunc,letter) \
-"		pushl	(%esp)\n"	/* return addr = patch point+6 */ \
-"		lods"#letter"\n"	/* fetch value to write   */ \
-"		pushl	%eax\n"		/* value to write         */ \
-"		pushl	%edi\n"		/* push fault address     */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		cld\n" \
-"		call	"#cfunc"\n" \
-"		addl	$12,%esp\n"	/* remove parameters      */ \
-"		ret\n"
-
 asm (
 ".text\n.globl stub_rep__\n"
 "stub_rep__:	jecxz	1f\n"		/* zero move, nothing to do */
@@ -328,23 +317,6 @@ asm (
 "		popq	%rdi\n" \
 "		ret\n"
 
-#define STUB_MOVS(cfunc,letter) \
-"		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
-"		movl	%edi,%ecx\n"	/* save edi to pass */ \
-"		lods"#letter"\n"	/* fetch value to write   */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		pushq	%rdi\n"		/* save regs */ \
-"		pushq	%rsi\n" \
-"		pushq	%rax\n"		/* not needed, but stack alignment */ \
-"		movl	%eax,%esi\n"	/* value to write         */ \
-"		movl	%ecx,%edi\n"	/* pass fault address in %rdi */ \
-"		cld\n" \
-"		call	"#cfunc"\n" \
-"		popq	%rax\n"		/* restore regs */ \
-"		popq	%rsi\n" \
-"		popq	%rdi\n" \
-"		ret\n"
-
 asm (
 ".text\n.globl stub_rep__\n"
 "stub_rep__:	jrcxz	1f\n"		/* zero move, nothing to do */
@@ -377,9 +349,6 @@ asm (
 "stub_wri_8__: .globl stub_wri_8__\n "STUB_WRI(wri_8)
 "stub_wri_16__:.globl stub_wri_16__\n"STUB_WRI(wri_16)
 "stub_wri_32__:.globl stub_wri_32__\n"STUB_WRI(wri_32)
-"stub_movsb__: .globl stub_movsb__\n "STUB_MOVS(wri_8,b)
-"stub_movsw__: .globl stub_movsw__\n "STUB_MOVS(wri_16,w)
-"stub_movsl__: .globl stub_movsl__\n "STUB_MOVS(wri_32,l)
 );
 
 /* call N(%ebx) */
@@ -448,21 +417,6 @@ int Cpatch(struct sigcontext *scp)
 	}
 	return 1;
     }
-    if (v==0x9090a5) {	// movsw
-	if (debug_level('e')>1) e_printf("### movs{wl} patch at %p\n",eip);
-	if (w16) {
-	    p--; JSRPATCHL(p,Ofs_stub_movsw);
-	}
-	else {
-	    JSRPATCHL(p,Ofs_stub_movsl);
-	}
-	return 1;
-    }
-    if (v==0x9090a4) {	// movsb
-	if (debug_level('e')>1) e_printf("### movsb patch at %p\n",eip);
-	    JSRPATCHL(p,Ofs_stub_movsb);
-	return 1;
-    }
     if (debug_level('e')>1) e_printf("### Patch unimplemented: %08x\n",*((int *)p));
     return 0;
 }
@@ -477,21 +431,7 @@ int UnCpatch(unsigned char *eip)
     e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
-    if (eip[1] == 0x93) {
-	int *p2 = (int *)(p+2);
-	if (*p2 == Ofs_stub_movsb) {
-	     // movsb; nop; nop; nop; nop; cld
-	     *((short *)p) = 0x90a4; *p2 = 0xfc909090;
-	}
-	else if (*p2 == Ofs_stub_movsw) {
-	     *((short *)p) = 0xa566; *p2 = 0x90909090;
-	}
-	else if (*p2 == Ofs_stub_movsl) {
-	     *((short *)p) = 0x90a5; *p2 = 0xfc909090;
-	}
-	else return 1;
-    }
-    else if (p[1] == 0x13) {
+    if (p[1] == 0x13) {
 	p[0] = p[1] = 0x90;
     }
     else if (p[1] == 0x53) {

@@ -294,14 +294,6 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		else
 			_eax = e_VgaRead(LINP(_edi),DATA32);
 		_rip = (long)(p+2); break;
-/*a4*/	case MOVSb: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		e_VgaMovs(scp, 1, 0, d);
-		_rip = (long)(p+1); } break;
-/*a5*/	case MOVSw: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		e_VgaMovs(scp, 0, w16, d*2);
-		_rip = (long)(p+1); } break;
 /*a6*/	case CMPSb:
 		mode = MBYTE;
 		goto CMPS_common;
