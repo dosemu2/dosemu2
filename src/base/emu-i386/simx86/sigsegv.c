@@ -281,16 +281,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
      * this will cause the cpuemu to fail.
      */
     switch (*p) {
-/*88*/	case MOVbfrm:
-		if ((_err&2)==0) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		e_VgaWrite(LINP(_edi),_eax,MBYTE);
-		_rip = (long)(p+2); break;
-/*89*/	case MOVwfrm:
-		if ((_err&2)==0) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		e_VgaWrite(LINP(_edi),_eax,(w16? DATA16:DATA32));
-		_rip = (long)(p+2); break;
 /*8a*/	case MOVbtrm:
 		if (_err&2) goto badrw;
 		if (p[1]==0x07)

@@ -66,7 +66,6 @@
 #define L_DI_R1		22
 #define L_VGAREAD	22
 #define S_DI		23
-#define L_VGAWRITE	23
 
 #define O_ADD_R		30
 #define O_OR_R		31
