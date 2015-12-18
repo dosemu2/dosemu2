@@ -247,7 +247,7 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
   if (vga_page < vga.mem.pages) {
     unsigned char *p;
     unsigned long cxrep;
-    int w16, mode;
+    int w16;
     if (!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       dosemu_error("simx86: should not be here\n");
@@ -294,23 +294,6 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		else
 			_eax = e_VgaRead(LINP(_edi),DATA32);
 		_rip = (long)(p+2); break;
-/*a6*/	case CMPSb:
-		mode = MBYTE;
-		goto CMPS_common;
-/*a7*/	case CMPSw:
-		mode = w16 ? DATA16 : 0;
-	CMPS_common:
-		mode |= MOVSSRC|MOVSDST;
-		AR1.d = _edi;
-		AR2.d = _esi;
-		TR1.d = 1;
-		Gen_sim(O_MOVS_CmpD, mode);
-		FlagSync_All();
-		_edi = AR1.d;
-		_esi = AR2.d;
-		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		_rip = (long)(p+1);
-		break;
 /*ac*/	case LODSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (_err&2) goto badrw;
