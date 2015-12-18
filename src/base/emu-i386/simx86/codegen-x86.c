@@ -1820,7 +1820,7 @@ shrot0:
 		break;
 	case O_MOVS_LodD:
 		GetDF(Cp);
-		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
+		G3M(NOP,NOP,REP,Cp);
 		if (mode&MBYTE)	{ G1(LODSb,Cp); }
 		else {
 			Gen66(mode,Cp);
@@ -1844,6 +1844,7 @@ shrot0:
 		// Pointer to the jecxz distance byte
 		CpTemp = Cp-1;
 		GetDF(Cp);
+		G2M(NOP,NOP,Cp);
 		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(SCASb,Cp); }
 		else {
@@ -1886,6 +1887,7 @@ shrot0:
 		// Pointer to the jecxz distance byte
 		CpTemp = Cp-1;
 		GetDF(Cp);
+		G2M(NOP,NOP,Cp);
 		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
 		else {
