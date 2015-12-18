@@ -44,112 +44,113 @@ static enum SynthType synth_type;
 
 void midi_write(unsigned char val)
 {
-  int i;
-  for (i = 0; i < out_registered[synth_type]; i++)
-    if (out[synth_type][i].opened && (OUT_PLUGIN(i)->stype == synth_type ||
-	    OUT_PLUGIN(i)->stype == ST_ANY))
-      OUT_PLUGIN(i)->write(val);
+    int i;
+    for (i = 0; i < out_registered[synth_type]; i++)
+	if (out[synth_type][i].opened
+	    && (OUT_PLUGIN(i)->stype == synth_type
+		|| OUT_PLUGIN(i)->stype == ST_ANY))
+	    OUT_PLUGIN(i)->write(val);
 //  idle(0, 0, 0, "midi");
 }
 
 void midi_init(void)
 {
-  int i;
+    int i;
 #ifdef USE_DL_PLUGINS
 #ifdef USE_FLUIDSYNTH
-  dl_handles[num_dl_handles++] = load_plugin("fluidsynth");
+    dl_handles[num_dl_handles++] = load_plugin("fluidsynth");
 #endif
 #ifdef USE_ALSA
-  dl_handles[num_dl_handles++] = load_plugin("alsa");
+    dl_handles[num_dl_handles++] = load_plugin("alsa");
 #endif
 #endif
-  rng_init(&midi_in, 64, 1);
-  for (i = 0; i < ST_MAX; i++)
-    pcm_init_plugins(out[i], out_registered[i]);
-  pcm_init_plugins(in, in_registered);
+    rng_init(&midi_in, 64, 1);
+    for (i = 0; i < ST_MAX; i++)
+	pcm_init_plugins(out[i], out_registered[i]);
+    pcm_init_plugins(in, in_registered);
 
-  synth_type = ST_GM;
+    synth_type = ST_GM;
 }
 
 void midi_done(void)
 {
-  int i;
-  midi_stop();
-  for (i = 0; i < ST_MAX; i++)
-    pcm_deinit_plugins(out[i], out_registered[i]);
-  pcm_deinit_plugins(in, in_registered);
-  rng_destroy(&midi_in);
-  for (i = 0; i < num_dl_handles; i++)
-    close_plugin(dl_handles[i]);
+    int i;
+    midi_stop();
+    for (i = 0; i < ST_MAX; i++)
+	pcm_deinit_plugins(out[i], out_registered[i]);
+    pcm_deinit_plugins(in, in_registered);
+    rng_destroy(&midi_in);
+    for (i = 0; i < num_dl_handles; i++)
+	close_plugin(dl_handles[i]);
 }
 
 void midi_stop(void)
 {
-  int i, j;
-  for (i = 0; i < ST_MAX; i++) {
-    for (j = 0; j < out_registered[i]; j++)
-      if (OUT_PLUGIN(j)->stop && out[i][j].opened)
-        OUT_PLUGIN(j)->stop(out[i][j].arg);
-  }
-  for (i = 0; i < in_registered; i++)
-    if (IN_PLUGIN(i)->stop && in[i].opened)
-      IN_PLUGIN(i)->stop(in[i].arg);
+    int i, j;
+    for (i = 0; i < ST_MAX; i++) {
+	for (j = 0; j < out_registered[i]; j++)
+	    if (OUT_PLUGIN(j)->stop && out[i][j].opened)
+		OUT_PLUGIN(j)->stop(out[i][j].arg);
+    }
+    for (i = 0; i < in_registered; i++)
+	if (IN_PLUGIN(i)->stop && in[i].opened)
+	    IN_PLUGIN(i)->stop(in[i].arg);
 }
 
 void midi_timer(void)
 {
-  int i, j;
-  for (i = 0; i < ST_MAX; i++) {
-    for (j = 0; j < out_registered[i]; j++)
-      if (OUT_PLUGIN(j)->run && out[i][j].opened)
-        OUT_PLUGIN(j)->run();
-  }
+    int i, j;
+    for (i = 0; i < ST_MAX; i++) {
+	for (j = 0; j < out_registered[i]; j++)
+	    if (OUT_PLUGIN(j)->run && out[i][j].opened)
+		OUT_PLUGIN(j)->run();
+    }
 }
 
 void midi_put_data(unsigned char *buf, size_t size)
 {
-  rng_add(&midi_in, size, buf);
+    rng_add(&midi_in, size, buf);
 
-  run_sb();
+    run_sb();
 }
 
 int midi_get_data_byte(unsigned char *buf)
 {
-  if (!rng_count(&midi_in))
-    return 0;
-  return rng_get(&midi_in, buf);
+    if (!rng_count(&midi_in))
+	return 0;
+    return rng_get(&midi_in, buf);
 }
 
 int midi_register_output_plugin(const struct midi_out_plugin *plugin)
 {
-  int index, st = plugin->stype;
-  if (out_registered[st] >= MAX_OUT_PLUGINS) {
-    error("Cannot register midi plugin %s\n", plugin->name);
-    return 0;
-  }
-  index = out_registered[st]++;
-  out[st][index].plugin = plugin;
-  out[st][index].opened = 0;
-  return 1;
+    int index, st = plugin->stype;
+    if (out_registered[st] >= MAX_OUT_PLUGINS) {
+	error("Cannot register midi plugin %s\n", plugin->name);
+	return 0;
+    }
+    index = out_registered[st]++;
+    out[st][index].plugin = plugin;
+    out[st][index].opened = 0;
+    return 1;
 }
 
 int midi_register_input_plugin(const struct midi_in_plugin *plugin)
 {
-  int index;
-  if (in_registered >= MAX_IN_PLUGINS) {
-    error("Cannot register midi plugin %s\n", plugin->name);
-    return 0;
-  }
-  index = in_registered++;
-  in[index].plugin = plugin;
-  in[index].opened = 0;
-  return 1;
+    int index;
+    if (in_registered >= MAX_IN_PLUGINS) {
+	error("Cannot register midi plugin %s\n", plugin->name);
+	return 0;
+    }
+    index = in_registered++;
+    in[index].plugin = plugin;
+    in[index].opened = 0;
+    return 1;
 }
 
 int midi_set_synth_type(enum SynthType st)
 {
-  if (st == ST_ANY || st >= ST_MAX)
-    return 0;
-  synth_type = st;
-  return 1;
+    if (st == ST_ANY || st >= ST_MAX)
+	return 0;
+    synth_type = st;
+    return 1;
 }
