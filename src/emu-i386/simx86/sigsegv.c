@@ -294,23 +294,6 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		else
 			_eax = e_VgaRead(LINP(_edi),DATA32);
 		_rip = (long)(p+2); break;
-/*ac*/	case LODSb: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		if (_err&2) goto badrw;
-		LO_BYTE(_eax) = e_VgaRead(LINP(_esi),MBYTE);
-		_esi+=d;
-		_rip = (long)(p+1); } break;
-/*ad*/	case LODSw: {
-		int d = (_eflags & EFLAGS_DF? -4:4);
-		if (_err&2) goto badrw;
-		if (w16) {
-		    d >>= 1;
-		    LO_WORD(_eax) = e_VgaRead(LINP(_esi),DATA16);
-		}
-		else
-		    _eax = e_VgaRead(LINP(_esi),DATA32);
-		_esi+=d;
-		_rip = (long)(p+1); } break;
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
 		int repmod;
