@@ -142,7 +142,7 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 		else source += len;
 		stack->esi = MEM_BASE32(source);
 	}
-	else { /* stos */
+	else if ((op & 0xfe) == 0xaa) { /* stos */
 		unsigned int eax = stack->eax;
 		if (ecx == len) {
 			if (vga_write_access(addr)) {
@@ -177,6 +177,28 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 			else if (EFLAGS & EFLAGS_DF) repstos(std,l,cld);
 			else repstos(,l,);
 		}
+	}
+	else if ((op & 0xf6) == 0xa6) { /* cmps/scas */
+		int repmod = (size == 1 ? MBYTE : size == 2 ? DATA16 : 0);
+		AR1.pu = stack->edi;
+		TR1.d = stack->ecx;
+		repmod |= MOVSDST|MREPCOND|(eip[-1]==REPNE? MREPNE:MREP);
+		if ((op & 0xf6) == 0xa6) { /* cmps */
+			repmod |= MOVSSRC;
+			AR2.pu = stack->esi;
+			Gen_sim(O_MOVS_CmpD, repmod);
+			stack->esi = AR2.pu;
+		}
+		else { /* scas */
+			DR1.d = stack->eax;
+			Gen_sim(O_MOVS_ScaD, repmod);
+		}
+		FlagSync_All();
+		stack->edi = AR1.pu;
+		stack->ecx = TR1.d;
+		stack->eflags = (stack->eflags & ~EFLAGS_CC) |
+			(EFLAGS & EFLAGS_CC);
+		return;
 	}
 	if (EFLAGS & EFLAGS_DF) addr -= len;
 	else addr += len;
@@ -403,8 +425,9 @@ int Cpatch(struct sigcontext *scp)
     unsigned char *eip = (unsigned char *)_rip;
 
     p = eip;
-    if (*p==0xf3 && p[-1] == 0x90 && p[-2] == 0x90) {	// rep movs, rep stos
-	if (debug_level('e')>1) e_printf("### REP movs/stos patch at %p\n",eip);
+    if ((*p==0xf3 || *p==0xf2) && p[-1] == 0x90 && p[-2] == 0x90) {
+	// rep movs, rep stos, rep lods, rep scas, rep cmps
+	if (debug_level('e')>1) e_printf("### REP patch at %p\n",eip);
 	p-=2;
 	G2M(0xff,0x13,p); /* call (%ebx) */
 	_rip -= 2; /* make sure call (%ebx) is performed the first time */
