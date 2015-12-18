@@ -1893,24 +1893,46 @@ shrot0:
 		*CpTemp = (Cp-(CpTemp+1));
 		break;
 	case O_MOVS_CmpD:
-		CpTemp = NULL;
-		if(mode & (MREP|MREPNE))
-		{
-			G2M(JCXZ,00,Cp);
-			// Pointer to the jecxz distance byte
-			CpTemp = Cp-1;
+		if(!(mode & (MREP|MREPNE))) {
+			// assumes eax=(%%esi)
+			// mov %%eax, %%edx
+			G2M(0x89,0xc2,Cp);
+			// mov (%%edi), %%{e}a[xl]
+			if (mode&MBYTE) {
+				G2(0x078a,Cp); G1(0x90,Cp);
+			}
+			else if (mode&DATA16) {
+				G1(0x66,Cp); G2(0x078b,Cp);
+			}
+			else {
+				G2(0x078b,Cp); G1(0x90,Cp);
+			}
+			G3(0x909090,Cp);
+			// cmp %%eax, %%edx
+			if (mode&MBYTE) {
+				G2M(0x38,0xc2,Cp);
+			}
+			else {
+				Gen66(mode,Cp);
+				G2M(0x39,0xc2,Cp);
+			}
+			// replace flags back on stack,eax=dummy
+			G2M(POPax,PUSHF,Cp);
+			break;
 		}
+		CpTemp = NULL;
+		G2M(JCXZ,00,Cp);
+		// Pointer to the jecxz distance byte
+		CpTemp = Cp-1;
 		GetDF(Cp);
-		if (mode&MREP) { G1(REP,Cp); }
-			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
+		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
 		else {
 			Gen66(mode,Cp);
 			G1(CMPSw,Cp);
 		}
 		G3M(CLD,POPax,PUSHF,Cp); // replace flags back on stack,eax=dummy
-		if(mode & (MREP|MREPNE))
-			*CpTemp = (Cp-(CpTemp+1));
+		*CpTemp = (Cp-(CpTemp+1));
 		break;
 
 	case O_MOVS_SavA:

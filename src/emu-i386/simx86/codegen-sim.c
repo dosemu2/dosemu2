@@ -2602,7 +2602,7 @@ void Gen_sim(int op, int mode, ...)
 		}
 		break;
 	case O_MOVS_CmpD: {	// OSZAPC
-		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
+		int df;
 		register unsigned int i;
 		char k, z;
 		i = TR1.d;
@@ -2610,6 +2610,26 @@ void Gen_sim(int op, int mode, ...)
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
+		if(!(mode & (MREP|MREPNE))) {
+			// assumes DR1=*AR2
+			if (vga_read_access(DOSADDR_REL(AR1.pu)))
+				DR2.d = e_VgaRead(AR1.pu, mode);
+			else if (mode&MBYTE)
+				DR2.b.bl = *AR1.pu;
+			else if (mode&DATA16)
+				DR2.w.l = *AR1.pwu;
+			else
+				DR2.d = *AR1.pdu;
+			if (mode&MBYTE)
+				RFL.RES.d = (S1=DR1.b.bl) - (S2=DR2.b.bl);
+			else if (mode&DATA16)
+				RFL.RES.d = (S1=DR1.w.l) - (S2=DR2.w.l);
+			else
+				RFL.RES.d = (S1=DR1.d) - (S2=DR2.d);
+			FlagHandleSub(S1, S2, RFL.RES.d, OPSIZE(mode)*8);
+			break;
+		}
+		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		z = k = (mode&MREP? 1:0);
 		if (vga_read_access(DOSADDR_REL(AR1.pu)) ||
 				vga_read_access(DOSADDR_REL(AR2.pu)))
@@ -2671,7 +2691,7 @@ void Gen_sim(int op, int mode, ...)
 		    }
 		    i--;
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = i;
+		TR1.d = i;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
