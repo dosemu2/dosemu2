@@ -454,45 +454,17 @@ static void CodeGen(IMeta *I, int j)
 		G3(0xc0b70f,Cp);
 		break;
 
-//	case L_DI_R1:
-	case L_VGAREAD:
-		if (!(TheCPU.mode&RM_REG) && vga.inst_emu &&
-			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // movl %%edi,%%eax
-		    G2M(0x89,0xf8,Cp);
-		    // subl VgaAbsBankBase(%%ebx),%%eax
-		    G2(0x832b,Cp);
-		    G4((unsigned char *)&VgaAbsBankBase-CPUOFFS(0),Cp);
-		    // cmpl vga.bank_len(%%ebx),%%eax
-		    G2(0x833b,Cp);
-		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
-		    // jnb normal_read
-		    // pushl mode
-	       	    G3(0x6a1073,Cp); G1(mode,Cp);
-#ifdef __x86_64__
-		    // pop %%rsi; push %%rdi
-		    G5(0x8b8d48575e,Cp);
-	    	    // lea e_VgaRead(%%rbx),%%rcx; call %%rcx; pop %%rdi
-		    G4((unsigned char *)e_VgaRead-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
-		    // must be the same amount of ins bytes as i386!!
-#else
-		    // pushl %%edi
-		    G2(0xb957,Cp);
-	    	    // call e_VgaRead
-		    G4((long)e_VgaRead,Cp); G2(0xd1ff,Cp);
-	    	    // add $8,%%esp; nop
-		    G4(0x9008c483,Cp);
-#endif
-	    	    // jmp (skip normal read)
-		    G2M(0xeb,((mode&(DATA16|MBYTE))==DATA16? 3:2),Cp);
-		}
+	case L_DI_R1:
 		if (mode&(MBYTE|MBYTX)) {
-		    G2(0x078a,Cp);
+		    G2(0x078a,Cp); G1(0x90,Cp);
+		}
+		else if (mode&DATA16) {
+		    G1(0x66,Cp); G2(0x078b,Cp);
 		}
 		else {
-		    Gen66(mode,Cp);
-		    G2(0x078b,Cp);
+		    G2(0x078b,Cp); G1(0x90,Cp);
 		}
+		G3(0x909090,Cp);
 		break;
 	case S_DI:
 		if (mode&MBYTE) {
@@ -2511,8 +2483,7 @@ static void Gen_x86(int op, int mode, ...)
 	case L_NOP:
 	case L_CR0:
 	case L_ZXAX:
-//	case L_DI_R1:
-	case L_VGAREAD:
+	case L_DI_R1:
 	case S_DI:
 	case O_NOT:
 	case O_NEG:

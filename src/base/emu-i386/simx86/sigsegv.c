@@ -260,22 +260,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
      * this will cause the cpuemu to fail.
      */
     switch (*p) {
-/*8a*/	case MOVbtrm:
-		if (_err&2) goto badrw;
-		if (p[1]==0x07)
-		    _LO(ax) = e_VgaRead(LINP(_edi),MBYTE);
-		else if (p[1]==0x17)
-		    _LO(dx) = e_VgaRead(LINP(_edi),MBYTE);
-		else goto unimp;
-		_rip = (long)(p+2); break;
-/*8b*/	case MOVwtrm:
-		if (_err&2) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		if (w16)
-			LO_WORD(_eax) = e_VgaRead(LINP(_edi),DATA16);
-		else
-			_eax = e_VgaRead(LINP(_edi),DATA32);
-		_rip = (long)(p+2); break;
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
 		int repmod;
@@ -331,11 +315,6 @@ int e_vgaemu_fault(sigcontext_t *scp, unsigned page_fault)
 unimp:
   error("eVGAEmuFault: unimplemented decode instr at %08"PRI_RG": %08x\n",
 	_rip, *((int *)_rip));
-  leavedos_from_sig(0x5643);
-  return 0;
-badrw:
-  error("eVGAEmuFault: bad R/W CR2 bits at %08"PRI_RG": %08x\n",
-	_rip, _err);
   leavedos_from_sig(0x5643);
   return 0;
 }
