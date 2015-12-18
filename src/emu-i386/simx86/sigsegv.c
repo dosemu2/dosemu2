@@ -229,72 +229,15 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
   }
 
   if (vga_page < vga.mem.pages) {
-    unsigned char *p;
-    if (!vga.inst_emu) {
-      /* Normal: make the display page writeable after marking it dirty */
-      dosemu_error("simx86: should not be here\n");
-      vga_emu_adjust_protection(vga_page, page_fault, VGA_PROT_RW, 1);
+/**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
+    /* let Cpatch deal with the faulting instruction */
+    if (Cpatch(scp)) {
+      vgaemu_dirty_page(vga_page, 1);
       return 1;
     }
-
-/**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
-
-    p = (unsigned char *)_rip;
-    if (*p==0x66) p++;
-
-    /* Decode the faulting instruction.
-     * Hopefully, since the compiled code contains a well-defined subset
-     * of the many possibilities for writing a memory location, this
-     * decoder can be kept quite small. It is possible, however, that
-     * someone accesses the VGA memory with a shift, or a bit set, and
-     * this will cause the cpuemu to fail.
-     */
-    switch (*p) {
-/*88*/	case MOVbfrm:
-/*89*/	case MOVwfrm:
-		if ((_err&2)==0) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		Cpatch(scp);
-		return 1;
-/*8a*/	case MOVbtrm:
-/*8b*/	case MOVwtrm:
-		if (_err&2) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		Cpatch(scp);
-		return 1;
-/*f2*/	case REPNE:
-/*f3*/	case REP:
-		if (p[1]==0x66) p++;
-		switch(p[1]) {
-	/*aa*/	case STOSb:
-	/*ab*/	case STOSw:
-	/*a4*/	case MOVSb:
-	/*a5*/	case MOVSw:
-	/*ae*/	case CMPSb:
-	/*af*/	case CMPSw:
-	/*ae*/	case SCASb:
-	/*af*/	case SCASw:
-		    Cpatch(scp);
-		    return 1;
-		default:
-		    goto unimp;
-		}
-	default:
-		goto unimp;
-    }
-/**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
-    vgaemu_dirty_page(vga_page, 1);
   }
-  return 1;
-
-unimp:
   error("eVGAEmuFault: unimplemented decode instr at %08lx: %08x\n",
 	_rip, *((int *)_rip));
-  leavedos_from_sig(0x5643);
-  return 0;
-badrw:
-  error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
-	_rip, _err);
   leavedos_from_sig(0x5643);
   return 0;
 }
