@@ -2387,7 +2387,7 @@ void Gen_sim(int op, int mode, ...)
 		    e_VgaMovs(scp, op, (mode & DATA16) ? 1 : 0, df);
 		    AR1.d = _edi;
 		    AR2.d = _esi;
-		    if (mode&(MREP|MREPNE))	TR1.d = 0;
+		    TR1.d = 0;
 		    break;
 		}
 		if(mode & ADDR16) {
@@ -2450,7 +2450,7 @@ void Gen_sim(int op, int mode, ...)
 			while (i--) *AR1.pdu++ = *AR2.pdu++;
 		    }
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = 0;
+		TR1.d = 0;
 		}
 		break;
 	case O_MOVS_LodD: {

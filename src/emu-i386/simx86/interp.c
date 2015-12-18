@@ -1197,13 +1197,16 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 
 /*a4*/	case MOVSb: {	int m = mode|(MBYTE|MOVSSRC|MOVSDST);
 			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_MovD, m);
+			Gen(O_MOVS_LodD, m);
+			Gen(S_DI, m);
 			Gen(O_MOVS_SavA, m);
 			PC++;
 			} break;
 /*a5*/	case MOVSw: {	int m = mode|(MOVSSRC|MOVSDST);
 			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_MovD, m); PC++;
+			Gen(O_MOVS_LodD, m);
+			Gen(S_DI, m);
+			PC++;
 			Gen(O_MOVS_SavA, m);
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
@@ -1211,13 +1214,17 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				int cnt = 3;
 				m = UNPREFIX(m);
 				while (++cnt < NUMGENS && Fetch(PC) == MOVSw) {
-					Gen(O_MOVS_MovD, m);
+					Gen(O_MOVS_SetA, m);
+					Gen(O_MOVS_LodD, m);
+					Gen(S_DI, m);
 					PC++;
 					Gen(O_MOVS_SavA, m);
 				}
 				if (Fetch(PC) == MOVSb) {
 					m |= MBYTE;
-					Gen(O_MOVS_MovD, m);
+					Gen(O_MOVS_SetA, m);
+					Gen(O_MOVS_LodD, m);
+					Gen(S_DI, m);
 					PC++;
 					Gen(O_MOVS_SavA, m);
 				}
