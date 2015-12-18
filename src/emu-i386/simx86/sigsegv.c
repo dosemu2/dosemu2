@@ -292,19 +292,14 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
 		int repmod;
-		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (p[1]==0x66) w16=1,p++;
 		switch(p[1]) {
 	/*aa*/	case STOSb:
 	/*ab*/	case STOSw:
-		    Cpatch(scp);
-		    return 0;
 	/*a4*/	case MOVSb:
-		    e_VgaMovs(scp, 3, 0, d);
-		    break;
 	/*a5*/	case MOVSw:
-		    e_VgaMovs(scp, 2, w16, d*2);
-		    break;
+		    Cpatch(scp);
+		    return 1;
 	/*a6*/	case CMPSb:
 		    repmod = MBYTE;
 		    goto REPCMPS_common;
