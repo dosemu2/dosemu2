@@ -34,6 +34,7 @@
 static struct pcm_holder out[ST_MAX][MAX_OUT_PLUGINS];
 static struct pcm_holder in[MAX_IN_PLUGINS];
 #define OUT_PLUGIN(i) ((struct midi_out_plugin *)out[synth_type][i].plugin)
+#define OUT_PLUGIN2(i, j) ((struct midi_out_plugin *)out[i][j].plugin)
 #define IN_PLUGIN(i) ((struct midi_in_plugin *)in[i].plugin)
 static int out_registered[ST_MAX], in_registered;
 static struct rng_s midi_in;
@@ -46,10 +47,11 @@ void midi_write(unsigned char val)
 {
     int i;
     for (i = 0; i < out_registered[synth_type]; i++)
-	if (out[synth_type][i].opened
-	    && (OUT_PLUGIN(i)->stype == synth_type
-		|| OUT_PLUGIN(i)->stype == ST_ANY))
+	if (out[synth_type][i].opened)
 	    OUT_PLUGIN(i)->write(val);
+    for (i = 0; i < out_registered[ST_ANY]; i++)
+	if (out[ST_ANY][i].opened)
+	    OUT_PLUGIN2(ST_ANY, i)->write(val);
 //  idle(0, 0, 0, "midi");
 }
 
@@ -89,8 +91,8 @@ void midi_stop(void)
     int i, j;
     for (i = 0; i < ST_MAX; i++) {
 	for (j = 0; j < out_registered[i]; j++)
-	    if (OUT_PLUGIN(j)->stop && out[i][j].opened)
-		OUT_PLUGIN(j)->stop(out[i][j].arg);
+	    if (OUT_PLUGIN2(i, j)->stop && out[i][j].opened)
+		OUT_PLUGIN2(i, j)->stop(out[i][j].arg);
     }
     for (i = 0; i < in_registered; i++)
 	if (IN_PLUGIN(i)->stop && in[i].opened)
@@ -102,8 +104,8 @@ void midi_timer(void)
     int i, j;
     for (i = 0; i < ST_MAX; i++) {
 	for (j = 0; j < out_registered[i]; j++)
-	    if (OUT_PLUGIN(j)->run && out[i][j].opened)
-		OUT_PLUGIN(j)->run();
+	    if (OUT_PLUGIN2(i, j)->run && out[i][j].opened)
+		OUT_PLUGIN2(i, j)->run();
     }
 }
 
