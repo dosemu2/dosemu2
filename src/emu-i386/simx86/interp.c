@@ -1258,7 +1258,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*ab*/	case STOSw: {	int m = mode|MOVSDST;
 			Gen(O_MOVS_SetA, m);
 			Gen(L_REG, m, Ofs_EAX);
-			Gen(O_MOVS_StoD, m); PC++;
+			Gen(S_DI, m); PC++;
 			Gen(O_MOVS_SavA, m);
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {

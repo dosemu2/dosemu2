@@ -266,21 +266,11 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		Cpatch(scp);
 		return 1;
 /*8a*/	case MOVbtrm:
-		if (_err&2) goto badrw;
-		if (p[1]==0x07)
-		    LO_BYTE(_eax) = e_VgaRead(LINP(_edi),MBYTE);
-		else if (p[1]==0x17)
-		    LO_BYTE(_edx) = e_VgaRead(LINP(_edi),MBYTE);
-		else goto unimp;
-		_rip = (long)(p+2); break;
 /*8b*/	case MOVwtrm:
 		if (_err&2) goto badrw;
 		if (p[1]!=0x07) goto unimp;
-		if (w16)
-			LO_WORD(_eax) = e_VgaRead(LINP(_edi),DATA16);
-		else
-			_eax = e_VgaRead(LINP(_edi),DATA32);
-		_rip = (long)(p+2); break;
+		Cpatch(scp);
+		return 1;
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
 		int repmod;
