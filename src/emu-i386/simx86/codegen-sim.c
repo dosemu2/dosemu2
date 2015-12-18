@@ -2499,7 +2499,7 @@ void Gen_sim(int op, int mode, ...)
 			    if (!(mode&DATA16)) AR1.pu += 2*df;
 			}
 		    }
-		    if (mode&(MREP|MREPNE))	TR1.d = 0;
+		    TR1.d = 0;
 		    break;
 		}
 		if((mode & ADDR16) && i) {
@@ -2541,7 +2541,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    while (i--) { *AR1.pdu = DR1.d; AR1.pdu += df; }
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = 0;
+		TR1.d = 0;
 		}
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC
