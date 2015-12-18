@@ -306,8 +306,16 @@ static void midout_timesig(int chn, int a, int b, int32_t time)
 
 static void midout_sysex(void *data, int len, int32_t time)
 {
+    uint8_t a;
+    int l1 = len + 1;
     midout_write_delta_time(time);
     M_FWRITE1(0xf0);
+    a = l1 & 0x7f;
+    if (l1 != a) {
+	uint8_t b = ((l1 >> 7) & 0x7f) | 0x80;
+	M_FWRITE1(b);
+    }
+    M_FWRITE1(a);
     m_fwrite(data, len);
     M_FWRITE1(0xf7);
 }
