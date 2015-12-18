@@ -2603,7 +2603,7 @@ void Gen_sim(int op, int mode, ...)
 		    }
 		    i--;
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = i;
+		TR1.d = i;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;

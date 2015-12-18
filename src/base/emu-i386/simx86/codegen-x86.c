@@ -1899,23 +1899,18 @@ shrot0:
 		break;
 	case O_MOVS_ScaD:
 		CpTemp = NULL;
-		if(mode & (MREP|MREPNE))
-		{
-			G2M(JCXZ,00,Cp);
-			// Pointer to the jecxz distance byte
-			CpTemp = Cp-1;
-		}
+		G2M(JCXZ,00,Cp);
+		// Pointer to the jecxz distance byte
+		CpTemp = Cp-1;
 		GetDF(Cp);
-		if (mode&MREP) { G1(REP,Cp); }
-			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
+		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(SCASb,Cp); }
 		else {
 			Gen66(mode,Cp);
 			G1(SCASw,Cp);
 		}
 		G3M(CLD,POPsi,PUSHF,Cp); // replace flags back on stack,esi=dummy
-		if(mode & (MREP|MREPNE))
-			*CpTemp = (Cp-(CpTemp+1));
+		*CpTemp = (Cp-(CpTemp+1));
 		break;
 	case O_MOVS_CmpD:
 		CpTemp = NULL;
