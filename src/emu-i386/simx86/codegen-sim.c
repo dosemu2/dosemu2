@@ -641,9 +641,9 @@ void Gen_sim(int op, int mode, ...)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
-	case L_VGAWRITE:
+	case S_DI:
 		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
-			GTRACE0("L_VGAWRITE");
+			GTRACE0("L_S_DI");
 			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
 			e_VgaWrite(AR1.pu, DR1.d, mode); break;
 		}
