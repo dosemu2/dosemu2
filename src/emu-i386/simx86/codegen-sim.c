@@ -623,9 +623,9 @@ void Gen_sim(int op, int mode, ...)
 		DR1.w.h = 0;
 		break;
 
-	case L_VGAREAD:
+	case L_DI_R1:
 		if (vga_read_access(DOSADDR_REL(AR1.pu))) {
-			GTRACE0("L_VGAREAD");
+			GTRACE0("L_DI_R1");
 			DR1.d = e_VgaRead(AR1.pu, mode);
 			break;
 		}
@@ -641,9 +641,9 @@ void Gen_sim(int op, int mode, ...)
 		}
 		if (debug_level('e')>3) dbug_printf("(V) %08x\n",DR1.d);
 		break;
-	case L_VGAWRITE:
+	case S_DI:
 		if (vga_write_access(DOSADDR_REL(AR1.pu))) {
-			GTRACE0("L_VGAWRITE");
+			GTRACE0("L_S_DI");
 			if (!vga_bank_access(DOSADDR_REL(AR1.pu))) break;
 			e_VgaWrite(AR1.pu, DR1.d, mode); break;
 		}
@@ -2358,6 +2358,9 @@ void Gen_sim(int op, int mode, ...)
 		    }
 		    TR1.d = (mode&(MREP|MREPNE)? CPULONG(Ofs_ECX) : 1);
 		}
+		if (!(mode&(MREP|MREPNE|MOVSDST))) {
+		    AR1.d = AR2.d; /* single lodsb uses L_DI_R1 */
+		}
 		break;
 
 	case O_MOVS_MovD: {
@@ -2369,25 +2372,14 @@ void Gen_sim(int op, int mode, ...)
 		    break;
 		v = vga_access(DOSADDR_REL(AR2.pu), DOSADDR_REL(AR1.pu));
 		if (v) {
-		    int op;
-		    struct sigcontext s, *scp = &s;
-		    _err = v;
-		    _rdi = AR1.d;
-		    _rsi = AR2.d;
-		    _rcx = i;
-		    op = 2 | (v == 3 ? 4 : 0);
-		    if (mode & MBYTE) {
-			op |= 1;
-		    } else {
+		    if (!(mode & MBYTE)) {
 			df *= 2;
-			if ((mode & DATA32)) {
+			if (!(mode & DATA16)) {
 			    df *= 2;
 			}
 		    }
-		    e_VgaMovs(scp, op, (mode & DATA16) ? 1 : 0, df);
-		    AR1.d = _edi;
-		    AR2.d = _esi;
-		    if (mode&(MREP|MREPNE))	TR1.d = 0;
+		    e_VgaMovs(&AR1.pu, &AR2.pu, i, df, v);
+		    TR1.d = 0;
 		    break;
 		}
 		if(mode & ADDR16) {
@@ -2450,7 +2442,7 @@ void Gen_sim(int op, int mode, ...)
 			while (i--) *AR1.pdu++ = *AR2.pdu++;
 		    }
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = 0;
+		TR1.d = 0;
 		}
 		break;
 	case O_MOVS_LodD: {
@@ -2499,7 +2491,7 @@ void Gen_sim(int op, int mode, ...)
 			    if (!(mode&DATA16)) AR1.pu += 2*df;
 			}
 		    }
-		    if (mode&(MREP|MREPNE))	TR1.d = 0;
+		    TR1.d = 0;
 		    break;
 		}
 		if((mode & ADDR16) && i) {
@@ -2541,7 +2533,7 @@ void Gen_sim(int op, int mode, ...)
 		else {
 		    while (i--) { *AR1.pdu = DR1.d; AR1.pdu += df; }
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = 0;
+		TR1.d = 0;
 		}
 		break;
 	case O_MOVS_ScaD: {	// OSZAPC
@@ -2597,12 +2589,12 @@ void Gen_sim(int op, int mode, ...)
 		    }
 		    i--;
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = i;
+		TR1.d = i;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
 	case O_MOVS_CmpD: {	// OSZAPC
-		int df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
+		int df;
 		register unsigned int i;
 		char k, z;
 		i = TR1.d;
@@ -2610,6 +2602,26 @@ void Gen_sim(int op, int mode, ...)
 		if (i == 0) break; /* eCX = 0, no-op, no flags updated */
 		RFL.mode = mode;
 		RFL.valid = V_SUB;
+		if(!(mode & (MREP|MREPNE))) {
+			// assumes DR1=*AR2
+			if (vga_read_access(DOSADDR_REL(AR1.pu)))
+				DR2.d = e_VgaRead(AR1.pu, mode);
+			else if (mode&MBYTE)
+				DR2.b.bl = *AR1.pu;
+			else if (mode&DATA16)
+				DR2.w.l = *AR1.pwu;
+			else
+				DR2.d = *AR1.pdu;
+			if (mode&MBYTE)
+				RFL.RES.d = (S1=DR1.b.bl) - (S2=DR2.b.bl);
+			else if (mode&DATA16)
+				RFL.RES.d = (S1=DR1.w.l) - (S2=DR2.w.l);
+			else
+				RFL.RES.d = (S1=DR1.d) - (S2=DR2.d);
+			FlagHandleSub(S1, S2, RFL.RES.d, OPSIZE(mode)*8);
+			break;
+		}
+		df = (CPUWORD(Ofs_FLAGS) & EFLAGS_DF? -1:1);
 		z = k = (mode&MREP? 1:0);
 		if (vga_read_access(DOSADDR_REL(AR1.pu)) ||
 				vga_read_access(DOSADDR_REL(AR2.pu)))
@@ -2671,14 +2683,30 @@ void Gen_sim(int op, int mode, ...)
 		    }
 		    i--;
 		}
-		if (mode&(MREP|MREPNE))	TR1.d = i;
+		TR1.d = i;
 		// ! Warning DI,SI wrap	in 16-bit mode
 		}
 		break;
 
 	case O_MOVS_SavA:
 		GTRACE0("O_MOVS_SavA");
-		if (mode&ADDR16) {
+		if (!(mode&(MREP|MREPNE))) {
+		    // %%edx set to DF's increment
+		    DR2.d = (char)CPUBYTE(Ofs_DF_INCREMENTS+OPSIZEBIT(mode));
+		    if(mode & MOVSSRC) {
+			if (mode & ADDR16)
+			    CPUWORD(Ofs_SI) += DR2.w.l;
+			else
+			    CPULONG(Ofs_SI) += DR2.d;
+		    }
+		    if(mode & MOVSDST) {
+			if (mode & ADDR16)
+			    CPUWORD(Ofs_DI) += DR2.w.l;
+			else
+			    CPULONG(Ofs_DI) += DR2.d;
+		    }
+		}
+		else if (mode&ADDR16) {
 		    if (mode&(MREP|MREPNE)) {
 	    		CPUWORD(Ofs_CX) = TR1.w.l;
 		    }
@@ -2736,10 +2764,12 @@ void Gen_sim(int op, int mode, ...)
 		case CLD:
 			GTRACE0("O_CLD");
 			CPUWORD(Ofs_FLAGS) &= 0xfbff;
+			TheCPU.df_increments = 0x040201;
 			break;
 		case STD:
 			GTRACE0("O_STD");
 			CPUWORD(Ofs_FLAGS) |= 0x400;
+			TheCPU.df_increments = 0xfcfeff;
 			break;
 		} }
 		break;

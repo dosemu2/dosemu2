@@ -450,80 +450,19 @@ static void CodeGen(IMeta *I, int j)
 		G3(0xc0b70f,Cp);
 		break;
 
-//	case L_DI_R1:
-	case L_VGAREAD:
-		if (!(TheCPU.mode&RM_REG) && vga.inst_emu &&
-			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // movl %%edi,%%eax
-		    G2M(0x89,0xf8,Cp);
-		    // subl VgaAbsBankBase(%%ebx),%%eax
-		    G2(0x832b,Cp);
-		    G4((unsigned char *)&VgaAbsBankBase-CPUOFFS(0),Cp);
-		    // cmpl vga.bank_len(%%ebx),%%eax
-		    G2(0x833b,Cp);
-		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
-		    // jnb normal_read
-		    // pushl mode
-	       	    G3(0x6a1073,Cp); G1(mode,Cp);
-#ifdef __x86_64__
-		    // pop %%rsi; push %%rdi
-		    G5(0x8b8d48575e,Cp);
-	    	    // lea e_VgaRead(%%rbx),%%rcx; call %%rcx; pop %%rdi
-		    G4((unsigned char *)e_VgaRead-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
-		    // must be the same amount of ins bytes as i386!!
-#else
-		    // pushl %%edi
-		    G2(0xb957,Cp);
-	    	    // call e_VgaRead
-		    G4((long)e_VgaRead,Cp); G2(0xd1ff,Cp);
-	    	    // add $8,%%esp; nop
-		    G4(0x9008c483,Cp);
-#endif
-	    	    // jmp (skip normal read)
-		    G2M(0xeb,((mode&(DATA16|MBYTE))==DATA16? 3:2),Cp);
-		}
+	case L_DI_R1:
 		if (mode&(MBYTE|MBYTX)) {
-		    G2(0x078a,Cp);
+		    G2(0x078a,Cp); G1(0x90,Cp);
+		}
+		else if (mode&DATA16) {
+		    G1(0x66,Cp); G2(0x078b,Cp);
 		}
 		else {
-		    Gen66(mode,Cp);
-		    G2(0x078b,Cp);
+		    G2(0x078b,Cp); G1(0x90,Cp);
 		}
+		G3(0x909090,Cp);
 		break;
-//	case S_DI:
-	case L_VGAWRITE:
-		if (!(TheCPU.mode&RM_REG) && vga.inst_emu &&
-			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
-		    // movl %%edi,%%ecx
-		    G2M(0x89,0xf9,Cp);
-		    // subl VgaBankAbsBase(%%ebx),%%ecx
-		    G2(0x8b2b,Cp);
-		    G4((unsigned char *)&VgaAbsBankBase-CPUOFFS(0),Cp);
-		    // cmpl vga.mem.bank_len(%%ebx),%%ecx
-		    G2(0x8b3b,Cp);
-		    G4((unsigned char *)&vga.mem.bank_len-CPUOFFS(0),Cp);
-		    // jnb normal_write
-		    // pushl mode
-	       	    G3(0x6a1273,Cp); G1(mode,Cp);
-#ifdef __x86_64__
-		    // pop %%rdx; mov %%eax, %%esi; push %%rdi
-		    G4(0x57c6895a,Cp);
-	    	    // lea e_VgaWrite(%%ebx),%%ecx; call %%ecx; pop %%rdi
-		    G3(0x8b8d48,Cp);
-		    G4((unsigned char *)e_VgaWrite-CPUOFFS(0),Cp); G3(0x5fd1ff,Cp);
-		    // must be the same amount of ins bytes as i386!!
-#else
-		    // pushl %%eax
-		    // pushl %%edi
-		    G3(0xb95750,Cp);
-	    	    // call e_VgaWrite
-		    G4((long)e_VgaWrite,Cp); G2(0xd1ff,Cp);
-	    	    // add $0c,%%esp; nop; nop
-		    G4(0x900cc483,Cp); G1(0x90,Cp);
-#endif
-	    	    // jmp (skip normal write)
-		    G2(0x03eb,Cp);
-		}
+	case S_DI:
 		if (mode&MBYTE) {
 		    STD_WRITE_B;
 		}
@@ -1698,7 +1637,9 @@ shrot0:
 		GNX(Cp, p, sz);
 		} break;
 
-	case O_MOVS_SetA:
+	case O_MOVS_SetA: {
+		/* use edi for loads unless MOVSDST or REP is set */
+		unsigned char modrm = mode&(MREP|MREPNE|MOVSDST) ? 0x73 : 0x7b;
 		if (mode&ADDR16) {
 		    /* The CX load has to be before the address reloads */
 		    if (mode&(MREP|MREPNE)) {
@@ -1707,8 +1648,8 @@ shrot0:
 			rep_retry_ptr = Cp;
 		    }
 		    if (mode&MOVSSRC) {
-			// movzwl Ofs_SI(%%ebx),%%esi
-			G4M(0x0f,0xb7,0x73,Ofs_SI,Cp);
+			// movzwl Ofs_SI(%%ebx),%%e[sd]i
+			G4M(0x0f,0xb7,modrm,Ofs_SI,Cp);
 		    	if(mode & (MREPNE|MREP))
 		    	{
 			    /* EAX: iterations possible until address overflow
@@ -1735,8 +1676,8 @@ shrot0:
 			    G1(INCax,Cp);
 #endif
 			}
-			// addl OVERR_DS(%%ebx),%%esi
-			G3M(0x03,0x73,IG->ovds,Cp);
+			// addl OVERR_DS(%%ebx),%%e[sd]i
+			G3M(0x03,modrm,IG->ovds,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movzwl Ofs_DI(%%ebx),%%edi
@@ -1829,10 +1770,10 @@ shrot0:
 		}
 		else {
 		    if (mode&MOVSSRC) {
-			// movl OVERR_DS(%%ebx),%%esi
-			G2(0x738b,Cp); G1(IG->ovds,Cp);
-			// addl Ofs_ESI(%%ebx),%%esi
-			G3M(0x03,0x73,Ofs_ESI,Cp);
+			// movl OVERR_DS(%%ebx),%%e[sd]i
+			G3M(0x8b,modrm,IG->ovds,Cp);
+			// addl Ofs_ESI(%%ebx),%%e[sd]i
+			G3M(0x03,modrm,Ofs_ESI,Cp);
 		    }
 		    if (mode&MOVSDST) {
 			// movl Ofs_XES(%%ebx),%%edi
@@ -1844,23 +1785,22 @@ shrot0:
 			// movl Ofs_ECX(%%ebx),%%ecx
 			G3M(0x8b,0x4b,Ofs_ECX,Cp);
 		    }
-		}
+		} }
 		break;
 
 	case O_MOVS_MovD:
 		GetDF(Cp);
-		if (mode&(MREP|MREPNE))	{ G3M(NOP,NOP,REP,Cp); }
+		G3M(NOP,NOP,REP,Cp);
 		if (mode&MBYTE)	{ G1(MOVSb,Cp); }
 		else {
 			Gen66(mode,Cp);
 			G1(MOVSw,Cp);
 		}
-		if (!(mode&(MREP|MREPNE))) { G4(0x90909090,Cp); }
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_LodD:
 		GetDF(Cp);
-		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
+		G3M(NOP,NOP,REP,Cp);
 		if (mode&MBYTE)	{ G1(LODSb,Cp); }
 		else {
 			Gen66(mode,Cp);
@@ -1870,58 +1810,93 @@ shrot0:
 		break;
 	case O_MOVS_StoD:
 		GetDF(Cp);
-		if (mode&(MREP|MREPNE))	{ G3M(NOP,NOP,REP,Cp); }
+		G3M(NOP,NOP,REP,Cp);
 		if (mode&MBYTE)	{ G1(STOSb,Cp); }
 		else {
 			Gen66(mode,Cp);
 			G1(STOSw,Cp);
 		}
-		if (!(mode&(MREP|MREPNE))) { G4(0x90909090,Cp); }
 		G1(CLD,Cp);
 		break;
 	case O_MOVS_ScaD:
 		CpTemp = NULL;
-		if(mode & (MREP|MREPNE))
-		{
-			G2M(JCXZ,00,Cp);
-			// Pointer to the jecxz distance byte
-			CpTemp = Cp-1;
-		}
+		G2M(JCXZ,00,Cp);
+		// Pointer to the jecxz distance byte
+		CpTemp = Cp-1;
 		GetDF(Cp);
-		if (mode&MREP) { G1(REP,Cp); }
-			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
+		G2M(NOP,NOP,Cp);
+		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(SCASb,Cp); }
 		else {
 			Gen66(mode,Cp);
 			G1(SCASw,Cp);
 		}
 		G3M(CLD,POPsi,PUSHF,Cp); // replace flags back on stack,esi=dummy
-		if(mode & (MREP|MREPNE))
-			*CpTemp = (Cp-(CpTemp+1));
+		*CpTemp = (Cp-(CpTemp+1));
 		break;
 	case O_MOVS_CmpD:
-		CpTemp = NULL;
-		if(mode & (MREP|MREPNE))
-		{
-			G2M(JCXZ,00,Cp);
-			// Pointer to the jecxz distance byte
-			CpTemp = Cp-1;
+		if(!(mode & (MREP|MREPNE))) {
+			// assumes eax=(%%esi)
+			// mov %%eax, %%edx
+			G2M(0x89,0xc2,Cp);
+			// mov (%%edi), %%{e}a[xl]
+			if (mode&MBYTE) {
+				G2(0x078a,Cp); G1(0x90,Cp);
+			}
+			else if (mode&DATA16) {
+				G1(0x66,Cp); G2(0x078b,Cp);
+			}
+			else {
+				G2(0x078b,Cp); G1(0x90,Cp);
+			}
+			G3(0x909090,Cp);
+			// cmp %%eax, %%edx
+			if (mode&MBYTE) {
+				G2M(0x38,0xc2,Cp);
+			}
+			else {
+				Gen66(mode,Cp);
+				G2M(0x39,0xc2,Cp);
+			}
+			// replace flags back on stack,eax=dummy
+			G2M(POPax,PUSHF,Cp);
+			break;
 		}
+		CpTemp = NULL;
+		G2M(JCXZ,00,Cp);
+		// Pointer to the jecxz distance byte
+		CpTemp = Cp-1;
 		GetDF(Cp);
-		if (mode&MREP) { G1(REP,Cp); }
-			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
+		G2M(NOP,NOP,Cp);
+		G1((mode&MREP)?REP:REPNE,Cp);
 		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
 		else {
 			Gen66(mode,Cp);
 			G1(CMPSw,Cp);
 		}
 		G3M(CLD,POPax,PUSHF,Cp); // replace flags back on stack,eax=dummy
-		if(mode & (MREP|MREPNE))
-			*CpTemp = (Cp-(CpTemp+1));
+		*CpTemp = (Cp-(CpTemp+1));
 		break;
 
 	case O_MOVS_SavA:
-		if (mode&ADDR16) {
+		if (!(mode&(MREP|MREPNE))) {
+		    // %%edx set to DF's increment
+		    // movsbl Ofs_DF_INCREMENTS+OPSIZEBIT(mode)(%%ebx),%%edx
+		    G4M(0x0f,0xbe,0x53,Ofs_DF_INCREMENTS+OPSIZEBIT(mode),Cp);
+		    if(mode & MOVSSRC) {
+			if (mode & ADDR16)
+				G1(0x66,Cp);
+			// add{wl} %{e}dx,Ofs_SI(%%ebx)
+			G3M(0x01,0x53,Ofs_SI,Cp);
+		    }
+		    if(mode & MOVSDST) {
+			if (mode & ADDR16)
+				G1(0x66,Cp);
+			// add{wl} %{e}dx,Ofs_DI(%%ebx)
+			G3M(0x01,0x53,Ofs_DI,Cp);
+		    }
+		}
+		else if (mode&ADDR16) {
 		    if(mode & MREPCOND)
 		    {
 			/* it is important to *NOT* destroy the flags here, so
@@ -2017,10 +1992,16 @@ shrot0:
 		case CLD:
 			// andb $0xfb,EFLAGS+1(%%ebx)
 			G4M(0x80,0x63,Ofs_EFLAGS+1,0xfb,Cp);
+			// movl $0x040201,DF_INCREMENTS(%%ebx)
+			G3M(0xc7,0x43,Ofs_DF_INCREMENTS,Cp);
+			G4(0x040201,Cp);
 			break;
 		case STD:
 			// orb $4,EFLAGS+1(%%ebx)
 			G4M(0x80,0x4b,Ofs_EFLAGS+1,0x04,Cp);
+			// movl $0xfcfeff,DF_INCREMENTS(%%ebx)
+			G3M(0xc7,0x43,Ofs_DF_INCREMENTS,Cp);
+			G4(0xfcfeff,Cp);
 			break;
 		} }
 		break;
@@ -2460,10 +2441,8 @@ static void Gen_x86(int op, int mode, ...)
 	case L_NOP:
 	case L_CR0:
 	case L_ZXAX:
-//	case L_DI_R1:
-	case L_VGAREAD:
-//	case S_DI:
-	case L_VGAWRITE:
+	case L_DI_R1:
+	case S_DI:
 	case O_NOT:
 	case O_NEG:
 	case O_INC:

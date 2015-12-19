@@ -111,20 +111,19 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 	else if (*eip & 1)
 		size = 4;
 	len *= size;
-	m_munprotect(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0),
-		     len, eip);
+	if (!vga_write_access(addr))
+		m_munprotect(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0),
+			     len, eip);
 	edi = LINEAR2UNIX(addr);
 	if ((op & 0xfe) == 0xa4) { /* movs */
 		dosaddr_t source = DOSADDR_REL(stack->esi);
 		unsigned char *esi;
-		if (vga_access(source, addr)) {
-			if (EFLAGS & EFLAGS_DF)
-				vga_memcpy(addr - len + size,
-					   source - len + size, len);
-			else
-				vga_memcpy(addr, source, len);
-			ecx = 0;
-			goto done;
+		unsigned int v = vga_access(source, addr);
+		if (v) {
+			int df = ((EFLAGS & EFLAGS_DF) ? -size:size);
+			e_VgaMovs(&stack->edi, &stack->esi, ecx, df, v);
+			stack->ecx = 0;
+			return;
 		}
 		esi = LINEAR2UNIX(source);
 		if (ecx == len) {
@@ -139,12 +138,11 @@ asmlinkage void rep_movs_stos(struct rep_stack *stack)
 			if (EFLAGS & EFLAGS_DF) repmovs(std,l,cld);
 			else repmovs(,l,);
 		}
-done:
 		if (EFLAGS & EFLAGS_DF) source -= len;
 		else source += len;
 		stack->esi = MEM_BASE32(source);
 	}
-	else { /* stos */
+	else if ((op & 0xfe) == 0xaa) { /* stos */
 		unsigned int eax = stack->eax;
 		if (ecx == len) {
 			if (vga_write_access(addr)) {
@@ -180,6 +178,28 @@ done:
 			else repstos(,l,);
 		}
 	}
+	else if ((op & 0xf6) == 0xa6) { /* cmps/scas */
+		int repmod = (size == 1 ? MBYTE : size == 2 ? DATA16 : 0);
+		AR1.pu = stack->edi;
+		TR1.d = stack->ecx;
+		repmod |= MOVSDST|MREPCOND|(eip[-1]==REPNE? MREPNE:MREP);
+		if ((op & 0xf6) == 0xa6) { /* cmps */
+			repmod |= MOVSSRC;
+			AR2.pu = stack->esi;
+			Gen_sim(O_MOVS_CmpD, repmod);
+			stack->esi = AR2.pu;
+		}
+		else { /* scas */
+			DR1.d = stack->eax;
+			Gen_sim(O_MOVS_ScaD, repmod);
+		}
+		FlagSync_All();
+		stack->edi = AR1.pu;
+		stack->ecx = TR1.d;
+		stack->eflags = (stack->eflags & ~EFLAGS_CC) |
+			(EFLAGS & EFLAGS_CC);
+		return;
+	}
 	if (EFLAGS & EFLAGS_DF) addr -= len;
 	else addr += len;
 	stack->edi = MEM_BASE32(addr);
@@ -206,30 +226,54 @@ asmlinkage void wri_8(unsigned char *paddr, Bit8u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit8u *p;
+	if (vga_write_access(addr)) {
+		vga_write(addr, value);
+		return;
+	}
 	m_munprotect(addr, 1, eip);
 	p = LINEAR2UNIX(addr);
-	/* there is a slight chance that this stub hits VGA memory.
-	   For that case there is a simple instruction decoder but
-	   we must use mov %al,(%edi) (%rdi for x86_64) */
-	asm("movb %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	*p = value;
 }
 
 asmlinkage void wri_16(unsigned char *paddr, Bit16u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit16u *p;
+	if (vga_write_access(addr)) {
+		vga_write_word(addr, value);
+		return;
+	}
 	m_munprotect(addr, 2, eip);
 	p = LINEAR2UNIX(addr);
-	asm("movw %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	*p = value;
 }
 
 asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 {
 	dosaddr_t addr = DOSADDR_REL(paddr);
 	Bit32u *p;
+	if (vga_write_access(addr)) {
+		vga_write_dword(addr, value);
+		return;
+	}
 	m_munprotect(addr, 4, eip);
 	p = LINEAR2UNIX(addr);
-	asm("movl %1,(%2)" : "=m"(*p) : "a"(value), "D"(p));
+	*p = value;
+}
+
+asmlinkage Bit8u read_8(unsigned char *paddr)
+{
+	return vga_read(DOSADDR_REL(paddr));
+}
+
+asmlinkage Bit16u read_16(unsigned char *paddr)
+{
+	return vga_read_word(DOSADDR_REL(paddr));
+}
+
+asmlinkage Bit32u read_32(unsigned char *paddr)
+{
+	return vga_read_dword(DOSADDR_REL(paddr));
 }
 
 #ifdef __i386__
@@ -255,30 +299,15 @@ asmlinkage void wri_32(unsigned char *paddr, Bit32u value, unsigned char *eip)
 "		pushl	%eax\n"		/* value to write */ \
 "		pushl	%edi\n"		/* addr where to write */ \
 "		call	"#cfunc"\n" \
-"		addl	$12,%esp\n"	/* remove parameters */ \
+"		popl	%edi\n"		/* restore addr */ \
+"		popl	%eax\n"		/* restore eax */ \
+"		addl	$4,%esp\n"	/* remove parameters */ \
 "		ret\n"
 
-#define STUB_MOVS(cfunc,letter) \
-"		pushl	(%esp)\n"	/* return addr = patch point+6 */ \
-"		lods"#letter"\n"	/* fetch value to write   */ \
-"		pushl	%eax\n"		/* value to write         */ \
-"		pushl	%edi\n"		/* push fault address     */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		cld\n" \
+#define STUB_READ(cfunc) \
+"		pushl	%edi\n"		/* addr where to write */ \
 "		call	"#cfunc"\n" \
-"		addl	$12,%esp\n"	/* remove parameters      */ \
-"		ret\n"
-
-#define STUB_STOS(cfunc,letter) \
-"		pushl	%eax\n"		/* save eax (consecutive stosws) */ \
-"		pushl	4(%esp)\n"	/* return addr = patch point+6 */ \
-"		pushl	%eax\n"		/* value to write         */ \
-"		pushl	%edi\n"		/* push fault address     */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		cld\n" \
-"		call	"#cfunc"\n" \
-"		addl	$12,%esp\n"	/* remove parameters      */ \
-"		popl	%eax\n" 	/* restore eax */ \
+"		addl	$4,%esp\n"	/* remove parameters */ \
 "		ret\n"
 
 asm (
@@ -328,43 +357,20 @@ asm (
 #define STUB_WRI(cfunc) \
 "		movq	(%rsp),%rdx\n"	/* return addr = patch point+3 */ \
 "		pushq	%rdi\n"		/* save regs */ \
+"		pushq	%rsi\n"	\
+"		pushq	%rax\n"	\
 "		movl	%eax,%esi\n"	/* value to write */ \
 					/* pass addr where to write in %rdi */\
 "		call	"#cfunc"\n" \
-"		popq	%rdi\n"		/* restore regs */ \
-"		ret\n"
-
-#define STUB_MOVS(cfunc,letter) \
-"		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
-"		movl	%edi,%ecx\n"	/* save edi to pass */ \
-"		lods"#letter"\n"	/* fetch value to write   */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
-"		pushq	%rdi\n"		/* save regs */ \
-"		pushq	%rsi\n" \
-"		pushq	%rax\n"		/* not needed, but stack alignment */ \
-"		movl	%eax,%esi\n"	/* value to write         */ \
-"		movl	%ecx,%edi\n"	/* pass fault address in %rdi */ \
-"		cld\n" \
-"		call	"#cfunc"\n" \
 "		popq	%rax\n"		/* restore regs */ \
-"		popq	%rsi\n" \
+"		popq	%rsi\n"	\
 "		popq	%rdi\n" \
 "		ret\n"
 
-#define STUB_STOS(cfunc,letter) \
-"		movq	(%rsp),%rdx\n"	/* return addr = patch point+6 */ \
-"		movl	%edi,%ecx\n"	/* save edi to pass */ \
-"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
+#define STUB_READ(cfunc) \
 "		pushq	%rdi\n"		/* save regs */ \
-"		pushq	%rsi\n"		/* rax is saved for consecutive */ \
-"		pushq	%rax\n"		/* merged stosws & stack alignment */ \
-"		movl	%eax,%esi\n"	/* value to write         */ \
-"		movl	%ecx,%edi\n"	/* pass fault address in %rdi */ \
-"		cld\n" \
 "		call	"#cfunc"\n" \
-"		popq	%rax\n"		/* restore regs */ \
-"		popq	%rsi\n" \
-"		popq	%rdi\n"	\
+"		popq	%rdi\n"		/* restore regs */ \
 "		ret\n"
 
 asm (
@@ -399,12 +405,9 @@ asm (
 "stub_wri_8__: .globl stub_wri_8__\n "STUB_WRI(wri_8)
 "stub_wri_16__:.globl stub_wri_16__\n"STUB_WRI(wri_16)
 "stub_wri_32__:.globl stub_wri_32__\n"STUB_WRI(wri_32)
-"stub_movsb__: .globl stub_movsb__\n "STUB_MOVS(wri_8,b)
-"stub_movsw__: .globl stub_movsw__\n "STUB_MOVS(wri_16,w)
-"stub_movsl__: .globl stub_movsl__\n "STUB_MOVS(wri_32,l)
-"stub_stosb__: .globl stub_stosb__\n "STUB_STOS(wri_8,b)
-"stub_stosw__: .globl stub_stosw__\n "STUB_STOS(wri_16,w)
-"stub_stosl__: .globl stub_stosl__\n "STUB_STOS(wri_32,l)
+"stub_read_8__: .globl stub_read_8__\n "STUB_READ(read_8)
+"stub_read_16__:.globl stub_read_16__\n"STUB_READ(read_16)
+"stub_read_32__:.globl stub_read_32__\n"STUB_READ(read_32)
 );
 
 /* call N(%ebx) */
@@ -422,8 +425,9 @@ int Cpatch(struct sigcontext *scp)
     unsigned char *eip = (unsigned char *)_rip;
 
     p = eip;
-    if (*p==0xf3 && p[-1] == 0x90 && p[-2] == 0x90) {	// rep movs, rep stos
-	if (debug_level('e')>1) e_printf("### REP movs/stos patch at %p\n",eip);
+    if ((*p==0xf3 || *p==0xf2) && p[-1] == 0x90 && p[-2] == 0x90) {
+	// rep movs, rep stos, rep lods, rep scas, rep cmps
+	if (debug_level('e')>1) e_printf("### REP patch at %p\n",eip);
 	p-=2;
 	G2M(0xff,0x13,p); /* call (%ebx) */
 	_rip -= 2; /* make sure call (%ebx) is performed the first time */
@@ -473,34 +477,22 @@ int Cpatch(struct sigcontext *scp)
 	}
 	return 1;
     }
-    if (v==0x9090a5) {	// movsw
-	if (debug_level('e')>1) e_printf("### movs{wl} patch at %p\n",eip);
+    if (v==0x90078a) {		// movb (%%edi),%%al
+	// we have a sequence:	8a 07 90 90 90 90
+	if (debug_level('e')>1) e_printf("### Byte read patch at %p\n",eip);
+	JSRPATCHL(p,Ofs_stub_read_8);
+	return 1;
+    }
+    if ((v&0xffff)==0x078b) {	// mov %%{e}ax,(%%edi)
+	// we have a sequence:	8b 07 90 90 90 90
+	//		or	66 8b 07 90 90 90
+	if (debug_level('e')>1) e_printf("### Word/Long read patch at %p\n",eip);
 	if (w16) {
-	    p--; JSRPATCHL(p,Ofs_stub_movsw);
+	    p--; JSRPATCHL(p,Ofs_stub_read_16);
 	}
 	else {
-	    JSRPATCHL(p,Ofs_stub_movsl);
+	    JSRPATCHL(p,Ofs_stub_read_32);
 	}
-	return 1;
-    }
-    if (v==0x9090a4) {	// movsb
-	if (debug_level('e')>1) e_printf("### movsb patch at %p\n",eip);
-	    JSRPATCHL(p,Ofs_stub_movsb);
-	return 1;
-    }
-    if (v==0x9090ab) {	// stosw
-	if (debug_level('e')>1) e_printf("### stos{wl} patch at %p\n",eip);
-	if (w16) {
-	    p--; JSRPATCHL(p,Ofs_stub_stosw);
-	}
-	else {
-	    JSRPATCHL(p,Ofs_stub_stosl);
-	}
-	return 1;
-    }
-    if (v==0x9090aa) {	// stosb
-	if (debug_level('e')>1) e_printf("### stosb patch at %p\n",eip);
-	JSRPATCHL(p,Ofs_stub_stosb);
 	return 1;
     }
     if (debug_level('e')>1) e_printf("### Patch unimplemented: %08x\n",*((int *)p));
@@ -517,30 +509,7 @@ int UnCpatch(unsigned char *eip)
     e_printf("UnCpatch   at %p was %02x%02x%02x%02x%02x\n",eip,
 	eip[0],eip[1],eip[2],eip[3],eip[4]);
 
-    if (eip[1] == 0x93) {
-	int *p2 = (int *)(p+2);
-	if (*p2 == Ofs_stub_movsb) {
-	     // movsb; nop; nop; nop; nop; cld
-	     *((short *)p) = 0x90a4; *p2 = 0xfc909090;
-	}
-	else if (*p2 == Ofs_stub_movsw) {
-	     *((short *)p) = 0xa566; *p2 = 0x90909090;
-	}
-	else if (*p2 == Ofs_stub_movsl) {
-	     *((short *)p) = 0x90a5; *p2 = 0xfc909090;
-	}
-	else if (*p2 == Ofs_stub_stosb) {
-	     *((short *)p) = 0x90aa; *p2 = 0xfc909090;
-	}
-	else if (*p2 == Ofs_stub_stosw) {
-	     *((short *)p) = 0xab66; *p2 = 0x90909090;
-	}
-	else if (*p2 == Ofs_stub_stosl) {
-	     *((short *)p) = 0x90ab; *p2 = 0xfc909090;
-	}
-	else return 1;
-    }
-    else if (p[1] == 0x13) {
+    if (p[1] == 0x13) {
 	p[0] = p[1] = 0x90;
     }
     else if (p[1] == 0x53) {
