@@ -9,7 +9,7 @@ extern void msdos_pm_call(struct sigcontext *scp, int is_32);
 
 int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
 	const struct RealModeCallStructure *),
-	void (*ret_handler[])(const struct sigcontext *,
+	void (*ret_handler[])(struct sigcontext *,
 	struct RealModeCallStructure *),
 	int num, far_t *r_cbks);
 extern void free_realmode_callbacks(far_t *r_cbks, int num);
