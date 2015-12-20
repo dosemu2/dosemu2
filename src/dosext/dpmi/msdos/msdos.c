@@ -108,7 +108,7 @@ static uint16_t io_error_code;
 
 static void rmcb_handler(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
-static void rmcb_ret_handler(const struct sigcontext *scp,
+static void rmcb_ret_handler(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg);
 static void msdos_api_call(struct sigcontext *scp);
 static void msdos_api_winos2_call(struct sigcontext *scp);
@@ -116,7 +116,7 @@ static void mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static void ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
-static void rmcb_ret_from_ps2(const struct sigcontext *scp,
+static void rmcb_ret_from_ps2(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg);
 static void xms_call(struct RealModeCallStructure *rmreg);
 
@@ -127,7 +127,7 @@ static void (*rmcb_handlers[])(struct sigcontext *scp,
     ps2_mouse_callback,
 };
 
-static void (*rmcb_ret_handlers[])(const struct sigcontext *scp,
+static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg) = {
     rmcb_ret_handler,
     rmcb_ret_handler,
@@ -1746,13 +1746,13 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
     return update_mask;
 }
 
-static void rmcb_ret_handler(const struct sigcontext *scp,
+static void rmcb_ret_handler(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg)
 {
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
-static void rmcb_ret_from_ps2(const struct sigcontext *scp,
+static void rmcb_ret_from_ps2(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg)
 {
     if (MSDOS_CLIENT.is_32)
