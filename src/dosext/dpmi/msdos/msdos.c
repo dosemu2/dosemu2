@@ -1880,7 +1880,7 @@ static void rmcb_handler(struct sigcontext *scp,
 	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
 	D_printf("MSDOS: read %x %x\n", offs, size);
 	if (offs + size <= io_buffer_size)
-	    memmove_dos2dos(io_buffer + offs, dos_ptr, size);
+	    MEMCPY_DOS2DOS(io_buffer + offs, dos_ptr, size);
 	else
 	    error("MSDOS: bad read (%x %x %x)\n", offs, size,
 			io_buffer_size);
@@ -1893,7 +1893,7 @@ static void rmcb_handler(struct sigcontext *scp,
 	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
 	D_printf("MSDOS: write %x %x\n", offs, size);
 	if (offs + size <= io_buffer_size)
-	    memmove_dos2dos(dos_ptr, io_buffer + offs, size);
+	    MEMCPY_DOS2DOS(dos_ptr, io_buffer + offs, size);
 	else
 	    error("MSDOS: bad write (%x %x %x)\n", offs, size,
 			io_buffer_size);
