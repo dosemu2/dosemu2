@@ -142,7 +142,8 @@ int dpmi_alloc_pool(void)
     num_pages = (config.dpmi >> 2) +
       ((DPMI_pm_stack_size * DPMI_MAX_CLIENTS) >> PAGE_SHIFT) +
       (PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) >> PAGE_SHIFT) +
-      (PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) >> PAGE_SHIFT);
+      (PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) >> PAGE_SHIFT) +
+      (PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start) >> PAGE_SHIFT);
     mpool_numpages = num_pages + 5;  /* 5 extra pages */
     memsize = mpool_numpages << PAGE_SHIFT;
 

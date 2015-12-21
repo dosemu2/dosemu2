@@ -3147,10 +3147,16 @@ void dpmi_setup(void)
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
-    if (SetSelector(dpmi_data_sel16, DOSADDR_REL(DPMI_sel_data_start),
+    block = DPMI_malloc(host_pm_block_root,
+			PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start));
+    if (block == NULL) {
+      error("DPMI: can't allocate memory for DPMI host helper data\n");
+      goto err2;
+    }
+    if (SetSelector(dpmi_data_sel16, block->base,
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
+    if (SetSelector(dpmi_data_sel32, block->base,
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 1,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
