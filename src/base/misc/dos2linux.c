@@ -652,6 +652,17 @@ void memmove_dos2dos(unsigned dest, unsigned src, size_t n)
     MEMMOVE_DOS2DOS(dest, src, n);
 }
 
+void memcpy_dos2dos(unsigned dest, unsigned src, size_t n)
+{
+  /* Jazz Jackrabbit does DOS read to VGA via protmode selector */
+  if (vga.inst_emu && src >= 0xa0000 && src < 0xc0000)
+    memcpy_dos_from_vga(dest, src, n);
+  else if (vga.inst_emu && dest >= 0xa0000 && dest < 0xc0000)
+    memcpy_dos_to_vga(dest, src, n);
+  else
+    MEMCPY_DOS2DOS(dest, src, n);
+}
+
 int unix_read(int fd, void *data, int cnt)
 {
   return RPT_SYSCALL(read(fd, data, cnt));
