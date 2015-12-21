@@ -264,6 +264,7 @@ void show_welcome_screen(void);
 void memcpy_2unix(void *dest, unsigned src, size_t n);
 void memcpy_2dos(unsigned dest, const void *src, size_t n);
 void memmove_dos2dos(unsigned dest, unsigned src, size_t n);
+void memcpy_dos2dos(unsigned dest, unsigned src, size_t n);
 
 
 int unix_read(int fd, void *data, int cnt);
