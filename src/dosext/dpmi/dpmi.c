@@ -3072,6 +3072,7 @@ void dpmi_setup(void)
 {
     int i, type;
     unsigned int base_addr, limit, *lp;
+    dpmi_pm_block *block;
 
     if (!config.dpmi) return;
 #ifdef __x86_64__
@@ -3123,7 +3124,16 @@ void dpmi_setup(void)
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
-    if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
+
+    block = DPMI_malloc(host_pm_block_root,
+			PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start));
+    if (block == NULL) {
+      error("DPMI: can't allocate memory for DPMI host helper code\n");
+      goto err2;
+    }
+    MEMCPY_2DOS(block->base, DPMI_sel_code_start,
+		DPMI_sel_code_end-DPMI_sel_code_start);
+    if (SetSelector(dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
       if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
@@ -3133,9 +3143,10 @@ void dpmi_setup(void)
       }
       goto err2;
     }
-    if (SetSelector(dpmi_sel32, DOSADDR_REL(DPMI_sel_code_start),
+    if (SetSelector(dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
+
     if (SetSelector(dpmi_data_sel16, DOSADDR_REL(DPMI_sel_data_start),
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
@@ -3145,7 +3156,6 @@ void dpmi_setup(void)
 
     if (config.pm_dos_api) {
       unsigned char *alias, *lbuf;
-      dpmi_pm_block *block;
 
       msdos_setup();
       /* allocate shared buffers for msdos to emulate R/W LDT */
