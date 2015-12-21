@@ -565,8 +565,8 @@ static char *system_type(unsigned int t) {
 struct fs_prio sfiles[] = {
     [IO_IDX]   = { "IO.SYS",		1, 0 },
     [MSD_IDX]  = { "MSDOS.SYS",		1, 0 },
-    [DRB_IDX]  = { "DRBIO.SYS",		1, 0 },
-    [DRD_IDX]  = { "DRDOS.SYS",		1, 0 },
+    [DRB_IDX]  = { "DRBIOS.SYS",	1, 0 },
+    [DRD_IDX]  = { "DRBDOS.SYS",	1, 0 },
     [IBMB_IDX] = { "IBMBIO.COM",	1, 0 },
     [IBMD_IDX] = { "IBMDOS.COM",	1, 0 },
     [IPL_IDX]  = { "IPL.SYS",		1, 0 },
