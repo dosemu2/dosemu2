@@ -111,7 +111,7 @@ struct DPMIclient_struct {
   dpmi_pm_block_root *pm_block_root;
   unsigned short private_data_segment;
   int in_dpmi_rm_stack;
-  unsigned char *pm_stack;
+  dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];

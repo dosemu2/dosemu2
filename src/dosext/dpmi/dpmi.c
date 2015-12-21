@@ -140,6 +140,8 @@ static int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
+static dpmi_pm_block_root *host_pm_block_root;
+
 unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static unsigned short dpmi_sel16, dpmi_sel32;
 static unsigned short dpmi_data_sel16, dpmi_data_sel32;
@@ -2695,8 +2697,7 @@ void dpmi_cleanup(void)
     dosemu_error("Quitting DPMI while !in_dpmi_dos_int\n");
   msdos_done();
   FreeAllDescriptors();
-  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
-    PAGE_ALIGN(DPMI_pm_stack_size));
+  DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
@@ -3113,6 +3114,7 @@ void dpmi_setup(void)
       }
     }
 
+    host_pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
     if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
@@ -3209,15 +3211,15 @@ void dpmi_init(void)
 
   DPMI_CLIENT.private_data_segment = REG(es);
 
-  DPMI_CLIENT.pm_stack = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-    PAGE_ALIGN(DPMI_pm_stack_size), PROT_READ | PROT_WRITE, 0);
+  DPMI_CLIENT.pm_stack = DPMI_malloc(host_pm_block_root,
+				     PAGE_ALIGN(DPMI_pm_stack_size));
   if (DPMI_CLIENT.pm_stack == NULL) {
     error("DPMI: can't allocate memory for locked protected mode stack\n");
     leavedos(2);
   }
 
   if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, DOSADDR_REL(DPMI_CLIENT.pm_stack),
+  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, DPMI_CLIENT.pm_stack->base,
         DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
@@ -3366,8 +3368,7 @@ err:
   in_dpmi_dos_int = 1;
   CARRY;
   FreeAllDescriptors();
-  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
-    PAGE_ALIGN(DPMI_pm_stack_size));
+  DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
