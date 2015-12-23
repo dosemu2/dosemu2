@@ -140,6 +140,8 @@ static int DPMI_pm_procedure_running = 0;
 
 static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
+static dpmi_pm_block_root *host_pm_block_root;
+
 unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 static unsigned short dpmi_sel16, dpmi_sel32;
 static unsigned short dpmi_data_sel16, dpmi_data_sel32;
@@ -2695,8 +2697,7 @@ void dpmi_cleanup(void)
     dosemu_error("Quitting DPMI while !in_dpmi_dos_int\n");
   msdos_done();
   FreeAllDescriptors();
-  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
-    PAGE_ALIGN(DPMI_pm_stack_size));
+  DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   hlt_unregister_handler(DPMI_CLIENT.rmcb_off);
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
@@ -3071,6 +3072,7 @@ void dpmi_setup(void)
 {
     int i, type;
     unsigned int base_addr, limit, *lp;
+    dpmi_pm_block *block;
 
     if (!config.dpmi) return;
 #ifdef __x86_64__
@@ -3113,11 +3115,25 @@ void dpmi_setup(void)
       }
     }
 
+    if (dpmi_alloc_pool())
+	leavedos(2);
+    dpmi_free_memory = dpmi_total_memory;
+    host_pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
+
     if (!(dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_sel32 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel16 = allocate_descriptors(1))) goto err;
     if (!(dpmi_data_sel32 = allocate_descriptors(1))) goto err;
-    if (SetSelector(dpmi_sel16, DOSADDR_REL(DPMI_sel_code_start),
+
+    block = DPMI_malloc(host_pm_block_root,
+			PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start));
+    if (block == NULL) {
+      error("DPMI: can't allocate memory for DPMI host helper code\n");
+      goto err2;
+    }
+    MEMCPY_2DOS(block->base, DPMI_sel_code_start,
+		DPMI_sel_code_end-DPMI_sel_code_start);
+    if (SetSelector(dpmi_sel16, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 0,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) {
       if ((kernel_version_code & 0xffff00) >= KERNEL_VERSION(3, 14, 0)) {
@@ -3127,18 +3143,22 @@ void dpmi_setup(void)
       }
       goto err2;
     }
-    if (SetSelector(dpmi_sel32, DOSADDR_REL(DPMI_sel_code_start),
+    if (SetSelector(dpmi_sel32, block->base,
 		    DPMI_SEL_OFF(DPMI_sel_code_end)-1, 1,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_data_sel16, DOSADDR_REL(DPMI_sel_data_start),
+
+    block = DPMI_malloc(host_pm_block_root,
+			PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start));
+    if (block == NULL) {
+      error("DPMI: can't allocate memory for DPMI host helper data\n");
+      goto err2;
+    }
+    if (SetSelector(dpmi_data_sel16, block->base,
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-    if (SetSelector(dpmi_data_sel32, DOSADDR_REL(DPMI_sel_data_start),
+    if (SetSelector(dpmi_data_sel32, block->base,
 		    DPMI_DATA_OFF(DPMI_sel_data_end)-1, 1,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-
-    if (dpmi_alloc_pool())
-	leavedos(2);
 
     if (config.pm_dos_api) {
       unsigned char *alias, *lbuf;
@@ -3151,10 +3171,16 @@ void dpmi_setup(void)
         error("DPMI: can't allocate memory for ldt_buffer\n");
         goto err;
       }
-      alias = alias_mapping(MAPPING_DPMI, -1,
+      block = DPMI_malloc(host_pm_block_root,
+			  PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE));
+      if (block == NULL) {
+        error("DPMI: can't allocate memory for ldt_alias\n");
+        goto err;
+      }
+      alias = alias_mapping(MAPPING_DPMI, block->base,
 	PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ, lbuf);
       if (alias == MAP_FAILED) {
-        error("DPMI: can't allocate memory for ldt_alias\n");
+        error("DPMI: can't alias memory for ldt_alias\n");
         goto err;
       }
       memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
@@ -3209,15 +3235,15 @@ void dpmi_init(void)
 
   DPMI_CLIENT.private_data_segment = REG(es);
 
-  DPMI_CLIENT.pm_stack = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-    PAGE_ALIGN(DPMI_pm_stack_size), PROT_READ | PROT_WRITE, 0);
+  DPMI_CLIENT.pm_stack = DPMI_malloc(host_pm_block_root,
+				     PAGE_ALIGN(DPMI_pm_stack_size));
   if (DPMI_CLIENT.pm_stack == NULL) {
     error("DPMI: can't allocate memory for locked protected mode stack\n");
     leavedos(2);
   }
 
   if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
-  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, DOSADDR_REL(DPMI_CLIENT.pm_stack),
+  if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, DPMI_CLIENT.pm_stack->base,
         DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
@@ -3366,8 +3392,7 @@ err:
   in_dpmi_dos_int = 1;
   CARRY;
   FreeAllDescriptors();
-  munmap_mapping(MAPPING_DPMI, DPMI_CLIENT.pm_stack,
-    PAGE_ALIGN(DPMI_pm_stack_size));
+  DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
   if (!DPMI_CLIENT.RSP_installed && DPMI_CLIENT.pm_block_root) {
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
