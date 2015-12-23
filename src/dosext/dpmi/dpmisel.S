@@ -9,13 +9,6 @@
 
 	.section .text
 
-#ifdef __x86_64__
-	.globl DPMI_iret
-	.type DPMI_iret,@function
-DPMI_iret:	
-	iretl
-#endif
-
 	.globl DPMI_sel_code_start
 DPMI_sel_code_start:
 

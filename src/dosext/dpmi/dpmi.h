@@ -153,11 +153,6 @@ extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 
 void dpmi_get_entry_point(void);
-#ifdef __x86_64__
-extern void dpmi_iret_setup(struct sigcontext *);
-#else
-#define dpmi_iret_setup(x)
-#endif
 int indirect_dpmi_switch(struct sigcontext *);
 #ifdef __linux__
 int dpmi_fault(struct sigcontext *);
@@ -230,6 +225,7 @@ extern void dpmi_setup(void);
 extern void dpmi_reset(void);
 extern void dpmi_cleanup(void);
 extern int get_ldt(void *buffer);
+extern void dpmi_return(struct sigcontext *scp, int ret);
 void dpmi_return_request(void);
 void dpmi_init(void);
 extern void copy_context(struct sigcontext *d,

@@ -127,8 +127,8 @@ static jmp_buf dpmi_ret_jmp;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
-static void dpmi_return(struct sigcontext *scp, int retval);
-static int dpmi_check_return(struct sigcontext *scp);
+void dpmi_return(struct sigcontext *scp, int retval);
+static int dpmi_check_return(void);
 static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
@@ -437,16 +437,6 @@ static void iret_frame_setup(struct sigcontext *scp)
   _rsp = (unsigned long)iret_frame;
 }
 
-void dpmi_iret_setup(struct sigcontext *scp)
-{
-  if (!DPMIValidSelector(_cs)) return;
-
-  iret_frame_setup(scp);
-  _eflags &= ~TF;
-  _rip = (unsigned long)DPMI_iret;
-  _cs = getsegment(cs);
-}
-
 #else
 
 static int in_indirect_dpmi_transfer;
@@ -615,62 +605,63 @@ static int dpmi_control(void)
 /* STANDARD SWITCH example
  *
  * run_dpmi() -> dpmi_control (!DPMIValidSelector(_cs))
- *			-> dpmi_transfer, push registers,
- *			   save esp/rsp in emu_stack_ptr
- *			-> DPMI_indirect_transfer ->
+ *		1:	-> do setjmp and save esp/rsp in emu_stack_ptr
+ *			-> indirect_dpmi_transfer ->
  *			hlt
  *		 -> dpmi_fault: move client frame to scp
  *	[C>S>E]			return -> jump to DPMI code
  *		========== into client code =================
- *		 -> dpmi_fault (cs==dpmi_sel())
- *				perform fault action (e.g. I/O) on scp
- *		========== into client code =================
  *		 -> dpmi_fault with return to dosemu code:
  *				save scp to client frame
- *	[E>S>C]			return from call to DPMI_indirect_transfer
- *				using emu_stack_ptr
+ *	[E>S>C]			land in dpmi_return_to_dosemu with
+ *				rsp=emu_stack_ptr, which longjmp()s back
+ *				to dpmi_control
  *				with segment registers and esp restored
- *			pop registers in dpmi_transfer <-
+ *			perform fault action (e.g. I/O) on client frame
+ *			goto 1: unless code wants to exit dpmi_control
  *	         dpmi_control <-
- *			return %eax
+ *			return dpmi_ret_val
  * run_dpmi() <-
  *
  * DIRECT SWITCH example
  *
- * run_dpmi() -> dpmi_control (_cs==%cs) -> direct_dpmi_switch
- *			-> dpmi_transfer, push registers
- *			   save esp/rsp in emu_stack_ptr
- *			-> DPMI_direct_transfer
+ * run_dpmi() -> dpmi_control (_cs==%cs)
+ *		1:	-> do setjmp and save esp/rsp in emu_stack_ptr
+ *			-> direct_dpmi_switch
+ *			-> dpmi_transfer
  *				pop client frame and jump to DPMI code
  *				(client cs:eip)
  *		========== into client code =================
- *		 -> dpmi_fault (cs==dpmi_sel())
- *				perform fault action (e.g. I/O) on scp
- *		========== into client code =================
  *		 -> dpmi_fault with return to dosemu code:
  *				save scp to client frame
- *	[E>S>C]			return from call to DPMI_direct_transfer
- *				using emu_stack_ptr
+ *	[E>S>C]			land in dpmi_return_to_dosemu with
+ *				rsp=emu_stack_ptr, which longjmp()s back
+ *				to dpmi_control
  *				with segment registers and esp restored
- *			pop registers in dpmi_transfer <-
+ *			perform fault action (e.g. I/O) on client frame
+ *			goto 1: unless code wants to exit dpmi_control
  *	         dpmi_control <-
- *			return %eax
+ *			return dpmi_ret_val
  * run_dpmi() <-
  *
  */
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    struct sigcontext *scp;
-#endif
+  while(1)
+  {
+    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
     register unsigned long sp asm("sp");
-    if (setjmp(dpmi_ret_jmp))
+    if (setjmp(dpmi_ret_jmp)) {
+      if (dpmi_ret_val == 0) {
+	dpmi_ret_val = dpmi_fault(scp);
+	if (dpmi_ret_val == 0) continue;
+      }
       return dpmi_ret_val;
+    }
     /* Note: longjmp() follows the stack upwards, doing unwinds.
      * It therefore can't jump out of sigaltstack or some trampoline stack.
      * So, to get longjmp() working, we need to save the stack for it
      * in addition to what setjmp() saves. */
     emu_stack_ptr = sp;
 #if DIRECT_DPMI_CONTEXT_SWITCH
-    scp = &DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI
     if (debug_level('t')) _eflags |= TF;
 #endif
@@ -693,6 +684,7 @@ static int dpmi_control(void)
     /* Note: for i386 we can't set TF with our speedup code */
     indirect_dpmi_transfer();
 #endif
+  }
 }
 
 void dpmi_get_entry_point(void)
@@ -3413,7 +3405,7 @@ void dpmi_sigio(struct sigcontext *scp)
   }
 }
 
-static void dpmi_return(struct sigcontext *scp, int retval)
+void dpmi_return(struct sigcontext *scp, int retval)
 {
   Return_to_dosemu_code(scp, &DPMI_CLIENT.stack_frame, retval);
 }
@@ -3686,10 +3678,6 @@ static int dpmi_fault1(struct sigcontext *scp)
   void *sp;
   unsigned char *csp, *lina;
   int ret = 0;
-  /* Note: in_dpmi/current_client can change within that finction. */
-  int orig_client = current_client;
-#define ORIG_CTXP ((in_dpmi && current_client >= orig_client) ? \
-  &DPMIclient[orig_client].stack_frame : NULL)
 
   /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
      this is so wrong that it can only happen inherited through a CPU bug
@@ -3714,7 +3702,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3) {
-       Return_to_dosemu_code(scp, ORIG_CTXP, 3);
        return 3;
     }
     if (dpmi_mhp_TF && (_trapno == 1)) {
@@ -3731,7 +3718,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
       return 1;
     }
   }
@@ -3803,10 +3789,7 @@ static int dpmi_fault1(struct sigcontext *scp)
       if (mhpdbg.active) {
         if (dpmi_mhp_intxxtab[*csp]) {
           ret=dpmi_mhp_intxx_check(scp, *csp);
-          if (ret) {
-            Return_to_dosemu_code(scp, ORIG_CTXP, ret);
-            return ret;
-          }
+          if (ret) return ret;
         }
       }
 #endif
@@ -4357,7 +4340,6 @@ static int dpmi_fault1(struct sigcontext *scp)
   if (dpmi_mhp_TF) {
       dpmi_mhp_TF=0;
       _eflags &= ~TF;
-      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
       return 1;
   }
 
@@ -4372,7 +4354,6 @@ static int dpmi_fault1(struct sigcontext *scp)
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
         _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
-    Return_to_dosemu_code(scp, ORIG_CTXP, -1);
     return -1;
   }
 
@@ -4389,7 +4370,6 @@ int dpmi_fault(struct sigcontext *scp)
   if (_trapno == 0x10) {
     g_printf("coprocessor exception, calling IRQ13\n");
     pic_request(PIC_IRQ13);
-    dpmi_return(scp, -1);
     return -1;
   }
 
@@ -4404,8 +4384,13 @@ int dpmi_fault(struct sigcontext *scp)
   }
 
   if(_trapno==0x0e) {
+#ifdef X86_EMULATOR
+    /* native DPMI code can hit write-protected code in low memory */
+    if (config.cpuemu > 1 && e_emu_fault(scp))
+      return 0;
+#endif
     if(VGA_EMU_FAULT(scp,code,1)==True) {
-      return dpmi_check_return(scp);
+      return dpmi_check_return();
     }
   }
 
@@ -4416,7 +4401,6 @@ int dpmi_fault(struct sigcontext *scp)
   }
 
   if (CheckSelectors(scp, 0) == 0) {
-    dpmi_return(scp, -1);
     return -1;
   }
   /* now we are safe */
@@ -4864,11 +4848,7 @@ void dpmi_return_request(void)
   return_requested = 1;
 }
 
-int dpmi_check_return(struct sigcontext *scp)
+int dpmi_check_return(void)
 {
-  if (return_requested) {
-    dpmi_return(scp, 0);
-    return -1;
-  }
-  return 0;
+  return return_requested ? -1 : 0;
 }
