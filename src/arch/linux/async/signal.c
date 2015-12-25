@@ -220,14 +220,16 @@ static void __init_handler(struct sigcontext *scp, int async)
 __attribute__((no_instrument_function))
 void init_handler(struct sigcontext *scp, int async)
 {
-  /* All signals are initially blocked.
-   * We need to restore registers before unblocking signals.
+  /* Async signals are initially blocked.
+   * We need to restore registers before unblocking async signals.
    * Otherwise the nested signal handler will restore the registers
    * and return; the current signal handler will then save the wrong
    * registers.
    * Note: in 64bit mode some segment registers are neither saved nor
    * restored by the signal dispatching code in kernel, so we have
    * to restore them by hands.
+   * Note: most async signals are left blocked, we unblock only few.
+   * Sync signals like SIGSEGV are never blocked.
    */
   sigset_t mask;
   __init_handler(scp, async);
