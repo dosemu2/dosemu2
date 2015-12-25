@@ -111,7 +111,6 @@ static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
 static void dpmi_return(struct sigcontext *scp, int retval);
-static int dpmi_check_return(struct sigcontext *scp);
 static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
@@ -4169,12 +4168,6 @@ int dpmi_fault(struct sigcontext *scp)
     g_printf("Exception 0x11 occured, clearing AC\n");
     _eflags &= ~AC;
     return 0;
-  }
-
-  if(_trapno==0x0e) {
-    if(VGA_EMU_FAULT(scp,code,1)==True) {
-      return dpmi_check_return(scp);
-    }
   }
 
   retcode = dpmi_fault1(scp);

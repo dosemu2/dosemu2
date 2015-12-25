@@ -1367,7 +1367,9 @@ int e_dpmi(struct sigcontext *scp)
     else if (xval==EXCP_GOBACK) {
         retval = 0;
     }
-    else {
+    else if (xval == EXCP0E_PAGE && VGA_EMU_FAULT(scp,code,1)==True) {
+	retval = dpmi_check_return(scp);
+    } else {
 	int emu_dpmi_retcode;
 	if (debug_level('e')) TotalTime += (GETTSC() - tt0);
 	emu_dpmi_retcode = dpmi_fault(scp);

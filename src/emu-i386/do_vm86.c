@@ -130,11 +130,6 @@ int vm86_fault(struct sigcontext *scp)
       }
       goto sgleave;
     }
-    /* We want to protect the video memory and the VGA BIOS */
-  case 0x0e:
-    if(VGA_EMU_FAULT(scp,code,0)==True)
-      return 0;
-    /* fall into default case if not X */
 
   default:
 sgleave:
