@@ -210,10 +210,12 @@ static void __init_handler(struct sigcontext *scp, int async)
 #ifdef __x86_64__
   /* kernel has the following rule: non-zero selector means 32bit base
    * in GDT. Zero selector means 64bit base, set via msr.
-   * So if we set selector to 0, need to use also prctl(ARCH_SET_xS). */
-  if (!eflags_fs_gs.fs)
+   * So if we set selector to 0, need to use also prctl(ARCH_SET_xS).
+   * Also, if the bases are not used they are 0 so no need to restore,
+   * which saves a syscall */
+  if (!eflags_fs_gs.fs && eflags_fs_gs.fsbase)
     dosemu_arch_prctl(ARCH_SET_FS, eflags_fs_gs.fsbase);
-  if (!eflags_fs_gs.gs)
+  if (!eflags_fs_gs.gs && eflags_fs_gs.gsbase)
     dosemu_arch_prctl(ARCH_SET_GS, eflags_fs_gs.gsbase);
 #endif
 }
