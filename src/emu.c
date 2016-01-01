@@ -395,10 +395,6 @@ void
 dos_ctrl_alt_del(void)
 {
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
-    while (in_dpmi) {
-	in_dpmi_dos_int = 1;
-	dpmi_cleanup();
-    }
     cpu_reset();
 }
 
