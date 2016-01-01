@@ -482,7 +482,7 @@ int dos_helper(void)
 #endif
 	    /* we could also enter from inside dpmi, provided we already
 	     * mirrored the LDT into the emu's own one */
-	    if ((config.cpuemu==1) && !in_dpmi) enter_cpu_emu();
+	    if ((config.cpuemu==1) && !dpmi_active()) enter_cpu_emu();
   	}
         break;
   case DOS_HELPER_CPUEMUOFF:
@@ -490,7 +490,7 @@ int dos_helper(void)
 #ifdef TRACE_DPMI
 	&& (debug_level('t')==0)
 #endif
-	&& !in_dpmi)
+	&& !dpmi_active())
 	    leave_cpu_emu();
         break;
 #endif
@@ -1776,7 +1776,7 @@ static int int2f(void)
   case 0x16:		/* misc PM/Win functions */
     switch (LO(ax)) {
       case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-    if (in_dpmi && win31_mode) {
+    if (dpmi_active() && win31_mode) {
       D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK: %i\n", win31_mode);
       if (win31_mode == 3)
         LWORD(eax) = 0x0a03;
@@ -1792,12 +1792,12 @@ static int int2f(void)
       case 0x07:		/* Win95 Device CallOut */
       case 0x08:		/* Win95 Init Complete Notification */
       case 0x09:		/* Win95 Begin Exit Notification */
-	if (in_dpmi)
+	if (dpmi_active())
 	  return 1;
 	break;
 
       case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
-    if(in_dpmi && win31_mode) {
+    if(dpmi_active() && win31_mode) {
       D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
       LWORD(eax) = 0;
       LWORD(ebx) = 0x030a;	/* 3.10 */
@@ -1807,17 +1807,17 @@ static int int2f(void)
       break;
 
       case 0x83:
-        if (in_dpmi && win31_mode)
+        if (dpmi_active() && win31_mode)
             LWORD (ebx) = 0;	/* W95: number of virtual machine */
       case 0x81:		/* W95: enter critical section */
-        if (in_dpmi && win31_mode) {
+        if (dpmi_active() && win31_mode) {
 	    D_printf ("WIN: enter critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
   }
       break;
       case 0x82:		/* W95: exit critical section */
-        if (in_dpmi && win31_mode) {
+        if (dpmi_active() && win31_mode) {
 	    D_printf ("WIN: exit critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
@@ -1917,14 +1917,14 @@ static void int33_check_hog(void)
 
 static void debug_int(const char *s, int i)
 {
- 	if (((i != 0x28) && (i != 0x2f)) || in_dpmi) {
- 		di_printf("%s INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
- 			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
- 			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
- 			  s, i, _EAX, _EBX, _SS, _ESP,
- 			  _ECX, _EDX, _DS, _CS, _IP,
- 			  _ESI, _EDI, _ES, (int) read_EFLAGS());
- 	}
+	if (((i != 0x28) && (i != 0x2f)) || dpmi_active()) {
+		di_printf("%s INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
+			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
+			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
+			  s, i, _EAX, _EBX, _SS, _ESP,
+			  _ECX, _EDX, _DS, _CS, _IP,
+			  _ESI, _EDI, _ES, (int) read_EFLAGS());
+	}
 }
 
 static void do_int_from_thr(void *arg)

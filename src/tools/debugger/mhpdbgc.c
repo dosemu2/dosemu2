@@ -564,7 +564,7 @@ static void mhp_trace(int argc, char * argv[])
       mhp_printf("must be in stopped state\n");
    } else {
       mhpdbgc.stopped = 0;
-      if (in_dpmi) {
+      if (in_dpmi_pm()) {
         dpmi_mhp_setTF(1);
       }
       set_TF();
@@ -1338,7 +1338,7 @@ static void mhp_regs(int argc, char * argv[])
        "",
 #endif
        mhpdbgc.stopped ? "stopped" : "running",
-       IN_DPMI ? " in DPMI" : (in_dpmi?" in real mode while in DPMI":""),
+       IN_DPMI ? " in DPMI" : (dpmi_active()?" in real mode while in DPMI":""),
        IN_DPMI ?(dpmi_mhp_getcsdefault()?"-32bit":"-16bit") : "");
 
   if (!dpmi_mhp_regs()) {
@@ -1402,7 +1402,7 @@ void mhp_bpset(void)
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
            mhpdbgc.brktab[i1].brkaddr = 0;
            mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
@@ -1421,7 +1421,7 @@ void mhp_bpclr(void)
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
            mhpdbgc.brktab[i1].brkaddr = 0;
            mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
