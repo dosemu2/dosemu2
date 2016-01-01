@@ -108,7 +108,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 
 SEGDESC Segments[MAX_SELECTORS];
 int in_dpmi;/* Set to 1 when running under DPMI */
-int in_dpmi_dos_int = 1;
+static int in_dpmi_dos_int = 1;
 static int in_dpmi_irq;
 int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
@@ -4875,4 +4875,9 @@ int dpmi_check_return(struct sigcontext *scp)
     return -1;
   }
   return 0;
+}
+
+int in_dpmi_pm(void)
+{
+  return (in_dpmi_dos_int == 0);
 }

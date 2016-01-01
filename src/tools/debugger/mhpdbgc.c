@@ -100,7 +100,7 @@ static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
 
 static unsigned int dpmimode=1, saved_dpmimode=1;
-#define IN_DPMI  (in_dpmi && !in_dpmi_dos_int && dpmimode)
+#define IN_DPMI  (in_dpmi_pm() && dpmimode)
 
 static char lastd[32];
 static char lastu[32];

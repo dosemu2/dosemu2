@@ -140,7 +140,6 @@ struct RSP_s {
 };
 
 extern int in_dpmi;/* Set to 1 when running under DPMI */
-extern int in_dpmi_dos_int;
 extern int dpmi_mhp_TF;
 extern unsigned char dpmi_mhp_intxxtab[256];
 extern int is_cli;
@@ -165,6 +164,7 @@ int dpmi_fault(struct sigcontext *);
 void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void fake_pm_int(void);
+int in_dpmi_pm(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);
