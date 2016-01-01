@@ -105,9 +105,12 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
+#define current_client ({ assert(in_dpmi); in_dpmi-1; })
+#define DPMI_CLIENT (DPMIclient[current_client])
+#define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
 SEGDESC Segments[MAX_SELECTORS];
-int in_dpmi;/* Set to 1 when running under DPMI */
+static int in_dpmi;/* Set to 1 when running under DPMI */
 static int in_dpmi_dos_int = 1;
 static int in_dpmi_irq;
 int dpmi_mhp_TF;
