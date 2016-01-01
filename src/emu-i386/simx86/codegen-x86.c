@@ -1291,7 +1291,7 @@ shrot0:
 		};
 		unsigned char *q=Cp; GNX(Cp, pseqpre, sizeof(pseqpre));
 		if (mode&DATA16) q[8] = 0xfe; /* use -2 in lea ins */
-		if (in_dpmi) {
+//		if (in_dpmi) {
 		    /* This solves the DOSX 'System test 8' error.
 		     * The virtualized IF is pushed instead of the
 		     * real one (which is always 1). This way, tests
@@ -1314,7 +1314,7 @@ shrot0:
 			G4((unsigned char *)&_EFLAGS-CPUOFFS(0),Cp);
 			// (19 from bt); rcl $10,%%eax
 			G4M(0x13,0xc1,0xd0,0x0a,Cp);
-		}
+//		}
 		if (mode&DATA16) {
 			// movw %%ax,(%%esi,%%ecx,1)
 			G4M(0x66,0x89,0x04,0x0e,Cp);

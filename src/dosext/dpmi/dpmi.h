@@ -165,6 +165,7 @@ void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void fake_pm_int(void);
 int in_dpmi_pm(void);
+int dpmi_active(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);

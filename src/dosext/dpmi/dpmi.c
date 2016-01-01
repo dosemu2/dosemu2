@@ -4881,3 +4881,8 @@ int in_dpmi_pm(void)
 {
   return (in_dpmi_dos_int == 0);
 }
+
+int dpmi_active(void)
+{
+  return in_dpmi;
+}

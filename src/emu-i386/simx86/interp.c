@@ -1659,13 +1659,13 @@ stack_return_from_vm86:
 			    else
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
-			    if (in_dpmi) {
+//			    if (in_dpmi) {
 				if (temp & EFLAGS_IF)
 				    set_IF();
 				else {
 				    clear_IF();
 				}
-			    }
+//			    }
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
@@ -1914,12 +1914,12 @@ repag0:
 				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
 				eVEFLAGS &= ~EFLAGS_VIF;
 			    }
-			    else if (in_dpmi) {
+			    else/* if (in_dpmi)*/ {
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
 				clear_IF();
 			    }
-			    else
-				goto not_permitted;	/* GPF */
+//			    else
+//				goto not_permitted;	/* GPF */
 			}
 			PC++;
 			break;
@@ -1941,12 +1941,12 @@ repag0:
 			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
 				EFLAGS |= EFLAGS_IF;
 			    }
-			    else if (in_dpmi) {
+			    else/* if (in_dpmi)*/ {
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
 				set_IF();
 			    }
-			    else
-				goto not_permitted;	/* GPF */
+//			    else
+//				goto not_permitted;	/* GPF */
 			}
 			PC++;
 			break;
