@@ -256,7 +256,7 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     /* it may be necessary to fix up a page fault in the DPMI fault handling
        code for $_cpu_emu = "vm86". This really shouldn't happen but not all
        cases have been fixed yet */
-    if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi && !in_dpmi_dos_int &&
+    if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi_pm() &&
 	e_emu_fault(scp)) {
       fault_cnt--;
       return;
