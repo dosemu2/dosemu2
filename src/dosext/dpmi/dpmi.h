@@ -23,9 +23,6 @@
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
-#define current_client ({ assert(in_dpmi); in_dpmi-1; })
-#define DPMI_CLIENT (DPMIclient[current_client])
-#define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
 #ifdef __linux__
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
@@ -139,7 +136,6 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
-extern int in_dpmi;/* Set to 1 when running under DPMI */
 extern int dpmi_mhp_TF;
 extern unsigned char dpmi_mhp_intxxtab[256];
 extern int is_cli;
