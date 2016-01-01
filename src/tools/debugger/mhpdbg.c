@@ -83,12 +83,15 @@ void mhp_putc(char c1)
 
 void mhp_send(void)
 {
+   int ret;
    if ((mhpdbg.sendptr) && (mhpdbg.fdout == -1)) {
       mhpdbg.sendptr = 0;
       return;
    }
    if ((mhpdbg.sendptr) && (mhpdbg.fdout != -1)) {
-      write (mhpdbg.fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
+      ret = write (mhpdbg.fdout, mhpdbg.sendbuf, mhpdbg.sendptr);
+      if (ret < 0)
+         perror("write to mhpdbg.fdout failed");
       mhpdbg.sendptr = 0;
    }
 }
@@ -156,8 +159,8 @@ static void mhp_init(void)
     if (!retval) {
       mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
       if (mhpdbg.fdin != -1) {
-        /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
-        mhpdbg.fdout = open(pipename_out, O_RDWR | O_NONBLOCK);
+        /* NOTE: Allow to block else we drop output on 'tc' when pipe fills */
+        mhpdbg.fdout = open(pipename_out, O_RDWR);
         if (mhpdbg.fdout != -1) {
           add_to_io_select(mhpdbg.fdin, mhp_input_async, NULL);
         }

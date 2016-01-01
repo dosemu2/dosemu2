@@ -28,8 +28,11 @@
 #include <sys/vt.h>
 #include <sys/ioctl.h>
 
-#define    TMPFILE_VAR		"/var/run/dosemu."
-#define    TMPFILE_HOME		".dosemu/run/dosemu."
+#define    TMPFILE_VAR		"/var/run"
+#define    TMPFILE_HOME		".dosemu/run"
+
+#define DBGFNIN "dosemu.dbgin."
+#define DBGFNOUT "dosemu.dbgout."
 
 #define MHP_BUFFERSIZE 8192
 
@@ -43,67 +46,6 @@ int kill_timeout=FOREVER;
 static  char *pipename_in, *pipename_out;
 int fdout, fdin;
 
-static int check_pid(int pid);
-
-static int find_dosemu_pid(char *tmpfile, int local)
-{
-  DIR *dir;
-  struct dirent *p;
-  char *dn, *id;
-  int i,j,pid=-1;
-  static int once =1;
-
-  dn = strdup(tmpfile);
-  j=i=strlen(dn);
-  while (dn[i--] != '/');  /* remove 'dosemu.dbgin' */
-  i++;
-  dn[i++]=0;
-  id=dn+i;
-  j-=i;
-
-  dir = opendir(dn);
-  if (!dir) {
-    if (local) {
-      free(dn);
-      return -1;
-    }
-    fprintf(stderr, "can't open directory %s\n",dn);
-    free(dn);
-    exit(1);
-  }
-  i = 0;
-  while((p = readdir(dir))) {
-
-    if(!strncmp(id,p->d_name,j) && p->d_name[j] >= '0' && p->d_name[j] <= '9') {
-      pid = strtol(p->d_name + j, 0, 0);
-      if(check_pid(pid)) {
-        if(once && i++ == 1) {
-          fprintf(stderr,
-            "Multiple dosemu processes running or stalled files in %s\n"
-            "restart dosdebug with one of the following pids as first arg:\n"
-            "%d", dn, pid
-          );
-          once = 0;
-        }
-      }
-      if (i > 1) fprintf(stderr, " %d", pid);
-    }
-  }
-  free(dn);
-  closedir(dir);
-  if (i > 1) {
-    fprintf(stderr, "\n");
-    if (local) return -1;
-    exit(1);
-  }
-  if (!i) {
-    if (local) return -1;
-    fprintf(stderr, "No dosemu process running, giving up.\n");
-    exit(1);
-  }
-
-  return pid;
-}
 
 static int check_pid(int pid)
 {
@@ -119,6 +61,60 @@ static int check_pid(int pid)
   }
   close(fd);
   return strstr(buf,"dos") ? 1 : 0;
+}
+
+static int filter_dosemu_zombies(const struct dirent *entry) {
+	char *dot;
+	int pid;
+
+	if(strncmp(entry->d_name, DBGFNIN, strlen(DBGFNIN)) != 0) {
+		return 0;
+	}
+
+	dot = strrchr(entry->d_name, '.');
+	if(!dot)
+		return 0;
+
+	pid = atoi(dot+1);
+	if(!pid)
+		return 0;
+
+	return check_pid(pid);
+}
+
+static int find_dosemu_pid(char *dir) {
+	struct dirent **namelist;
+	char *dot;
+	int i, n, pid = 0;
+
+	n = scandir(dir, &namelist, &filter_dosemu_zombies, alphasort);
+	if (n < 0) {
+		fprintf(stderr, "find_dosemu_pid: scandir error\n");
+	} else if (n == 0) {
+		fprintf(stderr, "find_dosemu_pid: no dosemu process found\n");
+	} else {
+		/* hook up to the first found */
+		dot = strrchr(namelist[0]->d_name, '.');
+		pid = atoi(dot+1);
+
+		if (n>1) {
+			fprintf(stderr,
+"Multiple dosemu processes running. Using the first process found or you can\n"
+"restart dosdebug with one of the following pids as the first arg:");
+			for(i=0; i<n ; i++) {
+				dot = strrchr(namelist[i]->d_name, '.');
+				fprintf(stderr, " %s", dot+1);
+			}
+			fprintf(stderr, "\n");
+		}
+		/* free the structure */
+		while (n--) {
+			free(namelist[n]);
+		}
+		free(namelist);
+	}
+
+	return pid;
 }
 
 static int switch_console(char new_console)
@@ -156,12 +152,15 @@ static void handle_console_input(void)
   char buf[MHP_BUFFERSIZE];
   static char sbuf[MHP_BUFFERSIZE]="\n";
   static int sn=1;
-  int n;
+  int n, ret;
 
   n=read(0, buf, sizeof(buf));
   if (n>0) {
-    if (n==1 && buf[0]=='\n') write(fdout, sbuf, sn);
-    else {
+    if (n==1 && buf[0]=='\n') {
+      ret = write(fdout, sbuf, sn);
+      if (ret < 0)
+        perror("write to fdout failed");
+    } else {
       if (!strncmp(buf,"console ",8)) {
         switch_console(buf[8]);
         return;
@@ -169,7 +168,9 @@ static void handle_console_input(void)
       if (!strncmp(buf,"kill",4)) {
         kill_timeout=KILL_TIMEOUT;
       }
-      write(fdout, buf, n);
+      ret = write(fdout, buf, n);
+      if (ret < 0)
+        perror("write to fdout failed");
       memcpy(sbuf, buf, n);
       sn=n;
       if (buf[0] == 'q') exit(1);
@@ -181,13 +182,15 @@ static void handle_console_input(void)
 static void handle_dbg_input(void)
 {
   char buf[MHP_BUFFERSIZE], *p;
-  int n;
+  int n, ret;
   do {
     n=read(fdin, buf, sizeof(buf));
   } while (n < 0 && errno == EAGAIN);
   if (n >0) {
     if ((p=memchr(buf,1,n))!=NULL) n=p-buf;
-    write(1, buf, n);
+    ret = write(1, buf, n);
+    if (ret < 0)
+      perror("write to stdout failed");
     if (p!=NULL) exit(0);
   }
   if (n == 0)
@@ -197,42 +200,41 @@ static void handle_dbg_input(void)
 
 int main (int argc, char **argv)
 {
-  int numfds, dospid, ret;
+  int numfds, ret, dospid = 0;
   char *home_p;
 
   FD_ZERO(&readfds);
 
   home_p = getenv("HOME");
 
-  if (!argv[1]) {
-    dospid = -1;
-    if (home_p) {
-      char *dosemu_tmpfile_pat;
-
-      ret = asprintf(&dosemu_tmpfile_pat, "%s/" TMPFILE_HOME "dbgin.", home_p);
-      assert(ret != -1);
-
-      dospid=find_dosemu_pid(dosemu_tmpfile_pat, 1);
-      free(dosemu_tmpfile_pat);
-    }
-    if (dospid == -1) {
-      dospid=find_dosemu_pid(TMPFILE_VAR "dbgin.", 0);
+  if ((argc > 1) && argv[1]) {
+    dospid=strtol(argv[1], 0, 0);
+    if (!check_pid(dospid)) {
+      fprintf(stderr, "no dosemu running on pid %d\n", dospid);
+      exit(1);
     }
   }
-  else dospid=strtol(argv[1], 0, 0);
 
-  if (!check_pid(dospid)) {
-    fprintf(stderr, "no dosemu running on pid %d\n", dospid);
-    exit(1);
+  if (home_p) {
+    char *dosemu_tmpfile_pat;
+
+    ret = asprintf(&dosemu_tmpfile_pat, "%s/" TMPFILE_HOME, home_p);
+    assert(ret != -1);
+
+    dospid=find_dosemu_pid(dosemu_tmpfile_pat);
+    free(dosemu_tmpfile_pat);
+  }
+  if (dospid < 1) {
+    dospid=find_dosemu_pid(TMPFILE_VAR);
   }
 
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
   fdout = -1;
   if (home_p) {
-    ret = asprintf(&pipename_in, "%s/%sdbgin.%d", home_p, TMPFILE_HOME, dospid);
+    ret = asprintf(&pipename_in, "%s/%s/%s%d", home_p, TMPFILE_HOME, DBGFNIN, dospid);
     assert(ret != -1);
 
-    ret = asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
+    ret = asprintf(&pipename_out, "%s/%s/%s%d", home_p, TMPFILE_HOME, DBGFNOUT, dospid);
     assert(ret != -1);
 
     fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
@@ -244,10 +246,10 @@ int main (int argc, char **argv)
   if (fdout == -1) {
     /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
        try with /var/run/dosemu directory */
-    ret = asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", dospid);
+    ret = asprintf(&pipename_in, "%s/%s%d", TMPFILE_VAR, DBGFNIN, dospid);
     assert(ret != -1);
 
-    ret = asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", dospid);
+    ret = asprintf(&pipename_out, "%s/%s%d", TMPFILE_VAR, DBGFNOUT, dospid);
     assert(ret != -1);
 
     fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
@@ -262,7 +264,10 @@ int main (int argc, char **argv)
     exit(1);
   }
 
-  write(fdout,"r0\n",3);
+  ret = write(fdout,"r0\n",3);
+  if (ret < 0)
+    perror("write to fdout failed");
+
   do {
     FD_SET(fdin, &readfds);
     FD_SET(0, &readfds);   /* stdin */
