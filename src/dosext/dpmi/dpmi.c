@@ -3196,6 +3196,10 @@ err2:
 
 void dpmi_reset(void)
 {
+    while (in_dpmi) {
+	in_dpmi_dos_int = 1;
+	dpmi_cleanup();
+    }
     if (config.pm_dos_api)
       msdos_reset(EMM_SEGMENT);
 }
