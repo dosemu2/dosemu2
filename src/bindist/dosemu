@@ -170,7 +170,7 @@ $COMMAND "$@" &
 DPID=$!
 fg >/dev/null
 RUNDIR=$HOME/.dosemu/run
-STALE=`ls $RUNDIR/*.$DPID`
+STALE=`ls $RUNDIR/*.$DPID 2>/dev/null`
 if [ -n "$STALE" ]; then
   echo "removing stale files:"
   echo "$STALE"
