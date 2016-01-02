@@ -157,8 +157,6 @@ FILE *aLog = NULL;
  */
 struct sigcontext e_scp; /* initialized to 0 */
 
-unsigned long io_bitmap[IO_BITMAP_SIZE+1];
-
 /* ======================================================================= */
 
 unsigned long eTSSMASK = 0;
