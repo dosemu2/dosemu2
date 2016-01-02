@@ -10,6 +10,7 @@
 #ifdef __linux__
 #include <sys/kd.h>
 #include <sys/vt.h>
+#include <sys/ioctl.h>
 #endif
 
 #include "bios.h"
@@ -27,6 +28,7 @@
 #include "pci.h"
 #include "mapping.h"
 #include "utilities.h"
+#include "sig.h"
 #ifdef USE_SVGALIB
 #include <dlfcn.h>
 #include "../svgalib/svgalib.h"

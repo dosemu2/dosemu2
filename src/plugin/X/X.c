@@ -248,6 +248,7 @@
 #include "x_config.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "sig.h"
 
 #ifdef HAVE_MITSHM
 #include <sys/ipc.h>

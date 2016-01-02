@@ -32,6 +32,7 @@
 #include "init.h"
 #include "utilities.h"
 #include "pktdrvr.h"
+#include "sig.h"
 
 static VDECONN *vde;
 static struct popen2 vdesw, slirp;

@@ -32,7 +32,7 @@
 #include "dpmi.h"
 #include "timers.h"
 #include "dosemu_config.h"
-
+#include "sig.h"
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
