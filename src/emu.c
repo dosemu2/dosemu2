@@ -101,7 +101,7 @@
 #include "coopth.h"
 #include "keyb_server.h"
 #include "keyb_clients.h"
-
+#include "sig.h"
 #include "sound.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"

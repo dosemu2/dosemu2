@@ -420,8 +420,6 @@ EXTERN struct vec_t *ivecs;
 #define _cs     (scp->cs)
 #define _eflags (scp->eflags)
 #define _cr2	(scp->cr2)
-
-void dosemu_fault(int, siginfo_t *, void *);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);

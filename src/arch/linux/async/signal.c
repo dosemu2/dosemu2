@@ -45,6 +45,7 @@
 #include "keyb_server.h"
 #include "sound.h"
 #include "cpu-emu.h"
+#include "sig.h"
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
