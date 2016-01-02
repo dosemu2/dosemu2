@@ -56,7 +56,7 @@ void print_exception_info(struct sigcontext *scp);
  */
 
 __attribute__((no_instrument_function))
-static int dosemu_fault1(
+static void dosemu_fault1(
 #ifdef __linux__
 int signal, struct sigcontext *scp
 #endif /* __linux__ */
@@ -81,12 +81,14 @@ int signal, struct sigcontext *scp
   }
 
 #ifdef X86_EMULATOR
-  if (config.cpuemu > 1 && e_emu_fault(scp))
-    return 0;
+  if (config.cpuemu > 1 && !DPMIValidSelector(_cs) && e_emu_fault(scp))
+    return;
 #endif
 
-  if (in_vm86)
-    return vm86_fault(scp);
+  if (in_vm86) {
+    vm86_fault(scp);
+    return;
+  }
 
 #define VGA_ACCESS_HACK 1
 #if VGA_ACCESS_HACK
@@ -103,7 +105,7 @@ int signal, struct sigcontext *scp
  */
     if(VGA_EMU_FAULT(scp,code,1)==True) {
       v_printf("BUG: dosemu touched protected video mem, but trying to recover\n");
-      return 0;
+      return;
     }
   }
 #endif
@@ -120,7 +122,7 @@ int signal, struct sigcontext *scp
          * here if we have set the trap-flags (TF)
          * ( needed for dosdebug only )
          */
-	return 0;
+	return;
       }
 #endif
       { /* No, not HLT, too bad :( */
@@ -134,7 +136,8 @@ int signal, struct sigcontext *scp
     } /*!DPMIValidSelector(_cs)*/
     else {
       /* Not in dosemu code: dpmi_fault() will handle that */
-      return dpmi_fault(scp);
+      dpmi_return(scp, 0);
+      return;
     }
   } /*in_dpmi*/
 
@@ -212,7 +215,6 @@ bad:
 
     fatalerr = 4;
     leavedos_main(fatalerr);		/* shouldn't return */
-    return 0;
   }
 }
 
@@ -220,7 +222,6 @@ bad:
 __attribute__((noinline))
 static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
-  int retcode;
   pid_t tid;
 
   fault_cnt++;
@@ -251,31 +252,15 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     sigprocmask(SIG_UNBLOCK, &set, NULL);
   }
 
-#ifdef X86_EMULATOR
-  if (fault_cnt > 1 && _trapno == 0xe && !DPMIValidSelector(_cs)) {
-    /* it may be necessary to fix up a page fault in the DPMI fault handling
-       code for $_cpu_emu = "vm86". This really shouldn't happen but not all
-       cases have been fixed yet */
-    if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi && !in_dpmi_dos_int &&
-	e_emu_fault(scp)) {
-      fault_cnt--;
-      return;
-    }
-  }
-#endif
-
   if (debug_level('g')>7)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
       signal, _trapno);
 
-  retcode = dosemu_fault1 (signal, scp);
+  dosemu_fault1 (signal, scp);
   fault_cnt--;
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
-  if(retcode)
-    _eax = retcode;
-  dpmi_iret_setup(scp);
 }
 
 #ifdef __linux__
@@ -289,7 +274,6 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp, 0);
   dosemu_fault0(signal, scp);
-  deinit_handler(scp);
 }
 #endif /* __linux__ */
 

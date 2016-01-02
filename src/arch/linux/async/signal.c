@@ -240,32 +240,6 @@ void init_handler(struct sigcontext *scp, int async)
   sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
-#ifdef __x86_64__
-__attribute__((no_instrument_function))
-void deinit_handler(struct sigcontext *scp)
-{
-  /* no need to restore anything when returning to dosemu, but
-   * can't check _cs because dpmi_iret_setup() could clobber it.
-   * So just restore segregs unconditionally to stay safe.
-   * It would also be a bit disturbing to return to dosemu with
-   * DOS ds/es/ss, which is what the signal handler work with
-   * in 64bit mode.
-   * Note: ss in 64bit mode is reset by a syscall (sigreturn()),
-   * so we don't need to restore it manually when returning to
-   * dosemu at least (when returning to DPMI, dpmi_iret_setup()
-   * takes care of ss).
-   */
-
-  if (_fs != getsegment(fs))
-    loadregister(fs, _fs);
-  if (_gs != getsegment(gs))
-    loadregister(gs, _gs);
-
-  loadregister(ds, _ds);
-  loadregister(es, _es);
-}
-#endif
-
 static int ld_sig;
 static void leavedos_call(void *arg)
 {
@@ -325,8 +299,7 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
-  dpmi_iret_setup(scp);
-  deinit_handler(scp);
+  dpmi_sigio(scp);
 }
 
 void leavedos_from_sig(int sig)
@@ -359,9 +332,6 @@ static void _leavedos_signal(int sig, struct sigcontext *scp)
     _exit(sig);
   }
   leavedos_sig(sig);
-  if (in_dpmi && !in_vm86)
-    dpmi_sigio(scp);
-  dpmi_iret_setup(scp);
 }
 
 __attribute__((no_instrument_function))
@@ -371,7 +341,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp);
+  dpmi_sigio(scp);
 }
 
 __attribute__((no_instrument_function))
@@ -817,16 +787,12 @@ static void sigio(struct sigcontext *scp)
 #endif
   e_gen_sigalrm(scp);
   SIGNAL_save(SIGIO_call, NULL, 0, __func__);
-  if (in_dpmi && !in_vm86)
-    dpmi_sigio(scp);
 }
 
 static void sigalrm(struct sigcontext *scp)
 {
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
-    if (in_dpmi && !in_vm86)
-      dpmi_sigio(scp);
   }
 }
 
@@ -837,7 +803,6 @@ static void sigasync0(int sig, struct sigcontext *scp)
     dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])
 	  sighandlers[sig](scp);
-  dpmi_iret_setup(scp);
 }
 
 __attribute__((no_instrument_function))
@@ -847,7 +812,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 	   &((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp);
-  deinit_handler(scp);
+  dpmi_sigio(scp);
 }
 #endif
 
