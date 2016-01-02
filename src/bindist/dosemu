@@ -160,13 +160,9 @@ COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then
-  if [ -n "$STRING_I" ] ; then
-    exec $COMMAND "$INSTALL" "-I $STRING_I" "$@"
-  else
-    exec $COMMAND "$INSTALL" "$@"
-  fi
-elif [ -n "$STRING_I" ] ; then
-  exec $COMMAND "-I $STRING_I" "$@"
-else
-  exec $COMMAND "$@"
+  COMMAND="$COMMAND $INSTALL"
 fi
+if [ -n "$STRING_I" ] ; then
+  COMMAND="$COMMAND -I $STRING_I"
+fi
+$COMMAND "$@"
