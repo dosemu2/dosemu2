@@ -34,6 +34,7 @@
 #include "redirect.h"
 #include "keyboard.h"
 #include "dos2linux.h"
+#include "sig.h"
 
 static char *inpipename = 0;
 static char *outpipename = 0;

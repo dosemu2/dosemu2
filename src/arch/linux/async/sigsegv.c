@@ -22,7 +22,7 @@
 #include "dpmi.h"
 #include "cpu-emu.h"
 #include "dosemu_config.h"
-
+#include "sig.h"
 
 /* Function prototypes */
 void print_exception_info(struct sigcontext *scp);

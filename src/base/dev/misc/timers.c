@@ -30,6 +30,7 @@
 
 #include <sys/time.h>
 #include <sys/kd.h>
+#include <sys/ioctl.h>
 #include "config.h"
 #include "emu.h"
 #include "port.h"

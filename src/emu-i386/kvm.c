@@ -36,6 +36,7 @@
 #include "emu.h"
 #include "emu-ldt.h"
 #include "mapping.h"
+#include "sig.h"
 
 #ifndef X86_EFLAGS_FIXED
 #define X86_EFLAGS_FIXED 2
