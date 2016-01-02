@@ -165,4 +165,14 @@ fi
 if [ -n "$STRING_I" ] ; then
   COMMAND="$COMMAND -I $STRING_I"
 fi
-$COMMAND "$@"
+set -m
+$COMMAND "$@" &
+DPID=$!
+fg >/dev/null
+RUNDIR=$HOME/.dosemu/run
+STALE=`ls $RUNDIR/*.$DPID`
+if [ -n "$STALE" ]; then
+  echo "removing stale files:"
+  echo "$STALE"
+  rm -f $STALE
+fi
