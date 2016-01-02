@@ -55,7 +55,7 @@ unsigned char port_handle_table[0x10000];
 unsigned char port_andmask[0x10000];
 unsigned char port_ormask[0x10000];
 static unsigned char portfast_map[0x10000/8];
-static unsigned char emu_io_bitmap[0x10000/8];
+unsigned char emu_io_bitmap[0x10000/8];
 static pid_t portserver_pid = 0;
 
 static unsigned char port_handles;	/* number of io_handler's */
@@ -790,9 +790,6 @@ int port_init(void)
 	  port_handler[i].irq = EMU_NO_IRQ;
 	  port_handler[i].fd = -1;
 	}
-#ifdef X86_EMULATOR
-	memset (io_bitmap, 0, sizeof(io_bitmap));
-#endif
 
   /* handle 0 maps to the unmapped IO device handler.  Basically any
      ports which don't map to any other device get mapped to this
