@@ -58,6 +58,7 @@
 #include "hlt.h"
 #include "ipx.h"
 #include "vgaemu.h"
+#include "sig.h"
 
 int vm86_fault(struct sigcontext *scp)
 {

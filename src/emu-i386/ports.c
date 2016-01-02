@@ -44,6 +44,7 @@
 #include "bitops.h"
 #include "mapping.h"
 #include "dosemu_config.h"
+#include "sig.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #include "bitops.h"

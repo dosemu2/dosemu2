@@ -25,6 +25,7 @@
 #include "coopth.h"
 #include "speaker.h"
 #include "dosemu_config.h"
+#include "sig.h"
 
 /* --------------------------------------------------------------------- */
 /*

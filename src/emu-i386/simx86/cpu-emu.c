@@ -47,6 +47,7 @@
 #include "codegen-arch.h"
 #include "dpmi.h"
 #include "dis8086.h"
+#include "sig.h"
 
 #define e_set_flags(X,new,mask) \
 	((X) = ((X) & ~(mask)) | ((new) & (mask)))

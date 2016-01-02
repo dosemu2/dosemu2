@@ -52,6 +52,7 @@
 #include "config.h"
 #include <stdio.h>    /* printf  */
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>

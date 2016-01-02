@@ -74,6 +74,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "dos2linux.h"
+#include "sig.h"
 
 struct text_system Text_term;
 static struct video_system Video_term;
