@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <linux/version.h>
 
 #include "emu.h"
@@ -213,7 +214,7 @@ __attribute__((noinline))
 static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
   int retcode;
-  pid_t tid;
+  pthread_t tid;
 
   fault_cnt++;
   if (fault_cnt > 2) {
@@ -225,9 +226,9 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     _exit(255);
   }
 
-  tid = gettid();
-  if (tid != dosemu_tid) {
-    dosemu_error("thread %i got signal %i\n", tid, signal);
+  tid = pthread_self();
+  if (!pthread_equal(tid, dosemu_pthread_self)) {
+    dosemu_error("thread got signal %i\n", signal);
     _exit(23);
     return;
   }

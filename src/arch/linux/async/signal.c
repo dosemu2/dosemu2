@@ -555,6 +555,7 @@ void
 signal_init(void)
 {
   dosemu_tid = gettid();
+  dosemu_pthread_self = pthread_self();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we
@@ -818,6 +819,9 @@ static void sigalrm(struct sigcontext *scp)
 __attribute__((noinline))
 static void sigasync0(int sig, struct sigcontext *scp)
 {
+  /* can't use pthread_self() here since the TLS is always set to dosemu's *
+   * in any case this should not happens since async signals are blocked   *
+   * in other threads							   */
   if (gettid() != dosemu_tid)
     dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])
