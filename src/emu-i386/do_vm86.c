@@ -607,9 +607,7 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    if (in_dpmi_pm())
-	run_dpmi();
-    else
+    if (!in_dpmi_pm())
 	run_vm86();
     do_periodic_stuff();
     hardware_run();
