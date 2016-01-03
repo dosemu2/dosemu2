@@ -57,6 +57,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
+#include "coopth.h"
 #if 0
 #define SHOWREGS
 #endif
@@ -116,6 +117,7 @@ static int in_dpmi_irq;
 int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
+static int dpmi_ctid;
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
@@ -180,6 +182,7 @@ static int dpmi_not_supported;
 
 static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit);
+static void run_dpmi(void);
 
 #ifdef __linux__
 #define modify_ldt dosemu_modify_ldt
@@ -388,6 +391,8 @@ static void dpmi_set_pm(int pm)
     return;
   }
   dpmi_pm = pm;
+  if (pm)
+    run_dpmi();
 }
 
 int dpmi_is_valid_range(dosaddr_t addr, int len)
@@ -3067,8 +3072,9 @@ static void run_pm_dos_int(int i)
 #endif
 }
 
-void run_dpmi(void)
+static void run_dpmi_thr(void *arg)
 {
+  while (1) {
     int retcode = (
 #ifdef X86_EMULATOR
 	config.cpuemu>3?
@@ -3081,6 +3087,16 @@ void run_dpmi(void)
       else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
     }
 #endif
+    if (in_dpmi_pm())
+      coopth_yield();
+    else
+      break;
+  }
+}
+
+static void run_dpmi(void)
+{
+    coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
 }
 
 void dpmi_setup(void)
@@ -3201,6 +3217,9 @@ void dpmi_setup(void)
       memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
       msdos_ldt_setup(lbuf, alias);
     }
+
+    dpmi_ctid = coopth_create("dpmi_control");
+    coopth_set_detached(dpmi_ctid);
     return;
 
 err:
