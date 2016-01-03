@@ -29,8 +29,6 @@
 #include "dosemu_debug.h"
 #include "msdos_ldt.h"
 
-#define LDT_INIT_LIMIT 0xfff
-
 static unsigned char *ldt_backbuf;
 static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
@@ -45,13 +43,16 @@ int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
 
 u_short msdos_ldt_init(int clnt_num)
 {
+    unsigned lim;
     if (clnt_num > 1)		// one LDT alias for all clients
 	return dpmi_ldt_alias;
     dpmi_ldt_alias = AllocateDescriptors(1);
     if (!dpmi_ldt_alias)
 	return 0;
+    lim = ((dpmi_ldt_alias >> 3) + 1) * LDT_ENTRY_SIZE;
+    /* need to set limit before base_addr to avoid ldt autoexpanding */
+    SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(lim) - 1);
     SetSegmentBaseAddress(dpmi_ldt_alias, DOSADDR_REL(ldt_alias));
-    SetSegmentLimit(dpmi_ldt_alias, LDT_INIT_LIMIT);
     return dpmi_ldt_alias;
 }
 
@@ -397,7 +398,7 @@ void msdos_ldt_update(int entry, u_char *buf, int len)
 {
   if (dpmi_ldt_alias) {
     unsigned limit = GetSegmentLimit(dpmi_ldt_alias);
-    unsigned new_len = (entry + 1) * LDT_ENTRY_SIZE;
+    unsigned new_len = entry * LDT_ENTRY_SIZE + len;
     if (limit < new_len - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
       SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(new_len) - 1);
