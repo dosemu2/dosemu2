@@ -398,7 +398,7 @@ void msdos_ldt_update(int entry, u_char *buf, int len)
 {
   if (dpmi_ldt_alias) {
     unsigned limit = GetSegmentLimit(dpmi_ldt_alias);
-    unsigned new_len = (entry + 1) * LDT_ENTRY_SIZE;
+    unsigned new_len = entry * LDT_ENTRY_SIZE + len;
     if (limit < new_len - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
       SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(new_len) - 1);
