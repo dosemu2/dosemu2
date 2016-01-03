@@ -165,10 +165,8 @@ fi
 if [ -n "$STRING_I" ] ; then
   COMMAND="$COMMAND -I $STRING_I"
 fi
-set -m
-$COMMAND "$@" &
-DPID=$!
-fg >/dev/null
+# in a non-bash case, $BASHPID won't work and we fail the cleanup - no problem
+DPID=$(echo $BASHPID; exec $COMMAND "$@")
 RUNDIR=$HOME/.dosemu/run
 STALE=`ls $RUNDIR/*.$DPID 2>/dev/null`
 if [ -n "$STALE" ]; then
