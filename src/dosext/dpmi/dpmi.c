@@ -411,6 +411,7 @@ static inline unsigned long client_esp(struct sigcontext *scp)
 }
 
 #ifdef __x86_64__
+#if DIRECT_DPMI_CONTEXT_SWITCH
 static void dpmi_restore_segregs(struct sigcontext *scp)
 {
   loadregister(ds, _ds);
@@ -428,6 +429,7 @@ static void dpmi_restore_segregs(struct sigcontext *scp)
   if (_gs != getsegment(gs))
     loadregister(gs, _gs);
 }
+#endif
 
 static void iret_frame_setup(struct sigcontext *scp)
 {
