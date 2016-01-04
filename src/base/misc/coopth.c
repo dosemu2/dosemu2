@@ -106,7 +106,6 @@ struct coopth_t {
     int cur_thr;
     int max_thr;
     int detached:1;
-    int set_sleep:1;
     struct coopth_ctx_handlers_t ctxh;
     struct coopth_ctx_handlers_t sleeph;
     coopth_hndl_t post;
@@ -533,7 +532,8 @@ void coopth_ensure_sleeping(int tid)
     assert(pth->st.state == COOPTHS_SLEEPING);
 }
 
-static int do_start(struct coopth_t *thr, coopth_func_t func, void *arg)
+static int do_start(struct coopth_t *thr, struct coopth_state_t st,
+	coopth_func_t func, void *arg)
 {
     struct coopth_per_thread_t *pth;
     int tn;
@@ -585,7 +585,7 @@ static int do_start(struct coopth_t *thr, coopth_func_t func, void *arg)
 	leavedos(2);
 	return -1;
     }
-    pth->st = thr->set_sleep ? ST(SLEEPING) : ST(RUNNING);
+    pth->st = st;
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
 	active_tids[threads_active++] = thr->tid;
@@ -616,10 +616,23 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     check_tid(tid);
     thr = &coopthreads[tid];
     assert(thr->tid == tid);
-    err = do_start(thr, func, arg);
+    err = do_start(thr, ST(RUNNING), func, arg);
     if (err)
 	return err;
-    if (thr->set_sleep && thr->sleeph.pre)
+    return 0;
+}
+
+int coopth_start_sleeping(int tid, coopth_func_t func, void *arg)
+{
+    struct coopth_t *thr;
+    int err;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    assert(thr->tid == tid);
+    err = do_start(thr, ST(SLEEPING), func, arg);
+    if (err)
+	return err;
+    if (thr->sleeph.pre)
 	thr->sleeph.pre(thr->tid);
     return 0;
 }
@@ -683,15 +696,6 @@ int coopth_unsafe_detach(int tid)
     /* this is really unsafe and should be used only if
      * the DOS side of the thread have disappeared. */
     pth->data.attached = 0;
-    return 0;
-}
-
-int coopth_init_sleeping(int tid)
-{
-    struct coopth_t *thr;
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    thr->set_sleep = 1;
     return 0;
 }
 
