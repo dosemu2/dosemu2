@@ -40,12 +40,17 @@
 #include "userhook.h"
 #include "ringbuf.h"
 #include "dosemu_config.h"
-
 #include "keyb_clients.h"
 #include "keyb_server.h"
 #include "sound.h"
 #include "cpu-emu.h"
 #include "sig.h"
+/* work-around sigaltstack badness - disable when kernel is fixed */
+#define SIGALTSTACK_WA 1
+#if SIGALTSTACK_WA
+#include <setjmp.h>
+#include "mapping.h"
+#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -69,6 +74,11 @@ static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
 static sigset_t q_mask;
+#if SIGALTSTACK_WA
+static void *cstack;
+static void *backup_stack;
+#endif
+static stack_t sig_stk;
 
 static int sh_tid;
 static int in_handle_signals;
@@ -208,6 +218,8 @@ static void __init_handler(struct sigcontext *scp, int async)
   if (getsegment(gs) != eflags_fs_gs.gs)
     loadregister(gs, eflags_fs_gs.gs);
 #ifdef __x86_64__
+  loadregister(ds, eflags_fs_gs.ds);
+  loadregister(es, eflags_fs_gs.es);
   /* kernel has the following rule: non-zero selector means 32bit base
    * in GDT. Zero selector means 64bit base, set via msr.
    * So if we set selector to 0, need to use also prctl(ARCH_SET_xS). */
@@ -481,6 +493,45 @@ static void signal_thr(void *arg)
   sig_c.signal_handler(sig_c.arg);
 }
 
+static void sigstack_init(void)
+{
+/* reserve 1024 uncommitted pages for stack */
+#define SIGSTACK_SIZE (1024 * getpagesize())
+  stack_t ss;
+
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
+#if SIGALTSTACK_WA
+  cstack = alloc_mapping(MAPPING_SHARED, SIGSTACK_SIZE, -1);
+  if (cstack == MAP_FAILED) {
+    error("Unable to allocate stack\n");
+    config.exitearly = 1;
+    return;
+  }
+  backup_stack = alias_mapping(MAPPING_OTHER, -1, SIGSTACK_SIZE,
+	PROT_READ | PROT_WRITE, cstack);
+  if (backup_stack == MAP_FAILED) {
+    error("Unable to allocate stack\n");
+    config.exitearly = 1;
+    return;
+  }
+#else
+  void *cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
+	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+  if (cstack == MAP_FAILED) {
+    error("Unable to allocate stack\n");
+    config.exitearly = 1;
+    return;
+  }
+#endif
+  ss.ss_sp = cstack;
+  ss.ss_size = SIGSTACK_SIZE;
+  ss.ss_flags = SS_ONSTACK;
+
+  sigaltstack(&ss, NULL);
+}
+
 /* DANG_BEGIN_FUNCTION signal_pre_init
  *
  * description:
@@ -493,27 +544,6 @@ static void signal_thr(void *arg)
 void
 signal_pre_init(void)
 {
-/* reserve 1024 uncommitted pages for stack */
-#define SIGSTACK_SIZE (1024 * getpagesize())
-  stack_t ss;
-  void *cstack;
-
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
-  cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
-	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
-  if (cstack == MAP_FAILED) {
-    error("Unable to allocate stack\n");
-    config.exitearly = 1;
-    return;
-  }
-  ss.ss_sp = cstack;
-  ss.ss_size = SIGSTACK_SIZE;
-  ss.ss_flags = SS_ONSTACK;
-
-  sigaltstack(&ss, NULL);
-
   /* initialize user data & code selector values (used by DPMI code) */
   /* And save %fs, %gs for NPTL */
   eflags_fs_gs.fs = getsegment(fs);
@@ -570,6 +600,7 @@ signal_pre_init(void)
 void
 signal_init(void)
 {
+  sigstack_init();
   dosemu_tid = gettid();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
@@ -915,4 +946,47 @@ static void async_awake(void *arg)
     if (i)
       cbk.func(cbk.arg);
   } while (i);
+}
+
+void signal_return_to_dosemu(void)
+{
+  stack_t stk;
+  int err;
+
+#if SIGALTSTACK_WA
+  jmp_buf hack;
+  register unsigned long sp asm("sp");
+  unsigned char *top = cstack + SIGSTACK_SIZE;
+  unsigned char *btop = backup_stack + SIGSTACK_SIZE;
+  unsigned long delta = (unsigned long)(top - sp);
+  if (setjmp(hack) == 0)
+    asm volatile(
+#ifdef __x86_64__
+    "mov %0, %%rsp\n"
+#else
+    "mov %0, %%esp\n"
+#endif
+     :: "r"(btop - delta) : "sp");
+  else
+    return;
+#endif
+  stk.ss_flags = SS_DISABLE;
+  err = sigaltstack(&stk, &sig_stk);
+  if (err)
+    perror("sigaltstack");
+  fault_cnt--;
+#if SIGALTSTACK_WA
+  longjmp(hack, 1);
+#endif
+}
+
+void signal_return_to_dpmi(void)
+{
+  int err;
+
+  sig_stk.ss_flags = SS_ONSTACK;
+  err = sigaltstack(&sig_stk, NULL);
+  if (err)
+    perror("sigaltstack");
+  fault_cnt++;
 }

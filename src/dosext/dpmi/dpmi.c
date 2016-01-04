@@ -41,7 +41,6 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <setjmp.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <linux/version.h>
@@ -58,6 +57,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "mhpdbg.h"
 #include "hlt.h"
 #include "coopth.h"
+#include "sig.h"
 #if 0
 #define SHOWREGS
 #endif
@@ -129,11 +129,9 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static unsigned long emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 #endif
-static jmp_buf dpmi_ret_jmp;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
@@ -606,116 +604,14 @@ static void direct_dpmi_switch(struct sigcontext *scp)
 
 static int dpmi_control(void)
 {
-/*
- * DANG_BEGIN_REMARK
- *
- * DPMI is designed such that the stack change needs a task switch.
- * We are doing it via an SIGSEGV - instead of one task switch we have
- * now four :-(.
- * Arrgh this is the point where I should start to include DPMI stuff
- * in the kernel, but then we could include the rest of dosemu too.
- * Would Linus love this? I don't :-((((.
- * Anyway I would love to see first a working DPMI port, maybe we
- * will later (with version 0.9 or similar :-)) start with it to
- * get a really fast dos emulator...............
- *
- * NOTE: Using DIRECT_DPMI_CONTEXT_SWITCH we avoid these 4  taskswitches
- *       actually doing 0. We don't need a 'physical' taskswitch
- *       (not having different TSS for us and DPMI), we only need a complete
- *       register (context) replacement. For back-switching, however, we need
- *       the sigcontext technique, so we build a proper sigcontext structure
- *       even for 'hand made taskswitch'. (Hans Lermen, June 1996)
- *
- *    -- the whole emu_stack_frame could be eliminated except for eip/rip
- *	 and esp/rsp. For the most part GCC can worry about clobbered registers
- *       (Bart Oldeman, October 2006)
- *
- * dpmi_control is called only from dpmi_run when dpmi_pm==1
- *
- * DANG_END_REMARK
- */
+    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
-/* STANDARD SWITCH example
- *
- * run_dpmi() -> dpmi_control (!DPMIValidSelector(_cs))
- *			-> dpmi_transfer, push registers,
- *			   save esp/rsp in emu_stack_ptr
- *			-> DPMI_indirect_transfer ->
- *			hlt
- *		 -> dpmi_fault: move client frame to scp
- *	[C>S>E]			return -> jump to DPMI code
- *		========== into client code =================
- *		 -> dpmi_fault (cs==dpmi_sel())
- *				perform fault action (e.g. I/O) on scp
- *		========== into client code =================
- *		 -> dpmi_fault with return to dosemu code:
- *				save scp to client frame
- *	[E>S>C]			return from call to DPMI_indirect_transfer
- *				using emu_stack_ptr
- *				with segment registers and esp restored
- *			pop registers in dpmi_transfer <-
- *	         dpmi_control <-
- *			return %eax
- * run_dpmi() <-
- *
- * DIRECT SWITCH example
- *
- * run_dpmi() -> dpmi_control (_cs==%cs) -> direct_dpmi_switch
- *			-> dpmi_transfer, push registers
- *			   save esp/rsp in emu_stack_ptr
- *			-> DPMI_direct_transfer
- *				pop client frame and jump to DPMI code
- *				(client cs:eip)
- *		========== into client code =================
- *		 -> dpmi_fault (cs==dpmi_sel())
- *				perform fault action (e.g. I/O) on scp
- *		========== into client code =================
- *		 -> dpmi_fault with return to dosemu code:
- *				save scp to client frame
- *	[E>S>C]			return from call to DPMI_direct_transfer
- *				using emu_stack_ptr
- *				with segment registers and esp restored
- *			pop registers in dpmi_transfer <-
- *	         dpmi_control <-
- *			return %eax
- * run_dpmi() <-
- *
- */
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    struct sigcontext *scp;
-#endif
-    register unsigned long sp asm("sp");
-    if (setjmp(dpmi_ret_jmp))
-      return dpmi_ret_val;
-    /* Note: longjmp() follows the stack upwards, doing unwinds.
-     * It therefore can't jump out of sigaltstack or some trampoline stack.
-     * So, to get longjmp() working, we need to save the stack for it
-     * in addition to what setjmp() saves. */
-    emu_stack_ptr = sp;
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    scp = &DPMI_CLIENT.stack_frame;
-#ifdef TRACE_DPMI
-    if (debug_level('t')) _eflags |= TF;
-#endif
-    if (CheckSelectors(scp, 1) == 0) {
+    if (CheckSelectors(scp, 1) == 0)
       leavedos(36);
-    }
     if (dpmi_mhp_TF) _eflags |= TF;
-#ifdef __i386__
-    if (!(_eflags & TF))
-#endif
-    {
-	if (debug_level('M')>6) {
-	  D_printf("DPMI SWITCH to 0x%x:0x%08x (%p), Stack 0x%x:0x%08x (%p) flags=%#lx\n",
-	    _cs, _eip, SEL_ADR(_cs,_eip), _ss, _esp, SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
-	}
-	direct_dpmi_switch(scp);
-    }
-#endif
-#if !DIRECT_DPMI_CONTEXT_SWITCH || defined(__i386__)
-    /* Note: for i386 we can't set TF with our speedup code */
-    indirect_dpmi_transfer();
-#endif
+    coopth_wake_up(dpmi_tid);
+    coopth_sleep();
+    return dpmi_ret_val;
 }
 
 void dpmi_get_entry_point(void)
@@ -1297,11 +1193,6 @@ void copy_context(struct sigcontext *d, struct sigcontext *s,
   }
 }
 
-static void dpmi_return_to_dosemu(void)
-{
-  longjmp(dpmi_ret_jmp, 1);
-}
-
 static void Return_to_dosemu_code(struct sigcontext *scp,
     struct sigcontext *dpmi_ctx, int retcode)
 {
@@ -1321,34 +1212,15 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
     copy_context(dpmi_ctx, scp, 1);
   }
   dpmi_ret_val = retcode;
-  /* Note: we can't use siglongjmp() for 2 reasons:
-   * 1. SS is not restored by kernel on signal delivery, and certainly
-   *    not by siglongjmp() (may be fixed in kernel, some of 4.1 did so).
-   * 2. both siglongjmp() and longjmp() do stack unwinds (invoke pthread
-   *    cleanup handlers etc) so the stack switching is not possible:
-   *    http://linux-ia64.vger.kernel.narkive.com/dVL1zzUm/sigaltstack-siglongjmp-breakage
-   *    And as such, you can't siglongjmp() out of sigaltstack.
-   * So we need to sigreturn() to the trampoline code that does longjmp()
-   * from emu stack.
-   */
-  _rip = (unsigned long)dpmi_return_to_dosemu;
-  _rsp = emu_stack_ptr;
-  /* Don't inherit TF from DPMI, put dosemu's flags */
-  _eflags = eflags_fs_gs.eflags;
-  _cs = getsegment(cs);
-#ifdef __x86_64__
-  /* in 64bit mode the signal handler is running with DOS ds/es/ss */
-  _ds = eflags_fs_gs.ds;
-  _es = eflags_fs_gs.es;
-  _ss = eflags_fs_gs.ss;
-#else
-  _ds = getsegment(ds);
-  _es = getsegment(es);
-  _ss = getsegment(ss);
-#endif
-  _fs = eflags_fs_gs.fs;
-  _gs = eflags_fs_gs.gs;
-  scp->fpstate = NULL;
+  if (debug_level('M') > 5)
+    D_printf("DPMI: switch to dosemu\n");
+  signal_return_to_dosemu();
+  coopth_wake_up(dpmi_ctid);
+  coopth_sleep();
+  signal_return_to_dpmi();
+  if (debug_level('M') > 5)
+    D_printf("DPMI: switch to dpmi\n");
+  copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
 }
 
 int indirect_dpmi_switch(struct sigcontext *scp)

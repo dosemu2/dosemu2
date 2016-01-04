@@ -43,7 +43,9 @@ extern void deinit_handler(struct sigcontext *scp);
 #define deinit_handler(scp)
 #endif
 
-void dosemu_fault(int, siginfo_t *, void *);
+extern void dosemu_fault(int, siginfo_t *, void *);
+extern void signal_return_to_dosemu(void);
+extern void signal_return_to_dpmi(void);
 
 static inline pid_t gettid(void)
 {
