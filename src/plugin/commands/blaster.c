@@ -87,10 +87,12 @@ static void show_settings(void)
 
 static void show_help(char *name)
 {
-	com_printf("%s - show current sound settings\n", name);
-	com_printf("%s /E - set BLASTER and MIDI environment variables\n",
+	com_printf("%s \t\t\t - show current sound settings\n", name);
+	com_printf("%s /E \t\t - set BLASTER and MIDI environment variables\n",
 			name);
-	com_printf("%s /H - this help\n", name);
+	com_printf("%s /S <synth_mode> \t - set midi synth mode: gm or mt32\n",
+			name);
+	com_printf("%s /H \t\t - this help\n", name);
 }
 
 int blaster_main(int argc, char **argv) {
