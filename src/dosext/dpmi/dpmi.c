@@ -3262,6 +3262,7 @@ void dpmi_init(void)
 
   in_dpmi++;
   memset(&DPMI_CLIENT, 0, sizeof(DPMI_CLIENT));
+  dpmi_is_cli = 0;
 
   DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
 
