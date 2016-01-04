@@ -92,6 +92,7 @@ struct coopth_per_thread_t {
     void *stack;
     size_t stk_size;
     Bit16u ret_cs, ret_ip;
+    int quick_sched:1;
     int dbg;
 };
 
@@ -411,6 +412,7 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	__thread_run(thr, pth);
 	state = pth->st.state;
     } while (state == COOPTHS_RUNNING);
+    pth->quick_sched = 0;
 }
 
 static void coopth_hlt(Bit16u offs, void *arg)
@@ -699,12 +701,10 @@ int coopth_unsafe_detach(int tid)
     return 0;
 }
 
-void coopth_run(void)
+static int run_traverser(int (*pred)(struct coopth_per_thread_t *))
 {
     int i;
-    assert(DETACHED_RUNNING >= 0);
-    if (DETACHED_RUNNING)
-	return;
+    int cnt = 0;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
 	struct coopth_t *thr = &coopthreads[tid];
@@ -717,8 +717,26 @@ void coopth_run(void)
 		error("coopth: switching to left thread?\n");
 	    continue;
 	}
+	if (pred && !pred(pth))
+	    continue;
 	thread_run(thr, pth);
+	cnt++;
     }
+    return cnt;
+}
+
+static int quick_sched_pred(struct coopth_per_thread_t *pth)
+{
+    return pth->quick_sched;
+}
+
+void coopth_run(void)
+{
+    assert(DETACHED_RUNNING >= 0);
+    if (DETACHED_RUNNING)
+	return;
+    run_traverser(NULL);
+    while (run_traverser(quick_sched_pred));
 }
 
 static int __coopth_is_in_thread(int warn, const char *f)
@@ -980,6 +998,8 @@ static void do_awake(struct coopth_per_thread_t *pth)
 	return;
     }
     pth->st = SW_ST(AWAKEN);
+    if (!pth->data.attached)
+	pth->quick_sched = 1;	// optimize DPMI switches
 }
 
 void coopth_wake_up(int tid)
