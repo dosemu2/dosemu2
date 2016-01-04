@@ -533,15 +533,11 @@ void coopth_ensure_sleeping(int tid)
     assert(pth->st.state == COOPTHS_SLEEPING);
 }
 
-int coopth_start(int tid, coopth_func_t func, void *arg)
+static int do_start(struct coopth_t *thr, coopth_func_t func, void *arg)
 {
-    struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     int tn;
 
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    assert(thr->tid == tid);
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
 	int i;
 	error("Coopthreads recursion depth exceeded, %s off=%x\n",
@@ -592,7 +588,7 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->st = thr->set_sleep ? ST(SLEEPING) : ST(RUNNING);
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
-	active_tids[threads_active++] = tid;
+	active_tids[threads_active++] = thr->tid;
     } else if (thr->pth[tn - 1].st.state == COOPTHS_SLEEPING) {
 	static int logged;
 	/* will have problems with wake-up by tid. It is possible
@@ -610,6 +606,19 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     threads_total++;
     if (!thr->detached)
 	coopth_callf(thr, pth);
+    return 0;
+}
+
+int coopth_start(int tid, coopth_func_t func, void *arg)
+{
+    struct coopth_t *thr;
+    int err;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    assert(thr->tid == tid);
+    err = do_start(thr, func, arg);
+    if (err)
+	return err;
     if (thr->set_sleep && thr->sleeph.pre)
 	thr->sleeph.pre(thr->tid);
     return 0;
