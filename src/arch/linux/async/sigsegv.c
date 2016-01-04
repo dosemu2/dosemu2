@@ -88,7 +88,7 @@ int signal, struct sigcontext *scp
   if (in_vm86)
     return vm86_fault(scp);
 
-#define VGA_ACCESS_HACK 1
+#define VGA_ACCESS_HACK 0
 #if VGA_ACCESS_HACK
   if(_trapno==0x0e && Video->update_screen && !DPMIValidSelector(_cs)) {
 /* Well, there are currently some dosemu functions that touches video memory
