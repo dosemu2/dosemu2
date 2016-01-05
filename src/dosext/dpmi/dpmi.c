@@ -398,6 +398,7 @@ static inline unsigned long client_esp(struct sigcontext *scp)
 }
 
 #ifdef __x86_64__
+#if DIRECT_DPMI_CONTEXT_SWITCH
 static void dpmi_restore_segregs(struct sigcontext *scp)
 {
   loadregister(ds, _ds);
@@ -415,6 +416,7 @@ static void dpmi_restore_segregs(struct sigcontext *scp)
   if (_gs != getsegment(gs))
     loadregister(gs, _gs);
 }
+#endif
 
 static void iret_frame_setup(struct sigcontext *scp)
 {
@@ -446,9 +448,9 @@ void dpmi_iret_setup(struct sigcontext *scp)
   _rip = (unsigned long)DPMI_iret;
   _cs = getsegment(cs);
 }
+#endif
 
-#else
-
+#if !DIRECT_DPMI_CONTEXT_SWITCH
 static int in_indirect_dpmi_transfer;
 
 __attribute__((noreturn))
@@ -689,7 +691,7 @@ static int dpmi_control(void)
 	direct_dpmi_switch(scp);
     }
 #endif
-#ifdef __i386__
+#if defined(__i386__) || !DIRECT_DPMI_CONTEXT_SWITCH
     /* Note: for i386 we can't set TF with our speedup code */
     indirect_dpmi_transfer();
 #endif
@@ -1328,16 +1330,18 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
   scp->fpstate = NULL;
 }
 
-#ifdef __i386__
 int indirect_dpmi_switch(struct sigcontext *scp)
 {
+#if !DIRECT_DPMI_CONTEXT_SWITCH
     if (!in_indirect_dpmi_transfer)
 	return 0;
     in_indirect_dpmi_transfer--;
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
-}
+#else
+    return 0;
 #endif
+}
 
 static void *enter_lpms(struct sigcontext *scp)
 {
