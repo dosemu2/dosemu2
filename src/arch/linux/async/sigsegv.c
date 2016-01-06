@@ -220,7 +220,6 @@ bad:
 __attribute__((noinline))
 static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
-  int retcode;
   pid_t tid;
 
   fault_cnt++;
@@ -268,13 +267,11 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
       signal, _trapno);
 
-  retcode = dosemu_fault1 (signal, scp);
+  dosemu_fault1 (signal, scp);
   fault_cnt--;
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
-  if(retcode)
-    _eax = retcode;
   dpmi_iret_setup(scp);
 }
 
