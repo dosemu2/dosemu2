@@ -24,6 +24,8 @@
 #include "dosemu_config.h"
 #include "sig.h"
 
+static stack_t dosemu_stk;
+
 /* Function prototypes */
 void print_exception_info(struct sigcontext *scp);
 
@@ -115,6 +117,7 @@ static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
          * here if we have set the trap-flags (TF)
          * ( needed for dosdebug only )
          */
+        dosemu_stk = *stk;
         signal_set_altstack(stk);
         return 0;
       }
@@ -128,7 +131,11 @@ static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
     } /*!DPMIValidSelector(_cs)*/
     else {
       /* Not in dosemu code: dpmi_fault() will handle that */
-      return dpmi_fault(scp);
+      int ret = dpmi_fault(scp);
+      /* if DPMI terminated, we restore dosemu stack */
+      if (!DPMIValidSelector(_cs))
+        *stk = dosemu_stk;
+      return ret;
     }
 //  } /*in_dpmi*/
 

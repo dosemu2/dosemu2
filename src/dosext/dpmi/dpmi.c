@@ -120,6 +120,8 @@ static int dpmi_is_cli;
 static int dpmi_ctid;
 static int dpmi_tid;
 #if !DIRECT_DPMI_CONTEXT_SWITCH
+static struct sigcontext emu_stack_frame;
+static struct _fpstate emu_fpstate;
 static int in_indirect_dpmi_transfer;
 #endif
 static int in_dpmic_thr;
@@ -472,12 +474,10 @@ void dpmi_iret_setup(struct sigcontext *scp)
 #endif
 
 #if !DIRECT_DPMI_CONTEXT_SWITCH
-__attribute__((noreturn))
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
   asm volatile ("\t hlt\n" ::: "memory");
-  __builtin_unreachable();
 }
 #endif
 
@@ -1212,6 +1212,12 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
     copy_context(dpmi_ctx, scp, 1);
   }
   dpmi_ret_val = retcode;
+  if (!in_dpmi) {
+    D_printf("DPMI: leaving\n");
+    copy_context(scp, &emu_stack_frame, 0);
+    coopth_wake_up(dpmi_ctid);
+    return;
+  }
   if (debug_level('M') > 5)
     D_printf("DPMI: switch to dosemu\n");
   signal_return_to_dosemu();
@@ -1228,6 +1234,9 @@ int indirect_dpmi_switch(struct sigcontext *scp)
     if (!in_indirect_dpmi_transfer)
 	return 0;
     in_indirect_dpmi_transfer--;
+    emu_stack_frame.fpstate = &emu_fpstate;
+    _eip++;	// skip initial hlt
+    copy_context(&emu_stack_frame, scp, 1);
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
 }
@@ -2966,8 +2975,6 @@ static void run_dpmi_thr(void *arg)
     if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
       break;
   }
-  if (!in_dpmi)
-    coopth_cancel(dpmi_tid);
   in_dpmic_thr--;
 }
 
