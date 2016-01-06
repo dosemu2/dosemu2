@@ -982,11 +982,5 @@ void signal_return_to_dosemu(void)
 
 void signal_return_to_dpmi(void)
 {
-  int err;
-
-  sig_stk.ss_flags = SS_ONSTACK;
-  err = sigaltstack(&sig_stk, NULL);
-  if (err)
-    perror("sigaltstack");
   fault_cnt++;
 }
