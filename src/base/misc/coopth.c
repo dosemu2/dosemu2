@@ -412,7 +412,6 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	__thread_run(thr, pth);
 	state = pth->st.state;
     } while (state == COOPTHS_RUNNING);
-    pth->quick_sched = 0;
 }
 
 static void coopth_hlt(Bit16u offs, void *arg)
@@ -701,7 +700,8 @@ int coopth_unsafe_detach(int tid)
     return 0;
 }
 
-static int run_traverser(int (*pred)(struct coopth_per_thread_t *))
+static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
+	void (*post)(struct coopth_per_thread_t *))
 {
     int i;
     int cnt = 0;
@@ -720,6 +720,8 @@ static int run_traverser(int (*pred)(struct coopth_per_thread_t *))
 	if (pred && !pred(pth))
 	    continue;
 	thread_run(thr, pth);
+	if (post)
+	    post(pth);
 	cnt++;
     }
     return cnt;
@@ -730,13 +732,18 @@ static int quick_sched_pred(struct coopth_per_thread_t *pth)
     return pth->quick_sched;
 }
 
+static void quick_sched_post(struct coopth_per_thread_t *pth)
+{
+    pth->quick_sched = 0;
+}
+
 void coopth_run(void)
 {
     assert(DETACHED_RUNNING >= 0);
     if (DETACHED_RUNNING)
 	return;
-    run_traverser(NULL);
-    while (run_traverser(quick_sched_pred));
+    run_traverser(NULL, NULL);
+    while (run_traverser(quick_sched_pred, quick_sched_post));
 }
 
 static int __coopth_is_in_thread(int warn, const char *f)
