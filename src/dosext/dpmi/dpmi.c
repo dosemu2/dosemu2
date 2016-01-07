@@ -450,7 +450,7 @@ void dpmi_iret_setup(struct sigcontext *scp)
 }
 #endif
 
-#if !DIRECT_DPMI_CONTEXT_SWITCH
+#if defined(__i386__) || !DIRECT_DPMI_CONTEXT_SWITCH
 static int in_indirect_dpmi_transfer;
 
 __attribute__((noreturn))
