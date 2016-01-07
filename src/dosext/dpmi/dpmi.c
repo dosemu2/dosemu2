@@ -13,24 +13,6 @@
  *
  */
 
-#define DIRECT_DPMI_CONTEXT_SWITCH 0
-
-#define WANT_PURE_PIC 0
-#if WANT_PURE_PIC
-#if defined(__PIE__) || defined(__PIC__)
-/* avoid dynamic relocs in PIC code. Since dynamic relocs in PIC code
- * work perfectly, I am leaving this code just as an example. Not sure
- * why dosemu1 had so much of convoluted code just to avoid the dynamic
- * reloc: the dynamic reloc can either be safely used or trivially avoided. */
-#define PURE_PIC 1
-#else
-#define PURE_PIC 0
-#endif
-#else
-/* dynamic reloc will be used regardless of PIC */
-#define PURE_PIC 0
-#endif
-
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,15 +40,6 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "hlt.h"
 #include "coopth.h"
 #include "sig.h"
-#if 0
-#define SHOWREGS
-#endif
-
-#if 0
-#undef inline /*for gdb*/
-#define inline
-#endif
-
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "msdos.h"
@@ -119,11 +92,9 @@ unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
 static int dpmi_tid;
-#if !DIRECT_DPMI_CONTEXT_SWITCH
 static struct sigcontext emu_stack_frame;
 static struct _fpstate emu_fpstate;
 static int in_indirect_dpmi_transfer;
-#endif
 static int in_dpmic_thr;
 
 #define CLI_BLACKLIST_LEN 128
@@ -421,25 +392,6 @@ static inline unsigned long client_esp(struct sigcontext *scp)
 }
 
 #ifdef __x86_64__
-#if DIRECT_DPMI_CONTEXT_SWITCH
-static void dpmi_restore_segregs(struct sigcontext *scp)
-{
-  loadregister(ds, _ds);
-  loadregister(es, _es);
-
-  /* only load fs/gs if necessary so that if they are 0, then the
-     64bit bases will not be destroyed.
-     Apparently loading a null selector gives a null segment base on
-     Intel64/EM64T, but leaves the 64bit (or other) base intact on AMD CPUs.
-     Of course, i386 null selector semantics (GPF on access via one)
-     take over once the DPMI client is entered.
-  */
-  if (_fs != getsegment(fs))
-    loadregister(fs, _fs);
-  if (_gs != getsegment(gs))
-    loadregister(gs, _gs);
-}
-#endif
 
 static void iret_frame_setup(struct sigcontext *scp)
 {
@@ -473,124 +425,12 @@ void dpmi_iret_setup(struct sigcontext *scp)
 }
 #endif
 
-#if !DIRECT_DPMI_CONTEXT_SWITCH
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
   asm volatile ("\t hlt\n" ::: "memory");
 }
-#endif
 
-#if DIRECT_DPMI_CONTEXT_SWITCH
-#ifdef __i386__
-#if PURE_PIC
-extern struct {
-    const uint8_t opc;
-    uint32_t offset;
-    uint16_t selector;
-} __attribute__((packed)) dpmi_switch_jmp;
-#else
-/* dont mark as static so that it is accessable from asm */
-struct pmaddr_s dpmi_switch_jmp;
-#endif
-#endif
-
-__attribute__((noreturn))
-static void dpmi_transfer(struct sigcontext *scp)
-{
-  asm volatile (
-#ifdef __x86_64__
-"	mov	%0,%%rsp\n"		/* rsp=scp */
-"	add	$8*8,%%rsp\n"		/* skip r8-r15 */
-"	pop	%%rdi\n"
-"	pop	%%rsi\n"
-"	pop	%%rbp\n"
-"	pop	%%rbx\n"
-"	pop	%%rdx\n"
-"	pop	%%rax\n"
-"	pop	%%rcx\n"
-"	pop	%%rsp\n"		/* => iret_frame */
-"	iretl\n"
-#else
-"	movl	%0,%%esp\n"	/* esp=scp */
-"	pop	%%gs\n"
-"	pop	%%fs\n"
-"	pop	%%es\n"
-"	pop	%%ds\n"
-"	popa\n"
-"	addl	$4*4,%%esp\n"
-"	popfl\n"
-"	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-#if PURE_PIC
-	/* use relative jump, no dynamic reloc needed */
-"	jmp	dpmi_switch_jmp\n"
-"	.section ._pictr,\"awx\"\n"
-"	.globl dpmi_switch_jmp\n"
-"dpmi_switch_jmp:\n"
-"	ljmp $0,$0\n"
-"	.previous\n"
-#else
-	/* use indirect jump, dynamic reloc is built.
-	 * Originally the dpmi_switch_jmp was passed as an asm argument
-	 * with mem ref constraint "m", which with PIC was translated
-	 * into ljmp *%cs:dpmi_switch_jmp(%eax). But if we hardcode it,
-	 * we get an old good dynamic reloc even in PIC mode.
-	 * In fact, it is exceptionally difficult to even get a warning
-	 * about a dynamic reloc's presence. Perhaps with this patch:
-	 * https://sourceware.org/ml/binutils/2015-02/msg00091.html
-	 * and with -Wl,-z -Wl,text it will be possible. */
-"	ljmp	*%%cs:dpmi_switch_jmp\n"
-#endif
-#endif
-    :
-    : "r"(scp)
-  );
-  __builtin_unreachable();
-}
-
-/* --------------------------------------------------------------
- * 00	unsigned short gs, __gsh;	00 -> dpmi_context
- * 01	unsigned short fs, __fsh;	04
- * 02	unsigned short es, __esh;	08
- * 03	unsigned short ds, __dsh;	12
- * 04	unsigned long edi;		16 popa sequence
- * 05	unsigned long esi;		20
- * 06	unsigned long ebp;		24
- * 07	unsigned long esp;		28
- * 08	unsigned long ebx;		32
- * 09	unsigned long edx;		36
- * 10	unsigned long ecx;		40
- * 11	unsigned long eax;		44
- * 12	unsigned long trapno;		48 dirty -- ignored
- * 13	unsigned long err;		52 dirty -- ignored
- * 14	unsigned long eip;		56 written into dpmi_switch_jmp
- * 15	unsigned short cs, __csh;	60 cs written into dpmi_switch_jmp
- * 16	unsigned long eflags;		64
- *
- * 17	unsigned long esp_at_signal;	68 set to esp (for lss)
- * 18	unsigned short ss, __ssh;	72
- * 19	struct _fpstate * fpstate;	76 used by frstor
- * 20	unsigned long oldmask;		80 dirty -- ignored
- * 21	unsigned long cr2;		84 dirty -- ignored
- * --------------------------------------------------------------
- */
-__attribute__((noreturn))
-static void direct_dpmi_switch(struct sigcontext *scp)
-{
-#ifdef __i386__
-  dpmi_switch_jmp.offset = _eip;
-  dpmi_switch_jmp.selector = _cs;
-  scp->esp_at_signal = _esp;
-#else
-  dpmi_restore_segregs(scp);
-  iret_frame_setup(scp);
-#endif
-
-  loadfpstate(*scp->fpstate);
-  dpmi_transfer(scp);
-}
-
-#endif
 
 /* ======================================================================== */
 /*
@@ -4247,15 +4087,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 	    return ret;
 	  }
 	}
-#if DIRECT_DPMI_CONTEXT_SWITCH
-	else {
-	  if (!(_eflags & TF)) {
-	    D_printf("DPMI: retrying via direct switch.\n");
-	    dpmi_return_request();
-	    return ret;
-	  }
-	}
-#endif
 #endif
         error("Stack Fault, ESP corrupted due to a CPU bug.\n"
 	      "For more details on that problem and possible work-arounds,\n"
