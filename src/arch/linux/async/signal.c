@@ -68,7 +68,7 @@ struct sigchld_hndl {
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
-static sigset_t q_mask;
+static sigset_t q_mask, nonfatal_q_mask;
 
 static int sh_tid;
 static int in_handle_signals;
@@ -94,8 +94,8 @@ static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	if (qsighandlers[sig])
 		return;
-	/* first need to collect the mask, then register all handlers
-	 * because the same mask is used for every handler */
+	/* collect this mask so that all async (fatal and non-fatal)
+	 * signals can be blocked by threads */
 	sigaddset(&q_mask, sig);
 	qsighandlers[sig] = fun;
 }
@@ -106,9 +106,8 @@ static void qsig_init(void)
 	int i;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
-	/* initially block all async signals. The handler will unblock some
-	 * when it is safe (after segment registers are restored) */
-	sa.sa_mask = q_mask;
+	/* block all non-fatal async signals */
+	sa.sa_mask = nonfatal_q_mask;
 	for (i = 0; i < NSIG; i++) {
 		if (qsighandlers[i]) {
 			sa.sa_sigaction = qsighandlers[i];
@@ -117,8 +116,13 @@ static void qsig_init(void)
 	}
 }
 
+/* registers non-emergency async signals */
 void registersig(int sig, void (*fun)(struct sigcontext *))
 {
+	/* first need to collect the mask, then register all handlers
+	 * because the same mask of non-emergency async signals
+	 * is used for every handler */
+	sigaddset(&nonfatal_q_mask, sig);
 	newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
 }
@@ -130,7 +134,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
 		sa.sa_flags |= SA_NODEFER;
-	sa.sa_mask = q_mask;
+	sa.sa_mask = nonfatal_q_mask;
 	sa.sa_sigaction = fun;
 	sigaction(sig, &sa, NULL);
 }
@@ -139,7 +143,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 __attribute__((no_instrument_function))
-static void __init_handler(struct sigcontext *scp, int async)
+void init_handler(struct sigcontext *scp, int async)
 {
 #ifdef __x86_64__
   unsigned short __ss;
@@ -210,35 +214,14 @@ static void __init_handler(struct sigcontext *scp, int async)
 #ifdef __x86_64__
   /* kernel has the following rule: non-zero selector means 32bit base
    * in GDT. Zero selector means 64bit base, set via msr.
-   * So if we set selector to 0, need to use also prctl(ARCH_SET_xS). */
-  if (!eflags_fs_gs.fs)
+   * So if we set selector to 0, need to use also prctl(ARCH_SET_xS).
+   * Also, if the bases are not used they are 0 so no need to restore,
+   * which saves a syscall */
+  if (!eflags_fs_gs.fs && eflags_fs_gs.fsbase)
     dosemu_arch_prctl(ARCH_SET_FS, eflags_fs_gs.fsbase);
-  if (!eflags_fs_gs.gs)
+  if (!eflags_fs_gs.gs && eflags_fs_gs.gsbase)
     dosemu_arch_prctl(ARCH_SET_GS, eflags_fs_gs.gsbase);
 #endif
-}
-
-__attribute__((no_instrument_function))
-void init_handler(struct sigcontext *scp, int async)
-{
-  /* Async signals are initially blocked.
-   * We need to restore registers before unblocking async signals.
-   * Otherwise the nested signal handler will restore the registers
-   * and return; the current signal handler will then save the wrong
-   * registers.
-   * Note: in 64bit mode some segment registers are neither saved nor
-   * restored by the signal dispatching code in kernel, so we have
-   * to restore them by hands.
-   * Note: most async signals are left blocked, we unblock only few.
-   * Sync signals like SIGSEGV are never blocked.
-   */
-  sigset_t mask;
-  __init_handler(scp, async);
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGHUP);
-  sigaddset(&mask, SIGTERM);
-  sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 #ifdef __x86_64__
@@ -541,6 +524,7 @@ signal_pre_init(void)
   /* first set up the blocking mask: registersig() and newsetqsig()
    * adds to it */
   sigemptyset(&q_mask);
+  sigemptyset(&nonfatal_q_mask);
   registersig(SIGALRM, sigalrm);
   registersig(SIGQUIT, sigquit);
   registersig(SIGIO, sigio);
@@ -571,6 +555,7 @@ void
 signal_init(void)
 {
   dosemu_tid = gettid();
+  dosemu_pthread_self = pthread_self();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we
@@ -834,6 +819,9 @@ static void sigalrm(struct sigcontext *scp)
 __attribute__((noinline))
 static void sigasync0(int sig, struct sigcontext *scp)
 {
+  /* can't use pthread_self() here since the TLS is always set to dosemu's *
+   * in any case this should not happens since async signals are blocked   *
+   * in other threads							   */
   if (gettid() != dosemu_tid)
     dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])

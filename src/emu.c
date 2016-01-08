@@ -124,6 +124,7 @@ int mem_fd = -1;
 int fatalerr;
 int in_leavedos;
 pid_t dosemu_tid;
+pthread_t dosemu_pthread_self;
 
 void boot(void)
 {

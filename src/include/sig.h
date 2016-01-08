@@ -51,5 +51,6 @@ static inline pid_t gettid(void)
 }
 
 extern pid_t dosemu_tid;
+extern pthread_t dosemu_pthread_self;
 
 #endif
