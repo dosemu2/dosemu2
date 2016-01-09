@@ -222,8 +222,6 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   addr = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (addr == MAP_FAILED)
     return addr;
-  if (cap & MAPPING_INIT_LOWRAM)
-    mem_base = addr;
   update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
   if (config.cpu_vm == CPUVM_KVM)
     mprotect_kvm(addr, mapsize, protect);
@@ -280,7 +278,7 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
     }
     if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__
-    if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU)))
+    if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)))
       flags = MAP_32BIT;
 #endif
     addr = mmap(target, mapsize, protect,
