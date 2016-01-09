@@ -241,18 +241,24 @@ void device_init(void)
  * DANG_BEGIN_FUNCTION mem_reserve
  *
  * description:
- *  reserves memory directly used by DOS
+ *  reserves address space seen by DOS and DPMI apps
+ *   There are three possibilities:
+ *  1) 0-based mapping: one map at 0 of 1088k, the rest below 1G
+ *     This is only used for i386 + vm86() (not KVM/CPUEMU)
+ *  2) non-zero-based mapping: one combined mmap, everything below 4G
+ *  3) config.dpmi_base is set: honour it
  *
  * DANG_END_FUNCTION
  */
 static void *mem_reserve(void)
 {
   void *result = MAP_FAILED;
+  size_t memsize = LOWMEM_SIZE + HMASIZE;
   int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH;
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-    result = mmap_mapping(cap, 0, LOWMEM_SIZE + HMASIZE, PROT_NONE, 0);
+    result = mmap_mapping(cap, 0, memsize, PROT_NONE, 0);
     if (result == MAP_FAILED) {
       const char *msg =
 	".\nYou can most likely avoid this problem by running\n"
@@ -276,14 +282,42 @@ static void *mem_reserve(void)
 	exit(EXIT_FAILURE);
       }
     }
+    else if (config.dpmi && config.dpmi_base == -1) {
+      void *dpmi_base;
+      /* reserve DPMI memory split from low memory */
+      /* some DPMI clients don't like negative memory pointers,
+       * i.e. over 0x80000000. In fact, Screamer game won't work
+       * with anything above 0x40000000 */
+      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, dpmi_mem_size());
+      if (dpmi_base == MAP_FAILED)
+	error("MAPPING: cannot find mem hole for DPMI pool\n");
+	/* try mmap() below regardless of whether find_hole() succeeded or not*/
+      else
+	config.dpmi_base = (uintptr_t)dpmi_base;
+    }
   }
 #endif
 
-  if (result == MAP_FAILED)
-    result = mmap_mapping(cap, (void *)-1, LOWMEM_SIZE + HMASIZE, PROT_NONE, 0);
+  if (result == MAP_FAILED) {
+    if (config.dpmi && config.dpmi_base == -1) { /* contiguous memory */
+      memsize += dpmi_mem_size();
+      cap |= MAPPING_DPMI;
+    }
+    result = mmap_mapping(cap, (void *)-1, memsize, PROT_NONE, 0);
+  }
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
+  }
+  if (cap & MAPPING_DPMI) { /* contiguous memory */
+    config.dpmi_base = (uintptr_t)result + LOWMEM_SIZE + HMASIZE;
+  }
+  else if (config.dpmi) {
+    /* user explicitly specified dpmi_base or hole found above */
+    void *dpmi_base = (void *)config.dpmi_base;
+    dpmi_base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
+			     dpmi_base, dpmi_mem_size(), PROT_NONE, 0);
+    config.dpmi_base = dpmi_base == MAP_FAILED ? -1 : (uintptr_t)dpmi_base;
   }
   return result;
 }
