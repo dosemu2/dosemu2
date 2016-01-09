@@ -133,48 +133,35 @@ static int uncommit(void *ptr, size_t size)
   return 1;
 }
 
+unsigned long dpmi_mem_size(void)
+{
+    return PAGE_ALIGN(config.dpmi << (PAGE_SHIFT-2)) +
+      DPMI_pm_stack_size * DPMI_MAX_CLIENTS +
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
+      PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
+      PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start) +
+      (5 << PAGE_SHIFT); /* 5 extra pages */
+}
+
 int dpmi_alloc_pool(void)
 {
     int num_pages, mpool_numpages;
-    void *dpmi_base;
 
     /* Create DPMI pool */
-    num_pages = (config.dpmi >> 2) +
-      ((DPMI_pm_stack_size * DPMI_MAX_CLIENTS) >> PAGE_SHIFT) +
-      (PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) >> PAGE_SHIFT) +
-      (PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) >> PAGE_SHIFT) +
-      (PAGE_ALIGN(DPMI_sel_data_end-DPMI_sel_data_start) >> PAGE_SHIFT);
-    mpool_numpages = num_pages + 5;  /* 5 extra pages */
-    memsize = mpool_numpages << PAGE_SHIFT;
-
     if (config.dpmi_base == -1) {
-      /* some DPMI clients don't like negative memory pointers,
-       * i.e. over 0x80000000. In fact, Screamer game won't work
-       * with anything above 0x40000000 */
-      dpmi_base = mapping_find_hole((unsigned long)MEM_BASE32(LOWMEM_SIZE),
-	    (unsigned long)MEM_BASE32(0x40000000), memsize);
-      if (dpmi_base == MAP_FAILED)
-        dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, memsize);
-      if (dpmi_base == MAP_FAILED)
-        error("MAPPING: cannot find mem hole for DPMI pool\n");
-      /* try mmap() regardless of whether find_hole() succeeded or not */
-      mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH |
-		MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE, 0);
-    } else {
-      dpmi_base = (void *)config.dpmi_base;
-      mpool_ptr = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH |
-	MAPPING_NOOVERLAP, dpmi_base, memsize, PROT_NONE, 0);
-    }
-    if (mpool_ptr == MAP_FAILED) {
       error("MAPPING: cannot create mem pool for DPMI\n");
       return -1;
     }
+
+    memsize = dpmi_mem_size();
+    mpool_numpages = memsize >> PAGE_SHIFT;
+    num_pages = mpool_numpages - 5;
+    mpool_ptr = (void *)config.dpmi_base;
     c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
     sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
     dpmi_total_memory = num_pages << PAGE_SHIFT;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory);
-    config.dpmi_base = (uintptr_t)mpool_ptr;
     return 0;
 }
 
