@@ -118,6 +118,9 @@ int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
+#if !DIRECT_DPMI_CONTEXT_SWITCH
+static int in_indirect_dpmi_transfer;
+#endif
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
@@ -466,16 +469,14 @@ void dpmi_iret_setup(struct sigcontext *scp)
   _rip = (unsigned long)DPMI_iret;
   _cs = getsegment(cs);
 }
+#endif
 
-#else
-
-static int in_indirect_dpmi_transfer;
-
+#if !DIRECT_DPMI_CONTEXT_SWITCH
 __attribute__((noreturn))
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
-  asm volatile ("\t hlt\n");
+  asm volatile ("\t hlt\n" ::: "memory");
   __builtin_unreachable();
 }
 #endif
