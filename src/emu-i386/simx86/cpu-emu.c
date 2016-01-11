@@ -1255,6 +1255,7 @@ int e_vm86(void)
 	    case EXCP01_SSTP:
 	    case EXCP03_INT3: {	/* to kernel vm86 */
 		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
+		break;
 	      }
 	    default: {
 		struct sigcontext scp;
@@ -1268,6 +1269,7 @@ int e_vm86(void)
 		Scp2CpuR (&scp);
 		in_vm86 = 1;
 		retval = -1;	/* reenter vm86 emu */
+		break;
 	    }
 	}
     }
