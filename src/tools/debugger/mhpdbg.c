@@ -183,7 +183,6 @@ static void mhp_init(void)
        * comes up to send the first input
        */
        mhpdbg.nbytes = -1;
-       mhpdbgc.stopped = 1;
        wait_for_debug_terminal = 1;
        mhp_input();
     }
