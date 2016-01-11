@@ -95,6 +95,7 @@ static int dpmi_tid;
 static struct sigcontext emu_stack_frame;
 static struct _fpstate emu_fpstate;
 static int in_indirect_dpmi_transfer;
+static int in_dpmi_thr;
 static int in_dpmic_thr;
 
 #define CLI_BLACKLIST_LEN 128
@@ -2825,7 +2826,9 @@ static void run_dpmi(void)
 
 static void dpmi_thr(void *arg)
 {
+    in_dpmi_thr++;
     indirect_dpmi_transfer();
+    in_dpmi_thr--;
 }
 
 void dpmi_setup(void)
@@ -4652,7 +4655,8 @@ int dpmi_active(void)
 void dpmi_done(void)
 {
   D_printf("DPMI: finalizing\n");
+  if (in_dpmi_thr)
+    coopth_cancel(dpmi_tid);
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
-  coopth_cancel(dpmi_tid);
 }
