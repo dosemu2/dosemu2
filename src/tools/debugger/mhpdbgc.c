@@ -51,6 +51,7 @@
 #include "cpu.h"
 #include "timers.h"
 #include "dpmi.h"
+#include "int.h"
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "hma.h"
@@ -576,6 +577,15 @@ static void mhp_trace(int argc, char * argv[])
       }
 
       mhpdbgc.trapip = mhp_getcsip_value();
+
+      if (in_dpmi_dos_int) {
+	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
+	if (csp[0] == 0xcd) {
+	    LWORD(eip) += 2;
+	    do_int(csp[1]);
+	    set_TF();
+	}
+      }
    }
 }
 
