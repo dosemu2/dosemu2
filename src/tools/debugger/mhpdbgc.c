@@ -584,6 +584,8 @@ static void mhp_trace(int argc, char * argv[])
 	    LWORD(eip) += 2;
 	    do_int(csp[1]);
 	    set_TF();
+	    mhpdbgc.stopped = 1;
+	    mhp_cmd("r0");
 	}
       }
    }
