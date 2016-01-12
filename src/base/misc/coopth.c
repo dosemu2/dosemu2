@@ -326,7 +326,8 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     case COOPTHS_RUNNING: {
 	int jr, lr;
 	enum CoopthRet tret;
-	/* We have 2 kinds of recursion:
+
+	/* We have 2 kinds of recursion for joinable threads:
 	 *
 	 * 1. (call it recursive thread invocation)
 	 *	main_thread -> coopth_start(thread1_func) -> return
@@ -354,13 +355,18 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	 * Since do_int_call_back() was converted
 	 * to coopth API, the nesting is avoided.
 	 * If not true, we print an error.
+	 *
+	 * Also do not allow any recursion at all into detached threads
+	 * or the mix of joinable+detached, but the left threads are allowed
+	 * to do any mayhem.
 	 */
-	if (joinable_running) {
+	if (thread_running > left_running) {
 	    static int warned;
 	    if (!warned) {
 		warned = 1;
 		dosemu_error("Nested thread invocation detected, please fix! "
-			"(at=%i)\n", pth->data.attached);
+			"(at=%i jr=%i)\n", pth->data.attached,
+			joinable_running);
 	    }
 	}
 	jr = joinable_running;
