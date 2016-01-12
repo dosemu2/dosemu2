@@ -498,8 +498,8 @@ again:
     case VM86_INTx:
 #ifdef USE_MHPDBG
 	dret = mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 1, 0);
-#endif
 	if (!dret)
+#endif
 	    do_int(VM86_ARG(retval));
 	break;
 #ifdef USE_MHPDBG
