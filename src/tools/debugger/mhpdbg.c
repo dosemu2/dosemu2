@@ -435,7 +435,14 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	    else {
 	      if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload ) {
 	        mhpdbgc.stopped = 1;
+	        if (parm1)
+	          LWORD(eip) -= 2;
+	        mhpdbgc.int_handled = 0;
 	        mhp_poll();
+	        if (mhpdbgc.int_handled)
+	          rtncd = 1;
+	        else if (parm1)
+	          LWORD(eip) += 2;
 	      }
 	    }
 	  }

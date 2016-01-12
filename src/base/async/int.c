@@ -1933,8 +1933,12 @@ static void do_int_from_thr(void *arg)
     run_caller_func(i, NO_REVECT);
     if (debug_level('#') > 2)
 	debug_int("RET", i);
+/* for now dosdebug uses int_revect feature, so this should be disabled
+ * or it will display the same entry twice */
+#if 0
 #ifdef USE_MHPDBG
     mhp_debug(DBG_INTx + (i << 8), 0, 0);
+#endif
 #endif
 }
 
