@@ -445,7 +445,7 @@ static int do_vm86(struct vm86_struct *x)
 
 static void _do_vm86(void)
 {
-    int retval, vtype;
+    int retval, vtype, dret;
 
     if (isset_IF() && isset_VIP()) {
 	error("both IF and VIP set\n");
@@ -496,10 +496,11 @@ again:
 	I_printf("Return from vm86() for STI\n");
 	break;
     case VM86_INTx:
-	do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
-	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+	dret = mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 1, 0);
 #endif
+	if (!dret)
+	    do_int(VM86_ARG(retval));
 	break;
 #ifdef USE_MHPDBG
     case VM86_TRAP:
