@@ -39,7 +39,6 @@
 static int vga_init(void);
 static int vga_post_init(void);
 static struct video_system *Video_console;
-int video_initialized;
 
 /* Here are the REGS values for valid dos int10 call */
 
@@ -725,7 +724,6 @@ static int vga_post_init(void)
   dosemu_vga_screenon();
   config.vga = 1;
   set_vc_screen_page();
-  video_initialized = 1;
   return 0;
 }
 

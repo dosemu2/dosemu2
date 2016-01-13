@@ -36,6 +36,7 @@ struct video_system *Video = NULL;
 #define MAX_VID_CLIENTS 16
 static struct video_system *vid_clients[MAX_VID_CLIENTS];
 static int num_vid_clients;
+int video_initialized;
 
 /* I put Video_none here because I don't want to make a special file for such
  * a simple task -- Goga
