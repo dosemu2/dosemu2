@@ -315,6 +315,12 @@ int dos_helper(void)
     _AL = config.vbios_post;
     break;
 
+  case DOS_HELPER_VIDEO_INIT_DONE:
+    v_printf("Finished with Video initialization\n");
+    config.emuretrace <<= 1;
+    emu_video_retrace_on();
+    break;
+
   case DOS_HELPER_GET_DEBUG_STRING:
     /* TRB - handle dynamic debug flags in dos_helper() */
     LWORD(eax) = GetDebugFlagsHelper(MK_FP32(_regs.es, _regs.edi & 0xffff), 1);
