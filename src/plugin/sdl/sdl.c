@@ -96,7 +96,6 @@ static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
 static int m_x_res, m_y_res;
-static int initialized;
 static int use_bitmap_font;
 #define UPDATE_BY_RECTS 0
 static struct {
@@ -303,8 +302,6 @@ int SDL_init(void)
 
 void SDL_close(void)
 {
-  if (!initialized)
-    return;
   remapper_done();
   vga_emu_done();
 #ifdef X_SUPPORT
@@ -417,8 +414,6 @@ int SDL_set_videomode(struct vid_mode_params vmp)
     pthread_mutex_unlock(&mode_mtx);
   }
 
-  initialized = 1;
-
   return 1;
 }
 
@@ -477,7 +472,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
 int SDL_update_screen(void)
 {
-  if (init_failed || !initialized)
+  if (init_failed)
     return 1;
   if (render_is_updating())
     return 0;
@@ -667,8 +662,7 @@ static void SDL_handle_selection(XEvent * e)
 static void SDL_handle_events(void)
 {
   SDL_Event event;
-  if (!initialized)
-    return;
+
   if (render_is_updating())
     return;
   while (SDL_PollEvent(&event)) {
