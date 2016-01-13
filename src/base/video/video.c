@@ -251,6 +251,8 @@ static int video_init(void)
 }
 
 void video_close(void) {
+  if (!video_initialized)
+    return;
   v_printf("VID: video_close() called\n");
   if (Video && Video->close) {
     Video->close();
