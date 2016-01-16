@@ -888,7 +888,7 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
   }
   eventfd_write(event_fd, 1);
   /* unfortunately eventfd does not support SIGIO :( So we kill ourself. */
-  kill(0, SIGIO);
+  pthread_kill(dosemu_pthread_self, SIGIO);
 }
 
 static void async_awake(void *arg)
