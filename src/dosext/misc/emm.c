@@ -2111,6 +2111,7 @@ static void ems_reset2(void)
   emm_allocated = config.ems_cnv_pages;
   for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
     emm_map[sh_base].handle = NULL_HANDLE;
+    emm_map[sh_base].logical_page = NULL_PAGE;
   }
 
   for (sh_base = 0; sh_base < MAX_HANDLES; sh_base++) {
