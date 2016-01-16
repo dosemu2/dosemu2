@@ -235,7 +235,7 @@ mouse_helper(struct vm86_regs *regs)
          the stack contains: mode, saved ax, saved bx */
       int video_mode = -1;
       unsigned int ssp = SEGOFF2LINEAR(regs->ss, 0);
-      unsigned int sp = WORD(regs->esp + 2);
+      unsigned int sp = WORD(regs->esp + 2 + 6);
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
