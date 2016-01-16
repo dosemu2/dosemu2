@@ -598,6 +598,7 @@ SEG_TO_PHYS(int segaddr)
 	EMM_PAGE_SIZE/16)
       return i;
   }
+  E_printf("SEG_TO_PHYS: ERROR: segment %x not mappable\n", segaddr);
   return -1;
 }
 
