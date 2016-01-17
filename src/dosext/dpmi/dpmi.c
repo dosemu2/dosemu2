@@ -121,6 +121,7 @@ static int dpmi_ctid;
 #if !DIRECT_DPMI_CONTEXT_SWITCH
 static int in_indirect_dpmi_transfer;
 #endif
+static int in_dpmic_thr;
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
@@ -3075,6 +3076,7 @@ static void run_pm_dos_int(int i)
 
 static void run_dpmi_thr(void *arg)
 {
+  in_dpmic_thr++;
   while (1) {
     int retcode = (
 #ifdef X86_EMULATOR
@@ -3093,6 +3095,7 @@ static void run_dpmi_thr(void *arg)
     if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
       break;
   }
+  in_dpmic_thr--;
 }
 
 static void run_dpmi(void)
@@ -4921,4 +4924,11 @@ int in_dpmi_pm(void)
 int dpmi_active(void)
 {
   return in_dpmi;
+}
+
+void dpmi_done(void)
+{
+  D_printf("DPMI: finalizing\n");
+  if (in_dpmic_thr)
+    coopth_cancel(dpmi_ctid);
 }
