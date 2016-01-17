@@ -434,6 +434,7 @@ void __leavedos(int sig, const char *s, int num)
     /* abandon current thread if any */
     coopth_leave();
     /* close coopthreads-related stuff first */
+    dpmi_done();
     dos2tty_done();
     /* try to clean up threads */
     tmp = coopth_flush(vm86_helper);
