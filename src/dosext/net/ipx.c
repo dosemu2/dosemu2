@@ -472,7 +472,7 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
 
 static void ipx_esr_call_irq(far_t ECBPtr, u_char AXVal)
 {
-  if(in_dpmi && !in_dpmi_dos_int)
+  if(in_dpmi_pm())
     fake_pm_int();
   fake_int_to(BIOSSEG, EOI_OFF);
   ipx_esr_call(ECBPtr, AXVal);

@@ -1022,7 +1022,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 
   vga_deb2_map(
     "vga_emu_fault: in_dpmi %d, err 0x%x, scp->cs:eip %04x:%04x, vm86s->cs:eip %04x:%04x\n",
-    in_dpmi, (unsigned) scp->err, (unsigned) _cs, (unsigned) _eip,
+    dpmi_active(), (unsigned) scp->err, (unsigned) _cs, (unsigned) _eip,
     (unsigned) REG(cs), (unsigned) REG(eip)
   );
 

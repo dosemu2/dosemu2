@@ -357,10 +357,7 @@ int main(int argc, char **argv)
       leavedos(0);
     }
 
-    ems_init();			/* initialize ems */
-    xms_init();			/* initialize xms */
     dpmi_setup();
-
     g_printf("EMULATE\n");
 
     fflush(stdout);
@@ -396,10 +393,6 @@ void
 dos_ctrl_alt_del(void)
 {
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
-    while (in_dpmi) {
-	in_dpmi_dos_int = 1;
-	dpmi_cleanup();
-    }
     cpu_reset();
 }
 
@@ -442,6 +435,7 @@ void __leavedos(int sig, const char *s, int num)
     /* abandon current thread if any */
     coopth_leave();
     /* close coopthreads-related stuff first */
+    dpmi_done();
     dos2tty_done();
     /* try to clean up threads */
     tmp = coopth_flush(vm86_helper);
