@@ -631,7 +631,7 @@ static void pkt_receiver_callback(void)
     if (p_helper_size == 0)
       return;
 
-    if(in_dpmi && !in_dpmi_dos_int)
+    if(in_dpmi_pm())
 	fake_pm_int();
     fake_int_to(BIOSSEG, EOI_OFF);
     coopth_start(PKTRcvCall_TID, pkt_receiver_callback_thr, NULL);

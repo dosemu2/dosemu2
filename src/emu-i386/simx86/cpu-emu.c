@@ -648,7 +648,7 @@ static void Scp2CpuR (struct sigcontext *scp)
   Scp2Cpu(scp);
   TheCPU.err = 0;
 
-  if (in_dpmi) {	// vm86 during dpmi active
+  if (dpmi_active()) {	// vm86 during dpmi active
 	e_printf("** Scp2Cpu VM in_dpmi\n");
   }
   TheCPU.eflags = (_eflags&(eTSSMASK|0x10ed5)) | 0x20002;
@@ -663,6 +663,7 @@ static void Scp2CpuR (struct sigcontext *scp)
  */
 static void Cpu2Scp (struct sigcontext *scp, int trapno)
 {
+  unsigned long mask;
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 
@@ -706,18 +707,11 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   */
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 
-  if (in_dpmi) {
-    /* push running flags - same as eflags, RF is cosmetic */
-    _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
-  }
-  else {
-    unsigned long mask;
-    /* rebuild running flags */
-    mask = VIF | eTSSMASK;
-    REG(eflags) = (REG(eflags) & VIP) |
+  /* rebuild running flags */
+  mask = VIF | eTSSMASK;
+  REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-    _eflags = REG(eflags) & ~VM;
-  }
+  _eflags = REG(eflags) & ~VM;
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }

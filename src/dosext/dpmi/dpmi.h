@@ -23,9 +23,6 @@
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
-#define current_client ({ assert(in_dpmi); in_dpmi-1; })
-#define DPMI_CLIENT (DPMIclient[current_client])
-#define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
 #ifdef __linux__
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
@@ -139,8 +136,6 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
-extern int in_dpmi;/* Set to 1 when running under DPMI */
-extern int in_dpmi_dos_int;
 extern int dpmi_mhp_TF;
 extern unsigned char dpmi_mhp_intxxtab[256];
 extern int is_cli;
@@ -165,6 +160,8 @@ int dpmi_fault(struct sigcontext *);
 void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
 void fake_pm_int(void);
+int in_dpmi_pm(void);
+int dpmi_active(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);
@@ -202,7 +199,6 @@ int dpmi_is_valid_range(dosaddr_t addr, int len);
 
 extern char *DPMI_show_state(struct sigcontext *scp);
 extern void dpmi_sigio(struct sigcontext *scp);
-extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
 extern int SetSegmentBaseAddress(unsigned short selector,
@@ -228,6 +224,7 @@ extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
 
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
+extern void dpmi_done(void);
 extern void dpmi_cleanup(void);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);

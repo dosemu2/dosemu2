@@ -57,6 +57,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
+#include "coopth.h"
 #if 0
 #define SHOWREGS
 #endif
@@ -105,14 +106,22 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 #define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
+#define current_client ({ assert(in_dpmi); in_dpmi-1; })
+#define DPMI_CLIENT (DPMIclient[current_client])
+#define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
 SEGDESC Segments[MAX_SELECTORS];
-int in_dpmi;/* Set to 1 when running under DPMI */
-int in_dpmi_dos_int = 1;
+static int in_dpmi;/* Set to 1 when running under DPMI */
+static int dpmi_pm;
 static int in_dpmi_irq;
 int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
+static int dpmi_ctid;
+#if !DIRECT_DPMI_CONTEXT_SWITCH
+static int in_indirect_dpmi_transfer;
+#endif
+static int in_dpmic_thr;
 
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
@@ -177,6 +186,7 @@ static int dpmi_not_supported;
 
 static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para, int dos_exit);
+static void run_dpmi(void);
 
 #ifdef __linux__
 #define modify_ldt dosemu_modify_ldt
@@ -377,6 +387,18 @@ static void print_ldt(void)
   _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
+static void dpmi_set_pm(int pm)
+{
+  if (pm == dpmi_pm) {
+    if (!pm)
+      dosemu_error("DPMI: switch from real to real mode?\n");
+    return;
+  }
+  dpmi_pm = pm;
+  if (pm)
+    run_dpmi();
+}
+
 int dpmi_is_valid_range(dosaddr_t addr, int len)
 {
   dpmi_pm_block *blk = lookup_pm_block_by_addr(DPMI_CLIENT.pm_block_root, addr);
@@ -451,13 +473,11 @@ void dpmi_iret_setup(struct sigcontext *scp)
 #endif
 
 #if defined(__i386__) || !DIRECT_DPMI_CONTEXT_SWITCH
-static int in_indirect_dpmi_transfer;
-
 __attribute__((noreturn))
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
-  asm volatile ("\t hlt\n");
+  asm volatile ("\t hlt\n" ::: "memory");
   __builtin_unreachable();
 }
 #endif
@@ -609,7 +629,7 @@ static int dpmi_control(void)
  *	 and esp/rsp. For the most part GCC can worry about clobbered registers
  *       (Bart Oldeman, October 2006)
  *
- * dpmi_control is called only from dpmi_run when in_dpmi_dos_int==0
+ * dpmi_control is called only from dpmi_run when dpmi_pm==1
  *
  * DANG_END_REMARK
  */
@@ -1536,12 +1556,12 @@ static void restore_pm_regs(struct sigcontext *scp)
 
 static void __fake_pm_int(struct sigcontext *scp)
 {
-  D_printf("DPMI: fake_pm_int() called, in_dpmi_dos_int=0x%02x\n",in_dpmi_dos_int);
+  D_printf("DPMI: fake_pm_int() called, dpmi_pm=0x%02x\n", in_dpmi_pm());
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-  in_dpmi_dos_int = 1;
+  dpmi_set_pm(0);
 }
 
 void fake_pm_int(void)
@@ -2097,14 +2117,14 @@ static void do_int31(struct sigcontext *scp)
 
 	REG(cs) = DPMI_SEG;
 	REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_memory);
-	in_dpmi_dos_int = 1;
+	dpmi_set_pm(0);
 	return do_int(0x21); /* call dos for memory service */
 
 err:
         D_printf("DPMI: DOS memory service failed\n");
 	_eflags |= CF;
 	restore_rm_regs();
-	in_dpmi_dos_int = 0;
+	dpmi_set_pm(1);
     }
     break;
   case 0x0200:	/* Get Real Mode Interrupt Vector */
@@ -2161,7 +2181,7 @@ err:
       for (i=0;i<(_LWORD(ecx)); i++)
 	pushw(rm_ssp, rm_sp, *(ssp+(_LWORD(ecx)) - 1 - i));
       LWORD(esp) -= 2 * (_LWORD(ecx));
-      in_dpmi_dos_int=1;
+      dpmi_set_pm(0);
       REG(cs) = DPMI_SEG;
       LWORD(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_realmode);
       switch (_LWORD(eax)) {
@@ -2630,7 +2650,7 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     _edi = DPMIclient[rmcb_client].realModeCallBack[num].rmreg_offset;
 
     clear_IF();
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
 }
 
 static void rmcb_hlt(Bit16u off, void *arg)
@@ -2672,13 +2692,13 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
   sp = enter_lpms(scp);
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    *--ssp = in_dpmi_dos_int;
+    *--ssp = in_dpmi_pm();
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
     _esp -= 12;
   } else {
     unsigned short *ssp = sp;
-    *--ssp = in_dpmi_dos_int;
+    *--ssp = in_dpmi_pm();
     *--ssp = dpmi_sel();
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_RSPcall);
     _LWORD(esp) -= 6;
@@ -2691,14 +2711,14 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
   _eax = terminating;
   _ebx = in_dpmi;
 
-  in_dpmi_dos_int = 0;
+  dpmi_set_pm(1);
 }
 
 void dpmi_cleanup(void)
 {
   D_printf("DPMI: cleanup\n");
-  if (!in_dpmi_dos_int)
-    dosemu_error("Quitting DPMI while !in_dpmi_dos_int\n");
+  if (in_dpmi_pm())
+    dosemu_error("Quitting DPMI while in_dpmi_pm\n");
   msdos_done();
   FreeAllDescriptors();
   DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
@@ -2730,7 +2750,7 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
   DPMI_CLIENT.RSP_installed = have_tsr;
 
   /* do this all before doing RSP call */
-  in_dpmi_dos_int = 1;
+  dpmi_set_pm(0);
   if (DPMI_CLIENT.in_dpmi_pm_stack) {
       error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
         DPMI_CLIENT.in_dpmi_pm_stack);
@@ -2749,7 +2769,7 @@ static void quit_dpmi(struct sigcontext *scp, unsigned short errcode,
     RSP_callbacks[RSP_num].pm_block_root = DPMI_CLIENT.pm_block_root;
     RSP_num++;
   }
-  if (in_dpmi_dos_int)
+  if (!in_dpmi_pm())
     dpmi_cleanup();
 
   if (dos_exit) {
@@ -2878,7 +2898,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
     chain_rm_int(scp, i);
   }
 
-  in_dpmi_dos_int = 1;
+  dpmi_set_pm(0);
   D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
 }
 
@@ -2901,13 +2921,13 @@ void run_pm_int(int i)
   unsigned char imr, isr;
   struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
-  D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
+  D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
   if (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel()) {
 
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
 
-    if (!in_dpmi_dos_int)
+    if (in_dpmi_pm())
       fake_pm_int();
     real_run_int(i);
     return;
@@ -2923,7 +2943,7 @@ void run_pm_int(int i)
     unsigned int *ssp = sp;
     *--ssp = imr;
     *--ssp = 0;	/* reserved */
-    *--ssp = in_dpmi_dos_int;
+    *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = old_esp;
     *--ssp = _cs;
@@ -2937,7 +2957,7 @@ void run_pm_int(int i)
     *--ssp = imr;
     /* store the high word of ESP, because CPU corrupts it */
     *--ssp = HI_WORD(old_esp);
-    *--ssp = in_dpmi_dos_int;
+    *--ssp = in_dpmi_pm();
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
     *--ssp = _cs;
@@ -2950,7 +2970,7 @@ void run_pm_int(int i)
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   _eflags &= ~(TF | NT | AC);
-  in_dpmi_dos_int = 0;
+  dpmi_set_pm(1);
   clear_IF();
   in_dpmi_irq++;
 
@@ -3049,15 +3069,17 @@ static void run_pm_dos_int(int i)
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   _eflags &= ~(TF | NT | AC);
-  in_dpmi_dos_int = 0;
+  dpmi_set_pm(1);
   clear_IF();
 #ifdef USE_MHPDBG
   mhp_debug(DBG_INTx + (i << 8), 0, 0);
 #endif
 }
 
-void run_dpmi(void)
+static void run_dpmi_thr(void *arg)
 {
+  in_dpmic_thr++;
+  while (1) {
     int retcode = (
 #ifdef X86_EMULATOR
 	config.cpuemu>3?
@@ -3070,6 +3092,17 @@ void run_dpmi(void)
       else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
     }
 #endif
+    if (in_dpmi_pm())
+      coopth_yield();
+    if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
+      break;
+  }
+  in_dpmic_thr--;
+}
+
+static void run_dpmi(void)
+{
+    coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
 }
 
 void dpmi_setup(void)
@@ -3190,6 +3223,9 @@ void dpmi_setup(void)
       memcpy(lbuf, ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
       msdos_ldt_setup(lbuf, alias);
     }
+
+    dpmi_ctid = coopth_create("dpmi_control");
+    coopth_set_detached(dpmi_ctid);
     return;
 
 err:
@@ -3200,6 +3236,10 @@ err2:
 
 void dpmi_reset(void)
 {
+    while (in_dpmi) {
+	dpmi_set_pm(0);
+	dpmi_cleanup();
+    }
     if (config.pm_dos_api)
       msdos_reset(EMM_SEGMENT);
 }
@@ -3341,7 +3381,7 @@ void dpmi_init(void)
 	    dpmi_sel(), CS, DS, SS, ES);
   }
 
-  in_dpmi_dos_int = 0;
+  dpmi_set_pm(1);
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   scp   = &DPMI_CLIENT.stack_frame;
@@ -3394,7 +3434,7 @@ void dpmi_init(void)
 
 err:
   error("DPMI initialization failed!\n");
-  in_dpmi_dos_int = 1;
+  dpmi_set_pm(0);
   CARRY;
   FreeAllDescriptors();
   DPMI_free(host_pm_block_root, DPMI_CLIENT.pm_stack->handle);
@@ -3869,7 +3909,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  REG(fs) = REG(gs) = 0;
 	  /* zero out also the "undefined" registers? */
 	  REG(eax) = REG(ebx) = REG(ecx) = REG(edx) = REG(esi) = REG(edi) = 0;
-	  in_dpmi_dos_int = 1;
+	  dpmi_set_pm(0);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_save_restore_pm)) {
 	  if (_LO(ax)==0) {
@@ -3896,7 +3936,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	    _cs = *ssp++;
 	    _esp = *ssp++;
 	    _ss = *ssp++;
-	    in_dpmi_dos_int = *ssp++;
+	    dpmi_set_pm(*ssp++);
 	    ssp++;
 	    imr = *ssp++;
 	  } else {
@@ -3905,7 +3945,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	    _cs = *ssp++;
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
-	    in_dpmi_dos_int = *ssp++;
+	    dpmi_set_pm(*ssp++);
 	    _HWORD(esp) = *ssp++;
 	    imr = *ssp++;
 	  }
@@ -3942,7 +3982,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 
 	  DPMI_restore_rm_regs(SEL_ADR_X(_es, _edi), ~0);
 	  restore_pm_regs(scp);
-	  in_dpmi_dos_int = 1;
+	  dpmi_set_pm(0);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_1c)) {
 	  leave_lpms(scp);
@@ -3951,7 +3991,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
-	  in_dpmi_dos_int = 1;
+	  dpmi_set_pm(0);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_int_23)) {
 	  struct sigcontext old_ctx, *curscp;
@@ -3964,7 +4004,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(&old_ctx);
-	  in_dpmi_dos_int = 1;
+	  dpmi_set_pm(0);
 	  curscp = scp;
 	  scp = &old_ctx;
 	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(_esp) : D_16_32(DPMI_pm_stack_size);
@@ -4001,21 +4041,21 @@ static int dpmi_fault1(struct sigcontext *scp)
 
 	  pm_to_rm_regs(scp, ~(1 << ebp_INDEX));
 	  restore_pm_regs(scp);
-	  in_dpmi_dos_int = 1;
+	  dpmi_set_pm(0);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
 	  leave_lpms(scp);
 	  if (DPMI_CLIENT.is_32) {
 	    unsigned int *ssp = sp;
-	    in_dpmi_dos_int = *ssp++;
+	    dpmi_set_pm(*ssp++);
 	  } else {
 	    unsigned short *ssp = sp;
-	    in_dpmi_dos_int = *ssp++;
+	    dpmi_set_pm(*ssp++);
 	  }
-	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, in_dpmi_dos_int=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_dos_int);
+	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
 	  restore_pm_regs(scp);
-	  if (in_dpmi_dos_int) {
+	  if (!in_dpmi_pm()) {
 	    /* app terminated */
 	    dpmi_cleanup();
 	  }
@@ -4086,7 +4126,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	    break;
 	  }
 	  DPMI_restore_rm_regs(&rmreg, ~0);
-	  in_dpmi_dos_int = 1;
+	  dpmi_set_pm(0);
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(MSDOS_pmc_start)) &&
 		(_eip<1+DPMI_SEL_OFF(MSDOS_pmc_end))) {
@@ -4372,7 +4412,7 @@ static int dpmi_fault1(struct sigcontext *scp)
   uncache_time();
   hardware_run();
 
-  if (in_dpmi_dos_int || (isset_IF() && pic_pending()) || return_requested) {
+  if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
     return_requested = 0;
     if (debug_level('M') >= 8)
       D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
@@ -4448,7 +4488,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 #endif
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
 
   } else if ((lina>=DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)) &&
 	     (lina < DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256) ) {
@@ -4473,13 +4513,13 @@ void dpmi_realmode_hlt(unsigned int lina)
       break;
     }
     restore_rm_regs();
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_rmint)) {
     D_printf("DPMI: Return from RM Interrupt\n");
     rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
     restore_rm_regs();
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_realmode)) {
 
@@ -4489,7 +4529,7 @@ void dpmi_realmode_hlt(unsigned int lina)
 #endif
     DPMI_save_rm_regs(SEL_ADR_X(_es, _edi));
     restore_rm_regs();
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory)) {
     unsigned long length, base;
@@ -4499,7 +4539,7 @@ void dpmi_realmode_hlt(unsigned int lina)
     D_printf("DPMI: Return from DOS memory service, CARRY=%d, AX=0x%04X, BX=0x%04x, DX=0x%04x\n",
 	     LWORD(eflags) & CF, LWORD(eax), LWORD(ebx), LWORD(edx));
 
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
 
     begin_selector = LO_WORD(_edx);
 
@@ -4562,7 +4602,7 @@ done:
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
     if (DPMI_CLIENT.is_32) {
       _eip = REG(edi);
       _esp = REG(ebx);
@@ -4653,7 +4693,7 @@ done:
 //    msdos_post_pm(&DPMI_CLIENT.stack_frame, &rmreg);
     rm_to_pm_regs(scp, ~0);
     restore_rm_regs();
-    in_dpmi_dos_int = 0;
+    dpmi_set_pm(1);
 
   } else {
     D_printf("DPMI: unhandled HLT: lina=%#x\n", lina);
@@ -4665,7 +4705,7 @@ done:
 int dpmi_mhp_regs(void)
 {
   struct sigcontext *scp;
-  if (!in_dpmi || in_dpmi_dos_int) return 0;
+  if (!in_dpmi || !in_dpmi_pm()) return 0;
   scp=&DPMI_CLIENT.stack_frame;
   mhp_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx eflags: %08lx",
      _eax, _ebx, _ecx, _edx, _eflags);
@@ -4728,7 +4768,7 @@ enum {
 unsigned long dpmi_mhp_getreg(int regnum)
 {
   struct sigcontext *scp;
-  if (!in_dpmi || in_dpmi_dos_int) return 0;
+  if (!in_dpmi || !in_dpmi_pm()) return 0;
   scp=&DPMI_CLIENT.stack_frame;
   switch (regnum) {
     case _SSr: return _ss;
@@ -4763,7 +4803,7 @@ unsigned long dpmi_mhp_getreg(int regnum)
 void dpmi_mhp_setreg(int regnum, unsigned long val)
 {
   struct sigcontext *scp;
-  if (!in_dpmi || in_dpmi_dos_int) return;
+  if (!in_dpmi || !in_dpmi_pm()) return;
   scp=&DPMI_CLIENT.stack_frame;
   switch (regnum) {
     case _SSr: _ss = val; break;
@@ -4876,4 +4916,21 @@ int dpmi_check_return(struct sigcontext *scp)
     return -1;
   }
   return 0;
+}
+
+int in_dpmi_pm(void)
+{
+  return dpmi_pm;
+}
+
+int dpmi_active(void)
+{
+  return in_dpmi;
+}
+
+void dpmi_done(void)
+{
+  D_printf("DPMI: finalizing\n");
+  if (in_dpmic_thr)
+    coopth_cancel(dpmi_ctid);
 }
