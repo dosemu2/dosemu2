@@ -356,10 +356,7 @@ int main(int argc, char **argv)
       leavedos(0);
     }
 
-    ems_init();			/* initialize ems */
-    xms_init();			/* initialize xms */
     dpmi_setup();
-
     g_printf("EMULATE\n");
 
     fflush(stdout);
