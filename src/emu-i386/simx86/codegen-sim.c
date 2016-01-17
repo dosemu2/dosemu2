@@ -2125,7 +2125,7 @@ void Gen_sim(int op, int mode, ...)
 		GTRACE0("O_PUSHF");
 		FlagSync_All();
 		ftmp = CPULONG(Ofs_EFLAGS);
-/*?*/		if (in_dpmi) ftmp = (ftmp & ~0x200) | (get_vFLAGS(TheCPU.eflags) & 0x200);
+/*?*///		if (in_dpmi) ftmp = (ftmp & ~0x200) | (get_vFLAGS(TheCPU.eflags) & 0x200);
 		AR2.d = CPULONG(Ofs_XSS);
 		SR1.d = CPULONG(Ofs_ESP);
 		if (mode & DATA16) {

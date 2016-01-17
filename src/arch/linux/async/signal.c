@@ -343,7 +343,7 @@ static void _leavedos_signal(int sig, struct sigcontext *scp)
     _exit(sig);
   }
   leavedos_sig(sig);
-  if (in_dpmi && !in_vm86)
+  if (!in_vm86)
     dpmi_sigio(scp);
   dpmi_iret_setup(scp);
 }
@@ -774,7 +774,7 @@ void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len,
     memcpy(signal_queue[SIGNAL_tail].arg, arg, len);
   signal_queue[SIGNAL_tail].name = name;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-  if (in_dpmi)
+  if (in_dpmi_pm())
     dpmi_return_request();
 }
 
@@ -805,7 +805,7 @@ static void sigio(struct sigcontext *scp)
 #endif
   e_gen_sigalrm(scp);
   SIGNAL_save(SIGIO_call, NULL, 0, __func__);
-  if (in_dpmi && !in_vm86)
+  if (!in_vm86)
     dpmi_sigio(scp);
 }
 
@@ -813,7 +813,7 @@ static void sigalrm(struct sigcontext *scp)
 {
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
-    if (in_dpmi && !in_vm86)
+    if (!in_vm86)
       dpmi_sigio(scp);
   }
 }

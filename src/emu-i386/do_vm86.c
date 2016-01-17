@@ -558,7 +558,7 @@ static void run_vm86(void)
 	    g_printf("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	}
-	if (in_dpmi && !in_dpmi_dos_int)
+	if (in_dpmi_pm())
 	    return;
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
 	if (coopth_wants_sleep())
@@ -591,7 +591,7 @@ static void run_vm86(void)
 /* same as run_vm86(), but avoids any looping in handling GPFs */
 void vm86_helper(void)
 {
-  assert(in_dpmi_dos_int);
+  assert(!in_dpmi_pm());
   _do_vm86();
   handle_signals();
   coopth_run();
@@ -608,9 +608,7 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    if (in_dpmi && !in_dpmi_dos_int)
-	run_dpmi();
-    else
+    if (!in_dpmi_pm())
 	run_vm86();
     do_periodic_stuff();
     hardware_run();

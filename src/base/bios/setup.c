@@ -206,8 +206,6 @@ static void bios_reset(void)
 {
   dos_post_boot_reset();
   iodev_reset();		/* reset all i/o devices          */
-  ems_reset();
-  xms_reset();
   dpmi_reset();
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
