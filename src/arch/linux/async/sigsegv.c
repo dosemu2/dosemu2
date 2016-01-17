@@ -112,7 +112,6 @@ int signal, struct sigcontext *scp
     /* At first let's find out where we came from */
     if (!DPMIValidSelector(_cs)) {
       /* Fault in dosemu code */
-#ifdef __i386__
       /* Now see if it is HLT */
       if (indirect_dpmi_switch(scp)) {
 	/* Well, must come from dpmi_control() */
@@ -122,15 +121,13 @@ int signal, struct sigcontext *scp
          */
 	return 0;
       }
-#endif
-      { /* No, not HLT, too bad :( */
-	error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
-        /* TODO - we can start gdb here */
-        /* start_gdb() */
+      /* No, not HLT, too bad :( */
+      error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
+      /* TODO - we can start gdb here */
+      /* start_gdb() */
 
-	/* Going to die from here */
-	goto bad;	/* well, this goto is unnecessary but I like gotos:) */
-      }
+      /* Going to die from here */
+      goto bad;	/* well, this goto is unnecessary but I like gotos:) */
     } /*!DPMIValidSelector(_cs)*/
     else {
       /* Not in dosemu code: dpmi_fault() will handle that */

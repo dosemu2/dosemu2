@@ -13,7 +13,7 @@
  *
  */
 
-#define DIRECT_DPMI_CONTEXT_SWITCH 1
+#define DIRECT_DPMI_CONTEXT_SWITCH 0
 
 #define WANT_PURE_PIC 0
 #if WANT_PURE_PIC
@@ -118,6 +118,7 @@ int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
+static int dpmi_tid;
 #if !DIRECT_DPMI_CONTEXT_SWITCH
 static int in_indirect_dpmi_transfer;
 #endif
@@ -711,7 +712,7 @@ static int dpmi_control(void)
 	direct_dpmi_switch(scp);
     }
 #endif
-#ifdef __i386__
+#if !DIRECT_DPMI_CONTEXT_SWITCH || defined(__i386__)
     /* Note: for i386 we can't set TF with our speedup code */
     indirect_dpmi_transfer();
 #endif
@@ -1350,7 +1351,6 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
   scp->fpstate = NULL;
 }
 
-#ifdef __i386__
 int indirect_dpmi_switch(struct sigcontext *scp)
 {
     if (!in_indirect_dpmi_transfer)
@@ -1359,7 +1359,6 @@ int indirect_dpmi_switch(struct sigcontext *scp)
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
 }
-#endif
 
 static void *enter_lpms(struct sigcontext *scp)
 {
@@ -3103,6 +3102,11 @@ static void run_dpmi(void)
     coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
 }
 
+static void dpmi_thr(void *arg)
+{
+    indirect_dpmi_transfer();
+}
+
 void dpmi_setup(void)
 {
     int i, type;
@@ -3222,6 +3226,11 @@ void dpmi_setup(void)
       msdos_ldt_setup(lbuf, alias);
     }
 
+    dpmi_tid = coopth_create("dpmi");
+    /* dpmi is a detached thread. Attempts to bind it to the modeswitch
+     * points (dpmi has many!) will likely only cause the troubles. */
+    coopth_set_detached(dpmi_tid);
+    coopth_start_sleeping(dpmi_tid, dpmi_thr, NULL);
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
     return;
@@ -4931,4 +4940,5 @@ void dpmi_done(void)
   D_printf("DPMI: finalizing\n");
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
+  coopth_cancel(dpmi_tid);
 }
