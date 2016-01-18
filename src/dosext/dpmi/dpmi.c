@@ -118,7 +118,7 @@ int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
-#if !DIRECT_DPMI_CONTEXT_SWITCH
+#if defined(__i386__) || !DIRECT_DPMI_CONTEXT_SWITCH
 static int in_indirect_dpmi_transfer;
 #endif
 static int in_dpmic_thr;
