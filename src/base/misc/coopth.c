@@ -584,9 +584,11 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->data.udata_num = 0;
     pth->data.cancelled = 0;
     pth->data.left = 0;
+    pth->data.atomic_switch = 0;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
+    pth->quick_sched = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
 	    pth->stk_size);
