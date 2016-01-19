@@ -172,7 +172,7 @@ if test -x $srcdir/mkpluginhooks; then
     AC_MSG_NOTICE(Including plugins: $PLUGINS);
     cd src
     for i in $PLUGINSUBDIRS; do
-      if ! grep USE_DL_PLUGINS $i/Makefile >/dev/null ; then
+      if ! grep USE_DL_PLUGINS ../$srcdir/src/$i/Makefile >/dev/null ; then
         ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
       fi
     done
