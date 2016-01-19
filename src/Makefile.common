@@ -39,8 +39,8 @@ ifneq "$(wildcard *.d)" ""
 endif
 endif
 
-Makefile.conf: configure
-	./configure
+Makefile.conf: $(srcdir)/configure
+	$(srcdir)/configure
 configure: configure.ac
 	if [ -d m4 ]; then \
 		AC_F="-I m4 -I $(REALTOPDIR)/m4"; \
