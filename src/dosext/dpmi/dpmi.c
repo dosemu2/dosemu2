@@ -111,6 +111,7 @@ static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
 static void dpmi_return(struct sigcontext *scp, int retval);
+static int dpmi_fault1(struct sigcontext *scp);
 static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
@@ -443,10 +444,8 @@ static void indirect_dpmi_transfer(void)
  * DANG_END_FUNCTION
  */
 
-static int dpmi_control(void)
+static int do_dpmi_control(struct sigcontext *scp)
 {
-    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
-
     if (CheckSelectors(scp, 1) == 0)
       leavedos(36);
     if (dpmi_mhp_TF) _eflags |= TF;
@@ -457,6 +456,45 @@ static int dpmi_control(void)
      * the proper signal mask before returning to main dosemu code,
      * so the bad mask should not leak too deeply. */
     return dpmi_ret_val;
+}
+
+static int dpmi_control(void)
+{
+    int ret;
+    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
+
+    do {
+      ret = do_dpmi_control(scp);
+      if (!ret)
+        ret = dpmi_fault1(scp);
+      if (!in_dpmi) {
+        D_printf("DPMI: leaving\n");
+        dpmi_ret_val = -2;
+        co_call(dpmi_tid);
+        ret = dpmi_ret_val;
+        break;
+      }
+      if (!ret) {
+        uncache_time();
+        hardware_run();
+      }
+
+      if (dpmi_mhp_TF) {
+        dpmi_mhp_TF=0;
+        _eflags &= ~TF;
+        ret = 1;
+      }
+
+      if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
+        return_requested = 0;
+        if (debug_level('M') >= 8)
+          D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+            _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
+        ret = -1;
+      }
+    } while (!ret);
+
+    return ret;
 }
 
 void dpmi_get_entry_point(void)
@@ -1057,16 +1095,15 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
     copy_context(dpmi_ctx, scp, 1);
   }
   dpmi_ret_val = retcode;
-  if (!in_dpmi) {
-    D_printf("DPMI: leaving\n");
-    copy_context(scp, &emu_stack_frame, 0);
-    return;
-  }
   if (debug_level('M') > 5)
     D_printf("DPMI: switch to dosemu\n");
   signal_return_to_dosemu();
   co_resume();
   signal_return_to_dpmi();
+  if (dpmi_ret_val == -2) {
+    copy_context(scp, &emu_stack_frame, 0);
+    return;
+  }
   if (debug_level('M') > 5)
     D_printf("DPMI: switch to dpmi\n");
   copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
@@ -3449,12 +3486,8 @@ static void do_cpu_exception(struct sigcontext *scp)
  *
  * DANG_END_FUNCTION
  */
-
-#ifdef __linux__
 static int dpmi_fault1(struct sigcontext *scp)
-#endif
 {
-
 #define LWORD32(x,y) {if (Segments[_cs >> 3].is_32) _##x y; else _LWORD(x) y;}
 #define _LWECX	   (Segments[_cs >> 3].is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
 #define set_LWECX(x) {if (Segments[_cs >> 3].is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
@@ -4121,27 +4154,8 @@ static int dpmi_fault1(struct sigcontext *scp)
     do_cpu_exception(scp);
   }
 
-  if (dpmi_mhp_TF) {
-      dpmi_mhp_TF=0;
-      _eflags &= ~TF;
-      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
-      return 1;
-  }
-
   if (dpmi_is_cli && isset_IF())
     dpmi_is_cli = 0;
-
-  uncache_time();
-  hardware_run();
-
-  if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
-    return_requested = 0;
-    if (debug_level('M') >= 8)
-      D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
-        _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
-    Return_to_dosemu_code(scp, ORIG_CTXP, -1);
-    return -1;
-  }
 
   if (debug_level('M') >= 8)
     D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
@@ -4151,8 +4165,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 
 int dpmi_fault(struct sigcontext *scp)
 {
-  int retcode;
-
   if (_trapno == 0x10) {
     g_printf("coprocessor exception, calling IRQ13\n");
     pic_request(PIC_IRQ13);
@@ -4170,17 +4182,9 @@ int dpmi_fault(struct sigcontext *scp)
     return 0;
   }
 
-  retcode = dpmi_fault1(scp);
-  if (retcode) {
-    /* context was switched to dosemu's, return ASAP */
-    return retcode;
-  }
-
-  if (CheckSelectors(scp, 0) == 0) {
-    dpmi_return(scp, -1);
+  dpmi_return(scp, 0);		// process the rest in dosemu context
+  if (!in_dpmi_pm())
     return -1;
-  }
-  /* now we are safe */
   return 0;
 }
 
@@ -4628,7 +4632,7 @@ void dpmi_return_request(void)
 int dpmi_check_return(struct sigcontext *scp)
 {
   if (return_requested) {
-    dpmi_return(scp, 0);
+    dpmi_return(scp, -1);
     return -1;
   }
   return 0;
