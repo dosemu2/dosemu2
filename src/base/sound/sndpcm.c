@@ -1331,7 +1331,7 @@ int pcm_setup_hpf(struct player_params *params)
 	    params->channels, HPF_CTL);
 }
 
-int pcm_parse_cfg(char *string, char *name)
+int pcm_parse_cfg(const char *string, const char *name)
 {
     char *p;
     int l;
@@ -1342,4 +1342,23 @@ int pcm_parse_cfg(char *string, char *name)
 	return PCM_CF_ENABLED;
     }
     return 0;
+}
+
+char *pcm_parse_params(const char *string, const char *name, const char *param)
+{
+    char *p, *buf;
+    int l;
+    l = asprintf(&buf, "%s:%s=", name, param);
+    assert(l > 0);
+    p = strstr(string, buf);
+    free(buf);
+    if (p && (p == string || p[-1] == ',')) {
+	char *val = strdup(p + l);
+	char *c = strchr(val, ',');
+	if (c)
+	    *c = 0;
+	S_printf("PCM: Param \"%s\" for driver \"%s\": %s\n", param, name, val);
+	return val;
+    }
+    return NULL;
 }

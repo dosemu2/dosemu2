@@ -31,6 +31,7 @@ static snd_rawmidi_t *handle, *handle_v;
 #define midoalsa_longname "MIDI Output: ALSA device"
 #define midoalsav_name "alsa_virtual"
 #define midoalsav_longname "MIDI Output: ALSA virtual device (for MT32)"
+static const char *device_name_param = "dev_name";
 static const char *device = "default";
 static const char *device_v = "virtual";
 
@@ -49,9 +50,20 @@ static int midoalsa_open(snd_rawmidi_t **handle_p, const char *dev_name)
     return 1;
 }
 
+static int do_alsa_open(snd_rawmidi_t **handle_p, const char *plu_name,
+	const char *def_dev)
+{
+    char *dname = pcm_parse_params(config.snd_plugin_params,
+	    plu_name, device_name_param);
+    const char *dev_name = dname ?: def_dev;
+    int ret = midoalsa_open(handle_p, dev_name);
+    free(dname);
+    return ret;
+}
+
 static int midoalsa_init(void *arg)
 {
-    return midoalsa_open(&handle, device);
+    return do_alsa_open(&handle, midoalsa_name, device);
 }
 
 static void midoalsa_done(void *arg)
@@ -87,7 +99,7 @@ static const struct midi_out_plugin midoalsa = {
 
 static int midoalsav_init(void *arg)
 {
-    return midoalsa_open(&handle_v, device_v);
+    return do_alsa_open(&handle_v, midoalsav_name, device_v);
 }
 
 static void midoalsav_done(void *arg)
