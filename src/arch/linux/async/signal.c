@@ -48,7 +48,7 @@
 /* work-around sigaltstack badness - disable when kernel is fixed */
 #define SIGALTSTACK_WA 1
 #if SIGALTSTACK_WA
-#include <setjmp.h>
+#include "mcontext.h"
 #include "mapping.h"
 #endif
 
@@ -946,12 +946,12 @@ void signal_return_to_dosemu(void)
   stack_t ss = {};
 
 #if SIGALTSTACK_WA
-  jmp_buf hack;
+  m_ucontext_t hack;
   register unsigned long sp asm("sp");
   unsigned char *top = cstack + SIGSTACK_SIZE;
   unsigned char *btop = backup_stack + SIGSTACK_SIZE;
   unsigned long delta = (unsigned long)(top - sp);
-  if (setjmp(hack) == 0)
+  if (getmcontext(&hack) == 0)
     asm volatile(
 #ifdef __x86_64__
     "mov %0, %%rsp\n"
@@ -969,7 +969,7 @@ void signal_return_to_dosemu(void)
   saved_fc = fault_cnt;
   fault_cnt = 0;
 #if SIGALTSTACK_WA
-  longjmp(hack, 1);
+  setmcontext(&hack);
 #endif
 }
 
