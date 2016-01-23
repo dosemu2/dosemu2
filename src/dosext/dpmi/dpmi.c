@@ -38,6 +38,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
+#include "mlibpcl/pcl.h"
 #include "coopth.h"
 #include "sig.h"
 #include "dpmi.h"
@@ -91,7 +92,7 @@ int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
-static int dpmi_tid;
+static coroutine_t dpmi_tid;
 static struct sigcontext emu_stack_frame;
 static struct _fpstate emu_fpstate;
 static int in_indirect_dpmi_transfer;
@@ -450,8 +451,12 @@ static int dpmi_control(void)
     if (CheckSelectors(scp, 1) == 0)
       leavedos(36);
     if (dpmi_mhp_TF) _eflags |= TF;
-    coopth_wake_up(dpmi_tid);
-    coopth_sleep();
+    co_call(dpmi_tid);
+    /* we may return here with sighandler's signal mask.
+     * This is done for speed-up and is not a problem because
+     * here we are still in a coopthread. coopthread will restore
+     * the proper signal mask before returning to main dosemu code,
+     * so the bad mask should not leak too deeply. */
     return dpmi_ret_val;
 }
 
@@ -1056,14 +1061,12 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
   if (!in_dpmi) {
     D_printf("DPMI: leaving\n");
     copy_context(scp, &emu_stack_frame, 0);
-    coopth_wake_up(dpmi_ctid);
     return;
   }
   if (debug_level('M') > 5)
     D_printf("DPMI: switch to dosemu\n");
   signal_return_to_dosemu();
-  coopth_wake_up(dpmi_ctid);
-  coopth_sleep();
+  co_resume();
   signal_return_to_dpmi();
   if (debug_level('M') > 5)
     D_printf("DPMI: switch to dpmi\n");
@@ -2950,10 +2953,6 @@ void dpmi_setup(void)
       msdos_ldt_setup(lbuf, alias);
     }
 
-    dpmi_tid = coopth_create("dpmi");
-    /* dpmi is a detached thread. Attempts to bind it to the modeswitch
-     * points (dpmi has many!) will likely only cause the troubles. */
-    coopth_set_detached(dpmi_tid);
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
     return;
@@ -3153,7 +3152,7 @@ void dpmi_init(void)
 
     in_dpmi_irq = 0;
 
-    coopth_start_sleeping(dpmi_tid, dpmi_thr, NULL);
+    dpmi_tid = co_create(dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
   }
 
   dpmi_set_pm(1);
@@ -4656,7 +4655,7 @@ void dpmi_done(void)
 {
   D_printf("DPMI: finalizing\n");
   if (in_dpmi_thr)
-    coopth_cancel(dpmi_tid);
+    co_delete(dpmi_tid);
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
 }

@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <signal.h>
 
+/* reserve 1024 uncommitted pages for stack */
+#define SIGSTACK_SIZE (1024 * getpagesize())
+
 #ifdef __x86_64__
 #define ARCH_SET_GS 0x1001
 #define ARCH_SET_FS 0x1002

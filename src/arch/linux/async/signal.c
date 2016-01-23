@@ -494,8 +494,6 @@ static void signal_thr(void *arg)
 
 static void sigstack_init(void)
 {
-/* reserve 1024 uncommitted pages for stack */
-#define SIGSTACK_SIZE (1024 * getpagesize())
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
