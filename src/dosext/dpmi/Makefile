@@ -1,4 +1,3 @@
-
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
@@ -7,10 +6,5 @@ SFILES = dpmisel.S
 ALL_CPPFLAGS += -I$(srcdir)/msdos
 
 all:  lib
-
-clean::
-	-rm -f *.com
-
-install:
 
 include $(REALTOPDIR)/src/Makefile.common
