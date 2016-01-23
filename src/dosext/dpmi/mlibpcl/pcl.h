@@ -35,6 +35,18 @@
 
 typedef void *coroutine_t;
 
+#define co_thread_init m_co_thread_init
+#define co_thread_cleanup m_co_thread_cleanup
+#define co_create m_co_create
+#define co_delete m_co_delete
+#define co_call m_co_call
+#define co_resume m_co_resume
+#define co_exit_to m_co_exit_to
+#define co_exit m_co_exit
+#define co_current m_co_current
+#define co_get_data m_co_get_data
+#define co_set_data m_co_set_data
+
 PCLXC int co_thread_init(void);
 PCLXC void co_thread_cleanup(void);
 
