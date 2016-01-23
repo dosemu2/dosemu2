@@ -7,6 +7,8 @@
 #ifndef MCONTEXT_H
 #define MCONTEXT_H
 
+#include <ucontext.h>
+
 typedef struct m_mcontext m_mcontext_t;
 typedef struct m_ucontext m_ucontext_t;
 
