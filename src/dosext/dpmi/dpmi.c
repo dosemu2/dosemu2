@@ -472,12 +472,7 @@ static int dpmi_control(void)
         dpmi_ret_val = -2;
         co_call(dpmi_tid);
         ret = dpmi_ret_val;
-        /* our libpcl is modified the way co_delete() is needed even
-         * if the co-routine have successfully exited. This is not the
-         * case with the original libpcl code. */
-        if (!in_dpmi_thr)
-          co_delete(dpmi_tid);
-        else
+        if (in_dpmi_thr)
           error("DPMI thread have not terminated properly\n");
         break;
       }
