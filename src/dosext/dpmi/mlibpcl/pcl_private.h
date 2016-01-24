@@ -31,10 +31,7 @@
 #include <stdlib.h>
 //#include "pcl_config.h"
 #include "pcl.h"
-
-#include "mcontext.h"
-
-typedef m_ucontext_t co_core_ctx_t;
+#include "pcl_ctx.h"
 
 /*
  * The following value must be power of two (N^2).

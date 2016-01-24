@@ -34,7 +34,7 @@ static cothread_ctx *co_get_thread_ctx(void);
 
 static int co_set_context(co_ctx_t *ctx, void *func, char *stkbase, long stksiz)
 {
-	if (getmcontext(&ctx->cc))
+	if (GET_CTX(&ctx->cc))
 		return -1;
 
 	ctx->cc.uc_link = NULL;
@@ -43,7 +43,7 @@ static int co_set_context(co_ctx_t *ctx, void *func, char *stkbase, long stksiz)
 	ctx->cc.uc_stack.ss_size = stksiz - sizeof(long);
 	ctx->cc.uc_stack.ss_flags = 0;
 
-	makemcontext(&ctx->cc, func, 1);
+	MAKE_CTX(&ctx->cc, func, 1);
 
 	return 0;
 }
@@ -52,7 +52,7 @@ static void co_switch_context(co_ctx_t *octx, co_ctx_t *nctx)
 {
 	cothread_ctx *tctx = co_get_thread_ctx();
 
-	if (swapmcontext(&octx->cc, &nctx->cc) < 0) {
+	if (SWAP_CTX(&octx->cc, &nctx->cc) < 0) {
 		fprintf(stderr, "[PCL] Context switch failed: curr=%p\n",
 			tctx->co_curr);
 		exit(1);
