@@ -65,7 +65,4 @@ typedef struct s_cothread_ctx {
 	char stk[CO_MIN_SIZE];
 } cothread_ctx;
 
-#define co_get_thread_ctx m_co_get_thread_ctx
-cothread_ctx *co_get_thread_ctx(void);
-
 #endif

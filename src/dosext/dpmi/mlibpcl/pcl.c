@@ -30,6 +30,8 @@
 #include "pcl.h"
 #include "pcl_private.h"
 
+static cothread_ctx *co_get_thread_ctx(void);
+
 static int co_set_context(co_ctx_t *ctx, void *func, char *stkbase, long stksiz)
 {
 	if (getmcontext(&ctx->cc))
@@ -200,4 +202,33 @@ void *co_set_data(coroutine_t coro, void *data)
 	co->data = data;
 
 	return odata;
+}
+
+static cothread_ctx *co_get_global_ctx(void)
+{
+	static cothread_ctx tctx;
+
+	if (tctx.co_curr == NULL)
+		tctx.co_curr = &tctx.co_main;
+
+	return &tctx;
+}
+
+/*
+ * Simple case, the single thread one ...
+ */
+
+int co_thread_init(void)
+{
+	return 0;
+}
+
+void co_thread_cleanup(void)
+{
+
+}
+
+static cothread_ctx *co_get_thread_ctx(void)
+{
+	return co_get_global_ctx();
 }
