@@ -458,7 +458,7 @@ static int do_dpmi_control(struct sigcontext *scp)
     return dpmi_ret_val;
 }
 
-static int dpmi_control(void)
+static int _dpmi_control(void)
 {
     int ret;
     struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
@@ -496,6 +496,17 @@ static int dpmi_control(void)
       }
     } while (!ret);
 
+    return ret;
+}
+
+static int dpmi_control(void)
+{
+    int ret;
+    if (in_dpmi_thr)
+      signal_switch_to_dpmi();
+    ret = _dpmi_control();
+    if (in_dpmi_thr)
+      signal_switch_to_dosemu();
     return ret;
 }
 
