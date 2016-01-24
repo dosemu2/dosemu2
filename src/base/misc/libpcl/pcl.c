@@ -43,7 +43,7 @@ static int co_set_context(co_ctx_t *ctx, void *func, char *stkbase, long stksiz)
 	ctx->cc.uc_stack.ss_size = stksiz - sizeof(long);
 	ctx->cc.uc_stack.ss_flags = 0;
 
-	MAKE_CTX(&ctx->cc, func, 1);
+	MAKE_CTX(&ctx->cc, func, 0);
 
 	return 0;
 }
