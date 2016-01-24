@@ -1,3 +1,7 @@
+/* This code is taken from libpcl library.
+ * Rip-off done by stsp for dosemu2 project.
+ * Original copyrights below. */
+
 /*
  *  PCL by Davide Libenzi (Portable Coroutine Library)
  *  Copyright (C) 2003..2010  Davide Libenzi
@@ -25,18 +29,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "pcl_config.h"
-#include "pcl.h"
-
-#if defined(CO_USE_UCONEXT)
-#include <ucontext.h>
-
-typedef ucontext_t co_core_ctx_t;
-#else
-#include <setjmp.h>
-
-typedef jmp_buf co_core_ctx_t;
-#endif
 
 /*
  * The following value must be power of two (N^2).
@@ -56,6 +48,7 @@ typedef struct s_coroutine {
 	struct s_coroutine *restarget;
 	void (*func)(void *);
 	void *data;
+	char stk[0];
 } coroutine;
 
 typedef struct s_cothread_ctx {
@@ -66,7 +59,4 @@ typedef struct s_cothread_ctx {
 	char stk[CO_MIN_SIZE];
 } cothread_ctx;
 
-cothread_ctx *co_get_thread_ctx(void);
-
 #endif
-
