@@ -44,6 +44,7 @@ typedef struct s_co_ctx {
 typedef struct s_coroutine {
 	co_ctx_t ctx;
 	int alloc;
+	int exited:1;
 	struct s_coroutine *caller;
 	struct s_coroutine *restarget;
 	void (*func)(void *);
@@ -54,9 +55,6 @@ typedef struct s_coroutine {
 typedef struct s_cothread_ctx {
 	coroutine co_main;
 	coroutine *co_curr;
-	coroutine *co_dhelper;
-	coroutine *dchelper;
-	char stk[CO_MIN_SIZE];
 } cothread_ctx;
 
 #endif

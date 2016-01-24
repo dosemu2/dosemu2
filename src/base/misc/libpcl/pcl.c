@@ -89,6 +89,7 @@ coroutine_t co_create(void (*func)(void *), void *data, void *stack, int size)
 	co->alloc = alloc;
 	co->func = func;
 	co->data = data;
+	co->exited = 0;
 	if (co_set_context(&co->ctx, co_runner, stack, size - CO_STK_COROSIZE) < 0) {
 		if (alloc)
 			free(co);
@@ -121,6 +122,9 @@ void co_call(coroutine_t coro)
 	tctx->co_curr = co;
 
 	co_switch_context(&oldco->ctx, &co->ctx);
+
+	if (co->exited)
+		co_delete(co);
 }
 
 void co_resume(void)
@@ -131,52 +135,15 @@ void co_resume(void)
 	tctx->co_curr->restarget = tctx->co_curr->caller;
 }
 
-static void co_del_helper(void *data)
-{
-	cothread_ctx *tctx;
-	coroutine *cdh;
-
-	for (;;) {
-		tctx = co_get_thread_ctx();
-		cdh = tctx->co_dhelper;
-		tctx->co_dhelper = NULL;
-		co_delete(tctx->co_curr->caller);
-		co_call((coroutine_t) cdh);
-		if (tctx->co_dhelper == NULL) {
-			fprintf(stderr,
-				"[PCL] Resume to delete helper coroutine: curr=%p caller=%p\n",
-				tctx->co_curr, tctx->co_curr->caller);
-			exit(1);
-		}
-	}
-}
-
-void co_exit_to(coroutine_t coro)
-{
-	cothread_ctx *tctx = co_get_thread_ctx();
-	coroutine *co = (coroutine *) coro;
-
-	if (tctx->dchelper == NULL &&
-	    (tctx->dchelper = co_create(co_del_helper, NULL,
-					tctx->stk, sizeof(tctx->stk))) == NULL) {
-		fprintf(stderr, "[PCL] Unable to create delete helper coroutine: curr=%p\n",
-			tctx->co_curr);
-		exit(1);
-	}
-	tctx->co_dhelper = co;
-
-	co_call((coroutine_t) tctx->dchelper);
-
-	fprintf(stderr, "[PCL] Stale coroutine called: curr=%p  exitto=%p  caller=%p\n",
-		tctx->co_curr, co, tctx->co_curr->caller);
-	exit(1);
-}
-
 void co_exit(void)
 {
 	cothread_ctx *tctx = co_get_thread_ctx();
+	coroutine *newco = tctx->co_curr->restarget, *co = tctx->co_curr;
 
-	co_exit_to((coroutine_t) tctx->co_curr->restarget);
+	co->exited = 1;
+	tctx->co_curr = newco;
+
+	co_switch_context(&co->ctx, &newco->ctx);
 }
 
 coroutine_t co_current(void)

@@ -41,7 +41,6 @@ typedef void *coroutine_t;
 #define co_delete m_co_delete
 #define co_call m_co_call
 #define co_resume m_co_resume
-#define co_exit_to m_co_exit_to
 #define co_exit m_co_exit
 #define co_current m_co_current
 #define co_get_data m_co_get_data
@@ -55,7 +54,6 @@ PCLXC coroutine_t co_create(void (*func)(void *), void *data, void *stack,
 PCLXC void co_delete(coroutine_t coro);
 PCLXC void co_call(coroutine_t coro);
 PCLXC void co_resume(void);
-PCLXC void co_exit_to(coroutine_t coro);
 PCLXC void co_exit(void);
 PCLXC coroutine_t co_current(void);
 PCLXC void *co_get_data(coroutine_t coro);
