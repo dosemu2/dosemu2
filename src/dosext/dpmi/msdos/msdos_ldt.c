@@ -32,12 +32,14 @@
 static unsigned char *ldt_backbuf;
 static unsigned char *ldt_alias;
 static unsigned short dpmi_ldt_alias;
+static int entry_upd;
 
 int msdos_ldt_setup(unsigned char *backbuf, unsigned char *alias)
 {
     /* NULL can be passed as backbuf if you have R/W LDT alias */
     ldt_backbuf = backbuf;
     ldt_alias = alias;
+    entry_upd = -1;
     return 1;
 }
 
@@ -404,7 +406,7 @@ void msdos_ldt_update(int entry, u_char *buf, int len)
       SetSegmentLimit(dpmi_ldt_alias, PAGE_ALIGN(new_len) - 1);
     }
   }
-  if (ldt_backbuf)
+  if (ldt_backbuf && entry != entry_upd)
     memcpy(&ldt_backbuf[entry * LDT_ENTRY_SIZE], buf, len);
 }
 
@@ -429,6 +431,8 @@ static void direct_ldt_write(int offset, char *buffer, int length)
   for (i = 0; i < length; i++)
     D_printf("0x%02hhx ", buffer[i]);
   D_printf("\n");
+
+  entry_upd = ldt_entry;	// dont update from DPMI callouts
   err = GetDescriptor(selector, (unsigned int *)lp);
   if (err) {
     selector = AllocateDescriptorsAt(selector, 1);
@@ -437,7 +441,7 @@ static void direct_ldt_write(int offset, char *buffer, int length)
   }
   if (err) {
     error("Descriptor allocation at %#x failed\n", ldt_entry);
-    return;
+    goto out;
   }
   if (!(lp[5] & 0x80)) {
     D_printf("LDT: NP\n");
@@ -458,6 +462,8 @@ static void direct_ldt_write(int offset, char *buffer, int length)
     SetDescriptor(selector, (unsigned int *)lp1);
   }
   memcpy(&ldt_backbuf[ldt_entry * LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
+out:
+  entry_upd = -1;
 }
 
 int msdos_ldt_pagefault(struct sigcontext *scp)
