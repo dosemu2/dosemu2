@@ -446,8 +446,6 @@ static void indirect_dpmi_transfer(void)
 
 static int do_dpmi_control(struct sigcontext *scp)
 {
-    if (CheckSelectors(scp, 1) == 0)
-      leavedos(36);
     if (dpmi_mhp_TF) _eflags |= TF;
     co_call(dpmi_tid);
     /* we may return here with sighandler's signal mask.
@@ -464,14 +462,15 @@ static int _dpmi_control(void)
     struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
 
     do {
+      if (CheckSelectors(scp, 1) == 0)
+        leavedos(36);
       ret = do_dpmi_control(scp);
       if (!ret)
         ret = dpmi_fault1(scp);
       if (!in_dpmi) {
         D_printf("DPMI: leaving\n");
         dpmi_ret_val = -2;
-        co_call(dpmi_tid);
-        ret = dpmi_ret_val;
+        ret = do_dpmi_control(scp);
         if (in_dpmi_thr)
           error("DPMI thread have not terminated properly\n");
         break;
