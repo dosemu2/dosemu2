@@ -22,6 +22,7 @@
 /* kvm functions */
 int init_kvm_cpu(void);
 int kvm_vm86(struct vm86_struct *info);
-void mprotect_kvm(void *addr, size_t mapsize, int protect);
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect);
+void mprotect_kvm(int cap, void *addr, size_t mapsize, int protect);
 
 #endif

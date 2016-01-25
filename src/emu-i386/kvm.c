@@ -117,35 +117,22 @@ static struct monitor {
 } *monitor;
 
 static struct kvm_run *run;
-static int vmfd, vcpufd;
+static int vmfd, vcpufd, kvm_map_slot;
 
 /* switches KVM virtual machine to vm86 mode */
-static struct monitor *enter_vm86(int vmfd, int vcpufd)
+static struct monitor *init_kvm_monitor(int vmfd, int vcpufd)
 {
-  int ret, i, j;
+  int ret, i;
+  unsigned int page;
   struct kvm_regs regs;
   struct kvm_sregs sregs;
   struct monitor *monitor;
-
-  struct kvm_userspace_memory_region region = {
-    .slot = 0,
-    .guest_phys_addr = 0x0,
-    .memory_size = LOWMEM_SIZE + HMASIZE,
-    .userspace_addr = (uint64_t)(unsigned long)mem_base,
-  };
-
-  /* Map guest memory: only conventional memory + HMA for now */
-  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
-  }
 
   /* create monitor structure in memory */
   monitor = mmap(NULL, sizeof(*monitor), PROT_READ | PROT_WRITE,
 		 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   struct kvm_userspace_memory_region tss_region = {
-    .slot = 1,
+    .slot = kvm_map_slot++,
     .guest_phys_addr = LOWMEM_SIZE + HMASIZE,
     .memory_size = sizeof(*monitor),
     .userspace_addr = (uint64_t)(unsigned long)monitor,
@@ -219,11 +206,11 @@ static struct monitor *enter_vm86(int vmfd, int vcpufd)
   /* we need one page directory entry */
   monitor->pde[0] = (sregs.tr.base + offsetof(struct monitor, pte))
     | (PG_PRESENT | PG_RW | PG_USER);
-  for (i = 0; i < (LOWMEM_SIZE + HMASIZE) / PAGE_SIZE; i++)
-    monitor->pte[i] = i * PAGE_SIZE | (PG_PRESENT | PG_RW | PG_USER);
-  for (j = 0; j < offsetof(struct monitor, code) / PAGE_SIZE; j++)
-    monitor->pte[i+j] = (i+j) * PAGE_SIZE | PG_PRESENT | PG_RW;
-  monitor->pte[i+j] = ((i+j) * PAGE_SIZE) | PG_PRESENT;
+  for (page = sregs.tr.base / PAGE_SIZE;
+       page < (sregs.tr.base + offsetof(struct monitor, code)) / PAGE_SIZE;
+       page++)
+    monitor->pte[page] = page * PAGE_SIZE | PG_PRESENT | PG_RW;
+  monitor->pte[page] = (page * PAGE_SIZE) | PG_PRESENT;
 
   sregs.cr0 |= X86_CR0_PE | X86_CR0_PG;
   sregs.cr4 |= X86_CR4_VME;
@@ -257,7 +244,7 @@ static struct monitor *enter_vm86(int vmfd, int vcpufd)
     perror("KVM: KVM_SET_REGS");
     leavedos(99);
   }
-
+  warn("Using V86 mode inside KVM\n");
   return monitor;
 }
 
@@ -328,10 +315,56 @@ int init_kvm_cpu(void)
     return 0;
   }
 
+  /* create monitor structure in memory */
+  monitor = init_kvm_monitor(vmfd, vcpufd);
   return 1;
 }
 
-void mprotect_kvm(void *addr, size_t mapsize, int protect)
+void mmap_kvm(int cap, void *addr, size_t mapsize, int protect)
+{
+  int ret;
+  unsigned int page;
+  size_t pagesize = sysconf(_SC_PAGESIZE);
+  unsigned int start = DOSADDR_REL(addr) / pagesize;
+  unsigned int end = start + mapsize / pagesize;
+  unsigned int limit = (LOWMEM_SIZE + HMASIZE) / pagesize;
+  struct kvm_userspace_memory_region region = {
+    .slot = kvm_map_slot++,
+    .guest_phys_addr = DOSADDR_REL(addr),
+    .memory_size = mapsize,
+    .userspace_addr = (uintptr_t)addr,
+  };
+
+  if (start >= limit || monitor == NULL) return;
+  if (end > limit) end = limit;
+
+  if (!(cap & (MAPPING_INIT_LOWRAM|MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|
+	       MAPPING_VGAEMU)))
+    return;
+
+  if (monitor->pte[start]) {
+    mprotect_kvm(cap, addr, mapsize, protect);
+    return;
+  }
+
+  Q_printf("KVM: mapping %p:%zx to %llx for slot %d with prot %x\n", addr,
+	   mapsize, region.guest_phys_addr, region.slot, protect);
+
+  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
+  if (ret == -1) {
+    perror("KVM: KVM_SET_USER_MEMORY_REGION");
+    leavedos(99);
+  }
+
+  /* adjust paging structures in VM */
+  for (page = start; page < end; page++)
+    monitor->pte[page] = (page * pagesize) | PG_USER;
+  if (cap & MAPPING_INIT_LOWRAM)
+    cap |= MAPPING_LOWMEM;
+  mprotect_kvm(cap, addr, mapsize, protect);
+}
+
+void mprotect_kvm(int cap, void *addr, size_t mapsize, int protect)
 {
   size_t pagesize = sysconf(_SC_PAGESIZE);
   unsigned int start = DOSADDR_REL(addr) / pagesize;
@@ -342,12 +375,18 @@ void mprotect_kvm(void *addr, size_t mapsize, int protect)
   if (start >= limit || monitor == NULL) return;
   if (end > limit) end = limit;
 
+  if (!(cap & (MAPPING_LOWMEM|MAPPING_EMS|MAPPING_HMA|MAPPING_VGAEMU)))
+    return;
+
+  Q_printf("KVM: protecting %p:%zx to %zx with prot %x\n", addr,
+	   mapsize, start * pagesize, protect);
+
   for (page = start; page < end; page++) {
-    monitor->pte[page] &= ~(PG_PRESENT | PG_RW | PG_USER);
+    monitor->pte[page] &= ~(PG_PRESENT | PG_RW);
     if (protect & PROT_WRITE)
-      monitor->pte[page] |= PG_PRESENT | PG_RW | PG_USER;
+      monitor->pte[page] |= PG_PRESENT | PG_RW;
     else if (protect & PROT_READ)
-      monitor->pte[page] |= PG_PRESENT | PG_USER;
+      monitor->pte[page] |= PG_PRESENT;
   }
 }
 
@@ -524,11 +563,6 @@ int kvm_vm86(struct vm86_struct *info)
   struct vm86_regs *regs;
   int vm86_ret;
   unsigned int trapno;
-
-  if (!monitor) {
-    monitor = enter_vm86(vmfd, vcpufd);
-    warn("Using V86 mode inside KVM\n");
-  }
 
   regs = &monitor->regs;
   *regs = info->regs;
