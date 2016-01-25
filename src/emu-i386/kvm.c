@@ -187,7 +187,7 @@ void init_kvm_monitor(void)
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
   // setup IDT
   for (i=0; i<IDT_ENTRIES; i++) {
-    unsigned int offs = sregs.tr.base + offsetof(struct monitor, code) + i * 10;
+    unsigned int offs = sregs.tr.base + offsetof(struct monitor, code) + i * 16;
     monitor->idt[i].offs_lo = offs & 0xffff;
     monitor->idt[i].offs_hi = offs >> 16;
     monitor->idt[i].seg = 0x8; // FLAT_CODE_SEL
@@ -629,9 +629,9 @@ int kvm_vm86(struct vm86_struct *info)
   do {
     kvm_run(regs);
 
-    /* __null_gs = exception number */
-    /* orig_eax = error code */
-    trapno = regs->__null_gs;
+    /* high word(orig_eax) = exception number */
+    /* low word(orig_eax) = error code */
+    trapno = regs->orig_eax >> 16;
     vm86_ret = VM86_SIGNAL;
     if (trapno == 1 || trapno == 3)
       vm86_ret = VM86_TRAP | (trapno << 8);
@@ -640,12 +640,12 @@ int kvm_vm86(struct vm86_struct *info)
   } while (vm86_ret == -1);
 
   info->regs = *regs;
-  trapno = regs->__null_gs;
+  trapno = regs->orig_eax >> 16;
   if (vm86_ret == VM86_SIGNAL && trapno != 0x20) {
     sigcontext_t sc, *scp = &sc;
     _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
     _trapno = trapno;
-    _err = regs->orig_eax;
+    _err = regs->orig_eax & 0xffff;
     if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
       return vm86_ret;
     vm86_fault(scp);
