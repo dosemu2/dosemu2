@@ -153,13 +153,9 @@ bad:
 #endif
     error("@\n");
 
-    error("Please update from git, compile with debug information and "
-	"report the contents of ~/.dosemu/boot.log at\n"
-"https://github.com/stsp/dosemu2/issues\n"
-#ifndef _DEBUG
-"It would be even more helpful if would recompile DOSEMU and reproduce this\n"
-"bug with \"debug on\" in compiletime-settings.\n"
-#endif
+    error("Please install gdb, update dosemu from git, compile it with debug\n"
+        "info and report with the contents of ~/.dosemu/boot.log at\n"
+"https://github.com/stsp/dosemu2/issues\n\n"
 );
     gdb_debug();
 
