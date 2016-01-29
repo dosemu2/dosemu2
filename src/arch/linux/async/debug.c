@@ -185,6 +185,8 @@ static int do_gdb_debug(void)
 void gdb_debug(void)
 {
     int ret = do_gdb_debug();
-    if (!ret)
+    if (!ret) {
         print_trace();
+        error("Please install gdb!\n");
+    }
 }
