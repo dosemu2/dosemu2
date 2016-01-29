@@ -69,7 +69,6 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
 AC_MSG_ERROR([Sorry, you need glibc with monotonic clock support (2.3.3 or newer).])])
 
 AC_CHECK_LIB(rt, shm_open)
-AC_CHECK_FUNCS(shm_open)
 
 dnl Here is where we do our stuff
 
@@ -201,13 +200,20 @@ else
 fi
 
 dnl Do compilation for GDB
+HAVE_LIBBFD=0
 AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
-  if test "$enable_debug" = "yes"; then
-   AC_MSG_NOTICE(Compiling with debug info...);
-  else
-   AC_MSG_NOTICE(Compiling without debug info...);
-  fi
+if test "$enable_debug" = "yes"; then
+  AC_MSG_NOTICE(Compiling with debug info...)
+  AC_CHECK_HEADER(bfd.h, [
+    AC_CHECK_LIB(bfd, bfd_init)
+    if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
+      HAVE_LIBBFD=1
+    fi
+  ])
+else
+  AC_MSG_NOTICE(Compiling without debug info...)
+fi
 
 AC_ARG_ENABLE(asan, [AS_HELP_STRING(--enable-asan, [enable address sanitizer])])
 
@@ -276,6 +282,7 @@ AC_SUBST(DOSEMU_CFLAGS)
 AC_SUBST(DOSEMU_CPPFLAGS)
 AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
+AC_SUBST(HAVE_LIBBFD)
 
 dnl Create output files. If you add new ones, please do it in order.
 
@@ -300,6 +307,9 @@ AH_TEMPLATE([CONFIG_TIME],
 
 AH_TEMPLATE(HAVE_XKB,
 [Define this if you have the XKB extension])
+
+AH_TEMPLATE(HAVE_LIBBFD,
+[Define this if you have binutils-devel installed])
 
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])
