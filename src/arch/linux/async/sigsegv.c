@@ -159,46 +159,45 @@ bad:
 );
     gdb_debug();
 
-    print_exception_info(scp);
-
-    dbug_printf("  VFLAGS(b): ");
-    {
-      int i;
-      for (i = (1 << 17); i; i >>= 1)
-	dbug_printf((_eflags & i) ? "1" : "0");
-    }
-    dbug_printf("\n");
-
-    dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
+    if (DPMIValidSelector(_cs))
+      print_exception_info(scp);
+    if (in_vm86) {
+      dbug_printf("  VFLAGS(b): ");
+      {
+        int i;
+        for (i = (1 << 17); i; i >>= 1)
+          dbug_printf((_eflags & i) ? "1" : "0");
+      }
+      dbug_printf("\n");
+      dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
 		"  VFLAGS(h): %08lx\n",
 		_rax, _rbx, _rcx, _rdx, _eflags);
-    dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
+      dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
 		_rsi, _rdi, _rbp);
-    dbug_printf("CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x\n",
+      dbug_printf("CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x\n",
 		_cs, _ds, _es, _fs, _gs);
 
     /* display vflags symbolically...the #f "stringizes" the macro name */
 #undef PFLAG
 #define PFLAG(f)  if ((_eflags)&(f)) dbug_printf(" " #f)
 
-    dbug_printf("FLAGS:");
-    PFLAG(CF);
-    PFLAG(PF);
-    PFLAG(AF);
-    PFLAG(ZF);
-    PFLAG(SF);
-    PFLAG(TF);
-    PFLAG(IF);
-    PFLAG(DF);
-    PFLAG(OF);
-    PFLAG(NT);
-    PFLAG(RF);
-    PFLAG(VM);
-    PFLAG(AC);
-    dbug_printf("  IOPL: %u\n", (unsigned) ((_eflags & IOPL_MASK) >> 12));
-
-    show_regs(__FILE__, __LINE__);
-
+      dbug_printf("FLAGS:");
+      PFLAG(CF);
+      PFLAG(PF);
+      PFLAG(AF);
+      PFLAG(ZF);
+      PFLAG(SF);
+      PFLAG(TF);
+      PFLAG(IF);
+      PFLAG(DF);
+      PFLAG(OF);
+      PFLAG(NT);
+      PFLAG(RF);
+      PFLAG(VM);
+      PFLAG(AC);
+      dbug_printf("  IOPL: %u\n", (unsigned) ((_eflags & IOPL_MASK) >> 12));
+      show_regs(__FILE__, __LINE__);
+    }
     fatalerr = 4;
     leavedos_main(fatalerr);		/* shouldn't return */
     return 0;
