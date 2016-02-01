@@ -60,6 +60,7 @@ static double flus_srate;
 
 static pthread_t syn_thr;
 static sem_t syn_sem;
+static pthread_mutex_t syn_mtx = PTHREAD_MUTEX_INITIALIZER;
 static void *synth_thread(void *arg);
 
 static int midoflus_init(void *arg)
@@ -155,9 +156,11 @@ static void midoflus_start(void)
 {
     S_printf("MIDI: starting fluidsynth\n");
     mf_time_base = GETusTIME(0);
+    pthread_mutex_lock(&syn_mtx);
     pcm_prepare_stream(pcm_stream);
     fluid_sequencer_process(sequencer, 0);
     output_running = 1;
+    pthread_mutex_unlock(&syn_mtx);
 }
 
 static void midoflus_write(unsigned char val)
@@ -227,6 +230,7 @@ static void midoflus_stop(void *arg)
     now = GETusTIME(0);
     msec = (now - mf_time_base) / 1000;
     S_printf("MIDI: stopping fluidsynth at msec=%i\n", msec);
+    pthread_mutex_lock(&syn_mtx);
     /* advance past last event */
     fluid_sequencer_process(sequencer, msec);
     /* shut down all active notes */
@@ -235,15 +239,22 @@ static void midoflus_stop(void *arg)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
     output_running = 0;
+    pthread_mutex_unlock(&syn_mtx);
 }
 
 static void *synth_thread(void *arg)
 {
     while (1) {
 	sem_wait(&syn_sem);
+	pthread_mutex_lock(&syn_mtx);
+	if (!output_running) {
+		pthread_mutex_unlock(&syn_mtx);
+		continue;
+	}
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	process_samples(GETusTIME(0), FLUS_MIN_BUF);
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	pthread_mutex_unlock(&syn_mtx);
     }
     return NULL;
 }
