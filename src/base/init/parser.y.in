@@ -300,7 +300,7 @@ while (0)
 %token HARDWARE_RAM
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
-%token SOUND_DRIVER MIDI_DRIVER SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
+%token SOUND_DRIVER MIDI_DRIVER MUNT_ROMS SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -1102,6 +1102,12 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MPU_IRQ_MT32 expression	{ config.mpu401_irq_mt32 = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
 		| MIDI_DRIVER string_expr	{ free(config.midi_driver); config.midi_driver = $2; }
+		| MUNT_ROMS string_expr
+			{
+				free(config.munt_roms_dir);
+				config.munt_roms_dir = concat_dir(LOCALDIR, $2);
+				free($2);
+			}
 		| SND_PLUGIN_PARAMS string_expr	{ free(config.snd_plugin_params); config.snd_plugin_params = $2; }
 		| PCM_HPF bool		{ config.pcm_hpf = ($2!=0); }
 		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = $2; }
