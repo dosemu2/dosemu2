@@ -628,6 +628,7 @@ mpu_irq                 RETURN(MPU_IRQ);
 mpu_irq_mt32            RETURN(MPU_IRQ_MT32);
 sound_driver		RETURN(SOUND_DRIVER);
 midi_driver		RETURN(MIDI_DRIVER);
+munt_roms		RETURN(MUNT_ROMS);
 snd_plugin_params	RETURN(SND_PLUGIN_PARAMS);
 pcm_hpf			RETURN(PCM_HPF);
 midi_file		RETURN(MIDI_FILE);
