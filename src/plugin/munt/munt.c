@@ -23,6 +23,8 @@
 
 #include <pthread.h>
 #include <semaphore.h>
+#include <string.h>
+#include <limits.h>
 #include <mt32emu/c_interface/c_interface.h>
 #include "emu.h"
 #include "init.h"
@@ -50,16 +52,18 @@ static void *synth_thread(void *arg);
 static int midomunt_init(void *arg)
 {
     mt32emu_return_code ret;
-    char *p;
+    char p[PATH_MAX];
 
     ctx = mt32emu_create_context(NULL);
-    p = "/home/stas/roms/MT32_CONTROL.ROM";
+    strcpy(p, config.munt_roms_dir);
+    strcat(p, "/MT32_CONTROL.ROM");
     ret = mt32emu_add_rom_file(ctx, p);
     if (ret != MT32EMU_RC_ADDED_CONTROL_ROM) {
 	error("MUNT: Can't find %s\n", p);
 	goto err;
     }
-    p = "/home/stas/roms/MT32_PCM.ROM";
+    strcpy(p, config.munt_roms_dir);
+    strcat(p, "/MT32_PCM.ROM");
     ret = mt32emu_add_rom_file(ctx, p);
     if (ret != MT32EMU_RC_ADDED_PCM_ROM) {
 	error("MUNT: Can't find %s\n", p);
