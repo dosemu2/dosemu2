@@ -21,36 +21,152 @@
  *
  */
 
+#include <pthread.h>
+#include <semaphore.h>
 #include <mt32emu/c_interface/c_interface.h>
 #include "emu.h"
 #include "init.h"
+#include "timers.h"
 #include "sound/midi.h"
 #include "sound/sound.h"
 
 #define midomunt_name "munt"
 #define midomunt_longname "MIDI Output: munt device"
 
-//static mt32emu_context *ctx;
+static mt32emu_context ctx;
+static int pcm_stream;
+static int output_running, pcm_running;
+static double mf_time_base;
+#define MUNT_CHANNELS 2
+#define MUNT_MAX_BUF 512
+#define MUNT_MIN_BUF 128
+static const int munt_format = PCM_FORMAT_S16_LE;
+static int munt_srate;
+
+static pthread_t syn_thr;
+static sem_t syn_sem;
+static void *synth_thread(void *arg);
 
 static int midomunt_init(void *arg)
 {
+    mt32emu_return_code ret;
+    char *p;
+
+    ctx = mt32emu_create_context(NULL);
+    p = "/home/stas/roms/MT32_CONTROL.ROM";
+    ret = mt32emu_add_rom_file(ctx, p);
+    if (ret != MT32EMU_RC_ADDED_CONTROL_ROM) {
+	error("MUNT: Can't find %s\n", p);
+	goto err;
+    }
+    p = "/home/stas/roms/MT32_PCM.ROM";
+    ret = mt32emu_add_rom_file(ctx, p);
+    if (ret != MT32EMU_RC_ADDED_PCM_ROM) {
+	error("MUNT: Can't find %s\n", p);
+	goto err;
+    }
+
+    sem_init(&syn_sem, 0, 0);
+    pthread_create(&syn_thr, NULL, synth_thread, NULL);
+
+    pcm_stream = pcm_allocate_stream(MUNT_CHANNELS, "MIDI-MT32",
+	    (void*)MC_MIDI);
+
+    return 1;
+
+err:
+    mt32emu_free_context(ctx);
     return 0;
 }
 
 static void midomunt_done(void *arg)
 {
+    pthread_cancel(syn_thr);
+    pthread_join(syn_thr, NULL);
+    sem_destroy(&syn_sem);
+    mt32emu_free_context(ctx);
+}
+
+static void midomunt_start(void)
+{
+    mt32emu_return_code ret = mt32emu_open_synth(ctx.d, NULL, NULL);
+    if (ret != MT32EMU_RC_OK) {
+	error("MUNT: open_synth() failed\n");
+	return;
+    }
+    munt_srate = mt32emu_get_actual_stereo_output_samplerate(ctx.d);
+    S_printf("MIDI: starting munt, srate=%i\n", munt_srate);
+    mf_time_base = GETusTIME(0);
+    pcm_prepare_stream(pcm_stream);
+    output_running = 1;
 }
 
 static void midomunt_write(unsigned char val)
 {
+    if (!output_running)
+	midomunt_start();
+
+    mt32emu_parse_stream(ctx.d, &val, 1);
 }
 
 static void midomunt_stop(void *arg)
 {
+    mt32emu_close_synth(ctx.d);
+    if (pcm_running)
+	pcm_flush(pcm_stream);
+    pcm_running = 0;
+    output_running = 0;
+}
+
+static void mf_process_samples(int nframes)
+{
+    sndbuf_t buf[MUNT_MAX_BUF][MUNT_CHANNELS];
+
+    mt32emu_render_bit16s(ctx.d, (sndbuf_t *)buf, nframes);
+    pcm_running = 1;
+    pcm_write_interleaved(buf, nframes, munt_srate, munt_format,
+	    MUNT_CHANNELS, pcm_stream);
+}
+
+static void process_samples(long long now, int min_buf)
+{
+    int nframes, retry;
+    double period, mf_time_cur;
+    mf_time_cur = pcm_time_lock(pcm_stream);
+    do {
+	retry = 0;
+	period = pcm_frame_period_us(munt_srate);
+	nframes = (now - mf_time_cur) / period;
+	if (nframes > MUNT_MAX_BUF) {
+	    nframes = MUNT_MAX_BUF;
+	    retry = 1;
+	}
+	if (nframes >= min_buf) {
+	    mf_process_samples(nframes);
+	    mf_time_cur = pcm_get_stream_time(pcm_stream);
+	    if (debug_level('S') >= 5)
+		S_printf("MIDI: processed %i samples with munt\n", nframes);
+	}
+    } while (retry);
+    pcm_time_unlock(pcm_stream);
+}
+
+static void *synth_thread(void *arg)
+{
+    while (1) {
+	sem_wait(&syn_sem);
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	process_samples(GETusTIME(0), MUNT_MIN_BUF);
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    }
+    return NULL;
 }
 
 static void midomunt_run(void)
 {
+    if (!output_running)
+	return;
+    sem_post(&syn_sem);
 }
 
 static int midomunt_cfg(void *arg)
@@ -72,7 +188,7 @@ static const struct midi_out_plugin midomunt = {
     .stop = midomunt_stop,
     .run = midomunt_run,
     .get_cfg = midomunt_cfg,
-    .stype = ST_GM,
+    .stype = ST_MT32,
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
 
