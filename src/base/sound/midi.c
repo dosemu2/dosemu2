@@ -64,6 +64,9 @@ void midi_init(void)
 #ifdef USE_FLUIDSYNTH
     dl_handles[num_dl_handles++] = load_plugin("fluidsynth");
 #endif
+#ifdef USE_MUNT
+    dl_handles[num_dl_handles++] = load_plugin("munt");
+#endif
 #ifdef USE_ALSA
     dl_handles[num_dl_handles++] = load_plugin("alsa");
 #endif
