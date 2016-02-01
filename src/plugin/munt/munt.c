@@ -47,6 +47,7 @@ static int munt_srate;
 
 static pthread_t syn_thr;
 static sem_t syn_sem;
+static pthread_mutex_t syn_mtx = PTHREAD_MUTEX_INITIALIZER;
 static void *synth_thread(void *arg);
 
 static int midomunt_init(void *arg)
@@ -93,8 +94,12 @@ static void midomunt_done(void *arg)
 
 static void midomunt_start(void)
 {
-    mt32emu_return_code ret = mt32emu_open_synth(ctx.d, NULL, NULL);
+    mt32emu_return_code ret;
+
+    pthread_mutex_lock(&syn_mtx);
+    ret = mt32emu_open_synth(ctx.d, NULL, NULL);
     if (ret != MT32EMU_RC_OK) {
+	pthread_mutex_unlock(&syn_mtx);
 	error("MUNT: open_synth() failed\n");
 	return;
     }
@@ -103,6 +108,7 @@ static void midomunt_start(void)
     mf_time_base = GETusTIME(0);
     pcm_prepare_stream(pcm_stream);
     output_running = 1;
+    pthread_mutex_unlock(&syn_mtx);
 }
 
 static void midomunt_write(unsigned char val)
@@ -115,11 +121,15 @@ static void midomunt_write(unsigned char val)
 
 static void midomunt_stop(void *arg)
 {
+    if (!output_running)
+	return;
+    pthread_mutex_lock(&syn_mtx);
     mt32emu_close_synth(ctx.d);
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
     output_running = 0;
+    pthread_mutex_unlock(&syn_mtx);
 }
 
 static void mf_process_samples(int nframes)
@@ -159,9 +169,15 @@ static void *synth_thread(void *arg)
 {
     while (1) {
 	sem_wait(&syn_sem);
+	pthread_mutex_lock(&syn_mtx);
+	if (!output_running) {
+		pthread_mutex_unlock(&syn_mtx);
+		continue;
+	}
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	process_samples(GETusTIME(0), MUNT_MIN_BUF);
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	pthread_mutex_unlock(&syn_mtx);
     }
     return NULL;
 }
