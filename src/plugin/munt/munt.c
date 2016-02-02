@@ -113,10 +113,16 @@ static void midomunt_start(void)
 
 static void midomunt_write(unsigned char val)
 {
+    unsigned long long now;
+    int tstamp;
+
     if (!output_running)
 	midomunt_start();
 
-    mt32emu_parse_stream(ctx, &val, 1);
+    now = GETusTIME(0);
+    /* timstamp is measured in samples */
+    tstamp = (now - mf_time_base) * munt_srate / 1000000;
+    mt32emu_parse_stream_at(ctx, &val, 1, tstamp);
 }
 
 static void midomunt_stop(void *arg)
