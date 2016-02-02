@@ -196,13 +196,18 @@ int pcm_init(void)
     pthread_mutex_init(&pcm.time_mtx, NULL);
 
 #ifdef USE_DL_PLUGINS
+#define LOAD_PLUGIN_C(x, c) \
+    dl_handles[num_dl_handles] = load_plugin(x); \
+    if (dl_handles[num_dl_handles]) { \
+	num_dl_handles++; \
+	c \
+    }
+#define LOAD_PLUGIN(x) LOAD_PLUGIN_C(x,)
 #ifdef USE_LIBAO
-    dl_handles[num_dl_handles++] = load_plugin("libao");
-    ca = pcm_get_cfg("ao");
+    LOAD_PLUGIN_C("libao", { ca = pcm_get_cfg("ao"); } );
 #endif
 #ifdef SDL_SUPPORT
-    dl_handles[num_dl_handles++] = load_plugin("sdl");
-    cs = pcm_get_cfg("sdl");
+    LOAD_PLUGIN_C("sdl", { cs = pcm_get_cfg("sdl"); } );
 #endif
     if (!ca && !cs)		// auto. use ao for now
 	config.libao_sound = 1;
@@ -218,10 +223,10 @@ int pcm_init(void)
     }
 
 #ifdef USE_ALSA
-    dl_handles[num_dl_handles++] = load_plugin("alsa");
+    LOAD_PLUGIN("alsa");
 #endif
 #ifdef LADSPA_SUPPORT
-    dl_handles[num_dl_handles++] = load_plugin("ladspa");
+    LOAD_PLUGIN("ladspa");
 #endif
 #endif
     assert(num_dl_handles <= MAX_DL_HANDLES);

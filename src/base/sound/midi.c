@@ -61,14 +61,18 @@ void midi_init(void)
 {
     int i;
 #ifdef USE_DL_PLUGINS
+#define LOAD_PLUGIN(x) \
+    dl_handles[num_dl_handles] = load_plugin(x); \
+    if (dl_handles[num_dl_handles]) \
+	num_dl_handles++
 #ifdef USE_FLUIDSYNTH
-    dl_handles[num_dl_handles++] = load_plugin("fluidsynth");
+    LOAD_PLUGIN("fluidsynth");
 #endif
 #ifdef USE_MUNT
-    dl_handles[num_dl_handles++] = load_plugin("munt");
+    LOAD_PLUGIN("munt");
 #endif
 #ifdef USE_ALSA
-    dl_handles[num_dl_handles++] = load_plugin("alsa");
+    LOAD_PLUGIN("alsa");
 #endif
 #endif
     rng_init(&midi_in, 64, 1);
