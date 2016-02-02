@@ -55,7 +55,7 @@ static int midomunt_init(void *arg)
     mt32emu_return_code ret;
     char p[PATH_MAX];
 
-    ctx = mt32emu_create_context(NULL);
+    ctx = mt32emu_create_context((mt32emu_report_handler_i){ NULL }, NULL);
     strcpy(p, config.munt_roms_dir);
     strcat(p, "/MT32_CONTROL.ROM");
     ret = mt32emu_add_rom_file(ctx, p);
@@ -97,13 +97,13 @@ static void midomunt_start(void)
     mt32emu_return_code ret;
 
     pthread_mutex_lock(&syn_mtx);
-    ret = mt32emu_open_synth(ctx.d, NULL, NULL);
+    ret = mt32emu_open_synth(ctx);
     if (ret != MT32EMU_RC_OK) {
 	pthread_mutex_unlock(&syn_mtx);
 	error("MUNT: open_synth() failed\n");
 	return;
     }
-    munt_srate = mt32emu_get_actual_stereo_output_samplerate(ctx.d);
+    munt_srate = mt32emu_get_actual_stereo_output_samplerate(ctx);
     S_printf("MIDI: starting munt, srate=%i\n", munt_srate);
     mf_time_base = GETusTIME(0);
     pcm_prepare_stream(pcm_stream);
@@ -116,7 +116,7 @@ static void midomunt_write(unsigned char val)
     if (!output_running)
 	midomunt_start();
 
-    mt32emu_parse_stream(ctx.d, &val, 1);
+    mt32emu_parse_stream(ctx, &val, 1);
 }
 
 static void midomunt_stop(void *arg)
@@ -124,7 +124,7 @@ static void midomunt_stop(void *arg)
     if (!output_running)
 	return;
     pthread_mutex_lock(&syn_mtx);
-    mt32emu_close_synth(ctx.d);
+    mt32emu_close_synth(ctx);
     if (pcm_running)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
@@ -136,7 +136,7 @@ static void mf_process_samples(int nframes)
 {
     sndbuf_t buf[MUNT_MAX_BUF][MUNT_CHANNELS];
 
-    mt32emu_render_bit16s(ctx.d, (sndbuf_t *)buf, nframes);
+    mt32emu_render_bit16s(ctx, (sndbuf_t *)buf, nframes);
     pcm_running = 1;
     pcm_write_interleaved(buf, nframes, munt_srate, munt_format,
 	    MUNT_CHANNELS, pcm_stream);
