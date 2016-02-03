@@ -81,7 +81,7 @@ static void show_settings(void)
 
 	com_printf(". MPU-401 at 0x%x-0x%x, IRQ=%d.\n",
 			config.mpu401_base, config.mpu401_base+1,
-			config.mpu401_irq);
+			get_mpu401_irq_num());
 	com_printf("MIDI synth mode is %d\n", get_mode_num());
 }
 
