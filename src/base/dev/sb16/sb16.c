@@ -1808,7 +1808,7 @@ void sound_init(void)
     if (!config.sound)
 	return;
     if (config.mpu401_irq == -1) {
-	config.mpu401_irq = dspio_get_mpu401_irq();
+	config.mpu401_irq = config.sb_irq;
 	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
     }
     sb.dspio = dspio_init();
