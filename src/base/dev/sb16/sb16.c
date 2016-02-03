@@ -62,6 +62,11 @@ static int sb_get_dsp_irq_num(void)
     return sb_irq_tab[idx];
 }
 
+int get_mpu401_irq_num(void)
+{
+    return dspio_get_mpu401_irq();
+}
+
 int sb_get_dma_num(void)
 {
     int idx = find_bit(sb.mixer_regs[0x81] & 0x0f);
@@ -1722,6 +1727,11 @@ static void mpu401_init(void)
 
     S_printf("MPU401: MPU-401 Initialisation\n");
 
+    if (config.mpu401_irq == -1) {
+	config.mpu401_irq = config.sb_irq;
+	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
+    }
+
     /* This is the MPU-401 */
     io_device.read_portb = mpu401_io_read;
     io_device.write_portb = mpu401_io_write;
@@ -1732,9 +1742,9 @@ static void mpu401_init(void)
     io_device.handler_name = "Midi Emulation";
     io_device.start_addr = config.mpu401_base;
     io_device.end_addr = config.mpu401_base + 0x001;
-    if (dspio_get_mpu401_irq() == config.sb_irq) {
+    if (config.mpu401_irq == config.sb_irq) {
 	S_printf("SB: same irq for DSP and MPU401\n");
-	io_device.irq = config.mpu401_irq_mt32;
+	io_device.irq = EMU_NO_IRQ;
     } else {
 	io_device.irq = config.mpu401_irq;
     }
@@ -1807,10 +1817,6 @@ void sound_init(void)
 {
     if (!config.sound)
 	return;
-    if (config.mpu401_irq == -1) {
-	config.mpu401_irq = config.sb_irq;
-	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
-    }
     sb.dspio = dspio_init();
     if (!sb.dspio) {
 	error("dspio faild\n");
