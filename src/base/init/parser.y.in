@@ -736,8 +736,8 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { stop_printer(); }
 		| L_X '{' x_flags '}'
 		| L_SDL '{' sdl_flags '}'
-		| L_SOUND bool	{ config.sound = ($2!=0); }
-                | L_SOUND { config.sound = -1; } '{' sound_flags '}'
+		| SOUND bool	{ config.sound = ($2!=0); }
+                | L_SOUND '{' sound_flags '}'
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = NULL; } }
                 | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
