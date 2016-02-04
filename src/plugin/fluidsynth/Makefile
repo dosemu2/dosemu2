@@ -9,7 +9,8 @@ include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
 ALL_CFLAGS+=$(DL_CFLAGS) $(FLUSCFLAGS)
-CFILES = mid_o_flus.c mid_o_file.c
+CFILES = mid_o_flus.c mid_o_file.c fluid_midi.c
+ALL_LDFLAGS += -Bsymbolic
 ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_fluidsynth.so
 endif
