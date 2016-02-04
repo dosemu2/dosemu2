@@ -43,7 +43,10 @@ kvm_mon_start:
         .endr
 
 kvm_mon_main:
-        sub $0x10,%esp
+        push %gs
+        push %fs
+        push %es
+        push %ds
         push %eax
         push %ebp
         push %edi
@@ -64,7 +67,11 @@ kvm_mon_hlt:
         pop %edi
         pop %ebp
         pop %eax
-        add $0x14,%esp
+        pop %ds
+        pop %es
+        pop %fs
+        pop %gs
+        add $0x4,%esp
         iret
 
 	.globl kvm_mon_end
