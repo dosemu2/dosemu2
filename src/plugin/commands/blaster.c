@@ -115,6 +115,7 @@ int blaster_main(int argc, char **argv) {
 			blaster_setenv();
 			break;
 		case 'H':
+		case '?':
 			show_help(argv[0]);
 			break;
 		case 'S':
