@@ -32,7 +32,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <fluidsynth.h>
-#include "fluid_midi.h"
 #include "seqbind.h"
 #include "emu.h"
 #include "init.h"
@@ -53,7 +52,6 @@ static fluid_settings_t* settings;
 static fluid_synth_t* synth;
 static fluid_sequencer_t* sequencer;
 static void *synthSeqID;
-static fluid_midi_parser_t* parser;
 static int pcm_stream;
 static int output_running, pcm_running;
 static double mf_time_base;
@@ -119,7 +117,6 @@ static int midoflus_init(void *arg)
     S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
     sequencer = new_fluid_sequencer2(0);
     synthSeqID = fluid_sequencer_register_fluidsynth2(sequencer, synth);
-    parser = new_fluid_midi_parser();
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
@@ -147,7 +144,6 @@ static void midoflus_done(void *arg)
     pthread_join(syn_thr, NULL);
     sem_destroy(&syn_sem);
 
-    delete_fluid_midi_parser(parser);
     delete_fluid_sequencer(sequencer);
     delete_fluid_synth(synth);
     delete_fluid_settings(settings);
