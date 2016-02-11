@@ -25,7 +25,9 @@ clean::
 	-rm -f $(OBJS) $(LIB) *~
 
 realclean::	clean
-	rm -f *.d
+	rm -f $(DEPENDS)
+	rm -rf autom4te*.cache
+	rm -f Makefile.conf config.log config.status configure
 
 %.o:	%.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
