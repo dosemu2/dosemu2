@@ -33,6 +33,7 @@
 #include <semaphore.h>
 #include <fluidsynth.h>
 #include "fluid_midi.h"
+#include "seqbind.h"
 #include "emu.h"
 #include "init.h"
 #include "timers.h"
@@ -51,7 +52,7 @@ static const float flus_gain = 1;
 static fluid_settings_t* settings;
 static fluid_synth_t* synth;
 static fluid_sequencer_t* sequencer;
-static short synthSeqID;
+static void *synthSeqID;
 static fluid_midi_parser_t* parser;
 static int pcm_stream;
 static int output_running, pcm_running;
@@ -117,7 +118,7 @@ static int midoflus_init(void *arg)
     fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
     S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
     sequencer = new_fluid_sequencer2(0);
-    synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
+    synthSeqID = fluid_sequencer_register_fluidsynth2(sequencer, synth);
     parser = new_fluid_midi_parser();
 
     sem_init(&syn_sem, 0, 0);
@@ -165,23 +166,17 @@ static void midoflus_start(void)
 
 static void midoflus_write(unsigned char val)
 {
-    fluid_midi_event_t* event;
+    int ret;
+    unsigned long long now = GETusTIME(0);
+    int msec = (now - mf_time_base) / 1000;
 
     if (!output_running)
 	midoflus_start();
 
-    event = fluid_midi_parser_parse(parser, val);
-    if (event != NULL) {
-	int ret;
-	unsigned long long now = GETusTIME(0);
-	int msec = (now - mf_time_base) / 1000;
-	fluid_sequencer_process(sequencer, msec);
-	if (debug_level('S') >= 5)
-	    S_printf("MIDI: sending event to fluidsynth, msec=%i\n", msec);
-	ret = fluid_sequencer_add_midi_event_to_buffer(sequencer, event);
-	if (ret != FLUID_OK)
-	    S_printf("MIDI: failed sending midi event\n");
-    }
+    fluid_sequencer_process(sequencer, msec);
+    ret = fluid_sequencer_add_midi_data_to_buffer(synthSeqID, &val, 1);
+    if (ret != FLUID_OK)
+	S_printf("MIDI: failed sending midi event\n");
 }
 
 static void mf_process_samples(int nframes)
