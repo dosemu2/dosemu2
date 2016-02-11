@@ -45,9 +45,5 @@ $(BINPATH)/bin/libplugin_term.so: $(OBJS) $(MAPS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $(OBJS) $(SLANGLIB)
 endif
 
-install: all
-
 clean::
 	rm -f partial.map libslang*.stub.*
-realclean::
-	rm -rf Makefile.conf autom4te.cache configure *.log *.m4 config.status
