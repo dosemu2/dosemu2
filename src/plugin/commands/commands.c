@@ -273,6 +273,7 @@ void commands_plugin_init(void)
 	register_com_program("UNIX", unix_main);
 	register_com_program("CMDLINE", cmdline_main);
 
+	register_com_program("SOUND", sound_main);
 	register_com_program("BLASTER", blaster_main);
 
 #if 0
