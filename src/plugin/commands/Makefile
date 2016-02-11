@@ -23,7 +23,7 @@ COM = $(D)/generic.com
 STUBSYMLINK = $(D)/bootoff.com $(D)/booton.com $(D)/ecpuon.com $(D)/ecpuoff.com $(D)/eject.com \
   $(D)/exitemu.com $(D)/speed.com $(D)/uchdir.com $(D)/ugetcwd.com $(D)/cmdline.com \
   $(D)/vgaoff.com $(D)/vgaon.com $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com \
-  $(D)/unix.com $(D)/blaster.com $(D)/dpmi.com $(D)/lredir2.com
+  $(D)/unix.com $(D)/blaster.com $(D)/sound.com $(D)/dpmi.com $(D)/lredir2.com
 
 all: lib $(COM) $(STUBSYMLINK)
 
