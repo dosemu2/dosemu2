@@ -42,6 +42,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <math.h>
 
 #define DAC_BASE_FREQ 5625
 #define PCM_MAX_BUF 512
@@ -767,6 +768,9 @@ void dspio_write_dac(void *dspio, Bit8u samp)
 			  1, DSPIO->dac_strm);
 }
 
+/* the volume APIs for sb16 and sndpcm are very different.
+ * We need a lot of glue below to get them to work together.
+ * I wonder if it is possible to design the APIs with fewer glue in between. */
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
 {
     double vol;
@@ -820,6 +824,13 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     if (mr != MR_OK)
 	return 0;
     return vol;
+}
+
+/* FIXME: this is too slow! Needs caching to avoid re-calcs. */
+double dspio_calc_vol(int val, int step, int init_db)
+{
+#define LOG_SCALE 0.02
+    return pow(10, LOG_SCALE * (val * step + init_db));
 }
 
 int dspio_is_connected(int id, void *arg)

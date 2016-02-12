@@ -41,7 +41,6 @@
 #include "adlib.h"
 #include "sb16.h"
 #include <string.h>
-#include <math.h>
 
 static int sb_irq_tab[] = { 2, 5, 7, 10 };
 static int sb_dma_tab[] = { 0, 1, 3 };
@@ -1128,26 +1127,24 @@ static Bit8u sb_mixer_read(void)
     return val;
 }
 
-#define LOG_SCALE 0.02
-
 static double vol5h(int reg)
 {
-    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] >> 3) * 2 - 62));
+    return dspio_calc_vol(sb.mixer_regs[reg] >> 3, 2, -62);
 }
 
 static double vol2h(int reg)
 {
-    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] >> 6) * 6 - 18));
+    return dspio_calc_vol(sb.mixer_regs[reg] >> 6, 6, -18);
 }
 
 static double vol3l(int reg)
 {
-    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] & 7) * 6 - 42));
+    return dspio_calc_vol(sb.mixer_regs[reg] & 7, 6, -42);
 }
 
 static double gain2h(int reg)
 {
-    return pow(10, LOG_SCALE * ((sb.mixer_regs[reg] >> 6) * 6));
+    return dspio_calc_vol(sb.mixer_regs[reg] >> 6, 6, 0);
 }
 
 #define ENAB(r, b) \
