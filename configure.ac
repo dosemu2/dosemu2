@@ -215,6 +215,9 @@ else
   AC_MSG_NOTICE(Compiling without debug info...)
 fi
 
+AC_ARG_ENABLE(profile,
+               AS_HELP_STRING([--enable-profile], [compile with profile info]))
+
 AC_ARG_ENABLE(asan, [AS_HELP_STRING(--enable-asan, [enable address sanitizer])])
 
 AC_SUBST(OPTIONALSUBDIRS)
@@ -268,6 +271,12 @@ if test "$enable_debug" = "yes"; then
   if test "$enable_asan" = "yes"; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
     LDFLAGS="$LDFLAGS -fsanitize=address"
+    AC_MSG_NOTICE(enabling address sanitizer)
+  fi
+  if test "$enable_profile" = "yes"; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -pg"
+    LDFLAGS="$LDFLAGS -pg"
+    AC_MSG_NOTICE(enabling profiling)
   fi
   AC_DEFINE(_DEBUG)
 fi
