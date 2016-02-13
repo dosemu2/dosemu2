@@ -515,6 +515,9 @@ static int terminal_initialize(void)
 	 leavedos(32);
    }
    SLsmg_cls ();
+
+   text_gain_focus();
+
    return 0;
 }
 
