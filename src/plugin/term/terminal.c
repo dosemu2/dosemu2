@@ -434,7 +434,6 @@ static int terminal_initialize(void)
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    register_text_system(&Text_term);
-   vga_emu_setmode(video_mode, Columns, Rows);
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
 #ifdef USE_RELAYTOOL
@@ -621,7 +620,6 @@ static int slang_update (void)
 	 error ("Unable to initialize SMG routines.");
 	 leavedos(32);
        }
-     vga_emu_setmode(video_mode, Columns, Rows);
      SLsmg_cls ();
      Slsmg_is_not_initialized = 0;
    }
