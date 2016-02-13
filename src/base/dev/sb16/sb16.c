@@ -63,7 +63,7 @@ static int sb_get_dsp_irq_num(void)
 
 int get_mpu401_irq_num(void)
 {
-    return dspio_get_mpu401_irq();
+    return (sb.mpu401_imode ? config.mpu401_irq_mt32 : config.mpu401_irq);
 }
 
 int sb_get_dma_num(void)
@@ -335,7 +335,7 @@ static void sb_request_irq(int type)
     if (type & SB_IRQ_DSP)
 	pic_request(pic_irq_list[sb_get_dsp_irq_num()]);
     if (type & SB_IRQ_MPU401)
-	pic_request(pic_irq_list[dspio_get_mpu401_irq()]);
+	pic_request(pic_irq_list[get_mpu401_irq_num()]);
 }
 
 static void sb_activate_irq(int type)
@@ -352,7 +352,7 @@ static void sb_activate_irq(int type)
 static void sb_deactivate_irq(int type)
 {
     uint32_t act_map;
-    int mpu_irq = dspio_get_mpu401_irq();
+    int mpu_irq = get_mpu401_irq_num();
 
     S_printf("SB: Deactivating irq type %d\n", type);
     if (!(sb.mixer_regs[0x82] & type)) {
@@ -1755,6 +1755,13 @@ static void mpu401_init(void)
 
 static void mpu401_done(void)
 {
+}
+
+int mpu401_enable_imode(int on)
+{
+    sb.mpu401_imode = on;
+    /* not implemented yet */
+    return 0;
 }
 
 static void sb_dsp_init(void)

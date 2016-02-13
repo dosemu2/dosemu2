@@ -310,6 +310,7 @@ void *dspio_init(void)
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     midi_init();
+    mpu401_enable_imode(midi_get_synth_type() == ST_MT32);
     return state;
 }
 
@@ -846,16 +847,4 @@ int dspio_is_connected(int id, void *arg)
 	return sb_is_input_connected(mc);
     }
     return 0;
-}
-
-int dspio_get_mpu401_irq(void)
-{
-    switch (midi_get_synth_type()) {
-    case ST_GM:
-	return config.mpu401_irq;
-    case ST_MT32:
-	return config.mpu401_irq_mt32;
-    default:
-	return -1;
-    }
 }
