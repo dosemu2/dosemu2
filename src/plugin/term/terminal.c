@@ -505,6 +505,19 @@ static int terminal_initialize(void)
    SLtt_set_mono (7, NULL, 0);
 
    set_char_set ();
+
+   SLtt_get_terminfo();
+#if SLANG_VERSION < 10000
+   if (!SLsmg_init_smg ())
+#else
+   if (SLsmg_init_smg() == -1)
+#endif
+   {
+	 error ("Unable to initialize SMG routines.");
+	 leavedos(32);
+   }
+   SLsmg_cls ();
+   Slsmg_is_not_initialized = 0;
    return 0;
 }
 
@@ -608,21 +621,6 @@ static int slang_update (void)
 
    static int last_row, last_col, last_vis = -1, help_showing;
    static const char *last_prompt = NULL;
-
-   if (Slsmg_is_not_initialized)
-   {
-#if SLANG_VERSION < 10000
-     if (!SLsmg_init_smg ())
-#else
-     if (SLsmg_init_smg() == -1)
-#endif
-       {
-	 error ("Unable to initialize SMG routines.");
-	 leavedos(32);
-       }
-     SLsmg_cls ();
-     Slsmg_is_not_initialized = 0;
-   }
 
    SLtt_Blink_Mode = (vga.attr.data[0x10] & 0x8) != 0;
 
@@ -842,7 +840,6 @@ static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last,
 }
 
 #define term_setmode NULL
-#define term_update_cursor NULL
 
 static struct video_system Video_term = {
    NULL,
