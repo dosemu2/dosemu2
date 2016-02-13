@@ -123,8 +123,6 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr);
 static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr);
 static void (*term_write_nchars)(unsigned char *, int, Bit8u) = term_write_nchars_utf8;
 
-static int Slsmg_is_not_initialized = 1;
-
 /* I think this is what is assumed. */
 static int Rows = 25;
 static int Columns = 80;
@@ -517,23 +515,18 @@ static int terminal_initialize(void)
 	 leavedos(32);
    }
    SLsmg_cls ();
-   Slsmg_is_not_initialized = 0;
    return 0;
 }
 
 static void terminal_close (void)
 {
    v_printf("VID: terminal_close() called\n");
-   if (Slsmg_is_not_initialized == 0)
-     {
-	SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
-	SLtt_set_cursor_visibility(1);
-	SLsmg_refresh ();
-	SLsmg_reset_smg ();
-	putc ('\n', stdout);
-	Slsmg_is_not_initialized = 1;
-	term_close();
-     }
+   SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
+   SLtt_set_cursor_visibility(1);
+   SLsmg_refresh ();
+   SLsmg_reset_smg ();
+   putc ('\n', stdout);
+   term_close();
 }
 
 #if 0 /* unused -- Bart */
@@ -774,8 +767,6 @@ static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u a
 
 void dos_slang_redraw (void)
 {
-   if (Slsmg_is_not_initialized) return;
-
    redraw_text_screen();
    SLsmg_refresh ();
 }
@@ -783,7 +774,6 @@ void dos_slang_redraw (void)
 void dos_slang_suspend (void)
 {
    /*
-   if (Slsmg_is_not_initialized) return;
    terminal_close();
    keyboard_close();
 
