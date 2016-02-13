@@ -64,7 +64,7 @@
 /*
  * Activate some debug output.
  */
-#define DEBUG_INT10	0
+#define DEBUG_INT10	1
 #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
 #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
 
