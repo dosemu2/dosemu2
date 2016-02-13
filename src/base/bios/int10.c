@@ -478,18 +478,6 @@ boolean set_video_mode(int mode) {
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
   MEMSET_DOS(0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
-  if(Video->setmode == NULL) {
-    /* set display start to 0 */
-    crt_outw(0xc, 0);
-    /* mode control to text mode default */
-    crt_outw(0x17, 0xa3);
-    /* mode change clears screen unless bit7 of AL set */
-    if(clear_mem)
-      clear_screen();
-    i10_msg("set_video_mode: no setmode handler!\n");
-    return 0;
-  }
-
   if(config.cardtype == CARD_MDA) mode = 7;
 
   if(mode == 7) {
