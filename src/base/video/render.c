@@ -157,7 +157,7 @@ int register_render_system(struct render_system *render_system)
 int remapper_init(int have_true_color, int have_shmap, int features,
     ColorSpaceDesc *csd)
 {
-  int remap_src_modes, err, ximage_mode;
+  int remap_src_modes, ximage_mode;
 
 //  set_remap_debug_msg(stderr);
 
@@ -185,14 +185,19 @@ int remapper_init(int have_true_color, int have_shmap, int features,
     register_text_system(&Text_bitmap);
     init_text_mapper(ximage_mode, features, csd);
   }
-  err = sem_init(&render_sem, 0, 0);
-  assert(!err);
-  err = pthread_create(&render_thr, NULL, render_thread, NULL);
-  assert(!err);
 
   return remap_src_modes;
 }
 
+int render_init(void)
+{
+  int err;
+  err = sem_init(&render_sem, 0, 0);
+  assert(!err);
+  err = pthread_create(&render_thr, NULL, render_thread, NULL);
+  assert(!err);
+  return err;
+}
 
 /*
  * Free resources associated with remap_obj.
@@ -319,28 +324,6 @@ static void modify_mode(void)
   }
 }
 
-
-/*
- * DANG_BEGIN_FUNCTION update_screen
- *
- * description:
- * Update the part of the screen which has changed, in text mode
- * and in graphics mode. Usually called from the SIGALRM handler.
- *
- * X_update_screen returns 0 if nothing was updated, 1 if the whole
- * screen was updated, and 2 for a partial update.
- *
- * It is called in arch/linux/async/signal.c::SIGALRM_call() as part
- * of a struct video_system (see top of X.c) every 50 ms or
- * every 10 ms if 2 was returned, depending somewhat on various config
- * options as e.g. config.X_updatefreq and VIDEO_CHECK_DIRTY.
- * At least it is supposed to do that.
- *
- * DANG_END_FUNCTION
- *
- * Text and graphics updates are separate functions now; the code was
- * too messy. -- sw
- */
 
 static int update_graphics_loop(int src_offset, int update_offset,
 	vga_emu_update_type *veut)
@@ -515,6 +498,27 @@ int render_update_vidmode(void)
   return 0;
 }
 
+/*
+ * DANG_BEGIN_FUNCTION update_screen
+ *
+ * description:
+ * Update the part of the screen which has changed, in text mode
+ * and in graphics mode. Usually called from the SIGALRM handler.
+ *
+ * X_update_screen returns 0 if nothing was updated, 1 if the whole
+ * screen was updated, and 2 for a partial update.
+ *
+ * It is called in arch/linux/async/signal.c::SIGALRM_call() as part
+ * of a struct video_system (see top of X.c) every 50 ms or
+ * every 10 ms if 2 was returned, depending somewhat on various config
+ * options as e.g. config.X_updatefreq and VIDEO_CHECK_DIRTY.
+ * At least it is supposed to do that.
+ *
+ * DANG_END_FUNCTION
+ *
+ * Text and graphics updates are separate functions now; the code was
+ * too messy. -- sw
+ */
 int update_screen(void)
 {
   if(vga.config.video_off) {

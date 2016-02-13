@@ -6,6 +6,10 @@
 
 /* definitions for rendering graphics modes -- the middle layer
    between the graphics frontends and the remapper */
+#ifndef RENDER_H
+#define RENDER_H
+
+#include "remap.h"
 
 struct render_system
 {
@@ -29,3 +33,6 @@ int render_is_updating(void);
 void redraw_text_screen(void);
 void render_gain_focus(void);
 void render_lose_focus(void);
+int render_init(void);
+
+#endif
