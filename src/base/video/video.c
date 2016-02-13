@@ -26,6 +26,7 @@
 #include "port.h"
 #include "memory.h"
 #include "video.h"
+#include "render.h"
 #include "vgaemu.h"
 #include "vc.h"
 #include "mapping.h"
@@ -185,6 +186,8 @@ struct video_system *video_get(const char *name)
  */
 static int video_init(void)
 {
+  render_init();
+
   if ((config.vga == -1 || config.console_video == -1) && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;

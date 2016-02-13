@@ -312,9 +312,11 @@ int main(int argc, char **argv)
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
     pci_setup();
+    /* threads can be created only after signal_pre_init() so
+     * it should be above device_init(), iodev_init() etc */
+    signal_pre_init();          /* initialize sig's & sig handlers */
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
-    signal_pre_init();          /* initialize sig's & sig handlers */
     SIG_init();			/* Silly Interrupt Generator */
     pkt_priv_init();            /* initialize the packet driver interface */
 
