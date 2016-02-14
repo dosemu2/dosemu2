@@ -382,7 +382,10 @@ static Keymap_Scan_Type terminfo_basic_fkeys[] =
    {"^(F2)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
    {"^(F3)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
    {"^(F4)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
+/* disable because of the conflict with CPR. See comments below. */
+#if 0
    {"^(F5)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
+#endif
    {"^(F6)",	KEY_F6|SHIFT_MASK},    /* Shift F6 */
    {"^(F7)",	KEY_F7|SHIFT_MASK},    /* Shift F7 */
    {"^(F8)",	KEY_F8|SHIFT_MASK},    /* Shift F8 */
