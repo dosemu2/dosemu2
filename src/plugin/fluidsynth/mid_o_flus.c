@@ -133,11 +133,6 @@ err1:
     return 0;
 }
 
-static int midoflus_owns(void *id, void *arg)
-{
-    return ((enum MixChan)id == MC_MIDI);
-}
-
 static void midoflus_done(void *arg)
 {
     pthread_cancel(syn_thr);
@@ -278,7 +273,7 @@ static const struct midi_out_plugin midoflus = {
 static const struct pcm_recorder recorder = {
     .name = midoflus_name,
     .longname = midoflus_longname,
-    .owns = midoflus_owns,
+    .id2 = (void *)MC_MIDI,
     .flags = PCM_F_PASSTHRU,
 };
 

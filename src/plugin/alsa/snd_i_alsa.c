@@ -158,18 +158,13 @@ static void alsain_stop(void *arg)
     S_printf("ALSA: input stopped\n");
 }
 
-static int alsain_owns(void *id, void *arg)
-{
-    return ((enum MixChan)id == MC_LINE);
-}
-
 static const struct pcm_recorder recorder = {
     .name = alsain_name,
     .longname = alsain_longname,
     .open = alsain_open,
     .start = alsain_start,
     .stop = alsain_stop,
-    .owns = alsain_owns,
+    .id2 = (void *)MC_LINE,
 };
 
 CONSTRUCTOR(static void alsain_init(void))

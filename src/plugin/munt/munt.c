@@ -200,11 +200,6 @@ static int midomunt_cfg(void *arg)
     return pcm_parse_cfg(config.midi_driver, midomunt_name);
 }
 
-static int midomunt_owns(void *id, void *arg)
-{
-    return ((enum MixChan)id == MC_MIDI);
-}
-
 static const struct midi_out_plugin midomunt = {
     .name = midomunt_name,
     .longname = midomunt_longname,
@@ -221,7 +216,7 @@ static const struct midi_out_plugin midomunt = {
 static const struct pcm_recorder recorder = {
     .name = midomunt_name,
     .longname = midomunt_longname,
-    .owns = midomunt_owns,
+    .id2 = (void *)MC_MIDI,
     .flags = PCM_F_PASSTHRU,
 };
 

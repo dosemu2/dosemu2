@@ -280,7 +280,8 @@ static const struct pcm_player player = {
 };
 
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
-int dspio_is_connected(int id, void *arg);
+static int dspio_is_connected(int id, void *arg);
+static int dspio_checkid2(void *id2, void *arg);
 
 void *dspio_init(void)
 {
@@ -304,6 +305,7 @@ void *dspio_init(void)
 
     pcm_set_volume_cb(dspio_get_volume);
     pcm_set_connected_cb(dspio_is_connected);
+    pcm_set_checkid2_cb(dspio_checkid2);
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", (void*)MC_VOICE);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
     state->dma_strm = pcm_allocate_stream(2, "SB DMA", (void*)MC_VOICE);
@@ -834,7 +836,7 @@ double dspio_calc_vol(int val, int step, int init_db)
     return pow(10, LOG_SCALE * (val * step + init_db));
 }
 
-int dspio_is_connected(int id, void *arg)
+static int dspio_is_connected(int id, void *arg)
 {
     enum MixChan mc = (long)arg;
 
@@ -847,4 +849,12 @@ int dspio_is_connected(int id, void *arg)
 	return sb_is_input_connected(mc);
     }
     return 0;
+}
+
+static int dspio_checkid2(void *id2, void *arg)
+{
+    enum MixChan mc = (long)arg;
+    enum MixChan mc2 = (long)id2;
+
+    return (mc2 == MC_NONE || mc2 == mc);
 }
