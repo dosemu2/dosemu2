@@ -148,6 +148,7 @@ struct pcm_struct {
     int num_streams;
     double (*get_volume)(int id, int chan_dst, int chan_src, void *);
     int (*is_connected)(int id, void *arg);
+    int (*checkid2)(void *id2, void *arg);
     pthread_mutex_t strm_mtx;
     pthread_mutex_t time_mtx;
     struct pcm_holder players[MAX_PLAYERS];
@@ -171,6 +172,11 @@ static double get_vol_dummy(int id, int chan_dst, int chan_src, void *arg)
 }
 
 static int is_connected_dummy(int id, void *arg)
+{
+    return 1;
+}
+
+static int checkid2_dummy(void *id2, void *arg)
 {
     return 1;
 }
@@ -233,6 +239,7 @@ int pcm_init(void)
 
     pcm.get_volume = get_vol_dummy;
     pcm.is_connected = is_connected_dummy;
+    pcm.checkid2 = checkid2_dummy;
 
     /* init efps before players because players init code refers to efps */
     if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
@@ -1275,8 +1282,7 @@ int pcm_start_input(void *arg)
     int i, ret = 0;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns ||
-		RECORDER(p)->owns(arg, p->arg))) {
+	if (p->opened && pcm.checkid2(RECORDER(p)->id2, arg)) {
 	    RECORDER(p)->start(p->arg);
 	    ret++;
 	}
@@ -1290,8 +1296,7 @@ void pcm_stop_input(void *arg)
     int i;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns ||
-		RECORDER(p)->owns(arg, p->arg)))
+	if (p->opened && pcm.checkid2(RECORDER(p)->id2, arg))
 	    RECORDER(p)->stop(p->arg);
     }
     S_printf("PCM: input stopped\n");
@@ -1305,6 +1310,11 @@ void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *))
 void pcm_set_connected_cb(int (*is_connected)(int, void *))
 {
     pcm.is_connected = is_connected;
+}
+
+void pcm_set_checkid2_cb(int (*checkid2)(void *, void *))
+{
+    pcm.checkid2 = checkid2;
 }
 
 int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,

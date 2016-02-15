@@ -75,7 +75,7 @@ struct pcm_player {
 
 struct pcm_recorder {
   pcm_plugin_base;
-  int (*owns)(void *, void *);
+  void *id2;
 };
 
 typedef int (*efp_process)(int handle, sndbuf_t buf[][SNDBUF_CHANS],
@@ -154,6 +154,7 @@ extern int pcm_start_input(void *id);
 extern void pcm_stop_input(void *id);
 extern void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *));
 extern void pcm_set_connected_cb(int (*is_connected)(int, void *));
+extern void pcm_set_checkid2_cb(int (*checkid2)(void *, void *));
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,
