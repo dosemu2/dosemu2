@@ -31,7 +31,9 @@
 #define alsain_name "alsa_in"
 #define alsain_longname "Sounds input: alsa"
 static int pcm_stream, pcm_running;
-static const char *alsa_dev = "default";
+static const char *alsa_dev_default = "default";
+static char *alsa_dev;
+static const char *device_name_param = "dev_name";
 static snd_pcm_t *capture_handle;
 static unsigned int alsa_freq = 44100;
 static struct pollfd *pfds;
@@ -71,9 +73,18 @@ static void alsain_async(void *arg)
 
 static int alsain_open(void *arg)
 {
+    char *dname = pcm_parse_params(config.snd_plugin_params,
+	    alsain_name, device_name_param);
+    alsa_dev = dname ?: strdup(alsa_dev_default);
+
     pcm_stream = pcm_allocate_stream(ALSAIN_CHANS, "PCM LINE IN",
 	    (void*)MC_LINE);
     return 1;
+}
+
+static void alsain_close(void *arg)
+{
+    free(alsa_dev);
 }
 
 static void alsain_start(void *arg)
@@ -162,6 +173,7 @@ static const struct pcm_recorder recorder = {
     .name = alsain_name,
     .longname = alsain_longname,
     .open = alsain_open,
+    .close = alsain_close,
     .start = alsain_start,
     .stop = alsain_stop,
     .id2 = (void *)MC_LINE,
