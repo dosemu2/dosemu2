@@ -273,7 +273,6 @@ static const struct midi_out_plugin midoflus = {
 static const struct pcm_recorder recorder = {
     .name = midoflus_name,
     .longname = midoflus_longname,
-    .id2 = (void *)MC_MIDI,
     .flags = PCM_F_PASSTHRU,
 };
 
