@@ -1282,7 +1282,8 @@ int pcm_start_input(void *arg)
     int i, ret = 0;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && pcm.checkid2(RECORDER(p)->id2, arg)) {
+	if (p->opened && RECORDER(p)->start &&
+		pcm.checkid2(RECORDER(p)->id2, arg)) {
 	    RECORDER(p)->start(p->arg);
 	    ret++;
 	}
@@ -1296,7 +1297,8 @@ void pcm_stop_input(void *arg)
     int i;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && pcm.checkid2(RECORDER(p)->id2, arg))
+	if (p->opened && RECORDER(p)->stop &&
+		pcm.checkid2(RECORDER(p)->id2, arg))
 	    RECORDER(p)->stop(p->arg);
     }
     S_printf("PCM: input stopped\n");
