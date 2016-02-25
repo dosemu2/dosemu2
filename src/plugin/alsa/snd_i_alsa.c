@@ -67,7 +67,7 @@ static void alsain_async(void *arg)
 	    break;
 	}
     }
-    if (pollret < 0)
+    if (pollret < 0 && errno != EINTR)
 	error("ALSA: poll returned %i, %s\n", pollret, strerror(errno));
 }
 
