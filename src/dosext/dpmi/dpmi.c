@@ -3273,7 +3273,6 @@ void dpmi_init(void)
   DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
 
   if (in_dpmi == 1 && !RSP_num) {
-    dpmi_free_memory = dpmi_total_memory;
     DPMI_rm_procedure_running = 0;
     pm_block_handle_used = 1;
   }
