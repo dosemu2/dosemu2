@@ -135,7 +135,7 @@ static int uncommit(void *ptr, size_t size)
 
 unsigned long dpmi_mem_size(void)
 {
-    return PAGE_ALIGN(config.dpmi << (PAGE_SHIFT-2)) +
+    return PAGE_ALIGN(config.dpmi * 1024) +
       DPMI_pm_stack_size * DPMI_MAX_CLIENTS +
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE) +
       PAGE_ALIGN(DPMI_sel_code_end-DPMI_sel_code_start) +
@@ -145,8 +145,6 @@ unsigned long dpmi_mem_size(void)
 
 int dpmi_alloc_pool(void)
 {
-    int num_pages, mpool_numpages;
-
     /* Create DPMI pool */
     if (config.dpmi_base == -1) {
       error("MAPPING: cannot create mem pool for DPMI\n");
@@ -154,12 +152,10 @@ int dpmi_alloc_pool(void)
     }
 
     memsize = dpmi_mem_size();
-    mpool_numpages = memsize >> PAGE_SHIFT;
-    num_pages = mpool_numpages - 5;
     mpool_ptr = (void *)config.dpmi_base;
     c_printf("DPMI: mem init, mpool is %ld bytes at %p\n", memsize, mpool_ptr);
     sminit_com(&mem_pool, mpool_ptr, memsize, commit, uncommit);
-    dpmi_total_memory = num_pages << PAGE_SHIFT;
+    dpmi_total_memory = config.dpmi * 1024;
 
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory);
     return 0;
