@@ -213,14 +213,7 @@ static const struct midi_out_plugin midomunt = {
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
 
-static const struct pcm_recorder recorder = {
-    .name = midomunt_name,
-    .longname = midomunt_longname,
-    .flags = PCM_F_PASSTHRU,
-};
-
 CONSTRUCTOR(static void midomunt_register(void))
 {
-    pcm_register_recorder(&recorder, NULL);
     midi_register_output_plugin(&midomunt);
 }
