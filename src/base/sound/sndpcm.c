@@ -1205,6 +1205,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
   int i, sel, max_w, max_i, cnt;
   cnt = 0;
   sel = 0;
+  /* first deal with enabled plugins */
   for (i = 0; i < num; i++) {
     struct pcm_holder *p = &plu[i];
     p->cfg_flags = (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
@@ -1221,26 +1222,31 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
       }
     }
   }
-  do {
+  /* then deal with pass-thru plugins */
+  for (i = 0; i < num; i++) {
+    struct pcm_holder *p = &plu[i];
+    if (p->opened || p->failed ||
+	    (p->plugin->flags & PCM_F_EXPLICIT) ||
+	    !(p->plugin->flags & PCM_F_PASSTHRU))
+      continue;
+    p->opened = SAFE_OPEN(p);
+    S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
+	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
+    if (!p->opened)
+      p->failed = 1;
+    else
+      cnt++;
+  }
+  /* lastly deal with weight */
+  if (!sel) do {
     max_w = -1;
     max_i = -1;
     for (i = 0; i < num; i++) {
       struct pcm_holder *p = &plu[i];
       if (p->opened || p->failed ||
-	    (p->plugin->flags & PCM_F_EXPLICIT))
-        continue;
-      if (p->plugin->flags & PCM_F_PASSTHRU) {
-        p->opened = SAFE_OPEN(p);
-        S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
-	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
-        if (!p->opened)
-          p->failed = 1;
-        else
-          cnt++;
-        continue;
-      }
-      if (sel)
-        continue;
+	    (p->plugin->flags & PCM_F_EXPLICIT) ||
+	    (p->plugin->flags & PCM_F_PASSTHRU))
+	continue;
       if (p->plugin->weight > max_w) {
         if (max_i != -1)
           S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
