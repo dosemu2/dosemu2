@@ -270,14 +270,7 @@ static const struct midi_out_plugin midoflus = {
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
 };
 
-static const struct pcm_recorder recorder = {
-    .name = midoflus_name,
-    .longname = midoflus_longname,
-    .flags = PCM_F_PASSTHRU,
-};
-
 CONSTRUCTOR(static void midoflus_register(void))
 {
-    pcm_register_recorder(&recorder, NULL);
     midi_register_output_plugin(&midoflus);
 }
