@@ -1633,7 +1633,8 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
-    d_printf("DISK read [h:%d,s:%d,t:%d](%d)\n", head, sect, track, number);
+    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
+	     disk, head, sect, track, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (checkdp_val || track >= dp->tracks) {
       d_printf("Sector not found, AH=0x42!\n");
