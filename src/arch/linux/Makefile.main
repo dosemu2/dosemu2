@@ -28,7 +28,6 @@ _LIBSUBDIRS=base/video base/dev/vga base/async \
 	base/misc base/misc/libpcl base/dev/misc \
 	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic dosext/dpmi dosext/dpmi/msdos \
-	dosext/dpmi/mlibpcl \
 	dosext/mfs dosext/misc \
 	base/init base/serial base/mouse \
 	base/dev/dma \

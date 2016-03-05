@@ -38,9 +38,15 @@ struct m_ucontext {
 };
 
 extern	int		_getmcontext(m_mcontext_t*);
-extern	void		_setmcontext(const m_mcontext_t*);
-#define	setmcontext(u)	_setmcontext(&(u)->uc_mcontext)
-#define	getmcontext(u)	_getmcontext(&(u)->uc_mcontext)
+extern	int		_setmcontext(const m_mcontext_t*);
+static inline int setmcontext(const struct m_ucontext *u)
+{
+	return _setmcontext(&u->uc_mcontext);
+}
+static inline int getmcontext(struct m_ucontext *u)
+{
+	return _getmcontext(&u->uc_mcontext);
+}
 extern	int		swapmcontext(m_ucontext_t*, const m_ucontext_t*);
 extern	void		makemcontext(m_ucontext_t*, void(*)(void), int, ...);
 

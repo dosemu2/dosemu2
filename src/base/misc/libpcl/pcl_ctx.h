@@ -1,11 +1,15 @@
 #ifndef PCL_CTX_H
 #define PCL_CTX_H
 
-#include <ucontext.h>
-#define GET_CTX(c) getcontext(c)
-#define SET_CTX(c) setcontext(c)
-#define SWAP_CTX(c1, c2) swapcontext(c1, c2)
-#define MAKE_CTX(c, f, n) makecontext(c, f, n)
-typedef ucontext_t co_core_ctx_t;
+int ctx_create_context(co_ctx_t *ctx, void *func, void *arg, char *stkbase,
+		long stksiz);
+int mctx_create_context(co_ctx_t *ctx, void *func, void *arg, char *stkbase,
+		long stksiz);
+int ctx_init(co_ctx_t *ctx);
+int mctx_init(co_ctx_t *ctx);
+int ctx_sizeof(void);
+int mctx_sizeof(void);
+cothread_ctx *ctx_get_global_ctx(void);
+cothread_ctx *mctx_get_global_ctx(void);
 
 #endif

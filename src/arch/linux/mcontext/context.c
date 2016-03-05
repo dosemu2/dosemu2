@@ -40,9 +40,9 @@ makemcontext(m_ucontext_t *ucp, void (*func)(void), int argc, ...)
 		assert(argc <= 2);	// oops
 		va_start(va, argc);
 		if (argc >= 1)
-			ucp->uc_mcontext.mc_rdi = va_arg(va, int);
+			ucp->uc_mcontext.mc_rdi = va_arg(va, long);
 		if (argc >= 2)
-			ucp->uc_mcontext.mc_rsi = va_arg(va, int);
+			ucp->uc_mcontext.mc_rsi = va_arg(va, long);
 		va_end(va);
 	}
 	sp = (long*)ucp->uc_stack.ss_sp+ucp->uc_stack.ss_size/sizeof(long);

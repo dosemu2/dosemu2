@@ -26,33 +26,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "pcl_private.h"
 #include "pcl_ctx.h"
 #include "pcl.h"
-#include "pcl_private.h"
 
-static cothread_ctx *co_get_thread_ctx(void);
-
-static int co_set_context(co_ctx_t *ctx, void *func, char *stkbase, long stksiz)
-{
-	if (GET_CTX(&ctx->cc))
-		return -1;
-
-	ctx->cc.uc_link = NULL;
-
-	ctx->cc.uc_stack.ss_sp = stkbase;
-	ctx->cc.uc_stack.ss_size = stksiz - sizeof(long);
-	ctx->cc.uc_stack.ss_flags = 0;
-
-	MAKE_CTX(&ctx->cc, func, 0);
-
-	return 0;
-}
+static cothread_ctx *co_get_thread_ctx(co_ctx_t *ctx);
 
 static void co_switch_context(co_ctx_t *octx, co_ctx_t *nctx)
 {
-	cothread_ctx *tctx = co_get_thread_ctx();
+	cothread_ctx *tctx = co_get_thread_ctx(octx);
 
-	if (SWAP_CTX(&octx->cc, &nctx->cc) < 0) {
+	if (octx->swap_context(octx, nctx->cc) < 0) {
 		fprintf(stderr, "[PCL] Context switch failed: curr=%p\n",
 			tctx->co_curr);
 		exit(1);
@@ -60,17 +44,18 @@ static void co_switch_context(co_ctx_t *octx, co_ctx_t *nctx)
 }
 
 
-static void co_runner(void)
+static void co_runner(co_ctx_t *ctx)
 {
-	cothread_ctx *tctx = co_get_thread_ctx();
+	cothread_ctx *tctx = co_get_thread_ctx(ctx);
 	coroutine *co = tctx->co_curr;
 
 	co->restarget = co->caller;
 	co->func(co->data);
-	co_exit();
+	co_exit(tctx);
 }
 
-coroutine_t co_create(void (*func)(void *), void *data, void *stack, int size)
+static coroutine *do_co_create(void (*func)(void *), void *data, void *stack,
+		int size, int corosize)
 {
 	int alloc = 0;
 	coroutine *co;
@@ -78,20 +63,50 @@ coroutine_t co_create(void (*func)(void *), void *data, void *stack, int size)
 	if ((size &= ~(sizeof(long) - 1)) < CO_MIN_SIZE)
 		return NULL;
 	if (stack == NULL) {
-		size = (size + sizeof(coroutine) + CO_STK_ALIGN - 1) & ~(CO_STK_ALIGN - 1);
+		size = CO_STK_COROSIZE(size + corosize);
 		stack = malloc(size);
 		if (stack == NULL)
 			return NULL;
 		alloc = size;
 	}
 	co = stack;
-	stack = (char *) stack + CO_STK_COROSIZE;
+	co->stack = (char *) stack + CO_STK_COROSIZE(corosize);
 	co->alloc = alloc;
 	co->func = func;
 	co->data = data;
 	co->exited = 0;
-	if (co_set_context(&co->ctx, co_runner, stack, size - CO_STK_COROSIZE) < 0) {
-		if (alloc)
+	co->ctx.cc = co->stk;
+
+	return co;
+}
+
+coroutine_t co_create(void (*func)(void *), void *data, void *stack, int size)
+{
+	coroutine *co;
+	int cs = ctx_sizeof();
+
+	co = do_co_create(func, data, stack, size, cs);
+	if (!co)
+		return NULL;
+	if (ctx_create_context(&co->ctx, co_runner, &co->ctx, co->stack, size - CO_STK_COROSIZE(cs)) < 0) {
+		if (co->alloc)
+			free(co);
+		return NULL;
+	}
+
+	return (coroutine_t) co;
+}
+
+coroutine_t m_co_create(void (*func)(void *), void *data, void *stack, int size)
+{
+	coroutine *co;
+	int cs = mctx_sizeof();
+
+	co = do_co_create(func, data, stack, size, cs);
+	if (!co)
+		return NULL;
+	if (mctx_create_context(&co->ctx, co_runner, &co->ctx, co->stack, size - CO_STK_COROSIZE(cs)) < 0) {
+		if (co->alloc)
 			free(co);
 		return NULL;
 	}
@@ -101,8 +116,8 @@ coroutine_t co_create(void (*func)(void *), void *data, void *stack, int size)
 
 void co_delete(coroutine_t coro)
 {
-	cothread_ctx *tctx = co_get_thread_ctx();
 	coroutine *co = (coroutine *) coro;
+	cothread_ctx *tctx = co_get_thread_ctx(&co->ctx);
 
 	if (co == tctx->co_curr) {
 		fprintf(stderr, "[PCL] Cannot delete itself: curr=%p\n",
@@ -115,8 +130,9 @@ void co_delete(coroutine_t coro)
 
 void co_call(coroutine_t coro)
 {
-	cothread_ctx *tctx = co_get_thread_ctx();
-	coroutine *co = (coroutine *) coro, *oldco = tctx->co_curr;
+	coroutine *co = (coroutine *) coro;
+	cothread_ctx *tctx = co_get_thread_ctx(&co->ctx);
+	coroutine *oldco = tctx->co_curr;
 
 	co->caller = tctx->co_curr;
 	tctx->co_curr = co;
@@ -127,17 +143,17 @@ void co_call(coroutine_t coro)
 		co_delete(co);
 }
 
-void co_resume(void)
+void co_resume(cohandle_t handle)
 {
-	cothread_ctx *tctx = co_get_thread_ctx();
+	cothread_ctx *tctx = (cothread_ctx *)handle;
 
 	co_call(tctx->co_curr->restarget);
 	tctx->co_curr->restarget = tctx->co_curr->caller;
 }
 
-void co_exit(void)
+void co_exit(cohandle_t handle)
 {
-	cothread_ctx *tctx = co_get_thread_ctx();
+	cothread_ctx *tctx = (cothread_ctx *)handle;
 	coroutine *newco = tctx->co_curr->restarget, *co = tctx->co_curr;
 
 	co->exited = 1;
@@ -146,9 +162,9 @@ void co_exit(void)
 	co_switch_context(&co->ctx, &newco->ctx);
 }
 
-coroutine_t co_current(void)
+coroutine_t co_current(cohandle_t handle)
 {
-	cothread_ctx *tctx = co_get_thread_ctx();
+	cothread_ctx *tctx = (cothread_ctx *)handle;
 
 	return (coroutine_t) tctx->co_curr;
 }
@@ -171,31 +187,33 @@ void *co_set_data(coroutine_t coro, void *data)
 	return odata;
 }
 
-static cothread_ctx *co_get_global_ctx(void)
-{
-	static cothread_ctx tctx;
-
-	if (tctx.co_curr == NULL)
-		tctx.co_curr = &tctx.co_main;
-
-	return &tctx;
-}
-
 /*
  * Simple case, the single thread one ...
  */
 
-int co_thread_init(void)
+cohandle_t co_thread_init(void)
 {
-	return 0;
+	cothread_ctx *tctx = ctx_get_global_ctx();
+
+	tctx->co_main.ctx.cc = tctx->stk0;
+	ctx_init(&tctx->co_main.ctx);
+	return tctx;
+}
+
+cohandle_t mco_thread_init(void)
+{
+	cothread_ctx *tctx = mctx_get_global_ctx();
+
+	tctx->co_main.ctx.cc = tctx->stk0;
+	mctx_init(&tctx->co_main.ctx);
+	return tctx;
 }
 
 void co_thread_cleanup(void)
 {
-
 }
 
-static cothread_ctx *co_get_thread_ctx(void)
+static cothread_ctx *co_get_thread_ctx(co_ctx_t *ctx)
 {
-	return co_get_global_ctx();
+	return ctx->get_global_ctx();
 }

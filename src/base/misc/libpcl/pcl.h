@@ -30,17 +30,21 @@
 #endif
 
 typedef void *coroutine_t;
+typedef void *cohandle_t;
 
-PCLXC int co_thread_init(void);
+PCLXC cohandle_t co_thread_init(void);
+PCLXC cohandle_t mco_thread_init(void);
 PCLXC void co_thread_cleanup(void);
 
 PCLXC coroutine_t co_create(void (*func)(void *), void *data, void *stack,
 			    int size);
+PCLXC coroutine_t m_co_create(void (*func)(void *), void *data, void *stack,
+			      int size);
 PCLXC void co_delete(coroutine_t coro);
 PCLXC void co_call(coroutine_t coro);
-PCLXC void co_resume(void);
-PCLXC void co_exit(void);
-PCLXC coroutine_t co_current(void);
+PCLXC void co_resume(cohandle_t handle);
+PCLXC void co_exit(cohandle_t handle);
+PCLXC coroutine_t co_current(cohandle_t handle);
 PCLXC void *co_get_data(coroutine_t coro);
 PCLXC void *co_set_data(coroutine_t coro, void *data);
 

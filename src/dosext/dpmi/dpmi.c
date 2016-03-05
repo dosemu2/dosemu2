@@ -38,7 +38,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
-#include "mlibpcl/pcl.h"
+#include "pcl.h"
 #include "coopth.h"
 #include "sig.h"
 #include "dpmi.h"
@@ -93,6 +93,7 @@ unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
 static coroutine_t dpmi_tid;
+static cohandle_t co_handle;
 static struct sigcontext emu_stack_frame;
 static struct _fpstate emu_fpstate;
 static int in_indirect_dpmi_transfer;
@@ -1119,7 +1120,7 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
   if (debug_level('M') > 5)
     D_printf("DPMI: switch to dosemu\n");
   signal_return_to_dosemu();
-  co_resume();
+  co_resume(co_handle);
   signal_return_to_dpmi();
   if (dpmi_ret_val == -2) {
     copy_context(scp, &emu_stack_frame, 0);
@@ -3012,6 +3013,7 @@ void dpmi_setup(void)
 
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
+    co_handle = mco_thread_init();
     return;
 
 err:
@@ -3209,7 +3211,7 @@ void dpmi_init(void)
 
     in_dpmi_irq = 0;
 
-    dpmi_tid = co_create(dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
+    dpmi_tid = m_co_create(dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
   }
 
   dpmi_set_pm(1);
