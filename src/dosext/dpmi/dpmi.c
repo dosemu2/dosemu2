@@ -418,8 +418,6 @@ static void iret_frame_setup(struct sigcontext *scp)
 
 void dpmi_iret_setup(struct sigcontext *scp)
 {
-  if (!DPMIValidSelector(_cs)) return;
-
   iret_frame_setup(scp);
   _eflags &= ~TF;
   _rip = (unsigned long)DPMI_iret;

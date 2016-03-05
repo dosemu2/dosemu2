@@ -278,7 +278,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
-  dpmi_iret_setup(scp);
 }
 
 #ifdef __linux__
