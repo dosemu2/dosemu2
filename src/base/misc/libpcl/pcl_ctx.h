@@ -1,10 +1,6 @@
 #ifndef PCL_CTX_H
 #define PCL_CTX_H
 
-int ctx_create_context(co_ctx_t *ctx, void *func, void *arg, char *stkbase,
-		long stksiz);
-int mctx_create_context(co_ctx_t *ctx, void *func, void *arg, char *stkbase,
-		long stksiz);
 int ctx_init(co_ctx_t *ctx);
 int mctx_init(co_ctx_t *ctx);
 int ctx_sizeof(void);

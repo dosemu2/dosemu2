@@ -40,6 +40,8 @@
 struct s_cothread_ctx;
 typedef struct s_co_ctx {
 	void *cc;
+	int (*create_context)(struct s_co_ctx *ctx, void *func, void *arg,
+		char *stkbase, long stksiz);
 	int (*get_context)(struct s_co_ctx *ctx);
 	int (*set_context)(struct s_co_ctx *ctx);
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
@@ -61,6 +63,7 @@ typedef struct s_coroutine {
 typedef struct s_cothread_ctx {
 	coroutine co_main;
 	coroutine *co_curr;
+	int ctx_sizeof;
 	char stk0[CO_MIN_SIZE];
 } cothread_ctx;
 

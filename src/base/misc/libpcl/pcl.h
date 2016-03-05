@@ -36,10 +36,8 @@ PCLXC cohandle_t co_thread_init(void);
 PCLXC cohandle_t mco_thread_init(void);
 PCLXC void co_thread_cleanup(void);
 
-PCLXC coroutine_t co_create(void (*func)(void *), void *data, void *stack,
-			    int size);
-PCLXC coroutine_t m_co_create(void (*func)(void *), void *data, void *stack,
-			      int size);
+PCLXC coroutine_t co_create(cohandle_t handle, void (*func)(void *),
+			    void *data, void *stack, int size);
 PCLXC void co_delete(coroutine_t coro);
 PCLXC void co_call(coroutine_t coro);
 PCLXC void co_resume(cohandle_t handle);

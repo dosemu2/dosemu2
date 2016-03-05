@@ -582,7 +582,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st,
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
     pth->dbg = LWORD(eax);	// for debug
-    pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
+    pth->thread = co_create(co_handle, coopth_thread, &pth->args, pth->stack,
 	    pth->stk_size);
     if (!pth->thread) {
 	error("Thread create failure\n");

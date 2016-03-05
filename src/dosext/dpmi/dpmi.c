@@ -3211,7 +3211,7 @@ void dpmi_init(void)
 
     in_dpmi_irq = 0;
 
-    dpmi_tid = m_co_create(dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
+    dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
   }
 
   dpmi_set_pm(1);

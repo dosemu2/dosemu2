@@ -75,37 +75,22 @@ static coroutine *do_co_create(void (*func)(void *), void *data, void *stack,
 	co->func = func;
 	co->data = data;
 	co->exited = 0;
-	co->ctx.cc = co->stk;
 
 	return co;
 }
 
-coroutine_t co_create(void (*func)(void *), void *data, void *stack, int size)
+coroutine_t co_create(cohandle_t handle, void (*func)(void *), void *data,
+		void *stack, int size)
 {
 	coroutine *co;
-	int cs = ctx_sizeof();
+	cothread_ctx *tctx = (cothread_ctx *)handle;
 
-	co = do_co_create(func, data, stack, size, cs);
+	co = do_co_create(func, data, stack, size, tctx->ctx_sizeof);
 	if (!co)
 		return NULL;
-	if (ctx_create_context(&co->ctx, co_runner, &co->ctx, co->stack, size - CO_STK_COROSIZE(cs)) < 0) {
-		if (co->alloc)
-			free(co);
-		return NULL;
-	}
-
-	return (coroutine_t) co;
-}
-
-coroutine_t m_co_create(void (*func)(void *), void *data, void *stack, int size)
-{
-	coroutine *co;
-	int cs = mctx_sizeof();
-
-	co = do_co_create(func, data, stack, size, cs);
-	if (!co)
-		return NULL;
-	if (mctx_create_context(&co->ctx, co_runner, &co->ctx, co->stack, size - CO_STK_COROSIZE(cs)) < 0) {
+	co->ctx = tctx->co_main.ctx;
+	co->ctx.cc = co->stk;
+	if (co->ctx.create_context(&co->ctx, co_runner, &co->ctx, co->stack, size - CO_STK_COROSIZE(tctx->ctx_sizeof)) < 0) {
 		if (co->alloc)
 			free(co);
 		return NULL;
@@ -197,6 +182,7 @@ cohandle_t co_thread_init(void)
 
 	tctx->co_main.ctx.cc = tctx->stk0;
 	ctx_init(&tctx->co_main.ctx);
+	tctx->ctx_sizeof = ctx_sizeof();
 	return tctx;
 }
 
@@ -206,6 +192,7 @@ cohandle_t mco_thread_init(void)
 
 	tctx->co_main.ctx.cc = tctx->stk0;
 	mctx_init(&tctx->co_main.ctx);
+	tctx->ctx_sizeof = mctx_sizeof();
 	return tctx;
 }
 
