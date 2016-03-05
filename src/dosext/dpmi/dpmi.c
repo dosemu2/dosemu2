@@ -2517,6 +2517,7 @@ void dpmi_cleanup(void)
     win31_mode = 0;
   }
   cli_blacklisted = 0;
+  dpmi_is_cli = 0;
   in_dpmi--;
 }
 
