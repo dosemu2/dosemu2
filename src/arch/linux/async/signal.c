@@ -267,11 +267,35 @@ void init_handler(struct sigcontext *scp, int async)
 
 #ifdef __x86_64__
 __attribute__((no_instrument_function))
-void deinit_handler(struct sigcontext *scp)
+void deinit_handler(struct sigcontext *scp, struct ucontext *uc)
 {
+#if defined(__x86_64__) && !defined(UC_SIGCONTEXT_SS)
+/*
+ * UC_SIGCONTEXT_SS will be set when delivering 64-bit or x32 signals on
+ * kernels that save SS in the sigcontext.  Kernels that set UC_SIGCONTEXT_SS
+ * allow signal handlers to set UC_RESTORE_SS; if UC_RESTORE_SS is set,
+ * then sigreturn will restore SS.
+ *
+ * For compatibility with old programs, the kernel will *not* set
+ * UC_RESTORE_SS when delivering signals.
+ */
+#define UC_SIGCONTEXT_SS       0x2
+#define UC_STRICT_RESTORE_SS   0x4
+#endif
+
   if (!DPMIValidSelector(_cs)) return;
 
-  dpmi_iret_setup(scp);
+  if (uc->uc_flags & UC_SIGCONTEXT_SS) {
+    /*
+     * On Linux 4.4 (possibly) and up, the kernel can fully restore
+     * SS and ESP, so we don't need any special tricks.  To avoid confusion,
+     * force strict restore.  (Some 4.1 versions support this as well but
+     * without the uc_flags bits.  It's not trying to detect those kernels.)
+     */
+    uc->uc_flags |= UC_STRICT_RESTORE_SS;
+  } else {
+    dpmi_iret_setup(scp);
+  }
 
   if (_fs != getsegment(fs))
     loadregister(fs, _fs);
@@ -342,7 +366,7 @@ static void sig_child(int sig, siginfo_t *si, void *uc)
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
-  deinit_handler(scp);
+  deinit_handler(scp, uc);
 }
 
 void leavedos_from_sig(int sig)
@@ -386,7 +410,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp);
+  deinit_handler(scp, uc);
 }
 
 __attribute__((no_instrument_function))
@@ -871,7 +895,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
 	   &((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp);
-  deinit_handler(scp);
+  deinit_handler(scp, uc);
 }
 #endif
 
