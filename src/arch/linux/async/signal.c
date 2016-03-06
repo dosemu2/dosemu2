@@ -45,6 +45,7 @@
 #include "sound.h"
 #include "cpu-emu.h"
 #include "sig.h"
+
 /* work-around sigaltstack badness - disable when kernel is fixed */
 #define SIGALTSTACK_WA 1
 #if SIGALTSTACK_WA
@@ -55,6 +56,13 @@
  * by some kernels */
 #ifndef SS_AUTODISARM
 #define SS_AUTODISARM  (1 << 4)
+#endif
+
+#ifdef __x86_64__
+/* work-around sigreturn badness - disable when kernel is fixed */
+#define SIGRETURN_WA 1
+#else
+#define SIGRETURN_WA 0
 #endif
 
 /* Variables for keeping track of signals */
@@ -84,6 +92,9 @@ static void *cstack;
 static void *backup_stack;
 static int need_sas_wa;
 #endif
+#if SIGRETURN_WA
+static int need_sr_wa;
+#endif
 
 static int sh_tid;
 static int in_handle_signals;
@@ -104,6 +115,8 @@ static void sigquit(struct sigcontext *);
 static void sigalrm(struct sigcontext *);
 static void sigio(struct sigcontext *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
+
+static void leavedos_sig(int sig);
 
 static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
@@ -211,8 +224,8 @@ static void __init_handler(struct sigcontext *scp, int async)
     return;
   }
 
-#ifdef __x86_64__
-  if (!DPMIValidSelector(_cs))
+#if SIGRETURN_WA
+  if (need_sr_wa && !DPMIValidSelector(_cs))
     dpmi_iret_unwind(scp);
 #endif
 
@@ -300,7 +313,17 @@ void deinit_handler(struct sigcontext *scp, struct ucontext *uc)
      */
     uc->uc_flags |= UC_STRICT_RESTORE_SS;
   } else {
+#if SIGRETURN_WA
+    if (!need_sr_wa) {
+      need_sr_wa = 1;
+      warn("Enabling sigreturn() work-around\n");
+    }
     dpmi_iret_setup(scp);
+#else
+    error("Your kernel does not support UC_STRICT_RESTORE_SS and the "
+	  "work-around in dosemu is not enabled.\n");
+    leavedos_sig(11);
+#endif
   }
 
   if (_fs != getsegment(fs))
