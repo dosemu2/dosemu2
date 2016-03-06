@@ -210,11 +210,19 @@ static void __init_handler(struct sigcontext *scp, int async)
     dpmi_iret_unwind(scp);
 #endif
 
+#if 0
   /* for async signals need to restore fs/gs even if dosemu code
-   * was interrupted because it can be interrupted in a switching
-   * routine when fs or gs are already switched */
+   * was interrupted, because it can be interrupted in a switching
+   * routine when fs or gs are already switched but cs is not */
   if (!DPMIValidSelector(_cs) && !async)
     return;
+#else
+  /* as DIRECT_DPMI_SWITCH support is now removed, the above comment
+   * applies only to DPMI_iret, which is now unwound.
+   * We don't need to restore segregs for async signals any more. */
+  if (!DPMIValidSelector(_cs))
+    return;
+#endif
 
   /* restore %fs and %gs for compatibility with NPTL. */
   if (getsegment(fs) != eflags_fs_gs.fs)
