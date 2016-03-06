@@ -205,6 +205,11 @@ static void __init_handler(struct sigcontext *scp, int async)
     return;
   }
 
+#ifdef __x86_64__
+  if (!DPMIValidSelector(_cs))
+    dpmi_iret_unwind(scp);
+#endif
+
   /* for async signals need to restore fs/gs even if dosemu code
    * was interrupted because it can be interrupted in a switching
    * routine when fs or gs are already switched */

@@ -425,6 +425,17 @@ void dpmi_iret_setup(struct sigcontext *scp)
   _rip = (unsigned long)DPMI_iret;
   _cs = getsegment(cs);
 }
+
+void dpmi_iret_unwind(struct sigcontext *scp)
+{
+  if (_rip != (unsigned long)DPMI_iret)
+    return;
+  _eip = iret_frame[0];
+  _cs = iret_frame[1];
+  _eflags = iret_frame[2];
+  _esp = iret_frame[3];
+  _ss = iret_frame[4];
+}
 #endif
 
 static void indirect_dpmi_transfer(void)
