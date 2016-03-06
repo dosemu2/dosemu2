@@ -506,7 +506,7 @@ Bit8u read_pic0(ioport_t port)
   port -= 0x20;
   if(port)		return((unsigned char)get_pic0_imr());
   if(pic0_isr_requested) return((unsigned char)get_pic0_isr());
-                         return((unsigned char)get_pic0_irr());
+  return((unsigned char)get_pic0_irr());
 }
 
 
@@ -515,7 +515,7 @@ Bit8u read_pic1(ioport_t port)
   port -= 0xa0;
   if(port)		return((unsigned char)get_pic1_imr());
   if(pic1_isr_requested) return((unsigned char)get_pic1_isr());
-                         return((unsigned char)get_pic1_irr());
+  return((unsigned char)get_pic1_irr());
 }
 
 /* DANG_BEGIN_FUNCTION pic_seti

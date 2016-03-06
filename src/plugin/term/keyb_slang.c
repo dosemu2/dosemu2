@@ -911,7 +911,8 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 				ls_flags &= ~SHIFT_MASK;
 				lscan = KEY_PAD_AST;
 			}
-			else     lscan =  KEY_PAD_8; break;
+			else     lscan =  KEY_PAD_8;
+			break;
 
 		/* Need to remove the shift flag for this */
 		case KEY_EQUALS:

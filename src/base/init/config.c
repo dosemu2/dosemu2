@@ -487,7 +487,8 @@ static void read_cpu_info(void)
 		char cdd[8]; int i;
 		long long chz = 0;
 		char *p = cpuflags;
-		while (*p!='.') p++; p++;
+		while (*p!='.') p++;
+		p++;
 		for (i=0; i<6; i++) cdd[i]=(*p && isdigit(*p)? *p++:'0');
 		cdd[6]=0; sscanf(cdd,"%d",&df);
 		/* speed division factor to get 1us from CPU clocks - for

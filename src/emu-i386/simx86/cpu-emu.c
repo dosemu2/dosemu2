@@ -226,7 +226,8 @@ char *e_print_regs(void)
 	char *p = buf;
 	char *q = eregbuf;
 
-	while (*q) *p++ = *q++; *p=0;
+	while (*q) *p++ = *q++;
+	*p=0;
 	exprintl(rEAX,buf,(ERB_L1+ERB_LEFTM));
 	exprintl(rEBX,buf,(ERB_L1+ERB_LEFTM)+13);
 	exprintl(rECX,buf,(ERB_L1+ERB_LEFTM)+26);
@@ -279,7 +280,8 @@ char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 	unsigned short *stk;
 	int i;
 
-	while (*q) *p++ = *q++; *p=0;
+	while (*q) *p++ = *q++;
+	*p=0;
 	exprintl(_rax,buf,(ERB_L1+ERB_LEFTM));
 	exprintl(_rbx,buf,(ERB_L1+ERB_LEFTM)+13);
 	exprintl(_rcx,buf,(ERB_L1+ERB_LEFTM)+26);

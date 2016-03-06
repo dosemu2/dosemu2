@@ -237,7 +237,7 @@ int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes, int type,
 	     buttons = 2;           /* third button on MS compatible mouse */
 	   else
 	     buttons= ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
-	     prev = buttons;
+	   prev = buttons;
 	   dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
 	   dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
 	}

@@ -874,7 +874,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				m = UNPREFIX(m);
 				PC++;
 			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58);
-			if (opc!=POPsp) Gen(O_POP3, m); break; }
+			if (opc!=POPsp) Gen(O_POP3, m);
+			break;
+			}
 #endif
 			Gen(O_POP, mode);
 			Gen(S_REG, mode, R1Tab_l[D_LO(opc)]); PC++;

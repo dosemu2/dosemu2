@@ -208,7 +208,8 @@ void Attr_init()
         case  2: if(vga.mode_type == CGA)  i = 1; break;
         case  4: if(vga.mode_type == TEXT) i = 0;
                  if(vga.mode_type == TEXT_MONO) i = 3;
-                 if(vga.mode_type == PL4)  i = 6; break;
+                 if(vga.mode_type == PL4)  i = 6;
+                 break;
         case  8:
         case 15:
         case 16:
