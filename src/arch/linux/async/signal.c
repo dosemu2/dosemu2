@@ -568,14 +568,12 @@ static void sigstack_init(void)
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
-      return;
     }
     backup_stack = alias_mapping(MAPPING_OTHER, -1, SIGSTACK_SIZE,
 	PROT_READ | PROT_WRITE, cstack);
     if (backup_stack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
-      return;
     }
   } else {
     cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
@@ -583,7 +581,6 @@ static void sigstack_init(void)
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
-      return;
     }
   }
 #else
@@ -597,7 +594,6 @@ static void sigstack_init(void)
   if (cstack == MAP_FAILED) {
     error("Unable to allocate stack\n");
     config.exitearly = 1;
-    return;
   }
 #endif
 }
