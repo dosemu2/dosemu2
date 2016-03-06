@@ -101,7 +101,7 @@ void co_delete(coroutine_t coro)
 	coroutine *co = (coroutine *) coro;
 	cothread_ctx *tctx = co_get_thread_ctx(co);
 
-	if (co == tctx->co_curr) {
+	if ((co_base *)co == tctx->co_curr) {
 		fprintf(stderr, "[PCL] Cannot delete itself: curr=%p\n",
 			tctx->co_curr);
 		exit(1);
@@ -114,7 +114,7 @@ void co_call(coroutine_t coro)
 {
 	coroutine *co = (coroutine *) coro;
 	cothread_ctx *tctx = co_get_thread_ctx(co);
-	coroutine *oldco = tctx->co_curr;
+	co_base *oldco = tctx->co_curr;
 
 	co->caller = tctx->co_curr;
 	tctx->co_curr = co;
@@ -136,7 +136,7 @@ void co_resume(cohandle_t handle)
 void co_exit(cohandle_t handle)
 {
 	cothread_ctx *tctx = (cothread_ctx *)handle;
-	coroutine *newco = tctx->co_curr->restarget, *co = tctx->co_curr;
+	co_base *newco = tctx->co_curr->restarget, *co = tctx->co_curr;
 
 	co->exited = 1;
 	tctx->co_curr = newco;

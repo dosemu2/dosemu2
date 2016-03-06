@@ -47,13 +47,17 @@ typedef struct s_co_ctx {
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
 } co_ctx_t;
 
-typedef struct s_coroutine {
+typedef struct s_co_base {
 	co_ctx_t ctx;
-	int alloc;
-	int exited:1;
-	struct s_coroutine *caller;
-	struct s_coroutine *restarget;
+	struct s_co_base *caller;
+	struct s_co_base *restarget;
 	struct s_cothread_ctx *ctx_main;
+	int exited:1;
+} co_base;
+
+typedef struct s_coroutine {
+	co_base;
+	int alloc;
 	void (*func)(void *);
 	void *data;
 	char *stack;
@@ -61,8 +65,8 @@ typedef struct s_coroutine {
 } coroutine;
 
 typedef struct s_cothread_ctx {
-	coroutine co_main;
-	coroutine *co_curr;
+	co_base co_main;
+	co_base *co_curr;
 	int ctx_sizeof;
 	char stk0[CO_MIN_SIZE];
 } cothread_ctx;
