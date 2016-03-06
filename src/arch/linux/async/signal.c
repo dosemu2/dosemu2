@@ -46,16 +46,26 @@
 #include "cpu-emu.h"
 #include "sig.h"
 
-#ifdef DISABLE_SYSTEM_WA
-  #ifdef SS_AUTODISARM
-    #define SIGALTSTACK_WA 0
+#define SIGALTSTACK_WA_DEFAULT 1
+#if SIGALTSTACK_WA_DEFAULT
+  #ifdef DISABLE_SYSTEM_WA
+    #ifdef SS_AUTODISARM
+      #define SIGALTSTACK_WA 0
+    #else
+      #ifdef WARN_UNDISABLED_WA
+        #warning Not disabling SIGALTSTACK_WA, update your kernel
+      #endif
+      #define SIGALTSTACK_WA 1
+    #endif
   #else
-    #warning Not disabling SIGALTSTACK_WA, update your kernel
+    /* work-around sigaltstack badness - disable when kernel is fixed */
     #define SIGALTSTACK_WA 1
   #endif
+  #if defined(WARN_OUTDATED_WA) && defined(SS_AUTODISARM)
+    #warning SIGALTSTACK_WA is outdated
+  #endif
 #else
-  /* work-around sigaltstack badness - disable when kernel is fixed */
-  #define SIGALTSTACK_WA 1
+  #define SIGALTSTACK_WA 0
 #endif
 #if SIGALTSTACK_WA
 #include "mcontext.h"
@@ -68,16 +78,26 @@
 #endif
 
 #ifdef __x86_64__
+  #define SIGRETURN_WA_DEFAULT 1
+#else
+  #define SIGRETURN_WA_DEFAULT 0
+#endif
+#if SIGRETURN_WA_DEFAULT
   #ifdef DISABLE_SYSTEM_WA
     #ifdef UC_SIGCONTEXT_SS
       #define SIGRETURN_WA 0
     #else
-      #warning Not disabling SIGRETURN_WA, update your kernel
+      #ifdef WARN_UNDISABLED_WA
+        #warning Not disabling SIGRETURN_WA, update your kernel
+      #endif
       #define SIGRETURN_WA 1
     #endif
   #else
     /* work-around sigreturn badness - disable when kernel is fixed */
     #define SIGRETURN_WA 1
+  #endif
+  #if defined(WARN_OUTDATED_WA) && defined(UC_SIGCONTEXT_SS)
+    #warning SIGRETURN_WA is outdated
   #endif
 #else
   #define SIGRETURN_WA 0

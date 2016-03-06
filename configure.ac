@@ -207,6 +207,12 @@ AC_ARG_ENABLE(system_wa,
 AS_IF([test "x$enable_system_wa" = "xno"], [
   AC_MSG_NOTICE(Disasbling system-specific work-arounds)
   AC_DEFINE(DISABLE_SYSTEM_WA)
+  AS_IF([test -z "$WARN_OUTDATED_WA" -a -z "$NOWARN_UNDISABLED_WA"], [
+    AC_DEFINE(WARN_UNDISABLED_WA)])
+])
+AS_IF([test -n "$WARN_OUTDATED_WA"], [
+  AC_MSG_NOTICE(Enabling compile-time warnings for outdated work-arounds)
+  AC_DEFINE(WARN_OUTDATED_WA)
 ])
 
 dnl Do compilation for GDB
@@ -325,6 +331,14 @@ AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 AH_TEMPLATE([DISABLE_SYSTEM_WA],
 [ Define this to disable system-specific work-arounds that are
 unneeded on your system ])
+
+AH_TEMPLATE([WARN_UNDISABLED_WA],
+[ Define this to enable compile-time warnings for system-specific
+work-arounds that were failed to disable ])
+
+AH_TEMPLATE([WARN_OUTDATED_WA],
+[ Define this to enable compile-time warnings for outdated
+system-specific work-arounds ])
 
 AC_OUTPUT
 
