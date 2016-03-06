@@ -4873,13 +4873,8 @@ int dpmi_mhp_setTF(int on)
 
 void add_cli_to_blacklist(void)
 {
-  if (!dpmi_is_cli)
+  if (!dpmi_is_cli || !in_dpmi_pm())
     return;
-  if (*current_cli != 0xfa) {
-    error("DPMI: add_cli_to_blacklist() called with no cli at %p (0x%x)!\n",
-      current_cli, *current_cli);
-    return;
-  }
   if (cli_blacklisted < CLI_BLACKLIST_LEN) {
     if (debug_level('M') > 5)
       D_printf("DPMI: adding cli to blacklist: lina=%p\n", current_cli);
