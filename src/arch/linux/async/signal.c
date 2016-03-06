@@ -553,10 +553,11 @@ static void sigstack_init(void)
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
-#if SIGALTSTACK_WA
+
   /* sigaltstack_wa is optional. See if we need it. */
   stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
   int err = sigaltstack(&dummy, NULL);
+#if SIGALTSTACK_WA
   if (err && errno == EINVAL) {
     need_sas_wa = 1;
     warn("Enabling sigaltstack() work-around\n");
@@ -586,6 +587,11 @@ static void sigstack_init(void)
     }
   }
 #else
+  if (err && errno == EINVAL) {
+    error("Your kernel does not support SS_AUTODISARM and the "
+	  "work-around in dosemu is not enabled.\n");
+    config.exitearly = 1;
+  }
   cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
 	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
   if (cstack == MAP_FAILED) {
