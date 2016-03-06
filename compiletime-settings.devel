@@ -1,6 +1,7 @@
 config {
   experimental on
   debug on
+  system-wa off
   dlplugins on
   plugin_libao on
   plugin_gpm on

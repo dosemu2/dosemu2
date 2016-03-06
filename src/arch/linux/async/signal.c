@@ -46,8 +46,17 @@
 #include "cpu-emu.h"
 #include "sig.h"
 
-/* work-around sigaltstack badness - disable when kernel is fixed */
-#define SIGALTSTACK_WA 1
+#ifdef DISABLE_SYSTEM_WA
+  #ifdef SS_AUTODISARM
+    #define SIGALTSTACK_WA 0
+  #else
+    #warning Not disabling SIGALTSTACK_WA, update your kernel
+    #define SIGALTSTACK_WA 1
+  #endif
+#else
+  /* work-around sigaltstack badness - disable when kernel is fixed */
+  #define SIGALTSTACK_WA 1
+#endif
 #if SIGALTSTACK_WA
 #include "mcontext.h"
 #include "mapping.h"
@@ -59,10 +68,19 @@
 #endif
 
 #ifdef __x86_64__
-/* work-around sigreturn badness - disable when kernel is fixed */
-#define SIGRETURN_WA 1
+  #ifdef DISABLE_SYSTEM_WA
+    #ifdef UC_SIGCONTEXT_SS
+      #define SIGRETURN_WA 0
+    #else
+      #warning Not disabling SIGRETURN_WA, update your kernel
+      #define SIGRETURN_WA 1
+    #endif
+  #else
+    /* work-around sigreturn badness - disable when kernel is fixed */
+    #define SIGRETURN_WA 1
+  #endif
 #else
-#define SIGRETURN_WA 0
+  #define SIGRETURN_WA 0
 #endif
 
 /* Variables for keeping track of signals */

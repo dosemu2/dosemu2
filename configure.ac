@@ -200,6 +200,15 @@ else
   AC_MSG_NOTICE(Compiling without plug-ins...)
 fi
 
+AC_ARG_ENABLE(system_wa,
+  AS_HELP_STRING([--disable-system-wa], [compile without work-arounds for
+  particular versions of system software (mostly kernel) that are not needed
+  on your system]))
+AS_IF([test "x$enable_system_wa" = "xno"], [
+  AC_MSG_NOTICE(Disasbling system-specific work-arounds)
+  AC_DEFINE(DISABLE_SYSTEM_WA)
+])
+
 dnl Do compilation for GDB
 AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
@@ -312,6 +321,10 @@ AH_TEMPLATE([_GNU_SOURCE],
 
 AH_TEMPLATE([HAVE_SIGCONTEXT_SS],
 [ Define this if struct sigcontext has .ss field ])
+
+AH_TEMPLATE([DISABLE_SYSTEM_WA],
+[ Define this to disable system-specific work-arounds that are
+unneeded on your system ])
 
 AC_OUTPUT
 

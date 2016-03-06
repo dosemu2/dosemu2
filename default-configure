@@ -49,6 +49,9 @@ while [ "$1" != "" ]; do
     asan)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-asan"; fi
       ;;
+    system-wa)
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-system-wa"; fi
+      ;;
     dlplugins)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-dlplugins"; fi
       ;;
