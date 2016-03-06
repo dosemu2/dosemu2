@@ -40,16 +40,6 @@ static int ctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
 	return swapcontext((ucontext_t *)ctx1->cc, ctx2);
 }
 
-cothread_ctx *ctx_get_global_ctx(void)
-{
-	static cothread_ctx tctx;
-
-	if (tctx.co_curr == NULL)
-		tctx.co_curr = &tctx.co_main;
-
-	return &tctx;
-}
-
 static int ctx_create_context(co_ctx_t *ctx, void *func, void *arg,
 		char *stkbase, long stksiz)
 {
@@ -72,7 +62,6 @@ int ctx_init(co_ctx_t *ctx)
 	ctx->get_context = ctx_get_context;
 	ctx->set_context = ctx_set_context;
 	ctx->swap_context = ctx_swap_context;
-	ctx->get_global_ctx = ctx_get_global_ctx;
 	return 0;
 }
 
@@ -94,16 +83,6 @@ static int mctx_set_context(struct s_co_ctx *ctx)
 static int mctx_swap_context(struct s_co_ctx *ctx1, void *ctx2)
 {
 	return swapmcontext((m_ucontext_t *)ctx1->cc, ctx2);
-}
-
-cothread_ctx *mctx_get_global_ctx(void)
-{
-	static cothread_ctx tctx;
-
-	if (tctx.co_curr == NULL)
-		tctx.co_curr = &tctx.co_main;
-
-	return &tctx;
 }
 
 static int mctx_create_context(co_ctx_t *ctx, void *func, void *arg,
@@ -128,7 +107,6 @@ int mctx_init(co_ctx_t *ctx)
 	ctx->get_context = mctx_get_context;
 	ctx->set_context = mctx_set_context;
 	ctx->swap_context = mctx_swap_context;
-	ctx->get_global_ctx = mctx_get_global_ctx;
 	return 0;
 }
 

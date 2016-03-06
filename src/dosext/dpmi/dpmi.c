@@ -4677,6 +4677,7 @@ void dpmi_done(void)
   D_printf("DPMI: finalizing\n");
   if (in_dpmi_thr)
     co_delete(dpmi_tid);
+  co_thread_cleanup(co_handle);
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
 }

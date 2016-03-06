@@ -45,7 +45,6 @@ typedef struct s_co_ctx {
 	int (*get_context)(struct s_co_ctx *ctx);
 	int (*set_context)(struct s_co_ctx *ctx);
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
-	struct s_cothread_ctx *(*get_global_ctx)(void);
 } co_ctx_t;
 
 typedef struct s_coroutine {
@@ -54,6 +53,7 @@ typedef struct s_coroutine {
 	int exited:1;
 	struct s_coroutine *caller;
 	struct s_coroutine *restarget;
+	struct s_cothread_ctx *ctx_main;
 	void (*func)(void *);
 	void *data;
 	char *stack;

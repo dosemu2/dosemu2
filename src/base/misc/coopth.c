@@ -1159,7 +1159,7 @@ again:
 	}
     }
     if (!threads_total)
-	co_thread_cleanup();
+	co_thread_cleanup(co_handle);
     else
 	g_printf("coopth: leaked %i threads\n", threads_total);
 }
