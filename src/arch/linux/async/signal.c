@@ -262,6 +262,8 @@ static void __init_handler(struct sigcontext *scp, int async)
   if (getsegment(gs) != eflags_fs_gs.gs)
     loadregister(gs, eflags_fs_gs.gs);
 #ifdef __x86_64__
+  loadregister(ds, eflags_fs_gs.ds);
+  loadregister(es, eflags_fs_gs.es);
   /* kernel has the following rule: non-zero selector means 32bit base
    * in GDT. Zero selector means 64bit base, set via msr.
    * So if we set selector to 0, need to use also prctl(ARCH_SET_xS).
