@@ -334,9 +334,13 @@ void cpu_setup(void)
 
 #ifdef __i386__
   if (config.cpu_vm == CPUVM_VM86) {
-//    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) != -1 ||
-		errno != EFAULT) {
+#if 0
+    if (vm86((void *)VM86_PLUS_INSTALL_CHECK) != -1 ||
+		errno != EFAULT)
+#else
+    if (vm86_plus(VM86_PLUS_INSTALL_CHECK, 0) != 0)
+#endif
+    {
       if (orig_cpu_vm == CPUVM_VM86) {
         error("vm86 service not available in your kernel, %s\n", strerror(errno));
       }

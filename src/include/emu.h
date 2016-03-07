@@ -33,8 +33,17 @@ extern struct eflags_fs_gs eflags_fs_gs;
 int vm86_init(void);
 int vm86_fault(struct sigcontext *scp);
 #ifdef __i386__
+#ifdef SYS_vm86old
 #define vm86(param) syscall(SYS_vm86old, param)
+#else
+/* vm86old installation check returns -1 when OK, so we use -2 here */
+#define vm86(param) -2
+#endif
+#ifdef SYS_vm86
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
+#else
+#define vm86_plus(function,param) -1
+#endif
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
