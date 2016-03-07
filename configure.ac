@@ -201,9 +201,8 @@ else
 fi
 
 AC_ARG_ENABLE(system_wa,
-  AS_HELP_STRING([--disable-system-wa], [compile without work-arounds for
-  particular versions of system software (mostly kernel) that are not needed
-  on your system]))
+  AS_HELP_STRING([--disable-system-wa], [compile without system-specific
+  work-arounds (mostly for linux kernel) that are not needed on this system]))
 AS_IF([test "x$enable_system_wa" = "xno"], [
   AC_MSG_NOTICE(Disasbling system-specific work-arounds)
   AC_DEFINE(DISABLE_SYSTEM_WA)
