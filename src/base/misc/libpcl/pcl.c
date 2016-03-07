@@ -183,21 +183,23 @@ static void do_co_init(cothread_ctx *tctx)
 
 cohandle_t co_thread_init(void)
 {
-	cothread_ctx *tctx = malloc(sizeof(cothread_ctx));
+	int sz = ctx_sizeof();
+	cothread_ctx *tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
 
 	do_co_init(tctx);
 	ctx_init(&tctx->co_main.ctx);
-	tctx->ctx_sizeof = ctx_sizeof();
+	tctx->ctx_sizeof = sz;
 	return tctx;
 }
 
 cohandle_t mco_thread_init(void)
 {
-	cothread_ctx *tctx = malloc(sizeof(cothread_ctx));
+	int sz = mctx_sizeof();
+	cothread_ctx *tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
 
 	do_co_init(tctx);
 	mctx_init(&tctx->co_main.ctx);
-	tctx->ctx_sizeof = mctx_sizeof();
+	tctx->ctx_sizeof = sz;
 	return tctx;
 }
 

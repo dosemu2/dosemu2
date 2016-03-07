@@ -33,8 +33,9 @@
 /*
  * The following value must be power of two (N^2).
  */
-#define CO_STK_ALIGN 256
-#define CO_STK_COROSIZE(x) (((x) + sizeof(coroutine) + CO_STK_ALIGN - 1) & ~(CO_STK_ALIGN - 1))
+#define _CO_STK_ALIGN 256
+#define CO_STK_ALIGN(x) (((x) + _CO_STK_ALIGN - 1) & ~(_CO_STK_ALIGN - 1))
+#define CO_STK_COROSIZE(x) CO_STK_ALIGN((x) + sizeof(coroutine))
 #define CO_MIN_SIZE (4 * 1024)
 
 struct s_cothread_ctx;
@@ -68,7 +69,7 @@ typedef struct s_cothread_ctx {
 	co_base co_main;
 	co_base *co_curr;
 	int ctx_sizeof;
-	char stk0[CO_MIN_SIZE];
+	char stk0[0];
 } cothread_ctx;
 
 #endif
