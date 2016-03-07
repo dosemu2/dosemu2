@@ -38,14 +38,18 @@
 #define CO_STK_COROSIZE(x) CO_STK_ALIGN((x) + sizeof(coroutine))
 #define CO_MIN_SIZE (4 * 1024)
 
-struct s_cothread_ctx;
-typedef struct s_co_ctx {
-	void *cc;
+struct s_co_ctx;
+struct pcl_ctx_ops {
 	int (*create_context)(struct s_co_ctx *ctx, void *func, void *arg,
 		char *stkbase, long stksiz);
 	int (*get_context)(struct s_co_ctx *ctx);
 	int (*set_context)(struct s_co_ctx *ctx);
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
+};
+
+typedef struct s_co_ctx {
+	void *cc;
+	struct pcl_ctx_ops ops;
 } co_ctx_t;
 
 typedef struct s_co_base {

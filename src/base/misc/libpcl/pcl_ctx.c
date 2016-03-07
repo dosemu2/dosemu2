@@ -22,6 +22,7 @@
 
 #include <ucontext.h>
 #include "mcontext.h"
+#include "pcl.h"
 #include "pcl_private.h"
 #include "pcl_ctx.h"
 
@@ -56,19 +57,12 @@ static int ctx_create_context(co_ctx_t *ctx, void *func, void *arg,
 	return 0;
 }
 
-int ctx_init(co_ctx_t *ctx)
-{
-	ctx->create_context = ctx_create_context;
-	ctx->get_context = ctx_get_context;
-	ctx->set_context = ctx_set_context;
-	ctx->swap_context = ctx_swap_context;
-	return 0;
-}
-
-int ctx_sizeof(void)
-{
-	return sizeof(ucontext_t);
-}
+static struct pcl_ctx_ops ctx_ops = {
+	.create_context = ctx_create_context,
+	.get_context = ctx_get_context,
+	.set_context = ctx_set_context,
+	.swap_context = ctx_swap_context,
+};
 
 static int mctx_get_context(struct s_co_ctx *ctx)
 {
@@ -101,16 +95,34 @@ static int mctx_create_context(co_ctx_t *ctx, void *func, void *arg,
 	return 0;
 }
 
-int mctx_init(co_ctx_t *ctx)
+static struct pcl_ctx_ops mctx_ops = {
+	.create_context = mctx_create_context,
+	.get_context = mctx_get_context,
+	.set_context = mctx_set_context,
+	.swap_context = mctx_swap_context,
+};
+
+static struct pcl_ctx_ops *ops_arr[] = {
+	[PCL_C_UC] = &ctx_ops,
+	[PCL_C_MC] = &mctx_ops,
+};
+
+int ctx_init(enum CoBackend b, struct pcl_ctx_ops *ops)
 {
-	ctx->create_context = mctx_create_context;
-	ctx->get_context = mctx_get_context;
-	ctx->set_context = mctx_set_context;
-	ctx->swap_context = mctx_swap_context;
+	if (b >= PCL_C_MAX)
+		return -1;
+	*ops = *ops_arr[b];
 	return 0;
 }
 
-int mctx_sizeof(void)
+int ctx_sizeof(enum CoBackend b)
 {
-	return sizeof(m_ucontext_t);
+	switch (b) {
+	case PCL_C_UC:
+		return sizeof(ucontext_t);
+	case PCL_C_MC:
+		return sizeof(m_ucontext_t);
+	default:
+		return -1;
+	}
 }

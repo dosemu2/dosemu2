@@ -3014,7 +3014,7 @@ void dpmi_setup(void)
 
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
-    co_handle = mco_thread_init();
+    co_handle = co_thread_init(PCL_C_MC);
     return;
 
 err:

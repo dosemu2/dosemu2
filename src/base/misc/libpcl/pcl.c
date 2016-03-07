@@ -26,15 +26,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "pcl.h"
 #include "pcl_private.h"
 #include "pcl_ctx.h"
-#include "pcl.h"
 
 static cothread_ctx *co_get_thread_ctx(coroutine *co);
 
 static void co_switch_context(co_ctx_t *octx, co_ctx_t *nctx)
 {
-	if (octx->swap_context(octx, nctx->cc) < 0) {
+	if (octx->ops.swap_context(octx, nctx->cc) < 0) {
 		fprintf(stderr, "[PCL] Context switch failed\n");
 		exit(1);
 	}
@@ -87,7 +87,8 @@ coroutine_t co_create(cohandle_t handle, void (*func)(void *), void *data,
 	co->ctx = tctx->co_main.ctx;
 	co->ctx.cc = co->stk;
 	co->ctx_main = tctx;
-	if (co->ctx.create_context(&co->ctx, co_runner, co, co->stack, size - CO_STK_COROSIZE(tctx->ctx_sizeof)) < 0) {
+	if (co->ctx.ops.create_context(&co->ctx, co_runner, co, co->stack,
+			size - CO_STK_COROSIZE(tctx->ctx_sizeof)) < 0) {
 		if (co->alloc)
 			free(co);
 		return NULL;
@@ -181,24 +182,13 @@ static void do_co_init(cothread_ctx *tctx)
 	tctx->co_curr = &tctx->co_main;
 }
 
-cohandle_t co_thread_init(void)
+cohandle_t co_thread_init(enum CoBackend b)
 {
-	int sz = ctx_sizeof();
+	int sz = ctx_sizeof(b);
 	cothread_ctx *tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
 
 	do_co_init(tctx);
-	ctx_init(&tctx->co_main.ctx);
-	tctx->ctx_sizeof = sz;
-	return tctx;
-}
-
-cohandle_t mco_thread_init(void)
-{
-	int sz = mctx_sizeof();
-	cothread_ctx *tctx = malloc(sizeof(cothread_ctx) + CO_STK_ALIGN(sz));
-
-	do_co_init(tctx);
-	mctx_init(&tctx->co_main.ctx);
+	ctx_init(b, &tctx->co_main.ctx.ops);
 	tctx->ctx_sizeof = sz;
 	return tctx;
 }

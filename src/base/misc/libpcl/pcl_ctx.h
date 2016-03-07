@@ -17,9 +17,7 @@
 #ifndef PCL_CTX_H
 #define PCL_CTX_H
 
-int ctx_init(co_ctx_t *ctx);
-int mctx_init(co_ctx_t *ctx);
-int ctx_sizeof(void);
-int mctx_sizeof(void);
+int ctx_init(enum CoBackend b, struct pcl_ctx_ops *ops);
+int ctx_sizeof(enum CoBackend b);
 
 #endif

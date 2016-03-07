@@ -140,7 +140,7 @@ static void do_call_post(struct coopth_t *thr,
 
 void coopth_init(void)
 {
-    co_handle = co_thread_init();
+    co_handle = co_thread_init(PCL_C_UC);
 }
 
 #define SW_ST(x) (struct coopth_state_t){ COOPTHS_SWITCH, sw_##x }
