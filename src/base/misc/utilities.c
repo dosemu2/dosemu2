@@ -649,17 +649,16 @@ void sigalarm_block(int block)
 {
   static volatile int is_blocked = 0;
   sigset_t blockset;
+  static sigset_t oldset;
   if (block) {
     if (!is_blocked++) {
       sigemptyset(&blockset);
       sigaddset(&blockset, SIGALRM);
-      sigprocmask(SIG_BLOCK, &blockset, NULL);
+      sigprocmask(SIG_BLOCK, &blockset, &oldset);
     }
   }
   else if (is_blocked--) {
-    sigemptyset(&blockset);
-    sigaddset(&blockset, SIGALRM);
-    sigprocmask(SIG_UNBLOCK, &blockset, NULL);
+    sigprocmask(SIG_SETMASK, &oldset, NULL);
   }
 }
 
