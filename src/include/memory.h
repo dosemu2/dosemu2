@@ -296,6 +296,24 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 #define READ_DWORDP(addr)	READ_DWORD(DOSADDR_REL(addr))
 #define WRITE_DWORDP(addr, val)	WRITE_DWORD(DOSADDR_REL(addr), val)
 
+#define WRITE_P(loc, val) do { \
+    Bit8u *__p = (Bit8u *)&loc; \
+    switch (sizeof(loc)) { \
+    case 1: \
+	WRITE_BYTEP(__p, (Bit8u)(val)); \
+	break; \
+    case 2: \
+	WRITE_WORDP(__p, (Bit16u)(val)); \
+	break; \
+    case 4: \
+	WRITE_DWORDP(__p, (Bit32u)(val)); \
+	break; \
+    default: \
+	error("WRITE_P: unknown size %zu\n", sizeof(loc)); \
+	break; \
+    } \
+} while(0)
+
 #define READ_BYTE_S(b, s, m)	READ_BYTE(b + offsetof(s, m))
 #define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))
 #define READ_DWORD_S(b, s, m)	READ_DWORD(b + offsetof(s, m))

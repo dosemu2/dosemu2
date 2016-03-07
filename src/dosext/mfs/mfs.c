@@ -2535,8 +2535,8 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
      * -- sw
      */
     p = drive_cds(dsk);
-    p[cds_flags_off] = 0x80;
-    p[cds_flags_off + 1] = 0xc0;
+    WRITE_P(p[cds_flags_off], 0x80);
+    WRITE_P(p[cds_flags_off + 1], 0xc0);
   }
 
 #if 0
