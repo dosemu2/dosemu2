@@ -1583,11 +1583,11 @@ calculate_drive_pointers(int dd)
   Debug0((dbg_fd, "  cdsfar = %x, %x\n", cdsfarptr.segment,
 	  cdsfarptr.offset));
 
-  cds_flags(cds) |= (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET);
+  WRITE_P(cds_flags(cds), cds_flags(cds) | (CDS_FLAG_REMOTE | CDS_FLAG_READY | CDS_FLAG_NOTNET));
 
   cwd = cds_current_path(cds);
   sprintf(cwd, "%c:\\", 'A' + dd);
-  cds_rootlen(cds) = strlen(cwd) - 1;
+  WRITE_P(cds_rootlen(cds), strlen(cwd) - 1);
   Debug0((dbg_fd, "cds_current_path=%s\n", cwd));
   return (1);
 }
@@ -1658,7 +1658,7 @@ dos_fs_dev(state_t *state)
       return (UNCHANGED);
     }
 
-    *(ptr - 9) = 1;
+    WRITE_P(*(ptr - 9), 1);	// what is this?
     Debug0((dbg_fd, "first_free_drive = %d\n", first_free_drive));
     {
       u_short *seg = (u_short *) (ptr - 2);
