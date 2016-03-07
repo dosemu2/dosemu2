@@ -459,10 +459,7 @@ static int do_dpmi_control(struct sigcontext *scp)
     if (dpmi_mhp_TF) _eflags |= TF;
     co_call(dpmi_tid);
     /* we may return here with sighandler's signal mask.
-     * This is done for speed-up and is not a problem because
-     * here we are still in a coopthread. coopthread will restore
-     * the proper signal mask before returning to main dosemu code,
-     * so the bad mask should not leak too deeply. */
+     * This is done for speed-up. dpmi_control() restores the mask. */
     return dpmi_ret_val;
 }
 
@@ -511,11 +508,16 @@ static int _dpmi_control(void)
 static int dpmi_control(void)
 {
     int ret;
+    sigset_t set;
+
+    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
+    sigprocmask(SIG_SETMASK, NULL, &set);
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
     ret = _dpmi_control();
     if (in_dpmi_thr)
       signal_switch_to_dosemu();
+    sigprocmask(SIG_SETMASK, &set, NULL);
     return ret;
 }
 
