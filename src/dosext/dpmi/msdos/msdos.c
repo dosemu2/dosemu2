@@ -555,7 +555,7 @@ static void rm_do_int(u_short flags, u_short cs, u_short ip,
   *--sp = cs;
   *--sp = ip;
   *stk_used += 6;
-  RMREG(flags) = flags & ~(AC|VM|TF|NT|VIF);
+  RMREG(flags) = flags & ~(AC|VM|TF|NT|IF);
   *r_rmask |= 1 << flags_INDEX;
 }
 
