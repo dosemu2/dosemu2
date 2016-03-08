@@ -56,7 +56,7 @@ void print_exception_info(struct sigcontext *scp);
  */
 
 __attribute__((no_instrument_function))
-static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
+static int dosemu_fault1(int signal, struct sigcontext *scp)
 {
 #if 0
   _eflags &= ~(AC|ID);
@@ -205,7 +205,7 @@ bad:
 
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
-static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
+static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
   pid_t tid;
 
@@ -252,7 +252,7 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
       signal, _trapno);
 
-  dosemu_fault1(signal, scp, stk);
+  dosemu_fault1(signal, scp);
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
@@ -269,7 +269,7 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp, 0);
   fault_cnt++;
-  dosemu_fault0(signal, scp, &uct->uc_stack);
+  dosemu_fault0(signal, scp);
   fault_cnt--;
   deinit_handler(scp, uct);
 }
