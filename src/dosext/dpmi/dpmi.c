@@ -1456,7 +1456,6 @@ static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
     rmreg->ecx = REG(ecx);
     rmreg->eax = REG(eax);
     rmreg->flags = get_FLAGS(REG(eflags));
-    rmreg->esp_reserved = dpmi_is_cli;	// have some reserve here
     rmreg->es = REG(es);
     rmreg->ds = REG(ds);
     rmreg->fs = REG(fs);
@@ -1479,10 +1478,8 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
     RMR(edx);
     RMR(ecx);
     RMR(eax);
-    if (mask & (1 << eflags_INDEX)) {
+    if (mask & (1 << eflags_INDEX))
 	REG(eflags) = get_EFLAGS(rmreg->flags);
-	dpmi_is_cli = rmreg->esp_reserved & 1;
-    }
     RMR(es);
     RMR(ds);
     RMR(fs);
@@ -4404,7 +4401,7 @@ static int dpmi_fault1(struct sigcontext *scp)
       return 1;
   }
 
-  if (dpmi_is_cli && isset_IF())
+  if (dpmi_is_cli && in_dpmi_pm() && isset_IF())
     dpmi_is_cli = 0;
 
   uncache_time();
