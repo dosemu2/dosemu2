@@ -1215,7 +1215,7 @@ int read_file(fatfs_t *f, unsigned oi, unsigned clu, unsigned pos,
   char *s;
   off_t ofs;
 
-  if(oi != f->fd_obj) {
+  if(f->fd_obj && oi != f->fd_obj) {
      close(f->fd);
      f->fd = -1;
      f->fd_obj = 0;
