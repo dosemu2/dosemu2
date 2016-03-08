@@ -112,19 +112,6 @@ static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
 //  if (in_dpmi) {
     /* At first let's find out where we came from */
     if (!DPMIValidSelector(_cs)) {
-      /* Fault in dosemu code */
-      /* Now see if it is HLT */
-      if (indirect_dpmi_switch(scp)) {
-        /* Well, must come from dpmi_control() */
-        /* Note: when using DIRECT_DPMI_CONTEXT_SWITCH, we only come
-         * here if we have set the trap-flags (TF)
-         * ( needed for dosdebug only )
-         */
-        dosemu_stk = *stk;
-        signal_set_altstack(stk);
-        return 0;
-      }
-      /* No, not HLT, too bad :( */
       error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
       /* TODO - we can start gdb here */
       /* start_gdb() */
@@ -254,6 +241,14 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
     sigemptyset(&set);
     sigaddset(&set, signal);
     sigprocmask(SIG_UNBLOCK, &set, NULL);
+  }
+
+  if (!in_vm86 && !DPMIValidSelector(_cs) && indirect_dpmi_switch(scp)) {
+    /* Well, must come from dpmi_control() */
+    dosemu_stk = *stk;
+    signal_set_altstack(stk);
+    fault_cnt--;
+    return;
   }
 
 #ifdef X86_EMULATOR
