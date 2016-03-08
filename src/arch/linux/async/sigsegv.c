@@ -125,7 +125,7 @@ static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
       /* Not in dosemu code: dpmi_fault() will handle that */
       int ret = dpmi_fault(scp);
       /* if DPMI terminated, we restore dosemu stack */
-      if (!DPMIValidSelector(_cs))
+      if (!DPMIValidSelector(_cs) && !dpmi_active())
         *stk = dosemu_stk;
       return ret;
     }

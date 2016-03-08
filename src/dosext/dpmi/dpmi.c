@@ -23,6 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <pthread.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <linux/version.h>
@@ -440,7 +441,10 @@ void dpmi_iret_unwind(struct sigcontext *scp)
 static void indirect_dpmi_transfer(void)
 {
   in_indirect_dpmi_transfer++;
-  asm volatile ("\t hlt\n" ::: "memory");
+  /* for some absolutely unclear reason neither pthread_self() nor
+   * pthread_kill() are the memory barriers. */
+  asm volatile("" ::: "memory");
+  pthread_kill(pthread_self(), SIGSEGV);
 }
 
 
@@ -1139,7 +1143,6 @@ int indirect_dpmi_switch(struct sigcontext *scp)
 	return 0;
     in_indirect_dpmi_transfer--;
     emu_stack_frame.fpstate = &emu_fpstate;
-    _eip++;	// skip initial hlt
     copy_context(&emu_stack_frame, scp, 1);
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
     return 1;
