@@ -215,7 +215,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
 {
   pid_t tid;
 
-  fault_cnt++;
   if (fault_cnt > 2) {
    /*
     * At this point we already tried leavedos(). Now try _exit()
@@ -247,7 +246,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
     /* Well, must come from dpmi_control() */
     dosemu_stk = *stk;
     signal_set_altstack(stk);
-    fault_cnt--;
     return;
   }
 
@@ -258,7 +256,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
        cases have been fixed yet */
     if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi_pm() &&
 	e_emu_fault(scp)) {
-      fault_cnt--;
       return;
     }
   }
@@ -269,7 +266,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
       signal, _trapno);
 
   dosemu_fault1(signal, scp, stk);
-  fault_cnt--;
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
@@ -285,7 +281,9 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
    * Additionally, TLS access should be done in a separate no-inline
    * function, so that gcc not to move the TLS access around init_handler(). */
   init_handler(scp, 0);
+  fault_cnt++;
   dosemu_fault0(signal, scp, &uct->uc_stack);
+  fault_cnt--;
   deinit_handler(scp, uct);
 }
 #endif /* __linux__ */
