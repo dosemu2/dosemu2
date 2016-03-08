@@ -4677,6 +4677,12 @@ int dpmi_active(void)
 void dpmi_done(void)
 {
   D_printf("DPMI: finalizing\n");
+
+  while (in_dpmi) {
+    dpmi_set_pm(0);
+    dpmi_cleanup();
+  }
+
   if (in_dpmi_thr)
     co_delete(dpmi_tid);
   co_thread_cleanup(co_handle);
