@@ -47,6 +47,8 @@
 #include "cpu-emu.h"
 #include "sig.h"
 
+#define SIGRETURN_WA 1
+
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
 #define MAX_SIG_DATA_SIZE 128
@@ -106,19 +108,25 @@ static void qsig_init(void)
 	int i;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
+#if SIGRETURN_WA
 #if 0
 	/* future kernels will be able to correctly restore SS.
 	 * this have not materialized yet */
-	if (kernel_version_code >= KERNEL_VERSION(4, 6, 0)) {
-		/* block all non-fatal async signals */
-		sa.sa_mask = nonfatal_q_mask;
-	} else
+	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
+#else
+	if (1)
 #endif
 	{
 		/* initially block all async signals. The handler will unblock
 		 * some when it is safe (after segment registers are restored)
 		 */
 		sa.sa_mask = q_mask;
+	}
+	else
+#endif
+	{
+		/* block all non-fatal async signals */
+		sa.sa_mask = nonfatal_q_mask;
 	}
 	for (i = 0; i < NSIG; i++) {
 		if (qsighandlers[i]) {
@@ -146,19 +154,25 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
 		sa.sa_flags |= SA_NODEFER;
+#if SIGRETURN_WA
 #if 0
 	/* future kernels will be able to correctly restore SS.
 	 * this have not materialized yet */
-	if (kernel_version_code >= KERNEL_VERSION(4, 6, 0)) {
-		/* block all non-fatal async signals */
-		sa.sa_mask = nonfatal_q_mask;
-	} else
+	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
+#else
+	if (1)
 #endif
 	{
 		/* initially block all async signals. The handler will unblock
 		 * some when it is safe (after segment registers are restored)
 		 */
 		sa.sa_mask = q_mask;
+	}
+	else
+#endif
+	{
+		/* block all non-fatal async signals */
+		sa.sa_mask = nonfatal_q_mask;
 	}
 	sa.sa_sigaction = fun;
 	sigaction(sig, &sa, NULL);
@@ -263,9 +277,12 @@ void init_handler(struct sigcontext *scp, int async)
    * Note: most async signals are left blocked, we unblock only few.
    * Sync signals like SIGSEGV are never blocked.
    */
+#if SIGRETURN_WA
   sigset_t mask;
+#endif
 
   __init_handler(scp, async);
+#if SIGRETURN_WA
 #if 0
   /* future kernels will be able to correctly restore SS.
    * this have not materialized yet.
@@ -281,6 +298,7 @@ void init_handler(struct sigcontext *scp, int async)
   sigaddset(&mask, SIGTERM);
   /* leave SIGCHLD blocked - delaying it is never too important */
   sigprocmask(SIG_UNBLOCK, &mask, NULL);
+#endif
 }
 
 #ifdef __x86_64__
