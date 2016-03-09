@@ -261,7 +261,7 @@ static void *mem_reserve(void)
     result = mmap_mapping(cap, 0, memsize, PROT_NONE, 0);
     if (result == MAP_FAILED) {
       const char *msg =
-	".\nYou can most likely avoid this problem by running\n"
+	"You can most likely avoid this problem by running\n"
 	"sysctl -w vm.mmap_min_addr=0\n"
 	"as root, or by changing the vm.mmap_min_addr setting in\n"
 	"/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n"
@@ -273,12 +273,14 @@ static void *mem_reserve(void)
 	config.cpuemu = 3;
 	init_emu_cpu();
 	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
-	error("Using CPU emulation because vm.mmap_min_addr > 0%s", msg);
+	error("Using CPU emulation because vm.mmap_min_addr > 0\n");
+	error("@%s", msg);
       } else
 #endif
       {
-	perror ("LOWRAM mmap");
-	fprintf(stderr, "Cannot map low DOS memory (the first 640k)%s", msg);
+	perror("LOWRAM mmap");
+	error("Cannot map low DOS memory (the first 640k)\n");
+	error("@%s", msg);
 	exit(EXIT_FAILURE);
       }
     }
