@@ -106,8 +106,20 @@ static void qsig_init(void)
 	int i;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
-	/* block all non-fatal async signals */
-	sa.sa_mask = nonfatal_q_mask;
+#if 0
+	/* future kernels will be able to correctly restore SS.
+	 * this have not materialized yet */
+	if (kernel_version_code >= KERNEL_VERSION(4, 6, 0)) {
+		/* block all non-fatal async signals */
+		sa.sa_mask = nonfatal_q_mask;
+	} else
+#endif
+	{
+		/* initially block all async signals. The handler will unblock
+		 * some when it is safe (after segment registers are restored)
+		 */
+		sa.sa_mask = q_mask;
+	}
 	for (i = 0; i < NSIG; i++) {
 		if (qsighandlers[i]) {
 			sa.sa_sigaction = qsighandlers[i];
@@ -134,7 +146,20 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
 		sa.sa_flags |= SA_NODEFER;
-	sa.sa_mask = nonfatal_q_mask;
+#if 0
+	/* future kernels will be able to correctly restore SS.
+	 * this have not materialized yet */
+	if (kernel_version_code >= KERNEL_VERSION(4, 6, 0)) {
+		/* block all non-fatal async signals */
+		sa.sa_mask = nonfatal_q_mask;
+	} else
+#endif
+	{
+		/* initially block all async signals. The handler will unblock
+		 * some when it is safe (after segment registers are restored)
+		 */
+		sa.sa_mask = q_mask;
+	}
 	sa.sa_sigaction = fun;
 	sigaction(sig, &sa, NULL);
 }
@@ -143,7 +168,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
 __attribute__((no_instrument_function))
-void init_handler(struct sigcontext *scp, int async)
+static void __init_handler(struct sigcontext *scp, int async)
 {
 #ifdef __x86_64__
   unsigned short __ss;
@@ -222,6 +247,40 @@ void init_handler(struct sigcontext *scp, int async)
   if (!eflags_fs_gs.gs && eflags_fs_gs.gsbase)
     dosemu_arch_prctl(ARCH_SET_GS, eflags_fs_gs.gsbase);
 #endif
+}
+
+__attribute__((no_instrument_function))
+void init_handler(struct sigcontext *scp, int async)
+{
+  /* Async signals are initially blocked.
+   * We need to restore registers before unblocking async signals.
+   * Otherwise the nested signal handler will restore the registers
+   * and return; the current signal handler will then save the wrong
+   * registers.
+   * Note: in 64bit mode some segment registers are neither saved nor
+   * restored by the signal dispatching code in kernel, so we have
+   * to restore them by hands.
+   * Note: most async signals are left blocked, we unblock only few.
+   * Sync signals like SIGSEGV are never blocked.
+   */
+  sigset_t mask;
+
+  __init_handler(scp, async);
+#if 0
+  /* future kernels will be able to correctly restore SS.
+   * this have not materialized yet.
+   * When it will, we'll be able to have some (or all?) async
+   * signals always unblocked, as the sighandlers will then
+   * correctly restore all segregs. */
+  if (kernel_version_code >= KERNEL_VERSION(4, 6, 0))
+    return;
+#endif
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGHUP);
+  sigaddset(&mask, SIGTERM);
+  /* leave SIGCHLD blocked - delaying it is never too important */
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 #ifdef __x86_64__
