@@ -314,7 +314,13 @@ void init_handler(struct sigcontext *scp, int async)
    * Sync signals like SIGSEGV are never blocked.
    */
   sigset_t mask;
+
   __init_handler(scp, async);
+#if SIGALTSTACK_WA
+  /* oops, for SAS WA can't unblock even those */
+  if (need_sas_wa)
+    return;
+#endif
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
   sigaddset(&mask, SIGHUP);
