@@ -1909,6 +1909,7 @@ static void start_serial(void)
     sptr->dev = NULL;
     sptr->irq = 0; 
     sptr->base_port = 0;
+    sptr->end_port = 0;
     sptr->real_comport = 0;
     sptr->mouse = 0;
     sptr->virtual = FALSE;
