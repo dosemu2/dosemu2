@@ -299,8 +299,7 @@ static void __init_handler(struct sigcontext *scp, int async)
 #endif
 }
 
-__attribute__((no_instrument_function))
-void init_handler(struct sigcontext *scp, int async)
+static void unmask_fatal_signals(void)
 {
   /* Async signals are initially blocked.
    * We need to restore registers before unblocking async signals.
@@ -315,17 +314,23 @@ void init_handler(struct sigcontext *scp, int async)
    */
   sigset_t mask;
 
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGHUP);
+  sigaddset(&mask, SIGTERM);
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+}
+
+__attribute__((no_instrument_function))
+void init_handler(struct sigcontext *scp, int async)
+{
   __init_handler(scp, async);
 #if SIGALTSTACK_WA
   /* oops, for SAS WA can't unblock even those */
   if (need_sas_wa)
     return;
 #endif
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGHUP);
-  sigaddset(&mask, SIGTERM);
-  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  unmask_fatal_signals();
 }
 
 #ifdef __x86_64__
@@ -1082,7 +1087,7 @@ static void signal_sas_wa(void)
   unsigned char *btop = backup_stack + SIGSTACK_SIZE;
   unsigned long delta = (unsigned long)(top - sp);
 
-  if (getmcontext(&hack) == 0)
+  if (getmcontext(&hack) == 0) {
     asm volatile(
 #ifdef __x86_64__
     "mov %0, %%rsp\n"
@@ -1090,8 +1095,10 @@ static void signal_sas_wa(void)
     "mov %0, %%esp\n"
 #endif
      :: "r"(btop - delta) : "sp");
-  else
+  } else {
+    unmask_fatal_signals();
     return;
+  }
 
   ss.ss_flags = SS_DISABLE;
   err = sigaltstack(&ss, NULL);
