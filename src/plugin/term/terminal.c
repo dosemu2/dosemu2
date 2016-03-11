@@ -58,6 +58,7 @@
 #include <limits.h>
 #include <termios.h>
 #include <errno.h>
+#include <signal.h>
 #include <slang.h>
 
 #include "bios.h"
@@ -158,10 +159,20 @@ static void get_screen_size (void)
    Columns = SLtt_Screen_Cols;
    if (Rows < 25) {
      if (config.prompt && first) {
+       sigset_t set, oset;
+       typedef void (*sighandler_t)(int);
+       sighandler_t oh;
+
        printf("Note that DOS needs 25 lines. You might want to enlarge your\n");
        printf("window before continuing.\n\n");
        printf("Now type ENTER to start DOSEMU\n");
+       oh = signal(SIGINT, SIG_DFL);
+       sigemptyset(&set);
+       sigaddset(&set, SIGINT);
+       sigprocmask(SIG_UNBLOCK, &set, &oset);
        getchar();
+       sigprocmask(SIG_SETMASK, &oset, NULL);
+       signal(SIGINT, oh);
        first = 0;
        get_screen_size();
      }
