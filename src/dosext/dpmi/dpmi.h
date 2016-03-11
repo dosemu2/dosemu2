@@ -154,7 +154,6 @@ extern void dpmi_iret_unwind(struct sigcontext *scp);
 #else
 #define dpmi_iret_setup(x)
 #endif
-int indirect_dpmi_switch(struct sigcontext *);
 #ifdef __linux__
 int dpmi_fault(struct sigcontext *);
 #endif

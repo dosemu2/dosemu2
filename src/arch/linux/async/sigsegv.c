@@ -24,8 +24,6 @@
 #include "dosemu_config.h"
 #include "sig.h"
 
-static stack_t dosemu_stk;
-
 /* Function prototypes */
 void print_exception_info(struct sigcontext *scp);
 
@@ -123,11 +121,7 @@ static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
       if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 1) == True)
         return dpmi_check_return(scp);
       /* Not in dosemu code: dpmi_fault() will handle that */
-      int ret = dpmi_fault(scp);
-      /* if DPMI terminated, we restore dosemu stack */
-      if (!DPMIValidSelector(_cs) && !dpmi_active())
-        *stk = dosemu_stk;
-      return ret;
+      return dpmi_fault(scp);
     }
 //  } /*in_dpmi*/
 
@@ -240,13 +234,6 @@ static void dosemu_fault0(int signal, struct sigcontext *scp, stack_t *stk)
     sigemptyset(&set);
     sigaddset(&set, signal);
     sigprocmask(SIG_UNBLOCK, &set, NULL);
-  }
-
-  if (!in_vm86 && !DPMIValidSelector(_cs) && indirect_dpmi_switch(scp)) {
-    /* Well, must come from dpmi_control() */
-    dosemu_stk = *stk;
-    signal_set_altstack(stk);
-    return;
   }
 
 #ifdef X86_EMULATOR

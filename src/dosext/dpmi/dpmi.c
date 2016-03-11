@@ -96,8 +96,10 @@ static int dpmi_ctid;
 static coroutine_t dpmi_tid;
 static cohandle_t co_handle;
 static struct sigcontext emu_stack_frame;
+static struct sigaction emu_tmp_act;
+static stack_t dosemu_stk;
+#define DPMI_TMP_SIG SIGUSR1
 static struct _fpstate emu_fpstate;
-static int in_indirect_dpmi_transfer;
 static int in_dpmi_thr;
 static int in_dpmic_thr;
 
@@ -437,16 +439,6 @@ void dpmi_iret_unwind(struct sigcontext *scp)
   _ss = iret_frame[4];
 }
 #endif
-
-static void indirect_dpmi_transfer(void)
-{
-  in_indirect_dpmi_transfer++;
-  /* for some absolutely unclear reason neither pthread_self() nor
-   * pthread_kill() are the memory barriers. */
-  asm volatile("" ::: "memory");
-  pthread_kill(pthread_self(), SIGSEGV);
-}
-
 
 /* ======================================================================== */
 /*
@@ -1137,15 +1129,42 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
   copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
 }
 
-int indirect_dpmi_switch(struct sigcontext *scp)
+static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
 {
-    if (!in_indirect_dpmi_transfer)
-	return 0;
-    in_indirect_dpmi_transfer--;
-    emu_stack_frame.fpstate = &emu_fpstate;
-    copy_context(&emu_stack_frame, scp, 1);
-    copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
-    return 1;
+  ucontext_t *uct = uc;
+  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
+
+  emu_stack_frame.fpstate = &emu_fpstate;
+  copy_context(&emu_stack_frame, scp, 1);
+  copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
+  dosemu_stk = uct->uc_stack;
+  signal_set_altstack(&uct->uc_stack);
+
+  sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
+  deinit_handler(scp, uc);
+}
+
+static void indirect_dpmi_transfer(void)
+{
+  struct sigaction act;
+
+  act.sa_flags = SA_SIGINFO;
+  sigprocmask(SIG_SETMASK, NULL, &act.sa_mask);
+  if (sigismember(&act.sa_mask, DPMI_TMP_SIG)) {
+    sigset_t mask;
+    error("DPMI: signal %i is masked\n", DPMI_TMP_SIG);
+    sigemptyset(&mask);
+    sigaddset(&mask, DPMI_TMP_SIG);
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  }
+  act.sa_sigaction = dpmi_switch_sa;
+  sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
+  /* for some absolutely unclear reason neither pthread_self() nor
+   * pthread_kill() are the memory barriers. */
+  asm volatile("" ::: "memory");
+  pthread_kill(pthread_self(), DPMI_TMP_SIG);
+  /* and we are back */
+  sigaltstack(&dosemu_stk, NULL);
 }
 
 static void *enter_lpms(struct sigcontext *scp)
