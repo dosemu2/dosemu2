@@ -192,10 +192,12 @@ static int video_init(void)
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
     warn("KMS detected: using SDL mode.\n");
+#ifdef SDL_SUPPORT
     load_plugin("sdl");
     Video = video_get("sdl");
     if (Video)
       config.X = 1;
+#endif
   }
 
 #if defined(USE_DL_PLUGINS)

@@ -574,13 +574,17 @@ static void config_post_process(void)
     if (!Video && getenv("DISPLAY") && !config.X && !config.term) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
-	if (config.X_font && config.X_font[0]) {
+#ifdef SDL_SUPPORT
+	if (config.X_font && config.X_font[0])
+#endif
+	{
 	    load_plugin("X");
 	    Video = video_get("X");
 	    if (Video) {
 		config.X = 1;
 		config.mouse.type = MOUSE_X;
 	    }
+#ifdef SDL_SUPPORT
 	} else {
 	    load_plugin("sdl");
 	    Video = video_get("sdl");
@@ -590,6 +594,7 @@ static void config_post_process(void)
 		config.sdl_sound = 1;
 		config.mouse.type = MOUSE_SDL;
 	    }
+#endif
 	}
     }
     if (on_console()) {
