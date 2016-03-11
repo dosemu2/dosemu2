@@ -19,7 +19,6 @@ config {
   plugin_console on
   plugin_svgalib off
   plugin_vde off
-  plugin_demo off
   target_bits auto
   target_cpu auto
   prefix /usr/local
