@@ -305,6 +305,14 @@ void init_handler(struct sigcontext *scp, int async)
 __attribute__((no_instrument_function))
 void deinit_handler(struct sigcontext *scp)
 {
+#ifdef __x86_64__
+  /* on x86_64 there is no vm86() that doesn't restore the segregs
+   * on some very old 2.4 kernels. So if DPMI is not active, there
+   * is nothing to restore.
+   * This helps valgrind to work with vm86sim mode. */
+  if (!dpmi_active())
+    return;
+#endif
   /* no need to restore anything when returning to dosemu, but
    * can't check _cs because dpmi_iret_setup() could clobber it.
    * So just restore segregs unconditionally to stay safe.
