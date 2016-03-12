@@ -3050,11 +3050,12 @@ err2:
 void dpmi_reset(void)
 {
     while (in_dpmi) {
-	dpmi_set_pm(0);
+	if (in_dpmi_pm())
+	    dpmi_set_pm(0);
 	dpmi_cleanup();
     }
     if (config.pm_dos_api)
-      msdos_reset(EMM_SEGMENT);
+	msdos_reset(EMM_SEGMENT);
 }
 
 void dpmi_init(void)
@@ -4701,7 +4702,8 @@ void dpmi_done(void)
   D_printf("DPMI: finalizing\n");
 
   while (in_dpmi) {
-    dpmi_set_pm(0);
+    if (in_dpmi_pm())
+      dpmi_set_pm(0);
     dpmi_cleanup();
   }
 
