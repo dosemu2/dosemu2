@@ -64,6 +64,7 @@ struct video_system {
                                   like mapping video memory, opening XWindow,
                                   etc. */
    int (*late_init)(void);     /* init with vm86() available (vbe) */
+   void (*early_close)(void);  /* close with vm86() available (vbe) */
    void (*close)(void);
 
    int (*setmode)(struct vid_mode_params);   /* type=0 currently (text mode) */
@@ -141,8 +142,6 @@ enum {
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
 
-extern void clear_console_video(void);
-extern int console_size(void);
 extern int load_file(char *name, int foffset, unsigned char *mstart, int msize);
 extern void register_video_client(struct video_system *vid);
 extern struct video_system *video_get(const char *name);

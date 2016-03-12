@@ -849,6 +849,7 @@ static struct video_system Video_term = {
    NULL,
    terminal_initialize,
    NULL,
+   NULL,
    terminal_close,
    term_setmode,
    slang_update,

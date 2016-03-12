@@ -445,6 +445,7 @@ extern void video_late_init(void);
 extern void video_mem_setup(void);
 extern void printer_init(void);
 extern void printer_mem_setup(void);
+extern void video_early_close(void);
 extern void video_close(void);
 extern void hma_exit(void);
 extern void ems_helper(void);

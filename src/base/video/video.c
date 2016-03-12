@@ -55,6 +55,7 @@ static struct video_system Video_none = {
   i_empty_void,	/* priv_init */
   video_none_init,	/* init */
   NULL,		/* late_init */
+  NULL,		/* early_close */
   v_empty_void,	/* close */
   NULL,		/* setmode */
   NULL,	        /* update_screen */
@@ -253,6 +254,19 @@ static int video_init(void)
   if (Video->priv_init)
       Video->priv_init();          /* call the specific init routine */
   return 0;
+}
+
+void video_early_close(void) {
+  if (!video_initialized)
+    return;
+  v_printf("VID: video_early_close() called\n");
+  if (Video && Video->early_close) {
+    Video->early_close();
+    v_printf("VID: video_close()->Video->early_close() called\n");
+  }
+  /* Note: update_screen() may be called up to video_close().
+   * Hope that plugins that implement early_close(), do NOT implement
+   * update_screen() at the same time. */
 }
 
 void video_close(void) {

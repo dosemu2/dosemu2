@@ -345,6 +345,7 @@ struct video_system Video_dualmon = {
    dualmon_init,
    NULL,
    dualmon_post_init,
+   NULL,
    dualmon_close,
    dualmon_setmode,
    NULL,                  /* will be overwritten by parent Video system */

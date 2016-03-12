@@ -643,9 +643,14 @@ static int vga_initialize(void)
   return 0;
 }
 
+static void vga_early_close(void)
+{
+  Video_console->early_close();
+}
+
 static void vga_close(void)
 {
-  clear_console_video();
+  Video_console->close();
   /* if the Linux console uses fbcon we can force
      a complete text redraw by doing round-trip
      vc switches; otherwise (vgacon) it doesn't hurt */
@@ -667,6 +672,7 @@ static struct video_system Video_graphics = {
    vga_initialize,
    vga_init,
    vga_post_init,
+   vga_early_close,
    vga_close,
    NULL,
    NULL,             /* update_screen */

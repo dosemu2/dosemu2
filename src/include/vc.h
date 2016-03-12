@@ -102,6 +102,8 @@ extern void allow_switch(void);
 extern void set_vc_screen_page(void);
 extern void init_get_video_ram(int);
 extern void set_process_control(void);
+extern void clear_console_video(void);
+extern int console_size(void);
 
 #define NOWAIT  0
 #define WAIT    1

@@ -163,13 +163,17 @@ static int console_init(void)
   return 0;
 }
 
+static void console_early_close(void)
+{
+  clear_console_video();
+}
+
 static void console_close(void)
 {
   if (config.detach) {
     restore_vt(consolenum);
     disallocate_vt();
   }
-  clear_console_video();
   fprintf(stdout,"\033[?25h\r");      /* Turn on the cursor */
 }
 
@@ -179,6 +183,7 @@ static struct video_system Video_console = {
    console_init,
    NULL,
    console_post_init,
+   console_early_close,
    console_close,
    console_setmode,
    console_update_screen,

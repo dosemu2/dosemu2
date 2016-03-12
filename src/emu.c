@@ -402,7 +402,7 @@ static void leavedos_thr(void *arg)
 {
     dbug_printf("leavedos thread started\n");
     /* this may require working vm86() */
-    video_close();
+    video_early_close();
     dbug_printf("leavedos thread ended\n");
 }
 
@@ -469,6 +469,8 @@ void leavedos_main(int sig)
     /* now it is safe to shut down coopth. Can be done any later, if need be */
     coopth_done();
     dbug_printf("coopthreads stopped\n");
+
+    video_close();
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"
