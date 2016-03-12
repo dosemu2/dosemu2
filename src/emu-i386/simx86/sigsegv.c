@@ -521,6 +521,11 @@ int e_emu_fault(struct sigcontext *scp)
 			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
 			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
 		}
+	} else {
+		if(VGA_EMU_FAULT(scp,code,1)==True) {
+			dpmi_check_return(scp);
+			return 1;
+		}
 	}
 
 	if (CONFIG_CPUSIM) {

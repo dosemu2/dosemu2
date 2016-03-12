@@ -137,7 +137,6 @@ static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
 static void dpmi_return(struct sigcontext *scp, int retval);
-static int dpmi_check_return(struct sigcontext *scp);
 static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
