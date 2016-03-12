@@ -380,7 +380,7 @@ if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
   ilevel = 32;
 }
 
-if (in_dpmi)
+if (in_dpmi_pm())
   dpmi_return_request();	/* we have to leave the signal context */
 
 if(!port){                          /* icw1, ocw2, ocw3 */
@@ -451,7 +451,7 @@ if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
   ilevel = 32;
 }
 
-if (in_dpmi)
+if (in_dpmi_pm())
   dpmi_return_request();	/* we have to leave the signal context */
 
 if(!port){                            /* icw1, ocw2, ocw3 */
@@ -633,7 +633,7 @@ static void do_irq(int ilevel)
      if (pic_iinfo[ilevel].callback)
         pic_iinfo[ilevel].callback();
      else {
-       if (in_dpmi) run_pm_int(intr);
+       if (dpmi_active()) run_pm_int(intr);
        else {
  /* schedule the requested interrupt, then enter the vm86() loop */
          run_int(intr);

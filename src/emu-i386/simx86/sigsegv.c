@@ -502,7 +502,7 @@ int e_emu_fault(struct sigcontext *scp)
     dbug_printf("==============================================================\n");
     if (debug_level('e')>1) {
 	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_rip),
-	    e_print_scp_regs(scp,(in_dpmi?3:2)));
+	    e_print_scp_regs(scp,(dpmi_active()?3:2)));
 	dbug_printf("Emul CPU mode=%04x cr2=%08x\n%s\n",
 	    TheCPU.mode&0xffff,TheCPU.cr2,e_print_regs());
     }

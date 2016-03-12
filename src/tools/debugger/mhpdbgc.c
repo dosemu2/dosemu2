@@ -101,7 +101,7 @@ static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
 
 static unsigned int dpmimode=1, saved_dpmimode=1;
-#define IN_DPMI  (in_dpmi && !in_dpmi_dos_int && dpmimode)
+#define IN_DPMI  (in_dpmi_pm() && dpmimode)
 
 static char lastd[32];
 static char lastu[32];
@@ -565,7 +565,7 @@ static void mhp_trace(int argc, char * argv[])
       mhp_printf("must be in stopped state\n");
    } else {
       mhpdbgc.stopped = 0;
-      if (in_dpmi) {
+      if (in_dpmi_pm()) {
         dpmi_mhp_setTF(1);
       }
       set_TF();
@@ -578,7 +578,7 @@ static void mhp_trace(int argc, char * argv[])
 
       mhpdbgc.trapip = mhp_getcsip_value();
 
-      if (in_dpmi_dos_int) {
+      if (!in_dpmi_pm()) {
 	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
 	if (csp[0] == 0xcd) {
 	    LWORD(eip) += 2;
@@ -1351,7 +1351,7 @@ static void mhp_regs(int argc, char * argv[])
        "",
 #endif
        mhpdbgc.stopped ? "stopped" : "running",
-       IN_DPMI ? " in DPMI" : (in_dpmi?" in real mode while in DPMI":""),
+       IN_DPMI ? " in DPMI" : (dpmi_active()?" in real mode while in DPMI":""),
        IN_DPMI ?(dpmi_mhp_getcsdefault()?"-32bit":"-16bit") : "");
 
   if (!dpmi_mhp_regs()) {
@@ -1415,7 +1415,7 @@ void mhp_bpset(void)
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
            mhpdbgc.brktab[i1].brkaddr = 0;
            mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
@@ -1434,7 +1434,7 @@ void mhp_bpclr(void)
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
            mhpdbgc.brktab[i1].brkaddr = 0;
            mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
