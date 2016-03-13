@@ -679,6 +679,10 @@ void rgb_bilin_filt(RGBColor c, RGBColor *c1, RGBColor *c2, RGBColor *c3)
 
 static void src_resize_update(RemapObject *ro, int width, int height, int scan_len)
 {
+  if (  ro->src_width == width &&
+	ro->src_height == height &&
+	ro->src_scan_len == scan_len)
+    return;
   ro->src_width = width;
   ro->src_height = height;
   ro->src_scan_len = scan_len;
@@ -689,6 +693,10 @@ static void src_resize_update(RemapObject *ro, int width, int height, int scan_l
 
 static void dst_resize_update(RemapObject *ro, int width, int height, int scan_len)
 {
+  if (  ro->dst_width == width &&
+	ro->dst_height == height &&
+	ro->dst_scan_len == scan_len)
+    return;
   ro->dst_width = width;
   ro->dst_height = height;
   ro->dst_scan_len = scan_len;
