@@ -466,7 +466,6 @@ static void *render_thread(void *arg)
       blink_cursor();
       if (text_is_dirty()) {
         render_text_begin();
-        update_cursor();
         update_text_screen();
         render_text_end();
       }

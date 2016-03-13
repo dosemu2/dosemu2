@@ -401,7 +401,7 @@ int text_is_dirty(void)
  * Redraw the cursor if it's necessary.
  * Do nothing in graphics modes.
  */
-void update_cursor(void)
+static void update_cursor(void)
 {
   if (need_redraw_cursor) {
     need_redraw_cursor = FALSE;
@@ -577,6 +577,7 @@ int update_text_screen(void)
     if (refr)
       dirty_text_screen();
   }
+  update_cursor();
 
   /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
