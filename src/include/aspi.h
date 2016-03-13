@@ -24,8 +24,6 @@ typedef Bit32u		FARPROC16;
 #define FARPTR16_TO_LIN(a) \
 	&mem_base[((a&0xffff) + ((a >> 12)& 0x000ffff0))]
 
-#pragma pack(1)
-
 #define SS_PENDING	0x00
 #define SS_COMP		0x01
 #define SS_ABORTED	0x02
