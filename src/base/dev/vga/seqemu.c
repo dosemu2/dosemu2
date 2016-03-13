@@ -279,6 +279,16 @@ void Seq_write_value(unsigned char data)
       if (vga.color_bits != 8)
         u &= 0xf;
       vga.seq.map_mask = u;
+      u1 = 0;
+      if(u) while(!(u & 1)) u >>= 1, u1++;
+      seq_deb("Seq_write_value: map mask = 0x%x, write plane = %u\n",
+        (unsigned) vga.seq.map_mask, u1
+      );
+      // ##### FIXME: drop this altogether and always use
+      // the gfx.read_map_select reg? -- sw
+      if(!vga.inst_emu) {
+        vgaemu_switch_plane(u1);
+      }
       break;
 
     case 0x03:		/* Character Map Select */
