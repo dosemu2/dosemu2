@@ -886,7 +886,6 @@ void enter_cpu_emu(void)
 	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
 	  leavedos_main(0);
 	}
-	config.cpuemu=2;	/* for saving CPU flags */
 	IDT = NULL;
 	if (GDT==NULL) {
 		/* The GDT is not really used (yet?) but some instructions
@@ -1005,7 +1004,6 @@ void leave_cpu_emu(void)
 
 	if (config.cpuemu > 1) {
 		iniflag = 0;
-		config.cpuemu=1;
 #ifdef SKIP_EMU_VBIOS
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
