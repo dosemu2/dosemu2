@@ -313,6 +313,8 @@ void deinit_handler(struct sigcontext *scp)
   if (!dpmi_active())
     return;
 #endif
+  if (CONFIG_CPUSIM && config.cpuemu >= 4)
+    return;
   /* no need to restore anything when returning to dosemu, but
    * can't check _cs because dpmi_iret_setup() could clobber it.
    * So just restore segregs unconditionally to stay safe.
