@@ -450,6 +450,7 @@ void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd)
 
   /* linear 1 byte per pixel */
   text_remap = remap_init(image_mode, features, csd);
+  memset(text_canvas, 0, MAX_COLUMNS * 9 * MAX_LINES * 32);
 }
 
 void done_text_mapper(void)
