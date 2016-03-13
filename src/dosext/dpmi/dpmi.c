@@ -232,7 +232,7 @@ int get_ldt(void *buffer)
   int i, ret;
   struct descriptor *dp;
 #ifdef X86_EMULATOR
-  if (config.cpuemu>3 && LDT)
+  if (config.cpuemu>3)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   else
 #endif
