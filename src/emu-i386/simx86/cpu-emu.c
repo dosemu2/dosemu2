@@ -830,6 +830,39 @@ void init_emu_cpu(void)
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
   InitGen();
+
+  if (config.realcpu < CPU_586) {
+    fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
+    leavedos_main(0);
+  }
+  IDT = NULL;
+  if (GDT==NULL) {
+	/* The GDT is not really used (yet?) but some instructions
+	   like verr/verw refer to it, so just allocate a 0 GDT */
+	GDT = calloc(65536,1);
+  }
+  /* use the cached LDT used by dpmi (w/o GDT) */
+  if (LDT==NULL) {
+	LDT = (Descriptor *)ldt_buffer;
+	e_printf("LDT allocated at %p\n",LDT);
+	TheCPU.LDTR.Base = (long)LDT;
+	TheCPU.LDTR.Limit = 0xffff;
+  }
+#ifdef HOST_ARCH_X86
+  TheCPU.unprotect_stub = stub_rep;
+  TheCPU.stub_wri_8 = stub_wri_8;
+  TheCPU.stub_wri_16 = stub_wri_16;
+  TheCPU.stub_wri_32 = stub_wri_32;
+  TheCPU.stub_stk_16 = stub_stk_16;
+  TheCPU.stub_stk_32 = stub_stk_32;
+  TheCPU.stub_movsb = stub_movsb;
+  TheCPU.stub_movsw = stub_movsw;
+  TheCPU.stub_movsl = stub_movsl;
+  TheCPU.stub_stosb = stub_stosb;
+  TheCPU.stub_stosw = stub_stosw;
+  TheCPU.stub_stosl = stub_stosl;
+#endif
+
   Running = 1;
 }
 
@@ -882,41 +915,6 @@ void enter_cpu_emu(void)
 	struct itimerval itv;
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
-	if (config.realcpu < CPU_586) {
-	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
-	  leavedos_main(0);
-	}
-	IDT = NULL;
-	if (GDT==NULL) {
-		/* The GDT is not really used (yet?) but some instructions
-		   like verr/verw refer to it, so just allocate a 0 GDT */
-		GDT = calloc(65536,1);
-	}
-	/* use the cached LDT used by dpmi (w/o GDT) */
-	if (LDT==NULL) {
-		LDT = (Descriptor *)ldt_buffer;
-		e_printf("LDT allocated at %p\n",LDT);
-		TheCPU.LDTR.Base = (long)LDT;
-		TheCPU.LDTR.Limit = 0xffff;
-	}
-#ifdef SKIP_EMU_VBIOS
-	if ((ISEG(0x10)==INT10_WATCHER_SEG)&&(IOFF(0x10)==INT10_WATCHER_OFF))
-		IOFF(0x10)=CPUEMU_WATCHER_OFF;
-#endif
-#ifdef HOST_ARCH_X86
-	TheCPU.unprotect_stub = stub_rep;
-	TheCPU.stub_wri_8 = stub_wri_8;
-	TheCPU.stub_wri_16 = stub_wri_16;
-	TheCPU.stub_wri_32 = stub_wri_32;
-	TheCPU.stub_stk_16 = stub_stk_16;
-	TheCPU.stub_stk_32 = stub_stk_32;
-	TheCPU.stub_movsb = stub_movsb;
-	TheCPU.stub_movsw = stub_movsw;
-	TheCPU.stub_movsl = stub_movsl;
-	TheCPU.stub_stosb = stub_stosb;
-	TheCPU.stub_stosw = stub_stosw;
-	TheCPU.stub_stosl = stub_stosl;
-#endif
 
 	if (eTimeCorrect >= 0) {
 		TheCPU.EMUtime = GETTSC();
