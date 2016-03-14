@@ -367,7 +367,7 @@ static int term_change_config(unsigned item, void *buf)
    return 100;
 }
 
-static void sigwinch(struct sigcontext *scp)
+static void sigwinch(struct sigcontext *scp, siginfo_t *si)
 {
   get_screen_size();
 }

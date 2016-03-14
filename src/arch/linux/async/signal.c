@@ -87,12 +87,12 @@ static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 struct eflags_fs_gs eflags_fs_gs;
 
-static void (*sighandlers[NSIG])(struct sigcontext *);
+static void (*sighandlers[NSIG])(struct sigcontext *, siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 
-static void sigquit(struct sigcontext *);
-static void sigalrm(struct sigcontext *);
-static void sigio(struct sigcontext *);
+static void sigquit(struct sigcontext *, siginfo_t *);
+static void sigalrm(struct sigcontext *, siginfo_t *);
+static void sigio(struct sigcontext *, siginfo_t *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
 
 static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
@@ -148,7 +148,7 @@ static void qsig_init(void)
 }
 
 /* registers non-emergency async signals */
-void registersig(int sig, void (*fun)(struct sigcontext *))
+void registersig(int sig, void (*fun)(struct sigcontext *, siginfo_t *))
 {
 	/* first need to collect the mask, then register all handlers
 	 * because the same mask of non-emergency async signals
@@ -156,13 +156,6 @@ void registersig(int sig, void (*fun)(struct sigcontext *))
 	sigaddset(&nonfatal_q_mask, sig);
 	_newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
-}
-
-static void registersig_custom(int sig, void (*fun)(int sig, siginfo_t *si,
-		void *uc))
-{
-	sigaddset(&nonfatal_q_mask, sig);
-	_newsetqsig(sig, fun);
 }
 
 static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
@@ -400,15 +393,9 @@ static void cleanup_child(void *arg)
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
-__attribute__((no_instrument_function))
-static void sig_child(int sig, siginfo_t *si, void *uc)
+static void sig_child(struct sigcontext *scp, siginfo_t *si)
 {
-  struct sigcontext *scp =
-	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp, 1);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
-  dpmi_iret_setup(scp);
-  deinit_handler(scp);
 }
 
 void leavedos_from_sig(int sig)
@@ -626,9 +613,7 @@ signal_pre_init(void)
   registersig(SIGALRM, sigalrm);
   registersig(SIGQUIT, sigquit);
   registersig(SIGIO, sigio);
-  /* SIGCHLD is same as any non-fatal async signal like SIGALRM, but it
-   * needs a custom handler to save PID, so it can't use registersig() */
-  registersig_custom(SIGCHLD, sig_child);
+  registersig(SIGCHLD, sig_child);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
   newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetqsig(SIGTERM, leavedos_signal);
@@ -897,7 +882,7 @@ static void SIGIO_call(void *arg){
 }
 
 #ifdef __linux__
-static void sigio(struct sigcontext *scp)
+static void sigio(struct sigcontext *scp, siginfo_t *si)
 {
   /* prints non reentrant! dont do! */
 #if 0
@@ -909,7 +894,7 @@ static void sigio(struct sigcontext *scp)
     dpmi_sigio(scp);
 }
 
-static void sigalrm(struct sigcontext *scp)
+static void sigalrm(struct sigcontext *scp, siginfo_t *si)
 {
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
@@ -919,7 +904,7 @@ static void sigalrm(struct sigcontext *scp)
 }
 
 __attribute__((noinline))
-static void sigasync0(int sig, struct sigcontext *scp)
+static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
 {
   /* can't use pthread_self() here since the TLS is always set to dosemu's *
    * in any case this should not happens since async signals are blocked   *
@@ -927,23 +912,23 @@ static void sigasync0(int sig, struct sigcontext *scp)
   if (gettid() != dosemu_tid)
     dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])
-	  sighandlers[sig](scp);
+	  sighandlers[sig](scp, si);
   dpmi_iret_setup(scp);
 }
 
 __attribute__((no_instrument_function))
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext *scp = (struct sigcontext *)
-	   &((ucontext_t *)uc)->uc_mcontext;
+  ucontext_t *uct = uc;
+  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
-  sigasync0(sig, scp);
+  sigasync0(sig, scp, si);
   deinit_handler(scp);
 }
 #endif
 
 
-static void sigquit(struct sigcontext *scp)
+static void sigquit(struct sigcontext *scp, siginfo_t *si)
 {
   in_vm86 = 0;
 

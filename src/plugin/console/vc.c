@@ -120,8 +120,7 @@ static void SIGACQUIRE_call(void *arg)
 
 int dos_has_vt = 1;
 
-static void
-acquire_vt (struct sigcontext *scp)
+static void acquire_vt(struct sigcontext *scp, siginfo_t *si)
 {
   dos_has_vt = 1;
 
@@ -251,7 +250,7 @@ static void wait_for_active_vc(void)
   } while (errno == EINTR);
 }
 
-static void release_vt (struct sigcontext *scp)
+static void release_vt(struct sigcontext *scp, siginfo_t *si)
 {
   dos_has_vt = 0;
 
@@ -358,9 +357,9 @@ static void tempsigvt(int sig)
   /* temporary signal handler between set_process_control and final setting
      of signals in signal_init() */
   if (sig == SIG_RELEASE)
-    release_vt(NULL);
+    release_vt(NULL, NULL);
   else
-    acquire_vt(NULL);
+    acquire_vt(NULL, NULL);
 }
 
 /* this puts the VC under process control */

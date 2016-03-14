@@ -903,7 +903,7 @@ int e_gen_sigalrm(struct sigcontext *scp)
 	return 0;
 }
 
-static void e_gen_sigprof(struct sigcontext *scp)
+static void e_gen_sigprof(struct sigcontext *scp, siginfo_t *si)
 {
 	e_sigpa_count -= sigEMUdelta;
 	TheCPU.sigprof_pending += 1;
