@@ -71,6 +71,9 @@ static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
 static sigset_t q_mask, nonfatal_q_mask;
+#if SIGRETURN_WA
+static sigset_t fatal_q_mask;
+#endif
 
 static int sh_tid;
 static int in_handle_signals;
@@ -92,7 +95,7 @@ static void sigalrm(struct sigcontext *);
 static void sigio(struct sigcontext *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
 
-static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
+static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	if (qsighandlers[sig])
 		return;
@@ -100,6 +103,14 @@ static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	 * signals can be blocked by threads */
 	sigaddset(&q_mask, sig);
 	qsighandlers[sig] = fun;
+}
+
+static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
+{
+#if SIGRETURN_WA
+	sigaddset(&fatal_q_mask, sig);
+#endif
+	_newsetqsig(sig, fun);
 }
 
 static void qsig_init(void)
@@ -143,8 +154,15 @@ void registersig(int sig, void (*fun)(struct sigcontext *))
 	 * because the same mask of non-emergency async signals
 	 * is used for every handler */
 	sigaddset(&nonfatal_q_mask, sig);
-	newsetqsig(sig, sigasync);
+	_newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
+}
+
+static void registersig_custom(int sig, void (*fun)(int sig, siginfo_t *si,
+		void *uc))
+{
+	sigaddset(&nonfatal_q_mask, sig);
+	_newsetqsig(sig, fun);
 }
 
 static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
@@ -271,16 +289,14 @@ void init_handler(struct sigcontext *scp, int async)
    * Otherwise the nested signal handler will restore the registers
    * and return; the current signal handler will then save the wrong
    * registers.
+   * Note:  Even if the nested sighandler tries hard, it can't properly
+   * restore SS, at least until the proper sigreturn() support is in.
    * Note: in 64bit mode some segment registers are neither saved nor
    * restored by the signal dispatching code in kernel, so we have
    * to restore them by hands.
    * Note: most async signals are left blocked, we unblock only few.
    * Sync signals like SIGSEGV are never blocked.
    */
-#if SIGRETURN_WA
-  sigset_t mask;
-#endif
-
   __init_handler(scp, async);
 #if SIGRETURN_WA
 #if 0
@@ -292,12 +308,7 @@ void init_handler(struct sigcontext *scp, int async)
   if (kernel_version_code >= KERNEL_VERSION(4, 6, 0))
     return;
 #endif
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGHUP);
-  sigaddset(&mask, SIGTERM);
-  /* leave SIGCHLD blocked - delaying it is never too important */
-  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
 #endif
 }
 
@@ -615,10 +626,12 @@ signal_pre_init(void)
   registersig(SIGALRM, sigalrm);
   registersig(SIGQUIT, sigquit);
   registersig(SIGIO, sigio);
+  /* SIGCHLD is same as any non-fatal async signal like SIGALRM, but it
+   * needs a custom handler to save PID, so it can't use registersig() */
+  registersig_custom(SIGCHLD, sig_child);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
   newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetqsig(SIGTERM, leavedos_signal);
-  newsetqsig(SIGCHLD, sig_child);
   /* below ones are initialized by other subsystems */
   registersig(SIGPROF, NULL);
   registersig(SIG_ACQUIRE, NULL);
