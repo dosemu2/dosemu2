@@ -493,8 +493,13 @@ int e_emu_fault(struct sigcontext *scp)
 
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
-     reset permissions on code pages */
-  if (!DPMIValidSelector(_cs) && ((debug_level('e')>1) || (_trapno!=0x0e)) &&
+     reset permissions on code pages.
+     All other native DPMI faults are handled by dpmi_fault().
+  */
+  if (DPMIValidSelector(_cs))
+    return !CONFIG_CPUSIM && _trapno == 0x0e && e_handle_pagefault(scp);
+
+  if (((debug_level('e')>1) || (_trapno!=0x0e)) &&
       !(_trapno == 0xd && *(unsigned char *)_rip == 0xf4)) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02x err=0x%08lx cr2=%08lx eip=%08lx\n",
@@ -511,21 +516,14 @@ int e_emu_fault(struct sigcontext *scp)
   if (_trapno!=0x0e && _trapno != 0x00) return 0;
 
   if (_trapno==0x0e) {
-	if (!DPMIValidSelector(_cs)) {
-		/* in vga.inst_emu mode, vga_emu_fault() can handle
-		 * only faults from DOS code, and here we are with
-		 * the fault from jit-compiled code */
-		if (!vga.inst_emu) {
-			if (vga_emu_fault(scp, 0) == True) return 1;
-		} else {
-			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
-			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
-		}
+	/* in vga.inst_emu mode, vga_emu_fault() can handle
+	 * only faults from DOS code, and here we are with
+	 * the fault from jit-compiled code */
+	if (!vga.inst_emu) {
+		if (vga_emu_fault(scp, 0) == True) return 1;
 	} else {
-		if(VGA_EMU_FAULT(scp,code,1)==True) {
-			dpmi_check_return(scp);
-			return 1;
-		}
+		dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
+		if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
 	}
 
 	if (CONFIG_CPUSIM) {
