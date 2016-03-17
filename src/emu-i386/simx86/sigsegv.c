@@ -292,41 +292,20 @@ int e_emu_fault(struct sigcontext *scp)
     }
   }
 
-  if (_trapno!=0x0e && _trapno != 0x00) return 0;
-
-  if (_trapno==0x0e) {
-	/* in vga.inst_emu mode, vga_emu_fault() can handle
-	 * only faults from DOS code, and here we are with
-	 * the fault from jit-compiled code */
-	if (!CONFIG_CPUSIM && vga.inst_emu) {
-		dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
-		if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+#ifdef HOST_ARCH_X86
+  if (!CONFIG_CPUSIM) {
+	if (_trapno==0x0e) {
+		/* in vga.inst_emu mode, vga_emu_fault() can handle
+		 * only faults from DOS code, and here we are with
+		 * the fault from jit-compiled code */
+		if (vga.inst_emu) {
+			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
+			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
+		}
+		if (e_handle_pagefault(scp))
+			return 1;
 	}
 
-	if (CONFIG_CPUSIM) {
-	    if (in_dpmi_emu) {
-		/* reflect DPMI page fault back to a DOSEMU crash or
-		   DPMI exception;
-		   vm86 faults will terminate DOSEMU via "return 0"
-		 */
-		TheCPU.err = EXCP0E_PAGE;
-		TheCPU.scp_err = _err;
-		TheCPU.cr2 = _cr2;
-		TheCPU.eip = P0 - LONG_CS;
-		fault_cnt--;
-		siglongjmp(jmp_env, 0);
-	    }
-	    return_addr = P0;
-	    Cpu2Reg();
-	}
-
-#ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM && e_handle_pagefault(scp))
-		return 1;
-#endif
-  }
-
-#ifdef HOST_ARCH_X86
   /*
    * We are probably asked to stop the execution and run some int
    * set up by the program... so it's a bad idea to just return back.
@@ -338,7 +317,7 @@ int e_emu_fault(struct sigcontext *scp)
    *	TheCPU.err.
    *    For page faults the current PC is recovered from the tree.
    */
-  if (!CONFIG_CPUSIM) {
+	if (_trapno!=0x0e && _trapno != 0x00) return 0;
 	if (InCompiledCode) {
 		TheCPU.scp_err = _err;
 		/* save eip, eflags, and do a "ret" out of compiled code */
@@ -361,6 +340,24 @@ int e_emu_fault(struct sigcontext *scp)
 	return TryMemRef;
   }
 #endif
+
+  /* CONFIG_CPUSIM only: */
+  if (_trapno==0x0e) {
+	if (in_dpmi_emu) {
+		/* reflect DPMI page fault back to a DOSEMU crash or
+		   DPMI exception;
+		   vm86 faults will terminate DOSEMU via "return 0"
+		*/
+		TheCPU.err = EXCP0E_PAGE;
+		TheCPU.scp_err = _err;
+		TheCPU.cr2 = _cr2;
+		TheCPU.eip = P0 - LONG_CS;
+		fault_cnt--;
+		siglongjmp(jmp_env, 0);
+	}
+	return_addr = P0;
+	Cpu2Reg();
+  }
   return 0;
 }
 
