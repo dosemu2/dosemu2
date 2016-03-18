@@ -963,8 +963,6 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
     int i, j, k;
     for (i = 0; i < pcm.num_streams; i++) {
 	struct stream *strm = &pcm.stream[i];
-	if (id != PCM_ID_ANY && !pcm.is_connected(id, strm->vol_arg))
-	    continue;
 	if (strm->state == SNDBUF_STATE_INACTIVE)
 	    continue;
 	for (j = 0; j < SNDBUF_CHANS; j++)
