@@ -317,6 +317,7 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		_edi = AR1.d;
 		_esi = AR2.d;
 		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		_rip = (long)(p+1);
 		break;
 /*aa*/	case STOSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
@@ -361,6 +362,7 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		FlagSync_All();
 		_edi = AR1.d;
 		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		_rip = (long)(p+1);
 		break;
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
