@@ -292,7 +292,8 @@ void *dspio_init(void)
     memset(&state->dma, 0, sizeof(struct dspio_dma));
     state->input_running = state->pcm_input_running =
 	state->lin_input_running = state->mic_input_running =
-	state->output_running = state->dac_running = state->speaker = 0;
+	state->output_running = state->dac_running = state->speaker =
+	state->i_started = 0;
     state->dma.dsp_fifo_enabled = 1;
 
     rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
