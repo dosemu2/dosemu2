@@ -1196,77 +1196,92 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 
 /*a4*/	case MOVSb: {	int m = mode|(MBYTE|MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_MovD, m);
+			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(L_DI_R1, m);
+			Gen(O_MOVS_SetA, m&~MOVSSRC);
+			Gen(S_DI, m);
 			Gen(O_MOVS_SavA, m);
 			PC++;
 			} break;
 /*a5*/	case MOVSw: {	int m = mode|(MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(L_DI_R1, m);
+			Gen(O_MOVS_SetA, m&~MOVSSRC);
+			Gen(S_DI, m);
+			PC++;
+			Gen(O_MOVS_SavA, m);
 #ifndef SINGLESTEP
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
 			if (!(EFLAGS & TF)) {
 				int cnt = 3;
-				do {
-					Gen(O_MOVS_MovD, m);
-					m = UNPREFIX(m);
+				m = UNPREFIX(m);
+				while (++cnt < NUMGENS && Fetch(PC) == MOVSw) {
+					Gen(O_MOVS_SetA, m&~MOVSDST);
+					Gen(L_DI_R1, m);
+					Gen(O_MOVS_SetA, m&~MOVSSRC);
+					Gen(S_DI, m);
 					PC++;
-				} while (++cnt < NUMGENS && Fetch(PC) == MOVSw);
-				if (Fetch(PC) == MOVSb) {
-					Gen(O_MOVS_MovD, m|MBYTE);
-					PC++;
+					Gen(O_MOVS_SavA, m);
 				}
-			} else
-#endif
-			{
-				Gen(O_MOVS_MovD, m); PC++;
+				if (Fetch(PC) == MOVSb) {
+					m |= MBYTE;
+					Gen(O_MOVS_SetA, m&~MOVSDST);
+					Gen(L_DI_R1, m);
+					Gen(O_MOVS_SetA, m&~MOVSSRC);
+					Gen(S_DI, m);
+					PC++;
+					Gen(O_MOVS_SavA, m);
+				}
 			}
-			Gen(O_MOVS_SavA, m);
+#endif
 			} break;
 /*a6*/	case CMPSb: {	int m = mode|(MBYTE|MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(L_DI_R1, m);
+			Gen(O_MOVS_SetA, m&~MOVSSRC);
 			Gen(O_MOVS_CmpD, m);
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
 /*a7*/	case CMPSw: {	int m = mode|(MOVSSRC|MOVSDST);
-			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_SetA, m&~MOVSDST);
+			Gen(L_DI_R1, m);
+			Gen(O_MOVS_SetA, m&~MOVSSRC);
 			Gen(O_MOVS_CmpD, m);
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
 /*aa*/	case STOSb: {	int m = mode|(MBYTE|MOVSDST);
 			Gen(O_MOVS_SetA, m);
 			Gen(L_REG, m, Ofs_AL);
-			Gen(O_MOVS_StoD, m);
+			Gen(S_DI, m);
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
 /*ab*/	case STOSw: {	int m = mode|MOVSDST;
 			Gen(O_MOVS_SetA, m);
 			Gen(L_REG, m, Ofs_EAX);
+			Gen(S_DI, m); PC++;
+			Gen(O_MOVS_SavA, m);
 #ifndef SINGLESTEP
 			if (!(EFLAGS & TF)) {
 			    int cnt = 3;
-			    do {
-				Gen(O_MOVS_StoD, m);
-				m = UNPREFIX(m);
+			    m = UNPREFIX(m);
+			    while (++cnt < NUMGENS && Fetch(PC) == STOSw) {
+				Gen(O_MOVS_SetA, m);
+				Gen(S_DI, m);
+				Gen(O_MOVS_SavA, m);
 				PC++;
-			    } while (++cnt < NUMGENS && Fetch(PC) == STOSw);
+			    }
 			}
-			else
 #endif
-			{
-				Gen(O_MOVS_StoD, m); PC++;
-			}
-			Gen(O_MOVS_SavA, m);
 			} break;
 /*ac*/	case LODSb: {	int m = mode|(MBYTE|MOVSSRC);
 			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_LodD, m);
+			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_AL); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSb-STOSb */
 			if (!(EFLAGS & TF) && Fetch(PC) == STOSb) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
-				Gen(O_MOVS_StoD, m);
+				Gen(S_DI, m);
 				m |= MOVSDST;
 				PC++;
 			}
@@ -1275,13 +1290,13 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} break;
 /*ad*/	case LODSw: {	int m = mode|MOVSSRC;
 			Gen(O_MOVS_SetA, m);
-			Gen(O_MOVS_LodD, m);
+			Gen(L_DI_R1, m);
 			Gen(S_REG, m, Ofs_EAX); PC++;
 #ifndef SINGLESTEP
 			/* optimize common sequence LODSw-STOSw */
 			if (!(EFLAGS & TF) && Fetch(PC) == STOSw) {
 				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
-				Gen(O_MOVS_StoD, m);
+				Gen(S_DI, m);
 				m |= MOVSDST;
 				PC++;
 			}
@@ -1290,14 +1305,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			} break;
 /*ae*/	case SCASb: {	int m = mode|(MBYTE|MOVSDST);
 			Gen(O_MOVS_SetA, m);
-			Gen(L_REG, m, Ofs_AL);
-			Gen(O_MOVS_ScaD, m);
+			Gen(L_DI_R1, m);		// mov al,[edi]
+			Gen(O_CMP_FR, m, Ofs_AL);	// cmp [ebx+reg],al
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
 /*af*/	case SCASw: {	int m = mode|MOVSDST;
 			Gen(O_MOVS_SetA, m);
-			Gen(L_REG, m, Ofs_EAX);
-			Gen(O_MOVS_ScaD, m);
+			Gen(L_DI_R1, m);		// mov ax,[edi]
+			Gen(O_CMP_FR, m, Ofs_EAX);	// cmp [ebx+reg],ax
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
 
@@ -1614,6 +1629,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    else	/* should use eTSSMASK */
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
+			    TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,get_vFLAGS(EFLAGS));
 			}
@@ -1671,6 +1687,7 @@ stack_return_from_vm86:
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
+			TheCPU.df_increments = (EFLAGS&DF)?0xfcfeff:0x040201;
 			if (opc==POPF) PC++; }
 			break;
 
@@ -1698,38 +1715,78 @@ repag0:
 				case LODSb:
 					repmod |= (MBYTE|MOVSSRC);
 					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_LodD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_LodD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+					}
 					Gen(S_REG, repmod, Ofs_AL);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case LODSw:
 					repmod |= MOVSSRC;
 					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_LodD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_LodD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+					}
 					Gen(S_REG, repmod, Ofs_AX);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case MOVSb:
 					repmod |= (MBYTE|MOVSSRC|MOVSDST);
-					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_MovD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_SetA, repmod);
+						Gen(O_MOVS_MovD, repmod);
+					}
+					else {
+						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(L_DI_R1, repmod);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+						Gen(S_DI, repmod);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case MOVSw:
 					repmod |= (MOVSSRC|MOVSDST);
-					Gen(O_MOVS_SetA, repmod);
-					Gen(O_MOVS_MovD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_SetA, repmod);
+						Gen(O_MOVS_MovD, repmod);
+					}
+					else {
+						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(L_DI_R1, repmod);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+						Gen(S_DI, repmod);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSb:
 					repmod |= (MBYTE|MOVSSRC|MOVSDST|MREPCOND);
-					Gen(O_MOVS_SetA, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_SetA, repmod);
+					}
+					else {
+						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(L_DI_R1, repmod);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+					}
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSw:
 					repmod |= (MOVSSRC|MOVSDST|MREPCOND);
-					Gen(O_MOVS_SetA, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_SetA, repmod);
+					}
+					else {
+						Gen(O_MOVS_SetA, repmod&~MOVSDST);
+						Gen(L_DI_R1, repmod);
+						Gen(O_MOVS_SetA, repmod&~MOVSSRC);
+					}
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
@@ -1737,28 +1794,50 @@ repag0:
 					repmod |= (MBYTE|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod|MBYTE, Ofs_AL);
-					Gen(O_MOVS_StoD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_StoD, repmod);
+					}
+					else {
+						Gen(S_DI, repmod);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case STOSw:
 					repmod |= MOVSDST;
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod, Ofs_EAX);
-					Gen(O_MOVS_StoD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_StoD, repmod);
+					}
+					else {
+						Gen(S_DI, repmod);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASb:
 					repmod |= (MBYTE|MOVSDST|MREPCOND);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod|MBYTE, Ofs_AL);
-					Gen(O_MOVS_ScaD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_ScaD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+						Gen(O_CMP_FR, repmod, Ofs_AL);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASw:
 					repmod |= MOVSDST|MREPCOND;
 					Gen(O_MOVS_SetA, repmod);
 					Gen(L_REG, repmod, Ofs_EAX);
-					Gen(O_MOVS_ScaD, repmod);
+					if (repmod & (MREPNE|MREP)) {
+						Gen(O_MOVS_ScaD, repmod);
+					}
+					else {
+						Gen(L_DI_R1, repmod);
+						Gen(O_CMP_FR, repmod, Ofs_AL);
+					}
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SEGes:
@@ -1953,14 +2032,18 @@ repag0:
 			PC++;
 			break;
 /*fc*/	case CLD:	PC++;
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
+			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
 				EFLAGS &= ~EFLAGS_DF;
+				TheCPU.df_increments = 0x040201;
+			}
 			else
 				Gen(O_SETFL, mode, CLD);
 			break;
 /*fd*/	case STD:	PC++;
-			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1))
+			if ((CurrIMeta<0)&&(InterOps[Fetch(PC)]&1)) {
 				EFLAGS |= EFLAGS_DF;
+				TheCPU.df_increments = 0xfcfeff;
+			}
 			else
 				Gen(O_SETFL, mode, STD);
 			break;

@@ -528,6 +528,7 @@ static void Reg2Cpu (int mode)
   flg = getflags();
   TheCPU.eflags |= (flg & notSAFE_MASK); // which VIP do we get here?
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
+  TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   if (config.cpuemu==2) {
     /* a vm86 call switch has been detected.
@@ -632,6 +633,7 @@ static void Scp2Cpu (struct sigcontext *scp)
 #endif
   TheCPU.ss = _ss;
   TheCPU.cr2 = _cr2;
+  TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   /* Native FPU used for JIT, for simulator this is just to switch off
      FPU exceptions */
@@ -754,6 +756,7 @@ erseg:
   amask = (CPL==0? 0:EFLAGS_IOPL_MASK) | (CPL<=IOPL? 0:EFLAGS_IF) |
     (EFLAGS_VM|EFLAGS_RF) | 2;
   TheCPU.eflags = (oldfl & amask) | ((_eflags&(eTSSMASK|0xfd7))&~amask);
+  TheCPU.df_increments = (TheCPU.eflags&DF)?0xfcfeff:0x040201;
 
   trans_addr = LONG_CS + _eip;
   if (debug_level('e')>1) {
@@ -855,12 +858,9 @@ void init_emu_cpu(void)
   TheCPU.stub_wri_32 = stub_wri_32;
   TheCPU.stub_stk_16 = stub_stk_16;
   TheCPU.stub_stk_32 = stub_stk_32;
-  TheCPU.stub_movsb = stub_movsb;
-  TheCPU.stub_movsw = stub_movsw;
-  TheCPU.stub_movsl = stub_movsl;
-  TheCPU.stub_stosb = stub_stosb;
-  TheCPU.stub_stosw = stub_stosw;
-  TheCPU.stub_stosl = stub_stosl;
+  TheCPU.stub_read_8 = stub_read_8;
+  TheCPU.stub_read_16 = stub_read_16;
+  TheCPU.stub_read_32 = stub_read_32;
 #endif
 
   Running = 1;

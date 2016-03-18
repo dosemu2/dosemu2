@@ -85,96 +85,88 @@ void e_VgaWrite(unsigned char *a, unsigned u, int mode)
   vga_write_word(addr+2, u>>16);
 }
 
-void e_VgaMovs(struct sigcontext *scp, char op, int w16, int dp)
+void e_VgaMovs(unsigned char **rdi, unsigned char **rsi, unsigned int rep,
+	       int dp, unsigned int access)
 {
-  unsigned int rep = (op&2? _ecx : 1);
+  dosaddr_t edi = DOSADDR_REL(*rdi);
+  dosaddr_t esi = DOSADDR_REL(*rsi);
 
 #ifdef DEBUG_VGA
-  e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",_esi,_edi,rep);
+  e_printf("eVGAEmuFault: Movs ESI=%08x EDI=%08x ECX=%08x\n",esi,edi,rep);
 #endif
-  if (_err&2) {		/* writing from mem or VGA to VGA */
-	if ((unsigned)(_esi-TheCPU.mem_base-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
-	if (op&1) {		/* byte move */
-	    if (op&4) goto vga2vgab;
+  switch (access) {
+    case 1:		/* reading from VGA to mem */
+	switch (abs(dp)) {
+	case 1: /* byte move */
 	    while (rep--) {
-		e_VgaWrite(LINP(_edi),READ_BYTE(DOSADDR_REL(LINP(_rsi))),MBYTE);
-		_esi+=dp,_edi+=dp;
+		WRITE_BYTE(edi, vga_read(esi));
+		esi+=dp,edi+=dp;
 	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else if (w16&1) {	/* word move */
-	    if (op&4) goto vga2vgaw;
+	    break;
+	case 2: /* word move */
 	    while (rep--) {
-		e_VgaWrite(LINP(_edi),READ_WORD(DOSADDR_REL(LINP(_rsi))),DATA16);
-		_esi+=dp,_edi+=dp;
+		WRITE_WORD(edi, vga_read_word(esi));
+		esi+=dp,edi+=dp;
 	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else {			/* long move */
-	    dp *= 2;
-	    if (op&4) goto vga2vgal;
+	    break;
+	case 4: /* long move */
 	    while (rep--) {
-		e_VgaWrite(LINP(_edi),READ_DWORD(DOSADDR_REL(LINP(_rsi))),DATA32);
-		_esi+=dp,_edi+=dp;
+		WRITE_DWORD(edi, vga_read_dword(esi));
+		esi+=dp,edi+=dp;
 	    }
-	    if (op&2) _ecx = 0;
-	    return;
+	    break;
 	}
+	break;
+    case 2:		/* writing from mem to VGA */
+	switch (abs(dp)) {
+	case 1: /* byte move */
+	    while (rep--) {
+		vga_write(edi,READ_BYTE(esi));
+		esi+=dp,edi+=dp;
+	    }
+	    break;
+	case 2: /* word move */
+	    while (rep--) {
+		vga_write_word(edi,READ_WORD(esi));
+		esi+=dp,edi+=dp;
+	    }
+	    break;
+	case 4: /* long move */
+	    while (rep--) {
+		vga_write_dword(edi,READ_DWORD(esi));
+		esi+=dp,edi+=dp;
+	    }
+	    break;
+	}
+	break;
+    case 3:		/* VGA to VGA */
+	switch (abs(dp)) {
+	case 1: /* byte move */
+	        while (rep--) {
+		  vga_write(edi,vga_read(esi));
+		  esi+=dp,edi+=dp;
+	        }
+		break;
+	case 2: /* word move */
+	        while (rep--) {
+		  vga_write_word(edi,vga_read_word(esi));
+		  *rsi+=dp,*rdi+=dp;
+	        }
+		break;
+	case 4: /* long move */
+	        while (rep--) {
+		  vga_write_dword(edi,vga_read_dword(esi));
+		  *rsi+=dp,*rdi+=dp;
+	        }
+		break;
+	}
+	break;
   }
-  else {		/* reading from VGA to mem or VGA */
-	if ((unsigned)(_edi-TheCPU.mem_base-vga.mem.bank_base)<vga.mem.bank_len) op |= 4;
-	if (op&1) {		/* byte move */
-	    if (op&4) {		/* vga2vga */
-vga2vgab:
-	        while (rep--) {
-		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),MBYTE),MBYTE);
-		  _esi+=dp,_edi+=dp;
-	        }
-	    }
-	    else while (rep--) {
-		WRITE_BYTE(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),MBYTE));
-		_esi+=dp,_edi+=dp;
-	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else if (w16&1) {	/* word move */
-	    if (op&4) {		/* vga2vga */
-vga2vgaw:
-	        while (rep--) {
-		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),DATA16),DATA16);
-		  _esi+=dp,_edi+=dp;
-	        }
-	    }
-	    else while (rep--) {
-		WRITE_WORD(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),DATA16));
-		_esi+=dp,_edi+=dp;
-	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-	else {			/* long move */
-	    dp *= 2;
-	    if (op&4) {		/* vga2vga */
-vga2vgal:
-	        while (rep--) {
-		  e_VgaWrite(LINP(_edi),e_VgaRead(LINP(_esi),DATA32),DATA32);
-		  _esi+=dp,_edi+=dp;
-	        }
-	    }
-	    else while (rep--) {
-		WRITE_DWORD(DOSADDR_REL(LINP(_rdi)), e_VgaRead(LINP(_esi),DATA32));
-		_esi+=dp,_edi+=dp;
-	    }
-	    if (op&2) _ecx = 0;
-	    return;
-	}
-  }
+  *rsi = MEM_BASE32(esi);
+  *rdi = MEM_BASE32(edi);
 }
 
-#if 1
+#ifdef HOST_ARCH_X86
 static int jitx86_instr_len(const unsigned char *rip)
 {
   const unsigned char *p = rip;
@@ -210,12 +202,8 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
   if (i == VGAEMU_MAX_MAPPINGS) {
     if ((unsigned)((page_fault << 12) - vga.mem.graph_base) <
 	vga.mem.graph_size) {	/* unmapped VGA area */
-#ifdef HOST_ARCH_X86
-      if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_rip);
-	_rip += u;
-      }
-#endif
+      u = jitx86_instr_len((unsigned char *)_rip);
+      _rip += u;
       if (u==0) {
         e_printf("eVGAEmuFault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
@@ -224,12 +212,8 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
       return 1;
     }
     else if (page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
-#ifdef HOST_ARCH_X86
-      if (!CONFIG_CPUSIM) {
-	u = jitx86_instr_len((unsigned char *)_rip);
-	_rip += u;
-      }
-#endif
+      u = jitx86_instr_len((unsigned char *)_rip);
+      _rip += u;
       if (u==0 || (_err&2)==0) {
         e_printf("eVGAEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
@@ -245,220 +229,15 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
   }
 
   if (vga_page < vga.mem.pages) {
-    unsigned char *p;
-    unsigned long cxrep;
-    int w16, mode;
-    if (!vga.inst_emu) {
-      /* Normal: make the display page writeable after marking it dirty */
-      dosemu_error("simx86: should not be here\n");
-      vga_emu_adjust_protection(vga_page, page_fault, VGA_PROT_RW, 1);
+/**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
+    /* let Cpatch deal with the faulting instruction */
+    if (Cpatch(scp)) {
+      vgaemu_dirty_page(vga_page, 1);
       return 1;
     }
-
-/**/  e_printf("eVGAEmuFault: trying %08x, a=%08lx\n",*((int *)_rip),_rdi);
-
-    p = (unsigned char *)_rip;
-    if (*p==0x66) w16=1,p++; else w16=0;
-
-    /* Decode the faulting instruction.
-     * Hopefully, since the compiled code contains a well-defined subset
-     * of the many possibilities for writing a memory location, this
-     * decoder can be kept quite small. It is possible, however, that
-     * someone accesses the VGA memory with a shift, or a bit set, and
-     * this will cause the cpuemu to fail.
-     */
-    switch (*p) {
-/*88*/	case MOVbfrm:
-		if ((_err&2)==0) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		e_VgaWrite(LINP(_edi),_eax,MBYTE);
-		_rip = (long)(p+2); break;
-/*89*/	case MOVwfrm:
-		if ((_err&2)==0) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		e_VgaWrite(LINP(_edi),_eax,(w16? DATA16:DATA32));
-		_rip = (long)(p+2); break;
-/*8a*/	case MOVbtrm:
-		if (_err&2) goto badrw;
-		if (p[1]==0x07)
-		    LO_BYTE(_eax) = e_VgaRead(LINP(_edi),MBYTE);
-		else if (p[1]==0x17)
-		    LO_BYTE(_edx) = e_VgaRead(LINP(_edi),MBYTE);
-		else goto unimp;
-		_rip = (long)(p+2); break;
-/*8b*/	case MOVwtrm:
-		if (_err&2) goto badrw;
-		if (p[1]!=0x07) goto unimp;
-		if (w16)
-			LO_WORD(_eax) = e_VgaRead(LINP(_edi),DATA16);
-		else
-			_eax = e_VgaRead(LINP(_edi),DATA32);
-		_rip = (long)(p+2); break;
-/*a4*/	case MOVSb: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		e_VgaMovs(scp, 1, 0, d);
-		_rip = (long)(p+1); } break;
-/*a5*/	case MOVSw: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		e_VgaMovs(scp, 0, w16, d*2);
-		_rip = (long)(p+1); } break;
-/*a6*/	case CMPSb:
-		mode = MBYTE;
-		goto CMPS_common;
-/*a7*/	case CMPSw:
-		mode = w16 ? DATA16 : 0;
-	CMPS_common:
-		mode |= MOVSSRC|MOVSDST;
-		AR1.d = _edi;
-		AR2.d = _esi;
-		TR1.d = 1;
-		Gen_sim(O_MOVS_CmpD, mode);
-		FlagSync_All();
-		_edi = AR1.d;
-		_esi = AR2.d;
-		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		break;
-/*aa*/	case STOSb: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		if ((_err&2)==0) goto badrw;
-		e_VgaWrite(LINP(_edi),_eax,MBYTE);
-		_edi+=d;
-		_rip = (long)(p+1); } break;
-/*ab*/	case STOSw: {
-		int d = (_eflags & EFLAGS_DF? -4:4);
-		if ((_err&2)==0) goto badrw;
-		if (w16) d>>=1;
-		e_VgaWrite(LINP(_edi),_eax,(w16? DATA16:DATA32)); _edi+=d;
-		_rip = (long)(p+1); } break;
-/*ac*/	case LODSb: {
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		if (_err&2) goto badrw;
-		LO_BYTE(_eax) = e_VgaRead(LINP(_esi),MBYTE);
-		_esi+=d;
-		_rip = (long)(p+1); } break;
-/*ad*/	case LODSw: {
-		int d = (_eflags & EFLAGS_DF? -4:4);
-		if (_err&2) goto badrw;
-		if (w16) {
-		    d >>= 1;
-		    LO_WORD(_eax) = e_VgaRead(LINP(_esi),DATA16);
-		}
-		else
-		    _eax = e_VgaRead(LINP(_esi),DATA32);
-		_esi+=d;
-		_rip = (long)(p+1); } break;
-/*ae*/	case SCASb:
-		mode = MBYTE;
-		goto SCAS_common;
-/*af*/	case SCASw:
-		mode = w16 ? DATA16 : 0;
-	SCAS_common:
-		mode |= MOVSDST;
-		AR1.d = _edi;
-		DR1.d = _eax;
-		TR1.d = 1;
-		Gen_sim(O_MOVS_ScaD, mode);
-		FlagSync_All();
-		_edi = AR1.d;
-		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		break;
-/*f2*/	case REPNE:
-/*f3*/	case REP: {
-		int repmod;
-		int d = (_eflags & EFLAGS_DF? -1:1);
-		if (p[1]==0x66) w16=1,p++;
-		switch(p[1]) {
-	/*aa*/	case STOSb:
-		    if ((_err&2)==0) goto badrw;
-		    cxrep = _ecx;
-		    while (cxrep--) {
-			e_VgaWrite(LINP(_edi),_eax,MBYTE);
-			_edi+=d;
-		    }
-		    _ecx = 0;
-		    break;
-	/*a4*/	case MOVSb:
-		    e_VgaMovs(scp, 3, 0, d);
-		    break;
-	/*ab*/	case STOSw:
-		    if ((_err&2)==0) goto badrw;
-		    if (w16) {
-		      d *= 2;
-		      cxrep = _ecx;
-		      while (cxrep--) {
-			e_VgaWrite(LINP(_edi),_eax,DATA16);
-			_edi+=d;
-		      }
-		      _ecx = 0;
-		    }
-		    else {
-		      d *= 4;
-		      cxrep = _ecx;
-		      while (cxrep--) {
-			e_VgaWrite(LINP(_edi),_eax,DATA32);
-			_edi+=d;
-		      }
-		      _ecx = 0;
-		    }
-		    break;
-	/*a5*/	case MOVSw:
-		    e_VgaMovs(scp, 2, w16, d*2);
-		    break;
-	/*a6*/	case CMPSb:
-		    repmod = MBYTE;
-		    goto REPCMPS_common;
-	/*a7*/	case CMPSw:
-		    repmod = w16 ? DATA16 : 0;
-		REPCMPS_common:
-		    repmod |= MOVSSRC|MOVSDST|MREPCOND|
-		      (p[0]==REPNE? MREPNE:MREP);
-		    AR1.d = _edi;
-		    AR2.d = _esi;
-		    TR1.d = _ecx;
-		    Gen_sim(O_MOVS_CmpD, repmod);
-		    FlagSync_All();
-		    _edi = AR1.d;
-		    _esi = AR2.d;
-		    _ecx = TR1.d;
-		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		    break;
-	/*ae*/	case SCASb:
-		    repmod = MBYTE;
-		    goto REPSCAS_common;
-	/*af*/	case SCASw:
-		    repmod = w16 ? DATA16 : 0;
-		REPSCAS_common:
-		    repmod |= MOVSDST|MREPCOND|(p[0]==REPNE? MREPNE:MREP);
-		    AR1.d = _edi;
-		    DR1.d = _eax;
-		    TR1.d = _ecx;
-		    Gen_sim(O_MOVS_ScaD, repmod);
-		    FlagSync_All();
-		    _edi = AR1.d;
-		    _ecx = TR1.d;
-		    _eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
-		    break;
-		default:
-		    goto unimp;
-		}
-		_rip = (long)(p+2); }
-		break;
-	default:
-		goto unimp;
-    }
-/**/  e_printf("eVGAEmuFault: new eip=%08lx\n",_rip);
-    vgaemu_dirty_page(vga_page, 1);
   }
-  return 1;
-
-unimp:
   error("eVGAEmuFault: unimplemented decode instr at %08lx: %08x\n",
 	_rip, *((int *)_rip));
-  leavedos_from_sig(0x5643);
-  return 0;
-badrw:
-  error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
-	_rip, _err);
   leavedos_from_sig(0x5643);
   return 0;
 }
@@ -493,8 +272,13 @@ int e_emu_fault(struct sigcontext *scp)
 
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
-     reset permissions on code pages */
-  if (!DPMIValidSelector(_cs) && ((debug_level('e')>1) || (_trapno!=0x0e)) &&
+     reset permissions on code pages.
+     All other native DPMI faults are handled by dpmi_fault().
+  */
+  if (DPMIValidSelector(_cs))
+    return !CONFIG_CPUSIM && _trapno == 0x0e && e_handle_pagefault(scp);
+
+  if (((debug_level('e')>1) || (_trapno!=0x0e)) &&
       !(_trapno == 0xd && *(unsigned char *)_rip == 0xf4)) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02x err=0x%08lx cr2=%08lx eip=%08lx\n",
@@ -508,50 +292,20 @@ int e_emu_fault(struct sigcontext *scp)
     }
   }
 
-  if (_trapno!=0x0e && _trapno != 0x00) return 0;
-
-  if (_trapno==0x0e) {
-	if (!DPMIValidSelector(_cs)) {
+#ifdef HOST_ARCH_X86
+  if (!CONFIG_CPUSIM) {
+	if (_trapno==0x0e) {
 		/* in vga.inst_emu mode, vga_emu_fault() can handle
 		 * only faults from DOS code, and here we are with
 		 * the fault from jit-compiled code */
-		if (!vga.inst_emu) {
-			if (vga_emu_fault(scp, 0) == True) return 1;
-		} else {
+		if (vga.inst_emu) {
 			dosaddr_t pf = DOSADDR_REL(LINP(_cr2));
 			if (e_vgaemu_fault(scp,pf >> 12) == 1) return 1;
 		}
-	} else {
-		if(VGA_EMU_FAULT(scp,code,1)==True) {
-			dpmi_check_return(scp);
+		if (e_handle_pagefault(scp))
 			return 1;
-		}
 	}
 
-	if (CONFIG_CPUSIM) {
-	    if (in_dpmi_emu) {
-		/* reflect DPMI page fault back to a DOSEMU crash or
-		   DPMI exception;
-		   vm86 faults will terminate DOSEMU via "return 0"
-		 */
-		TheCPU.err = EXCP0E_PAGE;
-		TheCPU.scp_err = _err;
-		TheCPU.cr2 = _cr2;
-		TheCPU.eip = P0 - LONG_CS;
-		fault_cnt--;
-		siglongjmp(jmp_env, 0);
-	    }
-	    return_addr = P0;
-	    Cpu2Reg();
-	}
-
-#ifdef HOST_ARCH_X86
-	if (!CONFIG_CPUSIM && e_handle_pagefault(scp))
-		return 1;
-#endif
-  }
-
-#ifdef HOST_ARCH_X86
   /*
    * We are probably asked to stop the execution and run some int
    * set up by the program... so it's a bad idea to just return back.
@@ -563,7 +317,7 @@ int e_emu_fault(struct sigcontext *scp)
    *	TheCPU.err.
    *    For page faults the current PC is recovered from the tree.
    */
-  if (!CONFIG_CPUSIM) {
+	if (_trapno!=0x0e && _trapno != 0x00) return 0;
 	if (InCompiledCode) {
 		TheCPU.scp_err = _err;
 		/* save eip, eflags, and do a "ret" out of compiled code */
@@ -586,6 +340,24 @@ int e_emu_fault(struct sigcontext *scp)
 	return TryMemRef;
   }
 #endif
+
+  /* CONFIG_CPUSIM only: */
+  if (_trapno==0x0e) {
+	if (in_dpmi_emu) {
+		/* reflect DPMI page fault back to a DOSEMU crash or
+		   DPMI exception;
+		   vm86 faults will terminate DOSEMU via "return 0"
+		*/
+		TheCPU.err = EXCP0E_PAGE;
+		TheCPU.scp_err = _err;
+		TheCPU.cr2 = _cr2;
+		TheCPU.eip = P0 - LONG_CS;
+		fault_cnt--;
+		siglongjmp(jmp_env, 0);
+	}
+	return_addr = P0;
+	Cpu2Reg();
+  }
   return 0;
 }
 

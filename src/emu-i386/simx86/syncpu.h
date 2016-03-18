@@ -103,10 +103,11 @@ typedef struct {
 /*60*/	unsigned short sigalrm_pending, sigprof_pending;
 /*64*/	unsigned int StackMask;
 /*68*/ 	unsigned int mem_base;
+/*6c*/ 	unsigned int df_increments; /* either 0x040201 or 0xfcfeff */
 	/* begin of cr array */
-/*6c*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
+/*70*/	unsigned int cr[5]; /* only cr[0] is used in compiled code */
 /* ------------------------------------------------ */
-/*80*/	unsigned int end_mark[0];
+/*80*/	//unsigned int end_mark[0] = cr[4]
 	unsigned int tr[2];
 
 	int err;
@@ -147,12 +148,9 @@ typedef struct {
 	unsigned short TR_SEL;
 	DTR  TR;
 
-	void (*stub_stosb)(void);
-	void (*stub_stosw)(void);
-	void (*stub_stosl)(void);
-	void (*stub_movsb)(void);
-	void (*stub_movsw)(void);
-	void (*stub_movsl)(void);
+	void (*stub_read_8)(void);
+	void (*stub_read_16)(void);
+	void (*stub_read_32)(void);
 } SynCPU;
 
 union SynCPU {
@@ -166,7 +164,7 @@ extern union SynCPU TheCPU_union;
 #define TheCPU TheCPU_union.s
 
 #define SCBASE		offsetof(SynCPU,FIELD0)
-#define Ofs_END		(int)(offsetof(SynCPU,end_mark)-SCBASE)
+#define Ofs_END		(int)(offsetof(SynCPU,cr[4])-SCBASE)
 
 #define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+(o))
 
@@ -206,6 +204,7 @@ extern union SynCPU TheCPU_union;
 #define Ofs_SIGAPEND	(char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
 #define Ofs_SIGFPEND	(char)(offsetof(SynCPU,sigprof_pending)-SCBASE)
 #define Ofs_MEMBASE	(char)(offsetof(SynCPU,mem_base)-SCBASE)
+#define Ofs_DF_INCREMENTS (char)(offsetof(SynCPU,df_increments)-SCBASE)
 
 #define Ofs_FPR		(char)(offsetof(SynCPU,fpregs)-SCBASE)
 #define Ofs_FPSTT	(char)(offsetof(SynCPU,fpstt)-SCBASE)
@@ -226,12 +225,9 @@ extern union SynCPU TheCPU_union;
 #define Ofs_stub_wri_32	(char)(offsetof(SynCPU,stub_wri_32)-SCBASE)
 #define Ofs_stub_stk_16	(char)(offsetof(SynCPU,stub_stk_16)-SCBASE)
 #define Ofs_stub_stk_32	(char)(offsetof(SynCPU,stub_stk_32)-SCBASE)
-#define Ofs_stub_movsb	(int)(offsetof(SynCPU,stub_movsb)-SCBASE)
-#define Ofs_stub_movsw	(int)(offsetof(SynCPU,stub_movsw)-SCBASE)
-#define Ofs_stub_movsl	(int)(offsetof(SynCPU,stub_movsl)-SCBASE)
-#define Ofs_stub_stosb	(int)(offsetof(SynCPU,stub_stosb)-SCBASE)
-#define Ofs_stub_stosw	(int)(offsetof(SynCPU,stub_stosw)-SCBASE)
-#define Ofs_stub_stosl	(int)(offsetof(SynCPU,stub_stosl)-SCBASE)
+#define Ofs_stub_read_8	(int)(offsetof(SynCPU,stub_read_8)-SCBASE)
+#define Ofs_stub_read_16	(int)(offsetof(SynCPU,stub_read_16)-SCBASE)
+#define Ofs_stub_read_32	(int)(offsetof(SynCPU,stub_read_32)-SCBASE)
 
 #define rAX		CPUWORD(Ofs_AX)
 #define Ofs_AX		(Ofs_EAX)
