@@ -903,6 +903,8 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
 
     for (j = 0; j < SNDBUF_CHANS; j++) {
 	for (i = 0; i < pcm.num_streams; i++) {
+	    if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+		continue;
 	    for (k = 0; k < SNDBUF_CHANS; k++) {
 		if (volume[i][j][k] == 0 || in[i][k].format == PCM_FORMAT_NONE)
 		    continue;
