@@ -553,3 +553,7 @@ void mhp_printf(const char *fmt,...)
   va_end(args);
 }
 
+int mhpdbg_is_stopped(void)
+{
+  return mhpdbgc.stopped;
+}

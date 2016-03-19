@@ -50,6 +50,7 @@ void mhp_modify_eip(int delta);
 void mhp_intercept_log(char *flags, int temporary);
 void mhp_intercept(char *msg, char *logflags);
 void mhp_exit_intercept(int errcode);
+int mhpdbg_is_stopped(void);
 
 void DBGload(void);
 void DBGload_CSIP(void);

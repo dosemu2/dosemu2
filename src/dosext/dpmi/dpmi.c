@@ -3076,7 +3076,14 @@ static void run_dpmi_thr(void *arg)
 {
   in_dpmic_thr++;
   while (1) {
-    int retcode = (
+    int retcode;
+#ifdef USE_MHPDBG
+    if (mhpdbg_is_stopped()) {
+      coopth_yield();
+      continue;
+    }
+#endif
+    retcode = (
 #ifdef X86_EMULATOR
 	config.cpuemu>3?
 	e_dpmi(&DPMI_CLIENT.stack_frame) :
