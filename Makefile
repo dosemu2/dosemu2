@@ -25,8 +25,6 @@ dosbin:
 
 docs:
 	@$(MAKE) SUBDIR:=doc -C src/doc all
-
-docsinstall:
 	@$(MAKE) SUBDIR:=doc -C src/doc install
 
 docsclean:
