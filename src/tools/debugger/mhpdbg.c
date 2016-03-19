@@ -456,7 +456,6 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   case DBG_INTxDPMI:
 	  if (!mhpdbg.active) break;
           mhpdbgc.stopped = 1;
-          mhp_poll();
           dpmi_mhp_intxxtab[DBG_ARG(mhpdbgc.currcode) & 0xff] &= ~2;
 	  break;
   case DBG_TRAP:
@@ -467,11 +466,12 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		  case 2: /* ti command -- step until IP changes */
 			  if (mhpdbgc.trapip == mhp_getcsip_value())
 				  break;
+			  /* no break */
 		  case 1:
 			  mhpdbgc.trapcmd = 0;
 			  rtncd = 1;
 			  mhpdbgc.stopped = 1;
-			  mhp_poll();
+			  break;
 		  }
 	  }
 	  if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
@@ -518,7 +518,6 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    mhpdbgc.trapcmd = 0;
 		    rtncd = 1;
 		    mhpdbgc.stopped = 1;
-		    mhp_poll();
 		  }
 	  }
 	  break;

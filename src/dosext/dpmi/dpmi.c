@@ -3077,6 +3077,8 @@ static void run_dpmi_thr(void *arg)
   in_dpmic_thr++;
   while (1) {
     int retcode;
+    if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
+      break;
     if (return_requested) {
       return_requested = 0;
       coopth_yield();
@@ -3098,12 +3100,12 @@ static void run_dpmi_thr(void *arg)
     if (retcode > 0 && mhpdbg.active) {
       if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
       else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
+      coopth_yield();
+      continue;
     }
 #endif
     if (in_dpmi_pm())
       coopth_yield();
-    if (!in_dpmi_pm())		// re-check after coopth_yield()! not "else"
-      break;
   }
   in_dpmic_thr--;
 }
