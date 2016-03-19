@@ -3077,6 +3077,11 @@ static void run_dpmi_thr(void *arg)
   in_dpmic_thr++;
   while (1) {
     int retcode;
+    if (return_requested) {
+      return_requested = 0;
+      coopth_yield();
+      continue;
+    }
 #ifdef USE_MHPDBG
     if (mhpdbg_is_stopped()) {
       coopth_yield();
