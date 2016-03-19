@@ -1028,6 +1028,7 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
   char filename[8+1+3+1];
   size_t len;
 
+  name[0] = 0;
   len = 8;
   while (len && mname[len - 1] == ' ')
     len--;
