@@ -36,3 +36,16 @@ Known tweaks needed to run programs under dosemu
 
     00004A19: F7 90
     00004A1A: F3 90
+
+     * Speedy
+          + No sound
+            Solution: apply the following patch to speedy.exe:
+
+    00012724: 8B EC
+    00012725: 16 B0
+    00012726: 62 01
+    00012727: 09 90
+    00012728: 83 90
+    00012729: C2 90
+    0001272A: 0A 90
+    0001272B: EC 90

@@ -92,7 +92,6 @@ see here for details
 </listitem>
 
 <listitem>
-
 <title>Gobliiins</title>
 <itemizedlist>
 <listitem>
@@ -108,7 +107,30 @@ Solution: apply the following patch to gobega.exe:
 </para>
 </listitem>
 </itemizedlist>
+</listitem>
 
+<listitem>
+<title>Speedy</title>
+<itemizedlist>
+<listitem>
+<para>
+No sound
+</para>
+<para>
+Solution: apply the following patch to speedy.exe:
+<screen>
+00012724: 8B EC
+00012725: 16 B0
+00012726: 62 01
+00012727: 09 90
+00012728: 83 90
+00012729: C2 90
+0001272A: 0A 90
+0001272B: EC 90
+</screen>
+</para>
+</listitem>
+</itemizedlist>
 </listitem>
 
 </itemizedlist>
