@@ -30,15 +30,7 @@
 #define SB_ID	 0x105
 #define SB20_ID	 0x201
 #define SBPRO_ID 0x300
-#if 0
-/* note: some games are very picky about the DSP ver. 0x400 seems to
- * work better (than 0x405 etc) with game SPEEDY:
- * https://github.com/stsp/dosemu2/issues/103
- */
-#define SB16_ID 0x400
-#else
 #define SB16_ID 0x405
-#endif
 
 /* bochs and the old dosemu code disagree on that value.
  * Of course I trust bochs. :) */
