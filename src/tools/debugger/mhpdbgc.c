@@ -565,9 +565,8 @@ static void mhp_trace(int argc, char * argv[])
       mhp_printf("must be in stopped state\n");
    } else {
       mhpdbgc.stopped = 0;
-      if (in_dpmi_pm()) {
+      if (dpmi_active())
         dpmi_mhp_setTF(1);
-      }
       set_TF();
 
       if (!strcmp(argv[0], "ti")) {
