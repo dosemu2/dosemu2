@@ -314,6 +314,7 @@ static void sb_dma_start(void)
 static void sb_dma_actualize(void)
 {
     if (sb.new_dma_cmd) {
+	S_printf("SB: Actualized command %#x\n", sb.new_dma_cmd);
 	sb.dma_cmd = sb.new_dma_cmd;
 	sb.dma_mode = sb.new_dma_mode;
 	sb.dma_init_count = sb.new_dma_init_count;
@@ -393,7 +394,12 @@ static void sb_dma_activate(void)
     }
     sb.new_dma_cmd = sb.command[0];
     sb.new_dma_mode = sb.command[1];
-    if (!sb_dma_active()) {
+    /* a weird logic to fix Speedy game: if DMA have never advanced
+     * (because channel is masked), forget current autoinit and
+     * actualize the new settings. To not introduce the race condition
+     * for the programs that rely on pending settings, we require an
+     * extra IRQ Ack before the new commands can be written. */
+    if (!sb_dma_active() || sb.dma_count == sb.dma_init_count) {
 	sb_dma_actualize();
 	sb_dma_start();
     } else {
@@ -1552,7 +1558,11 @@ static Bit8u sb_io_read(ioport_t port)
 	/* DSP Data Available Status - SB */
 	/* DSP 8-bit IRQ Ack - SB */
 	result = SB_HAS_DATA;
-	S_printf("SB: 8-bit IRQ Ack: %x\n", result);
+	S_printf("SB: 8-bit IRQ Ack (%i)\n", sb.dma_count);
+	/* downgrade busy status from 2 to 1 to allow override the
+	 * current autoinit if it wasn't yet progressed (because the
+	 * channel was masked) */
+	sb.busy = 1;
 	if (sb_irq_active(SB_IRQ_8BIT))
 	    sb_deactivate_irq(SB_IRQ_8BIT);
 	if (sb.dma_restart.val && !sb.dma_restart.is_16) {
@@ -1562,7 +1572,8 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
 	result = SB_HAS_DATA;
-	S_printf("SB: 16-bit IRQ Ack: %x\n", result);
+	S_printf("SB: 16-bit IRQ Ack: (%i)\n", sb.dma_count);
+	sb.busy = 1;
 	if (sb_irq_active(SB_IRQ_16BIT))
 	    sb_deactivate_irq(SB_IRQ_16BIT);
 	if (sb.dma_restart.val && sb.dma_restart.is_16) {
