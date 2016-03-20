@@ -486,10 +486,13 @@ static int dspio_run_dma(struct dspio_state *state)
 	sb_handle_dma();
 	dma->time_cur = now;
 	dma->wait_ack = 0;
-    } else if (now - dma->time_cur > DMA_TIMEOUT_US) {
-	S_printf("SB: Warning: DMA busy for too long, releasing\n");
-//	error("SB: DMA timeout\n");
-	sb_handle_dma_timeout();
+    } else {
+	sb_dma_nack();
+	if (now - dma->time_cur > DMA_TIMEOUT_US) {
+	    S_printf("SB: Warning: DMA busy for too long, releasing\n");
+//		error("SB: DMA timeout\n");
+	    sb_handle_dma_timeout();
+	}
     }
     return ret;
 }

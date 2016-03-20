@@ -397,8 +397,8 @@ static void sb_dma_activate(void)
     /* a weird logic to fix Speedy game: if DMA have never advanced
      * (because channel is masked), forget current autoinit and
      * actualize the new settings. To not introduce the race condition
-     * for the programs that rely on pending settings, we require an
-     * extra IRQ Ack before the new commands can be written. */
+     * for the programs that rely on pending settings, we prolong
+     * the busy status till missing DMA DACK. */
     if (!sb_dma_active() || sb.dma_count == sb.dma_init_count) {
 	sb_dma_actualize();
 	sb_dma_start();
@@ -443,16 +443,17 @@ void sb_handle_dma(void)
 
 void sb_dma_processing(void)
 {
-#if 0
     /* this was likely needed for KryptEgg game, see commit 5741ac14 */
     sb.busy = 2;
-#else
-    /* speedy works fine only when here is 1, otherwise the
-     * distortion when picking the coin, see
-     * https://github.com/stsp/dosemu2/issues/103
-     * KryptEgg seems to still work too. */
-    sb.busy = 1;
-#endif
+}
+
+void sb_dma_nack(void)
+{
+    /* speedy reprograms DSP without exiting auto-init
+     * but when the DMA channel is masked. We need to downgrade
+     * the busy status from 2 to 1. */
+    if (sb.busy == 2)
+	sb.busy = 1;
 }
 
 void sb_handle_dma_timeout(void)
@@ -1568,10 +1569,6 @@ static Bit8u sb_io_read(ioport_t port)
 	/* DSP 8-bit IRQ Ack - SB */
 	result = SB_HAS_DATA;
 	S_printf("SB: 8-bit IRQ Ack (%i)\n", sb.dma_count);
-	/* downgrade busy status from 2 to 1 to allow override the
-	 * current autoinit if it wasn't yet progressed (because the
-	 * channel was masked) */
-	sb.busy = 1;
 	if (sb_irq_active(SB_IRQ_8BIT))
 	    sb_deactivate_irq(SB_IRQ_8BIT);
 	if (sb.dma_restart.val && !sb.dma_restart.is_16) {
@@ -1582,7 +1579,6 @@ static Bit8u sb_io_read(ioport_t port)
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
 	result = SB_HAS_DATA;
 	S_printf("SB: 16-bit IRQ Ack: (%i)\n", sb.dma_count);
-	sb.busy = 1;
 	if (sb_irq_active(SB_IRQ_16BIT))
 	    sb_deactivate_irq(SB_IRQ_16BIT);
 	if (sb.dma_restart.val && sb.dma_restart.is_16) {
