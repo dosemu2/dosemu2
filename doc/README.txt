@@ -1775,23 +1775,14 @@ s,
 
 9.1. Mouse in Windows under DOSEMU
 
-   The mouse is known to have sensitivity issues when you run Windows
-   under DOSEMU. For Windows 3.0 and earlier there is no workaround
-   currently. That problem will be fixed in the future DOSEMU releases.
-   For Windows 3.1 and 3.11 you can install an alternative mouse driver.
-   Get the OS2WIN31.ZIP distribution from somehere. One place that
-   distributes it is http://www.funet.fi/pub/os2/32bit/win_os2 This
-   archive contains the file mouse.drv. Replace the mouse.drv of your
-   WINDOWS\SYSTEM directory with that file and do the following
-   adjustments in your win.ini file:
-         [windows]
-         MouseThreshold1=0
-         MouseThreshold2=0
-         MouseSpeed=0
-
-   Note however, that with this driver you won't be able to run Windows in
-   real DOS any more, because this mouse driver only works under DOSEMU
-   and OS/2.
+   When using Windows 3.1, the windows mouse cursor can get out of sync
+   with the mouse pointer of your X session. To solve this problem you
+   need to install an alternative mouse driver:
+   http://www.pocketdos.com/Misc/PocketDOS_Win3xMousePM.zip This archive
+   contains the file pdmouse.drv, which you can simply copy over the
+   existing mouse.drv in your WINDOWS\SYSTEM directory. Alternatively you
+   can use the install procedure documented in the driver's ReadMeEN.txt
+   file.
      __________________________________________________________________
 
 9.2. Windows 3.x in SVGA modes
