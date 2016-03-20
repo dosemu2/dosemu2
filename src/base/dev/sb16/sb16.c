@@ -443,7 +443,16 @@ void sb_handle_dma(void)
 
 void sb_dma_processing(void)
 {
+#if 0
+    /* this was likely needed for KryptEgg game, see commit 5741ac14 */
     sb.busy = 2;
+#else
+    /* speedy works fine only when here is 1, otherwise the
+     * distortion when picking the coin, see
+     * https://github.com/stsp/dosemu2/issues/103
+     * KryptEgg seems to still work too. */
+    sb.busy = 1;
+#endif
 }
 
 void sb_handle_dma_timeout(void)
