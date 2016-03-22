@@ -3038,15 +3038,13 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	} else if (gdata & 0x20) {
 	  vga.mode_type = CGA;
 	  vga.pixel_size = 2;
-	} else if (!(cdata & 1)) {
-	  vga.mode_type = CGA;
 	} else if (!(cdata & 2)) {
 	  vga.mode_type = HERC;
 	} else if (adata == 5) {
 	  vga.mode_type = PL2;
 	  vga.pixel_size = 2;
 	} else if (adata == 1) {
-	  vga.mode_type = PL1;
+	  vga.mode_type = (cdata & 1) ? PL1 : CGA;
 	} else {
 	  vga.mode_type = PL4;
 	  vga.pixel_size = 4;
