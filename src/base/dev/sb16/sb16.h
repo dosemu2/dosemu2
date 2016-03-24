@@ -103,7 +103,6 @@ extern int sb_dma_silence(void);
 extern int sb_get_dma_sampling_rate(void);
 extern int sb_get_dma_data(void *ptr, int is16bit);
 extern void sb_handle_dma(void);
-extern void sb_dma_processing(void);
 extern void sb_dma_nack(void);
 extern void sb_handle_dma_timeout(void);
 extern int sb_input_enabled(void);

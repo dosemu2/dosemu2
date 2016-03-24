@@ -49,7 +49,6 @@
 
 struct dspio_dma {
     int running:1;
-    int wait_ack:1;
     int num;
     int broken_hdma;
     int rate;
@@ -477,15 +476,10 @@ static int dspio_run_dma(struct dspio_state *state)
     int ret;
     struct dspio_dma *dma = &state->dma;
     hitimer_t now = GETusTIME(0);
-    if (!dma->wait_ack) {
-	dma->wait_ack = 1;
-	sb_dma_processing();	// notify that DMA busy
-    }
     ret = do_run_dma(state);
     if (ret) {
 	sb_handle_dma();
 	dma->time_cur = now;
-	dma->wait_ack = 0;
     } else {
 	sb_dma_nack();
 	if (now - dma->time_cur > DMA_TIMEOUT_US) {
@@ -553,7 +547,6 @@ void dspio_start_dma(void *dspio)
 {
     int dma_cnt = 0;
     DSPIO->dma.running = 1;
-    DSPIO->dma.wait_ack = 0;
     DSPIO->dma.time_cur = GETusTIME(0);
     get_dma_params(&DSPIO->dma);
 

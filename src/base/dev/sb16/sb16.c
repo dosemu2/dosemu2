@@ -282,19 +282,24 @@ static int sb_midi_int(void)
 
 static void start_dma_clock(void)
 {
+    /* this was likely needed for KryptEgg game, see commit 5741ac14 */
+    sb.busy = 2;
+
     dspio_start_dma(sb.dspio);
 }
 
 static void stop_dma_clock(void)
 {
     dspio_stop_dma(sb.dspio);
+
+    sb.busy = 1;
 }
 
 static void stop_dma(void)
 {
     /* first reset dma_cmd, as dspio may query it from dspio_stop_dma() */
     sb.dma_cmd = 0;
-    dspio_stop_dma(sb.dspio);
+    stop_dma_clock();
 }
 
 static void sb_dma_start(void)
@@ -441,12 +446,6 @@ void sb_handle_dma(void)
     sb.busy = 1;
 }
 
-void sb_dma_processing(void)
-{
-    /* this was likely needed for KryptEgg game, see commit 5741ac14 */
-    sb.busy = 2;
-}
-
 void sb_dma_nack(void)
 {
     /* speedy reprograms DSP without exiting auto-init
@@ -459,7 +458,6 @@ void sb_dma_nack(void)
 void sb_handle_dma_timeout(void)
 {
     stop_dma();
-    sb.busy = 1;
 }
 
 static void dsp_write_output(uint8_t value)
