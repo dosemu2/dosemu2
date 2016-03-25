@@ -438,7 +438,8 @@ static int adjust_font_size(int vga_font_height)
  * -- 1998/04/04 sw
  */
 
-boolean set_video_mode(int mode) {
+boolean set_video_mode(int mode)
+{
   vga_mode_info *vmi;
   int clear_mem = 1;
   unsigned u;
@@ -498,8 +499,13 @@ boolean set_video_mode(int mode) {
    */
   WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
 
-  li = vmi->text_height;
-  co = vmi->text_width;
+  if (Video->setmode != NULL) {
+    li = vmi->text_height;
+    co = vmi->text_width;
+  } else {
+    li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+    co = READ_WORD(BIOS_SCREEN_COLUMNS);
+  }
 
   video_mode = orig_mode;
 
@@ -519,12 +525,12 @@ boolean set_video_mode(int mode) {
    * If we have config.dualmon, this happens legally.
    */
   if(mode == 7 && config.dualmon)
-    vga_emu_setmode(7, co, li);
+    vga_emu_setmode(7, vmi->text_width, vmi->text_height);
   else
 #endif
 
   /* setmode needs video_mode to _still have_ the memory-clear bit -- sw */
-  vga_emu_setmode(mode, co, li);
+  vga_emu_setmode(mode, vmi->text_width, vmi->text_height);
 
   /*
    * video_mode is expected to be the mode number _without_ the
