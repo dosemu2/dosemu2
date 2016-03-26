@@ -525,12 +525,12 @@ boolean set_video_mode(int mode)
    * If we have config.dualmon, this happens legally.
    */
   if(mode == 7 && config.dualmon)
-    vga_emu_setmode(7, vmi->text_width, vmi->text_height);
+    vga_emu_setmode(7, co, li);
   else
 #endif
 
   /* setmode needs video_mode to _still have_ the memory-clear bit -- sw */
-  vga_emu_setmode(mode, vmi->text_width, vmi->text_height);
+  vga_emu_setmode(mode, co, li);
 
   /*
    * video_mode is expected to be the mode number _without_ the
