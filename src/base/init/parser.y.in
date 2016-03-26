@@ -241,7 +241,7 @@ while (0)
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC
 %token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS 
 %token PORTS DISK DOSMEM EXT_MEM
-%token L_EMS UMB_A0 UMB_B0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
+%token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
@@ -585,6 +585,11 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    {
 		    config.umb_b0 = ($2!=0);
 		    if ($2 > 0) c_printf("CONF: umb at 0b0000: %s\n", ($2) ? "on" : "off");
+		    }
+		| UMB_F0 bool
+		    {
+		    config.umb_f0 = ($2!=0);
+		    if ($2 > 0) c_printf("CONF: umb at 0f0000: %s\n", ($2) ? "on" : "off");
 		    }
 		| L_DPMI int_bool
 		    {
