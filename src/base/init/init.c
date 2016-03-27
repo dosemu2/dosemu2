@@ -37,6 +37,7 @@
 #include "priv.h"
 #include "doshelpers.h"
 #include "cpu-emu.h"
+#include "kvm.h"
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
@@ -351,6 +352,9 @@ void low_mem_init(void)
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
+
+  if (config.cpu_vm == CPUVM_KVM)
+    init_kvm_monitor();
 
   /* keep conventional memory protected as long as possible to protect
      NULL pointer dereferences */

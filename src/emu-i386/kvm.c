@@ -119,13 +119,12 @@ static struct monitor {
 static struct kvm_run *run;
 static int vmfd, vcpufd;
 
-/* switches KVM virtual machine to vm86 mode */
-static struct monitor *enter_vm86(int vmfd, int vcpufd)
+/* initialize KVM virtual machine monitor */
+void init_kvm_monitor(void)
 {
   int ret, i, j;
   struct kvm_regs regs;
   struct kvm_sregs sregs;
-  struct monitor *monitor;
 
   struct kvm_userspace_memory_region region = {
     .slot = 0,
@@ -258,7 +257,7 @@ static struct monitor *enter_vm86(int vmfd, int vcpufd)
     leavedos(99);
   }
 
-  return monitor;
+  warn("Using V86 mode inside KVM\n");
 }
 
 /* Initialize KVM and memory mappings */
@@ -467,11 +466,6 @@ int kvm_vm86(struct vm86_struct *info)
   struct vm86_regs *regs;
   int ret, vm86_ret;
   unsigned int exit_reason, trapno;
-
-  if (!monitor) {
-    monitor = enter_vm86(vmfd, vcpufd);
-    warn("Using V86 mode inside KVM\n");
-  }
 
   regs = &monitor->regs;
   *regs = info->regs;
