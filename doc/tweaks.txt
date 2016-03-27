@@ -36,3 +36,11 @@ Known tweaks needed to run programs under dosemu
 
     00004A19: F7 90
     00004A1A: F3 90
+
+     * Prehistorik 2
+          + Game freezes or crashes shortly after start.
+            Solution: set
+
+    $_umb_f0 = (off)
+
+            in your dosemu.conf or .dosemurc.

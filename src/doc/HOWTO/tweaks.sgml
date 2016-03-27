@@ -92,7 +92,6 @@ see here for details
 </listitem>
 
 <listitem>
-
 <title>Gobliiins</title>
 <itemizedlist>
 <listitem>
@@ -108,7 +107,24 @@ Solution: apply the following patch to gobega.exe:
 </para>
 </listitem>
 </itemizedlist>
+</listitem>
 
+<listitem>
+<title>Prehistorik 2</title>
+<itemizedlist>
+<listitem>
+<para>
+Game freezes or crashes shortly after start.
+</para>
+<para>
+Solution: set
+<screen>
+$_umb_f0 = (off)
+</screen>
+in your dosemu.conf or .dosemurc.
+</para>
+</listitem>
+</itemizedlist>
 </listitem>
 
 </itemizedlist>
