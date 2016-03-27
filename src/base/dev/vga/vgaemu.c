@@ -766,6 +766,8 @@ int vga_write_access(dosaddr_t m)
 		return 1;
 	if (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages<<12))
 		return 1;
+	if (!config.umb_f0 && m >= 0xf0000 && m < 0xf4000)
+		return 1;
 	if (m >= vga.mem.bank_base && m < vga.mem.bank_base + vga.mem.bank_len)
 		return 1;
 	return 0;
@@ -1065,7 +1067,8 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
       }
       return True;
     }
-    else if(page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
+    else if((page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) ||
+	    (!config.umb_f0 && page_fault >= 0xf0 && page_fault < 0xf4)) {	/* ROM area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
 	    dpmi_mhp_get_selector_size(_cs));

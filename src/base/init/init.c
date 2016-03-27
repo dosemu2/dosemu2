@@ -359,6 +359,10 @@ void low_mem_init(void)
   /* keep conventional memory protected as long as possible to protect
      NULL pointer dereferences */
   mprotect_mapping(MAPPING_LOWMEM, result, config.mem_size * 1024, PROT_NONE);
+
+  /* R/O protect 0xf0000-0xf4000 */
+  if (!config.umb_f0)
+    mprotect_mapping(MAPPING_LOWMEM, MEM_BASE32(0xf0000), 0x4000, PROT_READ);
 }
 
 /*
