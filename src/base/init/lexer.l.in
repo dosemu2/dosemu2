@@ -363,6 +363,7 @@ bootC			RETURN(BOOTC);
 xms			RETURN(L_XMS);
 umb_a0			RETURN(UMB_A0);
 umb_b0			RETURN(UMB_B0);
+umb_f0			RETURN(UMB_F0);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
 dpmi_base		RETURN(DPMI_BASE);
