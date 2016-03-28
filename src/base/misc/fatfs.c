@@ -519,22 +519,27 @@ struct fs_prio {
 };
 
 enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
-	IBMB_IDX, IBMD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
+	IBMB_IDX, IBMD_IDX, EDRB_IDX, EDRD_IDX, IPL_IDX, KER_IDX, CMD_IDX,
 	CONF_IDX, AUT_IDX };
 
 #define IX(i, j) ((1 << i##_IDX) | (1 << j##_IDX))
 #define MS_D IX(IO, MSD)
 #define DR_D IX(DRB, DRD)
 #define PC_D IX(IBMB, IBMD)
+#define EDR_D IX(EDRB, EDRD)
 #define FDO_D (1 << IPL_IDX)
 #define FD_D (1 << KER_IDX)
 
-#define DRO_D PC_D		/* old DR-DOS has same files as PC-DOS */
-#define REALPCD_D (PC_D | (1 << 24))
+#define NEWPCD_D (PC_D | (1 << 24))
 #define OLDPCD_D (PC_D | (1 << 25))
-#define NEWMSD_D (MS_D | (1 << 26))
-#define MIDMSD_D (MS_D | (1 << 27))
-#define OLDMSD_D (MS_D | (1 << 28))
+/* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
+ * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
+ * so we need a special case */
+#define MIDDRD_D (PC_D | (1 << 26))
+
+#define NEWMSD_D (MS_D | (1 << 27))
+#define MIDMSD_D (MS_D | (1 << 28))
+#define OLDMSD_D (MS_D | (1 << 29))
 
 static char *system_type(unsigned int t) {
     switch(t) {
@@ -543,11 +548,12 @@ static char *system_type(unsigned int t) {
     case PC_D:
         return "Unknown PC-DOS";
     case DR_D:
-        return "DR-DOS";
-/*  case DRO_D:
-        return "Old DR-DOS"; // Duplicate case to PC_D at the moment
-*/
-    case REALPCD_D:
+        return "Old DR-DOS (< 5.0)";
+    case MIDDRD_D:
+        return "Original DR-DOS (>= v5.0 && <= v8.0) || OpenDOS (<= 7.01.06)";
+    case EDR_D:
+        return "Enhanced DR-DOS (>= 7.01.07)";
+    case NEWPCD_D:
         return "New PC-DOS (>= v4.0)";
     case OLDPCD_D:
         return "Old PC-DOS (< v4.0)";
@@ -569,6 +575,8 @@ struct fs_prio sfiles[] = {
     [DRD_IDX]  = { "DRBDOS.SYS",	1, 0 },
     [IBMB_IDX] = { "IBMBIO.COM",	1, 0 },
     [IBMD_IDX] = { "IBMDOS.COM",	1, 0 },
+    [EDRB_IDX]  = { "DRBIO.SYS",	1, 0 },
+    [EDRD_IDX]  = { "DRDOS.SYS",	1, 0 },
     [IPL_IDX]  = { "IPL.SYS",		1, 0 },
     [KER_IDX]  = { "KERNEL.SYS",	1, 0 },
     [CMD_IDX]  = { "COMMAND.COM",	0, 0 },
@@ -860,7 +868,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     }
 
     if (sys_type == PC_D) {
-        /* see if it is PC-DOS or DR-DOS */
+        /* see if it is PC-DOS or Original DR-DOS */
         s = full_name(f, oi, dlist[0]->d_name);
         if (s && stat(s, &sb) == 0) {
             if((fd = open(s, O_RDONLY)) != -1) {
@@ -870,12 +878,17 @@ void scan_dir(fatfs_t *f, unsigned oi)
                     buf[size] = 0;
                     buf_ptr = buf;
                     while (!strstr(buf_ptr, "IBM DOS") &&
-                           !strstr(buf_ptr, "PC-DOS") && buf_ptr < buf + size) {
+                           !strstr(buf_ptr, "PC-DOS") &&
+                           !strstr(buf_ptr, "DR-DOS") &&
+                           !strstr(buf_ptr, "DIGITAL RESEARCH") &&
+                           !strstr(buf_ptr, "Novell") && buf_ptr < buf + size) {
                         buf_ptr += strlen(buf_ptr) + 1;
                     }
                     if (buf_ptr < buf + size) {
                         if (strstr(buf_ptr, "IBM DOS"))
-                            sys_type = REALPCD_D;
+                            sys_type = NEWPCD_D;
+                        else if (strstr(buf_ptr, "DR-DOS") || strstr(buf_ptr, "Novell") || strstr(buf_ptr, "DIGITAL RESEARCH"))
+                            sys_type = MIDDRD_D;
                         else
                             sys_type = OLDPCD_D;
                     }
@@ -888,7 +901,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
             }
         }
         if (sys_type == PC_D)
-            sys_type = REALPCD_D;     /* default to v4.x -> v7.x */
+            sys_type = NEWPCD_D;     /* default to v4.x -> v7.x */
     }
 
     if (!sys_done)
@@ -1493,7 +1506,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
       break;
 
     case MIDMSD_D:
-    case REALPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
+    case NEWPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0x50, 0);
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, 4, 0x70, 0);
       d0[0x12] = 2;		/* 2 entries */
@@ -1526,15 +1539,15 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
       fatfs_msg("made boot block suitable for MS-DOS & PC-DOS, < v4.0\n");
       break;
 
-    case DRO_D:			/* old DR-DOS */
-      /* for IBMBIO.COM, DR-, Open-, NOVELL-DOS  */
+    case MIDDRD_D:		/* DR-DOS with IBM compatibility naming */
+      /* DR-DOS, OpenDOS, Novell DOS, Caldera DOS and DeviceLogics DOS */
       make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
       d0[0x12] = 1;		/* 1 entry */
 
       d0[0x02] = 0x70;	/* start seg */
       d0[0x0a] = f->drive_num;	/* dl */
 
-      fatfs_msg("made boot block suitable for PC-, DR-, Open-, NOVELL-DOS\n");
+      fatfs_msg("made boot block suitable for DR-DOS, OpenDOS, Novell-DOS, Caldera DOS and DeviceLogics DOS\n");
       break;
 
     case FDO_D:			/* FreeDOS, orig. Patv kernel */
