@@ -1418,6 +1418,7 @@ static RemapFuncDesc *find_best_remap_func(unsigned flags, int src_mode, int dst
  */
 static void install_remap_funcs(RemapObject *ro, int remap_features)
 {
+  remap_features &= ~RFF_BITMAP_FONT; /* ignore this to select scalers! */
   if (remap_features & RFF_BILIN_FILT)
     remap_features &= ~RFF_LIN_FILT;
   ro->func_all = find_best_remap_func(remap_features | RFF_SCALE_ALL, ro->src_mode, ro->dst_mode, remap_list);
