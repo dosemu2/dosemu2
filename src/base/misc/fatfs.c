@@ -532,10 +532,12 @@ enum { IO_IDX, MSD_IDX, DRB_IDX, DRD_IDX,
 
 #define NEWPCD_D (PC_D | (1 << 24))
 #define OLDPCD_D (PC_D | (1 << 25))
+#define OLDDRD_D DR_D
 /* Most DR-DOS versions have the same filenames as PC-DOS for compatibility
  * reasons but have larger file sizes which defeats the PC-DOS old/new logic,
  * so we need a special case */
 #define MIDDRD_D (PC_D | (1 << 26))
+#define ENHDRD_D EDR_D
 
 #define NEWMSD_D (MS_D | (1 << 27))
 #define MIDMSD_D (MS_D | (1 << 28))
@@ -547,11 +549,11 @@ static char *system_type(unsigned int t) {
         return "Unknown MS-DOS";
     case PC_D:
         return "Unknown PC-DOS";
-    case DR_D:
+    case OLDDRD_D:
         return "Old DR-DOS (< 5.0)";
     case MIDDRD_D:
         return "Original DR-DOS (>= v5.0 && <= v8.0) || OpenDOS (<= 7.01.06)";
-    case EDR_D:
+    case ENHDRD_D:
         return "Enhanced DR-DOS (>= 7.01.07)";
     case NEWPCD_D:
         return "New PC-DOS (>= v4.0)";
@@ -1379,7 +1381,7 @@ void fdkernel_boot_mimic(void)
   case FD_D:
     loadaddress = SEGOFF2LINEAR(0x60,0);
     break;
-  case DR_D:
+  case OLDDRD_D:
     loadaddress = SEGOFF2LINEAR(0x70,0);
     break;
   default:
@@ -1561,9 +1563,9 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
       break;
 
     case FD_D:			/* FreeDOS, FD maintained kernel */
-    case DR_D:			/* DR-DOS */
-			/* boot loading is done by DOSEMU-HELPER
-			   and above fdkernel_boot_mimic() function */
+    case OLDDRD_D:		/* DR-DOS */
+				/* boot loading is done by DOSEMU-HELPER
+				   and above fdkernel_boot_mimic() function */
       b[0x40] = 0xb8;	/* mov ax,0fdh */
       b[0x41] = DOS_HELPER_BOOTSECT;
       b[0x42] = f->drive_num;
