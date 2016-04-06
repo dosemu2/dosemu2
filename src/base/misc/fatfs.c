@@ -1425,7 +1425,8 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   int ret;
   size_t msgsize;
   unsigned r_o, d_o, t_o;
-  unsigned char *d0, *d1;
+  unsigned char *d0;
+  struct ibm_ms_diskaddr_pkt *dlist;
 
   ret = asprintf(&msg, msg_f, f->dir);
   assert(ret != -1);
@@ -1445,7 +1446,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
 
   t_o = (0x40 + boot_prog_end - boot_prog + msgsize + 3) & ~3;
   d0 = b + t_o;
-  d1 = d0 + 0x14;
+  dlist = (void *)(d0 + 0x14);
 
   t_o += 0x7c00;
   b[0x3e] = t_o;
@@ -1478,7 +1479,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
   switch(f->sys_type) {
     case NEWMSD_D:
       /* for IO.SYS, MS-DOS version >= 7 */
-      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, 4, 0x70, 0);
+      make_i1342_blk(&dlist[0], d_o, 4, 0x70, 0);
       d0[0x12] = 1;		/* 1 entry */
 
       d0[0x01] = 0x02;	/* start ofs */
@@ -1509,8 +1510,8 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
 
     case MIDMSD_D:
     case NEWPCD_D:		/* MS-DOS 4.0 -> 6.22 / PC-DOS 4.0 -> 7.0 */
-      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0x50, 0);
-      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, 4, 0x70, 0);
+      make_i1342_blk(&dlist[0], r_o, 1, 0x50, 0);
+      make_i1342_blk(&dlist[1], d_o, 4, 0x70, 0);
       d0[0x12] = 2;		/* 2 entries */
 
       d0[0x02] = 0x70;	/* start seg */
@@ -1526,8 +1527,8 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
 
     case OLDPCD_D:		/* old MS-DOS & PC-DOS < v4.0 */
     case OLDMSD_D:
-      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0x50, 0);
-      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
+      make_i1342_blk(&dlist[0], r_o, 1, 0x50, 0);
+      make_i1342_blk(&dlist[1], d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
       d0[0x12] = 2;		/* 2 entries */
 
       d0[0x02] = 0x70;	/* start seg */
@@ -1543,7 +1544,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
 
     case MIDDRD_D:		/* DR-DOS with IBM compatibility naming */
       /* DR-DOS, OpenDOS, Novell DOS, Caldera DOS and DeviceLogics DOS */
-      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
+      make_i1342_blk(&dlist[0], d_o, (f->obj[1].size + 0x1ff) >> 9, 0x70, 0);
       d0[0x12] = 1;		/* 1 entry */
 
       d0[0x02] = 0x70;	/* start seg */
@@ -1553,7 +1554,7 @@ void build_boot_blk(fatfs_t *f, unsigned char *b)
       break;
 
     case FDO_D:			/* FreeDOS, orig. Patv kernel */
-      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);
+      make_i1342_blk(&dlist[0], d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);
       d0[0x12] = 1;		/* 1 entry */
 
       d0[0x03] = 0x20;		/* start seg */
