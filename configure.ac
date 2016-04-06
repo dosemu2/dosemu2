@@ -248,7 +248,7 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes, using -no-integrated-as])
   fi
   # unfortunately clang is too buggy even on -O1
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -O0"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types -O0"
   use_clang="yes"
 else
   CCAS="$CC"
