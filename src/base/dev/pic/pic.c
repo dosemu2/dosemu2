@@ -295,7 +295,7 @@ static void p_pic_print(char *s1, int v1, char *s2)
 {
   static int oldi=0, header_count=0;
   int pic_ilevel=find_bit(pic_isr);
-  char ci,cc;
+  char ci;
 
   if (pic_ilevel > oldi) ci='+';
   else if(pic_ilevel < oldi) ci='-';
@@ -306,11 +306,11 @@ static void p_pic_print(char *s1, int v1, char *s2)
   if(header_count>15) header_count=0;
 
   if(s2)
-  log_printf(1, "PIC: %c %c%2d %08lx %08lx %08lx %s%02d%s\n",
-     cc, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
+  log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s%02d%s\n",
+     ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
   else
-  log_printf(1, "PIC: %c %c%2d %08lx %08lx %08lx %s\n",
-     cc, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
+  log_printf(1, "PIC: %c%2d %08lx %08lx %08lx %s\n",
+     ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
 
 }
 #endif
