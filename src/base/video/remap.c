@@ -1427,12 +1427,12 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
   if (ro->func_all)
     ro->state |= ROS_SCALE_ALL;
   /* accept partial scalers only if filtering matches or no full scaler */
-  if (ro->func_1 && (((ro->func_1->flags &
-      (remap_features | RFF_BILIN_FILT | RFF_LIN_FILT)) == remap_features)
+  if (ro->func_1 && ((((ro->func_1->flags ^ remap_features) &
+      (RFF_BILIN_FILT | RFF_LIN_FILT)) == 0)
       || !ro->func_all))
     ro->state |= ROS_SCALE_1;
-  if (ro->func_2 && (((ro->func_2->flags &
-      (remap_features | RFF_BILIN_FILT | RFF_LIN_FILT)) == remap_features)
+  if (ro->func_2 && ((((ro->func_2->flags ^ remap_features) &
+      (RFF_BILIN_FILT | RFF_LIN_FILT)) == 0)
       || !ro->func_all))
     ro->state |= ROS_SCALE_2;
   if (!ro->state)
