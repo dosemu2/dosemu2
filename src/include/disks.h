@@ -88,17 +88,17 @@ struct disk_fptr {
 struct image_header {
   char sig[7];			/* always set to "DOSEMU", null-terminated
 				   or to "\x0eDEXE" */
-  long heads;
-  long sectors;
-  long cylinders;
-  long header_end;	/* distance from beginning of disk to end of header
+  uint32_t heads;
+  uint32_t sectors;
+  uint32_t cylinders;
+  uint32_t header_end;	/* distance from beginning of disk to end of header
 			 * i.e. this is the starting byte of the real disk
 			 */
   char dummy[1];	/* someone did define the header unaligned,
   			 * we correct that atleast for the future
   			 */
-  long dexeflags;
-} __attribute__((packed)) ;
+  uint32_t dexeflags;
+} __attribute__((packed));
 
 #define IMAGE_MAGIC		"DOSEMU"
 #define IMAGE_MAGIC_SIZE	strlen(IMAGE_MAGIC)
@@ -199,27 +199,27 @@ fatfs_t *get_fat_fs_by_drive(unsigned char drv_num);
 #define IMEXT_API_SUPPORT_BITS      0x01
 
 struct ibm_ms_diskaddr_pkt {
-  char len;                  /* size of packet, 0x10 */
-  char reserved;
-  unsigned short blocks;     /* number of blocks to transfer */
-  unsigned short buf_ofs;    /* offset of transfer buffer */
-  unsigned short buf_seg;    /* segment of transfer buffer */
-  unsigned long block_lo;    /* starting block number, low dword */
-  unsigned long block_hi;    /* starting block, high dword */
-};
+  uint8_t len;                  /* size of packet, 0x10 */
+  uint8_t reserved;
+  uint16_t blocks;     /* number of blocks to transfer */
+  uint16_t buf_ofs;    /* offset of transfer buffer */
+  uint16_t buf_seg;    /* segment of transfer buffer */
+  uint32_t block_lo;    /* starting block number, low dword */
+  uint32_t block_hi;    /* starting block, high dword */
+} __attribute__((packed));
 
 struct ibm_ms_drive_params {
-  unsigned short len;        /* size of buffer, 0x1a or 0x1e */
-  unsigned short flags;      /* information flags */
-  unsigned tracks;           /* physical cylinders */
-  unsigned heads;            /* physical heads */
-  unsigned sectors;          /* physical sectors per track */
-  unsigned total_sectors_lo;
-  unsigned total_sectors_hi;
-  unsigned short bytes_per_sector;
-  unsigned short edd_cfg_ofs;  /* pointer to EDD configuration parameters */
-  unsigned short edd_cfg_seg;
-};
+  uint16_t len;        /* size of buffer, 0x1a or 0x1e */
+  uint16_t flags;      /* information flags */
+  uint32_t tracks;           /* physical cylinders */
+  uint32_t heads;            /* physical heads */
+  uint32_t sectors;          /* physical sectors per track */
+  uint32_t total_sectors_lo;
+  uint32_t total_sectors_hi;
+  uint16_t bytes_per_sector;
+  uint16_t edd_cfg_ofs;  /* pointer to EDD configuration parameters */
+  uint16_t edd_cfg_seg;
+} __attribute__((packed));
 
 /* Values for information flags */
 #define IMEXT_INFOFLAG_DMAERR     0x01
