@@ -2,7 +2,7 @@ DOSEMU installation instructions (from source)
 ==============================================
 
 -> REQUIREMENTS for DOSEMU:
-    - gcc >= 3.3
+    - gcc >= 3.3 or clang >= 3.7.0
     - glibc >= 2.3.3
     - Linux >= 3.16 (with older version there may be some problems on x86_64)
     - x86 (i386/x86-64) target CPU
