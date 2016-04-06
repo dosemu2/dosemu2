@@ -1238,7 +1238,7 @@ int int13(void)
 
   switch (HI(ax)) {
   case 0:			/* init */
-    d_printf("DISK init %d\n", disk);
+    d_printf("DISK %02x init\n", disk);
     HI(ax) = DERR_NOERR;
     NOCARRY;
     break;
@@ -1264,19 +1264,19 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
     number = LO(ax);
-    d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
+    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
 	     disk, head, sect, track, number, REG(es), LWORD(ebx));
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       d_printf("Sector not found 1!\n");
-      d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%#x\n",
+      d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%#x\n",
 	       disk, head, sect, track, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
-	  d_printf("DISK %x undefined.\n", disk);
+	  d_printf("DISK %02x undefined.\n", disk);
       }
 
       HI(ax) = DERR_NOTFOUND;
@@ -1374,7 +1374,7 @@ int int13(void)
     track = (HI(cx)) |
       ((REG(ecx) & 0xc0) << 2);
     number = LO(ax);
-    d_printf("DISK %d test [h:%d,s:%d,t:%d](%d)\n",
+    d_printf("DISK %02x test [h:%d,s:%d,t:%d](%d)\n",
 	     disk, head, sect, track, number);
 
     if (checkdp(dp) || head >= dp->heads ||
@@ -1633,17 +1633,18 @@ int int13(void)
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
-    d_printf("DISK read [h:%d,s:%d,t:%d](%d)\n", head, sect, track, number);
+    d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
+	     disk, head, sect, track, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
     if (checkdp_val || track >= dp->tracks) {
       d_printf("Sector not found, AH=0x42!\n");
-      d_printf("DISK %d ext read [h:%d,s:%d,t:%d](%d)->%#x\n",
+      d_printf("DISK %02x ext read [h:%d,s:%d,t:%d](%d)->%#x\n",
 	       disk, head, sect, track, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
-	  d_printf("DISK %x undefined.\n", disk);
+	  d_printf("DISK %02x undefined.\n", disk);
       }
 
       HI(ax) = DERR_NOTFOUND;
@@ -1693,13 +1694,13 @@ int int13(void)
 
     if (checkdp_val || track >= dp->tracks) {
       error("Sector not found, AH=0x43!\n");
-      d_printf("DISK %d ext write [h:%d,s:%d,t:%d](%d)->%#x\n",
+      d_printf("DISK %02x ext write [h:%d,s:%d,t:%d](%d)->%#x\n",
 	       disk, head, sect, track, number, buffer);
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
-	  d_printf("DISK %x undefined.\n", disk);
+	  d_printf("DISK %02x undefined.\n", disk);
       }
 
       HI(ax) = DERR_NOTFOUND;
@@ -1767,7 +1768,7 @@ int int13(void)
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
       } else {
-	  d_printf("DISK %x undefined.\n", disk);
+	  d_printf("DISK %02x undefined.\n", disk);
       }
 
       HI(ax) = DERR_NOTFOUND;
