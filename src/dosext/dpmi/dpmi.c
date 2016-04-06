@@ -682,14 +682,17 @@ static int dpmi_control(void)
 #if DIRECT_DPMI_CONTEXT_SWITCH
     struct sigcontext *scp;
 #endif
-    register unsigned long sp asm("sp");
     if (setjmp(dpmi_ret_jmp))
       return dpmi_ret_val;
     /* Note: longjmp() follows the stack upwards, doing unwinds.
      * It therefore can't jump out of sigaltstack or some trampoline stack.
      * So, to get longjmp() working, we need to save the stack for it
      * in addition to what setjmp() saves. */
-    emu_stack_ptr = sp;
+#ifdef __x86_64__
+    asm volatile ("mov %%rsp, %0\n" : "=a"(emu_stack_ptr));
+#else
+    asm volatile ("mov %%esp, %0\n" : "=a"(emu_stack_ptr));
+#endif
 #if DIRECT_DPMI_CONTEXT_SWITCH
     scp = &DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI

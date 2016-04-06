@@ -94,7 +94,7 @@ static char *
 #endif
 
 #define PORTLOG_MAXBITS		16
-#define PORTLOG_MASK		(~(-1 << PORTLOG_MAXBITS))
+#define PORTLOG_MASK		((1 << PORTLOG_MAXBITS) - 1)
 #define SIZE_PORTLOGMAP		(1 << (PORTLOG_MAXBITS -3))
 static unsigned long *portlog_map = 0;
 

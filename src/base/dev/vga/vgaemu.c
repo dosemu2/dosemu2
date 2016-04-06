@@ -1618,7 +1618,7 @@ int vga_emu_pre_init(void)
   /* force 256k granularity to prevent possible problems
    * (with 4-plane-modes, to be precise)
    */
-  vga.mem.size = (vga.mem.size + ~(-1 << 18)) & (-1 << 18);
+  vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size >> 12;
 
   vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12), -1);

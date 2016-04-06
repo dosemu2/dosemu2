@@ -239,16 +239,26 @@ else
   target_cpu=$with_target_cpu
 fi
 
-AC_MSG_CHECKING(for $CC actually being clang...)
+AC_MSG_CHECKING([for $CC actually being clang])
 if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
   if "$CC" -no-integrated-as -E - < /dev/null 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes])
   else
     ASFLAGS="$ASFLAGS -no-integrated-as"
-    AC_MSG_RESULT([yes, using -no-integrated-as for assembly language files.])
+    AC_MSG_RESULT([yes, using -no-integrated-as])
+  fi
+  AC_MSG_CHECKING([for clang >= 3.7])
+  clang_ver=`clang -v 2>&1 | grep version | cut -d " " -f 3`
+  clang_maj=`echo $clang_ver | cut -d "." -f 1`
+  clang_mid=`echo $clang_ver | cut -d "." -f 2`
+  if test $clang_maj -ge 3 -a $clang_mid -ge 7 ; then
+    AC_MSG_RESULT([yes, $clang_ver])
+  else
+    AC_MSG_RESULT([no, $clang_ver])
+    AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
   fi
   # unfortunately clang is too buggy even on -O1
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -O0"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types -O0"
   use_clang="yes"
 else
   CCAS="$CC"
