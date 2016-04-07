@@ -140,6 +140,8 @@
 #include "../../dosext/mfs/lfn.h"
 #include "../../dosext/mfs/mfs.h"
 
+#include "disks.h"
+
 #define com_stderr      2
 
 #ifndef max
@@ -250,21 +252,65 @@ void misc_e6_store_command (char *str, int ux_path, int terminate)
 
 static char *make_end_in_backslash (char *s)
 {
-  int len = strlen (s);
-  if (len && s [len - 1] != '/')
-    strcpy (s + len, "/");
-  return s;
+  char *s1;
+  int len;
+
+  len = strlen(s);
+  if (len && s[len-1] == '/')
+    return strdup(s);
+
+  s1 = malloc(len+2);
+  if(!s1)
+    return NULL;
+  strncpy(s1, s, len);
+  s1[len] = '/';
+  s1[len+1] = '\0';
+  return s1;
 }
 
+static char *make_sane_drive_root_path (char *s)
+{
+  char *cs, *cs2;
+
+  cs = canonicalize_file_name(s);
+  if(!cs)
+    return NULL;
+
+  cs2 = make_end_in_backslash(cs);
+  free(cs);
+  return cs2;
+}
+
+/*
+ * If we can match the prefix on the front of the path, shift the remainder to
+ * the beginning of the string.
+ * Return 1 if the string was modified, else 0;
+ */
+static int prefix_removed(char **path, char *prefix)
+{
+  char *p, *q;
+
+  if (strstr(*path, prefix) == *path) {
+    p = *path;
+    q = p + strlen(prefix);
+    while (*q) {
+      *p++ = *q++;
+    }
+    *p = '\0';
+    return 1;
+  }
+  return 0;
+}
 
 /*
  * Return the drive from which <linux_path_resolved> is accessible.
- * If there is no such redirection, it returns the next available drive * -1.
+ * If there is no such redirection or the drive is not fatfs made from a linux
+ * directory, it returns the next available drive * -1.
  * If there are no available drives (from >= 2 aka "C:"), it returns -26.
  * If an error occurs, it returns -27.
  *
  * In addition, if a drive is available, <linux_path_resolved> is modified
- * to have the drive's uncannonicalized linux root as its prefix.  This is
+ * to have the drive's uncanonicalized linux root as its prefix.  This is
  * necessary as make_unmake_dos_mangled_path() will not work with a resolved
  * path if the drive was LREDIR'ed by the user to a unresolved path.
  */
@@ -272,43 +318,35 @@ int find_drive (char **plinux_path_resolved)
 {
   int free_drive = -26;
   int drive;
-  char *linux_path_resolved = *plinux_path_resolved;
+  char *drive_linux_root;
+  char *drive_linux_root_resolved;
 
-  j_printf ("find_drive (linux_path='%s')\n", linux_path_resolved);
+  j_printf ("find_drive (linux_path='%s')\n", *plinux_path_resolved);
 
   for (drive = 0; drive < 26; drive++) {
-    char *drive_linux_root = NULL;
-    int drive_ro, ret;
-    char *drive_linux_root_resolved;
+    int drive_ro;
+
+    drive_linux_root = NULL;
 
     if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
-      drive_linux_root_resolved = canonicalize_file_name(drive_linux_root);
+      drive_linux_root_resolved = make_sane_drive_root_path(drive_linux_root);
       if (!drive_linux_root_resolved) {
         com_fprintf (com_stderr,
-                     "ERROR: %s.  Cannot canonicalize drive root path.\n",
+                     "ERROR: %s.  Cannot sanitise drive root path.\n",
                      strerror (errno));
         return -27;
       }
-
-      /* make sure drive root ends in / */
-      make_end_in_backslash (drive_linux_root_resolved);
 
       j_printf ("CMP: drive=%i drive_linux_root='%s' (resolved='%s')\n",
                  drive, drive_linux_root, drive_linux_root_resolved);
 
       /* TODO: handle case insensitive filesystems (e.g. VFAT)
        *     - can we just strlwr() both paths before comparing them? */
-      if (strstr (linux_path_resolved, drive_linux_root_resolved) == linux_path_resolved) {
-        j_printf ("\tFound drive!\n");
-        ret = asprintf (plinux_path_resolved, "%s%s",
-                  drive_linux_root/*unresolved*/,
-                  linux_path_resolved + strlen (drive_linux_root_resolved));
-        assert(ret != -1);
+      if (prefix_removed(plinux_path_resolved, drive_linux_root_resolved)) {
+        j_printf ("\tFound drive via CDS!\n");
+        j_printf ("\tModified root; linux path='%s'\n", *plinux_path_resolved);
 
-        j_printf ("\t\tModified root; linux path='%s'\n", *plinux_path_resolved);
-	free (linux_path_resolved);
-
-	free (drive_linux_root_resolved);
+        free (drive_linux_root_resolved);
         free (drive_linux_root);
         return drive;
       }
@@ -318,6 +356,33 @@ int find_drive (char **plinux_path_resolved)
     } else {
       if (drive >= 2 && free_drive == -26) {
         free_drive = -drive;
+        fatfs_t *dfatfs = get_fat_fs_by_drive(0x80 - 2 + drive);
+        if(dfatfs) {
+          drive_linux_root = make_end_in_backslash(dfatfs->dir);
+
+          drive_linux_root_resolved = make_sane_drive_root_path(drive_linux_root);
+          if (!drive_linux_root_resolved) {
+            com_fprintf (com_stderr,
+                         "ERROR: %s.  Cannot sanitise drive root path.\n",
+                         strerror (errno));
+            return -27;
+          }
+
+          j_printf ("CMP: drive=%i drive_linux_root='%s' (resolved='%s')\n",
+                     drive, drive_linux_root, drive_linux_root_resolved);
+
+          if (prefix_removed(plinux_path_resolved, drive_linux_root_resolved)) {
+            j_printf ("\tFound drive via fatfs->dir!\n");
+            j_printf ("\tModified root; linux path='%s'\n", *plinux_path_resolved);
+
+            free (drive_linux_root_resolved);
+            free (drive_linux_root);
+            return drive;
+          }
+
+          free (drive_linux_root_resolved);
+          free (drive_linux_root);
+        }
       }
     }
   }
