@@ -213,11 +213,11 @@ void *physaddr_to_unixaddr(unsigned int addr);
 */
 extern unsigned char *mem_base;
 
-#define LINP(a) ((unsigned char *)0 + (a))
+#define LINP(a) ((unsigned char *)(uintptr_t)(a))
 typedef uint32_t dosaddr_t;
 static inline unsigned char *MEM_BASE32(dosaddr_t a)
 {
-    uint32_t off = (uint32_t)(ptrdiff_t)(mem_base + a);
+    uint32_t off = (uint32_t)(uintptr_t)(mem_base + a);
     return LINP(off);
 }
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)
