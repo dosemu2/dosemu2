@@ -1,0 +1,14 @@
+modemu.o : modemu.c defs.h sock.h sockbuf.h ttybuf.h stty.h cmdlex.h telopt.h \
+  atcmd.h timeval.h commx.h cmdarg.h 
+sockbuf.o : sockbuf.c defs.h sockbuf.h sock.h verbose.h 
+ttybuf.o : ttybuf.c defs.h ttybuf.h sock.h verbose.h 
+stty.o : stty.c stty.h 
+telopt.o : telopt.c defs.h sockbuf.h telopt.h ttybuf.h atcmd.h verbose.h 
+sock.o : sock.c sock.h defs.h atcmd.h telopt.h ttybuf.h timeval.h verbose.h 
+atcmd.o : atcmd.c defs.h atcmd.h sock.h ttybuf.h telopt.h cmdlex.h cmdarg.h \
+  verbose.h 
+timeval.o : timeval.c timeval.h 
+commx.o : commx.c commx.h verbose.h 
+cmdarg.o : cmdarg.c cmdarg.h defs.h 
+verbose.o : verbose.c verbose.h defs.h atcmd.h 
+lex.yy.c : cmdlex.l cmdlex.h defs.h atcmd.h 

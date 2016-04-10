@@ -1,0 +1,54 @@
+#!/usr/local/bin/xc -s
+
+# Modemu + xc sample script: "Xc talks SMTP and sends you a mail."
+# Usage:
+#     modemu -c 'xc -l tty%s -s xc-sends-mail'
+
+assign HOST eq `hostname`
+assign TOADR eq $LOGNAME
+
+dial "127.0.0.1:25"
+#220 xxx Sendmail ready
+if ! waitfor "220" 10; then exit; endif
+
+transmit "HELO "
+transmit HOST
+transmit "^M"
+#250 xxx Hello xxx, pleased to meet you
+if ! waitfor "250" 10; then exit; endif
+
+transmit "MAIL FROM: "
+transmit $LOGNAME
+transmit "^M"
+#250 xxx... Sender ok
+if ! waitfor "250" 10; then exit; endif
+
+transmit "RCPT TO: "
+transmit TOADR
+transmit "^M"
+#250 xxx... Recipient ok
+if ! waitfor "250" 10; then exit; endif
+
+transmit "DATA^M"
+#354 Enter mail, end with "." on a line by itself
+if ! waitfor "354" 10; then exit; endif
+
+transmit "From: "
+transmit $LOGNAME
+transmit " (A satisfied modemu user :)^M"
+transmit "Subject: Sample mail for modemu demo^M"
+transmit "^M"
+transmit "This mail was sent to you by modemu + xc.^M"
+
+transmit "^M.^M"
+#250 Mail accepted
+if ! waitfor "250" 10; then exit; endif
+
+transmit "QUIT^M"
+#221 xxx delivering mail
+if ! waitfor "221" 10; then exit; endif
+
+#NO CARRIER
+if ! waitfor "NO CARRIER" 10; then exit; endif
+
+quit
