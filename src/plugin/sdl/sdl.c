@@ -98,14 +98,7 @@ static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
-#define UPDATE_BY_RECTS 0
-static struct {
-  int num;
-#if UPDATE_BY_RECTS
-  int max;
-  SDL_Rect *rects;
-#endif
-} sdl_rects;
+static int sdl_rects_num;
 static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -341,25 +334,11 @@ static void SDL_update(void)
      * without clearing so we can as well try the update with rects, as
      * was in the old sdl1 code. If there are many rects to update, it
      * can easily be faster to just update the entire screen though. */
-#if UPDATE_BY_RECTS
-  if (sdl_rects.num > 0) {
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    for (i = 0; i < sdl_rects.num; i++) {
-      const SDL_Rect *rec = &sdl_rects.rects[i];
-      SDL_RenderCopy(renderer, texture, rec, rec);
-    }
-    SDL_RenderPresent(renderer);
-    SDL_DestroyTexture(texture);
-    sdl_rects.num = 0;
-  }
-  pthread_mutex_unlock(&update_mtx);
-#else
-  i = sdl_rects.num;
-  sdl_rects.num = 0;
+  i = sdl_rects_num;
+  sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
   if (i > 0)
     do_redraw();
-#endif
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -461,7 +440,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   m_y_res = w_y_res;
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
-  sdl_rects.num = 0;
+  sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
   if (vga.mode_class == GRAPH) {
     SDL_ShowCursor(SDL_DISABLE);
@@ -489,23 +468,8 @@ int SDL_update_screen(void)
 /* this only pushes the rectangle on a stack; updating is done later */
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-#if UPDATE_BY_RECTS
-  SDL_Rect *rect;
   pthread_mutex_lock(&update_mtx);
-  if (sdl_rects.num >= sdl_rects.max) {
-    sdl_rects.rects = realloc(sdl_rects.rects, (sdl_rects.max + 10) *
-			      sizeof(*sdl_rects.rects));
-    sdl_rects.max += 10;
-  }
-  rect = &sdl_rects.rects[sdl_rects.num];
-  rect->x = x;
-  rect->y = y;
-  rect->w = width;
-  rect->h = height;
-#else
-  pthread_mutex_lock(&update_mtx);
-#endif
-  sdl_rects.num++;
+  sdl_rects_num++;
   pthread_mutex_unlock(&update_mtx);
 }
 
