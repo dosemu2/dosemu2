@@ -257,8 +257,7 @@ if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([no, $clang_ver])
     AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
   fi
-  # unfortunately clang is too buggy even on -O1
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types -O0"
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types"
   use_clang="yes"
 else
   CCAS="$CC"
@@ -269,15 +268,10 @@ fi
 
 if test "$enable_debug" = "yes" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
-  if test -z "$CFLAGS" -a "$use_clang" = "no" ; then
+  if test -z "$CFLAGS" ; then
     # simx86 is too slow on gcc without -O
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O"
   fi
-elif test -z "$CFLAGS" -a "$use_clang" = "no" ; then
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
-fi
-
-if test "$enable_debug" = "yes"; then
   if test "$enable_asan" = "yes"; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
     LDFLAGS="$LDFLAGS -fsanitize=address"
@@ -289,6 +283,8 @@ if test "$enable_debug" = "yes"; then
     AC_MSG_NOTICE(enabling profiling)
   fi
   AC_DEFINE(_DEBUG)
+elif test -z "$CFLAGS" ; then
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
 
 AC_DEFINE(_GNU_SOURCE)
