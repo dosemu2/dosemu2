@@ -168,11 +168,12 @@ extern union SynCPU TheCPU_union;
 #define SCBASE		offsetof(SynCPU,FIELD0)
 #define Ofs_END		(int)(offsetof(SynCPU,end_mark)-SCBASE)
 
-#define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+(o))
+#define SC(o) ((signed char)(o))
+#define CPUOFFS(o)	(((unsigned char *)&(TheCPU.FIELD0))+SC(o))
 
-#define CPUBYTE(o)	TheCPU_union.b[SCBASE+o]
-#define CPUWORD(o)	TheCPU_union.w[(SCBASE+o)/2]
-#define CPULONG(o)	TheCPU_union.d[(SCBASE+o)/4]
+#define CPUBYTE(o)	TheCPU_union.b[SCBASE+SC(o)]
+#define CPUWORD(o)	TheCPU_union.w[(SCBASE+SC(o))/2]
+#define CPULONG(o)	TheCPU_union.d[(SCBASE+SC(o))/4]
 
 #define rEAX		TheCPU.eax
 #define Ofs_EAX		(unsigned char)(offsetof(SynCPU,eax)-SCBASE)
