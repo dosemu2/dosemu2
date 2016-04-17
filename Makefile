@@ -33,7 +33,8 @@ docsclean:
 $(PACKAGE_NAME).spec: $(PACKAGE_NAME).spec.in VERSION
 	@$(MAKE) -C src ../$@
 
-GIT_REV := .git/$(shell git rev-parse --symbolic-full-name HEAD)
+GIT_SYM := $(shell git rev-parse --symbolic-full-name HEAD)
+GIT_REV := $(shell git rev-parse --git-path $(GIT_SYM))
 
 $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
