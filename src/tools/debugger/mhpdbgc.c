@@ -51,6 +51,7 @@
 #include "cpu.h"
 #include "timers.h"
 #include "dpmi.h"
+#include "int.h"
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "hma.h"
@@ -71,7 +72,6 @@ static void mhp_go      (int, char *[]);
 static void mhp_stop    (int, char *[]);
 static void mhp_trace   (int, char *[]);
 static void mhp_tracec  (int, char *[]);
-static void mhp_trace_force (int, char *[]);
 static void mhp_regs32  (int, char *[]);
 static void mhp_bp      (int, char *[]);
 static void mhp_bc      (int, char *[]);
@@ -101,7 +101,7 @@ static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
 
 static unsigned int dpmimode=1, saved_dpmimode=1;
-#define IN_DPMI  (in_dpmi && !in_dpmi_dos_int && dpmimode)
+#define IN_DPMI  (in_dpmi_pm() && dpmimode)
 
 static char lastd[32];
 static char lastu[32];
@@ -135,7 +135,6 @@ static const struct cmd_db cmdtab[] = {
    {"t",             mhp_trace},
    {"ti",            mhp_trace},
    {"tc",            mhp_tracec},
-   {"tf",            mhp_trace_force},
    {"r32",           mhp_regs32},
    {"bp",            mhp_bp},
    {"bc",            mhp_bc},
@@ -178,7 +177,6 @@ static const char help_page[]=
   "t                      single step (not fully debugged!!!)\n"
   "ti                     single step until IP changes\n"
   "tc                     single step, loop forever until key pressed\n"
-  "tf                     single step, force over IRET\n"
   "r32                    dump regs in 32 bit format\n"
   "bp addr                set int3 style breakpoint\n"
   "bc n                   clear breakpoint #n (as listed by bl)\n"
@@ -481,7 +479,7 @@ static unsigned long mhp_getreg(char * regn)
     case _BPr: return LWORD(ebp);
     case _SPr: return LWORD(esp);
     case _IPr: return LWORD(eip);
-    case _FLr: return LWORD(eflags);
+    case _FLr: return get_FLAGS(REG(eflags));
     case _EAXr: return REG(eax);
     case _EBXr: return REG(ebx);
     case _ECXr: return REG(ecx);
@@ -518,7 +516,7 @@ static void mhp_setreg(char * regn, unsigned long val)
     case _BPr: LWORD(ebp) = val; break;
     case _SPr: LWORD(esp) = val; break;
     case _IPr: LWORD(eip) = val; break;
-    case _FLr: LWORD(eflags) = val; break;
+    case _FLr: set_FLAGS(val); break;
     case _EAXr: REG(eax) = val; break;
     case _EBXr: REG(ebx) = val; break;
     case _ECXr: REG(ecx) = val; break;
@@ -539,10 +537,10 @@ static void mhp_go(int argc, char * argv[])
       mhp_printf("already in running state\n");
    } else {
       dpmi_mhp_setTF(0);
-      WRITE_FLAGS(READ_FLAGS() & ~TF);
-      mhpdbg.TFpendig = 0;
+      clear_TF();
+      if (mhpdbgc.saved_if)
+         set_IF();
       mhpdbgc.stopped = 0;
-      pic_sti();
    }
 }
 
@@ -558,6 +556,8 @@ static void mhp_stop(int argc, char * argv[])
    if (mhpdbgc.stopped) {
       mhp_printf("already in stopped state\n");
    } else {
+      mhpdbgc.saved_if = isset_IF();
+      clear_IF();
       mhpdbgc.stopped = 1;
       mhp_cmd("r0");
    }
@@ -569,10 +569,9 @@ static void mhp_trace(int argc, char * argv[])
       mhp_printf("must be in stopped state\n");
    } else {
       mhpdbgc.stopped = 0;
-      if (in_dpmi) {
+      if (dpmi_active())
         dpmi_mhp_setTF(1);
-      }
-      WRITE_FLAGS(READ_FLAGS() | TF);
+      set_TF();
 
       if (!strcmp(argv[0], "ti")) {
 	mhpdbgc.trapcmd = 2;
@@ -581,6 +580,18 @@ static void mhp_trace(int argc, char * argv[])
       }
 
       mhpdbgc.trapip = mhp_getcsip_value();
+
+      if (!in_dpmi_pm()) {
+	unsigned char *csp = SEG_ADR((unsigned char *), cs, ip);
+	if (csp[0] == 0xcd) {
+	    LWORD(eip) += 2;
+	    do_int(csp[1]);
+	    set_TF();
+	    mhpdbgc.stopped = 1;
+	    mhpdbgc.int_handled = 1;
+	    mhp_cmd("r0");
+	}
+      }
    }
 }
 
@@ -592,23 +603,6 @@ static void mhp_tracec(int argc, char * argv[])
      mhp_trace (argc, argv);
      traceloop=1;
      strcpy(loopbuf,"t");
-   }
-}
-
-static void mhp_trace_force(int argc, char * argv[])
-{
-   if (!mhpdbgc.stopped) {
-      mhp_printf("must be in stopped state\n");
-   } else {
-      mhpdbgc.stopped = 0;
-      if (in_dpmi) {
-        dpmi_mhp_setTF(1);
-      }
-      WRITE_FLAGS(READ_FLAGS() | TF);
-      mhpdbg.TFpendig = 1;
-      mhpdbgc.trapcmd = 1;
-      /* disable PIC: we want to trace the program, not the HW int handlers */
-      pic_cli();
    }
 }
 
@@ -1360,7 +1354,7 @@ static void mhp_regs(int argc, char * argv[])
        "",
 #endif
        mhpdbgc.stopped ? "stopped" : "running",
-       IN_DPMI ? " in DPMI" : (in_dpmi?" in real mode while in DPMI":""),
+       IN_DPMI ? " in DPMI" : (dpmi_active()?" in real mode while in DPMI":""),
        IN_DPMI ?(dpmi_mhp_getcsdefault()?"-32bit":"-16bit") : "");
 
   if (!dpmi_mhp_regs()) {
@@ -1368,8 +1362,8 @@ static void mhp_regs(int argc, char * argv[])
                 LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
     mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
                 LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
-    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%04x",
-                LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), LWORD(eflags));
+    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%08x",
+                LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), REG(eflags));
     mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
                 LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
   }
@@ -1424,7 +1418,7 @@ void mhp_bpset(void)
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
            mhpdbgc.brktab[i1].brkaddr = 0;
            mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
@@ -1443,7 +1437,7 @@ void mhp_bpclr(void)
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].is_valid) {
-         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !dpmi_active()) {
            mhpdbgc.brktab[i1].brkaddr = 0;
            mhpdbgc.brktab[i1].is_valid = 0;
            mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);

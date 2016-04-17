@@ -24,6 +24,7 @@
 #include "serial.h"
 #include "utilities.h"
 #include "doshelpers.h"
+#include "mhpdbg.h"
 #include "plugin_config.h"
 
 static int li_tid;
@@ -102,16 +103,6 @@ static void late_init_thr(void *arg)
   /* if something else is to be added here,
    * add the "late_init" member into dev_list instead */
   video_late_init();
-}
-
-static void thr_start_helper(int tid)
-{
-  rm_stack_enter();
-}
-
-static void thr_term_helper(int tid)
-{
-  rm_stack_leave();
 }
 
 static void late_init_post(int tid)
@@ -193,10 +184,6 @@ static void bios_setup(void)
     SETIVEC(0x7a, BIOSSEG, INT_OFF(0x7a));
 #endif
 
-  /* This is an int e7 used for FCB opens */
-  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  /* End of int 0xe7 for FCB opens */
-
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
    * for video initialization at f800:4200
    * If config_vbios_seg=0xe000 -> e000:3, else c000:3
@@ -219,17 +206,16 @@ static void bios_reset(void)
 {
   dos_post_boot_reset();
   iodev_reset();		/* reset all i/o devices          */
-  ems_reset();
-  xms_reset();
   dpmi_reset();
   _AL = DOS_HELPER_COMMANDS_DONE;
   while (dos_helper());		/* release memory used by helper utilities */
-  boot();			/* read the boot sector & get moving */
+#ifdef USE_MHPDBG
+  mhp_debug(DBG_BOOT, 0, 0);
+#endif
 }
 
 void bios_setup_init(void)
 {
   li_tid = coopth_create("late_init");
-  coopth_set_ctx_handlers(li_tid, thr_start_helper, thr_term_helper);
   coopth_set_permanent_post_handler(li_tid, late_init_post);
 }

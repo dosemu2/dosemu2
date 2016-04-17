@@ -28,7 +28,6 @@
 #include "emu.h"
 #include "svgalib.h"
 #include "priv.h"
-#include "vc.h"
 #include "../console/vga.h"
 
 /*

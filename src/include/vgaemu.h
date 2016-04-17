@@ -642,16 +642,6 @@ void Herc_set_cfg_switch(unsigned char);
 void Herc_set_mode_ctrl(unsigned char);
 unsigned char Herc_get_mode_ctrl(void);
 
-
-/*
- * Functions defined in env/video/instremu.c.
- */
-
-unsigned instr_len(unsigned char *, int);
-int instr_emu(struct sigcontext *scp, int pmode, int cnt);
-int decode_modify_segreg_insn(struct sigcontext *scp, int pmode,
-    unsigned int *new_val);
-
 /*
  * whether we emulate only writes to VGA memory or read & write
  * (0 -> no instruction emulation, the 'normal' case)

@@ -25,6 +25,7 @@
 #include "coopth.h"
 #include "speaker.h"
 #include "dosemu_config.h"
+#include "sig.h"
 
 /* --------------------------------------------------------------------- */
 /*
@@ -264,7 +265,7 @@ int dosemu_user_froze = 0;
 static void freeze_thr(void *arg)
 {
   coopth_frozen++;
-  _set_IF();
+  set_IF();
   coopth_sleep();
   clear_IF();
   coopth_frozen--;
@@ -295,7 +296,7 @@ void freeze_dosemu(void)
   if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
 
-  coopth_set_post_handler(freeze_start, NULL);
+  coopth_add_post_handler(freeze_start, NULL);
 }
 
 void unfreeze_dosemu(void)
@@ -431,7 +432,7 @@ int idle(int threshold1, int threshold, int threshold2, const char *who)
 	if (debug_level('g') > 5)
 	    g_printf("sleep requested by %s\n", who);
 	pthread_mutex_unlock(&trigger_mtx);
-        _set_IF();
+        set_IF();
 	coopth_wait();
 	clear_IF();
 	pthread_mutex_lock(&trigger_mtx);

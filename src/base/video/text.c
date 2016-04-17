@@ -136,6 +136,29 @@ static void draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
   text_unlock();
 }
 
+/*
+ * convert offset in video mem to y*scan_len+x*2
+ */
+static unsigned memoffs_to_location(unsigned memoffs)
+{
+  // FIXME: handle vga.mem.wrap as in render.c:update_graphics_screen
+  if (vga.line_compare < vga.text_height &&
+      memoffs < (vga.text_height - vga.line_compare) * vga.scan_len)
+    return memoffs + vga.line_compare * vga.scan_len;
+  return memoffs - vga.display_start;
+}
+
+/*
+ * convert y*scan_len+x*2-style location to offset in video mem
+ */
+static unsigned location_to_memoffs(unsigned location)
+{
+  // FIXME: handle vga.mem.wrap as in render.c:update_graphics_screen
+  if (vga.line_compare < vga.text_height &&
+      location >= vga.line_compare * vga.scan_len)
+    return location - vga.line_compare * vga.scan_len;
+  return location + vga.display_start;
+}
 
 /*
  * check if the cursor location is within bounds and it's text mode
@@ -166,7 +189,7 @@ static void restore_cell(unsigned cursor_location)
   if (!check_cursor_location(cursor_location, &x, &y))
     return;
 
-  sp = (Bit16u *)(vga.mem.base + vga.display_start + cursor_location);
+  sp = (Bit16u *)(vga.mem.base + location_to_memoffs(cursor_location));
   oldsp = prev_screen + cursor_location / 2;
   c = XCHAR(sp);
 
@@ -182,7 +205,7 @@ static void draw_cursor(void)
 {
   int x, y;
 
-  if(check_cursor_location(vga.crtc.cursor_location - vga.display_start, &x, &y) &&
+  if(check_cursor_location(memoffs_to_location(vga.crtc.cursor_location), &x, &y) &&
      (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
     text_lock();
@@ -205,7 +228,7 @@ static void redraw_cursor(void)
   if(vga.crtc.cursor_shape.w != NO_CURSOR)
     draw_cursor();
 
-  prev_cursor_location = vga.crtc.cursor_location - vga.display_start;
+  prev_cursor_location = memoffs_to_location(vga.crtc.cursor_location);
   prev_cursor_shape = vga.crtc.cursor_shape.w;
 }
 
@@ -254,8 +277,8 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end,
 RectArea draw_bitmap_line(int x, int y, int linelen,
     struct bitmap_desc dst_image)
 {
-  Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start +
-				  y * vga.scan_len + x * 2);
+  Bit16u *screen_adr = (Bit16u *)(vga.mem.base +
+				  location_to_memoffs(y * vga.scan_len + x * 2));
   int fg = ATTR_FG(XATTR(screen_adr));
   int len = vga.scan_len / 2 * vga.char_width;
   unsigned char *  deb;
@@ -274,6 +297,7 @@ RectArea draw_bitmap_line(int x, int y, int linelen,
 
 void reset_redraw_text_screen(void)
 {
+  unsigned compare;
   prev_cursor_shape = NO_CURSOR;
 
   /* Comment Eric: If prev_screen is too small, we must update */
@@ -284,8 +308,10 @@ void reset_redraw_text_screen(void)
     if (vga.text_width > MAX_COLUMNS  ) vga.text_width = MAX_COLUMNS;
     if (vga.text_height > MAX_LINES   ) vga.text_height = MAX_LINES;
   }
-  memcpy(prev_screen, vga.mem.base + vga.display_start,
-	 vga.scan_len * vga.text_height);
+  compare = min(vga.text_height, vga.line_compare) * vga.scan_len;
+  memcpy(prev_screen, vga.mem.base + location_to_memoffs(0), compare);
+  memcpy(&prev_screen[compare / 2], vga.mem.base,
+	 vga.scan_len * vga.text_height - compare);
 }
 
 static void refresh_text_pal(DAC_entry *col, int index, void *udata)
@@ -358,7 +384,7 @@ void text_redraw_text_screen()
     return;
   }
 
-  sp = (Bit16u *) (vga.mem.base + vga.display_start);
+  sp = (Bit16u *) (vga.mem.base + location_to_memoffs(0));
   oldsp = prev_screen;
 
   x_deb(
@@ -368,6 +394,7 @@ void text_redraw_text_screen()
 
   for(y = 0; y < vga.text_height; y++) {
     x = 0;
+    sp = (Bit16u *) (vga.mem.base + location_to_memoffs(y*vga.scan_len));
     do {	/* scan in a string of chars of the same attribute */
       bp = charbuff; start_x = x; attr = XATTR(sp);
 
@@ -378,7 +405,6 @@ void text_redraw_text_screen()
 
       draw_string(start_x, y, charbuff, x - start_x, attr);
     } while(x < vga.text_width);
-    sp += vga.scan_len / 2 - vga.text_width;
     oldsp += vga.scan_len / 2 - vga.text_width;
   }
 }
@@ -391,17 +417,28 @@ void dirty_text_screen(void)
 int text_is_dirty(void)
 {
   unsigned char *sp;
+  int ret;
+  unsigned int compare;
   if (blink_count == 0 || need_redraw_cursor)
     return 1;
-  sp = vga.mem.base + vga.display_start;
-  return memcmp(prev_screen, sp, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+  sp = vga.mem.base + location_to_memoffs(0);
+
+  if (vga.text_height <= vga.line_compare)
+    return memcmp(prev_screen, sp, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
+
+  compare = vga.line_compare * vga.scan_len;
+  ret = memcmp(prev_screen, sp, compare);
+  if (ret == 0)
+    ret = memcmp(&prev_screen[compare / sizeof(ushort)], vga.mem.base,
+		 vga.scan_len * vga.text_height - compare);
+  return ret;
 }
 
 /*
  * Redraw the cursor if it's necessary.
  * Do nothing in graphics modes.
  */
-void update_cursor(void)
+static void update_cursor(void)
 {
   if (need_redraw_cursor) {
     need_redraw_cursor = FALSE;
@@ -414,16 +451,16 @@ void update_cursor(void)
   blink_state = !blink_state;
 
   if(vga.crtc.cursor_shape.w != NO_CURSOR) {
-    if(vga.crtc.cursor_location - vga.display_start != prev_cursor_location) {
+    if(memoffs_to_location(vga.crtc.cursor_location) != prev_cursor_location) {
       restore_cell(prev_cursor_location);
-      prev_cursor_location = vga.crtc.cursor_location -vga.display_start;
+      prev_cursor_location = memoffs_to_location(vga.crtc.cursor_location);
       prev_cursor_shape = vga.crtc.cursor_shape.w;
     }
 
     if(blink_state)
       draw_cursor();
     else
-      restore_cell(vga.crtc.cursor_location - vga.display_start);
+      restore_cell(memoffs_to_location(vga.crtc.cursor_location));
   }
 }
 
@@ -450,6 +487,8 @@ void init_text_mapper(int image_mode, int features, ColorSpaceDesc *csd)
 
   /* linear 1 byte per pixel */
   text_remap = remap_init(image_mode, features, csd);
+  need_redraw_cursor = TRUE;
+  memset(text_canvas, 0, MAX_COLUMNS * 9 * MAX_LINES * 32);
 }
 
 void done_text_mapper(void)
@@ -577,6 +616,7 @@ int update_text_screen(void)
     if (refr)
       dirty_text_screen();
   }
+  update_cursor();
 
   /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
@@ -598,7 +638,7 @@ int update_text_screen(void)
    * can be given a different value during the loop.
    */
 	y = cursor_row =
-	  (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
+	  memoffs_to_location(vga.crtc.cursor_location) / vga.scan_len;
 	if ((y < 0) || (y >= vga.text_height))
 	  y = -1;
 
@@ -624,7 +664,7 @@ int update_text_screen(void)
 	      }
 	    numscan++;
 
-	    sp = (Bit16u*)(vga.mem.base + vga.display_start) + y*co;
+	    sp = (Bit16u*)(vga.mem.base + location_to_memoffs(y*vga.scan_len));
 	    oldsp = prev_screen + y*co;
 
 	    x=0;
@@ -647,7 +687,7 @@ int update_text_screen(void)
    a row) in the 'changed' string.
 */
 		bp = charbuff;
-		start_off = (u_char *)sp - vga.mem.base - vga.display_start;
+		start_off = memoffs_to_location((u_char *)sp - vga.mem.base);
 		start_x = x;
 #if CONFIG_SELECTION
 		/* don't show selection if the DOS app changed it */
@@ -703,7 +743,7 @@ chk_cursor:
        when using a fast key-repeat.
 */
 	    if (y == cursor_row) {
-	      if(vga.crtc.cursor_location - vga.display_start != prev_cursor_location ||
+	      if(memoffs_to_location(vga.crtc.cursor_location) != prev_cursor_location ||
 	          vga.crtc.cursor_shape.w != prev_cursor_shape)
 	        redraw_cursor();
 	    }
@@ -755,19 +795,20 @@ void text_gain_focus()
  */
 static void calculate_selection(void)
 {
-  int co = vga.scan_len / 2;
-  Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
+  unsigned start, end;
   if ((sel_end_row < sel_start_row) ||
     ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col)))
   {
-    sel_start = screen_adr+sel_end_row*co+sel_end_col;
-    sel_end = screen_adr+sel_start_row*co+sel_start_col-1;
+    start = location_to_memoffs(sel_end_row*vga.scan_len+sel_end_col*2);
+    end = location_to_memoffs(sel_start_row*vga.scan_len+(sel_start_col-1)*2);
   }
   else
   {
-    sel_start = screen_adr+sel_start_row*co+sel_start_col;
-    sel_end = screen_adr+sel_end_row*co+sel_end_col-1;
+    start = location_to_memoffs(sel_start_row*vga.scan_len+sel_start_col*2);
+    end = location_to_memoffs(sel_end_row*vga.scan_len+(sel_end_col-1)*2);
   }
+  sel_start = (Bit16u*)(vga.mem.base + start);
+  sel_end = (Bit16u*)(vga.mem.base + end);
 }
 
 
@@ -809,8 +850,8 @@ void clear_if_in_selection()
   if (!visible_selection)
     return;
 
-  cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
-  cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
+  cursor_row = memoffs_to_location(vga.crtc.cursor_location) / vga.scan_len;
+  cursor_col = (memoffs_to_location(vga.crtc.cursor_location) % vga.scan_len) / 2;
   X_printf("X:clear check selection , cursor at %d %d\n",
 	   cursor_col,cursor_row);
   if (((sel_start_row <= cursor_row)&&(cursor_row <= sel_end_row)&&
@@ -851,6 +892,7 @@ void extend_selection(int col, int row)
   sel_end_row = row;
   X_printf("X:extend selection , start %d %d, end %d %d\n",
 	   sel_start_col,sel_start_row,sel_end_col,sel_end_row);
+  calculate_selection();	// make selection visible
 }
 
 
@@ -881,7 +923,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	init_charset_state(&video_state, video_charset);
 
 	co = vga.scan_len / 2;
-	screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
+	screen_adr = (Bit16u *)vga.mem.base;
 	p = sel_text_dos = malloc(vga.text_width);
 	sel_space = (row2-row1+1)*(co+1)*MB_LEN_MAX+1;
 	sel_text_unicode = sel_text = malloc(sel_space * sizeof(t_unicode));
@@ -895,7 +937,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 		p = sel_text_ptr = sel_text_dos;
 		for (col = line_start_col; (col <= line_end_col); col++)
 		{
-			*p++ = XCHAR(screen_adr+row*co+col);
+			*p++ = XCHAR(screen_adr+location_to_memoffs(2*(row*co+col))/2);
 		}
 		sel_text_bytes = line_end_col - line_start_col + 1;
 		while(sel_text_bytes) {
@@ -946,19 +988,20 @@ static void save_selection(int col1, int row1, int col2, int row2)
  */
 static void save_selection_data(void)
 {
-  int col1, row1, col2, row2, co;
-  Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
+  int col1, row1, col2, row2;
+  unsigned start_loc, end_loc;
 
   if ((sel_end-sel_start) < 0)
   {
     visible_selection = FALSE;
     return;
   }
-  co = vga.scan_len / 2;
-  row1 = (sel_start-screen_adr)/co;
-  row2 = (sel_end-screen_adr)/co;
-  col1 = (sel_start-screen_adr)%co;
-  col2 = (sel_end-screen_adr)%co;
+  start_loc = memoffs_to_location((Bit8u *)sel_start-vga.mem.base);
+  end_loc = memoffs_to_location((Bit8u *)sel_end-vga.mem.base);
+  row1 = start_loc/vga.scan_len;
+  row2 = end_loc/vga.scan_len;
+  col1 = (start_loc%vga.scan_len)/2;
+  col2 = (end_loc%vga.scan_len)/2;
 
   /* Allocate space for text. */
   if (sel_text != NULL)

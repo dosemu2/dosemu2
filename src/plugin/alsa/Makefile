@@ -20,7 +20,3 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_alsa.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(ALSALIB)
 endif
-
-realclean::
-	rm -f Makefile.conf config.log config.status configure
-	rm -rf autom4te*.cache

@@ -90,6 +90,10 @@ MSDOS_pmc_start:
 MSDOS_API_call:
 	hlt
 	lret
+	.globl MSDOS_API_WINOS2_call
+MSDOS_API_WINOS2_call:
+	hlt
+	lret
 
 	.globl MSDOS_rmcb_call_start
 MSDOS_rmcb_call_start:

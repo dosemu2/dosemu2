@@ -126,6 +126,8 @@ extern int port_rep_outd(ioport_t port, Bit32u *dest, int df, Bit32u count);
 
 extern void port_exit(void);
 
+extern unsigned char emu_io_bitmap[];
+
 /* avoid potential clashes with <sys/io.h> */
 #undef inb
 #undef inw

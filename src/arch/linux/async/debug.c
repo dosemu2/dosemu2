@@ -1,6 +1,7 @@
 #include "emu.h"
 #include "dosemu_config.h"
 #include "debug.h"
+#include "sig.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +63,7 @@ static void do_debug(void)
   gdb_command(cmd3);
 }
 
-static void stop_gdb(void)
+static int stop_gdb(void)
 {
   char *cmd1 = "detach\n";
   char *cmd2 = "quit\n";
@@ -74,10 +75,13 @@ static void stop_gdb(void)
   pclose(gdb_f);
   putchar('\n');
   fflush(stdout);
+  return !WEXITSTATUS(status);
 }
 
 /* disable as this crashes under DPMI trying to trace through DOS stack */
-#if 0
+/* ... and re-enable because people fuck up instead of installing gdb.
+ * But run this only if the gdb trace fails. */
+#if 1
 /* Obtain a backtrace and print it to `stdout'.
    (derived from 'info libc')
  */
@@ -91,12 +95,14 @@ static void print_trace (void)
   size = backtrace (array, 10);
   strings = backtrace_symbols (array, size);
 
-  printf ("Obtained %d stack frames.\n", size);
+  fprintf(dbg_fd, "Obtained %d stack frames.\n", size);
 
   for (i = 0; i < size; i++)
-    printf ("%s\n", strings[i]);
+    fprintf(dbg_fd, "%s\n", strings[i]);
 
   free (strings);
+  fprintf(dbg_fd, "Backtrace finished\n");
+  fflush(dbg_fd);
 }
 #endif
 
@@ -136,18 +142,17 @@ static void collect_info(pid_t pid)
   }
   free(tmp);
 
-//  print_trace();
   fflush(stdout);
 }
 
-void gdb_debug(void)
+static int do_gdb_debug(void)
 {
   pid_t dosemu_pid = getpid();
   pid_t dbg_pid;
   int status;
 
   if (getuid() != geteuid())
-    return;
+    return 0;
 
   switch ((dbg_pid = fork())) {
     case 0:
@@ -156,18 +161,32 @@ void gdb_debug(void)
 
       collect_info(dosemu_pid);
 
-      if (start_gdb(dosemu_pid)) {
-        do_debug();
-        stop_gdb();
-      }
-
+      if (!start_gdb(dosemu_pid))
+        _exit(1);
+      do_debug();
+      if (!stop_gdb())
+        _exit(1);
       _exit(0);
       break;
     case -1:
       error("fork failed, %s\n", strerror(errno));
-      return;
+      return 0;
     default:
       waitpid(dbg_pid, &status, 0);
+      if (WEXITSTATUS(status)) {
+         dbug_printf("backtrace failure\n");
+         return 0;
+      }
       dbug_printf("done backtrace\n");
   }
+  return 1;
+}
+
+void gdb_debug(void)
+{
+    int ret = do_gdb_debug();
+    if (!ret) {
+        print_trace();
+        error("Please install gdb!\n");
+    }
 }

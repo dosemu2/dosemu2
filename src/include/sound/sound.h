@@ -51,7 +51,6 @@ typedef struct {
 } pcm_base;
 
 #define PCM_CF_ENABLED 1
-#define PCM_CF_DISABLED 2
 
 typedef struct {
   pcm_base;
@@ -76,7 +75,7 @@ struct pcm_player {
 
 struct pcm_recorder {
   pcm_plugin_base;
-  int (*owns)(void *, void *);
+  void *id2;
 };
 
 typedef int (*efp_process)(int handle, sndbuf_t buf[][SNDBUF_CHANS],
@@ -99,10 +98,12 @@ extern int pcm_register_efp(const struct pcm_efp *efp, enum EfpType type,
 extern void pcm_reset_player(int handle);
 extern int pcm_init_plugins(struct pcm_holder *plu, int num);
 extern void pcm_deinit_plugins(struct pcm_holder *plu, int num);
-extern int pcm_get_cfg(const char *name);
 extern int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
 	float param3);
 extern int pcm_setup_hpf(struct player_params *params);
+extern int pcm_parse_cfg(const char *string, const char *name);
+extern char *pcm_parse_params(const char *string, const char *name,
+	const char *param);
 
 /** PCM sample format */
 enum _PCM_format {
@@ -153,6 +154,7 @@ extern int pcm_start_input(void *id);
 extern void pcm_stop_input(void *id);
 extern void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *));
 extern void pcm_set_connected_cb(int (*is_connected)(int, void *));
+extern void pcm_set_checkid2_cb(int (*checkid2)(void *, void *));
 
 size_t pcm_data_get(void *data, size_t size, struct player_params *params);
 int pcm_data_get_interleaved(sndbuf_t buf[][SNDBUF_CHANS], int nframes,

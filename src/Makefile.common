@@ -25,7 +25,9 @@ clean::
 	-rm -f $(OBJS) $(LIB) *~
 
 realclean::	clean
-	rm -f *.d
+	rm -f $(DEPENDS)
+	rm -rf autom4te*.cache
+	rm -f Makefile.conf config.log config.status configure
 
 %.o:	%.c
 	$(CC) -c $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ $<
@@ -39,8 +41,8 @@ ifneq "$(wildcard *.d)" ""
 endif
 endif
 
-Makefile.conf: configure
-	./configure
+Makefile.conf: $(srcdir)/configure
+	$(srcdir)/configure
 configure: configure.ac
 	if [ -d m4 ]; then \
 		AC_F="-I m4 -I $(REALTOPDIR)/m4"; \

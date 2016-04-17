@@ -31,7 +31,7 @@
 #include "dpmi.h"
 #include "timers.h"
 #include "dosemu_config.h"
-
+#include "sig.h"
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
@@ -140,7 +140,6 @@ static void mhp_init(void)
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
 
-  mhpdbg.TFpendig = 0;
   memset(&mhpdbg.intxxtab, 0, sizeof(mhpdbg.intxxtab));
   memset(&mhpdbgc.intxxalt, 0, sizeof(mhpdbgc.intxxalt));
 
@@ -183,7 +182,6 @@ static void mhp_init(void)
        * comes up to send the first input
        */
        mhpdbg.nbytes = -1;
-       mhpdbgc.stopped = 1;
        wait_for_debug_terminal = 1;
        mhp_input();
     }
@@ -218,8 +216,13 @@ static void mhp_poll_loop(void)
    }
    in_poll_loop++;
    for (;;) {
+      int ostopped;
       handle_signals();
+      /* hack: set stopped to 1 to not allow DPMI to run */
+      ostopped = mhpdbgc.stopped;
+      mhpdbgc.stopped = 1;
       coopth_run();
+      mhpdbgc.stopped = ostopped;
       /* NOTE: if there is input on mhpdbg.fdin, as result of handle_signals
        *       io_select() is called and this then calls mhp_input.
        *       ( all clear ? )
@@ -266,37 +269,60 @@ static void mhp_poll_loop(void)
    in_poll_loop--;
 }
 
+static void mhp_pre_vm86(void)
+{
+    if (isset_TF()) {
+	if (mhpdbgc.trapip != mhp_getcsip_value()) {
+	    mhpdbgc.trapcmd = 0;
+	    mhpdbgc.stopped = 1;
+	    mhp_poll();
+	}
+    }
+}
+
 static void mhp_poll(void)
 {
 
-   if (!mhpdbg.active && !wait_for_debug_terminal) {
+  if (!mhpdbg.active) {
      mhpdbg.nbytes = 0;
      return;
-   }
+  }
 
-   if (mhpdbg.active == 1) {
-      /* new session has started */
-      mhpdbg.active++;
+  if (mhpdbg.active == 1) {
+    /* new session has started */
+    mhpdbg.active++;
 
-      mhp_printf ("%s", mhp_banner);
-      mhp_cmd("rmapfile");
-      mhp_send();
-      if (wait_for_debug_terminal) wait_for_debug_terminal =0;
-   }
-
-   if (mhpdbgc.want_to_stop) {
-      mhpdbgc.stopped = 1;
-      mhpdbgc.want_to_stop = 0;
-   }
-   if (mhpdbgc.stopped) {
+    mhp_printf ("%s", mhp_banner);
+    mhp_cmd("rmapfile");
+    mhp_send();
+    mhp_poll_loop();
+  }
+  if (mhpdbgc.want_to_stop) {
+    mhpdbgc.stopped = 1;
+    mhpdbgc.want_to_stop = 0;
+  }
+  if (mhpdbgc.stopped) {
       if (dosdebug_flags & DBGF_LOG_TEMPORARY) {
          dosdebug_flags &= ~DBGF_LOG_TEMPORARY;
 	 mhp_cmd("log off");
       }
       mhp_cmd("r0");
       mhp_send();
-   }
-   mhp_poll_loop();
+  }
+  mhp_poll_loop();
+}
+
+static void mhp_boot(void)
+{
+
+  if (!wait_for_debug_terminal) {
+     mhpdbg.nbytes = 0;
+     return;
+  }
+
+  wait_for_debug_terminal = 0;
+  mhp_poll_loop();
+  mhpdbgc.want_to_stop = 1;
 }
 
 void mhp_intercept_log(char *flags, int temporary)
@@ -319,7 +345,7 @@ void mhp_intercept(char *msg, char *logflags)
    mhp_cmd("r0");
    mhp_send();
    if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) {
-     if (in_dpmi)
+     if (in_dpmi_pm())
        dpmi_return_request();
      if (logflags)
        mhp_intercept_log(logflags, 1);
@@ -349,6 +375,9 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   switch (DBG_TYPE(mhpdbgc.currcode)) {
   case DBG_INIT:
 	  mhp_init();
+	  break;
+  case DBG_BOOT:
+	  mhp_boot();
 	  break;
   case DBG_INTx:
 	  if (!mhpdbg.active)
@@ -412,8 +441,14 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 	    else {
 	      if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload ) {
 	        mhpdbgc.stopped = 1;
-		mhpdbg.TFpendig = 1;
+	        if (parm1)
+	          LWORD(eip) -= 2;
+	        mhpdbgc.int_handled = 0;
 	        mhp_poll();
+	        if (mhpdbgc.int_handled)
+	          rtncd = 1;
+	        else if (parm1)
+	          LWORD(eip) += 2;
 	      }
 	    }
 	  }
@@ -421,7 +456,6 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
   case DBG_INTxDPMI:
 	  if (!mhpdbg.active) break;
           mhpdbgc.stopped = 1;
-          mhp_poll();
           dpmi_mhp_intxxtab[DBG_ARG(mhpdbgc.currcode) & 0xff] &= ~2;
 	  break;
   case DBG_TRAP:
@@ -432,11 +466,12 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		  case 2: /* ti command -- step until IP changes */
 			  if (mhpdbgc.trapip == mhp_getcsip_value())
 				  break;
+			  /* no break */
 		  case 1:
 			  mhpdbgc.trapcmd = 0;
 			  rtncd = 1;
 			  mhpdbgc.stopped = 1;
-			  mhp_poll();
+			  break;
 		  }
 	  }
 	  if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
@@ -483,9 +518,11 @@ unsigned int mhp_debug(enum dosdebug_event code, unsigned int parm1, unsigned in
 		    mhpdbgc.trapcmd = 0;
 		    rtncd = 1;
 		    mhpdbgc.stopped = 1;
-		    mhp_poll();
 		  }
 	  }
+	  break;
+  case DBG_PRE_VM86:
+	  mhp_pre_vm86();
 	  break;
   case DBG_POLL:
 	  mhp_poll();
@@ -521,3 +558,7 @@ void mhp_printf(const char *fmt,...)
   va_end(args);
 }
 
+int mhpdbg_is_stopped(void)
+{
+  return mhpdbgc.stopped;
+}

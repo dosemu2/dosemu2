@@ -149,6 +149,9 @@ void            DPMI_return_from_realmode(void);
 void            DPMI_return_from_dos_memory(void);
 void            DPMI_raw_mode_switch_rm(void);
 void            DPMI_save_restore_rm(void);
+void            DPMI_int1c(void);
+void            DPMI_int23(void);
+void            DPMI_int24(void);
 
 void            MSDOS_rpm_start(void);
 void            MSDOS_return_from_rm(void);

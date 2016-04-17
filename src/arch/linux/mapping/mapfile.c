@@ -34,7 +34,7 @@ static int tmpfile_fd = -1;
 
 static void *alias_mapping_file(int cap, void *target, size_t mapsize, int protect, void *source)
 {
-  int fixed = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
+  int fixed = 0;
   off_t offs = (char *)source - mpool;
   void *addr;
 
@@ -43,6 +43,10 @@ static void *alias_mapping_file(int cap, void *target, size_t mapsize, int prote
     errno = EINVAL;
     return MAP_FAILED;
   }
+  if (target != (void *)-1)
+    fixed = MAP_FIXED;
+  else
+    target = NULL;
   addr =  mmap(target, mapsize, protect, MAP_SHARED | fixed, tmpfile_fd, offs);
   if (addr == MAP_FAILED) {
     addr =  mmap(target, mapsize, protect & ~PROT_EXEC, MAP_SHARED | fixed,

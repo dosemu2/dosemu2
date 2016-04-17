@@ -59,8 +59,7 @@
 static int SDL_priv_init(void);
 static int SDL_init(void);
 static void SDL_close(void);
-static int SDL_set_videomode(int mode_class, int text_width,
-			     int text_height);
+static int SDL_set_videomode(struct vid_mode_params vmp);
 static int SDL_update_screen(void);
 static void SDL_put_image(int x, int y, unsigned width, unsigned height);
 static void SDL_change_mode(int x_res, int y_res, int w_x_res,
@@ -76,6 +75,7 @@ static void unlock_surface(void);
 struct video_system Video_SDL = {
   SDL_priv_init,
   SDL_init,
+  NULL,
   NULL,
   SDL_close,
   SDL_set_videomode,
@@ -97,16 +97,8 @@ static SDL_Window *window;
 static ColorSpaceDesc SDL_csd;
 static int font_width, font_height;
 static int m_x_res, m_y_res;
-static int initialized;
 static int use_bitmap_font;
-#define UPDATE_BY_RECTS 0
-static struct {
-  int num;
-#if UPDATE_BY_RECTS
-  int max;
-  SDL_Rect *rects;
-#endif
-} sdl_rects;
+static int sdl_rects_num;
 static pthread_mutex_t update_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mode_mtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -304,8 +296,6 @@ int SDL_init(void)
 
 void SDL_close(void)
 {
-  if (!initialized)
-    return;
   remapper_done();
   vga_emu_done();
 #ifdef X_SUPPORT
@@ -344,25 +334,11 @@ static void SDL_update(void)
      * without clearing so we can as well try the update with rects, as
      * was in the old sdl1 code. If there are many rects to update, it
      * can easily be faster to just update the entire screen though. */
-#if UPDATE_BY_RECTS
-  if (sdl_rects.num > 0) {
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    for (i = 0; i < sdl_rects.num; i++) {
-      const SDL_Rect *rec = &sdl_rects.rects[i];
-      SDL_RenderCopy(renderer, texture, rec, rec);
-    }
-    SDL_RenderPresent(renderer);
-    SDL_DestroyTexture(texture);
-    sdl_rects.num = 0;
-  }
-  pthread_mutex_unlock(&update_mtx);
-#else
-  i = sdl_rects.num;
-  sdl_rects.num = 0;
+  i = sdl_rects_num;
+  sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
   if (i > 0)
     do_redraw();
-#endif
   pthread_mutex_unlock(&mode_mtx);
 }
 
@@ -393,35 +369,30 @@ static void unlock_surface(void)
 }
 
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
-int SDL_set_videomode(int mode_class, int text_width, int text_height)
+int SDL_set_videomode(struct vid_mode_params vmp)
 {
-  int x_res, y_res, wx_res, wy_res;
-
-  get_mode_parameters(&x_res, &y_res, &wx_res, &wy_res);
   v_printf
       ("SDL: X_setmode: video_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
-       video_mode, mode_class ? "GRAPH" : "TEXT", text_width, text_height,
-       x_res, y_res);
-  if (surface && surface->w == x_res && surface->h == y_res) {
+       video_mode, vmp.mode_class ? "GRAPH" : "TEXT",
+       vmp.text_width, vmp.text_height, vmp.x_res, vmp.y_res);
+  if (surface && surface->w == vmp.x_res && surface->h == vmp.y_res) {
     v_printf("SDL: same mode, not changing\n");
     return 1;
   }
-  if (mode_class == TEXT) {
+  if (vmp.mode_class == TEXT) {
     pthread_mutex_lock(&mode_mtx);
     if (use_bitmap_font) {
-      SDL_change_mode(x_res, y_res, wx_res, wy_res);
+      SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
     } else {
-      SDL_change_mode(0, 0, text_width * font_width,
-		      text_height * font_height);
+      SDL_change_mode(0, 0, vmp.text_width * font_width,
+		      vmp.text_height * font_height);
     }
     pthread_mutex_unlock(&mode_mtx);
   } else {
     pthread_mutex_lock(&mode_mtx);
-    SDL_change_mode(x_res, y_res, wx_res, wy_res);
+    SDL_change_mode(vmp.x_res, vmp.y_res, vmp.w_x_res, vmp.w_y_res);
     pthread_mutex_unlock(&mode_mtx);
   }
-
-  initialized = 1;
 
   return 1;
 }
@@ -464,11 +435,12 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   set_resizable(use_bitmap_font
 		|| vga.mode_class == GRAPH, w_x_res, w_y_res);
   SDL_ShowWindow(window);
+  SDL_RaiseWindow(window);
   m_x_res = w_x_res;
   m_y_res = w_y_res;
   pthread_mutex_lock(&update_mtx);
   /* forget about those rectangles */
-  sdl_rects.num = 0;
+  sdl_rects_num = 0;
   pthread_mutex_unlock(&update_mtx);
   if (vga.mode_class == GRAPH) {
     SDL_ShowCursor(SDL_DISABLE);
@@ -481,7 +453,7 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
 
 int SDL_update_screen(void)
 {
-  if (init_failed || !initialized)
+  if (init_failed)
     return 1;
   if (render_is_updating())
     return 0;
@@ -496,23 +468,8 @@ int SDL_update_screen(void)
 /* this only pushes the rectangle on a stack; updating is done later */
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-#if UPDATE_BY_RECTS
-  SDL_Rect *rect;
   pthread_mutex_lock(&update_mtx);
-  if (sdl_rects.num >= sdl_rects.max) {
-    sdl_rects.rects = realloc(sdl_rects.rects, (sdl_rects.max + 10) *
-			      sizeof(*sdl_rects.rects));
-    sdl_rects.max += 10;
-  }
-  rect = &sdl_rects.rects[sdl_rects.num];
-  rect->x = x;
-  rect->y = y;
-  rect->w = width;
-  rect->h = height;
-#else
-  pthread_mutex_lock(&update_mtx);
-#endif
-  sdl_rects.num++;
+  sdl_rects_num++;
   pthread_mutex_unlock(&update_mtx);
 }
 
@@ -671,8 +628,7 @@ static void SDL_handle_selection(XEvent * e)
 static void SDL_handle_events(void)
 {
   SDL_Event event;
-  if (!initialized)
-    return;
+
   if (render_is_updating())
     return;
   while (SDL_PollEvent(&event)) {

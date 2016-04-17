@@ -73,12 +73,12 @@ struct la_h {
 static struct la_h handles[MAX_HANDLES];
 static int num_handles;
 
-static struct lads *find_lad(void *arg)
+static struct lads *find_lad(struct lp *p)
 {
     struct lp *plu;
     int i;
     for (i = 0; i < MAX_LADSPAS && (plu = ladspas[i].link); i++) {
-	if (plu == arg)
+	if (plu == p)
 	    return &ladspas[i];
     }
     return NULL;
@@ -200,9 +200,9 @@ static int ladspa_cfg(void *arg)
     struct lp *plu = arg;
     switch (plu->type) {
     case EFP_NONE:
-	return PCM_CF_DISABLED;
+	return 0;
     case EFP_HPF:
-	return (config.pcm_hpf ? PCM_CF_ENABLED : PCM_CF_DISABLED);
+	return (config.pcm_hpf ? PCM_CF_ENABLED : 0);
     }
     return 0;
 }

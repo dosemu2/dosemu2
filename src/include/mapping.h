@@ -48,9 +48,8 @@
 #define MAPPING_SCRATCH		0x040000
 #define MAPPING_SINGLE		0x080000
 #define MAPPING_MAYSHARE	0x100000
-/*#define MAPPING_SHM		0x200000*/ // available for re-use
+#define MAPPING_NOOVERLAP	0x200000
 #define MAPPING_COPYBACK	0x400000
-#define MAPPING_FIXED		0x800000
 
 typedef int open_mapping_type(int cap);
 int open_mapping (int cap);
@@ -105,9 +104,13 @@ extern int have_mremap_fixed;
 void mapping_init(void);
 void mapping_close(void);
 
-void map_hardware_ram(void);
+void init_hardware_ram(void);
+int map_hardware_ram(char type, int cap);
+int unmap_hardware_ram(char type, int cap);
 int register_hardware_ram(int type, unsigned base, unsigned size);
 unsigned get_hardware_ram(unsigned addr);
 void list_hardware_ram(void (*print)(const char *, ...));
+void *mapping_find_hole(unsigned long start, unsigned long stop,
+	unsigned long size);
 
 #endif /* _MAPPING_H_ */

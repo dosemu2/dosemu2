@@ -69,7 +69,6 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>
 AC_MSG_ERROR([Sorry, you need glibc with monotonic clock support (2.3.3 or newer).])])
 
 AC_CHECK_LIB(rt, shm_open)
-AC_CHECK_FUNCS(shm_open)
 
 dnl Here is where we do our stuff
 
@@ -172,7 +171,7 @@ if test -x $srcdir/mkpluginhooks; then
     AC_MSG_NOTICE(Including plugins: $PLUGINS);
     cd src
     for i in $PLUGINSUBDIRS; do
-      if ! grep USE_DL_PLUGINS $i/Makefile >/dev/null ; then
+      if ! grep USE_DL_PLUGINS ../$srcdir/src/$i/Makefile >/dev/null ; then
         ST_PLUGINSUBDIRS="$ST_PLUGINSUBDIRS $i"
       fi
     done
@@ -201,13 +200,23 @@ else
 fi
 
 dnl Do compilation for GDB
+HAVE_LIBBFD=0
 AC_ARG_ENABLE(debug,
                AS_HELP_STRING([--enable-debug], [compile with debug info]))
-  if test "$enable_debug" = "yes"; then
-   AC_MSG_NOTICE(Compiling with debug info...);
-  else
-   AC_MSG_NOTICE(Compiling without debug info...);
-  fi
+if test "$enable_debug" = "yes"; then
+  AC_MSG_NOTICE(Compiling with debug info...)
+  AC_CHECK_HEADER(bfd.h, [
+    AC_CHECK_LIB(bfd, bfd_init)
+    if test "$ac_cv_lib_bfd_bfd_init" = "yes"; then
+      HAVE_LIBBFD=1
+    fi
+  ])
+else
+  AC_MSG_NOTICE(Compiling without debug info...)
+fi
+
+AC_ARG_ENABLE(profile,
+               AS_HELP_STRING([--enable-profile], [compile with profile info]))
 
 AC_ARG_ENABLE(asan, [AS_HELP_STRING(--enable-asan, [enable address sanitizer])])
 
@@ -230,16 +239,25 @@ else
   target_cpu=$with_target_cpu
 fi
 
-AC_MSG_CHECKING(for $CC actually being clang...)
+AC_MSG_CHECKING([for $CC actually being clang])
 if "$CC" -v 2>&1|grep 'clang' >/dev/null; then
   if "$CC" -no-integrated-as -E - < /dev/null 2>&1|grep 'clang' >/dev/null; then
     AC_MSG_RESULT([yes])
   else
     ASFLAGS="$ASFLAGS -no-integrated-as"
-    AC_MSG_RESULT([yes, using -no-integrated-as for assembly language files.])
+    AC_MSG_RESULT([yes, using -no-integrated-as])
   fi
-  # unfortunately clang is too buggy even on -O1
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -O0"
+  AC_MSG_CHECKING([for clang >= 3.7])
+  clang_ver=`clang -v 2>&1 | grep version | cut -d " " -f 3`
+  clang_maj=`echo $clang_ver | cut -d "." -f 1`
+  clang_mid=`echo $clang_ver | cut -d "." -f 2`
+  if test $clang_maj -ge 3 -a $clang_mid -ge 7 ; then
+    AC_MSG_RESULT([yes, $clang_ver])
+  else
+    AC_MSG_RESULT([no, $clang_ver])
+    AC_MSG_ERROR([Need clang-3.7 or newer, or use gcc instead])
+  fi
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -Wno-microsoft -Wno-incompatible-pointer-types"
   use_clang="yes"
 else
   CCAS="$CC"
@@ -250,20 +268,23 @@ fi
 
 if test "$enable_debug" = "yes" ; then
   DOSEMU_CFLAGS="$DOSEMU_CFLAGS -ggdb3"
-  if test -z "$CFLAGS" -a "$use_clang" = "no" ; then
+  if test -z "$CFLAGS" ; then
     # simx86 is too slow on gcc without -O
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O"
   fi
-elif test -z "$CFLAGS" -a "$use_clang" = "no" ; then
-  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
-fi
-
-if test "$enable_debug" = "yes"; then
   if test "$enable_asan" = "yes"; then
     DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fsanitize=address"
     LDFLAGS="$LDFLAGS -fsanitize=address"
+    AC_MSG_NOTICE(enabling address sanitizer)
+  fi
+  if test "$enable_profile" = "yes"; then
+    DOSEMU_CFLAGS="$DOSEMU_CFLAGS -pg"
+    LDFLAGS="$LDFLAGS -pg"
+    AC_MSG_NOTICE(enabling profiling)
   fi
   AC_DEFINE(_DEBUG)
+elif test -z "$CFLAGS" ; then
+  DOSEMU_CFLAGS="$DOSEMU_CFLAGS -O2"
 fi
 
 AC_DEFINE(_GNU_SOURCE)
@@ -276,6 +297,7 @@ AC_SUBST(DOSEMU_CFLAGS)
 AC_SUBST(DOSEMU_CPPFLAGS)
 AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
+AC_SUBST(HAVE_LIBBFD)
 
 dnl Create output files. If you add new ones, please do it in order.
 
@@ -300,6 +322,9 @@ AH_TEMPLATE([CONFIG_TIME],
 
 AH_TEMPLATE(HAVE_XKB,
 [Define this if you have the XKB extension])
+
+AH_TEMPLATE(HAVE_LIBBFD,
+[Define this if you have binutils-devel installed])
 
 AH_TEMPLATE([USE_DL_PLUGINS],
 [ DEFINE this, if you want dynamically loaded plugins ])

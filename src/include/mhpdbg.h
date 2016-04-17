@@ -20,8 +20,10 @@
 // There is also an argument field shifted 8 bits left
 enum dosdebug_event {
    DBG_INIT = 0,
+   DBG_BOOT,
    DBG_INTx,
    DBG_TRAP,
+   DBG_PRE_VM86,
    DBG_POLL,
    DBG_GPF,
    DBG_INTxDPMI,
@@ -48,6 +50,7 @@ void mhp_modify_eip(int delta);
 void mhp_intercept_log(char *flags, int temporary);
 void mhp_intercept(char *msg, char *logflags);
 void mhp_exit_intercept(int errcode);
+int mhpdbg_is_stopped(void);
 
 void DBGload(void);
 void DBGload_CSIP(void);
@@ -66,7 +69,6 @@ struct mhpdbg
    int flags;
    int fdin,fdout;
 
-   unsigned int TFpendig:1;
    unsigned char intxxtab[32];
 };
 
@@ -127,6 +129,8 @@ struct mhpdbgc
    int bpload;
    int bpload_bp;
    int int21_count;
+   int int_handled;
+   int saved_if;
    struct mhpdbg_4bpar *bpload_par;
    char bpload_cmd[128];
    char bpload_cmdline[132];

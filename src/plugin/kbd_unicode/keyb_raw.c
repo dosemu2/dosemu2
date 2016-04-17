@@ -11,11 +11,11 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/kd.h>
+#include <sys/ioctl.h>
 
 #include "emu.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
-#include "termio.h"
 
 #include "keystate.h"
 

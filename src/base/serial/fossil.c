@@ -188,7 +188,7 @@ void fossil_int14(int num)
         s_printf("SER%d: FOSSIL 0x02: Read char with wait\n", num);
     #endif
 	write_IER(num, UART_IER_RDI);
-	_set_IF();
+	set_IF();
 	com[num].fossil_blkrd_tid = coopth_get_tid();
 	coopth_sleep();
 	assert(com[num].fossil_blkrd_tid == COOPTH_TID_INVALID);
@@ -309,7 +309,7 @@ void fossil_int14(int num)
 #if 0
       /* do we need wait here? */
       if (!(com[num].LSR & UART_LSR_DR)) {
-        _set_IF();
+        set_IF();
         coopth_wait();
         clear_IF();
       }

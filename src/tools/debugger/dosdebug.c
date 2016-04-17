@@ -280,21 +280,10 @@ int main (int argc, char **argv)
       if (kill_timeout != FOREVER) {
         if (kill_timeout > KILL_TIMEOUT) {
           struct stat st;
-          int key;
           if (stat(pipename_in,&st) != -1) {
             fprintf(stderr, "...oh dear, have to do kill SIGKILL\n");
             kill(dospid, SIGKILL);
             fprintf(stderr, "dosemu process (pid %d) is killed\n",dospid);
-            fprintf(stderr, "If you want to switch to another console,\n"
-                            "then enter a number between 1..8, else just type enter:\n");
-            key=fgetc(stdin);
-            if ((key>='1') && (key<='8')) switch_console(key);
-            fprintf(stderr,
-              "dosdebug terminated\n"
-              "NOTE: If you had a totally locked console,\n"
-              "      you may have to blindly type in 'kbd -a; texmode'\n"
-              "      on the console you switched to.\n"
-            );
           }
           else fprintf(stderr, "dosdebug terminated, dosemu process (pid %d) is killed\n",dospid);
           exit(1);

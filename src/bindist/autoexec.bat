@@ -3,7 +3,7 @@ rem autoexec.bat for DOSEMU + FreeDOS
 path z:\bin;z:\gnu;z:\dosemu
 set HELPPATH=z:\help
 set TEMP=c:\tmp
-blaster
+sound /e
 prompt $P$G
 unix -s DOSDRIVE_D
 if "%DOSDRIVE_D%" == "" goto nodrived

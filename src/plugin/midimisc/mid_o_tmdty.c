@@ -24,6 +24,7 @@
 #include "emu.h"
 #include "init.h"
 #include "utilities.h"
+#include "sig.h"
 #include "sound/sound.h"
 #include "sound/midi.h"
 #include <sys/types.h>
@@ -53,7 +54,8 @@
 
 #define TMDTY_CHANS 2
 
-#define midotmdty_name "MIDI Output: TiMidity++ plugin"
+#define midotmdty_name "timidity"
+#define midotmdty_longname "MIDI Output: TiMidity++ plugin"
 
 static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
@@ -393,12 +395,20 @@ static void midotmdty_stop(void *arg)
     pcm_running = 0;
 }
 
+static int midotmdty_cfg(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midotmdty_name);
+}
+
 static const struct midi_out_plugin midotmdty = {
     .name = midotmdty_name,
+    .longname = midotmdty_longname,
     .open = midotmdty_init,
     .close = midotmdty_done,
     .write = midotmdty_write,
     .stop = midotmdty_stop,
+    .get_cfg = midotmdty_cfg,
+    .stype = ST_GM,
     .weight = MIDI_W_PCM,
 };
 

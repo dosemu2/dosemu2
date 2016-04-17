@@ -137,7 +137,7 @@ static void com_mouse_post_init(void)
 
   write_MCR(com_num, UART_MCR_DTR);
   for (i = 0; i < MAX_RD; i++) {
-    _set_IF();
+    set_IF();
     coopth_wait();
     clear_IF();
     if (!(get_lsr(com_num) & UART_LSR_DR))
@@ -149,7 +149,7 @@ static void com_mouse_post_init(void)
     goto out_err;
   }
   write_MCR(com_num, UART_MCR_DTR | UART_MCR_RTS);
-  _set_IF();
+  set_IF();
   coopth_wait();
   clear_IF();
   if (get_lsr(com_num) & UART_LSR_FE)

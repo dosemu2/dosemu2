@@ -42,7 +42,7 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
 #define DOSNET_FAKED_ETH_ADDRESS   "dbx\x90xx"
 
 static int num_backends;
-static struct pkt_ops ops[VNET_TYPE_MAX];
+static struct pkt_ops *ops[VNET_TYPE_MAX];
 
 static int pkt_flags;
 
@@ -63,8 +63,8 @@ static struct pkt_ops *find_ops(int id)
 {
 	int i;
 	for (i = 0; i < num_backends; i++) {
-		if (ops[i].id == id)
-			return &ops[i];
+		if (ops[i]->id == id)
+			return ops[i];
 	}
 	return NULL;
 }
@@ -324,33 +324,36 @@ int pkt_register_backend(struct pkt_ops *o)
 {
     int idx = num_backends++;
     assert(idx < ARRAY_SIZE(ops));
-    ops[idx] = *o;
+    ops[idx] = o;
     return idx;
 }
 
+static struct pkt_ops eth_ops = {
+	.id = VNET_TYPE_ETH,
+	.open = OpenNetworkLinkEth,
+	.close = CloseNetworkLinkEth,
+	.get_hw_addr = GetDeviceHardwareAddressEth,
+	.get_MTU = GetDeviceMTUEth,
+	.pkt_read = pkt_read_eth,
+	.pkt_write = pkt_write_eth,
+};
+
+static struct pkt_ops tap_ops = {
+	.id = VNET_TYPE_TAP,
+	.open = OpenNetworkLinkTap,
+	.close = CloseNetworkLinkEth,
+	.get_hw_addr = GetDeviceHardwareAddressTap,
+	.get_MTU = GetDeviceMTUEth,
+	.pkt_read = pkt_read_eth,
+	.pkt_write = pkt_write_eth,
+};
+
 void LibpacketInit(void)
 {
-	struct pkt_ops o;
-
 	GenerateDosnetID();
 
-	o.id = VNET_TYPE_ETH;
-	o.open = OpenNetworkLinkEth;
-	o.close = CloseNetworkLinkEth;
-	o.get_hw_addr = GetDeviceHardwareAddressEth;
-	o.get_MTU = GetDeviceMTUEth;
-	o.pkt_read = pkt_read_eth;
-	o.pkt_write = pkt_write_eth;
-	pkt_register_backend(&o);
-
-	o.id = VNET_TYPE_TAP;
-	o.open = OpenNetworkLinkTap;
-	o.close = CloseNetworkLinkEth;
-	o.get_hw_addr = GetDeviceHardwareAddressTap;
-	o.get_MTU = GetDeviceMTUEth;
-	o.pkt_read = pkt_read_eth;
-	o.pkt_write = pkt_write_eth;
-	pkt_register_backend(&o);
+	pkt_register_backend(&eth_ops);
+	pkt_register_backend(&tap_ops);
 
 #ifdef USE_DL_PLUGINS
 #ifdef USE_VDE

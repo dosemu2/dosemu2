@@ -177,6 +177,7 @@ static void ser_setup_custom(int num)
 
     if (!com_cfg[num].base_port)
       com_cfg[num].base_port = (cnt < 4 ? 0x2a0 : 0x1a0) + cnt * 8;
+    com_cfg[num].end_port = com_cfg[num].base_port + 6;
     if (!com_cfg[num].irq)
       com_cfg[num].irq = (cnt < 4 ? 5 : 7);
     break;
@@ -261,10 +262,12 @@ static void do_ser_init(int num)
   }
   com[num].interrupt = pic_irq_list[com_cfg[num].irq];
 
-  if (com_cfg[num].base_port <= 0) {		/* Is base port undefined? */
+  if (com_cfg[num].base_port == 0) {		/* Is base port undefined? */
     /* Define it depending on using standard addrs */
     com_cfg[num].base_port = default_com[com_cfg[num].real_comport-1].base_port;
   }
+  if (com_cfg[num].end_port == 0)
+    com_cfg[num].end_port = com_cfg[num].base_port + 7;
 
   if ((!com_cfg[num].dev || !com_cfg[num].dev[0]) && !com_cfg[num].mouse) {	/* Is the device file undef? */
     /* Define it using std devs */
@@ -295,7 +298,7 @@ static void do_ser_init(int num)
   io_device.read_portd  = NULL;
   io_device.write_portd = NULL;
   io_device.start_addr  = com_cfg[num].base_port;
-  io_device.end_addr    = com_cfg[num].base_port+7;
+  io_device.end_addr    = com_cfg[num].end_port;
   io_device.irq         = (irq_source_num[com_cfg[num].irq] == 1 ?
                            com_cfg[num].irq : EMU_NO_IRQ);
   io_device.fd		= -1;

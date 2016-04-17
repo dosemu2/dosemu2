@@ -1028,6 +1028,7 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
   char filename[8+1+3+1];
   size_t len;
 
+  name[0] = 0;
   len = 8;
   while (len && mname[len - 1] == ' ')
     len--;
@@ -1822,6 +1823,10 @@ int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)
       ufs[len - 1] = EOS;
     return TRUE;
   }
+  if (strncasecmp(path, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
+    sprintf(ufs, "LPT%s", &path[strlen(LINUX_PRN_RESOURCE) + 1]);
+    return TRUE;
+  }
 
   Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
           drives[drive].root_len));
@@ -2557,6 +2562,22 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   return i;
 }
 
+int RedirectPrinter(char *resourceName)
+{
+    int drive;
+    char *p;
+    if (strncmp(resourceName, LINUX_PRN_RESOURCE,
+             strlen(LINUX_PRN_RESOURCE)) != 0)
+      return FALSE;
+    p = resourceName + strlen(LINUX_PRN_RESOURCE);
+    if (p[0] != '\\' || !isdigit(p[1]))
+      return FALSE;
+    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
+    if (init_drive(drive, p + 1, 0) == 0)
+      return (FALSE);
+    return TRUE;
+}
+
 /*****************************
  * RedirectDevice - redirect a drive to the Linux file system
  * on entry:
@@ -2569,7 +2590,6 @@ RedirectDevice(state_t * state)
 {
   char *resourceName;
   char *deviceName;
-  char *p;
   char path[256];
   int drive;
   cds_t cds;
@@ -2580,21 +2600,12 @@ RedirectDevice(state_t * state)
   path[0] = 0;
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
-  if (strncmp(resourceName, LINUX_PRN_RESOURCE,
-	      strlen(LINUX_PRN_RESOURCE)) == 0) {
+  if (LOW(state->ebx) == 3) {
     if (state->ecx & 7) {
       Debug0((dbg_fd, "Readonly printer redirection\n"));
       return FALSE;
     }
-    p = resourceName + strlen(LINUX_PRN_RESOURCE);
-    if (p[0] != '\\' || !isdigit(p[1]))
-      return FALSE;
-    drive = PRINTER_BASE_DRIVE + toupperDOS(p[1]) - '0' - 1;
-    if (init_drive(drive, p + 1, 0) == 0) {
-      SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
-      return (FALSE);
-    }
-    return (TRUE);
+    return RedirectPrinter(resourceName);
   }
   if (strncmp(resourceName, LINUX_RESOURCE,
 	      strlen(LINUX_RESOURCE)) != 0) {
@@ -3759,12 +3770,12 @@ dos_fs_redirect(state_t *state)
 
     Debug0((dbg_fd, "Open existing file %s\n", filename1));
 
-  do_open_existing:
     if (drives[drive].read_only && dos_mode != READ_ACC) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
     build_ufs_path(fpath, filename1, drive);
+  do_open_existing:
     auspr(filename1, fname, fext);
     devptr = is_dos_device(fpath);
     if (devptr) {
@@ -3804,7 +3815,7 @@ dos_fs_redirect(state_t *state)
     /* If FCB open requested, we need to call int2f 0x120c */
     if (FCBcall) {
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      fake_int_to(INTE7_SEG, INTE7_OFF);
+      fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
     }
 
     return (TRUE);
@@ -3831,6 +3842,8 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
+    build_ufs_path(fpath, filename1, drive);
+    auspr(filename1, fname, fext);
     if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0) {
       bs_pos = filename1 + strlen(LINUX_PRN_RESOURCE);
       if (bs_pos[0] != '\\' || !isdigit(bs_pos[1]))
@@ -3846,8 +3859,6 @@ dos_fs_redirect(state_t *state)
       fext[0] = 0;
       ftype = TYPE_PRINTER;
     } else {
-     build_ufs_path(fpath, filename1, drive);
-     auspr(filename1, fname, fext);
      if (find_file(fpath, &st, drive, NULL)) {
       devptr = is_dos_device(fpath);
       if (devptr) {
@@ -3899,7 +3910,7 @@ dos_fs_redirect(state_t *state)
     /* If FCB open requested, we need to call int2f 0x120c */
     if (FCBcall) {
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      fake_int_to(INTE7_SEG, INTE7_OFF);
+      fake_int_to(FCB_HLP_SEG, FCB_HLP_OFF);
     }
     return (TRUE);
 
@@ -4194,6 +4205,13 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));
 
+      if (strncasecmp(filename1, LINUX_PRN_RESOURCE, strlen(LINUX_PRN_RESOURCE)) == 0)
+        goto do_open_existing;
+
+      if (drives[drive].read_only && dos_mode != READ_ACC) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return (FALSE);
+      }
       build_ufs_path(fpath, filename1, drive);
       file_exists = find_file(fpath, &st, drive, &doserrno);
       if (file_exists && is_dos_device(fpath))

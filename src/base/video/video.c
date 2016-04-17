@@ -26,8 +26,8 @@
 #include "port.h"
 #include "memory.h"
 #include "video.h"
+#include "render.h"
 #include "vgaemu.h"
-#include "termio.h"
 #include "vc.h"
 #include "mapping.h"
 #include "utilities.h"
@@ -37,6 +37,7 @@ struct video_system *Video = NULL;
 #define MAX_VID_CLIENTS 16
 static struct video_system *vid_clients[MAX_VID_CLIENTS];
 static int num_vid_clients;
+int video_initialized;
 
 /* I put Video_none here because I don't want to make a special file for such
  * a simple task -- Goga
@@ -54,6 +55,7 @@ static struct video_system Video_none = {
   i_empty_void,	/* priv_init */
   video_none_init,	/* init */
   NULL,		/* late_init */
+  NULL,		/* early_close */
   v_empty_void,	/* close */
   NULL,		/* setmode */
   NULL,	        /* update_screen */
@@ -185,14 +187,18 @@ struct video_system *video_get(const char *name)
  */
 static int video_init(void)
 {
+  render_init();
+
   if ((config.vga == -1 || config.console_video == -1) && using_kms())
   {
     config.vga = config.console_video = config.mapped_bios = config.pci_video = 0;
     warn("KMS detected: using SDL mode.\n");
+#ifdef SDL_SUPPORT
     load_plugin("sdl");
     Video = video_get("sdl");
     if (Video)
       config.X = 1;
+#endif
   }
 
 #if defined(USE_DL_PLUGINS)
@@ -239,12 +245,33 @@ static int video_init(void)
 #endif
   }
 
+  if (!Video) {
+    error("Unable to initialize video subsystem\n");
+    leavedos(32);
+    return -1;
+  }
+
   if (Video->priv_init)
       Video->priv_init();          /* call the specific init routine */
   return 0;
 }
 
+void video_early_close(void) {
+  if (!video_initialized)
+    return;
+  v_printf("VID: video_early_close() called\n");
+  if (Video && Video->early_close) {
+    Video->early_close();
+    v_printf("VID: video_close()->Video->early_close() called\n");
+  }
+  /* Note: update_screen() may be called up to video_close().
+   * Hope that plugins that implement early_close(), do NOT implement
+   * update_screen() at the same time. */
+}
+
 void video_close(void) {
+  if (!video_initialized)
+    return;
   v_printf("VID: video_close() called\n");
   if (Video && Video->close) {
     Video->close();

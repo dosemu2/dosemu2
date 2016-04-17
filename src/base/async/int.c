@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -32,7 +31,6 @@
 #include "int.h"
 #include "dos2linux.h"
 #include "video.h"
-#include "vc.h"
 #include "priv.h"
 #include "doshelpers.h"
 #include "plugin_config.h"
@@ -99,7 +97,7 @@ static void set_iret(void)
   REG(eflags) = ((REG(eflags) & mask) | (flgs & ~mask));
 }
 
-static void jmp_to(int cs, int ip)
+void jmp_to(int cs, int ip)
 {
   REG(cs) = cs;
   REG(eip) = ip;
@@ -116,10 +114,21 @@ static void kill_time(long usecs) {
 
    t_start = GETusTIME(0);
    while (GETusTIME(0) - t_start < usecs) {
-	_set_IF();
+	set_IF();
 	coopth_wait();
 	clear_IF();
    }
+}
+
+static void mbr_jmp(void *arg)
+{
+   unsigned offs = (long)arg;
+   fake_iret();
+   LWORD(esp) = 0x7c00;
+   LWORD(cs)  = LWORD(ds) = LWORD(es) = LWORD(ss) = 0;
+   LWORD(edi) = 0x7dfe;
+   LWORD(eip) = 0x7c00;
+   LWORD(ebp) = LWORD(esi) = offs;
 }
 
 static void process_master_boot_record(void)
@@ -158,6 +167,7 @@ static void process_master_boot_record(void)
    struct mbr *mbr = LOWMEM(0x600);
    struct mbr *bootrec = LOWMEM(0x7c00);
    int i;
+   unsigned offs;
 
    memcpy(mbr, bootrec, 0x200);	/* move the mbr down */
 
@@ -169,24 +179,21 @@ static void process_master_boot_record(void)
      p_dos_str("\n\rno bootflag set, Leaving DOS...\n\r");
      leavedos(99);
    }
-   LWORD(cs) = LWORD(ds) = LWORD(es) = LWORD(ss) =0;
-   LWORD(esp) = 0x7c00;
    LO(dx) = 0x80;  /* drive C:, DOS boots only from C: */
    HI(dx) = mbr->partition[i].start_head;
    LO(cx) = mbr->partition[i].start_sector;
    HI(cx) = mbr->partition[i].start_track;
    LWORD(eax) = 0x0201;  /* read one sector */
    LWORD(ebx) = 0x7c00;  /* target offset, ES is 0 */
-   int13();   /* we simply call our INT13 routine, hence we will not have
-                 to worry about future changements to this code */
+   do_int_call_back(0x13);
    if ((REG(eflags) & CF) || (bootrec->bootmagic != 0xaa55)) {
      /* error while booting */
      p_dos_str("\n\rerror on reading bootsector, Leaving DOS...\n\r");
      leavedos(99);
    }
-   LWORD(edi)= 0x7dfe;
-   LWORD(eip) = 0x7c00;
-   LWORD(ebp) = LWORD(esi) = 0x600 + offsetof(struct mbr, partition[i]);
+
+   offs = 0x600 + offsetof(struct mbr, partition[i]);
+   coopth_add_post_handler(mbr_jmp, (void *)(long)offs);
 }
 
 static int inte6(void)
@@ -207,7 +214,7 @@ int dos_helper(void)
      * ...we let GCC at compiletime translate it to 0xHHLL, HH=major, LL=minor.
      * This way we avoid usage of float instructions.
      */
-    LWORD(ecx) = 0;//PATCHLEVEL1 * 0x100 + PATCHLEVEL2;
+    LWORD(ecx) = REVISION;
     LWORD(edx) = (config.X)? 0x1:0;  /* Return if running under X */
     g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);
@@ -310,8 +317,7 @@ int dos_helper(void)
 
   case DOS_HELPER_VIDEO_INIT_DONE:
     v_printf("Finished with Video initialization\n");
-    config.emuretrace <<= 1;
-    emu_video_retrace_on();
+    video_initialized = 1;
     break;
 
   case DOS_HELPER_GET_DEBUG_STRING:
@@ -392,10 +398,6 @@ int dos_helper(void)
     mouse_helper(&vm86s.regs);
     break;
 
-  case DOS_HELPER_PAUSE_KEY:
-    pic_set_callback(Pause_SEG, Pause_OFF);
-    break;
-
   case DOS_HELPER_CDROM_HELPER:{
       E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
 	       "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
@@ -415,11 +417,14 @@ int dos_helper(void)
     run_unix_command(SEG_ADR((char *), es, dx));
     break;
 
-  case DOS_HELPER_GET_USER_COMMAND:
+  case DOS_HELPER_GET_USER_COMMAND: {
+    int is_ux;
     /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
     g_printf("Locating DOS Command\n");
-    LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
+    LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx), &is_ux);
+    LO(bx) = is_ux;
     break;
+  }
 
   case DOS_HELPER_GET_UNIX_ENV:
     /* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
@@ -482,7 +487,7 @@ int dos_helper(void)
 #endif
 	    /* we could also enter from inside dpmi, provided we already
 	     * mirrored the LDT into the emu's own one */
-	    if ((config.cpuemu==1) && !in_dpmi) enter_cpu_emu();
+	    if ((config.cpuemu==1) && !dpmi_active()) enter_cpu_emu();
   	}
         break;
   case DOS_HELPER_CPUEMUOFF:
@@ -490,7 +495,7 @@ int dos_helper(void)
 #ifdef TRACE_DPMI
 	&& (debug_level('t')==0)
 #endif
-	&& !in_dpmi)
+	&& !dpmi_active())
 	    leave_cpu_emu();
         break;
 #endif
@@ -503,10 +508,13 @@ int dos_helper(void)
         break;
   case DOS_HELPER_BOOTSECT:
       coopth_leave();
+      fake_iret();
       fdkernel_boot_mimic();
       break;
+  case DOS_HELPER_READ_MBR:
+      boot();
+      break;
   case DOS_HELPER_MBR:
-    coopth_leave();
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();
       break;
@@ -540,9 +548,6 @@ static int int15(void)
 
   if (HI(ax) != 0x4f)
     NOCARRY;
-  /* REG(eflags) |= VIF;
-  WRITE_FLAGSE(READ_FLAGSE() | VIF);
-  */
 
   switch (HI(ax)) {
   case 0x10:			/* TopView/DESQview */
@@ -595,7 +600,7 @@ static int int15(void)
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
     /*k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));*/
-    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (READ_FLAGS() & CF),LWORD(eax));
+    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (_FLAGS & CF),LWORD(eax));
     CARRY;
 /*
     if (LO(ax) & 0x80 )
@@ -1145,14 +1150,14 @@ Return: nothing
 static int redir_it(void);
 static int int21(void);
 
-static unsigned short int21seg, int21off;
+static far_t s_int21;
 
 static void int21_post_boot(void)
 {
   if (int21_hooked)
     return;
-  int21seg = ISEG(0x21);
-  int21off = IOFF(0x21);
+  s_int21.segment = ISEG(0x21);
+  s_int21.offset  = IOFF(0x21);
   SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
   int21_hooked = 1;
   ds_printf("INT21: interrupt hook installed\n");
@@ -1162,16 +1167,15 @@ static void int21_post_boot(void)
   reset_revectored(0x21, &vm86s.int_revectored);
 }
 
-static int int21lfnhook(void)
+static void nr_int_chain(void *arg)
 {
-  if (!(HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57) || !mfs_lfn())
-    jmp_to(int21seg, int21off);
-  return 1;
+  far_t *jmp = arg;
+  jmp_to(jmp->segment, jmp->offset);
 }
 
-static void int21lfnhook_thr(void *arg)
+static void chain_int_norevect(far_t *jmp)
 {
-  int21lfnhook();
+  coopth_add_post_handler(nr_int_chain, jmp);
 }
 
 static int msdos(void)
@@ -1354,11 +1358,13 @@ static int msdos(void)
 static int int21(void)
 {
   int ret = msdos();
-  if (ret == 0) {
-    coopth_set_post_handler(int21lfnhook_thr, NULL);
-    return 1;
+  if (!ret) {
+    if (HI(ax) == 0x71 || HI(ax) == 0x73 || HI(ax) == 0x57)
+      ret = mfs_lfn();
   }
-  return ret;
+  if (!ret)
+    chain_int_norevect(&s_int21);
+  return 1;
 }
 
 void int42_hook(void)
@@ -1487,39 +1493,8 @@ int can_revector(int i)
 #endif
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
-  case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
-  case 0xe7:			/* for mfs FCB helper */
-    return REVECT;
-  /* following 3 vectors must be revectored for DPMI */
-  case 0x1c:			/* ROM BIOS timer tick interrupt */
-  case 0x23:			/* DOS Ctrl+C interrupt */
-  case 0x24:			/* DOS critical error interrupt */
-    return config.dpmi ? REVECT : NO_REVECT;
-
-  case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
-    /* hogthreshold may be changed using "speed". Easiest to leave it
-       permanently enabled for now */
     return REVECT;
 
-#if 0		/* no need to specify all */
-  case 0x10:			/* BIOS video */
-  case 0x13:			/* BIOS disk */
-  case 0x15:
-  case 0x16:			/* BIOS keyboard */
-  case 0x17:			/* BIOS printer */
-  case 0x1b:			/* ctrl-break handler */
-  case 0x1c:			/* user timer tick */
-  case 0x20:			/* exit program */
-  case 0x25:			/* absolute disk read, calls int 13h */
-  case 0x26:			/* absolute disk write, calls int 13h */
-  case 0x27:			/* TSR */
-  case 0x2a:
-  case 0x60:
-  case 0x61:
-  case 0x62:
-  case 0x67:			/* EMS */
-  case 0xfe:			/* Turbo Debugger and others... */
-#endif
   default:
     return NO_REVECT;
   }
@@ -1534,8 +1509,12 @@ static void do_print_screen(void) {
     g_printf("PrintScreen: base=%x, lines=%i columns=%i\n", base, li, co);
     if (printer_open(0) == -1) return;
     for (y_pos=0; y_pos < li; y_pos++) {
-	for (x_pos=0; x_pos < co; x_pos++)
-	    printer_write(0, vga_read(base + 2*(y_pos*co + x_pos)));
+	for (x_pos=0; x_pos < co; x_pos++) {
+	    uint8_t val = vga_read(base + 2*(y_pos*co + x_pos));
+	    if (val == 0)
+		val = ' ';
+	    printer_write(0, val);
+	}
 	printer_write(0, 0x0d);
 	printer_write(0, 0x0a);
     }
@@ -1579,34 +1558,23 @@ static int int19(void) {
   return 1;
 }
 
-static void do_dpmi_int(void *arg)
+static int redir_printers(void)
 {
-  int i = (long)arg;
-  run_pm_dos_int(i);
-}
+    char resourceStr[128];
+    int i;
+    int max = lpt_get_max();
 
-static int int1c(void)
-{
-  if (!in_dpmi)
+    for (i = NUM_LPTS; i < max; i++) {
+	if (!lpt_is_configured(i))
+	    continue;
+	sprintf(resourceStr, LINUX_PRN_RESOURCE"\\%i", i + 1);
+	c_printf("redirecting LPT%i\n", i + 1);
+	if (!RedirectPrinter(resourceStr)) {
+	    printf("failure redirecting LPT%i\n", i + 1);
+	    return 1;
+	}
+    }
     return 0;
-  coopth_set_post_handler(do_dpmi_int, (void *)0x1c);
-  return 1;
-}
-
-static int int23(void)
-{
-  if (!in_dpmi)
-    return 0;
-  coopth_set_post_handler(do_dpmi_int, (void *)0x23);
-  return 1;
-}
-
-static int int24(void)
-{
-  if (!in_dpmi)
-    return 0;
-  coopth_set_post_handler(do_dpmi_int, (void *)0x24);
-  return 1;
 }
 
 /*
@@ -1626,6 +1594,7 @@ void redirect_devices(void)
       ds_printf("INT21: redirecting %c: %s (err = %d)\n", i + 'C', j ? "failed" : "ok", j);
     }
   }
+  redir_printers();
 }
 
 /*
@@ -1812,7 +1781,7 @@ static int int2f(void)
   case 0x16:		/* misc PM/Win functions */
     switch (LO(ax)) {
       case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-    if (in_dpmi && win31_mode) {
+    if (dpmi_active() && win31_mode) {
       D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK: %i\n", win31_mode);
       if (win31_mode == 3)
         LWORD(eax) = 0x0a03;
@@ -1828,12 +1797,12 @@ static int int2f(void)
       case 0x07:		/* Win95 Device CallOut */
       case 0x08:		/* Win95 Init Complete Notification */
       case 0x09:		/* Win95 Begin Exit Notification */
-	if (in_dpmi)
+	if (dpmi_active())
 	  return 1;
 	break;
 
       case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
-    if(in_dpmi && win31_mode) {
+    if(dpmi_active() && win31_mode) {
       D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
       LWORD(eax) = 0;
       LWORD(ebx) = 0x030a;	/* 3.10 */
@@ -1843,17 +1812,17 @@ static int int2f(void)
       break;
 
       case 0x83:
-        if (in_dpmi && win31_mode)
+        if (dpmi_active() && win31_mode)
             LWORD (ebx) = 0;	/* W95: number of virtual machine */
       case 0x81:		/* W95: enter critical section */
-        if (in_dpmi && win31_mode) {
+        if (dpmi_active() && win31_mode) {
 	    D_printf ("WIN: enter critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
   }
       break;
       case 0x82:		/* W95: exit critical section */
-        if (in_dpmi && win31_mode) {
+        if (dpmi_active() && win31_mode) {
 	    D_printf ("WIN: exit critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
 	    return 1;
@@ -1915,10 +1884,6 @@ static int int33(void) {
 /* N.B. This code lets the real mode mouse driver return at a HLT, so
  * after it returns the hogthreshold code can do its job.
  */
-  if (IS_REDIRECTED(0x33)) {
-    int33_check_hog();
-    return 0;
-  }
   mouse_int();
   int33_check_hog();
   return 1;
@@ -1955,22 +1920,16 @@ static void int33_check_hog(void)
   idle(200, 20, 20, "mouse");
 }
 
-/* mfs FCB call */
-static int inte7(void) {
-  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  return 0;
-}
-
 static void debug_int(const char *s, int i)
 {
- 	if (((i != 0x28) && (i != 0x2f)) || in_dpmi) {
- 		di_printf("%s INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
- 			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
- 			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
- 			  s, i, _EAX, _EBX, _SS, _ESP,
- 			  _ECX, _EDX, _DS, _CS, _IP,
- 			  _ESI, _EDI, _ES, (int) read_EFLAGS());
- 	}
+	if (((i != 0x28) && (i != 0x2f)) || dpmi_active()) {
+		di_printf("%s INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
+			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
+			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
+			  s, i, _EAX, _EBX, _SS, _ESP,
+			  _ECX, _EDX, _DS, _CS, _IP,
+			  _ESI, _EDI, _ES, (int) read_EFLAGS());
+	}
 }
 
 static void do_int_from_thr(void *arg)
@@ -1979,8 +1938,12 @@ static void do_int_from_thr(void *arg)
     run_caller_func(i, NO_REVECT);
     if (debug_level('#') > 2)
 	debug_int("RET", i);
+/* for now dosdebug uses int_revect feature, so this should be disabled
+ * or it will display the same entry twice */
+#if 0
 #ifdef USE_MHPDBG
     mhp_debug(DBG_INTx + (i << 8), 0, 0);
+#endif
 #endif
 }
 
@@ -2024,7 +1987,7 @@ static void do_int_thr(void *arg)
 			if ((i != 0x2a) && (i != 0x28))
 				g_printf("just an iret 0x%02x\n", i);
 		} else {
-			coopth_set_post_handler(
+			coopth_add_post_handler(
 				int_chain_thr, (void *)(long)i);
 		}
 	}
@@ -2194,7 +2157,7 @@ static void ret_from_int(Bit16u i, void *arg)
   _CS = popw(ssp, sp);
   flgs = popw(ssp, sp);
   if (flgs & IF)
-    _set_IF();
+    set_IF();
   else
     clear_IF();
   REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
@@ -2216,7 +2179,7 @@ static void rvc_int_post(int tid)
 {
   u_short flgs = (long)coopth_pop_user_data(tid);
   if (flgs & IF)
-    _set_IF();
+    set_IF();
   else
     clear_IF();
   REG(eflags) |= (flgs & (TF_MASK | NT_MASK));
@@ -2258,22 +2221,16 @@ void setup_interrupts(void) {
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
 
-  interrupt_function[0x1c][REVECT] = int1c;
-  interrupt_function[0x23][REVECT] = int23;
-  interrupt_function[0x24][REVECT] = int24;
-
   interrupt_function[0x21][REVECT] = msdos;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
   interrupt_function[0x2f][REVECT] = int2f;
-  interrupt_function[0x33][NO_REVECT] = mouse_int;
-  interrupt_function[0x33][REVECT] = int33;
+  interrupt_function[0x33][NO_REVECT] = int33;
 #ifdef IPX
   if (config.ipxsup)
     interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
 #endif
-  interrupt_function[DOS_HELPER_INT][REVECT] = inte6;
-  interrupt_function[0xe7][REVECT] = inte7;
+  interrupt_function[DOS_HELPER_INT][NO_REVECT] = inte6;
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {

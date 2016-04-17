@@ -35,7 +35,8 @@ static void seqbuf_dump(void);
 SEQ_DEFINEBUF(128);
 
 static int seq_fd = -1;
-#define midooss_name "MIDI Output: OSS sequencer"
+#define midooss_name "oss"
+#define midooss_longname "MIDI Output: OSS sequencer"
 
 static void seqbuf_dump(void)
 {
@@ -72,11 +73,19 @@ static void midooss_write(unsigned char val)
     SEQ_DUMPBUF();
 }
 
+static int midooss_cfg(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midooss_name);
+}
+
 static const struct midi_out_plugin midooss = {
     .name = midooss_name,
+    .longname = midooss_longname,
     .open = midooss_init,
     .close = midooss_done,
     .write = midooss_write,
+    .get_cfg = midooss_cfg,
+    .stype = ST_GM,
 };
 
 CONSTRUCTOR(static void midooss_register(void))

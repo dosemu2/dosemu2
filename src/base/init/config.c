@@ -174,8 +174,8 @@ void dump_config_status(void (*printfunc)(const char *, ...))
 	config.mem_size, config.ext_mem);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
-    (*print)("umb_a0 %i\numb_b0 %i\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
-        config.umb_a0, config.umb_b0, config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
+    (*print)("umb_a0 %i\numb_b0 %i\numb_f0 %i\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\nignore_djgpp_null_derefs %i\n",
+        config.umb_a0, config.umb_b0, config.umb_f0, config.dpmi, config.dpmi_base, config.pm_dos_api, config.no_null_checks);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
@@ -304,7 +304,6 @@ void dump_config_status(void (*printfunc)(const char *, ...))
     (*print)("pcm_hpf %i\nmidi_file %s\nwav_file %s\n",
 	config.pcm_hpf, config.midi_file, config.wav_file);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
-    (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
         config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
 
@@ -332,6 +331,8 @@ static void our_envs_init(void)
     char *s;
     char buf[256];
 
+    strcpy(buf, on_console() ? "1" : "0");
+    setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
     uname(&unames);
     kernel_version_code = strtol(unames.release, &s,0) << 16;
     kernel_version_code += strtol(s+1, &s,0) << 8;
@@ -486,7 +487,8 @@ static void read_cpu_info(void)
 		char cdd[8]; int i;
 		long long chz = 0;
 		char *p = cpuflags;
-		while (*p!='.') p++; p++;
+		while (*p!='.') p++;
+		p++;
 		for (i=0; i<6; i++) cdd[i]=(*p && isdigit(*p)? *p++:'0');
 		cdd[6]=0; sscanf(cdd,"%d",&df);
 		/* speed division factor to get 1us from CPU clocks - for
@@ -549,8 +551,14 @@ static void config_post_process(void)
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
 	read_cpu_info();
     if (vm86s.cpu_type > config.realcpu) {
-    	vm86s.cpu_type = config.realcpu;
-    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
+	vm86s.cpu_type = config.realcpu;
+	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %d86\n",(int)vm86s.cpu_type);
+    }
+    if (config.cpu_vm != CPUVM_EMU) {
+      config.cpuemu = 0;
+    } else if (config.cpuemu == 0) {
+	config.cpuemu = 3;
+	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
     }
     if (config.rdtsc) {
 	if (config.smp) {
@@ -566,13 +574,17 @@ static void config_post_process(void)
     if (!Video && getenv("DISPLAY") && !config.X && !config.term) {
 	config.console_video = 0;
 	config.emuretrace = 0;	/* already emulated */
-	if (config.X_font && config.X_font[0]) {
+#ifdef SDL_SUPPORT
+	if (config.X_font && config.X_font[0])
+#endif
+	{
 	    load_plugin("X");
 	    Video = video_get("X");
 	    if (Video) {
 		config.X = 1;
 		config.mouse.type = MOUSE_X;
 	    }
+#ifdef SDL_SUPPORT
 	} else {
 	    load_plugin("sdl");
 	    Video = video_get("sdl");
@@ -582,6 +594,7 @@ static void config_post_process(void)
 		config.sdl_sound = 1;
 		config.mouse.type = MOUSE_SDL;
 	    }
+#endif
 	}
     }
     if (on_console()) {
@@ -756,7 +769,7 @@ config_init(int argc, char **argv)
     int i;
     const char * const getopt_string =
        "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
-       "gK"/*NOPs kept for compat (not documented in usage())*/;
+       "gK:"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
@@ -933,11 +946,6 @@ config_init(int argc, char **argv)
 	    break;
 	case 'g': /* obsolete "graphics" option */
 	    break;
-	case 'K':
-#if 0 /* now dummy, leave it for compatibility */
-	    warn("Keyboard interrupt enabled...this is still buggy!\n");
-#endif
-	    break;
 	case 'A':
 	    if (!dexe_running) config.hdiskboot = 0;
 	    break;
@@ -1028,7 +1036,11 @@ config_init(int argc, char **argv)
 
 	case 'E':
 	    g_printf("DOS command given on command line\n");
-	    misc_e6_store_command(optarg,0);
+	    misc_e6_store_command(optarg, 0, 0);
+	    break;
+	case 'K':
+	    g_printf("DOS command given via unix path\n");
+	    misc_e6_store_command(optarg, 1, 0);
 	    break;
 
 	case '?':
@@ -1042,7 +1054,7 @@ config_init(int argc, char **argv)
     }
     while (optind < argc) {
 	g_printf("DOS command given on command line\n");
-	misc_e6_store_command(argv[optind],1);
+	misc_e6_store_command(argv[optind], 1, 1);
 	optind++;
     }
     config_post_process();

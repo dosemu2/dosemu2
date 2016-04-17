@@ -4,7 +4,7 @@ rem must be edited in most circumstances
 d:\lredir z: linux\fs\${DOSEMU_LIB_DIR}/drive_z ro
 path c:\dos;c:\windows\command;z:\dosemu
 set TEMP=c:\tmp
-blaster
+sound /e
 prompt $P$G
 unix -s DOSDRIVE_D
 if "%DOSDRIVE_D%" == "" goto nodrived

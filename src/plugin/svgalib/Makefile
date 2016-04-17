@@ -20,6 +20,3 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_svgalib.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(SVGALIBLIB)
 endif
-
-realclean::
-	rm -rf Makefile.conf autom4te.cache configure *.log *.m4 config.status

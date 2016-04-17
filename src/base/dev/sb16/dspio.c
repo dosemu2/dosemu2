@@ -42,12 +42,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <math.h>
 
 #define DAC_BASE_FREQ 5625
 #define PCM_MAX_BUF 512
 
 struct dspio_dma {
-    int running;
+    int running:1;
     int num;
     int broken_hdma;
     int rate;
@@ -279,7 +280,8 @@ static const struct pcm_player player = {
 };
 
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg);
-int dspio_is_connected(int id, void *arg);
+static int dspio_is_connected(int id, void *arg);
+static int dspio_checkid2(void *id2, void *arg);
 
 void *dspio_init(void)
 {
@@ -290,7 +292,8 @@ void *dspio_init(void)
     memset(&state->dma, 0, sizeof(struct dspio_dma));
     state->input_running = state->pcm_input_running =
 	state->lin_input_running = state->mic_input_running =
-	state->output_running = state->dac_running = state->speaker = 0;
+	state->output_running = state->dac_running = state->speaker =
+	state->i_started = 0;
     state->dma.dsp_fifo_enabled = 1;
 
     rng_init(&state->fifo_in, DSP_FIFO_SIZE, 2);
@@ -303,12 +306,14 @@ void *dspio_init(void)
 
     pcm_set_volume_cb(dspio_get_volume);
     pcm_set_connected_cb(dspio_is_connected);
+    pcm_set_checkid2_cb(dspio_checkid2);
     state->dac_strm = pcm_allocate_stream(1, "SB DAC", (void*)MC_VOICE);
     pcm_set_flag(state->dac_strm, PCM_FLAG_RAW);
     state->dma_strm = pcm_allocate_stream(2, "SB DMA", (void*)MC_VOICE);
     pcm_set_flag(state->dma_strm, PCM_FLAG_SLTS);
 
     midi_init();
+    mpu401_enable_imode(midi_get_synth_type() == ST_MT32);
     return state;
 }
 
@@ -318,8 +323,9 @@ void dspio_reset(void *dspio)
 
 void dspio_done(void *dspio)
 {
-    pcm_done();
     midi_done();
+    /* shutdown midi before pcm as midi may use pcm */
+    pcm_done();
 
     rng_destroy(&DSPIO->fifo_in);
     rng_destroy(&DSPIO->fifo_out);
@@ -470,15 +476,17 @@ static int dspio_run_dma(struct dspio_state *state)
     int ret;
     struct dspio_dma *dma = &state->dma;
     hitimer_t now = GETusTIME(0);
-    sb_dma_processing();	// notify that DMA busy
     ret = do_run_dma(state);
     if (ret) {
 	sb_handle_dma();
 	dma->time_cur = now;
-    } else if (now - dma->time_cur > DMA_TIMEOUT_US) {
-	S_printf("SB: Warning: DMA busy for too long, releasing\n");
-//	error("SB: DMA timeout\n");
-	sb_handle_dma_timeout();
+    } else {
+	sb_dma_nack();
+	if (now - dma->time_cur > DMA_TIMEOUT_US) {
+	    S_printf("SB: Warning: DMA busy for too long, releasing\n");
+//		error("SB: DMA timeout\n");
+	    sb_handle_dma_timeout();
+	}
     }
     return ret;
 }
@@ -566,7 +574,7 @@ static int calc_nframes(struct dspio_state *state,
 {
     int nfr;
     if (state->dma.rate) {
-	nfr = (time_dst - time_beg) / pcm_frame_period_us(state->dma.rate);
+	nfr = (time_dst - time_beg) / pcm_frame_period_us(state->dma.rate) + 1;
 	if (nfr < 0)	// happens because of get_stream_time() hack
 	    nfr = 0;
 	if (nfr > PCM_MAX_BUF)
@@ -616,8 +624,11 @@ static void dspio_process_dma(struct dspio_state *state)
 		dma_cnt++;
 	    }
 	    if (!dspio_get_output_sample(state, &buf[i][j],
-		    state->dma.is16bit))
+		    state->dma.is16bit)) {
+		if (out_fifo_cnt && debug_level('S') >= 5)
+		    S_printf("SB: no output samples\n");
 		break;
+	    }
 #if 0
 	    /* if speaker disabled, overwrite DMA data with silence */
 	    /* on SB16 is not used */
@@ -646,7 +657,7 @@ static void dspio_process_dma(struct dspio_state *state)
 	if (!sb_dma_active()) {
 	    dspio_stop_output(state);
 	} else {
-	    if (nfr && !warned) {
+	    if (nfr && (!warned || debug_level('S') >= 9)) {
 		S_printf("SB: Output FIFO exhausted while DMA is still active (ol=%f)\n",
 			 time_dst - output_time_cur);
 		warned = 1;
@@ -763,6 +774,9 @@ void dspio_write_dac(void *dspio, Bit8u samp)
 			  1, DSPIO->dac_strm);
 }
 
+/* the volume APIs for sb16 and sndpcm are very different.
+ * We need a lot of glue below to get them to work together.
+ * I wonder if it is possible to design the APIs with fewer glue in between. */
 static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
 {
     double vol;
@@ -818,7 +832,14 @@ static double dspio_get_volume(int id, int chan_dst, int chan_src, void *arg)
     return vol;
 }
 
-int dspio_is_connected(int id, void *arg)
+/* FIXME: this is too slow! Needs caching to avoid re-calcs. */
+double dspio_calc_vol(int val, int step, int init_db)
+{
+#define LOG_SCALE 0.02
+    return pow(10, LOG_SCALE * (val * step + init_db));
+}
+
+static int dspio_is_connected(int id, void *arg)
 {
     enum MixChan mc = (long)arg;
 
@@ -831,4 +852,12 @@ int dspio_is_connected(int id, void *arg)
 	return sb_is_input_connected(mc);
     }
     return 0;
+}
+
+static int dspio_checkid2(void *id2, void *arg)
+{
+    enum MixChan mc = (long)arg;
+    enum MixChan mc2 = (long)id2;
+
+    return (mc2 == MC_NONE || mc2 == mc);
 }

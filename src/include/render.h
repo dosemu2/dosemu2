@@ -6,6 +6,10 @@
 
 /* definitions for rendering graphics modes -- the middle layer
    between the graphics frontends and the remapper */
+#ifndef RENDER_H
+#define RENDER_H
+
+#include "remap.h"
 
 struct render_system
 {
@@ -20,7 +24,8 @@ int register_remapper(struct remap_calls *calls, int prio);
 int remapper_init(int have_true_color, int have_shmap, int features,
 	ColorSpaceDesc *csd);
 void remapper_done(void);
-void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res);
+struct vid_mode_params get_mode_parameters(void);
+int render_update_vidmode(void);
 int update_screen(void);
 void color_space_complete(ColorSpaceDesc *color_space);
 void render_blit(int x, int y, int width, int height);
@@ -28,3 +33,6 @@ int render_is_updating(void);
 void redraw_text_screen(void);
 void render_gain_focus(void);
 void render_lose_focus(void);
+int render_init(void);
+
+#endif

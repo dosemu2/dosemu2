@@ -64,7 +64,7 @@
 /*
  * Activate some debug output.
  */
-#define DEBUG_INT10	0
+#define DEBUG_INT10	1
 #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
 #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
 
@@ -438,7 +438,8 @@ static int adjust_font_size(int vga_font_height)
  * -- 1998/04/04 sw
  */
 
-boolean set_video_mode(int mode) {
+boolean set_video_mode(int mode)
+{
   vga_mode_info *vmi;
   int clear_mem = 1;
   unsigned u;
@@ -478,18 +479,6 @@ boolean set_video_mode(int mode) {
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
   MEMSET_DOS(0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
-  if(Video->setmode == NULL) {
-    /* set display start to 0 */
-    crt_outw(0xc, 0);
-    /* mode control to text mode default */
-    crt_outw(0x17, 0xa3);
-    /* mode change clears screen unless bit7 of AL set */
-    if(clear_mem)
-      clear_screen();
-    i10_msg("set_video_mode: no setmode handler!\n");
-    return 0;
-  }
-
   if(config.cardtype == CARD_MDA) mode = 7;
 
   if(mode == 7) {
@@ -510,8 +499,13 @@ boolean set_video_mode(int mode) {
    */
   WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
 
-  li = vmi->text_height;
-  co = vmi->text_width;
+  if (Video->setmode != NULL) {
+    li = vmi->text_height;
+    co = vmi->text_width;
+  } else {
+    li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+    co = READ_WORD(BIOS_SCREEN_COLUMNS);
+  }
 
   video_mode = orig_mode;
 

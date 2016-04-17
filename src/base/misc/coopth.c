@@ -64,6 +64,7 @@ struct coopth_thrdata_t {
     int attached:1;
     int cancelled:1;
     int left:1;
+    int atomic_switch:1;
 };
 
 struct coopth_ctx_handlers_t {
@@ -92,6 +93,7 @@ struct coopth_per_thread_t {
     void *stack;
     size_t stk_size;
     Bit16u ret_cs, ret_ip;
+    int quick_sched:1;
     int dbg;
 };
 
@@ -326,7 +328,8 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     case COOPTHS_RUNNING: {
 	int jr, lr;
 	enum CoopthRet tret;
-	/* We have 2 kinds of recursion:
+
+	/* We have 2 kinds of recursion for joinable threads:
 	 *
 	 * 1. (call it recursive thread invocation)
 	 *	main_thread -> coopth_start(thread1_func) -> return
@@ -354,13 +357,18 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	 * Since do_int_call_back() was converted
 	 * to coopth API, the nesting is avoided.
 	 * If not true, we print an error.
+	 *
+	 * Also do not allow any recursion at all into detached threads
+	 * or the mix of joinable+detached, but the left threads are allowed
+	 * to do any mayhem.
 	 */
-	if (joinable_running) {
+	if (thread_running > left_running) {
 	    static int warned;
 	    if (!warned) {
 		warned = 1;
 		dosemu_error("Nested thread invocation detected, please fix! "
-			"(at=%i)\n", pth->data.attached);
+			"(at=%i jr=%i)\n", pth->data.attached,
+			joinable_running);
 	    }
 	}
 	jr = joinable_running;
@@ -399,6 +407,7 @@ static void __thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 	    dosemu_sleep();
 	break;
     case COOPTHS_SWITCH:
+	pth->data.atomic_switch = 0;
 	pth->st.switch_fn(thr, pth);
 	break;
     }
@@ -410,7 +419,8 @@ static void thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     do {
 	__thread_run(thr, pth);
 	state = pth->st.state;
-    } while (state == COOPTHS_RUNNING);
+    } while (state == COOPTHS_RUNNING || (state == COOPTHS_SWITCH &&
+	    pth->data.atomic_switch));
 }
 
 static void coopth_hlt(Bit16u offs, void *arg)
@@ -532,15 +542,12 @@ void coopth_ensure_sleeping(int tid)
     assert(pth->st.state == COOPTHS_SLEEPING);
 }
 
-int coopth_start(int tid, coopth_func_t func, void *arg)
+static int do_start(struct coopth_t *thr, struct coopth_state_t st,
+	coopth_func_t func, void *arg)
 {
-    struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     int tn;
 
-    check_tid(tid);
-    thr = &coopthreads[tid];
-    assert(thr->tid == tid);
     if (thr->cur_thr >= MAX_COOP_RECUR_DEPTH) {
 	int i;
 	error("Coopthreads recursion depth exceeded, %s off=%x\n",
@@ -577,9 +584,11 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     pth->data.udata_num = 0;
     pth->data.cancelled = 0;
     pth->data.left = 0;
+    pth->data.atomic_switch = 0;
     pth->args.thr.func = func;
     pth->args.thr.arg = arg;
     pth->args.thrdata = &pth->data;
+    pth->quick_sched = 0;
     pth->dbg = LWORD(eax);	// for debug
     pth->thread = co_create(coopth_thread, &pth->args, pth->stack,
 	    pth->stk_size);
@@ -588,10 +597,10 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
 	leavedos(2);
 	return -1;
     }
-    pth->st = ST(RUNNING);
+    pth->st = st;
     if (tn == 0) {
 	assert(threads_active < MAX_ACT_THRS);
-	active_tids[threads_active++] = tid;
+	active_tids[threads_active++] = thr->tid;
     } else if (thr->pth[tn - 1].st.state == COOPTHS_SLEEPING) {
 	static int logged;
 	/* will have problems with wake-up by tid. It is possible
@@ -609,6 +618,34 @@ int coopth_start(int tid, coopth_func_t func, void *arg)
     threads_total++;
     if (!thr->detached)
 	coopth_callf(thr, pth);
+    return 0;
+}
+
+int coopth_start(int tid, coopth_func_t func, void *arg)
+{
+    struct coopth_t *thr;
+    int err;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    assert(thr->tid == tid);
+    err = do_start(thr, ST(RUNNING), func, arg);
+    if (err)
+	return err;
+    return 0;
+}
+
+int coopth_start_sleeping(int tid, coopth_func_t func, void *arg)
+{
+    struct coopth_t *thr;
+    int err;
+    check_tid(tid);
+    thr = &coopthreads[tid];
+    assert(thr->tid == tid);
+    err = do_start(thr, ST(SLEEPING), func, arg);
+    if (err)
+	return err;
+    if (thr->sleeph.pre)
+	thr->sleeph.pre(thr->tid);
     return 0;
 }
 
@@ -674,12 +711,11 @@ int coopth_unsafe_detach(int tid)
     return 0;
 }
 
-void coopth_run(void)
+static int run_traverser(int (*pred)(struct coopth_per_thread_t *),
+	void (*post)(struct coopth_per_thread_t *))
 {
     int i;
-    assert(DETACHED_RUNNING >= 0);
-    if (DETACHED_RUNNING)
-	return;
+    int cnt = 0;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];
 	struct coopth_t *thr = &coopthreads[tid];
@@ -692,8 +728,33 @@ void coopth_run(void)
 		error("coopth: switching to left thread?\n");
 	    continue;
 	}
+	if (pred && !pred(pth))
+	    continue;
 	thread_run(thr, pth);
+	if (post)
+	    post(pth);
+	cnt++;
     }
+    return cnt;
+}
+
+static int quick_sched_pred(struct coopth_per_thread_t *pth)
+{
+    return pth->quick_sched;
+}
+
+static void quick_sched_post(struct coopth_per_thread_t *pth)
+{
+    pth->quick_sched = 0;
+}
+
+void coopth_run(void)
+{
+    assert(DETACHED_RUNNING >= 0);
+    if (DETACHED_RUNNING)
+	return;
+    run_traverser(NULL, NULL);
+    while (run_traverser(quick_sched_pred, quick_sched_post));
 }
 
 static int __coopth_is_in_thread(int warn, const char *f)
@@ -719,7 +780,7 @@ int coopth_get_tid(void)
     return *thdata->tid;
 }
 
-int coopth_set_post_handler(coopth_func_t func, void *arg)
+int coopth_add_post_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -857,6 +918,7 @@ void coopth_sched(void)
     /* the check below means that we switch to DOS code, not dosemu code */
     assert(get_scheduled() != coopth_get_tid());
     switch_state(COOPTH_SCHED);
+    check_cancel();
 }
 
 void coopth_wait(void)
@@ -934,7 +996,9 @@ void coopth_detach(void)
  * has a separate entry point (via coopth_run()), the left thread must
  * not have a separate entry point. So it appeared better to return the
  * special type "left" threads.
- * Additionally the leave operation now calls the post handler immediately. */
+ * Additionally the leave operation now calls the post handler immediately,
+ * and it should be called from the context of the main thread. This is
+ * the reason why coopth_leave() for detached thread cannot be a no-op. */
 void coopth_leave(void)
 {
     struct coopth_thrdata_t *thdata;
@@ -944,6 +1008,14 @@ void coopth_leave(void)
     ensure_single(thdata);
     if (thdata->left)
 	return;
+    /* leaving detached thread should be atomic even wrt other detached
+     * threads. This is needed so that DPMI cannot run concurrently with
+     * leavedos().
+     * for joinable threads leaving should be atomic only wrt DOS code,
+     * but, because of an optimization loop in run_vm86(), it is actually
+     * also atomic wrt detached threads. */
+    if (!thdata->attached)
+	thdata->atomic_switch = 1;
     switch_state(COOPTH_LEAVE);
 }
 
@@ -954,6 +1026,8 @@ static void do_awake(struct coopth_per_thread_t *pth)
 	return;
     }
     pth->st = SW_ST(AWAKEN);
+    if (!pth->data.attached)
+	pth->quick_sched = 1;	// optimize DPMI switches
 }
 
 void coopth_wake_up(int tid)

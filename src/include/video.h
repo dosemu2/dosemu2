@@ -48,6 +48,15 @@ extern void gettermcap(int,int *, int *);
    and (maybe) setmode.
 */
 
+struct vid_mode_params {
+    int mode_class;
+    int x_res;
+    int y_res;
+    int w_x_res;
+    int w_y_res;
+    int text_width;
+    int text_height;
+};
 
 struct video_system {
    int (*priv_init)(void);     /* does setup which needs root privileges */
@@ -55,9 +64,10 @@ struct video_system {
                                   like mapping video memory, opening XWindow,
                                   etc. */
    int (*late_init)(void);     /* init with vm86() available (vbe) */
+   void (*early_close)(void);  /* close with vm86() available (vbe) */
    void (*close)(void);
 
-   int (*setmode)(int type, int xsize,int ysize);   /* type=0 currently (text mode) */
+   int (*setmode)(struct vid_mode_params);   /* type=0 currently (text mode) */
 
    int (*update_screen)(void);     /* (partially) update screen and cursor from the
                                   video memory. called from sigalrm handler */
@@ -72,7 +82,7 @@ extern struct video_system *Video;
 extern int video_mode;
 extern int video_combo;
 
-extern unsigned char video_initialized;
+extern int video_initialized;
 extern boolean set_video_mode(int);
 extern unsigned screen_adr(int page);
 
@@ -132,24 +142,8 @@ enum {
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
 
-extern void clear_console_video(void);
-extern int console_size(void);
 extern int load_file(char *name, int foffset, unsigned char *mstart, int msize);
 extern void register_video_client(struct video_system *vid);
 extern struct video_system *video_get(const char *name);
-
-/* moved here from s3.c --AV  */
-#define BASE_8514_1	0x2e8
-#define BASE_8514_2	0x148
-
-static __inline__ int emu_video_retrace_on(void)
-{
-  return (config.emuretrace>1? set_ioperm(0x3da,1,0):0);
-}
-
-static __inline__ int emu_video_retrace_off(void)
-{
-  return (config.emuretrace>1? set_ioperm(0x3c0,1,1),set_ioperm(0x3da,1,1):0);
-}
 
 #endif

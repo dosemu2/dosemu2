@@ -85,26 +85,27 @@ DPMI_return_from_realmode:
 DPMI_return_from_dos_memory:
 	hlt
 /* ======================= Addr = F800:490E (FC90E) */
-DPMI_reserved:
+	.globl DPMI_int1c
+DPMI_int1c:
 	hlt
-	lret
+	iret
 /* ======================= Addr = F800:4910 (FC910) */
+	.globl	DPMI_int23
+DPMI_int23:
+	hlt
+	iret
+/* ======================= Addr = F800:4912 (FC912) */
+	.globl	DPMI_int24
+DPMI_int24:
+	hlt
+	iret
+/* ======================= Addr = F800:4914 (FC914) */
 	.globl	DPMI_raw_mode_switch_rm
 DPMI_raw_mode_switch_rm:
 	hlt
-/* ======================= Addr = F800:4911 (FC911) */
+/* ======================= Addr = F800:4916 (FC916) */
 	.globl	DPMI_save_restore_rm
 DPMI_save_restore_rm:
-	hlt
-	lret
-/* ======================= Addr = F800:4913 (FC913) */
-	.globl	DPMI_reserved1
-DPMI_reserved1:
-	hlt
-	lret
-/* ======================= Addr = F800:4915 (FC915) */
-	.globl	DPMI_reserved2
-DPMI_reserved2:
 	hlt
 	lret
 
@@ -225,6 +226,8 @@ video_init_done:
 	int	$DOS_HELPER_INT
 	movb	%cs:bios_f000_bootdrive-bios_f000,%dl
 
+	movb	$DOS_HELPER_READ_MBR,%al
+	int	$DOS_HELPER_INT
 	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
 
 .org	ROM_BIOS_EXIT
@@ -251,6 +254,8 @@ video_init_done:
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf2,%bx	/* call the user or PS/2 hook */
 	int	$DOS_HELPER_INT
+	popw	%bx
+	popw	%ax
 	ljmp $BIOSSEG, $EOI2_OFF
 
 /* ----------------------------------------------------------------- */
@@ -262,7 +267,7 @@ ipx_handler:
 
 /* ----------------------------------------------------------------- */
 		/* This is an int e7 used for FCB opens */
-	.org	((INTE7_SEG-BIOSSEG) << 4)+INTE7_OFF
+	.org	((FCB_HLP_SEG-BIOSSEG) << 4)+FCB_HLP_OFF
 /* ======================= Addr = F800:6320 (FE320) */
 	pushw	%es
 	pushw	%di
@@ -501,6 +506,7 @@ check_special:
         call    store_key
 kbd_done:
 	call	kbd_EOI
+kbd_done2:
 	popw	%ds
 	popw	%bx
 	popw	%ax			/* restore registers		*/
@@ -525,9 +531,15 @@ kbd_do_pause:
 	testb   $PAUSE_MASK,KEYBOARD_FLAGS_2	/* already paused? */
 	jnz     kbd_done			/* do nothing */
 	orb	$PAUSE_MASK,KEYBOARD_FLAGS_2	/* set pause bit */
-	movb	$DOS_HELPER_PAUSE_KEY,%al
-	int	$DOS_HELPER_INT			/* pause program */
-	jmp	kbd_done
+	call	kbd_EOI
+	sti
+1:
+	movw    $0x1680,%ax		/* magic machine idle function  */
+	int     $0x2f
+	testb 	$PAUSE_MASK,KEYBOARD_FLAGS_2 /* is pause bit still set? */
+	jnz 	1b
+	cli
+	jmp	kbd_done2
 
 kbd_do_break:				/* CTRL-BREAK pressed		*/
 	xorw	%ax,%ax
@@ -642,25 +654,6 @@ INT09_dummy_end:
 	outb    %al,$0x20		/* flag interrupt complete	*/
 	popw	%ax
 	iret
-
-/* ----------------------------------------------------------------- */
-	/* pause cycle */
-	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
-/* ======================= Addr = F000:F120 (FF120) */
-	pushf
-	pushw 	%ds
-	pushw 	%ax
-	movw 	$BIOS_DATA,%ax
-	movw 	%ax,%ds
-idle_cycle:
-	movw    $0x1680,%ax		/* magic machine idle function  */
-	int     $0x2f
-	testb 	$PAUSE_MASK,KEYBOARD_FLAGS_2 /* is pause bit still set? */
-	jnz 	idle_cycle
-	popw 	%ax
-	popw	%ds
-	popf
-	lret
 
 /* ----------------------------------------------------------------- */
 	/* the packet driver */

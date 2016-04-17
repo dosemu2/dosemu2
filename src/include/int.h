@@ -24,6 +24,7 @@ void fake_retf(unsigned pop_count);
 void fake_iret(void);
 void do_eoi_iret(void);
 void do_eoi2_iret(void);
+void jmp_to(int cs, int ip);
 void setup_interrupts(void);
 void version_init(void);
 void int_vector_setup(void);

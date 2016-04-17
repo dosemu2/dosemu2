@@ -23,6 +23,7 @@
 #include "utilities.h"
 #include "Linux/mman.h"
 #include "mapping.h"
+#include "kvm.h"
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -190,13 +191,13 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 
 void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *source)
 {
-  void *target = NULL, *addr;
+  void *target = (void *)-1, *addr;
+  int fixed = (targ != -1);
   Q__printf("MAPPING: alias, cap=%s, targ=%#x, size=%zx, protect=%x, source=%p\n",
 	cap, targ, mapsize, protect, source);
   /* for non-zero INIT_LOWRAM the target is a hint */
-  if (targ != -1) {
+  if (fixed) {
     target = MEM_BASE32(targ);
-    cap |= MAPPING_FIXED;
     if (cap & MAPPING_COPYBACK) {
       if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
         memcpy(source, target, mapsize);
@@ -209,30 +210,27 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   }
 #ifdef __x86_64__
   /* use MAP_32BIT also for MAPPING_INIT_LOWRAM until simx86 is 64bit-safe */
-  if (!(cap & MAPPING_FIXED) && (cap &
-	(MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM))) {
+  if (!fixed && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM))) {
     target = mmap(NULL, mapsize, protect,
 		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
     if (target == MAP_FAILED) {
       error("mmap MAP_32BIT failed, %s\n", strerror(errno));
       return target;
     }
-    cap |= MAPPING_FIXED;
   }
 #endif
   addr = mappingdriver->alias(cap, target, mapsize, protect, source);
   if (addr == MAP_FAILED)
     return addr;
-  if (cap & MAPPING_INIT_LOWRAM)
-    mem_base = addr;
   update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
+  if (config.cpu_vm == CPUVM_KVM)
+    mprotect_kvm(addr, mapsize, protect);
   Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
   return addr;
 }
 
 void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t source)
 {
-  int fixed = target == (void *)-1 ? 0 : MAP_FIXED;
   void *addr;
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%zx, protect=%x, source=%#llx\n",
 	cap, target, mapsize, protect, (long long)source);
@@ -271,16 +269,26 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
 
   if (cap & MAPPING_SCRATCH) {
-    fixed = (cap & MAPPING_FIXED) ? MAP_FIXED : 0;
-    if (!fixed && target == (void *)-1) target = NULL;
+    int flags = (target != (void *)-1) ? MAP_FIXED : 0;
+    if (cap & MAPPING_NOOVERLAP) {
+      if (!flags)
+        cap &= ~MAPPING_NOOVERLAP;
+      else
+        flags &= ~MAP_FIXED;
+    }
+    if (target == (void *)-1) target = NULL;
 #ifdef __x86_64__
-    if (fixed == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU)))
-      fixed = MAP_32BIT;
+    if (flags == 0 && (cap & (MAPPING_DPMI|MAPPING_VGAEMU|MAPPING_INIT_LOWRAM)))
+      flags = MAP_32BIT;
 #endif
     addr = mmap(target, mapsize, protect,
-		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
+		MAP_PRIVATE | flags | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED)
       return addr;
+    if ((cap & MAPPING_NOOVERLAP) && addr != target) {
+      munmap(addr, mapsize);
+      return MAP_FAILED;
+    }
     update_aliasmap(addr, mapsize, addr);
   } else {
     dosemu_error("Wrong mapping type %#x\n", cap);
@@ -288,6 +296,8 @@ void *mmap_mapping(int cap, void *target, size_t mapsize, int protect, off_t sou
     return MAP_FAILED;
   }
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
+  if (config.cpu_vm == CPUVM_KVM)
+    mprotect_kvm(addr, mapsize, protect);
   return addr;
 }
 
@@ -304,9 +314,15 @@ void *mremap_mapping(int cap, void *source, size_t old_size, size_t new_size,
 
 int mprotect_mapping(int cap, void *addr, size_t mapsize, int protect)
 {
+  int ret;
   Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%zx, protect=%x\n",
 	cap, addr, mapsize, protect);
-  return mprotect(addr, mapsize, protect);
+  ret = mprotect(addr, mapsize, protect);
+  if (config.cpu_vm == CPUVM_KVM)
+    mprotect_kvm(addr, mapsize, protect);
+  if (ret)
+    error("mprotect() failed: %s\n", strerror(errno));
+  return ret;
 }
 
 /*
@@ -489,18 +505,18 @@ struct hardware_ram {
 static struct hardware_ram *hardware_ram;
 
 /*
- * DANG_BEGIN_FUNCTION map_hardware_ram
+ * DANG_BEGIN_FUNCTION init_hardware_ram
  *
  * description:
  *  Initialize the hardware direct-mapped pages
  *
  * DANG_END_FUNCTION
  */
-void map_hardware_ram(void)
+void init_hardware_ram(void)
 {
   struct hardware_ram *hw;
   int cap;
-  unsigned char *p;
+  unsigned char *p, *targ;
 
   for (hw = hardware_ram; hw != NULL; hw = hw->next) {
     if (!hw->type || hw->type == 'e') { /* virtual hardware ram, base==vbase */
@@ -508,20 +524,74 @@ void map_hardware_ram(void)
       continue;
     }
     cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
-    if (hw->base < LOWMEM_SIZE)
-      hw->vbase = hw->base;
     alloc_mapping(cap, hw->size, hw->base);
-    p = hw->vbase == -1 ? (void *)-1 : MEM_BASE32(hw->vbase);
-    p = mmap_mapping(cap, p, hw->size, PROT_READ | PROT_WRITE,
+    if (hw->base < LOWMEM_SIZE)
+      targ = MEM_BASE32(hw->base);
+    else
+      targ = (void *)-1;
+    p = mmap_mapping(cap, targ, hw->size, PROT_READ | PROT_WRITE,
 		     hw->base);
     if (p == MAP_FAILED) {
-      error("mmap error in map_hardware_ram %s\n", strerror (errno));
+      error("mmap error in init_hardware_ram %s\n", strerror (errno));
       return;
     }
     hw->vbase = p - mem_base;
     g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
 	     hw->base, hw->base+hw->size-1, hw->vbase);
   }
+}
+
+int map_hardware_ram(char type, int cap)
+{
+  struct hardware_ram *hw;
+  unsigned char *p, *targ;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->type != type)
+      continue;
+    if (hw->base < LOWMEM_SIZE)
+      targ = MEM_BASE32(hw->base);
+    else
+      targ = (void *)-1;
+    p = mmap_mapping(cap, targ, hw->size, PROT_READ | PROT_WRITE,
+		     hw->base);
+    if (p == MAP_FAILED) {
+      error("mmap error in map_hardware_ram %s\n", strerror (errno));
+      return -1;
+    }
+    hw->vbase = p - mem_base;
+    g_printf("mapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	     hw->base, hw->base+hw->size-1, hw->vbase);
+  }
+  return 0;
+}
+
+int unmap_hardware_ram(char type, int cap)
+{
+  struct hardware_ram *hw;
+  unsigned char *p;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (hw->type != type || hw->vbase == -1)
+      continue;
+    if (hw->vbase < LOWMEM_SIZE) {
+      p = alias_mapping(cap, hw->vbase, hw->size,
+	PROT_READ | PROT_WRITE, LOWMEM(hw->vbase));
+    } else {
+      cap &= ~MAPPING_COPYBACK; 	//XXX
+      cap |= MAPPING_SCRATCH;
+      p = mmap_mapping(cap, MEM_BASE32(hw->vbase), hw->size,
+	PROT_READ | PROT_WRITE, 0);
+    }
+    if (p == MAP_FAILED) {
+      error("mmap error in unmap_hardware_ram %s\n", strerror (errno));
+      return -1;
+    }
+    g_printf("unmapped hardware ram at 0x%08zx .. 0x%08zx at %#x\n",
+	     hw->base, hw->base+hw->size-1, hw->vbase);
+    hw->vbase = -1;
+  }
+  return 0;
 }
 
 int register_hardware_ram(int type, unsigned int base, unsigned int size)
@@ -614,4 +684,38 @@ close_kmem (void)
       mem_fd = -1;
       v_printf ("Kmem closed successfully\n");
     }
+}
+
+void *mapping_find_hole(unsigned long start, unsigned long stop,
+	unsigned long size)
+{
+    FILE *fp;
+    unsigned long beg, end, pend;
+    int fd, ret;
+    /* find out whether the address request is available */
+    fd = dup(dosemu_proc_self_maps_fd);
+    if ((fp = fdopen(fd, "r")) == NULL) {
+	error("can't open /proc/self/maps\n");
+	return MAP_FAILED;
+    }
+    fseek(fp, 0, SEEK_SET);
+    pend = start;
+    while ((ret = fscanf(fp, "%lx-%lx%*[^\n]", &beg, &end)) == 2) {
+	if (beg <= start) {
+	    if (end > pend)
+		pend = end;
+	    continue;
+	}
+	if (beg - pend >= size)
+	    break;
+	if (end + size > stop) {
+	    fclose(fp);
+	    return MAP_FAILED;
+	}
+	pend = end;
+    }
+    fclose(fp);
+    if (ret != 2)
+	return MAP_FAILED;
+    return (void *)pend;
 }

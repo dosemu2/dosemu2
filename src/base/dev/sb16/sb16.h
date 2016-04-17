@@ -30,8 +30,7 @@
 #define SB_ID	 0x105
 #define SB20_ID	 0x201
 #define SBPRO_ID 0x300
-#define SB16_ID	 0x405
-#define SBAWE32_ID 0x40C
+#define SB16_ID 0x405
 
 /* bochs and the old dosemu code disagree on that value.
  * Of course I trust bochs. :) */
@@ -64,6 +63,7 @@ struct sb_struct {
   int      paused:1;		/* is DMA transfer paused? */
   int      reset:1;
   int      mpu401_uart:1;
+  int      mpu401_imode:1;	/* have intelligent mode */
   uint8_t  midi_cmd;
   uint8_t  dma_cmd;		/* Information we need on the DMA transfer */
   uint8_t  dma_mode;		/* Information we need on the DMA transfer */
@@ -103,7 +103,7 @@ extern int sb_dma_silence(void);
 extern int sb_get_dma_sampling_rate(void);
 extern int sb_get_dma_data(void *ptr, int is16bit);
 extern void sb_handle_dma(void);
-extern void sb_dma_processing(void);
+extern void sb_dma_nack(void);
 extern void sb_handle_dma_timeout(void);
 extern int sb_input_enabled(void);
 extern void sb_handle_midi_data(void);

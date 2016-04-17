@@ -102,6 +102,8 @@ extern void allow_switch(void);
 extern void set_vc_screen_page(void);
 extern void init_get_video_ram(int);
 extern void set_process_control(void);
+extern void clear_console_video(void);
+extern int console_size(void);
 
 #define NOWAIT  0
 #define WAIT    1
@@ -182,6 +184,28 @@ extern u_char permissions;
 extern struct screen_stat scr_state;
 extern int user_vc_switch;
 void vc_init(void);
+
+struct screen_stat {
+  int console_no,		/* our console number */
+   vt_allow;			/* whether to allow VC switches */
+
+  int current;			/* boolean: is our VC current? */
+
+  int curadd;			/* row*80 + col */
+  int dcurgeom;			/* msb: start, lsb: end */
+  int lcurgeom;			/* msb: start, lsb: end */
+
+  int mapped,			/* whether currently mapped */
+   pageno;			/* current mapped text page # */
+
+  int dorigin;			/* origin in DOS */
+  int lorigin;
+
+  unsigned int virt_address;	/* current map address in DOS memory */
+  off_t phys_address;		/* current map address in /dev/mem memory */
+
+  int old_modecr, new_modecr;
+};
 
 #endif
 /* End of include/vc.h */

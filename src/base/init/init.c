@@ -21,7 +21,6 @@
 #include "bios.h"
 #include "int.h"
 #include "timers.h"
-#include "termio.h"
 #include "video.h"
 #include "vc.h"
 #include "mouse.h"
@@ -38,6 +37,7 @@
 #include "priv.h"
 #include "doshelpers.h"
 #include "cpu-emu.h"
+#include "kvm.h"
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
@@ -239,6 +239,93 @@ void device_init(void)
 }
 
 /*
+ * DANG_BEGIN_FUNCTION mem_reserve
+ *
+ * description:
+ *  reserves address space seen by DOS and DPMI apps
+ *   There are three possibilities:
+ *  1) 0-based mapping: one map at 0 of 1088k, the rest below 1G
+ *     This is only used for i386 + vm86() (not KVM/CPUEMU)
+ *  2) non-zero-based mapping: one combined mmap, everything below 4G
+ *  3) config.dpmi_base is set: honour it
+ *
+ * DANG_END_FUNCTION
+ */
+static void *mem_reserve(void)
+{
+  void *result = MAP_FAILED;
+  size_t memsize = LOWMEM_SIZE + HMASIZE;
+  int cap = MAPPING_INIT_LOWRAM | MAPPING_SCRATCH;
+
+#ifdef __i386__
+  if (config.cpu_vm == CPUVM_VM86) {
+    result = mmap_mapping(cap, 0, memsize, PROT_NONE, 0);
+    if (result == MAP_FAILED) {
+      const char *msg =
+	"You can most likely avoid this problem by running\n"
+	"sysctl -w vm.mmap_min_addr=0\n"
+	"as root, or by changing the vm.mmap_min_addr setting in\n"
+	"/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n"
+	"If this doesn't help, disable selinux in /etc/selinux/config\n";
+#ifdef X86_EMULATOR
+      if (errno == EPERM || errno == EACCES) {
+	/* switch on vm86-only JIT CPU emulation with non-zero base */
+	config.cpu_vm = CPUVM_EMU;
+	config.cpuemu = 3;
+	init_emu_cpu();
+	c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
+	error("Using CPU emulation because vm.mmap_min_addr > 0\n");
+	error("@%s", msg);
+      } else
+#endif
+      {
+	perror("LOWRAM mmap");
+	error("Cannot map low DOS memory (the first 640k)\n");
+	error("@%s", msg);
+	exit(EXIT_FAILURE);
+      }
+    }
+    else if (config.dpmi && config.dpmi_base == -1) {
+      void *dpmi_base;
+      /* reserve DPMI memory split from low memory */
+      /* some DPMI clients don't like negative memory pointers,
+       * i.e. over 0x80000000. In fact, Screamer game won't work
+       * with anything above 0x40000000 */
+      dpmi_base = mapping_find_hole(LOWMEM_SIZE, 0x40000000, dpmi_mem_size());
+      if (dpmi_base == MAP_FAILED)
+	error("MAPPING: cannot find mem hole for DPMI pool\n");
+	/* try mmap() below regardless of whether find_hole() succeeded or not*/
+      else
+	config.dpmi_base = (uintptr_t)dpmi_base;
+    }
+  }
+#endif
+
+  if (result == MAP_FAILED) {
+    if (config.dpmi && config.dpmi_base == -1) { /* contiguous memory */
+      memsize += dpmi_mem_size();
+      cap |= MAPPING_DPMI;
+    }
+    result = mmap_mapping(cap, (void *)-1, memsize, PROT_NONE, 0);
+  }
+  if (result == MAP_FAILED) {
+    perror ("LOWRAM mmap");
+    exit(EXIT_FAILURE);
+  }
+  if (cap & MAPPING_DPMI) { /* contiguous memory */
+    config.dpmi_base = (uintptr_t)result + LOWMEM_SIZE + HMASIZE;
+  }
+  else if (config.dpmi) {
+    /* user explicitly specified dpmi_base or hole found above */
+    void *dpmi_base = (void *)config.dpmi_base;
+    dpmi_base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH | MAPPING_NOOVERLAP,
+			     dpmi_base, dpmi_mem_size(), PROT_NONE, 0);
+    config.dpmi_base = dpmi_base == MAP_FAILED ? -1 : (uintptr_t)dpmi_base;
+  }
+  return result;
+}
+
+/*
  * DANG_BEGIN_FUNCTION low_mem_init
  *
  * description:
@@ -249,9 +336,6 @@ void device_init(void)
 void low_mem_init(void)
 {
   void *lowmem, *result;
-#ifdef __i386__
-  PRIV_SAVE_AREA
-#endif
 
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
@@ -261,73 +345,24 @@ void low_mem_init(void)
     leavedos(98);
   }
 
-#ifdef __i386__
-  /* we may need root to mmap address 0 */
-  enter_priv_on();
+  mem_base = mem_reserve();
   result = alias_mapping(MAPPING_INIT_LOWRAM, 0, LOWMEM_SIZE + HMASIZE,
 			 PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  leave_priv_setting();
-
-  if (result == MAP_FAILED && (errno == EPERM || errno == EACCES)) {
-#ifndef X86_EMULATOR
-    perror ("LOWRAM mmap");
-    fprintf(stderr, "Cannot map low DOS memory (the first 640k).\n"
-	      "You can most likely avoid this problem by running\n"
-	      "sysctl -w vm.mmap_min_addr=0\n"
-	      "as root, or by changing the vm.mmap_min_addr setting in\n"
-	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n"
-	      "If this doesn't help, disable selinux in /etc/selinux/config\n"
-	      );
-    exit(EXIT_FAILURE);
-#else
-    if (config.cpuemu < 3)
-    {
-      /* switch on vm86-only JIT CPU emulation to with non-zero base */
-      config.cpuemu = 3;
-      init_emu_cpu();
-      c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
-      error("Using CPU emulation because vm.mmap_min_addr > 0.\n"
-	      "You can most likely avoid this problem by running\n"
-	      "sysctl -w vm.mmap_min_addr=0\n"
-	      "as root, or by changing the vm.mmap_min_addr setting in\n"
-	      "/etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n"
-	      "If this doesn't help, disable selinux in /etc/selinux/config\n"
-	      );
-    }
-    result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
-			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-#endif
-  }
-#else
-  result = alias_mapping(MAPPING_INIT_LOWRAM, -1, LOWMEM_SIZE + HMASIZE,
-			   PROT_READ | PROT_WRITE | PROT_EXEC, lowmem);
-  if (config.cpuemu < 3) {
-    /* switch on vm86-only JIT CPU emulation to with non-zero base */
-    config.cpuemu = 3;
-    init_emu_cpu();
-    c_printf("CONF: JIT CPUEMU set to 3 for %d86\n", (int)vm86s.cpu_type);
-  }
-#endif
-
   if (result == MAP_FAILED) {
     perror ("LOWRAM mmap");
     exit(EXIT_FAILURE);
   }
 
-#ifdef X86_EMULATOR
-  if (result) {
-    warn("WARN: using non-zero memory base address %p.\n"
-	 "WARN: You can use the better-tested zero based setup using\n"
-	 "WARN: sysctl -w vm.mmap_min_addr=0\n"
-	 "WARN: as root, or by changing the vm.mmap_min_addr setting in\n"
-	 "WARN: /etc/sysctl.conf or a file in /etc/sysctl.d/ to 0.\n",
-	    result);
-  }
-#endif
+  if (config.cpu_vm == CPUVM_KVM)
+    init_kvm_monitor();
 
   /* keep conventional memory protected as long as possible to protect
      NULL pointer dereferences */
   mprotect_mapping(MAPPING_LOWMEM, result, config.mem_size * 1024, PROT_NONE);
+
+  /* R/O protect 0xf0000-0xf4000 */
+  if (!config.umb_f0)
+    mprotect_mapping(MAPPING_LOWMEM, MEM_BASE32(0xf0000), 0x4000, PROT_READ);
 }
 
 /*
@@ -360,8 +395,6 @@ void version_init(void) {
 #endif
 }
 
-#define __S(x) #x
-#define _S(x) __S(x)
 void print_version(void)
 {
   struct utsname unames;
@@ -379,6 +412,8 @@ void print_version(void)
   warn(" -m64\n");
 #endif
 #ifdef CFLAGS_STR
+#define __S(...) #__VA_ARGS__
+#define _S(x) __S(x)
   warn("CFLAGS: %s\n", _S(CFLAGS_STR));
 #endif
 }

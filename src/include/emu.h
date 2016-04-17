@@ -11,28 +11,13 @@
 #define USE_MHPDBG
 
 #include <sys/types.h>
-#include <sys/ioctl.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/syscall.h>
-
+#include <syscall.h>
 #include "types.h"
 #include "machcompat.h"
 #include "cpu.h"
 #include "priv.h"
 #include "mouse.h"
 #include "dosemu_config.h"
-
-#ifdef __x86_64__
-#define ARCH_SET_GS 0x1001
-#define ARCH_SET_FS 0x1002
-#define ARCH_GET_FS 0x1003
-#define ARCH_GET_GS 0x1004
-static inline int dosemu_arch_prctl(int code, void *addr)
-{
-  return syscall(SYS_arch_prctl, code, addr);
-}
-#endif
 
 struct eflags_fs_gs {
   unsigned long eflags;
@@ -46,6 +31,7 @@ struct eflags_fs_gs {
 extern struct eflags_fs_gs eflags_fs_gs;
 
 int vm86_init(void);
+int vm86_fault(struct sigcontext *scp);
 #ifdef __i386__
 #define vm86(param) syscall(SYS_vm86old, param)
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
@@ -123,7 +109,6 @@ extern volatile int in_vm86;
 
 void dos_ctrl_alt_del(void);	/* disabled */
 
-extern void run_vm86(void);
 extern void vm86_helper(void);
 extern void loopstep_run_vm86(void);
 extern void do_call_back(Bit16u cs, Bit16u ip);
@@ -169,13 +154,14 @@ typedef struct vesamode_type_struct {
 } vesamode_type;
 
 
-     typedef struct config_info {
+typedef struct config_info {
        int hdiskboot;
 
 #ifdef X86_EMULATOR
-       boolean cpuemu;
+       int cpuemu;
        boolean cpusim;
 #endif
+       int cpu_vm;
        int CPUSpeedInMhz;
        /* for video */
        int console_video;
@@ -277,7 +263,7 @@ typedef struct vesamode_type_struct {
 
        int hogthreshold;
 
-       int mem_size, ext_mem, xms_size, ems_size, umb_a0, umb_b0;
+       int mem_size, ext_mem, xms_size, ems_size, umb_a0, umb_b0, umb_f0;
        unsigned int ems_frame;
        int ems_uma_pages, ems_cnv_pages;
        int dpmi, pm_dos_api, no_null_checks;
@@ -330,7 +316,12 @@ typedef struct vesamode_type_struct {
        uint8_t sb_irq;
        uint16_t mpu401_base;
        int mpu401_irq;
+       int mpu401_irq_mt32;
+       char *midi_synth;
        char *sound_driver;
+       char *midi_driver;
+       char *munt_roms_dir;
+       char *snd_plugin_params;
        boolean pcm_hpf;
        char *midi_file;
        char *wav_file;
@@ -346,15 +337,11 @@ typedef struct vesamode_type_struct {
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
        int cli_timeout;		/* cli timeout hack */
-       int pic_watchdog;        /* pic watchdog reschedule hack */
-     }
-
-config_t;
+} config_t;
 
 
-#define SPKR_OFF	0
-#define SPKR_NATIVE	1
-#define SPKR_EMULATED	2
+enum { SPKR_OFF, SPKR_NATIVE, SPKR_EMULATED };
+enum { CPUVM_VM86, CPUVM_KVM, CPUVM_EMU };
 
 /*
  * Right now, dosemu only supports two serial ports.
@@ -420,32 +407,6 @@ extern void add_to_io_select_new(int, void(*)(void *), void *,
 	add_to_io_select_new(fd, func, arg, #func)
 extern void remove_from_io_select(int);
 extern void ioselect_done(void);
-extern void add_thread_callback(void (*cb)(void *), void *arg, const char *name);
-#ifdef __linux__
-extern void SIG_init(void);
-extern void SIG_close(void);
-#endif
-
-/* signals for Linux's process control of consoles */
-#define SIG_RELEASE     SIGUSR1
-#define SIG_ACQUIRE     SIGUSR2
-
-extern void SIGNAL_save( void (*signal_call)(void *), void *arg, size_t size,
-	const char *name );
-extern void handle_signals(void);
-extern void do_periodic_stuff(void);
-extern void sig_ctx_prepare(int tid);
-extern void sig_ctx_restore(int tid);
-
-extern int sigchld_register_handler(pid_t pid, void (*handler)(void));
-extern int sigchld_enable_handler(pid_t pid, int on);
-extern void registersig(int sig, void (*handler)(struct sigcontext *));
-extern void init_handler(struct sigcontext *scp, int async);
-#ifdef __x86_64__
-extern void deinit_handler(struct sigcontext *scp);
-#else
-#define deinit_handler(scp)
-#endif
 
 /*
  * DANG_BEGIN_REMARK
@@ -484,6 +445,7 @@ extern void video_late_init(void);
 extern void video_mem_setup(void);
 extern void printer_init(void);
 extern void printer_mem_setup(void);
+extern void video_early_close(void);
 extern void video_close(void);
 extern void hma_exit(void);
 extern void ems_helper(void);
@@ -504,12 +466,5 @@ extern void HMA_MAP(int HMA);
 extern void hardware_run(void);
 
 extern char *Path_cdrom[];
-
-static inline pid_t gettid(void)
-{
-  return syscall(SYS_gettid);
-}
-
-extern pid_t dosemu_tid;
 
 #endif /* EMU_H */

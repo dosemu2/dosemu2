@@ -455,6 +455,29 @@ char *strcatdup(char *s1, char *s2)
 	return strcat(s,s2);
 }
 
+// Concatenate a filename, s1+s2, and return a newly-allocated string of it.
+// Watch out for "s1=concat(s1,s2)" if s1 is allocated; if there's not
+// another pointer to s1, you won't be able to free s1 later.
+static char *_concat_dir(const char *s1, const char *s2)
+{
+  size_t strlen_s1 = strlen(s1);
+  char *new = malloc(strlen_s1+strlen(s2)+2);
+//  debug("concat_dir(%s,%s)", s1, s2);
+  strcpy(new,s1);
+  if (s1[strlen_s1 - 1] != '/')
+    strcat(new, "/");
+  strcat(new,s2);
+//  debug("->%s\n", new);
+  return new;
+}
+
+char *concat_dir(const char *s1, const char *s2)
+{
+	if (s2[0] == '/')
+		return strdup(s2);
+	return _concat_dir(s1, s2);
+}
+
 char *assemble_path(char *dir, char *file, int append_pid)
 {
 	char *s;

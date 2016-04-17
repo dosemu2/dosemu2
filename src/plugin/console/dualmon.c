@@ -314,15 +314,15 @@ static void dualmon_close(void)
   if (Video_default->close) Video_default->close();
 }
 
-static int dualmon_setmode(int type, int xsize,int ysize)
+static int dualmon_setmode(struct vid_mode_params vmp)
 {
-  if (type==7) {
+  if (video_mode == 7) {
     if (config.dualmon == 2) reinit_MDA_regs();
     Video->update_screen = NULL;
   }
   else {
     Video->update_screen = Video_default->update_screen;
-    if (Video_default->setmode) return Video_default->setmode(type, xsize,ysize);
+    if (Video_default->setmode) return Video_default->setmode(vmp);
   }
   return 0;
 }
@@ -345,6 +345,7 @@ struct video_system Video_dualmon = {
    dualmon_init,
    NULL,
    dualmon_post_init,
+   NULL,
    dualmon_close,
    dualmon_setmode,
    NULL,                  /* will be overwritten by parent Video system */

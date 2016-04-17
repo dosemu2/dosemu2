@@ -26,10 +26,13 @@
 #define MIDI_W_PREFERRED 1
 #define MIDI_W_PCM 2
 
+enum SynthType { ST_ANY, ST_GM, ST_MT32, ST_MAX };
+
 struct midi_out_plugin {
   pcm_plugin_base;
   void (*write)(unsigned char);
   void (*run)(void);
+  enum SynthType stype;
 };
 
 struct midi_in_plugin {
@@ -45,3 +48,6 @@ extern void midi_put_data(unsigned char *buf, size_t size);
 extern int midi_get_data_byte(unsigned char *buf);
 extern int midi_register_output_plugin(const struct midi_out_plugin *plugin);
 extern int midi_register_input_plugin(const struct midi_in_plugin *plugin);
+extern int midi_set_synth_type(enum SynthType st);
+extern enum SynthType midi_get_synth_type(void);
+extern int midi_set_synth_type_from_string(const char *stype);

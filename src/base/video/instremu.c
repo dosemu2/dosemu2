@@ -51,6 +51,7 @@
 #include "dpmi.h"
 #include "emu-ldt.h"
 #include "cpu.h"
+#include "instremu.h"
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * some configurable options
@@ -200,12 +201,6 @@ static void instr_write_byte(unsigned char *addr, unsigned char u);
 static void instr_write_word(unsigned char *addr, unsigned u);
 static void instr_write_dword(unsigned char *addr, unsigned u);
 static void instr_flags(unsigned val, unsigned smask, unsigned long *eflags);
-static unsigned char instr_binary_byte(unsigned char op, unsigned char op1,
-                                       unsigned char op2, unsigned long *eflags);
-static unsigned instr_binary_word(unsigned op, unsigned op1,
-                                  unsigned op2, unsigned long *eflags);
-static unsigned instr_binary_dword(unsigned op, unsigned op1,
-                                   unsigned op2, unsigned long *eflags);
 static unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned long *eflags);
 static unsigned char *sib(unsigned char *cp, x86_regs *x86, int *inst_len);
 static unsigned char *modrm32(unsigned char *cp, x86_regs *x86, int *inst_len);
@@ -241,7 +236,7 @@ static void dump_x86_regs(x86_regs *x86)
  *
  */
 
-unsigned instr_len(unsigned char *p, int is_32)
+int instr_len(unsigned char *p, int is_32)
 {
   unsigned u, osp, asp;
   unsigned char *p0 = p;
@@ -475,10 +470,6 @@ void instr_write_byte(unsigned char *address, unsigned char u)
     count = COUNT;
     vga_write(addr, u);
   }
-  else if (ldt_alias && address >= ldt_alias &&
-      address < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(address - ldt_alias, 1, (char*)&u);
-  }
   else {
     *address = u;
   }
@@ -501,10 +492,6 @@ void instr_write_word(unsigned char *address, unsigned u)
     count = COUNT;
     vga_write(dst, R_LO(u));
     vga_write(dst+1, R_HI(u));
-  }
-  else if (ldt_alias && address >= ldt_alias &&
-      address < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(address - ldt_alias, 2, (char*)&u);
   }
   else
     *(unsigned short *)address = u;
@@ -531,10 +518,6 @@ void instr_write_dword(unsigned char *address, unsigned u)
     vga_write(dst+1, R_HI(u));
     vga_write(dst+2, ((unsigned char *) &u)[2]);
     vga_write(dst+3, ((unsigned char *) &u)[3]);
-  }
-  else if (ldt_alias && address >= ldt_alias &&
-      address < ldt_alias + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-    direct_ldt_write(address - ldt_alias, 4, (char*)&u);
   }
   else
     *(unsigned *)address = u;

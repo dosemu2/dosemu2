@@ -184,7 +184,7 @@ void rng_clear(struct rng_s *rng)
 
 int seqbuf_init(struct seqbuf *seq, void *buffer, size_t len)
 {
-    void *beg = (void *)SQALIGN((ptrdiff_t)buffer);
+    void *beg = (void *)SQALIGN((uintptr_t)buffer);
     seq->beg = beg;
     seq->tail = beg;
     seq->len = len - (SQ_BEG(seq) - (uint8_t *)buffer);

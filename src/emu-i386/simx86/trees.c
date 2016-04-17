@@ -1201,46 +1201,6 @@ static void BreakNode(TNode *G, unsigned char *eip, int addr)
 }
 
 
-int FindCodeNode (int addr)
-{
-  int found = 0;
-  register TNode *G = &CollectTree.root;
-#ifdef PROFILE
-  hitimer_t t0 = 0;
-#endif
-
-  if (debug_level('e')) {
-#ifdef PROFILE
-    t0 = GETTSC();
-#endif
-    if (debug_level('e')>2) e_printf("Find code node for %08x\n",addr);
-  }
-
-  /* find nearest (lesser than) node */
-  G = G->link[0]; if (G == NULL) goto quit;
-  for (;;) {
-      if (G->key > addr) {
-	if (G->link[0]==NULL) break;
-	G = G->link[0];
-      }
-      else if (G->key < addr) {
-	if ((G != &CollectTree.root) && (G->addr != 0) && (G->alive > 0)) {
-		int ahG = G->seqbase + G->seqlen;
-		if (ADDR_IN_RANGE(addr,G->seqbase,ahG)) { found = 1; break; }
-	}
-	if (G->rtag == MINUS) break;
-	G = G->link[1];
-      }
-      else { found=1; break; }
-  }
-quit:
-#ifdef PROFILE
-  if (debug_level('e')) SearchTime += (GETTSC() - t0);
-#endif
-  return found;
-}
-
-
 int InvalidateNodePage (int addr, int len, unsigned char *eip, int *codehit)
 {
   int nnh = 0;
@@ -1325,10 +1285,8 @@ void e_invalidate(unsigned data, int cnt)
 {
 	if (config.cpuemu <= 1)
 		return;
-	if (!e_querymark(data, cnt)) {
-		e_check_munprotect(data, cnt);
+	if (LINEAR2UNIX(data) != MEM_BASE32(data) && !e_querymark(data, cnt))
 		return;
-	}
 	e_invalidate_full(data, cnt);
 }
 

@@ -45,7 +45,7 @@ int unix_e_welcome;
 static int bios_read_string(char *buf, u_short len)
 {
     int ret;
-    _set_IF();
+    set_IF();
     ret = com_biosread(buf, len);
     clear_IF();
     return ret;

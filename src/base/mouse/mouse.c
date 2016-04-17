@@ -26,12 +26,10 @@
 #include "mouse.h"
 #include "serial.h"
 #include "port.h"
-#include "termio.h"
 #include "utilities.h"
 
 #include "dpmi.h"
 
-#include "vc.h"
 #include "port.h"
 
 #include "keyboard.h"
@@ -237,7 +235,7 @@ mouse_helper(struct vm86_regs *regs)
          the stack contains: mode, saved ax, saved bx */
       int video_mode = -1;
       unsigned int ssp = SEGOFF2LINEAR(regs->ss, 0);
-      unsigned int sp = WORD(regs->esp + 2);
+      unsigned int sp = WORD(regs->esp + 2 + 6);
       unsigned ax = popw(ssp, sp);
       int mode = popw(ssp, sp);
 
@@ -1855,17 +1853,6 @@ static void call_int33_mouse_event_handler(void)
 /* this function is called from int74 via inte6 */
 static void call_mouse_event_handler(void)
 {
-  unsigned int ssp, sp;
-
-  ssp = SEGOFF2LINEAR(LWORD(ss), 0);
-  sp = LWORD(esp);
-
-  /* first pop bx and ax, which were changed to
-     call this function */
-  LWORD(ebx) = popw(ssp, sp);
-  LWORD(eax) = popw(ssp, sp);
-  LWORD(esp) += 4;
-
   if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
     call_int15_mouse_event_handler();
   } else {

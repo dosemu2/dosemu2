@@ -83,6 +83,7 @@ static const struct midi_out_plugin midopipe = {
     .open = midopipe_init,
     .close = midopipe_done,
     .write = midopipe_write,
+    .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU,
 };
 

@@ -350,4 +350,12 @@ void printer_print_config(int prnum, void (*print)(const char *, ...))
 	   (pptr->dev ? pptr->dev : ""), pptr->base_port);
 }
 
-#undef LPT_C
+int lpt_get_max(void)
+{
+  return NUM_PRINTERS;
+}
+
+int lpt_is_configured(int num)
+{
+  return lpt[num].initialized;
+}

@@ -13,12 +13,12 @@ config {
   plugin_sdl on
   plugin_midimisc on
   plugin_fluidsynth on
+  plugin_munt on
   plugin_translate on
   plugin_commands on
   plugin_console on
   plugin_svgalib off
   plugin_vde on
-  plugin_demo on
   target_bits auto
   target_cpu auto
   prefix /usr/local

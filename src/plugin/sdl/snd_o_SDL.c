@@ -58,21 +58,9 @@ static void sdlsnd_stop(void *arg)
 
 static int sndsdl_cfg(void *arg)
 {
-    char *p;
-    int l;
     if (config.sdl_sound == 1)
 	return PCM_CF_ENABLED;
-    l = strlen(sdlsnd_name);
-    p = strstr(config.sound_driver, sdlsnd_name);
-    if (p && (p == config.sound_driver || p[-1] == ',') &&
-	    (p[l] == 0 || p[l] == ',')) {
-	S_printf("PCM: Enabling sdl driver\n");
-	return PCM_CF_ENABLED;
-    } else if (strlen(config.sound_driver)) {
-	S_printf("PCM: Disabling sdl driver\n");
-	return PCM_CF_DISABLED;
-    }
-    return 0;
+    return pcm_parse_cfg(config.sound_driver, sdlsnd_name);
 }
 
 static int sdlsnd_open(void *arg)

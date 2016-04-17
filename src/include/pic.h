@@ -92,14 +92,7 @@ void run_irqs(void);                                  /* run requested irqs */
 #define PIC_REQ_PEND	(-1)
 int pic_request(int inum);                            /* interrupt trigger */
 void pic_untrigger(int inum);                          /* interrupt untrigger */
-
-void pic_set_callback(Bit16u cs, Bit16u ip);
-
-void pic_iret(void);                         /* interrupt completion notify */
-void pic_iret_dpmi(void);                    /* interrupt completion notify */
-void pic_resched(void);
 void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
-void do_irq0(void);				/* timer interrupt */
 int pic_pending(void);			/* inform caller if interrupt is pending */
 int pic_irq_active(int num);
 int pic_irq_masked(int num);
@@ -107,8 +100,6 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pic_iflag)
-void pic_sti(void);
-void pic_cli(void);
 
 int CAN_SLEEP(void);
 

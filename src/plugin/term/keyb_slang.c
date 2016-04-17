@@ -382,7 +382,10 @@ static Keymap_Scan_Type terminfo_basic_fkeys[] =
    {"^(F2)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
    {"^(F3)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
    {"^(F4)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
+/* disable because of the conflict with CPR. See comments below. */
+#if 0
    {"^(F5)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
+#endif
    {"^(F6)",	KEY_F6|SHIFT_MASK},    /* Shift F6 */
    {"^(F7)",	KEY_F7|SHIFT_MASK},    /* Shift F7 */
    {"^(F8)",	KEY_F8|SHIFT_MASK},    /* Shift F8 */
@@ -398,7 +401,20 @@ static Keymap_Scan_Type terminfo_ext_fkeys[] =
    {"^(F2)",	KEY_F12},	       /* F12 */
    {"^(F3)",	KEY_F1|SHIFT_MASK},    /* Shift F1 */
    {"^(F4)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
+/* FIXME: we have a problem here: Shift-F3 is reported as "\33[1;2R
+ * and the cursor position reply (see is_cursor_position_reply()) is
+ * reported as \33[Y;XR where Y and X are the coordinates digits:
+ * http://unix.stackexchange.com/questions/239271/parse-terminfo-u6-string
+ * So the CPR can match Shift-F3 if the cursor is at the proper position.
+ * It is not clear for me why the cursor position is reported at
+ * all. But the code in do_slang_getkeys() expects it to not return
+ * the valid key. For this assumption to always hold true, let's
+ * disable Shift-F3 until someone is to dig deeper and get rid of
+ * this cursor position reply entirely somehow. Without this fix,
+ * "dosemu -t" may detect Shift-F3 early at boot, and skip config/autoexec! */
+#if 0
    {"^(F5)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
+#endif
    {"^(F6)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
    {"^(F7)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
    {"^(F8)",	KEY_F6|SHIFT_MASK},    /* Shift F6 */
@@ -895,7 +911,8 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 				ls_flags &= ~SHIFT_MASK;
 				lscan = KEY_PAD_AST;
 			}
-			else     lscan =  KEY_PAD_8; break;
+			else     lscan =  KEY_PAD_8;
+			break;
 
 		/* Need to remove the shift flag for this */
 		case KEY_EQUALS:

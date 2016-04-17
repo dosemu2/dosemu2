@@ -304,6 +304,22 @@ static void midout_timesig(int chn, int a, int b, int32_t time)
 }
 #endif
 
+static void midout_sysex(void *data, int len, int32_t time)
+{
+    uint8_t a;
+    int l1 = len + 1;
+    midout_write_delta_time(time);
+    M_FWRITE1(0xf0);
+    a = l1 & 0x7f;
+    if (l1 != a) {
+	uint8_t b = ((l1 >> 7) & 0x7f) | 0x80;
+	M_FWRITE1(b);
+    }
+    M_FWRITE1(a);
+    m_fwrite(data, len);
+    M_FWRITE1(0xf7);
+}
+
 static void do_event(fluid_midi_event_t *ev, int32_t time)
 {
     int ch = fluid_midi_event_get_channel(ev);
@@ -344,6 +360,9 @@ static void do_event(fluid_midi_event_t *ev, int32_t time)
 	midout_timesig(ch, ev->a, ev->b, time);
 	break;
 #endif
+    case MIDI_SYSEX:
+	midout_sysex(ev->paramptr, ev->param1, time);
+	break;
     }
 }
 
@@ -397,7 +416,7 @@ static int midofile_get_cfg(void *arg)
 {
     if (config.midi_file && config.midi_file[0])
 	return PCM_CF_ENABLED;
-    return PCM_CF_DISABLED;
+    return 0;
 }
 
 static const struct midi_out_plugin midofile = {
@@ -407,6 +426,7 @@ static const struct midi_out_plugin midofile = {
     .write = midofile_write,
     .stop = midofile_stop,
     .get_cfg = midofile_get_cfg,
+    .stype = ST_ANY,
     .flags = PCM_F_PASSTHRU | PCM_F_EXPLICIT,
 };
 

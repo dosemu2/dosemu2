@@ -20,7 +20,3 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_libao.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(LIBAOLIB)
 endif
-
-realclean::
-	rm -f Makefile.conf config.log config.status configure
-	rm -rf autom4te*.cache

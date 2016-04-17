@@ -163,6 +163,7 @@ static u_char emm_error;
 
 static int handle_total, emm_allocated;
 static Bit32u EMSControl_OFF;
+static Bit32u EMSAPMAP_ret_OFF;
 #define saved_phys_pages min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 #define phys_pages (config.ems_cnv_pages + config.ems_uma_pages)
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
@@ -239,7 +240,6 @@ static u_short os_allow=1;
 
 void
 ems_helper(void) {
-  u_char *rhptr;		/* request header pointer */
   switch (LWORD(ebx)) {
   case 0:
     E_printf("EMS Init called!\n");
@@ -247,7 +247,7 @@ ems_helper(void) {
       LWORD(ebx) = EMS_ERROR_DISABLED_IN_CONFIG;
       return;
     }
-    if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
+    if (HI(ax) < DOSEMU_EMS_DRIVER_MIN_VERSION) {
       error("EMS driver version mismatch: got %i, expected %i, disabling.\n"
             "Please update your ems.sys from the latest dosemu package.\n",
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);
@@ -255,43 +255,25 @@ ems_helper(void) {
             "Please update your ems.sys from the latest dosemu package.\n"
             "\nPress any key!\n");
       LWORD(ebx) = EMS_ERROR_VERSION_MISMATCH;
-      _set_IF();
+      set_IF();
       com_biosgetch();
       clear_IF();
       return;
     }
-    break;
-  case 3:
-    E_printf("EMS IOCTL called!\n");
-    break;
-  case 4:
-    E_printf("EMS READ called!\n");
-    break;
-  case 8:
-    E_printf("EMS WRITE called!\n");
-    break;
-  case 10:
-    E_printf("EMS Output Status called!\n");
-    break;
-  case 12:
-    E_printf("EMS IOCTL-WRITE called!\n");
-    break;
-  case 13:
-    E_printf("EMS OPENDEV called!\n");
-    break;
-  case 14:
-    E_printf("EMS CLOSEDEV called!\n");
-    break;
-  case 0x20:
-    E_printf("EMS INT 0x67 called!\n");
+    if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
+      warn("EMS driver too old, consider updating %i->%i\n",
+        HI(ax), DOSEMU_EMS_DRIVER_VERSION);
+      com_printf("EMS driver too old, consider updating.\n");
+    }
+    LWORD(ebx) = 0;
+    LWORD(ecx) = EMSControl_SEG;
+    LWORD(edx) = EMSControl_OFF;
+    LWORD(eax) = 0;	/* report success */
     break;
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
     return;
   }
-  rhptr = SEG_ADR((u_char *), es, di);
-  E_printf("EMS RHDR: len %d, command %d\n", *rhptr, *(u_short *) (rhptr + 2));
-  LWORD(eax) = 0;	/* report success */
 }
 
 static void *
@@ -616,6 +598,7 @@ SEG_TO_PHYS(int segaddr)
 	EMM_PAGE_SIZE/16)
       return i;
   }
+  E_printf("SEG_TO_PHYS: ERROR: segment %x not mappable\n", segaddr);
   return -1;
 }
 
@@ -1169,7 +1152,7 @@ alter_map_and_call(state_t * state)
      * and save current cs:ip for returning
      * properly from HTL handler
      */
-    fake_call_to(EMSControl_SEG, EMSControl_OFF);
+    fake_call_to(EMSControl_SEG, EMSAPMAP_ret_OFF);
     seg = FP_SEG16(alter_map_call.call_addr);
     off = FP_OFF16(alter_map_call.call_addr);
     Kdebug0((dbg_fd, "call_addr @ %04hX:%04hXh\n", seg, off));
@@ -1190,6 +1173,12 @@ alter_map_and_call(state_t * state)
   }
  }
 
+static void emm_control_hlt(Bit16u offs, void *arg)
+{
+  fake_retf(0);
+  ems_fn(&REGS);
+}
+
 /* hlt handler for EMS
  * Used for finishing the return path of the
  * EMS "alter page map and call" API fn.
@@ -1197,8 +1186,7 @@ alter_map_and_call(state_t * state)
  * On entry, SS:ESP (DOS space stack) points to return address.
  * Pushed parameters saved by emm_alter_map_and_call() follow.
  */
-static void
-emm_hlt_handler(Bit16u offs, void *arg)
+static void emm_apmap_ret_hlt(Bit16u offs, void *arg)
 {
   struct alter_map_struct old_map;
   u_short method;
@@ -2124,6 +2112,7 @@ static void ems_reset2(void)
   emm_allocated = config.ems_cnv_pages;
   for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
     emm_map[sh_base].handle = NULL_HANDLE;
+    emm_map[sh_base].logical_page = NULL_PAGE;
   }
 
   for (sh_base = 0; sh_base < MAX_HANDLES; sh_base++) {
@@ -2202,6 +2191,10 @@ void ems_init(void)
 
   /* install HLT handler */
   hlt_hdlr.name = "EMS";
-  hlt_hdlr.func = emm_hlt_handler;
+  hlt_hdlr.func = emm_control_hlt;
   EMSControl_OFF = hlt_register_handler(hlt_hdlr);
+
+  hlt_hdlr.name = "EMS APMAP ret";
+  hlt_hdlr.func = emm_apmap_ret_hlt;
+  EMSAPMAP_ret_OFF = hlt_register_handler(hlt_hdlr);
 }

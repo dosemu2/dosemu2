@@ -8,7 +8,8 @@
 #define __EMS_H
 
 /* increase this when ems.S is changed */
-#define DOSEMU_EMS_DRIVER_VERSION 5
+#define DOSEMU_EMS_DRIVER_VERSION 7
+#define DOSEMU_EMS_DRIVER_MIN_VERSION 7
 
 #define EMS_ERROR_DISABLED_IN_CONFIG 1
 #define EMS_ERROR_VERSION_MISMATCH 2

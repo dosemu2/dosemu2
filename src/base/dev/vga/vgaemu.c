@@ -269,10 +269,12 @@
 #include "bios.h"
 #include "memory.h"
 #include "remap.h"
+#include "render.h"
 #include "vgaemu.h"
 #include "priv.h"
 #include "mapping.h"
 #include "utilities.h"
+#include "instremu.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -764,6 +766,8 @@ int vga_write_access(dosaddr_t m)
 		return 1;
 	if (m >= 0xc0000 && m < 0xc0000 + (vgaemu_bios.pages<<12))
 		return 1;
+	if (!config.umb_f0 && m >= 0xf0000 && m < 0xf4000)
+		return 1;
 	if (m >= vga.mem.bank_base && m < vga.mem.bank_base + vga.mem.bank_len)
 		return 1;
 	return 0;
@@ -1013,7 +1017,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
 
   vga_deb2_map(
     "vga_emu_fault: in_dpmi %d, err 0x%x, scp->cs:eip %04x:%04x, vm86s->cs:eip %04x:%04x\n",
-    in_dpmi, (unsigned) scp->err, (unsigned) _cs, (unsigned) _eip,
+    dpmi_active(), (unsigned) scp->err, (unsigned) _cs, (unsigned) _eip,
     (unsigned) REG(cs), (unsigned) REG(eip)
   );
 
@@ -1063,7 +1067,8 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
       }
       return True;
     }
-    else if(page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
+    else if((page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) ||
+	    (!config.umb_f0 && page_fault >= 0xf0 && page_fault < 0xf4)) {	/* ROM area */
       if (pmode) {
         u = instr_len((unsigned char *)SEL_ADR(_cs, _eip),
 	    dpmi_mhp_get_selector_size(_cs));
@@ -1613,7 +1618,7 @@ int vga_emu_pre_init(void)
   /* force 256k granularity to prevent possible problems
    * (with 4-plane-modes, to be precise)
    */
-  vga.mem.size = (vga.mem.size + ~(-1 << 18)) & (-1 << 18);
+  vga.mem.size = (vga.mem.size + ((1 << 18) - 1)) & ~((1 << 18) - 1);
   vga.mem.pages = vga.mem.size >> 12;
 
   vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12), -1);
@@ -2463,8 +2468,7 @@ static int __vga_emu_setmode(int mode, int width, int height)
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
 
-  if (Video->setmode)
-    Video->setmode(vmi->mode_class, width, height);
+  render_update_vidmode();
 
   vga_msg("vga_emu_setmode: mode initialized\n");
 
@@ -3037,15 +3041,13 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	} else if (gdata & 0x20) {
 	  vga.mode_type = CGA;
 	  vga.pixel_size = 2;
-	} else if (!(cdata & 1)) {
-	  vga.mode_type = CGA;
 	} else if (!(cdata & 2)) {
 	  vga.mode_type = HERC;
 	} else if (adata == 5) {
 	  vga.mode_type = PL2;
 	  vga.pixel_size = 2;
 	} else if (adata == 1) {
-	  vga.mode_type = PL1;
+	  vga.mode_type = (cdata & 1) ? PL1 : CGA;
 	} else {
 	  vga.mode_type = PL4;
 	  vga.pixel_size = 4;

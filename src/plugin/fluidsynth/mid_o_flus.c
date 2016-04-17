@@ -27,11 +27,12 @@
  * Author: Stas Sergeev
  *
  */
+#include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <fluidsynth.h>
-#include "fluid_midi.h"
+#include "seqbind.h"
 #include "emu.h"
 #include "init.h"
 #include "timers.h"
@@ -39,7 +40,8 @@
 #include "sound/sound.h"
 
 
-#define midoflus_name "MIDI Output: FluidSynth device"
+#define midoflus_name "flus"
+#define midoflus_longname "MIDI Output: FluidSynth device"
 static const int flus_format = PCM_FORMAT_S16_LE;
 static const float flus_gain = 1;
 #define FLUS_CHANNELS 2
@@ -49,8 +51,7 @@ static const float flus_gain = 1;
 static fluid_settings_t* settings;
 static fluid_synth_t* synth;
 static fluid_sequencer_t* sequencer;
-static short synthSeqID;
-static fluid_midi_parser_t* parser;
+static void *synthSeqID;
 static int pcm_stream;
 static int output_running, pcm_running;
 static double mf_time_base;
@@ -58,6 +59,7 @@ static double flus_srate;
 
 static pthread_t syn_thr;
 static sem_t syn_sem;
+static pthread_mutex_t syn_mtx = PTHREAD_MUTEX_INITIALIZER;
 static void *synth_thread(void *arg);
 
 static int midoflus_init(void *arg)
@@ -114,8 +116,7 @@ static int midoflus_init(void *arg)
     fluid_settings_setstr(settings, "synth.midi-bank-select", "gm");
     S_printf("fluidsynth: loaded soundfont %s ID=%i\n", sfont, ret);
     sequencer = new_fluid_sequencer2(0);
-    synthSeqID = fluid_sequencer_register_fluidsynth(sequencer, synth);
-    parser = new_fluid_midi_parser();
+    synthSeqID = fluid_sequencer_register_fluidsynth2(sequencer, synth);
 
     sem_init(&syn_sem, 0, 0);
     pthread_create(&syn_thr, NULL, synth_thread, NULL);
@@ -132,18 +133,12 @@ err1:
     return 0;
 }
 
-static int midoflus_owns(void *id, void *arg)
-{
-    return ((enum MixChan)id == MC_MIDI);
-}
-
 static void midoflus_done(void *arg)
 {
     pthread_cancel(syn_thr);
     pthread_join(syn_thr, NULL);
     sem_destroy(&syn_sem);
 
-    delete_fluid_midi_parser(parser);
     delete_fluid_sequencer(sequencer);
     delete_fluid_synth(synth);
     delete_fluid_settings(settings);
@@ -153,30 +148,26 @@ static void midoflus_start(void)
 {
     S_printf("MIDI: starting fluidsynth\n");
     mf_time_base = GETusTIME(0);
+    pthread_mutex_lock(&syn_mtx);
     pcm_prepare_stream(pcm_stream);
     fluid_sequencer_process(sequencer, 0);
     output_running = 1;
+    pthread_mutex_unlock(&syn_mtx);
 }
 
 static void midoflus_write(unsigned char val)
 {
-    fluid_midi_event_t* event;
+    int ret;
+    unsigned long long now = GETusTIME(0);
+    int msec = (now - mf_time_base) / 1000;
 
     if (!output_running)
 	midoflus_start();
 
-    event = fluid_midi_parser_parse(parser, val);
-    if (event != NULL) {
-	int ret;
-	unsigned long long now = GETusTIME(0);
-	int msec = (now - mf_time_base) / 1000;
-	fluid_sequencer_process(sequencer, msec);
-	if (debug_level('S') >= 5)
-	    S_printf("MIDI: sending event to fluidsynth, msec=%i\n", msec);
-	ret = fluid_sequencer_add_midi_event_to_buffer(sequencer, event);
-	if (ret != FLUID_OK)
-	    S_printf("MIDI: failed sending midi event\n");
-    }
+    fluid_sequencer_process(sequencer, msec);
+    ret = fluid_sequencer_add_midi_data_to_buffer(synthSeqID, &val, 1);
+    if (ret != FLUID_OK)
+	S_printf("MIDI: failed sending midi event\n");
 }
 
 static void mf_process_samples(int nframes)
@@ -225,6 +216,7 @@ static void midoflus_stop(void *arg)
     now = GETusTIME(0);
     msec = (now - mf_time_base) / 1000;
     S_printf("MIDI: stopping fluidsynth at msec=%i\n", msec);
+    pthread_mutex_lock(&syn_mtx);
     /* advance past last event */
     fluid_sequencer_process(sequencer, msec);
     /* shut down all active notes */
@@ -233,15 +225,22 @@ static void midoflus_stop(void *arg)
 	pcm_flush(pcm_stream);
     pcm_running = 0;
     output_running = 0;
+    pthread_mutex_unlock(&syn_mtx);
 }
 
 static void *synth_thread(void *arg)
 {
     while (1) {
 	sem_wait(&syn_sem);
+	pthread_mutex_lock(&syn_mtx);
+	if (!output_running) {
+		pthread_mutex_unlock(&syn_mtx);
+		continue;
+	}
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	process_samples(GETusTIME(0), FLUS_MIN_BUF);
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	pthread_mutex_unlock(&syn_mtx);
     }
     return NULL;
 }
@@ -253,24 +252,25 @@ static void midoflus_run(void)
     sem_post(&syn_sem);
 }
 
+static int midoflus_cfg(void *arg)
+{
+    return pcm_parse_cfg(config.midi_driver, midoflus_name);
+}
+
 static const struct midi_out_plugin midoflus = {
     .name = midoflus_name,
+    .longname = midoflus_longname,
     .open = midoflus_init,
     .close = midoflus_done,
     .write = midoflus_write,
     .stop = midoflus_stop,
     .run = midoflus_run,
+    .get_cfg = midoflus_cfg,
+    .stype = ST_GM,
     .weight = MIDI_W_PCM | MIDI_W_PREFERRED,
-};
-
-static const struct pcm_recorder recorder = {
-    .name = midoflus_name,
-    .owns = midoflus_owns,
-    .flags = PCM_F_PASSTHRU,
 };
 
 CONSTRUCTOR(static void midoflus_register(void))
 {
-    pcm_register_recorder(&recorder, NULL);
     midi_register_output_plugin(&midoflus);
 }

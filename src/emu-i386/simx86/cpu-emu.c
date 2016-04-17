@@ -47,6 +47,7 @@
 #include "codegen-arch.h"
 #include "dpmi.h"
 #include "dis8086.h"
+#include "sig.h"
 
 #define e_set_flags(X,new,mask) \
 	((X) = ((X) & ~(mask)) | ((new) & (mask)))
@@ -156,8 +157,6 @@ FILE *aLog = NULL;
  */
 struct sigcontext e_scp; /* initialized to 0 */
 
-unsigned long io_bitmap[IO_BITMAP_SIZE+1];
-
 /* ======================================================================= */
 
 unsigned long eTSSMASK = 0;
@@ -227,7 +226,8 @@ char *e_print_regs(void)
 	char *p = buf;
 	char *q = eregbuf;
 
-	while (*q) *p++ = *q++; *p=0;
+	while (*q) *p++ = *q++;
+	*p=0;
 	exprintl(rEAX,buf,(ERB_L1+ERB_LEFTM));
 	exprintl(rEBX,buf,(ERB_L1+ERB_LEFTM)+13);
 	exprintl(rECX,buf,(ERB_L1+ERB_LEFTM)+26);
@@ -280,7 +280,8 @@ char *e_print_scp_regs(struct sigcontext *scp, int pmode)
 	unsigned short *stk;
 	int i;
 
-	while (*q) *p++ = *q++; *p=0;
+	while (*q) *p++ = *q++;
+	*p=0;
 	exprintl(_rax,buf,(ERB_L1+ERB_LEFTM));
 	exprintl(_rbx,buf,(ERB_L1+ERB_LEFTM)+13);
 	exprintl(_rcx,buf,(ERB_L1+ERB_LEFTM)+26);
@@ -586,7 +587,7 @@ void Cpu2Reg (void)
   REG(fs)  = TheCPU.fs;
   REG(gs)  = TheCPU.gs;
   REG(cs)  = TheCPU.cs;
-  REG(eip) = return_addr - LONG_CS;
+  REG(eip) = TheCPU.eip;
   /*
    * move (VIF|TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
    * from the emulated ones.
@@ -647,7 +648,7 @@ static void Scp2CpuR (struct sigcontext *scp)
   Scp2Cpu(scp);
   TheCPU.err = 0;
 
-  if (in_dpmi) {	// vm86 during dpmi active
+  if (dpmi_active()) {	// vm86 during dpmi active
 	e_printf("** Scp2Cpu VM in_dpmi\n");
   }
   TheCPU.eflags = (_eflags&(eTSSMASK|0x10ed5)) | 0x20002;
@@ -662,6 +663,7 @@ static void Scp2CpuR (struct sigcontext *scp)
  */
 static void Cpu2Scp (struct sigcontext *scp, int trapno)
 {
+  unsigned long mask;
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 
@@ -675,9 +677,7 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   _edi = TheCPU.edi;
   _ebp = TheCPU.ebp;
   _esp = TheCPU.esp;
-
   _eip = TheCPU.eip;
-  _eflags = TheCPU.eflags;
 
   _cs = TheCPU.cs;
   _fs = TheCPU.fs;
@@ -707,22 +707,11 @@ static void Cpu2Scp (struct sigcontext *scp, int trapno)
   */
   feenableexcept(FE_DIVBYZERO | FE_OVERFLOW);
 
-  if (in_dpmi) {
-    _cs = TheCPU.cs;
-    _eip = return_addr - LONG_CS;
-    /* push running flags - same as eflags, RF is cosmetic */
-    _eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
-  }
-  else {
-    unsigned long mask;
-    _cs  = return_addr >> 16;
-    _eip = return_addr & 0xffff;
-    /* rebuild running flags */
-    mask = VIF | eTSSMASK;
-    REG(eflags) = (REG(eflags) & VIP) |
+  /* rebuild running flags */
+  mask = VIF | eTSSMASK;
+  REG(eflags) = (REG(eflags) & VIP) |
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
-    _eflags = REG(eflags) & ~VM;
-  }
+  _eflags = REG(eflags) & ~VM;
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08x dpm=%08x fl=%08x vf=%08x\n",
 	_eflags,REG(eflags),get_vFLAGS(TheCPU.eflags),TheCPU.eflags,eVEFLAGS);
 }
@@ -841,6 +830,39 @@ void init_emu_cpu(void)
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
   InitGen();
+
+  if (config.realcpu < CPU_586) {
+    fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
+    leavedos_main(0);
+  }
+  IDT = NULL;
+  if (GDT==NULL) {
+	/* The GDT is not really used (yet?) but some instructions
+	   like verr/verw refer to it, so just allocate a 0 GDT */
+	GDT = calloc(65536,1);
+  }
+  /* use the cached LDT used by dpmi (w/o GDT) */
+  if (LDT==NULL) {
+	LDT = (Descriptor *)ldt_buffer;
+	e_printf("LDT allocated at %p\n",LDT);
+	TheCPU.LDTR.Base = (long)LDT;
+	TheCPU.LDTR.Limit = 0xffff;
+  }
+#ifdef HOST_ARCH_X86
+  TheCPU.unprotect_stub = stub_rep;
+  TheCPU.stub_wri_8 = stub_wri_8;
+  TheCPU.stub_wri_16 = stub_wri_16;
+  TheCPU.stub_wri_32 = stub_wri_32;
+  TheCPU.stub_stk_16 = stub_stk_16;
+  TheCPU.stub_stk_32 = stub_stk_32;
+  TheCPU.stub_movsb = stub_movsb;
+  TheCPU.stub_movsw = stub_movsw;
+  TheCPU.stub_movsl = stub_movsl;
+  TheCPU.stub_stosb = stub_stosb;
+  TheCPU.stub_stosw = stub_stosw;
+  TheCPU.stub_stosl = stub_stosl;
+#endif
+
   Running = 1;
 }
 
@@ -881,7 +903,7 @@ int e_gen_sigalrm(struct sigcontext *scp)
 	return 0;
 }
 
-static void e_gen_sigprof(struct sigcontext *scp)
+static void e_gen_sigprof(struct sigcontext *scp, siginfo_t *si)
 {
 	e_sigpa_count -= sigEMUdelta;
 	TheCPU.sigprof_pending += 1;
@@ -893,42 +915,6 @@ void enter_cpu_emu(void)
 	struct itimerval itv;
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
-	if (config.realcpu < CPU_586) {
-	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
-	  leavedos_main(0);
-	}
-	config.cpuemu=2;	/* for saving CPU flags */
-	IDT = NULL;
-	if (GDT==NULL) {
-		/* The GDT is not really used (yet?) but some instructions
-		   like verr/verw refer to it, so just allocate a 0 GDT */
-		GDT = calloc(65536,1);
-	}
-	/* use the cached LDT used by dpmi (w/o GDT) */
-	if (LDT==NULL) {
-		LDT = (Descriptor *)ldt_buffer;
-		e_printf("LDT allocated at %p\n",LDT);
-		TheCPU.LDTR.Base = (long)LDT;
-		TheCPU.LDTR.Limit = 0xffff;
-	}
-#ifdef SKIP_EMU_VBIOS
-	if ((ISEG(0x10)==INT10_WATCHER_SEG)&&(IOFF(0x10)==INT10_WATCHER_OFF))
-		IOFF(0x10)=CPUEMU_WATCHER_OFF;
-#endif
-#ifdef HOST_ARCH_X86
-	TheCPU.unprotect_stub = stub_rep;
-	TheCPU.stub_wri_8 = stub_wri_8;
-	TheCPU.stub_wri_16 = stub_wri_16;
-	TheCPU.stub_wri_32 = stub_wri_32;
-	TheCPU.stub_stk_16 = stub_stk_16;
-	TheCPU.stub_stk_32 = stub_stk_32;
-	TheCPU.stub_movsb = stub_movsb;
-	TheCPU.stub_movsw = stub_movsw;
-	TheCPU.stub_movsl = stub_movsl;
-	TheCPU.stub_stosb = stub_stosb;
-	TheCPU.stub_stosw = stub_stosw;
-	TheCPU.stub_stosl = stub_stosl;
-#endif
 
 	if (eTimeCorrect >= 0) {
 		TheCPU.EMUtime = GETTSC();
@@ -1016,7 +1002,6 @@ void leave_cpu_emu(void)
 
 	if (config.cpuemu > 1) {
 		iniflag = 0;
-		config.cpuemu=1;
 #ifdef SKIP_EMU_VBIOS
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
@@ -1262,8 +1247,8 @@ int e_vm86(void)
 	    case EXCP01_SSTP:
 	    case EXCP03_INT3: {	/* to kernel vm86 */
 		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
+		break;
 	      }
-	      break;
 	    default: {
 		struct sigcontext scp;
 		struct _fpstate fps;
@@ -1271,11 +1256,12 @@ int e_vm86(void)
 		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */
 		if (debug_level('e')) TotalTime += (GETTSC() - tt0);
-		_dosemu_fault(xval-1, &scp);
+		vm86_fault(&scp);
 		if (debug_level('e')) tt0 = GETTSC();
 		Scp2CpuR (&scp);
 		in_vm86 = 1;
 		retval = -1;	/* reenter vm86 emu */
+		break;
 	    }
 	}
     }

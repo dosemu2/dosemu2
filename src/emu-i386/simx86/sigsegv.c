@@ -317,6 +317,7 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		_edi = AR1.d;
 		_esi = AR2.d;
 		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		_rip = (long)(p+1);
 		break;
 /*aa*/	case STOSb: {
 		int d = (_eflags & EFLAGS_DF? -1:1);
@@ -361,6 +362,7 @@ int e_vgaemu_fault(struct sigcontext *scp, unsigned page_fault)
 		FlagSync_All();
 		_edi = AR1.d;
 		_eflags = (_eflags & ~EFLAGS_CC) | (EFLAGS & EFLAGS_CC);
+		_rip = (long)(p+1);
 		break;
 /*f2*/	case REPNE:
 /*f3*/	case REP: {
@@ -502,7 +504,7 @@ int e_emu_fault(struct sigcontext *scp)
     dbug_printf("==============================================================\n");
     if (debug_level('e')>1) {
 	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_rip),
-	    e_print_scp_regs(scp,(in_dpmi?3:2)));
+	    e_print_scp_regs(scp,(dpmi_active()?3:2)));
 	dbug_printf("Emul CPU mode=%04x cr2=%08x\n%s\n",
 	    TheCPU.mode&0xffff,TheCPU.cr2,e_print_regs());
     }
@@ -537,6 +539,7 @@ int e_emu_fault(struct sigcontext *scp)
 		TheCPU.err = EXCP0E_PAGE;
 		TheCPU.scp_err = _err;
 		TheCPU.cr2 = _cr2;
+		TheCPU.eip = P0 - LONG_CS;
 		fault_cnt--;
 		siglongjmp(jmp_env, 0);
 	    }

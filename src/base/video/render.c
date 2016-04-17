@@ -157,7 +157,7 @@ int register_render_system(struct render_system *render_system)
 int remapper_init(int have_true_color, int have_shmap, int features,
     ColorSpaceDesc *csd)
 {
-  int remap_src_modes, err, ximage_mode;
+  int remap_src_modes, ximage_mode;
 
 //  set_remap_debug_msg(stderr);
 
@@ -185,14 +185,19 @@ int remapper_init(int have_true_color, int have_shmap, int features,
     register_text_system(&Text_bitmap);
     init_text_mapper(ximage_mode, features, csd);
   }
-  err = sem_init(&render_sem, 0, 0);
-  assert(!err);
-  err = pthread_create(&render_thr, NULL, render_thread, NULL);
-  assert(!err);
 
   return remap_src_modes;
 }
 
+int render_init(void)
+{
+  int err;
+  err = sem_init(&render_sem, 0, 0);
+  assert(!err);
+  err = pthread_create(&render_thr, NULL, render_thread, NULL);
+  assert(!err);
+  return err;
+}
 
 /*
  * Free resources associated with remap_obj.
@@ -232,8 +237,9 @@ static void refresh_graphics_palette(void)
     dirty_all_video_pages();
 }
 
-void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res)
+struct vid_mode_params get_mode_parameters(void)
 {
+  struct vid_mode_params ret;
   int x_res, y_res, w_x_res, w_y_res;
 
   w_x_res = x_res = vga.width;
@@ -289,10 +295,14 @@ void get_mode_parameters(int *x_res_p, int *y_res_p, int *wx_res, int *wy_res)
   }
 #endif
 
-  *wx_res = w_x_res;
-  *wy_res = w_y_res;
-  *x_res_p = x_res;
-  *y_res_p = y_res;
+  ret.w_x_res = w_x_res;
+  ret.w_y_res = w_y_res;
+  ret.x_res = x_res;
+  ret.y_res = y_res;
+  ret.mode_class = vga.mode_class;
+  ret.text_width = vga.text_width;
+  ret.text_height = vga.text_height;
+  return ret;
 }
 
 /*
@@ -314,28 +324,6 @@ static void modify_mode(void)
   }
 }
 
-
-/*
- * DANG_BEGIN_FUNCTION update_screen
- *
- * description:
- * Update the part of the screen which has changed, in text mode
- * and in graphics mode. Usually called from the SIGALRM handler.
- *
- * X_update_screen returns 0 if nothing was updated, 1 if the whole
- * screen was updated, and 2 for a partial update.
- *
- * It is called in arch/linux/async/signal.c::SIGALRM_call() as part
- * of a struct video_system (see top of X.c) every 50 ms or
- * every 10 ms if 2 was returned, depending somewhat on various config
- * options as e.g. config.X_updatefreq and VIDEO_CHECK_DIRTY.
- * At least it is supposed to do that.
- *
- * DANG_END_FUNCTION
- *
- * Text and graphics updates are separate functions now; the code was
- * too messy. -- sw
- */
 
 static int update_graphics_loop(int src_offset, int update_offset,
 	vga_emu_update_type *veut)
@@ -478,7 +466,6 @@ static void *render_thread(void *arg)
       blink_cursor();
       if (text_is_dirty()) {
         render_text_begin();
-        update_cursor();
         update_text_screen();
         render_text_end();
       }
@@ -503,6 +490,34 @@ static void *render_thread(void *arg)
   return NULL;
 }
 
+int render_update_vidmode(void)
+{
+  if (Video->setmode)
+    return Video->setmode(get_mode_parameters());
+  return 0;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION update_screen
+ *
+ * description:
+ * Update the part of the screen which has changed, in text mode
+ * and in graphics mode. Usually called from the SIGALRM handler.
+ *
+ * X_update_screen returns 0 if nothing was updated, 1 if the whole
+ * screen was updated, and 2 for a partial update.
+ *
+ * It is called in arch/linux/async/signal.c::SIGALRM_call() as part
+ * of a struct video_system (see top of X.c) every 50 ms or
+ * every 10 ms if 2 was returned, depending somewhat on various config
+ * options as e.g. config.X_updatefreq and VIDEO_CHECK_DIRTY.
+ * At least it is supposed to do that.
+ *
+ * DANG_END_FUNCTION
+ *
+ * Text and graphics updates are separate functions now; the code was
+ * too messy. -- sw
+ */
 int update_screen(void)
 {
   if(vga.config.video_off) {
@@ -519,8 +534,7 @@ int update_screen(void)
       vga.width, vga.height, vga.scan_len
     );
     vga_emu_update_lock();
-    if (Video->setmode)
-      Video->setmode(vga.mode_class, vga.text_width, vga.text_height);
+    render_update_vidmode();
     dirty_all_video_pages();
     vga.reconfig.display = 0;
     vga_emu_update_unlock();

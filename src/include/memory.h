@@ -20,9 +20,6 @@
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
 
-#define Pause_SEG	(BIOSSEG)
-#define Pause_OFF	0xf120
-
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
@@ -113,9 +110,9 @@
 #endif
 
 /* This inline interrupt is used for FCB open calls */
-#define INTE7_SEG	ROMBIOSSEG
-#define INTE7_OFF	0x6320
-#define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
+#define FCB_HLP_SEG	ROMBIOSSEG
+#define FCB_HLP_OFF	0x6320
+#define FCB_HLP_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
 #define DPMI_SEG	ROMBIOSSEG
 #define DPMI_OFF	0x4800		/* need at least 512 bytes */
@@ -142,7 +139,6 @@
 #define BIOS_HLT_BLK       (BIOS_HLT_BLK_SEG << 4)
 #define BIOS_HLT_BLK_SIZE  0x00800
 
-#define PIC_SEG         BIOS_HLT_BLK_SEG
 #define EMSControl_SEG  BIOS_HLT_BLK_SEG
 #define IPXEsrEnd_SEG   BIOS_HLT_BLK_SEG
 #define PKTRcvCall_SEG  BIOS_HLT_BLK_SEG
@@ -217,11 +213,11 @@ void *physaddr_to_unixaddr(unsigned int addr);
 */
 extern unsigned char *mem_base;
 
-#define LINP(a) ((unsigned char *)0 + (a))
+#define LINP(a) ((unsigned char *)(uintptr_t)(a))
 typedef uint32_t dosaddr_t;
 static inline unsigned char *MEM_BASE32(dosaddr_t a)
 {
-    uint32_t off = (uint32_t)(ptrdiff_t)(mem_base + a);
+    uint32_t off = (uint32_t)(uintptr_t)(mem_base + a);
     return LINP(off);
 }
 static inline dosaddr_t DOSADDR_REL(const unsigned char *a)

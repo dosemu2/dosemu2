@@ -241,7 +241,7 @@ while (0)
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC
 %token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS 
 %token PORTS DISK DOSMEM EXT_MEM
-%token L_EMS UMB_A0 UMB_B0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
+%token L_EMS UMB_A0 UMB_B0 UMB_F0 EMS_SIZE EMS_FRAME EMS_UMA_PAGES EMS_CONV_PAGES
 %token TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
@@ -251,7 +251,7 @@ while (0)
 	/* speaker */
 %token EMULATED NATIVE
 	/* cpuemu */
-%token CPUEMU VM86 FULL VM86SIM FULLSIM
+%token CPUEMU CPU_VM VM86 FULL VM86SIM FULLSIM KVM
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
@@ -291,7 +291,7 @@ while (0)
 %token LPT COMMAND TIMEOUT L_FILE
 	/* disk */
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH FIVEINCH_360 ATAPI READONLY LAYOUT
-%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
+%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE HDTYPE1 HDTYPE2 DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
@@ -299,8 +299,8 @@ while (0)
 	/* hardware ram mapping */
 %token HARDWARE_RAM
         /* Sound Emulation */
-%token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ
-%token SOUND_DRIVER PCM_HPF MIDI_FILE WAV_FILE
+%token SB_BASE SB_IRQ SB_DMA SB_HDMA MPU_BASE MPU_IRQ MPU_IRQ_MT32 MIDI_SYNTH
+%token SOUND_DRIVER MIDI_DRIVER MUNT_ROMS SND_PLUGIN_PARAMS PCM_HPF MIDI_FILE WAV_FILE
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -310,7 +310,7 @@ while (0)
 	/* joystick */
 %token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
 	/* Hacks */
-%token CLI_TIMEOUT PIC_WATCHDOG
+%token CLI_TIMEOUT
 %token TIMEMODE
 
 	/* we know we have 1 shift/reduce conflict :-( 
@@ -318,6 +318,7 @@ while (0)
 	/* %expect 1 */
 
 %type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
+%type <i_value> cpu_vm
 
 %%
 
@@ -466,6 +467,11 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 				config.cpuemu, (int)vm86s.cpu_type);
 #endif
 			}
+		| CPU_VM cpu_vm
+			{
+			config.cpu_vm = $2;
+			c_printf("CONF: CPU VM set to %d\n", config.cpu_vm);
+			}
 		| CPUEMU cpuemu
 			{
 #ifdef X86_EMULATOR
@@ -579,6 +585,11 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    {
 		    config.umb_b0 = ($2!=0);
 		    if ($2 > 0) c_printf("CONF: umb at 0b0000: %s\n", ($2) ? "on" : "off");
+		    }
+		| UMB_F0 bool
+		    {
+		    config.umb_f0 = ($2!=0);
+		    if ($2 > 0) c_printf("CONF: umb at 0f0000: %s\n", ($2) ? "on" : "off");
 		    }
 		| L_DPMI int_bool
 		    {
@@ -730,8 +741,8 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { stop_printer(); }
 		| L_X '{' x_flags '}'
 		| L_SDL '{' sdl_flags '}'
-		| L_SOUND bool	{ config.sound = ($2!=0); }
-                | L_SOUND { config.sound = -1; } '{' sound_flags '}'
+		| SOUND bool	{ config.sound = ($2!=0); }
+                | L_SOUND '{' sound_flags '}'
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = NULL; } }
                 | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
@@ -756,8 +767,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| CLI_TIMEOUT int_bool
 		    { config.cli_timeout = $2; }
-		| PIC_WATCHDOG int_bool
-		    { config.pic_watchdog = $2; }
 		| TIMEMODE string_expr
 		    {
 		    config.timemode = parse_timemode($2);
@@ -1093,8 +1102,18 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| SB_HDMA expression { config.sb_hdma = $2; }
 		| SB_IRQ expression	{ config.sb_irq = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
-		| MPU_IRQ expression	{ config.mpu401_irq = $2; }
+		| MIDI_SYNTH string_expr	{ free(config.midi_synth); config.midi_synth = $2; }
+		| MPU_IRQ int_bool	{ config.mpu401_irq = $2; }
+		| MPU_IRQ_MT32 expression	{ config.mpu401_irq_mt32 = $2; }
 		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
+		| MIDI_DRIVER string_expr	{ free(config.midi_driver); config.midi_driver = $2; }
+		| MUNT_ROMS string_expr
+			{
+				free(config.munt_roms_dir);
+				config.munt_roms_dir = concat_dir(LOCALDIR, $2);
+				free($2);
+			}
+		| SND_PLUGIN_PARAMS string_expr	{ free(config.snd_plugin_params); config.snd_plugin_params = $2; }
 		| PCM_HPF bool		{ config.pcm_hpf = ($2!=0); }
 		| MIDI_FILE string_expr	{ free(config.midi_file); config.midi_file = $2; }
 		| WAV_FILE string_expr	{ free(config.wav_file); config.wav_file = $2; }
@@ -1424,12 +1443,14 @@ disk_flags	: disk_flag
 		;
 disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
-		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_288MFLOP; }		
-		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }		
+		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_288MFLOP; }
+		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }
 		| ATAPI		{ dptr->default_cmos = ATAPI_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| FIVEINCH_360	{ dptr->default_cmos = FIVE_INCH_360KFLOP; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
+		| HDTYPE1	{ dptr->hdtype = 1; }
+		| HDTYPE2	{ dptr->hdtype = 2; }
 		| SECTORS expression	{ dptr->sectors = $2; }
 		| CYLINDERS expression	{ dptr->tracks = $2; }
 		| TRACKS expression	{ dptr->tracks = $2; }
@@ -1708,6 +1729,15 @@ cpuemu		: L_OFF		{ $$ = 0; }
 		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
 		;
 
+cpu_vm		: L_AUTO	{ $$ = -1; }
+		| VM86		{ $$ = CPUVM_VM86; }
+		| KVM		{ $$ = CPUVM_KVM; }
+		| EMULATED	{ $$ = CPUVM_EMU; }
+		| STRING        { yyerror("got '%s' for cpu_vm", $1);
+				  free($1); }
+		| error         { yyerror("bad value for cpu_vm"); }
+		;
+
 %%
 
 	/* features */
@@ -1884,6 +1914,7 @@ static void start_serial(void)
     sptr->dev = NULL;
     sptr->irq = 0; 
     sptr->base_port = 0;
+    sptr->end_port = 0;
     sptr->real_comport = 0;
     sptr->mouse = 0;
     sptr->virtual = FALSE;
@@ -1958,9 +1989,9 @@ static void start_bootdisk(void)
 {
   if (config.bootdisk)           /* Already a bootdisk configured ? */
     yyerror("There is already a bootdisk configured");
-      
+
   dptr = &bootdisk;              /* set pointer do bootdisk-struct */
-      
+
   dptr->diskcyl4096 = 0;
   dptr->sectors = 0;             /* setup default-values           */
   dptr->heads   = 0;
@@ -2005,11 +2036,12 @@ static void start_disk(void)
     }
   else
     dptr = &hdisktab[c_hdisks];
-      
+
   dptr->type    =  NODISK;
   dptr->sectors = -1;
   dptr->heads   = -1;
   dptr->tracks  = -1;
+  dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
   dptr->boot_name = NULL;
@@ -2033,7 +2065,7 @@ static void start_vnet(char *mode) {
   else {
     error("Unknown vnet mode \"%s\"\n", mode);
     config.exitearly = 1;
-  } 
+  }
 }
 
 static void do_part(char *dev)
@@ -2045,9 +2077,9 @@ static void do_part(char *dev)
 #ifdef __linux__
   dptr->part_info.number = atoi(dptr->dev_name+8);
 #endif
-  if (dptr->part_info.number == 0) 
+  if (dptr->part_info.number == 0)
     yyerror("%s must be a PARTITION, can't find number suffix!\n",
-   	    dptr->dev_name);
+	    dptr->dev_name);
 }
 
 static void stop_disk(int token)

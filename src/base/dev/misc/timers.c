@@ -30,6 +30,7 @@
 
 #include <sys/time.h>
 #include <sys/kd.h>
+#include <sys/ioctl.h>
 #include "config.h"
 #include "emu.h"
 #include "port.h"
@@ -50,6 +51,8 @@ static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
 static Bit8u port61 = 0x0c;
+
+int is_cli;
 
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
@@ -137,7 +140,7 @@ void timer_tick(void)
   /* Save old value of the timer */
   time_old = time_curr;
 
-  if (config.cli_timeout && in_dpmi && !in_dpmi_dos_int && is_cli) {
+  if (config.cli_timeout && is_cli) {
 /*
    XXX as IF is not set by popf, we have to set it explicitly after a
    reasonable delay. This will allow Doom to work with sound one day.
@@ -145,9 +148,8 @@ void timer_tick(void)
 */
     if (isset_IF()) {
       is_cli = 0;
-    } else
-    if (is_cli++ >= config.cli_timeout) {
-      D_printf("DPMI: Warning: Interrupts were disabled for too long, "
+    } else if (is_cli++ >= config.cli_timeout) {
+      g_printf("Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");
       add_cli_to_blacklist();
       set_IF();

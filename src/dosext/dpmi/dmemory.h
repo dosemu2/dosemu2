@@ -23,7 +23,7 @@ typedef struct dpmi_pm_block_root_struc {
 dpmi_pm_block *lookup_pm_block(dpmi_pm_block_root *root, unsigned long h);
 dpmi_pm_block *lookup_pm_block_by_addr(dpmi_pm_block_root *root,
 	dosaddr_t addr);
-void dpmi_alloc_pool(void);
+int dpmi_alloc_pool(void);
 void dpmi_free_pool(void);
 dpmi_pm_block *DPMI_malloc(dpmi_pm_block_root *root, unsigned int size);
 dpmi_pm_block *DPMI_mallocLinear(dpmi_pm_block_root *root, unsigned int base, unsigned int size, int committed);
@@ -39,5 +39,7 @@ int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int o
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+
+unsigned long dpmi_mem_size(void);
 
 #endif

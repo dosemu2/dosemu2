@@ -148,6 +148,7 @@ struct pcm_struct {
     int num_streams;
     double (*get_volume)(int id, int chan_dst, int chan_src, void *);
     int (*is_connected)(int id, void *arg);
+    int (*checkid2)(void *id2, void *arg);
     pthread_mutex_t strm_mtx;
     pthread_mutex_t time_mtx;
     struct pcm_holder players[MAX_PLAYERS];
@@ -158,7 +159,8 @@ struct pcm_struct {
     struct pcm_holder efps[MAX_EFPS];
     int num_efps;
     double time;
-} pcm;
+};
+static struct pcm_struct pcm;
 
 #define MAX_DL_HANDLES 10
 static void *dl_handles[MAX_DL_HANDLES];
@@ -174,6 +176,22 @@ static int is_connected_dummy(int id, void *arg)
     return 1;
 }
 
+static int checkid2_dummy(void *id2, void *arg)
+{
+    return 1;
+}
+
+static int pcm_get_cfg(const char *name)
+{
+  int i;
+  for (i = 0; i < pcm.num_players; i++) {
+    struct pcm_holder *p = &pcm.players[i];
+    if (!strcmp(p->plugin->name, name))
+      return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
+  }
+  return -1;
+}
+
 int pcm_init(void)
 {
 #ifdef USE_DL_PLUGINS
@@ -184,13 +202,18 @@ int pcm_init(void)
     pthread_mutex_init(&pcm.time_mtx, NULL);
 
 #ifdef USE_DL_PLUGINS
+#define LOAD_PLUGIN_C(x, c) \
+    dl_handles[num_dl_handles] = load_plugin(x); \
+    if (dl_handles[num_dl_handles]) { \
+	num_dl_handles++; \
+	c \
+    }
+#define LOAD_PLUGIN(x) LOAD_PLUGIN_C(x,)
 #ifdef USE_LIBAO
-    dl_handles[num_dl_handles++] = load_plugin("libao");
-    ca = pcm_get_cfg("ao");
+    LOAD_PLUGIN_C("libao", { ca = pcm_get_cfg("ao"); } );
 #endif
 #ifdef SDL_SUPPORT
-    dl_handles[num_dl_handles++] = load_plugin("sdl");
-    cs = pcm_get_cfg("sdl");
+    LOAD_PLUGIN_C("sdl", { cs = pcm_get_cfg("sdl"); } );
 #endif
     if (!ca && !cs)		// auto. use ao for now
 	config.libao_sound = 1;
@@ -206,16 +229,17 @@ int pcm_init(void)
     }
 
 #ifdef USE_ALSA
-    dl_handles[num_dl_handles++] = load_plugin("alsa");
+    LOAD_PLUGIN("alsa");
 #endif
 #ifdef LADSPA_SUPPORT
-    dl_handles[num_dl_handles++] = load_plugin("ladspa");
+    LOAD_PLUGIN("ladspa");
 #endif
 #endif
     assert(num_dl_handles <= MAX_DL_HANDLES);
 
     pcm.get_volume = get_vol_dummy;
     pcm.is_connected = is_connected_dummy;
+    pcm.checkid2 = checkid2_dummy;
 
     /* init efps before players because players init code refers to efps */
     if (!pcm_init_plugins(pcm.efps, pcm.num_efps))
@@ -427,7 +451,9 @@ static int peek_last_sample(int strm_idx, struct sample *samp)
 void pcm_prepare_stream(int strm_idx)
 {
     long long now = GETusTIME(0);
-    struct stream *s = &pcm.stream[strm_idx];
+    struct stream *s;
+
+    s = &pcm.stream[strm_idx];
     switch (s->state) {
 
     case SNDBUF_STATE_PLAYING:
@@ -763,7 +789,9 @@ void pcm_write_interleaved(sndbuf_t ptr[][SNDBUF_CHANS], int frames,
     int i, j;
     struct sample samp;
     double frame_per;
-    struct stream *strm = &pcm.stream[strm_idx];
+    struct stream *strm;
+
+    strm = &pcm.stream[strm_idx];
     assert(nchans <= strm->channels);
     if (strm->flags & PCM_FLAG_RAW)
 	rate /= strm->raw_speed_adj;
@@ -875,6 +903,8 @@ static void pcm_mix_samples(struct sample in[][SNDBUF_CHANS],
 
     for (j = 0; j < SNDBUF_CHANS; j++) {
 	for (i = 0; i < pcm.num_streams; i++) {
+	    if (pcm.stream[i].state == SNDBUF_STATE_INACTIVE)
+		continue;
 	    for (k = 0; k < SNDBUF_CHANS; k++) {
 		if (volume[i][j][k] == 0 || in[i][k].format == PCM_FORMAT_NONE)
 		    continue;
@@ -933,8 +963,6 @@ static void get_volumes(int id, double volume[][SNDBUF_CHANS][SNDBUF_CHANS])
     int i, j, k;
     for (i = 0; i < pcm.num_streams; i++) {
 	struct stream *strm = &pcm.stream[i];
-	if (id != PCM_ID_ANY && !pcm.is_connected(id, strm->vol_arg))
-	    continue;
 	if (strm->state == SNDBUF_STATE_INACTIVE)
 	    continue;
 	for (j = 0; j < SNDBUF_CHANS; j++)
@@ -1033,6 +1061,7 @@ size_t pcm_data_get(void *data, size_t size,
     int ss = pcm_format_size(params->format);
     int fsz = params->channels * ss;
     int nframes = size / fsz;
+
     nframes = pcm_data_get_interleaved(buf, nframes, params);
     for (i = 0; i < nframes; i++) {
 	for (j = 0; j < params->channels; j++)
@@ -1149,6 +1178,7 @@ void pcm_done(void)
     pthread_mutex_lock(&pcm.strm_mtx);
     if (pcm.playing)
 	pcm_stop_output(PCM_ID_ANY);
+    pthread_mutex_unlock(&pcm.strm_mtx);
 
     pcm_deinit_plugins(pcm.recorders, pcm.num_recorders);
     pcm_deinit_plugins(pcm.players, pcm.num_players);
@@ -1156,7 +1186,6 @@ void pcm_done(void)
 
     for (i = 0; i < pcm.num_streams; i++)
 	rng_destroy(&pcm.stream[i].buffer);
-    pthread_mutex_unlock(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.strm_mtx);
     pthread_mutex_destroy(&pcm.time_mtx);
 
@@ -1176,6 +1205,7 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
   int i, sel, max_w, max_i, cnt;
   cnt = 0;
   sel = 0;
+  /* first deal with enabled plugins */
   for (i = 0; i < num; i++) {
     struct pcm_holder *p = &plu[i];
     p->cfg_flags = (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
@@ -1192,27 +1222,31 @@ int pcm_init_plugins(struct pcm_holder *plu, int num)
       }
     }
   }
-  do {
+  /* then deal with pass-thru plugins */
+  for (i = 0; i < num; i++) {
+    struct pcm_holder *p = &plu[i];
+    if (p->opened || p->failed ||
+	    (p->plugin->flags & PCM_F_EXPLICIT) ||
+	    !(p->plugin->flags & PCM_F_PASSTHRU))
+      continue;
+    p->opened = SAFE_OPEN(p);
+    S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
+	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
+    if (!p->opened)
+      p->failed = 1;
+    else
+      cnt++;
+  }
+  /* lastly deal with weight */
+  if (!sel) do {
     max_w = -1;
     max_i = -1;
     for (i = 0; i < num; i++) {
       struct pcm_holder *p = &plu[i];
       if (p->opened || p->failed ||
 	    (p->plugin->flags & PCM_F_EXPLICIT) ||
-	    (p->cfg_flags & PCM_CF_DISABLED))
-        continue;
-      if (p->plugin->flags & PCM_F_PASSTHRU) {
-        p->opened = SAFE_OPEN(p);
-        S_printf("PCM: Initializing pass-through plugin: %s: %s\n",
-	    PL_LNAME(p->plugin), p->opened ? "OK" : "Failed");
-        if (!p->opened)
-          p->failed = 1;
-        else
-          cnt++;
-        continue;
-      }
-      if (sel)
-        continue;
+	    (p->plugin->flags & PCM_F_PASSTHRU))
+	continue;
       if (p->plugin->weight > max_w) {
         if (max_i != -1)
           S_printf("PCM: Bypassing plugin: %s: (%i < %i)\n",
@@ -1242,25 +1276,11 @@ void pcm_deinit_plugins(struct pcm_holder *plu, int num)
     for (i = 0; i < num; i++) {
 	struct pcm_holder *p = &plu[i];
 	if (p->opened) {
-	    if (p->plugin->close) {
-		pthread_mutex_unlock(&pcm.strm_mtx);
+	    if (p->plugin->close)
 		p->plugin->close(p->arg);
-		pthread_mutex_lock(&pcm.strm_mtx);
-	    }
 	    p->opened = 0;
 	}
     }
-}
-
-int pcm_get_cfg(const char *name)
-{
-  int i;
-  for (i = 0; i < pcm.num_players; i++) {
-    struct pcm_holder *p = &pcm.players[i];
-    if (!strcmp(p->plugin->name, name))
-      return (p->plugin->get_cfg ? p->plugin->get_cfg(p->arg) : 0);
-  }
-  return PCM_CF_DISABLED;
 }
 
 int pcm_start_input(void *arg)
@@ -1268,8 +1288,8 @@ int pcm_start_input(void *arg)
     int i, ret = 0;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns ||
-		RECORDER(p)->owns(arg, p->arg))) {
+	if (p->opened && RECORDER(p)->start &&
+		pcm.checkid2(RECORDER(p)->id2, arg)) {
 	    RECORDER(p)->start(p->arg);
 	    ret++;
 	}
@@ -1283,8 +1303,8 @@ void pcm_stop_input(void *arg)
     int i;
     for (i = 0; i < pcm.num_recorders; i++) {
 	struct pcm_holder *p = &pcm.recorders[i];
-	if (p->opened && (!RECORDER(p)->owns ||
-		RECORDER(p)->owns(arg, p->arg)))
+	if (p->opened && RECORDER(p)->stop &&
+		pcm.checkid2(RECORDER(p)->id2, arg))
 	    RECORDER(p)->stop(p->arg);
     }
     S_printf("PCM: input stopped\n");
@@ -1298,6 +1318,11 @@ void pcm_set_volume_cb(double (*get_vol)(int, int, int, void *))
 void pcm_set_connected_cb(int (*is_connected)(int, void *))
 {
     pcm.is_connected = is_connected;
+}
+
+void pcm_set_checkid2_cb(int (*checkid2)(void *, void *))
+{
+    pcm.checkid2 = checkid2;
 }
 
 int pcm_setup_efp(int handle, enum EfpType type, int param1, int param2,
@@ -1327,4 +1352,36 @@ int pcm_setup_hpf(struct player_params *params)
 {
     return pcm_setup_efp(params->handle, EFP_HPF, params->rate,
 	    params->channels, HPF_CTL);
+}
+
+int pcm_parse_cfg(const char *string, const char *name)
+{
+    char *p;
+    int l;
+    l = strlen(name);
+    p = strstr(string, name);
+    if (p && (p == string || p[-1] == ',') && (p[l] == 0 || p[l] == ',')) {
+	S_printf("PCM: Enabling %s driver\n", name);
+	return PCM_CF_ENABLED;
+    }
+    return 0;
+}
+
+char *pcm_parse_params(const char *string, const char *name, const char *param)
+{
+    char *p, *buf;
+    int l;
+    l = asprintf(&buf, "%s:%s=", name, param);
+    assert(l > 0);
+    p = strstr(string, buf);
+    free(buf);
+    if (p && (p == string || p[-1] == ',')) {
+	char *val = strdup(p + l);
+	char *c = strchr(val, ',');
+	if (c)
+	    *c = 0;
+	S_printf("PCM: Param \"%s\" for driver \"%s\": %s\n", param, name, val);
+	return val;
+    }
+    return NULL;
 }

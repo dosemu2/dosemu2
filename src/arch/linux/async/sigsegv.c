@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <linux/version.h>
 
 #include "emu.h"
@@ -22,7 +23,7 @@
 #include "dpmi.h"
 #include "cpu-emu.h"
 #include "dosemu_config.h"
-
+#include "sig.h"
 
 /* Function prototypes */
 void print_exception_info(struct sigcontext *scp);
@@ -85,114 +86,10 @@ int signal, struct sigcontext *scp
     return 0;
 #endif
 
-  if (in_vm86) {
-    in_vm86 = 0;
-    switch (_trapno) {
-      case 0x00: /* divide_error */
-      case 0x01: /* debug */
-      case 0x03: /* int3 */
-      case 0x04: /* overflow */
-      case 0x05: /* bounds */
-      case 0x07: /* device_not_available */
-#ifdef TRACE_DPMI
-		 if (_trapno==1) {
-	           t_printf("\n%s",e_scp_disasm(scp,0));
-		 }
-#endif
-		 do_int(_trapno);
-		 return 0;
+  if (in_vm86)
+    return vm86_fault(scp);
 
-      case 0x10: /* coprocessor error */
-		 pic_request(PIC_IRQ13); /* this is the 386 way of signalling this */
-		 return 0;
-
-      case 0x11: /* alignment check */
-		 /* we are now safe; nevertheless, fall into the default
-		  * case and exit dosemu, as an AC fault in vm86 is(?) a
-		  * catastrophic failure.
-		  */
-		 goto sgleave;
-
-      case 0x06: /* invalid_op */
-		{
-		 unsigned char *csp;
-		 dbug_printf("SIGILL while in vm86(): %04x:%04x\n", REG(cs), LWORD(eip));
-		 if (config.vga && REG(cs) == config.vbios_seg) {
-		   if (!config.vbios_post)
-		     error("Fault in VBIOS code, try setting $_vbios_post=(1)\n");
-		   else
-		     error("Fault in VBIOS code, try running xdosemu under X\n");
-		   goto sgleave;
-		 }
-#if 0
-		 show_regs(__FILE__, __LINE__);
-#endif /* 0 */
- 		 csp = SEG_ADR((unsigned char *), cs, ip);
-		 /* this one is for CPU detection programs
-		  * actually we should check if int0x06 has been
-		  * hooked by the pgm and redirected to it */
-#if 1
-		 if (IS_REDIRECTED(0x06)) {
-#else
-		 if (csp[0]==0x0f) {
-#endif
-		   do_int(_trapno);
-		   return 0;
-		 }
- 		 /* Some db commands start with 2e (use cs segment)
-		    and thus is accounted for here */
- 		 if (csp[0] == 0x2e) {
- 		   csp++;
- 		   LWORD(eip)++;
-		   goto sgleave;
- 		 }
- 		 if (csp[0] == 0xf0) {
- 		   dbug_printf("ERROR: LOCK prefix not permitted!\n");
- 		   LWORD(eip)++;
- 		   return 0;
- 		 }
-		 goto sgleave;
-		}
-      /* We want to protect the video memory and the VGA BIOS */
-      case 0x0e:
-		if(VGA_EMU_FAULT(scp,code,0)==True)
-			return 0;
-                /* fall into default case if not X */
-
-
-      default:
-sgleave:
-#if 0
-		 error("unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
-	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
-	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
-		_err,
-	  	_rip, _rsp, _eflags, _cs, _ds, _es, _ss);
-
-
-		 print_exception_info(scp);
-#else
-		 error("unexpected CPU exception 0x%02x err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
-	  	 _trapno, _err, _cr2);
-		{
-		  int auxg = debug_level('g');
-		  FILE *aux = dbg_fd;
-		  flush_log();  /* important! else we flush to stderr */
-		  dbg_fd = stderr;
-		  set_debug_level('g',1);
-		  show_regs(__FILE__, __LINE__);
-		  set_debug_level('g', auxg);
-		  flush_log();
-		  dbg_fd = aux;
-		}
-#endif
-
-		 show_regs(__FILE__, __LINE__);
-		 flush_log();
-		 leavedos_from_sig(4);
-    }
-  }
-#define VGA_ACCESS_HACK 1
+#define VGA_ACCESS_HACK 0
 #if VGA_ACCESS_HACK
   if(_trapno==0x0e && Video->update_screen && !DPMIValidSelector(_cs)) {
 /* Well, there are currently some dosemu functions that touches video memory
@@ -212,11 +109,10 @@ sgleave:
   }
 #endif
 
-  if (in_dpmi) {
+//  if (in_dpmi) {
     /* At first let's find out where we came from */
     if (!DPMIValidSelector(_cs)) {
       /* Fault in dosemu code */
-#ifdef __i386__
       /* Now see if it is HLT */
       if (indirect_dpmi_switch(scp)) {
 	/* Well, must come from dpmi_control() */
@@ -226,58 +122,14 @@ sgleave:
          */
 	return 0;
       }
-#endif
-      { /* No, not HLT, too bad :( */
-	error("Fault in dosemu code, in_dpmi=%i\n", in_dpmi);
-        /* TODO - we can start gdb here */
-        /* start_gdb() */
-
-	/* Going to die from here */
-	goto bad;	/* well, this goto is unnecessary but I like gotos:) */
-      }
+      error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
+      goto bad;	/* well, this goto is unnecessary but I like gotos:) */
     } /*!DPMIValidSelector(_cs)*/
     else {
-    /* Not in dosemu code */
-
-    int retcode;
-    if (_trapno == 0x10) {
-      g_printf("coprocessor exception, calling IRQ13\n");
-      pic_request(PIC_IRQ13);
-      dpmi_return(scp, -1);
-      return -1;
+      /* Not in dosemu code: dpmi_fault() will handle that */
+      return dpmi_fault(scp);
     }
-
-    /* If this is an exception 0x11, we have to ignore it. The reason is that
-     * under real DOS the AM bit of CR0 is not set.
-     * Also clear the AC flag to prevent it from re-occuring.
-     */
-     if (_trapno == 0x11) {
-       g_printf("Exception 0x11 occured, clearing AC\n");
-       _eflags &= ~AC;
-       return 0;
-     }
-
-      if(_trapno==0x0e) {
-        if(VGA_EMU_FAULT(scp,code,1)==True) {
-          return dpmi_check_return(scp);
-	}
-      }
-
-      /* dpmi_fault() will handle that */
-      retcode = dpmi_fault(scp);
-      if (retcode) {
-        /* context was switched to dosemu's, return ASAP */
-        return retcode;
-      }
-
-      if (CheckSelectors(scp, 0) == 0) {
-        dpmi_return(scp, -1);
-	return -1;
-      }
-      /* now we are safe */
-      return 0;
-    }
-  } /*in_dpmi*/
+//  } /*in_dpmi*/
 
 bad:
 /* All recovery attempts failed, going to die :( */
@@ -291,7 +143,7 @@ bad:
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n"
 	  "fs: 0x%04x  gs: 0x%04x\n",
-	  (in_dpmi ? "DPMI client" : "VM86()"),
+	  (in_dpmi_pm() ? "DPMI client" : "VM86()"),
 	  _trapno, _err, _cr2,
 	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss, _fs, _gs);
 #ifdef __x86_64__
@@ -301,77 +153,62 @@ bad:
 #endif
     error("@\n");
 
-    error("Please update from git, compile with debug information and "
-	"report the contents of ~/.dosemu/boot.log at\n"
-"https://github.com/stsp/dosemu2/issues\n"
-#ifndef _DEBUG
-"It would be even more helpful if would recompile DOSEMU and reproduce this\n"
-"bug with \"debug on\" in compiletime-settings.\n"
-#endif
+    error("Please install gdb, update dosemu from git, compile it with debug\n"
+        "info and report with the contents of ~/.dosemu/boot.log at\n"
+"https://github.com/stsp/dosemu2/issues\n\n"
 );
     gdb_debug();
 
-    print_exception_info(scp);
-
-    dbug_printf("  VFLAGS(b): ");
-    {
-      int i;
-      for (i = (1 << 17); i; i >>= 1)
-	dbug_printf((_eflags & i) ? "1" : "0");
-    }
-    dbug_printf("\n");
-
-    dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
+    if (DPMIValidSelector(_cs))
+      print_exception_info(scp);
+    if (in_vm86) {
+      dbug_printf("  VFLAGS(b): ");
+      {
+        int i;
+        for (i = (1 << 17); i; i >>= 1)
+          dbug_printf((_eflags & i) ? "1" : "0");
+      }
+      dbug_printf("\n");
+      dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
 		"  VFLAGS(h): %08lx\n",
 		_rax, _rbx, _rcx, _rdx, _eflags);
-    dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
+      dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
 		_rsi, _rdi, _rbp);
-    dbug_printf("CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x\n",
+      dbug_printf("CS: %04x  DS: %04x  ES: %04x  FS: %04x  GS: %04x\n",
 		_cs, _ds, _es, _fs, _gs);
 
     /* display vflags symbolically...the #f "stringizes" the macro name */
 #undef PFLAG
 #define PFLAG(f)  if ((_eflags)&(f)) dbug_printf(" " #f)
 
-    dbug_printf("FLAGS:");
-    PFLAG(CF);
-    PFLAG(PF);
-    PFLAG(AF);
-    PFLAG(ZF);
-    PFLAG(SF);
-    PFLAG(TF);
-    PFLAG(IF);
-    PFLAG(DF);
-    PFLAG(OF);
-    PFLAG(NT);
-    PFLAG(RF);
-    PFLAG(VM);
-    PFLAG(AC);
-    dbug_printf("  IOPL: %u\n", (unsigned) ((_eflags & IOPL_MASK) >> 12));
-
-    show_regs(__FILE__, __LINE__);
-
+      dbug_printf("FLAGS:");
+      PFLAG(CF);
+      PFLAG(PF);
+      PFLAG(AF);
+      PFLAG(ZF);
+      PFLAG(SF);
+      PFLAG(TF);
+      PFLAG(IF);
+      PFLAG(DF);
+      PFLAG(OF);
+      PFLAG(NT);
+      PFLAG(RF);
+      PFLAG(VM);
+      PFLAG(AC);
+      dbug_printf("  IOPL: %u\n", (unsigned) ((_eflags & IOPL_MASK) >> 12));
+      show_regs(__FILE__, __LINE__);
+    }
     fatalerr = 4;
     leavedos_main(fatalerr);		/* shouldn't return */
     return 0;
   }
 }
 
-int _dosemu_fault(int signal, struct sigcontext *scp)
-{
-  int ret;
-  fault_cnt++;
-  ret = dosemu_fault1(signal, scp);
-  fault_cnt--;
-  return ret;
-}
-
 /* noinline is to prevent gcc from moving TLS access around init_handler() */
 __attribute__((noinline))
 static void dosemu_fault0(int signal, struct sigcontext *scp)
 {
-  int retcode;
-  pid_t tid;
+  pthread_t tid;
 
   fault_cnt++;
   if (fault_cnt > 2) {
@@ -383,9 +220,9 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     _exit(255);
   }
 
-  tid = gettid();
-  if (tid != dosemu_tid) {
-    dosemu_error("thread %i got signal %i\n", tid, signal);
+  tid = pthread_self();
+  if (!pthread_equal(tid, dosemu_pthread_self)) {
+    dosemu_error("thread got signal %i\n", signal);
     _exit(23);
     return;
   }
@@ -406,7 +243,7 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     /* it may be necessary to fix up a page fault in the DPMI fault handling
        code for $_cpu_emu = "vm86". This really shouldn't happen but not all
        cases have been fixed yet */
-    if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi && !in_dpmi_dos_int &&
+    if (config.cpuemu == 3 && !CONFIG_CPUSIM && in_dpmi_pm() &&
 	e_emu_fault(scp)) {
       fault_cnt--;
       return;
@@ -418,13 +255,11 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
     g_printf("Entering fault handler, signal=%i _trapno=0x%X\n",
       signal, _trapno);
 
-  retcode = dosemu_fault1 (signal, scp);
+  dosemu_fault1 (signal, scp);
   fault_cnt--;
 
   if (debug_level('g')>8)
     g_printf("Returning from the fault handler\n");
-  if(retcode)
-    _eax = retcode;
   dpmi_iret_setup(scp);
 }
 

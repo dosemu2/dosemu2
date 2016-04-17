@@ -97,7 +97,7 @@ static void switch_stack(struct vm86_regs *regs)
 
 void get_rm_stack_regs(struct vm86_regs *regs, struct vm86_regs *saved_regs)
 {
-	if(in_dpmi && !in_dpmi_dos_int)
+	if(in_dpmi_pm())
 		fake_pm_int();
 	*saved_regs = REGS;
 	switch_stack(regs);

@@ -1,5 +1,6 @@
 #!/bin/sh
 
+cd $(dirname $0)
 srcdir=`pwd`
 echo "Generating toplevel configure script..."
 if ! autoreconf --install --force --warnings=all ; then
@@ -27,4 +28,4 @@ for dir in `cat plugin_configure`; do
 done
 cd $srcdir
 echo
-echo "Done, now run ./default-configure"
+echo "Done, now run $(dirname $0)/default-configure"

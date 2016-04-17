@@ -23,15 +23,11 @@
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
-#define current_client ({ assert(in_dpmi); in_dpmi-1; })
-#define DPMI_CLIENT (DPMIclient[current_client])
-#define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
 #ifdef __linux__
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
 #define LDT_WRITE 0x11
 #endif
-void direct_ldt_write(int offset, int length, char *buffer);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 void *SEL_ADR(unsigned short sel, unsigned int reg);
@@ -64,6 +60,7 @@ typedef struct segment_descriptor_s
     unsigned int	is_big:1;	/* Granularity */
     unsigned int	not_present:1;
     unsigned int	useable:1;
+    unsigned int	cstd:1;		/* from Convert Seg to Desc */
     unsigned int	used;		/* Segment in use by client # */
 					/* or Linux/GLibc (0xfe) */
 					/* or DOSEMU (0xff) */
@@ -111,7 +108,7 @@ struct DPMIclient_struct {
   dpmi_pm_block_root *pm_block_root;
   unsigned short private_data_segment;
   int in_dpmi_rm_stack;
-  unsigned char *pm_stack;
+  dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
@@ -139,9 +136,7 @@ struct RSP_s {
   dpmi_pm_block_root *pm_block_root;
 };
 
-extern volatile int in_dpmi;/* Set to 1 when running under DPMI */
-extern volatile int in_dpmi_dos_int;
-extern volatile int dpmi_mhp_TF;
+extern int dpmi_mhp_TF;
 extern unsigned char dpmi_mhp_intxxtab[256];
 extern int is_cli;
 
@@ -150,8 +145,7 @@ extern unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
-extern unsigned char *ldt_buffer;
-extern unsigned char *ldt_alias;
+extern unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
@@ -165,9 +159,9 @@ int dpmi_fault(struct sigcontext *);
 #endif
 void dpmi_realmode_hlt(unsigned int);
 void run_pm_int(int);
-void run_pm_dos_int(int);
 void fake_pm_int(void);
-u_short DPMI_ldt_alias(void);
+int in_dpmi_pm(void);
+int dpmi_active(void);
 
 #ifdef __linux__
 int dpmi_mhp_regs(void);
@@ -205,21 +199,22 @@ int dpmi_is_valid_range(dosaddr_t addr, int len);
 
 extern char *DPMI_show_state(struct sigcontext *scp);
 extern void dpmi_sigio(struct sigcontext *scp);
-extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
-extern int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit);
-extern int ConvertSegmentToCodeDescriptor(unsigned short segment);
-extern int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned long limit);
 extern int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
 extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
 extern unsigned short AllocateDescriptors(int);
+extern unsigned short AllocateDescriptorsAt(unsigned short selector,
+    int number_of_descriptors);
+extern unsigned short CreateAliasDescriptor(unsigned short selector);
+extern int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
+extern int SetDescriptor(unsigned short selector, unsigned int *lp);
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext *scp, unsigned short selector);
 extern far_t DPMI_allocate_realmode_callback(u_short sel, int offs, u_short rm_sel,
@@ -229,18 +224,16 @@ extern int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr);
 
 extern void dpmi_setup(void);
 extern void dpmi_reset(void);
+extern void dpmi_done(void);
 extern void dpmi_cleanup(void);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
-void dpmi_return(struct sigcontext *scp, int retval);
 int dpmi_check_return(struct sigcontext *scp);
 void dpmi_init(void);
 extern void copy_context(struct sigcontext *d,
     struct sigcontext *s, int copy_fpu);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_data_sel(void);
-//extern void pm_to_rm_regs(struct sigcontext *scp, unsigned int mask);
-//extern void rm_to_pm_regs(struct sigcontext *scp, unsigned int mask);
 
 static inline int DPMIValidSelector(unsigned short selector)
 {

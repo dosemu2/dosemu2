@@ -25,17 +25,18 @@
 #include <stdio.h>
 #include <assert.h>
 
-#ifdef DOSEMU
 #include "cpu.h"
+#ifdef DOSEMU
 #include "dpmisel.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "dpmi.h"
 #define SUPPORT_DOSEMU_HELPERS
 #endif
-#include "dpmi.h"
 #include "emm.h"
-#include "segreg.h"
 #include "msdoshlp.h"
+#include "msdos_ldt.h"
+#include "msdos_priv.h"
 #include "msdos.h"
 
 #ifdef SUPPORT_DOSEMU_HELPERS
@@ -71,18 +72,27 @@ static unsigned short EMM_SEG;
 
 enum { RMCB_IO, RMCB_MS, RMCB_PS2MS, MAX_RMCBS };
 #define MSDOS_MAX_MEM_ALLOCS 1024
+#define MAX_CNVS 16
+struct seg_sel {
+    unsigned short seg;
+    unsigned short sel;
+    unsigned int lim;
+};
 struct msdos_struct {
-  int is_32;
-  struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-  far_t XMS_call;
-  /* used when passing a DTA higher than 1MB */
-  unsigned short user_dta_sel;
-  unsigned long user_dta_off;
-  unsigned short user_psp_sel;
-  unsigned short lowmem_seg;
-  dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
-  far_t rmcbs[MAX_RMCBS];
-  int rmcb_alloced;
+    int is_32;
+    struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+    far_t XMS_call;
+    /* used when passing a DTA higher than 1MB */
+    unsigned short user_dta_sel;
+    unsigned long user_dta_off;
+    unsigned short user_psp_sel;
+    unsigned short lowmem_seg;
+    dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
+    far_t rmcbs[MAX_RMCBS];
+    int rmcb_alloced;
+    u_short ldt_alias;
+    u_short ldt_alias_winos2;
+    struct seg_sel seg_sel_map[MAX_CNVS];
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num = 0;
@@ -91,20 +101,23 @@ static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
 
-static char *io_buffer;
+static dosaddr_t io_buffer;
 static int io_buffer_size;
 static int io_error;
 static uint16_t io_error_code;
 
 static void rmcb_handler(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
-static void rmcb_ret_handler(const struct sigcontext *scp,
+static void rmcb_ret_handler(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg);
 static void msdos_api_call(struct sigcontext *scp);
+static void msdos_api_winos2_call(struct sigcontext *scp);
 static void mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
 static void ps2_mouse_callback(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg);
+static void rmcb_ret_from_ps2(struct sigcontext *scp,
+		 struct RealModeCallStructure *rmreg);
 static void xms_call(struct RealModeCallStructure *rmreg);
 
 static void (*rmcb_handlers[])(struct sigcontext *scp,
@@ -114,14 +127,14 @@ static void (*rmcb_handlers[])(struct sigcontext *scp,
     ps2_mouse_callback,
 };
 
-static void (*rmcb_ret_handlers[])(const struct sigcontext *scp,
+static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg) = {
     rmcb_ret_handler,
     rmcb_ret_handler,
-    rmcb_ret_handler,
+    rmcb_ret_from_ps2,
 };
 
-static void set_io_buffer(char *ptr, unsigned int size)
+static void set_io_buffer(dosaddr_t ptr, unsigned int size)
 {
     io_buffer = ptr;
     io_buffer_size = size;
@@ -183,6 +196,12 @@ void msdos_init(int is_32, unsigned short mseg)
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,
 		sizeof(MSDOS_CLIENT.rmcbs));
     }
+    MSDOS_CLIENT.ldt_alias = msdos_ldt_init(msdos_client_num);
+    MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
+	    MSDOS_CLIENT.ldt_alias);
+    SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
+    SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
+	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
     D_printf("MSDOS: init, %i\n", msdos_client_num);
 }
 
@@ -199,6 +218,40 @@ void msdos_done(void)
 int msdos_get_lowmem_size(void)
 {
     return DTA_Para_SIZE + EXEC_Para_SIZE;
+}
+
+unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
+    unsigned int limit)
+{
+    unsigned short sel;
+    int i;
+    struct seg_sel *m = NULL;
+
+    D_printf("MSDOS: convert seg %#x to desc, lim=%#x\n", segment, limit);
+    for (i = 0; i < MAX_CNVS; i++) {
+	m = &MSDOS_CLIENT.seg_sel_map[i];
+	if (!m->sel)
+	    break;
+	if (m->seg == segment && m->lim == limit) {
+	    D_printf("MSDOS: found descriptor %#x\n", m->sel);
+	    return m->sel;
+	}
+    }
+    if (i == MAX_CNVS) {
+	error("segsel map overflow\n");
+	return 0;
+    }
+    D_printf("MSDOS: SEL for segment %#x not found, allocate at %i\n",
+	    segment, i);
+    sel = AllocateDescriptors(1);
+    if (!sel)
+	return 0;
+    SetSegmentBaseAddress(sel, segment << 4);
+    SetSegmentLimit(sel, limit);
+    m->seg = segment;
+    m->lim = limit;
+    m->sel = sel;
+    return sel;
 }
 
 static unsigned int msdos_malloc(unsigned long size)
@@ -281,9 +334,15 @@ static void get_ext_API(struct sigcontext *scp)
     struct pmaddr_s pma;
     char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
-    if ((!strcmp("WINOS2", ptr)) || (!strcmp("MS-DOS", ptr))) {
+    if (!strcmp("MS-DOS", ptr)) {
 	_LO(ax) = 0;
 	pma = get_pm_handler(API_CALL, msdos_api_call);
+	_es = pma.selector;
+	_edi = pma.offset;
+	_eflags &= ~CF;
+    } else if (!strcmp("WINOS2", ptr)) {
+	_LO(ax) = 0;
+	pma = get_pm_handler(API_WINOS2_CALL, msdos_api_winos2_call);
 	_es = pma.selector;
 	_edi = pma.offset;
 	_eflags &= ~CF;
@@ -496,7 +555,7 @@ static void rm_do_int(u_short flags, u_short cs, u_short ip,
   *--sp = cs;
   *--sp = ip;
   *stk_used += 6;
-  RMREG(flags) = flags & ~(AC|VM|TF|NT|VIF);
+  RMREG(flags) = flags & ~(AC|VM|TF|NT|IF);
   *r_rmask |= 1 << flags_INDEX;
 }
 
@@ -1001,7 +1060,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	    break;
 	case 0x3f: {		/* dos read */
 	    far_t rma = get_lr_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
+	    set_io_buffer(DOSADDR_REL(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32)),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
@@ -1013,7 +1072,7 @@ int msdos_pre_extender(struct sigcontext *scp, int intr,
 	}
 	case 0x40: {		/* DOS Write */
 	    far_t rma = get_lw_helper(MSDOS_CLIENT.rmcbs[RMCB_IO]);
-	    set_io_buffer(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32),
+	    set_io_buffer(DOSADDR_REL(SEL_ADR_CLNT(_ds, _edx, MSDOS_CLIENT.is_32)),
 		    D_16_32(_ecx));
 	    SET_RMREG(ds, trans_buffer_seg());
 	    SET_RMLWORD(dx, 0);
@@ -1687,9 +1746,19 @@ int msdos_post_extender(struct sigcontext *scp, int intr,
     return update_mask;
 }
 
-static void rmcb_ret_handler(const struct sigcontext *scp,
+static void rmcb_ret_handler(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg)
 {
+    do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
+}
+
+static void rmcb_ret_from_ps2(struct sigcontext *scp,
+	struct RealModeCallStructure *rmreg)
+{
+    if (MSDOS_CLIENT.is_32)
+	_esp += 16;
+    else
+	_LWORD(esp) += 8;
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
@@ -1697,22 +1766,22 @@ static void rm_to_pm_regs(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg,
 	unsigned int mask)
 {
-  if (mask & (1 << eflags_INDEX))
-    _eflags = RMREG(flags);
-  if (mask & (1 << eax_INDEX))
-    _eax = RMLWORD(ax);
-  if (mask & (1 << ebx_INDEX))
-    _ebx = RMLWORD(bx);
-  if (mask & (1 << ecx_INDEX))
-    _ecx = RMLWORD(cx);
-  if (mask & (1 << edx_INDEX))
-    _edx = RMLWORD(dx);
-  if (mask & (1 << esi_INDEX))
-    _esi = RMLWORD(si);
-  if (mask & (1 << edi_INDEX))
-    _edi = RMLWORD(di);
-  if (mask & (1 << ebp_INDEX))
-    _ebp = RMLWORD(bp);
+    if (mask & (1 << eflags_INDEX))
+	_eflags = RMREG(flags);
+    if (mask & (1 << eax_INDEX))
+	_eax = RMLWORD(ax);
+    if (mask & (1 << ebx_INDEX))
+	_ebx = RMLWORD(bx);
+    if (mask & (1 << ecx_INDEX))
+	_ecx = RMLWORD(cx);
+    if (mask & (1 << edx_INDEX))
+	_edx = RMLWORD(dx);
+    if (mask & (1 << esi_INDEX))
+	_esi = RMLWORD(si);
+    if (mask & (1 << edi_INDEX))
+	_edi = RMLWORD(di);
+    if (mask & (1 << ebp_INDEX))
+	_ebp = RMLWORD(bp);
 }
 
 static void mouse_callback(struct sigcontext *scp,
@@ -1810,8 +1879,9 @@ static void rmcb_handler(struct sigcontext *scp,
 	unsigned int size = E_RMREG(ecx);
 	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
 	D_printf("MSDOS: read %x %x\n", offs, size);
+	/* need to use copy function that takes VGA mem into account */
 	if (offs + size <= io_buffer_size)
-	    MEMCPY_2UNIX(io_buffer + offs, dos_ptr, size);
+	    memcpy_dos2dos(io_buffer + offs, dos_ptr, size);
 	else
 	    error("MSDOS: bad read (%x %x %x)\n", offs, size,
 			io_buffer_size);
@@ -1823,8 +1893,9 @@ static void rmcb_handler(struct sigcontext *scp,
 	unsigned int size = E_RMREG(ecx);
 	unsigned int dos_ptr = SEGOFF2LINEAR(RMREG(ds), RMLWORD(dx));
 	D_printf("MSDOS: write %x %x\n", offs, size);
+	/* need to use copy function that takes VGA mem into account */
 	if (offs + size <= io_buffer_size)
-	    MEMCPY_2DOS(dos_ptr, io_buffer + offs, size);
+	    memcpy_dos2dos(dos_ptr, io_buffer + offs, size);
 	else
 	    error("MSDOS: bad write (%x %x %x)\n", offs, size,
 			io_buffer_size);
@@ -1845,7 +1916,7 @@ static void msdos_api_call(struct sigcontext *scp)
 {
     D_printf("MSDOS: extension API call: 0x%04x\n", _LWORD(eax));
     if (_LWORD(eax) == 0x0100) {
-	u_short sel = DPMI_ldt_alias();	/* simulate direct ldt access */
+	u_short sel = MSDOS_CLIENT.ldt_alias;
 	if (sel) {
 	    _eax = sel;
 	    _eflags &= ~CF;
@@ -1857,101 +1928,18 @@ static void msdos_api_call(struct sigcontext *scp)
     }
 }
 
-int msdos_fault(struct sigcontext *scp)
+static void msdos_api_winos2_call(struct sigcontext *scp)
 {
-    struct sigcontext new_sct;
-    int reg;
-    unsigned int segment;
-    unsigned short desc;
-
-    D_printf("MSDOS: msdos_fault, err=%#lx\n", _err);
-    if ((_err & 0xffff) == 0)	/*  not a selector error */
-	return 0;
-
-    /* now it is a invalid selector error, try to fix it if it is */
-    /* caused by an instruction such as mov Sreg,r/m16            */
-
-#define ALL_GDTS 0
-#if !ALL_GDTS
-    segment = (_err & 0xfff8);
-    /* only allow using some special GTDs */
-    switch (segment) {
-    case 0x0040:
-    case 0xa000:
-    case 0xb000:
-    case 0xb800:
-    case 0xc000:
-    case 0xe000:
-    case 0xf000:
-    case 0xbf8:
-    case 0xf800:
-    case 0xff00:
-    case 0x38:		// ShellShock installer
-	break;
-    default:
-	return 0;
+    D_printf("MSDOS: WINOS2 extension API call: 0x%04x\n", _LWORD(eax));
+    if (_LWORD(eax) == 0x0100) {
+	u_short sel = MSDOS_CLIENT.ldt_alias_winos2;
+	if (sel) {
+	    _eax = sel;
+	    _eflags &= ~CF;
+	} else {
+	    _eflags |= CF;
+	}
+    } else {
+	_eflags |= CF;
     }
-    copy_context(&new_sct, scp, 0);
-    reg = decode_segreg(&new_sct);
-    if (reg == -1)
-	return 0;
-#else
-    copy_context(&new_sct, scp, 0);
-    reg = decode_modify_segreg_insn(&new_sct, 1, &segment);
-    if (reg == -1)
-	return 0;
-
-    if (ValidAndUsedSelector(segment)) {
-	/*
-	 * The selector itself is OK, but the descriptor (type) is not.
-	 * We cannot fix this! So just give up immediately and dont
-	 * screw up the context.
-	 */
-	D_printf("MSDOS: msdos_fault: Illegal use of selector %#x\n",
-		 segment);
-	return 0;
-    }
-#endif
-
-    D_printf("MSDOS: try mov to a invalid selector 0x%04x\n", segment);
-
-    switch (segment) {
-    case 0x38:
-	/* dos4gw sets VCPI descriptors 0x28, 0x30, 0x38 */
-	/* The 0x38 is the "flat data" segment (0,4G) */
-	desc = ConvertSegmentToDescriptor_lim(0, 0xffffffff);
-	break;
-    default:
-	/* any other special cases? */
-	desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor(segment) :
-		ConvertSegmentToCodeDescriptor(segment));
-    }
-    if (!desc)
-	return 0;
-
-    /* OKay, all the sanity checks passed. Now we go and fix the selector */
-    copy_context(scp, &new_sct, 0);
-    switch (reg) {
-    case es_INDEX:
-	_es = desc;
-	break;
-    case cs_INDEX:
-	_cs = desc;
-	break;
-    case ss_INDEX:
-	_ss = desc;
-	break;
-    case ds_INDEX:
-	_ds = desc;
-	break;
-    case fs_INDEX:
-	_fs = desc;
-	break;
-    case gs_INDEX:
-	_gs = desc;
-	break;
-    }
-
-    /* let's hope we fixed the thing, and return */
-    return 1;
 }

@@ -43,7 +43,6 @@
 
 #include "emu.h"
 #include "memory.h"
-#include "termio.h"
 #include "mouse.h"
 #include "machcompat.h"
 #include "bios.h"
@@ -57,6 +56,7 @@
 #include "timers.h"
 #include "vgaemu.h"
 #include "dpmi.h"
+#include "sig.h"
 
 static void set_dos_video (void);
 static void get_video_ram (int waitflag);
@@ -120,8 +120,7 @@ static void SIGACQUIRE_call(void *arg)
 
 int dos_has_vt = 1;
 
-static void
-acquire_vt (struct sigcontext *scp)
+static void acquire_vt(struct sigcontext *scp, siginfo_t *si)
 {
   dos_has_vt = 1;
 
@@ -251,7 +250,7 @@ static void wait_for_active_vc(void)
   } while (errno == EINTR);
 }
 
-static void release_vt (struct sigcontext *scp)
+static void release_vt(struct sigcontext *scp, siginfo_t *si)
 {
   dos_has_vt = 0;
 
@@ -260,50 +259,35 @@ static void release_vt (struct sigcontext *scp)
 
 static void unmap_video_ram(int copyback)
 {
-  unsigned base = VMEM_BASE;
-  size_t size = VMEM_SIZE;
   int cap = MAPPING_VC | MAPPING_LOWMEM;
 
-  if (!config.vga) {
-    size = console_size();
-    base = scr_state.virt_address;
-  }
   if (copyback) cap |= MAPPING_COPYBACK;
-  if (alias_mapping(cap, base, size, PROT_READ | PROT_WRITE | PROT_EXEC, LOWMEM(GRAPH_BASE)) != MAP_FAILED)
-    scr_state.mapped = 0;
+  unmap_hardware_ram('v', cap);
+  scr_state.mapped = 0;
 }
 
 static void map_video_ram(void)
 {
-  void *graph_mem;
   off_t pbase = VMEM_BASE;
   unsigned int vbase = pbase;
-  size_t ssize = VMEM_SIZE;
   int cap = MAPPING_VC | MAPPING_KMEM;
+  int err;
 
   if (!config.vga) {
     pbase = phys_text_base;         /* physical page address    */
     vbase = scr_state.virt_address; /* new virtual page address */
-    ssize = console_size();
     /* this is used for page switching */
     cap |= MAPPING_COPYBACK;
   }
 
   g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
 
-  graph_mem = mmap_mapping(cap, &mem_base[vbase], ssize, PROT_READ | PROT_WRITE | PROT_EXEC, pbase);
-
-  /* the code below is done by the video save/restore code for config.vga */
-  if (!config.vga) {
-    if (graph_mem == MAP_FAILED) {
-      if (!can_do_root_stuff && mem_fd == -1) return;
-      error("mmap error in get_video_ram (text): %p, errno %d\n",
-	    graph_mem, errno);
+  err = map_hardware_ram('v', cap);
+  if (err) {
+      error("mmap error in get_video_ram (text)\n");
       return;
-    } else
-      v_printf ("CONSOLE VIDEO address: %p %#llx %#x\n", graph_mem,
-		(long long)pbase, vbase);
   }
+  v_printf ("CONSOLE VIDEO address: %#llx %#x\n", (long long)pbase, vbase);
   scr_state.phys_address = pbase;
   scr_state.mapped = 1;
 }
@@ -373,9 +357,9 @@ static void tempsigvt(int sig)
   /* temporary signal handler between set_process_control and final setting
      of signals in signal_init() */
   if (sig == SIG_RELEASE)
-    release_vt(NULL);
+    release_vt(NULL, NULL);
   else
-    acquire_vt(NULL);
+    acquire_vt(NULL, NULL);
 }
 
 /* this puts the VC under process control */

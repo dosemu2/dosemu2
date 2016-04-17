@@ -93,7 +93,7 @@ static unsigned get_key(int blocking, int extended)
         _EFLAGS |= ZF;
         return -1;
       }
-      _set_IF();
+      set_IF();
       coopth_wait();
       clear_IF();
     }

@@ -32,6 +32,7 @@
 #include "init.h"
 #include "utilities.h"
 #include "pktdrvr.h"
+#include "sig.h"
 
 static VDECONN *vde;
 static struct popen2 vdesw, slirp;
@@ -227,15 +228,17 @@ static ssize_t pkt_write_vde(int pkt_fd, const void *buf, size_t count)
     return ret;
 }
 
+static struct pkt_ops vde_ops = {
+    .id = VNET_TYPE_VDE,
+    .open = OpenNetworkLinkVde,
+    .close = CloseNetworkLinkVde,
+    .get_hw_addr = GetDeviceHardwareAddressVde,
+    .get_MTU = GetDeviceMTUVde,
+    .pkt_read = pkt_read_vde,
+    .pkt_write = pkt_write_vde,
+};
+
 CONSTRUCTOR(static void vde_init(void))
 {
-    struct pkt_ops o;
-    o.id = VNET_TYPE_VDE;
-    o.open = OpenNetworkLinkVde;
-    o.close = CloseNetworkLinkVde;
-    o.get_hw_addr = GetDeviceHardwareAddressVde;
-    o.get_MTU = GetDeviceMTUVde;
-    o.pkt_read = pkt_read_vde;
-    o.pkt_write = pkt_write_vde;
-    pkt_register_backend(&o);
+    pkt_register_backend(&vde_ops);
 }

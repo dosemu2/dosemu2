@@ -144,7 +144,7 @@ int priv_iopl(int pl)
   }
   else ret = iopl(pl);
 #ifdef X86_EMULATOR
-  if (config.cpuemu) e_priv_iopl(pl);
+  if (config.cpu_vm == CPUVM_EMU) e_priv_iopl(pl);
 #endif
   if (ret == 0)
     current_iopl = pl;
@@ -224,6 +224,8 @@ void priv_init(void)
   /* must store the /proc/self/exe symlink contents before dropping
      privs! */
   dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
+  /* For Fedora we must also save a file descriptor to /proc/self/maps */
+  dosemu_proc_self_maps_fd = open("/proc/self/maps", O_RDONLY);
   if (under_root_login)
   {
     /* check for sudo and set to original user */

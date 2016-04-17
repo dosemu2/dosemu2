@@ -65,8 +65,6 @@
 
 #define DOS_HELPER_MOUSE_HELPER     0x33
 
-#define DOS_HELPER_PAUSE_KEY        0x35
-
 #define DOS_HELPER_CDROM_HELPER     0x40
 
 #define DOS_HELPER_ASPI_HELPER      0x41
@@ -100,6 +98,7 @@
 
 #define DOS_HELPER_DOSC		    0xdc
 
+#define DOS_HELPER_READ_MBR         0xfc
 #define DOS_HELPER_BOOTSECT         0xfd
 #define DOS_HELPER_MBR              0xfe
 #define DOS_HELPER_EXIT             0xff

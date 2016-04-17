@@ -25,10 +25,11 @@ XCPUEMU=emu-i386/simx86
 
 _LIBSUBDIRS=base/video base/dev/vga base/async \
 	arch/linux/async arch/linux/mapping \
-	base/misc base/misc/libpcl base/dev/misc\
+	base/misc base/misc/libpcl base/dev/misc \
 	emu-i386 $(XCPUEMU) base/speaker \
-	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
-	base/init base/serial base/mouse\
+	base/dev/pic dosext/dpmi dosext/dpmi/msdos \
+	dosext/mfs dosext/misc \
+	base/init base/serial base/mouse \
 	base/dev/dma \
 	tools/debugger \
 	$(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
@@ -113,13 +114,15 @@ versetup:
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
 
-include/version.h: ../Makefile.conf
+include/version.h: ../Makefile.conf ../VERSION
 	echo "Updating version.h"; \
 	echo "#ifndef	VERSION_H" > $@; \
 	echo "#define	VERSION_H" >> $@; \
 	echo "#define	VERSTR	\"$(PACKAGE_VERSION)\"" >> $@; \
 	echo "#define	VERSION	$(VERSION)" >> $@; \
 	echo "#define	SUBLEVEL	$(SUBLEVEL)" >> $@; \
+	echo "#define	PATCHLEVEL1	\"$(PATCHLEVEL1)\"" >> $@; \
+	echo "#define	REVISION	$(REVISION)" >> $@; \
 	echo "#define	VERDATE \"$(RELEASE_DATE)\"" >> $@; \
 	echo "#endif /* VERSION_H */" >> $@; \
 
@@ -150,6 +153,11 @@ install:
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
+	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.emu $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z
 	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
 	  if [ -h $(DESTDIR)$(dosemudir)/freedos ]; then \
 	    rm -f $(DESTDIR)$(dosemudir)/freedos; \
@@ -162,17 +170,6 @@ install:
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/config.emu $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -d $(DESTDIR)$(sysconfdir)/drives; \
-	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/c ]; then \
-	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/c; \
-	  fi; \
-	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/d ]; then \
-	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/d; \
-	  fi; \
 	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \

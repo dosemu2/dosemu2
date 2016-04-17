@@ -10,6 +10,7 @@
 #ifdef __linux__
 #include <sys/kd.h>
 #include <sys/vt.h>
+#include <sys/ioctl.h>
 #endif
 
 #include "bios.h"
@@ -22,12 +23,12 @@
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
-#include "termio.h"
 #include "timers.h"
 #include "vbe.h"
 #include "pci.h"
 #include "mapping.h"
 #include "utilities.h"
+#include "sig.h"
 #ifdef USE_SVGALIB
 #include <dlfcn.h>
 #include "../svgalib/svgalib.h"
@@ -192,6 +193,16 @@ static inline void enable_vga_card(void)
   /* disable video */
 }
 
+int emu_video_retrace_on(void)
+{
+  return (config.emuretrace>1? set_ioperm(0x3da,1,0):0);
+}
+
+int emu_video_retrace_off(void)
+{
+  return (config.emuretrace>1? set_ioperm(0x3c0,1,1),set_ioperm(0x3da,1,1):0);
+}
+
 /* Store current EGA/VGA regs */
 static void store_vga_regs(u_char regs[])
 {
@@ -320,7 +331,7 @@ static void store_vga_mem(u_char * mem, int banks)
       coopth_set_sleep_handler(sleep_cb, &cpy_sem);
       iflg = isset_IF();
       if (!iflg)
-        _set_IF();
+        set_IF();
       coopth_sleep();
       if (!iflg)
         clear_IF();
@@ -379,7 +390,7 @@ static void restore_vga_mem(u_char * mem, int banks)
       coopth_set_sleep_handler(sleep_cb, &cpy_sem);
       iflg = isset_IF();
       if (!iflg)
-        _set_IF();
+        set_IF();
       coopth_sleep();
       if (!iflg)
         clear_IF();
@@ -520,8 +531,8 @@ static void pcivga_init(void)
       io_device.end_addr = base + size;
       port_register_handler(io_device, PORT_FAST);
     } else if (base >= LOWMEM_SIZE + HMASIZE) {
-      v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n", base, size);
-      register_hardware_ram('v', base, size);
+      v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n", base, size + 1);
+      register_hardware_ram('v', base, size + 1);
     }
   }
 }
@@ -632,9 +643,14 @@ static int vga_initialize(void)
   return 0;
 }
 
+static void vga_early_close(void)
+{
+  Video_console->early_close();
+}
+
 static void vga_close(void)
 {
-  clear_console_video();
+  Video_console->close();
   /* if the Linux console uses fbcon we can force
      a complete text redraw by doing round-trip
      vc switches; otherwise (vgacon) it doesn't hurt */
@@ -656,6 +672,7 @@ static struct video_system Video_graphics = {
    vga_initialize,
    vga_init,
    vga_post_init,
+   vga_early_close,
    vga_close,
    NULL,
    NULL,             /* update_screen */
@@ -713,7 +730,6 @@ static int vga_post_init(void)
   dosemu_vga_screenon();
   config.vga = 1;
   set_vc_screen_page();
-  video_initialized = 1;
   return 0;
 }
 

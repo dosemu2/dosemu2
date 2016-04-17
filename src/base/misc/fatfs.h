@@ -21,9 +21,6 @@ typedef struct {
     unsigned not_real	:1;		/* entry doesn't need a start cluster */
     unsigned this_dir	:1;		/* is "." entry */
     unsigned parent_dir	:1;		/* is ".." entry */
-#if 0
-    unsigned faked_sys	:1;		/* is faked by config.emusys */
-#endif
   } is;
   unsigned start, len;			/* start cluster, length in clusters */
   unsigned parent;			/* index of parent object */
@@ -46,7 +43,7 @@ typedef struct {
   unsigned serial;
   char label[12];
   unsigned char fat_type;
-  unsigned char fat_id;
+  unsigned char media_id;
   unsigned fat_secs;
   unsigned fats;
   unsigned root_secs;
@@ -64,7 +61,7 @@ typedef struct {
   char *ffn, *ffn_ptr;			/* buffer for file names */
   unsigned ffn_obj;
 
-  unsigned char *boot_sec, *sec;
+  unsigned char *boot_sec;
 
   int fd;
   unsigned fd_obj;

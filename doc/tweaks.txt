@@ -11,13 +11,6 @@ Known tweaks needed to run programs under dosemu
 
     000030B2: AA 47
 
-     * Screamer
-          + Screamer crashes at startup
-            Solution: you need do update dos4gw that comes with the game,
-            to version 1.97. Or you can use dos32a like this:
-
-    dos32a.exe starth.exe
-
      * Need For Speed Special Edition
           + Wrong colors in video clips.
             Solution: to file nfs.exe apply the following patch:
@@ -43,3 +36,11 @@ Known tweaks needed to run programs under dosemu
 
     00004A19: F7 90
     00004A1A: F3 90
+
+     * Prehistorik 2
+          + Game freezes or crashes shortly after start.
+            Solution: set
+
+    $_umb_f0 = (off)
+
+            in your dosemu.conf or .dosemurc.

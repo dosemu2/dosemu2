@@ -160,13 +160,20 @@ COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then
-  if [ -n "$STRING_I" ] ; then
-    exec $COMMAND "$INSTALL" "-I $STRING_I" "$@"
-  else
-    exec $COMMAND "$INSTALL" "$@"
-  fi
-elif [ -n "$STRING_I" ] ; then
-  exec $COMMAND "-I $STRING_I" "$@"
-else
-  exec $COMMAND "$@"
+  COMMAND="$COMMAND $INSTALL"
+fi
+if [ -n "$STRING_I" ] ; then
+  COMMAND="$COMMAND -I $STRING_I"
+fi
+
+exec 3>&1
+# in a non-bash case, $BASHPID won't work and we fail the cleanup - no problem
+DPID=$(echo $BASHPID; exec 1<&3; exec $COMMAND "$@")
+exec 3>&-
+RUNDIR=$HOME/.dosemu/run
+STALE=`ls $RUNDIR/*.$DPID 2>/dev/null`
+if [ -n "$STALE" ]; then
+  echo "removing stale files:"
+  echo "$STALE"
+  rm -f $STALE
 fi

@@ -58,6 +58,7 @@
 #include <limits.h>
 #include <termios.h>
 #include <errno.h>
+#include <signal.h>
 #include <slang.h>
 
 #include "bios.h"
@@ -74,6 +75,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "dos2linux.h"
+#include "sig.h"
 
 struct text_system Text_term;
 static struct video_system Video_term;
@@ -122,8 +124,6 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr);
 static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr);
 static void (*term_write_nchars)(unsigned char *, int, Bit8u) = term_write_nchars_utf8;
 
-static int Slsmg_is_not_initialized = 1;
-
 /* I think this is what is assumed. */
 static int Rows = 25;
 static int Columns = 80;
@@ -159,10 +159,20 @@ static void get_screen_size (void)
    Columns = SLtt_Screen_Cols;
    if (Rows < 25) {
      if (config.prompt && first) {
+       sigset_t set, oset;
+       typedef void (*sighandler_t)(int);
+       sighandler_t oh;
+
        printf("Note that DOS needs 25 lines. You might want to enlarge your\n");
        printf("window before continuing.\n\n");
        printf("Now type ENTER to start DOSEMU\n");
+       oh = signal(SIGINT, SIG_DFL);
+       sigemptyset(&set);
+       sigaddset(&set, SIGINT);
+       sigprocmask(SIG_UNBLOCK, &set, &oset);
        getchar();
+       sigprocmask(SIG_SETMASK, &oset, NULL);
+       signal(SIGINT, oh);
        first = 0;
        get_screen_size();
      }
@@ -357,7 +367,7 @@ static int term_change_config(unsigned item, void *buf)
    return 100;
 }
 
-static void sigwinch(struct sigcontext *scp)
+static void sigwinch(struct sigcontext *scp, siginfo_t *si)
 {
   get_screen_size();
 }
@@ -433,7 +443,8 @@ static int terminal_initialize(void)
    vga.scan_len = 2 * Columns;
    vga.text_height = Rows;
    register_text_system(&Text_term);
-   vga_emu_setmode(video_mode, Columns, Rows);
+
+   SLtt_get_terminfo();
 
 #if SLANG_VERSION < 20000 || defined(USE_RELAYTOOL)
 #ifdef USE_RELAYTOOL
@@ -505,22 +516,32 @@ static int terminal_initialize(void)
    SLtt_set_mono (7, NULL, 0);
 
    set_char_set ();
+
+#if SLANG_VERSION < 10000
+   if (!SLsmg_init_smg ())
+#else
+   if (SLsmg_init_smg() == -1)
+#endif
+   {
+	 error ("Unable to initialize SMG routines.");
+	 leavedos(32);
+   }
+   SLsmg_cls ();
+
+   text_gain_focus();
+
    return 0;
 }
 
 static void terminal_close (void)
 {
    v_printf("VID: terminal_close() called\n");
-   if (Slsmg_is_not_initialized == 0)
-     {
-	SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
-	SLtt_set_cursor_visibility(1);
-	SLsmg_refresh ();
-	SLsmg_reset_smg ();
-	putc ('\n', stdout);
-	Slsmg_is_not_initialized = 1;
-	term_close();
-     }
+   SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
+   SLtt_set_cursor_visibility(1);
+   SLsmg_refresh ();
+   SLsmg_reset_smg ();
+   putc ('\n', stdout);
+   term_close();
 }
 
 #if 0 /* unused -- Bart */
@@ -608,22 +629,6 @@ static int slang_update (void)
 
    static int last_row, last_col, last_vis = -1, help_showing;
    static const char *last_prompt = NULL;
-
-   if (Slsmg_is_not_initialized)
-   {
-#if SLANG_VERSION < 10000
-     if (!SLsmg_init_smg ())
-#else
-     if (SLsmg_init_smg() == -1)
-#endif
-       {
-	 error ("Unable to initialize SMG routines.");
-	 leavedos(32);
-       }
-     vga_emu_setmode(video_mode, Columns, Rows);
-     SLsmg_cls ();
-     Slsmg_is_not_initialized = 0;
-   }
 
    SLtt_Blink_Mode = (vga.attr.data[0x10] & 0x8) != 0;
 
@@ -777,8 +782,6 @@ static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u a
 
 void dos_slang_redraw (void)
 {
-   if (Slsmg_is_not_initialized) return;
-
    redraw_text_screen();
    SLsmg_refresh ();
 }
@@ -786,7 +789,6 @@ void dos_slang_redraw (void)
 void dos_slang_suspend (void)
 {
    /*
-   if (Slsmg_is_not_initialized) return;
    terminal_close();
    keyboard_close();
 
@@ -843,11 +845,11 @@ static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last,
 }
 
 #define term_setmode NULL
-#define term_update_cursor NULL
 
 static struct video_system Video_term = {
    NULL,
    terminal_initialize,
+   NULL,
    NULL,
    terminal_close,
    term_setmode,

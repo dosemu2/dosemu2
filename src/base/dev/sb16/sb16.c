@@ -42,7 +42,6 @@
 #include "sb16.h"
 #include <string.h>
 
-#define CONFIG_MPU401_IRQ config.mpu401_irq
 static int sb_irq_tab[] = { 2, 5, 7, 10 };
 static int sb_dma_tab[] = { 0, 1, 3 };
 static int sb_hdma_tab[] = { 5, 6, 7 };
@@ -60,6 +59,11 @@ static int sb_get_dsp_irq_num(void)
 	return -1;
     }
     return sb_irq_tab[idx];
+}
+
+int get_mpu401_irq_num(void)
+{
+    return (sb.mpu401_imode ? config.mpu401_irq_mt32 : config.mpu401_irq);
 }
 
 int sb_get_dma_num(void)
@@ -278,19 +282,24 @@ static int sb_midi_int(void)
 
 static void start_dma_clock(void)
 {
+    /* this was likely needed for KryptEgg game, see commit 5741ac14 */
+    sb.busy = 2;
+
     dspio_start_dma(sb.dspio);
 }
 
 static void stop_dma_clock(void)
 {
     dspio_stop_dma(sb.dspio);
+
+    sb.busy = 1;
 }
 
 static void stop_dma(void)
 {
     /* first reset dma_cmd, as dspio may query it from dspio_stop_dma() */
     sb.dma_cmd = 0;
-    dspio_stop_dma(sb.dspio);
+    stop_dma_clock();
 }
 
 static void sb_dma_start(void)
@@ -300,9 +309,9 @@ static void sb_dma_start(void)
 	sb.dma_count = sb.dma_init_count;
 	S_printf("SB: DMA transfer started, count=%i\n",
 		 sb.dma_init_count);
-	S_printf("SB: sample params: rate=%i, stereo=%i, signed=%i\n",
+	S_printf("SB: sample params: rate=%i, stereo=%i, signed=%i 16bit=%i\n",
 		 sb_get_dma_sampling_rate(), sb_dma_samp_stereo(),
-		 sb_dma_samp_signed());
+		 sb_dma_samp_signed(), sb_dma_16bit());
 	start_dma_clock();
     }
 }
@@ -310,6 +319,7 @@ static void sb_dma_start(void)
 static void sb_dma_actualize(void)
 {
     if (sb.new_dma_cmd) {
+	S_printf("SB: Actualized command %#x\n", sb.new_dma_cmd);
 	sb.dma_cmd = sb.new_dma_cmd;
 	sb.dma_mode = sb.new_dma_mode;
 	sb.dma_init_count = sb.new_dma_init_count;
@@ -331,7 +341,7 @@ static void sb_request_irq(int type)
     if (type & SB_IRQ_DSP)
 	pic_request(pic_irq_list[sb_get_dsp_irq_num()]);
     if (type & SB_IRQ_MPU401)
-	pic_request(pic_irq_list[CONFIG_MPU401_IRQ]);
+	pic_request(pic_irq_list[get_mpu401_irq_num()]);
 }
 
 static void sb_activate_irq(int type)
@@ -347,15 +357,27 @@ static void sb_activate_irq(int type)
 
 static void sb_deactivate_irq(int type)
 {
+    uint32_t act_map;
+    int mpu_irq = get_mpu401_irq_num();
+
     S_printf("SB: Deactivating irq type %d\n", type);
+    if (!(sb.mixer_regs[0x82] & type)) {
+	S_printf("SB: Warning: Interrupt not active!\n");
+	return;
+    }
     sb.mixer_regs[0x82] &= ~type;
+    /* if dsp and mpu irqs are the same, untrigger only when
+     * both are inactive */
+    act_map = ((!!(sb.mixer_regs[0x82] & SB_IRQ_DSP)) <<
+	    sb_get_dsp_irq_num()) |
+	    ((!!(sb.mixer_regs[0x82] & SB_IRQ_MPU401)) << mpu_irq);
     if (type & SB_IRQ_DSP) {
-	if (!(sb.mixer_regs[0x82] & SB_IRQ_DSP))
+	if (!(act_map & (1 << sb_get_dsp_irq_num())))
 	    pic_untrigger(pic_irq_list[sb_get_dsp_irq_num()]);
     }
     if (type & SB_IRQ_MPU401) {
-	if (!(sb.mixer_regs[0x82] & SB_IRQ_MPU401))
-	    pic_untrigger(pic_irq_list[CONFIG_MPU401_IRQ]);
+	if (!(act_map & (1 << mpu_irq)))
+	    pic_untrigger(pic_irq_list[mpu_irq]);
     }
 }
 
@@ -377,7 +399,12 @@ static void sb_dma_activate(void)
     }
     sb.new_dma_cmd = sb.command[0];
     sb.new_dma_mode = sb.command[1];
-    if (!sb_dma_active()) {
+    /* a weird logic to fix Speedy game: if DMA have never advanced
+     * (because channel is masked), forget current autoinit and
+     * actualize the new settings. To not introduce the race condition
+     * for the programs that rely on pending settings, we prolong
+     * the busy status till missing DMA DACK. */
+    if (!sb_dma_active() || sb.dma_count == sb.dma_init_count) {
 	sb_dma_actualize();
 	sb_dma_start();
     } else {
@@ -419,15 +446,18 @@ void sb_handle_dma(void)
     sb.busy = 1;
 }
 
-void sb_dma_processing(void)
+void sb_dma_nack(void)
 {
-    sb.busy = 2;
+    /* speedy reprograms DSP without exiting auto-init
+     * but when the DMA channel is masked. We need to downgrade
+     * the busy status from 2 to 1. */
+    if (sb.busy == 2)
+	sb.busy = 1;
 }
 
 void sb_handle_dma_timeout(void)
 {
     stop_dma();
-    sb.busy = 1;
 }
 
 static void dsp_write_output(uint8_t value)
@@ -1113,18 +1143,22 @@ static Bit8u sb_mixer_read(void)
 
 static double vol5h(int reg)
 {
-    /* not right of course */
-    return ((sb.mixer_regs[reg] >> 3) / 31.0);
+    return dspio_calc_vol(sb.mixer_regs[reg] >> 3, 2, -62);
 }
 
 static double vol2h(int reg)
 {
-    return ((sb.mixer_regs[reg] >> 6) / 3.0);
+    return dspio_calc_vol(sb.mixer_regs[reg] >> 6, 6, -18);
 }
 
 static double vol3l(int reg)
 {
-    return ((sb.mixer_regs[reg] & 7) / 7.0);
+    return dspio_calc_vol(sb.mixer_regs[reg] & 7, 6, -42);
+}
+
+static double gain2h(int reg)
+{
+    return dspio_calc_vol(sb.mixer_regs[reg] >> 6, 6, 0);
 }
 
 #define ENAB(r, b) \
@@ -1134,25 +1168,25 @@ static double vol3l(int reg)
 enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol)
 {
-    double vol;
+    double vol = 1;
     switch (ch) {
     case MC_MIDI:
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3d, 6);
-	    vol = vol5h(0x34);
+	    vol *= vol5h(0x34);
 	    break;
 	case MSC_R:
 	    ENAB(0x3e, 5);
-	    vol = vol5h(0x35);
+	    vol *= vol5h(0x35);
 	    break;
 	case MSC_LR:
 	    ENAB(0x3e, 6);
-	    vol = vol5h(0x34);
+	    vol *= vol5h(0x34);
 	    break;
 	case MSC_RL:
 	    ENAB(0x3d, 5);
-	    vol = vol5h(0x35);
+	    vol *= vol5h(0x35);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1162,19 +1196,19 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3d, 2);
-	    vol = vol5h(0x36);
+	    vol *= vol5h(0x36);
 	    break;
 	case MSC_R:
 	    ENAB(0x3e, 1);
-	    vol = vol5h(0x37);
+	    vol *= vol5h(0x37);
 	    break;
 	case MSC_LR:
 	    ENAB(0x3e, 2);
-	    vol = vol5h(0x36);
+	    vol *= vol5h(0x36);
 	    break;
 	case MSC_RL:
 	    ENAB(0x3d, 1);
-	    vol = vol5h(0x37);
+	    vol *= vol5h(0x37);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1184,19 +1218,19 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3d, 4);
-	    vol = vol5h(0x38);
+	    vol *= vol5h(0x38);
 	    break;
 	case MSC_R:
 	    ENAB(0x3e, 3);
-	    vol = vol5h(0x39);
+	    vol *= vol5h(0x39);
 	    break;
 	case MSC_LR:
 	    ENAB(0x3e, 4);
-	    vol = vol5h(0x38);
+	    vol *= vol5h(0x38);
 	    break;
 	case MSC_RL:
 	    ENAB(0x3d, 3);
-	    vol = vol5h(0x39);
+	    vol *= vol5h(0x39);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1206,11 +1240,11 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_MONO_L:
 	    ENAB(0x3d, 0);
-	    vol = vol3l(0x3a);
+	    vol *= vol3l(0x3a);
 	    break;
 	case MSC_MONO_R:
 	    ENAB(0x3e, 0);
-	    vol = vol3l(0x3a);
+	    vol *= vol3l(0x3a);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1224,12 +1258,12 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
     case MSC_L:
     case MSC_RL:
     case MSC_MONO_L:
-	vol *= (sb.mixer_regs[0x3f] >> 6) + 1;
+	vol *= gain2h(0x3f);
 	break;
     case MSC_R:
     case MSC_LR:
     case MSC_MONO_R:
-	vol *= (sb.mixer_regs[0x40] >> 6) + 1;
+	vol *= gain2h(0x40);
 	break;
     }
 
@@ -1240,15 +1274,15 @@ enum MixRet sb_mixer_get_input_volume(enum MixChan ch, enum MixSubChan sc,
 enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	double *r_vol)
 {
-    double vol;
+    double vol = 1;
     switch (ch) {
     case MC_MIDI:
 	switch (sc) {
 	case MSC_L:
-	    vol = vol5h(0x34);
+	    vol *= vol5h(0x34);
 	    break;
 	case MSC_R:
-	    vol = vol5h(0x35);
+	    vol *= vol5h(0x35);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1258,11 +1292,11 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3c, 2);
-	    vol = vol5h(0x36);
+	    vol *= vol5h(0x36);
 	    break;
 	case MSC_R:
 	    ENAB(0x3c, 1);
-	    vol = vol5h(0x37);
+	    vol *= vol5h(0x37);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1272,11 +1306,11 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_L:
 	    ENAB(0x3c, 4);
-	    vol = vol5h(0x38);
+	    vol *= vol5h(0x38);
 	    break;
 	case MSC_R:
 	    ENAB(0x3c, 3);
-	    vol = vol5h(0x39);
+	    vol *= vol5h(0x39);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1287,7 +1321,7 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	case MSC_MONO_L:
 	case MSC_MONO_R:
 	    ENAB(0x3c, 0);
-	    vol = vol3l(0x3a);
+	    vol *= vol3l(0x3a);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1296,10 +1330,10 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
     case MC_VOICE:
 	switch (sc) {
 	case MSC_L:
-	    vol = vol5h(0x32);
+	    vol *= vol5h(0x32);
 	    break;
 	case MSC_R:
-	    vol = vol5h(0x33);
+	    vol *= vol5h(0x33);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1309,7 +1343,7 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	switch (sc) {
 	case MSC_MONO_L:
 	case MSC_MONO_R:
-	    vol = vol2h(0x3b);
+	    vol *= vol2h(0x3b);
 	    break;
 	default:
 	    return MR_UNSUP;
@@ -1319,20 +1353,18 @@ enum MixRet sb_mixer_get_output_volume(enum MixChan ch, enum MixSubChan sc,
 	return MR_UNSUP;
     }
 
-    /* below we handle master and gain. After multiplying by gain, the
-     * volume may exceed 1. Whether it is good or bad, remains to be seen. */
     switch (sc) {
     case MSC_L:
     case MSC_RL:
     case MSC_MONO_L:
 	vol *= vol5h(0x30);		// master
-	vol *= (sb.mixer_regs[0x41] >> 6) + 1;
+	vol *= gain2h(0x41);
 	break;
     case MSC_R:
     case MSC_LR:
     case MSC_MONO_R:
 	vol *= vol5h(0x31);		// master
-	vol *= (sb.mixer_regs[0x42] >> 6) + 1;
+	vol *= gain2h(0x42);
 	break;
     }
 
@@ -1534,7 +1566,7 @@ static Bit8u sb_io_read(ioport_t port)
 	/* DSP Data Available Status - SB */
 	/* DSP 8-bit IRQ Ack - SB */
 	result = SB_HAS_DATA;
-	S_printf("SB: 8-bit IRQ Ack: %x\n", result);
+	S_printf("SB: 8-bit IRQ Ack (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_8BIT))
 	    sb_deactivate_irq(SB_IRQ_8BIT);
 	if (sb.dma_restart.val && !sb.dma_restart.is_16) {
@@ -1544,7 +1576,7 @@ static Bit8u sb_io_read(ioport_t port)
 	break;
     case 0x0F:			/* 0x0F: DSP 16-bit IRQ - SB16 */
 	result = SB_HAS_DATA;
-	S_printf("SB: 16-bit IRQ Ack: %x\n", result);
+	S_printf("SB: 16-bit IRQ Ack: (%i)\n", sb.dma_count);
 	if (sb_irq_active(SB_IRQ_16BIT))
 	    sb_deactivate_irq(SB_IRQ_16BIT);
 	if (sb.dma_restart.val && sb.dma_restart.is_16) {
@@ -1706,6 +1738,11 @@ static void mpu401_init(void)
 
     S_printf("MPU401: MPU-401 Initialisation\n");
 
+    if (config.mpu401_irq == -1) {
+	config.mpu401_irq = config.sb_irq;
+	S_printf("SB: mpu401 irq set to %i\n", config.mpu401_irq);
+    }
+
     /* This is the MPU-401 */
     io_device.read_portb = mpu401_io_read;
     io_device.write_portb = mpu401_io_write;
@@ -1716,11 +1753,11 @@ static void mpu401_init(void)
     io_device.handler_name = "Midi Emulation";
     io_device.start_addr = config.mpu401_base;
     io_device.end_addr = config.mpu401_base + 0x001;
-    if (CONFIG_MPU401_IRQ == config.sb_irq) {
+    if (config.mpu401_irq == config.sb_irq) {
 	S_printf("SB: same irq for DSP and MPU401\n");
 	io_device.irq = EMU_NO_IRQ;
     } else {
-	io_device.irq = CONFIG_MPU401_IRQ;
+	io_device.irq = config.mpu401_irq;
     }
     io_device.fd = -1;
     if (port_register_handler(io_device, 0) != 0)
@@ -1734,9 +1771,15 @@ static void mpu401_done(void)
 {
 }
 
+int mpu401_enable_imode(int on)
+{
+    sb.mpu401_imode = on;
+    /* not implemented yet */
+    return 0;
+}
+
 static void sb_dsp_init(void)
 {
-    memset(&sb, 0, sizeof(sb));
     rng_init(&sb.dsp_queue, DSP_QUEUE_SIZE, 1);
 
     sb.reset_val = 0xaa;
@@ -1790,14 +1833,14 @@ static void sb_done(void)
 
 void sound_init(void)
 {
-    if (config.sound) {
-	sb_init();
-	sb.dspio = dspio_init();
-	if (!sb.dspio) {
-	    error("dspio faild\n");
-	    leavedos(93);
-	}
+    if (!config.sound)
+	return;
+    sb.dspio = dspio_init();
+    if (!sb.dspio) {
+	error("dspio faild\n");
+	leavedos(93);
     }
+    sb_init();
 }
 
 void sound_reset(void)

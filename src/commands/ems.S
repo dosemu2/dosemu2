@@ -1,49 +1,27 @@
-# ems.S for the Linux DOS emulator
-#   provide a V86-mode ISR and device driver for EMS emulation
-#
-# License on original linux.asm:
-#
-# #Mach Operating System
-# #Copyright (c) 1993,1992,1991,1990 Carnegie Mellon University
-# #Copyright (c) 1991 IBM Corporation
-# #All Rights Reserved.
-# #
-# #Permission to use, copy, modify and distribute this software and its
-# #documentation is hereby granted, provided that both the copyright
-# #notice and this permission notice appear in all copies of the
-# #software, derivative works or modified versions, and any portions
-# #thereof, and that both notices appear in supporting documentation,
-# #and that the nema IBM not be used in advertising or publicity
-# #pertaining to distribution of the software without specific, written
-# #prior permission.
-# #
-# #CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
-# #CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
-# #ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
-# #
-# #Carnegie Mellon requests users of this software to return to
-# #
-# # Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
-# # School of Computer Science
-# # Carnegie Mellon University
-# # Pittsburgh PA 15213-3890
-# #
-# #any improvements or extensions that they make and grant Carnegie Mellon
-# #the rights to redistribute these changes.
-# #
-# #MACHFS.ASM  MS-DOS device driver to interface mach file system
-# #with the dos server's monitor.
-# #
-# #Version 1.1
-# #
-# #Gerald Malan (grm) 4/5/1991
-#
-# modified for the linux dos emulator by Andrew Tridgell 13/4/93
-# translated into as86 form by Robert Sanders ('murrcan style date!) 4/13/93
-# (I probably broke something, but it seems to work)
-#
-# copied from emufs.S to make ems.S  -  7/19/93
-#
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+/*
+ * EMM hooks
+ *
+ * Author: Stas Sergeev
+ *
+ * Based on ems.S code by Andrew Tridgell, Robert Sanders and
+ * MACHFS.ASM  MS-DOS device driver to interface mach file system.
+ */
 
 #include "memory.h"
 #include "doshelpers.h"
@@ -59,7 +37,6 @@ MaxCmd	=	15
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
-LinuxEMS =	DOS_HELPER_INT	# 0xe6 is Int for Linux EMS server
 EMSint	=	0x67
 
 LEN	=	0
@@ -83,6 +60,7 @@ RHPtr:		.long 0		# ptr to request header
 
 OldXMSCall:	.long 0
 OldInt2f:	.long 0
+EMSBios:	.long 0
 NoEMS:		.byte 0
 
 Dispatch:
@@ -138,16 +116,13 @@ Intr:
 	lret
 
 Dummy:
-	movb    $DOS_HELPER_EMS_HELPER, %al
-	int	$LinuxEMS
+	xorw	%ax, %ax	# no error
 	ret
 
 Int67:
 	cmpb	$0, %cs:NoEMS
 	jne	10f
-	shll	$16, %eax
-	movw	$DOS_HELPER_EMS_BIOS, %ax
-	int	$LinuxEMS
+	lcall	*%cs:EMSBios
 10:	iret
 
 Int2f:
@@ -181,11 +156,6 @@ HookHimem:
 	cmpb	$0x80, %al
 	je	1f
 	/* no XMS driver - try to install internal driver */
-	pushw	$BIOSSEG
-	popw	%es
-        /* version < 1.3.3.1? */
-	cmpl	$0x01030301, %es:(0xffe8)
-	jb	0f
 	movb    $DOS_HELPER_XMS_HELPER, %al
 	movb    $XMS_HELPER_XMS_INIT, %ah
 	int	$DOS_HELPER_INT
@@ -243,11 +213,6 @@ HookHimem:
 	jmp	10f
 
 
-0:
-	movb	$9, %ah
-	movw	$NoHimemMsg, %dx
-	int	$0x21
-	jmp	9f
 27:
 	movb	$9, %ah
 	movw	$CantHookMsg, %dx
@@ -263,9 +228,14 @@ HookHimem:
 10:	ret
 
 Init:
+	movb    $DOS_HELPER_DOSEMU_CHECK, %al
+	int	$DOS_HELPER_INT
+	cmpw	$1893, %cx
+	jb	33f
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
-	int	$LinuxEMS
+	movw	$0, %bx
+	int	$DOS_HELPER_INT
 	orb	%al, %al
 	jz	1f
 	cmpb	$EMS_ERROR_DISABLED_IN_CONFIG, %bl
@@ -275,6 +245,8 @@ Init:
 	movw	$NoEMSMsg, %dx
 	int	$0x21
 1:
+	movw	%dx, EMSBios
+	movw	%cx, EMSBios+2
 	pushw	%es
 	pushw	%di
 	pushw	%cs
@@ -310,6 +282,10 @@ Init:
 	xorw 	%ax, %ax
 	ret
 
+33:
+	movb	$9, %ah
+	movw	$TooOldMsg, %dx
+	int	$0x21
 Error:
 	movb	$0,%es:13(%di)		# No units!!
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
@@ -328,6 +304,9 @@ NoHimemMsg:
 	.ascii	"WARNING: himem.sys was not loaded before ems.sys!\r\n"
 	.ascii  "XMS and UMB services will not be available.\r\n"
 	.ascii	"Please adjust your config.sys.\r\n"
+	.byte	eom
+TooOldMsg:
+	.ascii	"WARNING: Your dosemu is too old, ems.sys not loaded\r\n"
 	.byte	eom
 NoXMSMsg:
 	.ascii	"Note: XMS disabled in the config."

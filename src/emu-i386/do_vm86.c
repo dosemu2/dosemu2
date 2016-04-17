@@ -36,7 +36,6 @@
 #include "timers.h"
 #include "cmos.h"
 #include "memory.h"
-#include "termio.h"
 #include "config.h"
 #include "port.h"
 #include "int.h"
@@ -50,18 +49,125 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#include "kvm.h"
 
 #include "video.h"
 
 #include "pic.h"
-
 #include "dpmi.h"
 #include "hlt.h"
-
 #include "ipx.h"
+#include "vgaemu.h"
+#include "sig.h"
 
-/* Needed for DIAMOND define */
-#include "vc.h"
+int vm86_fault(struct sigcontext *scp)
+{
+  in_vm86 = 0;
+  switch (_trapno) {
+  case 0x00: /* divide_error */
+  case 0x01: /* debug */
+  case 0x03: /* int3 */
+  case 0x04: /* overflow */
+  case 0x05: /* bounds */
+  case 0x07: /* device_not_available */
+#ifdef TRACE_DPMI
+    if (_trapno==1) {
+      t_printf("\n%s",e_scp_disasm(scp,0));
+    }
+#endif
+    do_int(_trapno);
+    return 0;
+
+  case 0x10: /* coprocessor error */
+    pic_request(PIC_IRQ13); /* this is the 386 way of signalling this */
+    return 0;
+
+  case 0x11: /* alignment check */
+    /* we are now safe; nevertheless, fall into the default
+     * case and exit dosemu, as an AC fault in vm86 is(?) a
+     * catastrophic failure.
+     */
+    goto sgleave;
+
+  case 0x06: /* invalid_op */
+    {
+      unsigned char *csp;
+      dbug_printf("SIGILL while in vm86(): %04x:%04x\n", REG(cs), LWORD(eip));
+      if (config.vga && REG(cs) == config.vbios_seg) {
+	if (!config.vbios_post)
+	  error("Fault in VBIOS code, try setting $_vbios_post=(1)\n");
+	else
+	  error("Fault in VBIOS code, try running xdosemu under X\n");
+	goto sgleave;
+      }
+#if 0
+      show_regs(__FILE__, __LINE__);
+#endif /* 0 */
+      csp = SEG_ADR((unsigned char *), cs, ip);
+      /* this one is for CPU detection programs
+       * actually we should check if int0x06 has been
+       * hooked by the pgm and redirected to it */
+#if 1
+      if (IS_REDIRECTED(0x06))
+#else
+      if (csp[0]==0x0f)
+#endif
+      {
+	do_int(_trapno);
+	return 0;
+      }
+      /* Some db commands start with 2e (use cs segment)
+	 and thus is accounted for here */
+      if (csp[0] == 0x2e) {
+	csp++;
+	LWORD(eip)++;
+	goto sgleave;
+      }
+      if (csp[0] == 0xf0) {
+	dbug_printf("ERROR: LOCK prefix not permitted!\n");
+	LWORD(eip)++;
+	return 0;
+      }
+      goto sgleave;
+    }
+    /* We want to protect the video memory and the VGA BIOS */
+  case 0x0e:
+    if(VGA_EMU_FAULT(scp,code,0)==True)
+      return 0;
+    /* fall into default case if not X */
+
+  default:
+sgleave:
+#if 0
+    error("unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
+	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
+	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
+	  _err,
+	  _rip, _rsp, _eflags, _cs, _ds, _es, _ss);
+
+    print_exception_info(scp);
+#else
+    error("unexpected CPU exception 0x%02x err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
+	  _trapno, _err, _cr2);
+    {
+      int auxg = debug_level('g');
+      FILE *aux = dbg_fd;
+      flush_log();  /* important! else we flush to stderr */
+      dbg_fd = stderr;
+      set_debug_level('g',1);
+      show_regs(__FILE__, __LINE__);
+      set_debug_level('g', auxg);
+      flush_log();
+      dbg_fd = aux;
+    }
+#endif
+
+    show_regs(__FILE__, __LINE__);
+    flush_log();
+    leavedos_from_sig(4);
+  }
+  return 0; /* keeps GCC happy */
+}
 
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
@@ -324,9 +430,11 @@ static int true_vm86(struct vm86_struct *x)
 
 static int do_vm86(struct vm86_struct *x)
 {
+    if (config.cpu_vm == CPUVM_KVM)
+	return kvm_vm86(x);
 #ifdef __i386__
 #ifdef X86_EMULATOR
-    if (config.cpuemu)
+    if (config.cpu_vm == CPUVM_EMU)
 	return e_vm86();
 #endif
     return true_vm86(x);
@@ -337,7 +445,7 @@ static int do_vm86(struct vm86_struct *x)
 
 static void _do_vm86(void)
 {
-    int retval, vtype;
+    int retval, vtype, dret;
 
     if (isset_IF() && isset_VIP()) {
 	error("both IF and VIP set\n");
@@ -388,10 +496,11 @@ again:
 	I_printf("Return from vm86() for STI\n");
 	break;
     case VM86_INTx:
-	do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
-	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+	dret = mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 1, 0);
+	if (!dret)
 #endif
+	    do_int(VM86_ARG(retval));
 	break;
 #ifdef USE_MHPDBG
     case VM86_TRAP:
@@ -422,17 +531,9 @@ again:
  *
  * DANG_END_FUNCTION
  */
-void run_vm86(void)
+static void run_vm86(void)
 {
-  int retval, cnt;
-
-  if (in_dpmi && !in_dpmi_dos_int) {
-    run_dpmi();
-  } else {
-    /*
-     * always invoke vm86() with this call.  all the messy stuff will be
-     * in here.
-     */
+    int retval, cnt;
 
     if (
 #ifdef X86_EMULATOR
@@ -457,7 +558,7 @@ void run_vm86(void)
 	    g_printf("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	}
-	if (in_dpmi && !in_dpmi_dos_int)
+	if (in_dpmi_pm())
 	    return;
 	/* if thread wants some sleep, we can't fuck it in a busy loop */
 	if (coopth_wants_sleep())
@@ -479,16 +580,18 @@ void run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
 	}
     }
-    if (mhpdbg.TFpendig)
-      set_TF();
+#ifdef USE_MHPDBG
+    if (mhpdbg.active)
+	mhp_debug(DBG_PRE_VM86, 0, 0);
+#endif
+
     _do_vm86();
-  }
 }
 
 /* same as run_vm86(), but avoids any looping in handling GPFs */
 void vm86_helper(void)
 {
-  assert(in_dpmi_dos_int);
+  assert(!in_dpmi_pm());
   _do_vm86();
   handle_signals();
   coopth_run();
@@ -505,7 +608,8 @@ void vm86_helper(void)
 void loopstep_run_vm86(void)
 {
     uncache_time();
-    run_vm86();
+    if (!in_dpmi_pm())
+	run_vm86();
     do_periodic_stuff();
     hardware_run();
     pic_run();		/* trigger any hardware interrupts requested */
@@ -569,39 +673,11 @@ void do_int_call_back(int intno)
     __do_call_back(ISEG(intno), IOFF(intno), 1);
 }
 
-static void vm86plus_init(void)
-{
-#ifdef X86_EMULATOR
-    if (config.cpuemu >= 3)
-	return;
-#endif
-#ifdef __i386__
-//    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) == -1 &&
-		errno == EFAULT)
-	return;
-#endif
-#ifdef X86_EMULATOR
-#ifdef __i386__
-    error("vm86 service not available in your kernel, %s\n", strerror(errno));
-    error("using CPU emulation for vm86()\n");
-#endif
-    if (config.cpuemu < 3) {
-	config.cpuemu = 3;
-	init_emu_cpu();
-    }
-    return;
-#endif
-    fprintf(stderr, "vm86plus service not available in your kernel\n\r");
-    exit(1);
-}
-
 int vm86_init(void)
 {
     emu_hlt_t hlt_hdlr = HLT_INITIALIZER;
     hlt_hdlr.name = "do_call_back";
     hlt_hdlr.func = callback_return;
     CBACK_OFF = hlt_register_handler(hlt_hdlr);
-    vm86plus_init();
     return 0;
 }

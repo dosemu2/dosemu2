@@ -51,7 +51,7 @@ struct SREGS {
 
 int com_error(char *format, ...);
 char *com_getenv(char *keyword);
-int com_system(char *command, int quit);
+int com_system(const char *command, int quit);
 char * com_strdup(char *s);
 unsigned short get_dos_ver(void);
 void com_strfree(char *s);

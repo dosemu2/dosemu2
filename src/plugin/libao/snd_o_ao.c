@@ -52,23 +52,12 @@ static sem_t stop_sem;
 static pthread_t write_thr;
 static void *aosnd_write(void *arg);
 
+
 static int aosnd_cfg(void *arg)
 {
-    char *p;
-    int l;
     if (config.libao_sound == 1)
 	return PCM_CF_ENABLED;
-    l = strlen(aosnd_name);
-    p = strstr(config.sound_driver, aosnd_name);
-    if (p && (p == config.sound_driver || p[-1] == ',') &&
-	    (p[l] == 0 || p[l] == ',')) {
-	S_printf("PCM: Enabling ao driver\n");
-	return PCM_CF_ENABLED;
-    } else if (strlen(config.sound_driver)) {
-	S_printf("PCM: Disabling ao driver\n");
-	return PCM_CF_DISABLED;
-    }
-    return 0;
+    return pcm_parse_cfg(config.sound_driver, aosnd_name);
 }
 
 static int aosnd_open(void *arg)
@@ -89,10 +78,19 @@ static int aosnd_open(void *arg)
     if (id == -1)
 	return 0;
     /* for alsa the default settings are fine, but for pulse we
-     * need to manually increase buffer_time to avoid clicks... */
+     * need to manually increase buffer_time to avoid clicks...
+     * https://bugzilla.redhat.com/show_bug.cgi?id=1193688
+     */
     opt.key = "buffer_time";
     opt.value = "40";
     ao = ao_open_live(id, &info, &opt);
+    if (!ao) {
+	/* because of this bug:
+	 * https://bugs.launchpad.net/ubuntu/+source/libao/+bug/1525776
+	 * we need to retry without options... libao is so lame, do you
+	 * remember that? */
+	ao = ao_open_live(id, &info, NULL);
+    }
     if (!ao)
 	return 0;
 

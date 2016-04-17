@@ -39,10 +39,11 @@
 
 struct msdos_ops {
     void (*api_call)(struct sigcontext *scp);
+    void (*api_winos2_call)(struct sigcontext *scp);
     void (*xms_call)(struct RealModeCallStructure *rmreg);
     void (**rmcb_handler)(struct sigcontext *scp,
 	const struct RealModeCallStructure *rmreg);
-    void (**rmcb_ret_handler)(const struct sigcontext *scp,
+    void (**rmcb_ret_handler)(struct sigcontext *scp,
 	struct RealModeCallStructure *rmreg);
     u_short cb_es;
     u_int cb_edi;
@@ -95,15 +96,15 @@ static void s_r_call(u_char al, u_short es, u_short di)
 
 static void exechlp_thr(void *arg)
 {
-    u_short saved_flags;
+    uint32_t saved_flags;
 
     assert(LWORD(esp) >= exec_helper.len);
     LWORD(esp) -= exec_helper.len;
     s_r_call(0, REG(ss), LWORD(esp));
     do_int_call_back(0x21);
-    saved_flags = LWORD(eflags);
+    saved_flags = REG(eflags);
     s_r_call(1, REG(ss), LWORD(esp));
-    LWORD(eflags) = saved_flags;
+    REG(eflags) = saved_flags;
     LWORD(esp) += exec_helper.len;
 }
 
@@ -143,7 +144,7 @@ static int get_cb(int num)
 
 int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
 	const struct RealModeCallStructure *),
-	void (*ret_handler[])(const struct sigcontext *,
+	void (*ret_handler[])(struct sigcontext *,
 	struct RealModeCallStructure *),
 	int num, far_t *r_cbks)
 {
@@ -173,6 +174,11 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 	msdos.api_call = handler;
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_API_call);
+	break;
+    case API_WINOS2_CALL:
+	msdos.api_winos2_call = handler;
+	ret.selector = dpmi_sel();
+	ret.offset = DPMI_SEL_OFF(MSDOS_API_WINOS2_call);
 	break;
     default:
 	dosemu_error("unknown pm handler\n");
@@ -224,6 +230,8 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
 	msdos.api_call(scp);
+    } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
+	msdos.api_winos2_call(scp);
     } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&
 	    _eip < 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_end)) {
 	int idx, ret;

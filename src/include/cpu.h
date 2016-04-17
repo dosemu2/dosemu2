@@ -93,7 +93,7 @@ union dword {
 #define _FS      (vm86s.regs.fs)
 #define _GS      (vm86s.regs.gs)
 #define _EFLAGS  UDWORD(eflags)
-#define _FLAGS   LWORD(eflags)
+#define _FLAGS   REG(eflags)
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
 #define LO(reg)  vm86u.b[offsetof(struct vm86_struct, regs.e##reg)]
@@ -138,11 +138,6 @@ static inline far_t rFAR_FARt(FAR_PTR far_ptr) {
 }
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
-
-#define WRITE_FLAGS(val)    LWORD(eflags) = (val)
-#define WRITE_FLAGSE(val)    REG(eflags) = (val)
-#define READ_FLAGS()        LWORD(eflags)
-#define READ_FLAGSE()        REG(eflags)
 
 extern struct _fpstate vm86_fpu_state;
 
@@ -287,9 +282,9 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 
   /* Flag setting and clearing, and testing */
         /* interrupt flag */
-#define _set_IF() (_EFLAGS |= VIF, clear_VIP())
-#define set_IF() (_set_IF(), is_cli = 0)
+#define set_IF() (_EFLAGS |= VIF, clear_VIP())
 #define clear_IF() (_EFLAGS &= ~VIF)
+#define clear_IF_timed() (clear_IF(), ({if (!is_cli) is_cli++;}))
 #define isset_IF() ((_EFLAGS & VIF) != 0)
        /* carry flag */
 #define set_CF() (_EFLAGS |= CF)
@@ -425,9 +420,6 @@ EXTERN struct vec_t *ivecs;
 #define _cs     (scp->cs)
 #define _eflags (scp->eflags)
 #define _cr2	(scp->cr2)
-
-void dosemu_fault(int, siginfo_t *, void *);
-int _dosemu_fault(int signal, struct sigcontext *scp);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);

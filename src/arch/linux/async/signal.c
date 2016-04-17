@@ -45,6 +45,9 @@
 #include "keyb_server.h"
 #include "sound.h"
 #include "cpu-emu.h"
+#include "sig.h"
+
+#define SIGRETURN_WA 1
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -67,7 +70,10 @@ struct sigchld_hndl {
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
-static sigset_t q_mask;
+static sigset_t q_mask, nonfatal_q_mask;
+#if SIGRETURN_WA
+static sigset_t fatal_q_mask;
+#endif
 
 static int sh_tid;
 static int in_handle_signals;
@@ -81,22 +87,30 @@ static pthread_mutex_t cbk_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 struct eflags_fs_gs eflags_fs_gs;
 
-static void (*sighandlers[NSIG])(struct sigcontext *);
+static void (*sighandlers[NSIG])(struct sigcontext *, siginfo_t *);
 static void (*qsighandlers[NSIG])(int sig, siginfo_t *si, void *uc);
 
-static void sigquit(struct sigcontext *);
-static void sigalrm(struct sigcontext *);
-static void sigio(struct sigcontext *);
+static void sigquit(struct sigcontext *, siginfo_t *);
+static void sigalrm(struct sigcontext *, siginfo_t *);
+static void sigio(struct sigcontext *, siginfo_t *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
 
-static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
+static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
 	if (qsighandlers[sig])
 		return;
-	/* first need to collect the mask, then register all handlers
-	 * because the same mask is used for every handler */
+	/* collect this mask so that all async (fatal and non-fatal)
+	 * signals can be blocked by threads */
 	sigaddset(&q_mask, sig);
 	qsighandlers[sig] = fun;
+}
+
+static void newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
+{
+#if SIGRETURN_WA
+	sigaddset(&fatal_q_mask, sig);
+#endif
+	_newsetqsig(sig, fun);
 }
 
 static void qsig_init(void)
@@ -105,9 +119,26 @@ static void qsig_init(void)
 	int i;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
-	/* initially block all async signals. The handler will unblock some
-	 * when it is safe (after segment registers are restored) */
-	sa.sa_mask = q_mask;
+#if SIGRETURN_WA
+#if 0
+	/* future kernels will be able to correctly restore SS.
+	 * this have not materialized yet */
+	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
+#else
+	if (1)
+#endif
+	{
+		/* initially block all async signals. The handler will unblock
+		 * some when it is safe (after segment registers are restored)
+		 */
+		sa.sa_mask = q_mask;
+	}
+	else
+#endif
+	{
+		/* block all non-fatal async signals */
+		sa.sa_mask = nonfatal_q_mask;
+	}
 	for (i = 0; i < NSIG; i++) {
 		if (qsighandlers[i]) {
 			sa.sa_sigaction = qsighandlers[i];
@@ -116,9 +147,14 @@ static void qsig_init(void)
 	}
 }
 
-void registersig(int sig, void (*fun)(struct sigcontext *))
+/* registers non-emergency async signals */
+void registersig(int sig, void (*fun)(struct sigcontext *, siginfo_t *))
 {
-	newsetqsig(sig, sigasync);
+	/* first need to collect the mask, then register all handlers
+	 * because the same mask of non-emergency async signals
+	 * is used for every handler */
+	sigaddset(&nonfatal_q_mask, sig);
+	_newsetqsig(sig, sigasync);
 	sighandlers[sig] = fun;
 }
 
@@ -129,7 +165,26 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
 		sa.sa_flags |= SA_NODEFER;
-	sa.sa_mask = q_mask;
+#if SIGRETURN_WA
+#if 0
+	/* future kernels will be able to correctly restore SS.
+	 * this have not materialized yet */
+	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
+#else
+	if (1)
+#endif
+	{
+		/* initially block all async signals. The handler will unblock
+		 * some when it is safe (after segment registers are restored)
+		 */
+		sa.sa_mask = q_mask;
+	}
+	else
+#endif
+	{
+		/* block all non-fatal async signals */
+		sa.sa_mask = nonfatal_q_mask;
+	}
 	sa.sa_sigaction = fun;
 	sigaction(sig, &sa, NULL);
 }
@@ -174,6 +229,7 @@ static void __init_handler(struct sigcontext *scp, int async)
 	  fprintf(stderr, "for unknown reasons.\nPlease contact linux-msdos@vger.kernel.org.\n");
 	fprintf(stderr, "Set $_cpu_emu=\"full\" or \"fullsim\" to avoid this message.\n");
       }
+      config.cpu_vm = CPUVM_EMU;
       config.cpuemu = 4;
       _cs = getsegment(cs);
   }
@@ -182,7 +238,7 @@ static void __init_handler(struct sigcontext *scp, int async)
   if (in_vm86) {
 #ifdef __i386__
 #ifdef X86_EMULATOR
-    if (!config.cpuemu)
+    if (config.cpu_vm != CPUVM_EMU)
 #endif
       {
 	if (getsegment(fs) != eflags_fs_gs.fs)
@@ -208,10 +264,12 @@ static void __init_handler(struct sigcontext *scp, int async)
 #ifdef __x86_64__
   /* kernel has the following rule: non-zero selector means 32bit base
    * in GDT. Zero selector means 64bit base, set via msr.
-   * So if we set selector to 0, need to use also prctl(ARCH_SET_xS). */
-  if (!eflags_fs_gs.fs)
+   * So if we set selector to 0, need to use also prctl(ARCH_SET_xS).
+   * Also, if the bases are not used they are 0 so no need to restore,
+   * which saves a syscall */
+  if (!eflags_fs_gs.fs && eflags_fs_gs.fsbase)
     dosemu_arch_prctl(ARCH_SET_FS, eflags_fs_gs.fsbase);
-  if (!eflags_fs_gs.gs)
+  if (!eflags_fs_gs.gs && eflags_fs_gs.gsbase)
     dosemu_arch_prctl(ARCH_SET_GS, eflags_fs_gs.gsbase);
 #endif
 }
@@ -219,28 +277,48 @@ static void __init_handler(struct sigcontext *scp, int async)
 __attribute__((no_instrument_function))
 void init_handler(struct sigcontext *scp, int async)
 {
-  /* All signals are initially blocked.
-   * We need to restore registers before unblocking signals.
+  /* Async signals are initially blocked.
+   * We need to restore registers before unblocking async signals.
    * Otherwise the nested signal handler will restore the registers
    * and return; the current signal handler will then save the wrong
    * registers.
+   * Note:  Even if the nested sighandler tries hard, it can't properly
+   * restore SS, at least until the proper sigreturn() support is in.
    * Note: in 64bit mode some segment registers are neither saved nor
    * restored by the signal dispatching code in kernel, so we have
    * to restore them by hands.
+   * Note: most async signals are left blocked, we unblock only few.
+   * Sync signals like SIGSEGV are never blocked.
    */
-  sigset_t mask;
   __init_handler(scp, async);
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGHUP);
-  sigaddset(&mask, SIGTERM);
-  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+#if SIGRETURN_WA
+#if 0
+  /* future kernels will be able to correctly restore SS.
+   * this have not materialized yet.
+   * When it will, we'll be able to have some (or all?) async
+   * signals always unblocked, as the sighandlers will then
+   * correctly restore all segregs. */
+  if (kernel_version_code >= KERNEL_VERSION(4, 6, 0))
+    return;
+#endif
+  sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
+#endif
 }
 
 #ifdef __x86_64__
 __attribute__((no_instrument_function))
 void deinit_handler(struct sigcontext *scp)
 {
+#ifdef __x86_64__
+  /* on x86_64 there is no vm86() that doesn't restore the segregs
+   * on some very old 2.4 kernels. So if DPMI is not active, there
+   * is nothing to restore.
+   * This helps valgrind to work with vm86sim mode. */
+  if (!dpmi_active())
+    return;
+#endif
+  if (CONFIG_CPUSIM && config.cpuemu >= 4)
+    return;
   /* no need to restore anything when returning to dosemu, but
    * can't check _cs because dpmi_iret_setup() could clobber it.
    * So just restore segregs unconditionally to stay safe.
@@ -315,15 +393,9 @@ static void cleanup_child(void *arg)
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
-__attribute__((no_instrument_function))
-static void sig_child(int sig, siginfo_t *si, void *uc)
+static void sig_child(struct sigcontext *scp, siginfo_t *si)
 {
-  struct sigcontext *scp =
-	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
-  init_handler(scp, 1);
   SIGNAL_save(cleanup_child, &si->si_pid, sizeof(si->si_pid), __func__);
-  dpmi_iret_setup(scp);
-  deinit_handler(scp);
 }
 
 void leavedos_from_sig(int sig)
@@ -356,7 +428,7 @@ static void _leavedos_signal(int sig, struct sigcontext *scp)
     _exit(sig);
   }
   leavedos_sig(sig);
-  if (in_dpmi && !in_vm86)
+  if (!in_vm86)
     dpmi_sigio(scp);
   dpmi_iret_setup(scp);
 }
@@ -537,13 +609,14 @@ signal_pre_init(void)
   /* first set up the blocking mask: registersig() and newsetqsig()
    * adds to it */
   sigemptyset(&q_mask);
+  sigemptyset(&nonfatal_q_mask);
   registersig(SIGALRM, sigalrm);
   registersig(SIGQUIT, sigquit);
   registersig(SIGIO, sigio);
+  registersig(SIGCHLD, sig_child);
   newsetqsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
   newsetqsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
   newsetqsig(SIGTERM, leavedos_signal);
-  newsetqsig(SIGCHLD, sig_child);
   /* below ones are initialized by other subsystems */
   registersig(SIGPROF, NULL);
   registersig(SIG_ACQUIRE, NULL);
@@ -567,6 +640,7 @@ void
 signal_init(void)
 {
   dosemu_tid = gettid();
+  dosemu_pthread_self = pthread_self();
   sh_tid = coopth_create("signal handling");
   /* normally we don't need ctx handlers because the thread is detached.
    * But some crazy code (vbe.c) can call coopth_attach() on it, so we
@@ -672,11 +746,13 @@ static void SIGALRM_call(void *arg)
   /* update mouse cursor before updating the screen */
   mouse_curtick();
 
-  if (Video->update_screen)
-    Video->update_screen();
-  if (Video->handle_events)
-    Video->handle_events();
-  update_screen();
+  if (video_initialized) {
+    if (Video->update_screen)
+      Video->update_screen();
+    if (Video->handle_events)
+      Video->handle_events();
+    update_screen();
+  }
 
   /* for the SLang terminal we'll delay the release of shift, ctrl, ...
      keystrokes a bit */
@@ -783,7 +859,7 @@ void SIGNAL_save(void (*signal_call)(void *), void *arg, size_t len,
     memcpy(signal_queue[SIGNAL_tail].arg, arg, len);
   signal_queue[SIGNAL_tail].name = name;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-  if (in_dpmi)
+  if (in_dpmi_pm())
     dpmi_return_request();
 }
 
@@ -806,7 +882,7 @@ static void SIGIO_call(void *arg){
 }
 
 #ifdef __linux__
-static void sigio(struct sigcontext *scp)
+static void sigio(struct sigcontext *scp, siginfo_t *si)
 {
   /* prints non reentrant! dont do! */
 #if 0
@@ -814,42 +890,45 @@ static void sigio(struct sigcontext *scp)
 #endif
   e_gen_sigalrm(scp);
   SIGNAL_save(SIGIO_call, NULL, 0, __func__);
-  if (in_dpmi && !in_vm86)
+  if (!in_vm86)
     dpmi_sigio(scp);
 }
 
-static void sigalrm(struct sigcontext *scp)
+static void sigalrm(struct sigcontext *scp, siginfo_t *si)
 {
   if(e_gen_sigalrm(scp)) {
     SIGNAL_save(SIGALRM_call, NULL, 0, __func__);
-    if (in_dpmi && !in_vm86)
+    if (!in_vm86)
       dpmi_sigio(scp);
   }
 }
 
 __attribute__((noinline))
-static void sigasync0(int sig, struct sigcontext *scp)
+static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
 {
+  /* can't use pthread_self() here since the TLS is always set to dosemu's *
+   * in any case this should not happens since async signals are blocked   *
+   * in other threads							   */
   if (gettid() != dosemu_tid)
     dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])
-	  sighandlers[sig](scp);
+	  sighandlers[sig](scp, si);
   dpmi_iret_setup(scp);
 }
 
 __attribute__((no_instrument_function))
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
-  struct sigcontext *scp = (struct sigcontext *)
-	   &((ucontext_t *)uc)->uc_mcontext;
+  ucontext_t *uct = uc;
+  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
-  sigasync0(sig, scp);
+  sigasync0(sig, scp, si);
   deinit_handler(scp);
 }
 #endif
 
 
-static void sigquit(struct sigcontext *scp)
+static void sigquit(struct sigcontext *scp, siginfo_t *si)
 {
   in_vm86 = 0;
 
@@ -869,7 +948,8 @@ void do_periodic_stuff(void)
     coopth_run();
 
 #ifdef USE_MHPDBG
-    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
+    if (mhpdbg.active)
+	mhp_debug(DBG_POLL, 0, 0);
 #endif
 
     if (Video->change_config)
@@ -893,7 +973,7 @@ void add_thread_callback(void (*cb)(void *), void *arg, const char *name)
   }
   eventfd_write(event_fd, 1);
   /* unfortunately eventfd does not support SIGIO :( So we kill ourself. */
-  kill(0, SIGIO);
+  pthread_kill(dosemu_pthread_self, SIGIO);
 }
 
 static void async_awake(void *arg)

@@ -177,7 +177,7 @@ static RemapObject *_remap_init(int src_mode, int dst_mode, int features,
   ro->color_lut_size = 0;
   ro->bit_lut = NULL;
   ro->gamma_lut = NULL;
-  adjust_gamma(ro, 100);
+  ro->gamma = 100;
   ro->remap_func = ro->remap_func_init = NULL;
   ro->remap_func_flags = 0;
   ro->remap_func_name = "no_func";
@@ -679,6 +679,10 @@ void rgb_bilin_filt(RGBColor c, RGBColor *c1, RGBColor *c2, RGBColor *c3)
 
 static void src_resize_update(RemapObject *ro, int width, int height, int scan_len)
 {
+  if (  ro->src_width == width &&
+	ro->src_height == height &&
+	ro->src_scan_len == scan_len)
+    return;
   ro->src_width = width;
   ro->src_height = height;
   ro->src_scan_len = scan_len;
@@ -689,6 +693,10 @@ static void src_resize_update(RemapObject *ro, int width, int height, int scan_l
 
 static void dst_resize_update(RemapObject *ro, int width, int height, int scan_len)
 {
+  if (  ro->dst_width == width &&
+	ro->dst_height == height &&
+	ro->dst_scan_len == scan_len)
+    return;
   ro->dst_width = width;
   ro->dst_height = height;
   ro->dst_scan_len = scan_len;
@@ -1419,12 +1427,12 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
   if (ro->func_all)
     ro->state |= ROS_SCALE_ALL;
   /* accept partial scalers only if filtering matches or no full scaler */
-  if (ro->func_1 && (((ro->func_1->flags &
-      (remap_features | RFF_BILIN_FILT | RFF_LIN_FILT)) == remap_features)
+  if (ro->func_1 && ((((ro->func_1->flags ^ remap_features) &
+      (RFF_BILIN_FILT | RFF_LIN_FILT)) == 0)
       || !ro->func_all))
     ro->state |= ROS_SCALE_1;
-  if (ro->func_2 && (((ro->func_2->flags &
-      (remap_features | RFF_BILIN_FILT | RFF_LIN_FILT)) == remap_features)
+  if (ro->func_2 && ((((ro->func_2->flags ^ remap_features) &
+      (RFF_BILIN_FILT | RFF_LIN_FILT)) == 0)
       || !ro->func_all))
     ro->state |= ROS_SCALE_2;
   if (!ro->state)

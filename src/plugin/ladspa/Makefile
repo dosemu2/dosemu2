@@ -24,9 +24,3 @@ ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_ladspa.so: $(OBJS)
 	$(CC) $(ALL_LDFLAGS) -shared -o $@ $^ $(LADSPA_LDFLAGS)
 endif
-
-install: all
-
-realclean::
-	rm -f config.log config.status configure
-	rm -rf autom4te*.cache

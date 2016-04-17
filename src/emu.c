@@ -73,7 +73,6 @@
 #include "emu.h"
 
 #include "bios.h"
-#include "termio.h"
 #include "video.h"
 #include "timers.h"
 #include "cmos.h"
@@ -102,7 +101,7 @@
 #include "coopth.h"
 #include "keyb_server.h"
 #include "keyb_clients.h"
-
+#include "sig.h"
 #include "sound.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -125,6 +124,7 @@ int mem_fd = -1;
 int fatalerr;
 int in_leavedos;
 pid_t dosemu_tid;
+pthread_t dosemu_pthread_self;
 
 void boot(void)
 {
@@ -223,7 +223,7 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
   if (prompt) {
     if (dosboot) {
       p_dos_str("%s", text2);
-      _set_IF();
+      set_IF();
       com_biosread(buf, sizeof(buf)-2);
       clear_IF();
     } else {
@@ -312,9 +312,11 @@ int main(int argc, char **argv)
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
     pci_setup();
+    /* threads can be created only after signal_pre_init() so
+     * it should be above device_init(), iodev_init() etc */
+    signal_pre_init();          /* initialize sig's & sig handlers */
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
-    signal_pre_init();          /* initialize sig's & sig handlers */
     SIG_init();			/* Silly Interrupt Generator */
     pkt_priv_init();            /* initialize the packet driver interface */
 
@@ -327,7 +329,7 @@ int main(int argc, char **argv)
     }
     priv_drop();
 
-    map_hardware_ram();         /* map the direct hardware ram */
+    init_hardware_ram();         /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
 
@@ -357,10 +359,7 @@ int main(int argc, char **argv)
       leavedos(0);
     }
 
-    ems_init();			/* initialize ems */
-    xms_init();			/* initialize xms */
     dpmi_setup();
-
     g_printf("EMULATE\n");
 
     fflush(stdout);
@@ -396,10 +395,6 @@ void
 dos_ctrl_alt_del(void)
 {
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
-    while (in_dpmi) {
-	in_dpmi_dos_int = 1;
-	dpmi_cleanup();
-    }
     cpu_reset();
 }
 
@@ -407,7 +402,7 @@ static void leavedos_thr(void *arg)
 {
     dbug_printf("leavedos thread started\n");
     /* this may require working vm86() */
-    video_close();
+    video_early_close();
     dbug_printf("leavedos thread ended\n");
 }
 
@@ -442,6 +437,7 @@ void __leavedos(int sig, const char *s, int num)
     /* abandon current thread if any */
     coopth_leave();
     /* close coopthreads-related stuff first */
+    dpmi_done();
     dos2tty_done();
     /* try to clean up threads */
     tmp = coopth_flush(vm86_helper);
@@ -473,6 +469,8 @@ void leavedos_main(int sig)
     /* now it is safe to shut down coopth. Can be done any later, if need be */
     coopth_done();
     dbug_printf("coopthreads stopped\n");
+
+    video_close();
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"

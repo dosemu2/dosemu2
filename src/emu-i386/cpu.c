@@ -26,15 +26,12 @@
 #include "config.h"
 #include "dosemu_config.h"
 #include "memory.h"
-#include "termio.h"
 #include "emu.h"
 #include "port.h"
 #include "int.h"
-
-#include "vc.h"
-
 #include "dpmi.h"
 #include "priv.h"
+#include "kvm.h"
 
 #ifdef X86_EMULATOR
 #include "simx86/syncpu.h"
@@ -293,6 +290,7 @@ static void fpu_io_write(ioport_t port, Bit8u val)
 void cpu_setup(void)
 {
   emu_iodev_t io_dev;
+  int orig_cpu_vm = config.cpu_vm;
   io_dev.read_portb = fpu_io_read;
   io_dev.write_portb = fpu_io_write;
   io_dev.read_portw = NULL;
@@ -312,8 +310,58 @@ void cpu_setup(void)
   savefpstate(vm86_fpu_state);
   fpu_reset();
 
+  if (config.cpu_vm == -1) {
+    if (config.cpuemu)
+      config.cpu_vm = CPUVM_EMU;
+    else
+      config.cpu_vm =
+#ifdef __x86_64__
+#if 0
+	CPUVM_KVM
+#else
+	CPUVM_EMU
+#endif
+#else
+	CPUVM_VM86
+#endif
+	;
+  }
+
+  if (config.cpu_vm == CPUVM_KVM && !init_kvm_cpu()) {
+    if (orig_cpu_vm == -1) {
+      warn("KVM not available: %s\n", strerror(errno));
+    } else {
+      error("KVM not available: %s\n", strerror(errno));
+    }
+    config.cpu_vm = CPUVM_EMU;
+  }
+
+#ifdef __i386__
+  if (config.cpu_vm == CPUVM_VM86) {
+//    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
+    if (syscall(SYS_vm86old, (void *)VM86_PLUS_INSTALL_CHECK) != -1 ||
+		errno != EFAULT) {
+      if (orig_cpu_vm == CPUVM_VM86) {
+        error("vm86 service not available in your kernel, %s\n", strerror(errno));
+      }
 #ifdef X86_EMULATOR
-  if (config.cpuemu) {
+      config.cpu_vm = CPUVM_EMU;
+#else
+      exit(1);
+#endif
+    }
+  }
+#endif
+
+#ifdef X86_EMULATOR
+  if (config.cpu_vm == CPUVM_EMU) {
+    if (orig_cpu_vm != CPUVM_EMU) {
+      config.cpuemu = 3;
+      if (orig_cpu_vm == -1)
+	warn("using CPU emulation for vm86()\n");
+      else
+	error("using CPU emulation for vm86()\n");
+    }
     init_emu_cpu();
   }
 #endif

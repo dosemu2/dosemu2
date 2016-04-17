@@ -363,6 +363,7 @@ bootC			RETURN(BOOTC);
 xms			RETURN(L_XMS);
 umb_a0			RETURN(UMB_A0);
 umb_b0			RETURN(UMB_B0);
+umb_f0			RETURN(UMB_F0);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
 dpmi_base		RETURN(DPMI_BASE);
@@ -415,6 +416,9 @@ full			RETURN(FULL);
 vm86sim			RETURN(VM86SIM);
 fullsim			RETURN(FULLSIM);
 
+cpu_vm			RETURN(CPU_VM);
+kvm			RETURN(KVM);
+
 	/* disk keywords */
 hdimage			RETURN(HDIMAGE);
 image			RETURN(HDIMAGE);
@@ -435,6 +439,8 @@ offset			RETURN(OFFSET);
 floppy			RETURN(L_FLOPPY);
 cdrom			RETURN(CDROM);
 diskcyl4096		RETURN(DISKCYL4096);
+hdtype1			RETURN(HDTYPE1);
+hdtype2			RETURN(HDTYPE2);
 
 	/* keyboard */
 
@@ -618,8 +624,13 @@ sb_irq                  RETURN(SB_IRQ);
 sb_dma                  RETURN(SB_DMA);
 sb_hdma                 RETURN(SB_HDMA);
 mpu_base                RETURN(MPU_BASE);
+midi_synth              RETURN(MIDI_SYNTH);
 mpu_irq                 RETURN(MPU_IRQ);
+mpu_irq_mt32            RETURN(MPU_IRQ_MT32);
 sound_driver		RETURN(SOUND_DRIVER);
+midi_driver		RETURN(MIDI_DRIVER);
+munt_roms		RETURN(MUNT_ROMS);
+snd_plugin_params	RETURN(SND_PLUGIN_PARAMS);
 pcm_hpf			RETURN(PCM_HPF);
 midi_file		RETURN(MIDI_FILE);
 wav_file		RETURN(WAV_FILE);
@@ -686,7 +697,6 @@ target			RETURN(TARGET);
 
 	/* hacks */
 cli_timeout		RETURN(CLI_TIMEOUT);
-pic_watchdog		RETURN(PIC_WATCHDOG);
 timemode		RETURN(TIMEMODE);
 
 	/* strings */

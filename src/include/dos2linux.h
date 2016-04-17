@@ -250,9 +250,9 @@ extern int unix_e_welcome;
 
 extern int misc_e6_envvar (char *str);
 
-extern int misc_e6_commandline (char *str);
+extern int misc_e6_commandline (char *str, int *is_ux_path);
 extern char *misc_e6_options (void);
-extern void misc_e6_store_command (char *str, int terminate);
+extern void misc_e6_store_command (char *str, int ux_path, int terminate);
 extern int misc_e6_need_terminate(void);
 
 extern int find_drive (char **linux_path_resolved);
@@ -264,6 +264,7 @@ void show_welcome_screen(void);
 void memcpy_2unix(void *dest, unsigned src, size_t n);
 void memcpy_2dos(unsigned dest, const void *src, size_t n);
 void memmove_dos2dos(unsigned dest, unsigned src, size_t n);
+void memcpy_dos2dos(unsigned dest, unsigned src, size_t n);
 
 
 int unix_read(int fd, void *data, int cnt);

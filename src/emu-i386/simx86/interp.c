@@ -298,11 +298,17 @@ static unsigned int JumpGen(unsigned int P2, int mode, int cond,
 /////////////////////////////////////////////////////////////////////////////
 
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)&&defined(HOST_ARCH_X86)
-static inline unsigned int FindExecCode(unsigned int PC)
+static unsigned int FindExecCode(unsigned int PC)
 {
 	int mode = TheCPU.mode;
 	TNode *G;
 
+	if (CurrIMeta > 0) {		// open code?
+		if (debug_level('e') > 2)
+			e_printf("============ Closing open sequence at %08x\n",PC);
+		PC = CloseAndExec(PC, mode, __LINE__);
+		if (TheCPU.err) return PC;
+	}
 	/* for a sequence to be found, it must begin with
 	 * an allowable opcode. Look into table.
 	 * NOTE - this while can loop forever and stop
@@ -313,25 +319,23 @@ static inline unsigned int FindExecCode(unsigned int PC)
 	       ((InterOps[Fetch(PC)]&1)==0) && (G=FindTree(PC))) {
 		if (debug_level('e')>2)
 			e_printf("** Found compiled code at %08x\n",PC);
-		if (CurrIMeta>0) {		// open code?
-			if (debug_level('e')>2)
-				e_printf("============ Closing open sequence at %08x\n",PC);
-			PC = CloseAndExec(PC, mode, __LINE__);
-			if (TheCPU.err) return PC;
-		}
 		/* ---- this is the MAIN EXECUTE point ---- */
 		NodesExecd++;
 #ifdef PROFILE
 		TotalNodesExecd++;
 #endif
 		P0 = PC = Exec_x86(G, __LINE__);
+		if (G->seqlen == 0) {
+			error("CPU-EMU: Zero-len code node?\n");
+			break;
+		}
 		if (TheCPU.err) return PC;
 	}
 	return PC;
 }
 #endif
 
-static inline void HandleEmuSignals(void)
+static void HandleEmuSignals(void)
 {
 #ifdef PROFILE
 	if (debug_level('e')) EmuSignals++;
@@ -365,7 +369,16 @@ static inline void HandleEmuSignals(void)
 	}
 }
 
+static unsigned int _Interp86(unsigned int PC, int mod0);
+
 unsigned int Interp86(unsigned int PC, int mod0)
+{
+    unsigned int ret = _Interp86(PC, mod0);
+    TheCPU.eip = ret - LONG_CS;
+    return ret;
+}
+
+static unsigned int _Interp86(unsigned int PC, int mod0)
 {
 	unsigned char opc;
 	unsigned short ocs = TheCPU.cs;
@@ -861,7 +874,9 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 				m = UNPREFIX(m);
 				PC++;
 			} while (++cnt < NUMGENS && (Fetch(PC)&0xf8)==0x58);
-			if (opc!=POPsp) Gen(O_POP3, m); break; }
+			if (opc!=POPsp) Gen(O_POP3, m);
+			break;
+			}
 #endif
 			Gen(O_POP, mode);
 			Gen(S_REG, mode, R1Tab_l[D_LO(opc)]); PC++;
@@ -1621,9 +1636,6 @@ stack_return_from_vm86:
 			    }
 			    else {
 				/* virtual-8086 monitor */
-				if (mhpdbg.active && mhpdbg.TFpendig) {
-				    temp |= TF;
-				}
 				/* move TSSMASK from pop{e}flags to V{E}FLAGS */
 				eVEFLAGS = (eVEFLAGS & ~eTSSMASK) | (temp & eTSSMASK);
 				/* move 0xdd5 from pop{e}flags to regs->eflags */
@@ -1649,13 +1661,13 @@ stack_return_from_vm86:
 			    else
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
-			    if (in_dpmi) {
+//			    if (in_dpmi) {
 				if (temp & EFLAGS_IF)
 				    set_IF();
 				else {
 				    clear_IF();
 				}
-			    }
+//			    }
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08x->{r=%08x v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
@@ -1776,8 +1788,10 @@ repag0:
 				/* with TF set, we simulate REP and maybe back
 				   up IP */
 				int rc = 0;
-				(void)NewIMeta(P0, repmod, &rc);
+				NewIMeta(P0, repmod, &rc);
 				CODE_FLUSH();
+				/* don't cache intermediate nodes */
+				InvalidateNodePage(P0, PC - P0, NULL, NULL);
 				if (CONFIG_CPUSIM) FlagSync_All();
 				if (repmod & ADDR16) {
 					rCX--;
@@ -1902,12 +1916,12 @@ repag0:
 				if (debug_level('e')>2) e_printf("Virtual VM86 CLI\n");
 				eVEFLAGS &= ~EFLAGS_VIF;
 			    }
-			    else if (in_dpmi) {
+			    else/* if (in_dpmi)*/ {
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
 				clear_IF();
 			    }
-			    else
-				goto not_permitted;	/* GPF */
+//			    else
+//				goto not_permitted;	/* GPF */
 			}
 			PC++;
 			break;
@@ -1929,12 +1943,12 @@ repag0:
 			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
 				EFLAGS |= EFLAGS_IF;
 			    }
-			    else if (in_dpmi) {
+			    else/* if (in_dpmi)*/ {
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
 				set_IF();
 			    }
-			    else
-				goto not_permitted;	/* GPF */
+//			    else
+//				goto not_permitted;	/* GPF */
 			}
 			PC++;
 			break;

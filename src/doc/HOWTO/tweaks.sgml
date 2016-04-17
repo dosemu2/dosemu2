@@ -43,27 +43,8 @@ Solution: to the file 2200gx.exe apply the following patch:
 </para>
 </listitem>
 </itemizedlist>
-
 </listitem>
-<listitem>
 
-<title>Screamer</title>
-<itemizedlist>
-<listitem>
-<para>
-Screamer crashes at startup
-</para>
-<para>
-Solution: you need do update dos4gw that comes with the game, to version 1.97.
-Or you can use dos32a like this:
-<screen>
-dos32a.exe starth.exe
-</screen>
-</para>
-</listitem>
-</itemizedlist>
-
-</listitem>
 <listitem>
 <title>Need For Speed Special Edition</title>
 <itemizedlist>
@@ -111,7 +92,6 @@ see here for details
 </listitem>
 
 <listitem>
-
 <title>Gobliiins</title>
 <itemizedlist>
 <listitem>
@@ -127,7 +107,24 @@ Solution: apply the following patch to gobega.exe:
 </para>
 </listitem>
 </itemizedlist>
+</listitem>
 
+<listitem>
+<title>Prehistorik 2</title>
+<itemizedlist>
+<listitem>
+<para>
+Game freezes or crashes shortly after start.
+</para>
+<para>
+Solution: set
+<screen>
+$_umb_f0 = (off)
+</screen>
+in your dosemu.conf or .dosemurc.
+</para>
+</listitem>
+</itemizedlist>
 </listitem>
 
 </itemizedlist>
