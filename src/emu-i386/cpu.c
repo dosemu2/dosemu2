@@ -316,7 +316,11 @@ void cpu_setup(void)
     else
       config.cpu_vm =
 #ifdef __x86_64__
+#if 0
 	CPUVM_KVM
+#else
+	CPUVM_EMU
+#endif
 #else
 	CPUVM_VM86
 #endif
