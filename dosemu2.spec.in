@@ -54,8 +54,7 @@ under Linux.
 %build
 ./autogen.sh
 ./default-configure --sysconfdir=%{_sysconfdir}/dosemu --prefix=/usr \
-	--libdir=%{_libdir} \
-	--with-fdtarball=%{_sourcedir}/dosemu-freedos-bin.tgz
+	--libdir=%{_libdir}
 make
 
 %check
