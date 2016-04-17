@@ -40,6 +40,9 @@ $(PACKETNAME).tar.gz: $(GIT_REV) $(PACKAGE_NAME).spec
 	rm -f $(PACKETNAME).tar.gz
 	git archive -o $(PACKETNAME).tar --prefix=$(PACKETNAME)/ HEAD
 	tar rf $(PACKETNAME).tar --add-file=$(PACKAGE_NAME).spec
+	if [ -f $(fdtarball) ]; then \
+		tar rf $(PACKETNAME).tar --transform 's,^,$(PACKETNAME)/,' --add-file=$(fdtarball); \
+	fi
 	gzip $(PACKETNAME).tar
 
 dist: $(PACKETNAME).tar.gz
