@@ -1,371 +1,51 @@
-NEWS file for DOSEMU
+NEWS file for DOSEMU2
 ====================
 
 This file contains a list of user visible changes in DOSEMU. For the
-raw developer changelog please refer to ChangeLog.
+raw developer changelog please use "git log".
 
-Version 1.4.1 (2008-xx-xx)
+Version dosemu2-2.0pre5
 =============
-* Bug fixes, especially pertaining to the CPU emulator that is used in the
-  x86-64 port (also in combination with Xen), and for DPMI on x86-64.
-* Better LFN support.
-* Optionally prompt if the keyboard layout can't be auto-detected.
-* Some things previously done by the dosemu script are now done by the
-  dosemu.bin binary (X font locations, terminal warnings,
-  DOSDRIVE_D environment variable handling).
-* Handle UTF-8 in window titles.
-* Improved copy and paste of text to and from DOSEMU.
-* Avoid problems with the dotless i as used in Turkish and some other
-  languages.
-* Reduce lines of output in config.sys, autoexec.bat, blaster, and the
-  banner, so everything fits on 25 lines.
+* SDL video backend is now default, which means a GPU-accelerated rendering
+* lredir command was deprecated, use lredir2 with the new syntax
+* unix.com syntax was slightly changed
+* new tool sound.com is added to change sound and MIDI parameters at run-time
+* LPT2 is now pre-configured to print to PDF files
+* Added preliminary support for old MS-DOSes (>=3.3) and some DR-DOSes
+* many improvements to dosdebug
+* use logarithmic volume scale for sound
+* Preliminary KVM support - a very fast execution on 64bit machines.
+  Should be manually enabled in config for now.
+* Many regressions fixed
+* Added valgrind support, which allowed to find many obscure bugs
+* Work-arounds to support the newer fluidsynth for MIDI
+* More versions of libao are supported for sound (each having its own bugs).
+  This is good when SDL2 is unavailable.
+* munt support for mt32 (you need to download Roland ROMs yourself)
+* built-in backtracer is added for a better crash logs.
+  Used if gdb is not installed.
+* clang is now supported to compile dosemu2
 
-List of SourceForge tracker numbers with bugs that were closed:
+List of tracker bugs that were closed:
+    improve clang support [#160]
+    DR-DOS 7.02 doesn't boot (7.03 works, 7.02 doesn't)  [#151]
+    broken on large terminals [#153]
+    Speedy does not have sound [#103]
+    windows doesnt work with vm86sim [#146]
+    Textmode --- ERROR: SMALLOC: Out Of Memory on alloc [#143]
+    cursor stuck top left. in textmode dosemu -t [#144]
+    Current master does not compile (‘in_indirect_dpmi_transfer’ undeclared) [#138]
+    Mouse range restricted [#132]
+    trying dosemu2 with svgalib + i915 [#137]
+    Dosdebug bpint / g results in strange disassembly / location [#136 again]
+    Dosdebug unintended initial stop [#135]
+    init.c:375:38: error: macro "__S" passed 2 arguments, but takes just 1 [#111]
+    enable fixed aspect [#5]
+    Trying to add support for booting Enhanced DR_DOS [#88]
+    screamer crash under console [#28]
+    Where to document config options [#82]
 
-#1683073 P: handle 16bit address overflow in string instructions (simulator)
-#1713659 Error Encountered on DOSEMU 1.4.0
-#1728817 SR: 132character screen ?
-#1729556 Added some diagnostics to check for UTF-8 terminal mismatches.
-#1763166 P: CPU emu: ignore access to unknown VGA ports.
-#1763169 P: CPU emu: handle prefixed jumps correctly.
-#1763170 P: CPU emu: implement INTO correctly.
-#1800717 P: cpuemu: BOUND is signed.
-#1801411 Running File Wizard crashes DOSEMU 1.4.0.0.
-#1910153 P: SkyRoads failure: JIT fails some self-modifying code
-#1910415 P: Fix Non-VESA SVGA video (partly fixes #1806787:
-	 Moraff's World high-res video bug(s))
-#1910535 P: fix for "e_vgaemu_fault corrupts eip/rip"
-
-Version 1.4.0 (2007-05-05)
-=============
-* Documentation updates.
-* Generation of X fonts and manual pages now happens at make instead
-  of make install time to avoid problems with different root PATHs.
-* Fixed issues with running Norton SysInfo in the CPU emulator.
-* Fixed the old default sound with $_sound=(on)
-* Work around VFAT ioctl kernel bugs for 32-bit DOSEMUs on 64-bit systems.
-* The --Flibdir and --Fimagedir options are now allowed with sudo or
-  suid-root.
-* When using sudo (but not suid-root), the default is now to allow all
-  direct hardware access specified in dosemu.conf, so it is not normally
-  necessary to edit dosemu.users any more to set c_all.
-
-List of SourceForge tracker numbers with bugs that were closed:
-#1713278 COMSPEC setting wrong
-
-Version 1.3.5 (2007-04-27)
-=============
-* A new sound system is available, written by Stas Sergeev. It is for now
-  an optional run-time option, $_sound=(2).
-* Lredir can now automatically find a new drive (Ryan Underwood, Stuart Axon).
-* CPUEMU fixes (many by Michael Karcher). This also means that DOSEMU now runs
-  more stable on x86-64.
-* Other fixes, affecting printer handling, MMX/SSE FPU state preservation,
-  DPMI, Linux console graphics PCI handling on x86-64, the position of . and
-  .. in "dir", UTF-8 multibyte input in terminals, SDL key handling, a double
-  mouse cursor in Arachne in X, and "make install".
-
-List of SourceForge tracker numbers with bugs that were closed:
-#1245033 --version flag for dosemu.bin is not described
-#1436788 DOSEMU 1.3.3 Problem with floating point
-#1602643 Regression in DosEmu 1.3.4
-#1638135 int 21h, ax=6300 not translated currently
-#1644784 SR: Proposed Change to INSTALL file here
-#1678581 cpuemu JIT fails certain kinds of self-modifying code
-#1679675 P: cpuemu jit cpatch for stosw destroys EAX on 32 bit dosemu
-#1682575 P: cpuemu bug: sbb r16,rm16 acts on wrong register
-#1682620 P: cpuemu bug: single stepping push pushes wrong register
-#1683073 P: handle 16bit address overflow in string instructions.
-#1683190 P: Fix flags on rep cmps/scas with ECX=0
-#1687296 P: Shift/rotate instructions in simulator wrong
-#1687298 P: Fix spurious crashes with "linker: node busy"
-#1691712 P: make lredir able to automatically choose next free drive II
-#1692149 P: Describe --version in man page (fix for 1245033)
-#1692299 P: Update howto
-
-
-Version 1.3.4 (2006-11-18)
-=============
-* For a first time boot with FreeDOS, DOSEMU now boots without any user
-  interaction, and presents a welcome screen. Drive Z: is now a read-only
-  drive with all the DOSEMU and FreeDOS support files.
-* Clarified the copyrights and replaced some code with unclear origins.
-  The disclaimer acceptance has been weakened.
-* Added native 64-bit support for x86-64, which, similarly to the 32-bit
-  version, uses CPU emulation for V86 mode, and runs DPMI code natively.
-  Most of the code is now 64-bit clean but a few cases may not work yet.
-* The CPUEMU simulator is now a runtime option, activated via
-  $_cpuemu="vm86sim", or $_cpuemu="fullsim". Improved correctness of
-  CPUEMU.
-* Added a $_cdrom option for runtime configuration of the CD-ROM device.
-* Added an internal *CDEX style CD-ROM driver, activated using LREDIR, for
-  use with CD-ROMs that are mounted in Linux. The default autoexec.bat
-  uses this to set drive E: to a CD-ROM.
-* Implemented support for Unicode fonts for $_X_font, so you can for
-  instance use the univga font or
-  $_X_font="-Misc-Fixed-Medium-R-SemiCondensed--13-120-75-75-C-60-ISO10646-1"
-* Use $_lpt1, $_lpt2, and $_lpt3 for printer configuration.
-* The SDL plugin now supports text copy and paste, and X fonts.
-* It is now possible to point $_vbootfloppy, $_floppy_a etc. to directories
-  and boot from them.
-* Improved real time clock support with a periodic IRQ generator.
-* Improved PCI emulation on the console, with $_pci=(auto).
-* Improved the internal XMS driver.
-* Various DPMI and VGAEMU fixes.
-* The dosemu script is compatible with the minimal shell dash.
-* You can now directly see and manipulate DOS file attributes on Lredir'ed
-  Linux-mounted (V)FAT partitions, when using recent 2.6 kernels.
-* DOSEMU's stack is no longer marked executable which may improve security.
-
-List of SourceForge tracker numbers with bugs that were closed:
-#915452  FR: Windows support
-#993179  FR: Whole disk access
-#1124658 Problems with TIM
-#1153944 improve mouse documentation
-#1244513 color correction while converting 555,565 to 888 color.
-#1245910 Documentation for timemode
-#1387967 dosemu 1.3.3: keyboard is "sticky" on some apps
-#1394114 weird cd problem with dosemu-1.3.3
-#1394280 X video problems with Cubic and Fast Tracker
-#1400179 SR: How to speed CD-ROM access?
-#1404395 dosemu CVS crashes on x86_64 kernelcmdline noexec=off fixes
-#1405681 patch fixing x86_64 compilation
-#1405682 vgaemu problem with win98dos
-#1406001 Quake cannot change gfx resolution in X
-#1406011 FR: RTC timer emulation
-#1406522 xdosemu: cursor in text mode causes slight pollution
-#1407567 vgaemu problem with stdemo
-#1415332 Problem with Dosemu's EMS.SYS
-#1415598 build deps for commands are missing
-#1417852 FR: DPMI memory handling
-#1418023 duke3d and cursor at wrong location
-#1418856 vgaemu/vgabios crashes
-#1420769 dosemu c:\games\keen.exe doesnt work
-#1422921 PIT timer emulation should be improved
-#1426126 LFN problem with current DosEmu
-#1430175 strange DPMI error
-#1441256 keyboard issue (current cvs)
-#1442375 small addition to MSDOS API translation
-#1443448 Only the top of the screen displayed
-#1478658 Crash on every DPMI program under Linux 2.6.16.
-#1487899 Ctrl-Alt-Del restarts DosEmu without LFN
-#1492201 No way to disable printer IRQ conflicting with SB
-#1516259 Makefile.main syntax error (subversion)
-
-Version 1.3.3 (2005-12-22)
-=============
-* "dosemu" starts xdosemu by default in X. Use "dosemu -t" to force terminal
-  mode.
-* Everyone, including root, needs to use "dosemu -s" to be able to use direct
-  hardware access. The -s switch automatically uses direct VGA graphics and
-  raw keyboard mode on the Linux console.
-* Added support for x86-64, by using CPU emulation for V86 mode, running DPMI
-  code natively.
-* You can reboot the DOSEMU virtual machine using Ctrl-Alt-Del
-* Added $_time_mode="linux" option to force the DOS clock to sync with
-  the Linux time.
-* Freed up 4K of UMB space.
-* The utility unix.com can now execute Linux commands within DOSEMU
-  interactively.
-* Run-time plugins are used to allow binary distribution without depending
-  on all libraries.
-* Implemented debug breakpoints for DPMI.
-* The SDL plugin (-S option) was improved so that it is almost as capable
-  as the X plugin, and provides a safer way to get console graphics, using
-  fbdev.
-* 16 bpp graphics programs now run in X with 24/32 bpp.
-* Long File Names are enabled by default.
-* Many fixes for the outstanding mouse and keyboard problems.
-* Customized SVGA drivers of Windows 3.11 can now be used instead
-  of the Trident drivers (refer to Section 9.2 of README.txt).
-* The -dumb switch quietens DOSEMU until the command is executed if a command
-  is given. So "dosemu -dumb dir" gives a directory listing and nothing else.
-* The default C: drive has changed from ~/dosemu/freedos to ~/.dosemu/drive_c
-  (similar to Wine).
-
-List of SourceForge tracker numbers with bugs that were closed:
-# 830601 impossible to access /dev/lp0 directly
-# 920216 xdosemu mouse problem with Worms
-# 937984 Supporting debug registers in DOSEMU DPMI
-#1023178 (patch) Option for disabling DJGPP null checks
-#1039909 pathname with a space character
-#1165147 RPM doesn't own dirs in /etc 
-#1206135 1.3.2: mouse does not work in non-std mode
-#1206137 1.3.2: strange colors when resizing window in BC with mouse
-#1206525 1.3.2: text mode cursor uses only upper half of cell @ 80x50
-#1207940 DOSEMU's keyboard emulation isn't perfect
-#1211627 LFN issue again
-#1218406 int 66h not available with dosemu 1.3.2
-#1224934 1.3.2: make install changes permissions of /tmp
-#1227378 instruction decoding in msdos.c is buggy
-#1230579 Another (minor) keyboard emulation bug in dosemu
-#1230661 Accessing/Displaying Files under 1.2.2
-#1231686 ANSI / VGA text broken last year
-#1238148 VC cannot move directories (MFS) anymore
-#1239421 CVS dosemu crashes when started with -H1
-#1242171 small bug in dpmi
-#1244195 video remap from true color 15 to true color 32
-#1252147 xdosemu -S doesn't handle keypad
-#1255178 X Video regression on Orbits3
-#1262962 Keyboard input mangled running on a pty
-#1275661 memory (?) bug
-#1288107 possible bug in bios.s
-#1292250 Latest CVS: FPU bug?
-#1292257 DOSEMU will not build with gcc 4.0.2
-#1308052 make, make install bug
-#1310344 Ctrl-Alt-Del vs $_emusys
-#1315913 video conflicts with printer in text console
-#1329881 Still keyboard trouble with latest CVS
-#1345102 unix command in the DOS-shell
-#1347960 MFS: FIFO pipes broken 
-#1358562 dosemu crashes on 2.6.14
-#1360156 keyboard in unix.com
-#1377671 Pause button doesn't work
-#1379806 gw stopped to work under X
-#1379838 Ctrl-Alt-Del from graphics mode
-
-Version 1.3.2 (2005-05-20)
-=============
-* Windows 3.1 now works natively, without any need for WINOS2 patches.
-* Many other improvements to make Windows 3 in DOSEMU more stable and usable.
-* Fixed IF flag virtualization for DPMI. This causes many DPMI applications
-  to work reliably without random crashes (such as Transport Tycoon, Screamer,
-  Vchess).
-* Implemented LDT virtualization / direct LDT access for DPMI clients.
-* Many DPMI and PM API translator fixes to support all commercial
-  Borland tools and other protected-mode programs. You may need Linux
-  kernel 2.6.12-rc3 or more recent versions however to get truely
-  reliable DPMI support.
-* Most of the DPMI 1.0 API and functionality were added.
-* The redirected drive filesystem code is much faster than before.
-* Fixed new errors and warnings with GCC 4.0.
-* It is now possible to use an external XMS driver, such as himem.sys.
-* Added the "INT 15h" PS/2 mouse interface.
-* I/O ports are "fast" by default.
-* Added some support for sound recording.
-* The floppy is much faster with 2.6 kernels.
-* Added support for 2.88M floppies
-* The printer code now uses line buffering so that you do not have to
-  wait $_printer_timeout seconds before printing starts.
-* TTY locking can be disabled by $_ttylocks=""
-* IPX and Packet Driver code was seriously reworked.
-* The reliability and performance of the serial ports emulation are much
-  improved.
-* Terminal improvements:
-  - UTF-8 terminals are supported if you use SLang 2 or a UTF-8
-    patched SLang 1 library. The supplied SLang library subset is no
-    longer necessary and no longer provided.
-  - $_term_char_set no longer exists;
-    $_external_char_set now defaults to the current locale.
-  - Even on non UTF-8 terminals many line drawing characters can now
-    be used, and on the Linux console almost the full CP437 character set.
-  - Many ctrl, alt, shift combinations with function keys, arrow keys, etc,
-    can now be used in xterm and friends.
-  - VGA hardware is emulated in terminal mode as well as in X mode.
-* Console improvements:
-  - VESA driver added which should be compatible with most BIOSes. This
-    is the default.
-  - Linear frame buffers now work.
-  - Improved behaviour in conjunction with framebuffer consoles.
-* X improvements:
-  - Added extra X fonts (thanks to Martin Reuber)
-  - The X aspect ratio is no longer set to 4:3 by default, but an integer
-    multiple of the real resolution.
-  - Much improved keyboard layout autodetection
-  - Fixed a grave bug which caused the keyboard not to work properly in
-    some games.
-  - A graphical mouse cursor now works under X with mouse grab enabled.
-  - Added keyboard grab, hardcoded to Ctrl-Alt-k for now.
-* Added experimental SDL plugin. Mostly functional; makes it possible to run
-  DOSEMU on all supported SDL backends.
-
-List of SourceForge tracker numbers with bugs that were closed:
-# 687024 parse /proc/pci for video ports
-# 811365 Vchess crashe under dosemu 1.1.5.7 with mouse
-# 818094 Mouse doesn't work in a Turbo Debugger
-# 818145 certain keys doesn't work in xdosemu (i ,)
-# 845119 (patch) 2.88 MB floppy support
-# 855556 Problems running transport tycoon deluxe
-# 855948 Problems with Screamer
-# 990235 vgaemu crashes (regres)
-# 991194 Int 21, AH=2F in protected mode doesnt work in all cases
-# 999831 No upper case A or S 
-#1004472 Problems with int 0x31, ah=01 functions
-#1005015 Design error in DOSEMU's realmode callbacks?
-#1007380 Compilation fails first time
-#1012035 DOSEMU 1.3.1 : App hangs on COM Port access
-#1019824 (patch) LFN support for DPMI host
-#1019894 (patch) Fast port access
-#1020635 bug in dosemu's LFN support
-#1027805 Dos App hangs - PIC and DPMI related.
-#1028236 About int 21, ax=0x4b00 in msdos.c
-#1029819 serial port
-#1033901 dosemu-CVS crashes DPMI
-#1037915 Everything I type is double.
-#1042020 serial port and cache register
-#1067680 clipper take 99% of CPU
-#1074310 Sound recording fails, playback is truncated
-#1075068 dosemu 1.31. does not sense DCD
-#1076593 (RFE) Windows support
-#1079033 (RFE) mouse cursor in text mode with grab
-#1080784 Compile Failure
-#1081283 (SR) /proc access
-#1089201 (patch) int15 block move support
-#1103434 Serial communication fails with CVS version
-#1110543 Custom keyboard layout
-#1113468 Keyboard regression from v1.2 to latest CVS version
-#1118031 (patch) fix target_cpu option
-#1152829 dosemu should exit when the DOS process terminates
-#1157059 (patch) command to automatically set sound env vars
-#1164054 Saving fails in Settlers
-#1178900 (SR) Joystick support!
-#1189666 dbfcdx hangs on lredir drive
-
-Version 1.3.1 (2004-07-11)
-=============
-* Support for 32rtm extender was added. It is now possible to use the
-  32bit Borland tools under dosemu.
-* Support for the HX DOS Extender was added. It is now possible to run
-  some win32 console apps under dosemu, using that extender.
-* The Blinker extender is now fully supported (all known versions).
-  But some older versions of that extender may require the 2.4.x linux
-  kernel (linux-2.6.8 will include the necessary fix).
-* Improved DPMI uncommitted memory support (started in 1.3.0).
-* The hogtheshold code was reorganized to be able to pass through certain
-  events quicker (such as loading a file in FreeDOS EDIT) even when you 
-  have it set to "1".
-* Fixed all new warnings with GCC 3.4.
-* Fixed compilation problem with Fedora Core 2 headers.
-* Added cp895 and bg-mik character set support.
-* Many VGAEMU bugs were fixed, and bitmap fonts are much quicker.
-* Allow "fast" i/o ports above 0x400 for kernels that support it
-  (2.6.7-mm kernels only for now)
-* Implemented VxD hooks for WinOS2: seems to solve all remaining problems with
-  Win3.1(WinOS2): allows Alt-Tab and the timer.
-* Many DPMI and DOS extender fixes.
-* An automatic backtrace using GDB (output in ~/.dosemu/boot.log)
-  is attempted when DOSEMU crashes.
-* Serial code fixes.
-* Corrected int15/ax=e801 for so $_xms > 64M is reported correctly by MEM.
-* Fix NPTL issues when switching VC's on the console.
-* Check /proc/net/ipx/route etc for kernel 2.6.x.
-* LFN (long file name) fixes. Still needs more testing
-* Fixed read/write problem for files with negative file offsets on
-  lredir'ed drives.
-
-List of SourceForge tracker numbers with bugs that were closed:
-#885692 (Support) Serial port problem
-#902742 bug in DOSEMU's DOS API translation
-#909015 bugs/suggestions concerning DOSEMU's DPMI implementation
-#909588 keystroke command kills dosemu
-#911174 Problem with graphics under X
-#929123 Microsoft LINK.EXE 5.31.009 causes segmentation fault
-#930572 Only the half of the screen is displayed in xdosemu
-#934921 pmode/w extended 32bit dos app causes DOSEMU to terminate
-#944346 Serial port trouble
-#951087 IPX and kernel 2.6.5
-#958717 Only small part of the screen visible under X
-#959015 dosemu xterm mouse & network traffic
-#962683 graphical problems with win98/DOS
-#982872 Regression with VGA emu
-#984975 (Patches) Console & S3 graphic: No portserver
+Contributors:
+    Stas Sergeev: see log :)
+    Bart Oldeman: KVM, cpuemu fixes, vgaemu fixes, regression fixes
+    Andrew Bird: Support for old DOSes, fixes to FAT12
