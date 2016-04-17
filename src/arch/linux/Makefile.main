@@ -170,13 +170,6 @@ install:
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
-	  $(INSTALL) -d $(DESTDIR)$(sysconfdir)/drives; \
-	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/c ]; then \
-	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/c; \
-	  fi; \
-	  if [ ! -e $(DESTDIR)$(sysconfdir)/drives/d ]; then \
-	    ln -sf $(dosemudir)/drive_z $(DESTDIR)$(sysconfdir)/drives/d; \
-	  fi; \
 	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
