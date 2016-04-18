@@ -17,7 +17,7 @@ fi
 if test "$1" = "-d"; then
   echo "$DATE"
 else
-  if test -d .git; then
+  if test -d .git -o -f .git; then
     DATE=`echo "$DATE" | sed -e 's/-//g'`
     s=`git describe --tags --match "dosemu2-[0-9]*" HEAD 2>/dev/null | sed -e 's/^dosemu2-//' -e "s/-.\+-/-$DATE-/"`
   fi
