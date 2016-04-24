@@ -257,7 +257,7 @@ static void dosemu_fault0(int signal, struct sigcontext *scp)
 }
 
 #ifdef __linux__
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 void dosemu_fault(int signal, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =

@@ -192,7 +192,7 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 /* init_handler puts the handler in a sane state that glibc
    expects. That means restoring fs and gs for vm86 (necessary for
    2.4 kernels) and fs, gs and eflags for DPMI. */
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void __init_handler(struct sigcontext *scp, int async)
 {
 #ifdef __x86_64__
@@ -274,7 +274,7 @@ static void __init_handler(struct sigcontext *scp, int async)
 #endif
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 void init_handler(struct sigcontext *scp, int async)
 {
   /* Async signals are initially blocked.
@@ -306,7 +306,7 @@ void init_handler(struct sigcontext *scp, int async)
 }
 
 #ifdef __x86_64__
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 void deinit_handler(struct sigcontext *scp)
 {
 #ifdef __x86_64__
@@ -433,7 +433,7 @@ static void _leavedos_signal(int sig, struct sigcontext *scp)
   dpmi_iret_setup(scp);
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
@@ -443,7 +443,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
   deinit_handler(scp);
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void abort_signal(int sig, siginfo_t *si, void *uc)
 {
   struct sigcontext *scp =
@@ -916,7 +916,7 @@ static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
   dpmi_iret_setup(scp);
 }
 
-__attribute__((no_instrument_function))
+SIG_PROTO_PFX
 static void sigasync(int sig, siginfo_t *si, void *uc)
 {
   ucontext_t *uct = uc;

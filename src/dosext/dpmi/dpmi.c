@@ -420,6 +420,7 @@ static inline unsigned long client_esp(struct sigcontext *scp)
 
 #ifdef __x86_64__
 #if DIRECT_DPMI_CONTEXT_SWITCH
+SIG_PROTO_PFX
 static void dpmi_restore_segregs(struct sigcontext *scp)
 {
   loadregister(ds, _ds);

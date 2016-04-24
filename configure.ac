@@ -102,7 +102,7 @@ AC_SUBST(CONFIG_HOST)
 dnl Check for static and then also use it for tests
 
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
- -Wnested-externs -fms-extensions -fno-stack-protector"
+ -Wnested-externs -fms-extensions"
 DOSEMU_LDFLAGS="-Wl,-warn-common"
 AC_CHECK_LIB(m, pow)
 
@@ -120,23 +120,28 @@ else
               AC_MSG_NOTICE(Not using dynamically loaded plugins...)
 fi
 
-dnl check for stack protector and abort
-AC_MSG_CHECKING([for stack protector disabled])
-AS_IF([[(
-    ${CC} ${CFLAGS} ${DOSEMU_CFLAGS} -S -x c -o - - << _EOF_
-    int foo(int);
-    int foo(int i)
-    {
-      char a[2];
-      a[i]=0;
-      return a[i+1];
-    }
-_EOF_
-    ) | grep "%fs:" >/dev/null]],
+SIG_PROTO_PFX="__attribute__((no_instrument_function))"
+dnl check for stack protector disabling functionaity
+AC_MSG_CHECKING([for __attribute__((optimize("no-stack-protector")))])
+AX_SAVE_FLAGS([attr_check])
+CFLAGS="-Wall -Werror -fstack-protector-all"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+	void foo(void);
+	__attribute__((optimize("no-stack-protector")))
+	void foo(void)
+	{
+	}
+    ])],
     [
-	AC_MSG_RESULT([no])
-	AC_MSG_ERROR([Cannot compile dosemu with stack protector enabled])
-    ], AC_MSG_RESULT([yes]))
+	AC_MSG_RESULT([supported])
+	SIG_PROTO_PFX="$SIG_PROTO_PFX __attribute__((optimize(\"no-stack-protector\")))"
+    ],
+    [
+	AC_MSG_RESULT([unsupported])
+	DOSEMU_CFLAGS="$DOSEMU_CFLAGS -fno-stack-protector"
+    ])
+AX_RESTORE_FLAGS([attr_check])
+AC_DEFINE_UNQUOTED(SIG_PROTO_PFX, $SIG_PROTO_PFX)
 
 dnl Check whether we have pthreads and whether to use it
 AC_CHECK_LIB(pthread, pthread_create,,[
@@ -319,6 +324,9 @@ AH_TEMPLATE([CONFIG_HOST],
 
 AH_TEMPLATE([CONFIG_TIME],
 [ Define the configure time ])
+
+AH_TEMPLATE([SIG_PROTO_PFX],
+[ Define the signal handling function prototype prefix ])
 
 AH_TEMPLATE(HAVE_XKB,
 [Define this if you have the XKB extension])
