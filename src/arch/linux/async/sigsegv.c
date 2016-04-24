@@ -55,19 +55,12 @@ void print_exception_info(struct sigcontext *scp);
  *
  * DANG_END_FUNCTION
  */
-
-__attribute__((no_instrument_function))
 static int dosemu_fault1(
 #ifdef __linux__
 int signal, struct sigcontext *scp
 #endif /* __linux__ */
 )
 {
-#if 0
-  _eflags &= ~(AC|ID);
-  REG(eflags) &= ~(AC|ID);
-#endif
-
   if (fault_cnt > 1) {
     error("Fault handler re-entered! signal=%i _trapno=0x%X\n",
       signal, _trapno);
@@ -287,7 +280,6 @@ void dosemu_fault(int signal, siginfo_t *si, void *uc)
  * DANG_END_FUNCTION
  *
  */
-__attribute__((no_instrument_function))
 void print_exception_info(struct sigcontext *scp)
 {
   int i;
