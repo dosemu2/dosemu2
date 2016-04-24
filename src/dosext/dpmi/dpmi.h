@@ -206,9 +206,8 @@ extern int SetSegmentBaseAddress(unsigned short selector,
 extern int SetSegmentLimit(unsigned short, unsigned int);
 extern DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num);
 extern void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc);
+extern int DPMI_allocate_specific_ldt_descriptor(unsigned short selector);
 extern unsigned short AllocateDescriptors(int);
-extern unsigned short AllocateDescriptorsAt(unsigned short selector,
-    int number_of_descriptors);
 extern unsigned short CreateAliasDescriptor(unsigned short selector);
 extern int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte);
 extern int SetSelector(unsigned short selector, dosaddr_t base_addr, unsigned int limit,

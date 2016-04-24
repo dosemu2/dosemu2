@@ -435,8 +435,8 @@ static void direct_ldt_write(int offset, char *buffer, int length)
   entry_upd = ldt_entry;	// dont update from DPMI callouts
   err = GetDescriptor(selector, (unsigned int *)lp);
   if (err) {
-    selector = AllocateDescriptorsAt(selector, 1);
-    if (selector)
+    err = DPMI_allocate_specific_ldt_descriptor(selector);
+    if (!err)
       err = GetDescriptor(selector, (unsigned int *)lp);
   }
   if (err) {

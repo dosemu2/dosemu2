@@ -817,7 +817,7 @@ static unsigned short allocate_descriptors_at(unsigned short selector,
   return number_of_descriptors;
 }
 
-unsigned short AllocateDescriptorsAt(unsigned short selector,
+static unsigned short AllocateDescriptorsAt(unsigned short selector,
     int number_of_descriptors)
 {
   int i, ldt_entry;
@@ -1908,6 +1908,13 @@ int DPMI_get_save_restore_address(far_t *raddr, struct pmaddr_s *paddr)
       return max(sizeof(struct RealModeCallStructure), 52); /* size to hold all registers */
 }
 
+int DPMI_allocate_specific_ldt_descriptor(unsigned short selector)
+{
+    if (!AllocateDescriptorsAt(selector, 1))
+	return -1;
+    return 0;
+}
+
 static void do_int31(struct sigcontext *scp)
 {
 #if 0
@@ -2014,7 +2021,7 @@ static void do_int31(struct sigcontext *scp)
       FreeSegRegs(scp, _LWORD(ebx));
     break;
   case 0x000d:
-    if (!AllocateDescriptorsAt(_LWORD(ebx), 1)) {
+    if (DPMI_allocate_specific_ldt_descriptor(_LWORD(ebx))) {
       _LWORD(eax) = 0x8022;
       _eflags |= CF;
     }
