@@ -99,8 +99,6 @@ if test "$build_os" = "linux-gnu"; then
 fi
 AC_SUBST(CONFIG_HOST)
 
-dnl Check for static and then also use it for tests
-
 DOSEMU_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations\
  -Wnested-externs -fms-extensions"
 DOSEMU_LDFLAGS="-Wl,-warn-common"
