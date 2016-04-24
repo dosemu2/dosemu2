@@ -32,9 +32,8 @@
 #include "instr_dec.h"
 #include "msdos_ldt.h"
 #include "msdos_priv.h"
+#include "segreg_priv.h"
 #include "segreg.h"
-
-enum MfRet { MFR_HANDLED, MFR_NOT_HANDLED, MFR_ERROR };
 
 static enum MfRet msdos_sel_fault(struct sigcontext *scp)
 {
@@ -135,14 +134,26 @@ static enum MfRet msdos_sel_fault(struct sigcontext *scp)
 
 int msdos_fault(struct sigcontext *scp)
 {
-    enum MfRet ret = msdos_sel_fault(scp);
-    switch (ret) {
-    case MFR_ERROR:
+    enum MfRet ret;
+    uint16_t sel;
+
+#define MR_CHK(r) do { \
+    switch (r) { \
+    case MFR_ERROR: \
+	return 0; \
+    case MFR_HANDLED: \
+	return 1; \
+    case MFR_NOT_HANDLED: \
+	break; \
+    } } while (0)
+    ret = msdos_sel_fault(scp);
+    MR_CHK(ret);
+
+    sel = decode_selector(scp);
+    if (!sel)
 	return 0;
-    case MFR_HANDLED:
-	return 1;
-    case MFR_NOT_HANDLED:
-	break;
-    }
-    return msdos_ldt_fault(scp);
+    ret = msdos_ldt_fault(scp, sel);
+    MR_CHK(ret);
+
+    return 0;
 }

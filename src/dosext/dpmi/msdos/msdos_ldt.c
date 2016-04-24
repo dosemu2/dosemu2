@@ -26,6 +26,7 @@
 #include "dpmi.h"
 #include "instr_dec.h"
 #include "dosemu_debug.h"
+#include "segreg_priv.h"
 #include "msdos_ldt.h"
 
 #define LDT_UPDATE_LIM 1
@@ -59,8 +60,9 @@ u_short msdos_ldt_init(int clnt_num)
     return dpmi_ldt_alias;
 }
 
-int msdos_ldt_fault(struct sigcontext *scp)
+enum MfRet msdos_ldt_fault(struct sigcontext *scp, uint16_t sel)
 {
+    unsigned limit;
 #if LDT_UPDATE_LIM
     /* basically on dosemu this code is unused because msdos_ldt_update()
      * manages the limit too. But it may be good to keep for the cases
@@ -73,41 +75,16 @@ int msdos_ldt_fault(struct sigcontext *scp)
      * segment descriptors, which would be impossible to read back from
      * real R/O LDT. */
 #endif
-    int pref_seg = -1, done = 0;
-    unsigned char *csp;
-
-    csp = (unsigned char *) SEL_ADR(_cs, _eip);
-    do {
-      switch (*(csp++)) {
-         case 0x66:      /* operand prefix */  /*prefix66=1;*/ break;
-         case 0x67:      /* address prefix */  /*prefix67=1;*/ break;
-         case 0x2e:      /* CS */              pref_seg=_cs; break;
-         case 0x3e:      /* DS */              pref_seg=_ds; break;
-         case 0x26:      /* ES */              pref_seg=_es; break;
-         case 0x36:      /* SS */              pref_seg=_ss; break;
-         case 0x65:      /* GS */              pref_seg=_gs; break;
-         case 0x64:      /* FS */              pref_seg=_fs; break;
-         case 0xf2:      /* repnz */
-         case 0xf3:      /* rep */             /*is_rep=1;*/ break;
-         default: done=1;
-      }
-    } while (!done);
-
-    if (pref_seg == -1)
-	pref_seg = _ds;
-    if (pref_seg == dpmi_ldt_alias) {
-	unsigned limit;
+    if (sel != dpmi_ldt_alias)
+	return MFR_NOT_HANDLED;
 #if LDT_UPDATE_LIM
-	if (ldt_backbuf)
-	    error("LDT fault with backbuffer present\n");
+    if (ldt_backbuf)
+	error("LDT fault with backbuffer present\n");
 #endif
-	limit = GetSegmentLimit(dpmi_ldt_alias);
-	D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
-	SetSegmentLimit(dpmi_ldt_alias, limit + DPMI_page_size);
-	return 1;
-    }
-
-    return 0;
+    limit = GetSegmentLimit(dpmi_ldt_alias);
+    D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
+    SetSegmentLimit(dpmi_ldt_alias, limit + DPMI_page_size);
+    return MFR_HANDLED;
 }
 
 void msdos_ldt_update(int entry, u_char *buf, int len)
