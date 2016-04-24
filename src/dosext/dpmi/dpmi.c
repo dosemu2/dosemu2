@@ -1149,23 +1149,23 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
   return ret;
 }
 
-int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
+int SetDescriptorAccessRights(unsigned short selector, unsigned short acc_rights)
 {
   unsigned short ldt_entry = selector >> 3;
   int ret;
-  D_printf("DPMI: SetDescriptorAccessRights[0x%04x;0x%04x] 0x%04x\n", ldt_entry, selector, type_byte);
+  D_printf("DPMI: SetDescriptorAccessRights[0x%04x;0x%04x] 0x%04x\n", ldt_entry, selector, acc_rights);
   if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1; /* invalid selector 8022 */
   /* Check DPL and "must be 1" fields, as suggested by specs */
-  if ((type_byte & 0x70) != 0x70)
+  if ((acc_rights & 0x70) != 0x70)
     return -2; /* invalid value 8021 */
 
-  Segments[ldt_entry].type = (type_byte >> 2) & 3;
-  Segments[ldt_entry].is_32 = (type_byte >> 14) & 1;
-  Segments[ldt_entry].is_big = (type_byte >> 15) & 1;
-  Segments[ldt_entry].readonly = ((type_byte >> 1) & 1) ? 0 : 1;
-  Segments[ldt_entry].not_present = ((type_byte >> 7) & 1) ? 0 : 1;
-  Segments[ldt_entry].useable = (type_byte >> 12) & 1;
+  Segments[ldt_entry].type = (acc_rights >> 2) & 3;
+  Segments[ldt_entry].is_32 = (acc_rights >> 14) & 1;
+  Segments[ldt_entry].is_big = (acc_rights >> 15) & 1;
+  Segments[ldt_entry].readonly = ((acc_rights >> 1) & 1) ? 0 : 1;
+  Segments[ldt_entry].not_present = ((acc_rights >> 7) & 1) ? 0 : 1;
+  Segments[ldt_entry].useable = (acc_rights >> 12) & 1;
   ret = set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr, Segments[ldt_entry].limit,
 	Segments[ldt_entry].is_32, Segments[ldt_entry].type,
 	Segments[ldt_entry].readonly, Segments[ldt_entry].is_big,
