@@ -407,11 +407,6 @@ void leavedos_from_sig(int sig)
 static void leavedos_sig(int sig)
 {
   dbug_printf("Terminating on signal %i\n", sig);
-  if (ld_sig) {
-    error("leavedos re-entered, exiting\n");
-    _exit(3);
-  }
-  ld_sig = sig;
   SIGNAL_save(leavedos_call, &sig, sizeof(sig), __func__);
   /* abort current sighandlers */
   if (in_handle_signals) {
@@ -424,9 +419,13 @@ __attribute__((noinline))
 static void _leavedos_signal(int sig, struct sigcontext *scp)
 {
   if (ld_sig) {
+    /* don't print anything - may lock up */
+#if 0
     error("gracefull exit failed, aborting (sig=%i)\n", sig);
+#endif
     _exit(sig);
   }
+  ld_sig = sig;
   leavedos_sig(sig);
   if (!in_vm86)
     dpmi_sigio(scp);
