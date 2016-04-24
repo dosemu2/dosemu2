@@ -17,6 +17,8 @@ Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-
 	@echo "Running $(srcdir)/default-configure ..."
 	$(srcdir)/default-configure
 
+install: ChangeLog
+
 default clean realclean install: config.status
 	@$(MAKE) -C src $@
 
