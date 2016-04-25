@@ -283,7 +283,8 @@ new_memory_object(size_t bytes)
   if (!bytes)
     return NULL;
   addr = alloc_mapping(MAPPING_EMS, bytes, -1);
-  if (!addr) return 0;
+  if (addr == MAP_FAILED)
+    return NULL;
   E_printf("EMS: allocating 0x%08zx bytes @ %p\n", bytes, addr);
   return (addr);		/* allocate on a PAGE boundary */
 }
