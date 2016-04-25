@@ -1624,6 +1624,7 @@ int vga_emu_pre_init(void)
   vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12), -1);
   if(!vga.mem.base) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
+    config.exitearly = 1;
     return 1;
   }
   vga.mem.scratch_page = vga.mem.base + vga.mem.size;
@@ -1634,10 +1635,13 @@ int vga_emu_pre_init(void)
   if(config.X_lfb) {
     unsigned char *p = alias_mapping(MAPPING_VGAEMU,
 				     -1, vga.mem.size, VGA_EMU_RW_PROT, vga.mem.base);
-    if(p == MAP_FAILED)
+    if(p == MAP_FAILED) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
-    else
+      config.exitearly = 1;
+      return 1;
+    } else {
       vga.mem.lfb_base = p;
+    }
   }
 
   if(vga.mem.lfb_base == NULL) {
@@ -1646,6 +1650,7 @@ int vga_emu_pre_init(void)
 
   if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages)) == NULL) {
     vga_msg("vga_emu_init: not enough memory for dirty map\n");
+    config.exitearly = 1;
     return 1;
   }
   dirty_all_video_pages();		/* all need an update */
@@ -1655,6 +1660,7 @@ int vga_emu_pre_init(void)
     (vga.mem.prot_map1 = (unsigned char *) malloc(vga.mem.pages)) == NULL
   ) {
     vga_msg("vga_emu_init: not enough memory for protection map\n");
+    config.exitearly = 1;
     return 1;
   }
   memset(vga.mem.prot_map0, 0xff, vgaemu_bios.pages + 0x20);
