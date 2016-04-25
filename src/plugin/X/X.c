@@ -746,7 +746,6 @@ int X_init()
     );
   }
 
-  vga_emu_pre_init();
   register_render_system(&Render_X);
   ret = X_load_text_font(display, 0, drawwindow, config.X_font,
 		   &font_width, &font_height);

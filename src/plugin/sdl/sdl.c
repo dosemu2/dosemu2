@@ -266,7 +266,6 @@ int SDL_init(void)
     force_grab = 1;
   }
 
-  vga_emu_pre_init();
   pix_fmt = SDL_GetWindowPixelFormat(window);
   if (pix_fmt == SDL_PIXELFORMAT_UNKNOWN) {
     error("SDL: unable to get pixel format\n");
