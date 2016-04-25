@@ -493,7 +493,7 @@ int kvm_vm86(struct vm86_struct *info)
       exit_reason = KVM_EXIT_INTR;
     } else if (ret != 0) {
       perror("KVM: KVM_RUN");
-      leavedos(99);
+      leavedos_main(99);
     }
 
     switch (exit_reason) {
