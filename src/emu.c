@@ -190,8 +190,9 @@ void boot(void)
 void do_liability_disclaimer_prompt(int dosboot, int prompt)
 {
   FILE *f;
-  char buf[32];
+  char buf[32], *p;
   char *disclaimer_file_name;
+  int rd;
   static char text[] =
   "\nWelcome to DOSEMU "VERSTR", a DOS emulator"
 #ifdef __linux__
@@ -224,15 +225,17 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
     if (dosboot) {
       p_dos_str("%s", text2);
       set_IF();
-      com_biosread(buf, sizeof(buf)-2);
+      rd = com_biosread(buf, sizeof(buf)-2);
       clear_IF();
     } else {
       fputs(text2, stdout);
-      fgets(buf, sizeof(buf), stdin);
+      p = fgets(buf, sizeof(buf), stdin);
+      if (!p)
+        leavedos(1);
+      rd = strlen(p);
     }
-    if (buf[0] == 3) {
+    if (!rd || buf[rd - 1] == 3)
       leavedos(1);
-    }
   }
 
   /*
