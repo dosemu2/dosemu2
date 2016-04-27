@@ -993,11 +993,12 @@ int com_biosread(char *buf32, u_short size)
 		}
 		if (ch != '\r')
 			buf32[rd++] = ch;
+		else
+			buf32[rd++] = '\n';
+		p_dos_str("%c", buf32[rd - 1]);
 		if (ch == '\r' || ch == '\3')
 			break;
-		p_dos_str("%c", LO(ax));
 	}
-	p_dos_str("\n");
 	return rd;
 }
 
