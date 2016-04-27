@@ -993,7 +993,7 @@ int com_biosread(char *buf32, u_short size)
 		}
 		if (ch != '\r')
 			buf32[rd++] = ch;
-		if (iscntrl(ch))
+		if (ch == '\r' || ch == '\3')
 			break;
 		p_dos_str("%c", LO(ax));
 	}
