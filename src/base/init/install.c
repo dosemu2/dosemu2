@@ -281,23 +281,31 @@ static void install_dos_(char *kernelsyspath)
 "5. Exit this menu (completely manual setup).\n"
 "[ENTER = the default option 1]\n", dosemu_lib_dir);
 	x = '1';
-	read_string(&x, 1);
-	choice = x - '0';
-	if (choice == 5) {
-		/* nothing to be done */
-		return;
-	}
-	if (choice == 2) {
-		char *freedos = assemble_path(dosemu_lib_dir, "freedos", 0);
-		install_proprietary(freedos, 0);
-		return;
-	}
-	if (choice == 4) {
-		printf_(
+	do {
+		read_string(&x, 1);
+		choice = x - '0';
+		switch (choice) {
+		case 5:
+			/* nothing to be done */
+			return;
+		case 2: {
+			char *freedos = assemble_path(dosemu_lib_dir, "freedos", 0);
+			install_proprietary(freedos, 0);
+			return;
+		}
+		case 4:
+			printf_(
 "Please enter the name of a directory which contains a bootable DOS\n");
-		install_proprietary(dosreadline(), 1);
-		return;
-	}
+			install_proprietary(dosreadline(), 1);
+			return;
+		case 1:
+		case 3:
+			goto cont;
+		default:
+			continue;
+		}
+	} while (1);
+cont:
 	install_dosemu_freedos(choice);
 }
 
