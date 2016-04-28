@@ -972,10 +972,6 @@ static void floppy_io_write(ioport_t port, Bit8u value)
 void
 disk_init(void)
 {
-  struct disk *dp;
-  struct stat stbuf;
-  int i;
-
 #ifdef SILLY_GET_GEOMETRY
   int s;
   char buf[512], label[12];
@@ -984,6 +980,37 @@ disk_init(void)
 
   disks_initiated = 1;  /* disk_init has been called */
   init_all_DOS_tables();
+
+  if (!FDISKS && use_bootdisk) {
+  /* if we don't have any configured floppies, we have to use bootdisk instead */
+    memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
+    FDISKS++;	/* now we have one */
+  }
+
+  if (FDISKS) {
+    emu_iodev_t  io_device;
+
+    io_device.read_portb   = floppy_io_read;
+    io_device.write_portb  = floppy_io_write;
+    io_device.read_portw   = NULL;
+    io_device.write_portw  = NULL;
+    io_device.read_portd   = NULL;
+    io_device.write_portd  = NULL;
+    io_device.handler_name = "Floppy Drive";
+    io_device.start_addr   = 0x03F0;
+    io_device.end_addr     = 0x03F7;
+    io_device.irq          = 6;
+    io_device.fd           = -1;
+    port_register_handler(io_device, 0);
+  }
+}
+
+static void disk_reset2(void)
+{
+  struct stat stbuf;
+  struct disk *dp;
+  int i;
+
   if (config.bootdisk) {
     bootdisk.fdesc = -1;
     bootdisk.rdonly = bootdisk.wantrdonly;
@@ -1045,29 +1072,6 @@ disk_init(void)
     }
   }
 
-  if (!FDISKS && use_bootdisk) {
-  /* if we don't have any configured floppies, we have to use bootdisk instead */
-    memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
-    FDISKS++;	/* now we have one */
-  }
-
-  if (FDISKS) {
-    emu_iodev_t  io_device;
-
-    io_device.read_portb   = floppy_io_read;
-    io_device.write_portb  = floppy_io_write;
-    io_device.read_portw   = NULL;
-    io_device.write_portw  = NULL;
-    io_device.read_portd   = NULL;
-    io_device.write_portd  = NULL;
-    io_device.handler_name = "Floppy Drive";
-    io_device.start_addr   = 0x03F0;
-    io_device.end_addr     = 0x03F7;
-    io_device.irq          = 6;
-    io_device.fd           = -1;
-    port_register_handler(io_device, 0);
-  }
-
   /*
    * Open hard disks
    */
@@ -1084,6 +1088,8 @@ disk_init(void)
 	  d_printf("IMAGE: Using user permissions\n");
 	}
     }
+    if (dp->fdesc != -1)
+      close(dp->fdesc);
     dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
@@ -1165,6 +1171,8 @@ void disk_reset(void)
 {
   struct disk *dp;
   int i;
+
+  disk_reset2();
 
   subst_file_ext(NULL);
   for (i = 0; i < 26; i++)

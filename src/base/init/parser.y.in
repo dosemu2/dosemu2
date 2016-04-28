@@ -2041,6 +2041,7 @@ static void start_disk(void)
   dptr->sectors = -1;
   dptr->heads   = -1;
   dptr->tracks  = -1;
+  dptr->fdesc   = -1;
   dptr->hdtype = 0;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */

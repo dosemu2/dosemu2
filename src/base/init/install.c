@@ -87,10 +87,15 @@ static void create_symlink(const char *path, int number)
 	*slashpos = '/';
 	unlink(drives_c);
 	symlink(path, drives_c);
+	if (config.hdisks <= number) {
+		config.hdisks = number + 1;
+		hdisktab[number].fdesc = -1;
+	}
 	free(hdisktab[number].dev_name);
 	/* point C:/D: to $HOME/.dosemu/drives/c or d */
 	hdisktab[number].dev_name = drives_c;
 	hdisktab[number].type = DIR_TYPE;
+	hdisktab[number].sectors = -1; 		// ask for re-setup
 	symlink_created = 1;
 }
 
@@ -347,13 +352,7 @@ void install_dos(int post_boot)
 			assemble_path(dosemu_lib_dir, "drive_z", 0);
 		create_symlink(commands_path, 1);
 		free(commands_path);
-#if 1
 		if(post_boot)
 			disk_reset();
-#else
-		/* after creating symlinks, we need to re-init drives and fatfs
-		 * subsystems. It looks easier to just terminate dosemu... FIXME! */
-		leavedos(1);
-#endif
 	}
 }
