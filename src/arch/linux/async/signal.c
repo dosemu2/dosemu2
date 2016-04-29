@@ -46,8 +46,27 @@
 #include "cpu-emu.h"
 #include "sig.h"
 
-/* work-around sigaltstack badness - disable when kernel is fixed */
-#define SIGALTSTACK_WA 1
+#define SIGALTSTACK_WA_DEFAULT 1
+#if SIGALTSTACK_WA_DEFAULT
+  #ifdef DISABLE_SYSTEM_WA
+    #ifdef SS_AUTODISARM
+      #define SIGALTSTACK_WA 0
+    #else
+      #ifdef WARN_UNDISABLED_WA
+        #warning Not disabling SIGALTSTACK_WA, update your kernel
+      #endif
+      #define SIGALTSTACK_WA 1
+    #endif
+  #else
+    /* work-around sigaltstack badness - disable when kernel is fixed */
+    #define SIGALTSTACK_WA 1
+  #endif
+  #if defined(WARN_OUTDATED_WA) && defined(SS_AUTODISARM)
+    #warning SIGALTSTACK_WA is outdated
+  #endif
+#else
+  #define SIGALTSTACK_WA 0
+#endif
 #if SIGALTSTACK_WA
 #include "mcontext.h"
 #include "mapping.h"
@@ -59,10 +78,29 @@
 #endif
 
 #ifdef __x86_64__
-/* work-around sigreturn badness - disable when kernel is fixed */
-#define SIGRETURN_WA 1
+  #define SIGRETURN_WA_DEFAULT 1
 #else
-#define SIGRETURN_WA 0
+  #define SIGRETURN_WA_DEFAULT 0
+#endif
+#if SIGRETURN_WA_DEFAULT
+  #ifdef DISABLE_SYSTEM_WA
+    #ifdef UC_SIGCONTEXT_SS
+      #define SIGRETURN_WA 0
+    #else
+      #ifdef WARN_UNDISABLED_WA
+        #warning Not disabling SIGRETURN_WA, update your kernel
+      #endif
+      #define SIGRETURN_WA 1
+    #endif
+  #else
+    /* work-around sigreturn badness - disable when kernel is fixed */
+    #define SIGRETURN_WA 1
+  #endif
+  #if defined(WARN_OUTDATED_WA) && defined(UC_SIGCONTEXT_SS)
+    #warning SIGRETURN_WA is outdated
+  #endif
+#else
+  #define SIGRETURN_WA 0
 #endif
 
 /* Variables for keeping track of signals */
@@ -632,14 +670,12 @@ static void sigstack_init(void)
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
-      return;
     }
     backup_stack = alias_mapping(MAPPING_OTHER, -1, SIGSTACK_SIZE,
 	PROT_READ | PROT_WRITE, cstack);
     if (backup_stack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
-      return;
     }
   } else {
     cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
@@ -647,7 +683,6 @@ static void sigstack_init(void)
     if (cstack == MAP_FAILED) {
       error("Unable to allocate stack\n");
       config.exitearly = 1;
-      return;
     }
   }
 #else
@@ -661,7 +696,6 @@ static void sigstack_init(void)
   if (cstack == MAP_FAILED) {
     error("Unable to allocate stack\n");
     config.exitearly = 1;
-    return;
   }
 #endif
 }

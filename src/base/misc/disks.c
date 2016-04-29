@@ -1640,7 +1640,7 @@ int int13(void)
     }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
-    diskaddr->blocks = 0;
+    WRITE_P(diskaddr->blocks, 0);
     d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
 	     disk, head, sect, track, number, diskaddr->buf_seg, diskaddr->buf_ofs);
 
@@ -1675,7 +1675,7 @@ int int13(void)
       break;
     }
 
-    diskaddr->blocks = res >> 9;
+    WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
     R_printf("DISK ext read @%d/%d/%d (%d) -> %#x OK.\n",
@@ -1698,7 +1698,7 @@ int int13(void)
     }
     buffer = SEGOFF2LINEAR(diskaddr->buf_seg, diskaddr->buf_ofs);
     number = diskaddr->blocks;
-    diskaddr->blocks = 0;
+    WRITE_P(diskaddr->blocks, 0);
 
     if (checkdp_val || track >= dp->tracks) {
       error("Sector not found, AH=0x43!\n");
@@ -1744,7 +1744,7 @@ int int13(void)
       break;
     }
 
-    diskaddr->blocks = res >> 9;
+    WRITE_P(diskaddr->blocks, res >> 9);
     HI(ax) = 0;
     REG(eflags) &= ~CF;
     R_printf("DISK ext write @%d/%d/%d (%d) -> %#x OK.\n",
@@ -1785,17 +1785,17 @@ int int13(void)
       break;
     }
 
-    params->flags = IMEXT_INFOFLAG_CHSVALID;
+    WRITE_P(params->flags, IMEXT_INFOFLAG_CHSVALID);
     if (dp->floppy)
-      params->flags |= IMEXT_INFOFLAG_REMOVABLE;
-    params->tracks = dp->tracks;
-    params->heads = dp->heads;
-    params->sectors = dp->sectors;
-    params->total_sectors_lo = dp->num_secs & 0xffffffff;
-    params->total_sectors_hi = dp->num_secs >> 32;
-    params->bytes_per_sector = SECTOR_SIZE;
+      WRITE_P(params->flags, params->flags | IMEXT_INFOFLAG_REMOVABLE);
+    WRITE_P(params->tracks, dp->tracks);
+    WRITE_P(params->heads, dp->heads);
+    WRITE_P(params->sectors, dp->sectors);
+    WRITE_P(params->total_sectors_lo, dp->num_secs & 0xffffffff);
+    WRITE_P(params->total_sectors_hi, dp->num_secs >> 32);
+    WRITE_P(params->bytes_per_sector, SECTOR_SIZE);
     if (params->len >= 0x1e)
-      params->edd_cfg_ofs = params->edd_cfg_seg = 0xffff;
+      WRITE_P(params->edd_cfg_ofs, params->edd_cfg_seg = 0xffff);
     NOCARRY;
     HI(ax) = 0;
     break;

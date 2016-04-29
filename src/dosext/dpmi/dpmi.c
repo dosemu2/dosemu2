@@ -458,10 +458,7 @@ static int do_dpmi_control(struct sigcontext *scp)
     if (dpmi_mhp_TF) _eflags |= TF;
     co_call(dpmi_tid);
     /* we may return here with sighandler's signal mask.
-     * This is done for speed-up and is not a problem because
-     * here we are still in a coopthread. coopthread will restore
-     * the proper signal mask before returning to main dosemu code,
-     * so the bad mask should not leak too deeply. */
+     * This is done for speed-up. dpmi_control() restores the mask. */
     return dpmi_ret_val;
 }
 
@@ -510,11 +507,16 @@ static int _dpmi_control(void)
 static int dpmi_control(void)
 {
     int ret;
+    sigset_t set;
+
+    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
+    sigprocmask(SIG_SETMASK, NULL, &set);
     if (in_dpmi_thr)
       signal_switch_to_dpmi();
     ret = _dpmi_control();
     if (in_dpmi_thr)
       signal_switch_to_dosemu();
+    sigprocmask(SIG_SETMASK, &set, NULL);
     return ret;
 }
 
@@ -3035,7 +3037,7 @@ void dpmi_setup(void)
 
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
-    co_handle = mco_thread_init();
+    co_handle = co_thread_init(PCL_C_MC);
     return;
 
 err:
@@ -4692,6 +4694,7 @@ void dpmi_done(void)
   D_printf("DPMI: finalizing\n");
   if (in_dpmi_thr)
     co_delete(dpmi_tid);
+  co_thread_cleanup(co_handle);
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
 }

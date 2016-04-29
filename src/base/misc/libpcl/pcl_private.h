@@ -33,27 +33,36 @@
 /*
  * The following value must be power of two (N^2).
  */
-#define CO_STK_ALIGN 256
-#define CO_STK_COROSIZE(x) (((x) + sizeof(coroutine) + CO_STK_ALIGN - 1) & ~(CO_STK_ALIGN - 1))
+#define _CO_STK_ALIGN 256
+#define CO_STK_ALIGN(x) (((x) + _CO_STK_ALIGN - 1) & ~(_CO_STK_ALIGN - 1))
+#define CO_STK_COROSIZE(x) CO_STK_ALIGN((x) + sizeof(coroutine))
 #define CO_MIN_SIZE (4 * 1024)
 
-struct s_cothread_ctx;
-typedef struct s_co_ctx {
-	void *cc;
+struct s_co_ctx;
+struct pcl_ctx_ops {
 	int (*create_context)(struct s_co_ctx *ctx, void *func, void *arg,
 		char *stkbase, long stksiz);
 	int (*get_context)(struct s_co_ctx *ctx);
 	int (*set_context)(struct s_co_ctx *ctx);
 	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
-	struct s_cothread_ctx *(*get_global_ctx)(void);
+};
+
+typedef struct s_co_ctx {
+	void *cc;
+	struct pcl_ctx_ops ops;
 } co_ctx_t;
 
-typedef struct s_coroutine {
+typedef struct s_co_base {
 	co_ctx_t ctx;
-	int alloc;
+	struct s_co_base *caller;
+	struct s_co_base *restarget;
+	struct s_cothread_ctx *ctx_main;
 	int exited:1;
-	struct s_coroutine *caller;
-	struct s_coroutine *restarget;
+} co_base;
+
+typedef struct s_coroutine {
+	co_base;
+	int alloc;
 	void (*func)(void *);
 	void *data;
 	char *stack;
@@ -61,10 +70,10 @@ typedef struct s_coroutine {
 } coroutine;
 
 typedef struct s_cothread_ctx {
-	coroutine co_main;
-	coroutine *co_curr;
+	co_base co_main;
+	co_base *co_curr;
 	int ctx_sizeof;
-	char stk0[CO_MIN_SIZE];
+	char stk0[0];
 } cothread_ctx;
 
 #endif
