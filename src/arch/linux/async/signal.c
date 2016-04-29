@@ -79,11 +79,10 @@ static sigset_t q_mask, nonfatal_q_mask;
 #if SIGRETURN_WA
 static sigset_t fatal_q_mask;
 #endif
-#if SIGALTSTACK_WA
 static void *cstack;
+#if SIGALTSTACK_WA
 static void *backup_stack;
 #endif
-static stack_t sig_stk;
 
 static int sh_tid;
 static int in_handle_signals;
@@ -564,8 +563,6 @@ static void sigstack_init(void)
 {
 /* reserve 1024 uncommitted pages for stack */
 #define SIGSTACK_SIZE (1024 * getpagesize())
-  stack_t ss;
-
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
@@ -584,7 +581,7 @@ static void sigstack_init(void)
     return;
   }
 #else
-  void *cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
+  cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
 	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
   if (cstack == MAP_FAILED) {
     error("Unable to allocate stack\n");
@@ -592,11 +589,6 @@ static void sigstack_init(void)
     return;
   }
 #endif
-  ss.ss_sp = cstack;
-  ss.ss_size = SIGSTACK_SIZE;
-  ss.ss_flags = SS_ONSTACK;
-
-  sigaltstack(&ss, NULL);
 }
 
 /* DANG_BEGIN_FUNCTION signal_pre_init
@@ -1022,10 +1014,12 @@ static void async_awake(void *arg)
   } while (i);
 }
 
+static int saved_fc;
+
 void signal_return_to_dosemu(void)
 {
-  stack_t stk;
   int err;
+  stack_t ss = {};
 
 #if SIGALTSTACK_WA
   jmp_buf hack;
@@ -1044,11 +1038,12 @@ void signal_return_to_dosemu(void)
   else
     return;
 #endif
-  stk.ss_flags = SS_DISABLE;
-  err = sigaltstack(&stk, &sig_stk);
+  ss.ss_flags = SS_DISABLE;
+  err = sigaltstack(&ss, NULL);
   if (err)
     perror("sigaltstack");
-  fault_cnt--;
+  saved_fc = fault_cnt;
+  fault_cnt = 0;
 #if SIGALTSTACK_WA
   longjmp(hack, 1);
 #endif
@@ -1056,11 +1051,12 @@ void signal_return_to_dosemu(void)
 
 void signal_return_to_dpmi(void)
 {
-  int err;
+  fault_cnt = saved_fc;
+}
 
-  sig_stk.ss_flags = SS_ONSTACK;
-  err = sigaltstack(&sig_stk, NULL);
-  if (err)
-    perror("sigaltstack");
-  fault_cnt++;
+void signal_set_altstack(stack_t *stk)
+{
+  stk->ss_sp = cstack;
+  stk->ss_size = SIGSTACK_SIZE;
+  stk->ss_flags = SS_ONSTACK;
 }
