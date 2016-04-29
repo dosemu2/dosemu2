@@ -115,7 +115,12 @@ int signal, struct sigcontext *scp
          */
 	return 0;
       }
+      /* No, not HLT, too bad :( */
       error("Fault in dosemu code, in_dpmi=%i\n", dpmi_active());
+      /* TODO - we can start gdb here */
+      /* start_gdb() */
+
+      /* Going to die from here */
       goto bad;	/* well, this goto is unnecessary but I like gotos:) */
     } /*!DPMIValidSelector(_cs)*/
     else {
