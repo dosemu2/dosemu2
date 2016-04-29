@@ -124,10 +124,9 @@ struct sigchld_hndl {
 static struct sigchld_hndl chld_hndl[MAX_SIGCHLD_HANDLERS];
 static int chd_hndl_num;
 
-static sigset_t q_mask, nonfatal_q_mask;
-#if SIGRETURN_WA
+static sigset_t q_mask;
+static sigset_t nonfatal_q_mask;
 static sigset_t fatal_q_mask;
-#endif
 static void *cstack;
 #if SIGALTSTACK_WA
 static void *backup_stack;
@@ -136,6 +135,7 @@ static int need_sas_wa;
 #if SIGRETURN_WA
 static int need_sr_wa;
 #endif
+static int block_all_sigs;
 
 static int sh_tid;
 static int in_handle_signals;
@@ -182,22 +182,12 @@ static void qsig_init(void)
 	int i;
 
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
-#if SIGRETURN_WA
-#if 0
-	/* future kernels will be able to correctly restore SS.
-	 * this have not materialized yet */
-	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
-#else
-	if (1)
-#endif
+	if (block_all_sigs)
 	{
-		/* initially block all async signals. The handler will unblock
-		 * some when it is safe (after segment registers are restored)
-		 */
+		/* initially block all async signals. */
 		sa.sa_mask = q_mask;
 	}
 	else
-#endif
 	{
 		/* block all non-fatal async signals */
 		sa.sa_mask = nonfatal_q_mask;
@@ -228,22 +218,12 @@ static void newsetsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 	sa.sa_flags = SA_RESTART | SA_ONSTACK | SA_SIGINFO;
 	if (kernel_version_code >= KERNEL_VERSION(2, 6, 14))
 		sa.sa_flags |= SA_NODEFER;
-#if SIGRETURN_WA
-#if 0
-	/* future kernels will be able to correctly restore SS.
-	 * this have not materialized yet */
-	if (kernel_version_code < KERNEL_VERSION(4, 6, 0))
-#else
-	if (1)
-#endif
+	if (block_all_sigs)
 	{
-		/* initially block all async signals. The handler will unblock
-		 * some when it is safe (after segment registers are restored)
-		 */
+		/* initially block all async signals. */
 		sa.sa_mask = q_mask;
 	}
 	else
-#endif
 	{
 		/* block all non-fatal async signals */
 		sa.sa_mask = nonfatal_q_mask;
@@ -369,23 +349,14 @@ void init_handler(struct sigcontext *scp, int async)
    * Sync signals like SIGSEGV are never blocked.
    */
   __init_handler(scp, async);
-#if SIGRETURN_WA
-#if 0
-  /* future kernels will be able to correctly restore SS.
-   * this have not materialized yet.
-   * When it will, we'll be able to have some (or all?) async
-   * signals always unblocked, as the sighandlers will then
-   * correctly restore all segregs. */
-  if (kernel_version_code >= KERNEL_VERSION(4, 6, 0))
+  if (!block_all_sigs)
     return;
-#endif
 #if SIGALTSTACK_WA
-  /* oops, for SAS WA can't unblock even those */
+  /* for SAS WA we unblock the fatal signals even later */
   if (need_sas_wa)
     return;
 #endif
   sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
-#endif
 }
 
 #ifdef __x86_64__
@@ -668,6 +639,11 @@ static void sigstack_init(void)
   if (err && errno == EINVAL) {
     need_sas_wa = 1;
     warn("Enabling sigaltstack() work-around\n");
+    /* for SAS WA block all signals. If we dont, there is a
+     * race that the signal can come after we switched to backup stack
+     * but before we disabled sigaltstack. We unblock the fatal signals
+     * later, only right before switching back to dosemu. */
+    block_all_sigs = 1;
   }
 
   if (need_sas_wa) {
@@ -775,6 +751,16 @@ void
 signal_init(void)
 {
   sigstack_init();
+#if SIGRETURN_WA
+  /* 4.6+ are able to correctly restore SS */
+  if (kernel_version_code < KERNEL_VERSION(4, 6, 0)) {
+    need_sr_wa = 1;
+    /* block all sigs for SR WA. If we dont, the signal can come before
+     * SS is saved, but we can't restore SS on signal exit. */
+    block_all_sigs = 1;
+  }
+#endif
+
   dosemu_tid = gettid();
   dosemu_pthread_self = pthread_self();
   sh_tid = coopth_create("signal handling");
