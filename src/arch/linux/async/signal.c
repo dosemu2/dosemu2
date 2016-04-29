@@ -343,17 +343,9 @@ void deinit_handler(struct sigcontext *scp)
 #endif
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
     return;
-  /* no need to restore anything when returning to dosemu, but
-   * can't check _cs because dpmi_iret_setup() could clobber it.
-   * So just restore segregs unconditionally to stay safe.
-   * It would also be a bit disturbing to return to dosemu with
-   * DOS ds/es/ss, which is what the signal handler work with
-   * in 64bit mode.
-   * Note: ss in 64bit mode is reset by a syscall (sigreturn()),
-   * so we don't need to restore it manually when returning to
-   * dosemu at least (when returning to DPMI, dpmi_iret_setup()
-   * takes care of ss).
-   */
+  if (!DPMIValidSelector(_cs)) return;
+
+  dpmi_iret_setup(scp);
 
   if (_fs != getsegment(fs))
     loadregister(fs, _fs);
@@ -453,7 +445,6 @@ static void _leavedos_signal(int sig, struct sigcontext *scp)
   leavedos_sig(sig);
   if (!in_vm86)
     dpmi_sigio(scp);
-  dpmi_iret_setup(scp);
 }
 
 SIG_PROTO_PFX
@@ -946,7 +937,6 @@ static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
     dosemu_error("Signal %i from thread\n", sig);
   if (sighandlers[sig])
 	  sighandlers[sig](scp, si);
-  dpmi_iret_setup(scp);
 }
 
 SIG_PROTO_PFX
