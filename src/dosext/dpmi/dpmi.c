@@ -393,6 +393,7 @@ static inline unsigned long client_esp(struct sigcontext *scp)
 	return (_esp)&0xffff;
 }
 
+#ifdef __x86_64__
 static void iret_frame_setup(struct sigcontext *scp)
 {
   /* set up a frame to get back to DPMI via iret. The kernel does not save
@@ -423,6 +424,18 @@ void dpmi_iret_setup(struct sigcontext *scp)
   _rip = (unsigned long)DPMI_iret;
   _cs = getsegment(cs);
 }
+
+void dpmi_iret_unwind(struct sigcontext *scp)
+{
+  if (_rip != (unsigned long)DPMI_iret)
+    return;
+  _eip = iret_frame[0];
+  _cs = iret_frame[1];
+  _eflags = iret_frame[2];
+  _esp = iret_frame[3];
+  _ss = iret_frame[4];
+}
+#endif
 
 static void indirect_dpmi_transfer(void)
 {
@@ -4186,10 +4199,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 
   if (dpmi_is_cli && isset_IF())
     dpmi_is_cli = 0;
-
-  if (debug_level('M') >= 8)
-    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
-      _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
   return ret;
 }
 
@@ -4215,6 +4224,10 @@ int dpmi_fault(struct sigcontext *scp)
   dpmi_return(scp, 0);		// process the rest in dosemu context
   if (!in_dpmi_pm())
     return -1;
+
+  if (debug_level('M') >= 8)
+    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+      _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
   return 0;
 }
 
