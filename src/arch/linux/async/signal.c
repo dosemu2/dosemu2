@@ -1041,7 +1041,8 @@ static void sigasync0(int sig, struct sigcontext *scp, siginfo_t *si)
    * in any case this should not happens since async signals are blocked   *
    * in other threads							   */
   if (gettid() != dosemu_tid)
-    dosemu_error("Signal %i from thread\n", sig);
+    dosemu_error("Signal %i from thread %i (main is %i)\n", sig,
+	    gettid(), dosemu_tid);
   if (sighandlers[sig])
 	  sighandlers[sig](scp, si);
 }
