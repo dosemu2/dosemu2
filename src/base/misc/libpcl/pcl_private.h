@@ -34,11 +34,18 @@
  * The following value must be power of two (N^2).
  */
 #define CO_STK_ALIGN 256
-#define CO_STK_COROSIZE ((sizeof(coroutine) + CO_STK_ALIGN - 1) & ~(CO_STK_ALIGN - 1))
+#define CO_STK_COROSIZE(x) (((x) + sizeof(coroutine) + CO_STK_ALIGN - 1) & ~(CO_STK_ALIGN - 1))
 #define CO_MIN_SIZE (4 * 1024)
 
+struct s_cothread_ctx;
 typedef struct s_co_ctx {
-	co_core_ctx_t cc;
+	void *cc;
+	int (*create_context)(struct s_co_ctx *ctx, void *func, void *arg,
+		char *stkbase, long stksiz);
+	int (*get_context)(struct s_co_ctx *ctx);
+	int (*set_context)(struct s_co_ctx *ctx);
+	int (*swap_context)(struct s_co_ctx *ctx1, void *ctx2);
+	struct s_cothread_ctx *(*get_global_ctx)(void);
 } co_ctx_t;
 
 typedef struct s_coroutine {
@@ -49,12 +56,15 @@ typedef struct s_coroutine {
 	struct s_coroutine *restarget;
 	void (*func)(void *);
 	void *data;
+	char *stack;
 	char stk[0];
 } coroutine;
 
 typedef struct s_cothread_ctx {
 	coroutine co_main;
 	coroutine *co_curr;
+	int ctx_sizeof;
+	char stk0[CO_MIN_SIZE];
 } cothread_ctx;
 
 #endif

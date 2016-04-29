@@ -45,14 +45,25 @@
 #include "sound.h"
 #include "cpu-emu.h"
 #include "sig.h"
+
 /* work-around sigaltstack badness - disable when kernel is fixed */
 #define SIGALTSTACK_WA 1
 #if SIGALTSTACK_WA
 #include "mcontext.h"
 #include "mapping.h"
 #endif
+/* SS_AUTODISARM is a dosemu-specific sigaltstack extension supported
+ * by some kernels */
+#ifndef SS_AUTODISARM
+#define SS_AUTODISARM  (1 << 4)
+#endif
 
+#ifdef __x86_64__
+/* work-around sigreturn badness - disable when kernel is fixed */
 #define SIGRETURN_WA 1
+#else
+#define SIGRETURN_WA 0
+#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -82,6 +93,10 @@ static sigset_t fatal_q_mask;
 static void *cstack;
 #if SIGALTSTACK_WA
 static void *backup_stack;
+static int need_sas_wa;
+#endif
+#if SIGRETURN_WA
+static int need_sr_wa;
 #endif
 
 static int sh_tid;
@@ -103,6 +118,7 @@ static void sigquit(struct sigcontext *, siginfo_t *);
 static void sigalrm(struct sigcontext *, siginfo_t *);
 static void sigio(struct sigcontext *, siginfo_t *);
 static void sigasync(int sig, siginfo_t *si, void *uc);
+static void leavedos_sig(int sig);
 
 static void _newsetqsig(int sig, void (*fun)(int sig, siginfo_t *si, void *uc))
 {
@@ -259,8 +275,8 @@ static void __init_handler(struct sigcontext *scp, int async)
     return;
   }
 
-#ifdef __x86_64__
-  if (!DPMIValidSelector(_cs))
+#if SIGRETURN_WA
+  if (need_sr_wa && !DPMIValidSelector(_cs))
     dpmi_iret_unwind(scp);
 #endif
 
@@ -367,7 +383,17 @@ void deinit_handler(struct sigcontext *scp, struct ucontext *uc)
      */
     uc->uc_flags |= UC_STRICT_RESTORE_SS;
   } else {
+#if SIGRETURN_WA
+    if (!need_sr_wa) {
+      need_sr_wa = 1;
+      warn("Enabling sigreturn() work-around\n");
+    }
     dpmi_iret_setup(scp);
+#else
+    error("Your kernel does not support UC_STRICT_RESTORE_SS and the "
+	  "work-around in dosemu is not enabled.\n");
+    leavedos_sig(11);
+#endif
   }
 
   if (_fs != getsegment(fs))
@@ -591,21 +617,45 @@ static void sigstack_init(void)
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
+
+  /* sigaltstack_wa is optional. See if we need it. */
+  stack_t dummy = { .ss_flags = SS_DISABLE | SS_AUTODISARM };
+  int err = sigaltstack(&dummy, NULL);
 #if SIGALTSTACK_WA
-  cstack = alloc_mapping(MAPPING_SHARED, SIGSTACK_SIZE, -1);
-  if (cstack == MAP_FAILED) {
-    error("Unable to allocate stack\n");
-    config.exitearly = 1;
-    return;
+  if (err && errno == EINVAL) {
+    need_sas_wa = 1;
+    warn("Enabling sigaltstack() work-around\n");
   }
-  backup_stack = alias_mapping(MAPPING_OTHER, -1, SIGSTACK_SIZE,
+
+  if (need_sas_wa) {
+    cstack = alloc_mapping(MAPPING_SHARED, SIGSTACK_SIZE, -1);
+    if (cstack == MAP_FAILED) {
+      error("Unable to allocate stack\n");
+      config.exitearly = 1;
+      return;
+    }
+    backup_stack = alias_mapping(MAPPING_OTHER, -1, SIGSTACK_SIZE,
 	PROT_READ | PROT_WRITE, cstack);
-  if (backup_stack == MAP_FAILED) {
-    error("Unable to allocate stack\n");
-    config.exitearly = 1;
-    return;
+    if (backup_stack == MAP_FAILED) {
+      error("Unable to allocate stack\n");
+      config.exitearly = 1;
+      return;
+    }
+  } else {
+    cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
+	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    if (cstack == MAP_FAILED) {
+      error("Unable to allocate stack\n");
+      config.exitearly = 1;
+      return;
+    }
   }
 #else
+  if (err && errno == EINVAL) {
+    error("Your kernel does not support SS_AUTODISARM and the "
+	  "work-around in dosemu is not enabled.\n");
+    config.exitearly = 1;
+  }
   cstack = mmap(NULL, SIGSTACK_SIZE, PROT_READ | PROT_WRITE,
 	MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
   if (cstack == MAP_FAILED) {
@@ -1051,17 +1101,17 @@ void signal_switch_to_dpmi(void)
   fault_cnt = saved_fc;
 }
 
-void signal_return_to_dosemu(void)
+#if SIGALTSTACK_WA
+static void signal_sas_wa(void)
 {
   int err;
   stack_t ss = {};
-
-#if SIGALTSTACK_WA
   m_ucontext_t hack;
   register unsigned long sp asm("sp");
   unsigned char *top = cstack + SIGSTACK_SIZE;
   unsigned char *btop = backup_stack + SIGSTACK_SIZE;
   unsigned long delta = (unsigned long)(top - sp);
+
   if (getmcontext(&hack) == 0)
     asm volatile(
 #ifdef __x86_64__
@@ -1072,13 +1122,21 @@ void signal_return_to_dosemu(void)
      :: "r"(btop - delta) : "sp");
   else
     return;
-#endif
+
   ss.ss_flags = SS_DISABLE;
   err = sigaltstack(&ss, NULL);
   if (err)
     perror("sigaltstack");
-#if SIGALTSTACK_WA
+
   setmcontext(&hack);
+}
+#endif
+
+void signal_return_to_dosemu(void)
+{
+#if SIGALTSTACK_WA
+  if (need_sas_wa)
+    signal_sas_wa();
 #endif
 }
 
@@ -1090,5 +1148,9 @@ void signal_set_altstack(stack_t *stk)
 {
   stk->ss_sp = cstack;
   stk->ss_size = SIGSTACK_SIZE;
-  stk->ss_flags = SS_ONSTACK;
+#if SIGALTSTACK_WA
+  stk->ss_flags = SS_ONSTACK | (need_sas_wa ? 0 : SS_AUTODISARM);
+#else
+  stk->ss_flags = SS_ONSTACK | SS_AUTODISARM;
+#endif
 }
