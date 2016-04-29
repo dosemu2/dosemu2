@@ -243,7 +243,6 @@ static void do_del_thread(struct coopth_t *thr,
 {
     int i;
     pth->st = ST(NONE);
-    co_delete(pth->thread);
     thr->cur_thr--;
     if (thr->cur_thr == 0) {
 	int found = 0;

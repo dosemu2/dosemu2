@@ -39,7 +39,6 @@ PCLXC coroutine_t co_create(void (*func)(void *), void *data, void *stack,
 PCLXC void co_delete(coroutine_t coro);
 PCLXC void co_call(coroutine_t coro);
 PCLXC void co_resume(void);
-PCLXC void co_exit_to(coroutine_t coro);
 PCLXC void co_exit(void);
 PCLXC coroutine_t co_current(void);
 PCLXC void *co_get_data(coroutine_t coro);

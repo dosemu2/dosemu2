@@ -24,37 +24,39 @@
  *
  */
 
-#if !defined(PCL_PRIVATE_H)
-#define PCL_PRIVATE_H
+#if !defined(PCL_H)
+#define PCL_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#ifdef __cplusplus
+#define PCLXC extern "C"
+#else
+#define PCLXC
+#endif
 
-/*
- * The following value must be power of two (N^2).
- */
-#define CO_STK_ALIGN 256
-#define CO_STK_COROSIZE ((sizeof(coroutine) + CO_STK_ALIGN - 1) & ~(CO_STK_ALIGN - 1))
-#define CO_MIN_SIZE (4 * 1024)
+typedef void *coroutine_t;
 
-typedef struct s_co_ctx {
-	co_core_ctx_t cc;
-} co_ctx_t;
+#define co_thread_init m_co_thread_init
+#define co_thread_cleanup m_co_thread_cleanup
+#define co_create m_co_create
+#define co_delete m_co_delete
+#define co_call m_co_call
+#define co_resume m_co_resume
+#define co_exit m_co_exit
+#define co_current m_co_current
+#define co_get_data m_co_get_data
+#define co_set_data m_co_set_data
 
-typedef struct s_coroutine {
-	co_ctx_t ctx;
-	int alloc;
-	int exited:1;
-	struct s_coroutine *caller;
-	struct s_coroutine *restarget;
-	void (*func)(void *);
-	void *data;
-	char stk[0];
-} coroutine;
+PCLXC int co_thread_init(void);
+PCLXC void co_thread_cleanup(void);
 
-typedef struct s_cothread_ctx {
-	coroutine co_main;
-	coroutine *co_curr;
-} cothread_ctx;
+PCLXC coroutine_t co_create(void (*func)(void *), void *data, void *stack,
+			    int size);
+PCLXC void co_delete(coroutine_t coro);
+PCLXC void co_call(coroutine_t coro);
+PCLXC void co_resume(void);
+PCLXC void co_exit(void);
+PCLXC coroutine_t co_current(void);
+PCLXC void *co_get_data(coroutine_t coro);
+PCLXC void *co_set_data(coroutine_t coro, void *data);
 
 #endif

@@ -35,6 +35,7 @@
 #include "kvm.h"
 #include "emu.h"
 #include "emu-ldt.h"
+#include "vgaemu.h"
 #include "mapping.h"
 #include "sig.h"
 
@@ -543,6 +544,8 @@ int kvm_vm86(struct vm86_struct *info)
     _cr2 = (uintptr_t)MEM_BASE32(monitor->cr2);
     _trapno = trapno;
     _err = regs->orig_eax;
+    if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
+      return vm86_ret;
     vm86_fault(scp);
   }
   return vm86_ret;

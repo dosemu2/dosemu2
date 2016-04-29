@@ -467,6 +467,9 @@ void leavedos_main(int sig)
     /* async signals must be disabled after coopthreads are joined, but
      * before coopth_done(). */
     signal_done();
+    /* now it is safe to shut down coopth. Can be done any later, if need be */
+    coopth_done();
+    dbug_printf("coopthreads stopped\n");
 
     video_close();
 
@@ -496,7 +499,6 @@ void leavedos_main(int sig)
     /* try to regain control of keyboard and video first */
     g_printf("calling keyboard_close\n");
     iodev_term();
-    coopth_done();
 
 #if defined(X86_EMULATOR)
     /* if we are here with config.cpuemu>1 something went wrong... */

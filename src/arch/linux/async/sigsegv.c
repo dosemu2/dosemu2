@@ -77,8 +77,11 @@ static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
     return 0;
 #endif
 
-  if (in_vm86)
+  if (in_vm86) {
+    if ( _trapno == 0x0e && VGA_EMU_FAULT(scp, code, 0) == True)
+      return 0;
     return vm86_fault(scp);
+  }
 
 #define VGA_ACCESS_HACK 0
 #if VGA_ACCESS_HACK
@@ -124,6 +127,8 @@ static int dosemu_fault1(int signal, struct sigcontext *scp, stack_t *stk)
       goto bad;	/* well, this goto is unnecessary but I like gotos:) */
     } /*!DPMIValidSelector(_cs)*/
     else {
+      if (_trapno == 0x0e && VGA_EMU_FAULT(scp, code, 1) == True)
+        return dpmi_check_return(scp);
       /* Not in dosemu code: dpmi_fault() will handle that */
       int ret = dpmi_fault(scp);
       /* if DPMI terminated, we restore dosemu stack */
