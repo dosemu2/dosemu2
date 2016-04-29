@@ -185,6 +185,7 @@
 #ifndef __ASSEMBLER__
 
 #include "types.h"
+#include <assert.h>
 
 u_short INT_OFF(u_char i);
 #define CBACK_SEG BIOS_HLT_BLK_SEG
@@ -309,7 +310,8 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 	WRITE_DWORDP(__p, (Bit32u)(val)); \
 	break; \
     default: \
-	error("WRITE_P: unknown size %zu\n", sizeof(loc)); \
+	{ static_assert(sizeof(loc)==1 || sizeof(loc)==2 || sizeof(loc)==4, \
+		"WRITE_P: unknown size"); } \
 	break; \
     } \
 } while(0)

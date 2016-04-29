@@ -379,6 +379,11 @@ void init_handler(struct sigcontext *scp, int async)
   if (kernel_version_code >= KERNEL_VERSION(4, 6, 0))
     return;
 #endif
+#if SIGALTSTACK_WA
+  /* oops, for SAS WA can't unblock even those */
+  if (need_sas_wa)
+    return;
+#endif
   sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
 #endif
 }
@@ -1147,7 +1152,7 @@ static void signal_sas_wa(void)
   unsigned char *btop = backup_stack + SIGSTACK_SIZE;
   unsigned long delta = (unsigned long)(top - sp);
 
-  if (getmcontext(&hack) == 0)
+  if (getmcontext(&hack) == 0) {
     asm volatile(
 #ifdef __x86_64__
     "mov %0, %%rsp\n"
@@ -1155,8 +1160,10 @@ static void signal_sas_wa(void)
     "mov %0, %%esp\n"
 #endif
      :: "r"(btop - delta) : "sp");
-  else
+  } else {
+    sigprocmask(SIG_UNBLOCK, &fatal_q_mask, NULL);
     return;
+  }
 
   ss.ss_flags = SS_DISABLE;
   err = sigaltstack(&ss, NULL);
