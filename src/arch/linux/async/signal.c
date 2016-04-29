@@ -331,7 +331,7 @@ void init_handler(struct sigcontext *scp, int async)
 
 #ifdef __x86_64__
 SIG_PROTO_PFX
-void deinit_handler(struct sigcontext *scp)
+void deinit_handler(struct sigcontext *scp, struct ucontext *uc)
 {
 #ifdef __x86_64__
   /* on x86_64 there is no vm86() that doesn't restore the segregs
@@ -344,8 +344,31 @@ void deinit_handler(struct sigcontext *scp)
   if (CONFIG_CPUSIM && config.cpuemu >= 4)
     return;
   if (!DPMIValidSelector(_cs)) return;
+#if defined(__x86_64__) && !defined(UC_SIGCONTEXT_SS)
+/*
+ * UC_SIGCONTEXT_SS will be set when delivering 64-bit or x32 signals on
+ * kernels that save SS in the sigcontext.  Kernels that set UC_SIGCONTEXT_SS
+ * allow signal handlers to set UC_RESTORE_SS; if UC_RESTORE_SS is set,
+ * then sigreturn will restore SS.
+ *
+ * For compatibility with old programs, the kernel will *not* set
+ * UC_RESTORE_SS when delivering signals.
+ */
+#define UC_SIGCONTEXT_SS       0x2
+#define UC_STRICT_RESTORE_SS   0x4
+#endif
 
-  dpmi_iret_setup(scp);
+  if (uc->uc_flags & UC_SIGCONTEXT_SS) {
+    /*
+     * On Linux 4.4 (possibly) and up, the kernel can fully restore
+     * SS and ESP, so we don't need any special tricks.  To avoid confusion,
+     * force strict restore.  (Some 4.1 versions support this as well but
+     * without the uc_flags bits.  It's not trying to detect those kernels.)
+     */
+    uc->uc_flags |= UC_STRICT_RESTORE_SS;
+  } else {
+    dpmi_iret_setup(scp);
+  }
 
   if (_fs != getsegment(fs))
     loadregister(fs, _fs);
@@ -454,7 +477,7 @@ static void leavedos_signal(int sig, siginfo_t *si, void *uc)
 	(struct sigcontext *)&((ucontext_t *)uc)->uc_mcontext;
   init_handler(scp, 1);
   _leavedos_signal(sig, scp);
-  deinit_handler(scp);
+  deinit_handler(scp, uc);
 }
 
 SIG_PROTO_PFX
@@ -946,7 +969,7 @@ static void sigasync(int sig, siginfo_t *si, void *uc)
   struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
   init_handler(scp, 1);
   sigasync0(sig, scp, si);
-  deinit_handler(scp);
+  deinit_handler(scp, uc);
 }
 #endif
 
