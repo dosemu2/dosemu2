@@ -13,24 +13,6 @@
  *
  */
 
-#define DIRECT_DPMI_CONTEXT_SWITCH 1
-
-#define WANT_PURE_PIC 0
-#if WANT_PURE_PIC
-#if defined(__PIE__) || defined(__PIC__)
-/* avoid dynamic relocs in PIC code. Since dynamic relocs in PIC code
- * work perfectly, I am leaving this code just as an example. Not sure
- * why dosemu1 had so much of convoluted code just to avoid the dynamic
- * reloc: the dynamic reloc can either be safely used or trivially avoided. */
-#define PURE_PIC 1
-#else
-#define PURE_PIC 0
-#endif
-#else
-/* dynamic reloc will be used regardless of PIC */
-#define PURE_PIC 0
-#endif
-
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <setjmp.h>
+#include <pthread.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <linux/version.h>
@@ -57,16 +39,9 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "timers.h"
 #include "mhpdbg.h"
 #include "hlt.h"
+#include "pcl.h"
 #include "coopth.h"
-#if 0
-#define SHOWREGS
-#endif
-
-#if 0
-#undef inline /*for gdb*/
-#define inline
-#endif
-
+#include "sig.h"
 #include "dpmi.h"
 #include "dpmisel.h"
 #include "msdos.h"
@@ -118,9 +93,14 @@ int dpmi_mhp_TF;
 unsigned char dpmi_mhp_intxxtab[256];
 static int dpmi_is_cli;
 static int dpmi_ctid;
-#if defined(__i386__) || !DIRECT_DPMI_CONTEXT_SWITCH
-static int in_indirect_dpmi_transfer;
-#endif
+static coroutine_t dpmi_tid;
+static cohandle_t co_handle;
+static struct sigcontext emu_stack_frame;
+static struct sigaction emu_tmp_act;
+static stack_t dosemu_stk;
+#define DPMI_TMP_SIG SIGUSR1
+static struct _fpstate emu_fpstate;
+static int in_dpmi_thr;
 static int in_dpmic_thr;
 
 #define CLI_BLACKLIST_LEN 128
@@ -128,15 +108,14 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int return_requested = 0;
-static uintptr_t emu_stack_ptr;
 #ifdef __x86_64__
 static unsigned int *iret_frame;
 #endif
-static jmp_buf dpmi_ret_jmp;
 static int dpmi_ret_val;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext *scp, int intno);
 static void dpmi_return(struct sigcontext *scp, int retval);
+static int dpmi_fault1(struct sigcontext *scp);
 static far_t s_i1c, s_i23, s_i24;
 
 static struct RealModeCallStructure DPMI_rm_stack[DPMI_max_rec_rm_func];
@@ -419,27 +398,6 @@ static inline unsigned long client_esp(struct sigcontext *scp)
 }
 
 #ifdef __x86_64__
-#if DIRECT_DPMI_CONTEXT_SWITCH
-SIG_PROTO_PFX
-static void dpmi_restore_segregs(struct sigcontext *scp)
-{
-  loadregister(ds, _ds);
-  loadregister(es, _es);
-
-  /* only load fs/gs if necessary so that if they are 0, then the
-     64bit bases will not be destroyed.
-     Apparently loading a null selector gives a null segment base on
-     Intel64/EM64T, but leaves the 64bit (or other) base intact on AMD CPUs.
-     Of course, i386 null selector semantics (GPF on access via one)
-     take over once the DPMI client is entered.
-  */
-  if (_fs != getsegment(fs))
-    loadregister(fs, _fs);
-  if (_gs != getsegment(gs))
-    loadregister(gs, _gs);
-}
-#endif
-
 static void iret_frame_setup(struct sigcontext *scp)
 {
   /* set up a frame to get back to DPMI via iret. The kernel does not save
@@ -463,134 +421,22 @@ static void iret_frame_setup(struct sigcontext *scp)
 
 void dpmi_iret_setup(struct sigcontext *scp)
 {
-  if (!DPMIValidSelector(_cs)) return;
-
   iret_frame_setup(scp);
   _eflags &= ~TF;
   _rip = (unsigned long)DPMI_iret;
   _cs = getsegment(cs);
 }
-#endif
 
-#if defined(__i386__) || !DIRECT_DPMI_CONTEXT_SWITCH
-__attribute__((noreturn))
-static void indirect_dpmi_transfer(void)
+void dpmi_iret_unwind(struct sigcontext *scp)
 {
-  in_indirect_dpmi_transfer++;
-  asm volatile ("\t hlt\n" ::: "memory");
-  __builtin_unreachable();
+  if (_rip != (unsigned long)DPMI_iret)
+    return;
+  _eip = iret_frame[0];
+  _cs = iret_frame[1];
+  _eflags = iret_frame[2];
+  _esp = iret_frame[3];
+  _ss = iret_frame[4];
 }
-#endif
-
-#if DIRECT_DPMI_CONTEXT_SWITCH
-#ifdef __i386__
-#if PURE_PIC
-extern struct {
-    const uint8_t opc;
-    uint32_t offset;
-    uint16_t selector;
-} __attribute__((packed)) dpmi_switch_jmp;
-#else
-/* dont mark as static so that it is accessable from asm */
-struct pmaddr_s dpmi_switch_jmp;
-#endif
-#endif
-
-__attribute__((noreturn))
-static void dpmi_transfer(struct sigcontext *scp)
-{
-  asm volatile (
-#ifdef __x86_64__
-"	mov	%0,%%rsp\n"		/* rsp=scp */
-"	add	$8*8,%%rsp\n"		/* skip r8-r15 */
-"	pop	%%rdi\n"
-"	pop	%%rsi\n"
-"	pop	%%rbp\n"
-"	pop	%%rbx\n"
-"	pop	%%rdx\n"
-"	pop	%%rax\n"
-"	pop	%%rcx\n"
-"	pop	%%rsp\n"		/* => iret_frame */
-"	iretl\n"
-#else
-"	movl	%0,%%esp\n"	/* esp=scp */
-"	pop	%%gs\n"
-"	pop	%%fs\n"
-"	pop	%%es\n"
-"	pop	%%ds\n"
-"	popa\n"
-"	addl	$4*4,%%esp\n"
-"	popfl\n"
-"	lss	(%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-#if PURE_PIC
-	/* use relative jump, no dynamic reloc needed */
-"	jmp	dpmi_switch_jmp\n"
-"	.section ._pictr,\"awx\"\n"
-"	.globl dpmi_switch_jmp\n"
-"dpmi_switch_jmp:\n"
-"	ljmp $0,$0\n"
-"	.previous\n"
-#else
-	/* use indirect jump, dynamic reloc is built.
-	 * Originally the dpmi_switch_jmp was passed as an asm argument
-	 * with mem ref constraint "m", which with PIC was translated
-	 * into ljmp *%cs:dpmi_switch_jmp(%eax). But if we hardcode it,
-	 * we get an old good dynamic reloc even in PIC mode.
-	 * In fact, it is exceptionally difficult to even get a warning
-	 * about a dynamic reloc's presence. Perhaps with this patch:
-	 * https://sourceware.org/ml/binutils/2015-02/msg00091.html
-	 * and with -Wl,-z -Wl,text it will be possible. */
-"	ljmp	*%%cs:dpmi_switch_jmp\n"
-#endif
-#endif
-    :
-    : "r"(scp)
-  );
-  __builtin_unreachable();
-}
-
-/* --------------------------------------------------------------
- * 00	unsigned short gs, __gsh;	00 -> dpmi_context
- * 01	unsigned short fs, __fsh;	04
- * 02	unsigned short es, __esh;	08
- * 03	unsigned short ds, __dsh;	12
- * 04	unsigned long edi;		16 popa sequence
- * 05	unsigned long esi;		20
- * 06	unsigned long ebp;		24
- * 07	unsigned long esp;		28
- * 08	unsigned long ebx;		32
- * 09	unsigned long edx;		36
- * 10	unsigned long ecx;		40
- * 11	unsigned long eax;		44
- * 12	unsigned long trapno;		48 dirty -- ignored
- * 13	unsigned long err;		52 dirty -- ignored
- * 14	unsigned long eip;		56 written into dpmi_switch_jmp
- * 15	unsigned short cs, __csh;	60 cs written into dpmi_switch_jmp
- * 16	unsigned long eflags;		64
- *
- * 17	unsigned long esp_at_signal;	68 set to esp (for lss)
- * 18	unsigned short ss, __ssh;	72
- * 19	struct _fpstate * fpstate;	76 used by frstor
- * 20	unsigned long oldmask;		80 dirty -- ignored
- * 21	unsigned long cr2;		84 dirty -- ignored
- * --------------------------------------------------------------
- */
-__attribute__((noreturn))
-static void direct_dpmi_switch(struct sigcontext *scp)
-{
-#ifdef __i386__
-  dpmi_switch_jmp.offset = _eip;
-  dpmi_switch_jmp.selector = _cs;
-  scp->esp_at_signal = _esp;
-#else
-  dpmi_restore_segregs(scp);
-  iret_frame_setup(scp);
-#endif
-
-  loadfpstate(*scp->fpstate);
-  dpmi_transfer(scp);
-}
-
 #endif
 
 /* ======================================================================== */
@@ -603,119 +449,71 @@ static void direct_dpmi_switch(struct sigcontext *scp)
  * DANG_END_FUNCTION
  */
 
+static int do_dpmi_control(struct sigcontext *scp)
+{
+    if (dpmi_mhp_TF) _eflags |= TF;
+    co_call(dpmi_tid);
+    /* we may return here with sighandler's signal mask.
+     * This is done for speed-up. dpmi_control() restores the mask. */
+    return dpmi_ret_val;
+}
+
+static int _dpmi_control(void)
+{
+    int ret;
+    struct sigcontext *scp = &DPMI_CLIENT.stack_frame;
+
+    do {
+      if (CheckSelectors(scp, 1) == 0)
+        leavedos(36);
+      ret = do_dpmi_control(scp);
+      if (!ret)
+        ret = dpmi_fault1(scp);
+      if (!in_dpmi) {
+        D_printf("DPMI: leaving\n");
+        dpmi_ret_val = -2;
+        ret = do_dpmi_control(scp);
+        if (in_dpmi_thr)
+          error("DPMI thread have not terminated properly\n");
+        break;
+      }
+      if (!ret) {
+        uncache_time();
+        hardware_run();
+      }
+
+      if (dpmi_mhp_TF) {
+        dpmi_mhp_TF=0;
+        _eflags &= ~TF;
+        ret = 1;
+      }
+
+      if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
+        return_requested = 0;
+        if (debug_level('M') >= 8)
+          D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+            _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
+        ret = -1;
+      }
+    } while (!ret);
+
+    return ret;
+}
+
 static int dpmi_control(void)
 {
-/*
- * DANG_BEGIN_REMARK
- *
- * DPMI is designed such that the stack change needs a task switch.
- * We are doing it via an SIGSEGV - instead of one task switch we have
- * now four :-(.
- * Arrgh this is the point where I should start to include DPMI stuff
- * in the kernel, but then we could include the rest of dosemu too.
- * Would Linus love this? I don't :-((((.
- * Anyway I would love to see first a working DPMI port, maybe we
- * will later (with version 0.9 or similar :-)) start with it to
- * get a really fast dos emulator...............
- *
- * NOTE: Using DIRECT_DPMI_CONTEXT_SWITCH we avoid these 4  taskswitches
- *       actually doing 0. We don't need a 'physical' taskswitch
- *       (not having different TSS for us and DPMI), we only need a complete
- *       register (context) replacement. For back-switching, however, we need
- *       the sigcontext technique, so we build a proper sigcontext structure
- *       even for 'hand made taskswitch'. (Hans Lermen, June 1996)
- *
- *    -- the whole emu_stack_frame could be eliminated except for eip/rip
- *	 and esp/rsp. For the most part GCC can worry about clobbered registers
- *       (Bart Oldeman, October 2006)
- *
- * dpmi_control is called only from dpmi_run when dpmi_pm==1
- *
- * DANG_END_REMARK
- */
+    int ret;
+    sigset_t set;
 
-/* STANDARD SWITCH example
- *
- * run_dpmi() -> dpmi_control (!DPMIValidSelector(_cs))
- *			-> dpmi_transfer, push registers,
- *			   save esp/rsp in emu_stack_ptr
- *			-> DPMI_indirect_transfer ->
- *			hlt
- *		 -> dpmi_fault: move client frame to scp
- *	[C>S>E]			return -> jump to DPMI code
- *		========== into client code =================
- *		 -> dpmi_fault (cs==dpmi_sel())
- *				perform fault action (e.g. I/O) on scp
- *		========== into client code =================
- *		 -> dpmi_fault with return to dosemu code:
- *				save scp to client frame
- *	[E>S>C]			return from call to DPMI_indirect_transfer
- *				using emu_stack_ptr
- *				with segment registers and esp restored
- *			pop registers in dpmi_transfer <-
- *	         dpmi_control <-
- *			return %eax
- * run_dpmi() <-
- *
- * DIRECT SWITCH example
- *
- * run_dpmi() -> dpmi_control (_cs==%cs) -> direct_dpmi_switch
- *			-> dpmi_transfer, push registers
- *			   save esp/rsp in emu_stack_ptr
- *			-> DPMI_direct_transfer
- *				pop client frame and jump to DPMI code
- *				(client cs:eip)
- *		========== into client code =================
- *		 -> dpmi_fault (cs==dpmi_sel())
- *				perform fault action (e.g. I/O) on scp
- *		========== into client code =================
- *		 -> dpmi_fault with return to dosemu code:
- *				save scp to client frame
- *	[E>S>C]			return from call to DPMI_direct_transfer
- *				using emu_stack_ptr
- *				with segment registers and esp restored
- *			pop registers in dpmi_transfer <-
- *	         dpmi_control <-
- *			return %eax
- * run_dpmi() <-
- *
- */
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    struct sigcontext *scp;
-#endif
-
-    if (setjmp(dpmi_ret_jmp))
-      return dpmi_ret_val;
-    /* Note: longjmp() follows the stack upwards, doing unwinds.
-     * It therefore can't jump out of sigaltstack or some trampoline stack.
-     * So, to get longjmp() working, we need to save the stack for it
-     * in addition to what setjmp() saves. */
-    emu_stack_ptr = (uintptr_t)alloca(sizeof(void *));
-
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    scp = &DPMI_CLIENT.stack_frame;
-#ifdef TRACE_DPMI
-    if (debug_level('t')) _eflags |= TF;
-#endif
-    if (CheckSelectors(scp, 1) == 0) {
-      leavedos(36);
-    }
-    if (dpmi_mhp_TF) _eflags |= TF;
-#ifdef __i386__
-    if (!(_eflags & TF))
-#endif
-    {
-	if (debug_level('M')>6) {
-	  D_printf("DPMI SWITCH to 0x%x:0x%08x (%p), Stack 0x%x:0x%08x (%p) flags=%#lx\n",
-	    _cs, _eip, SEL_ADR(_cs,_eip), _ss, _esp, SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
-	}
-	direct_dpmi_switch(scp);
-    }
-#endif
-#if defined(__i386__) || !DIRECT_DPMI_CONTEXT_SWITCH
-    /* Note: for i386 we can't set TF with our speedup code */
-    indirect_dpmi_transfer();
-#endif
+    /* for speed-up, DPMI switching corrupts signal mask. Fix it here. */
+    sigprocmask(SIG_SETMASK, NULL, &set);
+    if (in_dpmi_thr)
+      signal_switch_to_dpmi();
+    ret = _dpmi_control();
+    if (in_dpmi_thr)
+      signal_switch_to_dosemu();
+    sigprocmask(SIG_SETMASK, &set, NULL);
+    return ret;
 }
 
 void dpmi_get_entry_point(void)
@@ -1297,11 +1095,6 @@ void copy_context(struct sigcontext *d, struct sigcontext *s,
   }
 }
 
-static void dpmi_return_to_dosemu(void)
-{
-  longjmp(dpmi_ret_jmp, 1);
-}
-
 static void Return_to_dosemu_code(struct sigcontext *scp,
     struct sigcontext *dpmi_ctx, int retcode)
 {
@@ -1321,47 +1114,56 @@ static void Return_to_dosemu_code(struct sigcontext *scp,
     copy_context(dpmi_ctx, scp, 1);
   }
   dpmi_ret_val = retcode;
-  /* Note: we can't use siglongjmp() for 2 reasons:
-   * 1. SS is not restored by kernel on signal delivery, and certainly
-   *    not by siglongjmp() (may be fixed in kernel, some of 4.1 did so).
-   * 2. both siglongjmp() and longjmp() do stack unwinds (invoke pthread
-   *    cleanup handlers etc) so the stack switching is not possible:
-   *    http://linux-ia64.vger.kernel.narkive.com/dVL1zzUm/sigaltstack-siglongjmp-breakage
-   *    And as such, you can't siglongjmp() out of sigaltstack.
-   * So we need to sigreturn() to the trampoline code that does longjmp()
-   * from emu stack.
-   */
-  _rip = (unsigned long)dpmi_return_to_dosemu;
-  _rsp = emu_stack_ptr;
-  /* Don't inherit TF from DPMI, put dosemu's flags */
-  _eflags = eflags_fs_gs.eflags;
-  _cs = getsegment(cs);
-#ifdef __x86_64__
-  /* in 64bit mode the signal handler is running with DOS ds/es/ss */
-  _ds = eflags_fs_gs.ds;
-  _es = eflags_fs_gs.es;
-  _ss = eflags_fs_gs.ss;
-#else
-  _ds = getsegment(ds);
-  _es = getsegment(es);
-  _ss = getsegment(ss);
-#endif
-  _fs = eflags_fs_gs.fs;
-  _gs = eflags_fs_gs.gs;
-  scp->fpstate = NULL;
+  if (debug_level('M') > 5)
+    D_printf("DPMI: switch to dosemu\n");
+  signal_return_to_dosemu();
+  co_resume(co_handle);
+  signal_return_to_dpmi();
+  if (dpmi_ret_val == -2) {
+    copy_context(scp, &emu_stack_frame, 0);
+    return;
+  }
+  if (debug_level('M') > 5)
+    D_printf("DPMI: switch to dpmi\n");
+  copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
 }
 
-int indirect_dpmi_switch(struct sigcontext *scp)
+static void dpmi_switch_sa(int sig, siginfo_t *inf, void *uc)
 {
-#if !DIRECT_DPMI_CONTEXT_SWITCH
-    if (!in_indirect_dpmi_transfer)
-	return 0;
-    in_indirect_dpmi_transfer--;
-    copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
-    return 1;
-#else
-    return 0;
-#endif
+  ucontext_t *uct = uc;
+  struct sigcontext *scp = (struct sigcontext *)&uct->uc_mcontext;
+
+  emu_stack_frame.fpstate = &emu_fpstate;
+  copy_context(&emu_stack_frame, scp, 1);
+  copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
+  dosemu_stk = uct->uc_stack;
+  signal_set_altstack(&uct->uc_stack);
+
+  sigaction(DPMI_TMP_SIG, &emu_tmp_act, NULL);
+  deinit_handler(scp, uc);
+}
+
+static void indirect_dpmi_transfer(void)
+{
+  struct sigaction act;
+
+  act.sa_flags = SA_SIGINFO;
+  sigprocmask(SIG_SETMASK, NULL, &act.sa_mask);
+  if (sigismember(&act.sa_mask, DPMI_TMP_SIG)) {
+    sigset_t mask;
+    error("DPMI: signal %i is masked\n", DPMI_TMP_SIG);
+    sigemptyset(&mask);
+    sigaddset(&mask, DPMI_TMP_SIG);
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  }
+  act.sa_sigaction = dpmi_switch_sa;
+  sigaction(DPMI_TMP_SIG, &act, &emu_tmp_act);
+  /* for some absolutely unclear reason neither pthread_self() nor
+   * pthread_kill() are the memory barriers. */
+  asm volatile("" ::: "memory");
+  pthread_kill(pthread_self(), DPMI_TMP_SIG);
+  /* and we are back */
+  sigaltstack(&dosemu_stk, NULL);
 }
 
 static void *enter_lpms(struct sigcontext *scp)
@@ -2742,6 +2544,7 @@ void dpmi_cleanup(void)
     win31_mode = 0;
   }
   cli_blacklisted = 0;
+  dpmi_is_cli = 0;
   in_dpmi--;
 }
 
@@ -3124,6 +2927,13 @@ static void run_dpmi(void)
     coopth_start(dpmi_ctid, run_dpmi_thr, NULL);
 }
 
+static void dpmi_thr(void *arg)
+{
+    in_dpmi_thr++;
+    indirect_dpmi_transfer();
+    in_dpmi_thr--;
+}
+
 void dpmi_setup(void)
 {
     int i, type;
@@ -3245,6 +3055,7 @@ void dpmi_setup(void)
 
     dpmi_ctid = coopth_create("dpmi_control");
     coopth_set_detached(dpmi_ctid);
+    co_handle = co_thread_init(PCL_C_MC);
     return;
 
 err:
@@ -3256,11 +3067,12 @@ err2:
 void dpmi_reset(void)
 {
     while (in_dpmi) {
-	dpmi_set_pm(0);
+	if (in_dpmi_pm())
+	    dpmi_set_pm(0);
 	dpmi_cleanup();
     }
     if (config.pm_dos_api)
-      msdos_reset(EMM_SEGMENT);
+	msdos_reset(EMM_SEGMENT);
 }
 
 void dpmi_init(void)
@@ -3399,7 +3211,6 @@ void dpmi_init(void)
 	    dpmi_sel(), CS, DS, SS, ES);
   }
 
-  dpmi_set_pm(1);
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   scp   = &DPMI_CLIENT.stack_frame;
@@ -3441,7 +3252,11 @@ void dpmi_init(void)
     SETIVEC(0x24, DPMI_SEG, DPMI_OFF + HLT_OFF(DPMI_int24));
 
     in_dpmi_irq = 0;
+
+    dpmi_tid = co_create(co_handle, dpmi_thr, NULL, NULL, SIGSTACK_SIZE);
   }
+
+  dpmi_set_pm(1);
 
   for (i = 0; i < RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
@@ -3736,12 +3551,8 @@ static void do_cpu_exception(struct sigcontext *scp)
  *
  * DANG_END_FUNCTION
  */
-
-#ifdef __linux__
 static int dpmi_fault1(struct sigcontext *scp)
-#endif
 {
-
 #define LWORD32(x,y) {if (Segments[_cs >> 3].is_32) _##x y; else _LWORD(x) y;}
 #define _LWECX	   (Segments[_cs >> 3].is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
 #define set_LWECX(x) {if (Segments[_cs >> 3].is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
@@ -4375,15 +4186,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 	    return ret;
 	  }
 	}
-#if DIRECT_DPMI_CONTEXT_SWITCH
-	else {
-	  if (!(_eflags & TF)) {
-	    D_printf("DPMI: retrying via direct switch.\n");
-	    dpmi_return_request();
-	    return ret;
-	  }
-	}
-#endif
 #endif
         error("Stack Fault, ESP corrupted due to a CPU bug.\n"
 	      "For more details on that problem and possible work-arounds,\n"
@@ -4417,38 +4219,13 @@ static int dpmi_fault1(struct sigcontext *scp)
     do_cpu_exception(scp);
   }
 
-  if (dpmi_mhp_TF) {
-      dpmi_mhp_TF=0;
-      _eflags &= ~TF;
-      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
-      return 1;
-  }
-
-  if (dpmi_is_cli && in_dpmi_pm() && isset_IF())
+  if (dpmi_is_cli && isset_IF())
     dpmi_is_cli = 0;
-
-  uncache_time();
-  hardware_run();
-
-  if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
-    return_requested = 0;
-    if (debug_level('M') >= 8)
-      D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
-        _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
-    Return_to_dosemu_code(scp, ORIG_CTXP, -1);
-    return -1;
-  }
-
-  if (debug_level('M') >= 8)
-    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
-      _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
   return ret;
 }
 
 int dpmi_fault(struct sigcontext *scp)
 {
-  int retcode;
-
   if (_trapno == 0x10) {
     g_printf("coprocessor exception, calling IRQ13\n");
     pic_request(PIC_IRQ13);
@@ -4466,23 +4243,13 @@ int dpmi_fault(struct sigcontext *scp)
     return 0;
   }
 
-  if(_trapno==0x0e) {
-    if(VGA_EMU_FAULT(scp,code,1)==True) {
-      return dpmi_check_return(scp);
-    }
-  }
-
-  retcode = dpmi_fault1(scp);
-  if (retcode) {
-    /* context was switched to dosemu's, return ASAP */
-    return retcode;
-  }
-
-  if (CheckSelectors(scp, 0) == 0) {
-    dpmi_return(scp, -1);
+  dpmi_return(scp, 0);		// process the rest in dosemu context
+  if (!in_dpmi_pm())
     return -1;
-  }
-  /* now we are safe */
+
+  if (debug_level('M') >= 8)
+    D_printf("DPMI: Return to client at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+      _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
   return 0;
 }
 
@@ -4925,7 +4692,7 @@ void dpmi_return_request(void)
 int dpmi_check_return(struct sigcontext *scp)
 {
   if (return_requested) {
-    dpmi_return(scp, 0);
+    dpmi_return(scp, -1);
     return -1;
   }
   return 0;
@@ -4944,6 +4711,16 @@ int dpmi_active(void)
 void dpmi_done(void)
 {
   D_printf("DPMI: finalizing\n");
+
+  while (in_dpmi) {
+    if (in_dpmi_pm())
+      dpmi_set_pm(0);
+    dpmi_cleanup();
+  }
+
+  if (in_dpmi_thr)
+    co_delete(dpmi_tid);
+  co_thread_cleanup(co_handle);
   if (in_dpmic_thr)
     coopth_cancel(dpmi_ctid);
 }

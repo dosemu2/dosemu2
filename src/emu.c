@@ -361,8 +361,6 @@ int main(int argc, char **argv)
       dbug_printf("Leaving DOS before booting\n");
       leavedos(0);
     }
-
-    dpmi_setup();
     g_printf("EMULATE\n");
 
     fflush(stdout);

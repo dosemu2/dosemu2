@@ -150,10 +150,10 @@ extern unsigned char ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 void dpmi_get_entry_point(void);
 #ifdef __x86_64__
 extern void dpmi_iret_setup(struct sigcontext *);
+extern void dpmi_iret_unwind(struct sigcontext *scp);
 #else
 #define dpmi_iret_setup(x)
 #endif
-int indirect_dpmi_switch(struct sigcontext *);
 #ifdef __linux__
 int dpmi_fault(struct sigcontext *);
 #endif

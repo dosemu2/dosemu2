@@ -42,6 +42,7 @@
 #include "joystick.h"
 #include "emm.h"
 #include "xms.h"
+#include "dpmi.h"
 
 struct io_dev_struct {
   const char * name;
@@ -85,6 +86,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "packet driver", pkt_init, pkt_reset,   pkt_term },
   { "ems",     ems_init,     ems_reset,     NULL },
   { "xms",     xms_init,     xms_reset,     NULL },
+  { "dpmi",    dpmi_setup,   dpmi_reset,    NULL },
   { NULL,      NULL,         NULL,          NULL }
 };
 

@@ -24,7 +24,7 @@ XCPUEMU=emu-i386/simx86
 #REQUIRED += $(MIDID)
 
 _LIBSUBDIRS=base/video base/dev/vga base/async \
-	arch/linux/async arch/linux/mapping \
+	arch/linux/async arch/linux/mapping arch/linux/mcontext \
 	base/misc base/misc/libpcl base/dev/misc \
 	emu-i386 $(XCPUEMU) base/speaker \
 	base/dev/pic dosext/dpmi dosext/dpmi/msdos \
