@@ -482,11 +482,7 @@ badrw:
 /* this function is called from dosemu_fault */
 int e_emu_fault(struct sigcontext *scp)
 {
-#ifdef __x86_64__
   if (_trapno == 0x0e && _cr2 > 0xffffffff)
-#else
-  if (_trapno == 0x0e && _cr2 > getregister(esp))
-#endif
   {
     error("Accessing reserved memory at %08lx\n"
 	  "\tMaybe a null segment register\n",_cr2);
