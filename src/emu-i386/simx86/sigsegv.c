@@ -482,12 +482,14 @@ badrw:
 /* this function is called from dosemu_fault */
 int e_emu_fault(struct sigcontext *scp)
 {
+#ifdef __x86_64__
   if (_trapno == 0x0e && _cr2 > 0xffffffff)
   {
     error("Accessing reserved memory at %08lx\n"
 	  "\tMaybe a null segment register\n",_cr2);
     return 0;
   }
+#endif
 
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
