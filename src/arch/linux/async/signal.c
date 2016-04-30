@@ -1133,12 +1133,14 @@ static void signal_sas_wa(void)
   int err;
   stack_t ss = {};
   m_ucontext_t hack;
-  register unsigned long sp asm("sp");
+  unsigned char *sp;
   unsigned char *top = cstack + SIGSTACK_SIZE;
   unsigned char *btop = backup_stack + SIGSTACK_SIZE;
-  unsigned long delta = (unsigned long)(top - sp);
+  ptrdiff_t delta;
 
   if (getmcontext(&hack) == 0) {
+    sp = alloca(sizeof(void *));
+    delta = top - sp;
     asm volatile(
 #ifdef __x86_64__
     "mov %0, %%rsp\n"
