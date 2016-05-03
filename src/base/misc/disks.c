@@ -19,7 +19,7 @@
 #include <sys/ioctl.h>
 #ifdef __linux__
   #include "Linux/hdreg.h"
-  #include "Linux/fd.h"
+  #include <linux/fd.h>
   #include <linux/fs.h>
 #endif
 #include <sys/stat.h>
