@@ -24,7 +24,7 @@
 #ifdef __linux__
 #include <sys/vt.h>
 #include <linux/fd.h>
-#include "Linux/hdreg.h"
+#include <linux/hdreg.h>
 #include <syscall.h>
 #endif
 

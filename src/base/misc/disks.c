@@ -18,7 +18,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
-  #include "Linux/hdreg.h"
+  #include <linux/hdreg.h>
   #include <linux/fd.h>
   #include <linux/fs.h>
 #endif
