@@ -20,7 +20,7 @@
 #ifdef __linux__
   #include "Linux/hdreg.h"
   #include "Linux/fd.h"
-  #include "Linux/fs.h"
+  #include <linux/fs.h>
 #endif
 #include <sys/stat.h>
 #include <sys/time.h>
