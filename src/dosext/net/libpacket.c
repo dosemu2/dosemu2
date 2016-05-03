@@ -22,7 +22,7 @@
 #include <sys/wait.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include "Linux/if_tun.h"
+#include <linux/if_tun.h>
 #include <netinet/if_ether.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
