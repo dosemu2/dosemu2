@@ -27,9 +27,19 @@
 #include <sys/fcntl.h>
 #include <stdio.h>
 #include <errno.h>
-#ifdef __linux__
-  #include "Linux/genhd.h"
-#endif
+
+struct partition {
+  unsigned char boot_ind;	/* 0x80 - active */
+  unsigned char head;		/* starting head */
+  unsigned char sector;		/* starting sector */
+  unsigned char cyl;		/* starting cylinder */
+  unsigned char sys_ind;	/* What partition type */
+  unsigned char end_head;	/* end head */
+  unsigned char end_sector;	/* end sector */
+  unsigned char end_cyl;	/* end cylinder */
+  unsigned int start_sect;	/* starting sector counting from 0 */
+  unsigned int nr_sects;	/* nr of sectors in partition */
+} __attribute((packed));
 
 #define SECTOR_SIZE	512
 #define EXT_MAGIC	5	/* sys_ind for an extended partition */
