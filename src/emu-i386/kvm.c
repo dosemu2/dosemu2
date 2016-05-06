@@ -119,6 +119,7 @@ static struct monitor {
 
 static struct kvm_run *run;
 static int vmfd, vcpufd;
+static volatile int mprotected_kvm = 0;
 
 /* initialize KVM virtual machine monitor */
 void init_kvm_monitor(void)
@@ -349,6 +350,8 @@ void mprotect_kvm(void *addr, size_t mapsize, int protect)
     else if (protect & PROT_READ)
       monitor->pte[page] |= PG_PRESENT | PG_USER;
   }
+
+  mprotected_kvm = 1;
 }
 
 /* This function works like handle_vm86_fault in the Linux kernel,
@@ -488,7 +491,17 @@ int kvm_vm86(struct vm86_struct *info)
           KVM is re-entered asking it to exit when interrupt injection is
           possible, then it exits with this code. This only happens if a signal
           occurs during execution of the monitor code in kvmmon.S.
+       4. ret==-1 and errno == EFAULT: this can happen if code in vgaemu.c
+          calls mprotect in parallel and the TLB is out of sync with the
+          actual page tables; if this happen we retry and it should not happen
+          again since the KVM exit/entry makes everything sync'ed.
     */
+    if (mprotected_kvm) { // case 4
+      mprotected_kvm = 0;
+      if (ret == -1 && errno == EFAULT)
+	ret = ioctl(vcpufd, KVM_RUN, NULL);
+    }
+
     exit_reason = run->exit_reason;
     if (ret == -1 && errno == EINTR) {
       exit_reason = KVM_EXIT_INTR;
