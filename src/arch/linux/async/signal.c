@@ -74,7 +74,7 @@
 /* SS_AUTODISARM is a dosemu-specific sigaltstack extension supported
  * by some kernels */
 #ifndef SS_AUTODISARM
-#define SS_AUTODISARM  (1 << 4)
+#define SS_AUTODISARM  (1U << 31)    /* disable sas during sighandling */
 #endif
 
 #ifdef __x86_64__
