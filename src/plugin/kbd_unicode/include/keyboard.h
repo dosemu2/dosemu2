@@ -7,7 +7,7 @@
 #ifndef _KEYBOARD_H
 #define _KEYBOARD_H
 
-#include "config.h"
+#include "dosemu_config.h"
 #include "types.h"
 
 /* keyboard related PUBLIC definitions (for keyboard clients) */

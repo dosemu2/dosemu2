@@ -1,6 +1,7 @@
 #include "unicode_symbols.h"
 #include "keyboard.h"
 #include "translate.h"
+#include "plugin_config.h"
 
 struct unicode_close_match {
 	t_unicode symbol;  /* A unicode symbol for which we have an approximation */
