@@ -490,12 +490,12 @@ static int _dpmi_control(void)
 
       if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
         return_requested = 0;
-        if (debug_level('M') >= 8)
-          D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
-            _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
         ret = -1;
       }
     } while (!ret);
+    if (debug_level('M') >= 8)
+      D_printf("DPMI: Return to dosemu at %04x:%08x, Stack 0x%x:0x%08x, flags=%#lx\n",
+            _cs, _eip, _ss, _esp, eflags_VIF(_eflags));
 
     return ret;
 }
