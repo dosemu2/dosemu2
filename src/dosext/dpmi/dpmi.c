@@ -3560,10 +3560,6 @@ static int dpmi_fault1(struct sigcontext *scp)
   void *sp;
   unsigned char *csp, *lina;
   int ret = 0;
-  /* Note: in_dpmi/current_client can change within that finction. */
-  int orig_client = current_client;
-#define ORIG_CTXP ((in_dpmi && current_client >= orig_client) ? \
-  &DPMIclient[orig_client].stack_frame : NULL)
 
   /* 32-bit ESP in 16-bit code on a 32-bit expand-up stack outside the limit...
      this is so wrong that it can only happen inherited through a CPU bug
@@ -3587,10 +3583,8 @@ static int dpmi_fault1(struct sigcontext *scp)
 
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
-    if (_trapno == 3) {
-       Return_to_dosemu_code(scp, ORIG_CTXP, 3);
+    if (_trapno == 3)
        return 3;
-    }
     if (dpmi_mhp_TF && (_trapno == 1)) {
       _eflags &= ~TF;
       switch (csp[-1]) {
@@ -3605,7 +3599,6 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      Return_to_dosemu_code(scp, ORIG_CTXP, 1);
       return 1;
     }
   }
@@ -3677,10 +3670,8 @@ static int dpmi_fault1(struct sigcontext *scp)
       if (mhpdbg.active) {
         if (dpmi_mhp_intxxtab[*csp]) {
           ret=dpmi_mhp_intxx_check(scp, *csp);
-          if (ret) {
-            Return_to_dosemu_code(scp, ORIG_CTXP, ret);
+          if (ret)
             return ret;
-          }
         }
       }
 #endif
