@@ -124,8 +124,8 @@ int com_system(const char *command, int quit)
 	char *program = com_getenv("COMSPEC");
 	char cmdline[256];
 
-	snprintf(cmdline, sizeof(cmdline), "/C %s", command);
 	if (!program) program = "\\COMMAND.COM";
+	snprintf(cmdline, sizeof(cmdline), "/E:2048 /C %s", command);
 	coopth_leave();
 	fake_iret();
 	return load_and_run_DOS_program(program, cmdline, quit);
