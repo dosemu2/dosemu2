@@ -159,7 +159,7 @@ static int setupDOSCommand (int CommandStyle, const char *linux_path,
 
   linux_path_resolved = canonicalize_file_name(linux_path);
   if (!linux_path_resolved) {
-      com_fprintf (com_stderr, "ERROR: %s: %s\n", strerror(errno), linux_path);
+      com_fprintf(com_stderr, "No such file: %s\n", linux_path);
       return (1);
   }
 
