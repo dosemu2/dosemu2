@@ -768,7 +768,7 @@ config_init(int argc, char **argv)
     char           *basename;
     int i;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pSst::u:Vv:wXx:U:"
+       "23456ABCcD:dE:e:F:f:H:h:I:i::kL:M:mNOo:P:pqSsTt::u:Vv:wXx:U:"
        "gK:"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
@@ -1036,11 +1036,17 @@ config_init(int argc, char **argv)
 
 	case 'E':
 	    g_printf("DOS command given on command line\n");
-	    misc_e6_store_command(optarg, 0, 0);
+	    misc_e6_store_command(optarg, 0);
 	    break;
 	case 'K':
 	    g_printf("DOS command given via unix path\n");
-	    misc_e6_store_command(optarg, 1, 0);
+	    misc_e6_store_command(optarg, 1);
+	    break;
+	case 'T':
+	    config.exit_on_cmd = 1;
+	    break;
+	case 'q':
+	    config.quiet = 1;
 	    break;
 
 	case '?':
@@ -1054,7 +1060,7 @@ config_init(int argc, char **argv)
     }
     while (optind < argc) {
 	g_printf("DOS command given on command line\n");
-	misc_e6_store_command(argv[optind], 1, 1);
+	misc_e6_store_command(argv[optind], 1);
 	optind++;
     }
     config_post_process();

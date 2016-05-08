@@ -155,7 +155,6 @@
 static char *misc_dos_command;
 static char *misc_dos_options;
 static int exec_ux_path;
-static int need_terminate;
 int com_errno;
 static struct vm86_regs saved_regs;
 
@@ -216,10 +215,10 @@ char *misc_e6_options(void)
 
 int misc_e6_need_terminate(void)
 {
-  return need_terminate;
+  return config.exit_on_cmd;
 }
 
-void misc_e6_store_command (char *str, int ux_path, int terminate)
+void misc_e6_store_command(char *str, int ux_path)
 {
   size_t slen = strlen(str), olen = 0;
   if (slen > MAX_DOS_COMMAND_LEN) {
@@ -229,8 +228,6 @@ void misc_e6_store_command (char *str, int ux_path, int terminate)
   if (misc_dos_command == NULL) {
     misc_dos_command = strdup(str);
     exec_ux_path = ux_path;
-    need_terminate = terminate;
-    if (terminate) config.quiet = 1;
 
     g_printf ("Storing Command : %s\n", misc_dos_command);
     return;
