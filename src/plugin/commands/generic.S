@@ -31,16 +31,12 @@ _start16:
 	int	$DOS_HELPER_INT
 	jc	1f		// preserve error code
 
-	movb	$0x4d, %ah
-	int	$0x21
-1:
-	pushw	%ax
-
 	movb	$DOS_HELPER_COMMANDS_DONE, %al
 	movb	$BUILTINS_PLUGIN_VERSION, %ah
 	int	$DOS_HELPER_INT
+	movb	%bl, %al	// set ret code
 
-	popw	%ax
+1:
 	movb	$0x4c, %ah
 	int	$0x21
 

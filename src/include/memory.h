@@ -16,6 +16,8 @@
 #define ROM_BIOS_SELFTEST	0xe05b
 #define ROM_BIOS_EXIT		0xe2b0
 
+#define GET_RETCODE_HELPER	0xe2c6
+
 #define INT09_SEG	BIOSSEG
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
@@ -53,7 +55,7 @@
 #endif
 
 #define IRET_SEG	ROMBIOSSEG
-#define IRET_OFF	0x62cf
+#define IRET_OFF	0x62df
 
 /* EMS origin must be at 0 */
 #define EMS_SEG		(ROMBIOSSEG+0x100)

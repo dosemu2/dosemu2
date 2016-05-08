@@ -237,12 +237,20 @@ video_init_done:
 	int	$DOS_HELPER_INT
 
 /* COMPAS FE2C3		jmp to NMI */
-/* COMPAS FE2C6-FE3FD	reserved */
+
+.org	GET_RETCODE_HELPER
+/* ======================= Addr = F000:E2C6 (FE2C6) */
+	movb	$0x4d, %ah
+	int	$0x21
+	movw	%ax, %bx
+	movb	$DOS_HELPER_SET_RETCODE, %al
+	int	$DOS_HELPER_INT
+	lret
 
 /* ----------------------------------------------------------------- */
 	/* this is IRET */
 	.org	((IRET_SEG - BIOSSEG) << 4) + IRET_OFF
-/* ======================= Addr = F800:62CF (FE2CF) */
+/* ======================= Addr = F800:62DF (FE2DF) */
 	iret
 
         .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF

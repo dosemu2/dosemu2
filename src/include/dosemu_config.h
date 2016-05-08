@@ -6,9 +6,9 @@
 #ifndef DOSEMU_CONFIG_H
 #define DOSEMU_CONFIG_H
 
-#ifndef __ASSEMBLER__
 #include "plugin_config.h"
 
+#ifndef __ASSEMBLER__
 /*
  * DANG_BEGIN_REMARK
  * DOSEMU keeps system wide configuration status in a structure

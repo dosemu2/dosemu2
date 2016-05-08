@@ -51,6 +51,7 @@ static int pool_used = 0;
 struct {
     char *cmd, *cmdl;
     struct param4a *pa4;
+    uint16_t retcode;
     int allocated;
     int quit;
 } builtin_mem[MAX_NESTING];
@@ -113,6 +114,7 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	LWORD(ds) = DOSEMU_LMHEAP_SEG;
 	LWORD(edx) = DOSEMU_LMHEAP_OFFS_OF(BMEM(cmd));
 
+	fake_call_to(BIOSSEG, GET_RETCODE_HELPER);
 	LWORD(eax) = 0x4b00;
 	real_run_int(0x21);
 
@@ -398,6 +400,7 @@ int commands_plugin_inte6(void)
 	}
 	pool_used++;
 	BMEM(allocated) = 0;
+	BMEM(retcode) = 0;
 
 	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
 	    com_error("builtins plugin version mismatch: found %i, required %i\n",
@@ -456,6 +459,8 @@ int commands_plugin_inte6_done(void)
 {
 	if (!pool_used)
 	    return 0;
+
+	LWORD(ebx) = BMEM(retcode);
 	if (BMEM(allocated)) {
 	    com_strfree(BMEM(cmd));
 	    lowmem_free((void *)BMEM(pa4), sizeof(struct param4a));
@@ -471,5 +476,14 @@ int commands_plugin_inte6_done(void)
 		    leaked, builtin_name);
 	    lowmem_heap_free(lowmem_pool);
 	}
+	return 1;
+}
+
+int commands_plugin_inte6_set_retcode(void)
+{
+	if (!pool_used)
+	    return 0;
+
+	BMEM(retcode) = LWORD(ebx);
 	return 1;
 }
