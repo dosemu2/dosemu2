@@ -486,11 +486,13 @@ static int _dpmi_control(void)
         dpmi_mhp_TF=0;
         _eflags &= ~TF;
         ret = 1;
+        break;
       }
 
       if (!in_dpmi_pm() || (isset_IF() && pic_pending()) || return_requested) {
         return_requested = 0;
         ret = -1;
+        break;
       }
     } while (!ret);
     if (debug_level('M') >= 8)
