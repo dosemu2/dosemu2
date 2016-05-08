@@ -60,6 +60,16 @@ u_short msdos_ldt_init(int clnt_num)
     return dpmi_ldt_alias;
 }
 
+void msdos_ldt_done(int clnt_num)
+{
+    if (clnt_num > 1)
+	return;
+    if (!dpmi_ldt_alias)
+	return;
+    FreeDescriptor(dpmi_ldt_alias);
+    dpmi_ldt_alias = 0;
+}
+
 enum MfRet msdos_ldt_fault(struct sigcontext *scp, uint16_t sel)
 {
     unsigned limit;

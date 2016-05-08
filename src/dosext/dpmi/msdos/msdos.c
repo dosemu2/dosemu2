@@ -211,6 +211,7 @@ void msdos_done(void)
 	free_realmode_callbacks(MSDOS_CLIENT.rmcbs, MAX_RMCBS);
     if (get_env_sel())
 	write_env_sel(GetSegmentBase(get_env_sel()) >> 4);
+    msdos_ldt_done(msdos_client_num);
     msdos_client_num--;
     D_printf("MSDOS: done, %i\n", msdos_client_num);
 }
