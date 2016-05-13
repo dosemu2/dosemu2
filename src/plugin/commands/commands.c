@@ -34,6 +34,7 @@
 #include "lredir.h"
 #include "xmode.h"
 #include "unix.h"
+#include "system.h"
 #include "dosdbg.h"
 #include "cmdline.h"
 #include "blaster.h"
@@ -271,6 +272,7 @@ void commands_plugin_init(void)
 	register_com_program("EMUMOUSE", emumouse_main);
 	register_com_program("DOSDBG", dosdbg_main);
 	register_com_program("UNIX", unix_main);
+	register_com_program("SYSTEM", system_main);
 	register_com_program("CMDLINE", cmdline_main);
 
 	register_com_program("SOUND", sound_main);
