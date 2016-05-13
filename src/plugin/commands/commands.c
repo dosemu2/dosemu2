@@ -184,36 +184,6 @@ int speed_main(int argc, char **argv)
 	return 0;
 }
 
-int uchdir_main(int argc, char **argv)
-{
-	struct PSP *psp = COM_PSP_ADDR;
-	char c[256];
-	if (argc <= 1) {
-		com_printf("Run chdir newpath\n");
-		return 1;
-	}
-	memcpy(c, psp->cmdline, psp->cmdline_len);
-	c[psp->cmdline_len] = 0;
-	if(chdir(skip_white_and_delim(c, ' ')) != 0) {
-		com_printf("Chdir failed - \"%s\"\n", strerror(errno));
-		return 1;
-	}
-	return 0;
-}
-
-int ugetcwd_main(int argc, char **argv)
-{
-	char s[256];
-
-	if(getcwd(s, sizeof(s)) == NULL) {
-		com_printf("Getcwd failed - \"%s\"\n", strerror(errno));
-		return 1;
-	}
-	com_printf("%s\n", s);
-	return 0;
-}
-
-
 int vgaoff_main(int argc, char **argv)
 {
 	do_doshelper(DOS_HELPER_CONTROL_VIDEO, 0);
@@ -259,8 +229,6 @@ void commands_plugin_init(void)
 	register_com_program("EJECT", eject_main);
 	register_com_program("EXITEMU", exitemu_main);
 	register_com_program("SPEED", speed_main);
-	register_com_program("UCHDIR", uchdir_main);
-	register_com_program("UGETCWD", ugetcwd_main);
 	register_com_program("VGAOFF", vgaoff_main);
 	register_com_program("VGAON", vgaon_main);
 

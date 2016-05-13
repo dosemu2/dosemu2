@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "memory.h"
@@ -39,6 +40,7 @@ static int send_command (char **argv);
 
 int unix_main(int argc, char **argv)
 {
+  char s[256];
 
   if (argc == 1 ||
       (argc == 2 && !strcmp (argv[1], "/?"))) {
@@ -57,19 +59,37 @@ int unix_main(int argc, char **argv)
 	    argv[1]);
       return system_main(argc, argv);
 #endif
+    case 'd':
+      if (chdir(argv[2]) != 0) {
+	com_printf("Chdir failed\n");
+	return 1;
+      }
+      break;
+    case 'w':
+      if (getcwd(s, sizeof(s)) == NULL) {
+	com_printf("Getcwd failed\n");
+	return 1;
+      }
+      com_printf("%s\n", s);
+      break;
     default:
       return usage();
     }
+  } else {
+    return send_command(argv);
   }
 
-  return send_command (argv);
-
+  return 0;
 }
 
 
 static int usage (void)
 {
   com_printf ("Usage: UNIX [FLAG COMMAND]\n\n");
+  com_printf ("UNIX -d dir\n");
+  com_printf ("  Set unix work dir to \"dir\".\n\n");
+  com_printf ("UNIX -w\n");
+  com_printf ("  Get current unix work dir.\n\n");
   com_printf ("UNIX command [arg1 ...]\n");
   com_printf ("  Execute the Linux command with the arguments given.\n\n");
   com_printf ("UNIX\n");
