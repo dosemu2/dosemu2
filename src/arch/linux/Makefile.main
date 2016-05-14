@@ -5,6 +5,8 @@
 
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
+cmdsuff = drive_z/dosemu2
+cmddir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
 
 NET=dosext/net
 
@@ -152,6 +154,7 @@ install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	-rm -rf $(cmddir)
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z
@@ -174,14 +177,14 @@ install:
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
 	fi
-	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	$(INSTALL) -d $(cmddir)
 	for i in `find $(SYS)/* -type f`; do \
-	  $(INSTALL) -m 0644 $$i $(DESTDIR)$(dosemudir)/drive_z/dosemu; \
+	  $(INSTALL) -m 0644 $$i $(cmddir); \
 	done
 	cd $(SYS); for i in `find * -type l`; do \
-	  ln -sf generic.com $(DESTDIR)$(dosemudir)/drive_z/dosemu/$$i; \
+	  ln -sf generic.com $(cmddir)/$$i; \
 	done
-	ln -sf drive_z/dosemu $(DESTDIR)$(dosemudir)/commands
+	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
 	fi

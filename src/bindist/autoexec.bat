@@ -1,6 +1,6 @@
 @echo off
 rem autoexec.bat for DOSEMU + FreeDOS
-path z:\bin;z:\gnu;z:\dosemu
+path z:\bin;z:\gnu;z:\dosemu2
 set HELPPATH=z:\help
 set TEMP=c:\tmp
 sound /e
