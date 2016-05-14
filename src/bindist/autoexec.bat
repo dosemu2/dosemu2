@@ -18,4 +18,4 @@ rem chcp 850
 lredir e: linux\fs/media/cdrom c
 unix -s DOSEMU_VERSION
 echo "Welcome to dosemu %DOSEMU_VERSION%!"
-unix -e
+system -e
