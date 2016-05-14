@@ -321,6 +321,10 @@ void install_dos(int post_boot)
 	first_time = first_boot_time();
 	if (!config.install && !first_time)
 		return;
+	if (config.emusys) {
+		error("$_emusys must be disabled before DOS can be installed\n");
+		leavedos(24);
+	}
 	if (post_boot) {
 		printf_ = p_dos_str;
 		read_string = bios_read_string;
