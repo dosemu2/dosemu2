@@ -73,7 +73,8 @@ void show_welcome_screen(void)
 "      Ctrl-Alt-PgDn=exit; Ctrl-^: use special keys on terminals\n");
 }
 
-static void create_symlink(const char *path, int number)
+static void create_symlink_ex(const char *path, int number, int special,
+	char *path2)
 {
 	char *drives_c = assemble_path(LOCALDIR, "drives/c", 0);
 	char *slashpos = drives_c + strlen(drives_c) - 2;
@@ -86,7 +87,16 @@ static void create_symlink(const char *path, int number)
 	mkdir(drives_c, 0777);
 	*slashpos = '/';
 	unlink(drives_c);
-	symlink(path, drives_c);
+	if (special) {
+		char *cmd;
+		asprintf(&cmd, "echo -n '%s' >%s", path, drives_c);
+		system(cmd);
+		free(cmd);
+		free(drives_c);
+		drives_c = path2;
+	} else {
+		symlink(path, drives_c);
+	}
 	if (config.hdisks <= number) {
 		config.hdisks = number + 1;
 		hdisktab[number].fdesc = -1;
@@ -97,6 +107,11 @@ static void create_symlink(const char *path, int number)
 	hdisktab[number].type = DIR_TYPE;
 	hdisktab[number].sectors = -1; 		// ask for re-setup
 	symlink_created = 1;
+}
+
+static void create_symlink(const char *path, int number)
+{
+	create_symlink_ex(path, number, 0, NULL);
 }
 
 static char *dosreadline(void)
@@ -362,10 +377,14 @@ void install_dos(int post_boot)
 	free(kernelsyspath);
 	if(symlink_created) {
 		/* create symlink for D: too */
-		char *commands_path =
+		char *drv_path =
 			assemble_path(dosemu_lib_dir, "drive_z", 0);
-		create_symlink(commands_path, 1);
-		free(commands_path);
+		char *commands_path = "${DOSEMU_LIB_DIR}/commands-dosemu2";
+		char *commands_path2 =
+			assemble_path(dosemu_lib_dir, "commands-dosemu2", 0);
+		create_symlink(drv_path, 1);
+		free(drv_path);
+		create_symlink_ex(commands_path, 2, 1, commands_path2);
 		if(post_boot)
 			disk_reset();
 	}
