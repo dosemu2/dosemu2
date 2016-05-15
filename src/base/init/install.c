@@ -168,7 +168,18 @@ static void install_dosemu_freedos (int choice)
 			"%s/drive_z/autoexec.bat \"%s\"",
 			dosemu_lib_dir, dosemu_lib_dir, boot_dir_path);
 	assert(ret != -1);
-
+	if (system(system_str)) {
+		printf_("Error: unable to copy startup files\n");
+		free(system_str);
+		free(boot_dir_path);
+		return;
+	}
+	free(system_str);
+	/* symlink command.com in case someone hits Shift or F5 */
+	ret = asprintf(&system_str,
+			"ln -s ../drives/d/command.com \"%s\"",
+			boot_dir_path);
+	assert(ret != -1);
 	if (system(system_str)) {
 		printf_("Error: unable to copy startup files\n");
 		free(system_str);
