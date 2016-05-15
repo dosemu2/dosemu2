@@ -190,6 +190,7 @@ install:
 	  ln -sf generic.com $(cmddir)/$$i; \
 	done
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
+	ln -sf $(cmddir) $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
 	fi
