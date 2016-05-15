@@ -74,7 +74,7 @@ void show_welcome_screen(void)
 }
 
 static void create_symlink_ex(const char *path, int number, int special,
-	char *path2)
+	const char *path2)
 {
 	char *drives_c = assemble_path(LOCALDIR, "drives/c", 0);
 	char *slashpos = drives_c + strlen(drives_c) - 2;
@@ -93,7 +93,7 @@ static void create_symlink_ex(const char *path, int number, int special,
 		system(cmd);
 		free(cmd);
 		free(drives_c);
-		drives_c = path2;
+		drives_c = strdup(path2);
 	} else {
 		symlink(path, drives_c);
 	}
@@ -379,12 +379,11 @@ void install_dos(int post_boot)
 		/* create symlink for D: too */
 		char *drv_path =
 			assemble_path(dosemu_lib_dir, "drive_z", 0);
-		char *commands_path = "${DOSEMU_LIB_DIR}/commands-dosemu2";
-		char *commands_path2 =
-			assemble_path(dosemu_lib_dir, "commands-dosemu2", 0);
+		char *commands_path = "${DOSEMU_COMMANDS_DIR}";
 		create_symlink(drv_path, 1);
 		free(drv_path);
-		create_symlink_ex(commands_path, 2, 1, commands_path2);
+		create_symlink_ex(commands_path, 2, 1,
+				getenv("DOSEMU_COMMANDS_DIR"));
 		if(post_boot)
 			disk_reset();
 	}
