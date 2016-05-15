@@ -164,7 +164,7 @@ static void install_dosemu_freedos (int choice)
 	free(system_str);
 
 	ret = asprintf(&system_str,
-			"cp -p %s/drive_z/config.sys "
+			"cp -p %s/drive_z/fdconfig.sys "
 			"%s/drive_z/autoexec.bat \"%s\"",
 			dosemu_lib_dir, dosemu_lib_dir, boot_dir_path);
 	assert(ret != -1);
@@ -189,8 +189,7 @@ static char proprietary_notice[] =
 "The DOSEMU support commands are available within\n"
 "%s/drive_z on drive D:. You might want to use different\n"
 "config.sys and autoexec.bat files with your DOS. For example, you can try\n"
-"to copy D:\\config.emu and D:\\autoemu.bat to C:\\, adjust them, and use the\n"
-"$_emusys option in ~/.dosemurc.\n";
+"to copy D:\\config.sys and D:\\autoemu.bat to C:\\, and adjust them.\n";
 
 static void install_proprietary(char *proprietary, int warning)
 {

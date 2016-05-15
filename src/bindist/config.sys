@@ -1,13 +1,15 @@
-rem config.sys for DOSEMU + FreeDOS
-rem note that the initial "D:" is set to "Z:" at the end
+rem generic config.sys for DOSEMU + any DOS
+rem must be edited in most circumstances
+rem note that "D:" in config.sys is set to "Z:" in autoexec.bat
 SWITCHES=/F
 DOS=UMB,HIGH
-dosdata=umb
 lastdrive=Z
 files=40
-stacks=0
+stacks=0,0
 buffers=10
-device=d:\dosemu2\ems.sys
+devicehigh=d:\dosemu2\ems.sys
 devicehigh=d:\dosemu2\cdrom.sys
-install=d:\dosemu2\lredir.com z: linux\fs\${DOSEMU_LIB_DIR}/drive_z ro
-shellhigh=z:\command.com /e:1024 /p
+rem uncomment to load another bitmap font (see also autoemu.bat)
+rem devicehigh=c:\dos\display.sys con=(ega,,1)
+rem use shell=command.com /e:1024 /p:autoemu.bat for DR-DOS
+shell=c:\command.com /e:1024 /p /k autoemu.bat

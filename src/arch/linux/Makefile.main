@@ -155,11 +155,16 @@ install:
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	-rm -rf $(cmddir)
+	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/config.sys
+	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/fdconfig.sys
+	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/config.emu
+	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/autoexec.bat
+	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/autoemu.bat
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.emu $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdconfig.sys $(DESTDIR)$(dosemudir)/drive_z
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z
 	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
 	  if [ -h $(DESTDIR)$(dosemudir)/freedos ]; then \
