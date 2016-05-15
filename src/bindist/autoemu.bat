@@ -14,7 +14,7 @@ rem uncomment to load another bitmap font
 rem mode con codepage prepare=((850) c:\dos\ega.cpi)
 rem mode con codepage select 850
 rem chcp 850
-lredir e: linux\fs/media/cdrom c
+lredir linux\fs/media/cdrom c
 unix -s DOSEMU_VERSION
 echo "Welcome to dosemu %DOSEMU_VERSION%!"
 system -e
