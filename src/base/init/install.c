@@ -194,7 +194,9 @@ static void install_dosemu_freedos (int choice)
 	free(system_str);
 	/* symlink command.com in case someone hits Shift or F5 */
 	ret = asprintf(&system_str,
-			"ln -s ../drives/d/command.com \"%s\"",
+			"ln -s ../drives/d/command.com "
+			"../drives/d/kernel.sys "
+			"\"%s\"",
 			boot_dir_path);
 	assert(ret != -1);
 	if (system(system_str)) {
