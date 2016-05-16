@@ -2352,7 +2352,7 @@ static void move_dosemu_lib_dir(char *path)
     dosemu_lib_dir_path = strdup(path);
   }
   setenv("DOSEMU_LIB_DIR", dosemu_lib_dir_path, 1);
-  commands_path = assemble_path(dosemu_lib_dir_path, "commands-dosemu2", 0);
+  commands_path = assemble_path(dosemu_lib_dir_path, CMDS_SUFF, 0);
   setenv("DOSEMU_COMMANDS_DIR", commands_path, 1);
   free(commands_path);
 

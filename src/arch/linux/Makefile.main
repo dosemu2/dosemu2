@@ -5,8 +5,7 @@
 
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
-cmdsuff = commands-dosemu2
-cmddir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
+cmddir = $(DESTDIR)$(dosemudir)/$(cmdsuff)/dosemu
 
 NET=dosext/net
 

@@ -316,6 +316,11 @@ AC_SUBST(DOSEMU_LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(HAVE_LIBBFD)
 
+cmds_ver=0.1
+cmdsuff=$PACKAGE_TARNAME-cmds-$cmds_ver
+AC_DEFINE_UNQUOTED(CMDS_SUFF, "$cmdsuff")
+AC_SUBST(cmdsuff)
+
 dnl Create output files. If you add new ones, please do it in order.
 
 AC_CONFIG_FILES([Makefile.conf])
@@ -369,6 +374,9 @@ work-arounds that were failed to disable ])
 AH_TEMPLATE([WARN_OUTDATED_WA],
 [ Define this to enable compile-time warnings for outdated
 system-specific work-arounds ])
+
+AH_TEMPLATE([CMDS_SUFF],
+[ Commands directory suffix ])
 
 AC_OUTPUT
 

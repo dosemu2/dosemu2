@@ -16,6 +16,7 @@ docdir:=@docdir@
 syshdimagedir:=@syshdimagedir@
 x11fontdir:=@x11fontdir@
 fdtarball:=@fdtarball@
+cmdsuff:=@cmdsuff@
 abs_top_srcdir:=@abs_top_srcdir@
 ifeq (0,${MAKELEVEL})
     SUBDIR := $(subst $(shell cd $(top_builddir) && pwd)/src/,,$(shell pwd))
