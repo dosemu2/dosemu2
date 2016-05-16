@@ -174,10 +174,9 @@ install:
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
-	  mv $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
+	  ln -sf $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
 	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
-	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
 	fi
 	$(INSTALL) -d $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(sysdir)

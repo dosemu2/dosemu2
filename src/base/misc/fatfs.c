@@ -701,15 +701,7 @@ static int try_add_fdos(fatfs_t *f, unsigned oi)
 	/* try preinstalled freedos */
 	char *libdir = getenv("DOSEMU_LIB_DIR");
 	if (libdir) {
-	    char *kernelsyspath = assemble_path(libdir, "drive_z/kernel.sys", 0);
-	    if (access(kernelsyspath, R_OK) == 0) {
-		add_object(f, oi, kernelsyspath);
-		f->sys_type |= FD_D;
-		fd_added++;
-	    }
-	    free(kernelsyspath);
-	    if (fd_added)
-		return 1;
+	    char *kernelsyspath;
 	    kernelsyspath = assemble_path(libdir, "freedos/kernel.sys", 0);
 	    if (access(kernelsyspath, R_OK) == 0) {
 		add_object(f, oi, kernelsyspath);
