@@ -121,6 +121,9 @@ static struct kvm_run *run;
 static int vmfd, vcpufd;
 static volatile int mprotected_kvm = 0;
 
+#define MAXSLOT 40
+static struct kvm_userspace_memory_region maps[MAXSLOT];
+
 /* initialize KVM virtual machine monitor */
 void init_kvm_monitor(void)
 {
@@ -128,36 +131,14 @@ void init_kvm_monitor(void)
   struct kvm_regs regs;
   struct kvm_sregs sregs;
 
-  struct kvm_userspace_memory_region region = {
-    .slot = 0,
-    .guest_phys_addr = 0x0,
-    .memory_size = LOWMEM_SIZE + HMASIZE,
-    .userspace_addr = (uint64_t)(unsigned long)mem_base,
-  };
-
   /* Map guest memory: only conventional memory + HMA for now */
-  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &region);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
-  }
+  mmap_kvm(0, mem_base, LOWMEM_SIZE + HMASIZE);
 
   /* create monitor structure in memory */
   monitor = mmap(NULL, sizeof(*monitor), PROT_READ | PROT_WRITE,
 		 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  struct kvm_userspace_memory_region tss_region = {
-    .slot = 1,
-    .guest_phys_addr = LOWMEM_SIZE + HMASIZE,
-    .memory_size = sizeof(*monitor),
-    .userspace_addr = (uint64_t)(unsigned long)monitor,
-  };
-
   /* Map guest memory: TSS */
-  ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, &tss_region);
-  if (ret == -1) {
-    perror("KVM: KVM_SET_USER_MEMORY_REGION");
-    leavedos(99);
-  }
+  mmap_kvm(LOWMEM_SIZE + HMASIZE, monitor, sizeof(*monitor));
 
   memset(monitor, 0, sizeof(*monitor));
   /* trap all I/O instructions with GPF */
@@ -330,6 +311,71 @@ int init_kvm_cpu(void)
   }
 
   return 1;
+}
+
+static void set_kvm_memory_region(struct kvm_userspace_memory_region *region)
+{
+  int ret = ioctl(vmfd, KVM_SET_USER_MEMORY_REGION, region);
+  if (ret == -1) {
+    perror("KVM: KVM_SET_USER_MEMORY_REGION");
+    leavedos(99);
+  }
+}
+
+static void mmap_kvm_no_overlap(unsigned targ, void *addr, size_t mapsize)
+{
+  struct kvm_userspace_memory_region *region;
+  int slot;
+
+  for (slot = 0; slot < MAXSLOT; slot++)
+    if (maps[slot].memory_size == 0) break;
+
+  if (slot == MAXSLOT) {
+    perror("KVM: insufficient number of memory slots MAXSLOT");
+    leavedos(99);
+  }
+
+  region = &maps[slot];
+  region->slot = slot;
+  region->guest_phys_addr = targ;
+  region->userspace_addr = (uintptr_t)addr;
+  region->memory_size = mapsize;
+  set_kvm_memory_region(region);
+}
+
+static void munmap_kvm(unsigned targ, size_t mapsize)
+{
+  /* unmaps KVM regions from targ to targ+mapsize, taking care of overlaps */
+  int slot;
+  for (slot = 0; slot < MAXSLOT; slot++) {
+    struct kvm_userspace_memory_region *region = &maps[slot];
+    size_t sz = region->memory_size;
+    unsigned gpa = region->guest_phys_addr;
+    if (sz > 0 && targ + mapsize > gpa && targ < gpa + sz) {
+      /* overlap: first  unmap this mapping */
+      region->memory_size = 0;
+      set_kvm_memory_region(region);
+      /* may need to remap head or tail */
+      if (gpa < targ) {
+	region->memory_size = targ - gpa;
+	set_kvm_memory_region(region);
+      }
+      if (gpa + sz > targ + mapsize) {
+	mmap_kvm_no_overlap(targ + mapsize,
+			    (void *)(region->userspace_addr +
+				     targ + mapsize - gpa),
+			    gpa + sz - (targ + mapsize));
+      }
+    }
+  }
+}
+
+void mmap_kvm(unsigned targ, void *addr, size_t mapsize)
+{
+  if (targ >= LOWMEM_SIZE + HMASIZE && addr != monitor) return;
+  /* with KVM we need to manually remove/shrink existing mappings */
+  munmap_kvm(targ, mapsize);
+  mmap_kvm_no_overlap(targ, addr, mapsize);
 }
 
 void mprotect_kvm(void *addr, size_t mapsize, int protect)
