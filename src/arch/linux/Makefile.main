@@ -153,30 +153,20 @@ installnew: doslib
 install:
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	-rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	-rm -rf $(DESTDIR)$(dosemudir)/drive_z
 	-rm -rf $(cmddir)
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/config.sys
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/fdconfig.sys
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/config.emu
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/autoexec.bat
-	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/autoemu.bat
 	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
-	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z
 	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
-	  if [ -h $(DESTDIR)$(dosemudir)/freedos ]; then \
-	    rm -f $(DESTDIR)$(dosemudir)/freedos; \
-	  fi; \
-	  if [ -d $(DESTDIR)$(dosemudir)/drive_z ]; then \
-	    mv $(DESTDIR)$(dosemudir)/drive_z $(DESTDIR)$(dosemudir)/freedos; \
-	  fi; \
-	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  rm -rf $(DESTDIR)$(dosemudir)/freedos; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
 	  ln -sf $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
 	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
-	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
+	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	else \
+	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z; \
 	fi
 	$(INSTALL) -d $(sysdir)
 	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(sysdir)
