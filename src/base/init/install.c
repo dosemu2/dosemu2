@@ -129,7 +129,7 @@ static char *dosreadline(void)
 
 static void install_dosemu_freedos (int choice)
 {
-	char *boot_dir_path, *system_str, *tmp;
+	char *boot_dir_path, *system_str, *tmp, *sys_path;
 	int ret;
 
 	/*
@@ -178,10 +178,12 @@ static void install_dosemu_freedos (int choice)
 	}
 	free(system_str);
 
+	sys_path = assemble_path(dosemu_lib_dir, CMDS_SUFF, 0);
 	ret = asprintf(&system_str,
-			"cp -p %s/drive_z/fdconfig.sys "
-			"%s/drive_z/autoexec.bat \"%s\"",
-			dosemu_lib_dir, dosemu_lib_dir, boot_dir_path);
+			"cp -p %s/fdconfig.sys "
+			"%s/autoexec.bat \"%s\"",
+			sys_path, sys_path, boot_dir_path);
+	free(sys_path);
 	assert(ret != -1);
 	if (system(system_str)) {
 		printf_("Error: unable to copy startup files\n");

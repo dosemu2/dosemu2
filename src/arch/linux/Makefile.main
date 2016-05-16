@@ -5,7 +5,8 @@
 
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
-cmddir = $(DESTDIR)$(dosemudir)/$(cmdsuff)/dosemu
+sysdir = $(DESTDIR)$(dosemudir)/$(cmdsuff)
+cmddir = $(sysdir)/dosemu
 
 NET=dosext/net
 
@@ -159,6 +160,7 @@ install:
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/config.emu
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/autoexec.bat
 	-rm -rf $(DESTDIR)$(dosemudir)/drive_z/autoemu.bat
+	-rm -rf $(sysdir)
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/drive_z
 	if [ -f $(REALTOPDIR)/$(fdtarball) ]; then \
@@ -177,10 +179,11 @@ install:
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf drive_z $(DESTDIR)$(dosemudir)/freedos; \
 	fi
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdconfig.sys $(DESTDIR)$(dosemudir)/drive_z
-	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(DESTDIR)$(dosemudir)/drive_z
+	$(INSTALL) -d $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/config.sys $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoexec.bat $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/fdconfig.sys $(sysdir)
+	$(INSTALL) -m 0644 $(SRCPATH)/bindist/autoemu.bat $(sysdir)
 	$(INSTALL) -d $(cmddir)
 	for i in `find $(SYS)/* -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(cmddir); \
