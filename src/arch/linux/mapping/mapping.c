@@ -223,8 +223,10 @@ void *alias_mapping(int cap, unsigned targ, size_t mapsize, int protect, void *s
   if (addr == MAP_FAILED)
     return addr;
   update_aliasmap(addr, mapsize, (cap & MAPPING_VGAEMU) ? target : source);
-  if (config.cpu_vm == CPUVM_KVM)
+  if (config.cpu_vm == CPUVM_KVM && !(cap & MAPPING_OTHER)) {
+    mmap_kvm(DOSADDR_REL(addr), source, mapsize);
     mprotect_kvm(addr, mapsize, protect);
+  }
   Q__printf("MAPPING: %s alias created at %p\n", cap, addr);
   return addr;
 }
