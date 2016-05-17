@@ -83,7 +83,7 @@
 	#include <pthread.h>
 #endif
 
-#include "Linux/joystick.h"
+#include <linux/joystick.h>
 
 #include "cpu.h"
 #include "emu.h"
