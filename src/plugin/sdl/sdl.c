@@ -624,6 +624,12 @@ static void SDL_handle_selection(XEvent * e)
 
 #endif				/* CONFIG_SDL_SELECTION */
 
+static int window_has_focus(void)
+{
+  uint32_t flags = SDL_GetWindowFlags(window);
+  return (flags & SDL_WINDOW_INPUT_FOCUS);
+}
+
 static void SDL_handle_events(void)
 {
   SDL_Event event;
@@ -667,6 +673,15 @@ static void SDL_handle_events(void)
     case SDL_KEYDOWN:
       {
 	SDL_Keysym keysym = event.key.keysym;
+	/* XXX SDL sometimes captures the KEYDOWN events from other windows!
+	 * To get rid of this, we can check if it has focus.
+	 * Test case: run dosemu under gdb. Interrupt with ^C. Give
+	 * focus to dosemu window with mouse click. Hower mouse over
+	 * the window. Get the focus back to gdb with mouse click.
+	 * In gdb type c<ENTER> to continue.
+	 * SDL will catch that last ENTER! */
+	if (!window_has_focus())
+	  break;
 	if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
 	  if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
 	    force_grab = 0;
