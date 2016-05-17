@@ -147,7 +147,7 @@ static void install_dosemu_freedos (int choice)
 				   "type ENTER to confirm or another path\n");
 
 			tmp = dosreadline();
-			if (tmp[0] == '\0')
+			if (tmp[0] == '\n')
 				free(tmp);
 			else {
 				free(boot_dir_path);
@@ -250,9 +250,9 @@ static void install_no_dosemu_freedos(const char *path)
 "press [ENTER] to quit if you suspect an error after manual installation.\n\n"
 );
 		p = dosreadline();
-		if (p[0] == '\0')
+		if (p[0] == '\n')
 			return;
-		if (p[0] == 3)
+		if (p[0] == '\3')
 			leavedos(1);
 	} else
 		p = strdup(path);
