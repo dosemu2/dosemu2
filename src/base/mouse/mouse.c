@@ -1414,37 +1414,37 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	} state;
 	int dx, dy;
 	switch (key) {
-	case KEY_MOUSE_DOWN:
+	case DKY_MOUSE_DOWN:
 		state.d = !!make;
 		break;
-	case KEY_MOUSE_LEFT:
+	case DKY_MOUSE_LEFT:
 		state.l = !!make;
 		break;
-	case KEY_MOUSE_RIGHT:
+	case DKY_MOUSE_RIGHT:
 		state.r = !!make;
 		break;
-	case KEY_MOUSE_UP:
+	case DKY_MOUSE_UP:
 		state.u = !!make;
 		break;
-	case KEY_MOUSE_UP_AND_LEFT:
+	case DKY_MOUSE_UP_AND_LEFT:
 		state.ul = make;
 		break;
-	case KEY_MOUSE_UP_AND_RIGHT:
+	case DKY_MOUSE_UP_AND_RIGHT:
 		state.ur = make;
 		break;
-	case KEY_MOUSE_DOWN_AND_LEFT:
+	case DKY_MOUSE_DOWN_AND_LEFT:
 		state.dl = make;
 		break;
-	case KEY_MOUSE_DOWN_AND_RIGHT:
+	case DKY_MOUSE_DOWN_AND_RIGHT:
 		state.dr = make;
 		break;
-	case KEY_MOUSE_BUTTON_LEFT:
+	case DKY_MOUSE_BUTTON_LEFT:
 		state.lbutton = make;
 		break;
-	case KEY_MOUSE_BUTTON_RIGHT:
+	case DKY_MOUSE_BUTTON_RIGHT:
 		state.rbutton = make;
 		break;
-	case KEY_MOUSE_BUTTON_MIDDLE:
+	case DKY_MOUSE_BUTTON_MIDDLE:
 		state.mbutton = make;
 		break;
 	default:

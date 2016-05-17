@@ -2218,7 +2218,7 @@ the key that is labeled with the specified keysym.
 </Para>
 
 <Para>
-key  - the keysym, one of the KEY_ constants from new-kbd.h
+key  - the keysym, one of the DKY_ constants from new-kbd.h
 make  - TRUE for key press, FALSE for release
 </Para>
 

@@ -123,14 +123,14 @@ Keymap_Scan_Type;
 #define MOVE_MASK			0x02000000
 #define WAIT_MASK			0x04000000
 
-#define ALT_KEY_SCAN_CODE		0x80000000
-#define STICKY_ALT_KEY_SCAN_CODE	0x80000001
-#define SHIFT_KEY_SCAN_CODE		0x80000002
-#define STICKY_SHIFT_KEY_SCAN_CODE	0x80000003
-#define CTRL_KEY_SCAN_CODE		0x80000004
-#define STICKY_CTRL_KEY_SCAN_CODE	0x80000005
-#define ALTGR_KEY_SCAN_CODE		0x80000006
-#define STICKY_ALTGR_KEY_SCAN_CODE	0x80000007
+#define ALT_DKY_SCAN_CODE		0x80000000
+#define STICKY_ALT_DKY_SCAN_CODE	0x80000001
+#define SHIFT_DKY_SCAN_CODE		0x80000002
+#define STICKY_SHIFT_DKY_SCAN_CODE	0x80000003
+#define CTRL_DKY_SCAN_CODE		0x80000004
+#define STICKY_CTRL_DKY_SCAN_CODE	0x80000005
+#define ALTGR_DKY_SCAN_CODE		0x80000006
+#define STICKY_ALTGR_DKY_SCAN_CODE	0x80000007
 
 #define SCROLL_UP_SCAN_CODE		0x80000020
 #define SCROLL_DOWN_SCAN_CODE		0x80000021
@@ -139,66 +139,66 @@ Keymap_Scan_Type;
 #define HELP_SCAN_CODE			0x80000024
 #define RESET_SCAN_CODE			0x80000025
 #define SET_MONO_SCAN_CODE		0x80000026
-#define KEYPAD_KEY_SCAN_CODE		0x80000027
+#define KEYPAD_DKY_SCAN_CODE		0x80000027
 
 /* Keyboard maps for non-terminfo keys */
 
 static Keymap_Scan_Type Dosemu_defined_fkeys[] =
 {
 /* These are the F1 - F12 keys for terminals without them. */
-  {"^@1", KEY_F1 },			/* F1 */
-  {"^@2", KEY_F2 },			/* F2 */
-  {"^@3", KEY_F3 },			/* F3 */
-  {"^@4", KEY_F4 },			/* F4 */
-  {"^@5", KEY_F5 },			/* F5 */
-  {"^@6", KEY_F6 },			/* F6 */
-  {"^@7", KEY_F7 },			/* F7 */
-  {"^@8", KEY_F8 },			/* F8 */
-  {"^@9", KEY_F9 },			/* F9 */
-  {"^@0", KEY_F10 },			/* F10 */
-  {"^@-", KEY_F11 },			/* F11 */
-  {"^@=", KEY_F12 },			/* F12 */
+  {"^@1", DKY_F1 },			/* F1 */
+  {"^@2", DKY_F2 },			/* F2 */
+  {"^@3", DKY_F3 },			/* F3 */
+  {"^@4", DKY_F4 },			/* F4 */
+  {"^@5", DKY_F5 },			/* F5 */
+  {"^@6", DKY_F6 },			/* F6 */
+  {"^@7", DKY_F7 },			/* F7 */
+  {"^@8", DKY_F8 },			/* F8 */
+  {"^@9", DKY_F9 },			/* F9 */
+  {"^@0", DKY_F10 },			/* F10 */
+  {"^@-", DKY_F11 },			/* F11 */
+  {"^@=", DKY_F12 },			/* F12 */
   {"", 0}
 };
 
 static Keymap_Scan_Type CTRL[] =
 {
-  {"^Q", KEY_Q | CTRL_MASK },
-  {"^W", KEY_W | CTRL_MASK },
-  {"^E", KEY_E | CTRL_MASK },
-  {"^R", KEY_R | CTRL_MASK },
-  {"^T", KEY_T | CTRL_MASK },
-  {"^Y", KEY_Y | CTRL_MASK },
-  {"^U", KEY_U | CTRL_MASK },
-  {"^I", KEY_TAB },
-  {"^O", KEY_O | CTRL_MASK },
-  {"^P", KEY_P | CTRL_MASK },
-  {"^A", KEY_A | CTRL_MASK },
-  {"^S", KEY_S | CTRL_MASK },
-  {"^D", KEY_D | CTRL_MASK },
-  {"^F", KEY_F | CTRL_MASK },
-  {"^G", KEY_G | CTRL_MASK },
+  {"^Q", DKY_Q | CTRL_MASK },
+  {"^W", DKY_W | CTRL_MASK },
+  {"^E", DKY_E | CTRL_MASK },
+  {"^R", DKY_R | CTRL_MASK },
+  {"^T", DKY_T | CTRL_MASK },
+  {"^Y", DKY_Y | CTRL_MASK },
+  {"^U", DKY_U | CTRL_MASK },
+  {"^I", DKY_TAB },
+  {"^O", DKY_O | CTRL_MASK },
+  {"^P", DKY_P | CTRL_MASK },
+  {"^A", DKY_A | CTRL_MASK },
+  {"^S", DKY_S | CTRL_MASK },
+  {"^D", DKY_D | CTRL_MASK },
+  {"^F", DKY_F | CTRL_MASK },
+  {"^G", DKY_G | CTRL_MASK },
   /* if backspace generates ^H then the terminfo definition
      takes precedence here */
-  {"^H", KEY_H | CTRL_MASK },
-  {"^J", KEY_J | CTRL_MASK },
-  {"^K", KEY_K | CTRL_MASK },
-  {"^L", KEY_L | CTRL_MASK },
-  {"^Z", KEY_Z | CTRL_MASK },
-  {"^X", KEY_X | CTRL_MASK },
+  {"^H", DKY_H | CTRL_MASK },
+  {"^J", DKY_J | CTRL_MASK },
+  {"^K", DKY_K | CTRL_MASK },
+  {"^L", DKY_L | CTRL_MASK },
+  {"^Z", DKY_Z | CTRL_MASK },
+  {"^X", DKY_X | CTRL_MASK },
 #if 0
-  {"^C", KEY_BREAK },
+  {"^C", DKY_BREAK },
 #else
-  {"^C", KEY_C | CTRL_MASK },
+  {"^C", DKY_C | CTRL_MASK },
 #endif
-  {"^V", KEY_V | CTRL_MASK },
-  {"^B", KEY_B | CTRL_MASK },
-  {"^N", KEY_N | CTRL_MASK },
-  {"^M", KEY_RETURN },
-  {"^\\",KEY_BACKSLASH | CTRL_MASK },
-  {"^]", KEY_RBRACK | CTRL_MASK },
-  {"^^", KEY_6 | CTRL_MASK },
-  {"^_", KEY_DASH | CTRL_MASK | SHIFT_MASK },
+  {"^V", DKY_V | CTRL_MASK },
+  {"^B", DKY_B | CTRL_MASK },
+  {"^N", DKY_N | CTRL_MASK },
+  {"^M", DKY_RETURN },
+  {"^\\",DKY_BACKSLASH | CTRL_MASK },
+  {"^]", DKY_RBRACK | CTRL_MASK },
+  {"^^", DKY_6 | CTRL_MASK },
+  {"^_", DKY_DASH | CTRL_MASK | SHIFT_MASK },
   {"", 0}
 };
 
@@ -206,10 +206,10 @@ static Keymap_Scan_Type CTRL[] =
 static Keymap_Scan_Type Linux_Keypad[] =
 {
 /* Keypad keys */
-  {"\033OP", KEY_NUM },			/* Keypad Numlock */
-  {"\033OQ", KEY_PAD_SLASH },		/* Keypad / */
-  {"\033OR", KEY_PAD_AST },		/* Keypad * */
-  {"\033OS", KEY_PAD_MINUS },		/* Keypad - */
+  {"\033OP", DKY_NUM },			/* Keypad Numlock */
+  {"\033OQ", DKY_PAD_SLASH },		/* Keypad / */
+  {"\033OR", DKY_PAD_AST },		/* Keypad * */
+  {"\033OS", DKY_PAD_MINUS },		/* Keypad - */
   {"", 0}
 };
 #endif
@@ -217,157 +217,157 @@ static Keymap_Scan_Type Linux_Keypad[] =
 static Keymap_Scan_Type Xterm_Keypad[] =
 {
 /* Keypad keys */
-  {"\033Oo", KEY_PAD_SLASH },		/* Keypad / */
-  {"\033Oj", KEY_PAD_AST },		/* Keypad * */
-  {"\033Om", KEY_PAD_MINUS },		/* Keypad - */
+  {"\033Oo", DKY_PAD_SLASH },		/* Keypad / */
+  {"\033Oj", DKY_PAD_AST },		/* Keypad * */
+  {"\033Om", DKY_PAD_MINUS },		/* Keypad - */
   {"", 0}
 };
 
 static Keymap_Scan_Type vtxxx_Keypad[] =
 {
-  {"\033Ow", KEY_PAD_7 },		/* Keypad 7 */
-  {"\033Ox", KEY_PAD_8 },		/* Keypad 8 */
-  {"\033Oy", KEY_PAD_9 },		/* Keypad 9 */
-  {"\033Ot", KEY_PAD_4 },		/* Keypad 4 */
-  {"\033Ou", KEY_PAD_5 },		/* Keypad 5 */
-  {"\033Ov", KEY_PAD_6 },		/* Keypad 6 */
-  {"\033Ol", KEY_PAD_PLUS },		/* Keypad + */
-  {"\033Oq", KEY_PAD_1 },		/* Keypad 1 */
-  {"\033Or", KEY_PAD_2 },		/* Keypad 2 */
-  {"\033Os", KEY_PAD_3 },		/* Keypad 3 */
-  {"\033Op", KEY_PAD_0 },		/* Keypad 0 */
-  {"\033On", KEY_PAD_DECIMAL },		/* Keypad . */
-  {"\033OM", KEY_PAD_ENTER },		/* Keypad Enter */
+  {"\033Ow", DKY_PAD_7 },		/* Keypad 7 */
+  {"\033Ox", DKY_PAD_8 },		/* Keypad 8 */
+  {"\033Oy", DKY_PAD_9 },		/* Keypad 9 */
+  {"\033Ot", DKY_PAD_4 },		/* Keypad 4 */
+  {"\033Ou", DKY_PAD_5 },		/* Keypad 5 */
+  {"\033Ov", DKY_PAD_6 },		/* Keypad 6 */
+  {"\033Ol", DKY_PAD_PLUS },		/* Keypad + */
+  {"\033Oq", DKY_PAD_1 },		/* Keypad 1 */
+  {"\033Or", DKY_PAD_2 },		/* Keypad 2 */
+  {"\033Os", DKY_PAD_3 },		/* Keypad 3 */
+  {"\033Op", DKY_PAD_0 },		/* Keypad 0 */
+  {"\033On", DKY_PAD_DECIMAL },		/* Keypad . */
+  {"\033OM", DKY_PAD_ENTER },		/* Keypad Enter */
   {"", 0}
 };
 
 static Keymap_Scan_Type Xterm_Xkeys[] =
 {
-  {"\033[2~",  KEY_INS | MOVE_MASK },	/* Ins */
-  {"\033[H",   KEY_HOME },		/* Ho     (rxvt)  */
-  {"\033[e",   KEY_END },		/* End    (color_xterm) */
-  {"\033[K",   KEY_END },		/* End  - Where does this come from ? */
-  {"\033[F",   KEY_END },		/* End  - another xterm */
-  {"\033[5~",  KEY_PGUP },		/* PgUp */
-  {"\033[6~",  KEY_PGDN },		/* PgDn */
+  {"\033[2~",  DKY_INS | MOVE_MASK },	/* Ins */
+  {"\033[H",   DKY_HOME },		/* Ho     (rxvt)  */
+  {"\033[e",   DKY_END },		/* End    (color_xterm) */
+  {"\033[K",   DKY_END },		/* End  - Where does this come from ? */
+  {"\033[F",   DKY_END },		/* End  - another xterm */
+  {"\033[5~",  DKY_PGUP },		/* PgUp */
+  {"\033[6~",  DKY_PGDN },		/* PgDn */
 
-  {"\033[7~",  KEY_HOME },		/* Ho     (xterm) */
-  {"\033[8~",  KEY_END },		/* End    (xterm) */
-  {"\033[1~",  KEY_HOME },		/* Ho     (putty) */
-  {"\033[4~",  KEY_END },		/* End    (putty) */
+  {"\033[7~",  DKY_HOME },		/* Ho     (xterm) */
+  {"\033[8~",  DKY_END },		/* End    (xterm) */
+  {"\033[1~",  DKY_HOME },		/* Ho     (putty) */
+  {"\033[4~",  DKY_END },		/* End    (putty) */
 
-  {"\033[A",   KEY_UP },		/* Up */
-  {"\033[B",   KEY_DOWN },		/* Dn */
-  {"\033[C",   KEY_RIGHT },		/* Ri */
-  {"\033[D",   KEY_LEFT },		/* Le */
+  {"\033[A",   DKY_UP },		/* Up */
+  {"\033[B",   DKY_DOWN },		/* Dn */
+  {"\033[C",   DKY_RIGHT },		/* Ri */
+  {"\033[D",   DKY_LEFT },		/* Le */
 
-  {"\033[G",   KEY_PAD_5 },             /* 5 (putty) */
-  {"\033OA",   KEY_UP | CTRL_MASK },    /* Up (putty) */
-  {"\033OB",   KEY_DOWN | CTRL_MASK },  /* Dn (putty) */
-  {"\033OC",   KEY_RIGHT | CTRL_MASK }, /* Ri (putty) */
-  {"\033OD",   KEY_LEFT | CTRL_MASK },  /* Le (putty) */
-  {"\033OG",   KEY_PAD_5 | CTRL_MASK }, /* 5 (putty) */
+  {"\033[G",   DKY_PAD_5 },             /* 5 (putty) */
+  {"\033OA",   DKY_UP | CTRL_MASK },    /* Up (putty) */
+  {"\033OB",   DKY_DOWN | CTRL_MASK },  /* Dn (putty) */
+  {"\033OC",   DKY_RIGHT | CTRL_MASK }, /* Ri (putty) */
+  {"\033OD",   DKY_LEFT | CTRL_MASK },  /* Le (putty) */
+  {"\033OG",   DKY_PAD_5 | CTRL_MASK }, /* 5 (putty) */
 
-  {"\033[Z",   KEY_TAB | SHIFT_MASK },  /* Shift-Tab */
+  {"\033[Z",   DKY_TAB | SHIFT_MASK },  /* Shift-Tab */
 
   /* rxvt keys */
-  {"\033[a",    KEY_UP | SHIFT_MASK },   /* Up */
-  {"\033[b",    KEY_DOWN | SHIFT_MASK }, /* Dn */
-  {"\033[c",    KEY_RIGHT | SHIFT_MASK },/* Ri */
-  {"\033[d",    KEY_LEFT | SHIFT_MASK }, /* Le */
-  {"\033Oa",    KEY_UP | CTRL_MASK },    /* Up */
-  {"\033Ob",    KEY_DOWN | CTRL_MASK },  /* Dn */
-  {"\033Oc",    KEY_RIGHT | CTRL_MASK }, /* Ri */
-  {"\033Od",    KEY_LEFT | CTRL_MASK },  /* Le */
+  {"\033[a",    DKY_UP | SHIFT_MASK },   /* Up */
+  {"\033[b",    DKY_DOWN | SHIFT_MASK }, /* Dn */
+  {"\033[c",    DKY_RIGHT | SHIFT_MASK },/* Ri */
+  {"\033[d",    DKY_LEFT | SHIFT_MASK }, /* Le */
+  {"\033Oa",    DKY_UP | CTRL_MASK },    /* Up */
+  {"\033Ob",    DKY_DOWN | CTRL_MASK },  /* Dn */
+  {"\033Oc",    DKY_RIGHT | CTRL_MASK }, /* Ri */
+  {"\033Od",    DKY_LEFT | CTRL_MASK },  /* Le */
 
   {"", 0}
 };
 
 static Keymap_Scan_Type vtxxx_fkeys[] =
 {
-  {"\033[17~", KEY_F6 },		/* F6 */
-  {"\033[18~", KEY_F7 },		/* F7 */
-  {"\033[19~", KEY_F8 },		/* F8 */
-  {"\033[20~", KEY_F9 },		/* F9 */
-  {"\033[21~", KEY_F10 },		/* F10 */
-  {"\033[23~", KEY_F1  | SHIFT_MASK },	/* Shift F1  (F11 acts like
+  {"\033[17~", DKY_F6 },		/* F6 */
+  {"\033[18~", DKY_F7 },		/* F7 */
+  {"\033[19~", DKY_F8 },		/* F8 */
+  {"\033[20~", DKY_F9 },		/* F9 */
+  {"\033[21~", DKY_F10 },		/* F10 */
+  {"\033[23~", DKY_F1  | SHIFT_MASK },	/* Shift F1  (F11 acts like
 					 			* Shift-F1) */
-  {"\033[24~", KEY_F2  | SHIFT_MASK },	/* Shift F2  (F12 acts like
+  {"\033[24~", DKY_F2  | SHIFT_MASK },	/* Shift F2  (F12 acts like
 								 * Shift-F2) */
-  {"\033[25~", KEY_F3  | SHIFT_MASK },	/* Shift F3 */
-  {"\033[26~", KEY_F4  | SHIFT_MASK },	/* Shift F4 */
-  {"\033[28~", KEY_F5  | SHIFT_MASK },	/* Shift F5 */
-  {"\033[29~", KEY_F6  | SHIFT_MASK },	/* Shift F6 */
-  {"\033[31~", KEY_F7  | SHIFT_MASK },	/* Shift F7 */
-  {"\033[32~", KEY_F8  | SHIFT_MASK },	/* Shift F8 */
-  {"\033[33~", KEY_F9  | SHIFT_MASK },	/* Shift F9 */
-  {"\033[34~", KEY_F10 | SHIFT_MASK },	/* Shift F10 */
+  {"\033[25~", DKY_F3  | SHIFT_MASK },	/* Shift F3 */
+  {"\033[26~", DKY_F4  | SHIFT_MASK },	/* Shift F4 */
+  {"\033[28~", DKY_F5  | SHIFT_MASK },	/* Shift F5 */
+  {"\033[29~", DKY_F6  | SHIFT_MASK },	/* Shift F6 */
+  {"\033[31~", DKY_F7  | SHIFT_MASK },	/* Shift F7 */
+  {"\033[32~", DKY_F8  | SHIFT_MASK },	/* Shift F8 */
+  {"\033[33~", DKY_F9  | SHIFT_MASK },	/* Shift F9 */
+  {"\033[34~", DKY_F10 | SHIFT_MASK },	/* Shift F10 */
   {"", 0}
 };
 
 static Keymap_Scan_Type Xterm_fkeys[] =
 {
-  {"\033[11~", KEY_F1 },		/* F1 */
-  {"\033[12~", KEY_F2 },		/* F2 */
-  {"\033[13~", KEY_F3 },		/* F3 */
-  {"\033[14~", KEY_F4 },		/* F4 */
-  {"\033[15~", KEY_F5 },		/* F5 */
+  {"\033[11~", DKY_F1 },		/* F1 */
+  {"\033[12~", DKY_F2 },		/* F2 */
+  {"\033[13~", DKY_F3 },		/* F3 */
+  {"\033[14~", DKY_F4 },		/* F4 */
+  {"\033[15~", DKY_F5 },		/* F5 */
   {"", 0}
 };
 
 static Keymap_Scan_Type vtxxx_xkeys[] =
 {
 /* Who knows which mode it'll be in */
-  {"\033OA",   KEY_UP },		/* Up */
-  {"\033OB",   KEY_DOWN },		/* Dn */
-  {"\033OC",   KEY_RIGHT },		/* Ri */
-  {"\033OD",   KEY_LEFT },		/* Le */
-  {"\033[A",   KEY_UP },		/* Up */
-  {"\033[B",   KEY_DOWN },		/* Dn */
-  {"\033[C",   KEY_RIGHT },		/* Ri */
-  {"\033[D",   KEY_LEFT },		/* Le */
+  {"\033OA",   DKY_UP },		/* Up */
+  {"\033OB",   DKY_DOWN },		/* Dn */
+  {"\033OC",   DKY_RIGHT },		/* Ri */
+  {"\033OD",   DKY_LEFT },		/* Le */
+  {"\033[A",   DKY_UP },		/* Up */
+  {"\033[B",   DKY_DOWN },		/* Dn */
+  {"\033[C",   DKY_RIGHT },		/* Ri */
+  {"\033[D",   DKY_LEFT },		/* Le */
   {"", 0}
 };
 
 /* Keyboard map for terminfo keys */
 static Keymap_Scan_Type terminfo_keys[] =
 {
-   {"^(kb)",	KEY_BKSP},	       /* BackSpace */
-   {"^(k1)",	KEY_F1},	       /* F1 */
-   {"^(k2)",	KEY_F2},	       /* F2 */
-   {"^(k3)",	KEY_F3},	       /* F3 */
-   {"^(k4)",	KEY_F4},	       /* F4 */
-   {"^(k5)",	KEY_F5},	       /* F5 */
-   {"^(k6)",	KEY_F6},	       /* F6 */
-   {"^(k7)",	KEY_F7},	       /* F7 */
-   {"^(k8)",	KEY_F8},	       /* F8 */
-   {"^(k9)",	KEY_F9},	       /* F9 */
-   {"^(k;)",	KEY_F10},	       /* F10 */
-   {"^(kI)",	KEY_INS|MOVE_MASK},    /* Ins */
-   {"^(#3)",	KEY_INS|MOVE_MASK|SHIFT_MASK},   /* Shift Insert */
-   {"^(kD)",	KEY_DEL},	       /* Del */
-   {"^(*5)",	KEY_DEL|SHIFT_MASK},   /* Shift Del */
-   {"^(kh)",	KEY_HOME},	       /* Ho */
-   {"^(#2)",	KEY_HOME|SHIFT_MASK},  /* Shift Home */
-   {"^(kH)",	KEY_END},	       /* End */
-   {"^(@7)",	KEY_END},	       /* End */
-   {"^(*7)",	KEY_END|SHIFT_MASK},   /* Shift End */
-   {"^(kP)",	KEY_PGUP},	       /* PgUp */
-   {"^(kN)",	KEY_PGDN},	       /* PgDn */
-   {"^(K1)",	KEY_PAD_7},	       /* Upper Left key on keypad */
-   {"^(ku)",	KEY_UP},	       /* Up */
-   {"^(K3)",	KEY_PAD_9},	       /* Upper Right key on keypad */
-   {"^(kl)",	KEY_LEFT},	       /* Le */
-   {"^(#4)",	KEY_LEFT|SHIFT_MASK},  /* Shift Left */
-   {"^(K2)",	KEY_PAD_5},	       /* Center key on keypad */
-   {"^(kr)",	KEY_RIGHT},	       /* Ri */
-   {"^(K4)",	KEY_PAD_1},	       /* Lower Left key on keypad */
-   {"^(kd)",	KEY_DOWN},	       /* Dn */
-   {"^(K5)",	KEY_PAD_3},	       /* Lower Right key on keypad */
-   {"^(%i)",	KEY_RIGHT|SHIFT_MASK}, /* Shift Right */
-   {"^(kB)",	KEY_TAB|SHIFT_MASK},   /* Shift Tab -- BackTab */
-   {"^(@8)",	KEY_PAD_ENTER}, /* KEY_RETURN? */	/* Enter */
-   {"^(Km)",	KEY_MOUSE },		/* Mouse */
+   {"^(kb)",	DKY_BKSP},	       /* BackSpace */
+   {"^(k1)",	DKY_F1},	       /* F1 */
+   {"^(k2)",	DKY_F2},	       /* F2 */
+   {"^(k3)",	DKY_F3},	       /* F3 */
+   {"^(k4)",	DKY_F4},	       /* F4 */
+   {"^(k5)",	DKY_F5},	       /* F5 */
+   {"^(k6)",	DKY_F6},	       /* F6 */
+   {"^(k7)",	DKY_F7},	       /* F7 */
+   {"^(k8)",	DKY_F8},	       /* F8 */
+   {"^(k9)",	DKY_F9},	       /* F9 */
+   {"^(k;)",	DKY_F10},	       /* F10 */
+   {"^(kI)",	DKY_INS|MOVE_MASK},    /* Ins */
+   {"^(#3)",	DKY_INS|MOVE_MASK|SHIFT_MASK},   /* Shift Insert */
+   {"^(kD)",	DKY_DEL},	       /* Del */
+   {"^(*5)",	DKY_DEL|SHIFT_MASK},   /* Shift Del */
+   {"^(kh)",	DKY_HOME},	       /* Ho */
+   {"^(#2)",	DKY_HOME|SHIFT_MASK},  /* Shift Home */
+   {"^(kH)",	DKY_END},	       /* End */
+   {"^(@7)",	DKY_END},	       /* End */
+   {"^(*7)",	DKY_END|SHIFT_MASK},   /* Shift End */
+   {"^(kP)",	DKY_PGUP},	       /* PgUp */
+   {"^(kN)",	DKY_PGDN},	       /* PgDn */
+   {"^(K1)",	DKY_PAD_7},	       /* Upper Left key on keypad */
+   {"^(ku)",	DKY_UP},	       /* Up */
+   {"^(K3)",	DKY_PAD_9},	       /* Upper Right key on keypad */
+   {"^(kl)",	DKY_LEFT},	       /* Le */
+   {"^(#4)",	DKY_LEFT|SHIFT_MASK},  /* Shift Left */
+   {"^(K2)",	DKY_PAD_5},	       /* Center key on keypad */
+   {"^(kr)",	DKY_RIGHT},	       /* Ri */
+   {"^(K4)",	DKY_PAD_1},	       /* Lower Left key on keypad */
+   {"^(kd)",	DKY_DOWN},	       /* Dn */
+   {"^(K5)",	DKY_PAD_3},	       /* Lower Right key on keypad */
+   {"^(%i)",	DKY_RIGHT|SHIFT_MASK}, /* Shift Right */
+   {"^(kB)",	DKY_TAB|SHIFT_MASK},   /* Shift Tab -- BackTab */
+   {"^(@8)",	DKY_PAD_ENTER}, /* DKY_RETURN? */	/* Enter */
+   {"^(Km)",	DKY_MOUSE },		/* Mouse */
 
    /* Special keys */
    {"^(&2)",	REDRAW_SCAN_CODE},	/* Refresh */
@@ -378,29 +378,29 @@ static Keymap_Scan_Type terminfo_keys[] =
 /* Keyboard map for basic terminfo keys F11--F20 */
 static Keymap_Scan_Type terminfo_basic_fkeys[] =
 {
-   {"^(F1)",	KEY_F1|SHIFT_MASK},    /* Shuft F1 */
-   {"^(F2)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
-   {"^(F3)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
-   {"^(F4)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
+   {"^(F1)",	DKY_F1|SHIFT_MASK},    /* Shuft F1 */
+   {"^(F2)",	DKY_F2|SHIFT_MASK},    /* Shift F2 */
+   {"^(F3)",	DKY_F3|SHIFT_MASK},    /* Shift F3 */
+   {"^(F4)",	DKY_F4|SHIFT_MASK},    /* Shift F4 */
 /* disable because of the conflict with CPR. See comments below. */
 #if 0
-   {"^(F5)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
+   {"^(F5)",	DKY_F5|SHIFT_MASK},    /* Shift F5 */
 #endif
-   {"^(F6)",	KEY_F6|SHIFT_MASK},    /* Shift F6 */
-   {"^(F7)",	KEY_F7|SHIFT_MASK},    /* Shift F7 */
-   {"^(F8)",	KEY_F8|SHIFT_MASK},    /* Shift F8 */
-   {"^(F9)",	KEY_F9|SHIFT_MASK},    /* Shift F9 */
-   {"^(FA)",	KEY_F10|SHIFT_MASK},   /* Shift F10 */
+   {"^(F6)",	DKY_F6|SHIFT_MASK},    /* Shift F6 */
+   {"^(F7)",	DKY_F7|SHIFT_MASK},    /* Shift F7 */
+   {"^(F8)",	DKY_F8|SHIFT_MASK},    /* Shift F8 */
+   {"^(F9)",	DKY_F9|SHIFT_MASK},    /* Shift F9 */
+   {"^(FA)",	DKY_F10|SHIFT_MASK},   /* Shift F10 */
    {"", 0}
 };
 
 /* Keyboard map for extended terminfo keys F11--F48 */
 static Keymap_Scan_Type terminfo_ext_fkeys[] =
 {
-   {"^(F1)",	KEY_F11},	       /* F11 */
-   {"^(F2)",	KEY_F12},	       /* F12 */
-   {"^(F3)",	KEY_F1|SHIFT_MASK},    /* Shift F1 */
-   {"^(F4)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
+   {"^(F1)",	DKY_F11},	       /* F11 */
+   {"^(F2)",	DKY_F12},	       /* F12 */
+   {"^(F3)",	DKY_F1|SHIFT_MASK},    /* Shift F1 */
+   {"^(F4)",	DKY_F2|SHIFT_MASK},    /* Shift F2 */
 /* FIXME: we have a problem here: Shift-F3 is reported as "\33[1;2R
  * and the cursor position reply (see is_cursor_position_reply()) is
  * reported as \33[Y;XR where Y and X are the coordinates digits:
@@ -413,66 +413,66 @@ static Keymap_Scan_Type terminfo_ext_fkeys[] =
  * this cursor position reply entirely somehow. Without this fix,
  * "dosemu -t" may detect Shift-F3 early at boot, and skip config/autoexec! */
 #if 0
-   {"^(F5)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
+   {"^(F5)",	DKY_F3|SHIFT_MASK},    /* Shift F3 */
 #endif
-   {"^(F6)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
-   {"^(F7)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
-   {"^(F8)",	KEY_F6|SHIFT_MASK},    /* Shift F6 */
-   {"^(F9)",	KEY_F7|SHIFT_MASK},    /* Shift F7 */
-   {"^(FA)",	KEY_F8|SHIFT_MASK},    /* Shift F8 */
-   {"^(FB)",	KEY_F9|SHIFT_MASK},    /* Shift F9 */
-   {"^(FC)",	KEY_F10|SHIFT_MASK},   /* Shift F10 */
-   {"^(FD)",	KEY_F11|SHIFT_MASK},   /* Shift F11 */
-   {"^(FE)",	KEY_F12|SHIFT_MASK},   /* Shift F12 */
-   {"^(FF)",	KEY_F1|CTRL_MASK},     /* Ctrl F1 */
-   {"^(FG)",	KEY_F2|CTRL_MASK},     /* Ctrl F2 */
-   {"^(FH)",	KEY_F3|CTRL_MASK},     /* Ctrl F3 */
-   {"^(FI)",	KEY_F4|CTRL_MASK},     /* Ctrl F4 */
-   {"^(FJ)",	KEY_F5|CTRL_MASK},     /* Ctrl F5 */
-   {"^(FK)",	KEY_F6|CTRL_MASK},     /* Ctrl F6 */
-   {"^(FL)",	KEY_F7|CTRL_MASK},     /* Ctrl F7 */
-   {"^(FM)",	KEY_F8|CTRL_MASK},     /* Ctrl F8 */
-   {"^(FN)",	KEY_F9|CTRL_MASK},     /* Ctrl F9 */
-   {"^(FO)",	KEY_F10|CTRL_MASK},    /* Ctrl F10 */
-   {"^(FP)",	KEY_F11|CTRL_MASK},    /* Ctrl F11 */
-   {"^(FQ)",	KEY_F12|CTRL_MASK},    /* Ctrl F12 */
-   {"^(FR)",	KEY_F1|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F1 */
-   {"^(FS)",	KEY_F2|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F2 */
-   {"^(FT)",	KEY_F3|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F3 */
-   {"^(FU)",	KEY_F4|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F4 */
-   {"^(FV)",	KEY_F5|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F5 */
-   {"^(FW)",	KEY_F6|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F6 */
-   {"^(FX)",	KEY_F7|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F7 */
-   {"^(FY)",	KEY_F8|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F8 */
-   {"^(FZ)",	KEY_F9|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F9 */
-   {"^(Fa)",	KEY_F10|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F10 */
-   {"^(Fb)",	KEY_F11|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F11 */
-   {"^(Fc)",	KEY_F12|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F12 */
+   {"^(F6)",	DKY_F4|SHIFT_MASK},    /* Shift F4 */
+   {"^(F7)",	DKY_F5|SHIFT_MASK},    /* Shift F5 */
+   {"^(F8)",	DKY_F6|SHIFT_MASK},    /* Shift F6 */
+   {"^(F9)",	DKY_F7|SHIFT_MASK},    /* Shift F7 */
+   {"^(FA)",	DKY_F8|SHIFT_MASK},    /* Shift F8 */
+   {"^(FB)",	DKY_F9|SHIFT_MASK},    /* Shift F9 */
+   {"^(FC)",	DKY_F10|SHIFT_MASK},   /* Shift F10 */
+   {"^(FD)",	DKY_F11|SHIFT_MASK},   /* Shift F11 */
+   {"^(FE)",	DKY_F12|SHIFT_MASK},   /* Shift F12 */
+   {"^(FF)",	DKY_F1|CTRL_MASK},     /* Ctrl F1 */
+   {"^(FG)",	DKY_F2|CTRL_MASK},     /* Ctrl F2 */
+   {"^(FH)",	DKY_F3|CTRL_MASK},     /* Ctrl F3 */
+   {"^(FI)",	DKY_F4|CTRL_MASK},     /* Ctrl F4 */
+   {"^(FJ)",	DKY_F5|CTRL_MASK},     /* Ctrl F5 */
+   {"^(FK)",	DKY_F6|CTRL_MASK},     /* Ctrl F6 */
+   {"^(FL)",	DKY_F7|CTRL_MASK},     /* Ctrl F7 */
+   {"^(FM)",	DKY_F8|CTRL_MASK},     /* Ctrl F8 */
+   {"^(FN)",	DKY_F9|CTRL_MASK},     /* Ctrl F9 */
+   {"^(FO)",	DKY_F10|CTRL_MASK},    /* Ctrl F10 */
+   {"^(FP)",	DKY_F11|CTRL_MASK},    /* Ctrl F11 */
+   {"^(FQ)",	DKY_F12|CTRL_MASK},    /* Ctrl F12 */
+   {"^(FR)",	DKY_F1|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F1 */
+   {"^(FS)",	DKY_F2|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F2 */
+   {"^(FT)",	DKY_F3|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F3 */
+   {"^(FU)",	DKY_F4|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F4 */
+   {"^(FV)",	DKY_F5|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F5 */
+   {"^(FW)",	DKY_F6|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F6 */
+   {"^(FX)",	DKY_F7|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F7 */
+   {"^(FY)",	DKY_F8|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F8 */
+   {"^(FZ)",	DKY_F9|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F9 */
+   {"^(Fa)",	DKY_F10|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F10 */
+   {"^(Fb)",	DKY_F11|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F11 */
+   {"^(Fc)",	DKY_F12|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F12 */
    {"", 0}
 };
 
 static Keymap_Scan_Type Dosemu_Xkeys[] =
 {
 /* These keys are laid out like the numbers on the keypad - not too difficult */
-  {"^@K0",  KEY_INS|MOVE_MASK}, /* Ins */
-  {"^@K1",  KEY_END },		/* End    Another keyscan is 0x6100 */
-  {"^@K2",  KEY_DOWN },		/* Dn */
-  {"^@K3",  KEY_PGDN },		/* PgDn */
-  {"^@K4",  KEY_LEFT },		/* Le */
-  {"^@K5",  KEY_PAD_5 },	/* There's no Xkey equlivant */
-  {"^@K6",  KEY_RIGHT },	/* Ri */
-  {"^@K7",  KEY_HOME },		/* Ho     Another keyscan is 0x5c00 */
-  {"^@K8",  KEY_UP },		/* Up */
-  {"^@K9",  KEY_PGUP },		/* PgUp */
-  {"^@K.",  KEY_DEL },		/* Del    Another keyscan is 0x007F */
-  {"^@Kd",  KEY_DEL },		/* Del */
+  {"^@K0",  DKY_INS|MOVE_MASK}, /* Ins */
+  {"^@K1",  DKY_END },		/* End    Another keyscan is 0x6100 */
+  {"^@K2",  DKY_DOWN },		/* Dn */
+  {"^@K3",  DKY_PGDN },		/* PgDn */
+  {"^@K4",  DKY_LEFT },		/* Le */
+  {"^@K5",  DKY_PAD_5 },	/* There's no Xkey equlivant */
+  {"^@K6",  DKY_RIGHT },	/* Ri */
+  {"^@K7",  DKY_HOME },		/* Ho     Another keyscan is 0x5c00 */
+  {"^@K8",  DKY_UP },		/* Up */
+  {"^@K9",  DKY_PGUP },		/* PgUp */
+  {"^@K.",  DKY_DEL },		/* Del    Another keyscan is 0x007F */
+  {"^@Kd",  DKY_DEL },		/* Del */
 
   /* And a few more */
-  {"^@Kh",  KEY_PAUSE },	/* Hold or Pause DOS */
-  {"^@Kp",  KEY_PRTSCR },	/* Print screen, SysRequest. */
-  {"^@Ky",  KEY_SYSRQ },	/* SysRequest. */
-  {"^@KS",  KEY_SCROLL },	/* Scroll Lock */
-  {"^@KN",  KEY_NUM },		/* Num Lock */
+  {"^@Kh",  DKY_PAUSE },	/* Hold or Pause DOS */
+  {"^@Kp",  DKY_PRTSCR },	/* Print screen, SysRequest. */
+  {"^@Ky",  DKY_SYSRQ },	/* SysRequest. */
+  {"^@KS",  DKY_SCROLL },	/* Scroll Lock */
+  {"^@KN",  DKY_NUM },		/* Num Lock */
 
   {"", 0}
 };
@@ -480,17 +480,17 @@ static Keymap_Scan_Type Dosemu_Xkeys[] =
 static Keymap_Scan_Type Dosemu_Ctrl_keys[] =
 {
   /* Now setup the shift modifier keys */
-  {"^@a",	ALT_KEY_SCAN_CODE },
-  {"^@c",	CTRL_KEY_SCAN_CODE },
-  {"^@s",	SHIFT_KEY_SCAN_CODE },
-  {"^@g",	ALTGR_KEY_SCAN_CODE },
+  {"^@a",	ALT_DKY_SCAN_CODE },
+  {"^@c",	CTRL_DKY_SCAN_CODE },
+  {"^@s",	SHIFT_DKY_SCAN_CODE },
+  {"^@g",	ALTGR_DKY_SCAN_CODE },
 
-  {"^@A",	STICKY_ALT_KEY_SCAN_CODE },
-  {"^@C",	STICKY_CTRL_KEY_SCAN_CODE },
-  {"^@S",	STICKY_SHIFT_KEY_SCAN_CODE },
-  {"^@G",	STICKY_ALTGR_KEY_SCAN_CODE },
+  {"^@A",	STICKY_ALT_DKY_SCAN_CODE },
+  {"^@C",	STICKY_CTRL_DKY_SCAN_CODE },
+  {"^@S",	STICKY_SHIFT_DKY_SCAN_CODE },
+  {"^@G",	STICKY_ALTGR_DKY_SCAN_CODE },
 
-  {"^@k",	KEYPAD_KEY_SCAN_CODE },
+  {"^@k",	KEYPAD_DKY_SCAN_CODE },
 
   {"^@?",	HELP_SCAN_CODE },
   {"^@h",	HELP_SCAN_CODE },
@@ -637,7 +637,7 @@ static void define_remaining_characters(SLKeyMap_List_Type *m)
 		str[0] = i;
 		str[1] = '\0';
 
-		if (define_key(str, KEY_VOID, m) < 0) {
+		if (define_key(str, DKY_VOID, m) < 0) {
 			continue;
 		}
 	}
@@ -743,11 +743,11 @@ static int init_slang_keymaps(void)
 		buf[0] = '^';
 		buf[1] = keyb_state.erasekey+'@';
 		buf[2] = 0;
-		define_key(buf, KEY_BKSP, m);
+		define_key(buf, DKY_BKSP, m);
 	} else if (keyb_state.erasekey > '~') {
 		buf[0] = keyb_state.erasekey;
 		buf[1] = 0;
-		define_key(buf, KEY_BKSP, m);
+		define_key(buf, DKY_BKSP, m);
 	}
 
 	/*
@@ -872,7 +872,7 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 	k_printf("KBD: slang_send_scancode(ls_flags=%08lx, lscan=%08lx)\n",
 		ls_flags, lscan);
 
-	if (lscan == KEY_MOUSE) {
+	if (lscan == DKY_MOUSE) {
 		/* Xtermmouse support */
 		xtermmouse_get_event(&keyb_state.kbp, &keyb_state.kbcount);
 		return;
@@ -881,80 +881,80 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 		flags |= KEYPAD_MASK;
 		switch(lscan)
 		{
-		case KEY_INS:    lscan = KEY_PAD_INS; break;
-		case KEY_END:    lscan = KEY_PAD_END; break;
-		case KEY_DOWN:   lscan = KEY_PAD_DOWN; break;
-		case KEY_PGDN:   lscan = KEY_PAD_PGDN; break;
-		case KEY_LEFT:   lscan = KEY_PAD_LEFT; break;
-		case KEY_RIGHT:  lscan = KEY_PAD_RIGHT; break;
-		case KEY_HOME:	 lscan = KEY_PAD_HOME; break;
-		case KEY_UP:     lscan = KEY_PAD_UP; break;
-		case KEY_PGUP:   lscan = KEY_PAD_PGUP; break;
-		case KEY_DEL:    lscan = KEY_PAD_DEL; break;
+		case DKY_INS:    lscan = DKY_PAD_INS; break;
+		case DKY_END:    lscan = DKY_PAD_END; break;
+		case DKY_DOWN:   lscan = DKY_PAD_DOWN; break;
+		case DKY_PGDN:   lscan = DKY_PAD_PGDN; break;
+		case DKY_LEFT:   lscan = DKY_PAD_LEFT; break;
+		case DKY_RIGHT:  lscan = DKY_PAD_RIGHT; break;
+		case DKY_HOME:	 lscan = DKY_PAD_HOME; break;
+		case DKY_UP:     lscan = DKY_PAD_UP; break;
+		case DKY_PGUP:   lscan = DKY_PAD_PGUP; break;
+		case DKY_DEL:    lscan = DKY_PAD_DEL; break;
 
-		case KEY_DASH:   lscan = KEY_PAD_MINUS; break;
-		case KEY_RETURN: lscan = KEY_PAD_ENTER; break;
+		case DKY_DASH:   lscan = DKY_PAD_MINUS; break;
+		case DKY_RETURN: lscan = DKY_PAD_ENTER; break;
 
-		case KEY_0:      lscan = KEY_PAD_0; break;
-		case KEY_1:	 lscan = KEY_PAD_1; break;
-		case KEY_2:	 lscan = KEY_PAD_2; break;
-		case KEY_3:      lscan = KEY_PAD_3; break;
-		case KEY_4:      lscan = KEY_PAD_4; break;
-		case KEY_5:      lscan = KEY_PAD_5; break;
-		case KEY_6:      lscan = KEY_PAD_6; break;
-		case KEY_7:      lscan = KEY_PAD_7; break;
-		case KEY_9:      lscan = KEY_PAD_9; break;
+		case DKY_0:      lscan = DKY_PAD_0; break;
+		case DKY_1:	 lscan = DKY_PAD_1; break;
+		case DKY_2:	 lscan = DKY_PAD_2; break;
+		case DKY_3:      lscan = DKY_PAD_3; break;
+		case DKY_4:      lscan = DKY_PAD_4; break;
+		case DKY_5:      lscan = DKY_PAD_5; break;
+		case DKY_6:      lscan = DKY_PAD_6; break;
+		case DKY_7:      lscan = DKY_PAD_7; break;
+		case DKY_9:      lscan = DKY_PAD_9; break;
 
 		/* This is a special */
-		case KEY_8:
+		case DKY_8:
 			if ( ls_flags & SHIFT_MASK ) {
 				ls_flags &= ~SHIFT_MASK;
-				lscan = KEY_PAD_AST;
+				lscan = DKY_PAD_AST;
 			}
-			else     lscan =  KEY_PAD_8;
+			else     lscan =  DKY_PAD_8;
 			break;
 
 		/* Need to remove the shift flag for this */
-		case KEY_EQUALS:
+		case DKY_EQUALS:
 			if (ls_flags & SHIFT_MASK ) {
 				ls_flags &= ~SHIFT_MASK;
-				lscan = KEY_PAD_PLUS;
+				lscan = DKY_PAD_PLUS;
 			} /* else It is silly to translate an equals */
 			break;
 
 		/* This still generates the wrong scancode - should be $E02F */
-		case KEY_SLASH:	 lscan = KEY_PAD_SLASH; break;
+		case DKY_SLASH:	 lscan = DKY_PAD_SLASH; break;
 		}
 
 	}
 	else if( (ls_flags & (ALT_MASK|STICKY_ALT_MASK|ALTGR_MASK|STICKY_ALTGR_MASK))
-		&& (lscan == KEY_PRTSCR)) {
-		lscan = KEY_SYSRQ;
+		&& (lscan == DKY_PRTSCR)) {
+		lscan = DKY_SYSRQ;
 		ls_flags |= MOVE_MASK;
 	}
 
 	if ((ls_flags & SHIFT_MASK)
 		&& ((ls_flags & STICKY_SHIFT_MASK) == 0)) {
 		flags |= SHIFT_MASK;
-		move_key(PRESS, KEY_L_SHIFT);
+		move_key(PRESS, DKY_L_SHIFT);
 	}
 
 	if ((ls_flags & CTRL_MASK)
 		&& ((ls_flags & STICKY_CTRL_MASK) == 0)) {
 		flags |= CTRL_MASK;
-		move_key(PRESS, KEY_L_CTRL);
+		move_key(PRESS, DKY_L_CTRL);
 	}
 
 	if ((ls_flags & ALT_MASK)
 		&& ((ls_flags & STICKY_ALT_MASK) == 0)) {
 		flags |= ALT_MASK;
-		move_key(PRESS, KEY_L_ALT);
+		move_key(PRESS, DKY_L_ALT);
 	}
 
 	if ((ls_flags & ALTGR_MASK)
 		&& ((ls_flags & STICKY_ALTGR_MASK) == 0)) {
 		flags |= ALTGR_MASK;
-		move_key(PRESS, KEY_R_ALT);
+		move_key(PRESS, DKY_R_ALT);
 	}
 
 	if (!(ls_flags & MOVE_MASK)) {
@@ -983,43 +983,43 @@ void handle_slang_keys(Boolean make, t_keysym key)
 		return;
 	}
 	switch(key) {
-	case KEY_DOSEMU_HELP:
+	case DKY_DOSEMU_HELP:
 		DOSemu_Slang_Show_Help = 1;
 		break;
-	case KEY_DOSEMU_REDRAW:
+	case DKY_DOSEMU_REDRAW:
 		dos_slang_redraw();
 		break;
-	case KEY_DOSEMU_SUSPEND:
+	case DKY_DOSEMU_SUSPEND:
 		dos_slang_suspend();
 		break;
-	case KEY_DOSEMU_MONO:
+	case DKY_DOSEMU_MONO:
 		dos_slang_smart_set_mono();
 		break;
-	case KEY_DOSEMU_PAN_UP:
+	case DKY_DOSEMU_PAN_UP:
 		DOSemu_Terminal_Scroll = -1;
-	case KEY_DOSEMU_PAN_DOWN:
+	case DKY_DOSEMU_PAN_DOWN:
 		DOSemu_Terminal_Scroll = 1;
 		break;
-	case KEY_DOSEMU_PAN_LEFT:
+	case DKY_DOSEMU_PAN_LEFT:
 		/* this should be implemented someday */
 		break;
-	case KEY_DOSEMU_PAN_RIGHT:
+	case DKY_DOSEMU_PAN_RIGHT:
 		/* this should be implemented someday */
 		break;
-	case KEY_DOSEMU_RESET:
+	case DKY_DOSEMU_RESET:
 		DOSemu_Slang_Show_Help = 0;
 		DOSemu_Terminal_Scroll = 0;
 		if (keyb_state.Shift_Flags & STICKY_CTRL_MASK) {
-			move_key(RELEASE, KEY_L_CTRL);
+			move_key(RELEASE, DKY_L_CTRL);
 		}
 		if (keyb_state.Shift_Flags & STICKY_SHIFT_MASK) {
-			move_key(RELEASE, KEY_L_SHIFT);
+			move_key(RELEASE, DKY_L_SHIFT);
 		}
 		if (keyb_state.Shift_Flags & STICKY_ALT_MASK) {
-			move_key(RELEASE, KEY_L_ALT);
+			move_key(RELEASE, DKY_L_ALT);
 		}
 		if (keyb_state.Shift_Flags & STICKY_ALTGR_MASK) {
-			move_key(RELEASE, KEY_R_ALT);
+			move_key(RELEASE, DKY_R_ALT);
 		}
 
 		keyb_state.Shift_Flags = 0;
@@ -1050,79 +1050,79 @@ static void do_slang_special_keys(unsigned long scan)
 	int prompt_no = 0;
 
 	switch (scan) {
-	case CTRL_KEY_SCAN_CODE:
+	case CTRL_DKY_SCAN_CODE:
 		if ( !(keyb_state.Shift_Flags & STICKY_CTRL_MASK))
 			keyb_state.Shift_Flags |= CTRL_MASK;
 		break;
 
-	case STICKY_CTRL_KEY_SCAN_CODE:
+	case STICKY_CTRL_DKY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & CTRL_MASK)
 			keyb_state.Shift_Flags &= ~CTRL_MASK;
 		if (keyb_state.Shift_Flags & STICKY_CTRL_MASK) {
-			move_key(RELEASE, KEY_L_CTRL);
+			move_key(RELEASE, DKY_L_CTRL);
 			keyb_state.Shift_Flags &= ~STICKY_CTRL_MASK;
 		}
 		else {
 			keyb_state.Shift_Flags |= STICKY_CTRL_MASK;
-			move_key(PRESS, KEY_L_CTRL);
+			move_key(PRESS, DKY_L_CTRL);
 		}
 		break;
 
-	case SHIFT_KEY_SCAN_CODE:
+	case SHIFT_DKY_SCAN_CODE:
 		if ( !(keyb_state.Shift_Flags & STICKY_SHIFT_MASK))
 			keyb_state.Shift_Flags |= SHIFT_MASK;
 		break;
 
-	case STICKY_SHIFT_KEY_SCAN_CODE:
+	case STICKY_SHIFT_DKY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & SHIFT_MASK)
 			keyb_state.Shift_Flags &= ~SHIFT_MASK;
 		if (keyb_state.Shift_Flags & STICKY_SHIFT_MASK) {
-			move_key(RELEASE, KEY_L_SHIFT);
+			move_key(RELEASE, DKY_L_SHIFT);
 			keyb_state.Shift_Flags &= ~STICKY_SHIFT_MASK;
 		}
 		else {
 			keyb_state.Shift_Flags |= STICKY_SHIFT_MASK;
-			move_key(PRESS, KEY_L_SHIFT);
+			move_key(PRESS, DKY_L_SHIFT);
 		}
 		break;
 
-	case ALT_KEY_SCAN_CODE:
+	case ALT_DKY_SCAN_CODE:
 		if ( !(keyb_state.Shift_Flags & STICKY_ALT_MASK))
 			keyb_state.Shift_Flags |= ALT_MASK;
 		break;
 
-	case STICKY_ALT_KEY_SCAN_CODE:
+	case STICKY_ALT_DKY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & ALT_MASK)
 			keyb_state.Shift_Flags &= ~ALT_MASK;
 		if (keyb_state.Shift_Flags & STICKY_ALT_MASK) {
-			move_key(RELEASE, KEY_L_ALT);
+			move_key(RELEASE, DKY_L_ALT);
 			keyb_state.Shift_Flags &= ~STICKY_ALT_MASK;
 		}
 		else {
 			keyb_state.Shift_Flags |= STICKY_ALT_MASK;
-			move_key(PRESS, KEY_L_ALT);
+			move_key(PRESS, DKY_L_ALT);
 		}
 		break;
 
-	case ALTGR_KEY_SCAN_CODE:
+	case ALTGR_DKY_SCAN_CODE:
 		if ( !(keyb_state.Shift_Flags & STICKY_ALTGR_MASK))
 			keyb_state.Shift_Flags |= ALTGR_MASK;
 		break;
 
-	case STICKY_ALTGR_KEY_SCAN_CODE:
+	case STICKY_ALTGR_DKY_SCAN_CODE:
 		if (keyb_state.Shift_Flags & ALTGR_MASK)
 			keyb_state.Shift_Flags &= ~ALTGR_MASK;
 		if (keyb_state.Shift_Flags & STICKY_ALTGR_MASK) {
-			move_key(RELEASE, KEY_R_ALT);
+			move_key(RELEASE, DKY_R_ALT);
 			keyb_state.Shift_Flags &= ~STICKY_ALTGR_MASK;
 		}
 		else {
 			keyb_state.Shift_Flags |= STICKY_ALTGR_MASK;
-			move_key(PRESS, KEY_R_ALT);
+			move_key(PRESS, DKY_R_ALT);
 		}
 		break;
 
-	case KEYPAD_KEY_SCAN_CODE:
+	case KEYPAD_DKY_SCAN_CODE:
 		keyb_state.Shift_Flags |= KEYPAD_MASK;
 		break;
 
@@ -1151,16 +1151,16 @@ static void do_slang_special_keys(unsigned long scan)
 		DOSemu_Terminal_Scroll = 0;
 
 		if (keyb_state.Shift_Flags & STICKY_CTRL_MASK) {
-			move_key(RELEASE, KEY_L_CTRL);
+			move_key(RELEASE, DKY_L_CTRL);
 		}
 		if (keyb_state.Shift_Flags & STICKY_SHIFT_MASK) {
-			move_key(RELEASE, KEY_L_SHIFT);
+			move_key(RELEASE, DKY_L_SHIFT);
 		}
 		if (keyb_state.Shift_Flags & STICKY_ALT_MASK) {
-			move_key(RELEASE, KEY_L_ALT);
+			move_key(RELEASE, DKY_L_ALT);
 		}
 		if (keyb_state.Shift_Flags & STICKY_ALTGR_MASK) {
-			move_key(RELEASE, KEY_R_ALT);
+			move_key(RELEASE, DKY_R_ALT);
 		}
 
 		keyb_state.Shift_Flags = 0;
@@ -1299,7 +1299,7 @@ static void do_slang_getkeys(void)
 			k_printf("KBD: slang got single ESC\n");
 			keyb_state.kbcount--;	/* update count */
 			keyb_state.kbp++;
-			slang_send_scancode(keyb_state.Shift_Flags, KEY_ESC);
+			slang_send_scancode(keyb_state.Shift_Flags, DKY_ESC);
 			keyb_state.KeyNot_Ready = 0;
 			return;
 		case 0:
@@ -1318,19 +1318,19 @@ static void do_slang_getkeys(void)
 	k_printf("KBD: do_slang_getkeys()\n");
 	/* restore shift-state from previous keypress */
 	if (old_flags & SHIFT_MASK) {
-		move_key(RELEASE, KEY_L_SHIFT);
+		move_key(RELEASE, DKY_L_SHIFT);
 		keyb_state.Shift_Flags &= ~SHIFT_MASK;
 	}
 	if (old_flags & CTRL_MASK) {
-		move_key(RELEASE, KEY_L_CTRL);
+		move_key(RELEASE, DKY_L_CTRL);
 		keyb_state.Shift_Flags &= ~CTRL_MASK;
 	}
 	if (old_flags & ALT_MASK) {
-		move_key(RELEASE, KEY_L_ALT);
+		move_key(RELEASE, DKY_L_ALT);
 		keyb_state.Shift_Flags &= ~ALT_MASK;
 	}
 	if (old_flags & ALTGR_MASK) {
-		move_key(RELEASE, KEY_R_ALT);
+		move_key(RELEASE, DKY_R_ALT);
 		keyb_state.Shift_Flags &= ~ALTGR_MASK;
 	}
 	if (old_flags & KEYPAD_MASK) {
@@ -1347,7 +1347,7 @@ static void do_slang_getkeys(void)
 	/* Now process the keys that are buffered up */
 	while (keyb_state.kbcount) {
 		unsigned long scan = 0;
-		t_unicode symbol = KEY_VOID;
+		t_unicode symbol = DKY_VOID;
 		size_t result;
 
 		keyb_state.Keystr_Len = 0;
@@ -1367,7 +1367,7 @@ static void do_slang_getkeys(void)
 			symbol = scan & 0xFFFF;
 		}
 		result = 1;
-		if (symbol == KEY_VOID) {
+		if (symbol == DKY_VOID) {
 			/* rough draft version don't stop here... */
 			result = charset_to_unicode(&keyb_state.translate_state,
 				&symbol, keyb_state.kbp, keyb_state.kbcount);
@@ -1376,7 +1376,7 @@ static void do_slang_getkeys(void)
 			k_printf("KBD: got %08x, result=%zx\n", symbol, result);
 		}
 
-		if (key == NULL && symbol == KEY_ESC && keyb_state.Keystr_Len > 1) {
+		if (key == NULL && symbol == DKY_ESC && keyb_state.Keystr_Len > 1) {
 			int old_modifier = modifier;
 			modifier = get_modifiers();
 			if (modifier != old_modifier)
@@ -1396,7 +1396,7 @@ static void do_slang_getkeys(void)
 		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
 		keyb_state.kbp += keyb_state.Keystr_Len;
 
-               if (key == NULL && symbol != KEY_ESC) {
+               if (key == NULL && symbol != DKY_ESC) {
 			/* undefined key --- return */
 			DOSemu_Slang_Show_Help = 0;
 			keyb_state.kbcount = 0;

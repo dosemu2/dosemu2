@@ -178,11 +178,11 @@ CONST t_keysym key_map_us[] =
   'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',
   '\'', '`', U_VOID, '\\', 'z', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '/', U_VOID, '*',
-  U_VOID, ' ', U_VOID, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
-  KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, U_VOID, U_VOID, U_VOID,
+  U_VOID, ' ', U_VOID, DKY_F1, DKY_F2, DKY_F3, DKY_F4, DKY_F5,
+  DKY_F6, DKY_F7, DKY_F8, DKY_F9, DKY_F10, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, '-', U_VOID, U_VOID, U_VOID, '+', U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, KEY_F11,
-  KEY_F12, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, DKY_F11,
+  DKY_F12, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID
 };
 
@@ -278,7 +278,7 @@ CONST t_keysym alt_map_uk[] =
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, '~', 13, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  KEY_DEAD_ACUTE, KEY_DEAD_GRAVE, U_VOID, KEY_DEAD_TILDE, U_VOID, U_VOID, U_VOID, U_VOID,
+  DKY_DEAD_ACUTE, DKY_DEAD_GRAVE, U_VOID, DKY_DEAD_TILDE, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -368,11 +368,11 @@ CONST t_keysym ctrl_map_de[] =
 CONST t_keysym key_map_de_latin1[] =
 {
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
-  '7', '8', '9', '0', 0xefe1, KEY_DEAD_ACUTE, 127, 9,
+  '7', '8', '9', '0', 0xefe1, DKY_DEAD_ACUTE, 127, 9,
   'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
   'o', 'p', 0xef81, '+', 13, U_VOID, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 0xef94,
-  0xef84, KEY_DEAD_CIRCUMFLEX, U_VOID, '#', 'y', 'x', 'c', 'v',
+  0xef84, DKY_DEAD_CIRCUMFLEX, U_VOID, '#', 'y', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', U_VOID, '*',
   U_VOID, ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -385,7 +385,7 @@ CONST t_keysym key_map_de_latin1[] =
 CONST t_keysym shift_map_de_latin1[] =
 {
   U_VOID, 27, '!', '"', 21, '$', '%', '&',
-  '/', '(', ')', '=', '?', KEY_DEAD_GRAVE, 127, 9,
+  '/', '(', ')', '=', '?', DKY_DEAD_GRAVE, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
   'O', 'P', 0xef9a, '*', 13, U_VOID, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 0xef99,
@@ -472,7 +472,7 @@ CONST t_keysym key_map_fr_latin1[] =
   U_VOID, 27, '&', 0xef82, '"', '\'', '(', '-',
   0xef8a, '_', 0xef87, 0xef85, ')', '=', 127, 9,
   'a', 'z', 'e', 'r', 't', 'y', 'u', 'i',
-  'o', 'p', KEY_DEAD_CIRCUMFLEX, '$', 13, U_VOID, 'q', 's',
+  'o', 'p', DKY_DEAD_CIRCUMFLEX, '$', 13, U_VOID, 'q', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm',
   0xef97, 0xeffd, U_VOID, '*', 'w', 'x', 'c', 'v',
   'b', 'n', ',', ';', ':', '!', U_VOID, '*',
@@ -489,7 +489,7 @@ CONST t_keysym shift_map_fr_latin1[] =
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', 0xeff8, '+', 127, 9,
   'A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I',
-  'O', 'P', KEY_DEAD_DIAERESIS, 0xef9c, 13, U_VOID, 'Q', 'S',
+  'O', 'P', DKY_DEAD_DIAERESIS, 0xef9c, 13, U_VOID, 'Q', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M',
   '%', '~', U_VOID, 0xefe6, 'W', 'X', 'C', 'V',
   'B', 'N', '?', '.', '/', 0xefa7, U_VOID, '*',
@@ -829,7 +829,7 @@ CONST t_keysym key_map_no_latin1[] =
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', '+', '\\', 127, 9,
   'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
-  'o', 'p', 0xef86, KEY_DEAD_DIAERESIS, 13, U_VOID, 'a', 's',
+  'o', 'p', 0xef86, DKY_DEAD_DIAERESIS, 13, U_VOID, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 0xef9b,
   0xef91, '|', U_VOID, '\'', 'z', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', U_VOID, '*',
@@ -844,9 +844,9 @@ CONST t_keysym key_map_no_latin1[] =
 CONST t_keysym shift_map_no_latin1[] =
 {
   U_VOID, 27, '!', '"', '#', '$', '%', '&',
-  '/', '(', ')', '=', '?', KEY_DEAD_GRAVE, 127, 9,
+  '/', '(', ')', '=', '?', DKY_DEAD_GRAVE, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
-  'O', 'P', 0xef8f, KEY_DEAD_CIRCUMFLEX, 13, U_VOID, 'A', 'S',
+  'O', 'P', 0xef8f, DKY_DEAD_CIRCUMFLEX, 13, U_VOID, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 0xef9d,
   0xef92, 0xeff5, U_VOID, '*', 'Z', 'X', 'C', 'V',
   'B', 'N', 'M', ';', ':', '_', U_VOID, '*',
@@ -861,9 +861,9 @@ CONST t_keysym shift_map_no_latin1[] =
 CONST t_keysym alt_map_no_latin1[] =
 {
   U_VOID, U_VOID, U_VOID, '@', 0xef9c, 0xefcf, U_VOID, U_VOID,
-  '{', '[', ']', '}', U_VOID, KEY_DEAD_ACUTE, U_VOID, U_VOID,
+  '{', '[', ']', '}', U_VOID, DKY_DEAD_ACUTE, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, U_VOID, KEY_DEAD_TILDE, 13, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, DKY_DEAD_TILDE, 13, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1029,9 +1029,9 @@ CONST t_keysym key_map_es_latin1[] = {
  U_VOID,     27,    '1',    '2',    '3',    '4',    '5',    '6',
     '7',    '8',    '9',    '0',    '\'', 0xefad,   127,      9,
     'q',    'w',    'e',    'r',    't',    'y',    'u',    'i',
-    'o',    'p', KEY_DEAD_GRAVE,    '+',     13, U_VOID,    'a',    's',
+    'o',    'p', DKY_DEAD_GRAVE,    '+',     13, U_VOID,    'a',    's',
     'd',    'f',    'g',    'h',    'j',    'k',    'l', 0xefa4,
- KEY_DEAD_ACUTE, 0xefa7, U_VOID, 0xef87,    'z',    'x',    'c',    'v',
+ DKY_DEAD_ACUTE, 0xefa7, U_VOID, 0xef87,    'z',    'x',    'c',    'v',
     'b',    'n',    'm',    ',',    '.',    '-', U_VOID,    '*',
  U_VOID,    ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1045,9 +1045,9 @@ CONST t_keysym shift_map_es_latin1[] = {
  U_VOID,     27,    '!',    '"', 0xeffa,    '$',    '%',    '&',
     '/',    '(',    ')',    '=',    '?', 0xefa8,    127,      9,
     'Q',    'W',    'E',    'R',    'T',    'Y',    'U',    'I',
-    'O',    'P',    KEY_DEAD_CIRCUMFLEX,    '*',     13, U_VOID,    'A',    'S',
+    'O',    'P',    DKY_DEAD_CIRCUMFLEX,    '*',     13, U_VOID,    'A',    'S',
     'D',    'F',    'G',    'H',    'J',    'K',    'L', 0xefa5,
-     KEY_DEAD_DIAERESIS, 0xefa6, U_VOID, 0xef80,    'Z',    'X',    'C',    'V',
+     DKY_DEAD_DIAERESIS, 0xefa6, U_VOID, 0xef80,    'Z',    'X',    'C',    'V',
     'B',    'N',    'M',    ';',    ':',    '_', U_VOID,    '*',
  U_VOID,    ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1080,7 +1080,7 @@ CONST t_keysym key_map_be[] =
   U_VOID, 27, '&', 0xef82, '"', '\'', '(', 21,
   0xef8a, '!', 0xef80, 0xef85, ')', '-', 127, 9,
   'a', 'z', 'e', 'r', 't', 'y', 'u', 'i',
-  'o', 'p', KEY_DEAD_CIRCUMFLEX, '$', 13, U_VOID, 'q', 's',
+  'o', 'p', DKY_DEAD_CIRCUMFLEX, '$', 13, U_VOID, 'q', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm',
   0xef97, 0xeffd, U_VOID, 0xefe6, 'w', 'x', 'c', 'v',
   'b', 'n', ',', ';', ':', '=', U_VOID, '*',
@@ -1097,7 +1097,7 @@ CONST t_keysym shift_map_be[] =
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', 0xeff8, '_', 127, 9,
   'A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I',
-  'O', 'P', KEY_DEAD_DIAERESIS, '*', 13, U_VOID, 'Q', 'S',
+  'O', 'P', DKY_DEAD_DIAERESIS, '*', 13, U_VOID, 'Q', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M',
   '%', 0xeffc, U_VOID, 0xef9c, 'W', 'X', 'C', 'V',
   'B', 'N', '?', '.', '/', '+', U_VOID, '*',
@@ -1112,12 +1112,12 @@ CONST t_keysym shift_map_be[] =
 CONST t_keysym alt_map_be[] =
 {
   U_VOID, U_VOID, '|', '@', '#', U_VOID, U_VOID, '^',
-  U_VOID, U_VOID, '{', '}', KEY_DEAD_ABOVERING, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, '{', '}', DKY_DEAD_ABOVERING, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, '[', ']', 13, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  KEY_DEAD_ACUTE, KEY_DEAD_GRAVE, U_VOID, KEY_DEAD_GRAVE, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, KEY_DEAD_CEDILLA, U_VOID, U_VOID, KEY_DEAD_TILDE, U_VOID, U_VOID,
+  DKY_DEAD_ACUTE, DKY_DEAD_GRAVE, U_VOID, DKY_DEAD_GRAVE, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, DKY_DEAD_CEDILLA, U_VOID, U_VOID, DKY_DEAD_TILDE, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1131,9 +1131,9 @@ CONST t_keysym key_map_po[] =
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', '`', 0xefae, 127, 9,
   'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
-  'o', 'p', '+', KEY_DEAD_ACUTE, 13, U_VOID, 'a', 's',
+  'o', 'p', '+', DKY_DEAD_ACUTE, 13, U_VOID, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 0xef87,
-  0xefa7, '\\', U_VOID, KEY_DEAD_TILDE, 'z', 'x', 'c', 'v',
+  0xefa7, '\\', U_VOID, DKY_DEAD_TILDE, 'z', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', U_VOID, '*',
   U_VOID, ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1148,9 +1148,9 @@ CONST t_keysym shift_map_po[] =
   U_VOID, 27, '!', '"', '#', '$', '%', '&',
   '/', '(', ')', '=', '?', 0xefaf, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
-  'O', 'P', '*', KEY_DEAD_GRAVE, 13, U_VOID, 'A', 'S',
+  'O', 'P', '*', DKY_DEAD_GRAVE, 13, U_VOID, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 0xef80,
-  0xefa6, '|', '0', KEY_DEAD_CIRCUMFLEX, 'Z', 'X', 'C', 'V',
+  0xefa6, '|', '0', DKY_DEAD_CIRCUMFLEX, 'Z', 'X', 'C', 'V',
   'B', 'N', 'M', ';', ':', '_', U_VOID, '*',
   U_VOID, ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1165,7 +1165,7 @@ CONST t_keysym alt_map_po[] =
   U_VOID, U_VOID, U_VOID, '@', 0xef9c, 21, U_VOID, U_VOID,
   '{', '[', ']', '}', U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, KEY_DEAD_DIAERESIS, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, DKY_DEAD_DIAERESIS, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1315,8 +1315,8 @@ CONST t_keysym shift_map_hu[] =
 
 CONST t_keysym alt_map_hu[] =
 {
-  U_VOID, U_VOID, '~', KEY_DEAD_CARON, KEY_DEAD_CIRCUMFLEX, KEY_DEAD_BREVE, 0xeff8, KEY_DEAD_OGONEK,
-  KEY_DEAD_GRAVE, KEY_DEAD_ABOVEDOT, KEY_DEAD_ACUTE, KEY_DEAD_DOUBLEACUTE, KEY_DEAD_DIAERESIS, KEY_DEAD_CEDILLA, U_VOID, U_VOID,
+  U_VOID, U_VOID, '~', DKY_DEAD_CARON, DKY_DEAD_CIRCUMFLEX, DKY_DEAD_BREVE, 0xeff8, DKY_DEAD_OGONEK,
+  DKY_DEAD_GRAVE, DKY_DEAD_ABOVEDOT, DKY_DEAD_ACUTE, DKY_DEAD_DOUBLEACUTE, DKY_DEAD_DIAERESIS, DKY_DEAD_CEDILLA, U_VOID, U_VOID,
   '\\', '|', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, 0xef92,
   U_VOID, U_VOID, 0xeff6, 0xef9e, 13, U_VOID, U_VOID, 0xefd0,
   0xefd1, '[', ']', U_VOID, 0xefa1, 0xef88, 0xef9d, '$',
@@ -1366,8 +1366,8 @@ CONST t_keysym shift_map_hu_cwi[] =
 
 CONST t_keysym alt_map_hu_cwi[] =
 {
-  U_VOID, U_VOID, '~', KEY_DEAD_CARON, KEY_DEAD_CIRCUMFLEX, KEY_DEAD_BREVE, 0xeff8, KEY_DEAD_OGONEK,
-  KEY_DEAD_GRAVE, KEY_DEAD_ABOVEDOT, KEY_DEAD_ACUTE, KEY_DEAD_DOUBLEACUTE, KEY_DEAD_DIAERESIS, KEY_DEAD_CEDILLA, U_VOID, U_VOID,
+  U_VOID, U_VOID, '~', DKY_DEAD_CARON, DKY_DEAD_CIRCUMFLEX, DKY_DEAD_BREVE, 0xeff8, DKY_DEAD_OGONEK,
+  DKY_DEAD_GRAVE, DKY_DEAD_ABOVEDOT, DKY_DEAD_ACUTE, DKY_DEAD_DOUBLEACUTE, DKY_DEAD_DIAERESIS, DKY_DEAD_CEDILLA, U_VOID, U_VOID,
   '\\', '|', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, 0xef8d,
   U_VOID, U_VOID, 0xeff6, U_VOID, 13, U_VOID, U_VOID, U_VOID,
   U_VOID, '[', ']', U_VOID, 0xefa1, U_VOID, U_VOID, '$',
@@ -1417,8 +1417,8 @@ CONST t_keysym shift_map_hu_latin2[] =
 
 CONST t_keysym alt_map_hu_latin2[] =
 {
-  U_VOID, U_VOID, '~', KEY_DEAD_CARON, KEY_DEAD_CIRCUMFLEX, KEY_DEAD_BREVE, 0xeff8, KEY_DEAD_OGONEK,
-  KEY_DEAD_GRAVE, KEY_DEAD_ABOVEDOT, KEY_DEAD_ACUTE, KEY_DEAD_DOUBLEACUTE, KEY_DEAD_DIAERESIS, KEY_DEAD_CEDILLA, U_VOID, U_VOID,
+  U_VOID, U_VOID, '~', DKY_DEAD_CARON, DKY_DEAD_CIRCUMFLEX, DKY_DEAD_BREVE, 0xeff8, DKY_DEAD_OGONEK,
+  DKY_DEAD_GRAVE, DKY_DEAD_ABOVEDOT, DKY_DEAD_ACUTE, DKY_DEAD_DOUBLEACUTE, DKY_DEAD_DIAERESIS, DKY_DEAD_CEDILLA, U_VOID, U_VOID,
   '\\', '|', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, 0xefcd,
   U_VOID, U_VOID, 0xeff7, 0xefd7, 13, U_VOID, U_VOID, 0xeff0,
   0xefd0, '[', ']', U_VOID, 0xefed, 0xefb3, 0xefa3, '$',
@@ -1458,7 +1458,7 @@ CONST t_keysym shift_map_jp106[] =
   U_VOID, 27, '!', '"', '#', '$', '%', '&',
   '\'', '(', ')', '~', '=', '~', 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
-  'O', 'P', '`', '{', KEY_DEAD_GRAVE, U_VOID, 'A', 'S',
+  'O', 'P', '`', '{', DKY_DEAD_GRAVE, U_VOID, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', '+',
   '*', '~', '0', '}', 'Z', 'X', 'C', 'V',
   'B', 'N', 'M', '<', '>', '?', U_VOID, '*',
@@ -1669,11 +1669,11 @@ CONST t_keysym alt_map_hr_latin2[] =
 CONST t_keysym key_map_cz_qwerty[] =
 {
   U_VOID, 27, '+', 0xefd8, 0xefe7, 0xef9f, 0xeffd, 0xefa7,
-  0xefec, 0xefa0, 0xefa1, 0xef82, '=', KEY_DEAD_ACUTE, 127, 9,
+  0xefec, 0xefa0, 0xefa1, 0xef82, '=', DKY_DEAD_ACUTE, 127, 9,
   'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
   'o', 'p', 0xefa3, ')', 13, U_VOID, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 0xef85,
-  0xeff5, ';', U_VOID, KEY_DEAD_DIAERESIS, 'z', 'x', 'c', 'v',
+  0xeff5, ';', U_VOID, DKY_DEAD_DIAERESIS, 'z', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', U_VOID, '*',
   U_VOID, ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1686,7 +1686,7 @@ CONST t_keysym key_map_cz_qwerty[] =
 CONST t_keysym shift_map_cz_qwerty[] =
 {
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
-  '7', '8', '9', '0', '%', KEY_DEAD_CARON, 127, 9,
+  '7', '8', '9', '0', '%', DKY_DEAD_CARON, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
   'O', 'P', '/', '(', 13, U_VOID, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', '"',
@@ -1702,8 +1702,8 @@ CONST t_keysym shift_map_cz_qwerty[] =
 
 CONST t_keysym alt_map_cz_qwerty[] =
 {
-  U_VOID, U_VOID, '~', KEY_DEAD_CARON, KEY_DEAD_CIRCUMFLEX, KEY_DEAD_BREVE, 0xeff8, KEY_DEAD_OGONEK,
-  KEY_DEAD_GRAVE, KEY_DEAD_ABOVEDOT, KEY_DEAD_ACUTE, KEY_DEAD_DOUBLEACUTE, KEY_DEAD_DIAERESIS, KEY_DEAD_CEDILLA, U_VOID, U_VOID,
+  U_VOID, U_VOID, '~', DKY_DEAD_CARON, DKY_DEAD_CIRCUMFLEX, DKY_DEAD_BREVE, 0xeff8, DKY_DEAD_OGONEK,
+  DKY_DEAD_GRAVE, DKY_DEAD_ABOVEDOT, DKY_DEAD_ACUTE, DKY_DEAD_DOUBLEACUTE, DKY_DEAD_DIAERESIS, DKY_DEAD_CEDILLA, U_VOID, U_VOID,
   '\\', '|', 0xefa9, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   0xefa2, U_VOID, 0xeff6, 0xef9e, U_VOID, U_VOID, 0xefa5, 0xefd0,
   0xefd1, '[', ']', U_VOID, U_VOID, 0xef88, 0xef9d, '$',
@@ -1721,11 +1721,11 @@ CONST t_keysym alt_map_cz_qwerty[] =
 CONST t_keysym key_map_cz_qwertz[] =
 {
   U_VOID, 27, '+', 0xefd8, 0xefe7, 0xef9f, 0xeffd, 0xefa7,
-  0xefec, 0xefa0, 0xefa1, 0xef82, '=', KEY_DEAD_ACUTE, 127, 9,
+  0xefec, 0xefa0, 0xefa1, 0xef82, '=', DKY_DEAD_ACUTE, 127, 9,
   'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
   'o', 'p', 0xefa3, ')', 13, U_VOID, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 0xef85,
-  0xeff5, ';', U_VOID, KEY_DEAD_DIAERESIS, 'y', 'x', 'c', 'v',
+  0xeff5, ';', U_VOID, DKY_DEAD_DIAERESIS, 'y', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', U_VOID, '*',
   U_VOID, ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
@@ -1738,7 +1738,7 @@ CONST t_keysym key_map_cz_qwertz[] =
 CONST t_keysym shift_map_cz_qwertz[] =
 {
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
-  '7', '8', '9', '0', '%', KEY_DEAD_CARON, 127, 9,
+  '7', '8', '9', '0', '%', DKY_DEAD_CARON, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
   'O', 'P', '/', '(', 13, U_VOID, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', '"',
@@ -1754,8 +1754,8 @@ CONST t_keysym shift_map_cz_qwertz[] =
 
 CONST t_keysym alt_map_cz_qwertz[] =
 {
-  U_VOID, U_VOID, '~', KEY_DEAD_CARON, KEY_DEAD_CIRCUMFLEX, KEY_DEAD_BREVE, 0xeff8, KEY_DEAD_OGONEK,
-  KEY_DEAD_GRAVE, KEY_DEAD_ABOVEDOT, KEY_DEAD_ACUTE, KEY_DEAD_DOUBLEACUTE, KEY_DEAD_DIAERESIS, KEY_DEAD_CEDILLA, U_VOID, U_VOID,
+  U_VOID, U_VOID, '~', DKY_DEAD_CARON, DKY_DEAD_CIRCUMFLEX, DKY_DEAD_BREVE, 0xeff8, DKY_DEAD_OGONEK,
+  DKY_DEAD_GRAVE, DKY_DEAD_ABOVEDOT, DKY_DEAD_ACUTE, DKY_DEAD_DOUBLEACUTE, DKY_DEAD_DIAERESIS, DKY_DEAD_CEDILLA, U_VOID, U_VOID,
   '\\', '|', 0xefa9, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   0xefa2, U_VOID, 0xeff6, 0xef9e, U_VOID, U_VOID, 0xefa5, 0xefd0,
   0xefd1, '[', ']', U_VOID, U_VOID, 0xef88, 0xef9d, '$',
@@ -2069,7 +2069,7 @@ static char* pretty_keysym(t_keysym d)
 	}
 
 	if(d == '\'') s = "'\\''";
-	if(d == KEY_VOID) s = " -- ";
+	if(d == DKY_VOID) s = " -- ";
 
 	return s;
 }
@@ -2088,7 +2088,7 @@ static t_keysym dosemu_val(unsigned k)
 	unsigned t = KTYP(k), v = KVAL(k);
 	t_keysym d;
 
-	d = KEY_VOID;
+	d = DKY_VOID;
 	if (t >= 14)
 		/* NR_TYPES is 14 in the kernel but keyboard.h doesn't
 		   give it. Gives the Unicode value ^ 0xf000 */
@@ -2148,65 +2148,65 @@ static t_keysym dosemu_val(unsigned k)
 
 	case KT_SPEC:
 		switch(k) {
-		case K_HOLE:  d = KEY_VOID; break;
-		case K_ENTER: d = KEY_RETURN; break;
-		default:      d = KEY_VOID; /* K_CAPS, K_NUM, ... ??? */
+		case K_HOLE:  d = DKY_VOID; break;
+		case K_ENTER: d = DKY_RETURN; break;
+		default:      d = DKY_VOID; /* K_CAPS, K_NUM, ... ??? */
 		}
 		break;
 
 	case KT_PAD:
 		switch(k) {
-		case K_P0:	d = KEY_PAD_INS; break;
-		case K_P1:	d = KEY_PAD_END; break;
-		case K_P2:	d = KEY_PAD_DOWN; break;
-		case K_P3:	d = KEY_PAD_PGDN; break;
-		case K_P4:	d = KEY_PAD_LEFT; break;
-		case K_P5:	d = KEY_PAD_CENTER; break;
-		case K_P6:	d = KEY_PAD_RIGHT; break;
-		case K_P7:	d = KEY_PAD_HOME; break;
-		case K_P8:	d = KEY_PAD_UP; break;
-		case K_P9:	d = KEY_PAD_PGUP; break;
-		case K_PPLUS:	d = KEY_PAD_PLUS; break;
-		case K_PMINUS:	d = KEY_PAD_MINUS; break;
-		case K_PSTAR:	d = KEY_PAD_AST; break;
-		case K_PSLASH:	d = KEY_PAD_SLASH; break;
-		case K_PENTER:	d = KEY_PAD_ENTER; break;
-		case K_PCOMMA:	d = KEY_PAD_SEPARATOR; break;
-		case K_PDOT:	d = KEY_PAD_DECIMAL; break;
-		default:	d = KEY_VOID; break;
+		case K_P0:	d = DKY_PAD_INS; break;
+		case K_P1:	d = DKY_PAD_END; break;
+		case K_P2:	d = DKY_PAD_DOWN; break;
+		case K_P3:	d = DKY_PAD_PGDN; break;
+		case K_P4:	d = DKY_PAD_LEFT; break;
+		case K_P5:	d = DKY_PAD_CENTER; break;
+		case K_P6:	d = DKY_PAD_RIGHT; break;
+		case K_P7:	d = DKY_PAD_HOME; break;
+		case K_P8:	d = DKY_PAD_UP; break;
+		case K_P9:	d = DKY_PAD_PGUP; break;
+		case K_PPLUS:	d = DKY_PAD_PLUS; break;
+		case K_PMINUS:	d = DKY_PAD_MINUS; break;
+		case K_PSTAR:	d = DKY_PAD_AST; break;
+		case K_PSLASH:	d = DKY_PAD_SLASH; break;
+		case K_PENTER:	d = DKY_PAD_ENTER; break;
+		case K_PCOMMA:	d = DKY_PAD_SEPARATOR; break;
+		case K_PDOT:	d = DKY_PAD_DECIMAL; break;
+		default:	d = DKY_VOID; break;
 		}
 		break;
 
 	case KT_SHIFT:
 		switch(k) {
-		case K_SHIFT:	d = KEY_L_SHIFT; break;
-		case K_SHIFTL:	d = KEY_L_SHIFT; break;
-		case K_SHIFTR:	d = KEY_R_SHIFT; break;
-		case K_CTRL:	d = KEY_L_CTRL; break;
-		case K_CTRLL:	d = KEY_L_CTRL; break;
-		case K_CTRLR:	d = KEY_R_CTRL; break;
-		case K_ALT:	d = KEY_L_ALT; break;
-		case K_ALTGR:	d = KEY_MODE_SWITCH; break;
+		case K_SHIFT:	d = DKY_L_SHIFT; break;
+		case K_SHIFTL:	d = DKY_L_SHIFT; break;
+		case K_SHIFTR:	d = DKY_R_SHIFT; break;
+		case K_CTRL:	d = DKY_L_CTRL; break;
+		case K_CTRLL:	d = DKY_L_CTRL; break;
+		case K_CTRLR:	d = DKY_R_CTRL; break;
+		case K_ALT:	d = DKY_L_ALT; break;
+		case K_ALTGR:	d = DKY_MODE_SWITCH; break;
 		}
 		break;
 	case KT_META:
-		d = KEY_VOID;
+		d = DKY_VOID;
 		break;
 
 	case KT_DEAD:
 		switch(k) {
-		case K_DGRAVE: d = KEY_DEAD_GRAVE; break;
-		case K_DACUTE: d = KEY_DEAD_ACUTE; break;
-		case K_DCIRCM: d = KEY_DEAD_CIRCUMFLEX; break;
-		case K_DTILDE: d = KEY_DEAD_TILDE; break;
-		case K_DDIERE: d = KEY_DEAD_DIAERESIS; break;
-		case K_DCEDIL: d = KEY_DEAD_CEDILLA; break;
+		case K_DGRAVE: d = DKY_DEAD_GRAVE; break;
+		case K_DACUTE: d = DKY_DEAD_ACUTE; break;
+		case K_DCIRCM: d = DKY_DEAD_CIRCUMFLEX; break;
+		case K_DTILDE: d = DKY_DEAD_TILDE; break;
+		case K_DDIERE: d = DKY_DEAD_DIAERESIS; break;
+		case K_DCEDIL: d = DKY_DEAD_CEDILLA; break;
 		}
 		break;
 
 	case KT_LOCK:
 		switch(k) {
-		case K_ALTGRLOCK: d = KEY_ALTGR_LOCK; break;
+		case K_ALTGRLOCK: d = DKY_ALTGR_LOCK; break;
 		}
 		break;
 
@@ -2383,13 +2383,13 @@ static int read_kbd_table(struct keytable_entry *kt,
 		ka = dosemu_val(va);
 		ksa = dosemu_val(vsa);
 		kc = dosemu_val(vc);
-		if ((kp == KEY_MODE_SWITCH) || (ks == KEY_MODE_SWITCH) ||
-			(ka == KEY_MODE_SWITCH) || (kc == KEY_MODE_SWITCH)) {
+		if ((kp == DKY_MODE_SWITCH) || (ks == DKY_MODE_SWITCH) ||
+			(ka == DKY_MODE_SWITCH) || (kc == DKY_MODE_SWITCH)) {
 			k_printf("mode_switch\n");
 			altgr_present = 1;
 		}
-		if ((kp == KEY_ALTGR_LOCK) || (ks == KEY_ALTGR_LOCK) ||
-			(ka == KEY_ALTGR_LOCK) || (kc == KEY_ALTGR_LOCK)) {
+		if ((kp == DKY_ALTGR_LOCK) || (ks == DKY_ALTGR_LOCK) ||
+			(ka == DKY_ALTGR_LOCK) || (kc == DKY_ALTGR_LOCK)) {
 			k_printf("altgr lock\n");
 			altgr_lock_present = 1;
 			continue;
@@ -2460,13 +2460,13 @@ void setup_default_keytable()
 {
   static char *dt_name = "auto";
   static t_keysym
-	  plain_map[NUM_KEY_NUMS],
-	  shift_map[NUM_KEY_NUMS],
-	  alt_map[NUM_KEY_NUMS],
+	  plain_map[NUM_DKY_NUMS],
+	  shift_map[NUM_DKY_NUMS],
+	  alt_map[NUM_DKY_NUMS],
 	  num_map[14],
-	  ctrl_map[NUM_KEY_NUMS],
-	  shift_alt_map[NUM_KEY_NUMS],
-	  ctrl_alt_map[NUM_KEY_NUMS];
+	  ctrl_map[NUM_DKY_NUMS],
+	  shift_alt_map[NUM_DKY_NUMS],
+	  ctrl_alt_map[NUM_DKY_NUMS];
   struct keytable_entry *kt, *altkt;
   int i, idx;
 #if defined(X_SUPPORT) && defined(USE_DL_PLUGINS)
@@ -2499,7 +2499,7 @@ void setup_default_keytable()
   altkt->flags = 0;
 
   /* Initialize everything to unknown */
-  for(i = 0; i < NUM_KEY_NUMS; i++) {
+  for(i = 0; i < NUM_DKY_NUMS; i++) {
     plain_map[i] = U_VOID;
     shift_map[i] = U_VOID;
     alt_map[i] = U_VOID;

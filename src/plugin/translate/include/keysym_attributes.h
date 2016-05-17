@@ -36,19 +36,19 @@ static inline int is_keypad_keysym(t_keysym key)
 {
 	int result = FALSE;
 	switch(key) {
-	case KEY_PAD_SLASH:	case KEY_PAD_AST:	case KEY_PAD_MINUS:
-	case KEY_PAD_7:		case KEY_PAD_8:		case KEY_PAD_9:
-	case KEY_PAD_4:		case KEY_PAD_5:		case KEY_PAD_6:	case KEY_PAD_PLUS:
-	case KEY_PAD_1:		case KEY_PAD_2:		case KEY_PAD_3:
-	case KEY_PAD_0:		case KEY_PAD_DECIMAL:	case KEY_PAD_ENTER:
+	case DKY_PAD_SLASH:	case DKY_PAD_AST:	case DKY_PAD_MINUS:
+	case DKY_PAD_7:		case DKY_PAD_8:		case DKY_PAD_9:
+	case DKY_PAD_4:		case DKY_PAD_5:		case DKY_PAD_6:	case DKY_PAD_PLUS:
+	case DKY_PAD_1:		case DKY_PAD_2:		case DKY_PAD_3:
+	case DKY_PAD_0:		case DKY_PAD_DECIMAL:	case DKY_PAD_ENTER:
 
 #ifdef HAVE_UNICODE_KEYB
-	case KEY_PAD_HOME:	case KEY_PAD_UP:	case KEY_PAD_PGUP:
-	case KEY_PAD_LEFT:	case KEY_PAD_CENTER:	case KEY_PAD_RIGHT:
-	case KEY_PAD_END:	case KEY_PAD_DOWN:	case KEY_PAD_PGDN:
-	case KEY_PAD_INS:	case KEY_PAD_DEL:
+	case DKY_PAD_HOME:	case DKY_PAD_UP:	case DKY_PAD_PGUP:
+	case DKY_PAD_LEFT:	case DKY_PAD_CENTER:	case DKY_PAD_RIGHT:
+	case DKY_PAD_END:	case DKY_PAD_DOWN:	case DKY_PAD_PGDN:
+	case DKY_PAD_INS:	case DKY_PAD_DEL:
 
-	case KEY_PAD_SEPARATOR:
+	case DKY_PAD_SEPARATOR:
 #endif /* HAVE_UNICODE_KEYB */
 		result = TRUE;
 		break;
