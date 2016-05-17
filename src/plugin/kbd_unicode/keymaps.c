@@ -11,7 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/kd.h>
-#include "Linux/keyboard.h"
+#include <linux/keyboard.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
