@@ -32,20 +32,20 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 	Boolean result = TRUE;
 	switch(key) {
 	/* C-A-D is disabled */
-	case KEY_DOSEMU_REBOOT:
+	case DKY_DOSEMU_REBOOT:
 		if (make) {
 			k_printf("KBD: Ctrl-Alt-Del: rebooting dosemu\n");
 			dos_ctrl_alt_del();
 		}
 		break;
-	case KEY_DOSEMU_EXIT:
+	case DKY_DOSEMU_EXIT:
 		if (make) {
 			k_printf("KBD: Ctrl-Alt-PgDn: bye bye!\n");
 			leavedos_once(0);
 		}
 		break;
 
-	case KEY_DOSEMU_FREEZE:
+	case DKY_DOSEMU_FREEZE:
 		if (make) {
 			if (!dosemu_frozen) {
 				freeze_dosemu_manual();
@@ -55,48 +55,48 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 		}
 		break;
 
-	case KEY_DOSEMU_VT_1:
-	case KEY_DOSEMU_VT_2:
-	case KEY_DOSEMU_VT_3:
-	case KEY_DOSEMU_VT_4:
-	case KEY_DOSEMU_VT_5:
-	case KEY_DOSEMU_VT_6:
-	case KEY_DOSEMU_VT_7:
-	case KEY_DOSEMU_VT_8:
-	case KEY_DOSEMU_VT_9:
-	case KEY_DOSEMU_VT_10:
-	case KEY_DOSEMU_VT_11:
-	case KEY_DOSEMU_VT_12:
+	case DKY_DOSEMU_VT_1:
+	case DKY_DOSEMU_VT_2:
+	case DKY_DOSEMU_VT_3:
+	case DKY_DOSEMU_VT_4:
+	case DKY_DOSEMU_VT_5:
+	case DKY_DOSEMU_VT_6:
+	case DKY_DOSEMU_VT_7:
+	case DKY_DOSEMU_VT_8:
+	case DKY_DOSEMU_VT_9:
+	case DKY_DOSEMU_VT_10:
+	case DKY_DOSEMU_VT_11:
+	case DKY_DOSEMU_VT_12:
 		if (make) {
 			int vc_num;
-			vc_num = (key - KEY_DOSEMU_VT_1) +1;
+			vc_num = (key - DKY_DOSEMU_VT_1) +1;
 			result = switch_to_console(vc_num);
 		}
 		break;
 
-	case KEY_MOUSE_UP:
-	case KEY_MOUSE_DOWN:
-	case KEY_MOUSE_LEFT:
-	case KEY_MOUSE_RIGHT:
-	case KEY_MOUSE_UP_AND_LEFT:
-	case KEY_MOUSE_UP_AND_RIGHT:
-	case KEY_MOUSE_DOWN_AND_LEFT:
-	case KEY_MOUSE_DOWN_AND_RIGHT:
-	case KEY_MOUSE_BUTTON_LEFT:
-	case KEY_MOUSE_BUTTON_MIDDLE:
-	case KEY_MOUSE_BUTTON_RIGHT:
+	case DKY_MOUSE_UP:
+	case DKY_MOUSE_DOWN:
+	case DKY_MOUSE_LEFT:
+	case DKY_MOUSE_RIGHT:
+	case DKY_MOUSE_UP_AND_LEFT:
+	case DKY_MOUSE_UP_AND_RIGHT:
+	case DKY_MOUSE_DOWN_AND_LEFT:
+	case DKY_MOUSE_DOWN_AND_RIGHT:
+	case DKY_MOUSE_BUTTON_LEFT:
+	case DKY_MOUSE_BUTTON_MIDDLE:
+	case DKY_MOUSE_BUTTON_RIGHT:
 		mouse_keyboard(make, key);        /* mouse emulation keys */
 		break;
 
-	case KEY_DOSEMU_HELP:
-	case KEY_DOSEMU_REDRAW:
-	case KEY_DOSEMU_SUSPEND:
-	case KEY_DOSEMU_RESET:
-	case KEY_DOSEMU_MONO:
-	case KEY_DOSEMU_PAN_UP:
-	case KEY_DOSEMU_PAN_DOWN:
-	case KEY_DOSEMU_PAN_LEFT:
-	case KEY_DOSEMU_PAN_RIGHT:
+	case DKY_DOSEMU_HELP:
+	case DKY_DOSEMU_REDRAW:
+	case DKY_DOSEMU_SUSPEND:
+	case DKY_DOSEMU_RESET:
+	case DKY_DOSEMU_MONO:
+	case DKY_DOSEMU_PAN_UP:
+	case DKY_DOSEMU_PAN_DOWN:
+	case DKY_DOSEMU_PAN_LEFT:
+	case DKY_DOSEMU_PAN_RIGHT:
 		if (Keyboard->handle_keys) {
 			Keyboard->handle_keys(make, key);
 		} else
@@ -106,7 +106,7 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 		break;
 
 #if 0
-	case KEY_MOUSE_GRAB:
+	case DKY_MOUSE_GRAB:
 		if (Keyboard == &Keyboard_X) {
 			handle_X_keys(make, key);
 		} else {

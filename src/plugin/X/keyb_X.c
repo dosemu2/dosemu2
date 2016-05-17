@@ -143,9 +143,9 @@ static int use_move_key(t_keysym key)
 	if (is_keysym_function(key) ||
 	    is_keysym_dosemu_key(key) ||
 	    is_keypad_keysym(key) ||
-	    (key == KEY_TAB) ||
-	    (key == KEY_RETURN) ||
-	    (key == KEY_BKSP)) {
+	    (key == DKY_TAB) ||
+	    (key == DKY_RETURN) ||
+	    (key == DKY_BKSP)) {
 		result = TRUE;
 	}
 	return result;

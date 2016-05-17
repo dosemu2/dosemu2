@@ -36,76 +36,76 @@ struct xkey_to_dosemu_key {
 	t_keysym dosemu_key;
 };
 
-#ifndef KEY_VOID
-#define KEY_VOID U_VOID
-#endif /* KEY_VOID */
+#ifndef DKY_VOID
+#define DKY_VOID U_VOID
+#endif /* DKY_VOID */
 
 #ifndef HAVE_UNICODE_KEYB
-#define KEY_PAD_HOME       KEY_VOID
-#define KEY_PAD_UP         KEY_VOID
-#define KEY_PAD_PGUP   	   KEY_VOID
-#define KEY_PAD_LEFT   	   KEY_VOID
-#define KEY_PAD_CENTER 	   KEY_VOID
-#define KEY_PAD_RIGHT  	   KEY_VOID
-#define KEY_PAD_END    	   KEY_VOID
-#define KEY_PAD_DOWN   	   KEY_VOID
-#define KEY_PAD_PGDN   	   KEY_VOID
-#define KEY_PAD_INS    	   KEY_VOID
-#define KEY_PAD_DEL        KEY_VOID
-#define KEY_PAD_SEPARATOR  KEY_VOID
-#define KEY_PAD_SPACE      KEY_VOID
-#define KEY_PAD_F1         KEY_VOID
-#define KEY_PAD_F2         KEY_VOID
-#define KEY_PAD_F3         KEY_VOID
-#define KEY_PAD_F4         KEY_VOID
-#define KEY_PAD_EQUAL      KEY_VOID
-#define KEY_PAD_TAB        KEY_VOID
+#define DKY_PAD_HOME       DKY_VOID
+#define DKY_PAD_UP         DKY_VOID
+#define DKY_PAD_PGUP   	   DKY_VOID
+#define DKY_PAD_LEFT   	   DKY_VOID
+#define DKY_PAD_CENTER 	   DKY_VOID
+#define DKY_PAD_RIGHT  	   DKY_VOID
+#define DKY_PAD_END    	   DKY_VOID
+#define DKY_PAD_DOWN   	   DKY_VOID
+#define DKY_PAD_PGDN   	   DKY_VOID
+#define DKY_PAD_INS    	   DKY_VOID
+#define DKY_PAD_DEL        DKY_VOID
+#define DKY_PAD_SEPARATOR  DKY_VOID
+#define DKY_PAD_SPACE      DKY_VOID
+#define DKY_PAD_F1         DKY_VOID
+#define DKY_PAD_F2         DKY_VOID
+#define DKY_PAD_F3         DKY_VOID
+#define DKY_PAD_F4         DKY_VOID
+#define DKY_PAD_EQUAL      DKY_VOID
+#define DKY_PAD_TAB        DKY_VOID
 
-#define KEY_F13            KEY_VOID
-#define KEY_F14            KEY_VOID
-#define KEY_F15            KEY_VOID
-#define KEY_F16            KEY_VOID
-#define KEY_F17            KEY_VOID
-#define KEY_F18            KEY_VOID
-#define KEY_F19            KEY_VOID
-#define KEY_F20            KEY_VOID
-#define KEY_F21            KEY_VOID
-#define KEY_F22            KEY_VOID
-#define KEY_F23            KEY_VOID
-#define KEY_F24            KEY_VOID
-#define KEY_F25            KEY_VOID
-#define KEY_F26            KEY_VOID
-#define KEY_F27            KEY_VOID
-#define KEY_F28            KEY_VOID
-#define KEY_F29            KEY_VOID
-#define KEY_F30            KEY_VOID
-#define KEY_F31            KEY_VOID
-#define KEY_F32            KEY_VOID
-#define KEY_F33            KEY_VOID
-#define KEY_F34            KEY_VOID
-#define KEY_F35            KEY_VOID
+#define DKY_F13            DKY_VOID
+#define DKY_F14            DKY_VOID
+#define DKY_F15            DKY_VOID
+#define DKY_F16            DKY_VOID
+#define DKY_F17            DKY_VOID
+#define DKY_F18            DKY_VOID
+#define DKY_F19            DKY_VOID
+#define DKY_F20            DKY_VOID
+#define DKY_F21            DKY_VOID
+#define DKY_F22            DKY_VOID
+#define DKY_F23            DKY_VOID
+#define DKY_F24            DKY_VOID
+#define DKY_F25            DKY_VOID
+#define DKY_F26            DKY_VOID
+#define DKY_F27            DKY_VOID
+#define DKY_F28            DKY_VOID
+#define DKY_F29            DKY_VOID
+#define DKY_F30            DKY_VOID
+#define DKY_F31            DKY_VOID
+#define DKY_F32            DKY_VOID
+#define DKY_F33            DKY_VOID
+#define DKY_F34            DKY_VOID
+#define DKY_F35            DKY_VOID
 
-#define KEY_L_META         KEY_VOID
-#define KEY_R_META         KEY_VOID
-#define KEY_L_SUPER        KEY_VOID
-#define KEY_R_SUPER        KEY_VOID
-#define KEY_L_HYPER        KEY_VOID
-#define KEY_R_HYPER        KEY_VOID
+#define DKY_L_META         DKY_VOID
+#define DKY_R_META         DKY_VOID
+#define DKY_L_SUPER        DKY_VOID
+#define DKY_R_SUPER        DKY_VOID
+#define DKY_L_HYPER        DKY_VOID
+#define DKY_R_HYPER        DKY_VOID
 
-#define KEY_LEFT_TAB       KEY_VOID
-#define KEY_SHIFT_LOCK     KEY_VOID
-#define KEY_MULTI_KEY      KEY_VOID
-#define KEY_MODE_SWITCH    KEY_VOID
+#define DKY_LEFT_TAB       DKY_VOID
+#define DKY_SHIFT_LOCK     DKY_VOID
+#define DKY_MULTI_KEY      DKY_VOID
+#define DKY_MODE_SWITCH    DKY_VOID
 
-#define KEY_DOSEMU_CLEAR   KEY_VOID
-#define KEY_DOSEMU_BEGIN   KEY_VOID
-#define KEY_DOSEMU_SELECT  KEY_VOID
-#define KEY_DOSEMU_EXECUTE KEY_VOID
-#define KEY_DOSEMU_UNDO    KEY_VOID
-#define KEY_DOSEMU_REDO    KEY_VOID
-#define KEY_DOSEMU_FIND    KEY_VOID
-#define KEY_DOSEMU_CANCEL  KEY_VOID
-#define KEY_DOSEMU_HELP    KEY_VOID
+#define DKY_DOSEMU_CLEAR   DKY_VOID
+#define DKY_DOSEMU_BEGIN   DKY_VOID
+#define DKY_DOSEMU_SELECT  DKY_VOID
+#define DKY_DOSEMU_EXECUTE DKY_VOID
+#define DKY_DOSEMU_UNDO    DKY_VOID
+#define DKY_DOSEMU_REDO    DKY_VOID
+#define DKY_DOSEMU_FIND    DKY_VOID
+#define DKY_DOSEMU_CANCEL  DKY_VOID
+#define DKY_DOSEMU_HELP    DKY_VOID
 #endif /* !HAVE_UNICODE_KEYB */
 
 #ifndef XK_BackSpace
@@ -113,7 +113,7 @@ struct xkey_to_dosemu_key {
 #endif
 
 static struct xkey_to_dosemu_key keysym_map[] = {
-{ XK_VoidSymbol, KEY_VOID },
+{ XK_VoidSymbol, DKY_VOID },
 
 #ifdef XK_MISCELLANY
 #ifdef XK_BackSpace
@@ -123,119 +123,119 @@ static struct xkey_to_dosemu_key keysym_map[] = {
  * tables in client code.
  */
 
-{ XK_BackSpace,		KEY_BKSP },
-{ XK_Tab,		KEY_TAB },
+{ XK_BackSpace,		DKY_BKSP },
+{ XK_Tab,		DKY_TAB },
 { XK_Linefeed,		U_LINE_FEED },
-{ XK_Clear,		KEY_DOSEMU_CLEAR },
-{ XK_Return,		KEY_RETURN },
-{ XK_Pause,		KEY_PAUSE },
-{ XK_Scroll_Lock,	KEY_SCROLL },
-{ XK_Sys_Req,		KEY_SYSRQ },
-{ XK_Escape,		KEY_ESC },
-{ XK_Delete,		KEY_DEL },
+{ XK_Clear,		DKY_DOSEMU_CLEAR },
+{ XK_Return,		DKY_RETURN },
+{ XK_Pause,		DKY_PAUSE },
+{ XK_Scroll_Lock,	DKY_SCROLL },
+{ XK_Sys_Req,		DKY_SYSRQ },
+{ XK_Escape,		DKY_ESC },
+{ XK_Delete,		DKY_DEL },
 
 /* International & multi-key character composition */
 
-{ XK_Multi_key,		KEY_MULTI_KEY },
+{ XK_Multi_key,		DKY_MULTI_KEY },
 
 /* Japanese keyboard support */
 
-{ XK_Kanji,		KEY_VOID },
-{ XK_Muhenkan,		KEY_VOID },
-{ XK_Henkan_Mode,	KEY_VOID },
-{ XK_Henkan,		KEY_VOID },
-{ XK_Romaji,		KEY_VOID },
-{ XK_Hiragana,		KEY_VOID },
-{ XK_Katakana,		KEY_VOID },
-{ XK_Hiragana_Katakana,	KEY_VOID },
-{ XK_Zenkaku,		KEY_VOID },
-{ XK_Hankaku,		KEY_VOID },
-{ XK_Zenkaku_Hankaku,	KEY_VOID },
-{ XK_Touroku,		KEY_VOID },
-{ XK_Massyo,		KEY_VOID },
-{ XK_Kana_Lock,		KEY_VOID },
-{ XK_Kana_Shift,	KEY_VOID },
-{ XK_Eisu_Shift,	KEY_VOID },
-{ XK_Eisu_toggle,	KEY_VOID },
+{ XK_Kanji,		DKY_VOID },
+{ XK_Muhenkan,		DKY_VOID },
+{ XK_Henkan_Mode,	DKY_VOID },
+{ XK_Henkan,		DKY_VOID },
+{ XK_Romaji,		DKY_VOID },
+{ XK_Hiragana,		DKY_VOID },
+{ XK_Katakana,		DKY_VOID },
+{ XK_Hiragana_Katakana,	DKY_VOID },
+{ XK_Zenkaku,		DKY_VOID },
+{ XK_Hankaku,		DKY_VOID },
+{ XK_Zenkaku_Hankaku,	DKY_VOID },
+{ XK_Touroku,		DKY_VOID },
+{ XK_Massyo,		DKY_VOID },
+{ XK_Kana_Lock,		DKY_VOID },
+{ XK_Kana_Shift,	DKY_VOID },
+{ XK_Eisu_Shift,	DKY_VOID },
+{ XK_Eisu_toggle,	DKY_VOID },
 
 /* 0xFF31 thru 0xFF3F are under XK_KOREAN */
 
 /* Cursor control & motion */
 
-{ XK_Home,		KEY_HOME },
-{ XK_Left,		KEY_LEFT },
-{ XK_Up,		KEY_UP },
-{ XK_Right,		KEY_RIGHT },
-{ XK_Down,		KEY_DOWN },
-{ XK_Prior,		KEY_PGUP },
-{ XK_Page_Up,		KEY_PGUP },
-{ XK_Next,		KEY_PGDN },
-{ XK_Page_Down,		KEY_PGDN },
-{ XK_End,		KEY_END },
-{ XK_Begin,		KEY_DOSEMU_BEGIN },
+{ XK_Home,		DKY_HOME },
+{ XK_Left,		DKY_LEFT },
+{ XK_Up,		DKY_UP },
+{ XK_Right,		DKY_RIGHT },
+{ XK_Down,		DKY_DOWN },
+{ XK_Prior,		DKY_PGUP },
+{ XK_Page_Up,		DKY_PGUP },
+{ XK_Next,		DKY_PGDN },
+{ XK_Page_Down,		DKY_PGDN },
+{ XK_End,		DKY_END },
+{ XK_Begin,		DKY_DOSEMU_BEGIN },
 
 
 /* Misc Functions */
 
-{ XK_Select,		KEY_DOSEMU_SELECT },
-{ XK_Print,		KEY_PRTSCR },
+{ XK_Select,		DKY_DOSEMU_SELECT },
+{ XK_Print,		DKY_PRTSCR },
 #if 0
-{ XK_Execute,		KEY_DOSEMU_EXECUTE },
+{ XK_Execute,		DKY_DOSEMU_EXECUTE },
 #else
-{ XK_Execute,		KEY_SYSRQ },
+{ XK_Execute,		DKY_SYSRQ },
 #endif
-{ XK_Insert,		KEY_INS },
-{ XK_Undo,		KEY_DOSEMU_UNDO },
-{ XK_Redo,		KEY_DOSEMU_REDO },
-{ XK_Menu,		KEY_DOSEMU_UNDO },
-{ XK_Find,		KEY_DOSEMU_FIND },
-{ XK_Cancel,		KEY_DOSEMU_CANCEL },
-{ XK_Help,		KEY_DOSEMU_HELP },
-{ XK_Break,		KEY_BREAK },
-{ XK_Mode_switch,	KEY_MODE_SWITCH },
-{ XK_script_switch,     KEY_MODE_SWITCH },
-{ XK_Num_Lock,		KEY_NUM },
+{ XK_Insert,		DKY_INS },
+{ XK_Undo,		DKY_DOSEMU_UNDO },
+{ XK_Redo,		DKY_DOSEMU_REDO },
+{ XK_Menu,		DKY_DOSEMU_UNDO },
+{ XK_Find,		DKY_DOSEMU_FIND },
+{ XK_Cancel,		DKY_DOSEMU_CANCEL },
+{ XK_Help,		DKY_DOSEMU_HELP },
+{ XK_Break,		DKY_BREAK },
+{ XK_Mode_switch,	DKY_MODE_SWITCH },
+{ XK_script_switch,     DKY_MODE_SWITCH },
+{ XK_Num_Lock,		DKY_NUM },
 
 /* Keypad Functions, keypad numbers cleverly chosen to map to ascii */
 
-{ XK_KP_Space,		KEY_PAD_SPACE },
-{ XK_KP_Tab,		KEY_PAD_TAB },
-{ XK_KP_Enter,		KEY_PAD_ENTER },
-{ XK_KP_F1,		KEY_PAD_F1 },
-{ XK_KP_F2,		KEY_PAD_F2 },
-{ XK_KP_F3,		KEY_PAD_F3 },
-{ XK_KP_F4,		KEY_PAD_F4 },
-{ XK_KP_Home,		KEY_PAD_HOME },
-{ XK_KP_Left,		KEY_PAD_LEFT },
-{ XK_KP_Up,		KEY_PAD_UP },
-{ XK_KP_Right,		KEY_PAD_RIGHT },
-{ XK_KP_Down,		KEY_PAD_DOWN },
-{ XK_KP_Prior,		KEY_PAD_PGUP },
-{ XK_KP_Page_Up,	KEY_PAD_PGUP },
-{ XK_KP_Next,		KEY_PAD_PGDN },
-{ XK_KP_Page_Down,	KEY_PAD_PGDN },
-{ XK_KP_End,		KEY_PAD_END },
-{ XK_KP_Begin,		KEY_PAD_CENTER },
-{ XK_KP_Insert,		KEY_PAD_INS },
-{ XK_KP_Delete,		KEY_PAD_DEL },
-{ XK_KP_Equal,		KEY_PAD_EQUAL },
-{ XK_KP_Multiply,	KEY_PAD_AST },
-{ XK_KP_Add,		KEY_PAD_PLUS },
-{ XK_KP_Separator,	KEY_PAD_SEPARATOR },
-{ XK_KP_Subtract,	KEY_PAD_MINUS },
-{ XK_KP_Decimal,	KEY_PAD_DECIMAL },
-{ XK_KP_Divide,		KEY_PAD_SLASH },
+{ XK_KP_Space,		DKY_PAD_SPACE },
+{ XK_KP_Tab,		DKY_PAD_TAB },
+{ XK_KP_Enter,		DKY_PAD_ENTER },
+{ XK_KP_F1,		DKY_PAD_F1 },
+{ XK_KP_F2,		DKY_PAD_F2 },
+{ XK_KP_F3,		DKY_PAD_F3 },
+{ XK_KP_F4,		DKY_PAD_F4 },
+{ XK_KP_Home,		DKY_PAD_HOME },
+{ XK_KP_Left,		DKY_PAD_LEFT },
+{ XK_KP_Up,		DKY_PAD_UP },
+{ XK_KP_Right,		DKY_PAD_RIGHT },
+{ XK_KP_Down,		DKY_PAD_DOWN },
+{ XK_KP_Prior,		DKY_PAD_PGUP },
+{ XK_KP_Page_Up,	DKY_PAD_PGUP },
+{ XK_KP_Next,		DKY_PAD_PGDN },
+{ XK_KP_Page_Down,	DKY_PAD_PGDN },
+{ XK_KP_End,		DKY_PAD_END },
+{ XK_KP_Begin,		DKY_PAD_CENTER },
+{ XK_KP_Insert,		DKY_PAD_INS },
+{ XK_KP_Delete,		DKY_PAD_DEL },
+{ XK_KP_Equal,		DKY_PAD_EQUAL },
+{ XK_KP_Multiply,	DKY_PAD_AST },
+{ XK_KP_Add,		DKY_PAD_PLUS },
+{ XK_KP_Separator,	DKY_PAD_SEPARATOR },
+{ XK_KP_Subtract,	DKY_PAD_MINUS },
+{ XK_KP_Decimal,	DKY_PAD_DECIMAL },
+{ XK_KP_Divide,		DKY_PAD_SLASH },
 
-{ XK_KP_0,		KEY_PAD_0 },
-{ XK_KP_1,		KEY_PAD_1 },
-{ XK_KP_2,		KEY_PAD_2 },
-{ XK_KP_3,		KEY_PAD_3 },
-{ XK_KP_4,		KEY_PAD_4 },
-{ XK_KP_5,		KEY_PAD_5 },
-{ XK_KP_6,		KEY_PAD_6 },
-{ XK_KP_7,		KEY_PAD_7 },
-{ XK_KP_8,		KEY_PAD_8 },
-{ XK_KP_9,		KEY_PAD_9 },
+{ XK_KP_0,		DKY_PAD_0 },
+{ XK_KP_1,		DKY_PAD_1 },
+{ XK_KP_2,		DKY_PAD_2 },
+{ XK_KP_3,		DKY_PAD_3 },
+{ XK_KP_4,		DKY_PAD_4 },
+{ XK_KP_5,		DKY_PAD_5 },
+{ XK_KP_6,		DKY_PAD_6 },
+{ XK_KP_7,		DKY_PAD_7 },
+{ XK_KP_8,		DKY_PAD_8 },
+{ XK_KP_9,		DKY_PAD_9 },
 
 /*
  * Auxilliary Functions; note the duplicate definitions for left and right
@@ -244,84 +244,84 @@ static struct xkey_to_dosemu_key keysym_map[] = {
  * We've not found a keyboard with more than 35 function keys total.
  */
 
-{ XK_F1,		KEY_F1 },
-{ XK_F2,		KEY_F2 },
-{ XK_F3,		KEY_F3 },
-{ XK_F4,		KEY_F4 },
-{ XK_F5,		KEY_F5 },
-{ XK_F6,		KEY_F6 },
-{ XK_F7,		KEY_F7 },
-{ XK_F8,		KEY_F8 },
-{ XK_F9,		KEY_F9 },
-{ XK_F10,		KEY_F10 },
-{ XK_F11,		KEY_F11 },
-{ XK_L1,		KEY_F11 },
-{ XK_F12,		KEY_F12 },
-{ XK_L2,		KEY_F12 },
-{ XK_F13,		KEY_F13 },
-{ XK_L3,		KEY_F13 },
-{ XK_F14,		KEY_F14 },
-{ XK_L4,		KEY_F14 },
-{ XK_F15,		KEY_F15 },
-{ XK_L5,		KEY_F15 },
-{ XK_F16,		KEY_F16 },
-{ XK_L6,		KEY_F16 },
-{ XK_F17,		KEY_F17 },
-{ XK_L7,		KEY_F17 },
-{ XK_F18,		KEY_F18 },
-{ XK_L8,		KEY_F18 },
-{ XK_F19,		KEY_F19 },
-{ XK_L9,		KEY_F19 },
-{ XK_F20,		KEY_F20 },
-{ XK_L10,		KEY_F20 },
-{ XK_F21,		KEY_F21 },
-{ XK_R1,		KEY_F21 },
-{ XK_F22,		KEY_F22 },
-{ XK_R2,		KEY_F22 },
-{ XK_F23,		KEY_F23 },
-{ XK_R3,		KEY_F23 },
-{ XK_F24,		KEY_F24 },
-{ XK_R4,		KEY_F24 },
-{ XK_F25,		KEY_F25 },
-{ XK_R5,		KEY_F25 },
-{ XK_F26,		KEY_F26 },
-{ XK_R6,		KEY_F26 },
-{ XK_F27,		KEY_F27 },
-{ XK_R7,		KEY_F27 },
-{ XK_F28,		KEY_F28 },
-{ XK_R8,		KEY_F28 },
-{ XK_F29,		KEY_F29 },
-{ XK_R9,		KEY_F29 },
-{ XK_F30,		KEY_F30 },
-{ XK_R10,		KEY_F30 },
-{ XK_F31,		KEY_F31 },
-{ XK_R11,		KEY_F31 },
-{ XK_F32,		KEY_F32 },
-{ XK_R12,		KEY_F32 },
-{ XK_F33,		KEY_F33 },
-{ XK_R13,		KEY_F33 },
-{ XK_F34,		KEY_F34 },
-{ XK_R14,		KEY_F34 },
-{ XK_F35,		KEY_F35 },
-{ XK_R15,		KEY_F35 },
+{ XK_F1,		DKY_F1 },
+{ XK_F2,		DKY_F2 },
+{ XK_F3,		DKY_F3 },
+{ XK_F4,		DKY_F4 },
+{ XK_F5,		DKY_F5 },
+{ XK_F6,		DKY_F6 },
+{ XK_F7,		DKY_F7 },
+{ XK_F8,		DKY_F8 },
+{ XK_F9,		DKY_F9 },
+{ XK_F10,		DKY_F10 },
+{ XK_F11,		DKY_F11 },
+{ XK_L1,		DKY_F11 },
+{ XK_F12,		DKY_F12 },
+{ XK_L2,		DKY_F12 },
+{ XK_F13,		DKY_F13 },
+{ XK_L3,		DKY_F13 },
+{ XK_F14,		DKY_F14 },
+{ XK_L4,		DKY_F14 },
+{ XK_F15,		DKY_F15 },
+{ XK_L5,		DKY_F15 },
+{ XK_F16,		DKY_F16 },
+{ XK_L6,		DKY_F16 },
+{ XK_F17,		DKY_F17 },
+{ XK_L7,		DKY_F17 },
+{ XK_F18,		DKY_F18 },
+{ XK_L8,		DKY_F18 },
+{ XK_F19,		DKY_F19 },
+{ XK_L9,		DKY_F19 },
+{ XK_F20,		DKY_F20 },
+{ XK_L10,		DKY_F20 },
+{ XK_F21,		DKY_F21 },
+{ XK_R1,		DKY_F21 },
+{ XK_F22,		DKY_F22 },
+{ XK_R2,		DKY_F22 },
+{ XK_F23,		DKY_F23 },
+{ XK_R3,		DKY_F23 },
+{ XK_F24,		DKY_F24 },
+{ XK_R4,		DKY_F24 },
+{ XK_F25,		DKY_F25 },
+{ XK_R5,		DKY_F25 },
+{ XK_F26,		DKY_F26 },
+{ XK_R6,		DKY_F26 },
+{ XK_F27,		DKY_F27 },
+{ XK_R7,		DKY_F27 },
+{ XK_F28,		DKY_F28 },
+{ XK_R8,		DKY_F28 },
+{ XK_F29,		DKY_F29 },
+{ XK_R9,		DKY_F29 },
+{ XK_F30,		DKY_F30 },
+{ XK_R10,		DKY_F30 },
+{ XK_F31,		DKY_F31 },
+{ XK_R11,		DKY_F31 },
+{ XK_F32,		DKY_F32 },
+{ XK_R12,		DKY_F32 },
+{ XK_F33,		DKY_F33 },
+{ XK_R13,		DKY_F33 },
+{ XK_F34,		DKY_F34 },
+{ XK_R14,		DKY_F34 },
+{ XK_F35,		DKY_F35 },
+{ XK_R15,		DKY_F35 },
 
 /* Modifiers */
 
-{ XK_Shift_L,		KEY_L_SHIFT },
-{ XK_Shift_R,		KEY_R_SHIFT },
-{ XK_Control_L,		KEY_L_CTRL },
-{ XK_Control_R,		KEY_R_CTRL },
-{ XK_Caps_Lock,		KEY_CAPS },
-{ XK_Shift_Lock,	KEY_SHIFT_LOCK },
+{ XK_Shift_L,		DKY_L_SHIFT },
+{ XK_Shift_R,		DKY_R_SHIFT },
+{ XK_Control_L,		DKY_L_CTRL },
+{ XK_Control_R,		DKY_R_CTRL },
+{ XK_Caps_Lock,		DKY_CAPS },
+{ XK_Shift_Lock,	DKY_SHIFT_LOCK },
 
-{ XK_Meta_L,		KEY_L_META },
-{ XK_Meta_R,		KEY_R_META },
-{ XK_Alt_L,		KEY_L_ALT },
-{ XK_Alt_R,		KEY_R_ALT },
-{ XK_Super_L,		KEY_L_SUPER },
-{ XK_Super_R,		KEY_R_SUPER },
-{ XK_Hyper_L,		KEY_L_HYPER },
-{ XK_Hyper_R,		KEY_R_HYPER },
+{ XK_Meta_L,		DKY_L_META },
+{ XK_Meta_R,		DKY_R_META },
+{ XK_Alt_L,		DKY_L_ALT },
+{ XK_Alt_R,		DKY_R_ALT },
+{ XK_Super_L,		DKY_L_SUPER },
+{ XK_Super_R,		DKY_R_SUPER },
+{ XK_Hyper_L,		DKY_L_HYPER },
+{ XK_Hyper_R,		DKY_R_HYPER },
 #endif /* XK_BackSpace */
 #endif /* XK_MISCELLANY */
 
@@ -336,11 +336,11 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 #define	XK_ISO_Lock					0xFE01
 #define	XK_ISO_Level2_Latch				0xFE02
 #endif
-{ XK_ISO_Level3_Shift,					KEY_R_ALT },
+{ XK_ISO_Level3_Shift,					DKY_R_ALT },
 #if 0
 #define	XK_ISO_Level3_Latch				0xFE04
 #define	XK_ISO_Level3_Lock				0xFE05
-#define	XK_ISO_Group_Shift		KEY_MODE_SWITCH }0xFF7E	/* Alias for mode_switch */
+#define	XK_ISO_Group_Shift		DKY_MODE_SWITCH }0xFF7E	/* Alias for mode_switch */
 #define	XK_ISO_Group_Latch				0xFE06
 #define	XK_ISO_Group_Lock				0xFE07
 #define	XK_ISO_Next_Group				0xFE08
@@ -353,7 +353,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 #define	XK_ISO_Last_Group_Lock				0xFE0F
 #endif
 
-{ XK_ISO_Left_Tab,					KEY_LEFT_TAB },
+{ XK_ISO_Left_Tab,					DKY_LEFT_TAB },
 #if 0
 #define	XK_ISO_Move_Line_Up				0xFE21
 #define	XK_ISO_Move_Line_Down				0xFE22
@@ -390,7 +390,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_dead_caron,		U_COMBINING_CARON },
 { XK_dead_cedilla,		U_COMBINING_CEDILLA },
 { XK_dead_ogonek,		U_COMBINING_OGONEK },
-{ XK_dead_iota,			KEY_VOID },
+{ XK_dead_iota,			DKY_VOID },
 { XK_dead_voiced_sound,		U_COMBINING_KATAKANA_HIRAGANA_VOICED_SOUND_MARK },
 { XK_dead_semivoiced_sound,	U_COMBINING_KATAKANA_HIRAGANA_SEMI_VOICED_SOUND_MARK },
 
@@ -917,7 +917,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_kana_N,                             U_HALFWIDTH_KATAKANA_LETTER_N },
 { XK_voicedsound,                        U_HALFWIDTH_KATAKANA_VOICED_SOUND_MARK },
 { XK_semivoicedsound,                    U_HALFWIDTH_KATAKANA_SEMI_VOICED_SOUND_MARK },
-{ XK_kana_switch,          		 KEY_MODE_SWITCH },  /* Alias for mode_switch */
+{ XK_kana_switch,          		 DKY_MODE_SWITCH },  /* Alias for mode_switch */
 #endif /* XK_overline */
 #endif /* XK_KATAKANA */
 
@@ -977,7 +977,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_Arabic_kasra,                                U_ARABIC_KASRA },
 { XK_Arabic_shadda,                               U_ARABIC_SHADDA },
 { XK_Arabic_sukun,                                U_ARABIC_SUKUN },
-{ XK_Arabic_switch,        			  KEY_MODE_SWITCH },  /* Alias for mode_switch */
+{ XK_Arabic_switch,        			  DKY_MODE_SWITCH },  /* Alias for mode_switch */
 #endif /* XK_Arabic_comma */
 #endif /* XK_ARABIC */
 
@@ -1177,7 +1177,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_Greek_chi,                        U_GREEK_SMALL_LETTER_CHI },
 { XK_Greek_psi,                        U_GREEK_SMALL_LETTER_PSI },
 { XK_Greek_omega,                      U_GREEK_SMALL_LETTER_OMEGA },
-{ XK_Greek_switch,         	       KEY_MODE_SWITCH }, /* Alias for mode_switch */
+{ XK_Greek_switch,         	       DKY_MODE_SWITCH }, /* Alias for mode_switch */
 #endif /* XK_Greek_ALPHAaccent */
 #endif /* XK_GREEK */
 
@@ -1451,7 +1451,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 { XK_hebrew_shin,                     U_HEBREW_LETTER_SHIN },
 { XK_hebrew_taw,                      U_HEBREW_LETTER_TAV },
 { XK_hebrew_taf,                      U_HEBREW_LETTER_TAV },  /* deprecated */
-{ XK_Hebrew_switch,        	      KEY_MODE_SWITCH },  /* Alias for mode_switch */
+{ XK_Hebrew_switch,        	      DKY_MODE_SWITCH },  /* Alias for mode_switch */
 #endif /* XK_hebrew_doublelowline */
 #endif /* XK_HEBREW */
 
@@ -1572,7 +1572,7 @@ static struct xkey_to_dosemu_key keysym_map[] = {
 #define XK_Hangul_MultipleCandidate	0xff3d    /* Multiple candidate */
 #define XK_Hangul_PreviousCandidate	0xff3e    /* Previous candidate */
 #define XK_Hangul_Special	0xff3f    /* Special symbols */
-{ XK_Hangul_switch,	KEY_MODE_SWITCH },   /* Alias for mode_switch */
+{ XK_Hangul_switch,	DKY_MODE_SWITCH },   /* Alias for mode_switch */
 #endif
 
 /* Hangul Consonant Characters */

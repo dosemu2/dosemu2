@@ -62,12 +62,12 @@ static unsigned do_extended(unsigned key, int extended)
   }
 
   /* Handle special cases */
-  if (key == 0xe02f) {     /* KEY_PAD_SLASH */
+  if (key == 0xe02f) {     /* DKY_PAD_SLASH */
     return 0x352f;
   }
 
-  if (key == 0xe00d  /* KEY_PAD_ENTER */ ||
-      key == 0xe00a) { /* CTRL KEY_PAD_ENTER */
+  if (key == 0xe00d  /* DKY_PAD_ENTER */ ||
+      key == 0xe00a) { /* CTRL DKY_PAD_ENTER */
     return (key & 0xff) | 0x1c00;
   }
 

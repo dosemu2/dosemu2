@@ -149,7 +149,7 @@ static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
  */
 
 
-static const Bit8u bios_ctrl_scancodes[NUM_KEY_NUMS] =
+static const Bit8u bios_ctrl_scancodes[NUM_DKY_NUMS] =
 {
    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,    /* 00-07 */
    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x94,    /* 08-0F */
@@ -186,7 +186,7 @@ static const Bit8u bios_ctrl_scancodes[NUM_KEY_NUMS] =
    0x00, 0x00, 0x00, 0x00, 0x00, 0x72, 0x00, 0x00,    /* F8-FF */
 };
 
-static const Bit8u bios_alt_scancodes[NUM_KEY_NUMS] =
+static const Bit8u bios_alt_scancodes[NUM_DKY_NUMS] =
 {
    0x00, 0x01, 0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d,    /* 00-07 */
    0x7e, 0x7f, 0x80, 0x81, 0x82, 0x83, 0x0e, 0xa5,    /* 08-0F */
@@ -242,79 +242,79 @@ static const Bit8u bios_alt_mapped_scancodes[] =
 
 static void init_misc_all_maps(t_keysym *rule)
 {
-	rule[NUM_L_ALT] = KEY_L_ALT;
-	rule[NUM_R_ALT] = KEY_R_ALT;
-	rule[NUM_L_CTRL] = KEY_L_CTRL;
-	rule[NUM_R_CTRL] = KEY_R_CTRL;
-	rule[NUM_L_SHIFT] = KEY_L_SHIFT;
-	rule[NUM_R_SHIFT] = KEY_R_SHIFT;
-	rule[NUM_NUM] = KEY_NUM;
-	rule[NUM_CAPS] = KEY_CAPS;
+	rule[NUM_L_ALT] = DKY_L_ALT;
+	rule[NUM_R_ALT] = DKY_R_ALT;
+	rule[NUM_L_CTRL] = DKY_L_CTRL;
+	rule[NUM_R_CTRL] = DKY_R_CTRL;
+	rule[NUM_L_SHIFT] = DKY_L_SHIFT;
+	rule[NUM_R_SHIFT] = DKY_R_SHIFT;
+	rule[NUM_NUM] = DKY_NUM;
+	rule[NUM_CAPS] = DKY_CAPS;
 }
 
 static void init_misc_plain_map(t_keysym *rule)
 {
-	rule[NUM_TAB] = KEY_TAB;
-	rule[NUM_RETURN] = KEY_RETURN;
-	rule[NUM_BKSP] = KEY_BKSP;
-	rule[NUM_ESC] = KEY_ESC;
-	rule[NUM_PAD_ENTER] = KEY_PAD_ENTER;
-	rule[NUM_PAD_SLASH] = KEY_PAD_SLASH;
-	rule[NUM_SCROLL] = KEY_SCROLL;
+	rule[NUM_TAB] = DKY_TAB;
+	rule[NUM_RETURN] = DKY_RETURN;
+	rule[NUM_BKSP] = DKY_BKSP;
+	rule[NUM_ESC] = DKY_ESC;
+	rule[NUM_PAD_ENTER] = DKY_PAD_ENTER;
+	rule[NUM_PAD_SLASH] = DKY_PAD_SLASH;
+	rule[NUM_SCROLL] = DKY_SCROLL;
 
-	rule[NUM_PAD_0] = KEY_PAD_INS;
-	rule[NUM_PAD_1] = KEY_PAD_END;
-	rule[NUM_PAD_2] = KEY_PAD_DOWN;
-	rule[NUM_PAD_3] = KEY_PAD_PGDN;
-	rule[NUM_PAD_4] = KEY_PAD_LEFT;
-	rule[NUM_PAD_5] = KEY_PAD_CENTER;
-	rule[NUM_PAD_6] = KEY_PAD_RIGHT;
-	rule[NUM_PAD_7] = KEY_PAD_HOME;
-	rule[NUM_PAD_8] = KEY_PAD_UP;
-	rule[NUM_PAD_9] = KEY_PAD_PGUP;
-	rule[NUM_PAD_DECIMAL] = KEY_PAD_DEL;
-	rule[NUM_PAD_SLASH] = KEY_PAD_SLASH;
-	rule[NUM_PAD_AST] = KEY_PAD_AST;
-	rule[NUM_PAD_MINUS] = KEY_PAD_MINUS;
-	rule[NUM_PAD_PLUS] = KEY_PAD_PLUS;
-	rule[NUM_PAD_ENTER] = KEY_PAD_ENTER;
+	rule[NUM_PAD_0] = DKY_PAD_INS;
+	rule[NUM_PAD_1] = DKY_PAD_END;
+	rule[NUM_PAD_2] = DKY_PAD_DOWN;
+	rule[NUM_PAD_3] = DKY_PAD_PGDN;
+	rule[NUM_PAD_4] = DKY_PAD_LEFT;
+	rule[NUM_PAD_5] = DKY_PAD_CENTER;
+	rule[NUM_PAD_6] = DKY_PAD_RIGHT;
+	rule[NUM_PAD_7] = DKY_PAD_HOME;
+	rule[NUM_PAD_8] = DKY_PAD_UP;
+	rule[NUM_PAD_9] = DKY_PAD_PGUP;
+	rule[NUM_PAD_DECIMAL] = DKY_PAD_DEL;
+	rule[NUM_PAD_SLASH] = DKY_PAD_SLASH;
+	rule[NUM_PAD_AST] = DKY_PAD_AST;
+	rule[NUM_PAD_MINUS] = DKY_PAD_MINUS;
+	rule[NUM_PAD_PLUS] = DKY_PAD_PLUS;
+	rule[NUM_PAD_ENTER] = DKY_PAD_ENTER;
 
-	rule[NUM_F1] = KEY_F1;
-	rule[NUM_F2] = KEY_F2;
-	rule[NUM_F3] = KEY_F3;
-	rule[NUM_F4] = KEY_F4;
-	rule[NUM_F5] = KEY_F5;
-	rule[NUM_F6] = KEY_F6;
-	rule[NUM_F7] = KEY_F7;
-	rule[NUM_F8] = KEY_F8;
-	rule[NUM_F9] = KEY_F9;
-	rule[NUM_F10] = KEY_F10;
-	rule[NUM_F11] = KEY_F11;
-	rule[NUM_F12] = KEY_F12;
+	rule[NUM_F1] = DKY_F1;
+	rule[NUM_F2] = DKY_F2;
+	rule[NUM_F3] = DKY_F3;
+	rule[NUM_F4] = DKY_F4;
+	rule[NUM_F5] = DKY_F5;
+	rule[NUM_F6] = DKY_F6;
+	rule[NUM_F7] = DKY_F7;
+	rule[NUM_F8] = DKY_F8;
+	rule[NUM_F9] = DKY_F9;
+	rule[NUM_F10] = DKY_F10;
+	rule[NUM_F11] = DKY_F11;
+	rule[NUM_F12] = DKY_F12;
 
-	rule[NUM_INS] = KEY_INS;
-	rule[NUM_DEL] = KEY_DEL;
-	rule[NUM_HOME] = KEY_HOME;
-	rule[NUM_END] = KEY_END;
-	rule[NUM_PGUP] = KEY_PGUP;
-	rule[NUM_PGDN] = KEY_PGDN;
-	rule[NUM_UP] = KEY_UP;
-	rule[NUM_DOWN] = KEY_DOWN;
-	rule[NUM_LEFT] = KEY_LEFT;
-	rule[NUM_RIGHT] = KEY_RIGHT;
+	rule[NUM_INS] = DKY_INS;
+	rule[NUM_DEL] = DKY_DEL;
+	rule[NUM_HOME] = DKY_HOME;
+	rule[NUM_END] = DKY_END;
+	rule[NUM_PGUP] = DKY_PGUP;
+	rule[NUM_PGDN] = DKY_PGDN;
+	rule[NUM_UP] = DKY_UP;
+	rule[NUM_DOWN] = DKY_DOWN;
+	rule[NUM_LEFT] = DKY_LEFT;
+	rule[NUM_RIGHT] = DKY_RIGHT;
 
-	rule[NUM_PRTSCR_SYSRQ] = KEY_PRTSCR;
-	rule[NUM_PAUSE_BREAK] = KEY_PAUSE;
+	rule[NUM_PRTSCR_SYSRQ] = DKY_PRTSCR;
+	rule[NUM_PAUSE_BREAK] = DKY_PAUSE;
 }
 
 static void init_misc_shifted_map(t_keysym *rule)
 {
-	rule[NUM_TAB] = KEY_LEFT_TAB;
-	rule[NUM_RETURN] = KEY_RETURN;
-	rule[NUM_BKSP] = KEY_BKSP;
-	rule[NUM_ESC] = KEY_ESC;
-	rule[NUM_PAD_ENTER] = KEY_PAD_ENTER;
-	rule[NUM_PAD_SLASH] = KEY_PAD_SLASH;
+	rule[NUM_TAB] = DKY_LEFT_TAB;
+	rule[NUM_RETURN] = DKY_RETURN;
+	rule[NUM_BKSP] = DKY_BKSP;
+	rule[NUM_ESC] = DKY_ESC;
+	rule[NUM_PAD_ENTER] = DKY_PAD_ENTER;
+	rule[NUM_PAD_SLASH] = DKY_PAD_SLASH;
 }
 
 static void init_misc_keypad_map(t_keysym *rule)
@@ -324,22 +324,22 @@ static void init_misc_keypad_map(t_keysym *rule)
 	for(i = 0x47; i <= 0x53; i++ ) {
 		t_keysym keysym = rule[i];
 		switch(keysym) {
-		case U_DIGIT_ZERO:	keysym = KEY_PAD_0; break;
-		case U_DIGIT_ONE:	keysym = KEY_PAD_1; break;
-		case U_DIGIT_TWO:	keysym = KEY_PAD_2; break;
-		case U_DIGIT_THREE:	keysym = KEY_PAD_3; break;
-		case U_DIGIT_FOUR:	keysym = KEY_PAD_4; break;
-		case U_DIGIT_FIVE:	keysym = KEY_PAD_5; break;
-		case U_DIGIT_SIX:	keysym = KEY_PAD_6; break;
-		case U_DIGIT_SEVEN:	keysym = KEY_PAD_7; break;
-		case U_DIGIT_EIGHT:	keysym = KEY_PAD_8; break;
-		case U_DIGIT_NINE:	keysym = KEY_PAD_9; break;
-		case U_PERIOD:		keysym = KEY_PAD_DECIMAL; break;
-		case U_COMMA:		keysym = KEY_PAD_SEPARATOR; break;
-		case U_SLASH:		keysym = KEY_PAD_SLASH; break;
-		case U_PLUS_SIGN:	keysym = KEY_PAD_PLUS; break;
-		case U_ASTERISK:	keysym = KEY_PAD_AST; break;
-		case U_HYPHEN_MINUS:	keysym = KEY_PAD_MINUS; break;
+		case U_DIGIT_ZERO:	keysym = DKY_PAD_0; break;
+		case U_DIGIT_ONE:	keysym = DKY_PAD_1; break;
+		case U_DIGIT_TWO:	keysym = DKY_PAD_2; break;
+		case U_DIGIT_THREE:	keysym = DKY_PAD_3; break;
+		case U_DIGIT_FOUR:	keysym = DKY_PAD_4; break;
+		case U_DIGIT_FIVE:	keysym = DKY_PAD_5; break;
+		case U_DIGIT_SIX:	keysym = DKY_PAD_6; break;
+		case U_DIGIT_SEVEN:	keysym = DKY_PAD_7; break;
+		case U_DIGIT_EIGHT:	keysym = DKY_PAD_8; break;
+		case U_DIGIT_NINE:	keysym = DKY_PAD_9; break;
+		case U_PERIOD:		keysym = DKY_PAD_DECIMAL; break;
+		case U_COMMA:		keysym = DKY_PAD_SEPARATOR; break;
+		case U_SLASH:		keysym = DKY_PAD_SLASH; break;
+		case U_PLUS_SIGN:	keysym = DKY_PAD_PLUS; break;
+		case U_ASTERISK:	keysym = DKY_PAD_AST; break;
+		case U_HYPHEN_MINUS:	keysym = DKY_PAD_MINUS; break;
 		}
 		rule[i] = keysym;
 	}
@@ -352,62 +352,62 @@ static void init_heuristics_alt_map(t_keysym *rule, t_keysym *plain_rule)
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
-		for(j = 0; j < NUM_KEY_NUMS; j++) {
+		for(j = 0; j < NUM_DKY_NUMS; j++) {
 			/* lower case letters */
 			if (plain_rule[j] == (i + 0x60)) {
-				rule[j] = i + KEY_ALT_A -1;
+				rule[j] = i + DKY_ALT_A -1;
 			}
 			/* upper case letters */
 			if (plain_rule[j] == (i + 0x40)) {
-				rule[j] = i + KEY_ALT_A -1;
+				rule[j] = i + DKY_ALT_A -1;
 			}
 		}
 	}
 }
 static void init_misc_alt_map(t_keysym *rule)
 {
-	rule[NUM_SPACE] = KEY_SPACE;
-	rule[NUM_PRTSCR_SYSRQ] = KEY_SYSRQ;
+	rule[NUM_SPACE] = DKY_SPACE;
+	rule[NUM_PRTSCR_SYSRQ] = DKY_SYSRQ;
 }
 static void init_misc_altgr_map(t_keysym *rule)
 {
-	rule[NUM_SPACE] = KEY_SPACE;
+	rule[NUM_SPACE] = DKY_SPACE;
 }
 static void init_misc_shift_altgr_map(t_keysym *rule)
 {
-	rule[NUM_SPACE] = KEY_SPACE;
+	rule[NUM_SPACE] = DKY_SPACE;
 }
 static void init_misc_ctrl_alt_map(t_keysym *rule)
 {
-	rule[NUM_PGUP] = KEY_DOSEMU_X86EMU_DEBUG;
-	rule[NUM_DEL] = KEY_DOSEMU_REBOOT;
+	rule[NUM_PGUP] = DKY_DOSEMU_X86EMU_DEBUG;
+	rule[NUM_DEL] = DKY_DOSEMU_REBOOT;
 
-	rule[NUM_PGDN] = KEY_DOSEMU_EXIT;
-	rule[NUM_PAD_3] = KEY_DOSEMU_EXIT;
-	rule[NUM_P] = KEY_DOSEMU_FREEZE;
+	rule[NUM_PGDN] = DKY_DOSEMU_EXIT;
+	rule[NUM_PAD_3] = DKY_DOSEMU_EXIT;
+	rule[NUM_P] = DKY_DOSEMU_FREEZE;
 
-	rule[NUM_F1] = KEY_DOSEMU_VT_1;
-	rule[NUM_F2] = KEY_DOSEMU_VT_2;
-	rule[NUM_F3] = KEY_DOSEMU_VT_3;
-	rule[NUM_F4] = KEY_DOSEMU_VT_4;
-	rule[NUM_F5] = KEY_DOSEMU_VT_5;
-	rule[NUM_F6] = KEY_DOSEMU_VT_6;
-	rule[NUM_F7] = KEY_DOSEMU_VT_7;
-	rule[NUM_F8] = KEY_DOSEMU_VT_8;
-	rule[NUM_F9] = KEY_DOSEMU_VT_9;
-	rule[NUM_F10] = KEY_DOSEMU_VT_10;
-	rule[NUM_F11] = KEY_DOSEMU_VT_11;
-	rule[NUM_F12] = KEY_DOSEMU_VT_12;
+	rule[NUM_F1] = DKY_DOSEMU_VT_1;
+	rule[NUM_F2] = DKY_DOSEMU_VT_2;
+	rule[NUM_F3] = DKY_DOSEMU_VT_3;
+	rule[NUM_F4] = DKY_DOSEMU_VT_4;
+	rule[NUM_F5] = DKY_DOSEMU_VT_5;
+	rule[NUM_F6] = DKY_DOSEMU_VT_6;
+	rule[NUM_F7] = DKY_DOSEMU_VT_7;
+	rule[NUM_F8] = DKY_DOSEMU_VT_8;
+	rule[NUM_F9] = DKY_DOSEMU_VT_9;
+	rule[NUM_F10] = DKY_DOSEMU_VT_10;
+	rule[NUM_F11] = DKY_DOSEMU_VT_11;
+	rule[NUM_F12] = DKY_DOSEMU_VT_12;
 
-	rule[NUM_PAD_8] = KEY_MOUSE_UP;
-	rule[NUM_PAD_2] = KEY_MOUSE_DOWN;
-	rule[NUM_PAD_4] = KEY_MOUSE_LEFT;
-	rule[NUM_PAD_6] = KEY_MOUSE_RIGHT;
-	rule[NUM_PAD_7] = KEY_MOUSE_UP_AND_LEFT;
-	rule[NUM_PAD_9] = KEY_MOUSE_UP_AND_RIGHT;
-	rule[NUM_PAD_1] = KEY_MOUSE_DOWN_AND_LEFT;
+	rule[NUM_PAD_8] = DKY_MOUSE_UP;
+	rule[NUM_PAD_2] = DKY_MOUSE_DOWN;
+	rule[NUM_PAD_4] = DKY_MOUSE_LEFT;
+	rule[NUM_PAD_6] = DKY_MOUSE_RIGHT;
+	rule[NUM_PAD_7] = DKY_MOUSE_UP_AND_LEFT;
+	rule[NUM_PAD_9] = DKY_MOUSE_UP_AND_RIGHT;
+	rule[NUM_PAD_1] = DKY_MOUSE_DOWN_AND_LEFT;
 #if 0
-	rule[NUM_PAD_3] = KEY_MOUSE_DOWN_AND_RIGHT;
+	rule[NUM_PAD_3] = DKY_MOUSE_DOWN_AND_RIGHT;
 #endif
 }
 
@@ -419,7 +419,7 @@ static void init_heuristics_ctrl_map(t_keysym *rule, t_keysym *plain_rule)
 	 * values on the other keycaps.
 	 */
 	for(i = 1; i < 27; i++) {
-		for(j = 0; j < NUM_KEY_NUMS; j++) {
+		for(j = 0; j < NUM_DKY_NUMS; j++) {
 			/* lower case letters */
 			if (plain_rule[j] == (i + 0x60)) {
 				rule[j] = i;
@@ -451,7 +451,7 @@ static void init_misc_ctrl_map(t_keysym *rule)
 	rule[NUM_SPACE]     = 0x20;
 	rule[NUM_ESC]       = 0x1b;
 	rule[NUM_BKSP]      = 0x7f;
-	rule[NUM_PAUSE_BREAK] = KEY_BREAK;
+	rule[NUM_PAUSE_BREAK] = DKY_BREAK;
 }
 
 static void init_translate_rule(t_keysym *rule,
@@ -464,7 +464,7 @@ static void init_translate_rule(t_keysym *rule,
 
 	for( i = 0; i < map_size; i++) {
 		ch = key_map[i];
-		if (ch == KEY_VOID)
+		if (ch == DKY_VOID)
 			continue;
 		/* 0xef00 - 0xefff is a pass through range to the current
 		 * character set.
@@ -476,7 +476,7 @@ static void init_translate_rule(t_keysym *rule,
 			buff[0] = ch & 0xFF;
 			charset_to_unicode(&keyb_state, &ch, buff, 1);
 			cleanup_charset_state(&keyb_state);
-			if (ch == KEY_VOID)
+			if (ch == DKY_VOID)
 				continue;
 		}
 		rule[i + key_bias] = ch;
@@ -489,10 +489,10 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
 #define LOOP(type)  \
 	do { \
 		k_printf(#type ":\n"); \
-		for(i = 0; i < NUM_KEY_NUMS; i++) { \
+		for(i = 0; i < NUM_DKY_NUMS; i++) { \
 			t_keysym keysym = type[i]; \
 			t_keynum keynum = validate_keynum(i); \
-			if (keysym == KEY_VOID || keynum == NUM_VOID) \
+			if (keysym == DKY_VOID || keynum == NUM_VOID) \
 				continue; \
 			k_printf("keynum->keysym: %02x->%04x\n", \
 				 keynum, keysym); \
@@ -540,8 +540,8 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	rules->trans_rules.rule_structs.ctrl_alt.modifiers = MODIFIER_CTRL | MODIFIER_ALT;
 
 	for(j = 0; j < NUM_RULES; j++) {
-		for(i = 0; i < NUM_KEY_NUMS; i++)
-			rules->trans_rules.rule_arr[j].rule_map[i] = KEY_VOID;
+		for(i = 0; i < NUM_DKY_NUMS; i++)
+			rules->trans_rules.rule_arr[j].rule_map[i] = DKY_VOID;
 	}
 
 	/* plain keys */
@@ -620,10 +620,10 @@ static void init_charset_keymap(struct character_translate_rules *charset,
 
 	for(j = 0; j < NUM_RULES; j++) {
 	    rule = &rules->trans_rules.rule_arr[j];
-	    for (i = 0; i < NUM_KEY_NUMS; i++) {
+	    for (i = 0; i < NUM_DKY_NUMS; i++) {
 		ch = rule->rule_map[i];
 		shiftstate = rule->modifiers;
-		if (ch == KEY_VOID) {
+		if (ch == DKY_VOID) {
 			continue;
 		}
 		key = validate_keynum(i);
@@ -757,13 +757,13 @@ static void init_charset_keys(struct character_translate_rules *charset,
 		unicode_to_charset(&keyb_state, i, buff, 1);
 		charset->keys[i].key = NUM_VOID;
 		charset->keys[i].shiftstate = 0;
-		charset->keys[i].deadsym = KEY_VOID;
+		charset->keys[i].deadsym = DKY_VOID;
 		charset->keys[i].character = buff[0];
 		cleanup_charset_state(&keyb_state);
 	}
 
 	/* unmapped characters have an ascii key of 0 */
-	charset->keys[KEY_VOID].character = 0;
+	charset->keys[DKY_VOID].character = 0;
 
 	for(i=0;i<MAPS_MAX;i++) {
 	/* Now find sequences of keypresses that generate them */
@@ -799,7 +799,7 @@ static void init_active_keyboard_state(
  */
 	state->shiftstate = 0;
 	state->alt_num_buffer = 0;
-	state->accent = KEY_VOID;
+	state->accent = DKY_VOID;
 	state->raw_state.rawprefix = 0;
 }
 
@@ -946,8 +946,8 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 			}
 
 			default:
-				if ((keysym >= KEY_ALT_A)&&(keysym <= KEY_ALT_Z)) {
-					bios_scan=bios_alt_mapped_scancodes[keysym - KEY_ALT_A];
+				if ((keysym >= DKY_ALT_A)&&(keysym <= DKY_ALT_Z)) {
+					bios_scan=bios_alt_mapped_scancodes[keysym - DKY_ALT_A];
 				} else {
 					bios_scan=bios_alt_scancodes[key];
 				}
@@ -973,7 +973,7 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 			case NUM_LEFT:	 case NUM_RIGHT:
 				ascii = 0xe0; break;
 			}
-			if ((bios_scan == key) && (keysym == KEY_VOID)) {
+			if ((bios_scan == key) && (keysym == DKY_VOID)) {
 				ascii = 0;
 				bios_scan = 0;
 			}
@@ -1090,19 +1090,19 @@ static void do_shift_keys_r(Boolean make, t_keysym keysym, t_shiftstate *shiftst
 	 *  nice place to customize your keyboard.
 	 */
 	switch(keysym) {
-	case KEY_L_ALT:    mask=L_ALT; break;
-	case KEY_R_ALT:    mask=R_ALT; break;
-	case KEY_L_CTRL:   mask=L_CTRL; break;
-	case KEY_R_CTRL:   mask=R_CTRL; break;
-	case KEY_L_SHIFT:  mask=L_SHIFT; break;
-	case KEY_R_SHIFT:  mask=R_SHIFT; break;
-	case KEY_CAPS:     mask=CAPS_PRESSED; togglemask=CAPS_LOCK; break;
-	case KEY_NUM:      mask=NUM_PRESSED;  togglemask=NUM_LOCK;  break;
-	case KEY_SCROLL:   mask=SCR_PRESSED;  togglemask=SCR_LOCK;  break;
+	case DKY_L_ALT:    mask=L_ALT; break;
+	case DKY_R_ALT:    mask=R_ALT; break;
+	case DKY_L_CTRL:   mask=L_CTRL; break;
+	case DKY_R_CTRL:   mask=R_CTRL; break;
+	case DKY_L_SHIFT:  mask=L_SHIFT; break;
+	case DKY_R_SHIFT:  mask=R_SHIFT; break;
+	case DKY_CAPS:     mask=CAPS_PRESSED; togglemask=CAPS_LOCK; break;
+	case DKY_NUM:      mask=NUM_PRESSED;  togglemask=NUM_LOCK;  break;
+	case DKY_SCROLL:   mask=SCR_PRESSED;  togglemask=SCR_LOCK;  break;
 		/* FIXME INS_PRESSED */
-	case KEY_INS:      mask=INS_PRESSED;  togglemask=INS_LOCK;  break;
-	case KEY_PAD_INS:  mask=INS_PRESSED;  togglemask=INS_LOCK;  break;
-	case KEY_SYSRQ:    mask=SYSRQ_PRESSED; break;
+	case DKY_INS:      mask=INS_PRESSED;  togglemask=INS_LOCK;  break;
+	case DKY_PAD_INS:  mask=INS_PRESSED;  togglemask=INS_LOCK;  break;
+	case DKY_SYSRQ:    mask=SYSRQ_PRESSED; break;
 	default:           break;
 	}
 	if (make) {
@@ -1125,7 +1125,7 @@ static void do_shift_keys_r(Boolean make, t_keysym keysym, t_shiftstate *shiftst
 
 #if 0
 	if (make && config.shiftclearcaps &&
-	    (keysym==KEY_L_SHIFT || keysym==KEY_R_SHIFT))
+	    (keysym==DKY_L_SHIFT || keysym==DKY_R_SHIFT))
 	{
 		shiftstate &= ~CAPS_LOCK;
 	}
@@ -1202,7 +1202,7 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 {
 	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
 		&state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain, key, NULL);
-	t_keysym ch = KEY_VOID;
+	t_keysym ch = DKY_VOID;
 
 	*is_accent=FALSE;
 
@@ -1227,7 +1227,7 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 	else /* unshifted */ {
 		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain.rule_map[key];
 	}
-	if (make && (state->accent != KEY_VOID)) {
+	if (make && (state->accent != DKY_VOID)) {
 		t_keysym new_ch = keysym_dead_key_translation(state->accent, ch);
 		if ((new_ch != ch) && (state->rules->charset.keys[ch].character)) {
 			/* ignore accented characters that aren't
@@ -1235,7 +1235,7 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 			 */
 			ch = new_ch;
 		}
-		state->accent = KEY_VOID;
+		state->accent = DKY_VOID;
 		*is_accent = TRUE;
 	}
 	if (make && is_keysym_dead(ch)) {
@@ -1616,7 +1616,7 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 
 static void put_keynum(Boolean make, t_keynum input_keynum, t_keysym sym, struct keyboard_state *state)
 {
-	if (sym != KEY_VOID) {
+	if (sym != DKY_VOID) {
 		/* switch active keymap if needed */
 		state->rules->activemap = state->rules->charset.keys[sym].map;
 	}
@@ -1747,7 +1747,7 @@ Bit16u translate_key(Boolean make, t_keynum key,
 	 * code is 0, i.e. bios_key == ((0 << 8)|ascii) == ascii
 	 * just like ALT-numpad sequences.
 	 */
-	bios_key = state->accent != KEY_VOID ? 0 :
+	bios_key = state->accent != DKY_VOID ? 0 :
 	  is_accent ? ascii : make_bios_code_r(make, key, ascii, keysym, state);
 
 	if (bios_key == 0x23e0 || bios_key == 0x18e0)  /* Cyrillic_er work around */
@@ -1810,8 +1810,8 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		 current, desired);
 
 	if (!!(current & MODIFIER_INS) != !!(desired & MODIFIER_INS)) {
-		t_keynum keynum1 = state->rules->charset.keys[KEY_INS].key;
-		t_keynum keynum2 = state->rules->charset.keys[KEY_PAD_INS].key;
+		t_keynum keynum1 = state->rules->charset.keys[DKY_INS].key;
+		t_keynum keynum2 = state->rules->charset.keys[DKY_PAD_INS].key;
 
 		/* by preference toggle something that is already held down */
 		if (test_bit(keynum1, state)) {
@@ -1826,7 +1826,7 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		}
 	}
 	if (!!(current & MODIFIER_CAPS) != !!(desired & MODIFIER_CAPS)) {
-		t_keynum keynum = state->rules->charset.keys[KEY_CAPS].key;
+		t_keynum keynum = state->rules->charset.keys[DKY_CAPS].key;
 		if (test_bit(keynum, keys)) {
 			put_keynum_r(RELEASE, keynum, state);
 			put_keynum_r(PRESS, keynum, state);
@@ -1836,7 +1836,7 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		}
 	}
 	if (!!(current & MODIFIER_NUM) != !!(desired & MODIFIER_NUM)) {
-		t_keynum keynum = state->rules->charset.keys[KEY_NUM].key;
+		t_keynum keynum = state->rules->charset.keys[DKY_NUM].key;
 		if (test_bit(keynum, keys)) {
 			put_keynum_r(RELEASE, keynum, state);
 			put_keynum_r(PRESS, keynum, state);
@@ -1846,7 +1846,7 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		}
 	}
 	if (!!(current & MODIFIER_SCR) != !!(desired & MODIFIER_SCR)) {
-		t_keynum keynum = state->rules->charset.keys[KEY_SCROLL].key;
+		t_keynum keynum = state->rules->charset.keys[DKY_SCROLL].key;
 		if (test_bit(keynum, keys)) {
 			put_keynum_r(RELEASE, keynum, state);
 			put_keynum_r(PRESS, keynum, state);
@@ -1856,8 +1856,8 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		}
 	}
 	if (!!(current & MODIFIER_SHIFT) != !!(desired & MODIFIER_SHIFT)) {
-		t_keynum lkeynum = state->rules->charset.keys[KEY_L_SHIFT].key;
-		t_keynum rkeynum = state->rules->charset.keys[KEY_R_SHIFT].key;
+		t_keynum lkeynum = state->rules->charset.keys[DKY_L_SHIFT].key;
+		t_keynum rkeynum = state->rules->charset.keys[DKY_R_SHIFT].key;
 		if (current & MODIFIER_SHIFT) {
 			if (state->shiftstate & L_SHIFT) {
 				put_keynum_r(RELEASE, lkeynum, state);
@@ -1870,8 +1870,8 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		}
 	}
 	if (!!(current & MODIFIER_CTRL) != !!(desired & MODIFIER_CTRL)) {
-		t_keynum lkeynum = state->rules->charset.keys[KEY_L_CTRL].key;
-		t_keynum rkeynum = state->rules->charset.keys[KEY_R_CTRL].key;
+		t_keynum lkeynum = state->rules->charset.keys[DKY_L_CTRL].key;
+		t_keynum rkeynum = state->rules->charset.keys[DKY_R_CTRL].key;
 		if (current & MODIFIER_CTRL) {
 			if (state->shiftstate & L_CTRL) {
 				put_keynum_r(RELEASE, lkeynum, state);
@@ -1884,7 +1884,7 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		}
 	}
 	if (!!(current & MODIFIER_ALTGR) != !!(desired & MODIFIER_ALTGR)) {
-		t_keynum keynum = state->rules->charset.keys[KEY_R_ALT].key;
+		t_keynum keynum = state->rules->charset.keys[DKY_R_ALT].key;
 		if (current & MODIFIER_ALTGR) {
 			put_keynum_r(RELEASE, keynum, state);
 		} else {
@@ -1894,8 +1894,8 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 	/* reread because of interactions */
 	current = get_modifiers_r(state->shiftstate);
 	if (!!(current & MODIFIER_ALT) != !!(desired & MODIFIER_ALT)) {
-		t_keynum lkeynum = state->rules->charset.keys[KEY_L_ALT].key;
-		t_keynum rkeynum = state->rules->charset.keys[KEY_R_ALT].key;
+		t_keynum lkeynum = state->rules->charset.keys[DKY_L_ALT].key;
+		t_keynum rkeynum = state->rules->charset.keys[DKY_R_ALT].key;
 		if (current & MODIFIER_ALT) {
 			if (state->shiftstate & L_ALT) {
 				put_keynum_r(RELEASE, lkeynum, state);
@@ -2013,7 +2013,7 @@ static void put_character_symbol(
 {
 	t_modifiers old_shiftstate, new_shiftstate;
 	struct press_state *key;
-	if (ch == KEY_VOID) {
+	if (ch == DKY_VOID) {
 		return;
 	}
 	old_shiftstate = get_modifiers_r(state->shiftstate);
@@ -2021,7 +2021,7 @@ static void put_character_symbol(
 	/* switch active keymap if needed */
 	state->rules->activemap = key->map;
 	new_shiftstate = key->shiftstate | (old_shiftstate & key->shiftstate_mask);
-	if (key->deadsym == KEY_VOID) {
+	if (key->deadsym == DKY_VOID) {
 		new_shiftstate |= modifiers;
 	}
 	if (key->key != NUM_VOID) {
@@ -2134,7 +2134,7 @@ t_keynum keysym_to_keynum(t_keysym key, t_modifiers * modifiers)
 	t_keynum keynum = NUM_VOID;
 	t_modifiers mods = MODIFIER_VOID;
 
-	if (key != KEY_VOID) {
+	if (key != DKY_VOID) {
 		sym_info = &input_keyboard_state.rules->charset.keys[key];
 		keynum = sym_info->key;
 		mods = sym_info->shiftstate;
@@ -2152,7 +2152,7 @@ t_keynum keysym_to_keynum(t_keysym key, t_modifiers * modifiers)
  * Either pressing a key releasing one.  The key to move is
  * the key that is labeled with the specified keysym.
  *
- *   key  - the keysym, one of the KEY_ constants from new-kbd.h
+ *   key  - the keysym, one of the DKY_ constants from new-kbd.h
  *   make  - TRUE for key press, FALSE for release
  *
  * Applications using int16h will always see the appropriate ASCII code
@@ -2183,7 +2183,7 @@ int move_key(Boolean make, t_keysym key)
 	/* move_key only works for key caps, and a symbol only reachable
 	 * by pressing a dead key first doesn't qualify as a key cap.
 	 */
-	if ((keynum != NUM_VOID) && (deadsym == KEY_VOID)) {
+	if ((keynum != NUM_VOID) && (deadsym == DKY_VOID)) {
 		put_keynum_r(make, keynum, &input_keyboard_state);
 	} else {
 		result = -1;
