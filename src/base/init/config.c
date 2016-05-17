@@ -658,6 +658,9 @@ static void config_post_process(void)
     }
 #endif
 
+    if (!config.hdisks && !config.install)
+	config.install = "";
+
     check_for_env_autoexec_or_config();
 
     if (config.pci && !can_do_root_stuff) {
