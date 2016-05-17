@@ -135,14 +135,28 @@ void boot(void)
     case 0:
 	if (config.bootdisk)
 	    dp = &bootdisk;
-	else
+	else if (config.fdisks > 0)
 	    dp = &disktab[0];
+	else {
+	    error("Drive A: not defined, can't boot!\n");
+	    leavedos(71);
+	}
 	break;
     case 1:
-	dp = &hdisktab[0];
+	if (config.hdisks > 0)
+	    dp = &hdisktab[0];
+	else {
+	    error("Drive C: not defined, can't boot!\n");
+	    leavedos(71);
+	}
 	break;
     case 2:
-	dp = &disktab[1];
+	if (config.fdisks > 1)
+	    dp = &disktab[1];
+	else {
+	    error("Drive B: not defined, can't boot!\n");
+	    leavedos(71);
+	}
 	break;
     default:
 	error("unexpected value for config.hdiskboot\n");
