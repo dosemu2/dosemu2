@@ -148,21 +148,9 @@ static void process_master_boot_record(void)
    *    BP,SI pointing to the partition entry within 0:600 MBR
    *    DI = 0x7dfe
    */
-   struct partition {
-     unsigned char bootflag;
-     unsigned char start_head;
-     unsigned char start_sector;
-     unsigned char start_track;
-     unsigned char OS_type;
-     unsigned char end_head;
-     unsigned char end_sector;
-     unsigned char end_track;
-     unsigned int num_sect_preceding;
-     unsigned int num_sectors;
-   } __attribute__((packed));
    struct mbr {
-     char code[0x1be];
-     struct partition partition[4];
+     char code[PART_INFO_START];
+     struct on_disk_partition partition[4];
      unsigned short bootmagic;
    } __attribute__((packed));
    struct mbr *mbr = LOWMEM(0x600);

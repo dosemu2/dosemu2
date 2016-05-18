@@ -19,6 +19,8 @@
 #define lseek64  lseek
 #endif
 
+#include <stdint.h>
+
 /* disk file types */
 typedef enum {
   NODISK = -1,
@@ -82,6 +84,18 @@ struct disk_fptr {
 
 #endif
 
+struct on_disk_partition {
+  unsigned char bootflag;		/* 0x80 - active */
+  unsigned char start_head;
+  unsigned char start_sector;
+  unsigned char start_track;
+  unsigned char OS_type;		/* What partition type */
+  unsigned char end_head;
+  unsigned char end_sector;
+  unsigned char end_track;
+  unsigned int num_sect_preceding;	/* starting sector counting from 0 */
+  unsigned int num_sectors;		/* nr of sectors in partition */
+} __attribute__((packed));
 
 /* this header appears only in hdimage files
  */

@@ -27,12 +27,11 @@
 #include <sys/fcntl.h>
 #include <stdio.h>
 #include <errno.h>
-#ifdef __linux__
-  #include "Linux/genhd.h"
-#endif
+
+#include "disks.h"
 
 #define SECTOR_SIZE	512
-#define EXT_MAGIC	5	/* sys_ind for an extended partition */
+#define EXT_MAGIC	5	/* OS_type for an extended partition */
 
 int fd = -1;
 char *decfmt = "%sSector=%-6d   Offset=%-10d   Type=0x%02x%s\n";
@@ -44,30 +43,30 @@ static void usage(void)
   fprintf(stderr, "usage: hdinfo [-h] <image file or disk device>\n");
 }
 
-static void print_part(struct partition *part, size_t offset, int sect_off, int ext)
+static void print_part(struct on_disk_partition *part, size_t offset, int sect_off, int ext)
 {
   char *indent = ext ? "       [" : "";
   char *exdent = ext ? "]" : "";
   int i;
 
-  if (part->sys_ind)
+  if (part->OS_type)
     printf(fmtstring, indent,
-	   part->start_sect + sect_off,
-	   (part->start_sect + sect_off) * SECTOR_SIZE + offset,
-	   part->sys_ind, exdent);
+	   part->start_sector + sect_off,
+	   (part->start_sector + sect_off) * SECTOR_SIZE + offset,
+	   part->OS_type, exdent);
 
-  if (part->sys_ind == EXT_MAGIC && !ext) {
+  if (part->OS_type == EXT_MAGIC && !ext) {
     char extblock[512];
 
-    lseek(fd, (off_t)part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
+    lseek(fd, (off_t)part->start_sector * SECTOR_SIZE + offset, SEEK_SET);
     if (read(fd, extblock, 512) < 512) {
       perror("hdinfo: Could not read sector");
       exit(1);
     }
 
     for (i = 0; i < 4; i++) {
-      print_part((struct partition *) (extblock + 0x1be + i * 16), offset,
-		 part->start_sect, 1);
+      print_part((struct on_disk_partition *) (extblock + PART_INFO_START + i * 16), offset,
+		 part->start_sector, 1);
     }
   }
 }
@@ -115,7 +114,7 @@ int main(int argc, char **argv)
 	 filename, hdimage_off ? "(a DOSEMU hdimage file)" : "");
 
   for (i = 0; i < 4; i++)
-    print_part((struct partition *) (mbr + 0x1be + hdimage_off + i * 16),
+    print_part((struct on_disk_partition *) (mbr + PART_INFO_START + hdimage_off + i * 16),
 	       hdimage_off, 0, 0);
   return 0;
 }
