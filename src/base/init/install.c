@@ -317,7 +317,7 @@ static void install_dos_(char *kernelsyspath)
 	x = '1';
 	do {
 		read_string(&x, 1);
-		choice = x - '0';
+		choice = (x == '\n' ? 1 : x - '0');
 		switch (choice) {
 		case 5:
 			/* nothing to be done */
