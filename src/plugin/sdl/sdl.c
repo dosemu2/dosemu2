@@ -106,6 +106,7 @@ static int force_grab = 0;
 static int grab_active = 0;
 static int kbd_grab_active = 0;
 static int m_cursor_visible;
+static int initialized;
 static int init_failed;
 
 #ifndef USE_DL_PLUGINS
@@ -434,7 +435,10 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
   set_resizable(use_bitmap_font
 		|| vga.mode_class == GRAPH, w_x_res, w_y_res);
   SDL_ShowWindow(window);
-  SDL_RaiseWindow(window);
+  if (!initialized) {
+    initialized = 1;
+    SDL_RaiseWindow(window);
+  }
   m_x_res = w_x_res;
   m_y_res = w_y_res;
   pthread_mutex_lock(&update_mtx);
