@@ -127,5 +127,56 @@ in your dosemu.conf or .dosemurc.
 </itemizedlist>
 </listitem>
 
+<listitem>
+<title>Carmageddon</title>
+<itemizedlist>
+<listitem>
+<para>
+Timer is too fast during race
+</para>
+<para>
+<ulink url="http://carmageddon.wikia.com/wiki/Glitch:Sped_up_timer">
+see here for details
+</ulink>
+</para>
+<para>
+Solution: for hi-res mode, apply the following patch to carma.exe:
+<screen>
+00083549: 89 83
+0008354A: C5 E8
+0008354B: 29 04
+0008354C: F5 90
+0008354D: 89 90
+0008354E: 2D A3
+</screen>
+</para>
+<para>
+For low-res mode, apply the following patch to carma.exe:
+<screen>
+00083549: 89 83
+0008354A: C5 E8
+0008354B: 29 02
+0008354C: F5 90
+0008354D: 89 90
+0008354E: 2D A3
+</screen>
+</para>
+<para>
+Unfortunately the timer is still a bit unstable, and runs as slower
+as faster you drive your car.
+To completely disable the timer, apply the following patch to carma.exe:
+<screen>
+00083549: 89 83
+0008354A: C5 E8
+0008354B: 29 00
+0008354C: F5 90
+0008354D: 89 90
+0008354E: 2D A3
+</screen>
+</para>
+</listitem>
+</itemizedlist>
+</listitem>
+
 </itemizedlist>
 </article>
