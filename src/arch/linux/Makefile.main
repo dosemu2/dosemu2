@@ -162,7 +162,7 @@ install:
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzvf $(REALTOPDIR)/$(fdtarball); \
 	  rm -f $(DESTDIR)$(dosemudir)/FDchange.log; \
 	  rm -f $(DESTDIR)$(dosemudir)/README.bindist; \
-	  ln -sf $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(dosemudir)/drive_z; \
+	  ln -sf freedos $(DESTDIR)$(dosemudir)/drive_z; \
 	  rm -rf $(DESTDIR)$(dosemudir)/drive_z/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	else \
@@ -181,7 +181,7 @@ install:
 	  ln -sf generic.com $(cmddir)/$$i; \
 	done
 	ln -sf $(cmdsuff) $(DESTDIR)$(dosemudir)/commands
-	ln -sf $(cmddir) $(DESTDIR)$(dosemudir)/drive_z/dosemu
+	ln -sf ../$(cmdsuff)/dosemu $(DESTDIR)$(dosemudir)/drive_z/dosemu
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
 	fi
