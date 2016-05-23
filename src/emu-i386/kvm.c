@@ -130,6 +130,9 @@ void init_kvm_monitor(void)
   struct kvm_regs regs;
   struct kvm_sregs sregs;
 
+  /* Map guest memory: only conventional memory + HMA for now */
+  mmap_kvm(0, mem_base, LOWMEM_SIZE + HMASIZE);
+
   /* create monitor structure in memory */
   monitor = mmap(NULL, sizeof(*monitor), PROT_READ | PROT_WRITE,
 		 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
