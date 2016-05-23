@@ -226,7 +226,6 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
   const char *cmd;
   char buf[PATH_MAX];
-  int terminate;
   char *options = NULL;
 
   if (!argc)
@@ -246,22 +245,9 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
     cmd = buf;
   }
 
-  /*
-   * Decide whether we need to quit after running the DOS command.
-   */
-
-  terminate = misc_e6_need_terminate();
-#if 0
-   /* FIXTHIS: we must not terminate if the DOS path doesn't exist,
-    * so we should check its existance, but it is difficult. */
-  if (CommandStyle == EXEC_LITERAL /* && DOS path doesn't exist */) {
-    terminate = 0;
-  }
-#endif
-
   com_printf ("About to Execute : %s\n", cmd);
   config.quiet = 0;
-  if (com_system (cmd, terminate)) {
+  if (com_system (cmd, 0)) {
     /* SYSTEM failed ... */
     com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
     return (1);
