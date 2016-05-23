@@ -165,11 +165,11 @@ Note: for compatibility purposes, the -K can be omitted, eg:
 .nf
 dosemu /home/joeuser/dosemu/freedos/bin/xcopy.exe
 .fi
-In this case also -T implies. It is recommended to always specify -K
-and -T explicitly.
+It is recommended to always specify -K explicitly.
 .TP
 .I -T
-Terminate DOSEMU after running the command specified either with -E or -K.
+Don't terminate DOSEMU after running the command specified either
+with -E or -K.
 .TP
 .I -q
 Quiet mode. Suppress all DOS output except that of the command specified

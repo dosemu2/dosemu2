@@ -916,6 +916,9 @@ config_init(int argc, char **argv)
     if (config.exitearly && !config_check_only)
 	exit(0);
 
+    /* default settings before processing cmdline */
+    config.exit_on_cmd = 1;
+
 #ifdef __linux__
     optind = 0;
 #endif
@@ -1046,7 +1049,7 @@ config_init(int argc, char **argv)
 	    misc_e6_store_command(optarg, 1);
 	    break;
 	case 'T':
-	    config.exit_on_cmd = 1;
+	    config.exit_on_cmd = 0;
 	    break;
 	case 'q':
 	    config.quiet = 1;
@@ -1064,7 +1067,6 @@ config_init(int argc, char **argv)
     while (optind < argc) {
 	g_printf("DOS command given on command line\n");
 	misc_e6_store_command(argv[optind], 1);
-	config.exit_on_cmd = 1;
 	optind++;
     }
     config_post_process();
