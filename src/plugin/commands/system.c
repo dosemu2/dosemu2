@@ -131,6 +131,9 @@ static int setupDOSCommand (int CommandStyle, const char *linux_path,
   linux_path_resolved = canonicalize_file_name(linux_path);
   if (!linux_path_resolved) {
       com_fprintf(com_stderr, "No such file: %s\n", linux_path);
+      warn("No such file: %s\n", linux_path);
+      if (config.exit_on_cmd)
+          leavedos(48);
       return (1);
   }
 
@@ -279,13 +282,6 @@ static int do_execute_cmdline(int argc, char **argv)
     if (setupDOSCommand(EXEC_LINUX_PATH, cmd, options, buf))
       return 1;
   }
-#if 0
-   /* FIXTHIS: we must not terminate if the DOS path doesn't exist,
-    * so we should check its existance, but it is difficult. */
-  if (CommandStyle == EXEC_LITERAL /* && DOS path doesn't exist */) {
-    terminate = 0;
-  }
-#endif
 
   com_printf ("About to Execute : %s\n", cmd);
   config.quiet = 0;
