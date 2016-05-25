@@ -290,9 +290,6 @@ use this file for output of Debugging messages
 .I -P
 copy debugging output to FILE
 .TP
-.I -p
-stop for prompting if a non-fatal configuration problem is detected
-.TP
 .I -S
 run using SDL
 .TP
