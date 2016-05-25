@@ -2534,16 +2534,10 @@ void setup_default_keytable()
   idx = X11_DetectLayout();
 #endif
 #endif
-  if (idx && kt->name == NULL && !config.exitearly) {
+  if (idx && kt->name == NULL) {
     error("Unable to open console or check with X to evaluate the keyboard "
 	  "map.\nPlease specify your keyboard map explicitly via the "
-	  "$_layout option.\n");
-    if (config.prompt) {
-      fprintf(stderr,
-	      "Press ENTER to continue with DOS programs thinking that they "
-              "use a US layout or\nCtrl-C to exit.\n");
-      getchar();
-    }
+	  "$_layout option. Defaulting to US.\n");
     config.keytable = keytable_list; /* US must be first */
   }
 }
