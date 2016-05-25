@@ -230,7 +230,6 @@ typedef struct config_info {
        boolean exitearly;
        boolean quiet;
        boolean exit_on_cmd;
-       boolean prompt;
        int     realcpu;
        boolean mathco, smp, cpuprefetcht0, cpufxsr, cpusse;
        boolean ipxsup;

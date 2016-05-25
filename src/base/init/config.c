@@ -771,8 +771,8 @@ config_init(int argc, char **argv)
     char           *basename;
     int i;
     const char * const getopt_string =
-       "23456ABCcD:dE:e:F:f:H:h:I:i::K:kL:M:mNOo:P:pqSsTt::u:Vv:wXx:U:"
-       "g"/*NOPs kept for compat (not documented in usage())*/;
+       "23456ABCcD:dE:e:F:f:H:h:I:i::K:kL:M:mNOo:P:qSsTt::u:Vv:wXx:U:"
+       "gp"/*NOPs kept for compat (not documented in usage())*/;
 
     if (getenv("DOSEMU_INVOKED_NAME"))
 	argv[0] = getenv("DOSEMU_INVOKED_NAME");
@@ -999,7 +999,7 @@ config_init(int argc, char **argv)
 	    parse_debugflags(optarg, 1);
 	    break;
 	case 'p':
-	    config.prompt = 1;
+	    /* unused */
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
