@@ -305,6 +305,12 @@ static void install_dos_(char *kernelsyspath)
 			return;
 		}
 	}
+
+	if (config.quiet) {
+		install_dosemu_freedos(1);
+		return;
+	}
+
 	printf_(
 "\nPlease choose one of the following options:\n"
 "1. Use a writable FreeDOS C: drive in ~/.dosemu/drive_c (recommended).\n"
@@ -359,7 +365,7 @@ void install_dos(int post_boot)
 	}
 
 	if (first_time) {
-		do_liability_disclaimer_prompt(post_boot, 1);
+		do_liability_disclaimer_prompt(post_boot, !config.quiet);
 		if (!config.X)
 			printf_(
 "DOSEMU will run on _this_ terminal.\n"
