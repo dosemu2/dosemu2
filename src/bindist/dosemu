@@ -19,13 +19,12 @@ USAGE:
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM STRING_I LREDIRHOME QUIET USE_SUDO INSTALL INPUT OPTS
+unset STRING_I LREDIRHOME QUIET USE_SUDO INSTALL INPUT OPTS
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
   case $1 in
     -dumb)
-      DUMBTERM=1
       OPTS="$OPTS -td"
       shift
       ;;
@@ -108,18 +107,6 @@ fi
 
 get_binary $0
 
-unset XFLAG
-if [ "`basename $ARG0`" = "xdosemu" ]; then
-  if [ -n "$DUMBTERM" ]; then
-    echo "
-  You requested a dumb terminal together with X!
-  ... falling back to non-X
-"
-  else
-    XFLAG=-X
-  fi
-fi
-
 if [ `id -ur` = 0 -a -f $HOME/.dosemurc ]; then
   # User is logged in as root. Need to check whether the config files
   # are safe and not world writeable
@@ -156,7 +143,7 @@ fi
 export ASAN_OPTIONS=handle_segv=0:abort_on_error=1
 
 eval "set -- $SUFFIX"
-COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $XFLAG $OPTS"
+COMMAND="$SUDO $SUDOOPTS $BINARY $IGNORE_DOSEMU_CONF $OPTS"
 DOSEMU_INVOKED_NAME="$0"
 export DOSEMU_INVOKED_NAME
 if [ -n "$INSTALL" ] ; then
