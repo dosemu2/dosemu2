@@ -60,12 +60,11 @@ void show_welcome_screen(void)
 	"Your DOS drives are set up as follows:\n"
 	" A: floppy drive (if it exists)\n"
 	" C: points to the Linux directory ~/.dosemu/drive_c\n"
-	" D: points to your Linux home directory\n"
-	" E: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
-	" Z: points to the read-only DOSEMU and FreeDOS commands directory\n"
-	"Use the LREDIR DOSEMU command to adjust these settings, or edit\n"
-        "/etc/dosemu/dosemu.conf, ~/.dosemurc, c:\\config.sys, or c:\\autoexec.bat,\n"
-	"or change the symbolic links in ~/.dosemu/drives.\n\n"
+	" D: points to FreeDOS installation\n"
+	" E: points to the read-only DOSEMU commands directory\n"
+	" F: points to your CD-ROM drive, if it is mounted at /media/cdrom\n"
+	"Use the lredir2 DOSEMU command to adjust these settings, or edit\n"
+        "/etc/dosemu/dosemu.conf, ~/.dosemurc, c:\\fdconfig.sys, or c:\\autoexec.bat.\n\n"
 	"To re-install a DOS, exit and then restart DOSEMU using dosemu -i.\n"
 	"Enter HELP for more information on DOS and DOSEMU commands.\n");
 	p_dos_str(

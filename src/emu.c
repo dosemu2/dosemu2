@@ -388,10 +388,6 @@ int main(int argc, char **argv)
     mprotect_mapping(MAPPING_LOWMEM, mem_base, config.mem_size * 1024,
 		     PROT_READ | PROT_WRITE | PROT_EXEC);
 
-    /* check DOSDRIVE_D (used to be done in the script) */
-    if (getenv("HOME"))
-      setenv("DOSDRIVE_D", getenv("HOME"), 0);
-
     can_leavedos = 1;
 
     while (!fatalerr && !config.exitearly) {

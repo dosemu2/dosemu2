@@ -19,7 +19,7 @@ USAGE:
 THISDIR=$PWD
 ARG0="$0"
 
-unset STRING_I LREDIRHOME QUIET USE_SUDO INSTALL INPUT OPTS
+unset STRING_I QUIET USE_SUDO INSTALL INPUT OPTS
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
@@ -29,7 +29,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -home)
-      #doing -home) by default now; leave it here for compatibility
+      DOSDRIVE_EXTRA="$HOME"
       shift
       ;;
     -install)

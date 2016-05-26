@@ -1,5 +1,4 @@
 rem config.sys for DOSEMU + FreeDOS
-rem note that the initial "D:" is set to "Z:" at the end
 SWITCHES=/F
 DOS=UMB,HIGH
 dosdata=umb
@@ -9,5 +8,4 @@ stacks=0
 buffers=10
 device=e:\dosemu\ems.sys
 devicehigh=e:\dosemu\cdrom.sys
-install=e:\dosemu\lredir2.com -R z: linux\fs\${DOSEMU_LIB_DIR}/drive_z
-shellhigh=z:\command.com /e:1024 /p
+shellhigh=c:\command.com /e:1024 /p
