@@ -33,15 +33,15 @@ BuildRequires: mkfontdir
 BuildRequires: sed
 
 # the below is not strictly required, as dosemu can dynamically
-# load plugins. But we want the fully-featured install.
-Requires: SDL2
-Requires: libXext
-Requires: alsa-lib
-Requires: fluidsynth
-Requires: gpm-libs
-Requires: libao
-Requires: ladspa
-Requires: slang
+# load plugins.
+Recommends: SDL2
+Recommends: libXext
+Recommends: alsa-lib
+Recommends: fluidsynth
+Recommends: gpm-libs
+Recommends: libao
+Recommends: ladspa
+Recommends: slang
 
 %description
 DOSEMU2 stands for DOS Emulation, and allows you to run DOS and many
