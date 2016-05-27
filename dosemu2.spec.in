@@ -45,6 +45,9 @@ Recommends: libao
 Recommends: ladspa
 Recommends: slang
 
+# cannot coexist with dosemu1
+Conflicts:  dosemu
+
 %description
 DOSEMU2 stands for DOS Emulation, and allows you to run DOS and many
 DOS programs, including many DPMI applications such as DOOM and Windows 3.1,
