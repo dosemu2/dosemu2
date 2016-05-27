@@ -268,6 +268,16 @@ static int first_boot_time(void)
 	return first_time;
 }
 
+static int disclaimer_shown(void)
+{
+	int shown;
+	char *disclaimer_file_name =
+		assemble_path(LOCALDIR, "disclaimer", 0);
+	shown = exists_file(disclaimer_file_name);
+	free(disclaimer_file_name);
+	return shown;
+}
+
 static void install_dos_(char *kernelsyspath)
 {
 	char x;
@@ -352,6 +362,9 @@ void install_dos(int post_boot)
 {
 	char *kernelsyspath;
 	int first_time;
+
+	if (!disclaimer_shown())
+		do_liability_disclaimer_prompt(post_boot, !config.quiet);
 	first_time = first_boot_time();
 	if (!config.install && !first_time)
 		return;
@@ -362,15 +375,6 @@ void install_dos(int post_boot)
 	if (post_boot) {
 		printf_ = p_dos_str;
 		read_string = bios_read_string;
-	}
-
-	if (first_time) {
-		do_liability_disclaimer_prompt(post_boot, !config.quiet);
-		if (!config.X)
-			printf_(
-"DOSEMU will run on _this_ terminal.\n"
-"To exit you need to execute \'exitemu\' from within DOS,\n"
-"because <Ctrl>-C and \'exit\' won\'t work!\n");
 	}
 
 	symlink_created = 0;

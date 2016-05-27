@@ -234,23 +234,24 @@ void do_liability_disclaimer_prompt(int dosboot, int prompt)
     fputs(text, stdout);
   }
 
+  if (!prompt)
+    return;
+
   buf[0] = '\0';
-  if (prompt) {
-    if (dosboot) {
-      p_dos_str("%s", text2);
-      set_IF();
-      rd = com_biosread(buf, sizeof(buf)-2);
-      clear_IF();
-    } else {
-      fputs(text2, stdout);
-      p = fgets(buf, sizeof(buf), stdin);
-      if (!p)
-        leavedos(1);
-      rd = strlen(p);
-    }
-    if (!rd || buf[rd - 1] == 3)
+  if (dosboot) {
+    p_dos_str("%s", text2);
+    set_IF();
+    rd = com_biosread(buf, sizeof(buf)-2);
+    clear_IF();
+  } else {
+    fputs(text2, stdout);
+    p = fgets(buf, sizeof(buf), stdin);
+    if (!p)
       leavedos(1);
+    rd = strlen(p);
   }
+  if (!rd || buf[rd - 1] == 3)
+    leavedos(1);
 
   /*
    * We now remember this by writing the above text to a
