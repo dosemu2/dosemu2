@@ -261,10 +261,10 @@ static void install_no_dosemu_freedos(const char *path)
 static int first_boot_time(void)
 {
 	int first_time;
-	char *disclaimer_file_name =
-		assemble_path(LOCALDIR, "disclaimer", 0);
-	first_time = !exists_file(disclaimer_file_name);
-	free(disclaimer_file_name);
+	char *dir_name =
+		assemble_path(LOCALDIR, "drives", 0);
+	first_time = !exists_dir(dir_name);
+	free(dir_name);
 	return first_time;
 }
 
