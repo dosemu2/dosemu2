@@ -38,6 +38,7 @@ Recommends: SDL2
 Recommends: libXext
 Recommends: alsa-lib
 Recommends: fluidsynth
+Suggests:   fluid-soundfont-gm
 Recommends: gpm-libs
 Recommends: libao
 Recommends: ladspa
