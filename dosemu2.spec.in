@@ -39,6 +39,7 @@ Recommends: libXext
 Recommends: alsa-lib
 Recommends: fluidsynth
 Suggests:   fluid-soundfont-gm
+Suggests:   timidity++ >= 2.14.0
 Recommends: gpm-libs
 Recommends: libao
 Recommends: ladspa
