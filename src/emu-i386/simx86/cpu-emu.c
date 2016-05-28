@@ -548,12 +548,12 @@ static void Reg2Cpu (int mode)
   TheCPU.err     = 0;
   TheCPU.eip     = vm86s.regs.eip&0xffff;
 
-  SetSegReal(REG(cs),Ofs_CS);
-  SetSegReal(REG(ss),Ofs_SS);
-  SetSegReal(REG(ds),Ofs_DS);
-  SetSegReal(REG(es),Ofs_ES);
-  SetSegReal(REG(fs),Ofs_FS);
-  SetSegReal(REG(gs),Ofs_GS);
+  SetSegReal(SREG(cs),Ofs_CS);
+  SetSegReal(SREG(ss),Ofs_SS);
+  SetSegReal(SREG(ds),Ofs_DS);
+  SetSegReal(SREG(es),Ofs_ES);
+  SetSegReal(SREG(fs),Ofs_FS);
+  SetSegReal(SREG(gs),Ofs_GS);
   trans_addr     = LONG_CS + TheCPU.eip;
 
   if (debug_level('e')>1) {
@@ -581,12 +581,12 @@ void Cpu2Reg (void)
   REG(edi) = TheCPU.edi;
   REG(ebp) = TheCPU.ebp;
   REG(esp) = TheCPU.esp;
-  REG(ds)  = TheCPU.ds;
-  REG(es)  = TheCPU.es;
-  REG(ss)  = TheCPU.ss;
-  REG(fs)  = TheCPU.fs;
-  REG(gs)  = TheCPU.gs;
-  REG(cs)  = TheCPU.cs;
+  SREG(ds)  = TheCPU.ds;
+  SREG(es)  = TheCPU.es;
+  SREG(ss)  = TheCPU.ss;
+  SREG(fs)  = TheCPU.fs;
+  SREG(gs)  = TheCPU.gs;
+  SREG(cs)  = TheCPU.cs;
   REG(eip) = TheCPU.eip;
   /*
    * move (VIF|TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
@@ -1157,7 +1157,7 @@ int e_vm86(void)
 #ifdef SKIP_EMU_VBIOS
   /* skip emulation of video BIOS, as it is too much timing-dependent */
   if ((!IsV86Emu) || (config.cpuemu<2)
-   || ((REG(cs)&0xf000)==config.vbios_seg)
+   || ((SREG(cs)&0xf000)==config.vbios_seg)
    ) {
 	s_munprotect(0, 1);
 	InvalidateSegs();
@@ -1238,7 +1238,7 @@ int e_vm86(void)
 		retval=handle_vm86_fault(&errcode);	/* kernel level */
 #ifdef SKIP_EMU_VBIOS
 		/* are we into the VBIOS? If so, exit and reenter e_vm86 */
-		if ((REG(cs)&0xf000)==config.vbios_seg) {
+		if ((SREG(cs)&0xf000)==config.vbios_seg) {
 		    if (retval<0) retval=0;  /* force exit even if handled */
 		}
 #endif

@@ -217,13 +217,13 @@ void cpu_reset(void)
   REG(edi) = 0;
   REG(ebp) = 0;
   REG(eip) = 0;
-  REG(cs) = 0xffff;
+  SREG(cs) = 0xffff;
   REG(esp) = 0xfffe;
-  REG(ss) = 0;		/* This is the standard pc bios stack */
-  REG(es) = 0;			/* standard pc es */
-  REG(ds) = 0x40;		/* standard pc ds */
-  REG(fs) = 0;
-  REG(gs) = 0;
+  SREG(ss) = 0;		/* This is the standard pc bios stack */
+  SREG(es) = 0;			/* standard pc es */
+  SREG(ds) = 0x40;		/* standard pc ds */
+  SREG(fs) = 0;
+  SREG(gs) = 0;
   REG(eflags) = 0;
 }
 

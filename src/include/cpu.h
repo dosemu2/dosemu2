@@ -29,10 +29,11 @@
 /* this is used like: REG(eax) = 0xFFFFFFF */
 #ifdef __i386__
 /* unfortunately the regs are defined as long (not even unsigned) in vm86.h */
-#define REG(reg) (*(uint32_t *)&REGS.reg)
+#define REG(reg) (*(uint32_t *)({static_assert(sizeof(REGS.reg) == 4, "bad reg"); &REGS.reg; }))
 #else
-#define REG(reg) (REGS.reg)
+#define REG(reg) (*({static_assert(sizeof(REGS.reg) == 4, "bad reg"); &REGS.reg; }))
 #endif
+#define SREG(reg) (*({static_assert(sizeof(REGS.reg) == 2, "bad sreg"); &REGS.reg; }))
 #define READ_SEG_REG(reg) (REGS.reg)
 #define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif

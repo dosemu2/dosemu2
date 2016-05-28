@@ -83,14 +83,14 @@ static void lwhlp_setup(far_t rmcb)
 
 static void s_r_call(u_char al, u_short es, u_short di)
 {
-    u_short saved_ax = LWORD(eax), saved_es = REG(es), saved_di = LWORD(edi);
+    u_short saved_ax = LWORD(eax), saved_es = SREG(es), saved_di = LWORD(edi);
 
     LO(ax) = al;
-    REG(es) = es;
+    SREG(es) = es;
     LWORD(edi) = di;
     do_call_back(exec_helper.s_r.segment, exec_helper.s_r.offset);
     LWORD(eax) = saved_ax;
-    REG(es) = saved_es;
+    SREG(es) = saved_es;
     LWORD(edi) = saved_di;
 }
 
@@ -100,10 +100,10 @@ static void exechlp_thr(void *arg)
 
     assert(LWORD(esp) >= exec_helper.len);
     LWORD(esp) -= exec_helper.len;
-    s_r_call(0, REG(ss), LWORD(esp));
+    s_r_call(0, SREG(ss), LWORD(esp));
     do_int_call_back(0x21);
     saved_flags = REG(eflags);
-    s_r_call(1, REG(ss), LWORD(esp));
+    s_r_call(1, SREG(ss), LWORD(esp));
     REG(eflags) = saved_flags;
     LWORD(esp) += exec_helper.len;
 }

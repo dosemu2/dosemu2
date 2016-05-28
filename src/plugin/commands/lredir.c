@@ -432,7 +432,7 @@ static int FindFATRedirectionByDevice(char *deviceStr, char **presourceStr)
     pre_msdos();
     LWORD(eax) = 0x6900;
     LWORD(ebx) = toupperDOS(deviceStr[0]) - 'A' + 1;
-    REG(ds) = FP_SEG(di);
+    SREG(ds) = FP_SEG(di);
     LWORD(edx) = FP_OFF(di);
     call_msdos();
     if (REG(eflags) & CF) {

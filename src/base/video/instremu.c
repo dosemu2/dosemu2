@@ -1341,7 +1341,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       return 0;
     else {
       pop(&x86->es, x86);
-      REG(es) = x86->es;
+      SREG(es) = x86->es;
       x86->es_base = SEGOFF2LINEAR(x86->es, 0);
       eip++;
     }
@@ -1355,7 +1355,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       return 0;
     else {
       pop(&x86->ds, x86);
-      REG(ds)  = x86->ds;
+      SREG(ds)  = x86->ds;
       x86->ds_base = SEGOFF2LINEAR(x86->ds, 0);
       x86->seg_base = x86->ds_base;
       eip++;
@@ -1611,14 +1611,14 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
       if ((*(unsigned char *)MEM_BASE32(cs + eip + 1) & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
         mem = (unsigned char *)reg(*(unsigned char *)MEM_BASE32(cs + eip + 1), x86);
-      REG(es) = x86->es = instr_read_word(mem);
+      SREG(es) = x86->es = instr_read_word(mem);
       x86->es_base = SEGOFF2LINEAR(x86->es, 0);
       eip += inst_len + 2; break;
     case 0x18:
       mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
       if ((*(unsigned char *)MEM_BASE32(cs + eip + 1) & 0xc0) == 0xc0) /* compensate for mov es,reg */
 	mem = (unsigned char *)reg(*(unsigned char *)MEM_BASE32(cs + eip + 1), x86);
-      REG(ds) = x86->ds = instr_read_word(mem);
+      SREG(ds) = x86->ds = instr_read_word(mem);
       x86->ds_base = SEGOFF2LINEAR(x86->ds, 0);
       x86->seg_base = x86->ds_base;
       eip += inst_len + 2; break;
@@ -1677,7 +1677,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       push(x86->cs, x86);
       push(eip + 5, x86);
       x86->cs = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 3));
-      REG(cs)  = x86->cs;
+      SREG(cs)  = x86->cs;
       x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
       eip = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
       cs = x86->cs_base;
@@ -1917,7 +1917,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else {
       mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
       x86->es = instr_read_word(mem+2);
-      REG(es)  = x86->es;
+      SREG(es)  = x86->es;
       x86->es_base = SEGOFF2LINEAR(x86->es, 0);
       R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1) >> 3, x86)) = instr_read_word(mem);
       eip += inst_len + 2; break;
@@ -1929,7 +1929,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else {
       mem = x86->modrm(MEM_BASE32(cs + eip), x86, &inst_len);
       x86->ds = instr_read_word(mem+2);
-      REG(ds)  = x86->ds;
+      SREG(ds)  = x86->ds;
       x86->ds_base = x86->seg_base = SEGOFF2LINEAR(x86->ds, 0);
       R_WORD(*reg(*(unsigned char *)MEM_BASE32(cs + eip + 1) >> 3, x86)) = instr_read_word(mem);
       eip += inst_len + 2; break;
@@ -1961,7 +1961,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else {
       pop(&und, x86);
       pop(&x86->cs, x86);
-      REG(cs)  = x86->cs;
+      SREG(cs)  = x86->cs;
       x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
       SP += R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
       cs = x86->cs_base;
@@ -1975,7 +1975,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else {
       pop(&eip, x86);
       pop(&x86->cs, x86);
-      REG(cs)  = x86->cs;
+      SREG(cs)  = x86->cs;
       x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
       cs = x86->cs_base;
     }
@@ -2072,7 +2072,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
       return 0;
     else {
       x86->cs = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip+3));
-      REG(cs)  = x86->cs;
+      SREG(cs)  = x86->cs;
       x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
       eip = R_WORD(*(unsigned char *)MEM_BASE32(cs + eip + 1));
       cs = x86->cs_base;
@@ -2290,7 +2290,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         push(x86->cs, x86);
         x86->cs = instr_read_word(mem+2);
         push(eip + inst_len + 2, x86);
-        REG(cs)  = x86->cs;
+        SREG(cs)  = x86->cs;
         x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
         eip = uns;
         cs = x86->cs_base;
@@ -2306,7 +2306,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
         return 0;
       else {
         x86->cs = instr_read_word(mem+2);
-        REG(cs)  = x86->cs;
+        SREG(cs)  = x86->cs;
         x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
         eip = uns;
         cs = x86->cs_base;
@@ -2373,12 +2373,12 @@ static void scp_to_x86_regs(x86_regs *x86, struct sigcontext *scp, int pmode)
     x86->esp = REG(esp);
     x86->eip = REG(eip);
     x86->eflags = REG(eflags);
-    x86->cs = REG(cs);
-    x86->ds = REG(ds);
-    x86->es = REG(es);
-    x86->ss = REG(ss);
-    x86->fs = REG(fs);
-    x86->gs = REG(gs);
+    x86->cs = SREG(cs);
+    x86->ds = SREG(ds);
+    x86->es = SREG(es);
+    x86->ss = SREG(ss);
+    x86->fs = SREG(fs);
+    x86->gs = SREG(gs);
     x86->cs_base = SEGOFF2LINEAR(x86->cs, 0);
     x86->ds_base = SEGOFF2LINEAR(x86->ds, 0);
     x86->es_base = SEGOFF2LINEAR(x86->es, 0);

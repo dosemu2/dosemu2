@@ -978,7 +978,7 @@ int int10(void) /* with dualmon */
              break;
 
            case 0x02:	/* Set Palette & Overscan Color */
-             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
+             src = SEGOFF2LINEAR(SREG(es), LWORD(edx));
              for(i = 0; i < 0x10; i++) Attr_set_entry(i, READ_BYTE(src + i));
              Attr_set_entry(0x11, READ_BYTE(src + i));
              break;
@@ -998,7 +998,7 @@ int int10(void) /* with dualmon */
              break;
 
            case 0x09:	/* Read Palette & Overscan Color */
-             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
+             src = SEGOFF2LINEAR(SREG(es), LWORD(edx));
              for(i = 0; i < 0x10; i++) WRITE_BYTE(src + i, Attr_get_entry(i));
              WRITE_BYTE(src + i, Attr_get_entry(0x11));
              break;
@@ -1010,7 +1010,7 @@ int int10(void) /* with dualmon */
            case 0x12:	/* Set Block of DAC Registers */
              index = LO(bx);
              count = LWORD(ecx);
-             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
+             src = SEGOFF2LINEAR(SREG(es), LWORD(edx));
              for(i = 0; i < count; i++, index++)
                DAC_set_entry(index, READ_BYTE(src + 3*i),
 			    READ_BYTE(src + 3*i + 1), READ_BYTE(src + 3*i + 2));
@@ -1041,7 +1041,7 @@ int int10(void) /* with dualmon */
            case 0x17:	/* Read Block of DAC Registers */
              index = LO(bx);
              count = LWORD(ecx);
-             src = SEGOFF2LINEAR(REG(es), LWORD(edx));
+             src = SEGOFF2LINEAR(SREG(es), LWORD(edx));
              for(i = 0; i < count; i++, index++) {
                DAC_get_entry(&rgb, index);
                WRITE_BYTE(src + 3*i, rgb.r);
@@ -1130,7 +1130,7 @@ int int10(void) /* with dualmon */
              * BL = which block to load into map2 BH = bytes / char        *
              ************************************************************* */
             vga_RAM_to_RAM(HI(bx), LO(dx), LWORD(ecx),
-                REG(es), LWORD(ebp), LO(bx));
+                SREG(es), LWORD(ebp), LO(bx));
             i10_msg("some user font data loaded\n");
             goto more_lines;
 
@@ -1151,7 +1151,7 @@ int int10(void) /* with dualmon */
 	    break;
 
           case 0x20:		/* set 8x8 gfx chars */
-            SETIVEC(0x1f, REG(es), LWORD(ebp));
+            SETIVEC(0x1f, SREG(es), LWORD(ebp));
             i10_deb("set 8x8 gfx chars: addr 0x%04x:0x%04x\n", ISEG(0x1f), IOFF(0x1f));
             break;
 
@@ -1165,7 +1165,7 @@ int int10(void) /* with dualmon */
             switch(LO(ax)) {
               case 0x21:
                 ofs = LWORD(ebp);
-                seg = REG(es);
+                seg = SREG(es);
                 char_height = LWORD(ecx);
                 break;
               case 0x22:
@@ -1240,10 +1240,10 @@ int int10(void) /* with dualmon */
                 seg = ofs = 0;
             }
             LWORD(ebp) = ofs;
-            REG(es) = seg;
+            SREG(es) = seg;
             i10_deb(
               "font info: char height: %u, rows %u, font 0x%x, addr 0x%04x:0x%04x\n",
-              LWORD(ecx), LO(dx) + 1, HI(bx), REG(es), LWORD(ebp)
+              LWORD(ecx), LO(dx) + 1, HI(bx), SREG(es), LWORD(ebp)
             );
             break;
 
@@ -1338,7 +1338,7 @@ int int10(void) /* with dualmon */
         unsigned page = HI(bx);
         unsigned char attr = LO(bx);
         unsigned len = LWORD(ecx);
-        unsigned int str = SEGOFF2LINEAR(REG(es), LWORD(ebp));
+        unsigned int str = SEGOFF2LINEAR(SREG(es), LWORD(ebp));
         unsigned old_x, old_y;
 
         old_x = get_bios_cursor_x_position(page);
@@ -1348,7 +1348,7 @@ int int10(void) /* with dualmon */
 
         i10_deb(
           "write string: page %u, x.y %d.%d, attr 0x%02x, len %u, addr 0x%04x:0x%04x\n",
-          page, LO(dx), HI(dx), attr, len, REG(es), LWORD(ebp)
+          page, LO(dx), HI(dx), attr, len, SREG(es), LWORD(ebp)
         );
 #if DEBUG_INT10
         i10_deb("write string: str \"");
@@ -1397,7 +1397,7 @@ int int10(void) /* with dualmon */
     case 0x1b:		/* functionality/state information */
       if(LWORD(ebx) == 0) {
         i10_deb("get functionality/state info\n");
-        return_state(SEGOFF2LINEAR(REG(es), LWORD(edi)));
+        return_state(SEGOFF2LINEAR(SREG(es), LWORD(edi)));
         LO(ax) = 0x1b;
       } else {
         i10_msg("unknown functionality/state request: 0x%04x", LWORD(ebx));
@@ -1493,14 +1493,14 @@ int int10(void) /* with dualmon */
 	    buf[0x3 + ind] = port_inb(DAC_DATA);
 	  buf[0x303] = port_inb(COLOR_SELECT);
 
-	  MEMCPY_2DOS(SEGOFF2LINEAR(REG(es), base), buf, sizeof(buf));
+	  MEMCPY_2DOS(SEGOFF2LINEAR(SREG(es), base), buf, sizeof(buf));
 	}
 	break;
       case 2:
 	if (LO(cx) & 1) {
 	  unsigned char buf[0x46];
 	  unsigned crtc, ind;
-	  MEMCPY_2UNIX(buf, SEGOFF2LINEAR(REG(es), base), sizeof(buf));
+	  MEMCPY_2UNIX(buf, SEGOFF2LINEAR(SREG(es), base), sizeof(buf));
 	  base += sizeof(buf);
 	  crtc = buf[0x40] | (buf[0x41] << 8);
 	  for (ind = 1; ind < 5; ind++)

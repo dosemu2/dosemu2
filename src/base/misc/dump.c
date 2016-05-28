@@ -28,7 +28,7 @@ char *emu_disasm(unsigned int ip)
    unsigned int ref;
 
    cp = SEGOFF2LINEAR(_CS, _IP);
-   refseg = REG(cs);
+   refseg = SREG(cs);
 
    rc = dis_8086(cp, frmtbuf, 0, &ref, refseg * 16);
 
@@ -37,7 +37,7 @@ char *emu_disasm(unsigned int ip)
            p += sprintf(p, "%02x", READ_BYTE(cp+i));
    }
    sprintf(p,"%20s", " ");
-   sprintf(buf+20, "%04x:%04x %s", REG(cs), LWORD(eip), frmtbuf);
+   sprintf(buf+20, "%04x:%04x %s", SREG(cs), LWORD(eip), frmtbuf);
 
    return buf;
 }
@@ -56,7 +56,7 @@ show_regs(char *file, int line)
 
   cp = SEGOFF2LINEAR(_CS, _IP);
   if (!cp) {
-    g_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",REG(cs),LWORD(eip));
+    g_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",SREG(cs),LWORD(eip));
     return;
   }
 

@@ -1018,7 +1018,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
   vga_deb2_map(
     "vga_emu_fault: in_dpmi %d, err 0x%x, scp->cs:eip %04x:%04x, vm86s->cs:eip %04x:%04x\n",
     dpmi_active(), (unsigned) scp->err, (unsigned) _cs, (unsigned) _eip,
-    (unsigned) REG(cs), (unsigned) REG(eip)
+    (unsigned) SREG(cs), (unsigned) REG(eip)
   );
 
   if(pmode) {
@@ -1040,7 +1040,7 @@ int vga_emu_fault(struct sigcontext *scp, int pmode)
     cs_ip = SEG_ADR((unsigned char *), cs, ip);
     vga_deb_map(
       "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-      (unsigned) REG(cs), (unsigned) REG(eip),
+      (unsigned) SREG(cs), (unsigned) REG(eip),
       cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
       cs_ip[ 8], cs_ip[ 9], cs_ip[10], cs_ip[11], cs_ip[12], cs_ip[13], cs_ip[14], cs_ip[15]
     );

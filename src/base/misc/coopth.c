@@ -269,7 +269,7 @@ static void coopth_retf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
 {
     assert(pth->data.attached);
     threads_joinable--;
-    REG(cs) = pth->ret_cs;
+    SREG(cs) = pth->ret_cs;
     LWORD(eip) = pth->ret_ip;
     if (thr->ctxh.post)
 	thr->ctxh.post(thr->tid);
@@ -281,9 +281,9 @@ static void coopth_callf(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     assert(!pth->data.attached);
     if (thr->ctxh.pre)
 	thr->ctxh.pre(thr->tid);
-    pth->ret_cs = REG(cs);
+    pth->ret_cs = SREG(cs);
     pth->ret_ip = LWORD(eip);
-    REG(cs) = BIOS_HLT_BLK_SEG;
+    SREG(cs) = BIOS_HLT_BLK_SEG;
     LWORD(eip) = thr->hlt_off;
     threads_joinable++;
     pth->data.attached = 1;
@@ -886,7 +886,7 @@ static void check_cancel(void)
 static struct coopth_t *on_thread(void)
 {
     int i;
-    if (REG(cs) != BIOS_HLT_BLK_SEG)
+    if (SREG(cs) != BIOS_HLT_BLK_SEG)
 	return NULL;
     for (i = 0; i < threads_active; i++) {
 	int tid = active_tids[i];

@@ -544,7 +544,7 @@ void dpmi_get_entry_point(void)
     LO(dx) = DPMI_DRIVER_VERSION;
 
     /* Entry Address for DPMI */
-    REG(es) = DPMI_SEG;
+    SREG(es) = DPMI_SEG;
     REG(edi) = DPMI_OFF;
 
     /* private data */
@@ -1262,13 +1262,13 @@ static void DPMI_save_rm_regs(struct RealModeCallStructure *rmreg)
     rmreg->ecx = REG(ecx);
     rmreg->eax = REG(eax);
     rmreg->flags = get_FLAGS(REG(eflags));
-    rmreg->es = REG(es);
-    rmreg->ds = REG(ds);
-    rmreg->fs = REG(fs);
-    rmreg->gs = REG(gs);
-    rmreg->cs = REG(cs);
+    rmreg->es = SREG(es);
+    rmreg->ds = SREG(ds);
+    rmreg->fs = SREG(fs);
+    rmreg->gs = SREG(gs);
+    rmreg->cs = SREG(cs);
     rmreg->ip = LWORD(eip);
-    rmreg->ss = REG(ss);
+    rmreg->ss = SREG(ss);
     rmreg->sp = LWORD(esp);
 }
 
@@ -1277,6 +1277,9 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
 #define RMR(x) \
     if (mask & (1 << x##_INDEX)) \
 	REG(x) = rmreg->x
+#define SRMR(x) \
+    if (mask & (1 << x##_INDEX)) \
+	SREG(x) = rmreg->x
     RMR(edi);
     RMR(esi);
     RMR(ebp);
@@ -1286,16 +1289,16 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, int mask)
     RMR(eax);
     if (mask & (1 << eflags_INDEX))
 	REG(eflags) = get_EFLAGS(rmreg->flags);
-    RMR(es);
-    RMR(ds);
-    RMR(fs);
-    RMR(gs);
+    SRMR(es);
+    SRMR(ds);
+    SRMR(fs);
+    SRMR(gs);
     if (mask & (1 << eip_INDEX))
 	LWORD(eip) = rmreg->ip;
-    RMR(cs);
+    SRMR(cs);
     if (mask & (1 << esp_INDEX))
 	LWORD(esp) = rmreg->sp;
-    RMR(ss);
+    SRMR(ss);
 }
 
 static void save_rm_regs(void)
@@ -1308,7 +1311,7 @@ static void save_rm_regs(void)
   if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
       DPMI_CLIENT.in_dpmi_rm_stack);
-    REG(ss) = DPMI_CLIENT.private_data_segment;
+    SREG(ss) = DPMI_CLIENT.private_data_segment;
     REG(esp) = DPMI_rm_stack_size * DPMI_CLIENT.in_dpmi_rm_stack;
   } else {
     error("DPMI: too many nested realmode invocations, in_dpmi_rm_stack=%i\n",
@@ -1361,7 +1364,7 @@ static void __fake_pm_int(struct sigcontext *scp)
   D_printf("DPMI: fake_pm_int() called, dpmi_pm=0x%02x\n", in_dpmi_pm());
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
-  REG(cs) = DPMI_SEG;
+  SREG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   dpmi_set_pm(0);
 }
@@ -1869,7 +1872,7 @@ static void do_int31(struct sigcontext *scp)
 	save_rm_regs();
 	REG(eflags) = eflags_VIF(_eflags);
 	REG(ebx) = _LWORD(ebx);
-	REG(es) = GetSegmentBase(_LWORD(edx)) >> 4;
+	SREG(es) = GetSegmentBase(_LWORD(edx)) >> 4;
 
 	switch(_LWORD(eax)) {
 	  case 0x0100: {
@@ -1924,7 +1927,7 @@ static void do_int31(struct sigcontext *scp)
 	  break;
 	}
 
-	REG(cs) = DPMI_SEG;
+	SREG(cs) = DPMI_SEG;
 	REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_memory);
 	dpmi_set_pm(0);
 	return do_int(0x21); /* call dos for memory service */
@@ -1985,13 +1988,13 @@ err:
       REG(eflags) |= dpmi_mhp_TF;
 
       ssp = (us *) SEL_ADR(_ss, _esp);
-      rm_ssp = SEGOFF2LINEAR(REG(ss), 0);
+      rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
       rm_sp = LWORD(esp);
       for (i=0;i<(_LWORD(ecx)); i++)
 	pushw(rm_ssp, rm_sp, *(ssp+(_LWORD(ecx)) - 1 - i));
       LWORD(esp) -= 2 * (_LWORD(ecx));
       dpmi_set_pm(0);
-      REG(cs) = DPMI_SEG;
+      SREG(cs) = DPMI_SEG;
       LWORD(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_realmode);
       switch (_LWORD(eax)) {
         case 0x0300:
@@ -2451,7 +2454,7 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
     _cs = DPMIclient[rmcb_client].realModeCallBack[num].selector;
     _eip = DPMIclient[rmcb_client].realModeCallBack[num].offset;
     SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
-		(REG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
+		(SREG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
 		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
     _ds = DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector;
     _esi = REG(esp);
@@ -2601,7 +2604,7 @@ static void chain_rm_int(struct sigcontext *scp, int i)
   D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
-  REG(cs) = DPMI_SEG;
+  SREG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_rmint);
   do_int(i);
 }
@@ -2612,7 +2615,7 @@ static void chain_hooked_int(struct sigcontext *scp, int i)
   D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
   save_rm_regs();
   pm_to_rm_regs(scp, ~0);
-  REG(cs) = DPMI_SEG;
+  SREG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
   switch (i) {
   case 0x1c:
@@ -2698,7 +2701,7 @@ static void do_dpmi_int(struct sigcontext *scp, int i)
       pm_to_rm_regs(scp, ~rm_mask);
       DPMI_restore_rm_regs(&rmreg, rm_mask);
       LWORD(esp) -= stk_used;
-      MEMCPY_2DOS(SEGOFF2LINEAR(REG(ss), LWORD(esp)),
+      MEMCPY_2DOS(SEGOFF2LINEAR(SREG(ss), LWORD(esp)),
 	    stk + sizeof(stk) - stk_used, stk_used);
       break;
     case MSDOS_DONE:
@@ -3110,7 +3113,7 @@ void dpmi_init(void)
     pm_block_handle_used = 1;
   }
 
-  DPMI_CLIENT.private_data_segment = REG(es);
+  DPMI_CLIENT.private_data_segment = SREG(es);
 
   DPMI_CLIENT.pm_stack = DPMI_malloc(host_pm_block_root,
 				     PAGE_ALIGN(DPMI_pm_stack_size));
@@ -3160,7 +3163,7 @@ void dpmi_init(void)
   DPMI_CLIENT.rmcb_seg = BIOS_HLT_BLK_SEG;
   DPMI_CLIENT.rmcb_off = hlt_register_handler(hlt_hdlr);
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
   my_ip = popw(ssp, sp);
@@ -3721,14 +3724,14 @@ static int dpmi_fault1(struct sigcontext *scp)
       if (_cs == dpmi_sel()) {
 	if (_eip==1+DPMI_SEL_OFF(DPMI_raw_mode_switch_pm)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
-	  REG(ds) = (long) _LWORD(eax);
-	  REG(es) = (long) _LWORD(ecx);
-	  REG(ss) = (long) _LWORD(edx);
-	  REG(esp) = (long) _LWORD(ebx);
-	  REG(cs) = (long) _LWORD(esi);
-	  REG(eip) = (long) _LWORD(edi);
+	  SREG(ds) = _LWORD(eax);
+	  SREG(es) = _LWORD(ecx);
+	  SREG(ss) = _LWORD(edx);
+	  REG(esp) = _LWORD(ebx);
+	  SREG(cs) = _LWORD(esi);
+	  REG(eip) = _LWORD(edi);
 	  REG(ebp) = _ebp;
-	  REG(fs) = REG(gs) = 0;
+	  SREG(fs) = SREG(gs) = 0;
 	  /* zero out also the "undefined" registers? */
 	  REG(eax) = REG(ebx) = REG(ecx) = REG(edx) = REG(esi) = REG(edi) = 0;
 	  dpmi_set_pm(0);
@@ -3837,7 +3840,7 @@ static int dpmi_fault1(struct sigcontext *scp)
 	  if (esp_delta) {
 	    unsigned int rm_ssp, sp;
 	    D_printf("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
-	    rm_ssp = SEGOFF2LINEAR(REG(ss), 0);
+	    rm_ssp = SEGOFF2LINEAR(SREG(ss), 0);
 	    sp = LWORD(esp);
 	    esp_delta >>= DPMI_CLIENT.is_32;
 	    if (esp_delta == 2) {
@@ -4406,7 +4409,7 @@ done:
     _edi = 0;
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_save_restore_rm)) {
-    unsigned int buf = SEGOFF2LINEAR(REG(es), LWORD(edi));
+    unsigned int buf = SEGOFF2LINEAR(SREG(es), LWORD(edi));
     unsigned short *buffer = LINEAR2UNIX(buf);
     if (LO(ax)==0) {
       D_printf("DPMI: save protected mode registers\n");

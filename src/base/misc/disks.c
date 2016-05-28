@@ -1270,10 +1270,10 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
+    buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
     d_printf("DISK %02x read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
-	     disk, head, sect, track, number, REG(es), LWORD(ebx));
+	     disk, head, sect, track, number, SREG(es), LWORD(ebx));
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
@@ -1326,7 +1326,7 @@ int int13(void)
       ((REG(ecx) & 0xc0) << 2);
     if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
       track |= (HI(dx) & 0xc0) << 4;
-    buffer = SEGOFF2LINEAR(REG(es), LWORD(ebx));
+    buffer = SEGOFF2LINEAR(SREG(es), LWORD(ebx));
     number = LO(ax);
     W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%#x\n",
 	     head, sect, track, number, buffer);

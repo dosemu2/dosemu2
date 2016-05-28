@@ -88,10 +88,10 @@ static void set_iret(void)
   unsigned int ssp, sp;
   u_short flgs;
   u_int mask = TF_MASK | NT_MASK | IF_MASK | VIF_MASK;
-  REG(cs) = BIOS_HLT_BLK_SEG;
+  SREG(cs) = BIOS_HLT_BLK_SEG;
   LWORD(eip) = iret_hlt_off;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp) + 4;
   flgs = popw(ssp, sp);
   REG(eflags) = ((REG(eflags) & mask) | (flgs & ~mask));
@@ -99,7 +99,7 @@ static void set_iret(void)
 
 void jmp_to(int cs, int ip)
 {
-  REG(cs) = cs;
+  SREG(cs) = cs;
   REG(eip) = ip;
 }
 
@@ -274,7 +274,7 @@ int dos_helper(void)
       config.vga = 1;
       warn("WARNING: jumping to 0[c/e]000:0003\n");
 
-      ssp = SEGOFF2LINEAR(REG(ss), 0);
+      ssp = SEGOFF2LINEAR(SREG(ss), 0);
       sp = LWORD(esp);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
@@ -1188,7 +1188,7 @@ static int msdos(void)
 
 #if 1
   if(HI(ax) == 0x3d) {
-    char *p = MK_FP32(REG(ds), LWORD(edx));
+    char *p = MK_FP32(SREG(ds), LWORD(edx));
     int i;
 
     ds_printf("INT21: open file \"");
@@ -1635,7 +1635,7 @@ static int redir_it(void)
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
   x0 = LWORD(ebx);
-  x1 = REG(es);
+  x1 = SREG(es);
   LWORD(eax) = 0x3000;
   call_msdos();
   ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
@@ -1648,7 +1648,7 @@ static int redir_it(void)
       redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 
   x2 = LWORD(esi);
-  x3 = REG(ds);
+  x3 = SREG(ds);
   redir_state = 0;
   u = x0 + (x1 << 4);
   ds_printf("INT21: lol = 0x%x\n", u);
@@ -1658,8 +1658,8 @@ static int redir_it(void)
   if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
         /* Init the redirector. */
         LWORD(ecx) = x4;
-        LWORD(edx) = x0; REG(es) = x1;
-        LWORD(esi) = x2; REG(ds) = x3;
+        LWORD(edx) = x0; SREG(es) = x1;
+        LWORD(esi) = x2; SREG(ds) = x3;
         LWORD(ebx) = 0x500;
         LWORD(eax) = 0x20;
         mfs_inte6();
@@ -1859,7 +1859,7 @@ static int int2f(void)
       break;
     case 0x10:
       x_printf("Get XMSControl address\n");
-      /* REG(es) = XMSControl_SEG; */
+      /* SREG(es) = XMSControl_SEG; */
       WRITE_SEG_REG(es, XMSControl_SEG);
       LWORD(ebx) = XMSControl_OFF;
       break;
@@ -2061,8 +2061,8 @@ void fake_int(int cs, int ip)
 
 void fake_int_to(int cs, int ip)
 {
-  fake_int(REG(cs), LWORD(eip));
-  REG(cs) = cs;
+  fake_int(SREG(cs), LWORD(eip));
+  SREG(cs) = cs;
   REG(eip) = ip;
 }
 
@@ -2081,8 +2081,8 @@ void fake_call(int cs, int ip)
 
 void fake_call_to(int cs, int ip)
 {
-  fake_call(REG(cs), LWORD(eip));
-  REG(cs) = cs;
+  fake_call(SREG(cs), LWORD(eip));
+  SREG(cs) = cs;
   REG(eip) = ip;
 }
 
@@ -2102,8 +2102,8 @@ void fake_pusha(void)
   pushw(ssp, sp, LWORD(esi));
   pushw(ssp, sp, LWORD(edi));
   LWORD(esp) -= 16;
-  pushw(ssp, sp, REG(ds));
-  pushw(ssp, sp, REG(es));
+  pushw(ssp, sp, SREG(ds));
+  pushw(ssp, sp, SREG(es));
   LWORD(esp) -= 4;
 }
 
@@ -2111,7 +2111,7 @@ void fake_retf(unsigned pop_count)
 {
   unsigned int ssp, sp;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
   _IP = popw(ssp, sp);
@@ -2123,7 +2123,7 @@ void fake_iret(void)
 {
   unsigned int ssp, sp;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
   _SP += 6;
@@ -2149,7 +2149,7 @@ static void ret_from_int(Bit16u i, void *arg)
   unsigned int ssp, sp;
   u_short flgs;
 
-  ssp = SEGOFF2LINEAR(REG(ss), 0);
+  ssp = SEGOFF2LINEAR(SREG(ss), 0);
   sp = LWORD(esp);
 
   _SP += 6;

@@ -329,7 +329,7 @@ void mouse_ps2bios(void)
     }
     break;
   case 0x0007:
-    m_printf("PS2MOUSE: set device handler %04x:%04x\n", REG(es), LWORD(ebx));
+    m_printf("PS2MOUSE: set device handler %04x:%04x\n", SREG(es), LWORD(ebx));
     mouse.ps2.cs = LWORD(es);
     mouse.ps2.ip = LWORD(ebx);
     HI(ax) = 0;
@@ -1826,7 +1826,7 @@ static void call_int33_mouse_event_handler(void)
 	     mouse_events, mouse.x, mouse.y, mouse.mickeyx, mouse.mickeyy,
 	     LWORD(ebx));
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
-    REG(ds) = mouse.cs;		/* put DS in user routine */
+    SREG(ds) = mouse.cs;		/* put DS in user routine */
     do_call_back(mouse.cs, mouse.ip);
     REGS = saved_regs;
 

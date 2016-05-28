@@ -755,7 +755,7 @@ xms_move_EMB(void)
   unsigned int src, dest;
   struct EMM e;
 
-  MEMCPY_2UNIX(&e, SEGOFF2LINEAR(REG(ds), LWORD(esi)), sizeof e);
+  MEMCPY_2UNIX(&e, SEGOFF2LINEAR(SREG(ds), LWORD(esi)), sizeof e);
   x_printf("XMS move extended memory block\n");
   show_emm(e);
 
