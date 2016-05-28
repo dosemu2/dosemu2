@@ -3685,10 +3685,12 @@ dos_fs_redirect(state_t *state)
 	  SETWORD(&(state->eax), doserrno);
 	  return (FALSE);
 	}
+#if 0
         if (access(fpath, W_OK) == -1) {
           SETWORD(&(state->eax), ACCESS_DENIED);
           return (FALSE);
         }
+#endif
         if (unlink(fpath) != 0) {
           Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
           if (errno == EACCES) {
@@ -3709,13 +3711,17 @@ dos_fs_redirect(state_t *state)
 	if ((de->mode & S_IFMT) == S_IFREG) {
 	  strcpy(fpath + cnt, de->d_name);
 	  if (find_file(fpath, &st, drive, NULL)) {
+#if 0
             if (access(fpath, W_OK) == -1) {
               errcode = EACCES;
             } else {
               errcode = unlink(fpath) ? errno : 0;
             }
+#else
+            errcode = unlink(fpath);
+#endif
             if (errcode != 0) {
-              Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errcode), fpath));
+              Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
             } else {
               Debug0((dbg_fd, "Deleted %s\n", fpath));
             }

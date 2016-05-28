@@ -803,15 +803,18 @@ static int wildcard_delete(char *fpath, int drive)
 
 			if ((dirattr >> 8) & DIRECTORY)
 				continue;
-
+#if 0
 			if (access(fpath, W_OK) == -1) {
 				errcode = EACCES;
 			} else {
 				errcode = unlink(fpath) ? errno : 0;
 			}
+#else
+			errcode = unlink(fpath);
+#endif
 			if (errcode != 0) {
 				Debug0((dbg_fd, "Delete failed(%s) %s\n",
-					strerror(errcode), fpath));
+					strerror(errno), fpath));
 				free(pattern);
 				dos_closedir(dir);
 				if (errcode == EACCES) {
