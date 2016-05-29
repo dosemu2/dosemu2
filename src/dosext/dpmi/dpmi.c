@@ -740,7 +740,7 @@ int ConvertSegmentToDescriptor(unsigned short segment)
     }
   D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
-  if (SetSelector(selector, baseaddr, 0xffff, DPMI_CLIENT.is_32,
+  if (SetSelector(selector, baseaddr, 0xffff, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   ldt_entry = selector >> 3;
   Segments[ldt_entry].cstd = 1;

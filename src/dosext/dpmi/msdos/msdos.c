@@ -224,6 +224,7 @@ unsigned short ConvertSegmentToDescriptor_lim(unsigned short segment,
 	return 0;
     SetSegmentBaseAddress(sel, segment << 4);
     SetSegmentLimit(sel, limit);
+    SetDescriptorAccessRights(sel, 0xf2);
     m->seg = segment;
     m->lim = limit;
     m->sel = sel;
