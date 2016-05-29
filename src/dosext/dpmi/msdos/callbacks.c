@@ -334,16 +334,16 @@ void msdos_api_winos2_call(struct sigcontext *scp, void *arg)
 static void (*rmcb_handlers[])(struct sigcontext *scp,
 		 const struct RealModeCallStructure *rmreg,
 		 int is_32, void *arg) = {
-    rmcb_handler,
-    mouse_callback,
-    ps2_mouse_callback,
+    [RMCB_IO] = rmcb_handler,
+    [RMCB_MS] = mouse_callback,
+    [RMCB_PS2MS] = ps2_mouse_callback,
 };
 
 static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg, int is_32) = {
-    rmcb_ret_handler,
-    rmcb_ret_handler,
-    rmcb_ret_from_ps2,
+    [RMCB_IO] = rmcb_ret_handler,
+    [RMCB_MS] = rmcb_ret_handler,
+    [RMCB_PS2MS] = rmcb_ret_from_ps2,
 };
 
 void callbacks_init(void *(*cbk_args)(int), far_t *r_cbks)
