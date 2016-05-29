@@ -194,8 +194,10 @@ static int video_init(void)
 #ifdef SDL_SUPPORT
     load_plugin("sdl");
     Video = video_get("sdl");
-    if (Video)
+    if (Video) {
       config.X = 1;
+      config.sdl = 1;
+    }
 #endif
   }
 
@@ -240,6 +242,7 @@ static int video_init(void)
     }
     v_printf("VID: Video set to Video_term\n");
     Video = video_get("term");       /* S-Lang */
+    config.term = 1;
 #endif
   }
 
