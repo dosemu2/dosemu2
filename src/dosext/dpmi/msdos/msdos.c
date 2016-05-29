@@ -60,7 +60,6 @@ static unsigned short EMM_SEG;
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
 #define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
 
-enum { RMCB_IO, RMCB_MS, RMCB_PS2MS, MAX_RMCBS };
 #define MSDOS_MAX_MEM_ALLOCS 1024
 #define MAX_CNVS 16
 struct seg_sel {
@@ -90,21 +89,6 @@ static int msdos_client_num = 0;
 static int ems_frame_mapped;
 static int ems_handle;
 #define MSDOS_EMS_PAGES 4
-
-static void (*rmcb_handlers[])(struct sigcontext *scp,
-		 const struct RealModeCallStructure *rmreg,
-		 int is_32, void *arg) = {
-    rmcb_handler,
-    mouse_callback,
-    ps2_mouse_callback,
-};
-
-static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
-		 struct RealModeCallStructure *rmreg, int is_32) = {
-    rmcb_ret_handler,
-    rmcb_ret_handler,
-    rmcb_ret_from_ps2,
-};
 
 static void *cbk_args(int idx)
 {
@@ -164,8 +148,7 @@ void msdos_init(int is_32, unsigned short mseg)
     }
     if (msdos_client_num == 1 ||
 	    msdos_client[msdos_client_num - 2].is_32 != is_32) {
-	allocate_realmode_callbacks(rmcb_handlers, cbk_args, rmcb_ret_handlers,
-		MAX_RMCBS, MSDOS_CLIENT.rmcbs);
+	callbacks_init(cbk_args, MSDOS_CLIENT.rmcbs);
 	MSDOS_CLIENT.rmcb_alloced = 1;
     } else {
 	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 2].rmcbs,

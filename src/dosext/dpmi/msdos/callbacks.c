@@ -27,6 +27,7 @@
 #include "dosemu_debug.h"
 #include "dos2linux.h"
 #include "dpmi.h"
+#include "msdoshlp.h"
 #include "callbacks.h"
 
 static dosaddr_t io_buffer;
@@ -123,13 +124,13 @@ static void do_retf(struct RealModeCallStructure *rmreg, int rmask)
     RMREG(sp) += 4;
 }
 
-void rmcb_ret_handler(struct sigcontext *scp,
+static void rmcb_ret_handler(struct sigcontext *scp,
 		      struct RealModeCallStructure *rmreg, int is_32)
 {
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
-void rmcb_ret_from_ps2(struct sigcontext *scp,
+static void rmcb_ret_from_ps2(struct sigcontext *scp,
 		       struct RealModeCallStructure *rmreg, int is_32)
 {
     if (is_32)
@@ -161,7 +162,7 @@ static void rm_to_pm_regs(struct sigcontext *scp,
 	_ebp = RMLWORD(bp);
 }
 
-void mouse_callback(struct sigcontext *scp,
+static void mouse_callback(struct sigcontext *scp,
 		    const struct RealModeCallStructure *rmreg,
 		    int is_32, void *arg)
 {
@@ -192,7 +193,7 @@ void mouse_callback(struct sigcontext *scp,
     _eip = mouseCallBack->offset;
 }
 
-void ps2_mouse_callback(struct sigcontext *scp,
+static void ps2_mouse_callback(struct sigcontext *scp,
 			const struct RealModeCallStructure *rmreg,
 			int is_32, void *arg)
 {
@@ -250,7 +251,7 @@ void xms_call(struct RealModeCallStructure *rmreg, void *arg)
     do_call_to(XMS_call->segment, XMS_call->offset, rmreg, rmask);
 }
 
-void rmcb_handler(struct sigcontext *scp,
+static void rmcb_handler(struct sigcontext *scp,
 		  const struct RealModeCallStructure *rmreg, int is_32,
 		  void *arg)
 {
@@ -328,4 +329,25 @@ void msdos_api_winos2_call(struct sigcontext *scp, void *arg)
     } else {
 	_eflags |= CF;
     }
+}
+
+static void (*rmcb_handlers[])(struct sigcontext *scp,
+		 const struct RealModeCallStructure *rmreg,
+		 int is_32, void *arg) = {
+    rmcb_handler,
+    mouse_callback,
+    ps2_mouse_callback,
+};
+
+static void (*rmcb_ret_handlers[])(struct sigcontext *scp,
+		 struct RealModeCallStructure *rmreg, int is_32) = {
+    rmcb_ret_handler,
+    rmcb_ret_handler,
+    rmcb_ret_from_ps2,
+};
+
+void callbacks_init(void *(*cbk_args)(int), far_t *r_cbks)
+{
+    allocate_realmode_callbacks(rmcb_handlers, cbk_args, rmcb_ret_handlers,
+	MAX_RMCBS, r_cbks);
 }
