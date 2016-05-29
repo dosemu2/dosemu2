@@ -38,13 +38,17 @@
 
 
 struct msdos_ops {
-    void (*api_call)(struct sigcontext *scp);
-    void (*api_winos2_call)(struct sigcontext *scp);
-    void (*xms_call)(struct RealModeCallStructure *rmreg);
+    void (*api_call)(struct sigcontext *scp, void *arg);
+    void *api_arg;
+    void (*api_winos2_call)(struct sigcontext *scp, void *arg);
+    void *api_winos2_arg;
+    void (*xms_call)(struct RealModeCallStructure *rmreg, void *arg);
+    void *xms_arg;
     void (**rmcb_handler)(struct sigcontext *scp,
-	const struct RealModeCallStructure *rmreg);
+	const struct RealModeCallStructure *rmreg, int is_32, void *arg);
+    void *(*rmcb_args)(int idx);
     void (**rmcb_ret_handler)(struct sigcontext *scp,
-	struct RealModeCallStructure *rmreg);
+	struct RealModeCallStructure *rmreg, int is_32);
     u_short cb_es;
     u_int cb_edi;
 };
@@ -143,14 +147,16 @@ static int get_cb(int num)
 }
 
 int allocate_realmode_callbacks(void (*handler[])(struct sigcontext *,
-	const struct RealModeCallStructure *),
+	const struct RealModeCallStructure *, int, void *),
+	void *(*args)(int),
 	void (*ret_handler[])(struct sigcontext *,
-	struct RealModeCallStructure *),
+	struct RealModeCallStructure *, int),
 	int num, far_t *r_cbks)
 {
     int i;
     assert(num <= 3);
     msdos.rmcb_handler = handler;
+    msdos.rmcb_args = args;
     msdos.rmcb_ret_handler = ret_handler;
     for (i = 0; i < num; i++)
 	r_cbks[i] = DPMI_allocate_realmode_callback(dpmi_sel(),
@@ -166,17 +172,19 @@ void free_realmode_callbacks(far_t *cbks, int num)
 }
 
 struct pmaddr_s get_pm_handler(enum MsdOpIds id,
-	void (*handler)(struct sigcontext *))
+	void (*handler)(struct sigcontext *, void *), void *arg)
 {
     struct pmaddr_s ret;
     switch (id) {
     case API_CALL:
 	msdos.api_call = handler;
+	msdos.api_arg = arg;
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_API_call);
 	break;
     case API_WINOS2_CALL:
 	msdos.api_winos2_call = handler;
+	msdos.api_winos2_arg = arg;
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_API_WINOS2_call);
 	break;
@@ -189,12 +197,13 @@ struct pmaddr_s get_pm_handler(enum MsdOpIds id,
 }
 
 struct pmaddr_s get_pmrm_handler(enum MsdOpIds id, void (*handler)(
-	struct RealModeCallStructure *))
+	struct RealModeCallStructure *, void *), void *arg)
 {
     struct pmaddr_s ret;
     switch (id) {
     case XMS_CALL:
 	msdos.xms_call = handler;
+	msdos.xms_arg = arg;
 	ret.selector = dpmi_sel();
 	ret.offset = DPMI_SEL_OFF(MSDOS_XMS_call);
 	break;
@@ -229,9 +238,9 @@ far_t get_exec_helper(void)
 void msdos_pm_call(struct sigcontext *scp, int is_32)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_call)) {
-	msdos.api_call(scp);
+	msdos.api_call(scp, msdos.api_arg);
     } else if (_eip == 1 + DPMI_SEL_OFF(MSDOS_API_WINOS2_call)) {
-	msdos.api_winos2_call(scp);
+	msdos.api_winos2_call(scp, msdos.api_winos2_arg);
     } else if (_eip >= 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_start) &&
 	    _eip < 1 + DPMI_SEL_OFF(MSDOS_rmcb_call_end)) {
 	int idx, ret;
@@ -260,7 +269,7 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 	if (ret) {
 	    struct RealModeCallStructure *rmreg =
 		    SEL_ADR_CLNT(msdos.cb_es, msdos.cb_edi, is_32);
-	    msdos.rmcb_ret_handler[idx](scp, rmreg);
+	    msdos.rmcb_ret_handler[idx](scp, rmreg, is_32);
 	    _es = msdos.cb_es;
 	    _edi = msdos.cb_edi;
 	} else {
@@ -268,7 +277,7 @@ void msdos_pm_call(struct sigcontext *scp, int is_32)
 		    SEL_ADR_CLNT(_es, _edi, is_32);
 	    msdos.cb_es = _es;
 	    msdos.cb_edi = _edi;
-	    msdos.rmcb_handler[idx](scp, rmreg);
+	    msdos.rmcb_handler[idx](scp, rmreg, is_32, msdos.rmcb_args(idx));
 	}
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
@@ -279,7 +288,7 @@ int msdos_pre_pm(struct sigcontext *scp,
 		 struct RealModeCallStructure *rmreg)
 {
     if (_eip == 1 + DPMI_SEL_OFF(MSDOS_XMS_call)) {
-	msdos.xms_call(rmreg);
+	msdos.xms_call(rmreg, msdos.xms_arg);
     } else {
 	error("MSDOS: unknown pm call %#x\n", _eip);
 	return 0;
