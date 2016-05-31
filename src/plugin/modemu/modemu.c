@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -27,6 +27,9 @@
 #include "commx.h"	/*(commxForkExec)*/
 #include "cmdarg.h"	/*cmdarg*/
 
+
+enum ModemMode { NOMODE, CMDMODE, DIAL, ONLINE };
+static enum ModemMode mmode;
 
 /* socket input processing loop */
 
@@ -218,7 +221,6 @@ ttyReadLoop(void)
     }
 }
 
-
 /* online mode main loop */
 
 static int
@@ -226,15 +228,6 @@ onlineMode(void)
 {
     fd_set rfds,wfds;
     struct timeval t;
-
-    sockBufRReset();
-    sockBufWReset();
-    ttyBufRReset();
-    /*ttyBufWReset();*/
-    lineBufReset();
-    escSeqReset();
-
-    if (!telOpt.sentReqs && !atcmd.pr) telOptSendReqs();
 
     t.tv_sec = 0;
     while (sockIsAlive()) {
@@ -360,12 +353,10 @@ static Cmdstat
 cmdMode(void)
 {
     fd_set rfds,wfds;
+    struct timeval to = {};
+    int selrt;
     Cmdstat stat;
 
-    cmdBufReset();
-    ttyBufRReset();
-    /*ttyBufWReset();*/
-    
     for (;;) {
 	FD_ZERO(&rfds);
 	FD_ZERO(&wfds);
@@ -373,9 +364,16 @@ cmdMode(void)
 	if (ttyBufWReady()) FD_SET(tty.rfd, &rfds); /*flow control*/
 	if (ttyBufWHasData()) FD_SET(tty.wfd, &wfds);
 
-	if (select(tty.wfd+1, &rfds, &wfds, NULL, NULL) < 0) {
-	    if (errno != EINTR) perror("select()");
-	    continue;
+	selrt = select(tty.wfd+1, &rfds, &wfds, NULL, &to);
+	switch (selrt) {
+	case -1:
+	    if (errno != EINTR) {
+		perror("select()");
+		return CMDST_ERROR;
+	    }
+	    return CMDST_OK;
+	case 0:
+	    return CMDST_OK;
 	}
 
 	if (FD_ISSET(tty.wfd, &wfds)) {
@@ -540,8 +538,46 @@ getPtyMaster(char *tty10, char *tty01)
 }
 #endif
 
-enum ModemMode { NOMODE, CMDMODE, DIAL, ONLINE };
-static enum ModemMode mmode;
+static void start_online(void)
+{
+
+    sockBufRReset();
+    sockBufWReset();
+    ttyBufRReset();
+    /*ttyBufWReset();*/
+    lineBufReset();
+    escSeqReset();
+
+    if (!telOpt.sentReqs && !atcmd.pr) telOptSendReqs();
+}
+
+static void start_dial(void)
+{
+}
+
+static void start_cmd(void)
+{
+    cmdBufReset();
+    ttyBufRReset();
+    /*ttyBufWReset();*/
+}
+
+static void do_mode_switch(enum ModemMode old_mode, enum ModemMode new_mode)
+{
+    switch (new_mode) {
+    case ONLINE:
+	start_online();
+	break;
+    case DIAL:
+	start_dial();
+	break;
+    case CMDMODE:
+	start_cmd();
+	break;
+    case NOMODE:
+	break;
+    }
+}
 
 static enum ModemMode do_modem(enum ModemMode mode)
 {
@@ -563,6 +599,10 @@ static enum ModemMode do_modem(enum ModemMode mode)
 	    return CMDMODE;
 	}
 	return ONLINE;
+    case CMDST_OK:
+	return CMDMODE;
+    case CMDST_ERROR:
+	return NOMODE;
     default:;
     }
 
@@ -592,6 +632,8 @@ static enum ModemMode do_modem(enum ModemMode mode)
 	return CMDMODE;
     default:;
     }
+
+    return NOMODE;
   }
 
   return NOMODE;
@@ -600,6 +642,7 @@ static enum ModemMode do_modem(enum ModemMode mode)
 int
 main(int argc, const char *argv[])
 {
+    enum ModemMode new_mode;
 #ifdef SOCKS
     SOCKSinit(argv[0]);
 #endif
@@ -641,9 +684,14 @@ main(int argc, const char *argv[])
     atcmdInit(); /* initialize atcmd */
 
     mmode = NOMODE;
-    do
-	mmode = do_modem(mmode);
-    while (mmode != NOMODE);
+    do {
+	new_mode = do_modem(mmode);
+	if (new_mode != mmode) {
+	    do_mode_switch(mmode, new_mode);
+	    mmode = new_mode;
+	}
+	usleep(10000);
+    } while (mmode != NOMODE);
 
     return 1;
 }
