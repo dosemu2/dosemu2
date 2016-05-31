@@ -540,6 +540,62 @@ getPtyMaster(char *tty10, char *tty01)
 }
 #endif
 
+enum ModemMode { NOMODE, CMDMODE, DIAL, ONLINE };
+static enum ModemMode mmode;
+
+static enum ModemMode do_modem(enum ModemMode mode)
+{
+  switch (mode) {
+  case NOMODE:
+    return CMDMODE;
+
+  case CMDMODE:
+    switch (cmdMode()) {
+    case CMDST_ATD:
+	if (sockIsAlive()) {
+	    putTtyCmdstat(CMDST_ERROR);
+	    return CMDMODE;
+	}
+	return DIAL;
+    case CMDST_ATO:
+	if (!sockIsAlive()) {
+	    putTtyCmdstat(CMDST_NOCARRIER);
+	    return CMDMODE;
+	}
+	return ONLINE;
+    default:;
+    }
+
+    return NOMODE;
+
+  case DIAL:
+    telOptReset(); /* before sockDial(), which may change telOpt.xx */
+    switch (sockDial()) {
+    case 0: /* connect */
+	return ONLINE;
+    case 1: /* error */
+	putTtyCmdstat(CMDST_NOCARRIER);
+	return CMDMODE;
+    default:;
+    }
+
+    return NOMODE;
+
+  case ONLINE:
+    putTtyCmdstat(CMDST_CONNECT);
+    switch (onlineMode()) {
+    case 0: /* connection lost */
+	putTtyCmdstat(CMDST_NOCARRIER);
+	return CMDMODE;
+    case 1: /* +++ */
+	putTtyCmdstat(CMDST_OK);
+	return CMDMODE;
+    default:;
+    }
+  }
+
+  return NOMODE;
+}
 
 int
 main(int argc, const char *argv[])
@@ -584,49 +640,10 @@ main(int argc, const char *argv[])
     telOptInit();
     atcmdInit(); /* initialize atcmd */
 
- CMDMODE:
-    switch (cmdMode()) {
-    case CMDST_ATD:
-	if (sockIsAlive()) {
-	    putTtyCmdstat(CMDST_ERROR);
-	    goto CMDMODE;
-	}
-	goto DIAL;
-    case CMDST_ATO:
-	if (!sockIsAlive()) {
-	    putTtyCmdstat(CMDST_NOCARRIER);
-	    goto CMDMODE;
-	}
-	goto ONLINE;
-    default:;
-    }
-
-    return 1;
-
- DIAL:
-    telOptReset(); /* before sockDial(), which may change telOpt.xx */
-    switch (sockDial()) {
-    case 0: /* connect */
-	goto ONLINE;
-    case 1: /* error */
-	putTtyCmdstat(CMDST_NOCARRIER);
-	goto CMDMODE;
-    default:;
-    }
-
-    return 1;
-
- ONLINE:
-    putTtyCmdstat(CMDST_CONNECT);
-    switch (onlineMode()) {
-    case 0: /* connection lost */
-	putTtyCmdstat(CMDST_NOCARRIER);
-	goto CMDMODE;
-    case 1: /* +++ */
-	putTtyCmdstat(CMDST_OK);
-	goto CMDMODE;
-    default:;
-    }	
+    mmode = NOMODE;
+    do
+	mmode = do_modem(mmode);
+    while (mmode != NOMODE);
 
     return 1;
 }
