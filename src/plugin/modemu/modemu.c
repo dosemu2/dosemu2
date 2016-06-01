@@ -619,7 +619,8 @@ static enum ModemMode do_modem(enum ModemMode mode)
     case 1: /* error */
 	putTtyCmdstat(CMDST_NOCARRIER);
 	return CMDMODE;
-    default:;
+    case 2: /* connection in progress */
+	return DIAL;
     }
 
     return NOMODE;

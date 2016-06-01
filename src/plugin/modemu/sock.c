@@ -45,13 +45,13 @@ sockShutdown(void)
 #define DEFAULT_PORT 23
 
 static struct sockaddr_in sa;
-static struct timeval t;
+static struct timeval to;
 
 int sockConnectStart(void)
 {
     struct hostent *hep;
     struct servent *sep;
-    struct timeval to;
+    struct timeval t;
     int tmp;
 
     memset(&sa, 0, sizeof(sa));
@@ -125,76 +125,59 @@ int
 sockDial(void)
 {
     int tmp;
+    /* nonblocking connect. */
+    /* SOCKS version 4.2 or higher is required for SOCKS support */
+    fd_set rfds, wfds;
+    struct timeval tv = {};
+    struct timeval t;
 
-#ifdef NO_DIAL_CANCELING
-    /* blocking connect. */
-    if (connect(sock.fd, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+
+    /* SOCKS Rselect() first checks if connected, then select(). */
+    /* so, select() with large timeval is inappropriate */
+    if (!atcmd.pd) FD_SET(tty.rfd, &rfds);
+    FD_SET(sock.fd, &wfds);
+RETRY:
+    if (select(sock.fd+1, &rfds, &wfds, NULL, &tv) < 0) {
+	if (errno == EINTR) goto RETRY;
+	perror("select()");
 	sockShutdown();
-	perror("connect()");
 	return 1;
     }
-    sock.alive = 1;
-    return 0;
-#else /*!ifdef NO_DIAL_CANCELING*/
-    {
-	/* nonblocking connect. */
-	/* SOCKS version 4.2 or higher is required for SOCKS support */
-	fd_set rfds, wfds;
-	struct timeval tv;
-	struct timeval to;
-
-	FD_ZERO(&rfds);
-	FD_ZERO(&wfds);
-	tv.tv_sec = 0;
-
-	/* SOCKS Rselect() first checks if connected, then select(). */
-	/* so, select() with large timeval is inappropriate */
-	do {
-	    if (!atcmd.pd) FD_SET(tty.rfd, &rfds);
-	    FD_SET(sock.fd, &wfds);
-	    tv.tv_usec = 200*1000; /* 0.2sec period */
-
-	RETRY:
-	    if (select(sock.fd+1, &rfds, &wfds, NULL, &tv) < 0) {
-		if (errno == EINTR) goto RETRY;
-		perror("select()");
-		sockShutdown();
-		return 1;
-	    }
 #if 0
-	    verboseOut(VERB_MISC, "tty=%d, sock=%d\r\n",
+    verboseOut(VERB_MISC, "tty=%d, sock=%d\r\n",
 		    FD_ISSET(tty.rfd, &rfds),
 		    FD_ISSET(sock.fd, &wfds));
 #endif
-	    if (FD_ISSET(tty.rfd, &rfds)) {
-		sockShutdown();
-		verboseOut(VERB_MISC,
+    if (FD_ISSET(tty.rfd, &rfds)) {
+	sockShutdown();
+	verboseOut(VERB_MISC,
 			   "Connecting attempt canceled by user input.\r\n");
-		return 1;
-	    }
-	    /* check if really connected or not */
+	return 1;
+    }
+    /* check if really connected or not */
 
-	    /*if (FD_ISSET(sock.fd, &wfds)
+    /*if (FD_ISSET(sock.fd, &wfds)
 	      && getpeername(sock.fd, (struct sockaddr *)&sa, &tmp) == 0)*/
 
-	    /* SOCKS requires this check method (ref: What_SOCKS_expects) */
-	    if (FD_ISSET(sock.fd, &wfds)) {
-		if (connect(sock.fd, (struct sockaddr *)&sa, sizeof(sa)) < 0
+    /* SOCKS requires this check method (ref: What_SOCKS_expects) */
+    if (FD_ISSET(sock.fd, &wfds)) {
+	if (connect(sock.fd, (struct sockaddr *)&sa, sizeof(sa)) < 0
 		    && errno != EISCONN) {
 		    perror("connect()-2");
 		    sockShutdown();
 		    return 1;
-		}
-		tmp = 0; ioctl(sock.fd, FIONBIO, &tmp); /* blocking i/o */
-		sock.alive = 1;
-		return 0;
-	    }
-
-	    gettimeofday(&t, NULL);
-	} while (timevalCmp(&t, &to) < 0);
-	sockShutdown();
-	verboseOut(VERB_MISC, "Connecting attempt timed out.\r\n");
-	return 1; /* timeout */
+	}
+	tmp = 0; ioctl(sock.fd, FIONBIO, &tmp); /* blocking i/o */
+	sock.alive = 1;
+	return 0;
     }
-#endif /*ifdef NO_DIAL_CANCELING*/
+
+    gettimeofday(&t, NULL);
+    if (timevalCmp(&t, &to) < 0)
+	return 2;
+    sockShutdown();
+    verboseOut(VERB_MISC, "Connecting attempt timed out.\r\n");
+    return 1; /* timeout */
 }
