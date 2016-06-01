@@ -643,17 +643,14 @@ static enum ModemMode do_modem(enum ModemMode mode)
   return NOMODE;
 }
 
-int
-main(int argc, const char *argv[])
-{
-    enum ModemMode new_mode;
-#ifdef SOCKS
-    SOCKSinit(argv[0]);
+#ifdef DOSEMU
+static
 #endif
-    cmdargParse(argv);
+int init_modemu(void)
+{
     switch (cmdarg.ttymode) {
 #ifdef HAVE_GRANTPT
-	char * ptyslave;
+    char * ptyslave;
     case CA_SHOWDEV:
 	tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
 	printf("%s\n", ptyslave);
@@ -687,17 +684,25 @@ main(int argc, const char *argv[])
     telOptInit();
     atcmdInit(); /* initialize atcmd */
 
+    return 1;
+}
+
+#ifdef DOSEMU
+static
+#endif
+void run_modemu(void)
+{
+    enum ModemMode new_mode;
+
     mmode = NOMODE;
     do {
 	new_mode = do_modem(mmode);
 	if (new_mode != mmode) {
 	    int err = do_mode_switch(mmode, new_mode);
 	    if (err)
-		return err;
+		break;
 	    mmode = new_mode;
 	}
 	usleep(10000);
     } while (mmode != NOMODE);
-
-    return 1;
 }

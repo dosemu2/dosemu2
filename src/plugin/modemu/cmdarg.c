@@ -64,3 +64,19 @@ cmdargParse(const char **argv)
     fprintf(stderr, "'-%c' requires an argument.\n", (*--argv)[1]);
     exit(1);
 }
+
+int init_modemu(void);
+void run_modemu(void);
+
+int
+main(int argc, const char *argv[])
+{
+#ifdef SOCKS
+    SOCKSinit(argv[0]);
+#endif
+    cmdargParse(argv);
+    if (!init_modemu())
+	return 0;
+    run_modemu();
+    return 0;
+}
