@@ -1,5 +1,6 @@
 #include <stdio.h>	/*stderr*/
 #include <stdlib.h>
+#include <unistd.h>
 #include "cmdarg.h"	/*cmdarg*/
 #include "defs.h"	/*VERSION_...*/
 
@@ -66,17 +67,23 @@ cmdargParse(const char **argv)
 }
 
 int init_modemu(void);
-void run_modemu(void);
+int run_modemu(void);
 
 int
 main(int argc, const char *argv[])
 {
+    int ret;
+
 #ifdef SOCKS
     SOCKSinit(argv[0]);
 #endif
     cmdargParse(argv);
     if (!init_modemu())
 	return 0;
-    run_modemu();
-    return 0;
+    do {
+	ret = run_modemu();
+	usleep(10000);
+    } while (ret == 2);
+
+    return ret;
 }

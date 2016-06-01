@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+#define _XOPEN_SOURCE
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -684,25 +684,27 @@ int init_modemu(void)
     telOptInit();
     atcmdInit(); /* initialize atcmd */
 
+    mmode = NOMODE;
+
     return 1;
 }
 
 #ifdef DOSEMU
 static
 #endif
-void run_modemu(void)
+int run_modemu(void)
 {
     enum ModemMode new_mode;
 
-    mmode = NOMODE;
-    do {
-	new_mode = do_modem(mmode);
-	if (new_mode != mmode) {
-	    int err = do_mode_switch(mmode, new_mode);
-	    if (err)
-		break;
-	    mmode = new_mode;
-	}
-	usleep(10000);
-    } while (mmode != NOMODE);
+    new_mode = do_modem(mmode);
+    if (new_mode != mmode) {
+	int err = do_mode_switch(mmode, new_mode);
+	if (err)
+	    return 1;
+	mmode = new_mode;
+    }
+
+    if (new_mode != NOMODE)
+	return 2;
+    return 0;
 }
