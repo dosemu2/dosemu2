@@ -3,6 +3,9 @@
 #include <unistd.h>
 #include "cmdarg.h"	/*cmdarg*/
 #include "defs.h"	/*VERSION_...*/
+#include "ttybuf.h"
+#include "commx.h"
+#include "stty.h"
 
 static const char *argv0;
 
@@ -66,8 +69,47 @@ cmdargParse(const char **argv)
     exit(1);
 }
 
-int init_modemu(void);
+void init_modemu(void);
 int run_modemu(void);
+int getPtyMaster(char **line_return);
+int openPtyMaster(const char *dev);
+
+static int pre_init_modemu(void)
+{
+    switch (cmdarg.ttymode) {
+#ifdef HAVE_GRANTPT
+    char * ptyslave;
+    case CA_SHOWDEV:
+	tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
+	printf("%s\n", ptyslave);
+	return 0;
+    case CA_COMMX:
+	tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
+	commxForkExec(cmdarg.commx, ptyslave);
+	break;
+#else
+	char c10, c01;
+    case CA_SHOWDEV:
+	tty.rfd = tty.wfd = getPtyMaster(&c10, &c01);
+	printf("%c%c\n", c10, c01);
+	return 0;
+    case CA_COMMX:
+	tty.rfd = tty.wfd = getPtyMaster(&c10, &c01);
+	commxForkExec(cmdarg.commx, c10, c01);
+	break;
+#endif
+    case CA_STDINOUT:
+	tty.rfd = 0;
+	tty.wfd = 1;
+	setTty();
+	break;
+    case CA_DEVGIVEN:
+	tty.rfd = tty.wfd = openPtyMaster(cmdarg.dev);
+	break;
+    }
+
+    return 1;
+}
 
 int
 main(int argc, const char *argv[])
@@ -78,8 +120,9 @@ main(int argc, const char *argv[])
     SOCKSinit(argv[0]);
 #endif
     cmdargParse(argv);
-    if (!init_modemu())
+    if (!pre_init_modemu())
 	return 0;
+    init_modemu();
     do {
 	ret = run_modemu();
 	usleep(10000);

@@ -402,7 +402,10 @@ cmdMode(void)
 
 
 /* open a pty */
-static int
+#ifdef DOSEMU
+static
+#endif
+int
 openPtyMaster(const char *dev)
 {
     int fd;
@@ -417,7 +420,10 @@ openPtyMaster(const char *dev)
 
 #ifdef HAVE_GRANTPT
 
-static int
+#ifdef DOSEMU
+static
+#endif
+int
 getPtyMaster(char **line_return)
 {
     int rc;
@@ -646,47 +652,13 @@ static enum ModemMode do_modem(enum ModemMode mode)
 #ifdef DOSEMU
 static
 #endif
-int init_modemu(void)
+void init_modemu(void)
 {
-    switch (cmdarg.ttymode) {
-#ifdef HAVE_GRANTPT
-    char * ptyslave;
-    case CA_SHOWDEV:
-	tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
-	printf("%s\n", ptyslave);
-	return 0;
-    case CA_COMMX:
-	tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
-	commxForkExec(cmdarg.commx, ptyslave);
-	break;
-#else
-	char c10, c01;
-    case CA_SHOWDEV:
-	tty.rfd = tty.wfd = getPtyMaster(&c10, &c01);
-	printf("%c%c\n", c10, c01);
-	return 0;
-    case CA_COMMX:
-	tty.rfd = tty.wfd = getPtyMaster(&c10, &c01);
-	commxForkExec(cmdarg.commx, c10, c01);
-	break;
-#endif
-    case CA_STDINOUT:
-	tty.rfd = 0;
-	tty.wfd = 1;
-	setTty();
-	break;
-    case CA_DEVGIVEN:
-	tty.rfd = tty.wfd = openPtyMaster(cmdarg.dev);
-	break;
-    }
-
     ttyBufWReset();
     telOptInit();
     atcmdInit(); /* initialize atcmd */
 
     mmode = NOMODE;
-
-    return 1;
 }
 
 #ifdef DOSEMU
