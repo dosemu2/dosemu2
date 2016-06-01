@@ -11,3 +11,4 @@ void
 sockShutdown(void);
 int
 sockDial(void);
+int sockConnectStart(void);

@@ -44,12 +44,14 @@ sockShutdown(void)
 
 #define DEFAULT_PORT 23
 
-int
-sockDial(void)
+static struct sockaddr_in sa;
+static struct timeval t;
+
+int sockConnectStart(void)
 {
-    struct sockaddr_in sa;
     struct hostent *hep;
     struct servent *sep;
+    struct timeval to;
     int tmp;
 
     memset(&sa, 0, sizeof(sa));
@@ -102,6 +104,28 @@ sockDial(void)
 	return 1;
     }
 
+    tmp = 1; ioctl(sock.fd, FIONBIO, &tmp); /* non-blocking i/o */
+
+    /* but Term's connect() blocks here... */
+    if (connect(sock.fd, (struct sockaddr *)&sa, sizeof(sa)) < 0
+	&& errno != EINPROGRESS) {
+	perror("connect()");
+	sockShutdown();
+	return 1;
+    }
+
+    timevalSet10ms(&t, atcmd.s[7] * 100); /* S7 sec */
+    gettimeofday(&to, NULL);
+    timevalAdd(&to, &t); /* S7 sec after */
+
+    return 0;
+}
+
+int
+sockDial(void)
+{
+    int tmp;
+
 #ifdef NO_DIAL_CANCELING
     /* blocking connect. */
     if (connect(sock.fd, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
@@ -117,25 +141,11 @@ sockDial(void)
 	/* SOCKS version 4.2 or higher is required for SOCKS support */
 	fd_set rfds, wfds;
 	struct timeval tv;
-	struct timeval to, t;
-
-	tmp = 1; ioctl(sock.fd, FIONBIO, &tmp); /* non-blocking i/o */
-
-	/* but Term's connect() blocks here... */
-	if (connect(sock.fd, (struct sockaddr *)&sa, sizeof(sa)) < 0
-	    && errno != EINPROGRESS) {
-	    perror("connect()");
-	    sockShutdown();
-	    return 1;
-	}
+	struct timeval to;
 
 	FD_ZERO(&rfds);
 	FD_ZERO(&wfds);
 	tv.tv_sec = 0;
-
-	timevalSet10ms(&t, atcmd.s[7] * 100); /* S7 sec */
-	gettimeofday(&to, NULL);
-	timevalAdd(&to, &t); /* S7 sec after */
 
 	/* SOCKS Rselect() first checks if connected, then select(). */
 	/* so, select() with large timeval is inappropriate */

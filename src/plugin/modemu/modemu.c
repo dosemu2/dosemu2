@@ -538,7 +538,7 @@ getPtyMaster(char *tty10, char *tty01)
 }
 #endif
 
-static void start_online(void)
+static int start_online(void)
 {
 
     sockBufRReset();
@@ -549,34 +549,37 @@ static void start_online(void)
     escSeqReset();
 
     if (!telOpt.sentReqs && !atcmd.pr) telOptSendReqs();
+
+    return 0;
 }
 
-static void start_dial(void)
+static int start_dial(void)
 {
+    return sockConnectStart();
 }
 
-static void start_cmd(void)
+static int start_cmd(void)
 {
     cmdBufReset();
     ttyBufRReset();
     /*ttyBufWReset();*/
+
+    return 0;
 }
 
-static void do_mode_switch(enum ModemMode old_mode, enum ModemMode new_mode)
+static int do_mode_switch(enum ModemMode old_mode, enum ModemMode new_mode)
 {
     switch (new_mode) {
     case ONLINE:
-	start_online();
-	break;
+	return start_online();
     case DIAL:
-	start_dial();
-	break;
+	return start_dial();
     case CMDMODE:
-	start_cmd();
-	break;
+	return start_cmd();
     case NOMODE:
 	break;
     }
+    return 0;
 }
 
 static enum ModemMode do_modem(enum ModemMode mode)
@@ -687,7 +690,9 @@ main(int argc, const char *argv[])
     do {
 	new_mode = do_modem(mmode);
 	if (new_mode != mmode) {
-	    do_mode_switch(mmode, new_mode);
+	    int err = do_mode_switch(mmode, new_mode);
+	    if (err)
+		return err;
 	    mmode = new_mode;
 	}
 	usleep(10000);
