@@ -1,6 +1,8 @@
 #ifndef CALLBACKS_H
 #define CALLBACKS_H
 
+#include <assert.h>
+
 void msdos_api_call(struct sigcontext *scp, void *arg);
 void msdos_api_winos2_call(struct sigcontext *scp, void *arg);
 void xms_call(struct RealModeCallStructure *rmreg, void *arg);
