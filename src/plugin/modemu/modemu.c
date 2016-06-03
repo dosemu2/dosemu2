@@ -1,4 +1,10 @@
+#ifdef DOSEMU
+#include "init.h"
+#include "emu.h"
+#include "serial.h"
+#else
 #define _XOPEN_SOURCE
+#endif
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -402,9 +408,7 @@ cmdMode(void)
 
 
 /* open a pty */
-#ifdef DOSEMU
-static
-#endif
+#ifndef DOSEMU
 int
 openPtyMaster(const char *dev)
 {
@@ -417,6 +421,7 @@ openPtyMaster(const char *dev)
     }
     return fd;
 }
+#endif
 
 #ifdef HAVE_GRANTPT
 
@@ -680,3 +685,38 @@ int run_modemu(void)
 	return 2;
     return 0;
 }
+
+#ifdef DOSEMU
+static int initialized;
+
+static void modemu_async_callback(void *arg)
+{
+    run_modemu();
+}
+
+char *modemu_init(int num)
+{
+    char *ptyslave;
+
+    if (initialized) {
+	error("Multiple vmodem ports not supported, sorry!\n");
+	return NULL;
+    }
+    initialized++;
+    tty.rfd = tty.wfd = getPtyMaster(&ptyslave);
+    init_modemu();
+    add_to_io_select(tty.rfd, modemu_async_callback, NULL);
+
+    return ptyslave;
+}
+
+void modemu_done(int num)
+{
+    if (!initialized)
+	return;
+    remove_from_io_select(tty.rfd);
+    close(tty.rfd);
+    close(tty.wfd);
+}
+
+#endif
