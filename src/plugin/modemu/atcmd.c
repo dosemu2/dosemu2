@@ -13,6 +13,7 @@
 #include "cmdarg.h"	/*cmdarg*/
 #include "verbose.h"	/*VERB_MISC*/
 
+struct cmdarg cmdarg;
 Atcmd atcmd, atcmdNV;
 
 #ifdef BINMODE_AS_DEFAULT
