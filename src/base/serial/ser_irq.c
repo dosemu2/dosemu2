@@ -337,6 +337,8 @@ void serial_update(int num)
     size = uart_fill(num);
   if (size > 0)
     receive_engine(num, size);		/* Receive operations */
+  else if (RX_BUF_BYTES(num))
+    receive_engine(num, 0);		/* Handle timeouts */
   transmit_engine(num);		/* Transmit operations */
   modstat_engine(num);  	/* Modem Status operations */
 }
