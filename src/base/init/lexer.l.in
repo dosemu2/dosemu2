@@ -525,6 +525,7 @@ baudrate		RETURN(BAUDRATE);
 device			RETURN(DEVICE);
 com                     RETURN(COM);
 virtual			RETURN(VIRTUAL);
+vmodem			RETURN(VMODEM);
 pseudo			RETURN(PSEUDO);
 rtscts			RETURN(RTSCTS);
 low_latency		RETURN(LOWLAT);

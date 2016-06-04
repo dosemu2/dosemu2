@@ -1,0 +1,119 @@
+About...
+--------
+
+			 Modemu Version 0.0.1
+			 ====================
+				   
+		Copyright (c) 1995, 1996 Toru Egashira
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+NOTICE
+------
+
+This program is, as the version number saids, in the ALPHA development
+stage.  Don't expect the next version (if exists) will be compatible
+with this version.  And especially, DON'T EXPECT IT IS SAFE.  (Of
+course, the author thinks this version works well for his purpose --
+BBS access via Internet.)
+
+
+What is Modemu?
+---------------
+
+Modemu is a TELNET client with a modem-like user interface.  It can
+redirect its I/O to a pty so that a comm program can handle the pty as
+a tty with a real modem.
+
+
+Compilation
+-----------
+
+On Linux, just type "make".  Other systems require some changes in
+Makefile and/or sources.  "Make install" is not supported.  Just copy
+the executable file "modemu" to a directory in your $PATH.  Only the
+executable file is required to run.
+
+Making SOCKSified or Termified Modemu also requires changes in
+Makefile.  Revive some commented-out lines and rewrite directory
+specifications to reflect your configurations.
+
+
+Sample Usage
+------------
+
+1) Stand alone usage
+
+  Invoked with no option,
+
+  > modemu
+
+  Modemu reads from standard input and writes to standard output.
+  Input
+
+  > atd"localhost
+
+  (prompt ">" is not shown) and you will see your host's login prompt.
+  When logout, you will get "NO CARRIER" indication.
+  Then input
+
+  > at%q
+
+  to quit Modemu.
+
+2) With a comm program
+
+  (This example uses XC as the comm program. The author haven't tested
+  any other programs.)
+
+  Invoke with "-c" option,
+
+  > modemu -c "xc -l tty%s"
+
+  you see XC runs. Go to the terminal mode and input
+
+  > atd"localhost
+
+  Yes, Modemu makes the comm program a TELNET client.  Now you can use
+  comm program's scripting and file xfer(*) facilities on TELNET.
+
+  To quit Modemu, just quit the comm program.
+
+(*) Almost all file xfer protocols require 8bit through connection,
+which means Modemu must be in the binary transmission mode.  See %B
+command description in man pages.
+
+
+Any Ideas?
+----------
+
+Bug fixes/reports, comments, suggestions and useful usage examples are
+welcome.  Send e-mails to:
+	toru@jms.jeton.or.jp (preferably), or
+	egashira@nwk.CL.nec.co.jp
+
+Messages in Japanese are of course welcome.
+
+
+History
+-------
+
+v0.0 (950406)
+ - Initial public release.
+
+v0.0.1 (960113)
+ - Fixed the "connect()-2: .." bug.
+   Merely the v0.0 of "fix1" applied, thus no new features are added.

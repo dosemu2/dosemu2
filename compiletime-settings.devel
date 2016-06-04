@@ -20,6 +20,7 @@ config {
   plugin_console on
   plugin_svgalib off
   plugin_vde on
+  plugin_modemu on
   target_bits auto
   target_cpu auto
   prefix /usr/local

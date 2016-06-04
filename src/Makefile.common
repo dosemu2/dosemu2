@@ -1,7 +1,7 @@
 LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
-OBJS:=$(CFILES:.c=.o) $(SFILES:.S=.o)
+OBJS:=$(CFILES:.c=.o) $(SFILES:.S=.o) $(GENSRC:.c=.o)
 endif
 
 ifndef DEPENDS
@@ -22,7 +22,7 @@ $(LIB):	$(OBJS)
 .PHONY:	clean realclean lib echo all install default
 
 clean::
-	-rm -f $(OBJS) $(LIB) *~
+	-rm -f $(OBJS) $(LIB) $(GENSRC) *~
 
 realclean::	clean
 	rm -f $(DEPENDS)
