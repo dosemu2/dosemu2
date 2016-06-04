@@ -10,7 +10,7 @@ include $(top_builddir)/Makefile.conf
 CFILES = modemu.c sockbuf.c ttybuf.c stty.c telopt.c sock.c atcmd.c \
 	timeval.c commx.c verbose.c
 ALL_CPPFLAGS += -DDOSEMU
-GENSRC = lex.yy.c
+GENSRC = lex.zz.c
 
 include $(REALTOPDIR)/src/Makefile.common
 
@@ -18,5 +18,5 @@ all: lib
 
 install: all
 
-lex.yy.c:
-	$(LEX) $(LFLAGS) cmdlex.l
+lex.zz.c: cmdlex.l
+	$(LEX) $(LFLAGS) --prefix=zz cmdlex.l
