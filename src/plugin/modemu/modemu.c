@@ -694,6 +694,13 @@ static void modemu_async_callback(void *arg)
     run_modemu();
 }
 
+void modemu_update(int num)
+{
+    if (mmode != DIAL)
+	return;
+    run_modemu();
+}
+
 char *modemu_init(int num)
 {
     char *ptyslave;
