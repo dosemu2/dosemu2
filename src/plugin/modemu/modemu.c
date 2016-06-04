@@ -1,5 +1,4 @@
 #ifdef DOSEMU
-#include "init.h"
 #include "emu.h"
 #include "serial.h"
 #else
@@ -233,11 +232,14 @@ static int
 onlineMode(void)
 {
     fd_set rfds,wfds;
-    struct timeval t;
+    int max_fd, selrt;
+    struct timeval t = {};
 
-    t.tv_sec = 0;
-    while (sockIsAlive()) {
-	struct timeval *tp;
+    while (1) {
+	if (!sockIsAlive()) {
+	    sockShutdown();
+	    return 0;
+	}
 
 	FD_ZERO(&rfds);
 	FD_ZERO(&wfds);
@@ -252,18 +254,24 @@ onlineMode(void)
 	    gettimeofday(&tt, NULL);
 	    if (timevalCmp(&tt, &escSeq.expireT) >= 0) {
 		escSeq.checkSilence = 0;
+		sockShutdown();
 		return 1;
 	    }
-	    t = escSeq.expireT;
-	    timevalSub(&t, &tt);
-	    tp = &t;
-	} else {
-	    tp = NULL; /* infinite */
 	}
 
-	if (select(sock.fd+1, &rfds, &wfds, NULL, tp) < 0) {
-	    if (errno != EINTR) perror("select()");
-	    continue;
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+	max_fd = max(tty.rfd, tty.wfd);
+	max_fd = max(max_fd, sock.fd);
+	selrt = select(max_fd + 1, &rfds, &wfds, NULL, &t);
+	switch (selrt) {
+	case -1:
+	    if (errno != EINTR) {
+		perror("select()");
+		return 0;
+	    }
+	    /* fall thru */
+	case 0:
+	    return 2;
 	}
 
 	if (FD_ISSET(sock.fd, &wfds)) {
@@ -281,7 +289,6 @@ onlineMode(void)
 	    ttyReadLoop();
 	}
     }
-    sockShutdown();
     return 0;
 }
 
@@ -551,7 +558,6 @@ getPtyMaster(char *tty10, char *tty01)
 
 static int start_online(void)
 {
-
     sockBufRReset();
     sockBufWReset();
     ttyBufRReset();
@@ -626,6 +632,7 @@ static enum ModemMode do_modem(enum ModemMode mode)
     telOptReset(); /* before sockDial(), which may change telOpt.xx */
     switch (sockDial()) {
     case 0: /* connect */
+	putTtyCmdstat(CMDST_CONNECT);
 	return ONLINE;
     case 1: /* error */
 	putTtyCmdstat(CMDST_NOCARRIER);
@@ -637,7 +644,6 @@ static enum ModemMode do_modem(enum ModemMode mode)
     return NOMODE;
 
   case ONLINE:
-    putTtyCmdstat(CMDST_CONNECT);
     switch (onlineMode()) {
     case 0: /* connection lost */
 	putTtyCmdstat(CMDST_NOCARRIER);
@@ -645,7 +651,8 @@ static enum ModemMode do_modem(enum ModemMode mode)
     case 1: /* +++ */
 	putTtyCmdstat(CMDST_OK);
 	return CMDMODE;
-    default:;
+    case 2:
+	return ONLINE;
     }
 
     return NOMODE;
@@ -689,7 +696,7 @@ int run_modemu(void)
 #ifdef DOSEMU
 static int initialized;
 
-static void modemu_async_callback(void *arg)
+void modemu_async_callback(void *arg)
 {
     run_modemu();
 }

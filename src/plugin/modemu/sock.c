@@ -1,3 +1,6 @@
+#ifdef DOSEMU
+#include "emu.h"
+#endif
 #ifdef TERMNET
 #include <termnet.h>
 #endif
@@ -40,6 +43,9 @@ void
 sockShutdown(void)
 {
     if (sock.fd <= 0) return;
+#ifdef DOSEMU
+    remove_from_io_select(sock.fd);
+#endif
     shutdown(sock.fd, 2);
     sockClose();
 }
@@ -173,6 +179,9 @@ RETRY:
 	}
 	tmp = 0; ioctl(sock.fd, FIONBIO, &tmp); /* blocking i/o */
 	sock.alive = 1;
+#ifdef DOSEMU
+	add_to_io_select(sock.fd, modemu_async_callback, NULL);
+#endif
 	return 0;
     }
 

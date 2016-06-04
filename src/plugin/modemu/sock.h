@@ -13,3 +13,7 @@ sockShutdown(void);
 int
 sockDial(void);
 int sockConnectStart(void);
+
+#ifdef DOSEMU
+void modemu_async_callback(void *arg);
+#endif
